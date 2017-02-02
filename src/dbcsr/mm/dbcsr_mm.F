@@ -34,12 +34,9 @@ MODULE dbcsr_mm
                                               dbcsr_scalar_zero
    USE dbcsr_dist_methods,              ONLY: &
         dbcsr_distribution_col_dist, dbcsr_distribution_get_num_images_1d, &
-        dbcsr_distribution_has_col_clusters, dbcsr_distribution_has_row_clusters, &
         dbcsr_distribution_has_threads, dbcsr_distribution_hold, dbcsr_distribution_make_threads, &
         dbcsr_distribution_mp, dbcsr_distribution_ncols, dbcsr_distribution_no_threads, &
-        dbcsr_distribution_nrows, dbcsr_distribution_num_local_col_clusters, &
-        dbcsr_distribution_num_local_row_clusters, dbcsr_distribution_release, &
-        dbcsr_distribution_row_dist
+        dbcsr_distribution_nrows, dbcsr_distribution_release, dbcsr_distribution_row_dist
    USE dbcsr_index_operations,          ONLY: dbcsr_make_index_canonical
    USE dbcsr_io,                        ONLY: dbcsr_print
    USE dbcsr_mem_methods,               ONLY: dbcsr_mempool_clear,&
@@ -55,7 +52,6 @@ MODULE dbcsr_mm
                                               dbcsr_make_buffers,&
                                               make_layers_3D_C_reduction,&
                                               multiply_3D,&
-                                              multiply_clusters,&
                                               release_layers_3D_C_reduction
    USE dbcsr_mm_cannon,                 ONLY: make_m2s,&
                                               multiply_cannon
@@ -396,8 +392,8 @@ CONTAINS
          nimages_left_rows, nimages_match, nimages_right_cols, npcols, nprows, numnodes, &
          output_unit
       INTEGER(KIND=int_8)                                :: my_flop
-      LOGICAL :: ab_dense, has_clusters, keep_product_data, keep_sparsity, product_reindex, &
-         release_tdist, transpose_left, transpose_right, use_dense_mult
+      LOGICAL :: ab_dense, keep_product_data, keep_sparsity, product_reindex, release_tdist, &
+         transpose_left, transpose_right, use_dense_mult
       REAL(KIND=dp)                                      :: cs
       TYPE(array_i1d_obj) :: dense_col_sizes, dense_k_sizes, dense_row_sizes, k_vmap, m_map, &
          n_map, old_product_col_blk_offsets, old_product_col_blk_sizes, &
@@ -565,15 +561,10 @@ CONTAINS
       nprows = dbcsr_mp_nprows(mp_obj)
       npcols = dbcsr_mp_npcols(mp_obj)
       !
-      has_clusters = dbcsr_distribution_has_row_clusters(matrix_left%dist) .OR. &
-                     dbcsr_distribution_has_col_clusters(matrix_left%dist) .OR. &
-                     dbcsr_distribution_has_row_clusters(matrix_right%dist) .OR. &
-                     dbcsr_distribution_has_col_clusters(matrix_right%dist)
-      !
       ! 3D layers
-      CALL make_layers_3D_C_reduction(dbcsr_cfg%num_layers_3D, mp_obj, has_clusters)
+      CALL make_layers_3D_C_reduction(dbcsr_cfg%num_layers_3D, mp_obj)
       !
-      ! No dense multiplication and local indexing when 2D clustering is used.
+      ! No dense multiplication when RMA is used.
       IF (dbcsr_cfg%use_mpi_exp) THEN
          use_dense_mult = .FALSE.
       ENDIF
@@ -701,37 +692,13 @@ CONTAINS
       ENDIF
       !
       ! Compute number of images (rows and columns)
-      ! By construction clusters require RMA algo
-      IF (dbcsr_cfg%use_mpi_exp .AND. dbcsr_distribution_has_row_clusters(matrix_left%dist)) THEN
-         nimages_left_rows = dbcsr_distribution_num_local_row_clusters(matrix_left%dist)* &
-                             dbcsr_mp_nprows(dbcsr_distribution_mp(matrix_left%dist))
-      ELSE
-         ! 1D clustering (only RMA support 2D clustering)
-         nimages_left_rows = dbcsr_mp_nprows(dbcsr_distribution_mp(matrix_left%dist))
-      ENDIF
-      !
-      IF (dbcsr_cfg%use_mpi_exp .AND. dbcsr_distribution_has_col_clusters(matrix_left%dist)) THEN
-         nimages_match = dbcsr_distribution_num_local_col_clusters(matrix_left%dist)* &
-                         dbcsr_mp_npcols(dbcsr_distribution_mp(matrix_left%dist))
-      ELSE IF (dbcsr_cfg%use_mpi_exp .AND. dbcsr_distribution_has_row_clusters(matrix_right%dist)) THEN
-         nimages_match = dbcsr_distribution_num_local_row_clusters(matrix_right%dist)* &
-                         dbcsr_mp_nprows(dbcsr_distribution_mp(matrix_right%dist))
-      ELSE
-         ! 1D clustering
-         nimages_match = dbcsr_distribution_get_num_images_1d( &
-                         dbcsr_nfullcols_total(matrix_left), &
-                         dbcsr_nblkcols_total(matrix_left), &
-                         dbcsr_mp_nprows(dbcsr_distribution_mp(matrix_left%dist)), &
-                         dbcsr_mp_npcols(dbcsr_distribution_mp(matrix_left%dist)))
-      ENDIF
-      !
-      IF (dbcsr_cfg%use_mpi_exp .AND. dbcsr_distribution_has_col_clusters(matrix_right%dist)) THEN
-         nimages_right_cols = dbcsr_distribution_num_local_col_clusters(matrix_right%dist)* &
-                              dbcsr_mp_npcols(dbcsr_distribution_mp(matrix_right%dist))
-      ELSE
-         ! 1D clustering for the old algorithm (only RMA support 2D clustering)
-         nimages_right_cols = dbcsr_mp_npcols(dbcsr_distribution_mp(matrix_right%dist))
-      ENDIF
+      nimages_left_rows = dbcsr_mp_nprows(dbcsr_distribution_mp(matrix_left%dist))
+      nimages_match = dbcsr_distribution_get_num_images_1d( &
+                      dbcsr_nfullcols_total(matrix_left), &
+                      dbcsr_nblkcols_total(matrix_left), &
+                      dbcsr_mp_nprows(dbcsr_distribution_mp(matrix_left%dist)), &
+                      dbcsr_mp_npcols(dbcsr_distribution_mp(matrix_left%dist)))
+      nimages_right_cols = dbcsr_mp_npcols(dbcsr_distribution_mp(matrix_right%dist))
       !
       ! Create imaged distributions for the multiply.
       CALL dbcsr_create_image_dist(rdist_right, matrix_right%dist, &
@@ -832,15 +799,13 @@ CONTAINS
          CALL dbcsr_make_buffers(matrix_left, rdist_left, .TRUE., &
                                  f_row, l_row, f_k, l_k, &
                                  PRESENT(filter_eps), &
-                                 transpose_left, &
-                                 has_acc)
+                                 transpose_left)
          !
          ! Right buffer images
          CALL dbcsr_make_buffers(matrix_right, rdist_right, .FALSE., &
                                  f_k, l_k, f_col, l_col, &
                                  PRESENT(filter_eps), &
                                  transpose_right, &
-                                 has_acc, &
                                  alpha)
       ELSE
          product_matrix%nblks = 0
@@ -879,20 +844,11 @@ CONTAINS
       !
       my_flop = 0
       IF (dbcsr_cfg%use_mpi_exp) THEN
-         IF (has_clusters) THEN
-            CALL multiply_clusters(rdist_left, rdist_right, &
-                                   matrix_left, matrix_right, product_matrix, &
-                                   retain_sparsity=retain_sparsity, &
-                                   filter_eps=filter_eps, &
-                                   flop=my_flop, &
-                                   keep_product_data=keep_product_data)
-         ELSE
-            CALL multiply_3D(rdist_left, rdist_right, &
-                             matrix_left, matrix_right, product_matrix, &
-                             retain_sparsity=retain_sparsity, &
-                             filter_eps=filter_eps, &
-                             flop=my_flop, keep_product_data=keep_product_data)
-         ENDIF
+         CALL multiply_3D(rdist_left, rdist_right, &
+                          matrix_left, matrix_right, product_matrix, &
+                          retain_sparsity=retain_sparsity, &
+                          filter_eps=filter_eps, &
+                          flop=my_flop, keep_product_data=keep_product_data)
       ELSE
          CALL multiply_cannon(m2s_left, m2s_right, product_matrix, &
                               retain_sparsity=retain_sparsity, &

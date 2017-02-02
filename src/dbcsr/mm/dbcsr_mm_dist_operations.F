@@ -18,13 +18,10 @@ MODULE dbcsr_mm_dist_operations
         array_data, array_equality, array_exists, array_hold, array_i1d_obj, array_new, &
         array_nullify, array_release, array_size
    USE dbcsr_dist_methods,              ONLY: &
-        dbcsr_distribution_col_clusters, dbcsr_distribution_col_dist, &
-        dbcsr_distribution_has_col_clusters, dbcsr_distribution_has_row_clusters, &
-        dbcsr_distribution_has_threads, dbcsr_distribution_hold, dbcsr_distribution_make_threads, &
-        dbcsr_distribution_mp, dbcsr_distribution_ncols, dbcsr_distribution_new, &
-        dbcsr_distribution_no_threads, dbcsr_distribution_nrows, dbcsr_distribution_release, &
-        dbcsr_distribution_row_clusters, dbcsr_distribution_row_dist, &
-        dbcsr_distribution_thread_dist
+        dbcsr_distribution_col_dist, dbcsr_distribution_has_threads, dbcsr_distribution_hold, &
+        dbcsr_distribution_make_threads, dbcsr_distribution_mp, dbcsr_distribution_ncols, &
+        dbcsr_distribution_new, dbcsr_distribution_no_threads, dbcsr_distribution_nrows, &
+        dbcsr_distribution_release, dbcsr_distribution_row_dist, dbcsr_distribution_thread_dist
    USE dbcsr_dist_operations,           ONLY: dbcsr_get_local_cols,&
                                               dbcsr_get_local_rows,&
                                               find_all_local_elements,&
@@ -131,48 +128,29 @@ CONTAINS
       ALLOCATE (row_img_data(nrows))
       ALLOCATE (row_vdist(nrows))
       !
-      IF (dbcsr_distribution_has_row_clusters(dist)) THEN
-         IF (PRESENT(match_row_pdist) .AND. PRESENT(match_row_idist) .AND. &
-             imgdist%i%row_decimation .NE. imgdist%i%row_multiplicity) THEN
+      IF (imgdist%i%row_decimation .EQ. 1 .AND. imgdist%i%row_multiplicity .EQ. 1 .AND. &
+          .NOT. PRESENT(match_row_pdist)) THEN
+         row_dist_data => dbcsr_distribution_row_dist(dist)
+         row_img_data(:) = 1
+      ELSE
+         IF (PRESENT(match_row_pdist)) THEN
             ALLOCATE (row_dist_data(nrows))
             new_row_dist = .TRUE.
-            CALL rebin_imaged_distribution(row_dist_data, row_img_data, &
-                                           match_row_pdist, match_row_idist, &
-                                           nprows, &
-                                           imgdist%i%row_multiplicity, imgdist%i%row_decimation)
+            IF (PRESENT(match_row_idist)) THEN
+               CALL rebin_imaged_distribution(row_dist_data, row_img_data, &
+                                              match_row_pdist, match_row_idist, &
+                                              nprows, &
+                                              imgdist%i%row_multiplicity, imgdist%i%row_decimation)
+            ELSE
+               CALL rebin_distribution(row_dist_data, row_img_data, &
+                                       match_row_pdist, &
+                                       nprows, &
+                                       imgdist%i%row_multiplicity, imgdist%i%row_decimation)
+            ENDIF
          ELSE
             row_dist_data => dbcsr_distribution_row_dist(dist)
-            IF (imgdist%i%row_decimation .EQ. 1) THEN
-               row_img_data(:) = 1
-            ELSE
-               row_img_data = MOD(dbcsr_distribution_row_clusters(dist), imgdist%i%row_decimation)+1
-            ENDIF
-         ENDIF
-      ELSE
-         IF (imgdist%i%row_decimation .EQ. 1 .AND. imgdist%i%row_multiplicity .EQ. 1 .AND. &
-             .NOT. PRESENT(match_row_pdist)) THEN
-            row_dist_data => dbcsr_distribution_row_dist(dist)
-            row_img_data(:) = 1
-         ELSE
-            IF (PRESENT(match_row_pdist)) THEN
-               ALLOCATE (row_dist_data(nrows))
-               new_row_dist = .TRUE.
-               IF (PRESENT(match_row_idist)) THEN
-                  CALL rebin_imaged_distribution(row_dist_data, row_img_data, &
-                                                 match_row_pdist, match_row_idist, &
-                                                 nprows, &
-                                                 imgdist%i%row_multiplicity, imgdist%i%row_decimation)
-               ELSE
-                  CALL rebin_distribution(row_dist_data, row_img_data, &
-                                          match_row_pdist, &
-                                          nprows, &
-                                          imgdist%i%row_multiplicity, imgdist%i%row_decimation)
-               ENDIF
-            ELSE
-               row_dist_data => dbcsr_distribution_row_dist(dist)
-               CALL reimage_distribution(row_img_data, &
-                                         row_dist_data, nprows, imgdist%i%row_decimation)
-            ENDIF
+            CALL reimage_distribution(row_img_data, &
+                                      row_dist_data, nprows, imgdist%i%row_decimation)
          ENDIF
       ENDIF
       CALL make_vdistribution(nrows, row_vdist, row_dist_data, &
@@ -190,49 +168,30 @@ CONTAINS
       ALLOCATE (col_img_data(ncols))
       ALLOCATE (col_vdist(ncols))
       !
-      IF (dbcsr_distribution_has_col_clusters(dist)) THEN
-         IF (PRESENT(match_col_pdist) .AND. PRESENT(match_col_idist) .AND. &
-             imgdist%i%col_decimation .NE. imgdist%i%col_multiplicity) THEN
+      IF (imgdist%i%col_decimation .EQ. 1 .AND. imgdist%i%col_multiplicity .EQ. 1 .AND. &
+          .NOT. PRESENT(match_col_pdist)) THEN
+         col_dist_data => dbcsr_distribution_col_dist(dist)
+         col_img_data(:) = 1
+      ELSE
+         IF (PRESENT(match_col_pdist)) THEN
             ALLOCATE (col_dist_data(ncols))
             new_col_dist = .TRUE.
-            CALL rebin_imaged_distribution(col_dist_data, col_img_data, &
-                                           match_col_pdist, match_col_idist, &
-                                           npcols, &
-                                           imgdist%i%col_multiplicity, imgdist%i%col_decimation)
+            IF (PRESENT(match_col_idist)) THEN
+               CALL rebin_imaged_distribution(col_dist_data, col_img_data, &
+                                              match_col_pdist, match_col_idist, &
+                                              npcols, &
+                                              imgdist%i%col_multiplicity, imgdist%i%col_decimation)
+            ELSE
+               CALL rebin_distribution(col_dist_data, col_img_data, &
+                                       match_col_pdist, &
+                                       npcols, &
+                                       imgdist%i%col_multiplicity, imgdist%i%col_decimation)
+            ENDIF
          ELSE
             col_dist_data => dbcsr_distribution_col_dist(dist)
-            IF (imgdist%i%col_decimation .EQ. 1) THEN
-               col_img_data(:) = 1
-            ELSE
-               col_img_data = MOD(dbcsr_distribution_col_clusters(dist), imgdist%i%col_decimation)+1
-            ENDIF
-         ENDIF
-      ELSE
-         IF (imgdist%i%col_decimation .EQ. 1 .AND. imgdist%i%col_multiplicity .EQ. 1 .AND. &
-             .NOT. PRESENT(match_col_pdist)) THEN
-            col_dist_data => dbcsr_distribution_col_dist(dist)
-            col_img_data(:) = 1
-         ELSE
-            IF (PRESENT(match_col_pdist)) THEN
-               ALLOCATE (col_dist_data(ncols))
-               new_col_dist = .TRUE.
-               IF (PRESENT(match_col_idist)) THEN
-                  CALL rebin_imaged_distribution(col_dist_data, col_img_data, &
-                                                 match_col_pdist, match_col_idist, &
-                                                 npcols, &
-                                                 imgdist%i%col_multiplicity, imgdist%i%col_decimation)
-               ELSE
-                  CALL rebin_distribution(col_dist_data, col_img_data, &
-                                          match_col_pdist, &
-                                          npcols, &
-                                          imgdist%i%col_multiplicity, imgdist%i%col_decimation)
-               ENDIF
-            ELSE
-               col_dist_data => dbcsr_distribution_col_dist(dist)
-               CALL reimage_distribution(col_img_data, &
-                                         col_dist_data, &
-                                         npcols, imgdist%i%col_decimation)
-            ENDIF
+            CALL reimage_distribution(col_img_data, &
+                                      col_dist_data, &
+                                      npcols, imgdist%i%col_decimation)
          ENDIF
       ENDIF
       CALL make_vdistribution(ncols, col_vdist, col_dist_data, &

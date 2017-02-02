@@ -11,20 +11,18 @@
 !> \param local_col ...
 !> \param max_norms ...
 !> \param is_left ...
-!> \param is_diagonal ...
 ! **************************************************************************************************
   SUBROUTINE calc_max_image_norms_c(meta,data,&
-     meta_diag,data_diag,&
      refs_size,refs_displ,&
      img_map,&
      img_offset,&
      row_blk_size,col_blk_size,&
      local_row,local_col,&
      slot_coo_l,&
-     max_norms, is_left, off_diagonal)
-  INTEGER, DIMENSION(:), TARGET, INTENT(IN) :: meta, meta_diag
+     max_norms, is_left)
+  INTEGER, DIMENSION(:), TARGET, INTENT(IN) :: meta
   COMPLEX(kind=real_4), DIMENSION(:), TARGET, &
-       INTENT(IN)                         :: data, data_diag
+       INTENT(IN)                         :: data
   INTEGER, DIMENSION(:, :), &
        INTENT(IN)                         :: refs_size
   INTEGER, DIMENSION(:, :, :), &
@@ -34,10 +32,9 @@
                                              local_row, local_col
   INTEGER, INTENT(IN)                     :: slot_coo_l
   REAL(kind=sp), DIMENSION(:), INTENT(INOUT) :: max_norms
-  LOGICAL, INTENT(IN)                        :: is_left, off_diagonal
+  LOGICAL, INTENT(IN)                        :: is_left
 
-  INTEGER, DIMENSION(:), POINTER    :: meta_p, row, col, bps
-  COMPLEX(kind=real_4), DIMENSION(:), POINTER    :: data_p
+  INTEGER, DIMENSION(:), POINTER    :: row, col, bps
   INTEGER                           :: nblks, blk, bpe, iimage
   INTEGER, TARGET                   :: mi, ui
   INTEGER, POINTER                  :: rowi, coli
@@ -48,12 +45,11 @@
   !
   !$omp parallel default(none) &
   !$omp          private (mi, ui, nblks, blk, row, col, bps, bpe,&
-  !$omp                   rowi, coli, max_norm, meta_p, data_p) &
+  !$omp                   rowi, coli, max_norm) &
   !$omp          shared (max_norms, data, meta, refs_size, img_offset,&
   !$omp                  img_map, refs_displ, slot_coo_l,&
   !$omp                  row_blk_size, col_blk_size, iimage,&
-  !$omp                  local_row, local_col, is_left, off_diagonal,&
-  !$omp                  data_diag, meta_diag)
+  !$omp                  local_row, local_col, is_left)
   IF (is_left) THEN
      rowi => mi
      coli => ui
@@ -64,24 +60,17 @@
   DO ui = 1, SIZE(refs_size,2)
      DO mi = 1, SIZE(refs_size,1)
         IF (refs_size(mi,ui).NE.0) THEN
-           IF (off_diagonal.OR.(ui.NE.mi.AND.SIZE(refs_size,1).NE.1)) THEN
-              meta_p => meta
-              data_p => data
-           ELSE
-              meta_p => meta_diag
-              data_p => data_diag
-           ENDIF
            max_norm = 0.0_sp
-           nblks = meta_p(refs_displ(imeta,mi,ui)+dbcsr_slot_nblks)
-           row => meta_p(refs_displ(imeta,mi,ui)+slot_coo_l:&
-                         meta_p(refs_displ(imeta,mi,ui)+dbcsr_slot_size)+&
-                                refs_displ(imeta,mi,ui):3)
-           col => meta_p(refs_displ(imeta,mi,ui)+slot_coo_l+1:&
-                         meta_p(refs_displ(imeta,mi,ui)+dbcsr_slot_size)+&
-                                refs_displ(imeta,mi,ui):3)
-           bps => meta_p(refs_displ(imeta,mi,ui)+slot_coo_l+2:&
-                         meta_p(refs_displ(imeta,mi,ui)+dbcsr_slot_size)+&
-                                refs_displ(imeta,mi,ui):3)
+           nblks = meta(refs_displ(imeta,mi,ui)+dbcsr_slot_nblks)
+           row => meta(refs_displ(imeta,mi,ui)+slot_coo_l:&
+                       meta(refs_displ(imeta,mi,ui)+dbcsr_slot_size)+&
+                            refs_displ(imeta,mi,ui):3)
+           col => meta(refs_displ(imeta,mi,ui)+slot_coo_l+1:&
+                       meta(refs_displ(imeta,mi,ui)+dbcsr_slot_size)+&
+                            refs_displ(imeta,mi,ui):3)
+           bps => meta(refs_displ(imeta,mi,ui)+slot_coo_l+2:&
+                       meta(refs_displ(imeta,mi,ui)+dbcsr_slot_size)+&
+                            refs_displ(imeta,mi,ui):3)
            !$omp do
            DO blk = 1, nblks
               IF (bps(blk).NE.0) THEN
@@ -93,8 +82,8 @@
                          col_blk_size(local_col(col(blk))) - 1
                  ENDIF
                  max_norm = MAX(max_norm,&
-                      SQRT (REAL(SUM(ABS(data_p(bps(blk)+refs_displ(idata,mi,ui):&
-                                                bpe+refs_displ(idata,mi,ui)))**2), KIND=sp)))
+                      SQRT (REAL(SUM(ABS(data(bps(blk)+refs_displ(idata,mi,ui):&
+                                              bpe+refs_displ(idata,mi,ui)))**2), KIND=sp)))
               ENDIF
            ENDDO
            !$omp end do
