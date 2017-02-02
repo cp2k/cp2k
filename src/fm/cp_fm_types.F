@@ -1779,22 +1779,26 @@ CONTAINS
                   destination%local_data(i, j) = recv_buf(recv_disp(mpi_rank)+recv_count(mpi_rank))
                END DO
             END DO
-            DEALLOCATE (recv_count, recv_disp, recv_request, recv_buf, src_blacs2mpi)
-            NULLIFY (info%recv_col_indices, &
-                     info%recv_row_indices, &
-                     info%recv_buf, &
-                     info%recv_disp, &
-                     info%recv_request, &
-                     info%src_blacs2mpi)
+            DEALLOCATE (recv_count, recv_disp, recv_request, recv_buf)
          END IF ! ASSOCIATED(destination)
+
+         DEALLOCATE (src_blacs2mpi)
 
          ! SRC_2
          IF (ASSOCIATED(source)) THEN
             CALL mp_waitall(send_request(:))
             DEALLOCATE (send_request, send_buf)
-            NULLIFY (info%send_request, &
-                     info%send_buf)
          END IF
+
+         ! We are done, invalidate the stored state
+         NULLIFY (info%recv_col_indices, &
+                  info%recv_row_indices, &
+                  info%recv_buf, &
+                  info%recv_disp, &
+                  info%recv_request, &
+                  info%src_blacs2mpi, &
+                  info%send_request, &
+                  info%send_buf)
 
       END IF !IF (.NOT. cp2k_is_parallel)
 
