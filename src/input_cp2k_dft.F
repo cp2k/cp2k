@@ -16,9 +16,9 @@ MODULE input_cp2k_dft
         Elstner1998, Fattebert2002, Guidon2010, Heinzmann1976, Holmberg2017, Hu2007, Hunt2003, &
         Iannuzzi2005, Iannuzzi2006, Iannuzzi2007, Kolafa2004, Krack2000, Krack2002, Kunert2003, &
         Lippert1997, Lippert1999, Lu2004, Perdew1981, Porezag1995, Repasky2002, Rocha2006, &
-        Schenter2008, Schiffmann2015, Seifert1996, Souza2002, Stengel2009, Stewart1982, &
-        Stewart1989, Stewart2007, Thiel1992, Tozer1996, Umari2002, VandeVondele2003, &
-        VandeVondele2005a, VandeVondele2005b, VandeVondele2006, Weber2008, Zhao1994, Zhechkov2005
+        Schenter2008, Schiffmann2015, Seifert1996, Stewart1982, Stewart1989, Stewart2007, &
+        Thiel1992, Tozer1996, VandeVondele2003, VandeVondele2005a, VandeVondele2005b, &
+        VandeVondele2006, Weber2008, Zhao1994, Zhechkov2005
    USE cp_output_handling,              ONLY: add_last_numeric,&
                                               cp_print_key_section_create,&
                                               debug_print_level,&
@@ -33,64 +33,65 @@ MODULE input_cp2k_dft
         becke_dynamic_conf, becke_mixed_conf, becke_none_conf, becke_static_conf, casci_canonical, &
         cdft_combined_acceptor, cdft_combined_all, cdft_combined_constraint, cdft_combined_donor, &
         cdft_density_constraint, cdft_magnetization_constraint, cholesky_dbcsr, cholesky_inverse, &
-        cholesky_off, cholesky_reduce, cholesky_restore, constant_env, core_guess, custom_env, &
-        diag_block_davidson, diag_block_krylov, diag_filter_matrix, diag_ot, diag_standard, &
-        dispersion_d3, dispersion_uff, dmft_model, do_admm_aux_exch_func_bee, &
-        do_admm_aux_exch_func_default, do_admm_aux_exch_func_none, do_admm_aux_exch_func_opt, &
-        do_admm_aux_exch_func_pbex, do_admm_basis_projection, do_admm_blocked_projection, &
-        do_admm_blocking_purify_full, do_admm_charge_constrained_projection, &
-        do_admm_exch_scaling_merlot, do_admm_exch_scaling_none, do_admm_purify_cauchy, &
-        do_admm_purify_cauchy_subspace, do_admm_purify_mcweeny, do_admm_purify_mo_diag, &
-        do_admm_purify_mo_no_diag, do_admm_purify_none, do_admm_purify_none_dm, do_arnoldi, &
-        do_bch, do_cn, do_ddapc_constraint, do_ddapc_restraint, do_em, do_etrs, do_full_density, &
-        do_gapw_gcs, do_gapw_gct, do_gapw_log, do_loc_both, do_loc_crazy, do_loc_direct, &
-        do_loc_homo, do_loc_jacobi, do_loc_l1_norm_sd, do_loc_lumo, do_loc_max, do_loc_min, &
-        do_loc_none, do_lri_inv, do_lri_inv_auto, do_lri_opt_all, do_lri_opt_coeff, &
-        do_lri_opt_exps, do_lri_pseudoinv_diag, do_lri_pseudoinv_svd, do_method_am1, &
-        do_method_dftb, do_method_gapw, do_method_gapw_xc, do_method_gpw, do_method_lrigpw, &
-        do_method_mndo, do_method_mndod, do_method_ofgpw, do_method_pdg, do_method_pm3, &
-        do_method_pm6, do_method_pnnl, do_method_rm1, do_method_scptb, do_pade, do_ppl_analytic, &
-        do_ppl_grid, do_pwgrid_ns_fullspace, do_pwgrid_ns_halfspace, do_pwgrid_spherical, &
-        do_s2_constraint, do_s2_restraint, do_se_is_kdso, do_se_is_kdso_d, do_se_is_slater, &
-        do_se_lr_ewald, do_se_lr_ewald_gks, do_se_lr_ewald_r3, do_se_lr_none, do_spin_density, &
-        do_taylor, ehrenfest, eri_method_full_gpw, eri_method_gpw_ht, eri_operator_coulomb, &
-        eri_operator_erf, eri_operator_erfc, eri_operator_gaussian, eri_operator_yukawa, gaussian, &
-        gaussian_env, general_roks, hf_model, high_spin_roks, history_guess, jacobian_fd1, &
-        jacobian_fd1_backward, jacobian_fd1_central, jacobian_fd2, jacobian_fd2_backward, &
-        kg_cholesky, kg_color_dsatur, kg_color_greedy, kg_ec_diagonalization, &
-        kg_ec_functional_harris, kg_tnadd_atomic, kg_tnadd_embed, ls_2pnt, ls_3pnt, ls_gold, &
-        ls_none, mao_basis_ext, mao_basis_orb, mao_basis_prim, mao_projection, mopac_guess, &
-        no_excitations, no_guess, numerical, oe_gllb, oe_lb, oe_none, oe_saop, oe_sic, &
-        op_loc_berry, op_loc_boys, op_loc_pipek, orb_dx2, orb_dxy, orb_dy2, orb_dyz, orb_dz2, &
-        orb_dzx, orb_px, orb_py, orb_pz, orb_s, ot_algo_irac, ot_algo_taylor_or_diag, &
-        ot_chol_irac, ot_lwdn_irac, ot_mini_broyden, ot_mini_cg, ot_mini_diis, ot_mini_sd, &
-        ot_poly_irac, ot_precond_full_all, ot_precond_full_kinetic, ot_precond_full_single, &
-        ot_precond_full_single_inverse, ot_precond_none, ot_precond_s_inverse, &
-        ot_precond_solver_default, ot_precond_solver_direct, ot_precond_solver_inv_chol, &
-        ot_precond_solver_update, outer_scf_basis_center_opt, outer_scf_becke_constraint, &
-        outer_scf_cdft_constraint, outer_scf_ddapc_constraint, outer_scf_hirshfeld_constraint, &
-        outer_scf_none, outer_scf_optimizer_bisect, outer_scf_optimizer_broyden, &
-        outer_scf_optimizer_diis, outer_scf_optimizer_newton, outer_scf_optimizer_none, &
-        outer_scf_optimizer_sd, outer_scf_s2_constraint, plus_u_lowdin, plus_u_mulliken, &
-        plus_u_mulliken_charges, pw_interp, radius_covalent, radius_default, radius_single, &
-        radius_user, radius_vdw, ramp_env, random_guess, real_time_propagation, ref_charge_atomic, &
-        ref_charge_mulliken, rel_dkh, rel_none, rel_pot_erfc, rel_pot_full, rel_sczora_mp, &
-        rel_trans_atom, rel_trans_full, rel_trans_molecule, rel_zora, rel_zora_full, rel_zora_mp, &
-        restart_guess, rsdft_model, sccs_andreussi, sccs_derivative_cd3, sccs_derivative_cd5, &
-        sccs_derivative_cd7, sccs_derivative_fft, sccs_fattebert_gygi, shape_function_density, &
-        shape_function_gaussian, sic_ad, sic_eo, sic_list_all, sic_list_unpaired, sic_mauri_spz, &
-        sic_mauri_us, sic_none, slater, smear_energy_window, smear_fermi_dirac, smear_list, &
-        sparse_guess, spline3_nopbc_interp, spline3_pbc_interp, tddfpt_davidson, &
-        tddfpt_excitations, tddfpt_lanczos, tddfpt_singlet, tddfpt_triplet, use_coulomb, use_diff, &
-        use_no, use_restart_wfn, use_rt_restart, use_scf_wfn, wannier_projection, &
-        weight_type_mass, weight_type_unit, wfi_aspc_nr, wfi_frozen_method_nr, &
-        wfi_linear_p_method_nr, wfi_linear_ps_method_nr, wfi_linear_wf_method_nr, &
-        wfi_ps_method_nr, wfi_use_guess_method_nr, wfi_use_prev_p_method_nr, &
-        wfi_use_prev_rho_r_method_nr, wfi_use_prev_wf_method_nr, xas_1s_type, xas_2p_type, &
-        xas_2s_type, xas_dip_len, xas_dip_vel, xas_dscf, xas_none, xas_tp_fh, xas_tp_flex, &
-        xas_tp_hh, xas_tp_xfh, xas_tp_xhh, xes_tp_val
+        cholesky_off, cholesky_reduce, cholesky_restore, core_guess, diag_block_davidson, &
+        diag_block_krylov, diag_filter_matrix, diag_ot, diag_standard, dispersion_d3, &
+        dispersion_uff, dmft_model, do_admm_aux_exch_func_bee, do_admm_aux_exch_func_default, &
+        do_admm_aux_exch_func_none, do_admm_aux_exch_func_opt, do_admm_aux_exch_func_pbex, &
+        do_admm_basis_projection, do_admm_blocked_projection, do_admm_blocking_purify_full, &
+        do_admm_charge_constrained_projection, do_admm_exch_scaling_merlot, &
+        do_admm_exch_scaling_none, do_admm_purify_cauchy, do_admm_purify_cauchy_subspace, &
+        do_admm_purify_mcweeny, do_admm_purify_mo_diag, do_admm_purify_mo_no_diag, &
+        do_admm_purify_none, do_admm_purify_none_dm, do_arnoldi, do_bch, do_cn, &
+        do_ddapc_constraint, do_ddapc_restraint, do_em, do_etrs, do_full_density, do_gapw_gcs, &
+        do_gapw_gct, do_gapw_log, do_loc_both, do_loc_crazy, do_loc_direct, do_loc_homo, &
+        do_loc_jacobi, do_loc_l1_norm_sd, do_loc_lumo, do_loc_max, do_loc_min, do_loc_none, &
+        do_lri_inv, do_lri_inv_auto, do_lri_opt_all, do_lri_opt_coeff, do_lri_opt_exps, &
+        do_lri_pseudoinv_diag, do_lri_pseudoinv_svd, do_method_am1, do_method_dftb, &
+        do_method_gapw, do_method_gapw_xc, do_method_gpw, do_method_lrigpw, do_method_mndo, &
+        do_method_mndod, do_method_ofgpw, do_method_pdg, do_method_pm3, do_method_pm6, &
+        do_method_pnnl, do_method_rm1, do_method_scptb, do_pade, do_ppl_analytic, do_ppl_grid, &
+        do_pwgrid_ns_fullspace, do_pwgrid_ns_halfspace, do_pwgrid_spherical, do_s2_constraint, &
+        do_s2_restraint, do_se_is_kdso, do_se_is_kdso_d, do_se_is_slater, do_se_lr_ewald, &
+        do_se_lr_ewald_gks, do_se_lr_ewald_r3, do_se_lr_none, do_spin_density, do_taylor, &
+        ehrenfest, eri_method_full_gpw, eri_method_gpw_ht, eri_operator_coulomb, eri_operator_erf, &
+        eri_operator_erfc, eri_operator_gaussian, eri_operator_yukawa, gaussian, general_roks, &
+        hf_model, high_spin_roks, history_guess, jacobian_fd1, jacobian_fd1_backward, &
+        jacobian_fd1_central, jacobian_fd2, jacobian_fd2_backward, kg_cholesky, kg_color_dsatur, &
+        kg_color_greedy, kg_ec_diagonalization, kg_ec_functional_harris, kg_tnadd_atomic, &
+        kg_tnadd_embed, ls_2pnt, ls_3pnt, ls_gold, ls_none, mao_basis_ext, mao_basis_orb, &
+        mao_basis_prim, mao_projection, mopac_guess, no_excitations, no_guess, numerical, oe_gllb, &
+        oe_lb, oe_none, oe_saop, oe_sic, op_loc_berry, op_loc_boys, op_loc_pipek, orb_dx2, &
+        orb_dxy, orb_dy2, orb_dyz, orb_dz2, orb_dzx, orb_px, orb_py, orb_pz, orb_s, ot_algo_irac, &
+        ot_algo_taylor_or_diag, ot_chol_irac, ot_lwdn_irac, ot_mini_broyden, ot_mini_cg, &
+        ot_mini_diis, ot_mini_sd, ot_poly_irac, ot_precond_full_all, ot_precond_full_kinetic, &
+        ot_precond_full_single, ot_precond_full_single_inverse, ot_precond_none, &
+        ot_precond_s_inverse, ot_precond_solver_default, ot_precond_solver_direct, &
+        ot_precond_solver_inv_chol, ot_precond_solver_update, outer_scf_basis_center_opt, &
+        outer_scf_becke_constraint, outer_scf_cdft_constraint, outer_scf_ddapc_constraint, &
+        outer_scf_hirshfeld_constraint, outer_scf_none, outer_scf_optimizer_bisect, &
+        outer_scf_optimizer_broyden, outer_scf_optimizer_diis, outer_scf_optimizer_newton, &
+        outer_scf_optimizer_none, outer_scf_optimizer_sd, outer_scf_s2_constraint, plus_u_lowdin, &
+        plus_u_mulliken, plus_u_mulliken_charges, pw_interp, radius_covalent, radius_default, &
+        radius_single, radius_user, radius_vdw, random_guess, real_time_propagation, &
+        ref_charge_atomic, ref_charge_mulliken, rel_dkh, rel_none, rel_pot_erfc, rel_pot_full, &
+        rel_sczora_mp, rel_trans_atom, rel_trans_full, rel_trans_molecule, rel_zora, &
+        rel_zora_full, rel_zora_mp, restart_guess, rsdft_model, sccs_andreussi, &
+        sccs_derivative_cd3, sccs_derivative_cd5, sccs_derivative_cd7, sccs_derivative_fft, &
+        sccs_fattebert_gygi, shape_function_density, shape_function_gaussian, sic_ad, sic_eo, &
+        sic_list_all, sic_list_unpaired, sic_mauri_spz, sic_mauri_us, sic_none, slater, &
+        smear_energy_window, smear_fermi_dirac, smear_list, sparse_guess, spline3_nopbc_interp, &
+        spline3_pbc_interp, tddfpt_davidson, tddfpt_excitations, tddfpt_lanczos, tddfpt_singlet, &
+        tddfpt_triplet, use_coulomb, use_diff, use_no, use_restart_wfn, use_rt_restart, &
+        use_scf_wfn, wannier_projection, weight_type_mass, weight_type_unit, wfi_aspc_nr, &
+        wfi_frozen_method_nr, wfi_linear_p_method_nr, wfi_linear_ps_method_nr, &
+        wfi_linear_wf_method_nr, wfi_ps_method_nr, wfi_use_guess_method_nr, &
+        wfi_use_prev_p_method_nr, wfi_use_prev_rho_r_method_nr, wfi_use_prev_wf_method_nr, &
+        xas_1s_type, xas_2p_type, xas_2s_type, xas_dip_len, xas_dip_vel, xas_dscf, xas_none, &
+        xas_tp_fh, xas_tp_flex, xas_tp_hh, xas_tp_xfh, xas_tp_xhh, xes_tp_val
    USE input_cp2k_almo,                 ONLY: create_almo_scf_section
    USE input_cp2k_distribution,         ONLY: create_distribution_section
+   USE input_cp2k_field,                ONLY: create_efield_section,&
+                                              create_per_efield_section
    USE input_cp2k_kpoints,              ONLY: create_kpoints_section
    USE input_cp2k_ls,                   ONLY: create_ls_scf_section
    USE input_cp2k_mm,                   ONLY: create_dipoles_section,&
@@ -6357,147 +6358,6 @@ CONTAINS
    END SUBROUTINE create_ext_vxc_section
 
 ! **************************************************************************************************
-!> \brief creates the section for static periodic fields
-!> \param section ...
-!> \author Florian Schiffmann
-! **************************************************************************************************
-   SUBROUTINE create_per_efield_section(section)
-      TYPE(section_type), POINTER                        :: section
-
-      CHARACTER(len=*), PARAMETER :: routineN = 'create_per_efield_section', &
-         routineP = moduleN//':'//routineN
-
-      TYPE(keyword_type), POINTER                        :: keyword
-
-      CPASSERT(.NOT. ASSOCIATED(section))
-      CALL section_create(section, "PERIODIC_EFIELD", &
-                          description="parameters for finite periodic electric field computed using "// &
-                          "the Berry phase approach. IMPORTANT: Can only be used in combination "// &
-                          " with OT. Can not be used in combination with RTP or EMD.", &
-                          citations=(/Souza2002, Umari2002/), &
-                          n_keywords=6, n_subsections=1, repeats=.TRUE.)
-
-      NULLIFY (keyword)
-
-      CALL keyword_create(keyword, name="INTENSITY", &
-                          description="Intensity of the electric field in a.u", &
-                          usage="INTENSITY  0.001", &
-                          default_r_val=0._dp)
-      CALL section_add_keyword(section, keyword)
-      CALL keyword_release(keyword)
-
-      CALL keyword_create(keyword, name="POLARISATION", &
-                          description="Polarisation vector of electric field", &
-                          usage="POLARISIATION  0.0 0.0 1.0", &
-                          repeats=.FALSE., n_var=3, &
-                          type_of_var=real_t, default_r_vals=(/0.0_dp, 0.0_dp, 1.0_dp/))
-      CALL section_add_keyword(section, keyword)
-      CALL keyword_release(keyword)
-
-      CALL keyword_create(keyword, name="DISPLACEMENT_FIELD", &
-                          description="Use the displacement field formulation.", &
-                          usage="DISPLACEMENT_FIELD T", &
-                          citations=(/Stengel2009/), &
-                          default_l_val=.FALSE., &
-                          lone_keyword_l_val=.TRUE.)
-      CALL section_add_keyword(section, keyword)
-      CALL keyword_release(keyword)
-
-      CALL keyword_create(keyword, name="D_FILTER", &
-                          description="Filter for displacement field (x,y,z-dirction)", &
-                          usage="D_FILTER  1.0 0.0 0.0", &
-                          repeats=.FALSE., n_var=3, &
-                          type_of_var=real_t, default_r_vals=(/1.0_dp, 1.0_dp, 1.0_dp/))
-      CALL section_add_keyword(section, keyword)
-      CALL keyword_release(keyword)
-
-   END SUBROUTINE create_per_efield_section
-! **************************************************************************************************
-!> \brief creates the section for time dependent nonperiodic fields
-!> \param section ...
-!> \author Florian Schiffmann
-! **************************************************************************************************
-   SUBROUTINE create_efield_section(section)
-      TYPE(section_type), POINTER                        :: section
-
-      CHARACTER(len=*), PARAMETER :: routineN = 'create_efield_section', &
-         routineP = moduleN//':'//routineN
-
-      TYPE(keyword_type), POINTER                        :: keyword
-      TYPE(section_type), POINTER                        :: subsection
-
-      CPASSERT(.NOT. ASSOCIATED(section))
-      CALL section_create(section, "EFIELD", &
-                          description="parameters for finite, time dependent, nonperiodic electric fields", &
-                          n_keywords=6, n_subsections=1, repeats=.TRUE.)
-
-      NULLIFY (keyword, subsection)
-
-      CALL keyword_create(keyword, name="INTENSITY", &
-                          description="Intensity of the electric field. For real-time propagation (RTP) units are "// &
-                          "in W*cm-2 which corresponds "// &
-                          "to a maximal amplitude in a.u. of sqrt(I/(3.50944*10^16)). "// &
-                          "For a constant local field in isolated system calclulations, units are in a.u..", &
-                          usage="INTENSITY  0.001", &
-                          default_r_val=0._dp)
-      CALL section_add_keyword(section, keyword)
-      CALL keyword_release(keyword)
-
-      CALL keyword_create(keyword, name="POLARISATION", &
-                          description="Polarisation vector of electric field", &
-                          usage="POLARISATION  0.0 0.0 1.0", &
-                          repeats=.FALSE., n_var=3, &
-                          type_of_var=real_t, default_r_vals=(/0.0_dp, 0.0_dp, 1.0_dp/))
-      CALL section_add_keyword(section, keyword)
-      CALL keyword_release(keyword)
-
-      CALL keyword_create(keyword, name="WAVELENGTH", &
-                          description="Wavelength of efield field for real-time propagation (RTP) calculations.", &
-                          usage="Wavelength  1.E0", &
-                          default_r_val=0._dp, unit_str="nm")
-      CALL section_add_keyword(section, keyword)
-      CALL keyword_release(keyword)
-
-      CALL keyword_create(keyword, name="PHASE", &
-                          description="Phase offset of the cosine given in multiples of pi. "// &
-                          "Used in real-time propagation (RTP) calculations.", &
-                          usage="Phase  1.E0", &
-                          default_r_val=0._dp)
-      CALL section_add_keyword(section, keyword)
-      CALL keyword_release(keyword)
-
-      CALL keyword_create(keyword, name="ENVELOP", &
-                          description="Shape of the efield pulse used in real-time propagation (RTP) calculations.", &
-                          usage="ENVELOP CONSTANT", &
-                          default_i_val=constant_env, &
-                          enum_c_vals=s2a("CONSTANT", "GAUSSIAN", "RAMP", "CUSTOM"), &
-                          enum_desc=s2a("No envelop function is applied to the strength", &
-                                        "A Gaussian function is used as envelop ", &
-                                        "Linear tune in/out of the field", &
-                                        "A custom field read from a file"), &
-                          enum_i_vals=(/constant_env, gaussian_env, ramp_env, custom_env/))
-      CALL section_add_keyword(section, keyword)
-      CALL keyword_release(keyword)
-
-      CALL create_constant_env_section(subsection)
-      CALL section_add_subsection(section, subsection)
-      CALL section_release(subsection)
-
-      CALL create_gaussian_env_section(subsection)
-      CALL section_add_subsection(section, subsection)
-      CALL section_release(subsection)
-
-      CALL create_ramp_env_section(subsection)
-      CALL section_add_subsection(section, subsection)
-      CALL section_release(subsection)
-
-      CALL create_custom_env_section(subsection)
-      CALL section_add_subsection(section, subsection)
-      CALL section_release(subsection)
-
-   END SUBROUTINE create_efield_section
-
-! **************************************************************************************************
 !> \brief makes the orbital transformation section
 !> \param section ...
 !> \par History
@@ -7830,163 +7690,6 @@ CONTAINS
       CALL section_release(print_section)
 
    END SUBROUTINE create_rtp_section
-
-! **************************************************************************************************
-!> \brief ...
-!> \param section ...
-! **************************************************************************************************
-   SUBROUTINE create_constant_env_section(section)
-      TYPE(section_type), POINTER                        :: section
-
-      CHARACTER(len=*), PARAMETER :: routineN = 'create_constant_env_section', &
-         routineP = moduleN//':'//routineN
-
-      TYPE(keyword_type), POINTER                        :: keyword
-
-      CPASSERT(.NOT. ASSOCIATED(section))
-      CALL section_create(section, "CONSTANT_ENV", &
-                          description="parameters for a constant envelop", &
-                          n_keywords=6, n_subsections=1, repeats=.TRUE.)
-
-      NULLIFY (keyword)
-
-      CALL keyword_create(keyword, name="START_STEP", &
-                          description="First step the field is applied ", &
-                          usage="START_STEP 0", &
-                          default_i_val=0)
-      CALL section_add_keyword(section, keyword)
-      CALL keyword_release(keyword)
-
-      CALL keyword_create(keyword, name="END_STEP", &
-                          description="Last step the field is applied", &
-                          usage="END_STEP 2", &
-                          default_i_val=-1)
-      CALL section_add_keyword(section, keyword)
-      CALL keyword_release(keyword)
-
-   END SUBROUTINE create_constant_env_section
-
-! **************************************************************************************************
-!> \brief ...
-!> \param section ...
-! **************************************************************************************************
-   SUBROUTINE create_gaussian_env_section(section)
-      TYPE(section_type), POINTER                        :: section
-
-      CHARACTER(len=*), PARAMETER :: routineN = 'create_gaussian_env_section', &
-         routineP = moduleN//':'//routineN
-
-      TYPE(keyword_type), POINTER                        :: keyword
-
-      CPASSERT(.NOT. ASSOCIATED(section))
-      CALL section_create(section, "GAUSSIAN_ENV", &
-                          description="parameters for a gaussian envelop", &
-                          n_keywords=6, n_subsections=1, repeats=.TRUE.)
-
-      NULLIFY (keyword)
-
-      CALL keyword_create(keyword, name="T0", &
-                          description="Center of the gaussian envelop (maximum of the gaussian)", &
-                          usage="T0 2.0E0", &
-                          default_r_val=0.0E0_dp, &
-                          unit_str="fs")
-      CALL section_add_keyword(section, keyword)
-      CALL keyword_release(keyword)
-
-      CALL keyword_create(keyword, name="SIGMA", &
-                          description="Width of the gaussian ", &
-                          usage="SIGMA 2.0E0", &
-                          default_r_val=-1.0E0_dp, &
-                          unit_str="fs")
-      CALL section_add_keyword(section, keyword)
-      CALL keyword_release(keyword)
-
-   END SUBROUTINE create_gaussian_env_section
-
-! **************************************************************************************************
-!> \brief ...
-!> \param section ...
-! **************************************************************************************************
-   SUBROUTINE create_ramp_env_section(section)
-      TYPE(section_type), POINTER                        :: section
-
-      CHARACTER(len=*), PARAMETER :: routineN = 'create_ramp_env_section', &
-         routineP = moduleN//':'//routineN
-
-      TYPE(keyword_type), POINTER                        :: keyword
-
-      CPASSERT(.NOT. ASSOCIATED(section))
-      CALL section_create(section, "RAMP_ENV", &
-                          description="Parameters for an trapeziodal envelop ", &
-                          n_keywords=6, n_subsections=1, repeats=.TRUE.)
-
-      NULLIFY (keyword)
-
-      CALL keyword_create(keyword, name="START_STEP_IN", &
-                          description="Step when the electric field starts to be applied ", &
-                          usage="START_STEP_IN 0", &
-                          default_i_val=0)
-      CALL section_add_keyword(section, keyword)
-      CALL keyword_release(keyword)
-
-      CALL keyword_create(keyword, name="END_STEP_IN", &
-                          description="Step when the field reaches the full strength", &
-                          usage="END_STEP_IN 2", &
-                          default_i_val=-1)
-      CALL section_add_keyword(section, keyword)
-      CALL keyword_release(keyword)
-
-      CALL keyword_create(keyword, name="START_STEP_OUT", &
-                          description="Step when the field starts to vanish ", &
-                          usage="START_STEP 0", &
-                          default_i_val=0)
-      CALL section_add_keyword(section, keyword)
-      CALL keyword_release(keyword)
-
-      CALL keyword_create(keyword, name="END_STEP_OUT", &
-                          description="Step when the field disappears", &
-                          usage="END_TIME 2", &
-                          default_i_val=-1)
-      CALL section_add_keyword(section, keyword)
-      CALL keyword_release(keyword)
-
-   END SUBROUTINE create_ramp_env_section
-
-! **************************************************************************************************
-!> \brief ...
-!> \param section ...
-! **************************************************************************************************
-   SUBROUTINE create_custom_env_section(section)
-      TYPE(section_type), POINTER                        :: section
-
-      CHARACTER(len=*), PARAMETER :: routineN = 'create_custom_env_section', &
-         routineP = moduleN//':'//routineN
-
-      TYPE(keyword_type), POINTER                        :: keyword
-
-      CPASSERT(.NOT. ASSOCIATED(section))
-      CALL section_create(section, "CUSTOM_ENV", &
-                          description="Parameters for a custom efield", &
-                          n_keywords=2, n_subsections=1, repeats=.TRUE.)
-
-      NULLIFY (keyword)
-
-      CALL keyword_create(keyword, name="EFIELD_FILE_NAME", &
-                          description="Specify file that contains the electric field [V/m].", &
-                          usage="EFIELD_FILE_NAME filename", &
-                          n_var=1, type_of_var=char_t, default_c_val="")
-      CALL section_add_keyword(section, keyword)
-      CALL keyword_release(keyword)
-
-      CALL keyword_create(keyword, name="TIMESTEP", &
-                          description="The time step between the entries in the list with the electric field.", &
-                          usage="TIME_STEP 1", &
-                          unit_str="fs", &
-                          default_r_val=1.0_dp)
-      CALL section_add_keyword(section, keyword)
-      CALL keyword_release(keyword)
-
-   END SUBROUTINE create_custom_env_section
 
 ! **************************************************************************************************
 !> \brief      Create CP2K input section for the SCCS model
