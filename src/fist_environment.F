@@ -43,6 +43,8 @@ MODULE fist_environment
                                               ewald_pw_release,&
                                               ewald_pw_type
    USE exclusion_types,                 ONLY: exclusion_type
+   USE fist_efield_types,               ONLY: fist_efield_type,&
+                                              read_efield_section
    USE fist_energy_types,               ONLY: allocate_fist_energy,&
                                               fist_energy_type
    USE fist_environment_types,          ONLY: fist_env_get,&
@@ -111,6 +113,7 @@ CONTAINS
       TYPE(cp_subsys_type), POINTER                      :: subsys
       TYPE(ewald_environment_type), POINTER              :: ewald_env
       TYPE(exclusion_type), DIMENSION(:), POINTER        :: exclusions
+      TYPE(fist_efield_type), POINTER                    :: efield
       TYPE(fist_nonbond_env_type), POINTER               :: fist_nonbond_env
       TYPE(particle_list_type), POINTER                  :: core_particles, shell_particles
       TYPE(particle_type), DIMENSION(:), POINTER         :: core_particle_set, shell_particle_set
@@ -152,6 +155,11 @@ CONTAINS
       ! Read the input section and set the ewald_env
       CALL read_ewald_section(ewald_env, ewald_section)
       CALL ewald_env_set(ewald_env, poisson_section=poisson_section)
+
+      ! Read the efield section
+      NULLIFY (efield)
+      CALL read_efield_section(mm_section, efield)
+      CALL fist_env_set(fist_env, efield=efield)
 
       ! Topology
       CALL fist_env_get(fist_env, qmmm=qmmm, qmmm_env=qmmm_env)

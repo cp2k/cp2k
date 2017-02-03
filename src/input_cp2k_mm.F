@@ -30,6 +30,7 @@ MODULE input_cp2k_mm
                                               use_mom_ref_com,&
                                               use_mom_ref_user,&
                                               use_mom_ref_zero
+   USE input_cp2k_field,                ONLY: create_per_efield_section
    USE input_cp2k_poisson,              ONLY: create_poisson_section
    USE input_keyword_types,             ONLY: keyword_create,&
                                               keyword_release,&
@@ -91,6 +92,10 @@ CONTAINS
       CALL section_release(subsection)
 
       CALL create_poisson_section(subsection)
+      CALL section_add_subsection(section, subsection)
+      CALL section_release(subsection)
+
+      CALL create_per_efield_section(subsection)
       CALL section_add_subsection(section, subsection)
       CALL section_release(subsection)
 

@@ -1,0 +1,48 @@
+&FORCE_EVAL
+  METHOD FIST
+  STRESS_TENSOR ANALYTICAL
+  &MM
+    &FORCEFIELD
+      parm_file_name ../sample_pot/water.pot
+      parmtype CHM
+      &CHARGE
+        ATOM OT
+        CHARGE -0.8476
+      &END CHARGE
+      &CHARGE
+        ATOM HT
+        CHARGE 0.4238
+      &END CHARGE
+    &END FORCEFIELD
+    &PERIODIC_EFIELD
+       DISPLACEMENT_FIELD F
+       INTENSITY       1.0
+       POLARISATION    1. 1. 1.
+    &END PERIODIC_EFIELD
+    &POISSON
+      &EWALD
+        EWALD_TYPE spme
+        ALPHA .44
+        GMAX 24
+        O_SPLINE 6
+      &END EWALD
+    &END POISSON
+  &END MM
+  &SUBSYS
+    &CELL
+      ABC 24.955 24.955 24.955
+    &END CELL
+    &TOPOLOGY
+      COORD_FILE_NAME ../sample_pdb/water_1.pdb
+      COORDINATE pdb
+    &END TOPOLOGY
+  &END SUBSYS
+&END FORCE_EVAL
+
+&GLOBAL
+  PROJECT water512
+  RUN_TYPE debug
+&END GLOBAL
+
+&DEBUG
+&END

@@ -16,8 +16,7 @@ MODULE fist_force
                                               get_atomic_kind
    USE atprop_types,                    ONLY: atprop_type
    USE cell_types,                      ONLY: cell_type,&
-                                              init_cell,&
-                                              pbc
+                                              init_cell
    USE cp_log_handling,                 ONLY: cp_get_default_logger,&
                                               cp_logger_type
    USE cp_output_handling,              ONLY: cp_p_file,&
@@ -25,9 +24,6 @@ MODULE fist_force
                                               cp_print_key_should_output,&
                                               cp_print_key_unit_nr
    USE cp_para_types,                   ONLY: cp_para_env_type
-   USE cp_result_methods,               ONLY: cp_results_erase,&
-                                              put_results
-   USE cp_result_types,                 ONLY: cp_result_type
    USE cp_subsys_types,                 ONLY: cp_subsys_get,&
                                               cp_subsys_type
    USE cp_units,                        ONLY: cp_unit_from_cp2k
@@ -42,6 +38,9 @@ MODULE fist_force
                                               ewald_self_atom
    USE ewalds_multipole,                ONLY: ewald_multipole_evaluate
    USE exclusion_types,                 ONLY: exclusion_type
+   USE fist_efield_methods,             ONLY: fist_dipole,&
+                                              fist_efield_energy_force
+   USE fist_efield_types,               ONLY: fist_efield_type
    USE fist_energy_types,               ONLY: fist_energy_type
    USE fist_environment_types,          ONLY: fist_env_get,&
                                               fist_environment_type
@@ -52,23 +51,17 @@ MODULE fist_force
                                               force_nonbond
    USE fist_pol_scf,                    ONLY: fist_pol_evaluate
    USE input_constants,                 ONLY: do_fist_pol_none
-   USE input_section_types,             ONLY: section_get_ival,&
-                                              section_vals_get_subs_vals,&
-                                              section_vals_type,&
-                                              section_vals_val_get
-   USE kinds,                           ONLY: default_string_length,&
-                                              dp
+   USE input_section_types,             ONLY: section_vals_get_subs_vals,&
+                                              section_vals_type
+   USE kinds,                           ONLY: dp
    USE manybody_eam,                    ONLY: density_nonbond
    USE manybody_potential,              ONLY: energy_manybody,&
                                               force_nonbond_manybody
-   USE mathconstants,                   ONLY: twopi
    USE message_passing,                 ONLY: mp_sum
    USE molecule_kind_types,             ONLY: molecule_kind_type
    USE molecule_types,                  ONLY: molecule_type
-   USE moments_utils,                   ONLY: get_reference_point
    USE multipole_types,                 ONLY: multipole_type
    USE particle_types,                  ONLY: particle_type
-   USE physcon,                         ONLY: debye
    USE pme,                             ONLY: pme_evaluate
    USE pw_poisson_types,                ONLY: do_ewald_ewald,&
                                               do_ewald_none,&
@@ -128,14 +121,14 @@ CONTAINS
          nparticle_local, nshell, shell_index
       LOGICAL                                            :: do_multipoles, shell_model_ad, &
                                                             shell_present, use_virial
-      REAL(KIND=dp) :: mass, massc, masss, pot_bend, pot_bond, pot_imptors, pot_manybody, &
+      REAL(KIND=dp) :: ef_ener, mass, massc, masss, pot_bend, pot_bond, pot_imptors, pot_manybody, &
          pot_nonbond, pot_opbend, pot_shell, pot_torsion, pot_urey_bradley, umass, vg_coulomb, &
          xdum1, xdum2, xdum3
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :) :: f_nonbond, f_total, fcore_nonbond, &
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :) :: ef_f, f_nonbond, f_total, fcore_nonbond, &
          fcore_total, fg_coulomb, fgcore_coulomb, fgshell_coulomb, fshell_nonbond, fshell_total
-      REAL(KIND=dp), DIMENSION(3, 3)                     :: ident, pv_bc, pv_bend, pv_bond, pv_g, &
-                                                            pv_imptors, pv_nonbond, pv_opbend, &
-                                                            pv_torsion, pv_urey_bradley
+      REAL(KIND=dp), DIMENSION(3, 3)                     :: ef_pv, ident, pv_bc, pv_bend, pv_bond, &
+                                                            pv_g, pv_imptors, pv_nonbond, &
+                                                            pv_opbend, pv_torsion, pv_urey_bradley
       REAL(KIND=dp), DIMENSION(:), POINTER               :: e_coulomb
       REAL(KIND=dp), DIMENSION(:, :, :), POINTER         :: pv_coulomb
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
@@ -149,6 +142,7 @@ CONTAINS
       TYPE(ewald_environment_type), POINTER              :: ewald_env
       TYPE(ewald_pw_type), POINTER                       :: ewald_pw
       TYPE(exclusion_type), DIMENSION(:), POINTER        :: exclusions
+      TYPE(fist_efield_type), POINTER                    :: efield
       TYPE(fist_energy_type), POINTER                    :: thermo
       TYPE(fist_nonbond_env_type), POINTER               :: fist_nonbond_env
       TYPE(molecule_kind_type), DIMENSION(:), POINTER    :: molecule_kind_set
@@ -194,7 +188,7 @@ CONTAINS
                         local_molecules=local_molecules, thermo=thermo, &
                         molecule_kind_set=molecule_kind_set, fist_nonbond_env=fist_nonbond_env, &
                         cell=cell, shell_model=shell_present, shell_model_ad=shell_model_ad, &
-                        multipoles=multipoles, exclusions=exclusions)
+                        multipoles=multipoles, exclusions=exclusions, efield=efield)
 
       CALL ewald_env_get(ewald_env, ewald_type=ewald_type, do_multipoles=do_multipoles, &
                          do_ipol=do_ipol)
@@ -521,6 +515,13 @@ CONTAINS
          END IF
       END IF
 
+      ! calculate the action of an (external) electric field
+      IF (efield%apply_field) THEN
+         ALLOCATE (ef_f(3, natoms))
+         CALL fist_efield_energy_force(ef_ener, ef_f, ef_pv, atomic_kind_set, particle_set, cell, &
+                                       efield, use_virial=use_virial, iunit=iw, charges=fist_nonbond_env%charges)
+      END IF
+
       ! Get intramolecular forces
       IF (PRESENT(debug)) THEN
          CALL force_intra_control(molecule_set, molecule_kind_set, &
@@ -570,6 +571,7 @@ CONTAINS
                    pot_imptors+pot_urey_bradley+pot_manybody+pot_shell
 
       CALL mp_sum(thermo%pot, para_env%group)
+
       IF (shell_present) THEN
          thermo%harm_shell = pot_shell
          CALL mp_sum(thermo%harm_shell, para_env%group)
@@ -690,6 +692,16 @@ CONTAINS
       IF (shell_present .AND. shell_model_ad) THEN
          CALL mp_sum(fshell_total, para_env%group)
          CALL mp_sum(fcore_total, para_env%group)
+      END IF
+
+      ! contributions from fields (currently all quantities are fully replicated!)
+      IF (efield%apply_field) THEN
+         thermo%pot = thermo%pot+ef_ener
+         f_total(1:3, 1:natoms) = f_total(1:3, 1:natoms)+ef_f(1:3, 1:natoms)
+         IF (use_virial) THEN
+            virial%pv_virial(1:3, 1:3) = virial%pv_virial(1:3, 1:3)+ef_pv(1:3, 1:3)
+         END IF
+         DEALLOCATE (ef_f)
       END IF
 
       ! Assign to particle_set
@@ -900,132 +912,5 @@ CONTAINS
       END IF
 
    END SUBROUTINE print_fist
-
-! **************************************************************************************************
-!> \brief Evaluates the Dipole of a classical charge distribution(point-like)
-!>      possibly using the berry phase formalism
-!> \param fist_env ...
-!> \param print_section ...
-!> \param atomic_kind_set ...
-!> \param particle_set ...
-!> \param cell ...
-!> \param unit_nr ...
-!> \param charges ...
-!> \par History
-!>      [01.2006] created
-!>      [12.2007] tlaino - University of Zurich - debug and extended
-!> \author Teodoro Laino
-! **************************************************************************************************
-   SUBROUTINE fist_dipole(fist_env, print_section, atomic_kind_set, particle_set, &
-                          cell, unit_nr, charges)
-      TYPE(fist_environment_type), POINTER               :: fist_env
-      TYPE(section_vals_type), POINTER                   :: print_section
-      TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
-      TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
-      TYPE(cell_type), POINTER                           :: cell
-      INTEGER, INTENT(IN)                                :: unit_nr
-      REAL(KIND=dp), DIMENSION(:), OPTIONAL, POINTER     :: charges
-
-      CHARACTER(LEN=default_string_length)               :: description, dipole_type
-      COMPLEX(KIND=dp)                                   :: dzeta, dzphase(3), zeta, zphase(3)
-      COMPLEX(KIND=dp), DIMENSION(3)                     :: dggamma, ggamma
-      INTEGER                                            :: i, iparticle_kind, j, reference
-      INTEGER, DIMENSION(:), POINTER                     :: atom_list
-      LOGICAL                                            :: do_berry
-      REAL(KIND=dp) :: charge_tot, ci(3), dci(3), dipole(3), dipole_deriv(3), drcc(3), dria(3), &
-         dtheta, gvec(3), q, rcc(3), ria(3), theta, tmp(3), via(3)
-      REAL(KIND=dp), DIMENSION(:), POINTER               :: ref_point
-      TYPE(atomic_kind_type), POINTER                    :: atomic_kind
-      TYPE(cp_result_type), POINTER                      :: results
-
-      NULLIFY (atomic_kind)
-      ! Reference point
-      reference = section_get_ival(print_section, keyword_name="DIPOLE%REFERENCE")
-      NULLIFY (ref_point)
-      description = '[DIPOLE]'
-      CALL section_vals_val_get(print_section, "DIPOLE%REF_POINT", r_vals=ref_point)
-      CALL section_vals_val_get(print_section, "DIPOLE%PERIODIC", l_val=do_berry)
-
-      CALL get_reference_point(rcc, drcc, fist_env=fist_env, reference=reference, ref_point=ref_point)
-
-      ! Dipole deriv will be the derivative of the Dipole(dM/dt=\sum e_j v_j)
-      dipole_deriv = 0.0_dp
-      dipole = 0.0_dp
-      IF (do_berry) THEN
-         dipole_type = "[BERRY PHASE]"
-         rcc = pbc(rcc, cell)
-         charge_tot = 0._dp
-         IF (ASSOCIATED(charges)) THEN
-            charge_tot = SUM(charges)
-         ELSE
-            DO i = 1, SIZE(particle_set)
-               atomic_kind => particle_set(i)%atomic_kind
-               CALL get_atomic_kind(atomic_kind=atomic_kind, qeff=q)
-               charge_tot = charge_tot+q
-            END DO
-         END IF
-         ria = twopi*MATMUL(cell%h_inv, rcc)
-         zphase = CMPLX(COS(ria), SIN(ria), dp)**charge_tot
-
-         dria = twopi*MATMUL(cell%h_inv, drcc)
-         dzphase = charge_tot*CMPLX(-SIN(ria), COS(ria), dp)**(charge_tot-1.0_dp)*dria
-
-         ggamma = CMPLX(1.0_dp, 0.0_dp, KIND=dp)
-         dggamma = CMPLX(0.0_dp, 0.0_dp, KIND=dp)
-         DO iparticle_kind = 1, SIZE(atomic_kind_set)
-            atomic_kind => atomic_kind_set(iparticle_kind)
-            CALL get_atomic_kind(atomic_kind=atomic_kind, qeff=q, atom_list=atom_list)
-
-            DO i = 1, SIZE(atom_list)
-               ria = particle_set(atom_list(i))%r(:)
-               ria = pbc(ria, cell)
-               via = particle_set(atom_list(i))%v(:)
-               IF (ASSOCIATED(charges)) q = charges(atom_list(i))
-               DO j = 1, 3
-                  gvec = twopi*cell%h_inv(j, :)
-                  theta = SUM(ria(:)*gvec(:))
-                  dtheta = SUM(via(:)*gvec(:))
-                  zeta = CMPLX(COS(theta), SIN(theta), KIND=dp)**(-q)
-                  dzeta = -q*CMPLX(-SIN(theta), COS(theta), KIND=dp)**(-q-1.0_dp)*dtheta
-                  dggamma(j) = dggamma(j)*zeta+ggamma(j)*dzeta
-                  ggamma(j) = ggamma(j)*zeta
-               END DO
-            ENDDO
-         END DO
-         dggamma = dggamma*zphase+ggamma*dzphase
-         ggamma = ggamma*zphase
-         IF (ALL(REAL(ggamma, KIND=dp) /= 0.0_dp)) THEN
-            tmp = AIMAG(ggamma)/REAL(ggamma, KIND=dp)
-            ci = ATAN(tmp)
-            dci = (1.0_dp/(1.0_dp+tmp**2))* &
-                  (AIMAG(dggamma)*REAL(ggamma, KIND=dp)-AIMAG(ggamma)*REAL(dggamma, KIND=dp))/(REAL(ggamma, KIND=dp))**2
-
-            dipole = MATMUL(cell%hmat, ci)/twopi
-            dipole_deriv = MATMUL(cell%hmat, dci)/twopi
-         END IF
-         CALL fist_env_get(fist_env=fist_env, results=results)
-         CALL cp_results_erase(results, description)
-         CALL put_results(results, description, dipole)
-      ELSE
-         dipole_type = "[Non Periodic]"
-         DO i = 1, SIZE(particle_set)
-            atomic_kind => particle_set(i)%atomic_kind
-            ria = particle_set(i)%r(:) ! no pbc(particle_set(i)%r(:),cell) so that the total dipole is the sum of the molecular dipoles
-            CALL get_atomic_kind(atomic_kind=atomic_kind, qeff=q)
-            IF (ASSOCIATED(charges)) q = charges(i)
-            dipole = dipole-q*(ria-rcc)
-            dipole_deriv(:) = dipole_deriv(:)-q*(particle_set(i)%v(:)-drcc)
-         END DO
-         CALL fist_env_get(fist_env=fist_env, results=results)
-         CALL cp_results_erase(results, description)
-         CALL put_results(results, description, dipole)
-      END IF
-      IF (unit_nr > 0) THEN
-         WRITE (unit_nr, '(1X,A,T48,3F11.6)') "MM DIPOLE "//TRIM(dipole_type)//"(A.U.)|", dipole
-         WRITE (unit_nr, '(1X,A,T48,3F11.6)') "MM DIPOLE "//TRIM(dipole_type)//"(Debye)|", dipole*debye
-         WRITE (unit_nr, '(1X,A,T48,3F11.6)') "MM DIPOLE "//TRIM(dipole_type)//" DERIVATIVE(A.U.)|", dipole_deriv
-      END IF
-
-   END SUBROUTINE fist_dipole
 
 END MODULE fist_force

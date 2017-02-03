@@ -36,6 +36,7 @@ MODULE fist_environment_types
                                               ewald_pw_type
    USE exclusion_types,                 ONLY: exclusion_release,&
                                               exclusion_type
+   USE fist_efield_types,               ONLY: fist_efield_type
    USE fist_energy_types,               ONLY: deallocate_fist_energy,&
                                               fist_energy_type
    USE fist_nonbond_env_types,          ONLY: fist_nonbond_env_release,&
@@ -76,16 +77,17 @@ MODULE fist_environment_types
       INTEGER                                      :: id_nr, ref_count
       LOGICAL                                      :: qmmm
       LOGICAL                                      :: shell_model, shell_model_ad
-      TYPE(qmmm_env_mm_type), POINTER             :: qmmm_env
-      TYPE(cell_type), POINTER                    :: cell_ref
-      TYPE(ewald_environment_type), POINTER       :: ewald_env
-      TYPE(ewald_pw_type), POINTER       :: ewald_pw
-      TYPE(fist_energy_type), POINTER             :: thermo
-      TYPE(cp_para_env_type), POINTER             :: para_env
-      TYPE(cp_subsys_type), POINTER               :: subsys
-      TYPE(fist_nonbond_env_type), POINTER        :: fist_nonbond_env
+      TYPE(qmmm_env_mm_type), POINTER              :: qmmm_env
+      TYPE(cell_type), POINTER                     :: cell_ref
+      TYPE(ewald_environment_type), POINTER        :: ewald_env
+      TYPE(ewald_pw_type), POINTER                 :: ewald_pw
+      TYPE(fist_energy_type), POINTER              :: thermo
+      TYPE(cp_para_env_type), POINTER              :: para_env
+      TYPE(cp_subsys_type), POINTER                :: subsys
+      TYPE(fist_nonbond_env_type), POINTER         :: fist_nonbond_env
       TYPE(section_vals_type), POINTER             :: input
       TYPE(exclusion_type), DIMENSION(:), POINTER  :: exclusions
+      TYPE(fist_efield_type), POINTER              :: efield
    END TYPE fist_environment_type
 
 ! **************************************************************************************************
@@ -143,6 +145,7 @@ CONTAINS
 !> \param multipoles ...
 !> \param results ...
 !> \param exclusions ...
+!> \param efield ...
 !> \par History
 !>      11/03
 !> \author CJM
@@ -151,7 +154,7 @@ CONTAINS
                            local_particles, local_molecules, molecule_kind_set, molecule_set, cell, &
                            cell_ref, ewald_env, fist_nonbond_env, thermo, para_env, subsys, qmmm, &
                            qmmm_env, input, shell_model, shell_model_ad, shell_particle_set, &
-                           core_particle_set, multipoles, results, exclusions)
+                           core_particle_set, multipoles, results, exclusions, efield)
 
       TYPE(fist_environment_type), INTENT(IN)            :: fist_env
       TYPE(atomic_kind_type), OPTIONAL, POINTER          :: atomic_kind_set(:)
@@ -176,6 +179,7 @@ CONTAINS
       TYPE(cp_result_type), OPTIONAL, POINTER            :: results
       TYPE(exclusion_type), DIMENSION(:), OPTIONAL, &
          POINTER                                         :: exclusions
+      TYPE(fist_efield_type), OPTIONAL, POINTER          :: efield
 
       CHARACTER(len=*), PARAMETER :: routineN = 'fist_env_get', routineP = moduleN//':'//routineN
 
@@ -201,6 +205,7 @@ CONTAINS
       IF (PRESENT(shell_model)) shell_model = fist_env%shell_model
       IF (PRESENT(shell_model_ad)) shell_model_ad = fist_env%shell_model_ad
       IF (PRESENT(subsys)) subsys => fist_env%subsys
+      IF (PRESENT(efield)) efield => fist_env%efield
 
       IF (ASSOCIATED(fist_env%subsys)) &
          CALL cp_subsys_get(fist_env%subsys, &
@@ -246,6 +251,7 @@ CONTAINS
       NULLIFY (fist_env%fist_nonbond_env)
       NULLIFY (fist_env%subsys)
       NULLIFY (fist_env%exclusions)
+      NULLIFY (fist_env%efield)
       fist_env%qmmm = .FALSE.
       fist_env%shell_model = .FALSE.
       fist_env%shell_model_ad = .FALSE.
@@ -280,6 +286,7 @@ CONTAINS
 !> \param shell_model ...
 !> \param shell_model_ad ...
 !> \param exclusions ...
+!> \param efield ...
 !> \par History
 !>      11/03
 !> \author CJM
@@ -288,7 +295,7 @@ CONTAINS
                            local_particles, local_molecules, molecule_kind_set, &
                            molecule_set, cell_ref, ewald_env, &
                            fist_nonbond_env, thermo, subsys, qmmm, qmmm_env, &
-                           input, shell_model, shell_model_ad, exclusions)
+                           input, shell_model, shell_model_ad, exclusions, efield)
 
       TYPE(fist_environment_type), POINTER               :: fist_env
       TYPE(atomic_kind_type), OPTIONAL, POINTER          :: atomic_kind_set(:)
@@ -308,6 +315,7 @@ CONTAINS
       LOGICAL, OPTIONAL                                  :: shell_model, shell_model_ad
       TYPE(exclusion_type), DIMENSION(:), OPTIONAL, &
          POINTER                                         :: exclusions
+      TYPE(fist_efield_type), OPTIONAL, POINTER          :: efield
 
       CHARACTER(len=*), PARAMETER :: routineN = 'fist_env_set', routineP = moduleN//':'//routineN
 
@@ -398,6 +406,7 @@ CONTAINS
       IF (PRESENT(shell_model_ad)) THEN
          fist_env%shell_model_ad = shell_model_ad
       END IF
+      IF (PRESENT(efield)) fist_env%efield => efield
 
    END SUBROUTINE fist_env_set
 
@@ -466,6 +475,10 @@ CONTAINS
             CALL cp_subsys_release(fist_env%subsys)
             CALL section_vals_release(fist_env%input)
             CALL exclusion_release(fist_env%exclusions)
+
+            IF (ASSOCIATED(fist_env%efield)) THEN
+               DEALLOCATE (fist_env%efield)
+            END IF
 
             DEALLOCATE (fist_env)
          END IF

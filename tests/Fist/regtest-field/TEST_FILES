@@ -1,0 +1,5 @@
+# ANGULAR VELOCITY
+efield.inp                                             0
+dfield.inp                                             0
+efield_md.inp                                          2    1.0E-14           0.374760458659E-02
+#EOF
