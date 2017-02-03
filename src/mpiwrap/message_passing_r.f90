@@ -2280,7 +2280,7 @@
 !> \note see mp_allgather_r12
 ! *****************************************************************************
   SUBROUTINE mp_iallgather_r12(msgout, msgin, gid, request)
-    REAL(kind=real_4), INTENT(IN)                      :: msgout
+    REAL(kind=real_4), INTENT(IN)                      :: msgout(:)
     REAL(kind=real_4), INTENT(OUT)                     :: msgin(:, :)
     INTEGER, INTENT(IN)                      :: gid
     INTEGER, INTENT(OUT)                     :: request
@@ -2298,8 +2298,8 @@
 
 #if defined(__parallel)
 #if __MPI_VERSION > 2
-    scount = 1
-    rcount = 1
+    scount = SIZE(msgout(:))
+    rcount = scount
     CALL MPI_IALLGATHER(msgout, scount, MPI_REAL, &
                        msgin , rcount, MPI_REAL, &
                        gid, request, ierr )
@@ -2315,7 +2315,7 @@
 #endif
 #else
     MARK_USED(gid)
-    msgin(1,1) = msgout
+    msgin(1,:) = msgout(:)
     request = mp_request_null
 #endif
     CALL mp_timestop(handle)

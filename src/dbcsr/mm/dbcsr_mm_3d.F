@@ -174,19 +174,19 @@ MODULE dbcsr_mm_3d
    INTEGER, ALLOCATABLE, DIMENSION(:), TARGET, PRIVATE :: left_refs_data_size, &
                                                           right_refs_data_size, &
                                                           left_local_refs_data_size, &
-                                                          right_local_refs_data_size
+                                                          right_local_refs_data_size, &
+                                                          left_local_refs_meta_size, &
+                                                          right_local_refs_meta_size
    INTEGER, ALLOCATABLE, DIMENSION(:, :), TARGET, PRIVATE  :: left_no_empty_images, &
                                                               left_no_empty_images_displ, &
                                                               right_no_empty_images, &
                                                               right_no_empty_images_displ, &
                                                               left_local_refs_displ_unmerged, &
                                                               right_local_refs_displ_unmerged, &
-                                                              left_local_refs_meta_size, &
-                                                              right_local_refs_meta_size
+                                                              left_refs_meta_size, &
+                                                              right_refs_meta_size
    INTEGER, ALLOCATABLE, DIMENSION(:, :, :), PRIVATE  :: left_refs_displ_unmerged, &
-                                                         right_refs_displ_unmerged, &
-                                                         left_refs_meta_size, &
-                                                         right_refs_meta_size
+                                                         right_refs_displ_unmerged
    REAL(kind=sp), ALLOCATABLE, DIMENSION(:), TARGET, PRIVATE :: left_max_norms, right_max_norms, &
                                                                 left_local_max_norms, right_local_max_norms
 
@@ -277,24 +277,21 @@ CONTAINS
       INTEGER :: blk, blk_p, bp, col, col_img, col_mult, col_size, data_type, dst_proc, f_col_f, &
          f_row_f, grp, handle, handle2, ilayer, iproc, irequests, it, ithread, l_col_l, l_row_l, &
          local_no_empty_images, mynode, mypcol, myprow, myt, nblkcols_local, nblkrows_local, &
-         nblocks, ncols_images, nimages_merged, nimages_unmerged, nprocs, nprocs_sym, &
-         nrows_images, nsymmetries, nthreads, nze, pcol, prow, request_no_empty_images, row, &
-         row_img, row_mult, row_size, size_index_unmerged, stored_col, stored_row, sym_p, &
-         symmetry_i, total_no_empty_images, tr_col_size, tr_row_size
+         nblocks, ncols_images, nimages_unmerged, nprocs, nprocs_sym, nrows_images, nsymmetries, &
+         nthreads, nze, pcol, prow, row, row_img, row_mult, row_size, size_index_unmerged, &
+         stored_col, stored_row, sym_p, symmetry_i, total_no_empty_images, tr_col_size, tr_row_size
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: img_map, img_refs, img_refs_cols, &
                                                             img_refs_rows, tmp_img_offset
-      INTEGER, ALLOCATABLE, DIMENSION(:, :)              :: recv_displ, recv_size, send_displ, &
-                                                            send_size
-      INTEGER, ALLOCATABLE, DIMENSION(:, :, :)           :: local_refs_size
-      INTEGER, ALLOCATABLE, DIMENSION(:, :, :, :, :)     :: recv_refs, refs_displ, refs_size
+      INTEGER, ALLOCATABLE, DIMENSION(:, :)              :: local_refs_size, recv_displ, recv_size, &
+                                                            send_displ, send_size
+      INTEGER, ALLOCATABLE, DIMENSION(:, :, :, :)        :: recv_refs, refs_displ, refs_size
       INTEGER, DIMENSION(2)                              :: block_col_bounds, block_row_bounds
       INTEGER, DIMENSION(:), POINTER :: col_dist, col_img_dist, local_cols, local_g2l_map_cols, &
-         local_g2l_map_rows, local_refs_data_size, local_rows, meta_buffer_p, meta_recv, &
-         meta_send, refs_data_size, row_dist, row_img_dist, threads_dist
-      INTEGER, DIMENSION(:, :), POINTER                  :: blacs2mpi, local_refs_displ_unmerged, &
-                                                            local_refs_meta_size, no_empty_images, &
-                                                            no_empty_images_displ
-      INTEGER, DIMENSION(:, :, :), POINTER               :: local_refs_displ
+         local_g2l_map_rows, local_refs_data_size, local_refs_meta_size, local_rows, &
+         meta_buffer_p, meta_recv, meta_send, refs_data_size, row_dist, row_img_dist, threads_dist
+      INTEGER, DIMENSION(:, :), POINTER                  :: blacs2mpi, local_refs_displ, &
+                                                            local_refs_displ_unmerged, &
+                                                            no_empty_images, no_empty_images_displ
       INTEGER, DIMENSION(dbcsr_slot_nblkrows_total:&
          dbcsr_slot_nfullcols_local)                     :: global_indices
       INTEGER, DIMENSION(idata:imeta)                    :: local_size
@@ -363,6 +360,13 @@ CONTAINS
 !$    IF (.NOT. dbcsr_distribution_has_threads(dbcsr_distribution(matrix))) &
 !$       CPABORT("Thread distribution not defined")
 !$    threads_dist => array_data(dbcsr_distribution_thread_dist(dbcsr_distribution(matrix)))
+      IF (is_left) THEN
+         IF (nrows_images .GT. 1) &
+            CPABORT("Row nimages for left matrix is not 1!")
+      ELSE
+         IF (ncols_images .GT. 1) &
+            CPABORT("Col nimages for right matrix is not 1!")
+      ENDIF
       !
       ! Crop matrix
       do_crop = .FALSE.
@@ -478,21 +482,18 @@ CONTAINS
       size_index_unmerged = dbcsr_slot_nblks
       !
       IF (is_left) THEN
-         ! merging over rows
-         nimages_merged = nrows_images
          nimages_unmerged = ncols_images
          buffer => buffers_orig%left
          nprocs = dbcsr_mp_npcols(mp_obj)
-         ALLOCATE (left_refs_meta_size(myprow*nimages_merged:(myprow+1)*nimages_merged-1, &
-                                       MAX(1, dbcsr_mp_nprows(mp_obj)/layers_3D_C_reduction%side3D), &
+         ALLOCATE (left_refs_meta_size(MAX(1, dbcsr_mp_nprows(mp_obj)/layers_3D_C_reduction%side3D), &
                                        0:nprocs*nimages_unmerged-1))
-         ALLOCATE (left_local_refs_meta_size(nimages_merged, nimages_unmerged))
-         left_local_refs_meta_size(:, :) = 0
+         ALLOCATE (left_local_refs_meta_size(nimages_unmerged))
+         left_local_refs_meta_size(:) = 0
          local_refs_meta_size => left_local_refs_meta_size
-         ALLOCATE (left_local_refs_data_size(nimages_merged*nimages_unmerged))
+         ALLOCATE (left_local_refs_data_size(nimages_unmerged))
          local_refs_data_size => left_local_refs_data_size
          ALLOCATE (left_refs_displ_unmerged(idata:imeta, &
-                                            UBOUND(left_refs_meta_size, 2), &
+                                            UBOUND(left_refs_meta_size, 1), &
                                             0:nprocs*nimages_unmerged-1))
          ALLOCATE (left_local_refs_displ_unmerged(idata:imeta, nimages_unmerged))
          local_refs_displ_unmerged => left_local_refs_displ_unmerged
@@ -504,35 +505,32 @@ CONTAINS
             ALLOCATE (left_total_row_counts(nblkrows_local))
             left_total_row_counts = 0
          ENDIF
-         ALLOCATE (left_no_empty_images(UBOUND(left_refs_meta_size, 2), nprocs))
+         ALLOCATE (left_no_empty_images(UBOUND(left_refs_meta_size, 1), nprocs))
          no_empty_images => left_no_empty_images
-         ALLOCATE (left_no_empty_images_displ(UBOUND(left_refs_meta_size, 2), nprocs))
+         ALLOCATE (left_no_empty_images_displ(UBOUND(left_refs_meta_size, 1), nprocs))
          no_empty_images_displ => left_no_empty_images_displ
          do_win_create => do_win_create_left
       ELSE
-         ! merging over cols
-         nimages_merged = ncols_images
          nimages_unmerged = nrows_images
          buffer => buffers_orig%right
          nprocs = dbcsr_mp_nprows(mp_obj)
-         ALLOCATE (right_refs_meta_size(mypcol*nimages_merged:(mypcol+1)*nimages_merged-1, &
-                                        MAX(1, dbcsr_mp_npcols(mp_obj)/layers_3D_C_reduction%side3D), &
+         ALLOCATE (right_refs_meta_size(MAX(1, dbcsr_mp_npcols(mp_obj)/layers_3D_C_reduction%side3D), &
                                         0:nprocs*nimages_unmerged-1))
-         ALLOCATE (right_local_refs_meta_size(nimages_merged, nimages_unmerged))
-         right_local_refs_meta_size(:, :) = 0
+         ALLOCATE (right_local_refs_meta_size(nimages_unmerged))
+         right_local_refs_meta_size(:) = 0
          local_refs_meta_size => right_local_refs_meta_size
-         ALLOCATE (right_local_refs_data_size(nimages_merged*nimages_unmerged))
+         ALLOCATE (right_local_refs_data_size(nimages_unmerged))
          local_refs_data_size => right_local_refs_data_size
          ALLOCATE (right_refs_displ_unmerged(idata:imeta, &
-                                             UBOUND(right_refs_meta_size, 2), &
+                                             UBOUND(right_refs_meta_size, 1), &
                                              0:nprocs*nimages_unmerged-1))
          ALLOCATE (right_local_refs_displ_unmerged(idata:imeta, nimages_unmerged))
          local_refs_displ_unmerged => right_local_refs_displ_unmerged
          requests(8) = mp_request_null
          irequests = 2
-         ALLOCATE (right_no_empty_images(UBOUND(right_refs_meta_size, 2), nprocs))
+         ALLOCATE (right_no_empty_images(UBOUND(right_refs_meta_size, 1), nprocs))
          no_empty_images => right_no_empty_images
-         ALLOCATE (right_no_empty_images_displ(UBOUND(right_refs_meta_size, 2), nprocs))
+         ALLOCATE (right_no_empty_images_displ(UBOUND(right_refs_meta_size, 1), nprocs))
          no_empty_images_displ => right_no_empty_images_displ
          global_indices(dbcsr_slot_nblkrows_total:dbcsr_slot_nfullcols_local) = &
             (/ &
@@ -547,14 +545,12 @@ CONTAINS
       ENDIF
       !
       ! 3D communicator
-      IF (layers_3D_C_reduction%num_layers_3D .GT. 1 .AND. nimages_merged .GT. 1) &
-         CPABORT("Cannot make 3D layers with 2D images distribution")
       CALL make_layers_3D_AB(layers_3D_C_reduction%num_layers_3D, &
                              layers_3D_C_reduction%side3D, &
                              mp_obj, is_left, buffer)
       !
-      ALLOCATE (local_refs_size(idata:imeta, nimages_merged, nimages_unmerged))
-      local_refs_size(:, :, :) = 0
+      ALLOCATE (local_refs_size(idata:imeta, nimages_unmerged))
+      local_refs_size(:, :) = 0
       !
       ! Evaluate maps for global -> local indexing (g2l_map_rows, g2l_map_cols)
       ! Evaluate maps for local_image -> local indexing (img_map)
@@ -581,9 +577,9 @@ CONTAINS
          img_refs_rows(:) = 0
          DO row = 1, nblkrows_local
             row_img = row_img_dist(local_rows(row))
-            mi = MOD(row_img-1, nrows_images)+1
-            img_refs_rows(mi) = img_refs_rows(mi)+1
-            local_g2l_map_rows(local_rows(row)) = img_refs_rows(mi)
+            ui = MOD(row_img-1, nrows_images)+1
+            img_refs_rows(ui) = img_refs_rows(ui)+1
+            local_g2l_map_rows(local_rows(row)) = img_refs_rows(ui)
          ENDDO
       ENDIF
       !
@@ -598,9 +594,9 @@ CONTAINS
          img_refs_cols(:) = 0
          DO col = 1, nblkcols_local
             col_img = col_img_dist(local_cols(col))
-            mi = MOD(col_img-1, ncols_images)+1
-            img_refs_cols(mi) = img_refs_cols(mi)+1
-            local_g2l_map_cols(local_cols(col)) = img_refs_cols(mi)
+            ui = MOD(col_img-1, ncols_images)+1
+            img_refs_cols(ui) = img_refs_cols(ui)+1
+            local_g2l_map_cols(local_cols(col)) = img_refs_cols(ui)
          ENDDO
       ENDIF
       !
@@ -637,9 +633,9 @@ CONTAINS
             tmp_img_offset(:) = img_refs(:)
             DO row = 1, nblkrows_local
                row_img = row_img_dist(local_rows(row))
-               mi = MOD(row_img-1, nrows_images)+1
-               tmp_img_offset(mi) = tmp_img_offset(mi)+1
-               img_map(tmp_img_offset(mi)) = row
+               ui = MOD(row_img-1, nrows_images)+1
+               tmp_img_offset(ui) = tmp_img_offset(ui)+1
+               img_map(tmp_img_offset(ui)) = row
             ENDDO
          ELSE
             DO row = 1, nblkrows_local
@@ -649,7 +645,7 @@ CONTAINS
       ENDIF
       IF (ALLOCATED(tmp_img_offset)) DEALLOCATE (tmp_img_offset)
       !
-      ALLOCATE (local_refs_displ(idata:imeta, nimages_merged, nimages_unmerged))
+      ALLOCATE (local_refs_displ(idata:imeta, nimages_unmerged))
       local_size(:) = 0
       local_no_empty_images = 0
       nblocks = 0
@@ -663,7 +659,7 @@ CONTAINS
 !$OMP          mi,ui,it,data_block) &
 !$OMP SHARED (nthreads,refs_size,refs_displ,matrix,nsymmetries,do_symmetry,&
 !$OMP         row_img_dist,col_img_dist,imgdist,row_dist,col_dist,&
-!$OMP         is_left,local_refs_size,nimages_merged,nimages_unmerged,&
+!$OMP         is_left,local_refs_size,nimages_unmerged,&
 !$OMP         local_size,data_type,memtype_mpi_buffer,sm,&
 !$OMP         img_refs_cols,img_refs_rows,img_refs,img_map,&
 !$OMP         local_g2l_map_cols,local_g2l_map_rows,recv_refs,grp,meta_send,&
@@ -680,7 +676,7 @@ CONTAINS
 !$OMP         buffer,left_total_row_counts,otf_filtering,&
 !$OMP         iproc,ilayer,&
 !$OMP         no_empty_images,local_no_empty_images,transpose,&
-!$OMP         request_no_empty_images,irequests,do_win_create,&
+!$OMP         irequests,do_win_create,&
 !$OMP         do_virt,handle2,nprocs_sym,global_indices,&
 !$OMP         do_crop,do_part_crop_row,do_part_crop_col,block_row_bounds,block_col_bounds,&
 !$OMP         do_part_crop_f_row,do_part_crop_l_row,do_part_crop_f_col,do_part_crop_l_col,&
@@ -700,12 +696,10 @@ CONTAINS
 !$    nthreads = omp_get_num_threads()
       ALLOCATE (refs_size(idata:imeta, &
                           0:nthreads, &
-                          nimages_merged, &
                           nimages_unmerged, &
                           nprocs_sym))
       ALLOCATE (refs_displ(idata, &
                            0:nthreads, &
-                           nimages_merged, &
                            nimages_unmerged, &
                            nprocs_sym))
       IF (.NOT. do_virt) nprocs_sym = 1
@@ -715,7 +709,7 @@ CONTAINS
          ALLOCATE (send_displ(idata:imeta, nprocs_sym))
          ALLOCATE (recv_displ(idata:imeta, nprocs_sym))
       ENDIF
-      refs_size(:, :, :, :, :) = 0
+      refs_size(:, :, :, :) = 0
 !$    IF (is_left) THEN
 !$       size_index_unmerged = size_index_unmerged+nthreads+1
 !$    ENDIF
@@ -775,11 +769,11 @@ CONTAINS
 !$             myt = threads_dist(stored_row)
 !$          ENDIF
 !$OMP ATOMIC
-            refs_size(imeta, myt+1, mi, ui, dst_proc) = &
-               refs_size(imeta, myt+1, mi, ui, dst_proc)+3
+            refs_size(imeta, myt+1, ui, dst_proc) = &
+               refs_size(imeta, myt+1, ui, dst_proc)+3
 !$OMP ATOMIC
-            refs_size(idata, myt+1, mi, ui, dst_proc) = &
-               refs_size(idata, myt+1, mi, ui, dst_proc)+nze
+            refs_size(idata, myt+1, ui, dst_proc) = &
+               refs_size(idata, myt+1, ui, dst_proc)+nze
          ENDDO ! symmetry_i
       ENDDO
       CALL dbcsr_iterator_stop(iter)
@@ -789,17 +783,16 @@ CONTAINS
 !$OMP MASTER
          ALLOCATE (recv_refs(idata:imeta, &
                              0:nthreads, &
-                             nimages_merged, &
                              nimages_unmerged, &
                              nprocs_sym))
          IF (do_virt) THEN
-            CALL mp_alltoall(refs_size(:, :, :, :, :), &
-                             recv_refs(:, :, :, :, :), &
-                             2*nimages_merged*nimages_unmerged*(nthreads+1), grp)
+            CALL mp_alltoall(refs_size(:, :, :, :), &
+                             recv_refs(:, :, :, :), &
+                             2*nimages_unmerged*(nthreads+1), grp)
          ELSE
             ! exchange sizes with the symmetric proc
-            CALL mp_sendrecv(refs_size(:, :, :, :, isym_proc), sym_p, &
-                             recv_refs(:, :, :, :, ilocal_proc), sym_p, grp)
+            CALL mp_sendrecv(refs_size(:, :, :, isym_proc), sym_p, &
+                             recv_refs(:, :, :, ilocal_proc), sym_p, grp)
          ENDIF
 !$OMP END MASTER
       ENDIF
@@ -807,38 +800,34 @@ CONTAINS
       !
       ! Store local data and meta dimensions
       IF (.NOT. do_virt) THEN
-!$OMP DO COLLAPSE(3)
+!$OMP DO COLLAPSE(2)
          DO ui = 1, nimages_unmerged
-            DO mi = 1, nimages_merged
-               DO it = 1, nthreads
+            DO it = 1, nthreads
 !$OMP ATOMIC
-                  local_refs_size(idata, mi, ui) = &
-                     local_refs_size(idata, mi, ui)+ &
-                     refs_size(idata, it, mi, ui, ilocal_proc)
+               local_refs_size(idata, ui) = &
+                  local_refs_size(idata, ui)+ &
+                  refs_size(idata, it, ui, ilocal_proc)
 !$OMP ATOMIC
-                  local_refs_size(imeta, mi, ui) = &
-                     local_refs_size(imeta, mi, ui)+ &
-                     refs_size(imeta, it, mi, ui, ilocal_proc)
-               ENDDO
+               local_refs_size(imeta, ui) = &
+                  local_refs_size(imeta, ui)+ &
+                  refs_size(imeta, it, ui, ilocal_proc)
             ENDDO
          ENDDO
 !$OMP END DO NOWAIT
       ENDIF
       IF (do_virt .OR. ((do_symmetry .OR. transpose) .AND. (.NOT. is_diagonal))) THEN
-!$OMP DO COLLAPSE(4)
+!$OMP DO COLLAPSE(3)
          DO dst_proc = 1, nprocs_sym
             DO ui = 1, nimages_unmerged
-               DO mi = 1, nimages_merged
-                  DO it = 1, nthreads
+               DO it = 1, nthreads
 !$OMP ATOMIC
-                     local_refs_size(idata, mi, ui) = &
-                        local_refs_size(idata, mi, ui)+ &
-                        recv_refs(idata, it, mi, ui, dst_proc)
+                  local_refs_size(idata, ui) = &
+                     local_refs_size(idata, ui)+ &
+                     recv_refs(idata, it, ui, dst_proc)
 !$OMP ATOMIC
-                     local_refs_size(imeta, mi, ui) = &
-                        local_refs_size(imeta, mi, ui)+ &
-                        recv_refs(imeta, it, mi, ui, dst_proc)
-                  ENDDO
+                  local_refs_size(imeta, ui) = &
+                     local_refs_size(imeta, ui)+ &
+                     recv_refs(imeta, it, ui, dst_proc)
                ENDDO
             ENDDO
          ENDDO
@@ -851,19 +840,15 @@ CONTAINS
       ! Note that local diplacements refer to position 0
       DO ui = 1, nimages_unmerged
          local_refs_displ_unmerged(:, ui) = local_size(:)
-         DO mi = 1, nimages_merged
-            local_refs_displ(:, mi, ui) = local_size(:)
-            ! Exclude communications of empty data size only when nimages_merged>1
-            IF (local_refs_size(imeta, mi, ui) .EQ. 0 .AND. nimages_merged .GT. 1) CYCLE
-            local_no_empty_images = local_no_empty_images+1
-            local_refs_data_size(local_no_empty_images) = local_refs_size(idata, mi, ui)
-            IF (local_refs_size(imeta, mi, ui) .EQ. 0) CYCLE
-            ! Include stats slots
-            local_refs_size(imeta, mi, ui) = local_refs_size(imeta, mi, ui)+ &
-                                             size_index_unmerged
-            local_refs_meta_size(mi, ui) = local_refs_size(imeta, mi, ui)
-            local_size(:) = local_size(:)+local_refs_size(:, mi, ui)
-         ENDDO
+         local_refs_displ(:, ui) = local_size(:)
+         local_no_empty_images = local_no_empty_images+1
+         local_refs_data_size(local_no_empty_images) = local_refs_size(idata, ui)
+         IF (local_refs_size(imeta, ui) .EQ. 0) CYCLE
+         ! Include stats slots
+         local_refs_size(imeta, ui) = local_refs_size(imeta, ui)+ &
+                                      size_index_unmerged
+         local_refs_meta_size(ui) = local_refs_size(imeta, ui)
+         local_size(:) = local_size(:)+local_refs_size(:, ui)
       ENDDO
       !
       ! Exchange refs
@@ -875,9 +860,6 @@ CONTAINS
          CALL mp_iallgather(local_refs_meta_size, right_refs_meta_size, buffer%subgrp, requests(irequests))
          CALL mp_iallgather(local_refs_displ_unmerged, right_refs_displ_unmerged, &
                             buffer%subgrp, requests(2+irequests))
-      ENDIF
-      IF (nimages_merged .GT. 1) THEN
-         CALL mp_iallgather(local_no_empty_images, no_empty_images, buffer%subgrp, request_no_empty_images)
       ENDIF
       !
       ! Allocate data and meta buffers
@@ -901,12 +883,12 @@ CONTAINS
          !
          ! Change displacements for the first thread
          ! In this case they refer to position 1
-         refs_size(:, 0, :, :, ilocal_proc) = local_refs_displ(:, :, :)+1
+         refs_size(:, 0, :, ilocal_proc) = local_refs_displ(:, :)+1
          !
          ! Evaluate data and meta diplacements per each thread
          DO it = 1, nthreads-1
-            refs_size(:, it, :, :, ilocal_proc) = &
-               refs_size(:, it, :, :, ilocal_proc)+refs_size(:, it-1, :, :, ilocal_proc)
+            refs_size(:, it, :, ilocal_proc) = &
+               refs_size(:, it, :, ilocal_proc)+refs_size(:, it-1, :, ilocal_proc)
          ENDDO
       ENDIF
       !
@@ -917,29 +899,27 @@ CONTAINS
          IF (do_virt) recv_displ(:, 1) = 0
          DO dst_proc = 1, nprocs_sym
             DO ui = 1, nimages_unmerged
-               DO mi = 1, nimages_merged
-                  ! Empty image
-                  IF (local_refs_size(imeta, mi, ui) .EQ. 0) THEN
-                     DO it = 0, nthreads
-                        recv_refs(:, it, mi, ui, dst_proc) = recv_size(:, dst_proc)
-                     ENDDO
-                  ELSE
-                     ! Carry previous value
-                     recv_refs(:, 0, mi, ui, dst_proc) = recv_size(:, dst_proc)
-                     DO it = 1, nthreads
-                        recv_refs(:, it, mi, ui, dst_proc) = &
-                           recv_refs(:, it, mi, ui, dst_proc)+ &
-                           recv_refs(:, it-1, mi, ui, dst_proc)
-                        IF (.NOT. do_virt) THEN
-                           ! Add symetric events to the diplacements of local data
-                           refs_size(:, it, mi, ui, ilocal_proc) = &
-                              refs_size(:, it, mi, ui, ilocal_proc)+ &
-                              recv_refs(:, it, mi, ui, ilocal_proc)-recv_size(:, ilocal_proc)
-                        ENDIF
-                     ENDDO
-                     recv_size(:, dst_proc) = recv_refs(:, nthreads, mi, ui, dst_proc)
-                  ENDIF
-               ENDDO
+               ! Empty image
+               IF (local_refs_size(imeta, ui) .EQ. 0) THEN
+                  DO it = 0, nthreads
+                     recv_refs(:, it, ui, dst_proc) = recv_size(:, dst_proc)
+                  ENDDO
+               ELSE
+                  ! Carry previous value
+                  recv_refs(:, 0, ui, dst_proc) = recv_size(:, dst_proc)
+                  DO it = 1, nthreads
+                     recv_refs(:, it, ui, dst_proc) = &
+                        recv_refs(:, it, ui, dst_proc)+ &
+                        recv_refs(:, it-1, ui, dst_proc)
+                     IF (.NOT. do_virt) THEN
+                        ! Add symetric events to the diplacements of local data
+                        refs_size(:, it, ui, ilocal_proc) = &
+                           refs_size(:, it, ui, ilocal_proc)+ &
+                           recv_refs(:, it, ui, ilocal_proc)-recv_size(:, ilocal_proc)
+                     ENDIF
+                  ENDDO
+                  recv_size(:, dst_proc) = recv_refs(:, nthreads, ui, dst_proc)
+               ENDIF
             ENDDO
             IF (do_virt) THEN
                ! Carry previous value
@@ -957,16 +937,14 @@ CONTAINS
             DO dst_proc = 1, nprocs_sym
                send_displ(:, dst_proc) = send_size(:, dst_proc)-1
                DO ui = 1, nimages_unmerged
-                  DO mi = 1, nimages_merged
-                     ! Carry previous value
-                     refs_size(:, 0, mi, ui, dst_proc) = send_size(:, dst_proc)
-                     DO it = 1, nthreads
-                        refs_size(:, it, mi, ui, dst_proc) = &
-                           refs_size(:, it, mi, ui, dst_proc)+ &
-                           refs_size(:, it-1, mi, ui, dst_proc)
-                     ENDDO
-                     send_size(:, dst_proc) = refs_size(:, nthreads, mi, ui, dst_proc)
+                  ! Carry previous value
+                  refs_size(:, 0, ui, dst_proc) = send_size(:, dst_proc)
+                  DO it = 1, nthreads
+                     refs_size(:, it, ui, dst_proc) = &
+                        refs_size(:, it, ui, dst_proc)+ &
+                        refs_size(:, it-1, ui, dst_proc)
                   ENDDO
+                  send_size(:, dst_proc) = refs_size(:, nthreads, ui, dst_proc)
                ENDDO
                IF (dst_proc .LT. nprocs_sym) THEN
                   send_size(:, dst_proc+1) = send_size(:, dst_proc)
@@ -975,16 +953,14 @@ CONTAINS
             ENDDO
          ELSE
             DO ui = 1, nimages_unmerged
-               DO mi = 1, nimages_merged
-                  ! Carry previous value
-                  refs_size(:, 0, mi, ui, isym_proc) = send_size(:, 1)
-                  DO it = 1, nthreads
-                     refs_size(:, it, mi, ui, isym_proc) = &
-                        refs_size(:, it, mi, ui, isym_proc)+ &
-                        refs_size(:, it-1, mi, ui, isym_proc)
-                  ENDDO
-                  send_size(:, 1) = refs_size(:, nthreads, mi, ui, isym_proc)
+               ! Carry previous value
+               refs_size(:, 0, ui, isym_proc) = send_size(:, 1)
+               DO it = 1, nthreads
+                  refs_size(:, it, ui, isym_proc) = &
+                     refs_size(:, it, ui, isym_proc)+ &
+                     refs_size(:, it-1, ui, isym_proc)
                ENDDO
+               send_size(:, 1) = refs_size(:, nthreads, ui, isym_proc)
             ENDDO
          ENDIF
          !
@@ -998,7 +974,7 @@ CONTAINS
                                 nocopy=.TRUE., memory_type=memtype_mpi_buffer, zero_pad=.TRUE.)
       ENDIF
       !
-      refs_displ(idata, :, :, :, :) = refs_size(idata, :, :, :, :)-1
+      refs_displ(idata, :, :, :) = refs_size(idata, :, :, :)-1
 !$OMP END MASTER
 !$OMP BARRIER
       !
@@ -1067,22 +1043,22 @@ CONTAINS
 !$          ENDIF
             IF (tr) THEN
                CALL dbcsr_block_transpose_aa(data_buffer_p, sm%data_area, tr_row_size, tr_col_size, &
-                                             refs_size(idata, myt, mi, ui, dst_proc), bp, &
+                                             refs_size(idata, myt, ui, dst_proc), bp, &
                                              scale_value)
                IF (sm%negate_real .AND. sm%negate_imaginary) THEN
                   CALL dbcsr_block_scale(data_buffer_p, scale=scale_neg_one, &
                                          row_size=nze, col_size=1, &
-                                         lb=refs_size(idata, myt, mi, ui, dst_proc))
+                                         lb=refs_size(idata, myt, ui, dst_proc))
                ELSEIF (sm%negate_real) THEN
                   CALL dbcsr_block_real_neg(data_buffer_p, row_size=nze, col_size=1, &
-                                            lb=refs_size(idata, myt, mi, ui, dst_proc))
+                                            lb=refs_size(idata, myt, ui, dst_proc))
                ELSEIF (sm%negate_imaginary) THEN
                   CALL dbcsr_block_conjg(data_buffer_p, row_size=nze, col_size=1, &
-                                         lb=refs_size(idata, myt, mi, ui, dst_proc))
+                                         lb=refs_size(idata, myt, ui, dst_proc))
                ENDIF
             ELSE
                CALL dbcsr_block_copy_aa(data_buffer_p, sm%data_area, row_size, col_size, &
-                                        refs_size(idata, myt, mi, ui, dst_proc), bp, &
+                                        refs_size(idata, myt, ui, dst_proc), bp, &
                                         scale_value)
             ENDIF
             !
@@ -1093,7 +1069,7 @@ CONTAINS
                   rsize=row_size, &
                   csize=col_size, &
                   pointee=data_buffer_p, &
-                  source_lb=refs_size(idata, myt, mi, ui, dst_proc))
+                  source_lb=refs_size(idata, myt, ui, dst_proc))
                IF (do_part_crop_row) THEN
                   IF (do_part_crop_f_row .AND. stored_row .EQ. block_row_bounds(1)) THEN
                      CALL dbcsr_data_clear(data_block, ub=f_row_f)
@@ -1114,22 +1090,22 @@ CONTAINS
             !
             ! Set meta data (global indexing)
             IF (do_virt .OR. ((do_symmetry .OR. transpose) .AND. blacs2mpi(prow, pcol) .NE. mynode)) THEN
-               meta_buffer_p(refs_size(imeta, myt, mi, ui, dst_proc)) = stored_row
-               meta_buffer_p(refs_size(imeta, myt, mi, ui, dst_proc)+1) = stored_col
+               meta_buffer_p(refs_size(imeta, myt, ui, dst_proc)) = stored_row
+               meta_buffer_p(refs_size(imeta, myt, ui, dst_proc)+1) = stored_col
                ! Reset data position per each proc
-               meta_buffer_p(refs_size(imeta, myt, mi, ui, dst_proc)+2) = &
-                  refs_size(idata, myt, mi, ui, dst_proc)- &
-                  refs_displ(idata, myt, mi, ui, dst_proc)
+               meta_buffer_p(refs_size(imeta, myt, ui, dst_proc)+2) = &
+                  refs_size(idata, myt, ui, dst_proc)- &
+                  refs_displ(idata, myt, ui, dst_proc)
             ELSE
-               meta_buffer_p(refs_size(imeta, myt, mi, ui, dst_proc)+size_index_unmerged) = &
+               meta_buffer_p(refs_size(imeta, myt, ui, dst_proc)+size_index_unmerged) = &
                   stored_row
-               meta_buffer_p(refs_size(imeta, myt, mi, ui, dst_proc)+size_index_unmerged+1) = &
+               meta_buffer_p(refs_size(imeta, myt, ui, dst_proc)+size_index_unmerged+1) = &
                   stored_col
-               meta_buffer_p(refs_size(imeta, myt, mi, ui, dst_proc)+size_index_unmerged+2) = &
-                  refs_size(idata, myt, mi, ui, dst_proc)-local_refs_displ(idata, mi, ui)
+               meta_buffer_p(refs_size(imeta, myt, ui, dst_proc)+size_index_unmerged+2) = &
+                  refs_size(idata, myt, ui, dst_proc)-local_refs_displ(idata, ui)
             ENDIF
-            refs_size(imeta, myt, mi, ui, dst_proc) = refs_size(imeta, myt, mi, ui, dst_proc)+3
-            refs_size(idata, myt, mi, ui, dst_proc) = refs_size(idata, myt, mi, ui, dst_proc)+nze
+            refs_size(imeta, myt, ui, dst_proc) = refs_size(imeta, myt, ui, dst_proc)+3
+            refs_size(idata, myt, ui, dst_proc) = refs_size(idata, myt, ui, dst_proc)+nze
 !$          IF (is_left .AND. do_symmetry) THEN
 !$             call omp_unset_lock(locks(myt))
 !$          ENDIF
@@ -1180,113 +1156,111 @@ CONTAINS
       !
       meta_buffer_p => buffer%meta
       DO ui = 1, nimages_unmerged
-         DO mi = 1, nimages_merged
-            ! Check for empty images
-            IF (local_refs_size(imeta, mi, ui) .EQ. 0) CYCLE
-            !
-            ! Insert symmetric/remote data in local buffers
-            IF (do_virt .OR. ((do_symmetry .OR. transpose) .AND. .NOT. is_diagonal)) THEN
-               IF (do_virt) THEN
-                  IF (ithread .EQ. 0) THEN
-                     refs_size(:, 0, mi, ui, ilocal_proc) = local_refs_displ(:, mi, ui)+1
-                     refs_size(:, nthreads, mi, ui, ilocal_proc) = 0
-                  ELSE
-                     ! Reset refs displacement
-                     refs_size(:, ithread, mi, ui, ilocal_proc) = 0
-                     ! Accumulate over threads and procs
-                     DO dst_proc = 1, nprocs_sym
-                        refs_size(:, ithread, mi, ui, ilocal_proc) = &
-                           refs_size(:, ithread, mi, ui, ilocal_proc)+ &
-                           recv_refs(:, ithread, mi, ui, dst_proc)-recv_refs(:, ithread-1, mi, ui, dst_proc)
-                     ENDDO
-                  ENDIF
+         ! Check for empty images
+         IF (local_refs_size(imeta, ui) .EQ. 0) CYCLE
+         !
+         ! Insert symmetric/remote data in local buffers
+         IF (do_virt .OR. ((do_symmetry .OR. transpose) .AND. .NOT. is_diagonal)) THEN
+            IF (do_virt) THEN
+               IF (ithread .EQ. 0) THEN
+                  refs_size(:, 0, ui, ilocal_proc) = local_refs_displ(:, ui)+1
+                  refs_size(:, nthreads, ui, ilocal_proc) = 0
+               ELSE
+                  ! Reset refs displacement
+                  refs_size(:, ithread, ui, ilocal_proc) = 0
+                  ! Accumulate over threads and procs
+                  DO dst_proc = 1, nprocs_sym
+                     refs_size(:, ithread, ui, ilocal_proc) = &
+                        refs_size(:, ithread, ui, ilocal_proc)+ &
+                        recv_refs(:, ithread, ui, dst_proc)-recv_refs(:, ithread-1, ui, dst_proc)
+                  ENDDO
+               ENDIF
 !$OMP BARRIER
 !$OMP MASTER
-                  DO it = 1, nthreads-1
-                     refs_size(:, it, mi, ui, ilocal_proc) = &
-                        refs_size(:, it, mi, ui, ilocal_proc)+ &
-                        refs_size(:, it-1, mi, ui, ilocal_proc)
-                  ENDDO
-!$OMP END MASTER
-!$OMP BARRIER
-               ENDIF
-               ! Temporary shift by index prefix
-               refs_size(imeta, ithread, mi, ui, ilocal_proc) = &
-                  refs_size(imeta, ithread, mi, ui, ilocal_proc)+size_index_unmerged
-               !
-               DO dst_proc = 1, nprocs_sym
-                  IF (recv_refs(imeta, nthreads, mi, ui, dst_proc) .GT. &
-                      recv_refs(imeta, 0, mi, ui, dst_proc)) THEN
-                     ! Copy meta, block by block
-                     IF (recv_refs(imeta, ithread+1, mi, ui, dst_proc) .GT. &
-                         recv_refs(imeta, ithread, mi, ui, dst_proc)) THEN
-                        DO blk = recv_refs(imeta, ithread, mi, ui, dst_proc), &
-                                 recv_refs(imeta, ithread+1, mi, ui, dst_proc)-1, 3
-                           buffer%meta(refs_size(imeta, ithread, mi, ui, ilocal_proc)) = &
-                              meta_recv(blk)
-                           buffer%meta(refs_size(imeta, ithread, mi, ui, ilocal_proc)+1) = &
-                              meta_recv(blk+1)
-                           buffer%meta(refs_size(imeta, ithread, mi, ui, ilocal_proc)+2) = &
-                              meta_recv(blk+2)+refs_size(idata, ithread, mi, ui, ilocal_proc)- &
-                              local_refs_displ(idata, mi, ui)-1
-                           refs_size(imeta, ithread, mi, ui, ilocal_proc) = &
-                              refs_size(imeta, ithread, mi, ui, ilocal_proc)+3
-                        ENDDO
-                        ! Copy data
-                        CALL dbcsr_data_set(buffer%data(1), refs_size(idata, ithread, mi, ui, ilocal_proc), &
-                                            recv_refs(idata, ithread+1, mi, ui, dst_proc)- &
-                                            recv_refs(idata, ithread, mi, ui, dst_proc), &
-                                            data_recv, recv_refs(idata, ithread, mi, ui, dst_proc))
-                        refs_size(idata, ithread, mi, ui, ilocal_proc) = &
-                           refs_size(idata, ithread, mi, ui, ilocal_proc)+ &
-                           recv_refs(idata, ithread+1, mi, ui, dst_proc)- &
-                           recv_refs(idata, ithread, mi, ui, dst_proc)
-                     ENDIF
-                  ENDIF
+               DO it = 1, nthreads-1
+                  refs_size(:, it, ui, ilocal_proc) = &
+                     refs_size(:, it, ui, ilocal_proc)+ &
+                     refs_size(:, it-1, ui, ilocal_proc)
                ENDDO
-               ! Remove index prefix
-               refs_size(imeta, ithread, mi, ui, ilocal_proc) = &
-                  refs_size(imeta, ithread, mi, ui, ilocal_proc)-size_index_unmerged
-!$OMP BARRIER
-            ENDIF
-            !
-            ! Make local indexing
-!$OMP DO
-            DO blk = local_refs_displ(imeta, mi, ui)+size_index_unmerged+1, &
-                     local_refs_displ(imeta, mi, ui)+local_refs_size(imeta, mi, ui), 3
-               meta_buffer_p(blk) = local_g2l_map_rows(meta_buffer_p(blk))
-               meta_buffer_p(blk+1) = local_g2l_map_cols(meta_buffer_p(blk+1))
-            ENDDO
-!$OMP END DO
-!$OMP MASTER
-            ! Set stats slots
-            meta_buffer_p(local_refs_displ(imeta, mi, ui)+dbcsr_slot_size) = &
-               local_refs_size(imeta, mi, ui)
-            meta_buffer_p(local_refs_displ(imeta, mi, ui)+dbcsr_slot_nblks) = &
-               (local_refs_size(imeta, mi, ui)-size_index_unmerged)/3
-            nblocks = nblocks+meta_buffer_p(local_refs_displ(imeta, mi, ui)+dbcsr_slot_nblks)
-!$          IF (is_left) THEN
-!$             meta_buffer_p(local_refs_displ(imeta, mi, ui)+dbcsr_slot_nblks+1) = 0
-!$          ENDIF
 !$OMP END MASTER
 !$OMP BARRIER
-            IF (is_left) THEN
-!$             meta_buffer_p(local_refs_displ(imeta, mi, ui)+dbcsr_slot_nblks+ithread+2) = &
-!$                (refs_size(imeta, ithread, mi, ui, ilocal_proc)-local_refs_displ(imeta, mi, ui)-1)/3
-               ! Count the maximum possible multiplies per row for on-the-fly filtering
-               IF (otf_filtering) THEN
-!$OMP DO
-                  DO row = local_refs_displ(imeta, mi, ui)+size_index_unmerged+1, &
-                           local_refs_displ(imeta, mi, ui)+ &
-                           meta_buffer_p(local_refs_displ(imeta, mi, ui)+dbcsr_slot_size), 3
-!$OMP ATOMIC
-                     left_total_row_counts(meta_buffer_p(row)) = &
-                        left_total_row_counts(meta_buffer_p(row))+1
-                  ENDDO
-!$OMP END DO
-               ENDIF
             ENDIF
+            ! Temporary shift by index prefix
+            refs_size(imeta, ithread, ui, ilocal_proc) = &
+               refs_size(imeta, ithread, ui, ilocal_proc)+size_index_unmerged
+            !
+            DO dst_proc = 1, nprocs_sym
+               IF (recv_refs(imeta, nthreads, ui, dst_proc) .GT. &
+                   recv_refs(imeta, 0, ui, dst_proc)) THEN
+                  ! Copy meta, block by block
+                  IF (recv_refs(imeta, ithread+1, ui, dst_proc) .GT. &
+                      recv_refs(imeta, ithread, ui, dst_proc)) THEN
+                     DO blk = recv_refs(imeta, ithread, ui, dst_proc), &
+                              recv_refs(imeta, ithread+1, ui, dst_proc)-1, 3
+                        buffer%meta(refs_size(imeta, ithread, ui, ilocal_proc)) = &
+                           meta_recv(blk)
+                        buffer%meta(refs_size(imeta, ithread, ui, ilocal_proc)+1) = &
+                           meta_recv(blk+1)
+                        buffer%meta(refs_size(imeta, ithread, ui, ilocal_proc)+2) = &
+                           meta_recv(blk+2)+refs_size(idata, ithread, ui, ilocal_proc)- &
+                           local_refs_displ(idata, ui)-1
+                        refs_size(imeta, ithread, ui, ilocal_proc) = &
+                           refs_size(imeta, ithread, ui, ilocal_proc)+3
+                     ENDDO
+                     ! Copy data
+                     CALL dbcsr_data_set(buffer%data(1), refs_size(idata, ithread, ui, ilocal_proc), &
+                                         recv_refs(idata, ithread+1, ui, dst_proc)- &
+                                         recv_refs(idata, ithread, ui, dst_proc), &
+                                         data_recv, recv_refs(idata, ithread, ui, dst_proc))
+                     refs_size(idata, ithread, ui, ilocal_proc) = &
+                        refs_size(idata, ithread, ui, ilocal_proc)+ &
+                        recv_refs(idata, ithread+1, ui, dst_proc)- &
+                        recv_refs(idata, ithread, ui, dst_proc)
+                  ENDIF
+               ENDIF
+            ENDDO
+            ! Remove index prefix
+            refs_size(imeta, ithread, ui, ilocal_proc) = &
+               refs_size(imeta, ithread, ui, ilocal_proc)-size_index_unmerged
+!$OMP BARRIER
+         ENDIF
+         !
+         ! Make local indexing
+!$OMP DO
+         DO blk = local_refs_displ(imeta, ui)+size_index_unmerged+1, &
+                  local_refs_displ(imeta, ui)+local_refs_size(imeta, ui), 3
+            meta_buffer_p(blk) = local_g2l_map_rows(meta_buffer_p(blk))
+            meta_buffer_p(blk+1) = local_g2l_map_cols(meta_buffer_p(blk+1))
          ENDDO
+!$OMP END DO
+!$OMP MASTER
+         ! Set stats slots
+         meta_buffer_p(local_refs_displ(imeta, ui)+dbcsr_slot_size) = &
+            local_refs_size(imeta, ui)
+         meta_buffer_p(local_refs_displ(imeta, ui)+dbcsr_slot_nblks) = &
+            (local_refs_size(imeta, ui)-size_index_unmerged)/3
+         nblocks = nblocks+meta_buffer_p(local_refs_displ(imeta, ui)+dbcsr_slot_nblks)
+!$       IF (is_left) THEN
+!$          meta_buffer_p(local_refs_displ(imeta, ui)+dbcsr_slot_nblks+1) = 0
+!$       ENDIF
+!$OMP END MASTER
+!$OMP BARRIER
+         IF (is_left) THEN
+!$          meta_buffer_p(local_refs_displ(imeta, ui)+dbcsr_slot_nblks+ithread+2) = &
+!$             (refs_size(imeta, ithread, ui, ilocal_proc)-local_refs_displ(imeta, ui)-1)/3
+            ! Count the maximum possible multiplies per row for on-the-fly filtering
+            IF (otf_filtering) THEN
+!$OMP DO
+               DO row = local_refs_displ(imeta, ui)+size_index_unmerged+1, &
+                        local_refs_displ(imeta, ui)+ &
+                        meta_buffer_p(local_refs_displ(imeta, ui)+dbcsr_slot_size), 3
+!$OMP ATOMIC
+                  left_total_row_counts(meta_buffer_p(row)) = &
+                     left_total_row_counts(meta_buffer_p(row))+1
+               ENDDO
+!$OMP END DO
+            ENDIF
+         ENDIF
       ENDDO
 !$OMP END PARALLEL
       DEALLOCATE (refs_size, refs_displ)
@@ -1299,11 +1273,9 @@ CONTAINS
          CALL mp_isum(left_total_row_counts, dbcsr_mp_my_row_group(mp_obj), request_count_rows)
       ENDIF
       !
-      IF (nimages_merged .EQ. 1) THEN
-         CALL setup_rec_index_images(buffer%meta, img_refs_rows, img_refs_cols, &
-                                     local_refs_size(imeta, 1, :), local_refs_displ(imeta, 1, :), &
-                                     size_index_unmerged, is_left)
-      ENDIF
+      CALL setup_rec_index_images(buffer%meta, img_refs_rows, img_refs_cols, &
+                                  local_refs_size(imeta, :), local_refs_displ(imeta, :), &
+                                  size_index_unmerged, is_left)
       !
       IF (do_virt .OR. ((do_symmetry .OR. transpose) .AND. .NOT. is_diagonal)) THEN
          CALL dbcsr_data_release(data_recv)
@@ -1321,12 +1293,7 @@ CONTAINS
 !$       DEALLOCATE (locks)
 !$    ENDIF
       !
-      IF (nimages_merged .GT. 1) THEN
-         CALL mp_wait(request_no_empty_images)
-      ELSE
-         no_empty_images(:, :) = local_no_empty_images
-      ENDIF
-      !
+      no_empty_images(:, :) = local_no_empty_images
       total_no_empty_images = 0
       DO iproc = 1, nprocs
          DO ilayer = 1, UBOUND(no_empty_images_displ, 1)
@@ -1343,15 +1310,9 @@ CONTAINS
          ALLOCATE (right_refs_data_size(total_no_empty_images))
          refs_data_size => right_refs_data_size
       ENDIF
-      IF (nimages_merged .GT. 1) THEN
-         CALL mp_iallgather(local_refs_data_size(1:local_no_empty_images), &
-                            refs_data_size, no_empty_images, no_empty_images_displ, &
-                            buffer%subgrp, requests(4+irequests))
-      ELSE
-         CALL mp_iallgather(local_refs_data_size(1:local_no_empty_images), &
-                            refs_data_size, &
-                            buffer%subgrp, requests(4+irequests))
-      ENDIF
+      CALL mp_iallgather(local_refs_data_size(1:local_no_empty_images), &
+                         refs_data_size, &
+                         buffer%subgrp, requests(4+irequests))
       !
       ! Evaluate and exchange max norms for MPI filtering
       IF (otf_filtering .AND. dbcsr_cfg%use_mpi_filtering) THEN
@@ -1367,7 +1328,7 @@ CONTAINS
             max_norms => right_max_norms
          ENDIF
          CALL calculate_max_image_norms(buffer, &
-                                        local_refs_size(imeta, :, :), &
+                                        local_refs_size(imeta, :), &
                                         local_refs_displ, &
                                         img_map, &
                                         img_refs, &
@@ -1377,14 +1338,8 @@ CONTAINS
                                         local_cols, &
                                         size_index_unmerged+1, &
                                         local_max_norms, is_left)
-         IF (nimages_merged .GT. 1) THEN
-            CALL mp_iallgather(local_max_norms, max_norms, &
-                               no_empty_images, no_empty_images_displ, &
-                               buffer%subgrp, requests(6+irequests))
-         ELSE
-            CALL mp_iallgather(local_max_norms, max_norms, &
-                               buffer%subgrp, requests(6+irequests))
-         ENDIF
+         CALL mp_iallgather(local_max_norms, max_norms, &
+                            buffer%subgrp, requests(6+irequests))
       ENDIF
       !
       DEALLOCATE (img_refs_cols)
@@ -1725,8 +1680,8 @@ CONTAINS
       do_layers3D = layers_3D_C_reduction%num_layers_3D .GT. 1
       myrow3D = myprow/layers_3D_C_reduction%side3D+1
       mycol3D = mypcol/layers_3D_C_reduction%side3D+1
-      nrows3D = UBOUND(left_refs_meta_size, 2)
-      ncols3D = UBOUND(right_refs_meta_size, 2)
+      nrows3D = UBOUND(left_refs_meta_size, 1)
+      ncols3D = UBOUND(right_refs_meta_size, 1)
       myrank3D = get_rank3D(myprow, mypcol, dbcsr_mp_nprows(product_mp_obj), layers_3D_C_reduction%side3D)
       nranks3D = layers_3D_C_reduction%num_layers_3D
       myprow = MOD(myprow, layers_3D_C_reduction%side3D)
@@ -3085,8 +3040,8 @@ CONTAINS
                                         slot_coo_l, &
                                         max_norms, is_left)
       TYPE(dbcsr_buffer), INTENT(IN)                     :: buffer
-      INTEGER, DIMENSION(:, :), INTENT(IN)               :: refs_size
-      INTEGER, DIMENSION(:, :, :), INTENT(IN), POINTER   :: refs_displ
+      INTEGER, DIMENSION(:), INTENT(IN)                  :: refs_size
+      INTEGER, DIMENSION(:, :), INTENT(IN)               :: refs_displ
       INTEGER, DIMENSION(:), INTENT(IN)                  :: img_map, img_offset, row_blk_size, &
                                                             col_blk_size, local_rows, local_cols
       INTEGER, INTENT(IN)                                :: slot_coo_l
