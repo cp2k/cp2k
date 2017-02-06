@@ -195,6 +195,9 @@ def parse_test_files():
     tests_root = "../../tests/"
     test_dir_lines = open(tests_root+"TEST_DIRS").readlines()
     for dline in test_dir_lines:
+    	dline = dline.strip()
+    	if(len(dline)==0):
+            continue
         if(dline.startswith("#")):
             continue
         d = dline.split()[0]
