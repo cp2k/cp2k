@@ -1,127 +1,254 @@
 &GLOBAL
+
   PROJECT SiH_tersoff
+
   RUN_TYPE md
+
 &END GLOBAL
+
 &MOTION
+
   &MD
+
     ENSEMBLE NVE
+
     STEPS 2
+
     TIMESTEP 0.1
+
     TEMPERATURE 1000.0
+
   &END MD
+
 &END MOTION
+
 &FORCE_EVAL
+
   METHOD FIST
+
   &MM
+
     &FORCEFIELD
+
       &SPLINE
+
        EPS_SPLINE 1.E-6
+
       &END
+
       &NONBONDED
+
         &TERSOFF
+
           ATOMS Si Si
+
           A        1.8308E3
+
           B        4.7118E2
+
           lambda1  2.4799
+
           lambda2  1.7322
+
           alpha    0.00
+
           beta     1.0999E-6
+
           n        7.8734E-1
+
           c        1.0039E5
+
           d        1.6218E1
+
           h       -5.9826E-1
+
           lambda3  1.7322
+
           bigR     2.85
+
           bigD     0.15
+
           RCUT     8.0
+
         &END TERSOFF
+
         &TERSOFF
+
           ATOMS H H
+
           A        86.7120 
+
           B        43.5310 
+
           lambda1  3.7879 
+
           lambda2  1.9800
+
           alpha    0.00
+
           beta     4.0
+
           n        1.0
+
           c        0.0
+
           d        1.0
+
           h        1.0	
+
           lambda3  0.0  
+
           bigR     0.9
+
           bigD     0.1
+
           RCUT     8.0 
+
         &END TERSOFF
+
         &TERSOFF
+
           ATOMS Si H 
+
           A        398.4373596941
+
           B        111.7087902328 
+
           lambda1  3.1339
+
           lambda2  1.8561
+
           alpha    0.00
+
           beta     1.0999E-6
+
           n        7.8734E-1
+
           c        1.0039E5
+
           d        1.6218E1
+
           h       -5.9826E-1
+
           lambda3  0.0  
+
           bigR     1.6015617378
+
           bigD     0.1224744871
+
           RCUT     8.0 
+
         &END TERSOFF
+
       &END NONBONDED
+
     &END FORCEFIELD
+
     &POISSON
+
       &EWALD
+
         EWALD_TYPE none
+
       &END EWALD
+
     &END POISSON
+
     &PRINT
+
       &NEIGHBOR_LISTS
+
       &END
+
       &FF_INFO 
+
       &END
+
     &END
+
   &END MM
+
   &SUBSYS
+
     &CELL
+
       ABC 7.73 7.73 7.73
+
     &END CELL
+
     &COORD
+
 Si 0 0 0
+
 Si 1.9325 1.9325 0
+
 Si 1.9325 0 1.9325
+
 Si 0 1.9325 1.9325
+
 H  3.865 0 0
+
 Si 5.7975 1.9325 0
+
 H  5.7975 0 1.9325
+
 Si 3.865 1.9325 1.9325
+
 H  0 3.865 0
+
 Si 1.9325 5.7975 0
+
 H  1.9325 3.865 1.9325
+
 Si 0 5.7975 1.9325
+
 Si 3.865 3.865 0
+
 Si 5.7975 5.7975 0
+
 Si 5.7975 3.865 1.9325
+
 Si 3.865 5.7975 1.9325
+
 Si 0 0 3.865
+
 Si 1.9325 1.9325 3.865
+
 Si 1.9325 0 5.7975
+
 Si 0 1.9325 5.7975
+
 Si 3.865 0 3.865
+
 Si 5.7975 1.9325 3.865
+
 Si 5.7975 0 5.7975
+
 Si 3.865 1.9325 5.7975
+
 Si 0 3.865 3.865
+
 Si 1.9325 5.7975 3.865
+
 Si 1.9325 3.865 5.7975
+
 Si 0 5.7975 5.7975
+
 Si 3.865 3.865 3.865
+
 Si 5.7975 5.7975 3.865
+
 Si 5.7975 3.865 5.7975
+
 Si 3.865 5.7975 5.7975
+
     &END COORD
+
     &TOPOLOGY
+
     &END TOPOLOGY
+
   &END SUBSYS
+
 &END FORCE_EVAL
+
