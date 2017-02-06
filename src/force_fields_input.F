@@ -1187,7 +1187,8 @@ CONTAINS
          CALL uppercase(nonbonded%pot(start+isec)%pot%at2)
          ! Parse the genpot info
          CALL get_generic_info(section, "FUNCTION", nonbonded%pot(start+isec)%pot%set(1)%gp%potential, &
-                               nonbonded%pot(start+isec)%pot%set(1)%gp%parameters, nonbonded%pot(start+isec)%pot%set(1)%gp%values, &
+                               nonbonded%pot(start+isec)%pot%set(1)%gp%parameters, &
+                               nonbonded%pot(start+isec)%pot%set(1)%gp%values, &
                                size_variables=1, i_rep_sec=isec)
          nonbonded%pot(start+isec)%pot%set(1)%gp%variables = nonbonded%pot(start+isec)%pot%set(1)%gp%parameters(1)
          !
@@ -1233,19 +1234,32 @@ CONTAINS
          CALL uppercase(nonbonded%pot(start+isec)%pot%at1)
          CALL uppercase(nonbonded%pot(start+isec)%pot%at2)
 
-         CALL section_vals_val_get(tersoff_section, "A", r_val=nonbonded%pot(start+isec)%pot%set(1)%tersoff%A)
-         CALL section_vals_val_get(tersoff_section, "B", r_val=nonbonded%pot(start+isec)%pot%set(1)%tersoff%B)
-         CALL section_vals_val_get(tersoff_section, "lambda1", r_val=nonbonded%pot(start+isec)%pot%set(1)%tersoff%lambda1)
-         CALL section_vals_val_get(tersoff_section, "lambda2", r_val=nonbonded%pot(start+isec)%pot%set(1)%tersoff%lambda2)
-         CALL section_vals_val_get(tersoff_section, "alpha", r_val=nonbonded%pot(start+isec)%pot%set(1)%tersoff%alpha)
-         CALL section_vals_val_get(tersoff_section, "beta", r_val=nonbonded%pot(start+isec)%pot%set(1)%tersoff%beta)
-         CALL section_vals_val_get(tersoff_section, "n", r_val=nonbonded%pot(start+isec)%pot%set(1)%tersoff%n)
-         CALL section_vals_val_get(tersoff_section, "c", r_val=nonbonded%pot(start+isec)%pot%set(1)%tersoff%c)
-         CALL section_vals_val_get(tersoff_section, "d", r_val=nonbonded%pot(start+isec)%pot%set(1)%tersoff%d)
-         CALL section_vals_val_get(tersoff_section, "h", r_val=nonbonded%pot(start+isec)%pot%set(1)%tersoff%h)
-         CALL section_vals_val_get(tersoff_section, "lambda3", r_val=nonbonded%pot(start+isec)%pot%set(1)%tersoff%lambda3)
-         CALL section_vals_val_get(tersoff_section, "bigR", r_val=nonbonded%pot(start+isec)%pot%set(1)%tersoff%bigR)
-         CALL section_vals_val_get(tersoff_section, "bigD", r_val=nonbonded%pot(start+isec)%pot%set(1)%tersoff%bigD)
+         CALL section_vals_val_get(tersoff_section, "A", i_rep_section=isec, &
+                                   r_val=nonbonded%pot(start+isec)%pot%set(1)%tersoff%A)
+         CALL section_vals_val_get(tersoff_section, "B", i_rep_section=isec, &
+                                   r_val=nonbonded%pot(start+isec)%pot%set(1)%tersoff%B)
+         CALL section_vals_val_get(tersoff_section, "lambda1", i_rep_section=isec, &
+                                   r_val=nonbonded%pot(start+isec)%pot%set(1)%tersoff%lambda1)
+         CALL section_vals_val_get(tersoff_section, "lambda2", i_rep_section=isec, &
+                                   r_val=nonbonded%pot(start+isec)%pot%set(1)%tersoff%lambda2)
+         CALL section_vals_val_get(tersoff_section, "alpha", i_rep_section=isec, &
+                                   r_val=nonbonded%pot(start+isec)%pot%set(1)%tersoff%alpha)
+         CALL section_vals_val_get(tersoff_section, "beta", i_rep_section=isec, &
+                                   r_val=nonbonded%pot(start+isec)%pot%set(1)%tersoff%beta)
+         CALL section_vals_val_get(tersoff_section, "n", i_rep_section=isec, &
+                                   r_val=nonbonded%pot(start+isec)%pot%set(1)%tersoff%n)
+         CALL section_vals_val_get(tersoff_section, "c", i_rep_section=isec, &
+                                   r_val=nonbonded%pot(start+isec)%pot%set(1)%tersoff%c)
+         CALL section_vals_val_get(tersoff_section, "d", i_rep_section=isec, &
+                                   r_val=nonbonded%pot(start+isec)%pot%set(1)%tersoff%d)
+         CALL section_vals_val_get(tersoff_section, "h", i_rep_section=isec, &
+                                   r_val=nonbonded%pot(start+isec)%pot%set(1)%tersoff%h)
+         CALL section_vals_val_get(tersoff_section, "lambda3", i_rep_section=isec, &
+                                   r_val=nonbonded%pot(start+isec)%pot%set(1)%tersoff%lambda3)
+         CALL section_vals_val_get(tersoff_section, "bigR", i_rep_section=isec, &
+                                   r_val=nonbonded%pot(start+isec)%pot%set(1)%tersoff%bigR)
+         CALL section_vals_val_get(tersoff_section, "bigD", i_rep_section=isec, &
+                                   r_val=nonbonded%pot(start+isec)%pot%set(1)%tersoff%bigD)
 
          rcutsq = (nonbonded%pot(start+isec)%pot%set(1)%tersoff%bigR+ &
                    nonbonded%pot(start+isec)%pot%set(1)%tersoff%bigD)**2
@@ -1253,9 +1267,9 @@ CONTAINS
          nonbonded%pot(start+isec)%pot%rcutsq = rcutsq
 
          ! In case it is defined override the standard specification of RCUT
-         CALL section_vals_val_get(tersoff_section, "RCUT", n_rep_val=n_rep)
+         CALL section_vals_val_get(tersoff_section, "RCUT", i_rep_section=isec, n_rep_val=n_rep)
          IF (n_rep == 1) THEN
-            CALL section_vals_val_get(tersoff_section, "RCUT", r_val=rcut)
+            CALL section_vals_val_get(tersoff_section, "RCUT", i_rep_section=isec, r_val=rcut)
             nonbonded%pot(start+isec)%pot%rcutsq = rcut**2
          END IF
       END DO
@@ -1294,22 +1308,27 @@ CONTAINS
          CALL uppercase(nonbonded%pot(start+isec)%pot%at1)
          CALL uppercase(nonbonded%pot(start+isec)%pot%at2)
 
-         CALL section_vals_val_get(siepmann_section, "B", r_val=nonbonded%pot(start+isec)%pot%set(1)%siepmann%B)
-         CALL section_vals_val_get(siepmann_section, "D", r_val=nonbonded%pot(start+isec)%pot%set(1)%siepmann%D)
-         CALL section_vals_val_get(siepmann_section, "E", r_val=nonbonded%pot(start+isec)%pot%set(1)%siepmann%E)
-         CALL section_vals_val_get(siepmann_section, "F", r_val=nonbonded%pot(start+isec)%pot%set(1)%siepmann%F)
-         CALL section_vals_val_get(siepmann_section, "beta", r_val=nonbonded%pot(start+isec)%pot%set(1)%siepmann%beta)
-         CALL section_vals_val_get(siepmann_section, "ALLOW_OH_FORMATION", &
+         CALL section_vals_val_get(siepmann_section, "B", i_rep_section=isec, &
+                                   r_val=nonbonded%pot(start+isec)%pot%set(1)%siepmann%B)
+         CALL section_vals_val_get(siepmann_section, "D", i_rep_section=isec, &
+                                   r_val=nonbonded%pot(start+isec)%pot%set(1)%siepmann%D)
+         CALL section_vals_val_get(siepmann_section, "E", i_rep_section=isec, &
+                                   r_val=nonbonded%pot(start+isec)%pot%set(1)%siepmann%E)
+         CALL section_vals_val_get(siepmann_section, "F", i_rep_section=isec, &
+                                   r_val=nonbonded%pot(start+isec)%pot%set(1)%siepmann%F)
+         CALL section_vals_val_get(siepmann_section, "beta", i_rep_section=isec, &
+                                   r_val=nonbonded%pot(start+isec)%pot%set(1)%siepmann%beta)
+         CALL section_vals_val_get(siepmann_section, "ALLOW_OH_FORMATION", i_rep_section=isec, &
                                    l_val=nonbonded%pot(start+isec)%pot%set(1)%siepmann%allow_oh_formation)
-         CALL section_vals_val_get(siepmann_section, "ALLOW_H3O_FORMATION", &
+         CALL section_vals_val_get(siepmann_section, "ALLOW_H3O_FORMATION", i_rep_section=isec, &
                                    l_val=nonbonded%pot(start+isec)%pot%set(1)%siepmann%allow_h3o_formation)
-         CALL section_vals_val_get(siepmann_section, "ALLOW_O_FORMATION", &
+         CALL section_vals_val_get(siepmann_section, "ALLOW_O_FORMATION", i_rep_section=isec, &
                                    l_val=nonbonded%pot(start+isec)%pot%set(1)%siepmann%allow_o_formation)
 
          ! ! In case it is defined override the standard specification of RCUT
-         CALL section_vals_val_get(siepmann_section, "RCUT", n_rep_val=n_rep)
+         CALL section_vals_val_get(siepmann_section, "RCUT", i_rep_section=isec, n_rep_val=n_rep)
          IF (n_rep == 1) THEN
-            CALL section_vals_val_get(siepmann_section, "RCUT", r_val=rcut)
+            CALL section_vals_val_get(siepmann_section, "RCUT", i_rep_section=isec, r_val=rcut)
             nonbonded%pot(start+isec)%pot%rcutsq = rcut**2
             nonbonded%pot(start+isec)%pot%set(1)%siepmann%rcutsq = rcut**2
          END IF

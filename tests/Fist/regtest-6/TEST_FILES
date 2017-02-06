@@ -13,6 +13,7 @@ Si_tersoff.inp                                         2    1.0E-14            -
 Si_tersoff_2.inp                                       2    1.0E-14            -0.168775130786E+01
 Si_tersoff_3.inp                                       2    1.0E-14            -0.759727944846E+01
 C_tersoff.inp                                          2    1.0E-14            -0.971545611681E+02
+SiH_tersoff.inp                                        2    1.0E-14            -0.343343965527E+01
 # New grouping colvar
 ethene_colv1_g.inp                                     2      8e-10          0.0064656266809200004
 ethene_colv2_g.inp                2     3e-10           0.017674386846599999
