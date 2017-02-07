@@ -9,5 +9,5 @@ Ne_nlcc_md.inp                                         1      5e-14            -
 # diagonalization library
 c8_broy_elpa.inp                  1     3e-12             -43.77621008452368
 # NLCC corrected pseudos with forces for GAPW
-Ne_GAPW_nlcc_md.inp                                    1      5e-14            -70.170280255455950
+Ne_GAPW_nlcc_md.inp                                    1      2e-13            -70.170280255455950
 #EOF
