@@ -251,10 +251,10 @@ CONTAINS
                                                             BIb_C_2D_gw_beta
       TYPE(cp_fm_p_type), DIMENSION(:), POINTER          :: fm_mat_P_omega, fm_scaled_dm_occ_tau, &
                                                             fm_scaled_dm_virt_tau
-      TYPE(cp_fm_type), POINTER :: fm_mat_comm_H_r_ia, fm_mat_eps_wings, fm_mat_Q, fm_mat_Q_beta, &
-         fm_mat_Q_gemm, fm_mat_Q_gemm_beta, fm_mat_R_gw, fm_mat_R_gw_beta, fm_mat_R_gw_gemm, &
-         fm_mat_R_gw_gemm_beta, fm_mat_S, fm_mat_S_beta, fm_mat_S_gw, fm_mat_S_gw_beta, &
-         fm_mo_coeff_occ, fm_mo_coeff_occ_beta, fm_mo_coeff_virt, fm_mo_coeff_virt_beta
+      TYPE(cp_fm_type), POINTER :: fm_mat_Q, fm_mat_Q_beta, fm_mat_Q_gemm, fm_mat_Q_gemm_beta, &
+         fm_mat_R_gw, fm_mat_R_gw_beta, fm_mat_R_gw_gemm, fm_mat_R_gw_gemm_beta, fm_mat_S, &
+         fm_mat_S_beta, fm_mat_S_gw, fm_mat_S_gw_beta, fm_mo_coeff_occ, fm_mo_coeff_occ_beta, &
+         fm_mo_coeff_virt, fm_mo_coeff_virt_beta
       TYPE(cp_para_env_type), POINTER                    :: para_env_RPA
 
       CALL timeset(routineN, handle)
@@ -664,13 +664,12 @@ CONTAINS
                              stop_crit, check_fit, fermi_level_offset, crossing_search, &
                              max_iter_fit, mp2_env%ri_rpa%mm_style, do_minimax_quad, &
                              do_im_time, do_mao, fm_mo_coeff_occ, fm_mo_coeff_virt, mo_coeff, fm_matrix_L_RI_metric, &
-                             fm_mat_eps_wings, fm_mat_comm_H_r_ia, fm_mat_P_omega, fm_scaled_dm_occ_tau, &
-                             fm_scaled_dm_virt_tau, &
+                             fm_mat_P_omega, fm_scaled_dm_occ_tau, fm_scaled_dm_virt_tau, &
                              mat_munu, mat_dm_occ_local, mat_dm_virt_local, mat_P_local, mat_P_global, mat_M, &
                              mat_3c_overl_int, mat_3c_overl_int_mao_for_occ, mat_3c_overl_int_mao_for_virt, matrix_s, &
                              mao_coeff_occ, mao_coeff_virt, eps_filter, &
                              fm_mo_coeff_occ_beta=fm_mo_coeff_occ_beta, fm_mo_coeff_virt_beta=fm_mo_coeff_virt_beta, &
-                             mo_coeff_beta=mo_coeff_beta, homo_beta=homo_beta, virtual_beta=virtual_beta, &
+                             homo_beta=homo_beta, virtual_beta=virtual_beta, &
                              dimen_ia_beta=dimen_ia_beta, Eigenval_beta=Eigenval_beta, fm_mat_S_beta=fm_mat_S_beta, &
                              fm_mat_Q_gemm_beta=fm_mat_Q_gemm_beta, fm_mat_Q_beta=fm_mat_Q_beta, &
                              fm_mat_S_gw_beta=fm_mat_S_gw_beta, gw_corr_lev_occ_beta=gw_corr_lev_occ_beta, &
@@ -693,8 +692,7 @@ CONTAINS
                              stop_crit, check_fit, fermi_level_offset, crossing_search, &
                              max_iter_fit, mp2_env%ri_rpa%mm_style, do_minimax_quad, &
                              do_im_time, do_mao, fm_mo_coeff_occ, fm_mo_coeff_virt, mo_coeff, fm_matrix_L_RI_metric, &
-                             fm_mat_eps_wings, fm_mat_comm_H_r_ia, fm_mat_P_omega, fm_scaled_dm_occ_tau, &
-                             fm_scaled_dm_virt_tau, &
+                             fm_mat_P_omega, fm_scaled_dm_occ_tau, fm_scaled_dm_virt_tau, &
                              mat_munu, mat_dm_occ_local, mat_dm_virt_local, mat_P_local, mat_P_global, mat_M, &
                              mat_3c_overl_int, mat_3c_overl_int_mao_for_occ, mat_3c_overl_int_mao_for_virt, matrix_s, &
                              mao_coeff_occ, mao_coeff_virt, eps_filter)
@@ -741,11 +739,6 @@ CONTAINS
             CALL cp_fm_release(fm_mat_S_gw_beta)
          END IF
       END IF
-
-!      IF(mp2_env%ri_g0w0%do_periodic) THEN
-!         CALL cp_fm_release(fm_mat_eps_wings)
-!         CALL cp_fm_release(fm_mat_comm_H_r_ia)
-!      END IF
 
       IF (mp2_env%ri_rpa%do_ri_axk) THEN
          CALL dbcsr_release(mp2_env%ri_rpa%mo_coeff_o)
@@ -1852,8 +1845,6 @@ CONTAINS
 !> \param fm_mo_coeff_virt ...
 !> \param mo_coeff ...
 !> \param fm_matrix_L_RI_metric ...
-!> \param fm_mat_eps_wings ...
-!> \param fm_mat_comm_H_r_ia ...
 !> \param fm_mat_P_omega ...
 !> \param fm_scaled_dm_occ_tau ...
 !> \param fm_scaled_dm_virt_tau ...
@@ -1872,7 +1863,6 @@ CONTAINS
 !> \param eps_filter ...
 !> \param fm_mo_coeff_occ_beta ...
 !> \param fm_mo_coeff_virt_beta ...
-!> \param mo_coeff_beta ...
 !> \param homo_beta ...
 !> \param virtual_beta ...
 !> \param dimen_ia_beta ...
@@ -1891,13 +1881,12 @@ CONTAINS
                           my_do_gw, gw_corr_lev_occ, gw_corr_lev_virt, num_poles, ext_scaling, &
                           omega_max_fit, stop_crit, check_fit, fermi_level_offset, crossing_search, &
                           max_iter_fit, mm_style, do_minimax_quad, do_im_time, do_mao, fm_mo_coeff_occ, &
-                          fm_mo_coeff_virt, mo_coeff, fm_matrix_L_RI_metric, fm_mat_eps_wings, &
-                          fm_mat_comm_H_r_ia, fm_mat_P_omega, &
+                          fm_mo_coeff_virt, mo_coeff, fm_matrix_L_RI_metric, fm_mat_P_omega, &
                           fm_scaled_dm_occ_tau, fm_scaled_dm_virt_tau, mat_munu, mat_dm_occ_local, &
                           mat_dm_virt_local, mat_P_local, &
                           mat_P_global, mat_M, mat_3c_overl_int, mat_3c_overl_int_mao_for_occ, &
                           mat_3c_overl_int_mao_for_virt, matrix_s, mao_coeff_occ, mao_coeff_virt, &
-                          eps_filter, fm_mo_coeff_occ_beta, fm_mo_coeff_virt_beta, mo_coeff_beta, &
+                          eps_filter, fm_mo_coeff_occ_beta, fm_mo_coeff_virt_beta, &
                           homo_beta, virtual_beta, dimen_ia_beta, Eigenval_beta, fm_mat_S_beta, &
                           fm_mat_Q_gemm_beta, fm_mat_Q_beta, fm_mat_S_gw_beta, &
                           gw_corr_lev_occ_beta, gw_corr_lev_virt_beta)
@@ -1921,8 +1910,7 @@ CONTAINS
       INTEGER                                            :: crossing_search, max_iter_fit, mm_style
       LOGICAL                                            :: do_minimax_quad, do_im_time, do_mao
       TYPE(cp_fm_type), POINTER                          :: fm_mo_coeff_occ, fm_mo_coeff_virt, &
-                                                            mo_coeff, fm_matrix_L_RI_metric, &
-                                                            fm_mat_eps_wings, fm_mat_comm_H_r_ia
+                                                            mo_coeff, fm_matrix_L_RI_metric
       TYPE(cp_fm_p_type), DIMENSION(:), POINTER          :: fm_mat_P_omega, fm_scaled_dm_occ_tau, &
                                                             fm_scaled_dm_virt_tau
       TYPE(dbcsr_p_type)                                 :: mat_munu, mat_dm_occ_local, &
@@ -1932,7 +1920,7 @@ CONTAINS
          mat_3c_overl_int_mao_for_virt, matrix_s, mao_coeff_occ, mao_coeff_virt
       REAL(KIND=dp)                                      :: eps_filter
       TYPE(cp_fm_type), OPTIONAL, POINTER                :: fm_mo_coeff_occ_beta, &
-                                                            fm_mo_coeff_virt_beta, mo_coeff_beta
+                                                            fm_mo_coeff_virt_beta
       INTEGER, OPTIONAL                                  :: homo_beta, virtual_beta, dimen_ia_beta
       REAL(KIND=dp), DIMENSION(:), OPTIONAL              :: Eigenval_beta
       TYPE(cp_fm_type), OPTIONAL, POINTER                :: fm_mat_S_beta, fm_mat_Q_gemm_beta, &
@@ -3408,12 +3396,10 @@ CONTAINS
                ! periodic correction for GW
                IF (do_periodic) THEN
                   CALL calc_periodic_correction(delta_corr, delta_corr_nm, qs_env, para_env, para_env_RPA, &
-                                                mp2_env%ri_g0w0%kp_grid, homo, nmo, num_integ_points, &
-                                                gw_corr_lev_occ, gw_corr_lev_virt, &
-                                                jquad, omega, my_open_shell, mo_coeff, mo_coeff_beta, fm_mat_Q, &
-                                                fm_mat_S, fm_mat_S_gw, Eigenval, Eigenval_beta, &
+                                                mp2_env%ri_g0w0%kp_grid, homo, nmo, gw_corr_lev_occ, &
+                                                gw_corr_lev_virt, omega, mo_coeff, Eigenval, &
                                                 matrix_berry_re_mo_mo, matrix_berry_im_mo_mo, &
-                                                fm_mat_eps_wings, first_cycle_periodic_correction, kpoints, &
+                                                first_cycle_periodic_correction, kpoints, &
                                                 mp2_env%ri_g0w0%do_mo_coeff_gamma, &
                                                 mp2_env%ri_g0w0%num_kp_grids, mp2_env%ri_g0w0%eps_kpoint, &
                                                 mp2_env%ri_g0w0%do_extra_kpoints, &
@@ -6594,8 +6580,6 @@ CONTAINS
    END SUBROUTINE
 
 ! **************************************************************************************************
-! ...
-! **************************************************************************************************
 !> \brief ...
 !> \param delta_corr ...
 !> \param delta_corr_nm ...
@@ -6605,22 +6589,13 @@ CONTAINS
 !> \param kp_grid ...
 !> \param homo ...
 !> \param nmo ...
-!> \param num_integ_points ...
 !> \param gw_corr_lev_occ ...
 !> \param gw_corr_lev_virt ...
-!> \param jquad ...
 !> \param omega ...
-!> \param my_open_shell ...
 !> \param fm_mo_coeff ...
-!> \param fm_mo_coeff_beta ...
-!> \param fm_mat_Q ...
-!> \param fm_mat_S ...
-!> \param fm_mat_S_gw ...
 !> \param Eigenval ...
-!> \param Eigenval_beta ...
 !> \param matrix_berry_re_mo_mo ...
 !> \param matrix_berry_im_mo_mo ...
-!> \param fm_mat_eps_wings ...
 !> \param first_cycle_periodic_correction ...
 !> \param kpoints ...
 !> \param do_mo_coeff_Gamma_only ...
@@ -6631,10 +6606,8 @@ CONTAINS
 !> \param frac_aux_mos ...
 ! **************************************************************************************************
    SUBROUTINE calc_periodic_correction(delta_corr, delta_corr_nm, qs_env, para_env, para_env_RPA, kp_grid, homo, nmo, &
-                                       num_integ_points, gw_corr_lev_occ, gw_corr_lev_virt, &
-                                       jquad, omega, my_open_shell, fm_mo_coeff, fm_mo_coeff_beta, &
-                                       fm_mat_Q, fm_mat_S, fm_mat_S_gw, Eigenval, Eigenval_beta, &
-                                       matrix_berry_re_mo_mo, matrix_berry_im_mo_mo, fm_mat_eps_wings, &
+                                       gw_corr_lev_occ, gw_corr_lev_virt, omega, fm_mo_coeff, Eigenval, &
+                                       matrix_berry_re_mo_mo, matrix_berry_im_mo_mo, &
                                        first_cycle_periodic_correction, kpoints, do_mo_coeff_Gamma_only, &
                                        num_kp_grids, eps_kpoint, do_extra_kpoints, do_aux_bas, frac_aux_mos)
 
@@ -6643,17 +6616,13 @@ CONTAINS
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(cp_para_env_type), POINTER                    :: para_env, para_env_RPA
       INTEGER, DIMENSION(:), POINTER                     :: kp_grid
-      INTEGER                                            :: homo, nmo, num_integ_points, &
-                                                            gw_corr_lev_occ, gw_corr_lev_virt, &
-                                                            jquad
+      INTEGER                                            :: homo, nmo, gw_corr_lev_occ, &
+                                                            gw_corr_lev_virt
       REAL(KIND=dp)                                      :: omega
-      LOGICAL                                            :: my_open_shell
-      TYPE(cp_fm_type), POINTER                          :: fm_mo_coeff, fm_mo_coeff_beta, fm_mat_Q, &
-                                                            fm_mat_S, fm_mat_S_gw
-      REAL(KIND=dp), DIMENSION(:)                        :: Eigenval, Eigenval_beta
+      TYPE(cp_fm_type), POINTER                          :: fm_mo_coeff
+      REAL(KIND=dp), DIMENSION(:)                        :: Eigenval
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_berry_re_mo_mo, &
                                                             matrix_berry_im_mo_mo
-      TYPE(cp_fm_type), OPTIONAL, POINTER                :: fm_mat_eps_wings
       LOGICAL :: first_cycle_periodic_correction
       TYPE(kpoint_type), POINTER                         :: kpoints
       LOGICAL                                            :: do_mo_coeff_Gamma_only
@@ -6667,7 +6636,6 @@ CONTAINS
 
       INTEGER                                            :: handle
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: eps_head, zeta_head
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: contr_W_wings
       REAL(KIND=dp), DIMENSION(3, 3)                     :: h_inv
 
       CALL timeset(routineN, handle)
@@ -6684,16 +6652,16 @@ CONTAINS
       END IF
 
       CALL compute_eps_head_Berry(eps_head, kpoints, matrix_berry_re_mo_mo, matrix_berry_im_mo_mo, para_env_RPA, &
-                                  para_env, qs_env, num_integ_points, homo, nmo, Eigenval, omega)
+                                  qs_env, homo, Eigenval, omega)
 
-      CALL compute_zeta_head(zeta_head, eps_head, kpoints, qs_env)
+      CALL compute_zeta_head(zeta_head, eps_head, kpoints)
 
       CALL kpoint_sum_for_zeta_head_Berry(delta_corr, delta_corr_nm, zeta_head, kpoints, qs_env, &
                                           matrix_berry_re_mo_mo, matrix_berry_im_mo_mo, &
                                           homo, nmo, gw_corr_lev_occ, gw_corr_lev_virt, para_env_RPA, &
                                           do_extra_kpoints)
 
-      CALL clean_up(eps_head, zeta_head, contr_W_wings, kpoints)
+      DEALLOCATE (eps_head, zeta_head)
 
       first_cycle_periodic_correction = .FALSE.
 
@@ -6708,24 +6676,21 @@ CONTAINS
 !> \param matrix_berry_re_mo_mo ...
 !> \param matrix_berry_im_mo_mo ...
 !> \param para_env_RPA ...
-!> \param para_env ...
 !> \param qs_env ...
-!> \param num_integ_points ...
 !> \param homo ...
-!> \param nmo ...
 !> \param Eigenval ...
 !> \param omega ...
 ! **************************************************************************************************
    SUBROUTINE compute_eps_head_Berry(eps_head, kpoints, matrix_berry_re_mo_mo, matrix_berry_im_mo_mo, para_env_RPA, &
-                                     para_env, qs_env, num_integ_points, homo, nmo, Eigenval, omega)
+                                     qs_env, homo, Eigenval, omega)
 
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: eps_head
       TYPE(kpoint_type), POINTER                         :: kpoints
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_berry_re_mo_mo, &
                                                             matrix_berry_im_mo_mo
-      TYPE(cp_para_env_type), POINTER                    :: para_env_RPA, para_env
+      TYPE(cp_para_env_type), POINTER                    :: para_env_RPA
       TYPE(qs_environment_type), POINTER                 :: qs_env
-      INTEGER                                            :: num_integ_points, homo, nmo
+      INTEGER                                            :: homo
       REAL(KIND=dp), DIMENSION(:)                        :: Eigenval
       REAL(KIND=dp)                                      :: omega
 
@@ -7483,67 +7448,6 @@ CONTAINS
 
 ! **************************************************************************************************
 !> \brief ...
-!> \param B_nn_P_local ...
-!> \param fm_mat_S_gw ...
-!> \param para_env ...
-!> \param homo ...
-!> \param nmo ...
-!> \param gw_corr_lev_occ ...
-!> \param gw_corr_lev_virt ...
-!> \param nrow_local_S_gw ...
-!> \param ncol_local_S_gw ...
-!> \param row_indices_S_gw ...
-!> \param col_indices_S_gw ...
-! **************************************************************************************************
-   SUBROUTINE replicate_B_nn_P(B_nn_P_local, fm_mat_S_gw, para_env, homo, nmo, gw_corr_lev_occ, gw_corr_lev_virt, &
-                               nrow_local_S_gw, ncol_local_S_gw, row_indices_S_gw, col_indices_S_gw)
-
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: B_nn_P_local
-      TYPE(cp_fm_type), POINTER                          :: fm_mat_S_gw
-      TYPE(cp_para_env_type), POINTER                    :: para_env
-      INTEGER                                            :: homo, nmo, gw_corr_lev_occ, &
-                                                            gw_corr_lev_virt, nrow_local_S_gw, &
-                                                            ncol_local_S_gw
-      INTEGER, DIMENSION(:), POINTER                     :: row_indices_S_gw, col_indices_S_gw
-
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'replicate_B_nn_P', &
-         routineP = moduleN//':'//routineN
-
-      INTEGER                                            :: handle, iiB, jjB, m_global, n_global, &
-                                                            nm_global, RI_global
-
-      CALL timeset(routineN, handle)
-
-      DO iiB = 1, nrow_local_S_gw
-
-         nm_global = row_indices_S_gw(iiB)
-
-         n_global = MAX(1, nm_global-1)/nmo+1
-         m_global = nm_global-(n_global-1)*nmo
-         n_global = n_global+homo-gw_corr_lev_occ
-
-         IF (n_global == m_global) THEN
-
-            DO jjB = 1, ncol_local_S_gw
-
-               RI_global = col_indices_S_gw(jjB)
-
-               B_nn_P_local(n_global, RI_global) = fm_mat_S_gw%local_data(iiB, jjB)
-
-            END DO
-
-         END IF
-
-      END DO
-
-      CALL mp_sum(B_nn_P_local, para_env%group)
-
-      CALL timestop(handle)
-
-   END SUBROUTINE
-
-! **************************************************************************************************
-!> \brief ...
 !> \param Berry_ia_local ...
 !> \param matrix_berry_mo_mo ...
 !> \param para_env ...
@@ -7968,12 +7872,10 @@ CONTAINS
 !> \param zeta_head ...
 !> \param eps_head ...
 !> \param kpoints ...
-!> \param qs_env ...
 ! **************************************************************************************************
-   SUBROUTINE compute_zeta_head(zeta_head, eps_head, kpoints, qs_env)
+   SUBROUTINE compute_zeta_head(zeta_head, eps_head, kpoints)
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: zeta_head, eps_head
       TYPE(kpoint_type), POINTER                         :: kpoints
-      TYPE(qs_environment_type), POINTER                 :: qs_env
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'compute_zeta_head', &
          routineP = moduleN//':'//routineN
@@ -8010,7 +7912,8 @@ CONTAINS
 !> \param do_mo_coeff_Gamma_only ...
 !> \param do_extra_kpoints ...
 ! **************************************************************************************************
-   SUBROUTINE get_kpoints(qs_env, kpoints, kp_grid, num_kp_grids, para_env, h_inv, nmo, do_mo_coeff_Gamma_only, do_extra_kpoints)
+   SUBROUTINE get_kpoints(qs_env, kpoints, kp_grid, num_kp_grids, para_env, h_inv, nmo, &
+                          do_mo_coeff_Gamma_only, do_extra_kpoints)
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(kpoint_type), POINTER                         :: kpoints
       INTEGER, DIMENSION(:), POINTER                     :: kp_grid
@@ -8023,7 +7926,7 @@ CONTAINS
       INTEGER                                            :: end_kp, i, i_grid_level, ix, iy, iz, &
                                                             nkp_inner_grid, nkp_outer_grid, &
                                                             npoints, start_kp
-      INTEGER, DIMENSION(3)                              :: mp_grid, outer_kp_grid
+      INTEGER, DIMENSION(3)                              :: outer_kp_grid
       REAL(KIND=dp)                                      :: kpoint_weight_left, single_weight
       REAL(KIND=dp), DIMENSION(3)                        :: kpt_latt, reducing_factor
       TYPE(cell_type), POINTER                           :: cell
@@ -8202,24 +8105,6 @@ CONTAINS
          CALL qs_env_release(qs_env_kp_Gamma_only)
 
       END IF
-
-   END SUBROUTINE
-
-! **************************************************************************************************
-! ...
-! **************************************************************************************************
-!> \brief ...
-!> \param eps_head ...
-!> \param zeta_head ...
-!> \param contr_W_wings ...
-!> \param kpoints ...
-! **************************************************************************************************
-   SUBROUTINE clean_up(eps_head, zeta_head, contr_W_wings, kpoints)
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: eps_head, zeta_head
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: contr_W_wings
-      TYPE(kpoint_type), POINTER                         :: kpoints
-
-      DEALLOCATE (eps_head, zeta_head)
 
    END SUBROUTINE
 
