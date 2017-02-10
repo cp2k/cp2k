@@ -34,7 +34,7 @@ CONTAINS
 !> \param ncoa number of cartesian orbitals on a
 !> \param ncob number of cartesian orbitals on b
 !> \param nsgfa number of spherical Gaussian functions on a
-!> \param nsgfb number of sperical Gaussian functions on b
+!> \param nsgfb number of spherical Gaussian functions on b
 ! **************************************************************************************************
    SUBROUTINE ab_contract(abint, sab, sphi_a, sphi_b, ncoa, ncob, nsgfa, nsgfb)
 

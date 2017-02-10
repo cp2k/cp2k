@@ -33,7 +33,8 @@ MODULE basis_set_container_types
                                                soft_basis = 106, &
                                                hard_basis = 107, &
                                                mao_basis = 108, &
-                                               harris_basis = 109
+                                               harris_basis = 109, &
+                                               aux_gw_basis = 110
 ! **************************************************************************************************
    TYPE basis_set_container_type
       PRIVATE
@@ -104,6 +105,8 @@ CONTAINS
          basis_type_nr = mao_basis
       CASE ("HARRIS")
          basis_type_nr = harris_basis
+      CASE ("AUX_GW")
+         basis_type_nr = aux_gw_basis
       CASE DEFAULT
          basis_type_nr = unknown_basis
       END SELECT
@@ -119,8 +122,8 @@ CONTAINS
       CHARACTER(len=default_string_length)               :: basis_set_type
 
       INTEGER, PARAMETER :: use_aux_basis_set = 3, use_aux_fit_basis_set = 2, &
-         use_harris_basis_set = 7, use_lri_basis_set = 5, use_mao_basis_set = 6, &
-         use_orb_basis_set = 1, use_ri_aux_basis_set = 4
+         use_aux_gw_basis_set = 8, use_harris_basis_set = 7, use_lri_basis_set = 5, &
+         use_mao_basis_set = 6, use_orb_basis_set = 1, use_ri_aux_basis_set = 4
 
 ! This parameter identifies basis sets
 
@@ -139,6 +142,8 @@ CONTAINS
          basis_set_type = "MAO"
       CASE (use_harris_basis_set)
          basis_set_type = "HARRIS"
+      CASE (use_aux_gw_basis_set)
+         basis_set_type = "AUX_GW"
       CASE DEFAULT
          basis_set_type = ""
       END SELECT

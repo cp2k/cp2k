@@ -3,4 +3,5 @@ G0W0_H2O_PBE_ev_sc.inp                                11      1e-08            -
 G0W0_H2O_PBE_ev_sc_contour_def.inp                    11      1e-08            -17.102005250323128
 G0W0_OH_PBE_ev_sc.inp                                 11      1e-08            -16.449688522996048
 G0W0_H2O_PBE_ev_sc_RI_HFX.inp                         11      1e-08            -13.159626708393661
+G0W0_H2O_PBE_periodic.inp                             11      1e-07            -17.143194694023901
 #EOF

@@ -565,12 +565,17 @@ CONTAINS
 !> \param cosmat ...
 !> \param sinmat ...
 !> \param kvec ...
+!> \param sab_orb_external ...
+!> \param basis_type ...
 ! **************************************************************************************************
-   SUBROUTINE build_berry_moment_matrix(qs_env, cosmat, sinmat, kvec)
+   SUBROUTINE build_berry_moment_matrix(qs_env, cosmat, sinmat, kvec, sab_orb_external, basis_type)
 
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(dbcsr_type), POINTER                          :: cosmat, sinmat
       REAL(KIND=dp), DIMENSION(3), INTENT(IN)            :: kvec
+      TYPE(neighbor_list_set_p_type), DIMENSION(:), &
+         OPTIONAL, POINTER                               :: sab_orb_external
+      CHARACTER(len=*), OPTIONAL                         :: basis_type
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'build_berry_moment_matrix', &
          routineP = moduleN//':'//routineN
@@ -605,10 +610,12 @@ CONTAINS
                       particle_set=particle_set, cell=cell, &
                       sab_orb=sab_orb)
 
+      IF (PRESENT(sab_orb_external)) sab_orb => sab_orb_external
+
       CALL dbcsr_set(sinmat, 0.0_dp)
       CALL dbcsr_set(cosmat, 0.0_dp)
 
-      CALL get_qs_kind_set(qs_kind_set=qs_kind_set, maxco=ldwork)
+      CALL get_qs_kind_set(qs_kind_set=qs_kind_set, maxco=ldwork, basis_type=basis_type)
       ldab = ldwork
       ALLOCATE (cosab(ldab, ldab))
       ALLOCATE (sinab(ldab, ldab))
@@ -620,7 +627,7 @@ CONTAINS
       ALLOCATE (basis_set_list(nkind))
       DO ikind = 1, nkind
          qs_kind => qs_kind_set(ikind)
-         CALL get_qs_kind(qs_kind=qs_kind, basis_set=basis_set_a)
+         CALL get_qs_kind(qs_kind=qs_kind, basis_set=basis_set_a, basis_type=basis_type)
          IF (ASSOCIATED(basis_set_a)) THEN
             basis_set_list(ikind)%gto_basis_set => basis_set_a
          ELSE

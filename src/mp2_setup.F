@@ -163,6 +163,27 @@ CONTAINS
       CALL section_vals_val_get(mp2_section, "RI_RPA%RI_G0W0%CONTOUR_DEF_OFFSET", &
                                 r_val=mp2_env%ri_g0w0%contour_def_offset)
 
+      CALL section_vals_val_get(mp2_section, "RI_RPA%RI_G0W0%PERIODIC", &
+                                l_val=mp2_env%ri_g0w0%do_periodic)
+      CALL section_vals_val_get(mp2_section, "RI_RPA%RI_G0W0%PERIODIC%KPOINTS", &
+                                i_vals=mp2_env%ri_g0w0%kp_grid)
+      CALL section_vals_val_get(mp2_section, "RI_RPA%RI_G0W0%PERIODIC%NUM_KP_GRIDS", &
+                                i_val=mp2_env%ri_g0w0%num_kp_grids)
+      CALL section_vals_val_get(mp2_section, "RI_RPA%RI_G0W0%PERIODIC%EPS_KPOINT", &
+                                r_val=mp2_env%ri_g0w0%eps_kpoint)
+      CALL section_vals_val_get(mp2_section, "RI_RPA%RI_G0W0%PERIODIC%MO_COEFF_GAMMA", &
+                                l_val=mp2_env%ri_g0w0%do_mo_coeff_gamma)
+      CALL section_vals_val_get(mp2_section, "RI_RPA%RI_G0W0%PERIODIC%AVERAGE_DEGENERATE_LEVELS", &
+                                l_val=mp2_env%ri_g0w0%do_average_deg_levels)
+      CALL section_vals_val_get(mp2_section, "RI_RPA%RI_G0W0%PERIODIC%EPS_EIGENVAL", &
+                                r_val=mp2_env%ri_g0w0%eps_eigenval)
+      CALL section_vals_val_get(mp2_section, "RI_RPA%RI_G0W0%PERIODIC%EXTRAPOLATE_KPOINTS", &
+                                l_val=mp2_env%ri_g0w0%do_extra_kpoints)
+      CALL section_vals_val_get(mp2_section, "RI_RPA%RI_G0W0%PERIODIC%DO_AUX_BAS_GW", &
+                                l_val=mp2_env%ri_g0w0%do_aux_bas_gw)
+      CALL section_vals_val_get(mp2_section, "RI_RPA%RI_G0W0%PERIODIC%FRACTION_AUX_MOS", &
+                                r_val=mp2_env%ri_g0w0%frac_aux_mos)
+
       CALL section_vals_val_get(mp2_section, "RI_RPA%IM_TIME%MEMORY_CUT", &
                                 i_val=mp2_env%ri_rpa_im_time%cut_memory)
       CALL section_vals_val_get(mp2_section, "RI_RPA%IM_TIME%MEMORY_INFO", &

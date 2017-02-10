@@ -1901,9 +1901,6 @@ CONTAINS
 
                      END DO
 
-!                 num_entries_send(imepos) = num_entries_send(imepos) + row_size_to_send*col_size_to_send
-!                 num_blocks_send(imepos)  = num_blocks_send(imepos) + my_group_L_size
-
                   END IF
 
                   ! everything transposed for virtuals

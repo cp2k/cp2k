@@ -95,8 +95,8 @@ CONTAINS
                                                             zet
       TYPE(all_potential_type), POINTER                  :: all_potential
       TYPE(gth_potential_type), POINTER                  :: gth_potential
-      TYPE(gto_basis_set_type), POINTER :: aux_basis_set, aux_fit_basis_set, harris_basis, &
-         lri_basis, mao_basis, orb_basis_set, ri_aux_basis_set, soft_basis
+      TYPE(gto_basis_set_type), POINTER :: aux_basis_set, aux_fit_basis_set, aux_gw_basis, &
+         harris_basis, lri_basis, mao_basis, orb_basis_set, ri_aux_basis_set, soft_basis
       TYPE(paw_proj_set_type), POINTER                   :: paw_proj_set
 
       CALL timeset(routineN, handle)
@@ -120,6 +120,7 @@ CONTAINS
          CALL get_qs_kind(qs_kind_set(ikind), basis_set=ri_aux_basis_set, basis_type="RI_AUX")
          CALL get_qs_kind(qs_kind_set(ikind), basis_set=mao_basis, basis_type="MAO")
          CALL get_qs_kind(qs_kind_set(ikind), basis_set=harris_basis, basis_type="HARRIS")
+         CALL get_qs_kind(qs_kind_set(ikind), basis_set=aux_gw_basis, basis_type="AUX_GW")
          CALL get_qs_kind(qs_kind_set(ikind), soft_basis_set=soft_basis)
          CALL get_qs_kind(qs_kind_set(ikind), &
                           paw_proj_set=paw_proj_set, &
@@ -256,6 +257,11 @@ CONTAINS
          ! Calculate the HARRIS orbital basis function radii
          IF (ASSOCIATED(harris_basis)) THEN
             CALL init_interaction_radii_orb_basis(harris_basis, qs_control%eps_pgf_orb)
+         END IF
+
+         ! Calculate the AUX_GW orbital basis function radii
+         IF (ASSOCIATED(aux_gw_basis)) THEN
+            CALL init_interaction_radii_orb_basis(aux_gw_basis, qs_control%eps_pgf_orb)
          END IF
 
          ! Calculate the soft orbital basis function radii

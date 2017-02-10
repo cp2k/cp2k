@@ -268,9 +268,10 @@ CONTAINS
 !> \param nadd ...
 !> \param mp_grid ...
 !> \param kpgeneral ...
+!> \param group_size_ext ...
 !> \author JGH
 ! **************************************************************************************************
-   SUBROUTINE calculate_kp_orbitals(qs_env, kpoint, scheme, nadd, mp_grid, kpgeneral)
+   SUBROUTINE calculate_kp_orbitals(qs_env, kpoint, scheme, nadd, mp_grid, kpgeneral, group_size_ext)
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(kpoint_type), POINTER                         :: kpoint
       CHARACTER(LEN=*), INTENT(IN)                       :: scheme
@@ -278,6 +279,7 @@ CONTAINS
       INTEGER, DIMENSION(3), INTENT(IN), OPTIONAL        :: mp_grid
       REAL(KIND=dp), DIMENSION(:, :), INTENT(IN), &
          OPTIONAL                                        :: kpgeneral
+      INTEGER, INTENT(IN), OPTIONAL                      :: group_size_ext
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'calculate_kp_orbitals', &
          routineP = moduleN//':'//routineN
@@ -309,7 +311,11 @@ CONTAINS
       kpoint%full_grid = .FALSE.
       kpoint%use_real_wfn = .FALSE.
       kpoint%eps_geo = 1.e-6_dp
-      kpoint%parallel_group_size = -1
+      IF (PRESENT(group_size_ext)) THEN
+         kpoint%parallel_group_size = group_size_ext
+      ELSE
+         kpoint%parallel_group_size = -1
+      END IF
       SELECT CASE (scheme)
       CASE ("GAMMA")
          kpoint%nkp = 1

@@ -167,11 +167,18 @@ MODULE mp2_types
                                   do_ri_Sigma_x, &
                                   remove_neg_virt_energies
       INTEGER                  :: ri_metric
-      LOGICAL                  :: mix_exchange
+      LOGICAL                  :: mix_exchange, do_periodic
       REAL(KIND=dp)            :: frac_exx
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :) ::vec_Sigma_x_minus_vxc_gw
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :) :: vec_Sigma_x_minus_vxc_gw
       INTEGER                  :: contour_def_start, contour_def_end
       REAL(KIND=dp)            :: contour_def_offset
+      INTEGER, DIMENSION(:), POINTER    :: kp_grid
+      INTEGER                  :: num_kp_grids
+      REAL(KIND=dp)            :: eps_kpoint
+      LOGICAL                  :: do_mo_coeff_gamma, do_average_deg_levels
+      REAL(KIND=dp)            :: eps_eigenval
+      LOGICAL                  :: do_extra_kpoints, do_aux_bas_gw
+      REAL(KIND=dp)            :: frac_aux_mos
    END TYPE
 
    TYPE ri_basis_opt

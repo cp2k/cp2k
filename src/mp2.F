@@ -53,6 +53,8 @@ MODULE mp2
         hfx_container_type, hfx_create_basis_types, hfx_init_container, hfx_release_basis_types, &
         hfx_type
    USE input_constants,                 ONLY: cholesky_inverse,&
+                                              do_admm_basis_projection,&
+                                              do_admm_purify_none,&
                                               do_mp2_potential_TShPSC,&
                                               hfx_do_eval_energy,&
                                               xc_none
@@ -132,7 +134,7 @@ CONTAINS
          unit_nr
       INTEGER(KIND=int_8)                                :: mem
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: kind_of
-      LOGICAL                                            :: calc_ex, do_admm, &
+      LOGICAL                                            :: calc_ex, do_admm, do_admm_rpa_exx, &
                                                             do_dynamic_load_balancing, do_exx, &
                                                             do_gw, free_hfx_buffer
       REAL(KIND=dp) :: E_ex_from_GW, Emp2, Emp2_AA, Emp2_AA_Cou, Emp2_AA_ex, Emp2_AB, Emp2_AB_Cou, &
@@ -259,7 +261,8 @@ CONTAINS
       CALL get_atomic_kind_set(atomic_kind_set, kind_of=kind_of)
       nkind = SIZE(atomic_kind_set, 1)
 
-      CALL hfx_create_basis_types(basis_parameter, basis_info, qs_kind_set, do_admm=.FALSE.)
+      do_admm_rpa_exx = mp2_env%ri_rpa%do_admm
+      CALL hfx_create_basis_types(basis_parameter, basis_info, qs_kind_set, do_admm=do_admm_rpa_exx)
 
       dimen = 0
       max_nset = 0
@@ -1210,7 +1213,16 @@ CONTAINS
                          dft_control=dft_control, &
                          para_env=para_env, &
                          ks_env=ks_env)
+
+         ! RPA/GW with ADMM for EXX or the exchange self-energy only implemented for
+         ! ADMM_PURIFICATION_METHOD  NONE
+         ! METHOD                    BASIS_PROJECTION
+         ! in the admm section
+         CPASSERT(admm_env%purification_method == do_admm_purify_none)
+         CPASSERT(dft_control%admm_control%method == do_admm_basis_projection)
+
       ELSE
+
          CALL get_qs_env(qs_env, &
                          admm_env=admm_env, &
                          matrix_ks=matrix_ks, &
@@ -1220,6 +1232,7 @@ CONTAINS
                          dft_control=dft_control, &
                          para_env=para_env, &
                          ks_env=ks_env)
+
       END IF
 
       CALL qs_rho_get(rho, rho_ao=rho_ao)
@@ -1409,7 +1422,7 @@ CONTAINS
          END IF
 
          CALL dbcsr_set(mo_coeff_b, 0.0_dp)
-         CALL copy_fm_to_dbcsr(mo_coeff, mo_coeff_b, keep_sparsity=.TRUE.)
+         CALL copy_fm_to_dbcsr(mo_coeff, mo_coeff_b, keep_sparsity=.FALSE.)
 
          ! initialize matrix_tmp and matrix_tmp2
          IF (ispin == 1) THEN

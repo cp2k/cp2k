@@ -540,7 +540,7 @@ CONTAINS
          "Not really recommended. In most cases, the Hartree-Fock exchange is not expensive "// &
          "and there is no need for ADMM. Only in case of diffuse functions for periodic systems "// &
          "(only reasonable for GW bandgap calculations) exact exchange can be expensive and then, "// &
-         "we recommend using RI for exchange, see G0W0 section.", &
+         "we recommend using RI for exchange.", &
          usage="ADMM", &
          default_l_val=.FALSE., &
          lone_keyword_l_val=.TRUE.)
@@ -611,13 +611,14 @@ CONTAINS
       CHARACTER(len=*), PARAMETER :: routineN = 'create_ri_g0w0', routineP = moduleN//':'//routineN
 
       TYPE(keyword_type), POINTER                        :: keyword
+      TYPE(section_type), POINTER                        :: subsection
 
       CPASSERT(.NOT. ASSOCIATED(section))
       CALL section_create(section, "RI_G0W0", &
                           description="Parameters influencing the RI-G0W0 method", &
-                          n_keywords=12, n_subsections=0, repeats=.FALSE.)
+                          n_keywords=24, n_subsections=1, repeats=.FALSE.)
 
-      NULLIFY (keyword)
+      NULLIFY (keyword, subsection)
 
       CALL keyword_create(keyword, name="CORR_MOS_OCC", &
                           variants=(/"CORR_OCC"/), &
@@ -848,7 +849,124 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
+      CALL keyword_create(keyword, name="PERIODIC", &
+                          description="If true, the periodic correction scheme is used employing k-points. "// &
+                          "Specify the k-point mesh in a following k-point section. Only works with RI OVERLAP "// &
+                          "(RI OVERLAP has to be set twice!).", &
+                          usage="PERIODIC", &
+                          default_l_val=.FALSE., &
+                          lone_keyword_l_val=.TRUE.)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      ! here we generate a kpoint subsection for the periodic GW correction
+      CALL create_periodic_gw_correction_section(subsection)
+      CALL section_add_subsection(section, subsection)
+      CALL section_release(subsection)
+
    END SUBROUTINE create_ri_g0w0
+
+! **************************************************************************************************
+!> \brief ...
+!> \param section ...
+! **************************************************************************************************
+   SUBROUTINE create_periodic_gw_correction_section(section)
+      TYPE(section_type), POINTER                        :: section
+
+      CHARACTER(len=*), PARAMETER :: routineN = 'create_periodic_gw_correction_section', &
+         routineP = moduleN//':'//routineN
+
+      TYPE(keyword_type), POINTER                        :: keyword
+
+      CPASSERT(.NOT. ASSOCIATED(section))
+      CALL section_create(section, "PERIODIC", &
+                          description="Parameters influencing correction for periodic GW.", &
+                          n_keywords=12, n_subsections=1, repeats=.FALSE.)
+
+      NULLIFY (keyword)
+
+      CALL keyword_create(keyword, name="KPOINTS", &
+                          description="Specify number of k-points for a single k-point grid. Internally, a "// &
+                          "Monkhorst-Pack grid is used. Typically, even numbers are chosen such that the Gamma "// &
+                          "point is excluded from the k-point mesh.", &
+                          usage="KPOINTS  nx  ny  nz", repeats=.TRUE., &
+                          n_var=3, type_of_var=integer_t, default_i_vals=(/16, 16, 16/))
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, name="NUM_KP_GRIDS", &
+                          description="Number of k-point grids around the Gamma point with different resolution. "// &
+                          "E.g. for KPOINTS 4 4 4 and NUM_KP_GRIDS 3, there will be a 3x3x3 Monkhorst-Pack (MP) k-point "// &
+                          "grid for the whole Brillouin zone (excluding Gamma), another 3x3x3 MP grid with smaller  "// &
+                          "spacing around Gamma (again excluding Gamma) and a very fine 4x4x4 MP grid around Gamma.", &
+                          usage="NUM_KP_GRIDS 5", &
+                          default_i_val=1)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, name="EPS_KPOINT", &
+                          description="If the absolute value of a k-point is below EPS_KPOINT, this kpoint is "// &
+                          "neglected since the Gamma point is not included in the periodic correction.", &
+                          usage="EPS_KPOINT 1.0E-4", &
+                          default_r_val=1.0E-05_dp)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, name="MO_COEFF_GAMMA", &
+                          description="If true, only the MO coefficients at the Gamma point are used for the periodic  "// &
+                          "correction. Otherwise, the MO coeffs are computed at every k-point which is much more "// &
+                          "expensive. It should be okay to use the Gamma MO coefficients.", &
+                          usage="MO_COEFF_GAMMA", &
+                          default_l_val=.TRUE., &
+                          lone_keyword_l_val=.TRUE.)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, name="AVERAGE_DEGENERATE_LEVELS", &
+                          variants=(/"ADL"/), &
+                          description="If true, the correlation self-energy of degenerate levels is averaged.", &
+                          usage="AVERAGE_DEGENERATE_LEVELS", &
+                          default_l_val=.TRUE., &
+                          lone_keyword_l_val=.TRUE.)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, name="EPS_EIGENVAL", &
+                          description="Threshold for considering levels as degenerate. Unit: Hartree.", &
+                          usage="EPS_EIGENVAL 1.0E-5", &
+                          default_r_val=2.0E-04_dp)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, name="EXTRAPOLATE_KPOINTS", &
+                          variants=(/"EXTRAPOLATE"/), &
+                          description="If true, extrapolates the k-point mesh. Only working if k-point mesh numbers are "// &
+                          "disivible by 4, e.g. 8x8x8 or 12x12x12 is recommended.", &
+                          usage="EXTRAPOLATE_KPOINTS FALSE", &
+                          default_l_val=.TRUE., &
+                          lone_keyword_l_val=.TRUE.)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, name="DO_AUX_BAS_GW", &
+                          description="If true, use a different basis for the periodic correction. This can be necessary "// &
+                          "in case a diffused basis is used for GW to converge the HOMO-LUMO gap. In this case, "// &
+                          "numerical problems may occur due to diffuse functions in the basis. This keyword only works if "// &
+                          "AUX_GW <basis set>  is specified in the kind section for every atom kind.", &
+                          usage="AUX_BAS_GW TRUE", &
+                          default_l_val=.FALSE., &
+                          lone_keyword_l_val=.TRUE.)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, name="FRACTION_AUX_MOS", &
+                          description="Fraction how many MOs are used in the auxiliary basis.", &
+                          usage="FRACTION_AUX_MOS 0.6", &
+                          default_r_val=0.5_dp)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+   END SUBROUTINE
 
 ! **************************************************************************************************
 !> \brief ...
@@ -865,7 +983,7 @@ CONTAINS
 
       CPASSERT(.NOT. ASSOCIATED(section))
       CALL section_create(section, "IM_TIME", &
-                          description="Parameters influencing the RI-G0W0 method", &
+                          description="Parameters influencing the cubic-scaling RPA method.", &
                           n_keywords=12, n_subsections=1, repeats=.FALSE.)
 
       NULLIFY (keyword, subsection)
@@ -934,7 +1052,7 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      ! here we generate a RPA imag. time subsection to use
+      ! here we generate a RPA imag. time subsection to use for MAOs
       CALL create_mao_section(subsection)
       CALL section_add_subsection(section, subsection)
       CALL section_release(subsection)
