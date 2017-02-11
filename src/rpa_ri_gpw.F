@@ -7179,6 +7179,8 @@ CONTAINS
 
          CALL dbcsr_copy(mat_mo_coeff_Gamma_occ_and_GW, mat_mo_coeff_aux)
 
+         DEALLOCATE (evals_P, evals_P_sqrt_inv)
+
       END IF
 
       CALL remove_unnecessary_blocks(mat_mo_coeff_Gamma_occ_and_GW, homo, gw_corr_lev_virt)
