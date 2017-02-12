@@ -7995,7 +7995,7 @@ CONTAINS
          ! the outer grids
          DO i_grid_level = 1, num_kp_grids-1
 
-            single_weight = kpoint_weight_left/REAL(nkp_outer_grid)
+            single_weight = kpoint_weight_left/REAL(nkp_outer_grid, KIND=dp)
 
             start_kp = i+1
 
@@ -8033,13 +8033,13 @@ CONTAINS
 
             kpoint_weight_left = kpoint_weight_left-SUM(kpoints%wkp(start_kp:end_kp))
 
-            reducing_factor(1) = reducing_factor(1)/REAL(outer_kp_grid(1))
-            reducing_factor(2) = reducing_factor(2)/REAL(outer_kp_grid(2))
-            reducing_factor(3) = reducing_factor(3)/REAL(outer_kp_grid(3))
+            reducing_factor(1) = reducing_factor(1)/REAL(outer_kp_grid(1), KIND=dp)
+            reducing_factor(2) = reducing_factor(2)/REAL(outer_kp_grid(2), KIND=dp)
+            reducing_factor(3) = reducing_factor(3)/REAL(outer_kp_grid(3), KIND=dp)
 
          END DO
 
-         single_weight = kpoint_weight_left/REAL(nkp_inner_grid)
+         single_weight = kpoint_weight_left/REAL(nkp_inner_grid, KIND=dp)
 
          ! the inner grid
          DO ix = 1, kp_grid(1)
@@ -8064,7 +8064,7 @@ CONTAINS
 
          IF (do_extra_kpoints) THEN
 
-            single_weight = kpoint_weight_left/REAL(kp_grid(1)*kp_grid(2)*kp_grid(3)/8)
+            single_weight = kpoint_weight_left/REAL(kp_grid(1)*kp_grid(2)*kp_grid(3)/8, KIND=dp)
 
             DO ix = 1, kp_grid(1)/2
                DO iy = 1, kp_grid(2)/2
@@ -8176,7 +8176,7 @@ CONTAINS
          DO jquad = 1, num_integ_points
 
             avg_self_energy(jquad) = SUM(vec_Sigma_c_gw(first_degenerate_level:first_degenerate_level+degeneracy-1, jquad)) &
-                                     /REAL(degeneracy)
+                                     /REAL(degeneracy, KIND=dp)
 
          END DO
 
