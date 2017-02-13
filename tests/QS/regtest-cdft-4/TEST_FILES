@@ -11,7 +11,7 @@ HeH-cdft-newton-fd1backward.inp                       1       3e-06             
 HeH-cdft-newton-fd2.inp                               1       4e-06             -2.62570660673001
 HeH-cdft-newton-fd1central.inp                        1       3e-06             -2.67640494953380
 # Newton: use backtracking line search
-HeH-cdft-newton-ls-fd2backward.inp                    1       2e-06             -2.36109314362094
+HeH-cdft-newton-ls-fd2backward.inp                    1       3e-06             -2.36109314362094
 # Broyden optimizers
 HeH-cdft-broyden-bt1.inp                              1       1e-09             -2.34812170647367
 HeH-cdft-broyden-bt2.inp                              1       1e-09             -2.34797348440589
