@@ -308,8 +308,10 @@ CONTAINS
 
       INTEGER                                            :: nhistory, nvariables
       LOGICAL                                            :: do_kpoints
-      REAL(KIND=dp), DIMENSION(:, :), POINTER            :: outer_scf_history
+      REAL(KIND=dp), DIMENSION(:, :), POINTER            :: gradient_history, outer_scf_history, &
+                                                            variable_history
 
+      NULLIFY (outer_scf_history, gradient_history, variable_history)
       CALL get_qs_env(qs_env=qs_env, do_kpoints=do_kpoints)
       ! Check only one constraint section is active
       IF (dft_control%qs_control%becke_restraint .AND. &
@@ -343,7 +345,6 @@ CONTAINS
       ! Executed only on first call (OT settings active in scf_control)
       ! Save OT settings and constraint initial values in CDFT control
       ! Then switch to constraint outer_scf settings for proper initialization of history
-      NULLIFY (outer_scf_history)
       IF (scf_control%outer_scf%have_scf) THEN
          IF (scf_control%outer_scf%type == outer_scf_none) THEN
             dft_control%qs_control%cdft_control%ot_control%have_scf = .TRUE.
@@ -355,6 +356,12 @@ CONTAINS
             dft_control%qs_control%cdft_control%ot_control%diis_buffer_length = scf_control%outer_scf%diis_buffer_length
             dft_control%qs_control%cdft_control%ot_control%jacobian_type = scf_control%outer_scf%jacobian_type
             dft_control%qs_control%cdft_control%ot_control%bisect_trust_count = scf_control%outer_scf%bisect_trust_count
+            dft_control%qs_control%cdft_control%ot_control%jacobian_step = scf_control%outer_scf%jacobian_step
+            dft_control%qs_control%cdft_control%ot_control%jacobian_freq = scf_control%outer_scf%jacobian_freq
+            dft_control%qs_control%cdft_control%ot_control%ijacobian = scf_control%outer_scf%ijacobian
+            dft_control%qs_control%cdft_control%ot_control%build_jacobian = scf_control%outer_scf%build_jacobian
+            dft_control%qs_control%cdft_control%ot_control%broyden_type = scf_control%outer_scf%broyden_type
+            dft_control%qs_control%cdft_control%ot_control%broyden_update = scf_control%outer_scf%broyden_update
             nvariables = 1
             ! Constraint specific initializations
             IF (dft_control%qs_control%becke_restraint) THEN
@@ -369,14 +376,21 @@ CONTAINS
                dft_control%qs_control%cdft_control%constraint_type = dft_control%qs_control%becke_control%constraint_type
                dft_control%qs_control%cdft_control%combined_type = dft_control%qs_control%becke_control%combined_type
             END IF
-            ! In case constraint and ot extrapolation orders are different, make sure to use former
+            ! In case constraint and OT extrapolation orders are different, make sure to use former
             IF (scf_control%outer_scf%extrapolation_order /= &
                 dft_control%qs_control%cdft_control%constraint_control%extrapolation_order &
                 .OR. nvariables == 2) THEN
                DEALLOCATE (qs_env%outer_scf_history)
+               DEALLOCATE (qs_env%gradient_history)
+               DEALLOCATE (qs_env%variable_history)
                nhistory = dft_control%qs_control%cdft_control%constraint_control%extrapolation_order
                ALLOCATE (outer_scf_history(nvariables, nhistory))
-               CALL set_qs_env(qs_env, outer_scf_history=outer_scf_history)
+               ALLOCATE (gradient_history(nvariables, 2))
+               gradient_history = 0.0_dp
+               ALLOCATE (variable_history(nvariables, 2))
+               variable_history = 0.0_dp
+               CALL set_qs_env(qs_env, outer_scf_history=outer_scf_history, &
+                               gradient_history=gradient_history, variable_history=variable_history)
             END IF
             CALL outer_loop_switch(scf_env, scf_control, dft_control%qs_control%cdft_control, ot2cdft)
          END IF

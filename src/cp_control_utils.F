@@ -1941,6 +1941,7 @@ CONTAINS
       CHARACTER(len=*), PARAMETER :: routineN = 'read_cdft_control_section', &
          routineP = moduleN//':'//routineN
 
+      INTEGER, DIMENSION(:), POINTER                     :: tmplist
       LOGICAL                                            :: exists
       TYPE(section_vals_type), POINTER                   :: hirshfeld_constraint_section, &
                                                             outer_scf_section
@@ -1961,6 +1962,8 @@ CONTAINS
                                    i_val=qs_control%cdft_control%purge_freq)
          CALL section_vals_val_get(cdft_control_section, "PURGE_OFFSET", &
                                    i_val=qs_control%cdft_control%purge_offset)
+         CALL section_vals_val_get(cdft_control_section, "COUNTER", &
+                                   i_val=qs_control%cdft_control%ienergy)
          outer_scf_section => section_vals_get_subs_vals(cdft_control_section, "OUTER_SCF")
          CALL section_vals_val_get(outer_scf_section, "_SECTION_PARAMETERS_", &
                                    l_val=qs_control%cdft_control%constraint_control%have_scf)
@@ -1990,6 +1993,24 @@ CONTAINS
                                       i_val=qs_control%cdft_control%constraint_control%jacobian_type)
             CALL section_vals_val_get(outer_scf_section, "JACOBIAN_STEP", &
                                       r_val=qs_control%cdft_control%constraint_control%jacobian_step)
+            CALL section_vals_val_get(outer_scf_section, "BROYDEN_TYPE", &
+                                      i_val=qs_control%cdft_control%constraint_control%broyden_type)
+            CALL section_vals_val_get(outer_scf_section, "JACOBIAN_FREQ", explicit=exists)
+            IF (exists) THEN
+               CALL section_vals_val_get(outer_scf_section, "JACOBIAN_FREQ", &
+                                         i_vals=tmplist)
+               IF (SIZE(tmplist) /= 2) &
+                  CALL cp_abort(__LOCATION__, &
+                                "Keyword JACOBIAN_FREQ takes exactly two input values.")
+               IF (ANY(tmplist .LT. 0)) &
+                  CALL cp_abort(__LOCATION__, &
+                                "Keyword JACOBIAN_FREQ takes only positive values.")
+               IF (ALL(tmplist .EQ. 0)) &
+                  CALL cp_abort(__LOCATION__, &
+                                "Both values to keyword JACOBIAN_FREQ cannot be zero.")
+               qs_control%cdft_control%constraint_control%jacobian_freq(:) = tmplist(1:2)
+            END IF
+
             SELECT CASE (qs_control%cdft_control%type)
             CASE (outer_scf_hirshfeld_constraint)
                IF (qs_control%cdft_control%constraint_control%type == outer_scf_cdft_constraint) THEN

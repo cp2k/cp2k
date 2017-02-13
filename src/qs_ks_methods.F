@@ -686,34 +686,36 @@ CONTAINS
       END IF
 
       IF (calculate_forces .AND. dft_control%qs_control%becke_restraint) THEN
-         CALL pw_pool_give_back_pw(auxbas_pw_pool, becke%becke_pot%pw)
-         IF (dft_control%qs_control%becke_control%atomic_charges) THEN
-            DO iatom = 1, dft_control%qs_control%becke_control%natoms
-               CALL pw_pool_give_back_pw(auxbas_pw_pool, &
-                                         dft_control%qs_control%becke_control%charge(iatom)%pw)
-            END DO
-         END IF
-         IF (dft_control%qs_control%becke_control%cavity_confine) THEN
-            IF (.NOT. ASSOCIATED(becke%cavity_mat)) THEN
-               CALL pw_pool_give_back_pw(auxbas_pw_pool, becke%cavity%pw)
-            ELSE
-               DEALLOCATE (becke%cavity_mat)
+         IF (.NOT. becke%transfer_pot) THEN
+            CALL pw_pool_give_back_pw(auxbas_pw_pool, becke%becke_pot%pw)
+            IF (dft_control%qs_control%becke_control%atomic_charges) THEN
+               DO iatom = 1, dft_control%qs_control%becke_control%natoms
+                  CALL pw_pool_give_back_pw(auxbas_pw_pool, &
+                                            dft_control%qs_control%becke_control%charge(iatom)%pw)
+               END DO
             END IF
+            IF (dft_control%qs_control%becke_control%cavity_confine) THEN
+               IF (.NOT. ASSOCIATED(becke%cavity_mat)) THEN
+                  CALL pw_pool_give_back_pw(auxbas_pw_pool, becke%cavity%pw)
+               ELSE
+                  DEALLOCATE (becke%cavity_mat)
+               END IF
+            END IF
+            IF (ASSOCIATED(dft_control%qs_control%becke_control%charges_fragment)) &
+               DEALLOCATE (dft_control%qs_control%becke_control%charges_fragment)
+            IF (dft_control%qs_control%becke_control%constraint_type == cdft_combined_constraint) THEN
+               SELECT CASE (dft_control%qs_control%becke_control%combined_type)
+               CASE (cdft_combined_all)
+                  ! Do nothing
+               CASE (cdft_combined_acceptor, cdft_combined_donor)
+                  CALL pw_pool_give_back_pw(auxbas_pw_pool, &
+                                            dft_control%qs_control%becke_control%combined_weight%pw)
+               END SELECT
+            END IF
+            dft_control%qs_control%becke_control%save_pot = .FALSE.
+            dft_control%qs_control%becke_control%need_pot = .TRUE.
+            dft_control%qs_control%becke_control%external_control = .FALSE.
          END IF
-         IF (ASSOCIATED(dft_control%qs_control%becke_control%charges_fragment)) &
-            DEALLOCATE (dft_control%qs_control%becke_control%charges_fragment)
-         IF (dft_control%qs_control%becke_control%constraint_type == cdft_combined_constraint) THEN
-            SELECT CASE (dft_control%qs_control%becke_control%combined_type)
-            CASE (cdft_combined_all)
-               ! Do nothing
-            CASE (cdft_combined_acceptor, cdft_combined_donor)
-               CALL pw_pool_give_back_pw(auxbas_pw_pool, &
-                                         dft_control%qs_control%becke_control%combined_weight%pw)
-            END SELECT
-         END IF
-         dft_control%qs_control%becke_control%save_pot = .FALSE.
-         dft_control%qs_control%becke_control%need_pot = .TRUE.
-         dft_control%qs_control%becke_control%external_control = .FALSE.
       END IF
 
       IF (calculate_forces .AND. dft_control%qs_control%cdft) THEN

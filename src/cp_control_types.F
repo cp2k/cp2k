@@ -296,7 +296,7 @@ MODULE cp_control_types
                                               should_skip, print_cavity, &
                                               external_control, first_iteration, &
                                               fragment_density, fragments_integrated, &
-                                              use_bohr
+                                              use_bohr, transfer_pot
       REAL(KIND=dp), POINTER, DIMENSION(:) :: coeff, cutoffs, cutoffs_tmp, &
                                               charges_fragment, radii_tmp, &
                                               radii
@@ -347,6 +347,7 @@ MODULE cp_control_types
 !> \param purge_offset purging is only allowed when more than purge_offset steps have passed since
 !>                     last purge
 !> \param istep a counter to keep track of how many steps have passed since the last purge
+!> \param ienergy a counter tracking the total number of CDFT energy evaluations
 !> \param constraint_type the constraint type to use
 !> \param combined_type for combined density+spin constraint, determines which atoms to apply the spin
 !>                      constraint to
@@ -366,20 +367,23 @@ MODULE cp_control_types
 !> \param reuse_precond logical which determines if a preconditioner can be reused
 !> \param purge_history logical which determines if the wfn/constraint history can be purged
 !> \param should_purge logical which determines if purging should take place after this CDFT SCF loop
-!> \param calculate_metric logical which determines is the ET coupling reliablity metric is computed
+!> \param calculate_metric logical which determines if the ET coupling reliablity metric is computed
 !> \param mo_coeff save the MO coeffs (for do_et)
-!> \param wmat matrix representation of the weight (for do_et)
+!> \param wmat matrix representation of the weight function (for do_et)
 !> \param matrix_s save the overlap matrix (for do_et)
-!> \param matrix_s save the density matrix (for calculate_metric)
+!> \param matrix_p save the density matrix (for calculate_metric)
 ! **************************************************************************************************
    ! Copied from qs_scf_types to avoid circular dependency
    TYPE qs_outer_scf_type
       INTEGER                              :: iter_count
+      LOGICAL                              :: deallocate_jacobian
       REAL(KIND=dp), DIMENSION(:), POINTER :: energy
       REAL(KIND=dp), DIMENSION(:, :), &
          POINTER                           :: variables
       REAL(KIND=dp), DIMENSION(:, :), &
          POINTER                           :: gradient
+      REAL(KIND=dp), DIMENSION(:, :), &
+         POINTER                           :: inv_jacobian
       INTEGER, DIMENSION(:), POINTER       :: count
    END TYPE qs_outer_scf_type
 
@@ -387,22 +391,28 @@ MODULE cp_control_types
    TYPE outer_scf_control_type
       LOGICAL                              :: have_scf
       LOGICAL                              :: build_jacobian
-      INTEGER                              :: max_scf
+      LOGICAL                              :: broyden_update
+      INTEGER                              :: max_scf, &
+                                              ijacobian
       REAL(KIND=dp)                        :: eps_scf, step_size, &
-                                              jacobian_step
+                                              jacobian_step, &
+                                              newton_step
       INTEGER                              :: TYPE
       INTEGER                              :: optimizer
       INTEGER                              :: diis_buffer_length
       INTEGER                              :: extrapolation_order
       INTEGER                              :: bisect_trust_count
       INTEGER                              :: jacobian_type
+      INTEGER                              :: broyden_type
+      INTEGER                              :: jacobian_freq(2)
    END TYPE outer_scf_control_type
 
    TYPE cdft_control_type
       INTEGER                              :: ref_count, total_steps, TYPE, &
                                               precond_freq, nreused, max_reuse, &
                                               purge_freq, nbad_conv, purge_offset, &
-                                              istep, constraint_type, combined_type
+                                              istep, constraint_type, combined_type, &
+                                              ienergy
       TYPE(qs_outer_scf_type)              :: constraint
       TYPE(outer_scf_control_type)         :: constraint_control, ot_control
       TYPE(hirshfeld_constraint_type), &
@@ -889,6 +899,7 @@ CONTAINS
       becke_control%natoms = 0
       becke_control%need_pot = .TRUE.
       becke_control%save_pot = .FALSE.
+      becke_control%transfer_pot = .FALSE.
       becke_control%adjust = .FALSE.
       becke_control%atomic_charges = .FALSE.
       becke_control%confine_method = becke_none_conf
@@ -914,6 +925,9 @@ CONTAINS
       becke_control%external_control = .FALSE.
       becke_control%constraint_type = cdft_density_constraint
       becke_control%combined_type = cdft_combined_all
+      NULLIFY (becke_control%becke_pot%pw)
+      NULLIFY (becke_control%cavity%pw)
+      NULLIFY (becke_control%combined_weight%pw)
       NULLIFY (becke_control%strength)
       NULLIFY (becke_control%target)
       NULLIFY (becke_control%becke_order_p)
@@ -1043,6 +1057,7 @@ CONTAINS
       cdft_control%istep = 0
       cdft_control%constraint_type = cdft_density_constraint
       cdft_control%combined_type = cdft_combined_all
+      cdft_control%ienergy = 0
       NULLIFY (cdft_control%hirshfeld_control)
       NULLIFY (cdft_control%weight%pw)
       NULLIFY (cdft_control%wmat%matrix)
@@ -1059,6 +1074,7 @@ CONTAINS
       cdft_control%ot_control%diis_buffer_length = -1
       cdft_control%ot_control%jacobian_type = -1
       cdft_control%ot_control%jacobian_step = 0.0_dp
+      cdft_control%ot_control%newton_step = 1.0_dp
       cdft_control%constraint_control%have_scf = .FALSE.
       cdft_control%constraint_control%max_scf = 0
       cdft_control%constraint_control%eps_scf = 0.0_dp
@@ -1067,12 +1083,20 @@ CONTAINS
       cdft_control%constraint_control%optimizer = -1
       cdft_control%constraint_control%diis_buffer_length = -1
       cdft_control%constraint_control%jacobian_type = -1
+      cdft_control%constraint_control%broyden_type = -1
+      cdft_control%constraint_control%jacobian_freq = 1
       cdft_control%constraint_control%jacobian_step = 0.0_dp
+      cdft_control%constraint_control%newton_step = 1.0_dp
+      cdft_control%constraint_control%ijacobian = 0
+      cdft_control%constraint_control%build_jacobian = .FALSE.
+      cdft_control%constraint_control%broyden_update = .FALSE.
       cdft_control%constraint%iter_count = 0
       NULLIFY (cdft_control%constraint%variables)
       NULLIFY (cdft_control%constraint%gradient)
       NULLIFY (cdft_control%constraint%energy)
       NULLIFY (cdft_control%constraint%count)
+      NULLIFY (cdft_control%constraint%inv_jacobian)
+      cdft_control%constraint%deallocate_jacobian = .TRUE.
    END SUBROUTINE cdft_control_create
 
 ! *****************************************************************************
@@ -1116,6 +1140,8 @@ CONTAINS
             DEALLOCATE (cdft_control%constraint%gradient)
          IF (ASSOCIATED(cdft_control%constraint%energy)) &
             DEALLOCATE (cdft_control%constraint%energy)
+         IF (ASSOCIATED(cdft_control%constraint%inv_jacobian)) &
+            DEALLOCATE (cdft_control%constraint%inv_jacobian)
          DEALLOCATE (cdft_control)
       END IF
    END SUBROUTINE cdft_control_release

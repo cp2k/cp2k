@@ -647,13 +647,19 @@ MODULE input_constants
                                                outer_scf_optimizer_none = 1003, &
                                                outer_scf_optimizer_bisect = 1004, &
                                                outer_scf_optimizer_broyden = 1005, &
-                                               outer_scf_optimizer_newton = 1006
+                                               outer_scf_optimizer_newton = 1006, &
+                                               outer_scf_optimizer_secant = 1007, &
+                                               outer_scf_optimizer_newton_ls = 1008
 
    ! outer scf broyden optimizer types
    INTEGER, PARAMETER, PUBLIC               :: broyden_type_1 = 1101, &
-                                               broyden_type_2 = 1102, &
-                                               broyden_type_3 = 1103, &
-                                               broyden_type_4 = 1104
+                                               broyden_type_1_explicit = 1102, &
+                                               broyden_type_2 = 1103, &
+                                               broyden_type_2_explicit = 1104, &
+                                               broyden_type_1_ls = 1105, &
+                                               broyden_type_1_explicit_ls = 1106, &
+                                               broyden_type_2_ls = 1107, &
+                                               broyden_type_2_explicit_ls = 1108
 
    ! finite difference types for calculation of inverse jacobian
    INTEGER, PARAMETER, PUBLIC               :: jacobian_fd1 = 1, &

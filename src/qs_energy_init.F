@@ -251,8 +251,8 @@ CONTAINS
          CALL get_qs_env(qs_env, sab_kp=sab_nl)
          CALL kpoint_init_cell_index(kpoints, sab_nl, para_env, dft_control)
       ENDIF
-
-      IF (.NOT. dft_control%qs_control%becke_control%external_control) &
+      IF (.NOT. (dft_control%qs_control%becke_control%external_control .OR. &
+                 ASSOCIATED(dft_control%qs_control%becke_control%becke_pot%pw))) &
          dft_control%qs_control%becke_control%need_pot = .TRUE.
       IF (dft_control%qs_control%cdft) THEN
          IF (dft_control%qs_control%cdft_control%type == outer_scf_hirshfeld_constraint) &

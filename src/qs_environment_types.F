@@ -260,6 +260,8 @@ MODULE qs_environment_types
       TYPE(cp_ddapc_ewald_type), POINTER                    :: cp_ddapc_ewald
       REAL(KIND=dp), DIMENSION(:, :), POINTER               :: outer_scf_history
       INTEGER                                               :: outer_scf_ihistory
+      REAL(KIND=dp), DIMENSION(:, :), POINTER               :: gradient_history, &
+                                                               variable_history
       TYPE(hfx_type), DIMENSION(:, :), POINTER              :: x_data
       TYPE(et_coupling_type), POINTER                       :: et_coupling
       TYPE(qs_dftb_pairpot_type), DIMENSION(:, :), POINTER  :: dftb_potential
@@ -456,6 +458,8 @@ CONTAINS
 !> \param forces_up_to_date ...
 !> \param mscfg_env ...
 !> \param almo_scf_env ...
+!> \param gradient_history ...
+!> \param variable_history ...
 !> \date    23.01.2002
 !> \author  MK
 !> \version 1.0
@@ -485,7 +489,8 @@ CONTAINS
                          se_taper, se_store_int_env, se_nddo_mpole, se_nonbond_env, admm_env, admm_dm, &
                          lri_env, lri_density, dispersion_env, vee, rho_external, external_vxc, mask, &
                          mp2_env, kg_env, WannierCentres, atprop, ls_scf_env, do_transport, transport_env, v_hartree_rspace, &
-                         s_mstruct_changed, rho_changed, potential_changed, forces_up_to_date, mscfg_env, almo_scf_env)
+                         s_mstruct_changed, rho_changed, potential_changed, forces_up_to_date, mscfg_env, almo_scf_env, &
+                         gradient_history, variable_history)
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(atomic_kind_type), DIMENSION(:), OPTIONAL, &
          POINTER                                         :: atomic_kind_set
@@ -613,6 +618,7 @@ CONTAINS
       TYPE(molecular_scf_guess_env_type), OPTIONAL, &
          POINTER                                         :: mscfg_env
       TYPE(almo_scf_env_type), OPTIONAL, POINTER         :: almo_scf_env
+      REAL(KIND=dp), DIMENSION(:, :), OPTIONAL, POINTER  :: gradient_history, variable_history
 
       CHARACTER(len=*), PARAMETER :: routineN = 'get_qs_env', routineP = moduleN//':'//routineN
 
@@ -625,6 +631,8 @@ CONTAINS
 
       IF (PRESENT(outer_scf_history)) outer_scf_history => qs_env%outer_scf_history
       IF (PRESENT(outer_scf_ihistory)) outer_scf_ihistory = qs_env%outer_scf_ihistory
+      IF (PRESENT(gradient_history)) gradient_history => qs_env%gradient_history
+      IF (PRESENT(variable_history)) variable_history => qs_env%variable_history
       IF (PRESENT(mp2_env)) mp2_env => qs_env%mp2_env
       IF (PRESENT(kg_env)) kg_env => qs_env%kg_env
       IF (PRESENT(super_cell)) super_cell => qs_env%super_cell
@@ -845,6 +853,8 @@ CONTAINS
       NULLIFY (qs_env%cp_ddapc_env)
       NULLIFY (qs_env%cp_ddapc_ewald)
       NULLIFY (qs_env%outer_scf_history)
+      NULLIFY (qs_env%gradient_history)
+      NULLIFY (qs_env%variable_history)
       NULLIFY (qs_env%x_data)
       NULLIFY (qs_env%et_coupling)
       NULLIFY (qs_env%dftb_potential)
@@ -965,6 +975,8 @@ CONTAINS
 !> \param kpoints ...
 !> \param WannierCentres ...
 !> \param almo_scf_env ...
+!> \param gradient_history ...
+!> \param variable_history ...
 !> \date    23.01.2002
 !> \author  MK
 !> \version 1.0
@@ -982,7 +994,7 @@ CONTAINS
                          outer_scf_history, outer_scf_ihistory, x_data, et_coupling, dftb_potential, &
                          se_taper, se_store_int_env, se_nddo_mpole, se_nonbond_env, admm_env, ls_scf_env, &
                          do_transport, transport_env, lri_env, lri_density, dispersion_env, mp2_env, kg_env, &
-                         kpoints, WannierCentres, almo_scf_env)
+                         kpoints, WannierCentres, almo_scf_env, gradient_history, variable_history)
 
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(cell_type), OPTIONAL, POINTER                 :: super_cell
@@ -1048,6 +1060,7 @@ CONTAINS
       TYPE(wannier_centres_type), DIMENSION(:), &
          OPTIONAL, POINTER                               :: WannierCentres
       TYPE(almo_scf_env_type), OPTIONAL, POINTER         :: almo_scf_env
+      REAL(KIND=dp), DIMENSION(:, :), OPTIONAL, POINTER  :: gradient_history, variable_history
 
       CHARACTER(len=*), PARAMETER :: routineN = 'set_qs_env', routineP = moduleN//':'//routineN
 
@@ -1074,6 +1087,8 @@ CONTAINS
       ! compiler (present in at least 10.0.025). A testcase has been submitted to intel.
       IF (PRESENT(oce)) qs_env%oce => oce
       IF (PRESENT(outer_scf_history)) qs_env%outer_scf_history => outer_scf_history
+      IF (PRESENT(gradient_history)) qs_env%gradient_history => gradient_history
+      IF (PRESENT(variable_history)) qs_env%variable_history => variable_history
       IF (PRESENT(outer_scf_ihistory)) qs_env%outer_scf_ihistory = outer_scf_ihistory
       IF (PRESENT(requires_mo_derivs)) qs_env%requires_mo_derivs = requires_mo_derivs
       IF (PRESENT(has_unit_metric)) qs_env%has_unit_metric = has_unit_metric
@@ -1310,6 +1325,10 @@ CONTAINS
                DEALLOCATE (qs_env%outer_scf_history)
                qs_env%outer_scf_ihistory = 0
             ENDIF
+            IF (ASSOCIATED(qs_env%gradient_history)) &
+               DEALLOCATE (qs_env%gradient_history)
+            IF (ASSOCIATED(qs_env%variable_history)) &
+               DEALLOCATE (qs_env%variable_history)
             IF (ASSOCIATED(qs_env%oce)) CALL deallocate_oce_set(qs_env%oce)
             IF (ASSOCIATED(qs_env%local_rho_set)) THEN
                CALL local_rho_set_release(qs_env%local_rho_set)

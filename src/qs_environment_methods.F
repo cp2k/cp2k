@@ -91,7 +91,8 @@ CONTAINS
 
       INTEGER                                            :: handle, n_ao_aux_fit, nhistory, &
                                                             nvariables
-      REAL(KIND=dp), DIMENSION(:, :), POINTER            :: outer_scf_history
+      REAL(KIND=dp), DIMENSION(:, :), POINTER            :: gradient_history, outer_scf_history, &
+                                                            variable_history
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       TYPE(cell_type), POINTER                           :: cell
       TYPE(cp_blacs_env_type), POINTER                   :: blacs_env
@@ -140,7 +141,13 @@ CONTAINS
          nvariables = outer_loop_variables_count(scf_control)
          nhistory = scf_control%outer_scf%extrapolation_order
          ALLOCATE (outer_scf_history(nvariables, nhistory))
-         CALL set_qs_env(qs_env, outer_scf_history=outer_scf_history)
+         ALLOCATE (gradient_history(nvariables, 2))
+         gradient_history = 0.0_dp
+         ALLOCATE (variable_history(nvariables, 2))
+         variable_history = 0.0_dp
+         CALL set_qs_env(qs_env, outer_scf_history=outer_scf_history, &
+                         gradient_history=gradient_history, &
+                         variable_history=variable_history)
          CALL set_qs_env(qs_env, outer_scf_ihistory=0)
       ENDIF
 

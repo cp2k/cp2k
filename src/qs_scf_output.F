@@ -19,11 +19,15 @@ MODULE qs_scf_output
    USE dbcsr_api,                       ONLY: dbcsr_p_type
    USE input_constants,                 ONLY: &
         becke_cavity_conf, becke_cutoff_element, becke_cutoff_global, becke_dynamic_conf, &
-        becke_mixed_conf, becke_none_conf, becke_static_conf, cdft_combined_acceptor, &
-        cdft_combined_all, cdft_combined_constraint, cdft_combined_donor, cdft_density_constraint, &
-        cdft_magnetization_constraint, outer_scf_becke_constraint, outer_scf_hirshfeld_constraint, &
-        outer_scf_optimizer_bisect, outer_scf_optimizer_broyden, outer_scf_optimizer_diis, &
-        outer_scf_optimizer_sd, radius_covalent, radius_single, radius_user, radius_vdw
+        becke_mixed_conf, becke_none_conf, becke_static_conf, broyden_type_1, &
+        broyden_type_1_explicit, broyden_type_1_explicit_ls, broyden_type_1_ls, broyden_type_2, &
+        broyden_type_2_explicit, broyden_type_2_explicit_ls, broyden_type_2_ls, &
+        cdft_combined_acceptor, cdft_combined_all, cdft_combined_constraint, cdft_combined_donor, &
+        cdft_density_constraint, cdft_magnetization_constraint, outer_scf_becke_constraint, &
+        outer_scf_hirshfeld_constraint, outer_scf_optimizer_bisect, outer_scf_optimizer_broyden, &
+        outer_scf_optimizer_diis, outer_scf_optimizer_newton, outer_scf_optimizer_newton_ls, &
+        outer_scf_optimizer_sd, outer_scf_optimizer_secant, radius_covalent, radius_single, &
+        radius_user, radius_vdw
    USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                               section_vals_type,&
                                               section_vals_val_get
@@ -726,32 +730,30 @@ CONTAINS
          SELECT CASE (cdft_control%constraint_type)
          CASE (cdft_density_constraint)
             WRITE (output_unit, '(A)') &
-               "  Optimizing charge density constraint in an external SCF loop "
+               "  Optimizing a charge density constraint in an external SCF loop "
          CASE (cdft_magnetization_constraint)
             WRITE (output_unit, '(A)') &
-               "  Optimizing magnetization density constraint in an external SCF loop "
+               "  Optimizing a magnetization density constraint in an external SCF loop "
          CASE (cdft_combined_constraint)
             WRITE (output_unit, '(A)') &
-               "  Optimizing combined charge-spin constraint in an external SCF loop "
+               "  Optimizing a combined charge-spin constraint in an external SCF loop "
             SELECT CASE (cdft_control%combined_type)
             CASE (cdft_combined_all)
                WRITE (output_unit, '(A)') &
-                  "            spin constraint defined on all constraint atoms "
+                  "            the spin constraint is defined on all constraint atoms "
             CASE (cdft_combined_acceptor)
                WRITE (output_unit, '(A)') &
-                  "            spin constraint defined on acceptor constraint atoms "
+                  "            the spin constraint is defined on acceptor constraint atoms "
             CASE (cdft_combined_donor)
                WRITE (output_unit, '(A)') &
-                  "            spin constraint defined on donor constraint atoms "
+                  "            the spin constraint is defined on donor constraint atoms "
             END SELECT
          END SELECT
+         WRITE (output_unit, '(A)') "  "
          SELECT CASE (cdft_control%constraint_control%optimizer)
          CASE (outer_scf_optimizer_sd)
             WRITE (output_unit, '(A)') &
                "  Minimizer               : SD                  : steepest descent"
-         CASE (outer_scf_optimizer_broyden)
-            WRITE (output_unit, '(A)') &
-               "  Minimizer               : Broyden             : Broyden's method"
          CASE (outer_scf_optimizer_diis)
             WRITE (output_unit, '(A)') &
                "  Minimizer               : DIIS                : direct inversion"
@@ -766,7 +768,60 @@ CONTAINS
             WRITE (output_unit, '(A,I3)') &
                "                                                  using a trust count of", &
                cdft_control%constraint_control%bisect_trust_count
+         CASE (outer_scf_optimizer_broyden)
+            WRITE (output_unit, '(A)') "  Minimizer               : Broyden"
+            SELECT CASE (cdft_control%constraint_control%broyden_type)
+            CASE (broyden_type_1)
+               WRITE (output_unit, '(A)') "                  variant : 1st method"
+            CASE (broyden_type_1_explicit)
+               WRITE (output_unit, '(A)') "                  variant : 1st method with explicit initial Jacobian"
+            CASE (broyden_type_1_ls)
+               WRITE (output_unit, '(A)') "                  variant : 1st method with backtracking line search"
+            CASE (broyden_type_1_explicit_ls)
+               WRITE (output_unit, '(A)') &
+                  "                  variant : 1st method with explicit initial Jacobian"
+               WRITE (output_unit, '(A)') &
+                  "                            and backtracking line search"
+            CASE (broyden_type_2)
+               WRITE (output_unit, '(A)') "                  variant : 2nd method"
+            CASE (broyden_type_2_explicit)
+               WRITE (output_unit, '(A)') "                  variant : 2nd method with explicit initial Jacobian"
+            CASE (broyden_type_2_ls)
+               WRITE (output_unit, '(A)') "                  variant : 2nd method with backtracking line search"
+            CASE (broyden_type_2_explicit_ls)
+               WRITE (output_unit, '(A)') &
+                  "                  variant : 2nd method with explicit initial Jacobian"
+               WRITE (output_unit, '(A)') &
+                  "                            and backtracking line search"
+            END SELECT
+            WRITE (output_unit, '(A,I4,A)') &
+               "  The Jacobian is restarted every ", &
+               cdft_control%constraint_control%jacobian_freq(2), " energy evaluation"
+            WRITE (output_unit, '(A,I4,A)') &
+               "  or if the number of SCF iterations exceeds ", &
+               cdft_control%constraint_control%jacobian_freq(1)
+         CASE (outer_scf_optimizer_newton)
+            WRITE (output_unit, '(A)') "  Minimizer               : Newton"
+            WRITE (output_unit, '(A,I4,A)') &
+               "  The Jacobian is restarted every ", &
+               cdft_control%constraint_control%jacobian_freq(2), " energy evaluation"
+            WRITE (output_unit, '(A,I4,A)') &
+               "  or if the number of SCF iterations exceeds ", &
+               cdft_control%constraint_control%jacobian_freq(1)
+         CASE (outer_scf_optimizer_newton_ls)
+            WRITE (output_unit, '(A)') "  Minimizer               : Newton with backtracking line search"
+            WRITE (output_unit, '(A,I4,A)') &
+               "  The Jacobian is restarted every ", &
+               cdft_control%constraint_control%jacobian_freq(2), " energy evaluation"
+            WRITE (output_unit, '(A,I4,A)') &
+               "  or if the number of SCF iterations exceeds ", &
+               cdft_control%constraint_control%jacobian_freq(1)
+         CASE (outer_scf_optimizer_secant)
+            WRITE (output_unit, '(A)') "  Minimizer               : Secant"
+         CASE DEFAULT
+            CPABORT("")
          END SELECT
+         WRITE (output_unit, '(A)') "  "
          SELECT CASE (cdft_control%type)
          CASE (outer_scf_hirshfeld_constraint)
             WRITE (output_unit, '(A)') "  Type of constraint      : Hirshfeld"

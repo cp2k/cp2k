@@ -1737,7 +1737,8 @@ CONTAINS
                END DO
             END IF
             NULLIFY (gradients)
-            DEALLOCATE (dft_control%qs_control%becke_control%gradients)
+            IF (.NOT. dft_control%qs_control%becke_control%transfer_pot) &
+               DEALLOCATE (dft_control%qs_control%becke_control%gradients)
             IF (dft_control%qs_control%becke_control%should_skip .AND. .NOT. &
                 dft_control%qs_control%becke_control%cavity_confine) &
                DEALLOCATE (dft_control%qs_control%becke_control%skip_list)

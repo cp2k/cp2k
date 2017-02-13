@@ -1,4 +1,4 @@
-74
+75
 Total energy:!3
 POTENTIAL ENERGY!4
 Total energy \[eV\]:!4
@@ -73,6 +73,7 @@ Current value of constraint !6
 SUM OF ATOMIC FORCES !8
 Diabatic electronic coupling !5
 Diabatic coupling !7
+Charge transfer energy !7
 #
 # these are the tests the can be selected for regtesting. 
 # do regtest will grep for test_grep (first column) and look if the numeric value

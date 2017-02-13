@@ -70,6 +70,7 @@ MODULE qs_scf_types
 ! **************************************************************************************************
    TYPE qs_outer_scf_type
       INTEGER :: iter_count
+      LOGICAL :: deallocate_jacobian
       ! these are the variable of outer loop.
       ! right now, we assume that they can be easily written as
       ! small arrays, but we might want to go the cp_fm_types
@@ -173,6 +174,7 @@ CONTAINS
       NULLIFY (scf_env%outer_scf%energy)
       NULLIFY (scf_env%outer_scf%count)
       NULLIFY (scf_env%outer_scf%inv_jacobian)
+      scf_env%outer_scf%deallocate_jacobian = .TRUE.
       NULLIFY (scf_env%scf_work1)
       NULLIFY (scf_env%scf_work2)
       NULLIFY (scf_env%ortho)

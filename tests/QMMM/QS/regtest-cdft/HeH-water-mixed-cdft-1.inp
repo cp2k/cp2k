@@ -1,0 +1,97 @@
+@SET RESTART_WFN          TRUE
+@SET WFN_FILE_1           HeH-water-cdft-state-1-1_0.wfn
+@SET WFN_FILE_2           HeH-water-cdft-state-2-1_0.wfn
+@SET PROJECT_NAME         HeH-water-mixed-cdft-1
+@SET NAME                 ${PROJECT_NAME}
+@SET WRITE_WFN            0
+@SET CHARGE               1
+@SET WRITE_CUBE           FALSE
+@SET XYZFILE              HeH-water.xyz
+
+@SET BECKE_ACTIVE         TRUE
+@SET BECKE_FRAGMENT       FALSE
+@SET MAX_SCF              5
+! He+ H
+@SET BECKE_TARGET_1       0.0
+@SET BECKE_STR_1          0.575328339408
+! He H+
+@SET BECKE_TARGET_2       2.0
+@SET BECKE_STR_2          -1.885819092012
+
+@SET BECKE_GLOBAL_CUTOFF  TRUE
+@SET BECKE_CUTOFF_ELEMENT FALSE
+
+@SET BECKE_ADJUST_SIZE    FALSE
+
+@SET BECKE_ATOMIC_CHARGES FALSE
+
+@SET BECKE_CAVITY_CONFINE TRUE
+@SET BECKE_CAVITY_SHAPE   VDW
+@SET BECKE_CAVITY_PRINT   FALSE
+
+@SET BECKE_SHOULD_SKIP    FALSE
+
+@SET BECKE_IN_MEMORY      TRUE
+
+@SET USE_DLB              FALSE
+@SET COMPUTE_METRIC       FALSE
+@SET WFN_OVERLAP_METHOD   FALSE  
+
+@SET NGROUPS              2
+
+&GLOBAL
+  PROJECT ${PROJECT_NAME}
+  RUN_TYPE ENERGY_FORCE
+  PRINT_LEVEL MEDIUM
+&END GLOBAL
+
+&MULTIPLE_FORCE_EVALS
+  FORCE_EVAL_ORDER 2 3
+  MULTIPLE_SUBSYS F
+&END
+&FORCE_EVAL
+  METHOD MIXED
+  &MIXED
+    MIXING_TYPE LINEAR_COMBINATION
+    NGROUPS  ${NGROUPS}
+    &LINEAR
+      LAMBDA 1.0
+      MIXED_CDFT TRUE
+      MIXED_CDFT_COUPLING 1
+      @IF ( ${USE_DLB} == TRUE )
+        ! Defaults to FALSE
+        MIXED_CDFT_DLB TRUE
+        LOAD_SCALE 2
+        MORE_WORK 0
+        VERY_OVERLOADED 15
+      @ENDIF
+    &END LINEAR
+    &PRINT
+      &PROGRAM_RUN_INFO
+      &END
+    &END PRINT
+  &END MIXED
+  @include subsys.inc
+&END FORCE_EVAL
+
+&FORCE_EVAL
+  METHOD QMMM  
+  @SET BECKE_STR    ${BECKE_STR_1}
+  @SET BECKE_TARGET ${BECKE_TARGET_1}
+  @SET PROJECT_NAME ${NAME}-state-1
+  @SET WFN_FILE     ${WFN_FILE_1}
+  @include qmmm-common-params.inc
+  @include dft-common-params.inc
+  @include mm-common-params.inc
+&END FORCE_EVAL
+
+&FORCE_EVAL
+  METHOD QMMM
+  @SET BECKE_STR    ${BECKE_STR_2}
+  @SET BECKE_TARGET ${BECKE_TARGET_2}
+  @SET PROJECT_NAME ${NAME}-state-2
+  @SET WFN_FILE     ${WFN_FILE_2}
+  @include qmmm-common-params.inc
+  @include dft-common-params.inc
+  @include mm-common-params.inc
+&END FORCE_EVAL

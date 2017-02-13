@@ -14,6 +14,8 @@ MODULE mixed_cdft_types
                                               cp_blacs_env_type
    USE cp_control_types,                ONLY: becke_control_release,&
                                               becke_restraint_type
+   USE cp_log_handling,                 ONLY: cp_logger_release,&
+                                              cp_logger_type
    USE kinds,                           ONLY: dp
    USE pw_env_types,                    ONLY: pw_env_release,&
                                               pw_env_type
@@ -152,7 +154,8 @@ MODULE mixed_cdft_types
                                                           is_special, first_iteration, &
                                                           calculate_metric, &
                                                           wfn_overlap_method, &
-                                                          has_unit_metric
+                                                          has_unit_metric, &
+                                                          is_parallel
       REAL(KIND=dp)                                    :: eps_rho_rspace, sim_dt, &
                                                           eps_svd
       REAL(KIND=dp), POINTER, DIMENSION(:, :, :)       :: weight, cavity
@@ -163,11 +166,39 @@ MODULE mixed_cdft_types
       TYPE(qs_kind_type), DIMENSION(:), &
          POINTER                                       :: qs_kind_set
       TYPE(pw_env_type), POINTER                       :: pw_env
+      TYPE(cp_logger_type), POINTER                    :: sub_logger
    END TYPE mixed_cdft_type
+
+! **************************************************************************************************
+!> \brief Container for constraint settings to check consistency of force_evals
+! **************************************************************************************************
+   TYPE mixed_cdft_settings_type
+      LOGICAL                                            :: is_spherical, &
+                                                            is_odd
+      INTEGER                                            :: nbecke, &
+                                                            max_nkinds
+      INTEGER, DIMENSION(2, 3)                           :: bo
+      INTEGER, DIMENSION(:), POINTER                     :: grid_span, &
+                                                            spherical, &
+                                                            odd
+      INTEGER, DIMENSION(:, :), POINTER                  :: si, &
+                                                            rs_dims, &
+                                                            atoms, &
+                                                            npts
+      REAL(KIND=dp)                                      :: radius
+      REAL(KIND=dp), DIMENSION(:), POINTER               :: cutoff, &
+                                                            rel_cutoff
+      REAL(KIND=dp), DIMENSION(:, :), POINTER            :: sr, &
+                                                            coeffs, &
+                                                            confine_bounds, &
+                                                            cutoffs, &
+                                                            radii
+   END TYPE mixed_cdft_settings_type
 
 ! *** Public data types ***
 
-   PUBLIC :: mixed_cdft_type
+   PUBLIC :: mixed_cdft_type, &
+             mixed_cdft_settings_type
 
 ! *** Public subroutines ***
 
@@ -195,6 +226,7 @@ CONTAINS
       NULLIFY (cdft_control%source_list_save, cdft_control%source_bo_save, cdft_control%source_list_bo)
       NULLIFY (cdft_control%cavity, cdft_control%weight, cdft_control%sendbuff)
       NULLIFY (cdft_control%becke_control, cdft_control%recv_bo)
+      NULLIFY (cdft_control%sub_logger)
 
    END SUBROUTINE mixed_cdft_type_create
 
@@ -242,11 +274,14 @@ CONTAINS
          END DO
          DEALLOCATE (cdft_control%sendbuff)
       END IF
-      CALL becke_control_release(cdft_control%becke_control)
+      IF (ASSOCIATED(cdft_control%becke_control)) &
+         CALL becke_control_release(cdft_control%becke_control)
       IF (ASSOCIATED(cdft_control%blacs_env)) &
          CALL cp_blacs_env_release(cdft_control%blacs_env)
       IF (ASSOCIATED(cdft_control%qs_kind_set)) &
          CALL deallocate_qs_kind_set(cdft_control%qs_kind_set)
+      IF (ASSOCIATED(cdft_control%sub_logger)) &
+         CALL cp_logger_release(cdft_control%sub_logger)
       DEALLOCATE (cdft_control)
 
    END SUBROUTINE mixed_cdft_type_release

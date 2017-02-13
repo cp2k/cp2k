@@ -8,6 +8,7 @@ MODULE input_restart_force_eval
    USE atomic_kind_types,               ONLY: get_atomic_kind
    USE cell_types,                      ONLY: cell_type,&
                                               real_to_scaled
+   USE cp_control_types,                ONLY: dft_control_type
    USE cp_files,                        ONLY: close_file,&
                                               open_file
    USE cp_linked_list_val,              ONLY: cp_sll_val_create,&
@@ -90,14 +91,16 @@ CONTAINS
       INTEGER                                            :: i_subsys, iforce_eval, myid, nforce_eval
       INTEGER, DIMENSION(:), POINTER                     :: i_force_eval
       LOGICAL                                            :: multiple_subsys, skip_vel_section
+      REAL(KIND=dp), DIMENSION(:), POINTER               :: work
       TYPE(cell_type), POINTER                           :: cell
       TYPE(cp_subsys_type), POINTER                      :: subsys
+      TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(section_vals_type), POINTER                   :: cell_section, dft_section, &
                                                             force_env_sections, qmmm_section, &
                                                             rng_section, subsys_section
       TYPE(virial_type), POINTER                         :: virial
 
-      NULLIFY (rng_section, subsys_section, cell_section, virial, subsys, cell)
+      NULLIFY (rng_section, subsys_section, cell_section, virial, subsys, cell, dft_control, work)
       ! If it's not a dynamical run don't update the velocity section
       CALL section_vals_val_get(root_section, "GLOBAL%RUN_TYPE", i_val=myid)
       skip_vel_section = ((myid /= mol_dyn_run) .AND. &
@@ -136,6 +139,24 @@ CONTAINS
                                                   i_rep_section=i_force_eval(iforce_eval))
       CALL update_qmmm(qmmm_section, force_env)
 
+      ! Non-mixed CDFT calculation: update constraint Lagrangian and counter
+      IF (nforce_eval == 1) THEN
+         IF (ASSOCIATED(force_env%qs_env)) THEN
+            CALL get_qs_env(force_env%qs_env, dft_control=dft_control)
+            IF (dft_control%qs_control%becke_restraint) THEN
+               ALLOCATE (work(SIZE(dft_control%qs_control%becke_control%strength)))
+               work = dft_control%qs_control%becke_control%strength
+               dft_section => section_vals_get_subs_vals3(force_env_sections, "DFT", &
+                                                          i_rep_section=i_force_eval(iforce_eval))
+               CALL section_vals_val_set(dft_section, "QS%BECKE_RESTRAINT%STRENGTH", &
+                                         r_vals_ptr=work)
+            END IF
+            IF (dft_control%qs_control%cdft) THEN
+               CALL section_vals_val_set(dft_section, "QS%CDFT%COUNTER", &
+                                         i_val=dft_control%qs_control%cdft_control%ienergy)
+            END IF
+         END IF
+      END IF
       ! And now update only the cells of all other force_eval
       ! This is to make consistent for cell variable runs..
       IF (nforce_eval > 1) THEN
@@ -158,6 +179,8 @@ CONTAINS
                                                              i_rep_section=i_force_eval(iforce_eval))
                   CALL section_vals_val_set(dft_section, "QS%BECKE_RESTRAINT%STRENGTH", &
                                             r_val=force_env%mixed_env%strength(iforce_eval-1))
+                  CALL section_vals_val_set(dft_section, "QS%CDFT%COUNTER", &
+                                            i_val=force_env%mixed_env%cdft_control%sim_step)
                END DO
             END IF
          END IF
