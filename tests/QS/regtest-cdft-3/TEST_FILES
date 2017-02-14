@@ -19,7 +19,7 @@ HeH-mixed-cdft-7.inp                                  11      2e-11             
 # Electronic coupling and related
 HeH-mixed-cdft-8.inp                                  73      5e-10             510.592548695828
 # Energy/Force
-HeH-mixed-cdft-9.inp                                  11      1e-13              -2.348554384953704
+HeH-mixed-cdft-9.inp                                  11      2e-13              -2.348554384953704
 # MD
-HeH-mixed-cdft-10.inp                                 11      2e-13              -2.350318822849201
+HeH-mixed-cdft-10.inp                                 11      2e-12              -2.350318822849201
 #EOF
