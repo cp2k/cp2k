@@ -50,7 +50,8 @@ MODULE cp_fm_types
    INTEGER, PRIVATE :: mm_type = 1
 
    PUBLIC :: cp_fm_type, &
-             cp_fm_p_type
+             cp_fm_p_type, &
+             copy_info_type
 
    PUBLIC :: cp_fm_add_to_element, &
              cp_fm_create, &
@@ -72,6 +73,9 @@ MODULE cp_fm_types
              cp_fm_to_fm_submat, & ! copy (parts of) a fm to a fm
              cp_fm_to_fm_triangular, &
              cp_fm_copy_general, &
+             cp_fm_start_copy_general, &
+             cp_fm_finish_copy_general, &
+             cp_fm_cleanup_copy_general, &
              cp_fm_write_unformatted, & ! writes a full matrix to an open unit
              cp_fm_read_unformatted, & ! reads a full matrix from an open unit
              cp_fm_setup, & ! allows to set flags for fms
@@ -123,8 +127,8 @@ MODULE cp_fm_types
    END TYPE cp_fm_p_type
 
 ! **************************************************************************************************
-!> \brief Stores the state of a copy between cp_fm_start_copy_general
-!>        and cp_fm_finish_copy_general
+!> \brief Stores the state of a copy between cp_fm_start_copy_general,
+!>           cp_fm_finish_copy_general and cp_fm_cleanup_copy_general
 !> \par History
 !>      Jan 2017  [Mark T]
 ! **************************************************************************************************
@@ -1390,7 +1394,8 @@ CONTAINS
       CALL timeset(routineN, handle)
 
       CALL cp_fm_start_copy_general(source, destination, para_env, info)
-      CALL cp_fm_finish_copy_general(source, destination, info)
+      CALL cp_fm_finish_copy_general(destination, info)
+      CALL cp_fm_cleanup_copy_general(source, info)
 
       CALL timestop(handle)
    END SUBROUTINE cp_fm_copy_general
@@ -1722,12 +1727,11 @@ CONTAINS
 
 ! **************************************************************************************************
 !> \brief Completes the copy operation: wait for comms, unpack, clean up MPI state
-!> \param source input fm matrix
 !> \param destination output fm matrix
 !> \param info all of the data that will be needed to complete the copy operation
 ! **************************************************************************************************
-   SUBROUTINE cp_fm_finish_copy_general(source, destination, info)
-      TYPE(cp_fm_type), POINTER                          :: source, destination
+   SUBROUTINE cp_fm_finish_copy_general(destination, info)
+      TYPE(cp_fm_type), POINTER                          :: destination
       TYPE(copy_info_type), INTENT(INOUT)                :: info
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'cp_fm_finish_copy_general', &
@@ -1738,10 +1742,9 @@ CONTAINS
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: recv_count
       INTEGER, DIMENSION(2)                              :: nblock_src, nlocal_recv, src_num_pe
       INTEGER, DIMENSION(:), POINTER                     :: recv_col_indices, recv_disp, &
-                                                            recv_request, recv_row_indices, &
-                                                            send_request
+                                                            recv_request, recv_row_indices
       INTEGER, DIMENSION(:, :), POINTER                  :: src_blacs2mpi
-      REAL(KIND=dp), DIMENSION(:), POINTER               :: recv_buf, send_buf
+      REAL(KIND=dp), DIMENSION(:), POINTER               :: recv_buf
 
       CALL timeset(routineN, handle)
 
@@ -1759,8 +1762,6 @@ CONTAINS
          recv_request => info%recv_request
          recv_buf => info%recv_buf
          recv_disp => info%recv_disp
-         send_request => info%send_request
-         send_buf => info%send_buf
 
          ! ... use the local variables to do the work
          ! DEST_2
@@ -1784,6 +1785,44 @@ CONTAINS
 
          DEALLOCATE (src_blacs2mpi)
 
+         ! We are done, invalidate the stored state
+         NULLIFY (info%recv_col_indices, &
+                  info%recv_row_indices, &
+                  info%recv_buf, &
+                  info%recv_disp, &
+                  info%recv_request, &
+                  info%src_blacs2mpi)
+
+      END IF !IF (.NOT. cp2k_is_parallel)
+
+      CALL timestop(handle)
+
+   END SUBROUTINE cp_fm_finish_copy_general
+
+! **************************************************************************************************
+!> \brief Completes the copy operation: wait for comms clean up MPI state
+!> \param source fm matrix
+!> \param info all of the data that will be needed to complete the copy operation
+! **************************************************************************************************
+   SUBROUTINE cp_fm_cleanup_copy_general(source, info)
+      TYPE(cp_fm_type), POINTER                          :: source
+      TYPE(copy_info_type), INTENT(INOUT)                :: info
+
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'cp_fm_cleanup_copy_general', &
+         routineP = moduleN//':'//routineN
+
+      INTEGER                                            :: handle
+      INTEGER, DIMENSION(:), POINTER                     :: send_request
+      REAL(KIND=dp), DIMENSION(:), POINTER               :: send_buf
+
+      CALL timeset(routineN, handle)
+
+      IF (.NOT. cp2k_is_parallel) THEN
+         ! Don't do anything - the work for the serial case was done in cp_fm_start_copy_general
+      ELSE
+         send_request => info%send_request
+         send_buf => info%send_buf
+
          ! SRC_2
          IF (ASSOCIATED(source)) THEN
             CALL mp_waitall(send_request(:))
@@ -1791,20 +1830,12 @@ CONTAINS
          END IF
 
          ! We are done, invalidate the stored state
-         NULLIFY (info%recv_col_indices, &
-                  info%recv_row_indices, &
-                  info%recv_buf, &
-                  info%recv_disp, &
-                  info%recv_request, &
-                  info%src_blacs2mpi, &
-                  info%send_request, &
-                  info%send_buf)
-
+         NULLIFY (info%send_request, info%send_buf)
       END IF !IF (.NOT. cp2k_is_parallel)
 
       CALL timestop(handle)
 
-   END SUBROUTINE cp_fm_finish_copy_general
+   END SUBROUTINE cp_fm_cleanup_copy_general
 
 ! **************************************************************************************************
 !> \brief General copy of a submatrix of fm matrix to  a submatrix of another fm matrix.

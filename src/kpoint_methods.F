@@ -24,13 +24,10 @@ MODULE kpoint_methods
                                               fm_pool_create_fm,&
                                               fm_pool_give_back_fm
    USE cp_fm_struct,                    ONLY: cp_fm_struct_type
-   USE cp_fm_types,                     ONLY: cp_fm_copy_general,&
-                                              cp_fm_create,&
-                                              cp_fm_get_info,&
-                                              cp_fm_p_type,&
-                                              cp_fm_release,&
-                                              cp_fm_to_fm,&
-                                              cp_fm_type
+   USE cp_fm_types,                     ONLY: &
+        copy_info_type, cp_fm_cleanup_copy_general, cp_fm_create, cp_fm_finish_copy_general, &
+        cp_fm_get_info, cp_fm_p_type, cp_fm_release, cp_fm_start_copy_general, cp_fm_to_fm, &
+        cp_fm_type
    USE cp_gemm_interface,               ONLY: cp_gemm
    USE cp_log_handling,                 ONLY: cp_logger_get_default_io_unit
    USE cp_para_env,                     ONLY: cp_cart_create,&
@@ -1015,13 +1012,14 @@ CONTAINS
       CHARACTER(LEN=*), PARAMETER :: routineN = 'kpoint_density_transform', &
          routineP = moduleN//':'//routineN
 
-      INTEGER                                            :: handle, ic, ik, ikk, is, ispin, nc, &
-                                                            nimg, nkp, nspin
+      INTEGER                                            :: handle, ic, ik, ikk, indx, is, ispin, &
+                                                            nc, nimg, nkp, nspin
       INTEGER, DIMENSION(:, :, :), POINTER               :: cell_to_index
       LOGICAL                                            :: my_kpgrp, real_only
       REAL(KIND=dp)                                      :: wkpx
       REAL(KIND=dp), DIMENSION(:), POINTER               :: wkp
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: xkp
+      TYPE(copy_info_type), ALLOCATABLE, DIMENSION(:)    :: info
       TYPE(cp_fm_type), POINTER                          :: fmdummy
       TYPE(cp_para_env_type), POINTER                    :: para_env, para_env_inter_kp
       TYPE(dbcsr_type), POINTER                          :: cpmat, rpmat, scpmat, srpmat
@@ -1058,11 +1056,14 @@ CONTAINS
 
       para_env => kpoint%blacs_env_all%para_env
       NULLIFY (fmdummy)
+      ALLOCATE (info(nspin*nkp*nc))
+
+      ! Start all the communication
+      indx = 0
       DO ispin = 1, nspin
          DO ic = 1, nimg
             CALL dbcsr_set(denmat(ispin, ic)%matrix, 0.0_dp)
          END DO
-         !
          DO ik = 1, nkp
             my_kpgrp = (ik >= kpoint%kp_range(1) .AND. ik <= kpoint%kp_range(2))
             IF (my_kpgrp) THEN
@@ -1073,18 +1074,37 @@ CONTAINS
             END IF
             ! collect this density matrix on all processors
             CPASSERT(SIZE(fmwork) >= nc)
-            DO ic = 1, nc
-               IF (my_kpgrp) THEN
-                  ! choose density matrix
-                  IF (wtype) THEN
-                     CALL cp_fm_copy_general(kp%wmat(ic, ispin)%matrix, fmwork(ic)%matrix, para_env)
-                  ELSE
-                     CALL cp_fm_copy_general(kp%pmat(ic, ispin)%matrix, fmwork(ic)%matrix, para_env)
-                  END IF
+
+            IF (my_kpgrp) THEN
+               IF (wtype) THEN
+                  DO ic = 1, nc
+                     indx = indx+1
+                     CALL cp_fm_start_copy_general(kp%wmat(ic, ispin)%matrix, fmwork(ic)%matrix, para_env, info(indx))
+                  END DO
                ELSE
-                  CALL cp_fm_copy_general(fmdummy, fmwork(ic)%matrix, para_env)
+                  DO ic = 1, nc
+                     indx = indx+1
+                     CALL cp_fm_start_copy_general(kp%pmat(ic, ispin)%matrix, fmwork(ic)%matrix, para_env, info(indx))
+                  END DO
                END IF
+            ELSE
+               DO ic = 1, nc
+                  indx = indx+1
+                  CALL cp_fm_start_copy_general(fmdummy, fmwork(ic)%matrix, para_env, info(indx))
+               END DO
+            END IF
+         END DO
+      END DO
+
+      ! Finish communication and transform the recieved matrices
+      indx = 0
+      DO ispin = 1, nspin
+         DO ik = 1, nkp
+            DO ic = 1, nc
+               indx = indx+1
+               CALL cp_fm_finish_copy_general(fmwork(ic)%matrix, info(indx))
             END DO
+
             ! reduce to dbcsr storage
             IF (real_only) THEN
                CALL copy_fm_to_dbcsr(fmwork(1)%matrix, rpmat, keep_sparsity=.TRUE.)
@@ -1115,9 +1135,32 @@ CONTAINS
                CALL transform_dmat(denmat, rpmat, cpmat, ispin, real_only, sab_nl, &
                                    cell_to_index, xkp(1:3, ik), wkp(ik))
             END IF
-
          END DO
       END DO
+
+      ! Clean up communication
+      indx = 0
+      DO ispin = 1, nspin
+         DO ik = 1, nkp
+            my_kpgrp = (ik >= kpoint%kp_range(1) .AND. ik <= kpoint%kp_range(2))
+            IF (my_kpgrp) THEN
+               ikk = ik-kpoint%kp_range(1)+1
+               kp => kpoint%kp_env(ikk)%kpoint_env
+
+               DO ic = 1, nc
+                  indx = indx+1
+                  CALL cp_fm_cleanup_copy_general(kp%wmat(ic, ispin)%matrix, info(indx))
+               END DO
+            ELSE
+               ! calls with dummy arguments, so not included
+               ! therefore just increment counter by trip count
+               indx = indx+nc
+            END IF
+         END DO
+      END DO
+
+      ! All done
+      DEALLOCATE (info)
 
       CALL dbcsr_deallocate_matrix(rpmat)
       CALL dbcsr_deallocate_matrix(cpmat)
