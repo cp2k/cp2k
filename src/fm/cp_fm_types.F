@@ -1809,9 +1809,7 @@ CONTAINS
                   info%recv_buf, &
                   info%recv_disp, &
                   info%recv_request, &
-                  info%src_blacs2mpi, &
-                  info%send_request, &
-                  info%send_buf)
+                  info%src_blacs2mpi)
 
       END IF
 
