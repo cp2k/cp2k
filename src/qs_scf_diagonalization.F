@@ -37,14 +37,10 @@ MODULE qs_scf_diagonalization
    USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
                                               cp_fm_struct_release,&
                                               cp_fm_struct_type
-   USE cp_fm_types,                     ONLY: cp_fm_add_to_element,&
-                                              cp_fm_copy_general,&
-                                              cp_fm_create,&
-                                              cp_fm_get_info,&
-                                              cp_fm_p_type,&
-                                              cp_fm_release,&
-                                              cp_fm_to_fm,&
-                                              cp_fm_type
+   USE cp_fm_types,                     ONLY: &
+        copy_info_type, cp_fm_add_to_element, cp_fm_cleanup_copy_general, cp_fm_create, &
+        cp_fm_finish_copy_general, cp_fm_get_info, cp_fm_p_type, cp_fm_release, &
+        cp_fm_start_copy_general, cp_fm_to_fm, cp_fm_type
    USE cp_gemm_interface,               ONLY: cp_gemm
    USE cp_log_handling,                 ONLY: cp_get_default_logger,&
                                               cp_logger_type
@@ -154,7 +150,7 @@ CONTAINS
 
       INTEGER                                            :: ispin, nspin
       LOGICAL                                            :: do_level_shift, use_jacobi
-      REAL(kind=dp)                                      :: diis_error, eps_diis
+      REAL(KIND=dp)                                      :: diis_error, eps_diis
       TYPE(cp_fm_type), POINTER                          :: matrix_u_fm, ortho
       TYPE(dbcsr_type), POINTER                          :: ortho_dbcsr
 
@@ -342,14 +338,15 @@ CONTAINS
       COMPLEX(KIND=dp), PARAMETER :: cone = CMPLX(1.0_dp, 0.0_dp, KIND=dp), &
          czero = CMPLX(0.0_dp, 0.0_dp, KIND=dp), ione = CMPLX(0.0_dp, 1.0_dp, KIND=dp)
 
-      INTEGER                                            :: handle, ik, ikp, ikpgr, ispin, kplocal, &
-                                                            nkp, nkp_groups, nspin
+      INTEGER                                            :: handle, igroup, ik, ikp, indx, ispin, &
+                                                            kplocal, nkp, nkp_groups, nspin
       INTEGER, DIMENSION(2)                              :: kp_range
       INTEGER, DIMENSION(:, :), POINTER                  :: kp_dist
       INTEGER, DIMENSION(:, :, :), POINTER               :: cell_to_index
       LOGICAL                                            :: my_kpgrp, use_real_wfn
-      REAL(kind=dp), DIMENSION(:), POINTER               :: eigenvalues
-      REAL(kind=dp), DIMENSION(:, :), POINTER            :: xkp
+      REAL(KIND=dp), DIMENSION(:), POINTER               :: eigenvalues
+      REAL(KIND=dp), DIMENSION(:, :), POINTER            :: xkp
+      TYPE(copy_info_type), ALLOCATABLE, DIMENSION(:, :) :: info
       TYPE(cp_cfm_type), POINTER                         :: cksmat, cmos, csmat, cwork
       TYPE(cp_fm_p_type), DIMENSION(:), POINTER          :: fmwork
       TYPE(cp_fm_pool_p_type), DIMENSION(:), POINTER     :: ao_ao_fm_pools
@@ -392,6 +389,7 @@ CONTAINS
 
       CALL fm_pool_create_fm(ao_ao_fm_pools(1)%pool, fmlocal)
       CALL cp_fm_get_info(fmlocal, matrix_struct=matrix_struct)
+
       IF (use_real_wfn) THEN
          CALL cp_fm_create(rksmat, matrix_struct)
          CALL cp_fm_create(rsmat, matrix_struct)
@@ -406,14 +404,18 @@ CONTAINS
       END IF
 
       para_env => kpoints%blacs_env_all%para_env
-
       nspin = SIZE(matrix_ks, 1)
-      DO ikpgr = 1, kplocal
+      ALLOCATE (info(kplocal*nspin*nkp_groups, 4))
+
+      ! Setup and start all the communication
+      indx = 0
+      DO ikp = 1, kplocal
          DO ispin = 1, nspin
-            DO ikp = 1, nkp_groups
+            DO igroup = 1, nkp_groups
                ! number of current kpoint
-               ik = kp_dist(1, ikp)+ikpgr-1
+               ik = kp_dist(1, igroup)+ikp-1
                my_kpgrp = (ik >= kpoints%kp_range(1) .AND. ik <= kpoints%kp_range(2))
+               indx = indx+1
                IF (use_real_wfn) THEN
                   ! FT of matrices KS and S, then transfer to FM type
                   CALL dbcsr_set(rmatrix, 0.0_dp)
@@ -453,33 +455,58 @@ CONTAINS
                ! fmwork -> fmlocal -> rsmat/csmat
                IF (use_real_wfn) THEN
                   IF (my_kpgrp) THEN
-                     CALL cp_fm_copy_general(fmwork(1)%matrix, rksmat, para_env)
-                     CALL cp_fm_copy_general(fmwork(3)%matrix, rsmat, para_env)
+                     CALL cp_fm_start_copy_general(fmwork(1)%matrix, rksmat, para_env, info(indx, 1))
+                     CALL cp_fm_start_copy_general(fmwork(3)%matrix, rsmat, para_env, info(indx, 2))
                   ELSE
-                     CALL cp_fm_copy_general(fmwork(1)%matrix, fmdummy, para_env)
-                     CALL cp_fm_copy_general(fmwork(3)%matrix, fmdummy, para_env)
+                     CALL cp_fm_start_copy_general(fmwork(1)%matrix, fmdummy, para_env, info(indx, 1))
+                     CALL cp_fm_start_copy_general(fmwork(3)%matrix, fmdummy, para_env, info(indx, 2))
                   END IF
                ELSE
                   IF (my_kpgrp) THEN
-                     CALL cp_fm_copy_general(fmwork(1)%matrix, fmlocal, para_env)
-                     CALL cp_cfm_add_fm(czero, cksmat, cone, fmlocal)
-                     CALL cp_fm_copy_general(fmwork(2)%matrix, fmlocal, para_env)
-                     CALL cp_cfm_add_fm(cone, cksmat, ione, fmlocal)
-                     CALL cp_fm_copy_general(fmwork(3)%matrix, fmlocal, para_env)
-                     CALL cp_cfm_add_fm(czero, csmat, cone, fmlocal)
-                     CALL cp_fm_copy_general(fmwork(4)%matrix, fmlocal, para_env)
-                     CALL cp_cfm_add_fm(cone, csmat, ione, fmlocal)
+                     CALL cp_fm_start_copy_general(fmwork(1)%matrix, fmlocal, para_env, info(indx, 1))
+                     CALL cp_fm_start_copy_general(fmwork(2)%matrix, fmlocal, para_env, info(indx, 2))
+                     CALL cp_fm_start_copy_general(fmwork(3)%matrix, fmlocal, para_env, info(indx, 3))
+                     CALL cp_fm_start_copy_general(fmwork(4)%matrix, fmlocal, para_env, info(indx, 4))
                   ELSE
-                     CALL cp_fm_copy_general(fmwork(1)%matrix, fmdummy, para_env)
-                     CALL cp_fm_copy_general(fmwork(2)%matrix, fmdummy, para_env)
-                     CALL cp_fm_copy_general(fmwork(3)%matrix, fmdummy, para_env)
-                     CALL cp_fm_copy_general(fmwork(4)%matrix, fmdummy, para_env)
+                     CALL cp_fm_start_copy_general(fmwork(1)%matrix, fmdummy, para_env, info(indx, 1))
+                     CALL cp_fm_start_copy_general(fmwork(2)%matrix, fmdummy, para_env, info(indx, 2))
+                     CALL cp_fm_start_copy_general(fmwork(3)%matrix, fmdummy, para_env, info(indx, 3))
+                     CALL cp_fm_start_copy_general(fmwork(4)%matrix, fmdummy, para_env, info(indx, 4))
                   END IF
                END IF
             END DO
+         END DO
+      END DO
+
+      ! Finish communication then diagonalise in each group
+      indx = 0
+      DO ikp = 1, kplocal
+         DO ispin = 1, nspin
+            DO igroup = 1, nkp_groups
+               ! number of current kpoint
+               ik = kp_dist(1, igroup)+ikp-1
+               my_kpgrp = (ik >= kpoints%kp_range(1) .AND. ik <= kpoints%kp_range(2))
+               indx = indx+1
+               IF (my_kpgrp) THEN
+                  IF (use_real_wfn) THEN
+                     CALL cp_fm_finish_copy_general(rksmat, info(indx, 1))
+                     CALL cp_fm_finish_copy_general(rsmat, info(indx, 2))
+                  ELSE
+                     CALL cp_fm_finish_copy_general(fmlocal, info(indx, 1))
+                     CALL cp_cfm_add_fm(czero, cksmat, cone, fmlocal)
+                     CALL cp_fm_finish_copy_general(fmlocal, info(indx, 2))
+                     CALL cp_cfm_add_fm(cone, cksmat, ione, fmlocal)
+                     CALL cp_fm_finish_copy_general(fmlocal, info(indx, 3))
+                     CALL cp_cfm_add_fm(czero, csmat, cone, fmlocal)
+                     CALL cp_fm_finish_copy_general(fmlocal, info(indx, 4))
+                     CALL cp_cfm_add_fm(cone, csmat, ione, fmlocal)
+                  END IF
+               END IF
+            END DO
+
             ! Each kpoint group has now information on a kpoint to be diagonalized
             ! General eigensolver Hermite or Symmetric
-            kp => kpoints%kp_env(ikpgr)%kpoint_env
+            kp => kpoints%kp_env(ikp)%kpoint_env
             IF (use_real_wfn) THEN
                CALL get_mo_set(kp%mos(1, ispin)%mo_set, mo_coeff=mo_coeff, eigenvalues=eigenvalues)
                IF (scf_env%cholesky_method == cholesky_off) THEN
@@ -504,6 +531,31 @@ CONTAINS
             END IF
          END DO
       END DO
+
+      ! Clean up communication
+      indx = 0
+      DO ikp = 1, kplocal
+         DO ispin = 1, nspin
+            DO igroup = 1, nkp_groups
+               ! number of current kpoint
+               ik = kp_dist(1, igroup)+ikp-1
+               my_kpgrp = (ik >= kpoints%kp_range(1) .AND. ik <= kpoints%kp_range(2))
+               indx = indx+1
+               IF (use_real_wfn) THEN
+                  CALL cp_fm_cleanup_copy_general(fmwork(1)%matrix, info(indx, 1))
+                  CALL cp_fm_cleanup_copy_general(fmwork(3)%matrix, info(indx, 2))
+               ELSE
+                  CALL cp_fm_cleanup_copy_general(fmwork(1)%matrix, info(indx, 1))
+                  CALL cp_fm_cleanup_copy_general(fmwork(2)%matrix, info(indx, 2))
+                  CALL cp_fm_cleanup_copy_general(fmwork(3)%matrix, info(indx, 3))
+                  CALL cp_fm_cleanup_copy_general(fmwork(4)%matrix, info(indx, 4))
+               END IF
+            END DO
+         END DO
+      END DO
+
+      ! All done
+      DEALLOCATE (info)
 
       IF (update_p) THEN
          ! MO occupations
@@ -839,7 +891,7 @@ CONTAINS
 
       INTEGER                                            :: ispin, nspin
       LOGICAL                                            :: do_level_shift, use_jacobi
-      REAL(kind=dp)                                      :: diis_error
+      REAL(KIND=dp)                                      :: diis_error
 
       nspin = SIZE(matrix_ks)
 
@@ -936,7 +988,7 @@ CONTAINS
       CHARACTER(LEN=*), PARAMETER :: routineN = 'do_ot_diag', routineP = moduleN//':'//routineN
 
       INTEGER                                            :: homo, ispin, nmo, nspin
-      REAL(kind=dp)                                      :: diis_error, eps_iter
+      REAL(KIND=dp)                                      :: diis_error, eps_iter
       REAL(KIND=dp), DIMENSION(:), POINTER               :: eigenvalues
       TYPE(cp_fm_type), POINTER                          :: mo_coeff
 

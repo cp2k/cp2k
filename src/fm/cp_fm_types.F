@@ -50,7 +50,7 @@ MODULE cp_fm_types
    INTEGER, PRIVATE :: mm_type = 1
 
    PUBLIC :: cp_fm_type, &
-             cp_fm_p_type
+             cp_fm_p_type, copy_info_type
 
    PUBLIC :: cp_fm_add_to_element, &
              cp_fm_create, &
@@ -72,6 +72,9 @@ MODULE cp_fm_types
              cp_fm_to_fm_submat, & ! copy (parts of) a fm to a fm
              cp_fm_to_fm_triangular, &
              cp_fm_copy_general, &
+             cp_fm_start_copy_general, &
+             cp_fm_finish_copy_general, &
+             cp_fm_cleanup_copy_general, &
              cp_fm_write_unformatted, & ! writes a full matrix to an open unit
              cp_fm_read_unformatted, & ! reads a full matrix from an open unit
              cp_fm_setup, & ! allows to set flags for fms
@@ -1390,7 +1393,8 @@ CONTAINS
       CALL timeset(routineN, handle)
 
       CALL cp_fm_start_copy_general(source, destination, para_env, info)
-      CALL cp_fm_finish_copy_general(source, destination, info)
+      CALL cp_fm_finish_copy_general(destination, info)
+      CALL cp_fm_cleanup_copy_general(source, info)
 
       CALL timestop(handle)
    END SUBROUTINE cp_fm_copy_general
@@ -1431,7 +1435,18 @@ CONTAINS
       CALL timeset(routineN, handle)
 
       IF (.NOT. cp2k_is_parallel) THEN
-         CALL cp_fm_to_fm(source, destination)
+         ! Just copy all of the matrix data into a 'send buffer', to be unpacked later
+         nrow_local_send = SIZE(source%local_data, 1)
+         ncol_local_send = SIZE(source%local_data, 2)
+         ALLOCATE (send_buf(nrow_local_send*ncol_local_send))
+         info%send_buf => send_buf
+         k = 0
+         DO j = 1, ncol_local_send
+            DO i = 1, nrow_local_send
+               k = k+1
+               send_buf(k) = source%local_data(i, j)
+            END DO
+         END DO
       ELSE
          ! assumption of double precision data is carried forward from ScaLAPACK version
          IF (ASSOCIATED(source)) THEN
@@ -1722,18 +1737,17 @@ CONTAINS
 
 ! **************************************************************************************************
 !> \brief Completes the copy operation: wait for comms, unpack, clean up MPI state
-!> \param source input fm matrix
 !> \param destination output fm matrix
 !> \param info all of the data that will be needed to complete the copy operation
 ! **************************************************************************************************
-   SUBROUTINE cp_fm_finish_copy_general(source, destination, info)
-      TYPE(cp_fm_type), POINTER                          :: source, destination
+   SUBROUTINE cp_fm_finish_copy_general(destination, info)
+      TYPE(cp_fm_type), POINTER                          :: destination
       TYPE(copy_info_type), INTENT(INOUT)                :: info
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'cp_fm_finish_copy_general', &
          routineP = moduleN//':'//routineN
 
-      INTEGER                                            :: handle, i, j, mpi_rank, send_size, &
+      INTEGER                                            :: handle, i, j, k, mpi_rank, send_size, &
                                                             src_p_i, src_q_j
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: recv_count
       INTEGER, DIMENSION(2)                              :: nblock_src, nlocal_recv, src_num_pe
@@ -1745,8 +1759,18 @@ CONTAINS
 
       CALL timeset(routineN, handle)
 
+      CPASSERT(ASSOCIATED(destination))
+
       IF (.NOT. cp2k_is_parallel) THEN
-         ! Don't do anything - the work for the serial case was done in cp_fm_start_copy_general
+         ! Now unpack the data from the 'send buffer'
+         k = 0
+         DO j = 1, SIZE(destination%local_data, 2)
+            DO i = 1, SIZE(destination%local_data, 1)
+               k = k+1
+               destination%local_data(i, j) = info%send_buf(k)
+            END DO
+         END DO
+         DEALLOCATE (info%send_buf)
       ELSE
          ! Set up local variables ...
          send_size = info%send_size
@@ -1764,33 +1788,22 @@ CONTAINS
 
          ! ... use the local variables to do the work
          ! DEST_2
-         IF (ASSOCIATED(destination)) THEN
-            CALL mp_waitall(recv_request(:))
-            ALLOCATE (recv_count(0:send_size-1))
-            ! Loop over the rmat, filling it in with data from the recv buffers
-            ! (here the block sizes, num_pes refer to the distribution of the source matrix)
-            recv_count(:) = 0
-            DO j = 1, nlocal_recv(2)
-               src_q_j = MOD(((recv_col_indices(j)-1)/nblock_src(2)), src_num_pe(2))
-               DO i = 1, nlocal_recv(1)
-                  src_p_i = MOD(((recv_row_indices(i)-1)/nblock_src(1)), src_num_pe(1))
-                  mpi_rank = src_blacs2mpi(src_p_i, src_q_j)
-                  recv_count(mpi_rank) = recv_count(mpi_rank)+1
-                  destination%local_data(i, j) = recv_buf(recv_disp(mpi_rank)+recv_count(mpi_rank))
-               END DO
+         CALL mp_waitall(recv_request(:))
+         ALLOCATE (recv_count(0:send_size-1))
+         ! Loop over the rmat, filling it in with data from the recv buffers
+         ! (here the block sizes, num_pes refer to the distribution of the source matrix)
+         recv_count(:) = 0
+         DO j = 1, nlocal_recv(2)
+            src_q_j = MOD(((recv_col_indices(j)-1)/nblock_src(2)), src_num_pe(2))
+            DO i = 1, nlocal_recv(1)
+               src_p_i = MOD(((recv_row_indices(i)-1)/nblock_src(1)), src_num_pe(1))
+               mpi_rank = src_blacs2mpi(src_p_i, src_q_j)
+               recv_count(mpi_rank) = recv_count(mpi_rank)+1
+               destination%local_data(i, j) = recv_buf(recv_disp(mpi_rank)+recv_count(mpi_rank))
             END DO
-            DEALLOCATE (recv_count, recv_disp, recv_request, recv_buf)
-         END IF ! ASSOCIATED(destination)
-
-         DEALLOCATE (src_blacs2mpi)
-
-         ! SRC_2
-         IF (ASSOCIATED(source)) THEN
-            CALL mp_waitall(send_request(:))
-            DEALLOCATE (send_request, send_buf)
-         END IF
-
-         ! We are done, invalidate the stored state
+         END DO
+         DEALLOCATE (recv_count, recv_disp, recv_request, recv_buf, src_blacs2mpi)
+         ! Invalidate the stored state
          NULLIFY (info%recv_col_indices, &
                   info%recv_row_indices, &
                   info%recv_buf, &
@@ -1800,11 +1813,56 @@ CONTAINS
                   info%send_request, &
                   info%send_buf)
 
-      END IF !IF (.NOT. cp2k_is_parallel)
+      END IF
 
       CALL timestop(handle)
 
    END SUBROUTINE cp_fm_finish_copy_general
+
+! **************************************************************************************************
+!> \brief Completes the copy operation: wait for comms clean up MPI state
+!> \param source fm matrix
+!> \param info all of the data that will be needed to complete the copy operation
+! **************************************************************************************************
+   SUBROUTINE cp_fm_cleanup_copy_general(source, info)
+      TYPE(cp_fm_type), POINTER                          :: source
+      TYPE(copy_info_type), INTENT(INOUT)                :: info
+
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'cp_fm_cleanup_copy_general', &
+         routineP = moduleN//':'//routineN
+
+      INTEGER                                            :: handle
+      INTEGER, DIMENSION(:), POINTER                     :: send_request
+      INTEGER, DIMENSION(:, :), POINTER                  :: src_blacs2mpi
+      REAL(KIND=dp), DIMENSION(:), POINTER               :: send_buf
+
+      CALL timeset(routineN, handle)
+
+      CPASSERT(ASSOCIATED(source))
+
+      IF (.NOT. cp2k_is_parallel) THEN
+         ! Don't do anything - no MPI state for the serial case
+      ELSE
+         send_request => info%send_request
+         send_buf => info%send_buf
+         src_blacs2mpi => info%src_blacs2mpi
+
+         ! SRC_2
+         ! If this process is also in the destination decomposition, this deallocate
+         ! Was already done in cp_fm_finish_copy_general
+         IF (ASSOCIATED(src_blacs2mpi)) THEN
+            DEALLOCATE (src_blacs2mpi)
+         ENDIF
+         CALL mp_waitall(send_request(:))
+         DEALLOCATE (send_request, send_buf)
+         ! Invalidate the stored state
+         NULLIFY (info%send_request, info%send_buf, info%src_blacs2mpi)
+
+      END IF
+
+      CALL timestop(handle)
+
+   END SUBROUTINE cp_fm_cleanup_copy_general
 
 ! **************************************************************************************************
 !> \brief General copy of a submatrix of fm matrix to  a submatrix of another fm matrix.
