@@ -1393,8 +1393,12 @@ CONTAINS
       CALL timeset(routineN, handle)
 
       CALL cp_fm_start_copy_general(source, destination, para_env, info)
-      CALL cp_fm_finish_copy_general(destination, info)
-      CALL cp_fm_cleanup_copy_general(source, info)
+      IF (ASSOCIATED(destination)) THEN
+         CALL cp_fm_finish_copy_general(destination, info)
+      END IF
+      IF (ASSOCIATED(source)) THEN
+         CALL cp_fm_cleanup_copy_general(source, info)
+      END IF
 
       CALL timestop(handle)
    END SUBROUTINE cp_fm_copy_general
