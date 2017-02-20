@@ -42,7 +42,7 @@
   PROJECT H2O-6
   PRINT_LEVEL LOW
   &DBCSR
-    USE_MPI_EXP T
+    USE_MPI_RMA T
     num_layers_3D 2
   &END
 &END GLOBAL

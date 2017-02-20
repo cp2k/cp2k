@@ -10,7 +10,6 @@
 ! **************************************************************************************************
 MODULE dbcsr_dist_methods
    USE array_types,                     ONLY: array_data,&
-                                              array_exists,&
                                               array_i1d_obj,&
                                               array_new,&
                                               array_nullify,&
@@ -54,10 +53,7 @@ MODULE dbcsr_dist_methods
              dbcsr_distribution_thread_dist, dbcsr_distribution_has_threads, &
              dbcsr_distribution_make_threads, dbcsr_distribution_no_threads, &
              dbcsr_distribution_num_threads, &
-             dbcsr_distribution_get_num_images_1d, &
-             dbcsr_distribution_has_row_clusters, dbcsr_distribution_has_col_clusters, &
-             dbcsr_distribution_num_local_row_clusters, dbcsr_distribution_num_local_col_clusters, &
-             dbcsr_distribution_row_clusters, dbcsr_distribution_col_clusters
+             dbcsr_distribution_get_num_images_1d
 
 CONTAINS
 
@@ -88,9 +84,8 @@ CONTAINS
       CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_distribution_new', &
          routineP = moduleN//':'//routineN
 
-      INTEGER                                            :: handle, i, lcmv, mypcoor, nclusters, &
-                                                            npcols, nprows, seq
-      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: cluster_dist
+      INTEGER                                            :: handle, i, lcmv, mypcoor, npcols, &
+                                                            nprows, seq
       INTEGER, DIMENSION(:), POINTER                     :: col_dist_tmp, row_dist_tmp
 
 !   ---------------------------------------------------------------------------
@@ -107,46 +102,18 @@ CONTAINS
       col_dist_tmp => col_dist_block
       CALL array_new(dist%d%row_dist_block, row_dist_tmp, gift=reuse_arrays)
       CALL array_new(dist%d%col_dist_block, col_dist_tmp, gift=reuse_arrays)
-
-      nclusters = 0
       CALL array_nullify(dist%d%row_dist_cluster)
+      CALL array_nullify(dist%d%col_dist_cluster)
+
       IF (PRESENT(row_dist_cluster)) THEN
          IF (ASSOCIATED(row_dist_cluster)) THEN
-            IF (dbcsr_cfg%use_mpi_exp) THEN
-               ! check against the case where there are more clusters than blocks
-               IF (SIZE(row_dist_cluster) .GE. lcmv) THEN
-                  row_dist_tmp => row_dist_cluster
-                  CALL array_new(dist%d%row_dist_cluster, row_dist_tmp, gift=reuse_arrays)
-                  IF (SIZE(row_dist_cluster) /= SIZE(row_dist_block)) &
-                     CPABORT("Blocks and clusters size are different for row grid")
-                  nclusters = MAXVAL(row_dist_cluster)
-               ENDIF
-            ELSE
-               CALL cp_warn(__LOCATION__, "Cannot use row cluster distribution "// &
-                            "without MPI RMA!!! Set 'USE_MPI_EXP T' in DBCSR section.")
-            ENDIF
+            CALL array_new(dist%d%row_dist_cluster, row_dist_cluster, gift=reuse_arrays)
          ENDIF
       ENDIF
-      CALL array_nullify(dist%d%col_dist_cluster)
       IF (PRESENT(col_dist_cluster)) THEN
          IF (ASSOCIATED(col_dist_cluster)) THEN
-            IF (dbcsr_cfg%use_mpi_exp) THEN
-               ! check against the case where there are more clusters than blocks
-               IF (SIZE(col_dist_cluster) .GE. lcmv) THEN
-                  col_dist_tmp => col_dist_cluster
-                  CALL array_new(dist%d%col_dist_cluster, col_dist_tmp, gift=reuse_arrays)
-                  IF (SIZE(col_dist_cluster) /= SIZE(col_dist_block)) &
-                     CPABORT("Blocks and clusters size are different for column grid")
-                  nclusters = MAX(nclusters, MAXVAL(col_dist_cluster))
-               ENDIF
-            ELSE
-               CALL cp_warn(__LOCATION__, "Cannot use col cluster distribution "// &
-                            "without MPI RMA!!! Set 'USE_MPI_EXP T' in DBCSR section.")
-            ENDIF
+            CALL array_new(dist%d%col_dist_cluster, col_dist_cluster, gift=reuse_arrays)
          ENDIF
-      ENDIF
-      IF (nclusters .GT. 0) THEN
-         nclusters = CEILING(DBLE(nclusters)/lcmv)*lcmv
       ENDIF
 
       dist%d%mp_env = mp_env
@@ -187,56 +154,6 @@ CONTAINS
          ENDDO
          CALL array_new(dist%d%local_cols, col_dist_tmp, gift=.TRUE.)
       ENDIF
-
-      ! check cluster distributions -- rows
-      dist%d%num_local_row_clusters = 1
-      IF (array_exists(dist%d%row_dist_cluster)) THEN
-         ! cluster/proc distribution,
-         ! map of the local clusters,
-         ! # blocks per cluster
-         ALLOCATE (cluster_dist(nclusters))
-         cluster_dist(:) = -1
-         seq = 0
-         mypcoor = dbcsr_mp_myprow(mp_env)
-         DO i = 1, SIZE(row_dist_block)
-            IF (cluster_dist(row_dist_cluster(i)) .EQ. -1) THEN
-               cluster_dist(row_dist_cluster(i)) = row_dist_block(i)
-               IF (row_dist_block(i) .EQ. mypcoor) seq = seq+1
-            ELSE
-               IF (cluster_dist(row_dist_cluster(i)) /= row_dist_block(i)) &
-                  CPABORT("Wrong cluster distribution")
-            END IF
-         END DO
-         IF (seq*nprows /= nclusters) &
-            CPABORT("Clusters distribution is not uniform across processors")
-         dist%d%num_local_row_clusters = seq
-         DEALLOCATE (cluster_dist)
-      END IF
-
-      ! check cluster distributions -- cols
-      dist%d%num_local_col_clusters = 1
-      IF (array_exists(dist%d%col_dist_cluster)) THEN
-         ! cluster/proc distribution,
-         ! map of the local clusters,
-         ! # blocks per cluster
-         ALLOCATE (cluster_dist(nclusters))
-         cluster_dist(:) = -1
-         seq = 0
-         mypcoor = dbcsr_mp_mypcol(mp_env)
-         DO i = 1, SIZE(col_dist_block)
-            IF (cluster_dist(col_dist_cluster(i)) .EQ. -1) THEN
-               cluster_dist(col_dist_cluster(i)) = col_dist_block(i)
-               IF (col_dist_block(i) .EQ. mypcoor) seq = seq+1
-            ELSE
-               IF (cluster_dist(col_dist_cluster(i)) /= col_dist_block(i)) &
-                  CPABORT("Wrong cluster distribution")
-            END IF
-         END DO
-         IF (seq*npcols /= nclusters) &
-            CPABORT("Clusters distribution is not uniform across processors")
-         dist%d%num_local_col_clusters = seq
-         DEALLOCATE (cluster_dist)
-      END IF
 
       dist%d%num_threads = 1
 !$    dist%d%num_threads = OMP_GET_MAX_THREADS()
@@ -505,78 +422,6 @@ CONTAINS
          num_images_1d = CEILING(DBLE(nblocks)/lcmv)*lcmv
       ENDIF
    END FUNCTION dbcsr_distribution_get_num_images_1d
-
-! **************************************************************************************************
-!> \brief ...
-!> \param[in] dist  ...
-!> \retval has_row_clusters ...
-! **************************************************************************************************
-   FUNCTION dbcsr_distribution_has_row_clusters(dist) RESULT(has_row_clusters)
-      TYPE(dbcsr_distribution_obj), INTENT(IN)           :: dist
-      LOGICAL                                            :: has_row_clusters
-
-      has_row_clusters = array_exists(dist%d%row_dist_cluster)
-   END FUNCTION dbcsr_distribution_has_row_clusters
-
-! **************************************************************************************************
-!> \brief ...
-!> \param[in] dist  ...
-!> \retval has_col_clusters ...
-! **************************************************************************************************
-   FUNCTION dbcsr_distribution_has_col_clusters(dist) RESULT(has_col_clusters)
-      TYPE(dbcsr_distribution_obj), INTENT(IN)           :: dist
-      LOGICAL                                            :: has_col_clusters
-
-      has_col_clusters = array_exists(dist%d%col_dist_cluster)
-   END FUNCTION dbcsr_distribution_has_col_clusters
-
-! **************************************************************************************************
-!> \brief ...
-!> \param[in] dist  ...
-!> \retval num_local_row_clusters ...
-! **************************************************************************************************
-   FUNCTION dbcsr_distribution_num_local_row_clusters(dist) RESULT(num_local_row_clusters)
-      TYPE(dbcsr_distribution_obj), INTENT(IN)           :: dist
-      INTEGER                                            :: num_local_row_clusters
-
-      num_local_row_clusters = dist%d%num_local_row_clusters
-   END FUNCTION dbcsr_distribution_num_local_row_clusters
-
-! **************************************************************************************************
-!> \brief ...
-!> \param[in] dist  ...
-!> \retval num_local_col_clusters ...
-! **************************************************************************************************
-   FUNCTION dbcsr_distribution_num_local_col_clusters(dist) RESULT(num_local_col_clusters)
-      TYPE(dbcsr_distribution_obj), INTENT(IN)           :: dist
-      INTEGER                                            :: num_local_col_clusters
-
-      num_local_col_clusters = dist%d%num_local_col_clusters
-   END FUNCTION dbcsr_distribution_num_local_col_clusters
-
-! **************************************************************************************************
-!> \brief ...
-!> \param dist ...
-!> \retval row_dist_cluster ...
-! **************************************************************************************************
-   FUNCTION dbcsr_distribution_row_clusters(dist) RESULT(row_dist_cluster)
-      TYPE(dbcsr_distribution_obj), INTENT(IN)           :: dist
-      INTEGER, DIMENSION(:), POINTER                     :: row_dist_cluster
-
-      row_dist_cluster => array_data(dist%d%row_dist_cluster)
-   END FUNCTION dbcsr_distribution_row_clusters
-
-! **************************************************************************************************
-!> \brief ...
-!> \param dist ...
-!> \retval col_dist_cluster ...
-! **************************************************************************************************
-   FUNCTION dbcsr_distribution_col_clusters(dist) RESULT(col_dist_cluster)
-      TYPE(dbcsr_distribution_obj), INTENT(IN)           :: dist
-      INTEGER, DIMENSION(:), POINTER                     :: col_dist_cluster
-
-      col_dist_cluster => array_data(dist%d%col_dist_cluster)
-   END FUNCTION dbcsr_distribution_col_clusters
 
 ! **************************************************************************************************
 !> \brief Creates a distribution for threads

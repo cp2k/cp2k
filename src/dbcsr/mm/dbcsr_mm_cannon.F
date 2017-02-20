@@ -288,7 +288,7 @@ CONTAINS
 
 !   ---------------------------------------------------------------------------
 
-      IF (dbcsr_cfg%use_mpi_exp) &
+      IF (dbcsr_cfg%use_mpi_rma) &
          CPABORT("RMA algo not supported here!")
       IF (.NOT. dbcsr_valid_index(source)) &
          CPABORT("Matrix not initialized.")
@@ -1225,10 +1225,14 @@ CONTAINS
       !!
       ! Evaluate sizes for workspaces
       IF (.NOT. keep_sparsity) THEN
-         size_guess_init = product_matrix_size_guess(left_set%mats(1, 1), right_set%mats(1, 1), product_matrix, &
-                                                     left_max_nze, right_max_nze, &
-                                                     left_col_nimages, right_row_nimages, &
-                                                     nthreads)
+         IF (has_acc) THEN
+            size_guess_init = product_matrix_size_guess(left_set%mats(1, 1), right_set%mats(1, 1), product_matrix, &
+                                                        left_max_nze, right_max_nze, &
+                                                        left_col_nimages, right_row_nimages, &
+                                                        nthreads)
+         ELSE
+            size_guess_init = 1
+         ENDIF
       ENDIF
       ithread = 0
 !$OMP PARALLEL DEFAULT(NONE) &

@@ -3,7 +3,7 @@
   PRINT_LEVEL LOW
   RUN_TYPE    GEO_OPT
   &DBCSR
-    use_mpi_exp T
+    use_mpi_rma T
     num_layers_3D 2
   &END
 &END GLOBAL

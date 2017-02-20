@@ -101,7 +101,7 @@
     RUN_TYPE BSSE
     PRINT_LEVEL LOW
   &DBCSR
-    USE_MPI_EXP T
+    USE_MPI_RMA T
     num_layers_3D 2
   &END DBCSR
  &END GLOBAL

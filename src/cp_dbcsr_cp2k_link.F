@@ -147,24 +147,13 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL dbcsr_get_default_config(use_mpi_filtering=ldefault)
-      CALL keyword_create(keyword, name="use_mpi_filtering", &
-                          description="Use filtering for MPI communications" &
-                          //" in RMA algorithm for each image, which also corresponds to" &
-                          //" the number of elements exchanged between MPI processes" &
-                          //" during the operations.", &
-                          usage="use_mpi_filtering F", &
-                          default_l_val=ldefault)
-      CALL section_add_keyword(section, keyword)
-      CALL keyword_release(keyword)
-
-      CALL dbcsr_get_default_config(use_mpi_exp=ldefault)
-      CALL keyword_create(keyword, name="use_mpi_exp", &
+      CALL dbcsr_get_default_config(use_mpi_rma=ldefault)
+      CALL keyword_create(keyword, name="use_mpi_rma", &
                           description="Use RMA for MPI communications" &
                           //" for each image, which also corresponds to" &
                           //" the number of elements exchanged between MPI processes" &
                           //" during the operations.", &
-                          usage="use_mpi_exp F", &
+                          usage="use_mpi_rma F", &
                           default_l_val=ldefault)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
@@ -344,11 +333,8 @@ CONTAINS
       CALL section_vals_val_get(dbcsr_section, "n_size_mnk_stacks", i_val=ival)
       CALL dbcsr_set_config(nstacks=ival)
 
-      CALL section_vals_val_get(dbcsr_section, "use_mpi_filtering", l_val=lval)
-      CALL dbcsr_set_config(use_mpi_filtering=lval)
-
-      CALL section_vals_val_get(dbcsr_section, "use_mpi_exp", l_val=lval)
-      CALL dbcsr_set_config(use_mpi_exp=lval)
+      CALL section_vals_val_get(dbcsr_section, "use_mpi_rma", l_val=lval)
+      CALL dbcsr_set_config(use_mpi_rma=lval)
 
       CALL section_vals_val_get(dbcsr_section, "num_layers_3D", i_val=ival)
       CALL dbcsr_set_config(num_layers_3D=ival)

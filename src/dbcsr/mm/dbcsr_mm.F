@@ -134,7 +134,6 @@ CONTAINS
       dbcsr_mpi_statistics%last_mpi_ranks_used = 0
       dbcsr_mpi_statistics%nimages = -1
       dbcsr_mpi_statistics%nexchanged = 0
-      dbcsr_mpi_statistics%nfiltered = 0
       dbcsr_mpi_statistics%data_size = 0
       dbcsr_mpi_statistics%data_size(:, 2) = HUGE(dbcsr_mpi_statistics%data_size(1, 2))
       dbcsr_mpi_statistics%data_size_breakdown = 0
@@ -164,7 +163,7 @@ CONTAINS
          routineP = moduleN//':'//routineN
 
       INTEGER                                            :: ilimit, isqrt, isqrt2, ithread
-      INTEGER(KIND=int_8)                                :: total_nexchanged, total_nfiltered
+      INTEGER(KIND=int_8)                                :: total_nexchanged
       INTEGER(KIND=int_8), &
          DIMENSION(SIZE(dbcsr_mpi_size_limits)+1, 2, 2)  :: total_recv_breakdown
       REAL                                               :: average, total_marketing_flops, &
@@ -201,9 +200,6 @@ CONTAINS
       total_nexchanged = dbcsr_mpi_statistics%nexchanged
       CALL mp_sum(total_nexchanged, group)
 
-      total_nfiltered = dbcsr_mpi_statistics%nfiltered
-      CALL mp_sum(total_nfiltered, group)
-
       total_recv_data(:) = dbcsr_mpi_statistics%data_size(:, 1)
       CALL mp_sum(total_recv_data, group)
 
@@ -232,7 +228,6 @@ CONTAINS
             WRITE (output_unit, '(A,T30,EN20.6)') " max memory usage/rank", total_max_memory
             WRITE (output_unit, '(A,T30,I20)') " # max total images/rank", dbcsr_mpi_statistics%nimages
             WRITE (output_unit, '(A,T30,I20)') " # MPI messages exchanged", total_nexchanged
-            WRITE (output_unit, '(A,T30,I20)') " # MPI messages filtered", total_nfiltered
             WRITE (output_unit, '(A)') " MPI messages size (elements):"
             WRITE (output_unit, '(A,T30,EN20.6)') "  total size", &
                SUM(total_recv_data(:))
@@ -440,7 +435,7 @@ CONTAINS
                                   acc_hostalloc=.TRUE., acc_devalloc=.TRUE., acc_stream=stream_1)
          CALL dbcsr_memtype_setup(memtype_trsbuffer_2, has_pool=.TRUE., &
                                   acc_hostalloc=.TRUE., acc_devalloc=.TRUE., acc_stream=stream_2)
-         IF (.NOT. dbcsr_cfg%use_mpi_exp) THEN
+         IF (.NOT. dbcsr_cfg%use_mpi_rma) THEN
             CALL dbcsr_mempool_limit_capacity(memtype_trsbuffer_1%pool, capacity=1)
             CALL dbcsr_mempool_limit_capacity(memtype_trsbuffer_2%pool, capacity=1)
          ENDIF
@@ -565,7 +560,7 @@ CONTAINS
       CALL make_layers_3D_C_reduction(dbcsr_cfg%num_layers_3D, mp_obj)
       !
       ! No dense multiplication when RMA is used.
-      IF (dbcsr_cfg%use_mpi_exp) THEN
+      IF (dbcsr_cfg%use_mpi_rma) THEN
          use_dense_mult = .FALSE.
       ENDIF
       ! we skip dense multiply for (anti)symmetric matrices (slowdown for S/H * C)
@@ -793,7 +788,7 @@ CONTAINS
 !$OMP END PARALLEL
       ENDIF
       !
-      IF (dbcsr_cfg%use_mpi_exp) THEN
+      IF (dbcsr_cfg%use_mpi_rma) THEN
          !
          ! Left buffer images
          CALL dbcsr_make_buffers(matrix_left, rdist_left, .TRUE., &
@@ -843,7 +838,7 @@ CONTAINS
       f_k = 0; l_k = 0
       !
       my_flop = 0
-      IF (dbcsr_cfg%use_mpi_exp) THEN
+      IF (dbcsr_cfg%use_mpi_rma) THEN
          CALL multiply_3D(rdist_left, rdist_right, &
                           matrix_left, matrix_right, product_matrix, &
                           retain_sparsity=retain_sparsity, &
@@ -858,7 +853,7 @@ CONTAINS
       ENDIF
       !
       ! RMA implementation algorithm has to synchronize at the end of each multiplication
-      IF (PRESENT(flop) .OR. dbcsr_cfg%use_mpi_exp) THEN
+      IF (PRESENT(flop) .OR. dbcsr_cfg%use_mpi_rma) THEN
          ! return the average number of flops per MPI rank.
          ! Variance (which is fairly large) could be computed as well.
          CALL timeset(routineN//"_mpsum_flop", handle2)
@@ -905,7 +900,7 @@ CONTAINS
          CALL dbcsr_release(product_matrix)
       ENDIF
       !
-      IF (.NOT. dbcsr_cfg%use_mpi_exp) THEN
+      IF (.NOT. dbcsr_cfg%use_mpi_rma) THEN
          CALL dbcsr_destroy_array(m2s_left)
          DEALLOCATE (m2s_left)
          CALL dbcsr_destroy_array(m2s_right)
@@ -967,7 +962,7 @@ CONTAINS
       INTEGER                                            :: ipos, jpos, major, minor, patch, &
                                                             resultlen
 
-      IF (.NOT. dbcsr_cfg%use_mpi_exp) RETURN
+      IF (.NOT. dbcsr_cfg%use_mpi_rma) RETURN
       ! Check if RMA is used with buggy OpenMPI (version<1.10.4 or 2.0.1)
       CALL mp_get_library_version(mpi_library_version, resultlen)
       IF (resultlen .EQ. 0) RETURN
@@ -998,7 +993,7 @@ CONTAINS
                       mpi_library_version(1:resultlen)// &
                       " --- We disable RMA to prevent errors. "// &
                       "Please install a new OpenMPI version (>=1.10.4 or 2.0.1). ")
-         CALL dbcsr_set_config(use_mpi_exp=.FALSE.)
+         CALL dbcsr_set_config(use_mpi_rma=.FALSE.)
       ENDIF
 
    END SUBROUTINE check_openmpi_rma

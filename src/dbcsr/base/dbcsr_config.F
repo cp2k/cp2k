@@ -95,8 +95,7 @@ MODULE dbcsr_config
       INTEGER  :: nm_stacks = 3
       INTEGER  :: nn_stacks = 3
       INTEGER  :: nk_stacks = 3
-      LOGICAL  :: use_mpi_exp = .FALSE.
-      LOGICAL  :: use_mpi_filtering = .TRUE.
+      LOGICAL  :: use_mpi_rma = .FALSE.
       INTEGER  :: num_layers_3D = 1
       LOGICAL  :: use_comm_thread = .TRUE.
       INTEGER  :: comm_thread_load = 100
@@ -129,8 +128,7 @@ CONTAINS
 !> \param avg_elements_images Maximum number of elements for each image
 !> \param num_mult_images Multiplicative factor for number of virtual images
 !> \param nstacks Number of stacks to use
-!> \param use_mpi_exp RMA algorithm
-!> \param use_mpi_filtering RMA MPI filtering
+!> \param use_mpi_rma RMA algorithm
 !> \param num_layers_3D 3D layers
 !> \param use_comm_thread ...
 !> \param comm_thread_load ...
@@ -153,8 +151,7 @@ CONTAINS
       avg_elements_images, &
       num_mult_images, &
       nstacks, &
-      use_mpi_exp, &
-      use_mpi_filtering, &
+      use_mpi_rma, &
       num_layers_3D, &
       use_comm_thread, &
       comm_thread_load, &
@@ -174,7 +171,7 @@ CONTAINS
       LOGICAL, INTENT(IN), OPTIONAL                      :: use_MPI_memory
       INTEGER, INTENT(IN), OPTIONAL                      :: mm_stack_size, avg_elements_images, &
                                                             num_mult_images, nstacks
-      LOGICAL, INTENT(IN), OPTIONAL                      :: use_mpi_exp, use_mpi_filtering
+      LOGICAL, INTENT(IN), OPTIONAL                      :: use_mpi_rma
       INTEGER, INTENT(IN), OPTIONAL                      :: num_layers_3D
       LOGICAL, INTENT(IN), OPTIONAL                      :: use_comm_thread
       INTEGER, INTENT(IN), OPTIONAL :: comm_thread_load, multrec_limit, accdrv_priority_streams, &
@@ -191,8 +188,7 @@ CONTAINS
       IF (PRESENT(use_MPI_memory)) dbcsr_cfg%use_MPI_memory = use_MPI_memory
       IF (PRESENT(avg_elements_images)) dbcsr_cfg%avg_elements_images = avg_elements_images
       IF (PRESENT(num_mult_images)) dbcsr_cfg%num_mult_images = num_mult_images
-      IF (PRESENT(use_mpi_exp)) dbcsr_cfg%use_mpi_exp = use_mpi_exp
-      IF (PRESENT(use_mpi_filtering)) dbcsr_cfg%use_mpi_filtering = use_mpi_filtering
+      IF (PRESENT(use_mpi_rma)) dbcsr_cfg%use_mpi_rma = use_mpi_rma
       IF (PRESENT(num_layers_3D)) dbcsr_cfg%num_layers_3D = num_layers_3D
       IF (PRESENT(use_comm_thread)) dbcsr_cfg%use_comm_thread = use_comm_thread
       IF (PRESENT(multrec_limit)) dbcsr_cfg%multrec_limit = multrec_limit
@@ -255,8 +251,7 @@ CONTAINS
 !> \param avg_elements_images ...
 !> \param num_mult_images ...
 !> \param nstacks ...
-!> \param use_mpi_exp ...
-!> \param use_mpi_filtering ...
+!> \param use_mpi_rma ...
 !> \param num_layers_3D ...
 !> \param use_comm_thread ...
 !> \param comm_thread_load ...
@@ -278,8 +273,7 @@ CONTAINS
       avg_elements_images, &
       num_mult_images, &
       nstacks, &
-      use_mpi_exp, &
-      use_mpi_filtering, &
+      use_mpi_rma, &
       num_layers_3D, &
       use_comm_thread, &
       comm_thread_load, &
@@ -298,7 +292,7 @@ CONTAINS
       LOGICAL, INTENT(OUT), OPTIONAL                     :: use_MPI_memory
       INTEGER, INTENT(OUT), OPTIONAL                     :: mm_stack_size, avg_elements_images, &
                                                             num_mult_images, nstacks
-      LOGICAL, INTENT(OUT), OPTIONAL                     :: use_mpi_exp, use_mpi_filtering
+      LOGICAL, INTENT(OUT), OPTIONAL                     :: use_mpi_rma
       INTEGER, INTENT(OUT), OPTIONAL                     :: num_layers_3D
       LOGICAL, INTENT(OUT), OPTIONAL                     :: use_comm_thread
       INTEGER, INTENT(OUT), OPTIONAL :: comm_thread_load, multrec_limit, accdrv_priority_streams, &
@@ -316,8 +310,7 @@ CONTAINS
       IF (PRESENT(mm_stack_size)) mm_stack_size = default_cfg%mm_stack_size
       IF (PRESENT(avg_elements_images)) avg_elements_images = default_cfg%avg_elements_images
       IF (PRESENT(num_mult_images)) num_mult_images = default_cfg%num_mult_images
-      IF (PRESENT(use_mpi_exp)) use_mpi_exp = default_cfg%use_mpi_exp
-      IF (PRESENT(use_mpi_filtering)) use_mpi_filtering = default_cfg%use_mpi_filtering
+      IF (PRESENT(use_mpi_rma)) use_mpi_rma = default_cfg%use_mpi_rma
       IF (PRESENT(num_layers_3D)) num_layers_3D = default_cfg%num_layers_3D
       IF (PRESENT(use_comm_thread)) use_comm_thread = default_cfg%use_comm_thread
       IF (PRESENT(comm_thread_load)) comm_thread_load = default_cfg%comm_thread_load
@@ -398,15 +391,11 @@ CONTAINS
             WRITE (UNIT=unit_nr, FMT='(1X,A,T80,L1)') &
                "DBCSR| Use MPI memory allocation", dbcsr_cfg%use_mpi_memory
             WRITE (UNIT=unit_nr, FMT='(1X,A,T80,L1)') &
-               "DBCSR| Use RMA algorithm", dbcsr_cfg%use_mpi_exp
+               "DBCSR| Use RMA algorithm", dbcsr_cfg%use_mpi_rma
             WRITE (UNIT=unit_nr, FMT='(1X,A,T80,L1)') &
                "DBCSR| Use Communication thread", dbcsr_cfg%use_comm_thread
             WRITE (UNIT=unit_nr, FMT='(1X,A,T70,I11)') &
                "DBCSR| Communication thread load", dbcsr_cfg%comm_thread_load
-            IF (dbcsr_cfg%use_mpi_exp) THEN
-               WRITE (UNIT=unit_nr, FMT='(1X,A,T80,L1)') &
-                  "DBCSR| Use MPI filtering", dbcsr_cfg%use_mpi_filtering
-            ENDIF
          ENDIF
 
          IF (has_acc) THEN

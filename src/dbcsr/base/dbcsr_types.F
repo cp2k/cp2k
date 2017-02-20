@@ -177,8 +177,6 @@ MODULE dbcsr_types
       TYPE(array_i1d_obj)                        :: row_dist_block, col_dist_block
       TYPE(array_i1d_obj)                        :: local_rows, local_cols
       TYPE(array_i1d_obj)                        :: row_dist_cluster, col_dist_cluster
-      INTEGER                                    :: num_local_row_clusters = -1
-      INTEGER                                    :: num_local_col_clusters = -1
       TYPE(array_i1d_obj), DIMENSION(:), POINTER :: other_l_rows => Null()
       TYPE(array_i1d_obj), DIMENSION(:), POINTER :: other_l_cols => Null()
       LOGICAL                                    :: has_other_l_rows = .FALSE.

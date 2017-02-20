@@ -17,12 +17,9 @@ MODULE dbcsr_dist_operations
    USE array_types,                     ONLY: array_i1d_obj,&
                                               array_new
    USE dbcsr_dist_methods,              ONLY: &
-        dbcsr_distribution_col_clusters, dbcsr_distribution_col_dist, &
-        dbcsr_distribution_has_col_clusters, dbcsr_distribution_has_row_clusters, &
-        dbcsr_distribution_local_cols, dbcsr_distribution_local_rows, dbcsr_distribution_mp, &
-        dbcsr_distribution_ncols, dbcsr_distribution_new, dbcsr_distribution_nrows, &
-        dbcsr_distribution_num_local_col_clusters, dbcsr_distribution_num_local_row_clusters, &
-        dbcsr_distribution_processor, dbcsr_distribution_row_clusters, dbcsr_distribution_row_dist
+        dbcsr_distribution_col_dist, dbcsr_distribution_local_cols, dbcsr_distribution_local_rows, &
+        dbcsr_distribution_mp, dbcsr_distribution_ncols, dbcsr_distribution_new, &
+        dbcsr_distribution_nrows, dbcsr_distribution_processor, dbcsr_distribution_row_dist
    USE dbcsr_min_heap,                  ONLY: dbcsr_heap_fill,&
                                               dbcsr_heap_get_first,&
                                               dbcsr_heap_new,&
@@ -35,9 +32,7 @@ MODULE dbcsr_dist_operations
                                               dbcsr_mp_release
    USE dbcsr_toollib,                   ONLY: gcd,&
                                               lcm,&
-                                              ordered_search,&
-                                              sort,&
-                                              swap
+                                              ordered_search
    USE dbcsr_types,                     ONLY: dbcsr_distribution_obj,&
                                               dbcsr_mp_obj,&
                                               dbcsr_type
@@ -305,9 +300,7 @@ CONTAINS
                                   dbcsr_distribution_col_dist(dist_normal), &
                                   dbcsr_distribution_row_dist(dist_normal), &
                                   dbcsr_distribution_local_cols(dist_normal), &
-                                  dbcsr_distribution_local_rows(dist_normal), &
-                                  dbcsr_distribution_col_clusters(dist_normal), &
-                                  dbcsr_distribution_row_clusters(dist_normal))
+                                  dbcsr_distribution_local_rows(dist_normal))
       CALL dbcsr_mp_release(mp_env_tr)
    END SUBROUTINE dbcsr_transpose_distribution
 
@@ -320,9 +313,8 @@ CONTAINS
       TYPE(dbcsr_distribution_obj), INTENT(OUT)          :: dist_tr
       TYPE(dbcsr_distribution_obj), INTENT(IN)           :: dist_normal
 
-      INTEGER                                            :: i, j, nclusters, ncols_tr, npcols_tr, &
-                                                            nprows_tr, nrows_tr, vgcd, vlcm
-      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: img_data, reorder
+      INTEGER                                            :: ncols_tr, npcols_tr, nprows_tr, &
+                                                            nrows_tr, vgcd, vlcm
       INTEGER, DIMENSION(:), POINTER                     :: col_dist_data_tr, col_img_data_tr, &
                                                             row_dist_data_tr, row_img_data_tr
       TYPE(dbcsr_mp_obj)                                 :: mp_env
@@ -342,77 +334,28 @@ CONTAINS
       !
       ALLOCATE (row_dist_data_tr(nrows_tr))
       ALLOCATE (row_img_data_tr(nrows_tr))
-      IF (dbcsr_distribution_has_col_clusters(dist_normal)) THEN
-         nclusters = npcols_tr*dbcsr_distribution_num_local_col_clusters(dist_normal)
-         ALLOCATE (img_data(nrows_tr))
-         img_data(:) = MOD(dbcsr_distribution_col_clusters(dist_normal)-1, &
-                           dbcsr_distribution_num_local_col_clusters(dist_normal))
-         CALL rebin_imaged_distribution_clusters(row_dist_data_tr, row_img_data_tr, &
-                                                 dbcsr_distribution_col_dist(dist_normal), &
-                                                 img_data, &
-                                                 nprows_tr, &
-                                                 nclusters/gcd(nclusters, npcols_tr), &
-                                                 nclusters)
-         ! Sort clusters for convenience
-         ALLOCATE (reorder(SIZE(row_img_data_tr)))
-         CALL sort(row_img_data_tr, SIZE(row_img_data_tr), reorder)
-         ! Realign blocks distribution
-         DO i = 1, SIZE(reorder)
-            j = reorder(i)
-            IF (i .GE. j) CYCLE
-            CALL swap(reorder(i), reorder(j))
-            CALL swap(row_dist_data_tr(i), row_dist_data_tr(j))
-         ENDDO
-         DEALLOCATE (img_data, reorder)
-      ELSE
-         CALL rebin_distribution(row_dist_data_tr, row_img_data_tr, &
-                                 dbcsr_distribution_col_dist(dist_normal), &
-                                 nprows_tr, &
-                                 nprows_tr/vgcd, vlcm/nprows_tr)
-         !
-         ! discard image distribution, it will be build later in the multiplication
-         DEALLOCATE (row_img_data_tr)
-         NULLIFY (row_img_data_tr)
-      ENDIF
+      CALL rebin_distribution(row_dist_data_tr, row_img_data_tr, &
+                              dbcsr_distribution_col_dist(dist_normal), &
+                              nprows_tr, &
+                              nprows_tr/vgcd, vlcm/nprows_tr)
+      !
+      ! discard image distribution, it will be build later in the multiplication
+      DEALLOCATE (row_img_data_tr)
+      NULLIFY (row_img_data_tr)
       !
       ALLOCATE (col_dist_data_tr(ncols_tr))
       ALLOCATE (col_img_data_tr(ncols_tr))
-      IF (dbcsr_distribution_has_row_clusters(dist_normal)) THEN
-         nclusters = nprows_tr*dbcsr_distribution_num_local_row_clusters(dist_normal)
-         ALLOCATE (img_data(ncols_tr))
-         img_data(:) = MOD(dbcsr_distribution_row_clusters(dist_normal)-1, &
-                           dbcsr_distribution_num_local_row_clusters(dist_normal))
-         CALL rebin_imaged_distribution_clusters(col_dist_data_tr, col_img_data_tr, &
-                                                 dbcsr_distribution_row_dist(dist_normal), &
-                                                 img_data, &
-                                                 npcols_tr, &
-                                                 nclusters/gcd(nclusters, nprows_tr), &
-                                                 nclusters)
-         ! Sort clusters for convenience
-         ALLOCATE (reorder(SIZE(col_img_data_tr)))
-         CALL sort(col_img_data_tr, SIZE(col_img_data_tr), reorder)
-         ! Realign blocks distribution
-         DO i = 1, SIZE(reorder)
-            j = reorder(i)
-            IF (i .GE. j) CYCLE
-            CALL swap(reorder(i), reorder(j))
-            CALL swap(col_dist_data_tr(i), col_dist_data_tr(j))
-         ENDDO
-         DEALLOCATE (img_data, reorder)
-      ELSE
-         CALL rebin_distribution(col_dist_data_tr, col_img_data_tr, &
-                                 dbcsr_distribution_row_dist(dist_normal), &
-                                 npcols_tr, &
-                                 npcols_tr/vgcd, vlcm/npcols_tr)
-         !
-         ! discard image distribution, it will be build later in the multiplication
-         DEALLOCATE (col_img_data_tr)
-         NULLIFY (col_img_data_tr)
-      ENDIF
+      CALL rebin_distribution(col_dist_data_tr, col_img_data_tr, &
+                              dbcsr_distribution_row_dist(dist_normal), &
+                              npcols_tr, &
+                              npcols_tr/vgcd, vlcm/npcols_tr)
+      !
+      ! discard image distribution, it will be build later in the multiplication
+      DEALLOCATE (col_img_data_tr)
+      NULLIFY (col_img_data_tr)
       !
       CALL dbcsr_distribution_new(dist_tr, mp_env, &
                                   row_dist_data_tr, col_dist_data_tr, &
-                                  row_dist_cluster=row_img_data_tr, col_dist_cluster=col_img_data_tr, &
                                   reuse_arrays=.TRUE.)
 
    END SUBROUTINE dbcsr_transpose_dims
@@ -506,46 +449,6 @@ CONTAINS
          array(first:last) = bin-1
       ENDDO
    END SUBROUTINE evenly_bin
-
-! **************************************************************************************************
-!> \brief ...
-!> \param new_bins ...
-!> \param new_images ...
-!> \param source_bins ...
-!> \param source_images ...
-!> \param nbins ...
-!> \param multiplicity ...
-!> \param nclusters ...
-! **************************************************************************************************
-   SUBROUTINE rebin_imaged_distribution_clusters(new_bins, new_images, &
-                                                 source_bins, source_images, nbins, multiplicity, nclusters)
-      INTEGER, DIMENSION(:), INTENT(OUT)                 :: new_bins, new_images
-      INTEGER, DIMENSION(:), INTENT(IN)                  :: source_bins, source_images
-      INTEGER, INTENT(IN)                                :: nbins, multiplicity, nclusters
-
-      CHARACTER(len=*), PARAMETER :: routineN = 'rebin_imaged_distribution_clusters', &
-         routineP = moduleN//':'//routineN
-
-      INTEGER                                            :: dim, i, nimages, virtual_bin
-
-!   ---------------------------------------------------------------------------
-
-      dim = SIZE(new_bins)
-      nimages = nclusters/nbins
-      IF (dim .NE. SIZE(source_bins)) &
-         CPABORT("Wrong bins array dimension")
-      IF (dim .NE. SIZE(new_images) .OR. dim .NE. SIZE(source_images)) &
-         CPABORT("Wrong images array dimensions")
-      DO i = 1, dim
-         virtual_bin = source_bins(i)*multiplicity+source_images(i)
-         new_bins(i) = virtual_bin/nimages
-         new_images(i) = 1+virtual_bin
-         IF (new_bins(i) .GE. nbins) &
-            CPABORT("Wrong bin calculation")
-         IF (new_images(i) .GT. nclusters) &
-            CPABORT("Wrong image calculation")
-      ENDDO
-   END SUBROUTINE rebin_imaged_distribution_clusters
 
 ! **************************************************************************************************
 !> \brief Calculates the intersections of blocks

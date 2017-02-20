@@ -174,7 +174,7 @@
      THRESHOLD 0.000001
   &END
   &DBCSR
-    USE_MPI_EXP T
+    USE_MPI_RMA T
     num_layers_3D 2
     num_mult_images 3
   &END

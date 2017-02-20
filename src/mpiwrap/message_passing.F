@@ -375,15 +375,15 @@ MODULE message_passing
          mp_iallgather_i11, mp_iallgather_l11, &
          mp_iallgather_r11, mp_iallgather_d11, &
          mp_iallgather_c11, mp_iallgather_z11, &
-         mp_iallgather_i12, mp_iallgather_l12, &
-         mp_iallgather_r12, mp_iallgather_d12, &
-         mp_iallgather_c12, mp_iallgather_z12, &
+         mp_iallgather_i13, mp_iallgather_l13, &
+         mp_iallgather_r13, mp_iallgather_d13, &
+         mp_iallgather_c13, mp_iallgather_z13, &
          mp_iallgather_i22, mp_iallgather_l22, &
          mp_iallgather_r22, mp_iallgather_d22, &
          mp_iallgather_c22, mp_iallgather_z22, &
-         mp_iallgather_i23, mp_iallgather_l23, &
-         mp_iallgather_r23, mp_iallgather_d23, &
-         mp_iallgather_c23, mp_iallgather_z23, &
+         mp_iallgather_i24, mp_iallgather_l24, &
+         mp_iallgather_r24, mp_iallgather_d24, &
+         mp_iallgather_c24, mp_iallgather_z24, &
          mp_iallgather_i33, mp_iallgather_l33, &
          mp_iallgather_r33, mp_iallgather_d33, &
          mp_iallgather_c33, mp_iallgather_z33, &

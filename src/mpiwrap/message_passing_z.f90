@@ -2279,13 +2279,13 @@
 !> \param request ...
 !> \note see mp_allgather_z12
 ! *****************************************************************************
-  SUBROUTINE mp_iallgather_z12(msgout, msgin, gid, request)
+  SUBROUTINE mp_iallgather_z13(msgout, msgin, gid, request)
     COMPLEX(kind=real_8), INTENT(IN)                      :: msgout(:)
-    COMPLEX(kind=real_8), INTENT(OUT)                     :: msgin(:, :)
+    COMPLEX(kind=real_8), INTENT(OUT)                     :: msgin(:, :, :)
     INTEGER, INTENT(IN)                      :: gid
     INTEGER, INTENT(OUT)                     :: request
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'mp_iallgather_z12', &
+    CHARACTER(len=*), PARAMETER :: routineN = 'mp_iallgather_z13', &
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, ierr
@@ -2315,11 +2315,11 @@
 #endif
 #else
     MARK_USED(gid)
-    msgin(1,:) = msgout(:)
+    msgin(:,1,1) = msgout(:)
     request = mp_request_null
 #endif
     CALL mp_timestop(handle)
-  END SUBROUTINE mp_iallgather_z12
+  END SUBROUTINE mp_iallgather_z13
 
 ! *****************************************************************************
 !> \brief Gathers rank-2 data from all processes and all processes receive the
@@ -2381,13 +2381,13 @@
 !> \param request ...
 !> \note see mp_allgather_z12
 ! *****************************************************************************
-  SUBROUTINE mp_iallgather_z23(msgout, msgin, gid, request)
+  SUBROUTINE mp_iallgather_z24(msgout, msgin, gid, request)
     COMPLEX(kind=real_8), INTENT(IN)                      :: msgout(:, :)
-    COMPLEX(kind=real_8), INTENT(OUT)                     :: msgin(:, :, :)
+    COMPLEX(kind=real_8), INTENT(OUT)                     :: msgin(:, :, :, :)
     INTEGER, INTENT(IN)                      :: gid
     INTEGER, INTENT(OUT)                     :: request
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'mp_iallgather_z23', &
+    CHARACTER(len=*), PARAMETER :: routineN = 'mp_iallgather_z24', &
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, ierr
@@ -2417,11 +2417,11 @@
 #endif
 #else
     MARK_USED(gid)
-    msgin(1,:,:) = msgout(:,:)
+    msgin(:,:,1,1) = msgout(:,:)
     request = mp_request_null
 #endif
     CALL mp_timestop(handle)
-  END SUBROUTINE mp_iallgather_z23
+  END SUBROUTINE mp_iallgather_z24
 
 ! *****************************************************************************
 !> \brief Gathers rank-3 data from all processes and all processes receive the
