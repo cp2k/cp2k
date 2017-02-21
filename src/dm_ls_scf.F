@@ -1123,7 +1123,7 @@ CONTAINS
          WRITE (unit_nr, '(T2,A)') "Sparsity for : "//TRIM(title)
       ENDIF
 
-      eps_local = eps
+      eps_local = MAX(eps,10E-14_dp)
       DO
          IF (eps_local > 1.1_dp) EXIT
          CALL dbcsr_filter(matrix_tmp, eps_local)
