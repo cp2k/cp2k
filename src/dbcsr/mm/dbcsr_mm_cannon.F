@@ -2012,7 +2012,7 @@ CONTAINS
       CHARACTER(len=*), PARAMETER :: routineN = 'calculate_norms', &
          routineP = moduleN//':'//routineN
 
-      INTEGER                                            :: data_type, handle, nblks, nrows
+      INTEGER                                            :: data_type, handle, nblks
       INTEGER, DIMENSION(:), POINTER                     :: local_cols, local_rows
 
 !   ---------------------------------------------------------------------------
@@ -2025,7 +2025,6 @@ CONTAINS
       IF (careful_mod .AND. .NOT. array_exists(matrix%local_rows)) &
          CPABORT("Global row mapping should exist")
       local_rows => array_data(matrix%local_rows)
-      nrows = SIZE(local_rows)
       local_cols => array_data(matrix%local_cols)
       nblks = matrix%nblks
       SELECT CASE (data_type)
