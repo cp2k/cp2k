@@ -752,11 +752,6 @@ CONTAINS
       CALL buffer_init(buffer, data_type, &
                        my_size(idata), my_size(imeta), &
                        data_memory_type=memtype_mpi_buffer)
-      IF (buffer%has_rma_win) THEN
-         do_win_create(1) = do_win_create(1) .OR. dbcsr_data_exists(buffer%data_resize)
-         do_win_create(2) = do_win_create(2) .OR. ASSOCIATED(buffer%meta_resize)
-         CALL mp_isum(do_win_create, buffer%subgrp, requests_win_create(irequests))
-      ENDIF
       buffer%grp = grp
       !
       IF (.NOT. do_virt) THEN
@@ -1154,6 +1149,11 @@ CONTAINS
       CALL setup_rec_index_images(buffer%meta, img_nblks_rows, img_nblks_cols, &
                                   local_size(imeta, :), local_displ(imeta, :), &
                                   size_index, is_left)
+      IF (buffer%has_rma_win) THEN
+         do_win_create(1) = do_win_create(1) .OR. dbcsr_data_exists(buffer%data_resize)
+         do_win_create(2) = do_win_create(2) .OR. ASSOCIATED(buffer%meta_resize)
+         CALL mp_isum(do_win_create, buffer%subgrp, requests_win_create(irequests))
+      ENDIF
       !
       IF (do_virt .OR. ((do_symmetry .OR. transpose) .AND. .NOT. is_diagonal)) THEN
          CALL dbcsr_data_release(data_recv)
@@ -1399,9 +1399,9 @@ CONTAINS
          dbcsr_slot_nfullcols_local)                     :: left_global_indices, right_global_indices
       INTEGER, DIMENSION(idata:imeta)                    :: product_matrix_size_recv, &
                                                             product_matrix_size_send
-      LOGICAL                                            :: do_comm, do_layers3D, &
-                                                            do_square_layers3D, first_k, &
-                                                            first_v_k, keep_sparsity, otf_filtering
+      LOGICAL                                            :: do_layers3D, do_square_layers3D, &
+                                                            first_k, first_v_k, keep_sparsity, &
+                                                            otf_filtering
       LOGICAL, ALLOCATABLE, DIMENSION(:)                 :: do_comm_left, do_comm_right
       REAL(kind=sp)                                      :: filter_eps_sp
       REAL(kind=sp), ALLOCATABLE, DIMENSION(:), TARGET   :: row_max_epss
@@ -1895,28 +1895,25 @@ CONTAINS
                ENDIF
                !
                IF (left_size_layers3D(imeta, irow3D, left_buffer_p%vpcol) .NE. 0) THEN
-                  do_comm = .TRUE.
-                  IF (do_comm) THEN
-                     ! Right
-                     IF (do_comm_right(icol3D)) THEN
-                        do_comm_right(icol3D) = .FALSE.
-                        CALL rma_transfer(right_buffer_p%vprow, right_row_nimages, &
-                                          right_size_layers3D(:, icol3D, right_buffer_p%vprow), &
-                                          right_displ_layers3D(:, icol3D, right_buffer_p%vprow), &
-                                          right_buffer_p, &
-                                          buffers_win%right%meta_win, buffers_win%right%data_win, &
-                                          data_get, data_type_byte, buffers_win%right, icol3D, ncols3D)
-                     ENDIF
-                     ! Left
-                     IF (do_comm_left(irow3D)) THEN
-                        do_comm_left(irow3D) = .FALSE.
-                        CALL rma_transfer(left_buffer_p%vpcol, left_col_nimages, &
-                                          left_size_layers3D(:, irow3D, left_buffer_p%vpcol), &
-                                          left_displ_layers3D(:, irow3D, left_buffer_p%vpcol), &
-                                          left_buffer_p, &
-                                          buffers_win%left%meta_win, buffers_win%left%data_win, &
-                                          data_get, data_type_byte, buffers_win%left, irow3D, nrows3D)
-                     ENDIF
+                  ! Left
+                  IF (do_comm_left(irow3D)) THEN
+                     do_comm_left(irow3D) = .FALSE.
+                     CALL rma_transfer(left_buffer_p%vpcol, left_col_nimages, &
+                                       left_size_layers3D(:, irow3D, left_buffer_p%vpcol), &
+                                       left_displ_layers3D(:, irow3D, left_buffer_p%vpcol), &
+                                       left_buffer_p, &
+                                       buffers_win%left%meta_win, buffers_win%left%data_win, &
+                                       data_get, data_type_byte, buffers_win%left, irow3D, nrows3D)
+                  ENDIF
+                  ! Right
+                  IF (do_comm_right(icol3D)) THEN
+                     do_comm_right(icol3D) = .FALSE.
+                     CALL rma_transfer(right_buffer_p%vprow, right_row_nimages, &
+                                       right_size_layers3D(:, icol3D, right_buffer_p%vprow), &
+                                       right_displ_layers3D(:, icol3D, right_buffer_p%vprow), &
+                                       right_buffer_p, &
+                                       buffers_win%right%meta_win, buffers_win%right%data_win, &
+                                       data_get, data_type_byte, buffers_win%right, icol3D, ncols3D)
                   ENDIF
                ENDIF
             ENDIF
@@ -2375,10 +2372,14 @@ CONTAINS
          CALL timeset(routineN//"_win_check", handle)
          CALL mp_wait(request)
          CALL timestop(handle)
-         CALL mp_win_unlock_all(buffer%data_win)
-         CALL mp_win_unlock_all(buffer%meta_win)
-         IF (do_win_create(1)) CALL mp_win_free(buffer%data_win)
-         IF (do_win_create(2)) CALL mp_win_free(buffer%meta_win)
+         IF (do_win_create(1)) THEN
+            CALL mp_win_unlock_all(buffer%data_win)
+            CALL mp_win_free(buffer%data_win)
+         ENDIF
+         IF (do_win_create(2)) THEN
+            CALL mp_win_unlock_all(buffer%meta_win)
+            CALL mp_win_free(buffer%meta_win)
+         ENDIF
       ENDIF
       CALL dbcsr_data_release(buffer%data_resize)
       IF (ASSOCIATED(buffer%meta_resize)) THEN
@@ -2386,10 +2387,14 @@ CONTAINS
          NULLIFY (buffer%meta_resize)
       ENDIF
       !
-      IF (do_win_create(1)) CALL dbcsr_win_create_any(buffer%data(1), buffer%subgrp, buffer%data_win)
-      CALL mp_win_lock_all(buffer%data_win)
-      IF (do_win_create(2)) CALL mp_win_create(buffer%meta, buffer%subgrp, buffer%meta_win)
-      CALL mp_win_lock_all(buffer%meta_win)
+      IF (do_win_create(1)) THEN
+         CALL dbcsr_win_create_any(buffer%data(1), buffer%subgrp, buffer%data_win)
+         CALL mp_win_lock_all(buffer%data_win)
+      ENDIF
+      IF (do_win_create(2)) THEN
+         CALL mp_win_create(buffer%meta, buffer%subgrp, buffer%meta_win)
+         CALL mp_win_lock_all(buffer%meta_win)
+      ENDIF
       !
       buffer%has_rma_win = .TRUE.
    END SUBROUTINE win_setup
