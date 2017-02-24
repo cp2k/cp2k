@@ -6430,7 +6430,13 @@ CONTAINS
                           "Default settings already provide an efficient, yet robust method. "// &
                           "Most systems benefit from using the FULL_ALL preconditioner "// &
                           "combined with a small value (0.001) of ENERGY_GAP. "// &
-                          "Well-behaved systems might benefit from using a DIIS minimizer.", &
+                          "Well-behaved systems might benefit from using a DIIS minimizer. "// &
+                          "<u>Advantages:</u> "// &
+                          "It's fast, because no expensive diagonalisation is performed. "// & 
+                          "If preconditioned correctly, method guaranteed to find minimum. "// &
+                          "<u>Disadvantages:</u> "// &
+                          "Sensitive to preconditioning. A good preconditioner can be expensive. "// &
+                          "No smearing, or advanced SCF mixing possible: POOR convergence for metalic systems.", &
                           n_keywords=27, n_subsections=0, repeats=.FALSE., &
                           citations=(/VandeVondele2003, Weber2008/))
 
