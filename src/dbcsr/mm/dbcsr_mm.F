@@ -793,14 +793,12 @@ CONTAINS
          ! Left buffer images
          CALL dbcsr_make_buffers(matrix_left, rdist_left, .TRUE., &
                                  f_row, l_row, f_k, l_k, &
-                                 PRESENT(filter_eps), &
-                                 transpose_left)
+                                 PRESENT(filter_eps))
          !
          ! Right buffer images
          CALL dbcsr_make_buffers(matrix_right, rdist_right, .FALSE., &
                                  f_k, l_k, f_col, l_col, &
                                  PRESENT(filter_eps), &
-                                 transpose_right, &
                                  alpha)
       ELSE
          product_matrix%nblks = 0

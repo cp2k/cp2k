@@ -27,12 +27,8 @@
   !$omp private(blk,bpe)
   !$omp do
   DO blk = 1, matrix%nblks
-     IF (bps(blk).NE.0) THEN
-        bpe = bps(blk) + rbs(local_rows(row(blk))) * cbs(local_cols(col(blk))) - 1
-        norms(blk) = SQRT (REAL (SUM(ABS(data(bps(blk):bpe))**2), KIND=sp))
-     ELSE
-        norms(blk) = 0.0_sp
-     ENDIF
+     bpe = bps(blk) + rbs(local_rows(row(blk))) * cbs(local_cols(col(blk))) - 1
+     norms(blk) = SQRT (REAL (SUM(ABS(data(bps(blk):bpe))**2), KIND=sp))
   ENDDO
   !$omp end do
   !$omp end parallel
