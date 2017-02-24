@@ -6432,7 +6432,7 @@ CONTAINS
                           "combined with a small value (0.001) of ENERGY_GAP. "// &
                           "Well-behaved systems might benefit from using a DIIS minimizer. "// &
                           "<u>Advantages:</u> "// &
-                          "It's fast, because no expensive diagonalisation is performed. "// & 
+                          "It's fast, because no expensive diagonalisation is performed. "// &
                           "If preconditioned correctly, method guaranteed to find minimum. "// &
                           "<u>Disadvantages:</u> "// &
                           "Sensitive to preconditioning. A good preconditioner can be expensive. "// &

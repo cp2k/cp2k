@@ -544,7 +544,11 @@ CONTAINS
       CALL keyword_release(keyword)
 
       CALL keyword_create(keyword, name="LAST_SNAPSHOT", &
-                          description="Index of the last snapshot stored in the trajectory file that is read along a REFTRAJ run", &
+                          description="Index of the last snapshot stored in the trajectory file "// &
+                          "that is read along a REFTRAJ run. Must be specified as default is 0. "// &
+                          "Must be specified exactly as LAST_SNAPSHOT = FIRST_SNAPSHOT + STRIDE*(number of strides) "// &
+                          "to avoid an error 'Unexpected EOF'. Note that STRIDE*(number of strides) "// &
+                          "is simply the number of steps between the first to last snapshot.", &
                           repeats=.FALSE., usage="LAST_SNAPSHOT", default_i_val=0)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
