@@ -1241,8 +1241,8 @@ CONTAINS
       CALL keyword_create(keyword, &
                           name="GHOST", &
                           description="This keyword makes all atoms of this kind "// &
-                          "ghost atoms, i.e. without pseudo or nuclear charge."// &
-                          "Useful to just have the basis set at that position (BSSE calculations),"// &
+                          "ghost atoms, i.e. without pseudo or nuclear charge. "// &
+                          "Useful to just have the basis set at that position (e.g. BSSE calculations), "// &
                           "or to have a non-interacting particle with BASIS_SET NONE", &
                           usage="GHOST", &
                           default_l_val=.FALSE., &
@@ -1437,7 +1437,7 @@ CONTAINS
 
       CALL keyword_create(keyword, &
                           name="NEL", &
-                          description="Orbital ccupation change per angular momentum quantum number."// &
+                          description="Orbital ccupation change per angular momentum quantum number. "// &
                           "In unrestricted calculations applied to spin alpha.", &
                           repeats=.FALSE., &
                           n_var=-1, &
@@ -1461,7 +1461,7 @@ CONTAINS
       CALL keyword_create(keyword, &
                           name="N", &
                           variants=(/"N"/), &
-                          description="Principal quantum number of the"// &
+                          description="Principal quantum number of the "// &
                           "orbitals whose occupation is changed. "// &
                           "Default is the first not occupied", &
                           repeats=.FALSE., &
@@ -1480,7 +1480,7 @@ CONTAINS
 
       CALL keyword_create(keyword, &
                           name="NEL", &
-                          description="Orbital ccupation change per angular momentum quantum number."// &
+                          description="Orbital ccupation change per angular momentum quantum number. "// &
                           "Applied to spin beta and active only in unrestricted calculations.", &
                           repeats=.FALSE., &
                           n_var=-1, &
@@ -1491,8 +1491,8 @@ CONTAINS
 
       CALL keyword_create(keyword, &
                           name="L", &
-                          description="Angular momentum quantum number of the"// &
-                          "orbitals of beta spin whose occupation is changed."// &
+                          description="Angular momentum quantum number of the "// &
+                          "orbitals of beta spin whose occupation is changed. "// &
                           "Active only for unrestricted calculations", &
                           repeats=.FALSE., &
                           n_var=-1, &
@@ -1503,9 +1503,9 @@ CONTAINS
 
       CALL keyword_create(keyword, &
                           name="N", &
-                          description="Principal quantum number of the"// &
+                          description="Principal quantum number of the "// &
                           "orbitals of beta spin whose occupation is changed. "// &
-                          "Default is the first not occupied."// &
+                          "Default is the first not occupied. "// &
                           "Active only for unrestricted calculations", &
                           repeats=.FALSE., &
                           n_var=-1, &
