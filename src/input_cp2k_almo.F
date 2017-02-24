@@ -84,7 +84,7 @@ CONTAINS
                           enum_desc=s2a("SCF calculations on single molecules controled by the regular SCF "// &
                                         "keywords outside ALMO options. This kind of calculation is expensive "// &
                                         "and only recommended if ALMO SCF does not converge from the ATOMIC guess.", &
-                                        "Superpoisiton of atomic densities."), &
+                                        "Superposition of atomic densities."), &
                           enum_i_vals=(/molecular_guess, atomic_guess/))
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)

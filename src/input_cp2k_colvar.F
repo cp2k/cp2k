@@ -1199,7 +1199,7 @@ CONTAINS
                           description="Chooses the type of geometrical point", &
                           usage="type (GEO_CENTER|FIX_POINT)", &
                           enum_c_vals=s2a("GEO_CENTER", "FIX_POINT"), &
-                          enum_desc=s2a("Conmputes the geometrical center of the listed atoms", &
+                          enum_desc=s2a("Computes the geometrical center of the listed atoms", &
                                         "Defines a fixed point in space"), &
                           enum_i_vals=(/do_clv_geo_center, do_clv_fix_point/), &
                           default_i_val=do_clv_geo_center)
