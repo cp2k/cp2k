@@ -216,6 +216,7 @@ $: "#endif"
       MARK_USED(use_qr)
       MARK_USED(use_qr_unsafe)
       elpa_qr = .FALSE.
+      elpa_qr_unsafe = .FALSE.
 #endif
 
    END SUBROUTINE set_elpa_qr
