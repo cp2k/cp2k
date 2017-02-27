@@ -114,6 +114,9 @@ CONTAINS
 #if defined(__ELPA)
       CALL integer_to_string(__ELPA, tmp_str)
       flags = TRIM(flags)//" elpa="//TRIM(tmp_str)
+#if (__ELPA==201502) || (__ELPA==201505) || (__ELPA==201511) || (__ELPA==201605) || (__ELPA==201611)
+      flags = TRIM(flags)//" elpa_qr"
+#endif
 #endif
 #if defined(__parallel)
       flags = TRIM(flags)//" parallel"

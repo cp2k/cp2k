@@ -14,6 +14,7 @@
 MODULE input_cp2k_global
    USE bibliography,                    ONLY: Ceriotti2014,&
                                               Frigo2005,&
+                                              Marek2014,&
                                               Schonherr2014
    USE cp_blacs_env,                    ONLY: BLACS_GRID_COL,&
                                               BLACS_GRID_ROW,&
@@ -109,7 +110,8 @@ CONTAINS
          default_i_val=do_diag_sl, &
          enum_i_vals=(/do_diag_sl, do_diag_sl2, do_diag_elpa/), &
          enum_c_vals=s2a("SL", "SL2", "ELPA"), &
-         enum_desc=s2a("Standard scalapack: syevd", "Scalapack 2.0: syevr", "ELPA"))
+         enum_desc=s2a("Standard scalapack: syevd", "Scalapack 2.0: syevr", "ELPA"), &
+         citations=(/Marek2014/))
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
@@ -122,6 +124,38 @@ CONTAINS
          enum_desc=get_elpa_kernel_descriptions())
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, name="ELPA_QR", &
+                          description="For ELPA, enable a blocked QR step when reducing the input matrix "// &
+                          "to banded form in preparation for the actual diagonalization step. "// &
+                          "See implementation paper for more details. Requires ELPA version 201505 or newer, "// &
+                          "automatically deactivated otherwise. If true, QR is activated only when the "// &
+                          "the size of the diagonalized matrix is suitable. Print key PRINT_ELPA is "// &
+                          "useful in determining which matrices are suitable for QR. Might accelerate the "// &
+                          "diagonalization of suitable matrices.", &
+                          usage="ELPA_QR", &
+                          default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, name="ELPA_QR_UNSAFE", &
+                          description="For ELPA, disable block size limitations when used together with ELPA_QR. "// &
+                          "Keyword relevant only with ELPA versions 201605 or newer. Use keyword with caution, "// &
+                          "as it might result in wrong eigenvalues with some matrix orders/block sizes "// &
+                          "when the number of MPI processes is varied. If the print key PRINT_ELPA is "// &
+                          "active the validity of the eigenvalues is checked against values calculated without "// &
+                          "ELPA QR.", &
+                          usage="ELPA_QR", &
+                          default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL cp_print_key_section_create(print_key, "PRINT_ELPA", &
+                                       description="Controls the printing of ELPA diagonalization information."// &
+                                       "Useful for testing purposes, especially together with keyword ELPA_QR.", &
+                                       filename="__STD_OUT__")
+      CALL section_add_subsection(section, print_key)
+      CALL section_release(print_key)
 
       CALL keyword_create( &
          keyword, name="PREFERRED_FFT_LIBRARY", &

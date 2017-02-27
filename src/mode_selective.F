@@ -63,6 +63,7 @@ MODULE mode_selective
       INTEGER, DIMENSION(:), POINTER           :: inv_atoms
       REAL(KIND=dp)                            :: eps(2)
       REAL(KIND=dp)                            :: sel_freq
+      REAL(KIND=dp)                            :: low_freq
       REAL(KIND=dp), POINTER, DIMENSION(:, :)    :: b_vec
       REAL(KIND=dp), POINTER, DIMENSION(:, :)    :: delta_vec
       REAL(KIND=dp), POINTER, DIMENSION(:, :)    :: ms_force
@@ -293,6 +294,7 @@ CONTAINS
          ms_vib%select_id = 2
       END IF
       CALL section_vals_val_get(ms_vib_section, "FREQUENCY", r_val=ms_vib%sel_freq)
+      CALL section_vals_val_get(ms_vib_section, "LOWEST_FREQUENCY", r_val=ms_vib%low_freq)
       IF (ms_vib%sel_freq .GT. 0._dp) ms_vib%select_id = 1
       involved_at_section => section_vals_get_subs_vals(ms_vib_section, "INVOLVED_ATOMS")
       CALL section_vals_get(involved_at_section, explicit=do_involved_atoms)
@@ -835,6 +837,7 @@ CONTAINS
 
       INTEGER                                            :: i, j, jj, k, natoms, ncoord
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: ind
+      LOGICAL                                            :: dump_only_positive
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: eigenval, freq
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: approx_H, H_save, residuum, tmp_b, tmp_s
       REAL(KIND=dp), DIMENSION(2, nrep)                  :: criteria
@@ -959,8 +962,9 @@ CONTAINS
             CALL ms_out(output_unit_ms, converged, freq, criteria, ms_vib, &
                         input, nrep, approx_H, eigenval, calc_intens, logger=logger)
          ENDIF
+         dump_only_positive = ms_vib%low_freq .GT. 0.0_dp
          CALL write_vibrations_molden(input, particles, eigenval, tmp_b, intensities, calc_intens, &
-                                      dump_only_positive=.TRUE., logger=logger)
+                                      dump_only_positive=dump_only_positive, logger=logger)
          IF (calc_intens) THEN
             DEALLOCATE (intensities)
          END IF
@@ -1171,18 +1175,18 @@ CONTAINS
                crit_b = SQRT(DOT_PRODUCT(residuum, residuum))
                IF (PRESENT(intensities)) THEN
                   IF (crit_a .LE. ms_vib%eps(1) .AND. crit_b .LE. ms_vib%eps(2)) THEN
-                     IF (eigenval(i) .GT. 0._dp) WRITE (iw, '(2X,A,2X,F8.3,1X,F12.6,3X,E12.3,7X,E12.3,11X,A)') &
+                     IF (eigenval(i) .GT. ms_vib%low_freq) WRITE (iw, '(2X,A,2X,F9.3,1X,F12.6,3X,E12.3,7X,E12.3,11X,A)') &
                         'VIB|', eigenval(i), intensities(i), crit_a, crit_b, 'YES'
                   ELSE
-                     IF (eigenval(i) .GT. 0._dp) WRITE (iw, '(2X,A,2X,F8.3,1X,F12.6,3X,E12.3,7X,E12.3,11X,A)') &
+                     IF (eigenval(i) .GT. ms_vib%low_freq) WRITE (iw, '(2X,A,2X,F9.3,1X,F12.6,3X,E12.3,7X,E12.3,11X,A)') &
                         'VIB|', eigenval(i), intensities(i), crit_a, crit_b, 'NO'
                   ENDIF
                ELSE
                   IF (crit_a .LE. ms_vib%eps(1) .AND. crit_b .LE. ms_vib%eps(2)) THEN
-                     IF (eigenval(i) .GT. 0._dp) WRITE (iw, '(2X,A,2X,F8.3,5X,E12.6,5X,E12.3,11X,A)') &
+                     IF (eigenval(i) .GT. ms_vib%low_freq) WRITE (iw, '(2X,A,2X,F9.3,5X,E12.6,5X,E12.3,11X,A)') &
                         'VIB|', eigenval(i), crit_a, crit_b, 'YES'
                   ELSE
-                     IF (eigenval(i) .GT. 0._dp) WRITE (iw, '(2X,A,2X,F8.3,5X,E12.6,5X,E12.3,11X,A)') &
+                     IF (eigenval(i) .GT. ms_vib%low_freq) WRITE (iw, '(2X,A,2X,F9.3,5X,E12.6,5X,E12.3,11X,A)') &
                         'VIB|', eigenval(i), crit_a, crit_b, 'NO'
                   ENDIF
                END IF

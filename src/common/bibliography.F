@@ -79,7 +79,7 @@ MODULE bibliography
                             Gilbert2008, Schonherr2014, Ceriotti2014, BaniHashemian2016, &
                             Kapil2016, Heinzmann1976, Ehrhardt1985, Rybkin2016, West2006, &
                             Bates2013, Andermatt2016, Zhu2016, Schuett2016, Lu2004, &
-                            Becke1988b, Migliore2009, Mavros2015, Holmberg2017
+                            Becke1988b, Migliore2009, Mavros2015, Holmberg2017, Marek2014
 
 CONTAINS
 
@@ -3617,10 +3617,29 @@ CONTAINS
                          "   Condensed Phase Electron Transfer Reactions", &
                          "SO Journal of Chemical Theory and Computation", &
                          "PY 2017", &
-                         "VL 0", &
-                         "IS 0", &
+                         "VL 13", &
+                         "IS 2", &
                          "ER"), &
                          DOI="10.1021/acs.jctc.6b01085")
+
+      CALL add_reference(key=Marek2014, ISI_record=s2a( &
+                         "AU Marek, A", &
+                         "   Blum, V", &
+                         "   Johanni, R", &
+                         "   Havu, V", &
+                         "   Lang, B", &
+                         "   Auckenthaler, T", &
+                         "   Heinecke, A", &
+                         "   Bungartz, H", &
+                         "   Lederer, H", &
+                         "TI The ELPA library: scalable parallel eigenvalue solutions for electronic structure ", &
+                         "   theory and computational science", &
+                         "SO Journal of Physics: Condensed Matter", &
+                         "PY 2014", &
+                         "VL 26", &
+                         "IS 21", &
+                         "ER"), &
+                         DOI="10.1088/0953-8984/26/21/213201")
 
    END SUBROUTINE add_all_references
 

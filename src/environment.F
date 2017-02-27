@@ -14,6 +14,7 @@
 ! **************************************************************************************************
 MODULE environment
    USE bibliography,                    ONLY: Frigo2005,&
+                                              Marek2014,&
                                               cite_reference
    USE cp2k_info,                       ONLY: &
         compile_arch, compile_date, compile_host, compile_revision, cp2k_flags, cp2k_home, &
@@ -521,11 +522,17 @@ CONTAINS
 
       NULLIFY (dft_section, global_section, i_force_eval)
 
+      logger => cp_get_default_logger()
       global_section => section_vals_get_subs_vals(root_section, "GLOBAL")
       CALL section_vals_val_get(global_section, "BLACS_GRID", i_val=globenv%blacs_grid_layout)
       CALL section_vals_val_get(global_section, "BLACS_REPEATABLE", l_val=globenv%blacs_repeatable)
       CALL section_vals_val_get(global_section, "PREFERRED_DIAG_LIBRARY", i_val=i_diag)
       CALL section_vals_val_get(global_section, "ELPA_KERNEL", i_val=globenv%k_elpa)
+      CALL section_vals_val_get(global_section, "ELPA_QR", l_val=globenv%elpa_qr)
+      CALL section_vals_val_get(global_section, "ELPA_QR_UNSAFE", l_val=globenv%elpa_qr_unsafe)
+      unit_nr = cp_print_key_unit_nr(logger, global_section, "PRINT_ELPA", extension=".Log")
+      IF (unit_nr > 0) globenv%elpa_print = .TRUE.
+      CALL cp_print_key_finished_output(unit_nr, logger, global_section, "PRINT_ELPA")
       CALL section_vals_val_get(global_section, "PREFERRED_FFT_LIBRARY", i_val=i_fft)
 
       CALL section_vals_val_get(global_section, "PRINT_LEVEL", i_val=print_level)
@@ -552,7 +559,6 @@ CONTAINS
       do_echo_all_hosts = do_echo_all_hosts .OR. report_maxloc
       force_env_sections => section_vals_get_subs_vals(root_section, "FORCE_EVAL")
       CALL section_vals_get(force_env_sections, n_repetition=nforce_eval)
-      logger => cp_get_default_logger()
       output_unit = cp_print_key_unit_nr(logger, global_section, "PROGRAM_RUN_INFO", &
                                          extension=".log")
 
@@ -579,6 +585,7 @@ CONTAINS
          globenv%diag_library = "SL2"
       CASE (do_diag_elpa)
          globenv%diag_library = "ELPA"
+         CALL cite_reference(Marek2014)
       CASE DEFAULT
          CPABORT("Unknown DIAG type")
       END SELECT
@@ -959,7 +966,9 @@ CONTAINS
 
       switched = .FALSE.
 
-      CALL diag_init(diag_lib=TRIM(globenv%diag_library), switched=switched, k_elpa=globenv%k_elpa)
+      CALL diag_init(diag_lib=TRIM(globenv%diag_library), switched=switched, k_elpa=globenv%k_elpa, &
+                     elpa_qr=globenv%elpa_qr, elpa_print=globenv%elpa_print, &
+                     elpa_qr_unsafe=globenv%elpa_qr_unsafe)
 
       IF (switched) THEN
 

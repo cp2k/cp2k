@@ -232,7 +232,7 @@ CONTAINS
       CPASSERT(.NOT. ASSOCIATED(section))
       CALL section_create(section, name="MODE_SELECTIVE", &
                           description="All parameters needed for to run a mode selective vibrational analysis", &
-                          n_keywords=5, n_subsections=1, repeats=.FALSE.)
+                          n_keywords=8, n_subsections=1, repeats=.FALSE.)
 
       CALL keyword_create(keyword, name="FREQUENCY", &
                           description="value close to the expected value of the frequency to look for. "// &
@@ -246,6 +246,16 @@ CONTAINS
                           "No warranty that the set of frequencies is complete.", &
                           usage="RANGE {REAL} {REAL}", &
                           n_var=-1, type_of_var=real_t)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, name="LOWEST_FREQUENCY", &
+                          description="Lowest frequency mode to include when writing output. "// &
+                          "Use a negative value to print imaginary frequencies. "// &
+                          "Useful for visualizing the imaginary frequency along a reaction path coordinate "// &
+                          "Depending on accuracy settings, the output might include spurious low frequency "// &
+                          " imaginary modes which should be visually checked (see MOLDEN_VIB).", &
+                          usage="LOWEST_FREQUENCY <REAL>", default_r_val=0.0_dp)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 

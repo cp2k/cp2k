@@ -11,11 +11,18 @@ MODULE cp_fm_elpa
    USE cp_blacs_env,                    ONLY: cp_blacs_env_type
    USE cp_fm_basic_linalg,              ONLY: cp_fm_upper_to_full
    USE cp_fm_struct,                    ONLY: cp_fm_struct_get
-   USE cp_fm_types,                     ONLY: cp_fm_type
+   USE cp_fm_types,                     ONLY: cp_fm_type, &
+                                              cp_fm_to_fm, &
+                                              cp_fm_release, &
+                                              cp_fm_create
+   USE cp_log_handling,                 ONLY: cp_get_default_logger, &
+                                              cp_logger_get_default_io_unit, &
+                                              cp_logger_type   
    USE kinds,                           ONLY: default_string_length,&
                                               dp
    USE message_passing,                 ONLY: mp_comm_free,&
-                                              mp_comm_split_direct
+                                              mp_comm_split_direct, &
+                                              mp_bcast
 
 #include "../base/base_uses.f90"
 
@@ -39,8 +46,13 @@ MODULE cp_fm_elpa
    PUBLIC :: get_elpa_kernel_names
    PUBLIC :: get_elpa_kernel_descriptions
    PUBLIC :: set_elpa_kernel
+   PUBLIC :: set_elpa_qr
+   PUBLIC :: set_elpa_print
 
    INTEGER, SAVE :: elpa_kernel = -1 ! auto
+   LOGICAL, SAVE :: elpa_qr = .FALSE.
+   LOGICAL, SAVE :: elpa_qr_unsafe = .FALSE.
+   LOGICAL, SAVE :: elpa_should_print = .FALSE.
 
 CONTAINS
 
@@ -174,6 +186,58 @@ $: "#endif"
    END SUBROUTINE set_elpa_kernel
 
 ! **************************************************************************************************
+!> \brief Sets flags that determines if ELPA should try to use QR during diagonalization
+!>        If use_qr = .TRUE., the QR step is performed only if the size of the input matrix is
+!>        suitable. Check cp_fm_diag_elpa for further details.
+!> \param use_qr the logical flag
+!> \param use_qr_unsafe logical which determines if block size checks should be bypassed for some
+!>                      ELPA versions, potentially leading to incorrect eigenvalues
+! **************************************************************************************************
+   SUBROUTINE set_elpa_qr(use_qr, use_qr_unsafe)
+      LOGICAL, INTENT(IN)                                :: use_qr, use_qr_unsafe
+
+#if defined(__ELPA)
+#if (__ELPA==201112) || (__ELPA==201308) || (__ELPA==201311) || (__ELPA==201406)
+      MARK_USED(use_qr)
+      MARK_USED(use_qr_unsafe)
+      elpa_qr = .FALSE.
+      elpa_qr_unsafe = .FALSE.
+#elif (__ELPA==201502) || (__ELPA==201505) || (__ELPA==201511) 
+      MARK_USED(use_qr_unsafe)
+      elpa_qr = use_qr
+      elpa_qr_unsafe = .FALSE.
+#elif (__ELPA==201605) || (__ELPA==201611)
+      elpa_qr = use_qr
+      elpa_qr_unsafe = use_qr_unsafe
+#else
+   Error: Unknown ELPA version, please specify library release date via __ELPA=YYYYMM
+#endif
+#else
+      MARK_USED(use_qr)
+      MARK_USED(use_qr_unsafe)
+      elpa_qr = .FALSE.
+#endif
+
+   END SUBROUTINE set_elpa_qr
+
+! **************************************************************************************************
+!> \brief Sets a flag that determines if additional information about the ELPA diagonalization
+!>        should be printed
+!> \param flag the logical flag
+! **************************************************************************************************
+   SUBROUTINE set_elpa_print(flag)
+      LOGICAL, INTENT(IN)                                :: flag
+
+#if defined(__ELPA)
+      elpa_should_print = flag
+#else
+      MARK_USED(flag)
+      elpa_should_print = .FALSE.
+#endif
+
+   END SUBROUTINE set_elpa_print
+
+! **************************************************************************************************
 !> \brief ...
 !> \param matrix ...
 !> \param eigenvectors ...
@@ -188,19 +252,32 @@ $: "#endif"
 
       INTEGER                                  :: handle
 #if defined(__ELPA)
+      CHARACTER(len=14)                        :: kernel     
+      CHARACTER(len=default_string_length), &
+         DIMENSION(19)                         :: kernels
       INTEGER                                  :: comm_col, comm_row, group, &
                                                   mypcol, myprow, n, &
                                                   n_rows, n_cols, &
-                                                  nblk, neig
-      LOGICAL                                  :: success
-      REAL(KIND=dp), DIMENSION(:), POINTER     :: eval
-      REAL(KIND=dp), DIMENSION(:, :), POINTER  :: m, v
+                                                  nblk, neig, io_unit, i
+      LOGICAL                                  :: success, use_qr, check_eigenvalues, &
+                                                  success_noqr
+      REAL(KIND=dp)                            :: th
+      REAL(KIND=dp), DIMENSION(:), POINTER     :: eval, eval_noqr
+      REAL(KIND=dp), DIMENSION(:, :), POINTER  :: m, v, m_noqr, v_noqr
       TYPE(cp_blacs_env_type), POINTER         :: context
+      TYPE(cp_fm_type), POINTER                :: matrix_noqr, eigenvectors_noqr
+      TYPE(cp_logger_type), POINTER            :: logger
 #endif
 
       CALL timeset(routineN, handle)
 #if defined(__ELPA)
-
+      NULLIFY(logger)
+      NULLIFY(m_noqr, v_noqr, eval_noqr)
+      th = 1.0E-14_dp
+      check_eigenvalues = .FALSE.
+      logger => cp_get_default_logger()
+      io_unit = cp_logger_get_default_io_unit(logger)
+      
       n = matrix%matrix_struct%nrow_global
       m => matrix%local_data
       context => matrix%matrix_struct%context
@@ -225,7 +302,76 @@ $: "#endif"
                             nrow_block=nblk)
 
       neig = SIZE(eigenvalues, 1)
+      ! Decide if matrix is suitable for ELPA to use QR
+      ! The definition of what is considered a suitable matrix depends on the ELPA version
+      ! The relevant ELPA files to check are
+      !     - Proper matrix order:  src/elpa2.F90 (src/elpa2_template.X90 in git version)
+      !     - Proper block size:    test/Fortran/test_real2_qr.F90
+      ! Note that the names of these files might change in different ELPA versions
+#if (__ELPA==201112) || (__ELPA==201308) || (__ELPA==201311) || (__ELPA==201406)
+      use_qr = .FALSE.
+#elif (__ELPA==201502) || (__ELPA==201505) || (__ELPA==201511)
+      ! Matrix order must be an integer multiple of the block size
+      use_qr = elpa_qr .AND. MOD(n, nblk).EQ.0
+#elif (__ELPA==201605) || (__ELPA==201611)
+      ! Matrix order must be even
+      use_qr = elpa_qr .AND. MOD(n, 2).EQ.0 
+      ! Matrix order and block size must be greater than or equal to 64
+      IF (.NOT. elpa_qr_unsafe) &
+         use_qr = use_qr .AND. n.GE. 64 .AND. nblk .GE. 64 
+#else
+   Error: Unknown ELPA version, please specify library release date via __ELPA=YYYYMM
+#endif
+      ! Check if eigenvalues computed with ELPA_QR_UNSAFE should be verified
+      IF (use_qr .AND. elpa_qr_unsafe .AND. elpa_should_print) &
+         check_eigenvalues = .TRUE.
+      CALL mp_bcast(check_eigenvalues, logger%para_env%source, logger%para_env%group)
+      IF (check_eigenvalues) THEN
+         ! Allocate and initialize needed temporaries to compute eigenvalues without ELPA QR
+         ALLOCATE(eval_noqr(n))
+         CALL cp_fm_create(matrix=matrix_noqr, matrix_struct=matrix%matrix_struct)
+         CALL cp_fm_to_fm(matrix, matrix_noqr)
+         m_noqr => matrix_noqr%local_data
+         CALL cp_fm_create(matrix=eigenvectors_noqr, matrix_struct=eigenvectors%matrix_struct)
+         CALL cp_fm_upper_to_full(matrix_noqr, eigenvectors_noqr)
+         v_noqr => eigenvectors_noqr%local_data
+      END IF
 
+      ! Print some information
+      IF (io_unit > 0 .AND. elpa_should_print) THEN
+         WRITE(io_unit, '(/,A)') "ELPA| Matrix diagonalization information"
+         kernels = get_elpa_kernel_names()
+         IF (elpa_kernel == -1) THEN
+            kernel = TRIM(kernels(1))
+            kernel = ADJUSTR(kernel)
+         ELSE
+            kernel = TRIM(kernels(elpa_kernel+1))
+            kernel = ADJUSTR(kernel)
+         END IF
+         WRITE(io_unit, '(A,I14)') "ELPA| Matrix order             : ", n
+         WRITE(io_unit, '(A,I14)') "ELPA| Matrix block size        : ", nblk
+         WRITE(io_unit, '(A,A14)') "ELPA| Kernel                   : ", kernel
+         WRITE(io_unit, '(A,L14)') "ELPA| QR step requested        : ", elpa_qr
+         IF (elpa_qr) THEN
+            WRITE(io_unit, '(A,L14)') "ELPA| Use potentially unsafe QR: ", elpa_qr_unsafe
+            WRITE(io_unit, '(A,L14)') "ELPA| Matrix is suitable for QR: ", use_qr
+            IF (.NOT. use_qr) THEN
+#if (__ELPA==201502) || (__ELPA==201505) || (__ELPA==201511)               
+               WRITE(io_unit, '(A)') "ELPA| Matrix order is NOT divisible by block size"
+#elif (__ELPA==201605) || (__ELPA==201611)
+               IF (MOD(n, 2).NE.0 ) &
+                  WRITE(io_unit, '(A)') "ELPA| Matrix order is NOT even"
+               IF (nblk .LT. 64 .AND. .NOT. elpa_qr_unsafe) &
+                  WRITE(io_unit, '(A)') "ELPA| Matrix block size is NOT 64 or greater"
+#endif
+            ELSE
+#if (__ELPA==201605) || (__ELPA==201611)
+               IF (nblk .LT. 64 .AND. elpa_qr_unsafe) &
+                  WRITE(io_unit, '(A,L14)') "ELPA| Matrix block size check was bypassed"
+#endif
+            END IF
+         END IF
+      END IF
       ! ELPA will fail in 'solve_tridi', with no useful error message
       IF (n_cols == 0) &
          CPABORT("ELPA [pre-fail]: Problem contains processor column with zero width.")
@@ -247,12 +393,12 @@ $: "#endif"
       IF (elpa_kernel == -1) THEN ! auto
          success = solve_evp_real_2stage(n, neig, m, n_rows, eval, v, n_rows, nblk, &
                                          comm_row, comm_col, group, &
-                                         useQR=.FALSE.)
+                                         useQR=use_qr)
       ELSE
          success = solve_evp_real_2stage(n, neig, m, n_rows, eval, v, n_rows, nblk, &
                                          comm_row, comm_col, group, &
                                          THIS_REAL_ELPA_KERNEL_API=elpa_kernel, &
-                                         useQR=.FALSE.)
+                                         useQR=use_qr)  
       END IF
 
 !---------------------------------------------------------------------------------------------------
@@ -260,12 +406,23 @@ $: "#endif"
       IF (elpa_kernel == -1) THEN ! auto
          success = solve_evp_real_2stage(n, neig, m, n_rows, eval, v, n_rows, nblk, n_cols, &
                                          comm_row, comm_col, group, &
-                                         useQR=.FALSE.)
+                                         useQR=use_qr)
+         IF (check_eigenvalues) THEN
+            success_noqr = solve_evp_real_2stage(n, neig, m_noqr, n_rows, eval_noqr, v_noqr, n_rows, nblk, n_cols, &
+                                                 comm_row, comm_col, group, &
+                                                 useQR=.FALSE.)
+         END IF
       ELSE
          success = solve_evp_real_2stage(n, neig, m, n_rows, eval, v, n_rows, nblk, n_cols, &
                                          comm_row, comm_col, group, &
                                          THIS_REAL_ELPA_KERNEL_API=elpa_kernel, &
-                                         useQR=.FALSE.)
+                                         useQR=use_qr)
+         IF (check_eigenvalues) THEN
+            success_noqr = solve_evp_real_2stage(n, neig, m_noqr, n_rows, eval_noqr, v_noqr, n_rows, nblk, n_cols, &
+                                                 comm_row, comm_col, group, &
+                                                 THIS_REAL_ELPA_KERNEL_API=elpa_kernel, &
+                                                 useQR=.FALSE.)
+         END IF         
       END IF
 
 !---------------------------------------------------------------------------------------------------
@@ -273,17 +430,28 @@ $: "#endif"
       IF (elpa_kernel == -1) THEN ! auto
          success = elpa_solve_evp_real_2stage_double(n, neig, m, n_rows, eval, v, n_rows, nblk, n_cols, &
                                                      comm_row, comm_col, group, &
-                                                     useQR=.FALSE.)
+                                                     useQR=use_qr)
+         IF (check_eigenvalues) THEN
+            success_noqr = elpa_solve_evp_real_2stage_double(n, neig, m_noqr, n_rows, eval_noqr, v_noqr, n_rows, nblk, n_cols, &
+                                                             comm_row, comm_col, group, &
+                                                             useQR=.FALSE.)
+         END IF
       ELSE
          success = elpa_solve_evp_real_2stage_double(n, neig, m, n_rows, eval, v, n_rows, nblk, n_cols, &
                                                      comm_row, comm_col, group, &
                                                      THIS_REAL_ELPA_KERNEL_API=elpa_kernel, &
-                                                     useQR=.FALSE.)
+                                                     useQR=use_qr)
+         IF (check_eigenvalues) THEN
+            success_noqr = elpa_solve_evp_real_2stage_double(n, neig, m_noqr, n_rows, eval_noqr, v_noqr, n_rows, nblk, n_cols, &
+                                                             comm_row, comm_col, group, &
+                                                             THIS_REAL_ELPA_KERNEL_API=elpa_kernel, &
+                                                             useQR=.FALSE.)
+         END IF         
       END IF
 
 !---------------------------------------------------------------------------------------------------
 #else
-   Error: Unknown ELPA version, please specifiy library release date via __ELPA=YYYYMM
+   Error: Unknown ELPA version, please specify library release date via __ELPA=YYYYMM
 #endif
 !---------------------------------------------------------------------------------------------------
 
@@ -291,6 +459,20 @@ $: "#endif"
          CPABORT("ELPA failed to diagonalize a matrix")
 
       eigenvalues(1:neig) = eval(1:neig)
+
+      IF (check_eigenvalues) THEN
+         IF (.NOT. success_noqr) &
+            CPABORT("ELPA failed to diagonalize a matrix")
+         DO i = 1, neig
+            IF (ABS(eval(i)-eval_noqr(i)).GT.th) &
+               CALL cp_abort(__LOCATION__, &
+                             "Eigenvalues from ELPA_QR are wrong. Disable ELPA_QR_UNSAFE.")
+         END DO
+         DEALLOCATE(eval_noqr)
+         NULLIFY(m_noqr, eval_noqr)
+         CALL cp_fm_release(matrix_noqr)
+         CALL cp_fm_release(eigenvectors_noqr) 
+      END IF
 
       DEALLOCATE (eval)
 
