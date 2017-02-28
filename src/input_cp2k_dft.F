@@ -13,11 +13,11 @@ MODULE input_cp2k_dft
    USE bibliography,                    ONLY: &
         Andermatt2016, Andreussi2012, Avezac2005, BaniHashemian2016, Becke1988b, Bengtsson1999, &
         Blochl1995, Brelaz1979, Dewar1977, Dewar1985, Dudarev1997, Dudarev1998, Ehrhardt1985, &
-        Elstner1998, Fattebert2002, Guidon2010, Heinzmann1976, Holmberg2017, Hu2007, Hunt2003, &
-        Iannuzzi2005, Iannuzzi2006, Iannuzzi2007, Kolafa2004, Krack2000, Krack2002, Kunert2003, &
-        Lippert1997, Lippert1999, Lu2004, Perdew1981, Porezag1995, Repasky2002, Rocha2006, &
-        Schenter2008, Schiffmann2015, Seifert1996, Stewart1982, Stewart1989, Stewart2007, &
-        Thiel1992, Tozer1996, VandeVondele2003, VandeVondele2005a, VandeVondele2005b, &
+        Elstner1998, Fattebert2002, Golze2017, Guidon2010, Heinzmann1976, Holmberg2017, Hu2007, &
+        Hunt2003, Iannuzzi2005, Iannuzzi2006, Iannuzzi2007, Kolafa2004, Krack2000, Krack2002, &
+        Kunert2003, Lippert1997, Lippert1999, Lu2004, Perdew1981, Porezag1995, Repasky2002, &
+        Rocha2006, Schenter2008, Schiffmann2015, Seifert1996, Stewart1982, Stewart1989, &
+        Stewart2007, Thiel1992, Tozer1996, VandeVondele2003, VandeVondele2005a, VandeVondele2005b, &
         VandeVondele2006, Weber2008, Zhao1994, Zhechkov2005
    USE cp_output_handling,              ONLY: add_last_numeric,&
                                               cp_print_key_section_create,&
@@ -5781,7 +5781,8 @@ CONTAINS
                           description="Uses the SHG (solid harmonic Gaussian) integral "// &
                           "scheme instead of Obara-Saika", &
                           usage="SHG_LRI_INTEGRALS TRUE", &
-                          default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
+                          default_l_val=.TRUE., lone_keyword_l_val=.TRUE., &
+                          citations=(/Golze2017/))
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 

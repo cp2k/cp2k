@@ -67,7 +67,7 @@ MODULE bibliography
                             VandeVondele2002, Dion2004, Romanperez2009, DelBen2012, &
                             Sabatini2013, DelBen2013, Kikuchi2009, Putrino2000, &
                             Putrino2002, Sebastiani2001, Weber2009, Tran2013, Golze2013, &
-                            Golze2015, Tuckerman1992, Zhao1994, Tozer1996, Goedecker2004, &
+                            Golze2015, Golze2017, Tuckerman1992, Zhao1994, Tozer1996, Goedecker2004, &
                             Khaliullin2013, Hutter2014, Bengtsson1999, Kantorovich2008, &
                             Kantorovich2008a, Wellendorff2012, Niklasson2014, Borstnik2014, &
                             Rayson2009, Grimme2011, Fattebert2002, Andreussi2012, &
@@ -2610,6 +2610,31 @@ CONTAINS
                          "DI 10.1039/C4CP04638B", &
                          "ER"), &
                          DOI="10.1039/C4CP04638B")
+
+      CALL add_reference(key=Golze2017, ISI_record=s2a( &
+                         "PT J", &
+                         "AU Golze, D", &
+                         "   Benedikter, N", &
+                         "   Iannuzzi, M", &
+                         "   Wilhelm, J", &
+                         "   Hutter, J", &
+                         "AF Golze, Dorothea", &
+                         "   Benedikter, Niels", &
+                         "   Iannuzzi, Marcella", &
+                         "   Wilhelm, Jan", &
+                         "   Hutter, Juerg", &
+                         "TI Fast evaluation of solid harmonic Gaussian integrals for local", &
+                         "   resolution-of-the-identity methods and range-separated hybrid functionals", &
+                         "SO The Journal of Chemical Physics", &
+                         "SN 0021-9606", &
+                         "PD JAN 17", &
+                         "PY 2017", &
+                         "VL 146", &
+                         "IS 3", &
+                         "AR 034105", &
+                         "DI 10.1063/1.4973510", &
+                         "ER"), &
+                         DOI="10.1063/1.4973510")
 
       CALL add_reference(key=Fattebert2002, ISI_record=s2a( &
                          "PT J", &
