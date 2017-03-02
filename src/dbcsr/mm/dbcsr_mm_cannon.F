@@ -58,9 +58,9 @@ MODULE dbcsr_mm_cannon
         dbcsr_nblkrows_total, dbcsr_release, dbcsr_valid_index
    USE dbcsr_mm_common,                 ONLY: &
         acc_transpose_blocks, count_mpi_statistics, dbcsr_mm_multrec_type_p, dbcsr_mpi_statistics, &
-        enumerate_blk_sizes, max_memory, memtype_abpanel_1, memtype_abpanel_2, memtype_mpi_buffer, &
-        memtype_trsbuffer_1, memtype_trsbuffer_2, product_matrix_size_guess, rec_sort_index, &
-        setup_buffer_matrix
+        enumerate_blk_sizes, huge_norm, max_memory, memtype_abpanel_1, memtype_abpanel_2, &
+        memtype_mpi_buffer, memtype_trsbuffer_1, memtype_trsbuffer_2, product_matrix_size_guess, &
+        rec_sort_index, setup_buffer_matrix
    USE dbcsr_mm_dist_operations,        ONLY: dbcsr_get_local_vcols,&
                                               dbcsr_get_local_vrows,&
                                               dbcsr_reset_vlocals,&
@@ -119,7 +119,6 @@ MODULE dbcsr_mm_cannon
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'dbcsr_mm_cannon'
    LOGICAL, PARAMETER :: debug_mod = .FALSE.
    LOGICAL, PARAMETER :: careful_mod = .FALSE.
-   REAL, PARAMETER :: huge_norm = HUGE(1.0)**(1.0/3.0)
 
    INTERFACE dbcsr_switch
       MODULE PROCEDURE dbcsr_switch_sets
@@ -1632,7 +1631,6 @@ CONTAINS
             ENDDO
          ENDIF xfer_left
          ! Do multiplication
-         CALL timeset(routineN//"_multrec", handle2)
          DO v_ki = 0, min_nimages-1
             IF (debug_mod) THEN
                CALL dbcsr_print(left_buffer_calc%mats(1, v_ki+1), nodata=.TRUE.)
@@ -1673,7 +1671,7 @@ CONTAINS
 
 !$OMP PARALLEL DEFAULT (NONE) &
 !$OMP SHARED (left_buffer_calc, right_buffer_calc, &
-!$OMP         v_ki, &
+!$OMP         v_ki, handle2, &
 !$OMP         product_matrix, multrec,&
 !$OMP         filter_eps, right_norms, left_norms, row_max_epss, &
 !$OMP         keep_sparsity,threads_finished, &
@@ -1689,11 +1687,15 @@ CONTAINS
             IF (metronome == nsteps_k .AND. v_ki == min_nimages-1) &
                CALL dbcsr_mm_multrec_phaseout(multrec(ithread)%p)
 
+            CALL timeset(routineN//"_multrec", handle2)
+
             CALL dbcsr_mm_multrec_multiply(multrec(ithread)%p, &
                                            left=left_buffer_calc%mats(1, v_ki+1), &
                                            right=right_buffer_calc%mats(v_ki+1, 1), &
                                            flop=flop_single, &
                                            a_norms=left_norms, b_norms=right_norms)
+
+            CALL timestop(handle2)
 
             IF (metronome == nsteps_k .AND. v_ki == min_nimages-1) THEN
                CALL dbcsr_mm_multrec_finalize(multrec(ithread)%p)
@@ -1723,8 +1725,6 @@ CONTAINS
 !$OMP END PARALLEL
             flop_total = flop_total+flop_single
          ENDDO
-
-         CALL timestop(handle2)
 
          CALL dbcsr_switch(left_buffer_calc, left_buffer_comm)
          CALL dbcsr_switch(right_buffer_calc, right_buffer_comm)

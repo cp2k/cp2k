@@ -795,7 +795,9 @@ CONTAINS
       IF (dbcsr_cfg%use_mpi_rma) THEN
          ! Check for previous multiplication completeness
          IF (request_sync_mult .NE. mp_request_null) THEN
+            CALL timeset(routineN//"_sync_mult", handle2)
             CALL mp_wait(request_sync_mult)
+            CALL timestop(handle2)
             request_sync_mult = mp_request_null
          ENDIF
          !

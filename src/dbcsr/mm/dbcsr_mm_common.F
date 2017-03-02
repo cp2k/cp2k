@@ -56,6 +56,7 @@ MODULE dbcsr_mm_common
    TYPE(dbcsr_mpi_statistics_type), SAVE :: dbcsr_mpi_statistics
    INTEGER, SAVE :: num_multiplications = 0
    REAL, SAVE :: max_memory = 0
+   REAL, PARAMETER :: huge_norm = HUGE(1.0)**(1.0/3.0)
 
    TYPE(dbcsr_memtype_type), SAVE  :: memtype_abpanel_1, memtype_abpanel_2, &
                                       memtype_trsbuffer_1, memtype_trsbuffer_2, &
@@ -87,6 +88,8 @@ MODULE dbcsr_mm_common
    PUBLIC :: acc_transpose_blocks
 
    PUBLIC :: product_matrix_size_guess
+
+   PUBLIC :: huge_norm
 
 CONTAINS
 
