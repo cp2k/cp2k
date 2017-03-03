@@ -31,8 +31,7 @@ MODULE dbcsr_mm_cannon
         dbcsr_data_clear_pointer, dbcsr_data_ensure_size, dbcsr_data_get_size, &
         dbcsr_data_get_size_referenced, dbcsr_data_hold, dbcsr_data_host2dev, dbcsr_data_init, &
         dbcsr_data_new, dbcsr_data_release, dbcsr_data_set_pointer, &
-        dbcsr_data_set_size_referenced, dbcsr_get_data_p_c, dbcsr_get_data_p_d, &
-        dbcsr_get_data_p_s, dbcsr_get_data_p_z, dbcsr_scalar_are_equal, dbcsr_scalar_negative, &
+        dbcsr_data_set_size_referenced, dbcsr_scalar_are_equal, dbcsr_scalar_negative, &
         dbcsr_scalar_one
    USE dbcsr_data_types,                ONLY: dbcsr_datatype_sizeof
    USE dbcsr_dist_methods,              ONLY: dbcsr_distribution_col_dist,&
@@ -57,10 +56,10 @@ MODULE dbcsr_mm_cannon
         dbcsr_image_dist_release, dbcsr_nblkcols_local, dbcsr_nblkrows_local, &
         dbcsr_nblkrows_total, dbcsr_release, dbcsr_valid_index
    USE dbcsr_mm_common,                 ONLY: &
-        acc_transpose_blocks, count_mpi_statistics, dbcsr_mm_multrec_type_p, dbcsr_mpi_statistics, &
-        enumerate_blk_sizes, huge_norm, max_memory, memtype_abpanel_1, memtype_abpanel_2, &
-        memtype_mpi_buffer, memtype_trsbuffer_1, memtype_trsbuffer_2, product_matrix_size_guess, &
-        rec_sort_index, setup_buffer_matrix
+        acc_transpose_blocks, calculate_norms, count_mpi_statistics, dbcsr_mm_multrec_type_p, &
+        dbcsr_mpi_statistics, enumerate_blk_sizes, huge_norm, max_memory, memtype_abpanel_1, &
+        memtype_abpanel_2, memtype_mpi_buffer, memtype_trsbuffer_1, memtype_trsbuffer_2, &
+        product_matrix_size_guess, rec_sort_index, setup_buffer_matrix
    USE dbcsr_mm_dist_operations,        ONLY: dbcsr_get_local_vcols,&
                                               dbcsr_get_local_vrows,&
                                               dbcsr_reset_vlocals,&
@@ -95,7 +94,6 @@ MODULE dbcsr_mm_cannon
                                               dbcsr_work_create
    USE kinds,                           ONLY: dp,&
                                               int_8,&
-                                              real_4,&
                                               real_8,&
                                               sp
    USE machine,                         ONLY: default_output_unit,&
@@ -1695,8 +1693,6 @@ CONTAINS
                                            flop=flop_single, &
                                            a_norms=left_norms, b_norms=right_norms)
 
-            CALL timestop(handle2)
-
             IF (metronome == nsteps_k .AND. v_ki == min_nimages-1) THEN
                CALL dbcsr_mm_multrec_finalize(multrec(ithread)%p)
                DEALLOCATE (multrec(ithread)%p)
@@ -1722,6 +1718,9 @@ CONTAINS
                   CALL mp_testany(left_index_rr)
                END DO
             END IF
+
+            CALL timestop(handle2)
+
 !$OMP END PARALLEL
             flop_total = flop_total+flop_single
          ENDDO
@@ -1950,17 +1949,9 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: m, n, nblks
       INTEGER, DIMENSION(3, 1:nblks), INTENT(INOUT)      :: idx
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'call_rec_sort_index', &
-         routineP = moduleN//':'//routineN
-
-      INTEGER                                            :: handle
-
 !   ---------------------------------------------------------------------------
 
-      CALL timeset(routineN, handle)
-      IF (.FALSE.) WRITE (*, *) " Calling rec_sort_index, size", nblks
       CALL rec_sort_index(1, m, 1, n, nblks, idx, 0)
-      CALL timestop(handle)
    END SUBROUTINE call_rec_sort_index
 
 ! **************************************************************************************************
@@ -1995,79 +1986,5 @@ CONTAINS
       area1p => area2p
       area2p => tmp_p
    END SUBROUTINE dbcsr_switch_d_ptrs
-
-! **************************************************************************************************
-!> \brief Calculates per-block norms.
-!>
-!> Rewritten to be very low-level.
-!> \param[in,out] matrix     DBCSR matrix for which to calculate norms
-!> \param[out] norms         Block norms
-! **************************************************************************************************
-   SUBROUTINE calculate_norms(matrix, norms)
-      TYPE(dbcsr_type), INTENT(IN)                       :: matrix
-      REAL(kind=sp), DIMENSION(:), INTENT(OUT)           :: norms
-
-      CHARACTER(len=*), PARAMETER :: routineN = 'calculate_norms', &
-         routineP = moduleN//':'//routineN
-
-      INTEGER                                            :: data_type, handle, nblks
-      INTEGER, DIMENSION(:), POINTER                     :: local_cols, local_rows
-
-!   ---------------------------------------------------------------------------
-
-      CALL timeset(routineN, handle)
-      ! Checks for validity
-      IF (.NOT. dbcsr_valid_index(matrix)) &
-         CPABORT("The matrix must be valid.")
-      data_type = dbcsr_get_data_type(matrix)
-      IF (careful_mod .AND. .NOT. array_exists(matrix%local_rows)) &
-         CPABORT("Global row mapping should exist")
-      local_rows => array_data(matrix%local_rows)
-      local_cols => array_data(matrix%local_cols)
-      nblks = matrix%nblks
-      SELECT CASE (data_type)
-      CASE (dbcsr_type_real_4)
-         CALL calc_norms_list_s(norms, nblks, &
-                                matrix%coo_l, &
-                                array_data(matrix%row_blk_size), &
-                                array_data(matrix%col_blk_size), &
-                                dbcsr_get_data_p_s(matrix%data_area), &
-                                local2global_rows=local_rows, &
-                                local2global_cols=local_cols)
-      CASE (dbcsr_type_real_8)
-         CALL calc_norms_list_d(norms, nblks, &
-                                matrix%coo_l, &
-                                array_data(matrix%row_blk_size), &
-                                array_data(matrix%col_blk_size), &
-                                dbcsr_get_data_p_d(matrix%data_area), &
-                                local2global_rows=local_rows, &
-                                local2global_cols=local_cols)
-      CASE (dbcsr_type_complex_4)
-         CALL calc_norms_list_c(norms, nblks, &
-                                matrix%coo_l, &
-                                array_data(matrix%row_blk_size), &
-                                array_data(matrix%col_blk_size), &
-                                dbcsr_get_data_p_c(matrix%data_area), &
-                                local2global_rows=local_rows, &
-                                local2global_cols=local_cols)
-      CASE (dbcsr_type_complex_8)
-         CALL calc_norms_list_z(norms, nblks, &
-                                matrix%coo_l, &
-                                array_data(matrix%row_blk_size), &
-                                array_data(matrix%col_blk_size), &
-                                dbcsr_get_data_p_z(matrix%data_area), &
-                                local2global_rows=local_rows, &
-                                local2global_cols=local_cols)
-      CASE DEFAULT
-         CPABORT("Invalid data type.")
-      END SELECT
-      !
-      CALL timestop(handle)
-   END SUBROUTINE calculate_norms
-
-#include "dbcsr_mm_cannon_d.f90"
-#include "dbcsr_mm_cannon_z.f90"
-#include "dbcsr_mm_cannon_s.f90"
-#include "dbcsr_mm_cannon_c.f90"
 
 END MODULE dbcsr_mm_cannon

@@ -29,9 +29,8 @@ MODULE dbcsr_mm_3d
         dbcsr_data_clear_pointer, dbcsr_data_ensure_size, dbcsr_data_exists, dbcsr_data_get_size, &
         dbcsr_data_get_size_referenced, dbcsr_data_get_type, dbcsr_data_host2dev, dbcsr_data_init, &
         dbcsr_data_new, dbcsr_data_release, dbcsr_data_set_pointer, &
-        dbcsr_data_set_size_referenced, dbcsr_data_valid, dbcsr_get_data_p_c, dbcsr_get_data_p_d, &
-        dbcsr_get_data_p_s, dbcsr_get_data_p_z, dbcsr_scalar_are_equal, dbcsr_scalar_negative, &
-        dbcsr_scalar_one, dbcsr_type_1d_to_2d
+        dbcsr_data_set_size_referenced, dbcsr_data_valid, dbcsr_scalar_are_equal, &
+        dbcsr_scalar_negative, dbcsr_scalar_one, dbcsr_type_1d_to_2d
    USE dbcsr_data_types,                ONLY: dbcsr_datatype_sizeof
    USE dbcsr_dist_methods,              ONLY: dbcsr_distribution_col_dist,&
                                               dbcsr_distribution_has_threads,&
@@ -52,10 +51,11 @@ MODULE dbcsr_mm_3d
         dbcsr_nfullcols_total, dbcsr_nfullrows_local, dbcsr_nfullrows_total, dbcsr_release, &
         dbcsr_row_block_offsets, dbcsr_row_block_sizes, dbcsr_valid_index
    USE dbcsr_mm_common,                 ONLY: &
-        acc_transpose_blocks, count_mpi_statistics, dbcsr_mm_multrec_type_p, dbcsr_mpi_statistics, &
-        enumerate_blk_sizes, max_memory, memtype_abpanel_1, memtype_abpanel_2, memtype_mpi_buffer, &
-        memtype_mpi_product, memtype_product_wm, memtype_trsbuffer_1, memtype_trsbuffer_2, &
-        product_matrix_size_guess, rec_sort_index, setup_buffer_matrix
+        acc_transpose_blocks, calculate_norms, count_mpi_statistics, dbcsr_mm_multrec_type_p, &
+        dbcsr_mpi_statistics, enumerate_blk_sizes, max_memory, memtype_abpanel_1, &
+        memtype_abpanel_2, memtype_mpi_buffer, memtype_mpi_product, memtype_product_wm, &
+        memtype_trsbuffer_1, memtype_trsbuffer_2, product_matrix_size_guess, rec_sort_index, &
+        setup_buffer_matrix
    USE dbcsr_mm_dist_operations,        ONLY: dbcsr_reset_locals,&
                                               dbcsr_reset_vlocals,&
                                               image_calculator
@@ -94,7 +94,6 @@ MODULE dbcsr_mm_3d
                                               dbcsr_work_create,&
                                               dbcsr_work_destroy
    USE kinds,                           ONLY: int_8,&
-                                              real_4,&
                                               real_8,&
                                               sp
    USE machine,                         ONLY: m_memory
@@ -1848,9 +1847,7 @@ CONTAINS
                                        row_max_epss=product_matrix_epss(product_matrix_epss_displ(irow3D)+1: &
                                                                         product_matrix_epss_displ(irow3D)+ &
                                                                         product_matrix_epss_size(irow3D)), &
-                                       block_estimate=MAX(product_matrix3D%mats(irow3D, icol3D)%matrix%nblks, &
-                                                          matrix_left%nblks, &
-                                                          matrix_right%nblks)/nthreads, &
+                                       block_estimate=0, &
                                        right_row_blk_size=dbcsr_row_block_sizes(matrix_right), &
                                        nlayers=nranks3D)
 !$OMP END PARALLEL
@@ -1949,7 +1946,6 @@ CONTAINS
                                  global_indices=right_global_indices)
                   IF (otf_filtering) THEN
                      CALL calculate_norms(right_buffer_p%matrix, &
-                                          data_type, &
                                           right_norms(:, iright_buffer_calc))
                   ENDIF
                   IF (has_acc) THEN
@@ -1972,11 +1968,11 @@ CONTAINS
                                  nthreads=nthreads)
                   IF (otf_filtering) THEN
                      CALL calculate_norms(left_buffer_p%matrix, &
-                                          data_type, &
                                           left_norms(:, ileft_buffer_calc))
                   ENDIF
                ENDIF
                !
+               CALL timeset(routineN//"_multrec", handle2)
 !$OMP PARALLEL DEFAULT (NONE) &
 !$OMP SHARED (left_buffer_p, ileft_buffer_calc, &
 !$OMP         right_buffer_p, iright_buffer_calc, &
@@ -1986,16 +1982,14 @@ CONTAINS
 !$OMP REDUCTION (+: flop)
                ithread = 0
 !$             ithread = omp_get_thread_num()
-               !
-               CALL timeset(routineN//"_multrec", handle2)
                CALL dbcsr_mm_multrec_multiply(multrec(ithread, irow3D, icol3D)%p, &
                                               left=left_buffer_p%matrix, &
                                               right=right_buffer_p%matrix, &
                                               flop=flop, &
                                               a_norms=left_norms(:, ileft_buffer_calc), &
                                               b_norms=right_norms(:, iright_buffer_calc))
-               CALL timestop(handle2)
 !$OMP END PARALLEL
+               CALL timestop(handle2)
             ENDIF
             ! Reduce 3D layers and finalize the local layer
             IF (istep_k .GT. final_step_k) THEN
@@ -2511,41 +2505,6 @@ CONTAINS
    END SUBROUTINE setup_rec_index_images
 
 ! **************************************************************************************************
-!> \brief Calculates norms per each image
-!> \param matrix ...
-!> \param data_type ...
-!> \param norms ...
-!> \author Alfio Lazzaro
-! **************************************************************************************************
-   SUBROUTINE calculate_norms(matrix, data_type, norms)
-      TYPE(dbcsr_type), INTENT(IN)                       :: matrix
-      INTEGER, INTENT(IN)                                :: data_type
-      REAL(kind=sp), DIMENSION(:), INTENT(INOUT)         :: norms
-
-      CHARACTER(len=*), PARAMETER :: routineN = 'calculate_norms', &
-         routineP = moduleN//':'//routineN
-
-      INTEGER                                            :: handle
-
-      CALL timeset(routineN, handle)
-      !
-      SELECT CASE (data_type)
-      CASE (dbcsr_type_real_4)
-         CALL calc_norms_s(matrix, norms)
-      CASE (dbcsr_type_real_8)
-         CALL calc_norms_d(matrix, norms)
-      CASE (dbcsr_type_complex_4)
-         CALL calc_norms_c(matrix, norms)
-      CASE (dbcsr_type_complex_8)
-         CALL calc_norms_z(matrix, norms)
-      CASE DEFAULT
-         CPABORT("Invalid data type.")
-      END SELECT
-      !
-      CALL timestop(handle)
-   END SUBROUTINE calculate_norms
-
-! **************************************************************************************************
 !> \brief Init buffer
 !>
 !> \param buffer ...
@@ -2841,10 +2800,5 @@ CONTAINS
       ENDDO
 !$OMP END PARALLEL DO
    END SUBROUTINE remap_layers3D
-
-#include "dbcsr_mm_3d_d.f90"
-#include "dbcsr_mm_3d_z.f90"
-#include "dbcsr_mm_3d_s.f90"
-#include "dbcsr_mm_3d_c.f90"
 
 END MODULE dbcsr_mm_3d

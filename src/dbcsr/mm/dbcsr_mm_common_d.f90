@@ -10,13 +10,13 @@
 !> \param local2global_rows ...
 !> \param local2global_cols ...
 ! **************************************************************************************************
-  SUBROUTINE calc_norms_list_[nametype1](norms, nblks,&
+  SUBROUTINE calc_norms_d(norms, nblks,&
        blki, rbs, cbs, DATA, local2global_rows, local2global_cols)
     REAL(kind=sp), DIMENSION(:), INTENT(OUT) :: norms
     INTEGER, INTENT(IN)                      :: nblks
     INTEGER, DIMENSION(3,nblks), INTENT(IN)  :: blki
     INTEGER, DIMENSION(:), INTENT(IN)        :: rbs, cbs
-    [type1], DIMENSION(:), &
+    REAL(kind=real_8), DIMENSION(:), &
       INTENT(IN)                             :: DATA
     INTEGER, DIMENSION(:), INTENT(IN)        :: local2global_rows
     INTEGER, DIMENSION(:), INTENT(IN)        :: local2global_cols
@@ -46,5 +46,5 @@
     ENDDO
     !$omp end do
     !$omp end parallel
-  END SUBROUTINE calc_norms_list_[nametype1]
+  END SUBROUTINE calc_norms_d
 

@@ -21,22 +21,28 @@ MODULE dbcsr_mm_common
    USE dbcsr_acc_operations,            ONLY: dbcsr_acc_transpose
    USE dbcsr_data_methods,              ONLY: dbcsr_data_ensure_size,&
                                               dbcsr_data_host2dev,&
-                                              dbcsr_data_set_size_referenced
-   USE dbcsr_methods,                   ONLY: dbcsr_get_index_memory_type,&
+                                              dbcsr_data_set_size_referenced,&
+                                              dbcsr_get_data_p_c,&
+                                              dbcsr_get_data_p_d,&
+                                              dbcsr_get_data_p_s,&
+                                              dbcsr_get_data_p_z
+   USE dbcsr_methods,                   ONLY: dbcsr_get_data_type,&
+                                              dbcsr_get_index_memory_type,&
                                               dbcsr_nfullcols_local,&
-                                              dbcsr_nfullrows_local
+                                              dbcsr_nfullrows_local,&
+                                              dbcsr_valid_index
    USE dbcsr_mm_multrec,                ONLY: dbcsr_mm_multrec_type
    USE dbcsr_ptr_util,                  ONLY: ensure_array_size
-   USE dbcsr_types,                     ONLY: dbcsr_data_obj,&
-                                              dbcsr_memtype_type,&
-                                              dbcsr_mpi_size_limits,&
-                                              dbcsr_mpi_statistics_type,&
-                                              dbcsr_type,&
-                                              dbcsr_type_int_4
+   USE dbcsr_types,                     ONLY: &
+        dbcsr_data_obj, dbcsr_memtype_type, dbcsr_mpi_size_limits, dbcsr_mpi_statistics_type, &
+        dbcsr_type, dbcsr_type_complex_4, dbcsr_type_complex_8, dbcsr_type_int_4, &
+        dbcsr_type_real_4, dbcsr_type_real_8
    USE dbcsr_work_operations,           ONLY: dbcsr_create
    USE kinds,                           ONLY: int_4,&
                                               int_8,&
-                                              real_8
+                                              real_4,&
+                                              real_8,&
+                                              sp
 #include "../../base/base_uses.f90"
 
    IMPLICIT NONE
@@ -89,6 +95,7 @@ MODULE dbcsr_mm_common
 
    PUBLIC :: product_matrix_size_guess
 
+   PUBLIC :: calculate_norms
    PUBLIC :: huge_norm
 
 CONTAINS
@@ -550,5 +557,77 @@ CONTAINS
       ENDIF
       size_guess = INT(REAL(size8, KIND=real_8)*fill_guess, KIND=int_4)
    END FUNCTION product_matrix_size_guess
+
+! **************************************************************************************************
+!> \brief Calculates per-block norms.
+!>
+!> Rewritten to be very low-level.
+!> \param[in,out] matrix     DBCSR matrix for which to calculate norms
+!> \param[out] norms         Block norms
+! **************************************************************************************************
+   SUBROUTINE calculate_norms(matrix, norms)
+      TYPE(dbcsr_type), INTENT(IN)                       :: matrix
+      REAL(kind=sp), DIMENSION(:), INTENT(OUT)           :: norms
+
+      CHARACTER(len=*), PARAMETER :: routineN = 'calculate_norms', &
+         routineP = moduleN//':'//routineN
+
+      INTEGER                                            :: data_type, handle, nblks
+      INTEGER, DIMENSION(:), POINTER                     :: local_cols, local_rows
+
+!   ---------------------------------------------------------------------------
+
+      CALL timeset(routineN, handle)
+      ! Checks for validity
+      IF (.NOT. dbcsr_valid_index(matrix)) &
+         CPABORT("The matrix must be valid.")
+      data_type = dbcsr_get_data_type(matrix)
+      local_rows => array_data(matrix%local_rows)
+      local_cols => array_data(matrix%local_cols)
+      nblks = matrix%nblks
+      SELECT CASE (data_type)
+      CASE (dbcsr_type_real_4)
+         CALL calc_norms_s(norms, nblks, &
+                           matrix%coo_l, &
+                           array_data(matrix%row_blk_size), &
+                           array_data(matrix%col_blk_size), &
+                           dbcsr_get_data_p_s(matrix%data_area), &
+                           local2global_rows=local_rows, &
+                           local2global_cols=local_cols)
+      CASE (dbcsr_type_real_8)
+         CALL calc_norms_d(norms, nblks, &
+                           matrix%coo_l, &
+                           array_data(matrix%row_blk_size), &
+                           array_data(matrix%col_blk_size), &
+                           dbcsr_get_data_p_d(matrix%data_area), &
+                           local2global_rows=local_rows, &
+                           local2global_cols=local_cols)
+      CASE (dbcsr_type_complex_4)
+         CALL calc_norms_c(norms, nblks, &
+                           matrix%coo_l, &
+                           array_data(matrix%row_blk_size), &
+                           array_data(matrix%col_blk_size), &
+                           dbcsr_get_data_p_c(matrix%data_area), &
+                           local2global_rows=local_rows, &
+                           local2global_cols=local_cols)
+      CASE (dbcsr_type_complex_8)
+         CALL calc_norms_z(norms, nblks, &
+                           matrix%coo_l, &
+                           array_data(matrix%row_blk_size), &
+                           array_data(matrix%col_blk_size), &
+                           dbcsr_get_data_p_z(matrix%data_area), &
+                           local2global_rows=local_rows, &
+                           local2global_cols=local_cols)
+      CASE DEFAULT
+         CPABORT("Invalid data type.")
+      END SELECT
+      !
+      CALL timestop(handle)
+   END SUBROUTINE calculate_norms
+
+#include "dbcsr_mm_common_d.f90"
+#include "dbcsr_mm_common_z.f90"
+#include "dbcsr_mm_common_s.f90"
+#include "dbcsr_mm_common_c.f90"
 
 END MODULE dbcsr_mm_common

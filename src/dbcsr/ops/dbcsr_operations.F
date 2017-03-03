@@ -1926,7 +1926,7 @@ CONTAINS
       COMPLEX(KIND=real_4), DIMENSION(:), POINTER        :: data_c
       COMPLEX(KIND=real_8), DIMENSION(:), POINTER        :: data_z
       INTEGER                                            :: blk, blk_nze, col, col_size, handle, &
-                                                            my_method, row, row_size
+                                                            my_method, row, row_size, data_type
       LOGICAL                                            :: gt0, my_filter_diag, reshuffle, tr
       REAL(KIND=real_4)                                  :: nrm_s
       REAL(KIND=real_4), DIMENSION(:), POINTER           :: data_s
@@ -1967,14 +1967,15 @@ CONTAINS
       END SELECT
 
       IF (gt0) THEN
+         data_type = dbcsr_get_data_type(matrix)
 
 !$OMP        PARALLEL DEFAULT(NONE) PRIVATE(iter,row,col,data_s,data_d,data_c,data_z,tr, &
 !$OMP                                       blk,row_size,col_size,blk_nze,nrm_d,nrm_s) &
-!$OMP                               SHARED(my_method,reshuffle,my_absolute,eps,matrix)
+!$OMP                               SHARED(my_method,reshuffle,my_absolute,eps,matrix,data_type)
 
          CALL dbcsr_iterator_start(iter, matrix, contiguous_pointers=.TRUE.)
          DO WHILE (dbcsr_iterator_blocks_left(iter))
-            SELECT CASE (dbcsr_get_data_type (matrix))
+            SELECT CASE (data_type)
 
             CASE (dbcsr_type_real_4)
                CALL dbcsr_iterator_next_block(iter, row, col, data_s, tr, blk, &
