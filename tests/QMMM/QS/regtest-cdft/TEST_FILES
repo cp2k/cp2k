@@ -12,6 +12,6 @@ HeH-water-cdft-state-2.inp							  0
 HeH-water-mixed-cdft-1.inp                           75      5e-10              0.318940758387
 HeH-water-mixed-cdft-2.inp                           75      5e-10              0.318940758387
 # MD tests in parallel/serial modes
-HeH-water-mixed-cdft-3.inp                           11      6e-10              -2.564762048904492
-HeH-water-mixed-cdft-4.inp                           11      6e-10              -2.564762048791228
+HeH-water-mixed-cdft-3.inp                           11      9e-10              -2.564762048904492
+HeH-water-mixed-cdft-4.inp                           11      9e-10              -2.564762048791228
 #EOF
