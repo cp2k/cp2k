@@ -29,9 +29,9 @@
 #:set dtype_all_list = list(zip(dtype_all_param, dtype_all_type, dtype_all_suffix))
 
 
-#:def arrlist(name, nmin=1, nmax=maxrank)
+#:def arrlist(name, nmin=1, nmax=maxrank, ndim_pre=0, ndim_post=0)
 #!    expand array into list of elements "name(1), name(2), ..., name(n)
-$:    ", ".join([name + "(" + str(i) +")" for i in range(nmin, nmax+1)])
+$:    ", ".join([name + "(" + ":," * ndim_pre + str(i) + ",:"*ndim_post + ")" for i in range(nmin, nmax+1)])
 #:enddef
 
 

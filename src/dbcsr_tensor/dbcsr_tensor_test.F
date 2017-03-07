@@ -13,11 +13,13 @@ MODULE dbcsr_tensor_test
 #:set maxdim = maxrank
 #:set ndims = range(2,maxdim+1)
 
-   USE dbcsr_api,                       ONLY: ${uselist(dtype_float_param)}$
+   USE dbcsr_api,                       ONLY: ${uselist(dtype_float_param)}$, &
+                                              dbcsr_get_info
    USE dbcsr_tensor,                    ONLY: &
         dbcsr_t_copy, dbcsr_t_get_block, dbcsr_t_iterator_type, dbcsr_t_iterator_blocks_left, &
         dbcsr_t_iterator_next_block, dbcsr_t_iterator_start, dbcsr_t_iterator_stop, dbcsr_t_ndims, &
-        dbcsr_t_reserve_blocks, dbcsr_t_get_stored_coordinates, dbcsr_t_put_block
+        dbcsr_t_reserve_blocks, dbcsr_t_get_stored_coordinates, dbcsr_t_put_block, &
+        dbcsr_t_contract, dbcsr_t_inverse_order, dbcsr_t_dims
    USE dbcsr_tensor_block,              ONLY: block_nd
    USE dbcsr_tensor_types,              ONLY: dbcsr_t_create,&
                                               dbcsr_t_destroy,&
@@ -26,14 +28,18 @@ MODULE dbcsr_tensor_test
                                               dbcsr_t_distribution_destroy,&
                                               dims_tensor,&
                                               dbcsr_t_distribution_new,&
-                                              dbcsr_t_nd_mp_comm
+                                              dbcsr_t_nd_mp_comm,&
+                                              dbcsr_t_get_data_type
    USE kinds,                           ONLY: ${uselist(dtype_float_prec)}$,&
                                               default_string_length
    USE message_passing,                 ONLY: mp_environ, &
                                               mp_bcast, &
-                                              mp_comm_free
+                                              mp_comm_free, &
+                                              mp_comm_free, &
+                                              mp_sum
    USE allocate_wrap,                   ONLY: allocate_any
-   USE dbcsr_tensor_index,              ONLY: combine_index
+   USE dbcsr_tensor_index,              ONLY: combine_index, &
+                                              get_mapping_info
 #include "../base/base_uses.f90"
 
    IMPLICIT NONE
@@ -41,8 +47,32 @@ MODULE dbcsr_tensor_test
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'dbcsr_tensor_test'
 
    PUBLIC :: &
+      allocate_and_fill_test_tensor,&
+      random_dist,&
+      test_tensor_contraction,&
       test_tensor_formats
 
+   INTERFACE repl_dense_array_to_dist_sparse_tensor
+#:for dparam, dtype, dsuffix in dtype_float_list
+#:for ndim in ndims
+      MODULE PROCEDURE repl_dense_${ndim}$d_array_to_dist_sparse_tensor_${dsuffix}$
+#:endfor
+#:endfor
+   END INTERFACE
+
+   INTERFACE write_array
+#:for ndim in ndims
+      MODULE PROCEDURE write_${ndim}$d_array
+#:endfor
+   END INTERFACE
+
+   INTERFACE dist_sparse_tensor_to_repl_dense_array
+#:for dparam, dtype, dsuffix in dtype_float_list
+#:for ndim in ndims
+      MODULE PROCEDURE dist_sparse_tensor_to_repl_dense_${ndim}$d_array_${dsuffix}$
+#:endfor
+#:endfor
+   END INTERFACE
 CONTAINS
 
 ! **************************************************************************************************
@@ -347,8 +377,8 @@ CONTAINS
 !> \brief Create test distribution
 !> \param dist_array ...
 !> \param dist_size ...
-!> \param seed ...
 !> \param nbins ...
+!> \param mp_comm
 ! **************************************************************************************************
    SUBROUTINE random_dist(dist_array, dist_size, nbins, mp_comm)
       INTEGER, ALLOCATABLE, DIMENSION(:), INTENT(out) :: dist_array
@@ -458,6 +488,9 @@ CONTAINS
 !> \param blk_size size of block
 !> \param blk_offset block offset (indices of first element)
 !> \param tensor_size global tensor sizes
+!> \blk_2 block values for 2 dimensions
+!> \blk_3 block values for 3 dimensions
+!> \blk_4 ...
 ! **************************************************************************************************
    SUBROUTINE enumerate_block_elements(blk_size, blk_offset, tensor_size, ${varlist("blk", nmin=2)}$)
       INTEGER, DIMENSION(:), INTENT(IN)                  :: blk_size, blk_offset, tensor_size
@@ -531,8 +564,8 @@ CONTAINS
 !> \param blk_size block size
 !> \param blk_index block index
 !> \param proc which process am I
-!> \param blk_values_2 block values
 !> \param unit_nr unit number
+!> \param blk_values_2 block values for 2 dimensions
 ! **************************************************************************************************
    SUBROUTINE write_block(name, blk_size, blk_index, proc, unit_nr, &
                           ${varlist("blk_values",nmin=2)}$)
@@ -556,10 +589,10 @@ CONTAINS
 #:for idim in range(ndim,0,-1)
             DO i_${idim}$ = 1, blk_size(${idim}$)
 #:endfor
-               WRITE (unit_nr, '(T7,A,T16,A,${ndim}$I3,1X,A,1X,I3,A,1X,A,${ndim}$I3,1X,A,1X,I7)') &
+               WRITE (unit_nr, '(T7,A,T16,A,${ndim}$I3,1X,A,1X,I3,A,1X,A,${ndim}$I3,1X,A,1X,I20)') &
                   TRIM(name),"(", blk_index,") @", proc, ':', &
                   "(",${varlist("i", nmax=ndim)}$,")", &
-                  INT(blk_values_${ndim}$(${varlist("i", nmax=ndim)}$))
+                  INT(blk_values_${ndim}$(${varlist("i", nmax=ndim)}$), KIND=SELECTED_INT_KIND(32))
 #:for idim in range(ndim,0,-1)
             ENDDO
 #:endfor
@@ -567,5 +600,256 @@ CONTAINS
 #:endfor
       ENDIF
    END SUBROUTINE
+
+#:for dprec, dparam, dtype, dsuffix in list(zip(dtype_float_prec, dtype_float_param, dtype_float_type, dtype_float_suffix))
+#:for ndim in ndims
+! **************************************************************************************************
+!> \brief Transform a distributed sparse tensor to a replicated dense array. This is only useful for
+!>        testing tensor contraction by matrix multiplication of dense arrays.
+!> \param tensor
+!> \param array
+! **************************************************************************************************
+   SUBROUTINE dist_sparse_tensor_to_repl_dense_${ndim}$d_array_${dsuffix}$(tensor, array)
+      TYPE(dbcsr_t_type), INTENT(INOUT)                          :: tensor
+      ${dtype}$, ALLOCATABLE, DIMENSION(${shape_colon(ndim)}$),&
+         INTENT(OUT)                                             :: array
+      ${dtype}$, ALLOCATABLE, DIMENSION(${shape_colon(ndim)}$)   :: block
+      INTEGER, DIMENSION(dbcsr_t_ndims(tensor))                  :: dims_nd, ind_nd, blk_size, blk_offset
+      TYPE(dbcsr_t_iterator_type)                                     :: iterator
+      INTEGER                                                    :: blk, idim
+      INTEGER, DIMENSION(dbcsr_t_ndims(tensor))                  :: blk_start, blk_end
+
+
+      CPASSERT(dbcsr_t_ndims(tensor) .EQ. ${ndim}$)
+      CALL get_mapping_info(tensor%nd_index, dims_nd=dims_nd)
+      CALL allocate_any(dims_nd, array)
+      array(${shape_colon(ndim)}$) = 0.0_${dprec}$
+
+      CALL dbcsr_t_iterator_start(iterator, tensor)
+      DO WHILE (dbcsr_t_iterator_blocks_left(iterator))
+         ! TODO: get block implementation needs to be more flexible (no need to know size in advance)
+         CALL dbcsr_t_iterator_next_block(iterator, ind_nd, blk, blk_size=blk_size, blk_offset=blk_offset)
+         CALL allocate_any(blk_size, block)
+         CALL dbcsr_t_get_block(tensor, ind_nd, blk_size, block)
+
+         DO idim = 1, dbcsr_t_ndims(tensor)
+            blk_start(idim) = blk_offset(idim)
+            blk_end(idim) = blk_offset(idim)+blk_size(idim) - 1
+         ENDDO
+         array(${", ".join(["blk_start("+str(idim)+"):blk_end("+str(idim)+")" for idim in range(1, ndim + 1)])}$) = &
+            block(${shape_colon(ndim)}$)
+
+         DEALLOCATE(block)
+      ENDDO
+      CALL dbcsr_t_iterator_stop(iterator)
+      CALL mp_sum(array, tensor%comm_nd)
+
+   END SUBROUTINE
+#:endfor
+#:endfor
+
+#:for dprec, dparam, dtype, dsuffix in list(zip(dtype_float_prec, dtype_float_param, dtype_float_type, dtype_float_suffix))
+#:for ndim in ndims
+! **************************************************************************************************
+!> \brief ...
+!> \param tensor
+!> \param array
+! **************************************************************************************************
+   SUBROUTINE repl_dense_${ndim}$d_array_to_dist_sparse_tensor_${dsuffix}$(tensor, array)
+      TYPE(dbcsr_t_type), INTENT(INOUT)                             :: tensor
+      ${dtype}$, ALLOCATABLE, DIMENSION(${shape_colon(ndim)}$),&
+         INTENT(OUT)                                             :: array
+      ${dtype}$, ALLOCATABLE, DIMENSION(${shape_colon(ndim)}$)   :: block
+      INTEGER, DIMENSION(dbcsr_t_ndims(tensor))                  :: dims_nd, ind_nd, blk_size, blk_offset
+      TYPE(dbcsr_t_iterator_type)                                     :: iterator
+      INTEGER                                                    :: blk, idim
+      INTEGER, DIMENSION(dbcsr_t_ndims(tensor))                  :: blk_start, blk_end
+
+
+      CPASSERT(dbcsr_t_ndims(tensor) .EQ. ${ndim}$)
+      CALL get_mapping_info(tensor%nd_index, dims_nd=dims_nd)
+
+      CALL dbcsr_t_iterator_start(iterator, tensor)
+      DO WHILE (dbcsr_t_iterator_blocks_left(iterator))
+         ! TODO: get block implementation needs to be more flexible (no need to know size in advance)
+         CALL dbcsr_t_iterator_next_block(iterator, ind_nd, blk, blk_size=blk_size, blk_offset=blk_offset)
+         CALL allocate_any(blk_size, block)
+         DO idim = 1, dbcsr_t_ndims(tensor)
+            blk_start(idim) = blk_offset(idim)
+            blk_end(idim) = blk_offset(idim)+blk_size(idim) - 1
+         ENDDO
+         block(${shape_colon(ndim)}$) = &
+            array(${", ".join(["blk_start("+str(idim)+"):blk_end("+str(idim)+")" for idim in range(1, ndim + 1)])}$)
+         CALL dbcsr_t_put_block(tensor, ind_nd, blk_size, block)
+         DEALLOCATE(block)
+      ENDDO
+
+   END SUBROUTINE
+#:endfor
+#:endfor
+
+! **************************************************************************************************
+!> \brief test contraction tensor_1 x tensor_2 = tensor_3
+!> \param tensor_1 ...
+!> \param tensor_2 ...
+!> \param contract_1 ...
+!> \param notcontract_1 ...
+!> \param contract_2 ...
+!> \param notcontract_2 ...
+!> \param map_1 ...
+!> \param map_2 ...
+!> \param unit_nr
+! **************************************************************************************************
+   SUBROUTINE test_tensor_contraction(tensor_1, tensor_2, tensor_3, &
+                                      contract_1, notcontract_1, &
+                                      contract_2, notcontract_2, &
+                                      map_1, map_2, unit_nr)
+      TYPE(dbcsr_t_type), INTENT(INOUT)    :: tensor_1, tensor_2, tensor_3
+      INTEGER, DIMENSION(:), INTENT(IN)    :: contract_1, contract_2, &
+                                              notcontract_1, notcontract_2,&
+                                              map_1, map_2
+      INTEGER, INTENT(IN)                  :: unit_nr
+      INTEGER                              :: io_unit, mynode, numnodes, mp_comm
+      !INTEGER                              :: iarr, jarr
+      INTEGER, DIMENSION(:), ALLOCATABLE   :: size_1, size_2, size_3, &
+                                              order_t1, order_t2, order_t3
+
+#:for ndim in ndims
+      REAL(KIND=real_8), ALLOCATABLE, &
+         DIMENSION(${shape_colon(ndim)}$) :: array_1_${ndim}$d, &
+                                             array_2_${ndim}$d, &
+                                             array_3_${ndim}$d, &
+                                             array_1_rs${ndim}$d, &
+                                             array_2_rs${ndim}$d, &
+                                             array_3_rs${ndim}$d
+#:endfor
+      REAL(KIND=real_8), ALLOCATABLE, &
+         DIMENSION(:,:)                   :: array_1_mm, &
+                                             array_2_mm, &
+                                             array_3_mm, &
+                                             array_3_test_mm
+      LOGICAL                             :: eql
+
+      CALL dbcsr_get_info(tensor_1%matrix_rep, group=mp_comm)
+      CALL mp_environ(numnodes, mynode, mp_comm)
+      io_unit = 0
+      IF (mynode .EQ. 0) io_unit = unit_nr
+
+      IF(io_unit > 0) THEN
+         WRITE(io_unit, *)
+         WRITE(io_unit, '(A)') repeat("-",80)
+         WRITE(io_unit, '(A,1X,A,1X,A,1X,A,1X,A,1X,A)') "Testing tensor contraction", &
+            TRIM(tensor_1%name), "x", TRIM(tensor_2%name), "=", TRIM(tensor_3%name)
+         WRITE(io_unit, '(A)') repeat("-",80)
+      ENDIF
+
+      CALL dbcsr_t_contract(tensor_1, tensor_2, &
+                            contract_1, notcontract_1, &
+                            contract_2, notcontract_2, &
+                            map_1, map_2, tensor_3)
+
+      ! Convert tensors to simple multidimensional arrays
+#:for i in range(1,4)
+      SELECT CASE(dbcsr_t_ndims(tensor_${i}$))
+#:for ndim in ndims
+      CASE(${ndim}$)
+         CALL dist_sparse_tensor_to_repl_dense_array(tensor_${i}$, array_${i}$_${ndim}$d)
+
+#:endfor
+      END SELECT
+#:endfor
+
+      ! Get array sizes
+
+#:for i in range(1,4)
+      SELECT CASE(dbcsr_t_ndims(tensor_${i}$))
+#:for ndim in ndims
+      CASE(${ndim}$)
+         CALL allocate_any([${ndim}$], size_${i}$, source=SHAPE(array_${i}$_${ndim}$d))
+
+#:endfor
+      END SELECT
+#:endfor
+
+#:for i in range(1,4)
+      ALLOCATE(order_t${i}$(dbcsr_t_ndims(tensor_${i}$)))
+#:endfor
+
+
+      ASSOCIATE(map_t1_1=>notcontract_1, map_t1_2=>contract_1, &
+                map_t2_1=>notcontract_2, map_t2_2=>contract_2, &
+                map_t3_1=>map_1, map_t3_2=>map_2)
+
+#:for i in range(1,4)
+      order_t${i}$(:) = dbcsr_t_inverse_order([map_t${i}$_1, map_t${i}$_2])
+
+      SELECT CASE(dbcsr_t_ndims(tensor_${i}$))
+#:for ndim in ndims
+      CASE(${ndim}$)
+         CALL allocate_any(size_${i}$, array_${i}$_rs${ndim}$d, &
+                           source=array_${i}$_${ndim}$d, order=order_t${i}$)
+         CALL allocate_any(sizes_2d(size_${i}$, map_t${i}$_1, map_t${i}$_2), array_${i}$_mm)
+         array_${i}$_mm(:,:) = RESHAPE(array_${i}$_rs${ndim}$d, SHAPE(array_${i}$_mm))
+#:endfor
+      END SELECT
+#:endfor
+
+      CALL allocate_any(SHAPE(array_3_mm), array_3_test_mm)
+      array_3_test_mm(:,:) = MATMUL(array_1_mm, transpose(array_2_mm))
+
+      END ASSOCIATE
+
+      eql = MAXVAL(ABS(array_3_test_mm(:,:) - array_3_mm(:,:))) .LT. 1.0E-12_${dprec}$
+
+      IF (.NOT. eql) THEN
+         IF (io_unit > 0) WRITE(io_unit,'(A)') 'Test failed!'
+         CPABORT('')
+      ELSE
+         IF (io_unit > 0) WRITE(io_unit,'(A)') 'Test passed!'
+      ENDIF
+
+   END SUBROUTINE
+
+#:for ndim in ndims
+! **************************************************************************************************
+!> \brief Write nd array
+!> \param array ...
+!> \param unit_nr ...
+!> \param array_compare ...
+! **************************************************************************************************
+   SUBROUTINE write_${ndim}$d_array(array, unit_nr, array_compare)
+      REAL(KIND=real_8), DIMENSION(${shape_colon(ndim)}$), INTENT(IN) :: array
+      INTEGER, INTENT(IN)                                             :: unit_nr
+      REAL(KIND=real_8), DIMENSION(${shape_colon(ndim)}$), INTENT(IN), OPTIONAL :: array_compare
+      INTEGER                                            :: ${varlist("i", nmax=ndim)}$
+#:for idim in range(ndim,0,-1)
+      DO i_${idim}$ = 1, SIZE(array, ${idim}$)
+#:endfor
+         IF(INT(array(${varlist("i", nmax=ndim)}$), KIND=SELECTED_INT_KIND(32)) .GT. 0) THEN
+            WRITE(unit_nr, '(${ndim+1}$I20)', advance='no') ${varlist("i", nmax=ndim)}$, INT(array(${varlist("i", nmax=ndim)}$), &
+               KIND=SELECTED_INT_KIND(32))
+            IF(PRESENT(array_compare)) THEN
+               WRITE(unit_nr, '(I20)', advance='no') INT(array_compare(${varlist("i", nmax=ndim)}$), KIND=SELECTED_INT_KIND(32))
+            ENDIF
+            WRITE(*,*)
+         ENDIF
+#:for idim in range(ndim,0,-1)
+      ENDDO
+#:endfor
+   END SUBROUTINE
+#:endfor
+
+! **************************************************************************************************
+!> \brief mapped sizes in 2d
+!> \param nd_sizes ...
+!> \param map1 ...
+!> \param map2 ...
+! **************************************************************************************************
+   FUNCTION sizes_2d(nd_sizes, map1, map2)
+      INTEGER, DIMENSION(:), INTENT(IN) :: nd_sizes, map1, map2
+      INTEGER, DIMENSION(2)             :: sizes_2d
+      sizes_2d(1) = PRODUCT(nd_sizes(map1))
+      sizes_2d(2) = PRODUCT(nd_sizes(map2))
+   END FUNCTION
 
 END MODULE

@@ -4,8 +4,7 @@
 !--------------------------------------------------------------------------------------------------!
 
 ! **************************************************************************************************
-!> \brief Wrapper to allocate and optionally assign array from source array.
-!>        Will be redundant once compilers implement Fortran 2008 standard :-/
+!> \brief Wrapper for array operations: allocation, assignment and reshape
 !> \author Patrick Seewald
 ! **************************************************************************************************
 MODULE allocate_wrap
@@ -32,13 +31,31 @@ CONTAINS
 
 #:for dparam, dtype, dsuffix in dtype_all_list
 #:for dim in range(1, maxdim+1)
-   PURE SUBROUTINE allocate_${dim}$d_${dsuffix}$(sizes, array, source)
+! **************************************************************************************************
+!> \brief Magic routine for array operations.
+!> \param sizes sizes (shape) of array to be allocated
+!> \param array target array to be allocated
+!> \param source source array to be copied to target array
+!> \param order in which order to copy source to array (same convention as RESHAPE intrinsic)
+! **************************************************************************************************
+   PURE SUBROUTINE allocate_${dim}$d_${dsuffix}$(sizes, array, source, order)
       INTEGER, DIMENSION(${dim}$), INTENT(IN)                              :: sizes
       ${dtype}$, DIMENSION(${shape_colon(dim)}$), ALLOCATABLE, INTENT(OUT) :: array
       ${dtype}$, DIMENSION(${shape_colon(dim)}$), INTENT(IN), OPTIONAL     :: source
-      ALLOCATE(array(${arrlist("sizes", nmax=dim)}$))
+      INTEGER, DIMENSION(${dim}$), INTENT(IN), OPTIONAL                    :: order
+      INTEGER, DIMENSION(${dim}$)                                          :: sizes_reordered
+      IF (PRESENT(order)) THEN
+         sizes_reordered(order(:)) = sizes(:)
+      ELSE
+         sizes_reordered(:) = sizes(:)
+      ENDIF
+      ALLOCATE(array(${arrlist("sizes_reordered", nmax=dim)}$))
       IF(PRESENT(source)) THEN
-         array(${shape_colon(dim)}$) = source(${shape_colon(dim)}$)
+         IF (PRESENT(order)) THEN
+            array(${shape_colon(dim)}$) = RESHAPE(source, SHAPE(array), order=order)
+         ELSE
+            array(${shape_colon(dim)}$) = source(${shape_colon(dim)}$)
+         ENDIF
       ENDIF
    END SUBROUTINE
 #:endfor

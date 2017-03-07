@@ -24,7 +24,9 @@ MODULE dbcsr_tensor_index
       get_nd_indices, &
       nd_to_2d_mapping, &
       ndims_mapping, &
-      split_index
+      split_index, &
+      dbcsr_t_inverse_order, &
+      permute_index
 
    TYPE nd_to_2d_mapping
       INTEGER                                      :: ndim_nd
@@ -91,15 +93,11 @@ CONTAINS
       map%map1_2d(:) = map1_2d(:)
       map%map2_2d(:) = map2_2d(:)
 
-      DO i = 1, SIZE(map1_2d)
-         map%map_nd(map1_2d(i)) = i
-         map%dims1_2d(i) = dims(map1_2d(i))
-      ENDDO
+      map%map_nd(map1_2d) = (/(i, i=1, SIZE(map1_2d))/)
+      map%dims1_2d(:) = dims(map1_2d)
 
-      DO i = 1, SIZE(map2_2d)
-         map%map_nd(map2_2d(i)) = i+SIZE(map1_2d)
-         map%dims2_2d(i) = dims(map2_2d(i))
-      ENDDO
+      map%map_nd(map2_2d) = (/(i+SIZE(map1_2d), i=1, SIZE(map2_2d))/)
+      map%dims2_2d(:) = dims(map2_2d)
 
       map%dims_2d = [PRODUCT(map%dims1_2d), PRODUCT(map%dims2_2d)]
 
@@ -148,8 +146,8 @@ CONTAINS
 !> \param base base index
 !> \param col_major is index in column major order
 ! **************************************************************************************************
-   SUBROUTINE get_mapping_info(map, ndim_nd, ndim1_2d, ndim2_2d, dims_2d, dims_nd, dims1_2d, dims2_2d, &
-                               map1_2d, map2_2d, map_nd, base, col_major)
+   PURE SUBROUTINE get_mapping_info(map, ndim_nd, ndim1_2d, ndim2_2d, dims_2d, dims_nd, dims1_2d, dims2_2d, &
+                                    map1_2d, map2_2d, map_nd, base, col_major)
       TYPE(nd_to_2d_mapping), INTENT(IN)                 :: map
       INTEGER, INTENT(OUT), OPTIONAL                     :: ndim_nd, ndim1_2d, ndim2_2d
       INTEGER, DIMENSION(2), INTENT(OUT), OPTIONAL       :: dims_2d
@@ -301,16 +299,11 @@ CONTAINS
       INTEGER, DIMENSION(ndims_mapping(map)), INTENT(IN) :: ind_in
       INTEGER, DIMENSION(2)                              :: ind_out
 
-      INTEGER                                            :: i
       INTEGER, DIMENSION(map%ndim2_2d)                   :: ind_2
       INTEGER, DIMENSION(map%ndim1_2d)                   :: ind_1
 
-      DO i = 1, map%ndim1_2d
-         ind_1(i) = ind_in(map%map1_2d(i))
-      ENDDO
-      DO i = 1, map%ndim2_2d
-         ind_2(i) = ind_in(map%map2_2d(i))
-      ENDDO
+      ind_1(:) = ind_in(map%map1_2d)
+      ind_2(:) = ind_in(map%map2_2d)
       ind_out(1) = combine_index(ind_1, map%dims1_2d, base=map%base, col_major=map%col_major)
       ind_out(2) = combine_index(ind_2, map%dims2_2d, base=map%base, col_major=map%col_major)
    END FUNCTION get_2d_indices
@@ -326,18 +319,57 @@ CONTAINS
       INTEGER, DIMENSION(2), INTENT(IN)                  :: ind_in
       INTEGER, DIMENSION(ndims_mapping(map))             :: ind_out
 
-      INTEGER                                            :: i
       INTEGER, DIMENSION(map%ndim2_2d)                   :: ind_2
       INTEGER, DIMENSION(map%ndim1_2d)                   :: ind_1
 
       ind_1(:) = split_index(ind_in(1), map%dims1_2d, base=map%base, col_major=map%col_major)
       ind_2(:) = split_index(ind_in(2), map%dims2_2d, base=map%base, col_major=map%col_major)
-      DO i = 1, map%ndim1_2d
-         ind_out(map%map1_2d(i)) = ind_1(i)
-      ENDDO
-      DO i = 1, map%ndim2_2d
-         ind_out(map%map2_2d(i)) = ind_2(i)
-      ENDDO
+
+      ind_out(map%map1_2d) = ind_1
+      ind_out(map%map2_2d) = ind_2
    END FUNCTION get_nd_indices
 
+! **************************************************************************************************
+!> \brief Invert order
+!> \param order ...
+!> \retval dbcsr_t_inverse_order ...
+! **************************************************************************************************
+   FUNCTION dbcsr_t_inverse_order(order)
+      INTEGER, DIMENSION(:), INTENT(IN)                  :: order
+      INTEGER, DIMENSION(SIZE(order))                    :: dbcsr_t_inverse_order
+
+      INTEGER                                            :: i
+
+      dbcsr_t_inverse_order(order) = (/(i, i=1, SIZE(order))/)
+   END FUNCTION
+
+! **************************************************************************************************
+!> \brief reorder tensor index (no data)
+!> \param map_in ...
+!> \param map_out ...
+!> \param order ...
+! **************************************************************************************************
+   SUBROUTINE permute_index(map_in, map_out, order)
+      TYPE(nd_to_2d_mapping), INTENT(IN)                 :: map_in
+      TYPE(nd_to_2d_mapping), INTENT(OUT)                :: map_out
+      INTEGER, DIMENSION(ndims_mapping(map_in)), &
+         INTENT(IN)                                      :: order
+
+      INTEGER                                            :: ndim_nd
+      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: map1_2d, map1_2d_reorder, map2_2d, &
+                                                            map2_2d_reorder
+      INTEGER, DIMENSION(ndims_mapping(map_in))          :: dims_nd, dims_reorder
+
+      CALL get_mapping_info(map_in, ndim_nd, dims_nd=dims_nd, map1_2d=map1_2d, map2_2d=map2_2d)
+
+      dims_reorder(order) = dims_nd
+
+      CALL allocate_any(SHAPE(map1_2d), map1_2d_reorder)
+      CALL allocate_any(SHAPE(map2_2d), map2_2d_reorder)
+
+      map1_2d_reorder(:) = order(map1_2d)
+      map2_2d_reorder(:) = order(map2_2d)
+
+      CALL create_nd_to_2d_mapping(map_out, dims_reorder, map1_2d_reorder, map2_2d_reorder)
+   END SUBROUTINE
 END MODULE

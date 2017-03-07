@@ -15,6 +15,8 @@ MODULE array_list_methods
 #:set maxdim = maxrank
 #:set ndims = range(2,maxdim+1)
 
+   USE dbcsr_tensor_index, ONLY: dbcsr_t_inverse_order
+
 #include "../base/base_uses.f90"
    IMPLICIT NONE
    PRIVATE
@@ -27,6 +29,7 @@ MODULE array_list_methods
       destroy_array_list, &
       get_array_elements, &
       get_arrays, &
+      get_ith_array, &
       number_of_arrays, &
       reorder_arrays,&
       sizes_of_arrays, &
@@ -75,6 +78,11 @@ CONTAINS
 ! **************************************************************************************************
 !> \brief collects any number of arrays of different sizes into a single array (list%col_data),
 !>        storing the indices that start a new array (list%ptr).
+!> \param list list of arrays
+!> \param ndata number of arrays
+!> \param data_1 array 1
+!> \param data_2 array 2
+!> \param data_3 ...
 ! **************************************************************************************************
    SUBROUTINE create_array_list(list, ndata, ${varlist("data")}$)
       TYPE(array_list), INTENT(OUT)               :: list
@@ -118,26 +126,29 @@ CONTAINS
    END SUBROUTINE
 
 ! **************************************************************************************************
-!> \brief helper Get all arrays contained in list
+!> \brief Get all arrays contained in list
 !> \param list ...
-!> \param order order in which to retrieve arrays
+!> \param data_1 array 1
+!> \param data_2 array 2
+!> \param data_3 ...
+!> \param i_selected array numbers to retrieve (if not present, all arrays are returned)
 ! **************************************************************************************************
-   SUBROUTINE get_arrays(list, ${varlist("data")}$, order)
-      TYPE(array_list), INTENT(IN)                              :: list
+   SUBROUTINE get_arrays(list, ${varlist("data")}$, i_selected)
+      TYPE(array_list), INTENT(IN)                       :: list
       INTEGER, ALLOCATABLE, DIMENSION(:), INTENT(OUT), &
-         OPTIONAL                                               :: ${varlist("data")}$
-      INTEGER, DIMENSION(number_of_arrays(list)), INTENT(IN), &
-         OPTIONAL                                               :: order
+         OPTIONAL                                        :: ${varlist("data")}$
+      INTEGER, DIMENSION(:), INTENT(IN), &
+         OPTIONAL                                        :: i_selected
+      INTEGER                                            :: i, ndata
+      INTEGER, DIMENSION(number_of_arrays(list))         :: o
 
-      INTEGER                                                   :: i, ndata
-      INTEGER, DIMENSION(number_of_arrays(list))                :: o
-
-      ndata = number_of_arrays(list)
 
       o(:) = 0
-      IF (PRESENT(order)) THEN
-         o(1:ndata) = order(:)
+      IF (PRESENT(i_selected)) THEN
+         ndata = SIZE(i_selected)
+         o(1:ndata) = i_selected(:)
       ELSE
+         ndata = number_of_arrays(list)
          o(1:ndata) = (/(i, i=1, ndata)/)
       ENDIF
 
@@ -151,6 +162,25 @@ CONTAINS
       END ASSOCIATE
 
    END SUBROUTINE get_arrays
+
+! **************************************************************************************************
+!> \brief get ith array
+!> \param list ...
+!> \param i ...
+!> \param array ...
+! **************************************************************************************************
+   SUBROUTINE get_ith_array(list, i, array)
+      TYPE(array_list), INTENT(IN)                    :: list
+      INTEGER, INTENT(IN)                             :: i
+      INTEGER, DIMENSION(:), ALLOCATABLE, INTENT(OUT) :: array
+
+      ASSOCIATE(ptr=>list%ptr, col_data=>list%col_data)
+      CPASSERT(i <= number_of_arrays(list))
+
+      ALLOCATE(array(ptr(i+1) - ptr(i)))
+      array(:) = col_data(ptr(i):ptr(i+1)-1)
+      END ASSOCIATE
+   END SUBROUTINE
 
 ! **************************************************************************************************
 !> \brief sizes of arrays stored in list
@@ -226,9 +256,13 @@ CONTAINS
       INTEGER, DIMENSION(number_of_arrays(list_in)), &
          INTENT(IN)                                    :: order
 
-      CALL get_arrays(list_in, ${varlist("data")}$, order=order)
-      CALL create_array_list(list_out, number_of_arrays(list_in), &
-                             ${varlist("data")}$)
+#:for ndim in ndims
+      IF (number_of_arrays(list_in) == ${ndim}$) THEN
+         CALL get_arrays(list_in, ${varlist("data", nmax=ndim)}$, i_selected=dbcsr_t_inverse_order(order))
+         CALL create_array_list(list_out, number_of_arrays(list_in), &
+                                ${varlist("data", nmax=ndim)}$)
+      ENDIF
+#:endfor
 
    END SUBROUTINE
 

@@ -14,13 +14,34 @@ MODULE dbcsr_tensor_block
 #:set ndims = range(2,maxdim+1)
 
    USE allocate_wrap,                   ONLY: allocate_any
-   USE dbcsr_api,                       ONLY: ${uselist(dtype_float_param)}$
+   USE dbcsr_api,                       ONLY: ${uselist(dtype_float_param)}$,&
+                                              dbcsr_iterator_type, &
+                                              dbcsr_iterator_blocks_left,&
+                                              dbcsr_iterator_next_block, &
+                                              dbcsr_iterator_start,&
+                                              dbcsr_iterator_stop, &
+                                              dbcsr_get_block_p, &
+                                              dbcsr_put_block,&
+                                              dbcsr_reserve_blocks,&
+                                              dbcsr_type
    USE kinds,                           ONLY: ${uselist(dtype_float_prec)}$
-   USE message_passing,                 ONLY: mp_environ,&
-                                              mp_irecv,&
-                                              mp_isend,&
-                                              mp_waitall
-   USE dbcsr_tensor_index,              ONLY: nd_to_2d_mapping, ndims_mapping
+   USE dbcsr_tensor_index,              ONLY: nd_to_2d_mapping, &
+                                              ndims_mapping, &
+                                              get_nd_indices, &
+                                              destroy_nd_to_2d_mapping,&
+                                              get_2d_indices, &
+                                              get_mapping_info,&
+                                              create_nd_to_2d_mapping
+   USE array_list_methods,              ONLY: array_list, &
+                                              get_array_elements, &
+                                              destroy_array_list, &
+                                              sizes_of_arrays, &
+                                              create_array_list, &
+                                              get_arrays
+   USE dbcsr_tensor_types,              ONLY: dbcsr_t_type,&
+                                              ndims_tensor,&
+                                              dbcsr_t_get_data_type,&
+                                              dbcsr_t_blk_sizes
 #include "../base/base_uses.f90"
 
    IMPLICIT NONE
@@ -28,22 +49,28 @@ MODULE dbcsr_tensor_block
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'dbcsr_tensor_block'
 
    PUBLIC :: &
-      block_buffer_add_anyd_block, &
-      block_buffer_add_block, &
-      block_buffer_blocks_left, &
-      block_buffer_create, &
-      block_buffer_destroy, &
-      block_buffer_get_next_anyd_block, &
-      block_buffer_iterator_reset, &
-      block_buffer_type, &
       block_nd, &
-      block_size, &
-      communicate_buffer, &
       create_block, &
-      ndims_buffer, &
+      dbcsr_t_get_block, &
+      dbcsr_t_iterator_blocks_left, &
+      dbcsr_t_iterator_next_block, &
+      dbcsr_t_iterator_start, &
+      dbcsr_t_iterator_stop, &
+      dbcsr_t_iterator_type, &
+      dbcsr_t_put_block, &
+      dbcsr_t_reserve_blocks,&
       destroy_block, &
+      ndims_iterator,&
       reshape_2d_to_nd_block, &
       reshape_nd_to_2d_block
+
+   TYPE dbcsr_t_iterator_type
+      TYPE(dbcsr_iterator_type)   :: iter
+      TYPE(nd_to_2d_mapping)      :: nd_index_blk
+      TYPE(nd_to_2d_mapping)      :: nd_index
+      TYPE(array_list)            :: blk_sizes, blk_offsets
+   END TYPE dbcsr_t_iterator_type
+
 
 #:for dparam, dtype, dsuffix in dtype_float_list
    PUBLIC :: block_nd_${dsuffix}$
@@ -64,16 +91,6 @@ MODULE dbcsr_tensor_block
       INTEGER          :: data_type = -1
    END TYPE
 
-   TYPE block_buffer_type
-      INTEGER                                    :: ndim = -1
-      INTEGER                                    :: nblock = -1
-      INTEGER, DIMENSION(:, :), ALLOCATABLE      :: indx
-#:for dparam, dtype, dsuffix in dtype_float_list
-      ${dtype}$, DIMENSION(:), ALLOCATABLE       :: msg_${dsuffix}$
-#:endfor
-      INTEGER                                    :: data_type = -1
-      INTEGER                                    :: endpos = -1
-   END TYPE
 
    INTERFACE create_block
 #:for dparam, dtype, dsuffix in dtype_float_list
@@ -82,11 +99,6 @@ MODULE dbcsr_tensor_block
       MODULE PROCEDURE create_block_nodata
    END INTERFACE
 
-   INTERFACE block_buffer_add_block
-#:for dparam, dtype, dsuffix in dtype_float_list
-      MODULE PROCEDURE block_buffer_add_block_${dsuffix}$
-#:endfor
-   END INTERFACE
 
    INTERFACE reshape_nd_to_2d_block
 #:for dparam, dtype, dsuffix in dtype_float_list
@@ -104,10 +116,36 @@ MODULE dbcsr_tensor_block
 #:endfor
    END INTERFACE reshape_2d_to_nd_block
 
+   INTERFACE dbcsr_t_put_block
+#:for dparam, dtype, dsuffix in dtype_float_list
+#:for ndim in ndims
+      MODULE PROCEDURE dbcsr_t_put_${ndim}$d_block_${dsuffix}$
+#:endfor
+#:endfor
+      MODULE PROCEDURE dbcsr_t_put_anyd_block
+   END INTERFACE
+
+   INTERFACE dbcsr_t_get_block
+#:for dparam, dtype, dsuffix in dtype_float_list
+#:for ndim in ndims
+      MODULE PROCEDURE dbcsr_t_get_${ndim}$d_block_${dsuffix}$
+#:endfor
+#:endfor
+      MODULE PROCEDURE dbcsr_t_get_anyd_block
+   END INTERFACE
+
+   INTERFACE dbcsr_t_reserve_blocks
+      MODULE PROCEDURE dbcsr_t_reserve_blocks_index
+      MODULE PROCEDURE dbcsr_t_reserve_blocks_index_list
+      MODULE PROCEDURE dbcsr_t_reserve_blocks_index_array
+      MODULE PROCEDURE dbcsr_t_reserve_blocks_template
+      MODULE PROCEDURE dbcsr_t_reserve_blocks_matrix
+   END INTERFACE
+
 CONTAINS
 
 ! **************************************************************************************************
-!> \brief ...
+!> \brief Create block without data
 !> \param block ...
 !> \param sizes ...
 !> \param data_type ...
@@ -127,7 +165,7 @@ CONTAINS
    END SUBROUTINE
 
 ! **************************************************************************************************
-!> \brief ...
+!> \brief Destroy block
 !> \param block ...
 ! **************************************************************************************************
    SUBROUTINE destroy_block(block)
@@ -143,7 +181,7 @@ CONTAINS
    END SUBROUTINE
 
 ! **************************************************************************************************
-!> \brief ...
+!> \brief block size
 !> \param block ...
 !> \retval blk_size ...
 ! **************************************************************************************************
@@ -160,203 +198,260 @@ CONTAINS
    END FUNCTION
 
 ! **************************************************************************************************
-!> \brief Create block buffer for MPI communication.
-!> \param buffer block buffer
-!> \param nblock number of blocks
-!> \param ndata total number of block entries
-!> \param data_type ...
-!> \param ndim number of dimensions
+!> \brief Generalization of dbcsr_iterator_start for tensors.
+!> \param iterator ...
+!> \param tensor ...
 ! **************************************************************************************************
-   SUBROUTINE block_buffer_create(buffer, nblock, ndata, data_type, ndim)
-      TYPE(block_buffer_type), INTENT(OUT) :: buffer
-      INTEGER, INTENT(IN)                  :: nblock, ndata, data_type, ndim
+   SUBROUTINE dbcsr_t_iterator_start(iterator, tensor)
+      TYPE(dbcsr_t_iterator_type), INTENT(OUT)           :: iterator
+      TYPE(dbcsr_t_type), INTENT(IN)                     :: tensor
 
-      buffer%nblock = nblock
-      buffer%data_type = data_type
-      buffer%endpos = 0
-      buffer%ndim = ndim
-      SELECT CASE (data_type)
-#:for dparam, dtype, dsuffix in dtype_float_list
-      CASE (${dparam}$)
-         ALLOCATE (buffer%msg_${dsuffix}$(ndata))
-#:endfor
-      END SELECT
-      ALLOCATE (buffer%indx(nblock, ndim+1))
-   END SUBROUTINE block_buffer_create
+      CPASSERT(tensor%valid)
+
+      CALL dbcsr_iterator_start(iterator%iter, tensor%matrix_rep)
+      iterator%nd_index_blk = tensor%nd_index_blk
+      iterator%nd_index = tensor%nd_index
+      iterator%blk_sizes = tensor%blk_sizes
+      iterator%blk_offsets = tensor%blk_offsets
+   END SUBROUTINE
 
 ! **************************************************************************************************
-!> \brief ...
-!> \param buffer ...
+!> \brief Generalization of dbcsr_iterator_stop for tensors.
+!> \param iterator ...
 ! **************************************************************************************************
-   SUBROUTINE block_buffer_destroy(buffer)
-      TYPE(block_buffer_type), INTENT(INOUT) :: buffer
+   SUBROUTINE dbcsr_t_iterator_stop(iterator)
+      TYPE(dbcsr_t_iterator_type), INTENT(INOUT) :: iterator
 
-      SELECT CASE (buffer%data_type)
-#:for dparam, dtype, dsuffix in dtype_float_list
-      CASE (${dparam}$)
-         DEALLOCATE (buffer%msg_${dsuffix}$)
-#:endfor
-      END SELECT
-      DEALLOCATE (buffer%indx)
-      buffer%nblock = -1
-      buffer%data_type = -1
-      buffer%ndim = -1
-      buffer%endpos = -1
-   END SUBROUTINE block_buffer_destroy
+      CALL dbcsr_iterator_stop(iterator%iter)
+      CALL destroy_nd_to_2d_mapping(iterator%nd_index)
+      CALL destroy_nd_to_2d_mapping(iterator%nd_index_blk)
+      CALL destroy_array_list(iterator%blk_sizes)
+      CALL destroy_array_list(iterator%blk_offsets)
+   END SUBROUTINE
 
 ! **************************************************************************************************
-!> \brief ...
-!> \param buffer ...
-!> \retval ndims_buffer ...
+!> \brief Number of dimensions.
+!> \param iterator ...
+!> \retval ndims_iterator ...
+!> \par Note: specification function below must be defined before it is used in
+!>      the source due to a bug in the IBM XL Fortran compiler (compilation fails)
 ! **************************************************************************************************
-   PURE FUNCTION ndims_buffer(buffer)
-      TYPE(block_buffer_type), INTENT(IN) :: buffer
-      INTEGER                             :: ndims_buffer
+   PURE FUNCTION ndims_iterator(iterator)
+      TYPE(dbcsr_t_iterator_type), INTENT(IN) :: iterator
+      INTEGER                                 :: ndims_iterator
 
-      ndims_buffer = buffer%ndim
+      ndims_iterator = iterator%nd_index%ndim_nd
    END FUNCTION
 
 ! **************************************************************************************************
-!> \brief insert a block into block buffer (at current iterator position)
-!> \param buffer ...
-!> \param index index of block
-!> \param block block
+!> \brief iterate over nd blocks of an nd rank tensor, index only (blocks must be retrieved by calling
+!>        dbcsr_t_get_block on tensor).
+!> \param iterator ...
+!> \param ind_nd nd index of block
+!> \param blk is this needed?
+!> \param blk_p is this needed?
+!> \param blk_size blk size in each dimension
+!> \param blk_offset blk offset in each dimension
 ! **************************************************************************************************
-   SUBROUTINE block_buffer_add_anyd_block(buffer, index, block)
-      TYPE(block_buffer_type), INTENT(INOUT)      :: buffer
-      INTEGER, DIMENSION(ndims_buffer(buffer)), &
-         INTENT(IN)                               :: index
-      TYPE(block_nd), INTENT(IN)                  :: block
+   SUBROUTINE dbcsr_t_iterator_next_block(iterator, ind_nd, blk, blk_p, blk_size, blk_offset)
+      TYPE(dbcsr_t_iterator_type), INTENT(INOUT)     :: iterator
+      INTEGER, DIMENSION(ndims_iterator(iterator)), &
+         INTENT(OUT)                                 :: ind_nd
+      INTEGER, INTENT(OUT)                           :: blk
+      INTEGER, INTENT(OUT), OPTIONAL                 :: blk_p
+      INTEGER, DIMENSION(ndims_iterator(iterator)), &
+         INTENT(OUT), OPTIONAL                       :: blk_size, blk_offset
 
-      SELECT CASE (block%data_type)
-#:for dparam, dtype, dsuffix in dtype_float_list
-      CASE (${dparam}$)
-         CALL block_buffer_add_block_${dsuffix}$(buffer, SIZE(block%${dsuffix}$%blk), index, block%${dsuffix}$%blk)
-#:endfor
-      END SELECT
+      INTEGER, DIMENSION(2)                          :: ind_2d
+
+      CALL dbcsr_iterator_next_block(iterator%iter, ind_2d(1), ind_2d(2), blk, blk_p=blk_p)
+
+      ind_nd(:) = get_nd_indices(iterator%nd_index_blk, ind_2d)
+      IF (PRESENT(blk_size)) blk_size(:) = get_array_elements(iterator%blk_sizes, ind_nd)
+      ! note: blk_offset needs to be determined by tensor metadata, can not be derived from 2d row/col
+      ! offset since block index mapping is not consistent with element index mapping
+      IF (PRESENT(blk_offset)) blk_offset(:) = get_array_elements(iterator%blk_offsets, ind_nd)
    END SUBROUTINE
 
 ! **************************************************************************************************
-!> \brief ...
-!> \param buffer ...
-!> \param ndata ...
-!> \param index ...
-!> \param block ...
-!> \param advance_iter ...
+!> \brief Generalization of dbcsr_iterator_blocks_left for tensors.
+!> \param iterator ...
+!> \retval dbcsr_t_iterator_blocks_left ...
 ! **************************************************************************************************
-   SUBROUTINE block_buffer_get_next_anyd_block(buffer, ndata, index, block, advance_iter)
-      TYPE(block_buffer_type), INTENT(INOUT)      :: buffer
-      INTEGER, INTENT(OUT)                        :: ndata
-      INTEGER, DIMENSION(ndims_buffer(buffer)), &
-         INTENT(OUT)                              :: index
-      TYPE(block_nd), INTENT(INOUT), OPTIONAL     :: block
-      LOGICAL, INTENT(IN), OPTIONAL               :: advance_iter
+   FUNCTION dbcsr_t_iterator_blocks_left(iterator)
+      TYPE(dbcsr_t_iterator_type), INTENT(IN) :: iterator
+      LOGICAL                                 :: dbcsr_t_iterator_blocks_left
 
-      SELECT CASE (buffer%data_type)
-#:for dparam, dtype, dsuffix in dtype_float_list
-      CASE (${dparam}$)
-         IF (PRESENT(block)) THEN
-            CALL block_buffer_get_next_block_${dsuffix}$(buffer, ndata, index, block%${dsuffix}$%blk, advance_iter=advance_iter)
-         ELSE
-            CALL block_buffer_get_next_block_${dsuffix}$(buffer, ndata, index, advance_iter=advance_iter)
-         ENDIF
-#:endfor
-      END SELECT
-   END SUBROUTINE
-
-! **************************************************************************************************
-!> \brief ...
-!> \param buffer ...
-! **************************************************************************************************
-   SUBROUTINE block_buffer_iterator_reset(buffer)
-      TYPE(block_buffer_type), INTENT(INOUT) :: buffer
-
-      buffer%endpos = 0
-   END SUBROUTINE
-
-! **************************************************************************************************
-!> \brief ...
-!> \param buffer ...
-!> \retval block_buffer_blocks_left ...
-! **************************************************************************************************
-   PURE FUNCTION block_buffer_blocks_left(buffer)
-      TYPE(block_buffer_type), INTENT(IN) :: buffer
-      LOGICAL                             :: block_buffer_blocks_left
-
-      block_buffer_blocks_left = buffer%endpos .LT. buffer%nblock
+      dbcsr_t_iterator_blocks_left = dbcsr_iterator_blocks_left(iterator%iter)
    END FUNCTION
 
-! **************************************************************************************************
-!> \brief ...
-!> \param mp_comm ...
-!> \param buffer_recv ...
-!> \param buffer_send ...
-!> \param req_array ...
-! **************************************************************************************************
-   SUBROUTINE communicate_buffer(mp_comm, buffer_recv, buffer_send, req_array)
-      INTEGER, INTENT(IN)                    :: mp_comm
-      TYPE(block_buffer_type), DIMENSION(0:) :: buffer_recv, buffer_send
-      INTEGER, DIMENSION(:, :)               :: req_array
+   SUBROUTINE dbcsr_t_reserve_blocks_index_list(tensor, blk_ind)
+      TYPE(dbcsr_t_type), INTENT(INOUT)  :: tensor
+      TYPE(array_list), INTENT(IN)       :: blk_ind
+      INTEGER, DIMENSION(:), ALLOCATABLE :: ${varlist("blk_ind")}$
 
-      INTEGER                                :: iproc, mynode, numnodes, rec_counter, &
-                                                send_counter
-
-      CALL mp_environ(numnodes, mynode, mp_comm)
-
-      IF (numnodes > 1) THEN
-
-         send_counter = 0
-         rec_counter = 0
-
-         DO iproc = 0, numnodes-1
-            IF (buffer_recv(iproc)%nblock > 0) THEN
-               rec_counter = rec_counter+1
-               CALL mp_irecv(buffer_recv(iproc)%indx, iproc, mp_comm, req_array(rec_counter, 3), tag=4)
-            END IF
-            IF (buffer_recv(iproc)%nblock > 0) THEN
-               SELECT CASE (buffer_recv (iproc)%data_type)
-#:for dparam, dtype, dsuffix in dtype_float_list
-               CASE (${dparam}$)
-                  CALL mp_irecv(buffer_recv(iproc)%msg_${dsuffix}$, iproc, mp_comm, req_array(rec_counter, 4), tag=7)
-#:endfor
-               END SELECT
-            END IF
-         END DO
-
-         DO iproc = 0, numnodes-1
-            IF (buffer_send(iproc)%nblock > 0) THEN
-               send_counter = send_counter+1
-               CALL mp_isend(buffer_send(iproc)%indx, iproc, mp_comm, req_array(send_counter, 1), tag=4)
-            END IF
-            IF (buffer_send(iproc)%nblock > 0) THEN
-               SELECT CASE (buffer_recv (iproc)%data_type)
-#:for dparam, dtype, dsuffix in dtype_float_list
-               CASE (${dparam}$)
-                  CALL mp_isend(buffer_send(iproc)%msg_${dsuffix}$, iproc, mp_comm, req_array(send_counter, 2), tag=7)
-#:endfor
-               END SELECT
-            END IF
-         END DO
-
-         IF (send_counter > 0) THEN
-            CALL mp_waitall(req_array(1:send_counter, 1:2))
-         ENDIF
-         IF (rec_counter > 0) THEN
-            CALL mp_waitall(req_array(1:rec_counter, 3:4))
-         ENDIF
-
-      ELSE
-         IF (buffer_recv(0)%nblock > 0) THEN
-            buffer_recv(0)%indx(:, :) = buffer_send(0)%indx(:, :)
-            SELECT CASE (buffer_recv (0)%data_type)
-#:for dparam, dtype, dsuffix in dtype_float_list
-            CASE (${dparam}$)
-               buffer_recv(0)%msg_${dsuffix}$(:) = buffer_send(0)%msg_${dsuffix}$(:)
-#:endfor
-            END SELECT
-         ENDIF
+#:for ndim in ndims
+      IF (ndims_tensor(tensor) == ${ndim}$) THEN
+         CALL get_arrays(blk_ind, ${varlist("blk_ind", nmax=ndim)}$)
+         CALL dbcsr_t_reserve_blocks(tensor, ${varlist("blk_ind", nmax=ndim)}$)
       ENDIF
+#:endfor
+   END SUBROUTINE
 
+   SUBROUTINE dbcsr_t_reserve_blocks_index_array(tensor, blk_ind)
+      TYPE(dbcsr_t_type), INTENT(INOUT)  :: tensor
+      INTEGER, DIMENSION(:,:), INTENT(IN) :: blk_ind
+
+#:for ndim in ndims
+      IF (ndims_tensor(tensor) == ${ndim}$) THEN
+         CALL dbcsr_t_reserve_blocks(tensor, ${arrlist("blk_ind", nmax=ndim, ndim_pre=1)}$)
+      ENDIF
+#:endfor
+   END SUBROUTINE
+
+! **************************************************************************************************
+!> \brief reserve tensor blocks using block indices
+!> \param tensor ...
+!> \param blk_ind_1 index of blocks to reserve in each dimension
+!> \param blk_ind_2 ...
+!> \param blk_ind_3 ...
+! **************************************************************************************************
+   SUBROUTINE dbcsr_t_reserve_blocks_index(tensor, ${varlist("blk_ind")}$)
+      TYPE(dbcsr_t_type), INTENT(INOUT)           :: tensor
+      INTEGER, DIMENSION(:), INTENT(IN), OPTIONAL :: ${varlist("blk_ind")}$
+      INTEGER                                     :: iblk, nblk
+      INTEGER, ALLOCATABLE, DIMENSION(:)          :: cols, rows
+      INTEGER, DIMENSION(2)                       :: ind_2d
+      TYPE(array_list)                            :: blks
+      INTEGER, DIMENSION(ndims_tensor(tensor))   :: iblk_nd, ind_nd, nblk_tmp
+
+      CPASSERT(tensor%valid)
+
+      CALL create_array_list(blks, ndims_tensor(tensor), &
+                             ${varlist("blk_ind")}$)
+
+      nblk_tmp(:) = sizes_of_arrays(blks)
+      nblk = nblk_tmp(1)
+      ALLOCATE (cols(nblk), rows(nblk))
+      DO iblk = 1, nblk
+         iblk_nd(:) = iblk
+         ind_nd(:) = get_array_elements(blks, iblk_nd)
+         ind_2d(:) = get_2d_indices(tensor%nd_index_blk, ind_nd)
+         rows(iblk) = ind_2d(1); cols(iblk) = ind_2d(2)
+      ENDDO
+
+      CALL dbcsr_reserve_blocks(tensor%matrix_rep, rows=rows, cols=cols)
+   END SUBROUTINE
+
+! **************************************************************************************************
+!> \brief reserve tensor blocks using template
+!> \param tensor_in template tensor
+!> \param tensor_out ...
+! **************************************************************************************************
+   SUBROUTINE dbcsr_t_reserve_blocks_template(tensor_in, tensor_out)
+      TYPE(dbcsr_t_type), INTENT(IN)    :: tensor_in
+      TYPE(dbcsr_t_type), INTENT(INOUT) :: tensor_out
+
+      TYPE(array_list)                  :: blk_ind
+
+      CALL dbcsr_t_reserved_block_indices(tensor_in, blk_ind)
+      CALL dbcsr_t_reserve_blocks(tensor_out, blk_ind)
+   END SUBROUTINE
+
+! **************************************************************************************************
+!> \brief reserve tensor blocks using matrix template
+!> \param matrix_in ...
+!> \param tensor_out ...
+! **************************************************************************************************
+   SUBROUTINE dbcsr_t_reserve_blocks_matrix(matrix_in, tensor_out)
+      TYPE(dbcsr_type), INTENT(IN)        :: matrix_in
+      TYPE(dbcsr_t_type), INTENT(INOUT)  :: tensor_out
+
+      INTEGER                            :: blk, iblk, nblk
+      INTEGER, ALLOCATABLE, DIMENSION(:) :: blk_ind_1, blk_ind_2
+      INTEGER, DIMENSION(2)              :: ind_2d
+      TYPE(dbcsr_iterator_type)          :: iter
+
+      nblk = 0
+      CALL dbcsr_iterator_start(iter, matrix_in)
+      DO WHILE (dbcsr_iterator_blocks_left(iter))
+         CALL dbcsr_iterator_next_block(iter, ind_2d(1), ind_2d(2), blk)
+         nblk = nblk + 1
+      ENDDO
+      CALL dbcsr_iterator_stop(iter)
+
+      ALLOCATE (blk_ind_1(nblk), blk_ind_2(nblk))
+      CALL dbcsr_iterator_start(iter, matrix_in)
+      DO iblk = 1, nblk
+         CALL dbcsr_iterator_next_block(iter, ind_2d(1), ind_2d(2), blk)
+         blk_ind_1(iblk) = ind_2d(1); blk_ind_2(iblk) = ind_2d(2)
+      ENDDO
+      CALL dbcsr_iterator_stop(iter)
+
+      CALL dbcsr_t_reserve_blocks(tensor_out, blk_ind_1, blk_ind_2)
+   END SUBROUTINE
+
+! **************************************************************************************************
+!> \brief Number of non-zero blocks
+!> \param tensor ...
+!> \retval nblocks_reserved ...
+! **************************************************************************************************
+   FUNCTION nblocks_reserved(tensor)
+      TYPE(dbcsr_t_type), INTENT(IN)            :: tensor
+      INTEGER                                   :: nblocks_reserved
+
+      INTEGER                                   :: blk, blk_p
+      TYPE(dbcsr_t_iterator_type)               :: iterator
+      INTEGER, DIMENSION(ndims_tensor(tensor)) :: blk_offset, blk_size, ind_nd
+
+      CPASSERT(tensor%valid)
+
+      CALL dbcsr_t_iterator_start(iterator, tensor)
+      nblocks_reserved = 0
+      DO WHILE (dbcsr_t_iterator_blocks_left(iterator))
+         CALL dbcsr_t_iterator_next_block(iterator, ind_nd, blk, blk_p, blk_size, blk_offset)
+         nblocks_reserved = nblocks_reserved + 1
+      ENDDO
+      CALL dbcsr_t_iterator_stop(iterator)
+   END FUNCTION
+
+! **************************************************************************************************
+!> \brief indices of non-zero blocks
+!> \param tensor ...
+!> \param blk_ind_1 ...
+!> \param blk_ind_2 ...
+!> \param blk_ind_3 ...
+! **************************************************************************************************
+   SUBROUTINE dbcsr_t_reserved_block_indices(tensor, blk_ind)
+      TYPE(dbcsr_t_type), INTENT(IN)            :: tensor
+      INTEGER, ALLOCATABLE, DIMENSION(:)        :: ${varlist("blk_ind")}$
+      INTEGER                                   :: blk, iblk, nblk
+      TYPE(dbcsr_t_iterator_type)               :: iterator
+      INTEGER, DIMENSION(ndims_tensor(tensor)) :: ind_nd
+      TYPE(array_list), INTENT(OUT)             :: blk_ind
+
+      CPASSERT(tensor%valid)
+
+      nblk = nblocks_reserved(tensor)
+
+#:for dim in range(1, maxdim+1)
+      IF (ndims_tensor(tensor) >= ${dim}$) ALLOCATE (blk_ind_${dim}$(nblk))
+#:endfor
+
+      CALL dbcsr_t_iterator_start(iterator, tensor)
+      DO iblk = 1, nblk
+         CALL dbcsr_t_iterator_next_block(iterator, ind_nd, blk)
+#:for dim in range(1, maxdim+1)
+         IF (ndims_tensor(tensor) >= ${dim}$) blk_ind_${dim}$(iblk) = ind_nd(${dim}$)
+#:endfor
+      ENDDO
+      CALL dbcsr_t_iterator_stop(iterator)
+
+#:for ndim in ndims
+      IF (ndims_tensor(tensor) == ${ndim}$) THEN
+         CALL create_array_list(blk_ind, ndims_tensor(tensor), ${varlist("blk_ind", nmax=ndim)}$)
+      ENDIF
+#:endfor
    END SUBROUTINE
 
 #:for dparam, dtype, dsuffix in dtype_float_list
@@ -401,92 +496,176 @@ CONTAINS
 !> \brief ...
 !> \param block ...
 ! **************************************************************************************************
-   SUBROUTINE destroy_block_${dsuffix}$ (block)
+   SUBROUTINE destroy_block_${dsuffix}$(block)
       TYPE(block_nd_${dsuffix}$), INTENT(INOUT) :: block
       DEALLOCATE(block%blk)
       DEALLOCATE(block%sizes)
    END SUBROUTINE
 #:endfor
 
+! **************************************************************************************************
+!> \brief Generic implementation of dbcsr_t_get_block (arbitrary tensor rank and arbitrary datatype)
+!> \param tensor ...
+!> \param ind block index
+!> \param block block to get
+! **************************************************************************************************
+   SUBROUTINE dbcsr_t_get_anyd_block(tensor, ind, block)
+      TYPE(dbcsr_t_type), INTENT(INOUT)            :: tensor
+      INTEGER, DIMENSION(ndims_tensor(tensor)), &
+         INTENT(IN)                                :: ind
+      TYPE(block_nd), INTENT(OUT)                  :: block
+
+      SELECT CASE (dbcsr_t_get_data_type(tensor))
+#:for dparam, dtype, dsuffix in dtype_float_list
+      CASE (${dparam}$)
+         CALL dbcsr_t_get_anyd_block_${dsuffix}$(tensor, ind, block)
+#:endfor
+      END SELECT
+   END SUBROUTINE
+
+! **************************************************************************************************
+!> \brief Generic implementation of dbcsr_t_put_block (arbitrary tensor rank and arbitrary datatype)
+!> \param tensor ...
+!> \param ind block index
+!> \param block block to put
+! **************************************************************************************************
+   SUBROUTINE dbcsr_t_put_anyd_block(tensor, ind, block)
+      TYPE(dbcsr_t_type), INTENT(INOUT)            :: tensor
+      INTEGER, DIMENSION(ndims_tensor(tensor)), &
+         INTENT(IN)                                :: ind
+      TYPE(block_nd), INTENT(IN)                   :: block
+
+      SELECT CASE (block%data_type)
+#:for dparam, dtype, dsuffix in dtype_float_list
+      CASE (${dparam}$)
+         CALL dbcsr_t_put_anyd_block_${dsuffix}$(tensor, ind, block%${dsuffix}$)
+#:endfor
+      END SELECT
+   END SUBROUTINE
+
 #:for dparam, dtype, dsuffix in dtype_float_list
 ! **************************************************************************************************
-!> \brief add block to buffer.
-!> \param buffer ...
-!> \param ndata ...
-!> \param index ...
-!> \param block ...
+!> \brief Generic implementation of dbcsr_t_put_block, template for datatype
+!> \param tensor ...
+!> \param ind block index
+!> \param block block to put
 ! **************************************************************************************************
-   SUBROUTINE block_buffer_add_block_${dsuffix}$(buffer, ndata, index, block)
-      TYPE(block_buffer_type), INTENT(INOUT)               :: buffer
-      INTEGER, INTENT(IN)                                  :: ndata
-      ${dtype}$, DIMENSION(ndata), INTENT(IN)              :: block
-      INTEGER, DIMENSION(ndims_buffer(buffer)), INTENT(IN) :: index
-      INTEGER                                              :: p, ndims, p_data
-      CPASSERT(buffer%data_type .EQ. ${dparam}$)
-      ndims = ndims_buffer(buffer)
-      p = buffer%endpos
-      IF (p .EQ. 0) THEN
-         p_data = 0
-      ELSE
-         p_data = buffer%indx(p, ndims+1)
-      ENDIF
+   SUBROUTINE dbcsr_t_put_anyd_block_${dsuffix}$(tensor, ind, block)
+      TYPE(block_nd_${dsuffix}$), INTENT(IN)       :: block
+      TYPE(dbcsr_t_type), INTENT(INOUT)            :: tensor
+      INTEGER, DIMENSION(ndims_tensor(tensor)), &
+         INTENT(IN)                                :: ind
 
-      buffer%msg_${dsuffix}$(p_data+1:p_data+ndata) = block(:)
-      buffer%indx(p+1, 1:ndims) = index(:)
-      IF (p > 0) THEN
-         buffer%indx(p+1,ndims+1) = buffer%indx(p,ndims+1)+ndata
-      ELSE
-         buffer%indx(p+1, ndims+1) = ndata
-      ENDIF
-      buffer%endpos = buffer%endpos+1
+      SELECT CASE(ndims_tensor(tensor))
+#:for ndim in ndims
+      CASE(${ndim}$)
+         CALL dbcsr_t_put_${ndim}$d_block_${dsuffix}$(tensor, ind, block%sizes, block%blk)
+#:endfor
+      END SELECT
    END SUBROUTINE
 #:endfor
 
 #:for dparam, dtype, dsuffix in dtype_float_list
 ! **************************************************************************************************
-!> \brief get next block from buffer. Iterator is advanced only if block is retrieved or advance_iter.
-!> \param buffer ...
-!> \param ndata ...
-!> \param index ...
-!> \param block ...
+!> \brief Generic implementation of dbcsr_t_get_block (arbitrary tensor rank)
+!> \param tensor ...
+!> \param ind block index
+!> \param block block to get
 ! **************************************************************************************************
-   SUBROUTINE block_buffer_get_next_block_${dsuffix}$(buffer, ndata, index, block, advance_iter)
-      TYPE(block_buffer_type), INTENT(INOUT)                      :: buffer
-      INTEGER, INTENT(OUT)                                        :: ndata
-      ${dtype}$, DIMENSION(:), ALLOCATABLE, OPTIONAL, INTENT(OUT) :: block
-      INTEGER, DIMENSION(ndims_buffer(buffer)), INTENT(OUT)       :: index
-      INTEGER                                                     :: p, ndims, p_data
-      LOGICAL, INTENT(IN), OPTIONAL                               :: advance_iter
-      LOGICAL                                                     :: do_advance
+   SUBROUTINE dbcsr_t_get_anyd_block_${dsuffix}$(tensor, ind, block)
+      TYPE(block_nd), INTENT(OUT)                  :: block
+      TYPE(dbcsr_t_type), INTENT(INOUT)            :: tensor
+      INTEGER, DIMENSION(ndims_tensor(tensor)), &
+         INTENT(IN)                                :: ind
+      INTEGER, DIMENSION(ndims_tensor(tensor))    :: blk_size
+      ${dtype}$, DIMENSION(:), ALLOCATABLE         :: block_arr
 
-      do_advance = .FALSE.
-      IF (PRESENT(advance_iter)) THEN
-         do_advance = advance_iter
-      ELSE IF (PRESENT(block)) THEN
-         do_advance = .TRUE.
-      ENDIF
+      CALL dbcsr_t_blk_sizes(tensor, ind, blk_size)
+      ALLOCATE(block_arr(PRODUCT(blk_size)))
 
-      CPASSERT(buffer%data_type .EQ. ${dparam}$)
-      ndims = ndims_buffer(buffer)
-      p = buffer%endpos
-      IF (p .EQ. 0) THEN
-         p_data = 0
-      ELSE
-         p_data = buffer%indx(p, ndims+1)
-      ENDIF
-      IF (p > 0) THEN
-         ndata = buffer%indx(p+1, ndims+1)-buffer%indx(p, ndims+1)
-      ELSE
-         ndata = buffer%indx(p+1, ndims+1)
-      ENDIF
-      index(:) = buffer%indx(p+1,1:ndims)
-      IF (PRESENT(block)) THEN
-         ALLOCATE (block(ndata))
-         block(:) = buffer%msg_${dsuffix}$(p_data+1:p_data+ndata)
-      ENDIF
-
-      IF(do_advance) buffer%endpos = buffer%endpos+1
+      SELECT CASE(ndims_tensor(tensor))
+#:for ndim in ndims
+      CASE(${ndim}$)
+         CALL dbcsr_t_get_${ndim}$d_block_${dsuffix}$(tensor, ind, blk_size, block_arr)
+#:endfor
+      END SELECT
+      CALL create_block(block, blk_size, block_arr)
    END SUBROUTINE
+#:endfor
+
+#:for dparam, dtype, dsuffix in dtype_float_list
+#:for ndim in ndims
+! **************************************************************************************************
+!> \brief Template for dbcsr_t_put_block.
+!> \param tensor ...
+!> \param ind block index
+!> \param sizes block size
+!> \param block block to put
+! **************************************************************************************************
+   SUBROUTINE dbcsr_t_put_${ndim}$d_block_${dsuffix}$(tensor, ind, sizes, block)
+      TYPE(dbcsr_t_type), INTENT(INOUT)                     :: tensor
+      INTEGER, DIMENSION(ndims_tensor(tensor)), INTENT(IN) :: ind
+      INTEGER, DIMENSION(ndims_tensor(tensor)), INTENT(IN) :: sizes
+      ${dtype}$, DIMENSION(${arrlist("sizes", nmax=ndim)}$), &
+         INTENT(IN)                                         :: block
+
+      INTEGER, ALLOCATABLE, DIMENSION(:)                    :: map1_2d, map2_2d
+      INTEGER, DIMENSION(2)                                 :: ind_2d, dims_2d
+      ${dtype}$, ALLOCATABLE, DIMENSION(:, :)               :: block_2d
+      TYPE(nd_to_2d_mapping)                                :: map_blk
+
+      ! reshape block
+      CALL get_mapping_info(tensor%nd_index_blk, map1_2d=map1_2d, map2_2d=map2_2d)
+      CALL create_nd_to_2d_mapping(map_blk, sizes, map1_2d, map2_2d)
+      CALL get_mapping_info(map_blk, dims_2d=dims_2d)
+      CALL allocate_any(dims_2d, block_2d)
+      CALL reshape_nd_to_2d_block(map_blk, block, block_2d)
+
+      ! convert block index
+      ind_2d(:) = get_2d_indices(tensor%nd_index_blk, ind)
+
+      CALL dbcsr_put_block(tensor%matrix_rep, ind_2d(1), ind_2d(2), block_2d)
+   END SUBROUTINE
+#:endfor
+#:endfor
+
+#:for dparam, dtype, dsuffix in dtype_float_list
+#:for ndim in ndims
+! **************************************************************************************************
+!> \brief Template for dbcsr_t_get_block.
+!> \param tensor ...
+!> \param ind block index
+!> \param sizes block size
+!> \param block block to get
+! **************************************************************************************************
+   SUBROUTINE dbcsr_t_get_${ndim}$d_block_${dsuffix}$(tensor, ind, sizes, block)
+      TYPE(dbcsr_t_type), INTENT(INOUT)                     :: tensor
+      INTEGER, DIMENSION(ndims_tensor(tensor)), INTENT(IN) :: ind
+      INTEGER, DIMENSION(ndims_tensor(tensor)), INTENT(IN) :: sizes
+      ${dtype}$, DIMENSION(${arrlist("sizes", nmax=ndim)}$), &
+         INTENT(OUT)                                        :: block
+
+      INTEGER, ALLOCATABLE, DIMENSION(:)                    :: map1_2d, map2_2d
+      INTEGER, DIMENSION(2)                                 :: ind_2d
+      ${dtype}$, DIMENSION(:,:), POINTER                    :: block_2d_ptr
+      ${dtype}$, DIMENSION(:,:), ALLOCATABLE                :: block_2d
+      TYPE(nd_to_2d_mapping)                                :: map_blk
+      LOGICAL                                               :: found
+
+      NULLIFY (block_2d_ptr)
+
+      ! convert block index
+      ind_2d(:) = get_2d_indices(tensor%nd_index_blk, ind)
+      CALL dbcsr_get_block_p(tensor%matrix_rep, ind_2d(1), ind_2d(2), block_2d_ptr, found)
+      CPASSERT(found)
+      ! convert pointer to allocatable
+      CALL allocate_any(SHAPE(block_2d_ptr), block_2d, source=block_2d_ptr)
+
+      CALL get_mapping_info(tensor%nd_index_blk, map1_2d=map1_2d, map2_2d=map2_2d)
+      CALL create_nd_to_2d_mapping(map_blk, sizes, map1_2d, map2_2d)
+      CALL reshape_2d_to_nd_block(map_blk, block_2d, block)
+   END SUBROUTINE
+#:endfor
 #:endfor
 
 #:for dparam, dtype, dsuffix in dtype_float_list
@@ -525,14 +704,11 @@ CONTAINS
       ${dtype}$, DIMENSION(${arrlist("map%dims_nd", nmax=ndim)}$), INTENT(IN) :: block
       ${dtype}$, DIMENSION(map%dims_2d(1), map%dims_2d(2)), INTENT(OUT)  :: block_2d
 
-      INTEGER                                                            :: i
       INTEGER, DIMENSION(ndims_mapping(map))                             :: shape_in, shape_reordered
       ${dtype}$, ALLOCATABLE, DIMENSION(${shape_colon(ndim)}$)           :: block_tmp
 
       shape_in = SHAPE(block)
-      DO i = 1, SIZE(shape_in)
-         shape_reordered(map%map_nd(i)) = shape_in(i)
-      ENDDO
+      shape_reordered(map%map_nd) = shape_in
       CALL allocate_any(shape_reordered, block_tmp)
       block_tmp(${shape_colon(ndim)}$) = RESHAPE(block, SHAPE=SHAPE(block_tmp), ORDER=map%map_nd)
       block_2d(:, :) = RESHAPE(block_tmp, SHAPE=SHAPE(block_2d))

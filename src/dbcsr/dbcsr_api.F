@@ -110,11 +110,11 @@ MODULE dbcsr_api
    USE dbcsr_types,                     ONLY: &
         dbcsr_dist_prv_obj => dbcsr_distribution_obj, dbcsr_func_artanh, dbcsr_func_dtanh, &
         dbcsr_func_inverse, dbcsr_func_tanh, dbcsr_iterator_prv => dbcsr_iterator, dbcsr_mp_obj, &
-        dbcsr_norm_column, dbcsr_norm_frobenius, dbcsr_norm_maxabsnorm, &
-        dbcsr_prv_type => dbcsr_type, dbcsr_scalar_type, dbcsr_type_antisymmetric, &
-        dbcsr_type_complex_4, dbcsr_type_complex_8, dbcsr_type_complex_default, &
-        dbcsr_type_no_symmetry, dbcsr_type_real_4, dbcsr_type_real_8, dbcsr_type_real_default, &
-        dbcsr_type_symmetric
+        dbcsr_no_transpose, dbcsr_norm_column, dbcsr_norm_frobenius, dbcsr_norm_maxabsnorm, &
+        dbcsr_prv_type => dbcsr_type, dbcsr_scalar_type, dbcsr_transpose, &
+        dbcsr_type_antisymmetric, dbcsr_type_complex_4, dbcsr_type_complex_8, &
+        dbcsr_type_complex_default, dbcsr_type_no_symmetry, dbcsr_type_real_4, dbcsr_type_real_8, &
+        dbcsr_type_real_default, dbcsr_type_symmetric
    USE dbcsr_util,                      ONLY: convert_offsets_to_sizes,&
                                               convert_sizes_to_offsets,&
                                               dbcsr_checksum_prv      => dbcsr_checksum,&
@@ -142,6 +142,8 @@ MODULE dbcsr_api
    PUBLIC :: dbcsr_type_no_symmetry
    PUBLIC :: dbcsr_type_symmetric
    PUBLIC :: dbcsr_type_antisymmetric
+   PUBLIC :: dbcsr_transpose
+   PUBLIC :: dbcsr_no_transpose
    PUBLIC :: dbcsr_type_complex_8
    PUBLIC :: dbcsr_type_real_4
    PUBLIC :: dbcsr_type_real_8
@@ -1416,21 +1418,21 @@ CONTAINS
 !> \param matrix_a ...
 !> \param name ...
 !> \param keep_sparsity ...
-!> \param shalprv_data ...
+!> \param shallow_data ...
 !> \param keep_imaginary ...
 !> \param matrix_type ...
 ! **************************************************************************************************
    SUBROUTINE dbcsr_copy(matrix_b, matrix_a, name, keep_sparsity, &
-                         shalprv_data, keep_imaginary, matrix_type)
+                         shallow_data, keep_imaginary, matrix_type)
       TYPE(dbcsr_type), INTENT(INOUT)                    :: matrix_b
       TYPE(dbcsr_type), INTENT(IN)                       :: matrix_a
       CHARACTER(LEN=*), INTENT(IN), OPTIONAL             :: name
-      LOGICAL, INTENT(IN), OPTIONAL                      :: keep_sparsity, shalprv_data, &
+      LOGICAL, INTENT(IN), OPTIONAL                      :: keep_sparsity, shallow_data, &
                                                             keep_imaginary
       CHARACTER, INTENT(IN), OPTIONAL                    :: matrix_type
 
       CALL dbcsr_copy_prv(matrix_b%prv, matrix_a%prv, name, keep_sparsity, &
-                          shalprv_data, keep_imaginary, matrix_type)
+                          shallow_data, keep_imaginary, matrix_type)
    END SUBROUTINE dbcsr_copy
 
 ! **************************************************************************************************
