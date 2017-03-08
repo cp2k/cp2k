@@ -31,7 +31,8 @@ MODULE dbcsr_tensor_test
                                               dbcsr_t_nd_mp_comm,&
                                               dbcsr_t_get_data_type
    USE kinds,                           ONLY: ${uselist(dtype_float_prec)}$,&
-                                              default_string_length
+                                              default_string_length,&
+                                              int_8
    USE message_passing,                 ONLY: mp_environ, &
                                               mp_bcast, &
                                               mp_comm_free, &
@@ -592,7 +593,7 @@ CONTAINS
                WRITE (unit_nr, '(T7,A,T16,A,${ndim}$I3,1X,A,1X,I3,A,1X,A,${ndim}$I3,1X,A,1X,I20)') &
                   TRIM(name),"(", blk_index,") @", proc, ':', &
                   "(",${varlist("i", nmax=ndim)}$,")", &
-                  INT(blk_values_${ndim}$(${varlist("i", nmax=ndim)}$), KIND=SELECTED_INT_KIND(32))
+                  INT(blk_values_${ndim}$(${varlist("i", nmax=ndim)}$), KIND=int_8)
 #:for idim in range(ndim,0,-1)
             ENDDO
 #:endfor
@@ -825,13 +826,13 @@ CONTAINS
 #:for idim in range(ndim,0,-1)
       DO i_${idim}$ = 1, SIZE(array, ${idim}$)
 #:endfor
-         IF(INT(array(${varlist("i", nmax=ndim)}$), KIND=SELECTED_INT_KIND(32)) .GT. 0) THEN
+         IF(INT(array(${varlist("i", nmax=ndim)}$), KIND=int_8) .GT. 0) THEN
             WRITE(unit_nr, '(${ndim+1}$I20)', advance='no') ${varlist("i", nmax=ndim)}$, INT(array(${varlist("i", nmax=ndim)}$), &
-               KIND=SELECTED_INT_KIND(32))
+               KIND=int_8)
             IF(PRESENT(array_compare)) THEN
-               WRITE(unit_nr, '(I20)', advance='no') INT(array_compare(${varlist("i", nmax=ndim)}$), KIND=SELECTED_INT_KIND(32))
+               WRITE(unit_nr, '(I20)', advance='no') INT(array_compare(${varlist("i", nmax=ndim)}$), KIND=int_8)
             ENDIF
-            WRITE(*,*)
+            WRITE(unit_nr,*)
          ENDIF
 #:for idim in range(ndim,0,-1)
       ENDDO
