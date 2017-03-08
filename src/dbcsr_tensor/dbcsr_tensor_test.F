@@ -126,7 +126,7 @@ CONTAINS
       LOGICAL                    :: blocks_equal
 
       SELECT CASE (block1%data_type)
-#:for dprec, dparam, dsuffix in list(zip(dtype_float_prec, dtype_float_param, dtype_float_suffix))
+#:for dprec, dparam, dtype, dsuffix in dtype_float_list_prec
       CASE (${dparam}$)
          blocks_equal = MAXVAL(ABS(block1%${dsuffix}$%blk-block2%${dsuffix}$%blk)) .LT. 1.0E-12_${dprec}$
 #:endfor
@@ -602,7 +602,7 @@ CONTAINS
       ENDIF
    END SUBROUTINE
 
-#:for dprec, dparam, dtype, dsuffix in list(zip(dtype_float_prec, dtype_float_param, dtype_float_type, dtype_float_suffix))
+#:for dprec, dparam, dtype, dsuffix in dtype_float_list_prec
 #:for ndim in ndims
 ! **************************************************************************************************
 !> \brief Transform a distributed sparse tensor to a replicated dense array. This is only useful for
@@ -649,7 +649,7 @@ CONTAINS
 #:endfor
 #:endfor
 
-#:for dprec, dparam, dtype, dsuffix in list(zip(dtype_float_prec, dtype_float_param, dtype_float_type, dtype_float_suffix))
+#:for dprec, dparam, dtype, dsuffix in dtype_float_list_prec
 #:for ndim in ndims
 ! **************************************************************************************************
 !> \brief ...

@@ -25,15 +25,14 @@
 #:set dtype_all_param = dtype_float_param + dtype_int_param
 
 #:set dtype_float_list = list(zip(dtype_float_param, dtype_float_type, dtype_float_suffix))
+#:set dtype_float_list_prec = list(zip(dtype_float_prec, dtype_float_param, dtype_float_type, dtype_float_suffix))
 #:set dtype_int_list = list(zip(dtype_int_param, dtype_int_type, dtype_int_suffix))
 #:set dtype_all_list = list(zip(dtype_all_param, dtype_all_type, dtype_all_suffix))
-
 
 #:def arrlist(name, nmin=1, nmax=maxrank, ndim_pre=0, ndim_post=0)
 #!    expand array into list of elements "name(1), name(2), ..., name(n)
 $:    ", ".join([name + "(" + ":," * ndim_pre + str(i) + ",:"*ndim_post + ")" for i in range(nmin, nmax+1)])
 #:enddef
-
 
 #:def varlist(name, nmin=1, nmax=maxrank, suffix="")
 #!    create variable list "name_1, name_2, ..., name_n
