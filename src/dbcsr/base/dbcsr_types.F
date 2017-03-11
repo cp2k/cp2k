@@ -14,10 +14,10 @@
 ! **************************************************************************************************
 MODULE dbcsr_types
    USE array_types,                     ONLY: array_i1d_obj
-   USE btree_i8_k_cp2d_v,               ONLY: btree_2d_c => btree
-   USE btree_i8_k_dp2d_v,               ONLY: btree_2d_d => btree
-   USE btree_i8_k_sp2d_v,               ONLY: btree_2d_s => btree
-   USE btree_i8_k_zp2d_v,               ONLY: btree_2d_z => btree
+   USE btree,                           ONLY: btree_i8_cp2d,&
+                                              btree_i8_dp2d,&
+                                              btree_i8_sp2d,&
+                                              btree_i8_zp2d
    USE dbcsr_data_types,                ONLY: &
         dbcsr_data_area_type, dbcsr_data_obj, dbcsr_datatype_sizeof, dbcsr_memtype_default, &
         dbcsr_memtype_type, dbcsr_scalar_type, dbcsr_type_complex_4, dbcsr_type_complex_4_2d, &
@@ -343,10 +343,10 @@ MODULE dbcsr_types
 !> \var data_type                       The data type that is stored
 ! **************************************************************************************************
    TYPE dbcsr_mutable_type
-      TYPE(btree_2d_s)          :: btree_s
-      TYPE(btree_2d_d)          :: btree_d
-      TYPE(btree_2d_c)          :: btree_c
-      TYPE(btree_2d_z)          :: btree_z
+      TYPE(btree_i8_sp2d)          :: btree_s
+      TYPE(btree_i8_dp2d)          :: btree_d
+      TYPE(btree_i8_cp2d)          :: btree_c
+      TYPE(btree_i8_zp2d)          :: btree_z
       INTEGER                   :: refcount = 0
       INTEGER                   :: data_type = -1
    END TYPE dbcsr_mutable_type
@@ -378,7 +378,7 @@ MODULE dbcsr_types
       INTEGER, DIMENSION(:), POINTER          :: blk_p => Null()
       INTEGER                                 :: lastblk = -1
       INTEGER                                 :: datasize = -1
-      !TYPE(btree_2d_d)                       :: tree
+      !TYPE(btree_i8_dp2d)                       :: tree
       TYPE(dbcsr_mutable_obj)                 :: mutable
    END TYPE dbcsr_work_type
 

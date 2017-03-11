@@ -10,24 +10,9 @@
 !> \author fawzi
 ! **************************************************************************************************
 MODULE input_parsing
-   USE cp_linked_list_char,             ONLY: cp_create,&
-                                              cp_dealloc,&
-                                              cp_sll_char_type,&
-                                              cp_to_array
-   USE cp_linked_list_int,              ONLY: cp_create,&
-                                              cp_dealloc,&
-                                              cp_sll_int_type,&
-                                              cp_to_array
-   USE cp_linked_list_logical,          ONLY: cp_create,&
-                                              cp_dealloc,&
-                                              cp_sll_logical_type,&
-                                              cp_to_array
-   USE cp_linked_list_real,             ONLY: cp_create,&
-                                              cp_dealloc,&
-                                              cp_sll_real_type,&
-                                              cp_to_array
-   USE cp_linked_list_val,              ONLY: cp_sll_val_create,&
-                                              cp_sll_val_type
+   USE cp_linked_list_input,            ONLY: &
+        cp_create, cp_dealloc, cp_sll_char_type, cp_sll_int_type, cp_sll_logical_type, &
+        cp_sll_real_type, cp_sll_val_create, cp_sll_val_type, cp_to_array
    USE cp_log_handling,                 ONLY: cp_logger_get_default_io_unit,&
                                               cp_to_string
    USE cp_parser_methods,               ONLY: parser_get_object,&

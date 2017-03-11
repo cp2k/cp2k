@@ -13,7 +13,7 @@
 !> \author fawzi
 ! **************************************************************************************************
 MODULE xc
-   USE cp_array_utils_r,                ONLY: cp_3d_r_p_type
+   USE cp_array_utils,                  ONLY: cp_3d_r_p_type
    USE cp_linked_list_xc_deriv,         ONLY: cp_sll_xc_deriv_next,&
                                               cp_sll_xc_deriv_type
    USE cp_log_handling,                 ONLY: cp_get_default_logger,&

@@ -16,7 +16,7 @@ MODULE external_potential_types
                                               Krack2000,&
                                               Krack2005,&
                                               cite_reference
-   USE cp_linked_list_val,              ONLY: cp_sll_val_next,&
+   USE cp_linked_list_input,            ONLY: cp_sll_val_next,&
                                               cp_sll_val_type
    USE cp_para_types,                   ONLY: cp_para_env_type
    USE cp_parser_methods,               ONLY: parser_get_next_line,&

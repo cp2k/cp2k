@@ -10,7 +10,7 @@
 !> \author Joost VandeVondele (25.08.2002)
 ! **************************************************************************************************
 MODULE qs_ot_scf
-   USE cp_array_utils_r,                ONLY: cp_1d_r_p_type
+   USE cp_array_utils,                  ONLY: cp_1d_r_p_type
    USE cp_dbcsr_operations,             ONLY: copy_fm_to_dbcsr,&
                                               cp_dbcsr_m_by_n_from_row_template
    USE cp_fm_types,                     ONLY: cp_fm_type

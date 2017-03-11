@@ -13,7 +13,7 @@
 MODULE atom_types
    USE atom_upf,                        ONLY: atom_read_upf,&
                                               atom_upfpot_type
-   USE cp_linked_list_val,              ONLY: cp_sll_val_next,&
+   USE cp_linked_list_input,            ONLY: cp_sll_val_next,&
                                               cp_sll_val_type
    USE cp_parser_methods,               ONLY: parser_get_next_line,&
                                               parser_get_object,&

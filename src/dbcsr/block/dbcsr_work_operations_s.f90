@@ -9,8 +9,8 @@
 !> \param[in,out] wm      work matrix to convert
 ! **************************************************************************************************
   SUBROUTINE tree_to_linear_s(wm)
-    USE btree_I8_k_sp2d_v,&
-        ONLY: btree_2d_data_s => sp2d,&
+    USE btree,&
+        ONLY: btree_2d_data_s => btree_data_sp2d,&
               btree_destroy_s => btree_delete,&
               btree_size_s => btree_get_entries
     TYPE(dbcsr_work_type), INTENT(INOUT)     :: wm

@@ -25,7 +25,7 @@ MODULE qs_loc_types
    USE cell_types,                      ONLY: cell_release,&
                                               cell_retain,&
                                               cell_type
-   USE cp_array_utils_r,                ONLY: cp_2d_r_p_type
+   USE cp_array_utils,                  ONLY: cp_2d_r_p_type
    USE cp_fm_types,                     ONLY: cp_fm_p_type,&
                                               cp_fm_release
    USE cp_para_env,                     ONLY: cp_para_env_release,&

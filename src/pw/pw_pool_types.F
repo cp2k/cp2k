@@ -20,20 +20,11 @@
 !> \author Fawzi Mohamed
 ! **************************************************************************************************
 MODULE pw_pool_types
-   USE cp_linked_list_3d_r,             ONLY: cp_sll_3d_r_dealloc,&
-                                              cp_sll_3d_r_get_first_el,&
-                                              cp_sll_3d_r_get_length,&
-                                              cp_sll_3d_r_insert_el,&
-                                              cp_sll_3d_r_next,&
-                                              cp_sll_3d_r_rm_first_el,&
-                                              cp_sll_3d_r_type
-   USE cp_linked_list_pw,               ONLY: cp_sll_pw_dealloc,&
-                                              cp_sll_pw_get_first_el,&
-                                              cp_sll_pw_get_length,&
-                                              cp_sll_pw_insert_el,&
-                                              cp_sll_pw_next,&
-                                              cp_sll_pw_rm_first_el,&
-                                              cp_sll_pw_type
+   USE cp_linked_list_pw,               ONLY: &
+        cp_sll_3d_r_dealloc, cp_sll_3d_r_get_first_el, cp_sll_3d_r_get_length, &
+        cp_sll_3d_r_insert_el, cp_sll_3d_r_next, cp_sll_3d_r_rm_first_el, cp_sll_3d_r_type, &
+        cp_sll_pw_dealloc, cp_sll_pw_get_first_el, cp_sll_pw_get_length, cp_sll_pw_insert_el, &
+        cp_sll_pw_next, cp_sll_pw_rm_first_el, cp_sll_pw_type
    USE cp_log_handling,                 ONLY: cp_get_default_logger,&
                                               cp_logger_get_default_unit_nr,&
                                               cp_logger_type

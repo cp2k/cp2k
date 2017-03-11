@@ -17,7 +17,7 @@ MODULE qs_loc_utils
    USE block_p_types,                   ONLY: block_p_type
    USE cell_types,                      ONLY: cell_type,&
                                               pbc
-   USE cp_array_utils_r,                ONLY: cp_1d_r_p_type
+   USE cp_array_utils,                  ONLY: cp_1d_r_p_type
    USE cp_dbcsr_operations,             ONLY: cp_dbcsr_sm_fm_multiply
    USE cp_files,                        ONLY: close_file,&
                                               open_file

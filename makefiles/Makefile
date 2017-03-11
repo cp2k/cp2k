@@ -435,13 +435,16 @@ endif
 #
 # $(FCLOGPIPE) can be used to store compiler output, e.g. warnings, for each F-file separately.
 # This is used e.g. by the convention checker.
+
+FYPPFLAGS ?= -n
+
 %.o: %.F
 ifneq ($(CPP),)
-	$(TOOLSRC)/build_utils/fypp -n $< $*.fypped
+	$(TOOLSRC)/build_utils/fypp $(FYPPFLAGS) $< $*.fypped
 	$(CPP) $(CPPFLAGS) -D__SHORT_FILE__="\"$(subst $(SRCDIR)/,,$<)\"" -I'$(dir $<)' $*.fypped > $*.f90
 	$(FC) -c $(FCFLAGS) $*.f90 $(FCLOGPIPE)
 else
-	$(TOOLSRC)/build_utils/fypp -n $< $*.F90
+	$(TOOLSRC)/build_utils/fypp $(FYPPFLAGS) $< $*.F90
 	$(FC) -c $(FCFLAGS) -D__SHORT_FILE__="\"$(subst $(SRCDIR)/,,$<)\"" -I'$(dir $<)' $*.F90 $(FCLOGPIPE)
 endif
 

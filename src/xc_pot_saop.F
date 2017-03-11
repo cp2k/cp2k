@@ -9,7 +9,7 @@
 MODULE xc_pot_saop
    USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                               get_atomic_kind
-   USE cp_array_utils_r,                ONLY: cp_1d_r_p_type
+   USE cp_array_utils,                  ONLY: cp_1d_r_p_type
    USE cp_dbcsr_operations,             ONLY: cp_dbcsr_plus_fm_fm_t
    USE cp_fm_types,                     ONLY: cp_fm_create,&
                                               cp_fm_get_info,&

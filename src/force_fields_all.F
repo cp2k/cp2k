@@ -17,7 +17,7 @@ MODULE force_fields_all
                                               set_atomic_kind
    USE atoms_input,                     ONLY: read_shell_coord_input
    USE cell_types,                      ONLY: cell_type
-   USE cp_linked_list_val,              ONLY: cp_sll_val_next,&
+   USE cp_linked_list_input,            ONLY: cp_sll_val_next,&
                                               cp_sll_val_type
    USE cp_log_handling,                 ONLY: cp_to_string
    USE damping_dipole_types,            ONLY: damping_p_create,&

@@ -11,7 +11,7 @@ MODULE input_restart_force_eval
    USE cp_control_types,                ONLY: dft_control_type
    USE cp_files,                        ONLY: close_file,&
                                               open_file
-   USE cp_linked_list_val,              ONLY: cp_sll_val_create,&
+   USE cp_linked_list_input,            ONLY: cp_sll_val_create,&
                                               cp_sll_val_get_length,&
                                               cp_sll_val_type
    USE cp_para_types,                   ONLY: cp_para_env_type

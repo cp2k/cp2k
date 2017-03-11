@@ -20,23 +20,17 @@ MODULE timings
                                               cuda_nvtx_range_push
    USE dict,                            ONLY: dict_destroy,&
                                               dict_get,&
+                                              dict_i4tuple_callstat_item_type,&
                                               dict_init,&
                                               dict_items,&
                                               dict_set,&
                                               dict_size
-   USE dict_i4tuple_callstat,           ONLY: dict_i4tuple_callstat_item_type
    USE kinds,                           ONLY: default_string_length,&
                                               dp,&
                                               int_8
-   USE list,                            ONLY: list_destroy,&
-                                              list_get,&
-                                              list_init,&
-                                              list_isready,&
-                                              list_peek,&
-                                              list_pop,&
-                                              list_push,&
-                                              list_size
-   USE list_timerenv,                   ONLY: list_timerenv_type
+   USE list,                            ONLY: &
+        list_destroy, list_get, list_init, list_isready, list_peek, list_pop, list_push, &
+        list_size, list_timerenv_type
    USE machine,                         ONLY: m_energy,&
                                               m_flush,&
                                               m_memory,&

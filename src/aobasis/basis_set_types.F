@@ -15,7 +15,7 @@ MODULE basis_set_types
    USE ai_coulomb,                      ONLY: coulomb2
    USE bibliography,                    ONLY: VandeVondele2007,&
                                               cite_reference
-   USE cp_linked_list_val,              ONLY: cp_sll_val_next,&
+   USE cp_linked_list_input,            ONLY: cp_sll_val_next,&
                                               cp_sll_val_type
    USE cp_para_types,                   ONLY: cp_para_env_type
    USE cp_parser_methods,               ONLY: parser_get_object,&

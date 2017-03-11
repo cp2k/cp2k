@@ -15,18 +15,12 @@
 ! **************************************************************************************************
 MODULE dbcsr_block_access
    USE array_types,                     ONLY: array_data
-   USE btree_I8_k_cp2d_v,               ONLY: btree_2d_data_c => cp2d,&
-                                              btree_add_c => btree_add,&
-                                              btree_get_c => btree_find
-   USE btree_I8_k_dp2d_v,               ONLY: btree_2d_data_d => dp2d,&
-                                              btree_add_d => btree_add,&
-                                              btree_get_d => btree_find
-   USE btree_I8_k_sp2d_v,               ONLY: btree_2d_data_s => sp2d,&
-                                              btree_add_s => btree_add,&
-                                              btree_get_s => btree_find
-   USE btree_I8_k_zp2d_v,               ONLY: btree_2d_data_z => zp2d,&
-                                              btree_add_z => btree_add,&
-                                              btree_get_z => btree_find
+   USE btree,                           ONLY: btree_add,&
+                                              btree_data_cp2d,&
+                                              btree_data_dp2d,&
+                                              btree_data_sp2d,&
+                                              btree_data_zp2d,&
+                                              btree_find
    USE dbcsr_block_operations,          ONLY: dbcsr_data_clear,&
                                               dbcsr_data_set
    USE dbcsr_config,                    ONLY: default_resize_factor
@@ -218,10 +212,10 @@ CONTAINS
       INTEGER                                            :: blk, csize, error_handle, iw, offset, &
                                                             rsize, stored_col, stored_row
       LOGICAL                                            :: stored_tr
-      TYPE(btree_2d_data_c)                              :: data_block_c
-      TYPE(btree_2d_data_d)                              :: data_block_d
-      TYPE(btree_2d_data_s)                              :: data_block_s
-      TYPE(btree_2d_data_z)                              :: data_block_z
+      TYPE(btree_data_cp2d)                              :: data_block_c
+      TYPE(btree_data_dp2d)                              :: data_block_d
+      TYPE(btree_data_sp2d)                              :: data_block_s
+      TYPE(btree_data_zp2d)                              :: data_block_z
 
 !   ---------------------------------------------------------------------------
 
@@ -247,7 +241,7 @@ CONTAINS
          IF (dbcsr_mutable_instantiated(matrix%wms(iw)%mutable)) THEN
             SELECT CASE (block%d%data_type)
             CASE (dbcsr_type_real_4_2d)
-               CALL btree_get_s( &
+               CALL btree_find( &
                   matrix%wms(iw)%mutable%m%btree_s, &
                   make_coordinate_tuple(stored_row, stored_col), &
                   data_block_s, found)
@@ -255,7 +249,7 @@ CONTAINS
                   CALL dbcsr_data_set_pointer(block, data_block_s%p)
                ENDIF
             CASE (dbcsr_type_real_8_2d)
-               CALL btree_get_d( &
+               CALL btree_find( &
                   matrix%wms(iw)%mutable%m%btree_d, &
                   make_coordinate_tuple(stored_row, stored_col), &
                   data_block_d, found)
@@ -263,7 +257,7 @@ CONTAINS
                   CALL dbcsr_data_set_pointer(block, data_block_d%p)
                ENDIF
             CASE (dbcsr_type_complex_4_2d)
-               CALL btree_get_c( &
+               CALL btree_find( &
                   matrix%wms(iw)%mutable%m%btree_c, &
                   make_coordinate_tuple(stored_row, stored_col), &
                   data_block_c, found)
@@ -271,7 +265,7 @@ CONTAINS
                   CALL dbcsr_data_set_pointer(block, data_block_c%p)
                ENDIF
             CASE (dbcsr_type_complex_8_2d)
-               CALL btree_get_z( &
+               CALL btree_find( &
                   matrix%wms(iw)%mutable%m%btree_z, &
                   make_coordinate_tuple(stored_row, stored_col), &
                   data_block_z, found)

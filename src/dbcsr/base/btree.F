@@ -4,7 +4,7 @@
 !--------------------------------------------------------------------------------------------------!
 
 ! **************************************************************************************************
-!> \brief   B-tree implementation template
+!> \brief   B-tree
 !> \author  Urban Borstnik
 !> \date    2000-05-12
 !> \version 1.0
@@ -12,52 +12,96 @@
 !> - Created
 ! **************************************************************************************************
 
-MODULE btree_[nametype1]_k_[nametype2]_v
+#:include 'btree.fypp'
+
+MODULE btree
 
   IMPLICIT NONE
   PRIVATE
 
   !API
-  PUBLIC :: btree, btree_new, btree_add, btree_find, &
+  PUBLIC :: btree_new, btree_add, btree_find, &
             btree_delete, btree_get_entries
+#:for nt in nametype
+  PUBLIC :: btree_${nt}$
+#:endfor
 
-  [type1setup]
-  [type2setup]
+INTEGER, PARAMETER :: keyt = SELECTED_INT_KIND(10)
+INTEGER, PARAMETER :: valt = SELECTED_INT_KIND(5)
+INTEGER, PARAMETER :: sp = KIND(0.0)
+INTEGER, PARAMETER :: dp = KIND(0.0d0)
 
-  TYPE btree_node
+#:for ts in type2setup
+$:ts
+#:endfor
+
+  INTERFACE btree_new
+#:for nt in nametype
+    MODULE PROCEDURE btree_new_${nt}$
+#:endfor
+  END INTERFACE
+
+  INTERFACE btree_add
+#:for nt in nametype
+    MODULE PROCEDURE btree_add_${nt}$
+#:endfor
+  END INTERFACE
+
+  INTERFACE btree_find
+#:for nt in nametype
+    MODULE PROCEDURE btree_find_${nt}$
+#:endfor
+  END INTERFACE
+
+  INTERFACE btree_delete
+#:for nt in nametype
+    MODULE PROCEDURE btree_delete_${nt}$
+#:endfor
+  END INTERFACE
+
+  INTERFACE btree_get_entries
+#:for nt in nametype
+   MODULE PROCEDURE btree_get_entries_${nt}$
+#:endfor
+  END INTERFACE
+
+#:for nametype, nametype1, nametype2, type1, type2, defaultFormatType1, defaultFormatType2, accessorType2 in inst_params
+  TYPE btree_node_${nametype}$
      INTEGER id
      INTEGER :: filled
-     [type1], DIMENSION(:), POINTER :: keys
-     [type2], DIMENSION(:), POINTER :: values
-     TYPE(btree_node_p), DIMENSION(:), POINTER :: subtrees
-     TYPE(btree_node), POINTER :: parent
-  END TYPE btree_node
+     ${type1}$, DIMENSION(:), POINTER :: keys
+     ${type2}$, DIMENSION(:), POINTER :: values
+     TYPE(btree_node_p_${nametype}$), DIMENSION(:), POINTER :: subtrees
+     TYPE(btree_node_${nametype}$), POINTER :: parent
+  END TYPE btree_node_${nametype}$
 
-  TYPE btree_node_p
-     TYPE(btree_node), POINTER :: node
-  END TYPE btree_node_p
+  TYPE btree_node_p_${nametype}$
+     TYPE(btree_node_${nametype}$), POINTER :: node
+  END TYPE btree_node_p_${nametype}$
 
-  TYPE btree_node_structure
+  TYPE btree_node_structure_${nametype}$
      INTEGER :: min_fill, max_fill
      INTEGER :: n
      INTEGER :: lastid
      INTEGER :: refcount
-     TYPE(btree_node), POINTER :: root
-  END TYPE btree_node_structure
+     TYPE(btree_node_${nametype}$), POINTER :: root
+  END TYPE btree_node_structure_${nametype}$
 
-  TYPE btree
-     TYPE(btree_node_structure) :: b
-  END TYPE btree
+  TYPE btree_${nametype}$
+     TYPE(btree_node_structure_${nametype}$) :: b
+  END TYPE btree_${nametype}$
+#:endfor
 
 CONTAINS
 
+#:for nametype, nametype1, nametype2, type1, type2, defaultFormatType1, defaultFormatType2, accessorType2 in inst_params
 ! **************************************************************************************************
 !> \brief ...
 !> \param tree ...
 !> \param order ...
 ! **************************************************************************************************
-  SUBROUTINE btree_new (tree, order)
-    TYPE(btree), INTENT(OUT) :: tree
+  SUBROUTINE btree_new_${nametype}$ (tree, order)
+    TYPE(btree_${nametype}$), INTENT(OUT) :: tree
     INTEGER, INTENT(IN), OPTIONAL :: order
     INTEGER :: maxs, mins
     !
@@ -76,18 +120,38 @@ CONTAINS
     tree%b%n = 0
     NULLIFY(tree%b%root)
     tree%b%lastid = 0
-  END SUBROUTINE btree_new
+  END SUBROUTINE btree_new_${nametype}$
 
 ! **************************************************************************************************
 !> \brief ...
 !> \param tree ...
 !> \retval num_entries ...
 ! **************************************************************************************************
-  FUNCTION btree_get_entries (tree) RESULT (num_entries)
-    TYPE(btree), INTENT(INOUT) :: tree
+  FUNCTION btree_get_entries_${nametype}$ (tree) RESULT (num_entries)
+    TYPE(btree_${nametype}$), INTENT(INOUT) :: tree
     INTEGER :: num_entries
     num_entries = tree%b%n
-  END FUNCTION btree_get_entries
+  END FUNCTION btree_get_entries_${nametype}$
+
+  ! node is a non-leaf node
+! **************************************************************************************************
+!> \brief ...
+!> \param node ...
+! **************************************************************************************************
+  SUBROUTINE btree_adopt_subtrees_${nametype}$ (node)
+    TYPE(btree_node_${nametype}$), POINTER :: node
+    INTEGER :: i
+    !
+    ! Assume that node is not a leaf!
+    DO i = 1, node%filled+1
+       !IF (ASSOCIATED (node%subtrees(i)%node)) THEN
+          !IF (.NOT. ASSOCIATED (node%subtrees(i)%node%parent,&
+          ! node)) THEN
+             node%subtrees(i)%node%parent => node
+          !ENDIF
+       !ENDIF
+    ENDDO
+  END SUBROUTINE btree_adopt_subtrees_${nametype}$
 
 
 ! **************************************************************************************************
@@ -96,23 +160,23 @@ CONTAINS
 !> \param keys ...
 !> \param values ...
 ! **************************************************************************************************
-  SUBROUTINE btree_delete (tree, keys, values)
-    TYPE(btree), INTENT(INOUT) :: tree
-    [type1], DIMENSION(:), INTENT(OUT), OPTIONAL :: keys
-    [type2], DIMENSION(:), INTENT(OUT), OPTIONAL :: values
+  SUBROUTINE btree_delete_${nametype}$ (tree, keys, values)
+    TYPE(btree_${nametype}$), INTENT(INOUT) :: tree
+    ${type1}$, DIMENSION(:), INTENT(OUT), OPTIONAL :: keys
+    ${type2}$, DIMENSION(:), INTENT(OUT), OPTIONAL :: values
     INTEGER :: pos
     !
     IF (ASSOCIATED (tree%b%root)) THEN
        pos = 0
        IF (PRESENT (keys) .AND. PRESENT (values)) THEN
           pos = 1
-          CALL btree_delete_node(tree%b%root, pos, keys, values)
+          CALL btree_delete_node_${nametype}$(tree%b%root, pos, keys, values)
        ELSE
-          CALL btree_delete_node(tree%b%root)
+          CALL btree_delete_node_${nametype}$(tree%b%root)
        ENDIF
     ENDIF
     NULLIFY (tree%b%root)
-  END SUBROUTINE btree_delete
+  END SUBROUTINE btree_delete_${nametype}$
 
 ! **************************************************************************************************
 !> \brief ...
@@ -121,20 +185,20 @@ CONTAINS
 !> \param keys ...
 !> \param values ...
 ! **************************************************************************************************
-  RECURSIVE SUBROUTINE btree_delete_node (node, pos, keys, values)
-    TYPE(btree_node), POINTER :: node
+  RECURSIVE SUBROUTINE btree_delete_node_${nametype}$ (node, pos, keys, values)
+    TYPE(btree_node_${nametype}$), POINTER :: node
     INTEGER, INTENT(INOUT), OPTIONAL :: pos
-    [type1], DIMENSION(:), INTENT(INOUT), OPTIONAL :: keys
-    [type2], DIMENSION(:), INTENT(INOUT), OPTIONAL :: values
+    ${type1}$, DIMENSION(:), INTENT(INOUT), OPTIONAL :: keys
+    ${type2}$, DIMENSION(:), INTENT(INOUT), OPTIONAL :: values
     !
     INTEGER :: i
     !
     IF (node%filled.GT.0 .AND. ASSOCIATED (node%subtrees(1)%node)) THEN
        DO i = 1, node%filled+1
           IF (PRESENT (pos)) THEN
-             CALL btree_delete_node (node%subtrees(i)%node, pos, keys, values)
+             CALL btree_delete_node_${nametype}$ (node%subtrees(i)%node, pos, keys, values)
           ELSE
-             CALL btree_delete_node (node%subtrees(i)%node)
+             CALL btree_delete_node_${nametype}$ (node%subtrees(i)%node)
           ENDIF
           IF (PRESENT (pos) .AND. i .LE. node%filled) THEN
              keys(pos) = node%keys(i)
@@ -147,9 +211,8 @@ CONTAINS
        values(pos:pos+node%filled-1) = node%values(1:node%filled)
        pos = pos+node%filled
     ENDIF
-    CALL btree_free_node (node)
-  END SUBROUTINE btree_delete_node
-
+    CALL btree_free_node_${nametype}$ (node)
+  END SUBROUTINE btree_delete_node_${nametype}$
 
   ! Find the key
   ! IF node still has space, insert & update the node
@@ -166,19 +229,19 @@ CONTAINS
 !> \param existing_value ...
 !> \param replace ...
 ! **************************************************************************************************
-  SUBROUTINE btree_add (tree, key, value, exists, existing_value, replace)
-    TYPE(btree), INTENT(INOUT) :: tree
-    [type1], INTENT(IN) :: key
-    [type2], INTENT(IN) :: value
+  SUBROUTINE btree_add_${nametype}$ (tree, key, value, exists, existing_value, replace)
+    TYPE(btree_${nametype}$), INTENT(INOUT) :: tree
+    ${type1}$, INTENT(IN) :: key
+    ${type2}$, INTENT(IN) :: value
     LOGICAL, INTENT(OUT), OPTIONAL :: exists
-    [type2], INTENT(OUT), OPTIONAL :: existing_value
+    ${type2}$, INTENT(OUT), OPTIONAL :: existing_value
     LOGICAL, INTENT(IN), OPTIONAL :: replace
     !
-    TYPE(btree_node), POINTER :: node
+    TYPE(btree_node_${nametype}$), POINTER :: node
     INTEGER :: ge_pos, position
     !
     IF (PRESENT (exists)) THEN
-       CALL btree_find_full (tree, key, node, position, ge_pos, short=.TRUE.)
+       CALL btree_find_full_${nametype}$ (tree, key, node, position, ge_pos, short=.TRUE.)
        IF (position .GT. 0) THEN
           exists = .TRUE.
           existing_value = node%values(position)
@@ -192,12 +255,12 @@ CONTAINS
           exists = .FALSE.
        ENDIF
     ELSE
-       CALL btree_find_leaf (tree, key, node, ge_pos)
+       CALL btree_find_leaf_${nametype}$ (tree, key, node, ge_pos)
     ENDIF
-    CALL btree_add_into (tree, node, key, value, before=ge_pos)
+    CALL btree_add_into_${nametype}$ (tree, node, key, value, before=ge_pos)
     IF (PRESENT (exists)) existing_value = value
     tree%b%n = tree%b%n+1
-  END SUBROUTINE btree_add
+  END SUBROUTINE btree_add_${nametype}$
 
 
 ! **************************************************************************************************
@@ -209,23 +272,23 @@ CONTAINS
 !> \param before ...
 !> \param subtree ...
 ! **************************************************************************************************
-  RECURSIVE SUBROUTINE btree_add_into (tree, node, key, value, before, subtree)
-    TYPE(btree), INTENT(INOUT) :: tree
-    TYPE(btree_node), POINTER :: node
-    [type1], INTENT(IN) :: key
-    [type2], INTENT(IN) :: value
+  RECURSIVE SUBROUTINE btree_add_into_${nametype}$(tree, node, key, value, before, subtree)
+    TYPE(btree_${nametype}$), INTENT(INOUT) :: tree
+    TYPE(btree_node_${nametype}$), POINTER :: node
+    ${type1}$, INTENT(IN) :: key
+    ${type2}$, INTENT(IN) :: value
     INTEGER, INTENT(IN), OPTIONAL :: before
-    TYPE(btree_node), POINTER, OPTIONAL :: subtree
+    TYPE(btree_node_${nametype}$), POINTER, OPTIONAL :: subtree
     !
-    TYPE(btree_node), POINTER :: new_node
-    [type1] :: upgrade_key
+    TYPE(btree_node_${nametype}$), POINTER :: new_node
+    ${type1}$ :: upgrade_key
     INTEGER :: ge_pos, split_pos
-    [type2] :: upgrade_value
+    ${type2}$ :: upgrade_value
     LOGICAL :: leaf
     !
     ! Root is special
     IF (.NOT. ASSOCIATED (node)) THEN
-       CALL btree_new_root (tree, key, value)
+       CALL btree_new_root_${nametype}$ (tree, key, value)
        IF (PRESENT (subtree)) THEN
           tree%b%root%subtrees(2)%node => subtree
           subtree%parent => tree%b%root
@@ -236,21 +299,21 @@ CONTAINS
     IF (PRESENT (before)) THEN
        ge_pos = before
     ELSE
-       CALL btree_node_find_gt_pos (node%keys, key, ge_pos, node%filled)
+       CALL btree_node_find_gt_pos_${nametype}$ (node%keys, key, ge_pos, node%filled)
     ENDIF
     ! Addition is easy if the node has enough space.
     leaf = .NOT. ASSOCIATED (node%subtrees(1)%node)
     IF (node%filled .LT. tree%b%max_fill) THEN
        IF (PRESENT (subtree)) THEN
-          CALL btree_simple_insertion(node, key, value, ge_pos, subtree)
+          CALL btree_simple_insertion_${nametype}$(node, key, value, ge_pos, subtree)
        ELSE
-          CALL btree_simple_insertion(node, key, value, ge_pos)
+          CALL btree_simple_insertion_${nametype}$(node, key, value, ge_pos)
        ENDIF
        RETURN
     ELSE
        split_pos = ISHFT (tree%b%max_fill+1, -1)
        ! I assert that split_pos <= SIZE(node%keys)
-       CALL btree_new_node (tree, new_node)
+       CALL btree_new_node_${nametype}$ (tree, new_node)
        ! The key to be added falls in the left node
        node%filled = split_pos-1
        IF (ge_pos .LE. split_pos) THEN
@@ -262,11 +325,11 @@ CONTAINS
              upgrade_value = node%values(split_pos-1)
           ENDIF
           IF (PRESENT (subtree)) THEN
-             CALL btree_left_insertion (tree, node, new_node, key, value,&
+             CALL btree_left_insertion_${nametype}$ (tree, node, new_node, key, value,&
                   ge_pos, split_pos, subtree)
-             !CALL btree_adopt_subtrees (new_node)
+             !CALL btree_adopt_subtrees_${nametype}$ (new_node)
           ELSE
-             CALL btree_left_insertion (tree, node, new_node, key, value,&
+             CALL btree_left_insertion_${nametype}$ (tree, node, new_node, key, value,&
                   ge_pos, split_pos)
           ENDIF
           !
@@ -274,11 +337,11 @@ CONTAINS
           upgrade_key = node%keys(split_pos)
           upgrade_value = node%values(split_pos)
           IF (PRESENT (subtree)) THEN
-             CALL btree_right_insertion (tree, node, new_node, key, value,&
+             CALL btree_right_insertion_${nametype}$ (tree, node, new_node, key, value,&
                   ge_pos, split_pos, subtree)
-             !CALL btree_adopt_subtrees (new_node)
+             !CALL btree_adopt_subtrees_${nametype}$ (new_node)
           ELSE
-             CALL btree_right_insertion (tree, node, new_node, key, value,&
+             CALL btree_right_insertion_${nametype}$ (tree, node, new_node, key, value,&
                   ge_pos, split_pos)
           ENDIF
           !
@@ -287,14 +350,14 @@ CONTAINS
        new_node%parent => node%parent
        !
        IF (.NOT. leaf) THEN
-          CALL btree_adopt_subtrees(new_node)
+          CALL btree_adopt_subtrees_${nametype}$(new_node)
        ENDIF
        !
-       CALL btree_add_into (tree, node%parent, upgrade_key, upgrade_value,&
+       CALL btree_add_into_${nametype}$ (tree, node%parent, upgrade_key, upgrade_value,&
             subtree=new_node)
        !
     ENDIF
-  END SUBROUTINE btree_add_into
+  END SUBROUTINE btree_add_into_${nametype}$
 
 ! **************************************************************************************************
 !> \brief ...
@@ -304,12 +367,12 @@ CONTAINS
 !> \param before ...
 !> \param subtree ...
 ! **************************************************************************************************
-  SUBROUTINE btree_simple_insertion (node, key, value, before, subtree)
-    TYPE(btree_node), INTENT(INOUT) :: node
-    [type1], INTENT(IN) :: key
-    [type2], INTENT(IN) :: value
+  SUBROUTINE btree_simple_insertion_${nametype}$ (node, key, value, before, subtree)
+    TYPE(btree_node_${nametype}$), INTENT(INOUT) :: node
+    ${type1}$, INTENT(IN) :: key
+    ${type2}$, INTENT(IN) :: value
     INTEGER, INTENT(IN) :: before
-    TYPE(btree_node), POINTER, OPTIONAL :: subtree
+    TYPE(btree_node_${nametype}$), POINTER, OPTIONAL :: subtree
     !
     ! Shift keys
     node%keys(before+1:node%filled+1) = node%keys(before:node%filled)
@@ -325,7 +388,7 @@ CONTAINS
        node%subtrees(before+1)%node => subtree
     ENDIF
     node%filled = node%filled+1
-  END SUBROUTINE btree_simple_insertion
+  END SUBROUTINE btree_simple_insertion_${nametype}$
 
 ! **************************************************************************************************
 !> \brief ...
@@ -338,13 +401,13 @@ CONTAINS
 !> \param split_pos ...
 !> \param subtree ...
 ! **************************************************************************************************
-  SUBROUTINE btree_left_insertion (tree, node, new_node, key, value, before, split_pos, subtree)
-    TYPE(btree), INTENT(IN) :: tree
-    TYPE(btree_node), INTENT(INOUT) :: node, new_node
-    [type1], INTENT(IN) :: key
-    [type2], INTENT(IN) :: value
+  SUBROUTINE btree_left_insertion_${nametype}$ (tree, node, new_node, key, value, before, split_pos, subtree)
+    TYPE(btree_${nametype}$), INTENT(IN) :: tree
+    TYPE(btree_node_${nametype}$), INTENT(INOUT) :: node, new_node
+    ${type1}$, INTENT(IN) :: key
+    ${type2}$, INTENT(IN) :: value
     INTEGER, INTENT(IN) :: before, split_pos
-    TYPE(btree_node), POINTER, OPTIONAL :: subtree
+    TYPE(btree_node_${nametype}$), POINTER, OPTIONAL :: subtree
     !
     new_node%filled = (tree%b%max_fill) - (split_pos-1)
     new_node%keys(1:new_node%filled) =&
@@ -378,7 +441,7 @@ CONTAINS
     ELSE
        NULLIFY (node%subtrees(before+1)%node)
     ENDIF
-  END SUBROUTINE btree_left_insertion
+  END SUBROUTINE btree_left_insertion_${nametype}$
 
 ! **************************************************************************************************
 !> \brief ...
@@ -391,13 +454,13 @@ CONTAINS
 !> \param split_pos ...
 !> \param subtree ...
 ! **************************************************************************************************
-  SUBROUTINE btree_right_insertion (tree, node, new_node, key, value, before, split_pos, subtree)
-    TYPE(btree), INTENT(IN) :: tree
-    TYPE(btree_node), INTENT(INOUT) :: node, new_node
-    [type1], INTENT(IN) :: key
-    [type2], INTENT(IN) :: value
+  SUBROUTINE btree_right_insertion_${nametype}$ (tree, node, new_node, key, value, before, split_pos, subtree)
+    TYPE(btree_${nametype}$), INTENT(IN) :: tree
+    TYPE(btree_node_${nametype}$), INTENT(INOUT) :: node, new_node
+    ${type1}$, INTENT(IN) :: key
+    ${type2}$, INTENT(IN) :: value
     INTEGER, INTENT(IN) :: before, split_pos
-    TYPE(btree_node), POINTER, OPTIONAL :: subtree
+    TYPE(btree_node_${nametype}$), POINTER, OPTIONAL :: subtree
     !
     new_node%filled = (tree%b%max_fill+1) - split_pos
     new_node%keys(1:before-split_pos-1) =&
@@ -417,27 +480,8 @@ CONTAINS
        new_node%subtrees(before-split_pos+2:new_node%filled+1) =&
             node%subtrees(before+1:tree%b%max_fill+1)
     ENDIF
-  END SUBROUTINE btree_right_insertion
+  END SUBROUTINE btree_right_insertion_${nametype}$
 
-  ! node is a non-leaf node
-! **************************************************************************************************
-!> \brief ...
-!> \param node ...
-! **************************************************************************************************
-  SUBROUTINE btree_adopt_subtrees (node)
-    TYPE(btree_node), POINTER :: node
-    INTEGER :: i
-    !
-    ! Assume that node is not a leaf!
-    DO i = 1, node%filled+1
-       !IF (ASSOCIATED (node%subtrees(i)%node)) THEN
-          !IF (.NOT. ASSOCIATED (node%subtrees(i)%node%parent,&
-          ! node)) THEN
-             node%subtrees(i)%node%parent => node
-          !ENDIF
-       !ENDIF
-    ENDDO
-  END SUBROUTINE btree_adopt_subtrees
 
 ! **************************************************************************************************
 !> \brief ...
@@ -445,13 +489,13 @@ CONTAINS
 !> \param key ...
 !> \param value ...
 ! **************************************************************************************************
-  SUBROUTINE btree_new_root (tree, key, value)
-    TYPE(btree), INTENT(INOUT) :: tree
-    [type1], INTENT(IN) :: key
-    [type2], INTENT(IN) :: value
-    TYPE(btree_node), POINTER :: old_root, new_root
+  SUBROUTINE btree_new_root_${nametype}$ (tree, key, value)
+    TYPE(btree_${nametype}$), INTENT(INOUT) :: tree
+    ${type1}$, INTENT(IN) :: key
+    ${type2}$, INTENT(IN) :: value
+    TYPE(btree_node_${nametype}$), POINTER :: old_root, new_root
     !
-    CALL btree_new_node(tree, new_root)
+    CALL btree_new_node_${nametype}$(tree, new_root)
     new_root%filled = 1
     new_root%keys(1) = key
     new_root%values(1) = value
@@ -462,16 +506,16 @@ CONTAINS
        old_root%parent => new_root
     ENDIF
     tree%b%root => new_root
-  END SUBROUTINE btree_new_root
+  END SUBROUTINE btree_new_root_${nametype}$
 
 ! **************************************************************************************************
 !> \brief ...
 !> \param tree ...
 !> \param node ...
 ! **************************************************************************************************
-  SUBROUTINE btree_new_node (tree, node)
-    TYPE(btree), INTENT(INOUT) :: tree
-    TYPE(btree_node), POINTER :: node
+  SUBROUTINE btree_new_node_${nametype}$ (tree, node)
+    TYPE(btree_${nametype}$), INTENT(INOUT) :: tree
+    TYPE(btree_node_${nametype}$), POINTER :: node
     INTEGER :: i
     !
     ALLOCATE (node)
@@ -485,20 +529,20 @@ CONTAINS
     NULLIFY (node%parent)
     tree%b%lastid = tree%b%lastid+1
     node%id = tree%b%lastid
-  END SUBROUTINE btree_new_node
+  END SUBROUTINE btree_new_node_${nametype}$
 
 ! **************************************************************************************************
 !> \brief ...
 !> \param node ...
 ! **************************************************************************************************
-  SUBROUTINE btree_free_node (node)
-    TYPE(btree_node), POINTER :: node
+  SUBROUTINE btree_free_node_${nametype}$ (node)
+    TYPE(btree_node_${nametype}$), POINTER :: node
     !
     DEALLOCATE (node%keys)
     DEALLOCATE (node%values)
     DEALLOCATE (node%subtrees)
     DEALLOCATE (node)
-  END SUBROUTINE btree_free_node
+  END SUBROUTINE btree_free_node_${nametype}$
 
 
 ! **************************************************************************************************
@@ -508,23 +552,23 @@ CONTAINS
 !> \param value ...
 !> \param exists ...
 ! **************************************************************************************************
-  SUBROUTINE btree_find (tree, key, value, exists)
-    TYPE(btree), INTENT(IN) :: tree
-    [type1], INTENT(IN) :: key
-    [type2], INTENT(OUT) :: value
+  SUBROUTINE btree_find_${nametype}$ (tree, key, value, exists)
+    TYPE(btree_${nametype}$), INTENT(IN) :: tree
+    ${type1}$, INTENT(IN) :: key
+    ${type2}$, INTENT(OUT) :: value
     LOGICAL, INTENT(OUT), OPTIONAL :: exists
     !
-    TYPE(btree_node), POINTER :: node
+    TYPE(btree_node_${nametype}$), POINTER :: node
     INTEGER :: position
     !
-    CALL btree_find_full (tree, key, node, position, short=.TRUE.)
+    CALL btree_find_full_${nametype}$ (tree, key, node, position, short=.TRUE.)
     IF (PRESENT (exists)) THEN
        exists = position .GT. 0
     ENDIF
     IF (position .GT. 0) THEN
        value = node%values(position)
     ENDIF
-  END SUBROUTINE btree_find
+  END SUBROUTINE btree_find_${nametype}$
 
 ! **************************************************************************************************
 !> \brief ...
@@ -533,9 +577,9 @@ CONTAINS
 !> \param position ...
 !> \param filled ...
 ! **************************************************************************************************
-  SUBROUTINE btree_node_find_ge_pos (keys, key, position, filled)
-    [type1], DIMENSION(:) :: keys
-    [type1], INTENT(IN) :: key
+  SUBROUTINE btree_node_find_ge_pos_${nametype}$ (keys, key, position, filled)
+    ${type1}$, DIMENSION(:) :: keys
+    ${type1}$, INTENT(IN) :: key
     INTEGER, INTENT(OUT) :: position
     INTEGER, INTENT(IN) :: filled
     INTEGER :: left, right
@@ -559,7 +603,7 @@ CONTAINS
        IF (keys(position) .LT. key) left = MAX(position,left+1)
        position = MAX(ISHFT (left+right, -1),left)
     ENDDO
-  END SUBROUTINE btree_node_find_ge_pos
+  END SUBROUTINE btree_node_find_ge_pos_${nametype}$
 
 ! **************************************************************************************************
 !> \brief ...
@@ -568,9 +612,9 @@ CONTAINS
 !> \param position ...
 !> \param filled ...
 ! **************************************************************************************************
-  SUBROUTINE btree_node_find_gt_pos (keys, key, position, filled)
-    [type1], DIMENSION(:) :: keys
-    [type1], INTENT(IN) :: key
+  SUBROUTINE btree_node_find_gt_pos_${nametype}$ (keys, key, position, filled)
+    ${type1}$, DIMENSION(:) :: keys
+    ${type1}$, INTENT(IN) :: key
     INTEGER, INTENT(OUT) :: position
     INTEGER, INTENT(IN) :: filled
     INTEGER :: left, right
@@ -594,7 +638,7 @@ CONTAINS
        IF (keys(position) .LE. key) left = MAX(position,left+1)
        position = MAX(ISHFT (left+right, -1),left)
     ENDDO
-  END SUBROUTINE btree_node_find_gt_pos
+  END SUBROUTINE btree_node_find_gt_pos_${nametype}$
 ! **************************************************************************************************
 !> \brief ...
 !> \param keys ...
@@ -603,9 +647,9 @@ CONTAINS
 !> \param filled ...
 !> \param first ...
 ! **************************************************************************************************
-  SUBROUTINE btree_node_find_gte_pos (keys, key, position, filled, first)
-    [type1], DIMENSION(:) :: keys
-    [type1], INTENT(IN) :: key
+  SUBROUTINE btree_node_find_gte_pos_${nametype}$ (keys, key, position, filled, first)
+    ${type1}$, DIMENSION(:) :: keys
+    ${type1}$, INTENT(IN) :: key
     INTEGER, INTENT(OUT) :: position
     INTEGER, INTENT(IN) :: filled
     INTEGER, INTENT(IN), OPTIONAL :: first
@@ -634,7 +678,7 @@ CONTAINS
        IF (keys(position) .LE. key) left = MAX(position,left+1)
        position = MAX(ISHFT (left+right, -1),left)
     ENDDO
-  END SUBROUTINE btree_node_find_gte_pos
+  END SUBROUTINE btree_node_find_gte_pos_${nametype}$
 
   ! node is unassociated and position=0 if not found
   ! Precondition: The key is tree or its subtree.
@@ -647,10 +691,10 @@ CONTAINS
 !> \param ge_position ...
 !> \param short ...
 ! **************************************************************************************************
-  SUBROUTINE btree_find_full (tree, key, node, position, ge_position, short)
-    TYPE(btree), INTENT(IN) :: tree
-    [type1], INTENT(IN) :: key
-    TYPE(btree_node), POINTER :: node
+  SUBROUTINE btree_find_full_${nametype}$ (tree, key, node, position, ge_position, short)
+    TYPE(btree_${nametype}$), INTENT(IN) :: tree
+    ${type1}$, INTENT(IN) :: key
+    TYPE(btree_node_${nametype}$), POINTER :: node
     INTEGER, INTENT(OUT) :: position
     INTEGER, INTENT(OUT), OPTIONAL :: ge_position
     LOGICAL, INTENT(IN), OPTIONAL :: short
@@ -671,7 +715,7 @@ CONTAINS
     descent: DO WHILE (.TRUE.)
        ! Try to find the first element equal to or greater than the
        ! one we're searching for.
-       CALL btree_node_find_ge_pos (node%keys, key, position, node%filled)
+       CALL btree_node_find_ge_pos_${nametype}$ (node%keys, key, position, node%filled)
        ! One of three things is now true about position: it's now
        ! greater than the number of keys (if all keys are smaller), or
        ! it points to the key that is equal to or greater than the one
@@ -687,8 +731,8 @@ CONTAINS
        ! If the key is not found, then either return the GE position
        ! if we're in a leaf (case 2 here), otherwise descend into the
        ! subtrees.
-       !CALL btree_node_find_gt_pos (node%keys, key, gti, node%filled, position)
-       CALL btree_node_find_gte_pos (node%keys, key, gti, node%filled, position)
+       !CALL btree_node_find_gt_pos_${nametype}$ (node%keys, key, gti, node%filled, position)
+       CALL btree_node_find_gte_pos_${nametype}$ (node%keys, key, gti, node%filled, position)
        IF (ASSOCIATED (node%subtrees(1)%node)) THEN
           node => node%subtrees(gti)%node
        ELSE
@@ -697,7 +741,7 @@ CONTAINS
           RETURN
        ENDIF
     END DO descent
-  END SUBROUTINE btree_find_full
+  END SUBROUTINE btree_find_full_${nametype}$
 
   ! node is unassociated and position=0 if not found
   ! Precondition: The key is tree or its subtree.
@@ -708,10 +752,10 @@ CONTAINS
 !> \param node ...
 !> \param gti ...
 ! **************************************************************************************************
-  SUBROUTINE btree_find_leaf (tree, key, node, gti)
-    TYPE(btree), INTENT(IN) :: tree
-    [type1], INTENT(IN) :: key
-    TYPE(btree_node), POINTER :: node
+  SUBROUTINE btree_find_leaf_${nametype}$(tree, key, node, gti)
+    TYPE(btree_${nametype}$), INTENT(IN) :: tree
+    ${type1}$, INTENT(IN) :: key
+    TYPE(btree_node_${nametype}$), POINTER :: node
     INTEGER, INTENT(OUT) :: gti
     !
     NULLIFY(node)
@@ -724,7 +768,7 @@ CONTAINS
     descent: DO WHILE (.TRUE.)
        ! Try to find the first element equal to or greater than the
        ! one we're searching for.
-       !CALL btree_node_find_ge_pos (node%keys, key, position, node%filled)
+       !CALL btree_node_find_ge_pos_${nametype}$ (node%keys, key, position, node%filled)
        ! One of three things is now true about position: it's now
        ! greater than the number of keys (if all keys are smaller), or
        ! it points to the key that is equal to or greater than the one
@@ -735,8 +779,8 @@ CONTAINS
        ! If the key is not found, then either return the GE position
        ! if we're in a leaf (case 2 here), otherwise descend into the
        ! subtrees.
-       CALL btree_node_find_gt_pos (node%keys, key, gti, node%filled)
-       !CALL btree_node_find_gt2_pos (node%keys, key, i, node%filled)
+       CALL btree_node_find_gt_pos_${nametype}$ (node%keys, key, gti, node%filled)
+       !CALL btree_node_find_gt2_pos_${nametype}$ (node%keys, key, i, node%filled)
        !IF (i .NE. gti) WRITE(*,*)'XXXX difference',i,gti
        IF (ASSOCIATED (node%subtrees(1)%node)) THEN
           node => node%subtrees(gti)%node
@@ -744,6 +788,7 @@ CONTAINS
           RETURN
        ENDIF
     END DO descent
-  END SUBROUTINE btree_find_leaf
+  END SUBROUTINE btree_find_leaf_${nametype}$
+#:endfor
 
-END MODULE btree_[nametype1]_k_[nametype2]_v
+END MODULE btree

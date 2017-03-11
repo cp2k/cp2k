@@ -15,14 +15,8 @@
 MODULE dbcsr_methods
    USE array_types,                     ONLY: array_data,&
                                               array_release
-   USE btree_I8_k_cp2d_v,               ONLY: btree_destroy_c => btree_delete,&
-                                              btree_new_c => btree_new
-   USE btree_I8_k_dp2d_v,               ONLY: btree_destroy_d => btree_delete,&
-                                              btree_new_d => btree_new
-   USE btree_I8_k_sp2d_v,               ONLY: btree_destroy_s => btree_delete,&
-                                              btree_new_s => btree_new
-   USE btree_I8_k_zp2d_v,               ONLY: btree_destroy_z => btree_delete,&
-                                              btree_new_z => btree_new
+   USE btree,                           ONLY: btree_delete,&
+                                              btree_new
    USE dbcsr_data_methods,              ONLY: dbcsr_data_release
    USE dbcsr_ptr_util,                  ONLY: memory_deallocate
    USE dbcsr_types,                     ONLY: &
@@ -974,10 +968,10 @@ CONTAINS
 !   ---------------------------------------------------------------------------
 
       IF (ASSOCIATED(mutable%m)) THEN
-         CALL btree_destroy_s(mutable%m%btree_s)
-         CALL btree_destroy_d(mutable%m%btree_d)
-         CALL btree_destroy_c(mutable%m%btree_c)
-         CALL btree_destroy_z(mutable%m%btree_z)
+         CALL btree_delete(mutable%m%btree_s)
+         CALL btree_delete(mutable%m%btree_d)
+         CALL btree_delete(mutable%m%btree_c)
+         CALL btree_delete(mutable%m%btree_z)
          DEALLOCATE (mutable%m)
       ENDIF
       NULLIFY (mutable%m)
@@ -1031,10 +1025,10 @@ CONTAINS
       ALLOCATE (mutable%m)
       mutable%m%refcount = 1
       mutable%m%data_type = data_type
-      CALL btree_new_s(mutable%m%btree_s)
-      CALL btree_new_d(mutable%m%btree_d)
-      CALL btree_new_c(mutable%m%btree_c)
-      CALL btree_new_z(mutable%m%btree_z)
+      CALL btree_new(mutable%m%btree_s)
+      CALL btree_new(mutable%m%btree_d)
+      CALL btree_new(mutable%m%btree_c)
+      CALL btree_new(mutable%m%btree_z)
    END SUBROUTINE dbcsr_mutable_new
 
 ! **************************************************************************************************

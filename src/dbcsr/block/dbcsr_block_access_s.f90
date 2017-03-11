@@ -32,7 +32,7 @@
                                                 stored_row,&
                                                 stored_col, iw, nwms
     INTEGER                                  :: error_handle
-    TYPE(btree_2d_data_s)          :: data_block
+    TYPE(btree_data_sp2d)          :: data_block
     LOGICAL                                  :: stored_tr
     REAL(kind=real_4), DIMENSION(1,1), TARGET, SAVE    :: block0
 !   ---------------------------------------------------------------------------
@@ -75,7 +75,7 @@
              CALL dbcsr_mutable_new(matrix%wms(iw)%mutable,&
                   dbcsr_get_data_type(matrix))
           ENDIF
-          CALL btree_get_s (&
+          CALL btree_find (&
                matrix%wms(iw)%mutable%m%btree_s,&
                make_coordinate_tuple(stored_row, stored_col),&
                data_block, found)
@@ -169,7 +169,7 @@
     CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_reserve_block2d_s', &
       routineP = moduleN//':'//routineN
 
-    TYPE(btree_2d_data_s)          :: data_block, data_block2
+    TYPE(btree_data_sp2d)          :: data_block, data_block2
     INTEGER                                  :: col_size, row_size, &
                                                 stored_row, stored_col, &
                                                 iw, nwms
@@ -220,7 +220,7 @@
 !$  IF(nwms < omp_get_num_threads()) &
 !$     CPABORT("Number of work matrices not equal to number of threads")
 !$  iw = omp_get_thread_num () + 1
-    CALL btree_add_s (matrix%wms(iw)%mutable%m%btree_s,&
+    CALL btree_add (matrix%wms(iw)%mutable%m%btree_s,&
          make_coordinate_tuple(stored_row, stored_col),&
          data_block, found, data_block2)
 
@@ -312,7 +312,7 @@
     CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_put_block_s', &
       routineP = moduleN//':'//routineN
 
-    TYPE(btree_2d_data_s)          :: data_block, data_block2
+    TYPE(btree_data_sp2d)          :: data_block, data_block2
     INTEGER                                  :: blk, col_size, &
                                                 nze, offset, &
                                                 row_size, blk_p,&
@@ -421,7 +421,7 @@
                   dbcsr_get_data_type(matrix))
           ENDIF
           IF (.NOT. do_sum) THEN
-             CALL btree_add_s (&
+             CALL btree_add (&
                   matrix%wms(iw)%mutable%m%btree_s,&
                   make_coordinate_tuple(stored_row, stored_col),&
                   data_block, found, data_block2, replace=.TRUE.)
@@ -431,7 +431,7 @@
                 IF (ASSOCIATED (data_block2%p)) DEALLOCATE (data_block2%p)
              ENDIF
           ELSE
-             CALL btree_add_s (&
+             CALL btree_add (&
                   matrix%wms(iw)%mutable%m%btree_s,&
                   make_coordinate_tuple(stored_row, stored_col),&
                   data_block, found, data_block2, replace=.FALSE.)

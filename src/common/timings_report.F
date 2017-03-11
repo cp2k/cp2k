@@ -19,8 +19,8 @@ MODULE timings_report
    USE cp_para_types,                   ONLY: cp_para_env_type
    USE dict,                            ONLY: dict_get,&
                                               dict_haskey,&
+                                              dict_i4tuple_callstat_item_type,&
                                               dict_items
-   USE dict_i4tuple_callstat,           ONLY: dict_i4tuple_callstat_item_type
    USE kinds,                           ONLY: default_string_length,&
                                               dp,&
                                               int_8

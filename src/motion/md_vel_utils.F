@@ -22,7 +22,7 @@ MODULE md_vel_utils
    USE cell_types,                      ONLY: &
         cell_type, use_perd_none, use_perd_x, use_perd_xy, use_perd_xyz, use_perd_xz, use_perd_y, &
         use_perd_yz, use_perd_z
-   USE cp_linked_list_val,              ONLY: cp_sll_val_next,&
+   USE cp_linked_list_input,            ONLY: cp_sll_val_next,&
                                               cp_sll_val_type
    USE cp_log_handling,                 ONLY: cp_get_default_logger,&
                                               cp_logger_type

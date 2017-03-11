@@ -13,7 +13,7 @@ MODULE input_cp2k_restarts
    USE atomic_kind_list_types,          ONLY: atomic_kind_list_type
    USE averages_types,                  ONLY: average_quantities_type
    USE cp2k_info,                       ONLY: write_restart_header
-   USE cp_linked_list_val,              ONLY: cp_sll_val_create,&
+   USE cp_linked_list_input,            ONLY: cp_sll_val_create,&
                                               cp_sll_val_get_length,&
                                               cp_sll_val_type
    USE cp_log_handling,                 ONLY: cp_get_default_logger,&

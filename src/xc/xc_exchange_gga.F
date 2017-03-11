@@ -13,7 +13,7 @@
 ! **************************************************************************************************
 MODULE xc_exchange_gga
 
-   USE cp_array_utils_r,                ONLY: cp_3d_r_p_type
+   USE cp_array_utils,                  ONLY: cp_3d_r_p_type
    USE cp_log_handling,                 ONLY: cp_to_string
    USE kinds,                           ONLY: dp
    USE mathconstants,                   ONLY: pi

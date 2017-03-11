@@ -20,7 +20,7 @@ MODULE distribution_methods
                                               pbc,&
                                               real_to_scaled,&
                                               scaled_to_real
-   USE cp_array_utils_i,                ONLY: cp_1d_i_p_type
+   USE cp_array_utils,                  ONLY: cp_1d_i_p_type
    USE cp_blacs_env,                    ONLY: cp_blacs_env_type
    USE cp_log_handling,                 ONLY: cp_get_default_logger,&
                                               cp_logger_get_default_io_unit,&

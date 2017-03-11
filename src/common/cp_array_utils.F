@@ -3,70 +3,54 @@
 !   Copyright (C) 2000 - 2017  CP2K developers group                                               !
 !--------------------------------------------------------------------------------------------------!
 
-[defines]
+#:include 'cp_array_utils.fypp'
 
 ! **************************************************************************************************
 !> \brief various utilities that regard array of different kinds:
 !>      output, allocation,...
-!> \note
-!>     ____              _ _     __  __           _ _  __         _____ _     _       _____ _ _      _
-!>    |  _ \  ___  _ __ ( ) |_  |  \/  | ___   __| (_)/ _|_   _  |_   _| |__ (_)___  |  ___(_) | ___| |
-!>    | | | |/ _ \| '_ \|/| __| | |\/| |/ _ \ / _` | | |_| | | |   | | | '_ \| / __| | |_  | | |/ _ \ |
-!>    | |_| | (_) | | | | | |_  | |  | | (_) | (_| | |  _| |_| |   | | | | | | \__ \ |  _| | | |  __/_|
-!>    |____/ \___/|_| |_|  \__| |_|  |_|\___/ \__,_|_|_|  \__, |   |_| |_| |_|_|___/ |_|   |_|_|\___(_)
-!>                                                        |___/
-!>      ____ _                  ___                              _ _       _       _
-!>     / ___| | ___  ___  ___  |_ _|_ __ ___  _ __ ___   ___  __| (_) __ _| |_ ___| |_   _
-!>    | |   | |/ _ \/ __|/ _ \  | || '_ ` _ \| '_ ` _ \ / _ \/ _` | |/ _` | __/ _ \ | | | |
-!>    | |___| | (_) \__ \  __/  | || | | | | | | | | | |  __/ (_| | | (_| | ||  __/ | |_| |
-!>     \____|_|\___/|___/\___| |___|_| |_| |_|_| |_| |_|\___|\__,_|_|\__,_|\__\___|_|\__, |
-!>                                                                                   |___/
-!>     _____ _     _       _____ _ _      _
-!>    |_   _| |__ (_)___  |  ___(_) | ___| |
-!>      | | | '_ \| / __| | |_  | | |/ _ \ |
-!>      | | | | | | \__ \ |  _| | | |  __/_|
-!>      |_| |_| |_|_|___/ |_|   |_|_|\___(_)
-!>
-!>      This is a template
-!>
-!>      **** DO NOT MODIFY THE .F FILES ****
-!>      modify the .template and .instantition instead
-!>
 !>      maybe it is not a good idea mixing output and memeory utils...
 !> \par History
 !>      12.2001 first version [fawzi]
 !>      3.2002 templatized [fawzi]
 !> \author Fawzi Mohamed
 ! **************************************************************************************************
-MODULE cp_array_utils_[nametype1]
+MODULE cp_array_utils
   USE machine,                         ONLY: m_flush
   USE cp_log_handling,                 ONLY: cp_to_string
-  [USE]
+
+  USE kinds,                           ONLY: ${uselist(usekinds)}$
+
 #include "../base/base_uses.f90"
   IMPLICIT NONE
   PRIVATE
 
   LOGICAL, PRIVATE, PARAMETER :: debug_this_module=.TRUE.
-  CHARACTER(len=*), PRIVATE, PARAMETER :: moduleN='cp_array_utils_[nametype1]'
+  CHARACTER(len=*), PRIVATE, PARAMETER :: moduleN='cp_array_utils'
 
-  ! types
-  PUBLIC :: cp_1d_[nametype1]_p_type, cp_2d_[nametype1]_p_type, cp_3d_[nametype1]_p_type
+#:for nametype in nametype1
+  PUBLIC :: cp_1d_${nametype}$_p_type, &
+            cp_2d_${nametype}$_p_type, &
+            cp_3d_${nametype}$_p_type, &
+            cp_1d_${nametype}$_guarantee_size, &
+            cp_1d_${nametype}$_write, &
+            cp_2d_${nametype}$_write,&
+            cp_2d_${nametype}$_guarantee_size,&
+            cp_1d_${nametype}$_bsearch
+#:endfor
 
   ! generic interfaces
   PUBLIC :: cp_guarantee_size
 
-  ! the underlying procedures
-  PUBLIC :: cp_1d_[nametype1]_guarantee_size, &
-       cp_1d_[nametype1]_write, cp_2d_[nametype1]_write,&
-       cp_2d_[nametype1]_guarantee_size,&
-       cp_1d_[nametype1]_bsearch
-
   INTERFACE cp_guarantee_size
-     MODULE PROCEDURE cp_1d_[nametype1]_guarantee_size,&
-          cp_2d_[nametype1]_guarantee_size
+#:for nametype in nametype1
+     MODULE PROCEDURE cp_1d_${nametype}$_guarantee_size,&
+                      cp_2d_${nametype}$_guarantee_size
+#:endfor
   END INTERFACE
 
 !***
+
+#:for nametype1, type1, defaultFormatType1, lessQ in inst_params
 
 ! **************************************************************************************************
 !> \brief represent a pointer to a 1d array
@@ -74,9 +58,9 @@ MODULE cp_array_utils_[nametype1]
 !>      02.2003 created [fawzi]
 !> \author fawzi
 ! **************************************************************************************************
-  type cp_1d_[nametype1]_p_type
-     [type1], dimension(:), pointer :: array
-  end type cp_1d_[nametype1]_p_type
+  type cp_1d_${nametype1}$_p_type
+     ${type1}$, dimension(:), pointer :: array
+  end type cp_1d_${nametype1}$_p_type
 
 ! **************************************************************************************************
 !> \brief represent a pointer to a 2d array
@@ -84,9 +68,9 @@ MODULE cp_array_utils_[nametype1]
 !>      02.2003 created [fawzi]
 !> \author fawzi
 ! **************************************************************************************************
-  type cp_2d_[nametype1]_p_type
-     [type1], dimension(:,:), pointer :: array
-  end type cp_2d_[nametype1]_p_type
+  type cp_2d_${nametype1}$_p_type
+     ${type1}$, dimension(:,:), pointer :: array
+  end type cp_2d_${nametype1}$_p_type
 
 ! **************************************************************************************************
 !> \brief represent a pointer to a 3d array
@@ -94,12 +78,15 @@ MODULE cp_array_utils_[nametype1]
 !>      02.2003 created [fawzi]
 !> \author fawzi
 ! **************************************************************************************************
-  type cp_3d_[nametype1]_p_type
-     [type1], dimension(:,:,:), pointer :: array
-  end type cp_3d_[nametype1]_p_type
+  type cp_3d_${nametype1}$_p_type
+     ${type1}$, dimension(:,:,:), pointer :: array
+  end type cp_3d_${nametype1}$_p_type
+
+#:endfor
 
 CONTAINS
 
+#:for nametype1, type1, defaultFormatType1, lessQ in inst_params
 ! **************************************************************************************************
 !> \brief writes an array to the given unit
 !> \param array the array to write
@@ -111,15 +98,15 @@ CONTAINS
 !> \note
 !>      maybe I will move to a comma separated paretized list
 ! **************************************************************************************************
-SUBROUTINE cp_1d_[nametype1]_write(array, unit_nr, el_format)
-  [type1], INTENT(in) :: array(:)
+SUBROUTINE cp_1d_${nametype1}$_write(array, unit_nr, el_format)
+  ${type1}$, INTENT(in) :: array(:)
   INTEGER, INTENT(in) :: unit_nr
   CHARACTER(len=*), INTENT(in), OPTIONAL :: el_format
 
   INTEGER :: iostat, i
-  CHARACTER(len=*), PARAMETER :: routineN='cp_1d_[nametype1]_write',&
+  CHARACTER(len=*), PARAMETER :: routineN='cp_1d_${nametype1}$_write',&
         routineP=moduleN//':'//routineN
-  CHARACTER(len=*), PARAMETER :: defaultFormat=[defaultFormatType1]
+  CHARACTER(len=*), PARAMETER :: defaultFormat=${defaultFormatType1}$
 
   WRITE(unit=unit_nr,fmt="('( ')",advance="no", iostat=iostat)
   CPASSERT(iostat==0)
@@ -149,7 +136,7 @@ SUBROUTINE cp_1d_[nametype1]_write(array, unit_nr, el_format)
   WRITE(unit=unit_nr,fmt="(' )')")
   call m_flush(unit_nr)
 
-END SUBROUTINE cp_1d_[nametype1]_write
+END SUBROUTINE cp_1d_${nametype1}$_write
 
 ! **************************************************************************************************
 !> \brief writes an array to the given unit
@@ -162,15 +149,15 @@ END SUBROUTINE cp_1d_[nametype1]_write
 !> \note
 !>      maybe I will move to a comma separated parentized list
 ! **************************************************************************************************
-SUBROUTINE cp_2d_[nametype1]_write(array, unit_nr, el_format)
-  [type1], INTENT(in) :: array(:,:)
+SUBROUTINE cp_2d_${nametype1}$_write(array, unit_nr, el_format)
+  ${type1}$, INTENT(in) :: array(:,:)
   INTEGER, INTENT(in) :: unit_nr
   CHARACTER(len=*), INTENT(in), OPTIONAL :: el_format
 
   INTEGER :: iostat, i
-  CHARACTER(len=*), PARAMETER :: routineN='cp_2d_[nametype1]_write',&
+  CHARACTER(len=*), PARAMETER :: routineN='cp_2d_${nametype1}$_write',&
         routineP=moduleN//':'//routineN
-  CHARACTER(len=*), PARAMETER :: defaultFormat=[defaultFormatType1]
+  CHARACTER(len=*), PARAMETER :: defaultFormat=${defaultFormatType1}$
   CHARACTER(len=200) :: fmtstr
   CHARACTER(len=10) :: nRiga
 
@@ -186,7 +173,7 @@ SUBROUTINE cp_2d_[nametype1]_write(array, unit_nr, el_format)
      CPASSERT(iostat==0)
   END DO
   call m_flush(unit_nr)
-END SUBROUTINE cp_2d_[nametype1]_write
+END SUBROUTINE cp_2d_${nametype1}$_write
 
 ! **************************************************************************************************
 !> \brief If the size of the array is changes reallocate it.
@@ -205,11 +192,11 @@ END SUBROUTINE cp_2d_[nametype1]_write
 !>      this is a different behaviour than the realloc in the module
 !>      memory_utilities. It is quite low level
 ! **************************************************************************************************
-  SUBROUTINE cp_1d_[nametype1]_guarantee_size(array, n)
-    [type1], POINTER :: array(:)
+  SUBROUTINE cp_1d_${nametype1}$_guarantee_size(array, n)
+    ${type1}$, POINTER :: array(:)
     INTEGER, INTENT(in) :: n
 
-    CHARACTER(len=*), PARAMETER :: routineN='cp_1d_[nametype1]_guarantee_size',&
+    CHARACTER(len=*), PARAMETER :: routineN='cp_1d_${nametype1}$_guarantee_size',&
          routineP=moduleN//':'//routineN
 
     CPASSERT(n>=0)
@@ -222,7 +209,7 @@ END SUBROUTINE cp_2d_[nametype1]_write
     IF (.NOT.ASSOCIATED(array)) THEN
        ALLOCATE(array(n))
     END IF
-  END SUBROUTINE cp_1d_[nametype1]_guarantee_size
+  END SUBROUTINE cp_1d_${nametype1}$_guarantee_size
 
 ! **************************************************************************************************
 !> \brief If the size of the array is changes reallocate it.
@@ -241,11 +228,11 @@ END SUBROUTINE cp_2d_[nametype1]_write
 !>      this is a different behaviour than the realloc in the module
 !>      memory_utilities. It is quite low level
 ! **************************************************************************************************
-  SUBROUTINE cp_2d_[nametype1]_guarantee_size(array, n_rows, n_cols)
-    [type1], POINTER :: array(:,:)
+  SUBROUTINE cp_2d_${nametype1}$_guarantee_size(array, n_rows, n_cols)
+    ${type1}$, POINTER :: array(:,:)
     INTEGER, INTENT(in) :: n_rows, n_cols
 
-    CHARACTER(len=*), PARAMETER :: routineN='cp_2d_[nametype1]_guarantee_size',&
+    CHARACTER(len=*), PARAMETER :: routineN='cp_2d_${nametype1}$_guarantee_size',&
          routineP=moduleN//':'//routineN
 
     CPASSERT(n_cols>=0)
@@ -259,7 +246,7 @@ END SUBROUTINE cp_2d_[nametype1]_write
     IF (.NOT.ASSOCIATED(array)) THEN
        ALLOCATE(array(n_rows,n_cols))
     END IF
-  END SUBROUTINE cp_2d_[nametype1]_guarantee_size
+  END SUBROUTINE cp_2d_${nametype1}$_guarantee_size
 
 ! **************************************************************************************************
 !> \brief returns the index at which the element el should be inserted in the
@@ -277,14 +264,14 @@ END SUBROUTINE cp_2d_[nametype1]_write
 !> \note
 !>      the array should be ordered in growing order
 ! **************************************************************************************************
-FUNCTION cp_1d_[nametype1]_bsearch(array, el, l_index, u_index)&
+FUNCTION cp_1d_${nametype1}$_bsearch(array, el, l_index, u_index)&
      result(res)
-  [type1], intent(in) :: array(:)
-  [type1], intent(in) :: el
+  ${type1}$, intent(in) :: array(:)
+  ${type1}$, intent(in) :: el
   INTEGER, INTENT(in), OPTIONAL :: l_index, u_index
   integer :: res
 
-  character(len=*), parameter :: routineN='cp_1d_[nametype1]_bsearch',&
+  character(len=*), parameter :: routineN='cp_1d_${nametype1}$_bsearch',&
         routineP=moduleN//':'//routineN
   INTEGER :: lindex,uindex,aindex
 
@@ -294,17 +281,14 @@ FUNCTION cp_1d_[nametype1]_bsearch(array, el, l_index, u_index)&
   if (present(u_index)) uindex=u_index
   DO WHILE (lindex <= uindex)
      aindex=(lindex+uindex)/2
-     IF ([lessQ](array(aindex),el)) THEN
+     IF (@{lessQ(array(aindex),el)}@) THEN
         lindex=aindex+1
      ELSE
         uindex=aindex-1
      END IF
   END DO
   res=lindex
-END FUNCTION cp_1d_[nametype1]_bsearch
+END FUNCTION cp_1d_${nametype1}$_bsearch
+#:endfor
 
-  ! template def put here so that line numbers in template and derived
-  ! files are almost the same (multi-line use change it a bit)
-  ! [template(type1,nametype1,USE,defaultFormatType1,lessQ,defines)]
-
-END MODULE cp_array_utils_[nametype1]
+END MODULE cp_array_utils

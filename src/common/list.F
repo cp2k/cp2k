@@ -4,33 +4,31 @@
 !--------------------------------------------------------------------------------------------------!
 
 ! **************************************************************************************************
-!> \brief A common interface for all instances of list__valuetype_.template .
+!> \brief An array-based list which grows on demand.
+!>        When the internal array is full, a new array of twice the size will be
+!>        allocated and the items are copied over.
+!>
+!>        This list can also be used as a stack.
+!>        Have look at list_push(), list_pop() and list_peek().
+!> \note it's not possible to put all templates in a single module because this would lead to circular
+!>       dependencies (timer_env_type contains list_routinestat_type and list_callstackentry_type, and
+!>       list_timerenv_type contains timer_env_type)
 !> \par History
 !>      12.2012 first version [ole]
 !> \author Ole Schuett
 ! **************************************************************************************************
 
-MODULE list
-   USE list_callstackentry,             ONLY: &
-        list_callstackentry_clear, list_callstackentry_del, list_callstackentry_destroy, &
-        list_callstackentry_get, list_callstackentry_init, list_callstackentry_insert, &
-        list_callstackentry_isready, list_callstackentry_peek, list_callstackentry_pop, &
-        list_callstackentry_push, list_callstackentry_set, list_callstackentry_size
-   USE list_routinereport,              ONLY: &
-        list_routinereport_clear, list_routinereport_del, list_routinereport_destroy, &
-        list_routinereport_get, list_routinereport_init, list_routinereport_isready, &
-        list_routinereport_peek, list_routinereport_pop, list_routinereport_push, &
-        list_routinereport_set, list_routinereport_size
-   USE list_routinestat,                ONLY: &
-        list_routinestat_clear, list_routinestat_del, list_routinestat_destroy, &
-        list_routinestat_get, list_routinestat_init, list_routinestat_insert, &
-        list_routinestat_isready, list_routinestat_peek, list_routinestat_pop, &
-        list_routinestat_push, list_routinestat_set, list_routinestat_size
-   USE list_timerenv,                   ONLY: &
-        list_timerenv_clear, list_timerenv_del, list_timerenv_destroy, list_timerenv_get, &
-        list_timerenv_init, list_timerenv_insert, list_timerenv_isready, list_timerenv_peek, &
-        list_timerenv_pop, list_timerenv_push, list_timerenv_set, list_timerenv_size
+#:include 'list.fypp'
 
+MODULE list
+
+USE timings_base_type,       ONLY: ${uselist(usetimingsbase)}$
+USE list_callstackentry,     ONLY: @{uselist_listmethods(callstackentry)}@
+USE list_routinereport,      ONLY: @{uselist_listmethods(routinereport)}@
+USE list_routinestat,        ONLY: @{uselist_listmethods(routinestat)}@
+USE list_timerenv,           ONLY: @{uselist_listmethods(timerenv)}@
+
+#include "../base/base_uses.f90"
    IMPLICIT NONE
 
    PRIVATE
@@ -39,66 +37,80 @@ MODULE list
    PUBLIC :: list_init, list_isready, list_push, list_pop, list_peek, &
              list_get, list_size, list_destroy
 
+#:for vtype in valuetype
+   PUBLIC :: list_${vtype}$_type
+#:endfor
+
    INTERFACE list_init
-      MODULE PROCEDURE list_timerenv_init, list_routinestat_init, &
-         list_callstackentry_init, list_routinereport_init
+#:for vtype in valuetype
+      MODULE PROCEDURE list_${vtype}$_init
+#:endfor
    END INTERFACE
 
    INTERFACE list_isready
-      MODULE PROCEDURE list_timerenv_isready, &
-         list_routinestat_isready, list_callstackentry_isready, &
-         list_routinereport_isready
+#:for vtype in valuetype
+      MODULE PROCEDURE list_${vtype}$_isready
+#:endfor
    END INTERFACE
 
    INTERFACE list_push
-      MODULE PROCEDURE list_timerenv_push, list_routinestat_push, &
-         list_callstackentry_push, list_routinereport_push
-   END INTERFACE
+#:for vtype in valuetype
+      MODULE PROCEDURE list_${vtype}$_push
+#:endfor
+END INTERFACE
 
    INTERFACE list_pop
-      MODULE PROCEDURE list_timerenv_pop, list_routinestat_pop, &
-         list_callstackentry_pop, list_routinereport_pop
+#:for vtype in valuetype
+      MODULE PROCEDURE list_${vtype}$_pop
+#:endfor
    END INTERFACE
 
    INTERFACE list_peek
-      MODULE PROCEDURE list_timerenv_peek, list_routinestat_peek, &
-         list_callstackentry_peek, list_routinereport_peek
+#:for vtype in valuetype
+      MODULE PROCEDURE list_${vtype}$_peek
+#:endfor
    END INTERFACE
 
    INTERFACE list_insert
-      MODULE PROCEDURE list_timerenv_insert, &
-         list_routinestat_insert, list_callstackentry_insert
+#:for vtype in valuetype
+      MODULE PROCEDURE list_${vtype}$_insert
+#:endfor
    END INTERFACE
 
    INTERFACE list_set
-      MODULE PROCEDURE list_timerenv_set, list_routinestat_set, &
-         list_callstackentry_set, list_routinereport_set
+#:for vtype in valuetype
+      MODULE PROCEDURE list_${vtype}$_set
+#:endfor
    END INTERFACE
 
    INTERFACE list_get
-      MODULE PROCEDURE list_timerenv_get, list_routinestat_get, &
-         list_callstackentry_get, list_routinereport_get
+#:for vtype in valuetype
+      MODULE PROCEDURE list_${vtype}$_get
+#:endfor
    END INTERFACE
 
    INTERFACE list_del
-      MODULE PROCEDURE list_timerenv_del, list_routinestat_del, &
-         list_callstackentry_del, list_routinereport_del
+#:for vtype in valuetype
+      MODULE PROCEDURE list_${vtype}$_del
+#:endfor
    END INTERFACE
 
    INTERFACE list_clear
-      MODULE PROCEDURE list_timerenv_clear, list_routinestat_clear, &
-         list_callstackentry_clear, list_routinereport_clear
+#:for vtype in valuetype
+      MODULE PROCEDURE list_${vtype}$_clear
+#:endfor
    END INTERFACE
 
    INTERFACE list_size
-      MODULE PROCEDURE list_timerenv_size, list_routinestat_size, &
-         list_callstackentry_size, list_routinereport_size
+#:for vtype in valuetype
+      MODULE PROCEDURE list_${vtype}$_size
+#:endfor
    END INTERFACE
 
    INTERFACE list_destroy
-      MODULE PROCEDURE list_timerenv_destroy, &
-         list_routinestat_destroy, list_callstackentry_destroy, &
-         list_routinereport_destroy
+#:for vtype in valuetype
+      MODULE PROCEDURE list_${vtype}$_destroy
+#:endfor
    END INTERFACE
 
 END MODULE list

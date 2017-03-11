@@ -13,7 +13,7 @@
 MODULE input_section_types
    USE cp_files,                        ONLY: close_file,&
                                               open_file
-   USE cp_linked_list_val,              ONLY: &
+   USE cp_linked_list_input,            ONLY: &
         cp_sll_val_create, cp_sll_val_dealloc, cp_sll_val_get_el_at, cp_sll_val_get_length, &
         cp_sll_val_get_rest, cp_sll_val_insert_el_at, cp_sll_val_next, cp_sll_val_p_type, &
         cp_sll_val_rm_el_at, cp_sll_val_set_el_at, cp_sll_val_type

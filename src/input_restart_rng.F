@@ -4,7 +4,7 @@
 !--------------------------------------------------------------------------------------------------!
 
 MODULE input_restart_rng
-   USE cp_linked_list_val,              ONLY: cp_sll_val_create,&
+   USE cp_linked_list_input,            ONLY: cp_sll_val_create,&
                                               cp_sll_val_get_length,&
                                               cp_sll_val_type
    USE input_section_types,             ONLY: section_get_keyword_index,&

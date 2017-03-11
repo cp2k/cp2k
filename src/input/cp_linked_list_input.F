@@ -5,20 +5,21 @@
 
 #:include '../common/cp_linked_list.fypp'
 
-MODULE cp_linked_list_fm
-USE cp_fm_types, ONLY: cp_fm_type, cp_fm_p_type
+MODULE cp_linked_list_input
+USE kinds,             only: dp, default_string_length
+USE input_val_types,   only: val_type, val_p_type
 #include "../base/base_uses.f90"
 
 #:mute
-#:set nametype1 = ['fm']
-#:set type1 = ['type(cp_fm_type),pointer']
-#:set type1in = type1
-#:set type1out = type1
+#:set nametype1 = ['int', 'real', 'logical', 'char', 'val']
+#:set type1 = ['integer', 'REAL(kind=dp)','logical', 'character(len=default_string_length)', 'type(val_type),pointer']
+#:set type1in = [_ + ', intent(in)' for _ in type1]
+#:set type1out = [_ + ', intent(out)' for _ in type1]
 
-#:set eq = ['=>']
+#:set eq = ['=', '=', '=', '=', '=>']
 #:set arrayeq = eq
-#:set type1arrayEl = ['type(cp_fm_p_type)']
-#:set arrayEl = ['%matrix']
+#:set type1arrayEl = ['integer', 'REAL(kind=dp)', 'logical', 'character(len=default_string_length)','type(val_p_type)']
+#:set arrayEl = ['', '', '', '', '%val']
 #:set private_routines = ''
 #:endmute
 

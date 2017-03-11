@@ -21,7 +21,7 @@ MODULE atoms_input
    USE cell_types,                      ONLY: cell_type,&
                                               pbc,&
                                               scaled_to_real
-   USE cp_linked_list_val,              ONLY: cp_sll_val_next,&
+   USE cp_linked_list_input,            ONLY: cp_sll_val_next,&
                                               cp_sll_val_type
    USE cp_log_handling,                 ONLY: cp_logger_get_default_io_unit,&
                                               cp_to_string
