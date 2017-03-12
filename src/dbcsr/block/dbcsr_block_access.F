@@ -682,9 +682,6 @@ CONTAINS
       ENDIF
    END SUBROUTINE dbcsr_set_block_pointer_any
 
-#include "dbcsr_block_access_d.f90"
-#include "dbcsr_block_access_z.f90"
-#include "dbcsr_block_access_s.f90"
-#include "dbcsr_block_access_c.f90"
+#:include "dbcsr_block_access.f90"
 
 END MODULE dbcsr_block_access

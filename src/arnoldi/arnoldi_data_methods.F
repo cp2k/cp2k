@@ -405,14 +405,7 @@ CONTAINS
 
    END SUBROUTINE set_arnoldi_initial_vector
 
-#include "arnoldi_data_selection_d.f90"
-#include "arnoldi_data_selection_s.f90"
-#include "arnoldi_data_selection_z.f90"
-#include "arnoldi_data_selection_c.f90"
-#include "arnoldi_data_manipulation_d.f90"
-#include "arnoldi_data_manipulation_s.f90"
-#include "arnoldi_data_manipulation_z.f90"
-#include "arnoldi_data_manipulation_c.f90"
-
+#:include 'arnoldi_data_selection.f90'
+#:include 'arnoldi_data_manipulation.f90'
 END MODULE arnoldi_data_methods
 

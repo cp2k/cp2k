@@ -1919,9 +1919,6 @@ CONTAINS
       CALL timestop(error_handle)
    END SUBROUTINE merge_index
 
-#include "dbcsr_work_operations_d.f90"
-#include "dbcsr_work_operations_z.f90"
-#include "dbcsr_work_operations_s.f90"
-#include "dbcsr_work_operations_c.f90"
+#:include "dbcsr_work_operations.f90"
 
 END MODULE dbcsr_work_operations

@@ -10,11 +10,6 @@
 !>
 !>        This list can also be used as a stack.
 !>        Have look at list_push(), list_pop() and list_peek().
-!> \note
-!>
-!>      **** DO NOT MODIFY THE .F FILES ****
-!>      modify list__valuetype_.template instead
-!>
 !> \par History
 !>      12.2012 first version [ole]
 !> \author Ole Schuett

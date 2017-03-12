@@ -2751,9 +2751,6 @@ CONTAINS
       ENDIF
    END FUNCTION dbcsr_get_occupation
 
-#include "dbcsr_operations_d.f90"
-#include "dbcsr_operations_z.f90"
-#include "dbcsr_operations_s.f90"
-#include "dbcsr_operations_c.f90"
+#:include "dbcsr_operations.f90"
 
 END MODULE dbcsr_operations

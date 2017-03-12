@@ -763,9 +763,6 @@ CONTAINS
       blocks_left = iterator%pos .NE. 0
    END FUNCTION dbcsr_iterator_blocks_left
 
-#include "dbcsr_iterator_operations_d.f90"
-#include "dbcsr_iterator_operations_z.f90"
-#include "dbcsr_iterator_operations_s.f90"
-#include "dbcsr_iterator_operations_c.f90"
+#:include "dbcsr_iterator_operations.f90"
 
 END MODULE dbcsr_iterator_operations

@@ -625,9 +625,6 @@ CONTAINS
       CALL timestop(handle)
    END SUBROUTINE calculate_norms
 
-#include "dbcsr_mm_common_d.f90"
-#include "dbcsr_mm_common_z.f90"
-#include "dbcsr_mm_common_s.f90"
-#include "dbcsr_mm_common_c.f90"
+#:include "dbcsr_mm_common.f90"
 
 END MODULE dbcsr_mm_common

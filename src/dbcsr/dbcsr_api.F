@@ -1833,9 +1833,6 @@ CONTAINS
       IF (.NOT. is_there) block(:, :) = 0.0_dp
    END SUBROUTINE dbcsr_add_block_node
 
-#include "dbcsr_api_s.f90"
-#include "dbcsr_api_d.f90"
-#include "dbcsr_api_c.f90"
-#include "dbcsr_api_z.f90"
+#:include "dbcsr_api.f90"
 
 END MODULE dbcsr_api

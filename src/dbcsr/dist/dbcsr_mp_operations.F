@@ -769,9 +769,6 @@ CONTAINS
       END SELECT
    END SUBROUTINE dbcsr_allgatherv
 
-#include "dbcsr_mp_operations_d.f90"
-#include "dbcsr_mp_operations_z.f90"
-#include "dbcsr_mp_operations_s.f90"
-#include "dbcsr_mp_operations_c.f90"
+#:include "dbcsr_mp_operations.f90"
 
 END MODULE dbcsr_mp_operations

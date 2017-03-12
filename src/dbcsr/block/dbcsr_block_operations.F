@@ -1523,9 +1523,6 @@ CONTAINS
       END SELECT
    END SUBROUTINE block_add_anytype_bounds
 
-#include "dbcsr_block_operations_d.f90"
-#include "dbcsr_block_operations_z.f90"
-#include "dbcsr_block_operations_s.f90"
-#include "dbcsr_block_operations_c.f90"
+#:include "dbcsr_block_operations.f90"
 
 END MODULE dbcsr_block_operations

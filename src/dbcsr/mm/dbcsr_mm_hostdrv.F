@@ -285,9 +285,6 @@ CONTAINS
       ENDDO
    END SUBROUTINE print_gemm_parameters
 
-#include "dbcsr_mm_hostdrv_d.f90"
-#include "dbcsr_mm_hostdrv_z.f90"
-#include "dbcsr_mm_hostdrv_s.f90"
-#include "dbcsr_mm_hostdrv_c.f90"
+#:include "dbcsr_mm_hostdrv.f90"
 
 END MODULE dbcsr_mm_hostdrv

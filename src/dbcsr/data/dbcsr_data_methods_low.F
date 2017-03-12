@@ -1153,8 +1153,7 @@ CONTAINS
    END SUBROUTINE dbcsr_data_set_size_referenced
 
 ! **************************************************************************************************
-#include "dbcsr_data_methods_low_d.f90"
-#include "dbcsr_data_methods_low_z.f90"
-#include "dbcsr_data_methods_low_s.f90"
-#include "dbcsr_data_methods_low_c.f90"
+
+#:include "dbcsr_data_methods_low.f90"
+
 END MODULE dbcsr_data_methods_low

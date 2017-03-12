@@ -766,7 +766,7 @@ CONTAINS
 #if defined(__parallel)
       t_start = m_walltime()
 
-      CALL mpi_comm_group(mp_comm, oldgroup, ierr); 
+      CALL mpi_comm_group(mp_comm, oldgroup, ierr);
       IF (ierr /= 0) CALL mp_stop(ierr, "mpi_comm_group @ mp_reordering")
       CALL mpi_group_incl(oldgroup, SIZE(ranks_order), ranks_order, newgroup, ierr)
       IF (ierr /= 0) CALL mp_stop(ierr, "mpi_group_incl @ mp_reordering")
@@ -3807,12 +3807,7 @@ CONTAINS
       CALL mp_timestop(handle)
    END SUBROUTINE mp_win_unlock_all
 
-#include "message_passing_i.f90"
-#include "message_passing_l.f90"
-#include "message_passing_r.f90"
-#include "message_passing_d.f90"
-#include "message_passing_c.f90"
-#include "message_passing_z.f90"
+#:include 'message_passing.f90'
 
 ! **************************************************************************************************
 !> \brief Tests the MPI library
