@@ -2,7 +2,7 @@
 # the second field tells which test should be run in order to compare with the last available output
 # see regtest/TEST_FILES
 # 
-HeH-water-noconstraint.inp                            1      1e-11              -2.95332848940723
+HeH-water-noconstraint.inp                            1      2e-11              -2.95332848940723
 # The MM part seems to introduce noise that is difficult to account for
 # So just running the test succesfully is sufficient 
 HeH-water-cdft-state-1.inp							  0
