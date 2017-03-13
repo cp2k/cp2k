@@ -16,7 +16,6 @@ find ./src/ -type f -not -path "*/preprettify/*" -not -path "*/.svn/*" -print0 |
 md5sum ./data/POTENTIAL >> checksums.md5
 
 cd makefiles
-make --jobs=20 templates
 make --jobs=20 pretty
 make --jobs=20 pretty  # run twice to ensure consistency with doxify
 cd ..
