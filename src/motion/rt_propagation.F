@@ -45,6 +45,7 @@ MODULE rt_propagation
    USE kinds,                           ONLY: dp
    USE machine,                         ONLY: m_walltime
    USE md_environment_types,            ONLY: md_environment_type
+   USE pw_env_types,                    ONLY: pw_env_type
    USE qs_dftb_matrices,                ONLY: build_dftb_overlap
    USE qs_energy_init,                  ONLY: qs_energies_init
    USE qs_energy_types,                 ONLY: qs_energy_type
@@ -270,6 +271,7 @@ CONTAINS
                                                             time_iter_stop, used_time
       TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(dft_control_type), POINTER                    :: dft_control
+      TYPE(pw_env_type), POINTER                         :: pw_env
       TYPE(qs_energy_type), POINTER                      :: energy
       TYPE(rt_prop_type), POINTER                        :: rtp
       TYPE(rtp_control_type), POINTER                    :: rtp_control
@@ -298,6 +300,8 @@ CONTAINS
       DO i_step = rtp%i_start+1, max_steps
          energy%efield_core = 0.0_dp
          qs_env%sim_time = REAL(i_step, dp)*rtp%dt
+         CALL get_qs_env(qs_env, pw_env=pw_env)
+         pw_env%poisson_env%parameters%dbc_params%time = qs_env%sim_time
          qs_env%sim_step = i_step
          rtp%istep = i_step-rtp%i_start
          CALL calculate_ecore_efield(qs_env, .FALSE.)
