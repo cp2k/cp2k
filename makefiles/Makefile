@@ -23,7 +23,6 @@ MAINOBJDIR   := $(CP2KHOME)/obj
 MAINTSTDIR   := $(CP2KHOME)/regtesting
 PRETTYOBJDIR := $(CP2KHOME)/obj/prettified
 DOXIFYOBJDIR := $(CP2KHOME)/obj/doxified
-INSTANTIATEDDIR := $(CP2KHOME)/obj/instantiated
 TOOLSRC      := $(CP2KHOME)/tools
 SRCDIR       := $(CP2KHOME)/src
 EXEDIR       := $(MAINEXEDIR)/$(ARCH)
@@ -60,8 +59,7 @@ endif
          toolversions libcp2k \
          doxify doxifyclean \
          pretty prettyclean doxygen/clean doxygen \
-         install clean realclean distclean mrproper help templates \
-         instantiationdir templatesclean \
+         install clean realclean distclean mrproper help \
          test testbg testclean testrealclean
 
 
@@ -76,7 +74,6 @@ OBJ_SRC_FILES += $(shell find $(SRCDIR) ! -path "*/preprettify/*" -name "*.c")
 OBJ_SRC_FILES += $(shell find $(SRCDIR) ! -path "*/preprettify/*" -name "*.cpp")
 OBJ_SRC_FILES += $(shell find $(SRCDIR) ! -path "*/preprettify/*" -name "*.cxx")
 OBJ_SRC_FILES += $(shell find $(SRCDIR) ! -path "*/preprettify/*" -name "*.cc")
-ALL_INST_FILES = $(shell find $(SRCDIR) ! -path "*/preprettify/*" -name "*.instantiation")
 
 ifneq ($(NVCC),)
 OBJ_SRC_FILES += $(shell find $(SRCDIR) ! -path "*/preprettify/*" ! -name "libcusmm.cu" -name "*.cu")
@@ -266,23 +263,6 @@ OTHER_HELP += "distclean : Remove all files from previous builds"
 mrproper:
 	cd $(CP2KHOME); ./tools/clean_cwd.sh
 OTHER_HELP += "mrproper : Remove ALL files not in SVN"
-
-# Template stuff ============================================================
-vpath %.instantiation   $(ALL_SRC_DIRS)
-
-# since the same named .instantiation file can be present in many directories, we need to copy the full tree
-# to store the instantiated file in a unique location
-# TODO: proper dependencies based on .template
-instantiateddir:
-	-rm -fR $(INSTANTIATEDDIR)
-	@mkdir -p $(dir $(addprefix $(INSTANTIATEDDIR), $(ALL_INST_FILES:.instantiation=.instantiated)))
-
-templates: instantiateddir $(addprefix $(INSTANTIATEDDIR), $(ALL_INST_FILES:.instantiation=.instantiated))
-TOOL_HELP += "templates : instantiate all templates"
-
-$(addprefix $(INSTANTIATEDDIR), %.instantiated): %.instantiation instantiateddir
-	@cd $(dir $<); $(TOOLSRC)/instantiateTemplates.py $(notdir $<)
-	@touch $@
 
 # Prettyfier stuff ==========================================================
 vpath %.pretty $(PRETTYOBJDIR)
