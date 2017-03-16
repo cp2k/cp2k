@@ -443,9 +443,6 @@ CONTAINS
             CALL dbcsr_mempool_limit_capacity(memtype_trsbuffer_1%pool, capacity=1)
             CALL dbcsr_mempool_limit_capacity(memtype_trsbuffer_2%pool, capacity=1)
          ENDIF
-      ELSE
-         CALL dbcsr_memtype_setup(memtype_abpanel_1, mpi=.TRUE.)
-         CALL dbcsr_memtype_setup(memtype_abpanel_2, mpi=.TRUE.)
       ENDIF
 
       CALL dbcsr_memtype_setup(memtype_mpi_buffer, mpi=.TRUE.)
@@ -578,6 +575,11 @@ CONTAINS
          ENDIF
       ENDIF
       ab_dense = use_dense_mult
+      ! Use memory pools when no dense
+      IF (.NOT. has_acc) THEN
+         CALL dbcsr_memtype_setup(memtype_abpanel_1, has_pool=.NOT. ab_dense, mpi=.TRUE.)
+         CALL dbcsr_memtype_setup(memtype_abpanel_2, has_pool=.NOT. ab_dense, mpi=.TRUE.)
+      ENDIF
       !
       ! Submatrix selection
       f_row = 1

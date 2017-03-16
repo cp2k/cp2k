@@ -1462,11 +1462,13 @@ CONTAINS
       ENDIF
       !
       ! update capacity of memory-pools
-      IF (has_acc) THEN
+      IF (ASSOCIATED(memtype_abpanel_1%pool)) &
          CALL dbcsr_mempool_limit_capacity(memtype_abpanel_1%pool, &
                                            capacity=nbuffers)
+      IF (ASSOCIATED(memtype_abpanel_2%pool)) &
          CALL dbcsr_mempool_limit_capacity(memtype_abpanel_2%pool, &
                                            capacity=nbuffers)
+      IF (has_acc) THEN
          CALL dbcsr_mempool_limit_capacity(memtype_trsbuffer_1%pool, &
                                            capacity=nbuffers/2+MOD(nbuffers, 2))
          CALL dbcsr_mempool_limit_capacity(memtype_trsbuffer_2%pool, &
