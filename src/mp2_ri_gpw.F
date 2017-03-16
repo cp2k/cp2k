@@ -625,20 +625,6 @@ CONTAINS
                ENDIF
 
                IF (my_do_gw .AND. (ri_metric_gw == ri_metric)) THEN
-                  CALL ao_to_mo_and_store_B(para_env_sub, mat_munu, matrix_in_jnu, matrix_in_jm, &
-                                            fm_BIb_gw, BIb_C_gw(i_counter, 1:my_B_all_size, 1:gw_corr_lev_total), &
-                                            mo_coeff_gw, mo_coeff_all, eps_filter, max_row_col_local_gw, sub_proc_map, &
-                                            local_col_row_info_gw, my_B_all_end, my_B_all_start, "gw_alpha")
-
-                  IF (do_alpha_beta) THEN
-                     CALL ao_to_mo_and_store_B(para_env_sub, mat_munu, matrix_in_jnu_beta, matrix_in_jm_beta, &
-                                               fm_BIb_gw_beta, BIb_c_gw_beta(i_counter, 1:my_B_all_size, 1:gw_corr_lev_total), &
-                                               mo_coeff_gw_beta, mo_coeff_all_beta, eps_filter, max_row_col_local_gw, &
-                                               sub_proc_map, local_col_row_info_gw, my_B_all_end, my_B_all_start, "gw_beta")
-                  ENDIF
-               ENDIF
-
-               IF (my_do_gw .AND. (ri_metric_gw == ri_metric)) THEN
                   ! transform (K|mu nu) to (K|nm), n corresponds to corrected GW levels, m is in nmo
                   CALL ao_to_mo_and_store_B(para_env_sub, mat_munu, matrix_in_jnu, matrix_in_jm, &
                                             fm_BIb_gw, BIb_C_gw(i_counter, 1:my_B_all_size, 1:gw_corr_lev_total), &
