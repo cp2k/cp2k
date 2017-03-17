@@ -115,6 +115,12 @@ CONTAINS
          INTENT(IN), OPTIONAL                        :: order
 
       TYPE(dbcsr_t_type)                             :: tensor_tmp
+      INTEGER                                        :: handle
+
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'dbcsr_t_copy', &
+         routineP = moduleN//':'//routineN
+
+      CALL timeset(routineN, handle)
 
       IF (PRESENT(order)) THEN
          CALL dbcsr_t_permute_index(tensor_in, tensor_tmp, order)
@@ -123,6 +129,8 @@ CONTAINS
       ELSE
          CALL dbcsr_t_reshape(tensor_in, tensor_out)
       ENDIF
+
+      CALL timestop(handle)
 
    END SUBROUTINE
 
@@ -140,6 +148,11 @@ CONTAINS
       REAL(KIND=real_8), DIMENSION(:, :), POINTER        :: block
       TYPE(dbcsr_iterator_type)                          :: iter
 
+      INTEGER                                            :: handle
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'dbcsr_t_copy_matrix', &
+         routineP = moduleN//':'//routineN
+
+      CALL timeset(routineN, handle)
       CPASSERT(tensor_out%valid)
 
       CALL dbcsr_t_reserve_blocks(matrix_in, tensor_out)
@@ -151,6 +164,8 @@ CONTAINS
          CALL dbcsr_t_put_block(tensor_out, ind_2d, SHAPE(block_arr), block_arr)
          DEALLOCATE (block_arr)
       ENDDO
+
+      CALL timestop(handle)
 
    END SUBROUTINE
 
@@ -177,7 +192,7 @@ CONTAINS
       TYPE(dbcsr_t_type), INTENT(INOUT)              :: tensor_3
       TYPE(dbcsr_t_type)                             :: tensor_contr_1, tensor_contr_2, tensor_tmp_1, tensor_tmp_2
       LOGICAL                                        :: assert_stmt
-      INTEGER                                        :: i, data_type, mp_comm_2d, mp_comm_nd
+      INTEGER                                        :: i, data_type, mp_comm_2d, mp_comm_nd, handle
       INTEGER, DIMENSION(2)                          :: ndims_2d_3
       INTEGER, DIMENSION(:), ALLOCATABLE             :: pdims_3, myploc, sort_indices
       INTEGER, DIMENSION(SIZE(contract_1))           :: contract_1_mod
@@ -193,6 +208,11 @@ CONTAINS
       INTEGER, DIMENSION(:), ALLOCATABLE             :: ${varlist("dist_3")}$
       TYPE(dbcsr_t_distribution_type)                :: dist_3
       TYPE(dbcsr_t_type)                             :: tensor_3_tmp
+
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'dbcsr_t_contract', &
+         routineP = moduleN//':'//routineN
+
+      CALL timeset(routineN, handle)
 
       CPASSERT(tensor_1%valid)
       CPASSERT(tensor_2%valid)
@@ -300,6 +320,8 @@ CONTAINS
       CALL dbcsr_t_distribution_destroy(dist_3)
       CALL mp_comm_free(mp_comm_nd)
 
+      CALL timestop(handle)
+
    CONTAINS
 
 ! **************************************************************************************************
@@ -313,14 +335,13 @@ CONTAINS
 ! **************************************************************************************************
       SUBROUTINE align_tensor(tensor_in, contract_in, notcontract_in, &
                               tensor_out, contract_out, notcontract_out)
-         TYPE(dbcsr_t_type), INTENT(IN)              :: tensor_in
-         INTEGER, DIMENSION(:), INTENT(IN)           :: contract_in, notcontract_in
-         TYPE(dbcsr_t_type), INTENT(OUT)             :: tensor_out
+         TYPE(dbcsr_t_type), INTENT(IN)               :: tensor_in
+         INTEGER, DIMENSION(:), INTENT(IN)            :: contract_in, notcontract_in
+         TYPE(dbcsr_t_type), INTENT(OUT)              :: tensor_out
          INTEGER, DIMENSION(SIZE(contract_in)), &
-            INTENT(OUT)                              :: contract_out
+            INTENT(OUT)                               :: contract_out
          INTEGER, DIMENSION(SIZE(notcontract_in)), &
-            INTENT(OUT)                              :: notcontract_out
-
+            INTENT(OUT)                               :: notcontract_out
          INTEGER, DIMENSION(dbcsr_t_ndims(tensor_in)) :: align
 
          CALL dbcsr_t_align_index(tensor_in, tensor_out, order=align)
@@ -402,13 +423,11 @@ CONTAINS
 
       END FUNCTION
 
-
 ! **************************************************************************************************
 !> \brief Check if 2 arrays are equal
 !> \param arr1 ...
 !> \param arr2
 ! **************************************************************************************************
-
       PURE FUNCTION array_eq_i(arr1, arr2)
          INTEGER, INTENT(IN), DIMENSION(:) :: arr1
          INTEGER, INTENT(IN), DIMENSION(:) :: arr2
@@ -455,9 +474,13 @@ CONTAINS
       INTEGER, DIMENSION(:), ALLOCATABLE     :: ${varlist("blk_sizes")}$,&
                                                 ${varlist("nd_dist")}$
       TYPE(dbcsr_t_distribution_type)        :: dist
-      INTEGER                                :: comm_2d, comm_nd
+      INTEGER                                :: comm_2d, comm_nd, handle
       INTEGER, DIMENSION(dbcsr_t_ndims(tensor_in)) :: pdims, myploc
       LOGICAL, DIMENSION(dbcsr_t_ndims(tensor_in)) :: periods
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'dbcsr_t_remap', &
+         routineP = moduleN//':'//routineN
+
+      CALL timeset(routineN, handle)
 
       IF (PRESENT(name)) THEN
          name_tmp = name
@@ -498,6 +521,8 @@ CONTAINS
 
       CALL dbcsr_t_copy(tensor_in, tensor_out)
       CALL dbcsr_t_distribution_destroy(dist)
+
+      CALL timestop(handle)
    END SUBROUTINE
 
 ! **************************************************************************************************
@@ -511,14 +536,21 @@ CONTAINS
       TYPE(dbcsr_t_type), INTENT(OUT)                 :: tensor_out
       INTEGER, DIMENSION(:), ALLOCATABLE              :: map1_2d, map2_2d
       INTEGER, DIMENSION(ndims_tensor(tensor_in)), &
-         INTENT(OUT), OPTIONAL    :: order
-      INTEGER, DIMENSION(ndims_tensor(tensor_in)) :: order_prv
+         INTENT(OUT), OPTIONAL                        :: order
+      INTEGER, DIMENSION(ndims_tensor(tensor_in))     :: order_prv
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'dbcsr_t_align_index', &
+         routineP = moduleN//':'//routineN
+      INTEGER                                         :: handle
+
+      CALL timeset(routineN, handle)
 
       CALL get_mapping_info(tensor_in%nd_index_blk, map1_2d=map1_2d, map2_2d=map2_2d)
       order_prv = dbcsr_t_inverse_order([map1_2d, map2_2d])
       CALL dbcsr_t_permute_index(tensor_in, tensor_out, order=order_prv)
 
       IF(PRESENT(order)) order = order_prv
+
+      CALL timestop(handle)
    END SUBROUTINE
 
 ! **************************************************************************************************
@@ -528,12 +560,17 @@ CONTAINS
 !> \param order ...
 ! **************************************************************************************************
    SUBROUTINE dbcsr_t_permute_index(tensor_in, tensor_out, order)
-      TYPE(dbcsr_t_type), INTENT(IN)               :: tensor_in
+      TYPE(dbcsr_t_type), INTENT(IN)                  :: tensor_in
       TYPE(dbcsr_t_type), INTENT(OUT)                 :: tensor_out
       INTEGER, DIMENSION(ndims_tensor(tensor_in)), &
          INTENT(IN)                                   :: order
 
       TYPE(nd_to_2d_mapping)                          :: nd_index_blk_rs, nd_index_rs
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'dbcsr_t_permute_index', &
+         routineP = moduleN//':'//routineN
+      INTEGER                                         :: handle
+
+      CALL timeset(routineN, handle)
 
       CALL permute_index(tensor_in%nd_index, nd_index_rs, order)
       CALL permute_index(tensor_in%nd_index_blk, nd_index_blk_rs, order)
@@ -550,6 +587,8 @@ CONTAINS
       CALL reorder_arrays(tensor_in%nd_dist, tensor_out%nd_dist, order)
       tensor_out%name = tensor_in%name
       tensor_out%valid = .TRUE.
+
+      CALL timestop(handle)
    END SUBROUTINE
 
 END MODULE

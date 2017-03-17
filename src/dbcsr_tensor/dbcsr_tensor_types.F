@@ -152,7 +152,11 @@ CONTAINS
       LOGICAL, DIMENSION(2)                           :: periods_2d
       TYPE(array_list)                                :: nd_dist
       TYPE(nd_to_2d_mapping)                          :: map_blks, map_grid
+      INTEGER                                   :: handle
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'dbcsr_t_distribution_new', &
+         routineP = moduleN//':'//routineN
 
+      CALL timeset(routineN, handle)
       ndims = SIZE(map1_2d)+SIZE(map2_2d)
       CPASSERT(ndims .GE. 2 .AND. ndims .LE. ${maxdim}$)
 
@@ -200,7 +204,7 @@ CONTAINS
       CALL dbcsr_distribution_new(dist%dist, group=comm_2d, row_dist=row_dist, col_dist=col_dist, reuse_arrays=.TRUE.)
       dist%nd_dist = nd_dist
       dist%comm_nd = comm_nd
-
+      CALL timestop(handle)
    END SUBROUTINE
 
 ! **************************************************************************************************
@@ -209,9 +213,14 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE dbcsr_t_distribution_destroy(dist)
       TYPE(dbcsr_t_distribution_type), INTENT(INOUT) :: dist
+      INTEGER                                   :: handle
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'dbcsr_t_distribution_destroy', &
+         routineP = moduleN//':'//routineN
 
+      CALL timeset(routineN, handle)
       CALL dbcsr_distribution_release(dist%dist)
       CALL destroy_array_list(dist%nd_dist)
+      CALL timestop(handle)
    END SUBROUTINE
 
    FUNCTION dbcsr_t_distribution(tensor)
@@ -248,7 +257,11 @@ CONTAINS
       INTEGER, DIMENSION(:), POINTER                    :: col_blk_size, row_blk_size
       TYPE(array_list)                                  :: blk_size
       TYPE(nd_to_2d_mapping)                            :: map
+      INTEGER                                   :: handle
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'dbcsr_t_create_new', &
+         routineP = moduleN//':'//routineN
 
+      CALL timeset(routineN, handle)
       ndims = SIZE(map1_2d)+SIZE(map2_2d)
       CALL create_array_list(blk_size, ndims, ${varlist("blk_size")}$)
       dims = sizes_of_arrays(blk_size)
@@ -304,6 +317,7 @@ CONTAINS
       CALL array_offsets(tensor%blk_sizes, tensor%blk_offsets)
 
       tensor%valid = .TRUE.
+      CALL timestop(handle)
    END SUBROUTINE
 
 ! **************************************************************************************************
@@ -316,7 +330,11 @@ CONTAINS
       TYPE(dbcsr_t_type), INTENT(INOUT)      :: tensor_in
       TYPE(dbcsr_t_type), INTENT(OUT)        :: tensor
       CHARACTER(len=*), INTENT(IN), OPTIONAL :: name
+      INTEGER                                   :: handle
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'dbcsr_t_create_template', &
+         routineP = moduleN//':'//routineN
 
+      CALL timeset(routineN, handle)
       CALL dbcsr_create(tensor%matrix_rep, template=tensor_in%matrix_rep)
       CALL dbcsr_finalize(tensor%matrix_rep)
 
@@ -332,6 +350,7 @@ CONTAINS
       ELSE
          tensor%name = tensor_in%name
       ENDIF
+      CALL timestop(handle)
    END SUBROUTINE
 
 ! **************************************************************************************************
@@ -354,7 +373,11 @@ CONTAINS
       TYPE(dbcsr_t_distribution_type)             :: dist
       INTEGER, DIMENSION(:), POINTER              :: row_blk_size, col_blk_size
       INTEGER, DIMENSION(:), POINTER              :: col_dist, row_dist
+      INTEGER                                   :: handle
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'dbcsr_t_create_matrix', &
+         routineP = moduleN//':'//routineN
 
+      CALL timeset(routineN, handle)
       IF (PRESENT(name)) THEN
          name_in = name
       ELSE
@@ -387,6 +410,7 @@ CONTAINS
                               data_type, &
                               row_blk_size, &
                               col_blk_size)
+      CALL timestop(handle)
    END SUBROUTINE
 
 ! **************************************************************************************************
@@ -395,7 +419,11 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE dbcsr_t_destroy(tensor)
       TYPE(dbcsr_t_type), INTENT(INOUT) :: tensor
+      INTEGER                                   :: handle
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'dbcsr_t_destroy', &
+         routineP = moduleN//':'//routineN
 
+      CALL timeset(routineN, handle)
       CALL dbcsr_release(tensor%matrix_rep)
       CALL destroy_nd_to_2d_mapping(tensor%nd_index_blk)
       CALL destroy_nd_to_2d_mapping(tensor%nd_index)
@@ -409,6 +437,7 @@ CONTAINS
       tensor%comm_prv = .FALSE.
       tensor%valid = .FALSE.
       tensor%name = ""
+      CALL timestop(handle)
    END SUBROUTINE
 
 ! **************************************************************************************************

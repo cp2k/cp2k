@@ -40,7 +40,7 @@ MODULE dbcsr_tensor_reshape
 
    IMPLICIT NONE
    PRIVATE
-   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'dbcsr_tensor'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'dbcsr_tensor_reshape'
 
    PUBLIC :: &
       dbcsr_t_reshape
@@ -152,6 +152,7 @@ CONTAINS
          CALL dbcsr_t_reserve_blocks(tensor_in, tensor_out)
          CALL dbcsr_copy(tensor_out%matrix_rep, tensor_in%matrix_rep, shallow_data=.TRUE.)
       ENDIF
+
    END SUBROUTINE
 
 ! **************************************************************************************************
@@ -307,7 +308,11 @@ CONTAINS
 
       INTEGER                                :: iproc, mynode, numnodes, rec_counter, &
                                                 send_counter
+      INTEGER                                   :: handle
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'communicate_buffer', &
+         routineP = moduleN//':'//routineN
 
+      CALL timeset(routineN, handle)
       CALL mp_environ(numnodes, mynode, mp_comm)
 
       IF (numnodes > 1) THEN
@@ -359,6 +364,7 @@ CONTAINS
             END SELECT
          ENDIF
       ENDIF
+      CALL timestop(handle)
 
    END SUBROUTINE
 
