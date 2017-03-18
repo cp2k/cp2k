@@ -5,7 +5,7 @@
 HeH-noconstraint.inp                                   1      2e-13             -2.92909797857414
 # These tests use different optimizers for the CDFT constraint 
 # Newton: test different finite different schemes
-HeH-cdft-newton-fd1.inp                               11      1e-07             -2.347860618295545
+HeH-cdft-newton-fd1.inp                               11      2e-07             -2.347860618295545
 # MD test cases
 HeH-cdft-md-newton-1-1.inp                            11      5e-09             -2.355043088382532
 HeH-cdft-md-broyden-5-1.inp                           11      1e-09             -2.355042993224512
