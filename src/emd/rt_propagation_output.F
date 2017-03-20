@@ -328,7 +328,7 @@ CONTAINS
    END SUBROUTINE rt_calculate_orthonormality
 
 ! **************************************************************************************************
-!> \brief computs the convergence criterium for RTP and EMD
+!> \brief computs the convergence criterion for RTP and EMD
 !> \param rtp ...
 !> \param matrix_s Overlap matrix without the derivatives
 !> \param delta_mos ...
@@ -441,7 +441,7 @@ CONTAINS
    END SUBROUTINE rt_convergence
 
 ! **************************************************************************************************
-!> \brief computs the convergence criterium for RTP and EMD based on the density matrix
+!> \brief computs the convergence criterion for RTP and EMD based on the density matrix
 !> \param rtp ...
 !> \param delta_P ...
 !> \param delta_eps ...

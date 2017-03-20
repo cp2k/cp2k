@@ -704,7 +704,7 @@ CONTAINS
                IF (scf_converged) EXIT
             END IF
          ELSE
-            ! exit criterium on the energy only for the time being
+            ! exit criterion on the energy only for the time being
             IF (check_convergence .AND. ABS(energy_diff) < ls_scf_env%eps_scf*ls_scf_env%nelectron_total) EXIT
          END IF
 

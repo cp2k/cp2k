@@ -325,7 +325,7 @@ CONTAINS
                      neighbours(dir) = 0
                   ENDIF
                ENDDO
-               ! XXXXXXX I think the overlap criterium / neighbour calculation is too conservative
+               ! XXXXXXX I think the overlap criterion / neighbour calculation is too conservative
                ! write(*,*) n_slices_tmp,desc % neighbours, overlap
                IF (overlap) CYCLE
 

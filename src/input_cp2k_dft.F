@@ -630,7 +630,7 @@ CONTAINS
       CALL keyword_release(keyword)
 
       CALL keyword_create(keyword, name="EPS_LOCALIZATION", &
-                          description="Tolerance used in the convergence criterium of the localization methods.", &
+                          description="Tolerance used in the convergence criterion of the localization methods.", &
                           usage="EPS_LOCALIZATION 1.0E-2", default_r_val=1.0E-4_dp)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
@@ -7531,7 +7531,7 @@ CONTAINS
       CALL keyword_release(keyword)
 
       CALL keyword_create(keyword, name="EPS_ITER", &
-                          description="Convergence criterium for the self consistent propagator loop.", &
+                          description="Convergence criterion for the self consistent propagator loop.", &
                           usage="EPS_ITER 1.0E-5", &
                           default_r_val=1.0E-7_dp)
       CALL section_add_keyword(section, keyword)

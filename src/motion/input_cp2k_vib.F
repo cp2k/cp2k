@@ -267,7 +267,7 @@ CONTAINS
       CALL keyword_release(keyword)
 
       CALL keyword_create(keyword, name="EPS_MAX_VAL", &
-                          description="Convergence criterium for the davidson algorithm. Specifies the maximal value in the "// &
+                          description="Convergence criterion for the davidson algorithm. Specifies the maximal value in the "// &
                           "residuum vectors ", &
                           usage="EPS_MAX_VAL {REAL}", default_r_val=5.0E-7_dp)
       CALL section_add_keyword(section, keyword)
@@ -275,7 +275,7 @@ CONTAINS
 
       CALL keyword_create( &
          keyword, name="EPS_NORM", &
-         description="Convergence criterium for the davidson algorithm. Specifies the maximal value of the norm "// &
+         description="Convergence criterion for the davidson algorithm. Specifies the maximal value of the norm "// &
          "of the residuum vectors ", &
          usage="EPS_NORM {REAL}", default_r_val=2.0E-6_dp)
       CALL section_add_keyword(section, keyword)

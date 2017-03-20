@@ -88,7 +88,7 @@ CONTAINS
          END IF
       CASE (outer_scf_basis_center_opt)
          res = 1
-      CASE (outer_scf_none) ! just needed to communicate the gradient criterium
+      CASE (outer_scf_none) ! just needed to communicate the gradient criterion
          res = 1
       CASE DEFAULT
          res = 0
@@ -133,7 +133,7 @@ CONTAINS
 
       SELECT CASE (scf_control%outer_scf%type)
       CASE (outer_scf_none)
-         ! just pass the inner loop scf criterium to the outer loop one
+         ! just pass the inner loop scf criterion to the outer loop one
          scf_env%outer_scf%variables(1, ihistory) = scf_env%iter_delta
          scf_env%outer_scf%gradient(1, ihistory) = scf_env%iter_delta
       CASE (outer_scf_ddapc_constraint)

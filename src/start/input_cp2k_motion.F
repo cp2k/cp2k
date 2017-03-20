@@ -816,7 +816,7 @@ CONTAINS
       CALL keyword_release(keyword)
 
       CALL keyword_create(keyword, name="MAX_DR", &
-                          description="Convergence criterium for the maximum geometry change "// &
+                          description="Convergence criterion for the maximum geometry change "// &
                           "between the current and the last optimizer iteration.", &
                           usage="MAX_DR {real}", &
                           default_r_val=0.0030_dp, unit_str="bohr")
@@ -824,14 +824,14 @@ CONTAINS
       CALL keyword_release(keyword)
 
       CALL keyword_create(keyword, name="MAX_FORCE", &
-                          description="Convergence criterium for the maximum force component of the current configuration.", &
+                          description="Convergence criterion for the maximum force component of the current configuration.", &
                           usage="MAX_FORCE {real}", &
                           default_r_val=0.00045_dp, unit_str="hartree/bohr")
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
       CALL keyword_create(keyword, name="RMS_DR", &
-                          description="Convergence criterium for the root mean square (RMS) geometry"// &
+                          description="Convergence criterion for the root mean square (RMS) geometry"// &
                           " change between the current and the last optimizer iteration.", &
                           usage="RMS_DR {real}", unit_str="bohr", &
                           default_r_val=0.0015_dp)
@@ -839,7 +839,7 @@ CONTAINS
       CALL keyword_release(keyword)
 
       CALL keyword_create(keyword, name="RMS_FORCE", &
-                          description="Convergence criterium for the root mean square (RMS) force of the current configuration.", &
+                          description="Convergence criterion for the root mean square (RMS) force of the current configuration.", &
                           usage="RMS_FORCE {real}", unit_str="hartree/bohr", &
                           default_r_val=0.00030_dp)
       CALL section_add_keyword(section, keyword)
@@ -1372,7 +1372,7 @@ CONTAINS
       CALL keyword_release(keyword)
 
       CALL keyword_create(keyword, name="WANTED_PROJ_GRADIENT", &
-                          description="Convergence criterium (overrides the general ones):"// &
+                          description="Convergence criterion (overrides the general ones):"// &
                           "Requested norm threshold of the gradient multiplied "// &
                           "by the approximate Hessian.", &
                           usage="WANTED_PROJ_GRADIENT {real}", unit_str="internal_cp2k", &
@@ -1381,7 +1381,7 @@ CONTAINS
       CALL keyword_release(keyword)
 
       CALL keyword_create(keyword, name="WANTED_REL_F_ERROR", &
-                          description="Convergence criterium (overrides the general ones):"// &
+                          description="Convergence criterion (overrides the general ones):"// &
                           "Requested relative error on the objective function"// &
                           "of the optimizer (the energy)", &
                           usage="WANTED_REL_F_ERROR {real}", unit_str="internal_cp2k", &

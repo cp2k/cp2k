@@ -44,7 +44,7 @@ MODULE qs_linres_types
 !> \param preconditioner which kind of preconditioner should be used, if any
 !> \param localized_psi 0 : don't use the canonical psi0, but the maximally localized wavefunctions
 !> \param do_kernel the kernel is zero if the rho1 is zero as for the magnetic field perturbation
-!> \param tolerance convergence criterium for the optimization of the psi1
+!> \param tolerance convergence criterion for the optimization of the psi1
 !> \author MI
 ! **************************************************************************************************
    TYPE linres_control_type
