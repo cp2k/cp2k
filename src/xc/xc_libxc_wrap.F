@@ -636,7 +636,7 @@ CONTAINS
          nbuggy = 0
       CASE default
          nbuggy = 0
-         IF (first_time) then
+         IF (first_time) THEN
             CALL cp_warn(__LOCATION__, &
                          " This version ("//TRIM(libxc_version)//") of LibXC is new or unknown."// &
                          " ======== Please check the results carefully. ========    "// &
