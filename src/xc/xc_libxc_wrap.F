@@ -198,6 +198,8 @@ MODULE xc_libxc_wrap
              xc_libxc_wrap_functional_set_params, &
              xc_libxc_wrap_functional_buggy
 
+   LOGICAL, SAVE :: first_time = .TRUE.
+
 CONTAINS
 
 ! **************************************************************************************************
@@ -634,12 +636,15 @@ CONTAINS
          nbuggy = 0
       CASE default
          nbuggy = 0
-         CALL cp_warn(__LOCATION__, &
-                      " This version ("//TRIM(libxc_version)//") of LibXC is new or unknown."// &
-                      " ======== Please check the results carefully. ========    "// &
-                      " More informations on bugfixes can be found at: "// &
-                      " http://www.tddft.org/programs/octopus/wiki/index.php/Libxc_changes"// &
-                      " Calculation continues using unsupported LibXC version. ")
+         IF (first_time) then
+            CALL cp_warn(__LOCATION__, &
+                         " This version ("//TRIM(libxc_version)//") of LibXC is new or unknown."// &
+                         " ======== Please check the results carefully. ========    "// &
+                         " More informations on bugfixes can be found at: "// &
+                         " http://www.tddft.org/programs/octopus/wiki/index.php/Libxc_changes"// &
+                         " Calculation continues using unsupported LibXC version. ")
+            first_time = .FALSE.
+         END IF
       END SELECT
 
       DO i = 1, nbuggy
