@@ -129,6 +129,7 @@ MODULE dbcsr_tensor_block
 #:for dparam, dtype, dsuffix in dtype_float_list
 #:for ndim in ndims
       MODULE PROCEDURE dbcsr_t_get_${ndim}$d_block_${dsuffix}$
+      MODULE PROCEDURE dbcsr_t_allocate_and_get_${ndim}$d_block_${dsuffix}$
 #:endfor
 #:endfor
       MODULE PROCEDURE dbcsr_t_get_anyd_block
@@ -185,14 +186,14 @@ CONTAINS
 !> \param block ...
 !> \retval blk_size ...
 ! **************************************************************************************************
-   PURE FUNCTION block_size(block)
+   FUNCTION block_size(block)
       TYPE(block_nd), INTENT(IN)         :: block
       INTEGER, ALLOCATABLE, DIMENSION(:) :: block_size
 
       SELECT CASE (block%data_type)
 #:for dparam, dtype, dsuffix in dtype_float_list
       CASE (${dparam}$)
-         CALL allocate_any(SHAPE(block%${dsuffix}$%sizes), block_size, source=block%${dsuffix}$%sizes)
+         CALL allocate_any(block_size, source=block%${dsuffix}$%sizes)
 #:endfor
       END SELECT
    END FUNCTION
@@ -520,10 +521,8 @@ CONTAINS
 
       ASSOCIATE(blk => block%${dsuffix}$)
       block%data_type = ${dparam}$
-      ALLOCATE(blk%sizes(SIZE(sizes)))
-      blk%sizes(:) = sizes(:)
-      ALLOCATE(blk%blk(PRODUCT(sizes)))
-      blk%blk(:) = array(:)
+      CALL allocate_any(blk%sizes, source=sizes)
+      CALL allocate_any(blk%blk, source=array)
       END ASSOCIATE
    END SUBROUTINE
 #:endfor
@@ -537,8 +536,7 @@ CONTAINS
    SUBROUTINE create_block_nodata_${dsuffix}$(block, sizes)
       INTEGER, INTENT(IN), DIMENSION(:)       :: sizes
       TYPE(block_nd_${dsuffix}$), INTENT(OUT) :: block
-      ALLOCATE(block%sizes(SIZE(sizes)))
-      block%sizes(:) = sizes(:)
+      CALL allocate_any(block%sizes, source=sizes)
       ALLOCATE(block%blk(PRODUCT(sizes)))
    END SUBROUTINE
 #:endfor
@@ -684,7 +682,7 @@ CONTAINS
       CALL get_mapping_info(tensor%nd_index_blk, map1_2d=map1_2d, map2_2d=map2_2d)
       CALL create_nd_to_2d_mapping(map_blk, sizes, map1_2d, map2_2d)
       CALL get_mapping_info(map_blk, dims_2d=dims_2d)
-      CALL allocate_any(dims_2d, block_2d)
+      CALL allocate_any(block_2d, shape_spec=dims_2d)
       CALL reshape_nd_to_2d_block(map_blk, block, block_2d)
 
       ! convert block index
@@ -696,6 +694,24 @@ CONTAINS
    END SUBROUTINE
 #:endfor
 #:endfor
+
+#:for dparam, dtype, dsuffix in dtype_float_list
+#:for ndim in ndims
+   SUBROUTINE dbcsr_t_allocate_and_get_${ndim}$d_block_${dsuffix}$(tensor, ind, block)
+      TYPE(dbcsr_t_type), INTENT(INOUT)                     :: tensor
+      INTEGER, DIMENSION(ndims_tensor(tensor)), INTENT(IN)  :: ind
+      ${dtype}$, DIMENSION(${shape_colon(ndim)}$), &
+         ALLOCATABLE, INTENT(OUT)                           :: block
+      INTEGER, DIMENSION(${ndim}$)                          :: blk_size
+
+      CALL dbcsr_t_blk_sizes(tensor, ind, blk_size)
+      CALL allocate_any(block, shape_spec=blk_size)
+      CALL dbcsr_t_get_${ndim}$d_block_${dsuffix}$(tensor, ind, blk_size, block)
+
+   END SUBROUTINE
+#:endfor
+#:endfor
+
 
 #:for dparam, dtype, dsuffix in dtype_float_list
 #:for ndim in ndims
@@ -732,7 +748,7 @@ CONTAINS
       CALL dbcsr_get_block_p(tensor%matrix_rep, ind_2d(1), ind_2d(2), block_2d_ptr, found)
       CPASSERT(found)
       ! convert pointer to allocatable
-      CALL allocate_any(SHAPE(block_2d_ptr), block_2d, source=block_2d_ptr)
+      CALL allocate_any(block_2d, source=block_2d_ptr)
 
       CALL get_mapping_info(tensor%nd_index_blk, map1_2d=map1_2d, map2_2d=map2_2d)
       CALL create_nd_to_2d_mapping(map_blk, sizes, map1_2d, map2_2d)
@@ -784,8 +800,7 @@ CONTAINS
 
       shape_in = SHAPE(block)
       shape_reordered(map%map_nd) = shape_in
-      CALL allocate_any(shape_reordered, block_tmp)
-      block_tmp(${shape_colon(ndim)}$) = RESHAPE(block, SHAPE=SHAPE(block_tmp), ORDER=map%map_nd)
+      CALL allocate_any(block_tmp, source=block, order=map%map_nd)
       block_2d(:, :) = RESHAPE(block_tmp, SHAPE=SHAPE(block_2d))
    END SUBROUTINE
 #:endif

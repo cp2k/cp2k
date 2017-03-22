@@ -269,7 +269,7 @@ CONTAINS
       INTEGER, DIMENSION(2)                             :: indx_shape
 
       indx_shape = SHAPE(buffer%indx) - [0,1]
-      CALL allocate_any(indx_shape, index, source=buffer%indx(1:indx_shape(1), 1:indx_shape(2)))
+      CALL allocate_any(index, source=buffer%indx(1:indx_shape(1), 1:indx_shape(2)))
    END SUBROUTINE
 
 ! **************************************************************************************************
@@ -442,8 +442,7 @@ CONTAINS
       ENDIF
       index(:) = buffer%indx(p+1,1:ndims)
       IF (PRESENT(block)) THEN
-         ALLOCATE (block(ndata))
-         block(:) = buffer%msg_${dsuffix}$(p_data+1:p_data+ndata)
+         CALL allocate_any(block, source=buffer%msg_${dsuffix}$(p_data+1:p_data+ndata))
       ENDIF
 
       IF(do_advance) buffer%endpos = buffer%endpos+1

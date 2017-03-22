@@ -48,10 +48,10 @@ MODULE dbcsr_tensor_test
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'dbcsr_tensor_test'
 
    PUBLIC :: &
-      allocate_and_fill_test_tensor,&
-      random_dist,&
-      test_tensor_contraction,&
-      test_tensor_formats
+      dbcsr_t_setup_test_tensor,&
+      dbcsr_t_random_dist,&
+      dbcsr_t_contract_test,&
+      dbcsr_t_test_formats
 
    INTERFACE repl_dense_array_to_dist_sparse_tensor
 #:for dparam, dtype, dsuffix in dtype_float_list
@@ -190,7 +190,7 @@ CONTAINS
 !> \param blk_size_1 block sizes along dimension 1
 !> \param blk_ind_1 index along dimension 1 of non-zero blocks
 ! **************************************************************************************************
-   SUBROUTINE test_tensor_formats(ndims, mp_comm_2d, unit_nr, verbose, &
+   SUBROUTINE dbcsr_t_test_formats(ndims, mp_comm_2d, unit_nr, verbose, &
                                   ${varlist("blk_size")}$, &
                                   ${varlist("blk_ind")}$)
       INTEGER, DIMENSION(:), INTENT(IN), OPTIONAL :: ${varlist("blk_size")}$
@@ -222,9 +222,8 @@ CONTAINS
       IF (mynode .EQ. 0) io_unit = unit_nr
 
       CALL permute(ndims, perm)
-      ALLOCATE(map1_ref(ndims/2), map2_ref(ndims-ndims/2))
-      map1_ref(:) = perm(1:ndims/2, 1)
-      map2_ref(:) = perm(ndims/2+1:ndims, 1)
+      CALL allocate_any(map1_ref, source=perm(1:ndims/2, 1))
+      CALL allocate_any(map2_ref, source=perm(ndims/2+1:ndims, 1))
 
       mp_comm_ref = dbcsr_t_nd_mp_comm(mp_comm_2d, map1_ref, map2_ref)
       CALL mp_environ(numnodes, mynode, mp_comm_ref)
@@ -276,9 +275,8 @@ CONTAINS
          DO isep = 1, ndims-1
             icount = icount+1
 
-            ALLOCATE(map1(isep), map2(ndims-isep))
-            map1(:) = perm(1:isep,iperm)
-            map2(:) = perm(isep+1:ndims,iperm)
+            CALL allocate_any(map1, source=perm(1:isep,iperm))
+            CALL allocate_any(map2, source=perm(isep+1:ndims,iperm))
 
             mp_comm_test = dbcsr_t_nd_mp_comm(mp_comm_2d, map1, map2)
             CALL mp_environ(numnodes, mynode, mp_comm_test)
@@ -287,8 +285,8 @@ CONTAINS
 #:for dim in range(1, maxdim+1)
             IF (${dim}$ <= ndims) THEN
                nblks = SIZE(blk_size_${dim}$)
-               CALL random_dist(dist1_${dim}$, nblks, pdims_test(${dim}$), mp_comm_test)
-               CALL random_dist(dist2_${dim}$, nblks, pdims_ref(${dim}$), mp_comm_ref)
+               CALL dbcsr_t_random_dist(dist1_${dim}$, nblks, pdims_test(${dim}$), mp_comm_test)
+               CALL dbcsr_t_random_dist(dist2_${dim}$, nblks, pdims_ref(${dim}$), mp_comm_ref)
             ENDIF
 #:endfor
 
@@ -334,7 +332,7 @@ CONTAINS
                CALL dbcsr_t_distribution_new(dist2, mp_comm_ref, mp_comm_2d, map1_ref, map2_ref, ${varlist("dist2", nmax=ndim)}$)
                CALL dbcsr_t_create(tensor2, "Ref", dist2, map1_ref, map2_ref, &
                                    dbcsr_type_real_8, ${varlist("blk_size", nmax=ndim)}$)
-               CALL allocate_and_fill_test_tensor(tensor2, mp_comm_ref, ${varlist("blk_ind", nmax=ndim)}$)
+               CALL dbcsr_t_setup_test_tensor(tensor2, mp_comm_ref, ${varlist("blk_ind", nmax=ndim)}$)
             ENDIF
 #:endfor
 
@@ -345,7 +343,7 @@ CONTAINS
                CALL dbcsr_t_distribution_new(dist1, mp_comm_test, mp_comm_2d, map1, map2, ${varlist("dist1", nmax=ndim)}$)
                CALL dbcsr_t_create(tensor1, tensor_name, dist1, map1, map2, &
                                    dbcsr_type_real_8, ${varlist("blk_size", nmax=ndim)}$)
-               CALL allocate_and_fill_test_tensor(tensor1, mp_comm_test, ${varlist("blk_ind", nmax=ndim)}$)
+               CALL dbcsr_t_setup_test_tensor(tensor1, mp_comm_test, ${varlist("blk_ind", nmax=ndim)}$)
             ENDIF
 #:endfor
 
@@ -381,7 +379,7 @@ CONTAINS
 !> \param nbins ...
 !> \param mp_comm
 ! **************************************************************************************************
-   SUBROUTINE random_dist(dist_array, dist_size, nbins, mp_comm)
+   SUBROUTINE dbcsr_t_random_dist(dist_array, dist_size, nbins, mp_comm)
       INTEGER, ALLOCATABLE, DIMENSION(:), INTENT(out) :: dist_array
       INTEGER, INTENT(IN)                             :: dist_size, nbins, mp_comm
       REAL, DIMENSION(dist_size)                      :: rn
@@ -394,11 +392,9 @@ CONTAINS
       ENDIF
       CALL mp_bcast(rn, 0, mp_comm)
 
-      ALLOCATE (dist_array(dist_size))
+      CALL allocate_any(dist_array, source=FLOOR(rn*nbins))
 
-      dist_array(:) = FLOOR(rn*nbins)
-
-   END SUBROUTINE random_dist
+   END SUBROUTINE dbcsr_t_random_dist
 
 ! **************************************************************************************************
 !> \brief Allocate and fill test tensor - entries are enumerated by their index s.t. they only depend
@@ -407,7 +403,7 @@ CONTAINS
 !> \param mp_comm communicator
 !> \param blk_ind_1 index along dimension 1 of non-zero blocks
 ! **************************************************************************************************
-   SUBROUTINE allocate_and_fill_test_tensor(tensor, mp_comm, ${varlist("blk_ind")}$)
+   SUBROUTINE dbcsr_t_setup_test_tensor(tensor, mp_comm, ${varlist("blk_ind")}$)
       TYPE(dbcsr_t_type), INTENT(INOUT)                  :: tensor
       INTEGER, INTENT(IN)                                :: mp_comm
       INTEGER, DIMENSION(:), INTENT(IN), OPTIONAL        :: ${varlist("blk_ind")}$
@@ -472,7 +468,7 @@ CONTAINS
 
 #:for ndim in ndims
          IF(dbcsr_t_ndims(tensor) == ${ndim}$) THEN
-            CALL allocate_any(blk_size, blk_values_${ndim}$)
+            CALL allocate_any(blk_values_${ndim}$, shape_spec=blk_size)
             CALL dims_tensor(tensor, tensor_dims)
             CALL enumerate_block_elements(blk_size, blk_offset, tensor_dims, blk_${ndim}$=blk_values_${ndim}$)
             CALL dbcsr_t_put_block(tensor, blk_index, blk_size, blk_values_${ndim}$)
@@ -549,8 +545,7 @@ CONTAINS
          CALL dbcsr_t_get_stored_coordinates(tensor, blk_index, proc)
 #:for ndim in ndims
          IF(dbcsr_t_ndims(tensor) == ${ndim}$) THEN
-            CALL allocate_any(blk_size, blk_values_${ndim}$)
-            CALL dbcsr_t_get_block(tensor, blk_index, blk_size, blk_values_${ndim}$)
+            CALL dbcsr_t_get_block(tensor, blk_index, blk_values_${ndim}$)
             CALL write_block(tensor%name, blk_size, blk_index, proc, io_unit_all, blk_values_${ndim}$=blk_values_${ndim}$)
             DEALLOCATE (blk_values_${ndim}$)
          ENDIF
@@ -623,15 +618,13 @@ CONTAINS
 
       CPASSERT(dbcsr_t_ndims(tensor) .EQ. ${ndim}$)
       CALL get_mapping_info(tensor%nd_index, dims_nd=dims_nd)
-      CALL allocate_any(dims_nd, array)
+      CALL allocate_any(array, shape_spec=dims_nd)
       array(${shape_colon(ndim)}$) = 0.0_${dprec}$
 
       CALL dbcsr_t_iterator_start(iterator, tensor)
       DO WHILE (dbcsr_t_iterator_blocks_left(iterator))
-         ! TODO: get block implementation needs to be more flexible (no need to know size in advance)
          CALL dbcsr_t_iterator_next_block(iterator, ind_nd, blk, blk_size=blk_size, blk_offset=blk_offset)
-         CALL allocate_any(blk_size, block)
-         CALL dbcsr_t_get_block(tensor, ind_nd, blk_size, block)
+         CALL dbcsr_t_get_block(tensor, ind_nd, block)
 
          DO idim = 1, dbcsr_t_ndims(tensor)
             blk_start(idim) = blk_offset(idim)
@@ -672,9 +665,8 @@ CONTAINS
 
       CALL dbcsr_t_iterator_start(iterator, tensor)
       DO WHILE (dbcsr_t_iterator_blocks_left(iterator))
-         ! TODO: get block implementation needs to be more flexible (no need to know size in advance)
          CALL dbcsr_t_iterator_next_block(iterator, ind_nd, blk, blk_size=blk_size, blk_offset=blk_offset)
-         CALL allocate_any(blk_size, block)
+         CALL allocate_any(block, shape_spec=blk_size)
          DO idim = 1, dbcsr_t_ndims(tensor)
             blk_start(idim) = blk_offset(idim)
             blk_end(idim) = blk_offset(idim)+blk_size(idim) - 1
@@ -690,7 +682,8 @@ CONTAINS
 #:endfor
 
 ! **************************************************************************************************
-!> \brief test contraction tensor_1 x tensor_2 = tensor_3
+!> \brief test tensor contraction
+!> \note for testing/debugging, simply replace a call to dbcsr_t_contract with a call to this routine
 !> \param tensor_1 ...
 !> \param tensor_2 ...
 !> \param contract_1 ...
@@ -701,10 +694,10 @@ CONTAINS
 !> \param map_2 ...
 !> \param unit_nr
 ! **************************************************************************************************
-   SUBROUTINE test_tensor_contraction(tensor_1, tensor_2, tensor_3, &
-                                      contract_1, notcontract_1, &
-                                      contract_2, notcontract_2, &
-                                      map_1, map_2, unit_nr)
+   SUBROUTINE dbcsr_t_contract_test(tensor_1, tensor_2, tensor_3, &
+                                    contract_1, notcontract_1, &
+                                    contract_2, notcontract_2, &
+                                    map_1, map_2, unit_nr)
       TYPE(dbcsr_t_type), INTENT(INOUT)    :: tensor_1, tensor_2, tensor_3
       INTEGER, DIMENSION(:), INTENT(IN)    :: contract_1, contract_2, &
                                               notcontract_1, notcontract_2,&
@@ -744,10 +737,10 @@ CONTAINS
          WRITE(io_unit, '(A)') repeat("-",80)
       ENDIF
 
-      CALL dbcsr_t_contract(tensor_1, tensor_2, &
+      CALL dbcsr_t_contract(tensor_1, tensor_2, tensor_3, &
                             contract_1, notcontract_1, &
                             contract_2, notcontract_2, &
-                            map_1, map_2, tensor_3)
+                            map_1, map_2)
 
       ! Convert tensors to simple multidimensional arrays
 #:for i in range(1,4)
@@ -766,7 +759,7 @@ CONTAINS
       SELECT CASE(dbcsr_t_ndims(tensor_${i}$))
 #:for ndim in ndims
       CASE(${ndim}$)
-         CALL allocate_any([${ndim}$], size_${i}$, source=SHAPE(array_${i}$_${ndim}$d))
+         CALL allocate_any(size_${i}$, source=SHAPE(array_${i}$_${ndim}$d))
 
 #:endfor
       END SELECT
@@ -787,15 +780,14 @@ CONTAINS
       SELECT CASE(dbcsr_t_ndims(tensor_${i}$))
 #:for ndim in ndims
       CASE(${ndim}$)
-         CALL allocate_any(size_${i}$, array_${i}$_rs${ndim}$d, &
-                           source=array_${i}$_${ndim}$d, order=order_t${i}$)
-         CALL allocate_any(sizes_2d(size_${i}$, map_t${i}$_1, map_t${i}$_2), array_${i}$_mm)
+         CALL allocate_any(array_${i}$_rs${ndim}$d, source=array_${i}$_${ndim}$d, order=order_t${i}$)
+         CALL allocate_any(array_${i}$_mm, sizes_2d(size_${i}$, map_t${i}$_1, map_t${i}$_2))
          array_${i}$_mm(:,:) = RESHAPE(array_${i}$_rs${ndim}$d, SHAPE(array_${i}$_mm))
 #:endfor
       END SELECT
 #:endfor
 
-      CALL allocate_any(SHAPE(array_3_mm), array_3_test_mm)
+      CALL allocate_any(array_3_test_mm, shape_spec=SHAPE(array_3_mm))
       array_3_test_mm(:,:) = MATMUL(array_1_mm, transpose(array_2_mm))
 
       END ASSOCIATE

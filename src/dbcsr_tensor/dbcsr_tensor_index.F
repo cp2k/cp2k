@@ -82,22 +82,15 @@ CONTAINS
       map%ndim2_2d = SIZE(map2_2d)
       map%ndim_nd = SIZE(dims)
 
-      ALLOCATE (map%map1_2d(map%ndim1_2d))
-      ALLOCATE (map%map2_2d(map%ndim2_2d))
-      ALLOCATE (map%dims1_2d(map%ndim1_2d))
-      ALLOCATE (map%dims2_2d(map%ndim2_2d))
-      ALLOCATE (map%dims_nd(map%ndim1_2d+map%ndim2_2d))
+      CALL allocate_any(map%map1_2d, source=map1_2d)
+      CALL allocate_any(map%map2_2d, source=map2_2d)
+      CALL allocate_any(map%dims_nd, source=dims)
+      CALL allocate_any(map%dims1_2d, source=dims(map1_2d))
+      CALL allocate_any(map%dims2_2d, source=dims(map2_2d))
+
       ALLOCATE (map%map_nd(map%ndim_nd))
-
-      map%dims_nd(:) = dims(:)
-      map%map1_2d(:) = map1_2d(:)
-      map%map2_2d(:) = map2_2d(:)
-
       map%map_nd(map1_2d) = (/(i, i=1, SIZE(map1_2d))/)
-      map%dims1_2d(:) = dims(map1_2d)
-
       map%map_nd(map2_2d) = (/(i+SIZE(map1_2d), i=1, SIZE(map2_2d))/)
-      map%dims2_2d(:) = dims(map2_2d)
 
       map%dims_2d = [PRODUCT(map%dims1_2d), PRODUCT(map%dims2_2d)]
 
@@ -146,7 +139,7 @@ CONTAINS
 !> \param base base index
 !> \param col_major is index in column major order
 ! **************************************************************************************************
-   PURE SUBROUTINE get_mapping_info(map, ndim_nd, ndim1_2d, ndim2_2d, dims_2d, dims_nd, dims1_2d, dims2_2d, &
+   SUBROUTINE get_mapping_info(map, ndim_nd, ndim1_2d, ndim2_2d, dims_2d, dims_nd, dims1_2d, dims2_2d, &
                                     map1_2d, map2_2d, map_nd, base, col_major)
       TYPE(nd_to_2d_mapping), INTENT(IN)                 :: map
       INTEGER, INTENT(OUT), OPTIONAL                     :: ndim_nd, ndim1_2d, ndim2_2d
@@ -168,16 +161,16 @@ CONTAINS
          dims_nd(:) = map%dims_nd(:)
       ENDIF
       IF (PRESENT(dims1_2d)) THEN
-         CALL allocate_any(SHAPE(map%dims1_2d), dims1_2d, source=map%dims1_2d)
+         CALL allocate_any(dims1_2d, source=map%dims1_2d)
       ENDIF
       IF (PRESENT(dims2_2d)) THEN
-         CALL allocate_any(SHAPE(map%dims2_2d), dims2_2d, source=map%dims2_2d)
+         CALL allocate_any(dims2_2d, source=map%dims2_2d)
       ENDIF
       IF (PRESENT(map1_2d)) THEN
-         CALL allocate_any(SHAPE(map%map1_2d), map1_2d, source=map%map1_2d)
+         CALL allocate_any(map1_2d, source=map%map1_2d)
       ENDIF
       IF (PRESENT(map2_2d)) THEN
-         CALL allocate_any(SHAPE(map%map2_2d), map2_2d, map%map2_2d)
+         CALL allocate_any(map2_2d, source=map%map2_2d)
       ENDIF
       IF (PRESENT(map_nd)) THEN
          map_nd(:) = map%map_nd(:)
@@ -364,8 +357,8 @@ CONTAINS
 
       dims_reorder(order) = dims_nd
 
-      CALL allocate_any(SHAPE(map1_2d), map1_2d_reorder)
-      CALL allocate_any(SHAPE(map2_2d), map2_2d_reorder)
+      CALL allocate_any(map1_2d_reorder, shape_spec=SHAPE(map1_2d))
+      CALL allocate_any(map2_2d_reorder, shape_spec=SHAPE(map2_2d))
 
       map1_2d_reorder(:) = order(map1_2d)
       map2_2d_reorder(:) = order(map2_2d)

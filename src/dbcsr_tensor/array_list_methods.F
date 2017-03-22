@@ -16,6 +16,7 @@ MODULE array_list_methods
 #:set ndims = range(2,maxdim+1)
 
    USE dbcsr_tensor_index, ONLY: dbcsr_t_inverse_order
+   USE allocate_wrap, ONLY: allocate_any
 
 #include "../base/base_uses.f90"
    IMPLICIT NONE
@@ -155,8 +156,7 @@ CONTAINS
       ASSOCIATE(ptr=>list%ptr, col_data=>list%col_data)
 #:for dim in range(1, maxdim+1)
       IF (ndata > ${dim-1}$) THEN
-         ALLOCATE (data_${dim}$(ptr(o(${dim}$)+1)-ptr(o(${dim}$))))
-         data_${dim}$(:) = col_data(ptr(o(${dim}$)):ptr(o(${dim}$)+1)-1)
+         CALL allocate_any(data_${dim}$, source=col_data(ptr(o(${dim}$)):ptr(o(${dim}$)+1)-1))
       ENDIF
 #:endfor
       END ASSOCIATE
@@ -177,8 +177,7 @@ CONTAINS
       ASSOCIATE(ptr=>list%ptr, col_data=>list%col_data)
       CPASSERT(i <= number_of_arrays(list))
 
-      ALLOCATE(array(ptr(i+1) - ptr(i)))
-      array(:) = col_data(ptr(i):ptr(i+1)-1)
+      CALL allocate_any(array, source=col_data(ptr(i):ptr(i+1)-1))
       END ASSOCIATE
    END SUBROUTINE
 
@@ -231,8 +230,7 @@ CONTAINS
       INTEGER                       :: i_data, i_ptr, num_data, partial_sum
 
       num_data = number_of_arrays(list_in)
-      ALLOCATE (list_out%ptr(num_data+1))
-      list_out%ptr(:) = list_in%ptr(:)
+      CALL allocate_any(list_out%ptr, source=list_in%ptr)
       ALLOCATE (list_out%col_data(SIZE(list_in%col_data)))
       DO i_data = 1, num_data
          partial_sum = 1

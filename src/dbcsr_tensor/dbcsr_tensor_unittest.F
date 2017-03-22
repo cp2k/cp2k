@@ -11,10 +11,10 @@ PROGRAM dbcsr_tensor_unittest
    USE dbcsr_api,                       ONLY: dbcsr_finalize_lib,&
                                               dbcsr_init_lib,&
                                               dbcsr_type_real_8
-   USE dbcsr_tensor_test,               ONLY: allocate_and_fill_test_tensor,&
-                                              random_dist,&
-                                              test_tensor_contraction,&
-                                              test_tensor_formats
+   USE dbcsr_tensor_test,               ONLY: dbcsr_t_setup_test_tensor,&
+                                              dbcsr_t_random_dist,&
+                                              dbcsr_t_contract_test,&
+                                              dbcsr_t_test_formats
    USE dbcsr_tensor_types,              ONLY: dbcsr_t_create,&
                                               dbcsr_t_destroy,&
                                               dbcsr_t_distribution_destroy,&
@@ -29,6 +29,8 @@ PROGRAM dbcsr_tensor_unittest
                                               mp_world_finalize,&
                                               mp_world_init
 #include "../base/base_uses.f90"
+
+   IMPLICIT NONE
 
    INTEGER                            :: mp_comm, group, numnodes, mynode, io_unit
    INTEGER, DIMENSION(:), ALLOCATABLE :: pdims, myploc
@@ -89,7 +91,7 @@ PROGRAM dbcsr_tensor_unittest
       blk_ind_2(:) = [1, 3, 11, 15, 4, 17, 21,   6,  9, 13, 19,  7] !&
 
       ! Test tensor formats
-      CALL test_tensor_formats(ndims, group, default_output_unit, verbose, &
+      CALL dbcsr_t_test_formats(ndims, group, default_output_unit, verbose, &
                                blk_size_1=size_1, blk_size_2=size_2, &
                                blk_ind_1=blk_ind_1, blk_ind_2=blk_ind_2)
 
@@ -123,7 +125,7 @@ PROGRAM dbcsr_tensor_unittest
       blk_ind_3(:) = [1, 3, 3, 2, 3, 2] !&
 
       ! Test tensor formats
-      CALL test_tensor_formats(ndims, group, default_output_unit, verbose, &
+      CALL dbcsr_t_test_formats(ndims, group, default_output_unit, verbose, &
                                blk_size_1=size_1, blk_size_2=size_2, blk_size_3=size_3, &
                                blk_ind_1=blk_ind_1, blk_ind_2=blk_ind_2, blk_ind_3=blk_ind_3)
 
@@ -160,7 +162,7 @@ PROGRAM dbcsr_tensor_unittest
       blk_ind_4(:) = [3, 2, 3, 1, 1, 2,  1,  3,  2,  2,  3, 1, 3, 2, 1, 1, 3, 2,  2] !&
 
       ! Test tensor formats
-      CALL test_tensor_formats(ndims, group, default_output_unit, verbose, &
+      CALL dbcsr_t_test_formats(ndims, group, default_output_unit, verbose, &
                                blk_size_1=size_1, blk_size_2=size_2, blk_size_3=size_3, blk_size_4=size_4, &
                                blk_ind_1=blk_ind_1, blk_ind_2=blk_ind_2, blk_ind_3=blk_ind_3, blk_ind_4=blk_ind_4)
 
@@ -234,16 +236,16 @@ PROGRAM dbcsr_tensor_unittest
       mp_comm_3 = dbcsr_t_nd_mp_comm(group, map31, map32)
       CALL mp_environ(mp_comm_3, 3, pdims_3, myploc_3, periods_3)
 
-      CALL random_dist(dist1_1, nblks_1, pdims_1(1), mp_comm_1)
-      CALL random_dist(dist1_2, nblks_2, pdims_1(2), mp_comm_1)
-      CALL random_dist(dist1_3, nblks_3, pdims_1(3), mp_comm_1)
+      CALL dbcsr_t_random_dist(dist1_1, nblks_1, pdims_1(1), mp_comm_1)
+      CALL dbcsr_t_random_dist(dist1_2, nblks_2, pdims_1(2), mp_comm_1)
+      CALL dbcsr_t_random_dist(dist1_3, nblks_3, pdims_1(3), mp_comm_1)
 
-      CALL random_dist(dist2_1, nblks_3, pdims_2(1), mp_comm_2)
-      CALL random_dist(dist2_2, nblks_4, pdims_2(2), mp_comm_2)
+      CALL dbcsr_t_random_dist(dist2_1, nblks_3, pdims_2(1), mp_comm_2)
+      CALL dbcsr_t_random_dist(dist2_2, nblks_4, pdims_2(2), mp_comm_2)
 
-      CALL random_dist(dist3_1, nblks_1, pdims_3(1), mp_comm_3)
-      CALL random_dist(dist3_2, nblks_2, pdims_3(2), mp_comm_3)
-      CALL random_dist(dist3_3, nblks_4, pdims_3(3), mp_comm_3)
+      CALL dbcsr_t_random_dist(dist3_1, nblks_1, pdims_3(1), mp_comm_3)
+      CALL dbcsr_t_random_dist(dist3_2, nblks_2, pdims_3(2), mp_comm_3)
+      CALL dbcsr_t_random_dist(dist3_3, nblks_4, pdims_3(3), mp_comm_3)
 
       CALL dbcsr_t_distribution_new(dist1, mp_comm_1, group, map11, map12, dist1_1, dist1_2, dist1_3)
       CALL dbcsr_t_distribution_new(dist2, mp_comm_2, group, map21, map22, dist2_1, dist2_2)
@@ -256,14 +258,14 @@ PROGRAM dbcsr_tensor_unittest
       CALL dbcsr_t_create(tensor_C, "(12|4)", dist3, map31, map32, dbcsr_type_real_8, &
                           size_1, size_2, size_4)
 
-      CALL allocate_and_fill_test_tensor(tensor_A, mp_comm_1, blk_ind_1, blk_ind_2, blk_ind_3_1)
-      CALL allocate_and_fill_test_tensor(tensor_B, mp_comm_2, blk_ind_3_2, blk_ind_4)
+      CALL dbcsr_t_setup_test_tensor(tensor_A, mp_comm_1, blk_ind_1, blk_ind_2, blk_ind_3_1)
+      CALL dbcsr_t_setup_test_tensor(tensor_B, mp_comm_2, blk_ind_3_2, blk_ind_4)
 
-      CALL test_tensor_contraction(tensor_A, tensor_B, tensor_C, &
-                                   [3], [2, 1], &
-                                   [1], [2], &
-                                   [2, 1], [3], &
-                                   default_output_unit)
+      CALL dbcsr_t_contract_test(tensor_A, tensor_B, tensor_C, &
+                                 [3], [2, 1], &
+                                 [1], [2], &
+                                 [2, 1], [3], &
+                                 default_output_unit)
 
       DEALLOCATE (myploc_1, myploc_2, myploc_3)
       DEALLOCATE (pdims_1, pdims_2, pdims_3)
@@ -308,16 +310,16 @@ PROGRAM dbcsr_tensor_unittest
       mp_comm_3 = dbcsr_t_nd_mp_comm(group, map31, map32)
       CALL mp_environ(mp_comm_3, 3, pdims_3, myploc_3, periods_3)
 
-      CALL random_dist(dist1_1, nblks_1, pdims_1(1), mp_comm_1)
-      CALL random_dist(dist1_2, nblks_2, pdims_1(2), mp_comm_1)
-      CALL random_dist(dist1_3, nblks_3, pdims_1(3), mp_comm_1)
+      CALL dbcsr_t_random_dist(dist1_1, nblks_1, pdims_1(1), mp_comm_1)
+      CALL dbcsr_t_random_dist(dist1_2, nblks_2, pdims_1(2), mp_comm_1)
+      CALL dbcsr_t_random_dist(dist1_3, nblks_3, pdims_1(3), mp_comm_1)
 
-      CALL random_dist(dist2_1, nblks_3, pdims_2(1), mp_comm_2)
-      CALL random_dist(dist2_2, nblks_4, pdims_2(2), mp_comm_2)
+      CALL dbcsr_t_random_dist(dist2_1, nblks_3, pdims_2(1), mp_comm_2)
+      CALL dbcsr_t_random_dist(dist2_2, nblks_4, pdims_2(2), mp_comm_2)
 
-      CALL random_dist(dist3_1, nblks_1, pdims_3(1), mp_comm_3)
-      CALL random_dist(dist3_2, nblks_2, pdims_3(2), mp_comm_3)
-      CALL random_dist(dist3_3, nblks_4, pdims_3(3), mp_comm_3)
+      CALL dbcsr_t_random_dist(dist3_1, nblks_1, pdims_3(1), mp_comm_3)
+      CALL dbcsr_t_random_dist(dist3_2, nblks_2, pdims_3(2), mp_comm_3)
+      CALL dbcsr_t_random_dist(dist3_3, nblks_4, pdims_3(3), mp_comm_3)
 
       CALL dbcsr_t_distribution_new(dist1, mp_comm_1, group, map11, map12, dist1_1, dist1_2, dist1_3)
       CALL dbcsr_t_distribution_new(dist2, mp_comm_2, group, map21, map22, dist2_1, dist2_2)
@@ -330,14 +332,14 @@ PROGRAM dbcsr_tensor_unittest
       CALL dbcsr_t_create(tensor_C, "(24|1)", dist3, map31, map32, dbcsr_type_real_8, &
                           size_1, size_2, size_4)
 
-      CALL allocate_and_fill_test_tensor(tensor_A, mp_comm_1, blk_ind_1, blk_ind_2, blk_ind_3_1)
-      CALL allocate_and_fill_test_tensor(tensor_B, mp_comm_2, blk_ind_3_2, blk_ind_4)
+      CALL dbcsr_t_setup_test_tensor(tensor_A, mp_comm_1, blk_ind_1, blk_ind_2, blk_ind_3_1)
+      CALL dbcsr_t_setup_test_tensor(tensor_B, mp_comm_2, blk_ind_3_2, blk_ind_4)
 
-      CALL test_tensor_contraction(tensor_A, tensor_B, tensor_C, &
-                                   [3], [1, 2], &
-                                   [1], [2], &
-                                   [1, 2], [3], &
-                                   default_output_unit)
+      CALL dbcsr_t_contract_test(tensor_A, tensor_B, tensor_C, &
+                                 [3], [1, 2], &
+                                 [1], [2], &
+                                 [1, 2], [3], &
+                                 default_output_unit)
 
       DEALLOCATE (myploc_1, myploc_2, myploc_3)
       DEALLOCATE (pdims_1, pdims_2, pdims_3)
