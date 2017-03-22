@@ -206,9 +206,13 @@ CONTAINS
       IF (PRESENT(comm_thread_load)) THEN
          dbcsr_cfg%comm_thread_load = comm_thread_load
          IF (comm_thread_load < 0) THEN
-            nthreads = 1
-!$          nthreads = OMP_GET_MAX_THREADS()
-            dbcsr_cfg%comm_thread_load = MAX(0, 90-(30*nthreads)/8)
+            IF (dbcsr_cfg%use_mpi_rma) THEN
+               dbcsr_cfg%comm_thread_load = 100
+            ELSE
+               nthreads = 1
+!$             nthreads = OMP_GET_MAX_THREADS()
+               dbcsr_cfg%comm_thread_load = MAX(0, 90-(30*nthreads)/8)
+            ENDIF
          ENDIF
       ENDIF
 
