@@ -11,9 +11,9 @@ PROGRAM dbcsr_tensor_unittest
    USE dbcsr_api,                       ONLY: dbcsr_finalize_lib,&
                                               dbcsr_init_lib,&
                                               dbcsr_type_real_8
-   USE dbcsr_tensor_test,               ONLY: dbcsr_t_setup_test_tensor,&
+   USE dbcsr_tensor_test,               ONLY: dbcsr_t_contract_test,&
                                               dbcsr_t_random_dist,&
-                                              dbcsr_t_contract_test,&
+                                              dbcsr_t_setup_test_tensor,&
                                               dbcsr_t_test_formats
    USE dbcsr_tensor_types,              ONLY: dbcsr_t_create,&
                                               dbcsr_t_destroy,&
@@ -92,8 +92,8 @@ PROGRAM dbcsr_tensor_unittest
 
       ! Test tensor formats
       CALL dbcsr_t_test_formats(ndims, group, default_output_unit, verbose, &
-                               blk_size_1=size_1, blk_size_2=size_2, &
-                               blk_ind_1=blk_ind_1, blk_ind_2=blk_ind_2)
+                                blk_size_1=size_1, blk_size_2=size_2, &
+                                blk_ind_1=blk_ind_1, blk_ind_2=blk_ind_2)
 
       DEALLOCATE (size_1, size_2)
       DEALLOCATE (blk_ind_1, blk_ind_2)
@@ -126,8 +126,8 @@ PROGRAM dbcsr_tensor_unittest
 
       ! Test tensor formats
       CALL dbcsr_t_test_formats(ndims, group, default_output_unit, verbose, &
-                               blk_size_1=size_1, blk_size_2=size_2, blk_size_3=size_3, &
-                               blk_ind_1=blk_ind_1, blk_ind_2=blk_ind_2, blk_ind_3=blk_ind_3)
+                                blk_size_1=size_1, blk_size_2=size_2, blk_size_3=size_3, &
+                                blk_ind_1=blk_ind_1, blk_ind_2=blk_ind_2, blk_ind_3=blk_ind_3)
 
       DEALLOCATE (size_1, size_2, size_3)
       DEALLOCATE (blk_ind_1, blk_ind_2, blk_ind_3)
@@ -163,8 +163,8 @@ PROGRAM dbcsr_tensor_unittest
 
       ! Test tensor formats
       CALL dbcsr_t_test_formats(ndims, group, default_output_unit, verbose, &
-                               blk_size_1=size_1, blk_size_2=size_2, blk_size_3=size_3, blk_size_4=size_4, &
-                               blk_ind_1=blk_ind_1, blk_ind_2=blk_ind_2, blk_ind_3=blk_ind_3, blk_ind_4=blk_ind_4)
+                                blk_size_1=size_1, blk_size_2=size_2, blk_size_3=size_3, blk_size_4=size_4, &
+                                blk_ind_1=blk_ind_1, blk_ind_2=blk_ind_2, blk_ind_3=blk_ind_3, blk_ind_4=blk_ind_4)
 
       DEALLOCATE (size_1, size_2, size_3, size_4)
       DEALLOCATE (blk_ind_1, blk_ind_2, blk_ind_3, blk_ind_4)

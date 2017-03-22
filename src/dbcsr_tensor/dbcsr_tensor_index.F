@@ -140,7 +140,7 @@ CONTAINS
 !> \param col_major is index in column major order
 ! **************************************************************************************************
    SUBROUTINE get_mapping_info(map, ndim_nd, ndim1_2d, ndim2_2d, dims_2d, dims_nd, dims1_2d, dims2_2d, &
-                                    map1_2d, map2_2d, map_nd, base, col_major)
+                               map1_2d, map2_2d, map_nd, base, col_major)
       TYPE(nd_to_2d_mapping), INTENT(IN)                 :: map
       INTEGER, INTENT(OUT), OPTIONAL                     :: ndim_nd, ndim1_2d, ndim2_2d
       INTEGER, DIMENSION(2), INTENT(OUT), OPTIONAL       :: dims_2d
