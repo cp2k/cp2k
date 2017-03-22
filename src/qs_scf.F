@@ -44,8 +44,7 @@
 ! **************************************************************************************************
 MODULE qs_scf
    USE atomic_kind_types,               ONLY: atomic_kind_type
-   USE cp_control_types,                ONLY: cdft_control_type,&
-                                              dft_control_type
+   USE cp_control_types,                ONLY: dft_control_type
    USE cp_dbcsr_operations,             ONLY: copy_dbcsr_to_fm
    USE cp_files,                        ONLY: open_file
    USE cp_fm_types,                     ONLY: cp_fm_create,&
@@ -80,12 +79,11 @@ MODULE qs_scf
    USE input_constants,                 ONLY: &
         broyden_type_1, broyden_type_1_explicit, broyden_type_1_explicit_ls, broyden_type_1_ls, &
         broyden_type_2, broyden_type_2_explicit, broyden_type_2_explicit_ls, broyden_type_2_ls, &
-        cdft2ot, cdft_combined_acceptor, cdft_combined_all, cdft_combined_constraint, &
-        cdft_combined_donor, history_guess, jacobian_fd1, jacobian_fd1_backward, &
-        jacobian_fd1_central, jacobian_fd2, jacobian_fd2_backward, ot2cdft, ot_precond_full_all, &
-        ot_precond_full_single, ot_precond_full_single_inverse, ot_precond_none, &
-        ot_precond_s_inverse, outer_scf_hirshfeld_constraint, outer_scf_optimizer_broyden, &
-        outer_scf_optimizer_newton, outer_scf_optimizer_newton_ls
+        cdft2ot, history_guess, jacobian_fd1, jacobian_fd1_backward, jacobian_fd1_central, &
+        jacobian_fd2, jacobian_fd2_backward, ot2cdft, ot_precond_full_all, ot_precond_full_single, &
+        ot_precond_full_single_inverse, ot_precond_none, ot_precond_s_inverse, &
+        outer_scf_hirshfeld_constraint, outer_scf_optimizer_broyden, outer_scf_optimizer_newton, &
+        outer_scf_optimizer_newton_ls
    USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                               section_vals_type
    USE kinds,                           ONLY: default_path_length,&
@@ -105,6 +103,7 @@ MODULE qs_scf
    USE pw_pool_types,                   ONLY: pw_pool_give_back_pw,&
                                               pw_pool_type
    USE qs_block_davidson_types,         ONLY: block_davidson_deallocate
+   USE qs_cdft_types,                   ONLY: cdft_control_type
    USE qs_charges_types,                ONLY: qs_charges_type
    USE qs_density_mixing_types,         ONLY: gspace_mixing_nr
    USE qs_diis,                         ONLY: qs_diis_b_clear,&
@@ -522,8 +521,6 @@ CONTAINS
 
          IF (exit_outer_loop) EXIT scf_outer_loop
 
-         ! Check if the inverse Jacobian needs to be calculated
-         CALL qs_calculate_inverse_jacobian(qs_env)
          !
          CALL outer_loop_optimize(scf_env, scf_control)
          CALL outer_loop_update_qs_env(qs_env, scf_env)
@@ -549,13 +546,15 @@ CONTAINS
          ENDIF !fm->dbcsr
       ENDDO !fm -> dbcsr
 
-      IF (dft_control%qs_control%becke_restraint) THEN
+      IF (dft_control%qs_control%becke_constraint) THEN
          ! Check if Becke potential is not needed for force evaluation or CDFT and deallocate
          IF (.NOT. dft_control%qs_control%becke_control%save_pot .AND. &
              .NOT. dft_control%qs_control%cdft) THEN
             CALL pw_env_get(pw_env, auxbas_pw_pool=auxbas_pw_pool)
-            CALL pw_pool_give_back_pw(auxbas_pw_pool, &
-                                      dft_control%qs_control%becke_control%becke_pot%pw)
+            DO iatom = 1, SIZE(dft_control%qs_control%becke_control%group)
+               CALL pw_pool_give_back_pw(auxbas_pw_pool, &
+                                         dft_control%qs_control%becke_control%group(iatom)%weight%pw)
+            END DO
             IF (dft_control%qs_control%becke_control%atomic_charges) THEN
                DO iatom = 1, dft_control%qs_control%becke_control%natoms
                   CALL pw_pool_give_back_pw(auxbas_pw_pool, &
@@ -573,15 +572,6 @@ CONTAINS
             END IF
             IF (ASSOCIATED(dft_control%qs_control%becke_control%charges_fragment)) &
                DEALLOCATE (dft_control%qs_control%becke_control%charges_fragment)
-            IF (dft_control%qs_control%becke_control%constraint_type == cdft_combined_constraint) THEN
-               SELECT CASE (dft_control%qs_control%becke_control%combined_type)
-               CASE (cdft_combined_all)
-                  ! Do nothing
-               CASE (cdft_combined_acceptor, cdft_combined_donor)
-                  CALL pw_pool_give_back_pw(auxbas_pw_pool, &
-                                            dft_control%qs_control%becke_control%combined_weight%pw)
-               END SELECT
-            END IF
             dft_control%qs_control%becke_control%need_pot = .TRUE.
             dft_control%qs_control%becke_control%external_control = .FALSE.
          END IF
@@ -933,7 +923,8 @@ CONTAINS
 
       CHARACTER(len=*), PARAMETER :: routineN = 'cdft_scf', routineP = moduleN//':'//routineN
 
-      INTEGER                                            :: handle, iatom, ispin, output_unit
+      INTEGER                                            :: handle, iatom, ispin, ivar, nvar, &
+                                                            output_unit
       LOGICAL                                            :: cdft_loop_converged, converged, &
                                                             exit_cdft_loop, first_iteration
       TYPE(cdft_control_type), POINTER                   :: cdft_control
@@ -1039,21 +1030,28 @@ CONTAINS
 
       cdft_control%ienergy = cdft_control%ienergy+1
 
-      IF (dft_control%qs_control%becke_restraint) THEN
+      IF (dft_control%qs_control%becke_constraint) THEN
          ! Store needed arrays for ET coupling calculation
          IF (cdft_control%do_et) THEN
             CALL get_qs_env(qs_env=qs_env, matrix_s=matrix_s)
-            CALL dbcsr_init_p(cdft_control%wmat%matrix)
-            CALL dbcsr_copy(cdft_control%wmat%matrix, matrix_s(1)%matrix, &
-                            name="ET_RESTRAINT_MATRIX")
-            CALL dbcsr_set(cdft_control%wmat%matrix, 0.0_dp)
-            CALL integrate_v_rspace(dft_control%qs_control%becke_control%becke_pot, &
-                                    hmat=cdft_control%wmat, qs_env=qs_env, &
-                                    calculate_forces=.FALSE., &
-                                    gapw=dft_control%qs_control%gapw)
+            nvar = SIZE(cdft_control%target)
+            ! Matrix representation of weight function
+            ALLOCATE (cdft_control%wmat(nvar))
+            DO ivar = 1, nvar
+               CALL dbcsr_init_p(cdft_control%wmat(ivar)%matrix)
+               CALL dbcsr_copy(cdft_control%wmat(ivar)%matrix, matrix_s(1)%matrix, &
+                               name="ET_RESTRAINT_MATRIX")
+               CALL dbcsr_set(cdft_control%wmat(ivar)%matrix, 0.0_dp)
+               CALL integrate_v_rspace(dft_control%qs_control%becke_control%group(ivar)%weight, &
+                                       hmat=cdft_control%wmat(ivar), qs_env=qs_env, &
+                                       calculate_forces=.FALSE., &
+                                       gapw=dft_control%qs_control%gapw)
+            END DO
+            ! Overlap matrix
             CALL dbcsr_init_p(cdft_control%matrix_s%matrix)
             CALL dbcsr_copy(cdft_control%matrix_s%matrix, matrix_s(1)%matrix, &
                             name="OVERLAP")
+            ! Molecular orbital coefficients
             NULLIFY (cdft_control%mo_coeff)
             ALLOCATE (cdft_control%mo_coeff(dft_control%nspins))
             DO ispin = 1, dft_control%nspins
@@ -1064,6 +1062,7 @@ CONTAINS
                CALL cp_fm_to_fm(qs_env%mos(ispin)%mo_set%mo_coeff, &
                                 cdft_control%mo_coeff(ispin)%matrix)
             END DO
+            ! Density matrix
             IF (cdft_control%calculate_metric) THEN
                CALL get_qs_env(qs_env, rho=rho)
                CALL qs_rho_get(rho, rho_ao=rho_ao)
@@ -1081,8 +1080,10 @@ CONTAINS
                     dft_control%qs_control%becke_control%transfer_pot)) THEN
             CALL get_qs_env(qs_env, pw_env=pw_env)
             CALL pw_env_get(pw_env, auxbas_pw_pool=auxbas_pw_pool)
-            CALL pw_pool_give_back_pw(auxbas_pw_pool, &
-                                      dft_control%qs_control%becke_control%becke_pot%pw)
+            DO iatom = 1, SIZE(dft_control%qs_control%becke_control%group)
+               CALL pw_pool_give_back_pw(auxbas_pw_pool, &
+                                         dft_control%qs_control%becke_control%group(iatom)%weight%pw)
+            END DO
             IF (dft_control%qs_control%becke_control%atomic_charges) THEN
                DO iatom = 1, dft_control%qs_control%becke_control%natoms
                   CALL pw_pool_give_back_pw(auxbas_pw_pool, &
@@ -1100,15 +1101,6 @@ CONTAINS
             END IF
             IF (ASSOCIATED(dft_control%qs_control%becke_control%charges_fragment)) &
                DEALLOCATE (dft_control%qs_control%becke_control%charges_fragment)
-            IF (dft_control%qs_control%becke_control%constraint_type == cdft_combined_constraint) THEN
-               SELECT CASE (dft_control%qs_control%becke_control%combined_type)
-               CASE (cdft_combined_all)
-                  ! Do nothing
-               CASE (cdft_combined_acceptor, cdft_combined_donor)
-                  CALL pw_pool_give_back_pw(auxbas_pw_pool, &
-                                            dft_control%qs_control%becke_control%combined_weight%pw)
-               END SELECT
-            END IF
             dft_control%qs_control%becke_control%need_pot = .TRUE.
             dft_control%qs_control%becke_control%external_control = .FALSE.
          END IF
@@ -1168,10 +1160,8 @@ CONTAINS
          routineP = moduleN//':'//routineN
 
       CHARACTER(len=default_path_length)                 :: project_name
-      INTEGER                                            :: handle, i, ihistory, ispin, iter_count, &
-                                                            iwork, j, lp, max_scf, nspins, nvar, &
-                                                            nwork, outer_scf_ihistory, &
-                                                            output_unit, pwork
+      INTEGER :: counter, handle, i, ihistory, ispin, iter_count, iwork, j, lp, max_scf, nspins, &
+         nsteps, nvar, nwork, outer_scf_ihistory, output_unit, pwork, twork
       LOGICAL                                            :: converged, explicit_jacobian, &
                                                             should_build, should_stop, &
                                                             use_md_history
@@ -1289,6 +1279,7 @@ CONTAINS
             energy = scf_env%outer_scf%energy
             ALLOCATE (jacobian(nvar, nvar))
             jacobian = 0.0_dp
+            nsteps = cdft_control%total_steps
             ! Setup finite difference scheme
             SELECT CASE (scf_control%outer_scf%jacobian_type)
             CASE DEFAULT
@@ -1350,6 +1341,7 @@ CONTAINS
                step_multiplier(pwork) = 1.0_dp
                dh = 2.0_dp*scf_control%outer_scf%jacobian_step
             END SELECT
+            twork = pwork-nwork
             DO i = 1, nvar
                jacobian(i, :) = coeff(0)*scf_env%outer_scf%gradient(i, iter_count)
             END DO
@@ -1381,8 +1373,24 @@ CONTAINS
             ! Calculate the Jacobian by perturbing each Lagrangian and recalculating the energy self-consistently
             CALL cp_add_default_logger(tmp_logger)
             DO i = 1, nvar
+               IF (output_unit > 0) THEN
+                  WRITE (output_unit, FMT="(A)") " "
+                  WRITE (output_unit, FMT="(A)") " #####################################"
+                  WRITE (output_unit, '(A,I3,A,I3,A)') &
+                     " ###  Constraint        ", i, " of ", nvar, " ###"
+                  WRITE (output_unit, FMT="(A)") " #####################################"
+               END IF
+               counter = 0
                DO iwork = nwork, pwork
                   IF (iwork == 0) CYCLE
+                  counter = counter+1
+                  IF (output_unit > 0) THEN
+                     WRITE (output_unit, FMT="(A)") " #####################################"
+                     WRITE (output_unit, '(A,I3,A,I3,A)') &
+                        " ###  Energy evaluation ", counter, " of ", twork, " ###"
+                     WRITE (output_unit, FMT="(A)") " #####################################"
+                  END IF
+                  scf_env%outer_scf%variables(:, iter_count+1) = scf_env%outer_scf%variables(:, iter_count)
                   scf_env%outer_scf%variables(i, iter_count+1) = scf_env%outer_scf%variables(i, iter_count)+ &
                                                                  step_multiplier(iwork)* &
                                                                  scf_control%outer_scf%jacobian_step
@@ -1404,9 +1412,10 @@ CONTAINS
                      jacobian(j, i) = jacobian(j, i)+coeff(iwork)*scf_env%outer_scf%gradient(j, iter_count+1)
                   END DO
                   ! Reset everything to last converged state
-                  scf_env%outer_scf%variables(i, iter_count+1) = 0.0_dp
+                  scf_env%outer_scf%variables(:, iter_count+1) = 0.0_dp
                   scf_env%outer_scf%gradient = gradient
                   scf_env%outer_scf%energy = energy
+                  cdft_control%total_steps = nsteps
                   DO ispin = 1, nspins
                      CALL deallocate_mo_set(mos(ispin)%mo_set)
                      CALL duplicate_mo_set(mos(ispin)%mo_set, mos_stashed(ispin)%mo_set)
@@ -1420,7 +1429,11 @@ CONTAINS
             CALL cp_rm_default_logger()
             CALL cp_logger_release(tmp_logger)
             ! Finalize and invert Jacobian
-            jacobian = jacobian/dh
+            DO j = 1, nvar
+               DO i = 1, nvar
+                  jacobian(i, j) = jacobian(i, j)/dh
+               END DO
+            END DO
             IF (.NOT. ASSOCIATED(scf_env%outer_scf%inv_jacobian)) &
                ALLOCATE (scf_env%outer_scf%inv_jacobian(nvar, nvar))
             inv_jacobian => scf_env%outer_scf%inv_jacobian
@@ -1512,7 +1525,8 @@ CONTAINS
 
       CHARACTER(len=default_path_length)                 :: project_name
       INTEGER                                            :: handle, i, ispin, iter_count, lp, &
-                                                            max_scf, nspins, nvar, output_unit
+                                                            max_scf, nspins, nsteps, nvar, &
+                                                            output_unit
       LOGICAL                                            :: converged, do_linesearch, should_exit, &
                                                             should_stop
       REAL(KIND=dp)                                      :: alpha
@@ -1597,6 +1611,7 @@ CONTAINS
          END DO
          CALL qs_rho_get(rho, rho_ao_kp=rho_ao_kp)
          p_rmpv => rho_ao_kp(:, 1)
+         nsteps = cdft_control%total_steps
          ! Allocate work
          nvar = SIZE(scf_env%outer_scf%variables, 1)
          max_scf = scf_control%outer_scf%max_scf+1
@@ -1614,7 +1629,7 @@ CONTAINS
          ! Print some info
          IF (output_unit > 0) THEN
             WRITE (output_unit, FMT="(/,A)") &
-               " ==================================  LINE SEARCH STARTED  ================================="
+               " ================================== LINE SEARCH STARTED  =================================="
             WRITE (output_unit, FMT="(A)") &
                " Evaluating optimal step size for optimizer"
             WRITE (output_unit, '(A,I10,A,I10)') &
@@ -1666,6 +1681,7 @@ CONTAINS
             scf_env%outer_scf%energy = energy
             ! If a suitable step size was found, do not reset the electronic structure so we can continue from it
             IF (should_exit) EXIT
+            cdft_control%total_steps = nsteps
             DO ispin = 1, nspins
                CALL deallocate_mo_set(mos(ispin)%mo_set)
                CALL duplicate_mo_set(mos(ispin)%mo_set, mos_stashed(ispin)%mo_set)

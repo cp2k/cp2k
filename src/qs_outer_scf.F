@@ -10,17 +10,14 @@
 !> \author Joost VandeVondele
 ! **************************************************************************************************
 MODULE qs_outer_scf
-   USE cp_control_types,                ONLY: becke_restraint_type,&
-                                              cdft_control_type,&
-                                              ddapc_restraint_type,&
+   USE cp_control_types,                ONLY: ddapc_restraint_type,&
                                               dft_control_type,&
                                               s2_restraint_type
    USE cp_log_handling,                 ONLY: cp_to_string
    USE input_constants,                 ONLY: &
         broyden_type_1, broyden_type_1_explicit, broyden_type_1_explicit_ls, broyden_type_1_ls, &
         broyden_type_2, broyden_type_2_explicit, broyden_type_2_explicit_ls, broyden_type_2_ls, &
-        cdft2ot, cdft_combined_constraint, cdft_density_constraint, cdft_magnetization_constraint, &
-        do_ddapc_constraint, do_s2_constraint, ot2cdft, outer_scf_basis_center_opt, &
+        cdft2ot, do_ddapc_constraint, do_s2_constraint, ot2cdft, outer_scf_basis_center_opt, &
         outer_scf_becke_constraint, outer_scf_cdft_constraint, outer_scf_ddapc_constraint, &
         outer_scf_none, outer_scf_optimizer_bisect, outer_scf_optimizer_broyden, &
         outer_scf_optimizer_diis, outer_scf_optimizer_newton, outer_scf_optimizer_newton_ls, &
@@ -31,6 +28,8 @@ MODULE qs_outer_scf
    USE qs_basis_gradient,               ONLY: qs_basis_center_gradient,&
                                               qs_update_basis_center_pos,&
                                               return_basis_center_gradient_norm
+   USE qs_cdft_types,                   ONLY: becke_constraint_type,&
+                                              cdft_control_type
    USE qs_energy_types,                 ONLY: qs_energy_type
    USE qs_environment_types,            ONLY: get_qs_env,&
                                               qs_environment_type,&
@@ -77,12 +76,7 @@ CONTAINS
          res = 1
       CASE (outer_scf_becke_constraint, outer_scf_cdft_constraint)
          IF (PRESENT(cdft_control)) THEN
-            SELECT CASE (cdft_control%constraint_type)
-            CASE (cdft_density_constraint, cdft_magnetization_constraint)
-               res = 1
-            CASE (cdft_combined_constraint)
-               res = 2
-            END SELECT
+            res = SIZE(cdft_control%target)
          ELSE
             res = 1
          END IF
@@ -112,7 +106,7 @@ CONTAINS
 
       INTEGER                                            :: handle, ihistory, ivar, n
       LOGICAL                                            :: is_constraint
-      TYPE(becke_restraint_type), POINTER                :: becke_control
+      TYPE(becke_constraint_type), POINTER               :: becke_control
       TYPE(cdft_control_type), POINTER                   :: cdft_control
       TYPE(ddapc_restraint_type), POINTER                :: ddapc_restraint_control
       TYPE(dft_control_type), POINTER                    :: dft_control
@@ -159,7 +153,7 @@ CONTAINS
          scf_env%outer_scf%gradient(:, ihistory) = s2_restraint_control%s2_order_p- &
                                                    s2_restraint_control%target
       CASE (outer_scf_becke_constraint)
-         CPASSERT(dft_control%qs_control%becke_restraint)
+         CPASSERT(dft_control%qs_control%becke_constraint)
          becke_control => dft_control%qs_control%becke_control
          DO ivar = 1, SIZE(scf_env%outer_scf%gradient, 1)
             scf_env%outer_scf%variables(ivar, ihistory) = becke_control%strength(ivar)
@@ -407,7 +401,7 @@ CONTAINS
 
       INTEGER                                            :: handle, ihistory, n
       LOGICAL                                            :: is_constraint
-      TYPE(becke_restraint_type), POINTER                :: becke_control
+      TYPE(becke_constraint_type), POINTER               :: becke_control
       TYPE(cdft_control_type), POINTER                   :: cdft_control
       TYPE(ddapc_restraint_type), POINTER                :: ddapc_restraint_control
       TYPE(dft_control_type), POINTER                    :: dft_control

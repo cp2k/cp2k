@@ -129,7 +129,10 @@ CONTAINS
 
       CALL keyword_create(keyword, name="MIXED_CDFT_COUPLING", &
                           description="Parameter determining how often the CDFT electronic coupling element "// &
-                          " is calculated. Use a negative number to disable and 0 means every step.", &
+                          "is calculated. Use a negative number to disable and 0 means every step. By default, "// &
+                          "the coupling is calculated by rotating the CDFT states to eigenstates of the weight "// &
+                          "function matrix when a single constraint is active. With multiple constraints, uses "// &
+                          "Lowdin orthogonalization.", &
                           usage="MIXED_CDFT_COUPLING <INT>", &
                           default_i_val=-1, &
                           type_of_var=integer_t, n_var=1)
@@ -146,7 +149,7 @@ CONTAINS
 
       CALL keyword_create(keyword, name="MIXED_CDFT_METRIC", &
                           description="Compute reliability metric for the CDFT electronic coupling element by diagonalizing"// &
-                          " the difference density matrix.", &
+                          "the difference density matrix.", &
                           usage="MIXED_CDFT_METRIC", type_of_var=logical_t, &
                           default_l_val=.FALSE., lone_keyword_l_val=.TRUE., &
                           citations=(/Mavros2015/))
@@ -155,18 +158,38 @@ CONTAINS
 
       CALL keyword_create(keyword, name="MIXED_CDFT_WFN_OVERLAP", &
                           description="Compute CDFT electronic coupling element using the wavefunction overlap "// &
-                          " method in addition to the standard orthogonalization procedure "// &
-                          " (MIXED_CDFT_COUPLING). In this method, the unconstrained KS ground state"// &
-                          " wavefunction (WFN_RESTART_FILE_NAME) is represented as a linear combination"// &
-                          " of the two CDFT states.", &
+                          "method in addition to the standard method defined by the keyword MIXED_CDFT_COUPLING. "// &
+                          "In this method, the unconstrained KS ground state wavefunction (WFN_RESTART_FILE_NAME) "// &
+                          "is represented as a linear combination of the two CDFT states.", &
                           usage="MIXED_CDFT_WFN_OVERLAP", type_of_var=logical_t, &
                           default_l_val=.FALSE., lone_keyword_l_val=.TRUE., &
                           citations=(/Migliore2009/))
       CALL section_add_keyword(subsection, keyword)
       CALL keyword_release(keyword)
 
+      CALL keyword_create(keyword, name="MIXED_CDFT_LOWDIN", &
+                          description="Compute CDFT electronic coupling element using Lowdin orthogonalization. "// &
+                          "This is the default behavior with multiple constraints. "// &
+                          "By activating this keyword, this method is also used to compute the the coupling "// &
+                          "when a single constraint is active in addition to the standard method.", &
+                          usage="MIXED_CDFT_LOWDIN", type_of_var=logical_t, &
+                          default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
+      CALL section_add_keyword(subsection, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, name="MIXED_CDFT_CI", &
+                          description="Perform a CDFT configuration interaction calculation (CDFT-CI). "// &
+                          "The CI vector is expanded in the basis of the CDFT states. Diagonalizes the "// &
+                          "nonorthogonal diabatic CDFT Hamiltonian. The energies and expansion coefficients "// &
+                          "of the CDFT-CI states are outputted. Keyword MIXED_CDFT_COUPLING must be active "// &
+                          "to use this feature.", &
+                          usage="MIXED_CDFT_LOWDIN", type_of_var=logical_t, &
+                          default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
+      CALL section_add_keyword(subsection, keyword)
+      CALL keyword_release(keyword)
+
       CALL keyword_create(keyword, name="WFN_RESTART_FILE_NAME", &
-                          description="Name of the wavefunction restart file that defines the unconstrained "// &
+                          description="Name of the wavefunction restart file that defines the unconstrained"// &
                           " KS ground state, which is used to compute the electronic coupling with"// &
                           " the wavefunction overlap method. May include a path.", &
                           usage="WFN_RESTART_FILE_NAME <FILENAME>", &
@@ -175,9 +198,9 @@ CONTAINS
       CALL keyword_release(keyword)
 
       CALL keyword_create(keyword, name="EPS_SVD", &
-                          description="Determines the matrix inversion solver needed by the orthogonalization procedure. "// &
-                          " Default value implies LU decomposition, while values between 0.0 and 1.0 "// &
-                          "imply SVD decomposition. For SVD, the value acts as a threshold"// &
+                          description="Determines the matrix inversion solver needed by to compute the coupling."// &
+                          " Default value implies LU decomposition, while values between 0.0 and 1.0"// &
+                          " imply SVD decomposition. For SVD, the value acts as a threshold"// &
                           " for screening singular values so that only values above it are included"// &
                           " in the matrix pseudoinverse.", &
                           usage="EPS_SVD <REAL>", type_of_var=real_t, &

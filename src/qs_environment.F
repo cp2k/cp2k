@@ -33,10 +33,14 @@ MODULE qs_environment
                                               qs_control_type,&
                                               scptb_control_type,&
                                               semi_empirical_control_type
-   USE cp_control_utils,                ONLY: &
-        read_becke_section, read_ddapc_section, read_dft_control, read_mgrid_section, &
-        read_qs_section, read_tddfpt2_control, read_tddfpt_control, write_dft_control, &
-        write_qs_control
+   USE cp_control_utils,                ONLY: read_ddapc_section,&
+                                              read_dft_control,&
+                                              read_mgrid_section,&
+                                              read_qs_section,&
+                                              read_tddfpt2_control,&
+                                              read_tddfpt_control,&
+                                              write_dft_control,&
+                                              write_qs_control
    USE cp_ddapc_types,                  ONLY: cp_ddapc_ewald_create
    USE cp_log_handling,                 ONLY: cp_get_default_logger,&
                                               cp_logger_get_default_io_unit,&
@@ -110,6 +114,7 @@ MODULE qs_environment
                                               write_structure_data
    USE particle_types,                  ONLY: particle_type
    USE qmmm_types_low,                  ONLY: qmmm_env_qm_type
+   USE qs_cdft_utils,                   ONLY: read_becke_section
    USE qs_dftb_parameters,              ONLY: qs_dftb_param_init
    USE qs_dftb_types,                   ONLY: qs_dftb_pairpot_type
    USE qs_dispersion_nonloc,            ONLY: qs_dispersion_nonloc_init
@@ -574,9 +579,9 @@ CONTAINS
       ENDIF
 
       IF (my_ival == do_et_becke) THEN
-         dft_control%qs_control%becke_restraint = .TRUE.
+         dft_control%qs_control%becke_constraint = .TRUE.
          dft_control%qs_control%et_coupling_calc = .TRUE.
-         et_becke_section => section_vals_get_subs_vals(et_coupling_section, "BECKE_RESTRAINT_A")
+         et_becke_section => section_vals_get_subs_vals(et_coupling_section, "BECKE_CONSTRAINT_A")
          CALL read_becke_section(dft_control%qs_control, et_becke_section)
       END IF
       CALL read_mgrid_section(dft_control%qs_control, dft_section)

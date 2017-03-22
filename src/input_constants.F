@@ -672,23 +672,12 @@ MODULE input_constants
    INTEGER, PARAMETER, PUBLIC               :: do_s2_restraint = 872, &
                                                do_s2_constraint = 873
 
-   ! Becke cutoff and confinement methods
-   INTEGER, PARAMETER, PUBLIC               :: becke_none_conf = 776, &
-                                               becke_static_conf = 777, &
-                                               becke_dynamic_conf = 778, &
-                                               becke_cavity_conf = 779, &
-                                               becke_mixed_conf = 780, &
-                                               becke_cutoff_global = 790, &
+   ! Becke cutoff schemes
+   INTEGER, PARAMETER, PUBLIC               :: becke_cutoff_global = 790, &
                                                becke_cutoff_element = 791
 
    ! CDFT constraint and control types
-   INTEGER, PARAMETER, PUBLIC               :: cdft_density_constraint = 1, &
-                                               cdft_magnetization_constraint = 2, &
-                                               cdft_combined_constraint = 3, &
-                                               cdft_combined_all = 10, &
-                                               cdft_combined_donor = 11, &
-                                               cdft_combined_acceptor = 12, &
-                                               ot2cdft = 101, &
+   INTEGER, PARAMETER, PUBLIC               :: ot2cdft = 101, &
                                                cdft2ot = 102
 
    ! ROKS schemes

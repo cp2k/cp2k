@@ -31,7 +31,7 @@ MODULE input_cp2k_properties_dft
         ot_precond_full_single_inverse, ot_precond_none, ot_precond_s_inverse, use_mom_ref_coac, &
         use_mom_ref_com, use_mom_ref_user, use_mom_ref_zero, xas_dip_len, xas_dip_vel
    USE input_cp2k_atprop,               ONLY: create_atprop_section
-   USE input_cp2k_dft,                  ONLY: create_becke_restraint_section,&
+   USE input_cp2k_dft,                  ONLY: create_becke_constraint_section,&
                                               create_ddapc_restraint_section,&
                                               create_interp_section,&
                                               create_localize_section,&
@@ -941,12 +941,12 @@ CONTAINS
       CALL section_release(subsection)
 
       NULLIFY (subsection)
-      CALL create_becke_restraint_section(subsection, "BECKE_RESTRAINT_A")
+      CALL create_becke_constraint_section(subsection, "BECKE_CONSTRAINT_A")
       CALL section_add_subsection(section, subsection)
       CALL section_release(subsection)
 
       NULLIFY (subsection)
-      CALL create_becke_restraint_section(subsection, "BECKE_RESTRAINT_B")
+      CALL create_becke_constraint_section(subsection, "BECKE_CONSTRAINT_B")
       CALL section_add_subsection(section, subsection)
       CALL section_release(subsection)
 

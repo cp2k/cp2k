@@ -7,17 +7,14 @@
   &CDFT
     TYPE_OF_CONSTRAINT BECKE
     &OUTER_SCF ON
-      EPS_SCF 3.0e-1
+      EPS_SCF 1.0e-0
       TYPE BECKE_CONSTRAINT
-      OPTIMIZER NEWTON
+      OPTIMIZER BROYDEN
       BROYDEN_TYPE BT1
-      JACOBIAN_STEP 1.0E-4
-      JACOBIAN_TYPE FD1
-      JACOBIAN_FREQ 1 1
       BISECT_TRUST_COUNT 8
       EXTRAPOLATION_ORDER 2
       MAX_SCF  ${MAX_SCF}
-      STEP_SIZE -1.0
+      STEP_SIZE -0.001
     &END
   &END CDFT
   &BECKE_CONSTRAINT
@@ -30,10 +27,13 @@
       ! Defaults to false
       ATOMIC_CHARGES  TRUE
     @ENDIF
-    STRENGTH        ${BECKE_STR}
-    ! The constraint target: sum_i coeff_i * N_i
+    STRENGTH        0.0 0.0
+    ! Target values from the constraints
+    ! For charge density constraints, the target equals sum_i coeff_i * N_i
     ! where N_i is the number of VALENCE electrons on i 
-    TARGET          ${BECKE_TARGET}
+    ! For magnetization density constraints, the sum_i coeff_i * M_i
+    ! where M_i = N_i(alpha)-N_i(beta)
+    TARGET          0.0 0.0
     @IF ( ${BECKE_CUTOFF_ELEMENT} == TRUE )
       CUTOFF_TYPE     ELEMENT
       ELEMENT_CUTOFF  2.0 2.0
@@ -74,9 +74,16 @@
       FRAGMENT_B_FILE_NAME H-noconstraint-ELECTRON_DENSITY-1_0.cube
     @ENDIF
     @IF ( ${BECKE_FRAGMENT} == FALSE )
+      ! Apply a spin constraint in addition to the charge difference constraint
+      &ATOM_GROUP
+        ATOMS          1
+        COEFF          1
+        CHARGE_CONSTRAINT FALSE
+      &END 
       &ATOM_GROUP
         ATOMS           1..2
         COEFF           1 -1
+        CHARGE_CONSTRAINT TRUE
       &END ATOM_GROUP
     @ENDIF
     &PROGRAM_RUN_INFO ON

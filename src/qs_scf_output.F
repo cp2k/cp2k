@@ -5,8 +5,7 @@
 
 MODULE qs_scf_output
    USE atomic_kind_types,               ONLY: atomic_kind_type
-   USE cp_control_types,                ONLY: cdft_control_type,&
-                                              dft_control_type
+   USE cp_control_types,                ONLY: dft_control_type
    USE cp_dbcsr_output,                 ONLY: cp_dbcsr_write_sparse_matrix
    USE cp_log_handling,                 ONLY: cp_get_default_logger,&
                                               cp_logger_type
@@ -18,12 +17,9 @@ MODULE qs_scf_output
    USE cp_units,                        ONLY: cp_unit_from_cp2k
    USE dbcsr_api,                       ONLY: dbcsr_p_type
    USE input_constants,                 ONLY: &
-        becke_cavity_conf, becke_cutoff_element, becke_cutoff_global, becke_dynamic_conf, &
-        becke_mixed_conf, becke_none_conf, becke_static_conf, broyden_type_1, &
-        broyden_type_1_explicit, broyden_type_1_explicit_ls, broyden_type_1_ls, broyden_type_2, &
-        broyden_type_2_explicit, broyden_type_2_explicit_ls, broyden_type_2_ls, &
-        cdft_combined_acceptor, cdft_combined_all, cdft_combined_constraint, cdft_combined_donor, &
-        cdft_density_constraint, cdft_magnetization_constraint, outer_scf_becke_constraint, &
+        becke_cutoff_element, becke_cutoff_global, broyden_type_1, broyden_type_1_explicit, &
+        broyden_type_1_explicit_ls, broyden_type_1_ls, broyden_type_2, broyden_type_2_explicit, &
+        broyden_type_2_explicit_ls, broyden_type_2_ls, outer_scf_becke_constraint, &
         outer_scf_hirshfeld_constraint, outer_scf_optimizer_bisect, outer_scf_optimizer_broyden, &
         outer_scf_optimizer_diis, outer_scf_optimizer_newton, outer_scf_optimizer_newton_ls, &
         outer_scf_optimizer_sd, outer_scf_optimizer_secant, radius_covalent, radius_single, &
@@ -44,6 +40,7 @@ MODULE qs_scf_output
    USE pw_env_types,                    ONLY: pw_env_type
    USE pw_poisson_types,                ONLY: pw_poisson_implicit
    USE qmmm_image_charge,               ONLY: print_image_coefficients
+   USE qs_cdft_types,                   ONLY: cdft_control_type
    USE qs_charges_types,                ONLY: qs_charges_type
    USE qs_energy_types,                 ONLY: qs_energy_type
    USE qs_environment_types,            ONLY: get_qs_env,&
@@ -646,12 +643,13 @@ CONTAINS
       CHARACTER(LEN=*), PARAMETER :: routineN = 'qs_scf_cdft_info', &
          routineP = moduleN//':'//routineN
 
+      INTEGER                                            :: igroup
       REAL(KIND=dp)                                      :: outer_loop_eps
 
       IF (cdft_loop) THEN
          outer_loop_eps = SQRT(MAXVAL(scf_env%outer_scf%gradient(:, scf_env%outer_scf%iter_count)**2))
          IF (output_unit > 0) WRITE (output_unit, '(/,T3,A,I4,A,E10.2,A,F22.10)') &
-            "CDFT SCF iter = ", scf_env%outer_scf%iter_count, &
+            "CDFT SCF iter =  ", scf_env%outer_scf%iter_count, &
             " RMS gradient = ", outer_loop_eps, " energy =", energy%total
          IF (outer_loop_converged) THEN
             IF (output_unit > 0) WRITE (output_unit, '(T3,A,I4,A,I4,A,/)') &
@@ -674,34 +672,26 @@ CONTAINS
             WRITE (output_unit, '(/,T3,A,T60)') &
                '--------------------- Becke constraint information ---------------------'
          END SELECT
-         SELECT CASE (cdft_control%constraint_type)
-         CASE (cdft_density_constraint, cdft_magnetization_constraint)
+         DO igroup = 1, SIZE(cdft_control%target)
+            IF (igroup > 1) WRITE (output_unit, '(T3,A)') ' '
+            WRITE (output_unit, '(T3,A,T54,(3X,I18))') &
+               'Atomic group                :', igroup
+            IF (cdft_control%is_charge_constraint(igroup)) THEN
+               WRITE (output_unit, '(T3,A,T50,A)') &
+                  'Type of constraint          :', ADJUSTR('Charge density constraint')
+            ELSE
+               WRITE (output_unit, '(T3,A,T43,A)') &
+                  'Type of constraint          :', ADJUSTR('Magnetization density constraint')
+            END IF
             WRITE (output_unit, '(T3,A,T54,(3X,F18.12))') &
-               'Target value of constraint        :', cdft_control%target(1)
+               'Target value of constraint  :', cdft_control%target(igroup)
             WRITE (output_unit, '(T3,A,T54,(3X,F18.12))') &
-               'Current value of constraint       :', cdft_control%value(1)
+               'Current value of constraint :', cdft_control%value(igroup)
             WRITE (output_unit, '(T3,A,T59,(3X,ES13.3))') &
-               'Deviation from target             :', cdft_control%value(1)-cdft_control%target(1)
+               'Deviation from target       :', cdft_control%value(igroup)-cdft_control%target(igroup)
             WRITE (output_unit, '(T3,A,T54,(3X,F18.12))') &
-               'Strength of constraint            :', cdft_control%strength(1)
-         CASE (cdft_combined_constraint)
-            WRITE (output_unit, '(T3,A,T54,(3X,F18.12))') &
-               'Target value of charge constraint :', cdft_control%target(1)
-            WRITE (output_unit, '(T3,A,T54,(3X,F18.12))') &
-               'Target value of spin constraint   :', cdft_control%target(2)
-            WRITE (output_unit, '(T3,A,T54,(3X,F18.12))') &
-               'Current value of charge constraint:', cdft_control%value(1)
-            WRITE (output_unit, '(T3,A,T54,(3X,F18.12))') &
-               'Current value of spin constraint  :', cdft_control%value(2)
-            WRITE (output_unit, '(T3,A,T59,(3X,ES13.3))') &
-               'Deviation from target (charge)    :', cdft_control%value(1)-cdft_control%target(1)
-            WRITE (output_unit, '(T3,A,T59,(3X,ES13.3))') &
-               'Deviation from target (spin)      :', cdft_control%value(2)-cdft_control%target(2)
-            WRITE (output_unit, '(T3,A,T54,(3X,F18.12))') &
-               'Strength of constraint (charge)   :', cdft_control%strength(1)
-            WRITE (output_unit, '(T3,A,T54,(3X,F18.12))') &
-               'Strength of constraint (spin)     :', cdft_control%strength(2)
-         END SELECT
+               'Strength of constraint      :', cdft_control%strength(igroup)
+         END DO
          WRITE (output_unit, '(T3,A)') &
             '------------------------------------------------------------------------'
       END IF
@@ -727,28 +717,8 @@ CONTAINS
       IF (output_unit > 0) THEN
          WRITE (output_unit, '(/,A)') &
             "  ---------------------------------- CDFT --------------------------------------"
-         SELECT CASE (cdft_control%constraint_type)
-         CASE (cdft_density_constraint)
-            WRITE (output_unit, '(A)') &
-               "  Optimizing a charge density constraint in an external SCF loop "
-         CASE (cdft_magnetization_constraint)
-            WRITE (output_unit, '(A)') &
-               "  Optimizing a magnetization density constraint in an external SCF loop "
-         CASE (cdft_combined_constraint)
-            WRITE (output_unit, '(A)') &
-               "  Optimizing a combined charge-spin constraint in an external SCF loop "
-            SELECT CASE (cdft_control%combined_type)
-            CASE (cdft_combined_all)
-               WRITE (output_unit, '(A)') &
-                  "            the spin constraint is defined on all constraint atoms "
-            CASE (cdft_combined_acceptor)
-               WRITE (output_unit, '(A)') &
-                  "            the spin constraint is defined on acceptor constraint atoms "
-            CASE (cdft_combined_donor)
-               WRITE (output_unit, '(A)') &
-                  "            the spin constraint is defined on donor constraint atoms "
-            END SELECT
-         END SELECT
+         WRITE (output_unit, '(A)') &
+            "  Optimizing a density constraint in an external SCF loop "
          WRITE (output_unit, '(A)') "  "
          SELECT CASE (cdft_control%constraint_control%optimizer)
          CASE (outer_scf_optimizer_sd)
@@ -826,7 +796,8 @@ CONTAINS
          CASE (outer_scf_hirshfeld_constraint)
             WRITE (output_unit, '(A)') "  Type of constraint      : Hirshfeld"
          CASE (outer_scf_becke_constraint)
-            WRITE (output_unit, '(A)') "  Type of constraint      : Becke"
+            WRITE (output_unit, '(A)') "  Type of constraint      :  Becke"
+            WRITE (output_unit, '(A,I8)') "  Number of constraints   :", SIZE(dft_control%qs_control%becke_control%group)
             WRITE (output_unit, '(A)') "  "
             SELECT CASE (dft_control%qs_control%becke_control%cutoff_type)
             CASE (becke_cutoff_global)
@@ -862,22 +833,10 @@ CONTAINS
                WRITE (output_unit, '(A)') &
                "  Using atomic radii to generate a heteronuclear charge partitioning"
             WRITE (output_unit, '(A)') "  "
-            SELECT CASE (dft_control%qs_control%becke_control%confine_method)
-            CASE (becke_none_conf)
+            IF (.NOT. dft_control%qs_control%becke_control%cavity_confine) THEN
                WRITE (output_unit, '(A)') &
                   "  No confinement is active"
-            CASE (becke_static_conf)
-               WRITE (output_unit, '(A,A3,A)') &
-                  "  Static confinement is active along ", &
-                  dir(dft_control%qs_control%becke_control%confine_dir), " axis"
-               WRITE (output_unit, '(A,F8.4,F8.4)') &
-                  "  Confinement bounds      : ", dft_control%qs_control%becke_control%confine_bounds(1), &
-                  dft_control%qs_control%becke_control%confine_bounds(2)
-            CASE (becke_dynamic_conf)
-               WRITE (output_unit, '(A,A3,A,F8.4)') &
-                  "  Dynamic confinement is active along ", dir(dft_control%qs_control%becke_control%confine_dir), &
-                  " axis using a radius of ", dft_control%qs_control%becke_control%dynamic_radius
-            CASE (becke_cavity_conf)
+            ELSE
                WRITE (output_unit, '(A)') "  Confinement using a Gaussian shaped cavity is active"
                SELECT CASE (dft_control%qs_control%becke_control%cavity_shape)
                CASE (radius_single)
@@ -896,31 +855,7 @@ CONTAINS
                END SELECT
                WRITE (output_unit, '(A,ES12.4)') &
                   "  Cavity threshold        : ", dft_control%qs_control%becke_control%eps_cavity
-            CASE (becke_mixed_conf)
-               WRITE (output_unit, '(A)') &
-                  "  Mixed confinement is active"
-               WRITE (output_unit, '(A,A3,A,F8.4)') &
-                  "  Dynamic confinement is active along ", dir(dft_control%qs_control%becke_control%confine_dir), &
-                  " axis using a radius of ", dft_control%qs_control%becke_control%dynamic_radius
-               WRITE (output_unit, '(A)') "  Confinement using a Gaussian shaped cavity is active"
-               SELECT CASE (dft_control%qs_control%becke_control%cavity_shape)
-               CASE (radius_single)
-                  WRITE (output_unit, '(A,F8.4,A)') &
-                     "  Type of Gaussian        : Fixed radius: ", &
-                     cp_unit_from_cp2k(dft_control%qs_control%becke_control%rcavity, "angstrom"), " angstrom"
-               CASE (radius_covalent)
-                  WRITE (output_unit, '(A)') &
-                     "  Type of Gaussian        : Covalent radius "
-               CASE (radius_vdw)
-                  WRITE (output_unit, '(A)') &
-                     "  Type of Gaussian        : vdW radius "
-               CASE (radius_user)
-                  WRITE (output_unit, '(A)') &
-                     "  Type of Gaussian        : User radius "
-               END SELECT
-               WRITE (output_unit, '(A,ES12.4)') &
-                  "  Cavity threshold        : ", dft_control%qs_control%becke_control%eps_cavity
-            END SELECT
+            END IF
          END SELECT
          WRITE (output_unit, '(/,A)') &
             "  ---------------------------------- CDFT --------------------------------------"

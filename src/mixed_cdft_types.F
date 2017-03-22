@@ -12,13 +12,13 @@
 MODULE mixed_cdft_types
    USE cp_blacs_env,                    ONLY: cp_blacs_env_release,&
                                               cp_blacs_env_type
-   USE cp_control_types,                ONLY: becke_control_release,&
-                                              becke_restraint_type
    USE cp_log_handling,                 ONLY: cp_logger_release,&
                                               cp_logger_type
    USE kinds,                           ONLY: dp
    USE pw_env_types,                    ONLY: pw_env_release,&
                                               pw_env_type
+   USE qs_cdft_types,                   ONLY: becke_constraint_type,&
+                                              becke_control_release
    USE qs_kind_types,                   ONLY: deallocate_qs_kind_set,&
                                               qs_kind_type
 #include "./base/base_uses.f90"
@@ -92,14 +92,14 @@ MODULE mixed_cdft_types
                                                           more_work
       INTEGER, DIMENSION(:), POINTER                   :: bo, expected_work, &
                                                           prediction_error
-      INTEGER, DIMENSION(:, :), POINTER                 :: target_list
+      INTEGER, DIMENSION(:, :), POINTER                :: target_list
       LOGICAL                                          :: recv_work, send_work
       LOGICAL, DIMENSION(:), POINTER                   :: recv_work_repl
       REAL(KIND=dp)                                    :: load_scale, very_overloaded
       REAL(KIND=dp), POINTER, &
-         DIMENSION(:, :, :)                              :: cavity, weight
+         DIMENSION(:, :, :)                            :: cavity, weight
       REAL(KIND=dp), POINTER, &
-         DIMENSION(:, :, :, :)                            :: gradients
+         DIMENSION(:, :, :, :)                         :: gradients
       ! Should convert to TYPE(p_buffers), POINTER
       TYPE(buffers), DIMENSION(:), POINTER             :: sendbuff
       TYPE(p_buffers), DIMENSION(:), POINTER           :: recvbuff
@@ -109,9 +109,7 @@ MODULE mixed_cdft_types
 !> \brief Main mixed CDFT control type
 !> \param sim_step counter to keep track of the simulation step for MD
 !> \param multiplicity spin multiplicity
-!> \param constraint_type determins what kind of constraint to use
-!> \param combined_type for combined density+spin constraint, determines which atoms to apply the
-!>                      spin constraint
+!> \param nconstraint the number of constraints
 !> \param source_list a list of processors which will send this processor data
 !> \param dest_list a list of processors which this processor will send data to
 !> \param recv_bo bounds of the data which this processor will receive (is_special = .FALSE.)
@@ -130,12 +128,17 @@ MODULE mixed_cdft_types
 !> \param calculate_metric flag which determines if the coupling reliablity metric should be computed
 !> \param wnf_ovelap_method flag to enable the wavefunction overlap method for computing the coupling
 !> \param has_unit_metric flag to determine if the basis set has unit metric
+!> \param is_parallel flag which determines if the mixed CDFT calculation is parallel or serial mode
+!> \param use_lowdin flag which determines if Lowdin orthogonalization is used to compute the coupling
+!> \param do_ci flag which determines if a CDFT-CI calculation was requested
+!> \param is_charge_constraint list of logicals which determine if the constraint should be applied
+!>                             to the total charge density or the magnetization density
 !> \param eps_rho_rspace threshold to determine when the realspace density can be considered zero
 !> \param sim_dt timestep of the MD simulation
 !> \param eps_svd value that controls which matrix inversion method to use
 !> \param weight the constraint weight function
 !> \param cavity the confinement cavity: the weight function is nonzero only within the cavity
-!> \param becke_control container for becke_restraint_type
+!> \param becke_control container for becke_constraint_type
 !> \param sendbuff buffer that holds the data to be replicated
 !> \param blacs_env the blacs_env needed to redistribute arrays during a coupling calculation
 !> \param dlb_control container for load balancing structures
@@ -144,7 +147,7 @@ MODULE mixed_cdft_types
 ! **************************************************************************************************
    TYPE mixed_cdft_type
       INTEGER                                          :: sim_step, multiplicity, &
-                                                          constraint_type, combined_type
+                                                          nconstraint
       INTEGER, POINTER, DIMENSION(:)                   :: source_list, dest_list, &
                                                           recv_bo, source_list_save, &
                                                           dest_list_save
@@ -155,11 +158,13 @@ MODULE mixed_cdft_types
                                                           calculate_metric, &
                                                           wfn_overlap_method, &
                                                           has_unit_metric, &
-                                                          is_parallel
+                                                          is_parallel, use_lowdin, &
+                                                          do_ci
+      LOGICAL, DIMENSION(:), ALLOCATABLE               :: is_charge_constraint
       REAL(KIND=dp)                                    :: eps_rho_rspace, sim_dt, &
                                                           eps_svd
       REAL(KIND=dp), POINTER, DIMENSION(:, :, :)       :: weight, cavity
-      TYPE(becke_restraint_type), POINTER              :: becke_control
+      TYPE(becke_constraint_type), POINTER             :: becke_control
       TYPE(buffers), DIMENSION(:), POINTER             :: sendbuff
       TYPE(cp_blacs_env_type), POINTER                 :: blacs_env
       TYPE(mixed_cdft_dlb_type), POINTER               :: dlb_control
@@ -175,6 +180,7 @@ MODULE mixed_cdft_types
    TYPE mixed_cdft_settings_type
       LOGICAL                                            :: is_spherical, &
                                                             is_odd
+      LOGICAL, DIMENSION(:, :), POINTER                  :: sb
       INTEGER                                            :: nbecke, &
                                                             max_nkinds
       INTEGER, DIMENSION(2, 3)                           :: bo
@@ -190,7 +196,6 @@ MODULE mixed_cdft_types
                                                             rel_cutoff
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: sr, &
                                                             coeffs, &
-                                                            confine_bounds, &
                                                             cutoffs, &
                                                             radii
    END TYPE mixed_cdft_settings_type
@@ -266,6 +271,8 @@ CONTAINS
          DEALLOCATE (cdft_control%weight)
       IF (ASSOCIATED(cdft_control%cavity)) &
          DEALLOCATE (cdft_control%cavity)
+      IF (ALLOCATED(cdft_control%is_charge_constraint)) &
+         DEALLOCATE (cdft_control%is_charge_constraint)
       IF (ASSOCIATED(cdft_control%dlb_control)) &
          CALL mixed_cdft_dlb_release(cdft_control%dlb_control)
       IF (ASSOCIATED(cdft_control%sendbuff)) THEN

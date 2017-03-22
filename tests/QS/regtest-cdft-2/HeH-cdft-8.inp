@@ -1,17 +1,19 @@
 @SET RESTART_WFN          TRUE
-@SET WFN_FILE             water-noconstraint-1_0.wfn
-@SET PROJECT_NAME         water-cdft-5
+@SET WFN_FILE             HeH-noconstraint-1_0.wfn
+@SET PROJECT_NAME         HeH-cdft-8
 @SET WRITE_WFN            0
+@SET CHARGE               1
+@SET WRITE_CUBE           FALSE
+@SET XYZFILE              HeH.xyz
 
 @SET BECKE_ACTIVE         TRUE
-@SET BECKE_TARGET         8.0
-@SET BECKE_STR            0.0
+@SET BECKE_FRAGMENT       FALSE
+@SET MAX_SCF              0
 
-@SET BECKE_GLOBAL_CUTOFF  FALSE
-@SET BECKE_CUTOFF_ELEMENT TRUE
+@SET BECKE_GLOBAL_CUTOFF  TRUE
+@SET BECKE_CUTOFF_ELEMENT FALSE
 
 @SET BECKE_ADJUST_SIZE    TRUE
-@SET BECKE_USE_BOHR       FALSE
 
 @SET BECKE_ATOMIC_CHARGES TRUE
 
@@ -21,7 +23,7 @@
 
 @SET BECKE_SHOULD_SKIP    TRUE
 
-@SET BECKE_IN_MEMORY      FALSE
+@SET BECKE_IN_MEMORY      TRUE
 
 &GLOBAL
   PROJECT ${PROJECT_NAME}
@@ -31,6 +33,6 @@
 
 &FORCE_EVAL
   METHOD QS
-  @include dft-common-params.inc
+  @include dft-common-params-twoconstraints.inc
   @include subsys.inc
 &END FORCE_EVAL

@@ -198,7 +198,7 @@ CONTAINS
       CALL zero_qs_force(force)
 
       ! Check if Becke potential is needed and save it until forces have been calculated
-      IF (dft_control%qs_control%becke_restraint) &
+      IF (dft_control%qs_control%becke_constraint) &
          dft_control%qs_control%becke_control%save_pot = .TRUE.
 
       IF (dft_control%qs_control%cdft) THEN

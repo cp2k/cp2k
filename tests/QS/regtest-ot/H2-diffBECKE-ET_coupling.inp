@@ -3,20 +3,24 @@
   &PROPERTIES
      &ET_COUPLING
        TYPE_OF_CONSTRAINT BECKE
-      &BECKE_RESTRAINT_A
+      &BECKE_CONSTRAINT_A
         STRENGTH  -0.000000000000000000
         TARGET     0.2000
-        ATOMS      1 2
-        COEFF      1 -1
+        &ATOM_GROUP
+          ATOMS      1 2
+          COEFF      1 -1
+        &END ATOM_GROUP
         CUTOFF_TYPE     GLOBAL
         ! 6.0 bohr
         GLOBAL_CUTOFF   3.1750632515399997
       &END
-      &BECKE_RESTRAINT_B
+      &BECKE_CONSTRAINT_B
         STRENGTH  -0.000000000000000000
         TARGET     -0.2000
-        ATOMS      1 2
-        COEFF      1 -1
+        &ATOM_GROUP
+          ATOMS      1 2
+          COEFF      1 -1
+        &END ATOM_GROUP
         CUTOFF_TYPE     GLOBAL
         ! 6.0 bohr
         GLOBAL_CUTOFF   3.1750632515399997

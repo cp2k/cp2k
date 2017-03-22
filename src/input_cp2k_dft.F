@@ -26,71 +26,68 @@ MODULE input_cp2k_dft
                                               low_print_level,&
                                               medium_print_level,&
                                               silent_print_level
-   USE cp_units,                        ONLY: cp_unit_from_cp2k,&
-                                              cp_unit_to_cp2k
+   USE cp_units,                        ONLY: cp_unit_to_cp2k
    USE input_constants,                 ONLY: &
-        atomic_guess, becke_cavity_conf, becke_cutoff_element, becke_cutoff_global, &
-        becke_dynamic_conf, becke_mixed_conf, becke_none_conf, becke_static_conf, broyden_type_1, &
+        atomic_guess, becke_cutoff_element, becke_cutoff_global, broyden_type_1, &
         broyden_type_1_explicit, broyden_type_1_explicit_ls, broyden_type_1_ls, broyden_type_2, &
         broyden_type_2_explicit, broyden_type_2_explicit_ls, broyden_type_2_ls, casci_canonical, &
-        cdft_combined_acceptor, cdft_combined_all, cdft_combined_constraint, cdft_combined_donor, &
-        cdft_density_constraint, cdft_magnetization_constraint, cholesky_dbcsr, cholesky_inverse, &
-        cholesky_off, cholesky_reduce, cholesky_restore, core_guess, diag_block_davidson, &
-        diag_block_krylov, diag_filter_matrix, diag_ot, diag_standard, dispersion_d3, &
-        dispersion_uff, dmft_model, do_admm_aux_exch_func_bee, do_admm_aux_exch_func_default, &
-        do_admm_aux_exch_func_none, do_admm_aux_exch_func_opt, do_admm_aux_exch_func_pbex, &
-        do_admm_basis_projection, do_admm_blocked_projection, do_admm_blocking_purify_full, &
-        do_admm_charge_constrained_projection, do_admm_exch_scaling_merlot, &
-        do_admm_exch_scaling_none, do_admm_purify_cauchy, do_admm_purify_cauchy_subspace, &
-        do_admm_purify_mcweeny, do_admm_purify_mo_diag, do_admm_purify_mo_no_diag, &
-        do_admm_purify_none, do_admm_purify_none_dm, do_arnoldi, do_bch, do_cn, &
-        do_ddapc_constraint, do_ddapc_restraint, do_em, do_etrs, do_full_density, do_gapw_gcs, &
-        do_gapw_gct, do_gapw_log, do_loc_both, do_loc_crazy, do_loc_direct, do_loc_homo, &
-        do_loc_jacobi, do_loc_l1_norm_sd, do_loc_lumo, do_loc_max, do_loc_min, do_loc_none, &
-        do_lri_inv, do_lri_inv_auto, do_lri_opt_all, do_lri_opt_coeff, do_lri_opt_exps, &
-        do_lri_pseudoinv_diag, do_lri_pseudoinv_svd, do_method_am1, do_method_dftb, &
-        do_method_gapw, do_method_gapw_xc, do_method_gpw, do_method_lrigpw, do_method_mndo, &
-        do_method_mndod, do_method_ofgpw, do_method_pdg, do_method_pm3, do_method_pm6, &
-        do_method_pnnl, do_method_rm1, do_method_scptb, do_pade, do_ppl_analytic, do_ppl_grid, &
-        do_pwgrid_ns_fullspace, do_pwgrid_ns_halfspace, do_pwgrid_spherical, do_s2_constraint, &
-        do_s2_restraint, do_se_is_kdso, do_se_is_kdso_d, do_se_is_slater, do_se_lr_ewald, &
-        do_se_lr_ewald_gks, do_se_lr_ewald_r3, do_se_lr_none, do_spin_density, do_taylor, &
-        ehrenfest, eri_method_full_gpw, eri_method_gpw_ht, eri_operator_coulomb, eri_operator_erf, &
-        eri_operator_erfc, eri_operator_gaussian, eri_operator_yukawa, gaussian, general_roks, &
-        hf_model, high_spin_roks, history_guess, jacobian_fd1, jacobian_fd1_backward, &
-        jacobian_fd1_central, jacobian_fd2, jacobian_fd2_backward, kg_cholesky, kg_color_dsatur, &
-        kg_color_greedy, kg_ec_diagonalization, kg_ec_functional_harris, kg_tnadd_atomic, &
-        kg_tnadd_embed, ls_2pnt, ls_3pnt, ls_gold, ls_none, mao_basis_ext, mao_basis_orb, &
-        mao_basis_prim, mao_projection, mopac_guess, no_excitations, no_guess, numerical, oe_gllb, &
-        oe_lb, oe_none, oe_saop, oe_sic, op_loc_berry, op_loc_boys, op_loc_pipek, orb_dx2, &
-        orb_dxy, orb_dy2, orb_dyz, orb_dz2, orb_dzx, orb_px, orb_py, orb_pz, orb_s, ot_algo_irac, &
-        ot_algo_taylor_or_diag, ot_chol_irac, ot_lwdn_irac, ot_mini_broyden, ot_mini_cg, &
-        ot_mini_diis, ot_mini_sd, ot_poly_irac, ot_precond_full_all, ot_precond_full_kinetic, &
-        ot_precond_full_single, ot_precond_full_single_inverse, ot_precond_none, &
-        ot_precond_s_inverse, ot_precond_solver_default, ot_precond_solver_direct, &
-        ot_precond_solver_inv_chol, ot_precond_solver_update, outer_scf_basis_center_opt, &
-        outer_scf_becke_constraint, outer_scf_cdft_constraint, outer_scf_ddapc_constraint, &
-        outer_scf_hirshfeld_constraint, outer_scf_none, outer_scf_optimizer_bisect, &
-        outer_scf_optimizer_broyden, outer_scf_optimizer_diis, outer_scf_optimizer_newton, &
-        outer_scf_optimizer_newton_ls, outer_scf_optimizer_none, outer_scf_optimizer_sd, &
-        outer_scf_optimizer_secant, outer_scf_s2_constraint, plus_u_lowdin, plus_u_mulliken, &
-        plus_u_mulliken_charges, pw_interp, radius_covalent, radius_default, radius_single, &
-        radius_user, radius_vdw, random_guess, real_time_propagation, ref_charge_atomic, &
-        ref_charge_mulliken, rel_dkh, rel_none, rel_pot_erfc, rel_pot_full, rel_sczora_mp, &
-        rel_trans_atom, rel_trans_full, rel_trans_molecule, rel_zora, rel_zora_full, rel_zora_mp, &
-        restart_guess, rsdft_model, sccs_andreussi, sccs_derivative_cd3, sccs_derivative_cd5, &
-        sccs_derivative_cd7, sccs_derivative_fft, sccs_fattebert_gygi, shape_function_density, &
-        shape_function_gaussian, sic_ad, sic_eo, sic_list_all, sic_list_unpaired, sic_mauri_spz, &
-        sic_mauri_us, sic_none, slater, smear_energy_window, smear_fermi_dirac, smear_list, &
-        sparse_guess, spline3_nopbc_interp, spline3_pbc_interp, tddfpt_davidson, &
-        tddfpt_excitations, tddfpt_lanczos, tddfpt_singlet, tddfpt_triplet, use_coulomb, use_diff, &
-        use_no, use_restart_wfn, use_rt_restart, use_scf_wfn, wannier_projection, &
-        weight_type_mass, weight_type_unit, wfi_aspc_nr, wfi_frozen_method_nr, &
-        wfi_linear_p_method_nr, wfi_linear_ps_method_nr, wfi_linear_wf_method_nr, &
-        wfi_ps_method_nr, wfi_use_guess_method_nr, wfi_use_prev_p_method_nr, &
-        wfi_use_prev_rho_r_method_nr, wfi_use_prev_wf_method_nr, xas_1s_type, xas_2p_type, &
-        xas_2s_type, xas_dip_len, xas_dip_vel, xas_dscf, xas_none, xas_tp_fh, xas_tp_flex, &
-        xas_tp_hh, xas_tp_xfh, xas_tp_xhh, xes_tp_val
+        cholesky_dbcsr, cholesky_inverse, cholesky_off, cholesky_reduce, cholesky_restore, &
+        core_guess, diag_block_davidson, diag_block_krylov, diag_filter_matrix, diag_ot, &
+        diag_standard, dispersion_d3, dispersion_uff, dmft_model, do_admm_aux_exch_func_bee, &
+        do_admm_aux_exch_func_default, do_admm_aux_exch_func_none, do_admm_aux_exch_func_opt, &
+        do_admm_aux_exch_func_pbex, do_admm_basis_projection, do_admm_blocked_projection, &
+        do_admm_blocking_purify_full, do_admm_charge_constrained_projection, &
+        do_admm_exch_scaling_merlot, do_admm_exch_scaling_none, do_admm_purify_cauchy, &
+        do_admm_purify_cauchy_subspace, do_admm_purify_mcweeny, do_admm_purify_mo_diag, &
+        do_admm_purify_mo_no_diag, do_admm_purify_none, do_admm_purify_none_dm, do_arnoldi, &
+        do_bch, do_cn, do_ddapc_constraint, do_ddapc_restraint, do_em, do_etrs, do_full_density, &
+        do_gapw_gcs, do_gapw_gct, do_gapw_log, do_loc_both, do_loc_crazy, do_loc_direct, &
+        do_loc_homo, do_loc_jacobi, do_loc_l1_norm_sd, do_loc_lumo, do_loc_max, do_loc_min, &
+        do_loc_none, do_lri_inv, do_lri_inv_auto, do_lri_opt_all, do_lri_opt_coeff, &
+        do_lri_opt_exps, do_lri_pseudoinv_diag, do_lri_pseudoinv_svd, do_method_am1, &
+        do_method_dftb, do_method_gapw, do_method_gapw_xc, do_method_gpw, do_method_lrigpw, &
+        do_method_mndo, do_method_mndod, do_method_ofgpw, do_method_pdg, do_method_pm3, &
+        do_method_pm6, do_method_pnnl, do_method_rm1, do_method_scptb, do_pade, do_ppl_analytic, &
+        do_ppl_grid, do_pwgrid_ns_fullspace, do_pwgrid_ns_halfspace, do_pwgrid_spherical, &
+        do_s2_constraint, do_s2_restraint, do_se_is_kdso, do_se_is_kdso_d, do_se_is_slater, &
+        do_se_lr_ewald, do_se_lr_ewald_gks, do_se_lr_ewald_r3, do_se_lr_none, do_spin_density, &
+        do_taylor, ehrenfest, eri_method_full_gpw, eri_method_gpw_ht, eri_operator_coulomb, &
+        eri_operator_erf, eri_operator_erfc, eri_operator_gaussian, eri_operator_yukawa, gaussian, &
+        general_roks, hf_model, high_spin_roks, history_guess, jacobian_fd1, &
+        jacobian_fd1_backward, jacobian_fd1_central, jacobian_fd2, jacobian_fd2_backward, &
+        kg_cholesky, kg_color_dsatur, kg_color_greedy, kg_ec_diagonalization, &
+        kg_ec_functional_harris, kg_tnadd_atomic, kg_tnadd_embed, ls_2pnt, ls_3pnt, ls_gold, &
+        ls_none, mao_basis_ext, mao_basis_orb, mao_basis_prim, mao_projection, mopac_guess, &
+        no_excitations, no_guess, numerical, oe_gllb, oe_lb, oe_none, oe_saop, oe_sic, &
+        op_loc_berry, op_loc_boys, op_loc_pipek, orb_dx2, orb_dxy, orb_dy2, orb_dyz, orb_dz2, &
+        orb_dzx, orb_px, orb_py, orb_pz, orb_s, ot_algo_irac, ot_algo_taylor_or_diag, &
+        ot_chol_irac, ot_lwdn_irac, ot_mini_broyden, ot_mini_cg, ot_mini_diis, ot_mini_sd, &
+        ot_poly_irac, ot_precond_full_all, ot_precond_full_kinetic, ot_precond_full_single, &
+        ot_precond_full_single_inverse, ot_precond_none, ot_precond_s_inverse, &
+        ot_precond_solver_default, ot_precond_solver_direct, ot_precond_solver_inv_chol, &
+        ot_precond_solver_update, outer_scf_basis_center_opt, outer_scf_becke_constraint, &
+        outer_scf_cdft_constraint, outer_scf_ddapc_constraint, outer_scf_hirshfeld_constraint, &
+        outer_scf_none, outer_scf_optimizer_bisect, outer_scf_optimizer_broyden, &
+        outer_scf_optimizer_diis, outer_scf_optimizer_newton, outer_scf_optimizer_newton_ls, &
+        outer_scf_optimizer_none, outer_scf_optimizer_sd, outer_scf_optimizer_secant, &
+        outer_scf_s2_constraint, plus_u_lowdin, plus_u_mulliken, plus_u_mulliken_charges, &
+        pw_interp, radius_covalent, radius_default, radius_single, radius_user, radius_vdw, &
+        random_guess, real_time_propagation, ref_charge_atomic, ref_charge_mulliken, rel_dkh, &
+        rel_none, rel_pot_erfc, rel_pot_full, rel_sczora_mp, rel_trans_atom, rel_trans_full, &
+        rel_trans_molecule, rel_zora, rel_zora_full, rel_zora_mp, restart_guess, rsdft_model, &
+        sccs_andreussi, sccs_derivative_cd3, sccs_derivative_cd5, sccs_derivative_cd7, &
+        sccs_derivative_fft, sccs_fattebert_gygi, shape_function_density, shape_function_gaussian, &
+        sic_ad, sic_eo, sic_list_all, sic_list_unpaired, sic_mauri_spz, sic_mauri_us, sic_none, &
+        slater, smear_energy_window, smear_fermi_dirac, smear_list, sparse_guess, &
+        spline3_nopbc_interp, spline3_pbc_interp, tddfpt_davidson, tddfpt_excitations, &
+        tddfpt_lanczos, tddfpt_singlet, tddfpt_triplet, use_coulomb, use_diff, use_no, &
+        use_restart_wfn, use_rt_restart, use_scf_wfn, wannier_projection, weight_type_mass, &
+        weight_type_unit, wfi_aspc_nr, wfi_frozen_method_nr, wfi_linear_p_method_nr, &
+        wfi_linear_ps_method_nr, wfi_linear_wf_method_nr, wfi_ps_method_nr, &
+        wfi_use_guess_method_nr, wfi_use_prev_p_method_nr, wfi_use_prev_rho_r_method_nr, &
+        wfi_use_prev_wf_method_nr, xas_1s_type, xas_2p_type, xas_2s_type, xas_dip_len, &
+        xas_dip_vel, xas_dscf, xas_none, xas_tp_fh, xas_tp_flex, xas_tp_hh, xas_tp_xfh, &
+        xas_tp_xhh, xes_tp_val
    USE input_cp2k_almo,                 ONLY: create_almo_scf_section
    USE input_cp2k_distribution,         ONLY: create_distribution_section
    USE input_cp2k_field,                ONLY: create_efield_section,&
@@ -143,7 +140,7 @@ MODULE input_cp2k_dft
    PUBLIC :: create_bsse_section, create_qs_section
    PUBLIC :: create_scf_section
    PUBLIC :: create_interp_section, create_localize_section
-   PUBLIC :: create_becke_restraint_section, create_ddapc_restraint_section
+   PUBLIC :: create_becke_constraint_section, create_ddapc_restraint_section
    PUBLIC :: create_mgrid_section
 
 CONTAINS
@@ -2999,7 +2996,7 @@ CONTAINS
       CALL section_add_subsection(section, subsection)
       CALL section_release(subsection)
 
-      CALL create_becke_restraint_section(subsection, "BECKE_RESTRAINT")
+      CALL create_becke_constraint_section(subsection, "BECKE_CONSTRAINT")
       CALL section_add_subsection(section, subsection)
       CALL section_release(subsection)
 
@@ -4033,79 +4030,35 @@ CONTAINS
 !> \param section ...
 !> \param section_name ...
 ! **************************************************************************************************
-   SUBROUTINE create_becke_restraint_section(section, section_name)
+   SUBROUTINE create_becke_constraint_section(section, section_name)
       TYPE(section_type), POINTER                        :: section
       CHARACTER(len=*), INTENT(in)                       :: section_name
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'create_becke_restraint_section', &
+      CHARACTER(len=*), PARAMETER :: routineN = 'create_becke_constraint_section', &
          routineP = moduleN//':'//routineN
 
       TYPE(keyword_type), POINTER                        :: keyword
-      TYPE(section_type), POINTER                        :: print_key
+      TYPE(section_type), POINTER                        :: group_section, print_key
 
-      NULLIFY (keyword, print_key)
+      NULLIFY (keyword, print_key, group_section)
       CPASSERT(.NOT. ASSOCIATED(section))
       CALL section_create(section, TRIM(ADJUSTL(section_name)), &
-                          description="Use Becke weight population in a constraint ", &
-                          n_keywords=26, n_subsections=0, repeats=.FALSE., &
+                          description="Use the Becke weight population in a constraint.", &
+                          n_keywords=26, n_subsections=1, repeats=.FALSE., &
                           citations=(/Becke1988b/))
 
       CALL keyword_create(keyword, name="STRENGTH", &
-                          description="Force constants of the constraints. "// &
-                          "Second value is for combined constraint and is optional.", &
-                          usage="STRENGTH {real} {real}", repeats=.FALSE., &
+                          description="Force constants of the constraints. Give one value per constraint group.", &
                           type_of_var=real_t, n_var=-1, &
                           default_r_val=0.0_dp)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
       CALL keyword_create(keyword, name="TARGET", &
-                          description="Target values of the constraints. "// &
-                          "Second value is for combined constraint and is optional.", &
+                          description="Target values of the constraints. Give one value per constraint group.", &
                           usage="TARGET {real}", repeats=.FALSE., &
                           type_of_var=real_t, n_var=-1, &
                           default_r_val=0.0_dp)
-      CALL section_add_keyword(section, keyword)
-      CALL keyword_release(keyword)
-
-      CALL keyword_create(keyword, name="ATOMS", &
-                          description="Specifies the list of atoms that are included in the constraint", &
-                          usage="ATOMS {integer} {integer} .. {integer}", &
-                          n_var=-1, type_of_var=integer_t)
-      CALL section_add_keyword(section, keyword)
-      CALL keyword_release(keyword)
-
-      CALL keyword_create(keyword, name="COEFF", &
-                          description="Defines coefficients for atoms in the atom list (default is one).", &
-                          usage="COEFF 1.0 -1.0", repeats=.TRUE., &
-                          type_of_var=real_t, n_var=-1)
-      CALL section_add_keyword(section, keyword)
-      CALL keyword_release(keyword)
-
-      CALL keyword_create(keyword, name="CONSTRAINT_TYPE", &
-                          description="Specifies the type of constraint used.", &
-                          usage="CONSTRAINT_TYPE (TOTAL|MAGNETIZATION|COMBINED)", &
-                          enum_c_vals=s2a("TOTAL", "MAGNETIZATION", "COMBINED"), &
-                          enum_i_vals=(/cdft_density_constraint, cdft_magnetization_constraint, &
-                                        cdft_combined_constraint/), &
-                          enum_desc=s2a("Constrain the total density (rho_alpha + rho_beta).", &
-                                        "Constrain the magnetization density (rho_alpha - rho_beta).", &
-                                        "Constrain both densities. The magnetization density constraint "// &
-                                        " is applied to atoms defined in COMBINED_TYPE."), &
-                          default_i_val=cdft_density_constraint)
-      CALL section_add_keyword(section, keyword)
-      CALL keyword_release(keyword)
-
-      CALL keyword_create(keyword, name="COMBINED_TYPE", &
-                          description="Specifies which atoms to apply the magnetization density constraint"// &
-                          "when using CONSTRAINT_TYPE COMBINED.", &
-                          usage="COMBINED_TYPE (ALL|ACCEPTOR|DONOR)", &
-                          enum_c_vals=s2a("TOTAL", "ACCEPTOR", "DONOR"), &
-                          enum_i_vals=(/cdft_combined_all, cdft_combined_acceptor, cdft_combined_donor/), &
-                          enum_desc=s2a("Use all atoms defined with keywords ATOMS and COEFF.", &
-                                        "Use all acceptor atoms i.e. atoms with a COEFF of -1.0.", &
-                                        "Use all donor atoms i.e. atoms with a COEFF of +1.0."), &
-                          default_i_val=cdft_combined_all)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
@@ -4130,7 +4083,7 @@ CONTAINS
 
       CALL keyword_create(keyword, name="SHOULD_SKIP", &
                           description="If grid point is farther than GLOBAL_CUTOFF from all constraint atoms, "// &
-                          " move directly to next grid point, thus saving computational resources.", &
+                          "move directly to next grid point, thus saving computational resources.", &
                           usage="SHOULD_SKIP", &
                           default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
       CALL section_add_keyword(section, keyword)
@@ -4146,45 +4099,32 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="CONFINE", &
-                          description="Specifies the type of confinement used", &
-                          usage="CONFINE (NONE|STATIC|DYNAMIC|CAVITY|MIXED)", &
-                          enum_c_vals=s2a("NONE", "STATIC", "DYNAMIC", "CAVITY", "MIXED"), &
-                          enum_i_vals=(/becke_none_conf, becke_static_conf, becke_dynamic_conf, &
-                                        becke_cavity_conf, becke_mixed_conf/), &
-                          enum_desc=s2a("No confinement", &
-                                        "Confine Becke partitioning to a region of space"// &
-                                        " along CONFINE_DIR axis. Does not honor PBC: ATOMS must be far"// &
-                                        " away from cell boundary along CONFINE_DIR for meaningful results.", &
-                                        "Dynamically confine Becke partitioning to a region of space"// &
-                                        " along CONFINE_DIR axis. Confinement bounds are (re)generated "// &
-                                        " each step so that only points within DYNAMIC_RADIUS are included in"// &
-                                        " the partitioning. Does not honor PBC: ATOMS must be far"// &
-                                        " away from cell boundary along CONFINE_DIR for meaningful results.", &
-                                        "Form a cavity using constraint atom centered spherical Gaussians", &
-                                        "Mixed dynamic and cavity confinement"), &
-                          default_i_val=becke_none_conf)
+      CALL keyword_create(keyword, name="CAVITY_CONFINE", &
+                          description="Activates Gaussian cavity confinement. The constraint is evaluated only inside "// &
+                          "the cavity. The cavity is formed by summing spherical Gaussians centered on the constraint atoms.", &
+                          usage="CAVITY_CONFINE", &
+                          default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
       CALL keyword_create(keyword, name="CAVITY_SHAPE", &
-                          description="Specifies the type of Gaussian cavity used", &
+                          description="Specifies the type of Gaussian cavity used.", &
                           usage="CAVITY_SHAPE (SINGLE|VDW|COVALENT|USER)", &
                           enum_c_vals=s2a("DEFAULT", "SINGLE", "VDW", "COVALENT", "USER"), &
                           enum_i_vals=(/radius_default, radius_single, radius_vdw, radius_covalent, radius_user/), &
                           enum_desc=s2a("Use covalent radii (in angstrom) to construct Gaussians, but fixed"// &
-                                        " 1.0_dp radius for elements with a radius smaller than this value.", &
-                                        "Single Gaussian for all atom types with radius given by CAVITY_RADIUS", &
-                                        "Use van der Waals radii to construct Gaussians", &
-                                        "Use covalent radii to construct Gaussians", &
-                                        "Use user defined radii (keyword ATOMIC_RADII) to construct Gaussians"), &
+                                        " 1.0_dp radius for elements with a radius larger than this value.", &
+                                        "Single Gaussian for all atom types with radius given by CAVITY_RADIUS.", &
+                                        "Use van der Waals radii to construct Gaussians.", &
+                                        "Use covalent radii to construct Gaussians.", &
+                                        "Use user defined radii (keyword ATOMIC_RADII) to construct Gaussians."), &
                           default_i_val=radius_default)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
       CALL keyword_create(keyword, name="CAVITY_USE_BOHR", &
                           description="Convert the cavity radius from angstrom to bohr. This results in a larger"// &
-                          "confinement cavity than without unit conversion.", &
+                          " confinement cavity than without unit conversion.", &
                           usage="CAVITY_USE_BOHR (SINGLE|VDW|COVALENT|USER)", &
                           default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
       CALL section_add_keyword(section, keyword)
@@ -4198,38 +4138,8 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="CONFINE_DIR", &
-                          description="Confinement direction.", &
-                          usage="CONFINE_DIR (X|Y|Z)", &
-                          enum_c_vals=s2a("X", "Y", "Z"), &
-                          enum_i_vals=(/1, 2, 3/), &
-                          enum_desc=s2a("Along x", "Along y", "Along z"), &
-                          n_var=1, default_i_val=3)
-      CALL section_add_keyword(section, keyword)
-      CALL keyword_release(keyword)
-
-      CALL keyword_create(keyword, name="CONFINE_BOUNDS", &
-                          description="Confinement bounds.", &
-                          usage="CONFINE_BOUNDS <REAL> <REAL>", &
-                          unit_str="angstrom", &
-                          default_r_vals=(/cp_unit_to_cp2k(0.0_dp, "angstrom"), &
-                                           cp_unit_to_cp2k(0.0_dp, "angstrom")/), &
-                          type_of_var=real_t, n_var=2)
-      CALL section_add_keyword(section, keyword)
-      CALL keyword_release(keyword)
-
-      CALL keyword_create(keyword, name="DYNAMIC_RADIUS", &
-                          description="Parameter controlling the creation of dynamic confinement"// &
-                          " bounds.", &
-                          usage="DYNAMIC_RADIUS <REAL>", &
-                          unit_str="angstrom", &
-                          default_r_val=cp_unit_to_cp2k(6.0_dp, "angstrom"), &
-                          type_of_var=real_t, n_var=1)
-      CALL section_add_keyword(section, keyword)
-      CALL keyword_release(keyword)
-
       CALL keyword_create(keyword, name="CAVITY_RADIUS", &
-                          description="Parameter controlling the creation of Gaussian cavity confinement", &
+                          description="Parameter controlling the creation of Gaussian cavity confinement.", &
                           usage="CAVITY_RADIUS <REAL>", &
                           unit_str="angstrom", &
                           default_r_val=cp_unit_to_cp2k(3.0_dp, "angstrom"), &
@@ -4245,12 +4155,12 @@ CONTAINS
       CALL keyword_release(keyword)
 
       CALL keyword_create(keyword, name="CUTOFF_TYPE", &
-                          description="Specifies the type of cutoff used", &
+                          description="Specifies the type of cutoff used.", &
                           usage="CUTOFF_TYPE (GLOBAL|ELEMENT)", &
                           enum_c_vals=s2a("GLOBAL", "ELEMENT"), &
                           enum_i_vals=(/becke_cutoff_global, becke_cutoff_element/), &
                           enum_desc=s2a("Use a single value for all elements. Read from GLOBAL_CUTOFF.", &
-                                        "Use a different value for all elements. Values read from ELEMENT_CUTOFF"), &
+                                        "Use a different value for all elements. Values read from ELEMENT_CUTOFF."), &
                           default_i_val=becke_cutoff_global)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
@@ -4260,14 +4170,14 @@ CONTAINS
                           " weight function at each real space grid point.", &
                           usage="GLOBAL_CUTOFF <REAL>", &
                           unit_str="angstrom", &
-                          default_r_val=cp_unit_from_cp2k(6.0_dp, "angstrom"), &
+                          default_r_val=cp_unit_to_cp2k(3.1750632515_dp, "angstrom"), &
                           type_of_var=real_t, n_var=1)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
       CALL keyword_create(keyword, name="ELEMENT_CUTOFF", &
-                          description="Defines element specific cutoffs to elect which atoms contribute to the"// &
-                          " weight function at each real space grid point. Give one value per element in the same "// &
+                          description="Defines element specific cutoffs to decide which atoms contribute to the"// &
+                          " weight function at each real space grid point. Give one value per element in the same"// &
                           " order as they appear in the coordinates.", &
                           usage="ELEMENT_CUTOFF {real} {real} {real}", repeats=.FALSE., &
                           unit_str="angstrom", &
@@ -4287,7 +4197,7 @@ CONTAINS
 
       CALL keyword_create(keyword, name="FRAGMENT_DENSITIES", &
                           description="Use fragment densities as the target value of the constraint."// &
-                          " Takes as input the electron densities of two isolated fragments in the "// &
+                          " Takes as input the electron densities of two isolated fragments in the"// &
                           " same geometry that they have in the full system."// &
                           " The isolated fragment densities are read from cube files defined in FRAGMENT_{A,B}_FILE."// &
                           " With this keyword active, the constraint enforces that the number of electrons for both"// &
@@ -4321,9 +4231,57 @@ CONTAINS
       CALL section_add_subsection(section, print_key)
       CALL section_release(print_key)
 
-   END SUBROUTINE create_becke_restraint_section
+      CALL section_create(group_section, "ATOM_GROUP", &
+                          description="Define a group of atoms for use in a Becke constraint. Each repetition of "// &
+                          "this section creates a new constraint.", &
+                          n_keywords=3, n_subsections=0, repeats=.TRUE.)
 
-! *****************************************************************************
+      CALL keyword_create(keyword, name="ATOMS", &
+                          description="Specifies the list of atoms that are included in the constraint group.", &
+                          usage="ATOMS {integer} {integer} .. {integer}", &
+                          n_var=-1, type_of_var=integer_t)
+      CALL section_add_keyword(group_section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, name="COEFF", &
+                          description="Defines coefficients for the atoms in the list of atoms. Accepts value +/-1.0.", &
+                          usage="COEFF 1.0 -1.0", repeats=.TRUE., &
+                          type_of_var=real_t, n_var=-1)
+      CALL section_add_keyword(group_section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, name="CHARGE_CONSTRAINT", &
+                          description="Determines what type of constraint to apply. Default value (true) "// &
+                          "implies that a total charge density constraint (rho_alpha + rho_beta)"// &
+                          " is applied. Set to false to enable a magnetization density constraint "// &
+                          "(rho_alpha - rho_beta)", &
+                          usage="CHARGE_CONSTRAINT", &
+                          default_l_val=.TRUE., lone_keyword_l_val=.TRUE.)
+      CALL section_add_keyword(group_section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL section_add_subsection(section, group_section)
+      CALL section_release(group_section)
+
+      CALL section_create(group_section, "DUMMY_ATOMS", &
+                          description="Define an extra group of atoms for which only atomic Becke charges "// &
+                          "should be computed. The section cannot contain any constraint"// &
+                          "atoms which should be included in section ATOM_GROUP.", &
+                          n_keywords=1, n_subsections=0, repeats=.TRUE.)
+
+      CALL keyword_create(keyword, name="ATOMS", &
+                          description="Specifies the list of atoms that are included in the DUMMY_ATOMS group", &
+                          usage="ATOMS {integer} {integer} .. {integer}", &
+                          n_var=-1, type_of_var=integer_t)
+      CALL section_add_keyword(group_section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL section_add_subsection(section, group_section)
+      CALL section_release(group_section)
+
+   END SUBROUTINE create_becke_constraint_section
+
+! **************************************************************************************************
 !> \brief ...
 !> \param section ...
 ! **************************************************************************************************
@@ -4420,7 +4378,7 @@ CONTAINS
 
    END SUBROUTINE create_cdft_control_section
 
-! *****************************************************************************
+! **************************************************************************************************
 !> \brief ...
 !> \param section ...
 ! **************************************************************************************************
@@ -4470,33 +4428,6 @@ CONTAINS
                           " Use +1.0 for donor atoms and -1.0 for acceptor atoms.", &
                           usage="COEFF 1.0 -1.0", repeats=.TRUE., &
                           type_of_var=real_t, n_var=-1)
-      CALL section_add_keyword(section, keyword)
-      CALL keyword_release(keyword)
-
-      CALL keyword_create(keyword, name="CONSTRAINT_TYPE", &
-                          description="Specifies the type of constraint used.", &
-                          usage="CONSTRAINT_TYPE (TOTAL|MAGNETIZATION|COMBINED)", &
-                          enum_c_vals=s2a("TOTAL", "MAGNETIZATION", "COMBINED"), &
-                          enum_i_vals=(/cdft_density_constraint, cdft_magnetization_constraint, &
-                                        cdft_combined_constraint/), &
-                          enum_desc=s2a("Constrain the total density (rho_alpha + rho_beta).", &
-                                        "Constrain the magnetization density (rho_alpha - rho_beta). NYI", &
-                                        "Constrain both densities. The magnetization density constraint is applied "// &
-                                        " to atoms defined in COMBINED_TYPE. NYI"), &
-                          default_i_val=cdft_density_constraint)
-      CALL section_add_keyword(section, keyword)
-      CALL keyword_release(keyword)
-
-      CALL keyword_create(keyword, name="COMBINED_TYPE", &
-                          description="Specifies which atoms to apply the magnetization density constraint "// &
-                          "when using CONSTRAINT_TYPE COMBINED.", &
-                          usage="COMBINED_TYPE (ALL|ACCEPTOR|DONOR)", &
-                          enum_c_vals=s2a("TOTAL", "ACCEPTOR", "DONOR"), &
-                          enum_i_vals=(/cdft_combined_all, cdft_combined_acceptor, cdft_combined_donor/), &
-                          enum_desc=s2a("Use all atoms defined with keywords ATOMS and COEFF.", &
-                                        "Use all acceptor atoms i.e. atoms with a COEFF of -1.0.", &
-                                        "Use all donor atoms i.e. atoms with a COEFF of +1.0."), &
-                          default_i_val=cdft_combined_all)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 

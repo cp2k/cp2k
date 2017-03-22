@@ -19,9 +19,7 @@
 
 MODULE qs_ks_utils
    USE cell_types,                      ONLY: cell_type
-   USE cp_control_types,                ONLY: becke_restraint_type,&
-                                              cdft_control_type,&
-                                              dft_control_type
+   USE cp_control_types,                ONLY: dft_control_type
    USE cp_dbcsr_operations,             ONLY: copy_dbcsr_to_fm,&
                                               copy_fm_to_dbcsr,&
                                               cp_dbcsr_plus_fm_fm_t,&
@@ -49,9 +47,8 @@ MODULE qs_ks_utils
         dbcsr_deallocate_matrix_set, dbcsr_get_info, dbcsr_init_p, dbcsr_multiply, dbcsr_p_type, &
         dbcsr_release_p, dbcsr_scale, dbcsr_scale_by_vector, dbcsr_set, dbcsr_trace, dbcsr_type
    USE input_constants,                 ONLY: &
-        cdft_combined_acceptor, cdft_combined_all, cdft_combined_donor, &
-        cdft_magnetization_constraint, do_ppl_grid, outer_scf_hirshfeld_constraint, sic_ad, &
-        sic_eo, sic_list_all, sic_list_unpaired, sic_mauri_spz, sic_mauri_us, sic_none
+        do_ppl_grid, outer_scf_hirshfeld_constraint, sic_ad, sic_eo, sic_list_all, &
+        sic_list_unpaired, sic_mauri_spz, sic_mauri_us, sic_none
    USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                               section_vals_type,&
                                               section_vals_val_get
@@ -82,6 +79,8 @@ MODULE qs_ks_utils
                                               REALSPACE,&
                                               RECIPROCALSPACE,&
                                               pw_p_type
+   USE qs_cdft_types,                   ONLY: becke_constraint_type,&
+                                              cdft_control_type
    USE qs_charges_types,                ONLY: qs_charges_type
    USE qs_collocate_density,            ONLY: calculate_rho_elec
    USE qs_energy_types,                 ONLY: qs_energy_type
@@ -1186,14 +1185,14 @@ CONTAINS
                                                             v_tau_rspace, v_tau_rspace_aux_fit
       TYPE(pw_p_type)                                    :: v_efield_rspace, v_sic_rspace, &
                                                             v_spin_ddapc_rest_r, v_sccs_rspace
-      TYPE(becke_restraint_type), POINTER                :: becke
+      TYPE(becke_constraint_type), POINTER               :: becke
       TYPE(cdft_control_type), POINTER                   :: cdft_control
       LOGICAL, INTENT(in)                                :: calculate_forces
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'sum_up_and_integrate', &
          routineP = moduleN//':'//routineN
 
-      INTEGER                                            :: handle, ispin, ivar, nspins, nvar
+      INTEGER                                            :: handle, igroup, ispin, nspins
       LOGICAL                                            :: do_ppl, gapw, gapw_xc
       REAL(dp)                                           :: dvol, sign
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: ksmat, matrix_ks_aux_fit, &
@@ -1274,27 +1273,15 @@ CONTAINS
                                                 +v_spin_ddapc_rest_r%pw%cr3d
                END IF
             END IF
-            IF (dft_control%qs_control%becke_restraint) THEN
-               nvar = SIZE(becke%strength)
-               DO ivar = 1, nvar
-                  IF (ivar == 2) THEN
-                     sign = 1.0_dp
-                     IF (ispin == 2) sign = -1.0_dp
-                     SELECT CASE (becke%combined_type)
-                     CASE (cdft_combined_all)
-                        v_rspace_new(ispin)%pw%cr3d = v_rspace_new(ispin)%pw%cr3d &
-                                                      +sign*becke%becke_pot%pw%cr3d*becke%strength(ivar)
-                     CASE (cdft_combined_acceptor, cdft_combined_donor)
-                        v_rspace_new(ispin)%pw%cr3d = v_rspace_new(ispin)%pw%cr3d &
-                                                      +sign*becke%combined_weight%pw%cr3d*becke%strength(ivar)
-                     END SELECT
+            IF (dft_control%qs_control%becke_constraint) THEN
+               DO igroup = 1, SIZE(becke%group)
+                  IF (ispin == 2 .AND. .NOT. becke%group(igroup)%is_charge_constraint) THEN
+                     sign = -1.0_dp
                   ELSE
                      sign = 1.0_dp
-                     IF (ispin == 2 .AND. becke%constraint_type == cdft_magnetization_constraint) &
-                        sign = -1.0_dp
-                     v_rspace_new(ispin)%pw%cr3d = v_rspace_new(ispin)%pw%cr3d &
-                                                   +sign*becke%becke_pot%pw%cr3d*becke%strength(ivar)
                   END IF
+                  v_rspace_new(ispin)%pw%cr3d = v_rspace_new(ispin)%pw%cr3d &
+                                                +sign*becke%group(igroup)%weight%pw%cr3d*becke%strength(igroup)
                END DO
             END IF
             IF (dft_control%qs_control%cdft) THEN

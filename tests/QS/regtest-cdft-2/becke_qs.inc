@@ -16,7 +16,7 @@
       STEP_SIZE -0.001
     &END
   &END CDFT
-  &BECKE_RESTRAINT
+  &BECKE_CONSTRAINT
     @IF ( ${BECKE_ADJUST_SIZE} == TRUE )
       ! Defaults to false
       ADJUST_SIZE     TRUE
@@ -43,8 +43,8 @@
       IN_MEMORY       TRUE
     @ENDIF
     @IF ( ${BECKE_CAVITY_CONFINE} == TRUE )
-      ! Defaults to NONE
-      CONFINE         CAVITY
+      ! Defaults to FALSE
+      CAVITY_CONFINE  TRUE
       EPS_CAVITY      1.0E-6
       CAVITY_SHAPE    ${BECKE_CAVITY_SHAPE}
       ! For shape single
@@ -61,17 +61,20 @@
     @ENDIF
     @IF ( ${BECKE_FRAGMENT} == TRUE )
       ! Need absolute weight to use fragment densities
-      ATOMS           1
-      COEFF           1
+      &ATOM_GROUP
+        ATOMS           1
+        COEFF           1
+      &END ATOM_GROUP
       FRAGMENT_DENSITIES
       FRAGMENT_A_FILE_NAME He+-noconstraint-ELECTRON_DENSITY-1_0.cube
       FRAGMENT_B_FILE_NAME H-noconstraint-ELECTRON_DENSITY-1_0.cube
     @ENDIF
     @IF ( ${BECKE_FRAGMENT} == FALSE )
-      ATOMS           1..2
-      COEFF           1 -1
+      &ATOM_GROUP
+        ATOMS           1..2
+        COEFF           1 -1
+      &END ATOM_GROUP
     @ENDIF
-    CONSTRAINT_TYPE TOTAL    
     &PROGRAM_RUN_INFO ON
       &EACH
         QS_SCF 1
@@ -80,5 +83,5 @@
       ADD_LAST NUMERIC
       FILENAME ./${PROJECT_NAME}
     &END PROGRAM_RUN_INFO
-  &END BECKE_RESTRAINT
+  &END BECKE_CONSTRAINT
 &END QS

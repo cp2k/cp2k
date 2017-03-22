@@ -27,9 +27,7 @@ MODULE qs_ks_methods
    USE atomic_kind_types,               ONLY: atomic_kind_type
    USE cell_types,                      ONLY: cell_type
    USE cp_blacs_env,                    ONLY: cp_blacs_env_type
-   USE cp_control_types,                ONLY: becke_restraint_type,&
-                                              cdft_control_type,&
-                                              dft_control_type
+   USE cp_control_types,                ONLY: dft_control_type
    USE cp_dbcsr_cp2k_link,              ONLY: cp_dbcsr_alloc_block_from_nbl
    USE cp_dbcsr_operations,             ONLY: copy_dbcsr_to_fm,&
                                               copy_fm_to_dbcsr,&
@@ -67,11 +65,7 @@ MODULE qs_ks_methods
    USE hartree_local_methods,           ONLY: Vh_1c_gg_integrals
    USE hfx_admm_utils,                  ONLY: hfx_admm_init,&
                                               hfx_ks_matrix
-   USE input_constants,                 ONLY: cdft_combined_acceptor,&
-                                              cdft_combined_all,&
-                                              cdft_combined_constraint,&
-                                              cdft_combined_donor,&
-                                              do_ppl_grid,&
+   USE input_constants,                 ONLY: do_ppl_grid,&
                                               outer_scf_hirshfeld_constraint
    USE input_section_types,             ONLY: section_vals_get,&
                                               section_vals_get_subs_vals,&
@@ -112,6 +106,8 @@ MODULE qs_ks_methods
    USE qmmm_image_charge,               ONLY: add_image_pot_to_hartree_pot,&
                                               calculate_image_pot,&
                                               integrate_potential_devga_rspace
+   USE qs_cdft_types,                   ONLY: becke_constraint_type,&
+                                              cdft_control_type
    USE qs_charges_types,                ONLY: qs_charges_type
    USE qs_core_energies,                ONLY: calculate_ptrace
    USE qs_dftb_matrices,                ONLY: build_dftb_ks_matrix
@@ -125,7 +121,7 @@ MODULE qs_ks_methods
                                               integrate_rho_nlcc,&
                                               integrate_v_core_rspace,&
                                               integrate_v_rspace_one_center
-   USE qs_ks_apply_restraints,          ONLY: qs_ks_becke_restraint,&
+   USE qs_ks_apply_restraints,          ONLY: qs_ks_becke_constraint,&
                                               qs_ks_cdft_constraint,&
                                               qs_ks_mulliken_restraint,&
                                               qs_ks_s2_restraint
@@ -231,7 +227,7 @@ CONTAINS
                                                             mulliken_order_p
       REAL(KIND=dp), DIMENSION(3, 3)                     :: h_stress
       TYPE(admm_type), POINTER                           :: admm_env
-      TYPE(becke_restraint_type), POINTER                :: becke
+      TYPE(becke_constraint_type), POINTER               :: becke
       TYPE(cdft_control_type), POINTER                   :: cdft_control
       TYPE(cell_type), POINTER                           :: cell
       TYPE(cp_logger_type), POINTER                      :: logger
@@ -465,7 +461,7 @@ CONTAINS
       IF (gapw) CALL Vh_1c_gg_integrals(qs_env, energy%hartree_1c)
 
       ! Check if becke potential is needed to constrain charges
-      CALL qs_ks_becke_restraint(qs_env, auxbas_pw_pool, calculate_forces, matrix_s, becke)
+      CALL qs_ks_becke_constraint(qs_env, auxbas_pw_pool, calculate_forces, matrix_s, becke)
 
       ! Check if CDFT constraint is needed
       CALL qs_ks_cdft_constraint(qs_env, auxbas_pw_pool, calculate_forces, cdft_control)
@@ -685,14 +681,18 @@ CONTAINS
          CALL pw_pool_give_back_pw(auxbas_pw_pool, v_efield_rspace%pw)
       END IF
 
-      IF (calculate_forces .AND. dft_control%qs_control%becke_restraint) THEN
+      IF (calculate_forces .AND. dft_control%qs_control%becke_constraint) THEN
          IF (.NOT. becke%transfer_pot) THEN
-            CALL pw_pool_give_back_pw(auxbas_pw_pool, becke%becke_pot%pw)
+            DO iatom = 1, SIZE(dft_control%qs_control%becke_control%group)
+               CALL pw_pool_give_back_pw(auxbas_pw_pool, &
+                                         dft_control%qs_control%becke_control%group(iatom)%weight%pw)
+            END DO
             IF (dft_control%qs_control%becke_control%atomic_charges) THEN
                DO iatom = 1, dft_control%qs_control%becke_control%natoms
                   CALL pw_pool_give_back_pw(auxbas_pw_pool, &
                                             dft_control%qs_control%becke_control%charge(iatom)%pw)
                END DO
+               DEALLOCATE (dft_control%qs_control%becke_control%charge)
             END IF
             IF (dft_control%qs_control%becke_control%cavity_confine) THEN
                IF (.NOT. ASSOCIATED(becke%cavity_mat)) THEN
@@ -703,15 +703,6 @@ CONTAINS
             END IF
             IF (ASSOCIATED(dft_control%qs_control%becke_control%charges_fragment)) &
                DEALLOCATE (dft_control%qs_control%becke_control%charges_fragment)
-            IF (dft_control%qs_control%becke_control%constraint_type == cdft_combined_constraint) THEN
-               SELECT CASE (dft_control%qs_control%becke_control%combined_type)
-               CASE (cdft_combined_all)
-                  ! Do nothing
-               CASE (cdft_combined_acceptor, cdft_combined_donor)
-                  CALL pw_pool_give_back_pw(auxbas_pw_pool, &
-                                            dft_control%qs_control%becke_control%combined_weight%pw)
-               END SELECT
-            END IF
             dft_control%qs_control%becke_control%save_pot = .FALSE.
             dft_control%qs_control%becke_control%need_pot = .TRUE.
             dft_control%qs_control%becke_control%external_control = .FALSE.

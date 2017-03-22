@@ -306,7 +306,7 @@ CONTAINS
       CHARACTER(len=*), PARAMETER :: routineN = 'qs_scf_ensure_cdft_loop_vars', &
          routineP = moduleN//':'//routineN
 
-      INTEGER                                            :: nhistory, nvariables
+      INTEGER                                            :: ivar, nhistory, nvariables
       LOGICAL                                            :: do_kpoints
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: gradient_history, outer_scf_history, &
                                                             variable_history
@@ -314,7 +314,7 @@ CONTAINS
       NULLIFY (outer_scf_history, gradient_history, variable_history)
       CALL get_qs_env(qs_env=qs_env, do_kpoints=do_kpoints)
       ! Check only one constraint section is active
-      IF (dft_control%qs_control%becke_restraint .AND. &
+      IF (dft_control%qs_control%becke_constraint .AND. &
           dft_control%qs_control%cdft_control%type == outer_scf_hirshfeld_constraint) &
          CPABORT("Only one constraint can be active simultaneously")
       ! Test kpoints
@@ -364,7 +364,7 @@ CONTAINS
             dft_control%qs_control%cdft_control%ot_control%broyden_update = scf_control%outer_scf%broyden_update
             nvariables = 1
             ! Constraint specific initializations
-            IF (dft_control%qs_control%becke_restraint) THEN
+            IF (dft_control%qs_control%becke_constraint) THEN
                nvariables = SIZE(dft_control%qs_control%becke_control%target)
                IF (.NOT. ASSOCIATED(dft_control%qs_control%cdft_control%target)) &
                   ALLOCATE (dft_control%qs_control%cdft_control%target(nvariables))
@@ -373,13 +373,17 @@ CONTAINS
                IF (.NOT. ASSOCIATED(dft_control%qs_control%cdft_control%strength)) &
                   ALLOCATE (dft_control%qs_control%cdft_control%strength(nvariables))
                dft_control%qs_control%cdft_control%target = dft_control%qs_control%becke_control%target
-               dft_control%qs_control%cdft_control%constraint_type = dft_control%qs_control%becke_control%constraint_type
-               dft_control%qs_control%cdft_control%combined_type = dft_control%qs_control%becke_control%combined_type
+               IF (.NOT. ALLOCATED(dft_control%qs_control%cdft_control%is_charge_constraint)) &
+                  ALLOCATE (dft_control%qs_control%cdft_control%is_charge_constraint(nvariables))
+               DO ivar = 1, nvariables
+                  dft_control%qs_control%cdft_control%is_charge_constraint(ivar) = &
+                     dft_control%qs_control%becke_control%group(ivar)%is_charge_constraint
+               END DO
             END IF
             ! In case constraint and OT extrapolation orders are different, make sure to use former
             IF (scf_control%outer_scf%extrapolation_order /= &
                 dft_control%qs_control%cdft_control%constraint_control%extrapolation_order &
-                .OR. nvariables == 2) THEN
+                .OR. nvariables /= 1) THEN
                DEALLOCATE (qs_env%outer_scf_history)
                DEALLOCATE (qs_env%gradient_history)
                DEALLOCATE (qs_env%variable_history)

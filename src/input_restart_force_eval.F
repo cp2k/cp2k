@@ -143,12 +143,12 @@ CONTAINS
       IF (nforce_eval == 1) THEN
          IF (ASSOCIATED(force_env%qs_env)) THEN
             CALL get_qs_env(force_env%qs_env, dft_control=dft_control)
-            IF (dft_control%qs_control%becke_restraint) THEN
+            IF (dft_control%qs_control%becke_constraint) THEN
                ALLOCATE (work(SIZE(dft_control%qs_control%becke_control%strength)))
                work = dft_control%qs_control%becke_control%strength
                dft_section => section_vals_get_subs_vals3(force_env_sections, "DFT", &
                                                           i_rep_section=i_force_eval(iforce_eval))
-               CALL section_vals_val_set(dft_section, "QS%BECKE_RESTRAINT%STRENGTH", &
+               CALL section_vals_val_set(dft_section, "QS%BECKE_CONSTRAINT%STRENGTH", &
                                          r_vals_ptr=work)
             END IF
             IF (dft_control%qs_control%cdft) THEN
@@ -177,8 +177,10 @@ CONTAINS
                DO iforce_eval = 2, nforce_eval
                   dft_section => section_vals_get_subs_vals3(force_env_sections, "DFT", &
                                                              i_rep_section=i_force_eval(iforce_eval))
-                  CALL section_vals_val_set(dft_section, "QS%BECKE_RESTRAINT%STRENGTH", &
-                                            r_val=force_env%mixed_env%strength(iforce_eval-1))
+                  ALLOCATE (work(SIZE(force_env%mixed_env%strength, 2)))
+                  work = force_env%mixed_env%strength(iforce_eval-1, :)
+                  CALL section_vals_val_set(dft_section, "QS%BECKE_CONSTRAINT%STRENGTH", &
+                                            r_vals_ptr=work)
                   CALL section_vals_val_set(dft_section, "QS%CDFT%COUNTER", &
                                             i_val=force_env%mixed_env%cdft_control%sim_step)
                END DO
