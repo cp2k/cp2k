@@ -87,3 +87,18 @@ export CP_LIBS="${FFTW_LIBS} IF_OMP(${FFTW_LIBS_OMP}|) \${CP_LIBS}"
 EOF
 fi
 cd "${ROOTDIR}"
+
+
+# ----------------------------------------------------------------------
+# Suppress reporting of known leaks
+# ----------------------------------------------------------------------
+cat <<EOF >> ${INSTALLDIR}/valgrind.supp
+{
+   <BuggyFFTW3>
+   Memcheck:Addr32
+   fun:cdot
+   ...
+   fun:invoke_solver
+   fun:search0
+}
+EOF

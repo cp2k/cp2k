@@ -147,7 +147,7 @@ cd "${ROOTDIR}"
 
 # this might need to be adjusted for the versions of the software
 # employed
-cat <<EOF > ${INSTALLDIR}/lsan.supp
+cat <<EOF >> ${INSTALLDIR}/lsan.supp
 # known leak either related to mpi or scalapack  (e.g. showing randomly for Fist/regtest-7-2/UO2-2x2x2-genpot_units.inp)
 leak:__cp_fm_types_MOD_cp_fm_write_unformatted
 # leak related to mpi or scalapack  triggers sometimes for regtest-kp-2/cc2.inp
@@ -156,7 +156,7 @@ leak:blacs_gridmap_
 # leaks related to PEXSI
 leak:PPEXSIDFTDriver
 EOF
-cat << EOF > ${INSTALLDIR}/tsan.supp
+cat << EOF >> ${INSTALLDIR}/tsan.supp
 # tsan bugs likely related to gcc
 # PR66756
 deadlock:_gfortran_st_open

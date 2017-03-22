@@ -122,3 +122,64 @@ export CP_LIBS="\${CP_LIBS} IF_MPI(${OPENMPI_LIBS}|)"
 EOF
 fi
 cd "${ROOTDIR}"
+
+
+# ----------------------------------------------------------------------
+# Suppress reporting of known leaks
+# ----------------------------------------------------------------------
+cat <<EOF >> ${INSTALLDIR}/valgrind.supp
+{
+   <BuggyOpenMPI_1>
+   Memcheck:Leak
+   ...
+   fun:*alloc
+   ...
+   fun:ompi_mpi_init
+}
+{
+   <BuggyOpenMPI_2>
+   Memcheck:Leak
+   ...
+   fun:*alloc
+   ...
+   fun:ompi_mpi_finalize
+}
+{
+   <BuggyOpenMPI_3>
+   Memcheck:Leak
+   ...
+   fun:malloc
+   fun:opal_free_list_grow_st
+   ...
+   fun:mpi_alloc_mem
+}
+{
+   <BuggyOpenMPI_4>
+   Memcheck:Leak
+   ...
+   fun:malloc
+   ...
+   fun:progress_engine
+   ...
+   fun:clone
+}
+{
+   <BuggyOpenMPI_5>
+   Memcheck:Leak
+   ...
+   fun:malloc
+   ...
+   fun:query_2_0_0
+   ...
+   fun:ompi_comm_activate
+}
+EOF
+cat <<EOF >> ${INSTALLDIR}/lsan.supp
+# leaks related to OpenMPI
+leak:query_2_0_0
+leak:ompi_init_f
+leak:ompi_finalize_f
+leak:ompi_file_open_f
+leak:progress_engine
+leak:__GI___strdup
+EOF

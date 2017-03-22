@@ -97,3 +97,11 @@ export CP_LIBS="IF_MPI(-lscalapack|) \${CP_LIBS}"
 EOF
 fi
 cd "${ROOTDIR}"
+
+# ----------------------------------------------------------------------
+# Suppress reporting of known leaks
+# ----------------------------------------------------------------------
+cat <<EOF >> ${INSTALLDIR}/lsan.supp
+# leaks related to SCALAPACK
+leak:pdpotrf_
+EOF

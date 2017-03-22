@@ -67,7 +67,7 @@ cd "${ROOTDIR}"
 # ----------------------------------------------------------------------
 # Suppress reporting of known leaks
 # ----------------------------------------------------------------------
-cat <<EOF > ${INSTALLDIR}/valgrind.supp
+cat <<EOF >> ${INSTALLDIR}/valgrind.supp
 {
    BuggySUPERLU
    Memcheck:Cond

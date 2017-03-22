@@ -37,6 +37,8 @@ case "$with_libxc" in
             # patch buggy configure macro (fails with gcc trunk)
             sed -i 's/ax_cv_f90_modext=$(ls | sed/ax_cv_f90_modext=)ls -1 | grep -iv smod | sed/g' \
                 configure
+            # patch for libxc 3.0.0 + gcc 6.4.0 (undefined behavior in lda_x.c)
+            CFLAGS=`echo ${CFLAGS} |sed 's|-fno-omit-frame-pointer ||g'`
             ./configure  --prefix="${pkg_install_dir}" --libdir="${pkg_install_dir}/lib" > configure.log 2>&1
             make -j $NPROCS > make.log 2>&1
             make install > install.log 2>&1
