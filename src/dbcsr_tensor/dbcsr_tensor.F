@@ -271,8 +271,12 @@ CONTAINS
       CALL dbcsr_t_destroy(tensor_tmp_2)
 
       ! create temporary tensor according to format of tensor 1, tensor 2
+      map_1_tmp(:) = (/(i, i=1,ndims_2d_3(1))/)
+      map_2_tmp(:) = (/(i, i=ndims_2d_3(1)+1,ndims_2d_3(1)+ndims_2d_3(2))/)
+
       CALL dbcsr_get_info(tensor_contr_1%matrix_rep, group=mp_comm_2d)
-      mp_comm_nd = dbcsr_t_nd_mp_comm(mp_comm_2d, map_1_mod, map_2_mod)
+      mp_comm_nd = dbcsr_t_nd_mp_comm(mp_comm_2d, map_1_tmp, map_2_tmp)
+
       ALLOCATE(pdims_3(SUM(ndims_2d_3)))
       ALLOCATE(myploc(SUM(ndims_2d_3)))
       ALLOCATE(periods(SUM(ndims_2d_3)))
@@ -292,9 +296,6 @@ CONTAINS
       ENDIF
 #:endfor
 
-      map_1_tmp(:) = (/(i, i=1,ndims_2d_3(1))/)
-      map_2_tmp(:) = (/(i, i=ndims_2d_3(1)+1,ndims_2d_3(1)+ndims_2d_3(2))/)
-
 #:for ndim in ndims
       IF (SUM(ndims_2d_3) == ${ndim}$) THEN
          CALL dbcsr_t_distribution_new(dist_3, mp_comm_nd, mp_comm_2d, &
@@ -311,7 +312,7 @@ CONTAINS
                           tensor_contr_1%matrix_rep, tensor_contr_2%matrix_rep, 0.0_real_8, &
                           tensor_3_tmp%matrix_rep)
 
-      order(:) = dbcsr_t_inverse_order([map_1_mod, map_2_mod])
+      order(:) = [map_1_mod, map_2_mod]
       CALL dbcsr_t_copy(tensor_3_tmp, tensor_3, order = order)
 
       CALL dbcsr_t_destroy(tensor_contr_1)
