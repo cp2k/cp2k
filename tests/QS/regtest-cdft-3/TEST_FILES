@@ -20,7 +20,7 @@ HeH-mixed-cdft-5.inp                                  11      1e-13             
 HeH-mixed-cdft-6.inp                                  11      2e-11              -2.350318822849201
 HeH-mixed-cdft-7.inp                                  11      2e-11              -2.350318822849201
 # CDFT-CI
-HeH-mixed-cdft-12.inp                                 77      2e-12              -2.76211161653722
+HeH-mixed-cdft-12.inp                                 77      3e-12              -2.76211161653722
 # Rerun some tests using serial mode (NGROUPS 1)
 # Electronic coupling and related
 HeH-mixed-cdft-8.inp                                  73      5e-10             510.592548695828
