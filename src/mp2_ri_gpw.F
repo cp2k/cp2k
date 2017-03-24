@@ -860,6 +860,8 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: ngroup, igroup, mp_comm_2d
       TYPE(cp_para_env_type), POINTER                    :: para_env_sub
 
+      LOGICAL, PARAMETER                                 :: debug = .FALSE.
+
       INTEGER                                            :: check_proc, i, iend, ii, ioff, iproc, &
                                                             iproc_glob, istart, loc_a, loc_P, &
                                                             mp_comm_B, mp_comm_L, nproc, nproc_glob
@@ -867,7 +869,6 @@ CONTAINS
       INTEGER, DIMENSION(1)                              :: dist_B_i, map_B_1, map_L_1, map_L_2, &
                                                             sizes_i
       INTEGER, DIMENSION(2)                              :: map_B_2
-      LOGICAL                                            :: debug = .FALSE.
       INTEGER, DIMENSION(ngroup)                         :: dist_L_P, dist_L_R
       INTEGER, DIMENSION(para_env_sub%num_pe)            :: dist_B_a
       TYPE(dbcsr_t_distribution_type)                    :: dist_B, dist_L
