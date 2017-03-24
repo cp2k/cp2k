@@ -750,7 +750,6 @@ CONTAINS
       INTEGER, INTENT(IN)                  :: unit_nr
       LOGICAL, INTENT(IN), OPTIONAL        :: write_int
       INTEGER                              :: io_unit, mynode, numnodes, mp_comm
-      !INTEGER                              :: iarr, jarr
       INTEGER, DIMENSION(:), ALLOCATABLE   :: size_1, size_2, size_3, &
                                               order_t1, order_t2, order_t3
 
@@ -769,7 +768,7 @@ CONTAINS
                                              array_3_mm, &
                                              array_3_test_mm
       LOGICAL                             :: eql
-      LOGICAL                             :: debug = .FALSE.
+      LOGICAL, PARAMETER                  :: debug = .FALSE.
 
       CALL dbcsr_get_info(tensor_1%matrix_rep, group=mp_comm)
       CALL mp_environ(numnodes, mynode, mp_comm)

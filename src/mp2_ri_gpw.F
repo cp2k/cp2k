@@ -54,7 +54,19 @@ MODULE mp2_ri_gpw
         dbcsr_get_stored_coordinates, dbcsr_iterator_blocks_left, dbcsr_iterator_next_block, &
         dbcsr_iterator_start, dbcsr_iterator_stop, dbcsr_iterator_type, dbcsr_multiply, &
         dbcsr_p_type, dbcsr_put_block, dbcsr_release, dbcsr_release_p, dbcsr_reserve_blocks, &
-        dbcsr_set, dbcsr_type, dbcsr_type_no_symmetry
+        dbcsr_set, dbcsr_type, dbcsr_type_no_symmetry, dbcsr_type_real_8
+   USE dbcsr_tensor,                    ONLY: dbcsr_t_contract,&
+                                              dbcsr_t_get_block,&
+                                              dbcsr_t_get_stored_coordinates,&
+                                              dbcsr_t_put_block,&
+                                              dbcsr_t_reserve_blocks
+   USE dbcsr_tensor_types,              ONLY: dbcsr_t_create,&
+                                              dbcsr_t_destroy,&
+                                              dbcsr_t_distribution_destroy,&
+                                              dbcsr_t_distribution_new,&
+                                              dbcsr_t_distribution_type,&
+                                              dbcsr_t_nd_mp_comm,&
+                                              dbcsr_t_type
    USE gaussian_gridlevels,             ONLY: gaussian_gridlevel
    USE input_constants,                 ONLY: do_eri_gpw,&
                                               do_eri_mme,&
@@ -66,14 +78,9 @@ MODULE mp2_ri_gpw
                                               m_memory,&
                                               m_walltime
    USE mathconstants,                   ONLY: pi
-   USE message_passing,                 ONLY: mp_allgather,&
-                                              mp_alltoall,&
-                                              mp_comm_split_direct,&
-                                              mp_max,&
-                                              mp_min,&
-                                              mp_sendrecv,&
-                                              mp_sum,&
-                                              mp_sync
+   USE message_passing,                 ONLY: &
+        mp_allgather, mp_alltoall, mp_cart_create, mp_comm_free, mp_comm_split_direct, mp_environ, &
+        mp_max, mp_min, mp_sendrecv, mp_sum, mp_sync
    USE molecule_kind_types,             ONLY: molecule_kind_type
    USE molecule_types,                  ONLY: molecule_type
    USE mp2_ri_grad_util,                ONLY: complete_gamma
@@ -277,18 +284,19 @@ CONTAINS
       CHARACTER(LEN=*), PARAMETER :: routineN = 'mp2_ri_gpw_compute_in', &
          routineP = moduleN//':'//routineN
 
-      INTEGER :: color_sub_3c, cut_memory, cut_RI, eri_method, eri_method_3c, gw_corr_lev_total, &
-         handle, handle2, handle3, i, i_counter, itmp(2), LLL, max_row_col_local, &
-         max_row_col_local_beta, max_row_col_local_gw, my_B_all_end, my_B_all_size, &
-         my_B_all_start, my_B_size, my_B_size_beta, my_B_virtual_end, my_B_virtual_end_beta, &
-         my_B_virtual_start, my_B_virtual_start_beta, my_group_L_end, my_group_L_size, &
-         my_group_L_start, natom, ncol_local, nfullcols_total, nfullrows_total, ngroup, &
-         ngroup_im_time, nrow_local, num_small_eigen, virtual, virtual_beta
+      INTEGER :: color_sub_3c, cut_memory, cut_RI, eri_method, gw_corr_lev_total, handle, handle2, &
+         handle3, i, i_counter, itmp(2), LLL, max_row_col_local, max_row_col_local_beta, &
+         max_row_col_local_gw, mp_comm_2d, my_B_all_end, my_B_all_size, my_B_all_start, my_B_size, &
+         my_B_size_beta, my_B_virtual_end, my_B_virtual_end_beta, my_B_virtual_start, &
+         my_B_virtual_start_beta, my_group_L_end, my_group_L_size, my_group_L_start, natom, &
+         ncol_local, nfullcols_total, nfullrows_total, ngroup, ngroup_im_time, nrow_local, &
+         num_small_eigen, virtual, virtual_beta
       INTEGER, ALLOCATABLE, DIMENSION(:) :: local_atoms_for_mao_basis, my_group_L_ends_im_time, &
          my_group_L_sizes_im_time, my_group_L_starts_im_time, sub_proc_map
       INTEGER, ALLOCATABLE, DIMENSION(:, :)              :: local_col_row_info, &
                                                             local_col_row_info_beta, &
                                                             local_col_row_info_gw
+      INTEGER, DIMENSION(2)                              :: myploc, pdims
       LOGICAL                                            :: do_alpha_beta, do_mult_2c, do_os, &
                                                             memory_info
       REAL(KIND=dp)                                      :: cond_num, mem_for_iaK, pair_energy, &
@@ -524,11 +532,8 @@ CONTAINS
       CALL timeset(routineN//"_loop", handle2)
       i_counter = 0
 
-      eri_method_3c = do_eri_gpw ! 3c ERIs not yet supported with MME method
-      ! eri_method_3c = eri_method ! debug 3c ERIs
-
       IF (.NOT. do_im_time) THEN
-         SELECT CASE (eri_method_3c) ! TODO: use eri_method once 3-center ERIs are ready
+         SELECT CASE (eri_method)
          CASE (do_eri_mme)
             NULLIFY (mat_munu_local_L)
             ALLOCATE (mat_munu_local_L(my_group_L_size))
@@ -544,37 +549,62 @@ CONTAINS
                                          basis_type_a="ORB", basis_type_b="ORB", &
                                          basis_type_c="RI_AUX", &
                                          sab_nl=sab_orb_sub)
+
+            ! create a NG x Nw process grid for contraction
+            pdims = [ngroup, para_env_sub%num_pe]
+            CALL mp_cart_create(para_env%group, 2, pdims, myploc, mp_comm_2d)
+
             DO LLL = 1, my_group_L_size
                CALL ao_to_mo_and_store_B(para_env_sub, mat_munu_local_L(LLL), matrix_ia_jnu, matrix_ia_jb, &
                                          fm_BIb_jb, BIb_C(LLL, 1:my_B_size, 1:homo), &
                                          mo_coeff_o, mo_coeff_v, eps_filter, max_row_col_local, sub_proc_map, &
                                          local_col_row_info, my_B_virtual_end, my_B_virtual_start, "alpha")
+            ENDDO
+            CALL contract_B_L(BIb_C, my_Lrows, sizes_B_virtual, sizes_array, &
+                              ngroup, color_sub, mp_comm_2d, para_env_sub)
 
-               IF (do_alpha_beta) THEN
+            IF (do_alpha_beta) THEN
+
+               DO LLL = 1, my_group_L_size
                   CALL ao_to_mo_and_store_B(para_env_sub, mat_munu_local_L(LLL), matrix_ia_jnu_beta, matrix_ia_jb_beta, &
                                             fm_BIb_jb_beta, BIb_C_beta(LLL, 1:my_B_size_beta, 1:homo_beta), &
                                             mo_coeff_o_beta, mo_coeff_v_beta, eps_filter, max_row_col_local_beta, sub_proc_map, &
                                             local_col_row_info_beta, my_B_virtual_end_beta, my_B_virtual_start_beta, "beta")
+               ENDDO
+               CALL contract_B_L(BIb_C_beta, my_Lrows, sizes_B_virtual_beta, sizes_array, &
+                                 ngroup, color_sub, mp_comm_2d, para_env_sub)
 
-               ENDIF
+            ENDIF
 
-               IF (my_do_gw .AND. (ri_metric_gw == ri_metric)) THEN
+            IF (my_do_gw .AND. (ri_metric_gw == ri_metric)) THEN
+
+               DO LLL = 1, my_group_L_size
                   CALL ao_to_mo_and_store_B(para_env_sub, mat_munu_local_L(LLL), matrix_in_jnu, matrix_in_jm, &
                                             fm_BIb_gw, BIb_C_gw(LLL, 1:my_B_all_size, 1:gw_corr_lev_total), &
                                             mo_coeff_gw, mo_coeff_all, eps_filter, max_row_col_local_gw, sub_proc_map, &
                                             local_col_row_info_gw, my_B_all_end, my_B_all_start, "gw_alpha")
-                  IF (do_alpha_beta) THEN
+               ENDDO
+               CALL contract_B_L(BIb_C_gw, my_Lrows, sizes_B_all, sizes_array, &
+                                 ngroup, color_sub, mp_comm_2d, para_env_sub)
+
+               IF (do_alpha_beta) THEN
+
+                  DO LLL = 1, my_group_L_size
                      CALL ao_to_mo_and_store_B(para_env_sub, mat_munu_local_L(LLL), matrix_in_jnu_beta, matrix_in_jm_beta, &
                                                fm_BIb_gw_beta, BIb_c_gw_beta(LLL, 1:my_B_all_size, 1:gw_corr_lev_total), &
                                                mo_coeff_gw_beta, mo_coeff_all_beta, eps_filter, max_row_col_local_gw, &
                                                sub_proc_map, local_col_row_info_gw, my_B_all_end, my_B_all_start, "gw_beta")
-                  ENDIF
+                  ENDDO
+                  CALL contract_B_L(BIb_C_gw_beta, my_Lrows, sizes_B_all, sizes_array, &
+                                    ngroup, color_sub, mp_comm_2d, para_env_sub)
+
                ENDIF
-            ENDDO
+            ENDIF
 
             DO LLL = 1, my_group_L_size
                CALL dbcsr_release_p(mat_munu_local_L(LLL)%matrix)
             ENDDO
+            CALL mp_comm_free(mp_comm_2d)
             DEALLOCATE (mat_munu_local_L)
          CASE (do_eri_gpw)
             DO LLL = my_group_L_start, my_group_L_end
@@ -811,6 +841,152 @@ CONTAINS
       CALL timestop(handle)
 
    END SUBROUTINE mp2_ri_gpw_compute_in
+
+! **************************************************************************************************
+!> \brief Contract (P|ai) = (R|P) x (R|ai)
+!> \param BIb_C (R|ai)
+!> \param my_Lrows (R|P)
+!> \param sizes_B number of a (virtual) indices per subgroup process
+!> \param sizes_L number of P / R (auxiliary) indices per subgroup
+!> \param ngroup how many subgroups (NG)
+!> \param igroup subgroup color
+!> \param mp_comm_2d communicator with 2d Cartesian grid with dimensions (NG x Nw)
+!> \param para_env_sub ...
+! **************************************************************************************************
+   SUBROUTINE contract_B_L(BIb_C, my_Lrows, sizes_B, sizes_L, ngroup, igroup, mp_comm_2d, para_env_sub)
+      REAL(KIND=dp), DIMENSION(:, :, :), INTENT(INOUT)   :: BIb_C
+      REAL(KIND=dp), DIMENSION(:, :), INTENT(IN)         :: my_Lrows
+      INTEGER, DIMENSION(:), INTENT(IN)                  :: sizes_B, sizes_L
+      INTEGER, INTENT(IN)                                :: ngroup, igroup, mp_comm_2d
+      TYPE(cp_para_env_type), POINTER                    :: para_env_sub
+
+      INTEGER                                            :: check_proc, i, iend, ii, ioff, iproc, &
+                                                            iproc_glob, istart, loc_a, loc_P, &
+                                                            mp_comm_B, mp_comm_L, nproc, nproc_glob
+      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: block_ind_L_P, block_ind_L_R
+      INTEGER, DIMENSION(1)                              :: dist_B_i, map_B_1, map_L_1, map_L_2, &
+                                                            sizes_i
+      INTEGER, DIMENSION(2)                              :: map_B_2
+      LOGICAL                                            :: debug = .FALSE.
+      INTEGER, DIMENSION(ngroup)                         :: dist_L_P, dist_L_R
+      INTEGER, DIMENSION(para_env_sub%num_pe)            :: dist_B_a
+      TYPE(dbcsr_t_distribution_type)                    :: dist_B, dist_L
+      TYPE(dbcsr_t_type)                                 :: tB_in, tB_out, tL
+
+      sizes_i(1) = SIZE(BIb_C, 3)
+
+      nproc = para_env_sub%num_pe ! number of processes per subgroup (Nw)
+      iproc = para_env_sub%mepos ! subgroup-local process ID
+
+      ! Total number of processes and global process ID
+      CALL mp_environ(nproc_glob, iproc_glob, mp_comm_2d)
+
+      ! local block index for R/P and a
+      loc_P = igroup+1; loc_a = iproc+1
+
+      CPASSERT(SIZE(sizes_L) .EQ. ngroup)
+      CPASSERT(SIZE(sizes_B) .EQ. nproc)
+      CPASSERT(sizes_L(loc_P) .EQ. SIZE(BIb_C, 1))
+      CPASSERT(sizes_L(loc_P) .EQ. SIZE(my_Lrows, 2))
+      CPASSERT(sizes_B(loc_a) .EQ. SIZE(BIb_C, 2))
+
+      ! Tensor distributions as follows:
+      ! Process grid NG x Nw
+      ! Each process has coordinates (np, nw)
+      ! tB_in: (R|ai): R distributed (np), a distributed (nw)
+      ! tB_out: (P|ai): P distributed (np), a distributed (nw)
+      ! tL: (R|P): R distributed (nw), P distributed (np)
+
+      ! define mappings between tensor index and matrix index:
+      ! (R|ai) and (P|ai):
+      map_B_1 = [1] ! index 1 (R or P) maps to 1st matrix index (np distributed)
+      map_B_2 = [2, 3] ! indices 2, 3 (a, i) map to 2nd matrix index (nw distributed)
+      ! (R|P):
+      map_L_1 = [2] ! index 2 (P) maps to 1st matrix index (np distributed)
+      map_L_2 = [1] ! index 1 (R) maps to 2nd matrix index (nw distributed)
+
+      ! derive nd process grid that is compatible with distributions and 2d process grid
+      ! (R|ai) / (P|ai) on process grid NG x Nw x 1
+      ! (R|P) on process grid NG x Nw
+      mp_comm_B = dbcsr_t_nd_mp_comm(mp_comm_2d, map_B_1, map_B_2, dims_nd=[ngroup, nproc, 1])
+      mp_comm_L = dbcsr_t_nd_mp_comm(mp_comm_2d, map_L_1, map_L_2, dims_nd=[nproc, ngroup])
+
+      ! setup distribution vectors such that distribution matches parallel data layout of BIb_C and my_Lrows
+      dist_B_i = [0]
+      dist_B_a = (/(i, i=0, nproc-1)/)
+      dist_L_R = (/(MODULO(i, nproc), i=0, ngroup-1)/) ! R index is replicated in my_Lrows, we impose a cyclic distribution
+      dist_L_P = (/(i, i=0, ngroup-1)/)
+
+      ! create distributions and tensors
+      CALL dbcsr_t_distribution_new(dist_B, mp_comm_B, mp_comm_2d, map_B_1, map_B_2, dist_L_P, dist_B_a, dist_B_i)
+      CALL dbcsr_t_distribution_new(dist_L, mp_comm_L, mp_comm_2d, map_L_1, map_L_2, dist_L_R, dist_L_P)
+
+      CALL dbcsr_t_create(tB_in, "(R|ai)", dist_B, map_B_1, map_B_2, dbcsr_type_real_8, sizes_L, sizes_B, sizes_i)
+      CALL dbcsr_t_create(tB_out, "(P|ai)", dist_B, map_B_1, map_B_2, dbcsr_type_real_8, sizes_L, sizes_B, sizes_i)
+      CALL dbcsr_t_create(tL, "(R|P)", dist_L, map_L_1, map_L_2, dbcsr_type_real_8, sizes_L, sizes_L)
+
+      IF (debug) THEN
+         ! check that tensor distribution is correct
+         CALL dbcsr_t_get_stored_coordinates(tB_in, [loc_P, loc_a, 1], check_proc)
+         CPASSERT(check_proc .EQ. iproc_glob)
+      ENDIF
+
+      ! reserve (R|ai) block
+      CALL dbcsr_t_reserve_blocks(tB_in, [loc_P], [loc_a], [1])
+
+      ! reserve (R|P) blocks
+      ! in my_Lrows, R index is replicated. For (R|P), we distribute quadratic blocks cyclically over
+      ! the processes in a subgroup.
+      ! There are NG blocks, so each process holds at most NG/Nw+1 blocks.
+      ALLOCATE (block_ind_L_R(ngroup/nproc+1))
+      ALLOCATE (block_ind_L_P(ngroup/nproc+1))
+      block_ind_L_R(:) = 0; block_ind_L_P(:) = 0
+      ii = 0
+      DO i = 1, ngroup
+         CALL dbcsr_t_get_stored_coordinates(tL, [i, loc_P], check_proc)
+         IF (check_proc == iproc_glob) THEN
+            ii = ii+1
+            block_ind_L_R(ii) = i
+            block_ind_L_P(ii) = loc_P
+         ENDIF
+      ENDDO
+      CALL dbcsr_t_reserve_blocks(tL, block_ind_L_R(1:ii), block_ind_L_P(1:ii))
+
+      ! insert (R|ai) block
+      CALL dbcsr_t_put_block(tB_in, [loc_P, loc_a, 1], SHAPE(BIb_C), BIb_C)
+
+      ! insert (R|P) blocks
+      ioff = 0
+      DO i = 1, ngroup
+         istart = ioff+1; iend = ioff+sizes_L(i)
+         ioff = ioff+sizes_L(i)
+         CALL dbcsr_t_get_stored_coordinates(tL, [i, loc_P], check_proc)
+         IF (check_proc == iproc_glob) THEN
+            CALL dbcsr_t_put_block(tL, [i, loc_P], [sizes_L(i), sizes_L(loc_P)], my_Lrows(istart:iend, :))
+         ENDIF
+      ENDDO
+
+      ! contract
+      CALL dbcsr_t_contract(tensor_1=tB_in, tensor_2=tL, tensor_3=tB_out, &
+                            contract_1=[1], notcontract_1=[2, 3], &
+                            contract_2=[1], notcontract_2=[2], &
+                            map_1=[2, 3], map_2=[1])
+
+      ! retrieve local block of contraction result (P|ai)
+      CALL dbcsr_t_get_block(tB_out, [loc_P, loc_a, 1], SHAPE(BIb_C), BIb_C)
+
+      ! cleanup
+      CALL dbcsr_t_destroy(tB_in)
+      CALL dbcsr_t_destroy(tB_out)
+      CALL dbcsr_t_destroy(tL)
+
+      CALL dbcsr_t_distribution_destroy(dist_B)
+      CALL dbcsr_t_distribution_destroy(dist_L)
+
+      CALL mp_comm_free(mp_comm_B)
+      CALL mp_comm_free(mp_comm_L)
+
+   END SUBROUTINE
 
 ! **************************************************************************************************
 !> \brief Encapsulate building of intermediate matrices matrix_ia_jnu(_beta
