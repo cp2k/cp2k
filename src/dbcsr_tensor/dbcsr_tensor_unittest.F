@@ -269,7 +269,8 @@ PROGRAM dbcsr_tensor_unittest
                                  [3], [2, 1], &
                                  [1], [2], &
                                  [2, 1], [3], &
-                                 default_output_unit)
+                                 default_output_unit, &
+                                 write_int=.TRUE.)
 
       DEALLOCATE (myploc_1, myploc_2, myploc_3)
       DEALLOCATE (pdims_1, pdims_2, pdims_3)
@@ -343,7 +344,8 @@ PROGRAM dbcsr_tensor_unittest
                                  [3], [1, 2], &
                                  [1], [2], &
                                  [1, 2], [3], &
-                                 default_output_unit)
+                                 default_output_unit, &
+                                 write_int=.TRUE.)
 
       DEALLOCATE (myploc_1, myploc_2, myploc_3)
       DEALLOCATE (pdims_1, pdims_2, pdims_3)
@@ -417,7 +419,8 @@ PROGRAM dbcsr_tensor_unittest
                                  [1], [2], &
                                  [3], [1, 2], &
                                  [3], [1, 2], &
-                                 default_output_unit)
+                                 default_output_unit, &
+                                 write_int=.TRUE.)
 
       DEALLOCATE (myploc_1, myploc_2, myploc_3)
       DEALLOCATE (pdims_1, pdims_2, pdims_3)

@@ -93,31 +93,39 @@ CONTAINS
 !> \param comm_2d communicator with 2-dimensional topology
 !> \param map1_2d which nd-indices map to first matrix index and in which order
 !> \param map2_2d which nd-indices map to second matrix index and in which order
+!> \param dims_nd nd dimensions
 !> \retval communicator with nd cartesian grid
 ! **************************************************************************************************
-   FUNCTION dbcsr_t_nd_mp_comm(comm_2d, map1_2d, map2_2d)
+   FUNCTION dbcsr_t_nd_mp_comm(comm_2d, map1_2d, map2_2d, dims_nd)
       INTEGER, INTENT(IN)                               :: comm_2d
       INTEGER, DIMENSION(:), INTENT(IN)                 :: map1_2d, map2_2d
       INTEGER                                           :: ndim1, ndim2
       INTEGER                                           :: numtask
       INTEGER, DIMENSION(2)                             :: dims_2d, task_coor
+      INTEGER, DIMENSION(SIZE(map1_2d) + SIZE(map2_2d)), &
+         INTENT(IN), OPTIONAL                           :: dims_nd
       INTEGER, DIMENSION(SIZE(map1_2d))                 :: dims1_nd
       INTEGER, DIMENSION(SIZE(map2_2d))                 :: dims2_nd
-      INTEGER, DIMENSION(SIZE(map1_2d) + SIZE(map2_2d)) :: dims_nd, pos
+      INTEGER, DIMENSION(SIZE(map1_2d) + SIZE(map2_2d)) :: dims_nd_prv, pos
       INTEGER                                           :: dbcsr_t_nd_mp_comm
 
       ndim1 = SIZE(map1_2d); ndim2 = SIZE(map2_2d)
 
       CALL mp_environ(numtask, dims_2d, task_coor, comm_2d)
 
-      dims1_nd(:) = 0; dims2_nd(:) = 0
-      CALL mp_dims_create(dims_2d(1), dims1_nd)
-      CALL mp_dims_create(dims_2d(2), dims2_nd)
+      IF(.NOT. PRESENT(dims_nd)) THEN
+         dims1_nd = 0; dims2_nd = 0
+         CALL mp_dims_create(dims_2d(1), dims1_nd)
+         CALL mp_dims_create(dims_2d(2), dims2_nd)
+         dims_nd_prv(map1_2d) = dims1_nd
+         dims_nd_prv(map2_2d) = dims2_nd
+      ELSE
+         CPASSERT(PRODUCT(dims_nd(map1_2d)) == dims_2d(1))
+         CPASSERT(PRODUCT(dims_nd(map2_2d)) == dims_2d(2))
+         dims_nd_prv = dims_nd
+      ENDIF
 
-      dims_nd(map1_2d) = dims1_nd
-      dims_nd(map2_2d) = dims2_nd
-
-      CALL mp_cart_create(comm_2d, ndim1+ndim2, dims_nd, pos, dbcsr_t_nd_mp_comm)
+      CALL mp_cart_create(comm_2d, ndim1+ndim2, dims_nd_prv, pos, dbcsr_t_nd_mp_comm)
 
    END FUNCTION
 
@@ -520,8 +528,8 @@ CONTAINS
    SUBROUTINE dbcsr_t_get_stored_coordinates(tensor, ind_nd, processor)
       TYPE(dbcsr_t_type), INTENT(IN)               :: tensor
       INTEGER, DIMENSION(ndims_tensor(tensor)), &
-         INTENT(INOUT)                             :: ind_nd
-      INTEGER, INTENT(OUT), OPTIONAL               :: processor
+         INTENT(IN)                                :: ind_nd
+      INTEGER, INTENT(OUT)                         :: processor
 
       INTEGER, DIMENSION(2)                        :: ind_2d
 

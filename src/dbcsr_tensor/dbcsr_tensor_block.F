@@ -103,7 +103,7 @@ MODULE dbcsr_tensor_block
    INTERFACE reshape_nd_to_2d_block
 #:for dparam, dtype, dsuffix in dtype_float_list
 #:for ndim in ndims
-      MODULE PROCEDURE reshape_${ndim}$d_to_2d_block_${dsuffix}$
+      MODULE PROCEDURE reshape_block_t2m_${ndim}$d_${dsuffix}$
 #:endfor
 #:endfor
    END INTERFACE reshape_nd_to_2d_block
@@ -111,7 +111,7 @@ MODULE dbcsr_tensor_block
    INTERFACE reshape_2d_to_nd_block
 #:for dparam, dtype, dsuffix in dtype_float_list
 #:for ndim in ndims
-      MODULE PROCEDURE reshape_2d_to_${ndim}$d_block_${dsuffix}$
+      MODULE PROCEDURE reshape_block_m2t_${ndim}$d_${dsuffix}$
 #:endfor
 #:endfor
    END INTERFACE reshape_2d_to_nd_block
@@ -761,13 +761,14 @@ CONTAINS
 
 #:for dparam, dtype, dsuffix in dtype_float_list
 #:for ndim in ndims
+
 ! **************************************************************************************************
 !> \brief ...
 !> \param map ...
 !> \param block_2d ...
 !> \param block ...
 ! **************************************************************************************************
-   SUBROUTINE reshape_2d_to_${ndim}$d_block_${dsuffix}$(map, block_2d, block)
+   SUBROUTINE reshape_block_m2t_${ndim}$d_${dsuffix}$(map, block_2d, block)
       TYPE(nd_to_2d_mapping), INTENT(IN)                        :: map
       ${dtype}$, DIMENSION(:, :), INTENT(IN)                    :: block_2d
       ${dtype}$, DIMENSION(${arrlist("map%dims_nd", nmax=ndim)}$), &
@@ -782,15 +783,13 @@ CONTAINS
 
 #:for dparam, dtype, dsuffix in dtype_float_list
 #:for ndim in ndims
-#! need to exclude ndim == 2 because reshape_2d_to_2d_block has already been defined
-#:if ndim > 2
 ! **************************************************************************************************
 !> \brief ...
 !> \param map ...
 !> \param block_2d ...
 !> \param block ...
 ! **************************************************************************************************
-   SUBROUTINE reshape_${ndim}$d_to_2d_block_${dsuffix}$(map, block, block_2d)
+   SUBROUTINE reshape_block_t2m_${ndim}$d_${dsuffix}$(map, block, block_2d)
       TYPE(nd_to_2d_mapping), INTENT(IN)                                 :: map
       ${dtype}$, DIMENSION(${arrlist("map%dims_nd", nmax=ndim)}$), INTENT(IN) :: block
       ${dtype}$, DIMENSION(map%dims_2d(1), map%dims_2d(2)), INTENT(OUT)  :: block_2d
@@ -803,7 +802,6 @@ CONTAINS
       CALL allocate_any(block_tmp, source=block, order=map%map_nd)
       block_2d(:, :) = RESHAPE(block_tmp, SHAPE=SHAPE(block_2d))
    END SUBROUTINE
-#:endif
 #:endfor
 #:endfor
 

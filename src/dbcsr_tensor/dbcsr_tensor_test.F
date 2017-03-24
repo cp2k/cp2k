@@ -517,16 +517,43 @@ CONTAINS
 
    END SUBROUTINE
 
+   SUBROUTINE write_tensor_block_indices(tensor, io_unit_master, io_unit_all)
+      TYPE(dbcsr_t_type), INTENT(INOUT)                  :: tensor
+      INTEGER, INTENT(IN)                                :: io_unit_master, io_unit_all
+      TYPE(dbcsr_t_iterator_type)                        :: iterator
+      INTEGER, DIMENSION(dbcsr_t_ndims(tensor))          :: blk_index, blk_size
+      INTEGER                                            :: blk, mynode, numnodes, proc
+
+      IF(io_unit_master > 0) THEN
+         WRITE (io_unit_master, '(T7,A)') "(block index) @ process: size"
+      ENDIF
+
+      CALL dbcsr_t_iterator_start(iterator, tensor)
+      DO WHILE (dbcsr_t_iterator_blocks_left(iterator))
+         CALL dbcsr_t_iterator_next_block(iterator, blk_index, blk, blk_size=blk_size)
+         CALL dbcsr_t_get_stored_coordinates(tensor, blk_index, proc)
+         CALL mp_environ(numnodes, mynode, tensor%comm_nd)
+         CPASSERT(proc .EQ. mynode)
+#:for ndim in ndims
+         IF(dbcsr_t_ndims(tensor) == ${ndim}$) THEN
+            WRITE (io_unit_all, '(T7,A,T16,A,${ndim}$I3,1X,A,1X,I3,A2,${ndim}$I3)') &
+               TRIM(tensor%name),"blk index (", blk_index,") @", proc,":", blk_size
+         ENDIF
+#:endfor
+      ENDDO
+      CALL dbcsr_t_iterator_stop(iterator)
+   END SUBROUTINE
+
 ! **************************************************************************************************
 !> \brief Write all tensor blocks
 !> \param tensor ...
 !> \param io_unit_master for global output
 !> \param io_unit_all for local output
 ! **************************************************************************************************
-   SUBROUTINE write_tensor_blocks(tensor, io_unit_master, io_unit_all)
+   SUBROUTINE write_tensor_blocks(tensor, io_unit_master, io_unit_all, write_int)
       TYPE(dbcsr_t_type), INTENT(INOUT)                  :: tensor
       INTEGER, INTENT(IN)                                :: io_unit_master, io_unit_all
-
+      LOGICAL, INTENT(IN), OPTIONAL                      :: write_int
       INTEGER                                            :: blk
       INTEGER, DIMENSION(dbcsr_t_ndims(tensor))          :: blk_index, blk_size
 #:for ndim in ndims
@@ -534,7 +561,7 @@ CONTAINS
          DIMENSION(${shape_colon(ndim)}$)                :: blk_values_${ndim}$
 #:endfor
       TYPE(dbcsr_t_iterator_type)                        :: iterator
-      INTEGER                                            :: proc
+      INTEGER                                            :: proc, mynode, numnodes
 
       IF(io_unit_master > 0) THEN
          WRITE (io_unit_master, '(T7,A)') "(block index) @ process: (array index) value"
@@ -543,10 +570,13 @@ CONTAINS
       DO WHILE (dbcsr_t_iterator_blocks_left(iterator))
          CALL dbcsr_t_iterator_next_block(iterator, blk_index, blk, blk_size=blk_size)
          CALL dbcsr_t_get_stored_coordinates(tensor, blk_index, proc)
+         CALL mp_environ(numnodes, mynode, tensor%comm_nd)
+         CPASSERT(proc .EQ. mynode)
 #:for ndim in ndims
          IF(dbcsr_t_ndims(tensor) == ${ndim}$) THEN
             CALL dbcsr_t_get_block(tensor, blk_index, blk_values_${ndim}$)
-            CALL write_block(tensor%name, blk_size, blk_index, proc, io_unit_all, blk_values_${ndim}$=blk_values_${ndim}$)
+            CALL write_block(tensor%name, blk_size, blk_index, proc, io_unit_all, &
+                             blk_values_${ndim}$=blk_values_${ndim}$, write_int=write_int)
             DEALLOCATE (blk_values_${ndim}$)
          ENDIF
 #:endfor
@@ -564,7 +594,7 @@ CONTAINS
 !> \param blk_values_2 block values for 2 dimensions
 ! **************************************************************************************************
    SUBROUTINE write_block(name, blk_size, blk_index, proc, unit_nr, &
-                          ${varlist("blk_values",nmin=2)}$)
+                          ${varlist("blk_values",nmin=2)}$, write_int)
 
       CHARACTER(LEN=*), INTENT(IN)                       :: name
       INTEGER, DIMENSION(:), INTENT(IN)                  :: blk_size, blk_index
@@ -573,9 +603,17 @@ CONTAINS
          DIMENSION(${arrlist("blk_size", nmax=ndim)}$), &
          INTENT(IN), OPTIONAL                            :: blk_values_${ndim}$
 #:endfor
+      LOGICAL, INTENT(IN), OPTIONAL                      :: write_int
+      LOGICAL                                            :: write_int_prv
       INTEGER, INTENT(IN)                                :: unit_nr, proc
       INTEGER                                            :: ${varlist("i")}$
       INTEGER                                            :: ndim
+
+      IF(PRESENT(write_int)) THEN
+         write_int_prv = write_int
+      ELSE
+         write_int_prv = .FALSE.
+      ENDIF
 
       ndim = SIZE(blk_size)
 
@@ -585,10 +623,17 @@ CONTAINS
 #:for idim in range(ndim,0,-1)
             DO i_${idim}$ = 1, blk_size(${idim}$)
 #:endfor
-               WRITE (unit_nr, '(T7,A,T16,A,${ndim}$I3,1X,A,1X,I3,A,1X,A,${ndim}$I3,1X,A,1X,I20)') &
-                  TRIM(name),"(", blk_index,") @", proc, ':', &
-                  "(",${varlist("i", nmax=ndim)}$,")", &
-                  INT(blk_values_${ndim}$(${varlist("i", nmax=ndim)}$), KIND=int_8)
+               IF (write_int_prv) THEN
+                  WRITE (unit_nr, '(T7,A,T16,A,${ndim}$I3,1X,A,1X,I3,A,1X,A,${ndim}$I3,1X,A,1X,I20)') &
+                     TRIM(name),"(", blk_index,") @", proc, ':', &
+                     "(",${varlist("i", nmax=ndim)}$,")", &
+                     INT(blk_values_${ndim}$(${varlist("i", nmax=ndim)}$), KIND=int_8)
+               ELSE
+                  WRITE (unit_nr, '(T7,A,T16,A,${ndim}$I3,1X,A,1X,I3,A,1X,A,${ndim}$I3,1X,A,1X,F10.5)') &
+                     TRIM(name),"(", blk_index,") @", proc, ':', &
+                     "(",${varlist("i", nmax=ndim)}$,")", &
+                     blk_values_${ndim}$(${varlist("i", nmax=ndim)}$)
+               ENDIF
 #:for idim in range(ndim,0,-1)
             ENDDO
 #:endfor
@@ -697,12 +742,13 @@ CONTAINS
    SUBROUTINE dbcsr_t_contract_test(tensor_1, tensor_2, tensor_3, &
                                     contract_1, notcontract_1, &
                                     contract_2, notcontract_2, &
-                                    map_1, map_2, unit_nr)
+                                    map_1, map_2, unit_nr, write_int)
       TYPE(dbcsr_t_type), INTENT(INOUT)    :: tensor_1, tensor_2, tensor_3
       INTEGER, DIMENSION(:), INTENT(IN)    :: contract_1, contract_2, &
                                               notcontract_1, notcontract_2,&
                                               map_1, map_2
       INTEGER, INTENT(IN)                  :: unit_nr
+      LOGICAL, INTENT(IN), OPTIONAL        :: write_int
       INTEGER                              :: io_unit, mynode, numnodes, mp_comm
       !INTEGER                              :: iarr, jarr
       INTEGER, DIMENSION(:), ALLOCATABLE   :: size_1, size_2, size_3, &
@@ -723,11 +769,17 @@ CONTAINS
                                              array_3_mm, &
                                              array_3_test_mm
       LOGICAL                             :: eql
+      LOGICAL                             :: debug = .FALSE.
 
       CALL dbcsr_get_info(tensor_1%matrix_rep, group=mp_comm)
       CALL mp_environ(numnodes, mynode, mp_comm)
       io_unit = 0
       IF (mynode .EQ. 0) io_unit = unit_nr
+
+      IF (debug) THEN
+         CALL write_tensor_block_indices(tensor_1, io_unit, unit_nr)
+         CALL write_tensor_blocks(tensor_1, io_unit, unit_nr, write_int)
+      ENDIF
 
       IF(io_unit > 0) THEN
          WRITE(io_unit, *)
