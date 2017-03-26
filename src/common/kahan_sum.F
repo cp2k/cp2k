@@ -28,12 +28,13 @@ MODULE kahan_sum
 
    IMPLICIT NONE
    PRIVATE
-   PUBLIC :: accurate_sum, accurate_sum_arrays_product
+   PUBLIC :: accurate_dot_product, accurate_sum
    INTEGER, PARAMETER :: sp = KIND(0.0), dp = KIND(0.0D0)
    REAL(KIND=sp), PARAMETER :: szero = 0.0_sp
    REAL(KIND=dp), PARAMETER :: dzero = 0.0_dp
    COMPLEX(KIND=sp), PARAMETER :: czero = (0.0_sp, 0.0_sp)
    COMPLEX(KIND=dp), PARAMETER :: zzero = (0.0_dp, 0.0_dp)
+
    INTERFACE accurate_sum
       MODULE PROCEDURE &
          kahan_sum_s1, kahan_sum_d1, kahan_sum_c1, kahan_sum_z1, &
@@ -44,9 +45,13 @@ MODULE kahan_sum
          kahan_sum_s6, kahan_sum_d6, kahan_sum_c6, kahan_sum_z6, &
          kahan_sum_s7, kahan_sum_d7, kahan_sum_c7, kahan_sum_z7
    END INTERFACE accurate_sum
-   INTERFACE accurate_sum_arrays_product
-      MODULE PROCEDURE kahan_sum_arrays_product_masked_d3
-   END INTERFACE
+
+   INTERFACE accurate_dot_product
+      MODULE PROCEDURE &
+         kahan_dot_product_d1, &
+         kahan_dot_product_s2, kahan_dot_product_d2, &
+         kahan_dot_product_masked_d3
+   END INTERFACE accurate_dot_product
 CONTAINS
 ! **************************************************************************************************
 !> \brief ...
@@ -117,6 +122,30 @@ CONTAINS
          ENDDO
       ENDIF
    END FUNCTION kahan_sum_d1
+
+! **************************************************************************************************
+!> \brief computes the accurate sum of an array that is the element wise product of two input arrays.
+!> \param array1 the first input array to compute the product array
+!> \param array2 the second input array to compute the product array
+!> \retval ks the result of the summation
+! **************************************************************************************************
+   FUNCTION kahan_dot_product_d1(array1, array2) RESULT(ks)
+      REAL(KIND=dp), DIMENSION(:), INTENT(in)            :: array1, array2
+      REAL(KIND=dp)                                      :: ks
+
+      INTEGER                                            :: i, n
+      REAL(KIND=dp)                                      :: c, t, y
+
+      ks = dzero; t = dzero; y = dzero; c = dzero
+
+      n = SIZE(array1)
+      DO i = 1, n
+         y = array1(i)*array2(i)-c
+         t = ks+y
+         c = (t-ks)-y
+         ks = t
+      END DO
+   END FUNCTION kahan_dot_product_d1
 
 ! **************************************************************************************************
 !> \brief ...
@@ -228,6 +257,33 @@ CONTAINS
    END FUNCTION kahan_sum_s2
 
 ! **************************************************************************************************
+!> \brief computes the accurate sum of an array that is the element wise product of two input arrays.
+!> \param array1 the first input array to compute the product array
+!> \param array2 the second input array to compute the product array
+!> \retval ks the result of the summation
+! **************************************************************************************************
+   FUNCTION kahan_dot_product_s2(array1, array2) RESULT(ks)
+      REAL(KIND=sp), DIMENSION(:, :), INTENT(in)         :: array1, array2
+      REAL(KIND=dp)                                      :: ks
+
+      INTEGER                                            :: i1, i2, n1, n2
+      REAL(KIND=dp)                                      :: c, t, y
+
+      ks = dzero; t = dzero; y = dzero; c = dzero
+
+      n1 = SIZE(array1, 1)
+      n2 = SIZE(array1, 2)
+      DO i2 = 1, n2
+         DO i1 = 1, n1
+            y = REAL(array1(i1, i2), dp)*REAL(array2(i1, i2), dp)-c
+            t = ks+y
+            c = (t-ks)-y
+            ks = t
+         END DO
+      END DO
+   END FUNCTION kahan_dot_product_s2
+
+! **************************************************************************************************
 !> \brief ...
 !> \param array ...
 !> \param mask ...
@@ -265,6 +321,33 @@ CONTAINS
          ENDDO
       ENDIF
    END FUNCTION kahan_sum_d2
+
+! **************************************************************************************************
+!> \brief computes the accurate sum of an array that is the element wise product of two input arrays.
+!> \param array1 the first input array to compute the product array
+!> \param array2 the second input array to compute the product array
+!> \retval ks the result of the summation
+! **************************************************************************************************
+   FUNCTION kahan_dot_product_d2(array1, array2) RESULT(ks)
+      REAL(KIND=dp), DIMENSION(:, :), INTENT(in)         :: array1, array2
+      REAL(KIND=dp)                                      :: ks
+
+      INTEGER                                            :: i1, i2, n1, n2
+      REAL(KIND=dp)                                      :: c, t, y
+
+      ks = dzero; t = dzero; y = dzero; c = dzero
+
+      n1 = SIZE(array1, 1)
+      n2 = SIZE(array1, 2)
+      DO i2 = 1, n2
+         DO i1 = 1, n1
+            y = array1(i1, i2)*array2(i1, i2)-c
+            t = ks+y
+            c = (t-ks)-y
+            ks = t
+         END DO
+      END DO
+   END FUNCTION kahan_dot_product_d2
 
 ! **************************************************************************************************
 !> \brief ...
@@ -440,7 +523,7 @@ CONTAINS
 !>           included in the sum
 !> \retval ks the result of the summation
 ! **************************************************************************************************
-   FUNCTION kahan_sum_arrays_product_masked_d3(array1, array2, mask, th) RESULT(ks)
+   FUNCTION kahan_dot_product_masked_d3(array1, array2, mask, th) RESULT(ks)
       REAL(KIND=dp), DIMENSION(:, :, :), INTENT(IN), &
          POINTER                                         :: array1, array2, mask
       REAL(KIND=dp), INTENT(in)                          :: th
@@ -463,8 +546,7 @@ CONTAINS
       ENDDO
       ENDDO
       ENDDO
-
-   END FUNCTION kahan_sum_arrays_product_masked_d3
+   END FUNCTION kahan_dot_product_masked_d3
 
 ! **************************************************************************************************
 !> \brief ...

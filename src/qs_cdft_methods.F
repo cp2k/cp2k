@@ -31,8 +31,8 @@ MODULE qs_cdft_methods
                                               ref_charge_mulliken
    USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                               section_vals_type
-   USE kahan_sum,                       ONLY: accurate_sum,&
-                                              accurate_sum_arrays_product
+   USE kahan_sum,                       ONLY: accurate_dot_product,&
+                                              accurate_sum
    USE kinds,                           ONLY: dp,&
                                               int_8
    USE message_passing,                 ONLY: mp_sum
@@ -822,8 +822,8 @@ CONTAINS
                IF (igroup /= 1) &
                   CALL cp_abort(__LOCATION__, &
                                 "Multiple constraints not yet supported by parallel mixed calculations.")
-               dE(igroup) = dE(igroup)+sign*accurate_sum_arrays_product(group(igroup)%weight%pw%cr3d, rho_r(i)%pw%cr3d, &
-                                                                        becke_control%cavity_mat, eps_cavity)*dvol
+               dE(igroup) = dE(igroup)+sign*accurate_dot_product(group(igroup)%weight%pw%cr3d, rho_r(i)%pw%cr3d, &
+                                                                 becke_control%cavity_mat, eps_cavity)*dvol
             ELSE
                dE(igroup) = dE(igroup)+sign*accurate_sum(group(igroup)%weight%pw%cr3d*rho_r(i)%pw%cr3d)*dvol
             END IF
@@ -893,8 +893,8 @@ CONTAINS
                              "Absolute weight required for Becke deformation density.")
             IF (becke_control%external_control .AND. becke_control%cavity_confine) THEN
                becke_control%target(1) = becke_control%target(1)+ &
-                                         accurate_sum_arrays_product(group(1)%weight%pw%cr3d, rho_frag%pw%cr3d, &
-                                                                     becke_control%cavity_mat, eps_cavity)*dvol
+                                         accurate_dot_product(group(1)%weight%pw%cr3d, rho_frag%pw%cr3d, &
+                                                              becke_control%cavity_mat, eps_cavity)*dvol
             ELSE
                becke_control%target(1) = becke_control%target(1)+accurate_sum(group(1)%weight%pw%cr3d*rho_frag%pw%cr3d)*dvol
             END IF

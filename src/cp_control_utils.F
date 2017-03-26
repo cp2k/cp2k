@@ -1074,7 +1074,7 @@ CONTAINS
    END SUBROUTINE read_tddfpt_control
 
 ! **************************************************************************************************
-!> \brief Read TDDFPT-related input parameters
+!> \brief Read TDDFPT-related input parameters.
 !> \param t_control  TDDFPT control parameters
 !> \param t_section  TDDFPT input section
 !> \param qs_control Quickstep control parameters
@@ -1097,26 +1097,20 @@ CONTAINS
       CALL section_vals_val_get(t_section, "_SECTION_PARAMETERS_", l_val=t_control%enabled)
 
       CALL section_vals_val_get(t_section, "NSTATES", i_val=t_control%nstates)
-      CALL section_vals_val_get(t_section, "ADDED_STATES", i_val=t_control%added_states)
       CALL section_vals_val_get(t_section, "MAX_ITER", i_val=t_control%niters)
       CALL section_vals_val_get(t_section, "MAX_KV", i_val=t_control%nkvs)
       CALL section_vals_val_get(t_section, "MAX_REORTHO", i_val=t_control%nreortho)
       CALL section_vals_val_get(t_section, "NPROC_STATE", i_val=t_control%nprocs)
 
       CALL section_vals_val_get(t_section, "CONVERGENCE", r_val=t_control%conv)
-      CALL section_vals_val_get(t_section, "DEGENERATE_EPS", r_val=t_control%degenerate_eps)
       CALL section_vals_val_get(t_section, "MIN_AMPLITUDE", r_val=t_control%min_excitation_amplitude)
       CALL section_vals_val_get(t_section, "ORTHOGONAL_EPS", r_val=t_control%orthogonal_eps)
 
-      CALL section_vals_val_get(t_section, "ADD_DEGENERATE_STATES", l_val=t_control%add_degenerate)
       CALL section_vals_val_get(t_section, "RESTART", l_val=t_control%is_restart)
       CALL section_vals_val_get(t_section, "RKS_TRIPLETS", l_val=t_control%rks_triplets)
 
       IF (t_control%conv < 0) &
          t_control%conv = ABS(t_control%conv)
-
-      IF (t_control%degenerate_eps < 0) &
-         t_control%degenerate_eps = ABS(t_control%degenerate_eps)
 
       ! DIPOLE_MOMENTS subsection
       dipole_section => section_vals_get_subs_vals(t_section, "DIPOLE_MOMENTS")

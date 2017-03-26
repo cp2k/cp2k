@@ -366,15 +366,13 @@ MODULE cp_control_types
    END TYPE tddfpt_control_type
 
 ! **************************************************************************************************
-! \brief Control parameters for a Time-Dependent DFT calculation
+! \brief Control parameters for a Time-Dependent DFT calculation.
 ! **************************************************************************************************
    TYPE tddfpt2_control_type
       !> compute TDDFPT excitation energies and oscillator strengths
       LOGICAL                              :: enabled
       !> number of excited states to converge
       INTEGER                              :: nstates
-      !> number of additional excited states in the active space
-      INTEGER                              :: added_states
       !> maximal number of iterations to be performed
       INTEGER                              :: niters
       !> maximal number of Krylov space vectors
@@ -385,15 +383,11 @@ MODULE cp_control_types
       INTEGER                              :: nreortho
       !> target accuracy
       REAL(kind=dp)                        :: conv
-      !> energy threshold which controls when excited states are considered to be degenerate
-      REAL(kind=dp)                        :: degenerate_eps
       !> the smallest excitation amplitude to print
       REAL(kind=dp)                        :: min_excitation_amplitude
       !> threshold which controls when two wave functions considered to be orthogonal:
       !> maxabs(Ci^T * S * Cj) <= orthogonal_eps
       REAL(kind=dp)                        :: orthogonal_eps
-      !> should all degenerate excited states be automatically added to the active space
-      LOGICAL                              :: add_degenerate
       !> read guess wave functions from restart file if exists
       LOGICAL                              :: is_restart
       !> compute triplet excited states using spin-unpolarised molecular orbitals
