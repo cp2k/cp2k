@@ -1727,12 +1727,12 @@ CONTAINS
 !>       Mohamed Fawzi on 10.2002.
 ! **************************************************************************************************
    SUBROUTINE tddfpt_apply_coulomb(A_ia_munu, rho_ia_g, qs_env, pw_env, task_list, v_gspace, v_rspace, J_ia_munu)
-      TYPE(dbcsr_p_type), DIMENSION(:), INTENT(in)       :: A_ia_munu
+      TYPE(dbcsr_p_type), DIMENSION(:), INTENT(inout)    :: A_ia_munu
       TYPE(pw_type), POINTER                             :: rho_ia_g
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(pw_env_type), POINTER                         :: pw_env
       TYPE(task_list_type), POINTER                      :: task_list
-      TYPE(pw_p_type), INTENT(in)                        :: v_gspace, v_rspace
+      TYPE(pw_p_type), INTENT(inout)                     :: v_gspace, v_rspace
       TYPE(dbcsr_p_type), INTENT(inout)                  :: J_ia_munu
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'tddfpt_apply_coulomb', &
