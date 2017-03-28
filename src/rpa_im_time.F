@@ -45,7 +45,7 @@ MODULE rpa_im_time
 
    PUBLIC :: compute_mat_P_omega, &
              setup_mat_for_mem_cut_3c, &
-             communicate_buffer, get_mat_3c_overl_int_gw, reserve_blocks_from_overlap_matrix
+             communicate_buffer, get_mat_3c_overl_int_gw
 
 CONTAINS
 
@@ -2700,17 +2700,13 @@ CONTAINS
 !> \param para_env ...
 !> \param para_env_sub ...
 !> \param cut_RI ...
-!> \param non_zero_blocks_3c ...
-!> \param starts_array_cm ...
-!> \param ends_array_cm ...
 !> \param row_from_LLL ...
 !> \param my_group_L_starts_im_time ...
 !> \param my_group_L_sizes_im_time ...
 ! **************************************************************************************************
    SUBROUTINE get_mat_3c_overl_int_gw(mat_3c_overl_int, mat_3c_overl_int_gw, mo_coeff, matrix_s, &
                                       gw_corr_lev_occ, gw_corr_lev_virt, homo, nmo, mat_dm_virt_local, &
-                                      para_env, para_env_sub, cut_RI, non_zero_blocks_3c, &
-                                      starts_array_cm, ends_array_cm, row_from_LLL, &
+                                      para_env, para_env_sub, cut_RI, row_from_LLL, &
                                       my_group_L_starts_im_time, my_group_L_sizes_im_time)
 
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: mat_3c_overl_int, mat_3c_overl_int_gw
@@ -2721,8 +2717,6 @@ CONTAINS
       TYPE(dbcsr_p_type)                                 :: mat_dm_virt_local
       TYPE(cp_para_env_type), POINTER                    :: para_env, para_env_sub
       INTEGER                                            :: cut_RI
-      INTEGER, ALLOCATABLE, DIMENSION(:, :, :)           :: non_zero_blocks_3c
-      INTEGER, DIMENSION(:), POINTER                     :: starts_array_cm, ends_array_cm
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: row_from_LLL, my_group_L_starts_im_time, &
                                                             my_group_L_sizes_im_time
 
@@ -2771,8 +2765,7 @@ CONTAINS
                         matrix_type=dbcsr_type_no_symmetry)
 
       CALL replicate_mat_to_subgroup_simple(para_env, para_env_sub, mat_mo_coeff_gw, nmo, &
-                                            mat_mo_coeff_gw_local, starts_array_cm, ends_array_cm, &
-                                            cut_RI, non_zero_blocks_3c)
+                                            mat_mo_coeff_gw_local)
 
       NULLIFY (mat_3c_overl_int_gw_for_mult)
       CALL dbcsr_allocate_matrix_set(mat_3c_overl_int_gw_for_mult, cut_RI)
@@ -3189,70 +3182,19 @@ CONTAINS
 
 ! **************************************************************************************************
 !> \brief ...
-!> \param mat_3c_overl_int_gw ...
-!> \param matrix_s ...
-!> \param tot_num_levels_gw ...
-!> \param para_env ...
-! **************************************************************************************************
-   SUBROUTINE reserve_blocks_from_overlap_matrix(mat_3c_overl_int_gw, matrix_s, tot_num_levels_gw, para_env)
-
-      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: mat_3c_overl_int_gw, matrix_s
-      INTEGER                                            :: tot_num_levels_gw
-      TYPE(cp_para_env_type), POINTER                    :: para_env
-
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'reserve_blocks_from_overlap_matrix', &
-         routineP = moduleN//':'//routineN
-
-!      CALL timeset(routineN, handle)
-!
-!      num_blocks_local = 0
-!
-!      CALL dbcsr_iterator_start(iter, matrix_s(1)%matrix)
-!      DO WHILE (dbcsr_iterator_blocks_left(iter))
-!
-!         CALL dbcsr_iterator_next_block(iter, row, col, data_block)
-!
-!         num_blocks_local = num_blocks_local + 1
-!
-!      END DO
-!
-!      CALL dbcsr_iterator_stop(iter)
-!
-!      CALL mp_sum(num_blocks_local, para_env%group)
-!
-!      ALLOCATE(rows_to_allocate())
-!
-!
-!
-!
-!
-!      CALL timestop(handle)
-
-   END SUBROUTINE
-
-! **************************************************************************************************
-!> \brief ...
 !> \param para_env ...
 !> \param para_env_sub ...
 !> \param mat_dm_global ...
 !> \param nmo ...
 !> \param mat_local ...
-!> \param starts_array_cm ...
-!> \param ends_array_cm ...
-!> \param cut_RI ...
-!> \param non_zero_blocks_3c ...
 ! **************************************************************************************************
    SUBROUTINE replicate_mat_to_subgroup_simple(para_env, para_env_sub, mat_dm_global, nmo, &
-                                               mat_local, starts_array_cm, ends_array_cm, &
-                                               cut_RI, non_zero_blocks_3c)
+                                               mat_local)
 
       TYPE(cp_para_env_type), POINTER                    :: para_env, para_env_sub
       TYPE(dbcsr_type), POINTER                          :: mat_dm_global
       INTEGER                                            :: nmo
       TYPE(dbcsr_type), POINTER                          :: mat_local
-      INTEGER, DIMENSION(:)                              :: starts_array_cm, ends_array_cm
-      INTEGER                                            :: cut_RI
-      INTEGER, ALLOCATABLE, DIMENSION(:, :, :)           :: non_zero_blocks_3c
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'replicate_mat_to_subgroup_simple', &
          routineP = moduleN//':'//routineN

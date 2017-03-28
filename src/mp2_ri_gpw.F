@@ -775,7 +775,7 @@ CONTAINS
 
          CALL reserve_blocks_3c(mat_3c_overl_int, mat_munu, qs_env, dimen_RI, cut_RI, &
                                 my_group_L_starts_im_time, my_group_L_ends_im_time, &
-                                my_group_L_sizes_im_time, sab_orb_sub, sab_orb_all, para_env=para_env)
+                                my_group_L_sizes_im_time, sab_orb_sub, sab_orb_all)
 
          ! if we do modified atomic orbitals for the primary basis (one MAO basis for D^occ one for D^virt, then
          ! we also need different 3-center overlap matrix elements!
@@ -1290,19 +1290,10 @@ CONTAINS
          routineP = moduleN//':'//routineN
 
       INTEGER                                            :: handle
-      LOGICAL                                            :: do_inversion
       REAL(KIND=dp)                                      :: eps_pgf_orb_old
       TYPE(cp_fm_type), POINTER                          :: fm_matrix_S_inv_work
 
       CALL timeset(routineN, handle)
-
-      ! we have to invert the Coulomb matrix V_PQ only when doing RI with the Coulomb metric
-
-      IF (ri_metric == ri_coulomb) THEN
-         do_inversion = .TRUE.
-      ELSE IF (ri_metric == ri_overlap) THEN
-         do_inversion = .FALSE.
-      END IF
 
       ! calculate V and store it in fm_matrix_L
       CALL compute_2c_integrals(qs_env, eri_method, eri_param, para_env, para_env_sub, para_env_L, mp2_memory, &
@@ -1310,7 +1301,7 @@ CONTAINS
                                 mo_coeff, dft_control, psi_L, rho_r, rho_g, pot_g, pw_env_sub, poisson_env, &
                                 my_group_L_size, my_group_L_start, my_group_L_end, sab_orb_sub, &
                                 sizes_array, starts_array, ends_array, calc_PQ_cond_num, cond_num, &
-                                num_small_eigen, auxbas_pw_pool, do_mult_2c, do_inversion, do_im_time=do_im_time)
+                                num_small_eigen, auxbas_pw_pool, do_mult_2c, do_im_time=do_im_time)
 
       IF (ri_metric == ri_coulomb) THEN
 
@@ -1348,7 +1339,7 @@ CONTAINS
                                       mo_coeff, dft_control, psi_L, rho_r, rho_g, pot_g, pw_env_sub, poisson_env, &
                                       my_group_L_size, my_group_L_start, my_group_L_end, sab_orb_sub, &
                                       sizes_array, starts_array, ends_array, calc_PQ_cond_num, cond_num, &
-                                      num_small_eigen, auxbas_pw_pool, do_mult_2c=.FALSE., do_inversion=.TRUE., &
+                                      num_small_eigen, auxbas_pw_pool, do_mult_2c=.FALSE., &
                                       external_matrix_struc=.TRUE., fm_matrix_L_extern=fm_matrix_L, &
                                       ri_metric=ri_metric)
 
@@ -1528,7 +1519,6 @@ CONTAINS
 !> \param num_small_eigen ...
 !> \param auxbas_pw_pool ...
 !> \param do_mult_2c ...
-!> \param do_inversion ...
 !> \param external_matrix_struc ...
 !> \param do_im_time ...
 !> \param fm_matrix_L_extern ...
@@ -1539,7 +1529,7 @@ CONTAINS
                                    mo_coeff, dft_control, psi_L, rho_r, rho_g, pot_g, pw_env_sub, poisson_env, &
                                    my_group_L_size, my_group_L_start, my_group_L_end, sab_orb_sub, &
                                    sizes_array, starts_array, ends_array, calc_PQ_cond_num, cond_num, &
-                                   num_small_eigen, auxbas_pw_pool, do_mult_2c, do_inversion, &
+                                   num_small_eigen, auxbas_pw_pool, do_mult_2c, &
                                    external_matrix_struc, do_im_time, fm_matrix_L_extern, ri_metric)
       TYPE(qs_environment_type), POINTER                 :: qs_env
       INTEGER                                            :: eri_method
@@ -1562,7 +1552,7 @@ CONTAINS
       REAL(KIND=dp)                                      :: cond_num
       INTEGER                                            :: num_small_eigen
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
-      LOGICAL                                            :: do_mult_2c, do_inversion
+      LOGICAL                                            :: do_mult_2c
       LOGICAL, OPTIONAL                                  :: external_matrix_struc, do_im_time
       TYPE(cp_fm_type), OPTIONAL, POINTER                :: fm_matrix_L_extern
       INTEGER, OPTIONAL                                  :: ri_metric
@@ -2665,7 +2655,7 @@ CONTAINS
 
          CALL fill_fm_L_from_L_loc_non_blocking(fm_matrix_L, L_local_col, para_env, &
                                                 my_group_L_start, my_group_L_end, &
-                                                my_group_L_size, dimen_RI)
+                                                dimen_RI)
 
       ELSE
 
@@ -2793,16 +2783,15 @@ CONTAINS
 !> \param para_env ...
 !> \param my_group_L_start ...
 !> \param my_group_L_end ...
-!> \param my_group_L_size ...
 !> \param dimen_RI ...
 ! **************************************************************************************************
    SUBROUTINE fill_fm_L_from_L_loc_non_blocking(fm_matrix_L, L_local_col, para_env, my_group_L_start, &
-                                                my_group_L_end, my_group_L_size, dimen_RI)
+                                                my_group_L_end, dimen_RI)
       TYPE(cp_fm_type), POINTER                          :: fm_matrix_L
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: L_local_col
       TYPE(cp_para_env_type), POINTER                    :: para_env
       INTEGER                                            :: my_group_L_start, my_group_L_end, &
-                                                            my_group_L_size, dimen_RI
+                                                            dimen_RI
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'fill_fm_L_from_L_loc_non_blocking', &
          routineP = moduleN//':'//routineN
@@ -7906,12 +7895,11 @@ CONTAINS
 !> \param sab_orb_sub ...
 !> \param sab_orb_all ...
 !> \param local_atoms_for_mao_basis ...
-!> \param para_env ...
 ! **************************************************************************************************
    SUBROUTINE reserve_blocks_3c(mat_3c_overl_int, mat_munu, qs_env, dimen_RI, &
                                 cut_RI, my_group_L_starts_im_time, my_group_L_ends_im_time, &
                                 my_group_L_sizes_im_time, sab_orb_sub, sab_orb_all, &
-                                local_atoms_for_mao_basis, para_env)
+                                local_atoms_for_mao_basis)
 
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: mat_3c_overl_int
       TYPE(dbcsr_p_type)                                 :: mat_munu
@@ -7923,7 +7911,6 @@ CONTAINS
       TYPE(neighbor_list_set_p_type), DIMENSION(:), &
          POINTER                                         :: sab_orb_sub, sab_orb_all
       INTEGER, ALLOCATABLE, DIMENSION(:), OPTIONAL       :: local_atoms_for_mao_basis
-      TYPE(cp_para_env_type), OPTIONAL, POINTER          :: para_env
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'reserve_blocks_3c', &
          routineP = moduleN//':'//routineN
