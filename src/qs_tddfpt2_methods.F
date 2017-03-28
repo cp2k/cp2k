@@ -517,7 +517,7 @@ CONTAINS
          CALL cp_print_key_finished_output(energy_unit, logger, tddfpt_print_section, "DETAILED_ENERGY")
          CALL cp_print_key_finished_output(log_unit, logger, tddfpt_print_section, "ITERATION_INFO")
       ELSE
-         CALL cp_warn(__LOCATION__, "Skipping TDDFPT wavefinction optimization")
+         CALL cp_warn(__LOCATION__, "Skipping TDDFPT wavefunction optimization")
       END IF
 
       ! *** print summary information ***
@@ -2976,7 +2976,7 @@ CONTAINS
             !        This difficulty can be avoided by prescreening the matrix elements beforehand
             !        and sort only significant ones (>= min_amplitude)
             nmo_virt_occ_alpha = nmo_virt(1)*nmo_occ(1)
-            nmo_virt_occ = DOT_PRODUCT(nmo_virt(:), nmo_occ(:))
+            nmo_virt_occ = DOT_PRODUCT(nmo_virt(1:nspins), nmo_occ(1:nspins))
             ALLOCATE (weights_1d(nmo_virt_occ), weights_neg_abs_1d(nmo_virt_occ), inds(nmo_virt_occ))
          END IF
 
@@ -3104,7 +3104,7 @@ CONTAINS
 
          IF (ounit > 0) THEN
             WRITE (ounit) nstates, nspins, nao
-            WRITE (ounit) nmo_occ
+            WRITE (ounit) nmo_occ(1:nspins)
             WRITE (ounit) evals
          END IF
 
@@ -3122,6 +3122,7 @@ CONTAINS
                CALL cp_fm_column_scale(evects(ispin, istate)%matrix, gs_mos(ispin)%phases_occ)
 
                CALL cp_fm_write_unformatted(evects(ispin, istate)%matrix, ounit)
+
                CALL cp_fm_column_scale(evects(ispin, istate)%matrix, gs_mos(ispin)%phases_occ)
             END DO
          END DO
