@@ -2341,8 +2341,7 @@ CONTAINS
 
             CALL get_mat_3c_overl_int_gw(mat_3c_overl_int, mat_3c_overl_int_gw, mo_coeff, matrix_s, &
                                          gw_corr_lev_occ, gw_corr_lev_virt, homo, nmo, mat_dm_virt_local, &
-                                         para_env, para_env_sub, cut_RI, non_zero_blocks_3c, &
-                                         starts_array_cm, ends_array_cm, row_from_LLL, &
+                                         para_env, para_env_sub, cut_RI, row_from_LLL, &
                                          my_group_L_starts_im_time, my_group_L_sizes_im_time)
 
             NULLIFY (fm_mat_W_tau)
