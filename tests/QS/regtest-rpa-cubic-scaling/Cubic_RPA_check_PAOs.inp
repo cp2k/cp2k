@@ -40,12 +40,12 @@
         METHOD  RI_RPA_GPW
         RI OVERLAP
         &WFC_GPW
-          OBARA_SAIKA_OVERLAP TRUE
           ! normally, this EPS_FILTER controls the accuracy and 
           ! the time for the cubic_scaling RPA calculation
           EPS_FILTER  1.0E-6
         &END
-        ERI_METHOD MME
+!        ERI_METHOD MME
+        ERI_METHOD OS
         &RI_RPA
           RPA_NUM_QUAD_POINTS  6
           MINIMAX

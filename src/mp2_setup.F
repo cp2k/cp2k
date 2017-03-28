@@ -95,10 +95,12 @@ CONTAINS
                                 l_val=mp2_env%mp2_gpw%do_mult_2c)
       CALL section_vals_val_get(mp2_section, "WFC_GPW%PRINT_LEVEL", &
                                 i_val=mp2_env%mp2_gpw%print_level)
-      CALL section_vals_val_get(mp2_section, "WFC_GPW%OBARA_SAIKA_OVERLAP", &
-                                l_val=mp2_env%mp2_gpw%do_os)
       CALL section_vals_val_get(mp2_section, "WFC_GPW%EPS_PGF_ORB_S", &
                                 r_val=mp2_env%mp2_gpw%eps_pgf_orb_S)
+      CALL section_vals_val_get(mp2_section, "WFC_GPW%DO_CHOLESKY_SUBGROUPS", &
+                                l_val=mp2_env%mp2_gpw%do_chol_subgrp)
+      CALL section_vals_val_get(mp2_section, "WFC_GPW%SIZE_CHOLESKY_SUBGROUP", &
+                                i_val=mp2_env%mp2_gpw%size_chol_from_input)
 
       CALL section_vals_val_get(mp2_section, "RI_RPA%RPA_NUM_QUAD_POINTS", &
                                 i_val=mp2_env%ri_rpa%rpa_num_quad_points)
@@ -183,6 +185,8 @@ CONTAINS
                                 l_val=mp2_env%ri_g0w0%do_aux_bas_gw)
       CALL section_vals_val_get(mp2_section, "RI_RPA%RI_G0W0%PERIODIC%FRACTION_AUX_MOS", &
                                 r_val=mp2_env%ri_g0w0%frac_aux_mos)
+      CALL section_vals_val_get(mp2_section, "RI_RPA%RI_G0W0%PERIODIC%NUM_OMEGA_POINTS", &
+                                i_val=mp2_env%ri_g0w0%num_omega_points)
 
       CALL section_vals_val_get(mp2_section, "RI_RPA%IM_TIME%MEMORY_CUT", &
                                 i_val=mp2_env%ri_rpa_im_time%cut_memory)
@@ -216,6 +220,9 @@ CONTAINS
                                 i_val=mp2_env%ri_rpa_im_time%num_points_per_magnitude)
       CALL section_vals_val_get(mp2_section, "RI_RPA%IM_TIME%EPS_FILTER_IM_TIME", &
                                 r_val=mp2_env%ri_rpa_im_time%eps_filter_im_time)
+
+      CALL section_vals_val_get(mp2_section, "RI_RPA%IM_TIME%RI_G0W0", &
+                                l_val=mp2_env%ri_rpa_im_time%do_gw_im_time)
 
       CALL section_vals_val_get(mp2_section, "RI_LAPLACE%QUADRATURE_POINTS", &
                                 i_val=mp2_env%ri_laplace%n_quadrature)

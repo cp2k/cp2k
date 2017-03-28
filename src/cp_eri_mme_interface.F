@@ -11,6 +11,9 @@
 ! **************************************************************************************************
 
 MODULE cp_eri_mme_interface
+   USE ai_contraction_sphi,             ONLY: ab_contract,&
+                                              abc_contract
+   USE ai_coulomb,                      ONLY: coulomb2_new
    USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                               get_atomic_kind_set
    USE basis_set_types,                 ONLY: gto_basis_set_p_type,&
@@ -28,16 +31,20 @@ MODULE cp_eri_mme_interface
    USE dbcsr_api,                       ONLY: dbcsr_get_block_p,&
                                               dbcsr_p_type
    USE eri_mme_integrate,               ONLY: eri_mme_2c_integrate,&
-                                              eri_mme_2c_integrate_set,&
-                                              eri_mme_3c_integrate_set
+                                              eri_mme_3c_integrate
    USE eri_mme_test,                    ONLY: eri_mme_2c_perf_acc_test,&
                                               eri_mme_3c_perf_acc_test
+   USE eri_mme_types,                   ONLY: eri_mme_param
+   USE input_constants,                 ONLY: do_eri_gpw,&
+                                              do_eri_mme,&
+                                              do_eri_os
    USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                               section_vals_type,&
                                               section_vals_val_get
    USE kinds,                           ONLY: dp
    USE message_passing,                 ONLY: mp_sum
-   USE orbital_pointers,                ONLY: init_orbital_pointers
+   USE orbital_pointers,                ONLY: init_orbital_pointers,&
+                                              ncoset
    USE particle_types,                  ONLY: particle_type
    USE qs_environment_types,            ONLY: get_qs_env,&
                                               qs_environment_type
@@ -80,22 +87,26 @@ CONTAINS
 !> \param hab columns of ERI matrix
 !> \param first_b first column of hab
 !> \param last_b last column of hab
+!> \param eri_method ...
 ! **************************************************************************************************
-   SUBROUTINE cp_eri_mme_2c_integrate(param, para_env, qs_env, basis_type_a, basis_type_b, hab, first_b, last_b)
+   SUBROUTINE cp_eri_mme_2c_integrate(param, para_env, qs_env, basis_type_a, basis_type_b, hab, first_b, last_b, &
+                                      eri_method)
       TYPE(cp_eri_mme_param), INTENT(INOUT)              :: param
       TYPE(cp_para_env_type), INTENT(IN), POINTER        :: para_env
       TYPE(qs_environment_type), INTENT(IN), POINTER     :: qs_env
       CHARACTER(len=*), INTENT(IN), OPTIONAL             :: basis_type_a, basis_type_b
       REAL(KIND=dp), DIMENSION(:, :), INTENT(INOUT)      :: hab
       INTEGER, INTENT(IN)                                :: first_b, last_b
+      INTEGER, INTENT(IN), OPTIONAL                      :: eri_method
 
       CHARACTER(len=*), PARAMETER :: routineN = 'cp_eri_mme_2c_integrate', &
          routineP = moduleN//':'//routineN
 
       INTEGER :: atom_end, atom_start, first_set, G_count, handle, iatom, ikind, iset, jatom, &
-         jkind, jset, jset_end, jset_start, last_set, my_setpair, n_setpair, natom, nkind, nseta, &
-         nseta_total, nsetb, nsetb_total, offset_a_end, offset_a_start, offset_b_end, &
-         offset_b_start, R_count, set_end, set_offset_end, set_offset_start, set_start, sgfa, sgfb
+         jkind, jset, jset_end, jset_start, last_set, my_eri_method, my_setpair, n_setpair, natom, &
+         nkind, nseta, nseta_total, nsetb, nsetb_total, offset_a_end, offset_a_start, &
+         offset_b_end, offset_b_start, R_count, set_end, set_offset_end, set_offset_start, &
+         set_start, sgfa, sgfb
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: kind_of
       INTEGER, ALLOCATABLE, DIMENSION(:, :)              :: eri_offsets
       INTEGER, DIMENSION(:), POINTER                     :: la_max, la_min, lb_max, lb_min, npgfa, &
@@ -113,6 +124,9 @@ CONTAINS
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
 
       CALL timeset(routineN, handle)
+
+      my_eri_method = do_eri_mme
+      IF (PRESENT(eri_method)) my_eri_method = eri_method
 
       G_count = 0; R_count = 0; 
       ! get mapping between ERIs and atoms, sets, set offsets
@@ -209,13 +223,14 @@ CONTAINS
 
                   IF (map_it_here) THEN
                      ALLOCATE (hab_full_set(nsgfa(iset), nsgfb(jset)))
+
                      CALL eri_mme_2c_integrate_set(param%par, &
                                                    la_min(iset), la_max(iset), lb_min(jset), lb_max(jset), &
                                                    npgfa(iset), zeta(:, iset), npgfb(jset), zetb(:, jset), &
                                                    ra, rb, &
                                                    hab_full_set, 1, 1, &
                                                    sphi_a, sgfa, nsgfa(iset), &
-                                                   sphi_b, sgfb, nsgfb(jset), G_count, R_count)
+                                                   sphi_b, sgfb, nsgfb(jset), my_eri_method, G_count, R_count)
 
                      hab(offset_a_start+1:offset_a_end, offset_b_start+1:offset_b_end) = &
                         hab_full_set(:, first_set:last_set)
@@ -226,12 +241,117 @@ CONTAINS
          ENDDO
       ENDDO
 
-      CALL update_local_counts(param, para_env, G_count_2c=G_count, R_count_2c=R_count)
+      IF (my_eri_method == do_eri_mme) THEN
+
+         CALL update_local_counts(param, para_env, G_count_2c=G_count, R_count_2c=R_count)
+
+      END IF
 
       CALL mp_sum(hab, para_env%group)
 
       CALL timestop(handle)
    END SUBROUTINE cp_eri_mme_2c_integrate
+
+! **************************************************************************************************
+!> \brief Integrate set pair and contract with sphi matrix.
+!> \param param ...
+!> \param la_min ...
+!> \param la_max ...
+!> \param lb_min ...
+!> \param lb_max ...
+!> \param npgfa ...
+!> \param zeta ...
+!> \param npgfb ...
+!> \param zetb ...
+!> \param ra ...
+!> \param rb ...
+!> \param hab ...
+!> \param i1 ...
+!> \param i2 ...
+!> \param sphi_a ...
+!> \param sgfa ...
+!> \param nsgfa ...
+!> \param sphi_b ...
+!> \param sgfb ...
+!> \param nsgfb ...
+!> \param eri_method ...
+!> \param G_count ...
+!> \param R_count ...
+!> \note arrays required to be contiguous
+! **************************************************************************************************
+   SUBROUTINE eri_mme_2c_integrate_set(param, la_min, la_max, lb_min, lb_max, npgfa, zeta, npgfb, &
+                                       zetb, ra, rb, hab, i1, i2, sphi_a, sgfa, nsgfa, sphi_b, sgfb, nsgfb, &
+                                       eri_method, G_count, R_count)
+      TYPE(eri_mme_param), INTENT(INOUT)                 :: param
+      INTEGER, INTENT(IN)                                :: la_min, la_max, lb_min, lb_max, npgfa
+      REAL(KIND=dp), DIMENSION(npgfa), INTENT(IN)        :: zeta
+      INTEGER, INTENT(IN)                                :: npgfb
+      REAL(KIND=dp), DIMENSION(npgfb), INTENT(IN)        :: zetb
+      REAL(KIND=dp), DIMENSION(3), INTENT(IN)            :: ra, rb
+      REAL(KIND=dp), DIMENSION(:, :), INTENT(OUT)        :: hab
+      INTEGER, INTENT(IN)                                :: i1, i2
+      REAL(KIND=dp), DIMENSION(:, :), INTENT(IN)         :: sphi_a
+      INTEGER, INTENT(IN)                                :: sgfa, nsgfa
+      REAL(KIND=dp), DIMENSION(:, :), INTENT(IN)         :: sphi_b
+      INTEGER, INTENT(IN)                                :: sgfb, nsgfb, eri_method
+      INTEGER, INTENT(INOUT), OPTIONAL                   :: G_count, R_count
+
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'eri_mme_2c_integrate_set', &
+         routineP = moduleN//':'//routineN
+
+      INTEGER                                            :: handle, ipgf, jpgf, na, nb, ncoa, ncob
+      REAL(KIND=dp)                                      :: rab2
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: f_work
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: hab_herm
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: v_work
+
+      ! note: tested only for one exponent per pair (npgfa = npgfb = 1)
+
+      CALL timeset(routineN, handle)
+      ncoa = npgfa*ncoset(la_max)
+      ncob = npgfb*ncoset(lb_max)
+      rab2 = (ra(1)-rb(1))**2+(ra(2)-rb(2))**2+(ra(3)-rb(3))**2
+
+      ALLOCATE (hab_herm(ncoa, ncob))
+
+      hab_herm(:, :) = 0.0_dp
+
+      IF (eri_method == do_eri_mme) THEN
+
+         DO ipgf = 1, npgfa
+            na = (ipgf-1)*ncoset(la_max)
+            DO jpgf = 1, npgfb
+               nb = (jpgf-1)*ncoset(lb_max)
+               CALL eri_mme_2c_integrate(param, &
+                                         la_min, la_max, lb_min, lb_max, &
+                                         zeta(ipgf), zetb(jpgf), ra-rb, hab_herm, na, nb, G_count, R_count)
+            ENDDO
+         ENDDO
+
+      ELSE IF (eri_method == do_eri_os) THEN
+
+         ALLOCATE (f_work(0:la_max+lb_max+2))
+         ALLOCATE (v_work(ncoa, ncob, la_max+lb_max+1))
+
+         v_work(:, :, :) = 0.0_dp
+         f_work = 0.0_dp
+
+         CALL coulomb2_new(la_max, npgfa, zeta, la_min, lb_max, npgfb, zetb, lb_min, &
+                           rb-ra, rab2, hab_herm, v_work, f_work)
+
+         DEALLOCATE (v_work, f_work)
+
+      ELSE IF (eri_method == do_eri_gpw) THEN
+
+         CPABORT("GPW not enabled in the ERI interface.")
+
+      END IF
+
+      CALL ab_contract(hab(i1:i1+nsgfa-1, i2:i2+nsgfb-1), hab_herm, sphi_a(:, sgfa:), sphi_b(:, sgfb:), ncoa, ncob, nsgfa, nsgfb)
+
+      CALL timestop(handle)
+
+   END SUBROUTINE eri_mme_2c_integrate_set
 
 ! **************************************************************************************************
 !> \brief high-level integration routine for 2c integrals over s-type functions.
@@ -558,6 +678,107 @@ CONTAINS
 
       CALL timestop(handle)
    END SUBROUTINE cp_eri_mme_3c_integrate
+
+! **************************************************************************************************
+!> \brief Integrate set triple and contract with sphi matrix
+!> \param param ...
+!> \param la_min ...
+!> \param la_max ...
+!> \param lb_min ...
+!> \param lb_max ...
+!> \param lc_min ...
+!> \param lc_max ...
+!> \param npgfa ...
+!> \param npgfb ...
+!> \param npgfc ...
+!> \param zeta ...
+!> \param zetb ...
+!> \param zetc ...
+!> \param ra ...
+!> \param rb ...
+!> \param rc ...
+!> \param habc ...
+!> \param i1 ...
+!> \param i2 ...
+!> \param i3 ...
+!> \param sphi_a ...
+!> \param sphi_b ...
+!> \param sphi_c ...
+!> \param sgfa ...
+!> \param sgfb ...
+!> \param sgfc ...
+!> \param nsgfa ...
+!> \param nsgfb ...
+!> \param nsgfc ...
+!> \param GG_count ...
+!> \param GR_count ...
+!> \param RR_count ...
+!> \param transp ...
+!> \note
+! **************************************************************************************************
+   SUBROUTINE eri_mme_3c_integrate_set(param, &
+                                       la_min, la_max, lb_min, lb_max, lc_min, lc_max, &
+                                       npgfa, npgfb, npgfc, &
+                                       zeta, zetb, zetc, &
+                                       ra, rb, rc, &
+                                       habc, i1, i2, i3, &
+                                       sphi_a, sphi_b, sphi_c, &
+                                       sgfa, sgfb, sgfc, &
+                                       nsgfa, nsgfb, nsgfc, &
+                                       GG_count, GR_count, RR_count, &
+                                       transp)
+
+      TYPE(eri_mme_param), INTENT(INOUT)                 :: param
+      INTEGER, INTENT(IN)                                :: la_min, la_max, lb_min, lb_max, lc_min, &
+                                                            lc_max, npgfa, npgfb, npgfc
+      REAL(KIND=dp), DIMENSION(npgfa), INTENT(IN)        :: zeta
+      REAL(KIND=dp), DIMENSION(npgfb), INTENT(IN)        :: zetb
+      REAL(KIND=dp), DIMENSION(npgfc), INTENT(IN)        :: zetc
+      REAL(KIND=dp), DIMENSION(3), INTENT(IN)            :: ra, rb, rc
+      REAL(KIND=dp), DIMENSION(:, :, :), INTENT(INOUT)   :: habc
+      INTEGER, INTENT(IN)                                :: i1, i2, i3
+      REAL(KIND=dp), DIMENSION(:, :), INTENT(IN)         :: sphi_a, sphi_b, sphi_c
+      INTEGER, INTENT(IN)                                :: sgfa, sgfb, sgfc, nsgfa, nsgfb, nsgfc
+      INTEGER, INTENT(INOUT), OPTIONAL                   :: GG_count, GR_count, RR_count
+      LOGICAL, INTENT(IN), OPTIONAL                      :: transp
+
+      CHARACTER(len=*), PARAMETER :: routineN = 'eri_mme_3c_integrate_set', &
+         routineP = moduleN//':'//routineN
+
+      INTEGER                                            :: handle, ipgf, jpgf, kpgf, na, nb, nc, &
+                                                            ncoa, ncob, ncoc
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: ha_hb_hc
+
+      CALL timeset(routineN, handle)
+
+      ncoa = npgfa*ncoset(la_max)
+      ncob = npgfb*ncoset(lb_max)
+      ncoc = npgfc*ncoset(lc_max)
+
+      ALLOCATE (ha_hb_hc(ncoa, ncob, ncoc)); ha_hb_hc(:, :, :) = 0.0_dp
+
+      DO ipgf = 1, npgfa
+         na = (ipgf-1)*ncoset(la_max)
+         DO jpgf = 1, npgfb
+            nb = (jpgf-1)*ncoset(lb_max)
+            DO kpgf = 1, npgfc
+               nc = (kpgf-1)*ncoset(lc_max)
+               CALL eri_mme_3c_integrate(param, &
+                                         la_min, la_max, lb_min, lb_max, lc_min, lc_max, &
+                                         zeta(ipgf), zetb(jpgf), zetc(kpgf), ra, rb, rc, ha_hb_hc, na, nb, nc, &
+                                         GG_count, GR_count, RR_count, &
+                                         transp=transp)
+            ENDDO
+         ENDDO
+      ENDDO
+
+      CALL abc_contract(habc(i1:i1+nsgfa-1, i2:i2+nsgfb-1, i3:i3+nsgfc-1), ha_hb_hc, &
+                        sphi_a(:, sgfa:), sphi_b(:, sgfb:), sphi_c(:, sgfc:), &
+                        ncoa, ncob, ncoc, nsgfa, nsgfb, nsgfc)
+
+      CALL timestop(handle)
+
+   END SUBROUTINE eri_mme_3c_integrate_set
 
 ! **************************************************************************************************
 !> \brief ...

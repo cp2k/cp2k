@@ -19,8 +19,6 @@
 ! **************************************************************************************************
 
 MODULE eri_mme_integrate
-   USE ai_contraction_sphi,             ONLY: ab_contract,&
-                                              abc_contract
    USE ao_util,                         ONLY: exp_radius
    USE eri_mme_gaussian,                ONLY: hermite_gauss_norm
    USE eri_mme_lattice_summation,       ONLY: lattice_sum_prec,&
@@ -33,8 +31,7 @@ MODULE eri_mme_integrate
    USE kinds,                           ONLY: dp
    USE mathconstants,                   ONLY: pi,&
                                               twopi
-   USE orbital_pointers,                ONLY: coset,&
-                                              ncoset
+   USE orbital_pointers,                ONLY: coset
 #include "../base/base_uses.f90"
 
    IMPLICIT NONE
@@ -45,8 +42,7 @@ MODULE eri_mme_integrate
 
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'eri_mme_integrate'
 
-   PUBLIC :: eri_mme_2c_integrate, eri_mme_3c_integrate, &
-             eri_mme_2c_integrate_set, eri_mme_3c_integrate_set
+   PUBLIC :: eri_mme_2c_integrate, eri_mme_3c_integrate
 
 CONTAINS
 
@@ -287,79 +283,6 @@ CONTAINS
    END SUBROUTINE eri_mme_2c_integrate
 
 ! **************************************************************************************************
-!> \brief Integrate set pair and contract with sphi matrix.
-!> \param param ...
-!> \param la_min ...
-!> \param la_max ...
-!> \param lb_min ...
-!> \param lb_max ...
-!> \param npgfa ...
-!> \param zeta ...
-!> \param npgfb ...
-!> \param zetb ...
-!> \param ra ...
-!> \param rb ...
-!> \param hab ...
-!> \param i1 ...
-!> \param i2 ...
-!> \param sphi_a ...
-!> \param sgfa ...
-!> \param nsgfa ...
-!> \param sphi_b ...
-!> \param sgfb ...
-!> \param nsgfb ...
-!> \param G_count ...
-!> \param R_count ...
-!> \note arrays required to be contiguous
-! **************************************************************************************************
-   SUBROUTINE eri_mme_2c_integrate_set(param, la_min, la_max, lb_min, lb_max, npgfa, zeta, npgfb, &
-                                       zetb, ra, rb, hab, i1, i2, sphi_a, sgfa, nsgfa, sphi_b, sgfb, nsgfb, G_count, R_count)
-      TYPE(eri_mme_param), INTENT(INOUT)                 :: param
-      INTEGER, INTENT(IN)                                :: la_min, la_max, lb_min, lb_max, npgfa
-      REAL(KIND=dp), DIMENSION(npgfa), INTENT(IN)        :: zeta
-      INTEGER, INTENT(IN)                                :: npgfb
-      REAL(KIND=dp), DIMENSION(npgfb), INTENT(IN)        :: zetb
-      REAL(KIND=dp), DIMENSION(3), INTENT(IN)            :: ra, rb
-      REAL(KIND=dp), DIMENSION(:, :), INTENT(OUT)        :: hab
-      INTEGER, INTENT(IN)                                :: i1, i2
-      REAL(KIND=dp), DIMENSION(:, :), INTENT(IN)         :: sphi_a
-      INTEGER, INTENT(IN)                                :: sgfa, nsgfa
-      REAL(KIND=dp), DIMENSION(:, :), INTENT(IN)         :: sphi_b
-      INTEGER, INTENT(IN)                                :: sgfb, nsgfb
-      INTEGER, INTENT(INOUT), OPTIONAL                   :: G_count, R_count
-
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'eri_mme_2c_integrate_set', &
-         routineP = moduleN//':'//routineN
-
-      INTEGER                                            :: handle, ipgf, jpgf, na, nb, ncoa, ncob
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: hab_herm
-
-      ! note: tested only for one exponent per pair (npgfa = npgfb = 1)
-
-      CALL timeset(routineN, handle)
-      ncoa = npgfa*ncoset(la_max)
-      ncob = npgfb*ncoset(lb_max)
-
-      ALLOCATE (hab_herm(ncoa, ncob))
-
-      hab_herm(:, :) = 0.0_dp
-
-      DO ipgf = 1, npgfa
-         na = (ipgf-1)*ncoset(la_max)
-         DO jpgf = 1, npgfb
-            nb = (jpgf-1)*ncoset(lb_max)
-            CALL eri_mme_2c_integrate(param, &
-                                      la_min, la_max, lb_min, lb_max, &
-                                      zeta(ipgf), zetb(jpgf), ra-rb, hab_herm, na, nb, G_count, R_count)
-         ENDDO
-      ENDDO
-
-      CALL ab_contract(hab(i1:i1+nsgfa-1, i2:i2+nsgfb-1), hab_herm, sphi_a(:, sgfa:), sphi_b(:, sgfb:), ncoa, ncob, nsgfa, nsgfb)
-
-      CALL timestop(handle)
-   END SUBROUTINE eri_mme_2c_integrate_set
-
-! **************************************************************************************************
 !> \brief Low-level integration routine for 3-center ERIs
 !> \param param ...
 !> \param la_min ...
@@ -598,106 +521,5 @@ CONTAINS
 
       CALL timestop(handle)
    END SUBROUTINE eri_mme_3c_integrate
-
-! **************************************************************************************************
-!> \brief Integrate set triple and contract with sphi matrix
-!> \param param ...
-!> \param la_min ...
-!> \param la_max ...
-!> \param lb_min ...
-!> \param lb_max ...
-!> \param lc_min ...
-!> \param lc_max ...
-!> \param npgfa ...
-!> \param npgfb ...
-!> \param npgfc ...
-!> \param zeta ...
-!> \param zetb ...
-!> \param zetc ...
-!> \param ra ...
-!> \param rb ...
-!> \param rc ...
-!> \param habc ...
-!> \param i1 ...
-!> \param i2 ...
-!> \param i3 ...
-!> \param sphi_a ...
-!> \param sphi_b ...
-!> \param sphi_c ...
-!> \param sgfa ...
-!> \param sgfb ...
-!> \param sgfc ...
-!> \param nsgfa ...
-!> \param nsgfb ...
-!> \param nsgfc ...
-!> \param GG_count ...
-!> \param GR_count ...
-!> \param RR_count ...
-!> \param transp ...
-!> \note
-! **************************************************************************************************
-   SUBROUTINE eri_mme_3c_integrate_set(param, &
-                                       la_min, la_max, lb_min, lb_max, lc_min, lc_max, &
-                                       npgfa, npgfb, npgfc, &
-                                       zeta, zetb, zetc, &
-                                       ra, rb, rc, &
-                                       habc, i1, i2, i3, &
-                                       sphi_a, sphi_b, sphi_c, &
-                                       sgfa, sgfb, sgfc, &
-                                       nsgfa, nsgfb, nsgfc, &
-                                       GG_count, GR_count, RR_count, &
-                                       transp)
-
-      TYPE(eri_mme_param), INTENT(INOUT)                 :: param
-      INTEGER, INTENT(IN)                                :: la_min, la_max, lb_min, lb_max, lc_min, &
-                                                            lc_max, npgfa, npgfb, npgfc
-      REAL(KIND=dp), DIMENSION(npgfa), INTENT(IN)        :: zeta
-      REAL(KIND=dp), DIMENSION(npgfb), INTENT(IN)        :: zetb
-      REAL(KIND=dp), DIMENSION(npgfc), INTENT(IN)        :: zetc
-      REAL(KIND=dp), DIMENSION(3), INTENT(IN)            :: ra, rb, rc
-      REAL(KIND=dp), DIMENSION(:, :, :), INTENT(INOUT)   :: habc
-      INTEGER, INTENT(IN)                                :: i1, i2, i3
-      REAL(KIND=dp), DIMENSION(:, :), INTENT(IN)         :: sphi_a, sphi_b, sphi_c
-      INTEGER, INTENT(IN)                                :: sgfa, sgfb, sgfc, nsgfa, nsgfb, nsgfc
-      INTEGER, INTENT(INOUT), OPTIONAL                   :: GG_count, GR_count, RR_count
-      LOGICAL, INTENT(IN), OPTIONAL                      :: transp
-
-      CHARACTER(len=*), PARAMETER :: routineN = 'eri_mme_3c_integrate_set', &
-         routineP = moduleN//':'//routineN
-
-      INTEGER                                            :: handle, ipgf, jpgf, kpgf, na, nb, nc, &
-                                                            ncoa, ncob, ncoc
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: ha_hb_hc
-
-      CALL timeset(routineN, handle)
-
-      ncoa = npgfa*ncoset(la_max)
-      ncob = npgfb*ncoset(lb_max)
-      ncoc = npgfc*ncoset(lc_max)
-
-      ALLOCATE (ha_hb_hc(ncoa, ncob, ncoc)); ha_hb_hc(:, :, :) = 0.0_dp
-
-      DO ipgf = 1, npgfa
-         na = (ipgf-1)*ncoset(la_max)
-         DO jpgf = 1, npgfb
-            nb = (jpgf-1)*ncoset(lb_max)
-            DO kpgf = 1, npgfc
-               nc = (kpgf-1)*ncoset(lc_max)
-               CALL eri_mme_3c_integrate(param, &
-                                         la_min, la_max, lb_min, lb_max, lc_min, lc_max, &
-                                         zeta(ipgf), zetb(jpgf), zetc(kpgf), ra, rb, rc, ha_hb_hc, na, nb, nc, &
-                                         GG_count, GR_count, RR_count, &
-                                         transp=transp)
-            ENDDO
-         ENDDO
-      ENDDO
-
-      CALL abc_contract(habc(i1:i1+nsgfa-1, i2:i2+nsgfb-1, i3:i3+nsgfc-1), ha_hb_hc, &
-                        sphi_a(:, sgfa:), sphi_b(:, sgfb:), sphi_c(:, sgfc:), &
-                        ncoa, ncob, ncoc, nsgfa, nsgfb, nsgfc)
-
-      CALL timestop(handle)
-
-   END SUBROUTINE eri_mme_3c_integrate_set
 
 END MODULE eri_mme_integrate

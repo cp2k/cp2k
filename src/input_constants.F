@@ -1033,6 +1033,7 @@ MODULE input_constants
                                                eri_operator_gaussian = 5
 
    INTEGER, PARAMETER, PUBLIC               :: do_eri_gpw = 0, &
-                                               do_eri_mme = 1
+                                               do_eri_mme = 1, &
+                                               do_eri_os = 2
 
 END MODULE input_constants

@@ -1,5 +1,5 @@
 &GLOBAL                                                                                           
-  PROJECT  RI_RPA_H2O_minimax
+  PROJECT  RI_RPA_H2O
   PRINT_LEVEL MEDIUM
   RUN_TYPE ENERGY
   &TIMINGS
@@ -15,15 +15,15 @@
       CUTOFF  100
       REL_CUTOFF  20
     &END MGRID
-    &POISSON
-      PERIODIC NONE
-      POISSON_SOLVER WAVELET
-    &END POISSON
     &QS
       METHOD GPW
       EPS_DEFAULT 1.0E-15
       EPS_PGF_ORB 1.0E-30
     &END QS
+    &POISSON
+      PERIODIC NONE
+      POISSON_SOLVER MT
+    &END POISSON
     &SCF
       SCF_GUESS ATOMIC
       EPS_SCF 1.0E-7
@@ -35,15 +35,38 @@
     &END SCF
     &XC
       &XC_FUNCTIONAL PBE
+        &PBE
+          SCALE_X 1.0000000
+          SCALE_C 1.0000000
+        &END
       &END XC_FUNCTIONAL
       &WF_CORRELATION
         METHOD  RI_RPA_GPW
+        &WFC_GPW
+          ! normally, this EPS_FILTER controls the accuracy and
+          ! the time for the cubic_scaling RPA calculation
+          EPS_FILTER  1.0E-6
+        &END
         RI OVERLAP
         ERI_METHOD OS
         &RI_RPA
-          RPA_NUM_QUAD_POINTS  6
           MINIMAX
+          RPA_NUM_QUAD_POINTS     10
           IM_TIME
+          &IM_TIME
+            GW
+            GROUP_SIZE_3c 1
+            GROUP_SIZE_P 1
+          &END
+          &RI_G0W0
+            CORR_MOS_OCC          10
+            CORR_MOS_VIRT         10
+            PRINT_GW_DETAILS
+            PERIODIC
+            &PERIODIC
+              NUM_OMEGA_POINTS   100
+            &END
+          &END RI_G0W0 
           &HF
             FRACTION 1.0000000
             &SCREENING
@@ -59,17 +82,19 @@
   &END DFT
   &SUBSYS
     &CELL
-      ABC [angstrom]  8.000   8.000  8.000
+      ABC [angstrom]  8.500   8.500  8.500
       PERIODIC NONE
     &END CELL
     &KIND H
-      BASIS_SET  DZVP-GTH
-      RI_AUX_BASIS_SET  RI_DZVP-GTH
+      BASIS_SET          cc-TZV2P-GTH
+      RI_AUX_BASIS_SET   RI_DZVP-GTH
+      BASIS_SET AUX_GW   DZVP-GTH
       POTENTIAL  GTH-PBE-q1
     &END KIND
     &KIND O
-      BASIS_SET  DZVP-GTH
-      RI_AUX_BASIS_SET  RI_DZVP-GTH
+      BASIS_SET          DZVP-GTH
+      RI_AUX_BASIS_SET   RI_DZVP-GTH
+      BASIS_SET AUX_GW   DZVP-GTH
       POTENTIAL  GTH-PBE-q6
     &END KIND
     &TOPOLOGY

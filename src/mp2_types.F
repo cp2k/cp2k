@@ -80,8 +80,8 @@ MODULE mp2_types
       INTEGER                  :: print_level
       REAL(KIND=dp)            :: cutoff
       REAL(KIND=dp)            :: relative_cutoff
-      LOGICAL                  :: do_mult_2c
-      LOGICAL                  :: do_os
+      LOGICAL                  :: do_mult_2c, do_chol_subgrp
+      INTEGER                  :: size_chol_from_input
    END TYPE mp2_gpw_type
 
    TYPE ri_mp2_type
@@ -135,16 +135,17 @@ MODULE mp2_types
 
    TYPE ri_rpa_im_time_type
       INTEGER                  :: cut_memory
-      LOGICAL                  :: memory_info, do_mao, opt_sc_dm_occ, opt_sc_dm_virt
-      REAL(KIND=dp)            :: eps_filter_im_time, eps_grad_occ, eps_grad_virt
+      LOGICAL                  :: memory_info, do_mao, opt_sc_dm_occ, opt_sc_dm_virt, do_lr
+      REAL(KIND=dp)            :: eps_filter_im_time, eps_grad_occ, eps_grad_virt, lr_fraction
       INTEGER                  :: group_size_P, group_size_3c, num_points_per_magnitude, &
-                                  max_iter_occ, max_iter_virt
+                                  max_iter_occ, max_iter_virt, group_size_Q
       INTEGER, ALLOCATABLE, DIMENSION(:) :: sizes_array_cm, starts_array_cm, &
                                             ends_array_cm, sizes_array_cm_mao_occ, &
                                             starts_array_cm_mao_occ, ends_array_cm_mao_occ, &
                                             sizes_array_cm_mao_virt, starts_array_cm_mao_virt, &
                                             ends_array_cm_mao_virt
       INTEGER, DIMENSION(:), POINTER     :: nmao_occ, nmao_virt
+      LOGICAL                  :: do_gw_im_time
    END TYPE
 
    TYPE ri_g0w0_type
@@ -179,6 +180,7 @@ MODULE mp2_types
       REAL(KIND=dp)            :: eps_eigenval
       LOGICAL                  :: do_extra_kpoints, do_aux_bas_gw
       REAL(KIND=dp)            :: frac_aux_mos
+      INTEGER                  :: num_omega_points
    END TYPE
 
    TYPE ri_basis_opt

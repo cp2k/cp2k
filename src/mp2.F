@@ -227,6 +227,10 @@ CONTAINS
          END IF
       ENDIF
 
+      IF (mp2_env%ri_rpa%do_im_time) THEN
+         mp2_env%mp2_num_proc = 1
+      END IF
+
       IF (mp2_env%mp2_num_proc <= 0 .OR. mp2_env%mp2_num_proc > para_env%num_pe .OR. &
           MOD(para_env%num_pe, mp2_env%mp2_num_proc) .NE. 0) THEN
          IF (unit_nr > 0 .AND. mp2_env%mp2_num_proc .NE. -1) &
@@ -250,6 +254,19 @@ CONTAINS
          IF (unit_nr > 0) WRITE (unit_nr, '(T3,A,T68,F9.2,A4)') 'Available memory per MPI processes for MP2:', &
             mp2_env%mp2_memory, ' MiB'
       END IF
+
+      ! just check that GW is used correctly
+
+      ! 1. cubic-scaling GW may not be used together with normal N^4 GW
+      CPASSERT(.NOT. (mp2_env%ri_rpa%do_ri_g0w0 .AND. mp2_env%ri_rpa_im_time%do_gw_im_time))
+
+      ! 2. cubic-scaling GW can only be used if cubic-scaling RPA is switched on
+      IF (mp2_env%ri_rpa_im_time%do_gw_im_time) THEN
+         CPASSERT(mp2_env%ri_rpa%do_im_time)
+      END IF
+
+      ! 3. N^4 GW cannot be used together with cubic-scaling RPA
+      CPASSERT(.NOT. (mp2_env%ri_rpa%do_ri_g0w0 .AND. mp2_env%ri_rpa%do_im_time))
 
       IF (unit_nr > 0) CALL m_flush(unit_nr)
 
@@ -379,7 +396,7 @@ CONTAINS
       END IF
       ! calculate the matrix sigma_x - vxc for G0W0
       t3 = 0
-      IF (mp2_env%ri_rpa%do_ri_g0w0) THEN
+      IF (mp2_env%ri_rpa%do_ri_g0w0 .OR. mp2_env%ri_rpa_im_time%do_gw_im_time) THEN
          CALL compute_vec_Sigma_x_minus_vxc_gw(qs_env, mp2_env, mos_mp2, E_ex_from_GW, t3)
       END IF
       IF (free_hfx_buffer) THEN

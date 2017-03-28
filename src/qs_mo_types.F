@@ -226,6 +226,7 @@ CONTAINS
          CALL cp_fm_create(mo_set%mo_coeff, fm_ref%matrix_struct, name=name)
       END IF
       CALL cp_fm_get_info(mo_set%mo_coeff, nrow_global=nao, ncol_global=nmo)
+
       CPASSERT(nao >= mo_set%nao)
       CPASSERT(nmo >= mo_set%nmo)
 

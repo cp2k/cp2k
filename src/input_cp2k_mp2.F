@@ -25,11 +25,11 @@ MODULE input_cp2k_mp2
                                               medium_print_level,&
                                               silent_print_level
    USE input_constants,                 ONLY: &
-        do_eri_gpw, do_eri_mme, do_hfx_potential_coulomb, do_mp2_potential_tshpsc, gaussian, &
-        mp2_method_direct, mp2_method_gpw, mp2_method_none, mp2_ri_optimize_basis, numerical, &
-        ri_coulomb, ri_mp2_laplace, ri_mp2_method_gpw, ri_overlap, ri_rpa_g0w0_crossing_newton, &
-        ri_rpa_g0w0_crossing_none, ri_rpa_g0w0_crossing_z_shot, ri_rpa_method_gpw, &
-        wfc_mm_style_gemm, wfc_mm_style_syrk
+        do_eri_gpw, do_eri_mme, do_eri_os, do_hfx_potential_coulomb, do_mp2_potential_tshpsc, &
+        gaussian, mp2_method_direct, mp2_method_gpw, mp2_method_none, mp2_ri_optimize_basis, &
+        numerical, ri_coulomb, ri_mp2_laplace, ri_mp2_method_gpw, ri_overlap, &
+        ri_rpa_g0w0_crossing_newton, ri_rpa_g0w0_crossing_none, ri_rpa_g0w0_crossing_z_shot, &
+        ri_rpa_method_gpw, wfc_mm_style_gemm, wfc_mm_style_syrk
    USE input_cp2k_hfx,                  ONLY: create_hfx_section
    USE input_keyword_types,             ONLY: keyword_create,&
                                               keyword_release,&
@@ -187,12 +187,16 @@ CONTAINS
 
       CALL keyword_create(keyword, name="ERI_METHOD", &
                           description="Method for calculating periodic electron repulsion integrals "// &
-                          "(MME method is faster but experimental, forces not yet implemented).", &
+                          "(MME method is faster but experimental, forces not yet implemented)."// &
+                          "Obara-Saika (OS) for the Coulomb operator can only be used for non-periodic calculations.", &
                           usage="ERI_METHOD MME", &
-                          enum_c_vals=s2a("GPW", "MME"), &
-                          enum_i_vals=(/do_eri_gpw, do_eri_mme/), &
-                          enum_desc=s2a("Uses Gaussian Plane Wave method [DelBen2013]", &
-                                        "Uses MiniMax-Ewald method (experimental, ERI_MME subsection)"), &
+                          enum_c_vals=s2a("GPW", "MME", "OS"), &
+                          enum_i_vals=(/do_eri_gpw, do_eri_mme, do_eri_os/), &
+                          enum_desc=s2a("Uses Gaussian Plane Wave method [DelBen2013].", &
+                                        "Uses MiniMax-Ewald method (experimental, ERI_MME subsection, only for fully periodic "// &
+                                        "systems with orthorhombic cells).", &
+                                        "Uses Obara-Saika method (only for two-center integrals, only for gas phase"// &
+                                        "and only for cubic-scaling RPA and GW)."), &
                           default_i_val=do_eri_gpw)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
@@ -515,7 +519,8 @@ CONTAINS
          keyword=keyword, &
          name="RI_G0W0", &
          variants=(/"GW"/), &
-         description="Decide whether to perform an RI_G0W0 calculation on top of RI_ RPA.", &
+         description="Decide whether to perform an RI_G0W0 calculation on top of RI_RPA. "// &
+         "For cubic-scaling GW, please use IM_TIME_GW.", &
          usage="RI_G0W0", &
          default_l_val=.FALSE., &
          lone_keyword_l_val=.TRUE.)
@@ -651,7 +656,7 @@ CONTAINS
                           description="Set the scaling factor a for the Clenshaw-Curtis grid by hand. "// &
                           "If SCALING < 0, a is calculated as for RI-RPA. Until now, the best "// &
                           "choice seems to be 0.2. The grid points of the frequency grid are "// &
-                          "just multiplied by SCALING: omega_j = omega_j*Scaling.", &
+                          "just multiplied by SCALING: omega_j = omega_j*Scaling. Not relevant for cubic-scaling GW.", &
                           usage="SCALING 0.2", &
                           default_r_val=0.2_dp)
       CALL section_add_keyword(section, keyword)
@@ -723,8 +728,9 @@ CONTAINS
       CALL keyword_create(keyword, name="FERMI_LEVEL_OFFSET", &
                           description="Fermi level for occ. orbitals: e_HOMO + FERMI_LEVEL_OFFSET; "// &
                           "Fermi level for virt. orbitals: e_LUMO - FERMI_LEVEL_OFFSET. "// &
-                          "In case e_homo + FERMI_LEVEL_OFFSET < e_lumo - FERMI_LEVEL_OFFSET,"// &
-                          "we set Fermi level = (e_HOMO+e_LUMO)/2", &
+                          "In case e_homo + FERMI_LEVEL_OFFSET < e_lumo - FERMI_LEVEL_OFFSET, "// &
+                          "we set Fermi level = (e_HOMO+e_LUMO)/2. For cubic-scaling GW, the Fermi level "// &
+                          "is always equal to (e_HOMO+e_LUMO)/2 regardless of FERMI_LEVEL_OFFSET.", &
                           usage="FERMI_LEVEL_OFFSET 1.0E-2", &
                           default_r_val=2.0E-2_dp)
       CALL section_add_keyword(section, keyword)
@@ -732,7 +738,8 @@ CONTAINS
 
       CALL keyword_create(keyword, name="EV_SC_ITER", &
                           description="Maximum number of iterations for eigenvalue self-consistency cycle. The "// &
-                          "computational effort of RPA and GW scales linearly with this number.", &
+                          "computational effort of RPA and GW scales linearly with this number. "// &
+                          "Eigenvalue self-consistency is not implemented for cubic-scaling GW.", &
                           usage="EV_SC_ITER 3", &
                           default_i_val=1)
       CALL section_add_keyword(section, keyword)
@@ -826,7 +833,8 @@ CONTAINS
       CALL keyword_create(keyword, name="CONTOUR_DEF_START", &
                           variants=(/"CD_START"/), &
                           description="Number of the lowest MO for which contour deformation (CD) is enabled and "// &
-                          "analytic continuation is disabled. If negative, CD is disabled.", &
+                          "analytic continuation is disabled. If negative, CD is disabled. CD not implemented for cubic-"// &
+                          "scaling GW.", &
                           usage="CD_START 1", &
                           default_i_val=-1)
       CALL section_add_keyword(section, keyword)
@@ -835,7 +843,8 @@ CONTAINS
       CALL keyword_create(keyword, name="CONTOUR_DEF_END", &
                           variants=(/"CD_END"/), &
                           description="Number of the highest MO for which contour deformation (CD) is enabled and "// &
-                          "analytic continuation is disabled. If negative, CD is disabled.", &
+                          "analytic continuation is disabled. If negative, CD is disabled. CD not implemented for cubic-"// &
+                          "scaling GW.", &
                           usage="CD_END 100", &
                           default_i_val=-1)
       CALL section_add_keyword(section, keyword)
@@ -843,16 +852,15 @@ CONTAINS
 
       CALL keyword_create(keyword, name="CONTOUR_DEF_OFFSET", &
                           variants=(/"CD_OFFSET"/), &
-                          description="Offset for computing the Z-factor in the contour deformation technique.", &
+                          description="Offset for computing the Z-factor in the contour deformation technique."// &
+                          "CD not implemented for cubic-scaling GW.", &
                           usage="CONTOUR_DEF_OFFSET 1.0E-2", &
                           default_r_val=2.0E-2_dp)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
       CALL keyword_create(keyword, name="PERIODIC", &
-                          description="If true, the periodic correction scheme is used employing k-points. "// &
-                          "Specify the k-point mesh in a following k-point section. Only works with RI OVERLAP "// &
-                          "(RI OVERLAP has to be set twice!).", &
+                          description="If true, the periodic correction scheme is used employing k-points.", &
                           usage="PERIODIC", &
                           default_l_val=.FALSE., &
                           lone_keyword_l_val=.TRUE.)
@@ -941,7 +949,7 @@ CONTAINS
       CALL keyword_create(keyword, name="EXTRAPOLATE_KPOINTS", &
                           variants=(/"EXTRAPOLATE"/), &
                           description="If true, extrapolates the k-point mesh. Only working if k-point mesh numbers are "// &
-                          "disivible by 4, e.g. 8x8x8 or 12x12x12 is recommended.", &
+                          "divisible by 4, e.g. 8x8x8 or 12x12x12 is recommended.", &
                           usage="EXTRAPOLATE_KPOINTS FALSE", &
                           default_l_val=.TRUE., &
                           lone_keyword_l_val=.TRUE.)
@@ -963,6 +971,24 @@ CONTAINS
                           description="Fraction how many MOs are used in the auxiliary basis.", &
                           usage="FRACTION_AUX_MOS 0.6", &
                           default_r_val=0.5_dp)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, name="CONTOUR_DEF_END", &
+                          variants=(/"CD_END"/), &
+                          description="Number of the highest MO for which contour deformation (CD) is enabled and "// &
+                          "analytic continuation is disabled. If negative, CD is disabled. CD not implemented for cubic-"// &
+                          "scaling GW.", &
+                          usage="CD_END 100", &
+                          default_i_val=-1)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, name="NUM_OMEGA_POINTS", &
+                          description="Number of Clenshaw-Curtis integration points for the periodic correction in cubic- "// &
+                          "scaling GW. This variable is a dummy variable for canonical N^4 GW calculations.", &
+                          usage="NUM_OMEGA_POINTS 200", &
+                          default_i_val=300)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
@@ -1049,6 +1075,19 @@ CONTAINS
          "for Mocc/virt(it)=(abP)*D_ad^occ/virt(it) is determined by EPS_FILTER in WFC_GPW. Default should be kept.", &
          usage="EPS_FILTER_IM_TIME 1.0E-10 ", type_of_var=real_t, &
          default_r_val=1.0E-08_dp)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create( &
+         keyword=keyword, &
+         name="RI_G0W0", &
+         variants=(/"GW"/), &
+         description="Decide whether to perform a cubic scaling GW calculation on top of imag. time RPA. "// &
+         "The corresponding RI_G0W0 section has to be placed inside the RI_RPA section. The keyword RI_G0W0 "// &
+         "inside RI_RPA must not be set.", &
+         usage="IM_TIME_GW", &
+         default_l_val=.FALSE., &
+         lone_keyword_l_val=.TRUE.)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
@@ -1209,21 +1248,35 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="OBARA_SAIKA_OVERLAP", &
-                          variants=(/"OSO"/), &
-                          description="Use Obara-Saika integrals for two- and three-center integrals.", &
-                          usage="OSO", &
-                          default_l_val=.FALSE., &
-                          lone_keyword_l_val=.TRUE.)
-      CALL section_add_keyword(section, keyword)
-      CALL keyword_release(keyword)
-
       CALL keyword_create( &
          keyword, name="EPS_PGF_ORB_S", &
          description="Screening for overlap matrix in RI. Usually, it is best to choose this parameter "// &
          "to be very small since the inversion of overlap matrix might be ill-conditioned.", &
          usage="EPS_PGF_ORB_S 1.0E-10 ", type_of_var=real_t, &
          default_r_val=1.0E-10_dp)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, name="DO_CHOLESKY_SUBGROUPS", &
+                          variants=(/"DCS"/), &
+                          description="Compute the Cholesky decomposition of V and S (Coulomb and overlap "// &
+                          "matrix in the RI basis in two different subgroups. May be benefitial "// &
+                          "for very large systems where cp_fm_cholesky_decompose is expensive. "// &
+                          "Is only needed for RI with the overlap metric.", &
+                          usage="DSC", &
+                          default_l_val=.FALSE., &
+                          lone_keyword_l_val=.TRUE.)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, name="SIZE_CHOLESKY_SUBGROUP", &
+                          variants=(/"SIZE_CS"/), &
+                          description="Number of MPI ranks for a single Cholesky subgroup. -1: half of the "// &
+                          "total number of MPI ranks, -2: biggest square number smaller than the "// &
+                          "total number of MPI ranks, number between 1 and (#MPI ranks)/2: this size "// &
+                          "is used.", &
+                          usage="SIZE_CS  144", &
+                          default_i_val=-1)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
