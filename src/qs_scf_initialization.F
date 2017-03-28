@@ -357,6 +357,8 @@ CONTAINS
             dft_control%qs_control%cdft_control%ot_control%jacobian_type = scf_control%outer_scf%jacobian_type
             dft_control%qs_control%cdft_control%ot_control%bisect_trust_count = scf_control%outer_scf%bisect_trust_count
             dft_control%qs_control%cdft_control%ot_control%jacobian_step = scf_control%outer_scf%jacobian_step
+            dft_control%qs_control%cdft_control%ot_control%newton_step = scf_control%outer_scf%newton_step
+            dft_control%qs_control%cdft_control%ot_control%newton_step_save = scf_control%outer_scf%newton_step_save
             dft_control%qs_control%cdft_control%ot_control%jacobian_freq = scf_control%outer_scf%jacobian_freq
             dft_control%qs_control%cdft_control%ot_control%ijacobian = scf_control%outer_scf%ijacobian
             dft_control%qs_control%cdft_control%ot_control%build_jacobian = scf_control%outer_scf%build_jacobian

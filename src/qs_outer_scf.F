@@ -590,6 +590,7 @@ CONTAINS
          scf_control%outer_scf%jacobian_step = cdft_control%ot_control%jacobian_step
          scf_control%outer_scf%jacobian_freq = cdft_control%ot_control%jacobian_freq
          scf_control%outer_scf%newton_step = cdft_control%ot_control%newton_step
+         scf_control%outer_scf%newton_step_save = cdft_control%ot_control%newton_step_save
          scf_control%outer_scf%ijacobian = cdft_control%ot_control%ijacobian
          scf_control%outer_scf%build_jacobian = cdft_control%ot_control%build_jacobian
          scf_control%outer_scf%broyden_type = cdft_control%ot_control%broyden_type
@@ -646,6 +647,7 @@ CONTAINS
          scf_control%outer_scf%broyden_type = cdft_control%constraint_control%broyden_type
          scf_control%outer_scf%broyden_update = cdft_control%constraint_control%broyden_update
          scf_control%outer_scf%newton_step = cdft_control%constraint_control%newton_step
+         scf_control%outer_scf%newton_step_save = cdft_control%constraint_control%newton_step_save
          nvariables = SIZE(cdft_control%constraint%variables, 1)
          IF (ASSOCIATED(scf_env%outer_scf%energy)) &
             DEALLOCATE (scf_env%outer_scf%energy)

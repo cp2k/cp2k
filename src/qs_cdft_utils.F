@@ -769,7 +769,7 @@ CONTAINS
             CALL section_vals_val_get(outer_scf_section, "EPS_SCF", &
                                       r_val=qs_control%cdft_control%constraint_control%eps_scf)
             CALL section_vals_val_get(outer_scf_section, "STEP_SIZE", &
-                                      r_val=qs_control%cdft_control%constraint_control%step_size)
+                                      r_val=qs_control%cdft_control%constraint_control%step_size, explicit=exists)
             CALL section_vals_val_get(outer_scf_section, "DIIS_BUFFER_LENGTH", &
                                       i_val=qs_control%cdft_control%constraint_control%diis_buffer_length)
             CALL section_vals_val_get(outer_scf_section, "BISECT_TRUST_COUNT", &
@@ -786,6 +786,13 @@ CONTAINS
                                       r_val=qs_control%cdft_control%constraint_control%jacobian_step)
             CALL section_vals_val_get(outer_scf_section, "BROYDEN_TYPE", &
                                       i_val=qs_control%cdft_control%constraint_control%broyden_type)
+            IF (exists .AND. ABS(qs_control%cdft_control%constraint_control%step_size) .LE. 1.0_dp) THEN
+               qs_control%cdft_control%constraint_control%newton_step = &
+                  ABS(qs_control%cdft_control%constraint_control%step_size)
+               ! Permanent copy needed in case line search is performed
+               qs_control%cdft_control%constraint_control%newton_step_save = &
+                  qs_control%cdft_control%constraint_control%newton_step
+            END IF
             CALL section_vals_val_get(outer_scf_section, "JACOBIAN_FREQ", explicit=exists)
             IF (exists) THEN
                CALL section_vals_val_get(outer_scf_section, "JACOBIAN_FREQ", &
@@ -801,7 +808,6 @@ CONTAINS
                                 "Both values to keyword JACOBIAN_FREQ cannot be zero.")
                qs_control%cdft_control%constraint_control%jacobian_freq(:) = tmplist(1:2)
             END IF
-
             SELECT CASE (qs_control%cdft_control%type)
             CASE (outer_scf_hirshfeld_constraint)
                IF (qs_control%cdft_control%constraint_control%type == outer_scf_cdft_constraint) THEN

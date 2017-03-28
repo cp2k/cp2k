@@ -5433,7 +5433,8 @@ CONTAINS
       CALL keyword_create(keyword, name="STEP_SIZE", &
                           description="The initial step_size used in the optimizer (currently steepest descent)."// &
                           "Note that in cases where a sadle point is sought for (DDAPC_CONSTRAINT),"// &
-                          " this can be negative", &
+                          " this can be negative. For Newton and Broyden optimizers, use a value less than "// &
+                          "the default 1.0 (in absolute value, the sign is not significant) to active a damped optimizer.", &
                           usage="STEP_SIZE -1.0", default_r_val=0.5_dp)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)

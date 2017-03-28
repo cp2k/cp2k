@@ -1586,7 +1586,7 @@ CONTAINS
                           "Optimizers that perform a line search can"// &
                           " only be used together with a valid CDFT constraint")
          CPASSERT(ASSOCIATED(scf_env%outer_scf%inv_jacobian))
-         alpha = 1.0_dp
+         alpha = scf_control%outer_scf%newton_step_save
          iter_count = scf_env%outer_scf%iter_count
          ! Redirect output from line search procedure to a new file by creating a temporary logger
          project_name = logger%iter_info%project_name
@@ -1695,7 +1695,7 @@ CONTAINS
          IF (.NOT. should_exit) THEN
             CALL cp_warn(__LOCATION__, &
                          "Line search did not converge.")
-            scf_control%outer_scf%newton_step = 1.0_dp
+            scf_control%outer_scf%newton_step = scf_control%outer_scf%newton_step_save
          END IF
          CALL cp_rm_default_logger()
          CALL cp_logger_release(tmp_logger)

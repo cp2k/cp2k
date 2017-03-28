@@ -769,6 +769,8 @@ CONTAINS
             WRITE (output_unit, '(A,I4,A)') &
                "  or if the number of SCF iterations exceeds ", &
                cdft_control%constraint_control%jacobian_freq(1)
+            WRITE (output_unit, '(A,F8.4)') &
+               "  Optimizer step size     : ", cdft_control%constraint_control%newton_step_save
          CASE (outer_scf_optimizer_newton)
             WRITE (output_unit, '(A)') "  Minimizer               : Newton"
             WRITE (output_unit, '(A,I4,A)') &
@@ -777,6 +779,8 @@ CONTAINS
             WRITE (output_unit, '(A,I4,A)') &
                "  or if the number of SCF iterations exceeds ", &
                cdft_control%constraint_control%jacobian_freq(1)
+            WRITE (output_unit, '(A,F8.4)') &
+               "  Optimizer step size     : ", cdft_control%constraint_control%newton_step_save
          CASE (outer_scf_optimizer_newton_ls)
             WRITE (output_unit, '(A)') "  Minimizer               : Newton with backtracking line search"
             WRITE (output_unit, '(A,I4,A)') &
@@ -785,6 +789,8 @@ CONTAINS
             WRITE (output_unit, '(A,I4,A)') &
                "  or if the number of SCF iterations exceeds ", &
                cdft_control%constraint_control%jacobian_freq(1)
+            WRITE (output_unit, '(A,F8.4)') &
+               "  Optimizer step size     : ", cdft_control%constraint_control%newton_step_save
          CASE (outer_scf_optimizer_secant)
             WRITE (output_unit, '(A)') "  Minimizer               : Secant"
          CASE DEFAULT

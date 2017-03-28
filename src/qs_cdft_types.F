@@ -221,7 +221,8 @@ MODULE qs_cdft_types
                                               ijacobian
       REAL(KIND=dp)                        :: eps_scf, step_size, &
                                               jacobian_step, &
-                                              newton_step
+                                              newton_step, &
+                                              newton_step_save
       INTEGER                              :: TYPE
       INTEGER                              :: optimizer
       INTEGER                              :: diis_buffer_length
@@ -477,6 +478,7 @@ CONTAINS
       cdft_control%ot_control%jacobian_type = -1
       cdft_control%ot_control%jacobian_step = 0.0_dp
       cdft_control%ot_control%newton_step = 1.0_dp
+      cdft_control%ot_control%newton_step_save = 1.0_dp
       cdft_control%constraint_control%have_scf = .FALSE.
       cdft_control%constraint_control%max_scf = 0
       cdft_control%constraint_control%eps_scf = 0.0_dp
@@ -489,6 +491,7 @@ CONTAINS
       cdft_control%constraint_control%jacobian_freq = 1
       cdft_control%constraint_control%jacobian_step = 0.0_dp
       cdft_control%constraint_control%newton_step = 1.0_dp
+      cdft_control%constraint_control%newton_step_save = 1.0_dp
       cdft_control%constraint_control%ijacobian = 0
       cdft_control%constraint_control%build_jacobian = .FALSE.
       cdft_control%constraint_control%broyden_update = .FALSE.
