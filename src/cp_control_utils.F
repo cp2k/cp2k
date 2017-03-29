@@ -1099,7 +1099,6 @@ CONTAINS
       CALL section_vals_val_get(t_section, "NSTATES", i_val=t_control%nstates)
       CALL section_vals_val_get(t_section, "MAX_ITER", i_val=t_control%niters)
       CALL section_vals_val_get(t_section, "MAX_KV", i_val=t_control%nkvs)
-      CALL section_vals_val_get(t_section, "MAX_REORTHO", i_val=t_control%nreortho)
       CALL section_vals_val_get(t_section, "NPROC_STATE", i_val=t_control%nprocs)
 
       CALL section_vals_val_get(t_section, "CONVERGENCE", r_val=t_control%conv)

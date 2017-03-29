@@ -1011,14 +1011,6 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="ADDED_STATES", &
-                          description="Number of additional excited states in the active space "// &
-                          "(-1 means all virtual orbitals).", &
-                          n_var=1, type_of_var=integer_t, &
-                          default_i_val=-1)
-      CALL section_add_keyword(section, keyword)
-      CALL keyword_release(keyword)
-
       CALL keyword_create(keyword, name="MAX_ITER", &
                           description="Maximal number of iterations to be performed.", &
                           n_var=1, type_of_var=integer_t, &
@@ -1034,14 +1026,6 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="MAX_REORTHO", &
-                          description="Maximal number of orthogonalisation iterations. "// &
-                          "Davidson iterations will be restarted if orthogonality is not reached.", &
-                          n_var=1, type_of_var=integer_t, &
-                          default_i_val=1)
-      CALL section_add_keyword(section, keyword)
-      CALL keyword_release(keyword)
-
       CALL keyword_create(keyword, name="NPROC_STATE", &
                           description="Number of MPI processes to be used per excited state. "// &
                           " Default is to use all processors (0).", &
@@ -1053,13 +1037,6 @@ CONTAINS
       ! Real
       CALL keyword_create(keyword, name="CONVERGENCE", &
                           description="Target accuracy for excited state energies.", &
-                          n_var=1, type_of_var=real_t, unit_str="hartree", &
-                          default_r_val=1.0e-5_dp)
-      CALL section_add_keyword(section, keyword)
-      CALL keyword_release(keyword)
-
-      CALL keyword_create(keyword, name="DEGENERATE_EPS", &
-                          description="Energy threshold which controls when excited states are considered to be degenerate.", &
                           n_var=1, type_of_var=real_t, unit_str="hartree", &
                           default_r_val=1.0e-5_dp)
       CALL section_add_keyword(section, keyword)
@@ -1082,13 +1059,6 @@ CONTAINS
       CALL keyword_release(keyword)
 
       ! Logical
-      CALL keyword_create(keyword, name="ADD_DEGENERATE_STATES", &
-                          description="Automatically include degenerate excited states into the active space.", &
-                          n_var=1, type_of_var=logical_t, &
-                          default_l_val=.TRUE.)
-      CALL section_add_keyword(section, keyword)
-      CALL keyword_release(keyword)
-
       CALL keyword_create(keyword, name="RESTART", &
                           description="Restart the TDDFPT calculation if a restart file exists", &
                           n_var=1, type_of_var=logical_t, &

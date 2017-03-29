@@ -379,8 +379,6 @@ MODULE cp_control_types
       INTEGER                              :: nkvs
       !> minimal number of MPI processes to be used per excited state
       INTEGER                              :: nprocs
-      !> maximal number of orthogonalisation iterations
-      INTEGER                              :: nreortho
       !> target accuracy
       REAL(kind=dp)                        :: conv
       !> the smallest excitation amplitude to print
