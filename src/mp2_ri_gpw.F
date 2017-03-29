@@ -7717,14 +7717,16 @@ CONTAINS
 
                                  CALL timeset(routineN//"_put_dbcsr", handle2)
 
+!$OMP CRITICAL(putblock)
                                  CALL dbcsr_put_block(mat_3c_overl_int(i_cut_RI)%matrix, &
                                                       row=row, col=col, block=block, summation=.TRUE.)
+!$OMP END CRITICAL(putblock)
 
                                  IF (row .NE. col) THEN
-
+!$OMP CRITICAL(putblock)
                                     CALL dbcsr_put_block(mat_3c_overl_int(i_cut_RI)%matrix, &
                                                          row=col, col=row, block=block_transposed, summation=.TRUE.)
-
+!$OMP END CRITICAL(putblock)
                                  END IF
 
                                  DEALLOCATE (block, block_transposed)
@@ -7823,21 +7825,28 @@ CONTAINS
 
                                     END IF
 
+!$OMP CRITICAL(putblock)
                                     CALL dbcsr_put_block(mat_3c_overl_int_mao_for_occ(i_cut_RI)%matrix, &
                                                          row=row, col=col, block=block_mao_for_occ, summation=.TRUE.)
+!$OMP END CRITICAL(putblock)
 
+!$OMP CRITICAL(putblock)
                                     CALL dbcsr_put_block(mat_3c_overl_int_mao_for_virt(i_cut_RI)%matrix, &
                                                          row=row, col=col, block=block_mao_for_virt, summation=.TRUE.)
+!$OMP END CRITICAL(putblock)
 
                                     IF (row .NE. col) THEN
-
+!$OMP CRITICAL(putblock)
                                        CALL dbcsr_put_block(mat_3c_overl_int_mao_for_occ(i_cut_RI)%matrix, &
                                                             row=col, col=row, block=block_mao_for_occ_transposed, &
                                                             summation=.TRUE.)
+!$OMP END CRITICAL(putblock)
 
+!$OMP CRITICAL(putblock)
                                        CALL dbcsr_put_block(mat_3c_overl_int_mao_for_virt(i_cut_RI)%matrix, &
                                                             row=col, col=row, block=block_mao_for_virt_transposed, &
                                                             summation=.TRUE.)
+!$OMP END CRITICAL(putblock)
 
                                     END IF
 
