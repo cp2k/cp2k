@@ -4290,10 +4290,12 @@ CONTAINS
          END IF
       END IF
 
-      IF (do_periodic .AND. (do_gw_im_time .OR. my_do_gw)) THEN
-         CALL dbcsr_deallocate_matrix_set(matrix_berry_re_mo_mo)
-         CALL dbcsr_deallocate_matrix_set(matrix_berry_im_mo_mo)
-         CALL kpoint_release(kpoints)
+      IF (do_gw_im_time .OR. my_do_gw) THEN
+         IF (do_periodic) THEN
+            CALL dbcsr_deallocate_matrix_set(matrix_berry_re_mo_mo)
+            CALL dbcsr_deallocate_matrix_set(matrix_berry_im_mo_mo)
+            CALL kpoint_release(kpoints)
+         END IF
       END IF
 
       IF (do_im_time) THEN

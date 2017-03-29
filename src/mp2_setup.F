@@ -263,9 +263,10 @@ CONTAINS
       END IF
 
       NULLIFY (mp2_env%eri_mme_param)
+      ALLOCATE (mp2_env%eri_mme_param)
+
       IF (mp2_env%eri_method .EQ. do_eri_mme) THEN
          eri_mme_section => section_vals_get_subs_vals(mp2_section, "ERI_MME")
-         ALLOCATE (mp2_env%eri_mme_param)
          CALL cp_eri_mme_init_read_input(eri_mme_section, mp2_env%eri_mme_param)
       ENDIF
 
