@@ -637,6 +637,7 @@ CONTAINS
 
       CHARACTER(len=4)                                   :: ptype
       INTEGER                                            :: i, j, k1, k2, la, lb, m, n
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: spot
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: spmat
       TYPE(atom_basis_type)                              :: gbasis
 
@@ -678,7 +679,20 @@ CONTAINS
       ELSE IF (ptype(1:2) == "SL") THEN
          ! semi local pseudopotential
          DO la = 0, potential%upf_pot%l_max
-            CALL numpot_matrix(integrals%core, potential%upf_pot%vsemi(:, la+1), gbasis, 0)
+            IF (la == potential%upf_pot%l_local) CYCLE
+            m = SIZE(potential%upf_pot%vsemi(:, la+1))
+            ALLOCATE (spot(m))
+            spot(:) = potential%upf_pot%vsemi(:, la+1)-potential%upf_pot%vlocal(:)
+            n = basis%nbas(la)
+            DO i = 1, n
+               DO j = i, n
+                  integrals%core(i, j, la) = integrals%core(i, j, la)+ &
+                                             integrate_grid(spot(:), &
+                                                            gbasis%bf(:, i, la), gbasis%bf(:, j, la), gbasis%grid)
+                  integrals%core(j, i, la) = integrals%core(i, j, la)
+               END DO
+            END DO
+            DEALLOCATE (spot)
          END DO
       ELSE
          CPABORT("Pseudopotential type: ["//ADJUSTL(TRIM(ptype))//"] not known")

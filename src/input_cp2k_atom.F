@@ -432,6 +432,14 @@ CONTAINS
       CALL section_release(print_key)
 
       ! Print key section
+      CALL cp_print_key_section_create(print_key, "SEPARABLE_GAUSSIAN_PSEUDO", &
+                                       description="Creates a representation of the pseudopotential in separable "// &
+                                       " form using Gaussian functions.", &
+                                       print_level=debug_print_level, filename="__STD_OUT__")
+      CALL section_add_subsection(section, print_key)
+      CALL section_release(print_key)
+
+      ! Print key section
       CALL cp_print_key_section_create(print_key, "ENERGIES_MINUS_KINETIC", &
                                        description="Print out the total energy and orbital energies without "// &
                                        "the kinetic energy component. Useful for atomic calculations used"// &

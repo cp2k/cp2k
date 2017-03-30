@@ -22,6 +22,7 @@ MODULE atom_energy
                                               atom_print_orbitals,&
                                               atom_print_potential,&
                                               atom_write_pseudo_param
+   USE atom_sgp,                        ONLY: atom_sgp_construction
    USE atom_types,                      ONLY: &
         atom_basis_type, atom_gthpot_type, atom_integrals, atom_optimization_type, atom_orbitals, &
         atom_p_type, atom_potential_type, atom_state, atom_type, create_atom_orbs, &
@@ -98,7 +99,7 @@ CONTAINS
       TYPE(atom_state), POINTER                          :: state
       TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(section_vals_type), POINTER :: admm_section, basis_section, external_vxc_section, &
-         method_section, opt_section, potential_section, powell_section, xc_section, &
+         method_section, opt_section, potential_section, powell_section, sgp_section, xc_section, &
          zmp_restart_section, zmp_section
 
       CALL timeset(routineN, handle)
@@ -465,6 +466,14 @@ CONTAINS
          CALL atom_admm(atom_info, admm_section, iw)
       END IF
       CALL cp_print_key_finished_output(iw, logger, atom_section, "PRINT%ADMM")
+
+      ! Generate a separable form of the pseudopotential using Gaussian functions
+      iw = cp_print_key_unit_nr(logger, atom_section, "PRINT%SEPARABLE_GAUSSIAN_PSEUDO", extension=".log")
+      sgp_section => section_vals_get_subs_vals(atom_section, "PRINT%SEPARABLE_GAUSSIAN_PSEUDO")
+      IF (iw > 0) THEN
+         CALL atom_sgp_construction(atom_info, sgp_section, iw)
+      END IF
+      CALL cp_print_key_finished_output(iw, logger, atom_section, "PRINT%SEPARABLE_GAUSSIAN_PSEUDO")
 
       ! clean up
       IF (had_ae) THEN

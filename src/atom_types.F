@@ -272,7 +272,8 @@ MODULE atom_types
    END TYPE atom_p_type
 
    PUBLIC :: atom_p_type, atom_type, atom_basis_type, atom_state, atom_integrals
-   PUBLIC :: atom_orbitals, eri, atom_potential_type, atom_gthpot_type
+   PUBLIC :: atom_orbitals, eri, atom_potential_type
+   PUBLIC :: atom_gthpot_type, atom_ecppot_type, atom_upfpot_type
    PUBLIC :: atom_optimization_type
    PUBLIC :: atom_compare_grids
    PUBLIC :: create_atom_type, release_atom_type, set_atom
@@ -1089,23 +1090,30 @@ CONTAINS
 !> \brief ...
 !> \param opmat ...
 !> \param n ...
+!> \param lmax ...
 ! **************************************************************************************************
-   SUBROUTINE create_opmat(opmat, n)
+   SUBROUTINE create_opmat(opmat, n, lmax)
       TYPE(opmat_type), POINTER                          :: opmat
       INTEGER, DIMENSION(0:3), INTENT(IN)                :: n
+      INTEGER, INTENT(IN), OPTIONAL                      :: lmax
 
       CHARACTER(len=*), PARAMETER :: routineN = 'create_opmat', routineP = moduleN//':'//routineN
 
-      INTEGER                                            :: m
+      INTEGER                                            :: lm, m
 
       m = MAXVAL(n)
+      IF (PRESENT(lmax)) THEN
+         lm = lmax
+      ELSE
+         lm = 3
+      END IF
 
       CPASSERT(.NOT. ASSOCIATED(opmat))
 
       ALLOCATE (opmat)
 
       opmat%n = n
-      ALLOCATE (opmat%op(m, m, 0:3))
+      ALLOCATE (opmat%op(m, m, 0:lm))
       opmat%op = 0._dp
 
    END SUBROUTINE create_opmat

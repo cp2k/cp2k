@@ -864,7 +864,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE get_pseudo_inverse_svd(a, a_pinverse, rskip)
 
-      REAL(KIND=dp), DIMENSION(:, :), POINTER            :: a, a_pinverse
+      REAL(KIND=dp), DIMENSION(:, :)                     :: a, a_pinverse
       REAL(KIND=dp), INTENT(IN)                          :: rskip
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'get_pseudo_inverse_svd', &
@@ -935,7 +935,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE get_pseudo_inverse_diag(a, a_pinverse, rskip)
 
-      REAL(KIND=dp), DIMENSION(:, :), POINTER            :: a, a_pinverse
+      REAL(KIND=dp), DIMENSION(:, :)                     :: a, a_pinverse
       REAL(KIND=dp), INTENT(IN)                          :: rskip
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'get_pseudo_inverse_diag', &
