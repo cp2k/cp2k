@@ -13,6 +13,8 @@
 !> - Created 2011-04-05
 ! **************************************************************************************************
 MODULE dbcsr_config
+   USE dbcsr_ptr_util,                  ONLY: dbcsr_data_allocation,&
+                                              dbcsr_data_allocation_type
    USE kinds,                           ONLY: default_string_length,&
                                               dp
 #include "../../base/base_uses.f90"
@@ -88,7 +90,6 @@ MODULE dbcsr_config
 
    TYPE dbcsr_config_type
       INTEGER  :: mm_driver = mm_default_driver
-      LOGICAL  :: use_MPI_memory = has_MPI
       INTEGER  :: mm_stack_size = mm_stack_default_size
       INTEGER  :: avg_elements_images = -1
       INTEGER  :: num_mult_images = 1
@@ -123,7 +124,7 @@ CONTAINS
 ! **************************************************************************************************
 !> \brief ...
 !> \param mm_driver ...
-!> \param use_MPI_memory ...
+!> \param use_mpi_allocator ...
 !> \param mm_stack_size ...
 !> \param avg_elements_images Maximum number of elements for each image
 !> \param num_mult_images Multiplicative factor for number of virtual images
@@ -146,7 +147,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE dbcsr_set_config( &
       mm_driver, &
-      use_MPI_memory, &
+      use_mpi_allocator, &
       mm_stack_size, &
       avg_elements_images, &
       num_mult_images, &
@@ -168,7 +169,7 @@ CONTAINS
       accdrv_binning_binsize)
 !
       CHARACTER(len=*), INTENT(IN), OPTIONAL             :: mm_driver
-      LOGICAL, INTENT(IN), OPTIONAL                      :: use_MPI_memory
+      LOGICAL, INTENT(IN), OPTIONAL                      :: use_mpi_allocator
       INTEGER, INTENT(IN), OPTIONAL                      :: mm_stack_size, avg_elements_images, &
                                                             num_mult_images, nstacks
       LOGICAL, INTENT(IN), OPTIONAL                      :: use_mpi_rma
@@ -185,10 +186,10 @@ CONTAINS
 
       INTEGER                                            :: nthreads
 
-      IF (PRESENT(use_MPI_memory)) dbcsr_cfg%use_MPI_memory = use_MPI_memory
+      IF (PRESENT(use_mpi_allocator)) dbcsr_data_allocation%use_mpi_allocator = use_mpi_allocator .AND. has_MPI
       IF (PRESENT(avg_elements_images)) dbcsr_cfg%avg_elements_images = avg_elements_images
       IF (PRESENT(num_mult_images)) dbcsr_cfg%num_mult_images = num_mult_images
-      IF (PRESENT(use_mpi_rma)) dbcsr_cfg%use_mpi_rma = use_mpi_rma
+      IF (PRESENT(use_mpi_rma)) dbcsr_cfg%use_mpi_rma = use_mpi_rma .AND. has_MPI
       IF (PRESENT(num_layers_3D)) dbcsr_cfg%num_layers_3D = num_layers_3D
       IF (PRESENT(use_comm_thread)) dbcsr_cfg%use_comm_thread = use_comm_thread
       IF (PRESENT(multrec_limit)) dbcsr_cfg%multrec_limit = multrec_limit
@@ -250,7 +251,7 @@ CONTAINS
 
 ! **************************************************************************************************
 !> \brief ...
-!> \param use_MPI_memory ...
+!> \param use_mpi_allocator ...
 !> \param mm_stack_size ...
 !> \param avg_elements_images ...
 !> \param num_mult_images ...
@@ -272,7 +273,7 @@ CONTAINS
 !> \param accdrv_binning_binsize ...
 ! **************************************************************************************************
    SUBROUTINE dbcsr_get_default_config( &
-      use_MPI_memory, &
+      use_mpi_allocator, &
       mm_stack_size, &
       avg_elements_images, &
       num_mult_images, &
@@ -293,7 +294,7 @@ CONTAINS
       accdrv_binning_nbins, &
       accdrv_binning_binsize)
 !
-      LOGICAL, INTENT(OUT), OPTIONAL                     :: use_MPI_memory
+      LOGICAL, INTENT(OUT), OPTIONAL                     :: use_mpi_allocator
       INTEGER, INTENT(OUT), OPTIONAL                     :: mm_stack_size, avg_elements_images, &
                                                             num_mult_images, nstacks
       LOGICAL, INTENT(OUT), OPTIONAL                     :: use_mpi_rma
@@ -309,8 +310,9 @@ CONTAINS
                                                             accdrv_binning_binsize
 
       TYPE(dbcsr_config_type)                            :: default_cfg
+      TYPE(dbcsr_data_allocation_type)                   :: default_data_allocation
 
-      IF (PRESENT(use_MPI_memory)) use_MPI_memory = default_cfg%use_MPI_memory
+      IF (PRESENT(use_mpi_allocator)) use_mpi_allocator = default_data_allocation%use_mpi_allocator
       IF (PRESENT(mm_stack_size)) mm_stack_size = default_cfg%mm_stack_size
       IF (PRESENT(avg_elements_images)) avg_elements_images = default_cfg%avg_elements_images
       IF (PRESENT(num_mult_images)) num_mult_images = default_cfg%num_mult_images
@@ -393,7 +395,7 @@ CONTAINS
                   "DBCSR| Number of 3D layers", dbcsr_cfg%num_layers_3D
             ENDIF
             WRITE (UNIT=unit_nr, FMT='(1X,A,T80,L1)') &
-               "DBCSR| Use MPI memory allocation", dbcsr_cfg%use_mpi_memory
+               "DBCSR| Use MPI memory allocation", dbcsr_data_allocation%use_mpi_allocator
             WRITE (UNIT=unit_nr, FMT='(1X,A,T80,L1)') &
                "DBCSR| Use RMA algorithm", dbcsr_cfg%use_mpi_rma
             WRITE (UNIT=unit_nr, FMT='(1X,A,T80,L1)') &

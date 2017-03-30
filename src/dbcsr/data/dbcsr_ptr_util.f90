@@ -212,7 +212,7 @@
 
     IF(mem_type%acc_hostalloc .AND. n>1) THEN
        CALL acc_hostmem_allocate(mem, n, mem_type%acc_stream)
-    ELSE IF(mem_type%mpi) THEN
+    ELSE IF(mem_type%mpi .AND. dbcsr_data_allocation%use_mpi_allocator) THEN
 !$omp critical(allocate)
        CALL mp_allocate(mem, n)
 !$omp end critical(allocate)
@@ -276,7 +276,7 @@
 
     IF(mem_type%acc_hostalloc .AND. SIZE(mem)>1) THEN
        CALL acc_hostmem_deallocate(mem, mem_type%acc_stream)
-    ELSE IF(mem_type%mpi) THEN
+    ELSE IF(mem_type%mpi .AND. dbcsr_data_allocation%use_mpi_allocator) THEN
        CALL mp_deallocate(mem)
     ELSE
        DEALLOCATE(mem)

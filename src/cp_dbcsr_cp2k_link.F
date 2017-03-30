@@ -147,6 +147,15 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
+      CALL dbcsr_get_default_config(use_mpi_allocator=ldefault)
+      CALL keyword_create(keyword, name="use_mpi_allocator", &
+                          description="Use MPI allocator" &
+                          //" to allocate buffers used in MPI communications.", &
+                          usage="use_mpi_allocator T", &
+                          default_l_val=ldefault)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
       CALL dbcsr_get_default_config(use_mpi_rma=ldefault)
       CALL keyword_create(keyword, name="use_mpi_rma", &
                           description="Use RMA for MPI communications" &
@@ -332,6 +341,9 @@ CONTAINS
 
       CALL section_vals_val_get(dbcsr_section, "n_size_mnk_stacks", i_val=ival)
       CALL dbcsr_set_config(nstacks=ival)
+
+      CALL section_vals_val_get(dbcsr_section, "use_mpi_allocator", l_val=lval)
+      CALL dbcsr_set_config(use_mpi_allocator=lval)
 
       CALL section_vals_val_get(dbcsr_section, "use_mpi_rma", l_val=lval)
       CALL dbcsr_set_config(use_mpi_rma=lval)
