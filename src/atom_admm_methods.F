@@ -70,7 +70,7 @@ CONTAINS
          dfexc_admmq, dxc, dxk, el1, el2, elq, elref, fexc_optx_admm1, fexc_optx_admm2, &
          fexc_optx_admmq, fexc_optx_ref, fexc_pbex_admm1, fexc_pbex_admm2, fexc_pbex_admmq, &
          fexc_pbex_ref, ref_energy, xsi
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: lmat
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: lamat
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :) :: admm1_k, admm2_k, admm_xcmat, admm_xcmata, &
          admm_xcmatb, admmq_k, ovlap, ref_k, ref_xcmat, ref_xcmata, ref_xcmatb, sinv, siref, tmat
       TYPE(atom_basis_type), POINTER                     :: admm_basis, ref_basis
@@ -205,7 +205,7 @@ CONTAINS
                CALL create_atom_orbs(admm1_orbs, na, mo)
                CALL create_atom_orbs(admm2_orbs, na, mo)
                CALL create_atom_orbs(admmq_orbs, na, mo)
-               ALLOCATE (lmat(1:mo, 1:mo))
+               ALLOCATE (lamat(1:mo, 1:mo))
                ALLOCATE (admm1_k(1:na, 1:na, 0:3))
                ALLOCATE (admm2_k(1:na, 1:na, 0:3))
                ALLOCATE (admmq_k(1:na, 1:na, 0:3))
@@ -216,8 +216,8 @@ CONTAINS
                      mo = atom%state%maxn_calc(l)
                      IF (n < 1 .OR. m < 1 .OR. mo < 1) CYCLE
                      admm2_orbs%wfn(1:n, 1:mo, l) = MATMUL(tmat(1:n, 1:m, l), ref_orbs%wfn(1:m, 1:mo, l))
-                     CALL lowdin_matrix(admm2_orbs%wfn(1:n, 1:mo, l), lmat(1:mo, 1:mo), admm_int%ovlp(1:n, 1:n, l))
-                     admm1_orbs%wfn(1:n, 1:mo, l) = MATMUL(admm2_orbs%wfn(1:n, 1:mo, l), lmat(1:mo, 1:mo))
+                     CALL lowdin_matrix(admm2_orbs%wfn(1:n, 1:mo, l), lamat(1:mo, 1:mo), admm_int%ovlp(1:n, 1:n, l))
+                     admm1_orbs%wfn(1:n, 1:mo, l) = MATMUL(admm2_orbs%wfn(1:n, 1:mo, l), lamat(1:mo, 1:mo))
                   END DO
                   CALL atom_denmat(admm1_orbs%pmat, admm1_orbs%wfn, admm_basis%nbas, atom%state%occupation, &
                                    atom%state%maxl_occ, atom%state%maxn_occ)
@@ -246,11 +246,11 @@ CONTAINS
                      mo = atom%state%maxn_calc(l)
                      IF (n < 1 .OR. m < 1 .OR. mo < 1) CYCLE
                      admm2_orbs%wfna(1:n, 1:mo, l) = MATMUL(tmat(1:n, 1:m, l), ref_orbs%wfna(1:m, 1:mo, l))
-                     CALL lowdin_matrix(admm2_orbs%wfna(1:n, 1:mo, l), lmat, admm_int%ovlp(1:n, 1:n, l))
-                     admm1_orbs%wfna(1:n, 1:mo, l) = MATMUL(admm2_orbs%wfna(1:n, 1:mo, l), lmat(1:mo, 1:mo))
+                     CALL lowdin_matrix(admm2_orbs%wfna(1:n, 1:mo, l), lamat, admm_int%ovlp(1:n, 1:n, l))
+                     admm1_orbs%wfna(1:n, 1:mo, l) = MATMUL(admm2_orbs%wfna(1:n, 1:mo, l), lamat(1:mo, 1:mo))
                      admm2_orbs%wfnb(1:n, 1:mo, l) = MATMUL(tmat(1:n, 1:m, l), ref_orbs%wfnb(1:m, 1:mo, l))
-                     CALL lowdin_matrix(admm2_orbs%wfnb(1:n, 1:mo, l), lmat, admm_int%ovlp(1:n, 1:n, l))
-                     admm1_orbs%wfnb(1:n, 1:mo, l) = MATMUL(admm2_orbs%wfnb(1:n, 1:mo, l), lmat(1:mo, 1:mo))
+                     CALL lowdin_matrix(admm2_orbs%wfnb(1:n, 1:mo, l), lamat, admm_int%ovlp(1:n, 1:n, l))
+                     admm1_orbs%wfnb(1:n, 1:mo, l) = MATMUL(admm2_orbs%wfnb(1:n, 1:mo, l), lamat(1:mo, 1:mo))
                   END DO
                   CALL atom_denmat(admm1_orbs%pmata, admm1_orbs%wfna, admm_basis%nbas, atom%state%occa, &
                                    atom%state%maxl_occ, atom%state%maxn_occ)
@@ -297,7 +297,7 @@ CONTAINS
                   CALL eeri_contract(admmq_k, admm_int%eeri, admmq_orbs%pmatb, admm_basis%nbas)
                   admmq_k_energy = admmq_k_energy+atom_trace(admmq_k, admmq_orbs%pmatb)
                END IF
-               DEALLOCATE (lmat)
+               DEALLOCATE (lamat)
                !
                ! ADMM correction terms
                maxl = atom%state%maxl_occ
@@ -434,12 +434,12 @@ CONTAINS
 ! **************************************************************************************************
 !> \brief ...
 !> \param wfn ...
-!> \param lmat ...
+!> \param lamat ...
 !> \param ovlp ...
 ! **************************************************************************************************
-   SUBROUTINE lowdin_matrix(wfn, lmat, ovlp)
+   SUBROUTINE lowdin_matrix(wfn, lamat, ovlp)
       REAL(KIND=dp), DIMENSION(:, :), INTENT(IN)         :: wfn
-      REAL(KIND=dp), DIMENSION(:, :), INTENT(OUT)        :: lmat
+      REAL(KIND=dp), DIMENSION(:, :), INTENT(OUT)        :: lamat
       REAL(KIND=dp), DIMENSION(:, :), INTENT(IN)         :: ovlp
 
       INTEGER                                            :: i, j, k, n
@@ -448,15 +448,15 @@ CONTAINS
 
       n = SIZE(wfn, 2)
       IF (n > 0) THEN
-         lmat = MATMUL(TRANSPOSE(wfn), MATMUL(ovlp, wfn))
+         lamat = MATMUL(TRANSPOSE(wfn), MATMUL(ovlp, wfn))
          ALLOCATE (w(n), vmat(n, n))
-         CALL jacobi(lmat(1:n, 1:n), w(1:n), vmat(1:n, 1:n))
+         CALL jacobi(lamat(1:n, 1:n), w(1:n), vmat(1:n, 1:n))
          w(1:n) = 1.0_dp/SQRT(w(1:n))
          DO i = 1, n
             DO j = 1, n
-               lmat(i, j) = 0.0_dp
+               lamat(i, j) = 0.0_dp
                DO k = 1, n
-                  lmat(i, j) = lmat(i, j)+vmat(i, k)*w(k)*vmat(j, k)
+                  lamat(i, j) = lamat(i, j)+vmat(i, k)*w(k)*vmat(j, k)
                END DO
             END DO
          END DO

@@ -1880,7 +1880,7 @@ CONTAINS
 
       INTEGER                                            :: handle, ispin, nao, nmo, nspins
       TYPE(cp_fm_p_type), DIMENSION(:), POINTER          :: p_ref
-      TYPE(cp_fm_type), POINTER                          :: fm_active, lmat, pmat, vec
+      TYPE(cp_fm_type), POINTER                          :: fm_active, lamat, pmat, vec
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: rho_ao
       TYPE(dbcsr_type), POINTER                          :: pinact
       TYPE(mo_set_p_type), DIMENSION(:), POINTER         :: mos
@@ -1901,18 +1901,18 @@ CONTAINS
          CALL dbcsr_copy(rho_ao(ispin)%matrix, pinact)
          ! create active density matrix in AO basis
          pmat => p_ref(ispin)%matrix
-         CALL cp_fm_create(lmat, pmat%matrix_struct)
-         CALL cp_fm_to_fm(pmat, lmat)
+         CALL cp_fm_create(lamat, pmat%matrix_struct)
+         CALL cp_fm_to_fm(pmat, lamat)
          ! calclulate SQRT(P): P = U*U
-         CALL cp_fm_sqrt(lmat)
+         CALL cp_fm_sqrt(lamat)
          ! R = C * U
          CALL get_mo_set(mos(ispin)%mo_set, mo_coeff=fm_active, nao=nao, nmo=nmo)
          CALL cp_fm_create(vec, fm_active%matrix_struct)
-         CALL cp_gemm("N", "N", nao, nmo, nmo, 1.0_dp, fm_active, lmat, 0.0_dp, vec)
+         CALL cp_gemm("N", "N", nao, nmo, nmo, 1.0_dp, fm_active, lamat, 0.0_dp, vec)
          CALL cp_dbcsr_plus_fm_fm_t(sparse_matrix=rho_ao(ispin)%matrix, &
                                     matrix_v=vec, ncol=nmo, alpha=1.0_dp)
          CALL cp_fm_release(vec)
-         CALL cp_fm_release(lmat)
+         CALL cp_fm_release(lamat)
       END DO
 
       ! let's also calculate Vxc

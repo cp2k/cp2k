@@ -54,6 +54,9 @@ MODULE atom_types
 
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'atom_types'
 
+   ! maximum l-quantum number considered in atomic code/basis
+   INTEGER, PARAMETER                                 :: lmat = 3
+
    INTEGER, PARAMETER                                 :: GTO_BASIS = 100, &
                                                          CGTO_BASIS = 101, &
                                                          STO_BASIS = 102, &
@@ -271,6 +274,7 @@ MODULE atom_types
       TYPE(atom_type), POINTER                      :: atom
    END TYPE atom_p_type
 
+   PUBLIC :: lmat
    PUBLIC :: atom_p_type, atom_type, atom_basis_type, atom_state, atom_integrals
    PUBLIC :: atom_orbitals, eri, atom_potential_type
    PUBLIC :: atom_gthpot_type, atom_ecppot_type, atom_upfpot_type
