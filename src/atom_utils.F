@@ -1876,12 +1876,12 @@ CONTAINS
       CHARACTER(len=*), PARAMETER :: routineN = 'slater_density', routineP = moduleN//':'//routineN
 
       INTEGER                                            :: i, l, n
-      INTEGER, DIMENSION(4, 7)                           :: ne
+      INTEGER, DIMENSION(lmat+1, 7)                      :: ne
       REAL(KIND=dp)                                      :: a, pf
 
       density1 = 0._dp
       density2 = 0._dp
-      ne(1:4, 1:7) = NINT(state%core(0:lmat, 1:7)+state%occ(0:lmat, 1:7))
+      ne(1:lmat+1, 1:7) = NINT(state%core(0:lmat, 1:7)+state%occ(0:lmat, 1:7))
       DO l = 0, state%maxl_occ
          DO i = 1, SIZE(state%occ, 2)
             IF (state%occ(l, i) > 0._dp) THEN

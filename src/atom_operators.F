@@ -1131,7 +1131,7 @@ CONTAINS
       state%occ = 0._dp
       state%multiplicity = -1
       z = NINT(zcore)
-      DO l = 0, lmat
+      DO l = 0, MIN(lmat, UBOUND(ptable(z)%e_conv, 1))
          IF (ptable(z)%e_conv(l) /= 0) THEN
             state%maxl_occ = l
             ll = 2*(2*l+1)

@@ -78,12 +78,12 @@ CONTAINS
 
       CHARACTER(len=*), PARAMETER :: routineN = 'atom_print_state', &
          routineP = moduleN//':'//routineN
-      CHARACTER(LEN=1), DIMENSION(0:lmat), PARAMETER     :: label = (/"S", "P", "D", "F"/)
+      CHARACTER(LEN=1), DIMENSION(0:7), PARAMETER :: &
+         label = (/"S", "P", "D", "F", "G", "H", "I", "K"/)
 
       INTEGER                                            :: j, l, mc, mlc, mlo, mm(0:lmat), mo
 
-! change needed if lmat changes!
-
+      CPASSERT(lmat <= 7)
       WRITE (iw, '(/,T2,A)') "Electronic structure"
       WRITE (iw, '(T5,A,T71,F10.2)') "Total number of core electrons", SUM(state%core)
       WRITE (iw, '(T5,A,T71,F10.2)') "Total number of valence electrons", SUM(state%occ)

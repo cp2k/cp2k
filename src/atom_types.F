@@ -404,42 +404,25 @@ CONTAINS
             m = MAXVAL(basis%nbas)
             ALLOCATE (basis%am(m, 0:lmat))
             basis%am = 0._dp
-            CPASSERT(lmat >= 3)
-            IF (basis%nbas(0) > 0) THEN
-               NULLIFY (expo)
-               CALL section_vals_val_get(basis_section, "S_EXPONENTS", r_vals=expo)
-               CPASSERT(SIZE(expo) >= basis%nbas(0))
-               DO i = 1, basis%nbas(0)
-                  basis%am(i, 0) = expo(i)
-               END DO
-            END IF
-            IF (basis%nbas(1) > 0) THEN
-               NULLIFY (expo)
-               CALL section_vals_val_get(basis_section, "P_EXPONENTS", r_vals=expo)
-               CPASSERT(SIZE(expo) >= basis%nbas(1))
-               DO i = 1, basis%nbas(1)
-                  basis%am(i, 1) = expo(i)
-               END DO
-            END IF
-            IF (basis%nbas(2) > 0) THEN
-               NULLIFY (expo)
-               CALL section_vals_val_get(basis_section, "D_EXPONENTS", r_vals=expo)
-               CPASSERT(SIZE(expo) >= basis%nbas(2))
-               DO i = 1, basis%nbas(2)
-                  basis%am(i, 2) = expo(i)
-               END DO
-            END IF
-            IF (basis%nbas(3) > 0) THEN
-               NULLIFY (expo)
-               CALL section_vals_val_get(basis_section, "F_EXPONENTS", r_vals=expo)
-               CPASSERT(SIZE(expo) >= basis%nbas(3))
-               DO i = 1, basis%nbas(3)
-                  basis%am(i, 3) = expo(i)
-               END DO
-            END IF
-            DO i = 4, lmat
-               IF (basis%nbas(i) > 0) THEN
-                  CPABORT("Input for higher L functions not available")
+            DO l = 0, lmat
+               IF (basis%nbas(l) > 0) THEN
+                  NULLIFY (expo)
+                  SELECT CASE (l)
+                  CASE DEFAULT
+                     CPABORT("Atom Basis")
+                  CASE (0)
+                     CALL section_vals_val_get(basis_section, "S_EXPONENTS", r_vals=expo)
+                  CASE (1)
+                     CALL section_vals_val_get(basis_section, "P_EXPONENTS", r_vals=expo)
+                  CASE (2)
+                     CALL section_vals_val_get(basis_section, "D_EXPONENTS", r_vals=expo)
+                  CASE (3)
+                     CALL section_vals_val_get(basis_section, "F_EXPONENTS", r_vals=expo)
+                  END SELECT
+                  CPASSERT(SIZE(expo) >= basis%nbas(l))
+                  DO i = 1, basis%nbas(l)
+                     basis%am(i, l) = expo(i)
+                  END DO
                END IF
             END DO
          END IF
@@ -600,68 +583,44 @@ CONTAINS
             ALLOCATE (basis%as(m, 0:lmat), basis%ns(m, 0:lmat))
             basis%as = 0._dp
             basis%ns = 0
-            CPASSERT(lmat >= 3)
-            IF (basis%nbas(0) > 0) THEN
-               NULLIFY (expo)
-               CALL section_vals_val_get(basis_section, "S_EXPONENTS", r_vals=expo)
-               CPASSERT(SIZE(expo) >= basis%nbas(0))
-               DO i = 1, basis%nbas(0)
-                  basis%as(i, 0) = expo(i)
-               END DO
-               NULLIFY (nqm)
-               CALL section_vals_val_get(basis_section, "S_QUANTUM_NUMBERS", i_vals=nqm)
-               CPASSERT(SIZE(nqm) >= basis%nbas(0))
-               DO i = 1, basis%nbas(0)
-                  basis%ns(i, 0) = nqm(i)
-               END DO
-            END IF
-            IF (basis%nbas(1) > 0) THEN
-               NULLIFY (expo)
-               CALL section_vals_val_get(basis_section, "P_EXPONENTS", r_vals=expo)
-               CPASSERT(SIZE(expo) >= basis%nbas(1))
-               DO i = 1, basis%nbas(1)
-                  basis%as(i, 1) = expo(i)
-               END DO
-               NULLIFY (nqm)
-               CALL section_vals_val_get(basis_section, "P_QUANTUM_NUMBERS", i_vals=nqm)
-               CPASSERT(SIZE(nqm) >= basis%nbas(1))
-               DO i = 1, basis%nbas(1)
-                  basis%ns(i, 1) = nqm(i)
-               END DO
-            END IF
-            IF (basis%nbas(2) > 0) THEN
-               NULLIFY (expo)
-               CALL section_vals_val_get(basis_section, "D_EXPONENTS", r_vals=expo)
-               CPASSERT(SIZE(expo) >= basis%nbas(2))
-               DO i = 1, basis%nbas(2)
-                  basis%as(i, 2) = expo(i)
-               END DO
-               NULLIFY (nqm)
-               CALL section_vals_val_get(basis_section, "D_QUANTUM_NUMBERS", i_vals=nqm)
-               CPASSERT(SIZE(nqm) >= basis%nbas(2))
-               DO i = 1, basis%nbas(2)
-                  basis%ns(i, 2) = nqm(i)
-               END DO
-            END IF
-            IF (basis%nbas(3) > 0) THEN
-               NULLIFY (expo)
-               CALL section_vals_val_get(basis_section, "F_EXPONENTS", r_vals=expo)
-               CPASSERT(SIZE(expo) >= basis%nbas(3))
-               DO i = 1, basis%nbas(3)
-                  basis%as(i, 3) = expo(i)
-               END DO
-               NULLIFY (nqm)
-               CALL section_vals_val_get(basis_section, "F_QUANTUM_NUMBERS", i_vals=nqm)
-               CPASSERT(SIZE(nqm) >= basis%nbas(3))
-               DO i = 1, basis%nbas(3)
-                  basis%ns(i, 3) = nqm(i)
-               END DO
-            END IF
-            IF (lmat > 3) THEN
-               DO i = 4, lmat
-                  CPASSERT(basis%nbas(i) == 0)
-               END DO
-            END IF
+            DO l = 0, lmat
+               IF (basis%nbas(l) > 0) THEN
+                  NULLIFY (expo)
+                  SELECT CASE (l)
+                  CASE DEFAULT
+                     CPABORT("Atom Basis")
+                  CASE (0)
+                     CALL section_vals_val_get(basis_section, "S_EXPONENTS", r_vals=expo)
+                  CASE (1)
+                     CALL section_vals_val_get(basis_section, "P_EXPONENTS", r_vals=expo)
+                  CASE (2)
+                     CALL section_vals_val_get(basis_section, "D_EXPONENTS", r_vals=expo)
+                  CASE (3)
+                     CALL section_vals_val_get(basis_section, "F_EXPONENTS", r_vals=expo)
+                  END SELECT
+                  CPASSERT(SIZE(expo) >= basis%nbas(l))
+                  DO i = 1, basis%nbas(l)
+                     basis%as(i, l) = expo(i)
+                  END DO
+                  NULLIFY (nqm)
+                  SELECT CASE (l)
+                  CASE DEFAULT
+                     CPABORT("Atom Basis")
+                  CASE (0)
+                     CALL section_vals_val_get(basis_section, "S_QUANTUM_NUMBERS", i_vals=nqm)
+                  CASE (1)
+                     CALL section_vals_val_get(basis_section, "P_QUANTUM_NUMBERS", i_vals=nqm)
+                  CASE (2)
+                     CALL section_vals_val_get(basis_section, "D_QUANTUM_NUMBERS", i_vals=nqm)
+                  CASE (3)
+                     CALL section_vals_val_get(basis_section, "F_QUANTUM_NUMBERS", i_vals=nqm)
+                  END SELECT
+                  CPASSERT(SIZE(nqm) >= basis%nbas(l))
+                  DO i = 1, basis%nbas(l)
+                     basis%ns(i, l) = nqm(i)
+                  END DO
+               END IF
+            END DO
          END IF
          ! initialize basis function on a radial grid
          nr = basis%grid%nr

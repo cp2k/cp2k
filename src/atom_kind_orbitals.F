@@ -738,7 +738,7 @@ CONTAINS
       IF (ASSOCIATED(gth_potential)) THEN
          CALL set_gth_state(gth_potential, z, ncalc, ncore, nelem)
       ELSE
-         DO l = 0, lmat
+         DO l = 0, MIN(lmat, UBOUND(ptable(z)%e_conv, 1))
             ll = 2*(2*l+1)
             nn = ptable(z)%e_conv(l)
             ii = 0
@@ -1046,7 +1046,7 @@ CONTAINS
          nelem = 0
          ncore = 0
          ncalc = 0
-         DO l = 0, lmat
+         DO l = 0, MIN(lmat, UBOUND(ptable(z)%e_conv, 1))
             ll = 2*(2*l+1)
             nn = ptable(z)%e_conv(l)
             ii = 0

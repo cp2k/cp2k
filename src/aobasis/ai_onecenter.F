@@ -243,7 +243,7 @@ CONTAINS
       CHARACTER(len=*), PARAMETER :: routineN = 'sg_erf', routineP = moduleN//':'//routineN
 
       INTEGER                                            :: handle, ip, iq, m, n
-      REAL(KIND=dp)                                      :: a2, fpol, pq, tld, z
+      REAL(KIND=dp)                                      :: a2, fpol, pq, tld, z, z2
 
       CALL timeset("sg_erf", handle)
 
@@ -296,6 +296,24 @@ CONTAINS
                z = a2/pq
                fpol = 128.0_dp*z*z*z*z+576.0_dp*z*z*z+1008.0_dp*z*z+840.0_dp*z+315.0_dp
                fpol = 3._dp*fpol
+               upmat(ip, iq) = upmat(ip, iq)*fpol
+            END DO
+         CASE (5)
+            DO ip = 1, n
+               pq = pa(ip)+pb(iq)
+               z = a2/pq
+               fpol = 256.0_dp*z*z*z*z*z+1408.0_dp*z*z*z*z+3168.0_dp*z*z*z+3696.0_dp*z*z+2310.0_dp*z+693.0_dp
+               fpol = 15._dp*fpol
+               upmat(ip, iq) = upmat(ip, iq)*fpol
+            END DO
+         CASE (6)
+            DO ip = 1, n
+               pq = pa(ip)+pb(iq)
+               z = a2/pq
+               z2 = z*z
+               fpol = 1024.0_dp*z2*z2*z2+6656.0_dp*z*z2*z2+18304.0_dp*z2*z2+27456.0_dp*z2*z+ &
+                      24024.0_dp*z2+12012.0_dp*z+3003.0_dp
+               fpol = 45._dp*fpol
                upmat(ip, iq) = upmat(ip, iq)*fpol
             END DO
          END SELECT
