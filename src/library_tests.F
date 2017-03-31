@@ -24,7 +24,7 @@ MODULE library_tests
    USE cp_blacs_env,                    ONLY: cp_blacs_env_create,&
                                               cp_blacs_env_release,&
                                               cp_blacs_env_type
-   USE cp_eri_mme_interface,            ONLY: cp_eri_mme_perf_acc_test
+   USE cp_eri_mp2_interface,            ONLY: cp_eri_mme_perf_acc_test
    USE cp_files,                        ONLY: close_file,&
                                               open_file
    USE cp_fm_basic_linalg,              ONLY: cp_fm_gemm

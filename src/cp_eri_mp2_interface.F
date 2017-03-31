@@ -10,10 +10,11 @@
 !> \author Patrick Seewald
 ! **************************************************************************************************
 
-MODULE cp_eri_mme_interface
+MODULE cp_eri_mp2_interface
    USE ai_contraction_sphi,             ONLY: ab_contract,&
                                               abc_contract
-   USE ai_coulomb,                      ONLY: coulomb2_new
+   USE ai_coulomb,                      ONLY: coulomb2_new,&
+                                              coulomb3
    USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                               get_atomic_kind_set
    USE basis_set_types,                 ONLY: gto_basis_set_p_type,&
@@ -67,7 +68,7 @@ MODULE cp_eri_mme_interface
 
    LOGICAL, PRIVATE, PARAMETER :: debug_this_module = .FALSE.
 
-   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'cp_eri_mme_interface'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'cp_eri_mp2_interface'
 
    PUBLIC :: cp_eri_mme_2c_integrate, &
              cp_eri_mme_2c_integrate_s, &
@@ -302,7 +303,7 @@ CONTAINS
       INTEGER                                            :: handle, ipgf, jpgf, na, nb, ncoa, ncob
       REAL(KIND=dp)                                      :: rab2
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: f_work
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: hab_herm
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: hab_uncontr
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: v_work
 
       ! note: tested only for one exponent per pair (npgfa = npgfb = 1)
@@ -312,9 +313,9 @@ CONTAINS
       ncob = npgfb*ncoset(lb_max)
       rab2 = (ra(1)-rb(1))**2+(ra(2)-rb(2))**2+(ra(3)-rb(3))**2
 
-      ALLOCATE (hab_herm(ncoa, ncob))
+      ALLOCATE (hab_uncontr(ncoa, ncob))
 
-      hab_herm(:, :) = 0.0_dp
+      hab_uncontr(:, :) = 0.0_dp
 
       IF (eri_method == do_eri_mme) THEN
 
@@ -324,7 +325,7 @@ CONTAINS
                nb = (jpgf-1)*ncoset(lb_max)
                CALL eri_mme_2c_integrate(param, &
                                          la_min, la_max, lb_min, lb_max, &
-                                         zeta(ipgf), zetb(jpgf), ra-rb, hab_herm, na, nb, G_count, R_count)
+                                         zeta(ipgf), zetb(jpgf), ra-rb, hab_uncontr, na, nb, G_count, R_count)
             ENDDO
          ENDDO
 
@@ -332,12 +333,11 @@ CONTAINS
 
          ALLOCATE (f_work(0:la_max+lb_max+2))
          ALLOCATE (v_work(ncoa, ncob, la_max+lb_max+1))
-
          v_work(:, :, :) = 0.0_dp
          f_work = 0.0_dp
 
          CALL coulomb2_new(la_max, npgfa, zeta, la_min, lb_max, npgfb, zetb, lb_min, &
-                           rb-ra, rab2, hab_herm, v_work, f_work)
+                           rb-ra, rab2, hab_uncontr, v_work, f_work)
 
          DEALLOCATE (v_work, f_work)
 
@@ -347,7 +347,7 @@ CONTAINS
 
       END IF
 
-      CALL ab_contract(hab(i1:i1+nsgfa-1, i2:i2+nsgfb-1), hab_herm, sphi_a(:, sgfa:), sphi_b(:, sgfb:), ncoa, ncob, nsgfa, nsgfb)
+      CALL ab_contract(hab(i1:i1+nsgfa-1, i2:i2+nsgfb-1), hab_uncontr, sphi_a(:, sgfa:), sphi_b(:, sgfb:), ncoa, ncob, nsgfa, nsgfb)
 
       CALL timestop(handle)
 
@@ -418,11 +418,12 @@ CONTAINS
 !> \param basis_type_c ...
 !> \param sab_nl neighbor list for a, b
 !> \param transp return (c|ab) instead of (ab|c)
+!> \param eri_method ...
 ! **************************************************************************************************
    SUBROUTINE cp_eri_mme_3c_integrate(param, para_env, qs_env, &
                                       first_c, last_c, mat_ab, &
                                       basis_type_a, basis_type_b, basis_type_c, &
-                                      sab_nl, transp)
+                                      sab_nl, transp, eri_method)
       TYPE(cp_eri_mme_param), INTENT(INOUT)              :: param
       TYPE(cp_para_env_type), INTENT(IN), POINTER        :: para_env
       TYPE(qs_environment_type), INTENT(IN), POINTER     :: qs_env
@@ -433,16 +434,17 @@ CONTAINS
       TYPE(neighbor_list_set_p_type), DIMENSION(:), &
          POINTER                                         :: sab_nl
       LOGICAL, INTENT(IN), OPTIONAL                      :: transp
+      INTEGER, INTENT(IN), OPTIONAL                      :: eri_method
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'cp_eri_mme_3c_integrate', &
          routineP = moduleN//':'//routineN
 
       INTEGER :: atom_a, atom_b, atom_end, atom_start, GG_count, GR_count, handle, iatom, ic, &
          ic_dbcsr, icol, ikind, inode, irow, iset, jatom, jkind, jset, katom, kkind, kset, &
-         kset_end, kset_start, last_jatom, mepos, na, natom, nb, nc, nkind, nseta, nsetb, nsetc, &
-         nthread, offset_a_end, offset_a_start, offset_b_end, offset_b_start, offset_c_end, &
-         offset_c_start, RR_count, set_end, set_offset_end, set_offset_start, set_start, sgfa, &
-         sgfb, sgfc
+         kset_end, kset_start, last_jatom, mepos, my_eri_method, na, natom, nb, nc, nkind, nseta, &
+         nsetb, nsetc, nthread, offset_a_end, offset_a_start, offset_b_end, offset_b_start, &
+         offset_c_end, offset_c_start, RR_count, set_end, set_offset_end, set_offset_start, &
+         set_start, sgfa, sgfb, sgfc
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: atom_of_kind, kind_of
       INTEGER, ALLOCATABLE, DIMENSION(:, :)              :: eri_offsets
       INTEGER, DIMENSION(:), POINTER                     :: la_max, la_min, lb_max, lb_min, lc_max, &
@@ -466,6 +468,9 @@ CONTAINS
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
 
       CALL timeset(routineN, handle)
+
+      my_eri_method = do_eri_mme
+      IF (PRESENT(eri_method)) my_eri_method = eri_method
 
       GG_count = 0; GR_count = 0; RR_count = 0
 
@@ -642,9 +647,9 @@ CONTAINS
                                                    sphi_a, sphi_b, sphi_c, &
                                                    sgfa, sgfb, sgfc, &
                                                    nsgfa(iset), nsgfb(jset), nsgfc(kset), &
+                                                   my_eri_method, &
                                                    GG_count, GR_count, RR_count, &
                                                    transp=transp)
-
                   ENDDO
                ENDDO
             ENDDO
@@ -710,6 +715,7 @@ CONTAINS
 !> \param nsgfa ...
 !> \param nsgfb ...
 !> \param nsgfc ...
+!> \param eri_method ...
 !> \param GG_count ...
 !> \param GR_count ...
 !> \param RR_count ...
@@ -725,6 +731,7 @@ CONTAINS
                                        sphi_a, sphi_b, sphi_c, &
                                        sgfa, sgfb, sgfc, &
                                        nsgfa, nsgfb, nsgfc, &
+                                       eri_method, &
                                        GG_count, GR_count, RR_count, &
                                        transp)
 
@@ -738,7 +745,8 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:, :, :), INTENT(INOUT)   :: habc
       INTEGER, INTENT(IN)                                :: i1, i2, i3
       REAL(KIND=dp), DIMENSION(:, :), INTENT(IN)         :: sphi_a, sphi_b, sphi_c
-      INTEGER, INTENT(IN)                                :: sgfa, sgfb, sgfc, nsgfa, nsgfb, nsgfc
+      INTEGER, INTENT(IN)                                :: sgfa, sgfb, sgfc, nsgfa, nsgfb, nsgfc, &
+                                                            eri_method
       INTEGER, INTENT(INOUT), OPTIONAL                   :: GG_count, GR_count, RR_count
       LOGICAL, INTENT(IN), OPTIONAL                      :: transp
 
@@ -746,8 +754,12 @@ CONTAINS
          routineP = moduleN//':'//routineN
 
       INTEGER                                            :: handle, ipgf, jpgf, kpgf, na, nb, nc, &
-                                                            ncoa, ncob, ncoc
+                                                            nc_end, nc_start, ncoa, ncob, ncoc
+      REAL(KIND=dp)                                      :: rab2, rac2, rbc2
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: f_work, gccc, rpgfa, rpgfb, rpgfc
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: vabc
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: ha_hb_hc
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :, :)  :: v_work
 
       CALL timeset(routineN, handle)
 
@@ -757,20 +769,69 @@ CONTAINS
 
       ALLOCATE (ha_hb_hc(ncoa, ncob, ncoc)); ha_hb_hc(:, :, :) = 0.0_dp
 
-      DO ipgf = 1, npgfa
-         na = (ipgf-1)*ncoset(la_max)
-         DO jpgf = 1, npgfb
-            nb = (jpgf-1)*ncoset(lb_max)
-            DO kpgf = 1, npgfc
-               nc = (kpgf-1)*ncoset(lc_max)
-               CALL eri_mme_3c_integrate(param, &
-                                         la_min, la_max, lb_min, lb_max, lc_min, lc_max, &
-                                         zeta(ipgf), zetb(jpgf), zetc(kpgf), ra, rb, rc, ha_hb_hc, na, nb, nc, &
-                                         GG_count, GR_count, RR_count, &
-                                         transp=transp)
+      IF (eri_method == do_eri_mme) THEN
+
+         DO ipgf = 1, npgfa
+            na = (ipgf-1)*ncoset(la_max)
+            DO jpgf = 1, npgfb
+               nb = (jpgf-1)*ncoset(lb_max)
+               DO kpgf = 1, npgfc
+                  nc = (kpgf-1)*ncoset(lc_max)
+
+                  CALL eri_mme_3c_integrate(param, &
+                                            la_min, la_max, lb_min, lb_max, lc_min, lc_max, &
+                                            zeta(ipgf), zetb(jpgf), zetc(kpgf), ra, rb, rc, ha_hb_hc, na, nb, nc, &
+                                            GG_count, GR_count, RR_count, &
+                                            transp=transp)
+
+               ENDDO
             ENDDO
          ENDDO
-      ENDDO
+
+      ELSE IF (eri_method == do_eri_os) THEN
+
+         ALLOCATE (f_work(0:la_max+lb_max+lc_max+2))
+         f_work(:) = 0.0_dp
+         ALLOCATE (v_work(ncoa, ncob, ncoc, la_max+lb_max+lc_max+1))
+         v_work(:, :, :, :) = 0.0_dp
+         ! no screening
+         ALLOCATE (rpgfa(npgfa))
+         ALLOCATE (rpgfb(npgfb))
+         ALLOCATE (rpgfc(npgfc))
+         rpgfa(:) = 1.0E10_dp
+         rpgfb(:) = 1.0E10_dp
+         rpgfc(:) = 1.0E10_dp
+         ALLOCATE (gccc(ncoc))
+         gccc(:) = 0.0_dp
+         ALLOCATE (vabc(ncoa, ncob))
+         vabc(:, :) = 0.0_dp
+         rab2 = (rb(1)-ra(1))**2+(rb(2)-ra(2))**2+(rb(3)-ra(3))**2
+         rac2 = (rc(1)-ra(1))**2+(rc(2)-ra(2))**2+(rc(3)-ra(3))**2
+         rbc2 = (rc(1)-rb(1))**2+(rc(2)-rb(2))**2+(rc(3)-rb(3))**2
+
+         ! in the RI basis, there is only a single primitive Gaussian
+         kpgf = 1
+
+         IF (lc_max == 0) THEN
+            nc_start = 1
+         ELSE
+            nc_start = ncoset(lc_max-1)+1
+         END IF
+         nc_end = ncoset(lc_max)
+
+         CALL coulomb3(la_max, npgfa, zeta(:), rpgfa(:), la_min, &
+                       lb_max, npgfb, zetb(:), rpgfb(:), lb_min, &
+                       lc_max, zetc(kpgf), rpgfc(kpgf), lc_min, &
+                       gccc, rb-ra, rab2, rc-ra, rac2, rbc2, &
+                       vabc, ha_hb_hc(:, :, nc_start:nc_end), v_work, f_work)
+
+         DEALLOCATE (v_work, f_work, rpgfa, rpgfb, rpgfc, gccc, vabc)
+
+      ELSE IF (eri_method == do_eri_gpw) THEN
+
+         CPABORT("GPW not enabled in the ERI interface.")
+
+      END IF
 
       CALL abc_contract(habc(i1:i1+nsgfa-1, i2:i2+nsgfb-1, i3:i3+nsgfc-1), ha_hb_hc, &
                         sphi_a(:, sgfa:), sphi_b(:, sgfb:), sphi_c(:, sgfc:), &
@@ -985,4 +1046,4 @@ CONTAINS
       ENDDO
    END SUBROUTINE get_eri_offsets
 
-END MODULE cp_eri_mme_interface
+END MODULE cp_eri_mp2_interface

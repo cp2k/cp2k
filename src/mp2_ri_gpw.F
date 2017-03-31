@@ -28,10 +28,10 @@ MODULE mp2_ri_gpw
    USE cp_control_types,                ONLY: dft_control_type
    USE cp_dbcsr_operations,             ONLY: copy_dbcsr_to_fm,&
                                               cp_dbcsr_m_by_n_from_template
-   USE cp_eri_mme_interface,            ONLY: cp_eri_mme_2c_integrate,&
-                                              cp_eri_mme_3c_integrate
    USE cp_eri_mme_types,                ONLY: cp_eri_mme_param,&
                                               cp_eri_mme_set_params
+   USE cp_eri_mp2_interface,            ONLY: cp_eri_mme_2c_integrate,&
+                                              cp_eri_mme_3c_integrate
    USE cp_fm_basic_linalg,              ONLY: cp_fm_triangular_invert
    USE cp_fm_cholesky,                  ONLY: cp_fm_cholesky_decompose
    USE cp_fm_diag,                      ONLY: cp_fm_syevx
@@ -543,8 +543,12 @@ CONTAINS
       i_counter = 0
 
       IF (.NOT. do_im_time) THEN
-         SELECT CASE (eri_method)
-         CASE (do_eri_mme)
+
+         IF (eri_method == do_eri_mme .OR. eri_method == do_eri_os) THEN
+
+            ! MME and Obara-Saika Coulomb integrals only used for RI with
+            ! Coulomb metric, not for overlap metric
+            CPASSERT(ri_metric == ri_coulomb)
 
             NULLIFY (mat_munu_local_L)
             ALLOCATE (mat_munu_local_L(my_group_L_size))
@@ -559,7 +563,7 @@ CONTAINS
                                          mat_ab=mat_munu_local_L, &
                                          basis_type_a="ORB", basis_type_b="ORB", &
                                          basis_type_c="RI_AUX", &
-                                         sab_nl=sab_orb_sub)
+                                         sab_nl=sab_orb_sub, eri_method=eri_method)
 
             ! create a NG x Nw process grid for contraction
             pdims = [ngroup, para_env_sub%num_pe]
@@ -617,7 +621,8 @@ CONTAINS
             ENDDO
             CALL mp_comm_free(mp_comm_2d)
             DEALLOCATE (mat_munu_local_L)
-         CASE (do_eri_gpw)
+
+         ELSE IF (eri_method == do_eri_gpw) THEN
 
             DO LLL = my_group_L_start, my_group_L_end
                i_counter = i_counter+1
@@ -684,7 +689,7 @@ CONTAINS
                END IF
 
             END DO
-         END SELECT
+         END IF
       ENDIF
 
       ! use possibly different RI metric for GW matrix elements B^nn_P
