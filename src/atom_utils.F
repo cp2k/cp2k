@@ -19,7 +19,7 @@ MODULE atom_utils
    USE atom_types,                      ONLY: &
         CGTO_BASIS, GTO_BASIS, NUM_BASIS, STO_BASIS, atom_basis_type, atom_gthpot_type, &
         atom_potential_type, atom_state, atom_type, ecp_pseudo, eri, gth_pseudo, no_pseudo, &
-        upf_pseudo
+        upf_pseudo, lmat
    USE basis_set_types,                 ONLY: srules
    USE cp_files,                        ONLY: close_file,&
                                               get_unit_number,&
@@ -96,7 +96,7 @@ CONTAINS
    SUBROUTINE atom_set_occupation(ostring, occupation, wfnocc, multiplicity)
       CHARACTER(LEN=default_string_length), &
          DIMENSION(:), POINTER                           :: ostring
-      REAL(Kind=dp), DIMENSION(0:3, 10)                  :: occupation, wfnocc
+      REAL(Kind=dp), DIMENSION(0:lmat, 10)               :: occupation, wfnocc
       INTEGER, INTENT(OUT), OPTIONAL                     :: multiplicity
 
       CHARACTER(len=*), PARAMETER :: routineN = 'atom_set_occupation', &
@@ -156,7 +156,7 @@ CONTAINS
                END IF
             END DO
             CPASSERT(ielem /= 0)
-            DO l = 0, 3
+            DO l = 0, lmat
                el = 2._dp*(2._dp*REAL(l, dp)+1._dp)
                e0 = ptable(ielem)%e_conv(l)
                DO k = 1, 10
@@ -218,7 +218,7 @@ CONTAINS
       END DO
 
       wfnocc = 0._dp
-      DO l = 0, 3
+      DO l = 0, lmat
          k = 0
          DO i = 1, 10
             IF (occupation(l, i) /= 0._dp) THEN
@@ -232,7 +232,7 @@ CONTAINS
       IF (mult /= -1) THEN
          ! count open shells
          js = 0
-         DO l = 0, 3
+         DO l = 0, lmat
             k = 2*(2*l+1)
             DO i = 1, 10
                IF (wfnocc(l, i) /= 0._dp .AND. wfnocc(l, i) /= REAL(k, dp)) THEN
@@ -273,13 +273,13 @@ CONTAINS
 !> \retval maxl ...
 ! **************************************************************************************************
    FUNCTION get_maxl_occ(occupation) RESULT(maxl)
-      REAL(Kind=dp), DIMENSION(0:3, 10)                  :: occupation
+      REAL(Kind=dp), DIMENSION(0:lmat, 10)               :: occupation
       INTEGER                                            :: maxl
 
       INTEGER                                            :: l
 
       maxl = 0
-      DO l = 0, 3
+      DO l = 0, lmat
          IF (SUM(occupation(l, :)) /= 0._dp) maxl = l
       END DO
 
@@ -291,13 +291,13 @@ CONTAINS
 !> \retval maxn ...
 ! **************************************************************************************************
    FUNCTION get_maxn_occ(occupation) RESULT(maxn)
-      REAL(Kind=dp), DIMENSION(0:3, 10)                  :: occupation
-      INTEGER, DIMENSION(0:3)                            :: maxn
+      REAL(Kind=dp), DIMENSION(0:lmat, 10)               :: occupation
+      INTEGER, DIMENSION(0:lmat)                         :: maxn
 
       INTEGER                                            :: k, l
 
       maxn = 0
-      DO l = 0, 3
+      DO l = 0, lmat
          DO k = 1, 10
             IF (occupation(l, k) /= 0._dp) maxn(l) = maxn(l)+1
          END DO
@@ -317,10 +317,10 @@ CONTAINS
    SUBROUTINE atom_denmat(pmat, wfn, nbas, occ, maxl, maxn)
       REAL(KIND=dp), DIMENSION(:, :, 0:), INTENT(INOUT)  :: pmat
       REAL(KIND=dp), DIMENSION(:, :, 0:), INTENT(IN)     :: wfn
-      INTEGER, DIMENSION(0:3), INTENT(IN)                :: nbas
+      INTEGER, DIMENSION(0:lmat), INTENT(IN)             :: nbas
       REAL(KIND=dp), DIMENSION(0:, :), INTENT(IN)        :: occ
       INTEGER, INTENT(IN)                                :: maxl
-      INTEGER, DIMENSION(0:3), INTENT(IN)                :: maxn
+      INTEGER, DIMENSION(0:lmat), INTENT(IN)             :: maxn
 
       CHARACTER(len=*), PARAMETER :: routineN = 'atom_denmat', routineP = moduleN//':'//routineN
 
@@ -453,7 +453,7 @@ CONTAINS
          routineP = moduleN//':'//routineN
 
       INTEGER                                            :: er, extunit, i, k, l, maxl, n
-      INTEGER, DIMENSION(0:3)                            :: maxn, nbas
+      INTEGER, DIMENSION(0:lmat)                         :: maxn, nbas
 
       INQUIRE (file=atom%zmp_restart_file, exist=atom%doread)
 
@@ -1632,7 +1632,7 @@ CONTAINS
 
       SELECT CASE (derivatives)
       CASE (0)
-         DO l = 0, 3
+         DO l = 0, lmat
             n = basis%nbas(l)
             DO i = 1, n
                DO j = i, n
@@ -1643,7 +1643,7 @@ CONTAINS
             END DO
          END DO
       CASE (1)
-         DO l = 0, 3
+         DO l = 0, lmat
             n = basis%nbas(l)
             DO i = 1, n
                DO j = i, n
@@ -1656,7 +1656,7 @@ CONTAINS
             END DO
          END DO
       CASE (2)
-         DO l = 0, 3
+         DO l = 0, lmat
             n = basis%nbas(l)
             DO i = 1, n
                DO j = i, n
@@ -1701,7 +1701,7 @@ CONTAINS
 
       jmat(:, :, :) = 0._dp
       ll = 0
-      DO l1 = 0, 3
+      DO l1 = 0, lmat
          n1 = nsize(l1)
          DO l2 = 0, l1
             n2 = nsize(l2)
@@ -1735,7 +1735,7 @@ CONTAINS
             END IF
          END DO
       END DO
-      DO l1 = 0, 3
+      DO l1 = 0, lmat
          n1 = nsize(l1)
          DO i1 = 1, n1
             DO j1 = i1, n1
@@ -1773,7 +1773,7 @@ CONTAINS
 
       kmat(:, :, :) = 0._dp
       ll = 0
-      DO l1 = 0, 3
+      DO l1 = 0, lmat
          n1 = nsize(l1)
          DO l2 = 0, l1
             n2 = nsize(l2)
@@ -1807,7 +1807,7 @@ CONTAINS
             END DO
          END DO
       END DO
-      DO l1 = 0, 3
+      DO l1 = 0, lmat
          n1 = nsize(l1)
          DO i1 = 1, n1
             DO j1 = i1, n1
@@ -1840,7 +1840,7 @@ CONTAINS
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: tkmat, tpmat
 
       emat = 0._dp
-      DO l = 0, 3
+      DO l = 0, lmat
          n = nval(l)
          m = nbs(l)
          IF (m > 0) THEN
@@ -1881,7 +1881,7 @@ CONTAINS
 
       density1 = 0._dp
       density2 = 0._dp
-      ne(1:4, 1:7) = NINT(state%core(0:3, 1:7)+state%occ(0:3, 1:7))
+      ne(1:4, 1:7) = NINT(state%core(0:lmat, 1:7)+state%occ(0:lmat, 1:7))
       DO l = 0, state%maxl_occ
          DO i = 1, SIZE(state%occ, 2)
             IF (state%occ(l, i) > 0._dp) THEN
@@ -2056,8 +2056,8 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(10)                       :: cnum, rad
 
       WRITE (iw, '(/,A,F8.4)') " Basis Set Condition Numbers: 2*covalent radius=", 2*crad
-      CALL init_orbital_pointers(3)
-      CALL init_spherical_harmonics(3, 0)
+      CALL init_orbital_pointers(lmat)
+      CALL init_spherical_harmonics(lmat, 0)
       cnum = 0.0_dp
       DO i = 1, 9
          ci = 2.0_dp*(0.85_dp+i*0.05_dp)
@@ -2085,20 +2085,21 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: zv, iw
 
       INTEGER                                            :: i, j, l, ll, m, n, nbas, nl, nr
-      INTEGER, DIMENSION(0:3)                            :: nelem, nlmax, nlmin
-      INTEGER, DIMENSION(4, 7)                           :: ne
+      INTEGER, DIMENSION(0:lmat)                         :: nelem, nlmax, nlmin
+      INTEGER, DIMENSION(lmat+1, 7)                      :: ne
       REAL(KIND=dp)                                      :: al, c1, c2, pf
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: sfun
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: bmat
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: omat
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :, :)  :: sint
-      REAL(KIND=dp), DIMENSION(0:3, 10)                  :: snl
+      REAL(KIND=dp), DIMENSION(0:lmat, 10)               :: snl
       REAL(KIND=dp), DIMENSION(2)                        :: sse
-      REAL(KIND=dp), DIMENSION(4, 7)                     :: sexp
+      REAL(KIND=dp), DIMENSION(lmat+1, 7)                :: sexp
 
       ne = 0
+      nelem = 0
       nelem(0:3) = ptable(zv)%e_conv(0:3)
-      DO l = 0, 3
+      DO l = 0, lmat
          ll = 2*(2*l+1)
          DO i = 1, 7
             IF (nelem(l) >= ll) THEN
@@ -2115,7 +2116,7 @@ CONTAINS
 
       nlmin = 1
       nlmax = 1
-      DO l = 0, 3
+      DO l = 0, lmat
          nlmin(l) = l+1
          DO i = 1, 7
             IF (ne(l+1, i) > 0) THEN
@@ -2127,7 +2128,7 @@ CONTAINS
 
       ! Slater exponents
       sexp = 0.0_dp
-      DO l = 0, 3
+      DO l = 0, lmat
          sse(1) = 0.05_dp
          sse(2) = 10.0_dp
          DO i = l+1, 7
@@ -2143,13 +2144,13 @@ CONTAINS
       END DO
 
       nbas = MAXVAL(basis%nbas)
-      ALLOCATE (omat(nbas, nbas, 0:3))
+      ALLOCATE (omat(nbas, nbas, 0:lmat))
       nr = SIZE(basis%bf, 1)
-      ALLOCATE (sfun(nr), sint(10, 2, nbas, 0:3))
+      ALLOCATE (sfun(nr), sint(10, 2, nbas, 0:lmat))
       sint = 0._dp
 
       ! calculate overlaps between test functions and basis
-      DO l = 0, 3
+      DO l = 0, lmat
          DO i = 1, 10
             al = snl(l, i)
             nl = nlmin(l)
@@ -2167,7 +2168,7 @@ CONTAINS
          END DO
       END DO
 
-      DO l = 0, 3
+      DO l = 0, lmat
          n = basis%nbas(l)
          IF (n <= 0) CYCLE
          m = basis%nprim(l)
@@ -2191,7 +2192,7 @@ CONTAINS
       END DO
 
       WRITE (iw, '(/,A)') " Basis Set Completeness Estimates"
-      DO l = 0, 3
+      DO l = 0, lmat
          n = basis%nbas(l)
          IF (n <= 0) CYCLE
          WRITE (iw, '(A,I3)') "   L-quantum number: ", l
@@ -2235,15 +2236,15 @@ CONTAINS
 
       ! total number of basis functions
       nbas = 0
-      DO l = 0, 3
+      DO l = 0, lmat
          nbas = nbas+basis%nbas(l)*(2*l+1)
       END DO
 
-      ALLOCATE (smat(nbas, nbas), ibptr(nbas, 0:3))
+      ALLOCATE (smat(nbas, nbas), ibptr(nbas, 0:lmat))
       smat = 0.0_dp
       ibptr = 0
       na = 0
-      DO l = 0, 3
+      DO l = 0, lmat
          DO ia = 1, basis%nbas(l)
             ibptr(ia, l) = na+1
             na = na+(2*l+1)
@@ -2253,12 +2254,12 @@ CONTAINS
       reps = 1.e-14_dp
       IF (basis%basis_type == GTO_BASIS .OR. &
           basis%basis_type == CGTO_BASIS) THEN
-         DO la = 0, 3
+         DO la = 0, lmat
             na = basis%nprim(la)
             nna = 2*la+1
             IF (na == 0) CYCLE
             zeta => basis%am(:, la)
-            DO lb = 0, 3
+            DO lb = 0, lmat
                nb = basis%nprim(lb)
                nnb = 2*lb+1
                IF (nb == 0) CYCLE

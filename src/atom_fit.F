@@ -19,7 +19,7 @@ MODULE atom_fit
                                               atom_write_pseudo_param
    USE atom_types,                      ONLY: &
         GTO_BASIS, STO_BASIS, atom_basis_type, atom_gthpot_type, atom_integrals, atom_p_type, &
-        atom_potential_type, atom_type, create_opgrid, opgrid_type, release_opgrid, set_atom
+        atom_potential_type, atom_type, create_opgrid, opgrid_type, release_opgrid, set_atom, lmat
    USE atom_utils,                      ONLY: &
         atom_completeness, atom_condnumber, atom_consistent_method, atom_denmat, atom_density, &
         atom_orbital_charge, atom_orbital_max, atom_orbital_nodes, atom_wfnr0, get_maxn_occ, &
@@ -195,13 +195,13 @@ CONTAINS
             x(2) = SQRT(basis%cval)
          ELSE
             ll = MAXVAL(basis%nprim(:))
-            ALLOCATE (xtob(ll, 0:3))
+            ALLOCATE (xtob(ll, 0:lmat))
             xtob = 0
             ll = SUM(basis%nprim(:))
             ALLOCATE (x(ll))
             x = 0._dp
             ll = 0
-            DO l = 0, 3
+            DO l = 0, lmat
                DO i = 1, basis%nprim(l)
                   mult = .FALSE.
                   DO k = 1, ll
@@ -224,13 +224,13 @@ CONTAINS
          END IF
       CASE (STO_BASIS)
          ll = MAXVAL(basis%nbas(:))
-         ALLOCATE (xtob(ll, 0:3))
+         ALLOCATE (xtob(ll, 0:lmat))
          xtob = 0
          ll = SUM(basis%nbas(:))
          ALLOCATE (x(ll))
          x = 0._dp
          ll = 0
-         DO l = 0, 3
+         DO l = 0, lmat
             DO i = 1, basis%nbas(l)
                ll = ll+1
                x(ll) = basis%as(i, l)
@@ -295,7 +295,7 @@ CONTAINS
             CASE (GTO_BASIS)
                IF (basis%geometrical) THEN
                   basis%am = 0._dp
-                  DO l = 0, 3
+                  DO l = 0, lmat
                      DO i = 1, basis%nbas(l)
                         ll = i-1+basis%start(l)
                         basis%am(i, l) = x(1)*x(1)*(x(2)*x(2))**(ll)
@@ -304,7 +304,7 @@ CONTAINS
                   basis%aval = x(1)*x(1)
                   basis%cval = x(2)*x(2)
                ELSE
-                  DO l = 0, 3
+                  DO l = 0, lmat
                      DO i = 1, basis%nprim(l)
                         al = x(xtob(i, l))**2
                         basis%am(i, l) = EXP(al)-1._dp
@@ -315,7 +315,7 @@ CONTAINS
                basis%dbf = 0._dp
                basis%ddbf = 0._dp
                nr = basis%grid%nr
-               DO l = 0, 3
+               DO l = 0, lmat
                   DO i = 1, basis%nbas(l)
                      al = basis%am(i, l)
                      DO k = 1, nr
@@ -329,7 +329,7 @@ CONTAINS
                   END DO
                END DO
             CASE (STO_BASIS)
-               DO l = 0, 3
+               DO l = 0, lmat
                   DO i = 1, basis%nbas(l)
                      al = x(xtob(i, l))**2
                      basis%as(i, l) = EXP(al)-1._dp
@@ -339,7 +339,7 @@ CONTAINS
                basis%dbf = 0._dp
                basis%ddbf = 0._dp
                nr = basis%grid%nr
-               DO l = 0, 3
+               DO l = 0, lmat
                   DO i = 1, basis%nbas(l)
                      al = basis%as(i, l)
                      nl = basis%ns(i, l)
@@ -386,7 +386,7 @@ CONTAINS
          CASE (GTO_BASIS)
             IF (basis%geometrical) THEN
                basis%am = 0._dp
-               DO l = 0, 3
+               DO l = 0, lmat
                   DO i = 1, basis%nbas(l)
                      ll = i-1+basis%start(l)
                      basis%am(i, l) = x(1)*x(1)*(x(2)*x(2))**(ll)
@@ -395,7 +395,7 @@ CONTAINS
                basis%aval = x(1)*x(1)
                basis%cval = x(2)*x(2)
             ELSE
-               DO l = 0, 3
+               DO l = 0, lmat
                   DO i = 1, basis%nprim(l)
                      al = x(xtob(i, l))**2
                      basis%am(i, l) = EXP(al)-1._dp
@@ -406,7 +406,7 @@ CONTAINS
             basis%dbf = 0._dp
             basis%ddbf = 0._dp
             nr = basis%grid%nr
-            DO l = 0, 3
+            DO l = 0, lmat
                DO i = 1, basis%nbas(l)
                   al = basis%am(i, l)
                   DO k = 1, nr
@@ -420,7 +420,7 @@ CONTAINS
                END DO
             END DO
          CASE (STO_BASIS)
-            DO l = 0, 3
+            DO l = 0, lmat
                DO i = 1, basis%nprim(l)
                   al = x(xtob(i, l))**2
                   basis%as(i, l) = EXP(al)-1._dp
@@ -430,7 +430,7 @@ CONTAINS
             basis%dbf = 0._dp
             basis%ddbf = 0._dp
             nr = basis%grid%nr
-            DO l = 0, 3
+            DO l = 0, lmat
                DO i = 1, basis%nbas(l)
                   al = basis%as(i, l)
                   nl = basis%ns(i, l)
@@ -492,7 +492,7 @@ CONTAINS
       INTEGER                                            :: i, i1, i2, iw, j, j1, j2, k, l, m, n, &
                                                             n10, np, nre, nreinit, ntarget
       INTEGER, ALLOCATABLE, DIMENSION(:, :)              :: xtob
-      INTEGER, DIMENSION(0:3)                            :: ncore
+      INTEGER, DIMENSION(0:lmat)                         :: ncore
       LOGICAL                                            :: explicit
       REAL(KIND=dp) :: afun, charge, de, deig, drho, dx, eig, fopt, oc, pchg, peig, pv, rcm, rcov, &
          rmax, semicore_level, t_ener, t_psir0, t_semi, t_valence, t_virt, w_ener, w_node, &
@@ -533,7 +533,7 @@ CONTAINS
       m = SIZE(atom_info, 2)
       ALLOCATE (wem(n, m))
       wem = 1._dp
-      ALLOCATE (pval(8, 10, 0:3, m, n))
+      ALLOCATE (pval(8, 10, 0:lmat, m, n))
       ALLOCATE (dener(2, m, m, n, n))
       dener = 0.0_dp
 
@@ -545,7 +545,7 @@ CONTAINS
             IF (atom_consistent_method(atom%method_type, atom%state%multiplicity)) THEN
                i1 = SIZE(atom%orbitals%wfn, 1)
                i2 = SIZE(atom%orbitals%wfn, 2)
-               ALLOCATE (wfn_guess(i, j)%wfn(i1, i2, 0:3))
+               ALLOCATE (wfn_guess(i, j)%wfn(i1, i2, 0:lmat))
             END IF
          END DO
       END DO
@@ -598,7 +598,7 @@ CONTAINS
                   ! no spin polarization
                   atom%weight = wem(i, j)
                   ncore = get_maxn_occ(atom_info(i, j)%atom%state%core)
-                  DO l = 0, 3
+                  DO l = 0, lmat
                      np = atom%state%maxn_calc(l)
                      DO k = 1, np
                         CALL atom_orbital_max(rmax, atom_refs(i, j)%atom%orbitals%wfn(:, ncore(l)+k, l), &
@@ -668,7 +668,7 @@ CONTAINS
                   ! spin polarization
                   atom%weight = wem(i, j)
                   ncore = get_maxn_occ(atom_info(i, j)%atom%state%core)
-                  DO l = 0, 3
+                  DO l = 0, lmat
                      np = atom%state%maxn_calc(l)
                      DO k = 1, np
                         CALL atom_orbital_max(rmax, atom_refs(i, j)%atom%orbitals%wfna(:, ncore(l)+k, l), &
@@ -784,7 +784,7 @@ CONTAINS
                      IF (atom%state%multiplicity == -1) THEN
                         ! no spin polarization
                         WRITE (iunit, '("    L    N    Occupation      Eigenvalue [eV]           dE [eV]          dCharge ")')
-                        DO l = 0, 3
+                        DO l = 0, lmat
                            np = atom%state%maxn_calc(l)
                            IF (np > 0) THEN
                               DO k = 1, np
@@ -815,7 +815,7 @@ CONTAINS
                      ELSE
                         ! spin polarization
                         WRITE (iunit, '("    L    N   Spin Occupation    Eigenvalue [eV]          dE [eV]         dCharge ")')
-                        DO l = 0, 3
+                        DO l = 0, lmat
                            np = atom%state%maxn_calc(l)
                            IF (np > 0) THEN
                               DO k = 1, np
@@ -958,7 +958,7 @@ CONTAINS
                   IF (atom%state%multiplicity == -1) THEN
                      !no spin polarization
                      WRITE (iunit, '("    L    N    Occupation      Eigenvalue [eV]           dE [eV]          dCharge ")')
-                     DO l = 0, 3
+                     DO l = 0, lmat
                         np = atom%state%maxn_calc(l)
                         IF (np > 0) THEN
                            DO k = 1, np
@@ -1005,7 +1005,7 @@ CONTAINS
                   ELSE
                      !spin polarization
                      WRITE (iunit, '("    L    N   Spin Occupation     Eigenvalue [eV]          dE [eV]        dCharge ")')
-                     DO l = 0, 3
+                     DO l = 0, lmat
                         np = atom%state%maxn_calc(l)
                         IF (np > 0) THEN
                            DO k = 1, np
@@ -1582,13 +1582,13 @@ CONTAINS
                END DO
             END DO
          END IF
-         DO l = 0, 3
+         DO l = 0, lmat
             IF (gthpot%nl(l) > 0) THEN
                ival = ival+1
                pvec(ival) = rcpro(-1, gthpot%rcnl(l))
             END IF
          END DO
-         DO l = 0, 3
+         DO l = 0, lmat
             IF (gthpot%nl(l) > 0) THEN
                n = gthpot%nl(l)
                DO i = 1, n
@@ -1655,13 +1655,13 @@ CONTAINS
                END DO
             END DO
          END IF
-         DO l = 0, 3
+         DO l = 0, lmat
             IF (gthpot%nl(l) > 0) THEN
                ival = ival+1
                gthpot%rcnl(l) = rcpro(1, pvec(ival))
             END IF
          END DO
-         DO l = 0, 3
+         DO l = 0, lmat
             IF (gthpot%nl(l) > 0) THEN
                n = gthpot%nl(l)
                DO i = 1, n

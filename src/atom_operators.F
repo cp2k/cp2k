@@ -17,7 +17,7 @@ MODULE atom_operators
    USE atom_types,                      ONLY: &
         atom_basis_gridrep, atom_basis_type, atom_compare_grids, atom_integrals, &
         atom_potential_type, atom_state, cgto_basis, ecp_pseudo, gth_pseudo, gto_basis, no_pseudo, &
-        num_basis, release_atom_basis, sto_basis, upf_pseudo
+        num_basis, release_atom_basis, sto_basis, upf_pseudo, lmat
    USE atom_utils,                      ONLY: &
         atom_solve, contract2, contract2add, contract4, coulomb_potential_numeric, integrate_grid, &
         numpot_matrix, slater_density, wigner_slater_functional
@@ -102,17 +102,17 @@ CONTAINS
             NULLIFY (integrals%ceri(ll)%int, integrals%eeri(ll)%int)
          END DO
 
-         ALLOCATE (integrals%ovlp(n, n, 0:3))
+         ALLOCATE (integrals%ovlp(n, n, 0:lmat))
          integrals%ovlp = 0._dp
 
-         ALLOCATE (integrals%kin(n, n, 0:3))
+         ALLOCATE (integrals%kin(n, n, 0:lmat))
          integrals%kin = 0._dp
 
          integrals%status = 1
 
          IF (PRESENT(potential)) THEN
             IF (potential%confinement) THEN
-               ALLOCATE (integrals%conf(n, n, 0:3))
+               ALLOCATE (integrals%conf(n, n, 0:lmat))
                integrals%conf = 0._dp
                m = basis%grid%nr
                ALLOCATE (cpot(1:m))
@@ -147,14 +147,14 @@ CONTAINS
          CASE DEFAULT
             CPABORT("")
          CASE (GTO_BASIS)
-            DO l = 0, 3
+            DO l = 0, lmat
                n = integrals%n(l)
                CALL sg_overlap(integrals%ovlp(1:n, 1:n, l), l, basis%am(1:n, l), basis%am(1:n, l))
                CALL sg_kinetic(integrals%kin(1:n, 1:n, l), l, basis%am(1:n, l), basis%am(1:n, l))
             END DO
             IF (integrals%eri_coulomb) THEN
                ll = 0
-               DO l1 = 0, 3
+               DO l1 = 0, lmat
                   n1 = integrals%n(l1)
                   nn1 = (n1*(n1+1))/2
                   DO l2 = 0, l1
@@ -177,7 +177,7 @@ CONTAINS
             END IF
             IF (integrals%eri_exchange) THEN
                ll = 0
-               DO l1 = 0, 3
+               DO l1 = 0, lmat
                   n1 = integrals%n(l1)
                   nn1 = (n1*(n1+1))/2
                   DO l2 = 0, l1
@@ -194,7 +194,7 @@ CONTAINS
                END DO
             END IF
          CASE (CGTO_BASIS)
-            DO l = 0, 3
+            DO l = 0, lmat
                n = integrals%n(l)
                m = basis%nprim(l)
                IF (n > 0 .AND. m > 0) THEN
@@ -209,7 +209,7 @@ CONTAINS
             END DO
             IF (integrals%eri_coulomb) THEN
                ll = 0
-               DO l1 = 0, 3
+               DO l1 = 0, lmat
                   n1 = integrals%n(l1)
                   nn1 = (n1*(n1+1))/2
                   m1 = basis%nprim(l1)
@@ -241,7 +241,7 @@ CONTAINS
             END IF
             IF (integrals%eri_exchange) THEN
                ll = 0
-               DO l1 = 0, 3
+               DO l1 = 0, lmat
                   n1 = integrals%n(l1)
                   nn1 = (n1*(n1+1))/2
                   m1 = basis%nprim(l1)
@@ -267,7 +267,7 @@ CONTAINS
                END DO
             END IF
          CASE (STO_BASIS)
-            DO l = 0, 3
+            DO l = 0, lmat
                n = integrals%n(l)
                CALL sto_overlap(integrals%ovlp(1:n, 1:n, l), basis%ns(1:n, l), basis%as(1:n, l), &
                                 basis%ns(1:n, l), basis%as(1:n, l))
@@ -283,13 +283,13 @@ CONTAINS
          ! setup transformation matrix to get an orthogonal basis, remove linear dependencies
          NULLIFY (integrals%utrans, integrals%uptrans)
          n = MAXVAL(basis%nbas)
-         ALLOCATE (integrals%utrans(n, n, 0:3), integrals%uptrans(n, n, 0:3))
+         ALLOCATE (integrals%utrans(n, n, 0:lmat), integrals%uptrans(n, n, 0:lmat))
          integrals%utrans = 0._dp
          integrals%uptrans = 0._dp
          integrals%nne = integrals%n
          lwork = 10*n
          ALLOCATE (omat(n, n), w(n), vmat(n, n), work(lwork))
-         DO l = 0, 3
+         DO l = 0, lmat
             n = integrals%n(l)
             IF (n > 0) THEN
                omat(1:n, 1:n) = integrals%ovlp(1:n, 1:n, l)
@@ -303,12 +303,14 @@ CONTAINS
                   END IF
                END DO
                integrals%nne(l) = ii
-               omat(1:ii, 1:ii) = MATMUL(TRANSPOSE(integrals%utrans(1:n, 1:ii, l)), integrals%utrans(1:n, 1:ii, l))
-               DO i = 1, ii
-                  integrals%uptrans(i, i, l) = 1._dp
-               ENDDO
-               CALL lapack_sgesv(ii, ii, omat(1:ii, 1:ii), ii, ipiv, integrals%uptrans(1:ii, 1:ii, l), ii, info)
-               CPASSERT(info == 0)
+               IF(ii>0) THEN
+                  omat(1:ii, 1:ii) = MATMUL(TRANSPOSE(integrals%utrans(1:n, 1:ii, l)), integrals%utrans(1:n, 1:ii, l))
+                  DO i = 1, ii
+                     integrals%uptrans(i, i, l) = 1._dp
+                  ENDDO
+                  CALL lapack_sgesv(ii, ii, omat(1:ii, 1:ii), ii, ipiv, integrals%uptrans(1:ii, 1:ii, l), ii, info)
+                  CPASSERT(info == 0)
+               END IF
             END IF
          END DO
          DEALLOCATE (omat, vmat, w, work)
@@ -346,13 +348,13 @@ CONTAINS
 
          NULLIFY (integrals%core, integrals%hnl)
 
-         ALLOCATE (integrals%hnl(n, n, 0:3))
+         ALLOCATE (integrals%hnl(n, n, 0:lmat))
          integrals%hnl = 0._dp
 
-         ALLOCATE (integrals%core(n, n, 0:3))
+         ALLOCATE (integrals%core(n, n, 0:lmat))
          integrals%core = 0._dp
 
-         ALLOCATE (integrals%clsd(n, n, 0:3))
+         ALLOCATE (integrals%clsd(n, n, 0:lmat))
          integrals%clsd = 0._dp
 
          integrals%ppstat = 1
@@ -364,13 +366,13 @@ CONTAINS
 
             SELECT CASE (potential%ppot_type)
             CASE (no_pseudo, ecp_pseudo)
-               DO l = 0, 3
+               DO l = 0, lmat
                   n = integrals%n(l)
                   CALL sg_nuclear(integrals%core(1:n, 1:n, l), l, basis%am(1:n, l), basis%am(1:n, l))
                END DO
             CASE (gth_pseudo)
                alpha = 1._dp/potential%gth_pot%rc/SQRT(2._dp)
-               DO l = 0, 3
+               DO l = 0, lmat
                   n = integrals%n(l)
                   ALLOCATE (omat(n, n), spmat(n, 5))
 
@@ -426,7 +428,7 @@ CONTAINS
 
             SELECT CASE (potential%ppot_type)
             CASE (no_pseudo, ecp_pseudo)
-               DO l = 0, 3
+               DO l = 0, lmat
                   n = integrals%n(l)
                   m = basis%nprim(l)
                   ALLOCATE (omat(m, m))
@@ -438,7 +440,7 @@ CONTAINS
                END DO
             CASE (gth_pseudo)
                alpha = 1._dp/potential%gth_pot%rc/SQRT(2._dp)
-               DO l = 0, 3
+               DO l = 0, lmat
                   n = integrals%n(l)
                   m = basis%nprim(l)
                   IF (n > 0 .AND. m > 0) THEN
@@ -501,7 +503,7 @@ CONTAINS
 
             SELECT CASE (potential%ppot_type)
             CASE (no_pseudo, ecp_pseudo)
-               DO l = 0, 3
+               DO l = 0, lmat
                   n = integrals%n(l)
                   CALL sto_nuclear(integrals%core(1:n, 1:n, l), basis%ns(1:n, l), basis%as(1:n, l), &
                                    basis%ns(1:n, l), basis%as(1:n, l))
@@ -532,7 +534,7 @@ CONTAINS
                   END DO
                END IF
                CALL numpot_matrix(integrals%core, cpot, basis, 0)
-               DO l = 0, 3
+               DO l = 0, lmat
                   n = integrals%n(l)
                   ALLOCATE (omat(n, n))
                   omat = 0._dp
@@ -554,7 +556,7 @@ CONTAINS
                   CALL numpot_matrix(integrals%clsd, cpot, basis, 0)
                END IF
 
-               DO l = 0, 3
+               DO l = 0, lmat
                   n = integrals%n(l)
                   ! non local pseudopotential
                   ALLOCATE (spmat(n, 5))
@@ -600,7 +602,7 @@ CONTAINS
             END DO
             CALL numpot_matrix(integrals%core, cpot, basis, 0)
             ! non local pseudopotential
-            DO l = 0, MIN(potential%ecp_pot%lmax, 3)
+            DO l = 0, MIN(potential%ecp_pot%lmax, lmat)
                cpot = 0._dp
                DO k = 1, potential%ecp_pot%npot(l)
                   n = potential%ecp_pot%nrpot(k, l)
@@ -762,7 +764,7 @@ CONTAINS
 
          IF (integrals%zorastat == 0) THEN
             n = MAXVAL(basis%nbas)
-            ALLOCATE (integrals%tzora(n, n, 0:3))
+            ALLOCATE (integrals%tzora(n, n, 0:lmat))
             integrals%tzora = 0._dp
             m = basis%grid%nr
             ALLOCATE (modpot(1:m), cpot(1:m))
@@ -771,7 +773,7 @@ CONTAINS
             cpot(1:m) = modpot(1:m)/(4._dp*cspeed*cspeed-2._dp*modpot(1:m))
             cpot(1:m) = cpot(1:m)/basis%grid%rad2(1:m)
             CALL numpot_matrix(integrals%tzora, cpot, basis, 0)
-            DO l = 0, 3
+            DO l = 0, lmat
                nl = basis%nbas(l)
                integrals%tzora(1:nl, 1:nl, l) = REAL(l*(l+1), dp)*integrals%tzora(1:nl, 1:nl, l)
             END DO
@@ -780,7 +782,7 @@ CONTAINS
             !
             ! scaled ZORA
             IF (reltyp == do_sczoramp_atom) THEN
-               ALLOCATE (hmat(n, n, 0:3), wfn(n, n, 0:3), ener(n, 0:3), pvp(n, n, 0:3), sps(n, n))
+               ALLOCATE (hmat(n, n, 0:lmat), wfn(n, n, 0:lmat), ener(n, 0:lmat), pvp(n, n, 0:lmat), sps(n, n))
                hmat(:, :, :) = integrals%kin+integrals%tzora
                ! model potential
                CALL numpot_matrix(hmat, modpot, basis, 0)
@@ -791,7 +793,7 @@ CONTAINS
                cpot(1:m) = cpot(1:m)/basis%grid%rad2(1:m)
                pvp = 0.0_dp
                CALL numpot_matrix(pvp, cpot, basis, 0)
-               DO l = 0, 3
+               DO l = 0, lmat
                   nl = basis%nbas(l)
                   pvp(1:nl, 1:nl, l) = REAL(l*(l+1), dp)*pvp(1:nl, 1:nl, l)
                END DO
@@ -799,7 +801,7 @@ CONTAINS
                CALL numpot_matrix(pvp, cpot, basis, 2)
                ! calculate psi*pvp*psi and the scaled orbital energies
                ! actually, we directly calculate the energy difference
-               DO l = 0, 3
+               DO l = 0, lmat
                   nl = basis%nbas(l)
                   DO i = 1, integrals%nne(l)
                      IF (ener(i, l) < 0._dp) THEN
@@ -812,7 +814,7 @@ CONTAINS
                END DO
                ! correction term is calculated as a projector
                hmat = 0.0_dp
-               DO l = 0, 3
+               DO l = 0, lmat
                   nl = basis%nbas(l)
                   DO i = 1, integrals%nne(l)
                      DO k1 = 1, nl
@@ -843,11 +845,11 @@ CONTAINS
 
          IF (integrals%dkhstat == 0) THEN
             n = MAXVAL(basis%nbas)
-            ALLOCATE (integrals%hdkh(n, n, 0:3))
+            ALLOCATE (integrals%hdkh(n, n, 0:lmat))
             integrals%hdkh = 0._dp
 
             m = MAXVAL(basis%nprim)
-            ALLOCATE (tp(m, m, 0:3), sp(m, m, 0:3), vp(m, m, 0:3), pvp(m, m, 0:3))
+            ALLOCATE (tp(m, m, 0:lmat), sp(m, m, 0:lmat), vp(m, m, 0:lmat), pvp(m, m, 0:lmat))
             tp = 0._dp
             sp = 0._dp
             vp = 0._dp
@@ -858,7 +860,7 @@ CONTAINS
                CPABORT("")
             CASE (GTO_BASIS, CGTO_BASIS)
 
-               DO l = 0, 3
+               DO l = 0, lmat
                   m = basis%nprim(l)
                   IF (m > 0) THEN
                      CALL sg_kinetic(tp(1:m, 1:m, l), l, basis%am(1:m, l), basis%am(1:m, l))
@@ -920,7 +922,7 @@ CONTAINS
 
       hdkh => integrals%hdkh
 
-      DO l = 0, 3
+      DO l = 0, lmat
          n = integrals%n(l)
          m = basis%nprim(l)
          IF (n > 0) THEN
@@ -969,13 +971,13 @@ CONTAINS
          CASE DEFAULT
             CPABORT("")
          CASE (GTO_BASIS)
-            DO l = 0, 3
+            DO l = 0, lmat
                na = basis_a%nbas(l)
                nb = basis_b%nbas(l)
                CALL sg_overlap(ovlap(1:na, 1:nb, l), l, basis_a%am(1:na, l), basis_b%am(1:nb, l))
             END DO
          CASE (CGTO_BASIS)
-            DO l = 0, 3
+            DO l = 0, lmat
                na = basis_a%nbas(l)
                nb = basis_b%nbas(l)
                ma = basis_a%nprim(l)
@@ -987,7 +989,7 @@ CONTAINS
                DEALLOCATE (omat)
             END DO
          CASE (STO_BASIS)
-            DO l = 0, 3
+            DO l = 0, lmat
                na = basis_a%nbas(l)
                nb = basis_b%nbas(l)
                CALL sto_overlap(ovlap(1:na, 1:nb, l), basis_a%ns(1:na, l), basis_b%as(1:nb, l), &
@@ -995,7 +997,7 @@ CONTAINS
             END DO
          CASE (NUM_BASIS)
             CPASSERT(atom_compare_grids(basis_a%grid, basis_b%grid))
-            DO l = 0, 3
+            DO l = 0, lmat
                na = basis_a%nbas(l)
                nb = basis_b%nbas(l)
                DO j = 1, nb
@@ -1007,7 +1009,7 @@ CONTAINS
          END SELECT
       ELSE
          CPASSERT(atom_compare_grids(basis_a%grid, basis_b%grid))
-         DO l = 0, 3
+         DO l = 0, lmat
             na = basis_a%nbas(l)
             nb = basis_b%nbas(l)
             DO j = 1, nb
@@ -1129,7 +1131,7 @@ CONTAINS
       state%occ = 0._dp
       state%multiplicity = -1
       z = NINT(zcore)
-      DO l = 0, 3
+      DO l = 0, lmat
          IF (ptable(z)%e_conv(l) /= 0) THEN
             state%maxl_occ = l
             ll = 2*(2*l+1)

@@ -17,10 +17,13 @@ MODULE atom_upf
 
    IMPLICIT NONE
 
+   ! use same value as in atom_types!
+   INTEGER, PARAMETER                                :: lmat = 3
+
    TYPE atom_upfpot_type
       CHARACTER(LEN=2)                               :: symbol
       CHARACTER(LEN=default_string_length)           :: pname
-      INTEGER, DIMENSION(0:3)                        :: econf
+      INTEGER, DIMENSION(0:lmat)                     :: econf
       REAL(dp)                                       :: zion
       CHARACTER(LEN=default_string_length)           :: version
       ! <INFO>

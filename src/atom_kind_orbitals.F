@@ -19,7 +19,7 @@ MODULE atom_kind_orbitals
    USE atom_types,                      ONLY: &
         CGTO_BASIS, Clementi_geobas, GTO_BASIS, atom_basis_type, atom_integrals, atom_orbitals, &
         atom_potential_type, atom_type, create_atom_orbs, create_atom_type, release_atom_basis, &
-        release_atom_potential, release_atom_type, set_atom
+        release_atom_potential, release_atom_type, set_atom, lmat
    USE atom_utils,                      ONLY: get_maxl_occ,&
                                               get_maxn_occ
    USE atomic_kind_types,               ONLY: atomic_kind_type,&
@@ -91,8 +91,8 @@ CONTAINS
                                                             mb, mo, n, ne, nexp_lpot, nexp_lsd, &
                                                             nexp_nlcc, ngp, nj, nr, ns, nset, &
                                                             nsgf, quadtype, z
-      INTEGER, DIMENSION(0:3, 10)                        :: ncalc, ncore, nelem
-      INTEGER, DIMENSION(0:3, 100)                       :: set_index, shell_index
+      INTEGER, DIMENSION(0:lmat, 10)                     :: ncalc, ncore, nelem
+      INTEGER, DIMENSION(0:lmat, 100)                    :: set_index, shell_index
       INTEGER, DIMENSION(:), POINTER                     :: lmax, lmin, nct_lpot, nct_lsd, nct_nlcc, &
                                                             npgf, nppnl, nshell, ppeconf
       INTEGER, DIMENSION(:, :), POINTER                  :: first_sgf, last_sgf, ls
@@ -280,12 +280,12 @@ CONTAINS
       basis%nprim = 0
       basis%nbas = 0
       DO i = 1, nset
-         DO j = lmin(i), MIN(lmax(i), 3)
+         DO j = lmin(i), MIN(lmax(i), lmat)
             basis%nprim(j) = basis%nprim(j)+npgf(i)
          END DO
          DO j = 1, nshell(i)
             l = ls(j, i)
-            IF (l <= 3) THEN
+            IF (l <= lmat) THEN
                basis%nbas(l) = basis%nbas(l)+1
                k = basis%nbas(l)
                CPASSERT(k <= 100)
@@ -297,11 +297,11 @@ CONTAINS
 
       nj = MAXVAL(basis%nprim)
       ns = MAXVAL(basis%nbas)
-      ALLOCATE (basis%am(nj, 0:3))
+      ALLOCATE (basis%am(nj, 0:lmat))
       basis%am = 0._dp
-      ALLOCATE (basis%cm(nj, ns, 0:3))
+      ALLOCATE (basis%cm(nj, ns, 0:lmat))
       basis%cm = 0._dp
-      DO j = 0, 3
+      DO j = 0, lmat
          nj = 0
          ns = 0
          DO i = 1, nset
@@ -325,14 +325,14 @@ CONTAINS
       ! initialize basis function on a radial grid
       nr = basis%grid%nr
       m = MAXVAL(basis%nbas)
-      ALLOCATE (basis%bf(nr, m, 0:3))
-      ALLOCATE (basis%dbf(nr, m, 0:3))
-      ALLOCATE (basis%ddbf(nr, m, 0:3))
+      ALLOCATE (basis%bf(nr, m, 0:lmat))
+      ALLOCATE (basis%dbf(nr, m, 0:lmat))
+      ALLOCATE (basis%ddbf(nr, m, 0:lmat))
 
       basis%bf = 0._dp
       basis%dbf = 0._dp
       basis%ddbf = 0._dp
-      DO l = 0, 3
+      DO l = 0, lmat
          DO i = 1, basis%nprim(l)
             al = basis%am(i, l)
             DO k = 1, nr
@@ -370,12 +370,12 @@ CONTAINS
       ALLOCATE (atom%state)
 
       atom%state%core = 0._dp
-      atom%state%core(0:3, 1:7) = REAL(ncore(0:3, 1:7), dp)
+      atom%state%core(0:lmat, 1:7) = REAL(ncore(0:lmat, 1:7), dp)
       atom%state%occ = 0._dp
-      atom%state%occ(0:3, 1:7) = REAL(ncalc(0:3, 1:7), dp)
+      atom%state%occ(0:lmat, 1:7) = REAL(ncalc(0:lmat, 1:7), dp)
       atom%state%occupation = 0._dp
       atom%state%multiplicity = -1
-      DO l = 0, 3
+      DO l = 0, lmat
          k = 0
          DO i = 1, 7
             IF (ncalc(l, i) > 0) THEN
@@ -421,7 +421,7 @@ CONTAINS
          END IF
          ALLOCATE (pmat(nsgf, nsgf))
          pmat = 0._dp
-         DO l = 0, 3
+         DO l = 0, lmat
             ll = 2*l
             DO k1 = 1, atom%basis%nbas(l)
                DO k2 = 1, atom%basis%nbas(l)
@@ -444,7 +444,7 @@ CONTAINS
          IF (.NOT. ASSOCIATED(atom%fmat)) CPABORT("atom%fmat not associated")
          ALLOCATE (fmat(nsgf, nsgf))
          fmat = 0.0_dp
-         DO l = 0, 3
+         DO l = 0, lmat
             ll = 2*l
             DO k1 = 1, atom%basis%nbas(l)
             DO k2 = 1, atom%basis%nbas(l)
@@ -496,8 +496,8 @@ CONTAINS
       INTEGER                                            :: i, ii, j, k, l, ll, lm, m, mb, mo, n, &
                                                             ne, nexp_lpot, nexp_lsd, nexp_nlcc, &
                                                             ngp, nn, nr, quadtype, relativistic, z
-      INTEGER, DIMENSION(0:3)                            :: starti
-      INTEGER, DIMENSION(0:3, 10)                        :: ncalc, ncore, nelem
+      INTEGER, DIMENSION(0:lmat)                         :: starti
+      INTEGER, DIMENSION(0:lmat, 10)                     :: ncalc, ncore, nelem
       INTEGER, DIMENSION(:), POINTER                     :: nct_lpot, nct_lsd, nct_nlcc, nppnl, &
                                                             ppeconf
       LOGICAL                                            :: lpot_present, lsd_present, nlcc_present
@@ -686,9 +686,9 @@ CONTAINS
       CALL Clementi_geobas(z, cval, aval, basis%nbas, starti)
       basis%nprim = basis%nbas
       m = MAXVAL(basis%nbas)
-      ALLOCATE (basis%am(m, 0:3))
+      ALLOCATE (basis%am(m, 0:lmat))
       basis%am = 0._dp
-      DO l = 0, 3
+      DO l = 0, lmat
          DO i = 1, basis%nbas(l)
             ll = i-1+starti(l)
             basis%am(i, l) = aval*cval**(ll)
@@ -703,13 +703,13 @@ CONTAINS
       ! initialize basis function on a radial grid
       nr = basis%grid%nr
       m = MAXVAL(basis%nbas)
-      ALLOCATE (basis%bf(nr, m, 0:3))
-      ALLOCATE (basis%dbf(nr, m, 0:3))
-      ALLOCATE (basis%ddbf(nr, m, 0:3))
+      ALLOCATE (basis%bf(nr, m, 0:lmat))
+      ALLOCATE (basis%dbf(nr, m, 0:lmat))
+      ALLOCATE (basis%ddbf(nr, m, 0:lmat))
       basis%bf = 0._dp
       basis%dbf = 0._dp
       basis%ddbf = 0._dp
-      DO l = 0, 3
+      DO l = 0, lmat
          DO i = 1, basis%nbas(l)
             al = basis%am(i, l)
             DO k = 1, nr
@@ -738,7 +738,7 @@ CONTAINS
       IF (ASSOCIATED(gth_potential)) THEN
          CALL set_gth_state(gth_potential, z, ncalc, ncore, nelem)
       ELSE
-         DO l = 0, 3
+         DO l = 0, lmat
             ll = 2*(2*l+1)
             nn = ptable(z)%e_conv(l)
             ii = 0
@@ -765,12 +765,12 @@ CONTAINS
       ALLOCATE (atom%state)
 
       atom%state%core = 0._dp
-      atom%state%core(0:3, 1:7) = REAL(ncore(0:3, 1:7), dp)
+      atom%state%core(0:lmat, 1:7) = REAL(ncore(0:lmat, 1:7), dp)
       atom%state%occ = 0._dp
-      atom%state%occ(0:3, 1:7) = REAL(ncalc(0:3, 1:7), dp)
+      atom%state%occ(0:lmat, 1:7) = REAL(ncalc(0:lmat, 1:7), dp)
       atom%state%occupation = 0._dp
       atom%state%multiplicity = -1
-      DO l = 0, 3
+      DO l = 0, lmat
          k = 0
          DO i = 1, 7
             IF (ncalc(l, i) > 0) THEN
@@ -849,8 +849,8 @@ CONTAINS
       INTEGER                                            :: i, ii, ipgf, j, k, k1, k2, l, ll, m, n, &
                                                             ngp, nj, nn, nr, ns, nset, nsgf, &
                                                             quadtype, relativistic, z
-      INTEGER, DIMENSION(0:3, 10)                        :: ncalc, ncore, nelem
-      INTEGER, DIMENSION(0:3, 100)                       :: set_index, shell_index
+      INTEGER, DIMENSION(0:lmat, 10)                     :: ncalc, ncore, nelem
+      INTEGER, DIMENSION(0:lmat, 100)                    :: set_index, shell_index
       INTEGER, DIMENSION(:), POINTER                     :: lmax, lmin, npgf, nshell
       INTEGER, DIMENSION(:, :), POINTER                  :: first_sgf, last_sgf, ls
       REAL(KIND=dp)                                      :: al, alpha, ear, prefac, rk, zeff
@@ -952,12 +952,12 @@ CONTAINS
          basis%nprim = 0
          basis%nbas = 0
          DO i = 1, nset
-            DO j = lmin(i), MIN(lmax(i), 3)
+            DO j = lmin(i), MIN(lmax(i), lmat)
                basis%nprim(j) = basis%nprim(j)+npgf(i)
             END DO
             DO j = 1, nshell(i)
                l = ls(j, i)
-               IF (l <= 3) THEN
+               IF (l <= lmat) THEN
                   basis%nbas(l) = basis%nbas(l)+1
                   k = basis%nbas(l)
                   CPASSERT(k <= 100)
@@ -969,11 +969,11 @@ CONTAINS
 
          nj = MAXVAL(basis%nprim)
          ns = MAXVAL(basis%nbas)
-         ALLOCATE (basis%am(nj, 0:3))
+         ALLOCATE (basis%am(nj, 0:lmat))
          basis%am = 0._dp
-         ALLOCATE (basis%cm(nj, ns, 0:3))
+         ALLOCATE (basis%cm(nj, ns, 0:lmat))
          basis%cm = 0._dp
-         DO j = 0, 3
+         DO j = 0, lmat
             nj = 0
             ns = 0
             DO i = 1, nset
@@ -996,7 +996,7 @@ CONTAINS
 
          ! Normalization as used in the atomic code
          ! We have to undo the Quickstep normalization
-         DO j = 0, 3
+         DO j = 0, lmat
             prefac = 2.0_dp*SQRT(pi/dfac(2*j+1))
             DO ipgf = 1, basis%nprim(j)
                DO ii = 1, basis%nbas(j)
@@ -1008,14 +1008,14 @@ CONTAINS
          ! initialize basis function on a radial grid
          nr = basis%grid%nr
          m = MAXVAL(basis%nbas)
-         ALLOCATE (basis%bf(nr, m, 0:3))
-         ALLOCATE (basis%dbf(nr, m, 0:3))
-         ALLOCATE (basis%ddbf(nr, m, 0:3))
+         ALLOCATE (basis%bf(nr, m, 0:lmat))
+         ALLOCATE (basis%dbf(nr, m, 0:lmat))
+         ALLOCATE (basis%ddbf(nr, m, 0:lmat))
 
          basis%bf = 0._dp
          basis%dbf = 0._dp
          basis%ddbf = 0._dp
-         DO l = 0, 3
+         DO l = 0, lmat
             DO i = 1, basis%nprim(l)
                al = basis%am(i, l)
                DO k = 1, nr
@@ -1046,7 +1046,7 @@ CONTAINS
          nelem = 0
          ncore = 0
          ncalc = 0
-         DO l = 0, 3
+         DO l = 0, lmat
             ll = 2*(2*l+1)
             nn = ptable(z)%e_conv(l)
             ii = 0
@@ -1072,12 +1072,12 @@ CONTAINS
          ALLOCATE (atom%state)
 
          atom%state%core = 0._dp
-         atom%state%core(0:3, 1:7) = REAL(ncore(0:3, 1:7), dp)
+         atom%state%core(0:lmat, 1:7) = REAL(ncore(0:lmat, 1:7), dp)
          atom%state%occ = 0._dp
-         atom%state%occ(0:3, 1:7) = REAL(ncalc(0:3, 1:7), dp)
+         atom%state%occ(0:lmat, 1:7) = REAL(ncalc(0:lmat, 1:7), dp)
          atom%state%occupation = 0._dp
          atom%state%multiplicity = -1
-         DO l = 0, 3
+         DO l = 0, lmat
             k = 0
             DO i = 1, 7
                IF (ncalc(l, i) > 0) THEN
@@ -1105,7 +1105,7 @@ CONTAINS
 
          ! for DKH we need erfc integrals to correct non-relativistic
          integrals%core = 0.0_dp
-         DO l = 0, 3
+         DO l = 0, lmat
             n = integrals%n(l)
             m = basis%nprim(l)
             ALLOCATE (omat(m, m))
@@ -1123,7 +1123,7 @@ CONTAINS
          END IF
          ALLOCATE (rtmat(nsgf, nsgf))
          rtmat = 0._dp
-         DO l = 0, 3
+         DO l = 0, lmat
             ll = 2*l
             DO k1 = 1, basis%nbas(l)
                DO k2 = 1, basis%nbas(l)

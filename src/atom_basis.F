@@ -14,7 +14,7 @@ MODULE atom_basis
         atom_basis_type, atom_integrals, atom_optimization_type, atom_orbitals, atom_p_type, &
         atom_potential_type, atom_state, create_atom_orbs, create_atom_type, init_atom_basis, &
         init_atom_potential, read_atom_opt_section, release_atom_basis, release_atom_potential, &
-        release_atom_type, set_atom
+        release_atom_type, set_atom, lmat
    USE atom_utils,                      ONLY: atom_consistent_method,&
                                               atom_set_occupation,&
                                               get_maxl_occ,&
@@ -61,10 +61,10 @@ CONTAINS
       INTEGER                                            :: do_eric, do_erie, handle, i, im, in, &
                                                             iunit, iw, k, maxl, mb, method, mo, &
                                                             n_meth, n_rep, reltyp, zcore, zval, zz
-      INTEGER, DIMENSION(0:3)                            :: maxn
+      INTEGER, DIMENSION(0:lmat)                         :: maxn
       INTEGER, DIMENSION(:), POINTER                     :: cn
       LOGICAL                                            :: eri_c, eri_e, had_ae, had_pp, pp_calc
-      REAL(KIND=dp), DIMENSION(0:3, 10)                  :: pocc
+      REAL(KIND=dp), DIMENSION(0:lmat, 10)               :: pocc
       TYPE(atom_basis_type), POINTER                     :: ae_basis, pp_basis
       TYPE(atom_integrals), POINTER                      :: ae_int, pp_int
       TYPE(atom_optimization_type)                       :: optimization
@@ -128,7 +128,7 @@ CONTAINS
       DO in = 1, MIN(SIZE(cn), 4)
          maxn(in-1) = cn(in)
       END DO
-      DO in = 0, 3
+      DO in = 0, lmat
          maxn(in) = MIN(maxn(in), ae_basis%nbas(in))
          maxn(in) = MIN(maxn(in), pp_basis%nbas(in))
       END DO
@@ -176,7 +176,7 @@ CONTAINS
 
             ! set number of states to be calculated
             state%maxl_calc = MAX(maxl, state%maxl_occ)
-            state%maxl_calc = MIN(3, state%maxl_calc)
+            state%maxl_calc = MIN(lmat, state%maxl_calc)
             state%maxn_calc = 0
             DO k = 0, state%maxl_calc
                state%maxn_calc(k) = MAX(maxn(k), state%maxn_occ(k))

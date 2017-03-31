@@ -19,7 +19,7 @@ MODULE atom_grb
    USE atom_types,                      ONLY: &
         CGTO_BASIS, GTO_BASIS, atom_basis_type, atom_integrals, atom_orbitals, atom_p_type, &
         atom_potential_type, atom_state, atom_type, create_atom_orbs, create_atom_type, &
-        release_atom_basis, release_atom_type, set_atom
+        release_atom_basis, release_atom_type, set_atom, lmat
    USE atom_utils,                      ONLY: atom_basis_condnum,&
                                               atom_density
    USE cp_files,                        ONLY: close_file,&
@@ -88,11 +88,11 @@ CONTAINS
                                                             lval, m, maxl, mb, method, mo, n, &
                                                             nder, ngp, nhomo, nr, num_gto, &
                                                             num_pol, quadtype, s1, s2
-      INTEGER, DIMENSION(0:3)                            :: next_bas, next_prim
+      INTEGER, DIMENSION(0:lmat)                         :: next_bas, next_prim
       INTEGER, DIMENSION(0:7)                            :: nbas
       INTEGER, DIMENSION(:), POINTER                     :: num_bas
       REAL(KIND=dp) :: al, amin, aval, cnum, crad, cradx, cval, delta, dene, ear, emax, &
-         energy_ex(0:3), energy_ref, energy_vb(0:3), expzet, fhomo, o, prefac, rconf, rk, rmax, &
+         energy_ex(0:lmat), energy_ref, energy_vb(0:lmat), expzet, fhomo, o, prefac, rconf, rk, rmax, &
          scon, zeta, zval
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: ale, alp, rho
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: amat
@@ -168,9 +168,9 @@ CONTAINS
       CALL section_vals_val_get(grb_section, "GEOMETRICAL_FACTOR", r_val=cval)
       CALL section_vals_val_get(grb_section, "GEO_START_VALUE", r_val=aval)
       m = MAXVAL(basis%nbas)
-      ALLOCATE (basis%am(m, 0:3))
+      ALLOCATE (basis%am(m, 0:lmat))
       basis%am = 0._dp
-      DO l = 0, 3
+      DO l = 0, lmat
          DO i = 1, basis%nbas(l)
             ll = i-1
             basis%am(i, l) = aval*cval**(ll)
@@ -186,13 +186,13 @@ CONTAINS
       ! initialize basis function on a radial grid
       nr = basis%grid%nr
       m = MAXVAL(basis%nbas)
-      ALLOCATE (basis%bf(nr, m, 0:3))
-      ALLOCATE (basis%dbf(nr, m, 0:3))
-      ALLOCATE (basis%ddbf(nr, m, 0:3))
+      ALLOCATE (basis%bf(nr, m, 0:lmat))
+      ALLOCATE (basis%dbf(nr, m, 0:lmat))
+      ALLOCATE (basis%ddbf(nr, m, 0:lmat))
       basis%bf = 0._dp
       basis%dbf = 0._dp
       basis%ddbf = 0._dp
-      DO l = 0, 3
+      DO l = 0, lmat
          DO i = 1, basis%nbas(l)
             al = basis%am(i, l)
             DO k = 1, nr
@@ -241,9 +241,9 @@ CONTAINS
 
       s1 = SIZE(atom%orbitals%wfn, 1)
       s2 = SIZE(atom%orbitals%wfn, 2)
-      ALLOCATE (wfn(s1, s2, 0:3, -nder:nder))
+      ALLOCATE (wfn(s1, s2, 0:lmat, -nder:nder))
       s2 = MAXVAL(state%maxn_occ)+nder
-      ALLOCATE (rbasis(s1, s2, 0:3), qbasis(s1, s2, 0:3))
+      ALLOCATE (rbasis(s1, s2, 0:lmat), qbasis(s1, s2, 0:lmat))
       rbasis = 0._dp
       qbasis = 0._dp
 
@@ -356,10 +356,10 @@ CONTAINS
          END DO
          m = MAXVAL(basis_vrb%nprim)
          n = MAXVAL(basis_vrb%nbas)
-         ALLOCATE (basis_vrb%am(m, 0:3))
+         ALLOCATE (basis_vrb%am(m, 0:lmat))
          basis_vrb%am = basis%am
          ! contractions
-         ALLOCATE (basis_vrb%cm(m, n, 0:3))
+         ALLOCATE (basis_vrb%cm(m, n, 0:lmat))
          DO l = 0, state%maxl_occ
             m = basis_vrb%nprim(l)
             n = basis_vrb%nbas(l)
@@ -369,13 +369,13 @@ CONTAINS
          ! initialize basis function on a radial grid
          nr = basis_vrb%grid%nr
          m = MAXVAL(basis_vrb%nbas)
-         ALLOCATE (basis_vrb%bf(nr, m, 0:3))
-         ALLOCATE (basis_vrb%dbf(nr, m, 0:3))
-         ALLOCATE (basis_vrb%ddbf(nr, m, 0:3))
+         ALLOCATE (basis_vrb%bf(nr, m, 0:lmat))
+         ALLOCATE (basis_vrb%dbf(nr, m, 0:lmat))
+         ALLOCATE (basis_vrb%ddbf(nr, m, 0:lmat))
          basis_vrb%bf = 0._dp
          basis_vrb%dbf = 0._dp
          basis_vrb%ddbf = 0._dp
-         DO l = 0, 3
+         DO l = 0, lmat
             DO i = 1, basis_vrb%nprim(l)
                al = basis_vrb%am(i, l)
                DO k = 1, nr
@@ -453,7 +453,7 @@ CONTAINS
       maxl = atom%state%maxl_occ
       CALL section_vals_val_get(grb_section, "NUM_GTO_EXTENDED", i_val=num_gto)
       CALL section_vals_val_get(grb_section, "EXTENSION_BASIS", i_vals=num_bas)
-      next_bas(0:3) = 0
+      next_bas(0:lmat) = 0
       IF (num_bas(1) == -1) THEN
          DO l = 0, maxl
             next_bas(l) = maxl-l+1
@@ -463,7 +463,7 @@ CONTAINS
          next_bas(0:n-1) = num_bas(1:n)
       END IF
       next_prim = 0
-      DO l = 0, 3
+      DO l = 0, lmat
          IF (next_bas(l) > 0) next_prim(l) = num_gto
       END DO
       IF (iw > 0) THEN
@@ -472,7 +472,7 @@ CONTAINS
       END IF
       n = MAXVAL(next_prim)
       m = MAXVAL(next_bas)
-      ALLOCATE (ebasis(n, n, 0:3), ale(n))
+      ALLOCATE (ebasis(n, n, 0:lmat), ale(n))
       basis_vrb => vbasis(0)%basis
       amin = atom%basis%aval/atom%basis%cval**1.5_dp
       DO i = 1, n
@@ -481,7 +481,7 @@ CONTAINS
       ebasis = 0._dp
       ALLOCATE (rho(n))
       rconf = 2.0_dp*atom%potential%scon
-      DO l = 0, 3
+      DO l = 0, lmat
          IF (next_bas(l) < 1) CYCLE
          zval = SQRT(REAL(2*l+2, dp))*REAL(l+1, dp)/(2._dp*rmax)
          CALL hydrogenic(zval, rconf, l, ale, n, rho, ebasis(:, :, l))
@@ -491,8 +491,8 @@ CONTAINS
       DEALLOCATE (rho)
       ! check for condition numbers
       IF (iw > 0) WRITE (iw, '(/,A)') " Condition Number of Extended Basis Sets"
-      CALL init_orbital_pointers(3)
-      CALL init_spherical_harmonics(3, 0)
+      CALL init_orbital_pointers(lmat)
+      CALL init_spherical_harmonics(lmat, 0)
       DO ider = 0, nder
          NULLIFY (basis_vrb)
          ALLOCATE (basis_vrb)
@@ -513,7 +513,7 @@ CONTAINS
             basis_vrb%nbas(l) = state%maxn_occ(l)+ider+next_bas(l)
          END DO
          m = MAXVAL(basis_vrb%nprim)
-         ALLOCATE (basis_vrb%am(m, 0:3))
+         ALLOCATE (basis_vrb%am(m, 0:lmat))
          ! exponents
          m = SIZE(basis%am, 1)
          basis_vrb%am(1:m, :) = basis%am(1:m, :)
@@ -524,7 +524,7 @@ CONTAINS
          ! contractions
          m = MAXVAL(basis_vrb%nprim)
          n = MAXVAL(basis_vrb%nbas)
-         ALLOCATE (basis_vrb%cm(m, n, 0:3))
+         ALLOCATE (basis_vrb%cm(m, n, 0:lmat))
          basis_vrb%cm = 0.0_dp
          DO l = 0, state%maxl_occ
             m = basis%nprim(l)
@@ -536,13 +536,13 @@ CONTAINS
          ! initialize basis function on a radial grid
          nr = basis_vrb%grid%nr
          m = MAXVAL(basis_vrb%nbas)
-         ALLOCATE (basis_vrb%bf(nr, m, 0:3))
-         ALLOCATE (basis_vrb%dbf(nr, m, 0:3))
-         ALLOCATE (basis_vrb%ddbf(nr, m, 0:3))
+         ALLOCATE (basis_vrb%bf(nr, m, 0:lmat))
+         ALLOCATE (basis_vrb%dbf(nr, m, 0:lmat))
+         ALLOCATE (basis_vrb%ddbf(nr, m, 0:lmat))
          basis_vrb%bf = 0._dp
          basis_vrb%dbf = 0._dp
          basis_vrb%ddbf = 0._dp
-         DO l = 0, 3
+         DO l = 0, lmat
             DO i = 1, basis_vrb%nprim(l)
                al = basis_vrb%am(i, l)
                DO k = 1, nr
@@ -635,7 +635,7 @@ CONTAINS
          END DO
       END DO
       ! Quickstep normalization extended basis
-      DO l = 0, 3
+      DO l = 0, lmat
          expzet = 0.25_dp*REAL(2*l+3, dp)
          prefac = SQRT(SQRT(pi)/2._dp**(l+2)*dfac(2*l+1))
          DO i = 1, next_prim(l)
@@ -964,7 +964,7 @@ CONTAINS
 
          IF (ostate%state == 2) THEN
             basis%am = 0._dp
-            DO l = 0, 3
+            DO l = 0, lmat
                DO i = 1, basis%nbas(l)
                   ll = i-1+basis%start(l)
                   basis%am(i, l) = x(1)*x(1)*(x(2)*x(2))**(ll)
@@ -976,7 +976,7 @@ CONTAINS
             basis%dbf = 0._dp
             basis%ddbf = 0._dp
             nr = basis%grid%nr
-            DO l = 0, 3
+            DO l = 0, lmat
                DO i = 1, basis%nbas(l)
                   al = basis%am(i, l)
                   DO k = 1, nr
@@ -1016,7 +1016,7 @@ CONTAINS
       END IF
       ! x->basis
       basis%am = 0._dp
-      DO l = 0, 3
+      DO l = 0, lmat
          DO i = 1, basis%nbas(l)
             ll = i-1+basis%start(l)
             basis%am(i, l) = x(1)*x(1)*(x(2)*x(2))**(ll)
@@ -1028,7 +1028,7 @@ CONTAINS
       basis%dbf = 0._dp
       basis%ddbf = 0._dp
       nr = basis%grid%nr
-      DO l = 0, 3
+      DO l = 0, lmat
          DO i = 1, basis%nbas(l)
             al = basis%am(i, l)
             DO k = 1, nr
@@ -1049,15 +1049,15 @@ CONTAINS
          WRITE (iunit, '(/,A)') " Optimized Geometrical GTO basis set"
          WRITE (iunit, '(A,F15.8,T41,A,F15.8)') " Initial exponent: ", basis%aval, &
             " Proportionality factor: ", basis%cval
-         DO l = 0, 3
+         DO l = 0, lmat
             WRITE (iunit, '(T41,A,I2,T76,I5)') " Number of exponents for l=", l, basis%nbas(l)
          END DO
       END IF
 
       IF (iunit > 0) WRITE (iunit, '(/,A)') " Condition number of uncontracted basis set"
       crad = 2.0_dp*ptable(atom%z)%covalent_radius*bohr
-      CALL init_orbital_pointers(3)
-      CALL init_spherical_harmonics(3, 0)
+      CALL init_orbital_pointers(lmat)
+      CALL init_spherical_harmonics(lmat, 0)
       cradx = crad*1.00_dp
       CALL atom_basis_condnum(basis, cradx, cnum)
       IF (iunit > 0) WRITE (iunit, '(T5,A,F15.3,T50,A,F14.4)') " Lattice constant:", cradx, "Condition number:", cnum
