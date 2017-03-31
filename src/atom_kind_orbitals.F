@@ -259,7 +259,8 @@ CONTAINS
       END IF
 
       CALL get_gto_basis_set(orb_basis_set, &
-                             nset=nset, nshell=nshell, npgf=npgf, lmin=lmin, lmax=lmax, l=ls, nsgf=nsgf, zet=zet, gcc=gcc, &
+                             nset=nset, nshell=nshell, npgf=npgf, lmin=lmin, lmax=lmax, &
+                             l=ls, nsgf=nsgf, zet=zet, gcc=gcc, &
                              first_sgf=first_sgf, last_sgf=last_sgf)
 
       NULLIFY (grid)

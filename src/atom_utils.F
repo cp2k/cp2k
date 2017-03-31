@@ -156,7 +156,7 @@ CONTAINS
                END IF
             END DO
             CPASSERT(ielem /= 0)
-            DO l = 0, lmat
+            DO l = 0, MIN(lmat, UBOUND(ptable(ielem)%e_conv, 1))
                el = 2._dp*(2._dp*REAL(l, dp)+1._dp)
                e0 = ptable(ielem)%e_conv(l)
                DO k = 1, 10

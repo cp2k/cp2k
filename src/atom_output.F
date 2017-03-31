@@ -303,31 +303,27 @@ CONTAINS
          ELSE
             WRITE (iw, '(/," ",21("*"),A,21("*"))') " Uncontracted Gaussian Type Orbitals "
          END IF
-         CPASSERT(lmat >= 3)
-         IF (atom_basis%nbas(0) > 0) THEN
-            WRITE (iw, '(/,T2,A,(T30,I5,T51,F30.8))') &
-               "s Exponents: ", (i, atom_basis%am(i, 0), i=1, atom_basis%nbas(0))
-         END IF
-         IF (atom_basis%nbas(1) > 0) THEN
-            WRITE (iw, '(/,T2,A,(T30,I5,T51,F30.8))') &
-               "p Exponents: ", (i, atom_basis%am(i, 1), i=1, atom_basis%nbas(1))
-         END IF
-         IF (atom_basis%nbas(2) > 0) THEN
-            WRITE (iw, '(/,T2,A,(T30,I5,T51,F30.8))') &
-               "d Exponents: ", (i, atom_basis%am(i, 2), i=1, atom_basis%nbas(2))
-         END IF
-         IF (atom_basis%nbas(3) > 0) THEN
-            WRITE (iw, '(/,T2,A,(T30,I5,T51,F30.8))') &
-               "f Exponents: ", (i, atom_basis%am(i, 3), i=1, atom_basis%nbas(3))
-         END IF
-         IF (lmat > 3) THEN
-            DO l = 4, lmat
-               IF (atom_basis%nbas(l) > 0) THEN
+         DO l = 0, lmat
+            IF (atom_basis%nbas(l) > 0) THEN
+               SELECT CASE (l)
+               CASE DEFAULT
                   WRITE (iw, '(/,T2,A,(T30,I5,T51,F30.8))') &
                      "X Exponents: ", (i, atom_basis%am(i, l), i=1, atom_basis%nbas(l))
-               END IF
-            END DO
-         END IF
+               CASE (0)
+                  WRITE (iw, '(/,T2,A,(T30,I5,T51,F30.8))') &
+                     "s Exponents: ", (i, atom_basis%am(i, 0), i=1, atom_basis%nbas(0))
+               CASE (1)
+                  WRITE (iw, '(/,T2,A,(T30,I5,T51,F30.8))') &
+                     "p Exponents: ", (i, atom_basis%am(i, 1), i=1, atom_basis%nbas(1))
+               CASE (2)
+                  WRITE (iw, '(/,T2,A,(T30,I5,T51,F30.8))') &
+                     "d Exponents: ", (i, atom_basis%am(i, 2), i=1, atom_basis%nbas(2))
+               CASE (3)
+                  WRITE (iw, '(/,T2,A,(T30,I5,T51,F30.8))') &
+                     "f Exponents: ", (i, atom_basis%am(i, 3), i=1, atom_basis%nbas(3))
+               END SELECT
+            END IF
+         END DO
          WRITE (iw, '(" ",79("*"))')
       CASE (CGTO_BASIS)
          WRITE (iw, '(/," ",22("*"),A,22("*"))') " Contracted Gaussian Type Orbitals "
@@ -346,23 +342,21 @@ CONTAINS
          END DO
          WRITE (iw, '(" ",79("*"))')
       CASE (STO_BASIS)
-         CPASSERT(lmat >= 3)
          WRITE (iw, '(/," ",28("*"),A,29("*"))') " Slater Type Orbitals "
-         DO i = 1, atom_basis%nbas(0)
-            WRITE (iw, '(T10,I1,A,T40,F25.12)') atom_basis%ns(i, 0), "S Exponent :", atom_basis%as(i, 0)
-         END DO
-         DO i = 1, atom_basis%nbas(1)
-            WRITE (iw, '(T10,I1,A,T40,F25.12)') atom_basis%ns(i, 1), "P Exponent :", atom_basis%as(i, 1)
-         END DO
-         DO i = 1, atom_basis%nbas(2)
-            WRITE (iw, '(T10,I1,A,T40,F25.12)') atom_basis%ns(i, 2), "D Exponent :", atom_basis%as(i, 2)
-         END DO
-         DO i = 1, atom_basis%nbas(3)
-            WRITE (iw, '(T10,I1,A,T40,F25.12)') atom_basis%ns(i, 3), "F Exponent :", atom_basis%as(i, 3)
-         END DO
-         DO l = 4, lmat
+         DO l = 0, lmat
             DO i = 1, atom_basis%nbas(l)
-               WRITE (iw, '(T10,I1,A,T40,F25.12)') atom_basis%ns(i, l), "X Exponent :", atom_basis%as(i, l)
+               SELECT CASE (l)
+               CASE DEFAULT
+                  WRITE (iw, '(T10,I1,A,T40,F25.12)') atom_basis%ns(i, l), "X Exponent :", atom_basis%as(i, l)
+               CASE (0)
+                  WRITE (iw, '(T10,I1,A,T40,F25.12)') atom_basis%ns(i, 0), "S Exponent :", atom_basis%as(i, 0)
+               CASE (1)
+                  WRITE (iw, '(T10,I1,A,T40,F25.12)') atom_basis%ns(i, 1), "P Exponent :", atom_basis%as(i, 1)
+               CASE (2)
+                  WRITE (iw, '(T10,I1,A,T40,F25.12)') atom_basis%ns(i, 2), "D Exponent :", atom_basis%as(i, 2)
+               CASE (3)
+                  WRITE (iw, '(T10,I1,A,T40,F25.12)') atom_basis%ns(i, 3), "F Exponent :", atom_basis%as(i, 3)
+               END SELECT
             END DO
          END DO
          WRITE (iw, '(" ",79("*"))')
@@ -395,64 +389,60 @@ CONTAINS
          ELSE
             WRITE (iw, '(T3,A)') "BASIS_TYPE GAUSSIAN"
          END IF
-         CPASSERT(lmat >= 3)
-         IF (atom_basis%nbas(0) > 0) THEN
-            WRITE (iw, '(T3,A,(T15,F20.8,:," \"))') &
-               "S_EXPONENTS ", (atom_basis%am(i, 0), i=1, atom_basis%nbas(0))
-         END IF
-         IF (atom_basis%nbas(1) > 0) THEN
-            WRITE (iw, '(T3,A,(T15,F20.8,:," \"))') &
-               "P_EXPONENTS ", (atom_basis%am(i, 1), i=1, atom_basis%nbas(1))
-         END IF
-         IF (atom_basis%nbas(2) > 0) THEN
-            WRITE (iw, '(T3,A,(T15,F20.8,:," \"))') &
-               "D_EXPONENTS ", (atom_basis%am(i, 2), i=1, atom_basis%nbas(2))
-         END IF
-         IF (atom_basis%nbas(3) > 0) THEN
-            WRITE (iw, '(T3,A,(T15,F20.8,:," \"))') &
-               "F_EXPONENTS ", (atom_basis%am(i, 3), i=1, atom_basis%nbas(3))
-         END IF
-         DO l = 4, lmat
+         DO l = 0, lmat
             IF (atom_basis%nbas(l) > 0) THEN
-               WRITE (iw, '(T3,A,(T15,F20.8,:," \"))') &
-                  "X_EXPONENTS ", (atom_basis%am(i, l), i=1, atom_basis%nbas(l))
+               SELECT CASE (l)
+               CASE DEFAULT
+                  WRITE (iw, '(T3,A,(T15,F20.8,:," \"))') &
+                     "X_EXPONENTS ", (atom_basis%am(i, l), i=1, atom_basis%nbas(l))
+               CASE (0)
+                  WRITE (iw, '(T3,A,(T15,F20.8,:," \"))') &
+                     "S_EXPONENTS ", (atom_basis%am(i, 0), i=1, atom_basis%nbas(0))
+               CASE (1)
+                  WRITE (iw, '(T3,A,(T15,F20.8,:," \"))') &
+                     "P_EXPONENTS ", (atom_basis%am(i, 1), i=1, atom_basis%nbas(1))
+               CASE (2)
+                  WRITE (iw, '(T3,A,(T15,F20.8,:," \"))') &
+                     "D_EXPONENTS ", (atom_basis%am(i, 2), i=1, atom_basis%nbas(2))
+               CASE (3)
+                  WRITE (iw, '(T3,A,(T15,F20.8,:," \"))') &
+                     "F_EXPONENTS ", (atom_basis%am(i, 3), i=1, atom_basis%nbas(3))
+               END SELECT
             END IF
          END DO
       CASE (CGTO_BASIS)
          CPABORT("")
       CASE (STO_BASIS)
-         CPASSERT(lmat >= 3)
          WRITE (iw, '(T3,A)') "BASIS_TYPE SLATER"
-         IF (atom_basis%nbas(0) > 0) THEN
-            WRITE (iw, '(T3,A,(T15,F20.8,:," \"))') &
-               "S_EXPONENTS ", (atom_basis%as(i, 0), i=1, atom_basis%nbas(0))
-            WRITE (iw, '(T3,A,60I3)') &
-               "S_QUANTUM_NUMBERS ", (atom_basis%ns(i, 0), i=1, atom_basis%nbas(0))
-         END IF
-         IF (atom_basis%nbas(1) > 0) THEN
-            WRITE (iw, '(T3,A,(T15,F20.8,:," \"))') &
-               "P_EXPONENTS ", (atom_basis%as(i, 1), i=1, atom_basis%nbas(1))
-            WRITE (iw, '(T3,A,60I3)') &
-               "P_QUANTUM_NUMBERS ", (atom_basis%ns(i, 1), i=1, atom_basis%nbas(1))
-         END IF
-         IF (atom_basis%nbas(2) > 0) THEN
-            WRITE (iw, '(T3,A,(T15,F20.8,:," \"))') &
-               "D_EXPONENTS ", (atom_basis%as(i, 2), i=1, atom_basis%nbas(2))
-            WRITE (iw, '(T3,A,60I3)') &
-               "D_QUANTUM_NUMBERS ", (atom_basis%ns(i, 2), i=1, atom_basis%nbas(2))
-         END IF
-         IF (atom_basis%nbas(3) > 0) THEN
-            WRITE (iw, '(T3,A,(T15,F20.8,:," \"))') &
-               "F_EXPONENTS ", (atom_basis%as(i, 3), i=1, atom_basis%nbas(3))
-            WRITE (iw, '(T3,A,60I3)') &
-               "F_QUANTUM_NUMBERS ", (atom_basis%ns(i, 3), i=1, atom_basis%nbas(3))
-         END IF
-         DO l = 4, lmat
+         DO l = 0, lmat
             IF (atom_basis%nbas(l) > 0) THEN
-               WRITE (iw, '(T3,A,(T15,F20.8,:," \"))') &
-                  "X_EXPONENTS ", (atom_basis%as(i, l), i=1, atom_basis%nbas(l))
-               WRITE (iw, '(T3,A,60I3)') &
-                  "X_QUANTUM_NUMBERS ", (atom_basis%ns(i, l), i=1, atom_basis%nbas(l))
+               SELECT CASE (l)
+               CASE DEFAULT
+                  WRITE (iw, '(T3,A,(T15,F20.8,:," \"))') &
+                     "X_EXPONENTS ", (atom_basis%as(i, l), i=1, atom_basis%nbas(l))
+                  WRITE (iw, '(T3,A,60I3)') &
+                     "X_QUANTUM_NUMBERS ", (atom_basis%ns(i, l), i=1, atom_basis%nbas(l))
+               CASE (0)
+                  WRITE (iw, '(T3,A,(T15,F20.8,:," \"))') &
+                     "S_EXPONENTS ", (atom_basis%as(i, 0), i=1, atom_basis%nbas(0))
+                  WRITE (iw, '(T3,A,60I3)') &
+                     "S_QUANTUM_NUMBERS ", (atom_basis%ns(i, 0), i=1, atom_basis%nbas(0))
+               CASE (1)
+                  WRITE (iw, '(T3,A,(T15,F20.8,:," \"))') &
+                     "P_EXPONENTS ", (atom_basis%as(i, 1), i=1, atom_basis%nbas(1))
+                  WRITE (iw, '(T3,A,60I3)') &
+                     "P_QUANTUM_NUMBERS ", (atom_basis%ns(i, 1), i=1, atom_basis%nbas(1))
+               CASE (2)
+                  WRITE (iw, '(T3,A,(T15,F20.8,:," \"))') &
+                     "D_EXPONENTS ", (atom_basis%as(i, 2), i=1, atom_basis%nbas(2))
+                  WRITE (iw, '(T3,A,60I3)') &
+                     "D_QUANTUM_NUMBERS ", (atom_basis%ns(i, 2), i=1, atom_basis%nbas(2))
+               CASE (3)
+                  WRITE (iw, '(T3,A,(T15,F20.8,:," \"))') &
+                     "F_EXPONENTS ", (atom_basis%as(i, 3), i=1, atom_basis%nbas(3))
+                  WRITE (iw, '(T3,A,60I3)') &
+                     "F_QUANTUM_NUMBERS ", (atom_basis%ns(i, 3), i=1, atom_basis%nbas(3))
+               END SELECT
             END IF
          END DO
       CASE (NUM_BASIS)

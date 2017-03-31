@@ -2371,12 +2371,13 @@ CONTAINS
       REAL(dp), DIMENSION(7), PARAMETER :: &
          xns = (/1.0_dp, 2.0_dp, 3.0_dp, 3.7_dp, 4.0_dp, 4.2_dp, 4.4_dp/)
 
-      INTEGER                                            :: i, l1, l2, m, m1, m2
+      INTEGER                                            :: i, l1, l2, m, m1, m2, nn
       REAL(dp)                                           :: s
 
       s = 0.0_dp
       ! The complete shell
-      l1 = l+1
+      l1 = MIN(l+1, 4)
+      nn = MIN(n, 7)
       IF (l1 == 1) l2 = 2
       IF (l1 == 2) l2 = 1
       IF (l1 == 3) l2 = 4
@@ -2387,16 +2388,16 @@ CONTAINS
          m = ne(1, 1)
          s = s+0.3_dp*REAL(m-1, dp)
       ELSE
-         m = ne(l1, n)+ne(l2, n)
+         m = ne(l1, nn)+ne(l2, nn)
          s = s+0.35_dp*REAL(m-1, dp)
       END IF
       ! Rule c) if (s,p) shell 0.85 from each electron with n-1, and 1.0
       !      from all electrons further in
       IF (l1+l2 == 3) THEN
-         IF (n > 1) THEN
-            m1 = ne(1, n-1)+ne(2, n-1)+ne(3, n-1)+ne(4, n-1)
+         IF (nn > 1) THEN
+            m1 = ne(1, nn-1)+ne(2, nn-1)+ne(3, nn-1)+ne(4, nn-1)
             m2 = 0
-            DO i = 1, n-2
+            DO i = 1, nn-2
                m2 = m2+ne(1, i)+ne(2, i)+ne(3, i)+ne(4, I)
             END DO
             s = s+0.85_dp*REAL(m1, dp)+1._dp*REAL(m2, dp)
@@ -2404,13 +2405,13 @@ CONTAINS
       ELSE
          ! Rule d) if (d,f) shell 1.0 from each electron inside
          m = 0
-         DO i = 1, n-1
+         DO i = 1, nn-1
             m = m+ne(1, i)+ne(2, i)+ne(3, i)+ne(4, i)
          END DO
          s = s+1._dp*REAL(m, dp)
       END IF
       ! Slater exponent is (Z-S)/NS
-      srules = (REAL(z, dp)-s)/xns(n)
+      srules = (REAL(z, dp)-s)/xns(nn)
    END FUNCTION srules
 
 ! **************************************************************************************************
