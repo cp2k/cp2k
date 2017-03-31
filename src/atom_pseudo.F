@@ -20,8 +20,8 @@ MODULE atom_pseudo
    USE atom_types,                      ONLY: &
         atom_basis_type, atom_integrals, atom_optimization_type, atom_orbitals, atom_p_type, &
         atom_potential_type, atom_state, create_atom_orbs, create_atom_type, init_atom_basis, &
-        init_atom_potential, read_atom_opt_section, release_atom_basis, release_atom_potential, &
-        release_atom_type, set_atom, lmat
+        init_atom_potential, lmat, read_atom_opt_section, release_atom_basis, &
+        release_atom_potential, release_atom_type, set_atom
    USE atom_utils,                      ONLY: atom_consistent_method,&
                                               atom_set_occupation,&
                                               get_maxl_occ,&

@@ -18,8 +18,8 @@ MODULE atom_utils
    USE ao_util,                         ONLY: exp_radius
    USE atom_types,                      ONLY: &
         CGTO_BASIS, GTO_BASIS, NUM_BASIS, STO_BASIS, atom_basis_type, atom_gthpot_type, &
-        atom_potential_type, atom_state, atom_type, ecp_pseudo, eri, gth_pseudo, no_pseudo, &
-        upf_pseudo, lmat
+        atom_potential_type, atom_state, atom_type, ecp_pseudo, eri, gth_pseudo, lmat, no_pseudo, &
+        upf_pseudo
    USE basis_set_types,                 ONLY: srules
    USE cp_files,                        ONLY: close_file,&
                                               get_unit_number,&

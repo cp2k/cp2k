@@ -11,7 +11,7 @@ MODULE atom_admm_methods
    USE atom_output,                     ONLY: atom_print_basis
    USE atom_types,                      ONLY: &
         atom_basis_type, atom_integrals, atom_orbitals, atom_p_type, atom_type, create_atom_orbs, &
-        init_atom_basis, release_atom_basis, release_atom_orbs, lmat
+        init_atom_basis, lmat, release_atom_basis, release_atom_orbs
    USE atom_utils,                      ONLY: atom_consistent_method,&
                                               atom_denmat,&
                                               atom_trace,&

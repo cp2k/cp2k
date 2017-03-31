@@ -19,7 +19,7 @@ MODULE atom_fit
                                               atom_write_pseudo_param
    USE atom_types,                      ONLY: &
         GTO_BASIS, STO_BASIS, atom_basis_type, atom_gthpot_type, atom_integrals, atom_p_type, &
-        atom_potential_type, atom_type, create_opgrid, opgrid_type, release_opgrid, set_atom, lmat
+        atom_potential_type, atom_type, create_opgrid, lmat, opgrid_type, release_opgrid, set_atom
    USE atom_utils,                      ONLY: &
         atom_completeness, atom_condnumber, atom_consistent_method, atom_denmat, atom_density, &
         atom_orbital_charge, atom_orbital_max, atom_orbital_nodes, atom_wfnr0, get_maxn_occ, &

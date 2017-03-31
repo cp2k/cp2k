@@ -26,8 +26,9 @@ MODULE atom_energy
    USE atom_types,                      ONLY: &
         atom_basis_type, atom_gthpot_type, atom_integrals, atom_optimization_type, atom_orbitals, &
         atom_p_type, atom_potential_type, atom_state, atom_type, create_atom_orbs, &
-        create_atom_type, gth_pseudo, init_atom_basis, init_atom_potential, read_atom_opt_section, &
-        release_atom_basis, release_atom_potential, release_atom_type, set_atom, lmat
+        create_atom_type, gth_pseudo, init_atom_basis, init_atom_potential, lmat, &
+        read_atom_opt_section, release_atom_basis, release_atom_potential, release_atom_type, &
+        set_atom
    USE atom_utils,                      ONLY: &
         atom_completeness, atom_condnumber, atom_consistent_method, atom_core_density, &
         atom_density, atom_local_potential, atom_read_external_density, atom_read_external_vxc, &

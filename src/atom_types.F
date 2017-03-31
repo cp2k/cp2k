@@ -392,7 +392,7 @@ CONTAINS
             basis%nbas = nu
             basis%nprim = nu
             ALLOCATE (basis%am(nu, 0:lmat))
-            DO i=0,lmat
+            DO i = 0, lmat
                basis%am(1:nu, i) = ugbs(1:nu)
             END DO
          ELSE
@@ -485,7 +485,7 @@ CONTAINS
                basis%nbas(1) = basis%nbas(0)-4
                basis%nbas(2) = basis%nbas(0)-8
                basis%nbas(3) = basis%nbas(0)-12
-               IF(lmat > 3) basis%nbas(4:lmat) = 0
+               IF (lmat > 3) basis%nbas(4:lmat) = 0
             ELSEIF (btyp == "AP") THEN
                CALL Clementi_geobas(zval, cval, aval, basis%nbas, starti)
                amax = 500._dp/aval
@@ -600,7 +600,7 @@ CONTAINS
             ALLOCATE (basis%as(m, 0:lmat), basis%ns(m, 0:lmat))
             basis%as = 0._dp
             basis%ns = 0
-            CPASSERT(lmat >=3)
+            CPASSERT(lmat >= 3)
             IF (basis%nbas(0) > 0) THEN
                NULLIFY (expo)
                CALL section_vals_val_get(basis_section, "S_EXPONENTS", r_vals=expo)
@@ -657,7 +657,7 @@ CONTAINS
                   basis%ns(i, 3) = nqm(i)
                END DO
             END IF
-            IF(lmat > 3) THEN
+            IF (lmat > 3) THEN
                DO i = 4, lmat
                   CPASSERT(basis%nbas(i) == 0)
                END DO

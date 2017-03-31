@@ -10,7 +10,7 @@
 MODULE atom_output
    USE atom_types,                      ONLY: &
         atom_basis_type, atom_gthpot_type, atom_potential_type, atom_state, atom_type, cgto_basis, &
-        ecp_pseudo, gth_pseudo, gto_basis, no_pseudo, num_basis, sto_basis, upf_pseudo, lmat
+        ecp_pseudo, gth_pseudo, gto_basis, lmat, no_pseudo, num_basis, sto_basis, upf_pseudo
    USE atom_utils,                      ONLY: get_maxl_occ,&
                                               get_maxn_occ,&
                                               get_rho0
@@ -78,10 +78,11 @@ CONTAINS
 
       CHARACTER(len=*), PARAMETER :: routineN = 'atom_print_state', &
          routineP = moduleN//':'//routineN
-      ! change needed if lmat changes!
       CHARACTER(LEN=1), DIMENSION(0:lmat), PARAMETER     :: label = (/"S", "P", "D", "F"/)
 
       INTEGER                                            :: j, l, mc, mlc, mlo, mm(0:lmat), mo
+
+! change needed if lmat changes!
 
       WRITE (iw, '(/,T2,A)') "Electronic structure"
       WRITE (iw, '(T5,A,T71,F10.2)') "Total number of core electrons", SUM(state%core)
@@ -302,7 +303,7 @@ CONTAINS
          ELSE
             WRITE (iw, '(/," ",21("*"),A,21("*"))') " Uncontracted Gaussian Type Orbitals "
          END IF
-         CPASSERT(lmat >=3)
+         CPASSERT(lmat >= 3)
          IF (atom_basis%nbas(0) > 0) THEN
             WRITE (iw, '(/,T2,A,(T30,I5,T51,F30.8))') &
                "s Exponents: ", (i, atom_basis%am(i, 0), i=1, atom_basis%nbas(0))
@@ -319,11 +320,11 @@ CONTAINS
             WRITE (iw, '(/,T2,A,(T30,I5,T51,F30.8))') &
                "f Exponents: ", (i, atom_basis%am(i, 3), i=1, atom_basis%nbas(3))
          END IF
-         IF(lmat > 3 ) THEN
-            DO l=4,lmat
+         IF (lmat > 3) THEN
+            DO l = 4, lmat
                IF (atom_basis%nbas(l) > 0) THEN
                   WRITE (iw, '(/,T2,A,(T30,I5,T51,F30.8))') &
-                    "X Exponents: ", (i, atom_basis%am(i, l), i=1, atom_basis%nbas(l))
+                     "X Exponents: ", (i, atom_basis%am(i, l), i=1, atom_basis%nbas(l))
                END IF
             END DO
          END IF
@@ -359,7 +360,7 @@ CONTAINS
          DO i = 1, atom_basis%nbas(3)
             WRITE (iw, '(T10,I1,A,T40,F25.12)') atom_basis%ns(i, 3), "F Exponent :", atom_basis%as(i, 3)
          END DO
-         DO l=4, lmat
+         DO l = 4, lmat
             DO i = 1, atom_basis%nbas(l)
                WRITE (iw, '(T10,I1,A,T40,F25.12)') atom_basis%ns(i, l), "X Exponent :", atom_basis%as(i, l)
             END DO
@@ -411,7 +412,7 @@ CONTAINS
             WRITE (iw, '(T3,A,(T15,F20.8,:," \"))') &
                "F_EXPONENTS ", (atom_basis%am(i, 3), i=1, atom_basis%nbas(3))
          END IF
-         DO l=4,lmat
+         DO l = 4, lmat
             IF (atom_basis%nbas(l) > 0) THEN
                WRITE (iw, '(T3,A,(T15,F20.8,:," \"))') &
                   "X_EXPONENTS ", (atom_basis%am(i, l), i=1, atom_basis%nbas(l))
@@ -446,7 +447,7 @@ CONTAINS
             WRITE (iw, '(T3,A,60I3)') &
                "F_QUANTUM_NUMBERS ", (atom_basis%ns(i, 3), i=1, atom_basis%nbas(3))
          END IF
-         DO l=4,lmat
+         DO l = 4, lmat
             IF (atom_basis%nbas(l) > 0) THEN
                WRITE (iw, '(T3,A,(T15,F20.8,:," \"))') &
                   "X_EXPONENTS ", (atom_basis%as(i, l), i=1, atom_basis%nbas(l))

@@ -18,8 +18,8 @@ MODULE atom_kind_orbitals
                                               atom_relint_setup
    USE atom_types,                      ONLY: &
         CGTO_BASIS, Clementi_geobas, GTO_BASIS, atom_basis_type, atom_integrals, atom_orbitals, &
-        atom_potential_type, atom_type, create_atom_orbs, create_atom_type, release_atom_basis, &
-        release_atom_potential, release_atom_type, set_atom, lmat
+        atom_potential_type, atom_type, create_atom_orbs, create_atom_type, lmat, &
+        release_atom_basis, release_atom_potential, release_atom_type, set_atom
    USE atom_utils,                      ONLY: get_maxl_occ,&
                                               get_maxn_occ
    USE atomic_kind_types,               ONLY: atomic_kind_type,&

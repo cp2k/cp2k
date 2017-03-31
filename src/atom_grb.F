@@ -18,8 +18,8 @@ MODULE atom_grb
                                               atom_relint_setup
    USE atom_types,                      ONLY: &
         CGTO_BASIS, GTO_BASIS, atom_basis_type, atom_integrals, atom_orbitals, atom_p_type, &
-        atom_potential_type, atom_state, atom_type, create_atom_orbs, create_atom_type, &
-        release_atom_basis, release_atom_type, set_atom, lmat
+        atom_potential_type, atom_state, atom_type, create_atom_orbs, create_atom_type, lmat, &
+        release_atom_basis, release_atom_type, set_atom
    USE atom_utils,                      ONLY: atom_basis_condnum,&
                                               atom_density
    USE cp_files,                        ONLY: close_file,&
@@ -88,12 +88,12 @@ CONTAINS
                                                             lval, m, maxl, mb, method, mo, n, &
                                                             nder, ngp, nhomo, nr, num_gto, &
                                                             num_pol, quadtype, s1, s2
-      INTEGER, DIMENSION(0:lmat)                         :: next_bas, next_prim
       INTEGER, DIMENSION(0:7)                            :: nbas
+      INTEGER, DIMENSION(0:lmat)                         :: next_bas, next_prim
       INTEGER, DIMENSION(:), POINTER                     :: num_bas
       REAL(KIND=dp) :: al, amin, aval, cnum, crad, cradx, cval, delta, dene, ear, emax, &
-         energy_ex(0:lmat), energy_ref, energy_vb(0:lmat), expzet, fhomo, o, prefac, rconf, rk, rmax, &
-         scon, zeta, zval
+         energy_ex(0:lmat), energy_ref, energy_vb(0:lmat), expzet, fhomo, o, prefac, rconf, rk, &
+         rmax, scon, zeta, zval
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: ale, alp, rho
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: amat
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: ebasis, pbasis, qbasis, rbasis

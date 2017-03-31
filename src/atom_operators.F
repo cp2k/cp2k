@@ -16,8 +16,8 @@ MODULE atom_operators
         sg_overlap, sg_proj_ol, sto_kinetic, sto_nuclear, sto_overlap
    USE atom_types,                      ONLY: &
         atom_basis_gridrep, atom_basis_type, atom_compare_grids, atom_integrals, &
-        atom_potential_type, atom_state, cgto_basis, ecp_pseudo, gth_pseudo, gto_basis, no_pseudo, &
-        num_basis, release_atom_basis, sto_basis, upf_pseudo, lmat
+        atom_potential_type, atom_state, cgto_basis, ecp_pseudo, gth_pseudo, gto_basis, lmat, &
+        no_pseudo, num_basis, release_atom_basis, sto_basis, upf_pseudo
    USE atom_utils,                      ONLY: &
         atom_solve, contract2, contract2add, contract4, coulomb_potential_numeric, integrate_grid, &
         numpot_matrix, slater_density, wigner_slater_functional
@@ -303,7 +303,7 @@ CONTAINS
                   END IF
                END DO
                integrals%nne(l) = ii
-               IF(ii>0) THEN
+               IF (ii > 0) THEN
                   omat(1:ii, 1:ii) = MATMUL(TRANSPOSE(integrals%utrans(1:n, 1:ii, l)), integrals%utrans(1:n, 1:ii, l))
                   DO i = 1, ii
                      integrals%uptrans(i, i, l) = 1._dp
