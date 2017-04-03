@@ -15,8 +15,8 @@ MODULE atom_electronic_structure
                                               atom_print_state,&
                                               atom_print_zmp_iteration
    USE atom_types,                      ONLY: &
-        atom_type, create_opgrid, create_opmat, ecp_pseudo, gth_pseudo, no_pseudo, opgrid_type, &
-        opmat_type, release_opgrid, release_opmat, set_atom, upf_pseudo
+        atom_type, create_opgrid, create_opmat, ecp_pseudo, gth_pseudo, lmat, no_pseudo, &
+        opgrid_type, opmat_type, release_opgrid, release_opmat, set_atom, upf_pseudo
    USE atom_utils,                      ONLY: &
         atom_denmat, atom_density, atom_read_external_density, atom_read_external_vxc, &
         atom_read_zmp_restart, atom_solve, atom_trace, ceri_contract, coulomb_potential_analytic, &
@@ -157,7 +157,7 @@ CONTAINS
          CPABORT("")
       END SELECT
 
-! ZMP starting to read external density for the zmp calculation
+      ! ZMP starting to read external density for the zmp calculation
       need_zmp = atom%do_zmp
       IF (need_zmp) THEN
          need_x = .FALSE.
@@ -167,7 +167,7 @@ CONTAINS
          CALL atom_read_external_density(ext_density, atom, iw)
       ENDIF
 
-! ZMP starting to read external vxc for the zmp calculation
+      ! ZMP starting to read external vxc for the zmp calculation
       need_vxc = atom%read_vxc
 
       IF (need_vxc) THEN
@@ -251,7 +251,7 @@ CONTAINS
 
          ! Band energy
          atom%energy%eband = 0._dp
-         DO l = 0, 3
+         DO l = 0, lmat
             DO i = 1, MIN(SIZE(atom%state%occupation, 2), SIZE(atom%orbitals%ener, 1))
                atom%energy%eband = atom%energy%eband+atom%orbitals%ener(i, l)*atom%state%occupation(l, i)
             END DO

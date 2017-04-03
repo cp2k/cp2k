@@ -8,6 +8,7 @@
 !> \author Ole Schuett
 ! **************************************************************************************************
 MODULE qs_subsys_methods
+   USE atom_types,                      ONLY: lmat
    USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                               get_atomic_kind
    USE basis_set_types,                 ONLY: get_gto_basis_set,&
@@ -162,7 +163,7 @@ CONTAINS
       INTEGER                                            :: arbitrary_spin, iatom, ikind, imol, &
                                                             ispin, n_ao, natom, nmol_kind, nsgf, &
                                                             nspins, z_molecule
-      INTEGER, DIMENSION(0:3, 10)                        :: ne_core, ne_elem, ne_explicit
+      INTEGER, DIMENSION(0:lmat, 10)                     :: ne_core, ne_elem, ne_explicit
       INTEGER, DIMENSION(2)                              :: n_elec_alpha_and_beta, &
                                                             n_occ_alpha_and_beta
       REAL(KIND=dp)                                      :: charge_molecule, zeff, zeff_correction

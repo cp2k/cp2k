@@ -18,6 +18,7 @@
 !> - 07.2015 new container for basis sets [jgh]
 ! **************************************************************************************************
 MODULE qs_kind_types
+   USE atom_types,                      ONLY: lmat
    USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                               get_atomic_kind
    USE basis_set_container_types,       ONLY: add_basis_set_to_container,&
@@ -2447,7 +2448,7 @@ CONTAINS
       TYPE(atomic_kind_type), INTENT(IN)                 :: atomic_kind
       TYPE(qs_kind_type), INTENT(IN)                     :: qs_kind
       INTEGER, INTENT(IN)                                :: ispin
-      INTEGER, DIMENSION(0:3, 10), INTENT(OUT)           :: ncalc, ncore, nelem
+      INTEGER, DIMENSION(0:lmat, 10), INTENT(OUT)        :: ncalc, ncore, nelem
 
       CHARACTER(len=*), PARAMETER :: routineN = 'init_atom_electronic_state', &
          routineP = moduleN//':'//routineN
@@ -2471,7 +2472,7 @@ CONTAINS
       IF (ASSOCIATED(gth_potential)) THEN
          CALL set_gth_state(gth_potential, z, ncalc, ncore, nelem)
       ELSE
-         DO l = 0, 3
+         DO l = 0, MIN(lmat, UBOUND(ptable(z)%e_conv, 1))
             ll = 2*(2*l+1)
             nn = ptable(z)%e_conv(l)
             ii = 0
@@ -2543,19 +2544,19 @@ CONTAINS
    SUBROUTINE set_gth_state(gth_potential, z, ncalc, ncore, nelem)
       TYPE(gth_potential_type), POINTER                  :: gth_potential
       INTEGER, INTENT(IN)                                :: z
-      INTEGER, DIMENSION(0:3, 10), INTENT(OUT)           :: ncalc, ncore, nelem
+      INTEGER, DIMENSION(0:lmat, 10), INTENT(OUT)        :: ncalc, ncore, nelem
 
       CHARACTER(len=*), PARAMETER :: routineN = 'set_gth_state', routineP = moduleN//':'//routineN
 
       INTEGER                                            :: ii, l, ll, lx, nn
-      INTEGER, DIMENSION(0:3)                            :: econfx
+      INTEGER, DIMENSION(0:lmat)                         :: econfx
       INTEGER, DIMENSION(:), POINTER                     :: econf
 
       CALL get_potential(gth_potential, elec_conf=econf)
       econfx = 0
       econfx(0:SIZE(econf)-1) = econf
       IF (SUM(econf) >= 0) THEN
-         DO l = 0, 3
+         DO l = 0, MIN(lmat, UBOUND(ptable(z)%e_conv, 1))
             ll = 2*(2*l+1)
             nn = ptable(z)%e_conv(l)-econfx(l)
             IF (MOD(nn, ll) == 0) CYCLE
@@ -2568,7 +2569,7 @@ CONTAINS
                EXIT
             END DO
          END DO
-         DO l = 0, 3
+         DO l = 0, MIN(lmat, UBOUND(ptable(z)%e_conv, 1))
             ll = 2*(2*l+1)
             nn = ptable(z)%e_conv(l)-econfx(l)
             ii = 0
@@ -2583,7 +2584,7 @@ CONTAINS
                END IF
             END DO
          END DO
-         DO l = 0, 3
+         DO l = 0, MIN(lmat, UBOUND(ptable(z)%e_conv, 1))
             ll = 2*(2*l+1)
             nn = ptable(z)%e_conv(l)
             ii = 0
@@ -2602,7 +2603,7 @@ CONTAINS
       ELSE
          ncore = 0
          ncalc = 0
-         DO l = 0, 3
+         DO l = 0, MIN(lmat, UBOUND(ptable(z)%e_conv, 1))
             ll = 2*(2*l+1)
             nn = ABS(econfx(l))
             ii = 0

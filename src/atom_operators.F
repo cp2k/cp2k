@@ -167,6 +167,7 @@ CONTAINS
                      END IF
                      DO nu = 0, nx, 2
                         ll = ll+1
+                        CPASSERT(ll <= SIZE(integrals%ceri))
                         ALLOCATE (integrals%ceri(ll)%int(nn1, nn2))
                         integrals%ceri(ll)%int = 0._dp
                         eri => integrals%ceri(ll)%int
@@ -185,6 +186,7 @@ CONTAINS
                      nn2 = (n2*(n2+1))/2
                      DO nu = ABS(l1-l2), l1+l2, 2
                         ll = ll+1
+                        CPASSERT(ll <= SIZE(integrals%eeri))
                         ALLOCATE (integrals%eeri(ll)%int(nn1, nn2))
                         integrals%eeri(ll)%int = 0._dp
                         eri => integrals%eeri(ll)%int
@@ -226,6 +228,7 @@ CONTAINS
                      END IF
                      DO nu = 0, nx, 2
                         ll = ll+1
+                        CPASSERT(ll <= SIZE(integrals%ceri))
                         ALLOCATE (integrals%ceri(ll)%int(nn1, nn2))
                         integrals%ceri(ll)%int = 0._dp
                         ALLOCATE (omat(mm1, mm2))
@@ -253,6 +256,7 @@ CONTAINS
                      mm2 = (m2*(m2+1))/2
                      DO nu = ABS(l1-l2), l1+l2, 2
                         ll = ll+1
+                        CPASSERT(ll <= SIZE(integrals%eeri))
                         ALLOCATE (integrals%eeri(ll)%int(nn1, nn2))
                         integrals%eeri(ll)%int = 0._dp
                         ALLOCATE (omat(mm1, mm2))

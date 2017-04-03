@@ -55,7 +55,7 @@ MODULE atom_types
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'atom_types'
 
    ! maximum l-quantum number considered in atomic code/basis
-   INTEGER, PARAMETER                                 :: lmat = 3
+   INTEGER, PARAMETER                                 :: lmat = 5
 
    INTEGER, PARAMETER                                 :: GTO_BASIS = 100, &
                                                          CGTO_BASIS = 101, &
@@ -175,8 +175,8 @@ MODULE atom_types
       REAL(KIND=dp), DIMENSION(:, :, :), POINTER    :: utrans, uptrans
       REAL(KIND=dp), DIMENSION(:, :, :), POINTER    :: hnl
       REAL(KIND=dp), DIMENSION(:, :, :), POINTER    :: conf
-      TYPE(eri), DIMENSION(20)                      :: ceri
-      TYPE(eri), DIMENSION(20)                      :: eeri
+      TYPE(eri), DIMENSION(100)                     :: ceri
+      TYPE(eri), DIMENSION(100)                     :: eeri
       INTEGER                                       :: dkhstat = 0
       INTEGER                                       :: zorastat = 0
       REAL(KIND=dp), DIMENSION(:, :, :), POINTER    :: tzora

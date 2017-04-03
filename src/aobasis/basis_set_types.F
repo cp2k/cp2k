@@ -2364,7 +2364,7 @@ CONTAINS
    FUNCTION srules(z, ne, n, l)
       ! Slater rules
       INTEGER                                            :: z
-      INTEGER, DIMENSION(4, 7)                           :: ne
+      INTEGER, DIMENSION(:, :)                           :: ne
       INTEGER                                            :: n, l
       REAL(dp)                                           :: srules
 
