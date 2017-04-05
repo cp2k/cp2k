@@ -48,7 +48,8 @@ MODULE qs_kind_types
                                               section_vals_get_subs_vals,&
                                               section_vals_type,&
                                               section_vals_val_get
-   USE kinds,                           ONLY: default_string_length,&
+   USE kinds,                           ONLY: default_path_length,&
+                                              default_string_length,&
                                               dp
    USE orbital_pointers,                ONLY: init_orbital_pointers,&
                                               ncoset
@@ -1255,6 +1256,8 @@ CONTAINS
       INTEGER, PARAMETER                                 :: maxbas = 20
 
       CHARACTER(LEN=2)                                   :: element_symbol
+      CHARACTER(len=default_path_length)                 :: kg_potential_fn_kind, &
+                                                            potential_file_name, potential_fn_kind
       CHARACTER(LEN=default_string_length) :: akind_name, aux_basis_set_name, &
          aux_fit_basis_set_name, basis_type, keyword, kgpot_name, kgpot_type, lri_basis_set_name, &
          orb_basis_set_name, potential_name, potential_type, ri_aux_basis_set_name, tmp
@@ -1268,7 +1271,7 @@ CONTAINS
                                                             npaodesc, npaopot, z
       INTEGER, DIMENSION(:), POINTER                     :: add_el, elec_conf, orbitals
       LOGICAL :: check, explicit, explicit_basis, explicit_kgpot, explicit_potential, nobasis, &
-         section_enabled, subsection_enabled
+         section_enabled, subsection_enabled, update_input
       REAL(KIND=dp)                                      :: zeff_correction
       TYPE(gto_basis_set_type), POINTER                  :: sup_basis_set, tmp_basis_set
       TYPE(section_vals_type), POINTER :: basis_section, bs_section, dft_plus_u_section, &
@@ -1279,6 +1282,7 @@ CONTAINS
 
       NULLIFY (elec_conf)
 
+      update_input = .TRUE.
       basis_set_name(:) = ""
       basis_set_type(:) = ""
       aux_basis_set_name = ""
@@ -1348,6 +1352,7 @@ CONTAINS
                                       c_val=keyword, i_rep_section=i_rep)
             CALL uppercase(keyword)
             IF (keyword == "DEFAULT") THEN
+               update_input = .FALSE.
                k_rep = i_rep
                EXIT
             END IF
@@ -1470,10 +1475,41 @@ CONTAINS
          ENDIF
          CALL section_vals_val_get(kind_section, i_rep_section=k_rep, &
                                    keyword_name="CORE_CORRECTION", r_val=zeff_correction)
+
+         ! parse POTENTIAL
          CALL section_vals_val_get(kind_section, i_rep_section=k_rep, &
-                                   keyword_name="POTENTIAL", c_val=potential_name)
+                                   keyword_name="POTENTIAL_FILE_NAME", c_val=potential_fn_kind)
+         CALL section_vals_val_get(kind_section, i_rep_section=k_rep, &
+                                   keyword_name="POTENTIAL_TYPE", c_val=potential_type)
+         CALL section_vals_val_get(kind_section, i_rep_section=k_rep, &
+                                   explicit=explicit, keyword_name="POTENTIAL", c_vals=tmpstringlist)
+         IF (explicit) THEN
+            IF (SIZE(tmpstringlist) == 1) THEN
+               ! old type of input: start of name defines type
+               potential_name = tmpstringlist(1)
+               IF (potential_type == "") THEN
+                  ipos = INDEX(potential_name, "-")
+                  IF (ipos > 1) THEN
+                     potential_type = potential_name(:ipos-1)
+                  ELSE
+                     potential_type = potential_name
+                  END IF
+               END IF
+            ELSEIF (SIZE(tmpstringlist) == 2) THEN
+               potential_type = tmpstringlist(1)
+               potential_name = tmpstringlist(2)
+            ELSE
+               CPABORT("POTENTIAL input list is not correct")
+            END IF
+         END IF
+         CALL uppercase(potential_type)
+
+         ! parse KG POTENTIAL
+         CALL section_vals_val_get(kind_section, i_rep_section=k_rep, &
+                                   keyword_name="KG_POTENTIAL_FILE_NAME", c_val=kg_potential_fn_kind)
          CALL section_vals_val_get(kind_section, i_rep_section=k_rep, &
                                    keyword_name="KG_POTENTIAL", c_val=kgpot_name)
+
          ! assign atom dependent defaults, only H special case
          CALL section_vals_val_get(kind_section, i_rep_section=k_rep, n_rep_val=i, &
                                    keyword_name="HARD_EXP_RADIUS")
@@ -1849,20 +1885,19 @@ CONTAINS
          ELSE
             ! Allocate and initialise the potential data set structure
             IF ((potential_name /= '') .OR. explicit_potential) THEN
-               ipos = INDEX(potential_name, "-")
-               IF (ipos > 1) THEN
-                  potential_type = potential_name(:ipos-1)
+               ! determine the pseudopotential file to search
+               IF (potential_fn_kind == "-") THEN
+                  CALL section_vals_val_get(dft_section, "POTENTIAL_FILE_NAME", c_val=potential_file_name)
                ELSE
-                  potential_type = potential_name
+                  potential_file_name = potential_fn_kind
                END IF
-               CALL uppercase(potential_type)
-
+               !
                SELECT CASE (TRIM (potential_type))
                CASE ("ALL")
                   CALL allocate_potential(qs_kind%all_potential)
                   CALL read_potential(qs_kind%element_symbol, potential_name, &
                                       qs_kind%all_potential, zeff_correction, para_env, &
-                                      dft_section, potential_section)
+                                      potential_file_name, potential_section, update_input)
                   CALL set_potential(qs_kind%all_potential, z=z)
                   CALL get_qs_kind(qs_kind, elec_conf=elec_conf)
                   IF (.NOT. ASSOCIATED(elec_conf)) THEN
@@ -1873,7 +1908,7 @@ CONTAINS
                   CALL allocate_potential(qs_kind%gth_potential)
                   CALL read_potential(qs_kind%element_symbol, potential_name, &
                                       qs_kind%gth_potential, zeff_correction, para_env, &
-                                      dft_section, potential_section)
+                                      potential_file_name, potential_section, update_input)
                   CALL set_potential(qs_kind%gth_potential, z=z)
                   CALL get_qs_kind(qs_kind, elec_conf=elec_conf)
                   IF (.NOT. ASSOCIATED(elec_conf)) THEN
@@ -1907,10 +1942,16 @@ CONTAINS
 
                SELECT CASE (TRIM (kgpot_type))
                CASE ("TNADD")
+                  ! determine the pseudopotential file to search
+                  IF (kg_potential_fn_kind == "-") THEN
+                     CALL section_vals_val_get(dft_section, "POTENTIAL_FILE_NAME", c_val=potential_file_name)
+                  ELSE
+                     potential_file_name = kg_potential_fn_kind
+                  END IF
                   CALL allocate_potential(qs_kind%tnadd_potential)
                   CALL read_potential(qs_kind%element_symbol, kgpot_name, &
                                       qs_kind%tnadd_potential, para_env, &
-                                      dft_section, kgpot_section)
+                                      potential_file_name, kgpot_section, update_input)
                CASE ("NONE")
                   NULLIFY (qs_kind%tnadd_potential)
                CASE DEFAULT

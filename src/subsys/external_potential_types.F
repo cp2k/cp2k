@@ -29,7 +29,6 @@ MODULE external_potential_types
    USE input_section_types,             ONLY: section_vals_get,&
                                               section_vals_list_get,&
                                               section_vals_type,&
-                                              section_vals_val_get,&
                                               section_vals_val_set
    USE input_val_types,                 ONLY: val_get,&
                                               val_type
@@ -1026,20 +1025,23 @@ CONTAINS
 !> \param potential ...
 !> \param zeff_correction ...
 !> \param para_env ...
-!> \param dft_section ...
+!> \param potential_file_name ...
 !> \param potential_section ...
+!> \param update_input ...
 !> \date    14.05.2000
 !> \author  MK
 !> \version 1.0
 ! **************************************************************************************************
    SUBROUTINE read_all_potential(element_symbol, potential_name, potential, zeff_correction, &
-                                 para_env, dft_section, potential_section)
+                                 para_env, potential_file_name, potential_section, update_input)
 
       CHARACTER(LEN=*), INTENT(IN)                       :: element_symbol, potential_name
       TYPE(all_potential_type), POINTER                  :: potential
       REAL(KIND=dp)                                      :: zeff_correction
       TYPE(cp_para_env_type), POINTER                    :: para_env
-      TYPE(section_vals_type), POINTER                   :: dft_section, potential_section
+      CHARACTER(len=default_path_length), INTENT(IN)     :: potential_file_name
+      TYPE(section_vals_type), POINTER                   :: potential_section
+      LOGICAL, INTENT(IN)                                :: update_input
 
       CHARACTER(len=*), PARAMETER :: routineN = 'read_all_potential', &
          routineP = moduleN//':'//routineN
@@ -1047,7 +1049,6 @@ CONTAINS
       CHARACTER(LEN=240)                                 :: line
       CHARACTER(LEN=242)                                 :: line2
       CHARACTER(len=5*default_string_length)             :: line_att
-      CHARACTER(len=default_path_length)                 :: potential_file_name
       CHARACTER(LEN=LEN(element_symbol))                 :: symbol
       CHARACTER(LEN=LEN(element_symbol)+2)               :: symbol2
       CHARACTER(LEN=LEN(potential_name))                 :: apname
@@ -1070,7 +1071,6 @@ CONTAINS
       read_from_input = .FALSE.
       CALL section_vals_get(potential_section, explicit=read_from_input)
       IF (.NOT. read_from_input) THEN
-         CALL section_vals_val_get(dft_section, "POTENTIAL_FILE_NAME", c_val=potential_file_name)
          CALL parser_create(parser, potential_file_name, para_env=para_env)
       END IF
 
@@ -1134,9 +1134,11 @@ CONTAINS
                      CALL parser_get_object(parser, elec_conf(l))
                   END DO
                   irep = irep+1
-                  WRITE (line_att, '(100(1X,I0))') elec_conf
-                  CALL section_vals_val_set(potential_section, "_DEFAULT_KEYWORD_", i_rep_val=irep, &
-                                            c_val=TRIM(line_att))
+                  IF (update_input) THEN
+                     WRITE (line_att, '(100(1X,I0))') elec_conf
+                     CALL section_vals_val_set(potential_section, "_DEFAULT_KEYWORD_", i_rep_val=irep, &
+                                               c_val=TRIM(line_att))
+                  END IF
                END IF
 
                CALL reallocate(potential%elec_conf, 0, l)
@@ -1160,9 +1162,11 @@ CONTAINS
                ELSE
                   CALL parser_get_object(parser, r, newline=.TRUE.)
                   irep = irep+1
-                  WRITE (line_att, '(E24.16)') r
-                  CALL section_vals_val_set(potential_section, "_DEFAULT_KEYWORD_", i_rep_val=irep, &
-                                            c_val=TRIM(line_att))
+                  IF (update_input) THEN
+                     WRITE (line_att, '(E24.16)') r
+                     CALL section_vals_val_set(potential_section, "_DEFAULT_KEYWORD_", i_rep_val=irep, &
+                                               c_val=TRIM(line_att))
+                  END IF
                END IF
                alpha = 1.0_dp/(2.0_dp*r**2)
 
@@ -1185,7 +1189,7 @@ CONTAINS
 
       IF (.NOT. read_from_input) THEN
          ! Dump the potential info the in potential section
-         IF (match) THEN
+         IF (match .AND. update_input) THEN
             irep = irep+1
             WRITE (line_att, '(A)') "         # Potential name: "//apname2(:strlen2)//" for symbol: "//symbol2(:strlen1)
             CALL section_vals_val_set(potential_section, "_DEFAULT_KEYWORD_", i_rep_val=irep, &
@@ -1205,19 +1209,22 @@ CONTAINS
 !> \param potential_name ...
 !> \param potential ...
 !> \param para_env ...
-!> \param dft_section ...
+!> \param potential_file_name ...
 !> \param potential_section ...
+!> \param update_input ...
 !> \date    24.12.2014
 !> \author  JGH
 !> \version 1.0
 ! **************************************************************************************************
    SUBROUTINE read_local_potential(element_symbol, potential_name, potential, &
-                                   para_env, dft_section, potential_section)
+                                   para_env, potential_file_name, potential_section, update_input)
 
       CHARACTER(LEN=*), INTENT(IN)                       :: element_symbol, potential_name
       TYPE(local_potential_type), POINTER                :: potential
       TYPE(cp_para_env_type), POINTER                    :: para_env
-      TYPE(section_vals_type), POINTER                   :: dft_section, potential_section
+      CHARACTER(len=default_path_length), INTENT(IN)     :: potential_file_name
+      TYPE(section_vals_type), POINTER                   :: potential_section
+      LOGICAL, INTENT(IN)                                :: update_input
 
       CHARACTER(len=*), PARAMETER :: routineN = 'read_local_potential', &
          routineP = moduleN//':'//routineN
@@ -1226,7 +1233,6 @@ CONTAINS
       CHARACTER(LEN=240)                                 :: line
       CHARACTER(LEN=242)                                 :: line2
       CHARACTER(len=5*default_string_length)             :: line_att
-      CHARACTER(len=default_path_length)                 :: potential_file_name
       CHARACTER(LEN=LEN(element_symbol))                 :: symbol
       CHARACTER(LEN=LEN(element_symbol)+2)               :: symbol2
       CHARACTER(LEN=LEN(potential_name))                 :: apname
@@ -1249,7 +1255,6 @@ CONTAINS
       read_from_input = .FALSE.
       CALL section_vals_get(potential_section, explicit=read_from_input)
       IF (.NOT. read_from_input) THEN
-         CALL section_vals_val_get(dft_section, "POTENTIAL_FILE_NAME", c_val=potential_file_name)
          CALL parser_create(parser, potential_file_name, para_env=para_env)
       END IF
 
@@ -1301,9 +1306,11 @@ CONTAINS
                   CALL parser_get_object(parser, ngau, newline=.TRUE.)
                   CALL parser_get_object(parser, npol)
                   irep = irep+1
-                  WRITE (line_att, '(2(1X,I0))') ngau, npol
-                  CALL section_vals_val_set(potential_section, "_DEFAULT_KEYWORD_", i_rep_val=irep, &
-                                            c_val=TRIM(line_att))
+                  IF (update_input) THEN
+                     WRITE (line_att, '(2(1X,I0))') ngau, npol
+                     CALL section_vals_val_set(potential_section, "_DEFAULT_KEYWORD_", i_rep_val=irep, &
+                                               c_val=TRIM(line_att))
+                  END IF
                END IF
 
                CALL reallocate(alpha, 1, ngau)
@@ -1322,9 +1329,11 @@ CONTAINS
                         CALL parser_get_object(parser, cval(igau, ipol), newline=.FALSE.)
                      END DO
                      irep = irep+1
-                     WRITE (line_att, '(8(E24.16))') alpha(igau), (cval(igau, ipol), ipol=1, npol)
-                     CALL section_vals_val_set(potential_section, "_DEFAULT_KEYWORD_", i_rep_val=irep, &
-                                               c_val=TRIM(line_att))
+                     IF (update_input) THEN
+                        WRITE (line_att, '(8(E24.16))') alpha(igau), (cval(igau, ipol), ipol=1, npol)
+                        CALL section_vals_val_set(potential_section, "_DEFAULT_KEYWORD_", i_rep_val=irep, &
+                                                  c_val=TRIM(line_att))
+                     END IF
                   END IF
                END DO
                alpha = 1.0_dp/(2.0_dp*alpha**2)
@@ -1360,7 +1369,7 @@ CONTAINS
 
       IF (.NOT. read_from_input) THEN
          ! Dump the potential info in the potential section
-         IF (match) THEN
+         IF (match .AND. update_input) THEN
             irep = irep+1
             WRITE (line_att, '(A)') "         # Potential name: "//apname2(:strlen2)//" for symbol: "//symbol2(:strlen1)
             CALL section_vals_val_set(potential_section, "_DEFAULT_KEYWORD_", i_rep_val=irep, &
@@ -1382,8 +1391,9 @@ CONTAINS
 !> \param potential ...
 !> \param zeff_correction ...
 !> \param para_env ...
-!> \param dft_section ...
+!> \param potential_file_name ...
 !> \param potential_section ...
+!> \param update_input ...
 !> \date    14.05.2000
 !> \par  Literature
 !>         - S. Goedecker, M. Teter and J. Hutter,
@@ -1394,13 +1404,15 @@ CONTAINS
 !> \version 1.0
 ! **************************************************************************************************
    SUBROUTINE read_gth_potential(element_symbol, potential_name, potential, zeff_correction, &
-                                 para_env, dft_section, potential_section)
+                                 para_env, potential_file_name, potential_section, update_input)
 
       CHARACTER(LEN=*), INTENT(IN)                       :: element_symbol, potential_name
       TYPE(gth_potential_type), POINTER                  :: potential
       REAL(KIND=dp), INTENT(IN)                          :: zeff_correction
       TYPE(cp_para_env_type), POINTER                    :: para_env
-      TYPE(section_vals_type), POINTER                   :: dft_section, potential_section
+      CHARACTER(len=default_path_length), INTENT(IN)     :: potential_file_name
+      TYPE(section_vals_type), POINTER                   :: potential_section
+      LOGICAL, INTENT(IN)                                :: update_input
 
       CHARACTER(len=*), PARAMETER :: routineN = 'read_gth_potential', &
          routineP = moduleN//':'//routineN
@@ -1408,7 +1420,6 @@ CONTAINS
       CHARACTER(LEN=240)                                 :: line
       CHARACTER(LEN=242)                                 :: line2
       CHARACTER(len=5*default_string_length)             :: line_att
-      CHARACTER(len=default_path_length)                 :: potential_file_name
       CHARACTER(LEN=LEN(element_symbol))                 :: symbol
       CHARACTER(LEN=LEN(element_symbol)+2)               :: symbol2
       CHARACTER(LEN=LEN(potential_name))                 :: apname
@@ -1439,7 +1450,6 @@ CONTAINS
       read_from_input = .FALSE.
       CALL section_vals_get(potential_section, explicit=read_from_input)
       IF (.NOT. read_from_input) THEN
-         CALL section_vals_val_get(dft_section, "POTENTIAL_FILE_NAME", c_val=potential_file_name)
          CALL parser_create(parser, potential_file_name, para_env=para_env)
       END IF
 
@@ -1515,9 +1525,11 @@ CONTAINS
                      CALL parser_get_object(parser, elec_conf(l))
                   END DO
                   irep = irep+1
-                  WRITE (line_att, '(100(1X,I0))') elec_conf
-                  CALL section_vals_val_set(potential_section, "_DEFAULT_KEYWORD_", i_rep_val=irep, &
-                                            c_val=TRIM(line_att))
+                  IF (update_input) THEN
+                     WRITE (line_att, '(100(1X,I0))') elec_conf
+                     CALL section_vals_val_set(potential_section, "_DEFAULT_KEYWORD_", i_rep_val=irep, &
+                                               c_val=TRIM(line_att))
+                  END IF
                END IF
 
                CALL reallocate(potential%elec_conf, 0, l)
@@ -1582,8 +1594,10 @@ CONTAINS
 
                IF (.NOT. read_from_input) THEN
                   irep = irep+1
-                  CALL section_vals_val_set(potential_section, "_DEFAULT_KEYWORD_", i_rep_val=irep, &
-                                            c_val=TRIM(line_att))
+                  IF (update_input) THEN
+                     CALL section_vals_val_set(potential_section, "_DEFAULT_KEYWORD_", i_rep_val=irep, &
+                                               c_val=TRIM(line_att))
+                  END IF
                   line_att = ""
                ELSE
                   IF (LEN_TRIM(line_att) /= 0) THEN
@@ -1699,10 +1713,12 @@ CONTAINS
                            CALL reallocate(potential%nct_lpot, 1, n)
                            CALL reallocate(potential%cval_lpot, 1, 4, 1, n)
                            ! add to input section
-                           WRITE (line_att, '(A,1X,I0)') "LPOT", n
                            irep = irep+1
-                           CALL section_vals_val_set(potential_section, "_DEFAULT_KEYWORD_", i_rep_val=irep, &
-                                                     c_val=TRIM(line_att))
+                           IF (update_input) THEN
+                              WRITE (line_att, '(A,1X,I0)') "LPOT", n
+                              CALL section_vals_val_set(potential_section, "_DEFAULT_KEYWORD_", i_rep_val=irep, &
+                                                        c_val=TRIM(line_att))
+                           END IF
                            DO ipot = 1, potential%nexp_lpot
                               CALL parser_get_object(parser, r, newline=.TRUE.)
                               potential%alpha_lpot(ipot) = 0.5_dp/(r*r)
@@ -1716,10 +1732,12 @@ CONTAINS
                               END DO
                               ! add to input section
                               irep = irep+1
-                              WRITE (line_att, '(E24.16,1X,I0,100(1X,E24.16))') r, potential%nct_lpot(ipot), &
-                                 tmp_vals(1:potential%nct_lpot(ipot))
-                              CALL section_vals_val_set(potential_section, "_DEFAULT_KEYWORD_", i_rep_val=irep, &
-                                                        c_val=TRIM(line_att))
+                              IF (update_input) THEN
+                                 WRITE (line_att, '(E24.16,1X,I0,100(1X,E24.16))') r, potential%nct_lpot(ipot), &
+                                    tmp_vals(1:potential%nct_lpot(ipot))
+                                 CALL section_vals_val_set(potential_section, "_DEFAULT_KEYWORD_", i_rep_val=irep, &
+                                                           c_val=TRIM(line_att))
+                              END IF
                            END DO
                         ELSEIF (INDEX(LINE, "NLCC") /= 0) THEN
                            ! NLCC
@@ -1747,11 +1765,13 @@ CONTAINS
                               END DO
                               ! add to input section
                               irep = irep+1
-                              WRITE (line_att, '(E24.16,1X,I0,100(1X,E24.16))') &
-                                 potential%alpha_nlcc(ipot), potential%nct_nlcc(ipot), &
-                                 tmp_vals(1:potential%nct_nlcc(ipot))
-                              CALL section_vals_val_set(potential_section, "_DEFAULT_KEYWORD_", i_rep_val=irep, &
-                                                        c_val=TRIM(line_att))
+                              IF (update_input) THEN
+                                 WRITE (line_att, '(E24.16,1X,I0,100(1X,E24.16))') &
+                                    potential%alpha_nlcc(ipot), potential%nct_nlcc(ipot), &
+                                    tmp_vals(1:potential%nct_nlcc(ipot))
+                                 CALL section_vals_val_set(potential_section, "_DEFAULT_KEYWORD_", i_rep_val=irep, &
+                                                           c_val=TRIM(line_att))
+                              END IF
                            END DO
                         ELSEIF (INDEX(LINE, "LSD") /= 0) THEN
                            ! LSD potential
@@ -1763,10 +1783,12 @@ CONTAINS
                            CALL reallocate(potential%nct_lsd, 1, n)
                            CALL reallocate(potential%cval_lsd, 1, 4, 1, n)
                            ! add to input section
-                           WRITE (line_att, '(A,1X,I0)') "LSD", n
                            irep = irep+1
-                           CALL section_vals_val_set(potential_section, "_DEFAULT_KEYWORD_", i_rep_val=irep, &
-                                                     c_val=TRIM(line_att))
+                           IF (update_input) THEN
+                              WRITE (line_att, '(A,1X,I0)') "LSD", n
+                              CALL section_vals_val_set(potential_section, "_DEFAULT_KEYWORD_", i_rep_val=irep, &
+                                                        c_val=TRIM(line_att))
+                           END IF
                            DO ipot = 1, potential%nexp_lsd
                               CALL parser_get_object(parser, r, newline=.TRUE.)
                               potential%alpha_lsd(ipot) = 0.5_dp/(r*r)
@@ -1780,10 +1802,12 @@ CONTAINS
                               END DO
                               ! add to input section
                               irep = irep+1
-                              WRITE (line_att, '(E24.16,1X,I0,100(1X,E24.16))') r, potential%nct_lsd(ipot), &
-                                 tmp_vals(1:potential%nct_lsd(ipot))
-                              CALL section_vals_val_set(potential_section, "_DEFAULT_KEYWORD_", i_rep_val=irep, &
-                                                        c_val=TRIM(line_att))
+                              IF (update_input) THEN
+                                 WRITE (line_att, '(E24.16,1X,I0,100(1X,E24.16))') r, potential%nct_lsd(ipot), &
+                                    tmp_vals(1:potential%nct_lsd(ipot))
+                                 CALL section_vals_val_set(potential_section, "_DEFAULT_KEYWORD_", i_rep_val=irep, &
+                                                           c_val=TRIM(line_att))
+                              END IF
                            END DO
                         ELSE
                            CALL cp_abort(__LOCATION__, &
@@ -1818,9 +1842,11 @@ CONTAINS
                ELSE
                   CALL parser_get_object(parser, n)
                   irep = irep+1
-                  WRITE (line_att, '(1X,I0)') n
-                  CALL section_vals_val_set(potential_section, "_DEFAULT_KEYWORD_", i_rep_val=irep, &
-                                            c_val=TRIM(line_att))
+                  IF (update_input) THEN
+                     WRITE (line_att, '(1X,I0)') n
+                     CALL section_vals_val_set(potential_section, "_DEFAULT_KEYWORD_", i_rep_val=irep, &
+                                               c_val=TRIM(line_att))
+                  END IF
                END IF
                potential%lppnl = n-1
                potential%nppnl = 0
@@ -1925,8 +1951,10 @@ CONTAINS
                      END DO
                      IF (.NOT. read_from_input) THEN
                         irep = irep+1
-                        CALL section_vals_val_set(potential_section, "_DEFAULT_KEYWORD_", i_rep_val=irep, &
-                                                  c_val=TRIM(line_att))
+                        IF (update_input) THEN
+                           CALL section_vals_val_set(potential_section, "_DEFAULT_KEYWORD_", i_rep_val=irep, &
+                                                     c_val=TRIM(line_att))
+                        END IF
                         line_att = ""
                      ELSE
                         IF (LEN_TRIM(line_att) /= 0) THEN
@@ -1972,7 +2000,7 @@ CONTAINS
 
       IF (.NOT. read_from_input) THEN
          ! Dump the potential info the in potential section
-         IF (match) THEN
+         IF (match .AND. update_input) THEN
             irep = irep+1
             WRITE (line_att, '(A)') "         # Potential name: "//apname2(:strlen2)//" for symbol: "//symbol2(:strlen1)
             CALL section_vals_val_set(potential_section, "_DEFAULT_KEYWORD_", i_rep_val=irep, &

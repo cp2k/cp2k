@@ -1137,11 +1137,31 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
+      CALL keyword_create(keyword, name="POTENTIAL_FILE_NAME", &
+                          description="The name of the file where to find this kinds pseudopotential."// &
+                          " Default file is specified in DFT section.", &
+                          usage="POTENTIAL_FILE_NAME <PSEUDO-POTENTIAL-FILE-NAME>", default_c_val="-", n_var=1)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, name="POTENTIAL_TYPE", &
+                          description="The type of this kinds pseudopotential.", &
+                          usage="POTENTIAL_TYPE <TYPE>", default_c_val="", n_var=1)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
       CALL keyword_create(keyword, name="POTENTIAL", &
                           variants=(/"POT"/), &
-                          description="The name of the pseudopotential for the defined kind.", &
-                          usage="POTENTIAL <PSEUDO-POTENTIAL-NAME>", default_c_val="GTH", n_var=1, &
-                          citations=(/Goedecker1996, Hartwigsen1998, Krack2005/))
+                          description="The type and name of the pseudopotential for the defined kind.", &
+                          usage="POTENTIAL [type] <POTENTIAL-NAME>", type_of_var=char_t, default_c_vals=(/" ", " "/), &
+                          citations=(/Goedecker1996, Hartwigsen1998, Krack2005/), n_var=-1)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, name="KG_POTENTIAL_FILE_NAME", &
+                          description="The name of the file where to find this kinds KG potential."// &
+                          " Default file is specified in DFT section.", &
+                          usage="KG_POTENTIAL_FILE_NAME <POTENTIAL-FILE-NAME>", default_c_val="-", n_var=1)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
