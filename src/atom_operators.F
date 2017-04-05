@@ -791,7 +791,7 @@ CONTAINS
                ! model potential
                CALL numpot_matrix(hmat, modpot, basis, 0)
                ! eigenvalues and eigenvectors
-               CALL atom_solve(hmat, integrals%utrans, wfn, ener, basis%nbas, integrals%nne, 3)
+               CALL atom_solve(hmat, integrals%utrans, wfn, ener, basis%nbas, integrals%nne, lmat)
                ! relativistic kinetic energy
                cpot(1:m) = cspeed*cspeed/(2._dp*cspeed*cspeed-modpot(1:m))**2
                cpot(1:m) = cpot(1:m)/basis%grid%rad2(1:m)
