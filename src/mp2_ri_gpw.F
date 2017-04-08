@@ -332,6 +332,11 @@ CONTAINS
       ! imag. time only without Coulomb metric implemented
       CPASSERT(.NOT. (ri_metric == ri_coulomb .AND. do_im_time))
 
+      ! currently, only identical metrics for RI are implemented for open shell
+      IF (do_alpha_beta .AND. my_do_gw) THEN
+         CPASSERT(ri_metric_gw == ri_metric)
+      END IF
+
       virtual = nmo-homo
       gw_corr_lev_total = gw_corr_lev_virt+gw_corr_lev_occ
 
@@ -429,6 +434,10 @@ CONTAINS
       do_mult_2c = qs_env%mp2_env%mp2_gpw%do_mult_2c
       eri_method = qs_env%mp2_env%eri_method
       eri_param => qs_env%mp2_env%eri_mme_param
+
+      IF (do_im_time) THEN
+         CPASSERT(eri_method .NE. do_eri_gpw)
+      END IF
 
       ! Preparations for MME method to compute ERIs
       IF (qs_env%mp2_env%eri_method .EQ. do_eri_mme) THEN

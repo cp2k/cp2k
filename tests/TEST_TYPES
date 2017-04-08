@@ -1,4 +1,4 @@
-78
+79
 Total energy:!3
 POTENTIAL ENERGY!4
 Total energy \[eV\]:!4
@@ -77,6 +77,7 @@ Charge transfer energy!6
 Diabatic electronic coupling (Lowdin!6
 Ground state energy!4
 GW HOMO-LUMO gap (eV)!6
+Beta GW HOMO-LUMO gap (eV)!6
 #
 # these are the tests the can be selected for regtesting. 
 # do regtest will grep for test_grep (first column) and look if the numeric value

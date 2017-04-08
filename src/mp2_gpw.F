@@ -367,6 +367,10 @@ CONTAINS
       my_do_gw = mp2_env%ri_rpa%do_ri_g0w0
       gw_corr_lev_occ = mp2_env%ri_g0w0%corr_mos_occ
       gw_corr_lev_virt = mp2_env%ri_g0w0%corr_mos_virt
+      IF (nspins == 2) THEN
+         gw_corr_lev_occ_beta = mp2_env%ri_g0w0%corr_mos_occ_beta
+         gw_corr_lev_virt_beta = mp2_env%ri_g0w0%corr_mos_virt_beta
+      END IF
 
       ! metric for GW matrix elements B^nm_P
       ri_metric_gw = mp2_env%ri_g0w0%ri_metric
@@ -391,9 +395,6 @@ CONTAINS
 
          ! if open shell case replicate also the coefficient matrix for the beta orbitals
          IF (nspins == 2) THEN
-
-            gw_corr_lev_occ_beta = mp2_env%ri_g0w0%corr_mos_occ_beta
-            gw_corr_lev_virt_beta = mp2_env%ri_g0w0%corr_mos_virt_beta
 
             CALL replicate_mat_to_subgroup(mp2_env, para_env, para_env_sub, mo_coeff_beta, dimen, homo_beta, mat_munu, &
                                            mo_coeff_o_beta, mo_coeff_v_beta, mo_coeff_all_beta, mo_coeff_gw_beta, &
