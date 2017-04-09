@@ -76,7 +76,7 @@ Diabatic electronic coupling (wfn !7
 Charge transfer energy!6
 Diabatic electronic coupling (Lowdin!6
 Ground state energy!4
-GW HOMO-LUMO gap (eV)!6
+GW HOMO-LUMO gap (eV)!5
 Beta GW HOMO-LUMO gap (eV)!6
 #
 # these are the tests the can be selected for regtesting. 
