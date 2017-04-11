@@ -12,8 +12,8 @@
 MODULE mixed_cdft_types
    USE cp_blacs_env,                    ONLY: cp_blacs_env_release,&
                                               cp_blacs_env_type
-   USE cp_log_handling,                 ONLY: cp_logger_release,&
-                                              cp_logger_type
+   USE cp_log_handling,                 ONLY: cp_logger_p_type,&
+                                              cp_logger_release
    USE kinds,                           ONLY: dp
    USE pw_env_types,                    ONLY: pw_env_release,&
                                               pw_env_type
@@ -131,6 +131,10 @@ MODULE mixed_cdft_types
 !> \param is_parallel flag which determines if the mixed CDFT calculation is parallel or serial mode
 !> \param use_lowdin flag which determines if Lowdin orthogonalization is used to compute the coupling
 !> \param do_ci flag which determines if a CDFT-CI calculation was requested
+!> \param nonortho_coupling flag which determines if the nonorthogonal CDFT interaction energies
+!>                          should be printed out
+!> \param identical_constraints flag which determines if the constraint definitions are identical
+!>                               across all CDFT states
 !> \param is_charge_constraint list of logicals which determine if the constraint should be applied
 !>                             to the total charge density or the magnetization density
 !> \param eps_rho_rspace threshold to determine when the realspace density can be considered zero
@@ -159,7 +163,8 @@ MODULE mixed_cdft_types
                                                           wfn_overlap_method, &
                                                           has_unit_metric, &
                                                           is_parallel, use_lowdin, &
-                                                          do_ci
+                                                          do_ci, nonortho_coupling, &
+                                                          identical_constraints
       LOGICAL, DIMENSION(:), ALLOCATABLE               :: is_charge_constraint
       REAL(KIND=dp)                                    :: eps_rho_rspace, sim_dt, &
                                                           eps_svd
@@ -171,7 +176,7 @@ MODULE mixed_cdft_types
       TYPE(qs_kind_type), DIMENSION(:), &
          POINTER                                       :: qs_kind_set
       TYPE(pw_env_type), POINTER                       :: pw_env
-      TYPE(cp_logger_type), POINTER                    :: sub_logger
+      TYPE(cp_logger_p_type), DIMENSION(:), POINTER    :: sub_logger
    END TYPE mixed_cdft_type
 
 ! **************************************************************************************************
@@ -287,8 +292,12 @@ CONTAINS
          CALL cp_blacs_env_release(cdft_control%blacs_env)
       IF (ASSOCIATED(cdft_control%qs_kind_set)) &
          CALL deallocate_qs_kind_set(cdft_control%qs_kind_set)
-      IF (ASSOCIATED(cdft_control%sub_logger)) &
-         CALL cp_logger_release(cdft_control%sub_logger)
+      IF (ASSOCIATED(cdft_control%sub_logger)) THEN
+         DO i = 1, SIZE(cdft_control%sub_logger)
+            CALL cp_logger_release(cdft_control%sub_logger(i)%p)
+         END DO
+         DEALLOCATE (cdft_control%sub_logger)
+      END IF
       DEALLOCATE (cdft_control)
 
    END SUBROUTINE mixed_cdft_type_release

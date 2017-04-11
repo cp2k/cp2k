@@ -690,7 +690,8 @@ MODULE input_constants
                                                mix_coupled = 703, &
                                                mix_restrained = 704, &
                                                mix_generic = 705, &
-                                               mix_mymix = 706
+                                               mix_mymix = 706, &
+                                               mix_cdft = 707
 
    ! cost models for distribution 2d
    INTEGER, PARAMETER, PUBLIC               :: model_block_count = 453, &

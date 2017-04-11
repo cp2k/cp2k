@@ -74,14 +74,9 @@ MODULE force_env_methods
                                               parsef
    USE global_types,                    ONLY: global_environment_type,&
                                               globenv_retain
-   USE input_constants,                 ONLY: debug_run,&
-                                              mix_coupled,&
-                                              mix_generic,&
-                                              mix_linear_combination,&
-                                              mix_minimum,&
-                                              mix_restrained,&
-                                              use_bazant_eip,&
-                                              use_lenosky_eip
+   USE input_constants,                 ONLY: &
+        debug_run, mix_cdft, mix_coupled, mix_generic, mix_linear_combination, mix_minimum, &
+        mix_restrained, use_bazant_eip, use_lenosky_eip
    USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                               section_vals_retain,&
                                               section_vals_type,&
@@ -774,10 +769,10 @@ CONTAINS
 
       CHARACTER(LEN=default_path_length)                 :: coupling_function
       CHARACTER(LEN=default_string_length)               :: def_error, description, this_error
-      INTEGER                                            :: iforce_eval, iparticle, jparticle, &
-                                                            mixing_type, my_group, natom, &
-                                                            nforce_eval, source, unit_nr
-      INTEGER, DIMENSION(:), POINTER                     :: glob_natoms, map_index
+      INTEGER                                            :: iforce_eval, iparticle, istate(2), &
+                                                            jparticle, mixing_type, my_group, &
+                                                            natom, nforce_eval, source, unit_nr
+      INTEGER, DIMENSION(:), POINTER                     :: glob_natoms, itmplist, map_index
       LOGICAL                                            :: dip_exists
       REAL(KIND=dp)                                      :: coupling_parameter, dedf, der_1, der_2, &
                                                             dx, energy, err, lambda, lerr, &
@@ -813,7 +808,7 @@ CONTAINS
                          particles=particles_mix, &
                          virial=virial_mix, &
                          results=results_mix)
-      NULLIFY (map_index, glob_natoms, global_forces)
+      NULLIFY (map_index, glob_natoms, global_forces, itmplist)
 
       nforce_eval = SIZE(force_env%sub_force_env)
       mixed_section => section_vals_get_subs_vals(force_env_section, "MIXED")
@@ -1035,6 +1030,25 @@ CONTAINS
          force_env%mixed_env%lerr = lerr
          force_env%mixed_env%coupling_function = TRIM(coupling_function)
          CALL finalizef()
+      CASE (mix_cdft)
+         ! Supports any number of force_evals for calculation of CDFT properties, but forces only from two
+         CALL section_vals_val_get(mixed_section, "MIXED_CDFT%LAMBDA", r_val=lambda)
+         ! Get the states which determine the forces
+         CALL section_vals_val_get(mixed_section, "MIXED_CDFT%FORCE_STATES", i_vals=itmplist)
+         IF (SIZE(itmplist) /= 2) &
+            CALL cp_abort(__LOCATION__, &
+                          "Keyword FORCE_STATES takes exactly two input values.")
+         IF (ANY(itmplist .LT. 0)) &
+            CPABORT("Invalid force_eval index.")
+         istate = itmplist
+         IF (istate(1) > nforce_eval .OR. istate(2) > nforce_eval) &
+            CPABORT("Invalid force_eval index.")
+         mixed_energy%pot = lambda*energies(istate(1))+(1.0_dp-lambda)*energies(istate(2))
+         ! General Mapping of forces...
+         CALL mixed_map_forces(particles_mix, virial_mix, results_mix, global_forces, virials, results, &
+                               lambda, istate(1), nforce_eval, map_index, mapping_section, .TRUE.)
+         CALL mixed_map_forces(particles_mix, virial_mix, results_mix, global_forces, virials, results, &
+                               (1.0_dp-lambda), istate(2), nforce_eval, map_index, mapping_section, .FALSE.)
       CASE DEFAULT
          CPABORT("")
       END SELECT
@@ -1159,15 +1173,15 @@ CONTAINS
          IF (force_env%mixed_env%do_mixed_qmmm_cdft) &
             CALL apply_qmmm_translate(force_env%sub_force_env(iforce_eval)%force_env%qmmm_env)
       END DO
-      ! For mixed CDFT calculations parallized over CDFT states
+      ! For mixed CDFT calculations parallelized over CDFT states
       ! build weight and gradient on all processors before splitting into groups and
       ! starting energy calculation
       CALL mixed_cdft_build_weight(force_env, calculate_forces)
       DO iforce_eval = 1, nforce_eval
          IF (.NOT. ASSOCIATED(force_env%sub_force_env(iforce_eval)%force_env)) CYCLE
          ! From this point on the error is the sub_error
-         IF (.NOT. force_env%mixed_env%cdft_control%is_parallel .AND. iforce_eval == 2) THEN
-            my_logger => force_env%mixed_env%cdft_control%sub_logger
+         IF (.NOT. force_env%mixed_env%cdft_control%is_parallel .AND. iforce_eval .GE. 2) THEN
+            my_logger => force_env%mixed_env%cdft_control%sub_logger(iforce_eval-1)%p
          ELSE
             my_group = force_env%mixed_env%group_distribution(force_env%para_env%mepos)
             my_logger => force_env%mixed_env%sub_logger(my_group+1)%p
@@ -1228,7 +1242,7 @@ CONTAINS
          nvar = force_env%mixed_env%cdft_control%nconstraint
          ! Transfer cdft strengths for writing restart
          IF (.NOT. ASSOCIATED(force_env%mixed_env%strength)) &
-            ALLOCATE (force_env%mixed_env%strength(2, nvar))
+            ALLOCATE (force_env%mixed_env%strength(nforce_eval, nvar))
          force_env%mixed_env%strength = 0.0_dp
          DO iforce_eval = 1, nforce_eval
             IF (.NOT. ASSOCIATED(force_env%sub_force_env(iforce_eval)%force_env)) CYCLE

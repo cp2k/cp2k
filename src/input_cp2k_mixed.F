@@ -17,7 +17,8 @@ MODULE input_cp2k_mixed
                                               cp_print_key_section_create,&
                                               low_print_level,&
                                               medium_print_level
-   USE input_constants,                 ONLY: mix_coupled,&
+   USE input_constants,                 ONLY: mix_cdft,&
+                                              mix_coupled,&
                                               mix_generic,&
                                               mix_linear_combination,&
                                               mix_minimum,&
@@ -79,15 +80,19 @@ CONTAINS
                          "MINIMUM", &
                          "COUPLED", &
                          "RESTRAINT", &
-                         "GENMIX"), &
+                         "GENMIX", &
+                         "MIXED_CDFT"), &
          enum_desc=s2a("Linear combination of force envs (support only 2 force_evals)", &
                        "Use the force env with the minimum energy (support only 2 force_evals)", &
                        "Consider the force envs as a two state system with a given"// &
                        " coupling matrix element (support only 2 force_evals)", &
                        "Use the difference between the energy of the force envs as a"// &
                        " restraint on the first (support only 2 force_evals)", &
-                       "Defines a user-driven generica coupling (support for an unlimited number of force_eval)"), &
-         enum_i_vals=(/mix_linear_combination, mix_minimum, mix_coupled, mix_restrained, mix_generic/))
+                       "Defines a user-driven generica coupling (support for an unlimited number of force_eval)", &
+                       "Consider each force env as a CDFT state (supports an unlimited number of force_eval "// &
+                       "for calculation of CDFT properties, but only two states can be mixed for forces)."), &
+         enum_i_vals=(/mix_linear_combination, mix_minimum, mix_coupled, mix_restrained, mix_generic, &
+                       mix_cdft/))
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
@@ -110,7 +115,7 @@ CONTAINS
       ! Double force_eval
       CALL section_create(subsection, name="LINEAR", &
                           description="Linear combination between two force_eval:  F= lambda F1 + (1-lambda) F2", &
-                          n_keywords=11, n_subsections=0, repeats=.FALSE.)
+                          n_keywords=1, n_subsections=0, repeats=.FALSE.)
 
       CALL keyword_create(keyword, name="LAMBDA", &
                           description="Specify the mixing parameter lambda in the formula.", &
@@ -118,72 +123,103 @@ CONTAINS
       CALL section_add_keyword(subsection, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="MIXED_CDFT", &
-                          description="Controls the activation of a mixed CDFT calculation. "// &
-                          "The two force_evals determine"// &
-                          " the involved CDFT states (requires the corresponding sections).", &
-                          usage="MIXED_CDFT", type_of_var=logical_t, &
-                          default_l_val=.FALSE., lone_keyword_l_val=.TRUE., citations=(/Holmberg2017/))
+      CALL section_add_subsection(section, subsection)
+      CALL section_release(subsection)
+      ! Mixed CDFT section
+      CALL section_create(subsection, name="MIXED_CDFT", &
+                          description="Calculate properties involving multiple constrained states. "// &
+                          "The system can be propagated using only two of the CDFT states selected by the "// &
+                          "keyword FORCE_STATES. The forces are then determined by a linear combination "// &
+                          "between these two force_eval: F= lambda F1 + (1-lambda) F2. When the keyword "// &
+                          "MIXED&NGROUPS is set to 2, the CDFT states are solved in parallel (supports "// &
+                          "only two states with identical constraint definitions), whereas when it is set "// &
+                          "to 1, the states are solved in serial (supports any number of states and nonequal "// &
+                          "constraint definitions but the number of constraints must be the same across states).", &
+                          n_keywords=11, n_subsections=0, repeats=.FALSE., citations=(/Holmberg2017/))
+
+      CALL keyword_create(keyword, name="LAMBDA", &
+                          description="Specify the mixing parameter lambda in the formula.", &
+                          usage="lambda <REAL>", type_of_var=real_t)
       CALL section_add_keyword(subsection, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="MIXED_CDFT_COUPLING", &
+      CALL keyword_create(keyword, name="FORCE_STATES", &
+                          description="Defines the CDFT states used to propagate the system. ", &
+                          usage="FORCE_STATES 1 1", n_var=2, &
+                          default_i_vals=(/1, 2/), type_of_var=integer_t)
+      CALL section_add_keyword(subsection, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, name="COUPLING", &
                           description="Parameter determining how often the CDFT electronic coupling element "// &
                           "is calculated. Use a negative number to disable and 0 means every step. By default, "// &
                           "the coupling is calculated by rotating the CDFT states to eigenstates of the weight "// &
-                          "function matrix when a single constraint is active. With multiple constraints, uses "// &
-                          "Lowdin orthogonalization.", &
-                          usage="MIXED_CDFT_COUPLING <INT>", &
+                          "function matrix when a single constraint is active and the constraint definitions are "// &
+                          "identical in both CDFT states. Otherwise uses Lowdin orthogonalization. For more than "// &
+                          "two CDFT states, the couplings are not computed pairwise and the values might "// &
+                          "deviate from values computed separately for each unique CDFT state pair.", &
+                          usage="COUPLING <INT>", &
                           default_i_val=-1, &
                           type_of_var=integer_t, n_var=1)
       CALL section_add_keyword(subsection, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="MIXED_CDFT_DLB", &
+      CALL keyword_create(keyword, name="DLB", &
                           description="Controls the activation of dynamic load balancing during a mixed CDFT calculation."// &
                           " Requires Gaussian cavity confinement.", &
-                          usage="MIXED_CDFT_DLB", type_of_var=logical_t, &
+                          usage="DLB", type_of_var=logical_t, &
                           default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
       CALL section_add_keyword(subsection, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="MIXED_CDFT_METRIC", &
+      CALL keyword_create(keyword, name="METRIC", variants=(/"COUPLING_METRIC"/), &
                           description="Compute reliability metric for the CDFT electronic coupling element by diagonalizing"// &
                           "the difference density matrix.", &
-                          usage="MIXED_CDFT_METRIC", type_of_var=logical_t, &
+                          usage="METRIC", type_of_var=logical_t, &
                           default_l_val=.FALSE., lone_keyword_l_val=.TRUE., &
                           citations=(/Mavros2015/))
       CALL section_add_keyword(subsection, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="MIXED_CDFT_WFN_OVERLAP", &
-                          description="Compute CDFT electronic coupling element using the wavefunction overlap "// &
-                          "method in addition to the standard method defined by the keyword MIXED_CDFT_COUPLING. "// &
+      CALL keyword_create(keyword, name="WFN_OVERLAP", &
+                          description="Compute the CDFT electronic coupling element using the wavefunction overlap "// &
+                          "method in addition to the standard method defined by the keyword COUPLING. "// &
                           "In this method, the unconstrained KS ground state wavefunction (WFN_RESTART_FILE_NAME) "// &
-                          "is represented as a linear combination of the two CDFT states.", &
-                          usage="MIXED_CDFT_WFN_OVERLAP", type_of_var=logical_t, &
+                          "is represented as a linear combination of the CDFT states. For more than two CDFT states, "// &
+                          "the coupling is computed pairwise for every state pair (contrary to other coupling methods).", &
+                          usage="WFN_OVERLAP", type_of_var=logical_t, &
                           default_l_val=.FALSE., lone_keyword_l_val=.TRUE., &
                           citations=(/Migliore2009/))
       CALL section_add_keyword(subsection, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="MIXED_CDFT_LOWDIN", &
-                          description="Compute CDFT electronic coupling element using Lowdin orthogonalization. "// &
-                          "This is the default behavior with multiple constraints. "// &
+      CALL keyword_create(keyword, name="LOWDIN", &
+                          description="Compute the CDFT electronic coupling element using Lowdin orthogonalization. "// &
+                          "This is the default behavior with multiple constraints and nonidentical constraints. "// &
                           "By activating this keyword, this method is also used to compute the the coupling "// &
                           "when a single constraint is active in addition to the standard method.", &
-                          usage="MIXED_CDFT_LOWDIN", type_of_var=logical_t, &
+                          usage="LOWDIN", type_of_var=logical_t, &
                           default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
       CALL section_add_keyword(subsection, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="MIXED_CDFT_CI", &
+      CALL keyword_create(keyword, name="CI", variants=(/"CONFIGURATION_INTERACTION"/), &
                           description="Perform a CDFT configuration interaction calculation (CDFT-CI). "// &
                           "The CI vector is expanded in the basis of the CDFT states. Diagonalizes the "// &
                           "nonorthogonal diabatic CDFT Hamiltonian. The energies and expansion coefficients "// &
-                          "of the CDFT-CI states are outputted. Keyword MIXED_CDFT_COUPLING must be active "// &
+                          "of the CDFT-CI states are outputted. Keyword COUPLING must be active "// &
                           "to use this feature.", &
-                          usage="MIXED_CDFT_LOWDIN", type_of_var=logical_t, &
+                          usage="LOWDIN", type_of_var=logical_t, &
+                          default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
+      CALL section_add_keyword(subsection, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, name="NONORTHOGONAL_COUPLING", variants=(/"NONORTHO_COUPLING"/), &
+                          description="Print out the nonorthogonal diabatic CDFT coupling between states, "// &
+                          "as it appears in the mixed CDFT Hamiltonian before orthogonalization (coupling "// &
+                          "calculations) and CDFT-CI. Useful for (re)constructing the Hamiltonian for additional"// &
+                          "analysis. This is the CDFT interaction energy between states.", &
+                          usage="NONORTHOGONAL_COUPLING", type_of_var=logical_t, &
                           default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
       CALL section_add_keyword(subsection, keyword)
       CALL keyword_release(keyword)
@@ -198,7 +234,7 @@ CONTAINS
       CALL keyword_release(keyword)
 
       CALL keyword_create(keyword, name="EPS_SVD", &
-                          description="Determines the matrix inversion solver needed by to compute the coupling."// &
+                          description="Determines the matrix inversion solver needed to compute the coupling."// &
                           " Default value implies LU decomposition, while values between 0.0 and 1.0"// &
                           " imply SVD decomposition. For SVD, the value acts as a threshold"// &
                           " for screening singular values so that only values above it are included"// &
