@@ -29,7 +29,7 @@ HeH-mixed-cdft-9.inp                                  11      2e-13             
 # MD
 HeH-mixed-cdft-10.inp                                 11      2e-12              -2.350318822849201
 # CDFT-CI
-HeH-mixed-cdft-13.inp                                 77      2e-12              -2.76211161653722
+HeH-mixed-cdft-13.inp                                 77      3e-12              -2.76211161653722
 # Calculation with 3 CDFT states (prints out a couple of warnings because the last two are identical)
 HeH-mixed-cdft-14.inp                                 11      2e-13              -2.348554384953704
 #EOF
