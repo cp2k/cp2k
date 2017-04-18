@@ -39,7 +39,7 @@ MODULE rt_propagation_output
         dbcsr_create, dbcsr_deallocate_matrix, dbcsr_deallocate_matrix_set, dbcsr_desymmetrize, &
         dbcsr_filter, dbcsr_get_info, dbcsr_get_occupation, dbcsr_init_p, &
         dbcsr_iterator_blocks_left, dbcsr_iterator_next_block, dbcsr_iterator_start, &
-        dbcsr_iterator_stop, dbcsr_iterator_type, dbcsr_p_type, dbcsr_set, dbcsr_type
+        dbcsr_iterator_stop, dbcsr_iterator_type, dbcsr_p_type, dbcsr_scale, dbcsr_set, dbcsr_type
    USE input_constants,                 ONLY: ehrenfest,&
                                               real_time_propagation
    USE input_section_types,             ONLY: section_get_ivals,&
@@ -212,7 +212,7 @@ CONTAINS
                IF (BTEST(cp_print_key_should_output(logger%iter_info, &
                                                     dft_section, "REAL_TIME_PROPAGATION%PRINT%CURRENT"), cp_p_file)) THEN
                   DO spin = 1, SIZE(rho_new)/2
-                     CALL rt_current(qs_env, rho_new(2*spin)%matrix, dft_section, spin)
+                     CALL rt_current(qs_env, rho_new(2*spin)%matrix, dft_section, spin, SIZE(rho_new)/2)
                   END DO
                ENDIF
             ENDIF
@@ -231,7 +231,7 @@ CONTAINS
                   END DO
                   CALL calculate_P_imaginary(qs_env, rtp, P_im)
                   DO spin = 1, nspin
-                     CALL rt_current(qs_env, P_im(spin)%matrix, dft_section, spin)
+                     CALL rt_current(qs_env, P_im(spin)%matrix, dft_section, spin, nspin)
                   END DO
                   CALL dbcsr_deallocate_matrix_set(P_im)
                ENDIF
@@ -665,13 +665,14 @@ CONTAINS
 !> \param P_im ...
 !> \param dft_section ...
 !> \param spin ...
+!> \param nspin ...
 !> \author Samuel Andermatt (06.15)
 ! **************************************************************************************************
-   SUBROUTINE rt_current(qs_env, P_im, dft_section, spin)
+   SUBROUTINE rt_current(qs_env, P_im, dft_section, spin, nspin)
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(dbcsr_type), POINTER                          :: P_im
       TYPE(section_vals_type), POINTER                   :: dft_section
-      INTEGER                                            :: spin
+      INTEGER                                            :: spin, nspin
 
       CHARACTER(len=*), PARAMETER :: routineN = 'rt_current', routineP = moduleN//':'//routineN
 
@@ -682,7 +683,7 @@ CONTAINS
       INTEGER, DIMENSION(:), POINTER                     :: stride(:)
       TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(current_env_type)                             :: current_env
-      TYPE(dbcsr_type), POINTER                          :: zero
+      TYPE(dbcsr_type), POINTER                          :: tmp, zero
       TYPE(particle_list_type), POINTER                  :: particles
       TYPE(pw_env_type), POINTER                         :: pw_env
       TYPE(pw_p_type), POINTER                           :: gs, rs
@@ -696,13 +697,18 @@ CONTAINS
       CALL qs_subsys_get(subsys, particles=particles)
       CALL pw_env_get(pw_env, auxbas_pw_pool=auxbas_pw_pool)
 
-      NULLIFY (zero, rs, gs)
+      NULLIFY (zero, rs, gs, tmp)
       ALLOCATE (rs, gs)
       NULLIFY (rs%pw, gs%pw)
-      ALLOCATE (zero)
+      ALLOCATE (zero, tmp)
       CALL dbcsr_create(zero, template=P_im)
       CALL dbcsr_copy(zero, P_im)
       CALL dbcsr_set(zero, 0.0_dp)
+      CALL dbcsr_create(tmp, template=P_im)
+      CALL dbcsr_copy(tmp, P_im)
+      IF (nspin == 1) THEN
+         CALL dbcsr_scale(tmp, 0.5_dp)
+      ENDIF
       current_env%gauge = -1
       current_env%gauge_init = .FALSE.
       CALL pw_pool_create_pw(auxbas_pw_pool, rs%pw, use_data=REALDATA3D, in_space=REALSPACE)
@@ -716,7 +722,7 @@ CONTAINS
          CALL pw_zero(rs%pw)
          CALL pw_zero(gs%pw)
 
-         CALL calculate_jrho_resp(zero, P_im, zero, zero, dir, dir, rs, gs, qs_env, current_env, retain_rsgrid=.TRUE.)
+         CALL calculate_jrho_resp(zero, tmp, zero, zero, dir, dir, rs, gs, qs_env, current_env, retain_rsgrid=.TRUE.)
 
          stride = section_get_ivals(dft_section, "REAL_TIME_PROPAGATION%PRINT%CURRENT%STRIDE")
 
@@ -748,6 +754,7 @@ CONTAINS
       DEALLOCATE (gs)
 
       CALL dbcsr_deallocate_matrix(zero)
+      CALL dbcsr_deallocate_matrix(tmp)
 
       DEALLOCATE (stride)
 
