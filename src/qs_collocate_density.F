@@ -2761,6 +2761,11 @@ CONTAINS
       rp(:) = ra(:)+rap(:)
       rb(:) = ra(:)+rab(:)
 
+      ! check to avoid overflows
+      a = MAXVAL(ABS(rsgrid%desc%dh))
+      a = 300._dp/(a*a)
+      CPASSERT(zetp < a)
+
       IF (my_map_consistent) THEN
          cutoff = 1.0_dp
          prefactor = EXP(-zeta*f*rab2)
