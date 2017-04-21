@@ -6465,8 +6465,17 @@ CONTAINS
                   Eigenval(n_level_gw_ref)*27.211_dp
             END IF
 
-            IF (unit_nr > 0 .AND. print_gw_details) THEN
+            IF (unit_nr > 0 .AND. print_gw_details .AND. MAXVAL(vec_gw_energ_error_fit) < 0.3_dp) THEN
                WRITE (unit_nr, '(T3,I4,3A,6F11.3)') &
+                  n_level_gw_ref, ' ( ', occ_virt, ')', &
+                  Eigenval_last(n_level_gw_ref)*27.211_dp, &
+                  vec_gw_energ(n_level_gw)*27.211_dp, &
+                  vec_gw_energ_error_fit(n_level_gw)*27.211_dp, &
+                  vec_Sigma_x_minus_vxc_gw(n_level_gw_ref)*27.211_dp, &
+                  z_value(n_level_gw), &
+                  Eigenval(n_level_gw_ref)*27.211_dp
+            ELSE IF (unit_nr > 0 .AND. print_gw_details .AND. MAXVAL(vec_gw_energ_error_fit) .GE. 0.3_dp) THEN
+               WRITE (unit_nr, '(T3,I4,3A,2F11.3, ES11.1, 3F11.3)') &
                   n_level_gw_ref, ' ( ', occ_virt, ')', &
                   Eigenval_last(n_level_gw_ref)*27.211_dp, &
                   vec_gw_energ(n_level_gw)*27.211_dp, &
