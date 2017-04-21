@@ -21,7 +21,7 @@
     @IF ( ${BECKE_ADJUST_SIZE} == TRUE )
       ! Defaults to false
       ADJUST_SIZE     TRUE
-      ATOMIC_RADII 0.460 0.320  
+      ATOMIC_RADII 0.460 0.320
     @ENDIF
     @IF ( ${BECKE_ATOMIC_CHARGES} == TRUE )
       ! Defaults to false
@@ -30,7 +30,7 @@
     STRENGTH        0.0 0.0
     ! Target values from the constraints
     ! For charge density constraints, the target equals sum_i coeff_i * N_i
-    ! where N_i is the number of VALENCE electrons on i 
+    ! where N_i is the number of VALENCE electrons on i
     ! For magnetization density constraints, the sum_i coeff_i * M_i
     ! where M_i = N_i(alpha)-N_i(beta)
     TARGET          0.0 0.0
@@ -60,18 +60,31 @@
       SHOULD_SKIP     TRUE
     @ENDIF
     @IF ( ${BECKE_CAVITY_PRINT} == TRUE )
-      ! Defaults to false      
+      ! Defaults to false
       CAVITY_PRINT    TRUE
     @ENDIF
     @IF ( ${BECKE_FRAGMENT} == TRUE )
-      ! Need absolute weight to use fragment densities
+      ! Apply two spin constraints
       &ATOM_GROUP
         ATOMS           1
         COEFF           1
+        FRAGMENT_CONSTRAINT
+        CHARGE_CONSTRAINT FALSE
       &END ATOM_GROUP
-      FRAGMENT_DENSITIES
+      &ATOM_GROUP
+        ATOMS           2
+        COEFF           1
+        FRAGMENT_CONSTRAINT
+        CHARGE_CONSTRAINT FALSE
+      &END ATOM_GROUP
       FRAGMENT_A_FILE_NAME He+-noconstraint-ELECTRON_DENSITY-1_0.cube
+      FRAGMENT_A_SPIN_FILE He+-noconstraint-SPIN_DENSITY-1_0.cube
       FRAGMENT_B_FILE_NAME H-noconstraint-ELECTRON_DENSITY-1_0.cube
+      FRAGMENT_B_SPIN_FILE H-noconstraint-SPIN_DENSITY-1_0.cube
+      ! Constrain fragment spin densities in such way that
+      ! A has one alpha electron, B one beta electron
+      FLIP_FRAGMENT_A FALSE
+      FLIP_FRAGMENT_B TRUE
     @ENDIF
     @IF ( ${BECKE_FRAGMENT} == FALSE )
       ! Apply a spin constraint in addition to the charge difference constraint
@@ -79,7 +92,7 @@
         ATOMS          1
         COEFF          1
         CHARGE_CONSTRAINT FALSE
-      &END 
+      &END
       &ATOM_GROUP
         ATOMS           1..2
         COEFF           1 -1

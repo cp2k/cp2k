@@ -377,9 +377,13 @@ CONTAINS
                dft_control%qs_control%cdft_control%target = dft_control%qs_control%becke_control%target
                IF (.NOT. ALLOCATED(dft_control%qs_control%cdft_control%is_charge_constraint)) &
                   ALLOCATE (dft_control%qs_control%cdft_control%is_charge_constraint(nvariables))
+               IF (.NOT. ALLOCATED(dft_control%qs_control%cdft_control%is_fragment_constraint)) &
+                  ALLOCATE (dft_control%qs_control%cdft_control%is_fragment_constraint(nvariables))
                DO ivar = 1, nvariables
                   dft_control%qs_control%cdft_control%is_charge_constraint(ivar) = &
                      dft_control%qs_control%becke_control%group(ivar)%is_charge_constraint
+                  dft_control%qs_control%cdft_control%is_fragment_constraint(ivar) = &
+                     dft_control%qs_control%becke_control%group(ivar)%is_fragment_constraint
                END DO
             END IF
             ! In case constraint and OT extrapolation orders are different, make sure to use former

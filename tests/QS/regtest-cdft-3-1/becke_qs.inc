@@ -20,7 +20,7 @@
     @IF ( ${BECKE_ADJUST_SIZE} == TRUE )
       ! Defaults to false
       ADJUST_SIZE     TRUE
-      ATOMIC_RADII 0.460 0.320  
+      ATOMIC_RADII 0.460 0.320
     @ENDIF
     @IF ( ${BECKE_ATOMIC_CHARGES} == TRUE )
       ! Defaults to false
@@ -28,7 +28,7 @@
     @ENDIF
     STRENGTH        ${BECKE_STR}
     ! The constraint target: sum_i coeff_i * N_i
-    ! where N_i is the number of VALENCE electrons on i 
+    ! where N_i is the number of VALENCE electrons on i
     TARGET          ${BECKE_TARGET}
     @IF ( ${BECKE_CUTOFF_ELEMENT} == TRUE )
       CUTOFF_TYPE     ELEMENT
@@ -56,16 +56,15 @@
       SHOULD_SKIP     TRUE
     @ENDIF
     @IF ( ${BECKE_CAVITY_PRINT} == TRUE )
-      ! Defaults to false      
+      ! Defaults to false
       CAVITY_PRINT    TRUE
     @ENDIF
     @IF ( ${BECKE_FRAGMENT} == TRUE )
-      ! Need absolute weight to use fragment densities
       &ATOM_GROUP
         ATOMS           1
         COEFF           1
+        FRAGMENT_CONSTRAINT
       &END ATOM_GROUP
-      FRAGMENT_DENSITIES
       FRAGMENT_A_FILE_NAME He+-noconstraint-ELECTRON_DENSITY-1_0.cube
       FRAGMENT_B_FILE_NAME H-noconstraint-ELECTRON_DENSITY-1_0.cube
     @ENDIF

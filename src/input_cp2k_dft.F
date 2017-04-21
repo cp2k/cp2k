@@ -4090,7 +4090,9 @@ CONTAINS
       CALL keyword_release(keyword)
 
       CALL keyword_create(keyword, name="ATOMIC_CHARGES", &
-                          description="Calculate atomic Becke charges. Note:"// &
+                          description="Calculate atomic Becke charges (Z = Z_core - Z_becke)."// &
+                          " With fragment based constraints, charges are relative to fragment"// &
+                          " reference state i.e. Z = Z_becke_frag - Z_reference. Note:"// &
                           " If the number of atoms is greater than the default"// &
                           " pw_pool max cache, calculation of atomic charges"// &
                           " will prompt a warning during deallocation of atomic grids.", &
@@ -4195,21 +4197,8 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="FRAGMENT_DENSITIES", &
-                          description="Use fragment densities as the target value of the constraint."// &
-                          " Takes as input the electron densities of two isolated fragments in the"// &
-                          " same geometry that they have in the full system."// &
-                          " The isolated fragment densities are read from cube files defined in FRAGMENT_{A,B}_FILE."// &
-                          " With this keyword active, the constraint enforces that the number of electrons for both"// &
-                          " fragments is the same as they would have in the superposition of the isolated fragments."// &
-                          " Supports only static calculations. Weight must be defined for one fragment only!", &
-                          usage="IN_MEMORY", &
-                          default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
-      CALL section_add_keyword(section, keyword)
-      CALL keyword_release(keyword)
-
-      CALL keyword_create(keyword, name="FRAGMENT_A_FILE_NAME", &
-                          description="Name of the reference electron density cube file for fragment A."// &
+      CALL keyword_create(keyword, name="FRAGMENT_A_FILE_NAME", variants=(/"FRAGMENT_A_FILE"/), &
+                          description="Name of the reference total electron density cube file for fragment A."// &
                           " May include a path. The reference electron density needs to be outputted"// &
                           " on the same grid as the full system (same cutoff and cell, output stride 1).", &
                           usage="FRAGMENT_A_FILE_NAME <FILENAME>", &
@@ -4217,11 +4206,52 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="FRAGMENT_B_FILE_NAME", &
-                          description="Name of the reference electron density cube file for fragment A."// &
+      CALL keyword_create(keyword, name="FRAGMENT_B_FILE_NAME", variants=(/"FRAGMENT_B_FILE"/), &
+                          description="Name of the reference total electron density cube file for fragment B."// &
                           " May include a path. The reference electron density needs to be outputted"// &
                           " on the same grid as the full system (same cutoff and cell, output stride 1).", &
+                          usage="FRAGMENT_B_FILE_NAME <FILENAME>", &
                           default_lc_val="fragment_b.cube")
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, name="FRAGMENT_A_SPIN_FILE", variants=(/"FRAGMENT_A_SPIN_FILE_NAME"/), &
+                          description="Name of the reference spin density cube file for fragment A."// &
+                          " May include a path. The reference spin density needs to be outputted"// &
+                          " on the same grid as the full system (same cutoff and cell, output stride 1).", &
+                          usage="FRAGMENT_A_FILE_NAME <FILENAME>", &
+                          default_lc_val="fragment_a_spin.cube")
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, name="FRAGMENT_B_SPIN_FILE", variants=(/"FRAGMENT_B_SPIN_FILE_NAME"/), &
+                          description="Name of the reference spin density cube file for fragment B."// &
+                          " May include a path. The reference spin density needs to be outputted"// &
+                          " on the same grid as the full system (same cutoff and cell, output stride 1).", &
+                          usage="FRAGMENT_B_FILE_NAME <FILENAME>", &
+                          default_lc_val="fragment_b_spin.cube")
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, name="FLIP_FRAGMENT_A", &
+                          description="Logical which determines if the reference spin difference density "// &
+                          "(rho_alpha-rho_beta) for fragment A should be flipped. With default (off)"// &
+                          "value, the fragment is constrained to have more alpha than beta electrons "// &
+                          "if the isolated fragment has unpaired electrons. Useful in conjunction with"// &
+                          "FLIP_FRAGMENT_B.", &
+                          usage="FLIP_FRAGMENT_A", &
+                          default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, name="FLIP_FRAGMENT_B", &
+                          description="Logical which determines if the reference spin difference density "// &
+                          "(rho_alpha-rho_beta) for fragment B should be flipped. With default (off)"// &
+                          "value, the fragment is constrained to have more alpha than beta electrons "// &
+                          "if the isolated fragment has unpaired electrons. Useful in conjunction with"// &
+                          "FLIP_FRAGMENT_A.", &
+                          usage="FLIP_FRAGMENT_B", &
+                          default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
@@ -4234,7 +4264,7 @@ CONTAINS
       CALL section_create(group_section, "ATOM_GROUP", &
                           description="Define a group of atoms for use in a Becke constraint. Each repetition of "// &
                           "this section creates a new constraint.", &
-                          n_keywords=3, n_subsections=0, repeats=.TRUE.)
+                          n_keywords=4, n_subsections=0, repeats=.TRUE.)
 
       CALL keyword_create(keyword, name="ATOMS", &
                           description="Specifies the list of atoms that are included in the constraint group.", &
@@ -4257,6 +4287,20 @@ CONTAINS
                           "(rho_alpha - rho_beta)", &
                           usage="CHARGE_CONSTRAINT", &
                           default_l_val=.TRUE., lone_keyword_l_val=.TRUE.)
+      CALL section_add_keyword(group_section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, name="FRAGMENT_CONSTRAINT", &
+                          description="Use a fragment based constraint. "// &
+                          "Takes as input the electron densities of two isolated fragments in the "// &
+                          "same geometry that they have in the full system. "// &
+                          "The isolated fragment densities are read from cube files defined in FRAGMENT_{A,B}_FILE. "// &
+                          "For magnetization density constraints, additional files containing the spin difference "// &
+                          "densities must be defined with the keywords FRAGMENT_{A,B}_SPIN_FILE. "// &
+                          "With this keyword active, the target value of the constraint is calculated from the "// &
+                          "the superposition of the isolated fragment densities. Supports only static calculations.", &
+                          usage="FRAGMENT_CONSTRAINT", &
+                          default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
       CALL section_add_keyword(group_section, keyword)
       CALL keyword_release(keyword)
 

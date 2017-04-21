@@ -60,12 +60,11 @@
       CAVITY_PRINT    TRUE
     @ENDIF
     @IF ( ${BECKE_FRAGMENT} == TRUE )
-      ! Need absolute weight to use fragment densities
       &ATOM_GROUP
         ATOMS           1
         COEFF           1
+        FRAGMENT_CONSTRAINT
       &END ATOM_GROUP
-      FRAGMENT_DENSITIES
       FRAGMENT_A_FILE_NAME He+-noconstraint-ELECTRON_DENSITY-1_0.cube
       FRAGMENT_B_FILE_NAME H-noconstraint-ELECTRON_DENSITY-1_0.cube
     @ENDIF

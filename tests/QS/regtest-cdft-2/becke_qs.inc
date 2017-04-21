@@ -20,7 +20,7 @@
     @IF ( ${BECKE_ADJUST_SIZE} == TRUE )
       ! Defaults to false
       ADJUST_SIZE     TRUE
-      ATOMIC_RADII 0.460 0.320  
+      ATOMIC_RADII 0.460 0.320
     @ENDIF
     @IF ( ${BECKE_ATOMIC_CHARGES} == TRUE )
       ! Defaults to false
@@ -28,7 +28,7 @@
     @ENDIF
     STRENGTH        ${BECKE_STR}
     ! The constraint target: sum_i coeff_i * N_i
-    ! where N_i is the number of VALENCE electrons on i 
+    ! where N_i is the number of VALENCE electrons on i
     TARGET          ${BECKE_TARGET}
     @IF ( ${BECKE_CUTOFF_ELEMENT} == TRUE )
       CUTOFF_TYPE     ELEMENT
@@ -56,18 +56,36 @@
       SHOULD_SKIP     TRUE
     @ENDIF
     @IF ( ${BECKE_CAVITY_PRINT} == TRUE )
-      ! Defaults to false      
+      ! Defaults to false
       CAVITY_PRINT    TRUE
     @ENDIF
     @IF ( ${BECKE_FRAGMENT} == TRUE )
-      ! Need absolute weight to use fragment densities
       &ATOM_GROUP
         ATOMS           1
         COEFF           1
+        FRAGMENT_CONSTRAINT
       &END ATOM_GROUP
-      FRAGMENT_DENSITIES
       FRAGMENT_A_FILE_NAME He+-noconstraint-ELECTRON_DENSITY-1_0.cube
       FRAGMENT_B_FILE_NAME H-noconstraint-ELECTRON_DENSITY-1_0.cube
+    @ENDIF
+    @IF ( ${BECKE_FRAGMENT_SPIN} == TRUE )
+      ! Hack to bypass preprocessor limitations (nesting/else if)
+      ! so that only the constraint definition within this scope gets applied
+      @SET BECKE_FRAGMENT TRUE
+      &ATOM_GROUP
+        ATOMS           1
+        COEFF           1
+        FRAGMENT_CONSTRAINT
+        CHARGE_CONSTRAINT FALSE
+      &END ATOM_GROUP
+      FRAGMENT_A_FILE_NAME He+-noconstraint-ELECTRON_DENSITY-1_0.cube
+      FRAGMENT_A_SPIN_FILE He+-noconstraint-SPIN_DENSITY-1_0.cube
+      FRAGMENT_B_FILE_NAME H-noconstraint-ELECTRON_DENSITY-1_0.cube
+      FRAGMENT_B_SPIN_FILE H-noconstraint-SPIN_DENSITY-1_0.cube
+      ! Constrain fragment spin densities in such way that
+      ! A has one alpha electron, B one beta electron
+      FLIP_FRAGMENT_A FALSE
+      FLIP_FRAGMENT_B TRUE
     @ENDIF
     @IF ( ${BECKE_FRAGMENT} == FALSE )
       &ATOM_GROUP

@@ -527,6 +527,10 @@ CONTAINS
             CPABORT("Length of keywords ATOMS and COEFF must match.")
          CALL section_vals_val_get(group_section, "CHARGE_CONSTRAINT", i_rep_section=k, &
                                    l_val=qs_control%becke_control%group(k)%is_charge_constraint)
+         CALL section_vals_val_get(group_section, "FRAGMENT_CONSTRAINT", i_rep_section=k, &
+                                   l_val=qs_control%becke_control%group(k)%is_fragment_constraint)
+         IF (qs_control%becke_control%group(k)%is_fragment_constraint) &
+            qs_control%becke_control%fragment_density = .TRUE.
       END DO
       ! Create a list containing all constraint atoms
       ALLOCATE (atomlist(tot_natoms))
@@ -706,13 +710,19 @@ CONTAINS
                                  use_bohr=qs_control%becke_control%use_bohr)
       END IF
 
-      CALL section_vals_val_get(becke_section, "FRAGMENT_DENSITIES", &
-                                l_val=qs_control%becke_control%fragment_density)
       IF (qs_control%becke_control%fragment_density) THEN
          CALL section_vals_val_get(becke_section, "FRAGMENT_A_FILE_NAME", &
                                    c_val=qs_control%becke_control%fragment_a_fname)
          CALL section_vals_val_get(becke_section, "FRAGMENT_B_FILE_NAME", &
                                    c_val=qs_control%becke_control%fragment_b_fname)
+         CALL section_vals_val_get(becke_section, "FRAGMENT_A_SPIN_FILE", &
+                                   c_val=qs_control%becke_control%fragment_a_spin_fname)
+         CALL section_vals_val_get(becke_section, "FRAGMENT_B_SPIN_FILE", &
+                                   c_val=qs_control%becke_control%fragment_b_spin_fname)
+         CALL section_vals_val_get(becke_section, "FLIP_FRAGMENT_A", &
+                                   l_val=qs_control%becke_control%flip_fragment(1))
+         CALL section_vals_val_get(becke_section, "FLIP_FRAGMENT_B", &
+                                   l_val=qs_control%becke_control%flip_fragment(2))
       END IF
 
       CALL cite_reference(Becke1988b)
