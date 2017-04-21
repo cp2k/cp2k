@@ -1823,6 +1823,52 @@ CONTAINS
       CALL section_add_subsection(section, print_key)
       CALL section_release(print_key)
 
+      ! Hamiltonian in CSR format
+      CALL cp_print_key_section_create(print_key, "KS_CSR_WRITE", &
+                                       description="Write the KS matrix in CSR format into a file.", &
+                                       print_level=debug_print_level, filename="")
+      CALL keyword_create(keyword=keyword, name="Threshold", &
+                          description="Threshold on the absolute value of the elements to be printed out. "// &
+                          "In CP2K all the elements in a (atomic) matrix block are considered non-zero, "// &
+                          "if the block contains at least one non-zero element.", &
+                          usage="THRESHOLD {real}", &
+                          repeats=.FALSE., &
+                          default_r_val=0.0_dp)
+      CALL section_add_keyword(print_key, keyword)
+      CALL keyword_release(keyword)
+      CALL keyword_create(keyword=keyword, name="Upper_triangular", &
+                          description="Print only the upper triangular part of the matrix. ", &
+                          usage="UPPER_TRIANGULAR {logical}", &
+                          repeats=.FALSE., &
+                          default_l_val=.FALSE.)
+      CALL section_add_keyword(print_key, keyword)
+      CALL keyword_release(keyword)
+      CALL section_add_subsection(section, print_key)
+      CALL section_release(print_key)
+
+      ! Overlap in CSR format
+      CALL cp_print_key_section_create(print_key, "S_CSR_WRITE", &
+                                       description="Write the overlap matrix in CSR format into a file.", &
+                                       print_level=debug_print_level, filename="")
+      CALL keyword_create(keyword=keyword, name="Threshold", &
+                          description="Threshold on the absolute value of the elements to be printed out. "// &
+                          "In CP2K all the elements in a (atomic) matrix block are considered non-zero, "// &
+                          "if the block contains at least one non-zero element.", &
+                          usage="THRESHOLD {real}", &
+                          repeats=.FALSE., &
+                          default_r_val=0.0_dp)
+      CALL section_add_keyword(print_key, keyword)
+      CALL keyword_release(keyword)
+      CALL keyword_create(keyword=keyword, name="Upper_triangular", &
+                          description="Print only the upper triangular part of the matrix. ", &
+                          usage="UPPER_TRIANGULAR {logical}", &
+                          repeats=.FALSE., &
+                          default_l_val=.FALSE.)
+      CALL section_add_keyword(print_key, keyword)
+      CALL keyword_release(keyword)
+      CALL section_add_subsection(section, print_key)
+      CALL section_release(print_key)
+
       ! Xray diffraction
       CALL cp_print_key_section_create( &
          print_key_section=print_key, &

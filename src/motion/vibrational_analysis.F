@@ -17,6 +17,17 @@
 ! **************************************************************************************************
 MODULE vibrational_analysis
    USE atomic_kind_types,               ONLY: get_atomic_kind
+   USE cp_blacs_env,                    ONLY: cp_blacs_env_create,&
+                                              cp_blacs_env_type
+   USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
+                                              cp_fm_struct_release,&
+                                              cp_fm_struct_type
+   USE cp_fm_types,                     ONLY: cp_fm_create,&
+                                              cp_fm_release,&
+                                              cp_fm_set_all,&
+                                              cp_fm_set_element,&
+                                              cp_fm_type,&
+                                              cp_fm_write_unformatted
    USE cp_log_handling,                 ONLY: cp_get_default_logger,&
                                               cp_logger_get_default_io_unit,&
                                               cp_logger_type
@@ -26,6 +37,7 @@ MODULE vibrational_analysis
    USE cp_result_methods,               ONLY: get_results
    USE cp_subsys_types,                 ONLY: cp_subsys_get,&
                                               cp_subsys_type
+   USE dbcsr_api,                       ONLY: dbcsr_p_type
    USE f77_interface,                   ONLY: f_env_add_defaults,&
                                               f_env_rm_defaults,&
                                               f_env_type
@@ -57,6 +69,7 @@ MODULE vibrational_analysis
    USE physcon,                         ONLY: &
         a_bohr, boltzmann, e_mass, h_bar, hertz, kelvin, kjmol, massunit, n_avogadro, pascal, &
         vibfac, wavenumbers
+   USE qs_ks_types,                     ONLY: qs_ks_env_type
    USE replica_methods,                 ONLY: rep_env_calc_e_f,&
                                               rep_env_create
    USE replica_types,                   ONLY: rep_env_release,&
@@ -115,6 +128,10 @@ CONTAINS
       TYPE(section_vals_type), POINTER                   :: force_env_section, &
                                                             mode_tracking_section, print_section, &
                                                             vib_section
+
+!      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_ks
+
+!      TYPE(qs_ks_env_type), POINTER                      :: ks_env
 
       CALL timeset(routineN, handle)
       NULLIFY (D, RotTrM, logger, subsys, f_env, particles, rep_env, intensities, &
@@ -372,6 +389,9 @@ CONTAINS
                CALL write_particle_matrix(Hessian, particles, output_unit, el_per_part=3, &
                                           Ilist=Mlist)
             END IF
+
+            CALL write_va_hessian(vib_section, para_env, ncoord, globenv, Hessian, logger)
+
             ! Enforce symmetry in the Hessian
             DO i = 1, ncoord
                DO j = i, ncoord
@@ -897,5 +917,62 @@ CONTAINS
       CALL timestop(handle)
 
    END SUBROUTINE write_eigs_unformatted
+
+!**************************************************************************************************
+!> \brief Write the Hessian matrix into a (unformatted) binary file
+!> \param vib_section vibrational analysis section
+!> \param para_env mpi environment
+!> \param ncoord 3 times the number of atoms
+!> \param globenv global environment
+!> \param Hessian the Hessian matrix
+!> \param logger the logger
+! **************************************************************************************************
+   SUBROUTINE write_va_hessian(vib_section, para_env, ncoord, globenv, Hessian, logger)
+
+      TYPE(section_vals_type), POINTER                   :: vib_section
+      TYPE(cp_para_env_type), POINTER                    :: para_env
+      INTEGER                                            :: ncoord
+      TYPE(global_environment_type), POINTER             :: globenv
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: Hessian
+      TYPE(cp_logger_type), POINTER                      :: logger
+
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'write_va_hessian', &
+         routineP = moduleN//':'//routineN
+
+      INTEGER                                            :: handle, hesunit, i, j, ndf
+      TYPE(cp_blacs_env_type), POINTER                   :: blacs_env
+      TYPE(cp_fm_struct_type), POINTER                   :: fm_struct_hes
+      TYPE(cp_fm_type), POINTER                          :: hess_mat
+
+      CALL timeset(routineN, handle)
+
+      hesunit = cp_print_key_unit_nr(logger, vib_section, "PRINT%HESSIAN", &
+                                     extension=".hess", file_form="UNFORMATTED", file_action="WRITE", &
+                                     file_position="REWIND")
+
+      NULLIFY (blacs_env)
+      CALL cp_blacs_env_create(blacs_env, para_env, globenv%blacs_grid_layout, &
+                               globenv%blacs_repeatable)
+      ndf = ncoord
+      CALL cp_fm_struct_create(fm_struct_hes, para_env=para_env, context=blacs_env, &
+                               nrow_global=ndf, ncol_global=ndf)
+      CALL cp_fm_create(hess_mat, fm_struct_hes, name="hess_mat")
+      CALL cp_fm_set_all(hess_mat, alpha=0.0_dp, beta=0.0_dp)
+
+      DO i = 1, ncoord
+         DO j = 1, ncoord
+            CALL cp_fm_set_element(hess_mat, i, j, Hessian(i, j))
+         END DO
+      END DO
+      CALL cp_fm_write_unformatted(hess_mat, hesunit)
+
+      CALL cp_print_key_finished_output(hesunit, logger, vib_section, "PRINT%HESSIAN")
+
+      CALL cp_fm_struct_release(fm_struct_hes)
+      CALL cp_fm_release(hess_mat)
+
+      CALL timestop(handle)
+
+   END SUBROUTINE write_va_hessian
 
 END MODULE vibrational_analysis

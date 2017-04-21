@@ -174,7 +174,8 @@ MODULE dbcsr_csr_conversions
              csr_destroy, &
              convert_dbcsr_to_csr, &
              csr_create_new, csr_create_template, &
-             csr_print_sparsity, dbcsr_to_csr_filter
+             csr_print_sparsity, dbcsr_to_csr_filter, &
+             csr_write
 
    INTERFACE csr_create
       MODULE PROCEDURE csr_create_new, csr_create_template
@@ -1245,14 +1246,16 @@ CONTAINS
 !> \param[in] unit_nr           unit number to which output is written
 !> \param[in] upper_triangle    If true (default: false), write only upper
 !>                              triangular part of matrix
+!> \param[in] threshold         threshold on the absolute value of the elements to be printed
 !> \par History
 !>      11.2014 created [Patrick Seewald]
 !> \author Patrick Seewald
 ! **************************************************************************************************
-   SUBROUTINE csr_write(csr_mat, unit_nr, upper_triangle)
+   SUBROUTINE csr_write(csr_mat, unit_nr, upper_triangle, threshold)
       TYPE(csr_type), INTENT(IN)                         :: csr_mat
       INTEGER, INTENT(IN)                                :: unit_nr
       LOGICAL, INTENT(IN), OPTIONAL                      :: upper_triangle
+      REAL(KIND=real_8), INTENT(IN), OPTIONAL            :: threshold
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'csr_write', routineP = moduleN//':'//routineN
 
@@ -1265,6 +1268,7 @@ CONTAINS
                                                             sizes_numrowlocal, sizes_nzelocal
       LOGICAL                                            :: ut
       REAL(KIND=real_4), ALLOCATABLE, DIMENSION(:)       :: nzval_to_master_r_sp
+      REAL(KIND=real_8)                                  :: thld
       REAL(KIND=real_8), ALLOCATABLE, DIMENSION(:)       :: nzval_to_master_r_dp
 
       CALL timeset(routineN, handle)
@@ -1273,6 +1277,12 @@ CONTAINS
          ut = upper_triangle
       ELSE
          ut = .FALSE.
+      ENDIF
+
+      IF (PRESENT(threshold)) THEN
+         thld = threshold
+      ELSE
+         thld = 0.0_dp
       ENDIF
 
       IF (.NOT. csr_mat%valid) &
@@ -1366,20 +1376,28 @@ CONTAINS
                rowind = k+SUM(sizes_numrowlocal(1:ii)) ! row index: local to global
                DO l = 1, nzerow_to_master(k)
                   m = m+1
-                  IF ((.NOT. ut) .OR. (k .LE. colind_to_master(m))) THEN
+                  IF ((.NOT. ut) .OR. (rowind .LE. colind_to_master(m))) THEN
                      SELECT CASE (csr_mat%nzval_local%data_type)
                      CASE (dbcsr_type_real_4)
-                        WRITE (unit_nr, data_format) rowind, colind_to_master(m), &
-                           nzval_to_master_r_sp(m)
+                        IF (ABS(nzval_to_master_r_sp(m)) .GE. thld) THEN
+                           WRITE (unit_nr, data_format) rowind, colind_to_master(m), &
+                              nzval_to_master_r_sp(m)
+                        END IF
                      CASE (dbcsr_type_real_8)
-                        WRITE (unit_nr, data_format) rowind, colind_to_master(m), &
-                           nzval_to_master_r_dp(m)
+                        IF (ABS(nzval_to_master_r_dp(m)) .GE. thld) THEN
+                           WRITE (unit_nr, data_format) rowind, colind_to_master(m), &
+                              nzval_to_master_r_dp(m)
+                        END IF
                      CASE (dbcsr_type_complex_4)
-                        WRITE (unit_nr, data_format) rowind, colind_to_master(m), &
-                           nzval_to_master_c_sp(m)
+                        IF (ABS(nzval_to_master_c_sp(m)) .GE. thld) THEN
+                           WRITE (unit_nr, data_format) rowind, colind_to_master(m), &
+                              nzval_to_master_c_sp(m)
+                        END IF
                      CASE (dbcsr_type_complex_8)
-                        WRITE (unit_nr, data_format) rowind, colind_to_master(m), &
-                           nzval_to_master_c_dp(m)
+                        IF (ABS(nzval_to_master_c_dp(m)) .GE. thld) THEN
+                           WRITE (unit_nr, data_format) rowind, colind_to_master(m), &
+                              nzval_to_master_c_dp(m)
+                        END IF
                      END SELECT
                   ENDIF
                ENDDO

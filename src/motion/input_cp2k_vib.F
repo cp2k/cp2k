@@ -212,6 +212,13 @@ CONTAINS
       CALL section_add_subsection(section, print_key)
       CALL section_release(print_key)
 
+      CALL cp_print_key_section_create(print_key, "HESSIAN", &
+                                       description="Write the Hessian matrix from a vibrational analysis calculation "// &
+                                       "into a binary file.", &
+                                       print_level=low_print_level, add_last=add_last_numeric, filename="Hessian")
+      CALL section_add_subsection(section, print_key)
+      CALL section_release(print_key)
+
    END SUBROUTINE create_print_vib_section
 
 ! **************************************************************************************************

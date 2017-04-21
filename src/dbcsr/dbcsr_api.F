@@ -30,7 +30,7 @@ MODULE dbcsr_api
         convert_dbcsr_to_csr_prv            => convert_dbcsr_to_csr, &
         csr_create_from_dbcsr_prv           => csr_create_from_dbcsr, csr_create_new, &
         csr_create_template, csr_dbcsr_blkrow_dist, csr_destroy, csr_eqrow_ceil_dist, &
-        csr_eqrow_floor_dist, csr_p_type, csr_print_sparsity, csr_type, &
+        csr_eqrow_floor_dist, csr_p_type, csr_print_sparsity, csr_type, csr_write, &
         dbcsr_to_csr_filter_prv             => dbcsr_to_csr_filter
    USE dbcsr_data_methods,              ONLY: dbcsr_get_data_p_prv => dbcsr_get_data_p,&
                                               dbcsr_scalar,&
@@ -287,6 +287,7 @@ MODULE dbcsr_api
    PUBLIC :: csr_dbcsr_blkrow_dist
    PUBLIC :: csr_print_sparsity
    PUBLIC :: dbcsr_to_csr_filter
+   PUBLIC :: csr_write
 
    ! binary io
    PUBLIC :: dbcsr_binary_write
