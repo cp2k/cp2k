@@ -1189,7 +1189,7 @@ CONTAINS
 !> \param j the column index corresponding to ipermutation
 ! **************************************************************************************************
    SUBROUTINE map_permutation_to_states(n, ipermutation, i, j)
-      INTEGER, INTENT(INOUT)                             :: n, ipermutation
+      INTEGER, INTENT(IN)                                :: n, ipermutation
       INTEGER, INTENT(OUT)                               :: i, j
 
       CHARACTER(len=*), PARAMETER :: routineN = 'map_permutation_to_states', &
