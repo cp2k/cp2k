@@ -18,6 +18,7 @@
 MODULE vibrational_analysis
    USE atomic_kind_types,               ONLY: get_atomic_kind
    USE cp_blacs_env,                    ONLY: cp_blacs_env_create,&
+                                              cp_blacs_env_release,&
                                               cp_blacs_env_type
    USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
                                               cp_fm_struct_release,&
@@ -970,6 +971,7 @@ CONTAINS
 
       CALL cp_fm_struct_release(fm_struct_hes)
       CALL cp_fm_release(hess_mat)
+      CALL cp_blacs_env_release(blacs_env)
 
       CALL timestop(handle)
 
