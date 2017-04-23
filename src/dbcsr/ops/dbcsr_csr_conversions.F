@@ -1592,7 +1592,7 @@ CONTAINS
             start_ind = 1
             DO i = 0, numnodes-1
                cs = NINT(i*chunk_size)-NINT((i-1)*chunk_size)
-               end_ind = start_ind-1+cs
+               end_ind = MIN(start_ind-1+cs, nblkrows_total)
                rdist(start_ind:end_ind) = row_index
                start_ind = end_ind+1
                row_index = row_index+1
