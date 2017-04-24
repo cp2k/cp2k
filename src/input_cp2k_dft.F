@@ -1840,7 +1840,8 @@ CONTAINS
                           description="Print only the upper triangular part of the matrix. ", &
                           usage="UPPER_TRIANGULAR {logical}", &
                           repeats=.FALSE., &
-                          default_l_val=.FALSE.)
+                          default_l_val=.FALSE., &
+                          lone_keyword_l_val=.TRUE.)
       CALL section_add_keyword(print_key, keyword)
       CALL keyword_release(keyword)
       CALL section_add_subsection(section, print_key)
@@ -1863,7 +1864,8 @@ CONTAINS
                           description="Print only the upper triangular part of the matrix. ", &
                           usage="UPPER_TRIANGULAR {logical}", &
                           repeats=.FALSE., &
-                          default_l_val=.FALSE.)
+                          default_l_val=.FALSE., &
+                          lone_keyword_l_val=.TRUE.)
       CALL section_add_keyword(print_key, keyword)
       CALL keyword_release(keyword)
       CALL section_add_subsection(section, print_key)
