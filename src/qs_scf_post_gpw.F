@@ -2035,8 +2035,6 @@ CONTAINS
             END IF
             CALL get_qs_env(qs_env, matrix_ks=ks_rmpv)
             CALL write_dm_binary_restart(mos, dft_section, ks_rmpv)
-            CALL write_ks_matrix_csr(qs_env, input)
-            CALL write_s_matrix_csr(qs_env, input)
             sprint_section => section_vals_get_subs_vals(dft_section, "SCF%PRINT")
             CALL write_mos_molden(mos, qs_kind_set, particle_set, sprint_section)
          ELSE ! *** if we have k points, let's print the eigenvalues at each of them
