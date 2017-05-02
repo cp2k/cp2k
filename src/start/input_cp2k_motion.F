@@ -2417,7 +2417,7 @@ CONTAINS
       CALL cp_print_key_section_create(print_key, "RHO", &
                                        description="Controls the output of the helium density "// &
                                        "(Gaussian cube file format)", &
-                                       each_iter_names=s2a("MD"), each_iter_values=(/100/), &
+                                       each_iter_names=s2a("PINT"), each_iter_values=(/100/), &
                                        print_level=medium_print_level, common_iter_levels=1, &
                                        add_last=add_last_numeric)
       CALL keyword_create(keyword, name="BACKUP_COPIES", &

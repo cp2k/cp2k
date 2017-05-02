@@ -97,11 +97,10 @@ CONTAINS
             helium_env(k)%helium%logger => cp_get_default_logger()
 
             ! create iteration level
-            ! The iteration level 'MD' can be misleading since this is a pure MC
-            ! simulation, however the helium code is meant to be run mainly from PINT.
-            ! We keep it like that for compatibility with PINT+HELIUM simulations.
+            ! Although the Helium MC is not really an md it is most of the times
+            ! embedded in the pint code so the same step counter applies.
             IF (k .EQ. 1) THEN
-               CALL cp_add_iter_level(helium_env(k)%helium%logger%iter_info, "MD")
+               CALL cp_add_iter_level(helium_env(k)%helium%logger%iter_info, "PINT")
                CALL cp_iterate(helium_env(k)%helium%logger%iter_info, &
                                iter_nr=helium_env(k)%helium%first_step)
             END IF
@@ -149,14 +148,14 @@ CONTAINS
          END IF
 
          ! exit from the main loop if soft exit has been requested
-         CALL external_control(should_stop, "MD", globenv=globenv)
+         CALL external_control(should_stop, "PINT", globenv=globenv)
          IF (should_stop) EXIT
 
       END DO
 
       ! remove iteration level
       IF (ASSOCIATED(helium_env)) THEN
-         CALL cp_rm_iter_level(helium_env(1)%helium%logger%iter_info, "MD")
+         CALL cp_rm_iter_level(helium_env(1)%helium%logger%iter_info, "PINT")
       END IF
 
       RETURN

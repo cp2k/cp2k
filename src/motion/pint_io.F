@@ -668,7 +668,7 @@ CONTAINS
          time_used = time_used/60.0_dp
          time_unit = "hours"
       END IF
-      msgstr = "MD step"
+      msgstr = "PINT step"
       stmp = ""
       WRITE (stmp, *) pint_env%iter
       msgstr = TRIM(ADJUSTL(msgstr))//" "//TRIM(ADJUSTL(stmp))//" of"

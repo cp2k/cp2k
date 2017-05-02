@@ -211,6 +211,11 @@ CONTAINS
       IF (.NOT. ASSOCIATED(rep_env)) RETURN
 
       ALLOCATE (pint_env)
+
+      NULLIFY (pint_env%logger)
+      pint_env%logger => cp_get_default_logger()
+      CALL cp_add_iter_level(pint_env%logger%iter_info, "PINT")
+
       last_pint_id = last_pint_id+1
       pint_env%id_nr = last_pint_id
       pint_env%ref_count = 1
@@ -1393,7 +1398,7 @@ CONTAINS
    END SUBROUTINE pint_init_t
 
 ! ***************************************************************************
-!> \brief  Prepares the forces, etc. to perform an MD step
+!> \brief  Prepares the forces, etc. to perform an PIMD step
 !> \param pint_env ...
 !> \param helium_env ...
 !> \par    History
@@ -1500,15 +1505,26 @@ CONTAINS
       INTEGER                                            :: k, step
       LOGICAL                                            :: should_stop
       REAL(kind=dp)                                      :: scal
+      TYPE(cp_logger_type), POINTER                      :: logger
+      TYPE(f_env_type), POINTER                          :: f_env
 
       CPASSERT(ASSOCIATED(pint_env))
 
-      NULLIFY (pint_env%logger)
-      pint_env%logger => cp_get_default_logger()
-
-      ! create iteration level and initialize iteration info
-      CALL cp_add_iter_level(pint_env%logger%iter_info, "MD")
+      ! initialize iteration info
       CALL cp_iterate(pint_env%logger%iter_info, iter_nr=pint_env%first_step)
+
+      ! iterate replica pint counter by accessing the globally saved
+      ! force environment error/logger variables and setting them
+      ! explicitly to the pimd "PINT" step value
+      CALL f_env_add_defaults(f_env_id=pint_env%replicas%f_env_id, &
+                              f_env=f_env)
+      NULLIFY (logger)
+      logger => cp_get_default_logger()
+      CALL cp_add_iter_level(logger%iter_info, "PINT")
+      CALL cp_iterate(logger%iter_info, &
+                      iter_nr=pint_env%first_step)
+      CALL f_env_rm_defaults(f_env)
+
       pint_env%iter = pint_env%first_step
 
       IF (PRESENT(helium_env)) THEN
@@ -1546,6 +1562,9 @@ CONTAINS
          CALL cp_iterate(pint_env%logger%iter_info, &
                          last=(step == pint_env%num_steps), &
                          iter_nr=pint_env%iter)
+         CALL cp_iterate(logger%iter_info, &
+                         last=(step == pint_env%num_steps), &
+                         iter_nr=pint_env%iter)
          pint_env%t = pint_env%t+pint_env%dt
 
          IF (pint_env%t_tol > 0.0_dp) THEN
@@ -1569,13 +1588,14 @@ CONTAINS
                             pint_env=pint_env, helium_env=helium_env)
 
          ! exit from the main loop if soft exit has been requested
-         CALL external_control(should_stop, "MD", globenv=globenv)
+         CALL external_control(should_stop, "PINT", globenv=globenv)
          IF (should_stop) EXIT
 
       END DO
 
       ! remove iteration level
-      CALL cp_rm_iter_level(pint_env%logger%iter_info, "MD")
+      CALL cp_rm_iter_level(pint_env%logger%iter_info, "PINT")
+      CALL cp_rm_iter_level(logger%iter_info, "PINT")
 
       RETURN
    END SUBROUTINE pint_do_run
@@ -1649,7 +1669,7 @@ CONTAINS
    END SUBROUTINE pint_run_scan
 
 ! ***************************************************************************
-!> \brief  Does an MD step (and nrespa harmonic evaluations)
+!> \brief  Does an PINT step (and nrespa harmonic evaluations)
 !> \param pint_env ...
 !> \param helium_env ...
 !> \par    History
@@ -1907,7 +1927,7 @@ CONTAINS
       CALL pint_calc_energy(pint_env)
       CALL pint_calc_total_action(pint_env)
 
-      ! check that the number of MD steps matches
+      ! check that the number of PINT steps matches
       ! the number of force evaluations done so far
 !TODO make this check valid if we start from ITERATION != 0
 !     CALL f_env_add_defaults(f_env_id=pint_env%replicas%f_env_id,&
