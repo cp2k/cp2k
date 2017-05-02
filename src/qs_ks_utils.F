@@ -18,6 +18,7 @@
 ! **************************************************************************************************
 
 MODULE qs_ks_utils
+   USE atomic_kind_types,               ONLY: atomic_kind_type
    USE cell_types,                      ONLY: cell_type
    USE cp_control_types,                ONLY: dft_control_type
    USE cp_dbcsr_operations,             ONLY: copy_dbcsr_to_fm,&
@@ -54,6 +55,11 @@ MODULE qs_ks_utils
                                               section_vals_val_get
    USE kahan_sum,                       ONLY: accurate_sum
    USE kinds,                           ONLY: dp
+   USE lri_environment_types,           ONLY: lri_density_type,&
+                                              lri_environment_type,&
+                                              lri_kind_type
+   USE lri_forces,                      ONLY: calculate_lri_forces
+   USE lri_ks_methods,                  ONLY: calculate_lri_ks_matrix
    USE message_passing,                 ONLY: mp_sum
    USE ps_implicit_types,               ONLY: MIXED_BC,&
                                               MIXED_PERIODIC_BC,&
@@ -87,7 +93,8 @@ MODULE qs_ks_utils
    USE qs_environment_types,            ONLY: get_qs_env,&
                                               qs_environment_type
    USE qs_force_types,                  ONLY: qs_force_type
-   USE qs_integrate_potential,          ONLY: integrate_v_rspace
+   USE qs_integrate_potential,          ONLY: integrate_v_rspace,&
+                                              integrate_v_rspace_one_center
    USE qs_kind_types,                   ONLY: get_qs_kind_set,&
                                               qs_kind_type
    USE qs_ks_qmmm_methods,              ONLY: qmmm_modify_hartree_pot
@@ -1193,13 +1200,17 @@ CONTAINS
          routineP = moduleN//':'//routineN
 
       INTEGER                                            :: handle, igroup, ispin, nspins
-      LOGICAL                                            :: do_ppl, gapw, gapw_xc
+      LOGICAL                                            :: do_ppl, gapw, gapw_xc, lrigpw
       REAL(dp)                                           :: dvol, sign
+      TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: ksmat, matrix_ks_aux_fit, &
                                                             matrix_ks_aux_fit_dft, rho_ao, &
-                                                            rho_ao_aux
+                                                            rho_ao_aux, rho_ao_nokp
       TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: rho_ao_kp
       TYPE(dft_control_type), POINTER                    :: dft_control
+      TYPE(lri_density_type), POINTER                    :: lri_density
+      TYPE(lri_environment_type), POINTER                :: lri_env
+      TYPE(lri_kind_type), DIMENSION(:), POINTER         :: lri_v_int
       TYPE(pw_env_type), POINTER                         :: pw_env
       TYPE(pw_p_type)                                    :: v_rspace
       TYPE(pw_p_type), POINTER                           :: vee
@@ -1211,7 +1222,8 @@ CONTAINS
 
       NULLIFY (auxbas_pw_pool, dft_control, pw_env, matrix_ks_aux_fit, &
                v_rspace%pw, rho_aux_fit, vee, rho_ao, rho_ao_kp, rho_ao_aux, &
-               ksmat, matrix_ks_aux_fit_dft)
+               ksmat, matrix_ks_aux_fit_dft, lri_env, lri_density, atomic_kind_set, &
+               rho_ao_nokp)
 
       CALL get_qs_env(qs_env, &
                       dft_control=dft_control, &
@@ -1228,6 +1240,14 @@ CONTAINS
       gapw = dft_control%qs_control%gapw
       gapw_xc = dft_control%qs_control%gapw_xc
       do_ppl = dft_control%qs_control%do_ppl_method == do_ppl_grid
+
+      lrigpw = dft_control%qs_control%lrigpw
+      IF (lrigpw) THEN
+         CALL get_qs_env(qs_env, &
+                         lri_env=lri_env, &
+                         lri_density=lri_density, &
+                         atomic_kind_set=atomic_kind_set)
+      ENDIF
 
       nspins = dft_control%nspins
 
@@ -1334,13 +1354,19 @@ CONTAINS
             CASE (sic_eo)
                ! NOTHING TO BE DONE
             END SELECT
-            rho_ao => my_rho(ispin, :)
-            ksmat => ks_matrix(ispin, :)
-            CALL integrate_v_rspace(v_rspace=v_rspace_new(ispin), &
-                                    pmat_kp=rho_ao, hmat_kp=ksmat, &
-                                    qs_env=qs_env, &
-                                    calculate_forces=calculate_forces, &
-                                    gapw=gapw)
+            IF (lrigpw) THEN
+               lri_v_int => lri_density%lri_coefs(ispin)%lri_kinds
+               CALL integrate_v_rspace_one_center(v_rspace_new(ispin), qs_env, &
+                                                  lri_v_int, calculate_forces)
+            ELSE
+               rho_ao => my_rho(ispin, :)
+               ksmat => ks_matrix(ispin, :)
+               CALL integrate_v_rspace(v_rspace=v_rspace_new(ispin), &
+                                       pmat_kp=rho_ao, hmat_kp=ksmat, &
+                                       qs_env=qs_env, &
+                                       calculate_forces=calculate_forces, &
+                                       gapw=gapw)
+            ENDIF
             CALL pw_pool_give_back_pw(auxbas_pw_pool, v_rspace_new(ispin)%pw)
          END DO ! ispin
 
@@ -1369,18 +1395,40 @@ CONTAINS
             IF (dft_control%do_sccs) THEN
                v_rspace%pw%cr3d = v_rspace%pw%cr3d+v_sccs_rspace%pw%cr3d
             END IF
-            rho_ao => my_rho(ispin, :)
-            ksmat => ks_matrix(ispin, :)
-            CALL integrate_v_rspace(v_rspace=v_rspace, &
-                                    pmat_kp=rho_ao, &
-                                    hmat_kp=ksmat, &
-                                    qs_env=qs_env, &
-                                    calculate_forces=calculate_forces, &
-                                    gapw=gapw)
+            IF (lrigpw) THEN
+               lri_v_int => lri_density%lri_coefs(ispin)%lri_kinds
+               CALL integrate_v_rspace_one_center(v_rspace, qs_env, &
+                                                  lri_v_int, calculate_forces)
+            ELSE
+               rho_ao => my_rho(ispin, :)
+               ksmat => ks_matrix(ispin, :)
+               CALL integrate_v_rspace(v_rspace=v_rspace, &
+                                       pmat_kp=rho_ao, &
+                                       hmat_kp=ksmat, &
+                                       qs_env=qs_env, &
+                                       calculate_forces=calculate_forces, &
+                                       gapw=gapw)
+            ENDIF
          END DO
       END IF ! ASSOCIATED(v_rspace_new)
 
+      ! **** LRIGPW: KS matrix from integrated potential
+      IF (lrigpw) THEN
+         DO ispin = 1, nspins
+            CALL calculate_lri_ks_matrix(lri_env, lri_v_int, ks_matrix(ispin, 1)%matrix, &
+                                         atomic_kind_set)
+
+         ENDDO
+         IF (calculate_forces) THEN
+            rho_ao_nokp => rho_ao_kp(:, 1)
+            CALL calculate_lri_forces(lri_env, lri_density, qs_env, rho_ao_nokp, atomic_kind_set)
+         ENDIF
+      ENDIF
+
       IF (ASSOCIATED(v_tau_rspace)) THEN
+         IF (lrigpw) THEN
+            CPABORT("LRIGPW not implemented for meta-GGAs")
+         ENDIF
          DO ispin = 1, nspins
             v_tau_rspace(ispin)%pw%cr3d = &
                v_tau_rspace(ispin)%pw%pw_grid%dvol* &

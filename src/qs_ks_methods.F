@@ -24,7 +24,6 @@ MODULE qs_ks_methods
                                               admm_mo_merge_derivs,&
                                               admm_mo_merge_ks_matrix
    USE admm_types,                      ONLY: admm_type
-   USE atomic_kind_types,               ONLY: atomic_kind_type
    USE cell_types,                      ONLY: cell_type
    USE cp_blacs_env,                    ONLY: cp_blacs_env_type
    USE cp_control_types,                ONLY: dft_control_type
@@ -74,11 +73,6 @@ MODULE qs_ks_methods
    USE kg_correction,                   ONLY: kg_ekin_subset
    USE kinds,                           ONLY: default_string_length,&
                                               dp
-   USE lri_environment_types,           ONLY: lri_density_type,&
-                                              lri_environment_type,&
-                                              lri_kind_type
-   USE lri_forces,                      ONLY: calculate_lri_forces
-   USE lri_ks_methods,                  ONLY: calculate_lri_ks_matrix
    USE mathlib,                         ONLY: abnormal_value
    USE message_passing,                 ONLY: mp_sum
    USE pw_env_types,                    ONLY: pw_env_get,&
@@ -119,8 +113,7 @@ MODULE qs_ks_methods
    USE qs_gapw_densities,               ONLY: prepare_gapw_den
    USE qs_integrate_potential,          ONLY: integrate_ppl_rspace,&
                                               integrate_rho_nlcc,&
-                                              integrate_v_core_rspace,&
-                                              integrate_v_rspace_one_center
+                                              integrate_v_core_rspace
    USE qs_ks_apply_restraints,          ONLY: qs_ks_becke_constraint,&
                                               qs_ks_cdft_constraint,&
                                               qs_ks_mulliken_restraint,&
@@ -222,7 +215,7 @@ CONTAINS
       INTEGER                                            :: handle, iatom, img, ispin, nimages, ns, &
                                                             nspins
       LOGICAL :: do_adiabatic_rescaling, do_ddapc, do_hfx, do_ppl, gapw, gapw_xc, &
-         hfx_treat_lsd_in_core, just_energy_xc, my_print, use_virial
+         hfx_treat_lsd_in_core, just_energy_xc, lrigpw, my_print, use_virial
       REAL(KIND=dp)                                      :: ecore_ppl, edisp, ee_ener, ekin_mol, &
                                                             mulliken_order_p
       REAL(KIND=dp), DIMENSION(3, 3)                     :: h_stress
@@ -331,12 +324,21 @@ CONTAINS
                  qs_env%cp_ddapc_ewald%do_qmmm_periodic_decpl .OR. &
                  qs_env%cp_ddapc_ewald%do_solvation
 
+      ! Check if LRIGPW is used
+      lrigpw = dft_control%qs_control%lrigpw
+      IF (lrigpw) THEN
+         CPASSERT(nimages == 1)
+      ENDIF
+
       ! Check for GAPW method : additional terms for local densities
       gapw = dft_control%qs_control%gapw
       gapw_xc = dft_control%qs_control%gapw_xc
       IF (gapw_xc .AND. gapw) THEN
          CPABORT(" GAPW and GAPW_XC are not compatible")
       END IF
+      IF ((gapw .AND. lrigpw) .OR. (gapw_xc .AND. lrigpw)) THEN
+         CPABORT(" GAPW/GAPW_XC and LRIGPW are not compatible")
+      ENDIF
 
       do_ppl = dft_control%qs_control%do_ppl_method == do_ppl_grid
       IF (do_ppl) THEN
@@ -834,221 +836,6 @@ CONTAINS
    END SUBROUTINE qs_ks_build_kohn_sham_matrix
 
 ! **************************************************************************************************
-!> \brief calculation of the LRIGPW KS matrix
-!> \param qs_env the qs_env to update
-!> \param calculate_forces ...
-!> \param just_energy if true updates the energies but not the
-!>        ks matrix. Defaults to false
-!> \param print_active ...
-!> \par History
-!>      01.2014 created
-!> \author Dorothea Golze
-!> \note  might be integrate in qs_ks_build_kohn_sham_matrix later
-! **************************************************************************************************
-   SUBROUTINE lri_build_ks_matrix(qs_env, calculate_forces, just_energy, print_active)
-      TYPE(qs_environment_type), POINTER                 :: qs_env
-      LOGICAL, INTENT(in)                                :: calculate_forces, just_energy
-      LOGICAL, INTENT(in), OPTIONAL                      :: print_active
-
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'lri_build_ks_matrix', &
-         routineP = moduleN//':'//routineN
-
-      CHARACTER(len=default_string_length)               :: name
-      INTEGER                                            :: handle, ispin, nspins
-      LOGICAL                                            :: just_energy_xc, my_print, use_virial
-      REAL(KIND=dp)                                      :: edisp
-      REAL(KIND=dp), DIMENSION(3, 3)                     :: h_stress
-      TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
-      TYPE(cp_para_env_type), POINTER                    :: para_env
-      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: ks_matrix, matrix_h, matrix_p, mo_derivs
-      TYPE(dft_control_type), POINTER                    :: dft_control
-      TYPE(lri_density_type), POINTER                    :: lri_density
-      TYPE(lri_environment_type), POINTER                :: lri_env
-      TYPE(lri_kind_type), DIMENSION(:), POINTER         :: lri_v_int
-      TYPE(pw_env_type), POINTER                         :: pw_env
-      TYPE(pw_p_type)                                    :: rho_tot_gspace, v_hartree_gspace, &
-                                                            v_hartree_rspace
-      TYPE(pw_p_type), DIMENSION(:), POINTER             :: v_rspace_new, v_tau_rspace
-      TYPE(pw_poisson_type), POINTER                     :: poisson_env
-      TYPE(pw_pool_p_type), DIMENSION(:), POINTER        :: pw_pools
-      TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
-      TYPE(qs_energy_type), POINTER                      :: energy
-      TYPE(qs_ks_env_type), POINTER                      :: ks_env
-      TYPE(qs_rho_type), POINTER                         :: rho
-      TYPE(section_vals_type), POINTER                   :: input, xc_section
-      TYPE(virial_type), POINTER                         :: virial
-
-      CALL timeset(routineN, handle)
-      NULLIFY (dft_control, input, mo_derivs, para_env, pw_env, &
-               xc_section, ks_env, ks_matrix, rho, energy, auxbas_pw_pool, matrix_h, &
-               matrix_p, poisson_env, pw_pools, v_rspace_new, v_tau_rspace, &
-               atomic_kind_set, lri_env, lri_density, lri_v_int, v_hartree_rspace%pw, &
-               virial)
-      CPASSERT(ASSOCIATED(qs_env))
-
-      my_print = .TRUE.
-      IF (PRESENT(print_active)) my_print = print_active
-
-      CALL get_qs_env(qs_env, &
-                      ks_env=ks_env, &
-                      atomic_kind_set=atomic_kind_set, &
-                      dft_control=dft_control, &
-                      matrix_h=matrix_h, &
-                      lri_env=lri_env, &
-                      lri_density=lri_density, &
-                      pw_env=pw_env, &
-                      para_env=para_env, &
-                      input=input, &
-                      virial=virial, &
-                      v_hartree_rspace=v_hartree_rspace%pw, &
-                      matrix_ks=ks_matrix, &
-                      rho=rho, &
-                      energy=energy)
-
-      nspins = dft_control%nspins
-      CPASSERT(SIZE(ks_matrix) > 0)
-      CPASSERT(ASSOCIATED(pw_env))
-
-      use_virial = virial%pv_availability .AND. (.NOT. virial%pv_numer)
-
-      ! gets the tmp grids
-      CALL pw_env_get(pw_env, auxbas_pw_pool=auxbas_pw_pool, &
-                      pw_pools=pw_pools, poisson_env=poisson_env)
-
-      ! *** calculate the Hartree potential on the LRI pw density ***
-      CALL pw_pool_create_pw(auxbas_pw_pool, &
-                             v_hartree_gspace%pw, &
-                             use_data=COMPLEXDATA1D, &
-                             in_space=RECIPROCALSPACE)
-      CALL pw_pool_create_pw(auxbas_pw_pool, &
-                             rho_tot_gspace%pw, &
-                             use_data=COMPLEXDATA1D, &
-                             in_space=RECIPROCALSPACE)
-
-      ! get the total density in g-space [ions + electrons]
-      CALL calc_rho_tot_gspace(rho_tot_gspace, qs_env, rho)
-
-      IF (my_print) THEN
-         CALL print_densities(qs_env, rho)
-      END IF
-
-      ! solve Poisson equation to get Hartree energy and potential and the stress
-      ! tensor from the Hartee term if needed
-      IF (use_virial .AND. calculate_forces) THEN
-         h_stress(:, :) = 0.0_dp
-         CALL pw_poisson_solve(poisson_env, rho_tot_gspace%pw, energy%hartree, &
-                               v_hartree_gspace%pw, h_stress=h_stress)
-         virial%pv_virial = virial%pv_virial+h_stress/REAL(para_env%num_pe, dp)
-      ELSE
-         CALL pw_poisson_solve(poisson_env, rho_tot_gspace%pw, energy%hartree, &
-                               v_hartree_gspace%pw)
-      ENDIF
-
-      IF (.NOT. just_energy) THEN
-         CALL pw_transfer(v_hartree_gspace%pw, v_hartree_rspace%pw)
-         CALL pw_scale(v_hartree_rspace%pw, v_hartree_rspace%pw%pw_grid%dvol)
-      END IF
-      CALL pw_pool_give_back_pw(auxbas_pw_pool, v_hartree_gspace%pw)
-      CALL pw_pool_give_back_pw(auxbas_pw_pool, rho_tot_gspace%pw)
-
-      ! *** core contribution
-      IF (.NOT. just_energy) THEN
-         ! Initialize the Kohn-Sham matrix with the core Hamiltonian matrix
-         DO ispin = 1, nspins
-            CALL dbcsr_get_info(ks_matrix(ispin)%matrix, name=name) ! keep the name
-            CALL dbcsr_copy(ks_matrix(ispin)%matrix, matrix_h(1)%matrix, name=name)
-         END DO
-      END IF
-
-      ! *** exchange-correlation
-      IF (use_virial .AND. calculate_forces) virial%pv_calculate = .TRUE.
-      xc_section => section_vals_get_subs_vals(input, "DFT%XC")
-      just_energy_xc = just_energy
-
-      CALL qs_vxc_create(ks_env=ks_env, rho_struct=rho, xc_section=xc_section, &
-                         vxc_rho=v_rspace_new, vxc_tau=v_tau_rspace, exc=energy%exc, &
-                         edisp=edisp, dispersion_env=qs_env%dispersion_env, &
-                         just_energy=just_energy_xc)
-      IF (edisp /= 0.0_dp) energy%dispersion = edisp
-
-      IF (use_virial .AND. calculate_forces) THEN
-         virial%pv_virial = virial%pv_virial-virial%pv_xc
-      ENDIF
-
-      ! *** sum v_hartree + v_xc
-      IF (ASSOCIATED(v_rspace_new)) THEN
-         DO ispin = 1, nspins
-            v_rspace_new(ispin)%pw%cr3d = &
-               v_rspace_new(ispin)%pw%pw_grid%dvol*v_rspace_new(ispin)%pw%cr3d+ &
-               v_hartree_rspace%pw%cr3d
-         ENDDO
-      ENDIF
-      ! NO TAU YET
-
-      ! *** do integration and build matrix
-      IF (.NOT. just_energy) THEN
-
-         DO ispin = 1, nspins
-            lri_v_int => lri_density%lri_coefs(ispin)%lri_kinds
-            IF (.NOT. ASSOCIATED(v_rspace_new)) THEN
-               CALL integrate_v_rspace_one_center(v_hartree_rspace, qs_env, &
-                                                  lri_v_int, calculate_forces)
-            ELSE
-               CALL integrate_v_rspace_one_center(v_rspace_new(ispin), qs_env, &
-                                                  lri_v_int, calculate_forces)
-               CALL pw_pool_give_back_pw(auxbas_pw_pool, v_rspace_new(ispin)%pw)
-            ENDIF
-            CALL calculate_lri_ks_matrix(lri_env, lri_v_int, ks_matrix(ispin)%matrix, &
-                                         atomic_kind_set)
-         ENDDO
-         IF (ASSOCIATED(v_rspace_new)) THEN
-            DEALLOCATE (v_rspace_new)
-         ENDIF
-
-         ! *** LRIGPW forces
-         IF (calculate_forces) THEN
-            ! Getting nuclear force contribution from the core charge density
-            CALL integrate_v_core_rspace(v_hartree_rspace, qs_env)
-            ! Getting electronic force contribution from fitted LRI charge density
-            CALL qs_rho_get(rho, rho_ao=matrix_p)
-            CALL calculate_lri_forces(lri_env, lri_density, qs_env, matrix_p, atomic_kind_set, &
-                                      use_virial)
-         END IF
-
-      ENDIF
-
-      ! At this point the ks matrix should be up to date, filter it if requested
-      DO ispin = 1, nspins
-         CALL dbcsr_filter(ks_matrix(ispin)%matrix, &
-                           dft_control%qs_control%eps_filter_matrix)
-      ENDDO
-
-      ! Right now we can compute the orbital derivative here, as it depends currently only on the available
-      ! Kohn-Sham matrix. This might change in the future, in which case more pieces might need to be assembled
-      ! from this routine, notice that this part of the calculation in not linear scaling
-      ! right now this operation is only non-trivial because of occupation numbers and the restricted keyword
-      IF (qs_env%requires_mo_derivs .AND. .NOT. just_energy .AND. .NOT. qs_env%run_rtp) THEN
-         CALL get_qs_env(qs_env, mo_derivs=mo_derivs)
-         CALL calc_mo_derivatives(qs_env, ks_matrix, mo_derivs)
-      ENDIF
-
-      energy%total = energy%core_overlap+energy%core_self+ &
-                     energy%core+energy%hartree+ &
-                     energy%hartree_1c+ &
-                     energy%exc+energy%exc1+energy%ex+energy%dispersion+ &
-                     energy%qmmm_el+energy%mulliken+ &
-                     SUM(energy%ddapc_restraint)+energy%s2_restraint+ &
-                     energy%becke+energy%dft_plus_u+energy%kTS+ &
-                     energy%efield+energy%efield_core+ &
-                     energy%ee+energy%ee_core+ &
-                     energy%exc_aux_fit+ &
-                     energy%image_charge
-
-      CALL timestop(handle)
-
-   END SUBROUTINE lri_build_ks_matrix
-
-! **************************************************************************************************
 !> \brief ...
 !> \param rho_tot_gspace ...
 !> \param qs_env ...
@@ -1379,11 +1166,6 @@ CONTAINS
                                     calculate_forces=calculate_forces, &
                                     just_energy=just_energy)
 
-      ELSEIF (dft_control%qs_control%lrigpw) THEN
-         CALL lri_build_ks_matrix(qs_env, &
-                                  calculate_forces=calculate_forces, &
-                                  just_energy=just_energy, &
-                                  print_active=print_active)
       ELSE
          CALL qs_ks_build_kohn_sham_matrix(qs_env, &
                                            calculate_forces=calculate_forces, &

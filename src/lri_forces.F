@@ -57,23 +57,21 @@ CONTAINS
 !> \param qs_env ...
 !> \param pmatrix density matrix
 !> \param atomic_kind_set ...
-!> \param use_virial ...
 ! **************************************************************************************************
-   SUBROUTINE calculate_lri_forces(lri_env, lri_density, qs_env, pmatrix, &
-                                   atomic_kind_set, use_virial)
+   SUBROUTINE calculate_lri_forces(lri_env, lri_density, qs_env, pmatrix, atomic_kind_set)
 
       TYPE(lri_environment_type), POINTER                :: lri_env
       TYPE(lri_density_type), POINTER                    :: lri_density
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: pmatrix
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
-      LOGICAL                                            :: use_virial
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'calculate_lri_forces', &
          routineP = moduleN//':'//routineN
 
       INTEGER                                            :: handle, iatom, ikind, ispin, natom, &
                                                             nkind, nspin
+      LOGICAL                                            :: use_virial
       REAL(KIND=dp), DIMENSION(:), POINTER               :: v_dadr, v_dfdr
       TYPE(atomic_kind_type), POINTER                    :: atomic_kind
       TYPE(lri_kind_type), DIMENSION(:), POINTER         :: lri_coef
@@ -89,6 +87,7 @@ CONTAINS
          nspin = SIZE(pmatrix)
          CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set, natom=natom)
          CALL get_qs_env(qs_env=qs_env, force=force, virial=virial)
+         use_virial = virial%pv_availability .AND. (.NOT. virial%pv_numer)
 
          !calculate SUM_i integral(V*fbas_i)*davec/dR
          CALL calculate_v_dadr(lri_env, lri_density, pmatrix, atomic_kind_set, &

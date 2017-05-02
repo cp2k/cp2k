@@ -1,0 +1,124 @@
+&FORCE_EVAL
+  METHOD QMMM
+  &DFT
+    # dummy basis set, for testing only
+    BASIS_SET_FILE_NAME BASIS_LRI
+    POTENTIAL_FILE_NAME POTENTIAL
+    &MGRID
+      COMMENSURATE
+      CUTOFF 100
+    &END MGRID
+    &QS
+      METHOD LRIGPW
+      &LRIGPW
+         LRI_OVERLAP_MATRIX INVERSE
+         SHG_LRI_INTEGRALS
+      &END
+    &END QS
+    &SCF
+      SCF_GUESS atomic
+    &END SCF
+    &XC
+      &XC_FUNCTIONAL pade
+      &END XC_FUNCTIONAL
+    &END XC
+  &END DFT
+  &MM
+    &FORCEFIELD
+      parm_file_name ../sample_pot/butane.pot
+      parmtype CHM
+    &END FORCEFIELD
+    &POISSON
+      &EWALD
+        EWALD_TYPE spme
+        ALPHA .44
+        GMAX 24
+        O_SPLINE 6
+      &END EWALD
+    &END POISSON
+  &END MM
+  &QMMM
+    MM_POTENTIAL_FILE_NAME ../MM_POTENTIAL
+    &CELL
+      ABC 10.0 10.0 10.0
+    &END CELL
+    ECOUPL GAUSS
+    NOCOMPATIBILITY
+    &INTERPOLATOR
+      EPS_R 1.0e-14
+      EPS_X 1.0e-14
+      MAXITER 100
+    &END INTERPOLATOR
+    &LINK
+      ALPHA 1.50
+      FIST_SCALE_FACTOR 0.0
+      LINK_TYPE IMOMM
+      MM_INDEX 11
+      QM_INDEX 14
+      QMMM_SCALE_FACTOR 0.0
+      RADIUS 0.80
+    &END LINK
+    &LINK
+      ALPHA 1.50
+      FIST_SCALE_FACTOR 0.0
+      LINK_TYPE IMOMM
+      MM_INDEX 26
+      QM_INDEX 23
+      QMMM_SCALE_FACTOR 0.0
+      RADIUS 0.80
+    &END LINK
+    &MM_KIND CTL2
+      RADIUS 0.78
+    &END MM_KIND
+    &MM_KIND CTL3
+      RADIUS 0.78
+    &END MM_KIND
+    &MM_KIND HAL2
+      RADIUS 0.78
+    &END MM_KIND
+    &MM_KIND HAL3
+      RADIUS 0.78
+    &END MM_KIND
+    &QM_KIND C
+      MM_INDEX 14 17 20 23
+    &END QM_KIND
+    &QM_KIND H
+      MM_INDEX 15 16 18 19 21 22 24 25
+    &END QM_KIND
+  # 
+  # QM_KINDS
+  # 
+  # 
+  # MM_KINDS
+  # 
+  # 
+  # LINKS
+  # 
+  # 
+  &END QMMM
+  &SUBSYS
+    &CELL
+      ABC 15.0 15.0 15.0
+    &END CELL
+    &KIND H
+      BASIS_SET SZV-MOLOPT-GTH
+      POTENTIAL GTH-PADE-q1
+      LRI_BASIS_SET LRI_SZV-GTH
+    &END KIND
+    &KIND C
+      BASIS_SET SZV-MOLOPT-GTH
+      POTENTIAL GTH-PADE-q4
+      LRI_BASIS_SET LRI_SZV-GTH
+    &END KIND
+    &TOPOLOGY
+      CHARGE_BETA
+      COORD_FILE_NAME ../sample_pdb/C11H24.pdb
+      COORDINATE pdb
+    &END TOPOLOGY
+  &END SUBSYS
+&END FORCE_EVAL
+&GLOBAL
+  PROJECT C11H24-qmmm-gauss-0-lrigpw
+  PRINT_LEVEL MEDIUM
+  RUN_TYPE ENERGY_FORCE
+&END GLOBAL
