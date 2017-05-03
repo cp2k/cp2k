@@ -182,6 +182,13 @@ MODULE message_passing
    PUBLIC :: mp_type_indexed_make_r, mp_type_indexed_make_d, &
              mp_type_indexed_make_c, mp_type_indexed_make_z
 
+   ! More I/O types and routines: variable spaced data using bytes for spacings
+   PUBLIC :: mp_file_descriptor_type
+   PUBLIC :: mp_file_type_free
+   PUBLIC :: mp_file_type_hindexed_make_chv
+   PUBLIC :: mp_file_type_set_view_chv
+   PUBLIC :: mp_file_read_all_chv
+
    PUBLIC :: mp_get_library_version
 
    ! assumed to be private
@@ -631,6 +638,19 @@ MODULE message_passing
       LOGICAL :: has_indexing
       TYPE(mp_indexing_meta_type) :: index_descriptor
    END TYPE mp_type_descriptor_type
+
+   TYPE mp_file_indexing_meta_type
+      INTEGER, DIMENSION(:), POINTER   :: index
+      INTEGER(kind=file_offset), &
+         DIMENSION(:), POINTER         :: chunks
+   END TYPE mp_file_indexing_meta_type
+
+   TYPE mp_file_descriptor_type
+      INTEGER                          :: type_handle
+      INTEGER                          :: length
+      LOGICAL                          :: has_indexing = .FALSE.
+      TYPE(mp_file_indexing_meta_type) :: index_descriptor
+   END TYPE
 
    ! type internally used to store message passing performance indicators
 ! **************************************************************************************************
@@ -3600,6 +3620,170 @@ CONTAINS
       ENDDO
 
    END SUBROUTINE mp_type_free_v
+
+! **************************************************************************************************
+!> \brief Creates an indexed MPI type for arrays of strings using bytes for spacing (hindexed type)
+!> \param count   number of array blocks to read
+!> \param lengths lengths of each array block
+!> \param displs  byte offsets for array blocks
+!> \retval type_descriptor container holding the created type
+!> \author Nico Holmberg [05.2017]
+! **************************************************************************************************
+   FUNCTION mp_file_type_hindexed_make_chv(count, lengths, displs) &
+      RESULT(type_descriptor)
+      INTEGER, INTENT(IN)                       :: count
+      INTEGER, DIMENSION(1:count), &
+         INTENT(IN), TARGET                     :: lengths
+      INTEGER(kind=file_offset), &
+         DIMENSION(1:count), INTENT(in), TARGET :: displs
+      TYPE(mp_file_descriptor_type)             :: type_descriptor
+
+      CHARACTER(len=*), PARAMETER :: routineN = 'mp_file_hindexed_make_chv', &
+         routineP = moduleN//':'//routineN
+
+      INTEGER :: ierr, handle
+
+      ierr = 0
+      CALL mp_timeset(routineN,handle)
+      type_descriptor%type_handle = 0
+
+#if defined(__parallel)
+      CALL MPI_Type_create_hindexed(count, lengths, displs, MPI_CHARACTER, &
+                                    type_descriptor%type_handle, ierr)
+      IF (ierr /= 0)&
+         CPABORT("MPI_Type_create_hindexed @ "//routineN)
+      CALL MPI_Type_commit(type_descriptor%type_handle, ierr)
+      IF (ierr /= 0)&
+         CPABORT("MPI_Type_commit @ "//routineN)
+#else
+      type_descriptor%type_handle = 68
+#endif
+      type_descriptor%length = count
+      type_descriptor%has_indexing = .TRUE.
+      type_descriptor%index_descriptor%index => lengths
+      type_descriptor%index_descriptor%chunks => displs
+
+      CALL mp_timestop(handle)
+
+   END FUNCTION mp_file_type_hindexed_make_chv
+
+! **************************************************************************************************
+!> \brief Uses a previously created indexed MPI character type to tell the MPI processes
+!>        how to partition (set_view) an opened file
+!> \param fh      the file handle associated with the input file
+!> \param offset  global offset determing where the relevant data begins
+!> \param type_descriptor container for the MPI type
+!> \author Nico Holmberg [05.2017]
+! **************************************************************************************************
+   SUBROUTINE mp_file_type_set_view_chv(fh, offset, type_descriptor)
+      INTEGER, INTENT(IN)                      :: fh
+      INTEGER(kind=file_offset), INTENT(IN)    :: offset
+      TYPE(mp_file_descriptor_type)            :: type_descriptor
+
+      CHARACTER(len=*), PARAMETER :: routineN = 'mp_file_set_view_chv', &
+         routineP = moduleN//':'//routineN
+
+      INTEGER :: ierr, handle
+
+      ierr = 0
+      CALL mp_timeset(routineN,handle)
+
+#if defined(__parallel)
+      CALL MPI_File_set_view(fh, offset, MPI_CHARACTER, &
+                             type_descriptor%type_handle, "native", MPI_INFO_NULL, ierr)
+      IF (ierr /= 0)&
+         CPABORT("MPI_File_set_view @ "//routineN)
+#else
+      ! Uses absolute offsets stored in mp_file_descriptor_type
+      MARK_USED(fh)
+      MARK_USED(offset)
+#endif
+
+      CALL mp_timestop(handle)
+
+  END SUBROUTINE mp_file_type_set_view_chv
+
+! **************************************************************************************************
+!> \brief (parallel) Collective, blocking read of a character array from a file. File access pattern
+!                    determined by a previously set file view.
+!>        (serial)   Unformatted stream read using explicit offsets
+!> \param fh     the file handle associated with the input file
+!> \param msglen the message length of an individual vector component
+!> \param ndims  the number of vector components
+!> \param buffer the buffer where the data is placed
+!> \param type_descriptor container for the MPI type
+!> \author Nico Holmberg [05.2017]
+! **************************************************************************************************
+   SUBROUTINE mp_file_read_all_chv(fh, msglen, ndims, buffer, type_descriptor)
+      INTEGER, INTENT(IN)                       :: fh
+      INTEGER, INTENT(IN)                       :: msglen
+      INTEGER, INTENT(IN)                       :: ndims
+      CHARACTER(LEN=msglen), DIMENSION(ndims)   :: buffer
+      TYPE(mp_file_descriptor_type), &
+         INTENT(IN), OPTIONAL                   :: type_descriptor
+
+      CHARACTER(len=*), PARAMETER :: routineN = 'mp_file_read_all_chv', &
+         routineP = moduleN//':'//routineN
+
+      INTEGER                                   :: ierr, handle, i
+
+      ierr = 0
+      CALL mp_timeset(routineN,handle)
+
+#if defined(__parallel)
+      MARK_USED(type_descriptor)
+      CALL MPI_File_read_all(fh, buffer, ndims*msglen, MPI_CHARACTER, MPI_STATUS_IGNORE, ierr)
+      IF (ierr /= 0)&
+         CPABORT("MPI_File_read_all @ "//routineN)
+#else
+      IF (.NOT. PRESENT(type_descriptor)) &
+         CALL cp_abort(__LOCATION__, &
+                       "Container for mp_file_descriptor_type must be present in serial call.")
+      IF (.NOT. type_descriptor%has_indexing) &
+         CALL cp_abort(__LOCATION__, &
+                       "File view has not been set in mp_file_descriptor_type.")
+      ! Use explicit offsets
+      DO i = 1, ndims
+         READ(fh, POS=type_descriptor%index_descriptor%chunks(i)) buffer(i)
+      END DO
+#endif
+
+      CALL mp_timestop(handle)
+
+   END SUBROUTINE mp_file_read_all_chv
+
+! **************************************************************************************************
+!> \brief Releases the type used for MPI I/O
+!> \param type_descriptor the container for the MPI type
+!> \author Nico Holmberg [05.2017]
+! **************************************************************************************************
+   SUBROUTINE mp_file_type_free(type_descriptor)
+      TYPE(mp_file_descriptor_type)             :: type_descriptor
+
+      CHARACTER(len=*), PARAMETER :: routineN = 'mp_file_type_free', &
+         routineP = moduleN//':'//routineN
+
+      INTEGER                                   :: ierr, handle
+
+      ierr = 0
+      CALL mp_timeset(routineN,handle)
+
+#if defined(__parallel)
+      CALL MPI_Type_free(type_descriptor%type_handle, ierr)
+      IF (ierr /= 0)&
+         CPABORT("MPI_Type_free @ "//routineN)
+#endif
+      type_descriptor%length = -1
+      type_descriptor%type_handle = -1
+      IF (type_descriptor%has_indexing) THEN
+         NULLIFY (type_descriptor%index_descriptor%index)
+         NULLIFY (type_descriptor%index_descriptor%chunks)
+         type_descriptor%has_indexing = .FALSE.
+      END IF
+
+      CALL mp_timestop(handle)
+
+   END SUBROUTINE mp_file_type_free
 
 ! **************************************************************************************************
 !> \brief Non-blocking send of custom type

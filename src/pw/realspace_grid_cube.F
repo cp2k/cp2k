@@ -11,11 +11,10 @@ MODULE realspace_grid_cube
                                               open_file
    USE cp_log_handling,                 ONLY: cp_logger_get_default_io_unit
    USE kinds,                           ONLY: dp
-   USE message_passing,                 ONLY: mp_maxloc,&
-                                              mp_recv,&
-                                              mp_send,&
-                                              mp_sum,&
-                                              mp_sync
+   USE message_passing,                 ONLY: &
+        file_amode_rdonly, file_offset, mp_bcast, mp_file_close, mp_file_descriptor_type, &
+        mp_file_open, mp_file_read_all_chv, mp_file_type_free, mp_file_type_hindexed_make_chv, &
+        mp_file_type_set_view_chv, mp_maxloc, mp_recv, mp_send, mp_sum, mp_sync, mpi_character_size
    USE pw_grid_types,                   ONLY: PW_MODE_LOCAL
    USE pw_types,                        ONLY: pw_type
 #include "../base/base_uses.f90"
@@ -27,6 +26,7 @@ MODULE realspace_grid_cube
    PUBLIC :: pw_to_cube, cube_to_pw
 
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'realspace_grid_cube'
+   LOGICAL, PARAMETER, PRIVATE          :: debug_this_module = .FALSE.
 
 CONTAINS
 
@@ -206,8 +206,9 @@ CONTAINS
 !> \param grid     pw to read from cube file
 !> \param filename name of cube file
 !> \param scaling  scale values before storing
-!> \date   01.2014
-!> \author M.Watkins
+!> \par History
+!>      Created [M.Watkins] (01.2014)
+!>      Use blocking, collective MPI read for parallel simulations [Nico Holmberg] (05.2017)
 ! **************************************************************************************************
    SUBROUTINE cube_to_pw(grid, filename, scaling)
 
@@ -216,18 +217,167 @@ CONTAINS
       REAL(kind=dp), INTENT(in)                          :: scaling
 
       CHARACTER(len=*), PARAMETER :: routineN = 'cube_to_pw', routineP = moduleN//':'//routineN
+      INTEGER, PARAMETER                                 :: entry_len = 13, num_entries_line = 6
 
       INTEGER                                            :: extunit, gid, handle, i, ip, j, k, &
-                                                            master, my_rank, nat, ndum, num_pe, &
-                                                            output_unit, tag
+                                                            master, msglen, my_rank, nat, ndum, &
+                                                            num_linebreak, num_pe, output_unit, &
+                                                            size_of_z, tag
       INTEGER, DIMENSION(3)                              :: lbounds, lbounds_local, npoints, &
                                                             npoints_local, ubounds, ubounds_local
+      LOGICAL                                            :: parallel_read
       REAL(kind=dp), ALLOCATABLE, DIMENSION(:)           :: buffer
       REAL(kind=dp), DIMENSION(3)                        :: dr, rdum
 
       output_unit = cp_logger_get_default_io_unit()
 
       CALL timeset(routineN, handle)
+
+      parallel_read = .TRUE.
+
+      !get rs grids and parallel envnment
+      gid = grid%pw_grid%para%group
+      my_rank = grid%pw_grid%para%my_pos
+      num_pe = grid%pw_grid%para%group_size
+      tag = 1
+
+      ! Parallel routine falls back to stream read in serial mode,
+      ! but it has slight overhead compared to sequential read
+      ! Therefore, we use sequential version in serial mode
+      IF (num_pe == 1) parallel_read = .FALSE.
+
+      lbounds_local = grid%pw_grid%bounds_local(1, :)
+      ubounds_local = grid%pw_grid%bounds_local(2, :)
+      size_of_z = ubounds_local(3)-lbounds_local(3)+1
+
+      IF (.NOT. parallel_read) THEN
+         npoints = grid%pw_grid%npts
+         lbounds = grid%pw_grid%bounds(1, :)
+         ubounds = grid%pw_grid%bounds(2, :)
+
+         DO i = 1, 3
+            dr(i) = grid%pw_grid%dh(i, i)
+         END DO
+
+         npoints_local = grid%pw_grid%npts_local
+         !pw grids at most pencils - all processors have a full set of z data for x,y
+         ALLOCATE (buffer(lbounds(3):ubounds(3)))
+
+         IF (my_rank == 0) THEN
+            IF (output_unit > 0) THEN
+               WRITE (output_unit, FMT="(/,(T3,A,T61,A30))") "Reading the cube file:     ", filename
+            END IF
+
+            CALL open_file(file_name=filename, &
+                           file_status="OLD", &
+                           file_form="FORMATTED", &
+                           file_action="READ", &
+                           unit_number=extunit)
+
+            !skip header comments
+            DO i = 1, 2
+               READ (extunit, *)
+            ENDDO
+            READ (extunit, *) nat, rdum
+            DO i = 1, 3
+               READ (extunit, *) ndum, rdum
+               IF ((ndum /= npoints(i) .OR. (ABS(rdum(i)-dr(i)) > 1e-4)) .AND. &
+                   output_unit > 0) THEN
+                  WRITE (output_unit, *) "Restart from density | ERROR! | CUBE FILE NOT COINCIDENT WITH INTERNAL GRID ", i
+                  WRITE (output_unit, *) "Restart from density | ", ndum, " DIFFERS FROM ", npoints(i)
+                  WRITE (output_unit, *) "Restart from density | ", rdum, " DIFFERS FROM ", dr(i)
+               ENDIF
+            ENDDO
+            !ignore atomic postion data - read from coord or topology instead
+            DO i = 1, nat
+               READ (extunit, *)
+            ENDDO
+         ENDIF
+
+         !master sends all data to everyone
+         DO i = lbounds(1), ubounds(1)
+            DO j = lbounds(2), ubounds(2)
+               IF (my_rank .EQ. 0) THEN
+                  READ (extunit, *) (buffer(k), k=lbounds(3), ubounds(3))
+                  IF (num_pe .GT. 1) THEN
+                     DO ip = 1, num_pe-1
+                        CALL mp_send(buffer(lbounds(3):ubounds(3)), ip, tag, gid)
+                     ENDDO
+                  ENDIF
+               ELSE
+                  master = 0
+                  CALL mp_recv(buffer(lbounds(3):ubounds(3)), master, tag, gid)
+               ENDIF
+               CALL mp_sync(gid)
+
+               !only use data that is local to me - i.e. in slice of pencil I own
+               IF ((lbounds_local(1) .LE. i) .AND. (i .LE. ubounds_local(1)) .AND. (lbounds_local(2) .LE. j) &
+                   .AND. (j .LE. ubounds_local(2))) THEN
+                  !allow scaling of external potential values by factor 'scaling' (SCALING_FACTOR in input file)
+                  grid%cr3d(i, j, lbounds(3):ubounds(3)) = buffer(lbounds(3):ubounds(3))*scaling
+               ENDIF
+
+            ENDDO
+         ENDDO
+
+         IF (my_rank == 0) CALL close_file(unit_number=extunit)
+
+         CALL mp_sync(gid)
+      ELSE
+         ! Parallel routine needs as input the byte size of each grid z-slice
+         ! This is a hack to prevent compilation errors with gcc -Wall (upto versions 6.3)
+         ! related to allocatable-length string declaration CHARACTER(LEN=:), ALLOCATABLE, DIMENSION(:) :: string
+         ! Each data line of a Gaussian cube contains max 6 entries with last line potentially containing less if nz % 6 /= 0
+         ! Thus, this size is simply the number of entries multiplied by the entry size + the number of line breaks
+         num_linebreak = size_of_z/num_entries_line
+         IF (MODULO(size_of_z, num_entries_line) /= 0) &
+            num_linebreak = num_linebreak+1
+         msglen = (size_of_z*entry_len+num_linebreak)*mpi_character_size
+         CALL cube_to_pw_parallel(grid, filename, scaling, msglen)
+      END IF
+
+      CALL timestop(handle)
+
+   END SUBROUTINE cube_to_pw
+
+! **************************************************************************************************
+!> \brief Reads a realspace potential/density from a cube file using collective MPI I/O and
+!>        stores it in grid.
+!> \param grid     pw to read from cube file
+!> \param filename name of cube file
+!> \param scaling  scale values before storing
+!> \param msglen   the size of each grid slice along z-axis in bytes
+!> \par History
+!>      Created [Nico Holmberg] (05.2017)
+! **************************************************************************************************
+   SUBROUTINE cube_to_pw_parallel(grid, filename, scaling, msglen)
+
+      TYPE(pw_type), POINTER                             :: grid
+      CHARACTER(len=*), INTENT(in)                       :: filename
+      REAL(kind=dp), INTENT(in)                          :: scaling
+      INTEGER, INTENT(in)                                :: msglen
+
+      CHARACTER(len=*), PARAMETER :: routineN = 'cube_to_pw_parallel', &
+         routineP = moduleN//':'//routineN
+      INTEGER, PARAMETER                                 :: entry_len = 13, num_entries_line = 6
+
+      INTEGER, DIMENSION(3)                              :: lbounds, lbounds_local, npoints, &
+                                                            npoints_local, ubounds, ubounds_local
+      INTEGER, ALLOCATABLE, DIMENSION(:), TARGET         :: blocklengths
+      INTEGER(kind=file_offset), ALLOCATABLE, &
+         DIMENSION(:), TARGET                            :: displacements
+      INTEGER(kind=file_offset)                          :: BOF
+      INTEGER                                            :: extunit, gid, i, ip, islice, j, k, &
+                                                            master, my_rank, nat, ndum, nslices, &
+                                                            num_pe, offset_global, output_unit, &
+                                                            size_of_z, tag
+      CHARACTER(LEN=msglen), ALLOCATABLE, DIMENSION(:)   :: readbuffer
+      LOGICAL                                            :: should_read(2)
+      REAL(kind=dp), ALLOCATABLE, DIMENSION(:)           :: buffer
+      REAL(kind=dp), DIMENSION(3)                        :: dr, rdum
+      TYPE(mp_file_descriptor_type)                      :: mp_file_type
+
+      output_unit = cp_logger_get_default_io_unit()
 
       !get rs grids and parallel envnment
       gid = grid%pw_grid%para%group
@@ -246,10 +396,11 @@ CONTAINS
       npoints_local = grid%pw_grid%npts_local
       lbounds_local = grid%pw_grid%bounds_local(1, :)
       ubounds_local = grid%pw_grid%bounds_local(2, :)
+      size_of_z = ubounds_local(3)-lbounds_local(3)+1
+      nslices = (ubounds_local(1)-lbounds_local(1)+1)*(ubounds_local(2)-lbounds_local(2)+1)
+      islice = 1
 
-      !pw grids at most pencils - all processors have a full set of z data for x,y
-      ALLOCATE (buffer(lbounds(3):ubounds(3)))
-
+      ! Read header information and determine byte offset of cube data on master process
       IF (my_rank == 0) THEN
          IF (output_unit > 0) THEN
             WRITE (output_unit, FMT="(/,(T3,A,T61,A30))") "Reading the cube file:     ", filename
@@ -259,6 +410,7 @@ CONTAINS
                         file_status="OLD", &
                         file_form="FORMATTED", &
                         file_action="READ", &
+                        file_access="STREAM", &
                         unit_number=extunit)
 
          !skip header comments
@@ -279,40 +431,136 @@ CONTAINS
          DO i = 1, nat
             READ (extunit, *)
          ENDDO
+         ! Get byte offset
+         INQUIRE (extunit, POS=offset_global)
+         CALL close_file(unit_number=extunit)
       ENDIF
-
-      !master sends all data to everyone
+      ! Sync offset and start parallel read
+      CALL mp_bcast(offset_global, grid%pw_grid%para%group_head_id, gid)
+      BOF = offset_global
+      CALL mp_file_open(groupid=gid, fh=extunit, filepath=filename, amode_status=file_amode_rdonly)
+      ! Determine byte offsets for each grid z-slice which are local to a process
+      ALLOCATE (displacements(nslices))
+      displacements = 0
       DO i = lbounds(1), ubounds(1)
+         should_read(:) = .TRUE.
+         IF (i .LT. lbounds_local(1)) THEN
+            should_read(1) = .FALSE.
+         ELSE IF (i .GT. ubounds_local(1)) THEN
+            EXIT
+         END IF
          DO j = lbounds(2), ubounds(2)
-            IF (my_rank .EQ. 0) THEN
-               READ (extunit, *) (buffer(k), k=lbounds(3), ubounds(3))
-               IF (num_pe .GT. 1) THEN
-                  DO ip = 1, num_pe-1
-                     CALL mp_send(buffer(lbounds(3):ubounds(3)), ip, tag, gid)
-                  ENDDO
+            should_read(2) = .TRUE.
+            IF (j .LT. lbounds_local(2) .OR. j .GT. ubounds_local(2)) THEN
+               should_read(2) = .FALSE.
+            END IF
+            IF (ALL(should_read .EQV. .TRUE.)) THEN
+               IF (islice > nslices) CPABORT("Index out of bounds.")
+               displacements(islice) = BOF
+               islice = islice+1
+            END IF
+            ! Update global byte offset
+            BOF = BOF+msglen
+         END DO
+      END DO
+      ! Size of each z-slice is msglen
+      ALLOCATE (blocklengths(nslices))
+      blocklengths(:) = msglen
+      ! Create indexed MPI type using calculated byte offsets as displacements and use it as a file view
+      mp_file_type = mp_file_type_hindexed_make_chv(nslices, blocklengths, displacements)
+      BOF = 0
+      CALL mp_file_type_set_view_chv(extunit, BOF, mp_file_type)
+      ! Collective read of cube
+      ALLOCATE (readbuffer(nslices))
+      readbuffer(:) = ''
+      CALL mp_file_read_all_chv(extunit, msglen, nslices, readbuffer, mp_file_type)
+      CALL mp_file_type_free(mp_file_type)
+      CALL mp_file_close(extunit)
+      ! Convert cube values string -> real
+      i = lbounds_local(1)
+      j = lbounds_local(2)
+      ALLOCATE (buffer(lbounds(3):ubounds(3)))
+      buffer = 0.0_dp
+      DO islice = 1, nslices
+         READ (readbuffer(islice), *) (buffer(k), k=lbounds(3), ubounds(3))
+         ! Optionally scale cube file values
+         grid%cr3d(i, j, lbounds(3):ubounds(3)) = scaling*buffer(lbounds(3):ubounds(3))
+         j = j+1
+         IF (j > ubounds_local(2)) THEN
+            j = lbounds_local(2)
+            i = i+1
+         END IF
+      END DO
+      DEALLOCATE (readbuffer)
+      DEALLOCATE (blocklengths, displacements)
+      IF (debug_this_module) THEN
+         ! Check that cube was correctly read using intrinsic read on master who sends data to everyone
+         buffer = 0.0_dp
+         IF (my_rank == 0) THEN
+            IF (output_unit > 0) THEN
+               WRITE (output_unit, FMT="(/,(T3,A,T61,A30))") "Reading the cube file:     ", filename
+            END IF
+
+            CALL open_file(file_name=filename, &
+                           file_status="OLD", &
+                           file_form="FORMATTED", &
+                           file_action="READ", &
+                           unit_number=extunit)
+
+            !skip header comments
+            DO i = 1, 2
+               READ (extunit, *)
+            ENDDO
+            READ (extunit, *) nat, rdum
+            DO i = 1, 3
+               READ (extunit, *) ndum, rdum
+               IF ((ndum /= npoints(i) .OR. (ABS(rdum(i)-dr(i)) > 1e-4)) .AND. &
+                   output_unit > 0) THEN
+                  WRITE (output_unit, *) "Restart from density | ERROR! | CUBE FILE NOT COINCIDENT WITH INTERNAL GRID ", i
+                  WRITE (output_unit, *) "Restart from density | ", ndum, " DIFFERS FROM ", npoints(i)
+                  WRITE (output_unit, *) "Restart from density | ", rdum, " DIFFERS FROM ", dr(i)
                ENDIF
-            ELSE
-               master = 0
-               CALL mp_recv(buffer(lbounds(3):ubounds(3)), master, tag, gid)
-            ENDIF
-            CALL mp_sync(gid)
+            ENDDO
+            !ignore atomic postion data - read from coord or topology instead
+            DO i = 1, nat
+               READ (extunit, *)
+            ENDDO
+         ENDIF
 
-            !only use data that is local to me - i.e. in slice of pencil I own
-            IF ((lbounds_local(1) .LE. i) .AND. (i .LE. ubounds_local(1)) .AND. (lbounds_local(2) .LE. j) &
-                .AND. (j .LE. ubounds_local(2))) THEN
-               !allow scaling of external potential values by factor 'scaling' (SCALING_FACTOR in input file)
-               grid%cr3d(i, j, lbounds(3):ubounds(3)) = buffer(lbounds(3):ubounds(3))*scaling
-            ENDIF
+         !master sends all data to everyone
+         DO i = lbounds(1), ubounds(1)
+            DO j = lbounds(2), ubounds(2)
+               IF (my_rank .EQ. 0) THEN
+                  READ (extunit, *) (buffer(k), k=lbounds(3), ubounds(3))
+                  IF (num_pe .GT. 1) THEN
+                     DO ip = 1, num_pe-1
+                        CALL mp_send(buffer(lbounds(3):ubounds(3)), ip, tag, gid)
+                     ENDDO
+                  ENDIF
+               ELSE
+                  master = 0
+                  CALL mp_recv(buffer(lbounds(3):ubounds(3)), master, tag, gid)
+               ENDIF
+               CALL mp_sync(gid)
 
+               !only use data that is local to me - i.e. in slice of pencil I own
+               IF ((lbounds_local(1) .LE. i) .AND. (i .LE. ubounds_local(1)) .AND. (lbounds_local(2) .LE. j) &
+                   .AND. (j .LE. ubounds_local(2))) THEN
+                  !allow scaling of external potential values by factor 'scaling' (SCALING_FACTOR in input file)
+                  IF (ANY(grid%cr3d(i, j, lbounds(3):ubounds(3)) /= buffer(lbounds(3):ubounds(3))*scaling)) &
+                     CALL cp_abort(__LOCATION__, &
+                                   "Error in parallel read of input cube file.")
+               ENDIF
+
+            ENDDO
          ENDDO
-      ENDDO
 
-      IF (my_rank == 0) CALL close_file(unit_number=extunit)
+         IF (my_rank == 0) CALL close_file(unit_number=extunit)
 
-      CALL mp_sync(gid)
+         CALL mp_sync(gid)
+      END IF
+      DEALLOCATE (buffer)
 
-      CALL timestop(handle)
-
-   END SUBROUTINE cube_to_pw
+   END SUBROUTINE cube_to_pw_parallel
 
 END MODULE realspace_grid_cube

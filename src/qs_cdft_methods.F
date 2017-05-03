@@ -866,7 +866,6 @@ CONTAINS
             CALL get_qs_env(qs_env, pw_env=pw_env)
             CALL pw_env_get(pw_env, auxbas_pw_pool=auxbas_pw_pool)
             ! Read fragment reference densities
-            ! This step can be very slow if the rs_grid is dense
             ! Total density (rho_alpha + rho_beta)
             CALL pw_pool_create_pw(auxbas_pw_pool, becke_control%fragments(1, 1)%pw, &
                                    use_data=REALDATA3D, in_space=REALSPACE)

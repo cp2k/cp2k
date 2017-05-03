@@ -307,11 +307,12 @@ CONTAINS
 !> \param unit_number ...
 !> \param debug ...
 !> \param skip_get_unit_number ...
+!> \param file_access file access mode
 !> \author Matthias Krack (MK)
 ! **************************************************************************************************
    SUBROUTINE open_file(file_name, file_status, file_form, file_action, &
                         file_position, file_pad, unit_number, debug, &
-                        skip_get_unit_number)
+                        skip_get_unit_number, file_access)
 
       CHARACTER(LEN=*), INTENT(IN)                       :: file_name
       CHARACTER(LEN=*), INTENT(IN), OPTIONAL             :: file_status, file_form, file_action, &
@@ -319,6 +320,7 @@ CONTAINS
       INTEGER, INTENT(INOUT)                             :: unit_number
       INTEGER, INTENT(IN), OPTIONAL                      :: debug
       LOGICAL, INTENT(IN), OPTIONAL                      :: skip_get_unit_number
+      CHARACTER(LEN=*), INTENT(IN), OPTIONAL             :: file_access
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'open_file', routineP = moduleN//':'//routineN
 
@@ -329,7 +331,11 @@ CONTAINS
       INTEGER                                            :: debug_unit, istat
       LOGICAL                                            :: exists, get_a_new_unit, is_open
 
-      access_string = "SEQUENTIAL"
+      IF (PRESENT(file_access)) THEN
+         access_string = TRIM(file_access)
+      ELSE
+         access_string = "SEQUENTIAL"
+      END IF
 
       IF (PRESENT(file_status)) THEN
          status_string = TRIM(file_status)
