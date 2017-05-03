@@ -3697,6 +3697,7 @@ CONTAINS
       ! Uses absolute offsets stored in mp_file_descriptor_type
       MARK_USED(fh)
       MARK_USED(offset)
+      MARK_USED(type_descriptor)
 #endif
 
       CALL mp_timestop(handle)
@@ -3737,6 +3738,8 @@ CONTAINS
       IF (ierr /= 0)&
          CPABORT("MPI_File_read_all @ "//routineN)
 #else
+      MARK_USED(msglen)
+      MARK_USED(ndims)
       IF (.NOT. PRESENT(type_descriptor)) &
          CALL cp_abort(__LOCATION__, &
                        "Container for mp_file_descriptor_type must be present in serial call.")
