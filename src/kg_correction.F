@@ -15,7 +15,8 @@ MODULE kg_correction
                                               dbcsr_p_type,&
                                               dbcsr_trace
    USE input_constants,                 ONLY: kg_tnadd_atomic,&
-                                              kg_tnadd_embed
+                                              kg_tnadd_embed,&
+                                              kg_tnadd_none
    USE kg_environment_types,            ONLY: kg_environment_type
    USE kinds,                           ONLY: dp
    USE pw_env_types,                    ONLY: pw_env_get,&
@@ -82,6 +83,8 @@ CONTAINS
 
          CALL kg_ekin_atomic(qs_env, ks_matrix, ekin_mol)
 
+      ELSE IF (kg_env%tnadd_method == kg_tnadd_none) THEN
+         ekin_mol = 0.0_dp
       ELSE
          CPABORT("")
       END IF

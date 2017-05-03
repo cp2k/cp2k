@@ -661,7 +661,7 @@ CONTAINS
 
       NULLIFY (keyword)
       CALL keyword_create(keyword, name="LAMBDA", &
-                          description="Specifies the lambda parameter of the collective variable in the"// &
+     description="Specifies the lambda parameter for the coupling of the collective variable with the system coordinates in the"// &
                           " extended lagrangian scheme.", &
                           usage="LAMBDA <REAL>", unit_str='internal_cp2k', type_of_var=real_t)
       CALL section_add_keyword(section, keyword)

@@ -195,6 +195,7 @@ CONTAINS
          IF (ASSOCIATED(kg_env%ec_env%dispersion_env)) THEN
             CALL qs_dispersion_release(kg_env%ec_env%dispersion_env)
          END IF
+         CALL section_vals_release(kg_env%ec_env%xc_section)
       END IF
 
       DEALLOCATE (kg_env)

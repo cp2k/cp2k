@@ -32,6 +32,7 @@ MODULE kg_environment
    USE input_constants,                 ONLY: kg_ec_functional_harris,&
                                               kg_tnadd_atomic,&
                                               kg_tnadd_embed,&
+                                              kg_tnadd_none,&
                                               xc_funct_no_shortcut,&
                                               xc_vdw_fun_nonloc,&
                                               xc_vdw_fun_pairpot
@@ -156,6 +157,7 @@ CONTAINS
       NULLIFY (kg_env%ec_env%task_list)
       NULLIFY (kg_env%ec_env%mao_coef)
       NULLIFY (kg_env%ec_env%dispersion_env)
+      NULLIFY (kg_env%ec_env%xc_section)
 
       kg_env%ec_env%mao = .FALSE.
 
@@ -255,7 +257,7 @@ CONTAINS
 
          ELSE
             kg_env%ec_env%xc_section => xc_section
-            CPABORT("KG energy correction with full embedding requires a special XC section")
+ CPABORT("KG energy correction with full embedding requires a special XC section. There should be no KE functional in this section")
 !          CALL cp_assert(kg_env%tnadd_method /= kg_tnadd_embed, cp_fatal_level, cp_assertion_failed, routineP, &
 !          "KG energy correction with full embedding requires a special XC section "// &
 !          "in the ENERGY_CORRECTION section. There should be no KE functional in this section.")
@@ -363,6 +365,8 @@ CONTAINS
          CALL section_vals_release(xc_fun_section_kg)
 
       ELSEIF (kg_env%tnadd_method == kg_tnadd_atomic) THEN
+         NULLIFY (kg_env%xc_section_kg)
+      ELSEIF (kg_env%tnadd_method == kg_tnadd_none) THEN
          NULLIFY (kg_env%xc_section_kg)
       ELSE
          CPABORT("")

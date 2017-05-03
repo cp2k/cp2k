@@ -96,6 +96,7 @@ MODULE qs_scf_post_gpw
    USE mao_wfn_analysis,                ONLY: mao_analysis
    USE mathconstants,                   ONLY: pi,&
                                               twopi
+   USE memory_utilities,                ONLY: reallocate
    USE message_passing,                 ONLY: mp_sum
    USE minbas_wfn_analysis,             ONLY: minbas_analysis
    USE molden_utils,                    ONLY: write_mos_molden
@@ -1205,7 +1206,9 @@ CONTAINS
          routineP = moduleN//':'//routineN
 
       CHARACTER(LEN=default_path_length)                 :: filename, my_pos_cube, title
-      INTEGER                                            :: handle, ivector, nhomo, unit_nr
+      INTEGER                                            :: handle, i, ir, ivector, n_rep, nhomo, &
+                                                            nlist, unit_nr
+      INTEGER, DIMENSION(:), POINTER                     :: list, list_index
       LOGICAL                                            :: append_cube
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       TYPE(cell_type), POINTER                           :: cell
@@ -1215,6 +1218,8 @@ CONTAINS
 
       CALL timeset(routineN, handle)
 
+      NULLIFY (list_index)
+
       IF (BTEST(cp_print_key_should_output(logger%iter_info, dft_section, "PRINT%MO_CUBES") &
                 , cp_p_file) .AND. section_get_lval(dft_section, "PRINT%MO_CUBES%WRITE_CUBE")) THEN
          nhomo = section_get_ival(dft_section, "PRINT%MO_CUBES%NHOMO")
@@ -1223,8 +1228,32 @@ CONTAINS
          IF (append_cube) THEN
             my_pos_cube = "APPEND"
          END IF
-         IF (nhomo == -1) nhomo = homo
-         DO ivector = MAX(1, homo-nhomo+1), homo
+         CALL section_vals_val_get(dft_section, "PRINT%MO_CUBES%HOMO_LIST", n_rep_val=n_rep)
+         IF (n_rep > 0) THEN ! write the cubes of the list
+            nlist = 0
+            DO ir = 1, n_rep
+               NULLIFY (list)
+               CALL section_vals_val_get(dft_section, "PRINT%MO_CUBES%HOMO_LIST", i_rep_val=ir, &
+                                         i_vals=list)
+               IF (ASSOCIATED(list)) THEN
+                  CALL reallocate(list_index, 1, nlist+SIZE(list))
+                  DO i = 1, SIZE(list)
+                     list_index(i+nlist) = list(i)
+                  END DO
+                  nlist = nlist+SIZE(list)
+               END IF
+            END DO
+         ELSE
+
+            IF (nhomo == -1) nhomo = homo
+            nlist = homo-MAX(1, homo-nhomo+1)+1
+            ALLOCATE (list_index(nlist))
+            DO i = 1, nlist
+               list_index(i) = MAX(1, homo-nhomo+1)+i-1
+            END DO
+         END IF
+         DO i = 1, nlist
+            ivector = list_index(i)
             CALL get_qs_env(qs_env=qs_env, &
                             atomic_kind_set=atomic_kind_set, &
                             qs_kind_set=qs_kind_set, &
@@ -1241,6 +1270,7 @@ CONTAINS
                                stride=section_get_ivals(dft_section, "PRINT%MO_CUBES%STRIDE"))
             CALL cp_print_key_finished_output(unit_nr, logger, input, "DFT%PRINT%MO_CUBES")
          ENDDO
+         IF (ASSOCIATED(list_index)) DEALLOCATE (list_index)
       END IF
 
       CALL timestop(handle)

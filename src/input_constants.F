@@ -962,7 +962,8 @@ MODULE input_constants
                                                kg_color_greedy = 1
    ! kg kinetic energy embedding potential
    INTEGER, PARAMETER, PUBLIC               :: kg_tnadd_embed = 100, &
-                                               kg_tnadd_atomic = 200
+                                               kg_tnadd_atomic = 200, &
+                                               kg_tnadd_none = 300
 
    ! kg energy corrections
    INTEGER, PARAMETER, PUBLIC               :: kg_ec_diagonalization = 1001
