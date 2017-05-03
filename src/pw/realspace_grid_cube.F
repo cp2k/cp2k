@@ -359,7 +359,6 @@ CONTAINS
 
       CHARACTER(len=*), PARAMETER :: routineN = 'cube_to_pw_parallel', &
          routineP = moduleN//':'//routineN
-      INTEGER, PARAMETER                                 :: entry_len = 13, num_entries_line = 6
 
       INTEGER, DIMENSION(3)                              :: lbounds, lbounds_local, npoints, &
                                                             npoints_local, ubounds, ubounds_local
