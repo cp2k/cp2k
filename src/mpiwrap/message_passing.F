@@ -3725,8 +3725,9 @@ CONTAINS
       CHARACTER(len=*), PARAMETER :: routineN = 'mp_file_read_all_chv', &
          routineP = moduleN//':'//routineN
 
-      INTEGER                                   :: ierr, handle, i
+      INTEGER                                   :: ierr, handle i
 
+      i = 0
       ierr = 0
       CALL mp_timeset(routineN,handle)
 
