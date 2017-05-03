@@ -157,7 +157,7 @@ CONTAINS
       CHARACTER(len=default_string_length)               :: msg
       INTEGER                                            :: handle, iat, ibead, idim, idir, ierr, &
                                                             itmp, nrep, prep, stat
-      LOGICAL                                            :: explicit, ltmp, wrong_input
+      LOGICAL                                            :: explicit, ltmp
       REAL(kind=dp)                                      :: dt, mass, omega
       REAL(kind=dp), DIMENSION(3, 2)                     :: seed
       TYPE(cp_subsys_type), POINTER                      :: subsys
@@ -254,6 +254,8 @@ CONTAINS
       CALL section_vals_val_get(pint_section, "Temp", r_val=pint_env%kT)
       CALL section_vals_val_get(pint_section, "T_TOL", &
                                 r_val=pint_env%t_tol)
+
+      CALL section_vals_val_get(pint_section, "HARM_INT", i_val=pint_env%harm_integrator)
 
       ALLOCATE (pint_env%propagator)
       CALL section_vals_val_get(pint_section, "propagator", &
@@ -375,8 +377,17 @@ CONTAINS
                                                          "MOTION%PINT%NORMALMODE")
          CALL normalmode_env_create(pint_env%normalmode_env, &
                                     transform_section, p=pint_env%p, kT=pint_env%kT, propagator=pint_env%propagator%prop_kind)
-         wrong_input = pint_env%nrespa*twopi/(SQRT(pint_env%p/pint_env%normalmode_env%modefactor)*pint_env%kT)/pint_env%dt > 10
-         CPASSERT(wrong_input)
+         IF (para_env%ionode) THEN
+            IF (pint_env%harm_integrator == integrate_numeric) THEN
+               IF (10.0_dp*pint_env%dt/REAL(pint_env%nrespa, dp) > &
+                   twopi/(pint_env%p*SQRT(MAXVAL(pint_env%normalmode_env%lambda))* &
+                          pint_env%normalmode_env%modefactor)) THEN
+                  msg = "PINT WARNING| Number of RESPA steps to small "// &
+                        "to integrate the harmonic springs."
+                  CPWARN(msg)
+               END IF
+            END IF
+         END IF
       END IF
       ALLOCATE (pint_env%mass(pint_env%ndim))
       CALL f_env_add_defaults(f_env_id=pint_env%replicas%f_env_id, &
