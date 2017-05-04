@@ -20,6 +20,7 @@ MODULE qs_energy_init
    USE efield_utils,                    ONLY: calculate_ecore_efield
    USE input_constants,                 ONLY: kg_tnadd_atomic,&
                                               kg_tnadd_embed,&
+                                              kg_tnadd_none,&
                                               outer_scf_hirshfeld_constraint
    USE input_section_types,             ONLY: section_vals_type
    USE kg_environment,                  ONLY: kg_build_neighborlist,&
@@ -195,6 +196,10 @@ CONTAINS
          ELSE IF (qs_env%kg_env%tnadd_method == kg_tnadd_atomic) THEN
             ! build the A-C list for the nonadditive kinetic energy potential
             CALL kg_build_neighborlist(qs_env, sac_kin=qs_env%kg_env%sac_kin)
+         ELSE IF (qs_env%kg_env%tnadd_method == kg_tnadd_none) THEN
+            ! nothing to do
+         ELSE
+            CPABORT("KG:TNADD METHOD")
          END IF
 
       END IF
