@@ -257,7 +257,7 @@ CONTAINS
 
          ELSE
             kg_env%ec_env%xc_section => xc_section
- CPABORT("KG energy correction with full embedding requires a special XC section. There should be no KE functional in this section")
+            CPABORT("KG energy correction needs XC section, with no KE functional")
 !          CALL cp_assert(kg_env%tnadd_method /= kg_tnadd_embed, cp_fatal_level, cp_assertion_failed, routineP, &
 !          "KG energy correction with full embedding requires a special XC section "// &
 !          "in the ENERGY_CORRECTION section. There should be no KE functional in this section.")
