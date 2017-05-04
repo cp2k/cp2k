@@ -56,11 +56,11 @@ MODULE input_cp2k_dft
         general_roks, hf_model, high_spin_roks, history_guess, jacobian_fd1, &
         jacobian_fd1_backward, jacobian_fd1_central, jacobian_fd2, jacobian_fd2_backward, &
         kg_cholesky, kg_color_dsatur, kg_color_greedy, kg_ec_diagonalization, &
-        kg_ec_functional_harris, kg_tnadd_atomic, kg_tnadd_embed, kg_tnadd_none, ls_2pnt, ls_3pnt, ls_gold, &
-        ls_none, mao_basis_ext, mao_basis_orb, mao_basis_prim, mao_projection, mopac_guess, &
-        no_excitations, no_guess, numerical, oe_gllb, oe_lb, oe_none, oe_saop, oe_sic, &
-        op_loc_berry, op_loc_boys, op_loc_pipek, orb_dx2, orb_dxy, orb_dy2, orb_dyz, orb_dz2, &
-        orb_dzx, orb_px, orb_py, orb_pz, orb_s, ot_algo_irac, ot_algo_taylor_or_diag, &
+        kg_ec_functional_harris, kg_tnadd_atomic, kg_tnadd_embed, kg_tnadd_none, ls_2pnt, ls_3pnt, &
+        ls_gold, ls_none, mao_basis_ext, mao_basis_orb, mao_basis_prim, mao_projection, &
+        mopac_guess, no_excitations, no_guess, numerical, oe_gllb, oe_lb, oe_none, oe_saop, &
+        oe_sic, op_loc_berry, op_loc_boys, op_loc_pipek, orb_dx2, orb_dxy, orb_dy2, orb_dyz, &
+        orb_dz2, orb_dzx, orb_px, orb_py, orb_pz, orb_s, ot_algo_irac, ot_algo_taylor_or_diag, &
         ot_chol_irac, ot_lwdn_irac, ot_mini_broyden, ot_mini_cg, ot_mini_diis, ot_mini_sd, &
         ot_poly_irac, ot_precond_full_all, ot_precond_full_kinetic, ot_precond_full_single, &
         ot_precond_full_single_inverse, ot_precond_none, ot_precond_s_inverse, &
