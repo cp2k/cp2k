@@ -27,6 +27,8 @@ MODULE realspace_grid_cube
 
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'realspace_grid_cube'
    LOGICAL, PARAMETER, PRIVATE          :: debug_this_module = .FALSE.
+   LOGICAL, PRIVATE                     :: parses_linebreaks = .FALSE., &
+                                           parse_test = .TRUE.
 
 CONTAINS
 
@@ -359,6 +361,7 @@ CONTAINS
 
       CHARACTER(len=*), PARAMETER :: routineN = 'cube_to_pw_parallel', &
          routineP = moduleN//':'//routineN
+      INTEGER, PARAMETER                                 :: entry_len = 13, num_entries_line = 6
 
       INTEGER, DIMENSION(3)                              :: lbounds, lbounds_local, npoints, &
                                                             npoints_local, ubounds, ubounds_local
@@ -366,11 +369,10 @@ CONTAINS
       INTEGER(kind=file_offset), ALLOCATABLE, &
          DIMENSION(:), TARGET                            :: displacements
       INTEGER(kind=file_offset)                          :: BOF
-      INTEGER                                            :: extunit, gid, i, ip, islice, j, k, &
-                                                            master, my_rank, nat, ndum, nslices, &
-                                                            num_pe, offset_global, output_unit, &
-                                                            size_of_z, tag
+      INTEGER :: extunit, gid, i, ientry, ip, islice, j, k, master, my_rank, nat, ndum, nslices, &
+         num_pe, offset_global, output_unit, pos, readstat, size_of_z, tag
       CHARACTER(LEN=msglen), ALLOCATABLE, DIMENSION(:)   :: readbuffer
+      CHARACTER(LEN=msglen)                              :: tmp
       LOGICAL                                            :: should_read(2)
       REAL(kind=dp), ALLOCATABLE, DIMENSION(:)           :: buffer
       REAL(kind=dp), DIMENSION(3)                        :: dr, rdum
@@ -480,8 +482,39 @@ CONTAINS
       j = lbounds_local(2)
       ALLOCATE (buffer(lbounds(3):ubounds(3)))
       buffer = 0.0_dp
+      ! Test if the compiler supports parsing lines with line breaks in them
+      IF (parse_test) THEN
+         READ (readbuffer(1), *, IOSTAT=readstat) (buffer(k), k=lbounds(3), ubounds(3))
+         IF (readstat == 0) THEN
+            parses_linebreaks = .TRUE.
+         ELSE
+            parses_linebreaks = .FALSE.
+         END IF
+         parse_test = .FALSE.
+         buffer = 0.0_dp
+      END IF
       DO islice = 1, nslices
-         READ (readbuffer(islice), *) (buffer(k), k=lbounds(3), ubounds(3))
+         IF (parses_linebreaks) THEN
+            ! Use list-directed conversion if supported
+            ! Produces faster code, but maybe the latter method could be optimized
+            READ (readbuffer(islice), *) (buffer(k), k=lbounds(3), ubounds(3))
+         ELSE
+            ! Convert values by going through the z-slice one value at a time
+            tmp = readbuffer(islice)
+            pos = 1
+            ientry = 1
+            DO k = lbounds_local(3), ubounds_local(3)
+               IF (MODULO(ientry, num_entries_line) == 0 .OR. k == ubounds_local(3)) THEN
+                  ! Last value on line, dont read line break
+                  READ (tmp(pos:pos+(entry_len-2)), '(E12.5)') buffer(k)
+                  pos = pos+(entry_len+1)
+               ELSE
+                  READ (tmp(pos:pos+(entry_len-1)), '(E13.5)') buffer(k)
+                  pos = pos+entry_len
+               END IF
+               ientry = ientry+1
+            END DO
+         END IF
          ! Optionally scale cube file values
          grid%cr3d(i, j, lbounds(3):ubounds(3)) = scaling*buffer(lbounds(3):ubounds(3))
          j = j+1
