@@ -200,7 +200,7 @@ CONTAINS
 !$OMP          ppl_radius, nexp_lpot, nexp_ppl, alpha_ppl, alpha_lpot, nct_ppl, &
 !$OMP          nct_lpot, cval_ppl, cval_lpot, rac, dac, rbc, dbc, &
 !$OMP          set_radius_a,  rpgfa, force_a, force_b, ppl_fwork, mepos, &
-!$OMP          f0, katom, ppl_work, atom_c, cellind, img, &
+!$OMP          f0, katom, ppl_work, atom_c, cellind, img, ecp_local, &
 !$OMP          nloc, nrloc, aloc, bloc, n_local, a_local, c_local, ldai)
 
       mepos = 0

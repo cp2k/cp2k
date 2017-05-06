@@ -214,7 +214,7 @@ CONTAINS
          CALL neighbor_list_iterator_create(nl_iterator, sap_ppnl, nthread=nthread)
 !$OMP PARALLEL &
 !$OMP DEFAULT (NONE) &
-!$OMP SHARED  (nl_iterator, basis_set, gpotential, maxder, ncoset, &
+!$OMP SHARED  (nl_iterator, basis_set, gpotential, spotential, maxder, ncoset, &
 !$OMP          sap_int, nkind, ldsab, ldai, nder, nco ) &
 !$OMP PRIVATE (mepos, ikind, kkind, iatom, katom, nlist, ilist, nneighbor, jneighbor, &
 !$OMP          cell_c, rac, iac, first_sgfa, la_max, la_min, npgfa, nseta, nsgfa, nsgf_seta, &

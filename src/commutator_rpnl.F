@@ -166,7 +166,7 @@ CONTAINS
 !$OMP          cell_c, rac, iac, first_sgfa, la_max, la_min, npgfa, nseta, nsgfa, nsgf_seta, &
 !$OMP          sphi_a, zeta, cprj, lppnl, nppnl, nprj_ppnl, &
 !$OMP          clist, iset, ncoa, sgfa, prjc, work, sab, ai_work, nprjc,  ppnl_radius, &
-!$OMP          ncoc, rpgfa, vprj_ppnl, i, l, &
+!$OMP          ncoc, rpgfa, vprj_ppnl, i, l, gpot, spot, &
 !$OMP          set_radius_a, rprjc, dac, lc_max, lc_min, zetc, alpha_ppnl)
          mepos = 0
 !$       mepos = omp_get_thread_num()
