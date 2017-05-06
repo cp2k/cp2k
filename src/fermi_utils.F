@@ -21,6 +21,7 @@ MODULE fermi_utils
    PUBLIC :: Fermi, FermiFixed, FermiFixedDeriv, Fermikp, Fermikp2
 
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'fermi_utils'
+   INTEGER, PARAMETER, PRIVATE          :: BISECT_MAX_ITER = 400
 
 CONTAINS
 ! **************************************************************************************************
@@ -77,12 +78,10 @@ CONTAINS
             tmp4 = tmp+1.0_dp
             tmp2 = tmp/tmp4
             tmp3 = 1.0_dp/tmp4
-            f(i) = occupation*tmp2
             ! log(1+eps), might need to be written more accurately
             tmplog = -LOG(tmp4)
             term1 = tmp2*(arg+tmplog)
             term2 = tmp3*tmplog
-            kTS = kTS+T*occupation*(term1+term2)
          ELSE
             arg = (e(i)-mu)/T
             ! tmp is smaller than 1
@@ -90,12 +89,13 @@ CONTAINS
             tmp4 = tmp+1.0_dp
             tmp2 = 1.0_dp/tmp4
             tmp3 = tmp/tmp4
-            f(i) = occupation*tmp2
             tmplog = -LOG(tmp4)
             term1 = tmp2*tmplog
             term2 = tmp3*(arg+tmplog)
-            kTS = kTS+T*occupation*(term1+term2)
          END IF
+
+         f(i) = occupation*tmp2
+         kTS = kTS+T*occupation*(term1+term2)
       END DO
 
       N = accurate_sum(f)
@@ -143,23 +143,22 @@ CONTAINS
                   tmp4 = tmp+1.0_dp
                   tmp2 = tmp/tmp4
                   tmp3 = 1.0_dp/tmp4
-                  f(is, ik) = maxocc*tmp2
                   tmplog = -LOG(tmp4)
                   term1 = tmp2*(arg+tmplog)
                   term2 = tmp3*tmplog
-                  kTS = kTS+t*maxocc*(term1+term2)*wk(ik)
                ELSE
                   arg = (e(is, ik)-mu)*beta
                   tmp = EXP(arg)
                   tmp4 = tmp+1.0_dp
                   tmp2 = 1.0_dp/tmp4
                   tmp3 = tmp/tmp4
-                  f(is, ik) = maxocc*tmp2
                   tmplog = -LOG(tmp4)
                   term1 = tmp2*tmplog
                   term2 = tmp3*(arg+tmplog)
-                  kTS = kTS+T*maxocc*(term1+term2)*wk(ik)
                END IF
+
+               f(is, ik) = maxocc*tmp2
+               kTS = kTS+t*maxocc*(term1+term2)*wk(ik)
             END DO
          END DO
       ELSE
@@ -255,14 +254,17 @@ CONTAINS
          mu_now = (mu_max+mu_min)/2.0_dp
          CALL Fermi(f, N_now, kTS, e, mu_now, T, maxocc, my_estate, my_festate)
          iter = iter+1
+
          IF (N_now <= N) THEN
             mu_min = mu_now
-            N_min = N_now
          ELSE
             mu_max = mu_now
-            N_max = N_now
          ENDIF
-         IF (iter > 200) EXIT
+
+         IF (iter > BISECT_MAX_ITER) THEN
+            CPWARN("Maximum number of iterations reached while finding the Fermi energy")
+            EXIT
+         ENDIF
       ENDDO
 
       mu = (mu_max+mu_min)/2.0_dp
@@ -293,37 +295,35 @@ CONTAINS
       REAL(KIND=dp), PARAMETER                           :: epsocc = 1.0e-12_dp
 
       INTEGER                                            :: iter
-      REAL(KIND=dp)                                      :: de, mu_max, mu_min, mu_now, N_max, &
-                                                            N_min, N_now
+      REAL(KIND=dp)                                      :: de, mu_max, mu_min, N_now
 
-! bisection search to find mu for a given nel
-
+      ! bisection search to find mu for a given nel
       de = t*LOG((1.0_dp-epsocc)/epsocc)
       de = MAX(de, 0.5_dp)
       mu_min = MINVAL(e)-de
       mu_max = MAXVAL(e)+de
       iter = 0
       DO WHILE (mu_max-mu_min > EPSILON(mu)*MAX(1.0_dp, ABS(mu_max), ABS(mu_min)))
-         mu_now = (mu_max+mu_min)/2.0_dp
-         CALL Fermi2(f, N_now, kTS, e, mu_now, wk, T, maxocc)
          iter = iter+1
-         IF (ABS(N_now-nel) < nel*epsocc) THEN
-            mu_min = mu_now
-            N_min = N_now
-            mu_max = mu_now
-            N_max = N_now
-         ELSEIF (N_now <= nel) THEN
-            mu_min = mu_now
-            N_min = N_now
+         mu = (mu_max+mu_min)/2.0_dp
+         CALL Fermi2(f, N_now, kTS, e, mu, wk, t, maxocc)
+
+         IF (ABS(N_now-nel) < nel*epsocc) EXIT
+
+         IF (N_now <= nel) THEN
+            mu_min = mu
          ELSE
-            mu_max = mu_now
-            N_max = N_now
+            mu_max = mu
          ENDIF
-         IF (iter > 400) EXIT
+
+         IF (iter > BISECT_MAX_ITER) THEN
+            CPWARN("Maximum number of iterations reached while finding the Fermi energy")
+            EXIT
+         ENDIF
       ENDDO
 
       mu = (mu_max+mu_min)/2.0_dp
-      CALL Fermi2(f, N_now, kTS, e, mu, wk, T, maxocc)
+      CALL Fermi2(f, N_now, kTS, e, mu, wk, t, maxocc)
 
    END SUBROUTINE Fermikp
 
@@ -349,12 +349,12 @@ CONTAINS
       REAL(KIND=dp), PARAMETER                           :: epsocc = 1.0e-12_dp
 
       INTEGER                                            :: iter
-      REAL(KIND=dp)                                      :: de, kTSa, kTSb, mu_max, mu_min, mu_now, &
-                                                            N_max, N_min, N_now, na, nb
+      REAL(KIND=dp)                                      :: de, kTSa, kTSb, mu_max, mu_min, N_now, &
+                                                            na, nb
 
-! only do spin polarized case
-
+      ! only do spin polarized case
       CPASSERT(SIZE(f, 3) == 2 .AND. SIZE(e, 3) == 2)
+
       ! bisection search to find mu for a given nel
       de = t*LOG((1.0_dp-epsocc)/epsocc)
       de = MAX(de, 0.5_dp)
@@ -362,29 +362,29 @@ CONTAINS
       mu_max = MAXVAL(e)+de
       iter = 0
       DO WHILE (mu_max-mu_min > EPSILON(mu)*MAX(1.0_dp, ABS(mu_max), ABS(mu_min)))
-         mu_now = (mu_max+mu_min)/2.0_dp
-         CALL Fermi2(f(:, :, 1), na, kTSa, e(:, :, 1), mu_now, wk, T, 1.0_dp)
-         CALL Fermi2(f(:, :, 2), nb, kTSb, e(:, :, 2), mu_now, wk, T, 1.0_dp)
-         N_now = na+nb
          iter = iter+1
-         IF (ABS(N_now-nel) < nel*epsocc) THEN
-            mu_min = mu_now
-            N_min = N_now
-            mu_max = mu_now
-            N_max = N_now
-         ELSEIF (N_now <= nel) THEN
-            mu_min = mu_now
-            N_min = N_now
+         mu = (mu_max+mu_min)/2.0_dp
+         CALL Fermi2(f(:, :, 1), na, kTSa, e(:, :, 1), mu, wk, t, 1.0_dp)
+         CALL Fermi2(f(:, :, 2), nb, kTSb, e(:, :, 2), mu, wk, t, 1.0_dp)
+         N_now = na+nb
+
+         IF (ABS(N_now-nel) < nel*epsocc) EXIT
+
+         IF (N_now <= nel) THEN
+            mu_min = mu
          ELSE
-            mu_max = mu_now
-            N_max = N_now
+            mu_max = mu
          ENDIF
-         IF (iter > 400) EXIT
+
+         IF (iter > BISECT_MAX_ITER) THEN
+            CPWARN("Maximum number of iterations reached while finding the Fermi energy")
+            EXIT
+         ENDIF
       ENDDO
 
       mu = (mu_max+mu_min)/2.0_dp
-      CALL Fermi2(f(:, :, 1), na, kTSa, e(:, :, 1), mu, wk, T, 1.0_dp)
-      CALL Fermi2(f(:, :, 2), na, kTSb, e(:, :, 2), mu, wk, T, 1.0_dp)
+      CALL Fermi2(f(:, :, 1), na, kTSa, e(:, :, 1), mu, wk, t, 1.0_dp)
+      CALL Fermi2(f(:, :, 2), nb, kTSb, e(:, :, 2), mu, wk, t, 1.0_dp)
       kTS = kTSa+kTSb
 
    END SUBROUTINE Fermikp2
