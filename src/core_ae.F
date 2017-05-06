@@ -19,7 +19,8 @@ MODULE core_ae
                                               dbcsr_get_block_p,&
                                               dbcsr_p_type
    USE external_potential_types,        ONLY: all_potential_type,&
-                                              get_potential
+                                              get_potential,&
+                                              sgp_potential_type
    USE kinds,                           ONLY: dp
    USE orbital_pointers,                ONLY: coset,&
                                               indco,&
@@ -51,8 +52,6 @@ MODULE core_ae
    PUBLIC :: build_core_ae
 
 CONTAINS
-
-!==========================================================================================================
 
 ! **************************************************************************************************
 !> \brief ...
@@ -113,6 +112,7 @@ CONTAINS
       TYPE(gto_basis_set_type), POINTER                  :: basis_set_a, basis_set_b
       TYPE(neighbor_list_iterator_p_type), &
          DIMENSION(:), POINTER                           :: ap_iterator, nl_iterator
+      TYPE(sgp_potential_type), POINTER                  :: sgp_potential
 
       IF (calculate_forces) THEN
          CALL timeset(routineN//"_forces", handle)
@@ -260,11 +260,19 @@ CONTAINS
          ! loop over all kinds for pseudopotential  atoms
          hab = 0._dp
          DO kkind = 1, nkind
-            CALL get_qs_kind(qs_kind_set(kkind), all_potential=all_potential)
-            IF (.NOT. ASSOCIATED(all_potential)) CYCLE
-            CALL get_potential(potential=all_potential, &
-                               alpha_core_charge=alpha_c, zeff=zeta_c, &
-                               ccore_charge=core_charge, core_charge_radius=core_radius)
+            CALL get_qs_kind(qs_kind_set(kkind), all_potential=all_potential, &
+                             sgp_potential=sgp_potential)
+            IF (ASSOCIATED(all_potential)) THEN
+               CALL get_potential(potential=all_potential, &
+                                  alpha_core_charge=alpha_c, zeff=zeta_c, &
+                                  ccore_charge=core_charge, core_charge_radius=core_radius)
+            ELSE IF (ASSOCIATED(sgp_potential)) THEN
+               CALL get_potential(potential=sgp_potential, &
+                                  alpha_core_charge=alpha_c, zeff=zeta_c, &
+                                  ccore_charge=core_charge, core_charge_radius=core_radius)
+            ELSE
+               CYCLE
+            END IF
 
             CALL nl_set_sub_iterator(ap_iterator, ikind, kkind, iatom)
             DO WHILE (nl_sub_iterate(ap_iterator) == 0)
@@ -397,7 +405,6 @@ CONTAINS
 
    END SUBROUTINE build_core_ae
 
-!==========================================================================================================
 ! **************************************************************************************************
 !> \brief ...
 !> \param habd ...
@@ -487,6 +494,6 @@ CONTAINS
 
    END SUBROUTINE verfc_force
 
-!==========================================================================================================
+! **************************************************************************************************
 
 END MODULE core_ae

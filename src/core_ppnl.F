@@ -19,7 +19,9 @@ MODULE core_ppnl
                                               dbcsr_get_block_p,&
                                               dbcsr_p_type
    USE external_potential_types,        ONLY: gth_potential_p_type,&
-                                              gth_potential_type
+                                              gth_potential_type,&
+                                              sgp_potential_p_type,&
+                                              sgp_potential_type
    USE kinds,                           ONLY: dp
    USE orbital_pointers,                ONLY: init_orbital_pointers,&
                                               nco,&
@@ -57,8 +59,6 @@ MODULE core_ppnl
    PUBLIC :: build_core_ppnl
 
 CONTAINS
-
-!==========================================================================================================
 
 ! **************************************************************************************************
 !> \brief ...
@@ -105,32 +105,36 @@ CONTAINS
       INTEGER :: atom_a, atom_b, atom_c, first_col, handle, i, iab, iac, iatom, ibc, icol, ikind, &
          ilist, img, inode, irow, iset, j, jatom, jkind, jneighbor, kac, katom, kbc, kkind, l, &
          lc_max, lc_min, ldai, ldsab, lppnl, maxco, maxder, maxl, maxlgto, maxlppnl, maxppnl, &
-         maxsgf, mepos, na, natom, nb, ncoa, ncoc, nkind, nlist, nneighbor, nnode, np, nppnl, &
+         maxsgf, mepos, na, natom, nb, ncoa, ncoc, nkind, nlist, nneighbor, nnl, nnode, np, nppnl, &
          nprjc, nseta, nsgfa, nthread, prjc, sgfa
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: atom_of_kind
       INTEGER, DIMENSION(3)                              :: cell_b, cell_c
       INTEGER, DIMENSION(:), POINTER                     :: la_max, la_min, npgfa, nprj_ppnl, &
                                                             nsgf_seta
       INTEGER, DIMENSION(:, :), POINTER                  :: first_sgfa
-      LOGICAL                                            :: dokp, found, ppnl_present
+      LOGICAL                                            :: dogth, dokp, found, ppnl_present
+      LOGICAL, DIMENSION(0:9)                            :: is_nonlocal
       REAL(KIND=dp)                                      :: dac, f0, ppnl_radius
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: radp
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: sab, work
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: ai_work
       REAL(KIND=dp), DIMENSION(1)                        :: rprjc, zetc
       REAL(KIND=dp), DIMENSION(3)                        :: fa, fb, rab, rac, rbc
-      REAL(KIND=dp), DIMENSION(:), POINTER               :: alpha_ppnl, set_radius_a
-      REAL(KIND=dp), DIMENSION(:, :), POINTER            :: cprj, h_block, p_block, rpgfa, sphi_a, &
-                                                            vprj_ppnl, zeta
-      REAL(KIND=dp), DIMENSION(:, :, :), POINTER         :: achint, acint, bchint, bcint
+      REAL(KIND=dp), DIMENSION(:), POINTER               :: a_nl, alpha_ppnl, hprj, set_radius_a
+      REAL(KIND=dp), DIMENSION(:, :), POINTER            :: cprj, h_block, h_nl, p_block, rpgfa, &
+                                                            sphi_a, vprj_ppnl, zeta
+      REAL(KIND=dp), DIMENSION(:, :, :), POINTER         :: achint, acint, bchint, bcint, c_nl
       TYPE(alist_type), POINTER                          :: alist_ac, alist_bc
       TYPE(clist_type), POINTER                          :: clist
-      TYPE(gth_potential_p_type), DIMENSION(:), POINTER  :: potential
+      TYPE(gth_potential_p_type), DIMENSION(:), POINTER  :: gpotential
       TYPE(gth_potential_type), POINTER                  :: gth_potential
       TYPE(gto_basis_set_p_type), DIMENSION(:), POINTER  :: basis_set
       TYPE(gto_basis_set_type), POINTER                  :: orb_basis_set
       TYPE(neighbor_list_iterator_p_type), &
          DIMENSION(:), POINTER                           :: nl_iterator
       TYPE(sap_int_type), DIMENSION(:), POINTER          :: sap_int
+      TYPE(sgp_potential_p_type), DIMENSION(:), POINTER  :: spotential
+      TYPE(sgp_potential_type), POINTER                  :: sgp_potential
 
       IF (calculate_forces) THEN
          CALL timeset(routineN//"_forces", handle)
@@ -185,7 +189,7 @@ CONTAINS
          END DO
 
          !set up direct access to basis and potential
-         ALLOCATE (basis_set(nkind), potential(nkind))
+         ALLOCATE (basis_set(nkind), gpotential(nkind), spotential(nkind))
          DO ikind = 1, nkind
             CALL get_qs_kind(qs_kind_set(ikind), basis_set=orb_basis_set, basis_type=basis_type)
             IF (ASSOCIATED(orb_basis_set)) THEN
@@ -193,11 +197,13 @@ CONTAINS
             ELSE
                NULLIFY (basis_set(ikind)%gto_basis_set)
             END IF
-            CALL get_qs_kind(qs_kind_set(ikind), gth_potential=gth_potential)
+            CALL get_qs_kind(qs_kind_set(ikind), gth_potential=gth_potential, sgp_potential=sgp_potential)
+            NULLIFY (gpotential(ikind)%gth_potential)
+            NULLIFY (spotential(ikind)%sgp_potential)
             IF (ASSOCIATED(gth_potential)) THEN
-               potential(ikind)%gth_potential => gth_potential
-            ELSE
-               NULLIFY (potential(ikind)%gth_potential)
+               gpotential(ikind)%gth_potential => gth_potential
+            ELSE IF (ASSOCIATED(sgp_potential)) THEN
+               spotential(ikind)%sgp_potential => sgp_potential
             END IF
          END DO
 
@@ -208,14 +214,15 @@ CONTAINS
          CALL neighbor_list_iterator_create(nl_iterator, sap_ppnl, nthread=nthread)
 !$OMP PARALLEL &
 !$OMP DEFAULT (NONE) &
-!$OMP SHARED  (nl_iterator, basis_set, potential, maxder, ncoset, &
-!$OMP          sap_int, nkind, ldsab,  ldai, nder, nco ) &
+!$OMP SHARED  (nl_iterator, basis_set, gpotential, maxder, ncoset, &
+!$OMP          sap_int, nkind, ldsab, ldai, nder, nco ) &
 !$OMP PRIVATE (mepos, ikind, kkind, iatom, katom, nlist, ilist, nneighbor, jneighbor, &
 !$OMP          cell_c, rac, iac, first_sgfa, la_max, la_min, npgfa, nseta, nsgfa, nsgf_seta, &
-!$OMP          sphi_a, zeta, cprj, lppnl, nppnl, nprj_ppnl, &
+!$OMP          sphi_a, zeta, cprj, hprj, lppnl, nppnl, nprj_ppnl, &
 !$OMP          clist, iset, ncoa, sgfa, prjc, work, sab, ai_work, nprjc,  ppnl_radius, &
-!$OMP          ncoc, rpgfa, first_col, vprj_ppnl, i, l, &
-!$OMP          set_radius_a, rprjc, dac, lc_max, lc_min, zetc, alpha_ppnl)
+!$OMP          ncoc, rpgfa, first_col, vprj_ppnl, i, j, l, dogth, &
+!$OMP          set_radius_a, rprjc, dac, lc_max, lc_min, zetc, alpha_ppnl, &
+!$OMP          nnl, is_nonlocal, a_nl, h_nl, c_nl, radp)
          mepos = 0
 !$       mepos = omp_get_thread_num()
 
@@ -230,7 +237,6 @@ CONTAINS
                                    inode=jneighbor, cell=cell_c, r=rac)
             iac = ikind+nkind*(kkind-1)
             IF (.NOT. ASSOCIATED(basis_set(ikind)%gto_basis_set)) CYCLE
-            IF (.NOT. ASSOCIATED(potential(kkind)%gth_potential)) CYCLE
             ! get definition of basis set
             first_sgfa => basis_set(ikind)%gto_basis_set%first_sgf
             la_max => basis_set(ikind)%gto_basis_set%lmax
@@ -244,13 +250,37 @@ CONTAINS
             sphi_a => basis_set(ikind)%gto_basis_set%sphi
             zeta => basis_set(ikind)%gto_basis_set%zet
             ! get definition of PP projectors
-            alpha_ppnl => potential(kkind)%gth_potential%alpha_ppnl
-            cprj => potential(kkind)%gth_potential%cprj
-            lppnl = potential(kkind)%gth_potential%lppnl
-            nppnl = potential(kkind)%gth_potential%nppnl
-            nprj_ppnl => potential(kkind)%gth_potential%nprj_ppnl
-            ppnl_radius = potential(kkind)%gth_potential%ppnl_radius
-            vprj_ppnl => potential(kkind)%gth_potential%vprj_ppnl
+            IF (ASSOCIATED(gpotential(kkind)%gth_potential)) THEN
+               ! GTH potential
+               dogth = .TRUE.
+               alpha_ppnl => gpotential(kkind)%gth_potential%alpha_ppnl
+               cprj => gpotential(kkind)%gth_potential%cprj
+               lppnl = gpotential(kkind)%gth_potential%lppnl
+               nppnl = gpotential(kkind)%gth_potential%nppnl
+               nprj_ppnl => gpotential(kkind)%gth_potential%nprj_ppnl
+               ppnl_radius = gpotential(kkind)%gth_potential%ppnl_radius
+               vprj_ppnl => gpotential(kkind)%gth_potential%vprj_ppnl
+            ELSE IF (ASSOCIATED(spotential(kkind)%sgp_potential)) THEN
+               ! SGP potential
+               dogth = .FALSE.
+               nppnl = spotential(kkind)%sgp_potential%nppnl
+               IF (nppnl == 0) CYCLE
+               nnl = spotential(kkind)%sgp_potential%n_nonlocal
+               lppnl = spotential(kkind)%sgp_potential%lmax
+               is_nonlocal = .FALSE.
+               is_nonlocal(0:lppnl) = spotential(kkind)%sgp_potential%is_nonlocal(0:lppnl)
+               a_nl => spotential(kkind)%sgp_potential%a_nonlocal
+               h_nl => spotential(kkind)%sgp_potential%h_nonlocal
+               c_nl => spotential(kkind)%sgp_potential%c_nonlocal
+               ppnl_radius = spotential(kkind)%sgp_potential%ppnl_radius
+               ALLOCATE (radp(nnl))
+               radp(:) = ppnl_radius
+               cprj => spotential(kkind)%sgp_potential%cprj_ppnl
+               hprj => spotential(kkind)%sgp_potential%vprj_ppnl
+               nprjc = SIZE(cprj, 2)
+            ELSE
+               CYCLE
+            END IF
 !$OMP CRITICAL(sap_int_critical)
             IF (.NOT. ASSOCIATED(sap_int(iac)%alist)) THEN
                sap_int(iac)%a_kind = ikind
@@ -286,42 +316,68 @@ CONTAINS
             DO iset = 1, nseta
                ncoa = npgfa(iset)*ncoset(la_max(iset))
                sgfa = first_sgfa(1, iset)
-               prjc = 1
-               ! XXX fix, use correct bounds
-               work = 0._dp
-               DO l = 0, lppnl
-                  nprjc = nprj_ppnl(l)*nco(l)
-                  IF (nprjc == 0) CYCLE
-                  rprjc(1) = ppnl_radius
-                  IF (set_radius_a(iset)+rprjc(1) < dac) CYCLE
-                  lc_max = l+2*(nprj_ppnl(l)-1)
-                  lc_min = l
-                  zetc(1) = alpha_ppnl(l)
-                  ncoc = ncoset(lc_max)
+               IF (dogth) THEN
+                  ! GTH potential
+                  ! XXX fix, use correct bounds
+                  prjc = 1
+                  work = 0._dp
+                  DO l = 0, lppnl
+                     nprjc = nprj_ppnl(l)*nco(l)
+                     IF (nprjc == 0) CYCLE
+                     rprjc(1) = ppnl_radius
+                     IF (set_radius_a(iset)+rprjc(1) < dac) CYCLE
+                     lc_max = l+2*(nprj_ppnl(l)-1)
+                     lc_min = l
+                     zetc(1) = alpha_ppnl(l)
+                     ncoc = ncoset(lc_max)
 
+                     ! *** Calculate the primitive overlap integrals ***
+                     CALL overlap(la_max(iset), la_min(iset), npgfa(iset), rpgfa(:, iset), zeta(:, iset), &
+                                  lc_max, lc_min, 1, rprjc, zetc, rac, dac, sab, nder, .TRUE., ai_work, ldai)
+                     ! *** Transformation step projector functions (cartesian->spherical) ***
+                     DO i = 1, maxder
+                        first_col = (i-1)*SIZE(work, 1)
+                        CALL dgemm("N", "N", ncoa, nprjc, ncoc, 1.0_dp, sab(1, first_col+1), SIZE(sab, 1), &
+                                   cprj(1, prjc), SIZE(cprj, 1), 0.0_dp, work(1, first_col+prjc), SIZE(work, 1))
+                     END DO
+                     prjc = prjc+nprjc
+                  END DO
+                  DO i = 1, maxder
+                     first_col = (i-1)*SIZE(work, 1)+1
+                     ! *** Contraction step (basis functions) ***
+                     CALL dgemm("T", "N", nsgf_seta(iset), nppnl, ncoa, 1.0_dp, sphi_a(1, sgfa), SIZE(sphi_a, 1), &
+                                work(1, first_col), SIZE(work, 1), 0.0_dp, clist%acint(sgfa, 1, i), nsgfa)
+                     ! *** Multiply with interaction matrix(h) ***
+                     CALL dgemm("N", "N", nsgf_seta(iset), nppnl, nppnl, 1.0_dp, clist%acint(sgfa, 1, i), nsgfa, &
+                                vprj_ppnl(1, 1), SIZE(vprj_ppnl, 1), 0.0_dp, clist%achint(sgfa, 1, i), nsgfa)
+                  END DO
+               ELSE
+                  ! SGP potential
+                  work = 0._dp
                   ! *** Calculate the primitive overlap integrals ***
                   CALL overlap(la_max(iset), la_min(iset), npgfa(iset), rpgfa(:, iset), zeta(:, iset), &
-                               lc_max, lc_min, 1, rprjc, zetc, rac, dac, sab, nder, .TRUE., ai_work, ldai)
-                  ! *** Transformation step projector functions (cartesian->spherical) ***
+                               lppnl, 0, nnl, radp, a_nl, rac, dac, sab, nder, .TRUE., ai_work, ldai)
                   DO i = 1, maxder
-                     first_col = (i-1)*SIZE(work, 1)
-                     CALL dgemm("N", "N", ncoa, nprjc, ncoc, 1.0_dp, sab(1, first_col+1), SIZE(sab, 1), &
-                                cprj(1, prjc), SIZE(cprj, 1), 0.0_dp, work(1, first_col+prjc), SIZE(work, 1))
+                     first_col = (i-1)*nppnl
+                     ! *** Transformation step projector functions (cartesian->spherical) ***
+                     CALL dgemm("N", "N", ncoa, nppnl, nprjc, 1.0_dp, sab(1, first_col+1), SIZE(sab, 1), &
+                                cprj(1, 1), SIZE(cprj, 1), 0.0_dp, work(1, first_col+1), SIZE(work, 1))
+                     ! *** Contraction step (basis functions) ***
+                     CALL dgemm("T", "N", nsgf_seta(iset), nprjc, ncoa, 1.0_dp, sphi_a(1, sgfa), SIZE(sphi_a, 1), &
+                                work(1, first_col), SIZE(work, 1), 0.0_dp, clist%acint(sgfa, 1, i), nsgfa)
+                     ! *** Multiply with interaction matrix(h) ***
+                     ncoc = sgfa+nsgf_seta(iset)-1
+                     DO j = 1, nprjc
+                        clist%achint(sgfa:ncoc, j, i) = clist%acint(sgfa:ncoc, j, i)*hprj(j)
+                     END DO
                   END DO
-                  prjc = prjc+nprjc
-               END DO
-               DO i = 1, maxder
-                  first_col = (i-1)*SIZE(work, 1)+1
-                  ! *** Contraction step (basis functions) ***
-                  CALL dgemm("T", "N", nsgf_seta(iset), nppnl, ncoa, 1.0_dp, sphi_a(1, sgfa), SIZE(sphi_a, 1), &
-                             work(1, first_col), SIZE(work, 1), 0.0_dp, clist%acint(sgfa, 1, i), nsgfa)
-                  ! *** Multiply with interaction matrix(h) ***
-                  CALL dgemm("N", "N", nsgf_seta(iset), nppnl, nppnl, 1.0_dp, clist%acint(sgfa, 1, i), nsgfa, &
-                             vprj_ppnl(1, 1), SIZE(vprj_ppnl, 1), 0.0_dp, clist%achint(sgfa, 1, i), nsgfa)
-               END DO
+               END IF
             END DO
             clist%maxac = MAXVAL(ABS(clist%acint(:, :, 1)))
             clist%maxach = MAXVAL(ABS(clist%achint(:, :, 1)))
+            IF (.NOT. dogth) THEN
+               DEALLOCATE (radp)
+            END IF
          END DO
 
          DEALLOCATE (sab, ai_work, work)
@@ -464,7 +520,7 @@ CONTAINS
          CALL release_sap_int(sap_int)
 
          DEALLOCATE (atom_of_kind)
-         DEALLOCATE (basis_set, potential)
+         DEALLOCATE (basis_set, gpotential, spotential)
 
          IF (calculate_forces) THEN
             ! *** If LSD, then recover alpha density and beta density     ***
@@ -485,6 +541,6 @@ CONTAINS
 
    END SUBROUTINE build_core_ppnl
 
-!==========================================================================================================
+! **************************************************************************************************
 
 END MODULE core_ppnl

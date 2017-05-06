@@ -8,7 +8,7 @@ MODULE atom_sgp
    USE ai_onecenter,                    ONLY: sg_overlap
    USE atom_types,                      ONLY: &
         atom_basis_gridrep, atom_basis_type, atom_ecppot_type, atom_p_type, atom_type, &
-        create_opmat, opmat_type, release_atom_basis, release_opmat
+        create_opmat, init_atom_basis_default_pp, opmat_type, release_atom_basis, release_opmat
    USE atom_upf,                        ONLY: atom_upfpot_type
    USE atom_utils,                      ONLY: integrate_grid,&
                                               numpot_matrix
@@ -25,11 +25,13 @@ MODULE atom_sgp
                                               rootpi
    USE mathlib,                         ONLY: diamat_all,&
                                               get_pseudo_inverse_diag
+   USE powell,                          ONLY: opt_state_type,&
+                                              powell_optimize
 #include "./base/base_uses.f90"
 
    IMPLICIT NONE
 
-   TYPE sgp_potential
+   TYPE atom_sgp_potential_type
       LOGICAL                                  :: has_nonlocal
       INTEGER                                  :: n_nonlocal
       INTEGER                                  :: lmax
@@ -50,13 +52,106 @@ MODULE atom_sgp
    END TYPE
 
    PRIVATE
-   PUBLIC  :: atom_sgp_construction
+   PUBLIC  :: atom_sgp_potential_type, atom_sgp_release
+   PUBLIC  :: atom_sgp_construction, sgp_construction
 
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'atom_sgp'
 
 ! **************************************************************************************************
 
 CONTAINS
+
+! **************************************************************************************************
+!> \brief ...
+!> \param sgp_pot ...
+!> \param ecp_pot ...
+!> \param upf_pot ...
+!> \param error ...
+! **************************************************************************************************
+   SUBROUTINE sgp_construction(sgp_pot, ecp_pot, upf_pot, error)
+
+      TYPE(atom_sgp_potential_type)                      :: sgp_pot
+      TYPE(atom_ecppot_type), OPTIONAL                   :: ecp_pot
+      TYPE(atom_upfpot_type), OPTIONAL                   :: upf_pot
+      REAL(KIND=dp), DIMENSION(3)                        :: error
+
+      CHARACTER(len=*), PARAMETER :: routineN = 'sgp_construction', &
+         routineP = moduleN//':'//routineN
+
+      INTEGER                                            :: i, n
+      LOGICAL                                            :: is_ecp, is_upf
+      REAL(KIND=dp)                                      :: errcc
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: cgauss
+      TYPE(atom_basis_type)                              :: basis
+      TYPE(opmat_type), POINTER                          :: core, hnl, score, shnl
+
+      ! define basis
+      CALL init_atom_basis_default_pp(basis)
+
+      is_ecp = .FALSE.
+      IF (PRESENT(ecp_pot)) is_ecp = .TRUE.
+      is_upf = .FALSE.
+      IF (PRESENT(upf_pot)) is_upf = .TRUE.
+      CPASSERT(.NOT. (is_ecp .AND. is_upf))
+
+      ! generate the transformed potentials
+      IF (is_ecp) THEN
+         CALL ecp_sgp_constr(ecp_pot, sgp_pot, basis)
+      ELSEIF (is_upf) THEN
+         CALL upf_sgp_constr(upf_pot, sgp_pot, basis)
+      ELSE
+         CPABORT("")
+      END IF
+
+      NULLIFY (core, hnl)
+      CALL create_opmat(core, basis%nbas)
+      CALL create_opmat(hnl, basis%nbas, 5)
+      NULLIFY (score, shnl)
+      CALL create_opmat(score, basis%nbas)
+      CALL create_opmat(shnl, basis%nbas, 5)
+      !
+      IF (is_ecp) THEN
+         CALL ecpints(hnl%op, basis, ecp_pot)
+      ELSEIF (is_upf) THEN
+         CALL upfints(core%op, hnl%op, basis, upf_pot, sgp_pot%ac_local)
+      ELSE
+         CPABORT("")
+      END IF
+      !
+      CALL sgpints(score%op, shnl%op, basis, sgp_pot)
+      !
+      error = 0.0_dp
+      IF (sgp_pot%has_local) THEN
+         error(1) = MAXVAL(ABS(core%op-score%op))
+      END IF
+      IF (sgp_pot%has_nonlocal) THEN
+         error(2) = MAXVAL(ABS(hnl%op-shnl%op))
+      END IF
+      IF (sgp_pot%has_nlcc) THEN
+         IF (is_upf) THEN
+            n = SIZE(upf_pot%r)
+            ALLOCATE (cgauss(n))
+            cgauss = 0.0_dp
+            DO i = 1, sgp_pot%n_nlcc
+               cgauss(:) = cgauss(:)+sgp_pot%c_nlcc(i)*EXP(-sgp_pot%a_nlcc(i)*upf_pot%r(:)**2)
+            END DO
+            errcc = SUM((cgauss(:)-upf_pot%rho_nlcc(:))**2*upf_pot%r(:)**2*upf_pot%rab(:))
+            errcc = SQRT(errcc/REAL(n, KIND=dp))
+            DEALLOCATE (cgauss)
+         ELSE
+            CPABORT("")
+         END IF
+         error(3) = errcc
+      END IF
+      !
+      CALL release_opmat(score)
+      CALL release_opmat(shnl)
+      CALL release_opmat(core)
+      CALL release_opmat(hnl)
+
+      CALL release_atom_basis(basis)
+
+   END SUBROUTINE sgp_construction
 
 ! **************************************************************************************************
 !> \brief ...
@@ -78,12 +173,13 @@ CONTAINS
       REAL(KIND=dp)                                      :: errcc
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: cgauss
       TYPE(atom_ecppot_type), POINTER                    :: ecp_pot
+      TYPE(atom_sgp_potential_type)                      :: sgp_pot
       TYPE(atom_type), POINTER                           :: atom_ref
       TYPE(atom_upfpot_type), POINTER                    :: upf_pot
       TYPE(opmat_type), POINTER                          :: core, hnl, score, shnl
-      TYPE(sgp_potential)                                :: sgp_pot
 
       CALL section_vals_get(input_section, explicit=explicit)
+      IF (.NOT. explicit) RETURN
 
       IF (iw > 0) WRITE (iw, '(/," ",79("*"),/,T24,A,/," ",79("*"))') "SEPARABLE GAUSSIAN PSEUDOPOTENTIAL"
 
@@ -142,11 +238,12 @@ CONTAINS
          CALL sgpints(score%op, shnl%op, atom_ref%basis, sgp_pot)
          !
          IF (sgp_pot%has_local) THEN
-            errcc = MAXVAL(ABS(core%op-score%op))
+            n = MIN(3, UBOUND(core%op, 3))
+            errcc = MAXVAL(ABS(core%op(:, :, 0:n)-score%op(:, :, 0:n)))
             IF (iw > 0) THEN
                WRITE (iw, '(" Local part of pseudopotential")')
                WRITE (iw, '(" Number of basis functions ",T77,i4)') sgp_pot%n_local
-               WRITE (iw, '(" Max. abs. error of matrix element ",T69,f12.8)') errcc
+               WRITE (iw, '(" Max. abs. error of matrix elements ",T65,f16.8)') errcc
             END IF
          END IF
          IF (sgp_pot%has_nonlocal) THEN
@@ -155,7 +252,7 @@ CONTAINS
                WRITE (iw, '(" Nonlocal part of pseudopotential")')
                WRITE (iw, '(" Max. l-quantum number",T77,i4)') sgp_pot%lmax
                WRITE (iw, '(" Number of projector basis functions ",T77,i4)') sgp_pot%n_nonlocal
-               WRITE (iw, '(" Max. abs. error of matrix element ",T69,f12.8)') errcc
+               WRITE (iw, '(" Max. abs. error of matrix elements ",T69,f12.8)') errcc
             END IF
          END IF
          IF (sgp_pot%has_nlcc) THEN
@@ -185,7 +282,7 @@ CONTAINS
          CALL release_opmat(hnl)
       END IF
 
-      CALL sgp_release(sgp_pot)
+      CALL atom_sgp_release(sgp_pot)
 
       IF (iw > 0) WRITE (iw, '(" ",79("*"))')
 
@@ -199,8 +296,8 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE ecp_sgp_constr(ecp_pot, sgp_pot, basis)
 
-      TYPE(atom_ecppot_type), POINTER                    :: ecp_pot
-      TYPE(sgp_potential)                                :: sgp_pot
+      TYPE(atom_ecppot_type)                             :: ecp_pot
+      TYPE(atom_sgp_potential_type)                      :: sgp_pot
       TYPE(atom_basis_type)                              :: basis
 
       CHARACTER(len=*), PARAMETER :: routineN = 'ecp_sgp_constr', routineP = moduleN//':'//routineN
@@ -296,23 +393,23 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE upf_sgp_constr(upf_pot, sgp_pot, basis)
 
-      TYPE(atom_upfpot_type), POINTER                    :: upf_pot
-      TYPE(sgp_potential)                                :: sgp_pot
+      TYPE(atom_upfpot_type)                             :: upf_pot
+      TYPE(atom_sgp_potential_type)                      :: sgp_pot
       TYPE(atom_basis_type)                              :: basis
 
       CHARACTER(len=*), PARAMETER :: routineN = 'upf_sgp_constr', routineP = moduleN//':'//routineN
 
       CHARACTER(len=4)                                   :: ptype
-      INTEGER                                            :: ia, ib, ipa, ipb, ir, ix, la, lb, na, &
-                                                            nl, np, nr
+      INTEGER                                            :: ia, ib, ipa, ipb, ir, la, lb, na, nl, &
+                                                            np, nr
       LOGICAL                                            :: nl_trans
       REAL(KIND=dp)                                      :: cpa, cpb, eee, ei, errcc, errloc, rc, &
-                                                            zval
+                                                            x(2), zval
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: al, ccharge, cgauss, cl, pgauss, pproa, &
                                                             pprob, tv, vgauss, vloc, ww
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: cmat, qmat, rmat, score, sinv, smat, tmat
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: gmat
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: cmat, qmat, score, sinv, smat, tmat
       TYPE(atom_basis_type)                              :: gbasis
+      TYPE(opt_state_type)                               :: ostate
 
       IF (upf_pot%is_ultrasoft .OR. upf_pot%is_paw .OR. upf_pot%is_coulomb) THEN
          sgp_pot%has_nonlocal = .FALSE.
@@ -331,74 +428,61 @@ CONTAINS
       ww(:) = upf_pot%r(:)**2*upf_pot%rab(:)
 
       ! start with local potential
+      sgp_pot%has_local = .TRUE.
       ! fit local potential to Gaussian form
       ALLOCATE (vloc(nr), vgauss(nr))
       ! smearing of core charge
       zval = upf_pot%zion
-      sgp_pot%ac_local = 0.5_dp
+      ! Try to find an optimal Gaussian charge distribution
+      CALL erffit(sgp_pot%ac_local, upf_pot%vlocal, upf_pot%r, zval)
       sgp_pot%zval = zval
       DO ir = 1, nr
          IF (upf_pot%r(ir) < 1.e-12_dp) THEN
-            vgauss(ir) = -2.0_dp*zval/rootpi/sgp_pot%ac_local
+            vgauss(ir) = -SQRT(2.0_dp)*zval/rootpi/sgp_pot%ac_local
          ELSE
-            rc = upf_pot%r(ir)/sgp_pot%ac_local
+            rc = upf_pot%r(ir)/sgp_pot%ac_local/SQRT(2.0_dp)
             vgauss(ir) = -zval/upf_pot%r(ir)*erf(rc)
          END IF
       END DO
       vloc(:) = upf_pot%vlocal(:)-vgauss(:)
       !
-      nl = 8
-      ALLOCATE (al(nl), cl(nl), tv(nl))
-      ALLOCATE (smat(nl, nl), sinv(nl, nl))
-      al = 0.0_dp
-      cl = 0.0_dp
-      DO ir = 1, nl
-         al(ir) = 10.0_dp*0.60_dp**(ir-1)
-      END DO
-      !
-      smat = 0.0_dp
-      tv = 0.0_dp
       CALL atom_basis_gridrep(basis, gbasis, upf_pot%r, upf_pot%rab)
-      DO la = 0, UBOUND(basis%nbas, 1)
-         na = basis%nbas(la)
-         ALLOCATE (rmat(na, na), gmat(na, na, nl))
-         DO ia = 1, na
-            DO ib = ia, na
-               rmat(ia, ib) = SUM(gbasis%bf(:, ia, la)*gbasis%bf(:, ib, la)*vloc(:)*ww(:))
-               rmat(ib, ia) = rmat(ia, ib)
+      !
+      nl = 12
+      ALLOCATE (al(nl), cl(nl))
+      ostate%nf = 0
+      ostate%nvar = 2
+      x(1) = 1.00_dp !starting point of geometric series
+      x(2) = 1.20_dp !factor of series
+      ostate%rhoend = 1.e-8_dp
+      ostate%rhobeg = 5.e-2_dp
+      ostate%maxfun = 1000
+      ostate%iprint = 1
+      ostate%unit = -1
+      ostate%state = 0
+      DO
+         IF (ostate%state == 2) THEN
+            DO ir = 1, nl
+               al(ir) = x(1)*x(2)**(ir-1)
             END DO
-         END DO
-         DO ir = 1, nl
-            vgauss(:) = EXP(-al(ir)*upf_pot%r(:)**2)
-            DO ia = 1, na
-               DO ib = ia, na
-                  gmat(ia, ib, ir) = SUM(gbasis%bf(:, ia, la)*gbasis%bf(:, ib, la)*vgauss(:)*ww(:))
-                  gmat(ib, ia, ir) = gmat(ia, ib, ir)
-               END DO
-            END DO
-         END DO
-         DO ir = 1, nl
-            tv(ir) = tv(ir)+SUM(rmat(:, :)*gmat(:, :, ir))
-            DO ix = ir, nl
-               smat(ir, ix) = smat(ir, ix)+SUM(gmat(:, :, ix)*gmat(:, :, ir))
-               smat(ix, ir) = smat(ir, ix)
-            END DO
-         END DO
-         DEALLOCATE (rmat, gmat)
+            CALL pplocal_error(nl, al, cl, vloc, vgauss, gbasis, upf_pot%r, ww, ostate%f)
+         END IF
+         IF (ostate%state == -1) EXIT
+         CALL powell_optimize(ostate%nvar, x, ostate)
       END DO
-      CALL get_pseudo_inverse_diag(smat(1:nl, 1:nl), sinv(1:nl, 1:nl), 1.e-10_dp)
-      cl(1:nl) = MATMUL(sinv(1:nl, 1:nl), tv(1:nl))
-      vgauss = 0.0_dp
+      ostate%state = 8
+      CALL powell_optimize(ostate%nvar, x, ostate)
       DO ir = 1, nl
-         vgauss(:) = vgauss(:)+cl(ir)*EXP(-al(ir)*upf_pot%r(:)**2)
+         al(ir) = x(1)*x(2)**(ir-1)
       END DO
-      errloc = SUM((vgauss-vloc)**2*ww)
+      CALL pplocal_error(nl, al, cl, vloc, vgauss, gbasis, upf_pot%r, ww, errloc)
+      !
       ALLOCATE (sgp_pot%a_local(nl), sgp_pot%c_local(nl))
       sgp_pot%n_local = nl
       sgp_pot%a_local(1:nl) = al(1:nl)
       sgp_pot%c_local(1:nl) = cl(1:nl)
       DEALLOCATE (vloc, vgauss)
-      DEALLOCATE (al, cl, tv, smat, sinv)
+      DEALLOCATE (al, cl)
       CALL release_atom_basis(gbasis)
       !
       ptype = ADJUSTL(TRIM(upf_pot%pseudo_type))
@@ -409,155 +493,162 @@ CONTAINS
       ELSE
          CPABORT("Pseudopotential type: ["//ADJUSTL(TRIM(ptype))//"] not known")
       END IF
-      sgp_pot%has_local = .TRUE.
-      sgp_pot%has_nonlocal = .TRUE.
 
-      ! Non-local pseudopotential in Gaussian form
-      IF (nl_trans) THEN
-         ! semi local pseudopotential
-         ! fit to nonlocal form
-         ! get basis representation on UPF grid
-         nl = 8
-         !
-         sgp_pot%n_nonlocal = nl
-         sgp_pot%lmax = upf_pot%l_max
-         ALLOCATE (sgp_pot%a_nonlocal(nl))
-         ALLOCATE (sgp_pot%h_nonlocal(nl, 0:upf_pot%l_max))
-         ALLOCATE (sgp_pot%c_nonlocal(nl, nl, 0:upf_pot%l_max))
-         !
-         ALLOCATE (al(nl), cl(nl))
-         ALLOCATE (smat(nl, nl), sinv(nl, nl))
-         ALLOCATE (tmat(nl, nl), cmat(nl, nl))
-         al = 0.0_dp
-         DO ir = 1, nl
-            al(ir) = 10.0_dp*0.60_dp**(ir-1)
-         END DO
-         !
-         sgp_pot%a_nonlocal(1:nl) = al(1:nl)
-         !
-         CALL atom_basis_gridrep(basis, gbasis, upf_pot%r, upf_pot%rab)
-         ALLOCATE (pgauss(nr), vloc(nr))
-         DO la = 0, upf_pot%l_max
-            IF (la == upf_pot%l_local) CYCLE
-            sgp_pot%is_nonlocal(la) = .TRUE.
-            na = gbasis%nbas(la)
-            ALLOCATE (score(na, na), qmat(na, nl))
-            ! Reference matrix
-            vloc(:) = upf_pot%vsemi(:, la+1)-upf_pot%vlocal(:)
-            DO ia = 1, na
-               DO ib = ia, na
-                  score(ia, ib) = SUM(vloc(:)*gbasis%bf(:, ia, la)*gbasis%bf(:, ib, la)*ww(:))
-                  score(ib, ia) = score(ia, ib)
-               END DO
-            END DO
-            ! overlap basis with projectors
-            DO ir = 1, nl
-               pgauss(:) = EXP(-al(ir)*upf_pot%r(:)**2)*upf_pot%r(:)**la
-               eee = rootpi/(2._dp**(la+2)*dfac(2*la+1))/(2._dp*al(ir))**(la+1.5_dp)
-               pgauss(:) = pgauss(:)/SQRT(eee)
-               DO ia = 1, na
-                  qmat(ia, ir) = SUM(gbasis%bf(:, ia, la)*pgauss(:)*ww)
-               END DO
-            END DO
-            ! tmat = qmat * score * qmat
-            tmat(1:nl, 1:nl) = MATMUL(TRANSPOSE(qmat(1:na, 1:nl)), MATMUL(score(1:na, 1:na), qmat(1:na, 1:nl)))
-            smat(1:nl, 1:nl) = MATMUL(TRANSPOSE(qmat(1:na, 1:nl)), qmat(1:na, 1:nl))
-            CALL get_pseudo_inverse_diag(smat(1:nl, 1:nl), sinv(1:nl, 1:nl), 1.e-10_dp)
-            cmat(1:nl, 1:nl) = MATMUL(sinv(1:nl, 1:nl), MATMUL(tmat(1:nl, 1:nl), sinv(1:nl, 1:nl)))
-            cmat(1:nl, 1:nl) = (cmat(1:nl, 1:nl)+TRANSPOSE(cmat(1:nl, 1:nl)))*0.5_dp
-            CALL diamat_all(cmat(1:nl, 1:nl), cl(1:nl), .TRUE.)
-            !
-            ! get back unnormalized Gaussians
-            DO ir = 1, nl
-               ei = rootpi/(2._dp**(la+2)*dfac(2*la+1))/(2._dp*al(ir))**(la+1.5_dp)
-               cmat(ir, 1:nl) = cmat(ir, 1:nl)/SQRT(ei)
-            END DO
-            sgp_pot%h_nonlocal(1:nl, la) = cl(1:nl)
-            sgp_pot%c_nonlocal(1:nl, 1:nl, la) = cmat(1:nl, 1:nl)
-            sgp_pot%is_nonlocal(la) = .TRUE.
-            DEALLOCATE (score, qmat)
-         END DO
-         CALL release_atom_basis(gbasis)
-         DEALLOCATE (pgauss, vloc)
-         DEALLOCATE (al, cl, smat, sinv, tmat, cmat)
+      ! purely local pseudopotentials
+      IF (upf_pot%l_max < 0) THEN
+         sgp_pot%n_nonlocal = 0
+         sgp_pot%lmax = -1
+         sgp_pot%has_nonlocal = .FALSE.
       ELSE
-         ! non local pseudopotential
-         ALLOCATE (pproa(nr), pprob(nr), pgauss(nr))
-         np = upf_pot%number_of_proj
-         nl = 8
-         ALLOCATE (al(nl), cl(nl))
-         ALLOCATE (smat(nl, nl), sinv(nl, nl))
-         ALLOCATE (tmat(nl, nl), cmat(nl, nl))
-         al = 0.0_dp
-         cl = 0.0_dp
-         DO ir = 1, nl
-            al(ir) = 10.0_dp*0.60_dp**(ir-1)
-         END DO
-         !
-         sgp_pot%lmax = MAXVAL(upf_pot%lbeta(:))
-         sgp_pot%n_nonlocal = nl
-         ALLOCATE (sgp_pot%a_nonlocal(nl))
-         ALLOCATE (sgp_pot%h_nonlocal(nl, 0:sgp_pot%lmax))
-         ALLOCATE (sgp_pot%c_nonlocal(nl, nl, 0:sgp_pot%lmax))
-         !
-         sgp_pot%a_nonlocal(1:nl) = al(1:nl)
-         !
-         CALL atom_basis_gridrep(basis, gbasis, upf_pot%r, upf_pot%rab)
-         DO la = 0, sgp_pot%lmax
-            sgp_pot%is_nonlocal(la) = .TRUE.
-            na = gbasis%nbas(la)
-            ALLOCATE (score(na, na), qmat(na, nl))
-            ! Reference matrix
-            score = 0.0_dp
-            DO ipa = 1, np
-               lb = upf_pot%lbeta(ipa)
-               IF (la /= lb) CYCLE
-               pproa(:) = upf_pot%beta(:, ipa)
-               DO ipb = 1, np
-                  lb = upf_pot%lbeta(ipb)
-                  IF (la /= lb) CYCLE
-                  pprob(:) = upf_pot%beta(:, ipb)
-                  eee = upf_pot%dion(ipa, ipb)
+         ! Non-local pseudopotential in Gaussian form
+         IF (nl_trans) THEN
+            sgp_pot%has_nonlocal = .TRUE.
+            ! semi local pseudopotential
+            ! fit to nonlocal form
+            ! get basis representation on UPF grid
+            nl = 8
+            !
+            sgp_pot%n_nonlocal = nl
+            sgp_pot%lmax = upf_pot%l_max
+            ALLOCATE (sgp_pot%a_nonlocal(nl))
+            ALLOCATE (sgp_pot%h_nonlocal(nl, 0:upf_pot%l_max))
+            ALLOCATE (sgp_pot%c_nonlocal(nl, nl, 0:upf_pot%l_max))
+            !
+            ALLOCATE (al(nl), cl(nl))
+            ALLOCATE (smat(nl, nl), sinv(nl, nl))
+            ALLOCATE (tmat(nl, nl), cmat(nl, nl))
+            al = 0.0_dp
+            DO ir = 1, nl
+               al(ir) = 10.0_dp*0.60_dp**(ir-1)
+            END DO
+            !
+            sgp_pot%a_nonlocal(1:nl) = al(1:nl)
+            !
+            CALL atom_basis_gridrep(basis, gbasis, upf_pot%r, upf_pot%rab)
+            ALLOCATE (pgauss(nr), vloc(nr))
+            DO la = 0, upf_pot%l_max
+               IF (la == upf_pot%l_local) CYCLE
+               sgp_pot%is_nonlocal(la) = .TRUE.
+               na = gbasis%nbas(la)
+               ALLOCATE (score(na, na), qmat(na, nl))
+               ! Reference matrix
+               vloc(:) = upf_pot%vsemi(:, la+1)-upf_pot%vlocal(:)
+               DO ia = 1, na
+                  DO ib = ia, na
+                     score(ia, ib) = SUM(vloc(:)*gbasis%bf(:, ia, la)*gbasis%bf(:, ib, la)*ww(:))
+                     score(ib, ia) = score(ia, ib)
+                  END DO
+               END DO
+               ! overlap basis with projectors
+               DO ir = 1, nl
+                  pgauss(:) = EXP(-al(ir)*upf_pot%r(:)**2)*upf_pot%r(:)**la
+                  eee = rootpi/(2._dp**(la+2)*dfac(2*la+1))/(2._dp*al(ir))**(la+1.5_dp)
+                  pgauss(:) = pgauss(:)/SQRT(eee)
                   DO ia = 1, na
-                     cpa = SUM(pproa(:)*gbasis%bf(:, ia, la)*ww(:))
-                     DO ib = ia, na
-                        cpb = SUM(pprob(:)*gbasis%bf(:, ib, la)*ww(:))
-                        score(ia, ib) = score(ia, ib)+cpa*eee*cpb
-                        score(ib, ia) = score(ia, ib)
+                     qmat(ia, ir) = SUM(gbasis%bf(:, ia, la)*pgauss(:)*ww)
+                  END DO
+               END DO
+               ! tmat = qmat * score * qmat
+               tmat(1:nl, 1:nl) = MATMUL(TRANSPOSE(qmat(1:na, 1:nl)), MATMUL(score(1:na, 1:na), qmat(1:na, 1:nl)))
+               smat(1:nl, 1:nl) = MATMUL(TRANSPOSE(qmat(1:na, 1:nl)), qmat(1:na, 1:nl))
+               CALL get_pseudo_inverse_diag(smat(1:nl, 1:nl), sinv(1:nl, 1:nl), 1.e-10_dp)
+               cmat(1:nl, 1:nl) = MATMUL(sinv(1:nl, 1:nl), MATMUL(tmat(1:nl, 1:nl), sinv(1:nl, 1:nl)))
+               cmat(1:nl, 1:nl) = (cmat(1:nl, 1:nl)+TRANSPOSE(cmat(1:nl, 1:nl)))*0.5_dp
+               CALL diamat_all(cmat(1:nl, 1:nl), cl(1:nl), .TRUE.)
+               !
+               ! get back unnormalized Gaussians
+               DO ir = 1, nl
+                  ei = rootpi/(2._dp**(la+2)*dfac(2*la+1))/(2._dp*al(ir))**(la+1.5_dp)
+                  cmat(ir, 1:nl) = cmat(ir, 1:nl)/SQRT(ei)
+               END DO
+               sgp_pot%h_nonlocal(1:nl, la) = cl(1:nl)
+               sgp_pot%c_nonlocal(1:nl, 1:nl, la) = cmat(1:nl, 1:nl)
+               sgp_pot%is_nonlocal(la) = .TRUE.
+               DEALLOCATE (score, qmat)
+            END DO
+            CALL release_atom_basis(gbasis)
+            DEALLOCATE (pgauss, vloc)
+            DEALLOCATE (al, cl, smat, sinv, tmat, cmat)
+         ELSE
+            sgp_pot%has_nonlocal = .TRUE.
+            ! non local pseudopotential
+            ALLOCATE (pproa(nr), pprob(nr), pgauss(nr))
+            np = upf_pot%number_of_proj
+            nl = 8
+            ALLOCATE (al(nl), cl(nl))
+            ALLOCATE (smat(nl, nl), sinv(nl, nl))
+            ALLOCATE (tmat(nl, nl), cmat(nl, nl))
+            al = 0.0_dp
+            cl = 0.0_dp
+            DO ir = 1, nl
+               al(ir) = 10.0_dp*0.60_dp**(ir-1)
+            END DO
+            !
+            sgp_pot%lmax = MAXVAL(upf_pot%lbeta(:))
+            sgp_pot%n_nonlocal = nl
+            ALLOCATE (sgp_pot%a_nonlocal(nl))
+            ALLOCATE (sgp_pot%h_nonlocal(nl, 0:sgp_pot%lmax))
+            ALLOCATE (sgp_pot%c_nonlocal(nl, nl, 0:sgp_pot%lmax))
+            !
+            sgp_pot%a_nonlocal(1:nl) = al(1:nl)
+            !
+            CALL atom_basis_gridrep(basis, gbasis, upf_pot%r, upf_pot%rab)
+            DO la = 0, sgp_pot%lmax
+               sgp_pot%is_nonlocal(la) = .TRUE.
+               na = gbasis%nbas(la)
+               ALLOCATE (score(na, na), qmat(na, nl))
+               ! Reference matrix
+               score = 0.0_dp
+               DO ipa = 1, np
+                  lb = upf_pot%lbeta(ipa)
+                  IF (la /= lb) CYCLE
+                  pproa(:) = upf_pot%beta(:, ipa)
+                  DO ipb = 1, np
+                     lb = upf_pot%lbeta(ipb)
+                     IF (la /= lb) CYCLE
+                     pprob(:) = upf_pot%beta(:, ipb)
+                     eee = upf_pot%dion(ipa, ipb)
+                     DO ia = 1, na
+                        cpa = SUM(pproa(:)*gbasis%bf(:, ia, la)*ww(:))
+                        DO ib = ia, na
+                           cpb = SUM(pprob(:)*gbasis%bf(:, ib, la)*ww(:))
+                           score(ia, ib) = score(ia, ib)+cpa*eee*cpb
+                           score(ib, ia) = score(ia, ib)
+                        END DO
                      END DO
                   END DO
                END DO
-            END DO
-            ! overlap basis with projectors
-            DO ir = 1, nl
-               pgauss(:) = EXP(-al(ir)*upf_pot%r(:)**2)*upf_pot%r(:)**la
-               eee = rootpi/(2._dp**(la+2)*dfac(2*la+1))/(2._dp*al(ir))**(la+1.5_dp)
-               pgauss(:) = pgauss(:)/SQRT(eee)
-               DO ia = 1, na
-                  qmat(ia, ir) = SUM(gbasis%bf(:, ia, la)*pgauss(:)*ww)
+               ! overlap basis with projectors
+               DO ir = 1, nl
+                  pgauss(:) = EXP(-al(ir)*upf_pot%r(:)**2)*upf_pot%r(:)**la
+                  eee = rootpi/(2._dp**(la+2)*dfac(2*la+1))/(2._dp*al(ir))**(la+1.5_dp)
+                  pgauss(:) = pgauss(:)/SQRT(eee)
+                  DO ia = 1, na
+                     qmat(ia, ir) = SUM(gbasis%bf(:, ia, la)*pgauss(:)*ww)
+                  END DO
                END DO
+               ! tmat = qmat * score * qmat
+               tmat(1:nl, 1:nl) = MATMUL(TRANSPOSE(qmat(1:na, 1:nl)), MATMUL(score(1:na, 1:na), qmat(1:na, 1:nl)))
+               smat(1:nl, 1:nl) = MATMUL(TRANSPOSE(qmat(1:na, 1:nl)), qmat(1:na, 1:nl))
+               CALL get_pseudo_inverse_diag(smat(1:nl, 1:nl), sinv(1:nl, 1:nl), 1.e-10_dp)
+               cmat(1:nl, 1:nl) = MATMUL(sinv(1:nl, 1:nl), MATMUL(tmat(1:nl, 1:nl), sinv(1:nl, 1:nl)))
+               cmat(1:nl, 1:nl) = (cmat(1:nl, 1:nl)+TRANSPOSE(cmat(1:nl, 1:nl)))*0.5_dp
+               CALL diamat_all(cmat(1:nl, 1:nl), cl(1:nl), .TRUE.)
+               !
+               ! get back unnormalized Gaussians
+               DO ir = 1, nl
+                  ei = rootpi/(2._dp**(la+2)*dfac(2*la+1))/(2._dp*al(ir))**(la+1.5_dp)
+                  cmat(ir, 1:nl) = cmat(ir, 1:nl)/SQRT(ei)
+               END DO
+               sgp_pot%h_nonlocal(1:nl, la) = cl(1:nl)
+               sgp_pot%c_nonlocal(1:nl, 1:nl, la) = cmat(1:nl, 1:nl)
+               sgp_pot%is_nonlocal(la) = .TRUE.
+               DEALLOCATE (score, qmat)
             END DO
-            ! tmat = qmat * score * qmat
-            tmat(1:nl, 1:nl) = MATMUL(TRANSPOSE(qmat(1:na, 1:nl)), MATMUL(score(1:na, 1:na), qmat(1:na, 1:nl)))
-            smat(1:nl, 1:nl) = MATMUL(TRANSPOSE(qmat(1:na, 1:nl)), qmat(1:na, 1:nl))
-            CALL get_pseudo_inverse_diag(smat(1:nl, 1:nl), sinv(1:nl, 1:nl), 1.e-10_dp)
-            cmat(1:nl, 1:nl) = MATMUL(sinv(1:nl, 1:nl), MATMUL(tmat(1:nl, 1:nl), sinv(1:nl, 1:nl)))
-            cmat(1:nl, 1:nl) = (cmat(1:nl, 1:nl)+TRANSPOSE(cmat(1:nl, 1:nl)))*0.5_dp
-            CALL diamat_all(cmat(1:nl, 1:nl), cl(1:nl), .TRUE.)
-            !
-            ! get back unnormalized Gaussians
-            DO ir = 1, nl
-               ei = rootpi/(2._dp**(la+2)*dfac(2*la+1))/(2._dp*al(ir))**(la+1.5_dp)
-               cmat(ir, 1:nl) = cmat(ir, 1:nl)/SQRT(ei)
-            END DO
-            sgp_pot%h_nonlocal(1:nl, la) = cl(1:nl)
-            sgp_pot%c_nonlocal(1:nl, 1:nl, la) = cmat(1:nl, 1:nl)
-            sgp_pot%is_nonlocal(la) = .TRUE.
-            DEALLOCATE (score, qmat)
-         END DO
-         CALL release_atom_basis(gbasis)
-         DEALLOCATE (pgauss, pproa, pprob)
-         DEALLOCATE (al, cl, smat, sinv, tmat, cmat)
+            CALL release_atom_basis(gbasis)
+            DEALLOCATE (pgauss, pproa, pprob)
+            DEALLOCATE (al, cl, smat, sinv, tmat, cmat)
+         ENDIF
       ENDIF
 
       IF (upf_pot%core_correction) THEN
@@ -611,11 +702,12 @@ CONTAINS
 !> \brief ...
 !> \param sgp_pot ...
 ! **************************************************************************************************
-   SUBROUTINE sgp_release(sgp_pot)
+   SUBROUTINE atom_sgp_release(sgp_pot)
 
-      TYPE(sgp_potential)                                :: sgp_pot
+      TYPE(atom_sgp_potential_type)                      :: sgp_pot
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'sgp_release', routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'atom_sgp_release', &
+         routineP = moduleN//':'//routineN
 
       IF (ASSOCIATED(sgp_pot%a_nonlocal)) DEALLOCATE (sgp_pot%a_nonlocal)
       IF (ASSOCIATED(sgp_pot%h_nonlocal)) DEALLOCATE (sgp_pot%h_nonlocal)
@@ -627,7 +719,7 @@ CONTAINS
       IF (ASSOCIATED(sgp_pot%a_nlcc)) DEALLOCATE (sgp_pot%a_nlcc)
       IF (ASSOCIATED(sgp_pot%c_nlcc)) DEALLOCATE (sgp_pot%c_nlcc)
 
-   END SUBROUTINE sgp_release
+   END SUBROUTINE atom_sgp_release
 
 ! **************************************************************************************************
 !> \brief ...
@@ -780,7 +872,7 @@ CONTAINS
    SUBROUTINE sgpints(core, hnl, basis, sgp_pot)
       REAL(KIND=dp), DIMENSION(:, :, 0:)                 :: core, hnl
       TYPE(atom_basis_type), INTENT(INOUT)               :: basis
-      TYPE(sgp_potential)                                :: sgp_pot
+      TYPE(atom_sgp_potential_type)                      :: sgp_pot
 
       CHARACTER(len=*), PARAMETER :: routineN = 'sgpints', routineP = moduleN//':'//routineN
 
@@ -843,5 +935,139 @@ CONTAINS
       END IF
 
    END SUBROUTINE sgpints
+
+! **************************************************************************************************
+!> \brief ...
+!> \param ac ...
+!> \param vlocal ...
+!> \param r ...
+!> \param z ...
+! **************************************************************************************************
+   SUBROUTINE erffit(ac, vlocal, r, z)
+      REAL(KIND=dp), INTENT(OUT)                         :: ac
+      REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: vlocal, r
+      REAL(KIND=dp), INTENT(IN)                          :: z
+
+      CHARACTER(len=*), PARAMETER :: routineN = 'erffit', routineP = moduleN//':'//routineN
+      REAL(KIND=dp), PARAMETER                           :: rcut = 1.4_dp
+
+      INTEGER                                            :: i, j, m, m1
+      REAL(KIND=dp)                                      :: a1, a2, an, e2, en, rc
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: epot, rval, vpot
+
+      m = SIZE(r)
+      ALLOCATE (epot(m), vpot(m), rval(m))
+      CPASSERT(SIZE(vlocal) == m)
+      IF (r(1) > r(m)) THEN
+         DO i = 1, m
+            vpot(m-i+1) = vlocal(i)
+            rval(m-i+1) = r(i)
+         END DO
+      ELSE
+         vpot(1:m) = vlocal(1:m)
+         rval(1:m) = r(1:m)
+      END IF
+      m1 = 1
+      DO i = 1, m
+         IF (rval(i) > rcut) THEN
+            m1 = i
+            EXIT
+         END IF
+      END DO
+
+      a1 = 0.2_dp
+      a2 = 0.2_dp
+      e2 = 1.e20_dp
+      epot = 0.0_dp
+      DO i = 0, 20
+         an = a1+i*0.025_dp
+         rc = 1._dp/(an*SQRT(2.0_dp))
+         DO j = m1, m
+            epot(j) = vpot(j)+z/rval(j)*erf(rval(j)*rc)
+         END DO
+         en = SUM(ABS(epot(m1:m)*rval(m1:m)**2))
+         IF (en < e2) THEN
+            e2 = en
+            a2 = an
+         END IF
+      END DO
+      ac = a2
+
+      DEALLOCATE (epot, vpot, rval)
+
+   END SUBROUTINE erffit
+
+! **************************************************************************************************
+!> \brief ...
+!> \param nl ...
+!> \param al ...
+!> \param cl ...
+!> \param vloc ...
+!> \param vgauss ...
+!> \param gbasis ...
+!> \param rad ...
+!> \param ww ...
+!> \param errloc ...
+! **************************************************************************************************
+   SUBROUTINE pplocal_error(nl, al, cl, vloc, vgauss, gbasis, rad, ww, errloc)
+      INTEGER                                            :: nl
+      REAL(KIND=dp), DIMENSION(:)                        :: al, cl, vloc, vgauss
+      TYPE(atom_basis_type)                              :: gbasis
+      REAL(KIND=dp), DIMENSION(:)                        :: rad, ww
+      REAL(KIND=dp)                                      :: errloc
+
+      CHARACTER(len=*), PARAMETER :: routineN = 'pplocal_error', routineP = moduleN//':'//routineN
+
+      INTEGER                                            :: ia, ib, ir, ix, la, na
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: tv
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: rmat, sinv, smat
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: gmat
+
+      cl = 0.0_dp
+      !
+      ALLOCATE (tv(nl), smat(nl, nl), sinv(nl, nl))
+      !
+      smat = 0.0_dp
+      tv = 0.0_dp
+      DO la = 0, MIN(UBOUND(gbasis%nbas, 1), 3)
+         na = gbasis%nbas(la)
+         ALLOCATE (rmat(na, na), gmat(na, na, nl))
+         rmat = 0.0_dp
+         gmat = 0.0_dp
+         DO ia = 1, na
+            DO ib = ia, na
+               rmat(ia, ib) = SUM(gbasis%bf(:, ia, la)*gbasis%bf(:, ib, la)*vloc(:)*ww(:))
+               rmat(ib, ia) = rmat(ia, ib)
+            END DO
+         END DO
+         DO ir = 1, nl
+            vgauss(:) = EXP(-al(ir)*rad(:)**2)
+            DO ia = 1, na
+               DO ib = ia, na
+                  gmat(ia, ib, ir) = SUM(gbasis%bf(:, ia, la)*gbasis%bf(:, ib, la)*vgauss(:)*ww(:))
+                  gmat(ib, ia, ir) = gmat(ia, ib, ir)
+               END DO
+            END DO
+         END DO
+         DO ir = 1, nl
+            tv(ir) = tv(ir)+SUM(rmat(:, :)*gmat(:, :, ir))
+            DO ix = ir, nl
+               smat(ir, ix) = smat(ir, ix)+SUM(gmat(:, :, ix)*gmat(:, :, ir))
+               smat(ix, ir) = smat(ir, ix)
+            END DO
+         END DO
+         DEALLOCATE (rmat, gmat)
+      END DO
+      CALL get_pseudo_inverse_diag(smat(1:nl, 1:nl), sinv(1:nl, 1:nl), 1.e-12_dp)
+      cl(1:nl) = MATMUL(sinv(1:nl, 1:nl), tv(1:nl))
+      vgauss = 0.0_dp
+      DO ir = 1, nl
+         vgauss(:) = vgauss(:)+cl(ir)*EXP(-al(ir)*rad(:)**2)
+      END DO
+      errloc = SUM((vgauss-vloc)**2*ww)
+      !
+      DEALLOCATE (tv, smat, sinv)
+      !
+   END SUBROUTINE pplocal_error
 
 END MODULE atom_sgp

@@ -160,6 +160,49 @@ MODULE external_potential_types
 
    END TYPE gth_potential_type
 
+! **************************************************************************************************
+   TYPE sgp_potential_type
+      CHARACTER(LEN=default_string_length)       :: name
+      CHARACTER(LEN=default_string_length)       :: aliases
+      CHARACTER(LEN=default_string_length), &
+         DIMENSION(4)                            :: description
+      ! CHARGE
+      INTEGER                                    :: z
+      REAL(KIND=dp)                              :: zeff, &
+                                                    zeff_correction
+      REAL(KIND=dp)                              :: alpha_core_charge, &
+                                                    ccore_charge, &
+                                                    core_charge_radius
+      REAL(KIND=dp)                              :: ppl_radius, ppnl_radius
+      INTEGER, DIMENSION(:), POINTER             :: elec_conf
+      ! LOCAL
+      LOGICAL                                    :: ecp_local
+      INTEGER                                    :: n_local
+      REAL(KIND=dp), DIMENSION(:), POINTER       :: a_local => Null()
+      REAL(KIND=dp), DIMENSION(:), POINTER       :: c_local => Null()
+      ! ECP local
+      INTEGER                                    :: nloc ! # terms
+      INTEGER, DIMENSION(1:10)                   :: nrloc ! r**(n-2)
+      REAL(dp), DIMENSION(1:10)                  :: aloc ! coefficient
+      REAL(dp), DIMENSION(1:10)                  :: bloc ! exponent
+      ! NONLOCAL
+      INTEGER                                    :: n_nonlocal
+      INTEGER                                    :: nppnl
+      INTEGER                                    :: lmax
+      LOGICAL, DIMENSION(0:5)                    :: is_nonlocal = .FALSE.
+      REAL(KIND=dp), DIMENSION(:), POINTER       :: a_nonlocal => Null()
+      REAL(KIND=dp), DIMENSION(:, :), POINTER    :: h_nonlocal => Null()
+      REAL(KIND=dp), DIMENSION(:, :, :), POINTER :: c_nonlocal => Null()
+      REAL(KIND=dp), DIMENSION(:, :), POINTER    :: cprj_ppnl
+      REAL(KIND=dp), DIMENSION(:), POINTER       :: vprj_ppnl
+      ! NLCC
+      LOGICAL                                    :: has_nlcc
+      INTEGER                                    :: n_nlcc
+      REAL(KIND=dp), DIMENSION(:), POINTER       :: a_nlcc => Null()
+      REAL(KIND=dp), DIMENSION(:), POINTER       :: c_nlcc => Null()
+   END TYPE sgp_potential_type
+
+! **************************************************************************************************
    TYPE all_potential_p_type
       TYPE(all_potential_type), POINTER          :: all_potential
    END TYPE all_potential_p_type
@@ -172,6 +215,9 @@ MODULE external_potential_types
       TYPE(local_potential_type), POINTER        :: local_potential
    END TYPE local_potential_p_type
 
+   TYPE sgp_potential_p_type
+      TYPE(sgp_potential_type), POINTER          :: sgp_potential
+   END TYPE sgp_potential_p_type
 ! **************************************************************************************************
 
    ! Public subroutines
@@ -189,20 +235,24 @@ MODULE external_potential_types
    PUBLIC :: all_potential_type, &
              fist_potential_type, &
              local_potential_type, &
-             gth_potential_type
-   PUBLIC :: gth_potential_p_type
+             gth_potential_type, &
+             sgp_potential_type
+   PUBLIC :: gth_potential_p_type, &
+             sgp_potential_p_type
 
    INTERFACE allocate_potential
       MODULE PROCEDURE allocate_all_potential, &
          allocate_fist_potential, &
          allocate_local_potential, &
-         allocate_gth_potential
+         allocate_gth_potential, &
+         allocate_sgp_potential
    END INTERFACE
 
    INTERFACE deallocate_potential
       MODULE PROCEDURE deallocate_all_potential, &
          deallocate_fist_potential, &
          deallocate_local_potential, &
+         deallocate_sgp_potential, &
          deallocate_gth_potential
    END INTERFACE
 
@@ -210,12 +260,14 @@ MODULE external_potential_types
       MODULE PROCEDURE get_all_potential, &
          get_fist_potential, &
          get_local_potential, &
-         get_gth_potential
+         get_gth_potential, &
+         get_sgp_potential
    END INTERFACE
 
    INTERFACE init_potential
       MODULE PROCEDURE init_all_potential, &
-         init_gth_potential
+         init_gth_potential, &
+         init_sgp_potential
    END INTERFACE
 
    INTERFACE read_potential
@@ -228,13 +280,15 @@ MODULE external_potential_types
       MODULE PROCEDURE set_all_potential, &
          set_fist_potential, &
          set_local_potential, &
-         set_gth_potential
+         set_gth_potential, &
+         set_sgp_potential
    END INTERFACE
 
    INTERFACE write_potential
       MODULE PROCEDURE write_all_potential, &
          write_local_potential, &
-         write_gth_potential
+         write_gth_potential, &
+         write_sgp_potential
    END INTERFACE
 
 CONTAINS
@@ -360,6 +414,61 @@ CONTAINS
 
    END SUBROUTINE allocate_gth_potential
 
+! **************************************************************************************************
+!> \brief   Allocate an atomic SGP potential data set.
+!> \param potential ...
+!> \version 1.0
+! **************************************************************************************************
+   SUBROUTINE allocate_sgp_potential(potential)
+      TYPE(sgp_potential_type), POINTER                  :: potential
+
+      CHARACTER(len=*), PARAMETER :: routineN = 'allocate_sgp_potential', &
+         routineP = moduleN//':'//routineN
+
+      IF (ASSOCIATED(potential)) CALL deallocate_potential(potential)
+
+      ALLOCATE (potential)
+
+      NULLIFY (potential%elec_conf)
+      NULLIFY (potential%a_local)
+      NULLIFY (potential%c_local)
+      NULLIFY (potential%a_nonlocal)
+      NULLIFY (potential%c_nonlocal)
+      NULLIFY (potential%h_nonlocal)
+      NULLIFY (potential%a_nlcc)
+      NULLIFY (potential%c_nlcc)
+      NULLIFY (potential%cprj_ppnl)
+      NULLIFY (potential%vprj_ppnl)
+
+      potential%name = ""
+      potential%aliases = ""
+      potential%description(1) = "Separable Gaussian pseudopotential"
+      potential%description(2) = "M. Pelissier, N. Komiha, J.P. Daudey, JCC, 9, 298 (1988)"
+      potential%description(3) = "create from"
+      potential%description(4) = ""
+
+      potential%z = 0
+      potential%zeff = 0.0_dp
+      potential%zeff_correction = 0.0_dp
+      potential%alpha_core_charge = 0.0_dp
+      potential%ccore_charge = 0.0_dp
+      potential%core_charge_radius = 0.0_dp
+      potential%ppl_radius = 0.0_dp
+      potential%ppnl_radius = 0.0_dp
+      potential%ecp_local = .FALSE.
+      potential%n_local = 0
+      potential%nloc = 0
+      potential%nrloc = 0
+      potential%aloc = 0.0_dp
+      potential%bloc = 0.0_dp
+      potential%n_nonlocal = 0
+      potential%nppnl = 0
+      potential%lmax = -1
+      potential%is_nonlocal = .FALSE.
+      potential%has_nlcc = .FALSE.
+      potential%n_nlcc = 0
+
+   END SUBROUTINE allocate_sgp_potential
 ! **************************************************************************************************
 !> \brief   Deallocate an atomic all-electron potential data set.
 !> \param potential ...
@@ -487,11 +596,61 @@ CONTAINS
 
          DEALLOCATE (potential)
       ELSE
-
          CPABORT("The pointer potential is not associated.")
       END IF
 
    END SUBROUTINE deallocate_gth_potential
+
+! **************************************************************************************************
+!> \brief   Deallocate an atomic SGP potential data set.
+!> \param potential ...
+! **************************************************************************************************
+   SUBROUTINE deallocate_sgp_potential(potential)
+      TYPE(sgp_potential_type), POINTER                  :: potential
+
+      CHARACTER(len=*), PARAMETER :: routineN = 'deallocate_sgp_potential', &
+         routineP = moduleN//':'//routineN
+
+      IF (ASSOCIATED(potential)) THEN
+         IF (ASSOCIATED(potential%elec_conf)) THEN
+            DEALLOCATE (potential%elec_conf)
+         END IF
+         IF (ASSOCIATED(potential%a_local)) THEN
+            DEALLOCATE (potential%a_local)
+         END IF
+         IF (ASSOCIATED(potential%c_local)) THEN
+            DEALLOCATE (potential%c_local)
+         END IF
+
+         IF (ASSOCIATED(potential%a_nonlocal)) THEN
+            DEALLOCATE (potential%a_nonlocal)
+         END IF
+         IF (ASSOCIATED(potential%h_nonlocal)) THEN
+            DEALLOCATE (potential%h_nonlocal)
+         END IF
+         IF (ASSOCIATED(potential%c_nonlocal)) THEN
+            DEALLOCATE (potential%c_nonlocal)
+         END IF
+         IF (ASSOCIATED(potential%cprj_ppnl)) THEN
+            DEALLOCATE (potential%cprj_ppnl)
+         END IF
+         IF (ASSOCIATED(potential%vprj_ppnl)) THEN
+            DEALLOCATE (potential%vprj_ppnl)
+         END IF
+
+         IF (ASSOCIATED(potential%a_nlcc)) THEN
+            DEALLOCATE (potential%a_nlcc)
+         END IF
+         IF (ASSOCIATED(potential%c_nlcc)) THEN
+            DEALLOCATE (potential%c_nlcc)
+         END IF
+
+         DEALLOCATE (potential)
+      ELSE
+         CPABORT("The pointer potential is not associated.")
+      END IF
+
+   END SUBROUTINE deallocate_sgp_potential
 
 ! **************************************************************************************************
 !> \brief   Get attributes of an all-electron potential data set.
@@ -784,6 +943,145 @@ CONTAINS
    END SUBROUTINE get_gth_potential
 
 ! **************************************************************************************************
+!> \brief ...
+!> \param potential ...
+!> \param name ...
+!> \param description ...
+!> \param aliases ...
+!> \param elec_conf ...
+!> \param z ...
+!> \param zeff ...
+!> \param zeff_correction ...
+!> \param alpha_core_charge ...
+!> \param ccore_charge ...
+!> \param core_charge_radius ...
+!> \param ppl_radius ...
+!> \param ppnl_radius ...
+!> \param ppl_present ...
+!> \param ppnl_present ...
+!> \param ecp_local ...
+!> \param n_local ...
+!> \param a_local ...
+!> \param c_local ...
+!> \param nloc ...
+!> \param nrloc ...
+!> \param aloc ...
+!> \param bloc ...
+!> \param n_nonlocal ...
+!> \param nppnl ...
+!> \param lmax ...
+!> \param is_nonlocal ...
+!> \param a_nonlocal ...
+!> \param h_nonlocal ...
+!> \param c_nonlocal ...
+!> \param cprj_ppnl ...
+!> \param vprj_ppnl ...
+!> \param has_nlcc ...
+!> \param n_nlcc ...
+!> \param a_nlcc ...
+!> \param c_nlcc ...
+! **************************************************************************************************
+   SUBROUTINE get_sgp_potential(potential, name, description, aliases, elec_conf, &
+                                z, zeff, zeff_correction, alpha_core_charge, &
+                                ccore_charge, core_charge_radius, &
+                                ppl_radius, ppnl_radius, ppl_present, ppnl_present, &
+                                ecp_local, n_local, a_local, c_local, &
+                                nloc, nrloc, aloc, bloc, &
+                                n_nonlocal, nppnl, lmax, is_nonlocal, a_nonlocal, h_nonlocal, c_nonlocal, &
+                                cprj_ppnl, vprj_ppnl, has_nlcc, n_nlcc, a_nlcc, c_nlcc)
+
+      TYPE(sgp_potential_type), POINTER                  :: potential
+      CHARACTER(LEN=default_string_length), &
+         INTENT(OUT), OPTIONAL                           :: name
+      CHARACTER(LEN=default_string_length), &
+         DIMENSION(4), INTENT(OUT), OPTIONAL             :: description
+      CHARACTER(LEN=default_string_length), &
+         INTENT(OUT), OPTIONAL                           :: aliases
+      INTEGER, DIMENSION(:), OPTIONAL, POINTER           :: elec_conf
+      INTEGER, INTENT(OUT), OPTIONAL                     :: z
+      REAL(KIND=dp), INTENT(OUT), OPTIONAL               :: zeff, zeff_correction, &
+                                                            alpha_core_charge, ccore_charge, &
+                                                            core_charge_radius, ppl_radius, &
+                                                            ppnl_radius
+      LOGICAL, INTENT(OUT), OPTIONAL                     :: ppl_present, ppnl_present, ecp_local
+      INTEGER, INTENT(OUT), OPTIONAL                     :: n_local
+      REAL(KIND=dp), DIMENSION(:), OPTIONAL, POINTER     :: a_local, c_local
+      INTEGER, INTENT(OUT), OPTIONAL                     :: nloc
+      INTEGER, DIMENSION(1:10), INTENT(OUT), OPTIONAL    :: nrloc
+      REAL(dp), DIMENSION(1:10), INTENT(OUT), OPTIONAL   :: aloc, bloc
+      INTEGER, INTENT(OUT), OPTIONAL                     :: n_nonlocal, nppnl, lmax
+      LOGICAL, DIMENSION(0:5), OPTIONAL                  :: is_nonlocal
+      REAL(KIND=dp), DIMENSION(:), OPTIONAL, POINTER     :: a_nonlocal
+      REAL(KIND=dp), DIMENSION(:, :), OPTIONAL, POINTER  :: h_nonlocal
+      REAL(KIND=dp), DIMENSION(:, :, :), OPTIONAL, &
+         POINTER                                         :: c_nonlocal
+      REAL(KIND=dp), DIMENSION(:, :), OPTIONAL, POINTER  :: cprj_ppnl
+      REAL(KIND=dp), DIMENSION(:), OPTIONAL, POINTER     :: vprj_ppnl
+      LOGICAL, INTENT(OUT), OPTIONAL                     :: has_nlcc
+      INTEGER, INTENT(OUT), OPTIONAL                     :: n_nlcc
+      REAL(KIND=dp), DIMENSION(:), OPTIONAL, POINTER     :: a_nlcc, c_nlcc
+
+      CHARACTER(len=*), PARAMETER :: routineN = 'get_sgp_potential', &
+         routineP = moduleN//':'//routineN
+
+      IF (ASSOCIATED(potential)) THEN
+
+         IF (PRESENT(name)) name = potential%name
+         IF (PRESENT(aliases)) aliases = potential%aliases
+         IF (PRESENT(description)) description = potential%description
+
+         IF (PRESENT(elec_conf)) elec_conf => potential%elec_conf
+
+         IF (PRESENT(z)) z = potential%z
+         IF (PRESENT(zeff)) zeff = potential%zeff
+         IF (PRESENT(zeff_correction)) zeff_correction = potential%zeff_correction
+         IF (PRESENT(alpha_core_charge)) alpha_core_charge = potential%alpha_core_charge
+         IF (PRESENT(ccore_charge)) ccore_charge = potential%ccore_charge
+         IF (PRESENT(core_charge_radius)) core_charge_radius = potential%core_charge_radius
+
+         IF (PRESENT(ppl_radius)) ppl_radius = potential%ppl_radius
+         IF (PRESENT(ppnl_radius)) ppnl_radius = potential%ppnl_radius
+         IF (PRESENT(ppl_present)) THEN
+            ppl_present = (potential%nloc > 0 .OR. potential%n_local > 0)
+         END IF
+         IF (PRESENT(ppnl_present)) THEN
+            ppnl_present = ANY(potential%is_nonlocal)
+         END IF
+
+         IF (PRESENT(ecp_local)) ecp_local = potential%ecp_local
+         IF (PRESENT(n_local)) n_local = potential%n_local
+         IF (PRESENT(a_local)) a_local => potential%a_local
+         IF (PRESENT(c_local)) c_local => potential%c_local
+
+         IF (PRESENT(nloc)) nloc = potential%nloc
+         IF (PRESENT(nrloc)) nrloc = potential%nrloc
+         IF (PRESENT(aloc)) aloc = potential%aloc
+         IF (PRESENT(bloc)) bloc = potential%bloc
+
+         IF (PRESENT(n_nonlocal)) n_nonlocal = potential%n_nonlocal
+         IF (PRESENT(nppnl)) nppnl = potential%nppnl
+         IF (PRESENT(lmax)) lmax = potential%lmax
+         IF (PRESENT(is_nonlocal)) is_nonlocal(:) = potential%is_nonlocal(:)
+         IF (PRESENT(a_nonlocal)) a_nonlocal => potential%a_nonlocal
+         IF (PRESENT(c_nonlocal)) c_nonlocal => potential%c_nonlocal
+         IF (PRESENT(h_nonlocal)) h_nonlocal => potential%h_nonlocal
+         IF (PRESENT(cprj_ppnl)) cprj_ppnl => potential%cprj_ppnl
+         IF (PRESENT(vprj_ppnl)) vprj_ppnl => potential%vprj_ppnl
+
+         IF (PRESENT(has_nlcc)) has_nlcc = potential%has_nlcc
+         IF (PRESENT(n_nlcc)) n_nlcc = potential%n_nlcc
+         IF (PRESENT(a_nlcc)) a_nlcc => potential%a_nlcc
+         IF (PRESENT(c_nlcc)) c_nlcc => potential%c_nlcc
+
+      ELSE
+
+         CPABORT("The pointer potential is not associated.")
+
+      END IF
+
+   END SUBROUTINE get_sgp_potential
+
+! **************************************************************************************************
 !> \brief   Initialise the coefficients of the projectors of the non-local
 !>          part of the GTH pseudopotential and the transformation matrices
 !>          for Cartesian overlap integrals between the orbital basis
@@ -849,11 +1147,7 @@ CONTAINS
       CHARACTER(len=*), PARAMETER :: routineN = 'init_gth_potential', &
          routineP = moduleN//':'//routineN
 
-      INTEGER                                            :: handle
-
       IF (.NOT. ASSOCIATED(potential)) RETURN
-
-      CALL timeset(routineN, handle)
 
       IF (potential%nppnl > 0) THEN
 
@@ -869,8 +1163,6 @@ CONTAINS
          CALL init_vprj_ppnl(potential)
 
       END IF
-
-      CALL timestop(handle)
 
    END SUBROUTINE init_gth_potential
 
@@ -933,11 +1225,9 @@ CONTAINS
       CHARACTER(len=*), PARAMETER :: routineN = 'init_all_potential', &
          routineP = moduleN//':'//routineN
 
-      INTEGER                                            :: dz, handle
+      INTEGER                                            :: dz
 
       IF (.NOT. ASSOCIATED(potential)) RETURN
-
-      CALL timeset(routineN, handle)
 
       IF (PRESENT(zeff)) potential%zeff = zeff
       IF (PRESENT(zeff_correction)) potential%zeff_correction = zeff_correction
@@ -1014,9 +1304,82 @@ CONTAINS
          ENDIF
       END IF
 
-      CALL timestop(handle)
-
    END SUBROUTINE init_all_potential
+! **************************************************************************************************
+!> \brief   Initialise a SGP potential data set structure.
+!> \param potential ...
+!> \version 1.0
+! **************************************************************************************************
+   SUBROUTINE init_sgp_potential(potential)
+      TYPE(sgp_potential_type), POINTER                  :: potential
+
+      CHARACTER(len=*), PARAMETER :: routineN = 'init_sgp_potential', &
+         routineP = moduleN//':'//routineN
+
+      INTEGER                                            :: i1, i2, i3, j1, j2, j3, l, la, lb, lc, &
+                                                            n1, n2, n3, nnl, nprj
+      REAL(KIND=dp), DIMENSION(:, :), POINTER            :: cprj
+      REAL(KIND=dp), DIMENSION(:, :, :), POINTER         :: cn
+
+      IF (ASSOCIATED(potential)) THEN
+         IF (potential%nppnl > 0) THEN
+            !
+            IF (ASSOCIATED(potential%cprj_ppnl)) THEN
+               DEALLOCATE (potential%cprj_ppnl)
+            END IF
+            nprj = 0
+            DO l = 0, potential%lmax
+               nnl = potential%n_nonlocal
+               IF (potential%is_nonlocal(l)) nprj = nprj+nnl*nso(l)
+            END DO
+            ALLOCATE (potential%cprj_ppnl(potential%nppnl, nprj))
+            cprj => potential%cprj_ppnl
+            cprj = 0.0_dp
+            cn => potential%c_nonlocal
+            !
+            nnl = potential%n_nonlocal
+            n1 = 0
+            DO i1 = 1, nnl
+               DO la = 0, potential%lmax
+                  DO j1 = 1, nco(la)
+                     n1 = n1+1
+                     !
+                     n2 = 0
+                     DO i2 = 1, nnl
+                        DO lb = 0, potential%lmax
+                           IF (.NOT. potential%is_nonlocal(lb)) CYCLE
+                           DO j2 = 1, nso(lb)
+                              n2 = n2+1
+                              IF (la /= lb) CYCLE
+                              !
+                              n3 = 0
+                              DO i3 = 1, nnl
+                                 DO lc = 0, potential%lmax
+                                    DO j3 = 1, nso(lc)
+                                       n3 = n3+1
+                                       !
+                                       IF (i1 /= i3) CYCLE
+                                       IF (la /= lc) CYCLE
+                                       cprj(n1, n2) = cprj(n1, n2)+orbtramat(la)%c2s(j3, j1)*cn(n3, n2, la)
+                                    END DO
+                                 END DO
+                              END DO
+                           END DO
+                        END DO
+                     END DO
+                  END DO
+               END DO
+            END DO
+            !
+            IF (ASSOCIATED(potential%vprj_ppnl)) THEN
+               DEALLOCATE (potential%vprj_ppnl)
+            END IF
+            ALLOCATE (potential%vprj_ppnl(nprj))
+            potential%vprj_ppnl = 0.0_dp
+         END IF
+      END IF
+
+   END SUBROUTINE init_sgp_potential
 
 ! **************************************************************************************************
 !> \brief   Read an atomic all-electron potential data set.
@@ -2277,7 +2640,13 @@ CONTAINS
          IF (PRESENT(zeff_correction)) potential%zeff_correction = zeff_correction
          IF (PRESENT(alpha_ppnl)) potential%alpha_ppnl => alpha_ppnl
          IF (PRESENT(cexp_ppl)) potential%cexp_ppl => cexp_ppl
-         IF (PRESENT(elec_conf)) potential%elec_conf => elec_conf
+         IF (PRESENT(elec_conf)) THEN
+            IF (ASSOCIATED(potential%elec_conf)) THEN
+               DEALLOCATE (potential%elec_conf)
+            ENDIF
+            ALLOCATE (potential%elec_conf(0:SIZE(elec_conf)-1))
+            potential%elec_conf(:) = elec_conf(:)
+         ENDIF
          IF (PRESENT(nprj_ppnl)) potential%nprj_ppnl => nprj_ppnl
          IF (PRESENT(cprj)) potential%cprj => cprj
          IF (PRESENT(cprj_ppnl)) potential%cprj_ppnl => cprj_ppnl
@@ -2291,6 +2660,137 @@ CONTAINS
       END IF
 
    END SUBROUTINE set_gth_potential
+
+! **************************************************************************************************
+!> \brief ...
+!> \param potential ...
+!> \param name ...
+!> \param description ...
+!> \param aliases ...
+!> \param elec_conf ...
+!> \param z ...
+!> \param zeff ...
+!> \param zeff_correction ...
+!> \param alpha_core_charge ...
+!> \param ccore_charge ...
+!> \param core_charge_radius ...
+!> \param ppl_radius ...
+!> \param ppnl_radius ...
+!> \param ecp_local ...
+!> \param n_local ...
+!> \param a_local ...
+!> \param c_local ...
+!> \param nloc ...
+!> \param nrloc ...
+!> \param aloc ...
+!> \param bloc ...
+!> \param n_nonlocal ...
+!> \param nppnl ...
+!> \param lmax ...
+!> \param is_nonlocal ...
+!> \param a_nonlocal ...
+!> \param h_nonlocal ...
+!> \param c_nonlocal ...
+!> \param has_nlcc ...
+!> \param n_nlcc ...
+!> \param a_nlcc ...
+!> \param c_nlcc ...
+! **************************************************************************************************
+   SUBROUTINE set_sgp_potential(potential, name, description, aliases, elec_conf, &
+                                z, zeff, zeff_correction, alpha_core_charge, &
+                                ccore_charge, core_charge_radius, &
+                                ppl_radius, ppnl_radius, &
+                                ecp_local, n_local, a_local, c_local, &
+                                nloc, nrloc, aloc, bloc, &
+                                n_nonlocal, nppnl, lmax, is_nonlocal, a_nonlocal, h_nonlocal, c_nonlocal, &
+                                has_nlcc, n_nlcc, a_nlcc, c_nlcc)
+
+      TYPE(sgp_potential_type), POINTER                  :: potential
+      CHARACTER(LEN=default_string_length), INTENT(IN), &
+         OPTIONAL                                        :: name
+      CHARACTER(LEN=default_string_length), &
+         DIMENSION(4), INTENT(IN), OPTIONAL              :: description
+      CHARACTER(LEN=default_string_length), INTENT(IN), &
+         OPTIONAL                                        :: aliases
+      INTEGER, DIMENSION(:), OPTIONAL, POINTER           :: elec_conf
+      INTEGER, INTENT(IN), OPTIONAL                      :: z
+      REAL(KIND=dp), INTENT(IN), OPTIONAL                :: zeff, zeff_correction, &
+                                                            alpha_core_charge, ccore_charge, &
+                                                            core_charge_radius, ppl_radius, &
+                                                            ppnl_radius
+      LOGICAL, INTENT(IN), OPTIONAL                      :: ecp_local
+      INTEGER, INTENT(IN), OPTIONAL                      :: n_local
+      REAL(KIND=dp), DIMENSION(:), OPTIONAL, POINTER     :: a_local, c_local
+      INTEGER, INTENT(IN), OPTIONAL                      :: nloc
+      INTEGER, DIMENSION(1:10), INTENT(IN), OPTIONAL     :: nrloc
+      REAL(dp), DIMENSION(1:10), INTENT(IN), OPTIONAL    :: aloc, bloc
+      INTEGER, INTENT(IN), OPTIONAL                      :: n_nonlocal, nppnl, lmax
+      LOGICAL, DIMENSION(0:5), INTENT(IN), OPTIONAL      :: is_nonlocal
+      REAL(KIND=dp), DIMENSION(:), OPTIONAL, POINTER     :: a_nonlocal
+      REAL(KIND=dp), DIMENSION(:, :), OPTIONAL, POINTER  :: h_nonlocal
+      REAL(KIND=dp), DIMENSION(:, :, :), OPTIONAL, &
+         POINTER                                         :: c_nonlocal
+      LOGICAL, INTENT(IN), OPTIONAL                      :: has_nlcc
+      INTEGER, INTENT(IN), OPTIONAL                      :: n_nlcc
+      REAL(KIND=dp), DIMENSION(:), OPTIONAL, POINTER     :: a_nlcc, c_nlcc
+
+      CHARACTER(len=*), PARAMETER :: routineN = 'set_sgp_potential', &
+         routineP = moduleN//':'//routineN
+
+      IF (ASSOCIATED(potential)) THEN
+
+         IF (PRESENT(name)) potential%name = name
+         IF (PRESENT(aliases)) potential%aliases = aliases
+         IF (PRESENT(description)) potential%description = description
+
+         IF (PRESENT(elec_conf)) THEN
+            IF (ASSOCIATED(potential%elec_conf)) THEN
+               DEALLOCATE (potential%elec_conf)
+            ENDIF
+            ALLOCATE (potential%elec_conf(0:SIZE(elec_conf)-1))
+            potential%elec_conf(:) = elec_conf(:)
+         ENDIF
+
+         IF (PRESENT(z)) potential%z = z
+         IF (PRESENT(zeff)) potential%zeff = zeff
+         IF (PRESENT(zeff_correction)) potential%zeff_correction = zeff_correction
+         IF (PRESENT(alpha_core_charge)) potential%alpha_core_charge = alpha_core_charge
+         IF (PRESENT(ccore_charge)) potential%ccore_charge = ccore_charge
+         IF (PRESENT(core_charge_radius)) potential%core_charge_radius = core_charge_radius
+
+         IF (PRESENT(ppl_radius)) potential%ppl_radius = ppl_radius
+         IF (PRESENT(ppnl_radius)) potential%ppnl_radius = ppnl_radius
+
+         IF (PRESENT(ecp_local)) potential%ecp_local = ecp_local
+         IF (PRESENT(n_local)) potential%n_local = n_local
+         IF (PRESENT(a_local)) potential%a_local => a_local
+         IF (PRESENT(c_local)) potential%c_local => c_local
+
+         IF (PRESENT(nloc)) potential%nloc = nloc
+         IF (PRESENT(nrloc)) potential%nrloc = nrloc
+         IF (PRESENT(aloc)) potential%aloc = aloc
+         IF (PRESENT(bloc)) potential%bloc = bloc
+
+         IF (PRESENT(n_nonlocal)) potential%n_nonlocal = n_nonlocal
+         IF (PRESENT(nppnl)) potential%nppnl = nppnl
+         IF (PRESENT(lmax)) potential%lmax = lmax
+         IF (PRESENT(is_nonlocal)) potential%is_nonlocal(:) = is_nonlocal(:)
+         IF (PRESENT(a_nonlocal)) potential%a_nonlocal => a_nonlocal
+         IF (PRESENT(c_nonlocal)) potential%c_nonlocal => c_nonlocal
+         IF (PRESENT(h_nonlocal)) potential%h_nonlocal => h_nonlocal
+
+         IF (PRESENT(has_nlcc)) potential%has_nlcc = has_nlcc
+         IF (PRESENT(n_nlcc)) potential%n_nlcc = n_nlcc
+         IF (PRESENT(a_nlcc)) potential%a_nlcc => a_nlcc
+         IF (PRESENT(c_nlcc)) potential%c_nlcc => c_nlcc
+
+      ELSE
+
+         CPABORT("The pointer potential is not associated.")
+
+      END IF
+
+   END SUBROUTINE set_sgp_potential
 
 ! **************************************************************************************************
 !> \brief ...
@@ -2310,7 +2810,7 @@ CONTAINS
 
       IF (output_unit > 0 .AND. ASSOCIATED(potential)) THEN
          WRITE (UNIT=output_unit, FMT="(/,T6,A,T41,A40,/)") &
-            "Potential information for", ADJUSTR(TRIM(potential%name))
+            "AE Potential information for", ADJUSTR(TRIM(potential%name))
          WRITE (UNIT=output_unit, FMT="(T8,A,T41,A40)") &
             "Description: ", TRIM(potential%description(1)), &
             "             ", TRIM(potential%description(2))
@@ -2343,7 +2843,7 @@ CONTAINS
 
       IF (output_unit > 0 .AND. ASSOCIATED(potential)) THEN
          WRITE (UNIT=output_unit, FMT="(/,T6,A,T41,A40)") &
-            "Potential information for", ADJUSTR(TRIM(potential%name))
+            "Local Potential information for", ADJUSTR(TRIM(potential%name))
          WRITE (UNIT=output_unit, FMT="(T8,A,T41,A40)") &
             "Description: ", TRIM(potential%description(1))
          DO igau = 1, potential%ngau
@@ -2374,7 +2874,7 @@ CONTAINS
 
       IF (output_unit > 0 .AND. ASSOCIATED(potential)) THEN
          WRITE (UNIT=output_unit, FMT="(/,T6,A,T41,A40,/)") &
-            "Potential information for", ADJUSTR(TRIM(potential%name))
+            "GTH Potential information for", ADJUSTR(TRIM(potential%name))
          WRITE (UNIT=output_unit, FMT="(T8,A,T41,A40)") &
             "Description: ", ADJUSTR(TRIM(potential%description(1))), &
             "             ", ADJUSTR(TRIM(potential%description(2))), &
@@ -2412,6 +2912,76 @@ CONTAINS
       END IF
 
    END SUBROUTINE write_gth_potential
+
+! **************************************************************************************************
+!> \brief ...
+!> \param potential ...
+!> \param output_unit ...
+! **************************************************************************************************
+   SUBROUTINE write_sgp_potential(potential, output_unit)
+
+      TYPE(sgp_potential_type), POINTER                  :: potential
+      INTEGER, INTENT(in)                                :: output_unit
+
+      CHARACTER(LEN=40)                                  :: string
+      INTEGER                                            :: i, l
+
+      IF (output_unit > 0 .AND. ASSOCIATED(potential)) THEN
+         WRITE (UNIT=output_unit, FMT="(/,T6,A,T41,A40,/)") &
+            "SGP Potential information for", ADJUSTR(TRIM(potential%name))
+         WRITE (UNIT=output_unit, FMT="(T8,A,T25,A56)") &
+            "Description: ", ADJUSTR(TRIM(potential%description(1))), &
+            "             ", ADJUSTR(TRIM(potential%description(2))), &
+            "             ", ADJUSTR(TRIM(potential%description(3))), &
+            "             ", ADJUSTR(TRIM(potential%description(4)))
+         WRITE (UNIT=output_unit, FMT="(/,T8,A,T69,F12.6)") &
+            "Gaussian exponent of the core charge distribution: ", &
+            potential%alpha_core_charge
+         WRITE (UNIT=string, FMT="(10I4)") potential%elec_conf
+         WRITE (UNIT=output_unit, FMT="(T8,A,T61,A20)") &
+            "Electronic configuration (s p d ...):", &
+            ADJUSTR(TRIM(string))
+         IF (potential%ecp_local) THEN
+            IF (potential%nloc > 0) THEN
+               WRITE (UNIT=output_unit, FMT="(/,T8,'Local pseudopotential')")
+               WRITE (UNIT=output_unit, FMT="(T20,'r**(n-2)',T50,'Coefficient',T73,'Exponent')")
+               DO i = 1, potential%nloc
+                  WRITE (UNIT=output_unit, FMT="(T20,I5,T47,F14.8,T69,F12.6)") &
+                     potential%nrloc(i), potential%aloc(i), potential%bloc(i)
+               END DO
+            END IF
+         ELSE
+            IF (potential%n_local > 0) THEN
+               WRITE (UNIT=output_unit, FMT="(/,T8,'Local pseudopotential')")
+               WRITE (UNIT=output_unit, FMT="(T8,A,10(T21,6F10.4,/))") &
+                  'Exponents:', potential%a_local(1:potential%n_local)
+               WRITE (UNIT=output_unit, FMT="(T8,A,10(T21,6F10.4,/))") &
+                  'Coefficients:', potential%c_local(1:potential%n_local)
+            END IF
+         END IF
+         ! nonlocal PP
+         IF (potential%n_nonlocal > 0) THEN
+            WRITE (UNIT=output_unit, FMT="(/,T8,'Nonlocal pseudopotential')")
+            WRITE (UNIT=output_unit, FMT="(T8,A,T71,I10)") 'Total number of projectors:', potential%nppnl
+            WRITE (UNIT=output_unit, FMT="(T8,A,10(T21,6F10.4,/))") &
+               'Exponents:', potential%a_nonlocal(1:potential%n_nonlocal)
+            DO l = 0, potential%lmax
+               WRITE (UNIT=output_unit, FMT="(T8,'Coupling for l=',I4)") l
+               WRITE (UNIT=output_unit, FMT="(10(T21,6F10.4,/))") &
+                  potential%h_nonlocal(1:potential%n_nonlocal, l)
+            END DO
+         END IF
+         !
+         IF (potential%has_nlcc) THEN
+            WRITE (UNIT=output_unit, FMT="(/,T8,'Nonlinear Core Correction')")
+            WRITE (UNIT=output_unit, FMT="(T8,A,10(T21,6F10.4,/))") &
+               'Exponents:', potential%a_nlcc(1:potential%n_nlcc)
+            WRITE (UNIT=output_unit, FMT="(T8,A,10(T21,6F10.4,/))") &
+               'Coefficients:', potential%c_nlcc(1:potential%n_nlcc)
+         END IF
+      END IF
+
+   END SUBROUTINE write_sgp_potential
 
 ! **************************************************************************************************
 

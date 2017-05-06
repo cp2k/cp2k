@@ -23,7 +23,8 @@ MODULE core_ppl
                                               dbcsr_get_block_p,&
                                               dbcsr_p_type
    USE external_potential_types,        ONLY: get_potential,&
-                                              gth_potential_type
+                                              gth_potential_type,&
+                                              sgp_potential_type
    USE kinds,                           ONLY: dp
    USE orbital_pointers,                ONLY: init_orbital_pointers,&
                                               ncoset
@@ -56,8 +57,6 @@ MODULE core_ppl
    PUBLIC :: build_core_ppl
 
 CONTAINS
-
-!==========================================================================================================
 
 ! **************************************************************************************************
 !> \brief ...
@@ -97,27 +96,29 @@ CONTAINS
       CHARACTER(LEN=*), INTENT(IN)                       :: basis_type
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'build_core_ppl', routineP = moduleN//':'//routineN
-      INTEGER, PARAMETER                                 :: nexp_max = 10
+      INTEGER, PARAMETER                                 :: nexp_max = 30
 
       INTEGER :: atom_a, atom_b, atom_c, handle, i, iatom, icol, ikind, img, inode, irow, iset, &
          jatom, jkind, jset, katom, kkind, ldai, ldsab, maxco, maxder, maxl, maxlgto, maxlppl, &
-         maxnset, maxsgf, mepos, natom, ncoa, ncob, nexp_lpot, nexp_ppl, nkind, nseta, nsetb, &
-         nthread, sgfa, sgfb
+         maxnset, maxsgf, mepos, n_local, natom, ncoa, ncob, nexp_lpot, nexp_ppl, nkind, nloc, &
+         nseta, nsetb, nthread, sgfa, sgfb
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: atom_of_kind
+      INTEGER, DIMENSION(1:10)                           :: nrloc
       INTEGER, DIMENSION(3)                              :: cellind
       INTEGER, DIMENSION(:), POINTER                     :: la_max, la_min, lb_max, lb_min, &
                                                             nct_lpot, npgfa, npgfb, nsgfa, nsgfb
       INTEGER, DIMENSION(:, :), POINTER                  :: first_sgfa, first_sgfb
       INTEGER, DIMENSION(nexp_max)                       :: nct_ppl
-      LOGICAL                                            :: dokp, found, lpotextended
+      LOGICAL                                            :: dokp, ecp_local, found, lpotextended
       REAL(KIND=dp)                                      :: alpha, dab, dac, dbc, f0, ppl_radius
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: work
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: ppl_fwork, ppl_work
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :, :)  :: hab, pab
+      REAL(KIND=dp), DIMENSION(1:10)                     :: aloc, bloc
       REAL(KIND=dp), DIMENSION(3)                        :: force_a, force_b, rab, rac, rbc
       REAL(KIND=dp), DIMENSION(4, nexp_max)              :: cval_ppl
-      REAL(KIND=dp), DIMENSION(:), POINTER               :: alpha_lpot, cexp_ppl, set_radius_a, &
-                                                            set_radius_b
+      REAL(KIND=dp), DIMENSION(:), POINTER               :: a_local, alpha_lpot, c_local, cexp_ppl, &
+                                                            set_radius_a, set_radius_b
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: cval_lpot, h_block, p_block, rpgfa, &
                                                             rpgfb, sphi_a, sphi_b, zeta, zetb
       REAL(KIND=dp), DIMENSION(nexp_max)                 :: alpha_ppl
@@ -126,6 +127,7 @@ CONTAINS
       TYPE(gto_basis_set_type), POINTER                  :: basis_set_a, basis_set_b
       TYPE(neighbor_list_iterator_p_type), &
          DIMENSION(:), POINTER                           :: ap_iterator, nl_iterator
+      TYPE(sgp_potential_type), POINTER                  :: sgp_potential
 
       IF (calculate_forces) THEN
          CALL timeset(routineN//"_forces", handle)
@@ -194,12 +196,12 @@ CONTAINS
 !$OMP          zeta, first_sgfb, lb_max, lb_min, npgfb, nsetb, rpgfb, set_radius_b, sphi_b, &
 !$OMP          zetb, dab, irow, icol, h_block, found, iset, ncoa, &
 !$OMP          sgfa, jset, ncob, sgfb, nsgfb, p_block, work, pab, hab, kkind, nseta, &
-!$OMP          gth_potential, alpha, cexp_ppl, lpotextended, &
+!$OMP          gth_potential, sgp_potential, alpha, cexp_ppl, lpotextended, &
 !$OMP          ppl_radius, nexp_lpot, nexp_ppl, alpha_ppl, alpha_lpot, nct_ppl, &
 !$OMP          nct_lpot, cval_ppl, cval_lpot, rac, dac, rbc, dbc, &
 !$OMP          set_radius_a,  rpgfa, force_a, force_b, ppl_fwork, mepos, &
 !$OMP          f0, katom, ppl_work, atom_c, cellind, img, &
-!$OMP          ldai)
+!$OMP          nloc, nrloc, aloc, bloc, n_local, a_local, c_local, ldai)
 
       mepos = 0
 !$    mepos = omp_get_thread_num()
@@ -313,26 +315,48 @@ CONTAINS
          ! loop over all kinds for pseudopotential atoms
          DO kkind = 1, nkind
 
-            CALL get_qs_kind(qs_kind_set(kkind), gth_potential=gth_potential)
-            IF (.NOT. ASSOCIATED(gth_potential)) CYCLE
-            CALL get_potential(potential=gth_potential, &
-                               alpha_ppl=alpha, cexp_ppl=cexp_ppl, &
-                               lpot_present=lpotextended, ppl_radius=ppl_radius)
-            nexp_ppl = 1
-            alpha_ppl(1) = alpha
-            nct_ppl(1) = SIZE(cexp_ppl)
-            cval_ppl(1:nct_ppl(1), 1) = cexp_ppl(1:nct_ppl(1))
-            IF (lpotextended) THEN
+            CALL get_qs_kind(qs_kind_set(kkind), gth_potential=gth_potential, &
+                             sgp_potential=sgp_potential)
+            IF (ASSOCIATED(gth_potential)) THEN
                CALL get_potential(potential=gth_potential, &
-                                  nexp_lpot=nexp_lpot, alpha_lpot=alpha_lpot, nct_lpot=nct_lpot, cval_lpot=cval_lpot)
-               CPASSERT(nexp_lpot < nexp_max)
-               nexp_ppl = nexp_lpot+1
-               alpha_ppl(2:nexp_lpot+1) = alpha_lpot(1:nexp_lpot)
-               nct_ppl(2:nexp_lpot+1) = nct_lpot(1:nexp_lpot)
-               DO i = 1, nexp_lpot
-                  cval_ppl(1:nct_lpot(i), i+1) = cval_lpot(1:nct_lpot(i), i)
-               END DO
-            ENDIF
+                                  alpha_ppl=alpha, cexp_ppl=cexp_ppl, &
+                                  lpot_present=lpotextended, ppl_radius=ppl_radius)
+               nexp_ppl = 1
+               alpha_ppl(1) = alpha
+               nct_ppl(1) = SIZE(cexp_ppl)
+               cval_ppl(1:nct_ppl(1), 1) = cexp_ppl(1:nct_ppl(1))
+               IF (lpotextended) THEN
+                  CALL get_potential(potential=gth_potential, &
+                                     nexp_lpot=nexp_lpot, alpha_lpot=alpha_lpot, nct_lpot=nct_lpot, cval_lpot=cval_lpot)
+                  CPASSERT(nexp_lpot < nexp_max)
+                  nexp_ppl = nexp_lpot+1
+                  alpha_ppl(2:nexp_lpot+1) = alpha_lpot(1:nexp_lpot)
+                  nct_ppl(2:nexp_lpot+1) = nct_lpot(1:nexp_lpot)
+                  DO i = 1, nexp_lpot
+                     cval_ppl(1:nct_lpot(i), i+1) = cval_lpot(1:nct_lpot(i), i)
+                  END DO
+               END IF
+            ELSE IF (ASSOCIATED(sgp_potential)) THEN
+               CALL get_potential(potential=sgp_potential, ecp_local=ecp_local, ppl_radius=ppl_radius)
+               IF (ecp_local) THEN
+                  CALL get_potential(potential=sgp_potential, nloc=nloc, nrloc=nrloc, aloc=aloc, bloc=bloc)
+                  IF (SUM(ABS(aloc(1:nloc))) < 1.0e-12_dp) CYCLE
+                  nexp_ppl = nloc
+                  CPASSERT(nexp_ppl <= nexp_max)
+                  nct_ppl(1:nloc) = nrloc(1:nloc)-1
+                  alpha_ppl(1:nloc) = bloc(1:nloc)
+                  cval_ppl(1, 1:nloc) = aloc(1:nloc)
+               ELSE
+                  CALL get_potential(potential=sgp_potential, n_local=n_local, a_local=a_local, c_local=c_local)
+                  nexp_ppl = n_local
+                  CPASSERT(nexp_ppl <= nexp_max)
+                  nct_ppl(1:n_local) = 1
+                  alpha_ppl(1:n_local) = a_local(1:n_local)
+                  cval_ppl(1, 1:n_local) = c_local(1:n_local)
+               END IF
+            ELSE
+               CYCLE
+            END IF
 
             CALL nl_set_sub_iterator(ap_iterator, ikind, kkind, iatom, mepos=mepos)
 
@@ -470,6 +494,35 @@ CONTAINS
 
    END SUBROUTINE build_core_ppl
 
-!==========================================================================================================
+! **************************************************************************************************
+!> \brief ...
+!> \param r ...
+!> \param wr ...
+! **************************************************************************************************
+   SUBROUTINE ggrid(r, wr)
+      REAL(KIND=dp), DIMENSION(:)                        :: r, wr
+
+      INTEGER                                            :: i, n
+      REAL(KIND=dp)                                      :: cost, f, pi, r2, sint, sint2, t, w, x
+
+      n = SIZE(r)
+      pi = ACOS(-1._dp)
+      f = pi/REAL(n+1, dp)
+
+      DO i = 1, n
+         t = REAL(i, dp)*f
+         cost = COS(t)
+         sint = SIN(t)
+         sint2 = sint**2
+         x = REAL(2*i-n-1, dp)/REAL(n+1, dp)- &
+             2.0_dp*(1.0_dp+2.0_dp*sint2/3.0_dp)*cost*sint/pi
+         w = 16.0_dp*sint2**2/REAL(3*(n+1), dp)
+         r(n+1-i) = (1.0_dp+x)/(1.0_dp-x)
+         r2 = r(n+1-i)**2
+         wr(n+1-i) = 2.0_dp*w*r2/(1.0_dp-x)**2
+      END DO
+
+   END SUBROUTINE ggrid
+! **************************************************************************************************
 
 END MODULE core_ppl

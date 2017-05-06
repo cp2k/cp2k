@@ -43,7 +43,8 @@ MODULE qs_neighbor_lists
                                               ewald_environment_type
    USE external_potential_types,        ONLY: all_potential_type,&
                                               get_potential,&
-                                              gth_potential_type
+                                              gth_potential_type,&
+                                              sgp_potential_type
    USE input_constants,                 ONLY: dispersion_uff,&
                                               do_method_lrigpw,&
                                               do_se_IS_slater,&
@@ -298,7 +299,8 @@ CONTAINS
       INTEGER                                            :: handle, ikind, iw, maxatom, nkind, &
                                                             numshells, zat
       LOGICAL :: all_potential_present, almo, dftb, do_hfx, dokp, explicit, gth_potential_present, &
-         lri_optbas, lrigpw, mic, molecule_only, nddo, paw_atom, paw_atom_present, scptb
+         lri_optbas, lrigpw, mic, molecule_only, nddo, paw_atom, paw_atom_present, scptb, &
+         sgp_potential_present
       LOGICAL, ALLOCATABLE, DIMENSION(:) :: all_present, aux_fit_present, aux_present, &
          core_present, default_present, oce_present, orb_present, ppl_present, ppnl_present
       REAL(dp)                                           :: almo_rcov, almo_rvdw, alpha, roperator, &
@@ -333,13 +335,14 @@ CONTAINS
       TYPE(qs_ks_env_type), POINTER                      :: ks_env
       TYPE(scptb_parameter_type), POINTER                :: scptb_kind
       TYPE(section_vals_type), POINTER                   :: hfx_sections, neighbor_list_section
+      TYPE(sgp_potential_type), POINTER                  :: sgp_potential
 
       CALL timeset(routineN, handle)
       NULLIFY (logger)
       logger => cp_get_default_logger()
 
       NULLIFY (atomic_kind_set, qs_kind_set, cell, neighbor_list_section, &
-               distribution_1d, distribution_2d, gth_potential, orb_basis_set, &
+               distribution_1d, distribution_2d, gth_potential, sgp_potential, orb_basis_set, &
                particle_set, molecule_set, dft_control, ks_env)
 
       NULLIFY (sab_orb)
@@ -417,6 +420,7 @@ CONTAINS
       CALL get_atomic_kind_set(atomic_kind_set, maxatom=maxatom)
       CALL get_qs_kind_set(qs_kind_set, paw_atom_present=paw_atom_present, &
                            gth_potential_present=gth_potential_present, &
+                           sgp_potential_present=sgp_potential_present, &
                            all_potential_present=all_potential_present)
 
       CALL section_vals_val_get(qs_env%input, "DFT%SUBCELLS", r_val=subcells)
@@ -439,7 +443,7 @@ CONTAINS
 
       ALLOCATE (pair_radius(nkind, nkind))
 
-      IF (gth_potential_present) THEN
+      IF (gth_potential_present .OR. sgp_potential_present) THEN
          ALLOCATE (ppl_present(nkind), ppl_radius(nkind))
          ppl_radius = 0.0_dp
          ALLOCATE (ppnl_present(nkind), ppnl_radius(nkind))
@@ -451,7 +455,7 @@ CONTAINS
          oce_radius = 0.0_dp
       END IF
 
-      IF (all_potential_present) THEN
+      IF (all_potential_present .OR. sgp_potential_present) THEN
          ALLOCATE (all_present(nkind), all_pot_rad(nkind))
          all_pot_rad = 0.0_dp
       END IF
@@ -474,7 +478,8 @@ CONTAINS
                           paw_proj_set=paw_proj, &
                           paw_atom=paw_atom, &
                           all_potential=all_potential, &
-                          gth_potential=gth_potential)
+                          gth_potential=gth_potential, &
+                          sgp_potential=sgp_potential)
 
          IF (dftb) THEN
             ! Set the interaction radius for the neighbor lists (DFTB case)
@@ -524,6 +529,12 @@ CONTAINS
                                   ppl_radius=ppl_radius(ikind), &
                                   ppnl_present=ppnl_present(ikind), &
                                   ppnl_radius=ppnl_radius(ikind))
+            ELSE IF (ASSOCIATED(sgp_potential)) THEN
+               CALL get_potential(potential=sgp_potential, &
+                                  ppl_present=ppl_present(ikind), &
+                                  ppl_radius=ppl_radius(ikind), &
+                                  ppnl_present=ppnl_present(ikind), &
+                                  ppnl_radius=ppnl_radius(ikind))
             ELSE
                ppl_present(ikind) = .FALSE.
                ppnl_present(ikind) = .FALSE.
@@ -540,14 +551,18 @@ CONTAINS
             END IF
          END IF
 
-         ! Check the presence of an all electron potential
-         IF (all_potential_present) THEN
+         ! Check the presence of an all electron potential or ERFC potential
+         IF (all_potential_present .OR. sgp_potential_present) THEN
+            all_present(ikind) = .FALSE.
+            all_pot_rad(ikind) = 0.0_dp
             IF (ASSOCIATED(all_potential)) THEN
                all_present(ikind) = .TRUE.
                CALL get_potential(potential=all_potential, core_charge_radius=all_pot_rad(ikind))
-            ELSE
-               all_present(ikind) = .FALSE.
-               all_pot_rad(ikind) = 0.0_dp
+            ELSE IF (ASSOCIATED(sgp_potential)) THEN
+               IF (sgp_potential%ecp_local) THEN
+                  all_present(ikind) = .TRUE.
+                  CALL get_potential(potential=sgp_potential, core_charge_radius=all_pot_rad(ikind))
+               END IF
             END IF
          END IF
 
@@ -650,7 +665,7 @@ CONTAINS
       END IF
 
       ! Build orbital GTH-PPL operator overlap list
-      IF (gth_potential_present) THEN
+      IF (gth_potential_present .OR. sgp_potential_present) THEN
          IF (ANY(ppl_present)) THEN
             CALL pair_radius_setup(orb_present, ppl_present, orb_radius, ppl_radius, pair_radius)
             CALL build_neighbor_lists(sac_ppl, particle_set, atom2d, cell, pair_radius, &
@@ -683,13 +698,15 @@ CONTAINS
       END IF
 
       ! Build orbital-ERFC potential list
-      IF (all_potential_present .AND. .NOT. (nddo .OR. dftb .OR. scptb)) THEN
-         CALL pair_radius_setup(orb_present, all_present, orb_radius, all_pot_rad, pair_radius)
-         CALL build_neighbor_lists(sac_ae, particle_set, atom2d, cell, pair_radius, &
-                                   subcells=subcells, operator_type="ABC", name="sac_ae")
-         CALL set_ks_env(ks_env=ks_env, sac_ae=sac_ae)
-         CALL write_neighbor_lists(sac_ae, particle_set, cell, para_env, neighbor_list_section, &
-                                   "/SAC_AE", "sac_ae", "ORBITAL ERFC POTENTIAL")
+      IF (.NOT. (nddo .OR. dftb .OR. scptb)) THEN
+         IF (all_potential_present .OR. sgp_potential_present) THEN
+            CALL pair_radius_setup(orb_present, all_present, orb_radius, all_pot_rad, pair_radius)
+            CALL build_neighbor_lists(sac_ae, particle_set, atom2d, cell, pair_radius, &
+                                      subcells=subcells, operator_type="ABC", name="sac_ae")
+            CALL set_ks_env(ks_env=ks_env, sac_ae=sac_ae)
+            CALL write_neighbor_lists(sac_ae, particle_set, cell, para_env, neighbor_list_section, &
+                                      "/SAC_AE", "sac_ae", "ORBITAL ERFC POTENTIAL")
+         END IF
       END IF
 
       IF (nddo) THEN
@@ -864,14 +881,14 @@ CONTAINS
       DEALLOCATE (orb_radius, aux_fit_radius, c_radius, core_radius)
       DEALLOCATE (calpha, zeff)
       DEALLOCATE (pair_radius)
-      IF (gth_potential_present) THEN
+      IF (gth_potential_present .OR. sgp_potential_present) THEN
          DEALLOCATE (ppl_present, ppl_radius)
          DEALLOCATE (ppnl_present, ppnl_radius)
       END IF
       IF (paw_atom_present) THEN
          DEALLOCATE (oce_present, oce_radius)
       ENDIF
-      IF (all_potential_present) THEN
+      IF (all_potential_present .OR. sgp_potential_present) THEN
          DEALLOCATE (all_present, all_pot_rad)
       END IF
 

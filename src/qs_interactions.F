@@ -30,7 +30,8 @@ MODULE qs_interactions
    USE external_potential_types,        ONLY: all_potential_type,&
                                               get_potential,&
                                               gth_potential_type,&
-                                              set_potential
+                                              set_potential,&
+                                              sgp_potential_type
    USE input_section_types,             ONLY: section_vals_type,&
                                               section_vals_val_get
    USE kinds,                           ONLY: default_string_length,&
@@ -79,29 +80,31 @@ CONTAINS
       CHARACTER(len=*), PARAMETER :: routineN = 'init_interaction_radii', &
          routineP = moduleN//':'//routineN
 
-      INTEGER                                            :: handle, i, iexp_ppl, ikind, ip, &
-                                                            iprj_ppnl, j, l, lppl, lppnl, lprj, &
-                                                            lprj_ppnl, maxl, maxnset, nexp_lpot, &
-                                                            nexp_lsd, nexp_ppl, nkind
+      INTEGER :: handle, i, iexp_ppl, ikind, ip, iprj_ppnl, j, l, lppl, lppnl, lprj, lprj_ppnl, &
+         maxl, maxnset, n_local, nexp_lpot, nexp_lsd, nexp_ppl, nkind, nloc
+      INTEGER, DIMENSION(1:10)                           :: nrloc
       INTEGER, DIMENSION(:), POINTER                     :: nct_lpot, nct_lsd, nprj, nprj_ppnl
-      LOGICAL                                            :: llsd, lpot, paw_atom
-      REAL(KIND=dp)                                      :: alpha_core_charge, alpha_ppl, &
-                                                            ccore_charge, cerf_ppl, &
-                                                            core_charge_radius, ppl_radius, &
-                                                            ppnl_radius, rcprj, zeta
-      REAL(KIND=dp), DIMENSION(:), POINTER               :: alpha_lpot, alpha_lsd, alpha_ppnl, &
+      LOGICAL                                            :: ecp_local, llsd, lpot, paw_atom
+      LOGICAL, DIMENSION(0:5)                            :: is_nonlocal
+      REAL(dp), DIMENSION(1:10)                          :: aloc, bloc
+      REAL(KIND=dp) :: alpha_core_charge, alpha_ppl, ccore_charge, cerf_ppl, core_charge_radius, &
+         cval, ppl_radius, ppnl_radius, rcprj, zeta
+      REAL(KIND=dp), DIMENSION(:), POINTER               :: a_local, a_nonlocal, alpha_lpot, &
+                                                            alpha_lsd, alpha_ppnl, c_local, &
                                                             cexp_ppl
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: cprj_ppnl, cval_lpot, cval_lsd, rzetprj, &
                                                             zet
+      REAL(KIND=dp), DIMENSION(:, :, :), POINTER         :: c_nonlocal
       TYPE(all_potential_type), POINTER                  :: all_potential
       TYPE(gth_potential_type), POINTER                  :: gth_potential
       TYPE(gto_basis_set_type), POINTER :: aux_basis_set, aux_fit_basis_set, aux_gw_basis, &
          harris_basis, lri_basis, mao_basis, orb_basis_set, ri_aux_basis_set, soft_basis
       TYPE(paw_proj_set_type), POINTER                   :: paw_proj_set
+      TYPE(sgp_potential_type), POINTER                  :: sgp_potential
 
       CALL timeset(routineN, handle)
 
-      NULLIFY (all_potential, gth_potential, orb_basis_set, aux_basis_set, soft_basis, &
+      NULLIFY (all_potential, gth_potential, sgp_potential, orb_basis_set, aux_basis_set, soft_basis, &
                lri_basis, mao_basis, paw_proj_set, harris_basis)
       NULLIFY (nprj_ppnl, nprj)
       NULLIFY (alpha_ppnl, cexp_ppl, cprj_ppnl, zet)
@@ -126,7 +129,8 @@ CONTAINS
                           paw_proj_set=paw_proj_set, &
                           paw_atom=paw_atom, &
                           all_potential=all_potential, &
-                          gth_potential=gth_potential)
+                          gth_potential=gth_potential, &
+                          sgp_potential=sgp_potential)
 
          ! Calculate the orbital basis function radii ***
          ! For ALL electron this has to come before the calculation of the
@@ -228,6 +232,51 @@ CONTAINS
                END DO
             END DO
             CALL set_potential(potential=gth_potential, &
+                               core_charge_radius=core_charge_radius, &
+                               ppl_radius=ppl_radius, &
+                               ppnl_radius=ppnl_radius)
+
+         ELSE IF (ASSOCIATED(sgp_potential)) THEN
+
+            ! Calculate the radius of the core charge distribution
+            CALL get_potential(potential=sgp_potential, &
+                               alpha_core_charge=alpha_core_charge, &
+                               ccore_charge=ccore_charge)
+            core_charge_radius = exp_radius(0, alpha_core_charge, &
+                                            qs_control%eps_core_charge, &
+                                            ccore_charge)
+            ! Calculate the radii of the local part
+            ppl_radius = core_charge_radius
+            CALL get_potential(potential=sgp_potential, ecp_local=ecp_local)
+            IF (ecp_local) THEN
+               CALL get_potential(potential=sgp_potential, nloc=nloc, nrloc=nrloc, aloc=aloc, bloc=bloc)
+               DO i = 1, nloc
+                  lppl = MAX(0, nrloc(i)-2)
+                  ppl_radius = MAX(ppl_radius, &
+                                   exp_radius(lppl, bloc(i), qs_control%eps_ppl, aloc(i)))
+               END DO
+            ELSE
+               CALL get_potential(potential=sgp_potential, n_local=n_local, a_local=a_local, c_local=c_local)
+               DO i = 1, n_local
+                  ppl_radius = MAX(ppl_radius, &
+                                   exp_radius(0, a_local(i), qs_control%eps_ppl, c_local(i)))
+               END DO
+            END IF
+            ! Calculate the radii of the non-local part
+            ppnl_radius = 0.0_dp
+            CALL get_potential(potential=sgp_potential, lmax=lppnl, n_nonlocal=nloc)
+            CALL get_potential(potential=sgp_potential, is_nonlocal=is_nonlocal, &
+                               a_nonlocal=a_nonlocal, c_nonlocal=c_nonlocal)
+            DO l = 0, lppnl
+               IF (is_nonlocal(l)) THEN
+                  DO i = 1, nloc
+                     cval = MAXVAL(ABS(c_nonlocal(i, :, l)))
+                     ppnl_radius = MAX(ppnl_radius, &
+                                       exp_radius(l, a_nonlocal(i), qs_control%eps_pgf_orb, cval))
+                  END DO
+               END IF
+            END DO
+            CALL set_potential(potential=sgp_potential, &
                                core_charge_radius=core_charge_radius, &
                                ppl_radius=ppl_radius, &
                                ppnl_radius=ppnl_radius)
@@ -759,7 +808,7 @@ CONTAINS
       NULLIFY (logger)
       logger => cp_get_default_logger()
       output_unit = cp_print_key_unit_nr(logger, subsys_section, &
-                                         "PRINT%RADII/GTH_PPL_RADII", extension=".Log")
+                                         "PRINT%RADII/PPL_RADII", extension=".Log")
       CALL section_vals_val_get(subsys_section, "PRINT%RADII%UNIT", c_val=unit_str)
       conv = cp_unit_from_cp2k(1.0_dp, TRIM(unit_str))
       IF (output_unit > 0) THEN
@@ -779,7 +828,7 @@ CONTAINS
          END DO
       END IF
       CALL cp_print_key_finished_output(output_unit, logger, subsys_section, &
-                                        "PRINT%RADII/GTH_PPL_RADII")
+                                        "PRINT%RADII/PPL_RADII")
    END SUBROUTINE write_ppl_radii
 
 ! **************************************************************************************************
@@ -808,7 +857,7 @@ CONTAINS
       NULLIFY (logger)
       logger => cp_get_default_logger()
       output_unit = cp_print_key_unit_nr(logger, subsys_section, &
-                                         "PRINT%RADII/GTH_PPNL_RADII", extension=".Log")
+                                         "PRINT%RADII/PPNL_RADII", extension=".Log")
       CALL section_vals_val_get(subsys_section, "PRINT%RADII%UNIT", c_val=unit_str)
       conv = cp_unit_from_cp2k(1.0_dp, TRIM(unit_str))
       IF (output_unit > 0) THEN
@@ -828,7 +877,7 @@ CONTAINS
          END DO
       END IF
       CALL cp_print_key_finished_output(output_unit, logger, subsys_section, &
-                                        "PRINT%RADII/GTH_PPNL_RADII")
+                                        "PRINT%RADII/PPNL_RADII")
    END SUBROUTINE write_ppnl_radii
 
 ! **************************************************************************************************

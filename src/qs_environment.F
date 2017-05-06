@@ -646,7 +646,7 @@ CONTAINS
           (dft_control%qs_control%method == "GAPW_XC") .OR. &
           (dft_control%qs_control%method == "OFGPW")) THEN
          IF (all_potential_present) THEN
-            CPABORT("all-el calculations with GPW, GAPW_XC, and OFGPW are not implemented ")
+            CPABORT("All-el calculations with GPW, GAPW_XC, and OFGPW are not implemented ")
          END IF
       END IF
 

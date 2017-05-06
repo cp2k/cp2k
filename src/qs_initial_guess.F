@@ -37,7 +37,8 @@ MODULE qs_initial_guess
         dbcsr_nfullrows_total, dbcsr_p_type, dbcsr_release, dbcsr_scale, dbcsr_set, &
         dbcsr_set_diag, dbcsr_trace, dbcsr_type, dbcsr_verify_matrix
    USE external_potential_types,        ONLY: all_potential_type,&
-                                              gth_potential_type
+                                              gth_potential_type,&
+                                              sgp_potential_type
    USE input_constants,                 ONLY: atomic_guess,&
                                               core_guess,&
                                               history_guess,&
@@ -1121,6 +1122,7 @@ CONTAINS
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: first_sgf
       INTEGER, DIMENSION(:), POINTER                     :: atom_list, elec_conf, nshell
       INTEGER, DIMENSION(:, :), POINTER                  :: first_sgfa, l, last_sgfa
+      LOGICAL                                            :: has_pot
       REAL(KIND=dp)                                      :: maxocc, my_sum, nelec, paa, scale, &
                                                             trps1, trps2, yy, zeff
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: econf, pdiag, sdiag
@@ -1128,6 +1130,7 @@ CONTAINS
       TYPE(all_potential_type), POINTER                  :: all_potential
       TYPE(gth_potential_type), POINTER                  :: gth_potential
       TYPE(gto_basis_set_type), POINTER                  :: orb_basis_set
+      TYPE(sgp_potential_type), POINTER                  :: sgp_potential
 
       CALL timeset(routineN, handle)
 
@@ -1171,20 +1174,16 @@ CONTAINS
             CALL get_atomic_kind(atomic_kind_set(ikind), natom=natom, atom_list=atom_list)
             CALL get_qs_kind(qs_kind_set(ikind), basis_set=orb_basis_set, &
                              all_potential=all_potential, &
-                             gth_potential=gth_potential)
+                             gth_potential=gth_potential, &
+                             sgp_potential=sgp_potential)
+            has_pot = ASSOCIATED(all_potential) .OR. ASSOCIATED(gth_potential) .OR. ASSOCIATED(sgp_potential)
 
             IF (dft_control%qs_control%dftb) THEN
                CALL get_dftb_atom_param(qs_kind_set(ikind)%dftb_parameter, &
                                         lmax=maxll, occupation=edftb)
                maxll = MIN(maxll, maxl)
                econf(0:maxl) = edftb(0:maxl)
-            ELSEIF (ASSOCIATED(all_potential)) THEN
-               CALL get_atomic_kind(atomic_kind_set(ikind), z=z)
-               CALL get_qs_kind(qs_kind_set(ikind), nsgf=nsgf, elec_conf=elec_conf, zeff=zeff)
-               maxll = MIN(SIZE(elec_conf)-1, maxl)
-               econf(:) = 0.0_dp
-               econf(0:maxll) = 0.5_dp*maxocc*REAL(elec_conf(0:maxll), dp)
-            ELSE IF (ASSOCIATED(gth_potential)) THEN
+            ELSEIF (has_pot) THEN
                CALL get_atomic_kind(atomic_kind_set(ikind), z=z)
                CALL get_qs_kind(qs_kind_set(ikind), nsgf=nsgf, elec_conf=elec_conf, zeff=zeff)
                maxll = MIN(SIZE(elec_conf)-1, maxl)

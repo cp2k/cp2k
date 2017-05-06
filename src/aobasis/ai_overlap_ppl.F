@@ -188,6 +188,7 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(0:6)                      :: polder
       REAL(KIND=dp), DIMENSION(0:mmax)                   :: expder
 
+      CPASSERT(nexp_ppl > 0)
       q = rho+zetc
       polder = 0._dp
       pmax = 0

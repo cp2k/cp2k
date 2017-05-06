@@ -17,7 +17,9 @@ MODULE commutator_rpnl
    USE dbcsr_api,                       ONLY: dbcsr_get_block_p,&
                                               dbcsr_p_type
    USE external_potential_types,        ONLY: gth_potential_p_type,&
-                                              gth_potential_type
+                                              gth_potential_type,&
+                                              sgp_potential_p_type,&
+                                              sgp_potential_type
    USE kinds,                           ONLY: dp
    USE orbital_pointers,                ONLY: init_orbital_pointers,&
                                               nco,&
@@ -78,7 +80,7 @@ CONTAINS
       INTEGER, DIMENSION(:), POINTER                     :: la_max, la_min, npgfa, nprj_ppnl, &
                                                             nsgf_seta
       INTEGER, DIMENSION(:, :), POINTER                  :: first_sgfa
-      LOGICAL                                            :: found, ppnl_present
+      LOGICAL                                            :: found, gpot, ppnl_present, spot
       REAL(KIND=dp)                                      :: dac, ppnl_radius
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: ai_work, sab, work
       REAL(KIND=dp), DIMENSION(1)                        :: rprjc, zetc
@@ -89,13 +91,15 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:, :, :), POINTER         :: achint, acint, bchint, bcint
       TYPE(alist_type), POINTER                          :: alist_ac, alist_bc
       TYPE(clist_type), POINTER                          :: clist
-      TYPE(gth_potential_p_type), DIMENSION(:), POINTER  :: potential
+      TYPE(gth_potential_p_type), DIMENSION(:), POINTER  :: gpotential
       TYPE(gth_potential_type), POINTER                  :: gth_potential
       TYPE(gto_basis_set_p_type), DIMENSION(:), POINTER  :: basis_set
       TYPE(gto_basis_set_type), POINTER                  :: orb_basis_set
       TYPE(neighbor_list_iterator_p_type), &
          DIMENSION(:), POINTER                           :: nl_iterator
       TYPE(sap_int_type), DIMENSION(:), POINTER          :: sap_int
+      TYPE(sgp_potential_p_type), DIMENSION(:), POINTER  :: spotential
+      TYPE(sgp_potential_type), POINTER                  :: sgp_potential
 
       CALL timeset(routineN, handle)
 
@@ -126,7 +130,7 @@ CONTAINS
          END DO
 
          !set up direct access to basis and potential
-         ALLOCATE (basis_set(nkind), potential(nkind))
+         ALLOCATE (basis_set(nkind), gpotential(nkind), spotential(nkind))
          DO ikind = 1, nkind
             CALL get_qs_kind(qs_kind_set(ikind), basis_set=orb_basis_set)
             IF (ASSOCIATED(orb_basis_set)) THEN
@@ -134,11 +138,17 @@ CONTAINS
             ELSE
                NULLIFY (basis_set(ikind)%gto_basis_set)
             END IF
-            CALL get_qs_kind(qs_kind_set(ikind), gth_potential=gth_potential)
+            CALL get_qs_kind(qs_kind_set(ikind), gth_potential=gth_potential, &
+                             sgp_potential=sgp_potential)
             IF (ASSOCIATED(gth_potential)) THEN
-               potential(ikind)%gth_potential => gth_potential
+               gpotential(ikind)%gth_potential => gth_potential
+               NULLIFY (spotential(ikind)%sgp_potential)
+            ELSE IF (ASSOCIATED(sgp_potential)) THEN
+               spotential(ikind)%sgp_potential => sgp_potential
+               NULLIFY (gpotential(ikind)%gth_potential)
             ELSE
-               NULLIFY (potential(ikind)%gth_potential)
+               NULLIFY (gpotential(ikind)%gth_potential)
+               NULLIFY (spotential(ikind)%sgp_potential)
             END IF
          END DO
 
@@ -150,7 +160,7 @@ CONTAINS
          CALL neighbor_list_iterator_create(nl_iterator, sap_ppnl, nthread=nthread)
 !$OMP PARALLEL &
 !$OMP DEFAULT (NONE) &
-!$OMP SHARED  (nl_iterator, basis_set, potential, maxder, ncoset, &
+!$OMP SHARED  (nl_iterator, basis_set, spotential, gpotential, maxder, ncoset, &
 !$OMP          sap_int, nkind, ldsab,  ldai, nco ) &
 !$OMP PRIVATE (mepos, ikind, kkind, iatom, katom, nlist, ilist, nneighbor, jneighbor, &
 !$OMP          cell_c, rac, iac, first_sgfa, la_max, la_min, npgfa, nseta, nsgfa, nsgf_seta, &
@@ -171,7 +181,9 @@ CONTAINS
                                    jatom=katom, nlist=nlist, ilist=ilist, nnode=nneighbor, inode=jneighbor, cell=cell_c, r=rac)
             iac = ikind+nkind*(kkind-1)
             IF (.NOT. ASSOCIATED(basis_set(ikind)%gto_basis_set)) CYCLE
-            IF (.NOT. ASSOCIATED(potential(kkind)%gth_potential)) CYCLE
+            gpot = ASSOCIATED(gpotential(kkind)%gth_potential)
+            spot = ASSOCIATED(spotential(kkind)%sgp_potential)
+            IF ((.NOT. gpot) .AND. (.NOT. spot)) CYCLE
             ! get definition of basis set
             first_sgfa => basis_set(ikind)%gto_basis_set%first_sgf
             la_max => basis_set(ikind)%gto_basis_set%lmax
@@ -185,13 +197,19 @@ CONTAINS
             sphi_a => basis_set(ikind)%gto_basis_set%sphi
             zeta => basis_set(ikind)%gto_basis_set%zet
             ! get definition of PP projectors
-            alpha_ppnl => potential(kkind)%gth_potential%alpha_ppnl
-            cprj => potential(kkind)%gth_potential%cprj
-            lppnl = potential(kkind)%gth_potential%lppnl
-            nppnl = potential(kkind)%gth_potential%nppnl
-            nprj_ppnl => potential(kkind)%gth_potential%nprj_ppnl
-            ppnl_radius = potential(kkind)%gth_potential%ppnl_radius
-            vprj_ppnl => potential(kkind)%gth_potential%vprj_ppnl
+            IF (gpot) THEN
+               alpha_ppnl => gpotential(kkind)%gth_potential%alpha_ppnl
+               cprj => gpotential(kkind)%gth_potential%cprj
+               lppnl = gpotential(kkind)%gth_potential%lppnl
+               nppnl = gpotential(kkind)%gth_potential%nppnl
+               nprj_ppnl => gpotential(kkind)%gth_potential%nprj_ppnl
+               ppnl_radius = gpotential(kkind)%gth_potential%ppnl_radius
+               vprj_ppnl => gpotential(kkind)%gth_potential%vprj_ppnl
+            ELSEIF (spot) THEN
+               CPABORT('SGP not implemented')
+            ELSE
+               CPABORT('PPNL unknown')
+            END IF
 !$OMP CRITICAL(sap_int_critical)
             IF (.NOT. ASSOCIATED(sap_int(iac)%alist)) THEN
                sap_int(iac)%a_kind = ikind
@@ -372,7 +390,7 @@ CONTAINS
 
          CALL release_sap_int(sap_int)
 
-         DEALLOCATE (basis_set, potential)
+         DEALLOCATE (basis_set, gpotential, spotential)
 
       END IF !ppnl_present
 

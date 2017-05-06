@@ -27,7 +27,8 @@ MODULE qs_subsys_methods
                                               cp_subsys_type
    USE external_potential_types,        ONLY: all_potential_type,&
                                               get_potential,&
-                                              gth_potential_type
+                                              gth_potential_type,&
+                                              sgp_potential_type
    USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                               section_vals_type
    USE kinds,                           ONLY: dp
@@ -172,6 +173,7 @@ CONTAINS
       TYPE(gth_potential_type), POINTER                  :: gth_potential
       TYPE(gto_basis_set_type), POINTER                  :: orb_basis_set
       TYPE(molecule_kind_type), POINTER                  :: molecule_kind
+      TYPE(sgp_potential_type), POINTER                  :: sgp_potential
 
       IF (ASSOCIATED(molecule_kind_set)) THEN
 
@@ -198,7 +200,8 @@ CONTAINS
                CALL get_qs_kind(qs_kind_set(ikind), &
                                 basis_set=orb_basis_set, &
                                 all_potential=all_potential, &
-                                gth_potential=gth_potential)
+                                gth_potential=gth_potential, &
+                                sgp_potential=sgp_potential)
 
                ! Get the electronic state of the atom that is used
                !  to calculate the ATOMIC GUESS
@@ -227,6 +230,9 @@ CONTAINS
                                      zeff_correction=zeff_correction)
                ELSE IF (ASSOCIATED(gth_potential)) THEN
                   CALL get_potential(potential=gth_potential, zeff=zeff, &
+                                     zeff_correction=zeff_correction)
+               ELSE IF (ASSOCIATED(sgp_potential)) THEN
+                  CALL get_potential(potential=sgp_potential, zeff=zeff, &
                                      zeff_correction=zeff_correction)
                ELSE
                   zeff = 0.0_dp

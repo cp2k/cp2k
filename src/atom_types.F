@@ -12,6 +12,7 @@
 ! **************************************************************************************************
 MODULE atom_types
    USE atom_upf,                        ONLY: atom_read_upf,&
+                                              atom_release_upf,&
                                               atom_upfpot_type
    USE cp_linked_list_input,            ONLY: cp_sll_val_next,&
                                               cp_sll_val_type
@@ -277,14 +278,14 @@ MODULE atom_types
    PUBLIC :: lmat
    PUBLIC :: atom_p_type, atom_type, atom_basis_type, atom_state, atom_integrals
    PUBLIC :: atom_orbitals, eri, atom_potential_type
-   PUBLIC :: atom_gthpot_type, atom_ecppot_type, atom_upfpot_type
+   PUBLIC :: atom_gthpot_type, atom_ecppot_type
    PUBLIC :: atom_optimization_type
    PUBLIC :: atom_compare_grids
    PUBLIC :: create_atom_type, release_atom_type, set_atom
    PUBLIC :: create_atom_orbs, release_atom_orbs
-   PUBLIC :: init_atom_basis, atom_basis_gridrep, release_atom_basis
+   PUBLIC :: init_atom_basis, init_atom_basis_default_pp, atom_basis_gridrep, release_atom_basis
    PUBLIC :: init_atom_potential, release_atom_potential
-   PUBLIC :: read_atom_opt_section
+   PUBLIC :: read_atom_opt_section, read_ecp_potential
    PUBLIC :: Clementi_geobas
    PUBLIC :: GTO_BASIS, CGTO_BASIS, STO_BASIS, NUM_BASIS
    PUBLIC :: opmat_type, create_opmat, release_opmat
@@ -351,10 +352,10 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:), POINTER               :: expo
       TYPE(section_vals_type), POINTER                   :: gto_basis_section
 
-!   btyp = AE : standard all-electron basis
-!   btyp = PP : standard pseudopotential basis
-!   btyp = AA : high accuracy all-electron basis
-!   btyp = AP : high accuracy pseudopotential basis
+      !   btyp = AE : standard all-electron basis
+      !   btyp = PP : standard pseudopotential basis
+      !   btyp = AA : high accuracy all-electron basis
+      !   btyp = AP : high accuracy pseudopotential basis
 
       NULLIFY (basis%am, basis%cm, basis%as, basis%ns, basis%bf, basis%dbf, basis%ddbf)
       ! get information on quadrature type and number of grid points
@@ -652,6 +653,76 @@ CONTAINS
       END SELECT
 
    END SUBROUTINE init_atom_basis
+
+! **************************************************************************************************
+!> \brief ...
+!> \param basis ...
+! **************************************************************************************************
+   SUBROUTINE init_atom_basis_default_pp(basis)
+      TYPE(atom_basis_type), INTENT(INOUT)               :: basis
+
+      CHARACTER(len=*), PARAMETER :: routineN = 'init_atom_basis_default_pp', &
+         routineP = moduleN//':'//routineN
+      INTEGER, PARAMETER                                 :: nua = 40, nup = 20
+      REAL(KIND=dp), DIMENSION(nua), PARAMETER :: ugbs = (/0.007299_dp, 0.013705_dp, 0.025733_dp, &
+         0.048316_dp, 0.090718_dp, 0.170333_dp, 0.319819_dp, 0.600496_dp, 1.127497_dp, 2.117000_dp,&
+         3.974902_dp, 7.463317_dp, 14.013204_dp, 26.311339_dp, 49.402449_dp, 92.758561_dp, &
+         174.164456_dp, 327.013024_dp, 614.003114_dp, 1152.858743_dp, 2164.619772_dp, &
+         4064.312984_dp, 7631.197056_dp, 14328.416324_dp, 26903.186074_dp, 50513.706789_dp, &
+         94845.070265_dp, 178082.107320_dp, 334368.848683_dp, 627814.487663_dp, 1178791.123851_dp, &
+         2213310.684886_dp, 4155735.557141_dp, 7802853.046713_dp, 14650719.428954_dp, &
+         27508345.793637_dp, 51649961.080194_dp, 96978513.342764_dp, 182087882.613702_dp, &
+         341890134.751331_dp/)
+
+      INTEGER                                            :: i, k, l, m, ngp, nr, nu, quadtype
+      REAL(KIND=dp)                                      :: al, ear, rk
+
+      NULLIFY (basis%am, basis%cm, basis%as, basis%ns, basis%bf, basis%dbf, basis%ddbf)
+      ! allocate and initialize the atomic grid
+      NULLIFY (basis%grid)
+      CALL allocate_grid_atom(basis%grid)
+      quadtype = do_gapw_log
+      ngp = 500
+      CALL create_grid_atom(basis%grid, ngp, 1, 1, 0, quadtype)
+      basis%grid%nr = ngp
+      basis%geometrical = .FALSE.
+      basis%aval = 0._dp
+      basis%cval = 0._dp
+      basis%start = 0
+      basis%eps_eig = 1.e-12_dp
+
+      basis%basis_type = GTO_BASIS
+      nu = nup
+      basis%nbas = nu
+      basis%nprim = nu
+      ALLOCATE (basis%am(nu, 0:lmat))
+      DO i = 0, lmat
+         basis%am(1:nu, i) = ugbs(1:nu)
+      END DO
+      ! initialize basis function on a radial grid
+      nr = basis%grid%nr
+      m = MAXVAL(basis%nbas)
+      ALLOCATE (basis%bf(nr, m, 0:lmat))
+      ALLOCATE (basis%dbf(nr, m, 0:lmat))
+      ALLOCATE (basis%ddbf(nr, m, 0:lmat))
+      basis%bf = 0._dp
+      basis%dbf = 0._dp
+      basis%ddbf = 0._dp
+      DO l = 0, lmat
+         DO i = 1, basis%nbas(l)
+            al = basis%am(i, l)
+            DO k = 1, nr
+               rk = basis%grid%rad(k)
+               ear = EXP(-al*basis%grid%rad(k)**2)
+               basis%bf(k, i, l) = rk**l*ear
+               basis%dbf(k, i, l) = (REAL(l, dp)*rk**(l-1)-2._dp*al*rk**(l+1))*ear
+               basis%ddbf(k, i, l) = (REAL(l*(l-1), dp)*rk**(l-2)- &
+                                      2._dp*al*REAL(2*l+1, dp)*rk**(l)+4._dp*al*rk**(l+2))*ear
+            END DO
+         END DO
+      END DO
+
+   END SUBROUTINE init_atom_basis_default_pp
 
 ! **************************************************************************************************
 !> \brief ...
@@ -2271,6 +2342,8 @@ CONTAINS
 
       potential%confinement = .FALSE.
 
+      CALL atom_release_upf(potential%upf_pot)
+
    END SUBROUTINE release_atom_potential
 ! **************************************************************************************************
 !> \brief ...
@@ -2726,6 +2799,42 @@ CONTAINS
 
          CALL parser_release(parser)
       END IF
+
+      ! set up econf
+      potential%econf(0:3) = ptable(ncore)%e_conv(0:3)
+      SELECT CASE (nel)
+      CASE DEFAULT
+         CPABORT("Unknown Core State")
+      CASE (2)
+         potential%econf(0:3) = potential%econf(0:3)-ptable(2)%e_conv(0:3)
+      CASE (10)
+         potential%econf(0:3) = potential%econf(0:3)-ptable(10)%e_conv(0:3)
+      CASE (18)
+         potential%econf(0:3) = potential%econf(0:3)-ptable(18)%e_conv(0:3)
+      CASE (28)
+         potential%econf(0:3) = potential%econf(0:3)-ptable(18)%e_conv(0:3)
+         potential%econf(2) = potential%econf(2)-10
+      CASE (36)
+         potential%econf(0:3) = potential%econf(0:3)-ptable(36)%e_conv(0:3)
+      CASE (46)
+         potential%econf(0:3) = potential%econf(0:3)-ptable(36)%e_conv(0:3)
+         potential%econf(2) = potential%econf(2)-10
+      CASE (54)
+         potential%econf(0:3) = potential%econf(0:3)-ptable(54)%e_conv(0:3)
+      CASE (60)
+         potential%econf(0:3) = potential%econf(0:3)-ptable(36)%e_conv(0:3)
+         potential%econf(2) = potential%econf(2)-10
+         potential%econf(3) = potential%econf(3)-14
+      CASE (68)
+         potential%econf(0:3) = potential%econf(0:3)-ptable(54)%e_conv(0:3)
+         potential%econf(3) = potential%econf(3)-14
+      CASE (78)
+         potential%econf(0:3) = potential%econf(0:3)-ptable(54)%e_conv(0:3)
+         potential%econf(2) = potential%econf(2)-10
+         potential%econf(3) = potential%econf(3)-14
+      END SELECT
+      !
+      CPASSERT(ALL(potential%econf >= 0))
 
    END SUBROUTINE read_ecp_potential
 ! **************************************************************************************************

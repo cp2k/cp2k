@@ -447,7 +447,7 @@ CONTAINS
                                        print_level=medium_print_level, filename="__STD_OUT__")
       CALL keyword_create(keyword, name="potential", &
                           description="If the printkey is activated controls the printing of the"// &
-                          " fist_potential, gth_potential or all electron"// &
+                          " fist_potential, gth_potential, sgp_potential or all electron"// &
                           " potential information", &
                           default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
       CALL section_add_keyword(print_key, keyword)
@@ -552,16 +552,16 @@ CONTAINS
       CALL section_add_keyword(print_key, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="gth_ppl_radii", &
+      CALL keyword_create(keyword, name="ppl_radii", &
                           description="If the printkey is activated controls the printing of the "// &
-                          "gth pseudo potential local radii", &
+                          "pseudo potential local radii", &
                           default_l_val=.TRUE., lone_keyword_l_val=.TRUE.)
       CALL section_add_keyword(print_key, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="gth_ppnl_radii", &
+      CALL keyword_create(keyword, name="ppnl_radii", &
                           description="If the printkey is activated controls the printing of the "// &
-                          "gth pseudo potential non local radii", &
+                          "pseudo potential non local radii", &
                           default_l_val=.TRUE., lone_keyword_l_val=.TRUE.)
       CALL section_add_keyword(print_key, keyword)
       CALL keyword_release(keyword)

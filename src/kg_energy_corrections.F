@@ -46,7 +46,8 @@ MODULE kg_energy_corrections
    USE distribution_1d_types,           ONLY: distribution_1d_type
    USE distribution_2d_types,           ONLY: distribution_2d_type
    USE external_potential_types,        ONLY: get_potential,&
-                                              gth_potential_type
+                                              gth_potential_type,&
+                                              sgp_potential_type
    USE input_constants,                 ONLY: kg_ec_diagonalization,&
                                               kg_ec_functional_harris
    USE input_section_types,             ONLY: section_vals_val_get
@@ -829,6 +830,7 @@ CONTAINS
 
       INTEGER                                            :: handle, ikind, nkind
       LOGICAL                                            :: gth_potential_present, &
+                                                            sgp_potential_present, &
                                                             skip_load_balance_distributed
       LOGICAL, ALLOCATABLE, DIMENSION(:)                 :: orb_present, ppl_present, ppnl_present
       REAL(dp)                                           :: subcells
@@ -847,11 +849,13 @@ CONTAINS
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
       TYPE(qs_kind_type), POINTER                        :: qs_kind
       TYPE(qs_ks_env_type), POINTER                      :: ks_env
+      TYPE(sgp_potential_type), POINTER                  :: sgp_potential
 
       CALL timeset(routineN, handle)
 
       CALL get_qs_env(qs_env=qs_env, qs_kind_set=qs_kind_set)
-      CALL get_qs_kind_set(qs_kind_set, gth_potential_present=gth_potential_present)
+      CALL get_qs_kind_set(qs_kind_set, gth_potential_present=gth_potential_present, &
+                           sgp_potential_present=sgp_potential_present)
       nkind = SIZE(qs_kind_set)
       ALLOCATE (orb_radius(nkind), ppl_radius(nkind), ppnl_radius(nkind))
       ALLOCATE (orb_present(nkind), ppl_present(nkind), ppnl_present(nkind))
@@ -880,10 +884,16 @@ CONTAINS
             orb_present(ikind) = .FALSE.
             orb_radius(ikind) = 0.0_dp
          END IF
-         CALL get_qs_kind(qs_kind, gth_potential=gth_potential)
-         IF (gth_potential_present) THEN
+         CALL get_qs_kind(qs_kind, gth_potential=gth_potential, sgp_potential=sgp_potential)
+         IF (gth_potential_present .OR. sgp_potential_present) THEN
             IF (ASSOCIATED(gth_potential)) THEN
                CALL get_potential(potential=gth_potential, &
+                                  ppl_present=ppl_present(ikind), &
+                                  ppl_radius=ppl_radius(ikind), &
+                                  ppnl_present=ppnl_present(ikind), &
+                                  ppnl_radius=ppnl_radius(ikind))
+            ELSE IF (ASSOCIATED(sgp_potential)) THEN
+               CALL get_potential(potential=sgp_potential, &
                                   ppl_present=ppl_present(ikind), &
                                   ppl_radius=ppl_radius(ikind), &
                                   ppnl_present=ppnl_present(ikind), &
@@ -904,7 +914,7 @@ CONTAINS
       CALL build_neighbor_lists(ec_env%sab_orb, particle_set, atom2d, cell, pair_radius, &
                                 subcells=subcells, name="sab_orb")
       ! pseudopotential
-      IF (gth_potential_present) THEN
+      IF (gth_potential_present .OR. sgp_potential_present) THEN
          IF (ANY(ppl_present)) THEN
             CALL pair_radius_setup(orb_present, ppl_present, orb_radius, ppl_radius, pair_radius)
             CALL build_neighbor_lists(ec_env%sac_ppl, particle_set, atom2d, cell, pair_radius, &

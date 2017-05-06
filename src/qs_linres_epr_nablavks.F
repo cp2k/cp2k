@@ -27,7 +27,8 @@ MODULE qs_linres_epr_nablavks
                                               erfc
    USE external_potential_types,        ONLY: all_potential_type,&
                                               get_potential,&
-                                              gth_potential_type
+                                              gth_potential_type,&
+                                              sgp_potential_type
    USE hartree_local_methods,           ONLY: calculate_Vh_1center
    USE input_section_types,             ONLY: section_get_ivals,&
                                               section_vals_get_subs_vals,&
@@ -161,6 +162,7 @@ CONTAINS
       TYPE(rho_atom_type), POINTER                       :: rho_atom
       TYPE(rhoz_type), DIMENSION(:), POINTER             :: rhoz_set
       TYPE(section_vals_type), POINTER                   :: g_section, input, lr_section, xc_section
+      TYPE(sgp_potential_type), POINTER                  :: sgp_potential
 
 ! R0
 ! R0
@@ -480,6 +482,7 @@ CONTAINS
                           harmonics=harmonics, &
                           hard_radius=hard_radius, &
                           gth_potential=gth_potential, &
+                          sgp_potential=sgp_potential, &
                           all_potential=all_potential, &
                           paw_atom=paw_atom)
 
@@ -790,6 +793,10 @@ CONTAINS
                END DO
 
             END IF
+
+         ELSE IF (ASSOCIATED(sgp_potential)) THEN
+
+            CPABORT("EPR with SGP potentials is not implemented")
 
          ELSE IF (ASSOCIATED(all_potential)) THEN
 

@@ -18,7 +18,15 @@
 !> - 07.2015 new container for basis sets [jgh]
 ! **************************************************************************************************
 MODULE qs_kind_types
-   USE atom_types,                      ONLY: lmat
+   USE atom_sgp,                        ONLY: atom_sgp_potential_type,&
+                                              atom_sgp_release,&
+                                              sgp_construction
+   USE atom_types,                      ONLY: atom_ecppot_type,&
+                                              lmat,&
+                                              read_ecp_potential
+   USE atom_upf,                        ONLY: atom_read_upf,&
+                                              atom_release_upf,&
+                                              atom_upfpot_type
    USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                               get_atomic_kind
    USE basis_set_container_types,       ONLY: add_basis_set_to_container,&
@@ -40,7 +48,7 @@ MODULE qs_kind_types
    USE external_potential_types,        ONLY: &
         all_potential_type, allocate_potential, deallocate_potential, get_potential, &
         gth_potential_type, init_potential, local_potential_type, read_potential, &
-        set_default_all_potential, set_potential, write_potential
+        set_default_all_potential, set_potential, sgp_potential_type, write_potential
    USE input_constants,                 ONLY: &
         do_method_am1, do_method_dftb, do_method_mndo, do_method_mndod, do_method_pdg, &
         do_method_pm3, do_method_pm6, do_method_pnnl, do_method_rm1, do_method_scptb, do_qs
@@ -51,7 +59,9 @@ MODULE qs_kind_types
    USE kinds,                           ONLY: default_path_length,&
                                               default_string_length,&
                                               dp
+   USE mathconstants,                   ONLY: pi
    USE orbital_pointers,                ONLY: init_orbital_pointers,&
+                                              nco,&
                                               ncoset
    USE paw_proj_set_types,              ONLY: allocate_paw_proj_set,&
                                               deallocate_paw_proj_set,&
@@ -141,6 +151,7 @@ MODULE qs_kind_types
       TYPE(all_potential_type), POINTER      :: all_potential => Null()
       TYPE(local_potential_type), POINTER    :: tnadd_potential => Null()
       TYPE(gth_potential_type), POINTER      :: gth_potential => Null()
+      TYPE(sgp_potential_type), POINTER      :: sgp_potential => Null()
       TYPE(semi_empirical_type), POINTER     :: se_parameter => Null()
       TYPE(qs_dftb_atom_type), POINTER       :: dftb_parameter => Null()
       TYPE(scptb_parameter_type), POINTER    :: scptb_parameter => Null()
@@ -243,6 +254,9 @@ CONTAINS
             IF (ASSOCIATED(qs_kind_set(ikind)%gth_potential)) THEN
                CALL deallocate_potential(qs_kind_set(ikind)%gth_potential)
             ENDIF
+            IF (ASSOCIATED(qs_kind_set(ikind)%sgp_potential)) THEN
+               CALL deallocate_potential(qs_kind_set(ikind)%sgp_potential)
+            ENDIF
             IF (ASSOCIATED(qs_kind_set(ikind)%se_parameter)) THEN
                CALL semi_empirical_release(qs_kind_set(ikind)%se_parameter)
             END IF
@@ -328,6 +342,7 @@ CONTAINS
 !> \param all_potential ...
 !> \param tnadd_potential ...
 !> \param gth_potential ...
+!> \param sgp_potential ...
 !> \param se_parameter ...
 !> \param dftb_parameter ...
 !> \param scptb_parameter ...
@@ -384,7 +399,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE get_qs_kind(qs_kind, &
                           basis_set, basis_type, ncgf, nsgf, &
-                          all_potential, tnadd_potential, gth_potential, &
+                          all_potential, tnadd_potential, gth_potential, sgp_potential, &
                           se_parameter, dftb_parameter, scptb_parameter, &
                           dftb3_param, zeff, elec_conf, mao, lmax_dftb, &
                           alpha_core_charge, ccore_charge, core_charge, core_charge_radius, &
@@ -405,6 +420,7 @@ CONTAINS
       TYPE(all_potential_type), OPTIONAL, POINTER        :: all_potential
       TYPE(local_potential_type), OPTIONAL, POINTER      :: tnadd_potential
       TYPE(gth_potential_type), OPTIONAL, POINTER        :: gth_potential
+      TYPE(sgp_potential_type), OPTIONAL, POINTER        :: sgp_potential
       TYPE(semi_empirical_type), OPTIONAL, POINTER       :: se_parameter
       TYPE(qs_dftb_atom_type), OPTIONAL, POINTER         :: dftb_parameter
       TYPE(scptb_parameter_type), OPTIONAL, POINTER      :: scptb_parameter
@@ -502,6 +518,7 @@ CONTAINS
       IF (PRESENT(all_potential)) all_potential => qs_kind%all_potential
       IF (PRESENT(tnadd_potential)) tnadd_potential => qs_kind%tnadd_potential
       IF (PRESENT(gth_potential)) gth_potential => qs_kind%gth_potential
+      IF (PRESENT(sgp_potential)) sgp_potential => qs_kind%sgp_potential
       IF (PRESENT(se_parameter)) se_parameter => qs_kind%se_parameter
       IF (PRESENT(dftb_parameter)) dftb_parameter => qs_kind%dftb_parameter
       IF (PRESENT(scptb_parameter)) scptb_parameter => qs_kind%scptb_parameter
@@ -517,6 +534,9 @@ CONTAINS
          ELSE IF (ASSOCIATED(qs_kind%gth_potential)) THEN
             CALL get_potential(potential=qs_kind%gth_potential, &
                                alpha_core_charge=alpha_core_charge)
+         ELSE IF (ASSOCIATED(qs_kind%sgp_potential)) THEN
+            CALL get_potential(potential=qs_kind%sgp_potential, &
+                               alpha_core_charge=alpha_core_charge)
          ELSE
             alpha_core_charge = 1.0_dp
          END IF
@@ -527,6 +547,9 @@ CONTAINS
                                ccore_charge=ccore_charge)
          ELSE IF (ASSOCIATED(qs_kind%gth_potential)) THEN
             CALL get_potential(potential=qs_kind%gth_potential, &
+                               ccore_charge=ccore_charge)
+         ELSE IF (ASSOCIATED(qs_kind%sgp_potential)) THEN
+            CALL get_potential(potential=qs_kind%sgp_potential, &
                                ccore_charge=ccore_charge)
          ELSE
             ccore_charge = 0.0_dp
@@ -539,6 +562,9 @@ CONTAINS
          ELSE IF (ASSOCIATED(qs_kind%gth_potential)) THEN
             CALL get_potential(potential=qs_kind%gth_potential, &
                                core_charge_radius=core_charge_radius)
+         ELSE IF (ASSOCIATED(qs_kind%sgp_potential)) THEN
+            CALL get_potential(potential=qs_kind%sgp_potential, &
+                               core_charge_radius=core_charge_radius)
          ELSE
             core_charge_radius = 0.0_dp
          END IF
@@ -550,6 +576,9 @@ CONTAINS
          ELSE IF (ASSOCIATED(qs_kind%gth_potential)) THEN
             CALL get_potential(potential=qs_kind%gth_potential, &
                                zeff=core_charge)
+         ELSE IF (ASSOCIATED(qs_kind%sgp_potential)) THEN
+            CALL get_potential(potential=qs_kind%sgp_potential, &
+                               zeff=core_charge)
          ELSE
             core_charge = 0.0_dp
          END IF
@@ -560,6 +589,8 @@ CONTAINS
             CALL get_potential(potential=qs_kind%all_potential, zeff=zeff)
          ELSE IF (ASSOCIATED(qs_kind%gth_potential)) THEN
             CALL get_potential(potential=qs_kind%gth_potential, zeff=zeff)
+         ELSE IF (ASSOCIATED(qs_kind%sgp_potential)) THEN
+            CALL get_potential(potential=qs_kind%sgp_potential, zeff=zeff)
          ELSE
             zeff = 0.0_dp
          END IF
@@ -692,6 +723,7 @@ CONTAINS
 !> \param all_potential_present ...
 !> \param tnadd_potential_present ...
 !> \param gth_potential_present ...
+!> \param sgp_potential_present ...
 !> \param paw_atom_present ...
 !> \param dft_plus_u_atom_present ...
 !> \param maxcgf ...
@@ -722,7 +754,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE get_qs_kind_set(qs_kind_set, &
                               all_potential_present, tnadd_potential_present, gth_potential_present, &
-                              paw_atom_present, dft_plus_u_atom_present, &
+                              sgp_potential_present, paw_atom_present, dft_plus_u_atom_present, &
                               maxcgf, maxsgf, maxco, maxco_proj, maxgtops, maxlgto, maxlprj, maxnset, maxsgf_set, &
                               ncgf, npgf, nset, nsgf, nshell, maxpol, maxlppl, maxlppnl, maxppnl, &
                               nelectron, maxder, max_ngrid_rad, max_sph_harm, maxg_iso_not0, lmax_rho0, &
@@ -730,7 +762,7 @@ CONTAINS
 
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
       LOGICAL, INTENT(OUT), OPTIONAL :: all_potential_present, tnadd_potential_present, &
-         gth_potential_present, paw_atom_present, dft_plus_u_atom_present
+         gth_potential_present, sgp_potential_present, paw_atom_present, dft_plus_u_atom_present
       INTEGER, INTENT(OUT), OPTIONAL :: maxcgf, maxsgf, maxco, maxco_proj, maxgtops, maxlgto, &
          maxlprj, maxnset, maxsgf_set, ncgf, npgf, nset, nsgf, nshell, maxpol, maxlppl, maxlppnl, &
          maxppnl, nelectron
@@ -745,7 +777,7 @@ CONTAINS
       CHARACTER(len=default_string_length)               :: my_basis_type
       INTEGER                                            :: ikind, imax, lmax_rho0_kind, &
                                                             max_iso_not0, max_s_harm, n, &
-                                                            ngrid_rad, nkind
+                                                            ngrid_rad, nkind, nrloc(10)
       LOGICAL                                            :: dft_plus_u_atom, paw_atom
       REAL(KIND=dp)                                      :: zeff, zeff_correction
       TYPE(all_potential_type), POINTER                  :: all_potential
@@ -755,6 +787,7 @@ CONTAINS
       TYPE(paw_proj_set_type), POINTER                   :: paw_proj_set
       TYPE(qs_dftb_atom_type), POINTER                   :: dftb_parameter
       TYPE(qs_kind_type), POINTER                        :: qs_kind
+      TYPE(sgp_potential_type), POINTER                  :: sgp_potential
 
       IF (PRESENT(basis_type)) THEN
          my_basis_type = basis_type
@@ -787,6 +820,7 @@ CONTAINS
          IF (PRESENT(all_potential_present)) all_potential_present = .FALSE.
          IF (PRESENT(tnadd_potential_present)) tnadd_potential_present = .FALSE.
          IF (PRESENT(gth_potential_present)) gth_potential_present = .FALSE.
+         IF (PRESENT(sgp_potential_present)) sgp_potential_present = .FALSE.
          IF (PRESENT(paw_atom_present)) paw_atom_present = .FALSE.
          IF (PRESENT(max_ngrid_rad)) max_ngrid_rad = 0
          IF (PRESENT(max_sph_harm)) max_sph_harm = 0
@@ -799,6 +833,7 @@ CONTAINS
                              all_potential=all_potential, &
                              tnadd_potential=tnadd_potential, &
                              gth_potential=gth_potential, &
+                             sgp_potential=sgp_potential, &
                              paw_proj_set=paw_proj_set, &
                              dftb_parameter=dftb_parameter, &
                              ngrid_rad=ngrid_rad, &
@@ -811,10 +846,17 @@ CONTAINS
             IF (PRESENT(maxlppl) .AND. ASSOCIATED(gth_potential)) THEN
                CALL get_potential(potential=gth_potential, nexp_ppl=n)
                maxlppl = MAX(maxlppl, 2*(n-1))
+            ELSEIF (PRESENT(maxlppl) .AND. ASSOCIATED(sgp_potential)) THEN
+               CALL get_potential(potential=sgp_potential, nrloc=nrloc)
+               n = MAXVAL(nrloc)-2
+               maxlppl = MAX(maxlppl, 2*(n-1))
             END IF
 
             IF (PRESENT(maxlppnl) .AND. ASSOCIATED(gth_potential)) THEN
                CALL get_potential(potential=gth_potential, lprj_ppnl_max=imax)
+               maxlppnl = MAX(maxlppnl, imax)
+            ELSEIF (PRESENT(maxlppnl) .AND. ASSOCIATED(sgp_potential)) THEN
+               CALL get_potential(potential=sgp_potential, lmax=imax)
                maxlppnl = MAX(maxlppnl, imax)
             END IF
 
@@ -835,6 +877,9 @@ CONTAINS
 
             IF (PRESENT(maxppnl) .AND. ASSOCIATED(gth_potential)) THEN
                CALL get_potential(potential=gth_potential, nppnl=imax)
+               maxppnl = MAX(maxppnl, imax)
+            ELSEIF (PRESENT(maxppnl) .AND. ASSOCIATED(sgp_potential)) THEN
+               CALL get_potential(potential=sgp_potential, nppnl=imax)
                maxppnl = MAX(maxppnl, imax)
             END IF
 
@@ -864,6 +909,10 @@ CONTAINS
                END IF
                IF (ASSOCIATED(gth_potential)) THEN
                   CALL get_potential(potential=gth_potential, lprj_ppnl_max=imax)
+                  maxco = MAX(maxco, ncoset(imax))
+               END IF
+               IF (ASSOCIATED(sgp_potential)) THEN
+                  CALL get_potential(potential=sgp_potential, lmax=imax)
                   maxco = MAX(maxco, ncoset(imax))
                END IF
             END IF
@@ -958,6 +1007,9 @@ CONTAINS
                ELSE IF (ASSOCIATED(qs_kind%gth_potential)) THEN
                   CALL get_potential(potential=qs_kind%gth_potential, &
                                      zeff=zeff, zeff_correction=zeff_correction)
+               ELSE IF (ASSOCIATED(qs_kind%sgp_potential)) THEN
+                  CALL get_potential(potential=qs_kind%sgp_potential, &
+                                     zeff=zeff, zeff_correction=zeff_correction)
                ELSE
                   zeff = 0.0_dp
                   zeff_correction = 0.0_dp
@@ -980,6 +1032,12 @@ CONTAINS
             IF (PRESENT(gth_potential_present)) THEN
                IF (ASSOCIATED(gth_potential)) THEN
                   gth_potential_present = .TRUE.
+               END IF
+            END IF
+
+            IF (PRESENT(sgp_potential_present)) THEN
+               IF (ASSOCIATED(sgp_potential)) THEN
+                  sgp_potential_present = .TRUE.
                END IF
             END IF
 
@@ -1039,6 +1097,8 @@ CONTAINS
 
       IF (ASSOCIATED(qs_kind%gth_potential)) THEN
          CALL init_potential(qs_kind%gth_potential)
+      ELSEIF (ASSOCIATED(qs_kind%sgp_potential)) THEN
+         CALL init_potential(qs_kind%sgp_potential)
       END IF
 
       DO i = 1, SIZE(qs_kind%basis_sets, 1)
@@ -1173,14 +1233,16 @@ CONTAINS
 
       CHARACTER(len=*), PARAMETER :: routineN = 'init_gapw_nlcc', routineP = moduleN//':'//routineN
 
-      INTEGER                                            :: i, ic, ikind, nc, nexp_nlcc, nkind, nr
+      INTEGER                                            :: i, ic, ikind, n_nlcc, nc, nexp_nlcc, &
+                                                            nkind, nr
       INTEGER, DIMENSION(:), POINTER                     :: nct_nlcc
       LOGICAL                                            :: nlcc, nlcc_type, paw_atom
       REAL(dp)                                           :: alpha, coa, cval
-      REAL(KIND=dp), DIMENSION(:), POINTER               :: alpha_nlcc, fe, rc, rr
+      REAL(KIND=dp), DIMENSION(:), POINTER               :: a_nlcc, alpha_nlcc, c_nlcc, fe, rc, rr
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: cval_nlcc, den
       TYPE(gth_potential_type), POINTER                  :: gth_potential
       TYPE(qs_kind_type), POINTER                        :: qs_kind
+      TYPE(sgp_potential_type), POINTER                  :: sgp_potential
 
       IF (ASSOCIATED(qs_kind_set)) THEN
          nlcc = has_nlcc(qs_kind_set)
@@ -1191,6 +1253,7 @@ CONTAINS
                CALL get_qs_kind(qs_kind, paw_atom=paw_atom)
                IF (paw_atom) THEN
                   CALL get_qs_kind(qs_kind, gth_potential=gth_potential)
+                  CALL get_qs_kind(qs_kind, sgp_potential=sgp_potential)
                   IF (ASSOCIATED(gth_potential)) THEN
                      CALL get_potential(potential=gth_potential, nlcc_present=nlcc_type, &
                                         nexp_nlcc=nexp_nlcc, alpha_nlcc=alpha_nlcc, nct_nlcc=nct_nlcc, cval_nlcc=cval_nlcc)
@@ -1214,6 +1277,24 @@ CONTAINS
                                  den(:, 2) = den(:, 2)+REAL(2*ic-2, dp)*fe(:)*rc**(2*ic-3)*coa
                               END IF
                            END DO
+                        END DO
+                        DEALLOCATE (rc, fe)
+                     END IF
+                  ELSE IF (ASSOCIATED(sgp_potential)) THEN
+                     CALL get_potential(potential=sgp_potential, has_nlcc=nlcc_type, &
+                                        n_nlcc=n_nlcc, a_nlcc=a_nlcc, c_nlcc=c_nlcc)
+                     IF (nlcc_type) THEN
+                        nr = qs_kind%grid_atom%nr
+                        rr => qs_kind%grid_atom%rad
+                        ALLOCATE (qs_kind%nlcc_pot(nr, 2), rc(nr), fe(nr))
+                        den => qs_kind%nlcc_pot
+                        den = 0.0_dp
+                        DO i = 1, n_nlcc
+                           alpha = a_nlcc(i)
+                           fe(:) = EXP(-alpha*rr(:)*rr(:))
+                           cval = c_nlcc(i)
+                           den(:, 1) = den(:, 1)+cval*fe(:)
+                           den(:, 2) = den(:, 2)-2.0_dp*alpha*cval*rr(:)*fe(:)
                         END DO
                         DEALLOCATE (rc, fe)
                      END IF
@@ -1261,18 +1342,24 @@ CONTAINS
       CHARACTER(LEN=default_string_length) :: akind_name, aux_basis_set_name, &
          aux_fit_basis_set_name, basis_type, keyword, kgpot_name, kgpot_type, lri_basis_set_name, &
          orb_basis_set_name, potential_name, potential_type, ri_aux_basis_set_name, tmp
+      CHARACTER(LEN=default_string_length), DIMENSION(4) :: description
       CHARACTER(LEN=default_string_length), &
          DIMENSION(:), POINTER                           :: tmpstringlist
       CHARACTER(LEN=default_string_length), &
          DIMENSION(maxbas)                               :: basis_set_name, basis_set_type
-      INTEGER                                            :: handle, i, i_rep, ipaodesc, ipaopot, &
-                                                            ipos, j, jj, k_rep, l, m, n_rep, &
-                                                            nb_rep, nexp, ngauss, norbitals, &
-                                                            npaodesc, npaopot, z
+      INTEGER :: handle, i, i_rep, ipaodesc, ipaopot, ipos, j, jj, k_rep, l, m, n_rep, nb_rep, &
+         nexp, ngauss, nlcc, nloc, nnl, norbitals, npaodesc, npaopot, nppnl, z
       INTEGER, DIMENSION(:), POINTER                     :: add_el, elec_conf, orbitals
       LOGICAL :: check, explicit, explicit_basis, explicit_kgpot, explicit_potential, nobasis, &
          section_enabled, subsection_enabled, update_input
-      REAL(KIND=dp)                                      :: zeff_correction
+      REAL(KIND=dp)                                      :: alpha, ccore, rc, zeff_correction
+      REAL(KIND=dp), DIMENSION(3)                        :: error
+      REAL(KIND=dp), DIMENSION(:), POINTER               :: a_nl, aloc, anlcc, cloc, cnlcc
+      REAL(KIND=dp), DIMENSION(:, :), POINTER            :: h_nl
+      REAL(KIND=dp), DIMENSION(:, :, :), POINTER         :: c_nl
+      TYPE(atom_ecppot_type)                             :: ecppot
+      TYPE(atom_sgp_potential_type)                      :: sgppot
+      TYPE(atom_upfpot_type)                             :: upfpot
       TYPE(gto_basis_set_type), POINTER                  :: sup_basis_set, tmp_basis_set
       TYPE(section_vals_type), POINTER :: basis_section, bs_section, dft_plus_u_section, &
          dft_section, enforce_occupation_section, kgpot_section, pao_desc_section, &
@@ -1915,6 +2002,110 @@ CONTAINS
                      CALL get_potential(potential=qs_kind%gth_potential, elec_conf=elec_conf)
                      CALL set_qs_kind(qs_kind, elec_conf=elec_conf)
                   END IF
+               CASE ("ECP")
+                  CALL allocate_potential(qs_kind%sgp_potential)
+                  CALL get_potential(qs_kind%sgp_potential, description=description)
+                  description(4) = "ECP "//TRIM(potential_name)
+                  CALL read_ecp_potential(ptable(z)%symbol, ecppot, &
+                                          potential_name, potential_file_name, potential_section)
+                  CALL set_potential(qs_kind%sgp_potential, name=ecppot%pname, description=description, &
+                                     zeff=ecppot%zion, z=z, ecp_local=.TRUE., &
+                                     nloc=ecppot%nloc, nrloc=ecppot%nrloc, aloc=ecppot%aloc, bloc=ecppot%bloc, &
+                                     has_nlcc=.FALSE.)
+                  ! convert PP
+                  CALL sgp_construction(sgp_pot=sgppot, ecp_pot=ecppot, error=error)
+                  IF (sgppot%has_nonlocal) THEN
+                     CALL set_potential(qs_kind%sgp_potential, n_nonlocal=sgppot%n_nonlocal, lmax=sgppot%lmax, &
+                                        is_nonlocal=sgppot%is_nonlocal)
+                     nnl = sgppot%n_nonlocal
+                     nppnl = 0
+                     DO l = 0, sgppot%lmax
+                        nppnl = nppnl+nnl*nco(l)
+                     END DO
+                     l = sgppot%lmax
+                     ALLOCATE (a_nl(nnl), h_nl(nnl, 0:l), c_nl(nnl, nnl, 0:l))
+                     a_nl(:) = sgppot%a_nonlocal(:)
+                     h_nl(:, :) = sgppot%h_nonlocal(:, :)
+                     c_nl(:, :, :) = sgppot%c_nonlocal(:, :, :)
+                     CALL set_potential(qs_kind%sgp_potential, nppnl=nppnl, a_nonlocal=a_nl, h_nonlocal=h_nl, c_nonlocal=c_nl)
+                  ELSE
+                     CALL set_potential(qs_kind%sgp_potential, n_nonlocal=0, lmax=-1, is_nonlocal=sgppot%is_nonlocal)
+                     CALL set_potential(qs_kind%sgp_potential, nppnl=0)
+                  END IF
+                  !
+                  CPASSERT(.NOT. sgppot%has_local)
+                  CPASSERT(.NOT. sgppot%has_nlcc)
+                  ! core
+                  rc = ptable(z)%covalent_radius*0.5_dp
+                  rc = MAX(rc, 0.2_dp)
+                  rc = MIN(rc, 1.0_dp)
+                  alpha = 1.0_dp/(2.0_dp*rc**2)
+                  ccore = ecppot%zion*SQRT((alpha/pi)**3)
+                  CALL set_potential(qs_kind%sgp_potential, alpha_core_charge=alpha, ccore_charge=ccore, &
+                                     core_charge_radius=rc)
+                  CALL atom_sgp_release(sgppot)
+                  CALL get_qs_kind(qs_kind, elec_conf=elec_conf)
+                  IF (.NOT. ASSOCIATED(elec_conf)) THEN
+                     CALL set_qs_kind(qs_kind, elec_conf=ecppot%econf)
+                  END IF
+                  CALL get_qs_kind(qs_kind, elec_conf=elec_conf)
+                  CALL set_potential(qs_kind%sgp_potential, elec_conf=elec_conf)
+               CASE ("UPF")
+                  CALL allocate_potential(qs_kind%sgp_potential)
+                  CALL get_potential(qs_kind%sgp_potential, description=description)
+                  description(4) = "UPF "//TRIM(potential_name)
+                  CALL atom_read_upf(upfpot, potential_name)
+                  CALL set_potential(qs_kind%sgp_potential, name=upfpot%pname, description=description, &
+                                     zeff=upfpot%zion, z=z, has_nlcc=upfpot%core_correction)
+                  ! convert pp
+                  CALL sgp_construction(sgp_pot=sgppot, upf_pot=upfpot, error=error)
+                  IF (sgppot%has_nonlocal) THEN
+                     CALL set_potential(qs_kind%sgp_potential, n_nonlocal=sgppot%n_nonlocal, lmax=sgppot%lmax, &
+                                        is_nonlocal=sgppot%is_nonlocal)
+                     nnl = sgppot%n_nonlocal
+                     nppnl = 0
+                     DO l = 0, sgppot%lmax
+                        nppnl = nppnl+nnl*nco(l)
+                     END DO
+                     l = sgppot%lmax
+                     ALLOCATE (a_nl(nnl), h_nl(nnl, 0:l), c_nl(nnl, nnl, 0:l))
+                     a_nl(:) = sgppot%a_nonlocal(:)
+                     h_nl(:, :) = sgppot%h_nonlocal(:, :)
+                     c_nl(:, :, :) = sgppot%c_nonlocal(:, :, :)
+                     CALL set_potential(qs_kind%sgp_potential, nppnl=nppnl, a_nonlocal=a_nl, h_nonlocal=h_nl, c_nonlocal=c_nl)
+                  ELSE
+                     CALL set_potential(qs_kind%sgp_potential, n_nonlocal=0, lmax=-1, is_nonlocal=sgppot%is_nonlocal)
+                     CALL set_potential(qs_kind%sgp_potential, nppnl=0)
+                  END IF
+                  CPASSERT(sgppot%has_local)
+                  ! core
+                  rc = sgppot%ac_local
+                  alpha = 1.0_dp/(2.0_dp*rc**2)
+                  ccore = upfpot%zion*SQRT((alpha/pi)**3)
+                  CALL set_potential(qs_kind%sgp_potential, alpha_core_charge=alpha, ccore_charge=ccore, &
+                                     core_charge_radius=rc)
+                  ! local potential
+                  nloc = sgppot%n_local
+                  ALLOCATE (aloc(nloc), cloc(nloc))
+                  aloc(1:nloc) = sgppot%a_local(1:nloc)
+                  cloc(1:nloc) = sgppot%c_local(1:nloc)
+                  CALL set_potential(qs_kind%sgp_potential, n_local=nloc, a_local=aloc, c_local=cloc)
+                  IF (sgppot%has_nlcc) THEN
+                     nlcc = sgppot%n_nlcc
+                     ALLOCATE (anlcc(nlcc), cnlcc(nlcc))
+                     anlcc(1:nlcc) = sgppot%a_nlcc(1:nlcc)
+                     cnlcc(1:nlcc) = sgppot%c_nlcc(1:nlcc)
+                     CALL set_potential(qs_kind%sgp_potential, has_nlcc=.TRUE., n_nlcc=nlcc, a_nlcc=anlcc, c_nlcc=cnlcc)
+                  END IF
+                  CALL set_potential(qs_kind%sgp_potential, z=z)
+                  CALL get_qs_kind(qs_kind, elec_conf=elec_conf)
+                  IF (.NOT. ASSOCIATED(elec_conf)) THEN
+                     CALL set_qs_kind(qs_kind, elec_conf=upfpot%econf)
+                  END IF
+                  CALL get_qs_kind(qs_kind, elec_conf=elec_conf)
+                  CALL set_potential(qs_kind%sgp_potential, elec_conf=elec_conf)
+                  CALL atom_release_upf(upfpot)
+                  CALL atom_sgp_release(sgppot)
                CASE DEFAULT
                   CALL cp_abort(__LOCATION__, &
                                 "An invalid potential type <"// &
@@ -2212,6 +2403,8 @@ CONTAINS
             CALL set_potential(potential=qs_kind%all_potential, zeff=zeff)
          ELSE IF (ASSOCIATED(qs_kind%gth_potential)) THEN
             CALL set_potential(potential=qs_kind%gth_potential, zeff=zeff)
+         ELSE IF (ASSOCIATED(qs_kind%sgp_potential)) THEN
+            CALL set_potential(potential=qs_kind%sgp_potential, zeff=zeff)
          END IF
       END IF
       IF (PRESENT(ghost)) qs_kind%ghost = ghost
@@ -2307,6 +2500,7 @@ CONTAINS
             ! Potentials
             CALL write_potential(qs_kind%all_potential, output_unit)
             CALL write_potential(qs_kind%gth_potential, output_unit)
+            CALL write_potential(qs_kind%sgp_potential, output_unit)
             CALL write_potential(qs_kind%tnadd_potential, output_unit)
             IF (ASSOCIATED(qs_kind%dft_plus_u)) THEN
                WRITE (UNIT=output_unit, FMT="(/,T6,A,/,T8,A,T76,I5,/,T8,A,T73,F8.3)") &
@@ -2678,14 +2872,19 @@ CONTAINS
       INTEGER                                            :: ikind
       LOGICAL                                            :: nlcc_present
       TYPE(gth_potential_type), POINTER                  :: gth_potential
+      TYPE(sgp_potential_type), POINTER                  :: sgp_potential
 
       nlcc = .FALSE.
 
       DO ikind = 1, SIZE(qs_kind_set)
-         CALL get_qs_kind(qs_kind_set(ikind), gth_potential=gth_potential)
-         IF (.NOT. ASSOCIATED(gth_potential)) CYCLE
-         CALL get_potential(potential=gth_potential, nlcc_present=nlcc_present)
-         nlcc = nlcc .OR. nlcc_present
+         CALL get_qs_kind(qs_kind_set(ikind), gth_potential=gth_potential, sgp_potential=sgp_potential)
+         IF (ASSOCIATED(gth_potential)) THEN
+            CALL get_potential(potential=gth_potential, nlcc_present=nlcc_present)
+            nlcc = nlcc .OR. nlcc_present
+         ELSEIF (ASSOCIATED(sgp_potential)) THEN
+            CALL get_potential(potential=sgp_potential, has_nlcc=nlcc_present)
+            nlcc = nlcc .OR. nlcc_present
+         END IF
       ENDDO
 
    END FUNCTION has_nlcc

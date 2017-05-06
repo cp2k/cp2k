@@ -13,6 +13,8 @@ MODULE atom_upf
                                               parser_release
    USE kinds,                           ONLY: default_string_length,&
                                               dp
+   USE periodic_table,                  ONLY: get_ptable_info,&
+                                              ptable
 #include "./base/base_uses.f90"
 
    IMPLICIT NONE
@@ -22,8 +24,8 @@ MODULE atom_upf
 
    TYPE atom_upfpot_type
       CHARACTER(LEN=2)                               :: symbol
-      CHARACTER(LEN=default_string_length)           :: pname
-      INTEGER, DIMENSION(0:lmat)                     :: econf
+      CHARACTER(LEN=default_string_length)           :: pname = ""
+      INTEGER, DIMENSION(0:lmat)                     :: econf = 0
       REAL(dp)                                       :: zion
       CHARACTER(LEN=default_string_length)           :: version
       ! <INFO>
@@ -49,7 +51,7 @@ MODULE atom_upf
       REAL(dp)                                       :: total_psenergy
       REAL(dp)                                       :: wfc_cutoff
       REAL(dp)                                       :: rho_cutoff
-      INTEGER                                        :: l_max
+      INTEGER                                        :: l_max = -100
       INTEGER                                        :: l_max_rho
       INTEGER                                        :: l_local
       INTEGER                                        :: mesh_size
@@ -74,7 +76,7 @@ MODULE atom_upf
    END TYPE atom_upfpot_type
 
    PRIVATE
-   PUBLIC  :: atom_read_upf, atom_upfpot_type
+   PUBLIC  :: atom_read_upf, atom_upfpot_type, atom_release_upf
 
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'atom_upf'
 
@@ -94,8 +96,9 @@ CONTAINS
 
       CHARACTER(len=*), PARAMETER :: routineN = 'atom_read_upf', routineP = moduleN//':'//routineN
 
+      CHARACTER(LEN=2)                                   :: symbol
       CHARACTER(LEN=default_string_length)               :: nametag
-      INTEGER                                            :: ib, ntag
+      INTEGER                                            :: ib, ncore, nel, ntag
       LOGICAL                                            :: at_end
       TYPE(cp_parser_type), POINTER                      :: parser
 
@@ -183,6 +186,54 @@ CONTAINS
       END IF
       IF (pot%is_paw) THEN
          CPABORT("UPF PAW potential not implemented")
+      END IF
+
+      ! set up econf
+      IF (SUM(pot%econf) == 0) THEN
+         symbol = ADJUSTL(TRIM(pot%symbol))
+         CALL get_ptable_info(symbol, number=ncore)
+         pot%econf(0:3) = ptable(ncore)%e_conv(0:3)
+         nel = NINT(ncore-pot%zion)
+         SELECT CASE (nel)
+         CASE DEFAULT
+            CPABORT("Unknown Core State")
+         CASE (0)
+            ! no core electron
+         CASE (2)
+            pot%econf(0:3) = pot%econf(0:3)-ptable(2)%e_conv(0:3)
+         CASE (10)
+            pot%econf(0:3) = pot%econf(0:3)-ptable(10)%e_conv(0:3)
+         CASE (18)
+            pot%econf(0:3) = pot%econf(0:3)-ptable(18)%e_conv(0:3)
+         CASE (28)
+            pot%econf(0:3) = pot%econf(0:3)-ptable(18)%e_conv(0:3)
+            pot%econf(2) = pot%econf(2)-10
+         CASE (36)
+            pot%econf(0:3) = pot%econf(0:3)-ptable(36)%e_conv(0:3)
+         CASE (46)
+            pot%econf(0:3) = pot%econf(0:3)-ptable(36)%e_conv(0:3)
+            pot%econf(2) = pot%econf(2)-10
+         CASE (54)
+            pot%econf(0:3) = pot%econf(0:3)-ptable(54)%e_conv(0:3)
+         CASE (60)
+            pot%econf(0:3) = pot%econf(0:3)-ptable(36)%e_conv(0:3)
+            pot%econf(2) = pot%econf(2)-10
+            pot%econf(3) = pot%econf(3)-14
+         CASE (68)
+            pot%econf(0:3) = pot%econf(0:3)-ptable(54)%e_conv(0:3)
+            pot%econf(3) = pot%econf(3)-14
+         CASE (78)
+            pot%econf(0:3) = pot%econf(0:3)-ptable(54)%e_conv(0:3)
+            pot%econf(2) = pot%econf(2)-10
+            pot%econf(3) = pot%econf(3)-14
+         END SELECT
+         !
+         CPASSERT(ALL(pot%econf >= 0))
+      END IF
+
+      ! name
+      IF (pot%pname == "") THEN
+         pot%pname = ADJUSTL(TRIM(pot%symbol))
       END IF
 
    END SUBROUTINE atom_read_upf
@@ -901,6 +952,26 @@ CONTAINS
 
    END SUBROUTINE upf_semilocal_section
 
+! **************************************************************************************************
+!> \brief ...
+!> \param upfpot ...
+! **************************************************************************************************
+   SUBROUTINE atom_release_upf(upfpot)
+
+      TYPE(atom_upfpot_type)                             :: upfpot
+
+      CHARACTER(len=*), PARAMETER :: routineN = 'atom_release_upf', &
+         routineP = moduleN//':'//routineN
+
+      IF (ALLOCATED(upfpot%r)) DEALLOCATE (upfpot%r)
+      IF (ALLOCATED(upfpot%rab)) DEALLOCATE (upfpot%rab)
+      IF (ALLOCATED(upfpot%vlocal)) DEALLOCATE (upfpot%vlocal)
+      IF (ALLOCATED(upfpot%dion)) DEALLOCATE (upfpot%dion)
+      IF (ALLOCATED(upfpot%beta)) DEALLOCATE (upfpot%beta)
+      IF (ALLOCATED(upfpot%lbeta)) DEALLOCATE (upfpot%lbeta)
+      IF (ALLOCATED(upfpot%vsemi)) DEALLOCATE (upfpot%vsemi)
+
+   END SUBROUTINE atom_release_upf
 ! **************************************************************************************************
 
 END MODULE atom_upf
