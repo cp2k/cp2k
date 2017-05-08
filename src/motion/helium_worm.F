@@ -260,44 +260,47 @@ CONTAINS
          CALL helium_write_line(stmp)
          IF (ncentratt > 0) THEN
             stmp = ""
-            WRITE (stmp, '(a10,f15.5,2i10)') 'Centroid', DBLE(ncentracc)/DBLE(ncentratt), ncentracc, ncentratt
+            WRITE (stmp, '(a10,f15.5,2i10)') 'Centroid', REAL(ncentracc, KIND=dp)/REAL(ncentratt, KIND=dp), ncentracc, ncentratt
             CALL helium_write_line(stmp)
          END IF
          IF (nstagatt > 0) THEN
             stmp = ""
-            WRITE (stmp, '(a10,f15.5,2i10)') 'Staging', DBLE(nstagacc)/DBLE(nstagatt), nstagacc, nstagatt
+            WRITE (stmp, '(a10,f15.5,2i10)') 'Staging', REAL(nstagacc, KIND=dp)/REAL(nstagatt, KIND=dp), nstagacc, nstagatt
             CALL helium_write_line(stmp)
          END IF
          IF (nopenatt > 0) THEN
             stmp = ""
-            WRITE (stmp, '(a10,f15.5,2i10)') 'Open', DBLE(nopenacc)/DBLE(nopenatt), nopenacc, nopenatt
+            WRITE (stmp, '(a10,f15.5,2i10)') 'Open', REAL(nopenacc, KIND=dp)/REAL(nopenatt, KIND=dp), nopenacc, nopenatt
             CALL helium_write_line(stmp)
          END IF
          IF (ncloseatt > 0) THEN
             stmp = ""
-            WRITE (stmp, '(a10,f15.5,2i10)') 'Close', DBLE(ncloseacc)/DBLE(ncloseatt), ncloseacc, ncloseatt
+            WRITE (stmp, '(a10,f15.5,2i10)') 'Close', REAL(ncloseacc, KIND=dp)/REAL(ncloseatt, KIND=dp), ncloseacc, ncloseatt
             CALL helium_write_line(stmp)
          END IF
          IF (nmoveheadatt > 0) THEN
             stmp = ""
-            WRITE (stmp, '(a10,f15.5,2i10)') 'Move_head', DBLE(nmoveheadacc)/DBLE(nmoveheadatt), nmoveheadacc, nmoveheadatt
+            WRITE (stmp, '(a10,f15.5,2i10)') 'Move_head', REAL(nmoveheadacc, KIND=dp)/REAL(nmoveheadatt, KIND=dp), &
+               nmoveheadacc, nmoveheadatt
             CALL helium_write_line(stmp)
          END IF
          IF (nmovetailatt > 0) THEN
             stmp = ""
-            WRITE (stmp, '(a10,f15.5,2i10)') 'Move_tail', DBLE(nmovetailacc)/DBLE(nmovetailatt), nmovetailacc, nmovetailatt
+            WRITE (stmp, '(a10,f15.5,2i10)') 'Move_tail', REAL(nmovetailacc, KIND=dp)/REAL(nmovetailatt, KIND=dp), &
+               nmovetailacc, nmovetailatt
             CALL helium_write_line(stmp)
          END IF
          IF (nswapatt > 0) THEN
             stmp = ""
-            WRITE (stmp, '(a10,f15.5,2i10)') 'Swap', DBLE(nswapacc)/DBLE(nswapatt), nswapacc, nswapatt
+            WRITE (stmp, '(a10,f15.5,2i10)') 'Swap', REAL(nswapacc, KIND=dp)/REAL(nswapatt, KIND=dp), nswapacc, nswapatt
             CALL helium_write_line(stmp)
          END IF
 
          nZ = ntot-nG
 
          stmp = ""
-         WRITE (stmp, '(a10,f5.1,a3,f5.1)') 'Z/G: ', DBLE(nZ)*100.d0/DBLE(ntot), ' / ', DBLE(nG)*100.d0/DBLE(ntot)
+         WRITE (stmp, '(a10,f5.1,a3,f5.1)') 'Z/G: ', REAL(nZ, KIND=dp)*100.d0/REAL(ntot, KIND=dp), &
+            ' / ', REAL(nG, KIND=dp)*100.d0/REAL(ntot, KIND=dp)
          CALL helium_write_line(stmp)
          stmp = ""
          WRITE (stmp, '(a20,i5,a3,i5)') 'Z-sector statistics:', nstat, ' / ', nMC
@@ -324,9 +327,8 @@ CONTAINS
       INTEGER, INTENT(out)                               :: ac
 
       INTEGER                                            :: ib, ibb, ibf, ipp, nbeads
-
-      DOUBLE PRECISION :: mass, xrr, U, U1, U2, dU, det
-      INTEGER, DIMENSION(:), POINTER :: perm
+      INTEGER, DIMENSION(:), POINTER                     :: perm
+      REAL(KIND=dp)                                      :: det, dU, mass, U, U1, U2, xrr
 
       perm => helium%permutation
       nbeads = helium%beads
@@ -418,10 +420,9 @@ CONTAINS
 
       INTEGER                                            :: ibf, ibk, ibk1, ibkf, id, ipk, ipk1, &
                                                             ipkf, k, nbeads
-
-      DOUBLE PRECISION :: mass, mk, xlk, xlk1
-      DOUBLE PRECISION :: xr(3), dr(3), ri(3), rf(3), rp(3)
-      INTEGER, DIMENSION(:), POINTER :: perm
+      INTEGER, DIMENSION(:), POINTER                     :: perm
+      REAL(KIND=dp)                                      :: dr(3), mass, mk, rf(3), ri(3), rp(3), &
+                                                            xlk, xlk1, xr(3)
 
       perm => helium%permutation
       mass = he_mass*massunit
@@ -437,8 +438,8 @@ CONTAINS
       rf(:) = helium%work(:, ipkf, ibkf)
 
       DO k = 0, l-2
-         xlk = DBLE(l-k)
-         xlk1 = DBLE(l-k-1)
+         xlk = REAL(l-k, KIND=dp)
+         xlk1 = REAL(l-k-1, KIND=dp)
          mk = mass*xlk/xlk1
          ibk = ibi+k
          ipk = ip
@@ -482,20 +483,22 @@ CONTAINS
    SUBROUTINE staging_reconstruct(helium, r0, rl, l, r)
       ! Reconstruct a segment of length (l-1) between the fixed points r1 and rl
       TYPE(helium_solvent_type), INTENT(in), POINTER     :: helium
+      REAL(KIND=dp), INTENT(in)                          :: r0(3), rl(3)
+      INTEGER, INTENT(in)                                :: l
+      REAL(KIND=dp), INTENT(out)                         :: r(0:l, 3)
 
-      DOUBLE PRECISION, INTENT(in) :: r0(3), rl(3)
-      INTEGER, INTENT(in) :: l
-      DOUBLE PRECISION, INTENT(out) :: r(0:l, 3)
-      DOUBLE PRECISION :: xr(3), dr(3), ri(3), rp(3), xlk, xlk1, mk, mass
-      INTEGER :: id, k
+      INTEGER                                            :: id, k
+      REAL(KIND=dp)                                      :: dr(3), mass, mk, ri(3), rp(3), xlk, &
+                                                            xlk1, xr(3)
+
       mass = he_mass*massunit
       ! Fixed points
       r(0, :) = r0(:)
       r(l, :) = rl(:)
 
       DO k = 0, l-2
-         xlk = DBLE(l-k)
-         xlk1 = DBLE(l-k-1)
+         xlk = REAL(l-k, KIND=dp)
+         xlk1 = REAL(l-k-1, KIND=dp)
          mk = mass*xlk/xlk1
          ri(:) = r(k, :)
          dr(:) = ri(:)-rl(:)
@@ -527,12 +530,13 @@ CONTAINS
       TYPE(pint_env_type), POINTER                       :: pint_env
       TYPE(helium_solvent_type), INTENT(in), POINTER     :: helium
       INTEGER, INTENT(in)                                :: ip, l
+      REAL(KIND=dp), INTENT(in)                          :: C
+      INTEGER, INTENT(out)                               :: ac
 
-      DOUBLE PRECISION, INTENT(in) :: C
-      INTEGER, INTENT(out) :: ac
-      INTEGER :: id, ib, nbeads
-      DOUBLE PRECISION :: mass, rho, rnew(3), head(3), tail(3), U1, U2, U, dU, expdU, Popen, xr, xrr
-      INTEGER, DIMENSION(:), POINTER :: perm
+      INTEGER                                            :: ib, id, nbeads
+      INTEGER, DIMENSION(:), POINTER                     :: perm
+      REAL(KIND=dp)                                      :: dU, expdU, head(3), mass, Popen, rho, &
+                                                            rnew(3), tail(3), U, U1, U2, xr, xrr
 
       perm => helium%permutation
       nbeads = helium%beads
@@ -618,12 +622,13 @@ CONTAINS
       TYPE(pint_env_type), POINTER                       :: pint_env
       TYPE(helium_solvent_type), INTENT(in), POINTER     :: helium
       INTEGER, INTENT(in)                                :: l
+      REAL(KIND=dp), INTENT(in)                          :: C
+      INTEGER, INTENT(out)                               :: ac
 
-      DOUBLE PRECISION, INTENT(in) :: C
-      INTEGER, INTENT(out) :: ac
-      INTEGER :: ib, nbeads
-      DOUBLE PRECISION :: mass, dr(3), rnew(3), head(3), tail(3), rho, U, U1, U2, dU, expdU, Pclose, xrr
-      INTEGER, DIMENSION(:), POINTER :: perm
+      INTEGER                                            :: ib, nbeads
+      INTEGER, DIMENSION(:), POINTER                     :: perm
+      REAL(KIND=dp)                                      :: dr(3), dU, expdU, head(3), mass, Pclose, &
+                                                            rho, rnew(3), tail(3), U, U1, U2, xrr
 
       perm => helium%permutation
       nbeads = helium%beads
@@ -703,9 +708,9 @@ CONTAINS
       INTEGER, INTENT(out)                               :: ac
 
       INTEGER                                            :: ib, id, nbeads
-
-      DOUBLE PRECISION :: mass, U, U1, U2, dU, expdU, Pmovehead, xr, rnew(3)
-      INTEGER, DIMENSION(:), POINTER :: perm
+      INTEGER, DIMENSION(:), POINTER                     :: perm
+      REAL(KIND=dp)                                      :: dU, expdU, mass, Pmovehead, rnew(3), U, &
+                                                            U1, U2, xr
 
       perm => helium%permutation
       nbeads = helium%beads
@@ -779,9 +784,9 @@ CONTAINS
       INTEGER, INTENT(out)                               :: ac
 
       INTEGER                                            :: ib, id, nbeads
-
-      DOUBLE PRECISION :: mass, U, U1, U2, dU, expdU, Pmovetail, xr, rnew(3)
-      INTEGER, DIMENSION(:), POINTER :: perm
+      INTEGER, DIMENSION(:), POINTER                     :: perm
+      REAL(KIND=dp)                                      :: dU, expdU, mass, Pmovetail, rnew(3), U, &
+                                                            U1, U2, xr
 
       perm => helium%permutation
       nbeads = helium%beads
@@ -857,11 +862,10 @@ CONTAINS
       INTEGER, INTENT(out)                               :: ac
 
       INTEGER                                            :: ia, ib, ik, ip, natoms, nbeads
-
-      DOUBLE PRECISION :: P(helium%atoms), Pcum(helium%atoms), sumw, sumk, xx, xrr
-      DOUBLE PRECISION :: dr(3), rnew(3), Pswap1, Pswap2
-      DOUBLE PRECISION :: mass, U, U1, U2, dU, expdU
-      INTEGER, DIMENSION(:), POINTER :: perm
+      INTEGER, DIMENSION(:), POINTER                     :: perm
+      REAL(KIND=dp)                                      :: dr(3), dU, expdU, mass, Pswap1, Pswap2, &
+                                                            rnew(3), sumk, sumw, U, U1, U2, xrr, &
+                                                            xx, Pcum(helium%atoms), P(helium%atoms)
 
       perm => helium%permutation
       natoms = helium%atoms
@@ -986,12 +990,11 @@ CONTAINS
       TYPE(pint_env_type), POINTER                       :: pint_env
       TYPE(helium_solvent_type), INTENT(in), POINTER     :: helium
       INTEGER, INTENT(in)                                :: iatom
+      REAL(KIND=dp), INTENT(in)                          :: drmax
+      INTEGER, INTENT(out)                               :: ac
 
-      DOUBLE PRECISION, INTENT(in) :: drmax
-      INTEGER, INTENT(out) :: ac
-      INTEGER :: ib, ip, id, nbeads, icycle
-      DOUBLE PRECISION :: xl, dr(3)
-      DOUBLE PRECISION :: U, U1, U2, dU, expdU, xr
+      INTEGER                                            :: ib, icycle, id, ip, nbeads
+      REAL(KIND=dp)                                      :: dr(3), dU, expdU, U, U1, U2, xl, xr
 
       nbeads = helium%beads
 
@@ -1132,11 +1135,11 @@ CONTAINS
       TYPE(helium_solvent_type), INTENT(in), POINTER     :: helium
       INTEGER, INTENT(in)                                :: ipi, ibi, ipf, ibf
       INTEGER, INTENT(in), OPTIONAL                      :: length
+      REAL(KIND=dp)                                      :: free_density_matrix
 
       INTEGER                                            :: id, l
+      REAL(KIND=dp)                                      :: d2, dx, factor, factorpi, vec(3)
 
-      DOUBLE PRECISION :: free_density_matrix
-      DOUBLE PRECISION :: factor, factorpi, vec(3), d2, dx
       IF (PRESENT(length)) THEN
          l = length
       ELSE
@@ -1187,16 +1190,17 @@ CONTAINS
    SUBROUTINE centroid(helium, iatom, rc)
       TYPE(helium_solvent_type), INTENT(in), POINTER     :: helium
       INTEGER, INTENT(in)                                :: iatom
+      REAL(KIND=dp), INTENT(out)                         :: rc(3)
 
-      DOUBLE PRECISION, INTENT(out) :: rc(3)
-      INTEGER :: id, ib
-      DOUBLE PRECISION :: x
+      INTEGER                                            :: ib, id
+      REAL(KIND=dp)                                      :: x
+
       DO id = 1, 3
          x = 0.d0
          DO ib = 1, helium%beads
             x = x+helium%work(id, iatom, ib)
          END DO
-         rc(id) = x/DBLE(helium%beads)
+         rc(id) = x/REAL(helium%beads, KIND=dp)
       END DO
    END SUBROUTINE centroid
 
@@ -1209,9 +1213,10 @@ CONTAINS
    SUBROUTINE centroid_displacement(helium, iatom, dr)
       TYPE(helium_solvent_type), INTENT(in), POINTER     :: helium
       INTEGER, INTENT(in)                                :: iatom
+      REAL(KIND=dp), INTENT(in)                          :: dr(3)
 
-      DOUBLE PRECISION, INTENT(in) :: dr(3)
-      INTEGER :: ib
+      INTEGER                                            :: ib
+
       DO ib = 1, helium%beads+1
          helium%work(:, iatom, ib) = helium%work(:, iatom, ib)+dr(:)
       END DO
@@ -1231,8 +1236,8 @@ CONTAINS
       LOGICAL                                            :: indroplet
 
       INTEGER                                            :: ib, ibb, ipp
+      REAL(KIND=dp)                                      :: d2, rcutoff2
 
-      DOUBLE PRECISION :: rcutoff2, d2
       rcutoff2 = helium%droplet_radius**2
       indroplet = .TRUE.
       ! Compute the center of mass of helium%pos (before move)
@@ -1262,9 +1267,11 @@ CONTAINS
 !> \retval distance2 ...
 ! **************************************************************************************************
    FUNCTION distance2(v1, v2)
-      DOUBLE PRECISION :: distance2
-      DOUBLE PRECISION, INTENT(in) :: v1(3), v2(3)
-      INTEGER :: i
+      REAL(KIND=dp), INTENT(in)                          :: v1(3), v2(3)
+      REAL(KIND=dp)                                      :: distance2
+
+      INTEGER                                            :: i
+
       distance2 = 0.d0
       DO i = 1, 3
          distance2 = distance2+(v1(i)-v2(i))**2
@@ -1279,9 +1286,10 @@ CONTAINS
    FUNCTION unit_rand_vec(helium)
       ! Unitary random vector:
       TYPE(helium_solvent_type), INTENT(in), POINTER     :: helium
+      REAL(KIND=dp)                                      :: unit_rand_vec(3)
 
-      DOUBLE PRECISION :: u, v, theta, phi
-      DOUBLE PRECISION :: unit_rand_vec(3)
+      REAL(KIND=dp)                                      :: phi, theta, u, v
+
       u = next_random_number(helium%rng_stream_uniform)
       v = next_random_number(helium%rng_stream_uniform)
       theta = 2.d0*pi*u
