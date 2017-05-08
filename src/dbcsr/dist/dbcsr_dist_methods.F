@@ -32,7 +32,7 @@ MODULE dbcsr_dist_methods
                                               sort
    USE dbcsr_types,                     ONLY: dbcsr_distribution_obj,&
                                               dbcsr_mp_obj
-   USE kinds,                           ONLY: sp
+   USE kinds,                           ONLY: sp, dp
 #include "../../base/base_uses.f90"
 
 !$ USE OMP_LIB, ONLY: omp_get_max_threads, omp_get_thread_num, omp_get_num_threads, OMP_IN_PARALLEL
@@ -414,12 +414,12 @@ CONTAINS
       !
       IF (dbcsr_cfg%avg_elements_images .GT. 0) THEN
          num_images_1d = num_images_1d* &
-                         CEILING((DBLE(matrix_dense_size_1d)/num_images_1d)/ &
-                                 SQRT(DBLE(dbcsr_cfg%avg_elements_images)))
+                         CEILING((REAL(matrix_dense_size_1d, KIND=dp)/num_images_1d)/ &
+                                 SQRT(REAL(dbcsr_cfg%avg_elements_images, KIND=dp)))
       ENDIF
       ! limiting # clusters to be close to # atoms
       IF (num_images_1d .GT. nblocks .AND. nblocks .GT. 0) THEN
-         num_images_1d = CEILING(DBLE(nblocks)/lcmv)*lcmv
+         num_images_1d = CEILING(REAL(nblocks, KIND=dp)/lcmv)*lcmv
       ENDIF
    END FUNCTION dbcsr_distribution_get_num_images_1d
 

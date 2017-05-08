@@ -3600,7 +3600,7 @@ CONTAINS
 
       END DO
 
-      num_pe_real = DBLE(num_pe_temp_int)
+      num_pe_real = REAL(num_pe_temp_int, KIND=dp)
 
       offset_real = 0.0_dp
 

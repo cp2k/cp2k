@@ -537,7 +537,7 @@ PROGRAM graph
      DEALLOCATE(tmpr)
      ngrid=INT((xf-x0)/dp_grid)+1
   ELSE
-     dp_grid=(xf-x0)/DBLE(ngrid-1)
+     dp_grid=(xf-x0)/REAL(ngrid-1, KIND=dp)
   END IF
   
   WRITE(iw,'(70("*"))')
@@ -565,7 +565,7 @@ PROGRAM graph
   DO i = 1, nt
      dp_cut  = SQRT(LOG(ABS(ww(i))/eps_cut))*2.0_dp*delta_s(:,i) 
      nn(:,i) = INT(dp_cut/dp_grid)
-     ww(i)   = ww(i)**(1.0_dp/DBLE(ndim))
+     ww(i)   = ww(i)**(1.0_dp/REAL(ndim, KIND=dp))
   END DO
 
   nn_max = MAXVAL(nn,DIM=2)

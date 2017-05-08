@@ -3822,7 +3822,7 @@ CONTAINS
 !
 !MK      temp = sngl(ttime)
 !MK      CALL cpu_time(temp)
-!MK      ttime = DBLE(temp)
+!MK      ttime = REAL(temp, KIND=dp)
 
          ttime = m_walltime()
 
