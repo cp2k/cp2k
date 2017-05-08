@@ -994,10 +994,27 @@ CONTAINS
       ! Get number of weight functions per state as well as the type of each constraint
       nvar = SIZE(dft_control%qs_control%cdft_control%target)
       IF (.NOT. ALLOCATED(mixed_cdft%is_charge_constraint)) THEN
-         ALLOCATE (mixed_cdft%is_charge_constraint(nvar))
-         DO ivar = 1, nvar
-            mixed_cdft%is_charge_constraint(ivar) = dft_control%qs_control%becke_control%group(ivar)%is_charge_constraint
-         END DO
+         ALLOCATE (mixed_cdft%is_charge_constraint(nvar, nforce_eval))
+         IF (mixed_cdft%identical_constraints) THEN
+            DO ivar = 1, nvar
+               mixed_cdft%is_charge_constraint(ivar, :) = &
+                  dft_control%qs_control%becke_control%group(ivar)%is_charge_constraint
+            END DO
+         ELSE
+            ! Possibly couple spin and charge constraints (serial mode only)
+            DO iforce_eval = 1, nforce_eval
+               IF (force_env%mixed_env%do_mixed_qmmm_cdft) THEN
+                  qs_env => force_env%sub_force_env(iforce_eval)%force_env%qmmm_env%qs_env
+               ELSE
+                  CALL force_env_get(force_env%sub_force_env(iforce_eval)%force_env, qs_env=qs_env)
+               END IF
+               CALL get_qs_env(qs_env, dft_control=dft_control)
+               DO ivar = 1, nvar
+                  mixed_cdft%is_charge_constraint(ivar, iforce_eval) = &
+                     dft_control%qs_control%becke_control%group(ivar)%is_charge_constraint
+               END DO
+            END DO
+         END IF
       END IF
       ALLOCATE (mixed_mo_coeff(nforce_eval, nspins))
       ALLOCATE (w_matrix(nforce_eval, nvar))

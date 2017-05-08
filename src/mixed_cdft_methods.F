@@ -1224,10 +1224,10 @@ CONTAINS
             END DO
             IF (ispin == 2) THEN
                DO ivar = 1, nvar
-                  IF (.NOT. mixed_cdft%is_charge_constraint(ivar)) THEN
+                  IF (.NOT. mixed_cdft%is_charge_constraint(ivar, istate)) &
                      a(ispin, ivar, ipermutation) = -a(ispin, ivar, ipermutation)
+                  IF (.NOT. mixed_cdft%is_charge_constraint(ivar, jstate)) &
                      b(ispin, ivar, ipermutation) = -b(ispin, ivar, ipermutation)
-                  END IF
                END DO
             END IF
             ! Compute density matrix difference P = P_j - P_i
@@ -1266,7 +1266,7 @@ CONTAINS
       ALLOCATE (Sda(npermutations))
       DO ipermutation = 1, npermutations
          IF (nspins == 2) THEN
-            Sda(ipermutation) = S_det(ipermutation, 1)*S_det(ipermutation, 2)
+            Sda(ipermutation) = ABS(S_det(ipermutation, 1)*S_det(ipermutation, 2))
          ELSE
             Sda(ipermutation) = S_det(ipermutation, 2)**2
          END IF

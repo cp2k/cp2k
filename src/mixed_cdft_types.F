@@ -165,7 +165,7 @@ MODULE mixed_cdft_types
                                                           is_parallel, use_lowdin, &
                                                           do_ci, nonortho_coupling, &
                                                           identical_constraints
-      LOGICAL, DIMENSION(:), ALLOCATABLE               :: is_charge_constraint
+      LOGICAL, DIMENSION(:, :), ALLOCATABLE            :: is_charge_constraint
       REAL(KIND=dp)                                    :: eps_rho_rspace, sim_dt, &
                                                           eps_svd
       REAL(KIND=dp), POINTER, DIMENSION(:, :, :)       :: weight, cavity
