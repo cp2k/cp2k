@@ -219,7 +219,7 @@ CONTAINS
             CALL helium_sample_worm(helium_env(k)%helium, pint_env, helium_env(k)%helium%iter_rot, ires)
 
             IF (ires > 0) THEN
-               inv_xn = 1.0_dp/REAL(ires,dp)
+               inv_xn = 1.0_dp/REAL(ires, dp)
                IF (helium_env(k)%helium%solute_present .AND. helium_env(k)%helium%get_helium_forces == helium_forces_last) THEN
                   DO i = 1, 10
                      IF (helium_env(k)%helium%isector == 0) EXIT
