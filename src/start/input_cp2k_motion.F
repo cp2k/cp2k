@@ -30,10 +30,10 @@ MODULE input_cp2k_motion
         gaussian, helium_cell_shape_cube, helium_cell_shape_octahedron, helium_forces_average, &
         helium_forces_last, helium_mdist_exponential, helium_mdist_gaussian, helium_mdist_linear, &
         helium_mdist_quadratic, helium_mdist_singlev, helium_mdist_uniform, &
-        helium_sampling_ceperley, helium_solute_intpot_mwater, helium_solute_intpot_none, &
-        integrate_exact, integrate_numeric, ls_2pnt, ls_3pnt, ls_fit, ls_gold, ls_none, &
-        matrix_init_cholesky, matrix_init_diagonal, numerical, perm_cycle, perm_plain, &
-        propagator_pimd, propagator_rpmd, transformation_normal, transformation_stage
+        helium_sampling_ceperley, helium_sampling_worm, helium_solute_intpot_mwater, &
+        helium_solute_intpot_none, integrate_exact, integrate_numeric, ls_2pnt, ls_3pnt, ls_fit, &
+        ls_gold, ls_none, matrix_init_cholesky, matrix_init_diagonal, numerical, perm_cycle, &
+        perm_plain, propagator_pimd, propagator_rpmd, transformation_normal, transformation_stage
    USE input_cp2k_constraints,          ONLY: create_constraint_section
    USE input_cp2k_free_energy,          ONLY: create_fe_section
    USE input_cp2k_md,                   ONLY: create_md_section
@@ -1941,7 +1941,7 @@ CONTAINS
          routineP = moduleN//':'//routineN
 
       TYPE(keyword_type), POINTER                        :: keyword
-      TYPE(section_type), POINTER                        :: print_key, subsection
+      TYPE(section_type), POINTER                        :: print_key, subsection, subsubsection
 
       CPASSERT(.NOT. ASSOCIATED(section))
 
@@ -2044,30 +2044,35 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
+      CALL keyword_create(keyword, name="SAMPLING_METHOD", &
+                          description="Choose between Ceperley or the worm algorithm", &
+                          usage="SAMPLING_METHOD (CEPERLEY|WORM)", &
+                          default_i_val=helium_sampling_ceperley, &
+                          enum_c_vals=s2a("CEPERLEY", "WORM"), &
+                          enum_i_vals=(/helium_sampling_ceperley, helium_sampling_worm/))
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      NULLIFY (subsection)
+      CALL section_create(subsection, name="CEPERLEY", &
+                          description="Enables sampling with Ceperley's algorithm", &
+                          n_keywords=2, n_subsections=1, repeats=.FALSE.)
+
       CALL keyword_create(keyword, name="BISECTION", &
                           description="how many time slices to change at once (+1). "// &
                           "Must be a power of 2 currently", &
                           repeats=.FALSE., default_i_val=8)
-      CALL section_add_keyword(section, keyword)
+      CALL section_add_keyword(subsection, keyword)
       CALL keyword_release(keyword)
 
       CALL keyword_create(keyword, name="MAX_PERM_CYCLE", &
                           description="how large cyclic permutations to try", &
                           repeats=.FALSE., default_i_val=6)
-      CALL section_add_keyword(section, keyword)
+      CALL section_add_keyword(subsection, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="SAMPLING_METHOD", &
-                          description="Choose between Ceperley or other not implemented algorithms", &
-                          usage="SAMPLING_METHOD (CEPERLEY)", &
-                          default_i_val=helium_sampling_ceperley, &
-                          enum_c_vals=s2a("CEPERLEY"), &
-                          enum_i_vals=(/helium_sampling_ceperley/))
-      CALL section_add_keyword(section, keyword)
-      CALL keyword_release(keyword)
-
-      NULLIFY (subsection)
-      CALL section_create(subsection, name="M-SAMPLING", &
+      NULLIFY (subsubsection)
+      CALL section_create(subsubsection, name="M-SAMPLING", &
                           description="Permutation cycle length sampling settings", &
                           n_keywords=3, n_subsections=0, repeats=.FALSE.)
       CALL keyword_create(keyword, name="DISTRIBUTION-TYPE", &
@@ -2088,23 +2093,121 @@ CONTAINS
                           helium_mdist_quadratic, &
                           helium_mdist_exponential, &
                           helium_mdist_gaussian/))
-      CALL section_add_keyword(subsection, keyword)
+      CALL section_add_keyword(subsubsection, keyword)
       CALL keyword_release(keyword)
       CALL keyword_create(keyword, name="M-VALUE", &
                           description="Value of m treated in a special way "// &
                           "(specific behavior depends on the distribution type chosen)", &
                           repeats=.FALSE., &
                           default_i_val=1)
-      CALL section_add_keyword(subsection, keyword)
+      CALL section_add_keyword(subsubsection, keyword)
       CALL keyword_release(keyword)
       CALL keyword_create(keyword, name="M-RATIO", &
                           description="Probability ratio betw M-VALUE and other cycle lengths", &
                           repeats=.FALSE., &
                           default_r_val=1.0_dp)
+      CALL section_add_keyword(subsubsection, keyword)
+      CALL keyword_release(keyword)
+      CALL section_add_subsection(subsection, subsubsection)
+      CALL section_release(subsubsection)
+      CALL section_add_subsection(section, subsection)
+      CALL section_release(subsection) ! release CEPERLEY subsection
+
+! worm algorithm parameters:
+      NULLIFY (subsection)
+      CALL section_create(subsection, name="WORM", &
+                          description="Enables sampling with the worm algorithm by Bonisegni", &
+                          n_keywords=13, n_subsections=0, repeats=.FALSE.)
+
+      CALL keyword_create(keyword, name="CENTROID_MOVE_DRMAX", &
+                          description="Maximum displacement allowed for the centroid moves", &
+                          repeats=.FALSE., default_r_val=0.5_dp)
       CALL section_add_keyword(subsection, keyword)
       CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, name="CENTROID_MOVE_FREQ", &
+                          description="Moves are performed each CENTROID_MOVE_FREQ steps", &
+                          repeats=.FALSE., default_i_val=20)
+      CALL section_add_keyword(subsection, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, name="STAGING_MOVE_L", &
+                          description="L-1 beads will be moved", &
+                          repeats=.FALSE., default_i_val=5)
+      CALL section_add_keyword(subsection, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, name="STAGING_MOVE_REP", &
+                          description="Number of repetitions for staging moves", &
+                          repeats=.FALSE., default_i_val=10)
+      CALL section_add_keyword(subsection, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, name="OPEN_CLOSE_MOVE_C", &
+                          description="Open/Close acceptance adjustment parameter", &
+                          repeats=.FALSE., default_r_val=0.01_dp)
+      CALL section_add_keyword(subsection, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, name="OPEN_CLOSE_MOVE_LMAX", &
+                          description="1 to OPEN_CLOSE_MOVE_LMAX-1 beads"// &
+                          "will be moved in Open/Close moves", &
+                          repeats=.FALSE., default_i_val=5)
+      CALL section_add_keyword(subsection, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, name="HEAD_TAIL_MOVE_LMAX", &
+                          description="1 to HEAD_TAIL_MOVE_LMAX-1 beads"// &
+                          "will be moved in head/tail moves", &
+                          repeats=.FALSE., default_i_val=5)
+      CALL section_add_keyword(subsection, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, name="SWAP_MOVE_LMAX", &
+                          description="1 to SWAP_MOVE_LMAX-1 beads"// &
+                          "will be moved in Swap moves", &
+                          repeats=.FALSE., default_i_val=5)
+      CALL section_add_keyword(subsection, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, name="G-SECTOR_MOVE_REP", &
+                          description="Repetitions of G-sector moves", &
+                          repeats=.FALSE., default_i_val=20)
+      CALL section_add_keyword(subsection, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, name="G-SECTOR_MOVE", &
+                          description="Switch on/off G-sector moves, i.e.,"// &
+                          "switch on/off bosonic symmetry", &
+                          repeats=.FALSE., default_l_val=.TRUE.)
+      CALL section_add_keyword(subsection, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, name="WRITE", &
+                          description="Switch on/off writing"// &
+                          "statistics of the different moves", &
+                          repeats=.FALSE., default_l_val=.TRUE.)
+      CALL section_add_keyword(subsection, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, name="ATOM", &
+                          description="WORM ATOM", &
+                          repeats=.TRUE., usage="<INT> <INT> .. <INT>", &
+                          type_of_var=integer_t, n_var=-1)
+      CALL section_add_keyword(subsection, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, name="COORD", &
+                          description="WORM ATOM COORDINATES", &
+                          repeats=.TRUE., usage="<REAL> <REAL> .. <REAL>", &
+                          type_of_var=real_t, n_var=-1)
+      CALL section_add_keyword(subsection, keyword)
+      CALL keyword_release(keyword)
+
       CALL section_add_subsection(section, subsection)
-      CALL section_release(subsection)
+      CALL section_release(subsection) ! release WORM subsection
+
+! end of worm parameters
 
       CALL keyword_create(keyword, name="PERIODIC", &
                           description="Use periodic boundary conditions for helium", &

@@ -40,6 +40,7 @@ MODULE helium_io
    USE input_constants,                 ONLY: helium_cell_shape_cube,&
                                               helium_cell_shape_octahedron,&
                                               helium_sampling_ceperley,&
+                                              helium_sampling_worm,&
                                               helium_solute_intpot_mwater,&
                                               helium_solute_intpot_none,&
                                               perm_cycle,&
@@ -302,6 +303,69 @@ CONTAINS
             CALL helium_write_line(stmp)
             stmp = ""
             CALL helium_write_line(stmp)
+
+         CASE (helium_sampling_worm)
+
+            stmp1 = ""
+            stmp2 = ""
+            CALL helium_write_line(stmp1)
+            WRITE (stmp1, *) helium%worm_centroid_move_drmax
+            WRITE (stmp2, *) "WORM| Centroid move max. displacement: "// &
+               TRIM(ADJUSTL(stmp1))
+            CALL helium_write_line(stmp2)
+            stmp1 = ""
+            stmp2 = ""
+            WRITE (stmp1, *) helium%worm_centroid_move_freq
+            WRITE (stmp2, *) "WORM| Centroid move frequency: "//TRIM(ADJUSTL(stmp1))
+            CALL helium_write_line(stmp2)
+            stmp1 = ""
+            stmp2 = ""
+            WRITE (stmp1, *) helium%worm_staging_move_l
+            WRITE (stmp2, *) "WORM| Staging move l: "//TRIM(ADJUSTL(stmp1))
+            CALL helium_write_line(stmp2)
+            stmp1 = ""
+            stmp2 = ""
+            WRITE (stmp1, *) helium%worm_staging_move_rep
+            WRITE (stmp2, *) "WORM| Staging move repetitions: "//TRIM(ADJUSTL(stmp1))
+            CALL helium_write_line(stmp2)
+            stmp1 = ""
+            stmp2 = ""
+            WRITE (stmp1, *) helium%worm_open_close_move_C
+            WRITE (stmp2, *) "WORM| Open/Close move C: "//TRIM(ADJUSTL(stmp1))
+            CALL helium_write_line(stmp2)
+            stmp1 = ""
+            stmp2 = ""
+            WRITE (stmp1, *) helium%worm_open_close_move_lmax
+            WRITE (stmp2, *) "WORM| Open/Close move lmax: "//TRIM(ADJUSTL(stmp1))
+            CALL helium_write_line(stmp2)
+            stmp1 = ""
+            stmp2 = ""
+            WRITE (stmp1, *) helium%worm_head_tail_move_lmax
+            WRITE (stmp2, *) "WORM| Head/Tail move lmax: "//TRIM(ADJUSTL(stmp1))
+            CALL helium_write_line(stmp2)
+            stmp1 = ""
+            stmp2 = ""
+            WRITE (stmp1, *) helium%worm_swap_move_lmax
+            WRITE (stmp2, *) "WORM| Swap move lmax: "//TRIM(ADJUSTL(stmp1))
+            CALL helium_write_line(stmp2)
+            stmp1 = ""
+            stmp2 = ""
+            WRITE (stmp1, *) helium%worm_gsector_move_rep
+            WRITE (stmp2, *) "WORM| G-sector moves repetitions: "// &
+               TRIM(ADJUSTL(stmp1))
+            CALL helium_write_line(stmp2)
+            stmp1 = ""
+            stmp2 = ""
+            WRITE (stmp1, *) helium%worm_gsector_move
+            WRITE (stmp2, *) "WORM| G-sector moves: "//TRIM(ADJUSTL(stmp1))
+            CALL helium_write_line(stmp2)
+            stmp1 = ""
+            stmp2 = ""
+            WRITE (stmp1, *) helium%worm_write
+            WRITE (stmp2, *) "WORM| Print: "//TRIM(ADJUSTL(stmp1))
+            CALL helium_write_line(stmp2)
+            stmp1 = ""
+            CALL helium_write_line(stmp1)
 
          CASE DEFAULT
             WRITE (msg_str, *) helium%sampling_method

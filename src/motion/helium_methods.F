@@ -109,7 +109,7 @@ CONTAINS
 
       CHARACTER(len=*), PARAMETER :: routineN = 'helium_create', routineP = moduleN//':'//routineN
 
-      CHARACTER(len=default_path_length)                 :: msg_str, potential_file_name
+      CHARACTER(len=default_path_length)                 :: msg_str, msg_str2, potential_file_name
       INTEGER                                            :: color_sub, handle, i, input_unit, isize, &
                                                             itmp, j, k, mepos, new_comm, nlines, &
                                                             ntab, num_env, pdx
@@ -120,7 +120,7 @@ CONTAINS
                                                             x1, x_spline
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: pot_transfer
       TYPE(cp_logger_type), POINTER                      :: logger
-      TYPE(section_vals_type), POINTER                   :: helium_section
+      TYPE(section_vals_type), POINTER                   :: helium_section, input_worm
 
       CALL timeset(routineN, handle)
 
@@ -339,52 +339,56 @@ CONTAINS
             SELECT CASE (helium_env (k)%helium%cell_shape)
 
             CASE (helium_cell_shape_octahedron)
-               helium_env(k)%helium%cell_m(1, 1) = helium_env(k)%helium%cell_size; 
-               helium_env(k)%helium%cell_m(2, 1) = 0.0_dp; 
-               helium_env(k)%helium%cell_m(3, 1) = 0.0_dp; 
-               helium_env(k)%helium%cell_m(1, 2) = 0.0_dp; 
-               helium_env(k)%helium%cell_m(2, 2) = helium_env(k)%helium%cell_size; 
-               helium_env(k)%helium%cell_m(3, 2) = 0.0_dp; 
-               helium_env(k)%helium%cell_m(1, 3) = helium_env(k)%helium%cell_size/2.0_dp; 
-               helium_env(k)%helium%cell_m(2, 3) = helium_env(k)%helium%cell_size/2.0_dp; 
-               helium_env(k)%helium%cell_m(3, 3) = helium_env(k)%helium%cell_size/2.0_dp; 
-               helium_env(k)%helium%cell_m_inv(1, 1) = 1.0_dp/helium_env(k)%helium%cell_size; 
-               helium_env(k)%helium%cell_m_inv(2, 1) = 0.0_dp; 
-               helium_env(k)%helium%cell_m_inv(3, 1) = 0.0_dp; 
-               helium_env(k)%helium%cell_m_inv(1, 2) = 0.0_dp; 
-               helium_env(k)%helium%cell_m_inv(2, 2) = 1.0_dp/helium_env(k)%helium%cell_size; 
-               helium_env(k)%helium%cell_m_inv(3, 2) = 0.0_dp; 
-               helium_env(k)%helium%cell_m_inv(1, 3) = -1.0_dp/helium_env(k)%helium%cell_size; 
-               helium_env(k)%helium%cell_m_inv(2, 3) = -1.0_dp/helium_env(k)%helium%cell_size; 
-               helium_env(k)%helium%cell_m_inv(3, 3) = 2.0_dp/helium_env(k)%helium%cell_size; 
+               helium_env(k)%helium%cell_m(1, 1) = helium_env(k)%helium%cell_size
+               helium_env(k)%helium%cell_m(2, 1) = 0.0_dp
+               helium_env(k)%helium%cell_m(3, 1) = 0.0_dp
+               helium_env(k)%helium%cell_m(1, 2) = 0.0_dp
+               helium_env(k)%helium%cell_m(2, 2) = helium_env(k)%helium%cell_size
+               helium_env(k)%helium%cell_m(3, 2) = 0.0_dp
+               helium_env(k)%helium%cell_m(1, 3) = helium_env(k)%helium%cell_size/2.0_dp
+               helium_env(k)%helium%cell_m(2, 3) = helium_env(k)%helium%cell_size/2.0_dp
+               helium_env(k)%helium%cell_m(3, 3) = helium_env(k)%helium%cell_size/2.0_dp
+               helium_env(k)%helium%cell_m_inv(1, 1) = 1.0_dp/helium_env(k)%helium%cell_size
+               helium_env(k)%helium%cell_m_inv(2, 1) = 0.0_dp
+               helium_env(k)%helium%cell_m_inv(3, 1) = 0.0_dp
+               helium_env(k)%helium%cell_m_inv(1, 2) = 0.0_dp
+               helium_env(k)%helium%cell_m_inv(2, 2) = 1.0_dp/helium_env(k)%helium%cell_size
+               helium_env(k)%helium%cell_m_inv(3, 2) = 0.0_dp
+               helium_env(k)%helium%cell_m_inv(1, 3) = -1.0_dp/helium_env(k)%helium%cell_size
+               helium_env(k)%helium%cell_m_inv(2, 3) = -1.0_dp/helium_env(k)%helium%cell_size
+               helium_env(k)%helium%cell_m_inv(3, 3) = 2.0_dp/helium_env(k)%helium%cell_size
             CASE (helium_cell_shape_cube)
 
-               helium_env(k)%helium%cell_m(1, 1) = helium_env(k)%helium%cell_size; 
-               helium_env(k)%helium%cell_m(2, 1) = 0.0_dp; 
-               helium_env(k)%helium%cell_m(3, 1) = 0.0_dp; 
-               helium_env(k)%helium%cell_m(1, 2) = 0.0_dp; 
-               helium_env(k)%helium%cell_m(2, 2) = helium_env(k)%helium%cell_size; 
-               helium_env(k)%helium%cell_m(3, 2) = 0.0_dp; 
-               helium_env(k)%helium%cell_m(1, 3) = 0.0_dp; 
-               helium_env(k)%helium%cell_m(2, 3) = 0.0_dp; 
-               helium_env(k)%helium%cell_m(3, 3) = helium_env(k)%helium%cell_size; 
-               helium_env(k)%helium%cell_m_inv(1, 1) = 1.0_dp/helium_env(k)%helium%cell_size; 
-               helium_env(k)%helium%cell_m_inv(2, 1) = 0.0_dp; 
-               helium_env(k)%helium%cell_m_inv(3, 1) = 0.0_dp; 
-               helium_env(k)%helium%cell_m_inv(1, 2) = 0.0_dp; 
-               helium_env(k)%helium%cell_m_inv(2, 2) = 1.0_dp/helium_env(k)%helium%cell_size; 
-               helium_env(k)%helium%cell_m_inv(3, 2) = 0.0_dp; 
-               helium_env(k)%helium%cell_m_inv(1, 3) = 0.0_dp; 
-               helium_env(k)%helium%cell_m_inv(2, 3) = 0.0_dp; 
-               helium_env(k)%helium%cell_m_inv(3, 3) = 1.0_dp/helium_env(k)%helium%cell_size; 
+               helium_env(k)%helium%cell_m(1, 1) = helium_env(k)%helium%cell_size
+               helium_env(k)%helium%cell_m(2, 1) = 0.0_dp
+               helium_env(k)%helium%cell_m(3, 1) = 0.0_dp
+               helium_env(k)%helium%cell_m(1, 2) = 0.0_dp
+               helium_env(k)%helium%cell_m(2, 2) = helium_env(k)%helium%cell_size
+               helium_env(k)%helium%cell_m(3, 2) = 0.0_dp
+               helium_env(k)%helium%cell_m(1, 3) = 0.0_dp
+               helium_env(k)%helium%cell_m(2, 3) = 0.0_dp
+               helium_env(k)%helium%cell_m(3, 3) = helium_env(k)%helium%cell_size
+               helium_env(k)%helium%cell_m_inv(1, 1) = 1.0_dp/helium_env(k)%helium%cell_size
+               helium_env(k)%helium%cell_m_inv(2, 1) = 0.0_dp
+               helium_env(k)%helium%cell_m_inv(3, 1) = 0.0_dp
+               helium_env(k)%helium%cell_m_inv(1, 2) = 0.0_dp
+               helium_env(k)%helium%cell_m_inv(2, 2) = 1.0_dp/helium_env(k)%helium%cell_size
+               helium_env(k)%helium%cell_m_inv(3, 2) = 0.0_dp
+               helium_env(k)%helium%cell_m_inv(1, 3) = 0.0_dp
+               helium_env(k)%helium%cell_m_inv(2, 3) = 0.0_dp
+               helium_env(k)%helium%cell_m_inv(3, 3) = 1.0_dp/helium_env(k)%helium%cell_size
             CASE DEFAULT
                helium_env(k)%helium%cell_m(:, :) = 0.0_dp
                helium_env(k)%helium%cell_m_inv(:, :) = 0.0_dp
 
             END SELECT
 
+            ! Choose sampling method:
+            CALL section_vals_val_get(helium_section, "SAMPLING_METHOD", &
+                                      i_val=helium_env(k)%helium%sampling_method)
+
             ! check value of maxcycle
-            CALL section_vals_val_get(helium_section, "MAX_PERM_CYCLE", &
+            CALL section_vals_val_get(helium_section, "CEPERLEY%MAX_PERM_CYCLE", &
                                       i_val=helium_env(k)%helium%maxcycle)
             i = helium_env(k)%helium%maxcycle
             CPASSERT(i >= 0)
@@ -392,23 +396,23 @@ CONTAINS
             CPASSERT(i >= 0)
 
             ! set m-distribution parameters
-            CALL section_vals_val_get(helium_section, "M-SAMPLING%DISTRIBUTION-TYPE", &
+            CALL section_vals_val_get(helium_section, "CEPERLEY%M-SAMPLING%DISTRIBUTION-TYPE", &
                                       i_val=i)
             CPASSERT(i >= 1)
             CPASSERT(i <= 6)
             helium_env(k)%helium%m_dist_type = i
-            CALL section_vals_val_get(helium_section, "M-SAMPLING%M-VALUE", &
+            CALL section_vals_val_get(helium_section, "CEPERLEY%M-SAMPLING%M-VALUE", &
                                       i_val=i)
             CPASSERT(i >= 1)
             CPASSERT(i <= helium_env(k)%helium%maxcycle)
             helium_env(k)%helium%m_value = i
-            CALL section_vals_val_get(helium_section, "M-SAMPLING%M-RATIO", &
+            CALL section_vals_val_get(helium_section, "CEPERLEY%M-SAMPLING%M-RATIO", &
                                       r_val=rtmp)
             CPASSERT(rtmp > 0.0_dp)
             CPASSERT(rtmp <= 1.0_dp)
             helium_env(k)%helium%m_ratio = rtmp
 
-            CALL section_vals_val_get(helium_section, "BISECTION", &
+            CALL section_vals_val_get(helium_section, "CEPERLEY%BISECTION", &
                                       i_val=helium_env(k)%helium%bisection)
             ! precheck bisection value (not all invalids are filtered out here yet)
             i = helium_env(k)%helium%bisection
@@ -425,8 +429,73 @@ CONTAINS
             END IF
             helium_env(k)%helium%bisctlog2 = NINT(LOG(REAL(itmp, dp))/LOG(2.0_dp))
 
-            CALL section_vals_val_get(helium_section, "SAMPLING_METHOD", &
-                                      i_val=helium_env(k)%helium%sampling_method)
+! worm parameters:
+
+            NULLIFY (input_worm)
+            input_worm => section_vals_get_subs_vals(helium_env(k)%helium%input, "MOTION%PINT%HELIUM%WORM")
+            CALL section_vals_val_get(helium_section, "WORM%CENTROID_MOVE_DRMAX", &
+                                      r_val=helium_env(k)%helium%worm_centroid_move_drmax)
+
+            CALL section_vals_val_get(helium_section, "WORM%CENTROID_MOVE_FREQ", &
+                                      i_val=helium_env(k)%helium%worm_centroid_move_freq)
+
+            CALL section_vals_val_get(helium_section, "WORM%STAGING_MOVE_L", &
+                                      i_val=helium_env(k)%helium%worm_staging_move_l)
+
+            CALL section_vals_val_get(helium_section, "WORM%STAGING_MOVE_REP", &
+                                      i_val=helium_env(k)%helium%worm_staging_move_rep)
+
+            CALL section_vals_val_get(helium_section, "WORM%OPEN_CLOSE_MOVE_C", &
+                                      r_val=helium_env(k)%helium%worm_open_close_move_c)
+
+            CALL section_vals_val_get(helium_section, "WORM%OPEN_CLOSE_MOVE_LMAX", &
+                                      i_val=helium_env(k)%helium%worm_open_close_move_lmax)
+
+            CALL section_vals_val_get(helium_section, "WORM%HEAD_TAIL_MOVE_LMAX", &
+                                      i_val=helium_env(k)%helium%worm_head_tail_move_lmax)
+
+            CALL section_vals_val_get(helium_section, "WORM%SWAP_MOVE_LMAX", &
+                                      i_val=helium_env(k)%helium%worm_swap_move_lmax)
+
+            CALL section_vals_val_get(helium_section, "WORM%G-SECTOR_MOVE_REP", &
+                                      i_val=helium_env(k)%helium%worm_gsector_move_rep)
+
+            CALL section_vals_val_get(helium_section, "WORM%G-SECTOR_MOVE", &
+                                      l_val=helium_env(k)%helium%worm_gsector_move)
+
+            ! The L and LMAX parameters must be smaller than the
+            ! number of beads. Otherwise, assign a value and
+            ! print a warning message:
+            msg_str = "Adjusting L parameter for move: "
+            IF (helium_env(k)%helium%worm_staging_move_l > helium_env(k)%helium%beads) THEN
+               msg_str = "staging"
+               CPWARN(TRIM(msg_str)//TRIM(msg_str2))
+               helium_env(k)%helium%worm_staging_move_l = helium_env(k)%helium%beads
+            END IF
+
+            IF (helium_env(k)%helium%worm_open_close_move_lmax > helium_env(k)%helium%beads) THEN
+               msg_str = "open/close"
+               CPWARN(TRIM(msg_str)//TRIM(msg_str2))
+               helium_env(k)%helium%worm_open_close_move_lmax = helium_env(k)%helium%beads
+            END IF
+
+            IF (helium_env(k)%helium%worm_head_tail_move_lmax > helium_env(k)%helium%beads) THEN
+               msg_str = "head/tail"
+               CPWARN(TRIM(msg_str)//TRIM(msg_str2))
+               helium_env(k)%helium%worm_head_tail_move_lmax = helium_env(k)%helium%beads
+            END IF
+
+            IF (helium_env(k)%helium%worm_swap_move_lmax > helium_env(k)%helium%beads) THEN
+               msg_str = "swap"
+               CPWARN(TRIM(msg_str)//TRIM(msg_str2))
+               helium_env(k)%helium%worm_swap_move_lmax = helium_env(k)%helium%beads
+            END IF
+
+            CALL section_vals_val_get(helium_section, "WORM%WRITE", &
+                                      l_val=helium_env(k)%helium%worm_write)
+
+            !CPPostcondition(i<helium_env(k)%helium%beads,cp_failure_level,routineP,failure)
+            ! end of worm
 
             ! hard coded He4 directly (mass so i get my original hb2m value)
             ! He4 mass defined as a constant in helium_types.F now [lwalewski]
@@ -905,7 +974,13 @@ CONTAINS
          ELSE
             CALL helium_coord_init(helium_env)
          END IF
+
          DO k = 1, SIZE(helium_env)
+
+            helium_env(k)%helium%isector = 0
+            helium_env(k)%helium%iw = 0
+            helium_env(k)%helium%it = 0
+
             DO i = 1, helium_env(k)%helium%atoms
                ! TODO: Done also in helium_coord_init, but slighlty differently
                helium_env(k)%helium%pos(:, i, helium_env(k)%helium%beads+1) = &

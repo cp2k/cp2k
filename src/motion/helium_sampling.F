@@ -32,10 +32,11 @@ MODULE helium_sampling
    USE helium_types,                    ONLY: e_id_total,&
                                               helium_solvent_p_type,&
                                               helium_solvent_type
+   USE helium_worm,                     ONLY: helium_sample_worm
    USE input_constants,                 ONLY: &
         helium_forces_average, helium_forces_last, helium_mdist_exponential, &
         helium_mdist_gaussian, helium_mdist_linear, helium_mdist_quadratic, helium_mdist_singlev, &
-        helium_mdist_uniform, helium_sampling_ceperley
+        helium_mdist_uniform, helium_sampling_ceperley, helium_sampling_worm
    USE input_cp2k_restarts,             ONLY: write_restart
    USE kinds,                           ONLY: default_string_length,&
                                               dp
@@ -186,8 +187,8 @@ CONTAINS
       CHARACTER(len=*), PARAMETER :: routineN = 'helium_sample', routineP = moduleN//':'//routineN
 
       CHARACTER(len=default_string_length)               :: msg_str
-      INTEGER                                            :: i, irot, iweight, k, nslices, nsteps, &
-                                                            num_env, offset, sel_mp_source
+      INTEGER                                            :: i, ires, irot, iweight, k, nslices, &
+                                                            nsteps, num_env, offset, sel_mp_source
       REAL(KIND=dp)                                      :: inv_num_env, inv_xn, rnd, rtmp, rweight
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: work_2d
       TYPE(cp_logger_type), POINTER                      :: logger
@@ -212,6 +213,28 @@ CONTAINS
          ! averaged over parallel helium environments once per step.
          inv_xn = 0.0_dp
          SELECT CASE (helium_env (k)%helium%sampling_method)
+
+         CASE (helium_sampling_worm)
+
+            CALL helium_sample_worm(helium_env(k)%helium, pint_env, helium_env(k)%helium%iter_rot, 0.1d0, ires)
+
+            IF (ires > 0) THEN
+               inv_xn = 1.0_dp/REAL(ires)
+               IF (helium_env(k)%helium%solute_present .AND. helium_env(k)%helium%get_helium_forces == helium_forces_last) THEN
+                  DO i = 1, 10
+                     IF (helium_env(k)%helium%isector == 0) EXIT
+                     CALL helium_sample_worm(helium_env(k)%helium, pint_env, INT(helium_env(k)%helium%iter_rot*0.1d0), 1.d0, ires)
+                     inv_xn = 1.0_dp/REAL(ires, dp)
+                  END DO
+                  IF (helium_env(k)%helium%isector == 1) THEN
+                     CPABORT("No closed configuration after 10 attempts.Stopping.")
+                     STOP
+                  END IF
+               END IF
+            ELSE
+               CPABORT("No statistics could be extracted. Stopping.")
+            END IF
+
          CASE (helium_sampling_ceperley)
             ! helium sampling (outer MC loop)
             DO irot = 1, helium_env(k)%helium%iter_rot

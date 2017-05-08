@@ -20,4 +20,7 @@ w512_pint_pile.inp                                     9      3e-12            0
 w512_pint_piglet.inp                                   9      1e-11           74.229316490453456
 centroid_velocity_init.inp                             9    1.0E-14            0.32999751991202331
 he32_density.inp                                      40      2e-14       -6.8167031351590079E-005
+he32_only_worm.inp                                    40      1e-11       -6.9869003988659424E-005
+he32_only_worm_restart.inp                            40      1e-11       -6.9585526481902323E-005
+water-in-helium-worm.inp                               9      1e-11        1.0930818439578798E-003
 #EOF

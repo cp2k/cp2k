@@ -323,7 +323,8 @@ MODULE input_constants
                                                denominator_rperp2 = 4
 
    ! helium-sampling algorithms
-   INTEGER, PARAMETER, PUBLIC               :: helium_sampling_ceperley = 0
+   INTEGER, PARAMETER, PUBLIC               :: helium_sampling_ceperley = 0, &
+                                               helium_sampling_worm = 1
 
    ! distribution types for sampling path lengths
    INTEGER, PARAMETER, PUBLIC               :: helium_mdist_singlev = 1, &

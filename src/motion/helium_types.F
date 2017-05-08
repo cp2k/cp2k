@@ -133,6 +133,16 @@ MODULE helium_types
 
       ! sampling parameters
       INTEGER :: sampling_method
+      REAL(KIND=dp) :: worm_centroid_move_drmax
+      INTEGER :: worm_centroid_move_freq
+      INTEGER :: worm_staging_move_l, worm_staging_move_rep
+      REAL(KIND=dp) :: worm_open_close_move_C
+      INTEGER :: worm_open_close_move_lmax
+      INTEGER :: worm_head_tail_move_lmax
+      INTEGER :: worm_swap_move_lmax
+      INTEGER :: worm_gsector_move_rep
+      LOGICAL :: worm_gsector_move, worm_write
+      INTEGER :: iw, it, isector
 
       INTEGER :: iter_norot !< number of iterations to try for a given imaginary time slice rotation (num inner MC loop iters)
       INTEGER :: iter_rot !< number of rotations to try (total number of iterations is iter_norot*iter_rot) (num outer MC loop iters)
