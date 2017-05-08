@@ -53,14 +53,12 @@ CONTAINS
 !> \param helium ...
 !> \param pint_env ...
 !> \param nMC ...
-!> \param perc ...
 !> \param nstat ...
 ! **************************************************************************************************
-   SUBROUTINE helium_sample_worm(helium, pint_env, nMC, perc, nstat)
+   SUBROUTINE helium_sample_worm(helium, pint_env, nMC, nstat)
       TYPE(helium_solvent_type), POINTER                 :: helium
       TYPE(pint_env_type), POINTER                       :: pint_env
       INTEGER, INTENT(IN)                                :: nMC
-      REAL(KIND=dp), INTENT(IN)                          :: perc
       INTEGER                                            :: nstat
 
       CHARACTER(len=*), PARAMETER :: routineN = 'helium_sample_worm', &
@@ -434,7 +432,7 @@ CONTAINS
       INTEGER                                            :: ibf, ibk, ibk1, ibkf, id, ipk, ipk1, &
                                                             ipkf, k, nbeads
 
-      DOUBLE PRECISION :: mass, mk, xlk, xlk1, u, v, theta, phi
+      DOUBLE PRECISION :: mass, mk, xlk, xlk1
       DOUBLE PRECISION :: xr(3), dr(3), ri(3), rf(3), rp(3)
       INTEGER, DIMENSION(:), POINTER :: perm
 
@@ -1005,7 +1003,7 @@ CONTAINS
       DOUBLE PRECISION, INTENT(in) :: drmax
       INTEGER, INTENT(out) :: ac
       INTEGER :: ib, ip, id, nbeads, icycle
-      DOUBLE PRECISION :: xl, v, theta, phi, dr(3)
+      DOUBLE PRECISION :: xl, dr(3)
       DOUBLE PRECISION :: U, U1, U2, dU, expdU, xr
 
       nbeads = helium%beads
