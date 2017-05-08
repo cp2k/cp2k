@@ -1,7 +1,7 @@
-!-----------------------------------------------------------------------------!
-!   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2014  CP2K developers group                          !
-!-----------------------------------------------------------------------------!
+!--------------------------------------------------------------------------------------------------!
+!   CP2K: A general program to perform molecular dynamics simulations                              !
+!   Copyright (C) 2000 - 2017  CP2K developers group                                               !
+!--------------------------------------------------------------------------------------------------!
 
 ! *****************************************************************************
 !> \brief  Worm algorithm
@@ -30,7 +30,6 @@ MODULE helium_worm
    USE parallel_rng_types,              ONLY: next_random_number
    USE physcon,                         ONLY: massunit
    USE pint_types,                      ONLY: pint_env_type
-! USE pint_public,                     ONLY: pint_calc_centroid
 #include "../base/base_uses.f90"
 
    IMPLICIT NONE
@@ -42,11 +41,6 @@ MODULE helium_worm
    PUBLIC :: helium_sample_worm
 
 CONTAINS
-
-   ! ***************************************************************************
-   !> \brief  Sample the helium phase space using Worm algorithm
-   !> \author Ricardo
-   ! ***************************************************************************
 
 ! **************************************************************************************************
 !> \brief ...
@@ -231,13 +225,6 @@ CONTAINS
                ! Warning: file I/O here may cost A LOT of cpu time!
                ! switched off here to save cpu
                !CALL helium_write_force_inst( helium )
-
-               ! Write (warning!)
-               !IF (helium%periodic) THEN
-               !   do ip=1,helium%atoms
-               !     write(111,*) ip, helium_path_length(helium, ip, helium%permutation)
-               !   end do
-               !END IF
 
             END IF
 
@@ -1229,18 +1216,6 @@ CONTAINS
          helium%work(:, iatom, ib) = helium%work(:, iatom, ib)+dr(:)
       END DO
    END SUBROUTINE centroid_displacement
-
-!   SUBROUTINE write_pos_work(helium)
-!      implicit none
-!      type(helium_solvent_type), pointer, intent(in) :: helium
-!      integer :: id,ip,ib
-!        DO ip=1,helium%atoms
-!           DO ib=1,helium%beads+1,helium%beads
-!               WRITE(1,'(2i4,3es15.4)') ip,ib,(helium%pos(id,ip,ib), id=1,3)
-!               WRITE(2,'(2i4,3es15.4)') ip,ib,(helium%work(id,ip,ib), id=1,3)
-!           END DO
-!        END DO
-!   END SUBROUTINE write_pos_work
 
 ! **************************************************************************************************
 !> \brief ...
