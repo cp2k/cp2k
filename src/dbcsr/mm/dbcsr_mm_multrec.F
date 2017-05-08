@@ -338,8 +338,8 @@ CONTAINS
       CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_mm_multrec_multiply', &
          routineP = moduleN//':'//routineN
 
-      INTEGER                                            :: ithread, nthreads, t_a_f, t_a_l, t_b_f, &
-                                                            t_b_l
+!$    INTEGER                                            :: ithread
+      INTEGER                                            :: t_a_f, t_a_l, t_b_f, t_b_l
       INTEGER, DIMENSION(:), POINTER                     :: k_locals
       LOGICAL                                            :: my_do_rec
 
@@ -351,8 +351,6 @@ CONTAINS
       my_do_rec = .TRUE.
       IF (PRESENT(do_rec)) my_do_rec = do_rec
 
-      ithread = 0; nthreads = 1
-!$    ithread = OMP_GET_THREAD_NUM(); nthreads = OMP_GET_NUM_THREADS()
       this%flop = 0
 
       ! Find out the local A columns / B rows and sizes
