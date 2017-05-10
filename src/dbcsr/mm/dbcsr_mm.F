@@ -166,6 +166,7 @@ CONTAINS
       CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_multiply_lib_finalize', &
          routineP = moduleN//':'//routineN
 
+      CHARACTER(len=1000)                                :: msg
       INTEGER                                            :: ilimit, isqrt, isqrt2, ithread
       INTEGER(KIND=int_8)                                :: total_nexchanged
       INTEGER(KIND=int_8), &
@@ -174,7 +175,6 @@ CONTAINS
                                                             total_max_memory
       REAL, DIMENSION(2)                                 :: max_recv_data, min_recv_data, &
                                                             total_recv_data
-      CHARACTER(len=1000)                                :: msg
 
       CALL dbcsr_mm_multrec_lib_finalize(group, output_unit)
 
@@ -261,9 +261,9 @@ CONTAINS
             WRITE (UNIT=output_unit, FMT="(T2,A)") REPEAT("-", 79)
             WRITE (UNIT=msg, FMT="(A,I0,A,2(I0,1X))") &
                "Using a non-square number of MPI ranks might lead to poor performance."// &
-               REPEAT(" ",25) // &
+               REPEAT(" ", 25)// &
                "Used ranks: ", dbcsr_mpi_statistics%last_mpi_ranks_used, &
-               REPEAT(" ",50) // &
+               REPEAT(" ", 50)// &
                "Suggested: ", isqrt**2, isqrt2**2
             CPWARN(msg)
          ENDIF
