@@ -115,32 +115,28 @@ MODULE dbcsr_mm_3d
    LOGICAL, PARAMETER :: careful_mod = .FALSE.
 
    TYPE dbcsr_buffer
-      TYPE(dbcsr_data_obj), DIMENSION(:), ALLOCATABLE :: DATA
-      TYPE(dbcsr_data_obj)                            :: data_red3D, data_before_resize
-      INTEGER                                         :: vprow, vpcol
-      INTEGER                                         :: grp = mp_comm_null, & ! Global communicator
-                                                         subgrp = mp_comm_null ! Communicator for A and B
-      INTEGER                                         :: data_win, meta_win
-      INTEGER, DIMENSION(:), POINTER                  :: meta => Null(), &
-                                                         meta_before_resize => Null(), &
-                                                         meta_red3D => Null()
-      INTEGER, DIMENSION(2)                           :: get_requests
-      TYPE(dbcsr_data_obj), DIMENSION(:), ALLOCATABLE :: trs_stackbuf
-      INTEGER                            :: meta_size
-      INTEGER                            :: num_layers_3D = 1
-      INTEGER                            :: coord3D = 1
-      TYPE(dbcsr_type)                   :: matrix
-      LOGICAL                            :: is_valid = .FALSE., &
-                                            is_comm = .FALSE., &
-                                            has_rma_win = .FALSE.
+      TYPE(dbcsr_data_obj), DIMENSION(:), POINTER :: DATA => Null()
+      TYPE(dbcsr_data_obj)                        :: data_red3D, data_before_resize
+      INTEGER                                     :: vprow, vpcol
+      INTEGER                                     :: grp = mp_comm_null, & ! Global communicator
+                                                     subgrp = mp_comm_null ! Communicator for A and B
+      INTEGER                                     :: data_win, meta_win
+      INTEGER, DIMENSION(:), POINTER              :: meta => Null(), &
+                                                     meta_before_resize => Null(), &
+                                                     meta_red3D => Null()
+      INTEGER, DIMENSION(2)                       :: get_requests
+      TYPE(dbcsr_data_obj), DIMENSION(:), POINTER :: trs_stackbuf => Null()
+      INTEGER                                     :: meta_size
+      INTEGER                                     :: num_layers_3D = 1
+      INTEGER                                     :: coord3D = 1
+      TYPE(dbcsr_type)                            :: matrix
+      LOGICAL                                     :: is_valid = .FALSE., &
+                                                     is_comm = .FALSE., &
+                                                     has_rma_win = .FALSE.
    END TYPE dbcsr_buffer
 
-   TYPE dbcsr_buffer_p
-      TYPE(dbcsr_buffer), POINTER        :: b => Null()
-   END TYPE dbcsr_buffer_p
-
    TYPE dbcsr_buffers
-      TYPE(dbcsr_buffer)             :: left, right
+      TYPE(dbcsr_buffer)                 :: left, right
    END TYPE dbcsr_buffers
 
    TYPE dbcsr_layers_3D_C_reduction
@@ -1208,8 +1204,9 @@ CONTAINS
       REAL(kind=sp), ALLOCATABLE, DIMENSION(:, :)        :: left_norms, right_norms
       REAL(kind=sp), DIMENSION(:), POINTER               :: product_matrix_epss
       TYPE(dbcsr_2d_array_obj)                           :: product_matrix3D
+      TYPE(dbcsr_buffer), ALLOCATABLE, DIMENSION(:), &
+         TARGET                                          :: left_buffers, right_buffers
       TYPE(dbcsr_buffer), POINTER                        :: left_buffer_p, right_buffer_p
-      TYPE(dbcsr_buffer_p), ALLOCATABLE, DIMENSION(:)    :: left_buffers, right_buffers
       TYPE(dbcsr_data_obj)                               :: data_get, data_send
       TYPE(dbcsr_mm_multrec_type_p), ALLOCATABLE, &
          DIMENSION(:, :, :)                              :: multrec
@@ -1594,8 +1591,8 @@ CONTAINS
          ! Wait data.  Exclude the first interation.
          wait: IF (istep_k .GT. leftovers_first_k) THEN
             IF (debug_mod) WRITE (*, '(1X,A)') routineN//" waiting for right and left"
-            right_buffer_p => right_buffers(iright_buffer_calc)%b
-            left_buffer_p => left_buffers(ileft_buffer_calc)%b
+            right_buffer_p => right_buffers(iright_buffer_calc)
+            left_buffer_p => left_buffers(ileft_buffer_calc)
             IF (right_buffer_p%is_comm .AND. left_buffer_p%is_comm) THEN
                ! check if right matrix was already initialized
                IF (.NOT. right_buffer_p%matrix%valid) THEN
@@ -1681,8 +1678,8 @@ CONTAINS
                   ileft_buffer_comm = MOD(ileft_buffer_comm, nbuffers)+1
                ENDIF
             ENDIF
-            right_buffer_p => right_buffers(iright_buffer_comm)%b
-            left_buffer_p => left_buffers(ileft_buffer_comm)%b
+            right_buffer_p => right_buffers(iright_buffer_comm)
+            left_buffer_p => left_buffers(ileft_buffer_comm)
             right_buffer_p%coord3D = icol3D
             left_buffer_p%coord3D = irow3D
             !
@@ -1836,8 +1833,8 @@ CONTAINS
          !
          ! Do the multiplication.  Exclude the first interation.
          calc: IF (istep_k .GT. leftovers_first_k) THEN
-            right_buffer_p => right_buffers(iright_buffer_calc)%b
-            left_buffer_p => left_buffers(ileft_buffer_calc)%b
+            right_buffer_p => right_buffers(iright_buffer_calc)
+            left_buffer_p => left_buffers(ileft_buffer_calc)
             irow3D = left_buffer_p%coord3D
             icol3D = right_buffer_p%coord3D
             IF (istep_k .GT. final_step_k) THEN
@@ -2067,8 +2064,8 @@ CONTAINS
          ! Swap temporary buffers for the first tick
          IF (do_square_layers3D .AND. first_k .AND. &
              istep_k .LT. last_step_k) THEN
-            iright_buffer_comm = right_buffers(iright_buffer_comm)%b%coord3D
-            ileft_buffer_comm = left_buffers(ileft_buffer_comm)%b%coord3D
+            iright_buffer_comm = right_buffers(iright_buffer_comm)%coord3D
+            ileft_buffer_comm = left_buffers(ileft_buffer_comm)%coord3D
             CALL swap_buffers(right_buffers(iright_buffer_comm), right_buffers(nbuffers))
             CALL swap_buffers(left_buffers(ileft_buffer_comm), left_buffers(nbuffers))
          ENDIF
@@ -2130,19 +2127,17 @@ CONTAINS
       !
       ! clean-up of communication buffers
       DO ileft_buffer_comm = 1, nbuffers
-         DEALLOCATE (left_buffers(ileft_buffer_comm)%b%data)
-         NULLIFY (left_buffers(ileft_buffer_comm)%b%matrix%index)
-         CALL dbcsr_release(left_buffers(ileft_buffer_comm)%b%matrix)
-         DEALLOCATE (left_buffers(ileft_buffer_comm)%b)
+         DEALLOCATE (left_buffers(ileft_buffer_comm)%data)
+         NULLIFY (left_buffers(ileft_buffer_comm)%matrix%index)
+         CALL dbcsr_release(left_buffers(ileft_buffer_comm)%matrix)
       ENDDO
       DO iright_buffer_comm = 1, nbuffers
-         DEALLOCATE (right_buffers(iright_buffer_comm)%b%data)
-         NULLIFY (right_buffers(iright_buffer_comm)%b%matrix%index)
-         CALL dbcsr_release(right_buffers(iright_buffer_comm)%b%matrix)
+         DEALLOCATE (right_buffers(iright_buffer_comm)%data)
+         NULLIFY (right_buffers(iright_buffer_comm)%matrix%index)
+         CALL dbcsr_release(right_buffers(iright_buffer_comm)%matrix)
          IF (has_acc) THEN
-            DEALLOCATE (right_buffers(iright_buffer_comm)%b%trs_stackbuf)
+            DEALLOCATE (right_buffers(iright_buffer_comm)%trs_stackbuf)
          ENDIF
-         DEALLOCATE (right_buffers(iright_buffer_comm)%b)
       ENDDO
       DEALLOCATE (left_buffers, right_buffers)
       DEALLOCATE (do_comm_left, do_comm_right)
@@ -2248,7 +2243,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE setup_buffers(buffer_1, buffer_2, buffers, nbuffers, meta_size, matrix, imgdist)
       TYPE(dbcsr_buffer), INTENT(INOUT)                  :: buffer_1, buffer_2
-      TYPE(dbcsr_buffer_p), ALLOCATABLE, DIMENSION(:), &
+      TYPE(dbcsr_buffer), ALLOCATABLE, DIMENSION(:), &
          INTENT(INOUT)                                   :: buffers
       INTEGER, INTENT(IN)                                :: nbuffers, meta_size
       TYPE(dbcsr_type), INTENT(IN)                       :: matrix
@@ -2258,34 +2253,33 @@ CONTAINS
       LOGICAL                                            :: has_trs_stackbuff
 
       ALLOCATE (buffers(nbuffers))
-      has_trs_stackbuff = ALLOCATED(buffer_1%trs_stackbuf) .OR. ALLOCATED(buffer_2%trs_stackbuf)
+      has_trs_stackbuff = ASSOCIATED(buffer_1%trs_stackbuf) .OR. ASSOCIATED(buffer_2%trs_stackbuf)
       DO ibuffer = 1, nbuffers
-         ALLOCATE (buffers(ibuffer)%b)
-         ALLOCATE (buffers(ibuffer)%b%data(1))
+         ALLOCATE (buffers(ibuffer)%data(1))
          IF (has_trs_stackbuff) THEN
-            ALLOCATE (buffers(ibuffer)%b%trs_stackbuf(1))
+            ALLOCATE (buffers(ibuffer)%trs_stackbuf(1))
          ENDIF
          jbuffer = (ibuffer-1)/2
          IF (MOD(ibuffer, 2) .EQ. 1) THEN
-            buffers(ibuffer)%b%data(1) = buffer_1%data(jbuffer+1)
-            buffers(ibuffer)%b%meta => &
+            buffers(ibuffer)%data(1) = buffer_1%data(jbuffer+1)
+            buffers(ibuffer)%meta => &
                buffer_1%meta(meta_size*jbuffer+1: &
                              meta_size*(jbuffer+1))
             IF (has_trs_stackbuff) THEN
-               buffers(ibuffer)%b%trs_stackbuf(1) = buffer_1%trs_stackbuf(jbuffer+1)
+               buffers(ibuffer)%trs_stackbuf(1) = buffer_1%trs_stackbuf(jbuffer+1)
             ENDIF
          ELSE
-            buffers(ibuffer)%b%data(1) = buffer_2%data(jbuffer+1)
-            buffers(ibuffer)%b%meta => &
+            buffers(ibuffer)%data(1) = buffer_2%data(jbuffer+1)
+            buffers(ibuffer)%meta => &
                buffer_2%meta(meta_size*jbuffer+1: &
                              meta_size*(jbuffer+1))
             IF (has_trs_stackbuff) THEN
-               buffers(ibuffer)%b%trs_stackbuf(1) = buffer_2%trs_stackbuf(jbuffer+1)
+               buffers(ibuffer)%trs_stackbuf(1) = buffer_2%trs_stackbuf(jbuffer+1)
             ENDIF
          ENDIF
-         CALL setup_buffer_matrix_image(buffers(ibuffer)%b%matrix, imgdist, matrix, &
-                                        buffers(ibuffer)%b%data(1), &
-                                        buffers(ibuffer)%b%meta)
+         CALL setup_buffer_matrix_image(buffers(ibuffer)%matrix, imgdist, matrix, &
+                                        buffers(ibuffer)%data(1), &
+                                        buffers(ibuffer)%meta)
       ENDDO
    END SUBROUTINE setup_buffers
 
@@ -2335,9 +2329,9 @@ CONTAINS
 !> \author Alfio Lazzaro
 ! **************************************************************************************************
    SUBROUTINE swap_buffers(buffers_1, buffers_2)
-      TYPE(dbcsr_buffer_p), INTENT(INOUT)                :: buffers_1, buffers_2
+      TYPE(dbcsr_buffer), INTENT(INOUT)                  :: buffers_1, buffers_2
 
-      TYPE(dbcsr_buffer_p)                               :: tmp
+      TYPE(dbcsr_buffer)                                 :: tmp
 
       tmp = buffers_1
       buffers_1 = buffers_2
@@ -2625,7 +2619,7 @@ CONTAINS
       IF (buffer%is_valid) THEN
          DO idata = 1, SIZE(buffer%data)
             CALL dbcsr_data_release(buffer%data(idata))
-            IF (ALLOCATED(buffer%trs_stackbuf)) THEN
+            IF (ASSOCIATED(buffer%trs_stackbuf)) THEN
                CALL dbcsr_data_release(buffer%trs_stackbuf(idata))
             ENDIF
          ENDDO
@@ -2633,7 +2627,7 @@ CONTAINS
          IF (dbcsr_data_valid(buffer%data_before_resize)) THEN
             CALL dbcsr_data_release(buffer%data_before_resize)
          ENDIF
-         IF (ALLOCATED(buffer%trs_stackbuf)) THEN
+         IF (ASSOCIATED(buffer%trs_stackbuf)) THEN
             DEALLOCATE (buffer%trs_stackbuf)
          ENDIF
          IF (dbcsr_data_valid(buffer%data_red3D)) &
