@@ -179,6 +179,11 @@ MODULE dbcsr_mm_3d
 
    INTEGER :: request_sync_mult = mp_request_null
 
+   ! Buffers used in make_buffers
+   TYPE(dbcsr_data_obj), TARGET, SAVE :: make_buffers_data_recv, make_buffers_data_send
+   INTEGER, DIMENSION(:), POINTER     :: make_buffers_meta_recv => Null(), &
+                                         make_buffers_meta_send => Null()
+
    PUBLIC :: multiply_3D
    PUBLIC :: release_layers_3d_C_reduction, buffers_release
    PUBLIC :: dbcsr_make_buffers, make_layers_3d_C_reduction
@@ -268,8 +273,7 @@ CONTAINS
                                                             send_sizes
       INTEGER, DIMENSION(2)                              :: block_col_bounds, block_row_bounds
       INTEGER, DIMENSION(:), POINTER :: col_dist, col_img_dist, local_cols, local_g2l_map_cols, &
-         local_g2l_map_rows, local_rows, meta_buffer_p, meta_recv, meta_send, row_dist, &
-         row_img_dist, threads_dist
+         local_g2l_map_rows, local_rows, meta_buffer_p, row_dist, row_img_dist, threads_dist
       INTEGER, DIMENSION(:, :), POINTER                  :: blacs2mpi, local_images_size
       INTEGER, DIMENSION(idata:imeta)                    :: my_size_recv, my_size_send
       INTEGER, POINTER                                   :: coli, rowi
@@ -280,7 +284,6 @@ CONTAINS
       TYPE(dbcsr_buffer), POINTER                        :: buffer
       TYPE(dbcsr_data_obj)                               :: data_block
       TYPE(dbcsr_data_obj), POINTER                      :: data_buffer_p
-      TYPE(dbcsr_data_obj), TARGET                       :: data_recv, data_send
       TYPE(dbcsr_distribution_obj)                       :: set_dist
       TYPE(dbcsr_iterator)                               :: iter
       TYPE(dbcsr_mp_obj)                                 :: mp_obj
@@ -527,10 +530,10 @@ CONTAINS
 !$OMP         is_left,my_size_send,my_size_recv,nimages,&
 !$OMP         local_images_size,data_type,memtype_mpi_buffer,sm,&
 !$OMP         img_nblks_cols,img_nblks_rows,mynode,offset_threads,&
-!$OMP         local_g2l_map_cols,local_g2l_map_rows,recv_sizes,grp,meta_send,&
-!$OMP         scale_value,scale_neg_one,data_send,data_recv,&
+!$OMP         local_g2l_map_cols,local_g2l_map_rows,recv_sizes,grp,make_buffers_meta_send,&
+!$OMP         scale_value,scale_neg_one,make_buffers_data_send,make_buffers_data_recv,&
 !$OMP         size_index,recv_displ_proc,recv_size_proc,send_size_proc,&
-!$OMP         mp_obj,threads_dist,meta_recv,nrows_images,ncols_images,&
+!$OMP         mp_obj,threads_dist,make_buffers_meta_recv,nrows_images,ncols_images,&
 !$OMP         locks,blacs2mpi,send_displ_proc,recv_displs,send_displs,&
 !$OMP         left_images_size,right_images_size,local_images_displ,requests,&
 !$OMP         buffer,left_total_row_counts,otf_filtering,&
@@ -698,13 +701,20 @@ CONTAINS
       ENDDO
       !
       ! Allocate data/meta to send
-      CALL dbcsr_data_init(data_send)
-      CALL dbcsr_data_new(data_send, data_type, my_size_send(idata)-1, &
-                          memory_type=memtype_mpi_buffer)
-      CALL dbcsr_data_clear(data_send)
-      NULLIFY (meta_send)
-      CALL ensure_array_size(meta_send, ub=my_size_send(imeta)-1, &
-                             nocopy=.TRUE., memory_type=memtype_mpi_buffer, zero_pad=.TRUE.)
+      IF (dbcsr_data_valid(make_buffers_data_send)) THEN
+         IF (dbcsr_data_get_type(make_buffers_data_send) .NE. data_type) THEN
+            CALL dbcsr_data_release(make_buffers_data_send)
+         ENDIF
+      ENDIF
+      IF (dbcsr_data_valid(make_buffers_data_send)) THEN
+         CALL dbcsr_data_ensure_size(make_buffers_data_send, my_size_send(idata)-1, nocopy=.TRUE.)
+      ELSE
+         CALL dbcsr_data_init(make_buffers_data_send)
+         CALL dbcsr_data_new(make_buffers_data_send, data_type, my_size_send(idata)-1, &
+                             memory_type=memtype_mpi_buffer)
+      ENDIF
+      CALL ensure_array_size(make_buffers_meta_send, ub=my_size_send(imeta)-1, &
+                             nocopy=.TRUE., memory_type=memtype_mpi_buffer)
       ! Displs for data offset
       ALLOCATE (offset_threads(idata:imeta, 0:nthreads-1, nimages))
       offset_threads(:, :, :) = 0
@@ -788,8 +798,8 @@ CONTAINS
                data_buffer_p => buffer%data
                meta_buffer_p => buffer%meta
             ELSE
-               data_buffer_p => data_send
-               meta_buffer_p => meta_send
+               data_buffer_p => make_buffers_data_send
+               meta_buffer_p => make_buffers_meta_send
             ENDIF
 !$          IF (is_left .AND. do_symmetry) THEN
 !$             myt = threads_dist(stored_row)
@@ -874,26 +884,33 @@ CONTAINS
       !
 !$OMP BARRIER
 !$OMP MASTER
-      CALL dbcsr_data_init(data_recv)
-      CALL dbcsr_data_new(data_recv, data_type, my_size_recv(idata)-1, &
-                          memory_type=memtype_mpi_buffer)
-      NULLIFY (meta_recv)
-      CALL ensure_array_size(meta_recv, ub=my_size_recv(imeta)-1, &
-                             nocopy=.TRUE., memory_type=memtype_mpi_buffer, zero_pad=.TRUE.)
+      !
+      ! Allocate data/meta to recv
+      IF (dbcsr_data_valid(make_buffers_data_recv)) THEN
+         IF (dbcsr_data_get_type(make_buffers_data_recv) .NE. data_type) THEN
+            CALL dbcsr_data_release(make_buffers_data_recv)
+         ENDIF
+      ENDIF
+      IF (dbcsr_data_valid(make_buffers_data_recv)) THEN
+         CALL dbcsr_data_ensure_size(make_buffers_data_recv, my_size_recv(idata)-1, nocopy=.TRUE.)
+      ELSE
+         CALL dbcsr_data_init(make_buffers_data_recv)
+         CALL dbcsr_data_new(make_buffers_data_recv, data_type, my_size_recv(idata)-1, &
+                             memory_type=memtype_mpi_buffer)
+      ENDIF
+      CALL ensure_array_size(make_buffers_meta_recv, ub=my_size_recv(imeta)-1, &
+                             nocopy=.TRUE., memory_type=memtype_mpi_buffer)
       ! Exchange data
       CALL timeset(routineN//"_data", handle2)
-      CALL hybrid_alltoall_any(data_send, send_size_proc(idata, :), send_displ_proc(idata, :), &
-                               data_recv, recv_size_proc(idata, :), recv_displ_proc(idata, :), &
+      CALL hybrid_alltoall_any(make_buffers_data_send, send_size_proc(idata, :), send_displ_proc(idata, :), &
+                               make_buffers_data_recv, recv_size_proc(idata, :), recv_displ_proc(idata, :), &
                                mp_obj, &
                                most_ptp=.TRUE., remainder_ptp=.TRUE., no_hybrid=.FALSE.)
-      CALL hybrid_alltoall_i1(meta_send, send_size_proc(imeta, :), send_displ_proc(imeta, :), &
-                              meta_recv, recv_size_proc(imeta, :), recv_displ_proc(imeta, :), &
+      CALL hybrid_alltoall_i1(make_buffers_meta_send, send_size_proc(imeta, :), send_displ_proc(imeta, :), &
+                              make_buffers_meta_recv, recv_size_proc(imeta, :), recv_displ_proc(imeta, :), &
                               mp_obj, &
                               most_ptp=.TRUE., remainder_ptp=.TRUE., no_hybrid=.FALSE.)
       CALL timestop(handle2)
-      ! Delete send data
-      CALL dbcsr_data_release(data_send)
-      CALL memory_deallocate(meta_send, memtype_mpi_buffer)
 !$OMP END MASTER
 !$OMP BARRIER
 !$    IF (is_left .AND. do_symmetry) THEN
@@ -916,11 +933,11 @@ CONTAINS
                ! Copy meta, block by block
                DO blk = recv_displs(imeta, ithread, ui, dst_proc), &
                         recv_displs(imeta, ithread, ui, dst_proc)+recv_sizes(imeta, ithread, ui, dst_proc)-1, 3
-                  stored_row = local_g2l_map_rows(meta_recv(blk))
-                  stored_col = local_g2l_map_cols(meta_recv(blk+1))
+                  stored_row = local_g2l_map_rows(make_buffers_meta_recv(blk))
+                  stored_col = local_g2l_map_cols(make_buffers_meta_recv(blk+1))
                   meta_buffer_p(offset_threads(imeta, ithread, ui)) = stored_row
                   meta_buffer_p(offset_threads(imeta, ithread, ui)+1) = stored_col
-                  meta_buffer_p(offset_threads(imeta, ithread, ui)+2) = meta_recv(blk+2)+ &
+                  meta_buffer_p(offset_threads(imeta, ithread, ui)+2) = make_buffers_meta_recv(blk+2)+ &
                                                                         offset_threads(idata, ithread, ui)
                   offset_threads(imeta, ithread, ui) = offset_threads(imeta, ithread, ui)+3
                   ! Count the maximum possible multiplies per row for on-the-fly filtering
@@ -934,7 +951,7 @@ CONTAINS
                CALL dbcsr_data_set(data_buffer_p, &
                                    offset_threads(idata, ithread, ui)+local_images_displ(idata, ui)+1, &
                                    recv_sizes(idata, ithread, ui, dst_proc), &
-                                   data_recv, recv_displs(idata, ithread, ui, dst_proc))
+                                   make_buffers_data_recv, recv_displs(idata, ithread, ui, dst_proc))
                offset_threads(idata, ithread, ui) = offset_threads(idata, ithread, ui)+ &
                                                     recv_sizes(idata, ithread, ui, dst_proc)
             ENDIF
@@ -958,8 +975,6 @@ CONTAINS
          CALL mp_isum(do_win_create, buffer%subgrp, requests_win_create(irequests))
       ENDIF
       !
-      CALL dbcsr_data_release(data_recv)
-      CALL memory_deallocate(meta_recv, memtype_mpi_buffer)
       IF (is_left) THEN
          NULLIFY (local_g2l_map_rows)
          DEALLOCATE (local_g2l_map_cols)
@@ -1802,7 +1817,7 @@ CONTAINS
             ENDIF
             CALL dbcsr_data_ensure_size(product_matrix3D%mats(irow3D, icol3D)% &
                                         matrix%wms(ithread+1)%data_area, &
-                                        size_guess)
+                                        size_guess, nocopy=.TRUE.)
             CALL dbcsr_data_set_size_referenced(product_matrix3D%mats(irow3D, icol3D)% &
                                                 matrix%wms(ithread+1)%data_area, &
                                                 product_matrix3D%mats(irow3D, icol3D)% &
@@ -2611,6 +2626,11 @@ CONTAINS
       CALL buffer_release(buffers_2%left)
       CALL buffer_release(buffers_win%right)
       CALL buffer_release(buffers_win%left)
+      !
+      IF (dbcsr_data_valid(make_buffers_data_send)) CALL dbcsr_data_release(make_buffers_data_send)
+      IF (dbcsr_data_valid(make_buffers_data_recv)) CALL dbcsr_data_release(make_buffers_data_recv)
+      IF (ASSOCIATED(make_buffers_meta_send)) CALL memory_deallocate(make_buffers_meta_send, memtype_mpi_buffer)
+      IF (ASSOCIATED(make_buffers_meta_recv)) CALL memory_deallocate(make_buffers_meta_recv, memtype_mpi_buffer)
    END SUBROUTINE buffers_release
 
 ! **************************************************************************************************
