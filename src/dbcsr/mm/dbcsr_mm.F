@@ -441,10 +441,8 @@ CONTAINS
                                   acc_hostalloc=.TRUE., acc_devalloc=.TRUE., acc_stream=stream_1)
          CALL dbcsr_memtype_setup(memtype_trsbuffer_2, has_pool=.TRUE., &
                                   acc_hostalloc=.TRUE., acc_devalloc=.TRUE., acc_stream=stream_2)
-         IF (.NOT. dbcsr_cfg%use_mpi_rma) THEN
-            CALL dbcsr_mempool_limit_capacity(memtype_trsbuffer_1%pool, capacity=1)
-            CALL dbcsr_mempool_limit_capacity(memtype_trsbuffer_2%pool, capacity=1)
-         ENDIF
+         CALL dbcsr_mempool_limit_capacity(memtype_trsbuffer_1%pool, capacity=1)
+         CALL dbcsr_mempool_limit_capacity(memtype_trsbuffer_2%pool, capacity=1)
       ENDIF
 
       CALL dbcsr_memtype_setup(memtype_mpi_buffer, mpi=.TRUE.)

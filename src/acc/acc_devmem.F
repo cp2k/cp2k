@@ -39,6 +39,7 @@ MODULE acc_devmem
    PUBLIC :: acc_devmem_size_in_bytes
    PUBLIC :: acc_devmem_ensure_size_bytes
    PUBLIC :: acc_devmem_cptr
+   PUBLIC :: acc_devmem_set_cptr
 
    INTERFACE acc_devmem_dev2host
       MODULE PROCEDURE dev2host_i4_1D
@@ -101,6 +102,18 @@ MODULE acc_devmem
          INTEGER(KIND=C_INT)                      :: istat
 
       END FUNCTION dc_dev_mem_dealloc
+   END INTERFACE
+
+   INTERFACE
+      FUNCTION dc_acc_dev_mem_set_ptr(mem, other, lb) RESULT(istat) BIND(C, name="acc_dev_mem_set_ptr")
+        IMPORT
+        TYPE(C_PTR)                              :: mem
+        TYPE(C_PTR), VALUE                       :: other
+        INTEGER(KIND=C_SIZE_T), INTENT(IN), &
+            VALUE                                :: lb 
+        INTEGER(KIND=C_INT)                      :: istat
+
+      END FUNCTION dc_acc_dev_mem_set_ptr
    END INTERFACE
 
    INTERFACE
@@ -293,6 +306,37 @@ CONTAINS
 #endif
 
 ! **************************************************************************************************
+!> \brief Allocates a given devmem.
+!> \param[in,out] this device memory
+!> \param[in] size_in_bytes size in bytes
+!> \author  Alfio Lazzaro
+! **************************************************************************************************
+   SUBROUTINE acc_devmem_set_cptr(this, pointee, size_in_bytes, lb_in_bytes)
+      TYPE(acc_devmem_type), INTENT(INOUT)     :: this
+      TYPE(acc_devmem_type), INTENT(IN)        :: pointee
+      INTEGER, INTENT(IN)                      :: size_in_bytes, lb_in_bytes
+
+#if ! defined (__ACC)
+      MARK_USED(this)
+      MARK_USED(pointee)
+      MARK_USED(size_in_bytes)
+      MARK_USED(lb_in_bytes)
+      CPABORT("__ACC not compiled in.")
+#else
+
+      INTEGER                                  :: istat
+
+      IF (this%size_in_bytes >= 0) &
+         CPABORT("acc_devmem_sep_cptr: already allocated")
+      IF ((lb_in_bytes+size_in_bytes) .GT. pointee%size_in_bytes) &
+         CPABORT("acc_devmem_set_cptr: out-of-bounds")
+      this%size_in_bytes = size_in_bytes
+      istat = dc_acc_dev_mem_set_ptr(this%cptr, pointee%cptr, INT(lb_in_bytes, KIND=C_SIZE_T))
+#endif
+   END SUBROUTINE acc_devmem_set_cptr
+
+
+! **************************************************************************************************
 !> \brief Fortran-wrapper for cudaMemGetInfo.
 !> \param[out] free free device memory
 !> \param[out] avail available device memory
@@ -333,7 +377,7 @@ CONTAINS
       INTEGER                                  :: istat
 
       IF (this%size_in_bytes >= 0) &
-         CPABORT("acc_devmem_alloc: allready allocated")
+         CPABORT("acc_devmem_alloc: already allocated")
       this%size_in_bytes = size_in_bytes
       IF (size_in_bytes > 0) THEN
          istat = dc_dev_mem_alloc(this%cptr, INT(this%size_in_bytes, KIND=C_SIZE_T))

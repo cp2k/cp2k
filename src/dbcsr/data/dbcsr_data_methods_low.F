@@ -16,7 +16,8 @@ MODULE dbcsr_data_methods_low
 
    USE acc_devmem,                      ONLY: acc_devmem_allocate_bytes,&
                                               acc_devmem_allocated,&
-                                              acc_devmem_deallocate
+                                              acc_devmem_deallocate, &
+                                              acc_devmem_set_cptr
    USE acc_event,                       ONLY: acc_event_create,&
                                               acc_event_destroy
    USE dbcsr_data_types,                ONLY: &
@@ -471,6 +472,8 @@ CONTAINS
       ! There's a remap if the ranks are compatible but not equal.
       rmp = dt1 .NE. dt2
       SELECT CASE (dt2)
+      CASE (dbcsr_type_int_4)
+         area%d%i4 => pointee%d%i4(bp:bp+nze-1)
       CASE (dbcsr_type_real_4_2d)
          area%d%r2_sp => pointee%d%r2_sp(1:rsize, 1:csize)
       CASE (dbcsr_type_real_4)
@@ -518,6 +521,15 @@ CONTAINS
       IF (debug_mod) THEN
          IF (dbcsr_data_get_size_referenced(area) /= dbcsr_data_get_size(area)) &
             CPABORT("Size mismatch")
+      ENDIF
+      !
+      IF (area%d%memory_type%acc_devalloc .AND. pointee%d%memory_type%acc_devalloc) THEN
+         IF (pointee_is_2d) &
+            CPABORT("Setting GPU pointers for 2D data is not available!")
+         CALL acc_devmem_set_cptr(area%d%acc_devmem, &
+              pointee%d%acc_devmem, &
+              dbcsr_datatype_sizeof(area%d%data_type)*nze, &
+              dbcsr_datatype_sizeof(area%d%data_type)*(bp-1))
       ENDIF
    END SUBROUTINE set_data_area_area
 

@@ -20,6 +20,7 @@ MODULE dbcsr_mm_common
                                               array_hold
    USE dbcsr_acc_operations,            ONLY: dbcsr_acc_transpose
    USE dbcsr_data_methods,              ONLY: dbcsr_data_ensure_size,&
+                                              dbcsr_data_get_size,&
                                               dbcsr_data_host2dev,&
                                               dbcsr_data_set_size_referenced,&
                                               dbcsr_get_data_p_c,&
@@ -364,11 +365,13 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE acc_transpose_blocks(matrix, trs_stackbuf, &
                                    row_blk_sizes2enum, enum2row_blk_sizes, &
-                                   col_blk_sizes2enum, enum2col_blk_sizes)
+                                   col_blk_sizes2enum, enum2col_blk_sizes, &
+                                   noresize)
       TYPE(dbcsr_type), INTENT(IN)                       :: matrix
       TYPE(dbcsr_data_obj), INTENT(INOUT)                :: trs_stackbuf
       INTEGER, DIMENSION(:), INTENT(IN), POINTER         :: row_blk_sizes2enum, enum2row_blk_sizes, &
                                                             col_blk_sizes2enum, enum2col_blk_sizes
+      LOGICAL, INTENT(IN), OPTIONAL                      :: noresize
 
       CHARACTER(len=*), PARAMETER :: routineN = 'acc_transpose_blocks', &
          routineP = moduleN//':'//routineN
@@ -380,6 +383,7 @@ CONTAINS
       INTEGER, DIMENSION(:), POINTER                     :: blk_index, col_blk_sizes, &
                                                             local2global_cols, local2global_rows, &
                                                             row_blk_sizes, trs_stack
+      LOGICAL                                            :: my_noresize
 
       CALL timeset(routineN, handle)
 
@@ -400,7 +404,14 @@ CONTAINS
       CALL timestop(handle1)
 
       CALL timeset(routineN//"_ensure", handle1)
-      CALL dbcsr_data_ensure_size(trs_stackbuf, data_size=nblks, nocopy=.TRUE.)
+      my_noresize = .FALSE.
+      IF (PRESENT(noresize)) my_noresize = noresize
+      IF (my_noresize) THEN
+         IF (dbcsr_data_get_size(trs_stackbuf) .LT. nblks) &
+            CPABORT("build_trs_stack: trs_stackbuf undersized")              
+      ELSE
+         CALL dbcsr_data_ensure_size(trs_stackbuf, data_size=nblks, nocopy=.TRUE.)
+      ENDIF
       CALL dbcsr_data_set_size_referenced(trs_stackbuf, nblks)
       trs_stack => trs_stackbuf%d%i4
       CALL timestop(handle1)

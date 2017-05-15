@@ -81,6 +81,13 @@ extern "C" int acc_host_mem_deallocate(void *host_mem, void *stream){
   return 0;
 }
 
+/****************************************************************************/
+extern "C" int acc_dev_mem_set_ptr(void **dev_mem, void *other, size_t lb){
+  
+  (*dev_mem) = other + lb;
+    
+  return 0;
+}
 
 /****************************************************************************/
 extern "C" int acc_memcpy_h2d(const void *host_mem, void *dev_mem, size_t count, void* stream){
