@@ -19,7 +19,7 @@ MODULE input_cp2k_atom
         do_dkh4_atom, do_dkh5_atom, do_gapw_gcs, do_gapw_gct, do_gapw_log, do_nonrel_atom, &
         do_numeric, do_rhf_atom, do_rks_atom, do_rohf_atom, do_sczoramp_atom, do_semi_analytic, &
         do_uhf_atom, do_uks_atom, do_zoramp_atom, ecp_pseudo, gaussian, geometrical_gto, &
-        gth_pseudo, no_conf, no_pseudo, numerical, poly_conf, slater, upf_pseudo
+        gth_pseudo, no_conf, no_pseudo, numerical, poly_conf, sgp_pseudo, slater, upf_pseudo
    USE input_cp2k_xc,                   ONLY: create_xc_section
    USE input_keyword_types,             ONLY: keyword_create,&
                                               keyword_release,&
@@ -968,11 +968,13 @@ CONTAINS
                           enum_c_vals=(/"NONE                     ", &
                                         "GTH                      ", &
                                         "UPF                      ", &
+                                        "SGP                      ", &
                                         "ECP                      "/), &
-                          enum_i_vals=(/no_pseudo, gth_pseudo, upf_pseudo, ecp_pseudo/), &
+                          enum_i_vals=(/no_pseudo, gth_pseudo, upf_pseudo, sgp_pseudo, ecp_pseudo/), &
                           enum_desc=s2a("Do not use pseudopotentials", &
                                         "Use Goedecker-Teter-Hutter pseudopotentials", &
                                         "Use UPF norm-conserving pseudopotentials", &
+                                        "Use SGP norm-conserving pseudopotentials", &
                                         "Use ECP semi-local pseudopotentials"))
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)

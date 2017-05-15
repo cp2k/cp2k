@@ -10,7 +10,8 @@
 MODULE atom_output
    USE atom_types,                      ONLY: &
         atom_basis_type, atom_gthpot_type, atom_potential_type, atom_state, atom_type, cgto_basis, &
-        ecp_pseudo, gth_pseudo, gto_basis, lmat, no_pseudo, num_basis, sto_basis, upf_pseudo
+        ecp_pseudo, gth_pseudo, gto_basis, lmat, no_pseudo, num_basis, sgp_pseudo, sto_basis, &
+        upf_pseudo
    USE atom_utils,                      ONLY: get_maxl_occ,&
                                               get_maxn_occ,&
                                               get_rho0
@@ -665,6 +666,9 @@ CONTAINS
          DO k = 1, potential%upf_pot%maxinfo
             WRITE (iw, '(A80)') potential%upf_pot%info(k)
          END DO
+      CASE (sgp_pseudo)
+         WRITE (iw, '(/," ",29("*"),A,29("*"))') " SGP Pseudopotential "
+         WRITE (iw, '(T10,A,T76,F5.1)') " Core Charge ", potential%sgp_pot%zion
       CASE (ecp_pseudo)
          WRITE (iw, '(/," ",26("*"),A,27("*"))') " Effective Core Potential "
          WRITE (iw, '(T10,A,T76,F5.1)') " Core Charge ", potential%ecp_pot%zion

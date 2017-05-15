@@ -1,0 +1,53 @@
+&GLOBAL
+  PROJECT o2
+  PRINT_LEVEL low
+  RUN_TYPE ENERGY
+&END GLOBAL
+&FORCE_EVAL
+  METHOD QS
+  &DFT
+    BASIS_SET_FILE_NAME BASIS_MOLOPT
+    POTENTIAL_FILE_NAME GTH_POTENTIALS
+    LSD
+    MULTIPLICITY 3
+    &MGRID
+      NGRIDS 4
+      CUTOFF 100
+    &END MGRID
+    &QS
+      METHOD GPW
+    &END QS
+    &SCF
+      SCF_GUESS ATOMIC
+      MAX_SCF  10
+      EPS_SCF 1.0e-7
+      &OT
+        MINIMIZER DIIS
+        PRECONDITIONER FULL_ALL
+        ENERGY_GAP 0.001
+      &END OT
+      &OUTER_SCF
+        MAX_SCF  10
+        EPS_SCF 1.0e-7
+      &END
+    &END SCF
+    &XC
+      &XC_FUNCTIONAL BLYP
+      &END XC_FUNCTIONAL
+    &END XC
+  &END DFT
+  &SUBSYS
+    &KIND  O   
+      BASIS_SET  DZVP-MOLOPT-GTH
+      POTENTIAL  GTH-BLYP-q6
+#     MAGNETIZATION 1.0 
+    &END
+    &CELL
+      ABC 8 8 8
+    &END CELL
+    &COORD
+       O   0.0 0.0 0.0
+       O   1.2 0.0 0.0
+    &END
+  &END SUBSYS
+&END FORCE_EVAL

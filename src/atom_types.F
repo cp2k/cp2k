@@ -26,7 +26,7 @@ MODULE atom_types
                                               parser_release
    USE input_constants,                 ONLY: &
         barrier_conf, contracted_gto, do_gapw_log, ecp_pseudo, gaussian, geometrical_gto, &
-        gth_pseudo, no_conf, no_pseudo, numerical, poly_conf, slater, upf_pseudo
+        gth_pseudo, no_conf, no_pseudo, numerical, poly_conf, sgp_pseudo, slater, upf_pseudo
    USE input_section_types,             ONLY: section_vals_get,&
                                               section_vals_get_subs_vals,&
                                               section_vals_list_get,&
@@ -62,6 +62,8 @@ MODULE atom_types
                                                          CGTO_BASIS = 101, &
                                                          STO_BASIS = 102, &
                                                          NUM_BASIS = 103
+
+   INTEGER, PARAMETER                                 :: nmax = 25
 
 !> \brief Provides all information about a basis set
 ! **************************************************************************************************
@@ -133,6 +135,28 @@ MODULE atom_types
       REAL(dp), DIMENSION(1:10, 0:10)               :: bpot ! exponent
    END TYPE atom_ecppot_type
 
+   TYPE atom_sgppot_type
+      CHARACTER(LEN=2)                              :: symbol
+      CHARACTER(LEN=default_string_length)          :: pname
+      INTEGER, DIMENSION(0:lmat)                    :: econf
+      REAL(dp)                                      :: zion
+      INTEGER                                       :: lmax
+      LOGICAL                                       :: has_nonlocal
+      INTEGER                                       :: n_nonlocal
+      LOGICAL, DIMENSION(0:5)                       :: is_nonlocal = .FALSE.
+      REAL(KIND=dp), DIMENSION(nmax)                :: a_nonlocal
+      REAL(KIND=dp), DIMENSION(nmax, 0:lmat)        :: h_nonlocal
+      REAL(KIND=dp), DIMENSION(nmax, nmax, 0:lmat)  :: c_nonlocal
+      INTEGER                                       :: n_local
+      REAL(KIND=dp)                                 :: ac_local
+      REAL(KIND=dp), DIMENSION(nmax)                :: a_local
+      REAL(KIND=dp), DIMENSION(nmax)                :: c_local
+      LOGICAL                                       :: has_nlcc
+      INTEGER                                       :: n_nlcc
+      REAL(KIND=dp), DIMENSION(nmax)                :: a_nlcc
+      REAL(KIND=dp), DIMENSION(nmax)                :: c_nlcc
+   END TYPE atom_sgppot_type
+
    TYPE atom_potential_type
       INTEGER                                       :: ppot_type
       LOGICAL                                       :: confinement
@@ -143,6 +167,7 @@ MODULE atom_types
       TYPE(atom_gthpot_type)                        :: gth_pot
       TYPE(atom_ecppot_type)                        :: ecp_pot
       TYPE(atom_upfpot_type)                        :: upf_pot
+      TYPE(atom_sgppot_type)                        :: sgp_pot
    END TYPE atom_potential_type
 
 !> \brief Provides all information on states and occupation
@@ -156,7 +181,7 @@ MODULE atom_types
       INTEGER                                       :: maxl_calc
       INTEGER, DIMENSION(0:lmat)                    :: maxn_calc
       INTEGER                                       :: multiplicity
-      REAL(KIND=dp), DIMENSION(0:lmat, 10)          :: occa, occb
+      REAL(KIND=dp), DIMENSION(0:lmat, 10)          :: occa = 0.0_dp, occb = 0.0_dp
    END TYPE atom_state
 
 !> \brief Holds atomic integrals
@@ -290,7 +315,7 @@ MODULE atom_types
    PUBLIC :: GTO_BASIS, CGTO_BASIS, STO_BASIS, NUM_BASIS
    PUBLIC :: opmat_type, create_opmat, release_opmat
    PUBLIC :: opgrid_type, create_opgrid, release_opgrid
-   PUBLIC :: no_pseudo, gth_pseudo, upf_pseudo, ecp_pseudo
+   PUBLIC :: no_pseudo, gth_pseudo, sgp_pseudo, upf_pseudo, ecp_pseudo
 
 ! **************************************************************************************************
 
@@ -2268,6 +2293,8 @@ CONTAINS
             CALL section_vals_val_get(potential_section, "POTENTIAL_NAME", c_val=pseudo_name)
             CALL atom_read_upf(potential%upf_pot, pseudo_fn)
             potential%upf_pot%pname = pseudo_name
+         CASE (sgp_pseudo)
+            CPABORT("Not implemented")
          CASE (no_pseudo)
             ! do nothing
          CASE DEFAULT

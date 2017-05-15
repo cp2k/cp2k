@@ -1121,6 +1121,13 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
+      CALL keyword_create(keyword, name="MAGNETIZATION", &
+                          description="Specifieds a magnetization used in the atomic initial guess", &
+                          usage="MAGNETIZATION 0.5", n_var=1, &
+                          default_r_val=0.0_dp)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
       CALL keyword_create(keyword, name="ELEMENT", &
                           variants=(/"ELEMENT_SYMBOL"/), &
                           description="The element of the actual kind "// &

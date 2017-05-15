@@ -267,13 +267,13 @@ CONTAINS
                   IF (statepp%occ(l, i) /= 0._dp) THEN
                      k = k+1
                      statepp%occupation(l, k) = state%occ(l, i)
+                     IF (state%multiplicity /= -1) THEN
+                        statepp%occa(l, k) = state%occa(l, i)-statepp%core(l, i)/2
+                        statepp%occb(l, k) = state%occb(l, i)-statepp%core(l, i)/2
+                     END IF
                   END IF
                END DO
             END DO
-            IF (state%multiplicity /= -1) THEN
-               statepp%occa = state%occa-statepp%core/2
-               statepp%occb = state%occb-statepp%core/2
-            END IF
 
             statepp%maxl_occ = get_maxl_occ(statepp%occ)
             statepp%maxn_occ = get_maxn_occ(statepp%occ)

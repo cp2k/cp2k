@@ -1,7 +1,7 @@
 &GLOBAL
   PROJECT H2
   RUN_TYPE energy
-  PRINT_LEVEL medium
+  PRINT_LEVEL LOW
 &END GLOBAL
 
 &FORCE_EVAL
@@ -40,14 +40,6 @@
   H         0.7200000000        0.0000000000        0.0000000000
     &END COORD
 
-    &KIND O
-      BASIS_SET aug-TZV2P-GTH
-      POTENTIAL UPF O.pbe-hgh.UPF
-    &END KIND
-    &KIND C
-      BASIS_SET aug-TZV2P-GTH
-      POTENTIAL UPF C.pbe-hgh.UPF
-    &END KIND
     &KIND H
       BASIS_SET aug-TZV2P-GTH
       POTENTIAL UPF H.pbe-hgh.UPF

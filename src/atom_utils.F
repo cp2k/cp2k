@@ -19,7 +19,7 @@ MODULE atom_utils
    USE atom_types,                      ONLY: &
         CGTO_BASIS, GTO_BASIS, NUM_BASIS, STO_BASIS, atom_basis_type, atom_gthpot_type, &
         atom_potential_type, atom_state, atom_type, ecp_pseudo, eri, gth_pseudo, lmat, no_pseudo, &
-        upf_pseudo
+        sgp_pseudo, upf_pseudo
    USE basis_set_types,                 ONLY: srules
    USE cp_files,                        ONLY: close_file,&
                                               get_unit_number,&
@@ -781,6 +781,10 @@ CONTAINS
                corden(1:m) = corden(1:m)+rhoc(1:m)
             END IF
             DEALLOCATE (rhoc, rval)
+         END IF
+      CASE (sgp_pseudo)
+         IF (potential%sgp_pot%has_nlcc) THEN
+            CPABORT("not implemented")
          END IF
       CASE DEFAULT
          CPABORT("Unknown PP type")
@@ -1987,6 +1991,8 @@ CONTAINS
          nlcc = atom%potential%gth_pot%nlcc
       ELSE IF (atom%potential%ppot_type == upf_pseudo) THEN
          nlcc = atom%potential%upf_pot%core_correction
+      ELSE IF (atom%potential%ppot_type == sgp_pseudo) THEN
+         nlcc = atom%potential%sgp_pot%has_nlcc
       END IF
       IF (nlcc) THEN
          ALLOCATE (xfun(nr))

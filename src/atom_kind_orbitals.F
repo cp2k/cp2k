@@ -28,12 +28,13 @@ MODULE atom_kind_orbitals
                                               gto_basis_set_type
    USE external_potential_types,        ONLY: all_potential_type,&
                                               get_potential,&
-                                              gth_potential_type
+                                              gth_potential_type,&
+                                              sgp_potential_type
    USE input_constants,                 ONLY: &
         barrier_conf, do_analytic, do_dkh0_atom, do_dkh1_atom, do_dkh2_atom, do_dkh3_atom, &
         do_dkh4_atom, do_dkh5_atom, do_gapw_log, do_nonrel_atom, do_numeric, do_rks_atom, &
-        do_sczoramp_atom, do_zoramp_atom, gth_pseudo, no_pseudo, poly_conf, rel_dkh, rel_none, &
-        rel_sczora_mp, rel_zora, rel_zora_full, rel_zora_mp
+        do_sczoramp_atom, do_uks_atom, do_zoramp_atom, gth_pseudo, no_pseudo, poly_conf, rel_dkh, &
+        rel_none, rel_sczora_mp, rel_zora, rel_zora_full, rel_zora_mp, sgp_pseudo
    USE input_section_types,             ONLY: section_vals_type
    USE kinds,                           ONLY: dp
    USE mathconstants,                   ONLY: dfac,&
@@ -46,7 +47,7 @@ MODULE atom_kind_orbitals
    USE qs_kind_types,                   ONLY: get_qs_kind,&
                                               init_atom_electronic_state,&
                                               qs_kind_type,&
-                                              set_gth_state
+                                              set_pseudo_state
    USE rel_control_types,               ONLY: rel_control_type
 #include "./base/base_uses.f90"
 
@@ -70,17 +71,16 @@ CONTAINS
 !> \param iunit ...
 !> \param pmat ...
 !> \param fmat ...
-!> \param ispin ...
 !> \param confine ...
 !> \param xc_section ...
 ! **************************************************************************************************
    SUBROUTINE calculate_atomic_orbitals(atomic_kind, qs_kind, iunit, pmat, fmat, &
-                                        ispin, confine, xc_section)
+                                        confine, xc_section)
       TYPE(atomic_kind_type), INTENT(IN)                 :: atomic_kind
       TYPE(qs_kind_type), INTENT(IN)                     :: qs_kind
       INTEGER, INTENT(IN), OPTIONAL                      :: iunit
-      REAL(KIND=dp), DIMENSION(:, :), OPTIONAL, POINTER  :: pmat, fmat
-      INTEGER, INTENT(IN)                                :: ispin
+      REAL(KIND=dp), DIMENSION(:, :, :), OPTIONAL, &
+         POINTER                                         :: pmat, fmat
       LOGICAL, INTENT(IN), OPTIONAL                      :: confine
       TYPE(section_vals_type), OPTIONAL, POINTER         :: xc_section
 
@@ -96,11 +96,13 @@ CONTAINS
       INTEGER, DIMENSION(:), POINTER                     :: lmax, lmin, nct_lpot, nct_lsd, nct_nlcc, &
                                                             npgf, nppnl, nshell, ppeconf
       INTEGER, DIMENSION(:, :), POINTER                  :: first_sgf, last_sgf, ls
-      LOGICAL                                            :: lpot_present, lsd_present, nlcc_present
-      REAL(KIND=dp)                                      :: ac, al, ear, rk, scal, zeff
+      LOGICAL                                            :: lpot_present, lsd_present, nlcc_present, &
+                                                            uks
+      REAL(KIND=dp)                                      :: ac, al, ear, ok, rk, scal, zeff
+      REAL(KIND=dp), DIMENSION(0:lmat, 10, 2)            :: edelta
       REAL(KIND=dp), DIMENSION(:), POINTER               :: alpha_lpot, alpha_lsd, alpha_nlcc, ap, ce
-      REAL(KIND=dp), DIMENSION(:, :), POINTER            :: cval_lpot, cval_lsd, cval_nlcc, zet
-      REAL(KIND=dp), DIMENSION(:, :, :), POINTER         :: gcc, hp
+      REAL(KIND=dp), DIMENSION(:, :), POINTER            :: cval_lpot, cval_lsd, cval_nlcc, hhp, zet
+      REAL(KIND=dp), DIMENSION(:, :, :), POINTER         :: ccp, gcc, hp
       TYPE(all_potential_type), POINTER                  :: all_potential
       TYPE(atom_basis_type), POINTER                     :: basis
       TYPE(atom_integrals), POINTER                      :: integrals
@@ -110,6 +112,7 @@ CONTAINS
       TYPE(grid_atom_type), POINTER                      :: grid
       TYPE(gth_potential_type), POINTER                  :: gth_potential
       TYPE(gto_basis_set_type), POINTER                  :: orb_basis_set
+      TYPE(sgp_potential_type), POINTER                  :: sgp_potential
 
       NULLIFY (atom)
       CALL create_atom_type(atom)
@@ -121,21 +124,21 @@ CONTAINS
       END IF
 
       CALL get_atomic_kind(atomic_kind, z=z)
-      NULLIFY (all_potential, gth_potential, orb_basis_set)
+      NULLIFY (all_potential, gth_potential, sgp_potential, orb_basis_set)
       CALL get_qs_kind(qs_kind, zeff=zeff, &
                        basis_set=orb_basis_set, &
                        all_potential=all_potential, &
-                       gth_potential=gth_potential)
+                       gth_potential=gth_potential, &
+                       sgp_potential=sgp_potential)
 
       CPASSERT(ASSOCIATED(orb_basis_set))
 
       atom%z = z
       CALL set_atom(atom, &
-                    pp_calc=ASSOCIATED(gth_potential), &
+                    pp_calc=(ASSOCIATED(gth_potential) .OR. ASSOCIATED(sgp_potential)), &
                     do_zmp=.FALSE., &
                     doread=.FALSE., &
                     read_vxc=.FALSE., &
-                    method_type=do_rks_atom, &
                     relativistic=do_nonrel_atom, &
                     coulomb_integral_type=do_numeric, &
                     exchange_integral_type=do_numeric)
@@ -244,6 +247,55 @@ CONTAINS
             potential%gth_pot%cval_nlcc(1:4, 1:nexp_nlcc) = cval_nlcc(1:4, 1:nexp_nlcc)
          END IF
 
+         CALL set_atom(atom, zcore=NINT(zeff), potential=potential)
+      ELSE IF (ASSOCIATED(sgp_potential)) THEN
+         potential%ppot_type = sgp_pseudo
+         IF (PRESENT(confine)) THEN
+            potential%confinement = confine
+         ELSE
+            potential%confinement = .TRUE.
+         END IF
+         potential%conf_type = poly_conf
+         potential%acon = 0.1_dp
+         potential%rcon = 2.0_dp*ptable(z)%vdw_radius*bohr
+         potential%scon = 2.0_dp
+         CALL get_potential(sgp_potential, &
+                            name=potential%sgp_pot%pname, &
+                            zeff=zeff, &
+                            elec_conf=ppeconf, &
+                            alpha_core_charge=ac)
+         potential%sgp_pot%symbol = ptable(z)%symbol
+         potential%sgp_pot%zion = zeff
+         potential%sgp_pot%ac_local = ac
+         potential%sgp_pot%econf(0:3) = ppeconf(0:3)
+         CALL get_potential(sgp_potential, lmax=lm, &
+                            is_nonlocal=potential%sgp_pot%is_nonlocal, &
+                            n_nonlocal=n, a_nonlocal=ap, h_nonlocal=hhp, c_nonlocal=ccp)
+         ! nonlocal
+         potential%sgp_pot%lmax = lm
+         CPASSERT(n <= SIZE(potential%sgp_pot%a_nonlocal))
+         potential%sgp_pot%n_nonlocal = n
+         potential%sgp_pot%a_nonlocal(1:n) = ap(1:n)
+         potential%sgp_pot%h_nonlocal(1:n, 0:lm) = hhp(1:n, 0:lm)
+         potential%sgp_pot%c_nonlocal(1:n, 1:n, 0:lm) = ccp(1:n, 1:n, 0:lm)
+         ! local
+         CALL get_potential(sgp_potential, n_local=n, a_local=ap, c_local=ce)
+         CPASSERT(n <= SIZE(potential%sgp_pot%a_local))
+         potential%sgp_pot%n_local = n
+         potential%sgp_pot%a_local(1:n) = ap(1:n)
+         potential%sgp_pot%c_local(1:n) = ce(1:n)
+         ! NLCC
+         CALL get_potential(sgp_potential, has_nlcc=nlcc_present, &
+                            n_nlcc=n, a_nlcc=ap, c_nlcc=ce)
+         IF (nlcc_present) THEN
+            potential%sgp_pot%has_nlcc = .TRUE.
+            CPASSERT(n <= SIZE(potential%sgp_pot%a_nlcc))
+            potential%sgp_pot%n_nlcc = n
+            potential%sgp_pot%a_nlcc(1:n) = ap(1:n)
+            potential%sgp_pot%c_nlcc(1:n) = ce(1:n)
+         ELSE
+            potential%sgp_pot%has_nlcc = .FALSE.
+         END IF
          CALL set_atom(atom, zcore=NINT(zeff), potential=potential)
       ELSE
          potential%ppot_type = no_pseudo
@@ -363,28 +415,67 @@ CONTAINS
       ! set up the electronic state
       CALL init_atom_electronic_state(atomic_kind=atomic_kind, &
                                       qs_kind=qs_kind, &
-                                      ispin=ispin, &
                                       ncalc=ncalc, &
                                       ncore=ncore, &
-                                      nelem=nelem)
+                                      nelem=nelem, &
+                                      edelta=edelta)
+
+      ! restricted or unrestricted?
+      IF (SUM(ABS(edelta)) > 0.0_dp) THEN
+         uks = .TRUE.
+         CALL set_atom(atom, method_type=do_uks_atom)
+      ELSE
+         uks = .FALSE.
+         CALL set_atom(atom, method_type=do_rks_atom)
+      END IF
 
       ALLOCATE (atom%state)
 
       atom%state%core = 0._dp
       atom%state%core(0:lmat, 1:7) = REAL(ncore(0:lmat, 1:7), dp)
       atom%state%occ = 0._dp
-      atom%state%occ(0:lmat, 1:7) = REAL(ncalc(0:lmat, 1:7), dp)
+      IF (uks) THEN
+         atom%state%occ(0:lmat, 1:7) = REAL(ncalc(0:lmat, 1:7), dp)+ &
+                                       edelta(0:lmat, 1:7, 1)+edelta(0:lmat, 1:7, 2)
+      ELSE
+         atom%state%occ(0:lmat, 1:7) = REAL(ncalc(0:lmat, 1:7), dp)
+      END IF
       atom%state%occupation = 0._dp
-      atom%state%multiplicity = -1
       DO l = 0, lmat
          k = 0
          DO i = 1, 7
             IF (ncalc(l, i) > 0) THEN
                k = k+1
-               atom%state%occupation(l, k) = REAL(ncalc(l, i), dp)
+               IF (uks) THEN
+                  atom%state%occupation(l, k) = REAL(ncalc(l, i), dp)+ &
+                                                edelta(l, i, 1)+edelta(l, i, 2)
+                  atom%state%occa(l, k) = 0.5_dp*REAL(ncalc(l, i), dp)+edelta(l, i, 1)
+                  atom%state%occb(l, k) = 0.5_dp*REAL(ncalc(l, i), dp)+edelta(l, i, 2)
+               ELSE
+                  atom%state%occupation(l, k) = REAL(ncalc(l, i), dp)
+               END IF
             END IF
          END DO
+         ok = REAL(2*l+1, KIND=dp)
+         IF (uks) THEN
+            DO i = 1, 7
+               atom%state%occ(l, i) = MIN(atom%state%occ(l, i), 2.0_dp*ok)
+               atom%state%occa(l, i) = MIN(atom%state%occa(l, i), ok)
+               atom%state%occb(l, i) = MIN(atom%state%occb(l, i), ok)
+               atom%state%occupation(l, i) = atom%state%occa(l, i)+atom%state%occb(l, i)
+            END DO
+         ELSE
+            DO i = 1, 7
+               atom%state%occ(l, i) = MIN(atom%state%occ(l, i), 2.0_dp*ok)
+               atom%state%occupation(l, i) = MIN(atom%state%occupation(l, i), 2.0_dp*ok)
+            END DO
+         END IF
       END DO
+      IF (uks) THEN
+         atom%state%multiplicity = NINT(ABS(SUM(atom%state%occa-atom%state%occb))+1)
+      ELSE
+         atom%state%multiplicity = -1
+      END IF
 
       atom%state%maxl_occ = get_maxl_occ(atom%state%occupation)
       atom%state%maxn_occ = get_maxn_occ(atom%state%occupation)
@@ -420,7 +511,7 @@ CONTAINS
          IF (ASSOCIATED(pmat)) THEN
             DEALLOCATE (pmat)
          END IF
-         ALLOCATE (pmat(nsgf, nsgf))
+         ALLOCATE (pmat(nsgf, nsgf, 2))
          pmat = 0._dp
          DO l = 0, lmat
             ll = 2*l
@@ -429,21 +520,32 @@ CONTAINS
                   scal = SQRT(atom%integrals%ovlp(k1, k1, l)*atom%integrals%ovlp(k2, k2, l))/REAL(2*l+1, KIND=dp)
                   i = first_sgf(shell_index(l, k1), set_index(l, k1))
                   j = first_sgf(shell_index(l, k2), set_index(l, k2))
-                  DO m = 0, ll
-                     pmat(i+m, j+m) = atom%orbitals%pmat(k1, k2, l)*scal
-                  END DO
+                  IF (uks) THEN
+                     DO m = 0, ll
+                        pmat(i+m, j+m, 1) = atom%orbitals%pmata(k1, k2, l)*scal
+                        pmat(i+m, j+m, 2) = atom%orbitals%pmatb(k1, k2, l)*scal
+                     END DO
+                  ELSE
+                     DO m = 0, ll
+                        pmat(i+m, j+m, 1) = atom%orbitals%pmat(k1, k2, l)*scal
+                     END DO
+                  END IF
                END DO
             END DO
          ENDDO
+         IF (uks) THEN
+            pmat(:, :, 1) = pmat(:, :, 1)+pmat(:, :, 2)
+            pmat(:, :, 2) = pmat(:, :, 1)-2.0_dp*pmat(:, :, 2)
+         END IF
       END IF
 
       IF (PRESENT(fmat)) THEN
          ! recover fock matrix in CP2K/GPW order.
          ! Caution: Normalization is not take care of, so it's probably weird.
-         IF (ispin /= 1) CPABORT("calculate_atomic_orbitals: only ispin==1 is implemented")
+         IF (uks) CPABORT("calculate_atomic_orbitals: only RKS is implemented")
          IF (ASSOCIATED(fmat)) CPABORT("fmat already associated")
          IF (.NOT. ASSOCIATED(atom%fmat)) CPABORT("atom%fmat not associated")
-         ALLOCATE (fmat(nsgf, nsgf))
+         ALLOCATE (fmat(nsgf, nsgf, 1))
          fmat = 0.0_dp
          DO l = 0, lmat
             ll = 2*l
@@ -453,7 +555,7 @@ CONTAINS
                i = first_sgf(shell_index(l, k1), set_index(l, k1))
                j = first_sgf(shell_index(l, k2), set_index(l, k2))
                DO m = 0, ll
-                  fmat(i+m, j+m) = atom%fmat%op(k1, k2, l)/scal
+                  fmat(i+m, j+m, 1) = atom%fmat%op(k1, k2, l)/scal
                END DO
             END DO
             END DO
@@ -499,8 +601,8 @@ CONTAINS
                                                             ngp, nn, nr, quadtype, relativistic, z
       INTEGER, DIMENSION(0:lmat)                         :: starti
       INTEGER, DIMENSION(0:lmat, 10)                     :: ncalc, ncore, nelem
-      INTEGER, DIMENSION(:), POINTER                     :: nct_lpot, nct_lsd, nct_nlcc, nppnl, &
-                                                            ppeconf
+      INTEGER, DIMENSION(:), POINTER                     :: econf, nct_lpot, nct_lsd, nct_nlcc, &
+                                                            nppnl, ppeconf
       LOGICAL                                            :: lpot_present, lsd_present, nlcc_present
       REAL(KIND=dp)                                      :: ac, al, aval, cc, cval, ear, rk, xx, zeff
       REAL(KIND=dp), DIMENSION(:), POINTER               :: alpha_lpot, alpha_lsd, alpha_nlcc, ap, ce
@@ -515,6 +617,7 @@ CONTAINS
       TYPE(atom_type), POINTER                           :: atom
       TYPE(grid_atom_type), POINTER                      :: grid
       TYPE(gth_potential_type), POINTER                  :: gth_potential
+      TYPE(sgp_potential_type), POINTER                  :: sgp_potential
 
       NULLIFY (atom)
       CALL create_atom_type(atom)
@@ -523,7 +626,8 @@ CONTAINS
       NULLIFY (all_potential, gth_potential)
       CALL get_qs_kind(qs_kind, zeff=zeff, &
                        all_potential=all_potential, &
-                       gth_potential=gth_potential)
+                       gth_potential=gth_potential, &
+                       sgp_potential=sgp_potential)
 
       IF (PRESENT(allelectron)) THEN
          IF (allelectron) THEN
@@ -534,7 +638,7 @@ CONTAINS
 
       CPASSERT(ngto <= num_gto)
 
-      IF (ASSOCIATED(gth_potential)) THEN
+      IF (ASSOCIATED(gth_potential) .OR. ASSOCIATED(sgp_potential)) THEN
          ! PP calculation are non-relativistic
          relativistic = do_nonrel_atom
       ELSE
@@ -544,7 +648,7 @@ CONTAINS
 
       atom%z = z
       CALL set_atom(atom, &
-                    pp_calc=ASSOCIATED(gth_potential), &
+                    pp_calc=(ASSOCIATED(gth_potential) .OR. ASSOCIATED(sgp_potential)), &
                     method_type=do_rks_atom, &
                     relativistic=relativistic, &
                     coulomb_integral_type=do_numeric, &
@@ -655,6 +759,8 @@ CONTAINS
          END IF
 
          CALL set_atom(atom, zcore=NINT(zeff), potential=potential)
+      ELSE IF (ASSOCIATED(sgp_potential)) THEN
+         CPABORT("")
       ELSE
          potential%ppot_type = no_pseudo
          IF (PRESENT(confine)) THEN
@@ -737,7 +843,11 @@ CONTAINS
       ncore = 0
       ncalc = 0
       IF (ASSOCIATED(gth_potential)) THEN
-         CALL set_gth_state(gth_potential, z, ncalc, ncore, nelem)
+         CALL get_potential(gth_potential, elec_conf=econf)
+         CALL set_pseudo_state(econf, z, ncalc, ncore, nelem)
+      ELSE IF (ASSOCIATED(sgp_potential)) THEN
+         CALL get_potential(sgp_potential, elec_conf=econf)
+         CALL set_pseudo_state(econf, z, ncalc, ncore, nelem)
       ELSE
          DO l = 0, MIN(lmat, UBOUND(ptable(z)%e_conv, 1))
             ll = 2*(2*l+1)

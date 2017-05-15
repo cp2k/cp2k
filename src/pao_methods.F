@@ -426,7 +426,7 @@ CONTAINS
                                         particle_set, &
                                         atomic_kind_set, &
                                         qs_kind_set, &
-                                        output_unit=pao%iw)
+                                        ounit=pao%iw)
 
    END SUBROUTINE pao_build_core_hamiltonian
 

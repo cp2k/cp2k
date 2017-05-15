@@ -511,7 +511,7 @@ CONTAINS
       CHARACTER(len=*), PARAMETER :: routineN = 'ls_scf_qs_atomic_guess', &
          routineP = moduleN//':'//routineN
 
-      INTEGER                                            :: handle, ispin, nspin, unit_nr
+      INTEGER                                            :: handle, nspin, unit_nr
       INTEGER, DIMENSION(2)                              :: nelectron_spin
       LOGICAL                                            :: has_unit_metric
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
@@ -555,20 +555,15 @@ CONTAINS
       nspin = dft_control%nspins
 
       ! create an initial atomic guess
-      DO ispin = 1, nspin
-         CALL dbcsr_set(rho_ao(ispin)%matrix, 0.0_dp)
-         IF (dft_control%qs_control%dftb .OR. dft_control%qs_control%semi_empirical) THEN
-            CALL calculate_mopac_dm(rho_ao(ispin)%matrix, matrix_s(1)%matrix, has_unit_metric, &
-                                    dft_control, particle_set, atomic_kind_set, qs_kind_set, &
-                                    nspin, nelectron_spin(ispin), &
-                                    para_env)
-         ELSE
-            CALL calculate_atomic_block_dm(rho_ao(ispin)%matrix, matrix_s(1)%matrix, &
-                                           particle_set, atomic_kind_set, qs_kind_set, &
-                                           ispin, nspin, nelectron_spin(ispin), &
-                                           unit_nr)
-         ENDIF
-      ENDDO
+      IF (dft_control%qs_control%dftb .OR. dft_control%qs_control%semi_empirical) THEN
+         CALL calculate_mopac_dm(rho_ao, matrix_s(1)%matrix, has_unit_metric, &
+                                 dft_control, particle_set, atomic_kind_set, qs_kind_set, &
+                                 nspin, nelectron_spin, para_env)
+      ELSE
+         CALL calculate_atomic_block_dm(rho_ao, matrix_s(1)%matrix, &
+                                        particle_set, atomic_kind_set, qs_kind_set, &
+                                        nspin, nelectron_spin, unit_nr)
+      ENDIF
 
       CALL qs_rho_update_rho(rho, qs_env=qs_env)
       CALL qs_ks_did_change(qs_env%ks_env, rho_changed=.TRUE.)

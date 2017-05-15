@@ -16,7 +16,7 @@ MODULE atom_electronic_structure
                                               atom_print_zmp_iteration
    USE atom_types,                      ONLY: &
         atom_type, create_opgrid, create_opmat, ecp_pseudo, gth_pseudo, lmat, no_pseudo, &
-        opgrid_type, opmat_type, release_opgrid, release_opmat, set_atom, upf_pseudo
+        opgrid_type, opmat_type, release_opgrid, release_opmat, set_atom, sgp_pseudo, upf_pseudo
    USE atom_utils,                      ONLY: &
         atom_denmat, atom_density, atom_read_external_density, atom_read_external_vxc, &
         atom_read_zmp_restart, atom_solve, atom_trace, ceri_contract, coulomb_potential_analytic, &
@@ -201,7 +201,7 @@ CONTAINS
          CASE (do_dkh0_atom, do_dkh1_atom, do_dkh2_atom, do_dkh3_atom, do_dkh4_atom, do_dkh5_atom)
             hcore%op = atom%integrals%hdkh
          END SELECT
-      CASE (gth_pseudo, upf_pseudo, ecp_pseudo)
+      CASE (gth_pseudo, upf_pseudo, sgp_pseudo, ecp_pseudo)
          hcore%op = atom%integrals%kin+atom%integrals%core+atom%integrals%hnl
       END SELECT
       ! add confinement potential (not included in relativistic transformations)
@@ -264,7 +264,7 @@ CONTAINS
          CASE (no_pseudo)
             atom%energy%eploc = 0._dp
             atom%energy%epnl = 0._dp
-         CASE (gth_pseudo, upf_pseudo, ecp_pseudo)
+         CASE (gth_pseudo, upf_pseudo, sgp_pseudo, ecp_pseudo)
             atom%energy%eploc = atom_trace(atom%integrals%core, atom%orbitals%pmat)
             atom%energy%epnl = atom_trace(atom%integrals%hnl, atom%orbitals%pmat)
          END SELECT
@@ -486,26 +486,26 @@ CONTAINS
       END SELECT
 
       ! set alpha and beta occupations
-      atom%state%occa = 0._dp
-      atom%state%occb = 0._dp
-      DO l = 0, 3
-         nm = REAL((2*l+1), KIND=dp)
-         DO k = 1, 10
-            ne = atom%state%occupation(l, k)
-            IF (ne == 0._dp) THEN !empty shell
-               EXIT !assume there are no holes
-            ELSEIF (ne == 2._dp*nm) THEN !closed shell
-               atom%state%occa(l, k) = nm
-               atom%state%occb(l, k) = nm
-            ELSEIF (atom%state%multiplicity == -2) THEN !High spin case
-               atom%state%occa(l, k) = MIN(ne, nm)
-               atom%state%occb(l, k) = MAX(0._dp, ne-nm)
-            ELSE
-               atom%state%occa(l, k) = 0.5_dp*(ne+atom%state%multiplicity-1._dp)
-               atom%state%occb(l, k) = ne-atom%state%occa(l, k)
-            END IF
+      IF (SUM(ABS(atom%state%occa)+ABS(atom%state%occb)) == 0.0_dp) THEN
+         DO l = 0, 3
+            nm = REAL((2*l+1), KIND=dp)
+            DO k = 1, 10
+               ne = atom%state%occupation(l, k)
+               IF (ne == 0._dp) THEN !empty shell
+                  EXIT !assume there are no holes
+               ELSEIF (ne == 2._dp*nm) THEN !closed shell
+                  atom%state%occa(l, k) = nm
+                  atom%state%occb(l, k) = nm
+               ELSEIF (atom%state%multiplicity == -2) THEN !High spin case
+                  atom%state%occa(l, k) = MIN(ne, nm)
+                  atom%state%occb(l, k) = MAX(0._dp, ne-nm)
+               ELSE
+                  atom%state%occa(l, k) = 0.5_dp*(ne+atom%state%multiplicity-1._dp)
+                  atom%state%occb(l, k) = ne-atom%state%occa(l, k)
+               END IF
+            END DO
          END DO
-      END DO
+      END IF
       ! check for relativistic method
       reltyp = atom%relativistic
 
@@ -537,7 +537,7 @@ CONTAINS
             lsdpot = .TRUE.
             hlsd%op = atom%integrals%clsd
          END IF
-      CASE (upf_pseudo, ecp_pseudo)
+      CASE (upf_pseudo, sgp_pseudo, ecp_pseudo)
          hcore%op = atom%integrals%kin+atom%integrals%core+atom%integrals%hnl
       END SELECT
       ! add confinement potential (not included in relativistic transformations)
@@ -616,7 +616,7 @@ CONTAINS
          CASE (no_pseudo)
             atom%energy%eploc = 0._dp
             atom%energy%epnl = 0._dp
-         CASE (gth_pseudo, upf_pseudo, ecp_pseudo)
+         CASE (gth_pseudo, upf_pseudo, sgp_pseudo, ecp_pseudo)
             atom%energy%eploc = atom_trace(atom%integrals%core, atom%orbitals%pmat)
             atom%energy%epnl = atom_trace(atom%integrals%hnl, atom%orbitals%pmat)
          END SELECT

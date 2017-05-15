@@ -98,7 +98,7 @@ MODULE qs_initial_guess
    PUBLIC ::  calculate_atomic_fock_matrix
 
    TYPE atom_matrix_type
-      REAL(KIND=dp), DIMENSION(:, :), POINTER   :: mat
+      REAL(KIND=dp), DIMENSION(:, :, :), POINTER   :: mat
    END TYPE atom_matrix_type
 
 CONTAINS
@@ -128,17 +128,18 @@ CONTAINS
       INTEGER :: atom_a, blk, density_guess, group, handle, homo, i, iatom, ic, icol, id_nr, &
          ikind, irow, iseed(4), ispin, istart_col, istart_row, j, last_read, n, n_cols, n_rows, &
          nao, natom, natoms, natoms_tmp, nelectron, nmo, nmo_tmp, not_read, nsgf, nspin, nvec, &
-         output_unit, qs_env_id, safe_density_guess, size_atomic_kind_set, z
+         ounit, qs_env_id, safe_density_guess, size_atomic_kind_set, z
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: first_sgf, kind_of, last_sgf
+      INTEGER, DIMENSION(2)                              :: nelectron_spin
       INTEGER, DIMENSION(:), POINTER                     :: atom_list, elec_conf, nelec_kind, &
                                                             sort_kind
       LOGICAL                                            :: did_guess, do_kpoints, do_std_diag, &
                                                             exist, has_unit_metric, &
                                                             natom_mismatch, ofgpw
       REAL(dp), ALLOCATABLE, DIMENSION(:, :)             :: buff, buff2
-      REAL(dp), DIMENSION(:, :), POINTER                 :: DATA
+      REAL(dp), DIMENSION(:, :), POINTER                 :: pdata
       REAL(KIND=dp)                                      :: checksum, eps, length, maxocc, occ, &
-                                                            scale, trps1, zeff
+                                                            rscale, trps1, zeff
       REAL(KIND=dp), DIMENSION(0:3)                      :: edftb
       TYPE(atom_matrix_type), DIMENSION(:), POINTER      :: pmat
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
@@ -193,6 +194,7 @@ CONTAINS
                       do_kpoints=do_kpoints, &
                       kpoints=kpoints, &
                       rho=rho, &
+                      nelectron_spin=nelectron_spin, &
                       para_env=para_env)
 
       CALL qs_rho_get(rho, rho_ao_kp=rho_ao_kp)
@@ -508,20 +510,20 @@ CONTAINS
       IF (density_guess == atomic_guess) THEN
 
          subsys_section => section_vals_get_subs_vals(input, "SUBSYS")
-         output_unit = cp_print_key_unit_nr(logger, subsys_section, "PRINT%KINDS", extension=".Log")
-         IF (output_unit > 0) THEN
-            WRITE (UNIT=output_unit, FMT="(/,(T2,A))") &
+         ounit = cp_print_key_unit_nr(logger, subsys_section, "PRINT%KINDS", extension=".Log")
+         IF (ounit > 0) THEN
+            WRITE (UNIT=ounit, FMT="(/,(T2,A))") &
                "Atomic guess: The first density matrix is obtained in terms of atomic orbitals", &
                "              and electronic configurations assigned to each atomic kind"
          END IF
 
+         CALL calculate_atomic_block_dm(p_rmpv, s_sparse(1)%matrix, &
+                                        particle_set, atomic_kind_set, qs_kind_set, &
+                                        nspin, nelectron_spin, ounit)
+
          DO ispin = 1, nspin
 
-            CALL get_mo_set(mo_set=mo_array(ispin)%mo_set, nelectron=nelectron)
-
-            CALL calculate_atomic_block_dm(p_rmpv(ispin)%matrix, s_sparse(1)%matrix, &
-                                           particle_set, atomic_kind_set, qs_kind_set, &
-                                           ispin, nspin, nelectron, output_unit)
+!deb        CALL get_mo_set(mo_set=mo_array(ispin)%mo_set, nelectron=nelectron)
 
             ! The orbital transformation method (OT) requires not only an
             ! initial density matrix, but also an initial wavefunction (MO set)
@@ -593,7 +595,7 @@ CONTAINS
             CALL do_mom_guess(nspin, mo_array, scf_control, p_rmpv)
          ENDIF
 
-         CALL cp_print_key_finished_output(output_unit, logger, subsys_section, &
+         CALL cp_print_key_finished_output(ounit, logger, subsys_section, &
                                            "PRINT%KINDS")
 
          did_guess = .TRUE.
@@ -609,7 +611,7 @@ CONTAINS
 
          eps = 1.0E-5_dp
 
-         output_unit = cp_logger_get_default_io_unit(logger)
+         ounit = cp_logger_get_default_io_unit(logger)
          group = para_env%group
          natoms = SIZE(particle_set)
          ALLOCATE (kind_of(natoms))
@@ -617,11 +619,11 @@ CONTAINS
 
          checksum = dbcsr_checksum(s_sparse(1)%matrix)
          i = dbcsr_get_num_blocks(s_sparse(1)%matrix); CALL mp_sum(i, group)
-         IF (output_unit > 0) WRITE (output_unit, *) 'S nblks', i, ' checksum', checksum
+         IF (ounit > 0) WRITE (ounit, *) 'S nblks', i, ' checksum', checksum
          CALL dbcsr_filter(s_sparse(1)%matrix, eps)
          checksum = dbcsr_checksum(s_sparse(1)%matrix)
          i = dbcsr_get_num_blocks(s_sparse(1)%matrix); CALL mp_sum(i, group)
-         IF (output_unit > 0) WRITE (output_unit, *) 'S nblks', i, ' checksum', checksum
+         IF (ounit > 0) WRITE (ounit, *) 'S nblks', i, ' checksum', checksum
 
          CALL get_particle_set(particle_set, qs_kind_set, first_sgf=first_sgf, &
                                last_sgf=last_sgf)
@@ -629,47 +631,56 @@ CONTAINS
 
          ALLOCATE (pmat(SIZE(atomic_kind_set)))
 
+         rscale = 1._dp
+         IF (nspin == 2) rscale = 0.5_dp
+         DO ikind = 1, SIZE(atomic_kind_set)
+            atomic_kind => atomic_kind_set(ikind)
+            qs_kind => qs_kind_set(ikind)
+            NULLIFY (pmat(ikind)%mat)
+            CALL calculate_atomic_orbitals(atomic_kind, qs_kind, pmat=pmat(ikind)%mat)
+            NULLIFY (atomic_kind)
+         END DO
+
          DO ispin = 1, nspin
-            scale = 1._dp
-            IF (nspin == 2) scale = 0.5_dp
-            DO ikind = 1, SIZE(atomic_kind_set)
-               atomic_kind => atomic_kind_set(ikind)
-               qs_kind => qs_kind_set(ikind)
-               NULLIFY (pmat(ikind)%mat)
-               CALL calculate_atomic_orbitals(atomic_kind, qs_kind, pmat=pmat(ikind)%mat, ispin=ispin)
-               NULLIFY (atomic_kind)
-            END DO
             CALL get_mo_set(mo_set=mo_array(ispin)%mo_set, &
                             maxocc=maxocc, &
                             nelectron=nelectron)
             !
             CALL dbcsr_iterator_start(iter, p_rmpv(ispin)%matrix)
             DO WHILE (dbcsr_iterator_blocks_left(iter))
-               CALL dbcsr_iterator_next_block(iter, irow, icol, DATA, blk)
+               CALL dbcsr_iterator_next_block(iter, irow, icol, pdata, blk)
                ikind = kind_of(irow)
-               IF (icol .EQ. irow) DATA(:, :) = pmat(ikind)%mat(:, :)*scale
+               IF (icol .EQ. irow) THEN
+                  IF (ispin == 1) THEN
+                     pdata(:, :) = pmat(ikind)%mat(:, :, 1)*rscale+ &
+                                   pmat(ikind)%mat(:, :, 2)*rscale
+                  ELSE
+                     pdata(:, :) = pmat(ikind)%mat(:, :, 1)*rscale- &
+                                   pmat(ikind)%mat(:, :, 2)*rscale
+                  END IF
+               END IF
             ENDDO
             CALL dbcsr_iterator_stop(iter)
 
             !CALL dbcsr_verify_matrix(p_rmpv(ispin)%matrix)
             checksum = dbcsr_checksum(p_rmpv(ispin)%matrix)
             occ = dbcsr_get_occupation(p_rmpv(ispin)%matrix)
-            IF (output_unit > 0) WRITE (output_unit, *) 'P_init occ', occ, ' checksum', checksum
+            IF (ounit > 0) WRITE (ounit, *) 'P_init occ', occ, ' checksum', checksum
             ! so far p needs to have the same sparsity as S
             !CALL dbcsr_filter(p_rmpv(ispin)%matrix, eps)
             !CALL dbcsr_verify_matrix(p_rmpv(ispin)%matrix)
             checksum = dbcsr_checksum(p_rmpv(ispin)%matrix)
             occ = dbcsr_get_occupation(p_rmpv(ispin)%matrix)
-            IF (output_unit > 0) WRITE (output_unit, *) 'P_init occ', occ, ' checksum', checksum
+            IF (ounit > 0) WRITE (ounit, *) 'P_init occ', occ, ' checksum', checksum
 
             CALL dbcsr_trace(p_rmpv(ispin)%matrix, s_sparse(1)%matrix, trps1)
-            scale = REAL(nelectron, dp)/trps1
-            CALL dbcsr_scale(p_rmpv(ispin)%matrix, scale)
+            rscale = REAL(nelectron, dp)/trps1
+            CALL dbcsr_scale(p_rmpv(ispin)%matrix, rscale)
 
             !CALL dbcsr_verify_matrix(p_rmpv(ispin)%matrix)
             checksum = dbcsr_checksum(p_rmpv(ispin)%matrix)
             occ = dbcsr_get_occupation(p_rmpv(ispin)%matrix)
-            IF (output_unit > 0) WRITE (output_unit, *) 'P occ', occ, ' checksum', checksum
+            IF (ounit > 0) WRITE (ounit, *) 'P occ', occ, ' checksum', checksum
             !
             ! The orbital transformation method (OT) requires not only an
             ! initial density matrix, but also an initial wavefunction (MO set)
@@ -777,12 +788,12 @@ CONTAINS
                checksum = dbcsr_checksum(mo_dbcsr)
 
                occ = dbcsr_get_occupation(mo_dbcsr)
-               IF (output_unit > 0) WRITE (output_unit, *) 'C occ', occ, ' checksum', checksum
+               IF (ounit > 0) WRITE (ounit, *) 'C occ', occ, ' checksum', checksum
                CALL dbcsr_filter(mo_dbcsr, eps)
                !CALL dbcsr_verify_matrix(mo_dbcsr)
                occ = dbcsr_get_occupation(mo_dbcsr)
                checksum = dbcsr_checksum(mo_dbcsr)
-               IF (output_unit > 0) WRITE (output_unit, *) 'C occ', occ, ' checksum', checksum
+               IF (ounit > 0) WRITE (ounit, *) 'C occ', occ, ' checksum', checksum
                !
                ! multiply times PS
                IF (has_unit_metric) THEN
@@ -797,12 +808,12 @@ CONTAINS
                !CALL dbcsr_verify_matrix(mo_tmp_dbcsr)
                checksum = dbcsr_checksum(mo_tmp_dbcsr)
                occ = dbcsr_get_occupation(mo_tmp_dbcsr)
-               IF (output_unit > 0) WRITE (output_unit, *) 'S*C occ', occ, ' checksum', checksum
+               IF (ounit > 0) WRITE (ounit, *) 'S*C occ', occ, ' checksum', checksum
                CALL dbcsr_filter(mo_tmp_dbcsr, eps)
                !CALL dbcsr_verify_matrix(mo_tmp_dbcsr)
                checksum = dbcsr_checksum(mo_tmp_dbcsr)
                occ = dbcsr_get_occupation(mo_tmp_dbcsr)
-               IF (output_unit > 0) WRITE (output_unit, *) 'S*C occ', occ, ' checksum', checksum
+               IF (ounit > 0) WRITE (ounit, *) 'S*C occ', occ, ' checksum', checksum
                !
                ! P*SC
                ! the destroy is needed for the moment to avoid memory leaks !
@@ -812,12 +823,12 @@ CONTAINS
                IF (.FALSE.) CALL dbcsr_verify_matrix(mo_dbcsr)
                checksum = dbcsr_checksum(mo_dbcsr)
                occ = dbcsr_get_occupation(mo_dbcsr)
-               IF (output_unit > 0) WRITE (output_unit, *) 'P*SC occ', occ, ' checksum', checksum
+               IF (ounit > 0) WRITE (ounit, *) 'P*SC occ', occ, ' checksum', checksum
                CALL dbcsr_filter(mo_dbcsr, eps)
                !CALL dbcsr_verify_matrix(mo_dbcsr)
                checksum = dbcsr_checksum(mo_dbcsr)
                occ = dbcsr_get_occupation(mo_dbcsr)
-               IF (output_unit > 0) WRITE (output_unit, *) 'P*SC occ', occ, ' checksum', checksum
+               IF (ounit > 0) WRITE (ounit, *) 'P*SC occ', occ, ' checksum', checksum
                !
                CALL copy_dbcsr_to_fm(mo_dbcsr, mo_coeff)
 
@@ -853,13 +864,12 @@ CONTAINS
       END IF
       IF (density_guess == mopac_guess) THEN
 
+!deb        CALL get_mo_set(mo_set=mo_array(ispin)%mo_set, nelectron=nelectron)
+
+         CALL calculate_mopac_dm(p_rmpv, s_sparse(1)%matrix, has_unit_metric, dft_control, &
+                                 particle_set, atomic_kind_set, qs_kind_set, nspin, nelectron_spin, para_env)
+
          DO ispin = 1, nspin
-
-            CALL get_mo_set(mo_set=mo_array(ispin)%mo_set, nelectron=nelectron)
-
-            CALL calculate_mopac_dm(p_rmpv(ispin)%matrix, s_sparse(1)%matrix, has_unit_metric, dft_control, &
-                                    particle_set, atomic_kind_set, qs_kind_set, nspin, nelectron, para_env)
-
             ! The orbital transformation method (OT) requires not only an
             ! initial density matrix, but also an initial wavefunction (MO set)
             IF (ASSOCIATED(scf_env%krylov_space)) do_std_diag = (scf_env%krylov_space%eps_std_diag > 0.0_dp)
@@ -917,50 +927,45 @@ CONTAINS
 
 ! **************************************************************************************************
 !> \brief returns a block diagonal density matrix. Blocks correspond to the atomic densities.
-!> \param matrix_p ...
+!> \param pmatrix ...
 !> \param matrix_s ...
 !> \param particle_set ...
 !> \param atomic_kind_set ...
 !> \param qs_kind_set ...
-!> \param ispin ...
 !> \param nspin ...
 !> \param nelectron_spin ...
-!> \param output_unit ...
+!> \param ounit ...
 ! **************************************************************************************************
-   SUBROUTINE calculate_atomic_block_dm(matrix_p, matrix_s, particle_set, atomic_kind_set, &
-                                        qs_kind_set, ispin, nspin, nelectron_spin, output_unit)
-      TYPE(dbcsr_type), INTENT(INOUT)                    :: matrix_p, matrix_s
+   SUBROUTINE calculate_atomic_block_dm(pmatrix, matrix_s, particle_set, atomic_kind_set, &
+                                        qs_kind_set, nspin, nelectron_spin, ounit)
+      TYPE(dbcsr_p_type), DIMENSION(:), INTENT(INOUT)    :: pmatrix
+      TYPE(dbcsr_type), INTENT(INOUT)                    :: matrix_s
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
-      INTEGER, INTENT(IN)                                :: ispin, nspin, nelectron_spin, output_unit
+      INTEGER, INTENT(IN)                                :: nspin
+      INTEGER, DIMENSION(:), INTENT(IN)                  :: nelectron_spin
+      INTEGER, INTENT(IN)                                :: ounit
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'calculate_atomic_block_dm', &
          routineP = moduleN//':'//routineN
 
-      INTEGER                                            :: blk, handle, icol, ikind, irow, natom
+      INTEGER                                            :: blk, handle, icol, ikind, irow, ispin, &
+                                                            natom
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: kind_of
-      REAL(dp), DIMENSION(:, :), POINTER                 :: DATA
-      REAL(KIND=dp)                                      :: scale, trps1
+      REAL(dp), DIMENSION(:, :), POINTER                 :: pdata
+      REAL(KIND=dp)                                      :: rds, rscale, trps1
       TYPE(atom_matrix_type), ALLOCATABLE, DIMENSION(:)  :: pmat
       TYPE(atomic_kind_type), POINTER                    :: atomic_kind
       TYPE(dbcsr_iterator_type)                          :: iter
+      TYPE(dbcsr_type), POINTER                          :: matrix_p
       TYPE(qs_kind_type), POINTER                        :: qs_kind
 
       CALL timeset(routineN, handle)
 
-      IF ((output_unit > 0) .AND. (nspin > 1)) THEN
-         WRITE (UNIT=output_unit, FMT="(/,T2,A,I0)") "Spin ", ispin
-      END IF
-
-      CALL dbcsr_set(matrix_p, 0.0_dp)
-
       natom = SIZE(particle_set)
-
       ALLOCATE (kind_of(natom))
-
       CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set, kind_of=kind_of)
-
       ALLOCATE (pmat(SIZE(atomic_kind_set)))
 
       ! precompute the atomic blocks corresponding to spherical atoms
@@ -968,49 +973,67 @@ CONTAINS
          atomic_kind => atomic_kind_set(ikind)
          qs_kind => qs_kind_set(ikind)
          NULLIFY (pmat(ikind)%mat)
-         IF (output_unit > 0) THEN
-            WRITE (UNIT=output_unit, FMT="(/,T2,A)") &
+         IF (ounit > 0) THEN
+            WRITE (UNIT=ounit, FMT="(/,T2,A)") &
                "Guess for atomic kind: "//TRIM(atomic_kind%name)
          END IF
-         CALL calculate_atomic_orbitals(atomic_kind, qs_kind, iunit=output_unit, pmat=pmat(ikind)%mat, &
-                                        ispin=ispin)
+         CALL calculate_atomic_orbitals(atomic_kind, qs_kind, iunit=ounit, pmat=pmat(ikind)%mat)
       END DO
 
-      scale = 1.0_dp
-      IF (nspin == 2) scale = 0.5_dp
+      rscale = 1.0_dp
+      IF (nspin == 2) rscale = 0.5_dp
 
-      CALL dbcsr_iterator_start(iter, matrix_p)
-      DO WHILE (dbcsr_iterator_blocks_left(iter))
-         CALL dbcsr_iterator_next_block(iter, irow, icol, DATA, blk)
-         ikind = kind_of(irow)
-         IF (icol .EQ. irow) DATA(:, :) = pmat(ikind)%mat(:, :)*scale
-      ENDDO
-      CALL dbcsr_iterator_stop(iter)
-
-      CALL dbcsr_trace(matrix_p, matrix_s, trps1)
-      scale = 0.0_dp
-      IF (nelectron_spin > 0) & ! could be a ghost-atoms-only simulation
-         scale = REAL(nelectron_spin, dp)/trps1
-      CALL dbcsr_scale(matrix_p, scale)
-
-      IF (output_unit > 0) THEN
-         IF (nspin > 1) THEN
-            WRITE (UNIT=output_unit, FMT="(T2,A,I1)") &
-               "Re-scaling the density matrix to get the right number of electrons for spin ", ispin
-         ELSE
-            WRITE (UNIT=output_unit, FMT="(T2,A)") &
-               "Re-scaling the density matrix to get the right number of electrons"
+      DO ispin = 1, nspin
+         IF ((ounit > 0) .AND. (nspin > 1)) THEN
+            WRITE (UNIT=ounit, FMT="(/,T2,A,I0)") "Spin ", ispin
          END IF
-         WRITE (output_unit, '(T19,A,T44,A,T67,A)') "# Electrons", "Trace(P)", "Scaling factor"
-         WRITE (output_unit, '(T20,I10,T40,F12.3,T67,F14.3)') nelectron_spin, trps1, scale
-      END IF
+
+         matrix_p => pmatrix(ispin)%matrix
+         CALL dbcsr_set(matrix_p, 0.0_dp)
+
+         CALL dbcsr_iterator_start(iter, matrix_p)
+         DO WHILE (dbcsr_iterator_blocks_left(iter))
+            CALL dbcsr_iterator_next_block(iter, irow, icol, pdata, blk)
+            ikind = kind_of(irow)
+            IF (icol .EQ. irow) THEN
+               IF (ispin == 1) THEN
+                  pdata(:, :) = pmat(ikind)%mat(:, :, 1)*rscale+ &
+                                pmat(ikind)%mat(:, :, 2)*rscale
+               ELSE
+                  pdata(:, :) = pmat(ikind)%mat(:, :, 1)*rscale- &
+                                pmat(ikind)%mat(:, :, 2)*rscale
+               END IF
+            END IF
+         ENDDO
+         CALL dbcsr_iterator_stop(iter)
+
+         CALL dbcsr_trace(matrix_p, matrix_s, trps1)
+         rds = 0.0_dp
+         ! could be a ghost-atoms-only simulation
+         IF (nelectron_spin(ispin) > 0) THEN
+            rds = REAL(nelectron_spin(ispin), dp)/trps1
+         END IF
+         CALL dbcsr_scale(matrix_p, rds)
+
+         IF (ounit > 0) THEN
+            IF (nspin > 1) THEN
+               WRITE (UNIT=ounit, FMT="(T2,A,I1)") &
+                  "Re-scaling the density matrix to get the right number of electrons for spin ", ispin
+            ELSE
+               WRITE (UNIT=ounit, FMT="(T2,A)") &
+                  "Re-scaling the density matrix to get the right number of electrons"
+            END IF
+            WRITE (ounit, '(T19,A,T44,A,T67,A)') "# Electrons", "Trace(P)", "Scaling factor"
+            WRITE (ounit, '(T20,I10,T40,F12.3,T67,F14.3)') nelectron_spin(ispin), trps1, rds
+         END IF
+
+      END DO
 
       DO ikind = 1, SIZE(atomic_kind_set)
          IF (ASSOCIATED(pmat(ikind)%mat)) THEN
             DEALLOCATE (pmat(ikind)%mat)
          END IF
       END DO
-
       DEALLOCATE (pmat)
 
       DEALLOCATE (kind_of)
@@ -1025,15 +1048,15 @@ CONTAINS
 !> \param particle_set ...
 !> \param atomic_kind_set ...
 !> \param qs_kind_set ...
-!> \param output_unit ...
+!> \param ounit ...
 ! **************************************************************************************************
    SUBROUTINE calculate_atomic_fock_matrix(matrix_f, particle_set, atomic_kind_set, &
-                                           qs_kind_set, output_unit)
+                                           qs_kind_set, ounit)
       TYPE(dbcsr_type), INTENT(INOUT)                    :: matrix_f
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
-      INTEGER, INTENT(IN)                                :: output_unit
+      INTEGER, INTENT(IN)                                :: ounit
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'calculate_atomic_fock_matrix', &
          routineP = moduleN//':'//routineN
@@ -1057,12 +1080,12 @@ CONTAINS
          atomic_kind => atomic_kind_set(ikind)
          qs_kind => qs_kind_set(ikind)
          NULLIFY (fmat(ikind)%mat)
-         IF (output_unit > 0) WRITE (UNIT=output_unit, FMT="(/,T2,A)") &
+         IF (ounit > 0) WRITE (UNIT=ounit, FMT="(/,T2,A)") &
             "Calculating atomic Fock matrix for atomic kind: "//TRIM(atomic_kind%name)
 
          !Currently only ispin=1 is supported
-         CALL calculate_atomic_orbitals(atomic_kind, qs_kind, iunit=output_unit, &
-                                        fmat=fmat(ikind)%mat, ispin=1)
+         CALL calculate_atomic_orbitals(atomic_kind, qs_kind, iunit=ounit, &
+                                        fmat=fmat(ikind)%mat)
       END DO
 
       ! zero result matrix
@@ -1073,7 +1096,7 @@ CONTAINS
       DO WHILE (dbcsr_iterator_blocks_left(iter))
          CALL dbcsr_iterator_next_block(iter, irow, icol, block)
          ikind = kind_of(irow)
-         IF (icol .EQ. irow) block(:, :) = fmat(ikind)%mat(:, :)
+         IF (icol .EQ. irow) block(:, :) = fmat(ikind)%mat(:, :, 1)
       ENDDO
       CALL dbcsr_iterator_stop(iter)
 
@@ -1089,7 +1112,7 @@ CONTAINS
 
 ! **************************************************************************************************
 !> \brief returns a block diagonal density matrix. Blocks correspond to the mopac initial guess.
-!> \param matrix_p ...
+!> \param pmat ...
 !> \param matrix_s ...
 !> \param has_unit_metric ...
 !> \param dft_control ...
@@ -1100,43 +1123,51 @@ CONTAINS
 !> \param nelectron_spin ...
 !> \param para_env ...
 ! **************************************************************************************************
-   SUBROUTINE calculate_mopac_dm(matrix_p, matrix_s, has_unit_metric, &
+   SUBROUTINE calculate_mopac_dm(pmat, matrix_s, has_unit_metric, &
                                  dft_control, particle_set, atomic_kind_set, qs_kind_set, &
                                  nspin, nelectron_spin, para_env)
-      TYPE(dbcsr_type), INTENT(INOUT)                    :: matrix_p, matrix_s
+      TYPE(dbcsr_p_type), DIMENSION(:), INTENT(INOUT)    :: pmat
+      TYPE(dbcsr_type), INTENT(INOUT)                    :: matrix_s
       LOGICAL                                            :: has_unit_metric
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
-      INTEGER, INTENT(IN)                                :: nspin, nelectron_spin
+      INTEGER, INTENT(IN)                                :: nspin
+      INTEGER, DIMENSION(:), INTENT(IN)                  :: nelectron_spin
       TYPE(cp_para_env_type)                             :: para_env
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'calculate_mopac_dm', &
          routineP = moduleN//':'//routineN
 
       INTEGER                                            :: atom_a, group, handle, iatom, ikind, &
-                                                            iset, isgf, isgfa, ishell, la, maxl, &
-                                                            maxll, nao, natom, ncount, nset, nsgf, &
-                                                            z
+                                                            iset, isgf, isgfa, ishell, ispin, la, &
+                                                            maxl, maxll, nao, natom, ncount, nset, &
+                                                            nsgf, z
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: first_sgf
       INTEGER, DIMENSION(:), POINTER                     :: atom_list, elec_conf, nshell
       INTEGER, DIMENSION(:, :), POINTER                  :: first_sgfa, l, last_sgfa
       LOGICAL                                            :: has_pot
-      REAL(KIND=dp)                                      :: maxocc, my_sum, nelec, paa, scale, &
+      REAL(KIND=dp)                                      :: maxocc, my_sum, nelec, paa, rscale, &
                                                             trps1, trps2, yy, zeff
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: econf, pdiag, sdiag
       REAL(KIND=dp), DIMENSION(0:3)                      :: edftb
       TYPE(all_potential_type), POINTER                  :: all_potential
+      TYPE(dbcsr_type), POINTER                          :: matrix_p
       TYPE(gth_potential_type), POINTER                  :: gth_potential
       TYPE(gto_basis_set_type), POINTER                  :: orb_basis_set
       TYPE(sgp_potential_type), POINTER                  :: sgp_potential
 
       CALL timeset(routineN, handle)
 
+      DO ispin = 1, nspin
+         matrix_p => pmat(ispin)%matrix
+         CALL dbcsr_set(matrix_p, 0.0_dp)
+      END DO
+
       group = para_env%group
       natom = SIZE(particle_set)
-      nao = dbcsr_nfullrows_total(matrix_p)
+      nao = dbcsr_nfullrows_total(pmat(1)%matrix)
       IF (nspin == 1) THEN
          maxocc = 2.0_dp
       ELSE
@@ -1168,7 +1199,7 @@ CONTAINS
       trps2 = 0.0_dp
       pdiag(:) = 0.0_dp
 
-      IF (nelectron_spin /= 0) THEN
+      IF (SUM(nelectron_spin) /= 0) THEN
          DO ikind = 1, SIZE(atomic_kind_set)
 
             CALL get_atomic_kind(atomic_kind_set(ikind), natom=natom, atom_list=atom_list)
@@ -1193,7 +1224,7 @@ CONTAINS
                CYCLE
             END IF
 
-            ! MOPAC TYEP GUESS
+            ! MOPAC TYPE GUESS
             IF (dft_control%qs_control%dftb) THEN
                DO iatom = 1, natom
                   atom_a = atom_list(iatom)
@@ -1324,15 +1355,28 @@ CONTAINS
             DO isgf = 1, nao
                IF (sdiag(isgf) > 0.0_dp) pdiag(isgf) = pdiag(isgf)/sdiag(isgf)
             END DO
+            DO ispin = 1, nspin
+               IF (nelectron_spin(ispin) /= 0) THEN
+                  matrix_p => pmat(ispin)%matrix
+                  CALL dbcsr_set_diag(matrix_p, pdiag)
+               END IF
+            END DO
          ELSE
-            scale = (REAL(nelectron_spin, dp)-trps1)/trps2
-            DO isgf = 1, nao
-               IF (pdiag(isgf) < maxocc) pdiag(isgf) = scale*pdiag(isgf)
+            DO ispin = 1, nspin
+               IF (nelectron_spin(ispin) /= 0) THEN
+                  rscale = (REAL(nelectron_spin(ispin), dp)-trps1)/trps2
+                  DO isgf = 1, nao
+                     IF (pdiag(isgf) < maxocc) pdiag(isgf) = rscale*pdiag(isgf)
+                  END DO
+                  matrix_p => pmat(ispin)%matrix
+                  CALL dbcsr_set_diag(matrix_p, pdiag)
+                  DO isgf = 1, nao
+                     IF (pdiag(isgf) < maxocc) pdiag(isgf) = pdiag(isgf)/rscale
+                  END DO
+               END IF
             END DO
          END IF
       END IF
-
-      CALL dbcsr_set_diag(matrix_p, pdiag)
 
       DEALLOCATE (econf)
 

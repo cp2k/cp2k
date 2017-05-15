@@ -13,6 +13,7 @@ MODULE atom_xc
                                               atom_type,&
                                               gth_pseudo,&
                                               opmat_type,&
+                                              sgp_pseudo,&
                                               upf_pseudo
 ! ZMP added coulomb_potential_numeric
    USE atom_utils,                      ONLY: atom_core_density,&
@@ -222,6 +223,8 @@ CONTAINS
          nlcc = atom%potential%gth_pot%nlcc
       ELSE IF (atom%potential%ppot_type == upf_pseudo) THEN
          nlcc = atom%potential%upf_pot%core_correction
+      ELSE IF (atom%potential%ppot_type == sgp_pseudo) THEN
+         nlcc = atom%potential%sgp_pot%has_nlcc
       END IF
 
       IF (ASSOCIATED(xc_section)) THEN
@@ -424,6 +427,9 @@ CONTAINS
          nlcc = atom%potential%gth_pot%nlcc
       ELSE IF (atom%potential%ppot_type == upf_pseudo) THEN
          nlcc = atom%potential%upf_pot%core_correction
+         CPASSERT(.NOT. nlcc)
+      ELSE IF (atom%potential%ppot_type == sgp_pseudo) THEN
+         nlcc = atom%potential%sgp_pot%has_nlcc
          CPASSERT(.NOT. nlcc)
       END IF
 

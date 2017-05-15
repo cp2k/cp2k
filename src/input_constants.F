@@ -168,7 +168,8 @@ MODULE input_constants
    INTEGER, PARAMETER, PUBLIC               :: no_pseudo = 0, &
                                                gth_pseudo = 1, &
                                                upf_pseudo = 2, &
-                                               ecp_pseudo = 3
+                                               ecp_pseudo = 3, &
+                                               sgp_pseudo = 4
    ! Confinement type for Atom Code
    INTEGER, PARAMETER, PUBLIC               :: no_conf = 0, &
                                                poly_conf = 1, &

@@ -168,6 +168,7 @@ CONTAINS
       INTEGER, DIMENSION(2)                              :: n_elec_alpha_and_beta, &
                                                             n_occ_alpha_and_beta
       REAL(KIND=dp)                                      :: charge_molecule, zeff, zeff_correction
+      REAL(KIND=dp), DIMENSION(0:lmat, 10, 2)            :: edelta
       TYPE(all_potential_type), POINTER                  :: all_potential
       TYPE(atomic_kind_type), POINTER                    :: atomic_kind
       TYPE(gth_potential_type), POINTER                  :: gth_potential
@@ -208,21 +209,19 @@ CONTAINS
                ! The spin loop is becsause ATOMIC guess can be calculated twice
                !  for two separate states with their own alpha-beta combinations
                ! This is done to break the spin symmetry of the initial wfn
+               CALL init_atom_electronic_state(atomic_kind=atomic_kind, &
+                                               qs_kind=qs_kind_set(ikind), &
+                                               ncalc=ne_explicit, &
+                                               ncore=ne_core, &
+                                               nelem=ne_elem, &
+                                               edelta=edelta)
                DO ispin = 1, nspins
-
-                  CALL init_atom_electronic_state(atomic_kind=atomic_kind, &
-                                                  qs_kind=qs_kind_set(ikind), &
-                                                  ispin=ispin, &
-                                                  ncalc=ne_explicit, &
-                                                  ncore=ne_core, &
-                                                  nelem=ne_elem)
-
                   ! Get the number of electrons: explicit (i.e. with orbitals) and total
                   ! Note that it is impossible to separate alpha and beta electrons
                   ! because the mupliplicity of the atomic state is not specified in ATOMIC GUESS
-                  n_occ_alpha_and_beta(ispin) = n_occ_alpha_and_beta(ispin)+SUM(ne_explicit)
+                  n_occ_alpha_and_beta(ispin) = n_occ_alpha_and_beta(ispin)+SUM(ne_explicit)+ &
+                                                SUM(NINT(edelta(:, :, ispin)))
                   n_elec_alpha_and_beta(ispin) = n_elec_alpha_and_beta(ispin)+SUM(ne_elem)
-
                ENDDO
 
                IF (ASSOCIATED(all_potential)) THEN

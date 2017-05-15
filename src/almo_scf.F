@@ -517,27 +517,25 @@ CONTAINS
 
          CASE (atomic_guess)
 
-            DO ispin = 1, nspins
-               CALL dbcsr_set(rho_ao(ispin)%matrix, 0.0_dp)
-               IF (dft_control%qs_control%dftb .OR. dft_control%qs_control%semi_empirical) THEN
-                  CALL calculate_mopac_dm(rho_ao(ispin)%matrix, &
-                                          matrix_s(1)%matrix, has_unit_metric, &
-                                          dft_control, particle_set, atomic_kind_set, qs_kind_set, &
-                                          nspins, nelectron_spin(ispin), &
-                                          para_env)
-               ELSE
-                  CALL calculate_atomic_block_dm(rho_ao(ispin)%matrix, &
-                                                 matrix_s(1)%matrix, particle_set, atomic_kind_set, qs_kind_set, &
-                                                 ispin, nspins, nelectron_spin(ispin), unit_nr)
-               ENDIF
+            IF (dft_control%qs_control%dftb .OR. dft_control%qs_control%semi_empirical) THEN
+               CALL calculate_mopac_dm(rho_ao, &
+                                       matrix_s(1)%matrix, has_unit_metric, &
+                                       dft_control, particle_set, atomic_kind_set, qs_kind_set, &
+                                       nspins, nelectron_spin, &
+                                       para_env)
+            ELSE
+               CALL calculate_atomic_block_dm(rho_ao, &
+                                              matrix_s(1)%matrix, particle_set, atomic_kind_set, qs_kind_set, &
+                                              nspins, nelectron_spin, unit_nr)
+            ENDIF
 
+            DO ispin = 1, nspins
                ! copy the atomic-block dm into matrix_p_blk
                CALL matrix_qs_to_almo(rho_ao(ispin)%matrix, &
                                       almo_scf_env%matrix_p_blk(ispin), almo_scf_env, &
                                       .FALSE.)
                CALL dbcsr_filter(almo_scf_env%matrix_p_blk(ispin), &
                                  almo_scf_env%eps_filter)
-
             ENDDO ! ispin
 
             ! obtain orbitals from the density matrix
