@@ -328,10 +328,18 @@ CONTAINS
 
       IF (this%size_in_bytes >= 0) &
          CPABORT("acc_devmem_sep_cptr: already allocated")
-      IF ((lb_in_bytes+size_in_bytes) .GT. pointee%size_in_bytes) &
-         CPABORT("acc_devmem_set_cptr: out-of-bounds")
-      this%size_in_bytes = size_in_bytes
-      istat = dc_acc_dev_mem_set_ptr(this%cptr, pointee%cptr, INT(lb_in_bytes, KIND=C_SIZE_T))
+      IF (pointee%size_in_bytes < 0 .AND. size_in_bytes > 0 ) &
+         CPABORT("acc_devmem_sep_cptr: out-of-bounds")
+      IF (size_in_bytes > 0) THEN
+         IF ((lb_in_bytes+size_in_bytes) .GT. pointee%size_in_bytes) &
+            CPABORT("acc_devmem_set_cptr: out-of-bounds")
+         this%size_in_bytes = size_in_bytes
+         istat = dc_acc_dev_mem_set_ptr(this%cptr, pointee%cptr, INT(lb_in_bytes, KIND=C_SIZE_T))
+      ELSE
+         ! Empty buffers
+         this%size_in_bytes = pointee%size_in_bytes
+         this%cptr = pointee%cptr
+      ENDIF
 #endif
    END SUBROUTINE acc_devmem_set_cptr
 
