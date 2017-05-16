@@ -5135,32 +5135,32 @@ CONTAINS
 
       CALL cp_print_key_section_create(print_key, "total_densities", &
                                        description="Controls the printing of total densities.", &
-                                       print_level=medium_print_level, add_last=add_last_numeric, filename="__STD_OUT__")
+                                       print_level=high_print_level, add_last=add_last_numeric, filename="__STD_OUT__")
       CALL section_add_subsection(subsection, print_key)
       CALL section_release(print_key)
 
       CALL cp_print_key_section_create(print_key, "Lanczos", &
                                        description="Controls the printing of information on Lanczos refinement iterations.", &
-                                       print_level=medium_print_level, add_last=add_last_numeric, filename="__STD_OUT__")
+                                       print_level=high_print_level, add_last=add_last_numeric, filename="__STD_OUT__")
       CALL section_add_subsection(subsection, print_key)
       CALL section_release(print_key)
 
       CALL cp_print_key_section_create( &
          print_key, "DIAG_SUB_SCF", &
          description="Controls the printing of information on subspace diagonalization internal loop. ", &
-         print_level=medium_print_level, add_last=add_last_numeric, filename="__STD_OUT__")
+         print_level=high_print_level, add_last=add_last_numeric, filename="__STD_OUT__")
       CALL section_add_subsection(subsection, print_key)
       CALL section_release(print_key)
 
       CALL cp_print_key_section_create(print_key, "Davidson", &
                                        description="Controls the printing of information on Davidson iterations.", &
-                                       print_level=medium_print_level, add_last=add_last_numeric, filename="__STD_OUT__")
+                                       print_level=high_print_level, add_last=add_last_numeric, filename="__STD_OUT__")
       CALL section_add_subsection(subsection, print_key)
       CALL section_release(print_key)
 
       CALL cp_print_key_section_create(print_key, "FILTER_MATRIX", &
                                        description="Controls the printing of information on Filter Matrix method.", &
-                                       print_level=medium_print_level, add_last=add_last_numeric, filename="__STD_OUT__")
+                                       print_level=high_print_level, add_last=add_last_numeric, filename="__STD_OUT__")
       CALL section_add_subsection(subsection, print_key)
       CALL section_release(print_key)
 
