@@ -1817,7 +1817,7 @@ CONTAINS
             ENDIF
             CALL dbcsr_data_ensure_size(product_matrix3D%mats(irow3D, icol3D)% &
                                         matrix%wms(ithread+1)%data_area, &
-                                        size_guess, nocopy=.TRUE.)
+                                        size_guess)
             CALL dbcsr_data_set_size_referenced(product_matrix3D%mats(irow3D, icol3D)% &
                                                 matrix%wms(ithread+1)%data_area, &
                                                 product_matrix3D%mats(irow3D, icol3D)% &
