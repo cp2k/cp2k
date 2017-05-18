@@ -1,0 +1,17 @@
+exe
+lib
+obj
+regtesting
+src/dbcsr/libsmm_acc/libcusmm/libcusmm.cu
+src/dbcsr/libsmm_acc/libcusmm/libcusmm_part00.cu
+src/dbcsr/libsmm_acc/libcusmm/libcusmm_part01.cu
+src/dbcsr/libsmm_acc/libcusmm/libcusmm_part02.cu
+src/dbcsr/libsmm_acc/libcusmm/libcusmm_part03.cu
+src/dbcsr/libsmm_acc/libcusmm/libcusmm_part04.cu
+src/dbcsr/libsmm_acc/libcusmm/libcusmm_part05.cu
+src/dbcsr/libsmm_acc/libcusmm/libcusmm_part06.cu
+src/dbcsr/libsmm_acc/libcusmm/libcusmm_part07.cu
+src/dbcsr/libsmm_acc/libcusmm/libcusmm_part08.cu
+src/dbcsr/libsmm_acc/libcusmm/libcusmm_part09.cu
+src/dbcsr/libsmm_acc/libcusmm/libcusmm_part10.cu
+src/dbcsr/libsmm_acc/libcusmm/libcusmm_part11.cu
