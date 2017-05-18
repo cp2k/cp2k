@@ -1,0 +1,48 @@
+&GLOBAL
+  PROJECT H2
+  RUN_TYPE energy
+  PRINT_LEVEL LOW
+&END GLOBAL
+
+&FORCE_EVAL
+  METHOD Quickstep
+
+  &DFT
+    BASIS_SET_FILE_NAME GTH_BASIS_SETS
+
+    &MGRID
+      CUTOFF 400
+    &END MGRID
+
+    &QS
+      METHOD GAPW
+    &END QS
+
+    &SCF
+      MAX_SCF   20
+      EPS_SCF   1e-7
+      SCF_GUESS atomic
+    &END SCF
+
+    &XC
+      &XC_FUNCTIONAL PADE
+      &END XC_FUNCTIONAL
+    &END XC
+  &END DFT
+
+  &SUBSYS
+    &CELL
+      ABC 8.0 8.0 8.0
+    &END CELL
+
+    &COORD
+  H         0.0000000000        0.0000000000        0.0000000000
+  H         0.7200000000        0.0000000000        0.0000000000
+    &END COORD
+
+    &KIND H
+      BASIS_SET aug-TZV2P-GTH
+      POTENTIAL UPF H.pbe-hgh.UPF
+    &END KIND
+  &END SUBSYS
+&END FORCE_EVAL
