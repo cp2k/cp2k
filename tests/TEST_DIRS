@@ -60,6 +60,8 @@ QS/regtest-almo-2
 QS/regtest-gapw-4                                           libint
 QS/regtest-hfx-wfn-fitting                                  libint
 QS/regtest-gw                                               libint
+QS/regtest-gw-cubic
+QS/regtest-gw-ic-model
 QS/regtest-gapw
 Fist/regtest-5
 QS/regtest-plus_u

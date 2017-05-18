@@ -89,9 +89,13 @@ CONTAINS
 !> \param first_b first column of hab
 !> \param last_b last column of hab
 !> \param eri_method ...
+!> \param reflection_z_a ...
+!> \param reflection_z_b ...
+!> \param do_reflection_a ...
+!> \param do_reflection_b ...
 ! **************************************************************************************************
    SUBROUTINE cp_eri_mme_2c_integrate(param, para_env, qs_env, basis_type_a, basis_type_b, hab, first_b, last_b, &
-                                      eri_method)
+                                      eri_method, reflection_z_a, reflection_z_b, do_reflection_a, do_reflection_b)
       TYPE(cp_eri_mme_param), INTENT(INOUT)              :: param
       TYPE(cp_para_env_type), INTENT(IN), POINTER        :: para_env
       TYPE(qs_environment_type), INTENT(IN), POINTER     :: qs_env
@@ -99,6 +103,8 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:, :), INTENT(INOUT)      :: hab
       INTEGER, INTENT(IN)                                :: first_b, last_b
       INTEGER, INTENT(IN), OPTIONAL                      :: eri_method
+      REAL(KIND=dp), INTENT(IN), OPTIONAL                :: reflection_z_a, reflection_z_b
+      LOGICAL, INTENT(IN), OPTIONAL                      :: do_reflection_a, do_reflection_b
 
       CHARACTER(len=*), PARAMETER :: routineN = 'cp_eri_mme_2c_integrate', &
          routineP = moduleN//':'//routineN
@@ -113,7 +119,8 @@ CONTAINS
       INTEGER, DIMENSION(:), POINTER                     :: la_max, la_min, lb_max, lb_min, npgfa, &
                                                             npgfb, nsgfa, nsgfb
       INTEGER, DIMENSION(:, :), POINTER                  :: first_sgfa, first_sgfb
-      LOGICAL                                            :: map_it_here
+      LOGICAL                                            :: map_it_here, my_do_reflection_a, &
+                                                            my_do_reflection_b
       REAL(KIND=dp)                                      :: dab
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: hab_full_set
       REAL(KIND=dp), DIMENSION(3)                        :: ra, rab, rb
@@ -128,6 +135,12 @@ CONTAINS
 
       my_eri_method = do_eri_mme
       IF (PRESENT(eri_method)) my_eri_method = eri_method
+
+      my_do_reflection_a = .FALSE.
+      IF (PRESENT(do_reflection_a) .AND. PRESENT(reflection_z_a)) my_do_reflection_a = do_reflection_a
+
+      my_do_reflection_b = .FALSE.
+      IF (PRESENT(do_reflection_b) .AND. PRESENT(reflection_z_b)) my_do_reflection_b = do_reflection_b
 
       G_count = 0; R_count = 0; 
       ! get mapping between ERIs and atoms, sets, set offsets
@@ -184,6 +197,10 @@ CONTAINS
 
          ra(:) = pbc(particle_set(iatom)%r, cell)
 
+         IF (my_do_reflection_a) THEN
+            ra(3) = 2.0_dp*reflection_z_a-ra(3)
+         END IF
+
          DO iset = 1, nseta
             offset_a_start = offset_a_end
             offset_a_end = offset_a_end+nsgfa(iset)
@@ -204,6 +221,11 @@ CONTAINS
                npgfb => basis_set_b%npgf
 
                rb(:) = pbc(particle_set(jatom)%r, cell)
+
+               IF (my_do_reflection_b) THEN
+                  rb(3) = 2.0_dp*reflection_z_b-rb(3)
+               END IF
+
                rab(:) = ra(:)-rb(:) ! pbc not needed?
                dab = SQRT(rab(1)**2+rab(2)**2+rab(3)**2)
 
@@ -231,7 +253,8 @@ CONTAINS
                                                    ra, rb, &
                                                    hab_full_set, 1, 1, &
                                                    sphi_a, sgfa, nsgfa(iset), &
-                                                   sphi_b, sgfb, nsgfb(jset), my_eri_method, G_count, R_count)
+                                                   sphi_b, sgfb, nsgfb(jset), my_eri_method, G_count, R_count, &
+                                                   my_do_reflection_a, my_do_reflection_b)
 
                      hab(offset_a_start+1:offset_a_end, offset_b_start+1:offset_b_end) = &
                         hab_full_set(:, first_set:last_set)
@@ -278,11 +301,13 @@ CONTAINS
 !> \param eri_method ...
 !> \param G_count ...
 !> \param R_count ...
+!> \param do_reflection_a ...
+!> \param do_reflection_b ...
 !> \note arrays required to be contiguous
 ! **************************************************************************************************
    SUBROUTINE eri_mme_2c_integrate_set(param, la_min, la_max, lb_min, lb_max, npgfa, zeta, npgfb, &
                                        zetb, ra, rb, hab, i1, i2, sphi_a, sgfa, nsgfa, sphi_b, sgfb, nsgfb, &
-                                       eri_method, G_count, R_count)
+                                       eri_method, G_count, R_count, do_reflection_a, do_reflection_b)
       TYPE(eri_mme_param), INTENT(INOUT)                 :: param
       INTEGER, INTENT(IN)                                :: la_min, la_max, lb_min, lb_max, npgfa
       REAL(KIND=dp), DIMENSION(npgfa), INTENT(IN)        :: zeta
@@ -296,17 +321,25 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:, :), INTENT(IN)         :: sphi_b
       INTEGER, INTENT(IN)                                :: sgfb, nsgfb, eri_method
       INTEGER, INTENT(INOUT), OPTIONAL                   :: G_count, R_count
+      LOGICAL, INTENT(IN), OPTIONAL                      :: do_reflection_a, do_reflection_b
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'eri_mme_2c_integrate_set', &
          routineP = moduleN//':'//routineN
 
       INTEGER                                            :: handle, ipgf, jpgf, na, nb, ncoa, ncob
+      LOGICAL                                            :: my_do_reflection_a, my_do_reflection_b
       REAL(KIND=dp)                                      :: rab2
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: f_work
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: hab_uncontr
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: v_work
 
       ! note: tested only for one exponent per pair (npgfa = npgfb = 1)
+
+      my_do_reflection_a = .FALSE.
+      IF (PRESENT(do_reflection_a)) my_do_reflection_a = do_reflection_a
+
+      my_do_reflection_b = .FALSE.
+      IF (PRESENT(do_reflection_b)) my_do_reflection_b = do_reflection_b
 
       CALL timeset(routineN, handle)
       ncoa = npgfa*ncoset(la_max)
@@ -338,6 +371,50 @@ CONTAINS
 
          CALL coulomb2_new(la_max, npgfa, zeta, la_min, lb_max, npgfb, zetb, lb_min, &
                            rb-ra, rab2, hab_uncontr, v_work, f_work)
+
+!         IF(my_do_reflection_a) THEN
+!
+!               ! only implemented for RI basis sets with one exponent without contraction
+!               CPASSERT(la_min==la_max)
+!               CPASSERT(npgfa==1)
+!
+!               DO ax = 0, la_max
+!                  DO ay = 0, la_max-ax
+!
+!                     az = la_max-ax-ay
+!                     coa = coset(ax, ay, az)
+!
+!                     ! change the sign if the basis function is reflected due to the mirror plane
+!                     IF(MOD(az, 2) == 1) THEN
+!                        hab_uncontr(coa, :) = -hab_uncontr(coa, :)
+!                     END IF
+!
+!                  END DO
+!               END DO
+!
+!         END IF
+!
+!         IF(my_do_reflection_b) THEN
+!
+!               ! only implemented for RI basis sets with one exponent without contraction
+!               CPASSERT(lb_min==lb_max)
+!               CPASSERT(npgfb==1)
+!
+!               DO bx = 0, lb_max
+!                  DO by = 0, lb_max-bx
+!
+!                     bz = lb_max-bx-by
+!                     cob = coset(bx, by, bz)
+!
+!                     ! change the sign if the basis function is reflected due to the mirror plane
+!                     IF(MOD(bz, 2) == 1) THEN
+!                        hab_uncontr(:, cob) = -hab_uncontr(:, cob)
+!                     END IF
+!
+!                  END DO
+!               END DO
+!
+!         END IF
 
          DEALLOCATE (v_work, f_work)
 

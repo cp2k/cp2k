@@ -72,6 +72,7 @@ CONTAINS
       CALL section_vals_val_get(mp2_section, "COL_BLOCK", i_val=mp2_env%block_size_col)
       CALL section_vals_val_get(mp2_section, "RI_METRIC", i_val=mp2_env%ri_metric)
       CALL section_vals_val_get(mp2_section, "CALC_COND_NUM", l_val=mp2_env%calc_PQ_cond_num)
+      CALL section_vals_val_get(mp2_section, "MINIMAL_GAP", r_val=mp2_env%minimal_gap)
 
       CALL section_vals_val_get(mp2_section, "INTERACTION_POTENTIAL%POTENTIAL_TYPE", &
                                 i_val=mp2_env%potential_parameter%potential_type)
@@ -152,6 +153,10 @@ CONTAINS
                                 l_val=mp2_env%ri_g0w0%print_gw_details)
       CALL section_vals_val_get(mp2_section, "RI_RPA%RI_G0W0%RI_SIGMA_X", &
                                 l_val=mp2_env%ri_g0w0%do_ri_Sigma_x)
+      CALL section_vals_val_get(mp2_section, "RI_RPA%RI_G0W0%NORMALIZE_SIGMA", &
+                                l_val=mp2_env%ri_g0w0%normalize_sigma)
+      CALL section_vals_val_get(mp2_section, "RI_RPA%RI_G0W0%NEGLECT_NORMALIZATION_SIGMA_X", &
+                                l_val=mp2_env%ri_g0w0%neglect_norm)
       CALL section_vals_val_get(mp2_section, "RI_RPA%RI_G0W0%RI_METRIC", &
                                 i_val=mp2_env%ri_g0w0%ri_metric)
       CALL section_vals_val_get(mp2_section, "RI_RPA%RI_G0W0%MIX_EXCHANGE", &
@@ -164,6 +169,38 @@ CONTAINS
                                 i_val=mp2_env%ri_g0w0%contour_def_end)
       CALL section_vals_val_get(mp2_section, "RI_RPA%RI_G0W0%CONTOUR_DEF_OFFSET", &
                                 r_val=mp2_env%ri_g0w0%contour_def_offset)
+      CALL section_vals_val_get(mp2_section, "RI_RPA%RI_G0W0%ATOMS", &
+                                i_vals=mp2_env%ri_g0w0%atoms_for_projection)
+      CALL section_vals_val_get(mp2_section, "RI_RPA%RI_G0W0%ATOM_RANGE", &
+                                i_vals=mp2_env%ri_g0w0%atom_range_for_projection)
+      CALL section_vals_val_get(mp2_section, "RI_RPA%RI_G0W0%EPS_CHARGE", &
+                                r_val=mp2_env%ri_g0w0%eps_charge)
+      CALL section_vals_val_get(mp2_section, "RI_RPA%RI_G0W0%IC_CORR_LIST", &
+                                r_vals=mp2_env%ri_g0w0%ic_corr_list)
+      CALL section_vals_val_get(mp2_section, "RI_RPA%RI_G0W0%IC_CORR_LIST_BETA", &
+                                r_vals=mp2_env%ri_g0w0%ic_corr_list_beta)
+
+      CALL section_vals_val_get(mp2_section, "RI_RPA%RI_G0W0%BSE", &
+                                l_val=mp2_env%ri_g0w0%do_bse)
+      CALL section_vals_val_get(mp2_section, "RI_RPA%RI_G0W0%BSE%NUM_Z_VECTORS", &
+                                i_val=mp2_env%ri_g0w0%num_z_vectors)
+      CALL section_vals_val_get(mp2_section, "RI_RPA%RI_G0W0%BSE%THRESHOLD_MIN_TRANS", &
+                                r_val=mp2_env%ri_g0w0%eps_min_trans)
+      CALL section_vals_val_get(mp2_section, "RI_RPA%RI_G0W0%BSE%MAX_ITER", &
+                                i_val=mp2_env%ri_g0w0%max_iter_bse)
+
+      CALL section_vals_val_get(mp2_section, "RI_RPA%RI_G0W0%IMAGE_CHARGE_MODEL", &
+                                l_val=mp2_env%ri_g0w0%do_ic_model)
+      CALL section_vals_val_get(mp2_section, "RI_RPA%RI_G0W0%IC%PRINT_IC_LIST", &
+                                l_val=mp2_env%ri_g0w0%print_ic_values)
+      CALL section_vals_val_get(mp2_section, "RI_RPA%RI_G0W0%IC%EPS_DIST", &
+                                r_val=mp2_env%ri_g0w0%eps_dist)
+      CALL section_vals_val_get(mp2_section, "RI_RPA%RI_G0W0%IC%OPTIMIZE_HOMO_LUMO", &
+                                l_val=mp2_env%ri_g0w0%do_opt_homo_lumo)
+      CALL section_vals_val_get(mp2_section, "RI_RPA%RI_G0W0%IC%GW_EIGENVALUES", &
+                                r_vals=mp2_env%ri_g0w0%gw_eigenvalues)
+      CALL section_vals_val_get(mp2_section, "RI_RPA%RI_G0W0%IC%GW_EIGENVALUES_BETA", &
+                                r_vals=mp2_env%ri_g0w0%gw_eigenvalues_beta)
 
       CALL section_vals_val_get(mp2_section, "RI_RPA%RI_G0W0%PERIODIC", &
                                 l_val=mp2_env%ri_g0w0%do_periodic)
@@ -220,6 +257,8 @@ CONTAINS
                                 i_val=mp2_env%ri_rpa_im_time%num_points_per_magnitude)
       CALL section_vals_val_get(mp2_section, "RI_RPA%IM_TIME%EPS_FILTER_IM_TIME", &
                                 r_val=mp2_env%ri_rpa_im_time%eps_filter_im_time)
+      CALL section_vals_val_get(mp2_section, "RI_RPA%IM_TIME%STABILIZE_EXP", &
+                                r_val=mp2_env%ri_rpa_im_time%stabilize_exp)
 
       CALL section_vals_val_get(mp2_section, "RI_RPA%IM_TIME%RI_G0W0", &
                                 l_val=mp2_env%ri_rpa_im_time%do_gw_im_time)

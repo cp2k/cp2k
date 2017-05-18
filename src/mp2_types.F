@@ -70,7 +70,7 @@ MODULE mp2_types
    END TYPE
 
    TYPE mp2_potential_type
-      INTEGER                                  :: potential_type !! 1/r, TShPSC
+      INTEGER                                  :: potential_type !! 1/r, TShPSC, slab truncation
       REAL(dp)                                 :: truncation_radius !! truncation radius if cutoff potential in use
       CHARACTER(default_path_length)           :: filename
    END TYPE
@@ -146,6 +146,7 @@ MODULE mp2_types
                                             ends_array_cm_mao_virt
       INTEGER, DIMENSION(:), POINTER     :: nmao_occ, nmao_virt
       LOGICAL                  :: do_gw_im_time
+      REAL(KIND=dp)            :: stabilize_exp
    END TYPE
 
    TYPE ri_g0w0_type
@@ -181,6 +182,15 @@ MODULE mp2_types
       LOGICAL                  :: do_extra_kpoints, do_aux_bas_gw
       REAL(KIND=dp)            :: frac_aux_mos
       INTEGER                  :: num_omega_points
+      LOGICAL                  :: do_bse, normalize_sigma, neglect_norm
+      INTEGER, DIMENSION(:), POINTER    :: atoms_for_projection, atom_range_for_projection
+      REAL(KIND=dp)            :: eps_charge
+      INTEGER                  :: num_z_vectors, max_iter_bse
+      REAL(KIND=dp)            :: eps_min_trans
+      LOGICAL                  :: do_ic_model, print_ic_values, do_opt_homo_lumo
+      REAL(KIND=dp)            :: eps_dist
+      REAL(KIND=dp), DIMENSION(:), POINTER               :: ic_corr_list, ic_corr_list_beta, &
+                                                            gw_eigenvalues, gw_eigenvalues_beta
    END TYPE
 
    TYPE ri_basis_opt
@@ -229,6 +239,7 @@ MODULE mp2_types
       REAL(dp) :: mp2_memory
       REAL(dp) :: scale_S
       REAL(dp) :: scale_T
+      REAL(dp) :: minimal_gap
       INTEGER  :: mp2_num_proc
       INTEGER  :: block_size_row
       INTEGER  :: block_size_col

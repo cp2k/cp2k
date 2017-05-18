@@ -55,6 +55,7 @@ MODULE mp2
    USE input_constants,                 ONLY: cholesky_inverse,&
                                               do_admm_basis_projection,&
                                               do_admm_purify_none,&
+                                              do_eri_gpw,&
                                               do_mp2_potential_TShPSC,&
                                               hfx_do_eval_energy,&
                                               xc_none
@@ -227,7 +228,7 @@ CONTAINS
          END IF
       ENDIF
 
-      IF (mp2_env%ri_rpa%do_im_time) THEN
+      IF (mp2_env%ri_rpa%do_im_time .AND. mp2_env%eri_method .NE. do_eri_gpw) THEN
          mp2_env%mp2_num_proc = 1
       END IF
 

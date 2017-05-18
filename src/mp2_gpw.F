@@ -63,6 +63,8 @@ MODULE mp2_gpw
                                               distribution_2d_type
    USE distribution_methods,            ONLY: distribute_molecules_1d,&
                                               distribute_molecules_2d
+   USE input_constants,                 ONLY: do_eri_gpw,&
+                                              ri_overlap
    USE input_section_types,             ONLY: section_vals_val_get
    USE kinds,                           ONLY: dp,&
                                               int_8
@@ -180,22 +182,24 @@ CONTAINS
          gw_corr_lev_virt_beta, handle, homo, homo_beta, i, i_multigrid, local_unit_nr, &
          my_group_L_end, my_group_L_size, my_group_L_start, n_multigrid, nelectron, &
          nelectron_beta, nmo, nspins, ri_metric, ri_metric_gw
-      INTEGER, ALLOCATABLE, DIMENSION(:) :: ends_array, ends_B_all, ends_B_virtual, &
-         ends_B_virtual_beta, sizes_array, sizes_B_all, sizes_B_virtual, sizes_B_virtual_beta, &
-         starts_array, starts_B_all, starts_B_virtual, starts_B_virtual_beta
-      LOGICAL :: blacs_repeatable, do_im_time, do_mao, my_do_gw, my_do_ri_mp2, my_do_ri_rpa, &
-         my_do_ri_sos_laplace_mp2, skip_load_balance_distributed
+      INTEGER, ALLOCATABLE, DIMENSION(:) :: ends_array, ends_B_all, ends_B_occ_bse, &
+         ends_B_virt_bse, ends_B_virtual, ends_B_virtual_beta, sizes_array, sizes_B_all, &
+         sizes_B_occ_bse, sizes_B_virt_bse, sizes_B_virtual, sizes_B_virtual_beta, starts_array, &
+         starts_B_all, starts_B_occ_bse, starts_B_virt_bse, starts_B_virtual, starts_B_virtual_beta
+      LOGICAL :: blacs_repeatable, do_bse, do_im_time, do_mao, my_do_gw, my_do_ri_mp2, &
+         my_do_ri_rpa, my_do_ri_sos_laplace_mp2, skip_load_balance_distributed
       REAL(KIND=dp) :: cutoff_old, Emp2_AB, Emp2_BB, Emp2_Cou_BB, Emp2_d2_AB, Emp2_d_AB, &
          Emp2_EX_BB, eps_gvg_rspace_old, eps_pgf_orb_old, eps_rho_rspace_old, progression_factor, &
          relative_cutoff_old
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: e_cutoff_old, Eigenval, Eigenval_beta
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: BIb_C, BIb_C_beta, BIb_C_gw, &
-                                                            BIb_C_gw_beta
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: BIb_C, BIb_C_beta, BIb_C_bse_ab, &
+                                                            BIb_C_bse_ij, BIb_C_gw, BIb_C_gw_beta
       REAL(KIND=dp), DIMENSION(:), POINTER               :: mo_eigenvalues, mo_eigenvalues_beta
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       TYPE(cell_type), POINTER                           :: cell
       TYPE(cp_blacs_env_type), POINTER                   :: blacs_env_sub, blacs_env_sub_im_time_3c, &
-                                                            blacs_env_sub_mat_munu
+                                                            blacs_env_sub_mat_munu, &
+                                                            blacs_env_sub_RPA
       TYPE(cp_fm_type), POINTER                          :: fm_matrix_L_RI_metric, mo_coeff, &
                                                             mo_coeff_beta
       TYPE(cp_logger_type), POINTER                      :: logger, logger_sub
@@ -243,6 +247,8 @@ CONTAINS
       ! check if we want to do imaginary time
       do_im_time = mp2_env%ri_rpa%do_im_time
       do_mao = mp2_env%ri_rpa_im_time%do_mao
+      do_bse = qs_env%mp2_env%ri_g0w0%do_bse
+
       ! Get the number of spins
       nspins = SIZE(mos_mp2)
 
@@ -327,7 +333,15 @@ CONTAINS
                                   blacs_grid_layout, &
                                   blacs_repeatable)
 
-         blacs_env_sub_mat_munu => blacs_env_sub_im_time_3c
+         IF (qs_env%mp2_env%eri_method == do_eri_gpw) THEN
+            blacs_env_sub_mat_munu => blacs_env_sub
+         ELSE
+            blacs_env_sub_mat_munu => blacs_env_sub_im_time_3c
+         END IF
+
+         ! in imaginary time, we do overlap metric
+         mp2_env%ri_metric = ri_overlap
+         mp2_env%ri_g0w0%ri_metric = ri_overlap
 
       END IF
 
@@ -383,6 +397,13 @@ CONTAINS
          Eigenval_beta(:) = mo_eigenvalues_beta(:)
       ENDIF
 
+      IF (mp2_env%minimal_gap > 0.0_dp) THEN
+         CALL shift_eigenvalues(Eigenval, mp2_env%minimal_gap, homo, dimen)
+         IF (nspins == 2) THEN
+            CALL shift_eigenvalues(Eigenval_beta, mp2_env%minimal_gap, homo_beta, dimen)
+         END IF
+      END IF
+
       ! for imag. time, we do not need this
       IF (.NOT. do_im_time) THEN
 
@@ -400,6 +421,10 @@ CONTAINS
                                            mo_coeff_o_beta, mo_coeff_v_beta, mo_coeff_all_beta, mo_coeff_gw_beta, &
                                            my_do_gw, gw_corr_lev_occ_beta, gw_corr_lev_virt_beta)
          END IF
+
+      END IF
+
+      IF (qs_env%mp2_env%eri_method == do_eri_gpw) THEN
 
          ! hack hack hack XXXXXXXXXXXXXXX rebuilds the pw_en with the new cutoffs
          progression_factor = dft_control%qs_control%progression_factor
@@ -462,7 +487,7 @@ CONTAINS
          IF (nspins == 2) THEN
             ! open shell case (RI) here the (ia|K) integrals are computed for both the alpha and beta components
             CALL mp2_ri_gpw_compute_in( &
-               BIb_C, BIb_C_gw, ends_array, ends_B_virtual, sizes_array, &
+               BIb_C, BIb_C_gw, BIb_C_bse_ij, BIb_C_bse_ab, ends_array, ends_B_virtual, sizes_array, &
                sizes_B_virtual, starts_array, starts_B_virtual, &
                dimen_RI, qs_env, para_env, para_env_sub, color_sub, dft_control, cell, particle_set, &
                atomic_kind_set, qs_kind_set, mo_coeff, fm_matrix_L_RI_metric, nmo, homo, rho_r, rho_g, pot_g, &
@@ -471,14 +496,16 @@ CONTAINS
                task_list_sub, mo_coeff_o, mo_coeff_v, mo_coeff_all, mo_coeff_gw, &
                mp2_env%mp2_gpw%eps_filter, unit_nr, &
                mp2_env%mp2_memory, mp2_env%calc_PQ_cond_num, calc_forces, blacs_env_sub, my_do_gw, &
-               starts_B_all, sizes_B_all, ends_B_all, gw_corr_lev_occ, gw_corr_lev_virt, &
+               do_bse, starts_B_all, sizes_B_all, ends_B_all, gw_corr_lev_occ, gw_corr_lev_virt, &
                do_im_time, do_mao, mat_3c_overl_int, mat_3c_overl_int_mao_for_occ, mat_3c_overl_int_mao_for_virt, &
                mao_coeff_occ, mao_coeff_virt, ri_metric, ri_metric_gw, &
+               starts_B_occ_bse, sizes_B_occ_bse, ends_B_occ_bse, &
+               starts_B_virt_bse, sizes_B_virt_bse, ends_B_virt_bse, &
                BIb_C_beta, BIb_C_gw_beta, ends_B_virtual_beta, sizes_B_virtual_beta, starts_B_virtual_beta, &
                homo_beta, mo_coeff_o_beta, mo_coeff_v_beta, mo_coeff_all_beta, mo_coeff_gw_beta)
          ELSE
             ! closed shell case (RI)
-            CALL mp2_ri_gpw_compute_in(BIb_C, BIb_C_gw, ends_array, ends_B_virtual, sizes_array, &
+            CALL mp2_ri_gpw_compute_in(BIb_C, BIb_C_gw, BIb_C_bse_ij, BIb_C_bse_ab, ends_array, ends_B_virtual, sizes_array, &
                                        sizes_B_virtual, starts_array, starts_B_virtual, &
                                        dimen_RI, qs_env, para_env, para_env_sub, color_sub, dft_control, cell, particle_set, &
                                        atomic_kind_set, qs_kind_set, mo_coeff, fm_matrix_L_RI_metric, &
@@ -488,9 +515,12 @@ CONTAINS
                                        task_list_sub, mo_coeff_o, mo_coeff_v, mo_coeff_all, mo_coeff_gw, &
                                        mp2_env%mp2_gpw%eps_filter, unit_nr, &
                                        mp2_env%mp2_memory, mp2_env%calc_PQ_cond_num, calc_forces, blacs_env_sub, my_do_gw, &
-                                       starts_B_all, sizes_B_all, ends_B_all, gw_corr_lev_occ, gw_corr_lev_virt, &
+                                       do_bse, starts_B_all, sizes_B_all, ends_B_all, gw_corr_lev_occ, gw_corr_lev_virt, &
                                        do_im_time, do_mao, mat_3c_overl_int, mat_3c_overl_int_mao_for_occ, &
-                                       mat_3c_overl_int_mao_for_virt, mao_coeff_occ, mao_coeff_virt, ri_metric, ri_metric_gw)
+                                       mat_3c_overl_int_mao_for_virt, mao_coeff_occ, mao_coeff_virt, &
+                                       ri_metric, ri_metric_gw, &
+                                       starts_B_occ_bse, sizes_B_occ_bse, ends_B_occ_bse, &
+                                       starts_B_virt_bse, sizes_B_virt_bse, ends_B_virt_bse)
 
          END IF
       ELSE
@@ -528,7 +558,7 @@ CONTAINS
          END IF
       END IF
 
-      IF (.NOT. do_im_time) THEN
+      IF (qs_env%mp2_env%eri_method == do_eri_gpw) THEN
 
          ! and now free the whole lot
          CALL pw_pool_give_back_pw(auxbas_pw_pool, rho_r%pw)
@@ -544,6 +574,12 @@ CONTAINS
       ! moved down
       ! CALL deallocate_task_list(task_list_sub)
       ! CALL pw_env_release(pw_env_sub)
+      IF (qs_env%mp2_env%eri_method == do_eri_gpw .AND. &
+          (my_do_ri_rpa .OR. my_do_ri_sos_laplace_mp2) &
+          ) THEN
+         CALL deallocate_task_list(task_list_sub)
+         CALL pw_env_release(pw_env_sub)
+      END IF
 
       IF (calc_forces) THEN
          ! make a copy of mo_coeff_o and mo_coeff_v
@@ -619,13 +655,21 @@ CONTAINS
 
          IF (do_im_time) THEN
 
+            IF (qs_env%mp2_env%eri_method == do_eri_gpw) THEN
+               para_env_sub_RPA => para_env_sub
+               blacs_env_sub_RPA => blacs_env_sub
+            ELSE
+               para_env_sub_RPA => para_env_sub_im_time_3c
+               blacs_env_sub_RPA => blacs_env_sub_im_time_3c
+            END IF
+
             CALL create_dbcsr_matrices_im_time(mat_munu, mat_P_local, mat_P_global, mat_M, mat_dm_occ_global_mao, &
                                                mat_dm_virt_global_mao, mat_dm_occ_local, mat_dm_virt_local, &
                                                do_mao, qs_env, mp2_env, para_env, dft_control, atomic_kind_set, qs_kind_set, &
                                                atom2d, molecule_kind_set, molecule_set, particle_set, cell, &
-                                               para_env_sub_im_time_P, blacs_env_sub_im_time_3c, sab_orb_all)
+                                               para_env_sub_im_time_P, blacs_env_sub_RPA, sab_orb_all)
 
-            para_env_sub_RPA => para_env_sub_im_time_3c
+            CALL cp_blacs_env_release(blacs_env_sub_im_time_3c)
 
          ELSE
 
@@ -635,11 +679,14 @@ CONTAINS
 
          ! RI-RPA
          IF (nspins == 2) THEN
-            CALL rpa_ri_compute_en(qs_env, Emp2, mp2_env, BIb_C, BIb_C_gw, para_env, para_env_sub_RPA, color_sub, &
+            CALL rpa_ri_compute_en(qs_env, Emp2, mp2_env, BIb_C, BIb_C_gw, BIb_C_bse_ij, BIb_C_bse_ab, &
+                                   para_env, para_env_sub_RPA, color_sub, &
                                    ends_array, ends_B_virtual, ends_B_all, sizes_array, sizes_B_virtual, sizes_B_all, &
-                                   starts_array, starts_B_virtual, starts_B_all, mo_coeff, fm_matrix_L_RI_metric, &
+                                   starts_array, starts_B_virtual, starts_B_all, starts_B_occ_bse, sizes_B_occ_bse, &
+                                   ends_B_occ_bse, starts_B_virt_bse, sizes_B_virt_bse, ends_B_virt_bse, &
+                                   mo_coeff, fm_matrix_L_RI_metric, &
                                    Eigenval, nmo, homo, dimen_RI, gw_corr_lev_occ, gw_corr_lev_virt, &
-                                   unit_nr, my_do_ri_sos_laplace_mp2, my_do_gw, do_im_time, do_mao, matrix_s, &
+                                   unit_nr, my_do_ri_sos_laplace_mp2, my_do_gw, do_im_time, do_mao, do_bse, matrix_s, &
                                    mao_coeff_occ, mao_coeff_virt, mao_coeff_occ_A, mao_coeff_virt_A, &
                                    mat_munu, mat_dm_occ_local, mat_dm_virt_local, &
                                    mat_P_local, mat_P_global, mat_M, &
@@ -648,11 +695,14 @@ CONTAINS
                                    ends_B_virtual_beta, sizes_B_virtual_beta, starts_B_virtual_beta, &
                                    mo_coeff_beta, BIb_C_gw_beta, gw_corr_lev_occ_beta, gw_corr_lev_virt_beta)
          ELSE
-            CALL rpa_ri_compute_en(qs_env, Emp2, mp2_env, BIb_C, BIb_C_gw, para_env, para_env_sub_RPA, color_sub, &
+            CALL rpa_ri_compute_en(qs_env, Emp2, mp2_env, BIb_C, BIb_C_gw, BIb_C_bse_ij, BIb_C_bse_ab, &
+                                   para_env, para_env_sub_RPA, color_sub, &
                                    ends_array, ends_B_virtual, ends_B_all, sizes_array, sizes_B_virtual, sizes_B_all, &
-                                   starts_array, starts_B_virtual, starts_B_all, mo_coeff, fm_matrix_L_RI_metric, &
+                                   starts_array, starts_B_virtual, starts_B_all, starts_B_occ_bse, sizes_B_occ_bse, &
+                                   ends_B_occ_bse, starts_B_virt_bse, sizes_B_virt_bse, ends_B_virt_bse, &
+                                   mo_coeff, fm_matrix_L_RI_metric, &
                                    Eigenval, nmo, homo, dimen_RI, gw_corr_lev_occ, gw_corr_lev_virt, &
-                                   unit_nr, my_do_ri_sos_laplace_mp2, my_do_gw, do_im_time, do_mao, matrix_s, &
+                                   unit_nr, my_do_ri_sos_laplace_mp2, my_do_gw, do_im_time, do_mao, do_bse, matrix_s, &
                                    mao_coeff_occ, mao_coeff_virt, mao_coeff_occ_A, mao_coeff_virt_A, &
                                    mat_munu, mat_dm_occ_local, mat_dm_virt_local, &
                                    mat_P_local, mat_P_global, mat_M, &
@@ -822,10 +872,21 @@ CONTAINS
          END IF
       END IF
 
-      IF (.NOT. do_im_time) THEN
+      IF (qs_env%mp2_env%eri_method == do_eri_gpw .AND. &
+          (.NOT. (my_do_ri_rpa .OR. my_do_ri_sos_laplace_mp2)) &
+          ) THEN
          CALL deallocate_task_list(task_list_sub)
          CALL pw_env_release(pw_env_sub)
       END IF
+
+! JW 2del
+!      IF(do_bse) THEN
+!         PRINT *, 'you enter here'
+!         DO LLL = 1, SIZE(fm_ab_Q_bse)
+!            CALL cp_fm_release(fm_ab_Q_bse(LLL)%matrix)
+!         END DO
+!         DEALLOCATE(fm_ab_Q_bse)
+!      END IF
 
       ! CALL dbcsr_distribution_release(dbcsr_dist_sub)
       ! DEALLOCATE(dbcsr_dist_sub,STAT=stat)
@@ -849,7 +910,7 @@ CONTAINS
       dft_control%qs_control%eps_gvg_rspace = eps_gvg_rspace_old
       CALL init_interaction_radii(dft_control%qs_control, atomic_kind_set, qs_kind_set)
 
-      IF (.NOT. do_im_time) THEN
+      IF (qs_env%mp2_env%eri_method == do_eri_gpw) THEN
          ! restore the initial value of the cutoff
          dft_control%qs_control%e_cutoff = e_cutoff_old
          dft_control%qs_control%cutoff = cutoff_old
@@ -2477,7 +2538,7 @@ CONTAINS
                            molecule_set, sab_orb_sub, particle_set, cell, blacs_env_sub_im_time_3c, &
                            do_im_time=.TRUE.)
 
-      CALL cp_blacs_env_release(blacs_env_sub_im_time_3c)
+!      CALL cp_blacs_env_release(blacs_env_sub_im_time_3c)
 
       group_size_P = mp2_env%ri_rpa_im_time%group_size_P
 
@@ -3736,6 +3797,35 @@ CONTAINS
       eps_pgf_orb_old = dft_control%qs_control%eps_pgf_orb
       eps_rho_rspace_old = dft_control%qs_control%eps_rho_rspace
       eps_gvg_rspace_old = dft_control%qs_control%eps_gvg_rspace
+
+   END SUBROUTINE
+
+! **************************************************************************************************
+!> \brief ...
+!> \param Eigenval ...
+!> \param minimal_gap ...
+!> \param homo ...
+!> \param dimen ...
+! **************************************************************************************************
+   SUBROUTINE shift_eigenvalues(Eigenval, minimal_gap, homo, dimen)
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: Eigenval
+      REAL(KIND=dp)                                      :: minimal_gap
+      INTEGER                                            :: homo, dimen
+
+      INTEGER                                            :: n_level
+      REAL(KIND=dp)                                      :: gap, minimal_occ, minimal_virt
+
+      gap = Eigenval(homo+1)-Eigenval(homo)
+      IF (gap < minimal_gap) THEN
+         minimal_occ = 0.5_dp*(Eigenval(homo)+Eigenval(homo+1)-minimal_gap)
+         minimal_virt = 0.5_dp*(Eigenval(homo)+Eigenval(homo+1)+minimal_gap)
+         DO n_level = 1, homo
+            IF (Eigenval(n_level) > minimal_occ) Eigenval(n_level) = minimal_occ
+         END DO
+         DO n_level = homo+1, dimen
+            IF (Eigenval(n_level) < minimal_virt) Eigenval(n_level) = minimal_virt
+         END DO
+      END IF
 
    END SUBROUTINE
 
