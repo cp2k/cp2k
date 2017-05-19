@@ -571,15 +571,15 @@ CONTAINS
 !> \param[in,out] matrix     DBCSR matrix for which to calculate norms
 !> \param[out] norms         Block norms
 ! **************************************************************************************************
-   SUBROUTINE calculate_norms(matrix, norms)
+   SUBROUTINE calculate_norms(matrix, norms, row_blk_sizes, col_blk_sizes)
       TYPE(dbcsr_type), INTENT(IN)                       :: matrix
       REAL(kind=sp), DIMENSION(:), INTENT(OUT)           :: norms
+      INTEGER, DIMENSION(:), POINTER, INTENT(IN)         :: row_blk_sizes, col_blk_sizes
 
       CHARACTER(len=*), PARAMETER :: routineN = 'calculate_norms', &
          routineP = moduleN//':'//routineN
 
       INTEGER                                            :: data_type, handle, nblks
-      INTEGER, DIMENSION(:), POINTER                     :: local_cols, local_rows
 
 !   ---------------------------------------------------------------------------
 
@@ -588,42 +588,24 @@ CONTAINS
       IF (.NOT. dbcsr_valid_index(matrix)) &
          CPABORT("The matrix must be valid.")
       data_type = dbcsr_get_data_type(matrix)
-      local_rows => array_data(matrix%local_rows)
-      local_cols => array_data(matrix%local_cols)
       nblks = matrix%nblks
       SELECT CASE (data_type)
       CASE (dbcsr_type_real_4)
-         CALL calc_norms_s(norms, nblks, &
-                           matrix%coo_l, &
-                           array_data(matrix%row_blk_size), &
-                           array_data(matrix%col_blk_size), &
-                           dbcsr_get_data_p_s(matrix%data_area), &
-                           local2global_rows=local_rows, &
-                           local2global_cols=local_cols)
+         CALL calc_norms_s(norms, nblks, matrix%coo_l, &
+                           row_blk_sizes, col_blk_sizes, &
+                           dbcsr_get_data_p_s(matrix%data_area))
       CASE (dbcsr_type_real_8)
-         CALL calc_norms_d(norms, nblks, &
-                           matrix%coo_l, &
-                           array_data(matrix%row_blk_size), &
-                           array_data(matrix%col_blk_size), &
-                           dbcsr_get_data_p_d(matrix%data_area), &
-                           local2global_rows=local_rows, &
-                           local2global_cols=local_cols)
+         CALL calc_norms_d(norms, nblks, matrix%coo_l, &
+                           row_blk_sizes, col_blk_sizes, &
+                           dbcsr_get_data_p_d(matrix%data_area))
       CASE (dbcsr_type_complex_4)
-         CALL calc_norms_c(norms, nblks, &
-                           matrix%coo_l, &
-                           array_data(matrix%row_blk_size), &
-                           array_data(matrix%col_blk_size), &
-                           dbcsr_get_data_p_c(matrix%data_area), &
-                           local2global_rows=local_rows, &
-                           local2global_cols=local_cols)
+         CALL calc_norms_c(norms, nblks, matrix%coo_l, &
+                           row_blk_sizes, col_blk_sizes, &
+                           dbcsr_get_data_p_c(matrix%data_area))
       CASE (dbcsr_type_complex_8)
-         CALL calc_norms_z(norms, nblks, &
-                           matrix%coo_l, &
-                           array_data(matrix%row_blk_size), &
-                           array_data(matrix%col_blk_size), &
-                           dbcsr_get_data_p_z(matrix%data_area), &
-                           local2global_rows=local_rows, &
-                           local2global_cols=local_cols)
+         CALL calc_norms_z(norms, nblks, matrix%coo_l, &
+                           row_blk_sizes, col_blk_sizes, &
+                           dbcsr_get_data_p_z(matrix%data_area))
       CASE DEFAULT
          CPABORT("Invalid data type.")
       END SELECT

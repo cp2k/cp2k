@@ -1968,7 +1968,8 @@ CONTAINS
                                     k_sizes)
                   IF (otf_filtering) THEN
                      CALL calculate_norms(right_buffer_p%matrix, &
-                                          right_norms(:, iright_buffer_calc))
+                                          right_norms(:, iright_buffer_calc), &
+                                          k_sizes, n_sizes(icol3D)%sizes)
                   ENDIF
                   IF (has_acc) THEN
                      CALL acc_transpose_blocks(right_buffer_p%matrix, &
@@ -1992,7 +1993,8 @@ CONTAINS
                                  nthreads=nthreads)
                   IF (otf_filtering) THEN
                      CALL calculate_norms(left_buffer_p%matrix, &
-                                          left_norms(:, ileft_buffer_calc))
+                                          left_norms(:, ileft_buffer_calc), &
+                                          m_sizes(irow3D)%sizes, k_sizes)
                   ENDIF
                ENDIF
                !

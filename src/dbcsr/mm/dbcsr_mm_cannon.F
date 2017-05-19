@@ -1682,9 +1682,9 @@ CONTAINS
                left_norms(:) = huge_norm
                right_norms(:) = huge_norm
                CALL calculate_norms(right_buffer_calc%mats(v_ki+1, 1), &
-                                    right_norms)
+                                    right_norms, k_sizes, n_sizes)
                CALL calculate_norms(left_buffer_calc%mats(1, v_ki+1), &
-                                    left_norms)
+                                    left_norms, m_sizes, k_sizes)
             ENDIF
             !
             flop_single = 0
