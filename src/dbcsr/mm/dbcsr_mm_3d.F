@@ -17,7 +17,8 @@ MODULE dbcsr_mm_3d
                                               acc_event_destroy,&
                                               acc_event_synchronize
    USE array_types,                     ONLY: array_data,&
-                                              array_get
+                                              array_get,&
+                                              array_size
    USE dbcsr_block_operations,          ONLY: dbcsr_block_conjg,&
                                               dbcsr_block_copy_aa,&
                                               dbcsr_block_real_neg,&
@@ -50,12 +51,13 @@ MODULE dbcsr_mm_3d
    USE dbcsr_mem_methods,               ONLY: dbcsr_mempool_limit_capacity
    USE dbcsr_methods,                   ONLY: &
         dbcsr_col_block_offsets, dbcsr_col_block_sizes, dbcsr_distribution, dbcsr_get_data_type, &
-        dbcsr_has_symmetry, dbcsr_nblkcols_total, dbcsr_nblkrows_total, dbcsr_nfullcols_local, &
+        dbcsr_has_symmetry, dbcsr_max_col_size, dbcsr_max_row_size, dbcsr_nblkcols_local, &
+        dbcsr_nblkcols_total, dbcsr_nblkrows_local, dbcsr_nblkrows_total, dbcsr_nfullcols_local, &
         dbcsr_nfullcols_total, dbcsr_nfullrows_local, dbcsr_nfullrows_total, dbcsr_release, &
         dbcsr_row_block_offsets, dbcsr_row_block_sizes, dbcsr_valid_index
    USE dbcsr_mm_common,                 ONLY: &
         acc_transpose_blocks, calculate_norms, count_mpi_statistics, dbcsr_mm_multrec_type_p, &
-        dbcsr_mpi_statistics, enumerate_blk_sizes, max_memory, memtype_abpanel_1, &
+        dbcsr_mpi_statistics, enumerate_blk_sizes, local_filter, max_memory, memtype_abpanel_1, &
         memtype_abpanel_2, memtype_mpi_buffer, memtype_mpi_product, memtype_product_wm, &
         memtype_trsbuffer_1, memtype_trsbuffer_2, product_matrix_size_guess, rec_sort_index, &
         setup_buffer_matrix
@@ -142,6 +144,10 @@ MODULE dbcsr_mm_3d
    TYPE dbcsr_buffers
       TYPE(dbcsr_buffer)                 :: left, right
    END TYPE dbcsr_buffers
+
+   TYPE mn_local_sizes
+      INTEGER, DIMENSION(:), POINTER  :: sizes => Null()
+   END TYPE mn_local_sizes
 
    TYPE dbcsr_layers_3D_C_reduction
       INTEGER                            :: grp = mp_comm_null, &
@@ -1205,7 +1211,8 @@ CONTAINS
       INTEGER, DIMENSION(2)                              :: requests_reduction_size
       INTEGER, DIMENSION(4)                              :: requests_reduction
       INTEGER, DIMENSION(:), POINTER :: col_blk_sizes2enum, enum2col_blk_sizes, &
-         enum2row_blk_sizes, product_matrix_meta_recv, product_matrix_meta_send, row_blk_sizes2enum
+         enum2row_blk_sizes, k_sizes, product_matrix_meta_recv, product_matrix_meta_send, &
+         row_blk_sizes2enum
       INTEGER, DIMENSION(:, :, :), POINTER               :: left_displ_layers3D, &
                                                             left_images_size_layers3D, &
                                                             right_displ_layers3D, &
@@ -1230,11 +1237,13 @@ CONTAINS
       TYPE(dbcsr_mm_multrec_type_p), ALLOCATABLE, &
          DIMENSION(:, :, :)                              :: multrec
       TYPE(dbcsr_mp_obj)                                 :: left_mp_obj, product_mp_obj, right_mp_obj
+      TYPE(mn_local_sizes), ALLOCATABLE, DIMENSION(:)    :: m_sizes, n_sizes
 
       CALL timeset(routineN, handle)
       !
       NULLIFY (row_blk_sizes2enum, enum2row_blk_sizes)
       NULLIFY (col_blk_sizes2enum, enum2col_blk_sizes)
+      NULLIFY (k_sizes)
       !
       IF (PRESENT(retain_sparsity)) THEN
          keep_sparsity = retain_sparsity
@@ -1460,8 +1469,10 @@ CONTAINS
       IF (has_acc) THEN
          ! enumerate the blocksizes to keep the following 2D-arrays small.
          CALL enumerate_blk_sizes(dbcsr_row_block_sizes(matrix_right), &
+                                  dbcsr_max_row_size(matrix_right), &
                                   row_blk_sizes2enum, enum2row_blk_sizes)
          CALL enumerate_blk_sizes(dbcsr_col_block_sizes(matrix_right), &
+                                  dbcsr_max_col_size(matrix_right), &
                                   col_blk_sizes2enum, enum2col_blk_sizes)
       ENDIF
       IF (nranks3D .GT. 1) THEN
@@ -1599,6 +1610,7 @@ CONTAINS
       ileft_buffer_comm = 0
       ALLOCATE (do_comm_right(ncols3D), do_comm_left(nrows3D))
       ALLOCATE (right_vcol(ncols3D), left_vrow(nrows3D))
+      ALLOCATE (m_sizes(nrows3D), n_sizes(ncols3D))
       irow3D_send = 0
       icol3D_send = 0
       first_k = .TRUE.
@@ -1785,6 +1797,21 @@ CONTAINS
                CALL dbcsr_repoint_index(product_matrix3D%mats(irow3D, icol3D)%matrix)
             ENDIF
             !
+            IF (.NOT. ASSOCIATED(m_sizes(irow3D)%sizes)) THEN
+               ALLOCATE (m_sizes(irow3D)%sizes(dbcsr_nblkrows_local(product_matrix3D%mats(irow3D, icol3D)%matrix)))
+               CALL local_filter(array_data(product_matrix3D%mats(irow3D, icol3D)%matrix%row_blk_size), &
+                                 array_size(product_matrix3D%mats(irow3D, icol3D)%matrix%local_rows), &
+                                 array_data(product_matrix3D%mats(irow3D, icol3D)%matrix%local_rows), &
+                                 m_sizes(irow3D)%sizes)
+            ENDIF
+            IF (.NOT. ASSOCIATED(n_sizes(icol3D)%sizes)) THEN
+               ALLOCATE (n_sizes(icol3D)%sizes(dbcsr_nblkcols_local(product_matrix3D%mats(irow3D, icol3D)%matrix)))
+               CALL local_filter(array_data(product_matrix3D%mats(irow3D, icol3D)%matrix%col_blk_size), &
+                                 array_size(product_matrix3D%mats(irow3D, icol3D)%matrix%local_cols), &
+                                 array_data(product_matrix3D%mats(irow3D, icol3D)%matrix%local_cols), &
+                                 n_sizes(icol3D)%sizes)
+            ENDIF
+            !
 !$OMP PARALLEL DEFAULT(NONE) &
 !$OMP          PRIVATE (size_guess, ithread) &
 !$OMP          SHARED (product_matrix3D, multrec, &
@@ -1793,7 +1820,7 @@ CONTAINS
 !$OMP                  matrix_right, matrix_left, nthreads, &
 !$OMP                  irow3D, icol3D, myrow3D, mycol3D, keep_product_data, &
 !$OMP                  product_matrix_epss_displ, product_matrix_epss_size, &
-!$OMP                  memtype_product_wm, size_guess_init, nranks3D)
+!$OMP                  memtype_product_wm, size_guess_init, nranks3D, m_sizes, n_sizes)
             !
             ! Setup product work areas
             !
@@ -1838,6 +1865,7 @@ CONTAINS
                                                                         product_matrix_epss_size(irow3D)), &
                                        block_estimate=0, &
                                        right_row_blk_size=dbcsr_row_block_sizes(matrix_right), &
+                                       m_sizes=m_sizes(irow3D)%sizes, n_sizes=n_sizes(icol3D)%sizes, &
                                        nlayers=nranks3D)
 !$OMP END PARALLEL
             !
@@ -1933,6 +1961,11 @@ CONTAINS
                                  right_buffer_p%vpcol, &
                                  imgdist=imgdist_right, do_merge_rows=.FALSE., &
                                  global_indices=right_global_indices)
+                  CALL ensure_array_size(k_sizes, ub=array_size(right_buffer_p%matrix%local_rows))
+                  CALL local_filter(array_data(right_buffer_p%matrix%row_blk_size), &
+                                    array_size(right_buffer_p%matrix%local_rows), &
+                                    array_data(right_buffer_p%matrix%local_rows), &
+                                    k_sizes)
                   IF (otf_filtering) THEN
                      CALL calculate_norms(right_buffer_p%matrix, &
                                           right_norms(:, iright_buffer_calc))
@@ -1940,6 +1973,7 @@ CONTAINS
                   IF (has_acc) THEN
                      CALL acc_transpose_blocks(right_buffer_p%matrix, &
                                                right_buffer_p%trs_stackbuf, &
+                                               k_sizes, n_sizes(icol3D)%sizes, &
                                                row_blk_sizes2enum, enum2row_blk_sizes, &
                                                col_blk_sizes2enum, enum2col_blk_sizes, &
                                                noresize=.TRUE.)
@@ -1967,7 +2001,7 @@ CONTAINS
 !$OMP SHARED (left_buffer_p, ileft_buffer_calc, &
 !$OMP         right_buffer_p, iright_buffer_calc, &
 !$OMP         left_norms,right_norms, &
-!$OMP         multrec, irow3D, icol3D, handle2) &
+!$OMP         multrec, irow3D, icol3D, handle2, k_sizes) &
 !$OMP PRIVATE (ithread) &
 !$OMP REDUCTION (+: flop)
                ithread = 0
@@ -1977,7 +2011,8 @@ CONTAINS
                                               right=right_buffer_p%matrix, &
                                               flop=flop, &
                                               a_norms=left_norms(:, ileft_buffer_calc), &
-                                              b_norms=right_norms(:, iright_buffer_calc))
+                                              b_norms=right_norms(:, iright_buffer_calc), &
+                                              k_sizes=k_sizes)
 !$OMP END PARALLEL
                CALL timestop(handle2)
             ENDIF
@@ -2139,6 +2174,16 @@ CONTAINS
       DEALLOCATE (multrec)
       DEALLOCATE (g2l_map_rows, g2l_map_cols)
       CALL dbcsr_finalize(product_matrix)
+      !
+      DO irow3D = 1, nrows3D
+         DEALLOCATE (m_sizes(irow3D)%sizes)
+      ENDDO
+      DEALLOCATE (m_sizes)
+      DO icol3D = 1, ncols3D
+         DEALLOCATE (n_sizes(icol3D)%sizes)
+      ENDDO
+      DEALLOCATE (n_sizes)
+      IF (ASSOCIATED(k_sizes)) DEALLOCATE (k_sizes)
       !
       CALL dbcsr_data_clear_pointer(data_get)
       CALL dbcsr_data_release(data_get)

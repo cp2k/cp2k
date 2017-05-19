@@ -19,7 +19,8 @@ MODULE dbcsr_mm_cannon
    USE acc_event,                       ONLY: acc_event_synchronize
    USE array_types,                     ONLY: array_data,&
                                               array_exists,&
-                                              array_i1d_obj
+                                              array_i1d_obj,&
+                                              array_size
    USE dbcsr_block_operations,          ONLY: dbcsr_block_conjg,&
                                               dbcsr_block_copy_aa,&
                                               dbcsr_block_real_neg,&
@@ -53,13 +54,13 @@ MODULE dbcsr_mm_cannon
    USE dbcsr_methods,                   ONLY: &
         dbcsr_destroy_array, dbcsr_distribution, dbcsr_get_data_type, dbcsr_get_index_memory_type, &
         dbcsr_has_symmetry, dbcsr_image_dist_hold, dbcsr_image_dist_init, &
-        dbcsr_image_dist_release, dbcsr_nblkcols_local, dbcsr_nblkrows_local, &
-        dbcsr_nblkrows_total, dbcsr_release, dbcsr_valid_index
+        dbcsr_image_dist_release, dbcsr_max_col_size, dbcsr_max_row_size, dbcsr_nblkcols_local, &
+        dbcsr_nblkrows_local, dbcsr_nblkrows_total, dbcsr_release, dbcsr_valid_index
    USE dbcsr_mm_common,                 ONLY: &
         acc_transpose_blocks, calculate_norms, count_mpi_statistics, dbcsr_mm_multrec_type_p, &
-        dbcsr_mpi_statistics, enumerate_blk_sizes, huge_norm, max_memory, memtype_abpanel_1, &
-        memtype_abpanel_2, memtype_mpi_buffer, memtype_trsbuffer_1, memtype_trsbuffer_2, &
-        product_matrix_size_guess, rec_sort_index, setup_buffer_matrix
+        dbcsr_mpi_statistics, enumerate_blk_sizes, huge_norm, local_filter, max_memory, &
+        memtype_abpanel_1, memtype_abpanel_2, memtype_mpi_buffer, memtype_trsbuffer_1, &
+        memtype_trsbuffer_2, product_matrix_size_guess, rec_sort_index, setup_buffer_matrix
    USE dbcsr_mm_dist_operations,        ONLY: dbcsr_get_local_vcols,&
                                               dbcsr_get_local_vrows,&
                                               dbcsr_reset_vlocals,&
@@ -917,9 +918,9 @@ CONTAINS
       INTEGER, ALLOCATABLE, DIMENSION(:, :, :, :)        :: all_sizes
       INTEGER, DIMENSION(3, 2)                           :: mp_rc_groups
       INTEGER, DIMENSION(:), POINTER :: col_blk_sizes2enum, enum2col_blk_sizes, &
-         enum2row_blk_sizes, left_data_rr, left_data_sr, left_index_rp, left_index_rr, &
-         left_index_sp, left_index_sr, local_rows, right_data_rr, right_data_sr, right_index_rp, &
-         right_index_rr, right_index_sp, right_index_sr, row_blk_sizes2enum
+         enum2row_blk_sizes, k_sizes, left_data_rr, left_data_sr, left_index_rp, left_index_rr, &
+         left_index_sp, left_index_sr, local_rows, m_sizes, n_sizes, right_data_rr, right_data_sr, &
+         right_index_rp, right_index_rr, right_index_sp, right_index_sr, row_blk_sizes2enum
       INTEGER, DIMENSION(:, :), POINTER                  :: left_pgrid, product_pgrid, right_pgrid
       INTEGER, SAVE                                      :: mult_id = 0
       LOGICAL                                            :: keep_sparsity, list_indexing, &
@@ -945,6 +946,7 @@ CONTAINS
       NULLIFY (trs_stackbuf_calc, trs_stackbuf_comm)
       NULLIFY (row_blk_sizes2enum, enum2row_blk_sizes)
       NULLIFY (col_blk_sizes2enum, enum2col_blk_sizes)
+      NULLIFY (k_sizes)
       !
       ALLOCATE (left_buffer_2, right_buffer_2)
       mult_id = mult_id+1
@@ -1266,8 +1268,10 @@ CONTAINS
       IF (has_acc) THEN
          ! enumerate the blocksizes to keep the following 2D-arrays small.
          CALL enumerate_blk_sizes(array_data(right_set%mats(1, 1)%row_blk_size), &
+                                  dbcsr_max_row_size(right_set%mats(1, 1)), &
                                   row_blk_sizes2enum, enum2row_blk_sizes)
          CALL enumerate_blk_sizes(array_data(right_set%mats(1, 1)%col_blk_size), &
+                                  dbcsr_max_col_size(right_set%mats(1, 1)), &
                                   col_blk_sizes2enum, enum2col_blk_sizes)
       ENDIF
 
@@ -1320,12 +1324,20 @@ CONTAINS
       right_index_sr = mp_request_null
       right_index_rr = mp_request_null
       !
+      ALLOCATE (m_sizes(dbcsr_nblkrows_local(product_matrix)))
+      CALL local_filter(array_data(product_matrix%row_blk_size), array_size(product_matrix%local_rows), &
+                        array_data(product_matrix%local_rows), m_sizes)
+      ALLOCATE (n_sizes(dbcsr_nblkcols_local(product_matrix)))
+      CALL local_filter(array_data(product_matrix%col_blk_size), array_size(product_matrix%local_cols), &
+                        array_data(product_matrix%local_cols), n_sizes)
+      !
 !$OMP PARALLEL &
 !$OMP DEFAULT (NONE) &
 !$OMP SHARED (left_buffer_comm, right_buffer_comm, product_matrix,&
 !$OMP         keep_sparsity, filter_eps, row_max_epss, multrec, nthreads, &
 !$OMP         right_data_sr, right_data_rr, left_data_sr, left_data_rr,&
-!$OMP         right_index_sr, right_index_rr, left_index_sr, left_index_rr), &
+!$OMP         right_index_sr, right_index_rr, left_index_sr, left_index_rr,&
+!$OMP         m_sizes, n_sizes), &
 !$OMP PRIVATE(ithread)
       ithread = 0
 !$    ithread = OMP_GET_THREAD_NUM()
@@ -1340,7 +1352,8 @@ CONTAINS
                                  block_estimate=MAX(product_matrix%nblks, &
                                                     left_buffer_comm%mats(1, 1)%nblks, &
                                                     right_buffer_comm%mats(1, 1)%nblks)/nthreads, &
-                                 right_row_blk_size=array_data(right_buffer_comm%mats(1, 1)%row_blk_size))
+                                 right_row_blk_size=array_data(right_buffer_comm%mats(1, 1)%row_blk_size), &
+                                 m_sizes=m_sizes, n_sizes=n_sizes)
 !$OMP END PARALLEL
       !
       ! Setup indexing
@@ -1648,12 +1661,20 @@ CONTAINS
                                      right_set%image_dist)
             CALL dbcsr_reset_vlocals(left_buffer_calc%mats(1, v_ki+1), &
                                      left_set%image_dist)
-
+            !
+            CALL ensure_array_size(k_sizes, ub=array_size(right_buffer_calc%mats(v_ki+1, 1)%local_rows))
+            CALL local_filter(array_data(right_buffer_calc%mats(v_ki+1, 1)%row_blk_size), &
+                              array_size(right_buffer_calc%mats(v_ki+1, 1)%local_rows), &
+                              array_data(right_buffer_calc%mats(v_ki+1, 1)%local_rows), &
+                              k_sizes)
+            !
             IF (has_acc) THEN
                CALL dbcsr_data_host2dev(left_buffer_calc%mats(1, v_ki+1)%data_area)
                CALL dbcsr_data_host2dev(right_buffer_calc%mats(v_ki+1, 1)%data_area)
                CALL acc_transpose_blocks(right_buffer_calc%mats(v_ki+1, 1), trs_stackbuf_calc, &
-                                         row_blk_sizes2enum, enum2row_blk_sizes, col_blk_sizes2enum, enum2col_blk_sizes)
+                                         k_sizes, n_sizes, &
+                                         row_blk_sizes2enum, enum2row_blk_sizes, &
+                                         col_blk_sizes2enum, enum2col_blk_sizes)
             END IF
 
             ! Sets the local right-matrix columns
@@ -1677,7 +1698,7 @@ CONTAINS
 !$OMP         keep_sparsity,threads_finished, &
 !$OMP         right_data_sr, right_data_rr, right_index_sr, right_index_rr, &
 !$OMP         left_data_sr, left_data_rr, left_index_sr, left_index_rr, &
-!$OMP         dbcsr_cfg) &
+!$OMP         dbcsr_cfg, k_sizes) &
 !$OMP PRIVATE (ithread,nthreads,threads_finished_read) &
 !$OMP FIRSTPRIVATE (metronome, nsteps_k, min_nimages) &
 !$OMP REDUCTION (+: flop_single)
@@ -1693,7 +1714,8 @@ CONTAINS
                                            left=left_buffer_calc%mats(1, v_ki+1), &
                                            right=right_buffer_calc%mats(v_ki+1, 1), &
                                            flop=flop_single, &
-                                           a_norms=left_norms, b_norms=right_norms)
+                                           a_norms=left_norms, b_norms=right_norms, &
+                                           k_sizes=k_sizes)
 
             IF (metronome == nsteps_k .AND. v_ki == min_nimages-1) THEN
                CALL dbcsr_mm_multrec_finalize(multrec(ithread)%p)
@@ -1781,6 +1803,8 @@ CONTAINS
       !
       flop = flop_total
       DEALLOCATE (left_buffer_2, right_buffer_2)
+      DEALLOCATE (m_sizes, n_sizes)
+      IF (ASSOCIATED(k_sizes)) DEALLOCATE (k_sizes)
       !
       CALL timestop(handle)
    END SUBROUTINE multiply_cannon
