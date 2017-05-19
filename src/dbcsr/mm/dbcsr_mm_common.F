@@ -41,6 +41,7 @@ MODULE dbcsr_mm_common
    USE dbcsr_work_operations,           ONLY: dbcsr_create
    USE kinds,                           ONLY: int_4,&
                                               int_8,&
+                                              real_4,&
                                               real_8,&
                                               sp
 #include "../../base/base_uses.f90"
