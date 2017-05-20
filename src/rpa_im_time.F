@@ -3799,7 +3799,7 @@ CONTAINS
 
       END DO
 
-      z_reflection = sum_z/REAL(natom)
+      z_reflection = sum_z/REAL(natom, KIND=dp)
 
       sum_z = 0.0_dp
 
