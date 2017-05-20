@@ -6005,7 +6005,7 @@ CONTAINS
 
          IF (row_offset > homo) THEN
 
-            data_block(1:row_size, 1) = coeff(row_offset-homo+1:row_offset+row_size-homo)
+            data_block(1:row_size, 1) = coeff(row_offset-homo:row_offset+row_size-homo-1)
 
          ELSE IF (row_offset+row_size-1 > homo) THEN
 

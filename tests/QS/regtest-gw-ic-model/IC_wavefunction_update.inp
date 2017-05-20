@@ -62,13 +62,13 @@
           MINIMAX
           &RI_G0W0
             CORR_MOS_OCC 4
-            CORR_MOS_VIRT 5
+            CORR_MOS_VIRT 1
             PRINT_GW_DETAILS
             RI OVERLAP
             IC
             &IC
               OPTIMIZE_HOMO_LUMO
-              GW_EIGENVALUES -5.0 -5.0 -5.0 -5.0 1.0 1.0 1.0 1.0 1.0 
+              GW_EIGENVALUES -5.0 -5.0 -5.0 -5.0 1.0
             &END
           &END
         &END RI_RPA
