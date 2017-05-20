@@ -3811,7 +3811,7 @@ CONTAINS
 
       END DO
 
-      avg_z_dist = sum_z/REAL(natom)
+      avg_z_dist = sum_z/REAL(natom, KIND=dp)
 
       min_z_dist = avg_z_dist
 
