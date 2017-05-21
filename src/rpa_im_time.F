@@ -4010,6 +4010,21 @@ CONTAINS
 
       END DO
 
+      DO imepos = 0, para_env%num_pe-1
+         DEALLOCATE (buffer_rec(imepos)%msg)
+         DEALLOCATE (buffer_rec(imepos)%indx)
+         DEALLOCATE (buffer_send(imepos)%msg)
+         DEALLOCATE (buffer_send(imepos)%indx)
+      END DO
+
+      DEALLOCATE (buffer_rec, buffer_send)
+      DEALLOCATE (block_counter, entry_counter)
+      DEALLOCATE (sizes_rec, sizes_send)
+      DEALLOCATE (num_entries_rec)
+      DEALLOCATE (num_blocks_rec)
+      DEALLOCATE (num_entries_send)
+      DEALLOCATE (num_blocks_send)
+
       CALL timestop(handle)
 
    END SUBROUTINE
