@@ -647,7 +647,7 @@ CONTAINS
       TYPE(hash_table_type), DIMENSION(:), INTENT(inout) :: hashes
       TYPE(dbcsr_type), INTENT(IN)                       :: matrix
       INTEGER                                            :: block_estimate
-      INTEGER, DIMENSION(:), INTENT(IN), OPTIONAL        :: row_map, col_map
+      INTEGER, DIMENSION(:), INTENT(IN)                  :: row_map, col_map
 
       CHARACTER(len=*), PARAMETER :: routineN = 'fill_hash_tables', &
          routineP = moduleN//':'//routineN
@@ -659,15 +659,9 @@ CONTAINS
       CALL timeset(routineN, handle)
       imat = 1
 !$    imat = OMP_GET_THREAD_NUM()+1
-      IF (PRESENT(row_map)) THEN
-         n_rows = matrix%nblkrows_local
-         IF (SIZE(hashes) /= n_rows) &
-            CPABORT("Local row count mismatch")
-      ELSE
-         n_rows = matrix%nblkrows_total
-         IF (SIZE(hashes) /= n_rows) &
-            CPABORT("Global row count mismatch")
-      ENDIF
+      n_rows = matrix%nblkrows_local
+      IF (SIZE(hashes) /= n_rows) &
+         CPABORT("Local row count mismatch")
       DO row = 1, n_rows
          ! create the hash table row with a reasonable initial size
          CALL hash_table_create(hashes(row), &
@@ -678,8 +672,8 @@ CONTAINS
       DO i = 1, matrix%wms(imat)%lastblk
          row = matrix%wms(imat)%row_i(i)
          col = matrix%wms(imat)%col_i(i)
-         IF (PRESENT(row_map)) row = row_map(row)
-         IF (PRESENT(col_map)) col = col_map(col)
+         row = row_map(row)
+         col = col_map(col)
          CALL hash_table_add(hashes(row), col, i)
       ENDDO
       CALL timestop(handle)
