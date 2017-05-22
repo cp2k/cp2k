@@ -3912,6 +3912,8 @@ CONTAINS
             num_blocks_rec(imepos) = sizes_rec(2*imepos+1)
          END DO
 
+         DEALLOCATE (sizes_rec, sizes_send)
+
       ELSE
 
          num_entries_rec(0) = num_entries_send(0)
@@ -4019,7 +4021,6 @@ CONTAINS
 
       DEALLOCATE (buffer_rec, buffer_send)
       DEALLOCATE (block_counter, entry_counter)
-      DEALLOCATE (sizes_rec, sizes_send)
       DEALLOCATE (num_entries_rec)
       DEALLOCATE (num_blocks_rec)
       DEALLOCATE (num_entries_send)
