@@ -480,7 +480,8 @@ CONTAINS
 
       ! Preparations for MME method to compute ERIs
       IF (qs_env%mp2_env%eri_method .EQ. do_eri_mme) THEN
-         CALL cp_eri_mme_set_params(eri_param, cell, qs_kind_set, basis_type_1="ORB", basis_type_2="RI_AUX", para_env=para_env)
+         IF (.NOT. eri_param%par%is_valid) &
+            CALL cp_eri_mme_set_params(eri_param, cell, qs_kind_set, basis_type_1="ORB", basis_type_2="RI_AUX", para_env=para_env)
       ENDIF
 
       CALL get_cell(cell=cell, periodic=periodic)

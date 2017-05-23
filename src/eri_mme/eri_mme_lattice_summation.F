@@ -472,7 +472,7 @@ CONTAINS
       INTEGER                                            :: G1c, G2c, G3c, i_pgf, k, k1, k2, &
                                                             k3, l_max, m_max, n_max, R_bound1, &
                                                             R_bound2, sum_method, sum_order, &
-                                                            n_sum_predicted, handle
+                                                            n_sum_predicted
       INTEGER, DIMENSION(3)                              :: G_bounds, n_sum
       REAL(KIND=dp)                                      :: alpha, beta, dG, G, gamma, inv_lgth, R1, &
                                                             R2, R_rad_2
@@ -533,7 +533,6 @@ CONTAINS
 
       SELECT CASE (sum_method)
       CASE (1) ! sum_G sum_G' C(G) C(G,G') C(G)
-         CALL timeset(routineN//"_GG", handle)
 
          ! rearrange the sum s.t. G and G' run over the most localized functions
          IF (sum_order .EQ. 0) THEN
@@ -598,9 +597,7 @@ CONTAINS
          END SELECT
 
          S_G = REAL(S_G_c, KIND=dp)*inv_lgth**2
-         CALL timestop(handle)
       CASE (2) ! sum_G sum_R C(G) C(R)
-         CALL timeset(routineN//"_GR", handle)
          IF (sum_order .EQ. 0) sum_order = MINLOC(G_bounds, DIM=1) ! 3 cases of rearranging the G sum runs over the most localized function
          R_rad_2 = R_rads_2(sum_order)
          SELECT CASE (sum_order)
@@ -627,12 +624,9 @@ CONTAINS
             S_G = RESHAPE(S_G_tmp, SHAPE(S_G), order=[3, 2, 1])
          END SELECT
 
-         CALL timestop(handle)
       CASE (3) ! sum_R sum_R' H(R, R')
-         CALL timeset(routineN//"_RR", handle)
          CALL pgf_sum_rspace_3c_1d(S_G, RA, RB, RC, zeta, zetb, zetc, a_mm, lgth, R_rads_3, n_sum_count)
          S_G = S_G*pi**(-0.5_dp)*((zeta+zetb)/(zeta*zetb))**(-0.5_dp)
-         CALL timestop(handle)
       END SELECT
 
       IF (debug) THEN

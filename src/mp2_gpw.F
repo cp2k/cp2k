@@ -769,16 +769,18 @@ CONTAINS
             IF (calc_forces) THEN
                ! since we have to compute again integrals reinitialize the stuff we need
                ! get some of the grids ready
-               NULLIFY (rho_r%pw, rho_g%pw, pot_g%pw)
-               CALL pw_pool_create_pw(auxbas_pw_pool, rho_r%pw, &
-                                      use_data=REALDATA3D, &
-                                      in_space=REALSPACE)
-               CALL pw_pool_create_pw(auxbas_pw_pool, rho_g%pw, &
-                                      use_data=COMPLEXDATA1D, &
-                                      in_space=RECIPROCALSPACE)
-               CALL pw_pool_create_pw(auxbas_pw_pool, pot_g%pw, &
-                                      use_data=COMPLEXDATA1D, &
-                                      in_space=RECIPROCALSPACE)
+               IF (qs_env%mp2_env%eri_method == do_eri_gpw) THEN
+                  NULLIFY (rho_r%pw, rho_g%pw, pot_g%pw)
+                  CALL pw_pool_create_pw(auxbas_pw_pool, rho_r%pw, &
+                                         use_data=REALDATA3D, &
+                                         in_space=REALSPACE)
+                  CALL pw_pool_create_pw(auxbas_pw_pool, rho_g%pw, &
+                                         use_data=COMPLEXDATA1D, &
+                                         in_space=RECIPROCALSPACE)
+                  CALL pw_pool_create_pw(auxbas_pw_pool, pot_g%pw, &
+                                         use_data=COMPLEXDATA1D, &
+                                         in_space=RECIPROCALSPACE)
+               ENDIF
 
                ! the mu_nu matrix (again)
                ! XXXXXXXXXXXXXXXXXXXXXXXXX
@@ -802,21 +804,23 @@ CONTAINS
                IF (nspins == 2) THEN ! Open shell
                   CALL calc_ri_mp2_nonsep(qs_env, mp2_env, para_env, para_env_sub, dft_control, cell, &
                                           particle_set, atomic_kind_set, qs_kind_set, mo_coeff, nmo, homo, dimen_RI, Eigenval, &
-                                          my_group_L_start, my_group_L_end, my_group_L_size, rho_r, rho_g, pot_g, &
+                                          my_group_L_start, my_group_L_end, my_group_L_size, sab_orb_sub, rho_r, rho_g, pot_g, &
                                           mat_munu, pw_env_sub, poisson_env, auxbas_pw_pool, task_list_sub, &
                                           blacs_env_sub, Eigenval_beta, homo_beta, mo_coeff_beta)
                ELSE ! Closed shell
                   CALL calc_ri_mp2_nonsep(qs_env, mp2_env, para_env, para_env_sub, dft_control, cell, &
                                           particle_set, atomic_kind_set, qs_kind_set, mo_coeff, nmo, homo, dimen_RI, Eigenval, &
-                                          my_group_L_start, my_group_L_end, my_group_L_size, rho_r, rho_g, pot_g, &
+                                          my_group_L_start, my_group_L_end, my_group_L_size, sab_orb_sub, rho_r, rho_g, pot_g, &
                                           mat_munu, pw_env_sub, poisson_env, auxbas_pw_pool, task_list_sub, &
                                           blacs_env_sub)
                ENDIF
 
-               ! release
-               CALL pw_pool_give_back_pw(auxbas_pw_pool, rho_r%pw)
-               CALL pw_pool_give_back_pw(auxbas_pw_pool, rho_g%pw)
-               CALL pw_pool_give_back_pw(auxbas_pw_pool, pot_g%pw)
+               IF (qs_env%mp2_env%eri_method == do_eri_gpw) THEN
+                  ! release
+                  CALL pw_pool_give_back_pw(auxbas_pw_pool, rho_r%pw)
+                  CALL pw_pool_give_back_pw(auxbas_pw_pool, rho_g%pw)
+                  CALL pw_pool_give_back_pw(auxbas_pw_pool, pot_g%pw)
+               ENDIF
 
                CALL dbcsr_release(mp2_env%ri_grad%mo_coeff_o)
                DEALLOCATE (mp2_env%ri_grad%mo_coeff_o)

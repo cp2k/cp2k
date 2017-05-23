@@ -17,6 +17,11 @@ MODULE mp2_ri_grad
    USE cp_blacs_env,                    ONLY: cp_blacs_env_type
    USE cp_control_types,                ONLY: dft_control_type
    USE cp_dbcsr_operations,             ONLY: copy_dbcsr_to_fm
+   USE cp_eri_mme_types,                ONLY: cp_eri_mme_deallocate_forces,&
+                                              cp_eri_mme_force,&
+                                              cp_eri_mme_param
+   USE cp_eri_mp2_interface,            ONLY: cp_eri_mme_2c_integrate,&
+                                              cp_eri_mme_3c_integrate
    USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
                                               cp_fm_struct_release,&
                                               cp_fm_struct_type
@@ -33,17 +38,17 @@ MODULE mp2_ri_grad
                                               cp_para_env_release
    USE cp_para_types,                   ONLY: cp_para_env_type
    USE dbcsr_api,                       ONLY: &
-        dbcsr_add, dbcsr_copy, dbcsr_copy_into_existing, dbcsr_create, dbcsr_multiply, &
-        dbcsr_p_type, dbcsr_release, dbcsr_set, dbcsr_transposed, dbcsr_type, &
-        dbcsr_type_no_symmetry, dbcsr_type_symmetric
+        dbcsr_add, dbcsr_copy, dbcsr_copy_into_existing, dbcsr_create, &
+        dbcsr_deallocate_matrix_set, dbcsr_multiply, dbcsr_p_type, dbcsr_release, dbcsr_set, &
+        dbcsr_transposed, dbcsr_type, dbcsr_type_no_symmetry, dbcsr_type_symmetric
    USE gaussian_gridlevels,             ONLY: gaussian_gridlevel
+   USE input_constants,                 ONLY: do_eri_gpw,&
+                                              do_eri_mme
    USE kinds,                           ONLY: dp
    USE mathconstants,                   ONLY: fourpi
    USE message_passing,                 ONLY: &
         mp_alltoall, mp_comm_split_direct, mp_irecv, mp_isend, mp_request_null, mp_sendrecv, &
         mp_sum, mp_wait, mp_waitall
-   USE molecule_kind_types,             ONLY: molecule_kind_type
-   USE molecule_types,                  ONLY: molecule_type
    USE mp2_types,                       ONLY: integ_mat_buffer_type,&
                                               integ_mat_buffer_type_2D,&
                                               mp2_type
@@ -76,6 +81,7 @@ MODULE mp2_ri_grad
    USE qs_kind_types,                   ONLY: get_qs_kind,&
                                               qs_kind_type
    USE qs_ks_types,                     ONLY: qs_ks_env_type
+   USE qs_neighbor_list_types,          ONLY: neighbor_list_set_p_type
    USE realspace_grid_types,            ONLY: realspace_grid_desc_p_type,&
                                               realspace_grid_p_type,&
                                               rs_grid_release,&
@@ -116,6 +122,7 @@ CONTAINS
 !> \param my_group_L_start ...
 !> \param my_group_L_end ...
 !> \param my_group_L_size ...
+!> \param sab_orb_sub ...
 !> \param rho_r ...
 !> \param rho_g ...
 !> \param pot_g ...
@@ -132,7 +139,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE calc_ri_mp2_nonsep(qs_env, mp2_env, para_env, para_env_sub, dft_control, cell, particle_set, &
                                  atomic_kind_set, qs_kind_set, mo_coeff, nmo, homo, dimen_RI, Eigenval, &
-                                 my_group_L_start, my_group_L_end, my_group_L_size, rho_r, rho_g, pot_g, &
+                                 my_group_L_start, my_group_L_end, my_group_L_size, sab_orb_sub, rho_r, rho_g, pot_g, &
                                  mat_munu, pw_env_sub, poisson_env, auxbas_pw_pool, task_list_sub, &
                                  blacs_env_sub, Eigenval_beta, homo_beta, mo_coeff_beta)
       TYPE(qs_environment_type), POINTER                 :: qs_env
@@ -148,6 +155,8 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:)                        :: Eigenval
       INTEGER                                            :: my_group_L_start, my_group_L_end, &
                                                             my_group_L_size
+      TYPE(neighbor_list_set_p_type), DIMENSION(:), &
+         POINTER                                         :: sab_orb_sub
       TYPE(pw_p_type)                                    :: rho_r, rho_g, pot_g
       TYPE(dbcsr_p_type)                                 :: mat_munu
       TYPE(pw_env_type), POINTER                         :: pw_env_sub
@@ -162,10 +171,10 @@ CONTAINS
       CHARACTER(LEN=*), PARAMETER :: routineN = 'calc_ri_mp2_nonsep', &
          routineP = moduleN//':'//routineN
 
-      INTEGER :: alpha, atom_a, beta, dimen, dir, handle, handle2, handle3, i, iatom, igrid_level, &
-         ikind, iorb, ipgf, iset, itmp(2), L_counter, lb(3), LLL, location(3), my_P_end, &
-         my_P_size, my_P_start, na1, na2, natom, ncoa, nkind, nseta, offset, sgfa, tp(3), ub(3), &
-         virtual, virtual_beta
+      INTEGER :: alpha, atom_a, beta, dimen, dir, eri_method, handle, handle2, handle3, i, iatom, &
+         igrid_level, ikind, iorb, ipgf, iset, itmp(2), L_counter, lb(3), LLL, location(3), &
+         my_P_end, my_P_size, my_P_start, na1, na2, natom, ncoa, nseta, offset, sgfa, tp(3), &
+         ub(3), virtual, virtual_beta
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: atom_of_kind, kind_of
       INTEGER, DIMENSION(3)                              :: comp
       INTEGER, DIMENSION(:), POINTER                     :: la_max, la_min, npgfa, nsgfa
@@ -180,17 +189,19 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(3, 3)                     :: h_stress, my_virial_a, my_virial_b
       REAL(KIND=dp), DIMENSION(:), POINTER               :: set_radius_a
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: I_tmp2, pab, rpgfa, sphi_a, zeta
+      TYPE(cp_eri_mme_force), ALLOCATABLE, DIMENSION(:)  :: force_2c, force_3c_aux, force_3c_orb_mu, &
+                                                            force_3c_orb_nu
+      TYPE(cp_eri_mme_param), POINTER                    :: eri_param
       TYPE(cp_fm_struct_type), POINTER                   :: fm_struct_tmp
       TYPE(cp_fm_type), POINTER                          :: L1_mu_i, L1_mu_i_beta, L2_nu_a, &
                                                             L2_nu_a_beta
       TYPE(dbcsr_p_type) :: Lag_mu_i_1, Lag_mu_i_1_beta, Lag_nu_a_2, Lag_nu_a_2_beta, &
          matrix_P_inu, matrix_P_inu_beta, matrix_P_munu, matrix_P_munu_nosym
-      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: G_P_ia, G_P_ia_beta
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: G_P_ia, G_P_ia_beta, mat_munu_local, &
+                                                            matrix_P_munu_local
       TYPE(dbcsr_type), POINTER                          :: mo_coeff_o, mo_coeff_o_beta, mo_coeff_v, &
                                                             mo_coeff_v_beta
       TYPE(gto_basis_set_type), POINTER                  :: basis_set_a
-      TYPE(molecule_kind_type), DIMENSION(:), POINTER    :: molecule_kind_set
-      TYPE(molecule_type), DIMENSION(:), POINTER         :: molecule_set
       TYPE(pw_p_type)                                    :: dvg(3), psi_L, psi_L_beta, temp_pw_g
       TYPE(qs_force_type), DIMENSION(:), POINTER         :: force
       TYPE(qs_ks_env_type), POINTER                      :: ks_env
@@ -200,6 +211,9 @@ CONTAINS
       TYPE(virial_type), POINTER                         :: virial
 
       CALL timeset(routineN, handle)
+
+      eri_method = mp2_env%eri_method
+      eri_param => mp2_env%eri_mme_param
 
       ! Find out whether we have a closed or open shell
       alpha_beta = .FALSE.
@@ -221,16 +235,6 @@ CONTAINS
          G_P_ia_beta => mp2_env%ri_grad%G_P_ia_beta
       ENDIF
 
-      CALL get_qs_env(qs_env, ks_env=ks_env, molecule_set=molecule_set, &
-                      molecule_kind_set=molecule_kind_set)
-
-      nkind = SIZE(atomic_kind_set)
-      natom = SIZE(particle_set)
-
-      ALLOCATE (kind_of(natom))
-      ALLOCATE (atom_of_kind(natom))
-      CALL get_atomic_kind_set(atomic_kind_set, kind_of=kind_of, atom_of_kind=atom_of_kind)
-
       itmp = get_limit(dimen_RI, para_env_sub%num_pe, para_env_sub%mepos)
       my_P_start = itmp(1)
       my_P_end = itmp(2)
@@ -251,6 +255,7 @@ CONTAINS
       CALL mp_sum(G_PQ_local, para_env_sub%group)
 
       ! deallocate here PQ_half, maybe usefull in the future
+      ! This is really bad style
       DEALLOCATE (mp2_env%ri_grad%PQ_half)
 
       ! create matrix holding the back transformation (G_P_inu)
@@ -265,11 +270,6 @@ CONTAINS
       ALLOCATE (matrix_P_munu_nosym%matrix)
       CALL dbcsr_create(matrix_P_munu_nosym%matrix, template=mat_munu%matrix, &
                         matrix_type=dbcsr_type_no_symmetry)
-      ! CALL dbcsr_create(matrix_P_munu_nosym%matrix,template=mat_munu%matrix)
-      ! CALL dbcsr_copy(matrix_P_munu_nosym%matrix,mat_munu%matrix,&
-      !                    name="matrix_P_munu_nosym")
-      !XXXXXX
-      ! CALL dbcsr_desymmetrize(mat_munu%matrix,matrix_P_munu_nosym%matrix)
 
       ! create Lagrangian matrices in mixed AO/MO formalism
       ALLOCATE (Lag_mu_i_1%matrix)
@@ -290,584 +290,614 @@ CONTAINS
          CALL dbcsr_set(Lag_nu_a_2_beta%matrix, 0.0_dp)
       ENDIF
 
-      ALLOCATE (matrix_P_munu%matrix)
-      CALL dbcsr_create(matrix_P_munu%matrix, template=mat_munu%matrix, &
-                        matrix_type=dbcsr_type_symmetric)
-      ! CALL dbcsr_set(mat_munu%matrix,0.0_dp)
-      ! CALL dbcsr_copy(matrix_P_munu%matrix,mat_munu%matrix,&
-      !                    name="matrix_P_munu")
-
-      ! wave function vector and supporting stuff
-      ALLOCATE (wf_vector(dimen_RI))
-      NULLIFY (psi_L%pw)
-      CALL pw_pool_create_pw(auxbas_pw_pool, psi_L%pw, &
-                             use_data=REALDATA3D, &
-                             in_space=REALSPACE)
-      IF (alpha_beta) THEN
-         NULLIFY (psi_L_beta%pw)
-         CALL pw_pool_create_pw(auxbas_pw_pool, psi_L_beta%pw, &
-                                use_data=REALDATA3D, &
-                                in_space=REALSPACE)
-      ENDIF
-
       ! get forces
       NULLIFY (force, virial)
       CALL get_qs_env(qs_env=qs_env, force=force, virial=virial)
 
-      ! check if we want to calculate the virial
-      use_virial = virial%pv_availability .AND. (.NOT. virial%pv_numer)
+      ! prepare integral derivatives with mme method
+      IF (eri_method .EQ. do_eri_mme) THEN
+         ALLOCATE (matrix_P_munu_local(my_group_L_size))
+         ALLOCATE (mat_munu_local(my_group_L_size))
+         L_counter = 0
+         DO LLL = my_group_L_start, my_group_L_end
+            L_counter = L_counter+1
+            ALLOCATE (matrix_P_munu_local(L_counter)%matrix)
+            ALLOCATE (mat_munu_local(L_counter)%matrix)
+            CALL dbcsr_create(matrix_P_munu_local(L_counter)%matrix, template=mat_munu%matrix, &
+                              matrix_type=dbcsr_type_symmetric)
+            CALL dbcsr_create(mat_munu_local(L_counter)%matrix, template=mat_munu%matrix, &
+                              matrix_type=dbcsr_type_symmetric)
+            CALL dbcsr_copy(mat_munu_local(L_counter)%matrix, mat_munu%matrix)
+            CALL dbcsr_set(mat_munu_local(L_counter)%matrix, 0.0_dp)
 
-      ! in case virial is required we need auxilliary pw
-      ! for calculate the MP2-volume contribution to the virial
-      ! (hartree potential derivatives)
-      IF (use_virial) THEN
-         NULLIFY (temp_pw_g%pw)
-         CALL pw_pool_create_pw(auxbas_pw_pool, temp_pw_g%pw, &
-                                use_data=COMPLEXDATA1D, &
-                                in_space=RECIPROCALSPACE)
-         DO i = 1, 3
-            NULLIFY (dvg(i)%pw)
-            CALL pw_pool_create_pw(auxbas_pw_pool, dvg(i)%pw, &
+            IF (alpha_beta) THEN
+               CALL G_P_transform_MO_to_AO(matrix_P_munu_local(L_counter), matrix_P_munu_nosym, mat_munu, &
+                                           G_P_ia(L_counter), matrix_P_inu, &
+                                           mo_coeff_v, mo_coeff_o, eps_filter, &
+                                           G_P_ia_beta(L_counter), matrix_P_inu_beta, mo_coeff_v_beta, mo_coeff_o_beta)
+            ELSE
+               CALL G_P_transform_MO_to_AO(matrix_P_munu_local(L_counter), matrix_P_munu_nosym, mat_munu, &
+                                           G_P_ia(L_counter), matrix_P_inu, &
+                                           mo_coeff_v, mo_coeff_o, eps_filter)
+            ENDIF
+         ENDDO
+
+         ALLOCATE (I_tmp2(dimen_RI, my_group_L_size))
+         I_tmp2(:, :) = 0.0_dp
+         CALL cp_eri_mme_2c_integrate(eri_param, para_env_sub, qs_env, &
+                                      basis_type_a="RI_AUX", basis_type_b="RI_AUX", &
+                                      hab=I_tmp2, first_b=my_group_L_start, last_b=my_group_L_end, &
+                                      eri_method=eri_method, pab=G_PQ_local, force_a=force_2c)
+
+         DEALLOCATE (I_tmp2)
+         CALL cp_eri_mme_3c_integrate(eri_param, para_env_sub, qs_env, &
+                                      first_c=my_group_L_start, last_c=my_group_L_end, mat_ab=mat_munu_local, &
+                                      basis_type_a="ORB", basis_type_b="ORB", basis_type_c="RI_AUX", &
+                                      sab_nl=sab_orb_sub, eri_method=eri_method, &
+                                      pabc=matrix_P_munu_local, &
+                                      force_a=force_3c_orb_mu, force_b=force_3c_orb_nu, force_c=force_3c_aux)
+
+         L_counter = 0
+         DO LLL = my_group_L_start, my_group_L_end
+            L_counter = L_counter+1
+            ! we recompute matrix_P_inu
+            CALL dbcsr_multiply("N", "T", 1.0_dp, mo_coeff_v, G_P_ia(L_counter)%matrix, &
+                                0.0_dp, matrix_P_inu%matrix, filter_eps=eps_filter)
+            IF (alpha_beta) THEN
+               CALL dbcsr_multiply("N", "T", 1.0_dp, mo_coeff_v_beta, G_P_ia_beta(L_counter)%matrix, &
+                                   0.0_dp, matrix_P_inu_beta%matrix, filter_eps=eps_filter)
+            ENDIF
+
+            IF (alpha_beta) THEN
+               CALL update_lagrangian(mat_munu_local(L_counter), matrix_P_inu, Lag_mu_i_1, &
+                                      G_P_ia(L_counter), mo_coeff_o, Lag_nu_a_2, &
+                                      eps_filter, &
+                                      matrix_P_inu_beta, Lag_mu_i_1_beta, G_P_ia_beta(L_counter), mo_coeff_o_beta, Lag_nu_a_2_beta)
+            ELSE
+               CALL update_lagrangian(mat_munu_local(L_counter), matrix_P_inu, Lag_mu_i_1, &
+                                      G_P_ia(L_counter), mo_coeff_o, Lag_nu_a_2, &
+                                      eps_filter)
+
+            ENDIF
+         ENDDO
+
+         DO ikind = 1, SIZE(force)
+            force(ikind)%mp2_non_sep(:, :) = -4.0_dp*force_2c(ikind)%forces(:, :)+ &
+                                             force_3c_orb_mu(ikind)%forces(:, :)+ &
+                                             force_3c_orb_nu(ikind)%forces(:, :)+ &
+                                             force_3c_aux(ikind)%forces(:, :)
+         END DO
+
+         CALL cp_eri_mme_deallocate_forces(force_2c)
+         CALL cp_eri_mme_deallocate_forces(force_3c_aux)
+         CALL cp_eri_mme_deallocate_forces(force_3c_orb_mu)
+         CALL cp_eri_mme_deallocate_forces(force_3c_orb_nu)
+         CALL dbcsr_deallocate_matrix_set(matrix_P_munu_local)
+         CALL dbcsr_deallocate_matrix_set(mat_munu_local)
+
+      ELSEIF (eri_method == do_eri_gpw) THEN
+         ALLOCATE (matrix_P_munu%matrix)
+         CALL dbcsr_create(matrix_P_munu%matrix, template=mat_munu%matrix, &
+                           matrix_type=dbcsr_type_symmetric)
+
+         CALL get_qs_env(qs_env, ks_env=ks_env)
+
+         natom = SIZE(particle_set)
+
+         ALLOCATE (kind_of(natom))
+         ALLOCATE (atom_of_kind(natom))
+         CALL get_atomic_kind_set(atomic_kind_set, kind_of=kind_of, atom_of_kind=atom_of_kind)
+
+         ! wave function vector and supporting stuff
+         ALLOCATE (wf_vector(dimen_RI))
+         NULLIFY (psi_L%pw)
+         CALL pw_pool_create_pw(auxbas_pw_pool, psi_L%pw, &
+                                use_data=REALDATA3D, &
+                                in_space=REALSPACE)
+         IF (alpha_beta) THEN
+            NULLIFY (psi_L_beta%pw)
+            CALL pw_pool_create_pw(auxbas_pw_pool, psi_L_beta%pw, &
+                                   use_data=REALDATA3D, &
+                                   in_space=REALSPACE)
+         ENDIF
+
+         ! check if we want to calculate the virial
+         use_virial = virial%pv_availability .AND. (.NOT. virial%pv_numer)
+
+         ! in case virial is required we need auxilliary pw
+         ! for calculate the MP2-volume contribution to the virial
+         ! (hartree potential derivatives)
+         IF (use_virial) THEN
+            NULLIFY (temp_pw_g%pw)
+            CALL pw_pool_create_pw(auxbas_pw_pool, temp_pw_g%pw, &
                                    use_data=COMPLEXDATA1D, &
                                    in_space=RECIPROCALSPACE)
-         END DO
-      END IF
-
-      ! start main loop over auxiliary basis functions
-      CALL timeset(routineN//"_loop", handle2)
-      L_counter = 0
-      DO LLL = my_group_L_start, my_group_L_end
-         L_counter = L_counter+1
-
-         ! first back-transformation a->nu
-         CALL timeset(routineN//"_back_v", handle3)
-         CALL dbcsr_set(matrix_P_inu%matrix, 0.0_dp)
-         CALL dbcsr_multiply("N", "T", 1.0_dp, mo_coeff_v, G_P_ia(L_counter)%matrix, &
-                             0.0_dp, matrix_P_inu%matrix, filter_eps=eps_filter)
-         IF (alpha_beta) THEN
-            CALL dbcsr_set(matrix_P_inu_beta%matrix, 0.0_dp)
-            CALL dbcsr_multiply("N", "T", 1.0_dp, mo_coeff_v_beta, G_P_ia_beta(L_counter)%matrix, &
-                                0.0_dp, matrix_P_inu_beta%matrix, filter_eps=eps_filter)
-         ENDIF
-         CALL timestop(handle3)
-
-         ! second back-transformation i->mu
-         CALL timeset(routineN//"_back_o", handle3)
-         CALL dbcsr_set(matrix_P_munu_nosym%matrix, 0.0_dp)
-         CALL dbcsr_multiply("N", "T", 1.0_dp, matrix_P_inu%matrix, mo_coeff_o, &
-                             0.0_dp, matrix_P_munu_nosym%matrix, filter_eps=eps_filter)
-         IF (alpha_beta) THEN
-            !CALL dbcsr_set(matrix_P_munu_nosym%matrix,0.0_dp)
-            CALL dbcsr_multiply("N", "T", 0.5_dp, matrix_P_inu_beta%matrix, mo_coeff_o_beta, &
-                                0.5_dp, matrix_P_munu_nosym%matrix, filter_eps=eps_filter)
-         ENDIF
-
-         ! ! first back-transformation a->nu
-         ! CALL timeset(routineN//"_back_v",handle3)
-         ! CALL dbcsr_set(matrix_P_inu%matrix,0.0_dp)
-         ! CALL dbcsr_multiply("N", "T", 1.0_dp, G_P_ia(L_counter)%matrix, mo_coeff_v, &
-         !                         0.0_dp, matrix_P_inu%matrix, filter_eps=eps_filter)
-         ! CALL timestop(handle3)
-
-         ! ! second back-transformation i->mu
-         ! CALL timeset(routineN//"_back_o",handle3)
-         ! CALL dbcsr_set(matrix_P_munu_nosym%matrix,0.0_dp)
-         ! CALL dbcsr_multiply("N", "N", 1.0_dp, mo_coeff_o, matrix_P_inu%matrix, &
-         !                         0.0_dp, matrix_P_munu_nosym%matrix, filter_eps=eps_filter)
-         ! symmetrize
-         CALL dbcsr_set(matrix_P_munu%matrix, 0.0_dp)
-         CALL dbcsr_transposed(matrix_P_munu%matrix, matrix_P_munu_nosym%matrix)
-         CALL dbcsr_add(matrix_P_munu%matrix, matrix_P_munu_nosym%matrix, &
-                        alpha_scalar=2.0_dp, beta_scalar=2.0_dp)
-         ! this is a trick to avoid that integrate_v_rspace starts to cry
-         CALL dbcsr_copy_into_existing(mat_munu%matrix, matrix_P_munu%matrix)
-         CALL dbcsr_copy(matrix_P_munu%matrix, mat_munu%matrix)
-
-         CALL timestop(handle3)
-
-         ! calculate potential associted to the single aux function
-         CALL timeset(routineN//"_wf_pot", handle3)
-         wf_vector = 0.0_dp
-         wf_vector(LLL) = 1.0_dp
-         ! pseudo psi_L
-         CALL calculate_wavefunction(mo_coeff, 1, psi_L, rho_g, atomic_kind_set, &
-                                     qs_kind_set, cell, dft_control, particle_set, pw_env_sub, &
-                                     basis_type="RI_AUX", &
-                                     external_vector=wf_vector)
-
-         rho_r%pw%cr3d = psi_L%pw%cr3d
-         IF (alpha_beta) THEN
-            CALL calculate_wavefunction(mo_coeff_beta, 1, psi_L_beta, rho_g, atomic_kind_set, &
-                                        qs_kind_set, cell, dft_control, particle_set, &
-                                        pw_env_sub, basis_type='RI_AUX', &
-                                        external_vector=wf_vector)
-            rho_r%pw%cr3d = 0.50_dp*(rho_r%pw%cr3d+psi_L_beta%pw%cr3d)
-         ENDIF
-         CALL pw_transfer(rho_r%pw, rho_g%pw)
-         CALL pw_poisson_solve(poisson_env, rho_g%pw, pair_energy, pot_g%pw)
-         CALL pw_transfer(pot_g%pw, rho_r%pw)
-         CALL pw_scale(rho_r%pw, rho_r%pw%pw_grid%dvol)
-         CALL timestop(handle3)
-
-         IF (use_virial) THEN
-            ! make a copy of the density in G space
-            ! calculate the potential derivatives in G space
-            CALL timeset(routineN//"_Virial", handle3)
-            CALL pw_copy(rho_g%pw, temp_pw_g%pw)
             DO i = 1, 3
-               comp = 0
-               comp(i) = 1
-               CALL pw_copy(pot_g%pw, dvg(i)%pw)
-               CALL pw_derive(dvg(i)%pw, comp)
+               NULLIFY (dvg(i)%pw)
+               CALL pw_pool_create_pw(auxbas_pw_pool, dvg(i)%pw, &
+                                      use_data=COMPLEXDATA1D, &
+                                      in_space=RECIPROCALSPACE)
             END DO
-            CALL timestop(handle3)
          END IF
 
-         ! integrate the potential of the single gaussian and update
-         ! 2-center forces with Gamma_PQ
-         CALL timeset(routineN//"_int_PQ", handle3)
-         NULLIFY (rs_v)
-         NULLIFY (rs_descs)
-         CALL pw_env_get(pw_env_sub, rs_descs=rs_descs, rs_grids=rs_v)
-         DO i = 1, SIZE(rs_v)
-            CALL rs_grid_retain(rs_v(i)%rs_grid)
-         END DO
-         CALL potential_pw2rs(rs_v, rho_r, pw_env_sub)
+         ! start main loop over auxiliary basis functions
+         CALL timeset(routineN//"_loop", handle2)
 
-         offset = 0
-         DO iatom = 1, natom
-            ikind = kind_of(iatom)
-            atom_a = atom_of_kind(iatom)
-            CALL get_qs_kind(qs_kind=qs_kind_set(ikind), basis_set=basis_set_a, &
-                             basis_type="RI_AUX")
+         L_counter = 0
+         DO LLL = my_group_L_start, my_group_L_end
+            L_counter = L_counter+1
 
-            first_sgfa => basis_set_a%first_sgf
-            la_max => basis_set_a%lmax
-            la_min => basis_set_a%lmin
-            npgfa => basis_set_a%npgf
-            nseta = basis_set_a%nset
-            nsgfa => basis_set_a%nsgf_set
-            rpgfa => basis_set_a%pgf_radius
-            set_radius_a => basis_set_a%set_radius
-            sphi_a => basis_set_a%sphi
-            zeta => basis_set_a%zet
+            IF (alpha_beta) THEN
+               CALL G_P_transform_MO_to_AO(matrix_P_munu, matrix_P_munu_nosym, mat_munu, &
+                                           G_P_ia(L_counter), &
+                                           matrix_P_inu, &
+                                           mo_coeff_v, mo_coeff_o, &
+                                           eps_filter, &
+                                           G_P_ia_beta(L_counter), matrix_P_inu_beta, &
+                                           mo_coeff_v_beta, mo_coeff_o_beta)
+            ELSE
+               CALL G_P_transform_MO_to_AO(matrix_P_munu, matrix_P_munu_nosym, mat_munu, &
+                                           G_P_ia(L_counter), &
+                                           matrix_P_inu, &
+                                           mo_coeff_v, mo_coeff_o, &
+                                           eps_filter)
+            ENDIF
 
-            ra(:) = pbc(particle_set(iatom)%r, cell)
-            rab = 0.0_dp
-            rab2 = 0.0_dp
-
-            force_a(:) = 0.0_dp
-            force_b(:) = 0.0_dp
-            IF (use_virial) THEN
-               my_virial_a = 0.0_dp
-               my_virial_b = 0.0_dp
-            END IF
-
-            DO iset = 1, nseta
-               ncoa = npgfa(iset)*ncoset(la_max(iset))
-               sgfa = first_sgfa(1, iset)
-
-               ALLOCATE (I_tmp2(ncoa, 1))
-               I_tmp2 = 0.0_dp
-               ALLOCATE (I_ab(nsgfa(iset), 1))
-               I_ab = 0.0_dp
-               ALLOCATE (pab(ncoa, 1))
-               pab = 0.0_dp
-
-               I_ab(1:nsgfa(iset), 1) = -4.0_dp*G_PQ_local(offset+1:offset+nsgfa(iset), L_counter)
-
-               CALL dgemm("N", "N", ncoa, 1, nsgfa(iset), &
-                          1.0_dp, sphi_a(1, sgfa), SIZE(sphi_a, 1), &
-                          I_ab(1, 1), SIZE(I_ab, 1), &
-                          0.0_dp, pab(1, 1), SIZE(pab, 1))
-
-               I_ab = 0.0_dp
-
-               igrid_level = gaussian_gridlevel(pw_env_sub%gridlevel_info, MINVAL(zeta(:, iset)))
-               map_it_here = .FALSE.
-               IF (.NOT. ALL(rs_v(igrid_level)%rs_grid%desc%perd == 1)) THEN
-                  DO dir = 1, 3
-                     ! bounds of local grid (i.e. removing the 'wings'), if periodic
-                     tp(dir) = FLOOR(DOT_PRODUCT(cell%h_inv(dir, :), ra)*rs_v(igrid_level)%rs_grid%desc%npts(dir))
-                     tp(dir) = MODULO(tp(dir), rs_v(igrid_level)%rs_grid%desc%npts(dir))
-                     IF (rs_v(igrid_level)%rs_grid%desc%perd(dir) .NE. 1) THEN
-                        lb(dir) = rs_v(igrid_level)%rs_grid%lb_local(dir)+rs_v(igrid_level)%rs_grid%desc%border
-                        ub(dir) = rs_v(igrid_level)%rs_grid%ub_local(dir)-rs_v(igrid_level)%rs_grid%desc%border
-                     ELSE
-                        lb(dir) = rs_v(igrid_level)%rs_grid%lb_local(dir)
-                        ub(dir) = rs_v(igrid_level)%rs_grid%ub_local(dir)
-                     ENDIF
-                     ! distributed grid, only map if it is local to the grid
-                     location(dir) = tp(dir)+rs_v(igrid_level)%rs_grid%desc%lb(dir)
-                  ENDDO
-                  IF (lb(1) <= location(1) .AND. location(1) <= ub(1) .AND. &
-                      lb(2) <= location(2) .AND. location(2) <= ub(2) .AND. &
-                      lb(3) <= location(3) .AND. location(3) <= ub(3)) THEN
-                     map_it_here = .TRUE.
-                  ENDIF
-               ELSE
-                  ! not distributed, just a round-robin distribution over the full set of CPUs
-                  IF (MODULO(offset, para_env_sub%num_pe) == para_env_sub%mepos) map_it_here = .TRUE.
-               ENDIF
-
-               offset = offset+nsgfa(iset)
-
-               IF (map_it_here) THEN
-                  DO ipgf = 1, npgfa(iset)
-                     na1 = (ipgf-1)*ncoset(la_max(iset))+1
-                     na2 = ipgf*ncoset(la_max(iset))
-                     igrid_level = gaussian_gridlevel(pw_env_sub%gridlevel_info, zeta(ipgf, iset))
-
-                     CALL integrate_pgf_product_rspace(la_max=la_max(iset), zeta=zeta(ipgf, iset)/2.0_dp, la_min=la_min(iset), &
-                                                       lb_max=0, zetb=zeta(ipgf, iset)/2.0_dp, lb_min=0, &
-                                                       ra=ra, rab=rab, rab2=rab2, &
-                                                       rsgrid=rs_v(igrid_level)%rs_grid, &
-                                                       cell=cell, &
-                                                       cube_info=pw_env_sub%cube_info(igrid_level), &
-                                                       hab=I_tmp2, &
-                                                       pab=pab, &
-                                                       o1=na1-1, &
-                                                       o2=0, &
-                                                       map_consistent=.TRUE., &
-                                                       eps_gvg_rspace=dft_control%qs_control%eps_gvg_rspace, &
-                                                       calculate_forces=.TRUE., &
-                                                       force_a=force_a, force_b=force_b, &
-                                                       use_virial=use_virial, my_virial_a=my_virial_a, my_virial_b=my_virial_b)
-
-                  END DO
-
-                  ! CALL dgemm("T","N",nsgfa(iset),1,ncoa,&
-                  !             1.0_dp,sphi_a(1,sgfa),SIZE(sphi_a,1),&
-                  !             I_tmp2(1,1),SIZE(I_tmp2,1),&
-                  !             1.0_dp,I_ab(1,1),SIZE(I_ab,1))
-                  ! L_local_col(offset-nsgfa(iset)+1:offset,i_counter)=I_ab(1:nsgfa(iset),1)
-               END IF
-
-               DEALLOCATE (I_tmp2)
-               DEALLOCATE (I_ab)
-               DEALLOCATE (pab)
-
-            END DO
-
-            force(ikind)%rho_elec(:, atom_a) = &
-               force(ikind)%rho_elec(:, atom_a)+force_a(:)+force_b
-            IF (use_virial) THEN
-               virial%pv_virial = virial%pv_virial+my_virial_a+my_virial_b
-            END IF
-         END DO
-
-         DO i = 1, SIZE(rs_v)
-            CALL rs_grid_release(rs_v(i)%rs_grid)
-         END DO
-         CALL timestop(handle3)
-         ! here we are done with the 2 centers
-
-         ! CALL cp_dbcsr_write_sparse_matrix(matrix_P_munu%matrix,4,12,qs_env,para_env_sub,&
-         !                                   output_unit=unit_nr)
-
-         ! integrate the potential of the single gaussian and update
-         ! 3-center forces
-         CALL timeset(routineN//"_int", handle3)
-         CALL dbcsr_set(mat_munu%matrix, 0.0_dp)
-         CALL integrate_v_rspace(rho_r, hmat=mat_munu, pmat=matrix_P_munu, &
-                                 qs_env=qs_env, calculate_forces=.TRUE., compute_tau=.FALSE., gapw=.FALSE., &
-                                 pw_env_external=pw_env_sub, &
-                                 task_list_external=task_list_sub)
-         CALL timestop(handle3)
-
-         ! update lagrangian
-         CALL timeset(routineN//"_Lag", handle3)
-         ! first contract mat_munu with the half back transformed Gamma_i_nu
-         ! in order to update Lag_mu_i_1
-         CALL dbcsr_multiply("N", "N", 1.0_dp, mat_munu%matrix, matrix_P_inu%matrix, &
-                             1.0_dp, Lag_mu_i_1%matrix, filter_eps=eps_filter)
-
-         IF (alpha_beta) THEN
-            CALL dbcsr_multiply("N", "N", 1.0_dp, mat_munu%matrix, matrix_P_inu_beta%matrix, &
-                                1.0_dp, Lag_mu_i_1_beta%matrix, filter_eps=eps_filter)
-         ENDIF
-
-         ! transform first index of mat_munu and store the result into matrix_P_inu
-         CALL dbcsr_set(matrix_P_inu%matrix, 0.0_dp)
-         CALL dbcsr_multiply("N", "N", 1.0_dp, mat_munu%matrix, mo_coeff_o, &
-                             0.0_dp, matrix_P_inu%matrix, filter_eps=eps_filter)
-
-         IF (alpha_beta) THEN
-            CALL dbcsr_set(matrix_P_inu_beta%matrix, 0.0_dp)
-            CALL dbcsr_multiply("N", "N", 1.0_dp, mat_munu%matrix, mo_coeff_o_beta, &
-                                0.0_dp, matrix_P_inu_beta%matrix, filter_eps=eps_filter)
-         ENDIF
-
-         ! contract the transformend matrix_P_inu with the untransformend Gamma_i_a
-         ! in order to update Lag_nu_a_2
-         CALL dbcsr_multiply("N", "N", -1.0_dp, matrix_P_inu%matrix, G_P_ia(L_counter)%matrix, &
-                             1.0_dp, Lag_nu_a_2%matrix, filter_eps=eps_filter)
-
-         IF (alpha_beta) THEN
-            CALL dbcsr_multiply("N", "N", -1.0_dp, matrix_P_inu_beta%matrix, &
-                                G_P_ia_beta(L_counter)%matrix, 1.0_dp, Lag_nu_a_2_beta%matrix, &
-                                filter_eps=eps_filter)
-         ENDIF
-
-         ! release the actual gamma_P_ia
-         CALL dbcsr_release(G_P_ia(L_counter)%matrix)
-         DEALLOCATE (G_P_ia(L_counter)%matrix)
-         IF (alpha_beta) THEN
-            CALL dbcsr_release(G_P_ia_beta(L_counter)%matrix)
-            DEALLOCATE (G_P_ia_beta(L_counter)%matrix)
-         ENDIF
-         CALL timestop(handle3)
-
-         IF (use_virial) THEN
-            ! add the volume contribution to the virial due to
-            ! the (P|Q) integrals, first we put the full gamme_PQ
-            ! pseudo wave-function into grid in order to calculate the
-            ! hartree potential derivatives
-            CALL timeset(routineN//"_Virial", handle3)
+            ! calculate potential associted to the single aux function
+            CALL timeset(routineN//"_wf_pot", handle3)
             wf_vector = 0.0_dp
-            wf_vector(:) = -2.0_dp*G_PQ_local(:, L_counter)
+            wf_vector(LLL) = 1.0_dp
+            ! pseudo psi_L
             CALL calculate_wavefunction(mo_coeff, 1, psi_L, rho_g, atomic_kind_set, &
                                         qs_kind_set, cell, dft_control, particle_set, pw_env_sub, &
                                         basis_type="RI_AUX", &
                                         external_vector=wf_vector)
-            ! transfer to reciprocal space and calculate potential
+
             rho_r%pw%cr3d = psi_L%pw%cr3d
+            IF (alpha_beta) THEN
+               CALL calculate_wavefunction(mo_coeff_beta, 1, psi_L_beta, rho_g, atomic_kind_set, &
+                                           qs_kind_set, cell, dft_control, particle_set, &
+                                           pw_env_sub, basis_type='RI_AUX', &
+                                           external_vector=wf_vector)
+               rho_r%pw%cr3d = 0.50_dp*(rho_r%pw%cr3d+psi_L_beta%pw%cr3d)
+            ENDIF
             CALL pw_transfer(rho_r%pw, rho_g%pw)
             CALL pw_poisson_solve(poisson_env, rho_g%pw, pair_energy, pot_g%pw)
-            ! update virial with volume term (first calculate hartree like energy (diagonal part of the virial))
-            e_hartree = 0.0_dp
-            h_stress = 0.0_dp
-            e_hartree = pw_integral_ab(temp_pw_g%pw, pot_g%pw)
-            DO alpha = 1, 3
-               comp = 0
-               comp(alpha) = 1
-               CALL pw_copy(pot_g%pw, rho_g%pw)
-               CALL pw_derive(rho_g%pw, comp)
-               h_stress(alpha, alpha) = -e_hartree
-               DO beta = alpha, 3
-                  h_stress(alpha, beta) = h_stress(alpha, beta) &
-                                          -2.0_dp*pw_integral_ab(rho_g%pw, dvg(beta)%pw)/fourpi
-                  h_stress(beta, alpha) = h_stress(alpha, beta)
-               END DO
-            END DO
-            virial%pv_virial = virial%pv_virial+h_stress/REAL(para_env_sub%num_pe, dp)
+            CALL pw_transfer(pot_g%pw, rho_r%pw)
+            CALL pw_scale(rho_r%pw, rho_r%pw%pw_grid%dvol)
             CALL timestop(handle3)
-         END IF
 
-         ! put the gamma density on grid
-         CALL timeset(routineN//"_Gpot", handle3)
-         CALL calculate_rho_elec(matrix_p=matrix_P_munu%matrix, &
-                                 rho=rho_r, &
-                                 rho_gspace=rho_g, &
-                                 total_rho=total_rho, &
-                                 task_list_external=task_list_sub, &
-                                 pw_env_external=pw_env_sub, &
-                                 ks_env=ks_env)
-         ! calculate associated hartree potential
-         ! CALL pw_transfer(rho_r%pw, rho_g%pw)
-         !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!1
-         CALL pw_poisson_solve(poisson_env, rho_g%pw, pair_energy, pot_g%pw)
-         CALL pw_transfer(pot_g%pw, rho_r%pw)
-         CALL pw_scale(rho_r%pw, rho_r%pw%pw_grid%dvol)
-         CALL timestop(handle3)
-
-         IF (use_virial) THEN
-            ! add the volume contribution to the virial coming from
-            ! the 3-center integrals (mu nu|P)
-            CALL timeset(routineN//"_Virial", handle3)
-            e_hartree = 0.0_dp
-            h_stress = 0.0_dp
-            e_hartree = pw_integral_ab(temp_pw_g%pw, pot_g%pw)
-            DO alpha = 1, 3
-               comp = 0
-               comp(alpha) = 1
-               CALL pw_copy(pot_g%pw, rho_g%pw)
-               CALL pw_derive(rho_g%pw, comp)
-               h_stress(alpha, alpha) = -e_hartree
-               DO beta = alpha, 3
-                  h_stress(alpha, beta) = h_stress(alpha, beta) &
-                                          -2.0_dp*pw_integral_ab(rho_g%pw, dvg(beta)%pw)/fourpi
-                  h_stress(beta, alpha) = h_stress(alpha, beta)
-               END DO
-            END DO
-            virial%pv_virial = virial%pv_virial+h_stress/REAL(para_env_sub%num_pe, dp)
-            CALL timestop(handle3)
-         END IF
-
-         ! integrate potential with auxiliary basis function derivatives
-         NULLIFY (rs_v)
-         NULLIFY (rs_descs)
-         CALL pw_env_get(pw_env_sub, rs_descs=rs_descs, rs_grids=rs_v)
-         DO i = 1, SIZE(rs_v)
-            CALL rs_grid_retain(rs_v(i)%rs_grid)
-         END DO
-         CALL potential_pw2rs(rs_v, rho_r, pw_env_sub)
-
-         offset = 0
-         DO iatom = 1, natom
-            ikind = kind_of(iatom)
-            atom_a = atom_of_kind(iatom)
-            CALL get_qs_kind(qs_kind=qs_kind_set(ikind), basis_set=basis_set_a, &
-                             basis_type="RI_AUX")
-
-            first_sgfa => basis_set_a%first_sgf
-            la_max => basis_set_a%lmax
-            la_min => basis_set_a%lmin
-            npgfa => basis_set_a%npgf
-            nseta = basis_set_a%nset
-            nsgfa => basis_set_a%nsgf_set
-            rpgfa => basis_set_a%pgf_radius
-            set_radius_a => basis_set_a%set_radius
-            sphi_a => basis_set_a%sphi
-            zeta => basis_set_a%zet
-
-            ra(:) = pbc(particle_set(iatom)%r, cell)
-            rab = 0.0_dp
-            rab2 = 0.0_dp
-
-            force_a(:) = 0.0_dp
-            force_b(:) = 0.0_dp
             IF (use_virial) THEN
-               my_virial_a = 0.0_dp
-               my_virial_b = 0.0_dp
+               ! make a copy of the density in G space
+               ! calculate the potential derivatives in G space
+               CALL timeset(routineN//"_Virial", handle3)
+               CALL pw_copy(rho_g%pw, temp_pw_g%pw)
+               DO i = 1, 3
+                  comp = 0
+                  comp(i) = 1
+                  CALL pw_copy(pot_g%pw, dvg(i)%pw)
+                  CALL pw_derive(dvg(i)%pw, comp)
+               END DO
+               CALL timestop(handle3)
             END IF
 
-            DO iset = 1, nseta
-               ncoa = npgfa(iset)*ncoset(la_max(iset))
-               sgfa = first_sgfa(1, iset)
+            ! integrate the potential of the single gaussian and update
+            ! 2-center forces with Gamma_PQ
+            CALL timeset(routineN//"_int_PQ", handle3)
+            NULLIFY (rs_v)
+            NULLIFY (rs_descs)
+            CALL pw_env_get(pw_env_sub, rs_descs=rs_descs, rs_grids=rs_v)
+            DO i = 1, SIZE(rs_v)
+               CALL rs_grid_retain(rs_v(i)%rs_grid)
+            END DO
+            CALL potential_pw2rs(rs_v, rho_r, pw_env_sub)
 
-               ALLOCATE (I_tmp2(ncoa, 1))
-               I_tmp2 = 0.0_dp
-               ALLOCATE (I_ab(nsgfa(iset), 1))
-               I_ab = 0.0_dp
-               ALLOCATE (pab(ncoa, 1))
-               pab = 0.0_dp
+            offset = 0
+            DO iatom = 1, natom
+               ikind = kind_of(iatom)
+               atom_a = atom_of_kind(iatom)
+               CALL get_qs_kind(qs_kind=qs_kind_set(ikind), basis_set=basis_set_a, &
+                                basis_type="RI_AUX")
 
-               skip_shell = .TRUE.
-               DO iorb = 1, nsgfa(iset)
-                  IF (iorb+offset == LLL) THEN
-                     I_ab(iorb, 1) = 1.0_dp
-                     skip_shell = .FALSE.
-                  END IF
-               END DO
+               first_sgfa => basis_set_a%first_sgf
+               la_max => basis_set_a%lmax
+               la_min => basis_set_a%lmin
+               npgfa => basis_set_a%npgf
+               nseta = basis_set_a%nset
+               nsgfa => basis_set_a%nsgf_set
+               rpgfa => basis_set_a%pgf_radius
+               set_radius_a => basis_set_a%set_radius
+               sphi_a => basis_set_a%sphi
+               zeta => basis_set_a%zet
 
-               IF (skip_shell) THEN
+               ra(:) = pbc(particle_set(iatom)%r, cell)
+               rab = 0.0_dp
+               rab2 = 0.0_dp
+
+               force_a(:) = 0.0_dp
+               force_b(:) = 0.0_dp
+               IF (use_virial) THEN
+                  my_virial_a = 0.0_dp
+                  my_virial_b = 0.0_dp
+               END IF
+
+               DO iset = 1, nseta
+                  ncoa = npgfa(iset)*ncoset(la_max(iset))
+                  sgfa = first_sgfa(1, iset)
+
+                  ALLOCATE (I_tmp2(ncoa, 1))
+                  I_tmp2 = 0.0_dp
+                  ALLOCATE (I_ab(nsgfa(iset), 1))
+                  I_ab = 0.0_dp
+                  ALLOCATE (pab(ncoa, 1))
+                  pab = 0.0_dp
+
+                  I_ab(1:nsgfa(iset), 1) = -4.0_dp*G_PQ_local(offset+1:offset+nsgfa(iset), L_counter)
+
+                  CALL dgemm("N", "N", ncoa, 1, nsgfa(iset), &
+                             1.0_dp, sphi_a(1, sgfa), SIZE(sphi_a, 1), &
+                             I_ab(1, 1), SIZE(I_ab, 1), &
+                             0.0_dp, pab(1, 1), SIZE(pab, 1))
+
+                  I_ab = 0.0_dp
+
+                  igrid_level = gaussian_gridlevel(pw_env_sub%gridlevel_info, MINVAL(zeta(:, iset)))
+                  map_it_here = .FALSE.
+                  IF (.NOT. ALL(rs_v(igrid_level)%rs_grid%desc%perd == 1)) THEN
+                     DO dir = 1, 3
+                        ! bounds of local grid (i.e. removing the 'wings'), if periodic
+                        tp(dir) = FLOOR(DOT_PRODUCT(cell%h_inv(dir, :), ra)*rs_v(igrid_level)%rs_grid%desc%npts(dir))
+                        tp(dir) = MODULO(tp(dir), rs_v(igrid_level)%rs_grid%desc%npts(dir))
+                        IF (rs_v(igrid_level)%rs_grid%desc%perd(dir) .NE. 1) THEN
+                           lb(dir) = rs_v(igrid_level)%rs_grid%lb_local(dir)+rs_v(igrid_level)%rs_grid%desc%border
+                           ub(dir) = rs_v(igrid_level)%rs_grid%ub_local(dir)-rs_v(igrid_level)%rs_grid%desc%border
+                        ELSE
+                           lb(dir) = rs_v(igrid_level)%rs_grid%lb_local(dir)
+                           ub(dir) = rs_v(igrid_level)%rs_grid%ub_local(dir)
+                        ENDIF
+                        ! distributed grid, only map if it is local to the grid
+                        location(dir) = tp(dir)+rs_v(igrid_level)%rs_grid%desc%lb(dir)
+                     ENDDO
+                     IF (lb(1) <= location(1) .AND. location(1) <= ub(1) .AND. &
+                         lb(2) <= location(2) .AND. location(2) <= ub(2) .AND. &
+                         lb(3) <= location(3) .AND. location(3) <= ub(3)) THEN
+                        map_it_here = .TRUE.
+                     ENDIF
+                  ELSE
+                     ! not distributed, just a round-robin distribution over the full set of CPUs
+                     IF (MODULO(offset, para_env_sub%num_pe) == para_env_sub%mepos) map_it_here = .TRUE.
+                  ENDIF
+
                   offset = offset+nsgfa(iset)
+
+                  IF (map_it_here) THEN
+                     DO ipgf = 1, npgfa(iset)
+                        na1 = (ipgf-1)*ncoset(la_max(iset))+1
+                        na2 = ipgf*ncoset(la_max(iset))
+                        igrid_level = gaussian_gridlevel(pw_env_sub%gridlevel_info, zeta(ipgf, iset))
+
+                        CALL integrate_pgf_product_rspace(la_max=la_max(iset), zeta=zeta(ipgf, iset)/2.0_dp, la_min=la_min(iset), &
+                                                          lb_max=0, zetb=zeta(ipgf, iset)/2.0_dp, lb_min=0, &
+                                                          ra=ra, rab=rab, rab2=rab2, &
+                                                          rsgrid=rs_v(igrid_level)%rs_grid, &
+                                                          cell=cell, &
+                                                          cube_info=pw_env_sub%cube_info(igrid_level), &
+                                                          hab=I_tmp2, &
+                                                          pab=pab, &
+                                                          o1=na1-1, &
+                                                          o2=0, &
+                                                          map_consistent=.TRUE., &
+                                                          eps_gvg_rspace=dft_control%qs_control%eps_gvg_rspace, &
+                                                          calculate_forces=.TRUE., &
+                                                          force_a=force_a, force_b=force_b, &
+                                                          use_virial=use_virial, my_virial_a=my_virial_a, my_virial_b=my_virial_b)
+
+                     END DO
+
+                     ! CALL dgemm("T","N",nsgfa(iset),1,ncoa,&
+                     !             1.0_dp,sphi_a(1,sgfa),SIZE(sphi_a,1),&
+                     !             I_tmp2(1,1),SIZE(I_tmp2,1),&
+                     !             1.0_dp,I_ab(1,1),SIZE(I_ab,1))
+                     ! L_local_col(offset-nsgfa(iset)+1:offset,i_counter)=I_ab(1:nsgfa(iset),1)
+                  END IF
+
                   DEALLOCATE (I_tmp2)
                   DEALLOCATE (I_ab)
                   DEALLOCATE (pab)
-                  CYCLE
+
+               END DO
+
+               force(ikind)%rho_elec(:, atom_a) = &
+                  force(ikind)%rho_elec(:, atom_a)+force_a(:)+force_b
+               IF (use_virial) THEN
+                  virial%pv_virial = virial%pv_virial+my_virial_a+my_virial_b
                END IF
-
-               CALL dgemm("N", "N", ncoa, 1, nsgfa(iset), &
-                          1.0_dp, sphi_a(1, sgfa), SIZE(sphi_a, 1), &
-                          I_ab(1, 1), SIZE(I_ab, 1), &
-                          0.0_dp, pab(1, 1), SIZE(pab, 1))
-               I_ab = 0.0_dp
-
-               igrid_level = gaussian_gridlevel(pw_env_sub%gridlevel_info, MINVAL(zeta(:, iset)))
-               map_it_here = .FALSE.
-               IF (.NOT. ALL(rs_v(igrid_level)%rs_grid%desc%perd == 1)) THEN
-                  DO dir = 1, 3
-                     ! bounds of local grid (i.e. removing the 'wings'), if periodic
-                     tp(dir) = FLOOR(DOT_PRODUCT(cell%h_inv(dir, :), ra)*rs_v(igrid_level)%rs_grid%desc%npts(dir))
-                     tp(dir) = MODULO(tp(dir), rs_v(igrid_level)%rs_grid%desc%npts(dir))
-                     IF (rs_v(igrid_level)%rs_grid%desc%perd(dir) .NE. 1) THEN
-                        lb(dir) = rs_v(igrid_level)%rs_grid%lb_local(dir)+rs_v(igrid_level)%rs_grid%desc%border
-                        ub(dir) = rs_v(igrid_level)%rs_grid%ub_local(dir)-rs_v(igrid_level)%rs_grid%desc%border
-                     ELSE
-                        lb(dir) = rs_v(igrid_level)%rs_grid%lb_local(dir)
-                        ub(dir) = rs_v(igrid_level)%rs_grid%ub_local(dir)
-                     ENDIF
-                     ! distributed grid, only map if it is local to the grid
-                     location(dir) = tp(dir)+rs_v(igrid_level)%rs_grid%desc%lb(dir)
-                  ENDDO
-                  IF (lb(1) <= location(1) .AND. location(1) <= ub(1) .AND. &
-                      lb(2) <= location(2) .AND. location(2) <= ub(2) .AND. &
-                      lb(3) <= location(3) .AND. location(3) <= ub(3)) THEN
-                     map_it_here = .TRUE.
-                  ENDIF
-               ELSE
-                  ! not distributed, just a round-robin distribution over the full set of CPUs
-                  IF (MODULO(offset, para_env_sub%num_pe) == para_env_sub%mepos) map_it_here = .TRUE.
-               ENDIF
-
-               offset = offset+nsgfa(iset)
-
-               IF (map_it_here) THEN
-                  DO ipgf = 1, npgfa(iset)
-                     na1 = (ipgf-1)*ncoset(la_max(iset))+1
-                     na2 = ipgf*ncoset(la_max(iset))
-                     igrid_level = gaussian_gridlevel(pw_env_sub%gridlevel_info, zeta(ipgf, iset))
-
-                     CALL integrate_pgf_product_rspace(la_max=la_max(iset), zeta=zeta(ipgf, iset)/2.0_dp, la_min=la_min(iset), &
-                                                       lb_max=0, zetb=zeta(ipgf, iset)/2.0_dp, lb_min=0, &
-                                                       ra=ra, rab=rab, rab2=rab2, &
-                                                       rsgrid=rs_v(igrid_level)%rs_grid, &
-                                                       cell=cell, &
-                                                       cube_info=pw_env_sub%cube_info(igrid_level), &
-                                                       hab=I_tmp2, &
-                                                       pab=pab, &
-                                                       o1=na1-1, &
-                                                       o2=0, &
-                                                       map_consistent=.TRUE., &
-                                                       eps_gvg_rspace=dft_control%qs_control%eps_gvg_rspace, &
-                                                       calculate_forces=.TRUE., &
-                                                       force_a=force_a, force_b=force_b, &
-                                                       use_virial=use_virial, my_virial_a=my_virial_a, my_virial_b=my_virial_b)
-
-                  END DO
-
-                  ! CALL dgemm("T","N".0_dp,sphi_a(1,sgfa),SIZE(sphi_a,1),&
-                  !             I_tmp2(1,1),SIZE(I_tmp2,1),&
-                  !             1.0_dp,I_ab(1,1),SIZE(I_ab,1))
-                  ! L_local_col(offset-nsgfa(iset)+1:offset,i_counter)=I_ab(1:nsgfa(iset),1)
-               END IF
-
-               DEALLOCATE (I_tmp2)
-               DEALLOCATE (I_ab)
-               DEALLOCATE (pab)
-
             END DO
 
-            force(ikind)%rho_elec(:, atom_a) = &
-               force(ikind)%rho_elec(:, atom_a)+force_a(:)+force_b(:)
+            DO i = 1, SIZE(rs_v)
+               CALL rs_grid_release(rs_v(i)%rs_grid)
+            END DO
+            CALL timestop(handle3)
+            ! here we are done with the 2 centers
+
+            ! CALL cp_dbcsr_write_sparse_matrix(matrix_P_munu%matrix,4,12,qs_env,para_env_sub,&
+            !                                   output_unit=unit_nr)
+
+            ! integrate the potential of the single gaussian and update
+            ! 3-center forces
+            CALL timeset(routineN//"_int", handle3)
+            CALL dbcsr_set(mat_munu%matrix, 0.0_dp)
+            CALL integrate_v_rspace(rho_r, hmat=mat_munu, pmat=matrix_P_munu, &
+                                    qs_env=qs_env, calculate_forces=.TRUE., compute_tau=.FALSE., gapw=.FALSE., &
+                                    pw_env_external=pw_env_sub, &
+                                    task_list_external=task_list_sub)
+            CALL timestop(handle3)
+
+            IF (alpha_beta) THEN
+               CALL update_lagrangian(mat_munu, matrix_P_inu, Lag_mu_i_1, &
+                                      G_P_ia(L_counter), mo_coeff_o, Lag_nu_a_2, &
+                                      eps_filter, &
+                                      matrix_P_inu_beta, Lag_mu_i_1_beta, G_P_ia_beta(L_counter), mo_coeff_o_beta, Lag_nu_a_2_beta)
+            ELSE
+               CALL update_lagrangian(mat_munu, matrix_P_inu, Lag_mu_i_1, &
+                                      G_P_ia(L_counter), mo_coeff_o, Lag_nu_a_2, &
+                                      eps_filter)
+
+            ENDIF
+
             IF (use_virial) THEN
-               virial%pv_virial = virial%pv_virial+my_virial_a+my_virial_b
+               ! add the volume contribution to the virial due to
+               ! the (P|Q) integrals, first we put the full gamme_PQ
+               ! pseudo wave-function into grid in order to calculate the
+               ! hartree potential derivatives
+               CALL timeset(routineN//"_Virial", handle3)
+               wf_vector = 0.0_dp
+               wf_vector(:) = -2.0_dp*G_PQ_local(:, L_counter)
+               CALL calculate_wavefunction(mo_coeff, 1, psi_L, rho_g, atomic_kind_set, &
+                                           qs_kind_set, cell, dft_control, particle_set, pw_env_sub, &
+                                           basis_type="RI_AUX", &
+                                           external_vector=wf_vector)
+               ! transfer to reciprocal space and calculate potential
+               rho_r%pw%cr3d = psi_L%pw%cr3d
+               CALL pw_transfer(rho_r%pw, rho_g%pw)
+               CALL pw_poisson_solve(poisson_env, rho_g%pw, pair_energy, pot_g%pw)
+               ! update virial with volume term (first calculate hartree like energy (diagonal part of the virial))
+               e_hartree = 0.0_dp
+               h_stress = 0.0_dp
+               e_hartree = pw_integral_ab(temp_pw_g%pw, pot_g%pw)
+               DO alpha = 1, 3
+                  comp = 0
+                  comp(alpha) = 1
+                  CALL pw_copy(pot_g%pw, rho_g%pw)
+                  CALL pw_derive(rho_g%pw, comp)
+                  h_stress(alpha, alpha) = -e_hartree
+                  DO beta = alpha, 3
+                     h_stress(alpha, beta) = h_stress(alpha, beta) &
+                                             -2.0_dp*pw_integral_ab(rho_g%pw, dvg(beta)%pw)/fourpi
+                     h_stress(beta, alpha) = h_stress(alpha, beta)
+                  END DO
+               END DO
+               virial%pv_virial = virial%pv_virial+h_stress/REAL(para_env_sub%num_pe, dp)
+               CALL timestop(handle3)
             END IF
+
+            ! put the gamma density on grid
+            CALL timeset(routineN//"_Gpot", handle3)
+            CALL calculate_rho_elec(matrix_p=matrix_P_munu%matrix, &
+                                    rho=rho_r, &
+                                    rho_gspace=rho_g, &
+                                    total_rho=total_rho, &
+                                    task_list_external=task_list_sub, &
+                                    pw_env_external=pw_env_sub, &
+                                    ks_env=ks_env)
+            ! calculate associated hartree potential
+            ! CALL pw_transfer(rho_r%pw, rho_g%pw)
+            !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!1
+            CALL pw_poisson_solve(poisson_env, rho_g%pw, pair_energy, pot_g%pw)
+            CALL pw_transfer(pot_g%pw, rho_r%pw)
+            CALL pw_scale(rho_r%pw, rho_r%pw%pw_grid%dvol)
+            CALL timestop(handle3)
+
+            IF (use_virial) THEN
+               ! add the volume contribution to the virial coming from
+               ! the 3-center integrals (mu nu|P)
+               CALL timeset(routineN//"_Virial", handle3)
+               e_hartree = 0.0_dp
+               h_stress = 0.0_dp
+               e_hartree = pw_integral_ab(temp_pw_g%pw, pot_g%pw)
+               DO alpha = 1, 3
+                  comp = 0
+                  comp(alpha) = 1
+                  CALL pw_copy(pot_g%pw, rho_g%pw)
+                  CALL pw_derive(rho_g%pw, comp)
+                  h_stress(alpha, alpha) = -e_hartree
+                  DO beta = alpha, 3
+                     h_stress(alpha, beta) = h_stress(alpha, beta) &
+                                             -2.0_dp*pw_integral_ab(rho_g%pw, dvg(beta)%pw)/fourpi
+                     h_stress(beta, alpha) = h_stress(alpha, beta)
+                  END DO
+               END DO
+               virial%pv_virial = virial%pv_virial+h_stress/REAL(para_env_sub%num_pe, dp)
+               CALL timestop(handle3)
+            END IF
+
+            ! integrate potential with auxiliary basis function derivatives
+            NULLIFY (rs_v)
+            NULLIFY (rs_descs)
+            CALL pw_env_get(pw_env_sub, rs_descs=rs_descs, rs_grids=rs_v)
+            DO i = 1, SIZE(rs_v)
+               CALL rs_grid_retain(rs_v(i)%rs_grid)
+            END DO
+            CALL potential_pw2rs(rs_v, rho_r, pw_env_sub)
+
+            offset = 0
+            DO iatom = 1, natom
+               ikind = kind_of(iatom)
+               atom_a = atom_of_kind(iatom)
+               CALL get_qs_kind(qs_kind=qs_kind_set(ikind), basis_set=basis_set_a, &
+                                basis_type="RI_AUX")
+
+               first_sgfa => basis_set_a%first_sgf
+               la_max => basis_set_a%lmax
+               la_min => basis_set_a%lmin
+               npgfa => basis_set_a%npgf
+               nseta = basis_set_a%nset
+               nsgfa => basis_set_a%nsgf_set
+               rpgfa => basis_set_a%pgf_radius
+               set_radius_a => basis_set_a%set_radius
+               sphi_a => basis_set_a%sphi
+               zeta => basis_set_a%zet
+
+               ra(:) = pbc(particle_set(iatom)%r, cell)
+               rab = 0.0_dp
+               rab2 = 0.0_dp
+
+               force_a(:) = 0.0_dp
+               force_b(:) = 0.0_dp
+               IF (use_virial) THEN
+                  my_virial_a = 0.0_dp
+                  my_virial_b = 0.0_dp
+               END IF
+
+               DO iset = 1, nseta
+                  ncoa = npgfa(iset)*ncoset(la_max(iset))
+                  sgfa = first_sgfa(1, iset)
+
+                  ALLOCATE (I_tmp2(ncoa, 1))
+                  I_tmp2 = 0.0_dp
+                  ALLOCATE (I_ab(nsgfa(iset), 1))
+                  I_ab = 0.0_dp
+                  ALLOCATE (pab(ncoa, 1))
+                  pab = 0.0_dp
+
+                  skip_shell = .TRUE.
+                  DO iorb = 1, nsgfa(iset)
+                     IF (iorb+offset == LLL) THEN
+                        I_ab(iorb, 1) = 1.0_dp
+                        skip_shell = .FALSE.
+                     END IF
+                  END DO
+
+                  IF (skip_shell) THEN
+                     offset = offset+nsgfa(iset)
+                     DEALLOCATE (I_tmp2)
+                     DEALLOCATE (I_ab)
+                     DEALLOCATE (pab)
+                     CYCLE
+                  END IF
+
+                  CALL dgemm("N", "N", ncoa, 1, nsgfa(iset), &
+                             1.0_dp, sphi_a(1, sgfa), SIZE(sphi_a, 1), &
+                             I_ab(1, 1), SIZE(I_ab, 1), &
+                             0.0_dp, pab(1, 1), SIZE(pab, 1))
+                  I_ab = 0.0_dp
+
+                  igrid_level = gaussian_gridlevel(pw_env_sub%gridlevel_info, MINVAL(zeta(:, iset)))
+                  map_it_here = .FALSE.
+                  IF (.NOT. ALL(rs_v(igrid_level)%rs_grid%desc%perd == 1)) THEN
+                     DO dir = 1, 3
+                        ! bounds of local grid (i.e. removing the 'wings'), if periodic
+                        tp(dir) = FLOOR(DOT_PRODUCT(cell%h_inv(dir, :), ra)*rs_v(igrid_level)%rs_grid%desc%npts(dir))
+                        tp(dir) = MODULO(tp(dir), rs_v(igrid_level)%rs_grid%desc%npts(dir))
+                        IF (rs_v(igrid_level)%rs_grid%desc%perd(dir) .NE. 1) THEN
+                           lb(dir) = rs_v(igrid_level)%rs_grid%lb_local(dir)+rs_v(igrid_level)%rs_grid%desc%border
+                           ub(dir) = rs_v(igrid_level)%rs_grid%ub_local(dir)-rs_v(igrid_level)%rs_grid%desc%border
+                        ELSE
+                           lb(dir) = rs_v(igrid_level)%rs_grid%lb_local(dir)
+                           ub(dir) = rs_v(igrid_level)%rs_grid%ub_local(dir)
+                        ENDIF
+                        ! distributed grid, only map if it is local to the grid
+                        location(dir) = tp(dir)+rs_v(igrid_level)%rs_grid%desc%lb(dir)
+                     ENDDO
+                     IF (lb(1) <= location(1) .AND. location(1) <= ub(1) .AND. &
+                         lb(2) <= location(2) .AND. location(2) <= ub(2) .AND. &
+                         lb(3) <= location(3) .AND. location(3) <= ub(3)) THEN
+                        map_it_here = .TRUE.
+                     ENDIF
+                  ELSE
+                     ! not distributed, just a round-robin distribution over the full set of CPUs
+                     IF (MODULO(offset, para_env_sub%num_pe) == para_env_sub%mepos) map_it_here = .TRUE.
+                  ENDIF
+
+                  offset = offset+nsgfa(iset)
+
+                  IF (map_it_here) THEN
+                     DO ipgf = 1, npgfa(iset)
+                        na1 = (ipgf-1)*ncoset(la_max(iset))+1
+                        na2 = ipgf*ncoset(la_max(iset))
+                        igrid_level = gaussian_gridlevel(pw_env_sub%gridlevel_info, zeta(ipgf, iset))
+
+                        CALL integrate_pgf_product_rspace(la_max=la_max(iset), zeta=zeta(ipgf, iset)/2.0_dp, la_min=la_min(iset), &
+                                                          lb_max=0, zetb=zeta(ipgf, iset)/2.0_dp, lb_min=0, &
+                                                          ra=ra, rab=rab, rab2=rab2, &
+                                                          rsgrid=rs_v(igrid_level)%rs_grid, &
+                                                          cell=cell, &
+                                                          cube_info=pw_env_sub%cube_info(igrid_level), &
+                                                          hab=I_tmp2, &
+                                                          pab=pab, &
+                                                          o1=na1-1, &
+                                                          o2=0, &
+                                                          map_consistent=.TRUE., &
+                                                          eps_gvg_rspace=dft_control%qs_control%eps_gvg_rspace, &
+                                                          calculate_forces=.TRUE., &
+                                                          force_a=force_a, force_b=force_b, &
+                                                          use_virial=use_virial, my_virial_a=my_virial_a, my_virial_b=my_virial_b)
+                     END DO
+                     ! CALL dgemm("T","N".0_dp,sphi_a(1,sgfa),SIZE(sphi_a,1),&
+                     !             I_tmp2(1,1),SIZE(I_tmp2,1),&
+                     !             1.0_dp,I_ab(1,1),SIZE(I_ab,1))
+                     ! L_local_col(offset-nsgfa(iset)+1:offset,i_counter)=I_ab(1:nsgfa(iset),1)
+                  END IF
+
+                  DEALLOCATE (I_tmp2)
+                  DEALLOCATE (I_ab)
+                  DEALLOCATE (pab)
+
+               END DO
+
+               force(ikind)%rho_elec(:, atom_a) = &
+                  force(ikind)%rho_elec(:, atom_a)+force_a(:)+force_b(:)
+               IF (use_virial) THEN
+                  virial%pv_virial = virial%pv_virial+my_virial_a+my_virial_b
+               END IF
+            END DO
+
+            DO i = 1, SIZE(rs_v)
+               CALL rs_grid_release(rs_v(i)%rs_grid)
+            END DO
+
          END DO
 
-         DO i = 1, SIZE(rs_v)
-            CALL rs_grid_release(rs_v(i)%rs_grid)
-         END DO
+         CALL timestop(handle2)
 
-      END DO
-      CALL timestop(handle2)
+         DEALLOCATE (kind_of)
+         DEALLOCATE (atom_of_kind)
+         DEALLOCATE (wf_vector)
+         CALL pw_pool_give_back_pw(auxbas_pw_pool, psi_L%pw)
 
-      DEALLOCATE (G_PQ_local)
+         IF (alpha_beta) THEN
+            CALL pw_pool_give_back_pw(auxbas_pw_pool, psi_L_beta%pw)
+         ENDIF
 
-      DEALLOCATE (wf_vector)
-      CALL pw_pool_give_back_pw(auxbas_pw_pool, psi_L%pw)
+         IF (use_virial) THEN
+            CALL pw_pool_give_back_pw(auxbas_pw_pool, temp_pw_g%pw)
+            DO i = 1, 3
+               CALL pw_pool_give_back_pw(auxbas_pw_pool, dvg(i)%pw)
+            END DO
+         END IF
 
-      IF (alpha_beta) THEN
-         CALL pw_pool_give_back_pw(auxbas_pw_pool, psi_L_beta%pw)
+         CALL dbcsr_release(matrix_P_munu%matrix)
+         DEALLOCATE (matrix_P_munu%matrix)
+
       ENDIF
 
-      IF (use_virial) THEN
-         CALL pw_pool_give_back_pw(auxbas_pw_pool, temp_pw_g%pw)
-         DO i = 1, 3
-            CALL pw_pool_give_back_pw(auxbas_pw_pool, dvg(i)%pw)
-         END DO
-      END IF
+      DEALLOCATE (G_PQ_local)
 
       CALL dbcsr_release(matrix_P_inu%matrix)
       DEALLOCATE (matrix_P_inu%matrix)
 
       CALL dbcsr_release(matrix_P_munu_nosym%matrix)
       DEALLOCATE (matrix_P_munu_nosym%matrix)
-
-      CALL dbcsr_release(matrix_P_munu%matrix)
-      DEALLOCATE (matrix_P_munu%matrix)
 
       ! release the full gamma_P_ia structure
       DEALLOCATE (G_P_ia)
@@ -879,14 +909,13 @@ CONTAINS
          DEALLOCATE (G_P_ia_beta)
       ENDIF
 
-      DEALLOCATE (kind_of)
-      DEALLOCATE (atom_of_kind)
-
       ! move the forces in the correct place
-      DO ikind = 1, SIZE(force)
-         force(ikind)%mp2_non_sep(:, :) = force(ikind)%rho_elec(:, :)
-         force(ikind)%rho_elec(:, :) = 0.0_dp
-      END DO
+      IF (eri_method .EQ. do_eri_gpw) THEN
+         DO ikind = 1, SIZE(force)
+            force(ikind)%mp2_non_sep(:, :) = force(ikind)%rho_elec(:, :)
+            force(ikind)%rho_elec(:, :) = 0.0_dp
+         END DO
+      ENDIF
 
       ! Now we move from the local matrices to the global ones
       ! defined over all MPI tasks
@@ -961,6 +990,196 @@ CONTAINS
       CALL timestop(handle)
 
    END SUBROUTINE calc_ri_mp2_nonsep
+
+! **************************************************************************************************
+!> \brief ...
+!> \param G_P_munu ...
+!> \param G_P_munu_nosym ...
+!> \param mat_munu ...
+!> \param G_P_ia ...
+!> \param G_P_inu ...
+!> \param mo_coeff_v ...
+!> \param mo_coeff_o ...
+!> \param eps_filter ...
+!> \param G_P_ia_beta ...
+!> \param G_P_inu_beta ...
+!> \param mo_coeff_v_beta ...
+!> \param mo_coeff_o_beta ...
+! **************************************************************************************************
+   SUBROUTINE G_P_transform_MO_to_AO(G_P_munu, G_P_munu_nosym, mat_munu, G_P_ia, G_P_inu, &
+                                     mo_coeff_v, mo_coeff_o, eps_filter, &
+                                     G_P_ia_beta, G_P_inu_beta, mo_coeff_v_beta, mo_coeff_o_beta)
+      TYPE(dbcsr_p_type), INTENT(INOUT)                  :: G_P_munu, G_P_munu_nosym, mat_munu
+      TYPE(dbcsr_p_type), INTENT(IN)                     :: G_P_ia
+      TYPE(dbcsr_p_type), INTENT(INOUT)                  :: G_P_inu
+      TYPE(dbcsr_type), INTENT(IN)                       :: mo_coeff_v, mo_coeff_o
+      REAL(KIND=dp), INTENT(IN)                          :: eps_filter
+      TYPE(dbcsr_p_type), INTENT(IN), OPTIONAL           :: G_P_ia_beta
+      TYPE(dbcsr_p_type), INTENT(INOUT), OPTIONAL        :: G_P_inu_beta
+      TYPE(dbcsr_type), INTENT(IN), OPTIONAL             :: mo_coeff_v_beta, mo_coeff_o_beta
+
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'G_P_transform_MO_to_AO', &
+         routineP = moduleN//':'//routineN
+
+      INTEGER                                            :: handle
+      LOGICAL                                            :: alpha_beta
+
+      alpha_beta = PRESENT(G_P_ia_beta) .AND. PRESENT(G_P_inu_beta) .AND. PRESENT(mo_coeff_v_beta) .AND. PRESENT(mo_coeff_o_beta)
+
+      CALL dbcsr_set(G_P_munu_nosym%matrix, 0.0_dp)
+      CALL G_P_transform_alpha_beta(G_P_ia, G_P_inu, G_P_munu_nosym, mo_coeff_v, mo_coeff_o, [1.0_dp, 0.0_dp], eps_filter)
+
+      IF (alpha_beta) THEN
+         CALL G_P_transform_alpha_beta(G_P_ia_beta, G_P_inu_beta, G_P_munu_nosym, mo_coeff_v_beta, mo_coeff_o_beta, &
+                                       [0.5_dp, 0.5_dp], eps_filter)
+      ENDIF
+
+      ! symmetrize
+      CALL timeset(routineN//"_symmetrize", handle)
+      CALL dbcsr_set(G_P_munu%matrix, 0.0_dp)
+      CALL dbcsr_transposed(G_P_munu%matrix, G_P_munu_nosym%matrix)
+      CALL dbcsr_add(G_P_munu%matrix, G_P_munu_nosym%matrix, &
+                     alpha_scalar=2.0_dp, beta_scalar=2.0_dp)
+      ! this is a trick to avoid that integrate_v_rspace starts to cry
+      CALL dbcsr_copy_into_existing(mat_munu%matrix, G_P_munu%matrix)
+      CALL dbcsr_copy(G_P_munu%matrix, mat_munu%matrix)
+
+      CALL timestop(handle)
+
+   END SUBROUTINE G_P_transform_MO_to_AO
+
+! **************************************************************************************************
+!> \brief ...
+!> \param G_P_ia ...
+!> \param G_P_inu ...
+!> \param G_P_munu ...
+!> \param mo_coeff_v ...
+!> \param mo_coeff_o ...
+!> \param fraction_add ...
+!> \param eps_filter ...
+! **************************************************************************************************
+   SUBROUTINE G_P_transform_alpha_beta(G_P_ia, G_P_inu, G_P_munu, mo_coeff_v, mo_coeff_o, fraction_add, eps_filter)
+      TYPE(dbcsr_p_type), INTENT(IN)                     :: G_P_ia
+      TYPE(dbcsr_p_type), INTENT(INOUT)                  :: G_P_inu, G_P_munu
+      TYPE(dbcsr_type), INTENT(IN)                       :: mo_coeff_v, mo_coeff_o
+      REAL(KIND=dp), DIMENSION(2), INTENT(IN)            :: fraction_add
+      REAL(KIND=dp), INTENT(IN)                          :: eps_filter
+
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'G_P_transform_alpha_beta', &
+         routineP = moduleN//':'//routineN
+
+      INTEGER                                            :: handle
+
+      CALL timeset(routineN//"_back_v", handle)
+      ! first back-transformation a->nu
+      CALL dbcsr_set(G_P_inu%matrix, 0.0_dp)
+      CALL dbcsr_multiply("N", "T", 1.0_dp, mo_coeff_v, G_P_ia%matrix, &
+                          0.0_dp, G_P_inu%matrix, filter_eps=eps_filter)
+      CALL timestop(handle)
+
+      ! second back-transformation i->mu
+      CALL timeset(routineN//"_back_o", handle)
+      CALL dbcsr_multiply("N", "T", fraction_add(1), G_P_inu%matrix, mo_coeff_o, &
+                          fraction_add(2), G_P_munu%matrix, filter_eps=eps_filter)
+
+      CALL timestop(handle)
+
+   END SUBROUTINE G_P_transform_alpha_beta
+
+! **************************************************************************************************
+!> \brief ...
+!> \param mat_munu ...
+!> \param matrix_P_inu ...
+!> \param Lag_mu_i_1 ...
+!> \param G_P_ia ...
+!> \param mo_coeff_o ...
+!> \param Lag_nu_a_2 ...
+!> \param eps_filter ...
+!> \param matrix_P_inu_beta ...
+!> \param Lag_mu_i_1_beta ...
+!> \param G_P_ia_beta ...
+!> \param mo_coeff_o_beta ...
+!> \param Lag_nu_a_2_beta ...
+! **************************************************************************************************
+   SUBROUTINE update_lagrangian(mat_munu, matrix_P_inu, Lag_mu_i_1, &
+                                G_P_ia, mo_coeff_o, Lag_nu_a_2, &
+                                eps_filter, &
+                                matrix_P_inu_beta, Lag_mu_i_1_beta, G_P_ia_beta, mo_coeff_o_beta, Lag_nu_a_2_beta)
+      TYPE(dbcsr_p_type), INTENT(IN)                     :: mat_munu
+      TYPE(dbcsr_p_type), INTENT(INOUT)                  :: matrix_P_inu, Lag_mu_i_1, G_P_ia
+      TYPE(dbcsr_type), POINTER                          :: mo_coeff_o
+      TYPE(dbcsr_p_type), INTENT(INOUT)                  :: Lag_nu_a_2
+      REAL(KIND=dp), INTENT(IN)                          :: eps_filter
+      TYPE(dbcsr_p_type), INTENT(INOUT), OPTIONAL        :: matrix_P_inu_beta, Lag_mu_i_1_beta, &
+                                                            G_P_ia_beta
+      TYPE(dbcsr_type), OPTIONAL, POINTER                :: mo_coeff_o_beta
+      TYPE(dbcsr_p_type), INTENT(INOUT), OPTIONAL        :: Lag_nu_a_2_beta
+
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'update_lagrangian', &
+         routineP = moduleN//':'//routineN
+
+      INTEGER                                            :: handle
+      LOGICAL                                            :: alpha_beta
+
+      ! update lagrangian
+      CALL timeset(routineN//"_Lag", handle)
+
+      alpha_beta = PRESENT(matrix_P_inu_beta) .AND. PRESENT(Lag_mu_i_1_beta) .AND. PRESENT(G_P_ia_beta) &
+                   .AND. PRESENT(mo_coeff_o_beta) .AND. PRESENT(Lag_nu_a_2_beta)
+
+      CALL update_lagrangian_alpha_beta(mat_munu, matrix_P_inu, Lag_mu_i_1, &
+                                        G_P_ia, mo_coeff_o, Lag_nu_a_2, eps_filter)
+      IF (alpha_beta) THEN
+         CALL update_lagrangian_alpha_beta(mat_munu, matrix_P_inu_beta, Lag_mu_i_1_beta, &
+                                           G_P_ia_beta, mo_coeff_o_beta, Lag_nu_a_2_beta, eps_filter)
+      ENDIF
+
+      CALL timestop(handle)
+
+   END SUBROUTINE update_lagrangian
+
+! **************************************************************************************************
+!> \brief ...
+!> \param mat_munu ...
+!> \param matrix_P_inu ...
+!> \param Lag_mu_i_1 ...
+!> \param G_P_ia ...
+!> \param mo_coeff_o ...
+!> \param Lag_nu_a_2 ...
+!> \param eps_filter ...
+! **************************************************************************************************
+   SUBROUTINE update_lagrangian_alpha_beta(mat_munu, matrix_P_inu, Lag_mu_i_1, &
+                                           G_P_ia, mo_coeff_o, Lag_nu_a_2, &
+                                           eps_filter)
+      TYPE(dbcsr_p_type), INTENT(IN)                     :: mat_munu
+      TYPE(dbcsr_p_type), INTENT(INOUT)                  :: matrix_P_inu, Lag_mu_i_1, G_P_ia
+      TYPE(dbcsr_type), POINTER                          :: mo_coeff_o
+      TYPE(dbcsr_p_type), INTENT(INOUT)                  :: Lag_nu_a_2
+      REAL(KIND=dp), INTENT(IN)                          :: eps_filter
+
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'update_lagrangian_alpha_beta', &
+         routineP = moduleN//':'//routineN
+
+      ! first contract mat_munu with the half back transformed Gamma_i_nu
+      ! in order to update Lag_mu_i_1
+      CALL dbcsr_multiply("N", "N", 1.0_dp, mat_munu%matrix, matrix_P_inu%matrix, &
+                          1.0_dp, Lag_mu_i_1%matrix, filter_eps=eps_filter)
+
+      ! transform first index of mat_munu and store the result into matrix_P_inu
+      CALL dbcsr_set(matrix_P_inu%matrix, 0.0_dp)
+      CALL dbcsr_multiply("N", "N", 1.0_dp, mat_munu%matrix, mo_coeff_o, &
+                          0.0_dp, matrix_P_inu%matrix, filter_eps=eps_filter)
+
+      ! contract the transformend matrix_P_inu with the untransformend Gamma_i_a
+      ! in order to update Lag_nu_a_2
+      CALL dbcsr_multiply("N", "N", -1.0_dp, matrix_P_inu%matrix, G_P_ia%matrix, &
+                          1.0_dp, Lag_nu_a_2%matrix, filter_eps=eps_filter)
+
+      ! release the actual gamma_P_ia
+      CALL dbcsr_release(G_P_ia%matrix)
+      DEALLOCATE (G_P_ia%matrix)
+
+   END SUBROUTINE update_lagrangian_alpha_beta
 
 ! **************************************************************************************************
 !> \brief ...

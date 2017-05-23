@@ -56,7 +56,10 @@ MODULE cp_eri_mme_types
              cp_eri_mme_init_read_input, &
              cp_eri_mme_finalize, &
              create_eri_mme_section, &
-             create_eri_mme_test_section
+             create_eri_mme_test_section, &
+             cp_eri_mme_allocate_forces, &
+             cp_eri_mme_deallocate_forces, &
+             cp_eri_mme_force
 
    INTERFACE cp_eri_mme_set_params
       MODULE PROCEDURE eri_mme_set_params_from_basis
@@ -71,6 +74,10 @@ MODULE cp_eri_mme_types
       INTEGER                                            :: G_count_2c, R_count_2c
       INTEGER                                            :: GG_count_3c, GR_count_3c, RR_count_3c
    END TYPE cp_eri_mme_param
+
+   TYPE cp_eri_mme_force
+      REAL(KIND=dp), DIMENSION(:, :), ALLOCATABLE :: forces
+   END TYPE cp_eri_mme_force
 
 CONTAINS
 
@@ -201,6 +208,49 @@ CONTAINS
       CALL section_release(subsection)
 
    END SUBROUTINE create_eri_mme_section
+
+! **************************************************************************************************
+!> \brief ...
+!> \param force ...
+!> \param natom_of_kind ...
+! **************************************************************************************************
+   SUBROUTINE cp_eri_mme_allocate_forces(force, natom_of_kind)
+      TYPE(cp_eri_mme_force), ALLOCATABLE, &
+         DIMENSION(:), INTENT(OUT)                       :: force
+      INTEGER, DIMENSION(:), INTENT(IN)                  :: natom_of_kind
+
+      INTEGER                                            :: ikind, n, nkind
+
+      nkind = SIZE(natom_of_kind)
+
+      ALLOCATE (force(nkind))
+
+      DO ikind = 1, nkind
+         n = natom_of_kind(ikind)
+         ALLOCATE (force(ikind)%forces(3, n))
+         force(ikind)%forces(:, :) = 0.0_dp
+      ENDDO
+   END SUBROUTINE cp_eri_mme_allocate_forces
+
+! **************************************************************************************************
+!> \brief ...
+!> \param force ...
+! **************************************************************************************************
+   SUBROUTINE cp_eri_mme_deallocate_forces(force)
+      TYPE(cp_eri_mme_force), ALLOCATABLE, &
+         DIMENSION(:), INTENT(INOUT)                     :: force
+
+      INTEGER                                            :: ikind, nkind
+
+      IF (ALLOCATED(force)) THEN
+         nkind = SIZE(force)
+         DO ikind = 1, nkind
+            IF (ALLOCATED(force(ikind)%forces)) DEALLOCATE (force(ikind)%forces)
+         ENDDO
+
+         DEALLOCATE (force)
+      ENDIF
+   END SUBROUTINE cp_eri_mme_deallocate_forces
 
 ! **************************************************************************************************
 !> \brief Read input and initialize parameter type
@@ -459,7 +509,10 @@ CONTAINS
       CPASSERT(zet_l .GT. 0.0_dp .AND. l_zet .GE. 0)
 
       zet_c(:) = [zet_m, zet_l]
-      l_c(:) = [l_zet, l_m]
+
+      ! l + 1 because we may calculate forces
+      ! this is probably a safe choice also for the case that forces are not needed
+      l_c(:) = [l_zet+1, l_m+1]
 
       CALL timestop(handle)
    END SUBROUTINE error_est_pgf_params_from_basis
