@@ -384,7 +384,8 @@ CONTAINS
          routineP = moduleN//':'//routineN
 
       INTEGER                                            :: blk_p, handle, handle1, i, m, mi, &
-                                                            mi_max, n, nblks, ni, ni_max, offset, x
+                                                            mi_max, n, nblks, ni, ni_max, offset, x, &
+                                                            row, col
       INTEGER, ALLOCATABLE, DIMENSION(:, :)              :: counters, filled, offsets, tmp_stack
       INTEGER, DIMENSION(:), POINTER                     :: blk_index, trs_stack
       LOGICAL                                            :: my_noresize
@@ -439,10 +440,12 @@ CONTAINS
          ! collect block addresses and dimensions in a temporary stack
          ! while doing so, also count number of blocks per block-dimensions
          DO i = 1, nblks
+            row = blk_index(3*(i-1)+1)
+            col = blk_index(3*(i-1)+2)
             blk_p = blk_index(3*(i-1)+3)
             IF (blk_p == 0) CYCLE
-            m = row_blk_sizes(i)
-            n = col_blk_sizes(i)
+            m = row_blk_sizes(row)
+            n = col_blk_sizes(col)
             mi = row_blk_sizes2enum(m)
             ni = col_blk_sizes2enum(n)
             tmp_stack(1, i) = mi
