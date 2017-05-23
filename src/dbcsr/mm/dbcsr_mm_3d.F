@@ -1667,7 +1667,8 @@ CONTAINS
             !
             v_ki = MOD(ivirt_k, min_nimages)
             ! Reset communication flags at the first layer
-            IF (first_k .OR. istep_k_comm .EQ. leftovers_first_k) THEN
+            IF ((first_k .OR. istep_k_comm .EQ. leftovers_first_k) .AND. &
+                istep_k_comm .EQ. istep_k_comm_curr) THEN
                do_comm_right(:) = .TRUE.
                do_comm_left(:) = .TRUE.
             ENDIF
@@ -1714,6 +1715,7 @@ CONTAINS
                ENDIF
             ENDIF
             !
+            ! Exit if data are already communicated
             IF (istep_k_comm .NE. istep_k_comm_curr) EXIT
             !
             right_buffer_p => right_buffers(iright_buffer_comm)
@@ -1738,7 +1740,7 @@ CONTAINS
                ENDIF
                !
                IF (left_images_size_layers3D(imeta, irow3D, left_buffer_p%vpcol) .NE. 0) THEN
-                  ! Check if data are already communicated
+                  ! Check if data is already communicated
                   is_not_comm = do_comm_right(icol3D) .OR. do_comm_left(irow3D)
                   IF (is_not_comm) THEN
                      ! Right
@@ -1778,12 +1780,15 @@ CONTAINS
             ENDIF
             !
             istep_k_comm_curr = istep_k_comm_curr+1
-            IF (is_not_comm) THEN
+            ! Stop looping when data is communicated
+            IF (is_not_comm .OR. nranks3D .NE. 4) THEN
                istep_k_comm => istep_k
                IF ((istep_k_comm+1) .EQ. istep_k_comm_curr) EXIT
+               ! Restore coordinates by looping once again
                shift3D = shift3D_comm
                CYCLE
             ENDIF
+            ! Keep looping until it starts a new communication (only for 4 layers)
             istep_k_comm => istep_k_comm_curr
          ENDDO xfer
          !
