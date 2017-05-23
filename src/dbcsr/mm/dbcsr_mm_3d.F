@@ -1190,17 +1190,18 @@ CONTAINS
 
       INTEGER :: blk, data_type, data_type_byte, final_step_k, grp_left, grp_right, handle, &
          handle1, handle2, icol3D, icol3D_send, ileft_buffer_calc, ileft_buffer_comm, &
-         iright_buffer_calc, iright_buffer_comm, irow3D, irow3D_send, istep_k, istep_k_ordered, &
-         ithread, ivirt_k, last_step_k, left_col_mult, left_col_nimages, left_col_total_nimages, &
+         iright_buffer_calc, iright_buffer_comm, irow3D, irow3D_send, istep_k_ordered, ithread, &
+         ivirt_k, last_step_k, left_col_mult, left_col_nimages, left_col_total_nimages, &
          left_max_data_size, left_max_meta_size, left_myfirstvcol, left_myfirstvrow, left_mypcol, &
          left_myprow, left_npcols, left_nprows, left_row_mult, left_row_nimages, &
-         leftovers_first_k, leftovers_k, leftovers_shift_k, leftovers_start_k, min_nimages, mycol3D
-      INTEGER :: mypcol, myprow, myrank3D, myrow3D, myt, nblkrows_local, nbuffers, nbuffers_norms, &
-         ncols3D, nranks3D, nrows3D, nthreads, numnodes, nvirt_k, proc3D_recv, proc3D_send, &
-         recv_vcol, recv_vrow, request_epss, request_keep_sparsity, right_col_mult, &
-         right_col_nimages, right_max_data_size, right_max_meta_size, right_myfirstvcol, &
-         right_myfirstvrow, right_mypcol, right_myprow, right_npcols, right_nprows, &
-         right_row_mult, right_row_nimages, right_row_total_nimages, row, shift3D, shift3D_recv, &
+         leftovers_first_k, leftovers_k, leftovers_shift_k, leftovers_start_k, min_nimages, &
+         mycol3D, mypcol, myprow
+      INTEGER :: myrank3D, myrow3D, myt, nblkrows_local, nbuffers, nbuffers_norms, ncols3D, &
+         nranks3D, nrows3D, nthreads, numnodes, nvirt_k, proc3D_recv, proc3D_send, recv_vcol, &
+         recv_vrow, request_epss, request_keep_sparsity, right_col_mult, right_col_nimages, &
+         right_max_data_size, right_max_meta_size, right_myfirstvcol, right_myfirstvrow, &
+         right_mypcol, right_myprow, right_npcols, right_nprows, right_row_mult, &
+         right_row_nimages, right_row_total_nimages, row, shift3D, shift3D_comm, shift3D_recv, &
          size_guess, size_guess_init, start_k, start_k_ordered, v_ki
       INTEGER(KIND=int_8)                                :: mem
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: left_vrow, product_matrix_epss_displ, &
@@ -1221,9 +1222,11 @@ CONTAINS
          dbcsr_slot_nfullcols_local)                     :: left_global_indices, right_global_indices
       INTEGER, DIMENSION(idata:imeta)                    :: product_matrix_size_recv, &
                                                             product_matrix_size_send
+      INTEGER, POINTER                                   :: istep_k_comm
+      INTEGER, TARGET                                    :: istep_k, istep_k_comm_curr
       LOGICAL                                            :: do_layers3D, do_square_layers3D, &
-                                                            first_k, first_v_k, keep_sparsity, &
-                                                            otf_filtering
+                                                            first_k, first_v_k, is_not_comm, &
+                                                            keep_sparsity, otf_filtering
       LOGICAL, ALLOCATABLE, DIMENSION(:)                 :: do_comm_left, do_comm_right
       REAL(kind=sp)                                      :: filter_eps_sp
       REAL(kind=sp), ALLOCATABLE, DIMENSION(:), TARGET   :: row_max_epss
@@ -1615,6 +1618,8 @@ CONTAINS
       icol3D_send = 0
       first_k = .TRUE.
       first_v_k = .TRUE.
+      istep_k_comm_curr = leftovers_first_k
+      istep_k_comm => istep_k_comm_curr
       grouped_steps_index: DO istep_k = leftovers_first_k, last_step_k
          !
          ! Wait data.  Exclude the first interation.
@@ -1639,20 +1644,21 @@ CONTAINS
          ENDIF wait
          !
          ! Matrix transfer. Transfer in all but the last loop iteration.
-         xfer: IF (istep_k .LT. last_step_k) THEN
+         shift3D_comm = shift3D
+         xfer: DO WHILE (istep_k_comm .LT. last_step_k)
             start_k_ordered = start_k
-            istep_k_ordered = istep_k
+            istep_k_ordered = istep_k_comm
             ! Put leftovers ticks always first
             IF (leftovers_k .GT. 0) THEN
-               IF (istep_k .LT. leftovers_first_k+leftovers_k) THEN
+               IF (istep_k_comm .LT. leftovers_first_k+leftovers_k) THEN
                   start_k_ordered = leftovers_start_k
                ELSE
-                  istep_k_ordered = istep_k+leftovers_shift_k
+                  istep_k_ordered = istep_k_comm+leftovers_shift_k
                ENDIF
             ENDIF
             first_k = MOD(istep_k_ordered, nranks3D) .EQ. 0
             ivirt_k = istep_k_ordered/nranks3D
-            IF (istep_k .LT. leftovers_first_k+leftovers_k) THEN
+            IF (istep_k_comm .LT. leftovers_first_k+leftovers_k) THEN
                CALL row_col_3D_reflected(irow3D, icol3D, nrows3D, ncols3D, istep_k_ordered)
             ELSE
                CALL row_col_3D_reflected(irow3D, icol3D, nrows3D, ncols3D, shift3D)
@@ -1661,13 +1667,13 @@ CONTAINS
             !
             v_ki = MOD(ivirt_k, min_nimages)
             ! Reset communication flags at the first layer
-            IF (first_k .OR. istep_k .EQ. leftovers_first_k) THEN
+            IF (first_k .OR. istep_k_comm .EQ. leftovers_first_k) THEN
                do_comm_right(:) = .TRUE.
                do_comm_left(:) = .TRUE.
             ENDIF
             ! Take first image global virtual coordinates
             IF (v_ki .EQ. 0) THEN
-               IF (istep_k .GE. leftovers_first_k+leftovers_k) first_v_k = .FALSE.
+               IF (istep_k_comm .GE. leftovers_first_k+leftovers_k) first_v_k = .FALSE.
                start_k_ordered = start_k_ordered+ivirt_k
             ENDIF
             IF (v_ki .EQ. 0 .OR. (first_v_k .AND. min_nimages .GT. 1)) THEN
@@ -1707,6 +1713,9 @@ CONTAINS
                   ileft_buffer_comm = MOD(ileft_buffer_comm, nbuffers)+1
                ENDIF
             ENDIF
+            !
+            IF (istep_k_comm .NE. istep_k_comm_curr) EXIT
+            !
             right_buffer_p => right_buffers(iright_buffer_comm)
             left_buffer_p => left_buffers(ileft_buffer_comm)
             right_buffer_p%coord3D = icol3D
@@ -1719,6 +1728,7 @@ CONTAINS
                right_buffer_p%is_comm = .FALSE.
             ENDIF
             !
+            is_not_comm = .TRUE.
             IF (right_images_size_layers3D(imeta, icol3D, right_buffer_p%vprow) .NE. 0) THEN
                ! First col, communicate left matrix
                IF (do_comm_left(irow3D)) THEN
@@ -1728,41 +1738,54 @@ CONTAINS
                ENDIF
                !
                IF (left_images_size_layers3D(imeta, irow3D, left_buffer_p%vpcol) .NE. 0) THEN
-                  ! Right
-                  IF (do_comm_right(icol3D)) THEN
-                     IF (has_acc) THEN
-                        CALL timeset(routineN//"_acc_sync_right", handle2)
-                        CALL acc_event_synchronize(right_buffer_p%data%d%acc_ready)
-                        CALL timestop(handle2)
+                  ! Check if data are already communicated
+                  is_not_comm = do_comm_right(icol3D) .OR. do_comm_left(irow3D)
+                  IF (is_not_comm) THEN
+                     ! Right
+                     IF (do_comm_right(icol3D)) THEN
+                        IF (has_acc) THEN
+                           CALL timeset(routineN//"_acc_sync_right", handle2)
+                           CALL acc_event_synchronize(right_buffer_p%data%d%acc_ready)
+                           CALL timestop(handle2)
+                        ENDIF
+                        !
+                        do_comm_right(icol3D) = .FALSE.
+                        CALL rma_transfer(right_buffer_p%vprow, right_row_nimages, &
+                                          right_images_size_layers3D(:, icol3D, right_buffer_p%vprow), &
+                                          right_displ_layers3D(:, icol3D, right_buffer_p%vprow), &
+                                          right_buffer_p, &
+                                          buffers_win%right%meta_win, buffers_win%right%data_win, &
+                                          data_get, data_type_byte, buffers_win%right, icol3D, ncols3D)
                      ENDIF
-                     !
-                     do_comm_right(icol3D) = .FALSE.
-                     CALL rma_transfer(right_buffer_p%vprow, right_row_nimages, &
-                                       right_images_size_layers3D(:, icol3D, right_buffer_p%vprow), &
-                                       right_displ_layers3D(:, icol3D, right_buffer_p%vprow), &
-                                       right_buffer_p, &
-                                       buffers_win%right%meta_win, buffers_win%right%data_win, &
-                                       data_get, data_type_byte, buffers_win%right, icol3D, ncols3D)
-                  ENDIF
-                  ! Left
-                  IF (do_comm_left(irow3D)) THEN
-                     IF (has_acc) THEN
-                        CALL timeset(routineN//"_acc_sync_left", handle2)
-                        CALL acc_event_synchronize(left_buffer_p%data%d%acc_ready)
-                        CALL timestop(handle2)
+                     ! Left
+                     IF (do_comm_left(irow3D)) THEN
+                        IF (has_acc) THEN
+                           CALL timeset(routineN//"_acc_sync_left", handle2)
+                           CALL acc_event_synchronize(left_buffer_p%data%d%acc_ready)
+                           CALL timestop(handle2)
+                        ENDIF
+                        !
+                        do_comm_left(irow3D) = .FALSE.
+                        CALL rma_transfer(left_buffer_p%vpcol, left_col_nimages, &
+                                          left_images_size_layers3D(:, irow3D, left_buffer_p%vpcol), &
+                                          left_displ_layers3D(:, irow3D, left_buffer_p%vpcol), &
+                                          left_buffer_p, &
+                                          buffers_win%left%meta_win, buffers_win%left%data_win, &
+                                          data_get, data_type_byte, buffers_win%left, irow3D, nrows3D)
                      ENDIF
-                     !
-                     do_comm_left(irow3D) = .FALSE.
-                     CALL rma_transfer(left_buffer_p%vpcol, left_col_nimages, &
-                                       left_images_size_layers3D(:, irow3D, left_buffer_p%vpcol), &
-                                       left_displ_layers3D(:, irow3D, left_buffer_p%vpcol), &
-                                       left_buffer_p, &
-                                       buffers_win%left%meta_win, buffers_win%left%data_win, &
-                                       data_get, data_type_byte, buffers_win%left, irow3D, nrows3D)
                   ENDIF
                ENDIF
             ENDIF
-         ENDIF xfer
+            !
+            istep_k_comm_curr = istep_k_comm_curr+1
+            IF (is_not_comm) THEN
+               istep_k_comm => istep_k
+               IF ((istep_k_comm+1) .EQ. istep_k_comm_curr) EXIT
+               shift3D = shift3D_comm
+               CYCLE
+            ENDIF
+            istep_k_comm => istep_k_comm_curr
+         ENDDO xfer
          !
          ! Create matrices and multrec's, only the first occurrence
          IF (.NOT. ASSOCIATED(product_matrix3D%mats(irow3D, icol3D)%matrix)) THEN
@@ -1837,8 +1860,7 @@ CONTAINS
 !$OMP BARRIER
             ENDIF
             ! The work arrays have to be setup
-            size_guess = product_matrix3D%mats(irow3D, icol3D)% &
-                         matrix%wms(ithread+1)%datasize ! Should be minimal
+            size_guess = product_matrix3D%mats(irow3D, icol3D)%matrix%wms(ithread+1)%datasize ! Should be minimal
             IF (.NOT. keep_sparsity) THEN
                size_guess = MAX(size_guess, size_guess_init)
             ENDIF
