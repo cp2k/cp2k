@@ -750,7 +750,7 @@ CONTAINS
             nval = lmax
             WRITE (iunit, *) "  1"
             WRITE (iunit, "(40I3)") nval, lmin, lmax, nprim, (nbas(l), l=lmin, lmax)
-            DO i = 1, nprim
+            DO i = nprim, 1, -1
                WRITE (iunit, "(G20.12,40F16.10)") al(i), ((gcc(i, j, l), j=1, nbas(l)), l=lmin, lmax)
             END DO
             WRITE (iunit, *)

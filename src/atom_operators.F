@@ -132,6 +132,8 @@ CONTAINS
                         x = (basis%grid%rad(i)-ron)/om
                         x = 1._dp-x
                         cpot(i) = -6._dp*x**5+15._dp*x**4-10._dp*x**3+1._dp
+                        x = (rc-basis%grid%rad(i))**2/om/(basis%grid%rad(i)-ron)
+                        cpot(i) = cpot(i)*x
                      ELSE
                         cpot(i) = 1.0_dp
                      END IF
