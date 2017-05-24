@@ -625,7 +625,7 @@ $:                         'force_b=force_b(jkind)%forces(:, atom_b), &'*doforce
       LOGICAL, INTENT(IN), OPTIONAL                      :: transp
       INTEGER, INTENT(IN), OPTIONAL                      :: eri_method
       TYPE(dbcsr_p_type), DIMENSION(last_c-first_c+1), &
-         INTENT(IN), OPTIONAL                            :: pabc
+         INTENT(INOUT), OPTIONAL                         :: pabc
       TYPE(mp2_eri_force), ALLOCATABLE, &
          DIMENSION(:), INTENT(OUT), OPTIONAL             :: force_a, force_b, force_c
       TYPE(dbcsr_p_type), &
