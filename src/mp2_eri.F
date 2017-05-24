@@ -4,16 +4,13 @@
 !--------------------------------------------------------------------------------------------------!
 
 ! **************************************************************************************************
-!> \brief Interface to Minimax-Ewald method for periodic ERI's to be used in CP2K.
-!> \par History
-!>       2015 09 created
-!> \author Patrick Seewald
+!> \brief Interface to direct methods for electron repulsion integrals for MP2.
 ! **************************************************************************************************
 #:def conditional(n)
 $:'' if n else '.NOT.'
 #:enddef
 
-MODULE cp_eri_mp2_interface
+MODULE mp2_eri
    USE ai_contraction_sphi,             ONLY: ab_contract,&
                                               abc_contract
    USE ai_coulomb,                      ONLY: coulomb2_new,&
@@ -27,9 +24,7 @@ MODULE cp_eri_mp2_interface
                                               cell_type,&
                                               init_cell,&
                                               pbc
-   USE cp_eri_mme_types,                ONLY: cp_eri_mme_allocate_forces,&
-                                              cp_eri_mme_finalize,&
-                                              cp_eri_mme_force,&
+   USE cp_eri_mme_interface,            ONLY: cp_eri_mme_finalize,&
                                               cp_eri_mme_init_read_input,&
                                               cp_eri_mme_param,&
                                               cp_eri_mme_set_params
@@ -66,6 +61,7 @@ MODULE cp_eri_mp2_interface
                                               neighbor_list_iterator_release,&
                                               neighbor_list_set_p_type
    USE util,                            ONLY: get_limit
+   USE cp_eri_mme_interface,            ONLY: cp_eri_mme_update_local_counts
 #include "./base/base_uses.f90"
 
    IMPLICIT NONE
@@ -74,12 +70,18 @@ MODULE cp_eri_mp2_interface
 
    LOGICAL, PRIVATE, PARAMETER :: debug_this_module = .FALSE.
 
-   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'cp_eri_mp2_interface'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'mp2_eri'
 
-   PUBLIC :: cp_eri_mme_2c_integrate, &
-             cp_eri_mme_2c_integrate_s, &
-             cp_eri_mme_3c_integrate, &
-             cp_eri_mme_perf_acc_test
+   PUBLIC :: &
+             mp2_eri_2c_integrate, &
+             mp2_eri_3c_integrate, &
+             mp2_eri_allocate_forces, &
+             mp2_eri_deallocate_forces, &
+             mp2_eri_force
+
+   TYPE mp2_eri_force
+      REAL(KIND=dp), DIMENSION(:, :), ALLOCATABLE :: forces
+   END TYPE mp2_eri_force
 
 CONTAINS
 
@@ -105,7 +107,7 @@ CONTAINS
 !> \param do_reflection_a ...
 !> \param do_reflection_b ...
 ! **************************************************************************************************
-   SUBROUTINE cp_eri_mme_2c_integrate(param, para_env, qs_env, basis_type_a, basis_type_b, hab, first_b, last_b, &
+   SUBROUTINE mp2_eri_2c_integrate(param, para_env, qs_env, basis_type_a, basis_type_b, hab, first_b, last_b, &
                                       eri_method, pab, force_a, force_b, hdab, hadb, &
                                       reflection_z_a, reflection_z_b, do_reflection_a, do_reflection_b)
       TYPE(cp_eri_mme_param), INTENT(INOUT)              :: param
@@ -117,14 +119,14 @@ CONTAINS
       INTEGER, INTENT(IN), OPTIONAL                      :: eri_method
       REAL(KIND=dp), DIMENSION(:, :), INTENT(IN), &
          OPTIONAL                                        :: pab
-      TYPE(cp_eri_mme_force), ALLOCATABLE, &
+      TYPE(mp2_eri_force), ALLOCATABLE, &
          DIMENSION(:), INTENT(OUT), OPTIONAL             :: force_a, force_b
       REAL(KIND=dp), DIMENSION(:, :, :), INTENT(INOUT), &
          OPTIONAL                                        :: hdab, hadb
       REAL(KIND=dp), INTENT(IN), OPTIONAL                :: reflection_z_a, reflection_z_b
       LOGICAL, INTENT(IN), OPTIONAL                      :: do_reflection_a, do_reflection_b
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'cp_eri_mme_2c_integrate', &
+      CHARACTER(len=*), PARAMETER :: routineN = 'mp2_eri_2c_integrate', &
          routineP = moduleN//':'//routineN
 
       INTEGER :: atom_a, atom_b, atom_end, atom_start, first_set, G_count, handle, iatom, ikind, &
@@ -181,8 +183,8 @@ CONTAINS
       ALLOCATE (natom_of_kind(nkind))
       CALL get_atomic_kind_set(atomic_kind_set, kind_of=kind_of, natom_of_kind=natom_of_kind, atom_of_kind=atom_of_kind)
 
-      IF (PRESENT(force_a)) CALL cp_eri_mme_allocate_forces(force_a, natom_of_kind)
-      IF (PRESENT(force_b)) CALL cp_eri_mme_allocate_forces(force_b, natom_of_kind)
+      IF (PRESENT(force_a)) CALL mp2_eri_allocate_forces(force_a, natom_of_kind)
+      IF (PRESENT(force_b)) CALL mp2_eri_allocate_forces(force_b, natom_of_kind)
 
       ! get total number of local set pairs to integrate
       nseta_total = 0
@@ -275,7 +277,7 @@ CONTAINS
                      IF (${conditional(doforce_1)}$ PRESENT(force_a) .AND. &
                          ${conditional(doforce_2)}$ PRESENT(force_b)) THEN
 
-                        CALL eri_mme_2c_integrate_set( &
+                        CALL integrate_set_2c( &
                            param%par, &
                            la_min(iset), la_max(iset), &
                            lb_min(jset), lb_max(jset), &
@@ -305,7 +307,7 @@ $:                         'force_b=force_b(jkind)%forces(:, atom_b), &'*doforce
 
       IF (my_eri_method == do_eri_mme) THEN
 
-         CALL update_local_counts(param, para_env, G_count_2c=G_count, R_count_2c=R_count)
+         CALL cp_eri_mme_update_local_counts(param, para_env, G_count_2c=G_count, R_count_2c=R_count)
 
       END IF
 
@@ -314,7 +316,7 @@ $:                         'force_b=force_b(jkind)%forces(:, atom_b), &'*doforce
       IF (PRESENT(hadb)) CALL mp_sum(hadb, para_env%group)
 
       CALL timestop(handle)
-   END SUBROUTINE cp_eri_mme_2c_integrate
+   END SUBROUTINE mp2_eri_2c_integrate
 
 ! **************************************************************************************************
 !> \brief Integrate set pair and contract with sphi matrix.
@@ -353,7 +355,7 @@ $:                         'force_b=force_b(jkind)%forces(:, atom_b), &'*doforce
 !> \param do_reflection_a ...
 !> \param do_reflection_b ...
 ! **************************************************************************************************
-   SUBROUTINE eri_mme_2c_integrate_set(param, la_min, la_max, lb_min, lb_max, npgfa, npgfb, zeta, zetb, &
+   SUBROUTINE integrate_set_2c(param, la_min, la_max, lb_min, lb_max, npgfa, npgfb, zeta, zetb, &
                                        ra, rb, hab, n_hab_a, n_hab_b, offset_hab_a, offset_hab_b, &
                                        offset_set_a, offset_set_b, sphi_a, sphi_b, sgfa, sgfb, nsgfa, nsgfb, &
                                        eri_method, pab, force_a, force_b, hdab, hadb, G_count, R_count, &
@@ -381,7 +383,7 @@ $:                         'force_b=force_b(jkind)%forces(:, atom_b), &'*doforce
       INTEGER, INTENT(INOUT), OPTIONAL                   :: G_count, R_count
       LOGICAL, INTENT(IN), OPTIONAL                      :: do_reflection_a, do_reflection_b
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'eri_mme_2c_integrate_set', &
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'integrate_set_2c', &
          routineP = moduleN//':'//routineN
 
       INTEGER :: ax, ay, az, bx, by, bz, hab_a_end, hab_a_start, hab_b_end, hab_b_start, handle, &
@@ -580,58 +582,7 @@ $:                         'force_b=force_b(jkind)%forces(:, atom_b), &'*doforce
 
       CALL timestop(handle)
 
-   END SUBROUTINE eri_mme_2c_integrate_set
-
-! **************************************************************************************************
-!> \brief high-level integration routine for 2c integrals over s-type functions.
-!>        Parallelization over pairs of functions.
-!> \param param ...
-!> \param zeta ...
-!> \param zetb ...
-!> \param ra ...
-!> \param rb ...
-!> \param hab ...
-!> \param para_env ...
-! **************************************************************************************************
-   SUBROUTINE cp_eri_mme_2c_integrate_s(param, zeta, zetb, ra, rb, hab, para_env)
-      TYPE(cp_eri_mme_param), INTENT(INOUT)              :: param
-      REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: zeta, zetb
-      REAL(KIND=dp), DIMENSION(:, :), INTENT(IN)         :: ra, rb
-      REAL(KIND=dp), DIMENSION(:, :), INTENT(INOUT)      :: hab
-      TYPE(cp_para_env_type), INTENT(IN), POINTER        :: para_env
-
-      CHARACTER(len=*), PARAMETER :: routineN = 'cp_eri_mme_2c_integrate_s', &
-         routineP = moduleN//':'//routineN
-
-      INTEGER                                            :: G_count, handle, ipgf, ipgf_prod, jpgf, &
-                                                            npgf_prod, npgfa, npgfb, R_count
-      INTEGER, DIMENSION(2)                              :: limits
-      REAL(KIND=dp), DIMENSION(3)                        :: rab
-
-      CALL timeset(routineN, handle)
-      G_count = 0; R_count = 0
-
-      hab(:, :) = 0.0_dp
-
-      npgfa = SIZE(zeta)
-      npgfb = SIZE(zetb)
-      npgf_prod = npgfa*npgfb ! total number of integrals
-
-      limits = get_limit(npgf_prod, para_env%num_pe, para_env%mepos)
-
-      DO ipgf_prod = limits(1), limits(2)
-         ipgf = (ipgf_prod-1)/npgfb+1
-         jpgf = MOD(ipgf_prod-1, npgfb)+1
-         rab(:) = ra(:, ipgf)-rb(:, jpgf)
-         CALL eri_mme_2c_integrate(param%par, 0, 0, 0, 0, zeta(ipgf), &
-                                   zetb(jpgf), rab, hab, ipgf-1, jpgf-1, G_count, R_count)
-      ENDDO
-
-      CALL update_local_counts(param, para_env, G_count_2c=G_count, R_count_2c=R_count)
-      CALL mp_sum(hab, para_env%group)
-      CALL timestop(handle)
-
-   END SUBROUTINE cp_eri_mme_2c_integrate_s
+   END SUBROUTINE integrate_set_2c
 
 ! **************************************************************************************************
 !> \brief high-level integration routine for 3c integrals (ab|c) over CP2K basis sets.
@@ -656,7 +607,7 @@ $:                         'force_b=force_b(jkind)%forces(:, atom_b), &'*doforce
 !> \param mat_adbc ...
 !> \param mat_abdc ...
 ! **************************************************************************************************
-   SUBROUTINE cp_eri_mme_3c_integrate(param, para_env, qs_env, &
+   SUBROUTINE mp2_eri_3c_integrate(param, para_env, qs_env, &
                                       first_c, last_c, mat_ab, &
                                       basis_type_a, basis_type_b, basis_type_c, &
                                       sab_nl, transp, eri_method, &
@@ -675,13 +626,13 @@ $:                         'force_b=force_b(jkind)%forces(:, atom_b), &'*doforce
       INTEGER, INTENT(IN), OPTIONAL                      :: eri_method
       TYPE(dbcsr_p_type), DIMENSION(last_c-first_c+1), &
          INTENT(IN), OPTIONAL                            :: pabc
-      TYPE(cp_eri_mme_force), ALLOCATABLE, &
+      TYPE(mp2_eri_force), ALLOCATABLE, &
          DIMENSION(:), INTENT(OUT), OPTIONAL             :: force_a, force_b, force_c
       TYPE(dbcsr_p_type), &
          DIMENSION(3, last_c-first_c+1), INTENT(INOUT), &
          OPTIONAL                                        :: mat_dabc, mat_adbc, mat_abdc
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'cp_eri_mme_3c_integrate', &
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'mp2_eri_3c_integrate', &
          routineP = moduleN//':'//routineN
 
       INTEGER :: atom_a, atom_b, atom_c, atom_end, atom_start, first_set, GG_count, GR_count, &
@@ -755,9 +706,9 @@ $:                         'force_b=force_b(jkind)%forces(:, atom_b), &'*doforce
       ALLOCATE (natom_of_kind(nkind))
       CALL get_atomic_kind_set(atomic_kind_set, atom_of_kind=atom_of_kind, kind_of=kind_of, natom_of_kind=natom_of_kind)
 
-      IF (PRESENT(force_a)) CALL cp_eri_mme_allocate_forces(force_a, natom_of_kind)
-      IF (PRESENT(force_b)) CALL cp_eri_mme_allocate_forces(force_b, natom_of_kind)
-      IF (PRESENT(force_c)) CALL cp_eri_mme_allocate_forces(force_c, natom_of_kind)
+      IF (PRESENT(force_a)) CALL mp2_eri_allocate_forces(force_a, natom_of_kind)
+      IF (PRESENT(force_b)) CALL mp2_eri_allocate_forces(force_b, natom_of_kind)
+      IF (PRESENT(force_c)) CALL mp2_eri_allocate_forces(force_c, natom_of_kind)
 
       nc = last_c-first_c+1
 
@@ -937,7 +888,7 @@ $:                         'force_b=force_b(jkind)%forces(:, atom_b), &'*doforce
                          ${conditional(dabc)}$ PRESENT(mat_dabc) .AND. &
                          ${conditional(adbc)}$ PRESENT(mat_adbc) .AND. &
                          ${conditional(abdc)}$ PRESENT(mat_abdc)) THEN
-                        CALL eri_mme_3c_integrate_set( &
+                        CALL integrate_set_3c( &
                            param%par, &
                            la_min(iset), la_max(iset), &
                            lb_min(jset), lb_max(jset), &
@@ -1045,10 +996,10 @@ $:                         'habdc=habdc, &'*abdc
       DEALLOCATE (basis_set_list_a, basis_set_list_b)
       CALL neighbor_list_iterator_release(nl_iterator)
 
-      CALL update_local_counts(param, para_env, GG_count_3c=GG_count, GR_count_3c=GR_count, RR_count_3c=RR_count)
+      CALL cp_eri_mme_update_local_counts(param, para_env, GG_count_3c=GG_count, GR_count_3c=GR_count, RR_count_3c=RR_count)
 
       CALL timestop(handle)
-   END SUBROUTINE cp_eri_mme_3c_integrate
+   END SUBROUTINE mp2_eri_3c_integrate
 
 ! **************************************************************************************************
 !> \brief Integrate set triple and contract with sphi matrix
@@ -1103,7 +1054,7 @@ $:                         'habdc=habdc, &'*abdc
 !> \param transp ...
 !> \note
 ! **************************************************************************************************
-   SUBROUTINE eri_mme_3c_integrate_set(param, &
+   SUBROUTINE integrate_set_3c(param, &
                                        la_min, la_max, lb_min, lb_max, lc_min, lc_max, &
                                        npgfa, npgfb, npgfc, &
                                        zeta, zetb, zetc, &
@@ -1147,7 +1098,7 @@ $:                         'habdc=habdc, &'*abdc
       INTEGER, INTENT(INOUT), OPTIONAL                   :: GG_count, GR_count, RR_count
       LOGICAL, INTENT(IN), OPTIONAL                      :: transp
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'eri_mme_3c_integrate_set', &
+      CHARACTER(len=*), PARAMETER :: routineN = 'integrate_set_3c', &
          routineP = moduleN//':'//routineN
 
       INTEGER :: ax, ay, az, bx, by, bz, cx, cy, cz, habc_a_end, habc_a_start, habc_b_end, &
@@ -1442,153 +1393,7 @@ $:                         'habdc=habdc, &'*abdc
 
       CALL timestop(handle)
 
-   END SUBROUTINE eri_mme_3c_integrate_set
-
-! **************************************************************************************************
-!> \brief ...
-!> \param para_env ...
-!> \param iw ...
-!> \param eri_mme_test_section ...
-! **************************************************************************************************
-   SUBROUTINE cp_eri_mme_perf_acc_test(para_env, iw, eri_mme_test_section)
-      TYPE(cp_para_env_type), INTENT(IN), POINTER        :: para_env
-      INTEGER, INTENT(IN)                                :: iw
-      TYPE(section_vals_type), POINTER                   :: eri_mme_test_section
-
-      CHARACTER(len=*), PARAMETER :: routineN = 'cp_eri_mme_perf_acc_test', &
-         routineP = moduleN//':'//routineN
-
-      INTEGER                                            :: count_r, G_count, GG_count, GR_count, i, &
-                                                            ix, iy, iz, l_max, min_nR, nR, nR_xyz, &
-                                                            nrep, nsample, nzet, R_count, RR_count
-      LOGICAL                                            :: test_2c, test_3c, test_accuracy
-      REAL(KIND=dp)                                      :: zet_fac, zetmax, zetmin
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: zet
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: rabc
-      REAL(KIND=dp), DIMENSION(:), POINTER               :: cell_par
-      TYPE(cell_type), POINTER                           :: box
-      TYPE(cp_eri_mme_param)                             :: param
-      TYPE(section_vals_type), POINTER                   :: eri_mme_section
-
-      NULLIFY (box, eri_mme_section, cell_par)
-
-      eri_mme_section => section_vals_get_subs_vals(eri_mme_test_section, "ERI_MME")
-      CALL cp_eri_mme_init_read_input(eri_mme_section, param)
-      CALL section_vals_val_get(eri_mme_test_section, "TEST_3C", l_val=test_3c)
-      CALL section_vals_val_get(eri_mme_test_section, "TEST_2C", l_val=test_2c)
-
-      CALL section_vals_val_get(eri_mme_test_section, "ABC", r_vals=cell_par)
-      CALL section_vals_val_get(eri_mme_test_section, "MIN_NPOS", i_val=min_nR)
-      CALL section_vals_val_get(eri_mme_test_section, "NREP", i_val=nrep)
-      CALL section_vals_val_get(eri_mme_test_section, "CHECK_2C_ACCURACY", l_val=test_accuracy)
-      CALL section_vals_val_get(eri_mme_test_section, "LMAX", i_val=l_max)
-      CALL section_vals_val_get(eri_mme_test_section, "ZET_MIN", r_val=zetmin)
-      CALL section_vals_val_get(eri_mme_test_section, "ZET_MAX", r_val=zetmax)
-      CALL section_vals_val_get(eri_mme_test_section, "NZET", i_val=nzet)
-      CALL section_vals_val_get(eri_mme_test_section, "NSAMPLE_3C", i_val=nsample)
-
-      IF (nzet .LE. 0) &
-         CPABORT("Number of exponents NZET must be greater than 0.")
-
-      CALL init_orbital_pointers(l_max)
-
-      ! Create ranges of zet to be tested
-      ALLOCATE (zet(nzet))
-
-      zet(1) = zetmin
-      IF (nzet .GT. 1) THEN
-         zet_fac = (zetmax/zetmin)**(1.0_dp/(nzet-1))
-         DO i = 1, nzet-1
-            zet(i+1) = zet(i)*zet_fac
-         ENDDO
-      ENDIF
-
-      ! initialize cell
-      CALL cell_create(box)
-      box%hmat = 0.0_dp
-      box%hmat(1, 1) = cell_par(1)
-      box%hmat(2, 2) = cell_par(2)
-      box%hmat(3, 3) = cell_par(3)
-      CALL init_cell(box)
-
-      ! Create range of rab (atomic distances) to be tested
-      nR_xyz = CEILING(REAL(min_nR, KIND=dp)**(1.0_dp/3.0_dp)-1.0E-06)
-      nR = nR_xyz**3
-
-      ALLOCATE (rabc(3, nR))
-      count_r = 0
-      DO ix = 1, nR_xyz
-      DO iy = 1, nR_xyz
-      DO iz = 1, nR_xyz
-         count_r = count_r+1
-         ! adding 10% of cell size to positions to avoid atoms exactly at boundary or center of a cell
-         rabc(:, count_r) = pbc([ix*ABS(cell_par(1)), &
-                                 iy*ABS(cell_par(2)), &
-                                 iz*ABS(cell_par(3))]/nR_xyz+ &
-                                0.1_dp*ABS(cell_par(:)), box)
-      ENDDO
-      ENDDO
-      ENDDO
-
-      ! initialize MME method
-      CALL cp_eri_mme_set_params(param, box%hmat, box%orthorhombic, MINVAL(zet), [MAXVAL(zet)], [l_max], l_max, para_env)
-
-      IF (iw > 0) WRITE (iw, '(T2, A, T61, I20)') "ERI_MME| Number of atomic distances:", nR
-
-      G_count = 0; R_count = 0
-      GG_count = 0; GR_count = 0; RR_count = 0
-
-      IF (test_2c) CALL eri_mme_2c_perf_acc_test(param%par, l_max, zet, rabc, nrep, test_accuracy, para_env, iw, G_count, R_count)
-      IF (test_3c) CALL eri_mme_3c_perf_acc_test(param%par, l_max, zet, rabc, nrep, nsample, &
-                                                 para_env, iw, GG_count, GR_count, RR_count)
-      CALL update_local_counts(param, para_env, G_count, R_count, GG_count, GR_count, RR_count)
-      CALL cp_eri_mme_finalize(param)
-      CALL cell_release(box)
-   END SUBROUTINE cp_eri_mme_perf_acc_test
-
-! **************************************************************************************************
-!> \brief Update local counters to gather statistics on different paths taken in MME algorithm
-!> (each Ewald sum can be performed over direct or reciprocal lattice vectors)
-!> \param param ...
-!> \param para_env ...
-!> \param G_count_2c ...
-!> \param R_count_2c ...
-!> \param GG_count_3c ...
-!> \param GR_count_3c ...
-!> \param RR_count_3c ...
-! **************************************************************************************************
-   SUBROUTINE update_local_counts(param, para_env, G_count_2c, R_count_2c, GG_count_3c, GR_count_3c, RR_count_3c)
-      TYPE(cp_eri_mme_param), INTENT(INOUT)              :: param
-      TYPE(cp_para_env_type), INTENT(IN), POINTER        :: para_env
-      INTEGER, INTENT(INOUT), OPTIONAL                   :: G_count_2c, R_count_2c, GG_count_3c, &
-                                                            GR_count_3c, RR_count_3c
-
-      IF (PRESENT(G_count_2c)) THEN
-         CALL mp_sum(G_count_2c, para_env%group)
-         param%G_count_2c = param%G_count_2c+G_count_2c
-      ENDIF
-
-      IF (PRESENT(R_count_2c)) THEN
-         CALL mp_sum(R_count_2c, para_env%group)
-         param%R_count_2c = param%R_count_2c+R_count_2c
-      ENDIF
-
-      IF (PRESENT(GG_count_3c)) THEN
-         CALL mp_sum(GG_count_3c, para_env%group)
-         param%GG_count_3c = param%GG_count_3c+GG_count_3c
-      ENDIF
-
-      IF (PRESENT(GR_count_3c)) THEN
-         CALL mp_sum(GR_count_3c, para_env%group)
-         param%GR_count_3c = param%GR_count_3c+GR_count_3c
-      ENDIF
-
-      IF (PRESENT(RR_count_3c)) THEN
-         CALL mp_sum(RR_count_3c, para_env%group)
-         param%RR_count_3c = param%RR_count_3c+RR_count_3c
-      ENDIF
-
-   END SUBROUTINE update_local_counts
+   END SUBROUTINE integrate_set_3c
 
 ! **************************************************************************************************
 !> \brief get pointer to atom, pointer to set and offset in a set for each spherical orbital of a
@@ -1647,4 +1452,48 @@ $:                         'habdc=habdc, &'*abdc
       ENDDO
    END SUBROUTINE get_eri_offsets
 
-END MODULE cp_eri_mp2_interface
+! **************************************************************************************************
+!> \brief ...
+!> \param force ...
+!> \param natom_of_kind ...
+! **************************************************************************************************
+   SUBROUTINE mp2_eri_allocate_forces(force, natom_of_kind)
+      TYPE(mp2_eri_force), ALLOCATABLE, &
+         DIMENSION(:), INTENT(OUT)                       :: force
+      INTEGER, DIMENSION(:), INTENT(IN)                  :: natom_of_kind
+
+      INTEGER                                            :: ikind, n, nkind
+
+      nkind = SIZE(natom_of_kind)
+
+      ALLOCATE (force(nkind))
+
+      DO ikind = 1, nkind
+         n = natom_of_kind(ikind)
+         ALLOCATE (force(ikind)%forces(3, n))
+         force(ikind)%forces(:, :) = 0.0_dp
+      ENDDO
+   END SUBROUTINE mp2_eri_allocate_forces
+
+
+! **************************************************************************************************
+!> \brief ...
+!> \param force ...
+! **************************************************************************************************
+   SUBROUTINE mp2_eri_deallocate_forces(force)
+      TYPE(mp2_eri_force), ALLOCATABLE, &
+         DIMENSION(:), INTENT(INOUT)                     :: force
+
+      INTEGER                                            :: ikind, nkind
+
+      IF (ALLOCATED(force)) THEN
+         nkind = SIZE(force)
+         DO ikind = 1, nkind
+            IF (ALLOCATED(force(ikind)%forces)) DEALLOCATE (force(ikind)%forces)
+         ENDDO
+
+         DEALLOCATE (force)
+      ENDIF
+   END SUBROUTINE mp2_eri_deallocate_forces
+
+END MODULE mp2_eri

@@ -9,7 +9,7 @@
 !> \author Fawzi Mohamed
 ! **************************************************************************************************
 MODULE qmmm_types_low
-   USE cp_eri_mme_types,                ONLY: cp_eri_mme_finalize,&
+   USE cp_eri_mme_interface,            ONLY: cp_eri_mme_finalize,&
                                               cp_eri_mme_param
    USE ewald_environment_types,         ONLY: ewald_env_release,&
                                               ewald_environment_type

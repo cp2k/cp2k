@@ -10,7 +10,7 @@
 !> \author MDB
 ! **************************************************************************************************
 MODULE mp2_setup
-   USE cp_eri_mme_types,                ONLY: cp_eri_mme_init_read_input
+   USE cp_eri_mme_interface,            ONLY: cp_eri_mme_init_read_input
    USE cp_log_handling,                 ONLY: cp_get_default_logger,&
                                               cp_logger_type
    USE cp_output_handling,              ONLY: cp_print_key_finished_output,&

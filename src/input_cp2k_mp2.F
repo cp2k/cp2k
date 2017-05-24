@@ -16,7 +16,7 @@ MODULE input_cp2k_mp2
                                               DelBen2015,&
                                               DelBen2015b,&
                                               Rybkin2016
-   USE cp_eri_mme_types,                ONLY: create_eri_mme_section
+   USE cp_eri_mme_interface,            ONLY: create_eri_mme_section
    USE cp_output_handling,              ONLY: add_last_numeric,&
                                               cp_print_key_section_create,&
                                               debug_print_level,&

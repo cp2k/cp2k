@@ -14,7 +14,8 @@ MODULE qmmm_image_charge
    USE cell_types,                      ONLY: cell_type,&
                                               pbc
    USE cp_control_types,                ONLY: dft_control_type
-   USE cp_eri_mp2_interface,            ONLY: cp_eri_mme_2c_integrate_s
+   USE cp_eri_mme_interface,            ONLY: cp_eri_mme_param,&
+                                              cp_eri_mme_update_local_counts
    USE cp_files,                        ONLY: close_file,&
                                               open_file
    USE cp_log_handling,                 ONLY: cp_get_default_logger,&
@@ -25,6 +26,7 @@ MODULE qmmm_image_charge
                                               cp_print_key_should_output,&
                                               cp_print_key_unit_nr
    USE cp_para_types,                   ONLY: cp_para_env_type
+   USE eri_mme_integrate,               ONLY: eri_mme_2c_integrate
    USE input_constants,                 ONLY: calc_always,&
                                               calc_once,&
                                               calc_once_done,&
@@ -69,6 +71,7 @@ MODULE qmmm_image_charge
                                               rs_grid_release,&
                                               rs_grid_retain,&
                                               rs_pw_transfer
+   USE util,                            ONLY: get_limit
    USE virial_types,                    ONLY: virial_type
 #include "./base/base_uses.f90"
 
@@ -804,11 +807,62 @@ CONTAINS
 
       CALL get_qs_env(qs_env, para_env=para_env)
 
-      CALL cp_eri_mme_2c_integrate_s(qmmm_env%image_charge_pot%eri_mme_param, &
-                                     zeta, zeta, ra, ra, image_matrix, para_env)
+      CALL integrate_s_mme(qmmm_env%image_charge_pot%eri_mme_param, &
+                           zeta, zeta, ra, ra, image_matrix, para_env)
 
       CALL timestop(handle)
    END SUBROUTINE calculate_image_matrix_mme
+
+! **************************************************************************************************
+!> \brief high-level integration routine for 2c integrals over s-type functions.
+!>        Parallelization over pairs of functions.
+!> \param param ...
+!> \param zeta ...
+!> \param zetb ...
+!> \param ra ...
+!> \param rb ...
+!> \param hab ...
+!> \param para_env ...
+! **************************************************************************************************
+   SUBROUTINE integrate_s_mme(param, zeta, zetb, ra, rb, hab, para_env)
+      TYPE(cp_eri_mme_param), INTENT(INOUT)              :: param
+      REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: zeta, zetb
+      REAL(KIND=dp), DIMENSION(:, :), INTENT(IN)         :: ra, rb
+      REAL(KIND=dp), DIMENSION(:, :), INTENT(INOUT)      :: hab
+      TYPE(cp_para_env_type), INTENT(IN), POINTER        :: para_env
+
+      CHARACTER(len=*), PARAMETER :: routineN = 'integrate_s_mme', &
+         routineP = moduleN//':'//routineN
+
+      INTEGER                                            :: G_count, handle, ipgf, ipgf_prod, jpgf, &
+                                                            npgf_prod, npgfa, npgfb, R_count
+      INTEGER, DIMENSION(2)                              :: limits
+      REAL(KIND=dp), DIMENSION(3)                        :: rab
+
+      CALL timeset(routineN, handle)
+      G_count = 0; R_count = 0
+
+      hab(:, :) = 0.0_dp
+
+      npgfa = SIZE(zeta)
+      npgfb = SIZE(zetb)
+      npgf_prod = npgfa*npgfb ! total number of integrals
+
+      limits = get_limit(npgf_prod, para_env%num_pe, para_env%mepos)
+
+      DO ipgf_prod = limits(1), limits(2)
+         ipgf = (ipgf_prod-1)/npgfb+1
+         jpgf = MOD(ipgf_prod-1, npgfb)+1
+         rab(:) = ra(:, ipgf)-rb(:, jpgf)
+         CALL eri_mme_2c_integrate(param%par, 0, 0, 0, 0, zeta(ipgf), &
+                                   zetb(jpgf), rab, hab, ipgf-1, jpgf-1, G_count, R_count)
+      ENDDO
+
+      CALL cp_eri_mme_update_local_counts(param, para_env, G_count_2c=G_count, R_count_2c=R_count)
+      CALL mp_sum(hab, para_env%group)
+      CALL timestop(handle)
+
+   END SUBROUTINE integrate_s_mme
 
 ! **************************************************************************************************
 !> \brief calculates potential of the metal (image potential) given a set of

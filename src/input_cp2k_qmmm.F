@@ -18,7 +18,7 @@ MODULE input_cp2k_qmmm
                                               Laino2005,&
                                               Laino2006
    USE cell_types,                      ONLY: use_perd_none
-   USE cp_eri_mme_types,                ONLY: create_eri_mme_section
+   USE cp_eri_mme_interface,            ONLY: create_eri_mme_section
    USE cp_output_handling,              ONLY: add_last_numeric,&
                                               cp_print_key_section_create,&
                                               debug_print_level,&

@@ -5,15 +5,15 @@
 
 ! **************************************************************************************************
 !> \brief Interface to Minimax-Ewald method for periodic ERI's to be used in CP2K.
-!>        Types and initialization / finalization methods.
-!> \par History
-!>       2015 09 created
-!> \author Patrick Seewald
 ! **************************************************************************************************
 
-MODULE cp_eri_mme_types
+MODULE cp_eri_mme_interface
    USE basis_set_types,                 ONLY: gto_basis_set_type
-   USE cell_types,                      ONLY: cell_type
+   USE cell_types,                      ONLY: cell_create,&
+                                              cell_release,&
+                                              cell_type,&
+                                              init_cell,&
+                                              pbc
    USE cp_log_handling,                 ONLY: cp_get_default_logger,&
                                               cp_logger_type
    USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
@@ -21,6 +21,8 @@ MODULE cp_eri_mme_types
                                               cp_print_key_unit_nr,&
                                               medium_print_level
    USE cp_para_types,                   ONLY: cp_para_env_type
+   USE eri_mme_test,                    ONLY: eri_mme_2c_perf_acc_test,&
+                                              eri_mme_3c_perf_acc_test
    USE eri_mme_types,                   ONLY: eri_mme_init,&
                                               eri_mme_param,&
                                               eri_mme_release,&
@@ -39,6 +41,8 @@ MODULE cp_eri_mme_types
    USE input_val_types,                 ONLY: real_t
    USE kinds,                           ONLY: default_string_length,&
                                               dp
+   USE message_passing,                 ONLY: mp_sum
+   USE orbital_pointers,                ONLY: init_orbital_pointers
    USE qs_kind_types,                   ONLY: get_qs_kind,&
                                               qs_kind_type
 #include "./base/base_uses.f90"
@@ -49,17 +53,17 @@ MODULE cp_eri_mme_types
 
    LOGICAL, PRIVATE, PARAMETER :: debug_this_module = .FALSE.
 
-   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'cp_eri_mme_types'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'cp_eri_mme_interface'
 
-   PUBLIC :: cp_eri_mme_param, &
-             cp_eri_mme_set_params, &
-             cp_eri_mme_init_read_input, &
-             cp_eri_mme_finalize, &
-             create_eri_mme_section, &
-             create_eri_mme_test_section, &
-             cp_eri_mme_allocate_forces, &
-             cp_eri_mme_deallocate_forces, &
-             cp_eri_mme_force
+   PUBLIC :: &
+      cp_eri_mme_finalize, &
+      cp_eri_mme_init_read_input, &
+      cp_eri_mme_param, &
+      cp_eri_mme_perf_acc_test, &
+      cp_eri_mme_set_params, &
+      cp_eri_mme_update_local_counts, &
+      create_eri_mme_section, &
+      create_eri_mme_test_section
 
    INTERFACE cp_eri_mme_set_params
       MODULE PROCEDURE eri_mme_set_params_from_basis
@@ -75,12 +79,7 @@ MODULE cp_eri_mme_types
       INTEGER                                            :: GG_count_3c, GR_count_3c, RR_count_3c
    END TYPE cp_eri_mme_param
 
-   TYPE cp_eri_mme_force
-      REAL(KIND=dp), DIMENSION(:, :), ALLOCATABLE :: forces
-   END TYPE cp_eri_mme_force
-
 CONTAINS
-
 ! **************************************************************************************************
 !> \brief Create main input section
 !> \param section ...
@@ -208,49 +207,6 @@ CONTAINS
       CALL section_release(subsection)
 
    END SUBROUTINE create_eri_mme_section
-
-! **************************************************************************************************
-!> \brief ...
-!> \param force ...
-!> \param natom_of_kind ...
-! **************************************************************************************************
-   SUBROUTINE cp_eri_mme_allocate_forces(force, natom_of_kind)
-      TYPE(cp_eri_mme_force), ALLOCATABLE, &
-         DIMENSION(:), INTENT(OUT)                       :: force
-      INTEGER, DIMENSION(:), INTENT(IN)                  :: natom_of_kind
-
-      INTEGER                                            :: ikind, n, nkind
-
-      nkind = SIZE(natom_of_kind)
-
-      ALLOCATE (force(nkind))
-
-      DO ikind = 1, nkind
-         n = natom_of_kind(ikind)
-         ALLOCATE (force(ikind)%forces(3, n))
-         force(ikind)%forces(:, :) = 0.0_dp
-      ENDDO
-   END SUBROUTINE cp_eri_mme_allocate_forces
-
-! **************************************************************************************************
-!> \brief ...
-!> \param force ...
-! **************************************************************************************************
-   SUBROUTINE cp_eri_mme_deallocate_forces(force)
-      TYPE(cp_eri_mme_force), ALLOCATABLE, &
-         DIMENSION(:), INTENT(INOUT)                     :: force
-
-      INTEGER                                            :: ikind, nkind
-
-      IF (ALLOCATED(force)) THEN
-         nkind = SIZE(force)
-         DO ikind = 1, nkind
-            IF (ALLOCATED(force(ikind)%forces)) DEALLOCATE (force(ikind)%forces)
-         ENDDO
-
-         DEALLOCATE (force)
-      ENDIF
-   END SUBROUTINE cp_eri_mme_deallocate_forces
 
 ! **************************************************************************************************
 !> \brief Read input and initialize parameter type
@@ -654,4 +610,150 @@ CONTAINS
       CALL keyword_release(keyword)
    END SUBROUTINE create_eri_mme_test_section
 
-END MODULE cp_eri_mme_types
+! **************************************************************************************************
+!> \brief Update local counters to gather statistics on different paths taken in MME algorithm
+!> (each Ewald sum can be performed over direct or reciprocal lattice vectors)
+!> \param param ...
+!> \param para_env ...
+!> \param G_count_2c ...
+!> \param R_count_2c ...
+!> \param GG_count_3c ...
+!> \param GR_count_3c ...
+!> \param RR_count_3c ...
+! **************************************************************************************************
+   SUBROUTINE cp_eri_mme_update_local_counts(param, para_env, G_count_2c, R_count_2c, GG_count_3c, GR_count_3c, RR_count_3c)
+      TYPE(cp_eri_mme_param), INTENT(INOUT)              :: param
+      TYPE(cp_para_env_type), INTENT(IN), POINTER        :: para_env
+      INTEGER, INTENT(INOUT), OPTIONAL                   :: G_count_2c, R_count_2c, GG_count_3c, &
+                                                            GR_count_3c, RR_count_3c
+
+      IF (PRESENT(G_count_2c)) THEN
+         CALL mp_sum(G_count_2c, para_env%group)
+         param%G_count_2c = param%G_count_2c+G_count_2c
+      ENDIF
+
+      IF (PRESENT(R_count_2c)) THEN
+         CALL mp_sum(R_count_2c, para_env%group)
+         param%R_count_2c = param%R_count_2c+R_count_2c
+      ENDIF
+
+      IF (PRESENT(GG_count_3c)) THEN
+         CALL mp_sum(GG_count_3c, para_env%group)
+         param%GG_count_3c = param%GG_count_3c+GG_count_3c
+      ENDIF
+
+      IF (PRESENT(GR_count_3c)) THEN
+         CALL mp_sum(GR_count_3c, para_env%group)
+         param%GR_count_3c = param%GR_count_3c+GR_count_3c
+      ENDIF
+
+      IF (PRESENT(RR_count_3c)) THEN
+         CALL mp_sum(RR_count_3c, para_env%group)
+         param%RR_count_3c = param%RR_count_3c+RR_count_3c
+      ENDIF
+
+   END SUBROUTINE cp_eri_mme_update_local_counts
+
+! **************************************************************************************************
+!> \brief ...
+!> \param para_env ...
+!> \param iw ...
+!> \param eri_mme_test_section ...
+! **************************************************************************************************
+   SUBROUTINE cp_eri_mme_perf_acc_test(para_env, iw, eri_mme_test_section)
+      TYPE(cp_para_env_type), INTENT(IN), POINTER        :: para_env
+      INTEGER, INTENT(IN)                                :: iw
+      TYPE(section_vals_type), POINTER                   :: eri_mme_test_section
+
+      CHARACTER(len=*), PARAMETER :: routineN = 'cp_eri_mme_perf_acc_test', &
+         routineP = moduleN//':'//routineN
+
+      INTEGER                                            :: count_r, G_count, GG_count, GR_count, i, &
+                                                            ix, iy, iz, l_max, min_nR, nR, nR_xyz, &
+                                                            nrep, nsample, nzet, R_count, RR_count
+      LOGICAL                                            :: test_2c, test_3c, test_accuracy
+      REAL(KIND=dp)                                      :: zet_fac, zetmax, zetmin
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: zet
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: rabc
+      REAL(KIND=dp), DIMENSION(:), POINTER               :: cell_par
+      TYPE(cell_type), POINTER                           :: box
+      TYPE(cp_eri_mme_param)                             :: param
+      TYPE(section_vals_type), POINTER                   :: eri_mme_section
+
+      NULLIFY (box, eri_mme_section, cell_par)
+
+      eri_mme_section => section_vals_get_subs_vals(eri_mme_test_section, "ERI_MME")
+      CALL cp_eri_mme_init_read_input(eri_mme_section, param)
+      CALL section_vals_val_get(eri_mme_test_section, "TEST_3C", l_val=test_3c)
+      CALL section_vals_val_get(eri_mme_test_section, "TEST_2C", l_val=test_2c)
+
+      CALL section_vals_val_get(eri_mme_test_section, "ABC", r_vals=cell_par)
+      CALL section_vals_val_get(eri_mme_test_section, "MIN_NPOS", i_val=min_nR)
+      CALL section_vals_val_get(eri_mme_test_section, "NREP", i_val=nrep)
+      CALL section_vals_val_get(eri_mme_test_section, "CHECK_2C_ACCURACY", l_val=test_accuracy)
+      CALL section_vals_val_get(eri_mme_test_section, "LMAX", i_val=l_max)
+      CALL section_vals_val_get(eri_mme_test_section, "ZET_MIN", r_val=zetmin)
+      CALL section_vals_val_get(eri_mme_test_section, "ZET_MAX", r_val=zetmax)
+      CALL section_vals_val_get(eri_mme_test_section, "NZET", i_val=nzet)
+      CALL section_vals_val_get(eri_mme_test_section, "NSAMPLE_3C", i_val=nsample)
+
+      IF (nzet .LE. 0) &
+         CPABORT("Number of exponents NZET must be greater than 0.")
+
+      CALL init_orbital_pointers(l_max)
+
+      ! Create ranges of zet to be tested
+      ALLOCATE (zet(nzet))
+
+      zet(1) = zetmin
+      IF (nzet .GT. 1) THEN
+         zet_fac = (zetmax/zetmin)**(1.0_dp/(nzet-1))
+         DO i = 1, nzet-1
+            zet(i+1) = zet(i)*zet_fac
+         ENDDO
+      ENDIF
+
+      ! initialize cell
+      CALL cell_create(box)
+      box%hmat = 0.0_dp
+      box%hmat(1, 1) = cell_par(1)
+      box%hmat(2, 2) = cell_par(2)
+      box%hmat(3, 3) = cell_par(3)
+      CALL init_cell(box)
+
+      ! Create range of rab (atomic distances) to be tested
+      nR_xyz = CEILING(REAL(min_nR, KIND=dp)**(1.0_dp/3.0_dp)-1.0E-06)
+      nR = nR_xyz**3
+
+      ALLOCATE (rabc(3, nR))
+      count_r = 0
+      DO ix = 1, nR_xyz
+      DO iy = 1, nR_xyz
+      DO iz = 1, nR_xyz
+         count_r = count_r+1
+         ! adding 10% of cell size to positions to avoid atoms exactly at boundary or center of a cell
+         rabc(:, count_r) = pbc([ix*ABS(cell_par(1)), &
+                                 iy*ABS(cell_par(2)), &
+                                 iz*ABS(cell_par(3))]/nR_xyz+ &
+                                0.1_dp*ABS(cell_par(:)), box)
+      ENDDO
+      ENDDO
+      ENDDO
+
+      ! initialize MME method
+      CALL cp_eri_mme_set_params(param, box%hmat, box%orthorhombic, MINVAL(zet), [MAXVAL(zet)], [l_max], l_max, para_env)
+
+      IF (iw > 0) WRITE (iw, '(T2, A, T61, I20)') "ERI_MME| Number of atomic distances:", nR
+
+      G_count = 0; R_count = 0
+      GG_count = 0; GR_count = 0; RR_count = 0
+
+      IF (test_2c) CALL eri_mme_2c_perf_acc_test(param%par, l_max, zet, rabc, nrep, test_accuracy, para_env, iw, G_count, R_count)
+      IF (test_3c) CALL eri_mme_3c_perf_acc_test(param%par, l_max, zet, rabc, nrep, nsample, &
+                                                 para_env, iw, GG_count, GR_count, RR_count)
+      CALL cp_eri_mme_update_local_counts(param, para_env, G_count, R_count, GG_count, GR_count, RR_count)
+      CALL cp_eri_mme_finalize(param)
+      CALL cell_release(box)
+   END SUBROUTINE cp_eri_mme_perf_acc_test
+
+END MODULE cp_eri_mme_interface

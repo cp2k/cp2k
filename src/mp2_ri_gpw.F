@@ -28,10 +28,8 @@ MODULE mp2_ri_gpw
    USE cp_control_types,                ONLY: dft_control_type
    USE cp_dbcsr_operations,             ONLY: copy_dbcsr_to_fm,&
                                               cp_dbcsr_m_by_n_from_template
-   USE cp_eri_mme_types,                ONLY: cp_eri_mme_param,&
+   USE cp_eri_mme_interface,            ONLY: cp_eri_mme_param,&
                                               cp_eri_mme_set_params
-   USE cp_eri_mp2_interface,            ONLY: cp_eri_mme_2c_integrate,&
-                                              cp_eri_mme_3c_integrate
    USE cp_fm_basic_linalg,              ONLY: cp_fm_triangular_invert
    USE cp_fm_cholesky,                  ONLY: cp_fm_cholesky_decompose
    USE cp_fm_diag,                      ONLY: cp_fm_syevx
@@ -86,6 +84,8 @@ MODULE mp2_ri_gpw
         mp_max, mp_min, mp_sendrecv, mp_sum, mp_sync
    USE molecule_kind_types,             ONLY: molecule_kind_type
    USE molecule_types,                  ONLY: molecule_type
+   USE mp2_eri,                         ONLY: mp2_eri_2c_integrate,&
+                                              mp2_eri_3c_integrate
    USE mp2_ri_grad_util,                ONLY: complete_gamma
    USE mp2_types,                       ONLY: integ_mat_buffer_type,&
                                               mp2_type,&
@@ -617,12 +617,12 @@ CONTAINS
                CALL dbcsr_copy(mat_munu_local_L(LLL)%matrix, mat_munu%matrix)
                CALL dbcsr_set(mat_munu_local_L(LLL)%matrix, 0.0_dp)
             ENDDO
-            CALL cp_eri_mme_3c_integrate(eri_param, para_env_sub, qs_env, &
-                                         first_c=my_group_L_start, last_c=my_group_L_end, &
-                                         mat_ab=mat_munu_local_L, &
-                                         basis_type_a="ORB", basis_type_b="ORB", &
-                                         basis_type_c="RI_AUX", &
-                                         sab_nl=sab_orb_sub, eri_method=eri_method)
+            CALL mp2_eri_3c_integrate(eri_param, para_env_sub, qs_env, &
+                                      first_c=my_group_L_start, last_c=my_group_L_end, &
+                                      mat_ab=mat_munu_local_L, &
+                                      basis_type_a="ORB", basis_type_b="ORB", &
+                                      basis_type_c="RI_AUX", &
+                                      sab_nl=sab_orb_sub, eri_method=eri_method)
 
             ! create a NG x Nw process grid for contraction
             pdims = [ngroup, para_env_sub%num_pe]
@@ -2486,10 +2486,10 @@ CONTAINS
          IF ((eri_method .EQ. do_eri_mme .OR. eri_method .EQ. do_eri_os) &
              .AND. my_ri_metric .EQ. ri_coulomb) THEN
 
-            CALL cp_eri_mme_2c_integrate(eri_param, para_env_sub, qs_env, &
-                                         basis_type_a="RI_AUX", basis_type_b="RI_AUX", &
-                                         hab=L_local_col, first_b=my_group_L_start, last_b=my_group_L_end, &
-                                         eri_method=eri_method)
+            CALL mp2_eri_2c_integrate(eri_param, para_env_sub, qs_env, &
+                                      basis_type_a="RI_AUX", basis_type_b="RI_AUX", &
+                                      hab=L_local_col, first_b=my_group_L_start, last_b=my_group_L_end, &
+                                      eri_method=eri_method)
 
          ELSEIF (eri_method .EQ. do_eri_gpw .OR. my_ri_metric .NE. ri_coulomb) THEN
 

@@ -10,7 +10,7 @@
 !> \author fawzi
 ! **************************************************************************************************
 MODULE input_cp2k
-   USE cp_eri_mme_types,                ONLY: create_eri_mme_test_section
+   USE cp_eri_mme_interface,            ONLY: create_eri_mme_test_section
    USE cp_output_handling,              ONLY: add_last_numeric,&
                                               cp_print_key_section_create,&
                                               low_print_level,&

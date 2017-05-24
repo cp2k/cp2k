@@ -17,11 +17,7 @@ MODULE mp2_ri_grad
    USE cp_blacs_env,                    ONLY: cp_blacs_env_type
    USE cp_control_types,                ONLY: dft_control_type
    USE cp_dbcsr_operations,             ONLY: copy_dbcsr_to_fm
-   USE cp_eri_mme_types,                ONLY: cp_eri_mme_deallocate_forces,&
-                                              cp_eri_mme_force,&
-                                              cp_eri_mme_param
-   USE cp_eri_mp2_interface,            ONLY: cp_eri_mme_2c_integrate,&
-                                              cp_eri_mme_3c_integrate
+   USE cp_eri_mme_interface,            ONLY: cp_eri_mme_param
    USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
                                               cp_fm_struct_release,&
                                               cp_fm_struct_type
@@ -49,6 +45,10 @@ MODULE mp2_ri_grad
    USE message_passing,                 ONLY: &
         mp_alltoall, mp_comm_split_direct, mp_irecv, mp_isend, mp_request_null, mp_sendrecv, &
         mp_sum, mp_wait, mp_waitall
+   USE mp2_eri,                         ONLY: mp2_eri_2c_integrate,&
+                                              mp2_eri_3c_integrate,&
+                                              mp2_eri_deallocate_forces,&
+                                              mp2_eri_force
    USE mp2_types,                       ONLY: integ_mat_buffer_type,&
                                               integ_mat_buffer_type_2D,&
                                               mp2_type
@@ -189,8 +189,6 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(3, 3)                     :: h_stress, my_virial_a, my_virial_b
       REAL(KIND=dp), DIMENSION(:), POINTER               :: set_radius_a
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: I_tmp2, pab, rpgfa, sphi_a, zeta
-      TYPE(cp_eri_mme_force), ALLOCATABLE, DIMENSION(:)  :: force_2c, force_3c_aux, force_3c_orb_mu, &
-                                                            force_3c_orb_nu
       TYPE(cp_eri_mme_param), POINTER                    :: eri_param
       TYPE(cp_fm_struct_type), POINTER                   :: fm_struct_tmp
       TYPE(cp_fm_type), POINTER                          :: L1_mu_i, L1_mu_i_beta, L2_nu_a, &
@@ -202,6 +200,8 @@ CONTAINS
       TYPE(dbcsr_type), POINTER                          :: mo_coeff_o, mo_coeff_o_beta, mo_coeff_v, &
                                                             mo_coeff_v_beta
       TYPE(gto_basis_set_type), POINTER                  :: basis_set_a
+      TYPE(mp2_eri_force), ALLOCATABLE, DIMENSION(:)     :: force_2c, force_3c_aux, force_3c_orb_mu, &
+                                                            force_3c_orb_nu
       TYPE(pw_p_type)                                    :: dvg(3), psi_L, psi_L_beta, temp_pw_g
       TYPE(qs_force_type), DIMENSION(:), POINTER         :: force
       TYPE(qs_ks_env_type), POINTER                      :: ks_env
@@ -324,18 +324,18 @@ CONTAINS
 
          ALLOCATE (I_tmp2(dimen_RI, my_group_L_size))
          I_tmp2(:, :) = 0.0_dp
-         CALL cp_eri_mme_2c_integrate(eri_param, para_env_sub, qs_env, &
-                                      basis_type_a="RI_AUX", basis_type_b="RI_AUX", &
-                                      hab=I_tmp2, first_b=my_group_L_start, last_b=my_group_L_end, &
-                                      eri_method=eri_method, pab=G_PQ_local, force_a=force_2c)
+         CALL mp2_eri_2c_integrate(eri_param, para_env_sub, qs_env, &
+                                   basis_type_a="RI_AUX", basis_type_b="RI_AUX", &
+                                   hab=I_tmp2, first_b=my_group_L_start, last_b=my_group_L_end, &
+                                   eri_method=eri_method, pab=G_PQ_local, force_a=force_2c)
 
          DEALLOCATE (I_tmp2)
-         CALL cp_eri_mme_3c_integrate(eri_param, para_env_sub, qs_env, &
-                                      first_c=my_group_L_start, last_c=my_group_L_end, mat_ab=mat_munu_local, &
-                                      basis_type_a="ORB", basis_type_b="ORB", basis_type_c="RI_AUX", &
-                                      sab_nl=sab_orb_sub, eri_method=eri_method, &
-                                      pabc=matrix_P_munu_local, &
-                                      force_a=force_3c_orb_mu, force_b=force_3c_orb_nu, force_c=force_3c_aux)
+         CALL mp2_eri_3c_integrate(eri_param, para_env_sub, qs_env, &
+                                   first_c=my_group_L_start, last_c=my_group_L_end, mat_ab=mat_munu_local, &
+                                   basis_type_a="ORB", basis_type_b="ORB", basis_type_c="RI_AUX", &
+                                   sab_nl=sab_orb_sub, eri_method=eri_method, &
+                                   pabc=matrix_P_munu_local, &
+                                   force_a=force_3c_orb_mu, force_b=force_3c_orb_nu, force_c=force_3c_aux)
 
          L_counter = 0
          DO LLL = my_group_L_start, my_group_L_end
@@ -368,10 +368,10 @@ CONTAINS
                                              force_3c_aux(ikind)%forces(:, :)
          END DO
 
-         CALL cp_eri_mme_deallocate_forces(force_2c)
-         CALL cp_eri_mme_deallocate_forces(force_3c_aux)
-         CALL cp_eri_mme_deallocate_forces(force_3c_orb_mu)
-         CALL cp_eri_mme_deallocate_forces(force_3c_orb_nu)
+         CALL mp2_eri_deallocate_forces(force_2c)
+         CALL mp2_eri_deallocate_forces(force_3c_aux)
+         CALL mp2_eri_deallocate_forces(force_3c_orb_mu)
+         CALL mp2_eri_deallocate_forces(force_3c_orb_nu)
          CALL dbcsr_deallocate_matrix_set(matrix_P_munu_local)
          CALL dbcsr_deallocate_matrix_set(mat_munu_local)
 
