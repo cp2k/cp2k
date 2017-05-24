@@ -56,6 +56,7 @@ MODULE mp2
                                               do_admm_basis_projection,&
                                               do_admm_purify_none,&
                                               do_eri_gpw,&
+                                              do_eri_mme,&
                                               do_mp2_potential_TShPSC,&
                                               hfx_do_eval_energy,&
                                               xc_none
@@ -226,6 +227,10 @@ CONTAINS
          IF (mp2_env%method /= ri_mp2_method_gpw) THEN
             CPABORT("No forces/gradients for the selected method.")
          END IF
+      ENDIF
+
+      IF (virial%pv_availability .AND. (.NOT. virial%pv_numer) .AND. mp2_env%eri_method == do_eri_mme) THEN
+         CPABORT("analytical stress not implemented with ERI_METHOD = MME")
       ENDIF
 
       IF (mp2_env%ri_rpa%do_im_time .AND. mp2_env%eri_method .NE. do_eri_gpw) THEN

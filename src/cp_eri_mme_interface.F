@@ -77,6 +77,12 @@ MODULE cp_eri_mme_interface
          POINTER                                         :: mme_section => NULL()
       INTEGER                                            :: G_count_2c, R_count_2c
       INTEGER                                            :: GG_count_3c, GR_count_3c, RR_count_3c
+      REAL(KIND=dp), DIMENSION(3, 3)                     :: hmat
+      REAL(KIND=dp)                                      :: zet_err_minimax
+      REAL(KIND=dp), DIMENSION(:), ALLOCATABLE           :: zet_err_cutoff
+      INTEGER, DIMENSION(:), ALLOCATABLE                 :: l_err_cutoff
+      INTEGER                                            :: l_max
+      LOGICAL                                            :: do_calib
    END TYPE cp_eri_mme_param
 
 CONTAINS
@@ -251,6 +257,8 @@ CONTAINS
                         cutoff, do_calib_cutoff, cutoff_min, cutoff_max, cutoff_eps, cutoff_delta, &
                         debug, debug_delta, unit_nr, print_calib)
 
+      param%do_calib = do_calib_cutoff
+
       param%G_count_2c = 0
       param%R_count_2c = 0
       param%GG_count_3c = 0
@@ -297,14 +305,14 @@ CONTAINS
       ENDIF
 
       CALL eri_mme_release(param%par)
+      IF (ALLOCATED(param%zet_err_cutoff)) DEALLOCATE (param%zet_err_cutoff)
+      IF (ALLOCATED(param%l_err_cutoff)) DEALLOCATE (param%l_err_cutoff)
       CALL cp_print_key_finished_output(unit_nr, param%logger, param%mme_section, "ERI_MME_INFO")
    END SUBROUTINE cp_eri_mme_finalize
 
 ! **************************************************************************************************
 !> \brief Set parameters for MME method by deriving basis info from basis set.
 !>        Cutoff can be auto-calibrated to minimize total error.
-!>        Switch between G / R space representation can be auto-calibrated to
-!>        minimize run time.
 !> \param param ...
 !> \param cell ...
 !> \param qs_kind_set ...
@@ -359,11 +367,43 @@ CONTAINS
       LOGICAL, INTENT(IN)                                :: is_ortho
       REAL(KIND=dp), INTENT(IN)                          :: zet_err_minimax
       REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: zet_err_cutoff
-      INTEGER, DIMENSION(:), INTENT(IN), OPTIONAL        :: l_err_cutoff
+      INTEGER, DIMENSION(:), INTENT(IN)                  :: l_err_cutoff
       INTEGER, INTENT(IN)                                :: l_max
       TYPE(cp_para_env_type), INTENT(IN), POINTER        :: para_env
 
+      REAL(KIND=dp), PARAMETER                           :: eps_changed = 1.0E-14_dp
+
+      IF (param%do_calib) THEN
+         IF (.NOT. param%par%is_valid) THEN
+            param%par%do_calib_cutoff = .TRUE.
+         ELSE
+            ! only calibrate cutoff if parameters (cell, basis coefficients) have changed
+            IF (ALL(ABS(param%hmat-hmat) < eps_changed) .AND. &
+                ABS(param%zet_err_minimax-zet_err_minimax) < eps_changed .AND. &
+                ALL(ABS(param%zet_err_cutoff-zet_err_cutoff) < eps_changed) .AND. &
+                ALL(param%l_err_cutoff == l_err_cutoff) .AND. &
+                param%l_max == l_max) THEN
+               param%par%do_calib_cutoff = .FALSE.
+            ELSE
+               param%par%do_calib_cutoff = .TRUE.
+            ENDIF
+         ENDIF
+      ELSE
+         param%par%do_calib_cutoff = .FALSE.
+      ENDIF
+
       CALL eri_mme_set_params(param%par, hmat, is_ortho, zet_err_minimax, zet_err_cutoff, l_err_cutoff, l_max, para_env)
+
+      param%hmat(:, :) = hmat(:, :)
+      param%zet_err_minimax = zet_err_minimax
+      IF (ALLOCATED(param%zet_err_cutoff)) DEALLOCATE (param%zet_err_cutoff)
+      IF (ALLOCATED(param%l_err_cutoff)) DEALLOCATE (param%l_err_cutoff)
+      ALLOCATE (param%zet_err_cutoff(SIZE(zet_err_cutoff)))
+      param%zet_err_cutoff(:) = zet_err_cutoff(:)
+      ALLOCATE (param%l_err_cutoff(SIZE(l_err_cutoff)))
+      param%l_err_cutoff(:) = l_err_cutoff(:)
+
+      param%l_max = l_max
 
       CALL eri_mme_print_info(param)
    END SUBROUTINE eri_mme_set_params_custom

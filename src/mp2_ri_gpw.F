@@ -480,8 +480,8 @@ CONTAINS
 
       ! Preparations for MME method to compute ERIs
       IF (qs_env%mp2_env%eri_method .EQ. do_eri_mme) THEN
-         IF (.NOT. eri_param%par%is_valid) &
-            CALL cp_eri_mme_set_params(eri_param, cell, qs_kind_set, basis_type_1="ORB", basis_type_2="RI_AUX", para_env=para_env)
+         ! cell might have changed, so we need to reset parameters
+         CALL cp_eri_mme_set_params(eri_param, cell, qs_kind_set, basis_type_1="ORB", basis_type_2="RI_AUX", para_env=para_env)
       ENDIF
 
       CALL get_cell(cell=cell, periodic=periodic)
@@ -692,7 +692,8 @@ CONTAINS
                   CALL ao_to_mo_and_store_B(para_env_sub, mat_munu_local_L(LLL), matrix_bse_inu, matrix_bse_ij, &
                                             fm_BIb_bse_ij, BIb_C_bse_ij(LLL, 1:my_B_occ_bse_size, 1:homo), &
                                             mo_coeff_o, mo_coeff_o, eps_filter, max_row_col_local_occ_bse, &
-                                           sub_proc_map, local_col_row_info_occ_bse, my_B_occ_bse_end, my_B_occ_bse_start, "bse_ij")
+                                            sub_proc_map, local_col_row_info_occ_bse, &
+                                            my_B_occ_bse_end, my_B_occ_bse_start, "bse_ij")
                ENDDO
                CALL contract_B_L(BIb_C_bse_ij, my_Lrows, sizes_B_occ_bse, sizes_array, &
                                  ngroup, color_sub, mp_comm_2d, para_env_sub)
