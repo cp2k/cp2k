@@ -156,6 +156,8 @@ MODULE mp2_types
       INTEGER                  :: corr_mos_virt_beta
       REAL(KIND=dp)            :: scaling
       INTEGER                  :: num_poles
+      INTEGER                  :: nparam_pade
+      INTEGER                  :: analytic_continuation
       REAL(KIND=dp)            :: omega_max_fit
       REAL(KIND=dp)            :: stop_crit
       INTEGER                  :: max_iter_fit

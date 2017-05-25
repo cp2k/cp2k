@@ -26,8 +26,9 @@ MODULE input_cp2k_mp2
                                               silent_print_level
    USE input_constants,                 ONLY: &
         do_eri_gpw, do_eri_mme, do_eri_os, do_hfx_potential_coulomb, do_mp2_potential_tshpsc, &
-        gaussian, mp2_method_direct, mp2_method_gpw, mp2_method_none, mp2_ri_optimize_basis, &
-        numerical, ri_coulomb, ri_mp2_laplace, ri_mp2_method_gpw, ri_overlap, &
+        gaussian, gw_pade_approx, gw_two_pole_model, mp2_method_direct, mp2_method_gpw, &
+        mp2_method_none, mp2_ri_optimize_basis, numerical, ri_coulomb, ri_mp2_laplace, &
+        ri_mp2_method_gpw, ri_overlap, ri_rpa_g0w0_crossing_bisection, &
         ri_rpa_g0w0_crossing_newton, ri_rpa_g0w0_crossing_none, ri_rpa_g0w0_crossing_z_shot, &
         ri_rpa_method_gpw, wfc_mm_style_gemm, wfc_mm_style_syrk
    USE input_cp2k_hfx,                  ONLY: create_hfx_section
@@ -726,11 +727,13 @@ CONTAINS
       CALL keyword_create(keyword, name="CROSSING_SEARCH", &
                           description="Determines, how the self_energy is evaluated on the real axis.", &
                           usage="CROSSING_SEARCH Z_SHOT", &
-                          enum_c_vals=s2a("NONE", "Z_SHOT", "NEWTON"), &
-                          enum_i_vals=(/ri_rpa_g0w0_crossing_none, ri_rpa_g0w0_crossing_z_shot, ri_rpa_g0w0_crossing_newton/), &
+                          enum_c_vals=s2a("NONE", "Z_SHOT", "NEWTON", "BISECTION"), &
+                          enum_i_vals=(/ri_rpa_g0w0_crossing_none, ri_rpa_g0w0_crossing_z_shot, &
+                                        ri_rpa_g0w0_crossing_newton, ri_rpa_g0w0_crossing_bisection/), &
                           enum_desc=s2a("Evaluate the correlation self-energy at the energy eigenvalue of SCF.", &
                                         "Calculate the derivative of Sigma and out of it Z. Then extrapolate using Z.", &
-                                        "Make a Newton-Raphson fix point iteration."), &
+                                        "Make a Newton-Raphson fix point iteration.", &
+                                        "Make a bisection fix point iteration."), &
                           default_i_val=ri_rpa_g0w0_crossing_z_shot)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
@@ -963,6 +966,27 @@ CONTAINS
                           usage="IC TRUE", &
                           default_l_val=.FALSE., &
                           lone_keyword_l_val=.TRUE.)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, name="ANALYTIC_CONTINUATION", &
+                          description="Defines which type of analytic continuation for the self energy is used", &
+                          usage="ANALYTIC_CONTINUATION", &
+                          enum_c_vals=s2a("TWO_POLE", "PADE"), &
+                          enum_i_vals=(/gw_two_pole_model, gw_pade_approx/), &
+                          enum_desc=s2a("Use 'two-pole' model.", &
+                                        "Use Pade approximation."), &
+                          default_i_val=gw_two_pole_model)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, name="NPARAM_PADE", &
+                          description="Number of parameters for the Pade approximation "// &
+                          "when using the latter for the analytic continuation of the "// &
+                          "self energy. 16 parameters (corresponding to 8 poles) are "// &
+                          "are recommended.", &
+                          usage="NPARAM_PADE 16", &
+                          default_i_val=16)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 

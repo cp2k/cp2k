@@ -129,6 +129,10 @@ CONTAINS
                                 r_val=mp2_env%ri_g0w0%scaling)
       CALL section_vals_val_get(mp2_section, "RI_RPA%RI_G0W0%NUMB_POLES", &
                                 i_val=mp2_env%ri_g0w0%num_poles)
+      CALL section_vals_val_get(mp2_section, "RI_RPA%RI_G0W0%NPARAM_PADE", &
+                                i_val=mp2_env%ri_g0w0%nparam_pade)
+      CALL section_vals_val_get(mp2_section, "RI_RPA%RI_G0W0%ANALYTIC_CONTINUATION", &
+                                i_val=mp2_env%ri_g0w0%analytic_continuation)
       CALL section_vals_val_get(mp2_section, "RI_RPA%RI_G0W0%OMEGA_MAX_FIT", &
                                 r_val=mp2_env%ri_g0w0%omega_max_fit)
       CALL section_vals_val_get(mp2_section, "RI_RPA%RI_G0W0%STOP_CRIT", &

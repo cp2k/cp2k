@@ -61,7 +61,10 @@ MODULE rpa_ri_gpw
    USE hfx_energy_potential,            ONLY: integrate_four_center
    USE hfx_types,                       ONLY: hfx_release,&
                                               hfx_type
-   USE input_constants,                 ONLY: ri_rpa_g0w0_crossing_newton,&
+   USE input_constants,                 ONLY: gw_pade_approx,&
+                                              gw_two_pole_model,&
+                                              ri_rpa_g0w0_crossing_bisection,&
+                                              ri_rpa_g0w0_crossing_newton,&
                                               ri_rpa_g0w0_crossing_none,&
                                               ri_rpa_g0w0_crossing_z_shot,&
                                               wfc_mm_style_gemm,&
@@ -90,6 +93,7 @@ MODULE rpa_ri_gpw
                                               mp2_type,&
                                               two_dim_int_array
    USE particle_types,                  ONLY: particle_type
+   USE physcon,                         ONLY: evolt
    USE qs_band_structure,               ONLY: calculate_kp_orbitals
    USE qs_energy_types,                 ONLY: qs_energy_type
    USE qs_environment_types,            ONLY: get_qs_env,&
@@ -2944,6 +2948,16 @@ CONTAINS
             END IF
          END DO
 
+         IF (mp2_env%ri_g0w0%analytic_continuation == gw_pade_approx) THEN
+            IF (mp2_env%ri_g0w0%nparam_pade > num_fit_points) THEN
+               IF (unit_nr > 0) &
+                  CPWARN("Pade approximation: more parameters than data points. Reset # of parameters.")
+               mp2_env%ri_g0w0%nparam_pade = num_fit_points
+               IF (unit_nr > 0) WRITE (UNIT=unit_nr, FMT="(T3,A,T74,I7)") &
+                  "Number of pade parameters:", mp2_env%ri_g0w0%nparam_pade
+            ENDIF
+         ENDIF
+
          ! create new arrays containing omega values at which we calculate vec_Sigma_c_gw
          ALLOCATE (vec_omega_fit_gw(num_fit_points))
 
@@ -4281,20 +4295,47 @@ CONTAINS
                ! processes perform different fits
                IF (MODULO(n_level_gw, para_env%num_pe) /= para_env%mepos) CYCLE
 
-               CALL fit_and_continuation(vec_gw_energ, vec_gw_energ_error_fit, vec_omega_fit_gw, &
+               SELECT CASE (mp2_env%ri_g0w0%analytic_continuation)
+               CASE (gw_two_pole_model)
+                  CALL fit_and_continuation_2pole(vec_gw_energ, vec_gw_energ_error_fit, vec_omega_fit_gw, &
+                                                  z_value, m_value, vec_Sigma_c_gw, &
+                                                  mp2_env%ri_g0w0%vec_Sigma_x_minus_vxc_gw(:, 1), &
+                                                  Eigenval, Eigenval_scf, n_level_gw, gw_corr_lev_occ, num_poles, &
+                                                  num_fit_points, max_iter_fit, crossing_search, homo, check_fit, stop_crit, &
+                                                  fermi_level_offset, do_gw_im_time)
+               CASE (gw_pade_approx)
+                  CALL continuation_pade(vec_gw_energ, vec_omega_fit_gw, &
                                          z_value, m_value, vec_Sigma_c_gw, mp2_env%ri_g0w0%vec_Sigma_x_minus_vxc_gw(:, 1), &
-                                         Eigenval, Eigenval_scf, n_level_gw, gw_corr_lev_occ, num_poles, &
-                                         num_fit_points, max_iter_fit, crossing_search, homo, check_fit, stop_crit, &
+                                         Eigenval, Eigenval_scf, n_level_gw, gw_corr_lev_occ, mp2_env%ri_g0w0%nparam_pade, &
+                                         num_fit_points, crossing_search, homo, check_fit, &
                                          fermi_level_offset, do_gw_im_time)
 
+               CASE DEFAULT
+                  CPABORT("Only two-model and Pade approximation are implemented.")
+               END SELECT
+
                IF (my_open_shell) THEN
-                  CALL fit_and_continuation( &
-                     vec_gw_energ_beta, vec_gw_energ_error_fit_beta, vec_omega_fit_gw, &
-                     z_value_beta, m_value_beta, vec_Sigma_c_gw_beta, mp2_env%ri_g0w0%vec_Sigma_x_minus_vxc_gw(:, 2), &
-                     Eigenval_beta, Eigenval_scf_beta, n_level_gw, &
-                     gw_corr_lev_occ_beta, num_poles, &
-                     num_fit_points, max_iter_fit, crossing_search, homo_beta, check_fit, stop_crit, &
-                     fermi_level_offset, do_gw_im_time)
+                  SELECT CASE (mp2_env%ri_g0w0%analytic_continuation)
+                  CASE (gw_two_pole_model)
+                     CALL fit_and_continuation_2pole( &
+                        vec_gw_energ_beta, vec_gw_energ_error_fit_beta, vec_omega_fit_gw, &
+                        z_value_beta, m_value_beta, vec_Sigma_c_gw_beta, &
+                        mp2_env%ri_g0w0%vec_Sigma_x_minus_vxc_gw(:, 2), &
+                        Eigenval_beta, Eigenval_scf_beta, n_level_gw, &
+                        gw_corr_lev_occ_beta, num_poles, &
+                        num_fit_points, max_iter_fit, crossing_search, homo_beta, check_fit, stop_crit, &
+                        fermi_level_offset, do_gw_im_time)
+                  CASE (gw_pade_approx)
+                     CALL continuation_pade(vec_gw_energ_beta, vec_omega_fit_gw, &
+                                            z_value_beta, m_value_beta, vec_Sigma_c_gw_beta, &
+                                            mp2_env%ri_g0w0%vec_Sigma_x_minus_vxc_gw(:, 2), &
+                                            Eigenval_beta, Eigenval_scf_beta, n_level_gw, &
+                                            gw_corr_lev_occ_beta, mp2_env%ri_g0w0%nparam_pade, &
+                                            num_fit_points, crossing_search, homo_beta, check_fit, &
+                                            fermi_level_offset, do_gw_im_time)
+                  CASE DEFAULT
+                     CPABORT("Only two-model and Pade approximation are implemented.")
+                  END SELECT
 
                END IF
 
@@ -4747,9 +4788,9 @@ CONTAINS
 
             WRITE (unit_nr, '(T4,I4,3A,3F21.3)') &
                n_level_gw_ref, ' ( ', occ_virt, ')  ', &
-               Eigenval(n_level_gw_ref)*27.211_dp, &
-               ic_corr_list(n_level_gw)*27.211_dp, &
-               (Eigenval(n_level_gw_ref)+ic_corr_list(n_level_gw))*27.211_dp
+               Eigenval(n_level_gw_ref)*evolt, &
+               ic_corr_list(n_level_gw)*evolt, &
+               (Eigenval(n_level_gw_ref)+ic_corr_list(n_level_gw))*evolt
 
          END DO
 
@@ -4959,9 +5000,9 @@ CONTAINS
 
                WRITE (unit_nr, '(T4,I4,3A,3F21.3)') &
                   n_level_gw_ref, ' ( ', occ_virt, ')  ', &
-                  Eigenval(n_level_gw_ref)*27.211_dp, &
-                  Delta_Sigma_Neaton(n_level_gw)*27.211_dp, &
-                  (Eigenval(n_level_gw_ref)+Delta_Sigma_Neaton(n_level_gw))*27.211_dp
+                  Eigenval(n_level_gw_ref)*evolt, &
+                  Delta_Sigma_Neaton(n_level_gw)*evolt, &
+                  (Eigenval(n_level_gw_ref)+Delta_Sigma_Neaton(n_level_gw))*evolt
 
             END DO
 
@@ -4970,26 +5011,26 @@ CONTAINS
                WRITE (unit_nr, '(T3,A,F57.2)') 'IC HOMO-LUMO gap (eV)', (Eigenval(homo+1)+ &
                                                                          Delta_Sigma_Neaton(gw_corr_lev_occ+1)- &
                                                                          Eigenval(homo)- &
-                                                                         Delta_Sigma_Neaton(gw_corr_lev_occ))*27.211_dp
+                                                                         Delta_Sigma_Neaton(gw_corr_lev_occ))*evolt
             ELSE IF (my_do_alpha) THEN
                WRITE (unit_nr, '(T3,A)') ' '
                WRITE (unit_nr, '(T3,A,F51.2)') 'Alpha IC HOMO-LUMO gap (eV)', (Eigenval(homo+1)+ &
                                                                                Delta_Sigma_Neaton(gw_corr_lev_occ+1)- &
                                                                                Eigenval(homo)- &
-                                                                               Delta_Sigma_Neaton(gw_corr_lev_occ))*27.211_dp
+                                                                               Delta_Sigma_Neaton(gw_corr_lev_occ))*evolt
             ELSE IF (my_do_beta) THEN
                WRITE (unit_nr, '(T3,A)') ' '
                WRITE (unit_nr, '(T3,A,F52.2)') 'Beta IC HOMO-LUMO gap (eV)', (Eigenval(homo+1)+ &
                                                                               Delta_Sigma_Neaton(gw_corr_lev_occ+1)- &
                                                                               Eigenval(homo)- &
-                                                                              Delta_Sigma_Neaton(gw_corr_lev_occ))*27.211_dp
+                                                                              Delta_Sigma_Neaton(gw_corr_lev_occ))*evolt
             END IF
 
             IF (print_ic_values) THEN
 
                WRITE (unit_nr, '(T3,A)') ' '
                WRITE (unit_nr, '(T3,A)') 'Horizontal list for copying the image charge corrections for use as input:'
-               WRITE (unit_nr, '(*(F7.3))') (Delta_Sigma_Neaton(n_level_gw)*27.211_dp, &
+               WRITE (unit_nr, '(*(F7.3))') (Delta_Sigma_Neaton(n_level_gw)*evolt, &
                                              n_level_gw=1, gw_corr_lev_tot)
 
             END IF
@@ -5135,7 +5176,7 @@ CONTAINS
 
          old_energy = Eigenval(homo)
 
-         IF (unit_nr > 0) WRITE (unit_nr, '(T3,A,T40,F41.2)') 'Gas phase HOMO (eV): ', Eigenval(homo)*27.211_dp
+         IF (unit_nr > 0) WRITE (unit_nr, '(T3,A,T40,F41.2)') 'Gas phase HOMO (eV): ', Eigenval(homo)*evolt
 
          DO sc_iter = 1, 20
 
@@ -5175,7 +5216,7 @@ CONTAINS
 
             IF (unit_nr > 0) WRITE (unit_nr, '(T3,A,I5,A,F35.2)') 'HOMO SCF Cycle: ', sc_iter, &
                '   HOMO with IC (eV): ', &
-               -Eigenval_M_occ(1)*27.211_dp
+               -Eigenval_M_occ(1)*evolt
 
             IF (ABS(old_energy+Eigenval_M_occ(1)) < 1.0E-5) EXIT
 
@@ -5185,7 +5226,7 @@ CONTAINS
 
          END DO
 
-         IF (unit_nr > 0) WRITE (unit_nr, '(T3,A,T40,F41.2)') 'Gas phase LUMO (eV): ', Eigenval(homo+1)*27.211_dp
+         IF (unit_nr > 0) WRITE (unit_nr, '(T3,A,T40,F41.2)') 'Gas phase LUMO (eV): ', Eigenval(homo+1)*evolt
 
          DO sc_iter = 1, 20
 
@@ -5223,7 +5264,7 @@ CONTAINS
 
             IF (unit_nr > 0) WRITE (unit_nr, '(T3,A,I5,A,F35.2)') 'LUMO SCF Cycle: ', sc_iter, &
                '   LUMO with IC (eV): ', &
-               Eigenval_M_virt(1)*27.211_dp
+               Eigenval_M_virt(1)*evolt
 
             IF (ABS(old_energy-Eigenval_M_virt(1)) < 1.0E-5) EXIT
 
@@ -5312,9 +5353,9 @@ CONTAINS
       CALL mp_sum(Neaton_value, para_env%group)
 
       IF (unit_nr > 0 .AND. my_do_homo) WRITE (unit_nr, '(T3,A,F47.2)') 'Neaton value of the HOMO (eV): ', &
-         Neaton_value*27.211_dp
+         Neaton_value*evolt
       IF (unit_nr > 0 .AND. my_do_lumo) WRITE (unit_nr, '(T3,A,F47.2)') 'Neaton value of the LUMO (eV): ', &
-         Neaton_value*27.211_dp
+         Neaton_value*evolt
 
       CALL timestop(handle)
 
@@ -7682,11 +7723,11 @@ CONTAINS
 !> \param fermi_level_offset ...
 !> \param do_gw_im_time ...
 ! **************************************************************************************************
-   SUBROUTINE fit_and_continuation(vec_gw_energ, vec_gw_energ_error_fit, vec_omega_fit_gw, &
-                                   z_value, m_value, vec_Sigma_c_gw, vec_Sigma_x_minus_vxc_gw, &
-                                   Eigenval, Eigenval_scf, n_level_gw, gw_corr_lev_occ, num_poles, &
-                                   num_fit_points, max_iter_fit, crossing_search, homo, check_fit, stop_crit, &
-                                   fermi_level_offset, do_gw_im_time)
+   SUBROUTINE fit_and_continuation_2pole(vec_gw_energ, vec_gw_energ_error_fit, vec_omega_fit_gw, &
+                                         z_value, m_value, vec_Sigma_c_gw, vec_Sigma_x_minus_vxc_gw, &
+                                         Eigenval, Eigenval_scf, n_level_gw, gw_corr_lev_occ, num_poles, &
+                                         num_fit_points, max_iter_fit, crossing_search, homo, check_fit, stop_crit, &
+                                         fermi_level_offset, do_gw_im_time)
 
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: vec_gw_energ, vec_gw_energ_error_fit, &
                                                             vec_omega_fit_gw, z_value, m_value
@@ -7700,7 +7741,7 @@ CONTAINS
       REAL(KIND=dp)                                      :: stop_crit, fermi_level_offset
       LOGICAL                                            :: do_gw_im_time
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'fit_and_continuation', &
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'fit_and_continuation_2pole', &
          routineP = moduleN//':'//routineN
 
       CHARACTER(5)                                       :: MO_number
@@ -7973,9 +8014,9 @@ CONTAINS
                ! calculate value of the fit function
                func_val = func_val+Lambda(jjj)/(im_unit*vec_omega_fit_gw_sign(kkk)-Lambda(jjj+1))
             END DO
-            WRITE (output_unit, '(1F16.3,4F16.5)') vec_omega_fit_gw_sign(kkk)*27.211_dp, REAL(func_val)*27.211_dp, &
-               AIMAG(func_val)*27.211_dp, REAL(vec_Sigma_c_gw(n_level_gw, kkk))*27.211_dp, &
-               AIMAG(vec_Sigma_c_gw(n_level_gw, kkk))*27.211_dp
+            WRITE (output_unit, '(1F16.3,4F16.5)') vec_omega_fit_gw_sign(kkk)*evolt, REAL(func_val)*evolt, &
+               AIMAG(func_val)*evolt, REAL(vec_Sigma_c_gw(n_level_gw, kkk))*evolt, &
+               AIMAG(vec_Sigma_c_gw(n_level_gw, kkk))*evolt
          END DO
 
          WRITE (output_unit, *) ' '
@@ -8076,6 +8117,8 @@ CONTAINS
 
          END IF ! Newton-Raphson on top of Z-shot
 
+      ELSE
+         CPABORT("Only NONE, ZSHOT and NEWTON implemented for 2-pole model")
       END IF ! decision crossing search none, Z-shot
 
       !   --------------------------------------------
@@ -8153,6 +8196,532 @@ CONTAINS
       DEALLOCATE (Lambda_Im)
 
    END SUBROUTINE
+
+! **************************************************************************************************
+!> \brief perform analytic continuation with pade approximation
+!> \param vec_gw_energ real Sigma_c
+!> \param vec_omega_fit_gw frequency points for Sigma_c(iomega)
+!> \param z_value 1/(1-dev)
+!> \param m_value derivative of real Sigma_c
+!> \param vec_Sigma_c_gw complex Sigma_c(iomega)
+!> \param vec_Sigma_x_minus_vxc_gw ...
+!> \param Eigenval quasiparticle energy during ev self-consistent GW
+!> \param Eigenval_scf KS/HF eigenvalue
+!> \param n_level_gw ...
+!> \param gw_corr_lev_occ ...
+!> \param nparam_pade number of pade parameters
+!> \param num_fit_points number of fit points for Sigma_c(iomega)
+!> \param crossing_search type ofr cross search to find quasiparticle energies
+!> \param homo ...
+!> \param check_fit ...
+!> \param fermi_level_offset ...
+!> \param do_gw_im_time ...
+! **************************************************************************************************
+   SUBROUTINE continuation_pade(vec_gw_energ, vec_omega_fit_gw, &
+                                z_value, m_value, vec_Sigma_c_gw, vec_Sigma_x_minus_vxc_gw, &
+                                Eigenval, Eigenval_scf, n_level_gw, gw_corr_lev_occ, nparam_pade, &
+                                num_fit_points, crossing_search, homo, check_fit, &
+                                fermi_level_offset, do_gw_im_time)
+
+      REAL(KIND=dp), DIMENSION(:), INTENT(INOUT)         :: vec_gw_energ
+      REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: vec_omega_fit_gw
+      REAL(KIND=dp), DIMENSION(:), INTENT(INOUT)         :: z_value, m_value
+      COMPLEX(KIND=dp), DIMENSION(:, :), INTENT(IN)      :: vec_Sigma_c_gw
+      REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: vec_Sigma_x_minus_vxc_gw, Eigenval, &
+                                                            Eigenval_scf
+      INTEGER, INTENT(IN)                                :: n_level_gw, gw_corr_lev_occ, &
+                                                            nparam_pade, num_fit_points, &
+                                                            crossing_search, homo
+      LOGICAL, INTENT(IN)                                :: check_fit
+      REAL(KIND=dp), INTENT(IN)                          :: fermi_level_offset
+      LOGICAL, INTENT(IN)                                :: do_gw_im_time
+
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'continuation_pade', &
+         routineP = moduleN//':'//routineN
+
+      COMPLEX(KIND=dp)                                   :: im_unit, re_unit, sigma_c_pade
+      COMPLEX(KIND=dp), ALLOCATABLE, DIMENSION(:)        :: coeff_pade, omega_points_pade, &
+                                                            Sigma_c_gw_reorder
+      INTEGER                                            :: handle, jquad, n_level_gw_ref, &
+                                                            output_unit
+      REAL(KIND=dp)                                      :: e_fermi, energy_val, level_energ_GW, &
+                                                            sign_occ_virt
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: vec_omega_fit_gw_sign, &
+                                                            vec_omega_fit_gw_sign_reorder
+
+      CALL timeset(routineN, handle)
+
+      output_unit = cp_logger_get_default_io_unit()
+
+      im_unit = (0.0_dp, 1.0_dp)
+      re_unit = (1.0_dp, 0.0_dp)
+
+      ALLOCATE (vec_omega_fit_gw_sign(num_fit_points))
+
+      IF (n_level_gw <= gw_corr_lev_occ) THEN
+         sign_occ_virt = -1.0_dp
+      ELSE
+         sign_occ_virt = 1.0_dp
+      END IF
+
+      DO jquad = 1, num_fit_points
+         vec_omega_fit_gw_sign(jquad) = ABS(vec_omega_fit_gw(jquad))*sign_occ_virt
+      END DO
+
+      IF (do_gw_im_time) THEN
+         ! for cubic-scaling GW, we have one Green's function for occ and virt states with the Fermi level
+         ! in the middle of homo and lumo
+         e_fermi = 0.5_dp*(Eigenval(homo)+Eigenval(homo+1))
+      ELSE
+         ! in case of O(N^4) GW, we have the Fermi level differently for occ and virt states, see
+         ! Fig. 1 in JCTC 12, 3623-3635 (2016)
+         IF (n_level_gw <= gw_corr_lev_occ) THEN
+            e_fermi = Eigenval(homo)+fermi_level_offset
+         ELSE
+            e_fermi = Eigenval(homo+1)-fermi_level_offset
+         END IF
+      END IF
+
+      n_level_gw_ref = n_level_gw+homo-gw_corr_lev_occ
+
+      !*** reorder, such that omega=i*0 is first entry
+      ALLOCATE (Sigma_c_gw_reorder(num_fit_points))
+      ALLOCATE (vec_omega_fit_gw_sign_reorder(num_fit_points))
+      ! for cubic scaling GW fit points are ordered differently than in N^4 GW
+      IF (do_gw_im_time) THEN
+         DO jquad = 1, num_fit_points
+            Sigma_c_gw_reorder(jquad) = vec_Sigma_c_gw(n_level_gw, jquad)
+            vec_omega_fit_gw_sign_reorder(jquad) = vec_omega_fit_gw_sign(jquad)
+         ENDDO
+      ELSE
+         DO jquad = 1, num_fit_points
+            Sigma_c_gw_reorder(jquad) = vec_Sigma_c_gw(n_level_gw, num_fit_points-jquad+1)
+            vec_omega_fit_gw_sign_reorder(jquad) = vec_omega_fit_gw_sign(num_fit_points-jquad+1)
+         ENDDO
+      ENDIF
+
+      !*** evaluate parameters for pade approximation
+      ALLOCATE (coeff_pade(nparam_pade))
+      ALLOCATE (omega_points_pade(nparam_pade))
+      coeff_pade = 0.0_dp
+      CALL get_pade_parameters(Sigma_c_gw_reorder, vec_omega_fit_gw_sign_reorder, &
+                               num_fit_points, nparam_pade, omega_points_pade, coeff_pade)
+      IF (check_fit) THEN
+         CALL check_fit_pade(vec_omega_fit_gw_sign, vec_Sigma_c_gw(n_level_gw, :), &
+                             nparam_pade, omega_points_pade, coeff_pade, &
+                             num_fit_points, n_level_gw_ref, output_unit)
+      ENDIF
+
+      !*** calculate start_value for iterative cross-searching methods
+      IF ((crossing_search == ri_rpa_g0w0_crossing_bisection) .OR. &
+          (crossing_search == ri_rpa_g0w0_crossing_newton)) THEN
+         energy_val = Eigenval(n_level_gw_ref)-e_fermi
+         CALL evaluate_pade_function(energy_val, nparam_pade, omega_points_pade, &
+                                     coeff_pade, sigma_c_pade)
+         CALL get_z_and_m_value_pade(energy_val, nparam_pade, omega_points_pade, &
+                                     coeff_pade, z_value(n_level_gw), m_value(n_level_gw))
+         level_energ_GW = (Eigenval_scf(n_level_gw_ref)- &
+                           m_value(n_level_gw)*Eigenval(n_level_gw_ref)+ &
+                           REAL(sigma_c_pade)+ &
+                           vec_Sigma_x_minus_vxc_gw(n_level_gw_ref))* &
+                          z_value(n_level_gw)
+      ENDIF
+
+      !*** perform crossing search
+      SELECT CASE (crossing_search)
+      CASE (ri_rpa_g0w0_crossing_none)
+         energy_val = Eigenval(n_level_gw_ref)-e_fermi
+         CALL evaluate_pade_function(energy_val, nparam_pade, omega_points_pade, &
+                                     coeff_pade, sigma_c_pade)
+         vec_gw_energ(n_level_gw) = REAL(sigma_c_pade)
+
+      CASE (ri_rpa_g0w0_crossing_z_shot)
+         energy_val = Eigenval(n_level_gw_ref)-e_fermi
+         CALL evaluate_pade_function(energy_val, nparam_pade, omega_points_pade, &
+                                     coeff_pade, sigma_c_pade)
+         vec_gw_energ(n_level_gw) = REAL(sigma_c_pade)
+
+         CALL get_z_and_m_value_pade(energy_val, nparam_pade, omega_points_pade, &
+                                     coeff_pade, z_value(n_level_gw), m_value(n_level_gw))
+
+      CASE (ri_rpa_g0w0_crossing_bisection)
+         CALL get_sigma_c_bisection_pade(vec_gw_energ(n_level_gw), Eigenval_scf(n_level_gw_ref), &
+                                         vec_Sigma_x_minus_vxc_gw(n_level_gw_ref), e_fermi, &
+                                         num_fit_points, nparam_pade, omega_points_pade, coeff_pade, &
+                                         output_unit, start_val=level_energ_GW)
+         z_value(n_level_gw) = 1.0_dp
+         m_value(n_level_gw) = 0.0_dp
+
+      CASE (ri_rpa_g0w0_crossing_newton)
+         CALL get_sigma_c_newton_pade(vec_gw_energ(n_level_gw), Eigenval_scf(n_level_gw_ref), &
+                                      vec_Sigma_x_minus_vxc_gw(n_level_gw_ref), e_fermi, &
+                                      num_fit_points, nparam_pade, omega_points_pade, coeff_pade, &
+                                      output_unit, start_val=level_energ_GW)
+         z_value(n_level_gw) = 1.0_dp
+         m_value(n_level_gw) = 0.0_dp
+
+      CASE DEFAULT
+         CPABORT("Only NONE, Z_SHOT, NEWTON, and BISECTION crossing search implemented.")
+      END SELECT
+
+      DEALLOCATE (vec_omega_fit_gw_sign)
+      DEALLOCATE (Sigma_c_gw_reorder)
+      DEALLOCATE (vec_omega_fit_gw_sign_reorder)
+      DEALLOCATE (coeff_pade, omega_points_pade)
+
+      CALL timestop(handle)
+
+   END SUBROUTINE continuation_pade
+
+! **************************************************************************************************
+!> \brief calculate pade parameter recursively as in  Eq. (A2) in J. Low Temp. Phys., Vol. 29,
+!>          1977, pp. 179
+!> \param y f(x), here: Sigma_c(iomega)
+!> \param x the frequency points omega
+!> \param num_fit_points ...
+!> \param nparam number of pade parameters
+!> \param xpoints set of points used in pade approximation, selection of x
+!> \param coeff pade coefficients
+! **************************************************************************************************
+   SUBROUTINE get_pade_parameters(y, x, num_fit_points, nparam, xpoints, coeff)
+
+      COMPLEX(KIND=dp), DIMENSION(:), INTENT(IN)         :: y
+      REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: x
+      INTEGER, INTENT(IN)                                :: num_fit_points, nparam
+      COMPLEX(KIND=dp), DIMENSION(:), INTENT(INOUT)      :: xpoints, coeff
+
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'get_pade_parameters', &
+         routineP = moduleN//':'//routineN
+
+      COMPLEX(KIND=dp)                                   :: im_unit
+      COMPLEX(KIND=dp), ALLOCATABLE, DIMENSION(:)        :: ypoints
+      COMPLEX(KIND=dp), ALLOCATABLE, DIMENSION(:, :)     :: g_mat
+      INTEGER                                            :: handle, idat, iparam, nstep
+
+      CALL timeset(routineN, handle)
+
+      im_unit = (0.0_dp, 1.0_dp)
+
+      nstep = INT(num_fit_points/(nparam-1))
+      CPASSERT(LBOUND(x, 1) == 1)
+      CPASSERT(LBOUND(y, 1) == 1)
+
+      ALLOCATE (ypoints(nparam))
+      !omega=i0 is in element x(1)
+      idat = 1
+      DO iparam = 1, nparam-1
+         xpoints(iparam) = im_unit*x(idat)
+         ypoints(iparam) = y(idat)
+         idat = idat+nstep
+      ENDDO
+      xpoints(nparam) = im_unit*x(num_fit_points)
+      ypoints(nparam) = y(num_fit_points)
+
+      !*** generate parameters recursively
+
+      ALLOCATE (g_mat(nparam, nparam))
+      g_mat(:, 1) = ypoints(:)
+      DO iparam = 2, nparam
+         DO idat = iparam, nparam
+            g_mat(idat, iparam) = (g_mat(iparam-1, iparam-1)-g_mat(idat, iparam-1))/ &
+                                  ((xpoints(idat)-xpoints(iparam-1))*g_mat(idat, iparam-1))
+         ENDDO
+      ENDDO
+
+      DO iparam = 1, nparam
+         coeff(iparam) = g_mat(iparam, iparam)
+      ENDDO
+
+      DEALLOCATE (ypoints)
+      DEALLOCATE (g_mat)
+
+      CALL timestop(handle)
+
+   END SUBROUTINE get_pade_parameters
+
+! **************************************************************************************************
+!> \brief evalute pade function for a real value x_val
+!> \param x_val real value
+!> \param nparam number of pade parameters
+!> \param xpoints selection of points of the original complex function, i.e. here of Sigma_c(iomega)
+!> \param coeff pade coefficients
+!> \param func_val function value
+! **************************************************************************************************
+   SUBROUTINE evaluate_pade_function(x_val, nparam, xpoints, coeff, func_val)
+
+      REAL(KIND=dp), INTENT(IN)                          :: x_val
+      INTEGER, INTENT(IN)                                :: nparam
+      COMPLEX(KIND=dp), DIMENSION(:), INTENT(IN)         :: xpoints, coeff
+      COMPLEX(KIND=dp), INTENT(OUT)                      :: func_val
+
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'evaluate_pade_function', &
+         routineP = moduleN//':'//routineN
+
+      COMPLEX(KIND=dp)                                   :: im_unit, re_unit
+      INTEGER                                            :: handle, iparam
+
+      CALL timeset(routineN, handle)
+
+      im_unit = (0.0_dp, 1.0_dp)
+      re_unit = (1.0_dp, 0.0_dp)
+
+      func_val = re_unit
+      DO iparam = nparam, 2, -1
+         func_val = re_unit+coeff(iparam)*(re_unit*x_val-xpoints(iparam-1))/func_val
+      ENDDO
+
+      func_val = coeff(1)/func_val
+
+      CALL timestop(handle)
+
+   END SUBROUTINE evaluate_pade_function
+
+! **************************************************************************************************
+!> \brief get the z-value and the m-value (derivative) of the pade function
+!> \param x_val real value
+!> \param nparam number of pade parameters
+!> \param xpoints selection of points of the original complex function, i.e. here of Sigma_c(iomega)
+!> \param coeff pade coefficients
+!> \param z_value 1/(1-dev)
+!> \param m_value derivative
+! **************************************************************************************************
+   SUBROUTINE get_z_and_m_value_pade(x_val, nparam, xpoints, coeff, z_value, m_value)
+
+      REAL(KIND=dp), INTENT(IN)                          :: x_val
+      INTEGER, INTENT(IN)                                :: nparam
+      COMPLEX(KIND=dp), DIMENSION(:), INTENT(IN)         :: xpoints, coeff
+      REAL(KIND=dp), INTENT(OUT), OPTIONAL               :: z_value, m_value
+
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'get_z_and_m_value_pade', &
+         routineP = moduleN//':'//routineN
+
+      COMPLEX(KIND=dp)                                   :: denominator, dev_denominator, &
+                                                            dev_numerator, dev_val, func_val, &
+                                                            im_unit, numerator, re_unit
+      INTEGER                                            :: iparam
+
+      im_unit = (0.0_dp, 1.0_dp)
+      re_unit = (1.0_dp, 0.0_dp)
+
+      func_val = re_unit
+      dev_val = (0.0_dp, 0.0_dp)
+      DO iparam = nparam, 2, -1
+         numerator = coeff(iparam)*(re_unit*x_val-xpoints(iparam-1))
+         dev_numerator = coeff(iparam)*re_unit
+         denominator = func_val
+         dev_denominator = dev_val
+         dev_val = dev_numerator/denominator-(numerator*dev_denominator)/(denominator**2)
+         func_val = re_unit+coeff(iparam)*(re_unit*x_val-xpoints(iparam-1))/func_val
+      ENDDO
+
+      dev_val = -1.0_dp*coeff(1)/(func_val**2)*dev_val
+      func_val = coeff(1)/func_val
+
+      IF (PRESENT(z_value)) THEN
+         z_value = 1.0_dp-REAL(dev_val)
+         z_value = 1.0_dp/z_value
+      ENDIF
+      IF (PRESENT(m_value)) m_value = REAL(dev_val)
+
+   END SUBROUTINE get_z_and_m_value_pade
+
+! **************************************************************************************************
+!> \brief crossing search using the bisection method to find the quasiparticle energy
+!> \param gw_energ real Sigma_c
+!> \param Eigenval_scf Eigenvalue from the SCF
+!> \param Sigma_x_minus_vxc_gw ...
+!> \param e_fermi fermi level
+!> \param num_fit_points total number of frequency points for the complex Sigma_c
+!> \param nparam_pade number of pade parameters
+!> \param omega_points_pade selection of frequency points of Sigma_c(iomega)
+!> \param coeff_pade pade coefficients
+!> \param output_unit ...
+!> \param start_val start value for the quasiparticle iteration
+! **************************************************************************************************
+   SUBROUTINE get_sigma_c_bisection_pade(gw_energ, Eigenval_scf, Sigma_x_minus_vxc_gw, e_fermi, &
+                                         num_fit_points, nparam_pade, omega_points_pade, coeff_pade, &
+                                         output_unit, start_val)
+
+      REAL(KIND=dp), INTENT(OUT)                         :: gw_energ
+      REAL(KIND=dp), INTENT(IN)                          :: Eigenval_scf, Sigma_x_minus_vxc_gw, &
+                                                            e_fermi
+      INTEGER, INTENT(IN)                                :: num_fit_points, nparam_pade
+      COMPLEX(KIND=dp), DIMENSION(:), INTENT(IN)         :: omega_points_pade, coeff_pade
+      INTEGER, INTENT(IN)                                :: output_unit
+      REAL(KIND=dp), INTENT(IN), OPTIONAL                :: start_val
+
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'get_sigma_c_bisection_pade', &
+         routineP = moduleN//':'//routineN
+
+      COMPLEX(KIND=dp)                                   :: sigma_c
+      INTEGER                                            :: handle, icount
+      REAL(KIND=dp)                                      :: delta, energy_val, my_start_val, &
+                                                            qp_energy, qp_energy_old, threshold
+
+      CALL timeset(routineN, handle)
+
+      threshold = 1.0E-7_dp
+
+      IF (PRESENT(start_val)) THEN
+         my_start_val = start_val
+      ELSE
+         my_start_val = Eigenval_scf
+      ENDIF
+
+      qp_energy = my_start_val
+      qp_energy_old = my_start_val
+      delta = 1.0E-3_dp
+
+      icount = 0
+      DO WHILE (ABS(delta) > threshold)
+         icount = icount+1
+         qp_energy = qp_energy_old+0.5_dp*delta
+         qp_energy_old = qp_energy
+         energy_val = qp_energy-e_fermi
+         CALL evaluate_pade_function(energy_val, nparam_pade, omega_points_pade, &
+                                     coeff_pade, sigma_c)
+         qp_energy = Eigenval_scf+REAL(sigma_c)+Sigma_x_minus_vxc_gw
+         delta = qp_energy-qp_energy_old
+         IF (icount > 500) THEN
+            CPABORT("Self-consistent quasi-particle solution not found")
+            EXIT
+         ENDIF
+      ENDDO
+
+      gw_energ = REAL(sigma_c)
+
+      CALL timestop(handle)
+
+   END SUBROUTINE get_sigma_c_bisection_pade
+
+! **************************************************************************************************
+!> \brief crossing search using the Newton method to find the quasiparticle energy
+!> \param gw_energ real Sigma_c
+!> \param Eigenval_scf Eigenvalue from the SCF
+!> \param Sigma_x_minus_vxc_gw ...
+!> \param e_fermi fermi level
+!> \param num_fit_points total number of frequency points for the complex Sigma_c
+!> \param nparam_pade number of pade parameters
+!> \param omega_points_pade selection of frequency points of Sigma_c(iomega)
+!> \param coeff_pade pade coefficients
+!> \param output_unit ...
+!> \param start_val start value for the quasiparticle iteration
+! **************************************************************************************************
+   SUBROUTINE get_sigma_c_newton_pade(gw_energ, Eigenval_scf, Sigma_x_minus_vxc_gw, e_fermi, &
+                                      num_fit_points, nparam_pade, omega_points_pade, coeff_pade, &
+                                      output_unit, start_val)
+
+      REAL(KIND=dp), INTENT(OUT)                         :: gw_energ
+      REAL(KIND=dp), INTENT(IN)                          :: Eigenval_scf, Sigma_x_minus_vxc_gw, &
+                                                            e_fermi
+      INTEGER, INTENT(IN)                                :: num_fit_points, nparam_pade
+      COMPLEX(KIND=dp), DIMENSION(:), INTENT(IN)         :: omega_points_pade, coeff_pade
+      INTEGER, INTENT(IN)                                :: output_unit
+      REAL(KIND=dp), INTENT(IN), OPTIONAL                :: start_val
+
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'get_sigma_c_newton_pade', &
+         routineP = moduleN//':'//routineN
+
+      COMPLEX(KIND=dp)                                   :: sigma_c
+      INTEGER                                            :: handle, icount
+      REAL(KIND=dp)                                      :: delta, energy_val, m_value, &
+                                                            my_start_val, qp_energy, &
+                                                            qp_energy_old, threshold
+
+      CALL timeset(routineN, handle)
+
+      threshold = 1.0E-7_dp
+
+      IF (PRESENT(start_val)) THEN
+         my_start_val = start_val
+      ELSE
+         my_start_val = Eigenval_scf
+      ENDIF
+
+      qp_energy = my_start_val
+      qp_energy_old = my_start_val
+      delta = 1.0E-3_dp
+
+      icount = 0
+      DO WHILE (ABS(delta) > threshold)
+         icount = icount+1
+         energy_val = qp_energy-e_fermi
+         CALL evaluate_pade_function(energy_val, nparam_pade, omega_points_pade, &
+                                     coeff_pade, sigma_c)
+         !get m_value --> derivative of function
+         CALL get_z_and_m_value_pade(energy_val, nparam_pade, omega_points_pade, &
+                                     coeff_pade, m_value=m_value)
+         qp_energy_old = qp_energy
+         qp_energy = qp_energy-(Eigenval_scf+Sigma_x_minus_vxc_gw+REAL(sigma_c)-qp_energy)/ &
+                     (m_value-1.0_dp)
+         delta = qp_energy-qp_energy_old
+         IF (icount > 500) THEN
+            CPABORT("Self-consistent quasi-particle solution not found")
+            EXIT
+         ENDIF
+      ENDDO
+
+      gw_energ = REAL(sigma_c)
+
+      CALL timestop(handle)
+
+   END SUBROUTINE get_sigma_c_newton_pade
+
+! **************************************************************************************************
+!> \brief check "fit" for analytic continuation with pade approximation
+!> \param vec_omega_fit_gw_sign ...
+!> \param Sigma_c_gw complex Sigma_c(iomega) for n_level_gw
+!> \param nparam_pade number of pade parameters
+!> \param omega_points_pade selection of frequency points of Sigma_c(iomega)
+!> \param coeff_pade pade coefficients
+!> \param num_fit_points total number of frequency points for the complex Sigma_c
+!> \param n_level_gw_ref n_level_gw+homo-gw_corr_lev_occ
+!> \param output_unit ...
+! **************************************************************************************************
+   SUBROUTINE check_fit_pade(vec_omega_fit_gw_sign, Sigma_c_gw, &
+                             nparam_pade, omega_points_pade, coeff_pade, &
+                             num_fit_points, n_level_gw_ref, output_unit)
+
+      REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: vec_omega_fit_gw_sign
+      COMPLEX(KIND=dp), DIMENSION(:), INTENT(IN)         :: Sigma_c_gw
+      INTEGER, INTENT(IN)                                :: nparam_pade
+      COMPLEX(KIND=dp), DIMENSION(:), INTENT(IN)         :: omega_points_pade, coeff_pade
+      INTEGER, INTENT(IN)                                :: num_fit_points, n_level_gw_ref, &
+                                                            output_unit
+
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'check_fit_pade', routineP = moduleN//':'//routineN
+
+      COMPLEX(KIND=dp)                                   :: func_val, im_unit, re_unit
+      INTEGER                                            :: iparam, kkk
+
+      re_unit = (1.0_dp, 0.0_dp)
+      im_unit = (0.0_dp, 1.0_dp)
+
+      WRITE (output_unit, *) ' '
+      WRITE (output_unit, '(T3,A,I5)') 'Check the GW fit for molecular orbital', n_level_gw_ref
+      WRITE (output_unit, '(T3,A)') '-------------------------------------------'
+      WRITE (output_unit, *)
+      WRITE (output_unit, '(T3,5A)') '  omega (i*eV)    ', 'Re(fit) (eV)    ', &
+         'Im(fit) (eV)  ', 'Re(Sig_c) (eV)  ', &
+         'Im(Sig_c) (eV)'
+
+      DO kkk = 1, num_fit_points
+         func_val = re_unit
+         DO iparam = nparam_pade, 2, -1
+            func_val = re_unit+coeff_pade(iparam) &
+                       *(im_unit*vec_omega_fit_gw_sign(kkk)-omega_points_pade(iparam-1))/func_val
+         ENDDO
+
+         func_val = coeff_pade(1)/func_val
+
+         WRITE (output_unit, '(1F16.3,4F16.5)') vec_omega_fit_gw_sign(kkk)*evolt, REAL(func_val)*evolt, &
+            AIMAG(func_val)*evolt, REAL(Sigma_c_gw(kkk))*evolt, &
+            AIMAG(Sigma_c_gw(kkk))*evolt
+      END DO
+
+      WRITE (output_unit, *) ' '
+
+   END SUBROUTINE check_fit_pade
 
 ! **************************************************************************************************
 !> \brief ...
@@ -8458,18 +9027,18 @@ CONTAINS
             IF (unit_nr > 0 .AND. (.NOT. print_gw_details)) THEN
                WRITE (unit_nr, '(T5,I9,3A,2F27.3)') &
                   n_level_gw_ref, ' ( ', occ_virt, ')     ', &
-                  Eigenval_last(n_level_gw_ref)*27.211_dp, &
-                  Eigenval(n_level_gw_ref)*27.211_dp
+                  Eigenval_last(n_level_gw_ref)*evolt, &
+                  Eigenval(n_level_gw_ref)*evolt
             END IF
 
             IF (unit_nr > 0 .AND. print_gw_details) THEN
                WRITE (unit_nr, '(T4,I4,3A,5F13.3)') &
                   n_level_gw_ref, ' ( ', occ_virt, ')', &
-                  Eigenval_last(n_level_gw_ref)*27.211_dp, &
-                  vec_gw_energ(n_level_gw)*27.211_dp, &
-                  vec_gw_energ_error_fit(n_level_gw)*27.211_dp, &
-                  vec_Sigma_x_minus_vxc_gw(n_level_gw_ref)*27.211_dp, &
-                  Eigenval(n_level_gw_ref)*27.211_dp
+                  Eigenval_last(n_level_gw_ref)*evolt, &
+                  vec_gw_energ(n_level_gw)*evolt, &
+                  vec_gw_energ_error_fit(n_level_gw)*evolt, &
+                  vec_Sigma_x_minus_vxc_gw(n_level_gw_ref)*evolt, &
+                  Eigenval(n_level_gw_ref)*evolt
             END IF
          END DO
 
@@ -8529,28 +9098,28 @@ CONTAINS
             IF (unit_nr > 0 .AND. (.NOT. print_gw_details)) THEN
                WRITE (unit_nr, '(T5,I9,3A,2F27.3)') &
                   n_level_gw_ref, ' ( ', occ_virt, ')     ', &
-                  Eigenval_last(n_level_gw_ref)*27.211_dp, &
-                  Eigenval(n_level_gw_ref)*27.211_dp
+                  Eigenval_last(n_level_gw_ref)*evolt, &
+                  Eigenval(n_level_gw_ref)*evolt
             END IF
 
             IF (unit_nr > 0 .AND. print_gw_details .AND. MAXVAL(vec_gw_energ_error_fit) < 0.3_dp) THEN
                WRITE (unit_nr, '(T3,I4,3A,6F11.3)') &
                   n_level_gw_ref, ' ( ', occ_virt, ')', &
-                  Eigenval_last(n_level_gw_ref)*27.211_dp, &
-                  vec_gw_energ(n_level_gw)*27.211_dp, &
-                  vec_gw_energ_error_fit(n_level_gw)*27.211_dp, &
-                  vec_Sigma_x_minus_vxc_gw(n_level_gw_ref)*27.211_dp, &
+                  Eigenval_last(n_level_gw_ref)*evolt, &
+                  vec_gw_energ(n_level_gw)*evolt, &
+                  vec_gw_energ_error_fit(n_level_gw)*evolt, &
+                  vec_Sigma_x_minus_vxc_gw(n_level_gw_ref)*evolt, &
                   z_value(n_level_gw), &
-                  Eigenval(n_level_gw_ref)*27.211_dp
+                  Eigenval(n_level_gw_ref)*evolt
             ELSE IF (unit_nr > 0 .AND. print_gw_details .AND. MAXVAL(vec_gw_energ_error_fit) .GE. 0.3_dp) THEN
                WRITE (unit_nr, '(T3,I4,3A,2F11.3, ES11.1, 3F11.3)') &
                   n_level_gw_ref, ' ( ', occ_virt, ')', &
-                  Eigenval_last(n_level_gw_ref)*27.211_dp, &
-                  vec_gw_energ(n_level_gw)*27.211_dp, &
-                  vec_gw_energ_error_fit(n_level_gw)*27.211_dp, &
-                  vec_Sigma_x_minus_vxc_gw(n_level_gw_ref)*27.211_dp, &
+                  Eigenval_last(n_level_gw_ref)*evolt, &
+                  vec_gw_energ(n_level_gw)*evolt, &
+                  vec_gw_energ_error_fit(n_level_gw)*evolt, &
+                  vec_Sigma_x_minus_vxc_gw(n_level_gw_ref)*evolt, &
                   z_value(n_level_gw), &
-                  Eigenval(n_level_gw_ref)*27.211_dp, &
+                  Eigenval(n_level_gw_ref)*evolt, &
                   Mulliken_charges(n_level_gw)
             END IF
          END DO
@@ -8558,13 +9127,13 @@ CONTAINS
          IF (unit_nr > 0) THEN
             IF (do_closed_shell) THEN
                WRITE (unit_nr, '(T3,A)') ' '
-               WRITE (unit_nr, '(T3,A,F57.2)') 'GW HOMO-LUMO gap (eV)', (Eigenval(homo+1)-Eigenval(homo))*27.211_dp
+               WRITE (unit_nr, '(T3,A,F57.2)') 'GW HOMO-LUMO gap (eV)', (Eigenval(homo+1)-Eigenval(homo))*evolt
             ELSE IF (my_do_alpha) THEN
                WRITE (unit_nr, '(T3,A)') ' '
-               WRITE (unit_nr, '(T3,A,F51.2)') 'Alpha GW HOMO-LUMO gap (eV)', (Eigenval(homo+1)-Eigenval(homo))*27.211_dp
+               WRITE (unit_nr, '(T3,A,F51.2)') 'Alpha GW HOMO-LUMO gap (eV)', (Eigenval(homo+1)-Eigenval(homo))*evolt
             ELSE IF (my_do_beta) THEN
                WRITE (unit_nr, '(T3,A)') ' '
-               WRITE (unit_nr, '(T3,A,F52.2)') 'Beta GW HOMO-LUMO gap (eV)', (Eigenval(homo+1)-Eigenval(homo))*27.211_dp
+               WRITE (unit_nr, '(T3,A,F52.2)') 'Beta GW HOMO-LUMO gap (eV)', (Eigenval(homo+1)-Eigenval(homo))*evolt
             END IF
          END IF
 
