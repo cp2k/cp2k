@@ -8347,16 +8347,16 @@ CONTAINS
       CASE (ri_rpa_g0w0_crossing_bisection)
          CALL get_sigma_c_bisection_pade(vec_gw_energ(n_level_gw), Eigenval_scf(n_level_gw_ref), &
                                          vec_Sigma_x_minus_vxc_gw(n_level_gw_ref), e_fermi, &
-                                         num_fit_points, nparam_pade, omega_points_pade, coeff_pade, &
-                                         output_unit, start_val=level_energ_GW)
+                                         nparam_pade, omega_points_pade, coeff_pade, &
+                                         start_val=level_energ_GW)
          z_value(n_level_gw) = 1.0_dp
          m_value(n_level_gw) = 0.0_dp
 
       CASE (ri_rpa_g0w0_crossing_newton)
          CALL get_sigma_c_newton_pade(vec_gw_energ(n_level_gw), Eigenval_scf(n_level_gw_ref), &
                                       vec_Sigma_x_minus_vxc_gw(n_level_gw_ref), e_fermi, &
-                                      num_fit_points, nparam_pade, omega_points_pade, coeff_pade, &
-                                      output_unit, start_val=level_energ_GW)
+                                      nparam_pade, omega_points_pade, coeff_pade, &
+                                      start_val=level_energ_GW)
          z_value(n_level_gw) = 1.0_dp
          m_value(n_level_gw) = 0.0_dp
 
@@ -8531,23 +8531,19 @@ CONTAINS
 !> \param Eigenval_scf Eigenvalue from the SCF
 !> \param Sigma_x_minus_vxc_gw ...
 !> \param e_fermi fermi level
-!> \param num_fit_points total number of frequency points for the complex Sigma_c
 !> \param nparam_pade number of pade parameters
 !> \param omega_points_pade selection of frequency points of Sigma_c(iomega)
 !> \param coeff_pade pade coefficients
-!> \param output_unit ...
 !> \param start_val start value for the quasiparticle iteration
 ! **************************************************************************************************
    SUBROUTINE get_sigma_c_bisection_pade(gw_energ, Eigenval_scf, Sigma_x_minus_vxc_gw, e_fermi, &
-                                         num_fit_points, nparam_pade, omega_points_pade, coeff_pade, &
-                                         output_unit, start_val)
+                                         nparam_pade, omega_points_pade, coeff_pade, start_val)
 
       REAL(KIND=dp), INTENT(OUT)                         :: gw_energ
       REAL(KIND=dp), INTENT(IN)                          :: Eigenval_scf, Sigma_x_minus_vxc_gw, &
                                                             e_fermi
-      INTEGER, INTENT(IN)                                :: num_fit_points, nparam_pade
+      INTEGER, INTENT(IN)                                :: nparam_pade
       COMPLEX(KIND=dp), DIMENSION(:), INTENT(IN)         :: omega_points_pade, coeff_pade
-      INTEGER, INTENT(IN)                                :: output_unit
       REAL(KIND=dp), INTENT(IN), OPTIONAL                :: start_val
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'get_sigma_c_bisection_pade', &
@@ -8600,23 +8596,19 @@ CONTAINS
 !> \param Eigenval_scf Eigenvalue from the SCF
 !> \param Sigma_x_minus_vxc_gw ...
 !> \param e_fermi fermi level
-!> \param num_fit_points total number of frequency points for the complex Sigma_c
 !> \param nparam_pade number of pade parameters
 !> \param omega_points_pade selection of frequency points of Sigma_c(iomega)
 !> \param coeff_pade pade coefficients
-!> \param output_unit ...
 !> \param start_val start value for the quasiparticle iteration
 ! **************************************************************************************************
    SUBROUTINE get_sigma_c_newton_pade(gw_energ, Eigenval_scf, Sigma_x_minus_vxc_gw, e_fermi, &
-                                      num_fit_points, nparam_pade, omega_points_pade, coeff_pade, &
-                                      output_unit, start_val)
+                                      nparam_pade, omega_points_pade, coeff_pade, start_val)
 
       REAL(KIND=dp), INTENT(OUT)                         :: gw_energ
       REAL(KIND=dp), INTENT(IN)                          :: Eigenval_scf, Sigma_x_minus_vxc_gw, &
                                                             e_fermi
-      INTEGER, INTENT(IN)                                :: num_fit_points, nparam_pade
+      INTEGER, INTENT(IN)                                :: nparam_pade
       COMPLEX(KIND=dp), DIMENSION(:), INTENT(IN)         :: omega_points_pade, coeff_pade
-      INTEGER, INTENT(IN)                                :: output_unit
       REAL(KIND=dp), INTENT(IN), OPTIONAL                :: start_val
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'get_sigma_c_newton_pade', &
