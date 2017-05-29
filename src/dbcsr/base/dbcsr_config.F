@@ -186,7 +186,7 @@ CONTAINS
 
       INTEGER                                            :: nthreads
 
-      IF (PRESENT(use_mpi_allocator)) dbcsr_data_allocation%use_mpi_allocator = use_mpi_allocator .AND. has_MPI
+      IF (PRESENT(use_mpi_allocator)) dbcsr_data_allocation%use_mpi_allocator = use_mpi_allocator
       IF (PRESENT(avg_elements_images)) dbcsr_cfg%avg_elements_images = avg_elements_images
       IF (PRESENT(num_mult_images)) dbcsr_cfg%num_mult_images = num_mult_images
       IF (PRESENT(use_mpi_rma)) dbcsr_cfg%use_mpi_rma = use_mpi_rma .AND. has_MPI

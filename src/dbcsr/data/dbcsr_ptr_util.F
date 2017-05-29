@@ -90,11 +90,7 @@ MODULE dbcsr_ptr_util
    END INTERFACE
 
    TYPE dbcsr_data_allocation_type
-#if defined (__parallel)
       LOGICAL :: use_mpi_allocator = .TRUE.
-#else
-      LOGICAL :: use_mpi_allocator = .FALSE.
-#endif
    END TYPE dbcsr_data_allocation_type
 
    PUBLIC :: dbcsr_data_allocation_type
