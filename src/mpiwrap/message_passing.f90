@@ -4106,7 +4106,10 @@
 
      length = MAX(len,1)
      CALL MPI_TYPE_SIZE(${mpi_type1}$, size, ierr)
-     mp_size = length * size
+     mp_size = INT(length, KIND=MPI_ADDRESS_KIND) * size
+     IF (mp_size .GT. mp_max_memory_size) THEN
+        CPABORT("MPI cannot allocate more than 2 GiByte")
+     ENDIF
      mp_info = MPI_INFO_NULL
      CALL MPI_ALLOC_MEM(mp_size, mp_info, mp_baseptr, mp_res)
      CALL C_F_POINTER(mp_baseptr, DATA, (/length/))
