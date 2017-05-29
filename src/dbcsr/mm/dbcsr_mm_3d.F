@@ -1780,7 +1780,8 @@ CONTAINS
             ENDIF
             !
             istep_k_comm_curr = istep_k_comm_curr+1
-            ! Stop looping when data is communicated
+            ! Stop looping when data is communicated 
+            ! Only works for 4 layers
             IF (is_not_comm .OR. nranks3D .NE. 4) THEN
                istep_k_comm => istep_k
                IF ((istep_k_comm+1) .EQ. istep_k_comm_curr) EXIT
