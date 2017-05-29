@@ -2764,7 +2764,7 @@ CONTAINS
       ! check to avoid overflows
       a = MAXVAL(ABS(rsgrid%desc%dh))
       a = 300._dp/(a*a)
-   !   CPASSERT(zetp < a)
+      !   CPASSERT(zetp < a)
 
       IF (my_map_consistent) THEN
          cutoff = 1.0_dp
@@ -2785,7 +2785,7 @@ CONTAINS
       ENDIF
 
       a = MAXVAL(ABS(rsgrid%desc%dh))
-      IF (radius .LT. a/2.0_dp ) THEN
+      IF (radius .LT. a/2.0_dp) THEN
          RETURN
       END IF
 
