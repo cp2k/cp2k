@@ -112,6 +112,7 @@ MODULE dbcsr_mm_multrec
       PRIVATE
       LOGICAL :: c_has_symmetry, keep_sparsity, use_eps
       INTEGER, DIMENSION(:), POINTER :: m_sizes, n_sizes, k_sizes
+      INTEGER, DIMENSION(:), POINTER :: m_global_sizes, n_global_sizes
       INTEGER, DIMENSION(:), POINTER :: c_local_rows, c_local_cols, k_locals, &
                                         c_global_rows, c_global_cols
 
@@ -295,6 +296,8 @@ CONTAINS
       !
       this%m_sizes => m_sizes
       this%n_sizes => n_sizes
+      this%m_global_sizes => array_data(product%row_blk_size)
+      this%n_global_sizes => array_data(product%col_blk_size)
       NULLIFY (this%k_locals)
       NULLIFY (this%k_sizes)
 
@@ -464,14 +467,14 @@ CONTAINS
          CALL dbcsr_data_set(data_buffer, lb_data+1, data_size, &
                              this%product_wm%data_area, source_lb=1)
       ELSE
-         ! if filtering is requested remove small blocks, unless the sparsity needs to be kept
-         IF (this%use_eps .AND. .NOT. this%keep_sparsity) &
-            CALL multrec_filtering(this)
-
          CALL remap_local2global(this%product_wm%row_i, &
                                  this%product_wm%col_i, &
                                  this%c_local_rows, this%c_local_cols, &
                                  this%original_lastblk+1, this%product_wm%lastblk)
+
+         ! if filtering is requested remove small blocks, unless the sparsity needs to be kept
+         IF (this%use_eps .AND. .NOT. this%keep_sparsity) &
+            CALL multrec_filtering(this)
       ENDIF
 
       this%initialized = .FALSE.
@@ -498,7 +501,7 @@ CONTAINS
               this%product_wm%row_i, &
               this%product_wm%col_i, &
               this%product_wm%blk_p, &
-              this%m_sizes, this%n_sizes, &
+              this%m_global_sizes, this%n_global_sizes, &
               this%product_wm%data_area%d%r_sp)
       CASE (dbcsr_type_real_8)
          CALL multrec_filtering_d(this%eps, &
@@ -506,7 +509,7 @@ CONTAINS
               this%product_wm%row_i, &
               this%product_wm%col_i, &
               this%product_wm%blk_p, &
-              this%m_sizes, this%n_sizes, &
+              this%m_global_sizes, this%n_global_sizes, &
               this%product_wm%data_area%d%r_dp)
       CASE (dbcsr_type_complex_4)
          CALL multrec_filtering_c(this%eps, &
@@ -514,7 +517,7 @@ CONTAINS
               this%product_wm%row_i, &
               this%product_wm%col_i, &
               this%product_wm%blk_p, &
-              this%m_sizes, this%n_sizes, &
+              this%m_global_sizes, this%n_global_sizes, &
               this%product_wm%data_area%d%c_sp)
       CASE (dbcsr_type_complex_8)
          CALL multrec_filtering_z(this%eps, &
@@ -522,7 +525,7 @@ CONTAINS
               this%product_wm%row_i, &
               this%product_wm%col_i, &
               this%product_wm%blk_p, &
-              this%m_sizes, this%n_sizes, &
+              this%m_global_sizes, this%n_global_sizes, &
               this%product_wm%data_area%d%c_dp)
       CASE DEFAULT
          CPABORT("Invalid data type.")
