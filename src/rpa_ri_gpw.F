@@ -5281,11 +5281,11 @@ CONTAINS
          CALL dbcsr_deallocate_matrix_set(mat_B_nm_P)
          CALL dbcsr_deallocate_matrix_set(mat_N_occ_dbcsr)
          CALL dbcsr_deallocate_matrix_set(mat_N_virt_dbcsr)
-         CALL dbcsr_release(coeff_homo_dbcsr)
-         CALL dbcsr_release(coeff_lumo_dbcsr)
-         CALL dbcsr_release(vec_P_occ_dbcsr)
-         CALL dbcsr_release(vec_P_virt_dbcsr)
-         CALL dbcsr_release(temp_RI_vector)
+         CALL dbcsr_release_p(coeff_homo_dbcsr)
+         CALL dbcsr_release_p(coeff_lumo_dbcsr)
+         CALL dbcsr_release_p(vec_P_occ_dbcsr)
+         CALL dbcsr_release_p(vec_P_virt_dbcsr)
+         CALL dbcsr_release_p(temp_RI_vector)
          CALL cp_fm_release(fm_mat_M_occ)
          CALL cp_fm_release(fm_mat_M_virt)
          CALL cp_fm_release(fm_mat_U_occ)
@@ -5693,8 +5693,8 @@ CONTAINS
       END DO
 
       DEALLOCATE (buffer_rec, buffer_send)
-      CALL dbcsr_release(matrix_tmp)
-      CALL dbcsr_release(matrix_tmp_2)
+      CALL dbcsr_release_p(matrix_tmp)
+      CALL dbcsr_release_p(matrix_tmp_2)
 
       CALL timestop(handle)
 
@@ -5964,7 +5964,7 @@ CONTAINS
       END DO
 
       DEALLOCATE (buffer_rec, buffer_send)
-      CALL dbcsr_release(matrix_tmp)
+      CALL dbcsr_release_p(matrix_tmp)
 
       CALL timestop(handle)
 
