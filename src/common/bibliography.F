@@ -57,7 +57,7 @@ MODULE bibliography
                             Stewart1989, Thiel1992, Repasky2002, Stewart2007, Weber2008, &
                             Hunt2003, Guidon2008, Elber1987, Jonsson1998, Jonsson2000_1, &
                             Jonsson2000_2, Wales2004, Stewart1982, E2002, Laino2008, &
-                            Blochl1995, Tao2003, VandeVondele2006, Hu2007, Grimme2006, &
+                            Blochl1995, Tao2003, VandeVondele2006, VanVoorhis2015, Hu2007, Grimme2006, &
                             Branduardi2007, Schenter2008, BeckeRoussel1989, Proynov2007, &
                             VandenCic2006, Becke1997, Foiles1986, Ricci2003, Kolafa2004, &
                             Kuhne2007, Kunert2003, Ceriotti2009, ceriotti2009b, Guidon2009, &
@@ -3665,6 +3665,20 @@ CONTAINS
                          "IS 21", &
                          "ER"), &
                          DOI="10.1088/0953-8984/26/21/213201")
+
+      CALL add_reference(key=VanVoorhis2015, ISI_record=s2a( &
+                         "AU VanVoorhis, T", &
+                         "   Welborn, M", &
+                         "   Chen, J", &
+                         "   Wang, L", &
+                         "TI Why many semiempirical molecular orbital", &
+                         "   fail for liquid water and how to fix them", &
+                         "SO Journal of Computational Chemistry", &
+                         "PY 2015", &
+                         "VL 36", &
+                         "IS 12", &
+                         "ER"), &
+                         DOI="10.1002/jcc.23887")
 
    END SUBROUTINE add_all_references
 

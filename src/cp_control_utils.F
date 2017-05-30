@@ -10,8 +10,8 @@ MODULE cp_control_utils
    USE bibliography,                    ONLY: &
         Andreussi2012, Dewar1977, Dewar1985, Elstner1998, Fattebert2002, Hu2007, Krack2000, &
         Lippert1997, Lippert1999, Porezag1995, Repasky2002, Rocha2006, Schenter2008, Seifert1996, &
-        Souza2002, Stengel2009, Stewart1989, Stewart2007, Thiel1992, Umari2002, VandeVondele2005a, &
-        VandeVondele2005b, Zhechkov2005, cite_reference
+        Souza2002, Stengel2009, Stewart1989, Stewart2007, Thiel1992, Umari2002, VanVoorhis2015, &
+        VandeVondele2005a, VandeVondele2005b, Zhechkov2005, cite_reference
    USE cp_control_types,                ONLY: &
         admm_control_create, admm_control_type, ddapc_control_create, ddapc_restraint_type, &
         dft_control_create, dft_control_type, efield_type, qs_control_type, sccs_control_create, &
@@ -31,14 +31,15 @@ MODULE cp_control_utils
         do_admm_purify_mo_no_diag, do_admm_purify_none, do_admm_purify_none_dm, &
         do_ddapc_constraint, do_ddapc_restraint, do_method_am1, do_method_dftb, do_method_gapw, &
         do_method_gapw_xc, do_method_gpw, do_method_lrigpw, do_method_mndo, do_method_mndod, &
-        do_method_ofgpw, do_method_pdg, do_method_pm3, do_method_pm6, do_method_pnnl, &
-        do_method_rm1, do_method_scptb, do_pwgrid_ns_fullspace, do_pwgrid_ns_halfspace, &
-        do_pwgrid_spherical, do_s2_constraint, do_s2_restraint, do_se_is_kdso, do_se_is_kdso_d, &
-        do_se_is_slater, do_se_lr_ewald, do_se_lr_ewald_gks, do_se_lr_ewald_r3, do_se_lr_none, &
-        gaussian_env, numerical, ramp_env, real_time_propagation, sccs_andreussi, &
-        sccs_derivative_cd3, sccs_derivative_cd5, sccs_derivative_cd7, sccs_derivative_fft, &
-        sccs_fattebert_gygi, sic_ad, sic_eo, sic_list_all, sic_list_unpaired, sic_mauri_spz, &
-        sic_mauri_us, sic_none, slater, tddfpt_excitations, use_mom_ref_user, xas_dip_len
+        do_method_ofgpw, do_method_pdg, do_method_pm3, do_method_pm6, do_method_pm6fm, &
+        do_method_pnnl, do_method_rm1, do_method_scptb, do_pwgrid_ns_fullspace, &
+        do_pwgrid_ns_halfspace, do_pwgrid_spherical, do_s2_constraint, do_s2_restraint, &
+        do_se_is_kdso, do_se_is_kdso_d, do_se_is_slater, do_se_lr_ewald, do_se_lr_ewald_gks, &
+        do_se_lr_ewald_r3, do_se_lr_none, gaussian_env, numerical, ramp_env, &
+        real_time_propagation, sccs_andreussi, sccs_derivative_cd3, sccs_derivative_cd5, &
+        sccs_derivative_cd7, sccs_derivative_fft, sccs_fattebert_gygi, sic_ad, sic_eo, &
+        sic_list_all, sic_list_unpaired, sic_mauri_spz, sic_mauri_us, sic_none, slater, &
+        tddfpt_excitations, use_mom_ref_user, xas_dip_len
    USE input_cp2k_dft,                  ONLY: create_dft_section,&
                                               create_qs_section
    USE input_enumeration_types,         ONLY: enum_i2c,&
@@ -112,7 +113,7 @@ CONTAINS
       CALL section_vals_val_get(dft_section, "QS%METHOD", i_val=method_id)
       SELECT CASE (method_id)
       CASE (do_method_dftb, do_method_scptb, do_method_mndo, do_method_am1, do_method_pm3, do_method_pnnl, &
-            do_method_pm6, do_method_pdg, do_method_rm1, do_method_mndod)
+            do_method_pm6, do_method_pm6fm, do_method_pdg, do_method_rm1, do_method_mndod)
          not_SE = .FALSE.
       END SELECT
       ! Check for XC section and XC_FUNCTIONAL section
@@ -752,6 +753,9 @@ CONTAINS
       CASE (do_method_pm6)
          CALL cite_reference(Stewart2007)
          qs_control%semi_empirical = .TRUE.
+      CASE (do_method_pm6fm)
+         CALL cite_reference(VanVoorhis2015)
+         qs_control%semi_empirical = .TRUE.
       CASE (do_method_pdg)
          CALL cite_reference(Repasky2002)
          qs_control%semi_empirical = .TRUE.
@@ -941,6 +945,7 @@ CONTAINS
              qs_control%method_id == do_method_pdg .OR. &
              qs_control%method_id == do_method_pm3 .OR. &
              qs_control%method_id == do_method_pm6 .OR. &
+             qs_control%method_id == do_method_pm6fm .OR. &
              qs_control%method_id == do_method_pnnl .OR. &
              qs_control%method_id == do_method_rm1) THEN
             qs_control%se_control%orthogonal_basis = .TRUE.

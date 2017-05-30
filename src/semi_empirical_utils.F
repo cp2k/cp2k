@@ -17,21 +17,17 @@ MODULE semi_empirical_utils
    USE cp_control_types,                ONLY: semi_empirical_control_type
    USE input_constants,                 ONLY: &
         do_method_am1, do_method_mndo, do_method_mndod, do_method_pchg, do_method_pdg, &
-        do_method_pm3, do_method_pm6, do_method_pnnl, do_method_rm1
+        do_method_pm3, do_method_pm6, do_method_pm6fm, do_method_pnnl, do_method_rm1
    USE input_section_types,             ONLY: section_vals_type,&
                                               section_vals_val_get
    USE kinds,                           ONLY: dp
    USE semi_empirical_mpole_methods,    ONLY: semi_empirical_mpole_p_setup
    USE semi_empirical_par_utils,        ONLY: get_se_basis,&
                                               setup_1c_2el_int
-   USE semi_empirical_parameters,       ONLY: am1_default_parameter,&
-                                              mndo_default_parameter,&
-                                              pcharge_default_parameter,&
-                                              pdg_default_parameter,&
-                                              pm3_default_parameter,&
-                                              pm6_default_parameter,&
-                                              pnnl_default_parameter,&
-                                              rm1_default_parameter
+   USE semi_empirical_parameters,       ONLY: &
+        am1_default_parameter, mndo_default_parameter, pcharge_default_parameter, &
+        pdg_default_parameter, pm3_default_parameter, pm6_default_parameter, &
+        pm6fm_default_parameter, pnnl_default_parameter, rm1_default_parameter
    USE semi_empirical_types,            ONLY: se_taper_type,&
                                               semi_empirical_type
 #include "./base/base_uses.f90"
@@ -301,6 +297,8 @@ CONTAINS
             CALL pm3_default_parameter(sep, z)
          CASE (do_method_pm6)
             CALL pm6_default_parameter(sep, z)
+         CASE (do_method_pm6fm)
+            CALL pm6fm_default_parameter(sep, z)
          CASE (do_method_pdg)
             CALL pdg_default_parameter(sep, z)
          CASE (do_method_mndo)

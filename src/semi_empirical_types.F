@@ -20,7 +20,8 @@ MODULE semi_empirical_types
    USE dg_types,                        ONLY: dg_type
    USE input_constants,                 ONLY: &
         do_method_am1, do_method_mndo, do_method_mndod, do_method_pdg, do_method_pm3, &
-        do_method_pm6, do_method_pnnl, do_method_rm1, do_se_IS_kdso_d, do_se_IS_slater
+        do_method_pm6, do_method_pm6fm, do_method_pnnl, do_method_rm1, do_se_IS_kdso_d, &
+        do_se_IS_slater
    USE input_section_types,             ONLY: section_vals_type
    USE kinds,                           ONLY: default_string_length,&
                                               dp
@@ -83,7 +84,7 @@ MODULE semi_empirical_types
       REAL(KIND=dp), DIMENSION(9)          :: ko
       REAL(KIND=dp), DIMENSION(6)          :: cs
       REAL(KIND=dp), DIMENSION(52)         :: onec2el
-      ! Specific for PM6
+      ! Specific for PM6 & PM6-FM
       REAL(KIND=dp), DIMENSION(0:115)      :: xab
       REAL(KIND=dp), DIMENSION(0:115)      :: aab
       REAL(KIND=dp)                        :: a, b, c, rho
@@ -730,6 +731,9 @@ CONTAINS
             CASE (do_method_pm6)
                WRITE (UNIT=output_unit, FMT="(/,A,T35,A,T67,A14)") &
                   " Semi empirical parameters: ", "Parametric Method 6 (PM6) ", TRIM(name)
+            CASE (do_method_pm6fm)
+               WRITE (UNIT=output_unit, FMT="(/,A,T35,A,T67,A14)") &
+                  " Semi empirical parameters: ", "Parametric Method 6 (PM6-FM) ", TRIM(name)
             CASE (do_method_pdg)
                WRITE (UNIT=output_unit, FMT="(/,A,T35,A,T67,A14)") &
                   " Semi empirical parameters: ", "PDDG/PM3 ", TRIM(name)

@@ -19,6 +19,7 @@ MODULE semi_empirical_int_num
                                               do_method_pdg,&
                                               do_method_pm3,&
                                               do_method_pm6,&
+                                              do_method_pm6fm,&
                                               do_method_undef,&
                                               do_se_IS_kdso_d
    USE kinds,                           ONLY: dp
@@ -542,7 +543,7 @@ CONTAINS
          ! Nuclear-Nuclear electrostatic contribution
          enuc = zz*ssss_sr
          ! Method dependent correction terms
-         IF (itype /= do_method_pm6) THEN
+         IF (itype /= do_method_pm6 .AND. itype /= do_method_pm6fm) THEN
             alpi = sepi%alp
             alpj = sepj%alp
             scale = EXP(-alpi*rij)+EXP(-alpj*rij)

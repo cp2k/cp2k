@@ -81,11 +81,11 @@ MODULE qs_environment
    USE input_constants,                 ONLY: &
         dispersion_d3, do_et_becke, do_et_ddapc, do_method_am1, do_method_dftb, do_method_gapw, &
         do_method_gapw_xc, do_method_gpw, do_method_lrigpw, do_method_mndo, do_method_mndod, &
-        do_method_ofgpw, do_method_pdg, do_method_pm3, do_method_pm6, do_method_pnnl, &
-        do_method_rm1, do_method_scptb, do_qmmm_gauss, do_qmmm_swave, general_roks, rel_none, &
-        rel_trans_atom, vdw_pairpot_dftd3, wfi_aspc_nr, wfi_linear_ps_method_nr, &
-        wfi_linear_wf_method_nr, wfi_ps_method_nr, wfi_use_guess_method_nr, xc_vdw_fun_none, &
-        xc_vdw_fun_nonloc, xc_vdw_fun_pairpot
+        do_method_ofgpw, do_method_pdg, do_method_pm3, do_method_pm6, do_method_pm6fm, &
+        do_method_pnnl, do_method_rm1, do_method_scptb, do_qmmm_gauss, do_qmmm_swave, &
+        general_roks, rel_none, rel_trans_atom, vdw_pairpot_dftd3, wfi_aspc_nr, &
+        wfi_linear_ps_method_nr, wfi_linear_wf_method_nr, wfi_ps_method_nr, &
+        wfi_use_guess_method_nr, xc_vdw_fun_none, xc_vdw_fun_nonloc, xc_vdw_fun_pairpot
    USE input_section_types,             ONLY: section_vals_get,&
                                               section_vals_get_subs_vals,&
                                               section_vals_type,&
@@ -275,7 +275,7 @@ CONTAINS
       CALL section_vals_val_get(force_env_section, "DFT%QS%METHOD", i_val=method_id)
       SELECT CASE (method_id)
       CASE (do_method_rm1, do_method_am1, do_method_mndo, do_method_pdg, &
-            do_method_pm3, do_method_pm6, do_method_mndod, do_method_pnnl)
+            do_method_pm3, do_method_pm6, do_method_pm6fm, do_method_mndod, do_method_pnnl)
          CALL init_se_intd_array()
       CASE DEFAULT
          ! Do nothing
@@ -546,7 +546,7 @@ CONTAINS
          CASE DEFAULT
             CALL qs_header(iw)
          CASE (do_method_rm1, do_method_am1, do_method_mndo, do_method_pdg, &
-               do_method_pm3, do_method_pm6, do_method_mndod, do_method_pnnl)
+               do_method_pm3, do_method_pm6, do_method_pm6fm, do_method_mndod, do_method_pnnl)
             CALL se_header(iw)
          CASE (do_method_dftb)
             CALL dftb_header(iw)
@@ -805,7 +805,7 @@ CONTAINS
          SELECT CASE (dft_control%qs_control%method_id)
          CASE DEFAULT
          CASE (do_method_rm1, do_method_am1, do_method_mndo, do_method_pm3, &
-               do_method_pm6, do_method_mndod, do_method_pnnl)
+               do_method_pm6, do_method_pm6fm, do_method_mndod, do_method_pnnl)
             ! Neighbor lists have to be MAX(interaction range, orbital range)
             ! set new kind radius
             CALL init_se_nlradius(se_control, atomic_kind_set, qs_kind_set, subsys_section)

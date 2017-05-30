@@ -22,14 +22,9 @@ MODULE se_core_core
                                               ewald_environment_type
    USE ewald_pw_types,                  ONLY: ewald_pw_get,&
                                               ewald_pw_type
-   USE input_constants,                 ONLY: do_method_am1,&
-                                              do_method_mndo,&
-                                              do_method_mndod,&
-                                              do_method_pdg,&
-                                              do_method_pm3,&
-                                              do_method_pm6,&
-                                              do_method_pnnl,&
-                                              do_method_rm1
+   USE input_constants,                 ONLY: &
+        do_method_am1, do_method_mndo, do_method_mndod, do_method_pdg, do_method_pm3, &
+        do_method_pm6, do_method_pm6fm, do_method_pnnl, do_method_rm1
    USE kinds,                           ONLY: dp
    USE message_passing,                 ONLY: mp_sum
    USE particle_types,                  ONLY: particle_type
@@ -188,7 +183,7 @@ CONTAINS
          enucij = 0._dp
          IF (dr1 > rij_threshold) THEN
             SELECT CASE (dft_control%qs_control%method_id)
-            CASE (do_method_mndo, do_method_am1, do_method_pm3, do_method_pm6, do_method_pdg, &
+            CASE (do_method_mndo, do_method_am1, do_method_pm3, do_method_pm6, do_method_pm6fm, do_method_pdg, &
                   do_method_rm1, do_method_mndod, do_method_pnnl)
 
                ! Core-Core energy term

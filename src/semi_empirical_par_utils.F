@@ -33,7 +33,8 @@ MODULE semi_empirical_par_utils
 
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'semi_empirical_par_utils'
 
-!                STANDARD MOPAC PARAMETERS USED FOR AM1, RM1, MNDO, PM3, PM6
+!                STANDARD MOPAC PARAMETERS USED FOR AM1, RM1, MNDO, PM3, PM6,
+!                PM6-FM
 !
 !      H                                                                      He
 !      Li Be                                                 B  C  N  O  F    Ne

@@ -29,8 +29,8 @@ MODULE qmmm_se_energy
                                               dbcsr_set
    USE input_constants,                 ONLY: &
         do_method_am1, do_method_mndo, do_method_mndod, do_method_pchg, do_method_pdg, &
-        do_method_pm3, do_method_pm6, do_method_pnnl, do_method_rm1, do_qmmm_coulomb, &
-        do_qmmm_gauss, do_qmmm_none, do_qmmm_pcharge, do_qmmm_swave
+        do_method_pm3, do_method_pm6, do_method_pm6fm, do_method_pnnl, do_method_rm1, &
+        do_qmmm_coulomb, do_qmmm_gauss, do_qmmm_none, do_qmmm_pcharge, do_qmmm_swave
    USE kinds,                           ONLY: dp
    USE message_passing,                 ONLY: mp_sum
    USE multipole_types,                 ONLY: do_multipole_none
@@ -145,7 +145,7 @@ CONTAINS
 
       SELECT CASE (dft_control%qs_control%method_id)
       CASE (do_method_am1, do_method_rm1, do_method_mndo, do_method_pdg, &
-            do_method_pm3, do_method_pm6, do_method_mndod, do_method_pnnl)
+            do_method_pm3, do_method_pm6, do_method_pm6fm, do_method_mndod, do_method_pnnl)
          ! Go on with the calculation..
       CASE DEFAULT
          ! Otherwise stop..

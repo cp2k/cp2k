@@ -51,7 +51,8 @@ MODULE qs_kind_types
         set_default_all_potential, set_potential, sgp_potential_type, write_potential
    USE input_constants,                 ONLY: &
         do_method_am1, do_method_dftb, do_method_mndo, do_method_mndod, do_method_pdg, &
-        do_method_pm3, do_method_pm6, do_method_pnnl, do_method_rm1, do_method_scptb, do_qs
+        do_method_pm3, do_method_pm6, do_method_pm6fm, do_method_pnnl, do_method_rm1, &
+        do_method_scptb, do_qs
    USE input_section_types,             ONLY: section_vals_get,&
                                               section_vals_get_subs_vals,&
                                               section_vals_type,&
@@ -1850,7 +1851,7 @@ CONTAINS
 
       SELECT CASE (method_id)
       CASE (do_method_dftb, do_method_scptb, do_method_rm1, do_method_am1, do_method_mndo, &
-            do_method_pdg, do_method_pm3, do_method_pm6, do_method_mndod, &
+            do_method_pdg, do_method_pm3, do_method_pm6, do_method_pm6fm, do_method_mndod, &
             do_method_pnnl)
          ! Allocate all_potential
          CALL allocate_potential(qs_kind%all_potential)
@@ -1874,7 +1875,7 @@ CONTAINS
          ! Basis set (Parameters)
          SELECT CASE (method_id)
          CASE (do_method_rm1, do_method_am1, do_method_mndo, do_method_pdg, &
-               do_method_pm3, do_method_pm6, do_method_mndod, do_method_pnnl)
+               do_method_pm3, do_method_pm6, do_method_pm6fm, do_method_mndod, do_method_pnnl)
             ! Setup proper semiempirical parameters
             check = .NOT. ASSOCIATED(qs_kind%se_parameter)
             CPASSERT(check)
@@ -2256,7 +2257,7 @@ CONTAINS
       IF (method == do_qs) THEN
          CALL section_vals_val_get(force_env_section, "DFT%QS%METHOD", i_val=qs_method)
          SELECT CASE (qs_method)
-         CASE (do_method_mndo, do_method_am1, do_method_pm3, do_method_pm6, &
+         CASE (do_method_mndo, do_method_am1, do_method_pm3, do_method_pm6fm, do_method_pm6, &
                do_method_pdg, do_method_rm1, do_method_mndod, do_method_pnnl)
             no_fail = .TRUE.
          CASE (do_method_dftb, do_method_scptb)

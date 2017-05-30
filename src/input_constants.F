@@ -251,7 +251,8 @@ MODULE input_constants
                                                do_method_pchg = 15, &
                                                do_method_pnnl = 16, &
                                                do_method_ofgpw = 17, &
-                                               do_method_scptb = 18
+                                               do_method_pm6fm = 18, &
+                                               do_method_scptb = 19
 
    INTEGER, PARAMETER, PUBLIC               :: do_multipole_section_on = 0, &
                                                do_multipole_section_off = 1

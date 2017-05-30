@@ -30,14 +30,9 @@ MODULE se_fock_matrix
                                               dbcsr_p_type,&
                                               dbcsr_trace,&
                                               dbcsr_type
-   USE input_constants,                 ONLY: do_method_am1,&
-                                              do_method_mndo,&
-                                              do_method_mndod,&
-                                              do_method_pdg,&
-                                              do_method_pm3,&
-                                              do_method_pm6,&
-                                              do_method_pnnl,&
-                                              do_method_rm1
+   USE input_constants,                 ONLY: &
+        do_method_am1, do_method_mndo, do_method_mndod, do_method_pdg, do_method_pm3, &
+        do_method_pm6, do_method_pm6fm, do_method_pnnl, do_method_rm1
    USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                               section_vals_type
    USE kinds,                           ONLY: dp
@@ -134,7 +129,7 @@ CONTAINS
          CPABORT("Fock Matrix not available for the chosen parameterization! ")
 
       CASE (do_method_am1, do_method_rm1, do_method_mndo, do_method_pdg, &
-            do_method_pm3, do_method_pm6, do_method_mndod, do_method_pnnl)
+            do_method_pm3, do_method_pm6, do_method_pm6fm, do_method_mndod, do_method_pnnl)
 
          ! Check for properly allocation of Matrixes
          nspins = dft_control%nspins
