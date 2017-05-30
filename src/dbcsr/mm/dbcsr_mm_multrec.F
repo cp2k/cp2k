@@ -36,8 +36,11 @@ MODULE dbcsr_mm_multrec
         dbcsr_mm_csr_phaseout, dbcsr_mm_csr_purge_stacks, dbcsr_mm_csr_red3D, dbcsr_mm_csr_type
    USE dbcsr_types,                     ONLY: dbcsr_data_obj,&
                                               dbcsr_type,&
-                                              dbcsr_work_type
+                                              dbcsr_work_type,&
+                                              dbcsr_type_complex_4, dbcsr_type_complex_8, &
+                                              dbcsr_type_real_4, dbcsr_type_real_8
    USE kinds,                           ONLY: int_8,&
+                                              real_4,&
                                               real_8,&
                                               sp
 #include "../../base/base_uses.f90"
@@ -461,6 +464,10 @@ CONTAINS
          CALL dbcsr_data_set(data_buffer, lb_data+1, data_size, &
                              this%product_wm%data_area, source_lb=1)
       ELSE
+         ! if filtering is requested remove small blocks, unless the sparsity needs to be kept
+         IF (this%use_eps .AND. .NOT. this%keep_sparsity) &
+            CALL multrec_filtering(this)
+
          CALL remap_local2global(this%product_wm%row_i, &
                                  this%product_wm%col_i, &
                                  this%c_local_rows, this%c_local_cols, &
@@ -470,6 +477,60 @@ CONTAINS
       this%initialized = .FALSE.
       CALL timestop(handle)
    END SUBROUTINE dbcsr_mm_multrec_finalize
+
+! **************************************************************************************************
+!> \brief Applying in-place filtering on the workspace
+! **************************************************************************************************
+   SUBROUTINE multrec_filtering(this)
+      TYPE(dbcsr_mm_multrec_type), INTENT(inout)         :: this
+
+      CHARACTER(len=*), PARAMETER :: routineN = 'multrec_filtering', &
+         routineP = moduleN//':'//routineN
+
+      INTEGER                                            :: handle
+
+      CALL timeset(routineN, handle)
+
+      SELECT CASE (this%product_wm%data_area%d%data_type)
+      CASE (dbcsr_type_real_4)
+         CALL multrec_filtering_s(this%eps, &
+              this%product_wm%lastblk, this%product_wm%datasize, &
+              this%product_wm%row_i, &
+              this%product_wm%col_i, &
+              this%product_wm%blk_p, &
+              this%m_sizes, this%n_sizes, &
+              this%product_wm%data_area%d%r_sp)
+      CASE (dbcsr_type_real_8)
+         CALL multrec_filtering_d(this%eps, &
+              this%product_wm%lastblk, this%product_wm%datasize, &
+              this%product_wm%row_i, &
+              this%product_wm%col_i, &
+              this%product_wm%blk_p, &
+              this%m_sizes, this%n_sizes, &
+              this%product_wm%data_area%d%r_dp)
+      CASE (dbcsr_type_complex_4)
+         CALL multrec_filtering_c(this%eps, &
+              this%product_wm%lastblk, this%product_wm%datasize, &
+              this%product_wm%row_i, &
+              this%product_wm%col_i, &
+              this%product_wm%blk_p, &
+              this%m_sizes, this%n_sizes, &
+              this%product_wm%data_area%d%c_sp)
+      CASE (dbcsr_type_complex_8)
+         CALL multrec_filtering_z(this%eps, &
+              this%product_wm%lastblk, this%product_wm%datasize, &
+              this%product_wm%row_i, &
+              this%product_wm%col_i, &
+              this%product_wm%blk_p, &
+              this%m_sizes, this%n_sizes, &
+              this%product_wm%data_area%d%c_dp)
+      CASE DEFAULT
+         CPABORT("Invalid data type.")
+      END SELECT
+
+      CALL timestop(handle)
+
+   END SUBROUTINE multrec_filtering
 
 ! **************************************************************************************************
 !> \brief Make the reduction of the 3D layers in the local multrec object
@@ -789,6 +850,8 @@ CONTAINS
          local_data(l) = full_data(local_elements(l))
       END DO
    END SUBROUTINE local_filter_sp
+
+#:include "dbcsr_mm_multrec.f90"
 
 END MODULE dbcsr_mm_multrec
 
