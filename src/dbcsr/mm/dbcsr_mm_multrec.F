@@ -497,7 +497,7 @@ CONTAINS
       SELECT CASE (this%product_wm%data_area%d%data_type)
       CASE (dbcsr_type_real_4)
          CALL multrec_filtering_s(this%eps, &
-              this%product_wm%lastblk, this%product_wm%datasize, &
+              this%product_wm%lastblk, &
               this%product_wm%row_i, &
               this%product_wm%col_i, &
               this%product_wm%blk_p, &
@@ -505,7 +505,7 @@ CONTAINS
               this%product_wm%data_area%d%r_sp)
       CASE (dbcsr_type_real_8)
          CALL multrec_filtering_d(this%eps, &
-              this%product_wm%lastblk, this%product_wm%datasize, &
+              this%product_wm%lastblk, &
               this%product_wm%row_i, &
               this%product_wm%col_i, &
               this%product_wm%blk_p, &
@@ -513,7 +513,7 @@ CONTAINS
               this%product_wm%data_area%d%r_dp)
       CASE (dbcsr_type_complex_4)
          CALL multrec_filtering_c(this%eps, &
-              this%product_wm%lastblk, this%product_wm%datasize, &
+              this%product_wm%lastblk, &
               this%product_wm%row_i, &
               this%product_wm%col_i, &
               this%product_wm%blk_p, &
@@ -521,7 +521,7 @@ CONTAINS
               this%product_wm%data_area%d%c_sp)
       CASE (dbcsr_type_complex_8)
          CALL multrec_filtering_z(this%eps, &
-              this%product_wm%lastblk, this%product_wm%datasize, &
+              this%product_wm%lastblk, &
               this%product_wm%row_i, &
               this%product_wm%col_i, &
               this%product_wm%blk_p, &

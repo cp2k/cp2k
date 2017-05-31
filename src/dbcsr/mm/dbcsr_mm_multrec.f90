@@ -5,16 +5,16 @@
 !> \brief Applying in-place filtering on the workspace.
 !> \brief Use Frobenius norm
 ! **************************************************************************************************
-  SUBROUTINE multrec_filtering_${nametype1}$(filter_eps, nblks, nze, rowi, coli, blkp, &
+  SUBROUTINE multrec_filtering_${nametype1}$(filter_eps, nblks, rowi, coli, blkp, &
                                              rbs, cbs, DATA)
     REAL(kind=real_8), INTENT(IN)              :: filter_eps
-    INTEGER, INTENT(INOUT)                     :: nblks, nze
+    INTEGER, INTENT(INOUT)                     :: nblks
     INTEGER, DIMENSION(1:nblks), INTENT(INOUT) :: rowi, coli, blkp
     INTEGER, DIMENSION(:), INTENT(IN)          :: rbs, cbs
     ${type1}$, DIMENSION(:), &
       INTENT(INOUT)                            :: DATA
 
-    INTEGER                                    :: blk, lastblk, lastsize, blk_nze, blk_p
+    INTEGER                                    :: blk, lastblk, blk_nze, blk_p
     REAL(kind=real_8)                          :: nrm
 
     REAL(KIND=real_8), EXTERNAL                :: DZNRM2, DDOT
@@ -24,9 +24,7 @@
     REAL(KIND=real_4), EXTERNAL                :: SCNRM2, SDOT
 #endif
 
-
     lastblk = 0
-    lastsize = 0
     !
     DO blk = 1, nblks
        blk_p = blkp(blk)
@@ -40,15 +38,12 @@
           IF (lastblk .LT. blk) THEN
              rowi(lastblk) = rowi(blk)
              coli(lastblk) = coli(blk)
-             blkp(lastblk) = lastsize+1
-             data(blkp(lastblk):blkp(lastblk)+blk_nze) = data(blk_p:blk_p+blk_nze)
+             blkp(lastblk) = blkp(blk)
           ENDIF
-          lastsize = lastsize+blk_nze
        ENDIF
     ENDDO
     ! 
     nblks = lastblk
-    nze = lastsize
 
   END SUBROUTINE multrec_filtering_${nametype1}$
 #:endfor
