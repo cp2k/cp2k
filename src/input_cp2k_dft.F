@@ -47,47 +47,47 @@ MODULE input_cp2k_dft
         do_lri_opt_exps, do_lri_pseudoinv_diag, do_lri_pseudoinv_svd, do_method_am1, &
         do_method_dftb, do_method_gapw, do_method_gapw_xc, do_method_gpw, do_method_lrigpw, &
         do_method_mndo, do_method_mndod, do_method_ofgpw, do_method_pdg, do_method_pm3, &
-        do_method_pm6, do_method_pm6fm, do_method_pnnl, do_method_rm1, do_method_scptb, do_pade, &
-        do_ppl_analytic, do_ppl_grid, do_pwgrid_ns_fullspace, do_pwgrid_ns_halfspace, &
-        do_pwgrid_spherical, do_s2_constraint, do_s2_restraint, do_se_is_kdso, do_se_is_kdso_d, &
-        do_se_is_slater, do_se_lr_ewald, do_se_lr_ewald_gks, do_se_lr_ewald_r3, do_se_lr_none, &
-        do_spin_density, do_taylor, ehrenfest, eri_method_full_gpw, eri_method_gpw_ht, &
-        eri_operator_coulomb, eri_operator_erf, eri_operator_erfc, eri_operator_gaussian, &
-        eri_operator_yukawa, gaussian, general_roks, hf_model, high_spin_roks, history_guess, &
-        jacobian_fd1, jacobian_fd1_backward, jacobian_fd1_central, jacobian_fd2, &
-        jacobian_fd2_backward, kg_cholesky, kg_color_dsatur, kg_color_greedy, &
-        kg_ec_diagonalization, kg_ec_functional_harris, kg_tnadd_atomic, kg_tnadd_embed, &
-        kg_tnadd_none, ls_2pnt, ls_3pnt, ls_gold, ls_none, mao_basis_ext, mao_basis_orb, &
-        mao_basis_prim, mao_projection, mopac_guess, no_excitations, no_guess, numerical, oe_gllb, &
-        oe_lb, oe_none, oe_saop, oe_sic, op_loc_berry, op_loc_boys, op_loc_pipek, orb_dx2, &
-        orb_dxy, orb_dy2, orb_dyz, orb_dz2, orb_dzx, orb_px, orb_py, orb_pz, orb_s, ot_algo_irac, &
-        ot_algo_taylor_or_diag, ot_chol_irac, ot_lwdn_irac, ot_mini_broyden, ot_mini_cg, &
-        ot_mini_diis, ot_mini_sd, ot_poly_irac, ot_precond_full_all, ot_precond_full_kinetic, &
-        ot_precond_full_single, ot_precond_full_single_inverse, ot_precond_none, &
-        ot_precond_s_inverse, ot_precond_solver_default, ot_precond_solver_direct, &
-        ot_precond_solver_inv_chol, ot_precond_solver_update, outer_scf_basis_center_opt, &
-        outer_scf_becke_constraint, outer_scf_cdft_constraint, outer_scf_ddapc_constraint, &
-        outer_scf_hirshfeld_constraint, outer_scf_none, outer_scf_optimizer_bisect, &
-        outer_scf_optimizer_broyden, outer_scf_optimizer_diis, outer_scf_optimizer_newton, &
-        outer_scf_optimizer_newton_ls, outer_scf_optimizer_none, outer_scf_optimizer_sd, &
-        outer_scf_optimizer_secant, outer_scf_s2_constraint, plus_u_lowdin, plus_u_mulliken, &
-        plus_u_mulliken_charges, pw_interp, radius_covalent, radius_default, radius_single, &
-        radius_user, radius_vdw, random_guess, real_time_propagation, ref_charge_atomic, &
-        ref_charge_mulliken, rel_dkh, rel_none, rel_pot_erfc, rel_pot_full, rel_sczora_mp, &
-        rel_trans_atom, rel_trans_full, rel_trans_molecule, rel_zora, rel_zora_full, rel_zora_mp, &
-        restart_guess, rsdft_model, sccs_andreussi, sccs_derivative_cd3, sccs_derivative_cd5, &
-        sccs_derivative_cd7, sccs_derivative_fft, sccs_fattebert_gygi, shape_function_density, &
-        shape_function_gaussian, sic_ad, sic_eo, sic_list_all, sic_list_unpaired, sic_mauri_spz, &
-        sic_mauri_us, sic_none, slater, smear_energy_window, smear_fermi_dirac, smear_list, &
-        sparse_guess, spline3_nopbc_interp, spline3_pbc_interp, tddfpt_davidson, &
-        tddfpt_excitations, tddfpt_lanczos, tddfpt_singlet, tddfpt_triplet, use_coulomb, use_diff, &
-        use_no, use_restart_wfn, use_rt_restart, use_scf_wfn, wannier_projection, &
-        weight_type_mass, weight_type_unit, wfi_aspc_nr, wfi_frozen_method_nr, &
-        wfi_linear_p_method_nr, wfi_linear_ps_method_nr, wfi_linear_wf_method_nr, &
-        wfi_ps_method_nr, wfi_use_guess_method_nr, wfi_use_prev_p_method_nr, &
-        wfi_use_prev_rho_r_method_nr, wfi_use_prev_wf_method_nr, xas_1s_type, xas_2p_type, &
-        xas_2s_type, xas_dip_len, xas_dip_vel, xas_dscf, xas_none, xas_tp_fh, xas_tp_flex, &
-        xas_tp_hh, xas_tp_xfh, xas_tp_xhh, xes_tp_val
+        do_method_pm6, do_method_pm6fm, do_method_pnnl, do_method_rm1, do_pade, do_ppl_analytic, &
+        do_ppl_grid, do_pwgrid_ns_fullspace, do_pwgrid_ns_halfspace, do_pwgrid_spherical, &
+        do_s2_constraint, do_s2_restraint, do_se_is_kdso, do_se_is_kdso_d, do_se_is_slater, &
+        do_se_lr_ewald, do_se_lr_ewald_gks, do_se_lr_ewald_r3, do_se_lr_none, do_spin_density, &
+        do_taylor, ehrenfest, eri_method_full_gpw, eri_method_gpw_ht, eri_operator_coulomb, &
+        eri_operator_erf, eri_operator_erfc, eri_operator_gaussian, eri_operator_yukawa, gaussian, &
+        general_roks, hf_model, high_spin_roks, history_guess, jacobian_fd1, &
+        jacobian_fd1_backward, jacobian_fd1_central, jacobian_fd2, jacobian_fd2_backward, &
+        kg_cholesky, kg_color_dsatur, kg_color_greedy, kg_ec_diagonalization, &
+        kg_ec_functional_harris, kg_tnadd_atomic, kg_tnadd_embed, kg_tnadd_none, ls_2pnt, ls_3pnt, &
+        ls_gold, ls_none, mao_basis_ext, mao_basis_orb, mao_basis_prim, mao_projection, &
+        mopac_guess, no_excitations, no_guess, numerical, oe_gllb, oe_lb, oe_none, oe_saop, &
+        oe_sic, op_loc_berry, op_loc_boys, op_loc_pipek, orb_dx2, orb_dxy, orb_dy2, orb_dyz, &
+        orb_dz2, orb_dzx, orb_px, orb_py, orb_pz, orb_s, ot_algo_irac, ot_algo_taylor_or_diag, &
+        ot_chol_irac, ot_lwdn_irac, ot_mini_broyden, ot_mini_cg, ot_mini_diis, ot_mini_sd, &
+        ot_poly_irac, ot_precond_full_all, ot_precond_full_kinetic, ot_precond_full_single, &
+        ot_precond_full_single_inverse, ot_precond_none, ot_precond_s_inverse, &
+        ot_precond_solver_default, ot_precond_solver_direct, ot_precond_solver_inv_chol, &
+        ot_precond_solver_update, outer_scf_basis_center_opt, outer_scf_becke_constraint, &
+        outer_scf_cdft_constraint, outer_scf_ddapc_constraint, outer_scf_hirshfeld_constraint, &
+        outer_scf_none, outer_scf_optimizer_bisect, outer_scf_optimizer_broyden, &
+        outer_scf_optimizer_diis, outer_scf_optimizer_newton, outer_scf_optimizer_newton_ls, &
+        outer_scf_optimizer_none, outer_scf_optimizer_sd, outer_scf_optimizer_secant, &
+        outer_scf_s2_constraint, plus_u_lowdin, plus_u_mulliken, plus_u_mulliken_charges, &
+        pw_interp, radius_covalent, radius_default, radius_single, radius_user, radius_vdw, &
+        random_guess, real_time_propagation, ref_charge_atomic, ref_charge_mulliken, rel_dkh, &
+        rel_none, rel_pot_erfc, rel_pot_full, rel_sczora_mp, rel_trans_atom, rel_trans_full, &
+        rel_trans_molecule, rel_zora, rel_zora_full, rel_zora_mp, restart_guess, rsdft_model, &
+        sccs_andreussi, sccs_derivative_cd3, sccs_derivative_cd5, sccs_derivative_cd7, &
+        sccs_derivative_fft, sccs_fattebert_gygi, shape_function_density, shape_function_gaussian, &
+        sic_ad, sic_eo, sic_list_all, sic_list_unpaired, sic_mauri_spz, sic_mauri_us, sic_none, &
+        slater, smear_energy_window, smear_fermi_dirac, smear_list, sparse_guess, &
+        spline3_nopbc_interp, spline3_pbc_interp, tddfpt_davidson, tddfpt_excitations, &
+        tddfpt_lanczos, tddfpt_singlet, tddfpt_triplet, use_coulomb, use_diff, use_no, &
+        use_restart_wfn, use_rt_restart, use_scf_wfn, wannier_projection, weight_type_mass, &
+        weight_type_unit, wfi_aspc_nr, wfi_frozen_method_nr, wfi_linear_p_method_nr, &
+        wfi_linear_ps_method_nr, wfi_linear_wf_method_nr, wfi_ps_method_nr, &
+        wfi_use_guess_method_nr, wfi_use_prev_p_method_nr, wfi_use_prev_rho_r_method_nr, &
+        wfi_use_prev_wf_method_nr, xas_1s_type, xas_2p_type, xas_2s_type, xas_dip_len, &
+        xas_dip_vel, xas_dscf, xas_none, xas_tp_fh, xas_tp_flex, xas_tp_hh, xas_tp_xfh, &
+        xas_tp_xhh, xes_tp_val
    USE input_cp2k_almo,                 ONLY: create_almo_scf_section
    USE input_cp2k_distribution,         ONLY: create_distribution_section
    USE input_cp2k_field,                ONLY: create_efield_section,&
@@ -2993,7 +2993,7 @@ CONTAINS
                           description="Specifies the electronic structure method that should be employed", &
                           usage="METHOD GAPW", &
                           enum_c_vals=s2a("GAPW", "GAPW_XC", "GPW", "LRIGPW", &
-                                  "MNDO", "MNDOD", "AM1", "PM3", "PM6", "PM6-FM", "PDG", "RM1", "PNNL", "DFTB", "OFGPW", "SCPTB"), &
+                                          "MNDO", "MNDOD", "AM1", "PM3", "PM6", "PM6-FM", "PDG", "RM1", "PNNL", "DFTB", "OFGPW"), &
                           enum_desc=s2a("Gaussian and augmented plane waves method", &
                                         "Gaussian and augmented plane waves method only for XC", &
                                         "Gaussian and plane waves method", &
@@ -3003,12 +3003,11 @@ CONTAINS
                                         "RM1 semiempirical", &
                                         "PNNL semiempirical", &
                                         "DFTB Density Functional based Tight-Binding", &
-                                        "OFGPW Orbital-free GPW method", &
-                                        "SCPTB Self-Consistent-Polarization Tight-Binding"), &
+                                        "OFGPW Orbital-free GPW method"), &
                           enum_i_vals=(/do_method_gapw, do_method_gapw_xc, do_method_gpw, do_method_lrigpw, &
                                         do_method_mndo, do_method_mndod, do_method_am1, do_method_pm3, &
                                      do_method_pm6, do_method_pm6fm, do_method_pdg, do_method_rm1, do_method_pnnl, do_method_dftb, &
-                                        do_method_ofgpw, do_method_scptb/), &
+                                        do_method_ofgpw/), &
                           citations=(/Lippert1997, Lippert1999, Krack2000, VandeVondele2005a, &
                                       VandeVondele2006, Dewar1977, Dewar1985, Rocha2006, Stewart1989, Thiel1992, &
                                       Repasky2002, Stewart2007, VanVoorhis2015, Schenter2008/), &
@@ -3032,10 +3031,6 @@ CONTAINS
       CALL section_release(subsection)
 
       CALL create_dftb_control_section(subsection)
-      CALL section_add_subsection(section, subsection)
-      CALL section_release(subsection)
-
-      CALL create_scptb_control_section(subsection)
       CALL section_add_subsection(section, subsection)
       CALL section_release(subsection)
 
@@ -3146,95 +3141,6 @@ CONTAINS
       CALL keyword_release(keyword)
 
    END SUBROUTINE create_dftb_control_section
-
-! **************************************************************************************************
-!> \brief ...
-!> \param section ...
-! **************************************************************************************************
-   SUBROUTINE create_scptb_control_section(section)
-      TYPE(section_type), POINTER                        :: section
-
-      CHARACTER(len=*), PARAMETER :: routineN = 'create_scptb_control_section', &
-         routineP = moduleN//':'//routineN
-
-      TYPE(keyword_type), POINTER                        :: keyword
-
-      CPASSERT(.NOT. ASSOCIATED(section))
-      CALL section_create(section, "SCPTB", &
-                          description="Parameters needed to set up the SCPTB methods", &
-                          n_keywords=1, n_subsections=1, repeats=.FALSE.)
-
-      NULLIFY (keyword)
-      CALL keyword_create(keyword, name="PARAMETER_FILE_NAME", &
-                          description="Specify file that contains the atomic parameters", &
-                          usage="PARAMETER_FILE_NAME filename", &
-                          n_var=1, type_of_var=char_t, default_c_val="")
-      CALL section_add_keyword(section, keyword)
-      CALL keyword_release(keyword)
-
-      CALL keyword_create(keyword, name="DISPERSION_PARAMETER_FILE", &
-                          description="Specify file that contains the atomic dispersion parameters", &
-                          usage="DISPERSION_PARAMETER_FILE filename", &
-                          n_var=1, type_of_var=char_t, default_c_val="")
-      CALL section_add_keyword(section, keyword)
-      CALL keyword_release(keyword)
-
-      CALL keyword_create(keyword, name="DISPERSION", &
-                          description="Use dispersion correction", &
-                          lone_keyword_l_val=.TRUE., &
-                          usage="DISPERSION", default_l_val=.TRUE.)
-      CALL section_add_keyword(section, keyword)
-      CALL keyword_release(keyword)
-
-      CALL keyword_create(keyword, name="DISPERSION_RADIUS", &
-                          description="Define radius of dispersion interaction", &
-                          usage="DISPERSION_RADIUS", default_r_val=15._dp)
-      CALL section_add_keyword(section, keyword)
-      CALL keyword_release(keyword)
-
-      CALL keyword_create(keyword, name="COORDINATION_CUTOFF", &
-                          description="Define cutoff for coordination number calculation", &
-                          usage="COORDINATION_CUTOFF", default_r_val=1.e-6_dp)
-      CALL section_add_keyword(section, keyword)
-      CALL keyword_release(keyword)
-
-      CALL keyword_create(keyword, name="D3_SCALING", &
-                          description="Scaling parameters (s6,sr6,s8) for the D3 dispersion method,", &
-                          usage="D3_SCALING 1.0 1.0 1.0", n_var=3, default_r_vals=(/1.0_dp, 1.0_dp, 1.0_dp/))
-      CALL section_add_keyword(section, keyword)
-      CALL keyword_release(keyword)
-
-      CALL keyword_create(keyword, name="STO_NG", &
-                          description="Provides the order of the Slater orbital expansion of Gaussian-Type Orbitals.", &
-                          usage="STO_NG", default_i_val=6)
-      CALL section_add_keyword(section, keyword)
-      CALL keyword_release(keyword)
-
-      CALL keyword_create(keyword, name="PAIR_CUTOFF", &
-                          description="Define cutoff for pair potential calculation", &
-                          usage="PAIR_CUTOFF", default_r_val=1.e-8_dp)
-      CALL section_add_keyword(section, keyword)
-      CALL keyword_release(keyword)
-
-      CALL keyword_create(keyword, name="do_ewald", &
-                          description="Use Ewald type method instead of direct sum for Coulomb interaction", &
-                          usage="DO_EWALD", default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
-      CALL section_add_keyword(section, keyword)
-      CALL keyword_release(keyword)
-
-      CALL keyword_create(keyword, name="do_scc", &
-                          description="Use self consistent charge method. Can be used together with DO_SCP to get TB method", &
-                          usage="DO_SCC", default_l_val=.TRUE., lone_keyword_l_val=.TRUE.)
-      CALL section_add_keyword(section, keyword)
-      CALL keyword_release(keyword)
-
-      CALL keyword_create(keyword, name="do_scp", &
-                          description="Use SCP method. Can be used to switch off SCP to get a SCC-DFTB method", &
-                          usage="DO_SCP", default_l_val=.TRUE., lone_keyword_l_val=.TRUE.)
-      CALL section_add_keyword(section, keyword)
-      CALL keyword_release(keyword)
-
-   END SUBROUTINE create_scptb_control_section
 
 ! **************************************************************************************************
 !> \brief ...

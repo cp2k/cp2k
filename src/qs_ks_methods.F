@@ -143,7 +143,6 @@ MODULE qs_ks_methods
    USE qs_vxc_atom,                     ONLY: calculate_vxc_atom
    USE rtp_admm_methods,                ONLY: rtp_admm_calc_rho_aux,&
                                               rtp_admm_merge_ks_matrix
-   USE scptb_ks_matrix,                 ONLY: build_scptb_ks_matrix
    USE se_fock_matrix,                  ONLY: build_se_fock_matrix
    USE surface_dipole,                  ONLY: calc_dipsurf_potential
    USE virial_types,                    ONLY: virial_type
@@ -1160,11 +1159,6 @@ CONTAINS
          CALL build_dftb_ks_matrix(qs_env, &
                                    calculate_forces=calculate_forces, &
                                    just_energy=just_energy)
-
-      ELSEIF (dft_control%qs_control%scptb) THEN
-         CALL build_scptb_ks_matrix(qs_env, &
-                                    calculate_forces=calculate_forces, &
-                                    just_energy=just_energy)
 
       ELSE
          CALL qs_ks_build_kohn_sham_matrix(qs_env, &

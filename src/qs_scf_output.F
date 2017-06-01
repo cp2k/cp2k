@@ -310,8 +310,7 @@ CONTAINS
 
       IF (output_unit > 0) THEN
          CALL qs_rho_get(rho, tot_rho_r=tot_rho_r)
-         IF (.NOT. (dft_control%qs_control%semi_empirical .OR. dft_control%qs_control%dftb .OR. &
-                    dft_control%qs_control%scptb)) THEN
+         IF (.NOT. (dft_control%qs_control%semi_empirical .OR. dft_control%qs_control%dftb)) THEN
             WRITE (UNIT=output_unit, FMT="(/,(T3,A,T41,2F20.10))") &
                "Electronic density on regular grids: ", &
                accurate_sum(tot_rho_r), &
@@ -365,13 +364,6 @@ CONTAINS
             IF (energy%dftb3 /= 0.0_dp) &
                WRITE (UNIT=output_unit, FMT="(T3,A,T56,F25.14)") &
                "DFTB3 3rd order energy:                     ", energy%dftb3
-         ELSEIF (dft_control%qs_control%scptb) THEN
-            WRITE (UNIT=output_unit, FMT="(/,(T3,A,T56,F25.14))") &
-               "Repulsive pair potential energy:               ", energy%repulsive, &
-               "Zeroth order Hamiltonian energy:               ", energy%core, &
-               "Kinetic energy:                                ", energy%kinetic, &
-               "Charge fluctuation energy:                     ", energy%hartree, &
-               "London dispersion energy:                      ", energy%dispersion
          ELSE
             IF (dft_control%do_admm) THEN
                exc_energy = energy%exc+energy%exc_aux_fit

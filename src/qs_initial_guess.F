@@ -222,8 +222,7 @@ CONTAINS
       do_std_diag = .FALSE.
 
       safe_density_guess = atomic_guess
-      IF (dft_control%qs_control%semi_empirical .OR. dft_control%qs_control%dftb .OR. &
-          dft_control%qs_control%scptb) THEN
+      IF (dft_control%qs_control%semi_empirical .OR. dft_control%qs_control%dftb) THEN
          IF (density_guess == atomic_guess) density_guess = mopac_guess
          ! in case we need to bail to a safe restart type later on
          safe_density_guess = mopac_guess

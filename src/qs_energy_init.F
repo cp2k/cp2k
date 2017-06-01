@@ -51,8 +51,6 @@ MODULE qs_energy_init
    USE qs_neighbor_list_types,          ONLY: neighbor_list_set_p_type
    USE qs_neighbor_lists,               ONLY: build_qs_neighbor_lists
    USE qs_update_s_mstruct,             ONLY: qs_env_update_s_mstruct
-   USE scptb_core_interactions,         ONLY: scptb_core_interaction
-   USE scptb_core_matrix,               ONLY: build_scptb_core_matrix
    USE se_core_core,                    ONLY: se_core_core_interaction
    USE se_core_matrix,                  ONLY: build_se_core_matrix
 #include "./base/base_uses.f90"
@@ -281,12 +279,6 @@ CONTAINS
          CALL calculate_dftb_dispersion(qs_env=qs_env, para_env=para_env, &
                                         calculate_forces=.FALSE.)
          CALL qs_env_update_s_mstruct(qs_env)
-      ELSEIF (dft_control%qs_control%scptb) THEN
-         CALL build_scptb_core_matrix(qs_env=qs_env, calculate_forces=.FALSE.)
-         CALL qs_env_update_s_mstruct(qs_env)
-         CALL scptb_core_interaction(qs_env, calculate_forces=.FALSE.)
-         CALL get_qs_env(qs_env=qs_env, dispersion_env=dispersion_env, energy=energy)
-         CALL calculate_dispersion_pairpot(qs_env, dispersion_env, energy%dispersion, calc_forces)
       ELSE
          CALL build_core_hamiltonian_matrix(qs_env=qs_env, calculate_forces=.FALSE.)
          CALL qs_env_update_s_mstruct(qs_env)

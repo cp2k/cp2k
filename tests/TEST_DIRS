@@ -138,7 +138,6 @@ QS/regtest-hybrid-2                                         libint
 Fist/regtest-1-3
 ATOM/regtest-2
 SE/regtest-4
-SCPTB/regtest-1
 QS/regtest-stress
 QS/regtest-meta
 QS/regtest-gpw-9                                            libxc
@@ -218,4 +217,5 @@ optimize_input/regtest-1
 FE/regtest-2
 Fist/regtest-quip                                           quip
 Fist/regtest-field
+QS/regtest-kind
 QMMM/QS/regtest-lrigpw

@@ -298,12 +298,6 @@ CONTAINS
                CALL get_qs_env(qs_env=qs_env, ewald_env=ewald_env, ewald_pw=ewald_pw)
                CALL ewald_pw_grid_update(ewald_pw, ewald_env, cell%hmat)
             END IF
-         ELSE IF (dft_control%qs_control%scptb) THEN
-            IF (dft_control%qs_control%scptb_control%do_ewald) THEN
-               ! rebuild Ewald environment
-               CALL get_qs_env(qs_env=qs_env, ewald_env=ewald_env, ewald_pw=ewald_pw)
-               CALL ewald_pw_grid_update(ewald_pw, ewald_env, cell%hmat)
-            END IF
          ELSE
             IF (ASSOCIATED(rho_core)) THEN
                CALL pw_release(rho_core%pw)

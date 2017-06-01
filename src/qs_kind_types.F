@@ -51,8 +51,7 @@ MODULE qs_kind_types
         set_default_all_potential, set_potential, sgp_potential_type, write_potential
    USE input_constants,                 ONLY: &
         do_method_am1, do_method_dftb, do_method_mndo, do_method_mndod, do_method_pdg, &
-        do_method_pm3, do_method_pm6, do_method_pm6fm, do_method_pnnl, do_method_rm1, &
-        do_method_scptb, do_qs
+        do_method_pm3, do_method_pm6, do_method_pm6fm, do_method_pnnl, do_method_rm1, do_qs
    USE input_section_types,             ONLY: section_vals_get,&
                                               section_vals_get_subs_vals,&
                                               section_vals_type,&
@@ -84,10 +83,6 @@ MODULE qs_kind_types
    USE qs_harmonics_atom,               ONLY: allocate_harmonics_atom,&
                                               deallocate_harmonics_atom,&
                                               harmonics_atom_type
-   USE scptb_types,                     ONLY: deallocate_scptb_parameter,&
-                                              get_scptb_parameter,&
-                                              scptb_parameter_type,&
-                                              write_scptb_parameter
    USE semi_empirical_types,            ONLY: get_se_param,&
                                               semi_empirical_create,&
                                               semi_empirical_release,&
@@ -155,7 +150,6 @@ MODULE qs_kind_types
       TYPE(sgp_potential_type), POINTER      :: sgp_potential => Null()
       TYPE(semi_empirical_type), POINTER     :: se_parameter => Null()
       TYPE(qs_dftb_atom_type), POINTER       :: dftb_parameter => Null()
-      TYPE(scptb_parameter_type), POINTER    :: scptb_parameter => Null()
       !
       TYPE(gto_basis_set_type), POINTER      :: soft_basis_set => Null()
       TYPE(gto_basis_set_type), POINTER      :: hard_basis_set => Null()
@@ -265,9 +259,6 @@ CONTAINS
             IF (ASSOCIATED(qs_kind_set(ikind)%dftb_parameter)) THEN
                CALL deallocate_dftb_atom_param(qs_kind_set(ikind)%dftb_parameter)
             END IF
-            IF (ASSOCIATED(qs_kind_set(ikind)%scptb_parameter)) THEN
-               CALL deallocate_scptb_parameter(qs_kind_set(ikind)%scptb_parameter)
-            END IF
             IF (ASSOCIATED(qs_kind_set(ikind)%soft_basis_set) .AND. &
                 qs_kind_set(ikind)%paw_atom) THEN
                CALL deallocate_gto_basis_set(qs_kind_set(ikind)%soft_basis_set)
@@ -347,7 +338,6 @@ CONTAINS
 !> \param sgp_potential ...
 !> \param se_parameter ...
 !> \param dftb_parameter ...
-!> \param scptb_parameter ...
 !> \param dftb3_param ...
 !> \param zeff ...
 !> \param elec_conf ...
@@ -403,7 +393,7 @@ CONTAINS
    SUBROUTINE get_qs_kind(qs_kind, &
                           basis_set, basis_type, ncgf, nsgf, &
                           all_potential, tnadd_potential, gth_potential, sgp_potential, &
-                          se_parameter, dftb_parameter, scptb_parameter, &
+                          se_parameter, dftb_parameter, &
                           dftb3_param, zeff, elec_conf, mao, lmax_dftb, &
                           alpha_core_charge, ccore_charge, core_charge, core_charge_radius, &
                           soft_basis_set, hard_basis_set, paw_proj_set, softb, &
@@ -426,7 +416,6 @@ CONTAINS
       TYPE(sgp_potential_type), OPTIONAL, POINTER        :: sgp_potential
       TYPE(semi_empirical_type), OPTIONAL, POINTER       :: se_parameter
       TYPE(qs_dftb_atom_type), OPTIONAL, POINTER         :: dftb_parameter
-      TYPE(scptb_parameter_type), OPTIONAL, POINTER      :: scptb_parameter
       REAL(KIND=dp), INTENT(OUT), OPTIONAL               :: dftb3_param, zeff
       INTEGER, DIMENSION(:), OPTIONAL, POINTER           :: elec_conf
       INTEGER, INTENT(OUT), OPTIONAL                     :: mao, lmax_dftb
@@ -526,7 +515,6 @@ CONTAINS
       IF (PRESENT(sgp_potential)) sgp_potential => qs_kind%sgp_potential
       IF (PRESENT(se_parameter)) se_parameter => qs_kind%se_parameter
       IF (PRESENT(dftb_parameter)) dftb_parameter => qs_kind%dftb_parameter
-      IF (PRESENT(scptb_parameter)) scptb_parameter => qs_kind%scptb_parameter
 
       IF (PRESENT(element_symbol)) element_symbol = qs_kind%element_symbol
       IF (PRESENT(name)) name = qs_kind%name
@@ -1850,7 +1838,7 @@ CONTAINS
       END IF
 
       SELECT CASE (method_id)
-      CASE (do_method_dftb, do_method_scptb, do_method_rm1, do_method_am1, do_method_mndo, &
+      CASE (do_method_dftb, do_method_rm1, do_method_am1, do_method_mndo, &
             do_method_pdg, do_method_pm3, do_method_pm6, do_method_pm6fm, do_method_mndod, &
             do_method_pnnl)
          ! Allocate all_potential
@@ -1899,7 +1887,7 @@ CONTAINS
             CALL init_potential(qs_kind%all_potential, itype="BARE", &
                                 zeff=qs_kind%se_parameter%zeff, zeff_correction=zeff_correction)
             qs_kind%se_parameter%zeff = qs_kind%se_parameter%zeff-zeff_correction
-         CASE (do_method_dftb, do_method_scptb)
+         CASE (do_method_dftb)
             ! Do nothing at this stage.. The initialization of the parameters will be done
             ! later
          CASE DEFAULT
@@ -2260,7 +2248,7 @@ CONTAINS
          CASE (do_method_mndo, do_method_am1, do_method_pm3, do_method_pm6fm, do_method_pm6, &
                do_method_pdg, do_method_rm1, do_method_mndod, do_method_pnnl)
             no_fail = .TRUE.
-         CASE (do_method_dftb, do_method_scptb)
+         CASE (do_method_dftb)
             no_fail = .TRUE.
          END SELECT
       ELSE
@@ -2298,7 +2286,6 @@ CONTAINS
 
       LOGICAL                                            :: defined
       TYPE(qs_dftb_atom_type), POINTER                   :: dftb_parameter
-      TYPE(scptb_parameter_type), POINTER                :: scptb_parameter
       TYPE(semi_empirical_type), POINTER                 :: se_parameter
 
       IF (dft_control%qs_control%semi_empirical) THEN
@@ -2313,12 +2300,6 @@ CONTAINS
          CALL get_dftb_atom_param(dftb_parameter, defined=defined)
          CPASSERT(defined)
          CALL write_dftb_atom_param(dftb_parameter, subsys_section)
-      ELSE IF (dft_control%qs_control%scptb) THEN
-         CALL get_qs_kind(qs_kind, scptb_parameter=scptb_parameter)
-         CPASSERT(ASSOCIATED(scptb_parameter))
-         CALL get_scptb_parameter(scptb_parameter, defined=defined)
-         CPASSERT(defined)
-         CALL write_scptb_parameter(scptb_parameter, subsys_section)
       END IF
 
    END SUBROUTINE check_qs_kind
@@ -2371,14 +2352,13 @@ CONTAINS
 !> \param u_minus_j ...
 !> \param reltmat ...
 !> \param dftb_parameter ...
-!> \param scptb_parameter ...
 !> \param elec_conf ...
 !> \param pao_basis_size ...
 ! **************************************************************************************************
    SUBROUTINE set_qs_kind(qs_kind, paw_atom, ghost, floating, hard_radius, hard0_radius, &
                           soft_basis_set, hard_basis_set, lmax_rho0, zeff, &
                           no_optimize, dispersion, u_minus_j, reltmat, &
-                          dftb_parameter, scptb_parameter, &
+                          dftb_parameter, &
                           elec_conf, pao_basis_size)
 
       TYPE(qs_kind_type), INTENT(INOUT)                  :: qs_kind
@@ -2392,14 +2372,12 @@ CONTAINS
       REAL(KIND=dp), INTENT(IN), OPTIONAL                :: u_minus_j
       REAL(KIND=dp), DIMENSION(:, :), OPTIONAL, POINTER  :: reltmat
       TYPE(qs_dftb_atom_type), OPTIONAL, POINTER         :: dftb_parameter
-      TYPE(scptb_parameter_type), OPTIONAL, POINTER      :: scptb_parameter
       INTEGER, DIMENSION(:), INTENT(IN), OPTIONAL        :: elec_conf
       INTEGER, INTENT(IN), OPTIONAL                      :: pao_basis_size
 
       CHARACTER(len=*), PARAMETER :: routineN = 'set_qs_kind', routineP = moduleN//':'//routineN
 
       IF (PRESENT(dftb_parameter)) qs_kind%dftb_parameter => dftb_parameter
-      IF (PRESENT(scptb_parameter)) qs_kind%scptb_parameter => scptb_parameter
       IF (PRESENT(elec_conf)) THEN
          IF (ASSOCIATED(qs_kind%elec_conf)) THEN
             DEALLOCATE (qs_kind%elec_conf)

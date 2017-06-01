@@ -67,18 +67,13 @@ MODULE qs_collocate_density
    USE lgrid_types,                     ONLY: lgrid_allocate_grid,&
                                               lgrid_type
    USE lri_environment_types,           ONLY: lri_kind_type
-   USE mathconstants,                   ONLY: dfac,&
-                                              fac,&
+   USE mathconstants,                   ONLY: fac,&
                                               pi,&
                                               twopi
    USE memory_utilities,                ONLY: reallocate
    USE orbital_pointers,                ONLY: coset,&
                                               indco,&
-                                              nco,&
-                                              ncoset,&
-                                              nso,&
-                                              nsoset
-   USE orbital_transformation_matrices, ONLY: orbtramat
+                                              ncoset
    USE particle_types,                  ONLY: particle_type
    USE pw_env_types,                    ONLY: pw_env_get,&
                                               pw_env_type
@@ -121,9 +116,6 @@ MODULE qs_collocate_density
                                               rs_pw_transfer
    USE rs_pw_interface,                 ONLY: density_rs2pw,&
                                               density_rs2pw_basic
-   USE scptb_types,                     ONLY: get_scptb_parameter,&
-                                              scp_vector_type,&
-                                              scptb_parameter_type
    USE task_list_methods,               ONLY: int2pair,&
                                               rs_distribute_matrix
    USE task_list_types,                 ONLY: task_list_type
@@ -149,7 +141,6 @@ MODULE qs_collocate_density
              calculate_rho_resp_all, &
              calculate_rho_elec, &
              calculate_drho_elec, &
-             calculate_scp_charge, &
              calculate_wavefunction, &
              collocate_pgf_product_gspace, &
              collocate_pgf_product_rspace, &
@@ -159,140 +150,6 @@ MODULE qs_collocate_density
 
 CONTAINS
 
-! **************************************************************************************************
-!> \brief computes the SCP charge distribution on the grid
-!> \param scp ...
-!> \param qs_env ...
-!> \param scpv ...
-! **************************************************************************************************
-   SUBROUTINE calculate_scp_charge(scp, qs_env, scpv)
-
-      TYPE(pw_p_type), INTENT(INOUT)                     :: scp
-      TYPE(qs_environment_type), POINTER                 :: qs_env
-      TYPE(scp_vector_type), POINTER                     :: scpv
-
-      CHARACTER(len=*), PARAMETER :: routineN = 'calculate_scp_charge', &
-         routineP = moduleN//':'//routineN
-
-      INTEGER                                            :: atom_a, handle, i, iatom, ii, ikind, &
-                                                            ithread, j, jj, l, lmax_global, &
-                                                            lmaxscp, natom, ni, nj, npme, nthread
-      INTEGER(KIND=int_8)                                :: subpatch_pattern
-      INTEGER, DIMENSION(:), POINTER                     :: atom_list, cores
-      LOGICAL                                            :: defined
-      REAL(KIND=dp)                                      :: alpha, eps_rho_rspace, norm, pp
-      REAL(KIND=dp), DIMENSION(3)                        :: ra
-      REAL(KIND=dp), DIMENSION(:, :), POINTER            :: pab
-      TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
-      TYPE(cell_type), POINTER                           :: cell
-      TYPE(cube_info_type)                               :: cube_info
-      TYPE(dft_control_type), POINTER                    :: dft_control
-      TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
-      TYPE(pw_env_type), POINTER                         :: pw_env
-      TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
-      TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
-      TYPE(realspace_grid_type), POINTER                 :: rs_rho
-      TYPE(scptb_parameter_type), POINTER                :: scptb_kind
-
-      CALL timeset(routineN, handle)
-
-      NULLIFY (cell, dft_control, pab, qs_kind_set, particle_set, atomic_kind_set, &
-               atom_list, pw_env, rs_rho, auxbas_pw_pool, cores)
-
-      CALL get_qs_env(qs_env=qs_env, &
-                      qs_kind_set=qs_kind_set, &
-                      atomic_kind_set=atomic_kind_set, &
-                      dft_control=dft_control, &
-                      cell=cell, &
-                      particle_set=particle_set, &
-                      pw_env=pw_env)
-      CALL pw_env_get(pw_env, auxbas_rs_grid=rs_rho, &
-                      auxbas_pw_pool=auxbas_pw_pool)
-      cube_info = pw_env%cube_info(1)
-      CALL rs_grid_retain(rs_rho)
-      CALL rs_grid_zero(rs_rho)
-
-      eps_rho_rspace = dft_control%qs_control%eps_rho_rspace
-
-      !Find the maximum la_max over all of the atomic_kind_set
-      !We are using FUNC_AB so no need to cater for different ga_gb_functions
-      lmax_global = 0
-      DO ikind = 1, SIZE(atomic_kind_set)
-         CALL get_qs_kind(qs_kind_set(ikind), scptb_parameter=scptb_kind)
-         CALL get_scptb_parameter(scptb_kind, defined=defined, lmaxscp=lmaxscp)
-         lmax_global = MAX(lmaxscp, lmax_global)
-      END DO
-
-      DO ikind = 1, SIZE(atomic_kind_set)
-         CALL get_atomic_kind(atomic_kind_set(ikind), natom=natom, atom_list=atom_list)
-         CALL get_qs_kind(qs_kind_set(ikind), scptb_parameter=scptb_kind)
-         CALL get_scptb_parameter(scptb_kind, defined=defined, lmaxscp=lmaxscp, ag=alpha)
-
-         IF (.NOT. defined) CYCLE
-
-         ni = ncoset(lmaxscp)
-         ALLOCATE (pab(ni, 1))
-
-         nthread = 1
-         ithread = 0
-
-         ALLOCATE (cores(natom))
-         cores = 0
-         npme = 0
-
-         DO iatom = 1, natom
-            atom_a = atom_list(iatom)
-            ra(:) = pbc(particle_set(atom_a)%r, cell)
-            IF (rs_rho%desc%parallel .AND. .NOT. rs_rho%desc%distributed) THEN
-               ! replicated realspace grid, split the atoms up between procs
-               IF (MODULO(iatom, rs_rho%desc%group_size) == rs_rho%desc%my_pos) THEN
-                  npme = npme+1
-                  cores(npme) = iatom
-               ENDIF
-            ELSE
-               npme = npme+1
-               cores(npme) = iatom
-            ENDIF
-         END DO
-
-         DO nj = 1, npme
-
-            iatom = cores(nj)
-            atom_a = atom_list(iatom)
-            ra(:) = pbc(particle_set(atom_a)%r, cell)
-            subpatch_pattern = 0
-            pab = 0._dp
-            DO l = 0, lmaxscp
-               pp = (2._dp*l+3._dp)/2._dp
-               norm = 2._dp**(l+2)/SQRT(pi)/dfac(2*l+1)
-               norm = SQRT(0.25_dp*dfac(2*l+1)/pi)*norm*alpha**pp
-               DO jj = 1, nco(l)
-                  j = ncoset(l-1)+jj
-                  DO ii = 1, nso(l)
-                     i = nsoset(l-1)+ii
-                     pab(j, 1) = pab(j, 1)+scpv%vector(ikind)%vmat(i, iatom)* &
-                                 orbtramat(l)%s2c(ii, jj)*norm
-                  END DO
-               END DO
-            END DO
-            CALL collocate_pgf_product_rspace(lmaxscp, alpha, 0, 0, 0.0_dp, 0, ra, &
-                                              (/0.0_dp, 0.0_dp, 0.0_dp/), 0.0_dp, 1.0_dp, pab, 0, 0, rs_rho, &
-                                              cell, cube_info, eps_rho_rspace, ga_gb_function=FUNC_AB, &
-                                              ithread=ithread, use_subpatch=.TRUE., subpatch_pattern=subpatch_pattern, &
-                                              lmax_global=lmax_global)
-
-         END DO
-
-         DEALLOCATE (pab, cores)
-
-      END DO
-
-      CALL rs_pw_transfer(rs_rho, scp%pw, rs2pw)
-      CALL rs_grid_release(rs_rho)
-
-      CALL timestop(handle)
-
-   END SUBROUTINE calculate_scp_charge
 ! **************************************************************************************************
 !> \brief computes the density of the non-linear core correction on the grid
 !> \param rho_nlcc ...

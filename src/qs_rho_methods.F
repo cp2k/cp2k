@@ -398,9 +398,6 @@ CONTAINS
       ELSEIF (dft_control%qs_control%dftb) THEN
          !
          CALL qs_rho_set(rho_struct, rho_r_valid=.FALSE., rho_g_valid=.FALSE.)
-      ELSEIF (dft_control%qs_control%scptb) THEN
-         !
-         CALL qs_rho_set(rho_struct, rho_r_valid=.FALSE., rho_g_valid=.FALSE.)
       ELSEIF (dft_control%qs_control%lrigpw) THEN
          CALL qs_rho_get(rho_struct, rho_ao=rho_ao)
          CALL calculate_lri_densities(lri_env, lri_density, qs_env, rho_ao, &

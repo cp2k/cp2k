@@ -31,7 +31,6 @@ MODULE qs_environment
                                               dftb_control_type,&
                                               gapw_control_type,&
                                               qs_control_type,&
-                                              scptb_control_type,&
                                               semi_empirical_control_type
    USE cp_control_utils,                ONLY: read_ddapc_section,&
                                               read_dft_control,&
@@ -75,17 +74,16 @@ MODULE qs_environment
    USE hartree_local_methods,           ONLY: init_coulomb_local
    USE header,                          ONLY: dftb_header,&
                                               qs_header,&
-                                              scptb_header,&
                                               se_header
    USE hfx_types,                       ONLY: hfx_create
    USE input_constants,                 ONLY: &
         dispersion_d3, do_et_becke, do_et_ddapc, do_method_am1, do_method_dftb, do_method_gapw, &
         do_method_gapw_xc, do_method_gpw, do_method_lrigpw, do_method_mndo, do_method_mndod, &
         do_method_ofgpw, do_method_pdg, do_method_pm3, do_method_pm6, do_method_pm6fm, &
-        do_method_pnnl, do_method_rm1, do_method_scptb, do_qmmm_gauss, do_qmmm_swave, &
-        general_roks, rel_none, rel_trans_atom, vdw_pairpot_dftd3, wfi_aspc_nr, &
-        wfi_linear_ps_method_nr, wfi_linear_wf_method_nr, wfi_ps_method_nr, &
-        wfi_use_guess_method_nr, xc_vdw_fun_none, xc_vdw_fun_nonloc, xc_vdw_fun_pairpot
+        do_method_pnnl, do_method_rm1, do_qmmm_gauss, do_qmmm_swave, general_roks, rel_none, &
+        rel_trans_atom, vdw_pairpot_dftd3, wfi_aspc_nr, wfi_linear_ps_method_nr, &
+        wfi_linear_wf_method_nr, wfi_ps_method_nr, wfi_use_guess_method_nr, xc_vdw_fun_none, &
+        xc_vdw_fun_nonloc, xc_vdw_fun_pairpot
    USE input_section_types,             ONLY: section_vals_get,&
                                               section_vals_get_subs_vals,&
                                               section_vals_type,&
@@ -167,7 +165,6 @@ MODULE qs_environment
                                               scf_c_release,&
                                               scf_c_write_parameters,&
                                               scf_control_type
-   USE scptb_utils,                     ONLY: scptb_parameter_init
    USE semi_empirical_expns3_methods,   ONLY: semi_empirical_expns3_setup
    USE semi_empirical_int_arrays,       ONLY: init_se_intd_array
    USE semi_empirical_mpole_methods,    ONLY: nddo_mpole_setup
@@ -489,7 +486,6 @@ CONTAINS
       TYPE(rel_control_type), POINTER                    :: rel_control
       TYPE(rho0_mpole_type), POINTER                     :: rho0_mpole
       TYPE(scf_control_type), POINTER                    :: scf_control
-      TYPE(scptb_control_type), POINTER                  :: scptb_control
       TYPE(se_taper_type), POINTER                       :: se_taper
       TYPE(section_vals_type), POINTER :: dft_section, et_becke_section, et_coupling_section, &
          et_ddapc_section, ewald_section, nl_section, poisson_section, pp_section, print_section, &
@@ -550,8 +546,6 @@ CONTAINS
             CALL se_header(iw)
          CASE (do_method_dftb)
             CALL dftb_header(iw)
-         CASE (do_method_scptb)
-            CALL scptb_header(iw)
          END SELECT
          CALL cp_print_key_finished_output(iw, logger, dft_section, &
                                            "PRINT%PROGRAM_BANNER")
@@ -604,23 +598,6 @@ CONTAINS
          CALL set_qs_env(qs_env, dftb_potential=dftb_potential)
          ! check for Ewald
          IF (dftb_control%do_ewald) THEN
-            CALL ewald_env_create(ewald_env, para_env)
-            poisson_section => section_vals_get_subs_vals(dft_section, "POISSON")
-            CALL ewald_env_set(ewald_env, poisson_section=poisson_section)
-            ewald_section => section_vals_get_subs_vals(poisson_section, "EWALD")
-            print_section => section_vals_get_subs_vals(qs_env%input, "PRINT%GRID_INFORMATION")
-            CALL read_ewald_section(ewald_env, ewald_section)
-            CALL ewald_pw_create(ewald_pw, ewald_env, cell, cell_ref, print_section=print_section)
-            CALL set_qs_env(qs_env, ewald_env=ewald_env, ewald_pw=ewald_pw)
-            CALL ewald_env_release(ewald_env)
-            CALL ewald_pw_release(ewald_pw)
-         END IF
-      ELSE IF (dft_control%qs_control%method == "SCPTB") THEN
-         scptb_control => dft_control%qs_control%scptb_control
-         print_section => section_vals_get_subs_vals(subsys_section, "PRINT")
-         CALL scptb_parameter_init(atomic_kind_set, qs_kind_set, scptb_control, print_section, para_env)
-         ! check for Ewald
-         IF (scptb_control%do_ewald) THEN
             CALL ewald_env_create(ewald_env, para_env)
             poisson_section => section_vals_get_subs_vals(dft_section, "POISSON")
             CALL ewald_env_set(ewald_env, poisson_section=poisson_section)
@@ -877,34 +854,6 @@ CONTAINS
             NULLIFY (nl_section)
             nl_section => section_vals_get_subs_vals(xc_section, "VDW_POTENTIAL%NON_LOCAL")
             CALL qs_dispersion_nonloc_init(dispersion_env, para_env)
-         END IF
-         CALL set_qs_env(qs_env, dispersion_env=dispersion_env)
-      ELSE IF (dft_control%qs_control%method_id == do_method_scptb) THEN
-         ALLOCATE (dispersion_env)
-         ! set general defaults
-         dispersion_env%doabc = .FALSE.
-         dispersion_env%c9cnst = .FALSE.
-         dispersion_env%lrc = .FALSE.
-         dispersion_env%verbose = .FALSE.
-         NULLIFY (dispersion_env%c6ab, dispersion_env%maxci, dispersion_env%r0ab, dispersion_env%rcov, &
-                  dispersion_env%r2r4, dispersion_env%cn, dispersion_env%cnkind, dispersion_env%cnlist)
-         NULLIFY (dispersion_env%q_mesh, dispersion_env%kernel, dispersion_env%d2phi_dk2, &
-                  dispersion_env%d2y_dx2, dispersion_env%dftd_section)
-         NULLIFY (dispersion_env%sab_vdw, dispersion_env%sab_cn)
-         IF (scptb_control%dispersion) THEN
-            dispersion_env%type = xc_vdw_fun_pairpot
-            dispersion_env%pp_type = vdw_pairpot_dftd3
-            dispersion_env%eps_cn = scptb_control%epscn
-            dispersion_env%s6 = scptb_control%sd3(1)
-            dispersion_env%sr6 = scptb_control%sd3(2)
-            dispersion_env%s8 = scptb_control%sd3(3)
-            dispersion_env%rc_disp = scptb_control%rcdisp
-            dispersion_env%exp_pre = 0._dp
-            dispersion_env%scaling = 0._dp
-            dispersion_env%parameter_file_name = scptb_control%dispersion_parameter_file
-            CALL qs_dispersion_pairpot_init(atomic_kind_set, qs_kind_set, dispersion_env, para_env=para_env)
-         ELSE
-            dispersion_env%type = xc_vdw_fun_none
          END IF
          CALL set_qs_env(qs_env, dispersion_env=dispersion_env)
       ELSE IF (dft_control%qs_control%method_id == do_method_dftb) THEN
@@ -1208,7 +1157,6 @@ CONTAINS
              dft_control%qs_control%method_id == do_method_gapw .OR. &
              dft_control%qs_control%method_id == do_method_gapw_xc .OR. &
              dft_control%qs_control%method_id == do_method_lrigpw .OR. &
-             dft_control%qs_control%method_id == do_method_scptb .OR. &
              dft_control%qs_control%method_id == do_method_dftb .OR. &
              dft_control%qs_control%method_id == do_method_ofgpw) THEN
             CALL get_qs_env(qs_env, dispersion_env=dispersion_env)

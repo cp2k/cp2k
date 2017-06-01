@@ -89,23 +89,6 @@ MODULE cp_control_types
    END TYPE dftb_control_type
 
 ! **************************************************************************************************
-! \brief Control parameters for SCPTB calculations
-! **************************************************************************************************
-   TYPE scptb_control_type
-      LOGICAL                              :: dispersion
-      LOGICAL                              :: do_ewald
-      LOGICAL                              :: do_scc
-      LOGICAL                              :: do_scp
-      INTEGER                              :: sto_ng
-      REAL(KIND=dp)                        :: rcdisp
-      REAL(KIND=dp)                        :: epscn
-      REAL(KIND=dp), DIMENSION(3)          :: sd3
-      CHARACTER(LEN=default_path_length)   :: parameter_file
-      CHARACTER(LEN=default_path_length)   :: dispersion_parameter_file
-      REAL(KIND=dp)                        :: epspair
-   END TYPE scptb_control_type
-
-! **************************************************************************************************
 ! \brief Control parameters for semi empirical calculations
 ! **************************************************************************************************
    TYPE semi_empirical_control_type
@@ -272,7 +255,6 @@ MODULE cp_control_types
       LOGICAL                              :: lri_optbas
       LOGICAL                              :: ofgpw
       LOGICAL                              :: dftb
-      LOGICAL                              :: scptb
       LOGICAL                              :: semi_empirical
       LOGICAL                              :: mulliken_restraint
       LOGICAL                              :: ddapc_restraint
@@ -295,7 +277,6 @@ MODULE cp_control_types
       TYPE(cdft_control_type), POINTER     :: cdft_control
       TYPE(s2_restraint_type), POINTER     :: s2_restraint_control
       TYPE(dftb_control_type), POINTER     :: dftb_control
-      TYPE(scptb_control_type), POINTER    :: scptb_control
       TYPE(semi_empirical_control_type), &
          POINTER                           :: se_control
       TYPE(gapw_control_type), POINTER     :: gapw_control
@@ -494,7 +475,6 @@ MODULE cp_control_types
              mulliken_restraint_type, &
              ddapc_restraint_type, &
              dftb_control_type, &
-             scptb_control_type, &
              semi_empirical_control_type, &
              s2_restraint_type, &
              admm_control_type, &
@@ -831,7 +811,6 @@ CONTAINS
       NULLIFY (qs_control%s2_restraint_control)
       NULLIFY (qs_control%se_control)
       NULLIFY (qs_control%dftb_control)
-      NULLIFY (qs_control%scptb_control)
       NULLIFY (qs_control%becke_control)
       NULLIFY (qs_control%cdft_control)
       NULLIFY (qs_control%ddapc_restraint_control)
@@ -842,7 +821,6 @@ CONTAINS
       CALL gapw_control_create(qs_control%gapw_control)
       CALL se_control_create(qs_control%se_control)
       CALL dftb_control_create(qs_control%dftb_control)
-      CALL scptb_control_create(qs_control%scptb_control)
       CALL cdft_control_create(qs_control%cdft_control)
    END SUBROUTINE qs_control_create
 
@@ -863,7 +841,6 @@ CONTAINS
          CALL s2_control_release(qs_control%s2_restraint_control)
          CALL se_control_release(qs_control%se_control)
          CALL dftb_control_release(qs_control%dftb_control)
-         CALL scptb_control_release(qs_control%scptb_control)
          CALL becke_control_release(qs_control%becke_control)
          CALL cdft_control_release(qs_control%cdft_control)
 
@@ -1041,36 +1018,6 @@ CONTAINS
          DEALLOCATE (dftb_control)
       END IF
    END SUBROUTINE dftb_control_release
-
-! **************************************************************************************************
-!> \brief ...
-!> \param scptb_control ...
-! **************************************************************************************************
-   SUBROUTINE scptb_control_create(scptb_control)
-      TYPE(scptb_control_type), POINTER                  :: scptb_control
-
-      CHARACTER(len=*), PARAMETER :: routineN = 'scptb_control_create', &
-         routineP = moduleN//':'//routineN
-
-      CPASSERT(.NOT. ASSOCIATED(scptb_control))
-      ALLOCATE (scptb_control)
-
-   END SUBROUTINE scptb_control_create
-
-! **************************************************************************************************
-!> \brief ...
-!> \param scptb_control ...
-! **************************************************************************************************
-   SUBROUTINE scptb_control_release(scptb_control)
-      TYPE(scptb_control_type), POINTER                  :: scptb_control
-
-      CHARACTER(len=*), PARAMETER :: routineN = 'scptb_control_release', &
-         routineP = moduleN//':'//routineN
-
-      IF (ASSOCIATED(scptb_control)) THEN
-         DEALLOCATE (scptb_control)
-      END IF
-   END SUBROUTINE scptb_control_release
 
 ! **************************************************************************************************
 !> \brief ...

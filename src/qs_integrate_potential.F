@@ -22,7 +22,6 @@ MODULE qs_integrate_potential
    USE qs_integrate_potential_product,  ONLY: integrate_v_rspace
    USE qs_integrate_potential_single,   ONLY: integrate_ppl_rspace,&
                                               integrate_rho_nlcc,&
-                                              integrate_scp_rspace,&
                                               integrate_v_core_rspace,&
                                               integrate_v_rspace_one_center
 #include "./base/base_uses.f90"
@@ -42,7 +41,6 @@ MODULE qs_integrate_potential
    PUBLIC :: integrate_v_rspace_one_center, &
              integrate_v_core_rspace, &
              integrate_ppl_rspace, &
-             integrate_scp_rspace, &
              integrate_rho_nlcc
 
    ! included from qs_integrate_potential_low

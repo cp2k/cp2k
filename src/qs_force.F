@@ -73,8 +73,6 @@ MODULE qs_force
                                               qs_subsys_type
    USE rt_propagation_forces,           ONLY: calc_c_mat_force,&
                                               rt_admm_force
-   USE scptb_core_interactions,         ONLY: scptb_core_interaction
-   USE scptb_core_matrix,               ONLY: build_scptb_core_matrix
    USE se_core_core,                    ONLY: se_core_core_interaction
    USE se_core_matrix,                  ONLY: build_se_core_matrix
    USE termination,                     ONLY: stop_memory
@@ -290,9 +288,6 @@ CONTAINS
                                   calculate_forces=.TRUE.)
          CALL calculate_dftb_dispersion(qs_env=qs_env, para_env=para_env, &
                                         calculate_forces=.TRUE.)
-      ELSEIF (dft_control%qs_control%scptb) THEN
-         CALL build_scptb_core_matrix(qs_env=qs_env, calculate_forces=.TRUE.)
-         CALL scptb_core_interaction(qs_env, calculate_forces=.TRUE.)
       ELSE
          CALL build_core_hamiltonian_matrix(qs_env=qs_env, calculate_forces=.TRUE.)
          CALL calculate_ecore_self(qs_env)
@@ -421,7 +416,6 @@ CONTAINS
          !  *** add the volume terms of the virial ***
          IF ((.NOT. virial%pv_numer) .AND. &
              (.NOT. (dft_control%qs_control%dftb .OR. &
-                     dft_control%qs_control%scptb .OR. &
                      dft_control%qs_control%semi_empirical))) THEN
             DO dir = 1, 3
                virial%pv_virial(dir, dir) = virial%pv_virial(dir, dir)-energy%exc &
@@ -447,9 +441,6 @@ CONTAINS
                            print_section=print_section)
       ELSE IF (dft_control%qs_control%gapw) THEN
          CALL write_forces(force, atomic_kind_set, 1, output_unit=output_unit, &
-                           print_section=print_section)
-      ELSE IF (dft_control%qs_control%scptb) THEN
-         CALL write_forces(force, atomic_kind_set, 5, output_unit=output_unit, &
                            print_section=print_section)
       ELSE
          CALL write_forces(force, atomic_kind_set, 0, output_unit=output_unit, &

@@ -99,8 +99,6 @@ CONTAINS
          !??
       ELSE IF (dft_control%qs_control%dftb) THEN
          !??
-      ELSE IF (dft_control%qs_control%scptb) THEN
-         !??
       ELSE
          CPASSERT(ASSOCIATED(rho_core))
          CALL calculate_rho_core(rho_core, &
