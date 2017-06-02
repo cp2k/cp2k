@@ -48,7 +48,7 @@ MODULE basis_set_container_types
 
    PUBLIC :: remove_basis_set_container, &
              add_basis_set_to_container, get_basis_from_container, &
-             remove_basis_from_container, translate_basis_type
+             remove_basis_from_container
 
 ! **************************************************************************************************
 
@@ -112,43 +112,6 @@ CONTAINS
       END SELECT
 
    END FUNCTION get_basis_type
-! **************************************************************************************************
-!> \brief ...
-!> \param basis_set_id ...
-!> \retval basis_set_type ...
-! **************************************************************************************************
-   FUNCTION translate_basis_type(basis_set_id) RESULT(basis_set_type)
-      INTEGER                                            :: basis_set_id
-      CHARACTER(len=default_string_length)               :: basis_set_type
-
-      INTEGER, PARAMETER :: use_aux_basis_set = 3, use_aux_fit_basis_set = 2, &
-         use_aux_gw_basis_set = 8, use_harris_basis_set = 7, use_lri_basis_set = 5, &
-         use_mao_basis_set = 6, use_orb_basis_set = 1, use_ri_aux_basis_set = 4
-
-! This parameter identifies basis sets
-
-      SELECT CASE (basis_set_id)
-      CASE (use_orb_basis_set)
-         basis_set_type = "ORB"
-      CASE (use_ri_aux_basis_set)
-         basis_set_type = "RI_AUX"
-      CASE (use_aux_basis_set)
-         basis_set_type = "AUX"
-      CASE (use_aux_fit_basis_set)
-         basis_set_type = "AUX_FIT"
-      CASE (use_lri_basis_set)
-         basis_set_type = "LRI"
-      CASE (use_mao_basis_set)
-         basis_set_type = "MAO"
-      CASE (use_harris_basis_set)
-         basis_set_type = "HARRIS"
-      CASE (use_aux_gw_basis_set)
-         basis_set_type = "AUX_GW"
-      CASE DEFAULT
-         basis_set_type = ""
-      END SELECT
-
-   END FUNCTION translate_basis_type
 
 ! **************************************************************************************************
 !> \brief ...

@@ -14,7 +14,6 @@
 ! **************************************************************************************************
 MODULE pw_env_methods
    USE ao_util,                         ONLY: exp_radius
-   USE basis_set_container_types,       ONLY: translate_basis_type
    USE basis_set_types,                 ONLY: get_gto_basis_set,&
                                               gto_basis_set_type
    USE cell_types,                      ONLY: cell_type
@@ -758,13 +757,16 @@ CONTAINS
          routineP = moduleN//':'//routineN
       REAL(KIND=dp), PARAMETER                           :: safety_factor = 1.015_dp
 
+      CHARACTER(LEN=8), DIMENSION(4) :: pbas = (/"ORB     ", "AUX_FIT ", "MAO     ", "HARRIS  "/)
+      CHARACTER(LEN=8), DIMENSION(8) :: sbas = (/"ORB     ", "AUX     ", "RI_AUX  ", "MAO     ", &
+         "HARRIS  ", "RI_HXC  ", "RI_K    ", "LRI     "/)
       CHARACTER(LEN=default_string_length)               :: basis_type
       INTEGER :: handle, ibasis_set_type, igrid_level, igrid_zet0_s, ikind, ipgf, iset, ishell, &
          jkind, jpgf, jset, jshell, la, lb, lgrid_level, ngrid_level, nkind, nseta, nsetb
       INTEGER, DIMENSION(:), POINTER                     :: npgfa, npgfb, nshella, nshellb
       INTEGER, DIMENSION(:, :), POINTER                  :: lshella, lshellb
-      REAL(KIND=dp)                                      :: alpha, core_charge, max_rpgf0_s, &
-                                                            maxradius, zet0, zetp
+      REAL(KIND=dp)                                      :: alpha, core_charge, eps_gvg, eps_rho, &
+                                                            max_rpgf0_s, maxradius, zet0, zetp
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: zeta, zetb
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(gto_basis_set_type), POINTER                  :: orb_basis_set
@@ -774,14 +776,16 @@ CONTAINS
 
 ! a very small safety factor might be needed for roundoff issues
 ! e.g. radius being computed here as 12.998 (13) and 13.002 (14) during the collocation
-! te latter can happen due to the lower precision in the computation of the radius in collocate
+! the latter can happen due to the lower precision in the computation of the radius in collocate
 ! parallel cost of rs_pw_transfer goes as safety_factor**3 so it is worthwhile keeping it tight
 
       CALL timeset(routineN, handle)
       NULLIFY (dft_control, qs_kind_set, rho0_mpole)
 
-      CALL get_qs_env(qs_env=qs_env, qs_kind_set=qs_kind_set, &
-                      dft_control=dft_control)
+      CALL get_qs_env(qs_env=qs_env, qs_kind_set=qs_kind_set, dft_control=dft_control)
+
+      eps_rho = dft_control%qs_control%eps_rho_rspace
+      eps_gvg = dft_control%qs_control%eps_gvg_rspace
 
       IF (dft_control%qs_control%gapw) THEN
          CALL get_qs_env(qs_env=qs_env, rho0_mpole=rho0_mpole)
@@ -802,78 +806,78 @@ CONTAINS
 
       ! try to predict the maximum radius of the gaussians to be mapped on the grid
       ! up to now, it is not yet very good
-      maxradius = 0.0_dp
+      radius = 0.0_dp
       DO igrid_level = 1, ngrid_level
 
-         maxradius = 0.0_dp
+         IF (dft_control%qs_control%dftb) CYCLE
 
+         maxradius = 0.0_dp
          ! Take into account the radius of the soft compensation charge rho0_soft1
          IF (dft_control%qs_control%gapw) THEN
             IF (igrid_zet0_s == igrid_level) maxradius = MAX(maxradius, max_rpgf0_s)
          END IF
 
-         ! ibasis set type loops over the needed kinds of basis sets. Right now this is
-         ! the orb_basis_set and the aux_fit_basis_set (and others!)
-         ! Seemingly others (e.g. gapw soft basis set) are not needed?
-         ! This is really ugly code and prone to fail at some point
-         ! Urgent rethinking and refactoring needed (24.07.2015)
-         DO ibasis_set_type = 1, 7
-            basis_type = translate_basis_type(ibasis_set_type)
+         ! this is to be sure that the core charge is mapped ok
+         ! right now, the core is mapped on the auxiliary basis,
+         ! this should, at a give point be changed
+         ! so that also for the core a multigrid is used
+         DO ikind = 1, nkind
+            CALL get_qs_kind(qs_kind_set(ikind), &
+                             alpha_core_charge=alpha, ccore_charge=core_charge)
+            IF (alpha > 0.0_dp .AND. core_charge .NE. 0.0_dp) THEN
+               maxradius = MAX(maxradius, exp_radius(0, alpha, eps_rho, core_charge))
+               ! forces
+               maxradius = MAX(maxradius, exp_radius(1, alpha, eps_rho, core_charge))
+            ENDIF
+         END DO
+
+         ! loop over basis sets that are used in grid collocation directly (no product)
+         ! e.g. for calculating a wavefunction or a RI density
+         DO ibasis_set_type = 1, SIZE(sbas)
             DO ikind = 1, nkind
                qs_kind => qs_kind_set(ikind)
-
-               IF (dft_control%qs_control%dftb) CYCLE
-
-               ! this is to be sure that the core charge is mapped ok
-               ! right now, the core is mapped on the auxiliary basis,
-               ! this should, at a give point be changed
-               ! so that also for the core a multigrid is used
-               CALL get_qs_kind(qs_kind_set(ikind), &
-                                alpha_core_charge=alpha, ccore_charge=core_charge)
-
-               IF (alpha > 0.0_dp .AND. core_charge .NE. 0.0_dp) THEN
-                  maxradius = MAX(maxradius, exp_radius(0, alpha, &
-                                                        dft_control%qs_control%eps_rho_rspace, core_charge))
-                  ! forces
-                  maxradius = MAX(maxradius, exp_radius(1, alpha, &
-                                                        dft_control%qs_control%eps_rho_rspace, core_charge))
-               ENDIF
-
-               !
-               ! now for the basis sets
-               !
-               IF (basis_type == "LRI" .AND. dft_control%qs_control%lri_optbas) CYCLE
+               NULLIFY (orb_basis_set)
                CALL get_qs_kind(qs_kind=qs_kind, &
-                                basis_set=orb_basis_set, basis_type=basis_type)
-
+                                basis_set=orb_basis_set, basis_type=sbas(ibasis_set_type))
                IF (.NOT. ASSOCIATED(orb_basis_set)) CYCLE
-
+               CALL get_gto_basis_set(gto_basis_set=orb_basis_set, &
+                                      npgf=npgfa, nset=nseta, zet=zeta, l=lshella, nshell=nshella)
+               DO iset = 1, nseta
+                  DO ipgf = 1, npgfa(iset)
+                     DO ishell = 1, nshella(iset)
+                        zetp = zeta(ipgf, iset)
+                        la = lshella(ishell, iset)
+                        lgrid_level = gaussian_gridlevel(pw_env%gridlevel_info, zetp)
+                        IF (lgrid_level .EQ. igrid_level) THEN
+                           maxradius = MAX(maxradius, exp_radius(la, zetp, eps_rho, 1.0_dp))
+                        ENDIF
+                     END DO
+                  END DO
+               END DO
+            END DO
+         END DO
+         ! loop over basis sets that are used in product function grid collocation
+         DO ibasis_set_type = 1, SIZE(pbas)
+            DO ikind = 1, nkind
+               qs_kind => qs_kind_set(ikind)
+               NULLIFY (orb_basis_set)
+               CALL get_qs_kind(qs_kind=qs_kind, &
+                                basis_set=orb_basis_set, basis_type=pbas(ibasis_set_type))
+               IF (.NOT. ASSOCIATED(orb_basis_set)) CYCLE
                CALL get_gto_basis_set(gto_basis_set=orb_basis_set, &
                                       npgf=npgfa, nset=nseta, zet=zeta, l=lshella, nshell=nshella)
 
                DO jkind = 1, nkind
                   qs_kind => qs_kind_set(jkind)
-
                   CALL get_qs_kind(qs_kind=qs_kind, &
-                                   basis_set=orb_basis_set, basis_type=basis_type)
-
+                                   basis_set=orb_basis_set, basis_type=pbas(ibasis_set_type))
                   IF (.NOT. ASSOCIATED(orb_basis_set)) CYCLE
                   CALL get_gto_basis_set(gto_basis_set=orb_basis_set, &
                                          npgf=npgfb, nset=nsetb, zet=zetb, l=lshellb, nshell=nshellb)
-
                   DO iset = 1, nseta
                   DO ipgf = 1, npgfa(iset)
                   DO ishell = 1, nshella(iset)
-                     ! for calculate wavefunction
-                     zetp = zeta(ipgf, iset)
                      la = lshella(ishell, iset)
-
-                     lgrid_level = gaussian_gridlevel(pw_env%gridlevel_info, zetp)
-
-                     IF (lgrid_level .EQ. igrid_level) THEN
-                        maxradius = MAX(maxradius, exp_radius(la, zetp, &
-                                                              dft_control%qs_control%eps_rho_rspace, 1.0_dp))
-                     ENDIF
                      DO jset = 1, nsetb
                      DO jpgf = 1, npgfb(jset)
                      DO jshell = 1, nshellb(jset)
@@ -882,29 +886,23 @@ CONTAINS
                         lgrid_level = gaussian_gridlevel(pw_env%gridlevel_info, zetp)
                         IF (lgrid_level .EQ. igrid_level) THEN
                            ! density (scale is at most 2)
-                           maxradius = MAX(maxradius, exp_radius(lb, zetp, &
-                                                                 dft_control%qs_control%eps_rho_rspace, 2.0_dp))
-
-                           ! should do tau (if tau will be used)
-
+                           maxradius = MAX(maxradius, exp_radius(lb, zetp, eps_rho, 2.0_dp))
+                           ! tau, properties?
+                           maxradius = MAX(maxradius, exp_radius(lb+1, zetp, eps_rho, 2.0_dp))
                            ! potential
-                           maxradius = MAX(maxradius, exp_radius(lb, zetp, &
-                                                                 dft_control%qs_control%eps_gvg_rspace, 2.0_dp))
+                           maxradius = MAX(maxradius, exp_radius(lb, zetp, eps_gvg, 2.0_dp))
                            ! forces
-                           maxradius = MAX(maxradius, exp_radius(lb+1, zetp, &
-                                                                 dft_control%qs_control%eps_gvg_rspace, 2.0_dp))
-
-                           ! should do stresses (if stresses will be used)
+                           maxradius = MAX(maxradius, exp_radius(lb+1, zetp, eps_gvg, 2.0_dp))
                         ENDIF
-                     ENDDO
-                     ENDDO
-                     ENDDO
-                  ENDDO
-                  ENDDO
-                  ENDDO
-               ENDDO ! jkind
-            ENDDO ! ikind
-         ENDDO ! ibasis_set_type
+                     END DO
+                     END DO
+                     END DO
+                  END DO
+                  END DO
+                  END DO
+               END DO
+            END DO
+         END DO
 
          ! this is a bit of hack, but takes into account numerics and rounding
          maxradius = maxradius*safety_factor
