@@ -51,8 +51,7 @@ MODULE pw_env_methods
                                               section_vals_get_subs_vals,&
                                               section_vals_type,&
                                               section_vals_val_get
-   USE kinds,                           ONLY: default_string_length,&
-                                              dp
+   USE kinds,                           ONLY: dp
    USE lgrid_types,                     ONLY: lgrid_create,&
                                               lgrid_release
    USE ps_implicit_types,               ONLY: MIXED_BC,&
@@ -760,7 +759,6 @@ CONTAINS
       CHARACTER(LEN=8), DIMENSION(4) :: pbas = (/"ORB     ", "AUX_FIT ", "MAO     ", "HARRIS  "/)
       CHARACTER(LEN=8), DIMENSION(8) :: sbas = (/"ORB     ", "AUX     ", "RI_AUX  ", "MAO     ", &
          "HARRIS  ", "RI_HXC  ", "RI_K    ", "LRI     "/)
-      CHARACTER(LEN=default_string_length)               :: basis_type
       INTEGER :: handle, ibasis_set_type, igrid_level, igrid_zet0_s, ikind, ipgf, iset, ishell, &
          jkind, jpgf, jset, jshell, la, lb, lgrid_level, ngrid_level, nkind, nseta, nsetb
       INTEGER, DIMENSION(:), POINTER                     :: npgfa, npgfb, nshella, nshellb
