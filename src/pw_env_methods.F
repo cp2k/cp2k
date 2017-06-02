@@ -754,11 +754,12 @@ CONTAINS
 
       CHARACTER(len=*), PARAMETER :: routineN = 'compute_max_radius', &
          routineP = moduleN//':'//routineN
+      CHARACTER(LEN=8), DIMENSION(4), PARAMETER :: &
+         pbas = (/"ORB     ", "AUX_FIT ", "MAO     ", "HARRIS  "/)
+      CHARACTER(LEN=8), DIMENSION(8), PARAMETER :: sbas = (/"ORB     ", "AUX     ", "RI_AUX  ", &
+         "MAO     ", "HARRIS  ", "RI_HXC  ", "RI_K    ", "LRI     "/)
       REAL(KIND=dp), PARAMETER                           :: safety_factor = 1.015_dp
 
-      CHARACTER(LEN=8), DIMENSION(4) :: pbas = (/"ORB     ", "AUX_FIT ", "MAO     ", "HARRIS  "/)
-      CHARACTER(LEN=8), DIMENSION(8) :: sbas = (/"ORB     ", "AUX     ", "RI_AUX  ", "MAO     ", &
-         "HARRIS  ", "RI_HXC  ", "RI_K    ", "LRI     "/)
       INTEGER :: handle, ibasis_set_type, igrid_level, igrid_zet0_s, ikind, ipgf, iset, ishell, &
          jkind, jpgf, jset, jshell, la, lb, lgrid_level, ngrid_level, nkind, nseta, nsetb
       INTEGER, DIMENSION(:), POINTER                     :: npgfa, npgfb, nshella, nshellb
