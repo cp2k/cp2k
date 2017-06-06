@@ -28,9 +28,9 @@ MODULE atom_electronic_structure
                                               calculate_atom_vxc_lsd,&
                                               calculate_atom_zmp
    USE input_constants,                 ONLY: &
-        do_analytic, do_dkh0_atom, do_dkh1_atom, do_dkh2_atom, do_dkh3_atom, do_dkh4_atom, &
-        do_dkh5_atom, do_nonrel_atom, do_numeric, do_rhf_atom, do_rks_atom, do_rohf_atom, &
-        do_sczoramp_atom, do_semi_analytic, do_uhf_atom, do_uks_atom, do_zoramp_atom
+        do_analytic, do_dkh0_atom, do_dkh1_atom, do_dkh2_atom, do_dkh3_atom, do_nonrel_atom, &
+        do_numeric, do_rhf_atom, do_rks_atom, do_rohf_atom, do_sczoramp_atom, do_semi_analytic, &
+        do_uhf_atom, do_uks_atom, do_zoramp_atom
    USE input_section_types,             ONLY: section_vals_get,&
                                               section_vals_get_subs_vals,&
                                               section_vals_type,&
@@ -64,11 +64,33 @@ CONTAINS
       CHARACTER(len=*), PARAMETER :: routineN = 'calculate_atom', routineP = moduleN//':'//routineN
 
       INTEGER                                            :: handle, method
+      LOGICAL                                            :: explicit
+      TYPE(section_vals_type), POINTER                   :: sub_section
 
       CALL timeset(routineN, handle)
 
-      method = atom%method_type
+      ! test for not supported methods and functionals
+      IF (ASSOCIATED(atom%xc_section)) THEN
+         !
+         sub_section => section_vals_get_subs_vals(atom%xc_section, "ADIABATIC_RESCALING")
+         CALL section_vals_get(sub_section, explicit=explicit)
+         IF (explicit) CALL cp_abort(__LOCATION__, "ADIABATIC_RESCALING not supported in ATOM code")
+         !
+         sub_section => section_vals_get_subs_vals(atom%xc_section, "VDW_POTENTIAL")
+         CALL section_vals_get(sub_section, explicit=explicit)
+         IF (explicit) CALL cp_abort(__LOCATION__, "VDW_POTENTIAL not supported in ATOM code")
+         !
+         sub_section => section_vals_get_subs_vals(atom%xc_section, "XC_POTENTIAL")
+         CALL section_vals_get(sub_section, explicit=explicit)
+         IF (explicit) CALL cp_abort(__LOCATION__, "XC_POTENTIAL not supported in ATOM code")
+         !
+         sub_section => section_vals_get_subs_vals(atom%xc_section, "WF_CORRELATION")
+         CALL section_vals_get(sub_section, explicit=explicit)
+         IF (explicit) CALL cp_abort(__LOCATION__, "WF_CORRELATION methods not supported in ATOM code")
+         !
+      END IF
 
+      method = atom%method_type
       SELECT CASE (method)
       CASE (do_rks_atom, do_rhf_atom)
          CALL calculate_atom_restricted(atom, iw, noguess, converged)
@@ -198,7 +220,7 @@ CONTAINS
             hcore%op = atom%integrals%kin-atom%zcore*atom%integrals%core
          CASE (do_zoramp_atom, do_sczoramp_atom)
             hcore%op = atom%integrals%kin+atom%integrals%tzora-atom%zcore*atom%integrals%core
-         CASE (do_dkh0_atom, do_dkh1_atom, do_dkh2_atom, do_dkh3_atom, do_dkh4_atom, do_dkh5_atom)
+         CASE (do_dkh0_atom, do_dkh1_atom, do_dkh2_atom, do_dkh3_atom)
             hcore%op = atom%integrals%hdkh
          END SELECT
       CASE (gth_pseudo, upf_pseudo, sgp_pseudo, ecp_pseudo)
@@ -528,7 +550,7 @@ CONTAINS
             hcore%op = atom%integrals%kin-atom%zcore*atom%integrals%core
          CASE (do_zoramp_atom, do_sczoramp_atom)
             hcore%op = atom%integrals%kin+atom%integrals%tzora-atom%zcore*atom%integrals%core
-         CASE (do_dkh0_atom, do_dkh1_atom, do_dkh2_atom, do_dkh3_atom, do_dkh4_atom, do_dkh5_atom)
+         CASE (do_dkh0_atom, do_dkh1_atom, do_dkh2_atom, do_dkh3_atom)
             hcore%op = atom%integrals%hdkh
          END SELECT
       CASE (gth_pseudo)

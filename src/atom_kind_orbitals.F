@@ -32,9 +32,9 @@ MODULE atom_kind_orbitals
                                               sgp_potential_type
    USE input_constants,                 ONLY: &
         barrier_conf, do_analytic, do_dkh0_atom, do_dkh1_atom, do_dkh2_atom, do_dkh3_atom, &
-        do_dkh4_atom, do_dkh5_atom, do_gapw_log, do_nonrel_atom, do_numeric, do_rks_atom, &
-        do_sczoramp_atom, do_uks_atom, do_zoramp_atom, gth_pseudo, no_pseudo, poly_conf, rel_dkh, &
-        rel_none, rel_sczora_mp, rel_zora, rel_zora_full, rel_zora_mp, sgp_pseudo
+        do_gapw_log, do_nonrel_atom, do_numeric, do_rks_atom, do_sczoramp_atom, do_uks_atom, &
+        do_zoramp_atom, gth_pseudo, no_pseudo, poly_conf, rel_dkh, rel_none, rel_sczora_mp, &
+        rel_zora, rel_zora_full, rel_zora_mp, sgp_pseudo
    USE input_section_types,             ONLY: section_vals_type
    USE kinds,                           ONLY: dp
    USE mathconstants,                   ONLY: dfac,&
@@ -1011,10 +1011,6 @@ CONTAINS
                relativistic = do_dkh2_atom
             CASE (3)
                relativistic = do_dkh3_atom
-            CASE (4)
-               relativistic = do_dkh4_atom
-            CASE (5)
-               relativistic = do_dkh5_atom
             END SELECT
          CASE (rel_zora)
             SELECT CASE (rel_control%rel_zora_type)
@@ -1247,7 +1243,7 @@ CONTAINS
                      DO m = 0, ll
                         rtmat(i+m, j+m) = integrals%tzora(k1, k2, l)
                      END DO
-                  CASE (do_dkh0_atom, do_dkh1_atom, do_dkh2_atom, do_dkh3_atom, do_dkh4_atom, do_dkh5_atom)
+                  CASE (do_dkh0_atom, do_dkh1_atom, do_dkh2_atom, do_dkh3_atom)
                      DO m = 0, ll
                         rtmat(i+m, j+m) = integrals%hdkh(k1, k2, l)-integrals%kin(k1, k2, l)+atom%zcore*integrals%core(k1, k2, l)
                      END DO

@@ -18,9 +18,9 @@ MODULE atom_output
    USE cp_files,                        ONLY: close_file,&
                                               open_file
    USE input_constants,                 ONLY: &
-        barrier_conf, do_dkh0_atom, do_dkh1_atom, do_dkh2_atom, do_dkh3_atom, do_dkh4_atom, &
-        do_dkh5_atom, do_nonrel_atom, do_rhf_atom, do_rks_atom, do_rohf_atom, do_sczoramp_atom, &
-        do_uhf_atom, do_uks_atom, do_zoramp_atom, poly_conf, xc_none
+        barrier_conf, do_dkh0_atom, do_dkh1_atom, do_dkh2_atom, do_dkh3_atom, do_nonrel_atom, &
+        do_rhf_atom, do_rks_atom, do_rohf_atom, do_sczoramp_atom, do_uhf_atom, do_uks_atom, &
+        do_zoramp_atom, poly_conf, xc_none
    USE input_cp2k_check,                ONLY: xc_functionals_expand
    USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                               section_vals_get_subs_vals2,&
@@ -552,10 +552,6 @@ CONTAINS
             IF (iw > 0) WRITE (iw, fmt="(' METHOD    | Relativistic Calculation using Douglas-Kroll 2nd order')")
          CASE (do_dkh3_atom)
             IF (iw > 0) WRITE (iw, fmt="(' METHOD    | Relativistic Calculation using Douglas-Kroll 3rd order')")
-         CASE (do_dkh4_atom)
-            IF (iw > 0) WRITE (iw, fmt="(' METHOD    | Relativistic Calculation using Douglas-Kroll 4th order')")
-         CASE (do_dkh5_atom)
-            IF (iw > 0) WRITE (iw, fmt="(' METHOD    | Relativistic Calculation using Douglas-Kroll 5th order')")
          END SELECT
       END IF
 

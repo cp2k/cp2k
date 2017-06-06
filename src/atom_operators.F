@@ -25,8 +25,8 @@ MODULE atom_operators
    USE erf_fn,                          ONLY: erf,&
                                               erfc
    USE input_constants,                 ONLY: &
-        barrier_conf, do_dkh0_atom, do_dkh1_atom, do_dkh2_atom, do_dkh3_atom, do_dkh4_atom, &
-        do_dkh5_atom, do_nonrel_atom, do_sczoramp_atom, do_zoramp_atom, poly_conf
+        barrier_conf, do_dkh0_atom, do_dkh1_atom, do_dkh2_atom, do_dkh3_atom, do_nonrel_atom, &
+        do_sczoramp_atom, do_zoramp_atom, poly_conf
    USE kinds,                           ONLY: dp
    USE lapack,                          ONLY: lapack_sgesv
    USE mathconstants,                   ONLY: gamma1,&
@@ -834,10 +834,6 @@ CONTAINS
          dkhorder = 2
       CASE (do_dkh3_atom)
          dkhorder = 3
-      CASE (do_dkh4_atom)
-         dkhorder = 4
-      CASE (do_dkh5_atom)
-         dkhorder = 5
       END SELECT
 
       SELECT CASE (reltyp)
@@ -927,7 +923,7 @@ CONTAINS
 
          END IF
 
-      CASE (do_dkh0_atom, do_dkh1_atom, do_dkh2_atom, do_dkh3_atom, do_dkh4_atom, do_dkh5_atom)
+      CASE (do_dkh0_atom, do_dkh1_atom, do_dkh2_atom, do_dkh3_atom)
 
          NULLIFY (integrals%tzora)
 
