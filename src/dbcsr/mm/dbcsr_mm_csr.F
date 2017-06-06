@@ -809,7 +809,7 @@ CONTAINS
       DO iblock = 1, nblocks
          nze = m_sizes(row_i(iblock))*n_sizes(col_i(iblock))
          IF (nze .EQ. 0) CYCLE
-         lb_data = blk_p(iblock)+meta_buffer(nthreads+ithread+2)
+         lb_data = blk_p(iblock)
          c_blk_id = hash_table_get(this%c_hashes(row_i(iblock)), col_i(iblock))
          block_exists = c_blk_id .GT. 0
          IF (block_exists) THEN

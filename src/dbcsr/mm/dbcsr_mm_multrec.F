@@ -426,16 +426,15 @@ CONTAINS
 !> \param meta_buffer ...
 !> \param data_buffer ...
 ! **************************************************************************************************
-   SUBROUTINE dbcsr_mm_multrec_finalize(this, meta_buffer, data_buffer)
+   SUBROUTINE dbcsr_mm_multrec_finalize(this, meta_buffer)
       TYPE(dbcsr_mm_multrec_type), INTENT(inout)         :: this
       INTEGER, DIMENSION(:), INTENT(INOUT), OPTIONAL     :: meta_buffer
-      TYPE(dbcsr_data_obj), INTENT(INOUT), OPTIONAL      :: data_buffer
 
       CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_mm_multrec_finalize', &
          routineP = moduleN//':'//routineN
 
-      INTEGER                                            :: data_size, handle, ithread, lb_data, &
-                                                            lb_meta, nblocks, nthreads, ub_meta
+      INTEGER                                            :: handle, ithread, lb_meta, &
+                                                            nblocks, nthreads, ub_meta
 
 !   ---------------------------------------------------------------------------
 
@@ -448,7 +447,7 @@ CONTAINS
       ! Release the carrier
       IF (this%new_row_max_epss) DEALLOCATE (this%row_max_epss)
 
-      IF (PRESENT(meta_buffer) .AND. PRESENT(data_buffer)) THEN
+      IF (PRESENT(meta_buffer)) THEN
          ithread = 0; nthreads = 1
 !$       ithread = OMP_GET_THREAD_NUM(); nthreads = OMP_GET_NUM_THREADS()
          ! Copy wms data into matrix
@@ -462,10 +461,6 @@ CONTAINS
          lb_meta = ub_meta
          ub_meta = lb_meta+nblocks
          meta_buffer(lb_meta+1:ub_meta) = this%product_wm%blk_p(1:nblocks)
-         lb_data = meta_buffer(ithread+nthreads+2)
-         data_size = meta_buffer(ithread+nthreads+3)-lb_data
-         CALL dbcsr_data_set(data_buffer, lb_data+1, data_size, &
-                             this%product_wm%data_area, source_lb=1)
       ELSE
          CALL remap_local2global(this%product_wm%row_i, &
                                  this%product_wm%col_i, &

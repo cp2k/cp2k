@@ -190,7 +190,7 @@ CONTAINS
       CALL buffers_release()
 
       ! Release 3D communicators
-      CALL release_layers_3D_C_reduction()
+      CALL release_layers_3D_C_reduction(release_buffers=.TRUE.)
 
       total_max_memory = max_memory
       CALL mp_max(total_max_memory, group)
