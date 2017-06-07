@@ -2,22 +2,22 @@
 # the second field tells which test should be run in order to compare with the last available output
 # see regtest/TEST_FILES
 #
-HeH-noconstraint.inp                                   1      2e-13              -2.92909797857414
-He+-noconstraint.inp                                   1      2e-13              -1.97024649506553
-H-noconstraint.inp                                     1      4e-13              -0.45619409564056
+HeH-noconstraint.inp                                   1      2e-13              -3.01067446615060
+He+-noconstraint.inp                                   1      2e-13              -2.05007934458372
+H-noconstraint.inp                                     1      4e-13              -0.45734465780293
 # These tests use different constraint formalisms so their value differs (see outputted charges)
-HeH-cdft-1.inp                                        71      3e-11               1.200259777690
-HeH-cdft-2.inp                                        71      2e-11               1.599346939652
-HeH-cdft-3.inp                                        71      3e-11               1.415422840116
-HeH-cdft-4.inp                                        71      1e-11               1.706928470865
+HeH-cdft-1.inp                                        71      3e-11               1.200733561958
+HeH-cdft-2.inp                                        71      2e-11               1.599542796623
+HeH-cdft-3.inp                                        71      3e-11               1.415849431280
+HeH-cdft-4.inp                                        71      1e-11               1.707100731284
 # Fragment based spin constraint (value is 0 because rho_alpha-rho_beta=0 in ground state)
 HeH-cdft-9.inp                                        71      2e-11               0.000000000000
 # These tests give identical value of atomic forces (there is some numerical noise when the number of mpiranks is varied)
-HeH-cdft-5.inp                                        72      3e-09               0.0968896882177
-HeH-cdft-6.inp                                        72      3e-09               0.0968896882177
-HeH-cdft-7.inp                                        72      3e-09               0.0968896882177
+HeH-cdft-5.inp                                        72      3e-09               0.1451730892728
+HeH-cdft-6.inp                                        72      3e-09               0.1451730892732
+HeH-cdft-7.inp                                        72      3e-09               0.1451730892732
 # Two constraints: charge difference + spin constraint
-HeH-cdft-8.inp                                        71      3e-11               1.415422840116
+HeH-cdft-8.inp                                        71      3e-11               1.415849431280
 # Two fragment based spin constraints
 HeH-cdft-10.inp                                       71      2e-11              -0.000000000000
 #EOF

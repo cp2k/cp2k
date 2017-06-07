@@ -3,11 +3,10 @@
 # see regtest/TEST_FILES
 #
 # Same as regtest-cdft-3
-HeH-noconstraint.inp                                   1      2e-13              -2.92909797857414
-HeH-cdft-state-1.inp                                  71      5e-08               0.058799058192
+HeH-noconstraint.inp                                   1      2e-13              -3.01067446615063
+HeH-cdft-state-1.inp                                  71      5e-08               0.048406446266
 # Same as regtest-cdft-3 test 2, but constraint definition flipped
-HeH-cdft-state-2-reversed.inp                         71      3e-10               -1.819331392252
+HeH-cdft-state-2-reversed.inp                         71      3e-10              -1.819391902440
 # Coupling via Lowdin orthogonalization
 # Same as regtest-cdft-3 test 11, but with nonidentical constraint definitions
-HeH-mixed-cdft-reversed-1.inp                         76      9e-10             620.260163261875
-#EOF
+HeH-mixed-cdft-reversed-1.inp                         76      9e-10             616.641603574904

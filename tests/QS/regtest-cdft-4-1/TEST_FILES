@@ -2,11 +2,11 @@
 # the second field tells which test should be run in order to compare with the last available output
 # see regtest/TEST_FILES
 #
-HeH-noconstraint.inp                                   1      2e-13             -2.92909797857414
-# These tests use different optimizers for the CDFT constraint 
-HeH-cdft-secant.inp                                   1       1e-09             -2.34923603230477
+HeH-noconstraint.inp                                   1      2e-13             -3.01067446615063
+# These tests use different optimizers for the CDFT constraint
+HeH-cdft-secant.inp                                   1       1e-09             -2.43380161368197
 # Broyden optimizers
-HeH-cdft-broyden-bt1.inp                              1       1e-09             -2.34812170647367
-HeH-cdft-broyden-bt2.inp                              1       1e-09             -2.34797348440589
-HeH-cdft-broyden-bt1explicit.inp                      1       5e-06             -2.34851012154505
+HeH-cdft-broyden-bt1.inp                              1       1e-09             -2.43247404297694
+HeH-cdft-broyden-bt2.inp                              1       1e-09             -2.43226496742776
+HeH-cdft-broyden-bt1explicit.inp                      1       5e-06             -2.43270552319648
 #EOF

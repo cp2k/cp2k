@@ -14,7 +14,7 @@
 @SET MAX_SCF              5
 ! He+ H
 @SET BECKE_TARGET_1       0.0
-@SET BECKE_STR_1          0.731791194315
+@SET BECKE_STR_1          0.724999339576
 ! He H+
 @SET BECKE_TARGET_2       2.0
 @SET BECKE_STR_2          0.0

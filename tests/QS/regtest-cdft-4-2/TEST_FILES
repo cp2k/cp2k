@@ -1,13 +1,13 @@
 # runs are executed in the same order as in this file
 # the second field tells which test should be run in order to compare with the last available output
 # see regtest/TEST_FILES
-# 
-HeH-noconstraint.inp                                   1      2e-13             -2.92909797857414
-# These tests use different optimizers for the CDFT constraint 
+#
+HeH-noconstraint.inp                                   1      2e-13             -3.01067446615063
+# These tests use different optimizers for the CDFT constraint
 # Newton: test different finite different schemes
-HeH-cdft-newton-fd1backward.inp                       1       9e-04             -2.71413183905801
-HeH-cdft-newton-fd2.inp                               1       9e-04             -2.62570660673001
-HeH-cdft-newton-fd1central.inp                        1       3e-04             -2.67640494953380
+HeH-cdft-newton-fd1backward.inp                       1       9e-04             -2.80114428543899
+HeH-cdft-newton-fd2.inp                               1       9e-04             -2.71354237564800
+HeH-cdft-newton-fd1central.inp                        1       3e-04             -2.76375295298293
 # Newton: use backtracking line search
-HeH-cdft-newton-ls-fd2backward.inp                    1       2e-03             -2.36109314362094
+HeH-cdft-newton-ls-fd2backward.inp                    1       2e-03             -2.44853002459689
 #EOF
