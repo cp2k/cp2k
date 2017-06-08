@@ -2244,9 +2244,8 @@ CONTAINS
                                                             uninitialized = -7000
 
       INTEGER :: actually_sent, exhausted_work, handle, i, ind, iounit, ispecial, j, max_targets, &
-         more_work, my_pos, my_special_work, my_target, no_overloaded, no_underloaded, &
-         nsend, nsend_limit, nsend_max, offset, offset_proc, offset_special, req(4), send_total, &
-         tags(2)
+         more_work, my_pos, my_special_work, my_target, no_overloaded, no_underloaded, nsend, &
+         nsend_limit, nsend_max, offset, offset_proc, offset_special, req(4), send_total, tags(2)
       INTEGER, DIMENSION(:), POINTER :: buffsize, cumulative_work, expected_work, load_imbalance, &
          nrecv, nsend_proc, req_recv, req_total, sendbuffer, should_warn, tmp, work_index, &
          work_size
@@ -2837,7 +2836,7 @@ CONTAINS
                CALL mp_isend(msgin=sendbuffer, &
                              dest=mixed_cdft%dest_list(i), &
                              request=req_total(ind), comm=force_env%para_env%group)
-               ind = ind + 1
+               ind = ind+1
             END DO
          END IF
          IF (ANY(mixed_cdft%dlb_control%recv_work_repl)) THEN
@@ -2848,7 +2847,7 @@ CONTAINS
                   CALL mp_irecv(msgout=mixed_cdft%dlb_control%recv_info(i)%matrix_info, &
                                 source=mixed_cdft%source_list(i), &
                                 request=req_total(ind), comm=force_env%para_env%group)
-                  ind = ind + 1
+                  ind = ind+1
                END IF
             END DO
          END IF
@@ -2864,7 +2863,7 @@ CONTAINS
                CALL mp_isend(msgin=mixed_cdft%dlb_control%target_list, &
                              dest=mixed_cdft%dest_list(i), &
                              request=req_total(ind), comm=force_env%para_env%group)
-               ind = ind + 1
+               ind = ind+1
             END DO
          END IF
          IF (ANY(mixed_cdft%dlb_control%recv_work_repl)) THEN
@@ -2876,13 +2875,13 @@ CONTAINS
                   CALL mp_irecv(msgout=mixed_cdft%dlb_control%recv_info(i)%target_list, &
                                 source=mixed_cdft%source_list(i), &
                                 request=req_total(ind), comm=force_env%para_env%group)
-                  ind = ind + 1
+                  ind = ind+1
                END IF
             END DO
          END IF
          IF (ASSOCIATED(req_total)) THEN
             CALL mp_waitall(req_total)
-            DEALLOCATE(req_total)
+            DEALLOCATE (req_total)
          END IF
          IF (ASSOCIATED(sendbuffer)) DEALLOCATE (sendbuffer)
       ELSE
@@ -3024,7 +3023,7 @@ CONTAINS
       INTEGER :: handle, i, iatom, icomm, iforce_eval, index, iounit, ip, ispecial, iwork, j, &
          jatom, jcomm, k, my_special_work, my_work, natom, nbuffs, nforce_eval, np(3), &
          nsent_total, nskipped, nwork, offset, offset_repl
-      INTEGER, DIMENSION(:), POINTER                     :: req_recv, work, work_dlb, req_total
+      INTEGER, DIMENSION(:), POINTER                     :: req_recv, req_total, work, work_dlb
       INTEGER, DIMENSION(:, :), POINTER                  :: nsent, req_send
       LOGICAL                                            :: completed_recv, should_communicate
       LOGICAL, ALLOCATABLE, DIMENSION(:)                 :: skip_me
@@ -3619,17 +3618,17 @@ CONTAINS
       IF (mixed_cdft%dlb) THEN
          IF (mixed_cdft%dlb_control%recv_work .AND. &
              ANY(mixed_cdft%dlb_control%recv_work_repl)) THEN
-            ALLOCATE(req_total(SIZE(req_recv)+SIZE(req_send, 1)*SIZE(req_send, 2)))
+            ALLOCATE (req_total(SIZE(req_recv)+SIZE(req_send, 1)*SIZE(req_send, 2)))
             index = SIZE(req_recv)
             req_total(1:index) = req_recv
             DO i = 1, SIZE(req_send, 2)
                DO j = 1, SIZE(req_send, 1)
-                  index = index + 1
+                  index = index+1
                   req_total(index) = req_send(j, i)
                END DO
             END DO
             CALL mp_waitall(req_total)
-            DEALLOCATE(req_total)
+            DEALLOCATE (req_total)
             IF (ASSOCIATED(mixed_cdft%dlb_control%cavity)) &
                DEALLOCATE (mixed_cdft%dlb_control%cavity)
             IF (ASSOCIATED(mixed_cdft%dlb_control%weight)) &
