@@ -7,7 +7,7 @@ HeH-noconstraint.inp                                   1      2e-13             
 # Newton: test different finite different schemes
 HeH-cdft-newton-fd1.inp                               11      3e-07             -2.432124875819301
 # MD test cases
-HeH-cdft-md-newton-1-1.inp                            11      5e-09             -2.438122042044888
+HeH-cdft-md-newton-1-1.inp                            11      1e-08             -2.438122042044888
 HeH-cdft-md-broyden-5-1.inp                           11      1e-09             -2.438121661487591
 HeH-cdft-md-broyden-5-5.inp                           11      1e-09             -2.438121661487591
 # Mixed CDFT: serial mode MD
