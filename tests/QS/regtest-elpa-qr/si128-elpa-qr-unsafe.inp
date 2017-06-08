@@ -42,11 +42,11 @@
     &END QS
     &SCF
       SCF_GUESS MOPAC
-      MAX_SCF   5
+      MAX_SCF   2
       EPS_SCF 1.0e-7
       EPS_DIIS 1.0e-7
       &SMEAR
-        METHOD FERMI_DIRAC 
+        METHOD FERMI_DIRAC
         ELECTRONIC_TEMPERATURE   1000.
       &END
       &MIXING
@@ -55,7 +55,7 @@
         BETA   1.0
         NBROYDEN 15
       &END
-      ADDED_MOS   100 100
+      ADDED_MOS   20 20
     &END SCF
     &XC
       &XC_FUNCTIONAL PBE
@@ -65,15 +65,15 @@
   &SUBSYS
     &CELL
       ABC   5.42858871335 5.42858871335 5.42858871335
-      MULTIPLE_UNIT_CELL 2 2 4
+      MULTIPLE_UNIT_CELL 1 2 2
     &END CELL
     &KIND  Si
       BASIS_SET  SZV-GTH
       POTENTIAL  GTH-PBE-q4
     &END
     &TOPOLOGY
-      COORD_FILE_NAME ../sample_xyz/SI_8.xyz 
-      MULTIPLE_UNIT_CELL 2 2 4
+      COORD_FILE_NAME ../sample_xyz/SI_8.xyz
+      MULTIPLE_UNIT_CELL 1 2 2
       COORDINATE XYZ
       CONNECTIVITY OFF
     &END TOPOLOGY
