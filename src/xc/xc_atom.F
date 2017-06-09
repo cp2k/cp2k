@@ -555,6 +555,21 @@ CONTAINS
          rho_set%has%tau_spin = .FALSE.
       END IF
 
+      ! Laplace part
+      IF (needs%laplace_rho) THEN
+         NULLIFY (rho_set%laplace_rho)
+         ALLOCATE (rho_set%laplace_rho(bo(1, 1):bo(2, 1), bo(1, 2):bo(2, 2), bo(1, 3):bo(2, 3)))
+         rho_set%owns%laplace_rho = .TRUE.
+      END IF
+      IF (needs%laplace_rho_spin) THEN
+         NULLIFY (rho_set%laplace_rhoa)
+         NULLIFY (rho_set%laplace_rhob)
+         ALLOCATE (rho_set%laplace_rhoa(bo(1, 1):bo(2, 1), bo(1, 2):bo(2, 2), bo(1, 3):bo(2, 3)))
+         ALLOCATE (rho_set%laplace_rhob(bo(1, 1):bo(2, 1), bo(1, 2):bo(2, 2), bo(1, 3):bo(2, 3)))
+         rho_set%owns%laplace_rho_spin = .TRUE.
+         rho_set%has%laplace_rho_spin = .TRUE.
+      END IF
+
    END SUBROUTINE xc_rho_set_atom_update
 
 ! **************************************************************************************************

@@ -360,6 +360,11 @@ CONTAINS
                DEALLOCATE (taumat)
             END IF
 
+            ! assume lap is not reaaly needed
+            IF (needs%laplace_rho) THEN
+               DEALLOCATE (lap)
+            END IF
+
             ! Release the xc structure used to store the xc derivatives
             CALL xc_dset_release(deriv_set)
             CALL xc_rho_set_release(rho_set)
@@ -591,6 +596,11 @@ CONTAINS
                DEALLOCATE (taumat)
             END IF
 
+            ! assume lap is not reaaly needed
+            IF (needs%laplace_rho_spin) THEN
+               DEALLOCATE (lap)
+            END IF
+
             ! Release the xc structure used to store the xc derivatives
             CALL xc_dset_release(deriv_set)
             CALL xc_rho_set_release(rho_set)
@@ -763,6 +773,11 @@ CONTAINS
 
             DEALLOCATE (tau)
             DEALLOCATE (taumat)
+         END IF
+
+         ! we assume lap is not reaaly needed
+         IF (needs%laplace_rho) THEN
+            DEALLOCATE (lap)
          END IF
 
          ! Release the xc structure used to store the xc derivatives
