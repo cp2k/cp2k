@@ -1738,13 +1738,13 @@ CONTAINS
                           description="Time constant for centroid motion. "// &
                           "If zero or negative the centroid is not thermostated.", &
                           usage="TAU {real}", type_of_var=real_t, &
-                          n_var=1, default_r_val=10000.0_dp)
+                          unit_str="fs", n_var=1, default_r_val=1000.0_dp)
       CALL section_add_keyword(subsection, keyword)
       CALL keyword_release(keyword)
       CALL keyword_create(keyword, name="LAMBDA", &
                           description="Scaling of friction to mode coupling", &
                           usage="LAMBDA {real}", type_of_var=real_t, &
-                          unit_str="fs", n_var=1, default_r_val=0.01_dp)
+                          n_var=1, default_r_val=0.5_dp)
       CALL section_add_keyword(subsection, keyword)
       CALL keyword_release(keyword)
       CALL section_add_subsection(section, subsection)

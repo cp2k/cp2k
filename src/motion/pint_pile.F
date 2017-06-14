@@ -11,7 +11,6 @@
 !>      10.2014 created [Felix Uhl]
 ! **************************************************************************************************
 MODULE pint_pile
-   USE cp_units,                        ONLY: cp_unit_to_cp2k
    USE input_section_types,             ONLY: section_vals_get,&
                                               section_vals_get_subs_vals,&
                                               section_vals_type,&
@@ -74,7 +73,6 @@ CONTAINS
       !Get input parameter
       CALL section_vals_val_get(section, "TAU", r_val=pile_therm%tau)
       CALL section_vals_val_get(section, "LAMBDA", r_val=pile_therm%lamb)
-      pile_therm%tau = cp_unit_to_cp2k(pile_therm%tau, "fs")
 
       p = pint_env%p
       dti2 = 0.5_dp*pint_env%dt

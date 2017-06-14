@@ -16,7 +16,7 @@ water-in-helium-lastforce.inp                          9      7e-14        1.071
 water-micro-helium.inp                                 9      1e-13        1.0713355696395585E-003
 w512_pint_nose.inp                                     9      8e-14             9.5780711530210407
 w512_pint_gle.inp                                      9      3e-13            -3.5646497002020765
-w512_pint_pile.inp                                     9      3e-12            0.70661010702892924
+w512_pint_pile.inp                                     9      3e-12            0.64599197840093936
 w512_pint_piglet.inp                                   9      1e-11           74.229316490453456
 centroid_velocity_init.inp                             9    1.0E-14            0.32999751991202331
 he32_density.inp                                      40      2e-14       -6.8167031351590079E-005
