@@ -8,15 +8,16 @@
   &PINT
     P                        4
     PROC_PER_REPLICA         1
-    NUM_STEPS                5
+    NUM_STEPS                3
     DT                       0.5
-    NRESPA                   2
+    NRESPA                   1
+    PROPAGATOR               RPMD
+    HARM_INT                 EXACT
     TEMP                     7.5
     T_TOL                    0.0
     TRANSFORMATION           NORMAL
-    &NOSE
-      NNOS                   3
-    &END NOSE
+    &PILE
+    &END PILE
     &HELIUM
       SOLUTE_INTERACTION     MWATER
       POTENTIAL_FILE_NAME    lj-test-pot.dat
@@ -24,19 +25,19 @@
       NATOMS                32
       NBEADS                16
       NUM_ENV                2
-      INOROT               200
-      IROT                 100
+      INOROT                80
+      IROT                  40
       PERIODIC               T
       CELL_SHAPE             OCTAHEDRON
       SAMPLING_METHOD        WORM
       &WORM
-         CENTROID_MOVE_FREQ   300000
+         CENTROID_MOVE_FREQ   300
          CENTROID_MOVE_DRMAX  0.15
-         STAGING_MOVE_REP     10
-         STAGING_MOVE_L       5
+         STAGING_MOVE_REP     1
+         STAGING_MOVE_L       1
          G-SECTOR_MOVE        T
          G-SECTOR_MOVE_REP    10
-         OPEN_CLOSE_MOVE_C    0.005
+         OPEN_CLOSE_MOVE_C    0.00005
          OPEN_CLOSE_MOVE_LMAX 5
          HEAD_TAIL_MOVE_LMAX  5
          SWAP_MOVE_LMAX       5
