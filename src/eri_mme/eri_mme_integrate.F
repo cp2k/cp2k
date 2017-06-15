@@ -21,7 +21,9 @@
 MODULE eri_mme_integrate
    USE ao_util,                         ONLY: exp_radius
    USE eri_mme_gaussian,                ONLY: hermite_gauss_norm
-   USE eri_mme_lattice_summation,       ONLY: lattice_sum_prec,&
+   USE eri_mme_lattice_summation,       ONLY: ellipsoid_bounds,&
+                                              eri_mme_3c_get_bounds,&
+                                              lattice_sum_prec,&
                                               pgf_sum_2c_gspace_1d,&
                                               pgf_sum_2c_gspace_3d,&
                                               pgf_sum_2c_rspace_1d,&
@@ -31,7 +33,8 @@ MODULE eri_mme_integrate
    USE kinds,                           ONLY: dp
    USE mathconstants,                   ONLY: pi,&
                                               twopi
-   USE orbital_pointers,                ONLY: coset
+   USE orbital_pointers,                ONLY: coset,&
+                                              ncoset
 #include "../base/base_uses.f90"
 
    IMPLICIT NONE
@@ -79,18 +82,17 @@ CONTAINS
       CHARACTER(LEN=*), PARAMETER :: routineN = 'eri_mme_2c_integrate', &
          routineP = moduleN//':'//routineN
 
-      INTEGER                                            :: ax, ay, az, bx, by, bz, G_bound, handle, &
-                                                            i_aw, i_xyz, ico, jco, k, l_max, la, &
-                                                            lb, n_aw, R_bound1, R_bound2
-      INTEGER, DIMENSION(3)                              :: gbounds_curr, la_xyz, lb_xyz, &
-                                                            rbounds_curr
+      INTEGER                                            :: ax, ay, az, bx, by, bz, handle, i_aw, &
+                                                            i_xyz, ico, jco, l_max, la, lb, n_aw
+      INTEGER, DIMENSION(3)                              :: la_xyz, lb_xyz
       LOGICAL                                            :: do_g_sum, exact, is_ortho, norm
-      REAL(KIND=dp)                                      :: alpha_G, alpha_R, G_rad, G_res, Imm, &
-                                                            inv_lgth, Ixyz, lgth, max_error, &
-                                                            prefac, R_rad, R_res, vol
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: S_G_1, S_G_2
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: S_G, S_G_no, S_R_no
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :, :)  :: S_R_no_H
+      REAL(KIND=dp)                                      :: alpha_G, alpha_R, G_bound, G_rad, G_res, &
+                                                            Imm, inv_lgth, Ixyz, lgth, max_error, &
+                                                            prefac, R_bound, R_rad, R_res, vol
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: S_G_1, S_G_2, S_G_no, S_R_no
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: S_R_no_H
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: S_G
+      REAL(KIND=dp), DIMENSION(3)                        :: gbounds_curr, rbounds_curr
       REAL(KIND=dp), DIMENSION(3, 3)                     :: h_inv, hmat, ht
       REAL(KIND=dp), DIMENSION(:), POINTER               :: aw
 
@@ -154,27 +156,24 @@ CONTAINS
             DO i_xyz = 1, 3
                lgth = ABS(hmat(i_xyz, i_xyz))
                inv_lgth = ABS(h_inv(i_xyz, i_xyz))
-               G_bound = FLOOR(G_rad/(inv_lgth*twopi))
-               R_bound1 = CEILING((rab(i_xyz)-R_rad)/lgth)
-               R_bound2 = FLOOR((rab(i_xyz)+R_rad)/lgth)
+               G_bound = G_rad/(inv_lgth*twopi)
+               R_bound = R_rad/lgth
 
                ! perform sum in R or G space. Choose the space in which less summands are required for convergence
-               do_g_sum = (2*G_bound+1) < R_bound2-R_bound1
+               do_g_sum = G_bound < R_bound
 
                IF (do_g_sum) THEN
-                  CALL pgf_sum_2c_gspace_1d(S_G(:, i_xyz, i_aw), -rab(i_xyz), alpha_G, inv_lgth, &
-                                            -G_bound, G_bound)
+                  CALL pgf_sum_2c_gspace_1d(S_G(:, i_xyz, i_aw), -rab(i_xyz), alpha_G, inv_lgth, G_bound)
                   IF (PRESENT(G_count)) G_count = G_count+1
                ELSE
-                  CALL pgf_sum_2c_rspace_1d(S_G(:, i_xyz, i_aw), -rab(i_xyz), alpha_R, lgth, &
-                                            R_bound1, R_bound2)
+                  CALL pgf_sum_2c_rspace_1d(S_G(:, i_xyz, i_aw), -rab(i_xyz), alpha_R, lgth, R_bound)
                   IF (PRESENT(R_count)) R_count = R_count+1
                ENDIF
 
                IF (param%debug) THEN
                   ! check consistency of summation methods
-                  CALL pgf_sum_2c_gspace_1d(S_G_1, -rab(i_xyz), alpha_G, inv_lgth, -G_bound, G_bound)
-                  CALL pgf_sum_2c_rspace_1d(S_G_2, -rab(i_xyz), alpha_R, lgth, R_bound1, R_bound2)
+                  CALL pgf_sum_2c_gspace_1d(S_G_1, -rab(i_xyz), alpha_G, inv_lgth, G_bound)
+                  CALL pgf_sum_2c_rspace_1d(S_G_2, -rab(i_xyz), alpha_R, lgth, R_bound)
                   max_error = MAXVAL(ABS(S_G_1-S_G_2)/(0.5_dp*(ABS(S_G_1)+ABS(S_G_2))+1.0_dp))
 
                   CPASSERT(max_error .LE. param%debug_delta)
@@ -191,15 +190,14 @@ CONTAINS
          alpha_R = 0.25_dp/alpha_G
 
          IF (exact) THEN
-            G_rad = exp_radius(la_max+lb_max, alpha_G, 0.01*lattice_sum_prec, 1.0_dp, epsin=G_res)
+            G_rad = exp_radius(l_max, alpha_G, 0.01*lattice_sum_prec, 1.0_dp, epsin=G_res)
          ELSE
-            G_rad = exp_radius(la_max+lb_max, alpha_G, lattice_sum_prec, 1.0_dp, epsin=G_res)
+            G_rad = exp_radius(l_max, alpha_G, lattice_sum_prec, 1.0_dp, epsin=G_res)
          ENDIF
-         R_rad = exp_radius(la_max+lb_max, alpha_R, lattice_sum_prec, 1.0_dp, epsin=R_res)
-         DO k = 1, 3
-            gbounds_curr(k) = FLOOR(G_rad/SQRT((ht(1, k)**2+ht(2, k)**2+ht(3, k)**2)))
-            rbounds_curr(k) = CEILING(R_rad/SQRT(hmat(1, k)**2+hmat(2, k)**2+hmat(3, k)**2))
-         ENDDO
+
+         R_rad = exp_radius(l_max, alpha_R, lattice_sum_prec, 1.0_dp, epsin=R_res)
+         gbounds_curr(:) = ellipsoid_bounds(G_rad, TRANSPOSE(hmat)/(2.0_dp*pi))
+         rbounds_curr(:) = ellipsoid_bounds(R_rad, h_inv)
 
          IF (exact) THEN
             do_g_sum = .TRUE.
@@ -208,22 +206,20 @@ CONTAINS
          ENDIF
 
          IF (do_g_sum) THEN
-            ALLOCATE (S_G_no(0:l_max, 0:l_max, 0:l_max))
+            ALLOCATE (S_G_no(ncoset(l_max)))
             IF (.NOT. exact .AND. PRESENT(G_count)) G_count = G_count+1
-            CALL pgf_sum_2c_gspace_3d(S_G_no, -rab, alpha_G, h_inv, -gbounds_curr, gbounds_curr, vol)
+            CALL pgf_sum_2c_gspace_3d(S_G_no, l_max, -rab, alpha_G, h_inv, gbounds_curr, vol)
          ELSE
-            ALLOCATE (S_R_no_H(0:l_max, 0:l_max, 0:l_max, n_aw))
-            ALLOCATE (S_R_no(0:l_max, 0:l_max, 0:l_max))
-            S_R_no(:, :, :) = 0.0_dp
+            ALLOCATE (S_R_no_H(ncoset(l_max), n_aw))
+            ALLOCATE (S_R_no(ncoset(l_max)))
+            S_R_no(:) = 0.0_dp
             IF (PRESENT(R_count)) R_count = R_count+1
             DO i_aw = 1, n_aw
                alpha_R = 1.0_dp/(4.0_dp*aw(i_aw)+1.0_dp/zeta+1.0_dp/zetb)
                R_rad = exp_radius(l_max, alpha_R, lattice_sum_prec, 1.0_dp, epsin=R_res)
-               DO k = 1, 3
-                  rbounds_curr(k) = CEILING(R_rad/SQRT(hmat(1, k)**2+hmat(2, k)**2+hmat(3, k)**2))
-               ENDDO
-               CALL pgf_sum_2c_rspace_3d(S_R_no_H(:, :, :, i_aw), -rab, alpha_R, hmat, -rbounds_curr, rbounds_curr)
-               S_R_no(:, :, :) = S_R_no(:, :, :)+aw(n_aw+i_aw)*S_R_no_H(:, :, :, i_aw)
+               rbounds_curr(:) = ellipsoid_bounds(R_rad, h_inv)
+               CALL pgf_sum_2c_rspace_3d(S_R_no_H(:, i_aw), l_max, -rab, alpha_R, hmat, rbounds_curr)
+               S_R_no(:) = S_R_no(:)+aw(n_aw+i_aw)*S_R_no_H(:, i_aw)
             ENDDO
          ENDIF
       ENDIF
@@ -255,9 +251,9 @@ CONTAINS
                ENDDO
             ELSE
                IF (do_g_sum) THEN
-                  Imm = S_G_no(ax+bx, ay+by, az+bz)*prefac**3
+                  Imm = S_G_no(coset(ax+bx, ay+by, az+bz))*prefac**3
                ELSE
-                  Imm = S_R_no(ax+bx, ay+by, az+bz)*prefac**3
+                  Imm = S_R_no(coset(ax+bx, ay+by, az+bz))*prefac**3
                ENDIF
             ENDIF
             IF ((la+lb .EQ. 0) .AND. (is_ortho .OR. .NOT. do_g_sum)) THEN
@@ -322,20 +318,22 @@ CONTAINS
          routineP = moduleN//':'//routineN
 
       INTEGER                                            :: ax, ay, az, bx, by, bz, cx, cy, cz, &
-                                                            G_bound_0, handle, i_aw, i_xyz, ico, &
-                                                            jco, kco, la, lb, lc, lmax_0, method, &
-                                                            n_aw, R_bound1_0, R_bound2_0
-      INTEGER, DIMENSION(3)                              :: la_xyz, lb_xyz, lc_xyz
+                                                            handle, i_aw, i_xyz, ico, jco, kco, &
+                                                            la, lb, lc, lmax_0, method, n_aw, &
+                                                            sum_method
+      INTEGER, DIMENSION(3)                              :: la_xyz, lb_xyz, lc_xyz, n_sum_3d
+      INTEGER, DIMENSION(3, 3)                           :: n_sum_1d
       LOGICAL                                            :: do_g_sum_0
-      REAL(KIND=dp) :: alpha_G_0, alpha_R_0, G_rad_0, G_res, Imm, Ixyz, Ixyz_0, lgth, max_error, &
-         max_result, min_result, prefac, R_0, R_rad_0, R_res, resc_a, resc_a_init, resc_b, &
-         resc_b_init, resc_c, resc_c_init, vol
+      REAL(KIND=dp) :: alpha_G_0, alpha_R_0, G_bound_0, G_rad_0, G_res, Imm, Ixyz, Ixyz_0, lgth, &
+         max_error, max_result, min_result, prefac, R_0, R_bound_0, R_rad_0, R_res, resc_a, &
+         resc_a_init, resc_b, resc_b_init, resc_c, resc_c_init, vol
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: S_G_0
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: S_G_1_1, S_G_1_2, S_G_1_3, S_G_2_1, &
                                                             S_G_2_2, S_G_2_3, S_G_3
       REAL(KIND=dp), ALLOCATABLE, &
          DIMENSION(:, :, :, :, :)                        :: S_G
-      REAL(KIND=dp), DIMENSION(3, 3)                     :: h_inv, hmat
+      REAL(KIND=dp), DIMENSION(2, 3)                     :: R_bounds_3
+      REAL(KIND=dp), DIMENSION(3, 3)                     :: G_bounds_1, h_inv, hmat, R_bounds_2
       REAL(KIND=dp), DIMENSION(7)                        :: results
       REAL(KIND=dp), DIMENSION(:), POINTER               :: aw
 
@@ -375,12 +373,18 @@ CONTAINS
 
       IF (param%is_ortho) THEN
          DO i_aw = 1, n_aw
+            CALL eri_mme_3c_get_bounds(hmat, h_inv, param%is_ortho, param%G_min, param%R_min, la_max, lb_max, lc_max, &
+                                       zeta, zetb, zetc, aw(i_aw), n_sum_1d, n_sum_3d, &
+                                       G_bounds_1, R_bounds_2, R_bounds_3)
             DO i_xyz = 1, 3
+
+               sum_method = MINLOC(n_sum_1d(:, i_xyz), DIM=1)
 
                lgth = ABS(hmat(i_xyz, i_xyz))
 
-               CALL pgf_sum_3c_1d(S_G(:, :, :, i_xyz, i_aw), param%G_min, param%R_min, RA(i_xyz), RB(i_xyz), RC(i_xyz), &
-                                  zeta, zetb, zetc, aw(i_aw), lgth, method_out=method)
+               CALL pgf_sum_3c_1d(S_G(:, :, :, i_xyz, i_aw), RA(i_xyz), RB(i_xyz), RC(i_xyz), &
+                                  zeta, zetb, zetc, aw(i_aw), lgth, &
+                                  G_bounds_1, R_bounds_2, R_bounds_3, method=sum_method, method_out=method)
 
                SELECT CASE (method)
                CASE (1)
@@ -395,21 +399,21 @@ CONTAINS
 
                IF (param%debug) THEN
                   ! check consistency of summation methods
-                  CALL pgf_sum_3c_1d(S_G_1_1(:, :, :), param%G_min, param%R_min, RA(i_xyz), RB(i_xyz), RC(i_xyz), &
-                                     zeta, zetb, zetc, aw(i_aw), lgth, method=1, order=1)
-                  CALL pgf_sum_3c_1d(S_G_1_2(:, :, :), param%G_min, param%R_min, RA(i_xyz), RB(i_xyz), RC(i_xyz), &
-                                     zeta, zetb, zetc, aw(i_aw), lgth, method=1, order=2)
-                  CALL pgf_sum_3c_1d(S_G_1_3(:, :, :), param%G_min, param%R_min, RA(i_xyz), RB(i_xyz), RC(i_xyz), &
-                                     zeta, zetb, zetc, aw(i_aw), lgth, method=1, order=3)
+                  CALL pgf_sum_3c_1d(S_G_1_1(:, :, :), RA(i_xyz), RB(i_xyz), RC(i_xyz), &
+                                     zeta, zetb, zetc, aw(i_aw), lgth, G_bounds_1, R_bounds_2, R_bounds_3, method=1, order=1)
+                  CALL pgf_sum_3c_1d(S_G_1_2(:, :, :), RA(i_xyz), RB(i_xyz), RC(i_xyz), &
+                                     zeta, zetb, zetc, aw(i_aw), lgth, G_bounds_1, R_bounds_2, R_bounds_3, method=1, order=2)
+                  CALL pgf_sum_3c_1d(S_G_1_3(:, :, :), RA(i_xyz), RB(i_xyz), RC(i_xyz), &
+                                     zeta, zetb, zetc, aw(i_aw), lgth, G_bounds_1, R_bounds_2, R_bounds_3, method=1, order=3)
 
-                  CALL pgf_sum_3c_1d(S_G_2_1(:, :, :), param%G_min, param%R_min, RA(i_xyz), RB(i_xyz), RC(i_xyz), &
-                                     zeta, zetb, zetc, aw(i_aw), lgth, method=2, order=1)
-                  CALL pgf_sum_3c_1d(S_G_2_2(:, :, :), param%G_min, param%R_min, RA(i_xyz), RB(i_xyz), RC(i_xyz), &
-                                     zeta, zetb, zetc, aw(i_aw), lgth, method=2, order=2)
-                  CALL pgf_sum_3c_1d(S_G_2_3(:, :, :), param%G_min, param%R_min, RA(i_xyz), RB(i_xyz), RC(i_xyz), &
-                                     zeta, zetb, zetc, aw(i_aw), lgth, method=2, order=3)
-                  CALL pgf_sum_3c_1d(S_G_3(:, :, :), param%G_min, param%R_min, RA(i_xyz), RB(i_xyz), RC(i_xyz), &
-                                     zeta, zetb, zetc, aw(i_aw), lgth, method=3)
+                  CALL pgf_sum_3c_1d(S_G_2_1(:, :, :), RA(i_xyz), RB(i_xyz), RC(i_xyz), &
+                                     zeta, zetb, zetc, aw(i_aw), lgth, G_bounds_1, R_bounds_2, R_bounds_3, method=2, order=1)
+                  CALL pgf_sum_3c_1d(S_G_2_2(:, :, :), RA(i_xyz), RB(i_xyz), RC(i_xyz), &
+                                     zeta, zetb, zetc, aw(i_aw), lgth, G_bounds_1, R_bounds_2, R_bounds_3, method=2, order=2)
+                  CALL pgf_sum_3c_1d(S_G_2_3(:, :, :), RA(i_xyz), RB(i_xyz), RC(i_xyz), &
+                                     zeta, zetb, zetc, aw(i_aw), lgth, G_bounds_1, R_bounds_2, R_bounds_3, method=2, order=3)
+                  CALL pgf_sum_3c_1d(S_G_3(:, :, :), RA(i_xyz), RB(i_xyz), RC(i_xyz), &
+                                     zeta, zetb, zetc, aw(i_aw), lgth, G_bounds_1, R_bounds_2, R_bounds_3, method=3)
                   max_error = 0.0_dp
                   DO la = 0, la_max
                      DO lb = 0, lb_max
@@ -436,14 +440,13 @@ CONTAINS
                   R_0 = RB(i_xyz)-RA(i_xyz)
                   G_rad_0 = exp_radius(lmax_0, alpha_G_0, lattice_sum_prec, 1.0_dp, epsin=G_res)
                   R_rad_0 = exp_radius(lmax_0, alpha_R_0, lattice_sum_prec, 1.0_dp, epsin=R_res)
-                  G_bound_0 = FLOOR(G_rad_0*lgth/twopi)
-                  R_bound1_0 = CEILING((-R_0-R_rad_0)/lgth)
-                  R_bound2_0 = FLOOR((-R_0+R_rad_0)/lgth)
-                  do_g_sum_0 = (2*G_bound_0+1) < R_bound2_0-R_bound1_0
+                  G_bound_0 = G_rad_0*lgth/twopi
+                  R_bound_0 = R_rad_0/lgth
+                  do_g_sum_0 = G_bound_0 < R_bound_0
                   IF (do_g_sum_0) THEN
-                     CALL pgf_sum_2c_gspace_1d(S_G_0(:, i_xyz), R_0, alpha_G_0, 1.0_dp/lgth, -G_bound_0, G_bound_0)
+                     CALL pgf_sum_2c_gspace_1d(S_G_0(:, i_xyz), R_0, alpha_G_0, 1.0_dp/lgth, G_bound_0)
                   ELSE
-                     CALL pgf_sum_2c_rspace_1d(S_G_0(:, i_xyz), R_0, alpha_R_0, lgth, R_bound1_0, R_bound2_0)
+                     CALL pgf_sum_2c_rspace_1d(S_G_0(:, i_xyz), R_0, alpha_R_0, lgth, R_bound_0)
                   ENDIF
                ENDIF
             ENDDO

@@ -152,7 +152,7 @@ CONTAINS
 
       CPASSERT(SIZE(zet_err_cutoff) .EQ. SIZE(l_err_cutoff))
 
-      CALL init_orbital_pointers(l_max)
+      CALL init_orbital_pointers(2*l_max) ! allow for orbital pointers of combined index
 
       ! l values for minimax error estimate (l_mm) and for cutoff error estimate (l_c)
       l_mm = MERGE(0, 1, s_only)
