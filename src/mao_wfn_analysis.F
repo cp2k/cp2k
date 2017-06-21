@@ -97,8 +97,8 @@ CONTAINS
                                                             orb_blk, row_blk_sizes
       LOGICAL                                            :: analyze_ua, explicit, fo, for, fos, &
                                                             found, neglect_abc, print_basis
-      REAL(KIND=dp) :: deltaq, electra(2), eps_ab, eps_abc, eps_filter, eps_fun, eps_grad, senabc, &
-         senmax, threshold, total_charge, total_spin, ua_charge(2), zeff
+      REAL(KIND=dp) :: deltaq, electra(2), eps_ab, eps_abc, eps_filter, eps_fun, eps_grad, epsx, &
+         senabc, senmax, threshold, total_charge, total_spin, ua_charge(2), zeff
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: occnumA, occnumABC, qab, qmatab, qmatac, &
                                                             qmatbc, raq, sab, selnABC, sinv, &
                                                             smatab, smatac, smatbc, uaq
@@ -249,7 +249,8 @@ CONTAINS
       DEALLOCATE (row_blk_sizes, col_blk_sizes)
 
       ! optimze MAOs
-      CALL mao_optimize(mao_coef, matrix_q, matrix_smm, electra, max_iter, eps_grad, unit_nr)
+      epsx = 1000.0_dp
+      CALL mao_optimize(mao_coef, matrix_q, matrix_smm, electra, max_iter, eps_grad, epsx, unit_nr)
 
       ! Analyze the MAO basis
       CALL mao_basis_analysis(mao_coef, matrix_smm, mao_basis_set_list, particle_set, &

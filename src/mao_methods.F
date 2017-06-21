@@ -31,10 +31,11 @@ MODULE mao_methods
                                               cp_fm_type
    USE cp_para_types,                   ONLY: cp_para_env_type
    USE dbcsr_api,                       ONLY: &
-        dbcsr_allocate_matrix_set, dbcsr_create, dbcsr_desymmetrize, dbcsr_get_block_p, &
-        dbcsr_get_info, dbcsr_iterator_blocks_left, dbcsr_iterator_next_block, &
+        dbcsr_allocate_matrix_set, dbcsr_create, dbcsr_desymmetrize, dbcsr_distribution_type, &
+        dbcsr_get_block_p, dbcsr_get_info, dbcsr_iterator_blocks_left, dbcsr_iterator_next_block, &
         dbcsr_iterator_start, dbcsr_iterator_stop, dbcsr_iterator_type, dbcsr_multiply, &
-        dbcsr_p_type, dbcsr_release, dbcsr_set, dbcsr_trace, dbcsr_type, dbcsr_type_no_symmetry
+        dbcsr_p_type, dbcsr_release, dbcsr_reserve_diag_blocks, dbcsr_set, dbcsr_trace, &
+        dbcsr_type, dbcsr_type_no_symmetry
    USE input_constants,                 ONLY: mao_basis_ext,&
                                               mao_basis_orb,&
                                               mao_basis_prim
@@ -60,6 +61,12 @@ MODULE mao_methods
 
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'mao_methods'
 
+   TYPE mblocks
+      INTEGER                                        :: n, ma
+      REAL(KIND=dp), DIMENSION(:, :), POINTER         :: mat
+      REAL(KIND=dp), DIMENSION(:), POINTER           :: eig
+   END TYPE mblocks
+
    PUBLIC ::  mao_initialization, mao_function, mao_function_gradient, mao_orthogonalization, &
              mao_project_gradient, mao_scalar_product, mao_build_q, mao_basis_analysis, &
              mao_reference_basis, calculate_p_gamma
@@ -73,19 +80,31 @@ CONTAINS
 !> \param mao_coef ...
 !> \param pmat ...
 !> \param smat ...
+!> \param eps1 ...
 ! **************************************************************************************************
-   SUBROUTINE mao_initialization(mao_coef, pmat, smat)
+   SUBROUTINE mao_initialization(mao_coef, pmat, smat, eps1)
       TYPE(dbcsr_type)                                   :: mao_coef, pmat, smat
+      REAL(KIND=dp), INTENT(IN)                          :: eps1
 
       CHARACTER(len=*), PARAMETER :: routineN = 'mao_initialization', &
          routineP = moduleN//':'//routineN
 
-      INTEGER                                            :: iatom, info, jatom, lwork, m, n
+      INTEGER                                            :: group, i, iatom, info, jatom, lwork, m, &
+                                                            n, nblk
+      INTEGER, DIMENSION(:), POINTER                     :: mao_blk, row_blk, row_blk_sizes
       LOGICAL                                            :: found
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: w, work
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: amat, bmat
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: cblock, pblock, sblock
+      TYPE(dbcsr_distribution_type)                      :: dbcsr_dist
       TYPE(dbcsr_iterator_type)                          :: dbcsr_iter
+      TYPE(mblocks), ALLOCATABLE, DIMENSION(:)           :: mbl
+
+      CALL dbcsr_get_info(mao_coef, nblkrows_total=nblk)
+      ALLOCATE (mbl(nblk))
+      DO i = 1, nblk
+         NULLIFY (mbl(i)%mat, mbl(i)%eig)
+      END DO
 
       CALL dbcsr_iterator_start(dbcsr_iter, mao_coef)
       DO WHILE (dbcsr_iterator_blocks_left(dbcsr_iter))
@@ -105,12 +124,69 @@ CONTAINS
          info = 0
          CALL lapack_ssygv(1, "V", "U", n, amat, n, bmat, n, w, work, lwork, info)
          CPASSERT(info == 0)
+         ALLOCATE (mbl(iatom)%mat(n, n), mbl(iatom)%eig(n))
+         mbl(iatom)%n = n
+         mbl(iatom)%ma = m
+         DO i = 1, n
+            mbl(iatom)%eig(i) = w(n-i+1)
+            mbl(iatom)%mat(1:n, i) = amat(1:n, n-i+1)
+         END DO
          cblock(1:n, 1:m) = amat(1:n, n:n-m+1:-1)
          DEALLOCATE (amat, bmat, w, work)
       END DO
       CALL dbcsr_iterator_stop(dbcsr_iter)
 
+      IF (eps1 < 10.0_dp) THEN
+         CALL dbcsr_get_info(mao_coef, row_blk_size=row_blk_sizes, group=group)
+         ALLOCATE (row_blk(nblk), mao_blk(nblk))
+         mao_blk = 0
+         row_blk = row_blk_sizes
+         DO iatom = 1, nblk
+            IF (ASSOCIATED(mbl(iatom)%mat)) THEN
+               n = mbl(iatom)%n
+               m = 0
+               DO i = 1, n
+                  IF (mbl(iatom)%eig(i) < eps1) EXIT
+                  m = i
+               END DO
+               m = MAX(m, mbl(iatom)%ma)
+               mbl(iatom)%ma = m
+               mao_blk(iatom) = m
+            END IF
+         END DO
+         CALL mp_sum(mao_blk, group)
+         CALL dbcsr_get_info(mao_coef, distribution=dbcsr_dist)
+         CALL dbcsr_release(mao_coef)
+         CALL dbcsr_create(mao_coef, name="MAO_COEF", dist=dbcsr_dist, &
+                           matrix_type=dbcsr_type_no_symmetry, row_blk_size=row_blk, &
+                           col_blk_size=mao_blk, nze=0)
+         CALL dbcsr_reserve_diag_blocks(matrix=mao_coef)
+         DEALLOCATE (mao_blk, row_blk)
+         !
+         CALL dbcsr_iterator_start(dbcsr_iter, mao_coef)
+         DO WHILE (dbcsr_iterator_blocks_left(dbcsr_iter))
+            CALL dbcsr_iterator_next_block(dbcsr_iter, iatom, jatom, cblock)
+            CPASSERT(iatom == jatom)
+            n = SIZE(cblock, 1)
+            m = SIZE(cblock, 2)
+            CPASSERT(n == mbl(iatom)%n .AND. m == mbl(iatom)%ma)
+            cblock(1:n, 1:m) = mbl(iatom)%mat(1:n, 1:m)
+         END DO
+         CALL dbcsr_iterator_stop(dbcsr_iter)
+         !
+      END IF
+
       CALL mao_orthogonalization(mao_coef, smat)
+
+      DO i = 1, nblk
+         IF (ASSOCIATED(mbl(i)%mat)) THEN
+            DEALLOCATE (mbl(i)%mat)
+         END IF
+         IF (ASSOCIATED(mbl(i)%eig)) THEN
+            DEALLOCATE (mbl(i)%eig)
+         END IF
+      END DO
+      DEALLOCATE (mbl)
 
    END SUBROUTINE mao_initialization
 

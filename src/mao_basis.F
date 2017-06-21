@@ -63,10 +63,12 @@ CONTAINS
 !> \param max_iter ...
 !> \param eps_grad ...
 !> \param nmao_external ...
+!> \param eps1_mao ...
 !> \param unit_nr ...
 ! **************************************************************************************************
    SUBROUTINE mao_generate_basis(qs_env, mao_coef, ref_basis_set, pmat_external, smat_external, &
-                                 molecular, max_iter, eps_grad, nmao_external, unit_nr)
+                                 molecular, max_iter, eps_grad, nmao_external, &
+                                 eps1_mao, unit_nr)
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: mao_coef
       CHARACTER(len=*), OPTIONAL                         :: ref_basis_set
@@ -76,6 +78,7 @@ CONTAINS
       INTEGER, INTENT(IN), OPTIONAL                      :: max_iter
       REAL(KIND=dp), INTENT(IN), OPTIONAL                :: eps_grad
       INTEGER, DIMENSION(:), INTENT(IN), OPTIONAL        :: nmao_external
+      REAL(KIND=dp), INTENT(IN), OPTIONAL                :: eps1_mao
       INTEGER, INTENT(IN), OPTIONAL                      :: unit_nr
 
       CHARACTER(len=*), PARAMETER :: routineN = 'mao_generate_basis', &
@@ -87,7 +90,7 @@ CONTAINS
                                                             nkind, nmao, nspin
       INTEGER, DIMENSION(:), POINTER                     :: col_blk_sizes, row_blk_sizes
       LOGICAL                                            :: do_nmao_external, molecule
-      REAL(KIND=dp)                                      :: electra(2), eps_filter, eps_fun, &
+      REAL(KIND=dp)                                      :: electra(2), eps1, eps_filter, eps_fun, &
                                                             mao_eps_grad
       TYPE(dbcsr_distribution_type), POINTER             :: dbcsr_dist
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_q, matrix_smm, matrix_smo
@@ -145,6 +148,13 @@ CONTAINS
          do_nmao_external = .TRUE.
       END IF
 
+      ! mao_threshold
+      IF (PRESENT(eps1_mao)) THEN
+         eps1 = eps1_mao
+      ELSE
+         eps1 = 1000._dp
+      END IF
+
       IF (iw > 0) THEN
          WRITE (iw, '(/,T2,A)') '!-----------------------------------------------------------------------------!'
          WRITE (UNIT=iw, FMT="(T37,A)") "MAO BASIS"
@@ -157,6 +167,7 @@ CONTAINS
       ELSE
          mao_basis_set = "ORB"
       END IF
+
       CALL get_qs_env(qs_env=qs_env, qs_kind_set=qs_kind_set)
       nkind = SIZE(qs_kind_set)
       ALLOCATE (mao_basis_set_list(nkind), orb_basis_set_list(nkind))
@@ -254,7 +265,7 @@ CONTAINS
       DEALLOCATE (row_blk_sizes, col_blk_sizes)
 
       ! optimize MAOs
-      CALL mao_optimize(mao_coef, matrix_q, matrix_smm, electra, mao_max_iter, mao_eps_grad, iw)
+      CALL mao_optimize(mao_coef, matrix_q, matrix_smm, electra, mao_max_iter, mao_eps_grad, eps1, iw)
 
       ! Deallocate the neighbor list structure
       IF (ASSOCIATED(smm_list)) THEN
