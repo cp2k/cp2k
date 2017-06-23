@@ -30,8 +30,7 @@ MODULE mc_moves
                                               use_fist_force
    USE global_types,                    ONLY: global_environment_type
    USE kinds,                           ONLY: default_string_length,&
-                                              dp,&
-                                              dp_size
+                                              dp
    USE mathconstants,                   ONLY: pi
    USE mc_coordinates,                  ONLY: check_for_overlap,&
                                               cluster_search,&
@@ -56,7 +55,6 @@ MODULE mc_moves
                                               rng_stream_type
    USE particle_list_types,             ONLY: particle_list_type
    USE physcon,                         ONLY: angstrom
-   USE termination,                     ONLY: stop_memory
 #include "../../base/base_uses.f90"
 
    IMPLICIT NONE
@@ -154,8 +152,8 @@ CONTAINS
       CHARACTER(default_string_length)                   :: name
       CHARACTER(default_string_length), DIMENSION(:), &
          POINTER                                         :: names
-      INTEGER :: atom_number, end_atom, end_mol, group, handle, imol_type, imolecule, ipart, &
-         istat, jbox, molecule_number, nunits_mol, source, start_mol
+      INTEGER :: atom_number, end_atom, end_mol, group, handle, imol_type, imolecule, ipart, jbox, &
+         molecule_number, nunits_mol, source, start_mol
       INTEGER, DIMENSION(:), POINTER                     :: mol_type, nunits
       INTEGER, DIMENSION(:, :), POINTER                  :: nchains
       LOGICAL                                            :: ionode, lbias, loverlap
@@ -186,12 +184,8 @@ CONTAINS
 
 ! do some allocation
       nunits_mol = nunits(molecule_type)
-      ALLOCATE (r_old(1:3, 1:nunits_mol), STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routineN, moduleN, __LINE__, &
-                                       "r", 3*nunits_mol*dp_size)
-      ALLOCATE (r_new(1:3, 1:nunits_mol), STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routineN, moduleN, __LINE__, &
-                                       "r_new", 3*nunits_mol*dp_size)
+      ALLOCATE (r_old(1:3, 1:nunits_mol))
+      ALLOCATE (r_new(1:3, 1:nunits_mol))
 
 ! find out some bounds for mol_type
       start_mol = 1
@@ -451,8 +445,8 @@ CONTAINS
       CHARACTER(len=*), PARAMETER :: routineN = 'mc_molecule_translation', &
          routineP = moduleN//':'//routineN
 
-      INTEGER :: atom_number, end_atom, end_mol, group, handle, imolecule, ipart, iparticle, &
-         istat, jbox, molecule_number, move_direction, nunits_mol, source, start_mol
+      INTEGER :: atom_number, end_atom, end_mol, group, handle, imolecule, ipart, iparticle, jbox, &
+         molecule_number, move_direction, nunits_mol, source, start_mol
       INTEGER, DIMENSION(:), POINTER                     :: mol_type, nunits, nunits_tot
       INTEGER, DIMENSION(:, :), POINTER                  :: nchains
       LOGICAL                                            :: ionode, lbias, loverlap
@@ -489,9 +483,7 @@ CONTAINS
       end_mol = start_mol+SUM(nchains(:, box_number))-1
 
 ! do some allocation
-      ALLOCATE (r_old(1:3, 1:nunits_tot(box_number)), STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routineN, moduleN, __LINE__, &
-                                       "r", 3*nunits_tot(box_number)*dp_size)
+      ALLOCATE (r_old(1:3, 1:nunits_tot(box_number)))
 
 ! find the index of the last atom of this molecule, and the molecule number
       nunits_mol = nunits(molecule_type)
@@ -676,8 +668,8 @@ CONTAINS
       CHARACTER(len=*), PARAMETER :: routineN = 'mc_molecule_rotation', &
          routineP = moduleN//':'//routineN
 
-      INTEGER :: atom_number, dir, end_atom, end_mol, group, handle, ii, imolecule, ipart, istat, &
-         iunit, jbox, molecule_number, nunits_mol, source, start_mol
+      INTEGER :: atom_number, dir, end_atom, end_mol, group, handle, ii, imolecule, ipart, iunit, &
+         jbox, molecule_number, nunits_mol, source, start_mol
       INTEGER, DIMENSION(:), POINTER                     :: mol_type, nunits, nunits_tot
       INTEGER, DIMENSION(:, :), POINTER                  :: nchains
       LOGICAL                                            :: ionode, lbias, loverlap, lx, ly
@@ -719,9 +711,7 @@ CONTAINS
       NULLIFY (particles, subsys)
 
 ! do some allocation
-      ALLOCATE (r_old(1:3, 1:nunits_tot(box_number)), STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routineN, moduleN, __LINE__, &
-                                       "r", 3*nunits_tot(box_number)*dp_size)
+      ALLOCATE (r_old(1:3, 1:nunits_tot(box_number)))
 
 ! initialize some stuff
       lx = .FALSE.
@@ -985,8 +975,8 @@ CONTAINS
       CHARACTER(LEN=200)                                 :: fft_lib
       CHARACTER(LEN=40)                                  :: dat_file
       INTEGER :: cl, end_atom, end_mol, group, handle, iatom, idim, imolecule, iside, &
-         iside_change, istat, iunit, jbox, nunits_mol, output_unit, print_level, source, &
-         start_atom, start_mol
+         iside_change, iunit, jbox, nunits_mol, output_unit, print_level, source, start_atom, &
+         start_mol
       INTEGER, DIMENSION(:), POINTER                     :: mol_type, nunits, nunits_tot
       INTEGER, DIMENSION(:, :), POINTER                  :: nchains
       LOGICAL                                            :: ionode, ldiscrete, lincrease, loverlap, &
@@ -1031,9 +1021,7 @@ CONTAINS
       NULLIFY (particles_old, cell_old, oldsys, cell_test, cell)
 
 ! do some allocation
-      ALLOCATE (r(1:3, 1:nunits_tot(box_number)), STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routineN, moduleN, __LINE__, &
-                                       "r", 3*nunits_tot(box_number)*dp_size)
+      ALLOCATE (r(1:3, 1:nunits_tot(box_number)))
 
 ! record the attempt
       moves%volume%attempts = moves%volume%attempts+1
@@ -1329,8 +1317,7 @@ CONTAINS
          routineP = moduleN//':'//routineN
 
       INTEGER                                            :: bond_number, group, handle, i, iatom, &
-                                                            ibond, ipart, istat, natom, nbond, &
-                                                            source
+                                                            ibond, ipart, natom, nbond, source
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: atom_a, atom_b, counter
       INTEGER, ALLOCATABLE, DIMENSION(:, :)              :: connection, connectivity
       INTEGER, DIMENSION(:), POINTER                     :: nunits
@@ -1367,22 +1354,12 @@ CONTAINS
                              bond_list=bond_list)
       bond_number = CEILING(rand*REAL(nbond, dp))
 
-      ALLOCATE (connection(1:natom, 1:2), STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routineN, moduleN, __LINE__, &
-                                       "connection", 2*natom*dp_size)
+      ALLOCATE (connection(1:natom, 1:2))
 ! assume at most six bonds per atom
-      ALLOCATE (connectivity(1:6, 1:natom), STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routineN, moduleN, __LINE__, &
-                                       "connectivity", 6*natom*dp_size)
-      ALLOCATE (counter(1:natom), STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routineN, moduleN, __LINE__, &
-                                       "counter", natom)
-      ALLOCATE (atom_a(1:natom), STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routineN, moduleN, __LINE__, &
-                                       "atom_a", natom)
-      ALLOCATE (atom_b(1:natom), STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routineN, moduleN, __LINE__, &
-                                       "atom_b", natom)
+      ALLOCATE (connectivity(1:6, 1:natom))
+      ALLOCATE (counter(1:natom))
+      ALLOCATE (atom_a(1:natom))
+      ALLOCATE (atom_b(1:natom))
       connection(:, :) = 0
       connectivity(:, :) = 0
       counter(:) = 0
@@ -1507,8 +1484,8 @@ CONTAINS
          routineP = moduleN//':'//routineN
 
       INTEGER                                            :: bend_number, group, handle, i, iatom, &
-                                                            ibond, ipart, istat, natom, nbend, &
-                                                            nbond, source
+                                                            ibond, ipart, natom, nbend, nbond, &
+                                                            source
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: atom_a, atom_c, counter
       INTEGER, ALLOCATABLE, DIMENSION(:, :)              :: connection, connectivity
       INTEGER, DIMENSION(:), POINTER                     :: nunits
@@ -1547,22 +1524,12 @@ CONTAINS
                              bend_list=bend_list, bond_list=bond_list, nbond=nbond)
       bend_number = CEILING(rand*REAL(nbend, dp))
 
-      ALLOCATE (connection(1:natom, 1:2), STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routineN, moduleN, __LINE__, &
-                                       "connection", 2*natom*dp_size)
+      ALLOCATE (connection(1:natom, 1:2))
 ! assume at most six bonds per atom
-      ALLOCATE (connectivity(1:6, 1:natom), STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routineN, moduleN, __LINE__, &
-                                       "connectivity", 6*natom*dp_size)
-      ALLOCATE (counter(1:natom), STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routineN, moduleN, __LINE__, &
-                                       "counter", natom)
-      ALLOCATE (atom_a(1:natom), STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routineN, moduleN, __LINE__, &
-                                       "atom_a", natom)
-      ALLOCATE (atom_c(1:natom), STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routineN, moduleN, __LINE__, &
-                                       "atom_c", natom)
+      ALLOCATE (connectivity(1:6, 1:natom))
+      ALLOCATE (counter(1:natom))
+      ALLOCATE (atom_a(1:natom))
+      ALLOCATE (atom_c(1:natom))
       connection(:, :) = 0
       connectivity(:, :) = 0
       counter(:) = 0
@@ -1777,7 +1744,7 @@ CONTAINS
          routineP = moduleN//':'//routineN
 
       INTEGER                                            :: group, handle, i, iatom, ibond, ipart, &
-                                                            istat, natom, nbond, ntorsion, source, &
+                                                            natom, nbond, ntorsion, source, &
                                                             torsion_number
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: atom_a, atom_d, counter
       INTEGER, ALLOCATABLE, DIMENSION(:, :)              :: connection, connectivity
@@ -1820,22 +1787,12 @@ CONTAINS
                              ntorsion=ntorsion, torsion_list=torsion_list)
       torsion_number = CEILING(rand*REAL(ntorsion, dp))
 
-      ALLOCATE (connection(1:natom, 1:2), STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routineN, moduleN, __LINE__, &
-                                       "connection", 2*natom*dp_size)
+      ALLOCATE (connection(1:natom, 1:2))
 ! assume at most six bonds per atom
-      ALLOCATE (connectivity(1:6, 1:natom), STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routineN, moduleN, __LINE__, &
-                                       "connectivity", 6*natom*dp_size)
-      ALLOCATE (counter(1:natom), STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routineN, moduleN, __LINE__, &
-                                       "counter", natom)
-      ALLOCATE (atom_a(1:natom), STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routineN, moduleN, __LINE__, &
-                                       "atom_a", natom)
-      ALLOCATE (atom_d(1:natom), STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routineN, moduleN, __LINE__, &
-                                       "atom_d", natom)
+      ALLOCATE (connectivity(1:6, 1:natom))
+      ALLOCATE (counter(1:natom))
+      ALLOCATE (atom_a(1:natom))
+      ALLOCATE (atom_d(1:natom))
       connection(:, :) = 0
       connectivity(:, :) = 0
       counter(:) = 0
@@ -2006,9 +1963,8 @@ CONTAINS
 
       CHARACTER(len=*), PARAMETER :: routineN = 'mc_avbmc_move', routineP = moduleN//':'//routineN
 
-      INTEGER                                            :: end_mol, group, handle, ipart, istat, &
-                                                            jbox, natom, nswapmoves, source, &
-                                                            start_mol
+      INTEGER                                            :: end_mol, group, handle, ipart, jbox, &
+                                                            natom, nswapmoves, source, start_mol
       INTEGER, DIMENSION(:), POINTER                     :: avbmc_atom, mol_type, nunits, nunits_tot
       INTEGER, DIMENSION(:, :), POINTER                  :: nchains
       LOGICAL                                            :: ionode, lbias, ldum, lin, loverlap
@@ -2052,9 +2008,7 @@ CONTAINS
                particles_force, subsys_force)
 
 ! do some allocation
-      ALLOCATE (r_new(1:3, 1:nunits_tot(box_number)), STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routineN, moduleN, __LINE__, &
-                                       "r_new", 3*nunits_tot(box_number)*dp_size)
+      ALLOCATE (r_new(1:3, 1:nunits_tot(box_number)))
 
 ! now we need to grab and save coordinates, in case we reject
 ! are we biasing this move?
@@ -2405,7 +2359,7 @@ CONTAINS
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'mc_hmc_move', routineP = moduleN//':'//routineN
 
-      INTEGER                                            :: group, handle, iatom, istat, source
+      INTEGER                                            :: group, handle, iatom, source
       INTEGER, DIMENSION(:), POINTER                     :: nunits_tot
       LOGICAL                                            :: ionode
       REAL(KIND=dp)                                      :: BETA, energy_term, exp_max_val, &
@@ -2431,9 +2385,7 @@ CONTAINS
       NULLIFY (particles_old, oldsys, hmc_ekin)
 
 ! do some allocation
-      ALLOCATE (r(1:3, 1:nunits_tot(box_number)), STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routineN, moduleN, __LINE__, &
-                                       "r", 3*nunits_tot(box_number)*dp_size)
+      ALLOCATE (r(1:3, 1:nunits_tot(box_number)))
       ALLOCATE (hmc_ekin)
 
 ! record the attempt
@@ -2543,8 +2495,8 @@ CONTAINS
       CHARACTER(len=*), PARAMETER :: routineN = 'mc_cluster_translation', &
          routineP = moduleN//':'//routineN
 
-      INTEGER :: cstart, end_mol, group, handle, imol, ipart, iparticle, istat, iunit, jbox, &
-         jpart, junit, move_direction, nend, nunit, source, start_mol, total_clus, total_clusafmo
+      INTEGER :: cstart, end_mol, group, handle, imol, ipart, iparticle, iunit, jbox, jpart, &
+         junit, move_direction, nend, nunit, source, start_mol, total_clus, total_clusafmo
       INTEGER, ALLOCATABLE, DIMENSION(:, :)              :: cluster
       INTEGER, DIMENSION(:), POINTER                     :: mol_type, nunits, nunits_tot
       INTEGER, DIMENSION(:, :), POINTER                  :: nchains
@@ -2581,13 +2533,11 @@ CONTAINS
       end_mol = start_mol+SUM(nchains(:, box_number))-1
 
 ! do some allocation
-      ALLOCATE (r_old(1:3, 1:nunits_tot(box_number)), STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routineN, moduleN, __LINE__, &
-                                       "r", 3*nunits_tot(box_number)*dp_size)
+      ALLOCATE (r_old(1:3, 1:nunits_tot(box_number)))
 
 ! Allocating cluster matrix size
       nend = SUM(nchains(:, box_number))
-      ALLOCATE (cluster(nend, nend), STAT=istat)
+      ALLOCATE (cluster(nend, nend))
       DO ipart = 1, nend
          DO jpart = 1, nend
             cluster(ipart, jpart) = 0

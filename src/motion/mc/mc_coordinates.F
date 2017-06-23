@@ -16,8 +16,7 @@ MODULE mc_coordinates
    USE force_env_methods,               ONLY: force_env_calc_energy_force
    USE force_env_types,                 ONLY: force_env_get,&
                                               force_env_type
-   USE kinds,                           ONLY: dp,&
-                                              dp_size
+   USE kinds,                           ONLY: dp
    USE mathconstants,                   ONLY: pi
    USE mc_types,                        ONLY: get_mc_molecule_info,&
                                               get_mc_par,&
@@ -29,7 +28,6 @@ MODULE mc_coordinates
                                               rng_stream_type
    USE particle_list_types,             ONLY: particle_list_type
    USE physcon,                         ONLY: angstrom
-   USE termination,                     ONLY: stop_memory
 #include "../../base/base_uses.f90"
 
    IMPLICIT NONE
@@ -79,9 +77,9 @@ CONTAINS
       CHARACTER(len=*), PARAMETER :: routineN = 'check_for_overlap', &
          routineP = moduleN//':'//routineN
 
-      INTEGER                                            :: handle, imol, istat, iunit, jmol, &
-                                                            jstart, junit, nend, nstart, nunit, &
-                                                            nunits_i, nunits_j
+      INTEGER                                            :: handle, imol, iunit, jmol, jstart, &
+                                                            junit, nend, nstart, nunit, nunits_i, &
+                                                            nunits_j
       LOGICAL                                            :: lall
       REAL(KIND=dp)                                      :: dist, rmin
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: r
@@ -105,9 +103,7 @@ CONTAINS
       CALL get_cell(cell, abc=abc)
       CALL cp_subsys_get(oldsys, particles=particles)
 
-      ALLOCATE (r(1:3, 1:MAXVAL(nunits), 1:SUM(nchains)), STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routineN, moduleN, __LINE__, &
-                                       "mass", 3*MAXVAL(nunits)*SUM(nchains)*dp_size)
+      ALLOCATE (r(1:3, 1:MAXVAL(nunits), 1:SUM(nchains)))
 
       IF (PRESENT(cell_length)) THEN
          box_length(1:3) = cell_length(1:3)
@@ -359,7 +355,7 @@ CONTAINS
          routineP = moduleN//':'//routineN
 
       INTEGER                                            :: atom_number, choosen, end_atom, handle, &
-                                                            i, iatom, imolecule, imove, istat, &
+                                                            i, iatom, imolecule, imove, &
                                                             molecule_number
       LOGICAL                                            :: all_overlaps
       LOGICAL, ALLOCATABLE, DIMENSION(:)                 :: loverlap_array
@@ -391,21 +387,11 @@ CONTAINS
          ENDIF
       ENDIF
 
-      ALLOCATE (r_old(1:3, 1:natoms_tot), STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routineN, moduleN, __LINE__, &
-                                       "r_old", 3*natoms_tot*dp_size)
-      ALLOCATE (r(1:3, 1:natoms_tot, 1:nswapmoves), STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routineN, moduleN, __LINE__, &
-                                       "r", 3*natoms_tot*nswapmoves*dp_size)
-      ALLOCATE (trial_energy(1:nswapmoves), STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routineN, moduleN, __LINE__, &
-                                       "trial_energy", nswapmoves*dp_size)
-      ALLOCATE (boltz_weights(1:nswapmoves), STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routineN, moduleN, __LINE__, &
-                                       "boltz_weights", nswapmoves*dp_size)
-      ALLOCATE (loverlap_array(1:nswapmoves), STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routineN, moduleN, __LINE__, &
-                                       "loverlap_array", nswapmoves)
+      ALLOCATE (r_old(1:3, 1:natoms_tot))
+      ALLOCATE (r(1:3, 1:natoms_tot, 1:nswapmoves))
+      ALLOCATE (trial_energy(1:nswapmoves))
+      ALLOCATE (boltz_weights(1:nswapmoves))
+      ALLOCATE (loverlap_array(1:nswapmoves))
 
 ! initialize the arrays that need it
       loverlap_array(:) = .FALSE.
@@ -1038,9 +1024,9 @@ CONTAINS
 
       CHARACTER(len=*), PARAMETER :: routineN = 'cluster_search', routineP = moduleN//':'//routineN
 
-      INTEGER                                            :: counter, handle, imol, istat, iunit, &
-                                                            jmol, junit, nend, nstart, nunit, &
-                                                            nunits_i, nunits_j
+      INTEGER                                            :: counter, handle, imol, iunit, jmol, &
+                                                            junit, nend, nstart, nunit, nunits_i, &
+                                                            nunits_j
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: clusmat, decision
       LOGICAL                                            :: lclus
       REAL(KIND=dp)                                      :: dx, dy, dz, rclus, rclussquare, rsquare
@@ -1064,9 +1050,7 @@ CONTAINS
       CALL cp_subsys_get(oldsys, particles=particles)
       CALL get_mc_par(mc_par, rclus=rclus)
 
-      ALLOCATE (r(1:3, 1:MAXVAL(nunits), 1:SUM(nchains)), STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routineN, moduleN, __LINE__, &
-                                       "mass", 3*MAXVAL(nunits)*SUM(nchains)*dp_size)
+      ALLOCATE (r(1:3, 1:MAXVAL(nunits), 1:SUM(nchains)))
 
 ! Arranging particles coordinates into an easier matrix
       nend = SUM(nchains(:))
@@ -1082,7 +1066,7 @@ CONTAINS
       counter = 0
 
 ! Allocating the size of matrix and decison matrix
-      ALLOCATE (clusmat(nend), decision(nend), STAT=istat)
+      ALLOCATE (clusmat(nend), decision(nend))
 
 !Initialize
       DO imol = 1, nend
@@ -1106,7 +1090,7 @@ CONTAINS
             DO imol = 1, nend
                nunits_i = nunits(mol_type(imol))
 ! Allocating the xcoord,ycoord,zcoord based upon the size of molecule nunits
-               ALLOCATE (xcoord(nunits_i), ycoord(nunits_i), zcoord(nunits_i), STAT=istat)
+               ALLOCATE (xcoord(nunits_i), ycoord(nunits_i), zcoord(nunits_i))
                lclus = .FALSE.
                IF (clusmat(imol) .EQ. counter .AND. decision(imol) .EQ. 0) THEN
                   decision(imol) = 1
