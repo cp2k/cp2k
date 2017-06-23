@@ -369,8 +369,8 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: iw
 
       CHARACTER(20)                                      :: ensemble
-      INTEGER                                            :: iprint, iuptrans, iupvolume, nmoves, &
-                                                            nstep, nswapmoves
+      INTEGER                                            :: iprint, iupcltrans, iuptrans, iupvolume, &
+                                                            nmoves, nstep, nswapmoves
       INTEGER, DIMENSION(:), POINTER                     :: avbmc_atom
       LOGICAL                                            :: lbias, lrestart, lstop
       REAL(dp)                                           :: BETA, pmswap, pmtraion, pmtrans, &
@@ -382,7 +382,7 @@ CONTAINS
       IF (iw > 0) THEN
          WRITE (iw, '( A,A )') 'Ignoring some input for box 2, and ', &
             'using the values for box 1 for the following variables:'
-         WRITE (iw, '( A,A )') 'nstep,iupvolume,iuptrans,nmoves,', &
+         WRITE (iw, '( A,A )') 'nstep,iupvolume,iuptrans,iupcltrans,nmoves,', &
             'nswapmoves,iprint,lbias,lstop,temperature,pressure'
          WRITE (iw, '( A,A )') 'pmvolume,pmtraion,pmtrans,BETA,rcut,', &
             'lrestart'
@@ -391,7 +391,7 @@ CONTAINS
          WRITE (iw, '( A,A )') 'avbmc_rmin,avmbc_rmax,pmavbmc_mol,pbias,pmswap'
       ENDIF
 
-      CALL get_mc_par(mc_par(1)%mc_par, nstep=nstep, iupvolume=iupvolume, &
+      CALL get_mc_par(mc_par(1)%mc_par, nstep=nstep, iupvolume=iupvolume, iupcltrans=iupcltrans, &
                       iuptrans=iuptrans, nmoves=nmoves, nswapmoves=nswapmoves, &
                       iprint=iprint, lbias=lbias, lstop=lstop, temperature=temperature, &
                       pressure=pressure, pmswap=pmswap, pmvolume=pmvolume, &
@@ -400,7 +400,7 @@ CONTAINS
                       pmrot_mol=pmrot_mol, pmswap_mol=pmswap_mol, avbmc_atom=avbmc_atom, &
                       avbmc_rmin=avbmc_rmin, avbmc_rmax=avbmc_rmax, pmavbmc_mol=pmavbmc_mol, &
                       pbias=pbias, ensemble=ensemble)
-      CALL set_mc_par(mc_par(2)%mc_par, nstep=nstep, iupvolume=iupvolume, &
+      CALL set_mc_par(mc_par(2)%mc_par, nstep=nstep, iupvolume=iupvolume, iupcltrans=iupcltrans, &
                       iuptrans=iuptrans, nmoves=nmoves, nswapmoves=nswapmoves, &
                       iprint=iprint, lbias=lbias, lstop=lstop, temperature=temperature, &
                       pressure=pressure, pmswap=pmswap, pmvolume=pmvolume, &

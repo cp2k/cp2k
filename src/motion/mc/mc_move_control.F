@@ -73,6 +73,9 @@ CONTAINS
       ALLOCATE (moves%trans,stat=stat)
       IF (stat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                                      "moves%trans",0)
+      ALLOCATE (moves%cltrans,stat=stat)
+      IF (stat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
+                                     "moves%cltrans",0)
       ALLOCATE (moves%rot,stat=stat)
       IF (stat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                                      "moves%rot",0)
@@ -88,6 +91,9 @@ CONTAINS
       ALLOCATE (moves%bias_trans,stat=stat)
       IF (stat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                                      "moves%bias_trans",0)
+      ALLOCATE (moves%bias_cltrans,stat=stat)
+      IF (stat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
+                                     "moves%bias_cltrans",0)
       ALLOCATE (moves%bias_rot,stat=stat)
       IF (stat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                                      "moves%bias_rot",0)
@@ -128,6 +134,9 @@ CONTAINS
       moves%bias_trans%attempts=0
       moves%bias_trans%successes=0
       moves%bias_trans%qsuccesses=0
+      moves%bias_cltrans%attempts=0
+      moves%bias_cltrans%successes=0
+      moves%bias_cltrans%qsuccesses=0
       moves%bias_rot%attempts=0
       moves%bias_rot%successes=0
       moves%bias_rot%qsuccesses=0
@@ -144,6 +153,9 @@ CONTAINS
       moves%trans%attempts=0
       moves%trans%successes=0
       moves%trans%qsuccesses=0
+      moves%cltrans%attempts=0
+      moves%cltrans%successes=0
+      moves%cltrans%qsuccesses=0
       moves%rot%attempts=0
       moves%rot%successes=0
       moves%rot%qsuccesses=0
@@ -173,6 +185,8 @@ CONTAINS
       moves%Quickstep%qsuccesses=0
       moves%trans_dis=0.0E0_dp
       moves%qtrans_dis=0.0E0_dp
+      moves%cltrans_dis=0.0E0_dp
+      moves%qcltrans_dis=0.0E0_dp
       moves%empty=0
       moves%empty_conf=0
       moves%empty_avbmc=0
@@ -209,11 +223,13 @@ CONTAINS
       DEALLOCATE (moves%angle)
       DEALLOCATE (moves%dihedral)
       DEALLOCATE (moves%trans)
+      DEALLOCATE (moves%cltrans)
       DEALLOCATE (moves%rot)
       DEALLOCATE (moves%bias_bond)
       DEALLOCATE (moves%bias_angle)
       DEALLOCATE (moves%bias_dihedral)
       DEALLOCATE (moves%bias_trans)
+      DEALLOCATE (moves%bias_cltrans)
       DEALLOCATE (moves%bias_rot)
       DEALLOCATE (moves%volume)
       DEALLOCATE (moves%hmc)
@@ -262,16 +278,19 @@ SUBROUTINE move_q_reinit ( moves , lbias )
          moves%bias_angle%qsuccesses=0
          moves%bias_dihedral%qsuccesses=0
          moves%bias_trans%qsuccesses=0
+         moves%bias_cltrans%qsuccesses=0
          moves%bias_rot%qsuccesses=0
       ELSE
          moves%bond%qsuccesses=0
          moves%angle%qsuccesses=0
          moves%dihedral%qsuccesses=0
          moves%trans%qsuccesses=0
+         moves%cltrans%qsuccesses=0
          moves%rot%qsuccesses=0
          moves%volume%qsuccesses=0
          moves%hmc%qsuccesses=0
          moves%qtrans_dis=0.0E0_dp
+         moves%qcltrans_dis=0.0E0_dp
       ENDIF
 
  ! end the timing
@@ -313,6 +332,8 @@ SUBROUTINE q_move_accept(moves,lbias)
             +moves%bias_dihedral%qsuccesses
          moves%bias_trans%successes=moves%bias_trans%successes&
             +moves%bias_trans%qsuccesses
+         moves%bias_cltrans%successes=moves%bias_cltrans%successes&
+            +moves%bias_cltrans%qsuccesses
          moves%bias_rot%successes=moves%bias_rot%successes&
             +moves%bias_rot%qsuccesses
       ELSE
@@ -325,6 +346,8 @@ SUBROUTINE q_move_accept(moves,lbias)
             +moves%dihedral%qsuccesses
          moves%trans%successes=moves%trans%successes&
             +moves%trans%qsuccesses
+         moves%cltrans%successes=moves%cltrans%successes&
+            +moves%cltrans%qsuccesses
          moves%rot%successes=moves%rot%successes&
             +moves%rot%qsuccesses
          moves%hmc%successes=moves%hmc%successes&
@@ -341,6 +364,7 @@ SUBROUTINE q_move_accept(moves,lbias)
             +moves%avbmc_outout%qsuccesses
 
          moves%trans_dis=moves%trans_dis+moves%qtrans_dis
+         moves%cltrans_dis=moves%cltrans_dis+moves%qcltrans_dis
       ENDIF
 
 ! end the timing
@@ -380,6 +404,8 @@ SUBROUTINE write_move_stats(moves,nnstep,unit)
       moves%bias_dihedral%successes,moves%bias_dihedral%attempts
     WRITE(unit,1000) nnstep,' bias_trans      ',&
       moves%bias_trans%successes,moves%bias_trans%attempts
+    WRITE(unit,1000) nnstep,' bias_cltrans      ',&
+      moves%bias_cltrans%successes,moves%bias_cltrans%attempts
     WRITE(unit,1000) nnstep,' bias_rot      ',&
       moves%bias_rot%successes,moves%bias_rot%attempts
 
@@ -391,6 +417,8 @@ SUBROUTINE write_move_stats(moves,nnstep,unit)
       moves%dihedral%successes,moves%dihedral%attempts
     WRITE(unit,1000) nnstep,' trans     ',&
       moves%trans%successes,moves%trans%attempts
+    WRITE(unit,1000) nnstep,' cltrans     ',&
+      moves%cltrans%successes,moves%cltrans%attempts
     WRITE(unit,1000) nnstep,' rot       ',&
       moves%rot%successes,moves%rot%attempts
     WRITE(unit,1000) nnstep,' swap      ',&
@@ -456,7 +484,7 @@ SUBROUTINE write_move_stats(moves,nnstep,unit)
       INTEGER                                            :: handle, nmol_types, rm
       REAL(dp), DIMENSION(:), POINTER                    :: rmangle, rmbond, rmdihedral, rmrot, &
                                                             rmtrans
-      REAL(KIND=dp)                                      :: rmvolume, test_ratio
+      REAL(KIND=dp)                                      :: rmcltrans, rmvolume, test_ratio
       TYPE(mc_molecule_info_type), POINTER               :: mc_molecule_info
 
 ! begin the timing of the subroutine
@@ -467,7 +495,7 @@ SUBROUTINE write_move_stats(moves,nnstep,unit)
 
 ! grab some stuff from mc_par
       CALL get_mc_par(mc_par,rmbond=rmbond,rmangle=rmangle,rmrot=rmrot,&
-         rmtrans=rmtrans,rmvolume=rmvolume,rm=rm,rmdihedral=rmdihedral,&
+         rmtrans=rmtrans,rmcltrans=rmcltrans,rmvolume=rmvolume,rm=rm,rmdihedral=rmdihedral,&
          mc_molecule_info=mc_molecule_info)
       CALL get_mc_molecule_info(mc_molecule_info,nmol_types=nmol_types)
 
@@ -600,6 +628,38 @@ SUBROUTINE write_move_stats(moves,nnstep,unit)
                  rmtrans(molecule_type)*angstrom,' angstroms'
          ENDIF
 
+! update the maximum displacement for cluster translation
+         IF( move_updates%bias_cltrans%attempts .GT. 0 ) THEN
+
+! first account for the extreme cases
+            IF ( move_updates%bias_cltrans%successes == 0 ) THEN
+               rmcltrans=rmcltrans/2.0E0_dp
+            ELSEIF ( move_updates%bias_cltrans%successes == &
+                 move_updates%bias_cltrans%attempts ) THEN
+               rmcltrans=rmcltrans*2.0E0_dp
+            ELSE
+! now for the middle case
+               test_ratio=REAL(move_updates%bias_cltrans%successes,dp)&
+                    /REAL(move_updates%bias_cltrans%attempts,dp)/0.5E0_dp
+               IF (test_ratio .GT. 2.0E0_dp) test_ratio=2.0E0_dp
+               IF (test_ratio .LT. 0.5E0_dp) test_ratio=0.5E0_dp
+               rmcltrans=rmcltrans*test_ratio
+            ENDIF
+
+ ! make an upper bound...10 a.u.
+            IF (rmcltrans .GT. 10.0E0_dp) &
+                 rmcltrans= 10.0E0_dp
+
+ ! clear the counters
+            move_updates%bias_cltrans%attempts=0
+            move_updates%bias_cltrans%successes=0
+
+! write the new displacement to a file
+            IF(ionode) WRITE(rm,*) nnstep,' rmcltrans = ',&
+                 rmcltrans*angstrom,' angstroms'
+         ENDIF
+
+
 ! update the maximum displacement for molecule rotation
          IF( move_updates%bias_rot%attempts .GT. 0 ) THEN
 
@@ -674,7 +734,7 @@ SUBROUTINE write_move_stats(moves,nnstep,unit)
 
 ! set some of the MC parameters
       CALL set_mc_par(mc_par,rmbond=rmbond,rmangle=rmangle,rmrot=rmrot,&
-         rmtrans=rmtrans,rmvolume=rmvolume,rmdihedral=rmdihedral)
+         rmtrans=rmtrans,rmcltrans=rmcltrans,rmvolume=rmvolume,rmdihedral=rmdihedral)
 
 ! end the timing
       CALL timestop(handle)

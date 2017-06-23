@@ -20,7 +20,9 @@ MODULE mc_coordinates
                                               dp_size
    USE mathconstants,                   ONLY: pi
    USE mc_types,                        ONLY: get_mc_molecule_info,&
-                                              mc_molecule_info_type
+                                              get_mc_par,&
+                                              mc_molecule_info_type,&
+                                              mc_simpar_type
    USE message_passing,                 ONLY: mp_bcast
    USE molecule_types,                  ONLY: molecule_type
    USE parallel_rng_types,              ONLY: next_random_number,&
@@ -41,7 +43,8 @@ MODULE mc_coordinates
              find_mc_test_molecule, &
              create_discrete_array, &
              check_for_overlap, &
-             rotate_molecule
+             rotate_molecule, &
+             cluster_search
 
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'mc_coordinates'
 
@@ -1005,6 +1008,162 @@ CONTAINS
       ENDIF
 
    END SUBROUTINE generate_avbmc_insertion
+
+! *****************************************************************************
+! **************************************************************************************************
+!> \brief determine the number of cluster present in the given configuration
+!>   based on the rclus value
+!> \param mc_par the mc parameters for the force env
+!> \param force_env the force environment containing the coordinates
+!> \param cluster ...
+!> \param nchains the number of molecules of each type in the box
+!> \param nunits the number of interaction sites for each molecule
+!> \param mol_type an array that indicates the type of each molecule
+!> \param total_clus ...
+!> \par
+!>    Original Multiparticle/Cluster Translation paper:
+!> Orkoulas, Gerassimos, and Athanassios Z. Panagiotopoulos. Free energy and
+!> phase equilibria for the restricted primitive model of ionic fluids from Monte
+!> Carlo simulations. J. Chem. Phys. 1994,101.2,1452-1459.
+!> \author Himanshu Goel
+! **************************************************************************************************
+
+   SUBROUTINE cluster_search(mc_par, force_env, cluster, nchains, nunits, mol_type, total_clus)
+
+      TYPE(mc_simpar_type), POINTER                      :: mc_par
+      TYPE(force_env_type), POINTER                      :: force_env
+      INTEGER, DIMENSION(:, :), INTENT(INOUT)            :: cluster
+      INTEGER, DIMENSION(:), INTENT(IN)                  :: nchains, nunits, mol_type
+      INTEGER, INTENT(INOUT)                             :: total_clus
+
+      CHARACTER(len=*), PARAMETER :: routineN = 'cluster_search', routineP = moduleN//':'//routineN
+
+      INTEGER                                            :: counter, handle, imol, istat, iunit, &
+                                                            jmol, junit, nend, nstart, nunit, &
+                                                            nunits_i, nunits_j
+      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: clusmat, decision
+      LOGICAL                                            :: lclus
+      REAL(KIND=dp)                                      :: dx, dy, dz, rclus, rclussquare, rsquare
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: xcoord, ycoord, zcoord
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: r
+      REAL(KIND=dp), DIMENSION(1:3)                      :: abc
+      TYPE(cell_type), POINTER                           :: cell
+      TYPE(cp_subsys_type), POINTER                      :: oldsys
+      TYPE(particle_list_type), POINTER                  :: particles
+
+! begin the timing of the subroutine
+
+      CALL timeset(routineN, handle)
+
+      NULLIFY (oldsys, particles)
+
+! Getting Particle Coordinates
+
+      CALL force_env_get(force_env, cell=cell, subsys=oldsys)
+      CALL get_cell(cell, abc=abc)
+      CALL cp_subsys_get(oldsys, particles=particles)
+      CALL get_mc_par(mc_par, rclus=rclus)
+
+      ALLOCATE (r(1:3, 1:MAXVAL(nunits), 1:SUM(nchains)), STAT=istat)
+      IF (istat /= 0) CALL stop_memory(routineN, moduleN, __LINE__, &
+                                       "mass", 3*MAXVAL(nunits)*SUM(nchains)*dp_size)
+
+! Arranging particles coordinates into an easier matrix
+      nend = SUM(nchains(:))
+      junit = 0
+      DO imol = 1, nend
+         nunit = nunits(mol_type(imol))
+         DO iunit = 1, nunit
+            junit = junit+1
+            r(1:3, iunit, imol) = particles%els(junit)%r(1:3)
+         ENDDO
+      ENDDO
+
+      counter = 0
+
+! Allocating the size of matrix and decison matrix
+      ALLOCATE (clusmat(nend), decision(nend), STAT=istat)
+
+!Initialize
+      DO imol = 1, nend
+         decision(imol) = 0
+         clusmat(imol) = 0
+      END DO
+
+      rclussquare = rclus*rclus
+! Starting the cluster count loop
+      DO WHILE (SUM(decision) .LT. nend)
+         DO nstart = 1, nend
+            IF (clusmat(nstart) .EQ. 0) THEN
+               counter = counter+1
+               clusmat(nstart) = counter
+               EXIT
+            END IF
+         END DO
+
+         lclus = .TRUE.
+         DO WHILE (lclus .EQV. .TRUE.)
+            DO imol = 1, nend
+               nunits_i = nunits(mol_type(imol))
+! Allocating the xcoord,ycoord,zcoord based upon the size of molecule nunits
+               ALLOCATE (xcoord(nunits_i), ycoord(nunits_i), zcoord(nunits_i), STAT=istat)
+               lclus = .FALSE.
+               IF (clusmat(imol) .EQ. counter .AND. decision(imol) .EQ. 0) THEN
+                  decision(imol) = 1
+                  lclus = .TRUE.
+                  DO iunit = 1, nunits_i
+                     xcoord(iunit) = r(1, iunit, imol)
+                     ycoord(iunit) = r(2, iunit, imol)
+                     zcoord(iunit) = r(3, iunit, imol)
+                  END DO
+                  EXIT
+               END IF
+            END DO
+            IF (lclus .EQV. .TRUE.) THEN
+               DO jmol = 1, nend
+                  nunits_j = nunits(mol_type(jmol))
+                  IF (clusmat(jmol) .EQ. 0 .AND. decision(jmol) .EQ. 0) THEN
+!Calculating the distance between atoms
+                     DO iunit = 1, nunits_i
+                        DO junit = 1, nunits_j
+                           dx = xcoord(iunit)-r(1, junit, jmol)
+                           dy = ycoord(iunit)-r(2, junit, jmol)
+                           dz = zcoord(iunit)-r(3, junit, jmol)
+                           dx = dx-abc(1)*ANINT(dx/abc(1))
+                           dy = dy-abc(2)*ANINT(dy/abc(2))
+                           dz = dz-abc(3)*ANINT(dz/abc(3))
+                           rsquare = (dx*dx)+(dy*dy)+(dz*dz)
+!Checking the distance based on rclus square(rclussq)
+                           IF (rsquare .LT. rclussquare) THEN
+                              clusmat(jmol) = counter
+                           END IF
+                        END DO
+                     END DO
+                  END IF
+               END DO
+            END IF
+            DEALLOCATE (xcoord, ycoord, zcoord)
+         END DO
+      END DO
+
+!Putting cluster information in a cluster matrix
+      total_clus = counter
+
+      DO imol = 1, counter
+         DO jmol = 1, nend
+            IF (imol .EQ. clusmat(jmol)) THEN
+               cluster(imol, jmol) = jmol
+            END IF
+         END DO
+      END DO
+      DEALLOCATE (r)
+      DEALLOCATE (decision)
+      DEALLOCATE (clusmat)
+
+! end the timing
+      CALL timestop(handle)
+
+   END SUBROUTINE cluster_search
 
 END MODULE mc_coordinates
 

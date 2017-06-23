@@ -216,6 +216,13 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
+      CALL keyword_create(keyword, name="RCLUS", &
+                          description="The cluster cut off radius in angstroms.", &
+                          usage="RCLUS {real}", &
+                          default_r_val=1.0E0_dp)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
       CALL keyword_create(keyword, name="RESTART", &
                           description="Read initial configuration from restart file.", &
                           usage="RESTART {logical}", &
@@ -455,6 +462,13 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
+      CALL keyword_create(keyword, name="PMCLTRANS", &
+                          description="The probability of attempting a cluster translation.", &
+                          usage="PMCLTRANS {real}", &
+                          type_of_var=real_t, default_r_val=0.0E0_dp)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
       CALL keyword_create(keyword, name="PMAVBMC", &
                           description="The probability of attempting an AVBMC swap move.", &
                           usage="PMAVBMC {real}", &
@@ -590,6 +604,13 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
+      CALL keyword_create(keyword, name="PMCLUS_BOX", &
+                          description="The probability of attempting a cluster move in this box", &
+                          usage="PMCLUS_BOX {real}", &
+                          type_of_var=real_t, default_r_val=1.0E0_dp)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
    END SUBROUTINE create_box_prob_section
 
 ! **************************************************************************************************
@@ -625,6 +646,13 @@ CONTAINS
                           description="Every iuptrans steps update maximum translation/rotation/"// &
                           "configurational changes.", &
                           usage="IUPTRANS {integer}", &
+                          default_i_val=10000)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, name="IUPCLTRANS", &
+                          description="Every iupcltrans steps update maximum cluster translation.", &
+                          usage="IUPCLTRANS {integer}", &
                           default_i_val=10000)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
@@ -749,6 +777,13 @@ CONTAINS
                           description="Maximum volume displacement, in angstrom**3.", &
                           usage="RMVOLUME {real}", &
                           type_of_var=real_t)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, name="RMCLTRANS", &
+                          description="Maximum translational displacement, in angstroms, for each cluster.", &
+                          usage="RMCLTRANS {real}", &
+                          default_r_val=1.0E0_dp)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 

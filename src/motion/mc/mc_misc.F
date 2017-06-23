@@ -132,7 +132,7 @@ CONTAINS
       LOGICAL                                            :: lbias
       REAL(dp), DIMENSION(:), POINTER                    :: rmangle, rmbond, rmdihedral, rmrot, &
                                                             rmtrans
-      REAL(KIND=dp)                                      :: pmswap, rmvolume
+      REAL(KIND=dp)                                      :: pmcltrans, pmswap, rmcltrans, rmvolume
       TYPE(mc_molecule_info_type), POINTER               :: mc_molecule_info
       TYPE(mc_moves_type), POINTER                       :: moves
 
@@ -144,7 +144,8 @@ CONTAINS
 
       CALL get_mc_par(mc_par, pmswap=pmswap, rmvolume=rmvolume, &
                       lbias=lbias, rmbond=rmbond, rmangle=rmangle, rmdihedral=rmdihedral, &
-                      rmtrans=rmtrans, rmrot=rmrot, mc_molecule_info=mc_molecule_info)
+                      rmtrans=rmtrans, rmcltrans=rmcltrans, pmcltrans=pmcltrans, rmrot=rmrot, &
+                      mc_molecule_info=mc_molecule_info)
       CALL get_mc_molecule_info(mc_molecule_info, nmol_types=nmol_types)
       WRITE (molecule_string, '(I2)') nmol_types
       WRITE (tab_string, '(I4)') 81-11*nmol_types
@@ -177,6 +178,34 @@ CONTAINS
       CALL final_move_write(all_moves(1)%moves%volume, string1, string2, iw, &
                             displacement=rmvolume, lbias=.FALSE., format_string=format_string, &
                             string3=string3)
+
+      IF (pmcltrans .GT. 0.0E0_dp) THEN
+
+! Cluster translation moves
+         WRITE (iw, '(A,A)') '-----------------------------------------------------', &
+            '---------------------------'
+         string2 = "Attempted       Accepted       Percent"
+         string1 = "Cluster Translation Moves"
+         string3 = "Maximum cluster translational displacement [angstroms]= "
+         rmcltrans = rmcltrans*angstrom
+         CALL final_move_write(all_moves(1)%moves%cltrans, string1, string2, iw, &
+                               displacement=rmcltrans, lbias=lbias, format_string=format_string, &
+                               string3=string3)
+
+         IF (lbias) THEN
+            WRITE (iw, '(A)') "Biased Move Data for cluster translation"
+            WRITE (iw, '(A,A)') '-------------------------------------------------', &
+               '-------------------------------'
+! Cluster bias translation moves
+            string2 = "Attempted       Accepted       Percent"
+            string1 = "Cluster Translation Moves"
+            string3 = "Maximum cluster translational displacement [angstroms]="
+            CALL final_move_write(all_moves(1)%moves%bias_cltrans, string1, string2, iw, &
+                                  displacement=rmcltrans, lbias=lbias, format_string=format_string, &
+                                  string3=string3)
+         ENDIF
+
+      ENDIF
 
 ! Hybrid MC moves (basically short MD runs)
       string2 = "Attempted       Accepted       Percent"

@@ -58,6 +58,7 @@ MODULE mc_ensembles
                                               mc_moves_release,&
                                               write_move_stats
    USE mc_moves,                        ONLY: mc_avbmc_move,&
+                                              mc_cluster_translation,&
                                               mc_conformation_change,&
                                               mc_hmc_move,&
                                               mc_molecule_rotation,&
@@ -146,13 +147,13 @@ CONTAINS
       LOGICAL                                            :: ionode, lbias, ldiscrete, lhmc, &
                                                             lnew_bias_env, loverlap, lreject, &
                                                             lstop, should_stop
-      REAL(dp), DIMENSION(:), POINTER                    :: pbias, pmavbmc_mol, pmhmc_box, &
-                                                            pmrot_mol, pmtraion_mol, pmtrans_mol, &
-                                                            pmvol_box
+      REAL(dp), DIMENSION(:), POINTER                    :: pbias, pmavbmc_mol, pmclus_box, &
+                                                            pmhmc_box, pmrot_mol, pmtraion_mol, &
+                                                            pmtrans_mol, pmvol_box
       REAL(dp), DIMENSION(:, :), POINTER                 :: conf_prob, mass
-      REAL(KIND=dp)                                      :: discrete_step, pmavbmc, pmhmc, pmswap, &
-                                                            pmtraion, pmtrans, pmvolume, rand, &
-                                                            test_energy, unit_conv
+      REAL(KIND=dp)                                      :: discrete_step, pmavbmc, pmcltrans, &
+                                                            pmhmc, pmswap, pmtraion, pmtrans, &
+                                                            pmvolume, rand, test_energy, unit_conv
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: r_temp
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: r_old
       REAL(KIND=dp), DIMENSION(1:3, 1:nboxes)            :: abc
@@ -188,6 +189,7 @@ CONTAINS
       ALLOCATE (averages(1:nboxes))
       ALLOCATE (mc_par(1:nboxes))
       ALLOCATE (pmvol_box(1:nboxes))
+      ALLOCATE (pmclus_box(1:nboxes))
       ALLOCATE (pmhmc_box(1:nboxes))
 
       DO ibox = 1, nboxes
@@ -210,13 +212,13 @@ CONTAINS
                       energy_file=energy_file(1), displacement_file=displacement_file(1), &
                       lstop=lstop, nstep=nstep, nstart=nstart, pmvolume=pmvolume, pmhmc=pmhmc, &
                       molecules_file=molecules_file(1), pmswap=pmswap, nmoves=nmoves, &
-                      pmtraion=pmtraion, pmtrans=pmtrans, iuptrans=iuptrans, &
+                      pmtraion=pmtraion, pmtrans=pmtrans, pmcltrans=pmcltrans, iuptrans=iuptrans, &
                       iupvolume=iupvolume, ldiscrete=ldiscrete, pmtraion_mol=pmtraion_mol, &
                       lbias=lbias, iprint=iprint, pmavbmc_mol=pmavbmc_mol, &
                       discrete_step=discrete_step, fft_lib=fft_lib, avbmc_atom=avbmc_atom, &
                       pmavbmc=pmavbmc, pbias=pbias, mc_molecule_info=mc_molecule_info, &
                       pmrot_mol=pmrot_mol, pmtrans_mol=pmtrans_mol, pmvol_box=pmvol_box(1), &
-                      ensemble=ensemble, pmhmc_box=pmhmc_box(1), lhmc=lhmc)
+                      pmclus_box=pmclus_box(1), ensemble=ensemble, pmhmc_box=pmhmc_box(1), lhmc=lhmc)
 
       ! get some data from the molecule types
       CALL get_mc_molecule_info(mc_molecule_info, conf_prob=conf_prob, &
@@ -237,12 +239,15 @@ CONTAINS
                             energy_file=energy_file(ibox), &
                             displacement_file=displacement_file(ibox), &
                             molecules_file=molecules_file(ibox), pmvol_box=pmvol_box(ibox), &
-                            pmhmc_box=pmhmc_box(ibox))
+                            pmclus_box=pmclus_box(ibox), pmhmc_box=pmhmc_box(ibox))
          ENDDO
       ENDIF
 
       ! this is a check we can't do in the input checking
       IF (pmvol_box(nboxes) .LT. 1.0E0_dp) THEN
+         CPABORT('The last value of PMVOL_BOX needs to be 1.0')
+      ENDIF
+      IF (pmclus_box(nboxes) .LT. 1.0E0_dp) THEN
          CPABORT('The last value of PMVOL_BOX needs to be 1.0')
       ENDIF
       IF (pmhmc_box(nboxes) .LT. 1.0E0_dp) THEN
@@ -790,6 +795,27 @@ CONTAINS
                                                start_atom, box_number, bias_energy(box_number), &
                                                molecule_type, lreject, rng_stream)
                   IF (lreject) EXIT
+               ELSEIF (rand .LT. pmcltrans) THEN
+                  ! translate a whole cluster in the system
+                  ! first, pick a box to do it for
+                  IF (ionode) rand = next_random_number(rng_stream)
+                  CALL mp_bcast(rand, source, group)
+
+                  DO ibox = 1, nboxes
+                  IF (rand .LE. pmclus_box(ibox)) THEN
+                     box_number = ibox
+                     EXIT
+                  ENDIF
+                  ENDDO
+                  box_flag(box_number) = 1
+                  CALL mc_cluster_translation(mc_par(box_number)%mc_par, &
+                                              force_env(box_number)%force_env, &
+                                              bias_env(box_number)%force_env, &
+                                              moves(1, box_number)%moves, &
+                                              move_updates(1, box_number)%moves, &
+                                              box_number, bias_energy(box_number), &
+                                              lreject, rng_stream)
+                  IF (lreject) EXIT
                ELSE
                   !     rotate a whole molecule in the system
                   ! pick a molecule type
@@ -1112,6 +1138,7 @@ CONTAINS
 
       DEALLOCATE (pmhmc_box)
       DEALLOCATE (pmvol_box)
+      DEALLOCATE (pmclus_box)
       DEALLOCATE (r_old)
       DEALLOCATE (force_env)
       DEALLOCATE (bias_env)
