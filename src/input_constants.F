@@ -1024,7 +1024,9 @@ MODULE input_constants
                                                rlaxisint_trapezoidal = 32, &
                                                rlaxisint_readfromfile = 33, &
                                                rho_negf = 41, &
-                                               rho_qtbm = 42
+                                               rho_qtbm = 42, &
+                                               neutlead_bs = 51, &
+                                               neutlead_dos = 52
 
    ! Active Space Section: orbital selection methods
    INTEGER, PARAMETER, PUBLIC               :: casci_canonical = 100, &

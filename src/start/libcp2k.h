@@ -162,6 +162,7 @@ typedef struct {
     int     rlaxis_integration_method;
     int     linear_solver;
     int     matrixinv_method;
+    int     transport_neutral;
     int     num_pole;
     int     ordering;
     int     row_ordering;
@@ -190,6 +191,7 @@ typedef struct {
     double  energy_interval;
     double  min_interval;
     double  temperature;
+    double  dens_mixing;
     double  n_rand_beyn;
     double  n_rand_cc_beyn;
     double  svd_cutoff;

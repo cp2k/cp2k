@@ -18,8 +18,9 @@ MODULE input_cp2k_transport
         injmethod_beyn, injmethod_evp, injsign_negative, injsign_positive, linsolver_banded, &
         linsolver_full, linsolver_mumps, linsolver_pardiso, linsolver_splitsolve, &
         linsolver_superlu, linsolver_umfpack, matrixinv_full, matrixinv_pardiso, matrixinv_pexsi, &
-        matrixinv_rgf, rho_negf, rho_qtbm, rlaxisint_GaussChebyshev, rlaxisint_readfromfile, &
-        rlaxisint_trapezoidal, transport_localscf, transport_negf, transport_transmission
+        matrixinv_rgf, neutlead_bs, neutlead_dos, rho_negf, rho_qtbm, rlaxisint_GaussChebyshev, &
+        rlaxisint_readfromfile, rlaxisint_trapezoidal, transport_localscf, transport_negf, &
+        transport_transmission
    USE input_keyword_types,             ONLY: keyword_create,&
                                               keyword_release,&
                                               keyword_type
@@ -59,7 +60,7 @@ CONTAINS
                           description="Specifies the parameters for transport, sets parameters for the OMEN code, "// &
                           "see also http://www.nano-tcad.ethz.ch/ ", &
                           citations=(/Bruck2014/), &
-                          n_keywords=26, n_subsections=3, repeats=.FALSE.)
+                          n_keywords=29, n_subsections=3, repeats=.FALSE.)
 
       NULLIFY (keyword)
 
@@ -263,6 +264,23 @@ CONTAINS
       CALL keyword_create(keyword, name="OBC_EQUILIBRIUM", &
                           description="Compute the equilibrium density with open boundary conditions.", &
                           default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, name="CONTACT_FILLING", &
+                          description="Determination of the contact Fermi levels. Note that this keyword "// &
+                          "only works when the TRANSPORT_METHOD is specified as TRANSPORT.", &
+                          default_i_val=neutlead_bs, &
+                          enum_c_vals=s2a("BAND_STRUCTURE", "DOS"), &
+                          enum_desc=s2a("Determine the Fermi levels from the band structure.", &
+                                        "Determine the Fermi levels from the density of states."), &
+                          enum_i_vals=(/neutlead_bs, neutlead_dos/))
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, name="DENSITY_MIXING", &
+                          description="Mixing parameter for a density mixing in OMEN.", &
+                          usage="DENSITY_MIXING <real>", default_r_val=1.0_dp)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 

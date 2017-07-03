@@ -54,6 +54,7 @@ MODULE transport_env_types
       INTEGER(C_INT)  :: rlaxis_integration_method
       INTEGER(C_INT)  :: linear_solver
       INTEGER(C_INT)  :: matrixinv_method
+      INTEGER(C_INT)  :: transport_neutral
       INTEGER(C_INT)  :: num_pole
       INTEGER(C_INT)  :: ordering
       INTEGER(C_INT)  :: row_ordering
@@ -82,6 +83,7 @@ MODULE transport_env_types
       REAL(C_DOUBLE)  :: energy_interval
       REAL(C_DOUBLE)  :: min_interval
       REAL(C_DOUBLE)  :: temperature
+      REAL(C_DOUBLE)  :: dens_mixing
       REAL(C_DOUBLE)  :: n_rand_beyn
       REAL(C_DOUBLE)  :: n_rand_cc_beyn
       REAL(C_DOUBLE)  :: svd_cutoff

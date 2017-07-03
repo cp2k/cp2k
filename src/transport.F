@@ -161,6 +161,7 @@ CONTAINS
       CALL section_vals_val_get(transport_section, "LINEAR_SOLVER", i_val=transport_env%params%linear_solver)
       CALL section_vals_val_get(transport_section, "MATRIX_INVERSION_METHOD", &
                                 i_val=transport_env%params%matrixinv_method)
+      CALL section_vals_val_get(transport_section, "CONTACT_FILLING", i_val=transport_env%params%transport_neutral)
       CALL section_vals_val_get(transport_section, "N_KPOINTS", i_val=transport_env%params%n_kpoint)
       CALL section_vals_val_get(transport_section, "NUM_INTERVAL", i_val=transport_env%params%num_interval)
       CALL section_vals_val_get(transport_section, "TASKS_PER_ENERGY_POINT", &
@@ -181,6 +182,7 @@ CONTAINS
       CALL section_vals_val_get(transport_section, "ENERGY_INTERVAL", r_val=transport_env%params%energy_interval)
       CALL section_vals_val_get(transport_section, "MIN_INTERVAL", r_val=transport_env%params%min_interval)
       CALL section_vals_val_get(transport_section, "TEMPERATURE", r_val=transport_env%params%temperature)
+      CALL section_vals_val_get(transport_section, "DENSITY_MIXING", r_val=transport_env%params%dens_mixing)
       CALL section_vals_val_get(transport_section, "CSR_SCREENING", l_val=transport_env%csr_screening)
 
       ! logical*1 to logical*4 , l_val is logical*1 and c_bool is equivalent to logical*4
