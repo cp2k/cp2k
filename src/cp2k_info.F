@@ -203,7 +203,7 @@ CONTAINS
       ENDIF
 
 #if defined __LIBXSMM
-      flags = TRIM(flags)//" libxsmm"
+      flags = TRIM(flags)//" xsmm"
 #endif
 
 #if defined __CRAY_PM_ACCEL_ENERGY

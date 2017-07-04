@@ -647,8 +647,9 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: output_unit
 
       INTEGER                                            :: i, j
-      INTEGER(KIND=int_8)                                :: total
+      INTEGER(KIND=int_8)                                :: flops, total, total_flops_homo
       INTEGER(KIND=int_8), ALLOCATABLE, DIMENSION(:)     :: sort_key
+      INTEGER(KIND=int_8), DIMENSION(3)                  :: flops_homo
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: sort_idx
 
       IF (output_unit <= 0) RETURN
@@ -661,16 +662,27 @@ CONTAINS
       ALLOCATE (sort_idx(SIZE(sort_key)))
       CALL sort(sort_key, SIZE(sort_key), sort_idx)
 
+      total_flops_homo = 0
+      flops_homo(:) = 0
       DO i = 1, SIZE(sort_idx)
          j = sort_idx(i)+1
          total = SUM(report%num_mnk_stacks(j, 4:6))
+         flops = 2*total*PRODUCT(report%num_mnk_stacks(j, 1:3))
+         total_flops_homo = total_flops_homo+flops
+         flops_homo(:) = flops_homo(:)+2*report%num_mnk_stacks(j, 4:6)*PRODUCT(report%num_mnk_stacks(j, 1:3))
          WRITE (output_unit, "(A,I4,' x ',I4,' x ',I4,T30,I20,5X,F5.1,'%',4X,F5.1,'%',4X,F5.1,'%')") &
             " flops ", report%num_mnk_stacks(j, 1:3), &
-            2*total*PRODUCT(report%num_mnk_stacks(j, 1:3)), &
+            flops, &
             100*REAL(report%num_mnk_stacks(j, 4:6))/REAL(MAX(INT(1, KIND=int_8), total))
       END DO
 
       total = report%cpu_flop+report%smm_flop+report%acc_flop
+      WRITE (output_unit, "(A,T30,I20,5X,F5.1,'%',4X,F5.1,'%',4X,F5.1,'%')") &
+         " flops inhomo. stacks", total-total_flops_homo, &
+         100*REAL(report%cpu_flop-flops_homo(1))/REAL(MAX(INT(1, KIND=int_8), total-total_flops_homo)), &
+         100*REAL(report%smm_flop-flops_homo(2))/REAL(MAX(INT(1, KIND=int_8), total-total_flops_homo)), &
+         100*REAL(report%acc_flop-flops_homo(3))/REAL(MAX(INT(1, KIND=int_8), total-total_flops_homo))
+
       WRITE (output_unit, "(A,T30,EN20.6,5X,F5.1,'%',4X,F5.1,'%',4X,F5.1,'%')") &
          " flops total", REAL(total, KIND=real_8), &
          100*REAL(report%cpu_flop)/REAL(MAX(INT(1, KIND=int_8), total)), &
