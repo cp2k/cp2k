@@ -3280,6 +3280,9 @@ CONTAINS
          INQUIRE (FILE=filename, exist=file_exists)
 
          IF (.NOT. file_exists) THEN
+            nstates_read = 0
+            CALL mp_bcast(nstates_read, para_env_global%source, para_env_global%group)
+
             CALL cp_warn(__LOCATION__, &
                          "User requested to restart the TDDFPT wave functions from the file '"//TRIM(filename)// &
                          "' which does not exist. Guess wave functions will be constructed using Kohn-Sham orbitals.")
@@ -3335,6 +3338,12 @@ CONTAINS
          END IF
       END IF
       CALL mp_bcast(nstates_read, para_env_global%source, para_env_global%group)
+
+      ! exit if restart file does not exist
+      IF (nstates_read <= 0) THEN
+         CALL timestop(handle)
+         RETURN
+      END IF
 
       IF (para_env_global%ionode) THEN
          ALLOCATE (evals_read(nstates_read))
