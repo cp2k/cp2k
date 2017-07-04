@@ -18,6 +18,19 @@
       EXTRAPOLATION_ORDER 2
       MAX_SCF  ${MAX_SCF}
       STEP_SIZE -1.0
+      @IF ( ${RESTART_JACOBIAN} == TRUE )
+        JACOBIAN_RESTART TRUE
+        JACOBIAN_VECTOR -0.91773106138385885
+      @ENDIF
+      @IF ( ${SCF_CONTINUE_LS} == TRUE )
+        ! Continue line search until norm no longer decreases or
+        ! max steps are reached
+        CONTINUE_LS TRUE
+        ! We use more LS steps and a smaller update factor to
+        ! demonstrate the quick exit conditions of CONTINUE_LS
+        MAX_LS 8
+        FACTOR_LS 0.8
+      @ENDIF
     &END
   &END CDFT
   &BECKE_CONSTRAINT

@@ -580,6 +580,9 @@ CONTAINS
          ! Now switch
          scf_control%outer_scf%have_scf = cdft_control%ot_control%have_scf
          scf_control%outer_scf%max_scf = cdft_control%ot_control%max_scf
+         scf_control%outer_scf%max_ls = cdft_control%ot_control%max_ls
+         scf_control%outer_scf%continue_ls = cdft_control%ot_control%continue_ls
+         scf_control%outer_scf%factor_ls = cdft_control%ot_control%factor_ls
          scf_control%outer_scf%eps_scf = cdft_control%ot_control%eps_scf
          scf_control%outer_scf%step_size = cdft_control%ot_control%step_size
          scf_control%outer_scf%type = cdft_control%ot_control%type
@@ -595,6 +598,16 @@ CONTAINS
          scf_control%outer_scf%build_jacobian = cdft_control%ot_control%build_jacobian
          scf_control%outer_scf%broyden_type = cdft_control%ot_control%broyden_type
          scf_control%outer_scf%broyden_update = cdft_control%ot_control%broyden_update
+         IF (cdft_control%constraint_control%jacobian_restart) THEN
+            ! Transfer restart vector for inverse Jacobian matrix
+            ! (qs_calculate_inverse_jacobian handles deallocation of transferred vector)
+            scf_control%outer_scf%jacobian_restart = .TRUE.
+            ALLOCATE (scf_control%outer_scf% &
+                      jacobian_vector(SIZE(cdft_control%constraint_control%jacobian_vector)))
+            scf_control%outer_scf%jacobian_vector = cdft_control%constraint_control%jacobian_vector
+            DEALLOCATE (cdft_control%constraint_control%jacobian_vector)
+            cdft_control%constraint_control%jacobian_restart = .FALSE.
+         END IF
          ! Switch data in scf_env: first save current values for constraint
          cdft_control%constraint%iter_count = scf_env%outer_scf%iter_count
          cdft_control%constraint%energy = scf_env%outer_scf%energy
@@ -633,6 +646,9 @@ CONTAINS
          ! OT -> constraint
          scf_control%outer_scf%have_scf = cdft_control%constraint_control%have_scf
          scf_control%outer_scf%max_scf = cdft_control%constraint_control%max_scf
+         scf_control%outer_scf%max_ls = cdft_control%constraint_control%max_ls
+         scf_control%outer_scf%factor_ls = cdft_control%constraint_control%factor_ls
+         scf_control%outer_scf%continue_ls = cdft_control%constraint_control%continue_ls
          scf_control%outer_scf%eps_scf = cdft_control%constraint_control%eps_scf
          scf_control%outer_scf%step_size = cdft_control%constraint_control%step_size
          scf_control%outer_scf%type = cdft_control%constraint_control%type

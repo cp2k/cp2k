@@ -1,6 +1,6 @@
 @SET RESTART_WFN          TRUE
 @SET WFN_FILE             HeH-noconstraint-1_0.wfn
-@SET PROJECT_NAME         HeH-cdft-newton-fd2
+@SET PROJECT_NAME         HeH-cdft-newton-fd1backward-restjacobian
 @SET WRITE_WFN            0
 @SET CHARGE               1
 @SET WRITE_CUBE           FALSE
@@ -32,12 +32,12 @@
 @SET BECKE_IN_MEMORY      TRUE
 
 @SET OPTIMIZER            NEWTON
-@SET JACOBIAN_TYPE        FD2
+@SET JACOBIAN_TYPE        FD1_BACKWARD
 @SET JACOBIAN_FREQ_1      1
 @SET JACOBIAN_FREQ_2      1
 @SET BROYDEN_TYPE         BT1
 
-@SET RESTART_JACOBIAN     FALSE
+@SET RESTART_JACOBIAN     TRUE
 @SET SCF_CONTINUE_LS      FALSE
 
 &GLOBAL

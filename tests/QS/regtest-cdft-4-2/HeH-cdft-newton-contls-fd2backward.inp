@@ -1,6 +1,6 @@
 @SET RESTART_WFN          TRUE
 @SET WFN_FILE             HeH-noconstraint-1_0.wfn
-@SET PROJECT_NAME         HeH-cdft-newton-fd2
+@SET PROJECT_NAME         HeH-cdft-newton-contls-fd2backward
 @SET WRITE_WFN            0
 @SET CHARGE               1
 @SET WRITE_CUBE           FALSE
@@ -8,7 +8,7 @@
 
 @SET BECKE_ACTIVE         TRUE
 @SET BECKE_FRAGMENT       FALSE
-@SET MAX_SCF              1
+@SET MAX_SCF              2
 ! He+ H
 @SET BECKE_TARGET_1       0.0
 @SET BECKE_STR_1          0.0
@@ -31,14 +31,14 @@
 
 @SET BECKE_IN_MEMORY      TRUE
 
-@SET OPTIMIZER            NEWTON
-@SET JACOBIAN_TYPE        FD2
+@SET OPTIMIZER            NEWTON_LS
+@SET JACOBIAN_TYPE        FD2_BACKWARD
 @SET JACOBIAN_FREQ_1      1
 @SET JACOBIAN_FREQ_2      1
 @SET BROYDEN_TYPE         BT1
 
 @SET RESTART_JACOBIAN     FALSE
-@SET SCF_CONTINUE_LS      FALSE
+@SET SCF_CONTINUE_LS      TRUE
 
 &GLOBAL
   PROJECT ${PROJECT_NAME}

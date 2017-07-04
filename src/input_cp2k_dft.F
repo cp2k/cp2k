@@ -5335,8 +5335,8 @@ CONTAINS
                                         "Newton's method with backtracking line search to find the optimal step size. "// &
                                         "Only compatible with CDFT constraints. Starts from the regular Newton solution "// &
                                         "and successively reduces the step size until the L2 norm of the CDFT gradient "// &
-                                        "decreases. Potentially very expensive because each iteration performs a full "// &
-                                        " SCF calculation."), &
+                                        "decreases or MAX_LS steps is reached. Potentially very expensive because "// &
+                                        "each iteration performs a full SCF calculation."), &
                           enum_i_vals=(/outer_scf_optimizer_sd, outer_scf_optimizer_diis, outer_scf_optimizer_none, &
                                         outer_scf_optimizer_bisect, outer_scf_optimizer_broyden, &
                                         outer_scf_optimizer_newton, outer_scf_optimizer_secant, &
@@ -5401,6 +5401,21 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
+      CALL keyword_create(keyword, name="JACOBIAN_RESTART", &
+                          description="Restart the inverse Jacobian using the vector defined with keyword JACOBIAN_VECTOR.", &
+                          usage="JACOBIAN_RESTART TRUE", &
+                          default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, name="JACOBIAN_VECTOR", &
+                          description="Defines the inverse Jacobian matrix. Useful for restarting calculations. "// &
+                          "Expects n^2 values where n is the total number of constraints. "// &
+                          "The matrix should be given in row major order.", &
+                          usage="JACOBIAN_VECTOR 1.0 0.0", n_var=-1, type_of_var=real_t)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
       CALL keyword_create(keyword, name="BISECT_TRUST_COUNT", &
                           description="Maximum number of times the same point will be used in bisection,"// &
                           " a small number guards against the effect of wrongly converged states.", &
@@ -5433,6 +5448,28 @@ CONTAINS
       CALL keyword_create(keyword, name="MAX_SCF", &
                           description="The maximum number of outer loops ", &
                           usage="MAX_SCF 20", default_i_val=50)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, name="MAX_LS", &
+                          description="The maximum number of backtracking line search steps to perform.", &
+                          usage="MAX_LS 5", default_i_val=5)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, name="FACTOR_LS", &
+                          description="Control parameter for backtracking line search. The step size is reduced by "// &
+                          "this factor on every line search iteration. Value must be between 0 and 1 (exclusive).", &
+                          usage="FACTOR_LS 0.5", default_r_val=0.5_dp)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, name="CONTINUE_LS", &
+                          description="Continue backtracking line search until MAX_LS steps are reached or the "// &
+                          "norm of the CDFT gradient no longer decreases. Default (false) behavior exits the "// &
+                          "line search procedure on the first step that the gradient decreases.", &
+                          usage="CONTINUE_LS TRUE", &
+                          default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 

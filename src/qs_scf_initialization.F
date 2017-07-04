@@ -320,6 +320,11 @@ CONTAINS
       ! Test kpoints
       IF (do_kpoints) &
          CPABORT("CDFT calculation not possible with kpoints")
+      ! Check that OUTER_SCF section in DFT&SCF is active
+      ! This section must always be active to facilitate
+      ! switching of the CDFT and SCF control parameters in outer_loop_switch
+      IF (.NOT. scf_control%outer_scf%have_scf) &
+         CPABORT("Section SCF&OUTER_SCF must be active for CDFT calculations.")
       ! Initialize CDFT and outer_loop variables (constraint settings active in scf_control)
       IF (dft_control%qs_control%cdft_control%constraint_control%have_scf) THEN
          nhistory = dft_control%qs_control%cdft_control%constraint_control%max_scf+1
@@ -349,6 +354,9 @@ CONTAINS
          IF (scf_control%outer_scf%type == outer_scf_none) THEN
             dft_control%qs_control%cdft_control%ot_control%have_scf = .TRUE.
             dft_control%qs_control%cdft_control%ot_control%max_scf = scf_control%outer_scf%max_scf
+            dft_control%qs_control%cdft_control%ot_control%max_ls = scf_control%outer_scf%max_ls
+            dft_control%qs_control%cdft_control%ot_control%continue_ls = scf_control%outer_scf%continue_ls
+            dft_control%qs_control%cdft_control%ot_control%factor_ls = scf_control%outer_scf%factor_ls
             dft_control%qs_control%cdft_control%ot_control%eps_scf = scf_control%outer_scf%eps_scf
             dft_control%qs_control%cdft_control%ot_control%step_size = scf_control%outer_scf%step_size
             dft_control%qs_control%cdft_control%ot_control%type = scf_control%outer_scf%type
@@ -364,6 +372,20 @@ CONTAINS
             dft_control%qs_control%cdft_control%ot_control%build_jacobian = scf_control%outer_scf%build_jacobian
             dft_control%qs_control%cdft_control%ot_control%broyden_type = scf_control%outer_scf%broyden_type
             dft_control%qs_control%cdft_control%ot_control%broyden_update = scf_control%outer_scf%broyden_update
+            IF (scf_control%outer_scf%jacobian_restart) THEN
+               ! This code block should not do anything
+               dft_control%qs_control%cdft_control%ot_control%jacobian_restart = .TRUE.
+               nvariables = SIZE(scf_control%outer_scf%jacobian_vector)
+               IF (ASSOCIATED(dft_control%qs_control%cdft_control%ot_control%jacobian_vector)) &
+                  CPABORT("")
+               ALLOCATE (dft_control%qs_control%cdft_control%ot_control%jacobian_vector(nvariables))
+               IF (ASSOCIATED(dft_control%qs_control%cdft_control%constraint_control%jacobian_vector)) &
+                  CPABORT("")
+               ALLOCATE (dft_control%qs_control%cdft_control%constraint_control%jacobian_vector(nvariables))
+               dft_control%qs_control%cdft_control%constraint_control%jacobian_vector = scf_control%outer_scf%jacobian_vector
+               dft_control%qs_control%cdft_control%ot_control%jacobian_vector = scf_control%outer_scf%jacobian_vector
+            END IF
+
             nvariables = 1
             ! Constraint specific initializations
             IF (dft_control%qs_control%becke_constraint) THEN

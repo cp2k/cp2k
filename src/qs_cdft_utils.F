@@ -33,6 +33,7 @@ MODULE qs_cdft_utils
    USE input_constants,                 ONLY: &
         becke_cutoff_element, becke_cutoff_global, outer_scf_becke_constraint, &
         outer_scf_cdft_constraint, outer_scf_hirshfeld_constraint, outer_scf_none, &
+        outer_scf_optimizer_broyden, outer_scf_optimizer_newton, outer_scf_optimizer_newton_ls, &
         radius_covalent, radius_user, shape_function_gaussian
    USE input_section_types,             ONLY: section_vals_get,&
                                               section_vals_get_subs_vals,&
@@ -744,6 +745,7 @@ CONTAINS
 
       INTEGER, DIMENSION(:), POINTER                     :: tmplist
       LOGICAL                                            :: exists
+      REAL(KIND=dp), DIMENSION(:), POINTER               :: rtmplist
       TYPE(section_vals_type), POINTER                   :: hirshfeld_constraint_section, &
                                                             outer_scf_section
 
@@ -788,6 +790,16 @@ CONTAINS
                                       i_val=qs_control%cdft_control%constraint_control%optimizer)
             CALL section_vals_val_get(outer_scf_section, "MAX_SCF", &
                                       i_val=qs_control%cdft_control%constraint_control%max_scf)
+            CALL section_vals_val_get(outer_scf_section, "MAX_LS", &
+                                      i_val=qs_control%cdft_control%constraint_control%max_ls)
+            CALL section_vals_val_get(outer_scf_section, "CONTINUE_LS", &
+                                      l_val=qs_control%cdft_control%constraint_control%continue_ls)
+            CALL section_vals_val_get(outer_scf_section, "FACTOR_LS", &
+                                      r_val=qs_control%cdft_control%constraint_control%factor_ls)
+            IF (qs_control%cdft_control%constraint_control%factor_ls .LE. 0.0_dp .OR. &
+                qs_control%cdft_control%constraint_control%factor_ls .GE. 1.0_dp) &
+               CALL cp_abort(__LOCATION__, &
+                             "Illegal value for keyword FACTOR_LS.")
             CALL section_vals_val_get(outer_scf_section, "EXTRAPOLATION_ORDER", &
                                       i_val=qs_control%cdft_control%constraint_control%extrapolation_order)
             CALL section_vals_val_get(outer_scf_section, "JACOBIAN_TYPE", &
@@ -817,6 +829,20 @@ CONTAINS
                   CALL cp_abort(__LOCATION__, &
                                 "Both values to keyword JACOBIAN_FREQ cannot be zero.")
                qs_control%cdft_control%constraint_control%jacobian_freq(:) = tmplist(1:2)
+            END IF
+            CALL section_vals_val_get(outer_scf_section, "JACOBIAN_RESTART", &
+                                      l_val=qs_control%cdft_control%constraint_control%jacobian_restart)
+            SELECT CASE (qs_control%cdft_control%constraint_control%optimizer)
+            CASE DEFAULT
+               qs_control%cdft_control%constraint_control%jacobian_restart = .FALSE.
+            CASE (outer_scf_optimizer_newton, outer_scf_optimizer_newton_ls, outer_scf_optimizer_broyden)
+               ! Use parsed value
+            END SELECT
+            IF (qs_control%cdft_control%constraint_control%jacobian_restart) THEN
+               CALL section_vals_val_get(outer_scf_section, "JACOBIAN_VECTOR", &
+                                         r_vals=rtmplist)
+               ALLOCATE (qs_control%cdft_control%constraint_control%jacobian_vector(SIZE(rtmplist)))
+               qs_control%cdft_control%constraint_control%jacobian_vector = rtmplist
             END IF
             SELECT CASE (qs_control%cdft_control%type)
             CASE (outer_scf_hirshfeld_constraint)

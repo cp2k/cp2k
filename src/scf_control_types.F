@@ -95,6 +95,10 @@ MODULE scf_control_types
 !> \param ijacobian counter to track how many outer_scf iterations have passed since the last
 !>                  Jacobian rebuild
 !> \param broyden_update logical which determines if a Broyden update is needed
+!> \param max_ls the maximum number of backtracking line search steps to perform
+!> \param continue_ls continue line search until max steps are reached or until the gradient
+!>                    no longer decreases
+!> \param factor_ls line search parameter used in generating a new step size
 !> \par History
 !>      09.2002 created [fawzi]
 !> \author Fawzi Mohamed
@@ -104,11 +108,15 @@ MODULE scf_control_types
       LOGICAL       :: have_scf
       LOGICAL       :: build_jacobian
       LOGICAL       :: broyden_update
+      LOGICAL       :: continue_ls
+      LOGICAL       :: jacobian_restart
       INTEGER       :: max_scf
       REAL(KIND=dp) :: eps_scf, step_size, &
                        jacobian_step, &
                        newton_step, &
-                       newton_step_save
+                       newton_step_save, &
+                       factor_ls
+      REAL(KIND=dp), DIMENSION(:), POINTER :: jacobian_vector
       INTEGER       :: TYPE
       INTEGER       :: optimizer
       INTEGER       :: diis_buffer_length
@@ -118,6 +126,7 @@ MODULE scf_control_types
       INTEGER       :: broyden_type
       INTEGER       :: jacobian_freq(2)
       INTEGER       :: ijacobian
+      INTEGER       :: max_ls
    END TYPE outer_scf_control_type
 
    TYPE smear_type
@@ -289,9 +298,14 @@ CONTAINS
       scf_control%outer_scf%jacobian_step = 0.0_dp
       scf_control%outer_scf%newton_step = 1.0_dp
       scf_control%outer_scf%newton_step_save = 1.0_dp
+      scf_control%outer_scf%factor_ls = 0.5_dp
       scf_control%outer_scf%ijacobian = 0
+      scf_control%outer_scf%max_ls = 0
       scf_control%outer_scf%build_jacobian = .FALSE.
       scf_control%outer_scf%broyden_update = .FALSE.
+      scf_control%outer_scf%continue_ls = .FALSE.
+      scf_control%outer_scf%jacobian_restart = .FALSE.
+      NULLIFY (scf_control%outer_scf%jacobian_vector)
 
       ! Smearing of the MO occupations
 
@@ -347,6 +361,9 @@ CONTAINS
             ENDIF
             DEALLOCATE (scf_control%smear)
 
+            IF (ASSOCIATED(scf_control%outer_scf%jacobian_vector)) &
+               DEALLOCATE (scf_control%outer_scf%jacobian_vector)
+
             ! Maximum overlap method orbital indices lists
             ! mom_deoccA, mom_deoccB, mom_occA, mom_occB
             ! points to memory allocated by input file parser,
@@ -380,7 +397,7 @@ CONTAINS
       INTEGER                                            :: cholesky_flag, handle, ialgo
       INTEGER, DIMENSION(:), POINTER                     :: added_mos, tmplist
       LOGICAL                                            :: do_mixing, exists
-      REAL(KIND=dp), DIMENSION(:), POINTER               :: roks_parameter
+      REAL(KIND=dp), DIMENSION(:), POINTER               :: roks_parameter, rtmplist
       TYPE(section_vals_type), POINTER                   :: mixing_section, outer_scf_section, &
                                                             scf_section, smear_section
 
@@ -525,6 +542,8 @@ CONTAINS
                                    i_val=scf_control%outer_scf%optimizer)
          CALL section_vals_val_get(outer_scf_section, "MAX_SCF", &
                                    i_val=scf_control%outer_scf%max_scf)
+         CALL section_vals_val_get(outer_scf_section, "MAX_LS", &
+                                   i_val=scf_control%outer_scf%max_ls)
          CALL section_vals_val_get(outer_scf_section, "EXTRAPOLATION_ORDER", &
                                    i_val=scf_control%outer_scf%extrapolation_order)
          CALL section_vals_val_get(outer_scf_section, "JACOBIAN_TYPE", &
@@ -533,6 +552,14 @@ CONTAINS
                                    r_val=scf_control%outer_scf%jacobian_step)
          CALL section_vals_val_get(outer_scf_section, "BROYDEN_TYPE", &
                                    i_val=scf_control%outer_scf%broyden_type)
+         CALL section_vals_val_get(outer_scf_section, "CONTINUE_LS", &
+                                   l_val=scf_control%outer_scf%continue_ls)
+         CALL section_vals_val_get(outer_scf_section, "FACTOR_LS", &
+                                   r_val=scf_control%outer_scf%factor_ls)
+         IF (scf_control%outer_scf%factor_ls .LE. 0.0_dp .OR. &
+             scf_control%outer_scf%factor_ls .GE. 1.0_dp) &
+            CALL cp_abort(__LOCATION__, &
+                          "Illegal value for keyword FACTOR_LS.")
          IF (exists .AND. ABS(scf_control%outer_scf%step_size) .LE. 1.0_dp) THEN
             scf_control%outer_scf%newton_step = ABS(scf_control%outer_scf%step_size)
             ! Permanent copy needed in case line search is performed
@@ -552,6 +579,20 @@ CONTAINS
                CALL cp_abort(__LOCATION__, &
                              "Both values to keyword JACOBIAN_FREQ cannot be zero.")
             scf_control%outer_scf%jacobian_freq(:) = tmplist(1:2)
+         END IF
+         CALL section_vals_val_get(outer_scf_section, "JACOBIAN_RESTART", &
+                                   l_val=scf_control%outer_scf%jacobian_restart)
+         SELECT CASE (scf_control%outer_scf%optimizer)
+         CASE DEFAULT
+            scf_control%outer_scf%jacobian_restart = .FALSE.
+         CASE (outer_scf_optimizer_newton, outer_scf_optimizer_newton_ls, outer_scf_optimizer_broyden)
+            ! Use parsed value
+         END SELECT
+         IF (scf_control%outer_scf%jacobian_restart) THEN
+            CALL section_vals_val_get(outer_scf_section, "JACOBIAN_VECTOR", &
+                                      r_vals=rtmplist)
+            ALLOCATE (scf_control%outer_scf%jacobian_vector(SIZE(rtmplist)))
+            scf_control%outer_scf%jacobian_vector = rtmplist
          END IF
       END IF
 
