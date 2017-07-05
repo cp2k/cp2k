@@ -1574,7 +1574,7 @@ CONTAINS
          reached_maxls, should_exit, should_stop, sign_changed
       LOGICAL, ALLOCATABLE, DIMENSION(:)                 :: positive_sign
       REAL(KIND=dp)                                      :: alpha, alpha_ls, factor, norm_ls
-      REAL(KIND=dp), DIMENSION(:), POINTER               :: energy, variables_next
+      REAL(KIND=dp), DIMENSION(:), POINTER               :: energy
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: gradient, inv_jacobian
       REAL(KIND=dp), EXTERNAL                            :: dnrm2
       TYPE(cdft_control_type), POINTER                   :: cdft_control
@@ -1669,7 +1669,6 @@ CONTAINS
          ALLOCATE (energy(max_scf))
          energy = scf_env%outer_scf%energy
          reached_maxls = .FALSE.
-         ALLOCATE (variables_next(nvar))
          ! Broyden optimizers: perform update of inv_jacobian if necessary
          IF (scf_control%outer_scf%broyden_update) THEN
             CALL outer_loop_optimize(scf_env, scf_control)
