@@ -67,7 +67,8 @@ MODULE bibliography
                             VandeVondele2002, Dion2004, Romanperez2009, DelBen2012, &
                             Sabatini2013, DelBen2013, Kikuchi2009, Putrino2000, &
                             Putrino2002, Sebastiani2001, Weber2009, Tran2013, Golze2013, &
-                            Golze2015, Golze2017, Tuckerman1992, Zhao1994, Tozer1996, Goedecker2004, &
+                            Golze2015, Golze2017a, Golze2017b, Tuckerman1992, Zhao1994, &
+                            Tozer1996, Goedecker2004, &
                             Khaliullin2013, Hutter2014, Bengtsson1999, Kantorovich2008, &
                             Kantorovich2008a, Wellendorff2012, Niklasson2014, Borstnik2014, &
                             Rayson2009, Grimme2011, Fattebert2002, Andreussi2012, &
@@ -2611,7 +2612,7 @@ CONTAINS
                          "ER"), &
                          DOI="10.1039/C4CP04638B")
 
-      CALL add_reference(key=Golze2017, ISI_record=s2a( &
+      CALL add_reference(key=Golze2017a, ISI_record=s2a( &
                          "PT J", &
                          "AU Golze, D", &
                          "   Benedikter, N", &
@@ -2635,6 +2636,28 @@ CONTAINS
                          "DI 10.1063/1.4973510", &
                          "ER"), &
                          DOI="10.1063/1.4973510")
+
+      CALL add_reference(key=Golze2017b, ISI_record=s2a( &
+                         "PT J", &
+                         "AU Golze, D", &
+                         "   Iannuzzi, M", &
+                         "   Hutter, J", &
+                         "AF Golze, Dorothea", &
+                         "   Iannuzzi, Marcella", &
+                         "   Hutter, Juerg", &
+                         "TI Local Fitting of the Kohn-Sham Density in a Gaussian and Plane Waves", &
+                         "   Scheme for Large-Scale Density Functional Theory Simulations", &
+                         "SO Journal of Chemical Theory and Computation", &
+                         "SN 1549-9618", &
+                         "PD MAY 17", &
+                         "PY 2017", &
+                         "VL 13", &
+                         "IS 5", &
+                         "BP 2202", &
+                         "EP 2214", &
+                         "DI 10.1021/acs.jctc.7b00148", &
+                         "ER"), &
+                         DOI="10.1021/acs.jctc.7b00148")
 
       CALL add_reference(key=Fattebert2002, ISI_record=s2a( &
                          "PT J", &

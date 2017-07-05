@@ -14,7 +14,8 @@ MODULE lri_environment_init
    USE atomic_kind_types,               ONLY: atomic_kind_type
    USE basis_set_types,                 ONLY: copy_gto_basis_set,&
                                               gto_basis_set_type
-   USE bibliography,                    ONLY: Golze2017,&
+   USE bibliography,                    ONLY: Golze2017a,&
+                                              Golze2017b,&
                                               cite_reference
    USE generic_shg_integrals,           ONLY: int_overlap_aba_shg
    USE generic_shg_integrals_init,      ONLY: contraction_matrix_shg,&
@@ -119,7 +120,8 @@ CONTAINS
       !
       CALL set_qs_env(qs_env, lri_env=lri_env)
 
-      IF (lri_env%use_shg_integrals) CALL cite_reference(Golze2017)
+      CALL cite_reference(Golze2017b)
+      IF (lri_env%use_shg_integrals) CALL cite_reference(Golze2017a)
 
    END SUBROUTINE lri_env_init
 
