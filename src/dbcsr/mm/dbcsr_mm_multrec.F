@@ -329,16 +329,14 @@ CONTAINS
 !> \param[in] a_norms         (optional) norms of left-matrix blocks
 !> \param[in] b_norms         (optional) norms of right-matrix blocks
 !> \param k_sizes ...
-!> \param do_rec ...
 ! **************************************************************************************************
    SUBROUTINE dbcsr_mm_multrec_multiply(this, left, right, flop, &
-                                        a_norms, b_norms, k_sizes, do_rec)
+                                        a_norms, b_norms, k_sizes)
       TYPE(dbcsr_mm_multrec_type), INTENT(inout)         :: this
       TYPE(dbcsr_type), INTENT(IN)                       :: left, right
       INTEGER(KIND=int_8), INTENT(OUT)                   :: flop
       REAL(kind=sp), DIMENSION(:), INTENT(in), TARGET    :: a_norms, b_norms
       INTEGER, DIMENSION(:), INTENT(IN), POINTER         :: k_sizes
-      LOGICAL, INTENT(IN), OPTIONAL                      :: do_rec
 
       CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_mm_multrec_multiply', &
          routineP = moduleN//':'//routineN
@@ -346,15 +344,11 @@ CONTAINS
 !$    INTEGER                                            :: ithread
       INTEGER                                            :: t_a_f, t_a_l, t_b_f, t_b_l
       INTEGER, DIMENSION(:), POINTER                     :: k_locals
-      LOGICAL                                            :: my_do_rec
 
 !   ---------------------------------------------------------------------------
 
       IF (.NOT. this%initialized) &
          CPABORT("multrec not initialized.")
-
-      my_do_rec = .TRUE.
-      IF (PRESENT(do_rec)) my_do_rec = do_rec
 
       this%flop = 0
 
@@ -383,7 +377,7 @@ CONTAINS
                           1, SIZE(k_locals), &
                           t_a_f, t_a_l, left%coo_l, &
                           t_b_f, t_b_l, right%coo_l, &
-                          0, my_do_rec)
+                          0)
 
       CALL dbcsr_mm_csr_purge_stacks(this%csr, left, right)
 
@@ -610,12 +604,11 @@ CONTAINS
 !> \param bf ...
 !> \param b_index ...
 !> \param d ...
-!> \param do_rec ...
 !> \author Joost VandeVondele
 ! **************************************************************************************************
    RECURSIVE SUBROUTINE sparse_multrec(this, left, right, mi, mf, ni, nf, ki, kf, &
                                        ai, af, a_index, bi, bf, b_index, &
-                                       d, do_rec)
+                                       d)
       TYPE(dbcsr_mm_multrec_type), INTENT(INOUT)         :: this
       TYPE(dbcsr_type), INTENT(IN)                       :: left, right
       INTEGER, INTENT(IN)                                :: mi, mf, ni, nf, ki, kf, ai, af
@@ -623,7 +616,6 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: bi, bf
       INTEGER, DIMENSION(3, 1:bf), INTENT(IN)            :: b_index
       INTEGER, INTENT(IN)                                :: d
-      LOGICAL, INTENT(IN)                                :: do_rec
 
       CHARACTER(len=*), PARAMETER :: routineN = 'sparse_multrec', routineP = moduleN//':'//routineN
       LOGICAL, PARAMETER                                 :: dbg = .FALSE.
@@ -642,7 +634,7 @@ CONTAINS
          ENDIF
       ENDIF
 
-      IF (.NOT. do_rec .OR. (af-ai+1 <= dbcsr_cfg%multrec_limit .AND. bf-bi+1 <= dbcsr_cfg%multrec_limit)) THEN
+      IF (af-ai+1 <= dbcsr_cfg%multrec_limit .AND. bf-bi+1 <= dbcsr_cfg%multrec_limit) THEN
          IF (af-ai+1 .GT. 0 .AND. bf-bi+1 .GT. 0) &
             CALL dbcsr_mm_csr_multiply(this%csr, left, right, &
                                        mi=mi, mf=mf, ni=ni, nf=nf, ki=ki, kf=kf, &
@@ -672,9 +664,9 @@ CONTAINS
          s1 = M/2
          acut = find_cut_row(ai, af, a_index, mi+s1-1)
          CALL sparse_multrec(this, left, right, mi, mi+s1-1, ni, nf, ki, kf, &
-                             ai, acut-1, a_index, bi, bf, b_index, d+1, do_rec)
+                             ai, acut-1, a_index, bi, bf, b_index, d+1)
          CALL sparse_multrec(this, left, right, mi+s1, mf, ni, nf, ki, kf, &
-                             acut, af, a_index, bi, bf, b_index, d+1, do_rec)
+                             acut, af, a_index, bi, bf, b_index, d+1)
       CASE (2)
          s1 = K/2
          acut = find_cut_col(ai, af, a_index, ki+s1-1)
@@ -688,9 +680,9 @@ CONTAINS
             WRITE (*, '(3(I7))') b_index
          ENDIF
          CALL sparse_multrec(this, left, right, mi, mf, ni, nf, ki, ki+s1-1, &
-                             ai, acut-1, a_index, bi, bcut-1, b_index, d+1, do_rec)
+                             ai, acut-1, a_index, bi, bcut-1, b_index, d+1)
          CALL sparse_multrec(this, left, right, mi, mf, ni, nf, ki+s1, kf, &
-                             acut, af, a_index, bcut, bf, b_index, d+1, do_rec)
+                             acut, af, a_index, bcut, bf, b_index, d+1)
       CASE (3)
          s1 = N/2
          bcut = find_cut_col(bi, bf, b_index, ni+s1-1)
@@ -699,9 +691,9 @@ CONTAINS
             WRITE (*, '(3(I7))') b_index
          ENDIF
          CALL sparse_multrec(this, left, right, mi, mf, ni, ni+s1-1, ki, kf, &
-                             ai, af, a_index, bi, bcut-1, b_index, d+1, do_rec)
+                             ai, af, a_index, bi, bcut-1, b_index, d+1)
          CALL sparse_multrec(this, left, right, mi, mf, ni+s1, nf, ki, kf, &
-                             ai, af, a_index, bcut, bf, b_index, d+1, do_rec)
+                             ai, af, a_index, bcut, bf, b_index, d+1)
       END SELECT
    END SUBROUTINE sparse_multrec
 
