@@ -1268,7 +1268,7 @@ CONTAINS
          IF (nspins == 2) THEN
             Sda(ipermutation) = ABS(S_det(ipermutation, 1)*S_det(ipermutation, 2))
          ELSE
-            Sda(ipermutation) = S_det(ipermutation, 2)**2
+            Sda(ipermutation) = S_det(ipermutation, 1)**2
          END IF
          ! Finalize <Psi_j | w_i(r) | Psi_i> by multiplication with Sda
          DO ivar = 1, nvar
