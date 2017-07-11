@@ -86,19 +86,19 @@
             INTEGER(c_int) :: spg_get_ir_reciprocal_mesh ! the number of points in the reduced mesh
          END FUNCTION spg_get_ir_reciprocal_mesh
 
-         FUNCTION spg_get_major_version() bind(c, name='spg_get_major_version')
-      INTEGER                                            :: spg_get_major_version
-
+         FUNCTION spg_get_major_version() bind(c)
+            import c_int
+            INTEGER(c_int)                                     :: spg_get_major_version
          END FUNCTION spg_get_major_version
 
-         FUNCTION spg_get_minor_version() bind(c, name='spg_get_minor_version')
-      INTEGER                                            :: spg_get_minor_version
-
+         FUNCTION spg_get_minor_version() bind(c)
+            import c_int
+            INTEGER(c_int)                                     :: spg_get_minor_version
          END FUNCTION spg_get_minor_version
 
-         FUNCTION spg_get_micro_version() bind(c, name='spg_get_micro_version')
-      INTEGER                                            :: spg_get_micro_version
-
+         FUNCTION spg_get_micro_version() bind(c)
+            import c_int
+            INTEGER(c_int)                                     :: spg_get_micro_version
          END FUNCTION spg_get_micro_version
 
       END INTERFACE

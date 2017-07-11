@@ -910,11 +910,6 @@ CONTAINS
 
       CALL timeset(routineN, handle)
 
-      ! test for full kpoint grid
-      IF (.NOT. kpoint%full_grid) &
-         CALL cp_abort(__LOCATION__, "k-points need FULL_GRID currently. "// &
-                       "Reduced grids not yet working correctly")
-
       IF (PRESENT(energy_weighted)) THEN
          wtype = energy_weighted
       ELSE
@@ -1343,11 +1338,15 @@ CONTAINS
             ELSE
                ! distributed matrices, most general code needed
                ! CALL dbcsr_get_stored_coordinates(pmat, row, col, pos)
+               CALL cp_abort(__LOCATION__, "k-points need FULL_GRID currently. "// &
+                             "Reduced grids not yet working correctly")
             END IF
          ELSE
             ! no atom permutations, this is always local
             ! ignore rotations for now
             CALL dbcsr_copy(smat, pmat)
+            CALL cp_abort(__LOCATION__, "k-points need FULL_GRID currently. "// &
+                          "Reduced grids not yet working correctly")
          END IF
       ELSE
          ! this is the identity operation, just copy the matrix

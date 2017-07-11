@@ -219,11 +219,16 @@ CONTAINS
 
       CALL timeset(routineN, handle)
 
-      IF (PRESENT(shift)) csym%wvk0 = shift
+      IF (PRESENT(shift)) THEN
+         csym%wvk0 = shift
+      ELSE
+         csym%wvk0 = 0.0_dp
+      END IF
 
       IF (PRESENT(symm)) THEN
-         csym%istriz = -1
          IF (symm) csym%istriz = 1
+      ELSE
+         csym%istriz = -1
       END IF
 
       IF (PRESENT(full_grid)) THEN
@@ -255,7 +260,7 @@ CONTAINS
                ! full kpoint mesh is used
             END IF
          ELSE
-            ! use symmtry operations
+            ! use symmtry library to reduce k-points
             IF (SUM(ABS(csym%wvk0)) /= 0.0_dp) THEN
                CALL cp_abort(__LOCATION__, "MacDonald shifted k-point meshes are only "// &
                              "possible without symmetrization.")
@@ -314,11 +319,12 @@ CONTAINS
       csym%kpmesh(1:3, 1:nkpts) = xkp(1:3, 1:nkpts)
 
       ! kp: link
-      DO j = 1, nkp
-         DO ik = 1, nkpts
-            i = csym%kplink(1, ik)
+      DO ik = 1, nkpts
+         i = csym%kplink(1, ik)
+         DO j = 1, nkp
             IF (i == xptr(j)) THEN
                csym%kplink(2, ik) = j
+               EXIT
             END IF
          END DO
       END DO
@@ -334,7 +340,7 @@ CONTAINS
                j = csym%kplink(2, ik)
                DO i = 1, csym%n_operations
                   rxkp(1:3) = kp_apply_operation(csym%xkpoint(1:3, j), csym%rotations(:, :, i))
-                  IF (ALL((ABS(xkp(:, ik)-rxkp(:))) < 1.e-12_dp)) THEN
+                  IF (ALL((ABS(xkp(:, ik)-rxkp(:))) < csym%delta)) THEN
                      csym%kpop(ik) = i
                      EXIT
                   END IF

@@ -156,8 +156,9 @@ CONTAINS
       CHARACTER(LEN=*), PARAMETER :: routineN = 'build_core_hamiltonian_matrix', &
          routineP = moduleN//':'//routineN
 
-      INTEGER                                            :: handle, img, iw, nder, nders, nimages, &
-                                                            nkind
+      INTEGER                                            :: handle, ic, img, iw, nder, nders, &
+                                                            nimages, nkind
+      INTEGER, DIMENSION(:, :, :), POINTER               :: cell_to_index
       LOGICAL                                            :: norml1, norml2, ofdft, use_arnoldi, &
                                                             use_virial
       REAL(KIND=dp)                                      :: eps_filter, eps_fit
@@ -170,6 +171,7 @@ CONTAINS
                                                             matrix_w
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(kg_environment_type), POINTER                 :: kg_env
+      TYPE(kpoint_type), POINTER                         :: kpoints
       TYPE(neighbor_list_set_p_type), DIMENSION(:), &
          POINTER                                         :: sab_aux_fit, sab_aux_fit_vs_orb, &
                                                             sab_orb, sap_oce
@@ -358,8 +360,14 @@ CONTAINS
       IF (.NOT. ofdft) THEN
          ! relativistic atomic correction to kinetic energy
          IF (qs_env%rel_control%rel_method /= rel_none) THEN
-            CPASSERT(nimages == 1)
             IF (qs_env%rel_control%rel_transformation == rel_trans_atom) THEN
+               IF (nimages == 1) THEN
+                  ic = 1
+               ELSE
+                  CALL get_ks_env(ks_env=ks_env, kpoints=kpoints)
+                  CALL get_kpoint_info(kpoint=kpoints, cell_to_index=cell_to_index)
+                  ic = cell_to_index(0, 0, 0)
+               END IF
                CALL build_atomic_relmat(matrix_h(1, 1)%matrix, &
                                         atomic_kind_set, qs_kind_set, particle_set)
             ELSE
