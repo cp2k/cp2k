@@ -365,8 +365,8 @@ CONTAINS
                   imap = Clist(i)
                   rep_env%r(imap, j) = pos0(i)
                END DO
-               CALL rep_env_calc_e_f(rep_env, calc_f=.TRUE.)
             ENDDO
+            CALL rep_env_calc_e_f(rep_env, calc_f=.TRUE.)
             j = 1
             minimum_energy = rep_env%f(rep_env%ndim+1, j)
             IF (output_unit > 0) THEN
