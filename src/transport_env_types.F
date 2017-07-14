@@ -14,14 +14,9 @@
 ! **************************************************************************************************
 MODULE transport_env_types
 
-   USE ISO_C_BINDING,                   ONLY: C_BOOL,&
-                                              C_DOUBLE,&
-                                              C_FUNPTR,&
-                                              C_F_POINTER,&
-                                              C_INT,&
-                                              C_NULL_FUNPTR,&
-                                              C_NULL_PTR,&
-                                              C_PTR
+   USE ISO_C_BINDING,                   ONLY: &
+        C_ASSOCIATED, C_BOOL, C_DOUBLE, C_FUNPTR, C_F_POINTER, C_INT, C_NULL_FUNPTR, C_NULL_PTR, &
+        C_PTR
    USE dbcsr_api,                       ONLY: csr_destroy,&
                                               csr_type,&
                                               dbcsr_release,&
@@ -147,12 +142,14 @@ CONTAINS
 
       CPASSERT(ASSOCIATED(transport_env))
 
-      CALL csr_destroy(transport_env%s_matrix)
-      CALL csr_destroy(transport_env%ks_matrix)
-      CALL csr_destroy(transport_env%p_matrix)
-      CALL dbcsr_release(transport_env%template_matrix_sym)
-      CALL dbcsr_release(transport_env%template_matrix_nosym)
-      CALL dbcsr_release(transport_env%csr_sparsity)
+      IF (C_ASSOCIATED(transport_env%ext_c_method_ptr)) THEN
+         CALL csr_destroy(transport_env%s_matrix)
+         CALL csr_destroy(transport_env%ks_matrix)
+         CALL csr_destroy(transport_env%p_matrix)
+         CALL dbcsr_release(transport_env%template_matrix_sym)
+         CALL dbcsr_release(transport_env%template_matrix_nosym)
+         CALL dbcsr_release(transport_env%csr_sparsity)
+      END IF
 
       transport_env%ext_c_method_ptr = C_NULL_FUNPTR
 
