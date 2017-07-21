@@ -230,7 +230,8 @@ typedef struct {
  *     cp2k_transport_parameters cp2k_transport_params,
  *     cp2k_csr_interop_type S,
  *     cp2k_csr_interop_type KS,
- *     cp2k_csr_interop_type* P
+ *     cp2k_csr_interop_type* P,
+ *     cp2k_csr_interop_type* PImag
  *     );
  * \endcode
  * \sa cp2k_transport_parameters, cp2k_csr_interop_type
@@ -239,7 +240,8 @@ typedef void (*ext_method_callback_f_ptr) (
     cp2k_transport_parameters, // Transport parameters
     cp2k_csr_interop_type,  // S-Matrix
     cp2k_csr_interop_type,  // H-Matrix
-    cp2k_csr_interop_type* // P-Matrix
+    cp2k_csr_interop_type*, // P-Matrix
+    cp2k_csr_interop_type*  // PImag-Matrix
     );
 
 /** \brief Set the function callback for the externally evaluated density matrix
