@@ -193,6 +193,7 @@ MODULE qs_scf_post_gpw
    USE s_square_methods,                ONLY: compute_s_square
    USE scf_control_types,               ONLY: scf_control_type
    USE stm_images,                      ONLY: th_stm_image
+   USE transport,                       ONLY: qs_scf_post_transport
    USE wannier_states,                  ONLY: construct_wannier_states
    USE wannier_states_types,            ONLY: wannier_centres_type
    USE xray_diffraction,                ONLY: calculate_rhotot_elec_gspace,&
@@ -2713,6 +2714,9 @@ CONTAINS
 
       ! Write cube files from the implicit Poisson solver
       CALL qs_scf_post_ps_implicit(input, logger, qs_env)
+
+      ! post SCF Transport
+      CALL qs_scf_post_transport(qs_env)
 
       CALL section_vals_val_get(input, "DFT%PRINT%AO_MATRICES%OMIT_HEADERS", l_val=omit_headers)
       ! Write the density matrices

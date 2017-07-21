@@ -11,6 +11,7 @@
 !>       07.2013 created transport_env routines [Hossein Bani-Hashemian]
 !>       11.2014 switch to CSR matrices [Hossein Bani-Hashemian]
 !>       12.2014 merged [Hossein Bani-Hashemian]
+!>       04.2016 added imaginary DM and current density cube [Hossein Bani-Hashemian]
 !> \author Mohammad Hossein Bani-Hashemian
 ! **************************************************************************************************
 MODULE transport
@@ -25,34 +26,59 @@ MODULE transport
                                               get_atomic_kind
    USE bibliography,                    ONLY: Bruck2014,&
                                               cite_reference
+   USE cp_control_types,                ONLY: dft_control_type
    USE cp_dbcsr_cp2k_link,              ONLY: cp_dbcsr_to_csr_screening
    USE cp_log_handling,                 ONLY: cp_get_default_logger,&
                                               cp_logger_get_default_unit_nr,&
                                               cp_logger_type
+   USE cp_output_handling,              ONLY: cp_p_file,&
+                                              cp_print_key_finished_output,&
+                                              cp_print_key_should_output,&
+                                              cp_print_key_unit_nr
+   USE cp_realspace_grid_cube,          ONLY: cp_pw_to_cube
    USE dbcsr_api,                       ONLY: &
         convert_csr_to_dbcsr, convert_dbcsr_to_csr, csr_create, csr_create_from_dbcsr, &
         csr_dbcsr_blkrow_dist, csr_print_sparsity, csr_type, dbcsr_copy, dbcsr_copy_into_existing, &
-        dbcsr_create, dbcsr_desymmetrize, dbcsr_has_symmetry, dbcsr_set, dbcsr_type, &
-        dbcsr_type_real_8
-   USE input_section_types,             ONLY: section_vals_get,&
+        dbcsr_create, dbcsr_deallocate_matrix, dbcsr_desymmetrize, dbcsr_has_symmetry, dbcsr_set, &
+        dbcsr_type, dbcsr_type_no_symmetry, dbcsr_type_real_8
+   USE input_section_types,             ONLY: section_get_ivals,&
+                                              section_vals_get,&
                                               section_vals_get_subs_vals,&
                                               section_vals_type,&
                                               section_vals_val_get
    USE kinds,                           ONLY: dp
    USE message_passing,                 ONLY: mp_allgather,&
                                               mp_environ
+   USE particle_list_types,             ONLY: particle_list_type
    USE particle_methods,                ONLY: get_particle_set
    USE particle_types,                  ONLY: particle_type
    USE physcon,                         ONLY: boltzmann,&
                                               e_charge,&
                                               evolt,&
                                               h_bar
+   USE pw_env_types,                    ONLY: pw_env_get,&
+                                              pw_env_type
+   USE pw_methods,                      ONLY: pw_zero
+   USE pw_pool_types,                   ONLY: pw_pool_create_pw,&
+                                              pw_pool_give_back_pw,&
+                                              pw_pool_type
+   USE pw_types,                        ONLY: COMPLEXDATA1D,&
+                                              REALDATA3D,&
+                                              REALSPACE,&
+                                              RECIPROCALSPACE,&
+                                              pw_p_type
    USE qs_environment_types,            ONLY: get_qs_env,&
                                               qs_environment_type,&
                                               set_qs_env
    USE qs_kind_types,                   ONLY: get_qs_kind,&
                                               qs_kind_type
    USE qs_ks_types,                     ONLY: qs_ks_env_type
+   USE qs_linres_current,               ONLY: calculate_jrho_resp
+   USE qs_linres_types,                 ONLY: current_env_type
+   USE qs_rho_types,                    ONLY: qs_rho_get,&
+                                              qs_rho_type
+   USE qs_subsys_types,                 ONLY: qs_subsys_get,&
+                                              qs_subsys_type
    USE transport_env_types,             ONLY: cp2k_csr_interop_type,&
                                               cp2k_transport_parameters,&
                                               csr_interop_matrix_get_info,&
@@ -67,6 +93,7 @@ MODULE transport
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'transport'
 
    PUBLIC :: transport_env_create, transport_initialize, external_scf_method
+   PUBLIC :: qs_scf_post_transport
 
 !> interface between C/C++ and FORTRAN
    INTERFACE c_func_interface
@@ -76,15 +103,17 @@ MODULE transport
 !> \param s_mat  C-interoperable overlap matrix
 !> \param ks_mat C-interoperable Kohn-Sham matrix
 !> \param p_mat  C-interoperable density matrix
+!> \param imagp_mat C-interoperable imaginary density matrix
 !> \author Mohammad Hossein Bani-Hashemian
 ! **************************************************************************************************
-      SUBROUTINE c_scf_routine(cp2k_transport_params, s_mat, ks_mat, p_mat) BIND(C)
+      SUBROUTINE c_scf_routine(cp2k_transport_params, s_mat, ks_mat, p_mat, imagp_mat) BIND(C)
          IMPORT :: C_INT, C_PTR, cp2k_csr_interop_type, cp2k_transport_parameters
          IMPLICIT NONE
          TYPE(cp2k_transport_parameters), VALUE, INTENT(IN) :: cp2k_transport_params
          TYPE(cp2k_csr_interop_type), VALUE, INTENT(IN)     :: s_mat
          TYPE(cp2k_csr_interop_type), VALUE, INTENT(IN)     :: ks_mat
          TYPE(cp2k_csr_interop_type), INTENT(INOUT)         :: p_mat
+         TYPE(cp2k_csr_interop_type), INTENT(INOUT)         :: imagp_mat
       END SUBROUTINE c_scf_routine
    END INTERFACE c_func_interface
 
@@ -102,18 +131,24 @@ CONTAINS
          routineP = moduleN//':'//routineN
 
       INTEGER                                            :: handle
+      TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(section_vals_type), POINTER                   :: input
       TYPE(transport_env_type), POINTER                  :: transport_env
 
       CALL timeset(routineN, handle)
 
-      CALL get_qs_env(qs_env, transport_env=transport_env, input=input)
+      CALL get_qs_env(qs_env, &
+                      transport_env=transport_env, &
+                      dft_control=dft_control, &
+                      input=input)
 
       CPASSERT(.NOT. ASSOCIATED(transport_env))
 
       ALLOCATE (transport_env)
+
       CALL transport_init_read_input(input, transport_env)
       CALL transport_set_contact_params(qs_env, transport_env)
+
       CALL set_qs_env(qs_env, transport_env=transport_env)
 
       CALL timestop(handle)
@@ -290,6 +325,11 @@ CONTAINS
          CALL dbcsr_copy(transport_env%template_matrix_sym, template_matrix)
       END IF
 
+      ALLOCATE (transport_env%dm_imag)
+      CALL dbcsr_create(transport_env%dm_imag, "imaginary DM", &
+                        template=template_matrix, matrix_type=dbcsr_type_no_symmetry)
+      CALL dbcsr_set(transport_env%dm_imag, 0.0_dp)
+
       CALL dbcsr_create(transport_env%csr_sparsity, "CSR sparsity", &
                         template=transport_env%template_matrix_sym, &
                         data_type=dbcsr_type_real_8)
@@ -310,6 +350,7 @@ CONTAINS
 
       CALL csr_create(transport_env%ks_matrix, transport_env%s_matrix)
       CALL csr_create(transport_env%p_matrix, transport_env%s_matrix)
+      CALL csr_create(transport_env%imagp_matrix, transport_env%s_matrix)
 
       CALL timestop(handle)
 
@@ -345,7 +386,7 @@ CONTAINS
       CHARACTER(len=*), PARAMETER :: routineN = 'external_scf_method', &
          routineP = moduleN//':'//routineN
 
-      TYPE(cp2k_csr_interop_type)                        :: ks_mat, p_mat, s_mat
+      TYPE(cp2k_csr_interop_type)                        :: imagp_mat, ks_mat, p_mat, s_mat
 
       PROCEDURE(c_scf_routine), POINTER        :: c_method
       INTEGER                                  :: handle
@@ -371,6 +412,7 @@ CONTAINS
       CALL csr_interop_nullify(s_mat)
       CALL csr_interop_nullify(ks_mat)
       CALL csr_interop_nullify(p_mat)
+      CALL csr_interop_nullify(imagp_mat)
 
       CALL dbcsr_copy_into_existing(transport_env%template_matrix_sym, matrix_s)
       CALL convert_dbcsr_to_csr_interop(transport_env%template_matrix_sym, transport_env%s_matrix, s_mat)
@@ -381,10 +423,16 @@ CONTAINS
       CALL dbcsr_copy_into_existing(transport_env%template_matrix_sym, matrix_p)
       CALL convert_dbcsr_to_csr_interop(transport_env%template_matrix_sym, transport_env%p_matrix, p_mat)
 
-      CALL c_method(transport_env%params, s_mat, ks_mat, p_mat)
+      CALL dbcsr_copy_into_existing(transport_env%template_matrix_sym, matrix_s)
+      CALL convert_dbcsr_to_csr_interop(transport_env%template_matrix_sym, transport_env%imagp_matrix, imagp_mat)
+
+      CALL c_method(transport_env%params, s_mat, ks_mat, p_mat, imagp_mat)
 
       CALL convert_csr_interop_to_dbcsr(p_mat, transport_env%p_matrix, transport_env%template_matrix_nosym)
       CALL dbcsr_copy(matrix_p, transport_env%template_matrix_nosym)
+
+      CALL convert_csr_interop_to_dbcsr(imagp_mat, transport_env%imagp_matrix, transport_env%template_matrix_nosym)
+      CALL dbcsr_copy(transport_env%dm_imag, transport_env%template_matrix_nosym)
 
       CALL timestop(handle)
 
@@ -586,10 +634,150 @@ CONTAINS
          END DO
       END DO
 
-      transport_env%params%nsgf = C_LOC(transport_env%nsgf(1))
-      transport_env%params%zeff = C_LOC(transport_env%zeff(1))
+      IF (natom .EQ. 0) THEN
+         transport_env%params%nsgf = C_NULL_PTR
+         transport_env%params%zeff = C_NULL_PTR
+      ELSE
+         transport_env%params%nsgf = C_LOC(transport_env%nsgf(1))
+         transport_env%params%zeff = C_LOC(transport_env%zeff(1))
+      END IF
 
    END SUBROUTINE transport_set_contact_params
+
+!**************************************************************************************************
+!> \brief evaluates current density using the imaginary part of the density matrix and prints it
+!>        into cube files
+!> \param[in] input the input
+!> \param[in] qs_env qs environment
+!> \author Mohammad Hossein Bani-Hashemian
+! **************************************************************************************************
+   SUBROUTINE transport_current(input, qs_env)
+      TYPE(section_vals_type), POINTER                   :: input
+      TYPE(qs_environment_type), POINTER                 :: qs_env
+
+      CHARACTER(len=*), PARAMETER :: routineN = 'transport_current', &
+         routineP = moduleN//':'//routineN
+
+      CHARACTER(len=14)                                  :: ext
+      CHARACTER(len=2)                                   :: sdir
+      INTEGER                                            :: dir, handle, unit_nr
+      LOGICAL                                            :: do_current_cube, do_transport
+      TYPE(cp_logger_type), POINTER                      :: logger
+      TYPE(current_env_type)                             :: current_env
+      TYPE(dbcsr_type), POINTER                          :: zero
+      TYPE(dft_control_type), POINTER                    :: dft_control
+      TYPE(particle_list_type), POINTER                  :: particles
+      TYPE(pw_env_type), POINTER                         :: pw_env
+      TYPE(pw_p_type), DIMENSION(:), POINTER             :: rho_g, rho_r
+      TYPE(pw_p_type), POINTER                           :: gs, rs
+      TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
+      TYPE(qs_rho_type), POINTER                         :: rho
+      TYPE(qs_subsys_type), POINTER                      :: subsys
+      TYPE(section_vals_type), POINTER                   :: dft_section
+      TYPE(transport_env_type), POINTER                  :: transport_env
+
+      CALL timeset(routineN, handle)
+
+      logger => cp_get_default_logger()
+      dft_section => section_vals_get_subs_vals(input, "DFT")
+      CALL get_qs_env(qs_env=qs_env, &
+                      subsys=subsys, &
+                      pw_env=pw_env, &
+                      transport_env=transport_env, &
+                      do_transport=do_transport, &
+                      dft_control=dft_control, &
+                      rho=rho)
+      CALL qs_subsys_get(subsys, particles=particles)
+      CALL pw_env_get(pw_env, auxbas_pw_pool=auxbas_pw_pool)
+      CALL qs_rho_get(rho, rho_r=rho_r, rho_g=rho_g)
+
+      do_current_cube = BTEST(cp_print_key_should_output(logger%iter_info, input, &
+                                                         "DFT%TRANSPORT%PRINT%CURRENT"), cp_p_file)
+
+      ! check if transport is active i.e. the imaginary dm has been actually passed to cp2k by the external code
+      IF (do_transport .AND. C_ASSOCIATED(transport_env%ext_c_method_ptr)) THEN
+
+         ! calculate_jrho_resp uses sab_all which is not associated in DFTB environment
+         IF (dft_control%qs_control%dftb) CPABORT("Current is not available for DFTB.")
+
+         ! now do the current
+         IF (do_current_cube) THEN
+            current_env%gauge = -1
+            current_env%gauge_init = .FALSE.
+
+            NULLIFY (rs, gs)
+            ALLOCATE (rs, gs)
+            NULLIFY (rs%pw, gs%pw)
+            CALL pw_pool_create_pw(auxbas_pw_pool, rs%pw, use_data=REALDATA3D, in_space=REALSPACE)
+            CALL pw_pool_create_pw(auxbas_pw_pool, gs%pw, use_data=COMPLEXDATA1D, in_space=RECIPROCALSPACE)
+
+            NULLIFY (zero)
+            ALLOCATE (zero)
+            CALL dbcsr_create(zero, template=transport_env%dm_imag)
+            CALL dbcsr_copy(zero, transport_env%dm_imag)
+            CALL dbcsr_set(zero, 0.0_dp)
+
+            DO dir = 1, 3
+               CALL pw_zero(rs%pw)
+               CALL pw_zero(gs%pw)
+               CALL calculate_jrho_resp(zero, transport_env%dm_imag, &
+                                        zero, zero, dir, dir, rs, gs, qs_env, current_env, &
+                                        retain_rsgrid=.TRUE.)
+               SELECT CASE (dir)
+               CASE (1)
+                  sdir = "-x"
+               CASE (2)
+                  sdir = "-y"
+               CASE (3)
+                  sdir = "-z"
+               END SELECT
+               ext = sdir//".cube"
+               unit_nr = cp_print_key_unit_nr(logger, dft_section, "TRANSPORT%PRINT%CURRENT", &
+                                              extension=ext, file_status="REPLACE", file_action="WRITE", &
+                                              log_filename=.FALSE.)
+               CALL cp_pw_to_cube(rs%pw, unit_nr, "Transport current", particles=particles, &
+                                  stride=section_get_ivals(dft_section, "TRANSPORT%PRINT%CURRENT%STRIDE"))
+               CALL cp_print_key_finished_output(unit_nr, logger, dft_section, "TRANSPORT%PRINT%CURRENT")
+            END DO
+
+            CALL dbcsr_deallocate_matrix(zero)
+            CALL pw_pool_give_back_pw(auxbas_pw_pool, rs%pw)
+            CALL pw_pool_give_back_pw(auxbas_pw_pool, gs%pw)
+            DEALLOCATE (rs, gs)
+         END IF
+
+      END IF
+
+      CALL timestop(handle)
+
+   END SUBROUTINE transport_current
+
+!**************************************************************************************************
+!> \brief post scf calculations for transport
+!> \param[in] qs_env qs environment
+!> \author Mohammad Hossein Bani-Hashemian
+! **************************************************************************************************
+   SUBROUTINE qs_scf_post_transport(qs_env)
+      TYPE(qs_environment_type), POINTER                 :: qs_env
+
+      CHARACTER(len=*), PARAMETER :: routineN = 'qs_scf_post_transport', &
+         routineP = moduleN//':'//routineN
+
+      INTEGER                                            :: handle
+      TYPE(section_vals_type), POINTER                   :: input
+
+      CALL timeset(routineN, handle)
+
+      NULLIFY (input)
+
+      CALL get_qs_env(qs_env=qs_env, &
+                      input=input)
+
+      CALL transport_current(input, qs_env)
+
+      CALL timestop(handle)
+
+   END SUBROUTINE qs_scf_post_transport
 
 END MODULE transport
 

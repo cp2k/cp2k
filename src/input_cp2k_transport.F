@@ -13,6 +13,8 @@
 ! **************************************************************************************************
 MODULE input_cp2k_transport
    USE bibliography,                    ONLY: Bruck2014
+   USE cp_output_handling,              ONLY: cp_print_key_section_create,&
+                                              high_print_level
    USE cp_units,                        ONLY: cp_unit_to_cp2k
    USE input_constants,                 ONLY: &
         injmethod_beyn, injmethod_evp, injsign_negative, injsign_positive, linsolver_banded, &
@@ -29,6 +31,7 @@ MODULE input_cp2k_transport
                                               section_create,&
                                               section_release,&
                                               section_type
+   USE input_val_types,                 ONLY: integer_t
    USE kinds,                           ONLY: dp
    USE string_utilities,                ONLY: s2a
 #include "./base/base_uses.f90"
@@ -60,7 +63,7 @@ CONTAINS
                           description="Specifies the parameters for transport, sets parameters for the OMEN code, "// &
                           "see also http://www.nano-tcad.ethz.ch/ ", &
                           citations=(/Bruck2014/), &
-                          n_keywords=29, n_subsections=3, repeats=.FALSE.)
+                          n_keywords=29, n_subsections=4, repeats=.FALSE.)
 
       NULLIFY (keyword)
 
@@ -298,6 +301,10 @@ CONTAINS
       CALL section_add_subsection(section, subsection)
       CALL section_release(subsection)
 
+      CALL create_transport_print_section(subsection)
+      CALL section_add_subsection(section, subsection)
+      CALL section_release(subsection)
+
    END SUBROUTINE create_transport_section
 
 ! **************************************************************************************************
@@ -474,5 +481,46 @@ CONTAINS
       CALL keyword_release(keyword)
 
    END SUBROUTINE create_pexsi_section
+
+!**************************************************************************************************
+!> \brief Creates print section for transport calculations.
+!> \param[inout] section the section to be created
+! **************************************************************************************************
+   SUBROUTINE create_transport_print_section(section)
+      TYPE(section_type), POINTER                        :: section
+
+      CHARACTER(len=*), PARAMETER :: routineN = 'create_transport_print_section', &
+         routineP = moduleN//':'//routineN
+
+      TYPE(keyword_type), POINTER                        :: keyword
+      TYPE(section_type), POINTER                        :: print_key
+
+      CPASSERT(.NOT. ASSOCIATED(section))
+      CALL section_create(section, name="PRINT", &
+                          description="Section of possible print options for transport calculations.", &
+                          repeats=.FALSE.)
+
+      NULLIFY (keyword, print_key)
+      CALL cp_print_key_section_create(print_key, "CURRENT", &
+                                       description="Controls the printing of current into cube files.", &
+                                       print_level=high_print_level, filename="current")
+
+      CALL keyword_create(keyword, name="stride", &
+                          description="The stride (X,Y,Z) used to write the cube file "// &
+                          "(larger values result in smaller cube files). You can provide 3 numbers (for X,Y,Z) or"// &
+                          " 1 number valid for all components.", &
+                          usage="STRIDE 2 2 2", n_var=-1, default_i_vals=(/2, 2, 2/), type_of_var=integer_t)
+      CALL section_add_keyword(print_key, keyword)
+      CALL keyword_release(keyword)
+      CALL keyword_create(keyword, name="APPEND", &
+                          description="append the cube files when they already exist", &
+                          default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
+      CALL section_add_keyword(print_key, keyword)
+      CALL keyword_release(keyword)
+
+      CALL section_add_subsection(section, print_key)
+      CALL section_release(print_key)
+
+   END SUBROUTINE create_transport_print_section
 
 END MODULE input_cp2k_transport
