@@ -2140,8 +2140,8 @@ CONTAINS
       ! keywords
       NULLIFY (keyword)
       CALL keyword_create(keyword, name="SPECIAL_POINT", &
-                          description="Coordinates of a special k-point", &
-                          usage="SPECIAL_POINT 0.0 0.0 0.0", n_var=3, type_of_var=real_t, repeats=.TRUE.)
+                          description="Name and coordinates of a special k-point", &
+                          usage="SPECIAL_POINT GAMMA 0.0 0.0 0.0", n_var=-1, type_of_var=char_t, repeats=.TRUE.)
       CALL section_add_keyword(subsection, keyword)
       CALL keyword_release(keyword)
       !
@@ -3007,8 +3007,8 @@ CONTAINS
                                         "OFGPW Orbital-free GPW method"), &
                           enum_i_vals=(/do_method_gapw, do_method_gapw_xc, do_method_gpw, do_method_lrigpw, &
                                         do_method_mndo, do_method_mndod, do_method_am1, do_method_pm3, &
-                                     do_method_pm6, do_method_pm6fm, do_method_pdg, do_method_rm1, do_method_pnnl, do_method_dftb, &
-                                        do_method_ofgpw/), &
+                                        do_method_pm6, do_method_pm6fm, do_method_pdg, do_method_rm1, &
+                                        do_method_pnnl, do_method_dftb, do_method_ofgpw/), &
                           citations=(/Lippert1997, Lippert1999, Krack2000, VandeVondele2005a, &
                                       VandeVondele2006, Dewar1977, Dewar1985, Rocha2006, Stewart1989, Thiel1992, &
                                       Repasky2002, Stewart2007, VanVoorhis2015, Schenter2008/), &

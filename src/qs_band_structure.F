@@ -113,13 +113,16 @@ CONTAINS
          routineP = moduleN//':'//routineN
 
       CHARACTER(LEN=default_string_length)               :: filename, ustr
+      CHARACTER(LEN=default_string_length), &
+         DIMENSION(:), POINTER                           :: spname, strptr
       INTEGER                                            :: i_rep, ik, ikk, ikpgr, ip, ispin, iw, &
                                                             n_ptr, n_rep, nadd, nkp, nmo, npline, &
                                                             npoints, nspins, unit_nr
       INTEGER, DIMENSION(2)                              :: kp_range
       LOGICAL                                            :: explicit, io_default, my_kpgrp
       REAL(KIND=dp)                                      :: t1, t2
-      REAL(KIND=dp), DIMENSION(:), POINTER               :: eigenvalues, eigval, kpptr
+      REAL(KIND=dp), DIMENSION(3)                        :: kpptr
+      REAL(KIND=dp), DIMENSION(:), POINTER               :: eigenvalues, eigval
       REAL(kind=dp), DIMENSION(:, :), POINTER            :: kpgeneral, kspecial, xkp
       TYPE(cell_type), POINTER                           :: cell
       TYPE(cp_para_env_type), POINTER                    :: para_env
@@ -165,8 +168,22 @@ CONTAINS
             CALL uppercase(ustr)
             CALL section_vals_val_get(kpset, "SPECIAL_POINT", i_rep_section=i_rep, n_rep_val=n_ptr)
             ALLOCATE (kspecial(3, n_ptr))
+            ALLOCATE (spname(n_ptr))
             DO ip = 1, n_ptr
-               CALL section_vals_val_get(kpset, "SPECIAL_POINT", i_rep_section=i_rep, i_rep_val=ip, r_vals=kpptr)
+               CALL section_vals_val_get(kpset, "SPECIAL_POINT", i_rep_section=i_rep, i_rep_val=ip, c_vals=strptr)
+               IF (SIZE(strptr(:), 1) == 4) THEN
+                  spname(ip) = strptr(1)
+                  READ (strptr(2), "(F12.8)") kpptr(1)
+                  READ (strptr(3), "(F12.8)") kpptr(2)
+                  READ (strptr(4), "(F12.8)") kpptr(3)
+               ELSE IF (SIZE(strptr(:), 1) == 3) THEN
+                  spname(ip) = "not specified"
+                  READ (strptr(1), "(F12.8)") kpptr(1)
+                  READ (strptr(2), "(F12.8)") kpptr(2)
+                  READ (strptr(3), "(F12.8)") kpptr(3)
+               ELSE
+                  CPABORT("Input SPECIAL_POINT invalid")
+               END IF
                SELECT CASE (ustr)
                CASE ("B_VECTOR")
                   kspecial(1:3, ip) = kpptr(1:3)
@@ -189,13 +206,15 @@ CONTAINS
                WRITE (unit_nr, "(T2,A,I4,T71,I10)") "KPOINTS| Number of K-Points in Set ", i_rep, npoints
                WRITE (unit_nr, "(T2,A)") "KPOINTS| In units of b-vector [2pi/Bohr]"
                DO ip = 1, n_ptr
-                  WRITE (unit_nr, "(T2,A,I4,T51,3F10.4)") "KPOINTS| Special K-Point ", ip, kspecial(1:3, ip)
+                  WRITE (unit_nr, "(T2,A,I4,T31,A15,3F10.4)") "KPOINTS| Special K-Point ", &
+                     ip, ADJUSTL(TRIM(spname(ip))), kspecial(1:3, ip)
                END DO
             END IF
             IF (iw > 0 .AND. (iw /= unit_nr)) THEN
                WRITE (iw, "(A,I8,T30,A,I8)") " SET:", i_rep, " TOTAL POINTS:", npoints
                DO ip = 1, n_ptr
-                  WRITE (iw, "(A,I4,T30,3F12.6)") "   POINT", ip, kspecial(1:3, ip)
+                  WRITE (iw, "(A,I4,T30,A15,3F12.6)") "   POINT", &
+                     ip, ADJUSTL(TRIM(spname(ip))), kspecial(1:3, ip)
                END DO
             END IF
             ! initialize environment and calculate MOS
@@ -242,7 +261,7 @@ CONTAINS
                END DO
             END DO
             !
-            DEALLOCATE (kspecial)
+            DEALLOCATE (kspecial, spname)
             DEALLOCATE (eigval)
             CALL kpoint_release(kpoint)
             t2 = m_walltime()

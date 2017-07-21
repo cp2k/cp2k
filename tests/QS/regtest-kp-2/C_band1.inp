@@ -41,8 +41,8 @@
           FILE_NAME xx.bs
           &KPOINT_SET
              UNITS  B_VECTOR
-             SPECIAL_POINT  0.0 0.0 0.0
-             SPECIAL_POINT  1.0 0.0 0.0
+             SPECIAL_POINT  Gamma 0.0 0.0 0.0
+             SPECIAL_POINT  X     1.0 0.0 0.0
              NPOINTS     10
           &END
           &KPOINT_SET
