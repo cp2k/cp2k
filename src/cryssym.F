@@ -153,6 +153,8 @@ CONTAINS
       ALLOCATE (csym%scoord(3, nat))
       csym%scoord(1:3, 1:nat) = scoor(1:3, 1:nat)
 
+      csym%n_operations = 0
+
       !..try spglib
       major = spg_get_major_version()
       minor = spg_get_minor_version()
@@ -213,9 +215,9 @@ CONTAINS
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: iwkp, xptr
       INTEGER, ALLOCATABLE, DIMENSION(:, :)              :: ixkp
       LOGICAL                                            :: fullmesh
-      REAL(KIND=dp)                                      :: rxkp(3)
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: wkp
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: xkp
+      REAL(KIND=dp), DIMENSION(3)                        :: rxkp
 
       CALL timeset(routineN, handle)
 
@@ -225,10 +227,9 @@ CONTAINS
          csym%wvk0 = 0.0_dp
       END IF
 
+      csym%istriz = -1
       IF (PRESENT(symm)) THEN
          IF (symm) csym%istriz = 1
-      ELSE
-         csym%istriz = -1
       END IF
 
       IF (PRESENT(full_grid)) THEN
@@ -259,14 +260,18 @@ CONTAINS
             ELSE
                ! full kpoint mesh is used
             END IF
+         ELSE IF (csym%istriz /= 1) THEN
+            ! use inversion symmetry
+            CALL full_grid_gen(nk, xkp, wkp, shift)
+            CALL inversion_symm(xkp, wkp, csym%kplink(1, :))
          ELSE
-            ! use symmtry library to reduce k-points
+            ! use symmetry library to reduce k-points
             IF (SUM(ABS(csym%wvk0)) /= 0.0_dp) THEN
                CALL cp_abort(__LOCATION__, "MacDonald shifted k-point meshes are only "// &
                              "possible without symmetrization.")
             END IF
             ALLOCATE (ixkp(3, nkpts), iwkp(nkpts))
-            is_shift = 0
+            is_shift(1:3) = MOD(nk(1:3)+1, 2)
             is_time_reversal = 1
             nkp = spg_get_ir_reciprocal_mesh(ixkp, iwkp, nk, is_shift, is_time_reversal, &
                                              TRANSPOSE(csym%hmat), csym%scoord, csym%atype, &
@@ -332,25 +337,37 @@ CONTAINS
 
       ! kp: operations
       ALLOCATE (csym%kpop(nkpts))
-      DO ik = 1, nkpts
-         IF (wkp(ik) > 0.0_dp) THEN
-            csym%kpop(ik) = 1
-         ELSE
-            IF (csym%symlib .AND. .NOT. fullmesh) THEN
+      IF (csym%symlib .AND. csym%istriz == 1 .AND. .NOT. fullmesh) THEN
+         ! atomic symmetry operations possible
+         DO ik = 1, nkpts
+            IF (wkp(ik) > 0.0_dp) THEN
+               csym%kpop(ik) = 1
+            ELSE
+               csym%kpop(ik) = 0
                j = csym%kplink(2, ik)
                DO i = 1, csym%n_operations
+                  IF (SUM(ABS(csym%translations(:, i))) > 1.e-10_dp) CYCLE
                   rxkp(1:3) = kp_apply_operation(csym%xkpoint(1:3, j), csym%rotations(:, :, i))
-                  IF (ALL((ABS(xkp(:, ik)-rxkp(:))) < csym%delta)) THEN
+                  rxkp(1:3) = ABS(xkp(1:3, ik)-rxkp(1:3))
+                  rxkp(1:3) = rxkp(1:3)-REAL(NINT(rxkp(1:3)), KIND=dp)
+                  IF (ALL((rxkp(1:3)) < 1.e-12_dp)) THEN
                      csym%kpop(ik) = i
                      EXIT
                   END IF
                END DO
+               CPASSERT(csym%kpop(ik) /= 0)
+            END IF
+         END DO
+      ELSE
+         ! only time reversal symmetry
+         DO ik = 1, nkpts
+            IF (wkp(ik) > 0.0_dp) THEN
+               csym%kpop(ik) = 1
             ELSE
-               ! only time reversal symmetry
                csym%kpop(ik) = 2
             END IF
-         END IF
-      END DO
+         END DO
+      END IF
 
       DEALLOCATE (xkp, wkp)
 

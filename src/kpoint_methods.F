@@ -141,7 +141,7 @@ CONTAINS
          CALL kpoint_sym_create(kpoint%kp_sym(1)%kpoint_sym)
       CASE ("MONKHORST-PACK", "MACDONALD")
 
-         IF (kpoint%full_grid) THEN
+         IF (.NOT. kpoint%symmetry) THEN
             ! we set up a random molecule to avoid any possible symmetry
             natom = 10
             ALLOCATE (coord(3, natom), scoord(3, natom), atype(natom))
@@ -187,10 +187,11 @@ CONTAINS
             NULLIFY (kpoint%kp_sym(ik)%kpoint_sym)
             CALL kpoint_sym_create(kpoint%kp_sym(ik)%kpoint_sym)
             kpsym => kpoint%kp_sym(ik)%kpoint_sym
-            IF (crys_sym%symlib .AND. .NOT. crys_sym%fullgrid) THEN
+            IF (crys_sym%symlib .AND. .NOT. crys_sym%fullgrid .AND. crys_sym%istriz == 1) THEN
                ! set up the symmetrization information
                kpsym%nwght = NINT(crys_sym%wkpoint(ik))
                ns = kpsym%nwght
+               ! to be done correctly
                IF (ns > 1) THEN
                   kpsym%apply_symmetry = .TRUE.
                   natom = SIZE(particle_set)
