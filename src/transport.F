@@ -695,55 +695,57 @@ CONTAINS
                                                          "DFT%TRANSPORT%PRINT%CURRENT"), cp_p_file)
 
       ! check if transport is active i.e. the imaginary dm has been actually passed to cp2k by the external code
-      IF (do_transport .AND. C_ASSOCIATED(transport_env%ext_c_method_ptr)) THEN
+      IF (do_transport) THEN
+         IF (C_ASSOCIATED(transport_env%ext_c_method_ptr)) THEN
 
-         ! calculate_jrho_resp uses sab_all which is not associated in DFTB environment
-         IF (dft_control%qs_control%dftb) CPABORT("Current is not available for DFTB.")
+            ! calculate_jrho_resp uses sab_all which is not associated in DFTB environment
+            IF (dft_control%qs_control%dftb) CPABORT("Current is not available for DFTB.")
 
-         ! now do the current
-         IF (do_current_cube) THEN
-            current_env%gauge = -1
-            current_env%gauge_init = .FALSE.
+            ! now do the current
+            IF (do_current_cube) THEN
+               current_env%gauge = -1
+               current_env%gauge_init = .FALSE.
 
-            NULLIFY (rs, gs)
-            ALLOCATE (rs, gs)
-            NULLIFY (rs%pw, gs%pw)
-            CALL pw_pool_create_pw(auxbas_pw_pool, rs%pw, use_data=REALDATA3D, in_space=REALSPACE)
-            CALL pw_pool_create_pw(auxbas_pw_pool, gs%pw, use_data=COMPLEXDATA1D, in_space=RECIPROCALSPACE)
+               NULLIFY (rs, gs)
+               ALLOCATE (rs, gs)
+               NULLIFY (rs%pw, gs%pw)
+               CALL pw_pool_create_pw(auxbas_pw_pool, rs%pw, use_data=REALDATA3D, in_space=REALSPACE)
+               CALL pw_pool_create_pw(auxbas_pw_pool, gs%pw, use_data=COMPLEXDATA1D, in_space=RECIPROCALSPACE)
 
-            NULLIFY (zero)
-            ALLOCATE (zero)
-            CALL dbcsr_create(zero, template=transport_env%dm_imag)
-            CALL dbcsr_copy(zero, transport_env%dm_imag)
-            CALL dbcsr_set(zero, 0.0_dp)
+               NULLIFY (zero)
+               ALLOCATE (zero)
+               CALL dbcsr_create(zero, template=transport_env%dm_imag)
+               CALL dbcsr_copy(zero, transport_env%dm_imag)
+               CALL dbcsr_set(zero, 0.0_dp)
 
-            DO dir = 1, 3
-               CALL pw_zero(rs%pw)
-               CALL pw_zero(gs%pw)
-               CALL calculate_jrho_resp(zero, transport_env%dm_imag, &
-                                        zero, zero, dir, dir, rs, gs, qs_env, current_env, &
-                                        retain_rsgrid=.TRUE.)
-               SELECT CASE (dir)
-               CASE (1)
-                  sdir = "-x"
-               CASE (2)
-                  sdir = "-y"
-               CASE (3)
-                  sdir = "-z"
-               END SELECT
-               ext = sdir//".cube"
-               unit_nr = cp_print_key_unit_nr(logger, dft_section, "TRANSPORT%PRINT%CURRENT", &
-                                              extension=ext, file_status="REPLACE", file_action="WRITE", &
-                                              log_filename=.FALSE.)
-               CALL cp_pw_to_cube(rs%pw, unit_nr, "Transport current", particles=particles, &
-                                  stride=section_get_ivals(dft_section, "TRANSPORT%PRINT%CURRENT%STRIDE"))
-               CALL cp_print_key_finished_output(unit_nr, logger, dft_section, "TRANSPORT%PRINT%CURRENT")
-            END DO
+               DO dir = 1, 3
+                  CALL pw_zero(rs%pw)
+                  CALL pw_zero(gs%pw)
+                  CALL calculate_jrho_resp(zero, transport_env%dm_imag, &
+                                           zero, zero, dir, dir, rs, gs, qs_env, current_env, &
+                                           retain_rsgrid=.TRUE.)
+                  SELECT CASE (dir)
+                  CASE (1)
+                     sdir = "-x"
+                  CASE (2)
+                     sdir = "-y"
+                  CASE (3)
+                     sdir = "-z"
+                  END SELECT
+                  ext = sdir//".cube"
+                  unit_nr = cp_print_key_unit_nr(logger, dft_section, "TRANSPORT%PRINT%CURRENT", &
+                                                 extension=ext, file_status="REPLACE", file_action="WRITE", &
+                                                 log_filename=.FALSE.)
+                  CALL cp_pw_to_cube(rs%pw, unit_nr, "Transport current", particles=particles, &
+                                     stride=section_get_ivals(dft_section, "TRANSPORT%PRINT%CURRENT%STRIDE"))
+                  CALL cp_print_key_finished_output(unit_nr, logger, dft_section, "TRANSPORT%PRINT%CURRENT")
+               END DO
 
-            CALL dbcsr_deallocate_matrix(zero)
-            CALL pw_pool_give_back_pw(auxbas_pw_pool, rs%pw)
-            CALL pw_pool_give_back_pw(auxbas_pw_pool, gs%pw)
-            DEALLOCATE (rs, gs)
+               CALL dbcsr_deallocate_matrix(zero)
+               CALL pw_pool_give_back_pw(auxbas_pw_pool, rs%pw)
+               CALL pw_pool_give_back_pw(auxbas_pw_pool, gs%pw)
+               DEALLOCATE (rs, gs)
+            END IF
          END IF
 
       END IF
