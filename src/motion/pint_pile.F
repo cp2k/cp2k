@@ -89,7 +89,7 @@ CONTAINS
          pile_therm%g_fric(1) = 1.0_dp/pile_therm%tau
       END IF
       DO i = 2, p
-         pile_therm%g_fric(i) = 2.0_dp*pile_therm%lamb*normalmode_env%lambda(i)
+         pile_therm%g_fric(i) = 2.0_dp*pile_therm%lamb*SQRT(normalmode_env%lambda(i))
       END DO
       DO i = 1, p
          ex = -dti2*pile_therm%g_fric(i)
