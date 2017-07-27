@@ -750,7 +750,10 @@ CONTAINS
 
       CPASSERT(.NOT. ASSOCIATED(section))
       CALL section_create(section, name="DIELEC_AA_CUBOIDAL", &
-                          description="Parameters for creating axis-aligned cuboidal dielectric region.", &
+                          description="Parameters for creating axis-aligned cuboidal dielectric region. "// &
+                          "Note that once such a region is defined, the 'background' dielectric constant "// &
+                          "would be the default (80.0), unless a different value is specified using the "// &
+                          "keyword IMPLICIT%DIELECTRIC%DIELECTRIC_CONSTANT.", &
                           n_keywords=5, n_subsections=0, repeats=.TRUE.)
 
       NULLIFY (keyword)
@@ -805,7 +808,10 @@ CONTAINS
 
       CPASSERT(.NOT. ASSOCIATED(section))
       CALL section_create(section, name="DIELEC_XAA_ANNULAR", &
-                          description="Parameters for creating x-axis-aligned annular dielectric region.", &
+                          description="Parameters for creating x-axis-aligned annular dielectric region. "// &
+                          "Note that once such a region is defined, the 'background' dielectric constant "// &
+                          "would be the default (80.0), unless a different value is specified using the "// &
+                          "keyword IMPLICIT%DIELECTRIC%DIELECTRIC_CONSTANT.", &
                           n_keywords=5, n_subsections=0, repeats=.TRUE.)
 
       NULLIFY (keyword)
