@@ -222,8 +222,8 @@ CONTAINS
 
       INTEGER, PARAMETER                 :: maxlen = 67 ! max line length in output
       INTEGER                            :: handle, i_ref, first, last, empty
-      CHARACTER(LEN=200)                 :: ref_string ! string for one reference
-      CHARACTER(LEN=200)                 :: tmp_string ! modified string for one reference
+      CHARACTER(LEN=400)                 :: ref_string ! string for one reference
+      CHARACTER(LEN=400)                 :: tmp_string ! modified string for one reference
 #if (XC_MAJOR_VERSION == 2)
       TYPE(xc_f90_pointer_t)             :: str ! this will hold a (char **) pointer
 #endif
