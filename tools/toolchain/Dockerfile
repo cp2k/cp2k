@@ -2,30 +2,31 @@ FROM ubuntu:latest
 
 RUN apt-get update && apt-get install -y \
     build-essential \
-    mpich \
+    ca-certificates \
+    gfortran \
     python \
     wget \
+    --no-install-recommends \
   && rm -rf /var/lib/apt/lists/*
 
 # --install-all would additionally require: bison bisonc++ flex flexc++
 
-WORKDIR /opt/cp2k-toolchain/
+# Shifter at CSCS requires MPICH v3.1.4 for ABI-compatibility
+# https://user.cscs.ch/scientific_computing/supported_applications/shifter/advanced_shifter/#native-mpi-support
+RUN wget -q http://www.mpich.org/static/downloads/3.1.4/mpich-3.1.4.tar.gz \
+    && tar xf mpich-3.1.4.tar.gz \
+    && cd mpich-3.1.4 \
+    && ./configure --enable-fast=all,O3 --prefix=/usr \
+    && make -j \
+    && make install \
+    && ldconfig \
+    && cd .. \
+    && rm -rf mpich-3.1.4 \
+    && rm mpich-3.1.4.tar.gz
+
+WORKDIR /cp2k-toolchain/
 COPY install_cp2k_toolchain.sh ./
 COPY scripts ./scripts/
-RUN ./install_cp2k_toolchain.sh
-
-#-------------------------------------------------------------------------------
-# leave layers with build files behind to reduce image size
-FROM ubuntu:latest
-
-RUN apt-get update && apt-get install -y \
-    build-essential \
-    mpich \
-    python \
-    wget \
-  && rm -rf /var/lib/apt/lists/*
-
-WORKDIR /opt/cp2k-toolchain/
-COPY --from=0 /opt/cp2k-toolchain/install ./install/
+RUN ./install_cp2k_toolchain.sh && rm -rf ./build
 
 #EOF
