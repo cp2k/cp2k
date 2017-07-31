@@ -60,12 +60,14 @@ MODULE lri_environment_methods
    USE qs_environment_types,            ONLY: get_qs_env,&
                                               qs_environment_type,&
                                               set_qs_env
+   USE qs_ks_types,                     ONLY: qs_ks_env_type
    USE qs_neighbor_list_types,          ONLY: get_iterator_info,&
                                               neighbor_list_iterate,&
                                               neighbor_list_iterator_create,&
                                               neighbor_list_iterator_p_type,&
                                               neighbor_list_iterator_release,&
                                               neighbor_list_set_p_type
+   USE qs_overlap,                      ONLY: build_overlap_matrix
    USE qs_rho_types,                    ONLY: qs_rho_get,&
                                               qs_rho_type
    USE virial_types,                    ONLY: virial_type
@@ -91,20 +93,28 @@ CONTAINS
 !> \param lri_env the lri_environment you want to create
 !> \param qs_env ...
 !> \param calculate_forces ...
+!> \param ri_method ...
 ! **************************************************************************************************
-   SUBROUTINE build_lri_matrices(lri_env, qs_env, calculate_forces)
+   SUBROUTINE build_lri_matrices(lri_env, qs_env, calculate_forces, ri_method)
 
       TYPE(lri_environment_type), POINTER                :: lri_env
       TYPE(qs_environment_type), POINTER                 :: qs_env
       LOGICAL, INTENT(IN)                                :: calculate_forces
+      CHARACTER(LEN=*), INTENT(IN)                       :: ri_method
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'build_lri_matrices', &
          routineP = moduleN//':'//routineN
 
-! calculate the integrals needed to do the local (2-center) expansion
-! of the (pair) densities
-
-      CALL calculate_lri_integrals(lri_env, qs_env, calculate_forces)
+      SELECT CASE (ri_method)
+      CASE ("LRI")
+         ! calculate the integrals needed to do the local (2-center) expansion
+         ! of the (pair) densities
+         CALL calculate_lri_integrals(lri_env, qs_env, calculate_forces)
+      CASE ("RI")
+         CALL calculate_ri_integrals(lri_env, qs_env, calculate_forces)
+      CASE DEFAULT
+         CPABORT('unknown RI method')
+      END SELECT
 
    END SUBROUTINE build_lri_matrices
 
@@ -245,6 +255,42 @@ CONTAINS
 
    END SUBROUTINE calculate_lri_integrals
 
+! **************************************************************************************************
+!> \brief calculates integrals needed for the RI density fitting,
+!>        integrals are calculated once, before the SCF starts
+!> \param lri_env ...
+!> \param qs_env ...
+!> \param calculate_forces ...
+! **************************************************************************************************
+   SUBROUTINE calculate_ri_integrals(lri_env, qs_env, calculate_forces)
+
+      TYPE(lri_environment_type), POINTER                :: lri_env
+      TYPE(qs_environment_type), POINTER                 :: qs_env
+      LOGICAL, INTENT(IN)                                :: calculate_forces
+
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'calculate_ri_integrals', &
+         routineP = moduleN//':'//routineN
+
+      INTEGER                                            :: handle, nder
+      TYPE(qs_ks_env_type), POINTER                      :: ks_env
+
+      CALL timeset(routineN, handle)
+
+      CPASSERT(ASSOCIATED(lri_env))
+      CPASSERT(ASSOCIATED(qs_env))
+      IF (calculate_forces) THEN
+         nder = 1
+      ELSE
+         nder = 0
+      END IF
+      CALL get_qs_env(qs_env=qs_env, ks_env=ks_env)
+      CALL build_overlap_matrix(ks_env=ks_env, matrix_s=lri_env%ri_smat, nderivative=nder, &
+                                basis_type_a="RI_HXC", basis_type_b="RI_HXC", sab_nl=lri_env%saa_list)
+      STOP "calculate_ri_integrals"
+
+      CALL timestop(handle)
+
+   END SUBROUTINE calculate_ri_integrals
 ! **************************************************************************************************
 !> \brief calculates overlap integrals (aabb) of the orbital basis set,
 !>        reguired for LRI basis set optimization

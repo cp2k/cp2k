@@ -405,6 +405,14 @@ CONTAINS
                                       atomic_kind_set=atomic_kind_set, &
                                       para_env=para_env)
          CALL qs_rho_set(rho_struct, rho_r_valid=.TRUE., rho_g_valid=.TRUE.)
+      ELSEIF (dft_control%qs_control%rigpw) THEN
+         CALL qs_rho_get(rho_struct, rho_ao=rho_ao)
+!        CALL calculate_lri_densities(lri_env, lri_density, qs_env, rho_ao, &
+!                                     lri_rho_struct=rho_struct, &
+!                                     atomic_kind_set=atomic_kind_set, &
+!                                     para_env=para_env)
+         CALL qs_rho_set(rho_struct, rho_r_valid=.TRUE., rho_g_valid=.TRUE.)
+         STOP "RI qs_rho_methods"
       ELSE
          CALL qs_rho_get(rho_struct, rho_ao_kp=rho_ao_kp)
          DO ispin = 1, nspins
@@ -439,6 +447,9 @@ CONTAINS
       IF (dft_control%use_kinetic_energy_density) THEN
          IF (dft_control%qs_control%lrigpw) THEN
             CPABORT("LRIGPW not implemented for meta-GGAs")
+         ENDIF
+         IF (dft_control%qs_control%rigpw) THEN
+            CPABORT("RIGPW not implemented for meta-GGAs")
          ENDIF
          CALL qs_rho_get(rho_struct, rho_ao_kp=rho_ao_kp)
          DO ispin = 1, nspins

@@ -1090,7 +1090,7 @@ CONTAINS
       CALL keyword_create(keyword, name="LRI_BASIS_SET", &
                           variants=s2a("LRI_BASIS"), &
                           description="DEPRECATED (use BASIS_SET): The local resolution of identity basis set (GTO type)", &
-                          usage="LRI_BASIS_SET DZVP", default_c_val=" ", &
+                          usage="", default_c_val=" ", &
                           n_var=1)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)

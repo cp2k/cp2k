@@ -19,6 +19,8 @@ MODULE lri_environment_types
    USE basis_set_types,                 ONLY: deallocate_gto_basis_set,&
                                               gto_basis_set_p_type,&
                                               gto_basis_set_type
+   USE dbcsr_api,                       ONLY: dbcsr_deallocate_matrix_set,&
+                                              dbcsr_p_type
    USE kinds,                           ONLY: dp
    USE qs_neighbor_list_types,          ONLY: deallocate_neighbor_list_set,&
                                               get_iterator_info,&
@@ -172,6 +174,13 @@ MODULE lri_environment_types
 
 ! **************************************************************************************************
 
+   TYPE ri_fit_type
+      INTEGER, DIMENSION(:, :), POINTER                         :: bas_ptr
+      REAL(KIND=dp), DIMENSION(:), POINTER                      :: nvec
+   END TYPE ri_fit_type
+
+! **************************************************************************************************
+
    TYPE lri_environment_type
       INTEGER                                                 :: id_nr, ref_count, in_use
       ! parameter for (pseudo)inverse of overlap
@@ -189,8 +198,10 @@ MODULE lri_environment_types
       TYPE(gto_basis_set_p_type), DIMENSION(:), POINTER       :: orb_basis
       ! lri (fit) basis set
       TYPE(gto_basis_set_p_type), DIMENSION(:), POINTER       :: ri_basis
-      ! orb_basis neighborlist, LRI integrals
+      ! orb_basis neighborlist
       TYPE(neighbor_list_set_p_type), DIMENSION(:), POINTER   :: soo_list
+      TYPE(neighbor_list_set_p_type), DIMENSION(:), POINTER   :: saa_list
+      TYPE(neighbor_list_set_p_type), DIMENSION(:), POINTER   :: sao_list
       ! local RI integrals
       TYPE(lri_list_type), POINTER                            :: lri_ints
       ! local integral of rho**2; for optimization
@@ -199,6 +210,10 @@ MODULE lri_environment_types
       TYPE(lri_bas_type), DIMENSION(:), POINTER               :: bas_prop
       ! Clebsch-Gordon for solid harmonics
       TYPE(lri_clebsch_gordon_type), POINTER                  :: cg_shg
+      ! RI overlap and inverse
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER               :: ri_smat, &
+                                                                 ri_sinv
+      TYPE(ri_fit_type), POINTER                              :: ri_fit
    END TYPE lri_environment_type
 
 ! **************************************************************************************************
@@ -289,10 +304,16 @@ CONTAINS
       NULLIFY (lri_env%ri_basis)
 
       NULLIFY (lri_env%soo_list)
+      NULLIFY (lri_env%saa_list)
+      NULLIFY (lri_env%sao_list)
       NULLIFY (lri_env%lri_ints)
       NULLIFY (lri_env%lri_ints_rho)
       NULLIFY (lri_env%bas_prop)
       NULLIFY (lri_env%cg_shg)
+
+      NULLIFY (lri_env%ri_smat)
+      NULLIFY (lri_env%ri_sinv)
+      NULLIFY (lri_env%ri_fit)
 
       ALLOCATE (lri_env%cg_shg)
 
@@ -335,6 +356,18 @@ CONTAINS
             END DO
             DEALLOCATE (lri_env%soo_list)
          END IF
+         IF (ASSOCIATED(lri_env%saa_list)) THEN
+            DO i = 1, SIZE(lri_env%saa_list)
+               CALL deallocate_neighbor_list_set(lri_env%saa_list(i)%neighbor_list_set)
+            END DO
+            DEALLOCATE (lri_env%saa_list)
+         END IF
+         IF (ASSOCIATED(lri_env%sao_list)) THEN
+            DO i = 1, SIZE(lri_env%sao_list)
+               CALL deallocate_neighbor_list_set(lri_env%sao_list(i)%neighbor_list_set)
+            END DO
+            DEALLOCATE (lri_env%sao_list)
+         END IF
          IF (ASSOCIATED(lri_env%lri_ints)) THEN
             CALL deallocate_lri_ints(lri_env%lri_ints)
          END IF
@@ -348,6 +381,19 @@ CONTAINS
             DEALLOCATE (lri_env%cg_shg%ncg_none0)
             DEALLOCATE (lri_env%cg_shg)
          ENDIF
+         ! ri
+         IF (ASSOCIATED(lri_env%ri_smat)) CALL dbcsr_deallocate_matrix_set(lri_env%ri_smat)
+         IF (ASSOCIATED(lri_env%ri_sinv)) CALL dbcsr_deallocate_matrix_set(lri_env%ri_sinv)
+         IF (ASSOCIATED(lri_env%ri_fit)) THEN
+            IF (ASSOCIATED(lri_env%ri_fit%nvec)) THEN
+               DEALLOCATE (lri_env%ri_fit%nvec)
+            END IF
+            IF (ASSOCIATED(lri_env%ri_fit%bas_ptr)) THEN
+               DEALLOCATE (lri_env%ri_fit%bas_ptr)
+            END IF
+            DEALLOCATE (lri_env%ri_fit)
+         END IF
+         !
          DEALLOCATE (lri_env)
       END IF
       NULLIFY (lri_env)

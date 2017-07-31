@@ -947,6 +947,7 @@ CONTAINS
 
       CALL timeset(routineN, handle)
 
+      info = 0
       n = SIZE(a, 1)
       ALLOCATE (dinv(n, n), eig(n), work(1), temp_mat(n, n))
       dinv(:, :) = 0.0_dp
@@ -963,6 +964,7 @@ CONTAINS
       lwork = INT(work(1))
       DEALLOCATE (work)
       ALLOCATE (work(lwork))
+      work = 0.0_dp
 
       ! get eigenvalues and eigenvectors
       CALL dsyev('V', 'U', n, a(1, 1), n, eig(1), work(1), lwork, info)

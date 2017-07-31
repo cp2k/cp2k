@@ -291,10 +291,13 @@ CONTAINS
          IF (.NOT. dft_control%qs_control%gapw) THEN
             CALL external_c_potential(qs_env, calculate_forces=.FALSE.)
          END IF
-         ! LRIGPW  matrices
+         ! LRIGPW/RIGPW  matrices
          IF (dft_control%qs_control%lrigpw) THEN
             CALL get_qs_env(qs_env=qs_env, lri_env=lri_env)
-            CALL build_lri_matrices(lri_env, qs_env, calc_forces)
+            CALL build_lri_matrices(lri_env, qs_env, calc_forces, "LRI")
+         ELSE IF (dft_control%qs_control%rigpw) THEN
+            CALL get_qs_env(qs_env=qs_env, lri_env=lri_env)
+            CALL build_lri_matrices(lri_env, qs_env, calc_forces, "RI")
          ENDIF
 
          ! ZMP addition to read external density

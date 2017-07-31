@@ -80,10 +80,10 @@ MODULE qs_environment
         dispersion_d3, do_et_becke, do_et_ddapc, do_method_am1, do_method_dftb, do_method_gapw, &
         do_method_gapw_xc, do_method_gpw, do_method_lrigpw, do_method_mndo, do_method_mndod, &
         do_method_ofgpw, do_method_pdg, do_method_pm3, do_method_pm6, do_method_pm6fm, &
-        do_method_pnnl, do_method_rm1, do_qmmm_gauss, do_qmmm_swave, general_roks, rel_none, &
-        rel_trans_atom, vdw_pairpot_dftd3, wfi_aspc_nr, wfi_linear_ps_method_nr, &
-        wfi_linear_wf_method_nr, wfi_ps_method_nr, wfi_use_guess_method_nr, xc_vdw_fun_none, &
-        xc_vdw_fun_nonloc, xc_vdw_fun_pairpot
+        do_method_pnnl, do_method_rigpw, do_method_rm1, do_qmmm_gauss, do_qmmm_swave, &
+        general_roks, rel_none, rel_trans_atom, vdw_pairpot_dftd3, wfi_aspc_nr, &
+        wfi_linear_ps_method_nr, wfi_linear_wf_method_nr, wfi_ps_method_nr, &
+        wfi_use_guess_method_nr, xc_vdw_fun_none, xc_vdw_fun_nonloc, xc_vdw_fun_pairpot
    USE input_section_types,             ONLY: section_vals_get,&
                                               section_vals_get_subs_vals,&
                                               section_vals_type,&
@@ -243,7 +243,8 @@ CONTAINS
       TYPE(rel_control_type), POINTER                    :: rel_control
       TYPE(section_vals_type), POINTER                   :: dft_section, et_coupling_section, &
                                                             hfx_section, kpoint_section, &
-                                                            mp2_section, transport_section
+                                                            lri_section, mp2_section, &
+                                                            transport_section
 
       NULLIFY (my_cell, my_cell_ref, atomic_kind_set, particle_set, &
                qs_kind_set, kpoint_section, dft_section, &
@@ -390,9 +391,12 @@ CONTAINS
       CALL section_vals_get(et_coupling_section, explicit=do_et)
       IF (do_et) CALL et_coupling_create(qs_env%et_coupling)
 
-      ! lri env
+      ! lri or ri env initialization
+      lri_section => section_vals_get_subs_vals(force_env_section, "DFT%QS%LRIGPW")
       IF (method_id == do_method_lrigpw .OR. dft_control%qs_control%lri_optbas) THEN
-         CALL lri_env_init(qs_env, force_env_section, qs_kind_set)
+         CALL lri_env_init("LRI", qs_env, lri_section, qs_kind_set)
+      ELSE IF (method_id == do_method_rigpw) THEN
+         CALL lri_env_init("RI", qs_env, lri_section, qs_kind_set)
       END IF
 
       transport_section => section_vals_get_subs_vals(qs_env%input, "DFT%TRANSPORT")
@@ -640,6 +644,9 @@ CONTAINS
          CALL get_qs_kind_set(qs_kind_set, maxlgto=maxlgto_lri, basis_type="LRI")
          !take maxlgto from lri basis if larger (usually)
          maxlgto = MAX(maxlgto, maxlgto_lri)
+      ELSE IF (dft_control%qs_control%method == "RIGPW") THEN
+         CALL get_qs_kind_set(qs_kind_set, maxlgto=maxlgto_lri, basis_type="RI_HXC")
+         maxlgto = MAX(maxlgto, maxlgto_lri)
       END IF
       maxl = MAX(2*maxlgto, maxlppl, maxlppnl, lmax_sphere)+1
 
@@ -770,6 +777,10 @@ CONTAINS
          CALL init_gapw_nlcc(qs_kind_set)
       ELSE IF (dft_control%qs_control%method_id == do_method_lrigpw) THEN
          ! allocate local ri environment
+         ! nothing to do here?
+      ELSE IF (dft_control%qs_control%method_id == do_method_rigpw) THEN
+         ! allocate ri environment
+         ! nothing to do here?
       ELSE IF (dft_control%qs_control%semi_empirical) THEN
          NULLIFY (se_store_int_env, se_nddo_mpole, se_nonbond_env)
          natom = SIZE(particle_set)
@@ -841,6 +852,7 @@ CONTAINS
           dft_control%qs_control%method_id == do_method_gapw .OR. &
           dft_control%qs_control%method_id == do_method_gapw_xc .OR. &
           dft_control%qs_control%method_id == do_method_lrigpw .OR. &
+          dft_control%qs_control%method_id == do_method_rigpw .OR. &
           dft_control%qs_control%method_id == do_method_ofgpw) THEN
          ALLOCATE (dispersion_env)
          NULLIFY (xc_section)
@@ -1157,6 +1169,7 @@ CONTAINS
              dft_control%qs_control%method_id == do_method_gapw .OR. &
              dft_control%qs_control%method_id == do_method_gapw_xc .OR. &
              dft_control%qs_control%method_id == do_method_lrigpw .OR. &
+             dft_control%qs_control%method_id == do_method_rigpw .OR. &
              dft_control%qs_control%method_id == do_method_dftb .OR. &
              dft_control%qs_control%method_id == do_method_ofgpw) THEN
             CALL get_qs_env(qs_env, dispersion_env=dispersion_env)

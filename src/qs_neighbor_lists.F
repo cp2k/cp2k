@@ -47,6 +47,7 @@ MODULE qs_neighbor_lists
                                               sgp_potential_type
    USE input_constants,                 ONLY: dispersion_uff,&
                                               do_method_lrigpw,&
+                                              do_method_rigpw,&
                                               do_se_IS_slater,&
                                               vdw_pairpot_dftd3,&
                                               vdw_pairpot_dftd3bj,&
@@ -297,16 +298,15 @@ CONTAINS
       INTEGER                                            :: handle, ikind, iw, maxatom, nkind, &
                                                             numshells, zat
       LOGICAL :: all_potential_present, almo, dftb, do_hfx, dokp, explicit, gth_potential_present, &
-         lri_optbas, lrigpw, mic, molecule_only, nddo, paw_atom, paw_atom_present, &
+         lri_optbas, lrigpw, mic, molecule_only, nddo, paw_atom, paw_atom_present, rigpw, &
          sgp_potential_present
       LOGICAL, ALLOCATABLE, DIMENSION(:) :: all_present, aux_fit_present, aux_present, &
-         core_present, default_present, oce_present, orb_present, ppl_present, ppnl_present
+         core_present, default_present, oce_present, orb_present, ppl_present, ppnl_present, &
+         ri_present
       REAL(dp)                                           :: almo_rcov, almo_rvdw, alpha, roperator, &
                                                             subcells
-      REAL(dp), ALLOCATABLE, DIMENSION(:)                :: all_pot_rad, aux_fit_radius, c_radius, &
-                                                            calpha, core_radius, oce_radius, &
-                                                            orb_radius, ppl_radius, ppnl_radius, &
-                                                            zeff
+      REAL(dp), ALLOCATABLE, DIMENSION(:) :: all_pot_rad, aux_fit_radius, c_radius, calpha, &
+         core_radius, oce_radius, orb_radius, ppl_radius, ppnl_radius, ri_radius, zeff
       REAL(dp), ALLOCATABLE, DIMENSION(:, :)             :: pair_radius
       TYPE(all_potential_type), POINTER                  :: all_potential
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
@@ -318,13 +318,14 @@ CONTAINS
       TYPE(ewald_environment_type), POINTER              :: ewald_env
       TYPE(gth_potential_type), POINTER                  :: gth_potential
       TYPE(gto_basis_set_type), POINTER                  :: aux_basis_set, aux_fit_basis_set, &
-                                                            orb_basis_set
+                                                            orb_basis_set, ri_basis_set
       TYPE(kpoint_type), POINTER                         :: kpoints
       TYPE(local_atoms_type), ALLOCATABLE, DIMENSION(:)  :: atom2d
       TYPE(molecule_type), DIMENSION(:), POINTER         :: molecule_set
-      TYPE(neighbor_list_set_p_type), DIMENSION(:), POINTER :: sab_all, sab_almo, sab_aux_fit, &
-         sab_aux_fit_asymm, sab_aux_fit_vs_orb, sab_cn, sab_core, sab_kp, sab_lrc, sab_orb, &
-         sab_scp, sab_se, sab_tbe, sab_vdw, sac_ae, sac_ppl, sap_oce, sap_ppnl, soo_list
+      TYPE(neighbor_list_set_p_type), DIMENSION(:), POINTER :: saa_list, sab_all, sab_almo, &
+         sab_aux_fit, sab_aux_fit_asymm, sab_aux_fit_vs_orb, sab_cn, sab_core, sab_kp, sab_lrc, &
+         sab_orb, sab_scp, sab_se, sab_tbe, sab_vdw, sac_ae, sac_ppl, sao_list, sap_oce, sap_ppnl, &
+         soo_list
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
       TYPE(paw_proj_set_type), POINTER                   :: paw_proj
       TYPE(qs_dftb_atom_type), POINTER                   :: dftb_atom
@@ -408,6 +409,7 @@ CONTAINS
       dftb = dft_control%qs_control%dftb
       almo = dft_control%qs_control%do_almo_scf
       lrigpw = (dft_control%qs_control%method_id == do_method_lrigpw)
+      rigpw = (dft_control%qs_control%method_id == do_method_rigpw)
       lri_optbas = dft_control%qs_control%lri_optbas
 
       hfx_sections => section_vals_get_subs_vals(qs_env%input, "DFT%XC%HF")
@@ -800,6 +802,32 @@ CONTAINS
          qs_env%lri_env%soo_list => soo_list
          CALL write_neighbor_lists(soo_list, particle_set, cell, para_env, neighbor_list_section, &
                                    "/SOO_LIST", "soo_list", "ORBITAL ORBITAL (RI)")
+      ELSEIF (rigpw) THEN
+         ALLOCATE (ri_present(nkind), ri_radius(nkind))
+         ri_present = .FALSE.
+         ri_radius = 0.0_dp
+         DO ikind = 1, nkind
+            CALL get_qs_kind(qs_kind_set(ikind), basis_set=ri_basis_set, basis_type="RI_HXC")
+            IF (ASSOCIATED(ri_basis_set)) THEN
+               ri_present(ikind) = .TRUE.
+               CALL get_gto_basis_set(gto_basis_set=ri_basis_set, kind_radius=ri_radius(ikind))
+            ELSE
+               ri_present(ikind) = .FALSE.
+            ENDIF
+         END DO
+         ! set neighborlists in lri_env environment
+         CALL pair_radius_setup(ri_present, ri_present, ri_radius, ri_radius, pair_radius)
+         saa_list => qs_env%lri_env%saa_list
+         CALL build_neighbor_lists(saa_list, particle_set, atom2d, cell, pair_radius, &
+                                   mic=mic, molecular=molecule_only, subcells=subcells, name="saa_list")
+         qs_env%lri_env%saa_list => saa_list
+         !
+         CALL pair_radius_setup(ri_present, orb_present, ri_radius, orb_radius, pair_radius)
+         sao_list => qs_env%lri_env%sao_list
+         CALL build_neighbor_lists(sao_list, particle_set, atom2d, cell, pair_radius, &
+                                   mic=mic, symmetric=.FALSE., molecular=molecule_only, &
+                                   subcells=subcells, name="saa_list")
+         qs_env%lri_env%sao_list => sao_list
       END IF
 
       ! Build the neighbor lists for the ALMO delocalization

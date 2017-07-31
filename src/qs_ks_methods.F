@@ -214,7 +214,7 @@ CONTAINS
       INTEGER                                            :: handle, iatom, img, ispin, nimages, ns, &
                                                             nspins
       LOGICAL :: do_adiabatic_rescaling, do_ddapc, do_hfx, do_ppl, gapw, gapw_xc, &
-         hfx_treat_lsd_in_core, just_energy_xc, lrigpw, my_print, use_virial
+         hfx_treat_lsd_in_core, just_energy_xc, lrigpw, my_print, rigpw, use_virial
       REAL(KIND=dp)                                      :: ecore_ppl, edisp, ee_ener, ekin_mol, &
                                                             mulliken_order_p
       REAL(KIND=dp), DIMENSION(3, 3)                     :: h_stress
@@ -325,8 +325,12 @@ CONTAINS
 
       ! Check if LRIGPW is used
       lrigpw = dft_control%qs_control%lrigpw
-      IF (lrigpw) THEN
+      rigpw = dft_control%qs_control%rigpw
+      IF (lrigpw .OR. rigpw) THEN
          CPASSERT(nimages == 1)
+      ENDIF
+      IF (lrigpw .AND. rigpw) THEN
+         CPABORT(" LRI and RI are not compatible")
       ENDIF
 
       ! Check for GAPW method : additional terms for local densities
@@ -337,6 +341,9 @@ CONTAINS
       END IF
       IF ((gapw .AND. lrigpw) .OR. (gapw_xc .AND. lrigpw)) THEN
          CPABORT(" GAPW/GAPW_XC and LRIGPW are not compatible")
+      ENDIF
+      IF ((gapw .AND. rigpw) .OR. (gapw_xc .AND. rigpw)) THEN
+         CPABORT(" GAPW/GAPW_XC and RIGPW are not compatible")
       ENDIF
 
       do_ppl = dft_control%qs_control%do_ppl_method == do_ppl_grid

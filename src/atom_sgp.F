@@ -1058,6 +1058,7 @@ CONTAINS
          END DO
          DEALLOCATE (rmat, gmat)
       END DO
+      sinv = 0.0_dp
       CALL get_pseudo_inverse_diag(smat(1:nl, 1:nl), sinv(1:nl, 1:nl), 1.e-12_dp)
       cl(1:nl) = MATMUL(sinv(1:nl, 1:nl), tv(1:nl))
       vgauss = 0.0_dp

@@ -1200,7 +1200,7 @@ CONTAINS
          routineP = moduleN//':'//routineN
 
       INTEGER                                            :: handle, igroup, ispin, nspins
-      LOGICAL                                            :: do_ppl, gapw, gapw_xc, lrigpw
+      LOGICAL                                            :: do_ppl, gapw, gapw_xc, lrigpw, rigpw
       REAL(dp)                                           :: dvol, sign
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: ksmat, matrix_ks_aux_fit, &
@@ -1241,12 +1241,19 @@ CONTAINS
       gapw_xc = dft_control%qs_control%gapw_xc
       do_ppl = dft_control%qs_control%do_ppl_method == do_ppl_grid
 
+      rigpw = dft_control%qs_control%rigpw
       lrigpw = dft_control%qs_control%lrigpw
       IF (lrigpw) THEN
          CALL get_qs_env(qs_env, &
                          lri_env=lri_env, &
                          lri_density=lri_density, &
                          atomic_kind_set=atomic_kind_set)
+      ELSEIF (rigpw) THEN
+!        CALL get_qs_env(qs_env, &
+!                        ri_env=ri_env, &
+!                        ri_density=ri_density, &
+!                        atomic_kind_set=atomic_kind_set)
+         STOP "RI qs_ks_util 1"
       ENDIF
 
       nspins = dft_control%nspins
@@ -1358,6 +1365,11 @@ CONTAINS
                lri_v_int => lri_density%lri_coefs(ispin)%lri_kinds
                CALL integrate_v_rspace_one_center(v_rspace_new(ispin), qs_env, &
                                                   lri_v_int, calculate_forces)
+            ELSEIF (rigpw) THEN
+!              ri_v_int => ri_density%ri_coefs(ispin)%ri_kinds
+!              CALL integrate_v_rspace_one_center(v_rspace_new(ispin), qs_env, &
+!                                                 ri_v_int, calculate_forces)
+               STOP "RI qs_ks_util 2"
             ELSE
                rho_ao => my_rho(ispin, :)
                ksmat => ks_matrix(ispin, :)
@@ -1399,6 +1411,11 @@ CONTAINS
                lri_v_int => lri_density%lri_coefs(ispin)%lri_kinds
                CALL integrate_v_rspace_one_center(v_rspace, qs_env, &
                                                   lri_v_int, calculate_forces)
+            ELSEIF (rigpw) THEN
+!              ri_v_int => ri_density%ri_coefs(ispin)%ri_kinds
+!              CALL integrate_v_rspace_one_center(v_rspace, qs_env, &
+!                                                 ri_v_int, calculate_forces)
+               STOP "RI  qs_ks_util 3"
             ELSE
                rho_ao => my_rho(ispin, :)
                ksmat => ks_matrix(ispin, :)
@@ -1417,17 +1434,26 @@ CONTAINS
          DO ispin = 1, nspins
             CALL calculate_lri_ks_matrix(lri_env, lri_v_int, ks_matrix(ispin, 1)%matrix, &
                                          atomic_kind_set)
-
          ENDDO
          IF (calculate_forces) THEN
             rho_ao_nokp => rho_ao_kp(:, 1)
             CALL calculate_lri_forces(lri_env, lri_density, qs_env, rho_ao_nokp, atomic_kind_set)
          ENDIF
+      ELSEIF (lrigpw) THEN
+!        DO ispin = 1, nspins
+!           CALL calculate_ri_ks_matrix(ri_env, ri_v_int, ks_matrix(ispin, 1)%matrix, &
+!                                        atomic_kind_set)
+!        ENDDO
+!        IF (calculate_forces) THEN
+!           rho_ao_nokp => rho_ao_kp(:, 1)
+!           CALL calculate_ri_forces(ri_env, ri_density, qs_env, rho_ao_nokp, atomic_kind_set)
+!        ENDIF
+         STOP "RI  qs_ks_util 4"
       ENDIF
 
       IF (ASSOCIATED(v_tau_rspace)) THEN
-         IF (lrigpw) THEN
-            CPABORT("LRIGPW not implemented for meta-GGAs")
+         IF (lrigpw .OR. rigpw) THEN
+            CPABORT("LRIGPW/RIGPW not implemented for meta-GGAs")
          ENDIF
          DO ispin = 1, nspins
             v_tau_rspace(ispin)%pw%cr3d = &

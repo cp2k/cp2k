@@ -251,7 +251,7 @@ MODULE cp_control_types
       LOGICAL                              :: realspace_mgrids
       LOGICAL                              :: map_consistent
       LOGICAL                              :: gapw, gapw_xc, gpw, pao
-      LOGICAL                              :: lrigpw
+      LOGICAL                              :: lrigpw, rigpw
       LOGICAL                              :: lri_optbas
       LOGICAL                              :: ofgpw
       LOGICAL                              :: dftb

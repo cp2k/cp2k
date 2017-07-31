@@ -1500,10 +1500,12 @@ CONTAINS
          CALL section_vals_val_get(kind_section, i_rep_section=k_rep, &
                                    keyword_name="LRI_BASIS_SET", c_val=lri_basis_set_name)
          IF (lri_basis_set_name /= "") THEN
-            nb_rep = nb_rep+1
-            CPASSERT(nb_rep <= maxbas)
-            basis_set_type(nb_rep) = "LRI"
-            basis_set_name(nb_rep) = lri_basis_set_name
+!           nb_rep = nb_rep+1
+!           CPASSERT(nb_rep <= maxbas)
+!           basis_set_type(nb_rep) = "LRI"
+!           basis_set_name(nb_rep) = lri_basis_set_name
+            CPWARN("LRI_BASIS_SET Keyword cannot be used any longer, use BASIS_SET LRI")
+            CPABORT("LRI_BASIS_SET")
          END IF
          CALL section_vals_val_get(kind_section, i_rep_section=k_rep, &
                                    keyword_name="RI_AUX_BASIS_SET", c_val=ri_aux_basis_set_name)
