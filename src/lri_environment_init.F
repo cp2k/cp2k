@@ -114,9 +114,6 @@ CONTAINS
          ENDIF
          CALL lri_basis_init(lri_env)
       ELSE IF (ri_type == "RI") THEN
-!deb
-         WRITE (6, *) "RIRIRIRIRIRIRIRIRIRIRIRIRIRI"
-!deb
          ALLOCATE (lri_env%ri_fit)
          NULLIFY (lri_env%ri_fit%nvec)
          NULLIFY (lri_env%ri_fit%bas_ptr)

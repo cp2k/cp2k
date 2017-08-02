@@ -286,7 +286,7 @@ CONTAINS
       CALL get_qs_env(qs_env=qs_env, ks_env=ks_env)
       CALL build_overlap_matrix(ks_env=ks_env, matrix_s=lri_env%ri_smat, nderivative=nder, &
                                 basis_type_a="RI_HXC", basis_type_b="RI_HXC", sab_nl=lri_env%saa_list)
-      STOP "calculate_ri_integrals"
+      CPABORT("calculate_ri_integrals")
 
       CALL timestop(handle)
 

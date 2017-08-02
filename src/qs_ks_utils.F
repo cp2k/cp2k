@@ -1253,7 +1253,7 @@ CONTAINS
 !                        ri_env=ri_env, &
 !                        ri_density=ri_density, &
 !                        atomic_kind_set=atomic_kind_set)
-         STOP "RI qs_ks_util 1"
+         CPABORT("RI qs_ks_util 1")
       ENDIF
 
       nspins = dft_control%nspins
@@ -1369,7 +1369,7 @@ CONTAINS
 !              ri_v_int => ri_density%ri_coefs(ispin)%ri_kinds
 !              CALL integrate_v_rspace_one_center(v_rspace_new(ispin), qs_env, &
 !                                                 ri_v_int, calculate_forces)
-               STOP "RI qs_ks_util 2"
+               CPABORT("RI qs_ks_util 2")
             ELSE
                rho_ao => my_rho(ispin, :)
                ksmat => ks_matrix(ispin, :)
@@ -1415,7 +1415,7 @@ CONTAINS
 !              ri_v_int => ri_density%ri_coefs(ispin)%ri_kinds
 !              CALL integrate_v_rspace_one_center(v_rspace, qs_env, &
 !                                                 ri_v_int, calculate_forces)
-               STOP "RI  qs_ks_util 3"
+               CPABORT("RI  qs_ks_util 3")
             ELSE
                rho_ao => my_rho(ispin, :)
                ksmat => ks_matrix(ispin, :)
@@ -1448,7 +1448,7 @@ CONTAINS
 !           rho_ao_nokp => rho_ao_kp(:, 1)
 !           CALL calculate_ri_forces(ri_env, ri_density, qs_env, rho_ao_nokp, atomic_kind_set)
 !        ENDIF
-         STOP "RI  qs_ks_util 4"
+         CPABORT("RI  qs_ks_util 4")
       ENDIF
 
       IF (ASSOCIATED(v_tau_rspace)) THEN

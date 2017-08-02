@@ -412,7 +412,7 @@ CONTAINS
 !                                     atomic_kind_set=atomic_kind_set, &
 !                                     para_env=para_env)
          CALL qs_rho_set(rho_struct, rho_r_valid=.TRUE., rho_g_valid=.TRUE.)
-         STOP "RI qs_rho_methods"
+         CPABORT("RI qs_rho_methods")
       ELSE
          CALL qs_rho_get(rho_struct, rho_ao_kp=rho_ao_kp)
          DO ispin = 1, nspins
