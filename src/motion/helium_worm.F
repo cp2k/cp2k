@@ -390,6 +390,7 @@ CONTAINS
          ac = 1
          RETURN
       END IF
+      dU = MIN(MAX(-200.0_dp, dU), 200.0_dp) ! guard against overflow
       det = dexp(-dU)
       xrr = next_random_number(helium%rng_stream_uniform)
       IF (det > xrr) THEN
@@ -591,6 +592,7 @@ CONTAINS
 
       ! Metropolis:
       dU = U2-U1
+      dU = MIN(MAX(-200.0_dp, dU), 200.0_dp) ! guard against overflow
       expdU = dexp(-dU)
       ! Free density matrix between the two time slices:
       rho = free_density_matrix(helium, ip, nbeads+1-l, ip, nbeads+1)
@@ -677,6 +679,7 @@ CONTAINS
 
       ! Metropolis:
       dU = U2-U1
+      dU = MIN(MAX(-200.0_dp, dU), 200.0_dp) ! guard against overflow
       expdU = dexp(-dU)
       ! Free density matrix between the two time slices:
       rho = free_density_matrix(helium, helium%iw, nbeads+1, helium%iw, nbeads+1-l)
@@ -758,6 +761,7 @@ CONTAINS
          RETURN
       END IF
       dU = U2-U1
+      dU = MIN(MAX(-200.0_dp, dU), 200.0_dp) ! guard against overflow
       expdU = dexp(-dU)
       Pmovehead = expdU
       xr = next_random_number(helium%rng_stream_uniform)
@@ -836,6 +840,7 @@ CONTAINS
          RETURN
       END IF
       dU = U2-U1
+      dU = MIN(MAX(-200.0_dp, dU), 200.0_dp) ! guard against overflow
       expdU = dexp(-dU)
       Pmovetail = expdU
       xr = next_random_number(helium%rng_stream_uniform)
@@ -958,6 +963,7 @@ CONTAINS
          RETURN
       END IF
       dU = U2-U1
+      dU = MIN(MAX(-200.0_dp, dU), 200.0_dp) ! guard against overflow
       expdU = dexp(-dU)
       Pswap2 = expdU
       xrr = next_random_number(helium%rng_stream_uniform)
@@ -1056,6 +1062,7 @@ CONTAINS
          helium%pos = helium%work
          ac = 1
       END IF
+      dU = MIN(MAX(-200.0_dp, dU), 200.0_dp) ! guard against overflow
       expdU = dexp(-dU)
       xr = next_random_number(helium%rng_stream_uniform)
       IF (expdU > xr) THEN
