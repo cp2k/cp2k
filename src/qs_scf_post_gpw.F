@@ -3108,7 +3108,7 @@ CONTAINS
             my_pos_cube = "APPEND"
          END IF
          unit_nr = cp_print_key_unit_nr(logger, input, "DFT%PRINT%IMPLICIT_PSOLVER%DIELECTRIC_CUBE", &
-                                        extension=".cube", middle_name="DIELCTRIC_CONSTANT", file_position=my_pos_cube)
+                                        extension=".cube", middle_name="DIELECTRIC_CONSTANT", file_position=my_pos_cube)
          CALL pw_env_get(pw_env, poisson_env=poisson_env, auxbas_pw_pool=auxbas_pw_pool)
          CALL pw_pool_create_pw(auxbas_pw_pool, aux_r%pw, use_data=REALDATA3D, in_space=REALSPACE)
 
