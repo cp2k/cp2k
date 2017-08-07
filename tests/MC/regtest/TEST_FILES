@@ -35,4 +35,6 @@ virial.inp                                            12    1.0E-14             
 # does a hybrid Monte Carlo simulation on classical argon at 70.0 K
 # there are no other types of MC moves in this simulation
 hmc.inp                                                6    1.0E-14                    -2.49775342
+# Cluster moves
+MC_QS_cluster.inp                                      1    1.0E-10           -123.507143733373496
 #EOF

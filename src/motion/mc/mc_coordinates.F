@@ -1090,9 +1090,9 @@ CONTAINS
             DO imol = 1, nend
                nunits_i = nunits(mol_type(imol))
 ! Allocating the xcoord,ycoord,zcoord based upon the size of molecule nunits
-               ALLOCATE (xcoord(nunits_i), ycoord(nunits_i), zcoord(nunits_i))
                lclus = .FALSE.
                IF (clusmat(imol) .EQ. counter .AND. decision(imol) .EQ. 0) THEN
+                  ALLOCATE (xcoord(nunits_i), ycoord(nunits_i), zcoord(nunits_i))
                   decision(imol) = 1
                   lclus = .TRUE.
                   DO iunit = 1, nunits_i
@@ -1125,8 +1125,8 @@ CONTAINS
                      END DO
                   END IF
                END DO
+               DEALLOCATE (xcoord, ycoord, zcoord)
             END IF
-            DEALLOCATE (xcoord, ycoord, zcoord)
          END DO
       END DO
 

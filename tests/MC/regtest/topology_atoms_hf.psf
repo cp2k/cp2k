@@ -1,0 +1,23 @@
+ PSF
+
+   1 !NTITLE
+     Topology file for HF
+
+     2   !NATOM
+       1 WAT     1 WAT  F    F          0.000000     18.998400       0
+       2 WAT     1 WAT  H    H          0.000000      1.008000       0
+
+     1   !NBOND
+       1       2
+
+     0   !NTHETA
+
+     0   !NPHI
+
+     0   !NIMPHI
+
+     0   !NDON
+
+     0   !NACC
+
+     0   !NNB
