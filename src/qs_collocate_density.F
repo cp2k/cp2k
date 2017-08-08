@@ -534,17 +534,19 @@ CONTAINS
 !> \param qs_env ...
 !> \param lri_coef ...
 !> \param total_rho ...
+!> \param basis_type ...
 !> \par History
 !>      04.2013
 !> \author Dorothea Golze
 ! **************************************************************************************************
    SUBROUTINE calculate_lri_rho_elec(lri_rho_g, lri_rho_r, qs_env, &
-                                     lri_coef, total_rho)
+                                     lri_coef, total_rho, basis_type)
 
       TYPE(pw_p_type), INTENT(INOUT)                     :: lri_rho_g, lri_rho_r
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(lri_kind_type), DIMENSION(:), POINTER         :: lri_coef
       REAL(KIND=dp), INTENT(OUT)                         :: total_rho
+      CHARACTER(len=*), INTENT(IN)                       :: basis_type
 
       CHARACTER(len=*), PARAMETER :: routineN = 'calculate_lri_rho_elec', &
          routineP = moduleN//':'//routineN
@@ -613,7 +615,7 @@ CONTAINS
 
       !take maxco from the LRI basis set!
       CALL get_qs_kind_set(qs_kind_set=qs_kind_set, &
-                           maxco=maxco, basis_type="LRI")
+                           maxco=maxco, basis_type=basis_type)
 
       ALLOCATE (pab(maxco, 1), STAT=ierr)
       IF (ierr /= 0) CALL stop_memory(routineN, moduleN, __LINE__, &

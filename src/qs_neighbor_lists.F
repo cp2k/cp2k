@@ -324,7 +324,7 @@ CONTAINS
       TYPE(molecule_type), DIMENSION(:), POINTER         :: molecule_set
       TYPE(neighbor_list_set_p_type), DIMENSION(:), POINTER :: saa_list, sab_all, sab_almo, &
          sab_aux_fit, sab_aux_fit_asymm, sab_aux_fit_vs_orb, sab_cn, sab_core, sab_kp, sab_lrc, &
-         sab_orb, sab_scp, sab_se, sab_tbe, sab_vdw, sac_ae, sac_ppl, sao_list, sap_oce, sap_ppnl, &
+         sab_orb, sab_scp, sab_se, sab_tbe, sab_vdw, sac_ae, sac_ppl, sap_oce, sap_ppnl, soa_list, &
          soo_list
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
       TYPE(paw_proj_set_type), POINTER                   :: paw_proj
@@ -798,7 +798,7 @@ CONTAINS
          CALL pair_radius_setup(orb_present, orb_present, orb_radius, orb_radius, pair_radius)
          soo_list => qs_env%lri_env%soo_list
          CALL build_neighbor_lists(soo_list, particle_set, atom2d, cell, pair_radius, &
-                                   subcells=subcells, name="soo_list")
+                                   mic=mic, molecular=molecule_only, subcells=subcells, name="soo_list")
          qs_env%lri_env%soo_list => soo_list
          CALL write_neighbor_lists(soo_list, particle_set, cell, para_env, neighbor_list_section, &
                                    "/SOO_LIST", "soo_list", "ORBITAL ORBITAL (RI)")
@@ -816,6 +816,12 @@ CONTAINS
             ENDIF
          END DO
          ! set neighborlists in lri_env environment
+         CALL pair_radius_setup(orb_present, orb_present, orb_radius, orb_radius, pair_radius)
+         soo_list => qs_env%lri_env%soo_list
+         CALL build_neighbor_lists(soo_list, particle_set, atom2d, cell, pair_radius, &
+                                   mic=mic, molecular=molecule_only, subcells=subcells, name="soo_list")
+         qs_env%lri_env%soo_list => soo_list
+         !
          CALL pair_radius_setup(ri_present, ri_present, ri_radius, ri_radius, pair_radius)
          saa_list => qs_env%lri_env%saa_list
          CALL build_neighbor_lists(saa_list, particle_set, atom2d, cell, pair_radius, &
@@ -823,11 +829,11 @@ CONTAINS
          qs_env%lri_env%saa_list => saa_list
          !
          CALL pair_radius_setup(ri_present, orb_present, ri_radius, orb_radius, pair_radius)
-         sao_list => qs_env%lri_env%sao_list
-         CALL build_neighbor_lists(sao_list, particle_set, atom2d, cell, pair_radius, &
+         soa_list => qs_env%lri_env%soa_list
+         CALL build_neighbor_lists(soa_list, particle_set, atom2d, cell, pair_radius, &
                                    mic=mic, symmetric=.FALSE., molecular=molecule_only, &
                                    subcells=subcells, name="saa_list")
-         qs_env%lri_env%sao_list => sao_list
+         qs_env%lri_env%soa_list => soa_list
       END IF
 
       ! Build the neighbor lists for the ALMO delocalization

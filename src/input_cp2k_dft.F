@@ -5769,6 +5769,15 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
+      CALL keyword_create(keyword, name="RI_SINV", &
+                          description="Approximation to be used for the inverse of the "// &
+                          "RI overlap matrix. INVF, INVS: exact inverse, apply directly "// &
+                          "for solver (F:full matrix, S:sparsematrix). AINV approximate inverse, use with PCG. "// &
+                          "NONE: no approximation used with CG solver.", &
+                          usage="RI_SINV NONE", default_c_val="INVF")
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
    END SUBROUTINE create_lrigpw_section
 
 ! **************************************************************************************************

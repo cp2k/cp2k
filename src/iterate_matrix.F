@@ -198,9 +198,9 @@ CONTAINS
       END IF
 
       IF (unit_nr > 0) THEN
-         !   WRITE(unit_nr,'(T6,A,1X,I3,1X,F10.8,E12.3)') "Final Hotelling ",i,occ_matrix,&
-         !      !frob_matrix/frob_matrix_base
-         !      maxnorm_matrix
+!           WRITE(unit_nr,'(T6,A,1X,I3,1X,F10.8,E12.3)') "Final Hotelling ",i,occ_matrix,&
+!              !frob_matrix/frob_matrix_base
+!              maxnorm_matrix
          WRITE (unit_nr, '()')
          CALL m_flush(unit_nr)
       ENDIF

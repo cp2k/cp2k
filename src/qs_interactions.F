@@ -98,7 +98,7 @@ CONTAINS
       TYPE(all_potential_type), POINTER                  :: all_potential
       TYPE(gth_potential_type), POINTER                  :: gth_potential
       TYPE(gto_basis_set_type), POINTER :: aux_basis_set, aux_fit_basis_set, aux_gw_basis, &
-         harris_basis, lri_basis, mao_basis, orb_basis_set, ri_aux_basis_set, soft_basis
+         harris_basis, lri_basis, mao_basis, orb_basis_set, ri_aux_basis_set, ri_basis, soft_basis
       TYPE(paw_proj_set_type), POINTER                   :: paw_proj_set
       TYPE(sgp_potential_type), POINTER                  :: sgp_potential
 
@@ -120,6 +120,7 @@ CONTAINS
          CALL get_qs_kind(qs_kind_set(ikind), basis_set=aux_basis_set, basis_type="AUX")
          CALL get_qs_kind(qs_kind_set(ikind), basis_set=aux_fit_basis_set, basis_type="AUX_FIT")
          CALL get_qs_kind(qs_kind_set(ikind), basis_set=lri_basis, basis_type="LRI")
+         CALL get_qs_kind(qs_kind_set(ikind), basis_set=ri_basis, basis_type="RI_HXC")
          CALL get_qs_kind(qs_kind_set(ikind), basis_set=ri_aux_basis_set, basis_type="RI_AUX")
          CALL get_qs_kind(qs_kind_set(ikind), basis_set=mao_basis, basis_type="MAO")
          CALL get_qs_kind(qs_kind_set(ikind), basis_set=harris_basis, basis_type="HARRIS")
@@ -323,6 +324,9 @@ CONTAINS
          ! Calculate the lri basis function radii
          IF (ASSOCIATED(lri_basis)) THEN
             CALL init_interaction_radii_orb_basis(lri_basis, qs_control%eps_pgf_orb)
+         END IF
+         IF (ASSOCIATED(ri_basis)) THEN
+            CALL init_interaction_radii_orb_basis(ri_basis, qs_control%eps_pgf_orb)
          END IF
 
          ! Calculate the paw projector basis function radii

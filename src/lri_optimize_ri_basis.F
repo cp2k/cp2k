@@ -38,7 +38,7 @@ MODULE lri_optimize_ri_basis
    USE kinds,                           ONLY: default_path_length,&
                                               dp
    USE lri_environment_init,            ONLY: lri_basis_init
-   USE lri_environment_methods,         ONLY: calculate_avec,&
+   USE lri_environment_methods,         ONLY: calculate_avec_lri,&
                                               calculate_lri_integrals,&
                                               calculate_lri_overlap_aabb
    USE lri_environment_types,           ONLY: lri_density_type,&
@@ -541,7 +541,7 @@ CONTAINS
       ENDDO
       CALL lri_basis_init(lri_env)
       CALL calculate_lri_integrals(lri_env, qs_env, calculate_forces=.FALSE.)
-      CALL calculate_avec(lri_env, lri_density, qs_env, pmatrix)
+      CALL calculate_avec_lri(lri_env, lri_density, pmatrix)
       IF (lri_opt%use_condition_number) THEN
          CALL get_condition_number_of_overlap(lri_env)
       ENDIF

@@ -14,21 +14,27 @@
 !>          Dorothea Golze
 ! **************************************************************************************************
 MODULE lri_environment_methods
+   USE arnoldi_api,                     ONLY: arnoldi_conjugate_gradient
    USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                               get_atomic_kind,&
                                               get_atomic_kind_set
    USE basis_set_types,                 ONLY: gto_basis_set_type
    USE cell_types,                      ONLY: cell_type,&
                                               pbc
+   USE cp_blacs_env,                    ONLY: cp_blacs_env_type
    USE cp_control_types,                ONLY: dft_control_type
+   USE cp_dbcsr_diag,                   ONLY: cp_dbcsr_syevd
    USE cp_log_handling,                 ONLY: cp_get_default_logger,&
                                               cp_logger_type
    USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
                                               cp_print_key_unit_nr
    USE cp_para_types,                   ONLY: cp_para_env_type
-   USE dbcsr_api,                       ONLY: dbcsr_get_block_p,&
-                                              dbcsr_p_type,&
-                                              dbcsr_type
+   USE dbcsr_api,                       ONLY: &
+        dbcsr_allocate_matrix_set, dbcsr_create, dbcsr_get_block_p, dbcsr_get_info, &
+        dbcsr_iterator_blocks_left, dbcsr_iterator_next_block, dbcsr_iterator_start, &
+        dbcsr_iterator_stop, dbcsr_iterator_type, dbcsr_multiply, dbcsr_p_type, dbcsr_release, &
+        dbcsr_scale_by_vector, dbcsr_trace, dbcsr_type, dbcsr_type_antisymmetric, &
+        dbcsr_type_no_symmetry, dbcsr_type_symmetric
    USE generic_os_integrals,            ONLY: int_overlap_aabb_os,&
                                               int_overlap_ab_os,&
                                               int_overlap_aba_os,&
@@ -43,6 +49,7 @@ MODULE lri_environment_methods
                                               do_lri_pseudoinv_diag,&
                                               do_lri_pseudoinv_svd
    USE input_section_types,             ONLY: section_vals_type
+   USE iterate_matrix,                  ONLY: invert_Hotelling
    USE kinds,                           ONLY: dp
    USE lri_environment_types,           ONLY: &
         allocate_lri_coefs, allocate_lri_ints, allocate_lri_ints_rho, allocate_lri_rhos, &
@@ -67,10 +74,22 @@ MODULE lri_environment_methods
                                               neighbor_list_iterator_p_type,&
                                               neighbor_list_iterator_release,&
                                               neighbor_list_set_p_type
+   USE qs_o3c_methods,                  ONLY: calculate_o3c_integrals,&
+                                              contract12_o3c
+   USE qs_o3c_types,                    ONLY: get_o3c_iterator_info,&
+                                              init_o3c_container,&
+                                              o3c_container_type,&
+                                              o3c_iterate,&
+                                              o3c_iterator_create,&
+                                              o3c_iterator_release,&
+                                              o3c_iterator_type,&
+                                              release_o3c_container
    USE qs_overlap,                      ONLY: build_overlap_matrix
    USE qs_rho_types,                    ONLY: qs_rho_get,&
                                               qs_rho_type
+   USE util,                            ONLY: get_limit
    USE virial_types,                    ONLY: virial_type
+!$ USE OMP_LIB, ONLY: omp_get_max_threads, omp_get_thread_num
 #include "./base/base_uses.f90"
 
    IMPLICIT NONE
@@ -81,8 +100,9 @@ MODULE lri_environment_methods
 
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'lri_environment_methods'
 
-   PUBLIC :: build_lri_matrices, calculate_lri_densities, calculate_lri_integrals, &
-             calculate_lri_overlap_aabb, calculate_avec
+   PUBLIC :: build_lri_matrices, calculate_lri_densities, calculate_ri_densities, &
+             calculate_lri_integrals, calculate_lri_overlap_aabb, calculate_avec_lri, &
+             ri_metric_solver
 
 ! **************************************************************************************************
 
@@ -271,13 +291,22 @@ CONTAINS
       CHARACTER(LEN=*), PARAMETER :: routineN = 'calculate_ri_integrals', &
          routineP = moduleN//':'//routineN
 
-      INTEGER                                            :: handle, nder
+      INTEGER                                            :: handle, i, izero, nbas, nder
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: eval
+      TYPE(cp_blacs_env_type), POINTER                   :: blacs_env
+      TYPE(cp_para_env_type), POINTER                    :: para_env
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_p
+      TYPE(dbcsr_type)                                   :: emat
+      TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(qs_ks_env_type), POINTER                      :: ks_env
+      TYPE(qs_rho_type), POINTER                         :: rho
 
       CALL timeset(routineN, handle)
 
       CPASSERT(ASSOCIATED(lri_env))
       CPASSERT(ASSOCIATED(qs_env))
+
+      ! RI overlap matrix
       IF (calculate_forces) THEN
          nder = 1
       ELSE
@@ -286,11 +315,143 @@ CONTAINS
       CALL get_qs_env(qs_env=qs_env, ks_env=ks_env)
       CALL build_overlap_matrix(ks_env=ks_env, matrix_s=lri_env%ri_smat, nderivative=nder, &
                                 basis_type_a="RI_HXC", basis_type_b="RI_HXC", sab_nl=lri_env%saa_list)
-      CPABORT("calculate_ri_integrals")
+      ! approximation (preconditioner) or exact inverse of RI overlap
+      CALL dbcsr_allocate_matrix_set(lri_env%ri_sinv, 1)
+      ALLOCATE (lri_env%ri_sinv(1)%matrix)
+      SELECT CASE (lri_env%ri_sinv_app)
+      CASE ("NONE")
+         !
+      CASE ("INVS")
+         CALL dbcsr_create(lri_env%ri_sinv(1)%matrix, template=lri_env%ri_smat(1)%matrix)
+         CALL invert_Hotelling(lri_env%ri_sinv(1)%matrix, lri_env%ri_smat(1)%matrix, &
+                               threshold=1.e-10_dp, use_inv_as_guess=.FALSE., &
+                               norm_convergence=1.e-10_dp, filter_eps=1.e-12_dp, silent=.FALSE.)
+      CASE ("INVF")
+         CALL dbcsr_create(emat, matrix_type=dbcsr_type_no_symmetry, template=lri_env%ri_smat(1)%matrix)
+         CALL get_qs_env(qs_env=qs_env, para_env=para_env, blacs_env=blacs_env)
+         CALL dbcsr_get_info(lri_env%ri_smat(1)%matrix, nfullrows_total=nbas)
+         ALLOCATE (eval(nbas))
+         CALL cp_dbcsr_syevd(lri_env%ri_smat(1)%matrix, emat, eval, para_env, blacs_env)
+         izero = 0
+         DO i = 1, nbas
+            IF (eval(i) < 1.0e-10_dp) THEN
+               eval(i) = 0.0_dp
+               izero = izero+1
+            ELSE
+               eval(i) = SQRT(1.0_dp/eval(i))
+            ENDIF
+         END DO
+         CALL dbcsr_scale_by_vector(emat, eval, side='right')
+         CALL dbcsr_create(lri_env%ri_sinv(1)%matrix, template=lri_env%ri_smat(1)%matrix)
+         CALL dbcsr_multiply("N", "T", 1.0_dp, emat, emat, 0.0_dp, lri_env%ri_sinv(1)%matrix)
+         DEALLOCATE (eval)
+         CALL dbcsr_release(emat)
+      CASE ("AINV")
+         CALL dbcsr_create(lri_env%ri_sinv(1)%matrix, template=lri_env%ri_smat(1)%matrix)
+         CALL invert_Hotelling(lri_env%ri_sinv(1)%matrix, lri_env%ri_smat(1)%matrix, &
+                               threshold=1.e-5_dp, use_inv_as_guess=.FALSE., &
+                               norm_convergence=1.e-4_dp, filter_eps=1.e-4_dp, silent=.FALSE.)
+      CASE DEFAULT
+         CPABORT("Unknown RI_SINV type")
+      END SELECT
+
+      ! solve Rx=n
+      CALL ri_metric_solver(mat=lri_env%ri_smat(1)%matrix, &
+                            vecr=lri_env%ri_fit%nvec, &
+                            vecx=lri_env%ri_fit%rm1n, &
+                            matp=lri_env%ri_sinv(1)%matrix, &
+                            solver=lri_env%ri_sinv_app, &
+                            ptr=lri_env%ri_fit%bas_ptr)
+
+      ! calculate n(t)x
+      lri_env%ri_fit%ntrm1n = SUM(lri_env%ri_fit%nvec(:)*lri_env%ri_fit%rm1n(:))
+
+      ! calculate 3c-overlap integrals
+      IF (ASSOCIATED(lri_env%o3c)) THEN
+         CALL release_o3c_container(lri_env%o3c)
+      ELSE
+         ALLOCATE (lri_env%o3c)
+      END IF
+      CALL init_o3c_container(lri_env%o3c, &
+                              lri_env%orb_basis, lri_env%orb_basis, lri_env%ri_basis, &
+                              lri_env%soo_list, lri_env%soa_list)
+
+      NULLIFY (rho, matrix_p)
+      IF (calculate_forces) THEN
+         CALL get_qs_env(qs_env=qs_env, rho=rho)
+         CALL qs_rho_get(rho, rho_ao=matrix_p)
+      END IF
+
+      CALL get_qs_env(qs_env=qs_env, dft_control=dft_control)
+      CALL calculate_o3c_integrals(lri_env%o3c, dft_control%nspins, calculate_forces, matrix_p)
 
       CALL timestop(handle)
 
    END SUBROUTINE calculate_ri_integrals
+! **************************************************************************************************
+!> \brief solver for RI systems (R*x=n)
+!> \param mat ...
+!> \param vecr ...
+!> \param vecx ...
+!> \param matp ...
+!> \param solver ...
+!> \param ptr ...
+! **************************************************************************************************
+   SUBROUTINE ri_metric_solver(mat, vecr, vecx, matp, solver, ptr)
+
+      TYPE(dbcsr_type)                                   :: mat
+      REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: vecr
+      REAL(KIND=dp), DIMENSION(:), INTENT(OUT)           :: vecx
+      TYPE(dbcsr_type)                                   :: matp
+      CHARACTER(LEN=*), INTENT(IN)                       :: solver
+      INTEGER, DIMENSION(:, :), INTENT(IN)               :: ptr
+
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'ri_metric_solver', &
+         routineP = moduleN//':'//routineN
+
+      INTEGER                                            :: handle, max_iter, n
+      LOGICAL                                            :: converged
+      REAL(KIND=dp)                                      :: rerror, threshold
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: vect
+
+      CALL timeset(routineN, handle)
+
+      threshold = 1.e-10_dp
+      max_iter = 100
+
+      vecx(:) = vecr(:)
+
+      SELECT CASE (solver)
+      CASE ("NONE")
+         CALL arnoldi_conjugate_gradient(mat, vecx, &
+                                         converged=converged, threshold=threshold, max_iter=max_iter)
+      CASE ("INVS", "INVF")
+         converged = .FALSE.
+         CALL ri_matvec(matp, vecr, vecx, ptr)
+      CASE ("AINV")
+         CALL arnoldi_conjugate_gradient(mat, vecx, matrix_p=matp, &
+                                         converged=converged, threshold=threshold, max_iter=max_iter)
+      CASE DEFAULT
+         CPABORT("Unknown RI solver")
+      END SELECT
+
+      IF (.NOT. converged) THEN
+         ! get error
+         rerror = 0.0_dp
+         n = SIZE(vecr)
+         ALLOCATE (vect(n))
+         CALL ri_matvec(mat, vecx, vect, ptr)
+         vect(:) = vect(:)-vecr(:)
+         rerror = MAXVAL(ABS(vect(:)))
+         DEALLOCATE (vect)
+         IF (rerror > threshold) THEN
+            CPWARN("RI solver: CG did not converge properly")
+         END IF
+      END IF
+
+      CALL timestop(handle)
+
+   END SUBROUTINE ri_metric_solver
 ! **************************************************************************************************
 !> \brief calculates overlap integrals (aabb) of the orbital basis set,
 !>        reguired for LRI basis set optimization
@@ -380,18 +541,16 @@ CONTAINS
 !>        lri_density the environment for the fitting
 !>        pmatrix density matrix
 !>        lri_rho_struct where the fitted density is stored
-!> \param lri_density ...
 !> \param qs_env ...
 !> \param pmatrix ...
 !> \param lri_rho_struct ...
 !> \param atomic_kind_set ...
 !> \param para_env ...
 ! **************************************************************************************************
-   SUBROUTINE calculate_lri_densities(lri_env, lri_density, qs_env, pmatrix, &
+   SUBROUTINE calculate_lri_densities(lri_env, qs_env, pmatrix, &
                                       lri_rho_struct, atomic_kind_set, para_env)
 
       TYPE(lri_environment_type), POINTER                :: lri_env
-      TYPE(lri_density_type), POINTER                    :: lri_density
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: pmatrix
       TYPE(qs_rho_type), POINTER                         :: lri_rho_struct
@@ -401,12 +560,95 @@ CONTAINS
       CHARACTER(LEN=*), PARAMETER :: routineN = 'calculate_lri_densities', &
          routineP = moduleN//':'//routineN
 
-      CALL calculate_avec(lri_env, lri_density, qs_env, pmatrix)
+      TYPE(lri_density_type), POINTER                    :: lri_density
+
+      CALL get_qs_env(qs_env, lri_density=lri_density)
+      CALL calculate_avec_lri(lri_env, lri_density, pmatrix)
+      CALL set_qs_env(qs_env, lri_density=lri_density)
 
       CALL distribute_lri_density_on_the_grid(lri_env, lri_density, qs_env, &
                                               lri_rho_struct, atomic_kind_set, para_env)
 
    END SUBROUTINE calculate_lri_densities
+
+! **************************************************************************************************
+!> \brief performs the fitting of the density and distributes the fitted
+!>        density on the grid
+!> \param lri_env the lri environment
+!>        lri_density the environment for the fitting
+!>        pmatrix density matrix
+!>        lri_rho_struct where the fitted density is stored
+!> \param qs_env ...
+!> \param pmatrix ...
+!> \param lri_rho_struct ...
+!> \param atomic_kind_set ...
+!> \param para_env ...
+! **************************************************************************************************
+   SUBROUTINE calculate_ri_densities(lri_env, qs_env, pmatrix, &
+                                     lri_rho_struct, atomic_kind_set, para_env)
+
+      TYPE(lri_environment_type), POINTER                :: lri_env
+      TYPE(qs_environment_type), POINTER                 :: qs_env
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: pmatrix
+      TYPE(qs_rho_type), POINTER                         :: lri_rho_struct
+      TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
+      TYPE(cp_para_env_type), POINTER                    :: para_env
+
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'calculate_ri_densities', &
+         routineP = moduleN//':'//routineN
+
+      INTEGER                                            :: atom_a, handle, i1, i2, iatom, ikind, &
+                                                            ispin, n, natom, nspin
+      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: atom_of_kind, kind_of
+      INTEGER, DIMENSION(:, :), POINTER                  :: bas_ptr
+      REAL(KIND=dp), DIMENSION(:), POINTER               :: tot_rho_r
+      REAL(KIND=dp), DIMENSION(:, :), POINTER            :: avec
+      TYPE(lri_density_type), POINTER                    :: lri_density
+      TYPE(lri_kind_type), DIMENSION(:), POINTER         :: lri_coef
+      TYPE(pw_p_type), DIMENSION(:), POINTER             :: rho_g, rho_r
+
+      CALL timeset(routineN, handle)
+
+      nspin = SIZE(pmatrix, 1)
+      CALL contract12_o3c(lri_env%o3c, pmatrix)
+      CALL calculate_tvec_ri(lri_env, lri_env%o3c, para_env)
+      CALL calculate_avec_ri(lri_env, qs_env, pmatrix)
+      !
+      CALL get_qs_env(qs_env, lri_density=lri_density, natom=natom)
+      CALL lri_density_release(lri_density)
+      CALL lri_density_create(lri_density)
+      lri_density%nspin = nspin
+      ! allocate the arrays to hold RI expansion coefficients lri_coefs
+      CALL allocate_lri_coefs(lri_env, lri_density, atomic_kind_set)
+      ! reassign avec
+      avec => lri_env%ri_fit%avec
+      bas_ptr => lri_env%ri_fit%bas_ptr
+      ALLOCATE (atom_of_kind(natom), kind_of(natom))
+      CALL get_atomic_kind_set(atomic_kind_set, atom_of_kind=atom_of_kind, kind_of=kind_of)
+      DO ispin = 1, nspin
+         lri_coef => lri_density%lri_coefs(ispin)%lri_kinds
+         DO iatom = 1, natom
+            ikind = kind_of(iatom)
+            atom_a = atom_of_kind(iatom)
+            i1 = bas_ptr(1, iatom)
+            i2 = bas_ptr(2, iatom)
+            n = i2-i1+1
+            lri_coef(ikind)%acoef(atom_a, 1:n) = avec(i1:i2, ispin)
+         END DO
+      END DO
+      CALL set_qs_env(qs_env, lri_density=lri_density)
+      DEALLOCATE (atom_of_kind, kind_of)
+      !
+      CALL qs_rho_get(lri_rho_struct, rho_r=rho_r, rho_g=rho_g, tot_rho_r=tot_rho_r)
+      DO ispin = 1, nspin
+         lri_coef => lri_density%lri_coefs(ispin)%lri_kinds
+         CALL calculate_lri_rho_elec(rho_g(ispin), rho_r(ispin), qs_env, &
+                                     lri_coef, tot_rho_r(ispin), "RI_HXC")
+      ENDDO
+
+      CALL timestop(handle)
+
+   END SUBROUTINE calculate_ri_densities
 
 ! **************************************************************************************************
 !> \brief performs the fitting of the density; solves the linear system of
@@ -415,17 +657,16 @@ CONTAINS
 !>        lri_density the environment for the fitting
 !>        pmatrix density matrix
 !> \param lri_density ...
-!> \param qs_env ...
 !> \param pmatrix ...
 ! **************************************************************************************************
-   SUBROUTINE calculate_avec(lri_env, lri_density, qs_env, pmatrix)
+   SUBROUTINE calculate_avec_lri(lri_env, lri_density, pmatrix)
 
       TYPE(lri_environment_type), POINTER                :: lri_env
       TYPE(lri_density_type), POINTER                    :: lri_density
-      TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: pmatrix
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'calculate_avec', routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'calculate_avec_lri', &
+         routineP = moduleN//':'//routineN
 
       INTEGER                                            :: handle, i, iac, iatom, ikind, ilist, &
                                                             ispin, jatom, jkind, jneighbor, nba, &
@@ -545,13 +786,170 @@ CONTAINS
 
          END DO
 
-         CALL set_qs_env(qs_env, lri_density=lri_density)
-
       END IF
 
       CALL timestop(handle)
 
-   END SUBROUTINE calculate_avec
+   END SUBROUTINE calculate_avec_lri
+
+! **************************************************************************************************
+!> \brief assembles the global vector t=<P.T>
+!> \param lri_env the lri environment
+!> \param o3c ...
+!> \param para_env ...
+! **************************************************************************************************
+   SUBROUTINE calculate_tvec_ri(lri_env, o3c, para_env)
+
+      TYPE(lri_environment_type), POINTER                :: lri_env
+      TYPE(o3c_container_type), POINTER                  :: o3c
+      TYPE(cp_para_env_type), POINTER                    :: para_env
+
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'calculate_tvec_ri', &
+         routineP = moduleN//':'//routineN
+      INTEGER, PARAMETER                                 :: msweep = 32
+
+      INTEGER                                            :: handle, i1, i2, ibl, ibu, il, ispin, &
+                                                            isweep, it, iu, katom, m, ma, mba, &
+                                                            mepos, natom, nspin, nsweep, nthread
+      INTEGER, DIMENSION(2, msweep)                      :: nlimit
+      INTEGER, DIMENSION(:, :), POINTER                  :: bas_ptr
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: ta
+      REAL(KIND=dp), DIMENSION(:, :), POINTER            :: rm1t, tvec, tvl
+      TYPE(o3c_iterator_type)                            :: o3c_iterator
+
+      CALL timeset(routineN, handle)
+
+      nspin = SIZE(lri_env%ri_fit%tvec, 2)
+      bas_ptr => lri_env%ri_fit%bas_ptr
+      tvec => lri_env%ri_fit%tvec
+      tvec = 0.0_dp
+      natom = SIZE(bas_ptr, 2)
+      nthread = 1
+!$    nthread = omp_get_max_threads()
+
+      IF (natom < 1000) THEN
+         nsweep = 1
+      ELSE
+         nsweep = MIN(nthread, msweep)
+      END IF
+
+      nlimit = 0
+      DO isweep = 1, nsweep
+         nlimit(1:2, isweep) = get_limit(natom, nsweep, isweep-1)
+      END DO
+
+      DO ispin = 1, nspin
+         DO isweep = 1, nsweep
+            il = nlimit(1, isweep)
+            iu = nlimit(2, isweep)
+            ma = iu-il+1
+            IF (ma < 1) CYCLE
+            ibl = bas_ptr(1, il)
+            ibu = bas_ptr(2, iu)
+            mba = ibu-ibl+1
+            ALLOCATE (ta(mba, nthread))
+            ta = 0.0_dp
+
+            CALL o3c_iterator_create(o3c, o3c_iterator, nthread=nthread)
+
+!$OMP PARALLEL DEFAULT(NONE)&
+!$OMP SHARED (nthread,o3c_iterator,ispin,il,iu,ibl,ta,bas_ptr)&
+!$OMP PRIVATE (mepos,katom,tvl,i1,i2,m)
+
+            mepos = 0
+!$          mepos = omp_get_thread_num()
+
+            DO WHILE (o3c_iterate(o3c_iterator, mepos=mepos) == 0)
+               CALL get_o3c_iterator_info(o3c_iterator, mepos=mepos, katom=katom, tvec=tvl)
+               IF (katom < il .OR. katom > iu) CYCLE
+               i1 = bas_ptr(1, katom)-ibl+1
+               i2 = bas_ptr(2, katom)-ibl+1
+               m = i2-i1+1
+               ta(i1:i2, mepos+1) = ta(i1:i2, mepos+1)+tvl(1:m, ispin)
+            END DO
+!$OMP END PARALLEL
+            CALL o3c_iterator_release(o3c_iterator)
+
+            ! sum over threads
+            DO it = 1, nthread
+               tvec(ibl:ibu, ispin) = tvec(ibl:ibu, ispin)+ta(1:mba, it)
+            END DO
+            DEALLOCATE (ta)
+         END DO
+      END DO
+
+      ! global summation
+      CALL mp_sum(tvec, para_env%group)
+
+      rm1t => lri_env%ri_fit%rm1t
+      DO ispin = 1, nspin
+         ! solve Rx=t
+         CALL ri_metric_solver(mat=lri_env%ri_smat(1)%matrix, &
+                               vecr=tvec(:, ispin), &
+                               vecx=rm1t(:, ispin), &
+                               matp=lri_env%ri_sinv(1)%matrix, &
+                               solver=lri_env%ri_sinv_app, &
+                               ptr=bas_ptr)
+      END DO
+
+      CALL timestop(handle)
+
+   END SUBROUTINE calculate_tvec_ri
+! **************************************************************************************************
+!> \brief performs the fitting of the density in the RI method
+!> \param lri_env the lri environment
+!>        lri_density the environment for the fitting
+!>        pmatrix density matrix
+!> \param qs_env ...
+!> \param pmatrix ...
+! **************************************************************************************************
+   SUBROUTINE calculate_avec_ri(lri_env, qs_env, pmatrix)
+
+      TYPE(lri_environment_type), POINTER                :: lri_env
+      TYPE(qs_environment_type), POINTER                 :: qs_env
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: pmatrix
+
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'calculate_avec_ri', &
+         routineP = moduleN//':'//routineN
+
+      INTEGER                                            :: handle, ispin, nspin
+      REAL(KIND=dp)                                      :: etr, nelec, nrm1t
+      REAL(KIND=dp), DIMENSION(:), POINTER               :: nvec, rm1n
+      REAL(KIND=dp), DIMENSION(:, :), POINTER            :: avec, rm1t, tvec
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: smatrix
+
+      CALL timeset(routineN, handle)
+
+      nspin = SIZE(pmatrix)
+      ! number of electrons
+      CALL get_qs_env(qs_env, matrix_s=smatrix)
+      DO ispin = 1, nspin
+         etr = 0.0_dp
+         CALL dbcsr_trace(smatrix(1)%matrix, pmatrix(ispin)%matrix, etr)
+         lri_env%ri_fit%echarge(ispin) = etr
+      END DO
+
+      tvec => lri_env%ri_fit%tvec
+      rm1t => lri_env%ri_fit%rm1t
+      nvec => lri_env%ri_fit%nvec
+      rm1n => lri_env%ri_fit%rm1n
+
+      ! calculate lambda
+      DO ispin = 1, nspin
+         nelec = lri_env%ri_fit%echarge(ispin)
+         nrm1t = SUM(nvec(:)*rm1t(:, ispin))
+         lri_env%ri_fit%lambda(ispin) = 2.0_dp*(nrm1t-nelec)/lri_env%ri_fit%ntrm1n
+      END DO
+
+      ! calculate avec = rm1t - lambda/2 * rm1n
+      avec => lri_env%ri_fit%avec
+      DO ispin = 1, nspin
+         avec(:, ispin) = rm1t(:, ispin)-0.5_dp*lri_env%ri_fit%lambda(ispin)*rm1n(:)
+      END DO
+
+      CALL timestop(handle)
+
+   END SUBROUTINE calculate_avec_ri
 
 ! **************************************************************************************************
 !> \brief sums up avec and  distributes the fitted density on the grid
@@ -667,7 +1065,7 @@ CONTAINS
             CALL calculate_lri_rho_elec(rho_g(ispin), &
                                         rho_r(ispin), qs_env, &
                                         lri_density%lri_coefs(ispin)%lri_kinds, &
-                                        tot_rho_r(ispin))
+                                        tot_rho_r(ispin), "LRI")
          ENDDO
 
          CALL set_qs_env(qs_env, lri_density=lri_density)
@@ -1101,5 +1499,68 @@ CONTAINS
       CALL timestop(handle)
 
    END SUBROUTINE output_debug_info
+
+! **************************************************************************************************
+!> \brief Mutiplies a replicated vector with a DBCSR matrix: vo = mat*vi
+!> \param mat ...
+!> \param vi ...
+!> \param vo ...
+!> \param ptr ...
+! **************************************************************************************************
+   SUBROUTINE ri_matvec(mat, vi, vo, ptr)
+
+      TYPE(dbcsr_type)                                   :: mat
+      REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: vi
+      REAL(KIND=dp), DIMENSION(:), INTENT(OUT)           :: vo
+      INTEGER, DIMENSION(:, :), INTENT(IN)               :: ptr
+
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'ri_matvec', routineP = moduleN//':'//routineN
+
+      CHARACTER                                          :: matrix_type
+      INTEGER                                            :: group, handle, iatom, jatom, m1, m2, mb, &
+                                                            n1, n2, nb
+      LOGICAL                                            :: symm
+      REAL(KIND=dp), DIMENSION(:, :), POINTER            :: block
+      TYPE(dbcsr_iterator_type)                          :: iter
+
+      CALL timeset(routineN, handle)
+
+      CALL dbcsr_get_info(mat, matrix_type=matrix_type, group=group)
+
+      SELECT CASE (matrix_type)
+      CASE (dbcsr_type_no_symmetry)
+         symm = .FALSE.
+      CASE (dbcsr_type_symmetric)
+         symm = .TRUE.
+      CASE (dbcsr_type_antisymmetric)
+         CPABORT("NYI, antisymmetric matrix not permitted")
+      CASE DEFAULT
+         CPABORT("Unknown matrix type, ...")
+      END SELECT
+
+      vo(:) = 0.0_dp
+      CALL dbcsr_iterator_start(iter, mat)
+      DO WHILE (dbcsr_iterator_blocks_left(iter))
+         CALL dbcsr_iterator_next_block(iter, iatom, jatom, block)
+         n1 = ptr(1, iatom)
+         n2 = ptr(2, iatom)
+         nb = n2-n1+1
+         m1 = ptr(1, jatom)
+         m2 = ptr(2, jatom)
+         mb = m2-m1+1
+         CPASSERT(nb == SIZE(block, 1))
+         CPASSERT(mb == SIZE(block, 2))
+         vo(n1:n2) = vo(n1:n2)+MATMUL(block, vi(m1:m2))
+         IF (symm .AND. (iatom /= jatom)) THEN
+            vo(m1:m2) = vo(m1:m2)+MATMUL(TRANSPOSE(block), vi(n1:n2))
+         END IF
+      END DO
+      CALL dbcsr_iterator_stop(iter)
+
+      CALL mp_sum(vo, group)
+
+      CALL timestop(handle)
+
+   END SUBROUTINE ri_matvec
 
 END MODULE lri_environment_methods

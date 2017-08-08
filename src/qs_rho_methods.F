@@ -27,9 +27,9 @@ MODULE qs_rho_methods
    USE kinds,                           ONLY: default_string_length,&
                                               dp
    USE kpoint_types,                    ONLY: kpoint_type
-   USE lri_environment_methods,         ONLY: calculate_lri_densities
-   USE lri_environment_types,           ONLY: lri_density_type,&
-                                              lri_environment_type
+   USE lri_environment_methods,         ONLY: calculate_lri_densities,&
+                                              calculate_ri_densities
+   USE lri_environment_types,           ONLY: lri_environment_type
    USE pw_env_types,                    ONLY: pw_env_get,&
                                               pw_env_type
    USE pw_methods,                      ONLY: pw_zero
@@ -345,7 +345,6 @@ CONTAINS
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: rho_ao
       TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: rho_ao_kp, rho_xc_ao
       TYPE(dft_control_type), POINTER                    :: dft_control
-      TYPE(lri_density_type), POINTER                    :: lri_density
       TYPE(lri_environment_type), POINTER                :: lri_env
       TYPE(pw_env_type), POINTER                         :: pw_env
       TYPE(pw_p_type), DIMENSION(:), POINTER             :: drho_g, drho_r, drho_xc_g, rho_g, rho_r, &
@@ -360,7 +359,7 @@ CONTAINS
 
       NULLIFY (dft_control, rho_xc, ks_env, rho_ao, rho_r, rho_g, drho_r, drho_g, tau_r, tau_g)
       NULLIFY (rho_xc_ao, rho_xc_g, rho_xc_r, drho_xc_g, tau_xc_r, tau_xc_g, tot_rho_r, tot_rho_r_xc)
-      NULLIFY (lri_env, lri_density, para_env, pw_env, atomic_kind_set)
+      NULLIFY (lri_env, para_env, pw_env, atomic_kind_set)
 
       CPASSERT(ASSOCIATED(rho_struct))
 
@@ -368,7 +367,6 @@ CONTAINS
                       ks_env=ks_env, &
                       dft_control=dft_control, &
                       task_list=task_list, &
-                      lri_density=lri_density, &
                       lri_env=lri_env, &
                       atomic_kind_set=atomic_kind_set, &
                       para_env=para_env, &
@@ -399,20 +397,21 @@ CONTAINS
          !
          CALL qs_rho_set(rho_struct, rho_r_valid=.FALSE., rho_g_valid=.FALSE.)
       ELSEIF (dft_control%qs_control%lrigpw) THEN
+         CPASSERT(.NOT. dft_control%use_kinetic_energy_density)
          CALL qs_rho_get(rho_struct, rho_ao=rho_ao)
-         CALL calculate_lri_densities(lri_env, lri_density, qs_env, rho_ao, &
+         CALL calculate_lri_densities(lri_env, qs_env, rho_ao, &
                                       lri_rho_struct=rho_struct, &
                                       atomic_kind_set=atomic_kind_set, &
                                       para_env=para_env)
          CALL qs_rho_set(rho_struct, rho_r_valid=.TRUE., rho_g_valid=.TRUE.)
       ELSEIF (dft_control%qs_control%rigpw) THEN
+         CPASSERT(.NOT. dft_control%use_kinetic_energy_density)
          CALL qs_rho_get(rho_struct, rho_ao=rho_ao)
-!        CALL calculate_lri_densities(lri_env, lri_density, qs_env, rho_ao, &
-!                                     lri_rho_struct=rho_struct, &
-!                                     atomic_kind_set=atomic_kind_set, &
-!                                     para_env=para_env)
+         CALL calculate_ri_densities(lri_env, qs_env, rho_ao, &
+                                     lri_rho_struct=rho_struct, &
+                                     atomic_kind_set=atomic_kind_set, &
+                                     para_env=para_env)
          CALL qs_rho_set(rho_struct, rho_r_valid=.TRUE., rho_g_valid=.TRUE.)
-         CPABORT("RI qs_rho_methods")
       ELSE
          CALL qs_rho_get(rho_struct, rho_ao_kp=rho_ao_kp)
          DO ispin = 1, nspins
@@ -426,45 +425,39 @@ CONTAINS
                                     pw_env_external=pw_env)
          END DO
          CALL qs_rho_set(rho_struct, rho_r_valid=.TRUE., rho_g_valid=.TRUE.)
+
+         ! if needed compute also the gradient of the density
+         IF (dft_control%drho_by_collocation) THEN
+            CALL qs_rho_get(rho_struct, rho_ao_kp=rho_ao_kp)
+            CPASSERT(.NOT. PRESENT(task_list_external))
+            CPASSERT(.NOT. PRESENT(pw_env_external))
+            DO ispin = 1, nspins
+               rho_ao => rho_ao_kp(ispin, :)
+               CALL calculate_drho_elec(matrix_p_kp=rho_ao, &
+                                        drho=drho_r(3*(ispin-1)+1:3*ispin), &
+                                        drho_gspace=drho_g(3*(ispin-1)+1:3*ispin), &
+                                        qs_env=qs_env, soft_valid=gapw)
+            END DO
+            CALL qs_rho_set(rho_struct, drho_r_valid=.TRUE., drho_g_valid=.TRUE.)
+         ENDIF
+
+         ! if needed compute also the kinetic energy density
+         IF (dft_control%use_kinetic_energy_density) THEN
+            CALL qs_rho_get(rho_struct, rho_ao_kp=rho_ao_kp)
+            DO ispin = 1, nspins
+               rho_ao => rho_ao_kp(ispin, :)
+               CALL calculate_rho_elec(matrix_p_kp=rho_ao, &
+                                       rho=tau_r(ispin), &
+                                       rho_gspace=tau_g(ispin), &
+                                       total_rho=dum, & ! presumably not meaningful
+                                       ks_env=ks_env, soft_valid=gapw, &
+                                       compute_tau=.TRUE., &
+                                       task_list_external=task_list, &
+                                       pw_env_external=pw_env)
+            END DO
+            CALL qs_rho_set(rho_struct, tau_r_valid=.TRUE., tau_g_valid=.TRUE.)
+         ENDIF
       END IF
-
-      ! if needed compute also the gradient of the density
-      IF (dft_control%drho_by_collocation) THEN
-         CALL qs_rho_get(rho_struct, rho_ao_kp=rho_ao_kp)
-         CPASSERT(.NOT. PRESENT(task_list_external))
-         CPASSERT(.NOT. PRESENT(pw_env_external))
-         DO ispin = 1, nspins
-            rho_ao => rho_ao_kp(ispin, :)
-            CALL calculate_drho_elec(matrix_p_kp=rho_ao, &
-                                     drho=drho_r(3*(ispin-1)+1:3*ispin), &
-                                     drho_gspace=drho_g(3*(ispin-1)+1:3*ispin), &
-                                     qs_env=qs_env, soft_valid=gapw)
-         END DO
-         CALL qs_rho_set(rho_struct, drho_r_valid=.TRUE., drho_g_valid=.TRUE.)
-      ENDIF
-
-      ! if needed compute also the kinetic energy density
-      IF (dft_control%use_kinetic_energy_density) THEN
-         IF (dft_control%qs_control%lrigpw) THEN
-            CPABORT("LRIGPW not implemented for meta-GGAs")
-         ENDIF
-         IF (dft_control%qs_control%rigpw) THEN
-            CPABORT("RIGPW not implemented for meta-GGAs")
-         ENDIF
-         CALL qs_rho_get(rho_struct, rho_ao_kp=rho_ao_kp)
-         DO ispin = 1, nspins
-            rho_ao => rho_ao_kp(ispin, :)
-            CALL calculate_rho_elec(matrix_p_kp=rho_ao, &
-                                    rho=tau_r(ispin), &
-                                    rho_gspace=tau_g(ispin), &
-                                    total_rho=dum, & ! presumably not meaningful
-                                    ks_env=ks_env, soft_valid=gapw, &
-                                    compute_tau=.TRUE., &
-                                    task_list_external=task_list, &
-                                    pw_env_external=pw_env)
-         END DO
-         CALL qs_rho_set(rho_struct, tau_r_valid=.TRUE., tau_g_valid=.TRUE.)
-      ENDIF
 
       ! GAPW o GAPW_XC require the calculation of hard and soft local densities
       IF (gapw) THEN

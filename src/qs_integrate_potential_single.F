@@ -633,14 +633,16 @@ CONTAINS
 !> \param qs_env ...
 !> \param int_res ...
 !> \param calculate_forces ...
+!> \param basis_type ...
 !> \author Dorothea Golze
 ! **************************************************************************************************
    SUBROUTINE integrate_v_rspace_one_center(v_rspace, qs_env, int_res, &
-                                            calculate_forces)
+                                            calculate_forces, basis_type)
       TYPE(pw_p_type), INTENT(IN)                        :: v_rspace
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(lri_kind_type), DIMENSION(:), POINTER         :: int_res
       LOGICAL, INTENT(IN)                                :: calculate_forces
+      CHARACTER(len=*), INTENT(IN)                       :: basis_type
 
       CHARACTER(len=*), PARAMETER :: routineN = 'integrate_v_rspace_one_center', &
          routineP = moduleN//':'//routineN
@@ -718,7 +720,7 @@ CONTAINS
       DO ikind = 1, nkind
 
          CALL get_atomic_kind(atomic_kind_set(ikind), natom=natom_of_kind, atom_list=atom_list)
-         CALL get_qs_kind(qs_kind_set(ikind), basis_set=lri_basis_set, basis_type="LRI")
+         CALL get_qs_kind(qs_kind_set(ikind), basis_set=lri_basis_set, basis_type=basis_type)
          CALL get_gto_basis_set(gto_basis_set=lri_basis_set, &
                                 first_sgf=first_sgfa, &
                                 lmax=la_max, &

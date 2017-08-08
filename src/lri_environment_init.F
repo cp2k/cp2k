@@ -11,12 +11,14 @@
 !> \author Dorothea Golze
 ! **************************************************************************************************
 MODULE lri_environment_init
-   USE atomic_kind_types,               ONLY: atomic_kind_type
+   USE atomic_kind_types,               ONLY: atomic_kind_type,&
+                                              get_atomic_kind_set
    USE basis_set_types,                 ONLY: copy_gto_basis_set,&
                                               gto_basis_set_type
    USE bibliography,                    ONLY: Golze2017a,&
                                               Golze2017b,&
                                               cite_reference
+   USE cp_control_types,                ONLY: dft_control_type
    USE generic_shg_integrals,           ONLY: int_overlap_aba_shg
    USE generic_shg_integrals_init,      ONLY: contraction_matrix_shg,&
                                               contraction_matrix_shg_mix,&
@@ -67,9 +69,13 @@ CONTAINS
 
       CHARACTER(len=*), PARAMETER :: routineN = 'lri_env_init', routineP = moduleN//':'//routineN
 
-      INTEGER                                            :: ikind, lmax_ikind_orb, lmax_ikind_ri, &
-                                                            maxl_orb, maxl_ri, nkind
+      INTEGER                                            :: i1, i2, iat, ikind, lmax_ikind_orb, &
+                                                            lmax_ikind_ri, maxl_orb, maxl_ri, &
+                                                            natom, nbas, nkind, nribas, nspin
+      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: kind_of
+      REAL(KIND=dp), DIMENSION(:), POINTER               :: int_aux, norm
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
+      TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(gto_basis_set_type), POINTER                  :: orb_basis_set, ri_basis_set
       TYPE(lri_environment_type), POINTER                :: lri_env
 
@@ -104,6 +110,22 @@ CONTAINS
          maxl_ri = MAX(maxl_ri, lmax_ikind_ri)
       END DO
 
+      ! init keywords
+      ! check for debug (OS scheme)
+      CALL section_vals_val_get(lri_section, "DEBUG_LRI_INTEGRALS", &
+                                l_val=lri_env%debug)
+      ! integrals based on solid harmonic Gaussians
+      CALL section_vals_val_get(lri_section, "SHG_LRI_INTEGRALS", &
+                                l_val=lri_env%use_shg_integrals)
+      ! how to calculate inverse/pseuodinverse of overlap
+      CALL section_vals_val_get(lri_section, "LRI_OVERLAP_MATRIX", &
+                                i_val=lri_env%lri_overlap_inv)
+      CALL section_vals_val_get(lri_section, "MAX_CONDITION_NUM", &
+                                r_val=lri_env%cond_max)
+      ! RI SINV
+      CALL section_vals_val_get(lri_section, "RI_SINV", &
+                                c_val=lri_env%ri_sinv_app)
+
       IF (ri_type == "LRI") THEN
          ! CG coefficients needed for lri integrals
          IF (ASSOCIATED(lri_env%cg_shg)) THEN
@@ -117,23 +139,51 @@ CONTAINS
          ALLOCATE (lri_env%ri_fit)
          NULLIFY (lri_env%ri_fit%nvec)
          NULLIFY (lri_env%ri_fit%bas_ptr)
+         CALL get_qs_env(qs_env=qs_env, natom=natom)
+         ! initialize pointers to RI basis vector
+         ALLOCATE (lri_env%ri_fit%bas_ptr(2, natom))
+         ALLOCATE (kind_of(natom))
+         CALL get_atomic_kind_set(atomic_kind_set, kind_of=kind_of)
+         nbas = 0
+         DO iat = 1, natom
+            ikind = kind_of(iat)
+            nribas = lri_env%ri_basis(ikind)%gto_basis_set%nsgf
+            lri_env%ri_fit%bas_ptr(1, iat) = nbas+1
+            lri_env%ri_fit%bas_ptr(2, iat) = nbas+nribas
+            nbas = nbas+nribas
+         END DO
+         ! initialize vector t
+         CALL get_qs_env(qs_env=qs_env, dft_control=dft_control)
+         nspin = dft_control%nspins
+         ALLOCATE (lri_env%ri_fit%tvec(nbas, nspin), lri_env%ri_fit%rm1t(nbas, nspin))
+         ! initialize vector a, expansion of density
+         ALLOCATE (lri_env%ri_fit%avec(nbas, nspin))
+         ! initialize vector with RI basis integrated
+         NULLIFY (norm, int_aux)
+         nbas = lri_env%ri_fit%bas_ptr(2, natom)
+         ALLOCATE (lri_env%ri_fit%nvec(nbas), lri_env%ri_fit%rm1n(nbas))
+         ikind = 0
+         DO iat = 1, natom
+            IF (ikind /= kind_of(iat)) THEN
+               ikind = kind_of(iat)
+               ri_basis_set => lri_env%ri_basis(ikind)%gto_basis_set
+               IF (ASSOCIATED(norm)) DEALLOCATE (norm)
+               IF (ASSOCIATED(int_aux)) DEALLOCATE (int_aux)
+               CALL basis_norm_s_func(ri_basis_set, norm)
+               CALL basis_int(ri_basis_set, int_aux, norm)
+            END IF
+            nbas = SIZE(int_aux)
+            i1 = lri_env%ri_fit%bas_ptr(1, iat)
+            i2 = lri_env%ri_fit%bas_ptr(2, iat)
+            lri_env%ri_fit%nvec(i1:i2) = int_aux(1:nbas)
+         END DO
+         IF (ASSOCIATED(norm)) DEALLOCATE (norm)
+         IF (ASSOCIATED(int_aux)) DEALLOCATE (int_aux)
+         DEALLOCATE (kind_of)
       ELSE
          CPABORT('ri_type')
       END IF
 
-      ! init keywords
-      ! check for debug (OS scheme)
-      CALL section_vals_val_get(lri_section, "DEBUG_LRI_INTEGRALS", &
-                                l_val=lri_env%debug)
-      ! integrals based on solid harmonic Gaussians
-      CALL section_vals_val_get(lri_section, "SHG_LRI_INTEGRALS", &
-                                l_val=lri_env%use_shg_integrals)
-      ! how to calculate inverse/pseuodinverse of overlap
-      CALL section_vals_val_get(lri_section, "LRI_OVERLAP_MATRIX", &
-                                i_val=lri_env%lri_overlap_inv)
-      CALL section_vals_val_get(lri_section, "MAX_CONDITION_NUM", &
-                                r_val=lri_env%cond_max)
-      !
       CALL set_qs_env(qs_env, lri_env=lri_env)
 
       CALL cite_reference(Golze2017b)

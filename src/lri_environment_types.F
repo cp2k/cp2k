@@ -29,6 +29,8 @@ MODULE lri_environment_types
                                               neighbor_list_iterator_p_type,&
                                               neighbor_list_iterator_release,&
                                               neighbor_list_set_p_type
+   USE qs_o3c_types,                    ONLY: o3c_container_type,&
+                                              release_o3c_container
    USE virial_types,                    ONLY: virial_type
 #include "./base/base_uses.f90"
 
@@ -177,6 +179,13 @@ MODULE lri_environment_types
    TYPE ri_fit_type
       INTEGER, DIMENSION(:, :), POINTER                         :: bas_ptr
       REAL(KIND=dp), DIMENSION(:), POINTER                      :: nvec
+      REAL(KIND=dp), DIMENSION(:), POINTER                      :: rm1n
+      REAL(KIND=dp), DIMENSION(:, :), POINTER                   :: tvec
+      REAL(KIND=dp), DIMENSION(:, :), POINTER                   :: rm1t
+      REAL(KIND=dp), DIMENSION(:, :), POINTER                   :: avec
+      REAL(KIND=dp)                                             :: ntrm1n
+      REAL(KIND=dp), DIMENSION(2)                               :: echarge
+      REAL(KIND=dp), DIMENSION(2)                               :: lambda
    END TYPE ri_fit_type
 
 ! **************************************************************************************************
@@ -201,7 +210,7 @@ MODULE lri_environment_types
       ! orb_basis neighborlist
       TYPE(neighbor_list_set_p_type), DIMENSION(:), POINTER   :: soo_list
       TYPE(neighbor_list_set_p_type), DIMENSION(:), POINTER   :: saa_list
-      TYPE(neighbor_list_set_p_type), DIMENSION(:), POINTER   :: sao_list
+      TYPE(neighbor_list_set_p_type), DIMENSION(:), POINTER   :: soa_list
       ! local RI integrals
       TYPE(lri_list_type), POINTER                            :: lri_ints
       ! local integral of rho**2; for optimization
@@ -214,6 +223,8 @@ MODULE lri_environment_types
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER               :: ri_smat, &
                                                                  ri_sinv
       TYPE(ri_fit_type), POINTER                              :: ri_fit
+      CHARACTER(len=10)                                       :: ri_sinv_app
+      TYPE(o3c_container_type), POINTER                       :: o3c
    END TYPE lri_environment_type
 
 ! **************************************************************************************************
@@ -230,13 +241,13 @@ MODULE lri_environment_types
    END TYPE lri_kind_type
 
    TYPE lri_spin_type
-      TYPE(lri_kind_type), DIMENSION(:), POINTER              :: lri_kinds
+      TYPE(lri_kind_type), DIMENSION(:), POINTER                :: lri_kinds
    END TYPE lri_spin_type
 
 ! **************************************************************************************************
 
    TYPE lri_force_type
-      REAL(KIND=dp), DIMENSION(:), POINTER                     :: st
+      REAL(KIND=dp), DIMENSION(:), POINTER                      :: st
       REAL(KIND=dp), DIMENSION(:, :), POINTER                   :: dssn, &
                                                                    sdssn, &
                                                                    dsst, &
@@ -251,12 +262,12 @@ MODULE lri_environment_types
 ! **************************************************************************************************
 
    TYPE lri_density_type
-      INTEGER :: id_nr, ref_count, in_use
+      INTEGER                                                 :: id_nr, ref_count, in_use
       INTEGER                                                 :: nspin
       ! pair density expansion (nspin)
-      TYPE(lri_list_p_type), DIMENSION(:), POINTER             :: lri_rhos
+      TYPE(lri_list_p_type), DIMENSION(:), POINTER            :: lri_rhos
       ! coefficients of RI expansion and gradients (nspin)
-      TYPE(lri_spin_type), DIMENSION(:), POINTER               :: lri_coefs
+      TYPE(lri_spin_type), DIMENSION(:), POINTER              :: lri_coefs
       TYPE(lri_force_type), POINTER                           :: lri_force
    END TYPE lri_density_type
 
@@ -305,17 +316,21 @@ CONTAINS
 
       NULLIFY (lri_env%soo_list)
       NULLIFY (lri_env%saa_list)
-      NULLIFY (lri_env%sao_list)
+      NULLIFY (lri_env%soa_list)
       NULLIFY (lri_env%lri_ints)
       NULLIFY (lri_env%lri_ints_rho)
       NULLIFY (lri_env%bas_prop)
-      NULLIFY (lri_env%cg_shg)
 
       NULLIFY (lri_env%ri_smat)
       NULLIFY (lri_env%ri_sinv)
       NULLIFY (lri_env%ri_fit)
+      NULLIFY (lri_env%o3c)
 
+      NULLIFY (lri_env%cg_shg)
       ALLOCATE (lri_env%cg_shg)
+      NULLIFY (lri_env%cg_shg%cg_coeff)
+      NULLIFY (lri_env%cg_shg%cg_none0_list)
+      NULLIFY (lri_env%cg_shg%ncg_none0)
 
    END SUBROUTINE lri_env_create
 
@@ -362,11 +377,11 @@ CONTAINS
             END DO
             DEALLOCATE (lri_env%saa_list)
          END IF
-         IF (ASSOCIATED(lri_env%sao_list)) THEN
-            DO i = 1, SIZE(lri_env%sao_list)
-               CALL deallocate_neighbor_list_set(lri_env%sao_list(i)%neighbor_list_set)
+         IF (ASSOCIATED(lri_env%soa_list)) THEN
+            DO i = 1, SIZE(lri_env%soa_list)
+               CALL deallocate_neighbor_list_set(lri_env%soa_list(i)%neighbor_list_set)
             END DO
-            DEALLOCATE (lri_env%sao_list)
+            DEALLOCATE (lri_env%soa_list)
          END IF
          IF (ASSOCIATED(lri_env%lri_ints)) THEN
             CALL deallocate_lri_ints(lri_env%lri_ints)
@@ -376,22 +391,44 @@ CONTAINS
          END IF
          CALL deallocate_bas_properties(lri_env)
          IF (ASSOCIATED(lri_env%cg_shg)) THEN
-            DEALLOCATE (lri_env%cg_shg%cg_coeff)
-            DEALLOCATE (lri_env%cg_shg%cg_none0_list)
-            DEALLOCATE (lri_env%cg_shg%ncg_none0)
+            IF (ASSOCIATED(lri_env%cg_shg%cg_coeff)) THEN
+               DEALLOCATE (lri_env%cg_shg%cg_coeff)
+            END IF
+            IF (ASSOCIATED(lri_env%cg_shg%cg_none0_list)) THEN
+               DEALLOCATE (lri_env%cg_shg%cg_none0_list)
+            END IF
+            IF (ASSOCIATED(lri_env%cg_shg%ncg_none0)) THEN
+               DEALLOCATE (lri_env%cg_shg%ncg_none0)
+            END IF
             DEALLOCATE (lri_env%cg_shg)
          ENDIF
-         ! ri
+         ! RI
          IF (ASSOCIATED(lri_env%ri_smat)) CALL dbcsr_deallocate_matrix_set(lri_env%ri_smat)
          IF (ASSOCIATED(lri_env%ri_sinv)) CALL dbcsr_deallocate_matrix_set(lri_env%ri_sinv)
          IF (ASSOCIATED(lri_env%ri_fit)) THEN
             IF (ASSOCIATED(lri_env%ri_fit%nvec)) THEN
                DEALLOCATE (lri_env%ri_fit%nvec)
             END IF
+            IF (ASSOCIATED(lri_env%ri_fit%rm1n)) THEN
+               DEALLOCATE (lri_env%ri_fit%rm1n)
+            END IF
+            IF (ASSOCIATED(lri_env%ri_fit%tvec)) THEN
+               DEALLOCATE (lri_env%ri_fit%tvec)
+            END IF
+            IF (ASSOCIATED(lri_env%ri_fit%rm1t)) THEN
+               DEALLOCATE (lri_env%ri_fit%rm1t)
+            END IF
+            IF (ASSOCIATED(lri_env%ri_fit%avec)) THEN
+               DEALLOCATE (lri_env%ri_fit%avec)
+            END IF
             IF (ASSOCIATED(lri_env%ri_fit%bas_ptr)) THEN
                DEALLOCATE (lri_env%ri_fit%bas_ptr)
             END IF
             DEALLOCATE (lri_env%ri_fit)
+         END IF
+         IF (ASSOCIATED(lri_env%o3c)) THEN
+            CALL release_o3c_container(lri_env%o3c)
+            DEALLOCATE (lri_env%o3c)
          END IF
          !
          DEALLOCATE (lri_env)
