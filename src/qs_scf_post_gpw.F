@@ -2811,8 +2811,7 @@ CONTAINS
       ! Compute the Mulliken charges
       print_key => section_vals_get_subs_vals(input, "DFT%PRINT%MULLIKEN")
       IF (BTEST(cp_print_key_should_output(logger%iter_info, print_key), cp_p_file)) THEN
-         unit_nr = cp_print_key_unit_nr(logger, input, "DFT%PRINT%MULLIKEN", extension=".mulliken", &
-                                        middle_name="", log_filename=.FALSE.)
+         unit_nr = cp_print_key_unit_nr(logger, input, "DFT%PRINT%MULLIKEN", extension=".mulliken", log_filename=.FALSE.)
          print_level = 1
          CALL section_vals_val_get(print_key, "PRINT_GOP", l_val=print_it)
          IF (print_it) print_level = 2
@@ -2830,8 +2829,7 @@ CONTAINS
          CALL get_qs_env(qs_env=qs_env, rho=rho)
          CALL qs_rho_get(rho, rho_r_valid=rho_r_valid)
          IF (rho_r_valid) THEN
-            unit_nr = cp_print_key_unit_nr(logger, input, "DFT%PRINT%HIRSHFELD", extension=".hirshfeld", &
-                                           middle_name="", log_filename=.FALSE.)
+            unit_nr = cp_print_key_unit_nr(logger, input, "DFT%PRINT%HIRSHFELD", extension=".hirshfeld", log_filename=.FALSE.)
             CALL hirshfeld_charges(qs_env, print_key, unit_nr)
             CALL cp_print_key_finished_output(unit_nr, logger, input, "DFT%PRINT%HIRSHFELD")
          END IF
@@ -2840,8 +2838,7 @@ CONTAINS
       ! MAO analysis
       print_key => section_vals_get_subs_vals(input, "DFT%PRINT%MAO_ANALYSIS")
       IF (BTEST(cp_print_key_should_output(logger%iter_info, print_key), cp_p_file)) THEN
-         unit_nr = cp_print_key_unit_nr(logger, input, "DFT%PRINT%MAO_ANALYSIS", extension=".mao", &
-                                        middle_name="", log_filename=.FALSE.)
+         unit_nr = cp_print_key_unit_nr(logger, input, "DFT%PRINT%MAO_ANALYSIS", extension=".mao", log_filename=.FALSE.)
          CALL mao_analysis(qs_env, print_key, unit_nr)
          CALL cp_print_key_finished_output(unit_nr, logger, input, "DFT%PRINT%MAO_ANALYSIS")
       END IF
@@ -2849,8 +2846,7 @@ CONTAINS
       ! MINBAS analysis
       print_key => section_vals_get_subs_vals(input, "DFT%PRINT%MINBAS_ANALYSIS")
       IF (BTEST(cp_print_key_should_output(logger%iter_info, print_key), cp_p_file)) THEN
-         unit_nr = cp_print_key_unit_nr(logger, input, "DFT%PRINT%MINBAS_ANALYSIS", extension=".mao", &
-                                        middle_name="", log_filename=.FALSE.)
+         unit_nr = cp_print_key_unit_nr(logger, input, "DFT%PRINT%MINBAS_ANALYSIS", extension=".mao", log_filename=.FALSE.)
          CALL minbas_analysis(qs_env, print_key, unit_nr)
          CALL cp_print_key_finished_output(unit_nr, logger, input, "DFT%PRINT%MINBAS_ANALYSIS")
       END IF

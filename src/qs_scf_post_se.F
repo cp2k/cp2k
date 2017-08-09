@@ -487,8 +487,7 @@ CONTAINS
       ! Compute the mulliken charges
       print_key => section_vals_get_subs_vals(input, "DFT%PRINT%MULLIKEN")
       IF (BTEST(cp_print_key_should_output(logger%iter_info, print_key), cp_p_file)) THEN
-         unit_nr = cp_print_key_unit_nr(logger, input, "DFT%PRINT%MULLIKEN", extension=".mulliken", &
-                                        middle_name="", log_filename=.FALSE.)
+         unit_nr = cp_print_key_unit_nr(logger, input, "DFT%PRINT%MULLIKEN", extension=".mulliken", log_filename=.FALSE.)
          CALL qs_rho_get(rho, rho_ao=matrix_p)
          nspin = SIZE(matrix_p)
          ALLOCATE (charges(natom, nspin), mcharge(natom))

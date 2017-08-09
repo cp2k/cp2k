@@ -143,8 +143,7 @@ CONTAINS
       ! Mulliken
       print_key => section_vals_get_subs_vals(print_section, "MULLIKEN")
       IF (BTEST(cp_print_key_should_output(logger%iter_info, print_key), cp_p_file)) THEN
-         unit_nr = cp_print_key_unit_nr(logger, print_section, "MULLIKEN", extension=".mulliken", &
-                                        middle_name="", log_filename=.FALSE.)
+         unit_nr = cp_print_key_unit_nr(logger, print_section, "MULLIKEN", extension=".mulliken", log_filename=.FALSE.)
          IF (unit_nr > 0) THEN
             WRITE (UNIT=unit_nr, FMT="(/,/,T2,A)") "MULLIKEN POPULATION ANALYSIS"
             IF (nspins == 1) THEN
