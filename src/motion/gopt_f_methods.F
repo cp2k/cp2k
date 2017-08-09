@@ -770,6 +770,8 @@ CONTAINS
       NULLIFY (subsys)
 
       CALL write_trajectory(force_env, root_section, it, 0.0_dp, 0.0_dp, etot)
+      ! Print Force
+      CALL write_trajectory(force_env, root_section, it, 0.0_dp, 0.0_dp, etot, "FORCES", middle_name="frc")
       CALL force_env_get(force_env, subsys=subsys)
       CALL cp_subsys_get(subsys, atomic_kinds=atomic_kinds)
       atomic_kind_set => atomic_kinds%els
