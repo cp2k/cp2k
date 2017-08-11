@@ -175,15 +175,17 @@ CONTAINS
 !> \param h_matrix KS matrix, on entry containing the core hamiltonian
 !> \param s_matrix overlap matrix
 !> \param atomic_kind_set ...
+!> \param ispin ...
 !> \note including this in lri_environment_methods?
 ! **************************************************************************************************
    SUBROUTINE calculate_ri_ks_matrix(lri_env, lri_v_int, h_matrix, s_matrix, &
-                                     atomic_kind_set)
+                                     atomic_kind_set, ispin)
 
       TYPE(lri_environment_type), POINTER                :: lri_env
       TYPE(lri_kind_type), DIMENSION(:), POINTER         :: lri_v_int
       TYPE(dbcsr_type), POINTER                          :: h_matrix, s_matrix
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
+      INTEGER, INTENT(IN)                                :: ispin
 
       CHARACTER(*), PARAMETER :: routineN = 'calculate_ri_ks_matrix', &
          routineP = moduleN//':'//routineN
@@ -216,6 +218,7 @@ CONTAINS
       DEALLOCATE (atom_of_kind, kind_of)
       ! f(T) * R^(-1)*n
       ftrm1n = SUM(fvec(:)*lri_env%ri_fit%rm1n(:))
+      lri_env%ri_fit%ftrm1n(ispin) = ftrm1n
       fscal = ftrm1n/lri_env%ri_fit%ntrm1n
       ! renormalize fvec -> fvec - fscal * n
       fvec(:) = fvec(:)-fscal*lri_env%ri_fit%nvec(:)
@@ -226,6 +229,7 @@ CONTAINS
                             matp=lri_env%ri_sinv(1)%matrix, &
                             solver=lri_env%ri_sinv_app, &
                             ptr=bas_ptr)
+      lri_env%ri_fit%fout(:, ispin) = fout(:)
 
       ! add overlap matrix contribution
       CALL dbcsr_add(h_matrix, s_matrix, 1.0_dp, fscal)

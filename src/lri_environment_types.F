@@ -183,7 +183,9 @@ MODULE lri_environment_types
       REAL(KIND=dp), DIMENSION(:, :), POINTER                   :: tvec
       REAL(KIND=dp), DIMENSION(:, :), POINTER                   :: rm1t
       REAL(KIND=dp), DIMENSION(:, :), POINTER                   :: avec
+      REAL(KIND=dp), DIMENSION(:, :), POINTER                   :: fout
       REAL(KIND=dp)                                             :: ntrm1n
+      REAL(KIND=dp), DIMENSION(2)                               :: ftrm1n
       REAL(KIND=dp), DIMENSION(2)                               :: echarge
       REAL(KIND=dp), DIMENSION(2)                               :: lambda
    END TYPE ri_fit_type
@@ -219,6 +221,8 @@ MODULE lri_environment_types
       TYPE(lri_bas_type), DIMENSION(:), POINTER               :: bas_prop
       ! Clebsch-Gordon for solid harmonics
       TYPE(lri_clebsch_gordon_type), POINTER                  :: cg_shg
+      ! orbital basis overlap
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER               :: ob_smat
       ! RI overlap and inverse
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER               :: ri_smat, &
                                                                  ri_sinv
@@ -321,6 +325,7 @@ CONTAINS
       NULLIFY (lri_env%lri_ints_rho)
       NULLIFY (lri_env%bas_prop)
 
+      NULLIFY (lri_env%ob_smat)
       NULLIFY (lri_env%ri_smat)
       NULLIFY (lri_env%ri_sinv)
       NULLIFY (lri_env%ri_fit)
@@ -403,6 +408,7 @@ CONTAINS
             DEALLOCATE (lri_env%cg_shg)
          ENDIF
          ! RI
+         IF (ASSOCIATED(lri_env%ob_smat)) CALL dbcsr_deallocate_matrix_set(lri_env%ob_smat)
          IF (ASSOCIATED(lri_env%ri_smat)) CALL dbcsr_deallocate_matrix_set(lri_env%ri_smat)
          IF (ASSOCIATED(lri_env%ri_sinv)) CALL dbcsr_deallocate_matrix_set(lri_env%ri_sinv)
          IF (ASSOCIATED(lri_env%ri_fit)) THEN
@@ -420,6 +426,9 @@ CONTAINS
             END IF
             IF (ASSOCIATED(lri_env%ri_fit%avec)) THEN
                DEALLOCATE (lri_env%ri_fit%avec)
+            END IF
+            IF (ASSOCIATED(lri_env%ri_fit%fout)) THEN
+               DEALLOCATE (lri_env%ri_fit%fout)
             END IF
             IF (ASSOCIATED(lri_env%ri_fit%bas_ptr)) THEN
                DEALLOCATE (lri_env%ri_fit%bas_ptr)

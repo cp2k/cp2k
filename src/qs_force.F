@@ -38,6 +38,8 @@ MODULE qs_force
                                               section_vals_val_get
    USE kinds,                           ONLY: dp,&
                                               int_size
+   USE lri_environment_methods,         ONLY: build_lri_matrices
+   USE lri_environment_types,           ONLY: lri_environment_type
    USE message_passing,                 ONLY: mp_sum
    USE mulliken,                        ONLY: mulliken_restraint
    USE particle_types,                  ONLY: particle_type
@@ -145,6 +147,7 @@ CONTAINS
          matrix_s_aux_fit, matrix_s_aux_fit_vs_orb, matrix_w, matrix_w_mp2, rho_ao
       TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: matrix_w_kp
       TYPE(dft_control_type), POINTER                    :: dft_control
+      TYPE(lri_environment_type), POINTER                :: lri_env
       TYPE(mo_set_p_type), DIMENSION(:), POINTER         :: mos, mos_aux_fit
       TYPE(mo_set_type), POINTER                         :: mo_set
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
@@ -299,6 +302,11 @@ CONTAINS
          IF (.NOT. dft_control%qs_control%gapw) THEN
             CALL external_c_potential(qs_env, calculate_forces=.TRUE.)
          END IF
+         ! RIGPW  matrices
+         IF (dft_control%qs_control%rigpw) THEN
+            CALL get_qs_env(qs_env=qs_env, lri_env=lri_env)
+            CALL build_lri_matrices(lri_env, qs_env, calculate_forces=.TRUE., ri_method="RI")
+         ENDIF
       END IF
 
       ! Compute grid-based forces
@@ -312,13 +320,13 @@ CONTAINS
          energy%total = energy%total+energy%singles_corr
       END IF
 
-      ! ALMO Code (in the spirit of the MP2 modifications below)
-      IF (ASSOCIATED(qs_env%almo_scf_env)) THEN
-         ! tell qs about the energy correction
-         NULLIFY (energy)
-         CALL get_qs_env(qs_env, energy=energy)
-         energy%total = energy%total+energy%singles_corr
-      END IF
+!     ! ALMO Code (in the spirit of the MP2 modifications below)
+!     IF (ASSOCIATED(qs_env%almo_scf_env)) THEN
+!        ! tell qs about the energy correction
+!        NULLIFY (energy)
+!        CALL get_qs_env(qs_env, energy=energy)
+!        energy%total = energy%total+energy%singles_corr
+!     END IF
 
       ! MP2 Code
       IF (ASSOCIATED(qs_env%mp2_env)) THEN

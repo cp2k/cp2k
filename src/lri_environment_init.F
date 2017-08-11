@@ -158,6 +158,8 @@ CONTAINS
          ALLOCATE (lri_env%ri_fit%tvec(nbas, nspin), lri_env%ri_fit%rm1t(nbas, nspin))
          ! initialize vector a, expansion of density
          ALLOCATE (lri_env%ri_fit%avec(nbas, nspin))
+         ! initialize vector fout, R^(-1)*(f-p*n)
+         ALLOCATE (lri_env%ri_fit%fout(nbas, nspin))
          ! initialize vector with RI basis integrated
          NULLIFY (norm, int_aux)
          nbas = lri_env%ri_fit%bas_ptr(2, natom)

@@ -55,6 +55,7 @@ MODULE qs_o3c_types
       PRIVATE
       LOGICAL                                    :: ijsymmetric
       INTEGER                                    :: nijpairs
+      INTEGER                                    :: nspin
       TYPE(o3c_pair_type), DIMENSION(:), POINTER :: ijpair
       ! basis sets and neighbor lists are pointing to other resources
       ! we don't keep track if the data is available and correct
@@ -100,15 +101,17 @@ CONTAINS
 ! **************************************************************************************************
 !> \brief ...
 !> \param o3c ...
+!> \param nspin ...
 !> \param basis_set_list_a ...
 !> \param basis_set_list_b ...
 !> \param basis_set_list_c ...
 !> \param sab_nl ...
 !> \param sac_nl ...
 ! **************************************************************************************************
-   SUBROUTINE init_o3c_container(o3c, basis_set_list_a, basis_set_list_b, basis_set_list_c, &
+   SUBROUTINE init_o3c_container(o3c, nspin, basis_set_list_a, basis_set_list_b, basis_set_list_c, &
                                  sab_nl, sac_nl)
       TYPE(o3c_container_type)                           :: o3c
+      INTEGER, INTENT(IN)                                :: nspin
       TYPE(gto_basis_set_p_type), DIMENSION(:), POINTER  :: basis_set_list_a, basis_set_list_b, &
                                                             basis_set_list_c
       TYPE(neighbor_list_set_p_type), DIMENSION(:), &
@@ -127,6 +130,8 @@ CONTAINS
       CALL get_neighbor_list_set_p(sab_nl, symmetric=symmetric)
       o3c%ijsymmetric = symmetric
       CPASSERT(symmetric)
+
+      o3c%nspin = nspin
 
       o3c%basis_set_list_a => basis_set_list_a
       o3c%basis_set_list_b => basis_set_list_b
@@ -292,6 +297,7 @@ CONTAINS
 !> \brief ...
 !> \param o3c ...
 !> \param ijsymmetric ...
+!> \param nspin ...
 !> \param nijpairs ...
 !> \param ijpair ...
 !> \param basis_set_list_a ...
@@ -301,12 +307,12 @@ CONTAINS
 !> \param sac_nl ...
 ! **************************************************************************************************
 
-   SUBROUTINE get_o3c_container(o3c, ijsymmetric, nijpairs, ijpair, &
+   SUBROUTINE get_o3c_container(o3c, ijsymmetric, nspin, nijpairs, ijpair, &
                                 basis_set_list_a, basis_set_list_b, basis_set_list_c, &
                                 sab_nl, sac_nl)
       TYPE(o3c_container_type)                           :: o3c
       LOGICAL, OPTIONAL                                  :: ijsymmetric
-      INTEGER, OPTIONAL                                  :: nijpairs
+      INTEGER, OPTIONAL                                  :: nspin, nijpairs
       TYPE(o3c_pair_type), DIMENSION(:), OPTIONAL, &
          POINTER                                         :: ijpair
       TYPE(gto_basis_set_p_type), DIMENSION(:), &
@@ -319,6 +325,7 @@ CONTAINS
          routineP = moduleN//':'//routineN
 
       IF (PRESENT(ijsymmetric)) ijsymmetric = o3c%ijsymmetric
+      IF (PRESENT(nspin)) nspin = o3c%nspin
       IF (PRESENT(nijpairs)) nijpairs = o3c%nijpairs
       IF (PRESENT(ijpair)) ijpair => o3c%ijpair
       IF (PRESENT(basis_set_list_a)) basis_set_list_a => o3c%basis_set_list_a

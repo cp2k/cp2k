@@ -58,7 +58,8 @@ MODULE qs_ks_utils
    USE lri_environment_types,           ONLY: lri_density_type,&
                                               lri_environment_type,&
                                               lri_kind_type
-   USE lri_forces,                      ONLY: calculate_lri_forces
+   USE lri_forces,                      ONLY: calculate_lri_forces,&
+                                              calculate_ri_forces
    USE lri_ks_methods,                  ONLY: calculate_lri_ks_matrix,&
                                               calculate_ri_ks_matrix
    USE message_passing,                 ONLY: mp_sum
@@ -1436,12 +1437,11 @@ CONTAINS
          CALL get_qs_env(qs_env, matrix_s=smat)
          DO ispin = 1, nspins
             CALL calculate_ri_ks_matrix(lri_env, lri_v_int, ks_matrix(ispin, 1)%matrix, &
-                                        smat(1)%matrix, atomic_kind_set)
+                                        smat(1)%matrix, atomic_kind_set, ispin)
          ENDDO
          IF (calculate_forces) THEN
-            CPABORT("RI  qs_ks_util forces")
             rho_ao_nokp => rho_ao_kp(:, 1)
-!           CALL calculate_ri_forces(lri_env, lri_density, qs_env, rho_ao_nokp, atomic_kind_set)
+            CALL calculate_ri_forces(lri_env, lri_density, qs_env, rho_ao_nokp, atomic_kind_set)
          ENDIF
       ENDIF
 

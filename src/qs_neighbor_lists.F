@@ -832,7 +832,7 @@ CONTAINS
          soa_list => qs_env%lri_env%soa_list
          CALL build_neighbor_lists(soa_list, particle_set, atom2d, cell, pair_radius, &
                                    mic=mic, symmetric=.FALSE., molecular=molecule_only, &
-                                   subcells=subcells, name="saa_list")
+                                   subcells=subcells, operator_type="ABC", name="saa_list")
          qs_env%lri_env%soa_list => soa_list
       END IF
 

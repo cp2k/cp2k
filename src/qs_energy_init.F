@@ -294,10 +294,10 @@ CONTAINS
          ! LRIGPW/RIGPW  matrices
          IF (dft_control%qs_control%lrigpw) THEN
             CALL get_qs_env(qs_env=qs_env, lri_env=lri_env)
-            CALL build_lri_matrices(lri_env, qs_env, calc_forces, "LRI")
+            CALL build_lri_matrices(lri_env, qs_env, calc_forces, ri_method="LRI")
          ELSE IF (dft_control%qs_control%rigpw) THEN
             CALL get_qs_env(qs_env=qs_env, lri_env=lri_env)
-            CALL build_lri_matrices(lri_env, qs_env, calc_forces, "RI")
+            CALL build_lri_matrices(lri_env, qs_env, calculate_forces=.FALSE., ri_method="RI")
          ENDIF
 
          ! ZMP addition to read external density

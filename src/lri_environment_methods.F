@@ -23,6 +23,7 @@ MODULE lri_environment_methods
                                               pbc
    USE cp_blacs_env,                    ONLY: cp_blacs_env_type
    USE cp_control_types,                ONLY: dft_control_type
+   USE cp_dbcsr_cp2k_link,              ONLY: cp_dbcsr_alloc_block_from_nbl
    USE cp_dbcsr_diag,                   ONLY: cp_dbcsr_syevd
    USE cp_log_handling,                 ONLY: cp_get_default_logger,&
                                               cp_logger_type
@@ -30,10 +31,10 @@ MODULE lri_environment_methods
                                               cp_print_key_unit_nr
    USE cp_para_types,                   ONLY: cp_para_env_type
    USE dbcsr_api,                       ONLY: &
-        dbcsr_allocate_matrix_set, dbcsr_create, dbcsr_get_block_p, dbcsr_get_info, &
+        dbcsr_add, dbcsr_allocate_matrix_set, dbcsr_create, dbcsr_get_block_p, dbcsr_get_info, &
         dbcsr_iterator_blocks_left, dbcsr_iterator_next_block, dbcsr_iterator_start, &
         dbcsr_iterator_stop, dbcsr_iterator_type, dbcsr_multiply, dbcsr_p_type, dbcsr_release, &
-        dbcsr_scale_by_vector, dbcsr_trace, dbcsr_type, dbcsr_type_antisymmetric, &
+        dbcsr_scale_by_vector, dbcsr_set, dbcsr_trace, dbcsr_type, dbcsr_type_antisymmetric, &
         dbcsr_type_no_symmetry, dbcsr_type_symmetric
    USE generic_os_integrals,            ONLY: int_overlap_aabb_os,&
                                               int_overlap_ab_os,&
@@ -292,12 +293,19 @@ CONTAINS
       CHARACTER(LEN=*), PARAMETER :: routineN = 'calculate_ri_integrals', &
          routineP = moduleN//':'//routineN
 
-      INTEGER                                            :: handle, i, izero, nbas, nder
+      INTEGER                                            :: handle, i, i1, i2, iatom, ispin, izero, &
+                                                            j, j1, j2, jatom, m, n, nbas
+      INTEGER, DIMENSION(:, :), POINTER                  :: bas_ptr
+      REAL(KIND=dp)                                      :: fpre
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: eval
+      REAL(KIND=dp), DIMENSION(2)                        :: fx = (/0.0_dp, 1.0_dp/)
+      REAL(KIND=dp), DIMENSION(:, :), POINTER            :: avec, fblk, fout
       TYPE(cp_blacs_env_type), POINTER                   :: blacs_env
       TYPE(cp_para_env_type), POINTER                    :: para_env
+      TYPE(dbcsr_iterator_type)                          :: iter
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_p
       TYPE(dbcsr_type)                                   :: emat
+      TYPE(dbcsr_type), POINTER                          :: fmat
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(qs_ks_env_type), POINTER                      :: ks_env
       TYPE(qs_rho_type), POINTER                         :: rho
@@ -307,15 +315,85 @@ CONTAINS
       CPASSERT(ASSOCIATED(lri_env))
       CPASSERT(ASSOCIATED(qs_env))
 
-      ! RI overlap matrix
-      IF (calculate_forces) THEN
-         nder = 1
-      ELSE
-         nder = 0
-      END IF
+      ! overlap matrices
       CALL get_qs_env(qs_env=qs_env, ks_env=ks_env)
-      CALL build_overlap_matrix(ks_env=ks_env, matrix_s=lri_env%ri_smat, nderivative=nder, &
+      CALL get_qs_env(qs_env=qs_env, dft_control=dft_control)
+      NULLIFY (rho, matrix_p)
+      ! orbital overlap matrix (needed for N constraints and forces)
+      ! we replicate this in order to not directly interact qith qs_env
+      IF (calculate_forces) THEN
+         ! charge constraint forces are calculated here
+         CALL get_qs_env(qs_env=qs_env, rho=rho)
+         CALL qs_rho_get(rho, rho_ao=matrix_p)
+         ALLOCATE (fmat)
+         CALL dbcsr_create(fmat, template=matrix_p(1)%matrix)
+         DO ispin = 1, dft_control%nspins
+            fpre = lri_env%ri_fit%ftrm1n(ispin)/lri_env%ri_fit%ntrm1n
+            CALL dbcsr_add(fmat, matrix_p(ispin)%matrix, fx(ispin), -fpre)
+         END DO
+         CALL build_overlap_matrix(ks_env=ks_env, matrix_s=lri_env%ob_smat, nderivative=0, &
+                                   basis_type_a="ORB", basis_type_b="ORB", sab_nl=lri_env%soo_list, &
+                                   calculate_forces=.TRUE., matrix_p=fmat)
+         CALL dbcsr_release(fmat)
+         DEALLOCATE (fmat)
+      ELSE
+         CALL build_overlap_matrix(ks_env=ks_env, matrix_s=lri_env%ob_smat, nderivative=0, &
+                                   basis_type_a="ORB", basis_type_b="ORB", sab_nl=lri_env%soo_list)
+      END IF
+      ! RI overlap matrix
+      CALL build_overlap_matrix(ks_env=ks_env, matrix_s=lri_env%ri_smat, nderivative=0, &
                                 basis_type_a="RI_HXC", basis_type_b="RI_HXC", sab_nl=lri_env%saa_list)
+      IF (calculate_forces) THEN
+         ! calculate f*a(T) pseudo density matrix for forces
+         bas_ptr => lri_env%ri_fit%bas_ptr
+         avec => lri_env%ri_fit%avec
+         fout => lri_env%ri_fit%fout
+         ALLOCATE (fmat)
+         CALL dbcsr_create(fmat, template=lri_env%ri_smat(1)%matrix)
+         CALL cp_dbcsr_alloc_block_from_nbl(fmat, lri_env%saa_list)
+         CALL dbcsr_set(fmat, 0.0_dp)
+         CALL dbcsr_iterator_start(iter, fmat)
+         DO WHILE (dbcsr_iterator_blocks_left(iter))
+            CALL dbcsr_iterator_next_block(iter, iatom, jatom, fblk)
+            i1 = bas_ptr(1, iatom)
+            i2 = bas_ptr(2, iatom)
+            j1 = bas_ptr(1, jatom)
+            j2 = bas_ptr(2, jatom)
+            IF (iatom <= jatom) THEN
+               DO ispin = 1, dft_control%nspins
+                  DO j = j1, j2
+                     m = j-j1+1
+                     DO i = i1, i2
+                        n = i-i1+1
+                        fblk(n, m) = fblk(n, m)+fout(i, ispin)*avec(j, ispin)+avec(i, ispin)*fout(j, ispin)
+                     END DO
+                  END DO
+               END DO
+            ELSE
+               DO ispin = 1, dft_control%nspins
+                  DO i = i1, i2
+                     n = i-i1+1
+                     DO j = j1, j2
+                        m = j-j1+1
+                        fblk(m, n) = fblk(m, n)+fout(i, ispin)*avec(j, ispin)+avec(i, ispin)*fout(j, ispin)
+                     END DO
+                  END DO
+               END DO
+            END IF
+            IF (iatom == jatom) THEN
+               fblk(:, :) = 0.25_dp*fblk(:, :)
+            ELSE
+               fblk(:, :) = 0.5_dp*fblk(:, :)
+            END IF
+         END DO
+         CALL dbcsr_iterator_stop(iter)
+         !
+         CALL build_overlap_matrix(ks_env=ks_env, matrix_s=lri_env%ri_smat, nderivative=0, &
+                                   basis_type_a="RI_HXC", basis_type_b="RI_HXC", sab_nl=lri_env%saa_list, &
+                                   calculate_forces=.TRUE., matrix_p=fmat)
+         CALL dbcsr_release(fmat)
+         DEALLOCATE (fmat)
+      END IF
       ! approximation (preconditioner) or exact inverse of RI overlap
       CALL dbcsr_allocate_matrix_set(lri_env%ri_sinv, 1)
       ALLOCATE (lri_env%ri_sinv(1)%matrix)
@@ -373,18 +451,15 @@ CONTAINS
       ELSE
          ALLOCATE (lri_env%o3c)
       END IF
-      CALL init_o3c_container(lri_env%o3c, &
+      CALL init_o3c_container(lri_env%o3c, dft_control%nspins, &
                               lri_env%orb_basis, lri_env%orb_basis, lri_env%ri_basis, &
                               lri_env%soo_list, lri_env%soa_list)
 
-      NULLIFY (rho, matrix_p)
-      IF (calculate_forces) THEN
-         CALL get_qs_env(qs_env=qs_env, rho=rho)
-         CALL qs_rho_get(rho, rho_ao=matrix_p)
-      END IF
-
-      CALL get_qs_env(qs_env=qs_env, dft_control=dft_control)
-      CALL calculate_o3c_integrals(lri_env%o3c, dft_control%nspins, calculate_forces, matrix_p)
+!     IF (calculate_forces) THEN
+      CALL calculate_o3c_integrals(lri_env%o3c, calculate_forces, matrix_p)
+!     ELSE
+!        CALL calculate_o3c_integrals(lri_env%o3c)
+!     END IF
 
       CALL timestop(handle)
 
@@ -613,7 +688,7 @@ CONTAINS
       nspin = SIZE(pmatrix, 1)
       CALL contract12_o3c(lri_env%o3c, pmatrix)
       CALL calculate_tvec_ri(lri_env, lri_env%o3c, para_env)
-      CALL calculate_avec_ri(lri_env, qs_env, pmatrix)
+      CALL calculate_avec_ri(lri_env, pmatrix)
       !
       CALL get_qs_env(qs_env, lri_density=lri_density, natom=natom)
       CALL lri_density_release(lri_density)
@@ -901,13 +976,11 @@ CONTAINS
 !> \param lri_env the lri environment
 !>        lri_density the environment for the fitting
 !>        pmatrix density matrix
-!> \param qs_env ...
 !> \param pmatrix ...
 ! **************************************************************************************************
-   SUBROUTINE calculate_avec_ri(lri_env, qs_env, pmatrix)
+   SUBROUTINE calculate_avec_ri(lri_env, pmatrix)
 
       TYPE(lri_environment_type), POINTER                :: lri_env
-      TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: pmatrix
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'calculate_avec_ri', &
@@ -923,7 +996,7 @@ CONTAINS
 
       nspin = SIZE(pmatrix)
       ! number of electrons
-      CALL get_qs_env(qs_env, matrix_s=smatrix)
+      smatrix => lri_env%ob_smat
       DO ispin = 1, nspin
          etr = 0.0_dp
          CALL dbcsr_trace(smatrix(1)%matrix, pmatrix(ispin)%matrix, etr)

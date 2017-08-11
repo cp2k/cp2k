@@ -38,13 +38,11 @@ CONTAINS
 ! **************************************************************************************************
 !> \brief ...
 !> \param o3c ...
-!> \param nspin ...
 !> \param calculate_forces ...
 !> \param matrix_p ...
 ! **************************************************************************************************
-   SUBROUTINE calculate_o3c_integrals(o3c, nspin, calculate_forces, matrix_p)
+   SUBROUTINE calculate_o3c_integrals(o3c, calculate_forces, matrix_p)
       TYPE(o3c_container_type), POINTER                  :: o3c
-      INTEGER, INTENT(IN)                                :: nspin
       LOGICAL, INTENT(IN), OPTIONAL                      :: calculate_forces
       TYPE(dbcsr_p_type), DIMENSION(:), OPTIONAL, &
          POINTER                                         :: matrix_p
@@ -52,19 +50,23 @@ CONTAINS
       CHARACTER(LEN=*), PARAMETER :: routineN = 'calculate_o3c_integrals', &
          routineP = moduleN//':'//routineN
 
-      INTEGER :: egfa, egfb, egfc, handle, ikind, iset, jkind, jset, kkind, kset, mepos, ncoa, &
-         ncob, ncoc, ni, nj, nk, nseta, nsetb, nsetc, nthread, sgfa, sgfb, sgfc
+      INTEGER :: egfa, egfb, egfc, handle, i, iatom, icol, ikind, irow, iset, ispin, j, jatom, &
+         jkind, jset, katom, kkind, kset, mepos, ncoa, ncob, ncoc, ni, nj, nk, nseta, nsetb, &
+         nsetc, nspin, nthread, sgfa, sgfb, sgfc
       INTEGER, DIMENSION(:), POINTER                     :: la_max, la_min, lb_max, lb_min, lc_max, &
                                                             lc_min, npgfa, npgfb, npgfc, nsgfa, &
                                                             nsgfb, nsgfc
       INTEGER, DIMENSION(:, :), POINTER                  :: first_sgfa, first_sgfb, first_sgfc
-      LOGICAL                                            :: do_force
-      REAL(KIND=dp)                                      :: dij, dik, djk
+      LOGICAL                                            :: do_force, found, trans
+      REAL(KIND=dp)                                      :: dij, dik, djk, fpre
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: pmat
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: sabc, sabc_contr
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :, :)  :: iabdc, iadbc, idabc, sabdc, sdabc
       REAL(KIND=dp), DIMENSION(3)                        :: rij, rik, rjk
       REAL(KIND=dp), DIMENSION(:), POINTER               :: set_radius_a, set_radius_b, set_radius_c
-      REAL(KIND=dp), DIMENSION(:, :), POINTER            :: fi, fj, fk, rpgfa, rpgfb, rpgfc, sphi_a, &
-                                                            sphi_b, sphi_c, tvec, zeta, zetb, zetc
+      REAL(KIND=dp), DIMENSION(:, :), POINTER            :: fi, fj, fk, pblock, rpgfa, rpgfb, rpgfc, &
+                                                            sphi_a, sphi_b, sphi_c, tvec, zeta, &
+                                                            zetb, zetc
       REAL(KIND=dp), DIMENSION(:, :, :), POINTER         :: iabc
       TYPE(gto_basis_set_p_type), DIMENSION(:), POINTER  :: basis_set_list_a, basis_set_list_b, &
                                                             basis_set_list_c
@@ -75,9 +77,7 @@ CONTAINS
 
       do_force = .FALSE.
       IF (PRESENT(calculate_forces)) do_force = calculate_forces
-      IF (do_force) THEN
-         CPASSERT(PRESENT(matrix_p))
-      END IF
+      CALL get_o3c_container(o3c, nspin=nspin)
 
       ! basis sets
       CALL get_o3c_container(o3c, basis_set_list_a=basis_set_list_a, &
@@ -89,13 +89,14 @@ CONTAINS
 
 !$OMP PARALLEL DEFAULT(NONE) &
 !$OMP SHARED (nthread,o3c_iterator,ncoset,nspin,basis_set_list_a,basis_set_list_b,&
-!$OMP         basis_set_list_c,do_force)&
+!$OMP         basis_set_list_c,do_force,matrix_p)&
 !$OMP PRIVATE (mepos,ikind,jkind,kkind,basis_set_a,basis_set_b,basis_set_c,rij,rik,rjk,&
 !$OMP          first_sgfa,la_max,la_min,npgfa,nseta,nsgfa,rpgfa,set_radius_a,sphi_a,zeta,&
 !$OMP          first_sgfb,lb_max,lb_min,npgfb,nsetb,nsgfb,rpgfb,set_radius_b,sphi_b,zetb,&
 !$OMP          first_sgfc,lc_max,lc_min,npgfc,nsetc,nsgfc,rpgfc,set_radius_c,sphi_c,zetc,&
-!$OMP          iset,jset,kset,dij,dik,djk,ni,nj,nk,iabc,tvec,fi,fj,fk,ncoa,ncob,ncoc,sabc,&
-!$OMP          sabc_contr,sgfa,sgfb,sgfc,egfa,egfb,egfc)
+!$OMP          iset,jset,kset,dij,dik,djk,ni,nj,nk,iabc,idabc,iadbc,iabdc,tvec,fi,fj,fk,ncoa,&
+!$OMP          ncob,ncoc,sabc,sabc_contr,sdabc,sabdc,sgfa,sgfb,sgfc,egfa,egfb,egfc,i,j,&
+!$OMP          pblock,pmat,ispin,iatom,jatom,katom,irow,icol,found,trans,fpre)
 
       mepos = 0
 !$    mepos = omp_get_thread_num()
@@ -154,10 +155,16 @@ CONTAINS
          ALLOCATE (iabc(ni, nj, nk))
          iabc(:, :, :) = 0.0_dp
          IF (do_force) THEN
-            ALLOCATE (fi(ni, 3), fj(nj, 3), fk(nk, 3))
+            ALLOCATE (fi(nk, 3), fj(nk, 3), fk(nk, 3))
             fi(:, :) = 0.0_dp
             fj(:, :) = 0.0_dp
             fk(:, :) = 0.0_dp
+            ALLOCATE (idabc(ni, nj, nk, 3))
+            idabc(:, :, :, :) = 0.0_dp
+            ALLOCATE (iadbc(ni, nj, nk, 3))
+            iadbc(:, :, :, :) = 0.0_dp
+            ALLOCATE (iabdc(ni, nj, nk, 3))
+            iabdc(:, :, :, :) = 0.0_dp
          ELSE
             NULLIFY (fi, fj, fk)
          END IF
@@ -191,33 +198,100 @@ CONTAINS
                   IF (ncoa*ncob*ncoc > 0) THEN
                      ALLOCATE (sabc(ncoa, ncob, ncoc))
                      sabc(:, :, :) = 0.0_dp
-
                      IF (do_force) THEN
-                        CPABORT('Forces not available')
-!        CALL overlap3(la_max(iset), npgfa(iset), zeta(:, iset), rpgfa(:, iset), la_min(iset), &
-!                      lb_max(jset), npgfb(jset), zetb(:, jset), rpgfb(:, jset), lb_min(jset), &
-!                      lc_max(kset), npgfc(kset), zetc(:, kset), rpgfc(:, kset), lc_min(kset), &
-!                      rab, dab, rac, dac, rbc, dbc, sabc, sdabc, sabdc)
+                        ALLOCATE (sdabc(ncoa, ncob, ncoc, 3))
+                        sdabc(:, :, :, :) = 0.0_dp
+                        ALLOCATE (sabdc(ncoa, ncob, ncoc, 3))
+                        sabdc(:, :, :, :) = 0.0_dp
+                        CALL overlap3(la_max(iset), npgfa(iset), zeta(:, iset), rpgfa(:, iset), la_min(iset), &
+                                      lb_max(jset), npgfb(jset), zetb(:, jset), rpgfb(:, jset), lb_min(jset), &
+                                      lc_max(kset), npgfc(kset), zetc(:, kset), rpgfc(:, kset), lc_min(kset), &
+                                      rij, dij, rik, dik, rjk, djk, sabc, sdabc, sabdc)
                      ELSE
                         CALL overlap3(la_max(iset), npgfa(iset), zeta(:, iset), rpgfa(:, iset), la_min(iset), &
                                       lb_max(jset), npgfb(jset), zetb(:, jset), rpgfb(:, jset), lb_min(jset), &
                                       lc_max(kset), npgfc(kset), zetc(:, kset), rpgfc(:, kset), lc_min(kset), &
                                       rij, dij, rik, dik, rjk, djk, sabc)
-
-                        ALLOCATE (sabc_contr(nsgfa(iset), nsgfb(jset), nsgfc(kset)))
-
-                        CALL abc_contract(sabc_contr, sabc, &
-                                          sphi_a(:, sgfa:), sphi_b(:, sgfb:), sphi_c(:, sgfc:), &
-                                          ncoa, ncob, ncoc, nsgfa(iset), nsgfb(jset), nsgfc(kset))
-                        iabc(sgfa:egfa, sgfb:egfb, sgfc:egfc) = sabc_contr(1:nsgfa(iset), 1:nsgfb(jset), 1:nsgfc(kset))
-
-                        DEALLOCATE (sabc_contr)
                      END IF
+                     ALLOCATE (sabc_contr(nsgfa(iset), nsgfb(jset), nsgfc(kset)))
+
+                     CALL abc_contract(sabc_contr, sabc, &
+                                       sphi_a(:, sgfa:), sphi_b(:, sgfb:), sphi_c(:, sgfc:), &
+                                       ncoa, ncob, ncoc, nsgfa(iset), nsgfb(jset), nsgfc(kset))
+                     iabc(sgfa:egfa, sgfb:egfb, sgfc:egfc) = &
+                        sabc_contr(1:nsgfa(iset), 1:nsgfb(jset), 1:nsgfc(kset))
+                     IF (do_force) THEN
+                        DO i = 1, 3
+                           CALL abc_contract(sabc_contr, sdabc(:, :, :, i), &
+                                             sphi_a(:, sgfa:), sphi_b(:, sgfb:), sphi_c(:, sgfc:), &
+                                             ncoa, ncob, ncoc, nsgfa(iset), nsgfb(jset), nsgfc(kset))
+                           idabc(sgfa:egfa, sgfb:egfb, sgfc:egfc, i) = &
+                              sabc_contr(1:nsgfa(iset), 1:nsgfb(jset), 1:nsgfc(kset))
+                           CALL abc_contract(sabc_contr, sabdc(:, :, :, i), &
+                                             sphi_a(:, sgfa:), sphi_b(:, sgfb:), sphi_c(:, sgfc:), &
+                                             ncoa, ncob, ncoc, nsgfa(iset), nsgfb(jset), nsgfc(kset))
+                           iabdc(sgfa:egfa, sgfb:egfb, sgfc:egfc, i) = &
+                              sabc_contr(1:nsgfa(iset), 1:nsgfb(jset), 1:nsgfc(kset))
+                        END DO
+                     END IF
+
+                     DEALLOCATE (sabc_contr)
                   END IF
                   DEALLOCATE (sabc)
+                  IF (do_force) THEN
+                     DEALLOCATE (sdabc, sabdc)
+                  END IF
                END DO
             END DO
          END DO
+         IF (do_force) THEN
+            ! translational invariance
+            iadbc(:, :, :, :) = -idabc(:, :, :, :)-iabdc(:, :, :, :)
+            !
+            ! get the atom indices
+            CALL get_o3c_iterator_info(o3c_iterator, mepos=mepos, &
+                                       iatom=iatom, jatom=jatom, katom=katom)
+            !
+            ! contract over i and j to get forces
+            IF (iatom <= jatom) THEN
+               irow = iatom
+               icol = jatom
+               trans = .FALSE.
+            ELSE
+               irow = jatom
+               icol = iatom
+               trans = .TRUE.
+            END IF
+            IF (iatom == jatom) THEN
+               fpre = 1.0_dp
+            ELSE
+               fpre = 2.0_dp
+            END IF
+            ALLOCATE (pmat(ni, nj))
+            pmat(:, :) = 0.0_dp
+            DO ispin = 1, nspin
+               CALL dbcsr_get_block_p(matrix=matrix_p(ispin)%matrix, &
+                                      row=irow, col=icol, BLOCK=pblock, found=found)
+               IF (found) THEN
+                  IF (trans) THEN
+                     pmat(:, :) = pmat(:, :)+TRANSPOSE(pblock(:, :))
+                  ELSE
+                     pmat(:, :) = pmat(:, :)+pblock(:, :)
+                  END IF
+               END IF
+            END DO
+            DO i = 1, 3
+               DO j = 1, nk
+                  fi(j, i) = fpre*SUM(pmat(:, :)*idabc(:, :, j, i))
+                  fj(j, i) = fpre*SUM(pmat(:, :)*iadbc(:, :, j, i))
+                  fk(j, i) = fpre*SUM(pmat(:, :)*iabdc(:, :, j, i))
+               END DO
+            END DO
+            DEALLOCATE (pmat)
+            !
+            DEALLOCATE (idabc, iadbc, iabdc)
+         END IF
+         !
          CALL set_o3c_container(o3c_iterator, mepos=mepos, &
                                 integral=iabc, tvec=tvec, force_i=fi, force_j=fj, force_k=fk)
 
