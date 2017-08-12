@@ -292,13 +292,13 @@ CONTAINS
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'calculate_ri_integrals', &
          routineP = moduleN//':'//routineN
+      REAL(KIND=dp), DIMENSION(2), PARAMETER             :: fx = (/0.0_dp, 1.0_dp/)
 
       INTEGER                                            :: handle, i, i1, i2, iatom, ispin, izero, &
                                                             j, j1, j2, jatom, m, n, nbas
       INTEGER, DIMENSION(:, :), POINTER                  :: bas_ptr
       REAL(KIND=dp)                                      :: fpre
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: eval
-      REAL(KIND=dp), DIMENSION(2)                        :: fx = (/0.0_dp, 1.0_dp/)
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: avec, fblk, fout
       TYPE(cp_blacs_env_type), POINTER                   :: blacs_env
       TYPE(cp_para_env_type), POINTER                    :: para_env
@@ -455,11 +455,7 @@ CONTAINS
                               lri_env%orb_basis, lri_env%orb_basis, lri_env%ri_basis, &
                               lri_env%soo_list, lri_env%soa_list)
 
-!     IF (calculate_forces) THEN
       CALL calculate_o3c_integrals(lri_env%o3c, calculate_forces, matrix_p)
-!     ELSE
-!        CALL calculate_o3c_integrals(lri_env%o3c)
-!     END IF
 
       CALL timestop(handle)
 
