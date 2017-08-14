@@ -141,7 +141,7 @@ CONTAINS
          END DO
          qenergy = 0.25_dp*cell%deth/twopi*qenergy
          DO i = 1, SIZE(qforce, 2)
-            qforce(1:3, i) = fq(i)*qforce(1:3, i)
+            qforce(1:3, i) = fq(1:3)*qforce(1:3, i)
          END DO
       ELSE
          ! E = -omega*E*P
