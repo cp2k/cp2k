@@ -93,12 +93,14 @@ CONTAINS
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'abc_contract', routineP = moduleN//':'//routineN
 
-      INTEGER                                            :: handle, isgfc, m1, m2, m3, msphia, &
-                                                            msphib, msphic
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: temp_ccc, work_cpc
+      INTEGER                                            :: handle, i, m1, m2, m3, msphia, msphib, &
+                                                            msphic
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: cpc, cpp
 
       CALL timeset(routineN, handle)
+
+      CPASSERT(SIZE(abcint, 1) == nsgfa)
+      CPASSERT(SIZE(abcint, 2) == nsgfb)
 
       msphia = SIZE(sphi_a, 1)
       msphib = SIZE(sphi_b, 1)
@@ -108,25 +110,17 @@ CONTAINS
       m2 = SIZE(sabc, 2)
       m3 = SIZE(sabc, 3)
 
-      ALLOCATE (cpp(nsgfa, m2, m3), cpc(nsgfa, m2, nsgfc))
-      cpp = 0._dp
-      cpc = 0._dp
-      ALLOCATE (work_cpc(nsgfa, m2), temp_ccc(nsgfa, nsgfb))
-      work_cpc(:, :) = 0._dp
-      temp_ccc(:, :) = 0._dp
+      ALLOCATE (cpp(nsgfa, m2, m3), cpc(nsgfa, nsgfb, m3))
 
       CALL dgemm("T", "N", nsgfa, m2*m3, ncoa, 1._dp, sphi_a, msphia, sabc, m1, 0.0_dp, cpp, nsgfa)
-      CALL dgemm("N", "N", nsgfa*m2, nsgfc, ncoc, 1._dp, cpp, nsgfa*m2, sphi_c, msphic, 0.0_dp, &
-                 cpc, nsgfa*m2)
-
-      DO isgfc = 1, nsgfc
-         work_cpc(:, :) = cpc(:, :, isgfc)
-         CALL dgemm("N", "N", nsgfa, nsgfb, ncob, 1._dp, work_cpc, nsgfa, sphi_b, msphib, &
-                    0.0_dp, temp_ccc, nsgfa)
-         abcint(:, :, isgfc) = temp_ccc(:, :)
+      DO i = 1, m3
+         CALL dgemm("N", "N", nsgfa, nsgfb, ncob, 1._dp, cpp(:, :, i), nsgfa, sphi_b, msphib, &
+                    0.0_dp, cpc(:, :, i), nsgfa)
       END DO
+      CALL dgemm("N", "N", nsgfa*nsgfb, nsgfc, ncoc, 1._dp, cpc, nsgfa*nsgfb, sphi_c, msphic, 0.0_dp, &
+                 abcint, nsgfa*nsgfb)
 
-      DEALLOCATE (cpp, cpc, work_cpc, temp_ccc)
+      DEALLOCATE (cpp, cpc)
 
       CALL timestop(handle)
 
