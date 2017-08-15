@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/sh --login
 # ----------------------------------------------------
 # CP2K (remote) regtester 
 # Developed by Matthias Krack, Marko Misic
@@ -31,6 +31,13 @@ memcheck=false
 # Execution type: local or remote
 exec_type="local"
 
+# Hope to find a gnu-like `head'
+if hash ghead 2>/dev/null; then
+  HEAD="ghead"
+else
+  HEAD="head"
+fi
+
 # This function should be rewritten to support different batchin systems
 
 function do_regression_test_local() {
@@ -62,7 +69,7 @@ function do_regression_test_remote() {
  
 # Do not forget to copy output of do_regtest from batch job 
   echo "=========== Standard output ===========" >>${reglog}
-  cat regtest_sopt_bsub.out | head -n -7 >>${reglog}
+  cat regtest_sopt_bsub.out | ${HEAD} -n -7 >>${reglog}
   echo "=========== Standard error ============" >>${reglog}
   cat regtest_sopt_bsub.err >>${reglog}
   echo "=========== End of output =============" >>${reglog}
@@ -107,7 +114,7 @@ fi
 # Script that should handle any PATH or LD_LIBRARY_PATH issues
 source ${regtestdir}/setup_environment.sh
 
-datetime=$(date --utc +%F_%H-%M-%S)
+datetime=$(date -u +%F_%H-%M-%S)
 date=${datetime%_*}
 time=${datetime#*_}
 
@@ -184,7 +191,7 @@ echo "Ended regression testing from ${datetime}!"
   fi
  
   # Cleanup - only last 10 TEST directories are kept
-  removedir=`ls | grep "TEST-${dir_triplet}-${cp2k_version}" | head -n -10`
+  removedir=`ls | grep "TEST-${dir_triplet}-${cp2k_version}" | ${HEAD} -n -10`
   if [[ -n ${removedir} ]]
   then
     for r in ${removedir} 
