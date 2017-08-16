@@ -343,7 +343,6 @@ CONTAINS
                IF (ASSOCIATED(lrii%dabbint)) DEALLOCATE (lrii%dabbint)
                IF (ASSOCIATED(lrii%dabdaint)) DEALLOCATE (lrii%dabdaint)
                NULLIFY (lrii%dsab, lrii%dsoo, lrii%dabbint, lrii%dabdaint)
-               WRITE (6, *) "lrii%dabdaint   ", ASSOCIATED(lrii%dabdaint)
 
                atom_a = atom_of_kind(iatom)
                atom_b = atom_of_kind(jatom)
