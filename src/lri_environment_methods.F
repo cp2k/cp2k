@@ -19,8 +19,7 @@ MODULE lri_environment_methods
                                               get_atomic_kind,&
                                               get_atomic_kind_set
    USE basis_set_types,                 ONLY: gto_basis_set_type
-   USE cell_types,                      ONLY: cell_type,&
-                                              pbc
+   USE cell_types,                      ONLY: cell_type
    USE cp_blacs_env,                    ONLY: cp_blacs_env_type
    USE cp_control_types,                ONLY: dft_control_type
    USE cp_dbcsr_cp2k_link,              ONLY: cp_dbcsr_alloc_block_from_nbl
@@ -104,7 +103,7 @@ MODULE lri_environment_methods
 
    PUBLIC :: build_lri_matrices, calculate_lri_densities, calculate_ri_densities, &
              calculate_lri_integrals, calculate_lri_overlap_aabb, calculate_avec_lri, &
-             ri_metric_solver
+             ri_metric_solver, lri_int_os, lri_int_shg, lri_calculate_derivative_acoef
 
 ! **************************************************************************************************
 
@@ -131,7 +130,7 @@ CONTAINS
       CASE ("LRI")
          ! calculate the integrals needed to do the local (2-center) expansion
          ! of the (pair) densities
-         CALL calculate_lri_integrals(lri_env, qs_env, calculate_forces)
+         CALL calculate_lri_integrals(lri_env, qs_env)
       CASE ("RI")
          CALL calculate_ri_integrals(lri_env, qs_env, calculate_forces)
       CASE DEFAULT
@@ -145,13 +144,11 @@ CONTAINS
 !>        integrals are calculated once, before the SCF starts
 !> \param lri_env ...
 !> \param qs_env ...
-!> \param calculate_forces ...
 ! **************************************************************************************************
-   SUBROUTINE calculate_lri_integrals(lri_env, qs_env, calculate_forces)
+   SUBROUTINE calculate_lri_integrals(lri_env, qs_env)
 
       TYPE(lri_environment_type), POINTER                :: lri_env
       TYPE(qs_environment_type), POINTER                 :: qs_env
-      LOGICAL, INTENT(IN)                                :: calculate_forces
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'calculate_lri_integrals', &
          routineP = moduleN//':'//routineN
@@ -159,8 +156,9 @@ CONTAINS
       INTEGER                                            :: handle, iac, iatom, ikind, ilist, jatom, &
                                                             jkind, jneighbor, nba, nbb, nfa, nfb, &
                                                             nkind, nlist, nn, nneighbor
+      LOGICAL                                            :: use_virial
       REAL(KIND=dp)                                      :: dab
-      REAL(KIND=dp), DIMENSION(3)                        :: ra, rab, rb
+      REAL(KIND=dp), DIMENSION(3)                        :: rab
       TYPE(cell_type), POINTER                           :: cell
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(gto_basis_set_type), POINTER                  :: fbasa, fbasb, obasa, obasb
@@ -182,14 +180,14 @@ CONTAINS
 
          CALL get_qs_env(qs_env=qs_env, cell=cell, dft_control=dft_control, &
                          nkind=nkind, particle_set=particle_set, virial=virial)
+         use_virial = virial%pv_availability .AND. (.NOT. virial%pv_numer)
 
          IF (ASSOCIATED(lri_env%lri_ints)) THEN
             CALL deallocate_lri_ints(lri_env%lri_ints)
          END IF
 
          ! allocate matrices storing the LRI integrals
-         CALL allocate_lri_ints(lri_env, lri_env%lri_ints, nkind, &
-                                calculate_forces, virial)
+         CALL allocate_lri_ints(lri_env, lri_env%lri_ints, nkind)
          lri_ints => lri_env%lri_ints
 
          CALL neighbor_list_iterator_create(nl_iterator, soo_list)
@@ -211,6 +209,19 @@ CONTAINS
 
             lrii => lri_ints%lri_atom(iac)%lri_node(ilist)%lri_int(jneighbor)
 
+            ! forces: not every pair is giving contributions
+            !no forces for self-pair aa
+            IF (iatom == jatom .AND. dab < lri_env%delta) THEN
+               lrii%calc_force_pair = .FALSE.
+            ELSE
+               !forces for periodic self-pair aa' required for virial
+               IF (iatom == jatom .AND. .NOT. use_virial) THEN
+                  lrii%calc_force_pair = .FALSE.
+               ELSE
+                  lrii%calc_force_pair = .TRUE.
+               ENDIF
+            ENDIF
+
             nba = obasa%nsgf
             nbb = obasb%nsgf
             nfa = fbasa%nsgf
@@ -221,15 +232,13 @@ CONTAINS
             lrii%nfa = nfa
             lrii%nfb = nfb
 
-            ra(:) = pbc(particle_set(iatom)%r, cell)
-            rb(:) = pbc(particle_set(jatom)%r, cell)
             ! calculate integrals (fa,fb), (a,b), (a,b,fa) and (a,b,fb)
             IF (lri_env%use_shg_integrals) THEN
                CALL lri_int_shg(lri_env, lrii, rab, obasa, obasb, fbasa, fbasb, &
-                                iatom, jatom, ikind, jkind)
+                                iatom, jatom, ikind, jkind, .FALSE.)
             ELSE
-               CALL lri_int_os(lri_env, lrii, ra, rb, rab, obasa, obasb, fbasa, fbasb, &
-                               iatom, jatom, ikind)
+               CALL lri_int_os(lri_env, lrii, rab, obasa, obasb, fbasa, fbasb, &
+                               iatom, jatom, ikind, .FALSE.)
             ENDIF
 
             ! construct and invert S matrix
@@ -255,12 +264,6 @@ CONTAINS
                CALL dgemv("N", nn, nn, 1.0_dp, lrii%sinv(1, 1), nn, &
                           lrii%n(1), 1, 0.0_dp, lrii%sn, 1)
                lrii%nsn = SUM(lrii%sn(1:nn)*lrii%n(1:nn))
-            ENDIF
-
-            ! calculate derivative of fit coefficients, needed for update of KS matrix
-            IF (.NOT. dft_control%qs_control%lri_optbas) THEN
-               CALL lri_calculate_derivative_acoef(lri_env, lrii, iatom, jatom, nba, nbb, &
-                                                   nfa, nfb, dab)
             ENDIF
 
          END DO
@@ -542,7 +545,7 @@ CONTAINS
                                                             jkind, jneighbor, nba, nbb, nkind, &
                                                             nlist, nneighbor
       REAL(KIND=dp)                                      :: dab
-      REAL(KIND=dp), DIMENSION(3)                        :: ra, rab, rb
+      REAL(KIND=dp), DIMENSION(3)                        :: rab
       TYPE(cell_type), POINTER                           :: cell
       TYPE(gto_basis_set_type), POINTER                  :: obasa, obasb
       TYPE(lri_int_rho_type), POINTER                    :: lriir
@@ -589,11 +592,9 @@ CONTAINS
 
             nba = obasa%nsgf
             nbb = obasb%nsgf
-            ra(:) = pbc(particle_set(iatom)%r, cell)
-            rb(:) = pbc(particle_set(jatom)%r, cell)
 
             ! calculate integrals (aa,bb)
-            CALL int_overlap_aabb_os(lriir%soaabb, obasa, obasb, rab, ra, rb, lri_env%debug, &
+            CALL int_overlap_aabb_os(lriir%soaabb, obasa, obasb, rab, lri_env%debug, &
                                      lriir%dmax_aabb)
 
          END DO
@@ -1153,8 +1154,6 @@ CONTAINS
 !>        scheme
 !> \param lri_env ...
 !> \param lrii ...
-!> \param ra position atom A
-!> \param rb position atom B
 !> \param rab distance vector
 !> \param obasa orb basis on center A
 !> \param obasb orb basis on center B
@@ -1163,19 +1162,22 @@ CONTAINS
 !> \param iatom index atom A
 !> \param jatom index atom B
 !> \param ikind kind atom A
+!> \param calculate_forces ...
 ! **************************************************************************************************
-   SUBROUTINE lri_int_os(lri_env, lrii, ra, rb, rab, obasa, obasb, fbasa, fbasb, &
-                         iatom, jatom, ikind)
+   SUBROUTINE lri_int_os(lri_env, lrii, rab, obasa, obasb, fbasa, fbasb, &
+                         iatom, jatom, ikind, calculate_forces)
 
       TYPE(lri_environment_type), POINTER                :: lri_env
       TYPE(lri_int_type), POINTER                        :: lrii
-      REAL(KIND=dp), DIMENSION(3), INTENT(IN)            :: ra, rb, rab
+      REAL(KIND=dp), DIMENSION(3), INTENT(IN)            :: rab
       TYPE(gto_basis_set_type), POINTER                  :: obasa, obasb, fbasa, fbasb
       INTEGER, INTENT(IN)                                :: iatom, jatom, ikind
+      LOGICAL, INTENT(IN)                                :: calculate_forces
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'lri_int_os', routineP = moduleN//':'//routineN
 
       INTEGER                                            :: handle, nba, nbb, nfa, nfb
+      LOGICAL                                            :: do_force
       REAL(KIND=dp)                                      :: dab
 
       CALL timeset(routineN, handle)
@@ -1190,31 +1192,36 @@ CONTAINS
       IF (iatom == jatom .AND. dab < lri_env%delta) THEN
          !*** (fa,fa)
          lrii%sab(1:nfa, 1:nfa) = lri_env%bas_prop(ikind)%ri_ovlp(1:nfa, 1:nfa)
-         lrii%dsab = 0._dp
          !*** (a,a)
          lrii%soo(1:nba, 1:nba) = lri_env%bas_prop(ikind)%orb_ovlp(1:nba, 1:nba)
-         lrii%dsoo = 0._dp
          !*** (a,a,fa)
-         CALL int_overlap_aba_os(lrii%abaint, ra=ra, rb=rb, rab=rab, oba=obasa, obb=obasb, &
+         CALL int_overlap_aba_os(lrii%abaint, rab=rab, oba=obasa, obb=obasb, &
                                  fba=fbasa, calculate_forces=.FALSE., debug=lri_env%debug, &
                                  dmax=lrii%dmax_aba)
-         lrii%dabdaint = 0.0_dp
-         lrii%dabbint = 0.0_dp
+         IF (calculate_forces) THEN
+            lrii%dsab = 0._dp
+            lrii%dsoo = 0._dp
+            lrii%dabdaint = 0.0_dp
+            lrii%dabbint = 0.0_dp
+         END IF
       ELSE
+         IF (calculate_forces) THEN
+            do_force = lrii%calc_force_pair
+         ELSE
+            do_force = .FALSE.
+         END IF
          !*** (fa,fb)
-         CALL int_overlap_ab_os(lrii%sab, lrii%dsab, ra, rb, rab, fbasa, fbasb, &
-                                lrii%calc_force_pair, lri_env%debug, &
-                                lrii%dmax_ab)
+         CALL int_overlap_ab_os(lrii%sab, lrii%dsab, rab, fbasa, fbasb, &
+                                do_force, lri_env%debug, lrii%dmax_ab)
          !*** (a,b)
-         CALL int_overlap_ab_os(lrii%soo, lrii%dsoo, ra, rb, rab, obasa, obasb, &
-                                lrii%calc_force_pair, lri_env%debug, &
-                                lrii%dmax_oo)
+         CALL int_overlap_ab_os(lrii%soo, lrii%dsoo, rab, obasa, obasb, &
+                                do_force, lri_env%debug, lrii%dmax_oo)
          !*** (a,b,fa)
-         CALL int_overlap_aba_os(lrii%abaint, lrii%dabdaint, ra, rb, rab, obasa, obasb, fbasa, &
-                                 lrii%calc_force_pair, lri_env%debug, lrii%dmax_aba)
+         CALL int_overlap_aba_os(lrii%abaint, lrii%dabdaint, rab, obasa, obasb, fbasa, &
+                                 do_force, lri_env%debug, lrii%dmax_aba)
          !*** (a,b,fb)
-         CALL int_overlap_abb_os(lrii%abbint, lrii%dabbint, ra, rb, rab, obasa, obasb, fbasb, &
-                                 lrii%calc_force_pair, lri_env%debug, lrii%dmax_abb)
+         CALL int_overlap_abb_os(lrii%abbint, lrii%dabbint, rab, obasa, obasb, fbasb, &
+                                 do_force, lri_env%debug, lrii%dmax_abb)
       ENDIF
 
       CALL timestop(handle)
@@ -1234,21 +1241,24 @@ CONTAINS
 !> \param jatom index atom B
 !> \param ikind kind atom A
 !> \param jkind kind atom B
+!> \param calculate_forces ...
 ! **************************************************************************************************
    SUBROUTINE lri_int_shg(lri_env, lrii, rab, obasa, obasb, fbasa, fbasb, &
-                          iatom, jatom, ikind, jkind)
+                          iatom, jatom, ikind, jkind, calculate_forces)
 
       TYPE(lri_environment_type), POINTER                :: lri_env
       TYPE(lri_int_type), POINTER                        :: lrii
       REAL(KIND=dp), DIMENSION(3), INTENT(IN)            :: rab
       TYPE(gto_basis_set_type), POINTER                  :: obasa, obasb, fbasa, fbasb
       INTEGER, INTENT(IN)                                :: iatom, jatom, ikind, jkind
+      LOGICAL, INTENT(IN)                                :: calculate_forces
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'lri_int_shg', routineP = moduleN//':'//routineN
 
       INTEGER                                            :: handle, nba, nbb, nfa, nfb
       INTEGER, DIMENSION(:, :, :), POINTER               :: fba_index, fbb_index, oba_index, &
                                                             obb_index
+      LOGICAL                                            :: do_force
       REAL(KIND=dp)                                      :: dab
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: Waux_mat
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :, :)  :: dWaux_mat
@@ -1268,15 +1278,22 @@ CONTAINS
       IF (iatom == jatom .AND. dab < lri_env%delta) THEN
          !*** (fa,fa)
          lrii%sab(1:nfa, 1:nfa) = lri_env%bas_prop(ikind)%ri_ovlp(1:nfa, 1:nfa)
-         lrii%dsab = 0._dp
          !*** (a,a)
          lrii%soo(1:nba, 1:nba) = lri_env%bas_prop(ikind)%orb_ovlp(1:nba, 1:nba)
-         lrii%dsoo = 0._dp
          !*** (a,a,fa)
          lrii%abaint(1:nba, 1:nba, 1:nfa) = lri_env%bas_prop(ikind)%ovlp3
-         lrii%dabdaint = 0.0_dp
-         lrii%dabbint = 0.0_dp
+         IF (calculate_forces) THEN
+            lrii%dsab = 0._dp
+            lrii%dsoo = 0._dp
+            lrii%dabdaint = 0.0_dp
+            lrii%dabbint = 0.0_dp
+         END IF
       ELSE
+         IF (calculate_forces) THEN
+            do_force = lrii%calc_force_pair
+         ELSE
+            do_force = .FALSE.
+         END IF
          scon_oba => lri_env%bas_prop(ikind)%scon_orb
          scon_obb => lri_env%bas_prop(jkind)%scon_orb
          scon_fba => lri_env%bas_prop(ikind)%scon_ri
@@ -1288,29 +1305,29 @@ CONTAINS
          obb_index => lri_env%bas_prop(jkind)%orb_index
          fbb_index => lri_env%bas_prop(jkind)%ri_index
          CALL lri_precalc_angular_shg_part(obasa, obasb, fbasa, fbasb, rab, Waux_mat, dWaux_mat, &
-                                           lrii%calc_force_pair)
+                                           do_force)
          !*** (fa,fb)
          CALL int_overlap_ab_shg_low(lrii%sab, lrii%dsab, rab, fbasa, fbasb, scon_fba, scon_fbb, &
-                                     Waux_mat, dWaux_mat, lrii%calc_force_pair, contraction_high=.FALSE.)
+                                     Waux_mat, dWaux_mat, do_force, contraction_high=.FALSE.)
          !*** (a,b)
          CALL int_overlap_ab_shg_low(lrii%soo, lrii%dsoo, rab, obasa, obasb, scon_oba, scon_obb, &
-                                     Waux_mat, dWaux_mat, lrii%calc_force_pair, contraction_high=.TRUE.)
+                                     Waux_mat, dWaux_mat, do_force, contraction_high=.TRUE.)
          !*** (a,b,fa)
          CALL int_overlap_aba_shg_low(lrii%abaint, lrii%dabdaint, rab, obasa, obasb, fbasa, &
                                       scon_obb, scona_mix, oba_index, fba_index, &
                                       lri_env%cg_shg%cg_coeff, lri_env%cg_shg%cg_none0_list, &
                                       lri_env%cg_shg%ncg_none0, &
-                                      Waux_mat, dWaux_mat, lrii%calc_force_pair)
+                                      Waux_mat, dWaux_mat, do_force)
          !*** (a,b,fb)
          IF (ikind == jkind) THEN
             CALL get_abb_same_kind(lrii%abbint, lrii%dabbint, lrii%abaint, lrii%dabdaint, &
-                                   rab, obasa, fbasa, lrii%calc_force_pair)
+                                   rab, obasa, fbasa, do_force)
          ELSE
             CALL int_overlap_abb_shg_low(lrii%abbint, lrii%dabbint, rab, obasa, obasb, fbasb, &
                                          scon_oba, sconb_mix, obb_index, fbb_index, &
                                          lri_env%cg_shg%cg_coeff, lri_env%cg_shg%cg_none0_list, &
                                          lri_env%cg_shg%ncg_none0, &
-                                         Waux_mat, dWaux_mat, lrii%calc_force_pair)
+                                         Waux_mat, dWaux_mat, do_force)
          ENDIF
 
          DEALLOCATE (Waux_mat, dWaux_mat)

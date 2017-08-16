@@ -19,7 +19,8 @@ MODULE lri_ks_methods
                                               dbcsr_get_block_p,&
                                               dbcsr_type
    USE kinds,                           ONLY: dp
-   USE lri_environment_methods,         ONLY: ri_metric_solver
+   USE lri_environment_methods,         ONLY: lri_calculate_derivative_acoef,&
+                                              ri_metric_solver
    USE lri_environment_types,           ONLY: lri_environment_type,&
                                               lri_int_type,&
                                               lri_kind_type
@@ -65,8 +66,10 @@ CONTAINS
       CHARACTER(*), PARAMETER :: routineN = 'calculate_lri_ks_matrix', &
          routineP = moduleN//':'//routineN
 
-      INTEGER :: atom_a, atom_b, col, handle, i, iac, iatom, ikind, ilist, jatom, jkind, &
-         jneighbor, natom, nba, nbb, nfa, nfb, nkind, nlist, nn, nneighbor, row
+      INTEGER                                            :: atom_a, atom_b, col, handle, i, iac, &
+                                                            iatom, ikind, ilist, jatom, jkind, &
+                                                            jneighbor, natom, nba, nbb, nfa, nfb, &
+                                                            nkind, nlist, nn, row
       INTEGER, DIMENSION(:), POINTER                     :: atom_of_kind
       LOGICAL                                            :: found, trans
       REAL(KIND=dp)                                      :: dab, rab(3)
@@ -94,7 +97,7 @@ CONTAINS
 
          DO WHILE (neighbor_list_iterate(nl_iterator) == 0)
             CALL get_iterator_info(nl_iterator, ikind=ikind, jkind=jkind, iatom=iatom, &
-                                   jatom=jatom, nlist=nlist, ilist=ilist, nnode=nneighbor, inode=jneighbor, &
+                                   jatom=jatom, nlist=nlist, ilist=ilist, inode=jneighbor, &
                                    r=rab)
 
             iac = ikind+nkind*(jkind-1)
@@ -132,6 +135,14 @@ CONTAINS
             atom_a = atom_of_kind(iatom)
             atom_b = atom_of_kind(jatom)
 
+            IF (ASSOCIATED(lrii%dacoef)) DEALLOCATE (lrii%dacoef)
+            IF (iatom == jatom .AND. dab < lri_env%delta) THEN
+               ALLOCATE (lrii%dacoef(nba, nbb, nfa))
+            ELSE
+               ALLOCATE (lrii%dacoef(nba, nbb, nn))
+            ENDIF
+            lrii%dacoef = 0._dp
+            CALL lri_calculate_derivative_acoef(lri_env, lrii, iatom, jatom, nba, nbb, nfa, nfb, dab)
             ! sum: Hab(a)+Hab(b)
             ! Hab(a)
             DO i = 1, nfa
@@ -145,6 +156,8 @@ CONTAINS
                                          lri_v_int(jkind)%v_int(atom_b, i)*lrii%dacoef(1:nba, 1:nbb, nfa+i)
                ENDDO
             ENDIF
+            IF (ASSOCIATED(lrii%dacoef)) DEALLOCATE (lrii%dacoef)
+            NULLIFY (lrii%dacoef)
 
             ! add h_work to core hamiltonian
             IF (trans) THEN

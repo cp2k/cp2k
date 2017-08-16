@@ -31,7 +31,6 @@ MODULE lri_environment_types
                                               neighbor_list_set_p_type
    USE qs_o3c_types,                    ONLY: o3c_container_type,&
                                               release_o3c_container
-   USE virial_types,                    ONLY: virial_type
 #include "./base/base_uses.f90"
 
    IMPLICIT NONE
@@ -500,17 +499,12 @@ CONTAINS
 !> \param lri_env ...
 !> \param lri_ints structure storing the LRI integrals
 !> \param nkind number of atom kinds
-!> \param calculate_forces ...
-!> \param virial ...
 ! **************************************************************************************************
-   SUBROUTINE allocate_lri_ints(lri_env, lri_ints, nkind, calculate_forces, &
-                                virial)
+   SUBROUTINE allocate_lri_ints(lri_env, lri_ints, nkind)
 
       TYPE(lri_environment_type), POINTER                :: lri_env
       TYPE(lri_list_type), POINTER                       :: lri_ints
       INTEGER, INTENT(IN)                                :: nkind
-      LOGICAL, INTENT(IN)                                :: calculate_forces
-      TYPE(virial_type), POINTER                         :: virial
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'allocate_lri_ints', &
          routineP = moduleN//':'//routineN
@@ -518,7 +512,6 @@ CONTAINS
       INTEGER                                            :: i, iac, iatom, ikind, ilist, jatom, &
                                                             jkind, jneighbor, nba, nbb, nfa, nfb, &
                                                             nlist, nn, nneighbor
-      LOGICAL                                            :: use_virial
       REAL(KIND=dp)                                      :: dab, rab(3)
       TYPE(gto_basis_set_type), POINTER                  :: fbasa, fbasb, obasa, obasb
       TYPE(lri_int_type), POINTER                        :: lrii
@@ -526,8 +519,6 @@ CONTAINS
          DIMENSION(:), POINTER                           :: nl_iterator
 
       NULLIFY (fbasa, fbasb, lrii, nl_iterator, obasa, obasb)
-
-      use_virial = virial%pv_availability .AND. (.NOT. virial%pv_numer)
 
       ALLOCATE (lri_ints)
 
@@ -583,14 +574,12 @@ CONTAINS
          lrii%abaint = 0._dp
          lrii%abbint = 0._dp
 
-         ALLOCATE (lrii%dabdaint(nba, nbb, nfa, 3), &
-                   lrii%dabbint(nba, nbb, nfb, 3))
-         lrii%dabdaint = 0._dp
-         lrii%dabbint = 0._dp
-
-         ALLOCATE (lrii%sab(nfa, nfb), lrii%dsab(nfa, nfb, 3))
+         ALLOCATE (lrii%sab(nfa, nfb))
          lrii%sab = 0._dp
-         lrii%dsab = 0._dp
+         ALLOCATE (lrii%soo(nba, nbb))
+         lrii%soo = 0._dp
+
+         NULLIFY (lrii%dsoo, lrii%dsab, lrii%dabbint, lrii%dabdaint)
 
          IF (iatom == jatom .AND. dab < lri_env%delta) THEN
             ALLOCATE (lrii%sinv(nfa, nfa))
@@ -607,16 +596,7 @@ CONTAINS
          lrii%n = 0._dp
          lrii%sn = 0._dp
 
-         ALLOCATE (lrii%soo(nba, nbb), lrii%dsoo(nba, nbb, 3))
-         lrii%soo = 0._dp
-         lrii%dsoo = 0._dp
-
-         IF (iatom == jatom .AND. dab < lri_env%delta) THEN
-            ALLOCATE (lrii%dacoef(nba, nbb, nfa))
-         ELSE
-            ALLOCATE (lrii%dacoef(nba, nbb, nn))
-         ENDIF
-         lrii%dacoef = 0._dp
+         NULLIFY (lrii%dacoef)
 
          lrii%dmax_ab = 0._dp
          lrii%dmax_oo = 0._dp
@@ -624,21 +604,6 @@ CONTAINS
          lrii%dmax_abb = 0._dp
 
          lrii%calc_force_pair = .FALSE.
-
-         ! forces: not every pair is giving contributions
-         IF (calculate_forces) THEN
-            !no forces for self-pair aa
-            IF (iatom == jatom .AND. dab < lri_env%delta) THEN
-               lrii%calc_force_pair = .FALSE.
-            ELSE
-               !forces for periodic self-pair aa' required for virial
-               IF (iatom == jatom .AND. .NOT. use_virial) THEN
-                  lrii%calc_force_pair = .FALSE.
-               ELSE
-                  lrii%calc_force_pair = .TRUE.
-               ENDIF
-            ENDIF
-         ENDIF
 
       ENDDO
 
@@ -928,16 +893,36 @@ CONTAINS
 
       IF (ASSOCIATED(lri_env%bas_prop)) THEN
          DO i = 1, SIZE(lri_env%bas_prop)
-            DEALLOCATE (lri_env%bas_prop(i)%int_fbas)
-            DEALLOCATE (lri_env%bas_prop(i)%ri_ovlp)
-            DEALLOCATE (lri_env%bas_prop(i)%ri_ovlp_inv)
-            DEALLOCATE (lri_env%bas_prop(i)%orb_ovlp)
-            DEALLOCATE (lri_env%bas_prop(i)%ovlp3)
-            DEALLOCATE (lri_env%bas_prop(i)%scon_ri)
-            DEALLOCATE (lri_env%bas_prop(i)%scon_orb)
-            DEALLOCATE (lri_env%bas_prop(i)%orb_index)
-            DEALLOCATE (lri_env%bas_prop(i)%ri_index)
-            DEALLOCATE (lri_env%bas_prop(i)%scon_mix)
+            IF (ASSOCIATED(lri_env%bas_prop(i)%int_fbas)) THEN
+               DEALLOCATE (lri_env%bas_prop(i)%int_fbas)
+            END IF
+            IF (ASSOCIATED(lri_env%bas_prop(i)%ri_ovlp)) THEN
+               DEALLOCATE (lri_env%bas_prop(i)%ri_ovlp)
+            END IF
+            IF (ASSOCIATED(lri_env%bas_prop(i)%ri_ovlp_inv)) THEN
+               DEALLOCATE (lri_env%bas_prop(i)%ri_ovlp_inv)
+            END IF
+            IF (ASSOCIATED(lri_env%bas_prop(i)%orb_ovlp)) THEN
+               DEALLOCATE (lri_env%bas_prop(i)%orb_ovlp)
+            END IF
+            IF (ASSOCIATED(lri_env%bas_prop(i)%ovlp3)) THEN
+               DEALLOCATE (lri_env%bas_prop(i)%ovlp3)
+            END IF
+            IF (ASSOCIATED(lri_env%bas_prop(i)%scon_ri)) THEN
+               DEALLOCATE (lri_env%bas_prop(i)%scon_ri)
+            END IF
+            IF (ASSOCIATED(lri_env%bas_prop(i)%scon_orb)) THEN
+               DEALLOCATE (lri_env%bas_prop(i)%scon_orb)
+            END IF
+            IF (ASSOCIATED(lri_env%bas_prop(i)%orb_index)) THEN
+               DEALLOCATE (lri_env%bas_prop(i)%orb_index)
+            END IF
+            IF (ASSOCIATED(lri_env%bas_prop(i)%ri_index)) THEN
+               DEALLOCATE (lri_env%bas_prop(i)%ri_index)
+            END IF
+            IF (ASSOCIATED(lri_env%bas_prop(i)%scon_mix)) THEN
+               DEALLOCATE (lri_env%bas_prop(i)%scon_mix)
+            END IF
          END DO
          DEALLOCATE (lri_env%bas_prop)
       END IF
@@ -956,6 +941,7 @@ CONTAINS
          routineP = moduleN//':'//routineN
 
       INTEGER                                            :: iatom, ijkind, inode, natom, nkind, nnode
+      TYPE(lri_int_type), POINTER                        :: lri_int
 
       CPASSERT(ASSOCIATED(lri_ints))
       nkind = lri_ints%nkind
@@ -969,18 +955,43 @@ CONTAINS
                   IF (nnode > 0) THEN
                      IF (ASSOCIATED(lri_ints%lri_atom(ijkind)%lri_node(iatom)%lri_int)) THEN
                         DO inode = 1, nnode
-                           DEALLOCATE (lri_ints%lri_atom(ijkind)%lri_node(iatom)%lri_int(inode)%abaint, &
-                                       lri_ints%lri_atom(ijkind)%lri_node(iatom)%lri_int(inode)%abbint, &
-                                       lri_ints%lri_atom(ijkind)%lri_node(iatom)%lri_int(inode)%dabdaint, &
-                                       lri_ints%lri_atom(ijkind)%lri_node(iatom)%lri_int(inode)%dabbint, &
-                                       lri_ints%lri_atom(ijkind)%lri_node(iatom)%lri_int(inode)%soo, &
-                                       lri_ints%lri_atom(ijkind)%lri_node(iatom)%lri_int(inode)%dsoo, &
-                                       lri_ints%lri_atom(ijkind)%lri_node(iatom)%lri_int(inode)%sab, &
-                                       lri_ints%lri_atom(ijkind)%lri_node(iatom)%lri_int(inode)%dsab, &
-                                       lri_ints%lri_atom(ijkind)%lri_node(iatom)%lri_int(inode)%dacoef, &
-                                       lri_ints%lri_atom(ijkind)%lri_node(iatom)%lri_int(inode)%sinv, &
-                                       lri_ints%lri_atom(ijkind)%lri_node(iatom)%lri_int(inode)%n, &
-                                       lri_ints%lri_atom(ijkind)%lri_node(iatom)%lri_int(inode)%sn)
+                           lri_int => lri_ints%lri_atom(ijkind)%lri_node(iatom)%lri_int(inode)
+                           IF (ASSOCIATED(lri_int%sab)) THEN
+                              DEALLOCATE (lri_int%sab)
+                           END IF
+                           IF (ASSOCIATED(lri_int%soo)) THEN
+                              DEALLOCATE (lri_int%soo)
+                           END IF
+                           IF (ASSOCIATED(lri_int%abaint)) THEN
+                              DEALLOCATE (lri_int%abaint)
+                           END IF
+                           IF (ASSOCIATED(lri_int%abbint)) THEN
+                              DEALLOCATE (lri_int%abbint)
+                           END IF
+                           IF (ASSOCIATED(lri_int%dsab)) THEN
+                              DEALLOCATE (lri_int%dsab)
+                           END IF
+                           IF (ASSOCIATED(lri_int%dsoo)) THEN
+                              DEALLOCATE (lri_int%dsoo)
+                           END IF
+                           IF (ASSOCIATED(lri_int%dabbint)) THEN
+                              DEALLOCATE (lri_int%dabbint)
+                           END IF
+                           IF (ASSOCIATED(lri_int%dabdaint)) THEN
+                              DEALLOCATE (lri_int%dabdaint)
+                           END IF
+                           IF (ASSOCIATED(lri_int%dacoef)) THEN
+                              DEALLOCATE (lri_int%dacoef)
+                           END IF
+                           IF (ASSOCIATED(lri_int%sinv)) THEN
+                              DEALLOCATE (lri_int%sinv)
+                           END IF
+                           IF (ASSOCIATED(lri_int%n)) THEN
+                              DEALLOCATE (lri_int%n)
+                           END IF
+                           IF (ASSOCIATED(lri_int%sn)) THEN
+                              DEALLOCATE (lri_int%sn)
+                           END IF
                         END DO
                         DEALLOCATE (lri_ints%lri_atom(ijkind)%lri_node(iatom)%lri_int)
                      END IF
@@ -1020,7 +1031,9 @@ CONTAINS
                   IF (nnode > 0) THEN
                      IF (ASSOCIATED(lri_ints_rho%lri_atom(ijkind)%lri_node(iatom)%lri_int_rho)) THEN
                         DO inode = 1, nnode
-                           DEALLOCATE (lri_ints_rho%lri_atom(ijkind)%lri_node(iatom)%lri_int_rho(inode)%soaabb)
+                           IF (ASSOCIATED(lri_ints_rho%lri_atom(ijkind)%lri_node(iatom)%lri_int_rho(inode)%soaabb)) THEN
+                              DEALLOCATE (lri_ints_rho%lri_atom(ijkind)%lri_node(iatom)%lri_int_rho(inode)%soaabb)
+                           END IF
                         END DO
                         DEALLOCATE (lri_ints_rho%lri_atom(ijkind)%lri_node(iatom)%lri_int_rho)
                      END IF
@@ -1069,8 +1082,12 @@ CONTAINS
                         IF (nnode > 0) THEN
                            IF (ASSOCIATED(lri_rho%lri_atom(ijkind)%lri_node(iatom)%lri_rhoab)) THEN
                               DO inode = 1, nnode
-                                 DEALLOCATE (lri_rho%lri_atom(ijkind)%lri_node(iatom)%lri_rhoab(inode)%avec, &
-                                             lri_rho%lri_atom(ijkind)%lri_node(iatom)%lri_rhoab(inode)%tvec)
+                                 IF (ASSOCIATED(lri_rho%lri_atom(ijkind)%lri_node(iatom)%lri_rhoab(inode)%avec)) THEN
+                                    DEALLOCATE (lri_rho%lri_atom(ijkind)%lri_node(iatom)%lri_rhoab(inode)%avec)
+                                 END IF
+                                 IF (ASSOCIATED(lri_rho%lri_atom(ijkind)%lri_node(iatom)%lri_rhoab(inode)%tvec)) THEN
+                                    DEALLOCATE (lri_rho%lri_atom(ijkind)%lri_node(iatom)%lri_rhoab(inode)%tvec)
+                                 END IF
                               END DO
                               DEALLOCATE (lri_rho%lri_atom(ijkind)%lri_node(iatom)%lri_rhoab)
                            END IF

@@ -540,7 +540,7 @@ CONTAINS
          CALL init_orb_basis_set(fbas)
       ENDDO
       CALL lri_basis_init(lri_env)
-      CALL calculate_lri_integrals(lri_env, qs_env, calculate_forces=.FALSE.)
+      CALL calculate_lri_integrals(lri_env, qs_env)
       CALL calculate_avec_lri(lri_env, lri_density, pmatrix)
       IF (lri_opt%use_condition_number) THEN
          CALL get_condition_number_of_overlap(lri_env)

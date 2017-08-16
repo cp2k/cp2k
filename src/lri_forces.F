@@ -15,10 +15,13 @@ MODULE lri_forces
    USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                               get_atomic_kind,&
                                               get_atomic_kind_set
+   USE basis_set_types,                 ONLY: gto_basis_set_type
    USE dbcsr_api,                       ONLY: dbcsr_get_block_p,&
                                               dbcsr_p_type,&
                                               dbcsr_type
    USE kinds,                           ONLY: dp
+   USE lri_environment_methods,         ONLY: lri_int_os,&
+                                              lri_int_shg
    USE lri_environment_types,           ONLY: &
         allocate_lri_force_components, deallocate_lri_force_components, lri_density_type, &
         lri_environment_type, lri_force_type, lri_int_type, lri_kind_type, lri_list_type, &
@@ -147,8 +150,10 @@ CONTAINS
       CHARACTER(LEN=*), PARAMETER :: routineN = 'calculate_v_dadr', &
          routineP = moduleN//':'//routineN
 
-      INTEGER :: atom_a, atom_b, handle, i, iac, iatom, ikind, ilist, ispin, jatom, jkind, &
-         jneighbor, k, natom, nba, nbb, nfa, nfb, nkind, nlist, nn, nneighbor, nspin
+      INTEGER                                            :: atom_a, atom_b, handle, i, iac, iatom, &
+                                                            ikind, ilist, ispin, jatom, jkind, &
+                                                            jneighbor, k, natom, nba, nbb, nfa, &
+                                                            nfb, nkind, nlist, nn, nspin
       INTEGER, DIMENSION(:), POINTER                     :: atom_of_kind
       LOGICAL                                            :: found, trans
       REAL(KIND=dp), DIMENSION(3)                        :: dcharge, dlambda, force_a, force_b, &
@@ -157,6 +162,7 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: davec, dssn, dsst, dtvec, pbij, sdssn, &
                                                             sdsst, sdt
       TYPE(dbcsr_type), POINTER                          :: pmat
+      TYPE(gto_basis_set_type), POINTER                  :: fbasa, fbasb, obasa, obasb
       TYPE(lri_force_type), POINTER                      :: lri_force
       TYPE(lri_int_type), POINTER                        :: lrii
       TYPE(lri_kind_type), DIMENSION(:), POINTER         :: lri_coef
@@ -192,9 +198,8 @@ CONTAINS
 
             CALL neighbor_list_iterator_create(nl_iterator, soo_list)
             DO WHILE (neighbor_list_iterate(nl_iterator) == 0)
-               CALL get_iterator_info(nl_iterator, ikind=ikind, jkind=jkind, iatom=iatom, &
-                                      jatom=jatom, nlist=nlist, ilist=ilist, nnode=nneighbor, inode=jneighbor, &
-                                      r=rab)
+               CALL get_iterator_info(nl_iterator, ikind=ikind, jkind=jkind, iatom=iatom, jatom=jatom, &
+                                      nlist=nlist, ilist=ilist, inode=jneighbor, r=rab)
 
                iac = ikind+nkind*(jkind-1)
 
@@ -233,6 +238,32 @@ CONTAINS
                   CALL dbcsr_get_block_p(matrix=pmat, row=jatom, col=iatom, block=pbij, found=found)
                   trans = .TRUE.
                END IF
+
+               ! Calculate derivatives of overlap integrals (a,b), (fa,fb), (a,fa,b), (a,b,fb)
+               IF (ASSOCIATED(lrii%dsab)) DEALLOCATE (lrii%dsab)
+               IF (ASSOCIATED(lrii%dsoo)) DEALLOCATE (lrii%dsoo)
+               IF (ASSOCIATED(lrii%dabbint)) DEALLOCATE (lrii%dabbint)
+               IF (ASSOCIATED(lrii%dabdaint)) DEALLOCATE (lrii%dabdaint)
+               ALLOCATE (lrii%dsab(nfa, nfb, 3))
+               lrii%dsab = 0._dp
+               ALLOCATE (lrii%dsoo(nba, nbb, 3))
+               lrii%dsoo = 0._dp
+               ALLOCATE (lrii%dabbint(nba, nbb, nfb, 3))
+               lrii%dabbint = 0._dp
+               ALLOCATE (lrii%dabdaint(nba, nbb, nfa, 3))
+               lrii%dabdaint = 0._dp
+               ! calculate integrals
+               obasa => lri_env%orb_basis(ikind)%gto_basis_set
+               obasb => lri_env%orb_basis(jkind)%gto_basis_set
+               fbasa => lri_env%ri_basis(ikind)%gto_basis_set
+               fbasb => lri_env%ri_basis(jkind)%gto_basis_set
+               IF (lri_env%use_shg_integrals) THEN
+                  CALL lri_int_shg(lri_env, lrii, rab, obasa, obasb, fbasa, fbasb, &
+                                   iatom, jatom, ikind, jkind, .TRUE.)
+               ELSE
+                  CALL lri_int_os(lri_env, lrii, rab, obasa, obasb, fbasa, fbasb, &
+                                  iatom, jatom, ikind, .TRUE.)
+               ENDIF
 
                ! compute dtvec/dRa = SUM_ab Pab *d(a,b,x)/dRa
                DO k = 1, 3
@@ -305,6 +336,14 @@ CONTAINS
                   davec(1:nn, k) = -sdsst(1:nn, k)+sdt(1:nn, k) &
                                    +dlambda(k)*lrii%sn(1:nn)-lrho%lambda*sdssn(1:nn, k)
                ENDDO
+
+               ! deallocate derivative integrals
+               IF (ASSOCIATED(lrii%dsab)) DEALLOCATE (lrii%dsab)
+               IF (ASSOCIATED(lrii%dsoo)) DEALLOCATE (lrii%dsoo)
+               IF (ASSOCIATED(lrii%dabbint)) DEALLOCATE (lrii%dabbint)
+               IF (ASSOCIATED(lrii%dabdaint)) DEALLOCATE (lrii%dabdaint)
+               NULLIFY (lrii%dsab, lrii%dsoo, lrii%dabbint, lrii%dabdaint)
+               WRITE (6, *) "lrii%dabdaint   ", ASSOCIATED(lrii%dabdaint)
 
                atom_a = atom_of_kind(iatom)
                atom_b = atom_of_kind(jatom)

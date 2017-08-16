@@ -290,7 +290,7 @@ CONTAINS
       lb_max = MAXVAL(obb%lmax)
 
       saba = 0.0_dp
-      dsaba = 0.0_dp
+      IF (calculate_forces) dsaba = 0.0_dp
       CALL precalc_angular_shg_part(laa_max, lb_max, rab, Waux_mat, dWaux_mat, &
                                     calculate_forces)
       CALL int_overlap_aba_shg_low(saba, dsaba, rab, oba, obb, fba, &
@@ -352,7 +352,7 @@ CONTAINS
       lbb_max = MAXVAL(obb%lmax)+MAXVAL(fbb%lmax)
 
       sabb = 0.0_dp
-      dsabb = 0.0_dp
+      IF (calculate_forces) dsabb = 0.0_dp
       CALL precalc_angular_shg_part(lbb_max, la_max, rab, Waux_mat, dWaux_mat, &
                                     calculate_forces)
       CALL int_overlap_abb_shg_low(sabb, dsabb, rab, oba, obb, fbb, &
@@ -509,7 +509,7 @@ CONTAINS
       ALLOCATE (swork_cont(nds_max, nshella_set, nshellb_set))
 
       vab = 0.0_dp
-      dvab = 0.0_dp
+      IF (calculate_forces) dvab = 0.0_dp
 
       DO iset = 1, nseta
 
@@ -624,7 +624,7 @@ CONTAINS
       ALLOCATE (swork_cont(nds_max, nshella_set, nshellb_set))
 
       sab = 0.0_dp
-      dsab = 0.0_dp
+      IF (calculate_forces) dsab = 0.0_dp
 
       my_contraction_high = .TRUE.
       IF (PRESENT(contraction_high)) my_contraction_high = contraction_high
@@ -752,7 +752,7 @@ CONTAINS
       ALLOCATE (swork_cont(nds_max, nshella_set, nshellb_set))
 
       vab = 0.0_dp
-      dvab = 0.0_dp
+      IF (calculate_forces) dvab = 0.0_dp
 
       DO iset = 1, nseta
 

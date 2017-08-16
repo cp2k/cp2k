@@ -189,7 +189,7 @@ CONTAINS
       dab = SQRT(rab2)
 
       vab = 0.0_dp
-      dvab = 0.0_dp
+      IF (calculate_forces) dvab = 0.0_dp
 
       DO iset = 1, nseta
 
@@ -246,8 +246,6 @@ CONTAINS
 !> \brief calculate overlap integrals (a,b)
 !> \param sab integral (a,b)
 !> \param dsab derivative of sab with respect to A
-!> \param ra position center A, for debug only
-!> \param rb position center B, for debug only
 !> \param rab distance vector between center A and B
 !> \param fba basis at center A
 !> \param fbb basis at center B
@@ -255,13 +253,12 @@ CONTAINS
 !> \param debug integrals are debugged by recursive routines if requested
 !> \param dmax maximal deviation between integrals when debugging
 ! **************************************************************************************************
-   SUBROUTINE int_overlap_ab_os(sab, dsab, ra, rb, rab, fba, fbb, calculate_forces, debug, &
-                                dmax)
+   SUBROUTINE int_overlap_ab_os(sab, dsab, rab, fba, fbb, calculate_forces, debug, dmax)
 
       REAL(KIND=dp), DIMENSION(:, :), INTENT(INOUT)      :: sab
       REAL(KIND=dp), DIMENSION(:, :, :), INTENT(INOUT), &
          OPTIONAL                                        :: dsab
-      REAL(KIND=dp), DIMENSION(3), INTENT(IN)            :: ra, rb, rab
+      REAL(KIND=dp), DIMENSION(3), INTENT(IN)            :: rab
       TYPE(gto_basis_set_type), POINTER                  :: fba, fbb
       LOGICAL, INTENT(IN)                                :: calculate_forces, debug
       REAL(KIND=dp), INTENT(INOUT)                       :: dmax
@@ -276,7 +273,7 @@ CONTAINS
                                                             npgfb, nsgfa, nsgfb
       INTEGER, DIMENSION(:, :), POINTER                  :: first_sgfa, first_sgfb
       LOGICAL                                            :: failure
-      REAL(KIND=dp)                                      :: dab
+      REAL(KIND=dp)                                      :: dab, ra(3), rb(3)
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: sint
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: dsint
       REAL(KIND=dp), DIMENSION(:), POINTER               :: set_radius_a, set_radius_b
@@ -320,7 +317,7 @@ CONTAINS
       dab = SQRT(SUM(rab**2))
 
       sab = 0.0_dp
-      dsab = 0.0_dp
+      IF (calculate_forces) dsab = 0.0_dp
 
       DO iset = 1, nseta
 
@@ -349,6 +346,8 @@ CONTAINS
 
             ! debug if requested
             IF (debug) THEN
+               ra = 0.0_dp
+               rb = rab
                CALL overlap_ab_test(la_max(iset), la_min(iset), npgfa(iset), zeta(:, iset), &
                                     lb_max(jset), lb_min(jset), npgfb(jset), zetb(:, jset), &
                                     ra, rb, sint, dmax)
@@ -439,7 +438,7 @@ CONTAINS
       dab = SQRT(SUM(rab**2))
 
       sab = 0.0_dp
-      dsab = 0.0_dp
+      IF (calculate_forces) dsab = 0.0_dp
 
       DO iset = 1, nseta
 
@@ -478,8 +477,6 @@ CONTAINS
 !> \brief calculate integrals (a,b,fa)
 !> \param abaint integral (a,b,fa)
 !> \param dabdaint derivative of abaint with respect to A
-!> \param ra position center A, for debug only
-!> \param rb position center B, for debug only
 !> \param rab distance vector between center A and B
 !> \param oba orbital basis at center A
 !> \param obb orbital basis at center B
@@ -488,13 +485,13 @@ CONTAINS
 !> \param debug integrals are debugged by recursive routines if requested
 !> \param dmax maximal deviation between integrals when debugging
 ! **************************************************************************************************
-   SUBROUTINE int_overlap_aba_os(abaint, dabdaint, ra, rb, rab, oba, obb, fba, &
+   SUBROUTINE int_overlap_aba_os(abaint, dabdaint, rab, oba, obb, fba, &
                                  calculate_forces, debug, dmax)
 
       REAL(KIND=dp), DIMENSION(:, :, :), POINTER         :: abaint
       REAL(KIND=dp), DIMENSION(:, :, :, :), OPTIONAL, &
          POINTER                                         :: dabdaint
-      REAL(KIND=dp), DIMENSION(3), INTENT(IN)            :: ra, rb, rab
+      REAL(KIND=dp), DIMENSION(3), INTENT(IN)            :: rab
       TYPE(gto_basis_set_type), POINTER                  :: oba, obb, fba
       LOGICAL, INTENT(IN)                                :: calculate_forces, debug
       REAL(KIND=dp), INTENT(INOUT)                       :: dmax
@@ -512,7 +509,7 @@ CONTAINS
       REAL(KIND=dp)                                      :: dab, dac, dbc
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: saba
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :, :)  :: sdaba
-      REAL(KIND=dp), DIMENSION(3)                        :: rac, rbc
+      REAL(KIND=dp), DIMENSION(3)                        :: ra, rac, rb, rbc
       REAL(KIND=dp), DIMENSION(:), POINTER               :: set_radius_a, set_radius_b, set_radius_ca
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: rpgfa, rpgfb, rpgfca, scon_a, scon_b, &
                                                             scon_ca, zeta, zetb, zetca
@@ -562,7 +559,9 @@ CONTAINS
       dab = SQRT(SUM(rab**2))
 
       abaint = 0.0_dp
-      IF (PRESENT(dabdaint)) dabdaint = 0.0_dp
+      IF (calculate_forces) THEN
+         IF (PRESENT(dabdaint)) dabdaint = 0.0_dp
+      END IF
 
       DO iset = 1, nseta
 
@@ -617,6 +616,8 @@ CONTAINS
                   ENDIF
                   ! debug if requested
                   IF (debug) THEN
+                     ra = 0.0_dp
+                     rb = rab
                      CALL overlap_abc_test(la_max(iset), npgfa(iset), zeta(:, iset), la_min(iset), &
                                            lb_max(jset), npgfb(jset), zetb(:, jset), lb_min(jset), &
                                            lca_max(kaset), npgfca(kaset), zetca(:, kaset), lca_min(kaset), &
@@ -639,8 +640,6 @@ CONTAINS
 !> \brief calculate integrals (a,b,fb)
 !> \param abbint integral (a,b,fb)
 !> \param dabbint derivative of abbint with respect to A
-!> \param ra position center A, for debug only
-!> \param rb position center B, for debug only
 !> \param rab distance vector between center A and B
 !> \param oba orbital basis at center A
 !> \param obb orbital basis at center B
@@ -649,13 +648,12 @@ CONTAINS
 !> \param debug integrals are debugged by recursive routines if requested
 !> \param dmax maximal deviation between integrals when debugging
 ! **************************************************************************************************
-   SUBROUTINE int_overlap_abb_os(abbint, dabbint, ra, rb, rab, oba, obb, fbb, calculate_forces, &
-                                 debug, dmax)
+   SUBROUTINE int_overlap_abb_os(abbint, dabbint, rab, oba, obb, fbb, calculate_forces, debug, dmax)
 
       REAL(KIND=dp), DIMENSION(:, :, :), POINTER         :: abbint
       REAL(KIND=dp), DIMENSION(:, :, :, :), OPTIONAL, &
          POINTER                                         :: dabbint
-      REAL(KIND=dp), DIMENSION(3), INTENT(IN)            :: ra, rb, rab
+      REAL(KIND=dp), DIMENSION(3), INTENT(IN)            :: rab
       TYPE(gto_basis_set_type), POINTER                  :: oba, obb, fbb
       LOGICAL, INTENT(IN)                                :: calculate_forces, debug
       REAL(KIND=dp), INTENT(INOUT)                       :: dmax
@@ -673,7 +671,7 @@ CONTAINS
       REAL(KIND=dp)                                      :: dab, dac, dbc
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: sabb
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :, :)  :: sdabb
-      REAL(KIND=dp), DIMENSION(3)                        :: rac, rbc
+      REAL(KIND=dp), DIMENSION(3)                        :: ra, rac, rb, rbc
       REAL(KIND=dp), DIMENSION(:), POINTER               :: set_radius_a, set_radius_b, set_radius_cb
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: rpgfa, rpgfb, rpgfcb, scon_a, scon_b, &
                                                             scon_cb, zeta, zetb, zetcb
@@ -723,7 +721,9 @@ CONTAINS
       dab = SQRT(SUM(rab**2))
 
       abbint = 0.0_dp
-      IF (PRESENT(dabbint)) dabbint = 0.0_dp
+      IF (calculate_forces) THEN
+         IF (PRESENT(dabbint)) dabbint = 0.0_dp
+      END IF
 
       DO iset = 1, nseta
 
@@ -775,6 +775,8 @@ CONTAINS
                   ENDIF
                   ! debug if requested
                   IF (debug) THEN
+                     ra = 0.0_dp
+                     rb = rab
                      CALL overlap_abc_test(la_max(iset), npgfa(iset), zeta(:, iset), la_min(iset), &
                                            lb_max(jset), npgfb(jset), zetb(:, jset), lb_min(jset), &
                                            lcb_max(kbset), npgfcb(kbset), zetcb(:, kbset), lcb_min(kbset), &
@@ -801,16 +803,14 @@ CONTAINS
 !> \param oba orbital basis at center A
 !> \param obb orbital basis at center B
 !> \param rab ...
-!> \param ra ...
-!> \param rb ...
 !> \param debug integrals are debugged by recursive routines if requested
 !> \param dmax maximal deviation between integrals when debugging
 ! **************************************************************************************************
-   SUBROUTINE int_overlap_aabb_os(saabb, oba, obb, rab, ra, rb, debug, dmax)
+   SUBROUTINE int_overlap_aabb_os(saabb, oba, obb, rab, debug, dmax)
 
       REAL(KIND=dp), DIMENSION(:, :, :, :), POINTER      :: saabb
       TYPE(gto_basis_set_type), POINTER                  :: oba, obb
-      REAL(KIND=dp), DIMENSION(3), INTENT(IN)            :: rab, ra, rb
+      REAL(KIND=dp), DIMENSION(3), INTENT(IN)            :: rab
       LOGICAL, INTENT(IN)                                :: debug
       REAL(KIND=dp), INTENT(INOUT)                       :: dmax
 
@@ -824,7 +824,7 @@ CONTAINS
                                                             npgfb, nsgfa, nsgfb
       INTEGER, DIMENSION(:, :), POINTER                  :: first_sgfa, first_sgfb
       LOGICAL                                            :: asets_equal, bsets_equal
-      REAL(KIND=dp)                                      :: dab
+      REAL(KIND=dp)                                      :: dab, ra(3), rb(3)
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: swork
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :, :)  :: sint
       REAL(KIND=dp), DIMENSION(:), POINTER               :: set_radius_a, set_radius_b
@@ -909,6 +909,8 @@ CONTAINS
                                     asets_equal, bsets_equal, rab, dab, sint, swork, lds)
                   ! debug if requested
                   IF (debug) THEN
+                     ra = 0.0_dp
+                     rb = rab
                      CALL overlap_aabb_test(la_max(iset), la_min(iset), npgfa(iset), zeta(:, iset), &
                                             la_max(jset), la_min(jset), npgfa(jset), zeta(:, jset), &
                                             lb_max(kset), lb_min(kset), npgfb(kset), zetb(:, kset), &

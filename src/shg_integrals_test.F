@@ -528,7 +528,7 @@ CONTAINS
       INTEGER                                            :: iab, irep, nab, nfa, nfb
       LOGICAL                                            :: test_overlap
       REAL(KIND=dp)                                      :: ddmax_overlap, ddtemp, dmax_overlap, &
-                                                            dtemp, dummy, ra(3), rb(3)
+                                                            dtemp, dummy
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: sab_os, sab_shg
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: dsab_os, dsab_shg
 
@@ -542,8 +542,6 @@ CONTAINS
          obb%pgf_radius(:, :) = 1.0E+09_dp
          nfa = oba%nsgf
          nfb = obb%nsgf
-         ra(:) = 0.0_dp
-         rb(:) = 0.0_dp
          dummy = 0.0_dp
          dmax_overlap = 0.0_dp
          ddmax_overlap = 0.0_dp
@@ -554,7 +552,7 @@ CONTAINS
             DO iab = 1, nab
                CALL int_overlap_ab_shg(sab_shg, dsab_shg, rab(:, iab), oba, obb, &
                                        scona_shg, sconb_shg, calc_derivatives)
-               CALL int_overlap_ab_os(sab_os, dsab_os, ra, rb, rab(:, iab), oba, obb, &
+               CALL int_overlap_ab_os(sab_os, dsab_os, rab(:, iab), oba, obb, &
                                       calc_derivatives, debug=.FALSE., dmax=dummy)
                CALL calculate_deviation_ab(sab_shg, sab_os, dsab_shg, dsab_os, dtemp, ddtemp)
                dmax_overlap = MAX(dmax_overlap, dtemp)
@@ -695,8 +693,7 @@ CONTAINS
       LOGICAL                                            :: test_overlap_aba, test_overlap_abb
       REAL(KIND=dp)                                      :: ddmax_overlap_aba, ddmax_overlap_abb, &
                                                             ddtemp, dmax_overlap_aba, &
-                                                            dmax_overlap_abb, dtemp, dummy, ra(3), &
-                                                            rb(3)
+                                                            dmax_overlap_abb, dtemp, dummy
       REAL(KIND=dp), DIMENSION(:, :, :), POINTER         :: cg_coeff, saba_os, saba_shg, sabb_os, &
                                                             sabb_shg
       REAL(KIND=dp), DIMENSION(:, :, :, :), POINTER      :: dsaba_os, dsaba_shg, dsabb_os, &
@@ -736,8 +733,6 @@ CONTAINS
             ALLOCATE (sabb_os(nba, nbb, nfb), dsabb_os(nba, nbb, nfb, 3))
             CALL contraction_matrix_shg_mix(obb, fbb, obb_index, fbb_index, sconb_mix)
          ENDIF
-         ra(:) = 0.0_dp
-         rb(:) = 0.0_dp
          dummy = 0.0_dp
          dmax_overlap_aba = 0.0_dp
          ddmax_overlap_aba = 0.0_dp
@@ -752,7 +747,7 @@ CONTAINS
                                            scon_obb, scona_mix, oba_index, fba_index, &
                                            cg_coeff, cg_none0_list, ncg_none0, &
                                            calc_derivatives)
-                  CALL int_overlap_aba_os(saba_os, dsaba_os, ra, rb, rab(:, iab), oba, obb, fba, &
+                  CALL int_overlap_aba_os(saba_os, dsaba_os, rab(:, iab), oba, obb, fba, &
                                           calc_derivatives, debug=.FALSE., dmax=dummy)
                   CALL calculate_deviation_abx(saba_shg, saba_os, dsaba_shg, dsaba_os, dtemp, ddtemp)
                   dmax_overlap_aba = MAX(dmax_overlap_aba, dtemp)
@@ -769,7 +764,7 @@ CONTAINS
                                            scon_oba, sconb_mix, obb_index, fbb_index, &
                                            cg_coeff, cg_none0_list, ncg_none0, &
                                            calc_derivatives)
-                  CALL int_overlap_abb_os(sabb_os, dsabb_os, ra, rb, rab(:, iab), oba, obb, fbb, &
+                  CALL int_overlap_abb_os(sabb_os, dsabb_os, rab(:, iab), oba, obb, fbb, &
                                           calc_derivatives, debug=.FALSE., dmax=dummy)
                   CALL calculate_deviation_abx(sabb_shg, sabb_os, dsabb_shg, dsabb_os, dtemp, ddtemp)
                   dmax_overlap_abb = MAX(dmax_overlap_abb, dtemp)
