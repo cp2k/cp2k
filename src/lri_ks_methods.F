@@ -19,8 +19,7 @@ MODULE lri_ks_methods
                                               dbcsr_get_block_p,&
                                               dbcsr_type
    USE kinds,                           ONLY: dp
-   USE lri_environment_methods,         ONLY: lri_calculate_derivative_acoef,&
-                                              ri_metric_solver
+   USE lri_environment_methods,         ONLY: ri_metric_solver
    USE lri_environment_types,           ONLY: lri_environment_type,&
                                               lri_int_type,&
                                               lri_kind_type
@@ -69,10 +68,11 @@ CONTAINS
       INTEGER                                            :: atom_a, atom_b, col, handle, i, iac, &
                                                             iatom, ikind, ilist, jatom, jkind, &
                                                             jneighbor, natom, nba, nbb, nfa, nfb, &
-                                                            nkind, nlist, nn, row
+                                                            nkind, nlist, nm, nn, row
       INTEGER, DIMENSION(:), POINTER                     :: atom_of_kind
       LOGICAL                                            :: found, trans
-      REAL(KIND=dp)                                      :: dab, rab(3)
+      REAL(KIND=dp)                                      :: dab, isn, nsn, rab(3)
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: vi
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: h_work
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: h_block
       TYPE(lri_int_type), POINTER                        :: lrii
@@ -135,29 +135,33 @@ CONTAINS
             atom_a = atom_of_kind(iatom)
             atom_b = atom_of_kind(jatom)
 
-            IF (ASSOCIATED(lrii%dacoef)) DEALLOCATE (lrii%dacoef)
+            nsn = lrii%nsn
             IF (iatom == jatom .AND. dab < lri_env%delta) THEN
-               ALLOCATE (lrii%dacoef(nba, nbb, nfa))
+               nm = nfa
+               ALLOCATE (vi(nfa))
+               vi(1:nfa) = lri_v_int(ikind)%v_int(atom_a, 1:nfa)
             ELSE
-               ALLOCATE (lrii%dacoef(nba, nbb, nn))
-            ENDIF
-            lrii%dacoef = 0._dp
-            CALL lri_calculate_derivative_acoef(lri_env, lrii, iatom, jatom, nba, nbb, nfa, nfb, dab)
-            ! sum: Hab(a)+Hab(b)
-            ! Hab(a)
-            DO i = 1, nfa
-               h_work(1:nba, 1:nbb) = h_work(1:nba, 1:nbb)+ &
-                                      lri_v_int(ikind)%v_int(atom_a, i)*lrii%dacoef(1:nba, 1:nbb, i)
-            ENDDO
-            ! Hab(b)
-            IF (dab > lri_env%delta) THEN
-               DO i = 1, nfb
-                  h_work(1:nba, 1:nbb) = h_work(1:nba, 1:nbb)+ &
-                                         lri_v_int(jkind)%v_int(atom_b, i)*lrii%dacoef(1:nba, 1:nbb, nfa+i)
+               nm = nn
+               ALLOCATE (vi(nn))
+               vi(1:nfa) = lri_v_int(ikind)%v_int(atom_a, 1:nfa)
+               vi(nfa+1:nn) = lri_v_int(jkind)%v_int(atom_b, 1:nfb)
+            END IF
+            isn = SUM(lrii%sn(1:nm)*vi(1:nm))
+            vi(1:nm) = MATMUL(lrii%sinv(1:nm, 1:nm), vi(1:nm))-isn/nsn*lrii%sn(1:nm)
+            h_work(1:nba, 1:nbb) = h_work(1:nba, 1:nbb)+isn/nsn*lrii%soo(1:nba, 1:nbb)
+            IF (iatom == jatom .AND. dab < lri_env%delta) THEN
+               DO i = 1, nfa
+                  h_work(1:nba, 1:nbb) = h_work(1:nba, 1:nbb)+vi(i)*lrii%abaint(1:nba, 1:nbb, i)
                ENDDO
-            ENDIF
-            IF (ASSOCIATED(lrii%dacoef)) DEALLOCATE (lrii%dacoef)
-            NULLIFY (lrii%dacoef)
+            ELSE
+               DO i = 1, nfa
+                  h_work(1:nba, 1:nbb) = h_work(1:nba, 1:nbb)+vi(i)*lrii%abaint(1:nba, 1:nbb, i)
+               ENDDO
+               DO i = 1, nfb
+                  h_work(1:nba, 1:nbb) = h_work(1:nba, 1:nbb)+vi(nfa+i)*lrii%abbint(1:nba, 1:nbb, i)
+               ENDDO
+            END IF
+            DEALLOCATE (vi)
 
             ! add h_work to core hamiltonian
             IF (trans) THEN

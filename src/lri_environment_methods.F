@@ -103,7 +103,7 @@ MODULE lri_environment_methods
 
    PUBLIC :: build_lri_matrices, calculate_lri_densities, calculate_ri_densities, &
              calculate_lri_integrals, calculate_lri_overlap_aabb, calculate_avec_lri, &
-             ri_metric_solver, lri_int_os, lri_int_shg, lri_calculate_derivative_acoef
+             ri_metric_solver, lri_int_os, lri_int_shg
 
 ! **************************************************************************************************
 
@@ -1336,88 +1336,6 @@ CONTAINS
       CALL timestop(handle)
 
    END SUBROUTINE lri_int_shg
-
-! **************************************************************************************************
-!> \brief calculate derivate of fit coefficients acoef with respect to
-!>        density matrix pmatrix
-!>        R = (a,b)/nsn  - SUM_i (a,b,ai)*sn(i)/nsn
-!>        Q = SUM_i sinv*(a,b,ai)
-!>        derviate_aci = R + Q
-!> \param lri_env ...
-!> \param lrii ...
-!> \param iatom ...
-!> \param jatom ...
-!> \param nba number of primary basis functions on a
-!> \param nbb number of primary basis functions on b
-!> \param nfa number of ri basis functions on a
-!> \param nfb number of ri basis functions on b
-!> \param dab distance between center a and b
-! **************************************************************************************************
-   SUBROUTINE lri_calculate_derivative_acoef(lri_env, lrii, iatom, jatom, nba, nbb, &
-                                             nfa, nfb, dab)
-
-      TYPE(lri_environment_type), POINTER                :: lri_env
-      TYPE(lri_int_type), POINTER                        :: lrii
-      INTEGER, INTENT(IN)                                :: iatom, jatom, nba, nbb, nfa, nfb
-      REAL(KIND=dp), INTENT(IN)                          :: dab
-
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'lri_calculate_derivative_acoef', &
-         routineP = moduleN//':'//routineN
-
-      INTEGER                                            :: handle, nn
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: dlambdadp
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: abxint_work, Q, R
-
-      CALL timeset(routineN, handle)
-
-      nn = nfa+nfb
-
-      ALLOCATE (R(nba, nbb, nn))
-      ALLOCATE (dlambdadp(nba, nbb))
-      ALLOCATE (Q(nba, nbb, nn))
-      ALLOCATE (abxint_work(nba, nbb, nn))
-
-      R(:, :, :) = 0._dp
-      dlambdadp = 0._dp
-      Q(:, :, :) = 0._dp
-      abxint_work(:, :, :) = 0._dp
-
-      abxint_work(1:nba, 1:nbb, 1:nfa) = lrii%abaint(1:nba, 1:nbb, 1:nfa) !abaint
-      abxint_work(1:nba, 1:nbb, nfa+1:nn) = lrii%abbint(1:nba, 1:nbb, 1:nfb) !abbint
-      IF (iatom == jatom .AND. dab < lri_env%delta) THEN
-         ! R = Sinv*abx_int
-         CALL dgemm("N", "N", nba*nbb, nfa, nfa, 1.0_dp, abxint_work, nba*nbb, &
-                    lrii%sinv, nfa, 0.0_dp, R, nba*nbb)
-         ! dlambdadp = soo/nsn - sn*abx_int/nsn
-         dlambdadp(1:nba, 1:nbb) = lrii%soo(1:nba, 1:nbb)
-         CALL dgemm("N", "N", nba*nbb, 1, nfa, -1.0_dp/lrii%nsn, abxint_work, nba*nbb, &
-                    lrii%sn, nfa, 1.0_dp/lrii%nsn, dlambdadp, nba*nbb)
-         ! Q = dlambdadp * sn
-         CALL dgemm("N", "T", nba*nbb, nfa, 1, 1.0_dp, dlambdadp, nba*nbb, &
-                    lrii%sn, nfa, 0.0_dp, Q, nba*nbb)
-         lrii%dacoef(1:nba, 1:nbb, 1:nfa) = R(1:nba, 1:nbb, 1:nfa)+Q(1:nba, 1:nbb, 1:nfa)
-      ELSE
-         ! R = Sinv*abx_int
-         CALL dgemm("N", "N", nba*nbb, nn, nn, 1.0_dp, abxint_work, nba*nbb, &
-                    lrii%sinv, nn, 0.0_dp, R, nba*nbb)
-         ! dlambdadp = soo/nsn - sn*abx_int/nsn
-         dlambdadp(1:nba, 1:nbb) = lrii%soo(1:nba, 1:nbb)
-         CALL dgemm("N", "N", nba*nbb, 1, nn, -1.0_dp/lrii%nsn, abxint_work, nba*nbb, &
-                    lrii%sn, nn, 1.0_dp/lrii%nsn, dlambdadp, nba*nbb)
-         ! Q = dlambdadp * sn
-         CALL dgemm("N", "T", nba*nbb, nn, 1, 1.0_dp, dlambdadp, nba*nbb, &
-                    lrii%sn, nn, 0.0_dp, Q, nba*nbb)
-         lrii%dacoef(1:nba, 1:nbb, 1:nn) = R(1:nba, 1:nbb, 1:nn)+Q(1:nba, 1:nbb, 1:nn)
-      ENDIF
-
-      DEALLOCATE (abxint_work)
-      DEALLOCATE (R)
-      DEALLOCATE (dlambdadp)
-      DEALLOCATE (Q)
-
-      CALL timestop(handle)
-
-   END SUBROUTINE lri_calculate_derivative_acoef
 
 ! **************************************************************************************************
 !> \brief get inverse or pseudoinverse of lri overlap matrix for aux basis set

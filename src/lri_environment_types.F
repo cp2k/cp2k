@@ -90,8 +90,6 @@ MODULE lri_environment_types
       REAL(KIND=dp), DIMENSION(:, :), POINTER                 :: sab
       ! derivative d(ai,bi)/dA
       REAL(KIND=dp), DIMENSION(:, :, :), POINTER              :: dsab
-      ! derivative of fit coeff dacoef/dpmatrix
-      REAL(KIND=dp), DIMENSION(:, :, :), POINTER              :: dacoef
       ! inverse of integrals (ai,bi)
       REAL(KIND=dp), DIMENSION(:, :), POINTER                 :: sinv
       ! integral (ai) / (bi), dim(1..nfa,nfa+1..nfa+nfb)
@@ -596,8 +594,6 @@ CONTAINS
          lrii%n = 0._dp
          lrii%sn = 0._dp
 
-         NULLIFY (lrii%dacoef)
-
          lrii%dmax_ab = 0._dp
          lrii%dmax_oo = 0._dp
          lrii%dmax_aba = 0._dp
@@ -979,9 +975,6 @@ CONTAINS
                            END IF
                            IF (ASSOCIATED(lri_int%dabdaint)) THEN
                               DEALLOCATE (lri_int%dabdaint)
-                           END IF
-                           IF (ASSOCIATED(lri_int%dacoef)) THEN
-                              DEALLOCATE (lri_int%dacoef)
                            END IF
                            IF (ASSOCIATED(lri_int%sinv)) THEN
                               DEALLOCATE (lri_int%sinv)
