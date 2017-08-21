@@ -200,7 +200,7 @@ CONTAINS
 
             CALL neighbor_list_iterator_create(nl_iterator, soo_list, nthread=nthread)
 !$OMP PARALLEL DEFAULT(NONE)&
-!$OMP SHARED (nthread,nl_iterator,pmat,nkind,lri_env,lri_rho,lri_coef,lri_density,&
+!$OMP SHARED (nthread,nl_iterator,pmat,nkind,lri_env,lri_rho,lri_coef,&
 !$OMP         atom_of_kind,virial,use_virial)&
 !$OMP PRIVATE (mepos,ikind,jkind,iatom,jatom,nlist,ilist,jneighbor,rab,iac,lrii,lrho,&
 !$OMP          lri_force,nfa,nfb,nba,nbb,nn,st,nsdsst,nsdssn,dsst,sdsst,dssn,sdssn,sdt,&
@@ -232,8 +232,8 @@ CONTAINS
                nbb = lrii%nbb
                nn = nfa+nfb
 
-               CALL allocate_lri_force_components(lri_density%lri_force, nfa, nfb)
-               lri_force => lri_density%lri_force
+               NULLIFY (lri_force)
+               CALL allocate_lri_force_components(lri_force, nfa, nfb)
                st => lri_force%st
                dsst => lri_force%dsst
                sdsst => lri_force%sdsst
@@ -399,7 +399,7 @@ CONTAINS
 !$OMP END CRITICAL(addvirial)
                ENDIF
 
-               CALL deallocate_lri_force_components(lri_density%lri_force)
+               CALL deallocate_lri_force_components(lri_force)
 
             END DO
 !$OMP END PARALLEL
