@@ -5753,6 +5753,13 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
+      CALL keyword_create(keyword, name="EPS_O3_INT", &
+                          description="Threshold for ABA and ABB integrals. "// &
+                          "This is used for screening in the KS and force calculations.", &
+                          usage="EPS_O3_INT 1.e-10", default_r_val=1.0e-14_dp)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
       CALL keyword_create(keyword, name="DEBUG_LRI_INTEGRALS", &
                           description="Debug the integrals needed for LRIGPW.", &
                           usage="DEBUG_LRI_INTEGRALS TRUE", &

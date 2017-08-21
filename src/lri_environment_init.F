@@ -122,6 +122,9 @@ CONTAINS
                                 i_val=lri_env%lri_overlap_inv)
       CALL section_vals_val_get(lri_section, "MAX_CONDITION_NUM", &
                                 r_val=lri_env%cond_max)
+      ! integrals threshold (aba, abb)
+      CALL section_vals_val_get(lri_section, "EPS_O3_INT", &
+                                r_val=lri_env%eps_o3_int)
       ! RI SINV
       CALL section_vals_val_get(lri_section, "RI_SINV", &
                                 c_val=lri_env%ri_sinv_app)
@@ -206,7 +209,7 @@ CONTAINS
       INTEGER                                            :: ikind, nkind
       INTEGER, DIMENSION(:, :, :), POINTER               :: orb_index, ri_index
       REAL(KIND=dp), DIMENSION(:), POINTER               :: orb_norm_r, ri_int_fbas, ri_norm_r, &
-                                                            ri_norm_s
+                                                            ri_norm_s, screen
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: orb_ovlp, ri_ovlp, ri_ovlp_inv
       REAL(KIND=dp), DIMENSION(:, :, :), POINTER         :: ovlp3, scon_orb, scon_ri
       REAL(KIND=dp), DIMENSION(:, :, :, :), POINTER      :: dovlp3, scon_mix
@@ -254,14 +257,17 @@ CONTAINS
                   NULLIFY (ovlp3)
                   ALLOCATE (ovlp3(orb_basis%nsgf, orb_basis%nsgf, ri_basis%nsgf))
                   ALLOCATE (dovlp3(orb_basis%nsgf, orb_basis%nsgf, ri_basis%nsgf, 3))
+                  ALLOCATE (screen(ri_basis%nsgf))
                   CALL int_overlap_aba_shg(ovlp3, dovlp3, (/0.0_dp, 0.0_dp, 0.0_dp/), &
                                            orb_basis, orb_basis, ri_basis, scon_orb, &
                                            scon_mix, orb_index, ri_index, &
                                            lri_env%cg_shg%cg_coeff, &
                                            lri_env%cg_shg%cg_none0_list, &
                                            lri_env%cg_shg%ncg_none0, &
-                                           calculate_forces=.FALSE.)
+                                           calculate_forces=.FALSE., &
+                                           screen=screen)
                   lri_env%bas_prop(ikind)%ovlp3 => ovlp3
+                  DEALLOCATE (screen)
                   DEALLOCATE (orb_norm_r, ri_norm_r, ri_norm_s)
                   DEALLOCATE (dovlp3)
                   ALLOCATE (ri_ovlp_inv(ri_basis%nsgf, ri_basis%nsgf))

@@ -154,8 +154,9 @@ CONTAINS
          routineP = moduleN//':'//routineN
 
       INTEGER                                            :: handle, iac, iatom, ikind, ilist, jatom, &
-                                                            jkind, jneighbor, nba, nbb, nfa, nfb, &
-                                                            nkind, nlist, nn, nneighbor
+                                                            jkind, jneighbor, mepos, nba, nbb, &
+                                                            nfa, nfb, nkind, nlist, nn, nneighbor, &
+                                                            nthread
       LOGICAL                                            :: use_virial
       REAL(KIND=dp)                                      :: dab
       REAL(KIND=dp), DIMENSION(3)                        :: rab
@@ -181,6 +182,8 @@ CONTAINS
          CALL get_qs_env(qs_env=qs_env, cell=cell, dft_control=dft_control, &
                          nkind=nkind, particle_set=particle_set, virial=virial)
          use_virial = virial%pv_availability .AND. (.NOT. virial%pv_numer)
+         nthread = 1
+!$       nthread = omp_get_max_threads()
 
          IF (ASSOCIATED(lri_env%lri_ints)) THEN
             CALL deallocate_lri_ints(lri_env%lri_ints)
@@ -190,10 +193,18 @@ CONTAINS
          CALL allocate_lri_ints(lri_env, lri_env%lri_ints, nkind)
          lri_ints => lri_env%lri_ints
 
-         CALL neighbor_list_iterator_create(nl_iterator, soo_list)
-         DO WHILE (neighbor_list_iterate(nl_iterator) == 0)
+         CALL neighbor_list_iterator_create(nl_iterator, soo_list, nthread=nthread)
+!$OMP PARALLEL DEFAULT(NONE)&
+!$OMP SHARED (nthread,nl_iterator,lri_env,lri_ints,nkind,use_virial)&
+!$OMP PRIVATE (mepos,ikind,jkind,iatom,jatom,nlist,ilist,nneighbor,jneighbor,rab,dab,&
+!$OMP          iac,obasa,obasb,fbasa,fbasb,lrii,nba,nbb,nfa,nfb,nn)
 
-            CALL get_iterator_info(nl_iterator, ikind=ikind, jkind=jkind, &
+         mepos = 0
+!$       mepos = omp_get_thread_num()
+
+         DO WHILE (neighbor_list_iterate(nl_iterator, mepos) == 0)
+
+            CALL get_iterator_info(nl_iterator, mepos=mepos, ikind=ikind, jkind=jkind, &
                                    nlist=nlist, ilist=ilist, nnode=nneighbor, inode=jneighbor, &
                                    iatom=iatom, jatom=jatom, r=rab)
             iac = ikind+nkind*(jkind-1)
@@ -267,6 +278,7 @@ CONTAINS
             ENDIF
 
          END DO
+!$OMP END PARALLEL
 
          CALL neighbor_list_iterator_release(nl_iterator)
 
@@ -741,12 +753,10 @@ CONTAINS
       CHARACTER(LEN=*), PARAMETER :: routineN = 'calculate_avec_lri', &
          routineP = moduleN//':'//routineN
 
-      INTEGER                                            :: handle, i, iac, iatom, ikind, ilist, &
-                                                            ispin, jatom, jkind, jneighbor, nba, &
-                                                            nbb, nfa, nfb, nkind, nlist, nn, &
-                                                            nneighbor, nspin
+      INTEGER :: handle, i, iac, iatom, ikind, ilist, ispin, jatom, jkind, jneighbor, mepos, nba, &
+         nbb, nfa, nfb, nkind, nlist, nn, nneighbor, nspin, nthread
       LOGICAL                                            :: found, trans
-      REAL(KIND=dp)                                      :: dab, rab(3)
+      REAL(KIND=dp)                                      :: dab, rab(3), threshold
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: m
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: pbij
       TYPE(dbcsr_type), POINTER                          :: pmat
@@ -766,6 +776,8 @@ CONTAINS
 
          nspin = SIZE(pmatrix)
          nkind = lri_env%lri_ints%nkind
+         nthread = 1
+!$       nthread = omp_get_max_threads()
 
          CALL lri_density_release(lri_density)
          CALL lri_density_create(lri_density)
@@ -778,9 +790,16 @@ CONTAINS
             pmat => pmatrix(ispin)%matrix
             lri_rho => lri_density%lri_rhos(ispin)%lri_list
 
-            CALL neighbor_list_iterator_create(nl_iterator, soo_list)
-            DO WHILE (neighbor_list_iterate(nl_iterator) == 0)
-               CALL get_iterator_info(nl_iterator, ikind=ikind, jkind=jkind, iatom=iatom, &
+            CALL neighbor_list_iterator_create(nl_iterator, soo_list, nthread=nthread)
+!$OMP PARALLEL DEFAULT(NONE)&
+!$OMP SHARED (nthread,nl_iterator,lri_env,lri_rho,pmat,nkind)&
+!$OMP PRIVATE (mepos,ikind,jkind,iatom,jatom,nlist,ilist,nneighbor,jneighbor,rab,dab,iac,&
+!$OMP          trans,found,pbij,lrho,lrii,nba,nbb,nfa,nfb,nn,threshold,i,m)
+
+            mepos = 0
+!$          mepos = omp_get_thread_num()
+            DO WHILE (neighbor_list_iterate(nl_iterator, mepos) == 0)
+               CALL get_iterator_info(nl_iterator, mepos=mepos, ikind=ikind, jkind=jkind, iatom=iatom, &
                                       jatom=jatom, nlist=nlist, ilist=ilist, nnode=nneighbor, inode=jneighbor, &
                                       r=rab)
 
@@ -810,25 +829,43 @@ CONTAINS
 
                nn = nfa+nfb
 
-               ! compute tvec = SUM_ab Pab *(a,b,x) and charge contraint
+               ! compute tvec = SUM_ab Pab *(a,b,x) and charge constraint
                IF (trans) THEN
+                  threshold = lri_env%eps_o3_int/MAX(SUM(ABS(pbij(1:nbb, 1:nba))), 1.0e-14_dp)
                   lrho%charge = SUM(TRANSPOSE(pbij(1:nbb, 1:nba))*lrii%soo(1:nba, 1:nbb))
                   DO i = 1, nfa
-                     lrho%tvec(i) = SUM(TRANSPOSE(pbij(1:nbb, 1:nba))*lrii%abaint(1:nba, 1:nbb, i))
+                     IF (lrii%abascr(i) > threshold) THEN
+                        lrho%tvec(i) = SUM(TRANSPOSE(pbij(1:nbb, 1:nba))*lrii%abaint(1:nba, 1:nbb, i))
+                     ELSE
+                        lrho%tvec(i) = 0.0_dp
+                     END IF
                   END DO
                   IF (dab > lri_env%delta) THEN
                      DO i = 1, nfb
-                        lrho%tvec(nfa+i) = SUM(TRANSPOSE(pbij(1:nbb, 1:nba))*lrii%abbint(1:nba, 1:nbb, i))
+                        IF (lrii%abbscr(i) > threshold) THEN
+                           lrho%tvec(nfa+i) = SUM(TRANSPOSE(pbij(1:nbb, 1:nba))*lrii%abbint(1:nba, 1:nbb, i))
+                        ELSE
+                           lrho%tvec(nfa+i) = 0.0_dp
+                        END IF
                      END DO
                   ENDIF
                ELSE
+                  threshold = lri_env%eps_o3_int/MAX(SUM(ABS(pbij(1:nba, 1:nbb))), 1.0e-14_dp)
                   lrho%charge = SUM(pbij(1:nba, 1:nbb)*lrii%soo(1:nba, 1:nbb))
                   DO i = 1, nfa
-                     lrho%tvec(i) = SUM(pbij(1:nba, 1:nbb)*lrii%abaint(1:nba, 1:nbb, i))
+                     IF (lrii%abascr(i) > threshold) THEN
+                        lrho%tvec(i) = SUM(pbij(1:nba, 1:nbb)*lrii%abaint(1:nba, 1:nbb, i))
+                     ELSE
+                        lrho%tvec(i) = 0.0_dp
+                     END IF
                   END DO
                   IF (dab > lri_env%delta) THEN
                      DO i = 1, nfb
-                        lrho%tvec(nfa+i) = SUM(pbij(1:nba, 1:nbb)*lrii%abbint(1:nba, 1:nbb, i))
+                        IF (lrii%abbscr(i) > threshold) THEN
+                           lrho%tvec(nfa+i) = SUM(pbij(1:nba, 1:nbb)*lrii%abbint(1:nba, 1:nbb, i))
+                        ELSE
+                           lrho%tvec(nfa+i) = 0.0_dp
+                        END IF
                      END DO
                   ENDIF
                END IF
@@ -855,6 +892,7 @@ CONTAINS
                DEALLOCATE (m)
 
             END DO
+!$OMP END PARALLEL
             CALL neighbor_list_iterator_release(nl_iterator)
 
          END DO
@@ -1197,7 +1235,7 @@ CONTAINS
          !*** (a,a,fa)
          CALL int_overlap_aba_os(lrii%abaint, rab=rab, oba=obasa, obb=obasb, &
                                  fba=fbasa, calculate_forces=.FALSE., debug=lri_env%debug, &
-                                 dmax=lrii%dmax_aba)
+                                 dmax=lrii%dmax_aba, screen=lrii%abascr)
          IF (calculate_forces) THEN
             lrii%dsab = 0._dp
             lrii%dsoo = 0._dp
@@ -1218,10 +1256,10 @@ CONTAINS
                                 do_force, lri_env%debug, lrii%dmax_oo)
          !*** (a,b,fa)
          CALL int_overlap_aba_os(lrii%abaint, lrii%dabdaint, rab, obasa, obasb, fbasa, &
-                                 do_force, lri_env%debug, lrii%dmax_aba)
+                                 do_force, lri_env%debug, lrii%dmax_aba, screen=lrii%abascr)
          !*** (a,b,fb)
          CALL int_overlap_abb_os(lrii%abbint, lrii%dabbint, rab, obasa, obasb, fbasb, &
-                                 do_force, lri_env%debug, lrii%dmax_abb)
+                                 do_force, lri_env%debug, lrii%dmax_abb, screen=lrii%abbscr)
       ENDIF
 
       CALL timestop(handle)
@@ -1282,6 +1320,7 @@ CONTAINS
          lrii%soo(1:nba, 1:nba) = lri_env%bas_prop(ikind)%orb_ovlp(1:nba, 1:nba)
          !*** (a,a,fa)
          lrii%abaint(1:nba, 1:nba, 1:nfa) = lri_env%bas_prop(ikind)%ovlp3
+         lrii%abascr(1:nfa) = 1.0_dp
          IF (calculate_forces) THEN
             lrii%dsab = 0._dp
             lrii%dsoo = 0._dp
@@ -1317,17 +1356,18 @@ CONTAINS
                                       scon_obb, scona_mix, oba_index, fba_index, &
                                       lri_env%cg_shg%cg_coeff, lri_env%cg_shg%cg_none0_list, &
                                       lri_env%cg_shg%ncg_none0, &
-                                      Waux_mat, dWaux_mat, do_force)
+                                      Waux_mat, dWaux_mat, do_force, lrii%abascr)
          !*** (a,b,fb)
          IF (ikind == jkind) THEN
             CALL get_abb_same_kind(lrii%abbint, lrii%dabbint, lrii%abaint, lrii%dabdaint, &
                                    rab, obasa, fbasa, do_force)
+            lrii%abbscr(:) = lrii%abascr(:)
          ELSE
             CALL int_overlap_abb_shg_low(lrii%abbint, lrii%dabbint, rab, obasa, obasb, fbasb, &
                                          scon_oba, sconb_mix, obb_index, fbb_index, &
                                          lri_env%cg_shg%cg_coeff, lri_env%cg_shg%cg_none0_list, &
                                          lri_env%cg_shg%ncg_none0, &
-                                         Waux_mat, dWaux_mat, do_force)
+                                         Waux_mat, dWaux_mat, do_force, lrii%abbscr)
          ENDIF
 
          DEALLOCATE (Waux_mat, dWaux_mat)

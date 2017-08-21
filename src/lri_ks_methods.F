@@ -34,6 +34,8 @@ MODULE lri_ks_methods
                                               o3c_vec_create,&
                                               o3c_vec_release,&
                                               o3c_vec_type
+
+!$ USE OMP_LIB, ONLY: omp_get_max_threads, omp_get_thread_num
 #include "./base/base_uses.f90"
 
    IMPLICIT NONE
@@ -54,8 +56,7 @@ CONTAINS
 !> \param atomic_kind_set ...
 !> \note including this in lri_environment_methods?
 ! **************************************************************************************************
-   SUBROUTINE calculate_lri_ks_matrix(lri_env, lri_v_int, h_matrix, &
-                                      atomic_kind_set)
+   SUBROUTINE calculate_lri_ks_matrix(lri_env, lri_v_int, h_matrix, atomic_kind_set)
 
       TYPE(lri_environment_type), POINTER                :: lri_env
       TYPE(lri_kind_type), DIMENSION(:), POINTER         :: lri_v_int
@@ -65,13 +66,11 @@ CONTAINS
       CHARACTER(*), PARAMETER :: routineN = 'calculate_lri_ks_matrix', &
          routineP = moduleN//':'//routineN
 
-      INTEGER                                            :: atom_a, atom_b, col, handle, i, iac, &
-                                                            iatom, ikind, ilist, jatom, jkind, &
-                                                            jneighbor, natom, nba, nbb, nfa, nfb, &
-                                                            nkind, nlist, nm, nn, row
+      INTEGER :: atom_a, atom_b, col, handle, i, iac, iatom, ikind, ilist, jatom, jkind, &
+         jneighbor, mepos, natom, nba, nbb, nfa, nfb, nkind, nlist, nm, nn, nthread, row
       INTEGER, DIMENSION(:), POINTER                     :: atom_of_kind
       LOGICAL                                            :: found, trans
-      REAL(KIND=dp)                                      :: dab, isn, nsn, rab(3)
+      REAL(KIND=dp)                                      :: dab, isn, nsn, rab(3), threshold
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: vi
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: h_work
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: h_block
@@ -84,19 +83,32 @@ CONTAINS
       CALL timeset(routineN, handle)
       NULLIFY (atom_of_kind, h_block, lrii, nl_iterator, soo_list)
 
+      threshold = lri_env%eps_o3_int
+
       IF (ASSOCIATED(lri_env%soo_list)) THEN
          soo_list => lri_env%soo_list
 
          nkind = lri_env%lri_ints%nkind
+         nthread = 1
+!$       nthread = omp_get_max_threads()
 
          CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set, natom=natom)
          ALLOCATE (atom_of_kind(natom))
          CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set, &
                                   atom_of_kind=atom_of_kind)
-         CALL neighbor_list_iterator_create(nl_iterator, soo_list)
+         CALL neighbor_list_iterator_create(nl_iterator, soo_list, nthread=nthread)
+!$OMP PARALLEL DEFAULT(NONE)&
+!$OMP SHARED (nthread,nl_iterator,nkind,atom_of_kind,threshold,lri_env,lri_v_int,&
+!$OMP         h_matrix)&
+!$OMP PRIVATE (mepos,ikind,jkind,iatom,jatom,nlist,ilist,jneighbor,rab,iac,dab,lrii,&
+!$OMP          nfa,nfb,nba,nbb,nn,h_work,h_block,row,col,trans,found,atom_a,atom_b,&
+!$OMP          isn,nsn,nm,vi)
 
-         DO WHILE (neighbor_list_iterate(nl_iterator) == 0)
-            CALL get_iterator_info(nl_iterator, ikind=ikind, jkind=jkind, iatom=iatom, &
+         mepos = 0
+!$       mepos = omp_get_thread_num()
+
+         DO WHILE (neighbor_list_iterate(nl_iterator, mepos) == 0)
+            CALL get_iterator_info(nl_iterator, mepos=mepos, ikind=ikind, jkind=jkind, iatom=iatom, &
                                    jatom=jatom, nlist=nlist, ilist=ilist, inode=jneighbor, &
                                    r=rab)
 
@@ -151,14 +163,20 @@ CONTAINS
             h_work(1:nba, 1:nbb) = h_work(1:nba, 1:nbb)+isn/nsn*lrii%soo(1:nba, 1:nbb)
             IF (iatom == jatom .AND. dab < lri_env%delta) THEN
                DO i = 1, nfa
-                  h_work(1:nba, 1:nbb) = h_work(1:nba, 1:nbb)+vi(i)*lrii%abaint(1:nba, 1:nbb, i)
+                  IF (lrii%abascr(i) > threshold) THEN
+                     h_work(1:nba, 1:nbb) = h_work(1:nba, 1:nbb)+vi(i)*lrii%abaint(1:nba, 1:nbb, i)
+                  END IF
                ENDDO
             ELSE
                DO i = 1, nfa
-                  h_work(1:nba, 1:nbb) = h_work(1:nba, 1:nbb)+vi(i)*lrii%abaint(1:nba, 1:nbb, i)
+                  IF (lrii%abascr(i) > threshold) THEN
+                     h_work(1:nba, 1:nbb) = h_work(1:nba, 1:nbb)+vi(i)*lrii%abaint(1:nba, 1:nbb, i)
+                  END IF
                ENDDO
                DO i = 1, nfb
-                  h_work(1:nba, 1:nbb) = h_work(1:nba, 1:nbb)+vi(nfa+i)*lrii%abbint(1:nba, 1:nbb, i)
+                  IF (lrii%abbscr(i) > threshold) THEN
+                     h_work(1:nba, 1:nbb) = h_work(1:nba, 1:nbb)+vi(nfa+i)*lrii%abbint(1:nba, 1:nbb, i)
+                  END IF
                ENDDO
             END IF
             DEALLOCATE (vi)
@@ -173,6 +191,7 @@ CONTAINS
 
             DEALLOCATE (h_work)
          END DO
+!$OMP END PARALLEL
 
          CALL dbcsr_finalize(h_matrix)
 

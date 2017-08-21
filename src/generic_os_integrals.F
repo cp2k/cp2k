@@ -317,7 +317,9 @@ CONTAINS
       dab = SQRT(SUM(rab**2))
 
       sab = 0.0_dp
-      IF (calculate_forces) dsab = 0.0_dp
+      IF (calculate_forces) THEN
+         IF (PRESENT(dsab)) dsab = 0.0_dp
+      END IF
 
       DO iset = 1, nseta
 
@@ -438,7 +440,9 @@ CONTAINS
       dab = SQRT(SUM(rab**2))
 
       sab = 0.0_dp
-      IF (calculate_forces) dsab = 0.0_dp
+      IF (calculate_forces) THEN
+         IF (PRESENT(dsab)) dsab = 0.0_dp
+      END IF
 
       DO iset = 1, nseta
 
@@ -484,9 +488,10 @@ CONTAINS
 !> \param calculate_forces ...
 !> \param debug integrals are debugged by recursive routines if requested
 !> \param dmax maximal deviation between integrals when debugging
+!> \param screen max value of (:,:, i) integrals
 ! **************************************************************************************************
    SUBROUTINE int_overlap_aba_os(abaint, dabdaint, rab, oba, obb, fba, &
-                                 calculate_forces, debug, dmax)
+                                 calculate_forces, debug, dmax, screen)
 
       REAL(KIND=dp), DIMENSION(:, :, :), POINTER         :: abaint
       REAL(KIND=dp), DIMENSION(:, :, :, :), OPTIONAL, &
@@ -495,6 +500,7 @@ CONTAINS
       TYPE(gto_basis_set_type), POINTER                  :: oba, obb, fba
       LOGICAL, INTENT(IN)                                :: calculate_forces, debug
       REAL(KIND=dp), INTENT(INOUT)                       :: dmax
+      REAL(KIND=dp), DIMENSION(:), INTENT(INOUT)         :: screen
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'int_overlap_aba_os', &
          routineP = moduleN//':'//routineN
@@ -631,6 +637,10 @@ CONTAINS
             END DO
          END DO
       END DO
+      ! screening
+      DO i = 1, SIZE(screen)
+         screen(i) = MAXVAL(ABS(abaint(:, :, i)))
+      END DO
 
       CALL timestop(handle)
 
@@ -647,8 +657,9 @@ CONTAINS
 !> \param calculate_forces ...
 !> \param debug integrals are debugged by recursive routines if requested
 !> \param dmax maximal deviation between integrals when debugging
+!> \param screen max value of (:,:, i) integrals
 ! **************************************************************************************************
-   SUBROUTINE int_overlap_abb_os(abbint, dabbint, rab, oba, obb, fbb, calculate_forces, debug, dmax)
+   SUBROUTINE int_overlap_abb_os(abbint, dabbint, rab, oba, obb, fbb, calculate_forces, debug, dmax, screen)
 
       REAL(KIND=dp), DIMENSION(:, :, :), POINTER         :: abbint
       REAL(KIND=dp), DIMENSION(:, :, :, :), OPTIONAL, &
@@ -657,6 +668,7 @@ CONTAINS
       TYPE(gto_basis_set_type), POINTER                  :: oba, obb, fbb
       LOGICAL, INTENT(IN)                                :: calculate_forces, debug
       REAL(KIND=dp), INTENT(INOUT)                       :: dmax
+      REAL(KIND=dp), DIMENSION(:), INTENT(INOUT)         :: screen
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'int_overlap_abb_os', &
          routineP = moduleN//':'//routineN
@@ -791,6 +803,10 @@ CONTAINS
             END DO
 
          END DO
+      END DO
+      ! screening
+      DO i = 1, SIZE(screen)
+         screen(i) = MAXVAL(ABS(abbint(:, :, i)))
       END DO
 
       CALL timestop(handle)

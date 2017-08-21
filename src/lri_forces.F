@@ -150,12 +150,11 @@ CONTAINS
       CHARACTER(LEN=*), PARAMETER :: routineN = 'calculate_v_dadr', &
          routineP = moduleN//':'//routineN
 
-      INTEGER                                            :: atom_a, atom_b, handle, i, iac, iatom, &
-                                                            ikind, ilist, ispin, jatom, jkind, &
-                                                            jneighbor, k, natom, nba, nbb, nfa, &
-                                                            nfb, nkind, nlist, nn, nspin
+      INTEGER :: atom_a, atom_b, handle, i, iac, iatom, ikind, ilist, ispin, jatom, jkind, &
+         jneighbor, k, mepos, natom, nba, nbb, nfa, nfb, nkind, nlist, nn, nspin, nthread
       INTEGER, DIMENSION(:), POINTER                     :: atom_of_kind
       LOGICAL                                            :: found, trans
+      REAL(KIND=dp)                                      :: threshold
       REAL(KIND=dp), DIMENSION(3)                        :: dcharge, dlambda, force_a, force_b, &
                                                             nsdssn, nsdsst, nsdt, rab
       REAL(KIND=dp), DIMENSION(:), POINTER               :: st, v_dadra, v_dadrb, v_inta, v_intb
@@ -174,6 +173,7 @@ CONTAINS
          POINTER                                         :: soo_list
 
       CALL timeset(routineN, handle)
+
       NULLIFY (atom_of_kind, lri_coef, lri_force, lrii, lri_rho, lrho, &
                nl_iterator, pbij, pmat, soo_list, v_dadra, v_dadrb, v_inta, &
                v_intb)
@@ -184,6 +184,8 @@ CONTAINS
 
          nkind = lri_env%lri_ints%nkind
          nspin = SIZE(pmatrix)
+         nthread = 1
+!$       nthread = omp_get_max_threads()
 
          CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set, natom=natom)
          ALLOCATE (atom_of_kind(natom))
@@ -196,10 +198,22 @@ CONTAINS
             lri_coef => lri_density%lri_coefs(ispin)%lri_kinds
             lri_rho => lri_density%lri_rhos(ispin)%lri_list
 
-            CALL neighbor_list_iterator_create(nl_iterator, soo_list)
-            DO WHILE (neighbor_list_iterate(nl_iterator) == 0)
-               CALL get_iterator_info(nl_iterator, ikind=ikind, jkind=jkind, iatom=iatom, jatom=jatom, &
-                                      nlist=nlist, ilist=ilist, inode=jneighbor, r=rab)
+            CALL neighbor_list_iterator_create(nl_iterator, soo_list, nthread=nthread)
+!$OMP PARALLEL DEFAULT(NONE)&
+!$OMP SHARED (nthread,nl_iterator,pmat,nkind,lri_env,lri_rho,lri_coef,lri_density,&
+!$OMP         atom_of_kind,virial,use_virial)&
+!$OMP PRIVATE (mepos,ikind,jkind,iatom,jatom,nlist,ilist,jneighbor,rab,iac,lrii,lrho,&
+!$OMP          lri_force,nfa,nfb,nba,nbb,nn,st,nsdsst,nsdssn,dsst,sdsst,dssn,sdssn,sdt,&
+!$OMP          nsdt,davec,dtvec,pbij,trans,found,obasa,obasb,fbasa,fbasb,i,k,threshold,&
+!$OMP          dcharge,dlambda,atom_a,atom_b,v_dadra,v_dadrb,v_inta,v_intb,force_a,force_b)
+
+            mepos = 0
+!$          mepos = omp_get_thread_num()
+
+            DO WHILE (neighbor_list_iterate(nl_iterator, mepos) == 0)
+               CALL get_iterator_info(nl_iterator, mepos=mepos, ikind=ikind, jkind=jkind, &
+                                      iatom=iatom, jatom=jatom, nlist=nlist, ilist=ilist, &
+                                      inode=jneighbor, r=rab)
 
                iac = ikind+nkind*(jkind-1)
 
@@ -268,20 +282,30 @@ CONTAINS
                ! compute dtvec/dRa = SUM_ab Pab *d(a,b,x)/dRa
                DO k = 1, 3
                   IF (trans) THEN
+                     threshold = 0.01_dp*lri_env%eps_o3_int/MAX(SUM(ABS(pbij(1:nbb, 1:nba))), 1.0e-14_dp)
                      dcharge(k) = SUM(TRANSPOSE(pbij(1:nbb, 1:nba))*lrii%dsoo(1:nba, 1:nbb, k))
                      DO i = 1, nfa
-                        dtvec(i, k) = SUM(TRANSPOSE(pbij(1:nbb, 1:nba))*lrii%dabdaint(1:nba, 1:nbb, i, k))
+                        IF (lrii%abascr(i) > threshold) THEN
+                           dtvec(i, k) = SUM(TRANSPOSE(pbij(1:nbb, 1:nba))*lrii%dabdaint(1:nba, 1:nbb, i, k))
+                        END IF
                      END DO
                      DO i = 1, nfb
-                        dtvec(nfa+i, k) = SUM(TRANSPOSE(pbij(1:nbb, 1:nba))*lrii%dabbint(1:nba, 1:nbb, i, k))
+                        IF (lrii%abbscr(i) > threshold) THEN
+                           dtvec(nfa+i, k) = SUM(TRANSPOSE(pbij(1:nbb, 1:nba))*lrii%dabbint(1:nba, 1:nbb, i, k))
+                        END IF
                      END DO
                   ELSE
+                     threshold = 0.01_dp*lri_env%eps_o3_int/MAX(SUM(ABS(pbij(1:nba, 1:nbb))), 1.0e-14_dp)
                      dcharge(k) = SUM(pbij(1:nba, 1:nbb)*lrii%dsoo(1:nba, 1:nbb, k))
                      DO i = 1, nfa
-                        dtvec(i, k) = SUM(pbij(1:nba, 1:nbb)*lrii%dabdaint(1:nba, 1:nbb, i, k))
+                        IF (lrii%abascr(i) > threshold) THEN
+                           dtvec(i, k) = SUM(pbij(1:nba, 1:nbb)*lrii%dabdaint(1:nba, 1:nbb, i, k))
+                        END IF
                      END DO
                      DO i = 1, nfb
-                        dtvec(nfa+i, k) = SUM(pbij(1:nba, 1:nbb)*lrii%dabbint(1:nba, 1:nbb, i, k))
+                        IF (lrii%abbscr(i) > threshold) THEN
+                           dtvec(nfa+i, k) = SUM(pbij(1:nba, 1:nbb)*lrii%dabbint(1:nba, 1:nbb, i, k))
+                        END IF
                      END DO
                   END IF
                ENDDO
@@ -366,16 +390,19 @@ CONTAINS
                ! contribution to virial
                IF (use_virial) THEN
                   !periodic self-pairs aa' contribute only with factor 0.5
+!$OMP CRITICAL(addvirial)
                   IF (iatom == jatom) THEN
                      CALL virial_pair_force(virial%pv_virial, 0.5_dp, force_a, rab)
                   ELSE
                      CALL virial_pair_force(virial%pv_virial, 1.0_dp, force_a, rab)
                   ENDIF
+!$OMP END CRITICAL(addvirial)
                ENDIF
 
                CALL deallocate_lri_force_components(lri_density%lri_force)
 
             END DO
+!$OMP END PARALLEL
 
             CALL neighbor_list_iterator_release(nl_iterator)
 

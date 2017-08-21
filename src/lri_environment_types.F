@@ -76,8 +76,10 @@ MODULE lri_environment_types
       REAL(KIND=dp)                                           :: cond_num
       ! integrals (a,b,ai)
       REAL(KIND=dp), DIMENSION(:, :, :), POINTER              :: abaint
+      REAL(KIND=dp), DIMENSION(:), POINTER                    :: abascr
       ! integrals (a,b,b)
       REAL(KIND=dp), DIMENSION(:, :, :), POINTER              :: abbint
+      REAL(KIND=dp), DIMENSION(:), POINTER                    :: abbscr
       ! integrals (da/dA,b,dai/dA)
       REAL(KIND=dp), DIMENSION(:, :, :, :), POINTER           :: dabdaint
       ! integrals (da/dA,b,bi)
@@ -202,6 +204,8 @@ MODULE lri_environment_types
       REAL(KIND=dp)                                           :: cond_max
       ! parameter for checking distance between atom pairs
       REAL(KIND=dp)                                           :: delta
+      ! threshold for aba and abb integrals
+      REAL(KIND=dp)                                           :: eps_o3_int
       ! orbital basis set
       TYPE(gto_basis_set_p_type), DIMENSION(:), POINTER       :: orb_basis
       ! lri (fit) basis set
@@ -567,10 +571,14 @@ CONTAINS
          nfb = fbasb%nsgf
          nn = nfa+nfb
 
-         ALLOCATE (lrii%abaint(nba, nbb, nfa), &
-                   lrii%abbint(nba, nbb, nfb))
+         ALLOCATE (lrii%abaint(nba, nbb, nfa))
+         ALLOCATE (lrii%abascr(nfa))
          lrii%abaint = 0._dp
+         lrii%abascr = 0._dp
+         ALLOCATE (lrii%abbint(nba, nbb, nfb))
+         ALLOCATE (lrii%abbscr(nfb))
          lrii%abbint = 0._dp
+         lrii%abbscr = 0._dp
 
          ALLOCATE (lrii%sab(nfa, nfb))
          lrii%sab = 0._dp
@@ -961,8 +969,14 @@ CONTAINS
                            IF (ASSOCIATED(lri_int%abaint)) THEN
                               DEALLOCATE (lri_int%abaint)
                            END IF
+                           IF (ASSOCIATED(lri_int%abascr)) THEN
+                              DEALLOCATE (lri_int%abascr)
+                           END IF
                            IF (ASSOCIATED(lri_int%abbint)) THEN
                               DEALLOCATE (lri_int%abbint)
+                           END IF
+                           IF (ASSOCIATED(lri_int%abbscr)) THEN
+                              DEALLOCATE (lri_int%abbscr)
                            END IF
                            IF (ASSOCIATED(lri_int%dsab)) THEN
                               DEALLOCATE (lri_int%dsab)

@@ -1029,20 +1029,19 @@ CONTAINS
          routineP = moduleN//':'//routineN
 
       INTEGER                                            :: handle
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: work_cc, work_pc
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: work_pc
 
       CALL timeset(routineN, handle)
 
       swork_cont = 0.0_dp
       ALLOCATE (work_pc(npgfb, nds, nshella))
-      ALLOCATE (work_cc(nds, nshella, nshellb))
 
       CALL dgemm("T", "N", npgfb*nds, nshella, npgfa, 1._dp, swork, npgfa, scona, npgfa, &
                  0.0_dp, work_pc, npgfb*nds)
       CALL dgemm("T", "N", nds*nshella, nshellb, npgfb, 1._dp, work_pc, npgfb, sconb, npgfb, &
                  0.0_dp, swork_cont, nds*nshella)
 
-      DEALLOCATE (work_pc, work_cc)
+      DEALLOCATE (work_pc)
       CALL timestop(handle)
 
    END SUBROUTINE contract_sint_ab_chigh
