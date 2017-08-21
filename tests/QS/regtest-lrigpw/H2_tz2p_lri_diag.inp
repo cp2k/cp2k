@@ -20,7 +20,7 @@
     &QS
       METHOD LRIGPW
       &LRIGPW
-       SHG_LRI_INTEGRALS .FALSE. 
+        SHG_LRI_INTEGRALS .FALSE. 
       &END
     &END QS
     &SCF

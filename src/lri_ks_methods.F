@@ -182,12 +182,13 @@ CONTAINS
             DEALLOCATE (vi)
 
             ! add h_work to core hamiltonian
+!$OMP CRITICAL(addhamiltonian)
             IF (trans) THEN
-               h_work(1:nba, 1:nbb) = h_work(1:nba, 1:nbb)+TRANSPOSE(h_block(1:nbb, 1:nba))
-               h_block(1:nbb, 1:nba) = TRANSPOSE(h_work(1:nba, 1:nbb))
+               h_block(1:nbb, 1:nba) = h_block(1:nbb, 1:nba)+TRANSPOSE(h_work(1:nba, 1:nbb))
             ELSE
                h_block(1:nba, 1:nbb) = h_block(1:nba, 1:nbb)+h_work(1:nba, 1:nbb)
             ENDIF
+!$OMP END CRITICAL(addhamiltonian)
 
             DEALLOCATE (h_work)
          END DO
