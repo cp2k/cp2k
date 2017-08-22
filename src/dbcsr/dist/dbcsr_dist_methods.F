@@ -48,6 +48,7 @@ MODULE dbcsr_dist_methods
              dbcsr_distribution_mp, dbcsr_distribution_processor, &
              dbcsr_distribution_nrows, dbcsr_distribution_ncols, &
              dbcsr_distribution_row_dist, dbcsr_distribution_col_dist, &
+             dbcsr_distribution_max_row_dist, dbcsr_distribution_max_col_dist, &
              dbcsr_distribution_nlocal_rows, dbcsr_distribution_nlocal_cols, &
              dbcsr_distribution_local_rows, dbcsr_distribution_local_cols, &
              dbcsr_distribution_local_rows_obj, dbcsr_distribution_local_cols_obj, &
@@ -120,10 +121,12 @@ CONTAINS
       dist%d%mp_env = mp_env
       CALL dbcsr_mp_hold(dist%d%mp_env)
       ! Verify given process row distribution.
-      IF (MAXVAL(row_dist_block) .GE. nprows) &
+      dist%d%max_row_dist = MAXVAL(row_dist_block)
+      IF (dist%d%max_row_dist .GE. nprows) &
          CPABORT("A process row is too big for process grid")
       ! Verify given process column distribution.
-      IF (MAXVAL(col_dist_block) .GE. npcols) &
+      dist%d%max_col_dist = MAXVAL(col_dist_block)
+      IF (dist%d%max_col_dist .GE. npcols) &
          CPABORT("A process column is too big for process grid")
       IF (PRESENT(local_rows)) THEN
          CALL array_new(dist%d%local_rows, local_rows, gift=reuse_arrays)
@@ -250,6 +253,34 @@ CONTAINS
 
       col_dist => array_data(dist%d%col_dist_block)
    END FUNCTION dbcsr_distribution_col_dist
+
+! **************************************************************************************************
+!> \brief ...
+!> \param dist ...
+!> \retval max_row_dist ...
+! **************************************************************************************************
+   FUNCTION dbcsr_distribution_max_row_dist(dist) RESULT(max_row_dist)
+      TYPE(dbcsr_distribution_obj), INTENT(IN)           :: dist
+      INTEGER                                            :: max_row_dist
+
+!   ---------------------------------------------------------------------------
+
+      max_row_dist = dist%d%max_row_dist
+   END FUNCTION dbcsr_distribution_max_row_dist
+
+! **************************************************************************************************
+!> \brief ...
+!> \param dist ...
+!> \retval max_col_dist ...
+! **************************************************************************************************
+   FUNCTION dbcsr_distribution_max_col_dist(dist) RESULT(max_col_dist)
+      TYPE(dbcsr_distribution_obj), INTENT(IN)           :: dist
+      INTEGER                                            :: max_col_dist
+
+!   ---------------------------------------------------------------------------
+
+      max_col_dist = dist%d%max_col_dist
+   END FUNCTION dbcsr_distribution_max_col_dist
 
 ! **************************************************************************************************
 !> \brief ...

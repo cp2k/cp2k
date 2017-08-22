@@ -36,13 +36,11 @@ MODULE dbcsr_mm_3d
         dbcsr_data_valid, dbcsr_scalar_are_equal, dbcsr_scalar_negative, dbcsr_scalar_one, &
         dbcsr_type_1d_to_2d
    USE dbcsr_data_types,                ONLY: dbcsr_datatype_sizeof
-   USE dbcsr_dist_methods,              ONLY: dbcsr_distribution_col_dist,&
-                                              dbcsr_distribution_has_threads,&
-                                              dbcsr_distribution_local_cols,&
-                                              dbcsr_distribution_local_rows,&
-                                              dbcsr_distribution_mp,&
-                                              dbcsr_distribution_row_dist,&
-                                              dbcsr_distribution_thread_dist
+   USE dbcsr_dist_methods,              ONLY: &
+        dbcsr_distribution_col_dist, dbcsr_distribution_has_threads, &
+        dbcsr_distribution_local_cols, dbcsr_distribution_local_rows, &
+        dbcsr_distribution_max_col_dist, dbcsr_distribution_max_row_dist, dbcsr_distribution_mp, &
+        dbcsr_distribution_row_dist, dbcsr_distribution_thread_dist
    USE dbcsr_index_operations,          ONLY: dbcsr_repoint_index
    USE dbcsr_iterator_operations,       ONLY: dbcsr_iterator_blocks_left,&
                                               dbcsr_iterator_next_block,&
@@ -338,9 +336,9 @@ CONTAINS
       mynode = dbcsr_mp_mynode(mp_obj)
       grp = dbcsr_mp_group(mp_obj)
       blacs2mpi => dbcsr_mp_pgrid(mp_obj)
-      IF (MAXVAL(row_dist) .GT. UBOUND(blacs2mpi, 1)) &
+      IF (dbcsr_distribution_max_row_dist(set_dist) .GT. UBOUND(blacs2mpi, 1)) &
          CPABORT("Row distribution references unexistent processor rows")
-      IF (MAXVAL(col_dist) .GT. UBOUND(blacs2mpi, 2)) &
+      IF (dbcsr_distribution_max_col_dist(set_dist) .GT. UBOUND(blacs2mpi, 2)) &
          CPABORT("Col distribution references unexistent processor cols")
       ! Check threads configuration
       NULLIFY (threads_dist)

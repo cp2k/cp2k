@@ -37,6 +37,8 @@ MODULE dbcsr_mm_cannon
    USE dbcsr_data_types,                ONLY: dbcsr_datatype_sizeof
    USE dbcsr_dist_methods,              ONLY: dbcsr_distribution_col_dist,&
                                               dbcsr_distribution_has_threads,&
+                                              dbcsr_distribution_max_col_dist,&
+                                              dbcsr_distribution_max_row_dist,&
                                               dbcsr_distribution_mp,&
                                               dbcsr_distribution_row_dist
    USE dbcsr_index_operations,          ONLY: dbcsr_count_row_index,&
@@ -322,11 +324,10 @@ CONTAINS
       LOGICAL, PARAMETER                                 :: dbg = .FALSE.
 
       CHARACTER                                          :: predist_type, predist_type_fwd
-      INTEGER :: blk, blk_l, blk_p, bp, col, col_img, col_size, coli, data_p, data_type, dst_p, &
-         handle, handle2, ithread, mp_group, ncol_images, nrow_images, nsymmetries, nthreads, &
-         numproc, nze, pcol, prev_blk_p, prow, row, row_img, row_size, rowi, sd_pos, sm_pos, &
-         src_p, stored_blk_p, stored_col, stored_row, symmetry_i, tr_col_size, tr_row_size, vcol, &
-         vrow
+      INTEGER :: blk, blk_l, blk_p, bp, col, col_img, col_size, coli, data_type, dst_p, handle, &
+         handle2, ithread, mp_group, ncol_images, nrow_images, nsymmetries, nthreads, numproc, &
+         nze, pcol, prow, row, row_img, row_size, rowi, sd_pos, sm_pos, src_p, stored_blk_p, &
+         stored_col, stored_row, symmetry_i, tr_col_size, tr_row_size, vcol, vrow
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: myt_sdp, myt_smp, rd_disp, recv_meta, &
                                                             rm_disp, sd_disp, sdp, send_meta, &
                                                             sm_disp, smp
@@ -405,16 +406,16 @@ CONTAINS
       blacs2mpi => dbcsr_mp_pgrid(mp_obj)
       numproc = dbcsr_mp_numnodes(mp_obj)
       mp_group = dbcsr_mp_group(mp_obj)
-      IF (MAXVAL(row_dist) .GT. UBOUND(blacs2mpi, 1)) &
+      IF (dbcsr_distribution_max_row_dist(old_dist) .GT. UBOUND(blacs2mpi, 1)) &
          CPABORT('Row distribution references unexistent processor rows')
       IF (dbg) THEN
-         IF (MAXVAL(row_dist) .NE. UBOUND(blacs2mpi, 1)) &
+         IF (dbcsr_distribution_max_row_dist(old_dist) .NE. UBOUND(blacs2mpi, 1)) &
             CPWARN('Range of row distribution not equal to processor rows')
       ENDIF
-      IF (MAXVAL(col_dist) .GT. UBOUND(blacs2mpi, 2)) &
+      IF (dbcsr_distribution_max_col_dist(old_dist) .GT. UBOUND(blacs2mpi, 2)) &
          CPABORT('Col distribution references unexistent processor cols')
       IF (dbg) THEN
-         IF (MAXVAL(col_dist) .NE. UBOUND(blacs2mpi, 2)) &
+         IF (dbcsr_distribution_max_col_dist(old_dist) .NE. UBOUND(blacs2mpi, 2)) &
             CPWARN('Range of col distribution not equal to processor cols')
       ENDIF
 
@@ -607,10 +608,6 @@ CONTAINS
          ENDDO
       ENDIF
 !$OMP BARRIER
-!$OMP MASTER
-      CALL m_memory()
-!$OMP END MASTER
-
       ! Add timing call to the packing of the send buffers
       !
       CALL timeset(routineN//"_pack", handle2)
@@ -702,31 +699,21 @@ CONTAINS
       ! Now create the work index and/or copy the relevant data from the
       ! receive buffer into the local indices.
       !
-      prev_blk_p = 0
       DO src_p = 0, numproc-1
-         data_p = 0
          DO blk_l = 1, total_recv_count(1, src_p)
             stored_row = recv_meta(rm_disp(src_p)+metalen*(blk_l-1))
             stored_col = recv_meta(rm_disp(src_p)+metalen*(blk_l-1)+1)
             stored_blk_p = recv_meta(rm_disp(src_p)+metalen*(blk_l-1)+2)
             row_img = recv_meta(rm_disp(src_p)+metalen*(blk_l-1)+3)
             col_img = recv_meta(rm_disp(src_p)+metalen*(blk_l-1)+4)
-            nze = row_blk_size(ABS(stored_row)) &
-                  *col_blk_size(ABS(stored_col))
+            nze = row_blk_size(stored_row)*col_blk_size(stored_col)
             blk = blks(row_img, col_img)
             blks(row_img, col_img) = blks(row_img, col_img)+1
-            IF (stored_col .GT. 0) THEN
-               blk_p = data_p
-               data_p = data_p+nze
-            ELSE
-               blk_p = prev_blk_p
-            ENDIF
             blk_ps(row_img, col_img) = blk_ps(row_img, col_img)+nze
-            ums%mats(row_img, col_img)%wms(1)%row_i(blk) = ABS(stored_row)
-            ums%mats(row_img, col_img)%wms(1)%col_i(blk) = ABS(stored_col)
+            ums%mats(row_img, col_img)%wms(1)%row_i(blk) = stored_row
+            ums%mats(row_img, col_img)%wms(1)%col_i(blk) = stored_col
             ums%mats(row_img, col_img)%wms(1)%blk_p(blk) = &
                SIGN(rd_disp(src_p)+ABS(stored_blk_p)-1, stored_blk_p)
-            prev_blk_p = blk_p
          ENDDO
       ENDDO
 
