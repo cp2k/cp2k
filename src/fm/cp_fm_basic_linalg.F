@@ -23,7 +23,8 @@ MODULE cp_fm_basic_linalg
                                               int_8,&
                                               sp
    USE machine,                         ONLY: m_memory
-   USE mathlib,                         ONLY: invert_matrix
+   USE mathlib,                         ONLY: get_pseudo_inverse_svd,&
+                                              invert_matrix
    USE message_passing,                 ONLY: mp_sum
 #include "../base/base_uses.f90"
 
@@ -1459,12 +1460,13 @@ CONTAINS
          CALL invert_matrix(matrix_a%local_data, matrix_inverse%local_data, &
                             eval_error=eps1)
          CALL cp_fm_lu_decompose(matrix_lu, determinant, correct_sign=sign)
+         IF (PRESENT(eigval)) &
+            CALL cp_abort(__LOCATION__, &
+                          "NYI. Eigenvalues not available for return without SCALAPACK.")
       ELSE
-         CPABORT("Matrix inversion using SVD NYI without SCALAPACK.")
+         CALL get_pseudo_inverse_svd(matrix_a%local_data, matrix_inverse%local_data, eps_svd, &
+                                     determinant, eigval)
       END IF
-      IF (PRESENT(eigval)) &
-         CALL cp_abort(__LOCATION__, &
-                       "NYI. Eigenvalues not available for return without SCALAPACK.")
 #endif
       CALL cp_fm_release(matrix_lu)
       DEALLOCATE (ipivot)

@@ -860,12 +860,17 @@ CONTAINS
 !> \param a matrix a
 !> \param a_pinverse pseudoinverse of matrix a
 !> \param rskip parameter for setting small singular values to zero
+!> \param determinant determinant of matrix a (optional output)
+!> \param sval array holding singular values of matrix a (optional output)
 !> \author Dorothea Golze [02.2015]
 ! **************************************************************************************************
-   SUBROUTINE get_pseudo_inverse_svd(a, a_pinverse, rskip)
+   SUBROUTINE get_pseudo_inverse_svd(a, a_pinverse, rskip, determinant, sval)
 
       REAL(KIND=dp), DIMENSION(:, :)                     :: a, a_pinverse
       REAL(KIND=dp), INTENT(IN)                          :: rskip
+      REAL(KIND=dp), INTENT(OUT), OPTIONAL               :: determinant
+      REAL(KIND=dp), DIMENSION(:), INTENT(OUT), &
+         OPTIONAL, POINTER                               :: sval
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'get_pseudo_inverse_svd', &
          routineP = moduleN//':'//routineN
@@ -885,6 +890,7 @@ CONTAINS
       sig_plus = 0.0_dp
       work = 0.0_dp
       iwork = 0
+      IF (PRESENT(determinant)) determinant = 1.0_dp
 
       ! work size query
       lwork = -1
@@ -906,9 +912,17 @@ CONTAINS
          CPABORT("SVD failed")
       END IF
 
+      IF (PRESENT(sval)) THEN
+         CPASSERT(.NOT. ASSOCIATED(sval))
+         ALLOCATE (sval(n))
+         sval(:) = sig
+      END IF
+
       ! set singular values that are too small to zero
       DO i = 1, n
          IF (sig(i) > rskip*MAXVAL(sig)) THEN
+            IF (PRESENT(determinant)) &
+               determinant = determinant*sig(i)
             sig_plus(i, i) = 1._dp/sig(i)
          ELSE
             sig_plus(i, i) = 0.0_dp
