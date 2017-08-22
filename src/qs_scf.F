@@ -925,14 +925,17 @@ CONTAINS
 
       CHARACTER(len=*), PARAMETER :: routineN = 'cdft_scf', routineP = moduleN//':'//routineN
 
-      INTEGER                                            :: handle, iatom, ispin, ivar, nvar, &
+      INTEGER                                            :: handle, iatom, ispin, ivar, nmo, nvar, &
                                                             output_unit
       LOGICAL                                            :: cdft_loop_converged, converged, &
-                                                            exit_cdft_loop, first_iteration
+                                                            exit_cdft_loop, first_iteration, &
+                                                            my_uocc, uniform_occupation
+      REAL(KIND=dp), DIMENSION(:), POINTER               :: mo_occupations
       TYPE(cdft_control_type), POINTER                   :: cdft_control
       TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_s, rho_ao
       TYPE(dft_control_type), POINTER                    :: dft_control
+      TYPE(mo_set_p_type), DIMENSION(:), POINTER         :: mos
       TYPE(pw_env_type), POINTER                         :: pw_env
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
       TYPE(qs_energy_type), POINTER                      :: energy
@@ -944,7 +947,7 @@ CONTAINS
 
       NULLIFY (scf_env, ks_env, energy, rho, matrix_s, rho_ao, cdft_control, logger, &
                dft_control, pw_env, auxbas_pw_pool, energy, ks_env, scf_env, dft_section, &
-               input, scf_section, scf_control)
+               input, scf_section, scf_control, mos, mo_occupations)
       logger => cp_get_default_logger()
 
       CPASSERT(ASSOCIATED(qs_env))
@@ -1035,7 +1038,7 @@ CONTAINS
       IF (dft_control%qs_control%becke_constraint) THEN
          ! Store needed arrays for ET coupling calculation
          IF (cdft_control%do_et) THEN
-            CALL get_qs_env(qs_env=qs_env, matrix_s=matrix_s)
+            CALL get_qs_env(qs_env=qs_env, matrix_s=matrix_s, mos=mos)
             nvar = SIZE(cdft_control%target)
             ! Matrix representation of weight function
             ALLOCATE (cdft_control%wmat(nvar))
@@ -1074,6 +1077,22 @@ CONTAINS
                   CALL dbcsr_init_p(cdft_control%matrix_p(ispin)%matrix)
                   CALL dbcsr_copy(cdft_control%matrix_p(ispin)%matrix, rho_ao(ispin)%matrix, &
                                   name="DENSITY MATRIX")
+               END DO
+            END IF
+            ! Copy occupation numbers if non-uniform occupation
+            uniform_occupation = .TRUE.
+            DO ispin = 1, dft_control%nspins
+               CALL get_mo_set(mo_set=mos(ispin)%mo_set, uniform_occupation=my_uocc)
+               uniform_occupation = uniform_occupation .AND. my_uocc
+            END DO
+            IF (.NOT. uniform_occupation) THEN
+               ALLOCATE (cdft_control%occupations(dft_control%nspins))
+               DO ispin = 1, dft_control%nspins
+                  CALL get_mo_set(mo_set=mos(ispin)%mo_set, &
+                                  nmo=nmo, &
+                                  occupation_numbers=mo_occupations)
+                  ALLOCATE (cdft_control%occupations(ispin)%array(nmo))
+                  cdft_control%occupations(ispin)%array(1:nmo) = mo_occupations(1:nmo)
                END DO
             END IF
          END IF

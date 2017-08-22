@@ -172,7 +172,6 @@ CONTAINS
       CALL qs_scf_ensure_mixing_store(qs_env, scf_env)
 
       ! Initialize outer loop variables: handle CDFT and regular outer loop separately
-      dft_control%qs_control%cdft = (dft_control%qs_control%cdft .AND. my_scf_control%use_ot)
       IF (dft_control%qs_control%cdft) THEN
          CALL qs_scf_ensure_cdft_loop_vars(qs_env, scf_env, dft_control, &
                                            scf_control=my_scf_control)

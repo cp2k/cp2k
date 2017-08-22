@@ -12,6 +12,7 @@
 MODULE mixed_cdft_utils
    USE atomic_kind_types,               ONLY: atomic_kind_type
    USE cell_types,                      ONLY: cell_type
+   USE cp_array_utils,                  ONLY: cp_1d_r_p_type
    USE cp_blacs_env,                    ONLY: cp_blacs_env_create,&
                                               cp_blacs_env_release,&
                                               cp_blacs_env_retain,&
@@ -184,11 +185,10 @@ CONTAINS
       ! Get information from the sub_force_envs
       DO iforce_eval = 1, nforce_eval
          IF (.NOT. ASSOCIATED(force_env%sub_force_env(iforce_eval)%force_env)) CYCLE
+         force_env_qs => force_env%sub_force_env(iforce_eval)%force_env
          IF (mixed_env%do_mixed_qmmm_cdft) THEN
-            force_env_qs => force_env%sub_force_env(iforce_eval)%force_env
             qs_env => force_env_qs%qmmm_env%qs_env
          ELSE
-            force_env_qs => force_env%sub_force_env(iforce_eval)%force_env
             CALL force_env_get(force_env_qs, qs_env=qs_env)
          END IF
          CALL get_qs_env(qs_env, pw_env=pw_env, dft_control=dft_control)
@@ -199,8 +199,7 @@ CONTAINS
          CALL pw_env_get(pw_env, auxbas_pw_pool=auxbas_pw_pool)
          settings%bo = auxbas_pw_pool%pw_grid%bounds_local
          ! Only the rank 0 process collects info about pw_grid and becke
-         IF (force_env_qs%para_env%mepos == &
-             force_env_qs%para_env%source) THEN
+         IF (force_env_qs%para_env%mepos == force_env_qs%para_env%source) THEN
             ! Grid settings
             settings%grid_span(iforce_eval) = auxbas_pw_pool%pw_grid%grid_span
             settings%npts(:, iforce_eval) = auxbas_pw_pool%pw_grid%npts
@@ -335,20 +334,18 @@ CONTAINS
       ! Check if the constraint defitions are identical in all CDFT states (serial mode)
       IF (.NOT. mixed_cdft%is_parallel) THEN
          DO iforce_eval = 1, nforce_eval
+            force_env_qs => force_env%sub_force_env(iforce_eval)%force_env
             IF (mixed_env%do_mixed_qmmm_cdft) THEN
-               force_env_qs => force_env%sub_force_env(iforce_eval)%force_env
                qs_env => force_env_qs%qmmm_env%qs_env
             ELSE
-               force_env_qs => force_env%sub_force_env(iforce_eval)%force_env
                CALL force_env_get(force_env_qs, qs_env=qs_env)
             END IF
             CALL get_qs_env(qs_env, dft_control=dft_control_source)
             DO jforce_eval = 2, nforce_eval
+               force_env_qs => force_env%sub_force_env(jforce_eval)%force_env
                IF (mixed_env%do_mixed_qmmm_cdft) THEN
-                  force_env_qs => force_env%sub_force_env(jforce_eval)%force_env
                   qs_env => force_env_qs%qmmm_env%qs_env
                ELSE
-                  force_env_qs => force_env%sub_force_env(jforce_eval)%force_env
                   CALL force_env_get(force_env_qs, qs_env=qs_env)
                END IF
                CALL get_qs_env(qs_env, dft_control=dft_control_target)
@@ -384,11 +381,10 @@ CONTAINS
       IF (mixed_cdft%identical_constraints) THEN
          DO iforce_eval = 1, nforce_eval
             IF (.NOT. ASSOCIATED(force_env%sub_force_env(iforce_eval)%force_env)) CYCLE
+            force_env_qs => force_env%sub_force_env(iforce_eval)%force_env
             IF (mixed_env%do_mixed_qmmm_cdft) THEN
-               force_env_qs => force_env%sub_force_env(iforce_eval)%force_env
                qs_env => force_env_qs%qmmm_env%qs_env
             ELSE
-               force_env_qs => force_env%sub_force_env(iforce_eval)%force_env
                CALL force_env_get(force_env_qs, qs_env=qs_env)
             END IF
             CALL get_qs_env(qs_env, dft_control=dft_control)
@@ -568,7 +564,7 @@ CONTAINS
 
       logger => cp_get_default_logger()
       CALL force_env_get(force_env=force_env, force_env_section=force_env_section)
-      print_section => section_vals_get_subs_vals(force_env_section, "MIXED%PRINT%PROGRAM_RUN_INFO")
+      print_section => section_vals_get_subs_vals(force_env_section, "MIXED%MIXED_CDFT%PRINT%PROGRAM_RUN_INFO")
       iounit = cp_print_key_unit_nr(logger, print_section, '', extension='.mixedLog')
       is_match = .TRUE.
       nforce_eval = SIZE(force_env%sub_force_env)
@@ -925,7 +921,7 @@ CONTAINS
          CALL cp_blacs_env_release(blacs_env)
       END IF
       CALL cp_print_key_finished_output(iounit, logger, force_env_section, &
-                                        "MIXED%PRINT%PROGRAM_RUN_INFO")
+                                        "MIXED%MIXED_CDFT%PRINT%PROGRAM_RUN_INFO")
 
    END SUBROUTINE mixed_cdft_init_structures
 
@@ -957,6 +953,9 @@ CONTAINS
                                                             ncol_wmat, nforce_eval, nrow_overlap, &
                                                             nrow_wmat, nspins, nvar
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: ncol_mo, nrow_mo
+      LOGICAL                                            :: uniform_occupation
+      LOGICAL, ALLOCATABLE, DIMENSION(:)                 :: has_occupation_numbers
+      TYPE(cp_1d_r_p_type), ALLOCATABLE, DIMENSION(:, :) :: occno_tmp
       TYPE(cp_blacs_env_type), POINTER                   :: blacs_env
       TYPE(cp_fm_p_type), DIMENSION(:, :), POINTER       :: matrix_p_tmp, mixed_matrix_p_tmp, &
                                                             mixed_wmat_tmp, mo_coeff_tmp, wmat_tmp
@@ -965,6 +964,7 @@ CONTAINS
                                                             fm_struct_tmp, fm_struct_wmat
       TYPE(dbcsr_type)                                   :: desymm_tmp
       TYPE(dft_control_type), POINTER                    :: dft_control
+      TYPE(force_env_type), POINTER                      :: force_env_qs
       TYPE(mixed_cdft_type), POINTER                     :: mixed_cdft
       TYPE(mixed_environment_type), POINTER              :: mixed_env
       TYPE(qs_environment_type), POINTER                 :: qs_env
@@ -973,24 +973,38 @@ CONTAINS
                fm_struct_wmat, fm_struct_overlap, fm_struct_tmp, &
                mixed_matrix_s_tmp, matrix_s_tmp, mixed_wmat_tmp, &
                wmat_tmp, mixed_mo_coeff, matrix_p_tmp, mixed_matrix_p_tmp, &
-               mixed_matrix_s, density_matrix, blacs_env, w_matrix)
+               mixed_matrix_s, density_matrix, blacs_env, w_matrix, force_env_qs)
       CPASSERT(ASSOCIATED(force_env))
       mixed_env => force_env%mixed_env
       nforce_eval = SIZE(force_env%sub_force_env)
       CALL get_mixed_env(mixed_env, cdft_control=mixed_cdft)
       CPASSERT(ASSOCIATED(mixed_cdft))
-      ! Get nspins
+      ! Get nspins and query for non-uniform occupation numbers
+      ALLOCATE (has_occupation_numbers(nforce_eval))
+      has_occupation_numbers = .FALSE.
       DO iforce_eval = 1, nforce_eval
          IF (.NOT. ASSOCIATED(force_env%sub_force_env(iforce_eval)%force_env)) CYCLE
+         force_env_qs => force_env%sub_force_env(iforce_eval)%force_env
          IF (force_env%mixed_env%do_mixed_qmmm_cdft) THEN
-            qs_env => force_env%sub_force_env(iforce_eval)%force_env%qmmm_env%qs_env
+            qs_env => force_env_qs%qmmm_env%qs_env
          ELSE
-            CALL force_env_get(force_env%sub_force_env(iforce_eval)%force_env, qs_env=qs_env)
+            CALL force_env_get(force_env_qs, qs_env=qs_env)
          END IF
          CALL get_qs_env(qs_env, dft_control=dft_control)
          CPASSERT(ASSOCIATED(dft_control))
          nspins = dft_control%nspins
+         IF (force_env_qs%para_env%mepos == force_env_qs%para_env%source) &
+            has_occupation_numbers(iforce_eval) = ALLOCATED(dft_control%qs_control%cdft_control%occupations)
       END DO
+      CALL mp_sum(has_occupation_numbers(1), force_env%para_env%group)
+      DO iforce_eval = 2, nforce_eval
+         CALL mp_sum(has_occupation_numbers(iforce_eval), force_env%para_env%group)
+         IF (has_occupation_numbers(1) .NEQV. has_occupation_numbers(iforce_eval)) &
+            CALL cp_abort(__LOCATION__, &
+                          "Mixing of uniform and non-uniform occupations is not allowed.")
+      END DO
+      uniform_occupation = .NOT. has_occupation_numbers(1)
+      DEALLOCATE (has_occupation_numbers)
       ! Get number of weight functions per state as well as the type of each constraint
       nvar = SIZE(dft_control%qs_control%cdft_control%target)
       IF (.NOT. ALLOCATED(mixed_cdft%is_charge_constraint)) THEN
@@ -1016,16 +1030,20 @@ CONTAINS
             END DO
          END IF
       END IF
+      ! Transfer data from sub_force_envs to temporaries
       ALLOCATE (mixed_mo_coeff(nforce_eval, nspins))
       ALLOCATE (w_matrix(nforce_eval, nvar))
       CALL dbcsr_init_p(mixed_matrix_s)
       IF (mixed_cdft%calculate_metric) &
          ALLOCATE (density_matrix(nforce_eval, nspins))
-      ! Transfer data from sub_force_envs to temporaries
       ALLOCATE (mo_coeff_tmp(nforce_eval, nspins), wmat_tmp(nforce_eval, nvar))
       ALLOCATE (matrix_s_tmp, nrow_mo(nspins), ncol_mo(nspins))
-      IF (mixed_cdft%calculate_metric) ALLOCATE (matrix_p_tmp(nforce_eval, nspins))
       NULLIFY (matrix_s_tmp%matrix)
+      IF (mixed_cdft%calculate_metric) ALLOCATE (matrix_p_tmp(nforce_eval, nspins))
+      IF (.NOT. uniform_occupation) THEN
+         ALLOCATE (mixed_cdft%occupations(nforce_eval, nspins))
+         ALLOCATE (occno_tmp(nforce_eval, nspins))
+      END IF
       DO iforce_eval = 1, nforce_eval
          ! Temporary arrays need to be nulled on every process
          DO ivar = 1, nvar
@@ -1038,14 +1056,17 @@ CONTAINS
             ! is queried with IF (mixed_cdft%calculate_metric) &
             IF (ASSOCIATED(matrix_p_tmp)) &
                NULLIFY (matrix_p_tmp(iforce_eval, ispin)%matrix)
+            IF (.NOT. uniform_occupation) &
+               NULLIFY (occno_tmp(iforce_eval, ispin)%array)
          END DO
          IF (.NOT. ASSOCIATED(force_env%sub_force_env(iforce_eval)%force_env)) CYCLE
          ! From this point onward, we access data local to the sub_force_envs
          ! Get qs_env
+         force_env_qs => force_env%sub_force_env(iforce_eval)%force_env
          IF (force_env%mixed_env%do_mixed_qmmm_cdft) THEN
-            qs_env => force_env%sub_force_env(iforce_eval)%force_env%qmmm_env%qs_env
+            qs_env => force_env_qs%qmmm_env%qs_env
          ELSE
-            CALL force_env_get(force_env%sub_force_env(iforce_eval)%force_env, qs_env=qs_env)
+            CALL force_env_get(force_env_qs, qs_env=qs_env)
          END IF
          CALL get_qs_env(qs_env, dft_control=dft_control, blacs_env=blacs_env)
          ! Store dimensions of the transferred arrays
@@ -1106,6 +1127,19 @@ CONTAINS
                CALL dbcsr_release_p(dft_control%qs_control%cdft_control%matrix_p(ispin)%matrix)
             END DO
             DEALLOCATE (dft_control%qs_control%cdft_control%matrix_p)
+         END IF
+         ! Occupation numbers
+         IF (.NOT. uniform_occupation) THEN
+            DO ispin = 1, nspins
+               IF (ncol_mo(ispin) /= SIZE(dft_control%qs_control%cdft_control%occupations(ispin)%array)) &
+                  CPABORT("Array dimensions dont match.")
+               IF (force_env_qs%para_env%mepos == force_env_qs%para_env%source) THEN
+                  ALLOCATE (occno_tmp(iforce_eval, ispin)%array(ncol_mo(ispin)))
+                  occno_tmp(iforce_eval, ispin)%array = dft_control%qs_control%cdft_control%occupations(ispin)%array
+               END IF
+               DEALLOCATE (dft_control%qs_control%cdft_control%occupations(ispin)%array)
+            END DO
+            DEALLOCATE (dft_control%qs_control%cdft_control%occupations)
          END IF
       END DO
       ! Create needed fm structs
@@ -1191,6 +1225,21 @@ CONTAINS
       CALL cp_fm_release(matrix_s_tmp%matrix)
       CALL copy_fm_to_dbcsr_bc(mixed_matrix_s_tmp%matrix, mixed_matrix_s)
       CALL cp_fm_release(mixed_matrix_s_tmp%matrix)
+      ! Occupation numbers
+      IF (.NOT. uniform_occupation) THEN
+         DO iforce_eval = 1, nforce_eval
+            DO ispin = 1, nspins
+               ALLOCATE (mixed_cdft%occupations(iforce_eval, ispin)%array(ncol_mo(ispin)))
+               mixed_cdft%occupations(iforce_eval, ispin)%array = 0.0_dp
+               IF (ASSOCIATED(occno_tmp(iforce_eval, ispin)%array)) THEN
+                  mixed_cdft%occupations(iforce_eval, ispin)%array = occno_tmp(iforce_eval, ispin)%array
+                  DEALLOCATE (occno_tmp(iforce_eval, ispin)%array)
+               END IF
+               CALL mp_sum(mixed_cdft%occupations(iforce_eval, ispin)%array, force_env%para_env%group)
+            END DO
+         END DO
+         DEALLOCATE (occno_tmp)
+      END IF
       DEALLOCATE (matrix_s_tmp, mixed_matrix_s_tmp)
       DEALLOCATE (ncol_mo, nrow_mo)
 

@@ -224,6 +224,17 @@ CONTAINS
       CALL section_add_keyword(subsection, keyword)
       CALL keyword_release(keyword)
 
+      CALL keyword_create(keyword, name="SCALE_WITH_OCCUPATION_NUMBERS", &
+                          description="Scale molecular orbitals with occupation numbers before calculating "// &
+                          "the electronic coupling. Affects only simulations which employ MO smearing. "// &
+                          "Disabling this keyword in conjunction with a properly selected EPS_OCCUPIED "// &
+                          "threshold might be useful in systems with a large number of fractionally "// &
+                          "occupied orbitals.", &
+                          usage="SCALE_WITH_OCCUPATION_NUMBERS FALSE", type_of_var=logical_t, &
+                          default_l_val=.TRUE., lone_keyword_l_val=.TRUE.)
+      CALL section_add_keyword(subsection, keyword)
+      CALL keyword_release(keyword)
+
       CALL keyword_create(keyword, name="WFN_RESTART_FILE_NAME", &
                           description="Name of the wavefunction restart file that defines the unconstrained"// &
                           " KS ground state, which is used to compute the electronic coupling with"// &
@@ -241,6 +252,18 @@ CONTAINS
                           " in the matrix pseudoinverse.", &
                           usage="EPS_SVD <REAL>", type_of_var=real_t, &
                           default_r_val=0.0_dp, repeats=.FALSE.)
+      CALL section_add_keyword(subsection, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, name="EPS_OCCUPIED", &
+                          description="Threshold for determining which molecular orbitals are considered occupied"// &
+                          " when fractional and/or empty orbitals are employed. Can and usually should be less than"// &
+                          " the threshold EPS_FERMI_DIRAC defined in section SCF&SMEAR. Note that the number occupied"// &
+                          " MOs should be constant in each CDFT state, since the CDFT coupling is only defined between"// &
+                          " states in the same spin state. Fractionally occupied MOs might exhibit linear dependencies"// &
+                          " and a singular value decomposition (EPS_SVD) can be used for removing these.", &
+                          usage="EPS_OCCUPIED <REAL>", type_of_var=real_t, &
+                          default_r_val=1.0E-6_dp, repeats=.FALSE.)
       CALL section_add_keyword(subsection, keyword)
       CALL keyword_release(keyword)
 
@@ -267,6 +290,11 @@ CONTAINS
                           default_r_val=0.0_dp, repeats=.FALSE.)
       CALL section_add_keyword(subsection, keyword)
       CALL keyword_release(keyword)
+
+      NULLIFY (sub2section)
+      CALL create_print_mixed_cdft_section(sub2section)
+      CALL section_add_subsection(subsection, sub2section)
+      CALL section_release(sub2section)
 
       CALL section_add_subsection(section, subsection)
       CALL section_release(subsection)
@@ -484,5 +512,53 @@ CONTAINS
       CALL section_add_subsection(section, print_key)
       CALL section_release(print_key)
    END SUBROUTINE create_print_mix_section
+
+! **************************************************************************************************
+!> \brief Create the print section specific to mixed CDFT (forked from print_mix_section)
+!> \param section the section to create
+!> \author Nico Holmberg [06.2017]
+! **************************************************************************************************
+   SUBROUTINE create_print_mixed_cdft_section(section)
+      TYPE(section_type), POINTER                        :: section
+
+      CHARACTER(len=*), PARAMETER :: routineN = 'create_print_mixed_cdft_section', &
+         routineP = moduleN//':'//routineN
+
+      TYPE(keyword_type), POINTER                        :: keyword
+      TYPE(section_type), POINTER                        :: print_key
+
+      CPASSERT(.NOT. ASSOCIATED(section))
+      CALL section_create(section, name="print", &
+                          description="Section of possible print options for the mixed CDFT environment.", &
+                          n_keywords=0, n_subsections=1, repeats=.FALSE.)
+
+      NULLIFY (print_key, keyword)
+
+      CALL cp_print_key_section_create(print_key, "PROGRAM_RUN_INFO", &
+                                       description="Controls the printing of information during the evaluation of "// &
+                                       "the mixed CDFT environment. ", &
+                                       print_level=low_print_level, add_last=add_last_numeric, filename="__STD_OUT__")
+
+      CALL keyword_create(keyword, "MO_OVERLAP_MATRIX", &
+                          description="Controls the printing of the MO overlap matrices between CDFT states. "// &
+                          "The matrices are printed out in plain text.", &
+                          usage="MO_OVERLAP_MATRIX TRUE", type_of_var=logical_t, &
+                          default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
+      CALL section_add_keyword(print_key, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, "MO_OVERLAP_EIGENVALUES", &
+                          description="Controls the printing of the eigenvalues/singular values of the CDFT MO overlap "// &
+                          "matrices. The product of the eigenvalues/singular values is the CDFT MO overlap. "// &
+                          "Useful mainly for checking which singular values will get screened for a particular EPS_SVD.", &
+                          usage="MO_OVERLAP_EIGENVALUES TRUE", type_of_var=logical_t, &
+                          default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
+      CALL section_add_keyword(print_key, keyword)
+      CALL keyword_release(keyword)
+
+      CALL section_add_subsection(section, print_key)
+      CALL section_release(print_key)
+
+   END SUBROUTINE create_print_mixed_cdft_section
 
 END MODULE input_cp2k_mixed

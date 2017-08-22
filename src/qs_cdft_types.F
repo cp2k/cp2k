@@ -10,6 +10,7 @@
 !> \author Nico Holmberg [03.2017]
 ! **************************************************************************************************
 MODULE qs_cdft_types
+   USE cp_array_utils,                  ONLY: cp_1d_r_p_type
    USE cp_fm_types,                     ONLY: cp_fm_p_type
    USE dbcsr_api,                       ONLY: dbcsr_p_type
    USE hirshfeld_types,                 ONLY: hirshfeld_type,&
@@ -209,6 +210,7 @@ MODULE qs_cdft_types
 !> \param wmat matrix representation of the weight function (for do_et)
 !> \param matrix_s save the overlap matrix (for do_et)
 !> \param matrix_p save the density matrix (for calculate_metric)
+!> \param occupations occupation numbers in case non-uniform occupation (for do_et)
 ! **************************************************************************************************
    ! Copied from qs_scf_types to avoid circular dependency
    TYPE qs_outer_scf_type
@@ -261,6 +263,8 @@ MODULE qs_cdft_types
       LOGICAL, DIMENSION(:), ALLOCATABLE   :: is_charge_constraint, &
                                               is_fragment_constraint
       REAL(KIND=dp), DIMENSION(:), POINTER :: strength, TARGET, value
+      TYPE(cp_1d_r_p_type), ALLOCATABLE, &
+         DIMENSION(:)                      :: occupations
       TYPE(cp_fm_p_type), DIMENSION(:), &
          POINTER                           :: mo_coeff
       TYPE(dbcsr_p_type)                   :: matrix_s
@@ -542,6 +546,8 @@ CONTAINS
       CHARACTER(len=*), PARAMETER :: routineN = 'cdft_control_release', &
          routineP = moduleN//':'//routineN
 
+      INTEGER                                            :: i
+
       CPASSERT(ASSOCIATED(cdft_control))
       CPASSERT(cdft_control%ref_count > 0)
       cdft_control%ref_count = cdft_control%ref_count-1
@@ -556,6 +562,13 @@ CONTAINS
             DEALLOCATE (cdft_control%is_charge_constraint)
          IF (ALLOCATED(cdft_control%is_fragment_constraint)) &
             DEALLOCATE (cdft_control%is_fragment_constraint)
+         IF (ALLOCATED(cdft_control%occupations)) THEN
+            DO i = 1, SIZE(cdft_control%occupations)
+               IF (ASSOCIATED(cdft_control%occupations(i)%array)) &
+                  DEALLOCATE (cdft_control%occupations(i)%array)
+            END DO
+            DEALLOCATE (cdft_control%occupations)
+         END IF
          cdft_control%type = outer_scf_none
          NULLIFY (cdft_control%weight%pw)
          IF (ASSOCIATED(cdft_control%hirshfeld_control)) THEN

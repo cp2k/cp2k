@@ -18,7 +18,8 @@ MODULE mixed_cdft_methods
    USE cp_control_types,                ONLY: dft_control_type
    USE cp_dbcsr_diag,                   ONLY: cp_dbcsr_syevd
    USE cp_dbcsr_operations,             ONLY: cp_dbcsr_sm_fm_multiply
-   USE cp_fm_basic_linalg,              ONLY: cp_fm_invert,&
+   USE cp_fm_basic_linalg,              ONLY: cp_fm_column_scale,&
+                                              cp_fm_invert,&
                                               cp_fm_transpose
    USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
                                               cp_fm_struct_release,&
@@ -28,7 +29,9 @@ MODULE mixed_cdft_methods
                                               cp_fm_p_type,&
                                               cp_fm_release,&
                                               cp_fm_set_all,&
-                                              cp_fm_type
+                                              cp_fm_to_fm,&
+                                              cp_fm_type,&
+                                              cp_fm_write_formatted
    USE cp_gemm_interface,               ONLY: cp_gemm
    USE cp_log_handling,                 ONLY: cp_get_default_logger,&
                                               cp_logger_type,&
@@ -52,7 +55,8 @@ MODULE mixed_cdft_methods
    USE input_constants,                 ONLY: becke_cutoff_element,&
                                               becke_cutoff_global,&
                                               mix_cdft
-   USE input_section_types,             ONLY: section_vals_get,&
+   USE input_section_types,             ONLY: section_get_lval,&
+                                              section_vals_get,&
                                               section_vals_get_subs_vals,&
                                               section_vals_type,&
                                               section_vals_val_get
@@ -173,7 +177,7 @@ CONTAINS
       CALL force_env_get(force_env=force_env, force_env_section=force_env_section)
       mixed_env => force_env%mixed_env
       mixed_section => section_vals_get_subs_vals(force_env_section, "MIXED")
-      print_section => section_vals_get_subs_vals(force_env_section, "MIXED%PRINT%PROGRAM_RUN_INFO")
+      print_section => section_vals_get_subs_vals(force_env_section, "MIXED%MIXED_CDFT%PRINT%PROGRAM_RUN_INFO")
       iounit = cp_print_key_unit_nr(logger, print_section, '', extension='.mixedLog')
       ! Check if a mixed CDFT calculation is requested
       CALL section_vals_val_get(mixed_section, "MIXING_TYPE", i_val=mixing_type)
@@ -358,7 +362,7 @@ CONTAINS
          END IF
       END IF
       CALL cp_print_key_finished_output(iounit, logger, force_env_section, &
-                                        "MIXED%PRINT%PROGRAM_RUN_INFO")
+                                        "MIXED%MIXED_CDFT%PRINT%PROGRAM_RUN_INFO")
       CALL timestop(handle)
 
    END SUBROUTINE mixed_cdft_init
@@ -476,7 +480,7 @@ CONTAINS
                             particles=particles_mix)
       END IF
       mixed_env => force_env%mixed_env
-      print_section => section_vals_get_subs_vals(force_env_section, "MIXED%PRINT%PROGRAM_RUN_INFO")
+      print_section => section_vals_get_subs_vals(force_env_section, "MIXED%MIXED_CDFT%PRINT%PROGRAM_RUN_INFO")
       iounit = cp_print_key_unit_nr(logger, print_section, '', extension='.mixedLog')
       CALL get_mixed_env(mixed_env, cdft_control=mixed_cdft)
       CPASSERT(ASSOCIATED(mixed_cdft))
@@ -822,7 +826,7 @@ CONTAINS
          WRITE (iounit, '(A)') ' '
       END IF
       CALL cp_print_key_finished_output(iounit, logger, force_env_section, &
-                                        "MIXED%PRINT%PROGRAM_RUN_INFO")
+                                        "MIXED%MIXED_CDFT%PRINT%PROGRAM_RUN_INFO")
       CALL timestop(handle)
 
    END SUBROUTINE mixed_cdft_build_weight_parallel
@@ -1019,12 +1023,14 @@ CONTAINS
 
       CHARACTER(LEN=default_path_length)                 :: file_name
       INTEGER :: check_ao(2), check_mo(2), handle, iforce_eval, info, iounit, ipermutation, ispin, &
-         istate, ivar, j, jstate, k, nao, ncol_local, nforce_eval, nmo, npermutations, nrow_local, &
-         nspins, nvar, work_array_size
+         istate, ivar, j, jstate, k, moeigvalunit, mounit, nao, ncol_local, nforce_eval, nmo, &
+         npermutations, nrow_local, nspins, nvar, work_array_size
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: ncol_mo, nrow_mo
-      LOGICAL                                            :: exist, natom_mismatch, use_lowdin, &
-                                                            use_rotation
-      REAL(KIND=dp)                                      :: c(2), maxocc, sum_a(2), sum_b(2)
+      INTEGER, ALLOCATABLE, DIMENSION(:, :)              :: homo
+      LOGICAL :: exist, natom_mismatch, nelectron_mismatch, print_mo, print_mo_eigval, &
+         should_scale, uniform_occupation, use_lowdin, use_rotation
+      REAL(KIND=dp)                                      :: c(2), eps_occupied, maxocc, &
+                                                            nelectron_tot, sum_a(2), sum_b(2)
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: coupling_lowdin, coupling_nonortho, &
                                                             coupling_rotation, coupling_wfn, &
                                                             eigenv, energy, evals, Sda, work
@@ -1032,6 +1038,7 @@ CONTAINS
                                                             S_mat_copy, strength, tmp_mat, &
                                                             W_diagonal, W_mat, Wad, Wda
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: a, b, overlaps
+      REAL(KIND=dp), DIMENSION(:), POINTER               :: mo_eigval
       REAL(KIND=dp), EXTERNAL                            :: dnrm2
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       TYPE(cp_blacs_env_type), POINTER                   :: blacs_env
@@ -1064,7 +1071,7 @@ CONTAINS
                mixed_env, mixed_cdft, qs_env, dft_control, fm_struct_mo, density_matrix_diff, &
                mo_mo_fmstruct, inverse_mat, mo_overlap, Tinverse, tmp2, mo_overlap_wfn, &
                w_matrix_mo, mixed_mo_coeff, mixed_matrix_s, density_matrix, blacs_env, &
-               energy_qs, mo_set, particle_set, qs_kind_set, atomic_kind_set, w_matrix)
+               energy_qs, mo_set, particle_set, qs_kind_set, atomic_kind_set, w_matrix, mo_eigval)
       logger => cp_get_default_logger()
       CPASSERT(ASSOCIATED(force_env))
       CALL timeset(routineN, handle)
@@ -1072,9 +1079,21 @@ CONTAINS
                          force_env_section=force_env_section)
       mixed_env => force_env%mixed_env
       nforce_eval = SIZE(force_env%sub_force_env)
-      print_section => section_vals_get_subs_vals(force_env_section, "MIXED%PRINT%PROGRAM_RUN_INFO")
+      print_section => section_vals_get_subs_vals(force_env_section, "MIXED%MIXED_CDFT%PRINT%PROGRAM_RUN_INFO")
       mixed_cdft_section => section_vals_get_subs_vals(force_env_section, "MIXED%MIXED_CDFT")
       iounit = cp_print_key_unit_nr(logger, print_section, '', extension='.mixedLog')
+      IF (section_get_lval(print_section, "MO_OVERLAP_MATRIX")) THEN
+         print_mo = .TRUE.
+         mounit = cp_print_key_unit_nr(logger, print_section, extension='.moOverlap', on_file=.TRUE.)
+      ELSE
+         print_mo = .FALSE.
+      END IF
+      IF (section_get_lval(print_section, "MO_OVERLAP_EIGENVALUES")) THEN
+         print_mo_eigval = .TRUE.
+         moeigvalunit = cp_print_key_unit_nr(logger, print_section, extension='.moOverlapEigval', on_file=.TRUE.)
+      ELSE
+         print_mo_eigval = .FALSE.
+      END IF
       CALL get_mixed_env(mixed_env, cdft_control=mixed_cdft)
       CPASSERT(ASSOCIATED(mixed_cdft))
       ! Move needed arrays from individual CDFT states to the mixed CDFT env
@@ -1083,6 +1102,8 @@ CONTAINS
       ! Get number of weight functions per state
       nvar = SIZE(w_matrix, 2)
       nspins = SIZE(mixed_mo_coeff, 2)
+      ! Check for uniform occupations
+      uniform_occupation = .NOT. ALLOCATED(mixed_cdft%occupations)
       ! Decide which methods to use for computing the coupling
       ! Default behavior is to use rotation when a single constraint is active, otherwise uses Lowdin orthogonalization
       ! The latter can also be explicitly requested when a single constraint is active
@@ -1131,13 +1152,72 @@ CONTAINS
             END DO
          END DO
       END IF
+      should_scale = .FALSE.
+      IF (.NOT. uniform_occupation) THEN
+         ALLOCATE (homo(nforce_eval, nspins))
+         CALL section_vals_val_get(mixed_cdft_section, "EPS_OCCUPIED", r_val=eps_occupied)
+         IF (eps_occupied .GT. 1.0_dp .OR. eps_occupied .LT. 0.0_dp) &
+            CALL cp_abort(__LOCATION__, &
+                          "Keyword EPS_OCCUPIED only accepts values between 0.0 and 1.0")
+         IF (mixed_cdft%eps_svd == 0.0_dp) &
+            CALL cp_warn(__LOCATION__, &
+                         "The usage of SVD based matrix inversions with fractionally occupied "// &
+                         "orbitals is strongly recommended to screen nearly orthogonal states.")
+         CALL section_vals_val_get(mixed_cdft_section, "SCALE_WITH_OCCUPATION_NUMBERS", l_val=should_scale)
+      END IF
       DO ispin = 1, nspins
          ! Create the MOxMO fm struct (mo_mo_fm_pools%struct)
          ! The number of MOs/AOs is equal to the number of columns/rows of mo_coeff(:,:)%matrix
          NULLIFY (fm_struct_mo, mo_mo_fmstruct)
          CALL cp_fm_get_info(mixed_mo_coeff(1, ispin)%matrix, ncol_global=ncol_mo(ispin), nrow_global=nrow_mo(ispin))
          nao = nrow_mo(ispin)
-         nmo = ncol_mo(ispin)
+         IF (uniform_occupation) THEN
+            nmo = ncol_mo(ispin)
+         ELSE
+            nmo = ncol_mo(ispin)
+            ! Find indices of highest (fractionally) occupied molecular orbital
+            homo(:, ispin) = nmo
+            DO istate = 1, nforce_eval
+               DO j = nmo, 1, -1
+                  IF (mixed_cdft%occupations(istate, ispin)%array(j) .GE. eps_occupied) THEN
+                     homo(istate, ispin) = j
+                     EXIT
+                  END IF
+               END DO
+            END DO
+            ! Make matrices square by using the largest homo and emit warning if a state has fewer occupied MOs
+            ! Although it would be possible to handle the nonsquare situation as well,
+            ! all CDFT states should be in the same spin state for meaningful results
+            nmo = MAXVAL(homo(:, ispin))
+            ! Also check that the number of electrons is conserved (using a fixed sensible threshold)
+            nelectron_mismatch = .FALSE.
+            nelectron_tot = SUM(mixed_cdft%occupations(1, ispin)%array(1:nmo))
+            DO istate = 2, nforce_eval
+               IF (ABS(SUM(mixed_cdft%occupations(istate, ispin)%array(1:nmo))-nelectron_tot) .GT. 1.0E-4_dp) &
+                  nelectron_mismatch = .TRUE.
+            END DO
+            IF (ANY(homo(:, ispin) /= nmo)) THEN
+               IF (ispin == 1) THEN
+                  CALL cp_warn(__LOCATION__, &
+                               "The number of occupied alpha MOs is not constant across all CDFT states. "// &
+                               "Calculation proceeds but the results will likely be meaningless.")
+               ELSE
+                  CALL cp_warn(__LOCATION__, &
+                               "The number of occupied beta MOs is not constant across all CDFT states. "// &
+                               "Calculation proceeds but the results will likely be meaningless.")
+               END IF
+            ELSE IF (nelectron_mismatch) THEN
+               IF (ispin == 1) THEN
+                  CALL cp_warn(__LOCATION__, &
+                               "The number of alpha electrons is not constant across all CDFT states. "// &
+                               "Calculation proceeds but the results will likely be meaningless.")
+               ELSE
+                  CALL cp_warn(__LOCATION__, &
+                               "The number of beta electrons is not constant across all CDFT states. "// &
+                               "Calculation proceeds but the results will likely be meaningless.")
+               END IF
+            END IF
+         END IF
          CALL cp_fm_struct_create(fm_struct_mo, nrow_global=nao, ncol_global=nmo, &
                                   context=mixed_cdft%blacs_env, para_env=force_env%para_env)
          CALL cp_fm_struct_create(mo_mo_fmstruct, nrow_global=nmo, ncol_global=nmo, &
@@ -1168,6 +1248,22 @@ CONTAINS
             END DO
          END DO
          CALL cp_fm_struct_release(mo_mo_fmstruct)
+         ! Remove empty MOs and (possibly) scale rest with occupation numbers
+         IF (.NOT. uniform_occupation) THEN
+            DO iforce_eval = 1, nforce_eval
+               CALL cp_fm_to_fm(mixed_mo_coeff(iforce_eval, ispin)%matrix, tmp2, nmo, 1, 1)
+               CALL cp_fm_release(mixed_mo_coeff(iforce_eval, ispin)%matrix)
+               CALL cp_fm_create(mixed_mo_coeff(iforce_eval, ispin)%matrix, &
+                                 matrix_struct=tmp2%matrix_struct, &
+                                 name="MO_COEFF_"//TRIM(ADJUSTL(cp_to_string(iforce_eval)))//"_" &
+                                 //TRIM(ADJUSTL(cp_to_string(ispin)))//"_MATRIX")
+               CALL cp_fm_to_fm(tmp2, mixed_mo_coeff(iforce_eval, ispin)%matrix)
+               IF (should_scale) &
+                  CALL cp_fm_column_scale(mixed_mo_coeff(iforce_eval, ispin)%matrix, &
+                                          mixed_cdft%occupations(iforce_eval, ispin)%array(1:nmo))
+               DEALLOCATE (mixed_cdft%occupations(iforce_eval, ispin)%array)
+            END DO
+         END IF
          ! calculate the MO overlaps (C_j)^T S C_i
          ipermutation = 0
          DO istate = 1, nforce_eval
@@ -1178,6 +1274,12 @@ CONTAINS
                CALL cp_gemm('T', 'N', nmo, nmo, nao, 1.0_dp, &
                             mixed_mo_coeff(jstate, ispin)%matrix, &
                             tmp2, 0.0_dp, mo_overlap(ipermutation)%matrix)
+               IF (print_mo) &
+                  CALL cp_fm_write_formatted(mo_overlap(ipermutation)%matrix, mounit, &
+                                             "# MO overlap matrix (step "//TRIM(ADJUSTL(cp_to_string(mixed_cdft%sim_step)))// &
+                                             "): CDFT states "//TRIM(ADJUSTL(cp_to_string(istate)))//" and "// &
+                                             TRIM(ADJUSTL(cp_to_string(jstate)))//" (spin "// &
+                                             TRIM(ADJUSTL(cp_to_string(ispin)))//")")
             END DO
          END DO
          ! calculate the MO-representations of the restraint matrices of all CDFT states
@@ -1198,8 +1300,31 @@ CONTAINS
          DO ipermutation = 1, npermutations
             ! Invert and calculate determinant of MO overlaps
             CALL map_permutation_to_states(nforce_eval, ipermutation, istate, jstate)
-            CALL cp_fm_invert(mo_overlap(ipermutation)%matrix, inverse_mat, &
-                              S_det(ipermutation, ispin), eps_svd=mixed_cdft%eps_svd)
+            IF (print_mo_eigval) THEN
+               NULLIFY (mo_eigval)
+               CALL cp_fm_invert(mo_overlap(ipermutation)%matrix, inverse_mat, &
+                                 S_det(ipermutation, ispin), eps_svd=mixed_cdft%eps_svd, &
+                                 eigval=mo_eigval)
+               IF (moeigvalunit > 0) THEN
+                  IF (mixed_cdft%eps_svd == 0.0_dp) THEN
+                     WRITE (moeigvalunit, '(A,I2,A,I2,A,I1,A)') &
+                        "# MO Overlap matrix eigenvalues for CDFT states ", istate, " and ", jstate, &
+                        " (spin ", ispin, " )"
+                  ELSE
+                     WRITE (moeigvalunit, '(A,I2,A,I2,A,I1,A)') &
+                        "# MO Overlap matrix singular values for CDFT states ", istate, " and ", jstate, &
+                        " (spin ", ispin, " )"
+                  END IF
+                  WRITE (moeigvalunit, '(A2, A8, A12)') ADJUSTL("#"), "Index", ADJUSTL("Value")
+                  DO j = 1, SIZE(mo_eigval)
+                     WRITE (moeigvalunit, '(I10, F12.8)') j, mo_eigval(j)
+                  END DO
+               END IF
+               DEALLOCATE (mo_eigval)
+            ELSE
+               CALL cp_fm_invert(mo_overlap(ipermutation)%matrix, inverse_mat, &
+                                 S_det(ipermutation, ispin), eps_svd=mixed_cdft%eps_svd)
+            END IF
             CALL cp_fm_get_info(inverse_mat, nrow_local=nrow_local, ncol_local=ncol_local)
             ! Calculate <Psi_i | w_j(r) | Psi_j> for ivar:th constraint
             DO j = 1, ncol_local
@@ -1262,6 +1387,10 @@ CONTAINS
       DEALLOCATE (mo_overlap)
       IF (mixed_cdft%calculate_metric) &
          DEALLOCATE (density_matrix)
+      IF (.NOT. uniform_occupation) THEN
+         DEALLOCATE (homo)
+         DEALLOCATE (mixed_cdft%occupations)
+      END IF
       ! solve eigenstates for the projector matrix
       ALLOCATE (Sda(npermutations))
       DO ipermutation = 1, npermutations
@@ -1332,6 +1461,9 @@ CONTAINS
       ! Compute coupling also with the wavefunction overlap method, see Migliore2009
       ! Requires the unconstrained KS ground state wavefunction as input
       IF (mixed_cdft%wfn_overlap_method) THEN
+         IF (.NOT. uniform_occupation) &
+            CALL cp_abort(__LOCATION__, &
+                          "Wavefunction overlap method supports only uniformly occupied MOs.")
          ! Create mo_set for input wfn
          ALLOCATE (mo_set(nspins))
          IF (nspins == 2) THEN
@@ -1713,8 +1845,14 @@ CONTAINS
          DEALLOCATE (coupling_nonortho)
       IF (mixed_cdft%calculate_metric) DEALLOCATE (metric)
 
+      IF (print_mo) &
+         CALL cp_print_key_finished_output(mounit, logger, force_env_section, &
+                                           "MIXED%MIXED_CDFT%PRINT%PROGRAM_RUN_INFO", on_file=.TRUE.)
+      IF (print_mo_eigval) &
+         CALL cp_print_key_finished_output(moeigvalunit, logger, force_env_section, &
+                                           "MIXED%MIXED_CDFT%PRINT%PROGRAM_RUN_INFO", on_file=.TRUE.)
       CALL cp_print_key_finished_output(iounit, logger, force_env_section, &
-                                        "MIXED%PRINT%PROGRAM_RUN_INFO")
+                                        "MIXED%MIXED_CDFT%PRINT%PROGRAM_RUN_INFO")
       CALL timestop(handle)
 
    END SUBROUTINE mixed_cdft_calculate_coupling
@@ -1856,7 +1994,7 @@ CONTAINS
                             particle_set=particle_set)
       END IF
       natom = SIZE(particles%els)
-      print_section => section_vals_get_subs_vals(force_env_section, "MIXED%PRINT%PROGRAM_RUN_INFO")
+      print_section => section_vals_get_subs_vals(force_env_section, "MIXED%MIXED_CDFT%PRINT%PROGRAM_RUN_INFO")
       IF (.NOT. ASSOCIATED(mixed_cdft%becke_control%cutoffs)) THEN
          CALL cp_subsys_get(subsys_mix, atomic_kind_set=atomic_kind_set)
          ALLOCATE (mixed_cdft%becke_control%cutoffs(natom))
@@ -1968,7 +2106,7 @@ CONTAINS
       END DO
       ! Dump some additional information about the calculation
       IF (mixed_cdft%first_iteration) THEN
-         print_section => section_vals_get_subs_vals(force_env_section, "MIXED%PRINT%PROGRAM_RUN_INFO")
+         print_section => section_vals_get_subs_vals(force_env_section, "MIXED%MIXED_CDFT%PRINT%PROGRAM_RUN_INFO")
          iounit = cp_print_key_unit_nr(logger, print_section, '', extension='.mixedLog')
          IF (iounit > 0) THEN
             WRITE (iounit, '(/,T3,A,T66)') &
@@ -2011,7 +2149,7 @@ CONTAINS
                '------------------------------------------------------------------------------'
          END IF
          CALL cp_print_key_finished_output(iounit, logger, force_env_section, &
-                                           "MIXED%PRINT%PROGRAM_RUN_INFO")
+                                           "MIXED%MIXED_CDFT%PRINT%PROGRAM_RUN_INFO")
          mixed_cdft%first_iteration = .FALSE.
       END IF
 
@@ -2275,7 +2413,7 @@ CONTAINS
                mask_recv, mask_send, cavity, recvbuffer, sbuff, force_env_section, &
                print_section)
       CALL force_env_get(force_env=force_env, force_env_section=force_env_section)
-      print_section => section_vals_get_subs_vals(force_env_section, "MIXED%PRINT%PROGRAM_RUN_INFO")
+      print_section => section_vals_get_subs_vals(force_env_section, "MIXED%MIXED_CDFT%PRINT%PROGRAM_RUN_INFO")
       iounit = cp_print_key_unit_nr(logger, print_section, '', extension='.mixedLog')
       ! These numerical values control data redistribution and are system sensitive
       ! Currently they are not refined during run time which may cause crashes
@@ -2979,7 +3117,7 @@ CONTAINS
       END IF
       DEALLOCATE (sbuff)
       CALL cp_print_key_finished_output(iounit, logger, force_env_section, &
-                                        "MIXED%PRINT%PROGRAM_RUN_INFO")
+                                        "MIXED%MIXED_CDFT%PRINT%PROGRAM_RUN_INFO")
       CALL timestop(handle)
 
    END SUBROUTINE mixed_becke_constraint_dlb
@@ -3059,7 +3197,7 @@ CONTAINS
       CALL timeset(routineN, handle)
       nforce_eval = SIZE(force_env%sub_force_env)
       CALL force_env_get(force_env=force_env, force_env_section=force_env_section)
-      print_section => section_vals_get_subs_vals(force_env_section, "MIXED%PRINT%PROGRAM_RUN_INFO")
+      print_section => section_vals_get_subs_vals(force_env_section, "MIXED%MIXED_CDFT%PRINT%PROGRAM_RUN_INFO")
       iounit = cp_print_key_unit_nr(logger, print_section, '', extension='.mixedLog')
       IF (.NOT. force_env%mixed_env%do_mixed_qmmm_cdft) THEN
          CALL force_env_get(force_env=force_env, &
@@ -3724,7 +3862,7 @@ CONTAINS
       IF (ASSOCIATED(req_recv)) &
          DEALLOCATE (req_recv)
       CALL cp_print_key_finished_output(iounit, logger, force_env_section, &
-                                        "MIXED%PRINT%PROGRAM_RUN_INFO")
+                                        "MIXED%MIXED_CDFT%PRINT%PROGRAM_RUN_INFO")
       CALL timestop(handle)
 
    END SUBROUTINE mixed_becke_constraint_low
