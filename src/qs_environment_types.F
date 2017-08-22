@@ -125,7 +125,8 @@ MODULE qs_environment_types
    USE qs_rho0_types,                   ONLY: rho0_atom_type,&
                                               rho0_mpole_type
    USE qs_rho_atom_types,               ONLY: rho_atom_type
-   USE qs_rho_types,                    ONLY: qs_rho_release,&
+   USE qs_rho_types,                    ONLY: qs_rho_p_type,&
+                                              qs_rho_release,&
                                               qs_rho_retain,&
                                               qs_rho_type
    USE qs_scf_types,                    ONLY: qs_scf_env_type,&
@@ -288,6 +289,10 @@ MODULE qs_environment_types
       TYPE(kg_environment_type), POINTER                    :: kg_env
       TYPE(wannier_centres_type), POINTER, DIMENSION(:)     :: WannierCentres => NULL()
       TYPE(molecular_scf_guess_env_type)                    :: molecular_scf_guess_env
+      ! Subsystem densities
+      TYPE(qs_rho_p_type), DIMENSION(:), POINTER            :: subsys_dens
+      ! Embedding potential
+      TYPE(pw_p_type), POINTER                              :: embed_pot
    END TYPE qs_environment_type
 
 ! **************************************************************************************************
@@ -460,6 +465,7 @@ CONTAINS
 !> \param almo_scf_env ...
 !> \param gradient_history ...
 !> \param variable_history ...
+!> \param embed_pot ...
 !> \date    23.01.2002
 !> \author  MK
 !> \version 1.0
@@ -490,7 +496,7 @@ CONTAINS
                          lri_env, lri_density, dispersion_env, vee, rho_external, external_vxc, mask, &
                          mp2_env, kg_env, WannierCentres, atprop, ls_scf_env, do_transport, transport_env, v_hartree_rspace, &
                          s_mstruct_changed, rho_changed, potential_changed, forces_up_to_date, mscfg_env, almo_scf_env, &
-                         gradient_history, variable_history)
+                         gradient_history, variable_history, embed_pot)
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(atomic_kind_type), DIMENSION(:), OPTIONAL, &
          POINTER                                         :: atomic_kind_set
@@ -619,6 +625,7 @@ CONTAINS
          POINTER                                         :: mscfg_env
       TYPE(almo_scf_env_type), OPTIONAL, POINTER         :: almo_scf_env
       REAL(KIND=dp), DIMENSION(:, :), OPTIONAL, POINTER  :: gradient_history, variable_history
+      TYPE(pw_p_type), OPTIONAL, POINTER                 :: embed_pot
 
       CHARACTER(len=*), PARAMETER :: routineN = 'get_qs_env', routineP = moduleN//':'//routineN
 
@@ -679,6 +686,9 @@ CONTAINS
       IF (PRESENT(transport_env)) transport_env => qs_env%transport_env
       IF (PRESENT(mscfg_env)) mscfg_env => qs_env%molecular_scf_guess_env
       IF (PRESENT(active_space)) active_space => qs_env%active_space
+
+      ! Embedding potential
+      IF (PRESENT(embed_pot)) embed_pot => qs_env%embed_pot
 
       IF (PRESENT(rho_atom_set)) &
          CALL get_local_rho(qs_env%local_rho_set, rho_atom_set=rho_atom_set)
@@ -839,6 +849,8 @@ CONTAINS
       NULLIFY (qs_env%rho_external)
       NULLIFY (qs_env%external_vxc)
       NULLIFY (qs_env%mask)
+      ! Embedding potential
+      NULLIFY (qs_env%embed_pot)
 
       NULLIFY (qs_env%ks_env)
       NULLIFY (qs_env%ks_qmmm_env)
@@ -977,6 +989,7 @@ CONTAINS
 !> \param almo_scf_env ...
 !> \param gradient_history ...
 !> \param variable_history ...
+!> \param embed_pot ...
 !> \date    23.01.2002
 !> \author  MK
 !> \version 1.0
@@ -994,7 +1007,7 @@ CONTAINS
                          outer_scf_history, outer_scf_ihistory, x_data, et_coupling, dftb_potential, &
                          se_taper, se_store_int_env, se_nddo_mpole, se_nonbond_env, admm_env, ls_scf_env, &
                          do_transport, transport_env, lri_env, lri_density, dispersion_env, mp2_env, kg_env, &
-                         kpoints, WannierCentres, almo_scf_env, gradient_history, variable_history)
+                         kpoints, WannierCentres, almo_scf_env, gradient_history, variable_history, embed_pot)
 
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(cell_type), OPTIONAL, POINTER                 :: super_cell
@@ -1061,6 +1074,7 @@ CONTAINS
          OPTIONAL, POINTER                               :: WannierCentres
       TYPE(almo_scf_env_type), OPTIONAL, POINTER         :: almo_scf_env
       REAL(KIND=dp), DIMENSION(:, :), OPTIONAL, POINTER  :: gradient_history, variable_history
+      TYPE(pw_p_type), OPTIONAL, POINTER                 :: embed_pot
 
       CHARACTER(len=*), PARAMETER :: routineN = 'set_qs_env', routineP = moduleN//':'//routineN
 
@@ -1133,6 +1147,8 @@ CONTAINS
       END IF
       IF (PRESENT(external_vxc)) qs_env%external_vxc => external_vxc
       IF (PRESENT(mask)) qs_env%mask => mask
+      ! Embedding potential
+      IF (PRESENT(embed_pot)) qs_env%embed_pot => embed_pot
 
       IF (PRESENT(qs_charges)) THEN
          CALL qs_charges_retain(qs_charges)
@@ -1382,6 +1398,11 @@ CONTAINS
             IF (ASSOCIATED(qs_env%mask)) THEN
                CALL pw_release(qs_env%mask%pw)
                DEALLOCATE (qs_env%mask)
+            ENDIF
+            ! Embedding potential
+            IF (ASSOCIATED(qs_env%embed_pot)) THEN
+               CALL pw_release(qs_env%embed_pot%pw)
+               DEALLOCATE (qs_env%embed_pot)
             ENDIF
             IF (ASSOCIATED(qs_env%active_space)) THEN
                CALL release_active_space_type(qs_env%active_space)

@@ -49,6 +49,7 @@ MODULE mixed_environment_types
                                               particle_list_release,&
                                               particle_list_type
    USE particle_types,                  ONLY: particle_type
+   USE qs_rho_types,                    ONLY: qs_rho_p_type
 #include "./base/base_uses.f90"
 
    IMPLICIT NONE
@@ -84,6 +85,8 @@ MODULE mixed_environment_types
       INTEGER                                          :: et_freq
       REAL(KIND=dp), DIMENSION(:, :), POINTER          :: strength
       TYPE(mixed_cdft_type), POINTER                   :: cdft_control
+      ! Densities from sunbsystem
+      TYPE(qs_rho_p_type), DIMENSION(:), ALLOCATABLE   :: subsys_dens
    END TYPE mixed_environment_type
 
 ! **************************************************************************************************

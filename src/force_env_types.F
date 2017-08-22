@@ -135,8 +135,9 @@ MODULE force_env_types
       TYPE(qmmm_env_type), POINTER                     :: qmmm_env
       TYPE(qmmmx_env_type), POINTER                    :: qmmmx_env
       TYPE(mixed_environment_type), POINTER            :: mixed_env
-      TYPE(section_vals_type), POINTER                  :: force_env_section
-      TYPE(section_vals_type), POINTER                  :: root_section
+      TYPE(section_vals_type), POINTER                 :: force_env_section
+      TYPE(section_vals_type), POINTER                 :: root_section
+      LOGICAL                                          :: do_embedding
    END TYPE force_env_type
 
 ! **************************************************************************************************

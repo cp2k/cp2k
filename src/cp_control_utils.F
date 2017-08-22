@@ -659,6 +659,9 @@ CONTAINS
 
       ! Logicals
       CALL section_vals_val_get(qs_section, "MAP_CONSISTENT", l_val=qs_control%map_consistent)
+      CALL section_vals_val_get(qs_section, "REF_EMBED_SUBSYS", l_val=qs_control%ref_embed_subsys)
+      CALL section_vals_val_get(qs_section, "CLUSTER_EMBED_SUBSYS", l_val=qs_control%cluster_embed_subsys)
+      CALL section_vals_val_get(qs_section, "HIGH_LEVEL_EMBED_SUBSYS", l_val=qs_control%high_level_embed_subsys)
 
       ! Integers gapw
       CALL section_vals_val_get(qs_section, "LMAXN1", i_val=qs_control%gapw_control%lmax_sphere)

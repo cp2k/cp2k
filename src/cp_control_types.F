@@ -282,6 +282,10 @@ MODULE cp_control_types
       TYPE(gapw_control_type), POINTER     :: gapw_control
       TYPE(pw_grid_option)                 :: pw_grid_opt
       LOGICAL                              :: skip_load_balance_distributed
+      ! Types of subsystems for embedding
+      LOGICAL                              :: ref_embed_subsys
+      LOGICAL                              :: cluster_embed_subsys
+      LOGICAL                              :: high_level_embed_subsys
    END TYPE qs_control_type
 
 ! **************************************************************************************************
@@ -458,7 +462,8 @@ MODULE cp_control_types
                                               apply_external_vxc, &
                                               read_external_vxc, &
                                               correct_surf_dip, &
-                                              do_sccs
+                                              do_sccs, &
+                                              apply_embed_pot
    END TYPE dft_control_type
 
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'cp_control_types'
@@ -719,6 +724,7 @@ CONTAINS
       NULLIFY (dft_control%rtp_control)
       NULLIFY (dft_control%sccs_control)
       dft_control%do_sccs = .FALSE.
+      dft_control%apply_embed_pot = .FALSE.
       CALL qs_control_create(dft_control%qs_control)
       CALL tddfpt2_control_create(dft_control%tddfpt2_control)
    END SUBROUTINE dft_control_create

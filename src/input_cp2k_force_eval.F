@@ -108,6 +108,15 @@ CONTAINS
                                         "Compute the stress tensor numerically.", &
                                         "Compute the diagonal part only of the stress tensor analytically (if available).", &
                                         "Compute the diagonal part only of the stress tensor numerically"))
+
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, name="EMBED", &
+                          description="Activates exporting electronic densities of the subsystems in DFET.", &
+                          usage="EMBED FALSE", &
+                          default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
+
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 

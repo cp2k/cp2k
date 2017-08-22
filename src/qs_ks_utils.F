@@ -119,7 +119,7 @@ MODULE qs_ks_utils
 
    PUBLIC :: low_spin_roks, sic_explicit_orbitals, calc_v_sic_rspace, print_densities, &
              print_detailed_energy, compute_matrix_vxc, sum_up_and_integrate, &
-             calculate_zmp_potential
+             calculate_zmp_potential, get_embed_potential_energy
 
 CONTAINS
 
@@ -1169,6 +1169,7 @@ CONTAINS
 !> \param v_sic_rspace ...
 !> \param v_spin_ddapc_rest_r ...
 !> \param v_sccs_rspace ...
+!> \param v_rspace_embed ...
 !> \param becke ...
 !> \param cdft_control ...
 !> \param calculate_forces ...
@@ -1182,7 +1183,7 @@ CONTAINS
                                    v_rspace_new_aux_fit, v_tau_rspace, &
                                    v_tau_rspace_aux_fit, v_efield_rspace, &
                                    v_sic_rspace, v_spin_ddapc_rest_r, &
-                                   v_sccs_rspace, becke, cdft_control, &
+                                   v_sccs_rspace, v_rspace_embed, becke, cdft_control, &
                                    calculate_forces)
 
       TYPE(qs_environment_type), POINTER                 :: qs_env
@@ -1194,6 +1195,7 @@ CONTAINS
                                                             v_tau_rspace, v_tau_rspace_aux_fit
       TYPE(pw_p_type)                                    :: v_efield_rspace, v_sic_rspace, &
                                                             v_spin_ddapc_rest_r, v_sccs_rspace
+      TYPE(pw_p_type), DIMENSION(:), POINTER             :: v_rspace_embed
       TYPE(becke_constraint_type), POINTER               :: becke
       TYPE(cdft_control_type), POINTER                   :: cdft_control
       LOGICAL, INTENT(in)                                :: calculate_forces
@@ -1357,6 +1359,14 @@ CONTAINS
             CASE (sic_eo)
                ! NOTHING TO BE DONE
             END SELECT
+            ! DFT embedding
+            IF (dft_control%apply_embed_pot) THEN
+               ! So far for closed shells
+               IF (ispin == 1) v_rspace_new(ispin)%pw%cr3d = v_rspace_new(ispin)%pw%cr3d+ &
+                                                             v_rspace_embed(ispin)%pw%pw_grid%dvol* &
+                                                             v_rspace_embed(ispin)%pw%cr3d
+               CALL pw_pool_give_back_pw(auxbas_pw_pool, v_rspace_embed(ispin)%pw)
+            ENDIF
             IF (lrigpw) THEN
                lri_v_int => lri_density%lri_coefs(ispin)%lri_kinds
                CALL integrate_v_rspace_one_center(v_rspace_new(ispin), qs_env, &
@@ -1376,6 +1386,8 @@ CONTAINS
             ENDIF
             CALL pw_pool_give_back_pw(auxbas_pw_pool, v_rspace_new(ispin)%pw)
          END DO ! ispin
+
+         IF (dft_control%apply_embed_pot) DEALLOCATE (v_rspace_embed)
 
          SELECT CASE (dft_control%sic_method_id)
          CASE (sic_none)
@@ -1642,5 +1654,71 @@ CONTAINS
       CALL timestop(handle)
 
    END SUBROUTINE calculate_zmp_potential
+
+! **************************************************************************************************
+!> \brief ...
+!> \param qs_env ...
+!> \param rho ...
+!> \param v_rspace_embed ...
+!> \param dft_control ...
+!> \param embed_corr ...
+!> \param just_energy ...
+! **************************************************************************************************
+   SUBROUTINE get_embed_potential_energy(qs_env, rho, v_rspace_embed, dft_control, embed_corr, &
+                                         just_energy)
+      TYPE(qs_environment_type), POINTER                 :: qs_env
+      TYPE(qs_rho_type), POINTER                         :: rho
+      TYPE(pw_p_type), DIMENSION(:), POINTER             :: v_rspace_embed
+      TYPE(dft_control_type), POINTER                    :: dft_control
+      REAL(KIND=dp)                                      :: embed_corr
+      LOGICAL                                            :: just_energy
+
+      CHARACTER(*), PARAMETER :: routineN = 'get_embed_potential_energy', &
+         routineP = moduleN//':'//routineN
+
+      INTEGER                                            :: handle, ispin, ns1, ns2
+      TYPE(pw_env_type), POINTER                         :: pw_env
+      TYPE(pw_p_type), DIMENSION(:), POINTER             :: rho_r
+      TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
+
+      CALL timeset(routineN, handle)
+
+      NULLIFY (auxbas_pw_pool)
+      NULLIFY (pw_env)
+      NULLIFY (rho_r)
+      CALL get_qs_env(qs_env=qs_env, &
+                      pw_env=pw_env, &
+                      rho=rho)
+      CALL pw_env_get(pw_env=pw_env, &
+                      auxbas_pw_pool=auxbas_pw_pool)
+      CALL qs_rho_get(rho, rho_r=rho_r)
+      ALLOCATE (v_rspace_embed(dft_control%nspins))
+      DO ispin = 1, dft_control%nspins
+         CALL pw_pool_create_pw(pool=auxbas_pw_pool, pw=v_rspace_embed(1)%pw, &
+                                use_data=REALDATA3D, in_space=REALSPACE)
+         CALL pw_zero(v_rspace_embed(1)%pw)
+      ENDDO
+
+      ns1 = SIZE(qs_env%embed_pot%pw%cr3d)
+      ns2 = SIZE(v_rspace_embed(1)%pw%cr3d)
+      IF (ns1 .NE. ns2) CPABORT("Subsystem grids must be identical")
+
+      v_rspace_embed(1)%pw%cr3d(:, :, :) = qs_env%embed_pot%pw%cr3d
+
+      embed_corr = 0.0_dp
+      embed_corr = accurate_sum(v_rspace_embed(1)%pw%cr3d*rho_r(1)%pw%cr3d)* &
+                   v_rspace_embed(1)%pw%pw_grid%dvol
+
+      ! If only energy requiested we delete the potential
+      IF (just_energy) THEN
+         DO ispin = 1, dft_control%nspins
+            CALL pw_pool_give_back_pw(auxbas_pw_pool, v_rspace_embed(ispin)%pw)
+         ENDDO
+         DEALLOCATE (v_rspace_embed)
+      ENDIF
+
+      CALL timestop(handle)
+
+   END SUBROUTINE get_embed_potential_energy
 
 END MODULE qs_ks_utils

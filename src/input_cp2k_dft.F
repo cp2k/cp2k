@@ -2878,6 +2878,27 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
+      CALL keyword_create(keyword, name="REF_EMBED_SUBSYS", &
+                          description="A total, reference, system in DFT embedding. ", &
+                          usage="REF_EMBED_SUBSYS FALSE", &
+                          default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, name="CLUSTER_EMBED_SUBSYS", &
+                          description="A cluster treated with DFT in DFT embedding. ", &
+                          usage="CLUSTER_EMBED_SUBSYS FALSE", &
+                          default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, name="HIGH_LEVEL_EMBED_SUBSYS", &
+                          description="A cluster treated with a high-level method in DFT embedding. ", &
+                          usage="HIGH_LEVEL_EMBED_SUBSYS FALSE", &
+                          default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
       ! Integers
       CALL keyword_create(keyword, name="LMAXN1", &
                           variants=(/"LMAXRHO1"/), &
@@ -3070,7 +3091,8 @@ CONTAINS
       CALL section_add_subsection(section, subsection)
       CALL section_release(subsection)
 
-      CALL create_rigpw_section(subsection)
+      ! Embedding subsections
+      CALL create_optimize_embed(subsection)
       CALL section_add_subsection(section, subsection)
       CALL section_release(subsection)
 
@@ -5869,6 +5891,77 @@ CONTAINS
       CALL section_release(subsection)
 
    END SUBROUTINE create_optimize_lri_basis_section
+
+! **************************************************************************************************
+!> \brief Input for DFT embedding
+!> \param section ...
+!> \author Vladimir Rybkin [08.2017]
+! **************************************************************************************************
+   SUBROUTINE create_optimize_embed(section)
+      TYPE(section_type), POINTER                        :: section
+
+      CHARACTER(len=*), PARAMETER :: routineN = 'create_optimize_embed', &
+         routineP = moduleN//':'//routineN
+
+      TYPE(keyword_type), POINTER                        :: keyword
+
+      CPASSERT(.NOT. ASSOCIATED(section))
+      CALL section_create(section, name="OPT_EMBED", &
+                          description="This section specifies optional parameters for DFT embedding potential optimization.", &
+                          n_keywords=7, n_subsections=0, repeats=.FALSE.)
+
+      NULLIFY (keyword)
+
+      CALL keyword_create(keyword, name="REG_LAMBDA", &
+                          description="Parameter for Yang's regularization "// &
+                          "involving kinetic matrix.", &
+                          usage="REG_LAMBDA 0.0001", default_r_val=0.0001_dp)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, name="N_ITER", &
+                          description="Maximum number of iterations "// &
+                          "in the optimization procedure.", &
+                          usage="N_ITER 75", default_i_val=50)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, name="TRUST_RAD", &
+                          description="Maximum number of iterations "// &
+                          "in the optimization procedure.", &
+                          usage="TRUST_RAD 0.5", default_r_val=0.5_dp)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, name="DENS_CONV_MAX", &
+                          description="Convergence criterion for "// &
+                          "the maximum electron density difference.", &
+                          usage="DENS_CONV_MAX 0.01", default_r_val=0.01_dp)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, name="DENS_CONV_INT", &
+                          description="Convergence criterion for "// &
+                          "the integrated electron density difference.", &
+                          usage="DENS_CONV_INT 0.1", default_r_val=0.1_dp)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, name="LEVEL_SHIFT", &
+                          description="Apply level shift in the  "// &
+                          "optimization of the embedding potential.", &
+                          usage="LEVEl_SHIFT .TRUE.", default_l_val=.TRUE.)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, name="ADD_CONST_POT", &
+                          description="Apply level shift in the  "// &
+                          "optimization of the embedding potential.", &
+                          usage="ADD_CONST_POT .FALSE.", default_l_val=.FALSE.)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+   END SUBROUTINE create_optimize_embed
 
 ! **************************************************************************************************
 !> \brief input section for optional parameters for RIGPW
