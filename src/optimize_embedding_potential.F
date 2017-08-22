@@ -1,3 +1,8 @@
+!--------------------------------------------------------------------------------------------------!
+!   CP2K: A general program to perform molecular dynamics simulations                              !
+!   Copyright (C) 2000 - 2017  CP2K developers group                                               !
+!--------------------------------------------------------------------------------------------------!
+
 MODULE optimize_embedding_potential
 
    USE atomic_kind_types,               ONLY: atomic_kind_type,&

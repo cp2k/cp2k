@@ -1,3 +1,8 @@
+!--------------------------------------------------------------------------------------------------!
+!   CP2K: A general program to perform molecular dynamics simulations                              !
+!   Copyright (C) 2000 - 2017  CP2K developers group                                               !
+!--------------------------------------------------------------------------------------------------!
+
 MODULE opt_embed_pot_types
    USE cp_fm_types,                     ONLY: cp_fm_type
    USE kinds,                           ONLY: dp
