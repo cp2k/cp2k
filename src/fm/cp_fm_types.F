@@ -2157,12 +2157,12 @@ CONTAINS
       CHARACTER(len=*), PARAMETER :: routineN = 'cp_fm_write_formatted', &
                                      routineP = moduleN//':'//routineN
 
-      INTEGER                                  :: handle, j, max_block, &
+      INTEGER                                  :: handle, i, j, max_block, &
                                                   ncol_global, nrow_global, &
                                                   nrow_block
       TYPE(cp_para_env_type), POINTER          :: para_env
 #if defined(__SCALAPACK)
-      INTEGER                                  :: i, i_block, icol_local, &
+      INTEGER                                  :: i_block, icol_local, &
                                                   ictxt_loc, in, info, ipcol, &
                                                   iprow, irow_local, &
                                                   mepos, mypcol, myprow, &
