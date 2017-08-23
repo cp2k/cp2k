@@ -65,7 +65,7 @@ QS/regtest-gw-cubic                                         libint
 QS/regtest-gw-ic-model
 QS/regtest-gapw
 Fist/regtest-5
-Fist/regtest-5-vib                                          mpiranks==2||mpiranks==4
+Fist/regtest-5-vib                                          mpiranks==1||mpiranks==2||mpiranks==4
 QS/regtest-plus_u
 QS/regtest-ot-1
 QS/regtest-ri-mp2                                           libint
