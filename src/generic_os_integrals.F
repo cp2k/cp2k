@@ -493,9 +493,9 @@ CONTAINS
    SUBROUTINE int_overlap_aba_os(abaint, dabdaint, rab, oba, obb, fba, &
                                  calculate_forces, debug, dmax, screen)
 
-      REAL(KIND=dp), DIMENSION(:, :, :), POINTER         :: abaint
-      REAL(KIND=dp), DIMENSION(:, :, :, :), OPTIONAL, &
-         POINTER                                         :: dabdaint
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: abaint
+      REAL(KIND=dp), ALLOCATABLE, &
+         DIMENSION(:, :, :, :), OPTIONAL                 :: dabdaint
       REAL(KIND=dp), DIMENSION(3), INTENT(IN)            :: rab
       TYPE(gto_basis_set_type), POINTER                  :: oba, obb, fba
       LOGICAL, INTENT(IN)                                :: calculate_forces, debug
@@ -661,9 +661,9 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE int_overlap_abb_os(abbint, dabbint, rab, oba, obb, fbb, calculate_forces, debug, dmax, screen)
 
-      REAL(KIND=dp), DIMENSION(:, :, :), POINTER         :: abbint
-      REAL(KIND=dp), DIMENSION(:, :, :, :), OPTIONAL, &
-         POINTER                                         :: dabbint
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: abbint
+      REAL(KIND=dp), ALLOCATABLE, &
+         DIMENSION(:, :, :, :), OPTIONAL                 :: dabbint
       REAL(KIND=dp), DIMENSION(3), INTENT(IN)            :: rab
       TYPE(gto_basis_set_type), POINTER                  :: oba, obb, fbb
       LOGICAL, INTENT(IN)                                :: calculate_forces, debug

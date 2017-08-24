@@ -166,8 +166,10 @@ CONTAINS
    SUBROUTINE int_overlap_ab_shg(vab, dvab, rab, fba, fbb, scona_shg, sconb_shg, &
                                  calculate_forces)
 
-      REAL(KIND=dp), DIMENSION(:, :), INTENT(INOUT)      :: vab
-      REAL(KIND=dp), DIMENSION(:, :, :), INTENT(INOUT)   :: dvab
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :), &
+         INTENT(INOUT)                                   :: vab
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :), &
+         INTENT(INOUT)                                   :: dvab
       REAL(KIND=dp), DIMENSION(3), INTENT(IN)            :: rab
       TYPE(gto_basis_set_type), POINTER                  :: fba, fbb
       REAL(KIND=dp), DIMENSION(:, :, :), INTENT(IN)      :: scona_shg, sconb_shg
@@ -265,9 +267,10 @@ CONTAINS
                                   cg_coeff, cg_none0_list, ncg_none0, &
                                   calculate_forces, screen)
 
-      REAL(KIND=dp), DIMENSION(:, :, :), INTENT(INOUT)   :: saba
-      REAL(KIND=dp), DIMENSION(:, :, :, :), &
-         INTENT(INOUT)                                   :: dsaba
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :), &
+         INTENT(INOUT)                                   :: saba
+      REAL(KIND=dp), ALLOCATABLE, &
+         DIMENSION(:, :, :, :), INTENT(INOUT)            :: dsaba
       REAL(KIND=dp), DIMENSION(3), INTENT(IN)            :: rab
       TYPE(gto_basis_set_type), POINTER                  :: oba, obb, fba
       REAL(KIND=dp), DIMENSION(:, :, :), INTENT(IN)      :: scon_obb
@@ -329,9 +332,10 @@ CONTAINS
                                   cg_coeff, cg_none0_list, ncg_none0, &
                                   calculate_forces, screen)
 
-      REAL(KIND=dp), DIMENSION(:, :, :), INTENT(INOUT)   :: sabb
-      REAL(KIND=dp), DIMENSION(:, :, :, :), &
-         INTENT(INOUT)                                   :: dsabb
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :), &
+         INTENT(INOUT)                                   :: sabb
+      REAL(KIND=dp), ALLOCATABLE, &
+         DIMENSION(:, :, :, :), INTENT(INOUT)            :: dsabb
       REAL(KIND=dp), DIMENSION(3), INTENT(IN)            :: rab
       TYPE(gto_basis_set_type), POINTER                  :: oba, obb, fbb
       REAL(KIND=dp), DIMENSION(:, :, :), INTENT(IN)      :: scon_oba
@@ -565,8 +569,10 @@ CONTAINS
    SUBROUTINE int_overlap_ab_shg_low(sab, dsab, rab, fba, fbb, scona_shg, sconb_shg, Waux_mat, dWaux_mat, &
                                      calculate_forces, contraction_high)
 
-      REAL(KIND=dp), DIMENSION(:, :), INTENT(INOUT)      :: sab
-      REAL(KIND=dp), DIMENSION(:, :, :), INTENT(INOUT)   :: dsab
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :), &
+         INTENT(INOUT)                                   :: sab
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :), &
+         INTENT(INOUT)                                   :: dsab
       REAL(KIND=dp), DIMENSION(3), INTENT(IN)            :: rab
       TYPE(gto_basis_set_type), POINTER                  :: fba, fbb
       REAL(KIND=dp), DIMENSION(:, :, :), INTENT(IN)      :: scona_shg, sconb_shg, Waux_mat
@@ -815,9 +821,10 @@ CONTAINS
                                       obb_index, fbb_index, cg_coeff, cg_none0_list, &
                                       ncg_none0, Waux_mat, dWaux_mat, calculate_forces, screen)
 
-      REAL(KIND=dp), DIMENSION(:, :, :), INTENT(INOUT)   :: abbint
-      REAL(KIND=dp), DIMENSION(:, :, :, :), &
-         INTENT(INOUT)                                   :: dabbint
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :), &
+         INTENT(INOUT)                                   :: abbint
+      REAL(KIND=dp), ALLOCATABLE, &
+         DIMENSION(:, :, :, :), INTENT(INOUT)            :: dabbint
       REAL(KIND=dp), DIMENSION(3), INTENT(IN)            :: rab
       TYPE(gto_basis_set_type), POINTER                  :: oba, obb, fbb
       REAL(KIND=dp), DIMENSION(:, :, :), INTENT(IN)      :: scon_oba
@@ -996,11 +1003,11 @@ CONTAINS
                                 calculate_forces)
 
       REAL(KIND=dp), DIMENSION(:, :, :), INTENT(INOUT)   :: abbint
-      REAL(KIND=dp), DIMENSION(:, :, :, :), &
-         INTENT(INOUT)                                   :: dabbint
+      REAL(KIND=dp), ALLOCATABLE, &
+         DIMENSION(:, :, :, :), INTENT(INOUT)            :: dabbint
       REAL(KIND=dp), DIMENSION(:, :, :), INTENT(INOUT)   :: abaint
-      REAL(KIND=dp), DIMENSION(:, :, :, :), &
-         INTENT(INOUT)                                   :: dabdaint
+      REAL(KIND=dp), ALLOCATABLE, &
+         DIMENSION(:, :, :, :), INTENT(INOUT)            :: dabdaint
       REAL(KIND=dp), DIMENSION(3), INTENT(IN)            :: rab
       TYPE(gto_basis_set_type), POINTER                  :: oba, fba
       LOGICAL, INTENT(IN)                                :: calculate_forces
@@ -1139,9 +1146,10 @@ CONTAINS
                                       oba_index, fba_index, cg_coeff, cg_none0_list, &
                                       ncg_none0, Waux_mat, dWaux_mat, calculate_forces, screen)
 
-      REAL(KIND=dp), DIMENSION(:, :, :), INTENT(INOUT)   :: abaint
-      REAL(KIND=dp), DIMENSION(:, :, :, :), &
-         INTENT(INOUT)                                   :: dabdaint
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :), &
+         INTENT(INOUT)                                   :: abaint
+      REAL(KIND=dp), ALLOCATABLE, &
+         DIMENSION(:, :, :, :), INTENT(INOUT)            :: dabdaint
       REAL(KIND=dp), DIMENSION(3), INTENT(IN)            :: rab
       TYPE(gto_basis_set_type), POINTER                  :: oba, obb, fba
       REAL(KIND=dp), DIMENSION(:, :, :), INTENT(IN)      :: scon_obb

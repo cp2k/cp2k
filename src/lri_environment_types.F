@@ -75,23 +75,23 @@ MODULE lri_environment_types
       ! condition number of overlap matrix
       REAL(KIND=dp)                                           :: cond_num
       ! integrals (a,b,ai)
-      REAL(KIND=dp), DIMENSION(:, :, :), POINTER              :: abaint
+      REAL(KIND=dp), DIMENSION(:, :, :), ALLOCATABLE          :: abaint
       REAL(KIND=dp), DIMENSION(:), POINTER                    :: abascr
       ! integrals (a,b,b)
-      REAL(KIND=dp), DIMENSION(:, :, :), POINTER              :: abbint
+      REAL(KIND=dp), DIMENSION(:, :, :), ALLOCATABLE          :: abbint
       REAL(KIND=dp), DIMENSION(:), POINTER                    :: abbscr
       ! integrals (da/dA,b,dai/dA)
-      REAL(KIND=dp), DIMENSION(:, :, :, :), POINTER           :: dabdaint
+      REAL(KIND=dp), DIMENSION(:, :, :, :), ALLOCATABLE       :: dabdaint
       ! integrals (da/dA,b,bi)
-      REAL(KIND=dp), DIMENSION(:, :, :, :), POINTER           :: dabbint
+      REAL(KIND=dp), DIMENSION(:, :, :, :), ALLOCATABLE       :: dabbint
       ! integrals (a,b)
-      REAL(KIND=dp), DIMENSION(:, :), POINTER                 :: soo
+      REAL(KIND=dp), DIMENSION(:, :), ALLOCATABLE             :: soo
       ! derivative d(a,b)/dA
-      REAL(KIND=dp), DIMENSION(:, :, :), POINTER              :: dsoo
+      REAL(KIND=dp), DIMENSION(:, :, :), ALLOCATABLE          :: dsoo
       ! integrals (ai,bi)
-      REAL(KIND=dp), DIMENSION(:, :), POINTER                 :: sab
+      REAL(KIND=dp), DIMENSION(:, :), ALLOCATABLE             :: sab
       ! derivative d(ai,bi)/dA
-      REAL(KIND=dp), DIMENSION(:, :, :), POINTER              :: dsab
+      REAL(KIND=dp), DIMENSION(:, :, :), ALLOCATABLE          :: dsab
       ! inverse of integrals (ai,bi)
       REAL(KIND=dp), DIMENSION(:, :), POINTER                 :: sinv
       ! integral (ai) / (bi), dim(1..nfa,nfa+1..nfa+nfb)
@@ -153,7 +153,7 @@ MODULE lri_environment_types
       ! self overlap orb basis
       REAL(KIND=dp), DIMENSION(:, :), POINTER                 :: orb_ovlp
       ! self overlap (a,a,fa)
-      REAL(KIND=dp), DIMENSION(:, :, :), POINTER              :: ovlp3
+      REAL(KIND=dp), DIMENSION(:, :, :), ALLOCATABLE          :: ovlp3
       ! contraction matrix for SHG integrals ri basis
       REAL(KIND=dp), DIMENSION(:, :, :), POINTER              :: scon_ri
       ! contraction matrix for SHG integrals orb basis
@@ -583,8 +583,6 @@ CONTAINS
          ALLOCATE (lrii%soo(nba, nbb))
          lrii%soo = 0._dp
 
-         NULLIFY (lrii%dsoo, lrii%dsab, lrii%dabbint, lrii%dabdaint)
-
          IF (iatom == jatom .AND. dab < lri_env%delta) THEN
             ALLOCATE (lrii%sinv(nfa, nfa))
          ELSE
@@ -907,7 +905,7 @@ CONTAINS
             IF (ASSOCIATED(lri_env%bas_prop(i)%orb_ovlp)) THEN
                DEALLOCATE (lri_env%bas_prop(i)%orb_ovlp)
             END IF
-            IF (ASSOCIATED(lri_env%bas_prop(i)%ovlp3)) THEN
+            IF (ALLOCATED(lri_env%bas_prop(i)%ovlp3)) THEN
                DEALLOCATE (lri_env%bas_prop(i)%ovlp3)
             END IF
             IF (ASSOCIATED(lri_env%bas_prop(i)%scon_ri)) THEN
@@ -958,34 +956,34 @@ CONTAINS
                      IF (ASSOCIATED(lri_ints%lri_atom(ijkind)%lri_node(iatom)%lri_int)) THEN
                         DO inode = 1, nnode
                            lri_int => lri_ints%lri_atom(ijkind)%lri_node(iatom)%lri_int(inode)
-                           IF (ASSOCIATED(lri_int%sab)) THEN
+                           IF (ALLOCATED(lri_int%sab)) THEN
                               DEALLOCATE (lri_int%sab)
                            END IF
-                           IF (ASSOCIATED(lri_int%soo)) THEN
+                           IF (ALLOCATED(lri_int%soo)) THEN
                               DEALLOCATE (lri_int%soo)
                            END IF
-                           IF (ASSOCIATED(lri_int%abaint)) THEN
+                           IF (ALLOCATED(lri_int%abaint)) THEN
                               DEALLOCATE (lri_int%abaint)
                            END IF
                            IF (ASSOCIATED(lri_int%abascr)) THEN
                               DEALLOCATE (lri_int%abascr)
                            END IF
-                           IF (ASSOCIATED(lri_int%abbint)) THEN
+                           IF (ALLOCATED(lri_int%abbint)) THEN
                               DEALLOCATE (lri_int%abbint)
                            END IF
                            IF (ASSOCIATED(lri_int%abbscr)) THEN
                               DEALLOCATE (lri_int%abbscr)
                            END IF
-                           IF (ASSOCIATED(lri_int%dsab)) THEN
+                           IF (ALLOCATED(lri_int%dsab)) THEN
                               DEALLOCATE (lri_int%dsab)
                            END IF
-                           IF (ASSOCIATED(lri_int%dsoo)) THEN
+                           IF (ALLOCATED(lri_int%dsoo)) THEN
                               DEALLOCATE (lri_int%dsoo)
                            END IF
-                           IF (ASSOCIATED(lri_int%dabbint)) THEN
+                           IF (ALLOCATED(lri_int%dabbint)) THEN
                               DEALLOCATE (lri_int%dabbint)
                            END IF
-                           IF (ASSOCIATED(lri_int%dabdaint)) THEN
+                           IF (ALLOCATED(lri_int%dabdaint)) THEN
                               DEALLOCATE (lri_int%dabdaint)
                            END IF
                            IF (ASSOCIATED(lri_int%sinv)) THEN

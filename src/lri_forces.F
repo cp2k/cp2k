@@ -254,10 +254,10 @@ CONTAINS
                END IF
 
                ! Calculate derivatives of overlap integrals (a,b), (fa,fb), (a,fa,b), (a,b,fb)
-               IF (ASSOCIATED(lrii%dsab)) DEALLOCATE (lrii%dsab)
-               IF (ASSOCIATED(lrii%dsoo)) DEALLOCATE (lrii%dsoo)
-               IF (ASSOCIATED(lrii%dabbint)) DEALLOCATE (lrii%dabbint)
-               IF (ASSOCIATED(lrii%dabdaint)) DEALLOCATE (lrii%dabdaint)
+               IF (ALLOCATED(lrii%dsab)) DEALLOCATE (lrii%dsab)
+               IF (ALLOCATED(lrii%dsoo)) DEALLOCATE (lrii%dsoo)
+               IF (ALLOCATED(lrii%dabbint)) DEALLOCATE (lrii%dabbint)
+               IF (ALLOCATED(lrii%dabdaint)) DEALLOCATE (lrii%dabdaint)
                ALLOCATE (lrii%dsab(nfa, nfb, 3))
                lrii%dsab = 0._dp
                ALLOCATE (lrii%dsoo(nba, nbb, 3))
@@ -362,11 +362,10 @@ CONTAINS
                ENDDO
 
                ! deallocate derivative integrals
-               IF (ASSOCIATED(lrii%dsab)) DEALLOCATE (lrii%dsab)
-               IF (ASSOCIATED(lrii%dsoo)) DEALLOCATE (lrii%dsoo)
-               IF (ASSOCIATED(lrii%dabbint)) DEALLOCATE (lrii%dabbint)
-               IF (ASSOCIATED(lrii%dabdaint)) DEALLOCATE (lrii%dabdaint)
-               NULLIFY (lrii%dsab, lrii%dsoo, lrii%dabbint, lrii%dabdaint)
+               IF (ALLOCATED(lrii%dsab)) DEALLOCATE (lrii%dsab)
+               IF (ALLOCATED(lrii%dsoo)) DEALLOCATE (lrii%dsoo)
+               IF (ALLOCATED(lrii%dabbint)) DEALLOCATE (lrii%dabbint)
+               IF (ALLOCATED(lrii%dabdaint)) DEALLOCATE (lrii%dabdaint)
 
                atom_a = atom_of_kind(iatom)
                atom_b = atom_of_kind(jatom)

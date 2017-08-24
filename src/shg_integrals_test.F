@@ -694,11 +694,11 @@ CONTAINS
       REAL(KIND=dp)                                      :: ddmax_overlap_aba, ddmax_overlap_abb, &
                                                             ddtemp, dmax_overlap_aba, &
                                                             dmax_overlap_abb, dtemp, dummy
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: saba_os, saba_shg, sabb_os, sabb_shg
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :, :)  :: dsaba_os, dsaba_shg, dsabb_os, dsabb_shg
       REAL(KIND=dp), DIMENSION(:), POINTER               :: screen
-      REAL(KIND=dp), DIMENSION(:, :, :), POINTER         :: cg_coeff, saba_os, saba_shg, sabb_os, &
-                                                            sabb_shg
-      REAL(KIND=dp), DIMENSION(:, :, :, :), POINTER      :: dsaba_os, dsaba_shg, dsabb_os, &
-                                                            dsabb_shg, scona_mix, sconb_mix
+      REAL(KIND=dp), DIMENSION(:, :, :), POINTER         :: cg_coeff
+      REAL(KIND=dp), DIMENSION(:, :, :, :), POINTER      :: scona_mix, sconb_mix
 
       CALL section_vals_val_get(shg_integrals_test_section, "TEST_OVERLAP_ABA", &
                                 l_val=test_overlap_aba)
