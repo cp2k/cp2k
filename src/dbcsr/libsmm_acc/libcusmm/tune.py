@@ -9,13 +9,13 @@ from glob import glob
 from itertools import product, chain
 from optparse import OptionParser
 
-from kernels.cusmm_dnt_largeDB  import Kernel_dnt_largeDB
+from kernels.cusmm_dnt_largeDB1 import Kernel_dnt_largeDB1
 from kernels.cusmm_dnt_largeDB2 import Kernel_dnt_largeDB2
 from kernels.cusmm_dnt_medium   import Kernel_dnt_medium
 from kernels.cusmm_dnt_small    import Kernel_dnt_small
 from kernels.cusmm_dnt_tiny     import Kernel_dnt_tiny
 
-ALL_KERNELS = (Kernel_dnt_tiny, Kernel_dnt_small, Kernel_dnt_medium, Kernel_dnt_largeDB, Kernel_dnt_largeDB2,)
+ALL_KERNELS = (Kernel_dnt_tiny, Kernel_dnt_small, Kernel_dnt_medium, Kernel_dnt_largeDB1, Kernel_dnt_largeDB2,)
 
 #===============================================================================
 def main():
@@ -158,22 +158,19 @@ def gen_jobfile(outdir, m, n, k):
     output += "module load daint-gpu\n"
     output += "module unload PrgEnv-cray\n"
     output += "module load PrgEnv-gnu/6.0.3\n"
-    output += "module load cudatoolkit/8.0.44_GA_2.2.7_g4a6c213-2.1\n"
-    output += "module swap gcc/6.2.0 gcc/5.3.0\n"
+    output += "module load cudatoolkit/8.0.54_2.2.8_ga620558-2.1\n"
     output += "module list\n"
     output += "export CRAY_CUDA_MPS=1\n"
     output += "cd $SLURM_SUBMIT_DIR \n"
     output += "\n"
     output += "date\n"
     for exe in all_exe:
-        # output += "aprun -b -n 1 -N 1 -d 8 make -j 16 %s &\n"%exe
-        output += "srun --bcast=/tmp/${USER} --ntasks=1 --ntasks-per-node=1 --cpus-per-task=12 make -j 24 %s &\n"%exe
+        output += "srun --nodes=1 --bcast=/tmp/${USER} --ntasks=1 --ntasks-per-node=1 --cpus-per-task=12 make -j 24 %s &\n"%exe
     output += "wait\n"
     output += "date\n"
     output += "\n"
     for exe in all_exe:
-        # output += "aprun -b -n 1 -N 1 -d 1 ./"+exe+" >"+exe+".log 2>&1 & \n"
-        output += "srun --bcast=/tmp/${USER} --ntasks=1 --ntasks-per-node=1 --cpus-per-task=1 ./"+exe+" >"+exe+".log 2>&1 & \n"
+        output += "srun --nodes=1 --bcast=/tmp/${USER} --ntasks=1 --ntasks-per-node=1 --cpus-per-task=1 ./"+exe+" >"+exe+".log 2>&1 & \n"
     output += "wait\n"
     output += "date\n"
     output += "\n"
@@ -202,7 +199,7 @@ def gen_makefile(outdir):
 
     headers = " ".join( ["."+fn for fn in glob("./kernels/*.h")] )
     output += "%.o : %.cu "+headers+"\n"
-    output += "\tnvcc -O3 -arch=sm_60 -c $<\n\n"
+    output += "\tnvcc -O3 -arch=sm_60 -w -c $<\n\n"
 
     for exe_src in all_exe_src:
         absparts = sorted(glob(outdir+"/"+exe_src.replace("_main.cu", "_part*")))
@@ -211,7 +208,7 @@ def gen_makefile(outdir):
         deps_obj = " ".join([fn.replace(".cu", ".o") for fn in deps])
         exe = exe_src.replace("_main.cu", "")
         output += exe + " : " + deps_obj +"\n"
-        output += "\tnvcc -O3 -arch=sm_60 -o $@ $^\n\n"
+        output += "\tnvcc -O3 -arch=sm_60 -w -o $@ $^\n\n"
 
     writefile(outdir+"/Makefile", output)
 

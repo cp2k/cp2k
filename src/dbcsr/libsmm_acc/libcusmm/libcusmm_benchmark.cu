@@ -23,6 +23,10 @@ void libcusmm_benchmark_init(libcusmm_benchmark_t** handle, bool tune_mode,
        h->n_b = 10000;
        h->n_c = 1000;
        h->n_stack = 16005;
+//       h->n_a = 100;
+//       h->n_b = 100;
+//       h->n_c = 10;
+//       h->n_stack = 18;
     }else{
        h->n_a = 100;
        h->n_b = 100;
@@ -37,12 +41,12 @@ void libcusmm_benchmark_init(libcusmm_benchmark_t** handle, bool tune_mode,
     h->mat_a = (double*) malloc(h->n_a * max_m * max_k * sizeof(double));
     h->mat_b = (double*) malloc(h->n_b * max_k * max_n * sizeof(double));
     h->mat_c = (double*) malloc(h->n_c * max_m * max_n * sizeof(double));
-    h->stack = (int*) malloc(h->n_stack * 7 * sizeof(int));
+    h->stack = (int*) malloc(h->n_stack * 3 * sizeof(int));
 
     cudaMalloc(&h->d_mat_a, h->n_a * max_m * max_k * sizeof(double));
     cudaMalloc(&h->d_mat_b, h->n_b * max_k * max_n * sizeof(double));
     cudaMalloc(&h->d_mat_c, h->n_c * max_m * max_n * sizeof(double));
-    cudaMalloc(&h->d_stack, h->n_stack * 7 * sizeof(int));
+    cudaMalloc(&h->d_stack, h->n_stack * 3 * sizeof(int));
 
     cudaEventCreate(&h->t_start);
     cudaEventCreate(&h->t_stop);
@@ -107,7 +111,7 @@ static void stackInit(int *stack, int n_stack, int n_c, double* mat_c,
     exit(1);
   }
 
-  // on average, we have n_avg matrix prodcuts contributing to a result mat_c
+  // on average, we have n_avg matrix products contributing to a result mat_c
   int n_avg = n_stack / n_c;
 
   int n_imbalance = max(1, n_avg-4);
@@ -127,13 +131,9 @@ static void stackInit(int *stack, int n_stack, int n_c, double* mat_c,
      int a = rand() % n_a;
      int b = rand() % n_b;
 
-     *s++ =  mat_m;                        // matrix size m
-     *s++ =  mat_n;                        // matrix size n
-     *s++ =  mat_k;                        // matrix size k
-     *s++ =  a * mat_m * mat_k + 1;        // factor 1
-     *s++ =  b * mat_k * mat_n + 1;        // factor 2
-     *s++ =  c * mat_m * mat_n + 1;        // result
-     *s++ =  c * mat_m * mat_n + 1;        // just an identifier..
+     *s++ =  a * mat_m * mat_k + 1;        // A_src
+     *s++ =  b * mat_k * mat_n + 1;        // B_src
+     *s++ =  c * mat_m * mat_n + 1;        // C_dst
     }
     c++;
  }
@@ -145,9 +145,9 @@ static void stackCalc(int* stack, int n_stack, double* mat_c, double *mat_a, dou
                int mat_m, int mat_n, int mat_k){
 
   for(int s=0; s<n_stack; s++){
-     int a_base = stack[7*s + 3]-1;
-     int b_base = stack[7*s + 4]-1;
-     int c_base = stack[7*s + 5]-1;
+     int a_base = stack[3 * s    ] - 1;
+     int b_base = stack[3 * s + 1] - 1;
+     int c_base = stack[3 * s + 2] - 1;
 
      for(int n=0; n<mat_n; n++){
        for(int m=0; m<mat_m; m++){
@@ -209,8 +209,12 @@ int libcusmm_benchmark(libcusmm_benchmark_t* h,
  }
 
  int n_iter = 1;
- if(h->tune_mode) // for larger matrices few iteration give enough statistics
-     n_iter = max(3, 1250/(mat_m * mat_n * mat_k));
+ int n_warm = 1;
+ if(h->tune_mode){ // for larger matrices few iteration give enough statistics
+//     n_iter = max(3, 1250/(mat_m * mat_n * mat_k));
+     n_iter = max(3, 12500/(mat_m * mat_n * mat_k));
+     n_warm = min(3, n_iter);
+ }
 
  const int stream = 0;
 
@@ -240,12 +244,13 @@ int libcusmm_benchmark(libcusmm_benchmark_t* h,
 
  cudaMemcpy(h->d_mat_a, h->mat_a, h->n_a * mat_m * mat_k * sizeof(double), cudaMemcpyHostToDevice);
  cudaMemcpy(h->d_mat_b, h->mat_b, h->n_b * mat_k * mat_n * sizeof(double), cudaMemcpyHostToDevice);
- cudaMemcpy(h->d_stack, h->stack, h->n_stack * 7 * sizeof(int), cudaMemcpyHostToDevice);
+ cudaMemcpy(h->d_stack, h->stack, h->n_stack * 3 * sizeof(int), cudaMemcpyHostToDevice);
  //d_mat_c get's zeroed after warmup run
 
  for(int ikern=0; ikern < nkernels; ikern++){
-    //warmup run
-    launchers[ikern](h->d_stack, h->n_stack, stream, mat_m, mat_n, mat_k, h->d_mat_a, h->d_mat_b, h->d_mat_c);
+    //warmup run (more often if n_iter is small)
+    for(int i=0; i<n_warm; i++)
+        launchers[ikern](h->d_stack, h->n_stack, stream, mat_m, mat_n, mat_k, h->d_mat_a, h->d_mat_b, h->d_mat_c);
     cudaMemset(h->d_mat_c, stream, h->n_c * mat_m * mat_n * sizeof(double));
 
     cudaEventRecord(h->t_start, stream);

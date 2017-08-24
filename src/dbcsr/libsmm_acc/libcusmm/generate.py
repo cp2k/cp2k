@@ -8,7 +8,7 @@ from glob import glob
 from itertools import chain
 from optparse import OptionParser
 
-from kernels.cusmm_dnt_largeDB  import Kernel_dnt_largeDB
+from kernels.cusmm_dnt_largeDB1 import Kernel_dnt_largeDB1
 from kernels.cusmm_dnt_largeDB2 import Kernel_dnt_largeDB2
 from kernels.cusmm_dnt_medium   import Kernel_dnt_medium
 from kernels.cusmm_dnt_small    import Kernel_dnt_small
@@ -34,6 +34,7 @@ def main(argv):
     #triples += combinations(12,25)
     #triples += combinations(9,12)
     #triples += combinations(5,13,16,32)
+    triples += combinations(6,7,8)
 
     usage = "Generator of LibCuSMM. The Library for Cuda Small Matrix Multiplications."
     parser = OptionParser(usage)
@@ -65,8 +66,8 @@ def make_plan(triples, param_fn):
             plan[(m,n,k)] = possible_kernels[0]
         elif(len(possible_kernels) > 1):
             raise(Exception("found more than one kernel for %dx%dx%d"%(m,n,k)))
-        else:
-            raise(Exception("missing kernel parameters for %dx%dx%d"%(m,n,k)))
+#        else:
+#            raise(Exception("missing kernel parameters for %dx%dx%d"%(m,n,k)))
 
     return(plan)
 

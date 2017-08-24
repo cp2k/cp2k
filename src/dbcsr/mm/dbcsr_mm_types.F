@@ -23,6 +23,7 @@ MODULE dbcsr_mm_types
 
    ! Definitions for the members of a parameter stack.
    INTEGER, PARAMETER, PUBLIC :: dbcsr_ps_width = 7
+   INTEGER, PARAMETER, PUBLIC :: dbcsr_ps_acc_width = 3
    INTEGER, PARAMETER, PUBLIC :: p_m = 1
    INTEGER, PARAMETER, PUBLIC :: p_n = 2
    INTEGER, PARAMETER, PUBLIC :: p_k = 3

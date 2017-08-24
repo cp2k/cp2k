@@ -55,6 +55,7 @@ MODULE dbcsr_mm_accdrv
                                               dbcsr_mempool_limit_capacity,&
                                               dbcsr_memtype_setup
    USE dbcsr_mm_types,                  ONLY: dbcsr_ps_width,&
+                                              dbcsr_ps_acc_width,&
                                               stack_descriptor_type
    USE dbcsr_toollib,                   ONLY: sort
    USE dbcsr_types,                     ONLY: dbcsr_data_area_type,&
@@ -349,7 +350,7 @@ CONTAINS
 !$OMP        CRITICAL(crit_setup_stackbuffers)
          DO i = 1, my_total_buffers
             CALL acc_devmem_allocate_bytes(thread_privates%stack_buffers(i)%devmem, &
-                                           int_4_size*dbcsr_ps_width*dbcsr_cfg%mm_stack_size)
+                                           int_4_size*dbcsr_ps_acc_width*dbcsr_cfg%mm_stack_size)
             IF (i <= my_priority_buffers) THEN
                curr_priority_stream = MOD(curr_priority_stream, SIZE(priority_streams))+1
                thread_privates%stack_buffers(i)%stream = priority_streams(curr_priority_stream)
@@ -358,7 +359,7 @@ CONTAINS
                thread_privates%stack_buffers(i)%stream = posterior_streams(curr_posterior_stream)
             ENDIF
             CALL acc_hostmem_allocate(thread_privates%stack_buffers(i)%hostmem, &
-                                      dbcsr_ps_width, dbcsr_cfg%mm_stack_size, thread_privates%stack_buffers(i)%stream)
+                                      dbcsr_ps_acc_width, dbcsr_cfg%mm_stack_size, thread_privates%stack_buffers(i)%stream)
             CALL acc_event_create(thread_privates%stack_buffers(i)%ready)
             CALL acc_event_create(thread_privates%stack_buffers(i)%calculated)
          END DO
@@ -436,7 +437,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE stack_sort(params_in, params_out, stack_size)
       INTEGER, INTENT(IN)                                :: stack_size
-      INTEGER, DIMENSION(dbcsr_ps_width, stack_size), &
+      INTEGER, DIMENSION(dbcsr_ps_acc_width, stack_size), &
          INTENT(OUT)                                     :: params_out
       INTEGER, DIMENSION(dbcsr_ps_width, stack_size), &
          INTENT(IN)                                      :: params_in
@@ -449,7 +450,7 @@ CONTAINS
       c_sort = params_in(6, :stack_size)
       CALL sort(c_sort, stack_size, c_sort_ind)
       DO i = 1, stack_size
-         params_out(:, i) = params_in(:, c_sort_ind(i))
+         params_out(1:3, i) = params_in(4:6, c_sort_ind(i))
       END DO
 
    END SUBROUTINE stack_sort
@@ -464,34 +465,34 @@ CONTAINS
    SUBROUTINE stack_binning(params_in, params_out, stack_size)
       INTEGER, INTENT(IN)                                :: stack_size
       INTEGER, DIMENSION(dbcsr_ps_width, stack_size), &
-         INTENT(OUT)                                     :: params_out
-      INTEGER, DIMENSION(dbcsr_ps_width, stack_size), &
          INTENT(IN)                                      :: params_in
+      INTEGER, DIMENSION(dbcsr_ps_acc_width, stack_size), &
+         INTENT(OUT)                                     :: params_out
 
       INTEGER                                            :: bin_id, i, top
       INTEGER, DIMENSION(dbcsr_cfg%accdrv_binning_nbins) :: bin_top
-      INTEGER, DIMENSION(dbcsr_ps_width)                 :: val
-      INTEGER, DIMENSION(dbcsr_ps_width, dbcsr_cfg%&
+      INTEGER, DIMENSION(dbcsr_ps_acc_width)             :: val
+      INTEGER, DIMENSION(dbcsr_ps_acc_width, dbcsr_cfg%&
          accdrv_binning_binsize, dbcsr_cfg%&
          accdrv_binning_nbins)                           :: bin_arr
 
       bin_top = 1
       top = 1
       DO i = 1, stack_size
-         val(:) = params_in(:, i)
-         bin_id = 1+INT(MODULO(INT(val(6)*(val(6)+3), KIND=int_8), &
+         val(1:3) = params_in(4:6, i)
+         bin_id = 1+INT(MODULO(INT(val(3)*(val(3)+3), KIND=int_8), &
                                INT(dbcsr_cfg%accdrv_binning_nbins, KIND=int_8)))
          IF (bin_top(bin_id) > dbcsr_cfg%accdrv_binning_binsize) THEN
-            params_out(:, top:top+bin_top(bin_id)-2) = bin_arr(:, 1:bin_top(bin_id)-1, bin_id)
+            params_out(1:3, top:top+bin_top(bin_id)-2) = bin_arr(1:3, 1:bin_top(bin_id)-1, bin_id)
             top = top+bin_top(bin_id)-1
             bin_top(bin_id) = 1
          ENDIF
-         bin_arr(:, bin_top(bin_id), bin_id) = val(:)
+         bin_arr(1:3, bin_top(bin_id), bin_id) = val(1:3)
          bin_top(bin_id) = bin_top(bin_id)+1
       END DO
       DO i = 1, dbcsr_cfg%accdrv_binning_nbins
          IF (bin_top(i) > 1) THEN
-            params_out(:, top:top+bin_top(i)-2) = bin_arr(:, 1:bin_top(i)-1, i)
+            params_out(1:3, top:top+bin_top(i)-2) = bin_arr(1:3, 1:bin_top(i)-1, i)
             top = top+bin_top(i)-1
          ENDIF
       END DO
