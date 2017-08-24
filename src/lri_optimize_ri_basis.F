@@ -57,7 +57,8 @@ MODULE lri_optimize_ri_basis
    USE powell,                          ONLY: opt_state_type,&
                                               powell_optimize
    USE qs_environment_types,            ONLY: get_qs_env,&
-                                              qs_environment_type
+                                              qs_environment_type,&
+                                              set_qs_env
    USE qs_neighbor_list_types,          ONLY: get_iterator_info,&
                                               neighbor_list_iterate,&
                                               neighbor_list_iterator_create,&
@@ -143,6 +144,8 @@ CONTAINS
             CALL calc_lri_integrals_get_objective(lri_env, lri_density, qs_env, &
                                                   lri_opt, opt_state, pmatrix, para_env, &
                                                   nkind)
+            ! lri_density has been re-initialized!
+            CALL set_qs_env(qs_env, lri_density=lri_density)
          ENDIF
 
          IF (opt_state%state == -1) EXIT

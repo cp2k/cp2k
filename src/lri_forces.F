@@ -380,12 +380,17 @@ CONTAINS
                DO k = 1, 3
                   force_a(k) = 2.0_dp*SUM(davec(1:nfa, k)*v_inta(1:nfa)) &
                                +2.0_dp*SUM(davec(nfa+1:nn, k)*v_intb(1:nfb))
-                  v_dadra(k) = v_dadra(k)+force_a(k)
                   !minus: using that davec/dRa = - davec/dRb
                   force_b(k) = -2.0_dp*SUM(davec(nfa+1:nn, k)*v_intb(1:nfb)) &
                                -2.0_dp*SUM(davec(1:nfa, k)*v_inta(1:nfa))
+               ENDDO
+
+!$OMP CRITICAL(addforces)
+               DO k = 1, 3
+                  v_dadra(k) = v_dadra(k)+force_a(k)
                   v_dadrb(k) = v_dadrb(k)+force_b(k)
                ENDDO
+!$OMP END CRITICAL(addforces)
 
                ! contribution to virial
                IF (use_virial) THEN

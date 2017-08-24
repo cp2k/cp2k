@@ -139,10 +139,12 @@ CONTAINS
             END IF
 
             NULLIFY (h_block)
+!$OMP CRITICAL(gethamiltonian)
             CALL dbcsr_get_block_p(h_matrix, row, col, h_block, found)
             IF (.NOT. ASSOCIATED(h_block)) THEN
                CALL dbcsr_add_block_node(h_matrix, row, col, h_block)
             END IF
+!$OMP END CRITICAL(gethamiltonian)
 
             atom_a = atom_of_kind(iatom)
             atom_b = atom_of_kind(jatom)
