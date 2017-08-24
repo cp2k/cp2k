@@ -54,8 +54,8 @@ MODULE dbcsr_mm_accdrv
    USE dbcsr_mem_methods,               ONLY: dbcsr_mempool_destruct,&
                                               dbcsr_mempool_limit_capacity,&
                                               dbcsr_memtype_setup
-   USE dbcsr_mm_types,                  ONLY: dbcsr_ps_width,&
-                                              dbcsr_ps_acc_width,&
+   USE dbcsr_mm_types,                  ONLY: dbcsr_ps_acc_width,&
+                                              dbcsr_ps_width,&
                                               stack_descriptor_type
    USE dbcsr_toollib,                   ONLY: sort
    USE dbcsr_types,                     ONLY: dbcsr_data_area_type,&
@@ -437,7 +437,8 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE stack_sort(params_in, params_out, stack_size)
       INTEGER, INTENT(IN)                                :: stack_size
-      INTEGER, DIMENSION(dbcsr_ps_acc_width, stack_size), &
+      INTEGER, &
+         DIMENSION(dbcsr_ps_acc_width, stack_size), &
          INTENT(OUT)                                     :: params_out
       INTEGER, DIMENSION(dbcsr_ps_width, stack_size), &
          INTENT(IN)                                      :: params_in
@@ -464,10 +465,11 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE stack_binning(params_in, params_out, stack_size)
       INTEGER, INTENT(IN)                                :: stack_size
+      INTEGER, &
+         DIMENSION(dbcsr_ps_acc_width, stack_size), &
+         INTENT(OUT)                                     :: params_out
       INTEGER, DIMENSION(dbcsr_ps_width, stack_size), &
          INTENT(IN)                                      :: params_in
-      INTEGER, DIMENSION(dbcsr_ps_acc_width, stack_size), &
-         INTENT(OUT)                                     :: params_out
 
       INTEGER                                            :: bin_id, i, top
       INTEGER, DIMENSION(dbcsr_cfg%accdrv_binning_nbins) :: bin_top
