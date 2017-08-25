@@ -36,7 +36,7 @@ MODULE eri_mme_test
 
 CONTAINS
 ! **************************************************************************************************
-!> \brief Unit test for performance and accuracy (orthorhombic cell only)
+!> \brief Unit test for performance and accuracy
 !> \param param ...
 !> \param l_max ...
 !> \param zet ...
@@ -49,7 +49,7 @@ CONTAINS
 !> \param R_count ...
 ! **************************************************************************************************
    SUBROUTINE eri_mme_2c_perf_acc_test(param, l_max, zet, rabc, nrep, test_accuracy, para_env, iw, G_count, R_count)
-      TYPE(eri_mme_param), INTENT(INOUT)                 :: param
+      TYPE(eri_mme_param), INTENT(IN)                    :: param
       INTEGER, INTENT(IN)                                :: l_max
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:), &
          INTENT(IN)                                      :: zet
@@ -141,7 +141,12 @@ CONTAINS
             WRITE (iw, '(/T2, A, 47X, ES9.2)') "ERI_MME| Maximum error:", &
                MAXVAL(I_diff)
 
-            acc_check = param%err_mm+param%err_c .GE. MAXVAL(I_diff)
+            IF (param%is_ortho) THEN
+               acc_check = param%err_mm+param%err_c .GE. MAXVAL(I_diff)
+            ELSE
+               acc_check = .TRUE.
+            ENDIF
+
             IF (.NOT. acc_check) &
                CPABORT("Actual error greater than upper bound estimate.")
 
@@ -165,7 +170,7 @@ CONTAINS
 !> \param RR_count ...
 ! **************************************************************************************************
    SUBROUTINE eri_mme_3c_perf_acc_test(param, l_max, zet, rabc, nrep, nsample, para_env, iw, GG_count, GR_count, RR_count)
-      TYPE(eri_mme_param), INTENT(INOUT)                 :: param
+      TYPE(eri_mme_param), INTENT(IN)                    :: param
       INTEGER, INTENT(IN)                                :: l_max
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:), &
          INTENT(IN)                                      :: zet
@@ -292,6 +297,8 @@ CONTAINS
       ALLOCATE (H_prod_ref(0:l_max, 0:m_max))
       ALLOCATE (H_prod_test(0:l_max, 0:m_max))
 
+      ALLOCATE (E_C(-1:l_max+m_max+1, -1:l_max, -1:m_max))
+      ALLOCATE (E_H(-1:l_max+m_max+1, -1:l_max, -1:m_max))
       CALL create_gaussian_overlap_dist_to_hermite(l_max, m_max, zeta, zetb, R1, R2, 1, E_C)
       CALL create_gaussian_overlap_dist_to_hermite(l_max, m_max, zeta, zetb, R1, R2, 2, E_H)
       CALL create_hermite_to_cartesian(zetp, l_max+m_max, h_to_c_ol)
@@ -309,9 +316,9 @@ CONTAINS
          C2(m) = (r-R2)**m*EXP(-zetb*(r-R2)**2)
       ENDDO
 
-      H1(:) = MATMUL(TRANSPOSE(h_to_c_1), C1)
-      H2(:) = MATMUL(TRANSPOSE(h_to_c_2), C2)
-      H_ol(:) = MATMUL(TRANSPOSE(h_to_c_ol), C_ol)
+      H1(:) = MATMUL(TRANSPOSE(h_to_c_1(0:, 0:)), C1)
+      H2(:) = MATMUL(TRANSPOSE(h_to_c_2(0:, 0:)), C2)
+      H_ol(:) = MATMUL(TRANSPOSE(h_to_c_ol(0:, 0:)), C_ol)
 
       DO m = 0, m_max
          DO l = 0, l_max

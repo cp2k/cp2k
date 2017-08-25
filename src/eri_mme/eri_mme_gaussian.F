@@ -24,10 +24,11 @@ MODULE eri_mme_gaussian
 
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'eri_mme_gaussian'
 
-   PUBLIC :: create_hermite_to_cartesian, &
-             hermite_gauss_norm, &
-             get_minimax_coeff_v_gspace, &
-             create_gaussian_overlap_dist_to_hermite
+   PUBLIC :: &
+      create_gaussian_overlap_dist_to_hermite, &
+      create_hermite_to_cartesian, &
+      get_minimax_coeff_v_gspace, &
+      hermite_gauss_norm
 
 CONTAINS
 
@@ -47,19 +48,15 @@ CONTAINS
          INTENT(OUT)                                     :: h_to_c
 
       INTEGER                                            :: k, l
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: tmp
 
-      ALLOCATE (tmp(-1:l_max+1, 0:l_max))
-      tmp(:, :) = 0.0_dp
-      tmp(0, 0) = 1.0_dp
+      ALLOCATE (h_to_c(-1:l_max+1, 0:l_max))
+      h_to_c(:, :) = 0.0_dp
+      h_to_c(0, 0) = 1.0_dp
       DO l = 0, l_max-1
          DO k = 0, l+1
-            tmp(k, l+1) = -(k+1)*tmp(k+1, l)+2.0_dp*zet*tmp(k-1, l)
+            h_to_c(k, l+1) = -(k+1)*h_to_c(k+1, l)+2.0_dp*zet*h_to_c(k-1, l)
          ENDDO
       ENDDO
-
-      ALLOCATE (h_to_c(0:l_max, 0:l_max))
-      h_to_c(:, :) = tmp(0:l_max, 0:l_max)
 
    END SUBROUTINE create_hermite_to_cartesian
 
@@ -89,9 +86,8 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE get_minimax_coeff_v_gspace(n_minimax, cutoff, G_min, minimax_aw, err_minimax)
       INTEGER, INTENT(IN)                                :: n_minimax
-      REAL(KIND=dp), INTENT(INOUT)                       :: cutoff
-      REAL(KIND=dp), INTENT(IN)                          :: G_min
-      REAL(KIND=dp), DIMENSION(:), INTENT(INOUT)         :: minimax_aw
+      REAL(KIND=dp), INTENT(IN)                          :: cutoff, G_min
+      REAL(KIND=dp), DIMENSION(:), INTENT(OUT)           :: minimax_aw
       REAL(KIND=dp), INTENT(OUT), OPTIONAL               :: err_minimax
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'get_minimax_coeff_v_gspace', &
@@ -138,29 +134,32 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: l, m
       REAL(KIND=dp), INTENT(IN)                          :: a, b, R1, R2
       INTEGER, INTENT(IN)                                :: H_or_C_product
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :), &
+      REAL(KIND=dp), DIMENSION(-1:l+m+1, -1:l, -1:m), &
          INTENT(OUT)                                     :: E
 
       INTEGER                                            :: ll, mm, t
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: tmp
+      REAL(KIND=dp)                                      :: c1, c2, c3
 
-      ALLOCATE (tmp(-1:l+m+1, -1:l, -1:m))
-      tmp(:, :, :) = 0.0_dp
-      tmp(0, 0, 0) = EXP(-a*b/(a+b)*(R1-R2)**2)
+      E(:, :, :) = 0.0_dp
+      E(0, 0, 0) = EXP(-a*b/(a+b)*(R1-R2)**2) ! cost: exp_w flops
+
+      c1 = 0.5_dp/(a+b)
+      c2 = (b/(a+b))*(R2-R1)
+      c3 = (a/(a+b))*(R1-R2)
 
       IF (H_or_C_product .EQ. 1) THEN ! Cartesian overlap dist
          DO mm = 0, m
             DO ll = 0, l
                DO t = 0, ll+mm+1
                   IF (ll .LT. l) THEN
-                     tmp(t, ll+1, mm) = 0.5_dp/(a+b)*tmp(t-1, ll, mm)+ &
-                                        (b/(a+b))*(R2-R1)*tmp(t, ll, mm)+ &
-                                        (t+1)*tmp(t+1, ll, mm)
+                     E(t, ll+1, mm) = c1*E(t-1, ll, mm)+ & ! cost: 8 flops
+                                      c2*E(t, ll, mm)+ &
+                                      (t+1)*E(t+1, ll, mm)
                   ENDIF
                   IF (mm .LT. m) THEN
-                     tmp(t, ll, mm+1) = 0.5_dp/(a+b)*tmp(t-1, ll, mm)+ &
-                                        (a/(a+b))*(R1-R2)*tmp(t, ll, mm)+ &
-                                        (t+1)*tmp(t+1, ll, mm)
+                     E(t, ll, mm+1) = c1*E(t-1, ll, mm)+ & ! cost: 8 flops
+                                      c3*E(t, ll, mm)+ &
+                                      (t+1)*E(t+1, ll, mm)
                   ENDIF
                ENDDO
             ENDDO
@@ -170,26 +169,22 @@ CONTAINS
             DO ll = 0, l
                DO t = 0, ll+mm+1
                   IF (ll .LT. l) THEN
-                     tmp(t, ll+1, mm) = a*(1.0_dp/(a+b)*tmp(t-1, ll, mm)+ &
-                                           2.0_dp*b/(a+b)*(R2-R1)*tmp(t, ll, mm)+ &
-                                           2.0_dp*(t+1)*tmp(t+1, ll, mm)- &
-                                           2.0_dp*ll*tmp(t, ll-1, mm))
+                     E(t, ll+1, mm) = a*(2*c1*E(t-1, ll, mm)+ & ! cost: 16 flops
+                                         2*c2*E(t, ll, mm)+ &
+                                         2*(t+1)*E(t+1, ll, mm)- &
+                                         2*ll*E(t, ll-1, mm))
                   ENDIF
                   IF (mm .LT. m) THEN
-                     tmp(t, ll, mm+1) = b*(1.0_dp/(a+b)*tmp(t-1, ll, mm)+ &
-                                           2.0_dp*a/(a+b)*(R1-R2)*tmp(t, ll, mm)+ &
-                                           2.0_dp*(t+1)*tmp(t+1, ll, mm)- &
-                                           2.0_dp*mm*tmp(t, ll, mm-1))
+                     E(t, ll, mm+1) = b*(2*c1*E(t-1, ll, mm)+ & ! cost: 16 flops
+                                         2*c3*E(t, ll, mm)+ &
+                                         2*(t+1)*E(t+1, ll, mm)- &
+                                         2*mm*E(t, ll, mm-1))
 
                   ENDIF
                ENDDO
             ENDDO
          ENDDO
-
       ENDIF
-
-      ALLOCATE (E(0:l+m, 0:l, 0:m))
-      E(:, :, :) = tmp(0:l+m, 0:l, 0:m)
 
    END SUBROUTINE create_gaussian_overlap_dist_to_hermite
 

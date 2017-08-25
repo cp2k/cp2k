@@ -56,8 +56,10 @@ MODULE eri_mme_types
       LOGICAL                          :: is_valid
       LOGICAL                          :: debug
       REAL(KIND=dp)                    :: debug_delta
+      INTEGER                          :: debug_nsum
       REAL(KIND=dp)                    :: C_mm
       INTEGER                          :: unit_nr
+      REAL(KIND=dp)                    :: sum_precision
    END TYPE eri_mme_param
 
 CONTAINS
@@ -72,23 +74,25 @@ CONTAINS
 !> \param cutoff_max ...
 !> \param cutoff_eps ...
 !> \param cutoff_delta ...
+!> \param sum_precision ...
 !> \param debug ...
 !> \param debug_delta ...
+!> \param debug_nsum ...
 !> \param unit_nr ...
 !> \param print_calib ...
 ! **************************************************************************************************
    SUBROUTINE eri_mme_init(param, n_minimax, cutoff, do_calib_cutoff, &
-                           cutoff_min, cutoff_max, cutoff_eps, cutoff_delta, &
-                           debug, debug_delta, unit_nr, print_calib)
-      TYPE(eri_mme_param), INTENT(INOUT)                 :: param
+                           cutoff_min, cutoff_max, cutoff_eps, cutoff_delta, sum_precision, &
+                           debug, debug_delta, debug_nsum, unit_nr, print_calib)
+      TYPE(eri_mme_param), INTENT(OUT)                   :: param
       INTEGER, INTENT(IN)                                :: n_minimax
       REAL(KIND=dp), INTENT(IN)                          :: cutoff
       LOGICAL, INTENT(IN)                                :: do_calib_cutoff
       REAL(KIND=dp), INTENT(IN)                          :: cutoff_min, cutoff_max, cutoff_eps, &
-                                                            cutoff_delta
+                                                            cutoff_delta, sum_precision
       LOGICAL, INTENT(IN)                                :: debug
       REAL(KIND=dp), INTENT(IN)                          :: debug_delta
-      INTEGER, INTENT(IN)                                :: unit_nr
+      INTEGER, INTENT(IN)                                :: debug_nsum, unit_nr
       LOGICAL, INTENT(IN)                                :: print_calib
 
       CHARACTER(len=2)                                   :: string
@@ -104,8 +108,10 @@ CONTAINS
       param%cutoff_max = cutoff_max
       param%cutoff_eps = cutoff_eps
       param%cutoff_delta = cutoff_delta
+      param%sum_precision = sum_precision
       param%debug = debug
       param%debug_delta = debug_delta
+      param%debug_nsum = debug_nsum
       param%print_calib = print_calib
       param%unit_nr = unit_nr
 
@@ -152,7 +158,7 @@ CONTAINS
 
       CPASSERT(SIZE(zet_err_cutoff) .EQ. SIZE(l_err_cutoff))
 
-      CALL init_orbital_pointers(2*l_max) ! allow for orbital pointers of combined index
+      CALL init_orbital_pointers(3*l_max) ! allow for orbital pointers of combined index
 
       ! l values for minimax error estimate (l_mm) and for cutoff error estimate (l_c)
       l_mm = MERGE(0, 1, s_only)
@@ -188,6 +194,9 @@ CONTAINS
          CALL cutoff_minimax_error(param%cutoff, param%hmat, param%h_inv, param%vol, param%G_min, &
                                    zet_err_minimax, l_mm, zet_err_cutoff, l_c, param%n_minimax, &
                                    param%minimax_aw, param%err_mm, param%err_c, param%C_mm, para_env)
+      ELSE
+         param%err_mm = -1.0_dp
+         param%err_c = -1.0_dp
       ENDIF
 
       CALL get_minimax_coeff_v_gspace(param%n_minimax, param%cutoff, param%G_min, param%minimax_aw, &

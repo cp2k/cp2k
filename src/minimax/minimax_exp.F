@@ -124,7 +124,7 @@ CONTAINS
    SUBROUTINE get_exp_minimax_coeff(k, Rc, aw, mm_error, which_coeffs)
       INTEGER, INTENT(IN)                                :: k
       REAL(KIND=dp), INTENT(IN)                          :: Rc
-      REAL(KIND=dp), DIMENSION(2*k), INTENT(INOUT)       :: aw
+      REAL(KIND=dp), DIMENSION(2*k), INTENT(OUT)         :: aw
       REAL(KIND=dp), INTENT(OUT), OPTIONAL               :: mm_error
       INTEGER, INTENT(OUT), OPTIONAL                     :: which_coeffs
 
@@ -160,7 +160,7 @@ CONTAINS
    SUBROUTINE get_minimax_coeff_k53(k, Rc, aw, mm_error)
       INTEGER, INTENT(IN)                                :: k
       REAL(KIND=dp), INTENT(IN)                          :: Rc
-      REAL(KIND=dp), DIMENSION(2*k), INTENT(INOUT)       :: aw
+      REAL(KIND=dp), DIMENSION(2*k), INTENT(OUT)         :: aw
       REAL(KIND=dp), INTENT(OUT), OPTIONAL               :: mm_error
 
       INTEGER                                            :: i_mm
@@ -183,7 +183,7 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: k
       REAL(KIND=dp), INTENT(IN)                          :: Rc
       INTEGER, INTENT(OUT)                               :: i_mm
-      LOGICAL, OPTIONAL                                  :: ge_Rc
+      LOGICAL, INTENT(IN), OPTIONAL                      :: ge_Rc
 
       INTEGER                                            :: i, i_k, i_l, i_r
       REAL(KIND=dp)                                      :: error_l, error_r, R_k_max, R_k_min

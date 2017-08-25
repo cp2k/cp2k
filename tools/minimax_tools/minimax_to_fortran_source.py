@@ -206,7 +206,7 @@ out.write(']\n\n')
 out.write('CONTAINS\n\n')
 out.write('SUBROUTINE get_minimax_coeff_low(i, aw)\n')
 out.write('INTEGER, INTENT(IN) :: i\n')
-out.write('REAL(KIND=dp), DIMENSION(k_mm(i)*2), INTENT(INOUT) :: aw\n\n')
+out.write('REAL(KIND=dp), DIMENSION(k_mm(i)*2), INTENT(OUT) :: aw\n\n')
 
 out.write('SELECT CASE(i)\n\n')
 for i, (kk, RR, EE, CC) in enumerate(zip(k, Rc, err, coeff_file)):

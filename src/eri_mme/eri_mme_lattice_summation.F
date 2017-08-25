@@ -15,11 +15,13 @@ MODULE eri_mme_lattice_summation
    USE ao_util,                         ONLY: exp_radius
    USE eri_mme_gaussian,                ONLY: create_gaussian_overlap_dist_to_hermite,&
                                               create_hermite_to_cartesian
-   USE kinds,                           ONLY: dp
+   USE kinds,                           ONLY: dp,&
+                                              int_8
    USE mathconstants,                   ONLY: gaussi,&
                                               pi,&
                                               twopi
    USE orbital_pointers,                ONLY: coset,&
+                                              indco,&
                                               ncoset
 #include "../base/base_uses.f90"
 
@@ -31,28 +33,333 @@ MODULE eri_mme_lattice_summation
 
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'eri_mme_lattice_summation'
 
-   ! array storing some powers of imaginary unit (in lack of a more elegant way)
-   COMPLEX(KIND=dp), DIMENSION(0:23), PARAMETER :: &
-      i_pow = [(1.0_dp, 0.0_dp), (0.0_dp, 1.0_dp), (-1.0_dp, 0.0_dp), (0.0_dp, -1.0_dp), &
-               (1.0_dp, 0.0_dp), (0.0_dp, 1.0_dp), (-1.0_dp, 0.0_dp), (0.0_dp, -1.0_dp), &
-               (1.0_dp, 0.0_dp), (0.0_dp, 1.0_dp), (-1.0_dp, 0.0_dp), (0.0_dp, -1.0_dp), &
-               (1.0_dp, 0.0_dp), (0.0_dp, 1.0_dp), (-1.0_dp, 0.0_dp), (0.0_dp, -1.0_dp), &
-               (1.0_dp, 0.0_dp), (0.0_dp, 1.0_dp), (-1.0_dp, 0.0_dp), (0.0_dp, -1.0_dp), &
-               (1.0_dp, 0.0_dp), (0.0_dp, 1.0_dp), (-1.0_dp, 0.0_dp), (0.0_dp, -1.0_dp)]
-
    PUBLIC :: &
       ellipsoid_bounds, &
+      eri_mme_2c_get_bounds, &
       eri_mme_3c_get_bounds, &
       pgf_sum_2c_gspace_1d, &
       pgf_sum_2c_gspace_1d_deltal, &
       pgf_sum_2c_gspace_3d, &
       pgf_sum_2c_rspace_1d, &
       pgf_sum_2c_rspace_3d, &
-      pgf_sum_3c_1d
+      pgf_sum_3c_1d, &
+      pgf_sum_3c_3d
 
-   REAL(KIND=dp), PARAMETER, PUBLIC :: lattice_sum_prec = 1.0E-20_dp ! truncation threshold for summing PGFs
+   INTEGER, PARAMETER, PRIVATE :: exp_w = 50, div_w = 10
 
 CONTAINS
+
+! **************************************************************************************************
+!> \brief Get summation radii for 2c integrals
+!> \param la_max ...
+!> \param lb_max ...
+!> \param zeta ...
+!> \param zetb ...
+!> \param a_mm ...
+!> \param G_min ...
+!> \param R_min ...
+!> \param sum_precision ...
+!> \param G_rad ...
+!> \param R_rad ...
+! **************************************************************************************************
+   SUBROUTINE eri_mme_2c_get_rads(la_max, lb_max, zeta, zetb, a_mm, G_min, R_min, sum_precision, G_rad, R_rad)
+      INTEGER, INTENT(IN)                                :: la_max, lb_max
+      REAL(KIND=dp), INTENT(IN)                          :: zeta, zetb, a_mm, G_min, R_min, &
+                                                            sum_precision
+      REAL(KIND=dp), INTENT(OUT)                         :: G_rad, R_rad
+
+      INTEGER                                            :: l_max
+      REAL(KIND=dp)                                      :: alpha_G, alpha_R, G_res, R_res
+
+      l_max = la_max+lb_max
+      alpha_G = a_mm+0.25_dp/zeta+0.25_dp/zetb
+      alpha_R = 0.25_dp/alpha_G
+
+      G_res = 0.5_dp*G_min
+      R_res = 0.5_dp*R_min
+
+      G_rad = exp_radius(l_max, alpha_G, sum_precision, 1.0_dp, epsin=G_res)
+      R_rad = exp_radius(l_max, alpha_R, sum_precision, 1.0_dp, epsin=R_res)
+
+   END SUBROUTINE
+
+! **************************************************************************************************
+!> \brief Get summation radii for 3c integrals
+!> \param la_max ...
+!> \param lb_max ...
+!> \param lc_max ...
+!> \param zeta ...
+!> \param zetb ...
+!> \param zetc ...
+!> \param a_mm ...
+!> \param G_min ...
+!> \param R_min ...
+!> \param sum_precision ...
+!> \param G_rads_1 ...
+!> \param R_rads_2 ...
+!> \param R_rads_3 ...
+! **************************************************************************************************
+   SUBROUTINE eri_mme_3c_get_rads(la_max, lb_max, lc_max, zeta, zetb, zetc, a_mm, G_min, R_min, &
+                                  sum_precision, G_rads_1, R_rads_2, R_rads_3)
+      INTEGER, INTENT(IN)                                :: la_max, lb_max, lc_max
+      REAL(KIND=dp), INTENT(IN)                          :: zeta, zetb, zetc, a_mm
+      REAL(KIND=dp), INTENT(IN), OPTIONAL                :: G_min, R_min
+      REAL(KIND=dp), INTENT(IN)                          :: sum_precision
+      REAL(KIND=dp), DIMENSION(3), INTENT(OUT), OPTIONAL :: G_rads_1, R_rads_2
+      REAL(KIND=dp), DIMENSION(2), INTENT(OUT), OPTIONAL :: R_rads_3
+
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'eri_mme_3c_get_rads', &
+         routineP = moduleN//':'//routineN
+
+      REAL(KIND=dp)                                      :: alpha, alpha_R, beta, G_res, gamma, R_res
+
+      ! exponents in G space
+      alpha = 0.25_dp/zeta
+      beta = 0.25_dp/zetb
+      gamma = 0.25_dp/zetc+a_mm
+
+      ! Summation radii and number of summands for all lattice summation methods
+      ! sum method 1
+      IF (PRESENT(G_rads_1)) THEN
+         G_res = 0.5_dp*G_min
+         G_rads_1(1) = exp_radius(la_max, alpha, sum_precision, 1.0_dp, epsin=G_res)
+         G_rads_1(2) = exp_radius(lb_max, beta, sum_precision, 1.0_dp, epsin=G_res)
+         G_rads_1(3) = exp_radius(lc_max, gamma, sum_precision, 1.0_dp, epsin=G_res)
+      ENDIF
+
+      ! sum method 2
+      IF (PRESENT(R_rads_2)) THEN
+         R_res = 0.5_dp*R_min
+         R_rads_2(1) = exp_radius(lb_max+lc_max, 0.25_dp/(beta+gamma), sum_precision, 1.0_dp, epsin=R_res)
+         R_rads_2(2) = exp_radius(lc_max+la_max, 0.25_dp/(alpha+gamma), sum_precision, 1.0_dp, epsin=R_res)
+         R_rads_2(3) = exp_radius(lb_max+la_max, 0.25_dp/(alpha+beta), sum_precision, 1.0_dp, epsin=R_res)
+      ENDIF
+
+      ! sum method 3
+
+      IF (PRESENT(R_rads_3)) THEN
+         R_res = 0.5_dp*R_min
+         alpha_R = 1.0_dp/((zeta+zetb+zetc)/((zeta+zetb)*zetc)+4.0_dp*a_mm)
+         R_rads_3(1) = exp_radius(la_max+lb_max, zeta*zetb/(zeta+zetb), sum_precision, 1.0_dp, epsin=R_res)
+         R_rads_3(2) = exp_radius(la_max+lb_max+lc_max, alpha_R, sum_precision, 1.0_dp, epsin=R_res)
+      ENDIF
+
+   END SUBROUTINE
+
+! **************************************************************************************************
+!> \brief Get summation bounds for 2c integrals
+!> \param hmat ...
+!> \param h_inv ...
+!> \param vol ...
+!> \param is_ortho ...
+!> \param G_min ...
+!> \param R_min ...
+!> \param la_max ...
+!> \param lb_max ...
+!> \param zeta ...
+!> \param zetb ...
+!> \param a_mm ...
+!> \param sum_precision ...
+!> \param n_sum_1d ...
+!> \param n_sum_3d ...
+!> \param G_bounds ...
+!> \param G_rad ...
+!> \param R_bounds ...
+!> \param R_rad ...
+! **************************************************************************************************
+   SUBROUTINE eri_mme_2c_get_bounds(hmat, h_inv, vol, is_ortho, G_min, R_min, la_max, lb_max, &
+                                    zeta, zetb, a_mm, sum_precision, n_sum_1d, n_sum_3d, &
+                                    G_bounds, G_rad, R_bounds, R_rad)
+      REAL(KIND=dp), DIMENSION(3, 3), INTENT(IN)         :: hmat, h_inv
+      REAL(KIND=dp), INTENT(IN)                          :: vol
+      LOGICAL, INTENT(IN)                                :: is_ortho
+      REAL(KIND=dp), INTENT(IN)                          :: G_min, R_min
+      INTEGER, INTENT(IN)                                :: la_max, lb_max
+      REAL(KIND=dp), INTENT(IN)                          :: zeta, zetb, a_mm, sum_precision
+      INTEGER(KIND=int_8), DIMENSION(2, 3), INTENT(OUT)  :: n_sum_1d
+      INTEGER(KIND=int_8), DIMENSION(2), INTENT(OUT)     :: n_sum_3d
+      REAL(KIND=dp), DIMENSION(3), INTENT(OUT)           :: G_bounds
+      REAL(KIND=dp), INTENT(OUT)                         :: G_rad
+      REAL(KIND=dp), DIMENSION(3), INTENT(OUT)           :: R_bounds
+      REAL(KIND=dp), INTENT(OUT)                         :: R_rad
+
+      INTEGER                                            :: i_xyz
+      REAL(KIND=dp)                                      :: ns_G, ns_R, vol_G
+
+      CALL eri_mme_2c_get_rads(la_max, lb_max, zeta, zetb, a_mm, G_min, R_min, sum_precision, G_rad, R_rad)
+
+      G_bounds = ellipsoid_bounds(G_rad, TRANSPOSE(hmat)/(2.0_dp*pi))
+      R_bounds = ellipsoid_bounds(R_rad, h_inv)
+
+      vol_G = twopi**3/vol
+
+      IF (is_ortho) THEN
+         DO i_xyz = 1, 3
+            ns_G = 2.0_dp*G_bounds(i_xyz)
+            ns_R = 2.0_dp*R_bounds(i_xyz)
+            n_sum_1d(1, i_xyz) = nsum_2c_gspace_1d(ns_G, la_max, lb_max)
+            n_sum_1d(2, i_xyz) = nsum_2c_rspace_1d(ns_R, la_max, lb_max)
+         ENDDO
+      ELSE
+         ns_G = 4._dp/3._dp*pi*G_rad**3/vol_G
+         ns_R = 4._dp/3._dp*pi*R_rad**3/vol
+         n_sum_3d(1) = nsum_2c_gspace_3d(ns_G, la_max, lb_max)
+         n_sum_3d(2) = nsum_2c_rspace_3d(ns_R, la_max, lb_max)
+      ENDIF
+
+   END SUBROUTINE
+
+! **************************************************************************************************
+!> \brief Get summation bounds for 3c integrals
+!> \param hmat ...
+!> \param h_inv ...
+!> \param vol ...
+!> \param is_ortho ...
+!> \param G_min ...
+!> \param R_min ...
+!> \param la_max ...
+!> \param lb_max ...
+!> \param lc_max ...
+!> \param zeta ...
+!> \param zetb ...
+!> \param zetc ...
+!> \param a_mm ...
+!> \param sum_precision ...
+!> \param n_sum_1d ...
+!> \param n_sum_3d ...
+!> \param G_bounds_1 ...
+!> \param G_rads_1 ...
+!> \param R_bounds_2 ...
+!> \param R_rads_2 ...
+!> \param R_bounds_3 ...
+!> \param R_rads_3 ...
+! **************************************************************************************************
+   SUBROUTINE eri_mme_3c_get_bounds(hmat, h_inv, vol, is_ortho, G_min, R_min, la_max, lb_max, lc_max, &
+                                    zeta, zetb, zetc, a_mm, sum_precision, n_sum_1d, n_sum_3d, &
+                                    G_bounds_1, G_rads_1, R_bounds_2, R_rads_2, R_bounds_3, R_rads_3)
+      REAL(KIND=dp), DIMENSION(3, 3), INTENT(IN)         :: hmat, h_inv
+      REAL(KIND=dp), INTENT(IN)                          :: vol
+      LOGICAL, INTENT(IN)                                :: is_ortho
+      REAL(KIND=dp), INTENT(IN)                          :: G_min, R_min
+      INTEGER, INTENT(IN)                                :: la_max, lb_max, lc_max
+      REAL(KIND=dp), INTENT(IN)                          :: zeta, zetb, zetc, a_mm, sum_precision
+      INTEGER(KIND=int_8), DIMENSION(3, 3), INTENT(OUT)  :: n_sum_1d
+      INTEGER(KIND=int_8), DIMENSION(3), INTENT(OUT)     :: n_sum_3d
+      REAL(KIND=dp), DIMENSION(3, 3)                     :: G_bounds_1
+      REAL(KIND=dp), DIMENSION(3), INTENT(OUT)           :: G_rads_1
+      REAL(KIND=dp), DIMENSION(3, 3)                     :: R_bounds_2
+      REAL(KIND=dp), DIMENSION(3), INTENT(OUT)           :: R_rads_2
+      REAL(KIND=dp), DIMENSION(2, 3)                     :: R_bounds_3
+      REAL(KIND=dp), DIMENSION(2), INTENT(OUT)           :: R_rads_3
+
+      INTEGER                                            :: i, i_xyz, order_1, order_2
+      REAL(KIND=dp)                                      :: ns1_G1, ns1_G2, ns2_G, ns2_R, ns3_R1, &
+                                                            ns3_R2, vol_G
+
+      CALL eri_mme_3c_get_rads(la_max, lb_max, lc_max, zeta, zetb, zetc, a_mm, G_min, R_min, sum_precision, &
+                               G_rads_1, R_rads_2, R_rads_3)
+
+      vol_G = twopi**3/vol
+
+      order_1 = MAXLOC(G_rads_1, DIM=1)
+      order_2 = MINLOC(G_rads_1, DIM=1)
+
+      DO i = 1, 3
+         G_bounds_1(i, :) = ellipsoid_bounds(G_rads_1(i), TRANSPOSE(hmat)/(2.0_dp*pi))
+      ENDDO
+
+      DO i = 1, 3
+         R_bounds_2(i, :) = ellipsoid_bounds(R_rads_2(i), h_inv)
+      ENDDO
+
+      DO i = 1, 2
+         R_bounds_3(i, :) = ellipsoid_bounds(R_rads_3(i), h_inv)
+      ENDDO
+
+      IF (is_ortho) THEN
+         DO i_xyz = 1, 3
+            SELECT CASE (order_1)
+            CASE (1)
+               ns1_G1 = 2.0_dp*G_bounds_1(2, i_xyz)
+               ns1_G2 = 2.0_dp*G_bounds_1(3, i_xyz)
+            CASE (2)
+               ns1_G1 = 2.0_dp*G_bounds_1(1, i_xyz)
+               ns1_G2 = 2.0_dp*G_bounds_1(3, i_xyz)
+            CASE (3)
+               ns1_G1 = 2.0_dp*G_bounds_1(1, i_xyz)
+               ns1_G2 = 2.0_dp*G_bounds_1(2, i_xyz)
+            END SELECT
+
+            n_sum_1d(1, i_xyz) = nsum_3c_gspace_1d(ns1_G1, ns1_G2, la_max, lb_max, lc_max)
+
+            ns2_G = 2.0_dp*G_bounds_1(order_2, i_xyz)
+            ns2_R = 2.0_dp*R_bounds_2(order_2, i_xyz)
+
+            ns3_R1 = 2.0_dp*R_bounds_3(1, i_xyz)
+            ns3_R2 = 2.0_dp*R_bounds_3(2, i_xyz)
+
+            SELECT CASE (order_2)
+            CASE (1)
+               n_sum_1d(2, i_xyz) = nsum_product_3c_gspace_1d(ns2_G, ns2_R, la_max, lb_max, lc_max)
+            CASE (2)
+               n_sum_1d(2, i_xyz) = nsum_product_3c_gspace_1d(ns2_G, ns2_R, lb_max, la_max, lc_max)
+            CASE (3)
+               n_sum_1d(2, i_xyz) = nsum_product_3c_gspace_1d(ns2_G, ns2_R, lc_max, lb_max, la_max)
+            END SELECT
+
+            n_sum_1d(3, i_xyz) = nsum_3c_rspace_1d(ns3_R1, ns3_R2, la_max, lb_max, lc_max)
+         ENDDO
+
+      ELSE
+
+         SELECT CASE (order_1)
+         CASE (1)
+            ns1_G1 = 4._dp/3._dp*pi*G_rads_1(2)**3/vol_G
+            ns1_G2 = 4._dp/3._dp*pi*G_rads_1(3)**3/vol_G
+         CASE (2)
+            ns1_G1 = 4._dp/3._dp*pi*G_rads_1(1)**3/vol_G
+            ns1_G2 = 4._dp/3._dp*pi*G_rads_1(3)**3/vol_G
+         CASE (3)
+            ns1_G1 = 4._dp/3._dp*pi*G_rads_1(1)**3/vol_G
+            ns1_G2 = 4._dp/3._dp*pi*G_rads_1(2)**3/vol_G
+         END SELECT
+
+         n_sum_3d(1) = nsum_3c_gspace_3d(ns1_G1, ns1_G2, la_max, lb_max, lc_max)
+
+         ns2_G = 4._dp/3._dp*pi*G_rads_1(order_2)**3/vol_G
+         ns2_R = 4._dp/3._dp*pi*R_rads_2(order_2)**3/vol
+
+         ns3_R1 = 4._dp/3._dp*pi*R_rads_3(1)**3/vol
+         ns3_R2 = 4._dp/3._dp*pi*R_rads_3(2)**3/vol
+
+         SELECT CASE (order_2)
+         CASE (1)
+            n_sum_3d(2) = nsum_product_3c_gspace_3d(ns2_G, ns2_R, la_max, lb_max, lc_max)
+         CASE (2)
+            n_sum_3d(2) = nsum_product_3c_gspace_3d(ns2_G, ns2_R, lb_max, la_max, lc_max)
+         CASE (3)
+            n_sum_3d(2) = nsum_product_3c_gspace_3d(ns2_G, ns2_R, lc_max, lb_max, la_max)
+         END SELECT
+
+         n_sum_3d(3) = nsum_3c_rspace_3d(ns3_R1, ns3_R2, la_max, lb_max, lc_max)
+      ENDIF
+
+   END SUBROUTINE
+
+! **************************************************************************************************
+!> \brief Roughly estimated number of floating point operations
+!> \param ns_G ...
+!> \param l ...
+!> \param m ...
+!> \retval nsum_2c_gspace_1d ...
+! **************************************************************************************************
+   PURE FUNCTION nsum_2c_gspace_1d(ns_G, l, m)
+      REAL(KIND=dp), INTENT(IN)                          :: ns_G
+      INTEGER, INTENT(IN)                                :: l, m
+      INTEGER(KIND=int_8)                                :: nsum_2c_gspace_1d
+
+      nsum_2c_gspace_1d = NINT(ns_G*(2*exp_w+(l+m+1)*5), KIND=int_8)
+   END FUNCTION
 
 ! **************************************************************************************************
 !> \brief Compute Ewald-like sum for 2-center ERIs in G space in 1 dimension
@@ -68,7 +375,7 @@ CONTAINS
 !> \note  S_G is real.
 ! **************************************************************************************************
    PURE SUBROUTINE pgf_sum_2c_gspace_1d(S_G, R, alpha, inv_lgth, G_c)
-      REAL(KIND=dp), DIMENSION(0:), INTENT(INOUT)        :: S_G
+      REAL(KIND=dp), DIMENSION(0:), INTENT(OUT)          :: S_G
       REAL(KIND=dp), INTENT(IN)                          :: R, alpha, inv_lgth, G_c
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'pgf_sum_2c_gspace_1d', &
@@ -76,7 +383,7 @@ CONTAINS
 
       COMPLEX(KIND=dp)                                   :: exp_tot
       COMPLEX(KIND=dp), ALLOCATABLE, DIMENSION(:)        :: S_G_c
-      INTEGER                                            :: k, l, l_max
+      INTEGER                                            :: gg, l, l_max
       REAL(KIND=dp)                                      :: dG, G, G_pow_l
 
       dG = inv_lgth*twopi
@@ -84,18 +391,130 @@ CONTAINS
 
       ALLOCATE (S_G_c(0:l_max))
       S_G_c(:) = 0.0_dp
-      DO k = -FLOOR(G_c), FLOOR(G_c)
-         G = k*dG
-         exp_tot = EXP(-alpha*G**2)*EXP(gaussi*G*R)
+      DO gg = -FLOOR(G_c), FLOOR(G_c)
+         G = gg*dG
+         exp_tot = EXP(-alpha*G**2)*EXP(gaussi*G*R) ! cost: 2 exp_w flops
          G_pow_l = 1.0_dp
          DO l = 0, l_max
-            S_G_c(l) = S_G_c(l)+G_pow_l*(-1.0_dp)**l*exp_tot
-            G_pow_l = G_pow_l*G
+            S_G_c(l) = S_G_c(l)+G_pow_l*(-1.0_dp)**l*exp_tot ! cost: 4 flops
+            G_pow_l = G_pow_l*G ! cost: 1 flop
          ENDDO
       ENDDO
 
-      S_G(:) = REAL(S_G_c(0:l_max)*i_pow(0:l_max))*inv_lgth
+      S_G(:) = REAL(S_G_c(0:l_max)*i_pow((/(l, l=0, l_max)/)))*inv_lgth
    END SUBROUTINE pgf_sum_2c_gspace_1d
+
+! **************************************************************************************************
+!> \brief Roughly estimated number of floating point operations
+!> \param ns_G ...
+!> \param l ...
+!> \param m ...
+!> \retval nsum_2c_gspace_3d ...
+! **************************************************************************************************
+   PURE FUNCTION nsum_2c_gspace_3d(ns_G, l, m)
+      REAL(KIND=dp), INTENT(IN)                          :: ns_G
+      INTEGER, INTENT(IN)                                :: l, m
+      INTEGER(KIND=int_8)                                :: nsum_2c_gspace_3d
+
+      nsum_2c_gspace_3d = NINT(ns_G*(2*exp_w+ncoset(l+m)*7), KIND=int_8)
+   END FUNCTION
+
+! **************************************************************************************************
+!> \brief As pgf_sum_2c_gspace_1d but 3d sum required for non-orthorhombic cells
+!> \param S_G ...
+!> \param l_max ...
+!> \param R ...
+!> \param alpha ...
+!> \param h_inv ...
+!> \param G_c ...
+!> \param G_rad ...
+!> \param vol ...
+!> \param coulomb ...
+!> \note  MMME Method is not very efficient for non-orthorhombic cells
+! **************************************************************************************************
+   PURE SUBROUTINE pgf_sum_2c_gspace_3d(S_G, l_max, R, alpha, h_inv, G_c, G_rad, vol, coulomb)
+      REAL(KIND=dp), DIMENSION(:), INTENT(OUT)           :: S_G
+      INTEGER, INTENT(IN)                                :: l_max
+      REAL(KIND=dp), DIMENSION(3), INTENT(IN)            :: R
+      REAL(KIND=dp), INTENT(IN)                          :: alpha
+      REAL(KIND=dp), DIMENSION(3, 3), INTENT(IN)         :: h_inv
+      REAL(KIND=dp), DIMENSION(3), INTENT(IN)            :: G_c
+      REAL(KIND=dp), INTENT(IN)                          :: G_rad, vol
+      LOGICAL, INTENT(IN), OPTIONAL                      :: coulomb
+
+      COMPLEX(KIND=dp)                                   :: exp_tot
+      INTEGER, DIMENSION(3)                              :: l_xyz
+      INTEGER                                            :: gx, gy, gz, k, l, lco, lx, ly, lz
+      COMPLEX(KIND=dp), DIMENSION(ncoset(l_max))         :: Ig
+      LOGICAL                                            :: use_coulomb
+      REAL(KIND=dp)                                      :: G_rads_sq, G_sq
+      REAL(KIND=dp), DIMENSION(3)                        :: G, G_x, G_y, G_z
+      REAL(KIND=dp), DIMENSION(3, 0:l_max)               :: G_pow_l
+      REAL(KIND=dp), DIMENSION(3, 3)                     :: ht
+
+      IF (PRESENT(coulomb)) THEN
+         use_coulomb = coulomb
+      ELSE
+         use_coulomb = .FALSE.
+      ENDIF
+
+      ht = twopi*TRANSPOSE(h_inv)
+      Ig(:) = 0.0_dp
+
+      G_rads_sq = G_rad**2
+
+      DO gx = -FLOOR(G_c(1)), FLOOR(G_c(1))
+         G_x = ht(:, 1)*gx
+         DO gy = -FLOOR(G_c(2)), FLOOR(G_c(2))
+            G_y = ht(:, 2)*gy
+            DO gz = -FLOOR(G_c(3)), FLOOR(G_c(3))
+               G_z = ht(:, 3)*gz
+
+               G = G_x+G_y+G_z
+               G_sq = G(1)**2+G(2)**2+G(3)**2
+               IF (G_sq .GT. G_rads_sq) CYCLE
+
+               IF (use_coulomb) THEN
+                  IF (gx .EQ. 0 .AND. gy .EQ. 0 .AND. gz .EQ. 0) CYCLE
+               ENDIF
+
+               exp_tot = EXP(-alpha*G_sq)*EXP(gaussi*DOT_PRODUCT(G, R)) ! cost: 2 exp_w flops
+               IF (use_coulomb) THEN
+                  exp_tot = exp_tot/G_sq
+               ENDIF
+               DO k = 1, 3
+                  G_pow_l(k, 0) = 1.0_dp
+                  DO l = 1, l_max
+                     G_pow_l(k, l) = G_pow_l(k, l-1)*G(k)
+                  ENDDO
+               ENDDO
+               DO lco = 1, ncoset(l_max)
+                  CALL get_l(lco, l, lx, ly, lz)
+                  l_xyz = [lx, ly, lz]
+                  Ig(coset(lx, ly, lz)) = Ig(coset(lx, ly, lz))+ & ! cost: 7 flops
+                                          G_pow_l(1, lx)*G_pow_l(2, ly)*G_pow_l(3, lz)* &
+                                          exp_tot*(-1.0_dp)**l*i_pow(l)
+               ENDDO
+            ENDDO
+         ENDDO
+      ENDDO
+      S_G(:) = REAL(Ig(:), KIND=dp)/vol
+   END SUBROUTINE pgf_sum_2c_gspace_3d
+
+! **************************************************************************************************
+!> \brief Roughly estimated number of floating point operations
+!> \param ns_R ...
+!> \param l ...
+!> \param m ...
+!> \retval nsum_2c_rspace_1d ...
+! **************************************************************************************************
+   PURE FUNCTION nsum_2c_rspace_1d(ns_R, l, m)
+      REAL(KIND=dp), INTENT(IN)                          :: ns_R
+      INTEGER, INTENT(IN)                                :: l, m
+      INTEGER(KIND=int_8)                                :: nsum_2c_rspace_1d
+
+      nsum_2c_rspace_1d = NINT(ns_R*(exp_w+(l+m+1)*3), KIND=int_8)
+   END FUNCTION
 
 ! **************************************************************************************************
 !> \brief Compute Ewald-like sum for 2-center ERIs in R space in 1 dimension
@@ -112,13 +531,13 @@ CONTAINS
 !>              S_R(l, alpha) = S_G(l, 1/(4*alpha))
 ! **************************************************************************************************
    PURE SUBROUTINE pgf_sum_2c_rspace_1d(S_R, R, alpha, lgth, R_c)
-      REAL(KIND=dp), DIMENSION(0:), INTENT(INOUT)        :: S_R
+      REAL(KIND=dp), DIMENSION(0:), INTENT(OUT)          :: S_R
       REAL(KIND=dp), INTENT(IN)                          :: R, alpha, lgth, R_c
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'pgf_sum_2c_rspace_1d', &
          routineP = moduleN//':'//routineN
 
-      INTEGER                                            :: k, l, l_max
+      INTEGER                                            :: l, l_max, rr
       REAL(KIND=dp)                                      :: dR, exp_tot, R_pow_l, Rp
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: h_to_c
 
@@ -128,20 +547,116 @@ CONTAINS
       ! 1) compute sum over C(l, alpha, R - R') instead of H(l, alpha, R - R')
       S_R(:) = 0.0_dp
       Rp = R-R_c*dR
-      DO k = CEILING(-R_c-R/dR), FLOOR(R_c-R/dR)
-         Rp = R+k*dR
-         exp_tot = EXP(-alpha*Rp**2)
+      DO rr = CEILING(-R_c-R/dR), FLOOR(R_c-R/dR)
+         Rp = R+rr*dR
+         exp_tot = EXP(-alpha*Rp**2) ! cost: exp_w flops
          R_pow_l = 1.0_dp
          DO l = 0, l_max
-            S_R(l) = S_R(l)+R_pow_l*exp_tot
-            R_pow_l = R_pow_l*Rp
+            S_R(l) = S_R(l)+R_pow_l*exp_tot ! cost: 2 flops
+            R_pow_l = R_pow_l*Rp ! cost: 1 flop
          ENDDO
       ENDDO
 
       ! 2) C --> H
       CALL create_hermite_to_cartesian(alpha, l_max, h_to_c)
-      S_R = MATMUL(TRANSPOSE(h_to_c), S_R)*SQRT(alpha/pi)
+      S_R = MATMUL(TRANSPOSE(h_to_c(0:l_max, 0:l_max)), S_R)*SQRT(alpha/pi)
    END SUBROUTINE pgf_sum_2c_rspace_1d
+
+! **************************************************************************************************
+!> \brief Roughly estimated number of floating point operations
+!> \param ns_R ...
+!> \param l ...
+!> \param m ...
+!> \retval nsum_2c_rspace_3d ...
+! **************************************************************************************************
+   PURE FUNCTION nsum_2c_rspace_3d(ns_R, l, m)
+      REAL(KIND=dp), INTENT(IN)                          :: ns_R
+      INTEGER, INTENT(IN)                                :: l, m
+      INTEGER(KIND=int_8)                                :: nsum_2c_rspace_3d
+
+      nsum_2c_rspace_3d = NINT(ns_R*(exp_w+ncoset(l+m)*(4+ncoset(l+m)*4)), KIND=int_8)
+   END FUNCTION
+
+! **************************************************************************************************
+!> \brief As pgf_sum_2c_rspace_1d but 3d sum required for non-orthorhombic cells
+!> \param S_R ...
+!> \param l_max ...
+!> \param R ...
+!> \param alpha ...
+!> \param hmat ...
+!> \param h_inv ...
+!> \param R_c ...
+!> \param R_rad ...
+!> \note  MMME Method is not very efficient for non-orthorhombic cells
+! **************************************************************************************************
+   PURE SUBROUTINE pgf_sum_2c_rspace_3d(S_R, l_max, R, alpha, hmat, h_inv, R_c, R_rad)
+      REAL(KIND=dp), DIMENSION(:), INTENT(OUT)           :: S_R
+      INTEGER, INTENT(IN)                                :: l_max
+      REAL(KIND=dp), DIMENSION(3), INTENT(IN)            :: R
+      REAL(KIND=dp), INTENT(IN)                          :: alpha
+      REAL(KIND=dp), DIMENSION(3, 3), INTENT(IN)         :: hmat, h_inv
+      REAL(KIND=dp), DIMENSION(3), INTENT(IN)            :: R_c
+      REAL(KIND=dp), INTENT(IN)                          :: R_rad
+
+      INTEGER                                            :: k, l, lco, llx, lly, llz, lx, ly, lz, &
+                                                            sx, sy, sz
+      REAL(KIND=dp)                                      :: exp_tot, R_rad_sq, R_sq
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: h_to_c
+      REAL(KIND=dp), DIMENSION(3)                        :: R_l, R_r, Rp, Rx, Ry, Rz, s_shift
+      REAL(KIND=dp), DIMENSION(3, 0:l_max)               :: R_pow_l
+      REAL(KIND=dp), DIMENSION(ncoset(l_max))            :: S_R_C
+
+      S_R(:) = 0.0_dp
+      S_R_C(:) = 0.0_dp
+
+      s_shift = MATMUL(h_inv, -R)
+      R_l = -R_c+s_shift
+      R_r = R_c+s_shift
+
+      R_rad_sq = R_rad**2
+
+      DO sx = CEILING(R_l(1)), FLOOR(R_r(1))
+         Rx = hmat(:, 1)*sx
+         DO sy = CEILING(R_l(2)), FLOOR(R_r(2))
+            Ry = hmat(:, 2)*sy
+            DO sz = CEILING(R_l(3)), FLOOR(R_r(3))
+               Rz = hmat(:, 3)*sz
+               Rp = Rx+Ry+Rz
+               R_sq = (Rp(1)+R(1))**2+(Rp(2)+R(2))**2+(Rp(3)+R(3))**2
+               IF (R_sq .GT. R_rad_sq) CYCLE
+               exp_tot = EXP(-alpha*R_sq) ! cost: exp_w flops
+               DO k = 1, 3
+                  R_pow_l(k, 0) = 1.0_dp
+                  DO l = 1, l_max
+                     R_pow_l(k, l) = R_pow_l(k, l-1)*(Rp(k)+R(k))
+                  ENDDO
+               ENDDO
+               DO lco = 1, ncoset(l_max)
+                  CALL get_l(lco, l, lx, ly, lz)
+                  S_R_C(coset(lx, ly, lz)) = S_R_C(coset(lx, ly, lz))+R_pow_l(1, lx)*R_pow_l(2, ly)*R_pow_l(3, lz)*exp_tot ! cost: 4 flops
+               ENDDO
+            ENDDO
+         ENDDO
+      ENDDO
+
+      CALL create_hermite_to_cartesian(alpha, l_max, h_to_c)
+
+      DO lco = 1, ncoset(l_max)
+         CALL get_l(lco, l, lx, ly, lz)
+
+         DO llx = 0, lx
+         DO lly = 0, ly
+         DO llz = 0, lz
+            S_R(coset(lx, ly, lz)) = S_R(coset(lx, ly, lz))+ & ! cost: 4 flops
+                                     h_to_c(llx, lx)*h_to_c(lly, ly)*h_to_c(llz, lz)* &
+                                     S_R_C(coset(llx, lly, llz))
+         ENDDO
+         ENDDO
+         ENDDO
+      ENDDO
+      S_R(:) = S_R(:)*(alpha/pi)**1.5_dp
+
+   END SUBROUTINE pgf_sum_2c_rspace_3d
 
 ! **************************************************************************************************
 !> \brief Compute 1d sum
@@ -161,7 +676,7 @@ CONTAINS
 !> \note  needed for cutoff error estimate
 ! **************************************************************************************************
    PURE SUBROUTINE pgf_sum_2c_gspace_1d_deltal(S_G, alpha, inv_lgth, G_min, G_c, delta_l, prefactor)
-      REAL(KIND=dp), DIMENSION(0:), INTENT(INOUT)        :: S_G
+      REAL(KIND=dp), DIMENSION(0:), INTENT(OUT)          :: S_G
       REAL(KIND=dp), INTENT(IN)                          :: alpha, inv_lgth
       INTEGER, INTENT(IN)                                :: G_min, G_c
       REAL(KIND=dp), INTENT(IN)                          :: delta_l, prefactor
@@ -190,301 +705,6 @@ CONTAINS
       ENDDO
 
    END SUBROUTINE pgf_sum_2c_gspace_1d_deltal
-
-! **************************************************************************************************
-!> \brief As pgf_sum_2c_gspace_1d but 3d sum required for non-orthorhombic cells
-!> \param S_G ...
-!> \param l_max ...
-!> \param R ...
-!> \param alpha ...
-!> \param h_inv ...
-!> \param G_c ...
-!> \param vol ...
-!> \note  MMME Method is not very efficient for non-orthorhombic cells
-! **************************************************************************************************
-   PURE SUBROUTINE pgf_sum_2c_gspace_3d(S_G, l_max, R, alpha, h_inv, G_c, vol)
-      REAL(KIND=dp), DIMENSION(:), INTENT(INOUT)         :: S_G
-      INTEGER, INTENT(IN)                                :: l_max
-      REAL(KIND=dp), DIMENSION(3), INTENT(IN)            :: R
-      REAL(KIND=dp), INTENT(IN)                          :: alpha
-      REAL(KIND=dp), DIMENSION(3, 3), INTENT(IN)         :: h_inv
-      REAL(KIND=dp), DIMENSION(3), INTENT(IN)            :: G_c
-      REAL(KIND=dp), INTENT(IN)                          :: vol
-
-      COMPLEX(KIND=dp)                                   :: exp_tot
-      COMPLEX(KIND=dp), ALLOCATABLE, DIMENSION(:)        :: Ig
-      INTEGER                                            :: gx, gy, gz, k, l, lx, ly, lz
-      INTEGER, DIMENSION(3)                              :: g_xyz, l_xyz
-      REAL(KIND=dp)                                      :: G_sq, Ik
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: G_pow_l
-      REAL(KIND=dp), DIMENSION(3)                        :: G
-      REAL(KIND=dp), DIMENSION(3, 3)                     :: ht
-
-      ht = twopi*TRANSPOSE(h_inv)
-      ALLOCATE (G_pow_l(3, 0:l_max))
-      ALLOCATE (Ig(ncoset(l_max)))
-      Ig(:) = 0.0_dp
-      DO gx = -FLOOR(G_c(1)), FLOOR(G_c(1))
-      DO gy = -FLOOR(G_c(2)), FLOOR(G_c(2))
-      DO gz = -FLOOR(G_c(3)), FLOOR(G_c(3))
-         g_xyz = [gx, gy, gz]
-         G = MATMUL(ht, g_xyz)
-         G_sq = G(1)**2+G(2)**2+G(3)**2
-         exp_tot = EXP(-alpha*G_sq)*EXP(-gaussi*DOT_PRODUCT(G, -R))
-         DO k = 1, 3
-            G_pow_l(k, 0) = 1.0_dp
-            DO l = 1, l_max
-               G_pow_l(k, l) = G_pow_l(k, l-1)*G(k)
-            ENDDO
-         ENDDO
-         IF (.NOT. (gx .EQ. 0 .AND. gy .EQ. 0 .AND. gz .EQ. 0)) THEN
-            DO l = 0, l_max
-            DO lx = 0, l
-            DO ly = 0, l-lx
-               lz = l-lx-ly
-               l_xyz = [lx, ly, lz]
-               Ik = 1.0_dp
-               DO k = 1, 3
-                  Ik = Ik*G_pow_l(k, l_xyz(k))
-               ENDDO
-               Ig(coset(lx, ly, lz)) = Ig(coset(lx, ly, lz))+exp_tot/G_sq*Ik*(-gaussi)**l/vol
-            ENDDO
-            ENDDO
-            ENDDO
-         ENDIF
-      ENDDO
-      ENDDO
-      ENDDO
-      S_G(:) = REAL(Ig(:), KIND=dp)
-   END SUBROUTINE pgf_sum_2c_gspace_3d
-
-! **************************************************************************************************
-!> \brief As pgf_sum_2c_rspace_1d but 3d sum required for non-orthorhombic cells
-!> \param S_R ...
-!> \param l_max ...
-!> \param R ...
-!> \param alpha ...
-!> \param hmat ...
-!> \param R_c ...
-!> \note  MMME Method is not very efficient for non-orthorhombic cells
-! **************************************************************************************************
-   PURE SUBROUTINE pgf_sum_2c_rspace_3d(S_R, l_max, R, alpha, hmat, R_c)
-      REAL(KIND=dp), DIMENSION(:), INTENT(INOUT)         :: S_R
-      INTEGER, INTENT(IN)                                :: l_max
-      REAL(KIND=dp), DIMENSION(3), INTENT(IN)            :: R
-      REAL(KIND=dp), INTENT(IN)                          :: alpha
-      REAL(KIND=dp), DIMENSION(3, 3), INTENT(IN)         :: hmat
-      REAL(KIND=dp), DIMENSION(3), INTENT(IN)            :: R_c
-
-      INTEGER                                            :: k, l, ll, llx, lly, llz, lx, ly, lz, sx, &
-                                                            sy, sz
-      INTEGER, DIMENSION(3)                              :: l_xyz, s_xyz
-      REAL(KIND=dp)                                      :: exp_tot, Ik, R_sq
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: Is, S_R_C
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: h_to_c, R_pow_l
-      REAL(KIND=dp), DIMENSION(3)                        :: Rp
-
-      ALLOCATE (S_R_C(ncoset(l_max)))
-      ALLOCATE (R_pow_l(3, ncoset(l_max)))
-      ALLOCATE (Is(ncoset(l_max)))
-
-      S_R(:) = 0.0_dp
-      S_R_C(:) = 0.0_dp
-      Is(:) = 0.0_dp
-
-      DO sx = -FLOOR(R_c(1)), FLOOR(R_c(1))
-      DO sy = -FLOOR(R_c(2)), FLOOR(R_c(2))
-      DO sz = -FLOOR(R_c(3)), FLOOR(R_c(3))
-         s_xyz = [sx, sy, sz]
-         Rp = MATMUL(hmat, s_xyz)
-         R_sq = (Rp(1)+R(1))**2+(Rp(2)+R(2))**2+(Rp(3)+R(3))**2
-         exp_tot = EXP(-alpha*R_sq)
-         DO k = 1, 3
-            R_pow_l(k, 0) = 1.0_dp
-            DO l = 1, l_max
-               R_pow_l(k, l) = R_pow_l(k, l-1)*(Rp(k)+R(k))
-            ENDDO
-         ENDDO
-         DO l = 0, l_max
-         DO lx = 0, l
-         DO ly = 0, l-lx
-            lz = l-lx-ly
-            l_xyz = [lx, ly, lz]
-            Ik = 1.0_dp
-            DO k = 1, 3
-               Ik = Ik*R_pow_l(k, l_xyz(k))
-            ENDDO
-            Is(coset(lx, ly, lz)) = Is(coset(lx, ly, lz))+exp_tot*Ik
-         ENDDO
-         ENDDO
-         ENDDO
-      ENDDO
-      ENDDO
-      ENDDO
-      S_R_C(:) = Is(:)
-
-      CALL create_hermite_to_cartesian(alpha, l_max, h_to_c)
-      DO l = 0, l_max
-      DO lx = 0, l
-      DO ly = 0, l-lx
-         lz = l-lx-ly
-         DO ll = 0, l_max
-         DO llx = 0, ll
-         DO lly = 0, ll-llx
-            llz = ll-llx-lly
-            S_R(coset(lx, ly, lz)) = S_R(coset(lx, ly, lz))+ &
-                                     h_to_c(llx, lx)*h_to_c(lly, ly)*h_to_c(llz, lz)* &
-                                     S_R_C(coset(llx, lly, llz))
-         ENDDO
-         ENDDO
-         ENDDO
-      ENDDO
-      ENDDO
-      ENDDO
-      S_R(:) = S_R(:)*(alpha/pi)**1.5_dp
-
-   END SUBROUTINE pgf_sum_2c_rspace_3d
-
-! **************************************************************************************************
-!> \brief ...
-!> \param hmat ...
-!> \param h_inv ...
-!> \param is_ortho ...
-!> \param G_min ...
-!> \param R_min ...
-!> \param la_max ...
-!> \param lb_max ...
-!> \param lc_max ...
-!> \param zeta ...
-!> \param zetb ...
-!> \param zetc ...
-!> \param a_mm ...
-!> \param n_sum_1d ...
-!> \param n_sum_3d ...
-!> \param G_bounds_1 ...
-!> \param R_bounds_2 ...
-!> \param R_bounds_3 ...
-! **************************************************************************************************
-   SUBROUTINE eri_mme_3c_get_bounds(hmat, h_inv, is_ortho, G_min, R_min, la_max, lb_max, lc_max, &
-                                    zeta, zetb, zetc, a_mm, n_sum_1d, n_sum_3d, &
-                                    G_bounds_1, R_bounds_2, R_bounds_3)
-      REAL(KIND=dp), DIMENSION(3, 3), INTENT(IN)         :: hmat, h_inv
-      LOGICAL, INTENT(IN)                                :: is_ortho
-      REAL(KIND=dp), INTENT(IN)                          :: G_min, R_min
-      INTEGER, INTENT(IN)                                :: la_max, lb_max, lc_max
-      REAL(KIND=dp), INTENT(IN)                          :: zeta, zetb, zetc, a_mm
-      INTEGER, DIMENSION(3, 3), INTENT(OUT)              :: n_sum_1d
-      INTEGER, DIMENSION(3), INTENT(OUT)                 :: n_sum_3d
-      REAL(KIND=dp), DIMENSION(3, 3)                     :: G_bounds_1, R_bounds_2
-      REAL(KIND=dp), DIMENSION(2, 3)                     :: R_bounds_3
-
-      INTEGER                                            :: i, i_xyz, order_1, order_2
-      REAL(KIND=dp)                                      :: lgth
-      REAL(KIND=dp), DIMENSION(2)                        :: R_rads_3
-      REAL(KIND=dp), DIMENSION(3)                        :: G_rads_1, R_rads_2
-
-      CALL eri_mme_3c_get_rads(G_min, R_min, la_max, lb_max, lc_max, zeta, zetb, zetc, a_mm, G_rads_1, R_rads_2, R_rads_3)
-
-      order_1 = MAXLOC(G_rads_1, DIM=1)
-      order_2 = MINLOC(G_rads_1, DIM=1)
-
-      DO i = 1, 3
-         G_bounds_1(i, :) = ellipsoid_bounds(G_rads_1(i), TRANSPOSE(hmat)/(2.0_dp*pi))
-      ENDDO
-
-      DO i = 1, 3
-         R_bounds_2(i, :) = ellipsoid_bounds(R_rads_2(i), h_inv)
-      ENDDO
-
-      DO i = 1, 2
-         R_bounds_3(i, :) = ellipsoid_bounds(R_rads_3(i), h_inv)
-      ENDDO
-
-      IF (is_ortho) THEN
-         DO i_xyz = 1, 3
-            lgth = hmat(i_xyz, i_xyz)
-            SELECT CASE (order_1)
-            CASE (1)
-               n_sum_1d(1, i_xyz) = CEILING(2.0_dp*G_bounds_1(2, i_xyz))*CEILING(2.0_dp*G_bounds_1(3, i_xyz))
-            CASE (2)
-               n_sum_1d(1, i_xyz) = CEILING(2.0_dp*G_bounds_1(1, i_xyz))*CEILING(2.0_dp*G_bounds_1(3, i_xyz))
-            CASE (3)
-               n_sum_1d(1, i_xyz) = CEILING(2.0_dp*G_bounds_1(1, i_xyz))*CEILING(2.0_dp*G_bounds_1(2, i_xyz))
-            END SELECT
-            n_sum_1d(2, i_xyz) = CEILING(2.0_dp*G_bounds_1(order_2, i_xyz))*CEILING(2.0_dp*R_bounds_2(order_2, i_xyz))
-
-            n_sum_1d(3, i_xyz) = CEILING(2.0_dp*R_bounds_3(1, i_xyz))*CEILING(2.0_dp*R_bounds_3(2, i_xyz))
-         ENDDO
-
-      ELSE
-         SELECT CASE (order_1)
-         CASE (1)
-            n_sum_3d(1) = PRODUCT(CEILING(2.0_dp*G_bounds_1(2, :)))*PRODUCT(CEILING(2.0_dp*G_bounds_1(3, :)))
-         CASE (2)
-            n_sum_3d(1) = PRODUCT(CEILING(2.0_dp*G_bounds_1(1, :)))*PRODUCT(CEILING(2.0_dp*G_bounds_1(3, :)))
-         CASE (3)
-            n_sum_3d(1) = PRODUCT(CEILING(2.0_dp*G_bounds_1(1, :)))*PRODUCT(CEILING(2.0_dp*G_bounds_1(2, :)))
-         END SELECT
-      ENDIF
-
-      n_sum_3d(2) = PRODUCT(CEILING(2.0_dp*G_bounds_1(order_2, :)))*PRODUCT(CEILING(2.0_dp*R_bounds_2(order_2, :)))
-
-      n_sum_3d(3) = PRODUCT(CEILING(2.0_dp*R_bounds_3(1, :)))*PRODUCT(CEILING(2.0_dp*R_bounds_3(2, :)))
-   END SUBROUTINE eri_mme_3c_get_bounds
-
-! **************************************************************************************************
-!> \brief ...
-!> \param G_min ...
-!> \param R_min ...
-!> \param la_max ...
-!> \param lb_max ...
-!> \param lc_max ...
-!> \param zeta ...
-!> \param zetb ...
-!> \param zetc ...
-!> \param a_mm ...
-!> \param G_rads_1 ...
-!> \param R_rads_2 ...
-!> \param R_rads_3 ...
-! **************************************************************************************************
-   SUBROUTINE eri_mme_3c_get_rads(G_min, R_min, la_max, lb_max, lc_max, zeta, zetb, zetc, a_mm, G_rads_1, R_rads_2, R_rads_3)
-      REAL(KIND=dp), INTENT(IN)                          :: G_min, R_min
-      INTEGER, INTENT(IN)                                :: la_max, lb_max, lc_max
-      REAL(KIND=dp), INTENT(IN)                          :: zeta, zetb, zetc, a_mm
-      REAL(KIND=dp), DIMENSION(3), INTENT(OUT)           :: G_rads_1, R_rads_2
-      REAL(KIND=dp), DIMENSION(2), INTENT(OUT)           :: R_rads_3
-
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'eri_mme_3c_get_rads', &
-         routineP = moduleN//':'//routineN
-
-      REAL(KIND=dp)                                      :: alpha, alpha_R, beta, G_res, gamma, R_res
-
-      ! resolution for Gaussian width
-      G_res = 0.5_dp*G_min
-      R_res = 0.5_dp*R_min
-
-      ! exponents in G space
-      alpha = 0.25_dp/zeta
-      beta = 0.25_dp/zetb
-      gamma = 0.25_dp/zetc+a_mm
-
-      ! Summation radii and number of summands for all lattice summation methods
-      ! sum method 1
-      G_rads_1(1) = exp_radius(la_max, alpha, lattice_sum_prec, 1.0_dp, epsin=G_res)
-      G_rads_1(2) = exp_radius(lb_max, beta, lattice_sum_prec, 1.0_dp, epsin=G_res)
-      G_rads_1(3) = exp_radius(lc_max, gamma, lattice_sum_prec, 1.0_dp, epsin=G_res)
-
-      ! sum method 2
-      R_rads_2(1) = exp_radius(lb_max+lc_max, 0.25_dp/(beta+gamma), lattice_sum_prec, 1.0_dp, epsin=R_res)
-      R_rads_2(2) = exp_radius(lc_max+la_max, 0.25_dp/(alpha+gamma), lattice_sum_prec, 1.0_dp, epsin=R_res)
-      R_rads_2(3) = exp_radius(lb_max+la_max, 0.25_dp/(alpha+beta), lattice_sum_prec, 1.0_dp, epsin=R_res)
-
-      ! sum method 3
-      alpha_R = 1.0_dp/((zeta+zetb+zetc)/((zeta+zetb)*zetc)+4.0_dp*a_mm)
-      R_rads_3(1) = exp_radius(la_max+lb_max, zeta*zetb/(zeta+zetb), lattice_sum_prec, 1.0_dp, epsin=R_res)
-      R_rads_3(2) = exp_radius(la_max+lb_max+lc_max, alpha_R, lattice_sum_prec, 1.0_dp, epsin=R_res)
-
-   END SUBROUTINE eri_mme_3c_get_rads
 
 ! **************************************************************************************************
 !> \brief Compute Ewald-like sum for 3-center integrals in 1 dimension
@@ -526,34 +746,23 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE pgf_sum_3c_1d(S_G, RA, RB, RC, zeta, zetb, zetc, a_mm, lgth, &
                             G_bounds_1, R_bounds_2, R_bounds_3, method, method_out, order)
-      REAL(KIND=dp), DIMENSION(0:, 0:, 0:), &
-         INTENT(INOUT)                                   :: S_G
-      REAL(KIND=dp), INTENT(IN)                          :: RA, RB, RC, zeta, zetb, &
-                                                            zetc, a_mm, lgth
-      INTEGER, INTENT(IN), OPTIONAL                      :: method, order
+      REAL(KIND=dp), DIMENSION(0:, 0:, 0:), INTENT(OUT)  :: S_G
+      REAL(KIND=dp), INTENT(IN)                          :: RA, RB, RC, zeta, zetb, zetc, a_mm, lgth
+      REAL(KIND=dp), DIMENSION(3), INTENT(IN)            :: G_bounds_1, R_bounds_2
+      REAL(KIND=dp), DIMENSION(2), INTENT(IN)            :: R_bounds_3
+      INTEGER, INTENT(IN)                                :: method
+      INTEGER, INTENT(OUT), OPTIONAL                     :: method_out
+      INTEGER, INTENT(IN), OPTIONAL                      :: order
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'pgf_sum_3c_1d', routineP = moduleN//':'//routineN
-
-      COMPLEX(KIND=dp), ALLOCATABLE, DIMENSION(:)        :: exp1, exp3
-      COMPLEX(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)  :: S_G_c
-      INTEGER                                            :: G1c, G2c, G3c, k, k1, k2, &
-                                                            k3, l_max, m_max, n_max, &
-                                                            sum_method, sum_order, &
-                                                            n_sum_predicted
-      INTEGER, DIMENSION(3)                              :: n_sum
-      REAL(KIND=dp)                                      :: alpha, beta, dG, G, gamma, inv_lgth, R1, &
-                                                            R2
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: exp2
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: S_G_tmp
-      REAL(KIND=dp), DIMENSION(3)                      :: G_bounds_1, R_bounds_2
-      REAL(KIND=dp), DIMENSION(2)                      :: R_bounds_3
-      REAL(KIND=dp)                                      :: R_bound
-      INTEGER, INTENT(OUT), OPTIONAL                     :: method_out
-      INTEGER                                            :: n_sum_count
       LOGICAL, PARAMETER                                 :: debug = .FALSE.
 
-      n_sum_count = -1
-      IF (debug) n_sum_count = 0
+      COMPLEX(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)  :: S_G_c
+      INTEGER                                            :: l_max, m_max, n_max, sum_method, &
+                                                            sum_order
+      REAL(KIND=dp)                                      :: alpha, beta, dG, G_bound, gamma, &
+                                                            inv_lgth, R1, R2, R_bound
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: S_G_tmp
 
       IF (PRESENT(order)) THEN
          sum_order = order
@@ -561,11 +770,7 @@ CONTAINS
          sum_order = 0
       ENDIF
 
-      IF (PRESENT(method)) THEN
-         sum_method = method
-      ELSE
-         sum_method = 0
-      ENDIF
+      sum_method = method
 
       alpha = 0.25_dp/zeta
       beta = 0.25_dp/zetb
@@ -581,116 +786,162 @@ CONTAINS
       R1 = RB-RA
       R2 = RC-RB
 
-      IF (sum_method .EQ. 0) sum_method = MINLOC(n_sum, DIM=1)
-      IF (debug) n_sum_predicted = n_sum(sum_method)
-
       ALLOCATE (S_G_c(0:l_max, 0:m_max, 0:n_max))
       S_G_c(:, :, :) = 0.0_dp
-
-      IF (.NOT. sum_method .EQ. 3) THEN
-         G1c = FLOOR(G_bounds_1(1))
-         G2c = FLOOR(G_bounds_1(2))
-         G3c = FLOOR(G_bounds_1(3))
-      ENDIF
 
       SELECT CASE (sum_method)
       CASE (1) ! sum_G sum_G' C(G) C(G,G') C(G)
 
          ! rearrange the sum s.t. G and G' run over the most localized functions
          IF (sum_order .EQ. 0) THEN
-            sum_order = MAXLOC(G_bounds_1, DIM=1)
+            sum_order = MAXLOC(G_bounds_1, DIM=1) ! keep this
          ENDIF
 
-         ! Precompute exponentials
-         SELECT CASE (sum_order)
-         CASE (1)
-            G1c = FLOOR(G_bounds_1(2)+G_bounds_1(3))
-         CASE (2)
-            G2c = FLOOR(G_bounds_1(1)+G_bounds_1(3))
-         CASE (3)
-            G3c = FLOOR(G_bounds_1(1)+G_bounds_1(2))
-         END SELECT
+         CALL pgf_sum_3c_gspace_1d(S_G, R1, R2, alpha, beta, gamma, inv_lgth, G_bounds_1, sum_order)
 
-         ALLOCATE (exp1(-G1c:G1c))
-         ALLOCATE (exp2(-G2c:G2c))
-         ALLOCATE (exp3(-G3c:G3c))
-
-         DO k = -G1c, G1c
-            G = k*dG
-            exp1(k) = EXP(-alpha*G**2)*EXP(gaussi*G*R1)
-         ENDDO
-
-         DO k = -G2c, G2c
-            G = k*dG
-            exp2(k) = EXP(-beta*G**2)
-         ENDDO
-
-         DO k = -G3c, G3c
-            G = k*dG
-            exp3(k) = EXP(-gamma*G**2)*EXP(gaussi*G*R2)
-         ENDDO
-
-         ! Perform double G sum
-         SELECT CASE (sum_order)
-         CASE (1)
-            DO k2 = -G2c, G2c
-               DO k3 = -G3c, G3c
-                  k1 = k3-k2
-                  IF (debug) n_sum_count = n_sum_count+1
-                  CALL pgf_product_gspace_3c_1d(S_G_c, k1, k2, k3, dG, l_max, m_max, n_max, G1c, G2c, G3c, exp1, exp2, exp3)
-               ENDDO
-            ENDDO
-         CASE (2)
-            DO k1 = -G1c, G1c
-               DO k3 = -G3c, G3c
-                  k2 = k3-k1
-                  IF (debug) n_sum_count = n_sum_count+1
-                  CALL pgf_product_gspace_3c_1d(S_G_c, k1, k2, k3, dG, l_max, m_max, n_max, G1c, G2c, G3c, exp1, exp2, exp3)
-               ENDDO
-            ENDDO
-         CASE (3)
-            DO k1 = -G1c, G1c
-               DO k2 = -G2c, G2c
-                  k3 = k1+k2
-                  IF (debug) n_sum_count = n_sum_count+1
-                  CALL pgf_product_gspace_3c_1d(S_G_c, k1, k2, k3, dG, l_max, m_max, n_max, G1c, G2c, G3c, exp1, exp2, exp3)
-               ENDDO
-            ENDDO
-         END SELECT
-
-         S_G = REAL(S_G_c, KIND=dp)*inv_lgth**2
       CASE (2) ! sum_G sum_R C(G) C(R)
          IF (sum_order .EQ. 0) sum_order = MINLOC(G_bounds_1, DIM=1) ! 3 cases of rearranging the G sum runs over the most localized function
          R_bound = R_bounds_2(sum_order)
+         G_bound = G_bounds_1(sum_order)
          SELECT CASE (sum_order)
          CASE (1)
             ALLOCATE (S_G_tmp(0:l_max, 0:m_max, 0:n_max))
-            CALL pgf_sum_product_gspace_3c_1d(S_G_tmp, R1, R2, alpha, beta, gamma, lgth, &
-                                              R_bound, G_bounds_1(1), n_sum_count)
+            CALL pgf_sum_product_3c_gspace_1d(S_G_tmp, R1, R2, alpha, beta, gamma, lgth, &
+                                              R_bound, G_bound)
             S_G = RESHAPE(S_G_tmp, SHAPE(S_G), order=[1, 2, 3])
          CASE (2)
             ALLOCATE (S_G_tmp(0:m_max, 0:l_max, 0:n_max))
-            CALL pgf_sum_product_gspace_3c_1d(S_G_tmp, -R1, R1+R2, beta, alpha, gamma, lgth, &
-                                              R_bound, G_bounds_1(2), n_sum_count)
+            CALL pgf_sum_product_3c_gspace_1d(S_G_tmp, -R1, R1+R2, beta, alpha, gamma, lgth, &
+                                              R_bound, G_bound)
             S_G = RESHAPE(S_G_tmp, SHAPE(S_G), order=[2, 1, 3])
          CASE (3)
             ALLOCATE (S_G_tmp(0:n_max, 0:m_max, 0:l_max))
-            CALL pgf_sum_product_gspace_3c_1d(S_G_tmp, -R2, -R1, gamma, beta, alpha, lgth, &
-                                              R_bound, G_bounds_1(3), n_sum_count)
+            CALL pgf_sum_product_3c_gspace_1d(S_G_tmp, -R2, -R1, gamma, beta, alpha, lgth, &
+                                              R_bound, G_bound)
             S_G = RESHAPE(S_G_tmp, SHAPE(S_G), order=[3, 2, 1])
          END SELECT
 
       CASE (3) ! sum_R sum_R' H(R, R')
-         CALL pgf_sum_rspace_3c_1d(S_G, RA, RB, RC, zeta, zetb, zetc, a_mm, lgth, R_bounds_3, n_sum_count)
+         CALL pgf_sum_3c_rspace_1d(S_G, RA, RB, RC, zeta, zetb, zetc, a_mm, lgth, R_bounds_3)
          S_G = S_G*pi**(-0.5_dp)*((zeta+zetb)/(zeta*zetb))**(-0.5_dp)
       END SELECT
 
-      IF (debug) THEN
-         CPASSERT(n_sum_count .LE. n_sum_predicted)
-      ENDIF
       IF (PRESENT(method_out)) method_out = sum_method
 
-   CONTAINS
+   END SUBROUTINE pgf_sum_3c_1d
+
+! **************************************************************************************************
+!> \brief Roughly estimated number of floating point operations
+!> \param ns_G1 ...
+!> \param ns_G2 ...
+!> \param l ...
+!> \param m ...
+!> \param n ...
+!> \retval nsum_3c_gspace_1d ...
+! **************************************************************************************************
+   PURE FUNCTION nsum_3c_gspace_1d(ns_G1, ns_G2, l, m, n)
+      REAL(KIND=dp), INTENT(IN)                          :: ns_G1, ns_G2
+      INTEGER, INTENT(IN)                                :: l, m, n
+      INTEGER(KIND=int_8)                                :: nsum_3c_gspace_1d
+
+      nsum_3c_gspace_1d = NINT(ns_G1*ns_G2*(5*exp_w)+(l+1)*(m+1)*(n+1)*13, KIND=int_8)
+   END FUNCTION
+
+! **************************************************************************************************
+!> \brief ...
+!> \param S_G ...
+!> \param R1 ...
+!> \param R2 ...
+!> \param alpha ...
+!> \param beta ...
+!> \param gamma ...
+!> \param inv_lgth ...
+!> \param G_c ...
+!> \param sum_order ...
+! **************************************************************************************************
+   PURE SUBROUTINE pgf_sum_3c_gspace_1d(S_G, R1, R2, alpha, beta, gamma, inv_lgth, G_c, sum_order)
+      REAL(KIND=dp), DIMENSION(0:, 0:, 0:), INTENT(OUT)  :: S_G
+      REAL(KIND=dp), INTENT(IN)                          :: R1, R2, alpha, beta, gamma, inv_lgth
+      REAL(KIND=dp), DIMENSION(3), INTENT(IN)            :: G_c
+      INTEGER, INTENT(IN)                                :: sum_order
+
+      COMPLEX(KIND=dp), ALLOCATABLE, DIMENSION(:)        :: exp1, exp3
+      COMPLEX(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)  :: S_G_c
+      INTEGER                                            :: G1c, G2c, G3c, gg, gg1, gg2, gg3, l_max, &
+                                                            m_max, n_max
+      REAL(KIND=dp)                                      :: dG, G
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: exp2
+
+      l_max = UBOUND(S_G, 1)
+      m_max = UBOUND(S_G, 2)
+      n_max = UBOUND(S_G, 3)
+
+      ALLOCATE (S_G_c(0:l_max, 0:m_max, 0:n_max))
+      S_G_c(:, :, :) = 0.0_dp
+
+      G1c = FLOOR(G_c(1))
+      G2c = FLOOR(G_c(2))
+      G3c = FLOOR(G_c(3))
+
+      ! Precompute exponentials
+      SELECT CASE (sum_order)
+      CASE (1)
+         G1c = FLOOR(G_c(2)+G_c(3))
+      CASE (2)
+         G2c = FLOOR(G_c(1)+G_c(3))
+      CASE (3)
+         G3c = FLOOR(G_c(1)+G_c(2))
+      END SELECT
+
+      ALLOCATE (exp1(-G1c:G1c))
+      ALLOCATE (exp2(-G2c:G2c))
+      ALLOCATE (exp3(-G3c:G3c))
+
+      dG = inv_lgth*twopi
+
+      DO gg = -G1c, G1c
+         G = gg*dG
+         exp1(gg) = EXP(-alpha*G**2)*EXP(gaussi*G*R1) ! cost: 2*exp_w flops
+      ENDDO
+
+      DO gg = -G2c, G2c
+         G = gg*dG
+         exp2(gg) = EXP(-beta*G**2) ! cost: exp_w flops
+      ENDDO
+
+      DO gg = -G3c, G3c
+         G = gg*dG
+         exp3(gg) = EXP(-gamma*G**2)*EXP(gaussi*G*R2) ! cost: 2*exp_w flops
+      ENDDO
+
+      ! Perform double G sum
+      SELECT CASE (sum_order)
+      CASE (1)
+         DO gg2 = -G2c, G2c
+            DO gg3 = -G3c, G3c
+               gg1 = gg3-gg2
+               CALL pgf_product_3c_gspace_1d(S_G_c, gg1, gg2, gg3, dG, l_max, m_max, n_max, G1c, G2c, G3c, exp1, exp2, exp3)
+            ENDDO
+         ENDDO
+      CASE (2)
+         DO gg1 = -G1c, G1c
+            DO gg3 = -G3c, G3c
+               gg2 = gg3-gg1
+               CALL pgf_product_3c_gspace_1d(S_G_c, gg1, gg2, gg3, dG, l_max, m_max, n_max, G1c, G2c, G3c, exp1, exp2, exp3)
+            ENDDO
+         ENDDO
+      CASE (3)
+         DO gg1 = -G1c, G1c
+            DO gg2 = -G2c, G2c
+               gg3 = gg1+gg2
+               CALL pgf_product_3c_gspace_1d(S_G_c, gg1, gg2, gg3, dG, l_max, m_max, n_max, G1c, G2c, G3c, exp1, exp2, exp3)
+            ENDDO
+         ENDDO
+      END SELECT
+
+      S_G = REAL(S_G_c, KIND=dp)*inv_lgth**2
+
+   END SUBROUTINE
 
 ! **************************************************************************************************
 !> \brief Helper routine: compute (-1)^(l+m)*(i)^(l+m+n)*G1^l*exp_G1*G2^m*exp_G2*G3^n*exp_G3
@@ -709,7 +960,7 @@ CONTAINS
 !> \param exp2 ...
 !> \param exp3 ...
 ! **************************************************************************************************
-      PURE SUBROUTINE pgf_product_gspace_3c_1d(S_G, k1, k2, k3, dG, l_max, m_max, n_max, G1c, G2c, G3c, exp1, exp2, exp3)
+   PURE SUBROUTINE pgf_product_3c_gspace_1d(S_G, k1, k2, k3, dG, l_max, m_max, n_max, G1c, G2c, G3c, exp1, exp2, exp3)
       COMPLEX(KIND=dp), DIMENSION(0:, 0:, 0:), &
          INTENT(INOUT)                                   :: S_G
       INTEGER, INTENT(IN)                                :: k1, k2, k3
@@ -722,29 +973,54 @@ CONTAINS
       INTEGER                                            :: l, m, n
       REAL(KIND=dp)                                      :: G1, G1_pow_l, G2, G2_pow_m, G3, G3_pow_n
 
-         G1 = k1*dG
-         G2 = k2*dG
-         G3 = k3*dG
+      G1 = k1*dG
+      G2 = k2*dG
+      G3 = k3*dG
 
-         G3_pow_n = 1.0_dp
-         DO n = 0, n_max
-            G2_pow_m = 1.0_dp
-            DO m = 0, m_max
-               G1_pow_l = 1.0_dp
-               DO l = 0, l_max
-                  S_G(l, m, n) = S_G(l, m, n)+G1_pow_l*exp1(k1)*G2_pow_m*exp2(k2)*G3_pow_n*exp3(k3)*i_pow(l+m+n)*(-1.0_dp)**(l+m)
-                  G1_pow_l = G1_pow_l*G1
-               ENDDO
-               G2_pow_m = G2_pow_m*G2
+      G3_pow_n = 1.0_dp
+
+      DO n = 0, n_max
+         G2_pow_m = 1.0_dp
+         DO m = 0, m_max
+            G1_pow_l = 1.0_dp
+            DO l = 0, l_max
+               S_G(l, m, n) = S_G(l, m, n)+G1_pow_l*exp1(k1)*G2_pow_m*exp2(k2)*G3_pow_n*exp3(k3)*i_pow(l+m+n)*(-1.0_dp)**(l+m) ! cost: 12 flops
+               G1_pow_l = G1_pow_l*G1 ! cost: 1 flop
             ENDDO
-            G3_pow_n = G3_pow_n*G3
+            G2_pow_m = G2_pow_m*G2
          ENDDO
+         G3_pow_n = G3_pow_n*G3
+      ENDDO
 
-      END SUBROUTINE pgf_product_gspace_3c_1d
+   END SUBROUTINE pgf_product_3c_gspace_1d
+
+! **************************************************************************************************
+!> \brief Roughly estimated number of floating point operations
+!> \param ns_G ...
+!> \param ns_R ...
+!> \param l ...
+!> \param m ...
+!> \param n ...
+!> \retval nsum_product_3c_gspace_1d ...
+! **************************************************************************************************
+   PURE FUNCTION nsum_product_3c_gspace_1d(ns_G, ns_R, l, m, n)
+      REAL(KIND=dp), INTENT(IN)                          :: ns_G, ns_R
+      INTEGER, INTENT(IN)                                :: l, m, n
+      INTEGER(KIND=int_8)                                :: nsum_product_3c_gspace_1d
+
+      nsum_product_3c_gspace_1d = &
+         NINT( &
+         ns_G*( &
+         (exp_w*2)+ &
+         ns_R*(exp_w*2+(l+m+1)*6)+ &
+         nsum_gaussian_overlap(l, m, 1)+ &
+         (l+1)*(m+1)*((l+m+1)*2+(n+1)*10)), &
+         KIND=int_8)
+   END FUNCTION
 
 ! **************************************************************************************************
 !> \brief Helper routine: compute (-1)^(l+m) i^(l+m+n)/lgth**2 sum(G) e^(i G R1) C(G, l, alpha) S_R(l, m)
-!>        (S_R obtained with pgf_sum_product_rspace_3c_1d)
+!>        (S_R obtained with pgf_sum_product_3c_rspace_1d)
 !> \param S_G ...
 !> \param R1 ...
 !> \param R2 ...
@@ -754,46 +1030,43 @@ CONTAINS
 !> \param lgth ...
 !> \param R_c ...
 !> \param G_c ...
-!> \param n_sum_count ...
 ! **************************************************************************************************
-      PURE SUBROUTINE pgf_sum_product_gspace_3c_1d(S_G, R1, R2, alpha, beta, gamma, lgth, R_c, G_c, n_sum_count)
-      REAL(KIND=dp), DIMENSION(0:, 0:, 0:), &
-         INTENT(INOUT)                                   :: S_G
+   PURE SUBROUTINE pgf_sum_product_3c_gspace_1d(S_G, R1, R2, alpha, beta, gamma, lgth, R_c, G_c)
+      REAL(KIND=dp), DIMENSION(0:, 0:, 0:), INTENT(OUT)  :: S_G
       REAL(KIND=dp), INTENT(IN)                          :: R1, R2, alpha, beta, gamma, lgth, R_c, &
                                                             G_c
-      INTEGER, INTENT(INOUT), OPTIONAL                   :: n_sum_count
 
       COMPLEX(KIND=dp)                                   :: exp_tot
       COMPLEX(KIND=dp), ALLOCATABLE, DIMENSION(:, :)     :: S_R
       COMPLEX(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)  :: S_G_c
-      INTEGER                                            :: k, l, l_max, m, m_max, n, n_max
+      INTEGER                                            :: gg, l, l_max, m, m_max, n, n_max
       REAL(KIND=dp)                                      :: dG, G, G_pow_l
 
-         dG = 1.0_dp/lgth*twopi
-         l_max = UBOUND(S_G, 1)
-         m_max = UBOUND(S_G, 2)
-         n_max = UBOUND(S_G, 3)
-         ALLOCATE (S_G_c(0:l_max, 0:m_max, 0:n_max))
+      dG = 1.0_dp/lgth*twopi
+      l_max = UBOUND(S_G, 1)
+      m_max = UBOUND(S_G, 2)
+      n_max = UBOUND(S_G, 3)
+      ALLOCATE (S_G_c(0:l_max, 0:m_max, 0:n_max))
 
-         S_G_c(:, :, :) = 0.0_dp
-         ALLOCATE (S_R(0:m_max, 0:n_max))
-         DO k = -FLOOR(G_c), FLOOR(G_c)
-            G = k*dG
-            exp_tot = EXP(-alpha*G**2)*EXP(gaussi*G*R1)
-            CALL pgf_sum_product_rspace_3c_1d(S_R, G, R2, beta, gamma, lgth, R_c, n_sum_count)
-            DO n = 0, n_max
-               DO m = 0, m_max
-                  G_pow_l = 1.0_dp
-                  DO l = 0, l_max
-                     S_G_c(l, m, n) = S_G_c(l, m, n)+G_pow_l*exp_tot*i_pow(l+m+n)*(-1.0_dp)**(l+m)*S_R(m, n)
-                     G_pow_l = G_pow_l*G
-                  ENDDO
+      S_G_c(:, :, :) = 0.0_dp
+      ALLOCATE (S_R(0:m_max, 0:n_max))
+      DO gg = -FLOOR(G_c), FLOOR(G_c)
+         G = gg*dG
+         exp_tot = EXP(-alpha*G**2)*EXP(gaussi*G*R1) ! cost: exp_w*2 flops
+         CALL pgf_sum_product_3c_rspace_1d(S_R, G, R2, beta, gamma, lgth, R_c)
+         DO n = 0, n_max
+            DO m = 0, m_max
+               G_pow_l = 1.0_dp
+               DO l = 0, l_max
+                  S_G_c(l, m, n) = S_G_c(l, m, n)+G_pow_l*exp_tot*i_pow(l+m+n)*(-1.0_dp)**(l+m)*S_R(m, n) ! cost: 9 flops
+                  G_pow_l = G_pow_l*G ! cost: 1 flop
                ENDDO
             ENDDO
          ENDDO
-         S_G = REAL(S_G_c, KIND=dp)/lgth**2
+      ENDDO
+      S_G = REAL(S_G_c, KIND=dp)/lgth**2
 
-      END SUBROUTINE pgf_sum_product_gspace_3c_1d
+   END SUBROUTINE pgf_sum_product_3c_gspace_1d
 
 ! **************************************************************************************************
 !> \brief Helper routine: compute sum(R') sum_{t=0}^{l+m} E(t,l,m) (-i)^t C(R'+R,t,alpha) * e^(i beta (R'+R) G)
@@ -807,55 +1080,75 @@ CONTAINS
 !> \param beta ...
 !> \param lgth ...
 !> \param R_c ...
-!> \param n_sum_count ...
 ! **************************************************************************************************
-      PURE SUBROUTINE pgf_sum_product_rspace_3c_1d(S_R, G, R, alpha, beta, lgth, R_c, n_sum_count)
-      COMPLEX(KIND=dp), DIMENSION(0:, 0:), INTENT(INOUT) :: S_R
+   PURE SUBROUTINE pgf_sum_product_3c_rspace_1d(S_R, G, R, alpha, beta, lgth, R_c)
+      COMPLEX(KIND=dp), DIMENSION(0:, 0:), INTENT(OUT)   :: S_R
       REAL(KIND=dp), INTENT(IN)                          :: G, R, alpha, beta, lgth, R_c
-      INTEGER, INTENT(INOUT), OPTIONAL                   :: n_sum_count
 
       COMPLEX(KIND=dp)                                   :: exp_tot
       COMPLEX(KIND=dp), ALLOCATABLE, DIMENSION(:)        :: S_R_t
-      INTEGER                                            :: k, l, l_max, m, m_max, t
-      REAL(KIND=dp)                                      :: c1, c2, dG, dR, R_pow_t, Rp
+      INTEGER                                            :: l, l_max, m, m_max, rr, t
+      REAL(KIND=dp)                                      :: c1, c2, dR, R_pow_t, Rp
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: E
 
-         dR = lgth
-         dG = twopi/dR
-         l_max = UBOUND(S_R, 1)
-         m_max = UBOUND(S_R, 2)
-         c1 = 0.25_dp/(alpha+beta)
-         c2 = alpha/(alpha+beta)
+      dR = lgth
+      l_max = UBOUND(S_R, 1)
+      m_max = UBOUND(S_R, 2)
+      c1 = 0.25_dp/(alpha+beta)
+      c2 = alpha/(alpha+beta)
 
-         ALLOCATE (S_R_t(0:l_max+m_max))
+      ALLOCATE (S_R_t(0:l_max+m_max))
+      ALLOCATE (E(-1:l_max+m_max+1, -1:l_max, -1:m_max))
 
-         S_R_t(:) = 0.0_dp
-         S_R(:, :) = 0.0_dp
+      S_R_t(:) = 0.0_dp
+      S_R(:, :) = 0.0_dp
 
-         DO k = CEILING(-R_c+R/dR), FLOOR(R_c+R/dR)
-            Rp = k*dR-R
-            exp_tot = EXP(-c1*Rp**2)*EXP(-gaussi*c2*Rp*G)
-            R_pow_t = 1.0_dp
-            DO t = 0, l_max+m_max
-               S_R_t(t) = S_R_t(t)+i_pow(t)*(-1)**t*R_pow_t*exp_tot
-               R_pow_t = R_pow_t*Rp
-            ENDDO
-            IF (n_sum_count .GE. 0) n_sum_count = n_sum_count+1
+      DO rr = CEILING(-R_c+R/dR), FLOOR(R_c+R/dR)
+         Rp = rr*dR-R
+         exp_tot = EXP(-c1*Rp**2)*EXP(-gaussi*c2*Rp*G) ! cost: exp_w*2 flops
+         R_pow_t = 1.0_dp
+         DO t = 0, l_max+m_max
+            S_R_t(t) = S_R_t(t)+i_pow(t)*(-1)**t*R_pow_t*exp_tot ! cost: 5 flops
+            R_pow_t = R_pow_t*Rp ! cost: 1 flop
          ENDDO
+      ENDDO
 
-         ! H --> CC
-         CALL create_gaussian_overlap_dist_to_hermite(l_max, m_max, alpha, beta, G, 0.0_dp, 1, E)
-         DO m = 0, m_max
-            DO l = 0, l_max
-               DO t = 0, l+m
-                  S_R(l, m) = S_R(l, m)+E(t, l, m)*S_R_t(t)
-               ENDDO
+      ! H --> CC
+      CALL create_gaussian_overlap_dist_to_hermite(l_max, m_max, alpha, beta, G, 0.0_dp, 1, E)
+      DO m = 0, m_max
+         DO l = 0, l_max
+            DO t = 0, l+m
+               S_R(l, m) = S_R(l, m)+E(t, l, m)*S_R_t(t) ! cost: 2 flops
             ENDDO
          ENDDO
+      ENDDO
 
-         S_R(:, :) = S_R(:, :)*lgth/(twopi)*(pi/(alpha+beta))**0.5_dp
+      S_R(:, :) = S_R(:, :)*lgth/(twopi)*(pi/(alpha+beta))**0.5_dp
 
-      END SUBROUTINE pgf_sum_product_rspace_3c_1d
+   END SUBROUTINE pgf_sum_product_3c_rspace_1d
+
+! **************************************************************************************************
+!> \brief Roughly estimated number of floating point operations
+!> \param ns_R1 ...
+!> \param ns_R2 ...
+!> \param l ...
+!> \param m ...
+!> \param n ...
+!> \retval nsum_3c_rspace_1d ...
+! **************************************************************************************************
+   PURE FUNCTION nsum_3c_rspace_1d(ns_R1, ns_R2, l, m, n)
+      REAL(KIND=dp), INTENT(IN)                          :: ns_R1, ns_R2
+      INTEGER, INTENT(IN)                                :: l, m, n
+      INTEGER(KIND=int_8)                                :: nsum_3c_rspace_1d
+
+      nsum_3c_rspace_1d = &
+         NINT( &
+         ns_R1*( &
+         ns_R2*(exp_w+(l+m+n+1)*3)+ &
+         nsum_gaussian_overlap(l, m, 2)+ &
+         (m+1)*(l+1)*(n+1)*(l+m+1)*5), &
+         KIND=int_8)
+   END FUNCTION
 
 ! **************************************************************************************************
 !> \brief Helper routine: compute SQRT(alpha/pi) (-1)^n sum_(R, R') sum_{t=0}^{l+m} E(t,l,m) H(RC - P(R) - R', t + n, alpha)
@@ -871,74 +1164,871 @@ CONTAINS
 !> \param a_mm ...
 !> \param lgth ...
 !> \param R_c ...
-!> \param n_sum_count ...
 ! **************************************************************************************************
-      PURE SUBROUTINE pgf_sum_rspace_3c_1d(S_R, RA, RB, RC, zeta, zetb, zetc, a_mm, lgth, R_c, n_sum_count)
-      REAL(KIND=dp), DIMENSION(0:, 0:, 0:), &
-         INTENT(INOUT)                                   :: S_R
+   PURE SUBROUTINE pgf_sum_3c_rspace_1d(S_R, RA, RB, RC, zeta, zetb, zetc, a_mm, lgth, R_c)
+      REAL(KIND=dp), DIMENSION(0:, 0:, 0:), INTENT(OUT)  :: S_R
       REAL(KIND=dp), INTENT(IN)                          :: RA, RB, RC, zeta, zetb, zetc, a_mm, lgth
       REAL(KIND=dp), DIMENSION(2), INTENT(IN)            :: R_c
-      INTEGER, INTENT(INOUT), OPTIONAL                   :: n_sum_count
 
-      INTEGER                                            :: k1, k2, l, l_max, m, m_max, n, n_max, t
-      REAL(KIND=dp)                                      :: alpha, dR, exp_tot, k1_delta, k2_delta, &
-                                                            R, R1, R2, R_offset, R_pow_t, R_tmp
+      INTEGER                                            :: l, l_max, m, m_max, n, n_max, rr1, rr2, t
+      REAL(KIND=dp)                                      :: alpha, dR, exp_tot, R, R1, R2, R_offset, &
+                                                            R_pow_t, R_tmp, rr1_delta, rr2_delta
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: S_R_t
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: h_to_c
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: E
 
-         dR = lgth
-         alpha = 1.0_dp/((zeta+zetb+zetc)/((zeta+zetb)*zetc)+4.0_dp*a_mm)
-         l_max = UBOUND(S_R, 1)
-         m_max = UBOUND(S_R, 2)
-         n_max = UBOUND(S_R, 3)
+      dR = lgth
+      alpha = 1.0_dp/((zeta+zetb+zetc)/((zeta+zetb)*zetc)+4.0_dp*a_mm)
+      l_max = UBOUND(S_R, 1)
+      m_max = UBOUND(S_R, 2)
+      n_max = UBOUND(S_R, 3)
 
-         ALLOCATE (S_R_t(0:l_max+m_max+n_max))
+      ALLOCATE (S_R_t(0:l_max+m_max+n_max))
+      ALLOCATE (E(-1:l_max+m_max+1, -1:l_max, -1:m_max))
 
-         S_R(:, :, :) = 0.0_dp
+      S_R(:, :, :) = 0.0_dp
 
-         R_offset = RC-(zeta*RA+zetb*RB)/(zeta+zetb)
+      R_offset = RC-(zeta*RA+zetb*RB)/(zeta+zetb)
 
-         CALL create_hermite_to_cartesian(alpha, l_max+m_max+n_max, h_to_c)
+      CALL create_hermite_to_cartesian(alpha, l_max+m_max+n_max, h_to_c)
 
-         k1_delta = (RA-RB)/dR
-         DO k1 = CEILING(-R_c(1)+k1_delta), FLOOR(R_c(1)+k1_delta)
-            S_R_t(:) = 0.0_dp
-            R1 = k1*dR
-            R_tmp = R_offset+R1*zeta/(zeta+zetb)
-            k2_delta = -R_tmp/dR
-            DO k2 = CEILING(-R_c(2)+k2_delta), FLOOR(R_c(2)+k2_delta)
-               R2 = k2*dR
-               R = R_tmp+R2
-               exp_tot = EXP(-alpha*R**2)
-               R_pow_t = 1.0_dp
-               DO t = 0, l_max+m_max+n_max
-                  S_R_t(t) = S_R_t(t)+R_pow_t*exp_tot
-                  R_pow_t = R_pow_t*R
-               ENDDO
-               IF (n_sum_count .GE. 0) n_sum_count = n_sum_count+1
+      rr1_delta = (RA-RB)/dR
+      DO rr1 = CEILING(-R_c(1)+rr1_delta), FLOOR(R_c(1)+rr1_delta)
+         S_R_t(:) = 0.0_dp
+         R1 = rr1*dR
+         R_tmp = R_offset+R1*zeta/(zeta+zetb)
+         rr2_delta = -R_tmp/dR
+         DO rr2 = CEILING(-R_c(2)+rr2_delta), FLOOR(R_c(2)+rr2_delta)
+            R2 = rr2*dR
+            R = R_tmp+R2
+            exp_tot = EXP(-alpha*R**2) ! cost: exp_w flops
+            R_pow_t = 1.0_dp
+            DO t = 0, l_max+m_max+n_max
+               S_R_t(t) = S_R_t(t)+R_pow_t*exp_tot ! cost: 2 flops
+               R_pow_t = R_pow_t*R ! cost: 1 flop
             ENDDO
+         ENDDO
 
-            ! C --> H
-            S_R_t(:) = MATMUL(TRANSPOSE(h_to_c), S_R_t)*SQRT(alpha/pi)
+         ! C --> H
+         S_R_t(:) = MATMUL(TRANSPOSE(h_to_c(0:l_max+m_max+n_max, 0:l_max+m_max+n_max)), S_R_t)*SQRT(alpha/pi)
 
-            ! H --> HH
-            CALL create_gaussian_overlap_dist_to_hermite(l_max, m_max, zeta, zetb, RA-R1, RB, 2, E)
+         ! H --> HH
+         CALL create_gaussian_overlap_dist_to_hermite(l_max, m_max, zeta, zetb, RA-R1, RB, 2, E)
 
-            DO n = 0, n_max
-               DO m = 0, m_max
-                  DO l = 0, l_max
-                     DO t = 0, l+m
-                        S_R(l, m, n) = S_R(l, m, n)+E(t, l, m)*(-1)**n*S_R_t(t+n)
+         DO n = 0, n_max
+            DO m = 0, m_max
+               DO l = 0, l_max
+                  DO t = 0, l+m
+                     S_R(l, m, n) = S_R(l, m, n)+E(t, l, m)*(-1)**n*S_R_t(t+n) ! cost: 5 flops
+                  ENDDO
+               ENDDO
+            ENDDO
+         ENDDO
+      ENDDO
+   END SUBROUTINE pgf_sum_3c_rspace_1d
+
+! **************************************************************************************************
+!> \brief As pgf_sum_3c_1d but 3d sum required for non-orthorhombic cells
+!> \param S_G ...
+!> \param la_max ...
+!> \param lb_max ...
+!> \param lc_max ...
+!> \param RA ...
+!> \param RB ...
+!> \param RC ...
+!> \param zeta ...
+!> \param zetb ...
+!> \param zetc ...
+!> \param a_mm ...
+!> \param hmat ...
+!> \param h_inv ...
+!> \param vol ...
+!> \param G_bounds_1 ...
+!> \param R_bounds_2 ...
+!> \param R_bounds_3 ...
+!> \param G_rads_1 ...
+!> \param R_rads_2 ...
+!> \param R_rads_3 ...
+!> \param method ...
+!> \param method_out ...
+!> \param order ...
+! **************************************************************************************************
+   SUBROUTINE pgf_sum_3c_3d(S_G, la_max, lb_max, lc_max, RA, RB, RC, &
+                            zeta, zetb, zetc, a_mm, hmat, h_inv, vol, &
+                            G_bounds_1, R_bounds_2, R_bounds_3, &
+                            G_rads_1, R_rads_2, R_rads_3, &
+                            method, method_out, order)
+      REAL(KIND=dp), DIMENSION(:, :, :), INTENT(OUT)     :: S_G
+      INTEGER, INTENT(IN)                                :: la_max, lb_max, lc_max
+      REAL(KIND=dp), DIMENSION(3), INTENT(IN)            :: RA, RB, RC
+      REAL(KIND=dp), INTENT(IN)                          :: zeta, zetb, zetc, a_mm
+      REAL(KIND=dp), DIMENSION(3, 3), INTENT(IN)         :: hmat, h_inv
+      REAL(KIND=dp), INTENT(IN)                          :: vol
+      REAL(KIND=dp), DIMENSION(3, 3), INTENT(IN)         :: G_bounds_1, R_bounds_2
+      REAL(KIND=dp), DIMENSION(2, 3), INTENT(IN)         :: R_bounds_3
+      REAL(KIND=dp), DIMENSION(3), INTENT(IN)            :: G_rads_1, R_rads_2
+      REAL(KIND=dp), DIMENSION(2), INTENT(IN)            :: R_rads_3
+      INTEGER, INTENT(IN)                                :: method
+      INTEGER, INTENT(OUT), OPTIONAL                     :: method_out
+      INTEGER, INTENT(IN), OPTIONAL                      :: order
+
+      LOGICAL, PARAMETER                                 :: debug = .FALSE.
+
+      INTEGER                                            :: l_max, m_max, n_max, sum_method, &
+                                                            sum_order
+      LOGICAL                                            :: assert_stm
+      REAL(KIND=dp)                                      :: alpha, beta, G_rad, gamma, R_rad
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: S_G_tmp
+      REAL(KIND=dp), DIMENSION(3)                        :: G_bound, R1, R2, R_bound
+      REAL(KIND=dp), DIMENSION(3, 3)                     :: ht
+
+      IF (PRESENT(order)) THEN
+         sum_order = order
+      ELSE
+         sum_order = 0
+      ENDIF
+
+      sum_method = method
+
+      alpha = 0.25_dp/zeta
+      beta = 0.25_dp/zetb
+      gamma = 0.25_dp/zetc+a_mm
+
+      l_max = la_max
+      m_max = lb_max
+      n_max = lc_max
+
+      R1 = RB-RA
+      R2 = RC-RB
+
+      ht = twopi*TRANSPOSE(h_inv)
+
+      SELECT CASE (sum_method)
+      CASE (1) ! sum_G sum_G' C(G) C(G,G') C(G')
+
+         IF (sum_order .EQ. 0) THEN
+            sum_order = MAXLOC(G_bounds_1(:, 1), DIM=1)
+            assert_stm = MINLOC(G_bounds_1(:, 1), DIM=1) == &
+               MINLOC(G_bounds_1(:, 2), DIM=1) .AND. &
+               MINLOC(G_bounds_1(:, 1), DIM=1) == &
+               MINLOC(G_bounds_1(:, 3), DIM=1)
+            CPASSERT(assert_stm)
+         ENDIF
+
+         CALL pgf_sum_3c_gspace_3d(S_G, l_max, m_max, n_max, R1, R2, alpha, beta, gamma, ht, vol, G_bounds_1, G_rads_1, sum_order)
+
+      CASE (2) ! sum_G sum_R C(G) C(R)
+         IF (sum_order .EQ. 0) THEN
+            sum_order = MINLOC(G_bounds_1(:, 1), DIM=1)
+            assert_stm = MINLOC(G_bounds_1(:, 1), DIM=1) == &
+               MINLOC(G_bounds_1(:, 2), DIM=1) .AND. &
+               MINLOC(G_bounds_1(:, 1), DIM=1) == &
+               MINLOC(G_bounds_1(:, 3), DIM=1)
+            CPASSERT(assert_stm)
+         ENDIF
+         R_rad = R_rads_2(sum_order)
+         G_rad = G_rads_1(sum_order)
+         R_bound = R_bounds_2(sum_order, :)
+         G_bound = G_bounds_1(sum_order, :)
+         SELECT CASE (sum_order)
+         CASE (1)
+            ALLOCATE (S_G_tmp(ncoset(l_max), ncoset(m_max), ncoset(n_max)))
+            CALL pgf_sum_product_3c_gspace_3d(S_G_tmp, l_max, m_max, n_max, R1, R2, alpha, beta, gamma, hmat, h_inv, vol, &
+                                              R_bound, G_bound, R_rad, G_rad)
+            S_G = RESHAPE(S_G_tmp, SHAPE(S_G), order=[1, 2, 3])
+         CASE (2)
+            ALLOCATE (S_G_tmp(ncoset(m_max), ncoset(l_max), ncoset(n_max)))
+            CALL pgf_sum_product_3c_gspace_3d(S_G_tmp, m_max, l_max, n_max, -R1, R1+R2, beta, alpha, gamma, hmat, h_inv, vol, &
+                                              R_bound, G_bound, R_rad, G_rad)
+            S_G = RESHAPE(S_G_tmp, SHAPE(S_G), order=[2, 1, 3])
+         CASE (3)
+            ALLOCATE (S_G_tmp(ncoset(n_max), ncoset(m_max), ncoset(l_max)))
+            CALL pgf_sum_product_3c_gspace_3d(S_G_tmp, n_max, m_max, l_max, -R2, -R1, gamma, beta, alpha, hmat, h_inv, vol, &
+                                              R_bound, G_bound, R_rad, G_rad)
+            S_G = RESHAPE(S_G_tmp, SHAPE(S_G), order=[3, 2, 1])
+         END SELECT
+      CASE (3) ! sum_R sum_R' H(R, R')
+         CALL pgf_sum_3c_rspace_3d(S_G, l_max, m_max, n_max, RA, RB, RC, zeta, zetb, zetc, a_mm, hmat, h_inv, &
+                                   R_bounds_3, R_rads_3)
+         S_G = S_G*pi**(-1.5_dp)*((zeta+zetb)/(zeta*zetb))**(-1.5_dp)
+      END SELECT
+
+      IF (PRESENT(method_out)) method_out = sum_method
+
+   END SUBROUTINE pgf_sum_3c_3d
+
+! **************************************************************************************************
+!> \brief Roughly estimated number of floating point operations
+!> \param ns_G1 ...
+!> \param ns_G2 ...
+!> \param l ...
+!> \param m ...
+!> \param n ...
+!> \retval nsum_3c_gspace_3d ...
+! **************************************************************************************************
+   PURE FUNCTION nsum_3c_gspace_3d(ns_G1, ns_G2, l, m, n)
+      REAL(KIND=dp), INTENT(IN)                          :: ns_G1, ns_G2
+      INTEGER, INTENT(IN)                                :: l, m, n
+      INTEGER(KIND=int_8)                                :: nsum_3c_gspace_3d
+
+      nsum_3c_gspace_3d = NINT(ns_G1*ns_G2*(5*exp_w+ncoset(l)*ncoset(m)*ncoset(n)*4), KIND=int_8)
+
+   END FUNCTION
+
+! **************************************************************************************************
+!> \brief ...
+!> \param S_G ...
+!> \param l_max ...
+!> \param m_max ...
+!> \param n_max ...
+!> \param R1 ...
+!> \param R2 ...
+!> \param alpha ...
+!> \param beta ...
+!> \param gamma ...
+!> \param ht ...
+!> \param vol ...
+!> \param G_c ...
+!> \param G_rad ...
+!> \param sum_order ...
+!> \param coulomb ...
+! **************************************************************************************************
+   PURE SUBROUTINE pgf_sum_3c_gspace_3d(S_G, l_max, m_max, n_max, R1, R2, alpha, beta, gamma, &
+                                        ht, vol, G_c, G_rad, sum_order, coulomb)
+      REAL(KIND=dp), DIMENSION(:, :, :), INTENT(OUT)     :: S_G
+      INTEGER, INTENT(IN)                                :: l_max, m_max, n_max
+      REAL(KIND=dp), DIMENSION(3), INTENT(IN)            :: R1, R2
+      REAL(KIND=dp), INTENT(IN)                          :: alpha, beta, gamma
+      REAL(KIND=dp), DIMENSION(3, 3), INTENT(IN)         :: ht
+      REAL(KIND=dp), INTENT(IN)                          :: vol
+      REAL(KIND=dp), DIMENSION(3, 3), INTENT(IN)         :: G_c
+      REAL(KIND=dp), DIMENSION(3), INTENT(IN)            :: G_rad
+      INTEGER, INTENT(IN)                                :: sum_order
+      LOGICAL, INTENT(IN), OPTIONAL                      :: coulomb
+
+      INTEGER, DIMENSION(3)                              :: G1c, G2c, G3c
+      INTEGER                                            :: g1x, g1y, g1z, g2x, g2y, g2z, g3x, g3y, &
+                                                            g3z
+      COMPLEX(KIND=dp), DIMENSION(ncoset(l_max), ncoset(&
+         m_max), ncoset(n_max))                          :: S_G_c
+      LOGICAL                                            :: use_coulomb
+      REAL(KIND=dp)                                      :: G1_sq, G2_sq, G3_sq
+      REAL(KIND=dp), DIMENSION(3)                        :: G1, G1_x, G1_y, G1_z, G2, G2_x, G2_y, &
+                                                            G2_z, G3, G3_x, G3_y, G3_z, G_rads_sq
+
+      S_G_c(:, :, :) = 0.0_dp
+
+      G1c = FLOOR(G_c(1, :))
+      G2c = FLOOR(G_c(2, :))
+      G3c = FLOOR(G_c(3, :))
+
+      ! we can not precompute exponentials for general cell
+      ! Perform double G sum
+      G_rads_sq = G_rad**2
+
+      IF (PRESENT(coulomb)) THEN
+         use_coulomb = coulomb
+      ELSE
+         use_coulomb = .FALSE.
+      ENDIF
+
+      SELECT CASE (sum_order)
+      CASE (1)
+         DO g2x = -G2c(1), G2c(1)
+            G2_x = ht(:, 1)*g2x
+            DO g2y = -G2c(2), G2c(2)
+               G2_y = ht(:, 2)*g2y
+               DO g2z = -G2c(3), G2c(3)
+                  G2_z = ht(:, 3)*g2z
+                  G2 = G2_x+G2_y+G2_z
+                  G2_sq = G2(1)**2+G2(2)**2+G2(3)**2
+                  IF (G2_sq .GT. G_rads_sq(2)) CYCLE
+                  DO g3x = -G3c(1), G3c(1)
+                     G3_x = ht(:, 1)*g3x
+                     DO g3y = -G3c(2), G3c(2)
+                        G3_y = ht(:, 2)*g3y
+                        DO g3z = -G3c(3), G3c(3)
+                           G3_z = ht(:, 3)*g3z
+                           G3 = G3_x+G3_y+G3_z
+                           G3_sq = G3(1)**2+G3(2)**2+G3(3)**2
+                           IF (G3_sq .GT. G_rads_sq(3)) CYCLE
+                           G1 = G3-G2
+                           G1_sq = G1(1)**2+G1(2)**2+G1(3)**2
+                           IF (G1_sq .GT. G_rads_sq(1)) CYCLE
+                           IF (use_coulomb) THEN
+                              IF (g3x == 0 .AND. g3y == 0 .AND. g3z == 0) CYCLE
+                           ENDIF
+                           CALL pgf_product_3c_gspace_3d(S_G_c, G1, G1_sq, G2, G2_sq, G3, G3_sq, l_max, m_max, n_max, &
+                                                         alpha, beta, gamma, R1, R2, use_coulomb)
+                        ENDDO
                      ENDDO
                   ENDDO
                ENDDO
             ENDDO
-            DEALLOCATE (E)
          ENDDO
-      END SUBROUTINE pgf_sum_rspace_3c_1d
+      CASE (2)
+         DO g1x = -G1c(1), G1c(1)
+            G1_x = ht(:, 1)*g1x
+            DO g1y = -G1c(2), G1c(2)
+               G1_y = ht(:, 2)*g1y
+               DO g1z = -G1c(3), G1c(3)
+                  G1_z = ht(:, 3)*g1z
+                  G1 = G1_x+G1_y+G1_z
+                  G1_sq = G1(1)**2+G1(2)**2+G1(3)**2
+                  IF (G1_sq .GT. G_rads_sq(1)) CYCLE
+                  DO g3x = -G3c(1), G3c(1)
+                     G3_x = ht(:, 1)*g3x
+                     DO g3y = -G3c(2), G3c(2)
+                        G3_y = ht(:, 2)*g3y
+                        DO g3z = -G3c(3), G3c(3)
+                           G3_z = ht(:, 3)*g3z
+                           G3 = G3_x+G3_y+G3_z
+                           G3_sq = G3(1)**2+G3(2)**2+G3(3)**2
+                           IF (G3_sq .GT. G_rads_sq(3)) CYCLE
+                           G2 = G3-G1
+                           G2_sq = G2(1)**2+G2(2)**2+G2(3)**2
+                           IF (G2_sq .GT. G_rads_sq(2)) CYCLE
+                           IF (use_coulomb) THEN
+                              IF (g3x == 0 .AND. g3y == 0 .AND. g3z == 0) CYCLE
+                           ENDIF
+                           CALL pgf_product_3c_gspace_3d(S_G_c, G1, G1_sq, G2, G2_sq, G3, G3_sq, l_max, m_max, n_max, &
+                                                         alpha, beta, gamma, R1, R2, use_coulomb)
+                        ENDDO
+                     ENDDO
+                  ENDDO
+               ENDDO
+            ENDDO
+         ENDDO
+      CASE (3)
+         DO g1x = -G1c(1), G1c(1)
+            G1_x = ht(:, 1)*g1x
+            DO g1y = -G1c(2), G1c(2)
+               G1_y = ht(:, 2)*g1y
+               DO g1z = -G1c(3), G1c(3)
+                  G1_z = ht(:, 3)*g1z
+                  G1 = G1_x+G1_y+G1_z
+                  G1_sq = G1(1)**2+G1(2)**2+G1(3)**2
+                  IF (G1_sq .GT. G_rads_sq(1)) CYCLE
+                  DO g2x = -G2c(1), G2c(1)
+                     G2_x = ht(:, 1)*g2x
+                     DO g2y = -G2c(2), G2c(2)
+                        G2_y = ht(:, 2)*g2y
+                        DO g2z = -G2c(3), G2c(3)
+                           G2_z = ht(:, 3)*g2z
+                           G2 = G2_x+G2_y+G2_z
+                           G2_sq = G2(1)**2+G2(2)**2+G2(3)**2
+                           IF (G2_sq .GT. G_rads_sq(2)) CYCLE
+                           G3 = G1+G2
+                           G3_sq = G3(1)**2+G3(2)**2+G3(3)**2
+                           IF (G3_sq .GT. G_rads_sq(3)) CYCLE
+                           IF (use_coulomb) THEN
+                              IF (g1x+g2x == 0 .AND. g1y+g2y == 0 .AND. g1z+g2z == 0) CYCLE
+                           ENDIF
+                           CALL pgf_product_3c_gspace_3d(S_G_c, G1, G1_sq, G2, G2_sq, G3, G3_sq, l_max, m_max, n_max, &
+                                                         alpha, beta, gamma, R1, R2, use_coulomb)
+                        ENDDO
+                     ENDDO
+                  ENDDO
+               ENDDO
+            ENDDO
+         ENDDO
+      END SELECT
+      S_G = REAL(S_G_c, KIND=dp)/vol**2
 
-   END SUBROUTINE pgf_sum_3c_1d
+   END SUBROUTINE
+
+! **************************************************************************************************
+!> \brief ...
+!> \param S_G ...
+!> \param G1 ...
+!> \param G1_sq ...
+!> \param G2 ...
+!> \param G2_sq ...
+!> \param G3 ...
+!> \param G3_sq ...
+!> \param l_max ...
+!> \param m_max ...
+!> \param n_max ...
+!> \param alpha ...
+!> \param beta ...
+!> \param gamma ...
+!> \param R1 ...
+!> \param R2 ...
+!> \param coulomb ...
+! **************************************************************************************************
+   PURE SUBROUTINE pgf_product_3c_gspace_3d(S_G, G1, G1_sq, G2, G2_sq, G3, G3_sq, l_max, m_max, n_max, &
+                                            alpha, beta, gamma, R1, R2, coulomb)
+
+      COMPLEX(KIND=dp), DIMENSION(:, :, :), INTENT(OUT)  :: S_G
+      REAL(KIND=dp), DIMENSION(3), INTENT(IN)            :: G1
+      REAL(KIND=dp), INTENT(IN)                          :: G1_sq
+      REAL(KIND=dp), DIMENSION(3), INTENT(IN)            :: G2
+      REAL(KIND=dp), INTENT(IN)                          :: G2_sq
+      REAL(KIND=dp), DIMENSION(3), INTENT(IN)            :: G3
+      REAL(KIND=dp), INTENT(IN)                          :: G3_sq
+      INTEGER, INTENT(IN)                                :: l_max, m_max, n_max
+      REAL(KIND=dp), INTENT(IN)                          :: alpha, beta, gamma
+      REAL(KIND=dp), DIMENSION(3), INTENT(IN)            :: R1, R2
+      LOGICAL, INTENT(IN)                                :: coulomb
+
+      COMPLEX(KIND=dp)                                   :: exp_tot
+      INTEGER                                            :: k, l, lco, lx, ly, lz, m, mco, mx, my, &
+                                                            mz, n, nco, nx, ny, nz
+      COMPLEX(KIND=dp), DIMENSION(ncoset(n_max))         :: S_G_n
+      COMPLEX(KIND=dp), DIMENSION(ncoset(m_max))         :: S_G_m
+      COMPLEX(KIND=dp), DIMENSION(ncoset(l_max))         :: S_G_l
+      REAL(KIND=dp), DIMENSION(3, 0:l_max)               :: G1_pow_l
+      REAL(KIND=dp), DIMENSION(3, 0:m_max)               :: G2_pow_m
+      REAL(KIND=dp), DIMENSION(3, 0:n_max)               :: G3_pow_n
+
+      exp_tot = EXP(gaussi*DOT_PRODUCT(G1, R1))*EXP(-alpha*G1_sq)* & ! cost: 5 exp_w flops
+                EXP(-beta*G2_sq)* &
+                EXP(-gamma*G3_sq)*EXP(gaussi*DOT_PRODUCT(G3, R2))
+
+      IF (coulomb) exp_tot = exp_tot/G3_sq
+
+      DO k = 1, 3
+         G1_pow_l(k, 0) = 1.0_dp
+         DO l = 1, l_max
+            G1_pow_l(k, l) = G1_pow_l(k, l-1)*G1(k)
+         ENDDO
+         G2_pow_m(k, 0) = 1.0_dp
+         DO m = 1, m_max
+            G2_pow_m(k, m) = G2_pow_m(k, m-1)*G2(k)
+         ENDDO
+         G3_pow_n(k, 0) = 1.0_dp
+         DO n = 1, n_max
+            G3_pow_n(k, n) = G3_pow_n(k, n-1)*G3(k)
+         ENDDO
+      ENDDO
+
+      DO lco = 1, ncoset(l_max)
+         CALL get_l(lco, l, lx, ly, lz)
+         S_G_l(lco) = G1_pow_l(1, lx)*G1_pow_l(2, ly)*G1_pow_l(3, lz)*(-1.0_dp)**l*i_pow(l)
+      ENDDO
+
+      DO mco = 1, ncoset(m_max)
+         CALL get_l(mco, m, mx, my, mz)
+         S_G_m(mco) = G2_pow_m(1, mx)*G2_pow_m(2, my)*G2_pow_m(3, mz)*(-1.0_dp)**m*i_pow(m)
+      ENDDO
+
+      DO nco = 1, ncoset(n_max)
+         CALL get_l(nco, n, nx, ny, nz)
+         S_G_n(nco) = G3_pow_n(1, nx)*G3_pow_n(2, ny)*G3_pow_n(3, nz)*i_pow(n)
+      ENDDO
+
+      DO nco = 1, ncoset(n_max)
+         DO mco = 1, ncoset(m_max)
+            DO lco = 1, ncoset(l_max)
+               S_G(lco, mco, nco) = S_G(lco, mco, nco)+ & ! cost: 4 flops
+                                    S_G_l(lco)*S_G_m(mco)*S_G_n(nco)* &
+                                    exp_tot
+            ENDDO
+         ENDDO
+      ENDDO
+
+   END SUBROUTINE pgf_product_3c_gspace_3d
+
+! **************************************************************************************************
+!> \brief Roughly estimated number of floating point operations
+!> \param ns_G ...
+!> \param ns_R ...
+!> \param l ...
+!> \param m ...
+!> \param n ...
+!> \retval nsum_product_3c_gspace_3d ...
+! **************************************************************************************************
+   PURE FUNCTION nsum_product_3c_gspace_3d(ns_G, ns_R, l, m, n)
+      REAL(KIND=dp), INTENT(IN)                          :: ns_G, ns_R
+      INTEGER, INTENT(IN)                                :: l, m, n
+      INTEGER(KIND=int_8)                                :: nsum_product_3c_gspace_3d
+
+      nsum_product_3c_gspace_3d = &
+         NINT( &
+         ns_G*( &
+         (exp_w*2)+ &
+         ns_R*(exp_w*2+ncoset(l+m)*7)+ &
+         3*nsum_gaussian_overlap(l, m, 1)+ &
+         ncoset(l)*ncoset(m)*(ncoset(l+m)*4+ncoset(n)*8)), &
+         KIND=int_8)
+   END FUNCTION
+
+! **************************************************************************************************
+!> \brief ...
+!> \param S_G ...
+!> \param l_max ...
+!> \param m_max ...
+!> \param n_max ...
+!> \param R1 ...
+!> \param R2 ...
+!> \param alpha ...
+!> \param beta ...
+!> \param gamma ...
+!> \param hmat ...
+!> \param h_inv ...
+!> \param vol ...
+!> \param R_c ...
+!> \param G_c ...
+!> \param R_rad ...
+!> \param G_rad ...
+! **************************************************************************************************
+   PURE SUBROUTINE pgf_sum_product_3c_gspace_3d(S_G, l_max, m_max, n_max, R1, R2, alpha, beta, gamma, &
+                                                hmat, h_inv, vol, R_c, G_c, R_rad, G_rad)
+      REAL(KIND=dp), DIMENSION(:, :, :), INTENT(OUT)     :: S_G
+      INTEGER, INTENT(IN)                                :: l_max, m_max, n_max
+      REAL(KIND=dp), DIMENSION(3), INTENT(IN)            :: R1, R2
+      REAL(KIND=dp), INTENT(IN)                          :: alpha, beta, gamma
+      REAL(KIND=dp), DIMENSION(3, 3), INTENT(IN)         :: hmat, h_inv
+      REAL(KIND=dp), INTENT(IN)                          :: vol
+      REAL(KIND=dp), DIMENSION(3), INTENT(IN)            :: R_c, G_c
+      REAL(KIND=dp), INTENT(IN)                          :: R_rad, G_rad
+
+      COMPLEX(KIND=dp)                                   :: exp_tot
+      INTEGER                                            :: gx, gy, gz, k, l, lco, lnco, lx, ly, lz, &
+                                                            m, mco, n, nco
+      COMPLEX(KIND=dp), &
+         DIMENSION(ncoset(m_max), ncoset(n_max))         :: S_R
+      COMPLEX(KIND=dp), DIMENSION(ncoset(l_max), ncoset(&
+         m_max), ncoset(n_max))                          :: S_G_c
+      REAL(KIND=dp)                                      :: G_rad_sq, G_sq, R_rad_sq
+      REAL(KIND=dp), DIMENSION(3)                        :: G, G_x, G_y, G_z
+      REAL(KIND=dp), DIMENSION(3, 0:l_max)               :: G_pow_l
+      REAL(KIND=dp), DIMENSION(3, 3)                     :: ht
+      REAL(KIND=dp), DIMENSION(ncoset(l_max))            :: S_G_c_l
+
+      S_G_c(:, :, :) = 0.0_dp
+
+      G_rad_sq = G_rad**2
+      R_rad_sq = R_rad**2
+
+      lnco = ncoset(l_max)
+
+      ht = twopi*TRANSPOSE(h_inv)
+      DO gx = -FLOOR(G_c(1)), FLOOR(G_c(1))
+         G_x = ht(:, 1)*gx
+         DO gy = -FLOOR(G_c(2)), FLOOR(G_c(2))
+            G_y = ht(:, 2)*gy
+            DO gz = -FLOOR(G_c(3)), FLOOR(G_c(3))
+               G_z = ht(:, 3)*gz
+               G = G_x+G_y+G_z
+               G_sq = G(1)**2+G(2)**2+G(3)**2
+               IF (G_sq .GT. G_rad_sq) CYCLE
+
+               exp_tot = EXP(-alpha*G_sq)*EXP(gaussi*DOT_PRODUCT(G, R1)) ! cost: exp_w*2 flops
+
+               DO k = 1, 3
+                  G_pow_l(k, 0) = 1.0_dp
+                  DO l = 1, l_max
+                     G_pow_l(k, l) = G_pow_l(k, l-1)*G(k)
+                  ENDDO
+               ENDDO
+
+               CALL pgf_sum_product_3c_rspace_3d(S_R, m_max, n_max, G, R2, beta, gamma, hmat, h_inv, vol, R_c, R_rad_sq)
+
+               DO lco = 1, ncoset(l_max)
+                  CALL get_l(lco, l, lx, ly, lz)
+                  S_G_c_l(lco) = G_pow_l(1, lx)*G_pow_l(2, ly)*G_pow_l(3, lz)*(-1.0_dp)**l
+               ENDDO
+
+               DO nco = 1, ncoset(n_max)
+                  CALL get_l(nco, n)
+                  DO mco = 1, ncoset(m_max)
+                     CALL get_l(mco, m)
+                     DO lco = 1, ncoset(l_max)
+                        CALL get_l(lco, l)
+                        S_G_c(lco, mco, nco) = & ! cost: 8 flops
+                           S_G_c(lco, mco, nco)+ &
+                           S_G_c_l(lco)* &
+                           exp_tot*i_pow(l+m+n)*(-1.0_dp)**m*S_R(mco, nco)
+                     ENDDO
+                  ENDDO
+               ENDDO
+            ENDDO
+         ENDDO
+      ENDDO
+      S_G = REAL(S_G_c, KIND=dp)/vol**2
+
+   END SUBROUTINE pgf_sum_product_3c_gspace_3d
+
+! **************************************************************************************************
+!> \brief ...
+!> \param S_R ...
+!> \param l_max ...
+!> \param m_max ...
+!> \param G ...
+!> \param R ...
+!> \param alpha ...
+!> \param beta ...
+!> \param hmat ...
+!> \param h_inv ...
+!> \param vol ...
+!> \param R_c ...
+!> \param R_rad_sq ...
+! **************************************************************************************************
+   PURE SUBROUTINE pgf_sum_product_3c_rspace_3d(S_R, l_max, m_max, G, R, alpha, beta, hmat, h_inv, vol, R_c, R_rad_sq)
+      COMPLEX(KIND=dp), DIMENSION(:, :), INTENT(OUT)     :: S_R
+      INTEGER, INTENT(IN)                                :: l_max, m_max
+      REAL(KIND=dp), DIMENSION(3), INTENT(IN)            :: G, R
+      REAL(KIND=dp), INTENT(IN)                          :: alpha, beta
+      REAL(KIND=dp), DIMENSION(3, 3), INTENT(IN)         :: hmat, h_inv
+      REAL(KIND=dp), INTENT(IN)                          :: vol
+      REAL(KIND=dp), DIMENSION(3), INTENT(IN)            :: R_c
+      REAL(KIND=dp), INTENT(IN)                          :: R_rad_sq
+
+      COMPLEX(KIND=dp)                                   :: exp_tot
+      INTEGER                                            :: k, l, lco, lx, ly, lz, m, mco, mx, my, &
+                                                            mz, sx, sy, sz, t, tco, tx, ty, tz
+      COMPLEX(KIND=dp), DIMENSION(ncoset(l_max+m_max))   :: S_R_t
+      REAL(KIND=dp)                                      :: c1, c2, Rp_sq
+      REAL(KIND=dp), &
+         DIMENSION(-1:l_max+m_max+1, -1:l_max, -1:m_max) :: E1, E2, E3
+      REAL(KIND=dp), DIMENSION(3)                        :: R_l, R_r, Rp, Rx, Ry, Rz, s_shift
+      REAL(KIND=dp), DIMENSION(3, 0:l_max+m_max)         :: R_pow_t
+
+      c1 = 0.25_dp/(alpha+beta)
+      c2 = alpha/(alpha+beta)
+
+      S_R_t(:) = 0.0_dp
+      S_R(:, :) = 0.0_dp
+
+      s_shift = MATMUL(h_inv, R)
+      R_l = -R_c+s_shift
+      R_r = R_c+s_shift
+
+      DO sx = CEILING(R_l(1)), FLOOR(R_r(1))
+         Rx = hmat(:, 1)*sx
+         DO sy = CEILING(R_l(2)), FLOOR(R_r(2))
+            Ry = hmat(:, 2)*sy
+            DO sz = CEILING(R_l(3)), FLOOR(R_r(3))
+               Rz = hmat(:, 3)*sz
+               Rp = Rx+Ry+Rz-R
+               Rp_sq = Rp(1)**2+Rp(2)**2+Rp(3)**2
+               IF (Rp_sq .GT. R_rad_sq) CYCLE
+
+               exp_tot = EXP(-c1*Rp_sq)*EXP(-gaussi*c2*DOT_PRODUCT(Rp, G)) ! cost: exp_w*2 flops
+               DO k = 1, 3
+                  R_pow_t(k, 0) = 1.0_dp
+                  DO t = 1, l_max+m_max
+                     R_pow_t(k, t) = R_pow_t(k, t-1)*Rp(k)
+                  ENDDO
+               ENDDO
+
+               DO tco = 1, ncoset(l_max+m_max)
+                  CALL get_l(tco, t, tx, ty, tz)
+                  S_R_t(tco) = S_R_t(tco)+ & ! cost: 7 flops
+                               R_pow_t(1, tx)*R_pow_t(2, ty)*R_pow_t(3, tz)* &
+                               (-1.0_dp)**t*i_pow(t)*exp_tot
+               ENDDO
+
+            ENDDO
+         ENDDO
+      ENDDO
+
+      CALL create_gaussian_overlap_dist_to_hermite(l_max, m_max, alpha, beta, G(1), 0.0_dp, 1, E1)
+      CALL create_gaussian_overlap_dist_to_hermite(l_max, m_max, alpha, beta, G(2), 0.0_dp, 1, E2)
+      CALL create_gaussian_overlap_dist_to_hermite(l_max, m_max, alpha, beta, G(3), 0.0_dp, 1, E3)
+
+      DO mco = 1, ncoset(m_max)
+         CALL get_l(mco, m, mx, my, mz)
+         DO lco = 1, ncoset(l_max)
+            CALL get_l(lco, l, lx, ly, lz)
+            DO tx = 0, lx+mx
+            DO ty = 0, ly+my
+            DO tz = 0, lz+mz
+               tco = coset(tx, ty, tz)
+               S_R(lco, mco) = S_R(lco, mco)+ & ! cost: 4 flops
+                               E1(tx, lx, mx)*E2(ty, ly, my)*E3(tz, lz, mz)*S_R_t(tco)
+
+            ENDDO
+            ENDDO
+            ENDDO
+         ENDDO
+      ENDDO
+
+      S_R(:, :) = S_R(:, :)*vol/(twopi)**3*(pi/(alpha+beta))**1.5_dp
+
+   END SUBROUTINE pgf_sum_product_3c_rspace_3d
+
+! **************************************************************************************************
+!> \brief Roughly estimated number of floating point operations
+!> \param ns_R1 ...
+!> \param ns_R2 ...
+!> \param l ...
+!> \param m ...
+!> \param n ...
+!> \retval nsum_3c_rspace_3d ...
+! **************************************************************************************************
+   PURE FUNCTION nsum_3c_rspace_3d(ns_R1, ns_R2, l, m, n)
+      REAL(KIND=dp), INTENT(IN)                          :: ns_R1, ns_R2
+      INTEGER, INTENT(IN)                                :: l, m, n
+      INTEGER(KIND=int_8)                                :: nsum_3c_rspace_3d
+
+      nsum_3c_rspace_3d = &
+         NINT( &
+         ns_R1*( &
+         ns_R2*(exp_w+ncoset(l+m+n)*4)+ &
+         3*nsum_gaussian_overlap(l, m, 2)+ &
+         ncoset(m)*ncoset(l)*( &
+         ncoset(l+m)*2+ncoset(n)*ncoset(l+m)*4)), &
+         KIND=int_8)
+
+   END FUNCTION
+
+! **************************************************************************************************
+!> \brief ...
+!> \param S_R ...
+!> \param l_max ...
+!> \param m_max ...
+!> \param n_max ...
+!> \param RA ...
+!> \param RB ...
+!> \param RC ...
+!> \param zeta ...
+!> \param zetb ...
+!> \param zetc ...
+!> \param a_mm ...
+!> \param hmat ...
+!> \param h_inv ...
+!> \param R_c ...
+!> \param R_rad ...
+! **************************************************************************************************
+   SUBROUTINE pgf_sum_3c_rspace_3d(S_R, l_max, m_max, n_max, RA, RB, RC, zeta, zetb, zetc, a_mm, &
+                                   hmat, h_inv, R_c, R_rad)
+      REAL(KIND=dp), DIMENSION(:, :, :), INTENT(OUT)     :: S_R
+      INTEGER, INTENT(IN)                                :: l_max, m_max, n_max
+      REAL(KIND=dp), DIMENSION(3), INTENT(IN)            :: RA, RB, RC
+      REAL(KIND=dp), INTENT(IN)                          :: zeta, zetb, zetc, a_mm
+      REAL(KIND=dp), DIMENSION(3, 3), INTENT(IN)         :: hmat, h_inv
+      REAL(KIND=dp), DIMENSION(2, 3), INTENT(IN)         :: R_c
+      REAL(KIND=dp), DIMENSION(2), INTENT(IN)            :: R_rad
+
+      INTEGER                                            :: k, l, lco, lx, ly, lz, m, mco, mx, my, &
+                                                            mz, n, nco, nx, ny, nz, s1x, s1y, s1z, &
+                                                            s2x, s2y, s2z, t, tco, tnco, ttco, &
+                                                            ttx, tty, ttz, tx, ty, tz
+      REAL(KIND=dp)                                      :: alpha, exp_tot, R1_sq, R_sq
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: h_to_c
+      REAL(KIND=dp), &
+         DIMENSION(-1:l_max+m_max+1, -1:l_max, -1:m_max) :: E1, E2, E3
+      REAL(KIND=dp), DIMENSION(2)                        :: R_rad_sq
+      REAL(KIND=dp), DIMENSION(3)                        :: R, R1, R1_l, R1_r, R1_tmp, R1x, R1y, &
+                                                            R1z, R2_l, R2_r, R2x, R2y, R2z, &
+                                                            R_offset, R_tmp, s1_shift, s2_shift
+      REAL(KIND=dp), DIMENSION(3, 0:l_max+m_max+n_max)   :: R_pow_t
+      REAL(KIND=dp), DIMENSION(ncoset(l_max+m_max), &
+         ncoset(l_max), ncoset(m_max))                   :: Eco
+      REAL(KIND=dp), &
+         DIMENSION(ncoset(l_max+m_max+n_max))            :: S_R_t
+      REAL(KIND=dp), DIMENSION(ncoset(l_max+m_max+n_max)&
+         , ncoset(l_max+m_max+n_max))                    :: h_to_c_tco
+
+      alpha = 1.0_dp/((zeta+zetb+zetc)/((zeta+zetb)*zetc)+4.0_dp*a_mm)
+
+      Eco(:, :, :) = 0.0_dp
+      S_R(:, :, :) = 0.0_dp
+      h_to_c_tco(:, :) = 0.0_dp
+
+      R_offset = RC-(zeta*RA+zetb*RB)/(zeta+zetb)
+
+      CALL create_hermite_to_cartesian(alpha, l_max+m_max+n_max, h_to_c)
+
+      DO tco = 1, ncoset(l_max+m_max+n_max)
+         CALL get_l(tco, t, tx, ty, tz)
+         DO ttx = 0, tx
+         DO tty = 0, ty
+         DO ttz = 0, tz
+            ttco = coset(ttx, tty, ttz)
+            h_to_c_tco(ttco, tco) = h_to_c(ttx, tx)*h_to_c(tty, ty)*h_to_c(ttz, tz)
+         ENDDO
+         ENDDO
+         ENDDO
+      ENDDO
+
+      s1_shift = MATMUL(h_inv, RA-RB)
+      R1_l = -R_c(1, :)+s1_shift
+      R1_r = R_c(1, :)+s1_shift
+
+      R_rad_sq = R_rad**2
+
+      DO s1x = CEILING(R1_l(1)), FLOOR(R1_r(1))
+         R1x = hmat(:, 1)*s1x
+         DO s1y = CEILING(R1_l(2)), FLOOR(R1_r(2))
+            R1y = hmat(:, 2)*s1y
+            DO s1z = CEILING(R1_l(3)), FLOOR(R1_r(3))
+               R1z = hmat(:, 3)*s1z
+               R1 = R1x+R1y+R1z
+               S_R_t(:) = 0.0_dp
+               R1_tmp = R1-(RA-RB)
+               R1_sq = R1_tmp(1)**2+R1_tmp(2)**2+R1_tmp(3)**2
+
+               IF (R1_sq .GT. R_rad_sq(1)) CYCLE
+
+               R_tmp = R_offset+R1*zeta/(zeta+zetb)
+               s2_shift = -MATMUL(h_inv, R_tmp)
+               R2_l = -R_c(2, :)+s2_shift
+               R2_r = R_c(2, :)+s2_shift
+               DO s2x = CEILING(R2_l(1)), FLOOR(R2_r(1))
+                  R2x = hmat(:, 1)*s2x
+                  DO s2y = CEILING(R2_l(2)), FLOOR(R2_r(2))
+                     R2y = hmat(:, 2)*s2y
+                     DO s2z = CEILING(R2_l(3)), FLOOR(R2_r(3))
+                        R2z = hmat(:, 3)*s2z
+                        R = R_tmp+R2x+R2y+R2z
+                        R_sq = R(1)**2+R(2)**2+R(3)**2
+
+                        IF (R_sq .GT. R_rad_sq(2)) CYCLE
+
+                        exp_tot = EXP(-alpha*R_sq) ! cost: exp_w flops
+                        DO k = 1, 3
+                           R_pow_t(k, 0) = 1.0_dp
+                           DO t = 1, l_max+m_max+n_max
+                              R_pow_t(k, t) = R_pow_t(k, t-1)*R(k)
+                           ENDDO
+                        ENDDO
+                        DO tco = 1, ncoset(l_max+m_max+n_max)
+                           CALL get_l(tco, t, tx, ty, tz)
+                           S_R_t(tco) = S_R_t(tco)+R_pow_t(1, tx)*R_pow_t(2, ty)*R_pow_t(3, tz)*exp_tot ! cost: 4 flops
+                        ENDDO
+                     ENDDO
+                  ENDDO
+               ENDDO
+
+               S_R_t(:) = MATMUL(TRANSPOSE(h_to_c_tco), S_R_t)*(alpha/pi)**1.5_dp
+
+               CALL create_gaussian_overlap_dist_to_hermite(l_max, m_max, zeta, zetb, RA(1)-R1(1), RB(1), 2, E1)
+               CALL create_gaussian_overlap_dist_to_hermite(l_max, m_max, zeta, zetb, RA(2)-R1(2), RB(2), 2, E2)
+               CALL create_gaussian_overlap_dist_to_hermite(l_max, m_max, zeta, zetb, RA(3)-R1(3), RB(3), 2, E3)
+
+               DO mco = 1, ncoset(m_max)
+                  CALL get_l(mco, m, mx, my, mz)
+                  DO lco = 1, ncoset(l_max)
+                     CALL get_l(lco, l, lx, ly, lz)
+                     DO tx = 0, lx+mx
+                     DO ty = 0, ly+my
+                     DO tz = 0, lz+mz
+                        tco = coset(tx, ty, tz)
+                        Eco(tco, lco, mco) = E1(tx, lx, mx)*E2(ty, ly, my)*E3(tz, lz, mz) ! cost: 2 flops
+                     ENDDO
+                     ENDDO
+                     ENDDO
+                  ENDDO
+               ENDDO
+
+               DO nco = 1, ncoset(n_max)
+                  CALL get_l(nco, n, nx, ny, nz)
+                  DO tco = 1, ncoset(l_max+m_max)
+                     CALL get_l(tco, t, tx, ty, tz)
+                     tnco = coset(tx+nx, ty+ny, tz+nz)
+                     S_R(:, :, nco) = S_R(:, :, nco)+ & ! cost: 4 flops
+                                      Eco(tco, :, :)* &
+                                      (-1)**n*S_R_t(tnco)
+
+                  ENDDO
+               ENDDO
+            ENDDO
+         ENDDO
+      ENDDO
+   END SUBROUTINE pgf_sum_3c_rspace_3d
 
 ! **************************************************************************************************
 !> \brief Compute bounding box for ellipsoid. This is needed in order to find summation bounds for
@@ -959,5 +2049,62 @@ CONTAINS
       ENDDO
 
    END FUNCTION ellipsoid_bounds
+
+! **************************************************************************************************
+!> \brief Roughly estimated number of floating point operations
+!> \param l ...
+!> \param m ...
+!> \param H_or_C_product ...
+!> \retval nsum_gaussian_overlap ...
+! **************************************************************************************************
+   PURE FUNCTION nsum_gaussian_overlap(l, m, H_or_C_product)
+      INTEGER, INTENT(IN)                                :: l, m, H_or_C_product
+      INTEGER                                            :: nsum_gaussian_overlap
+
+      INTEGER                                            :: loop
+
+      nsum_gaussian_overlap = exp_w
+      loop = (m+1)*(l+1)*(m+l+2)
+      IF (H_or_C_product .EQ. 1) THEN
+         nsum_gaussian_overlap = nsum_gaussian_overlap+loop*16
+      ELSE
+         nsum_gaussian_overlap = nsum_gaussian_overlap+loop*32
+      ENDIF
+   END FUNCTION
+
+! **************************************************************************************************
+!> \brief ...
+!> \param lco ...
+!> \param l ...
+!> \param lx ...
+!> \param ly ...
+!> \param lz ...
+! **************************************************************************************************
+   PURE ELEMENTAL SUBROUTINE get_l(lco, l, lx, ly, lz)
+      INTEGER, INTENT(IN)                                :: lco
+      INTEGER, INTENT(OUT)                               :: l
+      INTEGER, INTENT(OUT), OPTIONAL                     :: lx, ly, lz
+
+      l = SUM(indco(:, lco))
+      IF (PRESENT(lx)) lx = indco(1, lco)
+      IF (PRESENT(ly)) ly = indco(2, lco)
+      IF (PRESENT(lz)) lz = indco(3, lco)
+   END SUBROUTINE
+
+! **************************************************************************************************
+!> \brief ...
+!> \param i ...
+!> \retval i_pow ...
+! **************************************************************************************************
+   PURE ELEMENTAL FUNCTION i_pow(i)
+      INTEGER, INTENT(IN)                                :: i
+      COMPLEX(KIND=dp)                                   :: i_pow
+
+      COMPLEX(KIND=dp), DIMENSION(0:3), PARAMETER :: &
+         ip = (/(1.0_dp, 0.0_dp), (0.0_dp, 1.0_dp), (-1.0_dp, 0.0_dp), (0.0_dp, -1.0_dp)/)
+
+      i_pow = ip(MOD(i, 4))
+
+   END FUNCTION
 
 END MODULE eri_mme_lattice_summation

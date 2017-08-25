@@ -616,7 +616,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE get_minimax_coeff_low(i, aw)
       INTEGER, INTENT(IN)                                :: i
-      REAL(KIND=dp), DIMENSION(k_mm(i)*2), INTENT(INOUT) :: aw
+      REAL(KIND=dp), DIMENSION(k_mm(i)*2), INTENT(OUT)   :: aw
 
       SELECT CASE (i)
 

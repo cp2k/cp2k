@@ -92,7 +92,7 @@ CONTAINS
 !> \param default_n_minimax ...
 ! **************************************************************************************************
    SUBROUTINE create_eri_mme_section(section, default_n_minimax)
-      TYPE(section_type), INTENT(INOUT), POINTER         :: section
+      TYPE(section_type), POINTER                        :: section
       INTEGER, INTENT(IN), OPTIONAL                      :: default_n_minimax
 
       CHARACTER(len=*), PARAMETER :: routineN = 'create_eri_mme_section', &
@@ -136,6 +136,13 @@ CONTAINS
       CALL keyword_release(keyword)
 
       CALL keyword_create(keyword, &
+                          name="SUM_PRECISION", &
+                          description="Terms in lattice sums are ignored if absolute value smaller than this value.", &
+                          default_r_val=1.0E-12_dp)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, &
                           name="DO_CALIBRATE_CUTOFF", &
                           description="Whether the energy cutoff shall be calibrated to "// &
                           "minimize upper bound error estimate. ", &
@@ -170,6 +177,14 @@ CONTAINS
                           name="DEBUG_TOLERANCE", &
                           description="tolerance for rel. numerical error in debug mode.", &
                           default_r_val=1.0E-06_dp)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, &
+                          name="DEBUG_NSUM_MAX", &
+                          description="restrict debug mode for non-ortho cells to this number of summands. "// &
+                          "Sums with more terms are not checked.", &
+                          default_i_val=1000000)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
@@ -220,16 +235,17 @@ CONTAINS
 !> \param param ...
 ! **************************************************************************************************
    SUBROUTINE cp_eri_mme_init_read_input(mme_section, param)
-      TYPE(section_vals_type), INTENT(INOUT), POINTER    :: mme_section
+      TYPE(section_vals_type), POINTER                   :: mme_section
       TYPE(cp_eri_mme_param), INTENT(INOUT)              :: param
 
       CHARACTER(len=*), PARAMETER :: routineN = 'cp_eri_mme_init_read_input', &
          routineP = moduleN//':'//routineN
 
-      INTEGER                                            :: n_minimax, unit_nr
+      INTEGER                                            :: debug_nsum, n_minimax, unit_nr
       LOGICAL                                            :: debug, do_calib_cutoff, print_calib
       REAL(KIND=dp)                                      :: cutoff, cutoff_delta, cutoff_eps, &
-                                                            cutoff_max, cutoff_min, debug_delta
+                                                            cutoff_max, cutoff_min, debug_delta, &
+                                                            sum_precision
       TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(section_vals_type), POINTER                   :: subsection
 
@@ -241,6 +257,7 @@ CONTAINS
       CALL section_vals_val_get(mme_section, "N_MINIMAX", i_val=n_minimax)
 
       CALL section_vals_val_get(mme_section, "CUTOFF", r_val=cutoff)
+      CALL section_vals_val_get(mme_section, "SUM_PRECISION", r_val=sum_precision)
       CALL section_vals_val_get(mme_section, "DO_CALIBRATE_CUTOFF", l_val=do_calib_cutoff)
       CALL section_vals_val_get(mme_section, "PRINT_CALIB", l_val=print_calib)
       subsection => section_vals_get_subs_vals(mme_section, "CUTOFF_CALIB")
@@ -250,12 +267,13 @@ CONTAINS
       CALL section_vals_val_get(subsection, "DELTA", r_val=cutoff_delta)
       CALL section_vals_val_get(mme_section, "DEBUG", l_val=debug)
       CALL section_vals_val_get(mme_section, "DEBUG_TOLERANCE", r_val=debug_delta)
+      CALL section_vals_val_get(mme_section, "DEBUG_NSUM_MAX", i_val=debug_nsum)
 
       param%mme_section => mme_section
 
       CALL eri_mme_init(param%par, n_minimax, &
                         cutoff, do_calib_cutoff, cutoff_min, cutoff_max, cutoff_eps, cutoff_delta, &
-                        debug, debug_delta, unit_nr, print_calib)
+                        sum_precision, debug, debug_delta, debug_nsum, unit_nr, print_calib)
 
       param%do_calib = do_calib_cutoff
 
@@ -526,10 +544,12 @@ CONTAINS
       logger => param%logger
 
       unit_nr = param%par%unit_nr
-      IF (unit_nr > 0) WRITE (unit_nr, '(/T2, A, T71, F10.1)') "ERI_MME| Cutoff for ERIs [a.u.]:", param%par%cutoff
+      IF (unit_nr > 0) THEN
+         WRITE (unit_nr, '(/T2, A, T71, F10.1)') "ERI_MME| Cutoff for ERIs [a.u.]:", param%par%cutoff
+         WRITE (unit_nr, '(/T2, A, T78, I3/)') "ERI_MME| Number of terms in minimax approximation:", param%par%n_minimax
+      ENDIF
       IF (param%par%is_ortho) THEN
          IF (unit_nr > 0) THEN
-            WRITE (unit_nr, '(/T2, A, T78, I3/)') "ERI_MME| Number of terms in minimax approximation:", param%par%n_minimax
             WRITE (unit_nr, '(T2, A)') "ERI_MME| Estimated absolute error for normalized Hermite-Gaussian basis"
             WRITE (unit_nr, '(T2, A, T72, ES9.2)') "ERI_MME|   Minimax error:", param%par%err_mm
             WRITE (unit_nr, '(T2, A, T72, ES9.2)') "ERI_MME|   Cutoff error:", param%par%err_c

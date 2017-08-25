@@ -208,14 +208,14 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE cutoff_minimax_error(cutoff, hmat, h_inv, vol, G_min, zet_mm, l_mm, zet_ctff, l_ctff, &
                                    n_minimax, minimax_aw, err_mm, err_ctff, C_mm, para_env)
-      REAL(KIND=dp), INTENT(INOUT)                       :: cutoff
+      REAL(KIND=dp), INTENT(IN)                          :: cutoff
       REAL(KIND=dp), DIMENSION(3, 3), INTENT(IN)         :: hmat, h_inv
       REAL(KIND=dp), INTENT(IN)                          :: vol, G_min, zet_mm
       INTEGER, INTENT(IN)                                :: l_mm
       REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: zet_ctff
       INTEGER, DIMENSION(:), INTENT(IN)                  :: l_ctff
       INTEGER, INTENT(IN)                                :: n_minimax
-      REAL(KIND=dp), DIMENSION(:), INTENT(INOUT)         :: minimax_aw
+      REAL(KIND=dp), DIMENSION(:), INTENT(OUT)           :: minimax_aw
       REAL(KIND=dp), INTENT(OUT)                         :: err_mm, err_ctff, C_mm
       TYPE(cp_para_env_type), INTENT(IN), POINTER        :: para_env
 
@@ -344,7 +344,7 @@ CONTAINS
 !> \param para_env ...
 ! **************************************************************************************************
    SUBROUTINE cutoff_error_fixed_exp(cutoff, h_inv, G_min, l_c, zet_c, C_mm, err_c, para_env)
-      REAL(KIND=dp), INTENT(INOUT)                       :: cutoff
+      REAL(KIND=dp), INTENT(IN)                          :: cutoff
       REAL(KIND=dp), DIMENSION(3, 3), INTENT(IN)         :: h_inv
       REAL(KIND=dp), INTENT(IN)                          :: G_min
       INTEGER, INTENT(IN)                                :: l_c

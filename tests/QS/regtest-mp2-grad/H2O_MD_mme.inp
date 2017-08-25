@@ -1,11 +1,17 @@
 &GLOBAL
     PROJECT  RI_MP2_H2O
     PRINT_LEVEL MEDIUM
-    RUN_TYPE ENERGY
+    RUN_TYPE MD
     &TIMINGS
         THRESHOLD 0.01
     &END
 &END GLOBAL
+&MOTION
+    &MD
+        ENSEMBLE NVE
+        STEPS 2
+    &END
+&END MOTION
 &FORCE_EVAL
     METHOD Quickstep
     &DFT
@@ -46,7 +52,7 @@
                 &END
                 MEMORY  200.
                 CALC_COND_NUM
-                GROUP_SIZE 2
+                GROUP_SIZE 1
             &END
         &END XC
     &END DFT

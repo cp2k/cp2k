@@ -46,13 +46,15 @@
                 &END
                 MEMORY  200.
                 CALC_COND_NUM
-                GROUP_SIZE 2
+                GROUP_SIZE 1
             &END
         &END XC
     &END DFT
     &SUBSYS
         &CELL
-            ABC [angstrom]  8.000   8.000  8.000
+            A 8.0 -0.1 0.2
+            B -0.2 8.0 0.1
+            C 0.2 -0.2 8.0
         &END CELL
         &KIND H
             BASIS_SET  DZVP-GTH
