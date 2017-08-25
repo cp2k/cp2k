@@ -68,6 +68,7 @@ Fist/regtest-5
 Fist/regtest-5-vib                                          mpiranks==1||mpiranks==2||mpiranks==4
 QS/regtest-plus_u
 QS/regtest-ot-1
+QS/regtest-ot-1-vib                                         mpiranks==1||mpiranks==2||mpiranks==4
 QS/regtest-ri-mp2                                           libint
 QS/regtest-ps-implicit-1-1                                  fftw3
 QS/regtest-nonortho
