@@ -66,8 +66,8 @@ def make_plan(triples, param_fn):
             plan[(m,n,k)] = possible_kernels[0]
         elif(len(possible_kernels) > 1):
             raise(Exception("found more than one kernel for %dx%dx%d"%(m,n,k)))
-#        else:
-#            raise(Exception("missing kernel parameters for %dx%dx%d"%(m,n,k)))
+        else:
+            raise(Exception("missing kernel parameters for %dx%dx%d"%(m,n,k)))
 
     return(plan)
 
