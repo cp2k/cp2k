@@ -37,6 +37,7 @@ MODULE eri_mme_lattice_summation
       ellipsoid_bounds, &
       eri_mme_2c_get_bounds, &
       eri_mme_3c_get_bounds, &
+      get_l, &
       pgf_sum_2c_gspace_1d, &
       pgf_sum_2c_gspace_1d_deltal, &
       pgf_sum_2c_gspace_3d, &

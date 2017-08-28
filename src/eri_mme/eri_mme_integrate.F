@@ -22,9 +22,9 @@ MODULE eri_mme_integrate
    USE ao_util,                         ONLY: exp_radius
    USE eri_mme_gaussian,                ONLY: hermite_gauss_norm
    USE eri_mme_lattice_summation,       ONLY: &
-        ellipsoid_bounds, eri_mme_2c_get_bounds, eri_mme_3c_get_bounds, pgf_sum_2c_gspace_1d, &
-        pgf_sum_2c_gspace_3d, pgf_sum_2c_rspace_1d, pgf_sum_2c_rspace_3d, pgf_sum_3c_1d, &
-        pgf_sum_3c_3d
+        ellipsoid_bounds, eri_mme_2c_get_bounds, eri_mme_3c_get_bounds, get_l, &
+        pgf_sum_2c_gspace_1d, pgf_sum_2c_gspace_3d, pgf_sum_2c_rspace_1d, pgf_sum_2c_rspace_3d, &
+        pgf_sum_3c_1d, pgf_sum_3c_3d
    USE eri_mme_types,                   ONLY: eri_mme_param
    USE kinds,                           ONLY: dp,&
                                               int_8
@@ -208,18 +208,12 @@ CONTAINS
       prefac = SQRT(1.0_dp/(zeta*zetb))
 
       ! 2) Assemble integral values from Ewald sums
-      DO lb = lb_min, lb_max
-      DO bx = 0, lb
-      DO by = 0, lb-bx
-         bz = lb-bx-by
-         jco = coset(bx, by, bz)
-         DO la = la_min, la_max
-         DO ax = 0, la
-         DO ay = 0, la-ax
-            az = la-ax-ay
+      DO jco = ncoset(lb_min-1)+1, ncoset(lb_max)
+         CALL get_l(jco, lb, bx, by, bz)
+         lb_xyz = [bx, by, bz]
+         DO ico = ncoset(la_min-1)+1, ncoset(la_max)
+            CALL get_l(ico, la, ax, ay, az)
             la_xyz = [ax, ay, az]
-            lb_xyz = [bx, by, bz]
-            ico = coset(ax, ay, az)
             IF (is_ortho) THEN
                Imm = 0.0_dp
                DO i_aw = 1, n_aw
@@ -245,11 +239,7 @@ CONTAINS
                                      hermite_gauss_norm(zetb, lb_xyz)
             ENDIF
          ENDDO ! la
-         ENDDO
-         ENDDO
       ENDDO ! lb
-      ENDDO
-      ENDDO
 
       CALL timestop(handle)
    END SUBROUTINE eri_mme_2c_integrate
@@ -293,10 +283,8 @@ CONTAINS
       CHARACTER(LEN=*), PARAMETER :: routineN = 'eri_mme_3c_integrate', &
          routineP = moduleN//':'//routineN
 
-      INTEGER                                            :: ax, ay, az, bx, by, bz, cx, cy, cz, &
-                                                            handle, i_aw, i_xyz, ico, ijco, ir, &
-                                                            jco, kco, la, lb, lc, lmax_0, method, &
-                                                            n_aw, nresults, sum_method
+      INTEGER :: ax, ay, az, bx, by, bz, cx, cy, cz, handle, i_aw, i_xyz, ico, ijco, ir, jco, kco, &
+         la, la_prev, lb, lb_prev, lc, lc_prev, lmax_0, method, n_aw, nresults, sum_method
       INTEGER(KIND=int_8), DIMENSION(3)                  :: n_sum_3d
       INTEGER(KIND=int_8), DIMENSION(3, 3)               :: n_sum_1d
       INTEGER, DIMENSION(3)                              :: la_xyz, lb_xyz, lc_xyz
@@ -518,25 +506,14 @@ CONTAINS
                max_error = 0.0_dp
                ALLOCATE (results_no(nresults))
 
-               DO lc = lc_min, lc_max
-               DO cx = 0, lc
-               DO cy = 0, lc-cx
-                  cz = lc-cx-cy
-                  kco = coset(cx, cy, cz)
+               DO kco = ncoset(lc_min-1)+1, ncoset(lc_max)
+                  CALL get_l(kco, lc, cx, cy, cz)
+                  DO jco = ncoset(lb_min-1)+1, ncoset(lb_max)
+                     CALL get_l(jco, lb, bx, by, bz)
+                     DO ico = ncoset(la_min-1)+1, ncoset(la_max)
+                        CALL get_l(ico, la, ax, ay, az)
 
-                  DO lb = lb_min, lb_max
-                  DO bx = 0, lb
-                  DO by = 0, lb-bx
-                     bz = lb-bx-by
-                     jco = coset(bx, by, bz)
-
-                     DO la = la_min, la_max
-                     DO ax = 0, la
-                     DO ay = 0, la-ax
-                        az = la-ax-ay
-                        ico = coset(ax, ay, az)
                         max_error = 0.0_dp
-
                         ir = 0
                         IF (db_sum1) THEN
                            ir = ir+1
@@ -558,14 +535,7 @@ CONTAINS
                         IF (nresults > 0) max_error = MAX(max_error, &
                                                           (max_result-min_result)/(0.5_dp*(ABS(max_result)+ABS(min_result))+1.0_dp))
                      ENDDO
-                     ENDDO
-                     ENDDO
-
                   ENDDO
-                  ENDDO
-                  ENDDO
-               ENDDO
-               ENDDO
                ENDDO
 
                CPASSERT(max_error .LE. param%debug_delta)
@@ -599,27 +569,27 @@ CONTAINS
 
       ! assemble integral values
       resc_c = resc_c_init
-      DO lc = lc_min, lc_max
-      DO cx = 0, lc
-      DO cy = 0, lc-cx
-         cz = lc-cx-cy
+      lc_prev = lc_min
+      DO kco = ncoset(lc_min-1)+1, ncoset(lc_max)
+         CALL get_l(kco, lc, cx, cy, cz)
          lc_xyz = [cx, cy, cz]
-         kco = coset(cx, cy, cz)
+         IF (lc_prev < lc) resc_c = resc_c*(2.0_dp*zetc)
+
          resc_b = resc_b_init
-         DO lb = lb_min, lb_max
-         DO bx = 0, lb
-         DO by = 0, lb-bx
-            bz = lb-bx-by
+         lb_prev = lb_min
+         DO jco = ncoset(lb_min-1)+1, ncoset(lb_max)
+            CALL get_l(jco, lb, bx, by, bz)
             lb_xyz = [bx, by, bz]
-            jco = coset(bx, by, bz)
+            IF (lb_prev < lb) resc_b = resc_b*(2.0_dp*zetb)
+
             resc_a = resc_a_init
-            DO la = la_min, la_max
-            DO ax = 0, la
-            DO ay = 0, la-ax
-               az = la-ax-ay
+            la_prev = la_min
+            DO ico = ncoset(la_min-1)+1, ncoset(la_max)
+               CALL get_l(ico, la, ax, ay, az)
                la_xyz = [ax, ay, az]
-               ico = coset(ax, ay, az)
                ijco = coset(ax+bx, ay+by, az+bz)
+
+               IF (la_prev < la) resc_a = resc_a*(2.0_dp*zeta)
                IF (param%is_ortho) THEN
                   Imm = 0.0_dp
                   DO i_aw = 1, n_aw
@@ -655,18 +625,11 @@ CONTAINS
 
                ! rescaling needed due to Hermite Gaussians
                habc(o1+ico, o2+jco, o3+kco) = Imm/(resc_a*resc_b*resc_c)
-
-            ENDDO
-            ENDDO
-            resc_a = resc_a*(2.0_dp*zeta)
+               la_prev = la
             ENDDO ! la
-         ENDDO
-         ENDDO
-         resc_b = resc_b*(2.0_dp*zetb)
+            lb_prev = lb
          ENDDO ! lb
-      ENDDO
-      ENDDO
-      resc_c = resc_c*(2.0_dp*zetc)
+         lc_prev = lc
       ENDDO ! lc
 
       CALL timestop(handle)
