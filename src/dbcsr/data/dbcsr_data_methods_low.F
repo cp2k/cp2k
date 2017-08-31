@@ -171,7 +171,7 @@ CONTAINS
 !   ---------------------------------------------------------------------------
 
       IF (careful_mod) &
-           CALL timesset(routineN, error_handle)
+           CALL timeset(routineN, error_handle)
       IF (debug_mod) &
          WRITE (*, *) routineN//" Setting to sizes", sizes
       IF (dbcsr_type_is_2d(area%data_type)) THEN
