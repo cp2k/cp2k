@@ -50,6 +50,7 @@ MODULE input_cp2k_global
                                               integer_t
    USE kinds,                           ONLY: dp
    USE string_utilities,                ONLY: s2a
+   USE timings,                         ONLY: default_timings_level
 #include "./base/base_uses.f90"
 
    IMPLICIT NONE
@@ -459,6 +460,14 @@ CONTAINS
                           description="Include message_passing calls in the timing report (useful with CALLGRAPH).", &
                           usage="TIME_MPI .FALSE.", &
                           default_l_val=.TRUE., lone_keyword_l_val=.TRUE.)
+      CALL section_add_keyword(print_key, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, name="TIMINGS_LEVEL", &
+                          description="Specify the level of timings report. "// &
+                          "Possible values are: 0 (report only CP2K root timer), 1 (all timers).", &
+                          usage="TIMINGS_LEVEL 1", &
+                          default_i_val=default_timings_level, lone_keyword_i_val=default_timings_level)
       CALL section_add_keyword(print_key, keyword)
       CALL keyword_release(keyword)
 

@@ -58,6 +58,11 @@ MODULE timings
    !API (via pointer assignment to hook, PR67982, not meant to be called directly)
    PUBLIC :: timeset_handler, timestop_handler
 
+   INTEGER, PUBLIC, PARAMETER :: default_timings_level = 1
+   INTEGER, PUBLIC, SAVE :: global_timings_level = default_timings_level
+
+   CHARACTER(LEN=default_string_length), PUBLIC, PARAMETER :: root_cp2k_name = 'CP2K'
+
 CONTAINS
 
 ! **************************************************************************************************
@@ -214,6 +219,7 @@ CONTAINS
       CHARACTER(LEN=default_string_length)               :: routine_name_dsl
       INTEGER                                            :: routine_id, stack_size
       INTEGER(KIND=int_8)                                :: cpumem, gpumem_free, gpumem_total
+      INTEGER, SAVE                                      :: root_cp2k_id
       TYPE(callstack_entry_type)                         :: cs_entry
       TYPE(routine_stat_type), POINTER                   :: r_stat
       TYPE(timer_env_type), POINTER                      :: timer_env
@@ -221,17 +227,25 @@ CONTAINS
 !$OMP MASTER
 !$OMP CRITICAL(time_setstop)
 
-      cs_entry%walltime_start = m_walltime()
-      cs_entry%energy_start = m_energy()
+      ! Default value, using a negative value when timing is not taken
+      cs_entry%walltime_start = -HUGE(1.0_dp)
+      cs_entry%energy_start = -HUGE(1.0_dp)
+      root_cp2k_id = routine_name2id(root_cp2k_name)
+      !
+      routine_name_dsl = routineN ! converte to default_string_length
+      routine_id = routine_name2id(routine_name_dsl)
+      !
+      ! Take timings when the timings_level is appropriated
+      IF (global_timings_level .NE. 0 .OR. routine_id .EQ. root_cp2k_id) THEN
+         cs_entry%walltime_start = m_walltime()
+         cs_entry%energy_start = m_energy()
+      ENDIF
       timer_env => list_peek(timers_stack)
 
       IF (LEN_TRIM(routineN) > default_string_length) THEN
          CPABORT('timings_timeset: routineN too long: "'//TRIM(routineN)//"'")
       END IF
 
-      routine_name_dsl = routineN ! converte to default_string_length
-
-      routine_id = routine_name2id(routine_name_dsl)
       ! update routine r_stats
       r_stat => list_get(timer_env%routine_stats, routine_id)
       stack_size = list_size(timer_env%callstack)
@@ -299,8 +313,6 @@ CONTAINS
       CALL cuda_nvtx_range_pop()
 #endif
 
-      wt_now = m_walltime()
-      en_now = m_energy()
       timer_env => list_peek(timers_stack)
       cs_entry = list_pop(timer_env%callstack)
       r_stat => list_get(timer_env%routine_stats, cs_entry%routine_id)
@@ -311,9 +323,16 @@ CONTAINS
          CPABORT('mismatched timestop '//TRIM(r_stat%routineN)//' in routine timestop')
       END IF
 
-      ! add the elapsed time for this timeset/timestop to the time accumulator
-      wt_elapsed = wt_now-cs_entry%walltime_start
-      en_elapsed = en_now-cs_entry%energy_start
+      wt_elapsed = 0
+      en_elapsed = 0
+      ! Take timings only when the start time is >=0, i.e. the timings_level is appropriated
+      IF (cs_entry%walltime_start .GE. 0) THEN
+         wt_now = m_walltime()
+         en_now = m_energy()
+         ! add the elapsed time for this timeset/timestop to the time accumulator
+         wt_elapsed = wt_now-cs_entry%walltime_start
+         en_elapsed = en_now-cs_entry%energy_start
+      ENDIF
       r_stat%active_calls = r_stat%active_calls-1
 
       ! if we're the last instance in the stack, we do the accounting of the total time

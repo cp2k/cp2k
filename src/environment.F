@@ -56,9 +56,9 @@ MODULE environment
    USE input_keyword_types,             ONLY: keyword_get,&
                                               keyword_type
    USE input_section_types,             ONLY: &
-        section_get_keyword, section_get_lval, section_get_rval, section_release, section_type, &
-        section_vals_get, section_vals_get_subs_vals, section_vals_get_subs_vals3, &
-        section_vals_type, section_vals_val_get
+        section_get_ival, section_get_keyword, section_get_lval, section_get_rval, &
+        section_release, section_type, section_vals_get, section_vals_get_subs_vals, &
+        section_vals_get_subs_vals3, section_vals_type, section_vals_val_get
    USE kinds,                           ONLY: default_path_length,&
                                               default_string_length,&
                                               dp,&
@@ -96,7 +96,9 @@ MODULE environment
                                               string_to_ascii
    USE termination,                     ONLY: stop_memory
    USE timings,                         ONLY: add_timer_env,&
+                                              global_timings_level,&
                                               rm_timer_env,&
+                                              root_cp2k_name,&
                                               timings_setup_tracing
    USE timings_report,                  ONLY: cost_type_energy,&
                                               cost_type_time,&
@@ -170,7 +172,7 @@ CONTAINS
       CALL cp_logger_release(logger)
 
       ! Initialize timing
-      CALL timeset("CP2K", globenv%handle)
+      CALL timeset(root_cp2k_name, globenv%handle)
 
       ! Print header
       CALL cp2k_header(my_output_unit, wdir)
@@ -556,6 +558,7 @@ CONTAINS
       CALL section_vals_val_get(global_section, "FLUSH_SHOULD_FLUSH", l_val=flush_should_flush)
       CALL section_vals_val_get(global_section, "ECHO_ALL_HOSTS", l_val=do_echo_all_hosts)
       report_maxloc = section_get_lval(global_section, "TIMINGS%REPORT_MAXLOC")
+      global_timings_level = section_get_ival(global_section, "TIMINGS%TIMINGS_LEVEL")
       do_echo_all_hosts = do_echo_all_hosts .OR. report_maxloc
       force_env_sections => section_vals_get_subs_vals(root_section, "FORCE_EVAL")
       CALL section_vals_get(force_env_sections, n_repetition=nforce_eval)

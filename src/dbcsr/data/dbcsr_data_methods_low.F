@@ -170,7 +170,8 @@ CONTAINS
 
 !   ---------------------------------------------------------------------------
 
-      CALL timeset(routineN, error_handle)
+      IF (careful_mod) &
+           CALL timesset(routineN, error_handle)
       IF (debug_mod) &
          WRITE (*, *) routineN//" Setting to sizes", sizes
       IF (dbcsr_type_is_2d(area%data_type)) THEN
@@ -214,7 +215,8 @@ CONTAINS
          CALL acc_event_create(area%acc_ready)
       ENDIF
 
-      CALL timestop(error_handle)
+      IF (careful_mod) &
+           CALL timestop(error_handle)
 
    END SUBROUTINE internal_data_allocate
 
@@ -232,7 +234,8 @@ CONTAINS
 
 !   ---------------------------------------------------------------------------
 
-      CALL timeset(routineN, handle)
+      IF (careful_mod) &
+           CALL timeset(routineN, handle)
 
       SELECT CASE (area%data_type)
       CASE (dbcsr_type_int_4)
@@ -277,7 +280,8 @@ CONTAINS
          CALL acc_event_destroy(area%acc_ready)
       ENDIF
 
-      CALL timestop(handle)
+      IF (careful_mod) &
+           CALL timestop(handle)
    END SUBROUTINE internal_data_deallocate
 
 ! **************************************************************************************************

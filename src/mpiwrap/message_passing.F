@@ -24,8 +24,7 @@ MODULE message_passing
   USE kinds,                           ONLY: &
        dp, int_4, int_4_size, int_8, int_8_size, real_4, real_4_size, real_8, &
        real_8_size
-  USE machine,                         ONLY: m_abort,&
-                                             m_walltime
+  USE machine,                         ONLY: m_abort
 
 #include "../base/base_uses.f90"
 
@@ -660,10 +659,9 @@ MODULE message_passing
       CHARACTER(LEN=20) :: name
       INTEGER :: count
       REAL(KIND=dp) :: msg_size
-      REAL(KIND=dp) :: time
    END TYPE mp_perf_type
 
-   INTEGER, PARAMETER :: MAX_PERF = 21
+   INTEGER, PARAMETER :: MAX_PERF = 26
 
 ! **************************************************************************************************
    TYPE mp_perf_env_type
@@ -690,10 +688,9 @@ MODULE message_passing
                                      "MP_comm_split       ", "MP_ISend            ", "MP_IRecv            ", &
                                      "MP_Send             ", "MP_Recv             ", "MP_Memory           ", &
                                      "MP_Put              ", "MP_Get              ", "MP_Fence            ", &
-                                     "MP_Win_Lock         ", "MP_Win_Create       ", "MP_Win_Free         "/)
-#if defined(__parallel)
-   REAL(KIND=dp) :: t_start, t_end
-#endif
+                                     "MP_Win_Lock         ", "MP_Win_Create       ", "MP_Win_Free         ", &
+                                     "MP_IBcast           ", "MP_IAllreduce       ", "MP_IScatter         ", &
+                                     "MP_RGet             ", "MP_Isync            "/)
 
    ! we make some assumptions on the length of INTEGERS, REALS and LOGICALS
    INTEGER, PARAMETER :: intlen = BIT_SIZE(0)/8
@@ -786,7 +783,6 @@ CONTAINS
       CALL mp_timeset(routineN, handle)
       ierr = 0
 #if defined(__parallel)
-      t_start = m_walltime()
 
       CALL mpi_comm_group(mp_comm, oldgroup, ierr);
       IF (ierr /= 0) CALL mp_stop(ierr, "mpi_comm_group @ mp_reordering")
@@ -805,8 +801,7 @@ CONTAINS
       mp_new_comm = newcomm
       debug_comm_count = debug_comm_count+1
 
-      t_end = m_walltime()
-      CALL add_perf(perf_id=1, count=1, time=t_end-t_start)
+      CALL add_perf(perf_id=1, count=1)
 #else
       MARK_USED(ranks_order)
       mp_new_comm = mp_comm
@@ -891,7 +886,6 @@ CONTAINS
          perf_env%mp_perfs(i)%name = sname(i)
          perf_env%mp_perfs(i)%count = 0
          perf_env%mp_perfs(i)%msg_size = 0.0_dp
-         perf_env%mp_perfs(i)%time = 0.0_dp
       END DO
 
    END SUBROUTINE mp_perf_env_create
@@ -943,7 +937,7 @@ CONTAINS
 
 #if defined(__parallel)
       INTEGER                                  :: i
-      REAL(KIND=dp)                            :: per, vol
+      REAL(KIND=dp)                            :: vol
 #endif
 
       IF (.NOT. ASSOCIATED(perf_env)) THEN
@@ -960,24 +954,18 @@ CONTAINS
          WRITE (iw, '( " -", 77X, "-" )')
          WRITE (iw, '( 1X, 79("-"), / )')
          WRITE (iw, '( A, A, A )') ' ROUTINE', '             CALLS ', &
-            ' TOT TIME [s]  AVE VOLUME [Bytes]  PERFORMANCE [MB/s]'
+            '     AVE VOLUME [Bytes]'
          DO i = 1, MAX_PERF
 
             IF (perf_env%mp_perfs(i)%count > 0) THEN
                vol = perf_env%mp_perfs(i)%msg_size/REAL(perf_env%mp_perfs(i)%count, KIND=dp)
-               IF (perf_env%mp_perfs(i)%time > 0.0_dp) THEN
-                  per = perf_env%mp_perfs(i)%msg_size/perf_env%mp_perfs(i)%time*1.e-6_dp
-               ELSE
-                  per = 0.0_dp
-               ENDIF
                IF (vol < 1.0_dp) THEN
-                  WRITE (iw, '(1X,A15,T17,I10,T27,F14.3)') &
-                     ADJUSTL(perf_env%mp_perfs(i)%name), perf_env%mp_perfs(i)%count, &
-                     perf_env%mp_perfs(i)%time
+                  WRITE (iw, '(1X,A15,T17,I10)') &
+                       ADJUSTL(perf_env%mp_perfs(i)%name), perf_env%mp_perfs(i)%count
                ELSE
-                  WRITE (iw, '(1X,A15,T17,I10,T27,F14.3,T50,F11.0,T69,F12.2)') &
-                     ADJUSTL(perf_env%mp_perfs(i)%name), perf_env%mp_perfs(i)%count, &
-                     perf_env%mp_perfs(i)%time, vol, per
+                  WRITE (iw, '(1X,A15,T17,I10,T40,F11.0)') &
+                       ADJUSTL(perf_env%mp_perfs(i)%name), perf_env%mp_perfs(i)%count, &
+                       vol
                END IF
             ENDIF
 
@@ -1030,14 +1018,12 @@ CONTAINS
 !> \brief adds the performance informations of one call
 !> \param perf_id ...
 !> \param count ...
-!> \param time ...
 !> \param msg_size ...
 !> \author fawzi
 ! **************************************************************************************************
-   SUBROUTINE add_perf(perf_id, count, time, msg_size)
+   SUBROUTINE add_perf(perf_id, count, msg_size)
       INTEGER, INTENT(in)                      :: perf_id
       INTEGER, INTENT(in), OPTIONAL            :: count
-      REAL(KIND=dp), INTENT(in), OPTIONAL      :: time
       INTEGER, INTENT(in), OPTIONAL            :: msg_size
 
 #if defined(__parallel)
@@ -1047,16 +1033,12 @@ CONTAINS
       IF (PRESENT(count)) THEN
          mp_perf%count = mp_perf%count+count
       END IF
-      IF (PRESENT(time)) THEN
-         mp_perf%time = mp_perf%time+time
-      END IF
       IF (PRESENT(msg_size)) THEN
          mp_perf%msg_size = mp_perf%msg_size+REAL(msg_size, dp)
       END IF
 #else
       MARK_USED(perf_id)
       MARK_USED(count)
-      MARK_USED(time)
       MARK_USED(msg_size)
 #endif
 
@@ -1127,11 +1109,9 @@ CONTAINS
       CALL mp_timeset(routineN, handle)
 
 #if defined(__parallel)
-      t_start = m_walltime()
       CALL mpi_barrier(group, ierr)
       IF (ierr /= 0) CALL mp_stop(ierr, "mpi_barrier @ mp_sync")
-      t_end = m_walltime()
-      CALL add_perf(perf_id=5, count=1, time=t_end-t_start)
+      CALL add_perf(perf_id=5, count=1)
 #else
       MARK_USED(group)
 #endif
@@ -1159,6 +1139,7 @@ CONTAINS
 #if __MPI_VERSION > 2
       CALL mpi_ibarrier(group, request, ierr)
       IF (ierr /= 0) CALL mp_stop(ierr, "mpi_ibarrier @ mp_isync")
+      CALL add_perf(perf_id=26, count=1)
 #else
       MARK_USED(group)
       MARK_USED(request)
@@ -1313,7 +1294,6 @@ CONTAINS
       comm_cart = comm_old
 #if defined(__parallel)
 
-      t_start = m_walltime()
       CALL mpi_comm_size(comm_old, nodes, ierr)
       IF (ierr /= 0) CALL mp_stop(ierr, "mpi_comm_size @ mp_cart_create")
 
@@ -1334,9 +1314,7 @@ CONTAINS
          CALL mpi_cart_get(comm_cart, ndims, dims, period, pos, ierr)
          IF (ierr /= 0) CALL mp_stop(ierr, "mpi_cart_get @ mp_cart_create")
       END IF
-      t_end = m_walltime()
       CALL add_perf(perf_id=1, count=1)
-      CALL add_perf(perf_id=2, time=t_end-t_start)
 #else
       pos(1:ndims) = 0
       dims = 1
@@ -1652,13 +1630,11 @@ CONTAINS
       CALL mp_timeset(routineN, handle)
 
 #if defined(__parallel)
-      t_start = m_walltime()
 
       CALL mpi_wait(request, MPI_STATUS_IGNORE, ierr)
       IF (ierr /= 0) CALL mp_stop(ierr, "mpi_wait @ mp_wait")
 
-      t_end = m_walltime()
-      CALL add_perf(perf_id=9, count=1, time=t_end-t_start)
+      CALL add_perf(perf_id=9, count=1)
 #else
       MARK_USED(request)
 #endif
@@ -1690,14 +1666,12 @@ CONTAINS
       CALL mp_timeset(routineN, handle)
 
 #if defined(__parallel)
-      t_start = m_walltime()
       count = SIZE(requests)
       ALLOCATE (status(MPI_STATUS_SIZE, count))
       CALL mpi_waitall_internal(count, requests, status, ierr) ! MPI_STATUSES_IGNORE openmpi workaround
       IF (ierr /= 0) CALL mp_stop(ierr, "mpi_waitall @ mp_waitall_1")
       DEALLOCATE (status)
-      t_end = m_walltime()
-      CALL add_perf(perf_id=9, count=1, time=t_end-t_start)
+      CALL add_perf(perf_id=9, count=1)
 #else
       MARK_USED(requests)
 #endif
@@ -1728,15 +1702,13 @@ CONTAINS
 
 #if defined(__parallel)
       count = SIZE(requests)
-      t_start = m_walltime()
       ALLOCATE (status(MPI_STATUS_SIZE, count))
 
       CALL mpi_waitall_internal(count, requests, status, ierr) ! MPI_STATUSES_IGNORE openmpi workaround
       IF (ierr /= 0) CALL mp_stop(ierr, "mpi_waitall @ mp_waitall_2")
       DEALLOCATE (status)
 
-      t_end = m_walltime()
-      CALL add_perf(perf_id=9, count=1, time=t_end-t_start)
+      CALL add_perf(perf_id=9, count=1)
 #else
       MARK_USED(requests)
 #endif
@@ -1790,13 +1762,11 @@ CONTAINS
 
 #if defined(__parallel)
       count = SIZE(requests)
-      t_start = m_walltime()
 
       CALL mpi_waitany(count, requests, completed, MPI_STATUS_IGNORE, ierr)
       IF (ierr /= 0) CALL mp_stop(ierr, "mpi_waitany @ mp_waitany")
 
-      t_end = m_walltime()
-      CALL add_perf(perf_id=9, count=1, time=t_end-t_start)
+      CALL add_perf(perf_id=9, count=1)
 #else
       MARK_USED(requests)
       completed = 1
@@ -1995,13 +1965,11 @@ CONTAINS
 
       my_key = 0
 #if defined(__parallel)
-      t_start = m_walltime()
       IF (PRESENT(key)) my_key = key
       CALL mpi_comm_split(comm, color, my_key, sub_comm, ierr)
       debug_comm_count = debug_comm_count+1
       IF (ierr /= mpi_success) CALL mp_stop(ierr, routineN)
-      t_end = m_walltime()
-      CALL add_perf(perf_id=10, count=1, time=t_end-t_start)
+      CALL add_perf(perf_id=10, count=1)
 #else
       CALL mp_comm_dup(comm, sub_comm)
       MARK_USED(color)
@@ -2072,7 +2040,6 @@ CONTAINS
       ENDIF
 
 #if defined(__parallel)
-      t_start = m_walltime()
       IF (PRESENT(subgroup_min_size)) THEN
          IF (subgroup_min_size < 0 .OR. subgroup_min_size > nnodes) THEN
             CPABORT(routineP//" subgroup_min_size too small or too large")
@@ -2127,8 +2094,7 @@ CONTAINS
       debug_comm_count = debug_comm_count+1
       IF (ierr /= mpi_success) CALL mp_stop(ierr, "in "//routineP//" split")
 
-      t_end = m_walltime()
-      CALL add_perf(perf_id=10, count=1, time=t_end-t_start)
+      CALL add_perf(perf_id=10, count=1)
 #else
       CALL mp_comm_dup(comm, sub_comm)
       group_distribution(0) = 0
@@ -2218,11 +2184,9 @@ CONTAINS
 
       msglen = 1
 #if defined(__parallel)
-      t_start = m_walltime()
       CALL mpi_bcast(msg, msglen, MPI_LOGICAL, source, gid, ierr)
       IF (ierr /= 0) CALL mp_stop(ierr, "mpi_bcast @ "//routineN)
-      t_end = m_walltime()
-      CALL add_perf(perf_id=2, count=1, time=t_end-t_start, msg_size=msglen*loglen)
+      CALL add_perf(perf_id=2, count=1, msg_size=msglen*loglen)
 #else
       MARK_USED(msg)
       MARK_USED(source)
@@ -2250,11 +2214,9 @@ CONTAINS
 
       msglen = SIZE(msg)
 #if defined(__parallel)
-      t_start = m_walltime()
       CALL mpi_bcast(msg, msglen, MPI_LOGICAL, source, gid, ierr)
       IF (ierr /= 0) CALL mp_stop(ierr, "mpi_bcast @ "//routineN)
-      t_end = m_walltime()
-      CALL add_perf(perf_id=2, count=1, time=t_end-t_start, msg_size=msglen*loglen)
+      CALL add_perf(perf_id=2, count=1, msg_size=msglen*loglen)
 #else
       MARK_USED(source)
       MARK_USED(gid)
@@ -2295,7 +2257,6 @@ CONTAINS
       CALL mp_timeset(routineN, handle)
 
 #if defined(__parallel)
-      t_start = m_walltime()
       my_tag = 0
       IF (PRESENT(tag)) my_tag = tag
 
@@ -2309,8 +2270,7 @@ CONTAINS
       END IF
       IF (ierr /= 0) CALL mp_stop(ierr, "mpi_isend @ "//routineN)
 
-      t_end = m_walltime()
-      CALL add_perf(perf_id=11, count=1, time=t_end-t_start, msg_size=msglen*loglen)
+      CALL add_perf(perf_id=11, count=1, msg_size=msglen*loglen)
 #else
       CPABORT("mp_isend called in non parallel case")
       MARK_USED(msgin)
@@ -2356,7 +2316,6 @@ CONTAINS
       CALL mp_timeset(routineN, handle)
 
 #if defined(__parallel)
-      t_start = m_walltime()
       my_tag = 0
       IF (PRESENT(tag)) my_tag = tag
 
@@ -2370,8 +2329,7 @@ CONTAINS
       END IF
       IF (ierr /= 0) CALL mp_stop(ierr, "mpi_ircv @ "//routineN)
 
-      t_end = m_walltime()
-      CALL add_perf(perf_id=12, count=1, time=t_end-t_start, msg_size=msglen*loglen)
+      CALL add_perf(perf_id=12, count=1, msg_size=msglen*loglen)
 #else
       CPABORT("mp_irecv called in non parallel case")
       MARK_USED(msgout)
@@ -2417,7 +2375,6 @@ CONTAINS
       CALL mp_timeset(routineN, handle)
 
 #if defined(__parallel)
-      t_start = m_walltime()
       my_tag = 0
       IF (PRESENT(tag)) my_tag = tag
 
@@ -2431,8 +2388,7 @@ CONTAINS
       END IF
       IF (ierr /= 0) CALL mp_stop(ierr, "mpi_isend @ "//routineN)
 
-      t_end = m_walltime()
-      CALL add_perf(perf_id=11, count=1, time=t_end-t_start, msg_size=msglen*loglen)
+      CALL add_perf(perf_id=11, count=1, msg_size=msglen*loglen)
 #else
       CPABORT("mp_isend called in non parallel case")
       MARK_USED(msgin)
@@ -2478,7 +2434,6 @@ CONTAINS
       CALL mp_timeset(routineN, handle)
 
 #if defined(__parallel)
-      t_start = m_walltime()
       my_tag = 0
       IF (PRESENT(tag)) my_tag = tag
 
@@ -2492,8 +2447,7 @@ CONTAINS
       END IF
       IF (ierr /= 0) CALL mp_stop(ierr, "mpi_ircv @ "//routineN)
 
-      t_end = m_walltime()
-      CALL add_perf(perf_id=12, count=1, time=t_end-t_start, msg_size=msglen*loglen)
+      CALL add_perf(perf_id=12, count=1, msg_size=msglen*loglen)
 #else
       CPABORT("mp_irecv called in non parallel case")
       MARK_USED(msgout)
@@ -2529,7 +2483,6 @@ CONTAINS
       CALL mp_timeset(routineN, handle)
 
 #if defined(__parallel)
-      t_start = m_walltime()
 
       CALL mp_environ(numtask, taskid, gid)
       IF (taskid == source) msglen = LEN_TRIM(msg)
@@ -2551,8 +2504,7 @@ CONTAINS
          msg(i:i) = CHAR(imsg(i))
       END DO
       DEALLOCATE (imsg)
-      t_end = m_walltime()
-      CALL add_perf(perf_id=2, count=1, time=t_end-t_start, msg_size=msglen*charlen)
+      CALL add_perf(perf_id=2, count=1, msg_size=msglen*charlen)
 #else
       MARK_USED(msg)
       MARK_USED(source)
@@ -2585,7 +2537,6 @@ CONTAINS
       CALL mp_timeset(routineN, handle)
 
 #if defined(__parallel)
-      t_start = m_walltime()
       CALL mp_environ(numtask, taskid, gid)
       msgsiz = SIZE(msg)
       ! Determine size of the minimum array of integers to bradcast the string
@@ -2620,8 +2571,7 @@ CONTAINS
       END DO
       DEALLOCATE (imsg)
       DEALLOCATE (imsglen)
-      t_end = m_walltime()
-      CALL add_perf(perf_id=2, count=1, time=t_end-t_start, msg_size=msglen*charlen*msgsiz)
+      CALL add_perf(perf_id=2, count=1, msg_size=msglen*charlen*msgsiz)
 #else
       MARK_USED(msg)
       MARK_USED(source)
@@ -2660,7 +2610,6 @@ CONTAINS
       CALL mp_timeset(routineN, handle)
 
 #if defined(__parallel)
-      t_start = m_walltime()
       msglen = SIZE(msg)
       ALLOCATE (res(1:msglen), STAT=ierr)
       IF (ierr /= 0) &
@@ -2669,8 +2618,7 @@ CONTAINS
       IF (ierr /= 0) CALL mp_stop(ierr, "mpi_allreduce @ "//routineN)
       msg = res
       DEALLOCATE (res)
-      t_end = m_walltime()
-      CALL add_perf(perf_id=3, count=1, time=t_end-t_start, msg_size=msglen*real_8_size)
+      CALL add_perf(perf_id=3, count=1, msg_size=msglen*real_8_size)
 #else
       MARK_USED(msg)
       MARK_USED(gid)
@@ -2708,15 +2656,13 @@ CONTAINS
       CALL mp_timeset(routineN, handle)
 
 #if defined(__parallel)
-      t_start = m_walltime()
       msglen = SIZE(msg)
       ALLOCATE (res(1:msglen))
       CALL mpi_allreduce(msg, res, 1, MPI_2INTEGER, MPI_MINLOC, gid, ierr)
       IF (ierr /= 0) CALL mp_stop(ierr, "mpi_allreduce @ "//routineN)
       msg = res
       DEALLOCATE (res)
-      t_end = m_walltime()
-      CALL add_perf(perf_id=3, count=1, time=t_end-t_start, msg_size=msglen*int_4_size)
+      CALL add_perf(perf_id=3, count=1, msg_size=msglen*int_4_size)
 #else
       MARK_USED(msg)
       MARK_USED(gid)
@@ -2754,15 +2700,13 @@ CONTAINS
       CALL mp_timeset(routineN, handle)
 
 #if defined(__parallel)
-      t_start = m_walltime()
       msglen = SIZE(msg)
       ALLOCATE (res(1:msglen))
       CALL mpi_allreduce(msg, res, 1, MPI_INTEGER8, MPI_MINLOC, gid, ierr)
       IF (ierr /= 0) CALL mp_stop(ierr, "mpi_allreduce @ "//routineN)
       msg = res
       DEALLOCATE (res)
-      t_end = m_walltime()
-      CALL add_perf(perf_id=3, count=1, time=t_end-t_start, msg_size=msglen*int_8_size)
+      CALL add_perf(perf_id=3, count=1, msg_size=msglen*int_8_size)
 #else
       MARK_USED(msg)
       MARK_USED(gid)
@@ -2800,15 +2744,13 @@ CONTAINS
       CALL mp_timeset(routineN, handle)
 
 #if defined(__parallel)
-      t_start = m_walltime()
       msglen = SIZE(msg)
       ALLOCATE (res(1:msglen))
       CALL mpi_allreduce(msg, res, 1, MPI_2REAL, MPI_MINLOC, gid, ierr)
       IF (ierr /= 0) CALL mp_stop(ierr, "mpi_allreduce @ "//routineN)
       msg = res
       DEALLOCATE (res)
-      t_end = m_walltime()
-      CALL add_perf(perf_id=3, count=1, time=t_end-t_start, msg_size=msglen*real_4_size)
+      CALL add_perf(perf_id=3, count=1, msg_size=msglen*real_4_size)
 #else
       MARK_USED(msg)
       MARK_USED(gid)
@@ -2846,15 +2788,13 @@ CONTAINS
       CALL mp_timeset(routineN, handle)
 
 #if defined(__parallel)
-      t_start = m_walltime()
       msglen = SIZE(msg)
       ALLOCATE (res(1:msglen))
       CALL mpi_allreduce(msg, res, 1, MPI_2DOUBLE_PRECISION, MPI_MAXLOC, gid, ierr)
       IF (ierr /= 0) CALL mp_stop(ierr, "mpi_allreduce @ "//routineN)
       msg = res
       DEALLOCATE (res)
-      t_end = m_walltime()
-      CALL add_perf(perf_id=3, count=1, time=t_end-t_start, msg_size=msglen*real_8_size)
+      CALL add_perf(perf_id=3, count=1, msg_size=msglen*real_8_size)
 #else
       MARK_USED(msg)
       MARK_USED(gid)
@@ -2892,15 +2832,13 @@ CONTAINS
       CALL mp_timeset(routineN, handle)
 
 #if defined(__parallel)
-      t_start = m_walltime()
       msglen = SIZE(msg)
       ALLOCATE (res(1:msglen))
       CALL mpi_allreduce(msg, res, 1, MPI_2INTEGER, MPI_MAXLOC, gid, ierr)
       IF (ierr /= 0) CALL mp_stop(ierr, "mpi_allreduce @ "//routineN)
       msg = res
       DEALLOCATE (res)
-      t_end = m_walltime()
-      CALL add_perf(perf_id=3, count=1, time=t_end-t_start, msg_size=msglen*int_4_size)
+      CALL add_perf(perf_id=3, count=1, msg_size=msglen*int_4_size)
 #else
       MARK_USED(msg)
       MARK_USED(gid)
@@ -2938,15 +2876,13 @@ CONTAINS
       CALL mp_timeset(routineN, handle)
 
 #if defined(__parallel)
-      t_start = m_walltime()
       msglen = SIZE(msg)
       ALLOCATE (res(1:msglen))
       CALL mpi_allreduce(msg, res, 1, MPI_INTEGER8, MPI_MAXLOC, gid, ierr)
       IF (ierr /= 0) CALL mp_stop(ierr, "mpi_allreduce @ "//routineN)
       msg = res
       DEALLOCATE (res)
-      t_end = m_walltime()
-      CALL add_perf(perf_id=3, count=1, time=t_end-t_start, msg_size=msglen*int_8_size)
+      CALL add_perf(perf_id=3, count=1, msg_size=msglen*int_8_size)
 #else
       MARK_USED(msg)
       MARK_USED(gid)
@@ -2984,15 +2920,13 @@ CONTAINS
       CALL mp_timeset(routineN, handle)
 
 #if defined(__parallel)
-      t_start = m_walltime()
       msglen = SIZE(msg)
       ALLOCATE (res(1:msglen))
       CALL mpi_allreduce(msg, res, 1, MPI_2REAL, MPI_MAXLOC, gid, ierr)
       IF (ierr /= 0) CALL mp_stop(ierr, "mpi_allreduce @ "//routineN)
       msg = res
       DEALLOCATE (res)
-      t_end = m_walltime()
-      CALL add_perf(perf_id=3, count=1, time=t_end-t_start, msg_size=msglen*real_4_size)
+      CALL add_perf(perf_id=3, count=1, msg_size=msglen*real_4_size)
 #else
       MARK_USED(msg)
       MARK_USED(gid)
@@ -3886,13 +3820,11 @@ CONTAINS
       CALL mp_timeset(routineN, handle)
 
 #if defined(__parallel)
-      t_start = m_walltime()
 
       CALL mpi_win_free(win, ierr)
       IF (ierr /= 0) CALL mp_stop(ierr, "mpi_win_free @ "//routineN)
 
-      t_end = m_walltime()
-      CALL add_perf(perf_id=21, count=1, time=t_end-t_start)
+      CALL add_perf(perf_id=21, count=1)
 #else
       MARK_USED(win)
       win = mp_win_null
@@ -3945,7 +3877,6 @@ CONTAINS
       CALL mp_timeset(routineN, handle)
 
 #if defined(__parallel)
-      t_start = m_walltime()
 
 #if __MPI_VERSION > 2
       CALL mpi_win_lock_all(MPI_MODE_NOCHECK, win, ierr)
@@ -3955,8 +3886,7 @@ CONTAINS
 #endif
       IF (ierr /= 0) CALL mp_stop(ierr, "mpi_win_lock_all @ "//routineN)
 
-      t_end = m_walltime()
-      CALL add_perf(perf_id=19, count=1, time=t_end-t_start)
+      CALL add_perf(perf_id=19, count=1)
 #else
       MARK_USED(win)
 #endif
@@ -3979,7 +3909,6 @@ CONTAINS
       CALL mp_timeset(routineN, handle)
 
 #if defined(__parallel)
-      t_start = m_walltime()
 
 #if __MPI_VERSION > 2
       CALL mpi_win_unlock_all(win, ierr)
@@ -3989,8 +3918,7 @@ CONTAINS
 #endif
       IF (ierr /= 0) CALL mp_stop(ierr, "mpi_win_unlock_all @ "//routineN)
 
-      t_end = m_walltime()
-      CALL add_perf(perf_id=19, count=1, time=t_end-t_start)
+      CALL add_perf(perf_id=19, count=1)
 #else
       MARK_USED(win)
 #endif
