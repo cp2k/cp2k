@@ -1395,14 +1395,16 @@ CONTAINS
                CALL pw_release(qs_env%external_vxc%pw)
                DEALLOCATE (qs_env%external_vxc)
             ENDIF
+            ! Embedding potential
+            IF (ASSOCIATED(qs_env%embed_pot)) THEN
+               IF (ASSOCIATED(qs_env%embed_pot%pw)) THEN
+                  CALL pw_release(qs_env%embed_pot%pw)
+                  DEALLOCATE (qs_env%embed_pot)
+               ENDIF
+            ENDIF
             IF (ASSOCIATED(qs_env%mask)) THEN
                CALL pw_release(qs_env%mask%pw)
                DEALLOCATE (qs_env%mask)
-            ENDIF
-            ! Embedding potential
-            IF (ASSOCIATED(qs_env%embed_pot)) THEN
-               CALL pw_release(qs_env%embed_pot%pw)
-               DEALLOCATE (qs_env%embed_pot)
             ENDIF
             IF (ASSOCIATED(qs_env%active_space)) THEN
                CALL release_active_space_type(qs_env%active_space)

@@ -1708,6 +1708,9 @@ CONTAINS
       embed_corr = 0.0_dp
       embed_corr = accurate_sum(v_rspace_embed(1)%pw%cr3d*rho_r(1)%pw%cr3d)* &
                    v_rspace_embed(1)%pw%pw_grid%dvol
+      IF (v_rspace_embed(1)%pw%pw_grid%para%mode == PW_MODE_DISTRIBUTED) THEN
+         CALL mp_sum(embed_corr, v_rspace_embed(1)%pw%pw_grid%para%group)
+      END IF
 
       ! If only energy requiested we delete the potential
       IF (just_energy) THEN

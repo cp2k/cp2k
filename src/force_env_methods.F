@@ -103,15 +103,14 @@ MODULE force_env_methods
                                               mixed_map_forces
    USE opt_embed_pot_types,             ONLY: opt_embed_pot_type
    USE optimize_embedding_potential,    ONLY: &
-        calculate_embed_pot_grad, conv_check_embed, init_embed_pot, max_dens_diff, opt_embed_step, &
+        calculate_embed_pot_grad, conv_check_embed, init_embed_pot, opt_embed_step, &
         prepare_embed_opt, print_emb_opt_info, print_rho_diff, release_opt_embed, step_control
    USE particle_list_types,             ONLY: particle_list_p_type,&
                                               particle_list_type
    USE physcon,                         ONLY: debye
    USE pw_env_types,                    ONLY: pw_env_get,&
                                               pw_env_type
-   USE pw_methods,                      ONLY: pw_integral_ab,&
-                                              pw_integrate_function
+   USE pw_methods,                      ONLY: pw_integral_ab
    USE pw_pool_types,                   ONLY: pw_pool_create_pw,&
                                               pw_pool_give_back_pw,&
                                               pw_pool_type
@@ -776,6 +775,7 @@ CONTAINS
 !>              structures [tlaino]
 !>       04.08  reorganizing the genmix structure (collecting common code)
 !>       01.16  added CDFT [Nico Holmberg]
+!>       08.17  added DFT embedding [Vladimir Rybkin]
 !> \author Florian Schiffmann
 ! **************************************************************************************************
    SUBROUTINE mixed_energy_forces(force_env, calculate_forces)
@@ -910,9 +910,6 @@ CONTAINS
                IF (dft_control%qs_control%ref_embed_subsys) THEN
                   ! Now we can optimize the embedding potential
                   CALL dft_embedding(force_env, iforce_eval, energies, converged_embed)
-               ENDIF
-               IF (dft_control%qs_control%high_level_embed_subsys) THEN
-                  ! If the embedded system has been calculated, remove the embedding potential
                   IF (.NOT. converged_embed) CPABORT("Embedding potential optimization not converged.")
                ENDIF
             ENDIF
@@ -1349,10 +1346,8 @@ CONTAINS
 
       CALL timeset(routineN, handle)
 
-      !!!
       CALL get_qs_env(qs_env=force_env%sub_force_env(ref_subsys_number+1)%force_env%qs_env, &
                       pw_env=pw_env, embed_pot=embed_pot)
-      !!!
 
       ! Reveal input file
       NULLIFY (logger)
@@ -1367,6 +1362,7 @@ CONTAINS
       CALL get_qs_env(qs_env=force_env%sub_force_env(ref_subsys_number)%force_env%qs_env, &
                       pw_env=pw_env, dft_control=dft_control, rho=rho, energy=energy, &
                       input=input)
+      nspins = dft_control%nspins
 
       dft_section => section_vals_get_subs_vals(input, "DFT")
       opt_embed_section => section_vals_get_subs_vals(input, &
@@ -1374,11 +1370,13 @@ CONTAINS
       ! Rho_r is the reference
       CALL qs_rho_get(rho_struct=rho, rho_r=rho_r_ref)
 
-      ! Build the "constant" part of the embedding potential
+      ! Prepare everything for the potential maximization
+      CALL prepare_embed_opt(force_env%sub_force_env(ref_subsys_number)%force_env%qs_env, opt_embed, &
+                             opt_embed_section, nspins)
+
+      ! Initialize embedding potential
       CALL init_embed_pot(force_env%sub_force_env(ref_subsys_number)%force_env%qs_env, embed_pot, &
                           opt_embed%const_pot, opt_embed%add_const_pot)
-
-      nspins = dft_control%nspins
 
       ! Prepare the pw object to store density differences
       CALL pw_env_get(pw_env, auxbas_pw_pool=auxbas_pw_pool)
@@ -1389,10 +1387,6 @@ CONTAINS
                                 use_data=REALDATA3D, &
                                 in_space=REALSPACE)
       ENDDO
-
-      ! Prepare everything for the potential maximization
-      CALL prepare_embed_opt(force_env%sub_force_env(ref_subsys_number)%force_env%qs_env, opt_embed, &
-                             opt_embed_section, nspins)
 
       ! Check the preliminary density differences
       DO i_spin = 1, nspins
@@ -1453,15 +1447,13 @@ CONTAINS
             CALL qs_rho_get(rho_struct=subsys_rho, rho_r=rho_r_subsys)
             DO i_spin = 1, nspins
                diff_rho_r(i_spin)%pw%cr3d(:, :, :) = diff_rho_r(i_spin)%pw%cr3d(:, :, :)+rho_r_subsys(i_spin)%pw%cr3d(:, :, :)
-               opt_embed%max_diff(i_spin) = max_dens_diff(diff_rho_r(i_spin))
-               opt_embed%int_diff = pw_integrate_function(fun=diff_rho_r(i_spin)%pw, oprt='ABS')
             ENDDO
 
-         ENDDO ! if_force_eval
+         ENDDO ! i_force_eval
 
          ! Print information and check convergence
          CALL print_emb_opt_info(output_unit, i_iter, opt_embed)
-         CALL conv_check_embed(opt_embed, output_unit)
+         CALL conv_check_embed(opt_embed, diff_rho_r, nspins, output_unit)
          IF (opt_embed%converged) EXIT
 
          ! Integrate the potential over density differences and add to w functional; also add regularization contribution
@@ -1479,7 +1471,6 @@ CONTAINS
          ! Calculate potential gradient if the step has been accepted. Otherwise, we reuse the previous one
          IF (opt_embed%accept_step) CALL calculate_embed_pot_grad(force_env%sub_force_env(ref_subsys_number)%force_env%qs_env, &
                                                                   diff_rho_r, opt_embed)
-
          ! Take the embedding step
          CALL opt_embed_step(opt_embed, embed_pot, force_env%sub_force_env(ref_subsys_number)%force_env%qs_env)
 
@@ -1502,8 +1493,11 @@ CONTAINS
          CALL get_qs_env(force_env%sub_force_env(ref_subsys_number+1)%force_env%qs_env, dft_control=dft_control)
          dft_control%apply_embed_pot = .TRUE.
          CALL set_qs_env(force_env%sub_force_env(ref_subsys_number+1)%force_env%qs_env, embed_pot=embed_pot)
-         ! Substitute the correct energy in energies
-         energies(cluster_subsys_num) = cluster_energy
+         ! Substitute the correct energy in energies: only on rank 0
+         IF (force_env%sub_force_env(cluster_subsys_num)%force_env%para_env%mepos == &
+             force_env%sub_force_env(cluster_subsys_num)%force_env%para_env%source) THEN
+            energies(cluster_subsys_num) = cluster_energy
+         ENDIF
       ENDIF
 
       converged_embed = opt_embed%converged

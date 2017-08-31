@@ -1,0 +1,4 @@
+# The regtests of DFT embedding
+# ensure the correct energies.
+H2O_H2_pbe.inp                                           11    1.0E-9             -18.2286056402
+#EOF
