@@ -20,7 +20,7 @@
     @IF ( ${BECKE_ADJUST_SIZE} == TRUE )
       ! Defaults to false
       ADJUST_SIZE     TRUE
-      ATOMIC_RADII    0.630 0.320  
+      ATOMIC_RADII    0.630 0.320
     @ENDIF
     @IF ( ${BECKE_ATOMIC_CHARGES} == TRUE )
       ! Defaults to false
@@ -55,13 +55,13 @@
       SHOULD_SKIP     TRUE
     @ENDIF
     @IF ( ${BECKE_CAVITY_PRINT} == TRUE )
-      ! Defaults to false      
+      ! Defaults to false
       CAVITY_PRINT    TRUE
     @ENDIF
     &ATOM_GROUP
       ATOMS           1..3
       COEFF           1 1 1
-      CHARGE_CONSTRAINT
+      CONSTRAINT_TYPE CHARGE
     &END ATOM_GROUP
     &PROGRAM_RUN_INFO ON
       &EACH

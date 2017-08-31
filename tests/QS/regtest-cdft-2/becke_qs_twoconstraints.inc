@@ -69,13 +69,13 @@
         ATOMS           1
         COEFF           1
         FRAGMENT_CONSTRAINT
-        CHARGE_CONSTRAINT FALSE
+        CONSTRAINT_TYPE MAGNETIZATION
       &END ATOM_GROUP
       &ATOM_GROUP
         ATOMS           2
         COEFF           1
         FRAGMENT_CONSTRAINT
-        CHARGE_CONSTRAINT FALSE
+        CONSTRAINT_TYPE MAGNETIZATION
       &END ATOM_GROUP
       FRAGMENT_A_FILE_NAME He+-noconstraint-ELECTRON_DENSITY-1_0.cube
       FRAGMENT_A_SPIN_FILE He+-noconstraint-SPIN_DENSITY-1_0.cube
@@ -91,12 +91,12 @@
       &ATOM_GROUP
         ATOMS          1
         COEFF          1
-        CHARGE_CONSTRAINT FALSE
+        CONSTRAINT_TYPE MAGNETIZATION
       &END
       &ATOM_GROUP
         ATOMS           1..2
         COEFF           1 -1
-        CHARGE_CONSTRAINT TRUE
+        CONSTRAINT_TYPE CHARGE
       &END ATOM_GROUP
     @ENDIF
     &PROGRAM_RUN_INFO ON

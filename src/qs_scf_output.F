@@ -19,11 +19,12 @@ MODULE qs_scf_output
    USE input_constants,                 ONLY: &
         becke_cutoff_element, becke_cutoff_global, broyden_type_1, broyden_type_1_explicit, &
         broyden_type_1_explicit_ls, broyden_type_1_ls, broyden_type_2, broyden_type_2_explicit, &
-        broyden_type_2_explicit_ls, broyden_type_2_ls, outer_scf_becke_constraint, &
-        outer_scf_hirshfeld_constraint, outer_scf_optimizer_bisect, outer_scf_optimizer_broyden, &
-        outer_scf_optimizer_diis, outer_scf_optimizer_newton, outer_scf_optimizer_newton_ls, &
-        outer_scf_optimizer_sd, outer_scf_optimizer_secant, radius_covalent, radius_single, &
-        radius_user, radius_vdw
+        broyden_type_2_explicit_ls, broyden_type_2_ls, cdft_alpha_constraint, &
+        cdft_beta_constraint, cdft_charge_constraint, cdft_magnetization_constraint, &
+        outer_scf_becke_constraint, outer_scf_hirshfeld_constraint, outer_scf_optimizer_bisect, &
+        outer_scf_optimizer_broyden, outer_scf_optimizer_diis, outer_scf_optimizer_newton, &
+        outer_scf_optimizer_newton_ls, outer_scf_optimizer_sd, outer_scf_optimizer_secant, &
+        radius_covalent, radius_single, radius_user, radius_vdw
    USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                               section_vals_type,&
                                               section_vals_val_get
@@ -668,7 +669,8 @@ CONTAINS
             IF (igroup > 1) WRITE (output_unit, '(T3,A)') ' '
             WRITE (output_unit, '(T3,A,T54,(3X,I18))') &
                'Atomic group                :', igroup
-            IF (cdft_control%is_charge_constraint(igroup)) THEN
+            SELECT CASE (cdft_control%constraint_type (igroup))
+            CASE (cdft_charge_constraint)
                IF (cdft_control%is_fragment_constraint(igroup)) THEN
                   WRITE (output_unit, '(T3,A,T42,A)') &
                      'Type of constraint          :', ADJUSTR('Charge density constraint (frag.)')
@@ -676,7 +678,7 @@ CONTAINS
                   WRITE (output_unit, '(T3,A,T50,A)') &
                      'Type of constraint          :', ADJUSTR('Charge density constraint')
                END IF
-            ELSE
+            CASE (cdft_magnetization_constraint)
                IF (cdft_control%is_fragment_constraint(igroup)) THEN
                   WRITE (output_unit, '(T3,A,T35,A)') &
                      'Type of constraint          :', ADJUSTR('Magnetization density constraint (frag.)')
@@ -684,7 +686,25 @@ CONTAINS
                   WRITE (output_unit, '(T3,A,T43,A)') &
                      'Type of constraint          :', ADJUSTR('Magnetization density constraint')
                END IF
-            END IF
+            CASE (cdft_alpha_constraint)
+               IF (cdft_control%is_fragment_constraint(igroup)) THEN
+                  WRITE (output_unit, '(T3,A,T38,A)') &
+                     'Type of constraint          :', ADJUSTR('Alpha spin density constraint (frag.)')
+               ELSE
+                  WRITE (output_unit, '(T3,A,T46,A)') &
+                     'Type of constraint          :', ADJUSTR('Alpha spin density constraint')
+               END IF
+            CASE (cdft_beta_constraint)
+               IF (cdft_control%is_fragment_constraint(igroup)) THEN
+                  WRITE (output_unit, '(T3,A,T39,A)') &
+                     'Type of constraint          :', ADJUSTR('Beta spin density constraint (frag.)')
+               ELSE
+                  WRITE (output_unit, '(T3,A,T47,A)') &
+                     'Type of constraint          :', ADJUSTR('Beta spin density constraint')
+               END IF
+            CASE DEFAULT
+               CPABORT("Unknown constraint type.")
+            END SELECT
             WRITE (output_unit, '(T3,A,T54,(3X,F18.12))') &
                'Target value of constraint  :', cdft_control%target(igroup)
             WRITE (output_unit, '(T3,A,T54,(3X,F18.12))') &

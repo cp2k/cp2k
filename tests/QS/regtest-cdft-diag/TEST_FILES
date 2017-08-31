@@ -12,4 +12,8 @@ He2-mixed-cdft-diag-3.inp                             73      1e-11             
 He2-mixed-cdft-diag-5.inp                             73      1e-11               444.493471275987
 He2-mixed-cdft-diag-6.inp                             73      1e-11                34.273313989932
 He2-mixed-cdft-diag-7.inp                             73      1e-11               535.869873289158
+# Constrain alpha and beta spin densities separately
+He2-cdft-alphabeta-diag-1.inp                         11      2e-10             -3.044689112623726
+He2-cdft-alphabeta-diag-2.inp                         11      2e-10             -3.044689417773989
+He2-mixed-cdft-alphabeta-diag-1.inp                   76      2e-8              	5.100790096990
 #EOF

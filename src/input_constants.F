@@ -681,6 +681,12 @@ MODULE input_constants
    INTEGER, PARAMETER, PUBLIC               :: ot2cdft = 101, &
                                                cdft2ot = 102
 
+   ! CDFT constraint type definitions
+   INTEGER, PARAMETER, PUBLIC               :: cdft_charge_constraint = 820, &
+                                               cdft_magnetization_constraint = 821, &
+                                               cdft_alpha_constraint = 822, &
+                                               cdft_beta_constraint = 823
+
    ! ROKS schemes
    INTEGER, PARAMETER, PUBLIC               :: general_roks = 1, &
                                                high_spin_roks = 2

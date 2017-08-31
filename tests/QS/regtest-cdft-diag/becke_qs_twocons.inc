@@ -7,30 +7,37 @@
   &CDFT
     TYPE_OF_CONSTRAINT BECKE
     &OUTER_SCF ON
-      EPS_SCF 1.0e-0
+      EPS_SCF 1.0E-2
       TYPE BECKE_CONSTRAINT
-      OPTIMIZER BISECT
+      OPTIMIZER ${OPTIMIZER}
+      JACOBIAN_TYPE ${JACOBIAN_TYPE}
+      BROYDEN_TYPE ${BROYDEN_TYPE}
+      JACOBIAN_STEP 1.0E-2
+      JACOBIAN_FREQ ${JACOBIAN_FREQ_1} ${JACOBIAN_FREQ_2}
       BISECT_TRUST_COUNT 8
       EXTRAPOLATION_ORDER 2
-      MAX_SCF 0
-      STEP_SIZE -0.1
+      MAX_SCF  4
+      STEP_SIZE -1.0
+      JACOBIAN_RESTART TRUE
+      JACOBIAN_VECTOR ${JACOB_VEC1} ${JACOB_VEC2} ${JACOB_VEC3} ${JACOB_VEC4}
     &END
   &END CDFT
   &BECKE_CONSTRAINT
     @IF ( ${BECKE_ADJUST_SIZE} == TRUE )
       ! Defaults to false
       ADJUST_SIZE     TRUE
-      ATOMIC_RADII    0.630 0.320
+      ATOMIC_RADII 0.460 0.320
     @ENDIF
     @IF ( ${BECKE_ATOMIC_CHARGES} == TRUE )
       ! Defaults to false
       ATOMIC_CHARGES  TRUE
     @ENDIF
-    STRENGTH        ${BECKE_STR}
-    TARGET          ${BECKE_TARGET}
+    STRENGTH        ${BECKE_STR} ${BECKE_STR2}
+    ! The constraint target: sum_i coeff_i * N_i
+    ! where N_i is the number of VALENCE electrons on i
+    TARGET          ${BECKE_TARGET} ${BECKE_TARGET2}
     @IF ( ${BECKE_CUTOFF_ELEMENT} == TRUE )
       CUTOFF_TYPE     ELEMENT
-      ! Note these values are in angstrom
       ELEMENT_CUTOFF  2.0 2.0
     @ENDIF
     @IF ( ${BECKE_GLOBAL_CUTOFF} == TRUE )
@@ -48,7 +55,7 @@
       CAVITY_SHAPE    ${BECKE_CAVITY_SHAPE}
       ! For shape single
       CAVITY_RADIUS   1.3
-      CAVITY_USE_BOHR ${BECKE_USE_BOHR}
+      CAVITY_USE_BOHR        FALSE
     @ENDIF
     @IF ( ${BECKE_SHOULD_SKIP} == TRUE )
       ! Defaults to false
@@ -58,11 +65,18 @@
       ! Defaults to false
       CAVITY_PRINT    TRUE
     @ENDIF
-    &ATOM_GROUP
-      ATOMS           1..3
-      COEFF           1 1 1
-      CONSTRAINT_TYPE CHARGE
-    &END ATOM_GROUP
+    @IF ( ${BECKE_FRAGMENT} == FALSE )
+      &ATOM_GROUP
+        ATOMS 1..2
+        COEFF 1 -1
+        CONSTRAINT_TYPE ALPHA
+      &END ATOM_GROUP
+      &ATOM_GROUP
+        ATOMS 1..2
+        COEFF 1 -1
+        CONSTRAINT_TYPE BETA
+      &END ATOM_GROUP
+    @ENDIF
     &PROGRAM_RUN_INFO ON
       &EACH
         QS_SCF 1

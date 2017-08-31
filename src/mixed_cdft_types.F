@@ -136,8 +136,8 @@ MODULE mixed_cdft_types
 !>                          should be printed out
 !> \param identical_constraints flag which determines if the constraint definitions are identical
 !>                               across all CDFT states
-!> \param is_charge_constraint list of logicals which determine if the constraint should be applied
-!>                             to the total charge density or the magnetization density
+!> \param constraint_type list of integers which determine what type of constraint should be applied
+!>                             to each constraint group
 !> \param eps_rho_rspace threshold to determine when the realspace density can be considered zero
 !> \param sim_dt timestep of the MD simulation
 !> \param eps_svd value that controls which matrix inversion method to use
@@ -154,6 +154,7 @@ MODULE mixed_cdft_types
    TYPE mixed_cdft_type
       INTEGER                                          :: sim_step, multiplicity, &
                                                           nconstraint
+      INTEGER, DIMENSION(:, :), ALLOCATABLE            :: constraint_type
       INTEGER, POINTER, DIMENSION(:)                   :: source_list, dest_list, &
                                                           recv_bo, source_list_save, &
                                                           dest_list_save
@@ -167,7 +168,6 @@ MODULE mixed_cdft_types
                                                           is_parallel, use_lowdin, &
                                                           do_ci, nonortho_coupling, &
                                                           identical_constraints
-      LOGICAL, DIMENSION(:, :), ALLOCATABLE            :: is_charge_constraint
       REAL(KIND=dp)                                    :: eps_rho_rspace, sim_dt, &
                                                           eps_svd
       REAL(KIND=dp), POINTER, DIMENSION(:, :, :)       :: weight, cavity
@@ -280,8 +280,8 @@ CONTAINS
          DEALLOCATE (cdft_control%weight)
       IF (ASSOCIATED(cdft_control%cavity)) &
          DEALLOCATE (cdft_control%cavity)
-      IF (ALLOCATED(cdft_control%is_charge_constraint)) &
-         DEALLOCATE (cdft_control%is_charge_constraint)
+      IF (ALLOCATED(cdft_control%constraint_type)) &
+         DEALLOCATE (cdft_control%constraint_type)
       IF (ALLOCATED(cdft_control%occupations)) THEN
          DO i = 1, SIZE(cdft_control%occupations, 1)
             DO j = 1, SIZE(cdft_control%occupations, 2)

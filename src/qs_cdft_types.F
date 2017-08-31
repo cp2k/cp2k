@@ -84,8 +84,8 @@ MODULE qs_cdft_types
    TYPE becke_group_type
       ! Atoms of this constraint group
       INTEGER, POINTER, DIMENSION(:)       :: atoms
-      ! Constraint type: charge constraint or magnetization density constraint
-      LOGICAL                              :: is_charge_constraint
+      ! Constraint type: charge constraint, magnetization density constraint, or spin channel specific constraint
+      INTEGER                              :: constraint_type
       ! Is the constraint fragment based
       LOGICAL                              :: is_fragment_constraint
       ! Temporary array holding a component of the weight function gradient that only includes
@@ -204,8 +204,8 @@ MODULE qs_cdft_types
 !> \param purge_history logical which determines if the wfn/constraint history can be purged
 !> \param should_purge logical which determines if purging should take place after this CDFT SCF loop
 !> \param calculate_metric logical which determines if the ET coupling reliablity metric is computed
-!> \param is_charge_constraint list of logicals which determine if the constraint should be applied
-!>                             to the total charge density or the magnetization density
+!> \param constraint_type list of integers which determine what type of constraint should be applied
+!>                             to each constraint group
 !> \param mo_coeff save the MO coeffs (for do_et)
 !> \param wmat matrix representation of the weight function (for do_et)
 !> \param matrix_s save the overlap matrix (for do_et)
@@ -257,11 +257,11 @@ MODULE qs_cdft_types
                                               precond_freq, nreused, max_reuse, &
                                               purge_freq, nbad_conv, purge_offset, &
                                               istep, ienergy
+      INTEGER, DIMENSION(:), ALLOCATABLE   :: constraint_type
       LOGICAL                              :: need_pot, save_pot, do_et, &
                                               reuse_precond, purge_history, &
                                               should_purge, calculate_metric
-      LOGICAL, DIMENSION(:), ALLOCATABLE   :: is_charge_constraint, &
-                                              is_fragment_constraint
+      LOGICAL, DIMENSION(:), ALLOCATABLE   :: is_fragment_constraint
       REAL(KIND=dp), DIMENSION(:), POINTER :: strength, TARGET, value
       TYPE(cp_1d_r_p_type), ALLOCATABLE, &
          DIMENSION(:)                      :: occupations
@@ -558,8 +558,8 @@ CONTAINS
             DEALLOCATE (cdft_control%target)
          IF (ASSOCIATED(cdft_control%value)) &
             DEALLOCATE (cdft_control%value)
-         IF (ALLOCATED(cdft_control%is_charge_constraint)) &
-            DEALLOCATE (cdft_control%is_charge_constraint)
+         IF (ALLOCATED(cdft_control%constraint_type)) &
+            DEALLOCATE (cdft_control%constraint_type)
          IF (ALLOCATED(cdft_control%is_fragment_constraint)) &
             DEALLOCATE (cdft_control%is_fragment_constraint)
          IF (ALLOCATED(cdft_control%occupations)) THEN

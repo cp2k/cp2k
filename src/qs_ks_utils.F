@@ -48,8 +48,9 @@ MODULE qs_ks_utils
         dbcsr_deallocate_matrix_set, dbcsr_get_info, dbcsr_init_p, dbcsr_multiply, dbcsr_p_type, &
         dbcsr_release_p, dbcsr_scale, dbcsr_scale_by_vector, dbcsr_set, dbcsr_trace, dbcsr_type
    USE input_constants,                 ONLY: &
-        do_ppl_grid, outer_scf_hirshfeld_constraint, sic_ad, sic_eo, sic_list_all, &
-        sic_list_unpaired, sic_mauri_spz, sic_mauri_us, sic_none
+        cdft_alpha_constraint, cdft_beta_constraint, cdft_charge_constraint, &
+        cdft_magnetization_constraint, do_ppl_grid, outer_scf_hirshfeld_constraint, sic_ad, &
+        sic_eo, sic_list_all, sic_list_unpaired, sic_mauri_spz, sic_mauri_us, sic_none
    USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                               section_vals_type,&
                                               section_vals_val_get
@@ -1300,11 +1301,24 @@ CONTAINS
             END IF
             IF (dft_control%qs_control%becke_constraint) THEN
                DO igroup = 1, SIZE(becke%group)
-                  IF (ispin == 2 .AND. .NOT. becke%group(igroup)%is_charge_constraint) THEN
-                     sign = -1.0_dp
-                  ELSE
+                  SELECT CASE (becke%group (igroup)%constraint_type)
+                  CASE (cdft_charge_constraint)
                      sign = 1.0_dp
-                  END IF
+                  CASE (cdft_magnetization_constraint)
+                     IF (ispin == 1) THEN
+                        sign = 1.0_dp
+                     ELSE
+                        sign = -1.0_dp
+                     END IF
+                  CASE (cdft_alpha_constraint)
+                     sign = 1.0_dp
+                     IF (ispin == 2) CYCLE
+                  CASE (cdft_beta_constraint)
+                     sign = 1.0_dp
+                     IF (ispin == 1) CYCLE
+                  CASE DEFAULT
+                     CPABORT("Unknown constraint type.")
+                  END SELECT
                   v_rspace_new(ispin)%pw%cr3d = v_rspace_new(ispin)%pw%cr3d &
                                                 +sign*becke%group(igroup)%weight%pw%cr3d*becke%strength(igroup)
                END DO

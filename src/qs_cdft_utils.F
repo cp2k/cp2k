@@ -31,10 +31,10 @@ MODULE qs_cdft_utils
                                               hirshfeld_type,&
                                               set_hirshfeld_info
    USE input_constants,                 ONLY: &
-        becke_cutoff_element, becke_cutoff_global, outer_scf_becke_constraint, &
-        outer_scf_cdft_constraint, outer_scf_hirshfeld_constraint, outer_scf_none, &
-        outer_scf_optimizer_broyden, outer_scf_optimizer_newton, outer_scf_optimizer_newton_ls, &
-        radius_covalent, radius_user, shape_function_gaussian
+        becke_cutoff_element, becke_cutoff_global, cdft_charge_constraint, &
+        outer_scf_becke_constraint, outer_scf_cdft_constraint, outer_scf_hirshfeld_constraint, &
+        outer_scf_none, outer_scf_optimizer_broyden, outer_scf_optimizer_newton, &
+        outer_scf_optimizer_newton_ls, radius_covalent, radius_user, shape_function_gaussian
    USE input_section_types,             ONLY: section_vals_get,&
                                               section_vals_get_subs_vals,&
                                               section_vals_type,&
@@ -140,7 +140,7 @@ CONTAINS
       group => becke_control%group
       ! Sanity checks
       DO igroup = 1, SIZE(group)
-         IF (.NOT. group(igroup)%is_charge_constraint .AND. dft_control%nspins == 1) &
+         IF (group(igroup)%constraint_type /= cdft_charge_constraint .AND. dft_control%nspins == 1) &
             CALL cp_abort(__LOCATION__, &
                           "Becke magnetization density constraint requires UKS calculation.")
       END DO
@@ -526,8 +526,8 @@ CONTAINS
          END DO
          IF (jj < natoms) &
             CPABORT("Length of keywords ATOMS and COEFF must match.")
-         CALL section_vals_val_get(group_section, "CHARGE_CONSTRAINT", i_rep_section=k, &
-                                   l_val=qs_control%becke_control%group(k)%is_charge_constraint)
+         CALL section_vals_val_get(group_section, "CONSTRAINT_TYPE", i_rep_section=k, &
+                                   i_val=qs_control%becke_control%group(k)%constraint_type)
          CALL section_vals_val_get(group_section, "FRAGMENT_CONSTRAINT", i_rep_section=k, &
                                    l_val=qs_control%becke_control%group(k)%is_fragment_constraint)
          IF (qs_control%becke_control%group(k)%is_fragment_constraint) &
@@ -851,8 +851,8 @@ CONTAINS
                   CALL section_vals_get(hirshfeld_constraint_section, explicit=exists)
                   IF (exists) THEN
                      CALL read_hirshfeld_constraint_section(qs_control, hirshfeld_constraint_section)
-                     ALLOCATE (qs_control%cdft_control%is_charge_constraint(1))
-                     qs_control%cdft_control%is_charge_constraint(1) = .TRUE.
+                     ALLOCATE (qs_control%cdft_control%constraint_type(1))
+                     qs_control%cdft_control%constraint_type(1) = cdft_charge_constraint
                   ELSE
                      CPABORT("HIRSHFELD_CONSTRAINT section is missing.")
                   END IF

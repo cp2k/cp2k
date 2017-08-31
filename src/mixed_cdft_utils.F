@@ -365,8 +365,8 @@ CONTAINS
                      IF (dft_control_target%qs_control%becke_control%group(igroup)%coeff(iatom) /= &
                          dft_control_source%qs_control%becke_control%group(igroup)%coeff(iatom)) &
                         mixed_cdft%identical_constraints = .FALSE.
-                     IF (dft_control_target%qs_control%becke_control%group(igroup)%is_charge_constraint .NEQV. &
-                         dft_control_source%qs_control%becke_control%group(igroup)%is_charge_constraint) &
+                     IF (dft_control_target%qs_control%becke_control%group(igroup)%constraint_type /= &
+                         dft_control_source%qs_control%becke_control%group(igroup)%constraint_type) &
                         mixed_cdft%identical_constraints = .FALSE.
                      IF (.NOT. mixed_cdft%identical_constraints) EXIT
                   END DO
@@ -402,10 +402,10 @@ CONTAINS
                   IF (.NOT. dft_control%qs_control%gapw) THEN
                      DEALLOCATE (dft_control%qs_control%becke_control%group(igroup)%coeff)
                      DEALLOCATE (dft_control%qs_control%becke_control%group(igroup)%atoms)
-                     IF (.NOT. dft_control%qs_control%becke_control%atomic_charges) &
-                        DEALLOCATE (dft_control%qs_control%becke_control%atoms)
                   END IF
                END DO
+               IF (.NOT. dft_control%qs_control%becke_control%atomic_charges) &
+                  DEALLOCATE (dft_control%qs_control%becke_control%atoms)
                IF (dft_control%qs_control%becke_control%cavity_confine) &
                   CALL release_hirshfeld_type(dft_control%qs_control%becke_control%cavity_env)
                IF (dft_control%qs_control%becke_control%cutoff_type == becke_cutoff_element) &
@@ -1007,12 +1007,12 @@ CONTAINS
       DEALLOCATE (has_occupation_numbers)
       ! Get number of weight functions per state as well as the type of each constraint
       nvar = SIZE(dft_control%qs_control%cdft_control%target)
-      IF (.NOT. ALLOCATED(mixed_cdft%is_charge_constraint)) THEN
-         ALLOCATE (mixed_cdft%is_charge_constraint(nvar, nforce_eval))
+      IF (.NOT. ALLOCATED(mixed_cdft%constraint_type)) THEN
+         ALLOCATE (mixed_cdft%constraint_type(nvar, nforce_eval))
          IF (mixed_cdft%identical_constraints) THEN
             DO ivar = 1, nvar
-               mixed_cdft%is_charge_constraint(ivar, :) = &
-                  dft_control%qs_control%becke_control%group(ivar)%is_charge_constraint
+               mixed_cdft%constraint_type(ivar, :) = &
+                  dft_control%qs_control%becke_control%group(ivar)%constraint_type
             END DO
          ELSE
             ! Possibly couple spin and charge constraints (serial mode only)
@@ -1024,8 +1024,8 @@ CONTAINS
                END IF
                CALL get_qs_env(qs_env, dft_control=dft_control)
                DO ivar = 1, nvar
-                  mixed_cdft%is_charge_constraint(ivar, iforce_eval) = &
-                     dft_control%qs_control%becke_control%group(ivar)%is_charge_constraint
+                  mixed_cdft%constraint_type(ivar, iforce_eval) = &
+                     dft_control%qs_control%becke_control%group(ivar)%constraint_type
                END DO
             END DO
          END IF

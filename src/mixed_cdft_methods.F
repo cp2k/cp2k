@@ -54,6 +54,10 @@ MODULE mixed_cdft_methods
    USE hirshfeld_types,                 ONLY: hirshfeld_type
    USE input_constants,                 ONLY: becke_cutoff_element,&
                                               becke_cutoff_global,&
+                                              cdft_alpha_constraint,&
+                                              cdft_beta_constraint,&
+                                              cdft_charge_constraint,&
+                                              cdft_magnetization_constraint,&
                                               mix_cdft
    USE input_section_types,             ONLY: section_get_lval,&
                                               section_vals_get,&
@@ -1309,13 +1313,13 @@ CONTAINS
                   IF (mixed_cdft%eps_svd == 0.0_dp) THEN
                      WRITE (moeigvalunit, '(A,I2,A,I2,A,I1,A)') &
                         "# MO Overlap matrix eigenvalues for CDFT states ", istate, " and ", jstate, &
-                        " (spin ", ispin, " )"
+                        " (spin ", ispin, ")"
                   ELSE
                      WRITE (moeigvalunit, '(A,I2,A,I2,A,I1,A)') &
                         "# MO Overlap matrix singular values for CDFT states ", istate, " and ", jstate, &
-                        " (spin ", ispin, " )"
+                        " (spin ", ispin, ")"
                   END IF
-                  WRITE (moeigvalunit, '(A2, A8, A12)') ADJUSTL("#"), "Index", ADJUSTL("Value")
+                  WRITE (moeigvalunit, '(A1, A9, A12)') "#", "Index", ADJUSTL("Value")
                   DO j = 1, SIZE(mo_eigval)
                      WRITE (moeigvalunit, '(I10, F12.8)') j, mo_eigval(j)
                   END DO
@@ -1347,14 +1351,37 @@ CONTAINS
                   END DO
                END DO
             END DO
-            IF (ispin == 2) THEN
-               DO ivar = 1, nvar
-                  IF (.NOT. mixed_cdft%is_charge_constraint(ivar, istate)) &
-                     a(ispin, ivar, ipermutation) = -a(ispin, ivar, ipermutation)
-                  IF (.NOT. mixed_cdft%is_charge_constraint(ivar, jstate)) &
-                     b(ispin, ivar, ipermutation) = -b(ispin, ivar, ipermutation)
-               END DO
-            END IF
+            ! Handle different constraint types
+            DO ivar = 1, nvar
+               SELECT CASE (mixed_cdft%constraint_type (ivar, istate))
+               CASE (cdft_charge_constraint)
+                  ! No action needed
+               CASE (cdft_magnetization_constraint)
+                  IF (ispin == 2) a(ispin, ivar, ipermutation) = -a(ispin, ivar, ipermutation)
+               CASE (cdft_alpha_constraint)
+                  ! Constraint applied to alpha electrons only, set integrals involving beta to zero
+                  IF (ispin == 2) a(ispin, ivar, ipermutation) = 0.0_dp
+               CASE (cdft_beta_constraint)
+                  ! Constraint applied to beta electrons only, set integrals involving alpha to zero
+                  IF (ispin == 1) a(ispin, ivar, ipermutation) = 0.0_dp
+               CASE DEFAULT
+                  CPABORT("Unknown constraint type.")
+               END SELECT
+               SELECT CASE (mixed_cdft%constraint_type (ivar, jstate))
+               CASE (cdft_charge_constraint)
+                  ! No action needed
+               CASE (cdft_magnetization_constraint)
+                  IF (ispin == 2) b(ispin, ivar, ipermutation) = -b(ispin, ivar, ipermutation)
+               CASE (cdft_alpha_constraint)
+                  ! Constraint applied to alpha electrons only, set integrals involving beta to zero
+                  IF (ispin == 2) b(ispin, ivar, ipermutation) = 0.0_dp
+               CASE (cdft_beta_constraint)
+                  ! Constraint applied to beta electrons only, set integrals involving alpha to zero
+                  IF (ispin == 1) b(ispin, ivar, ipermutation) = 0.0_dp
+               CASE DEFAULT
+                  CPABORT("Unknown constraint type.")
+               END SELECT
+            END DO
             ! Compute density matrix difference P = P_j - P_i
             IF (mixed_cdft%calculate_metric) &
                CALL dbcsr_add(density_matrix_diff(ipermutation, ispin)%matrix, &
@@ -1737,7 +1764,7 @@ CONTAINS
          info = 0
          CALL dsygv(1, 'V', 'U', nforce_eval, H_mat, nforce_eval, S_mat, nforce_eval, eigenv, work, work_array_size, info)
          IF (info /= 0) CPABORT("Diagonalization of H matrix failed.")
-         ! dsygvs returns eigenvectors (stored in columns of H_mat) that are normalized to H^T * S * H = I
+         ! dsygv returns eigenvectors (stored in columns of H_mat) that are normalized to H^T * S * H = I
          ! Renormalize eigenvectors to H^T * H = I
          DO ivar = 1, nforce_eval
             H_mat(:, ivar) = H_mat(:, ivar)/dnrm2(nforce_eval, H_mat(:, ivar), 1)

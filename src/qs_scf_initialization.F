@@ -396,13 +396,13 @@ CONTAINS
                IF (.NOT. ASSOCIATED(dft_control%qs_control%cdft_control%strength)) &
                   ALLOCATE (dft_control%qs_control%cdft_control%strength(nvariables))
                dft_control%qs_control%cdft_control%target = dft_control%qs_control%becke_control%target
-               IF (.NOT. ALLOCATED(dft_control%qs_control%cdft_control%is_charge_constraint)) &
-                  ALLOCATE (dft_control%qs_control%cdft_control%is_charge_constraint(nvariables))
+               IF (.NOT. ALLOCATED(dft_control%qs_control%cdft_control%constraint_type)) &
+                  ALLOCATE (dft_control%qs_control%cdft_control%constraint_type(nvariables))
                IF (.NOT. ALLOCATED(dft_control%qs_control%cdft_control%is_fragment_constraint)) &
                   ALLOCATE (dft_control%qs_control%cdft_control%is_fragment_constraint(nvariables))
                DO ivar = 1, nvariables
-                  dft_control%qs_control%cdft_control%is_charge_constraint(ivar) = &
-                     dft_control%qs_control%becke_control%group(ivar)%is_charge_constraint
+                  dft_control%qs_control%cdft_control%constraint_type(ivar) = &
+                     dft_control%qs_control%becke_control%group(ivar)%constraint_type
                   dft_control%qs_control%cdft_control%is_fragment_constraint(ivar) = &
                      dft_control%qs_control%becke_control%group(ivar)%is_fragment_constraint
                END DO
