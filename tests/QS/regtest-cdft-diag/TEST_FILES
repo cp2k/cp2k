@@ -7,7 +7,7 @@ He2-cdft-diag-1.inp                                   11      1e-13             
 He2-cdft-diag-2.inp                                   11      1e-13             -4.526329530761175
 # Mixed CDFT: change parameters related to how fractionally occupied MOs are treated
 He2-mixed-cdft-diag-1.inp                             73      1e-11               444.493157682007
-He2-mixed-cdft-diag-2.inp                             73      1e-11                 0.120864933677
+He2-mixed-cdft-diag-2.inp                             73      2e-9                  0.120864933677
 He2-mixed-cdft-diag-3.inp                             73      1e-11               444.493471275986
 He2-mixed-cdft-diag-5.inp                             73      1e-11               444.493471275987
 He2-mixed-cdft-diag-6.inp                             73      1e-11                34.273313989932
