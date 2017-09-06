@@ -8,6 +8,7 @@
 !>        lri : local resolution of the identity
 !> \par History
 !>      created Dorothea Golze [03.2014]
+!>      refactoring and distant pair approximation JGH [08.2017]
 !> \authors Dorothea Golze
 ! **************************************************************************************************
 MODULE lri_forces
@@ -100,8 +101,12 @@ CONTAINS
          use_virial = virial%pv_availability .AND. (.NOT. virial%pv_numer)
 
          !calculate SUM_i integral(V*fbas_i)*davec/dR
-         CALL calculate_v_dadr(lri_env, lri_density, pmatrix, atomic_kind_set, &
-                               use_virial, virial)
+         CALL calculate_v_dadr_sr(lri_env, lri_density, pmatrix, atomic_kind_set, &
+                                  use_virial, virial)
+         IF (lri_env%distant_pair_approximation) THEN
+            CALL calculate_v_dadr_ff(lri_env, lri_density, pmatrix, atomic_kind_set, &
+                                     use_virial, virial)
+         END IF
 
          DO ispin = 1, nspin
 
@@ -137,8 +142,8 @@ CONTAINS
 !> \param use_virial ...
 !> \param virial ...
 ! **************************************************************************************************
-   SUBROUTINE calculate_v_dadr(lri_env, lri_density, pmatrix, atomic_kind_set, &
-                               use_virial, virial)
+   SUBROUTINE calculate_v_dadr_sr(lri_env, lri_density, pmatrix, atomic_kind_set, &
+                                  use_virial, virial)
 
       TYPE(lri_environment_type), POINTER                :: lri_env
       TYPE(lri_density_type), POINTER                    :: lri_density
@@ -147,19 +152,21 @@ CONTAINS
       LOGICAL, INTENT(IN)                                :: use_virial
       TYPE(virial_type), POINTER                         :: virial
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'calculate_v_dadr', &
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'calculate_v_dadr_sr', &
          routineP = moduleN//':'//routineN
 
       INTEGER :: atom_a, atom_b, handle, i, iac, iatom, ikind, ilist, ispin, jatom, jkind, &
          jneighbor, k, mepos, natom, nba, nbb, nfa, nfb, nkind, nlist, nn, nspin, nthread
       INTEGER, DIMENSION(:), POINTER                     :: atom_of_kind
-      LOGICAL                                            :: found, trans
-      REAL(KIND=dp)                                      :: threshold
+      LOGICAL                                            :: found
+      REAL(KIND=dp)                                      :: ai, dab, dfw, fw, isn, threshold
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: vint
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: pab
       REAL(KIND=dp), DIMENSION(3)                        :: dcharge, dlambda, force_a, force_b, &
-                                                            nsdssn, nsdsst, nsdt, rab
-      REAL(KIND=dp), DIMENSION(:), POINTER               :: st, v_dadra, v_dadrb, v_inta, v_intb
-      REAL(KIND=dp), DIMENSION(:, :), POINTER            :: davec, dssn, dsst, dtvec, pbij, sdssn, &
-                                                            sdsst, sdt
+                                                            idav, nsdssn, nsdsst, nsdt, rab
+      REAL(KIND=dp), DIMENSION(:), POINTER               :: st, v_dadra, v_dadrb
+      REAL(KIND=dp), DIMENSION(:, :), POINTER            :: dssn, dsst, dtvec, pbij, sdssn, sdsst, &
+                                                            sdt
       TYPE(dbcsr_type), POINTER                          :: pmat
       TYPE(gto_basis_set_type), POINTER                  :: fbasa, fbasb, obasa, obasb
       TYPE(lri_force_type), POINTER                      :: lri_force
@@ -175,9 +182,8 @@ CONTAINS
       CALL timeset(routineN, handle)
 
       NULLIFY (atom_of_kind, lri_coef, lri_force, lrii, lri_rho, lrho, &
-               nl_iterator, pbij, pmat, soo_list, v_dadra, v_dadrb, v_inta, &
-               v_intb)
-      NULLIFY (davec, dssn, dsst, dtvec, sdssn, sdsst, sdt, st)
+               nl_iterator, pbij, pmat, soo_list, v_dadra, v_dadrb)
+      NULLIFY (dssn, dsst, dtvec, sdssn, sdsst, sdt, st)
 
       IF (ASSOCIATED(lri_env%soo_list)) THEN
          soo_list => lri_env%soo_list
@@ -204,8 +210,9 @@ CONTAINS
 !$OMP         atom_of_kind,virial,use_virial)&
 !$OMP PRIVATE (mepos,ikind,jkind,iatom,jatom,nlist,ilist,jneighbor,rab,iac,lrii,lrho,&
 !$OMP          lri_force,nfa,nfb,nba,nbb,nn,st,nsdsst,nsdssn,dsst,sdsst,dssn,sdssn,sdt,&
-!$OMP          nsdt,davec,dtvec,pbij,trans,found,obasa,obasb,fbasa,fbasb,i,k,threshold,&
-!$OMP          dcharge,dlambda,atom_a,atom_b,v_dadra,v_dadrb,v_inta,v_intb,force_a,force_b)
+!$OMP          nsdt,dtvec,pbij,found,obasa,obasb,fbasa,fbasb,i,k,threshold,&
+!$OMP          dcharge,dlambda,atom_a,atom_b,v_dadra,v_dadrb,force_a,force_b,&
+!$OMP          pab,fw,dfw,dab,ai,vint,isn,idav)
 
             mepos = 0
 !$          mepos = omp_get_thread_num()
@@ -222,6 +229,11 @@ CONTAINS
                lrii => lri_env%lri_ints%lri_atom(iac)%lri_node(ilist)%lri_int(jneighbor)
                lrho => lri_rho%lri_atom(iac)%lri_node(ilist)%lri_rhoab(jneighbor)
 
+               ! only proceed if short-range exact LRI is needed
+               IF (.NOT. lrii%lrisr) CYCLE
+               fw = lrii%wsr
+               dfw = lrii%dwsr
+
                ! zero contribution for pairs aa or bb and periodc pairs aa' or bb'
                ! calculate forces for periodic pairs aa' and bb' only for virial
                IF (.NOT. lrii%calc_force_pair) CYCLE
@@ -232,25 +244,17 @@ CONTAINS
                nbb = lrii%nbb
                nn = nfa+nfb
 
-               NULLIFY (lri_force)
-               CALL allocate_lri_force_components(lri_force, nfa, nfb)
-               st => lri_force%st
-               dsst => lri_force%dsst
-               sdsst => lri_force%sdsst
-               dssn => lri_force%dssn
-               sdssn => lri_force%sdssn
-               sdt => lri_force%sdt
-               dtvec => lri_force%dtvec
-               davec => lri_force%davec
-
                ! get the density matrix Pab
+               ALLOCATE (pab(nba, nbb))
                NULLIFY (pbij)
                IF (iatom <= jatom) THEN
                   CALL dbcsr_get_block_p(matrix=pmat, row=iatom, col=jatom, block=pbij, found=found)
-                  trans = .FALSE.
+                  CPASSERT(found)
+                  pab(1:nba, 1:nbb) = pbij(1:nba, 1:nbb)
                ELSE
                   CALL dbcsr_get_block_p(matrix=pmat, row=jatom, col=iatom, block=pbij, found=found)
-                  trans = .TRUE.
+                  CPASSERT(found)
+                  pab(1:nba, 1:nbb) = TRANSPOSE(pbij(1:nbb, 1:nba))
                END IF
 
                ! Calculate derivatives of overlap integrals (a,b), (fa,fb), (a,fa,b), (a,b,fb)
@@ -279,86 +283,68 @@ CONTAINS
                                   iatom, jatom, ikind, .TRUE.)
                ENDIF
 
+               NULLIFY (lri_force)
+               CALL allocate_lri_force_components(lri_force, nfa, nfb)
+               st => lri_force%st
+               dsst => lri_force%dsst
+               dssn => lri_force%dssn
+               dtvec => lri_force%dtvec
+
                ! compute dtvec/dRa = SUM_ab Pab *d(a,b,x)/dRa
                DO k = 1, 3
-                  IF (trans) THEN
-                     threshold = 0.01_dp*lri_env%eps_o3_int/MAX(SUM(ABS(pbij(1:nbb, 1:nba))), 1.0e-14_dp)
-                     dcharge(k) = SUM(TRANSPOSE(pbij(1:nbb, 1:nba))*lrii%dsoo(1:nba, 1:nbb, k))
-                     DO i = 1, nfa
-                        IF (lrii%abascr(i) > threshold) THEN
-                           dtvec(i, k) = SUM(TRANSPOSE(pbij(1:nbb, 1:nba))*lrii%dabdaint(1:nba, 1:nbb, i, k))
-                        END IF
-                     END DO
-                     DO i = 1, nfb
-                        IF (lrii%abbscr(i) > threshold) THEN
-                           dtvec(nfa+i, k) = SUM(TRANSPOSE(pbij(1:nbb, 1:nba))*lrii%dabbint(1:nba, 1:nbb, i, k))
-                        END IF
-                     END DO
-                  ELSE
-                     threshold = 0.01_dp*lri_env%eps_o3_int/MAX(SUM(ABS(pbij(1:nba, 1:nbb))), 1.0e-14_dp)
-                     dcharge(k) = SUM(pbij(1:nba, 1:nbb)*lrii%dsoo(1:nba, 1:nbb, k))
-                     DO i = 1, nfa
-                        IF (lrii%abascr(i) > threshold) THEN
-                           dtvec(i, k) = SUM(pbij(1:nba, 1:nbb)*lrii%dabdaint(1:nba, 1:nbb, i, k))
-                        END IF
-                     END DO
-                     DO i = 1, nfb
-                        IF (lrii%abbscr(i) > threshold) THEN
-                           dtvec(nfa+i, k) = SUM(pbij(1:nba, 1:nbb)*lrii%dabbint(1:nba, 1:nbb, i, k))
-                        END IF
-                     END DO
-                  END IF
+                  threshold = 0.01_dp*lri_env%eps_o3_int/MAX(SUM(ABS(pab(1:nba, 1:nbb))), 1.0e-14_dp)
+                  dcharge(k) = SUM(pab(1:nba, 1:nbb)*lrii%dsoo(1:nba, 1:nbb, k))
+                  DO i = 1, nfa
+                     IF (lrii%abascr(i) > threshold) THEN
+                        dtvec(i, k) = SUM(pab(1:nba, 1:nbb)*lrii%dabdaint(1:nba, 1:nbb, i, k))
+                     END IF
+                  END DO
+                  DO i = 1, nfb
+                     IF (lrii%abbscr(i) > threshold) THEN
+                        dtvec(nfa+i, k) = SUM(pab(1:nba, 1:nbb)*lrii%dabbint(1:nba, 1:nbb, i, k))
+                     END IF
+                  END DO
+               ENDDO
+
+               DEALLOCATE (pab)
+
+               atom_a = atom_of_kind(iatom)
+               atom_b = atom_of_kind(jatom)
+               ALLOCATE (vint(nn))
+               vint(1:nfa) = lri_coef(ikind)%v_int(atom_a, 1:nfa)
+               vint(nfa+1:nn) = lri_coef(jkind)%v_int(atom_b, 1:nfb)
+
+               isn = SUM(vint(1:nn)*lrii%sn(1:nn))
+               DO k = 1, 3
+                  ai = isn/lrii%nsn*dcharge(k)
+                  force_a(k) = 2.0_dp*fw*ai
+                  force_b(k) = -2.0_dp*fw*ai
                ENDDO
 
                ! derivative of S (overlap) matrix dS
                !dS: dsaa and dsbb are zero, only work with ab blocks in following
-
-               ! n*Sinv*dS*Sinv*t
-               CALL dgemm("N", "N", nn, 1, nn, 1.0_dp, lrii%sinv, nn, lrho%tvec, nn, &
-                          0.0_dp, st, nn)
+               st(1:nn) = MATMUL(lrii%sinv(1:nn, 1:nn), lrho%tvec(1:nn))
                DO k = 1, 3
-                  CALL dgemm("N", "N", nfa, 1, nfb, 1.0_dp, lrii%dsab(1:nfa, 1:nfb, k), nfa, &
-                             st(nfa+1:nn), nn, 0.0_dp, dsst(1:nfa, k), nn)
+                  dsst(1:nfa, k) = MATMUL(lrii%dsab(1:nfa, 1:nfb, k), st(nfa+1:nn))
+                  dsst(nfa+1:nn, k) = MATMUL(st(1:nfa), lrii%dsab(1:nfa, 1:nfb, k))
+                  nsdsst(k) = SUM(lrii%sn(1:nn)*dsst(1:nn, k))
+                  dssn(1:nfa, k) = MATMUL(lrii%dsab(1:nfa, 1:nfb, k), lrii%sn(nfa+1:nn))
+                  dssn(nfa+1:nn, k) = MATMUL(lrii%sn(1:nfa), lrii%dsab(1:nfa, 1:nfb, k))
+                  nsdssn(k) = SUM(lrii%sn(1:nn)*dssn(1:nn, k))
+                  nsdt(k) = SUM(dtvec(1:nn, k)*lrii%sn(1:nn))
                ENDDO
-               CALL dgemm("T", "N", 3*nfb, 1, nfa, 1.0_dp, lrii%dsab, nfa, st(1:nfa), nn, &
-                          0.0_dp, dsst(nfa+1:nn, 1:3), nn*3)
-               CALL dgemm("N", "N", nn, 3, nn, 1.0_dp, lrii%sinv, nn, dsst, nn, &
-                          0.0_dp, sdsst, nn)
-
-               DO k = 1, 3
-                  nsdsst(k) = SUM(sdsst(1:nn, k)*lrii%n(1:nn))
-               ENDDO
-
-               ! n*Sinv*dS*Sinv*n
-               DO k = 1, 3
-                  CALL dgemm("N", "N", nfa, 1, nfb, 1.0_dp, lrii%dsab(1:nfa, 1:nfb, k), nfa, &
-                             lrii%sn(nfa+1:nn), nn, 0.0_dp, dssn(1:nfa, k), nn)
-               ENDDO
-               CALL dgemm("T", "N", 3*nfb, 1, nfa, 1.0_dp, lrii%dsab, nfa, lrii%sn(1:nfa), nn, &
-                          0.0_dp, dssn(nfa+1:nn, 1:3), nn*3)
-               CALL dgemm("N", "N", nn, 3, nn, 1.0_dp, lrii%sinv, nn, dssn, nn, &
-                          0.0_dp, sdssn, nn)
-               DO k = 1, 3
-                  nsdssn(k) = SUM(sdssn(1:nn, k)*lrii%n(1:nn))
-               ENDDO
-
-               ! Sinv*dtvec/dR_a
-               CALL dgemm("N", "N", nn, 3, nn, 1.0_dp, lrii%sinv, nn, dtvec, nn, &
-                          0.0_dp, sdt, nn)
-               DO k = 1, 3
-                  nsdt(k) = SUM(sdt(1:nn, k)*lrii%n(1:nn))
-               ENDDO
-
                ! dlambda/dRa
                DO k = 1, 3
-                  dlambda(k) = (dcharge(k)+nsdsst(k)-nsdt(k))/lrii%nsn &
+                  dlambda(k) = (nsdsst(k)-nsdt(k))/lrii%nsn &
                                +(lrho%charge-lrho%nst)*nsdssn(k)/(lrii%nsn*lrii%nsn)
                ENDDO
-
-               ! davec/dRa, contains: davec_a/dRa (1..nfa) and davec_b/dRa (nfa+1..nn)
                DO k = 1, 3
-                  davec(1:nn, k) = -sdsst(1:nn, k)+sdt(1:nn, k) &
-                                   +dlambda(k)*lrii%sn(1:nn)-lrho%lambda*sdssn(1:nn, k)
+                  force_a(k) = force_a(k)+2.0_dp*fw*isn*dlambda(k)
+                  force_b(k) = force_b(k)-2.0_dp*fw*isn*dlambda(k)
+               ENDDO
+               DO k = 1, 3
+                  st(1:nn) = dtvec(1:nn, k)-dsst(1:nn, k)-lrho%lambda*dssn(1:nn, k)
+                  idav(k) = SUM(vint(1:nn)*MATMUL(lrii%sinv(1:nn, 1:nn), st(1:nn)))
                ENDDO
 
                ! deallocate derivative integrals
@@ -367,23 +353,25 @@ CONTAINS
                IF (ALLOCATED(lrii%dabbint)) DEALLOCATE (lrii%dabbint)
                IF (ALLOCATED(lrii%dabdaint)) DEALLOCATE (lrii%dabdaint)
 
-               atom_a = atom_of_kind(iatom)
-               atom_b = atom_of_kind(jatom)
+               ! sum over atom pairs
+               DO k = 1, 3
+                  ai = 2.0_dp*fw*idav(k)
+                  force_a(k) = force_a(k)+ai
+                  force_b(k) = force_b(k)-ai
+               ENDDO
+               IF (ABS(dfw) > 0.0_dp) THEN
+                  dab = SQRT(SUM(rab(1:3)*rab(1:3)))
+                  ai = 2.0_dp*dfw/dab*SUM(lrho%avec(1:nn)*vint(1:nn))
+                  DO k = 1, 3
+                     force_a(k) = force_a(k)-ai*rab(k)
+                     force_b(k) = force_b(k)+ai*rab(k)
+                  ENDDO
+               END IF
+
+               DEALLOCATE (vint)
 
                v_dadra => lri_coef(ikind)%v_dadr(atom_a, :)
                v_dadrb => lri_coef(jkind)%v_dadr(atom_b, :)
-               v_inta => lri_coef(ikind)%v_int(atom_a, :)
-               v_intb => lri_coef(jkind)%v_int(atom_b, :)
-
-               ! sum over atom pairs
-               DO k = 1, 3
-                  force_a(k) = 2.0_dp*SUM(davec(1:nfa, k)*v_inta(1:nfa)) &
-                               +2.0_dp*SUM(davec(nfa+1:nn, k)*v_intb(1:nfb))
-                  !minus: using that davec/dRa = - davec/dRb
-                  force_b(k) = -2.0_dp*SUM(davec(nfa+1:nn, k)*v_intb(1:nfb)) &
-                               -2.0_dp*SUM(davec(1:nfa, k)*v_inta(1:nfa))
-               ENDDO
-
 !$OMP CRITICAL(addforces)
                DO k = 1, 3
                   v_dadra(k) = v_dadra(k)+force_a(k)
@@ -418,7 +406,272 @@ CONTAINS
 
       CALL timestop(handle)
 
-   END SUBROUTINE calculate_v_dadr
+   END SUBROUTINE calculate_v_dadr_sr
+
+! **************************************************************************************************
+!> \brief calculates second term of derivative with respect to R, i.e.
+!>        SUM_i integral(V * fbas_i)*davec/dR for distant pair approximation
+!> \param lri_env ...
+!> \param lri_density ...
+!> \param pmatrix ...
+!> \param atomic_kind_set ...
+!> \param use_virial ...
+!> \param virial ...
+! **************************************************************************************************
+   SUBROUTINE calculate_v_dadr_ff(lri_env, lri_density, pmatrix, atomic_kind_set, &
+                                  use_virial, virial)
+
+      TYPE(lri_environment_type), POINTER                :: lri_env
+      TYPE(lri_density_type), POINTER                    :: lri_density
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: pmatrix
+      TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
+      LOGICAL, INTENT(IN)                                :: use_virial
+      TYPE(virial_type), POINTER                         :: virial
+
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'calculate_v_dadr_ff', &
+         routineP = moduleN//':'//routineN
+
+      INTEGER :: atom_a, atom_b, handle, i, iac, iatom, ikind, ilist, ispin, jatom, jkind, &
+         jneighbor, k, mepos, natom, nba, nbb, nfa, nfb, nkind, nlist, nn, nspin, nthread
+      INTEGER, DIMENSION(:), POINTER                     :: atom_of_kind
+      LOGICAL                                            :: found
+      REAL(KIND=dp)                                      :: ai, dab, dfw, fw, isna, isnb, threshold
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: pab, wab
+      REAL(KIND=dp), DIMENSION(3)                        :: dchargea, dchargeb, force_a, force_b, &
+                                                            idava, idavb, rab
+      REAL(KIND=dp), DIMENSION(:), POINTER               :: sta, stb, v_dadra, v_dadrb, vinta, vintb
+      REAL(KIND=dp), DIMENSION(:, :), POINTER            :: dtveca, dtvecb, pbij
+      TYPE(dbcsr_type), POINTER                          :: pmat
+      TYPE(gto_basis_set_type), POINTER                  :: fbasa, fbasb, obasa, obasb
+      TYPE(lri_force_type), POINTER                      :: lri_force_a, lri_force_b
+      TYPE(lri_int_type), POINTER                        :: lrii
+      TYPE(lri_kind_type), DIMENSION(:), POINTER         :: lri_coef
+      TYPE(lri_list_type), POINTER                       :: lri_rho
+      TYPE(lri_rhoab_type), POINTER                      :: lrho
+      TYPE(neighbor_list_iterator_p_type), &
+         DIMENSION(:), POINTER                           :: nl_iterator
+      TYPE(neighbor_list_set_p_type), DIMENSION(:), &
+         POINTER                                         :: soo_list
+
+      CALL timeset(routineN, handle)
+
+      NULLIFY (atom_of_kind, lri_coef, lrii, lri_rho, lrho, &
+               nl_iterator, pbij, pmat, soo_list, v_dadra, v_dadrb)
+
+      IF (ASSOCIATED(lri_env%soo_list)) THEN
+         soo_list => lri_env%soo_list
+
+         nkind = lri_env%lri_ints%nkind
+         nspin = SIZE(pmatrix)
+         nthread = 1
+!$       nthread = omp_get_max_threads()
+
+         CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set, natom=natom)
+         ALLOCATE (atom_of_kind(natom))
+         CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set, &
+                                  atom_of_kind=atom_of_kind)
+
+         DO ispin = 1, nspin
+
+            pmat => pmatrix(ispin)%matrix
+            lri_coef => lri_density%lri_coefs(ispin)%lri_kinds
+            lri_rho => lri_density%lri_rhos(ispin)%lri_list
+
+            CALL neighbor_list_iterator_create(nl_iterator, soo_list, nthread=nthread)
+!$OMP PARALLEL DEFAULT(NONE)&
+!$OMP SHARED (nthread,nl_iterator,pmat,nkind,lri_env,lri_rho,lri_coef,&
+!$OMP         atom_of_kind,virial,use_virial)&
+!$OMP PRIVATE (mepos,ikind,jkind,iatom,jatom,nlist,ilist,jneighbor,rab,iac,lrii,lrho,&
+!$OMP          lri_force_a,lri_force_b,nfa,nfb,nba,nbb,nn,sta,stb,&
+!$OMP          dtveca,dtvecb,pbij,found,obasa,obasb,fbasa,fbasb,i,k,threshold,&
+!$OMP          dchargea,dchargeb,atom_a,atom_b,v_dadra,v_dadrb,force_a,force_b,&
+!$OMP          pab,wab,fw,dfw,dab,ai,vinta,vintb,isna,isnb,idava,idavb)
+
+            mepos = 0
+!$          mepos = omp_get_thread_num()
+
+            DO WHILE (neighbor_list_iterate(nl_iterator, mepos) == 0)
+               CALL get_iterator_info(nl_iterator, mepos=mepos, ikind=ikind, jkind=jkind, &
+                                      iatom=iatom, jatom=jatom, nlist=nlist, ilist=ilist, &
+                                      inode=jneighbor, r=rab)
+
+               iac = ikind+nkind*(jkind-1)
+
+               IF (.NOT. ASSOCIATED(lri_env%lri_ints%lri_atom(iac)%lri_node)) CYCLE
+
+               lrii => lri_env%lri_ints%lri_atom(iac)%lri_node(ilist)%lri_int(jneighbor)
+               lrho => lri_rho%lri_atom(iac)%lri_node(ilist)%lri_rhoab(jneighbor)
+
+               ! only proceed if short-range exact LRI is needed
+               IF (.NOT. lrii%lriff) CYCLE
+               fw = lrii%wff
+               dfw = lrii%dwff
+
+               ! zero contribution for pairs aa or bb and periodc pairs aa' or bb'
+               ! calculate forces for periodic pairs aa' and bb' only for virial
+               IF (.NOT. lrii%calc_force_pair) CYCLE
+
+               nfa = lrii%nfa
+               nfb = lrii%nfb
+               nba = lrii%nba
+               nbb = lrii%nbb
+               nn = nfa+nfb
+
+               ! get the density matrix Pab
+               ALLOCATE (pab(nba, nbb))
+               NULLIFY (pbij)
+               IF (iatom <= jatom) THEN
+                  CALL dbcsr_get_block_p(matrix=pmat, row=iatom, col=jatom, block=pbij, found=found)
+                  CPASSERT(found)
+                  pab(1:nba, 1:nbb) = pbij(1:nba, 1:nbb)
+               ELSE
+                  CALL dbcsr_get_block_p(matrix=pmat, row=jatom, col=iatom, block=pbij, found=found)
+                  CPASSERT(found)
+                  pab(1:nba, 1:nbb) = TRANSPOSE(pbij(1:nbb, 1:nba))
+               END IF
+
+               ALLOCATE (wab(nba, nbb))
+               SELECT CASE (lri_env%distant_pair_method)
+               CASE ("EW")
+                  wab(1:nba, 1:nbb) = 0.5_dp
+               CASE DEFAULT
+                  CPABORT("Unknown DISTANT_PAIR_METHOD in LRI")
+               END SELECT
+
+               ! Calculate derivatives of overlap integrals (a,b), (fa,fb), (a,fa,b), (a,b,fb)
+               IF (ALLOCATED(lrii%dsab)) DEALLOCATE (lrii%dsab)
+               IF (ALLOCATED(lrii%dsoo)) DEALLOCATE (lrii%dsoo)
+               IF (ALLOCATED(lrii%dabbint)) DEALLOCATE (lrii%dabbint)
+               IF (ALLOCATED(lrii%dabdaint)) DEALLOCATE (lrii%dabdaint)
+               ALLOCATE (lrii%dsab(nfa, nfb, 3))
+               lrii%dsab = 0._dp
+               ALLOCATE (lrii%dsoo(nba, nbb, 3))
+               lrii%dsoo = 0._dp
+               ALLOCATE (lrii%dabbint(nba, nbb, nfb, 3))
+               lrii%dabbint = 0._dp
+               ALLOCATE (lrii%dabdaint(nba, nbb, nfa, 3))
+               lrii%dabdaint = 0._dp
+               ! calculate integrals
+               obasa => lri_env%orb_basis(ikind)%gto_basis_set
+               obasb => lri_env%orb_basis(jkind)%gto_basis_set
+               fbasa => lri_env%ri_basis(ikind)%gto_basis_set
+               fbasb => lri_env%ri_basis(jkind)%gto_basis_set
+               IF (lri_env%use_shg_integrals) THEN
+                  CALL lri_int_shg(lri_env, lrii, rab, obasa, obasb, fbasa, fbasb, &
+                                   iatom, jatom, ikind, jkind, .TRUE.)
+               ELSE
+                  CALL lri_int_os(lri_env, lrii, rab, obasa, obasb, fbasa, fbasb, &
+                                  iatom, jatom, ikind, .TRUE.)
+               ENDIF
+
+               NULLIFY (lri_force_a, lri_force_b)
+               CALL allocate_lri_force_components(lri_force_a, nfa, 0)
+               CALL allocate_lri_force_components(lri_force_b, 0, nfb)
+               dtveca => lri_force_a%dtvec
+               dtvecb => lri_force_b%dtvec
+               sta => lri_force_a%st
+               stb => lri_force_b%st
+
+               ! compute dtvec/dRa = SUM_ab Pab *d(a,b,x)/dRa
+               DO k = 1, 3
+                  threshold = 0.01_dp*lri_env%eps_o3_int/MAX(SUM(ABS(pab(1:nba, 1:nbb))), 1.0e-14_dp)
+                  dchargea(k) = SUM(wab(1:nba, 1:nbb)*pab(1:nba, 1:nbb)*lrii%dsoo(1:nba, 1:nbb, k))
+                  DO i = 1, nfa
+                     IF (lrii%abascr(i) > threshold) THEN
+                        dtveca(i, k) = SUM(wab(1:nba, 1:nbb)*pab(1:nba, 1:nbb)*lrii%dabdaint(1:nba, 1:nbb, i, k))
+                     END IF
+                  END DO
+                  dchargeb(k) = SUM((1.0_dp-wab(1:nba, 1:nbb))*pab(1:nba, 1:nbb)*lrii%dsoo(1:nba, 1:nbb, k))
+                  DO i = 1, nfb
+                     IF (lrii%abbscr(i) > threshold) THEN
+                        dtvecb(i, k) = SUM((1.0_dp-wab(1:nba, 1:nbb))*pab(1:nba, 1:nbb)*lrii%dabbint(1:nba, 1:nbb, i, k))
+                     END IF
+                  END DO
+               ENDDO
+
+               DEALLOCATE (pab, wab)
+
+               atom_a = atom_of_kind(iatom)
+               atom_b = atom_of_kind(jatom)
+               vinta => lri_coef(ikind)%v_int(atom_a, :)
+               vintb => lri_coef(jkind)%v_int(atom_b, :)
+
+               isna = SUM(vinta(1:nfa)*lrii%sna(1:nfa))
+               isnb = SUM(vintb(1:nfb)*lrii%snb(1:nfb))
+               DO k = 1, 3
+                  ai = isna/lrii%nsna*dchargea(k)+isnb/lrii%nsnb*dchargeb(k)
+                  force_a(k) = 2.0_dp*fw*ai
+                  force_b(k) = -2.0_dp*fw*ai
+               ENDDO
+
+               DO k = 1, 3
+                  sta(1:nfa) = MATMUL(lrii%asinv(1:nfa, 1:nfa), dtveca(1:nfa, k))
+                  idava(k) = SUM(vinta(1:nfa)*sta(1:nfa))-isna/lrii%nsna*SUM(lrii%na(1:nfa)*sta(1:nfa))
+                  stb(1:nfb) = MATMUL(lrii%bsinv(1:nfb, 1:nfb), dtvecb(1:nfb, k))
+                  idavb(k) = SUM(vintb(1:nfb)*stb(1:nfb))-isnb/lrii%nsnb*SUM(lrii%nb(1:nfb)*stb(1:nfb))
+               ENDDO
+
+               ! deallocate derivative integrals
+               IF (ALLOCATED(lrii%dsab)) DEALLOCATE (lrii%dsab)
+               IF (ALLOCATED(lrii%dsoo)) DEALLOCATE (lrii%dsoo)
+               IF (ALLOCATED(lrii%dabbint)) DEALLOCATE (lrii%dabbint)
+               IF (ALLOCATED(lrii%dabdaint)) DEALLOCATE (lrii%dabdaint)
+
+               ! sum over atom pairs
+               DO k = 1, 3
+                  ai = 2.0_dp*fw*(idava(k)+idavb(k))
+                  force_a(k) = force_a(k)+ai
+                  force_b(k) = force_b(k)-ai
+               ENDDO
+               IF (ABS(dfw) > 0.0_dp) THEN
+                  dab = SQRT(SUM(rab(1:3)*rab(1:3)))
+                  ai = 2.0_dp*dfw/dab* &
+                       (SUM(lrho%aveca(1:nfa)*vinta(1:nfa))+ &
+                        SUM(lrho%avecb(1:nfb)*vintb(1:nfb)))
+                  DO k = 1, 3
+                     force_a(k) = force_a(k)-ai*rab(k)
+                     force_b(k) = force_b(k)+ai*rab(k)
+                  ENDDO
+               END IF
+               v_dadra => lri_coef(ikind)%v_dadr(atom_a, :)
+               v_dadrb => lri_coef(jkind)%v_dadr(atom_b, :)
+
+!$OMP CRITICAL(addforces)
+               DO k = 1, 3
+                  v_dadra(k) = v_dadra(k)+force_a(k)
+                  v_dadrb(k) = v_dadrb(k)+force_b(k)
+               ENDDO
+!$OMP END CRITICAL(addforces)
+
+               ! contribution to virial
+               IF (use_virial) THEN
+                  !periodic self-pairs aa' contribute only with factor 0.5
+!$OMP CRITICAL(addvirial)
+                  IF (iatom == jatom) THEN
+                     CALL virial_pair_force(virial%pv_virial, 0.5_dp, force_a, rab)
+                  ELSE
+                     CALL virial_pair_force(virial%pv_virial, 1.0_dp, force_a, rab)
+                  ENDIF
+!$OMP END CRITICAL(addvirial)
+               ENDIF
+
+               CALL deallocate_lri_force_components(lri_force_a)
+               CALL deallocate_lri_force_components(lri_force_b)
+
+            END DO
+!$OMP END PARALLEL
+
+            CALL neighbor_list_iterator_release(nl_iterator)
+
+         ENDDO
+
+         DEALLOCATE (atom_of_kind)
+
+      ENDIF
+
+      CALL timestop(handle)
+
+   END SUBROUTINE calculate_v_dadr_ff
 
 ! **************************************************************************************************
 !> \brief calculates the ri forces

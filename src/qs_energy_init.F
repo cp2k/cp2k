@@ -51,6 +51,7 @@ MODULE qs_energy_init
    USE qs_neighbor_list_types,          ONLY: neighbor_list_set_p_type
    USE qs_neighbor_lists,               ONLY: build_qs_neighbor_lists
    USE qs_update_s_mstruct,             ONLY: qs_env_update_s_mstruct
+   USE ri_environment_methods,          ONLY: build_ri_matrices
    USE se_core_core,                    ONLY: se_core_core_interaction
    USE se_core_matrix,                  ONLY: build_se_core_matrix
 #include "./base/base_uses.f90"
@@ -294,10 +295,10 @@ CONTAINS
          ! LRIGPW/RIGPW  matrices
          IF (dft_control%qs_control%lrigpw) THEN
             CALL get_qs_env(qs_env=qs_env, lri_env=lri_env)
-            CALL build_lri_matrices(lri_env, qs_env, calc_forces, ri_method="LRI")
+            CALL build_lri_matrices(lri_env, qs_env)
          ELSE IF (dft_control%qs_control%rigpw) THEN
             CALL get_qs_env(qs_env=qs_env, lri_env=lri_env)
-            CALL build_lri_matrices(lri_env, qs_env, calculate_forces=.FALSE., ri_method="RI")
+            CALL build_ri_matrices(lri_env, qs_env, calculate_forces=.FALSE.)
          ENDIF
 
          ! ZMP addition to read external density

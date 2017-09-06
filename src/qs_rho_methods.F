@@ -27,8 +27,7 @@ MODULE qs_rho_methods
    USE kinds,                           ONLY: default_string_length,&
                                               dp
    USE kpoint_types,                    ONLY: kpoint_type
-   USE lri_environment_methods,         ONLY: calculate_lri_densities,&
-                                              calculate_ri_densities
+   USE lri_environment_methods,         ONLY: calculate_lri_densities
    USE lri_environment_types,           ONLY: lri_environment_type
    USE pw_env_types,                    ONLY: pw_env_get,&
                                               pw_env_type
@@ -53,6 +52,7 @@ MODULE qs_rho_methods
                                               qs_rho_get,&
                                               qs_rho_set,&
                                               qs_rho_type
+   USE ri_environment_methods,          ONLY: calculate_ri_densities
    USE task_list_types,                 ONLY: task_list_type
 #include "./base/base_uses.f90"
 

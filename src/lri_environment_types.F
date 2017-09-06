@@ -22,6 +22,7 @@ MODULE lri_environment_types
    USE dbcsr_api,                       ONLY: dbcsr_deallocate_matrix_set,&
                                               dbcsr_p_type
    USE kinds,                           ONLY: dp
+   USE mathlib,                         ONLY: pswitch
    USE qs_neighbor_list_types,          ONLY: deallocate_neighbor_list_set,&
                                               get_iterator_info,&
                                               neighbor_list_iterate,&
@@ -49,14 +50,24 @@ MODULE lri_environment_types
       INTEGER                                                 :: nfb
       ! expansion coeffs for RI density
       REAL(KIND=dp), DIMENSION(:), POINTER                    :: avec
+      REAL(KIND=dp), DIMENSION(:), POINTER                    :: aveca
+      REAL(KIND=dp), DIMENSION(:), POINTER                    :: avecb
       ! projection coeffs for RI density: SUM_ab (ab,i)*Pab
       REAL(KIND=dp), DIMENSION(:), POINTER                    :: tvec
+      REAL(KIND=dp), DIMENSION(:), POINTER                    :: tveca
+      REAL(KIND=dp), DIMENSION(:), POINTER                    :: tvecb
       ! integral (ai) * sinv * tvec
       REAL(KIND=dp)                                           :: nst
+      REAL(KIND=dp)                                           :: nsta
+      REAL(KIND=dp)                                           :: nstb
       ! Lagrange parameter
       REAL(KIND=dp)                                           :: lambda
+      REAL(KIND=dp)                                           :: lambdaa
+      REAL(KIND=dp)                                           :: lambdab
       ! Charge of pair density
       REAL(KIND=dp)                                           :: charge
+      REAL(KIND=dp)                                           :: chargea
+      REAL(KIND=dp)                                           :: chargeb
    END TYPE lri_rhoab_type
 
 ! **************************************************************************************************
@@ -76,10 +87,10 @@ MODULE lri_environment_types
       REAL(KIND=dp)                                           :: cond_num
       ! integrals (a,b,ai)
       REAL(KIND=dp), DIMENSION(:, :, :), ALLOCATABLE          :: abaint
-      REAL(KIND=dp), DIMENSION(:), POINTER                    :: abascr
+      REAL(KIND=dp), DIMENSION(:), ALLOCATABLE                :: abascr
       ! integrals (a,b,b)
       REAL(KIND=dp), DIMENSION(:, :, :), ALLOCATABLE          :: abbint
-      REAL(KIND=dp), DIMENSION(:), POINTER                    :: abbscr
+      REAL(KIND=dp), DIMENSION(:), ALLOCATABLE                :: abbscr
       ! integrals (da/dA,b,dai/dA)
       REAL(KIND=dp), DIMENSION(:, :, :, :), ALLOCATABLE       :: dabdaint
       ! integrals (da/dA,b,bi)
@@ -100,6 +111,15 @@ MODULE lri_environment_types
       REAL(KIND=dp), DIMENSION(:), POINTER                    :: sn
       ! (ai) * sinv * (ai)
       REAL(KIND=dp)                                           :: nsn
+      ! distant pair approximation
+      LOGICAL                                                 :: lrisr
+      LOGICAL                                                 :: lriff
+      REAL(KIND=dp)                                           :: wsr, wff, dwsr, dwff
+      REAL(KIND=dp), DIMENSION(:, :), POINTER                 :: asinv, bsinv
+      REAL(KIND=dp), DIMENSION(:), POINTER                    :: na, nb
+      REAL(KIND=dp), DIMENSION(:), POINTER                    :: sna, snb
+      REAL(KIND=dp)                                           :: nsna, nsnb
+      !
       ! dmax: max deviation for integrals of primitive gtos; for debugging
       ! dmax for overlap integrals (ai,bi); fit bas
       REAL(KIND=dp)                                           :: dmax_ab
@@ -224,6 +244,13 @@ MODULE lri_environment_types
       TYPE(lri_clebsch_gordon_type), POINTER                  :: cg_shg
       ! orbital basis overlap
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER               :: ob_smat
+      ! exact one-center terms
+      LOGICAL                                                 :: exact_1c_terms
+      ! distant pair approximation
+      LOGICAL                                                 :: distant_pair_approximation
+      CHARACTER(len=10)                                       :: distant_pair_method
+      REAL(KIND=dp)                                           :: r_in
+      REAL(KIND=dp)                                           :: r_out
       ! RI overlap and inverse
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER               :: ri_smat, &
                                                                  ri_sinv
@@ -254,14 +281,9 @@ MODULE lri_environment_types
    TYPE lri_force_type
       REAL(KIND=dp), DIMENSION(:), POINTER                      :: st
       REAL(KIND=dp), DIMENSION(:, :), POINTER                   :: dssn, &
-                                                                   sdssn, &
-                                                                   dsst, &
-                                                                   sdsst, &
-                                                                   sdt
+                                                                   dsst
       ! derivative dtvec/dR
       REAL(KIND=dp), DIMENSION(:, :), POINTER                   :: dtvec
-      ! derivative davec/dR
-      REAL(KIND=dp), DIMENSION(:, :), POINTER                   :: davec
    END TYPE lri_force_type
 
 ! **************************************************************************************************
@@ -512,7 +534,8 @@ CONTAINS
       INTEGER                                            :: i, iac, iatom, ikind, ilist, jatom, &
                                                             jkind, jneighbor, nba, nbb, nfa, nfb, &
                                                             nlist, nn, nneighbor
-      REAL(KIND=dp)                                      :: dab, rab(3)
+      LOGICAL                                            :: dpa, e1c
+      REAL(KIND=dp)                                      :: dab, ra, rab(3), rb
       TYPE(gto_basis_set_type), POINTER                  :: fbasa, fbasb, obasa, obasb
       TYPE(lri_int_type), POINTER                        :: lrii
       TYPE(neighbor_list_iterator_p_type), &
@@ -521,6 +544,10 @@ CONTAINS
       NULLIFY (fbasa, fbasb, lrii, nl_iterator, obasa, obasb)
 
       ALLOCATE (lri_ints)
+
+      dpa = lri_env%distant_pair_approximation
+      ra = lri_env%r_in
+      rb = lri_env%r_out
 
       lri_ints%nkind = nkind
       ALLOCATE (lri_ints%lri_atom(nkind*nkind))
@@ -578,25 +605,84 @@ CONTAINS
          lrii%abbint = 0._dp
          lrii%abbscr = 0._dp
 
-         ALLOCATE (lrii%sab(nfa, nfb))
-         lrii%sab = 0._dp
-         ALLOCATE (lrii%soo(nba, nbb))
-         lrii%soo = 0._dp
-
          IF (iatom == jatom .AND. dab < lri_env%delta) THEN
-            ALLOCATE (lrii%sinv(nfa, nfa))
-         ELSE
-            ALLOCATE (lrii%sinv(nn, nn))
+            e1c = lri_env%exact_1c_terms
          ENDIF
-         lrii%sinv = 0._dp
 
-         IF (iatom == jatom .AND. dab < lri_env%delta) THEN
-            ALLOCATE (lrii%n(nfa), lrii%sn(nfa))
+         IF (dpa) THEN
+            lrii%wsr = pswitch(dab, ra, rb, 0)
+            lrii%wff = 1.0_dp-lrii%wsr
+            lrii%dwsr = pswitch(dab, ra, rb, 1)
+            lrii%dwff = -lrii%dwsr
+            lrii%lrisr = (lrii%wsr > 0.0_dp)
+            lrii%lriff = (lrii%wff > 0.0_dp)
+            NULLIFY (lrii%asinv, lrii%bsinv)
          ELSE
-            ALLOCATE (lrii%n(nn), lrii%sn(nn))
+            lrii%lrisr = .TRUE.
+            lrii%lriff = .FALSE.
+            lrii%wsr = 1.0_dp
+            lrii%wff = 0.0_dp
+            lrii%dwsr = 0.0_dp
+            lrii%dwff = 0.0_dp
+            NULLIFY (lrii%asinv, lrii%bsinv)
+         END IF
+
+         ! full LRI method term
+         IF (lrii%lrisr) THEN
+            IF (e1c) THEN
+               NULLIFY (lrii%n, lrii%sn)
+            ELSE
+               ALLOCATE (lrii%sab(nfa, nfb))
+               lrii%sab = 0._dp
+               ALLOCATE (lrii%soo(nba, nbb))
+               lrii%soo = 0._dp
+
+               IF (iatom == jatom .AND. dab < lri_env%delta) THEN
+                  ALLOCATE (lrii%sinv(nfa, nfa))
+               ELSE
+                  ALLOCATE (lrii%sinv(nn, nn))
+               ENDIF
+               lrii%sinv = 0._dp
+
+               IF (iatom == jatom .AND. dab < lri_env%delta) THEN
+                  ALLOCATE (lrii%n(nfa), lrii%sn(nfa))
+               ELSE
+                  ALLOCATE (lrii%n(nn), lrii%sn(nn))
+               ENDIF
+               lrii%n = 0._dp
+               lrii%sn = 0._dp
+            END IF
+         ELSE
+            NULLIFY (lrii%sinv)
+            NULLIFY (lrii%n, lrii%sn)
          ENDIF
-         lrii%n = 0._dp
-         lrii%sn = 0._dp
+
+         ! far field approximation
+         IF (lrii%lriff) THEN
+            lrii%asinv => lri_env%bas_prop(ikind)%ri_ovlp_inv
+            lrii%bsinv => lri_env%bas_prop(jkind)%ri_ovlp_inv
+            ALLOCATE (lrii%na(nfa), lrii%sna(nfa))
+            lrii%na = 0._dp
+            lrii%sna = 0._dp
+            ALLOCATE (lrii%nb(nfb), lrii%snb(nfb))
+            lrii%nb = 0._dp
+            lrii%snb = 0._dp
+            IF (.NOT. ALLOCATED(lrii%sab)) THEN
+               ALLOCATE (lrii%sab(nfa, nfb))
+               lrii%sab = 0._dp
+            ELSE
+               CPASSERT(SIZE(lrii%sab, 1) == nfa .AND. SIZE(lrii%sab, 2) == nfb)
+            END IF
+            IF (.NOT. ALLOCATED(lrii%soo)) THEN
+               ALLOCATE (lrii%soo(nba, nbb))
+               lrii%soo = 0._dp
+            ELSE
+               CPASSERT(SIZE(lrii%soo, 1) == nba .AND. SIZE(lrii%soo, 2) == nbb)
+            END IF
+         ELSE
+            NULLIFY (lrii%na, lrii%sna)
+            NULLIFY (lrii%nb, lrii%snb)
+         ENDIF
 
          lrii%dmax_ab = 0._dp
          lrii%dmax_oo = 0._dp
@@ -767,15 +853,24 @@ CONTAINS
             nfb = lrho%nfb
             nn = nfa+nfb
 
-            IF (iatom == jatom .AND. dab < lri_env%delta) THEN
-               ALLOCATE (lrho%avec(nfa))
-               ALLOCATE (lrho%tvec(nfa))
-            ELSE
-               ALLOCATE (lrho%avec(nn))
-               ALLOCATE (lrho%tvec(nn))
-            ENDIF
-            lrho%avec = 0._dp
-            lrho%tvec = 0._dp
+            NULLIFY (lrho%avec, lrho%tvec)
+            IF (lrii%lrisr) THEN
+               IF (iatom == jatom .AND. dab < lri_env%delta) THEN
+                  ALLOCATE (lrho%avec(nfa))
+                  ALLOCATE (lrho%tvec(nfa))
+               ELSE
+                  ALLOCATE (lrho%avec(nn))
+                  ALLOCATE (lrho%tvec(nn))
+               ENDIF
+            END IF
+            NULLIFY (lrho%aveca, lrho%tveca)
+            NULLIFY (lrho%avecb, lrho%tvecb)
+            IF (lrii%lriff) THEN
+               ALLOCATE (lrho%aveca(nfa))
+               ALLOCATE (lrho%avecb(nfb))
+               ALLOCATE (lrho%tveca(nfa))
+               ALLOCATE (lrho%tvecb(nfb))
+            END IF
 
          ENDDO
 
@@ -862,16 +957,8 @@ CONTAINS
       lri_force%st = 0._dp
       ALLOCATE (lri_force%dsst(nn, 3))
       lri_force%dsst = 0._dp
-      ALLOCATE (lri_force%sdsst(nn, 3))
-      lri_force%sdsst = 0._dp
       ALLOCATE (lri_force%dssn(nn, 3))
       lri_force%dssn = 0._dp
-      ALLOCATE (lri_force%sdssn(nn, 3))
-      lri_force%sdssn = 0._dp
-      ALLOCATE (lri_force%sdt(nn, 3))
-      lri_force%sdt = 0._dp
-      ALLOCATE (lri_force%davec(nn, 3))
-      lri_force%davec = 0._dp
       ALLOCATE (lri_force%dtvec(nn, 3))
       lri_force%dtvec = 0._dp
 
@@ -965,13 +1052,13 @@ CONTAINS
                            IF (ALLOCATED(lri_int%abaint)) THEN
                               DEALLOCATE (lri_int%abaint)
                            END IF
-                           IF (ASSOCIATED(lri_int%abascr)) THEN
+                           IF (ALLOCATED(lri_int%abascr)) THEN
                               DEALLOCATE (lri_int%abascr)
                            END IF
                            IF (ALLOCATED(lri_int%abbint)) THEN
                               DEALLOCATE (lri_int%abbint)
                            END IF
-                           IF (ASSOCIATED(lri_int%abbscr)) THEN
+                           IF (ALLOCATED(lri_int%abbscr)) THEN
                               DEALLOCATE (lri_int%abbscr)
                            END IF
                            IF (ALLOCATED(lri_int%dsab)) THEN
@@ -994,6 +1081,18 @@ CONTAINS
                            END IF
                            IF (ASSOCIATED(lri_int%sn)) THEN
                               DEALLOCATE (lri_int%sn)
+                           END IF
+                           IF (ASSOCIATED(lri_int%na)) THEN
+                              DEALLOCATE (lri_int%na)
+                           END IF
+                           IF (ASSOCIATED(lri_int%nb)) THEN
+                              DEALLOCATE (lri_int%nb)
+                           END IF
+                           IF (ASSOCIATED(lri_int%sna)) THEN
+                              DEALLOCATE (lri_int%sna)
+                           END IF
+                           IF (ASSOCIATED(lri_int%snb)) THEN
+                              DEALLOCATE (lri_int%snb)
                            END IF
                         END DO
                         DEALLOCATE (lri_ints%lri_atom(ijkind)%lri_node(iatom)%lri_int)
@@ -1065,6 +1164,7 @@ CONTAINS
       INTEGER                                            :: i, iatom, ijkind, inode, natom, nkind, &
                                                             nnode
       TYPE(lri_list_type), POINTER                       :: lri_rho
+      TYPE(lri_rhoab_type), POINTER                      :: lri_rhoab
 
       NULLIFY (lri_rho)
 
@@ -1085,12 +1185,13 @@ CONTAINS
                         IF (nnode > 0) THEN
                            IF (ASSOCIATED(lri_rho%lri_atom(ijkind)%lri_node(iatom)%lri_rhoab)) THEN
                               DO inode = 1, nnode
-                                 IF (ASSOCIATED(lri_rho%lri_atom(ijkind)%lri_node(iatom)%lri_rhoab(inode)%avec)) THEN
-                                    DEALLOCATE (lri_rho%lri_atom(ijkind)%lri_node(iatom)%lri_rhoab(inode)%avec)
-                                 END IF
-                                 IF (ASSOCIATED(lri_rho%lri_atom(ijkind)%lri_node(iatom)%lri_rhoab(inode)%tvec)) THEN
-                                    DEALLOCATE (lri_rho%lri_atom(ijkind)%lri_node(iatom)%lri_rhoab(inode)%tvec)
-                                 END IF
+                                 lri_rhoab => lri_rho%lri_atom(ijkind)%lri_node(iatom)%lri_rhoab(inode)
+                                 IF (ASSOCIATED(lri_rhoab%avec)) DEALLOCATE (lri_rhoab%avec)
+                                 IF (ASSOCIATED(lri_rhoab%tvec)) DEALLOCATE (lri_rhoab%tvec)
+                                 IF (ASSOCIATED(lri_rhoab%aveca)) DEALLOCATE (lri_rhoab%aveca)
+                                 IF (ASSOCIATED(lri_rhoab%tveca)) DEALLOCATE (lri_rhoab%tveca)
+                                 IF (ASSOCIATED(lri_rhoab%avecb)) DEALLOCATE (lri_rhoab%avecb)
+                                 IF (ASSOCIATED(lri_rhoab%tvecb)) DEALLOCATE (lri_rhoab%tvecb)
                               END DO
                               DEALLOCATE (lri_rho%lri_atom(ijkind)%lri_node(iatom)%lri_rhoab)
                            END IF
@@ -1165,23 +1266,11 @@ CONTAINS
          IF (ASSOCIATED(lri_force%dssn)) THEN
             DEALLOCATE (lri_force%dssn)
          ENDIF
-         IF (ASSOCIATED(lri_force%sdssn)) THEN
-            DEALLOCATE (lri_force%sdssn)
-         ENDIF
          IF (ASSOCIATED(lri_force%dsst)) THEN
             DEALLOCATE (lri_force%dsst)
          ENDIF
-         IF (ASSOCIATED(lri_force%sdsst)) THEN
-            DEALLOCATE (lri_force%sdsst)
-         ENDIF
-         IF (ASSOCIATED(lri_force%sdt)) THEN
-            DEALLOCATE (lri_force%sdt)
-         ENDIF
          IF (ASSOCIATED(lri_force%dtvec)) THEN
             DEALLOCATE (lri_force%dtvec)
-         ENDIF
-         IF (ASSOCIATED(lri_force%davec)) THEN
-            DEALLOCATE (lri_force%davec)
          ENDIF
 
          DEALLOCATE (lri_force)

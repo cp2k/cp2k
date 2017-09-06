@@ -5782,8 +5782,9 @@ CONTAINS
       CALL keyword_release(keyword)
 
       CALL keyword_create(keyword, name="EPS_O3_INT", &
-                          description="Threshold for ABA and ABB integrals. "// &
-                          "This is used for screening in the KS and force calculations.", &
+                          description="Threshold for ABA and ABB integrals in LRI. "// &
+                          "This is used for screening in the KS and "// &
+                          "force calculations (tensor contractions).", &
                           usage="EPS_O3_INT 1.e-10", default_r_val=1.0e-14_dp)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
@@ -5792,6 +5793,37 @@ CONTAINS
                           description="Debug the integrals needed for LRIGPW.", &
                           usage="DEBUG_LRI_INTEGRALS TRUE", &
                           default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, name="EXACT_1C_TERMS", &
+                          description="Don't use LRI for one center densities.", &
+                          usage="EXACT_1C_TERMS TRUE", &
+                          default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, name="DISTANT_PAIR_APPROXIMATION", &
+                          description="Calculate distant pairs using an independent atom approximation.", &
+                          usage="DISTANT_PAIR_APPROXIMATION TRUE", &
+                          default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, name="DISTANT_PAIR_METHOD", &
+                          description="Method used to separate pair density for distant pairs.", &
+                          usage="DISTANT_PAIR_METHOD {method}", &
+                          default_c_val="EW")
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, name="DISTANT_PAIR_RADII", &
+                          description="Inner and outer radii used in distant "// &
+                          "pair separation. Smooth interpolation between inner and outer "// &
+                          "radius is used.", &
+                          usage="DISTANT_PAIR_RADII r_inner {real} r_outer {real} ", &
+                          n_var=2, default_r_vals=(/8._dp, 12._dp/), unit_str='bohr', &
+                          type_of_var=real_t)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 

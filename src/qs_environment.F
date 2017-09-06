@@ -396,6 +396,8 @@ CONTAINS
       IF (method_id == do_method_lrigpw .OR. dft_control%qs_control%lri_optbas) THEN
          CALL lri_env_init("LRI", qs_env, lri_section, qs_kind_set)
       ELSE IF (method_id == do_method_rigpw) THEN
+         CALL cp_warn(__LOCATION__, "Experimental code: "// &
+                      "RIGPW should only be used for testing.")
          CALL lri_env_init("RI", qs_env, lri_section, qs_kind_set)
       END IF
 

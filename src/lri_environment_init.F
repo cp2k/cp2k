@@ -73,7 +73,7 @@ CONTAINS
                                                             lmax_ikind_ri, maxl_orb, maxl_ri, &
                                                             natom, nbas, nkind, nribas, nspin
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: kind_of
-      REAL(KIND=dp), DIMENSION(:), POINTER               :: int_aux, norm
+      REAL(KIND=dp), DIMENSION(:), POINTER               :: int_aux, norm, radii
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(gto_basis_set_type), POINTER                  :: orb_basis_set, ri_basis_set
@@ -111,6 +111,9 @@ CONTAINS
       END DO
 
       ! init keywords
+      ! use exact one-center terms
+      CALL section_vals_val_get(lri_section, "EXACT_1C_TERMS", &
+                                l_val=lri_env%exact_1c_terms)
       ! check for debug (OS scheme)
       CALL section_vals_val_get(lri_section, "DEBUG_LRI_INTEGRALS", &
                                 l_val=lri_env%debug)
@@ -128,6 +131,17 @@ CONTAINS
       ! RI SINV
       CALL section_vals_val_get(lri_section, "RI_SINV", &
                                 c_val=lri_env%ri_sinv_app)
+      ! Distant Pair Approximation
+      CALL section_vals_val_get(lri_section, "DISTANT_PAIR_APPROXIMATION", &
+                                l_val=lri_env%distant_pair_approximation)
+      CALL section_vals_val_get(lri_section, "DISTANT_PAIR_METHOD", &
+                                c_val=lri_env%distant_pair_method)
+      CALL section_vals_val_get(lri_section, "DISTANT_PAIR_RADII", r_vals=radii)
+      CPASSERT(SIZE(radii) == 2)
+      CPASSERT(radii(2) > radii(1))
+      CPASSERT(radii(1) > 0.0_dp)
+      lri_env%r_in = radii(1)
+      lri_env%r_out = radii(2)
 
       IF (ri_type == "LRI") THEN
          ! CG coefficients needed for lri integrals

@@ -51,6 +51,7 @@ MODULE mathlib
              vector_product, &
              matmul_3x3, &
              matvec_3x3, &
+             pswitch, &
              rotate_vector, &
              reflect_vector, &
              dotprod_3d, &
@@ -78,6 +79,62 @@ MODULE mathlib
    END INTERFACE
 
 CONTAINS
+
+! **************************************************************************************************
+!> \brief Polynomial (5th degree) switching function
+!>        f(a) = 1 .... f(b) = 0 with f'(a) = f"(a) = f'(b) = f"(b) = 0
+!> \param x ...
+!> \param a ...
+!> \param b ...
+!> \param order ...
+!> \retval order =0 : f(x)
+!> \retval order =1 : f'(x)
+!> \retval order =2 : f"(x)
+! **************************************************************************************************
+   FUNCTION pswitch(x, a, b, order) RESULT(fx)
+      REAL(KIND=dp)                                      :: x, a, b
+      INTEGER                                            :: order
+      REAL(KIND=dp)                                      :: fx
+
+      REAL(KIND=dp)                                      :: u, u2, u3
+
+      CPASSERT(b > a)
+      IF (x < a .OR. x > b) THEN
+         ! outside switching intervall
+         IF (order > 0) THEN
+            ! derivatives are 0
+            fx = 0.0_dp
+         ELSE
+            IF (x < a) THEN
+               ! x < a => f(x) = 1
+               fx = 1.0_dp
+            ELSE
+               ! x > b => f(x) = 0
+               fx = 0.0_dp
+            END IF
+         END IF
+      ELSE
+         ! renormalized coordinate
+         u = (x-a)/(b-a)
+         SELECT CASE (order)
+         CASE (0)
+            u2 = u*u
+            u3 = u2*u
+            fx = 1._dp-10._dp*u3+15._dp*u2*u2-6._dp*u2*u3
+         CASE (1)
+            u2 = u*u
+            fx = -30._dp*u2+60._dp*u*u2-30._dp*u2*u2
+            fx = fx/(b-a)
+         CASE (2)
+            u2 = u*u
+            fx = -60._dp*u+180._dp*u2-120._dp*u*u2
+            fx = fx/(b-a)**2
+         CASE DEFAULT
+            CPABORT('order not defined')
+         END SELECT
+      END IF
+
+   END FUNCTION pswitch
 
 ! **************************************************************************************************
 !> \brief determins if a value is not normal (e.g. for Inf and Nan)

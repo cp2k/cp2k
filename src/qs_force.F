@@ -38,7 +38,6 @@ MODULE qs_force
                                               section_vals_val_get
    USE kinds,                           ONLY: dp,&
                                               int_size
-   USE lri_environment_methods,         ONLY: build_lri_matrices
    USE lri_environment_types,           ONLY: lri_environment_type
    USE message_passing,                 ONLY: mp_sum
    USE mulliken,                        ONLY: mulliken_restraint
@@ -73,6 +72,7 @@ MODULE qs_force
    USE qs_scf_post_scf,                 ONLY: qs_scf_compute_properties
    USE qs_subsys_types,                 ONLY: qs_subsys_set,&
                                               qs_subsys_type
+   USE ri_environment_methods,          ONLY: build_ri_matrices
    USE rt_propagation_forces,           ONLY: calc_c_mat_force,&
                                               rt_admm_force
    USE se_core_core,                    ONLY: se_core_core_interaction
@@ -305,7 +305,7 @@ CONTAINS
          ! RIGPW  matrices
          IF (dft_control%qs_control%rigpw) THEN
             CALL get_qs_env(qs_env=qs_env, lri_env=lri_env)
-            CALL build_lri_matrices(lri_env, qs_env, calculate_forces=.TRUE., ri_method="RI")
+            CALL build_ri_matrices(lri_env, qs_env, calculate_forces=.TRUE.)
          ENDIF
       END IF
 
