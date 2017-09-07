@@ -389,7 +389,7 @@ CONTAINS
       ENDIF
 
       ! Submitting the stack for processing -------------------------------------
-      flop_per_entry = 2*stack_descr%max_m*stack_descr%max_n*stack_descr%max_k
+      flop_per_entry = INT(2, KIND=int_8)*stack_descr%max_m*stack_descr%max_n*stack_descr%max_k
       total_flop = stack_fillcount*flop_per_entry
 
       IF (has_acc .AND. &
@@ -670,7 +670,7 @@ CONTAINS
          flops = 2*total*PRODUCT(report%num_mnk_stacks(j, 1:3))
          total_flops_homo = total_flops_homo+flops
          flops_homo(:) = flops_homo(:)+2*report%num_mnk_stacks(j, 4:6)*PRODUCT(report%num_mnk_stacks(j, 1:3))
-         WRITE (output_unit, "(A,I4,' x ',I4,' x ',I4,T30,I20,5X,F5.1,'%',4X,F5.1,'%',4X,F5.1,'%')") &
+         WRITE (output_unit, "(A,I5,' x ',I5,' x ',I5,T30,I20,5X,F5.1,'%',4X,F5.1,'%',4X,F5.1,'%')") &
             " flops ", report%num_mnk_stacks(j, 1:3), &
             flops, &
             100*REAL(report%num_mnk_stacks(j, 4:6))/REAL(MAX(INT(1, KIND=int_8), total))
