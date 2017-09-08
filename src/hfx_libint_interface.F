@@ -5,9 +5,6 @@
 
 ! **************************************************************************************************
 !> \brief Interface to the Libint-Library
-!> \note
-!>      IMPORTANT NOTE : this file currently is for a libint configured for
-!>                       LIBINT_MAX_AM 5 and LIBINT_MAX_AM1 4
 !> \par History
 !>      11.2006 created [Manuel Guidon]
 !> \author Manuel Guidon
