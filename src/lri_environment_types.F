@@ -607,6 +607,8 @@ CONTAINS
 
          IF (iatom == jatom .AND. dab < lri_env%delta) THEN
             e1c = lri_env%exact_1c_terms
+         ELSE
+            e1c = .FALSE.
          ENDIF
 
          IF (dpa) THEN
