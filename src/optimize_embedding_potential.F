@@ -87,7 +87,7 @@ MODULE optimize_embedding_potential
 
    PUBLIC :: prepare_embed_opt, init_embed_pot, release_opt_embed, calculate_embed_pot_grad, &
              opt_embed_step, print_rho_diff, step_control, max_dens_diff, print_emb_opt_info, &
-             conv_check_embed
+             conv_check_embed, make_subsys_embed_pot
 
 CONTAINS
 ! **************************************************************************************************
@@ -161,7 +161,7 @@ CONTAINS
          CALL pw_axpy(vppl%pw, const_pot%pw)
          CALL pw_copy(const_pot%pw, embed_pot%pw)
 
-         ! Give away plane waves pool for pseudo
+         ! Give back plane waves pool for pseudo
          CALL pw_pool_give_back_pw(auxbas_pw_pool, vppl%pw)
          CALL pw_pool_give_back_pw(auxbas_pw_pool, const_pot%pw)
       ENDIF
@@ -322,12 +322,46 @@ CONTAINS
    END SUBROUTINE release_opt_embed
 
 ! **************************************************************************************************
+!> \brief Creates a subsystem embedding potential
+!> \param qs_env ...
+!> \param embed_pot ...
+!> \param embed_pot_subsys ...
+!> \author Vladimir Rybkin
+! **************************************************************************************************
+   SUBROUTINE make_subsys_embed_pot(qs_env, embed_pot, embed_pot_subsys)
+      TYPE(qs_environment_type), POINTER                 :: qs_env
+      TYPE(pw_p_type), POINTER                           :: embed_pot, embed_pot_subsys
+
+      TYPE(pw_env_type), POINTER                         :: pw_env
+      TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool_subsys
+
+      ! Extract  plane waves environment
+      CALL get_qs_env(qs_env, pw_env=pw_env)
+
+      ! Prepare plane-waves pool
+      CALL pw_env_get(pw_env, auxbas_pw_pool=auxbas_pw_pool_subsys)
+
+      ! Create embedding potential and set to zero
+      NULLIFY (embed_pot_subsys)
+      ALLOCATE (embed_pot_subsys)
+      NULLIFY (embed_pot_subsys%pw)
+      CALL pw_pool_create_pw(auxbas_pw_pool_subsys, embed_pot_subsys%pw, &
+                             use_data=REALDATA3D, &
+                             in_space=REALSPACE)
+
+      ! Hard copy the grid
+      embed_pot_subsys%pw%cr3d(:, :, :) = embed_pot%pw%cr3d(:, :, :)
+
+   END SUBROUTINE make_subsys_embed_pot
+
+! **************************************************************************************************
 !> \brief Calculates the derivative of the embedding potential wrt to the expansion coefficients
 !> \param qs_env ...
 !> \param diff_rho_r ...
 !> \param opt_embed ...
 !> \author Vladimir Rybkin
 ! **************************************************************************************************
+
    SUBROUTINE calculate_embed_pot_grad(qs_env, diff_rho_r, opt_embed)
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(pw_p_type), ALLOCATABLE, DIMENSION(:)         :: diff_rho_r

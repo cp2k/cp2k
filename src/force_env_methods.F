@@ -103,8 +103,9 @@ MODULE force_env_methods
                                               mixed_map_forces
    USE opt_embed_pot_types,             ONLY: opt_embed_pot_type
    USE optimize_embedding_potential,    ONLY: &
-        calculate_embed_pot_grad, conv_check_embed, init_embed_pot, opt_embed_step, &
-        prepare_embed_opt, print_emb_opt_info, print_rho_diff, release_opt_embed, step_control
+        calculate_embed_pot_grad, conv_check_embed, init_embed_pot, make_subsys_embed_pot, &
+        opt_embed_step, prepare_embed_opt, print_emb_opt_info, print_rho_diff, release_opt_embed, &
+        step_control
    USE particle_list_types,             ONLY: particle_list_p_type,&
                                               particle_list_type
    USE physcon,                         ONLY: debye
@@ -810,6 +811,9 @@ CONTAINS
       TYPE(mixed_force_type), DIMENSION(:), POINTER      :: global_forces
       TYPE(particle_list_p_type), DIMENSION(:), POINTER  :: particles
       TYPE(particle_list_type), POINTER                  :: particles_mix
+      TYPE(pw_env_type), POINTER                         :: pw_env
+      TYPE(pw_p_type), POINTER                           :: embed_pot
+      TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
       TYPE(section_vals_type), POINTER                   :: force_env_section, gen_section, &
                                                             mapping_section, mixed_section, &
                                                             root_section
@@ -911,6 +915,15 @@ CONTAINS
                   ! Now we can optimize the embedding potential
                   CALL dft_embedding(force_env, iforce_eval, energies, converged_embed)
                   IF (.NOT. converged_embed) CPABORT("Embedding potential optimization not converged.")
+               ENDIF
+               ! Deallocate embedding potential on the high-level subsystem
+               IF (dft_control%qs_control%high_level_embed_subsys) THEN
+                  CALL get_qs_env(qs_env=force_env%sub_force_env(iforce_eval)%force_env%qs_env, &
+                                  embed_pot=embed_pot, pw_env=pw_env)
+                  CALL pw_env_get(pw_env, auxbas_pw_pool=auxbas_pw_pool)
+                  CALL pw_pool_give_back_pw(auxbas_pw_pool, embed_pot%pw)
+                  CALL pw_release(embed_pot%pw)
+                  DEALLOCATE (embed_pot)
                ENDIF
             ENDIF
 
@@ -1338,7 +1351,7 @@ CONTAINS
       TYPE(pw_env_type), POINTER                         :: pw_env
       TYPE(pw_p_type), ALLOCATABLE, DIMENSION(:)         :: diff_rho_r
       TYPE(pw_p_type), DIMENSION(:), POINTER             :: rho_r_ref, rho_r_subsys
-      TYPE(pw_p_type), POINTER                           :: embed_pot
+      TYPE(pw_p_type), POINTER                           :: embed_pot, embed_pot_subsys
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
       TYPE(qs_energy_type), POINTER                      :: energy
       TYPE(qs_rho_type), POINTER                         :: rho, subsys_rho
@@ -1346,8 +1359,7 @@ CONTAINS
 
       CALL timeset(routineN, handle)
 
-      CALL get_qs_env(qs_env=force_env%sub_force_env(ref_subsys_number+1)%force_env%qs_env, &
-                      pw_env=pw_env, embed_pot=embed_pot)
+      CALL get_qs_env(qs_env=force_env%sub_force_env(ref_subsys_number)%force_env%qs_env)
 
       ! Reveal input file
       NULLIFY (logger)
@@ -1398,8 +1410,7 @@ CONTAINS
          ! Add subsystem densities
          CALL qs_rho_get(rho_struct=subsys_rho, rho_r=rho_r_subsys)
          DO i_spin = 1, nspins
-            !diff_rho_r(i_spin)%pw%cr3d(:,:,:) = diff_rho_r(i_spin)%pw%cr3d(:,:,:) +rho_r_subsys(i_spin)%pw%cr3d(:,:,:)
-            diff_rho_r(i_spin)%pw%cr3d(:, :, :) = rho_r_subsys(i_spin)%pw%cr3d(:, :, :)
+            diff_rho_r(i_spin)%pw%cr3d(:, :, :) = diff_rho_r(i_spin)%pw%cr3d(:, :, :)+rho_r_subsys(i_spin)%pw%cr3d(:, :, :)
          ENDDO
       ENDDO
 
@@ -1418,12 +1429,15 @@ CONTAINS
          DO i_force_eval = 1, ref_subsys_number-1
             NULLIFY (dft_control)
 
+            CALL make_subsys_embed_pot(force_env%sub_force_env(i_force_eval)%force_env%qs_env, &
+                                       embed_pot, embed_pot_subsys)
+
             ! Switch on external potential in the subsystems
             CALL get_qs_env(force_env%sub_force_env(i_force_eval)%force_env%qs_env, dft_control=dft_control)
             dft_control%apply_embed_pot = .TRUE.
 
             ! Add the embedding potential
-            CALL set_qs_env(force_env%sub_force_env(i_force_eval)%force_env%qs_env, embed_pot=embed_pot)
+            CALL set_qs_env(force_env%sub_force_env(i_force_eval)%force_env%qs_env, embed_pot=embed_pot_subsys)
 
             ! Calculate the new density
             CALL force_env_calc_energy_force(force_env%sub_force_env(i_force_eval)%force_env, &
@@ -1448,6 +1462,10 @@ CONTAINS
             DO i_spin = 1, nspins
                diff_rho_r(i_spin)%pw%cr3d(:, :, :) = diff_rho_r(i_spin)%pw%cr3d(:, :, :)+rho_r_subsys(i_spin)%pw%cr3d(:, :, :)
             ENDDO
+
+            ! Release embedding potential for subsystem
+            CALL pw_release(embed_pot_subsys%pw)
+            DEALLOCATE (embed_pot_subsys)
 
          ENDDO ! i_force_eval
 
@@ -1478,7 +1496,7 @@ CONTAINS
 
       ! Give away plane waves pools
       DO i_spin = 1, nspins
-         CALL pw_pool_give_back_pw(auxbas_pw_pool, diff_rho_r(i_spin)%pw)
+         !CALL pw_pool_give_back_pw(auxbas_pw_pool, diff_rho_r(i_spin)%pw)
          CALL pw_release(diff_rho_r(i_spin)%pw)
       ENDDO
       DEALLOCATE (diff_rho_r)
@@ -1490,15 +1508,26 @@ CONTAINS
 
       ! If converged send the embedding potential to the higher-level calculation
       IF (opt_embed%converged) THEN
-         CALL get_qs_env(force_env%sub_force_env(ref_subsys_number+1)%force_env%qs_env, dft_control=dft_control)
+         CALL get_qs_env(force_env%sub_force_env(ref_subsys_number+1)%force_env%qs_env, dft_control=dft_control, &
+                         pw_env=pw_env)
          dft_control%apply_embed_pot = .TRUE.
-         CALL set_qs_env(force_env%sub_force_env(ref_subsys_number+1)%force_env%qs_env, embed_pot=embed_pot)
+         ! Prepare plane-waves pool
+         !CALL pw_env_get(pw_env, auxbas_pw_pool=auxbas_pw_pool_subsys)
+
+         CALL make_subsys_embed_pot(force_env%sub_force_env(ref_subsys_number+1)%force_env%qs_env, &
+                                    embed_pot, embed_pot_subsys)
+
+         CALL set_qs_env(force_env%sub_force_env(ref_subsys_number+1)%force_env%qs_env, embed_pot=embed_pot_subsys)
          ! Substitute the correct energy in energies: only on rank 0
          IF (force_env%sub_force_env(cluster_subsys_num)%force_env%para_env%mepos == &
              force_env%sub_force_env(cluster_subsys_num)%force_env%para_env%source) THEN
             energies(cluster_subsys_num) = cluster_energy
          ENDIF
       ENDIF
+
+      ! Deallocate embedding potential
+      CALL pw_release(embed_pot%pw)
+      DEALLOCATE (embed_pot)
 
       converged_embed = opt_embed%converged
 

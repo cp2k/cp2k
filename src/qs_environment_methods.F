@@ -228,7 +228,7 @@ CONTAINS
       ! rebuild pw_env
       NULLIFY (dft_control, cell, ks_env, v_hartree_rspace, auxbas_pw_pool)
       NULLIFY (rho0_mpole, rho0_gs, rho0_rs)
-      NULLIFY (ewald_env, ewald_pw, new_pw_env, external_vxc, rho_core, rho_nlcc, rho_nlcc_g, vee, vppl)
+      NULLIFY (ewald_env, ewald_pw, new_pw_env, external_vxc, rho_core, rho_nlcc, rho_nlcc_g, vee, vppl, embed_pot)
 
       CALL get_qs_env(qs_env, ks_env=ks_env, pw_env=new_pw_env)
       IF (.NOT. ASSOCIATED(new_pw_env)) THEN
