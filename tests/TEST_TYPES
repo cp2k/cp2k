@@ -80,6 +80,7 @@ GW HOMO-LUMO gap (eV)!5
 Beta GW HOMO-LUMO gap (eV)!6
 IC HOMO-LUMO gap (eV)!5
 HOMO SCF Cycle:     4!9
+ENERGY| Total FORCE_EVAL ( MIXED ) energy (a.u.):!3
 #
 # these are the tests the can be selected for regtesting. 
 # do regtest will grep for test_grep (first column) and look if the numeric value
