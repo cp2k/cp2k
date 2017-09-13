@@ -1477,7 +1477,6 @@ CONTAINS
          ! Integrate the potential over density differences and add to w functional; also add regularization contribution
          opt_embed%w_func(i_iter) = opt_embed%w_func(i_iter)-pw_integral_ab(embed_pot%pw, rho_r_ref(1)%pw)+ &
                                     opt_embed%reg_term
-         write(*,*) 'COMPONENTS', opt_embed%reg_term, pw_integral_ab(embed_pot%pw, rho_r_ref(1)%pw)
 
          ! Update the trust radius and control the step
          IF (i_iter .GT. 1) CALL step_control(opt_embed)
