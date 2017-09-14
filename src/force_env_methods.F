@@ -1496,7 +1496,6 @@ CONTAINS
 
       ! Give away plane waves pools
       DO i_spin = 1, nspins
-         !CALL pw_pool_give_back_pw(auxbas_pw_pool, diff_rho_r(i_spin)%pw)
          CALL pw_release(diff_rho_r(i_spin)%pw)
       ENDDO
       DEALLOCATE (diff_rho_r)
@@ -1511,9 +1510,6 @@ CONTAINS
          CALL get_qs_env(force_env%sub_force_env(ref_subsys_number+1)%force_env%qs_env, dft_control=dft_control, &
                          pw_env=pw_env)
          dft_control%apply_embed_pot = .TRUE.
-         ! Prepare plane-waves pool
-         !CALL pw_env_get(pw_env, auxbas_pw_pool=auxbas_pw_pool_subsys)
-
          CALL make_subsys_embed_pot(force_env%sub_force_env(ref_subsys_number+1)%force_env%qs_env, &
                                     embed_pot, embed_pot_subsys)
 

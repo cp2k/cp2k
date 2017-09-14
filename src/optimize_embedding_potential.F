@@ -783,6 +783,7 @@ CONTAINS
 
       ! Create wf_vector and auxiliary wave functions
       ALLOCATE (wf_vector(dimen_aux))
+      wf_vector = 0.0_dp
 
       CALL cp_fm_get_info(matrix=embed_pot_coef, &
                           nrow_local=nrow_local, &
