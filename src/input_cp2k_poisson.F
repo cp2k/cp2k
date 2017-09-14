@@ -1160,7 +1160,8 @@ CONTAINS
       CALL keyword_release(keyword)
 
       CALL keyword_create(keyword, name="BASE_CENTER", &
-                          description="The y and z coordinates of the cylinder's base center.", &
+                          description="The y and z coordinates (x and z or x and y coordinates, "// &
+                          "depending on the choice of the parallel axis) of the cylinder's base center.", &
                           usage="BASE_CENTER <y(real)> <z(real)>", unit_str="angstrom", &
                           n_var=2, type_of_var=real_t)
       CALL section_add_keyword(section, keyword)
