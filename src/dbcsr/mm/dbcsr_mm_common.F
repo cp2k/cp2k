@@ -106,28 +106,28 @@ CONTAINS
 !> \brief ...
 !> \param mpi_statistics ...
 !> \param data_size ...
-!> \param size_breakdown ...
 !> \param element_size_bytes ...
+!> \param size_breakdown ...
 !> \author Alfio Lazzaro
 ! **************************************************************************************************
    SUBROUTINE count_mpi_statistics(mpi_statistics, data_size, &
-                                   size_breakdown, element_size_bytes)
+                                   element_size_bytes, size_breakdown)
       REAL, DIMENSION(:), INTENT(INOUT)                  :: mpi_statistics
       INTEGER, INTENT(IN)                                :: data_size
+      INTEGER, INTENT(IN)                                :: element_size_bytes
       INTEGER(KIND=int_8), DIMENSION(:, :), &
          INTENT(INOUT), OPTIONAL                         :: size_breakdown
-      INTEGER, INTENT(IN), OPTIONAL                      :: element_size_bytes
 
       INTEGER                                            :: ilimit, nlimits
       INTEGER(KIND=int_8)                                :: data_size_bytes, llimit
 
-      mpi_statistics(1) = mpi_statistics(1)+REAL(data_size)
-      mpi_statistics(2) = MIN(mpi_statistics(2), REAL(data_size))
-      mpi_statistics(3) = MAX(mpi_statistics(3), REAL(data_size))
+      ! change in bytes
+      data_size_bytes = INT(data_size, KIND=int_8)*INT(element_size_bytes, KIND=int_8)
+      !
+      mpi_statistics(1) = mpi_statistics(1)+REAL(data_size_bytes)
+      mpi_statistics(2) = MIN(mpi_statistics(2), REAL(data_size_bytes))
+      mpi_statistics(3) = MAX(mpi_statistics(3), REAL(data_size_bytes))
       IF (PRESENT(size_breakdown)) THEN
-         data_size_bytes = data_size
-         ! change in bytes
-         IF (PRESENT(element_size_bytes)) data_size_bytes = data_size_bytes*element_size_bytes
          nlimits = SIZE(dbcsr_mpi_size_limits)
          ! check for oversize messages
          IF (data_size_bytes .GT. dbcsr_mpi_size_limits(nlimits)) THEN

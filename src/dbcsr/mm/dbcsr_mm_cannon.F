@@ -1502,7 +1502,8 @@ CONTAINS
                dbcsr_mpi_statistics%nexchanged = dbcsr_mpi_statistics%nexchanged+1
                CALL count_mpi_statistics(dbcsr_mpi_statistics%data_size(1, :), &
                                          dbcsr_data_get_size(right_data_rp), &
-                                         dbcsr_mpi_statistics%data_size_breakdown(:, :, 1), data_type_byte)
+                                         data_type_byte, &
+                                         dbcsr_mpi_statistics%data_size_breakdown(:, :, 1))
                CALL timestop(handle2)
             ENDDO
          ENDIF xfer_right
@@ -1626,7 +1627,8 @@ CONTAINS
                dbcsr_mpi_statistics%nexchanged = dbcsr_mpi_statistics%nexchanged+1
                CALL count_mpi_statistics(dbcsr_mpi_statistics%data_size(2, :), &
                                          dbcsr_data_get_size(left_data_rp), &
-                                         dbcsr_mpi_statistics%data_size_breakdown(:, :, 2), data_type_byte)
+                                         data_type_byte, &
+                                         dbcsr_mpi_statistics%data_size_breakdown(:, :, 2))
                CALL timestop(handle2)
             ENDDO
          ENDIF xfer_left

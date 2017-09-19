@@ -151,6 +151,7 @@ MODULE dbcsr_mm_3d
                                             grp3D = mp_comm_null, &
                                             rowgrp3D = mp_comm_null
       INTEGER                            :: num_layers_3D = 1, &
+                                            max_num_layers_3D = 1, &
                                             side3D = HUGE(1)
       ! Use a buffer per each thread
       TYPE(dbcsr_data_obj), &
@@ -195,6 +196,7 @@ MODULE dbcsr_mm_3d
    PUBLIC :: release_layers_3d_C_reduction, buffers_release
    PUBLIC :: dbcsr_make_buffers, make_layers_3d_C_reduction
    PUBLIC :: request_sync_mult
+   PUBLIC :: get_max_layers_3D
 
 CONTAINS
 
@@ -1121,6 +1123,9 @@ CONTAINS
          IF (do_layers_3D) THEN
             layers_3D_C_reduction%grp = mygrp
             layers_3D_C_reduction%num_layers_3D = my_num_layers_3D
+            layers_3D_C_reduction%max_num_layers_3D = &
+               MAX(layers_3D_C_reduction%max_num_layers_3D, &
+                   my_num_layers_3D)
             layers_3D_C_reduction%side3D = NINT(SQRT(REAL(numnodes/my_num_layers_3D, KIND=real_8)))
             !
             ! Create a new 3D communicator
@@ -1999,8 +2004,8 @@ CONTAINS
                                               requests_reduction(4+(myt-1)*2))
                      CALL count_mpi_statistics(dbcsr_mpi_statistics%data_size(1, :), &
                                                product_matrix_size_send(myt+1), &
-                                               dbcsr_mpi_statistics%data_size_breakdown(:, :, 1), &
-                                               data_type_byte)
+                                               data_type_byte, &
+                                               dbcsr_mpi_statistics%data_size_breakdown(:, :, 1))
                   ENDDO
 !$OMP END MASTER
                ENDIF
@@ -2546,7 +2551,8 @@ CONTAINS
                           request=buffer%get_requests(2))
       CALL count_mpi_statistics(dbcsr_mpi_statistics%data_size(1, :), &
                                 size_layers3D(idata), &
-                                dbcsr_mpi_statistics%data_size_breakdown(:, :, 1), data_type_byte)
+                                data_type_byte, &
+                                dbcsr_mpi_statistics%data_size_breakdown(:, :, 1))
       dbcsr_mpi_statistics%nexchanged = dbcsr_mpi_statistics%nexchanged+1
       !
       ! Set the referenced sizes to the actual data moved via MPI
@@ -2899,5 +2905,16 @@ CONTAINS
       ENDDO
 !$OMP END PARALLEL DO
    END SUBROUTINE remap_layers3D
+
+! **************************************************************************************************
+!> \brief ...
+!> \retval get_max_layers_3D ...
+! **************************************************************************************************
+   PURE FUNCTION get_max_layers_3D()
+      INTEGER                                            :: get_max_layers_3D
+
+      get_max_layers_3D = layers_3D_C_reduction%max_num_layers_3D
+
+   END FUNCTION get_max_layers_3D
 
 END MODULE dbcsr_mm_3d

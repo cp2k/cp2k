@@ -47,6 +47,7 @@ MODULE dbcsr_mm
         dbcsr_row_block_offsets
    USE dbcsr_mm_3D,                     ONLY: buffers_release,&
                                               dbcsr_make_buffers,&
+                                              get_max_layers_3D,&
                                               make_layers_3D_C_reduction,&
                                               multiply_3D,&
                                               release_layers_3D_C_reduction,&
@@ -228,8 +229,9 @@ CONTAINS
             WRITE (output_unit, '(A,T30,I20)') " # multiplications", num_multiplications
             WRITE (output_unit, '(A,T30,EN20.6)') " max memory usage/rank", total_max_memory
             WRITE (output_unit, '(A,T30,I20)') " # max total images/rank", dbcsr_mpi_statistics%nimages
+            WRITE (output_unit, '(A,T30,I20)') " # max 3D layers", get_max_layers_3D()
             WRITE (output_unit, '(A,T30,I20)') " # MPI messages exchanged", total_nexchanged
-            WRITE (output_unit, '(A)') " MPI messages size (elements):"
+            WRITE (output_unit, '(A)') " MPI messages size (bytes):"
             WRITE (output_unit, '(A,T30,EN20.6)') "  total size", &
                SUM(total_recv_data(:))
             WRITE (output_unit, '(A,T30,EN20.6)') "  min size", &
