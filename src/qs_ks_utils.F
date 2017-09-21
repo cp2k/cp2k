@@ -1401,8 +1401,6 @@ CONTAINS
             CALL pw_pool_give_back_pw(auxbas_pw_pool, v_rspace_new(ispin)%pw)
          END DO ! ispin
 
-         IF (dft_control%apply_embed_pot) DEALLOCATE (v_rspace_embed)
-
          SELECT CASE (dft_control%sic_method_id)
          CASE (sic_none)
          CASE (sic_mauri_us, sic_mauri_spz, sic_ad)
@@ -1428,6 +1426,14 @@ CONTAINS
             IF (dft_control%do_sccs) THEN
                v_rspace%pw%cr3d = v_rspace%pw%cr3d+v_sccs_rspace%pw%cr3d
             END IF
+            ! DFT embedding
+            IF (dft_control%apply_embed_pot) THEN
+               ! So far for closed shells
+               IF (ispin == 1) v_rspace%pw%cr3d = v_rspace%pw%cr3d+ &
+                                                  v_rspace_embed(ispin)%pw%pw_grid%dvol* &
+                                                  v_rspace_embed(ispin)%pw%cr3d
+               CALL pw_pool_give_back_pw(auxbas_pw_pool, v_rspace_embed(ispin)%pw)
+            ENDIF
             IF (lrigpw) THEN
                lri_v_int => lri_density%lri_coefs(ispin)%lri_kinds
                CALL integrate_v_rspace_one_center(v_rspace, qs_env, &
@@ -1533,6 +1539,8 @@ CONTAINS
             DEALLOCATE (v_tau_rspace_aux_fit)
          END IF
       END IF
+
+      IF (dft_control%apply_embed_pot) DEALLOCATE (v_rspace_embed)
 
       CALL timestop(handle)
 
