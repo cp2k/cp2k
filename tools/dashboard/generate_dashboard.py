@@ -117,7 +117,7 @@ def gen_frontpage(config, log, abook_fn, status_fn, outdir):
             status[s]['last_ok'] = report['revision']
             status[s]['notified'] = False
         elif(do_notify and not status[s]['notified']):
-            send_notification(report, addressbook, status[s]['last_ok'], log_index, name, s)
+            #send_notification(report, addressbook, status[s]['last_ok'], log_index, name, s)
             status[s]['notified'] = True
 
         uptodate = report['revision']==trunk_revision # report from latest commit?
