@@ -219,7 +219,7 @@ files provided by this script, then you must keep ./install in exactly
 the same location as it was first created, as it contains tools and libraries
 your version of CP2K binary will depend on.
 
-It should be safe to terminate running of this script in middle of a
+It should be safe to terminate running of this script in the middle of a
 build process.  The script will know if a package has been successfully
 installed, and will just carry on and recompile and install the last
 package it is working on. This is true even if you lose the content of
