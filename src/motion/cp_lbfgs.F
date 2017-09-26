@@ -259,7 +259,7 @@ CONTAINS
       !the original implementation only allowed for boundaries that remain constant during the optimization.
       !This way of including a trust radius seems to work,
       !but the change of the boundaries during optimization might introduce some not yet discovered problems.
-      IF(trust_radius>0) THEN
+      IF(trust_radius>=0) THEN
         DO i=1,n
           lower_bound(i)=x(i)-trust_radius
           upper_bound(i)=x(i)+trust_radius
