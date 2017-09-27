@@ -9,7 +9,7 @@
 ! **************************************************************************************************
 MODULE ps_wavelet_kernel
 
-  
+
    USE kinds,                           ONLY: dp
    USE message_passing,                 ONLY: mp_alltoall
    USE ps_wavelet_base,                 ONLY: scramble_unpack
@@ -69,11 +69,11 @@ CONTAINS
 !> \param mpi_group ...
 !> \date February 2007
 !> \author Luigi Genovese
-!> \note Due to the fact that the kernel dimensions are unknown before the calling, the kernel 
-!>     must be declared as pointer in input of this routine. 
-!>     To avoid that, one can properly define the kernel dimensions by adding 
-!>     the nd1,nd2,nd3 arguments to the PS_dim4allocation routine, then eliminating the pointer 
-!>     declaration. 
+!> \note Due to the fact that the kernel dimensions are unknown before the calling, the kernel
+!>     must be declared as pointer in input of this routine.
+!>     To avoid that, one can properly define the kernel dimensions by adding
+!>     the nd1,nd2,nd3 arguments to the PS_dim4allocation routine, then eliminating the pointer
+!>     declaration.
 ! **************************************************************************************************
   SUBROUTINE createKernel(geocode,n01,n02,n03,hx,hy,hz,itype_scf,iproc,nproc,kernel,mpi_group)
 
@@ -992,6 +992,18 @@ SUBROUTINE Free_Kernel(n01,n02,n03,nfft1,nfft2,nfft3,n1k,n2k,n3k,&
 
     DO i3=istart1,iend
        i03 = i3 - n2h -1
+       ! Crash if index out of range
+       ! Without compiler bounds checking, the calculation might run succesfully but
+       ! it is also possible that the Hartree energy will blow up
+       ! This seems to happen with large MPI processor counts if the size of the
+       ! RS grid is not directly compatible with the allowed FFT dimensions in
+       ! subroutine fourier_dim (ps_wavelet_fft3d.F)
+       IF (i03 .LT. -n_range .OR. i03 .GT. n_range) THEN
+          CALL cp_abort(__LOCATION__, "Index out of range in wavelet solver. "// &
+                        "Try decreasing the number of MPI processors, or adjust the PW_CUTOFF or cell size "// &
+                        "so that 2*(number of RS grid points) matches the allowed FFT dimensions "// &
+                        "(see ps_wavelet_fft3d.F) exactly.")
+       END IF
        DO i2=1,n02
           i02 = i2-1
           DO i1=1,n01
@@ -1086,7 +1098,7 @@ END SUBROUTINE inserthalf
 !> \note As transform lengths
 !>                  most products of the prime factors 2,3,5 are allowed.
 !>                   The detailed table with allowed transform lengths can
-!>                   be found in subroutine CTRIG 
+!>                   be found in subroutine CTRIG
 ! **************************************************************************************************
 SUBROUTINE kernelfft(n1,n2,n3,nd1,nd2,nd3,nk1,nk2,nk3,nproc,iproc,zf,zr,mpi_group)
 
