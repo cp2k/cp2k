@@ -7720,8 +7720,8 @@ CONTAINS
 
       CALL keyword_create(keyword, name="MAT_EXP", &
                           description="Which method should be used to calculate the exponential"// &
-                          " in the propagator. For Ehrenfest MD only the Taylor method works, "// &
-                          "for real time propagation diagonalization works as well.", &
+                          " in the propagator. It is recommended to use BCH when employing density_propagation "// &
+                          "and ARNOLDI otherwise.", &
                           usage="MAT_EXP TAYLOR", default_i_val=do_arnoldi, &
                           enum_c_vals=s2a("TAYLOR", "PADE", "ARNOLDI", "BCH"), &
                           enum_i_vals=(/do_taylor, do_pade, do_arnoldi, do_bch/), &
