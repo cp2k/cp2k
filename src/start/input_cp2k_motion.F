@@ -26,9 +26,10 @@ MODULE input_cp2k_motion
         default_bfgs_method_id, default_cell_direct_id, default_cell_geo_opt_id, &
         default_cell_md_id, default_cg_method_id, default_dimer_method_id, &
         default_lbfgs_method_id, default_minimization_method_id, default_ts_method_id, &
-        do_mc_gemc_npt, do_mc_gemc_nvt, do_mc_traditional, do_mc_virial, fmt_id_pdb, fmt_id_xyz, &
-        gaussian, helium_cell_shape_cube, helium_cell_shape_octahedron, helium_forces_average, &
-        helium_forces_last, helium_mdist_exponential, helium_mdist_gaussian, helium_mdist_linear, &
+        do_mc_gemc_npt, do_mc_gemc_nvt, do_mc_traditional, do_mc_virial, fix_none, fix_x, fix_xy, &
+        fix_xz, fix_y, fix_yz, fix_z, fmt_id_pdb, fmt_id_xyz, gaussian, helium_cell_shape_cube, &
+        helium_cell_shape_octahedron, helium_forces_average, helium_forces_last, &
+        helium_mdist_exponential, helium_mdist_gaussian, helium_mdist_linear, &
         helium_mdist_quadratic, helium_mdist_singlev, helium_mdist_uniform, &
         helium_sampling_ceperley, helium_sampling_worm, helium_solute_intpot_mwater, &
         helium_solute_intpot_none, integrate_exact, integrate_numeric, ls_2pnt, ls_3pnt, ls_fit, &
@@ -1022,6 +1023,23 @@ CONTAINS
                           description="Keep the requested initial cell symmetry (e.g. during a cell optimisation). "// &
                           "The initial symmetry must be specified in the &CELL section.", &
                           usage="KEEP_SYMMETRY yes", default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create( &
+         keyword, name="CONSTRAINT", &
+         description="Imposes a constraint on the pressure tensor by fixing the specified cell components.", &
+         usage="CONSTRAINT (none|x|y|z|xy|xz|yz)", &
+         enum_desc=s2a("Fix nothing", &
+                       "Fix only x component", &
+                       "Fix only y component", &
+                       "Fix only z component", &
+                       "Fix x and y component", &
+                       "Fix x and z component", &
+                       "Fix y and z component"), &
+         enum_c_vals=s2a("NONE", "X", "Y", "Z", "XY", "XZ", "YZ"), &
+         enum_i_vals=(/fix_none, fix_x, fix_y, fix_z, fix_xy, fix_xz, fix_yz/), &
+         default_i_val=fix_none)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 

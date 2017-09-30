@@ -1,0 +1,194 @@
+@SET a             5.50
+@SET b             ${a}
+@SET c             ${a}
+
+@SET na            5
+@SET nb            5
+@SET nc            5
+
+@SET ngp_a         8
+@SET ngp_b         8
+@SET ngp_c         8
+
+&GLOBAL
+ PROJECT cell_opt_constraint_none
+ PRINT_LEVEL low
+ RUN_TYPE cell_opt
+&END GLOBAL
+
+&MOTION
+ &CELL_OPT
+  EXTERNAL_PRESSURE [bar] 1.0
+  CONSTRAINT none
+  KEEP_ANGLES no
+  KEEP_SYMMETRY no
+  MAX_DR 0.001
+  MAX_FORCE 0.0001
+  MAX_ITER 200
+  OPTIMIZER LBFGS
+  PRESSURE_TOLERANCE [bar] 1.0E6 # Disable this convergence check
+  RMS_DR 0.0003
+  RMS_FORCE 0.00003
+  TYPE direct_cell_opt
+ &END CELL_OPT
+ &PRINT
+  &CELL on
+   &EACH
+    MD 1
+   &END EACH
+  &END CELL
+  &RESTART on
+   ADD_LAST NUMERIC
+   BACKUP_COPIES 0
+   &EACH
+    MD 1000
+   &END EACH
+  &END RESTART
+  &RESTART_HISTORY off
+  &END RESTART_HISTORY
+  &STRESS off
+   &EACH
+    MD 1
+   &END EACH
+  &END STRESS
+  &STRUCTURE_DATA
+   POSITION 1..12
+   POSITION_SCALED 1..12
+  &END STRUCTURE_DATA
+  &TRAJECTORY
+   FORMAT xyz
+   &EACH
+    GEO_OPT 1
+    MD 1
+   &END EACH
+  &END TRAJECTORY
+  &VELOCITIES off
+   &EACH
+    MD 1
+   &END EACH
+  &END VELOCITIES
+ &END PRINT
+&END MOTION
+
+&FORCE_EVAL
+ METHOD Fist
+ STRESS_TENSOR analytical
+ &MM
+  &FORCEFIELD # Morelon
+   &CHARGE
+    ATOM U
+    CHARGE +3.227252
+   &END CHARGE
+   &CHARGE
+    ATOM O
+    CHARGE -1.613626
+   &END CHARGE
+   &NONBONDED
+    &BUCK4RANGES
+     ATOMS O O
+     A [eV] 11272.6
+     B [angstrom^-1] 1/0.1363
+     C [eV*angstrom^6] 134.0
+     R1 [angstrom] 1.2
+     R2 [angstrom] 2.1
+     R3 [angstrom] 2.6
+     # POLY1 [eV] 479.955320080974 -726.31182326300658189600 437.46708714153984869883 -130.69424768757823118006 19.32441467525360647073 -1.13054550680921504060
+     # POLY2 [eV] 42.891690970163 -29.36749918557121222274 6.46231710894909716023 -0.46402483936962076198
+     RCUT [angstrom] 10.4
+    &END BUCK4RANGES
+    &WILLIAMS
+     ATOMS O U
+     A [eV] 566.498
+     B [angstrom^-1] 1/0.42056
+     C [eV*angstrom^6] 0.0
+     RCUT [angstrom] 10.4
+    &END WILLIAMS
+    &WILLIAMS
+     ATOMS U U
+     A [eV] 0.0
+     B [angstrom^-1] 0.0
+     C [eV*angstrom^6] 0.0
+     RCUT [angstrom] 10.4
+    &END WILLIAMS
+   &END NONBONDED
+   &SPLINE
+    EMAX_ACCURACY [hartree] 0.02
+    EMAX_SPLINE [hartree] 1.0E4
+    EPS_SPLINE [hartree] 1.0E-7
+    R0_NB [angstrom] 0.1
+   &END SPLINE
+  &END FORCEFIELD
+  &POISSON
+   &EWALD
+    EWALD_TYPE spme
+    ALPHA [angstrom^-1] 0.35
+    GMAX ${na}*${ngp_a} ${nb}*${ngp_b} ${nc}*${ngp_c}
+    &RS_GRID
+     DISTRIBUTION_TYPE automatic
+    &END RS_GRID
+   &END EWALD
+  &END POISSON
+  &PRINT
+   &FF_INFO off
+    SPLINE_DATA
+    SPLINE_INFO
+   &END FF_INFO
+  &END PRINT
+ &END MM
+ &PRINT
+  &FORCES off
+  &END FORCES
+  &GRID_INFORMATION off
+  &END GRID_INFORMATION
+  &PROGRAM_RUN_INFO
+   &EACH
+    CELL_OPT 1
+    GEO_OPT 1
+   &END EACH
+  &END PROGRAM_RUN_INFO
+  &STRESS_TENSOR
+   &EACH
+    GEO_OPT 1
+   &END EACH
+  &END STRESS_TENSOR
+ &END PRINT
+ &SUBSYS
+  &CELL
+   ABC ${a} ${b} ${c}
+   MULTIPLE_UNIT_CELL ${na} ${nb} ${nc}
+  &END CELL
+  &COORD
+   SCALED
+   U       0           0           0         UO2  1
+   U       0           1/2         1/2       UO2  1
+   U       1/2         0           1/2       UO2  1
+   U       1/2         1/2         0         UO2  1
+   O       1/4         1/4         1/4       UO2  1
+   O       1/4         1/4         3/4       UO2  1
+   O       1/4         3/4         1/4       UO2  1
+   O       3/4         1/4         1/4       UO2  1
+   O       1/4         3/4         3/4       UO2  1
+   O       3/4         1/4         3/4       UO2  1
+   O       3/4         3/4         1/4       UO2  1
+   O       3/4         3/4         3/4       UO2  1
+  &END COORD
+  &PRINT
+   &ATOMIC_COORDINATES on
+   &END ATOMIC_COORDINATES
+   &CELL on
+   &END CELL
+   &KINDS on
+   &END KINDS
+   &MOLECULES off
+   &END MOLECULES
+   &SYMMETRY off
+   &END SYMMETRY
+  &END PRINT
+  &TOPOLOGY
+   CONNECTIVITY user
+   DISABLE_EXCLUSION_LISTS
+   MULTIPLE_UNIT_CELL ${na} ${nb} ${nc}
+   PARA_RES off
+  &END TOPOLOGY
+ &END SUBSYS
+&END FORCE_EVAL

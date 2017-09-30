@@ -45,12 +45,12 @@ MODULE cell_opt_types
 ! **************************************************************************************************
    TYPE cell_opt_env_type
       ! Simulation cell optimization parameters
-      INTEGER                                    :: ref_count, id_nr
+      INTEGER                                    :: constraint_id, id_nr, ref_count
       LOGICAL                                    :: keep_angles, &
                                                     keep_symmetry
       REAL(KIND=dp)                              :: pres_ext, pres_int, pres_tol
-      REAL(KIND=dp), DIMENSION(3, 3)              :: mtrx
-      REAL(KIND=dp), DIMENSION(3, 3)              :: rot_matrix
+      REAL(KIND=dp), DIMENSION(3, 3)             :: mtrx
+      REAL(KIND=dp), DIMENSION(3, 3)             :: rot_matrix
       TYPE(cell_type), POINTER                   :: ref_cell
    END TYPE cell_opt_env_type
 
@@ -91,6 +91,7 @@ CONTAINS
       CALL section_vals_val_get(geo_section, "KEEP_ANGLES", l_val=cell_env%keep_angles)
       CALL section_vals_val_get(geo_section, "KEEP_SYMMETRY", l_val=cell_env%keep_symmetry)
       CALL section_vals_val_get(geo_section, "PRESSURE_TOLERANCE", r_val=cell_env%pres_tol)
+      CALL section_vals_val_get(geo_section, "CONSTRAINT", i_val=cell_env%constraint_id)
 
       ! First let's rotate the cell vectors in order to have an upper triangular matrix.
       CALL get_ut_cell_matrix(cell)

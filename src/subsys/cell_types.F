@@ -55,12 +55,11 @@ MODULE cell_types
 !> \version 1.0
 ! **************************************************************************************************
    TYPE cell_type
-      INTEGER                           :: ref_count, id_nr
-      INTEGER                           :: symmetry_id
+      INTEGER                           :: id_nr, ref_count, symmetry_id
       LOGICAL                           :: orthorhombic ! actually means a diagonal hmat
-      REAL(KIND=dp)                   :: deth
+      REAL(KIND=dp)                     :: deth
       INTEGER, DIMENSION(3)             :: perd
-      REAL(KIND=dp), DIMENSION(3, 3)   :: hmat, h_inv
+      REAL(KIND=dp), DIMENSION(3, 3)    :: hmat, h_inv
    END TYPE cell_type
 
    TYPE cell_p_type
@@ -228,6 +227,7 @@ CONTAINS
       IF (PRESENT(gamma)) gamma = angle(cell%hmat(:, 1), cell%hmat(:, 2))*degree
       IF (PRESENT(id_nr)) id_nr = cell%id_nr
       IF (PRESENT(symmetry_id)) symmetry_id = cell%symmetry_id
+
    END SUBROUTINE get_cell
 
 ! **************************************************************************************************

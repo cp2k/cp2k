@@ -1051,4 +1051,13 @@ MODULE input_constants
                                                do_eri_mme = 1, &
                                                do_eri_os = 2
 
+   ! Cell optimisation constraints
+   INTEGER, PARAMETER, PUBLIC               :: fix_none = 0, &
+                                               fix_x = 1, &
+                                               fix_y = 2, &
+                                               fix_z = 3, &
+                                               fix_xy = 4, &
+                                               fix_xz = 5, &
+                                               fix_yz = 6
+
 END MODULE input_constants

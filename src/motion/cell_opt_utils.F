@@ -25,6 +25,13 @@ MODULE cell_opt_utils
                                               cp_to_string
    USE cp_para_types,                   ONLY: cp_para_env_type
    USE cp_units,                        ONLY: cp_units_rad
+   USE input_constants,                 ONLY: fix_none,&
+                                              fix_x,&
+                                              fix_xy,&
+                                              fix_xz,&
+                                              fix_y,&
+                                              fix_yz,&
+                                              fix_z
    USE input_cp2k_global,               ONLY: create_global_section
    USE input_enumeration_types,         ONLY: enum_i2c,&
                                               enumeration_type
@@ -246,10 +253,11 @@ CONTAINS
 !> \param keep_angles ...
 !> \param keep_symmetry ...
 !> \param pres_int ...
+!> \param constraint_id ...
 !> \author Teodoro Laino [tlaino] - University of Zurich - 03.2008
 ! **************************************************************************************************
    SUBROUTINE get_dg_dh(gradient, av_ptens, pres_ext, cell, mtrx, keep_angles, &
-                        keep_symmetry, pres_int)
+                        keep_symmetry, pres_int, constraint_id)
 
       REAL(KIND=dp), DIMENSION(:), POINTER               :: gradient
       REAL(KIND=dp), DIMENSION(3, 3), INTENT(IN)         :: av_ptens
@@ -258,10 +266,11 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(3, 3), INTENT(IN)         :: mtrx
       LOGICAL, INTENT(IN), OPTIONAL                      :: keep_angles, keep_symmetry
       REAL(KIND=dp), INTENT(OUT)                         :: pres_int
+      INTEGER, INTENT(IN), OPTIONAL                      :: constraint_id
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'get_dg_dh', routineP = moduleN//':'//routineN
 
-      INTEGER                                            :: i
+      INTEGER                                            :: i, my_constraint_id
       LOGICAL                                            :: my_keep_angles, my_keep_symmetry
       REAL(KIND=dp)                                      :: a, cosa, cosah, g, norm, norm_b, norm_c, &
                                                             sina, sinah
@@ -272,6 +281,14 @@ CONTAINS
       my_keep_symmetry = .FALSE.
       IF (PRESENT(keep_symmetry)) my_keep_symmetry = keep_symmetry
       gradient = 0.0_dp
+      IF (PRESENT(constraint_id)) THEN
+         my_constraint_id = constraint_id
+      ELSE
+         my_constraint_id = fix_none
+      END IF
+
+      gradient = 0.0_dp
+
       ptens = av_ptens
 
       ! Evaluating the internal pressure
@@ -381,6 +398,26 @@ CONTAINS
             ! Nothing to do
          END SELECT
       END IF
+
+      SELECT CASE (my_constraint_id)
+      CASE (fix_x)
+         gradient(1:2) = 0.0_dp
+         gradient(4) = 0.0_dp
+      CASE (fix_y)
+         gradient(2:3) = 0.0_dp
+         gradient(5) = 0.0_dp
+      CASE (fix_z)
+         gradient(4:6) = 0.0_dp
+      CASE (fix_xy)
+         gradient(1:5) = 0.0_dp
+      CASE (fix_xz)
+         gradient(1:2) = 0.0_dp
+         gradient(4:6) = 0.0_dp
+      CASE (fix_yz)
+         gradient(2:6) = 0.0_dp
+      CASE (fix_none)
+         ! Nothing to do
+      END SELECT
 
       gradient = -gradient
 

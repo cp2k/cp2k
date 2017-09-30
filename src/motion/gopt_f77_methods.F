@@ -204,7 +204,8 @@ USE cp_log_handling, ONLY: cp_logger_type
                CALL get_dg_dh(cell_gradient, av_ptens, gopt_env%cell_env%pres_ext, cell, gopt_env%cell_env%mtrx, &
                               keep_angles=gopt_env%cell_env%keep_angles, &
                               keep_symmetry=gopt_env%cell_env%keep_symmetry, &
-                              pres_int=gopt_env%cell_env%pres_int)
+                              pres_int=gopt_env%cell_env%pres_int, &
+                              constraint_id=gopt_env%cell_env%constraint_id)
             END IF
             ! some callers expect pres_int to be available on all ranks. Also, here master is not necessarily a single rank.
             ! Assume at least master==0
@@ -286,7 +287,8 @@ USE cp_log_handling, ONLY: cp_logger_type
                CALL get_dg_dh(gradient, av_ptens, gopt_env%cell_env%pres_ext, cell, gopt_env%cell_env%mtrx, &
                               keep_angles=gopt_env%cell_env%keep_angles, &
                               keep_symmetry=gopt_env%cell_env%keep_symmetry, &
-                              pres_int=gopt_env%cell_env%pres_int)
+                              pres_int=gopt_env%cell_env%pres_int, &
+                              constraint_id=gopt_env%cell_env%constraint_id)
             END IF
             ! some callers expect pres_int to be available on all ranks. Also, here master is not necessarily a single rank.
             ! Assume at least master==0

@@ -22,7 +22,7 @@ cell_opt_cg_2pnt_geo_opt_lbfgs.inp                    11      2e-09            -
 cell_opt_lbfgs_geo_opt_lbfgs.inp                      11      4e-09            -35.644084195558335
 # Geometry optimisation using core-shell models
 cs_geo_opt_bfgs.inp                                   11    1.0E-14            -34.165775691654950
-cs_geo_opt_cg_2pnt.inp           11     2e-14            -34.165775860241943
+cs_geo_opt_cg_2pnt.inp                                11      2e-14            -34.165775860241943
 cs_geo_opt_cg_fit.inp                                 11    1.0E-14            -34.165775838192260
 cs_geo_opt_cg_gold.inp                                11    1.0E-14            -34.165775835825670
 cs_geo_opt_lbfgs.inp                                  11    1.0E-14            -34.165775670048319
@@ -51,4 +51,8 @@ cell_sym_tetragonal_ac.inp                            11      2e-08            -
 cell_sym_tetragonal_bc.inp                            11      1E-13            -129.12318608682179
 cell_sym_tetragonal.inp                               11      2e-09             -129.2369243617301
 cell_sym_triclinic.inp                                11      2e-09            -129.28637032103501
+# Cell optimisation constraint
+cell_opt_constraint_none.inp                          11    1.0E-10          -1210.562919201514887
+cell_opt_constraint_xy.inp                            11    1.0E-10          -1210.460826328278017
+cell_opt_constraint_z.inp                             11    1.0E-10          -1210.524637046745283
 #EOF
