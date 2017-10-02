@@ -4036,19 +4036,25 @@ CONTAINS
       NULLIFY (keyword, print_key, group_section)
       CPASSERT(.NOT. ASSOCIATED(section))
       CALL section_create(section, TRIM(ADJUSTL(section_name)), &
-                          description="Use the Becke weight population in a constraint.", &
+                          description="Use the Becke weight population to enforce a charge/spin density constraint. "// &
+                          "The constraint is defined in the section ATOM_GROUP.", &
                           n_keywords=26, n_subsections=1, repeats=.FALSE., &
                           citations=(/Becke1988b/))
 
       CALL keyword_create(keyword, name="STRENGTH", &
-                          description="Force constants of the constraints. Give one value per constraint group.", &
+                          description="Constraint force constants (Lagrangian multipliers). "// &
+                          "Give one value per constraint group.", &
                           type_of_var=real_t, n_var=-1, &
                           default_r_val=0.0_dp)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
       CALL keyword_create(keyword, name="TARGET", &
-                          description="Target values of the constraints. Give one value per constraint group.", &
+                          description="Constraint target values. Give one value per constraint group. "// &
+                          "The target value is the desired number of valence electrons, spin moment, or the number of "// &
+                          "alpha or beta electrons on the atoms that define the constraint, suitably multiplied by "// &
+                          "atomic coefficients in case a relative constraint between two sets of atoms is employed. "// &
+                          "Note that core charges are not subtracted from the target value.", &
                           usage="TARGET {real}", repeats=.FALSE., &
                           type_of_var=real_t, n_var=-1, &
                           default_r_val=0.0_dp)
@@ -4056,9 +4062,9 @@ CONTAINS
       CALL keyword_release(keyword)
 
       CALL keyword_create(keyword, name="ADJUST_SIZE", &
-                          description="Adjust cell boundaries with covalent atomic"// &
+                          description="Adjust Becke cell boundaries with atomic"// &
                           " radii to generate a heteronuclear cutoff profile. These"// &
-                          " radii are defined in the keyword ATOMIC_RADII.", &
+                          " radii are defined with the keyword ATOMIC_RADII.", &
                           usage="ADJUST_SIZE", &
                           default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
       CALL section_add_keyword(section, keyword)
@@ -4084,9 +4090,9 @@ CONTAINS
 
       CALL keyword_create(keyword, name="ATOMIC_CHARGES", &
                           description="Calculate atomic Becke charges (Z = Z_core - Z_becke)."// &
-                          " With fragment based constraints, charges are relative to fragment"// &
-                          " reference state i.e. Z = Z_becke_frag - Z_reference. Note:"// &
-                          " If the number of atoms is greater than the default"// &
+                          " With fragment based constraints, charges are relative to the fragment"// &
+                          " reference state i.e. Z = Z_becke - Z_frag_reference. Note:"// &
+                          " if the number of atoms is greater than the default"// &
                           " pw_pool max cache, calculation of atomic charges"// &
                           " will prompt a warning during deallocation of atomic grids.", &
                           usage="ATOMIC_CHARGES", &
@@ -4120,7 +4126,7 @@ CONTAINS
       CALL keyword_create(keyword, name="CAVITY_USE_BOHR", &
                           description="Convert the cavity radius from angstrom to bohr. This results in a larger"// &
                           " confinement cavity than without unit conversion.", &
-                          usage="CAVITY_USE_BOHR (SINGLE|VDW|COVALENT|USER)", &
+                          usage="CAVITY_USE_BOHR TRUE", &
                           default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
@@ -4134,7 +4140,7 @@ CONTAINS
       CALL keyword_release(keyword)
 
       CALL keyword_create(keyword, name="CAVITY_RADIUS", &
-                          description="Parameter controlling the creation of Gaussian cavity confinement.", &
+                          description="Radius parameter controlling the creation of Gaussian cavity confinement.", &
                           usage="CAVITY_RADIUS <REAL>", &
                           unit_str="angstrom", &
                           default_r_val=cp_unit_to_cp2k(3.0_dp, "angstrom"), &
@@ -4150,7 +4156,7 @@ CONTAINS
       CALL keyword_release(keyword)
 
       CALL keyword_create(keyword, name="CUTOFF_TYPE", &
-                          description="Specifies the type of cutoff used.", &
+                          description="Specifies the type of cutoff used when building the Becke weight function.", &
                           usage="CUTOFF_TYPE (GLOBAL|ELEMENT)", &
                           enum_c_vals=s2a("GLOBAL", "ELEMENT"), &
                           enum_i_vals=(/becke_cutoff_global, becke_cutoff_element/), &
@@ -4228,9 +4234,9 @@ CONTAINS
 
       CALL keyword_create(keyword, name="FLIP_FRAGMENT_A", &
                           description="Logical which determines if the reference spin difference density "// &
-                          "(rho_alpha-rho_beta) for fragment A should be flipped. With default (off)"// &
+                          "(rho_alpha-rho_beta) for fragment A should be flipped. With default (off) "// &
                           "value, the fragment is constrained to have more alpha than beta electrons "// &
-                          "if the isolated fragment has unpaired electrons. Useful in conjunction with"// &
+                          "if the isolated fragment has unpaired electrons. Useful in conjunction with "// &
                           "FLIP_FRAGMENT_B.", &
                           usage="FLIP_FRAGMENT_A", &
                           default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
@@ -4239,9 +4245,9 @@ CONTAINS
 
       CALL keyword_create(keyword, name="FLIP_FRAGMENT_B", &
                           description="Logical which determines if the reference spin difference density "// &
-                          "(rho_alpha-rho_beta) for fragment B should be flipped. With default (off)"// &
+                          "(rho_alpha-rho_beta) for fragment B should be flipped. With default (off) "// &
                           "value, the fragment is constrained to have more alpha than beta electrons "// &
-                          "if the isolated fragment has unpaired electrons. Useful in conjunction with"// &
+                          "if the isolated fragment has unpaired electrons. Useful in conjunction with "// &
                           "FLIP_FRAGMENT_A.", &
                           usage="FLIP_FRAGMENT_B", &
                           default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
@@ -4249,7 +4255,7 @@ CONTAINS
       CALL keyword_release(keyword)
 
       CALL cp_print_key_section_create(print_key, "PROGRAM_RUN_INFO", &
-                                       description="Controls the printing of basic info about the method", &
+                                       description="Controls the printing of basic info about the method.", &
                                        print_level=low_print_level, add_last=add_last_numeric, filename="__STD_OUT__")
       CALL section_add_subsection(section, print_key)
       CALL section_release(print_key)
@@ -4306,12 +4312,12 @@ CONTAINS
 
       CALL section_create(group_section, "DUMMY_ATOMS", &
                           description="Define an extra group of atoms for which only atomic Becke charges "// &
-                          "should be computed. The section cannot contain any constraint"// &
-                          "atoms which should be included in section ATOM_GROUP.", &
+                          "should be computed. The section cannot contain any constraint "// &
+                          "atoms that were defined in section ATOM_GROUP.", &
                           n_keywords=1, n_subsections=0, repeats=.TRUE.)
 
       CALL keyword_create(keyword, name="ATOMS", &
-                          description="Specifies the list of atoms that are included in the DUMMY_ATOMS group", &
+                          description="Specifies the list of atoms that are included in the DUMMY_ATOMS group.", &
                           usage="ATOMS {integer} {integer} .. {integer}", &
                           n_var=-1, type_of_var=integer_t)
       CALL section_add_keyword(group_section, keyword)
@@ -4339,10 +4345,10 @@ CONTAINS
 
       CPASSERT(.NOT. ASSOCIATED(section))
       CALL section_create(section, "CDFT", &
-                          description="Parameters needed to set up a CDFT calculation with OT."// &
-                          " Constraint is converged in a separate external SCF loop with settings"// &
+                          description="Parameters needed to set up a constrained DFT calculation."// &
+                          " The constraint(s) is (are) converged in a separate external SCF loop with settings"// &
                           " read from the OUTER_SCF section. Supported constraints: Gaussian Hirshfeld (partial)"// &
-                          " Becke.", n_keywords=8, n_subsections=2, &
+                          " and Becke.", n_keywords=8, n_subsections=2, &
                           repeats=.FALSE., citations=(/Holmberg2017/))
 
       NULLIFY (subsection, keyword)
@@ -4355,21 +4361,23 @@ CONTAINS
       CALL section_release(subsection)
 
       CALL keyword_create(keyword, name="TYPE_OF_CONSTRAINT", &
-                          description="Specifies the type of constraint used", &
+                          description="Specifies the type of constraint used.", &
                           usage="TYPE_OF_CONSTRAINT (NONE|HIRSHFELD|BECKE)", &
                           enum_c_vals=s2a("NONE", "HIRSHFELD", "BECKE"), &
                           enum_i_vals=(/outer_scf_none, outer_scf_hirshfeld_constraint, &
                                         outer_scf_becke_constraint/), &
-                          enum_desc=s2a("No constraint (disables section)", &
+                          enum_desc=s2a("No constraint (disables section).", &
                                         "Hirshfeld-type constraint defined by constraint atom centered spherical Gaussians"// &
                                         " Partial implementation: no forces or coupling. Requires corresponding section.", &
-                                        "Becke constraint. Requires corresponding section in &QS)"), &
+                                        "Becke constraint. Requires corresponding section in &QS."), &
                           default_i_val=outer_scf_none)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
       CALL keyword_create(keyword, name="REUSE_PRECOND", &
-                          description="Reuse previously built OT preconditioner if SCF converged in PRECOND_FREQ steps or less.", &
+                          description="Reuse a previously built OT preconditioner between subsequent CDFT SCF iterations "// &
+                          "if the inner OT SCF loop converged in PRECOND_FREQ steps or less. Intended mainly for MD "// &
+                          "simulations with the FULL_ALL preconditioner to speed up the final iterations of the CDFT SCF loop.", &
                           usage="REUSE_PRECOND yes", repeats=.FALSE., n_var=1, &
                           default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
       CALL section_add_keyword(section, keyword)
@@ -4377,20 +4385,20 @@ CONTAINS
 
       CALL keyword_create(keyword, name="PRECOND_FREQ", &
                           description="See REUSE_PRECOND.", &
-                          usage="PRECOND_FREQ {int} ", default_i_val=0)
+                          usage="PRECOND_FREQ {int}", default_i_val=0)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
       CALL keyword_create(keyword, name="MAX_REUSE", &
                           description="Determines how many times a previously built preconditioner can be reused.", &
-                          usage="MAX_REUSE {int} ", default_i_val=0)
+                          usage="MAX_REUSE {int}", default_i_val=0)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
       CALL keyword_create(keyword, name="PURGE_HISTORY", &
                           description="Purge wavefunction and constraint history to improve SCF convergence during MD."// &
                           "Counts how often the convergence of the first CDFT SCF iteration takes 2 or more outer SCF"// &
-                          " iterations and purges the history if the counter exceeds PURGE_FREQ and PURGE_OFFSET "// &
+                          " iterations and purges the history if the counter exceeds PURGE_FREQ, and PURGE_OFFSET "// &
                           " MD steps have passed since the last purge."// &
                           " The counter is zeroed after each purge.", &
                           usage="PURGE_HISTORY yes", repeats=.FALSE., n_var=1, &
@@ -4412,7 +4420,7 @@ CONTAINS
 
       CALL keyword_create(keyword, name="COUNTER", &
                           description="A counter to track the total number of energy evaluations. Needed by"// &
-                          " some optimizers to print information. Useful for restarts.", &
+                          " some optimizers to print information. Useful mainly for restarts.", &
                           usage="COUNTER {int} ", default_i_val=0)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
@@ -5365,7 +5373,7 @@ CONTAINS
                                         "Do nothing, useful only with the none type", &
                                         "Bisection of the gradient, useful for difficult one dimensional cases", &
                                         "Broyden's method. Variant defined in BROYDEN_TYPE.", &
-                                        "Newton's method. Only compatible with CDFT constraints", &
+                                        "Newton's method. Only compatible with CDFT constraints.", &
                                         "Secant method. Only for one dimensional cases. See Broyden for "// &
                                         "multidimensional cases.", &
                                         "Newton's method with backtracking line search to find the optimal step size. "// &
@@ -5391,13 +5399,13 @@ CONTAINS
                                         " SCF iteration until a Jacobian can be built from the SCF history.", &
                                         "Same as BT1, but computes the explicit Jacobian with finite differences. "// &
                                         "Requires a CDFT SCF procedure to be active.", &
-                                        "Same as BT1, but uses Broyden's second method, also known as the bad method", &
+                                        "Same as BT1, but uses Broyden's second method, also known as the bad method.", &
                                         "Same as BT1_EXPLICIT, but using Broyden's second method.", &
                                         "Same as BT1, but uses backtracking line search for optimizing the step size "// &
                                         "(see optimizer NEWTON_LS).", &
-                                        "Same as BT1_EXPLICIT, but uses backtracking line search for optimizing the step size ", &
-                                        "Same as BT2, but uses backtracking line search for optimizing the step size ", &
-                                        "Same as BT2_EXPLICIT, but uses backtracking line search for optimizing the step size "), &
+                                        "Same as BT1_EXPLICIT, but uses backtracking line search for optimizing the step size.", &
+                                        "Same as BT2, but uses backtracking line search for optimizing the step size.", &
+                                        "Same as BT2_EXPLICIT, but uses backtracking line search for optimizing the step size."), &
                           enum_i_vals=(/broyden_type_1, broyden_type_1_explicit, broyden_type_2, &
                                         broyden_type_2_explicit, broyden_type_1_ls, broyden_type_1_explicit_ls, &
                                         broyden_type_2_ls, broyden_type_2_explicit_ls/))
@@ -5410,11 +5418,11 @@ CONTAINS
                           usage="JACOBIAN_TYPE FD1", &
                           default_i_val=jacobian_fd1, &
                           enum_c_vals=s2a("FD1", "FD1_BACKWARD", "FD2", "FD2_BACKWARD", "FD1_CENTRAL"), &
-                          enum_desc=s2a("First order forward difference (one extra energy evaluation per constraint)", &
-                                        "First order backward difference (one extra energy evaluation per constraint)", &
-                                        "Second order forward difference (two extra energy evaluations per constraint)", &
-                                        "Second order backward difference (two extra energy evaluations per constraint)", &
-                                        "First order central difference (two extra energy evaluations per constraint)"), &
+                          enum_desc=s2a("First order forward difference (one extra energy evaluation per constraint).", &
+                                        "First order backward difference (one extra energy evaluation per constraint).", &
+                                        "Second order forward difference (two extra energy evaluations per constraint).", &
+                                        "Second order backward difference (two extra energy evaluations per constraint).", &
+                                        "First order central difference (two extra energy evaluations per constraint)."), &
                           enum_i_vals=(/jacobian_fd1, jacobian_fd1_backward, jacobian_fd2, &
                                         jacobian_fd2_backward, jacobian_fd1_central/))
       CALL section_add_keyword(section, keyword)
@@ -5510,8 +5518,8 @@ CONTAINS
       CALL keyword_release(keyword)
 
       CALL keyword_create(keyword, name="STEP_SIZE", &
-                          description="The initial step_size used in the optimizer (currently steepest descent)."// &
-                          "Note that in cases where a sadle point is sought for (DDAPC_CONSTRAINT),"// &
+                          description="The initial step_size used in the optimizer (currently steepest descent). "// &
+                          "Note that in cases where a sadle point is sought for (constrained DFT),"// &
                           " this can be negative. For Newton and Broyden optimizers, use a value less than "// &
                           "the default 1.0 (in absolute value, the sign is not significant) to active a damped optimizer.", &
                           usage="STEP_SIZE -1.0", default_r_val=0.5_dp)

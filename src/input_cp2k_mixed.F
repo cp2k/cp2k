@@ -166,7 +166,7 @@ CONTAINS
 
       CALL keyword_create(keyword, name="DLB", &
                           description="Controls the activation of dynamic load balancing during a mixed CDFT calculation."// &
-                          " Requires Gaussian cavity confinement.", &
+                          " Requires Gaussian cavity confinement. Works only when the CDFT states are treated in parallel.", &
                           usage="DLB", type_of_var=logical_t, &
                           default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
       CALL section_add_keyword(subsection, keyword)
