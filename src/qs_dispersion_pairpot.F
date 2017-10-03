@@ -1451,7 +1451,10 @@ CONTAINS
                                  rabc = r2abc**(1._dp/6._dp)
                                  r0 = (dispersion_env%r0ab(za, zb)*dispersion_env%r0ab(zb, zc)* &
                                        dispersion_env%r0ab(zc, za))**(1._dp/3._dp)
-                                 CALL damping_d3(rabc, r0, 4._dp/3._dp, alp6, rcut, fdabc, dfdabc)
+                                 ! bug fixed 3.10.2017
+                                 ! correct value from alp6=14 to 16 as used in original paper
+                                 ! CALL damping_d3(rabc, r0, 4._dp/3._dp, alp6, rcut, fdabc, dfdabc)
+                                 CALL damping_d3(rabc, r0, 4._dp/3._dp, 16.0_dp, rcut, fdabc, dfdabc)
                                  s1 = r2ab+r2bc-r2ca
                                  s2 = r2ab+r2ca-r2bc
                                  s3 = r2ca+r2bc-r2ab
