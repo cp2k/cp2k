@@ -27,7 +27,7 @@ MODULE opt_embed_pot_types
       TYPE(pw_p_type), POINTER                  :: const_pot
       REAL(KIND=dp)                             :: reg_term, trust_rad, conv_max, conv_int, step_len
       LOGICAL                                   :: accept_step, newton_step, level_shift, &
-                                                   add_const_pot, converged
+                                                   add_const_pot, converged, read_embed_pot
 
    END TYPE opt_embed_pot_type
 

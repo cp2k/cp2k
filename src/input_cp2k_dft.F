@@ -5954,7 +5954,7 @@ CONTAINS
       CPASSERT(.NOT. ASSOCIATED(section))
       CALL section_create(section, name="OPT_EMBED", &
                           description="This section specifies optional parameters for DFT embedding potential optimization.", &
-                          n_keywords=7, n_subsections=0, repeats=.FALSE.)
+                          n_keywords=10, n_subsections=0, repeats=.FALSE.)
 
       NULLIFY (keyword)
 
@@ -6007,7 +6007,112 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
+      CALL keyword_create(keyword, name="READ_EMBED_POT", &
+                          description="Read the embedding potential  "// &
+                          "restart vector as a guess.", &
+                          usage="READ_EMBED_POT .FALSE.", default_l_val=.FALSE.)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, name="EMBED_RESTART_FILE_NAME", &
+                          description="Root of the file name where to read the embedding "// &
+                          "potential guess.", &
+                          usage="EMBED_RESTART_FILE_NAME <FILENAME>", &
+                          type_of_var=lchar_t)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL create_print_embed_diff(section)
+
+      CALL create_print_embed_pot_cube(section)
+
+      CALL create_print_embed_restart_vec(section)
+
    END SUBROUTINE create_optimize_embed
+
+! **************************************************************************************************
+!> \brief ...
+!> \param section ...
+! **************************************************************************************************
+   SUBROUTINE create_print_embed_diff(section)
+      TYPE(section_type), POINTER                        :: section
+
+      CHARACTER(len=*), PARAMETER :: routineN = 'create_print_embed_diff', &
+         routineP = moduleN//':'//routineN
+
+      TYPE(keyword_type), POINTER                        :: keyword
+      TYPE(section_type), POINTER                        :: print_key
+
+      NULLIFY (print_key, keyword)
+      CALL cp_print_key_section_create(print_key, "EMBED_DENS_DIFF", &
+                                       description="Controls the printing of cube files with "// &
+                                       " embedding densisty differences", &
+                                       print_level=high_print_level, add_last=add_last_numeric, filename="")
+      CALL keyword_create(keyword, name="stride", &
+                          description="The stride (X,Y,Z) used to write the cube file "// &
+                          "(larger values result in smaller cube files). You can provide 3 numbers (for X,Y,Z) or"// &
+                          " 1 number valid for all components.", &
+                          usage="STRIDE 2 2 2", n_var=-1, default_i_vals=(/2, 2, 2/), type_of_var=integer_t)
+      CALL section_add_keyword(print_key, keyword)
+      CALL keyword_release(keyword)
+
+      CALL section_add_subsection(section, print_key)
+      CALL section_release(print_key)
+
+   END SUBROUTINE create_print_embed_diff
+
+! **************************************************************************************************
+!> \brief ...
+!> \param section ...
+! **************************************************************************************************
+   SUBROUTINE create_print_embed_pot_cube(section)
+      TYPE(section_type), POINTER                        :: section
+
+      CHARACTER(len=*), PARAMETER :: routineN = 'create_print_embed_pot_cube', &
+         routineP = moduleN//':'//routineN
+
+      TYPE(keyword_type), POINTER                        :: keyword
+      TYPE(section_type), POINTER                        :: print_key
+
+      NULLIFY (print_key, keyword)
+      CALL cp_print_key_section_create(print_key, "EMBED_POT_CUBE", &
+                                       description="Controls the printing of cube files with "// &
+                                       "with embedding potential", &
+                                       print_level=high_print_level, add_last=add_last_numeric, filename="")
+      CALL keyword_create(keyword, name="stride", &
+                          description="The stride (X,Y,Z) used to write the cube file "// &
+                          "(larger values result in smaller cube files). You can provide 3 numbers (for X,Y,Z) or"// &
+                          " 1 number valid for all components.", &
+                          usage="STRIDE 2 2 2", n_var=-1, default_i_vals=(/2, 2, 2/), type_of_var=integer_t)
+      CALL section_add_keyword(print_key, keyword)
+      CALL keyword_release(keyword)
+
+      CALL section_add_subsection(section, print_key)
+      CALL section_release(print_key)
+
+   END SUBROUTINE create_print_embed_pot_cube
+
+! **************************************************************************************************
+!> \brief ...
+!> \param section ...
+! **************************************************************************************************
+   SUBROUTINE create_print_embed_restart_vec(section)
+      TYPE(section_type), POINTER                        :: section
+
+      CHARACTER(len=*), PARAMETER :: routineN = 'create_print_embed_restart_vec', &
+         routineP = moduleN//':'//routineN
+
+      TYPE(section_type), POINTER                        :: print_key
+
+      NULLIFY (print_key)
+      CALL cp_print_key_section_create(print_key, "EMBED_POT_VECTOR", &
+                                       description="Controls the printing of cube files with "// &
+                                       "with embedding potential", &
+                                       print_level=silent_print_level, add_last=add_last_numeric, filename="")
+      CALL section_add_subsection(section, print_key)
+      CALL section_release(print_key)
+
+   END SUBROUTINE create_print_embed_restart_vec
 
 ! **************************************************************************************************
 !> \brief input section for optional parameters for RIGPW

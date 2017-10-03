@@ -13,6 +13,8 @@ MODULE optimize_embedding_potential
                                               cp_blacs_env_type
    USE cp_control_types,                ONLY: dft_control_type
    USE cp_dbcsr_operations,             ONLY: copy_dbcsr_to_fm
+   USE cp_files,                        ONLY: close_file,&
+                                              open_file
    USE cp_fm_basic_linalg,              ONLY: cp_fm_column_scale,&
                                               cp_fm_scale,&
                                               cp_fm_scale_and_add,&
@@ -21,17 +23,15 @@ MODULE optimize_embedding_potential
    USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
                                               cp_fm_struct_release,&
                                               cp_fm_struct_type
-   USE cp_fm_types,                     ONLY: cp_fm_create,&
-                                              cp_fm_get_element,&
-                                              cp_fm_get_info,&
-                                              cp_fm_release,&
-                                              cp_fm_set_all,&
-                                              cp_fm_to_fm,&
-                                              cp_fm_type
+   USE cp_fm_types,                     ONLY: &
+        cp_fm_copy_general, cp_fm_create, cp_fm_get_element, cp_fm_get_info, cp_fm_release, &
+        cp_fm_set_all, cp_fm_to_fm, cp_fm_type, cp_fm_write_unformatted
    USE cp_gemm_interface,               ONLY: cp_gemm
    USE cp_log_handling,                 ONLY: cp_get_default_logger,&
                                               cp_logger_type
-   USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
+   USE cp_output_handling,              ONLY: cp_p_file,&
+                                              cp_print_key_finished_output,&
+                                              cp_print_key_should_output,&
                                               cp_print_key_unit_nr
    USE cp_para_types,                   ONLY: cp_para_env_type
    USE cp_realspace_grid_cube,          ONLY: cp_pw_to_cube
@@ -43,7 +43,8 @@ MODULE optimize_embedding_potential
                                               section_vals_val_get
    USE kinds,                           ONLY: default_path_length,&
                                               dp
-   USE message_passing,                 ONLY: mp_max,&
+   USE message_passing,                 ONLY: mp_bcast,&
+                                              mp_max,&
                                               mp_sum
    USE opt_embed_pot_types,             ONLY: opt_embed_pot_type
    USE particle_list_types,             ONLY: particle_list_type
@@ -87,23 +88,26 @@ MODULE optimize_embedding_potential
 
    PUBLIC :: prepare_embed_opt, init_embed_pot, release_opt_embed, calculate_embed_pot_grad, &
              opt_embed_step, print_rho_diff, step_control, max_dens_diff, print_emb_opt_info, &
-             conv_check_embed, make_subsys_embed_pot
+             conv_check_embed, make_subsys_embed_pot, print_embed_restart, find_aux_dimen, &
+             read_embed_pot
 
 CONTAINS
 ! **************************************************************************************************
 !> \brief ...
 !> \param qs_env ...
 !> \param embed_pot ...
-!> \param const_pot ...
 !> \param add_const_pot ...
+!> \param const_pot ...
 ! **************************************************************************************************
-   SUBROUTINE init_embed_pot(qs_env, embed_pot, const_pot, add_const_pot)
+   SUBROUTINE init_embed_pot(qs_env, embed_pot, add_const_pot, const_pot)
       TYPE(qs_environment_type), POINTER                 :: qs_env
-      TYPE(pw_p_type), POINTER                           :: embed_pot, const_pot
+      TYPE(pw_p_type), POINTER                           :: embed_pot
       LOGICAL                                            :: add_const_pot
+      TYPE(pw_p_type), OPTIONAL, POINTER                 :: const_pot
 
       INTEGER                                            :: nelectrons
       INTEGER, DIMENSION(2)                              :: nelectron_spin
+      LOGICAL                                            :: read_embed_pot
       REAL(KIND=dp)                                      :: factor
       TYPE(pw_env_type), POINTER                         :: pw_env
       TYPE(pw_p_type)                                    :: v_hartree_r_space, vppl
@@ -125,6 +129,11 @@ CONTAINS
                              use_data=REALDATA3D, &
                              in_space=REALSPACE)
       CALL pw_zero(embed_pot%pw)
+
+      ! Read the embedding potential restart file
+      IF (read_embed_pot) THEN
+
+      ENDIF
 
       ! Add constant potential if requested
       IF (add_const_pot) THEN
@@ -182,40 +191,16 @@ CONTAINS
       TYPE(section_vals_type), POINTER                   :: opt_embed_section
       INTEGER                                            :: nspins
 
-      INTEGER                                            :: iatom, ikind, natom, nsgf
-      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: kind_of
-      TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
-      TYPE(cell_type), POINTER                           :: cell
       TYPE(cp_blacs_env_type), POINTER                   :: blacs_env
       TYPE(cp_fm_struct_type), POINTER                   :: fm_struct
       TYPE(cp_para_env_type), POINTER                    :: para_env
-      TYPE(dft_control_type), POINTER                    :: dft_control
-      TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
-      TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
 
       ! First, reveal the dimention of the RI basis
-      CALL get_qs_env(qs_env=qs_env, &
-                      particle_set=particle_set, &
-                      qs_kind_set=qs_kind_set, &
-                      dft_control=dft_control, &
-                      cell=cell, &
-                      atomic_kind_set=atomic_kind_set, &
-                      para_env=para_env)
-
-      natom = SIZE(particle_set)
-      ALLOCATE (kind_of(natom))
-
-      CALL get_atomic_kind_set(atomic_kind_set, kind_of=kind_of)
-
-      opt_embed%dimen_aux = 0
-      DO iatom = 1, natom
-         ikind = kind_of(iatom)
-         CALL get_qs_kind(qs_kind=qs_kind_set(ikind), nsgf=nsgf, basis_type="RI_AUX")
-         opt_embed%dimen_aux = opt_embed%dimen_aux+nsgf
-      END DO
-      DEALLOCATE (kind_of)
+      CALL find_aux_dimen(qs_env, opt_embed%dimen_aux)
 
       ! Create blacs environment
+      CALL get_qs_env(qs_env=qs_env, &
+                      para_env=para_env)
       NULLIFY (blacs_env)
       CALL cp_blacs_env_create(blacs_env=blacs_env, para_env=para_env)
 
@@ -268,6 +253,9 @@ CONTAINS
       CALL section_vals_val_get(opt_embed_section, "ADD_CONST_POT", &
                                 l_val=opt_embed%add_const_pot)
 
+      CALL section_vals_val_get(opt_embed_section, "READ_EMBED_POT", &
+                                l_val=opt_embed%read_embed_pot)
+
       ! Array to store functional values
       ALLOCATE (opt_embed%w_func(opt_embed%n_iter))
       opt_embed%w_func = 0.0_dp
@@ -301,7 +289,170 @@ CONTAINS
    END SUBROUTINE prepare_embed_opt
 
 ! **************************************************************************************************
-!> \brief ...
+!> \brief Find the dimension of the auxiliary basis for the expansion of the embedding potential
+!> \param qs_env ...
+!> \param dimen_aux ...
+! **************************************************************************************************
+   SUBROUTINE find_aux_dimen(qs_env, dimen_aux)
+      TYPE(qs_environment_type), POINTER                 :: qs_env
+      INTEGER                                            :: dimen_aux
+
+      INTEGER                                            :: iatom, ikind, natom, nsgf
+      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: kind_of
+      TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
+      TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
+      TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
+
+      ! First, reveal the dimention of the RI basis
+      CALL get_qs_env(qs_env=qs_env, &
+                      particle_set=particle_set, &
+                      qs_kind_set=qs_kind_set, &
+                      atomic_kind_set=atomic_kind_set)
+
+      natom = SIZE(particle_set)
+      ALLOCATE (kind_of(natom))
+
+      CALL get_atomic_kind_set(atomic_kind_set, kind_of=kind_of)
+
+      dimen_aux = 0
+      DO iatom = 1, natom
+         ikind = kind_of(iatom)
+         CALL get_qs_kind(qs_kind=qs_kind_set(ikind), nsgf=nsgf, basis_type="RI_AUX")
+         dimen_aux = dimen_aux+nsgf
+      END DO
+
+      DEALLOCATE (kind_of)
+
+   END SUBROUTINE find_aux_dimen
+
+! **************************************************************************************************
+!> \brief Read the embedding potential from the binary file
+!> \param qs_env ...
+!> \param embed_pot ...
+!> \param section ...
+!> \param embed_pot_coef ...
+! **************************************************************************************************
+   SUBROUTINE read_embed_pot(qs_env, embed_pot, section, embed_pot_coef)
+      TYPE(qs_environment_type), POINTER                 :: qs_env
+      TYPE(pw_p_type), POINTER                           :: embed_pot
+      TYPE(section_vals_type), POINTER                   :: section
+      TYPE(cp_fm_type), OPTIONAL, POINTER                :: embed_pot_coef
+
+      CHARACTER(LEN=default_path_length)                 :: filename
+      INTEGER                                            :: dimen_aux, dimen_restart_basis, &
+                                                            l_global, LLL, nrow_local, restart_unit
+      INTEGER, DIMENSION(:), POINTER                     :: row_indices
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: coef, coef_read
+      TYPE(cp_blacs_env_type), POINTER                   :: blacs_env
+      TYPE(cp_fm_struct_type), POINTER                   :: fm_struct
+      TYPE(cp_fm_type), POINTER                          :: my_embed_pot_coef
+      TYPE(cp_para_env_type), POINTER                    :: para_env
+
+      ! Get the vector dimension
+      CALL find_aux_dimen(qs_env, dimen_aux)
+
+      ! We need a temporary vector of coefficients
+      CALL get_qs_env(qs_env=qs_env, &
+                      para_env=para_env)
+      NULLIFY (blacs_env)
+      NULLIFY (my_embed_pot_coef, fm_struct)
+      CALL cp_blacs_env_create(blacs_env=blacs_env, para_env=para_env)
+      CALL cp_fm_struct_create(fm_struct, para_env=para_env, context=blacs_env, &
+                               nrow_global=dimen_aux, ncol_global=1)
+      CALL cp_fm_create(my_embed_pot_coef, fm_struct, name="my_pot_coef")
+      IF (.NOT. (PRESENT(embed_pot_coef))) THEN
+         NULLIFY (embed_pot_coef)
+         CALL cp_fm_create(my_embed_pot_coef, fm_struct, name="pot_coef")
+         CALL cp_fm_set_all(my_embed_pot_coef, 0.0_dp)
+      ENDIF
+      CALL cp_fm_struct_release(fm_struct)
+      CALL cp_fm_set_all(my_embed_pot_coef, 0.0_dp)
+
+      ! Read the coefficients vector
+      restart_unit = -1
+
+      ! Allocate the attay to read the coefficients
+      ALLOCATE (coef(dimen_aux))
+      coef = 0.0_dp
+
+      IF (para_env%ionode) THEN
+
+         ALLOCATE (coef_read(dimen_aux))
+         coef_read = 0.0_dp
+         ! Get the restart file name
+         CALL embed_restart_file_name(filename, section)
+
+         CALL open_file(file_name=filename, &
+                        file_action="READ", &
+                        file_form="UNFORMATTED", &
+                        file_status="OLD", &
+                        unit_number=restart_unit)
+
+         READ (restart_unit) dimen_restart_basis
+         ! Check the dimensions of the bases: the actual and the restart one
+         IF (.NOT. (dimen_restart_basis == dimen_aux)) &
+            CPABORT("Wrong dimension of the embedding basis in the restart file.")
+
+         READ (restart_unit) coef_read
+         coef(:) = coef_read(:)
+         DEALLOCATE (coef_read)
+
+         ! Close restart file
+         CALL close_file(unit_number=restart_unit)
+
+      ENDIF
+
+      ! Broadcast the coefficients on all processes
+      CALL mp_bcast(coef, para_env%source, para_env%group)
+
+      ! Copy to fm_type structure
+      ! Information about full matrix gradient
+      CALL cp_fm_get_info(matrix=my_embed_pot_coef, &
+                          nrow_local=nrow_local, &
+                          row_indices=row_indices)
+
+      DO LLL = 1, nrow_local
+         l_global = row_indices(LLL)
+         my_embed_pot_coef%local_data(LLL, 1) = coef(l_global)
+      ENDDO
+      DEALLOCATE (coef)
+
+      ! Copy to the my_embed_pot_coef to embed_pot_coef
+      CALL cp_fm_copy_general(my_embed_pot_coef, embed_pot_coef, para_env)
+
+      ! Build the embedding potential on the grid
+      CALL update_embed_pot(embed_pot_coef, dimen_aux, embed_pot, qs_env, .FALSE.)
+
+      ! Release my_embed_pot_coef
+      CALL cp_fm_release(my_embed_pot_coef)
+      IF (.NOT. (PRESENT(embed_pot_coef))) CALL cp_fm_release(embed_pot_coef)
+
+      ! Release blacs environment
+      CALL cp_blacs_env_release(blacs_env)
+
+   END SUBROUTINE read_embed_pot
+
+! **************************************************************************************************
+!> \brief Find the embedding restart file name
+!> \param filename ...
+!> \param section ...
+! **************************************************************************************************
+   SUBROUTINE embed_restart_file_name(filename, section)
+      CHARACTER(LEN=default_path_length), INTENT(OUT)    :: filename
+      TYPE(section_vals_type), POINTER                   :: section
+
+      LOGICAL                                            :: exist
+
+      exist = .FALSE.
+      CALL section_vals_val_get(section, "EMBED_RESTART_FILE_NAME", c_val=filename)
+      INQUIRE (FILE=filename, exist=exist)
+      IF (.NOT. exist) &
+         CPABORT("Embedding restart file not found. ")
+
+   END SUBROUTINE embed_restart_file_name
+
+! **************************************************************************************************
+!> \brief Deallocate stuff for optimizing embedding potential
 !> \param opt_embed ...
 ! **************************************************************************************************
    SUBROUTINE release_opt_embed(opt_embed)
@@ -509,7 +660,6 @@ CONTAINS
          wf_vector(LLL) = 1.0_dp
 
          ! pseudo psi_L
-
          CALL calculate_wavefunction(mo_coeff, 1, psi_L, rho_g, atomic_kind_set, &
                                      qs_kind_set, cell, dft_control, particle_set, pw_env, &
                                      basis_type="RI_AUX", &
@@ -707,11 +857,14 @@ CONTAINS
       CALL cp_fm_release(fm_U)
 
       ! Update the coefficients
+      !write(*,*) 'grad',opt_embed%embed_pot_grad%local_data
+      !write(*,*) 'step',opt_embed%step%local_data
       CALL cp_fm_scale_and_add(1.0_dp, opt_embed%embed_pot_coef, 1.0_dp, opt_embed%step)
+      !write(*,*) 'coef',opt_embed%embed_pot_coef%local_data
 
       ! Update the embedding potential
       CALL update_embed_pot(opt_embed%embed_pot_coef, opt_embed%dimen_aux, embed_pot, &
-                            opt_embed%const_pot, opt_embed%add_const_pot, qs_env)
+                            qs_env, opt_embed%add_const_pot, opt_embed%const_pot)
 
       CALL timestop(handle)
 
@@ -722,25 +875,25 @@ CONTAINS
 !> \param embed_pot_coef ...
 !> \param dimen_aux ...
 !> \param embed_pot ...
-!> \param const_pot ...
-!> \param add_const_pot ...
 !> \param qs_env ...
+!> \param add_const_pot ...
+!> \param const_pot ...
 !> \author Vladimir Rybkin
 ! **************************************************************************************************
-   SUBROUTINE update_embed_pot(embed_pot_coef, dimen_aux, embed_pot, const_pot, add_const_pot, &
-                               qs_env)
+   SUBROUTINE update_embed_pot(embed_pot_coef, dimen_aux, embed_pot, qs_env, add_const_pot, &
+                               const_pot)
       TYPE(cp_fm_type), POINTER                          :: embed_pot_coef
       INTEGER                                            :: dimen_aux
-      TYPE(pw_p_type), POINTER                           :: embed_pot, const_pot
-      LOGICAL                                            :: add_const_pot
+      TYPE(pw_p_type), POINTER                           :: embed_pot
       TYPE(qs_environment_type), POINTER                 :: qs_env
+      LOGICAL                                            :: add_const_pot
+      TYPE(pw_p_type), OPTIONAL, POINTER                 :: const_pot
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'update_embed_pot', &
          routineP = moduleN//':'//routineN
 
       INTEGER                                            :: handle, l_global, LLL, nrow_local
       INTEGER, DIMENSION(:), POINTER                     :: row_indices
-      REAL(KIND=dp)                                      :: coef_norm
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: wf_vector
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       TYPE(cell_type), POINTER                           :: cell
@@ -753,8 +906,6 @@ CONTAINS
       TYPE(pw_p_type)                                    :: psi_L, rho_g
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
-
-      CALL cp_fm_trace(embed_pot_coef, embed_pot_coef, coef_norm)
 
       CALL timeset(routineN, handle)
       ! Get MO coefficients: we need only the structure, therefore don't care about the spin
@@ -1422,20 +1573,84 @@ CONTAINS
       CALL qs_subsys_get(subsys, particles=particles)
 
       logger => cp_get_default_logger()
-      my_pos_cube = "REWIND"
-      WRITE (filename, '(a4,I5.5,a1,I1.1)') "DIFF_", i_iter, "_", i_spin
-      unit_nr = cp_print_key_unit_nr(logger, input, "DFT%PRINT%E_DENSITY_CUBE", &
-                                     extension=".cube", middle_name=TRIM(filename), file_position=my_pos_cube, &
-                                     log_filename=.FALSE.)
+      IF (BTEST(cp_print_key_should_output(logger%iter_info, input, &
+                                           "DFT%QS%OPT_EMBED%EMBED_DENS_DIFF"), cp_p_file)) THEN
+         my_pos_cube = "REWIND"
+         WRITE (filename, '(a5,I3.3,a1,I1.1)') "DIFF_", i_iter, "_", i_spin
+         unit_nr = cp_print_key_unit_nr(logger, input, "DFT%QS%OPT_EMBED%EMBED_DENS_DIFF", &
+                                        extension=".cube", middle_name=TRIM(filename), file_position=my_pos_cube, &
+                                        log_filename=.FALSE.)
 
-      WRITE (title, *) "EMBEDDING DENSITY DIFFERENCE ", " spin ", i_spin, " optimization step ", i_iter
-      CALL cp_pw_to_cube(diff_rho_r(i_spin)%pw, unit_nr, title, &
-                         particles=particles, &
-                         stride=section_get_ivals(dft_section, "PRINT%E_DENSITY_CUBE%STRIDE"))
-      CALL cp_print_key_finished_output(unit_nr, logger, input, &
-                                        "DFT%PRINT%E_DENSITY_CUBE")
+         WRITE (title, *) "EMBEDDING DENSITY DIFFERENCE ", " spin ", i_spin, " optimization step ", i_iter
+         CALL cp_pw_to_cube(diff_rho_r(i_spin)%pw, unit_nr, title, particles=particles, &
+                            stride=section_get_ivals(dft_section, "QS%OPT_EMBED%EMBED_DENS_DIFF%STRIDE"))
+         CALL cp_print_key_finished_output(unit_nr, logger, input, &
+                                           "DFT%QS%OPT_EMBED%EMBED_DENS_DIFF")
+      ENDIF
 
    END SUBROUTINE print_rho_diff
+
+! **************************************************************************************************
+!> \brief Print embedding potential as a cube and as a binary (for restarting)
+!> \param qs_env ...
+!> \param dimen_aux ...
+!> \param embed_pot_coef ...
+!> \param embed_pot ...
+!> \param i_iter ...
+! **************************************************************************************************
+   SUBROUTINE print_embed_restart(qs_env, dimen_aux, embed_pot_coef, embed_pot, i_iter)
+      TYPE(qs_environment_type), POINTER                 :: qs_env
+      INTEGER                                            :: dimen_aux
+      TYPE(cp_fm_type), POINTER                          :: embed_pot_coef
+      TYPE(pw_p_type), POINTER                           :: embed_pot
+      INTEGER                                            :: i_iter
+
+      CHARACTER(LEN=default_path_length)                 :: filename, my_pos_cube, title
+      INTEGER                                            :: unit_nr
+      TYPE(cp_logger_type), POINTER                      :: logger
+      TYPE(particle_list_type), POINTER                  :: particles
+      TYPE(qs_subsys_type), POINTER                      :: subsys
+      TYPE(section_vals_type), POINTER                   :: dft_section, input
+
+      NULLIFY (input)
+      CALL get_qs_env(qs_env=qs_env, subsys=subsys, &
+                      input=input)
+
+      ! First we print an unformatted file
+      logger => cp_get_default_logger()
+      IF (BTEST(cp_print_key_should_output(logger%iter_info, input, &
+                                           "DFT%QS%OPT_EMBED%EMBED_POT_VECTOR"), cp_p_file)) THEN
+
+         WRITE (filename, '(a10,I3.3)') "embed_pot_", i_iter
+         unit_nr = cp_print_key_unit_nr(logger, input, "DFT%QS%OPT_EMBED%EMBED_POT_VECTOR", extension=".wfn", &
+                                        middle_name=TRIM(filename), file_form="UNFORMATTED")
+         IF (unit_nr > 0) THEN
+            WRITE (unit_nr) dimen_aux
+         ENDIF
+         CALL cp_fm_write_unformatted(embed_pot_coef, unit_nr)
+      ENDIF
+
+      ! Second a cube file
+      dft_section => section_vals_get_subs_vals(input, "DFT")
+      CALL qs_subsys_get(subsys, particles=particles)
+
+      logger => cp_get_default_logger()
+      IF (BTEST(cp_print_key_should_output(logger%iter_info, input, &
+                                           "DFT%QS%OPT_EMBED%EMBED_POT_CUBE"), cp_p_file)) THEN
+         my_pos_cube = "REWIND"
+         WRITE (filename, '(a10,I3.3)') "embed_pot_", i_iter
+         unit_nr = cp_print_key_unit_nr(logger, input, "DFT%QS%OPT_EMBED%EMBED_POT_CUBE", &
+                                        extension=".cube", middle_name=TRIM(filename), file_position=my_pos_cube, &
+                                        log_filename=.FALSE.)
+
+         WRITE (title, *) "EMBEDDING POTENTIAL at optimization step ", i_iter
+         CALL cp_pw_to_cube(embed_pot%pw, unit_nr, title, particles=particles, &
+                            stride=section_get_ivals(dft_section, "QS%OPT_EMBED%EMBED_POT_CUBE%STRIDE"))
+         CALL cp_print_key_finished_output(unit_nr, logger, input, &
+                                           "DFT%QS%OPT_EMBED%EMBED_POT_CUBE")
+      ENDIF
+
+   END SUBROUTINE print_embed_restart
 
 ! **************************************************************************************************
 !> \brief ...

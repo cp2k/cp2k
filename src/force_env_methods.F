@@ -104,8 +104,8 @@ MODULE force_env_methods
    USE opt_embed_pot_types,             ONLY: opt_embed_pot_type
    USE optimize_embedding_potential,    ONLY: &
         calculate_embed_pot_grad, conv_check_embed, init_embed_pot, make_subsys_embed_pot, &
-        opt_embed_step, prepare_embed_opt, print_emb_opt_info, print_rho_diff, release_opt_embed, &
-        step_control
+        opt_embed_step, prepare_embed_opt, print_emb_opt_info, print_embed_restart, &
+        print_rho_diff, read_embed_pot, release_opt_embed, step_control
    USE particle_list_types,             ONLY: particle_list_p_type,&
                                               particle_list_type
    USE physcon,                         ONLY: debye
@@ -1388,7 +1388,12 @@ CONTAINS
 
       ! Initialize embedding potential
       CALL init_embed_pot(force_env%sub_force_env(ref_subsys_number)%force_env%qs_env, embed_pot, &
-                          opt_embed%const_pot, opt_embed%add_const_pot)
+                          opt_embed%add_const_pot, opt_embed%const_pot)
+
+      ! Read embeding potential vector from the file
+      IF (opt_embed%read_embed_pot) CALL read_embed_pot( &
+         force_env%sub_force_env(ref_subsys_number)%force_env%qs_env, embed_pot, &
+         opt_embed_section, opt_embed%embed_pot_coef)
 
       ! Prepare the pw object to store density differences
       CALL pw_env_get(pw_env, auxbas_pw_pool=auxbas_pw_pool)
@@ -1469,6 +1474,9 @@ CONTAINS
 
          ENDDO ! i_force_eval
 
+         ! Print embedding potential for restart
+         CALL print_embed_restart(force_env%sub_force_env(ref_subsys_number)%force_env%qs_env, &
+                                  opt_embed%dimen_aux, opt_embed%embed_pot_coef, embed_pot, i_iter)
          ! Print information and check convergence
          CALL print_emb_opt_info(output_unit, i_iter, opt_embed)
          CALL conv_check_embed(opt_embed, diff_rho_r, nspins, output_unit)
@@ -1499,6 +1507,7 @@ CONTAINS
          CALL pw_release(diff_rho_r(i_spin)%pw)
       ENDDO
       DEALLOCATE (diff_rho_r)
+
       ! Deallocate and release opt_embed content
       CALL release_opt_embed(opt_embed)
 
