@@ -64,7 +64,8 @@ MODULE optimize_embedding_potential
                                               REALDATA3D,&
                                               REALSPACE,&
                                               RECIPROCALSPACE,&
-                                              pw_p_type
+                                              pw_p_type,&
+                                              pw_release
    USE qs_collocate_density,            ONLY: calculate_ppl_grid,&
                                               calculate_wavefunction
    USE qs_environment_types,            ONLY: get_qs_env,&
@@ -172,7 +173,6 @@ CONTAINS
 
          ! Give back plane waves pool for pseudo
          CALL pw_pool_give_back_pw(auxbas_pw_pool, vppl%pw)
-         CALL pw_pool_give_back_pw(auxbas_pw_pool, const_pot%pw)
       ENDIF
 
    END SUBROUTINE init_embed_pot
@@ -467,7 +467,10 @@ CONTAINS
       CALL cp_fm_release(opt_embed%prev_embed_pot_hess)
       CALL cp_fm_release(opt_embed%kinetic_mat)
       DEALLOCATE (opt_embed%w_func)
-      IF (opt_embed%add_const_pot) DEALLOCATE (opt_embed%const_pot)
+      IF (opt_embed%add_const_pot) THEN
+         CALL pw_release(opt_embed%const_pot%pw)
+         DEALLOCATE (opt_embed%const_pot)
+      ENDIF
       DEALLOCATE (opt_embed%max_diff)
       DEALLOCATE (opt_embed%int_diff)
    END SUBROUTINE release_opt_embed
