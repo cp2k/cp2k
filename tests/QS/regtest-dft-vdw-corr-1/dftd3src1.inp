@@ -1,0 +1,84 @@
+&FORCE_EVAL
+  METHOD QUICKSTEP
+  &DFT
+    BASIS_SET_FILE_NAME GTH_BASIS_SETS
+    POTENTIAL_FILE_NAME GTH_POTENTIALS
+    &MGRID
+      CUTOFF 280
+      NGRIDS 5
+      REL_CUTOFF 40
+    &END MGRID
+    &POISSON
+      PERIODIC NONE
+      POISSON_SOLVER MT
+    &END POISSON
+    &QS
+      EPS_DEFAULT 1.0E-12
+      EPS_GVG 1.0E-6
+    &END QS
+    &SCF
+      EPS_SCF 1.0E-6 
+      SCF_GUESS ATOMIC
+      MAX_SCF 1
+      &OT
+      &END OT
+    &END SCF
+    &XC
+      &XC_FUNCTIONAL
+        &BECKE97
+          PARAMETRIZATION B97-3c
+          SCALE_C 1.0
+          SCALE_X 1.0
+        &END BECKE97
+      &END XC_FUNCTIONAL
+      &XC_GRID
+        XC_DERIV NN10_SMOOTH
+        XC_SMOOTH_RHO NN10
+      &END XC_GRID
+      &vdW_POTENTIAL
+         DISPERSION_FUNCTIONAL PAIR_POTENTIAL
+         &PAIR_POTENTIAL
+           TYPE DFTD3(BJ)
+           PARAMETER_FILE_NAME dftd3.dat
+           REFERENCE_FUNCTIONAL B97-3c
+           R_CUTOFF 7.93766
+           CALCULATE_C9_TERM
+           SHORT_RANGE_CORRECTION
+         &END PAIR_POTENTIAL
+      &END vdW_POTENTIAL
+    &END XC
+  &END DFT
+  &SUBSYS
+    &CELL
+      ABC [angstrom] 10. 10. 10.
+      PERIODIC NONE
+    &END CELL
+    &COORD
+ C         7.499969        9.250001        7.500000
+ C         7.499969        5.750001        7.500000
+ H         8.205969        8.887002        6.753000
+ H         6.499969        8.887002        7.262000
+ H         7.793968        8.887002        8.485001
+ H         7.499969       10.340001        7.500000
+ H         7.199968        6.113001        6.517000
+ H         8.501968        6.113001        7.731000
+ H         6.798969        6.113001        8.252001
+ H         7.499969        4.660001        7.500000
+    &END COORD
+    &KIND H
+      BASIS_SET DZVP-GTH
+      POTENTIAL GTH-PBE
+    &END KIND 
+    &KIND C
+      BASIS_SET DZVP-GTH
+      POTENTIAL GTH-PBE
+    &END KIND 
+  &END SUBSYS
+&END FORCE_EVAL
+
+&GLOBAL
+  PRINT_LEVEL LOW 
+  PROJECT D3-SRC
+  RUN_TYPE ENERGY
+&END GLOBAL
+

@@ -876,6 +876,7 @@ CONTAINS
          dispersion_env%doabc = .FALSE.
          dispersion_env%c9cnst = .FALSE.
          dispersion_env%lrc = .FALSE.
+         dispersion_env%srb = .FALSE.
          dispersion_env%verbose = .FALSE.
          NULLIFY (dispersion_env%c6ab, dispersion_env%maxci, dispersion_env%r0ab, dispersion_env%rcov, &
                   dispersion_env%r2r4, dispersion_env%cn, dispersion_env%cnkind, dispersion_env%cnlist)
@@ -904,6 +905,7 @@ CONTAINS
          dispersion_env%doabc = .FALSE.
          dispersion_env%c9cnst = .FALSE.
          dispersion_env%lrc = .FALSE.
+         dispersion_env%srb = .FALSE.
          dispersion_env%verbose = .FALSE.
          NULLIFY (dispersion_env%c6ab, dispersion_env%maxci, dispersion_env%r0ab, dispersion_env%rcov, &
                   dispersion_env%r2r4, dispersion_env%cn, dispersion_env%cnkind, dispersion_env%cnlist)

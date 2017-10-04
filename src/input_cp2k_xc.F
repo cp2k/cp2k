@@ -41,8 +41,8 @@ MODULE input_cp2k_xc
    USE string_utilities,                ONLY: s2a
    USE xc_input_constants,              ONLY: &
         c_pw92, c_pw92dmc, c_pw92vmc, c_pz, c_pzdmc, c_pzvmc, do_vwn3, do_vwn5, ke_lc, ke_llp, &
-        ke_ol1, ke_ol2, ke_pbe, ke_pw86, ke_pw91, ke_t92, pz_orig, xalpha, xc_b97_grimme, &
-        xc_b97_mardirossian, xc_b97_orig, xc_debug_new_routine, xc_deriv_collocate, &
+        ke_ol1, ke_ol2, ke_pbe, ke_pw86, ke_pw91, ke_t92, pz_orig, xalpha, xc_b97_3c, &
+        xc_b97_grimme, xc_b97_mardirossian, xc_b97_orig, xc_debug_new_routine, xc_deriv_collocate, &
         xc_deriv_nn10_smooth, xc_deriv_nn50_smooth, xc_deriv_pw, xc_deriv_spline2, &
         xc_deriv_spline2_smooth, xc_deriv_spline3, xc_deriv_spline3_smooth, xc_new_f_routine, &
         xc_old_f_routine, xc_pbe_orig, xc_pbe_rev, xc_pbe_sol, xc_rho_nn10, xc_rho_nn50, &
@@ -602,8 +602,8 @@ CONTAINS
       CALL keyword_release(keyword)
       CALL keyword_create(keyword, "parametrization", &
                           description="switches between the B97 and Grimme parametrization ", &
-                          enum_i_vals=(/xc_b97_orig, xc_b97_grimme, xc_b97_grimme, xc_b97_mardirossian/), &
-                          enum_c_vals=(/"ORIG      ", "B97GRIMME ", "B97_GRIMME", "wB97X-V   "/), &
+                          enum_i_vals=(/xc_b97_orig, xc_b97_grimme, xc_b97_grimme, xc_b97_mardirossian, xc_b97_3c/), &
+                          enum_c_vals=(/"ORIG      ", "B97GRIMME ", "B97_GRIMME", "wB97X-V   ", "B97-3c    "/), &
                           default_i_val=xc_b97_orig)
       CALL section_add_keyword(subsection, keyword)
       CALL keyword_release(keyword)
@@ -953,6 +953,12 @@ CONTAINS
       CALL keyword_create(keyword, name="LONG_RANGE_CORRECTION", &
                           description="Calculate a long range correction to the DFT-D3 model", &
                           usage="LONG_RANGE_CORRECTION", default_l_val=.FALSE., &
+                          lone_keyword_l_val=.TRUE.)
+      CALL section_add_keyword(subsection, keyword)
+      CALL keyword_release(keyword)
+      CALL keyword_create(keyword, name="SHORT_RANGE_CORRECTION", &
+                          description="Calculate a short-range bond correction to the DFT-D3 model", &
+                          usage="SHORT_RANGE_CORRECTION", default_l_val=.FALSE., &
                           lone_keyword_l_val=.TRUE.)
       CALL section_add_keyword(subsection, keyword)
       CALL keyword_release(keyword)

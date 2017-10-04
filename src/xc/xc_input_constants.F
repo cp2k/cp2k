@@ -90,6 +90,7 @@ MODULE xc_input_constants
 
    INTEGER, PARAMETER, PUBLIC               :: xc_b97_orig = 401, &
                                                xc_b97_grimme = 402, &
-                                               xc_b97_mardirossian = 403
+                                               xc_b97_mardirossian = 403, &
+                                               xc_b97_3c = 404
 
 END MODULE xc_input_constants

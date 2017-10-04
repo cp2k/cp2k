@@ -31,7 +31,8 @@ MODULE xc_b97
                                               xc_dset_get_derivative
    USE xc_derivative_types,             ONLY: xc_derivative_get,&
                                               xc_derivative_type
-   USE xc_input_constants,              ONLY: xc_b97_grimme,&
+   USE xc_input_constants,              ONLY: xc_b97_3c,&
+                                              xc_b97_grimme,&
                                               xc_b97_mardirossian,&
                                               xc_b97_orig
    USE xc_rho_cflags_types,             ONLY: xc_rho_cflags_type
@@ -53,6 +54,8 @@ MODULE xc_b97
                                                   0.69041_dp, 6.30270_dp, -14.9712_dp, 0.22340_dp, -1.56208_dp, 1.94293_dp, 1.0_dp/)
    REAL(dp), DIMENSION(10) :: params_b97_mardirossian = (/0.833_dp, 0.603_dp, 1.194_dp, &
                                                           1.219_dp, -1.850_dp, 0.00_dp, 0.556_dp, -0.257_dp, 0.00_dp, 1.0_dp/)
+   REAL(dp), DIMENSION(10) :: params_b97_3c = (/1.076616_dp, -0.469912_dp, 3.322442_dp, &
+                                           0.635047_dp, 5.532103_dp, -15.301575_dp, 0.543788_dp, -1.444420_dp, 1.637436_dp, 1.0_dp/)
 
 CONTAINS
 
@@ -139,6 +142,22 @@ CONTAINS
             END IF
             IF (PRESENT(shortform)) THEN
                shortform = "wB97X-V, HFX+B97+VV10 functional (NOT TESTED)"//pol
+            END IF
+         ELSE
+            CPABORT("")
+         END IF
+      CASE (xc_b97_3c)
+         CALL cite_reference(Becke1997)
+!       CALL cite_reference(Mardirossian2014)
+         IF (sx == 1._dp .AND. sc == 1._dp) THEN
+            IF (PRESENT(reference)) THEN
+               reference = "B97-3c composite method,"// &
+                           " S. Grimme, A. Hansen, no reference available, yet"// &
+                           ", use TZVP basis set, D3(BJ) dispersion correction"// &
+                           " with CALCULATE_C9_TERM and SRB correction"//pol
+            END IF
+            IF (PRESENT(shortform)) THEN
+               shortform = "B97-3c composite method"//pol
             END IF
          ELSE
             CPABORT("")
@@ -500,6 +519,8 @@ CONTAINS
          res = params_b97_grimme
       CASE (xc_b97_mardirossian)
          res = params_b97_mardirossian
+      CASE (xc_b97_3c)
+         res = params_b97_3c
       CASE default
          CPABORT("")
          res = 0.0_dp

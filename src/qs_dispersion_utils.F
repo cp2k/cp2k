@@ -73,6 +73,7 @@ CONTAINS
       dispersion_env%doabc = .FALSE.
       dispersion_env%c9cnst = .FALSE.
       dispersion_env%lrc = .FALSE.
+      dispersion_env%srb = .FALSE.
       dispersion_env%verbose = .FALSE.
       NULLIFY (dispersion_env%c6ab, dispersion_env%maxci, dispersion_env%r0ab, dispersion_env%rcov, &
                dispersion_env%r2r4, dispersion_env%cn, dispersion_env%cnkind, dispersion_env%cnlist)
@@ -111,6 +112,7 @@ CONTAINS
             CALL section_vals_val_get(pp_section, "CALCULATE_C9_TERM", l_val=dispersion_env%doabc)
             CALL section_vals_val_get(pp_section, "REFERENCE_C9_TERM", l_val=dispersion_env%c9cnst)
             CALL section_vals_val_get(pp_section, "LONG_RANGE_CORRECTION", l_val=dispersion_env%lrc)
+            CALL section_vals_val_get(pp_section, "SHORT_RANGE_CORRECTION", l_val=dispersion_env%srb)
             IF (dispersion_env%pp_type == vdw_pairpot_dftd3) THEN
                CALL section_vals_val_get(pp_section, "D3_SCALING", explicit=explicit)
             ELSE IF (dispersion_env%pp_type == vdw_pairpot_dftd3bj) THEN
