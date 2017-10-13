@@ -1,3 +1,4 @@
+#CPQA DEPENDS H2O_H2_pbe_mp2.inp
 !  RPA (H2) embedded in PBE (H2 and H2O):
 !  restart from the previously optimized 
 !  embedding potential (H2O_H2_pbe.inp)
