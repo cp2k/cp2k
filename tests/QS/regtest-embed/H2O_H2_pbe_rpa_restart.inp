@@ -102,15 +102,14 @@
     &END POISSON
     &QS
       METHOD GPW
-      EPS_DEFAULT 1.0E-15
-      EPS_PGF_ORB 1.0E-30
+      EPS_DEFAULT 1.0E-5
     &END QS
     &SCF
       &OT
        PRECONDITIONER FULL_ALL
       &END
       SCF_GUESS ATOMIC
-      MAX_SCF 100
+      EPS_SCF 0.001
       &PRINT
         &RESTART OFF
         &END
@@ -159,14 +158,13 @@
     &QS
       CLUSTER_EMBED_SUBSYS .TRUE.
       METHOD GPW
-      EPS_DEFAULT 1.0E-15
-      EPS_PGF_ORB 1.0E-30
+      EPS_DEFAULT 1.0E-5
     &END QS
     &SCF
       &OT
        PRECONDITIONER FULL_ALL
       &END
-      SCF_GUESS ATOMIC
+      EPS_SCF 0.001
       MAX_SCF 100
       &PRINT
         &RESTART OFF
@@ -219,8 +217,7 @@
     &QS
       REF_EMBED_SUBSYS .TRUE.
       METHOD GPW
-      EPS_DEFAULT 1.0E-15
-      EPS_PGF_ORB 1.0E-30
+      EPS_DEFAULT 1.0E-5
       &OPT_EMBED
          REG_LAMBDA 0.00001
          N_ITER 3
@@ -235,7 +232,7 @@
        PRECONDITIONER FULL_ALL
       &END
       SCF_GUESS ATOMIC
-      MAX_SCF 100
+      EPS_SCF 0.001
       &PRINT
         &RESTART OFF
         &END
@@ -286,7 +283,7 @@
     &QS
       HIGH_LEVEL_EMBED_SUBSYS
       METHOD GPW
-      EPS_DEFAULT 1.0E-15
+      EPS_DEFAULT 1.0E-5
       EPS_PGF_ORB 1.0E-30
     &END QS
     &SCF
@@ -294,7 +291,7 @@
        PRECONDITIONER FULL_ALL
       &END
       SCF_GUESS ATOMIC
-      MAX_SCF 100
+      EPS_SCF 0.001
     &END
     &XC
       &XC_FUNCTIONAL PBE
@@ -306,7 +303,7 @@
           REL_CUTOFF 20
         &END
         &RI_RPA
-          RPA_NUM_QUAD_POINTS 20
+          RPA_NUM_QUAD_POINTS 8
           MINIMAX
           &HF
             FRACTION 1.0000000
