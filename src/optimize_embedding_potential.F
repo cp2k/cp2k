@@ -1631,6 +1631,7 @@ CONTAINS
             WRITE (unit_nr) dimen_aux
          ENDIF
          CALL cp_fm_write_unformatted(embed_pot_coef, unit_nr)
+         CALL close_file(unit_nr)
       ENDIF
 
       ! Second a cube file
