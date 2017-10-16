@@ -27,12 +27,16 @@ MODULE cp_fm_elpa
 #include "../base/base_uses.f90"
 
 #if defined (__ELPA)
-#include "elpa_kernel_constants.h"
-#if (__ELPA < 201611)
+# if (__ELPA < 201611)
+#  include "elpa_kernel_constants.h"
    USE elpa2,                           ONLY: solve_evp_real_2stage
-#else
+# elif (__ELPA < 201705)
+#  include "elpa_kernel_constants.h"
    USE elpa2,                           ONLY: elpa_solve_evp_real_2stage_double
-#endif
+# else
+   USE elpa_constants
+   USE elpa2,                           ONLY: elpa_solve_evp_real_2stage_double
+# endif
 #endif
 
    IMPLICIT NONE
@@ -133,8 +137,14 @@ CONTAINS
 
 #:def pick_macro(kernel_const)
 #! use Fypp's eval directive to hide ELPA flags from convention checker
-$: "#if defined("+kernel_const+")"
-$: "   elpa_kernel = "+kernel_const
+$: "#if defined(__ELPA)"
+$: "#  if defined(ELPA2_REAL_KERNEL_"+kernel_const+")"
+$: "     elpa_kernel = ELPA2_REAL_KERNEL_"+kernel_const
+$: "#  elif defined(ELPA_2STAGE_REAL_"+kernel_const+")"
+$: "     elpa_kernel = ELPA_2STAGE_REAL_"+kernel_const
+$: "#  else"
+$: "     CPABORT('"+kernel_const+" not available')"
+$: "#  endif"
 $: "#else"
 $: "   CPABORT('"+kernel_const+" not available')"
 $: "#endif"
@@ -144,41 +154,45 @@ $: "#endif"
         CASE(1)
           elpa_kernel = -1 ! auto
         CASE(2)
-@:        pick_macro(ELPA2_REAL_KERNEL_GENERIC)
+@:        pick_macro(GENERIC)
         CASE(3)
-@:        pick_macro(ELPA2_REAL_KERNEL_GENERIC_SIMPLE)
+@:        pick_macro(GENERIC_SIMPLE)
         CASE(4)
-@:        pick_macro(ELPA2_REAL_KERNEL_BGP)
+@:        pick_macro(BGP)
         CASE(5)
-@:        pick_macro(ELPA2_REAL_KERNEL_BGQ)
+@:        pick_macro(BGQ)
         CASE(6)
-@:        pick_macro(ELPA2_REAL_KERNEL_SSE)
+#if (__ELPA < 201705)
+@:        pick_macro(SSE)
+#else
+@:        pick_macro(SSE_ASSEMBLY)
+#endif
         CASE(7)
-@:        pick_macro(ELPA2_REAL_KERNEL_SSE_BLOCK2)
+@:        pick_macro(SSE_BLOCK2)
         CASE(8)
-@:        pick_macro(ELPA2_REAL_KERNEL_SSE_BLOCK4)
+@:        pick_macro(SSE_BLOCK4)
         CASE(9)
-@:        pick_macro(ELPA2_REAL_KERNEL_SSE_BLOCK6)
+@:        pick_macro(SSE_BLOCK6)
         CASE(10)
-@:        pick_macro(ELPA2_REAL_KERNEL_AVX_BLOCK2)
+@:        pick_macro(AVX_BLOCK2)
         CASE(11)
-@:        pick_macro(ELPA2_REAL_KERNEL_AVX_BLOCK4)
+@:        pick_macro(AVX_BLOCK4)
         CASE(12)
-@:        pick_macro(ELPA2_REAL_KERNEL_AVX_BLOCK6)
+@:        pick_macro(AVX_BLOCK6)
         CASE(13)
-@:        pick_macro(ELPA2_REAL_KERNEL_AVX2_BLOCK2)
+@:        pick_macro(AVX2_BLOCK2)
         CASE(14)
-@:        pick_macro(ELPA2_REAL_KERNEL_AVX2_BLOCK4)
+@:        pick_macro(AVX2_BLOCK4)
         CASE(15)
-@:        pick_macro(ELPA2_REAL_KERNEL_AVX2_BLOCK6)
+@:        pick_macro(AVX2_BLOCK6)
         CASE(16)
-@:        pick_macro(ELPA2_REAL_KERNEL_AVX512_BLOCK2)
+@:        pick_macro(AVX512_BLOCK2)
         CASE(17)
-@:        pick_macro(ELPA2_REAL_KERNEL_AVX512_BLOCK4)
+@:        pick_macro(AVX512_BLOCK4)
         CASE(18)
-@:        pick_macro(ELPA2_REAL_KERNEL_AVX512_BLOCK6)
+@:        pick_macro(AVX512_BLOCK6)
         CASE(19)
-@:        pick_macro(ELPA2_REAL_KERNEL_GPU)
+@:        pick_macro(GPU)
         CASE DEFAULT
           CPABORT("Invalid ELPA kernel selected")
      END SELECT
@@ -206,7 +220,7 @@ $: "#endif"
       MARK_USED(use_qr_unsafe)
       elpa_qr = use_qr
       elpa_qr_unsafe = .FALSE.
-#elif (__ELPA==201605) || (__ELPA==201611)
+#elif (__ELPA==201605) || (__ELPA==201611) || (__ELPA==201705)
       elpa_qr = use_qr
       elpa_qr_unsafe = use_qr_unsafe
 #else
@@ -314,7 +328,7 @@ $: "#endif"
 #elif (__ELPA==201502) || (__ELPA==201505) || (__ELPA==201511)
       ! Matrix order must be an integer multiple of the block size
       use_qr = elpa_qr .AND. MOD(n, nblk).EQ.0
-#elif (__ELPA==201605) || (__ELPA==201611)
+#elif (__ELPA==201605) || (__ELPA==201611) || (__ELPA==201705)
       ! Matrix order must be even
       use_qr = elpa_qr .AND. MOD(n, 2).EQ.0 
       ! Matrix order and block size must be greater than or equal to 64
@@ -359,14 +373,14 @@ $: "#endif"
             IF (.NOT. use_qr) THEN
 #if (__ELPA==201502) || (__ELPA==201505) || (__ELPA==201511)               
                WRITE(io_unit, '(A)') "ELPA| Matrix order is NOT divisible by block size"
-#elif (__ELPA==201605) || (__ELPA==201611)
+#elif (__ELPA==201605) || (__ELPA==201611) || (__ELPA==201705)
                IF (MOD(n, 2).NE.0 ) &
                   WRITE(io_unit, '(A)') "ELPA| Matrix order is NOT even"
                IF (nblk .LT. 64 .AND. .NOT. elpa_qr_unsafe) &
                   WRITE(io_unit, '(A)') "ELPA| Matrix block size is NOT 64 or greater"
 #endif
             ELSE
-#if (__ELPA==201605) || (__ELPA==201611)
+#if (__ELPA==201605) || (__ELPA==201611) || (__ELPA==201705)
                IF (nblk .LT. 64 .AND. elpa_qr_unsafe) &
                   WRITE(io_unit, '(A,L14)') "ELPA| Matrix block size check was bypassed"
 #endif
@@ -398,7 +412,7 @@ $: "#endif"
       ELSE
          success = solve_evp_real_2stage(n, neig, m, n_rows, eval, v, n_rows, nblk, &
                                          comm_row, comm_col, group, &
-                                         THIS_REAL_ELPA_KERNEL_API=elpa_kernel, &
+                                         elpa_kernel, &
                                          useQR=use_qr)  
       END IF
 
@@ -416,18 +430,18 @@ $: "#endif"
       ELSE
          success = solve_evp_real_2stage(n, neig, m, n_rows, eval, v, n_rows, nblk, n_cols, &
                                          comm_row, comm_col, group, &
-                                         THIS_REAL_ELPA_KERNEL_API=elpa_kernel, &
+                                         elpa_kernel, &
                                          useQR=use_qr)
          IF (check_eigenvalues) THEN
             success_noqr = solve_evp_real_2stage(n, neig, m_noqr, n_rows, eval_noqr, v_noqr, n_rows, nblk, n_cols, &
                                                  comm_row, comm_col, group, &
-                                                 THIS_REAL_ELPA_KERNEL_API=elpa_kernel, &
+                                                 elpa_kernel, &
                                                  useQR=.FALSE.)
          END IF         
       END IF
 
 !---------------------------------------------------------------------------------------------------
-#elif (__ELPA==201611)
+#elif (__ELPA==201611) || (__ELPA==201705)
       IF (elpa_kernel == -1) THEN ! auto
          success = elpa_solve_evp_real_2stage_double(n, neig, m, n_rows, eval, v, n_rows, nblk, n_cols, &
                                                      comm_row, comm_col, group, &
@@ -440,12 +454,12 @@ $: "#endif"
       ELSE
          success = elpa_solve_evp_real_2stage_double(n, neig, m, n_rows, eval, v, n_rows, nblk, n_cols, &
                                                      comm_row, comm_col, group, &
-                                                     THIS_REAL_ELPA_KERNEL_API=elpa_kernel, &
+                                                     elpa_kernel, &
                                                      useQR=use_qr)
          IF (check_eigenvalues) THEN
             success_noqr = elpa_solve_evp_real_2stage_double(n, neig, m_noqr, n_rows, eval_noqr, v_noqr, n_rows, nblk, n_cols, &
                                                              comm_row, comm_col, group, &
-                                                             THIS_REAL_ELPA_KERNEL_API=elpa_kernel, &
+                                                             elpa_kernel, &
                                                              useQR=.FALSE.)
          END IF         
       END IF
