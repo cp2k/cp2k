@@ -140,13 +140,13 @@ CONTAINS
 $: "#if defined(__ELPA)"
 $: "#  if defined(ELPA2_REAL_KERNEL_"+kernel_const+")"
 $: "     elpa_kernel = ELPA2_REAL_KERNEL_"+kernel_const
-$: "#  elif defined(ELPA_2STAGE_REAL_"+kernel_const+")"
+$: "#  elif (__ELPA > 201611)"
 $: "     elpa_kernel = ELPA_2STAGE_REAL_"+kernel_const
 $: "#  else"
 $: "     CPABORT('"+kernel_const+" not available')"
 $: "#  endif"
 $: "#else"
-$: "   CPABORT('"+kernel_const+" not available')"
+$: "   CPABORT('ELPA is not available')"
 $: "#endif"
 #:enddef
 
