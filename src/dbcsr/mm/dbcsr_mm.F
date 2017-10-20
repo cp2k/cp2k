@@ -12,6 +12,7 @@
 !>  - 2016-08    Code organization (Alfio Lazzaro).
 ! **************************************************************************************************
 MODULE dbcsr_mm
+   USE acc_device,                      ONLY: acc_clear_errors
    USE acc_stream,                      ONLY: acc_stream_associated,&
                                               acc_stream_create,&
                                               acc_stream_destroy
@@ -409,6 +410,11 @@ CONTAINS
       CALL array_nullify(dense_k_sizes)
       CALL array_nullify(dense_col_sizes)
       CALL array_nullify(dense_row_sizes)
+
+      ! Reset CUDA errors
+      IF (has_acc) THEN
+         CALL acc_clear_errors()
+      ENDIF
 
       ! Check if RMA is used with buggy OpenMPI (version<1.10.4 or 2.0.1)
       CALL check_openmpi_rma()

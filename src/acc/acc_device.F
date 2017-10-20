@@ -11,7 +11,7 @@ MODULE acc_device
 
    IMPLICIT NONE
 
-   PUBLIC :: acc_get_ndevices, acc_set_active_device
+   PUBLIC :: acc_get_ndevices, acc_set_active_device, acc_clear_errors
 
    PRIVATE
 
@@ -34,6 +34,10 @@ MODULE acc_device
          INTEGER(KIND=C_INT)                      :: istat
 
       END FUNCTION acc_set_active_device_cu
+
+      SUBROUTINE acc_clear_errors_cu() &
+         BIND(C, NAME="acc_clear_errors")
+      END SUBROUTINE acc_clear_errors_cu
    END INTERFACE
 
 #endif
@@ -80,5 +84,16 @@ CONTAINS
       CPABORT("__ACC not compiled in")
 #endif
    END SUBROUTINE acc_set_active_device
+
+! **************************************************************************************************
+!> \brief Clear CUDA errors
+! **************************************************************************************************
+   SUBROUTINE acc_clear_errors()
+#if defined (__ACC)
+      CALL acc_clear_errors_cu()
+#else
+      CPABORT("__ACC not compiled in")
+#endif
+   END SUBROUTINE acc_clear_errors
 
 END MODULE acc_device

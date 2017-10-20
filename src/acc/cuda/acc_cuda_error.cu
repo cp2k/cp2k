@@ -17,4 +17,8 @@ int cuda_error_check (cudaError_t cudaError){
   return 0;
 };
 
+extern "C" void acc_clear_errors () {
+  cudaGetLastError();
+};
+
 //EOF
