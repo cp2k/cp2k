@@ -34,7 +34,24 @@ MODULE cp_fm_elpa
 #  include "elpa_kernel_constants.h"
    USE elpa2,                           ONLY: elpa_solve_evp_real_2stage_double
 # else
-   USE elpa_constants
+   USE elpa_constants,                  ONLY: ELPA_2STAGE_REAL_GENERIC,&
+                                              ELPA_2STAGE_REAL_GENERIC_SIMPLE,&
+                                              ELPA_2STAGE_REAL_BGP,&
+                                              ELPA_2STAGE_REAL_BGQ,&
+                                              ELPA_2STAGE_REAL_SSE_ASSEMBLY,&
+                                              ELPA_2STAGE_REAL_SSE_BLOCK2,&
+                                              ELPA_2STAGE_REAL_SSE_BLOCK4,&
+                                              ELPA_2STAGE_REAL_SSE_BLOCK6,&
+                                              ELPA_2STAGE_REAL_AVX_BLOCK2,&
+                                              ELPA_2STAGE_REAL_AVX_BLOCK4,&
+                                              ELPA_2STAGE_REAL_AVX_BLOCK6,&
+                                              ELPA_2STAGE_REAL_AVX2_BLOCK2,&
+                                              ELPA_2STAGE_REAL_AVX2_BLOCK4,&
+                                              ELPA_2STAGE_REAL_AVX2_BLOCK6,&
+                                              ELPA_2STAGE_REAL_AVX512_BLOCK2,&
+                                              ELPA_2STAGE_REAL_AVX512_BLOCK4,&
+                                              ELPA_2STAGE_REAL_AVX512_BLOCK6,&
+                                              ELPA_2STAGE_REAL_GPU
    USE elpa2,                           ONLY: elpa_solve_evp_real_2stage_double
 # endif
 #endif
