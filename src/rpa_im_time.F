@@ -3758,8 +3758,9 @@ CONTAINS
       INTEGER, DIMENSION(:), POINTER                     :: col_blk_sizes, row_blk_sizes
       INTEGER, DIMENSION(:, :), POINTER                  :: req_array
       LOGICAL                                            :: found_image_atom
-      REAL(KIND=dp)                                      :: avg_z_dist, delta, eps_dist, min_z_dist, &
-                                                            ra(3), rb(3), sum_z, z_reflection
+      REAL(KIND=dp)                                      :: avg_z_dist, delta, eps_dist2, &
+                                                            min_z_dist, ra(3), rb(3), sum_z, &
+                                                            z_reflection
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: data_block
       TYPE(cell_type), POINTER                           :: cell
       TYPE(dbcsr_iterator_type)                          :: iter
@@ -3787,7 +3788,8 @@ CONTAINS
       natom = SIZE(particle_set)
       CPASSERT(natom == nblkcols_total)
 
-      eps_dist = qs_env%mp2_env%ri_g0w0%eps_dist
+      eps_dist2 = qs_env%mp2_env%ri_g0w0%eps_dist
+      eps_dist2 = eps_dist2*eps_dist2
 
       sum_z = 0.0_dp
 
@@ -3847,7 +3849,8 @@ CONTAINS
 
             delta = (ra(1)-rb(1))**2+(ra(2)-rb(2))**2+(ra(3)+rb(3)-2.0_dp*z_reflection)**2
 
-            IF (SQRT(delta) < eps_dist) THEN
+            ! SQRT(delta) < eps_dist
+            IF (delta < eps_dist2) THEN
                ! this CPASSERT ensures that there is at most one image atom for each atom
                CPASSERT(.NOT. found_image_atom)
                image_atom(i_atom) = j_atom

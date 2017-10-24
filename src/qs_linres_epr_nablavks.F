@@ -653,7 +653,7 @@ CONTAINS
                            rap(3) = MODULO(rap(3), cell%hmat(3, 3))-cell%hmat(3, 3)/2._dp
                            sqrt_rap = SQRT(DOT_PRODUCT(rap, rap))
                            exp_rap = EXP(-alpha*sqrt_rap**2)
-                           IF (sqrt_rap < 1.e-10_dp) sqrt_rap = 1.e-10_dp
+                           sqrt_rap = MAX(sqrt_rap, 1.e-10_dp)
                            ! d_x
 
                            pwx%cr3d(ix, iy, iz) = pwx%cr3d(ix, iy, iz)+charge*( &

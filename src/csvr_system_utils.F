@@ -98,7 +98,8 @@ CONTAINS
          rr = next_random_number(rng_stream)
          reverse = 1.0_dp
          ! reverse of momentum is implemented to have the correct limit to Langevin dynamics for ndeg=1
-         IF (rr < -SQRT(ndeg*kk*factor/(sigma*(1.0_dp-factor)))) reverse = -1.0_dp
+         ! condition: rr < -SQRT(ndeg*kk*factor/(sigma*(1.0_dp-factor)))
+         IF ((rr*rr*sigma*(1.0_dp-factor)) > (ndeg*kk*factor) .AND. rr <= 0.0_dp) reverse = -1.0_dp
          ! for ndeg/=1, the reverse of momentum is not necessary. in principles, it should be there.
          ! in practice, it is better to skip it to avoid unnecessary slowing down of the dynamics in the small taut regime
          ! anyway, this should not affect the final ensemble

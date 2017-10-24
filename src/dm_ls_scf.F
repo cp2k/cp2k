@@ -409,7 +409,7 @@ CONTAINS
 
             ! if we have the sqrt around, we use it to go to the orthogonal basis
             IF (ls_scf_env%use_s_sqrt) THEN
-               ! usualy sqrt(S) * P * sqrt(S) should be available, or could be stored at least,
+               ! usually sqrt(S) * P * sqrt(S) should be available, or could be stored at least,
                ! so that the next multiplications could be saved.
                CALL dbcsr_create(matrix_tmp1, template=ls_scf_env%matrix_s, &
                                  matrix_type=dbcsr_type_no_symmetry)

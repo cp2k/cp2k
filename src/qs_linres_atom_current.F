@@ -1483,7 +1483,8 @@ CONTAINS
                natm_gauge = 0
                DO jatom = 1, natm_tot
                   r(:) = pbc(particle_set(jatom)%r(:)-particle_set(iatom)%r(:), cell)
-                  IF (SQRT(SUM(r(:)**2)) .LE. 2.0_dp*hard_radius) THEN
+                  ! SQRT(SUM(r(:)**2)) .LE. 2.0_dp*hard_radius
+                  IF (SUM(r(:)**2) .LE. (4.0_dp*hard_radius*hard_radius)) THEN
                      natm_gauge = natm_gauge+1
                      ratom(:, natm_gauge) = r(:)
                   ENDIF

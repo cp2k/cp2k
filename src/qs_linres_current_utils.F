@@ -840,7 +840,10 @@ CONTAINS
                DO i = 1, SIZE(selected_states_on_atom_list, 1)
                   iatom = selected_states_on_atom_list(i)
                   r(:) = pbc(center_array(1:3, istate)-particle_set(iatom)%r(:), cell)
-                  IF (SQRT(DOT_PRODUCT(r, r)) .LE. current_env%selected_states_atom_radius) THEN
+                  ! SQRT(DOT_PRODUCT(r, r)) .LE. current_env%selected_states_atom_radius
+                  IF ((DOT_PRODUCT(r, r)) .LE. (current_env%selected_states_atom_radius &
+                                                *current_env%selected_states_atom_radius)) &
+                     THEN
                      !
                      ! add the state to the list
                      nstate = nstate+1

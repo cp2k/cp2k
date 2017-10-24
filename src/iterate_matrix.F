@@ -292,7 +292,8 @@ CONTAINS
             CALL m_flush(unit_nr)
          ENDIF
 
-         IF (frob_matrix/frob_matrix_base < SQRT(threshold)) EXIT
+         ! frob_matrix/frob_matrix_base < SQRT(threshold)
+         IF (frob_matrix*frob_matrix < (threshold*frob_matrix_base*frob_matrix_base)) EXIT
 
       ENDDO
 
@@ -496,7 +497,8 @@ CONTAINS
          IF (abnormal_value(conv)) &
             CPABORT("conv is an abnormal value (NaN/Inf).")
 
-         IF (conv < SQRT(threshold)) THEN
+         ! conv < SQRT(threshold)
+         IF ((conv*conv) < threshold) THEN
             IF (PRESENT(converged)) converged = .TRUE.
             EXIT
          ENDIF
@@ -696,7 +698,8 @@ CONTAINS
                                 3.0_dp, matrix_tmp, filter_eps=threshold)
             CALL dbcsr_copy(matrix_p(ispin), matrix_tmp) ! tmp = 3PP - 2PPP
 
-            IF (frob_norm < SQRT(trace*threshold)) EXIT
+            ! frob_norm < SQRT(trace*threshold)
+            IF (frob_norm*frob_norm < trace*threshold) EXIT
          END DO
       END DO
 
@@ -763,7 +766,8 @@ CONTAINS
             CALL dbcsr_multiply("N", "N", -2.0_dp, matrix_ps, matrix_psp, &
                                 3.0_dp, matrix_p(ispin), filter_eps=threshold)
 
-            IF (frob_norm < SQRT(trace*threshold)) EXIT
+            ! frob_norm < SQRT(trace*threshold)
+            IF (frob_norm*frob_norm < trace*threshold) EXIT
          END DO
       END DO
 

@@ -286,7 +286,8 @@ CONTAINS
          DO jj = ii+1, natom
             r2 = atom_info%r(1:3, jj)
             r = pbc(r1-r2, cell)
-            check = (SQRT(DOT_PRODUCT(r, r)) >= threshold)
+            ! check = (SQRT(DOT_PRODUCT(r, r)) >= threshold)
+            check = (DOT_PRODUCT(r, r) >= (threshold*threshold))
             CPASSERT(check)
          END DO
       END DO
@@ -344,7 +345,8 @@ CONTAINS
                DO jj = 1, natom
                   r2 = atom_info%r(1:3, jj)
                   r = pbc(r1-r2, cell)
-                  IF (SQRT(DOT_PRODUCT(r, r)) <= threshold) THEN
+                  ! SQRT(DOT_PRODUCT(r, r)) <= threshold
+                  IF (DOT_PRODUCT(r, r) <= (threshold*threshold)) THEN
                      check = .FALSE.
                      EXIT
                   END IF

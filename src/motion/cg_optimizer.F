@@ -205,7 +205,8 @@ CONTAINS
          CALL get_conjugate_direction(gopt_env, Fletcher_Reeves, g, xi, h)
 
          ! Reset Condition or Steepest Descent Requested
-         IF (ABS(DOT_PRODUCT(g, h))/SQRT((DOT_PRODUCT(g, g)*DOT_PRODUCT(h, h))) > res_lim &
+         ! ABS(DOT_PRODUCT(g, h))/SQRT((DOT_PRODUCT(g, g)*DOT_PRODUCT(h, h))) > res_lim ...
+         IF ((DOT_PRODUCT(g, h)*DOT_PRODUCT(g, h)) > (res_lim*res_lim*DOT_PRODUCT(g, g)*DOT_PRODUCT(h, h)) &
              .OR. its+1 <= max_steep_steps) THEN
             ! Steepest Descent
             wildcard = "   SD"

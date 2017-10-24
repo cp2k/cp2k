@@ -719,7 +719,7 @@ CONTAINS
 !$    LOGICAL                                  :: no_threading_support
 
 #if defined(__NO_MPI_THREAD_SUPPORT_CHECK)
-      ! Hack that does not request or check MPI thread suppolt level.
+      ! Hack that does not request or check MPI thread support level.
       ! User asserts that the MPI library will work correctly with
       ! threads.
 !

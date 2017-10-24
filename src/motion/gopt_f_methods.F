@@ -535,7 +535,8 @@ CONTAINS
          IF (ABS(dr(indf)) > dxcon) conv_dx = .FALSE.
          IF (ABS(dr(indf)) > maxdum(1)) maxdum(1) = ABS(dr(indf))
       END DO
-      IF (SQRT(dumm/ndf) > rmsxcon) conv_rdx = .FALSE.
+      ! SQRT(dumm/ndf) > rmsxcon
+      IF (dumm > (rmsxcon*rmsxcon*ndf)) conv_rdx = .FALSE.
       maxdum(2) = SQRT(dumm/ndf)
 
       dumm = 0.0_dp
@@ -545,7 +546,8 @@ CONTAINS
          IF (ABS(g(indf)) > gcon) conv_g = .FALSE.
          IF (ABS(g(indf)) > maxdum(3)) maxdum(3) = ABS(g(indf))
       END DO
-      IF (SQRT(dumm/ndf) > rmsgcon) conv_rg = .FALSE.
+      ! SQRT(dumm/ndf) > rmsgcon
+      IF (dumm > (rmsgcon*rmsgcon*ndf)) conv_rg = .FALSE.
       maxdum(4) = SQRT(dumm/ndf)
 
       IF (PRESENT(pres_diff) .AND. PRESENT(pres_tol)) conv_p = ABS(pres_diff) < ABS(pres_tol)

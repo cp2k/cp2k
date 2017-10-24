@@ -84,7 +84,7 @@ CONTAINS
                                                             jj, natom, natom_orig, newsize
       INTEGER, DIMENSION(3)                              :: periodic
       LOGICAL                                            :: check, found, my_end
-      REAL(KIND=dp)                                      :: pfactor
+      REAL(KIND=dp)                                      :: pfactor, threshold2
       REAL(KIND=dp), DIMENSION(3)                        :: cell_angles, cell_lengths, r, r1, r2, s, &
                                                             transl_vec
       REAL(KIND=dp), DIMENSION(3, 3)                     :: rot_mat
@@ -222,6 +222,8 @@ CONTAINS
          CALL parser_get_next_line(parser, 1, at_end=my_end)
          IF (my_end) EXIT
       END DO
+      !
+      threshold2 = threshold*threshold
       ! Preliminary check: check if atoms provided are really unique.. this is a paranoic
       ! check since they should be REALLY unique.. anyway..
       DO ii = 1, natom
@@ -229,7 +231,8 @@ CONTAINS
          DO jj = ii+1, natom
             r2 = atom_info%r(1:3, jj)
             r = pbc(r1-r2, cell)
-            check = (SQRT(DOT_PRODUCT(r, r)) >= threshold)
+            ! SQRT(DOT_PRODUCT(r, r)) >= threshold
+            check = (DOT_PRODUCT(r, r) >= threshold2)
             CPASSERT(check)
          END DO
       END DO
@@ -265,7 +268,8 @@ CONTAINS
                DO jj = 1, natom
                   r2 = atom_info%r(1:3, jj)
                   r = pbc(r1-r2, cell)
-                  IF (SQRT(DOT_PRODUCT(r, r)) <= threshold) THEN
+                  ! SQRT(DOT_PRODUCT(r, r)) <= threshold
+                  IF (DOT_PRODUCT(r, r) <= threshold2) THEN
                      check = .FALSE.
                      EXIT
                   END IF
