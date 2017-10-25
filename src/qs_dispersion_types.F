@@ -63,6 +63,8 @@ MODULE qs_dispersion_types
          :: cnkind
       TYPE(cn_atom_list), DIMENSION(:), POINTER &
          :: cnlist
+      ! KG molecular corrections
+      REAL(KIND=dp)                          :: kgc8 !s8 scaling parameter
       !vdW-DF variables
       REAL(KIND=dp)                          :: pw_cutoff
       REAL(KIND=dp)                          :: b_value, c_value !parameters for the rVV10 functional
