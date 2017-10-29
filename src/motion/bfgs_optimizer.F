@@ -57,7 +57,8 @@ MODULE bfgs_optimizer
                                               print_geo_opt_nc
    USE gopt_f_types,                    ONLY: gopt_f_type
    USE gopt_param_types,                ONLY: gopt_param_type
-   USE input_constants,                 ONLY: default_ts_method_id
+   USE input_constants,                 ONLY: default_cell_method_id,&
+                                              default_ts_method_id
    USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                               section_vals_type,&
                                               section_vals_val_get,&
@@ -76,7 +77,7 @@ MODULE bfgs_optimizer
 #include "gopt_f77_methods.h"
 
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'bfgs_optimizer'
-  LOGICAL, PARAMETER                       :: debug_this_module=.TRUE.
+  LOGICAL, PARAMETER                   :: debug_this_module = .TRUE.
 
   PUBLIC :: geoopt_bfgs
 
@@ -108,15 +109,13 @@ CONTAINS
       INTEGER                                            :: handle, hesunit_read, indf, info, &
                                                             iter_nr, its, maxiter, ndf, nfree, &
                                                             output_unit
-      LOGICAL                                            :: cell_opt, conv, hesrest, ionode, &
-                                                            shell_present, should_stop, &
-                                                            use_mod_hes, use_rfo
+      LOGICAL                                            :: conv, hesrest, ionode, shell_present, &
+                                                            should_stop, use_mod_hes, use_rfo
       REAL(KIND=dp)                                      :: ediff, emin, eold, etot, pred, rad, rat, &
                                                             step, t_diff, t_now, t_old
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: dg, dr, dx, eigval, gold, work, xold
       REAL(KIND=dp), DIMENSION(:), POINTER               :: g
       TYPE(atomic_kind_list_type), POINTER               :: atomic_kinds
-      TYPE(cell_type), POINTER                           :: cell
       TYPE(cp_blacs_env_type), POINTER                   :: blacs_env
       TYPE(cp_fm_struct_type), POINTER                   :: fm_struct_hes
       TYPE(cp_fm_type), POINTER                          :: eigvec_mat, hess_mat, hess_tmp
@@ -125,7 +124,7 @@ CONTAINS
       TYPE(cp_subsys_type), POINTER                      :: subsys
       TYPE(section_vals_type), POINTER                   :: print_key, root_section
 
-    NULLIFY(logger, g,blacs_env)
+    NULLIFY(logger, g, blacs_env)
     logger       => cp_get_default_logger()
     para_env     => force_env%para_env
     root_section => force_env%root_section
@@ -136,7 +135,6 @@ CONTAINS
     print_key    => section_vals_get_subs_vals(geo_section,"BFGS%RESTART")
     ionode      = para_env%mepos==para_env%source
     maxiter     = gopt_param%max_iter
-    cell_opt    = .FALSE.
     conv        = .FALSE.
     rat         = 0.0_dp
     wildcard    = " BFGS"
@@ -152,6 +150,31 @@ CONTAINS
     CALL section_vals_val_get(geo_section,"BFGS%RESTART_HESSIAN",l_val=hesrest)
     output_unit = cp_print_key_unit_nr(logger,geo_section,"PRINT%PROGRAM_RUN_INFO",&
                                        extension=".geoLog")
+    IF (output_unit > 0) THEN
+       IF (use_rfo) THEN
+          WRITE (UNIT=output_unit, FMT="(/,T2,A,T78,A3)") &
+             "BFGS| Use rational function optimization for step estimation: ", "YES"
+       ELSE
+          WRITE (UNIT=output_unit, FMT="(/,T2,A,T78,A3)") &
+             "BFGS| Use rational function optimization for step estimation: ", " NO"
+       END IF
+       IF (use_mod_hes) THEN
+          WRITE (UNIT=output_unit, FMT="(T2,A,T78,A3)") &
+             "BFGS| Use model Hessian for initial guess: ", "YES"
+       ELSE
+          WRITE (UNIT=output_unit, FMT="(T2,A,T78,A3)") &
+             "BFGS| Use model Hessian for initial guess: ", " NO"
+       END IF
+       IF (hesrest) THEN
+          WRITE (UNIT=output_unit, FMT="(T2,A,T78,A3)") &
+             "BFGS| Restart Hessian: ", "YES"
+       ELSE
+          WRITE (UNIT=output_unit, FMT="(T2,A,T78,A3)") &
+             "BFGS| Restart Hessian: ", " NO"
+       END IF
+       WRITE (UNIT=output_unit, FMT="(T2,A,T61,F20.3)") &
+          "BFGS| Trust radius: ", rad
+    END IF
 
     ndf   = SIZE(x0)
     nfree = gopt_env%nfree
@@ -177,12 +200,19 @@ CONTAINS
     CALL force_env_get(force_env=force_env,subsys=subsys)
     CALL cp_subsys_get(subsys,atomic_kinds=atomic_kinds)
     CALL get_atomic_kind_set(atomic_kind_set=atomic_kinds%els,shell_present=shell_present)
-    IF (shell_present) THEN
-      IF(use_mod_hes)&
-         CALL cp_warn(__LOCATION__,&
-              "No model Hessian available for core-shell models. "//&
-              "An unit matrix is used for the initial Hessian.")
-      use_mod_hes = .FALSE.
+    IF (use_mod_hes) THEN
+       IF (shell_present) THEN
+          CALL cp_warn(__LOCATION__,&
+             "No model Hessian is available for core-shell models. "//&
+             "A unit matrix is used as the initial Hessian.")
+          use_mod_hes = .FALSE.
+       END IF
+       IF (gopt_env%type_id == default_cell_method_id) THEN
+          CALL cp_warn(__LOCATION__,&
+             "No model Hessian is available for cell optimizations. "//&
+             "A unit matrix is used as the initial Hessian.")
+          use_mod_hes = .FALSE.
+       END IF
     END IF
 
     IF (use_mod_hes) THEN
@@ -193,7 +223,7 @@ CONTAINS
        ! In rare cases the diagonalization of hess_mat fails (bug in scalapack?)
        IF(info/=0) THEN
           CALL cp_fm_set_all(hess_mat,alpha=zero,beta=one)
-          IF(output_unit>0) WRITE(output_unit,*) &
+          IF (output_unit > 0) WRITE(output_unit,*) &
              "BFGS: Matrix diagonalization failed, using unity as model Hessian."
        ELSE
           DO its=1,SIZE(eigval)
@@ -228,9 +258,6 @@ CONTAINS
     ALLOCATE (dr(ndf))
     dr(:) = 0.0_dp
 
-    ! refernce cell needed for smooth cell optimizations
-    CALL force_env_get(gopt_env%force_env,cell=cell)
-
     ! Geometry optimization starts now
     CALL cp_iterate(logger%iter_info,increment=0,iter_nr_out=iter_nr)
     CALL print_geo_opt_header(gopt_env, output_unit, wildcard)
@@ -252,7 +279,7 @@ CONTAINS
 
        ! Hessian update/restarting
        IF (((its-iter_nr) == 1).AND.hesrest) THEN
-          IF(ionode)THEN
+          IF (ionode) THEN
              CALL section_vals_val_get(geo_section,"BFGS%RESTART_FILE_NAME",c_val=hes_filename)
              CALL open_file(file_name=hes_filename,file_status="OLD",&
                   file_form="UNFORMATTED", file_action="READ", unit_number=hesunit_read)
@@ -285,15 +312,15 @@ CONTAINS
        CALL choose_eigv_solver(hess_tmp,eigvec_mat,eigval,info=info)
 
        ! In rare cases the diagonalization of hess_mat fails (bug in scalapack?)
-       IF(info/=0) THEN
-          IF(output_unit>0) WRITE(output_unit,*) &
+       IF (info /= 0) THEN
+          IF (output_unit > 0) WRITE(output_unit,*) &
              "BFGS: Matrix diagonalization failed, resetting Hessian to unity."
           CALL cp_fm_set_all(hess_mat,alpha=zero,beta=one)
           CALL cp_fm_to_fm(hess_mat,hess_tmp)
           CALL choose_eigv_solver(hess_tmp,eigvec_mat,eigval)
        END IF
 
-       IF(use_rfo)THEN
+       IF (use_rfo) THEN
           CALL set_hes_eig(ndf,eigval,work)
           dx(:) = eigval
           CALL rat_fun_opt(ndf,dg,eigval,work,eigvec_mat,g,para_env)

@@ -16,10 +16,22 @@ MODULE cell_opt_types
                                               cell_create,&
                                               cell_release,&
                                               cell_type
+   USE cp_log_handling,                 ONLY: cp_get_default_logger,&
+                                              cp_logger_type
+   USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
+                                              cp_print_key_unit_nr
    USE cp_subsys_types,                 ONLY: cp_subsys_get,&
                                               cp_subsys_type
+   USE cp_units,                        ONLY: cp_unit_from_cp2k
    USE force_env_types,                 ONLY: force_env_get,&
                                               force_env_type
+   USE input_constants,                 ONLY: fix_none,&
+                                              fix_x,&
+                                              fix_xy,&
+                                              fix_xz,&
+                                              fix_y,&
+                                              fix_yz,&
+                                              fix_z
    USE input_section_types,             ONLY: section_vals_type,&
                                               section_vals_val_get
    USE kinds,                           ONLY: dp
@@ -73,9 +85,11 @@ CONTAINS
       CHARACTER(len=*), PARAMETER :: routineN = 'cell_opt_env_create', &
          routineP = moduleN//':'//routineN
 
-      INTEGER                                            :: ip
+      CHARACTER(LEN=4)                                   :: label
+      INTEGER                                            :: ip, output_unit
       REAL(KIND=dp), DIMENSION(3)                        :: r
       TYPE(cell_type), POINTER                           :: cell
+      TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(cp_subsys_type), POINTER                      :: subsys
       TYPE(particle_list_type), POINTER                  :: particles
 
@@ -109,6 +123,49 @@ CONTAINS
          r = MATMUL(TRANSPOSE(cell_env%rot_matrix), particles%els(ip)%r)
          particles%els(ip)%r = r
       END DO
+
+      ! Print cell optimisation setup
+      NULLIFY (logger)
+      logger => cp_get_default_logger()
+      output_unit = cp_print_key_unit_nr(logger, geo_section, "PRINT%CELL", extension=".Log")
+      IF (output_unit > 0) THEN
+         WRITE (UNIT=output_unit, FMT="(/,T2,A,T61,F20.1)") &
+            "CELL_OPT| Pressure tolerance [bar]: ", cp_unit_from_cp2k(cell_env%pres_tol, "bar")
+         IF (cell_env%keep_angles) THEN
+            WRITE (UNIT=output_unit, FMT="(T2,A,T78,A3)") &
+               "CELL_OPT| Keep angles between the cell vectors: ", "YES"
+         ELSE
+            WRITE (UNIT=output_unit, FMT="(T2,A,T78,A3)") &
+               "CELL_OPT| Keep angles between the cell vectors: ", " NO"
+         END IF
+         IF (cell_env%keep_symmetry) THEN
+            WRITE (UNIT=output_unit, FMT="(T2,A,T78,A3)") &
+               "CELL_OPT| Keep cell symmetry: ", "YES"
+         ELSE
+            WRITE (UNIT=output_unit, FMT="(T2,A,T78,A3)") &
+               "CELL_OPT| Keep cell symmetry: ", " NO"
+         END IF
+         SELECT CASE (cell_env%constraint_id)
+         CASE (fix_x)
+            label = "   X"
+         CASE (fix_y)
+            label = "   Y"
+         CASE (fix_z)
+            label = "   Z"
+         CASE (fix_xy)
+            label = "  XY"
+         CASE (fix_xz)
+            label = "  XZ"
+         CASE (fix_yz)
+            label = "  YZ"
+         CASE (fix_none)
+            label = "NONE"
+         END SELECT
+         WRITE (UNIT=output_unit, FMT="(T2,A,T77,A4)") &
+            "CELL_OPT| Constraint: ", label
+      END IF
+      CALL cp_print_key_finished_output(output_unit, logger, geo_section, "PRINT%CELL")
+
    END SUBROUTINE cell_opt_env_create
 
 ! **************************************************************************************************

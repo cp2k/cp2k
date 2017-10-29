@@ -93,7 +93,8 @@ CONTAINS
 
       CALL create_geoopt_section(subsection, label="GEO_OPT", &
                                  description="This section sets the environment of the geometry optimizer.", &
-                                 just_optimizers=.FALSE.)
+                                 just_optimizers=.FALSE., &
+                                 use_model_hessian=.TRUE.)
       CALL section_add_subsection(section, subsection)
       CALL section_release(subsection)
 
@@ -796,12 +797,13 @@ CONTAINS
 !> \param label ...
 !> \param description ...
 !> \param just_optimizers ...
+!> \param use_model_hessian ...
 !> \author teo
 ! **************************************************************************************************
-   RECURSIVE SUBROUTINE create_geoopt_section(section, label, description, just_optimizers)
+   RECURSIVE SUBROUTINE create_geoopt_section(section, label, description, just_optimizers, use_model_hessian)
       TYPE(section_type), POINTER                        :: section
       CHARACTER(LEN=*), INTENT(IN)                       :: label, description
-      LOGICAL, INTENT(IN)                                :: just_optimizers
+      LOGICAL, INTENT(IN)                                :: just_optimizers, use_model_hessian
 
       CHARACTER(len=*), PARAMETER :: routineN = 'create_geoopt_section', &
          routineP = moduleN//':'//routineN
@@ -895,7 +897,7 @@ CONTAINS
       CALL section_add_subsection(section, subsection)
       CALL section_release(subsection)
 
-      CALL create_bfgs_section(subsection)
+      CALL create_bfgs_section(subsection, use_model_hessian)
       CALL section_add_subsection(section, subsection)
       CALL section_release(subsection)
 
@@ -942,7 +944,8 @@ CONTAINS
          " that might turn to be necessary along a MD run using a shell-model potential. "// &
          " The optimization procedure is activated when at least one of the shell-core "// &
          "pairs becomes too elongated,  i.e. when the assumption of point dipole is not longer valid.", &
-         just_optimizers=.TRUE.)
+         just_optimizers=.TRUE., &
+         use_model_hessian=.FALSE.)
 
       NULLIFY (print_key, subsection)
 
@@ -979,7 +982,9 @@ CONTAINS
       CALL create_geoopt_section(section, label="CELL_OPT", &
                                  description="This section sets the environment for the optimization of the simulation cell."// &
                                  " Two possible schemes are available: (1) Zero temperature optimization; "// &
-                                 " (2) Finite temperature optimization. ", just_optimizers=.TRUE.)
+                                 " (2) Finite temperature optimization. ", &
+                                 just_optimizers=.TRUE., &
+                                 use_model_hessian=.FALSE.)
 
       NULLIFY (keyword, print_key, subsection)
       CALL keyword_create( &
@@ -1137,7 +1142,8 @@ CONTAINS
       CALL create_geoopt_section( &
          subsection2, label="ROT_OPT", &
          description="This section sets the environment for the optimization of the rotation of the Dimer.", &
-         just_optimizers=.TRUE.)
+         just_optimizers=.TRUE., &
+         use_model_hessian=.FALSE.)
       NULLIFY (subsection3)
       CALL section_create(subsection3, name="PRINT", &
                           description="Controls the printing properties during the dimer rotation optimization run", &
@@ -1187,10 +1193,12 @@ CONTAINS
 ! **************************************************************************************************
 !> \brief creates the BFGS section
 !> \param section the section to be created
+!> \param use_model_hessian ...
 !> \author Teodoro Laino [tlaino] - University of Zurich - 01.2008
 ! **************************************************************************************************
-   SUBROUTINE create_bfgs_section(section)
+   SUBROUTINE create_bfgs_section(section, use_model_hessian)
       TYPE(section_type), POINTER                        :: section
+      LOGICAL, INTENT(IN)                                :: use_model_hessian
 
       CHARACTER(len=*), PARAMETER :: routineN = 'create_bfgs_section', &
          routineP = moduleN//':'//routineN
@@ -1217,7 +1225,7 @@ CONTAINS
                           description="Uses a model Hessian as initial guess instead of a unit matrix."// &
                           " Should lead in general to improved convergence might be switched off for exotic cases", &
                           usage="USE_MODEL_HESSIAN", &
-                          default_l_val=.TRUE., lone_keyword_l_val=.TRUE.)
+                          default_l_val=use_model_hessian, lone_keyword_l_val=.TRUE.)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 

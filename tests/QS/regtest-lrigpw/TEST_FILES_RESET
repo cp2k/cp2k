@@ -17,3 +17,5 @@ H2_tz2p_lri_diag.inp
 H2_tz2p_lri_ot.inp
 # switch from ENERGY to MD run
 H2O_lri_shg.inp
+# Disable model Hessian for cell_opt
+H2O_lri_stress.inp

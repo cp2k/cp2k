@@ -767,8 +767,7 @@ CONTAINS
       END IF
       cell%orthorhombic = .FALSE.
       cell%symmetry_id = cell_sym_none
-      IF (.NOT. PRESENT(hmat)) RETURN
-      CALL init_cell(cell, hmat, periodic)
+      IF (PRESENT(hmat)) CALL init_cell(cell, hmat)
 
    END SUBROUTINE cell_create
 

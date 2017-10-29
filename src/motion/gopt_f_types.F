@@ -69,7 +69,7 @@ MODULE gopt_f_types
       TYPE(gopt_f_type), POINTER               :: gopt_dimer_env
       TYPE(gopt_param_type), POINTER           :: gopt_dimer_param
       TYPE(cell_opt_env_type), POINTER         :: cell_env
-      REAL(KIND=dp), DIMENSION(3, 3)            :: h_ref
+      REAL(KIND=dp), DIMENSION(3, 3)           :: h_ref
       LOGICAL                                  :: require_consistent_energy_force
    END TYPE gopt_f_type
 

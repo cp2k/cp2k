@@ -57,7 +57,8 @@ MODULE cell_opt_utils
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'cell_opt_utils'
 
    PUBLIC :: get_ut_cell_matrix, get_dg_dh, gopt_new_logger_create, &
-             gopt_new_logger_release, read_external_press_tensor
+             gopt_new_logger_release, read_external_press_tensor, &
+             apply_cell_constraints
 
 CONTAINS
 ! **************************************************************************************************
@@ -272,8 +273,6 @@ CONTAINS
 
       INTEGER                                            :: i, my_constraint_id
       LOGICAL                                            :: my_keep_angles, my_keep_symmetry
-      REAL(KIND=dp)                                      :: a, cosa, cosah, g, norm, norm_b, norm_c, &
-                                                            sina, sinah
       REAL(KIND=dp), DIMENSION(3, 3)                     :: correction, pten_hinv_old, ptens
 
       my_keep_angles = .FALSE.
@@ -312,7 +311,35 @@ CONTAINS
       gradient(5) = pten_hinv_old(3, 2)-correction(3, 2)
       gradient(6) = pten_hinv_old(3, 3)-correction(3, 3)
 
-      IF (my_keep_angles) THEN
+      CALL apply_cell_constraints(gradient, cell, my_keep_angles, my_keep_symmetry, my_constraint_id)
+
+      gradient = -gradient
+
+   END SUBROUTINE get_dg_dh
+
+! **************************************************************************************************
+!> \brief Apply cell constraints
+!> \param gradient ...
+!> \param cell ...
+!> \param keep_angles ...
+!> \param keep_symmetry ...
+!> \param constraint_id ...
+!> \author Matthias Krack (October 26, 2017, MK)
+! **************************************************************************************************
+   SUBROUTINE apply_cell_constraints(gradient, cell, keep_angles, keep_symmetry, constraint_id)
+
+      REAL(KIND=dp), DIMENSION(:), POINTER               :: gradient
+      TYPE(cell_type), POINTER                           :: cell
+      LOGICAL, INTENT(IN)                                :: keep_angles, keep_symmetry
+      INTEGER, INTENT(IN)                                :: constraint_id
+
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'apply_cell_constraints', &
+         routineP = moduleN//':'//routineN
+
+      REAL(KIND=dp)                                      :: a, cosa, cosah, g, norm, norm_b, norm_c, &
+                                                            sina, sinah
+
+      IF (keep_angles) THEN
          ! If we want to keep the angles constant we have to project out the
          ! components of the cell angles
          norm_b = DOT_PRODUCT(cell%hmat(:, 2), cell%hmat(:, 2))
@@ -330,7 +357,7 @@ CONTAINS
          END IF
       END IF
 
-      IF (my_keep_symmetry) THEN
+      IF (keep_symmetry) THEN
          SELECT CASE (cell%symmetry_id)
          CASE (cell_sym_cubic, &
                cell_sym_tetragonal_ab, &
@@ -399,7 +426,7 @@ CONTAINS
          END SELECT
       END IF
 
-      SELECT CASE (my_constraint_id)
+      SELECT CASE (constraint_id)
       CASE (fix_x)
          gradient(1:2) = 0.0_dp
          gradient(4) = 0.0_dp
@@ -419,8 +446,6 @@ CONTAINS
          ! Nothing to do
       END SELECT
 
-      gradient = -gradient
-
-   END SUBROUTINE get_dg_dh
+   END SUBROUTINE apply_cell_constraints
 
 END MODULE cell_opt_utils
