@@ -64,6 +64,7 @@ MODULE qs_dispersion_types
       TYPE(cn_atom_list), DIMENSION(:), POINTER &
          :: cnlist
       ! KG molecular corrections
+      LOGICAL                                :: domol
       REAL(KIND=dp)                          :: kgc8 !s8 scaling parameter
       !vdW-DF variables
       REAL(KIND=dp)                          :: pw_cutoff

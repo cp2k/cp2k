@@ -988,8 +988,6 @@ CONTAINS
          rcpbc(:, iatom) = pbc(particle_set(iatom)%r(:), cell)
       END DO
 
-      domol = .FALSE.
-
       rcut = 2._dp*dispersion_env%rc_disp
       rc2 = rcut*rcut
       IF (dispersion_env%pp_type == vdw_pairpot_dftd2) THEN
@@ -999,6 +997,7 @@ CONTAINS
             WRITE (unit_nr, *) " Scaling parameter (s6) ", s6
             WRITE (unit_nr, *) " Exponential prefactor  ", dd
          END IF
+         domol = .FALSE.
       ELSE IF (dispersion_env%pp_type == vdw_pairpot_dftd3 .OR. &
                dispersion_env%pp_type == vdw_pairpot_dftd3bj) THEN
          maxc = SIZE(dispersion_env%c6ab, 3)
@@ -1017,10 +1016,10 @@ CONTAINS
          e8tot = 0._dp
          e9tot = 0._dp
          esrb = 0._dp
+         domol = dispersion_env%domol
          ! molecule correction
          kgc8 = dispersion_env%kgc8
-         IF (ABS(kgc8) > 0.0_dp) THEN
-            domol = .TRUE.
+         IF (domol) THEN
             CALL get_qs_env(qs_env=qs_env, molecule_set=molecule_set)
             ALLOCATE (atom2mol(natom))
             DO imol = 1, SIZE(molecule_set)
@@ -1028,8 +1027,6 @@ CONTAINS
                   atom2mol(iat) = imol
                ENDDO
             END DO
-         ELSE
-            domol = .FALSE.
          END IF
          ! damping type
          idmp = 0

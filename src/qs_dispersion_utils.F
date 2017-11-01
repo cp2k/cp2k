@@ -114,6 +114,7 @@ CONTAINS
             CALL section_vals_val_get(pp_section, "LONG_RANGE_CORRECTION", l_val=dispersion_env%lrc)
             CALL section_vals_val_get(pp_section, "SHORT_RANGE_CORRECTION", l_val=dispersion_env%srb)
             ! KG corrections
+            CALL section_vals_val_get(pp_section, "MOLECULE_CORRECTION", l_val=dispersion_env%domol)
             CALL section_vals_val_get(pp_section, "MOLECULE_CORRECTION_C8", r_val=dispersion_env%kgc8)
             IF (dispersion_env%pp_type == vdw_pairpot_dftd3) THEN
                CALL section_vals_val_get(pp_section, "D3_SCALING", explicit=explicit)

@@ -46,6 +46,7 @@
             PARAMETER_FILE_NAME dftd3.dat
             VERBOSE_OUTPUT
             REFERENCE_FUNCTIONAL PBE
+            MOLECULE_CORRECTION .TRUE.
             MOLECULE_CORRECTION_C8  1.0
             R_CUTOFF 8.
             &PRINT_DFTD

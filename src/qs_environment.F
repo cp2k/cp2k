@@ -890,6 +890,7 @@ CONTAINS
             dispersion_env%s6 = dftb_control%sd3(1)
             dispersion_env%sr6 = dftb_control%sd3(2)
             dispersion_env%s8 = dftb_control%sd3(3)
+            dispersion_env%domol = .FALSE.
             dispersion_env%kgc8 = 0._dp
             dispersion_env%rc_disp = dftb_control%rcdisp
             dispersion_env%exp_pre = 0._dp
@@ -920,6 +921,7 @@ CONTAINS
             dispersion_env%s6 = se_control%sd3(1)
             dispersion_env%sr6 = se_control%sd3(2)
             dispersion_env%s8 = se_control%sd3(3)
+            dispersion_env%domol = .FALSE.
             dispersion_env%kgc8 = 0._dp
             dispersion_env%rc_disp = se_control%rcdisp
             dispersion_env%exp_pre = 0._dp

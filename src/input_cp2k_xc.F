@@ -963,6 +963,12 @@ CONTAINS
       CALL section_add_keyword(subsection, keyword)
       ! KG molecular corrections
       CALL keyword_release(keyword)
+      CALL keyword_create(keyword, name="MOLECULE_CORRECTION", &
+                          description="Calculate a intermolecular correction to the DFT-D3 model", &
+                          usage="MOLECULE_CORRECTION", default_l_val=.FALSE., &
+                          lone_keyword_l_val=.TRUE.)
+      CALL section_add_keyword(subsection, keyword)
+      CALL keyword_release(keyword)
       CALL keyword_create(keyword, name="MOLECULE_CORRECTION_C8", &
                           description="Calculate a intermolecular correction to the C8 term in the DFT-D3 model", &
                           usage="MOLECULE_CORRECTION_C8  1.0 ", default_r_val=0.0_dp)
