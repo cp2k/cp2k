@@ -518,7 +518,7 @@ CONTAINS
 
          CALL calculate_atomic_block_dm(p_rmpv, s_sparse(1)%matrix, &
                                         particle_set, atomic_kind_set, qs_kind_set, &
-                                        nspin, nelectron_spin, ounit)
+                                        nspin, nelectron_spin, ounit, para_env)
 
          DO ispin = 1, nspin
 
@@ -930,9 +930,10 @@ CONTAINS
 !> \param nspin ...
 !> \param nelectron_spin ...
 !> \param ounit ...
+!> \param para_env ...
 ! **************************************************************************************************
    SUBROUTINE calculate_atomic_block_dm(pmatrix, matrix_s, particle_set, atomic_kind_set, &
-                                        qs_kind_set, nspin, nelectron_spin, ounit)
+                                        qs_kind_set, nspin, nelectron_spin, ounit, para_env)
       TYPE(dbcsr_p_type), DIMENSION(:), INTENT(INOUT)    :: pmatrix
       TYPE(dbcsr_type), INTENT(INOUT)                    :: matrix_s
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
@@ -941,12 +942,13 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: nspin
       INTEGER, DIMENSION(:), INTENT(IN)                  :: nelectron_spin
       INTEGER, INTENT(IN)                                :: ounit
+      TYPE(cp_para_env_type)                             :: para_env
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'calculate_atomic_block_dm', &
          routineP = moduleN//':'//routineN
 
-      INTEGER                                            :: blk, handle, icol, ikind, irow, ispin, &
-                                                            natom, nc, nkind, nocc(2)
+      INTEGER                                            :: blk, group, handle, icol, ikind, irow, &
+                                                            ispin, natom, nc, nkind, nocc(2)
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: kind_of
       INTEGER, ALLOCATABLE, DIMENSION(:, :)              :: nok
       REAL(dp), DIMENSION(:, :), POINTER                 :: pdata
@@ -1030,6 +1032,8 @@ CONTAINS
          END IF
 
          IF (nspin > 1) THEN
+            group = para_env%group
+            CALL mp_sum(nocc, group)
             IF (nelectron_spin(ispin) > nocc(ispin)) THEN
                rds = 0.99_dp
                CALL dbcsr_scale(matrix_p, rds)

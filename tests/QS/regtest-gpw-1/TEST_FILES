@@ -67,5 +67,5 @@ Ne_debug.inp                                           1      1e-13             
 # ghost md
 ghost_md.inp                                           1    1.0E-14                              0
 #
-hf.inp                                                 1    1.0E-13             -19.51410589756660
+hf.inp                                                 1    1.0E-12             -19.51410589756660
 #EOF
