@@ -1017,7 +1017,7 @@ CONTAINS
       ptable(89)%symbol = 'Ac'
       ptable(89)%name = 'Actinium'
       ptable(89)%number = 89
-      ptable(89)%amass = 227.0278_dp ! (227)
+      ptable(89)%amass = 227.0_dp
       ptable(89)%covalent_radius = 1.88_dp
       ptable(89)%vdw_radius = 2.00_dp
       ptable(89)%e_conv(0:3) = (/14, 30, 31, 14/)
@@ -1027,7 +1027,7 @@ CONTAINS
       ptable(90)%symbol = 'Th'
       ptable(90)%name = 'Thorium'
       ptable(90)%number = 90
-      ptable(90)%amass = 232.03806_dp
+      ptable(90)%amass = 232.0377_dp
       ptable(90)%covalent_radius = 1.6500_dp
       ptable(90)%vdw_radius = 2.00_dp
       ptable(90)%e_conv(0:3) = (/14, 30, 32, 14/)
@@ -1057,7 +1057,7 @@ CONTAINS
       ptable(93)%symbol = 'Np'
       ptable(93)%name = 'Neptunium'
       ptable(93)%number = 93
-      ptable(93)%amass = 237.0482_dp ! (237)
+      ptable(93)%amass = 237.0_dp
       ptable(93)%covalent_radius = 1.55_dp
       ptable(93)%vdw_radius = 2.00_dp
       ptable(93)%e_conv(0:3) = (/14, 30, 31, 18/)
@@ -1067,7 +1067,7 @@ CONTAINS
       ptable(94)%symbol = 'Pu'
       ptable(94)%name = 'Plutonium'
       ptable(94)%number = 94
-      ptable(94)%amass = 244.0642_dp ! (244)
+      ptable(94)%amass = 244.0_dp
       ptable(94)%covalent_radius = 1.53_dp
       ptable(94)%vdw_radius = 2.00_dp
       ptable(94)%e_conv(0:3) = (/14, 30, 30, 20/)
@@ -1077,7 +1077,7 @@ CONTAINS
       ptable(95)%symbol = 'Am'
       ptable(95)%name = 'Americum'
       ptable(95)%number = 95
-      ptable(95)%amass = 243.0614_dp ! (243)
+      ptable(95)%amass = 243.0_dp
       ptable(95)%covalent_radius = 1.51_dp
       ptable(95)%vdw_radius = 2.00_dp
       ptable(95)%e_conv(0:3) = (/14, 30, 30, 21/)
@@ -1087,7 +1087,7 @@ CONTAINS
       ptable(96)%symbol = 'Cm'
       ptable(96)%name = 'Curium'
       ptable(96)%number = 96
-      ptable(96)%amass = 247.0704_dp ! (247)
+      ptable(96)%amass = 247.0_dp
       ptable(96)%covalent_radius = 0.99_dp
       ptable(96)%vdw_radius = 2.00_dp
       ptable(96)%e_conv(0:3) = (/14, 30, 31, 21/)
@@ -1097,7 +1097,7 @@ CONTAINS
       ptable(97)%symbol = 'Bk'
       ptable(97)%name = 'Berkelium'
       ptable(97)%number = 97
-      ptable(97)%amass = 247.0703_dp ! (247)
+      ptable(97)%amass = 247.0_dp
       ptable(97)%covalent_radius = 1.54_dp
       ptable(97)%vdw_radius = 2.00_dp
       ptable(97)%e_conv(0:3) = (/14, 30, 30, 23/)
@@ -1107,7 +1107,7 @@ CONTAINS
       ptable(98)%symbol = 'Cf'
       ptable(98)%name = 'Californium'
       ptable(98)%number = 98
-      ptable(98)%amass = 251.0796_dp ! (251)
+      ptable(98)%amass = 251.0_dp
       ptable(98)%covalent_radius = 1.83_dp
       ptable(98)%vdw_radius = 2.00_dp
       ptable(98)%e_conv(0:3) = (/14, 30, 30, 24/)
@@ -1117,7 +1117,7 @@ CONTAINS
       ptable(99)%symbol = 'Es'
       ptable(99)%name = 'Einsteinium'
       ptable(99)%number = 99
-      ptable(99)%amass = 252.083_dp ! (252)
+      ptable(99)%amass = 252.0_dp
       ptable(99)%covalent_radius = 1.50_dp
       ptable(99)%vdw_radius = 2.00_dp
       ptable(99)%e_conv(0:3) = (/14, 30, 30, 25/)
@@ -1127,7 +1127,7 @@ CONTAINS
       ptable(100)%symbol = 'Fm'
       ptable(100)%name = 'Fermium'
       ptable(100)%number = 100
-      ptable(100)%amass = 257.0951_dp ! (257)
+      ptable(100)%amass = 257.0_dp
       ptable(100)%covalent_radius = 1.50_dp
       ptable(100)%vdw_radius = 2.00_dp
       ptable(100)%e_conv(0:3) = (/14, 30, 30, 26/)
@@ -1137,7 +1137,7 @@ CONTAINS
       ptable(101)%symbol = 'Md'
       ptable(101)%name = 'Mendelevium'
       ptable(101)%number = 101
-      ptable(101)%amass = 258.0984_dp ! (258)
+      ptable(101)%amass = 258.0_dp
       ptable(101)%covalent_radius = 1.50_dp
       ptable(101)%vdw_radius = 2.00_dp
       ptable(101)%e_conv(0:3) = (/14, 30, 30, 27/)
@@ -1147,7 +1147,7 @@ CONTAINS
       ptable(102)%symbol = 'No'
       ptable(102)%name = 'Nobelium'
       ptable(102)%number = 102
-      ptable(102)%amass = 259.101_dp ! (259)
+      ptable(102)%amass = 259.0_dp
       ptable(102)%covalent_radius = 1.50_dp
       ptable(102)%vdw_radius = 2.00_dp
       ptable(102)%e_conv(0:3) = (/14, 30, 30, 28/)
@@ -1157,7 +1157,7 @@ CONTAINS
       ptable(103)%symbol = 'Lr'
       ptable(103)%name = 'Lawrencium'
       ptable(103)%number = 103
-      ptable(103)%amass = 262.1096_dp ! (262)
+      ptable(103)%amass = 266.0_dp
       ptable(103)%covalent_radius = 1.50_dp
       ptable(103)%vdw_radius = 2.00_dp
       ptable(103)%e_conv(0:3) = (/14, 31, 30, 28/)
@@ -1167,7 +1167,7 @@ CONTAINS
       ptable(104)%symbol = 'Rf'
       ptable(104)%name = 'Rutherfordium'
       ptable(104)%number = 104
-      ptable(104)%amass = 267.122_dp ! (267)
+      ptable(104)%amass = 267.0_dp
       ptable(104)%covalent_radius = 1.50_dp
       ptable(104)%vdw_radius = 2.00_dp
       ptable(104)%e_conv(0:3) = (/14, 30, 32, 28/)
@@ -1177,7 +1177,7 @@ CONTAINS
       ptable(105)%symbol = 'Db'
       ptable(105)%name = 'Dubnium'
       ptable(105)%number = 105
-      ptable(105)%amass = 268.125_dp ! (268)
+      ptable(105)%amass = 268.0_dp
       ptable(105)%covalent_radius = 1.50_dp
       ptable(105)%vdw_radius = 2.00_dp
       ptable(105)%e_conv(0:3) = (/14, 30, 33, 28/)
@@ -1187,7 +1187,7 @@ CONTAINS
       ptable(106)%symbol = 'Sg'
       ptable(106)%name = 'Seaborgium'
       ptable(106)%number = 106
-      ptable(106)%amass = 271.133_dp ! (271)
+      ptable(106)%amass = 269.0_dp
       ptable(106)%covalent_radius = 1.50_dp
       ptable(106)%vdw_radius = 2.00_dp
       ptable(106)%e_conv(0:3) = (/14, 30, 34, 28/)
@@ -1197,7 +1197,7 @@ CONTAINS
       ptable(107)%symbol = 'Bh'
       ptable(107)%name = 'Bohrium'
       ptable(107)%number = 107
-      ptable(107)%amass = 272.0_dp ! (272)
+      ptable(107)%amass = 270.0_dp
       ptable(107)%covalent_radius = 1.50_dp
       ptable(107)%vdw_radius = 2.00_dp
       ptable(107)%e_conv(0:3) = (/14, 30, 35, 28/)
@@ -1207,7 +1207,7 @@ CONTAINS
       ptable(108)%symbol = 'Hs'
       ptable(108)%name = 'Hassium'
       ptable(108)%number = 108
-      ptable(108)%amass = 277.15_dp ! (277)
+      ptable(108)%amass = 277.0_dp
       ptable(108)%covalent_radius = 1.50_dp
       ptable(108)%vdw_radius = 2.00_dp
       ptable(108)%e_conv(0:3) = (/14, 30, 36, 28/)
@@ -1217,7 +1217,7 @@ CONTAINS
       ptable(109)%symbol = 'Mt'
       ptable(109)%name = 'Meitnerium'
       ptable(109)%number = 109
-      ptable(109)%amass = 276.151_dp ! (276)
+      ptable(109)%amass = 278.0_dp
       ptable(109)%covalent_radius = 1.50_dp
       ptable(109)%vdw_radius = 2.00_dp
       ptable(109)%e_conv(0:3) = (/14, 30, 37, 28/)
@@ -1227,87 +1227,87 @@ CONTAINS
       ptable(110)%symbol = 'Ds'
       ptable(110)%name = 'Darmstadtium'
       ptable(110)%number = 110
-      ptable(110)%amass = 281.162_dp ! (281)
+      ptable(110)%amass = 281.0_dp
       ptable(110)%covalent_radius = 1.50_dp
       ptable(110)%vdw_radius = 2.00_dp
-      ptable(110)%e_conv(0:3) = (/13, 30, 39, 28/)
+      ptable(110)%e_conv(0:3) = (/14, 30, 38, 28/)
       ptable(110)%eht_param(0:3) = (/z, z, z, z/)
 
       ! Roentgenium
       ptable(111)%symbol = 'Rg'
       ptable(111)%name = 'Roentgenium'
       ptable(111)%number = 111
-      ptable(111)%amass = 280.164_dp ! (280)
+      ptable(111)%amass = 282.0_dp
       ptable(111)%covalent_radius = 1.50_dp
       ptable(111)%vdw_radius = 2.00_dp
-      ptable(111)%e_conv(0:3) = (/13, 30, 40, 28/)
+      ptable(111)%e_conv(0:3) = (/14, 30, 39, 28/)
       ptable(111)%eht_param(0:3) = (/z, z, z, z/)
 
       ! Copernicium
       ptable(112)%symbol = 'Cn'
       ptable(112)%name = 'Copernicium'
       ptable(112)%number = 112
-      ptable(112)%amass = 285.174_dp ! (285)
+      ptable(112)%amass = 285.0_dp
       ptable(112)%covalent_radius = 1.50_dp
       ptable(112)%vdw_radius = 2.00_dp
       ptable(112)%e_conv(0:3) = (/14, 30, 40, 28/)
       ptable(112)%eht_param(0:3) = (/z, z, z, z/)
 
-      ! Ununtrium
-      ptable(113)%symbol = 'Uut'
-      ptable(113)%name = 'Ununtrium'
+      ! Nihonium
+      ptable(113)%symbol = 'Nh'
+      ptable(113)%name = 'Nihonium'
       ptable(113)%number = 113
-      ptable(113)%amass = 284.178_dp ! (284)
+      ptable(113)%amass = 286.0_dp
       ptable(113)%covalent_radius = 1.50_dp
       ptable(113)%vdw_radius = 2.00_dp
       ptable(113)%e_conv(0:3) = (/14, 31, 40, 28/)
       ptable(113)%eht_param(0:3) = (/z, z, z, z/)
 
-      ! Ununquadium
+      ! Flerovium
       ptable(114)%symbol = 'Fl'
       ptable(114)%name = 'Flerovium'
       ptable(114)%number = 114
-      ptable(114)%amass = 289.189_dp ! (289)
+      ptable(114)%amass = 289.0_dp
       ptable(114)%covalent_radius = 1.50_dp
       ptable(114)%vdw_radius = 2.00_dp
       ptable(114)%e_conv(0:3) = (/14, 32, 40, 28/)
       ptable(114)%eht_param(0:3) = (/z, z, z, z/)
 
-      ! Ununpentium
-      ptable(115)%symbol = 'Uup'
-      ptable(115)%name = 'Ununpentium'
+      ! Moscovium
+      ptable(115)%symbol = 'Mc'
+      ptable(115)%name = 'Moscovium'
       ptable(115)%number = 115
-      ptable(115)%amass = 288.192_dp ! (288)
+      ptable(115)%amass = 290.0_dp
       ptable(115)%covalent_radius = 1.50_dp
       ptable(115)%vdw_radius = 2.00_dp
       ptable(115)%e_conv(0:3) = (/14, 33, 40, 28/)
       ptable(115)%eht_param(0:3) = (/z, z, z, z/)
 
-      ! Ununhexium
+      ! Livermorium
       ptable(116)%symbol = 'Lv'
       ptable(116)%name = 'Livermorium'
       ptable(116)%number = 116
-      ptable(116)%amass = 293.0_dp ! (293)
+      ptable(116)%amass = 293.0_dp
       ptable(116)%covalent_radius = 1.50_dp
       ptable(116)%vdw_radius = 2.00_dp
       ptable(116)%e_conv(0:3) = (/14, 34, 40, 28/)
       ptable(116)%eht_param(0:3) = (/z, z, z, z/)
 
-      ! Ununseptium
-      ptable(117)%symbol = 'Uus'
-      ptable(117)%name = 'Ununseptium'
+      ! Tennessine
+      ptable(117)%symbol = 'Ts'
+      ptable(117)%name = 'Tennessine'
       ptable(117)%number = 117
-      ptable(117)%amass = 294.0_dp ! (294)
+      ptable(117)%amass = 294.0_dp
       ptable(117)%covalent_radius = 1.50_dp
       ptable(117)%vdw_radius = 2.00_dp
       ptable(117)%e_conv(0:3) = (/14, 35, 40, 28/)
       ptable(117)%eht_param(0:3) = (/z, z, z, z/)
 
-      ! Ununoctium
-      ptable(118)%symbol = 'Uuo'
-      ptable(118)%name = 'Ununoctium'
+      ! Oganesson
+      ptable(118)%symbol = 'Og'
+      ptable(118)%name = 'Oganesson'
       ptable(118)%number = 118
-      ptable(118)%amass = 294.0_dp ! (294)
+      ptable(118)%amass = 294.0_dp
       ptable(118)%covalent_radius = 1.50_dp
       ptable(118)%vdw_radius = 2.00_dp
       ptable(118)%e_conv(0:3) = (/14, 36, 40, 28/)
