@@ -73,9 +73,10 @@ CONTAINS
 !> \param fmat ...
 !> \param confine ...
 !> \param xc_section ...
+!> \param nocc ...
 ! **************************************************************************************************
    SUBROUTINE calculate_atomic_orbitals(atomic_kind, qs_kind, iunit, pmat, fmat, &
-                                        confine, xc_section)
+                                        confine, xc_section, nocc)
       TYPE(atomic_kind_type), INTENT(IN)                 :: atomic_kind
       TYPE(qs_kind_type), INTENT(IN)                     :: qs_kind
       INTEGER, INTENT(IN), OPTIONAL                      :: iunit
@@ -83,6 +84,7 @@ CONTAINS
          POINTER                                         :: pmat, fmat
       LOGICAL, INTENT(IN), OPTIONAL                      :: confine
       TYPE(section_vals_type), OPTIONAL, POINTER         :: xc_section
+      INTEGER, DIMENSION(:), OPTIONAL                    :: nocc
 
       CHARACTER(len=*), PARAMETER :: routineN = 'calculate_atomic_orbitals', &
          routineP = moduleN//':'//routineN
@@ -481,6 +483,28 @@ CONTAINS
       atom%state%maxn_occ = get_maxn_occ(atom%state%occupation)
       atom%state%maxl_calc = atom%state%maxl_occ
       atom%state%maxn_calc = atom%state%maxn_occ
+
+      ! total number of occupied orbitals
+      IF (PRESENT(nocc)) THEN
+         nocc = 0
+         DO l = 0, lmat
+            DO k = 1, 7
+               IF (uks) THEN
+                  IF (atom%state%occa(l, k) > 0.0_dp) THEN
+                     nocc(1) = nocc(1)+2*l+1
+                  END IF
+                  IF (atom%state%occb(l, k) > 0.0_dp) THEN
+                     nocc(2) = nocc(2)+2*l+1
+                  END IF
+               ELSE
+                  IF (atom%state%occupation(l, k) > 0.0_dp) THEN
+                     nocc(1) = nocc(1)+2*l+1
+                     nocc(2) = nocc(2)+2*l+1
+                  END IF
+               END IF
+            END DO
+         END DO
+      END IF
 
       ! calculate integrals
       ! general integrals

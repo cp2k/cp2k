@@ -31,11 +31,11 @@ MODULE qs_initial_guess
                                               cp_print_key_unit_nr
    USE cp_para_types,                   ONLY: cp_para_env_type
    USE dbcsr_api,                       ONLY: &
-        dbcsr_checksum, dbcsr_copy, dbcsr_filter, dbcsr_get_diag, dbcsr_get_num_blocks, &
-        dbcsr_get_occupation, dbcsr_iterator_blocks_left, dbcsr_iterator_next_block, &
-        dbcsr_iterator_start, dbcsr_iterator_stop, dbcsr_iterator_type, dbcsr_multiply, &
-        dbcsr_nfullrows_total, dbcsr_p_type, dbcsr_release, dbcsr_scale, dbcsr_set, &
-        dbcsr_set_diag, dbcsr_trace, dbcsr_type, dbcsr_verify_matrix
+        dbcsr_add_on_diag, dbcsr_checksum, dbcsr_copy, dbcsr_filter, dbcsr_get_diag, &
+        dbcsr_get_info, dbcsr_get_num_blocks, dbcsr_get_occupation, dbcsr_iterator_blocks_left, &
+        dbcsr_iterator_next_block, dbcsr_iterator_start, dbcsr_iterator_stop, dbcsr_iterator_type, &
+        dbcsr_multiply, dbcsr_nfullrows_total, dbcsr_p_type, dbcsr_release, dbcsr_scale, &
+        dbcsr_set, dbcsr_set_diag, dbcsr_trace, dbcsr_type, dbcsr_verify_matrix
    USE external_potential_types,        ONLY: all_potential_type,&
                                               gth_potential_type,&
                                               sgp_potential_type
@@ -522,8 +522,6 @@ CONTAINS
 
          DO ispin = 1, nspin
 
-!deb        CALL get_mo_set(mo_set=mo_array(ispin)%mo_set, nelectron=nelectron)
-
             ! The orbital transformation method (OT) requires not only an
             ! initial density matrix, but also an initial wavefunction (MO set)
             IF (ofgpw .AND. (scf_control%use_ot .OR. scf_env%method == ot_diag_method_nr)) THEN
@@ -863,8 +861,6 @@ CONTAINS
       END IF
       IF (density_guess == mopac_guess) THEN
 
-!deb        CALL get_mo_set(mo_set=mo_array(ispin)%mo_set, nelectron=nelectron)
-
          CALL calculate_mopac_dm(p_rmpv, s_sparse(1)%matrix, has_unit_metric, dft_control, &
                                  particle_set, atomic_kind_set, qs_kind_set, nspin, nelectron_spin, para_env)
 
@@ -950,8 +946,9 @@ CONTAINS
          routineP = moduleN//':'//routineN
 
       INTEGER                                            :: blk, handle, icol, ikind, irow, ispin, &
-                                                            natom
+                                                            natom, nc, nkind, nocc(2)
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: kind_of
+      INTEGER, ALLOCATABLE, DIMENSION(:, :)              :: nok
       REAL(dp), DIMENSION(:, :), POINTER                 :: pdata
       REAL(KIND=dp)                                      :: rds, rscale, trps1
       TYPE(atom_matrix_type), ALLOCATABLE, DIMENSION(:)  :: pmat
@@ -963,12 +960,14 @@ CONTAINS
       CALL timeset(routineN, handle)
 
       natom = SIZE(particle_set)
+      nkind = SIZE(atomic_kind_set)
       ALLOCATE (kind_of(natom))
       CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set, kind_of=kind_of)
-      ALLOCATE (pmat(SIZE(atomic_kind_set)))
+      ALLOCATE (pmat(nkind))
+      ALLOCATE (nok(2, nkind))
 
       ! precompute the atomic blocks corresponding to spherical atoms
-      DO ikind = 1, SIZE(atomic_kind_set)
+      DO ikind = 1, nkind
          atomic_kind => atomic_kind_set(ikind)
          qs_kind => qs_kind_set(ikind)
          NULLIFY (pmat(ikind)%mat)
@@ -976,7 +975,9 @@ CONTAINS
             WRITE (UNIT=ounit, FMT="(/,T2,A)") &
                "Guess for atomic kind: "//TRIM(atomic_kind%name)
          END IF
-         CALL calculate_atomic_orbitals(atomic_kind, qs_kind, iunit=ounit, pmat=pmat(ikind)%mat)
+         CALL calculate_atomic_orbitals(atomic_kind, qs_kind, iunit=ounit, &
+                                        pmat=pmat(ikind)%mat, nocc=nocc)
+         nok(1:2, ikind) = nocc(1:2)
       END DO
 
       rscale = 1.0_dp
@@ -990,6 +991,7 @@ CONTAINS
          matrix_p => pmatrix(ispin)%matrix
          CALL dbcsr_set(matrix_p, 0.0_dp)
 
+         nocc(ispin) = 0
          CALL dbcsr_iterator_start(iter, matrix_p)
          DO WHILE (dbcsr_iterator_blocks_left(iter))
             CALL dbcsr_iterator_next_block(iter, irow, icol, pdata, blk)
@@ -1002,6 +1004,7 @@ CONTAINS
                   pdata(:, :) = pmat(ikind)%mat(:, :, 1)*rscale- &
                                 pmat(ikind)%mat(:, :, 2)*rscale
                END IF
+               nocc(ispin) = nocc(ispin)+nok(ispin, ikind)
             END IF
          ENDDO
          CALL dbcsr_iterator_stop(iter)
@@ -1026,16 +1029,32 @@ CONTAINS
             WRITE (ounit, '(T20,I10,T40,F12.3,T67,F14.3)') nelectron_spin(ispin), trps1, rds
          END IF
 
+         IF (nspin > 1) THEN
+            IF (nelectron_spin(ispin) > nocc(ispin)) THEN
+               rds = 0.99_dp
+               CALL dbcsr_scale(matrix_p, rds)
+               rds = (1.0_dp-rds)*nelectron_spin(ispin)
+               CALL dbcsr_get_info(matrix_p, nfullcols_total=nc)
+               rds = rds/REAL(nc, KIND=dp)
+               CALL dbcsr_add_on_diag(matrix_p, rds)
+               IF (ounit > 0) THEN
+                  WRITE (UNIT=ounit, FMT="(T4,A,/,T4,A,T59,F20.12)") &
+                     "More MOs than initial guess orbitals detected", &
+                     "Add constant to diagonal elements ", rds
+               END IF
+            END IF
+         END IF
+
       END DO
 
-      DO ikind = 1, SIZE(atomic_kind_set)
+      DO ikind = 1, nkind
          IF (ASSOCIATED(pmat(ikind)%mat)) THEN
             DEALLOCATE (pmat(ikind)%mat)
          END IF
       END DO
       DEALLOCATE (pmat)
 
-      DEALLOCATE (kind_of)
+      DEALLOCATE (kind_of, nok)
 
       CALL timestop(handle)
 
