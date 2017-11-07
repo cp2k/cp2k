@@ -11,9 +11,10 @@
 ! **************************************************************************************************
 MODULE cell_opt_utils
    USE cell_types,                      ONLY: &
-        cell_sym_cubic, cell_sym_hexagonal, cell_sym_monoclinic, cell_sym_orthorhombic, &
-        cell_sym_rhombohedral, cell_sym_tetragonal_ab, cell_sym_tetragonal_ac, &
-        cell_sym_tetragonal_bc, cell_sym_triclinic, cell_type, get_cell_param, set_cell_param
+        cell_sym_cubic, cell_sym_hexagonal, cell_sym_monoclinic, cell_sym_monoclinic_gamma_ab, &
+        cell_sym_orthorhombic, cell_sym_rhombohedral, cell_sym_tetragonal_ab, &
+        cell_sym_tetragonal_ac, cell_sym_tetragonal_bc, cell_sym_triclinic, cell_type, &
+        get_cell_param, set_cell_param
    USE cp_files,                        ONLY: close_file,&
                                               open_file
    USE cp_log_handling,                 ONLY: cp_get_default_logger,&
@@ -336,8 +337,10 @@ CONTAINS
       CHARACTER(LEN=*), PARAMETER :: routineN = 'apply_cell_constraints', &
          routineP = moduleN//':'//routineN
 
-      REAL(KIND=dp)                                      :: a, cosa, cosah, g, norm, norm_b, norm_c, &
-                                                            sina, sinah
+      REAL(KIND=dp)                                      :: a, a_length, ab_length, b_length, cosa, &
+                                                            cosah, cosgamma, deriv_gamma, g, &
+                                                            gamma, norm, norm_b, norm_c, sina, &
+                                                            sinah, singamma
 
       IF (keep_angles) THEN
          ! If we want to keep the angles constant we have to project out the
@@ -420,6 +423,26 @@ CONTAINS
             gradient(6) = g*norm_c
          CASE (cell_sym_monoclinic)
             gradient(2) = 0.0_dp
+            gradient(5) = 0.0_dp
+         CASE (cell_sym_monoclinic_gamma_ab)
+            ! Cell symmetry with a=b, alpha=beta=90deg and gammma unequal 90deg
+            a_length = SQRT(cell%hmat(1, 1)*cell%hmat(1, 1)+ &
+                            cell%hmat(2, 1)*cell%hmat(2, 1)+ &
+                            cell%hmat(3, 1)*cell%hmat(3, 1))
+            b_length = SQRT(cell%hmat(1, 2)*cell%hmat(1, 2)+ &
+                            cell%hmat(2, 2)*cell%hmat(2, 2)+ &
+                            cell%hmat(3, 2)*cell%hmat(3, 2))
+            ab_length = 0.5_dp*(a_length+b_length)
+            gamma = angle(cell%hmat(:, 1), cell%hmat(:, 2))
+            cosgamma = COS(gamma)
+            singamma = SIN(gamma)
+            ! Here, g is the average derivative of the cell vector length ab_length, and deriv_gamma is the derivative of the angle gamma
+            g = 0.5_dp*(gradient(1)+cosgamma*gradient(2)+singamma*gradient(3))
+            deriv_gamma = (gradient(3)*cosgamma-gradient(2)*singamma)/b_length
+            gradient(1) = g
+            gradient(2) = g*cosgamma-ab_length*singamma*deriv_gamma
+            gradient(3) = g*singamma+ab_length*cosgamma*deriv_gamma
+            gradient(4) = 0.0_dp
             gradient(5) = 0.0_dp
          CASE (cell_sym_triclinic)
             ! Nothing to do

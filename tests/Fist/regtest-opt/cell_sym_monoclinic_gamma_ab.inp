@@ -1,0 +1,269 @@
+@SET cell_sym monoclinic_gamma_ab
+
+&GLOBAL
+ PROJECT cell_sym_${cell_sym}
+ PRINT_LEVEL low
+ RUN_TYPE cell_opt
+&END GLOBAL
+
+&MOTION
+ &CELL_OPT
+  EXTERNAL_PRESSURE [bar] 0.0
+  KEEP_ANGLES no
+  KEEP_SYMMETRY yes
+  MAX_DR 0.001
+  MAX_FORCE 0.0001
+  MAX_ITER 200
+  OPTIMIZER LBFGS
+  PRESSURE_TOLERANCE [bar] 100.0
+  RMS_DR 0.0003
+  RMS_FORCE 0.00003
+  TYPE direct_cell_opt
+ &END CELL_OPT
+ &PRINT
+  &CELL on
+   &EACH
+    MD 1
+   &END EACH
+  &END CELL
+  &RESTART on
+   ADD_LAST NUMERIC
+   BACKUP_COPIES 0
+   &EACH
+    MD 1000
+   &END EACH
+  &END RESTART
+  &RESTART_HISTORY off
+  &END RESTART_HISTORY
+  &STRESS off
+   &EACH
+    MD 1
+   &END EACH
+  &END STRESS
+  &STRUCTURE_DATA
+   POSITION 1..12
+   POSITION_SCALED 1..12
+  &END STRUCTURE_DATA
+  &TRAJECTORY
+   FORMAT xyz
+   &EACH
+    GEO_OPT 1
+    MD 1
+   &END EACH
+  &END TRAJECTORY
+  &VELOCITIES off
+   &EACH
+    MD 1
+   &END EACH
+  &END VELOCITIES
+ &END PRINT
+&END MOTION
+
+&FORCE_EVAL
+ METHOD Fist
+ STRESS_TENSOR analytical
+ &MM
+  &FORCEFIELD
+   &SHELL O
+    CORE_CHARGE  +0.077
+    SHELL_CHARGE -2.077
+    MASS_FRACTION 0.1
+    SPRING [eV*angstrom^-2] 27.29
+    MAX_DISTANCE [angstrom] 0.5
+   &END SHELL
+   &SHELL Zr
+    CORE_CHARGE  +2.65
+    SHELL_CHARGE +1.35
+    MASS_FRACTION 0.01
+    SPRING [eV*angstrom^-2] 169.617
+    MAX_DISTANCE [angstrom] 0.5
+   &END SHELL
+   &NONBONDED
+    &WILLIAMS
+     ATOMS O O
+     A [eV] 22764.30
+     B [angstrom^-1] 1/0.1490
+     C [eV*angstrom^6] 27.890
+     RCUT [angstrom] 10.4
+    &END WILLIAMS
+    &WILLIAMS
+     ATOMS O Zr
+     A [eV] 985.869
+     B [angstrom^-1] 1/0.3760
+     C [eV*angstrom^6] 0.0
+     RCUT [angstrom] 10.4
+    &END WILLIAMS
+    &WILLIAMS
+     ATOMS Zr Zr
+     A [eV] 0.0
+     B [angstrom^-1] 0.0
+     C [eV*angstrom^6] 0.0
+     RCUT [angstrom] 10.4
+    &END WILLIAMS
+   &END NONBONDED
+   &SPLINE
+    EMAX_ACCURACY [hartree] 0.02
+    EMAX_SPLINE [hartree] 1.0E4
+    EPS_SPLINE [hartree] 1.0E-7
+    R0_NB [angstrom] 0.1
+   &END SPLINE
+  &END FORCEFIELD
+  &POISSON
+   &EWALD
+    EWALD_TYPE spme
+    ALPHA [angstrom^-1] 0.35
+    GMAX 16 16 16
+    &RS_GRID
+     DISTRIBUTION_TYPE automatic
+    &END RS_GRID
+   &END EWALD
+  &END POISSON
+  &PRINT
+   &FF_INFO off
+    SPLINE_DATA
+    SPLINE_INFO
+   &END FF_INFO
+  &END PRINT
+ &END MM
+ &PRINT
+  &FORCES off
+  &END FORCES
+  &GRID_INFORMATION off
+  &END GRID_INFORMATION
+  &PROGRAM_RUN_INFO
+   &EACH
+    CELL_OPT 1
+    GEO_OPT 1
+   &END EACH
+  &END PROGRAM_RUN_INFO
+  &STRESS_TENSOR
+   &EACH
+    GEO_OPT 1
+   &END EACH
+  &END STRESS_TENSOR
+ &END PRINT
+ &SUBSYS
+  &CELL
+   A     10.33800000     0.00000000     0.00000000
+   B      2.53600000    10.46400000     0.00000000
+   C     -1.71705209     1.24500000    10.54309519
+   SYMMETRY ${cell_sym}
+  &END CELL
+  &COORD
+   SCALED
+   Zr      0.137900    0.020200    0.104450  ZrO2  1
+   Zr      0.137900    0.229800    0.354450  ZrO2  1
+   Zr      0.362100    0.270200    0.145550  ZrO2  1
+   Zr      0.362100    0.479800    0.395550  ZrO2  1
+   O       0.034500    0.171000    0.172500  ZrO2  1
+   O       0.034500    0.079000    0.422500  ZrO2  1
+   O       0.465500    0.421000    0.077500  ZrO2  1
+   O       0.465500    0.329000    0.327500  ZrO2  1
+   O       0.225500    0.379000    0.239500  ZrO2  1
+   O       0.225500    0.371000    0.489500  ZrO2  1
+   O       0.274500    0.129000    0.010500  ZrO2  1
+   O       0.274500    0.121000    0.260500  ZrO2  1
+   Zr      0.137900    0.020200    0.604450  ZrO2  2
+   Zr      0.137900    0.229800    0.854450  ZrO2  2
+   Zr      0.362100    0.270200    0.645550  ZrO2  2
+   Zr      0.362100    0.479800    0.895550  ZrO2  2
+   O       0.034500    0.171000    0.672500  ZrO2  2
+   O       0.034500    0.079000    0.922500  ZrO2  2
+   O       0.465500    0.421000    0.577500  ZrO2  2
+   O       0.465500    0.329000    0.827500  ZrO2  2
+   O       0.225500    0.379000    0.739500  ZrO2  2
+   O       0.225500    0.371000    0.989500  ZrO2  2
+   O       0.274500    0.129000    0.510500  ZrO2  2
+   O       0.274500    0.121000    0.760500  ZrO2  2
+   Zr      0.137900    0.520200    0.104450  ZrO2  3
+   Zr      0.137900    0.729800    0.354450  ZrO2  3
+   Zr      0.362100    0.770200    0.145550  ZrO2  3
+   Zr      0.362100    0.979800    0.395550  ZrO2  3
+   O       0.034500    0.671000    0.172500  ZrO2  3
+   O       0.034500    0.579000    0.422500  ZrO2  3
+   O       0.465500    0.921000    0.077500  ZrO2  3
+   O       0.465500    0.829000    0.327500  ZrO2  3
+   O       0.225500    0.879000    0.239500  ZrO2  3
+   O       0.225500    0.871000    0.489500  ZrO2  3
+   O       0.274500    0.629000    0.010500  ZrO2  3
+   O       0.274500    0.621000    0.260500  ZrO2  3
+   Zr      0.137900    0.520200    0.604450  ZrO2  4
+   Zr      0.137900    0.729800    0.854450  ZrO2  4
+   Zr      0.362100    0.770200    0.645550  ZrO2  4
+   Zr      0.362100    0.979800    0.895550  ZrO2  4
+   O       0.034500    0.671000    0.672500  ZrO2  4
+   O       0.034500    0.579000    0.922500  ZrO2  4
+   O       0.465500    0.921000    0.577500  ZrO2  4
+   O       0.465500    0.829000    0.827500  ZrO2  4
+   O       0.225500    0.879000    0.739500  ZrO2  4
+   O       0.225500    0.871000    0.989500  ZrO2  4
+   O       0.274500    0.629000    0.510500  ZrO2  4
+   O       0.274500    0.621000    0.760500  ZrO2  4
+   Zr      0.637900    0.020200    0.104450  ZrO2  5
+   Zr      0.637900    0.229800    0.354450  ZrO2  5
+   Zr      0.862100    0.270200    0.145550  ZrO2  5
+   Zr      0.862100    0.479800    0.395550  ZrO2  5
+   O       0.534500    0.171000    0.172500  ZrO2  5
+   O       0.534500    0.079000    0.422500  ZrO2  5
+   O       0.965500    0.421000    0.077500  ZrO2  5
+   O       0.965500    0.329000    0.327500  ZrO2  5
+   O       0.725500    0.379000    0.239500  ZrO2  5
+   O       0.725500    0.371000    0.489500  ZrO2  5
+   O       0.774500    0.129000    0.010500  ZrO2  5
+   O       0.774500    0.121000    0.260500  ZrO2  5
+   Zr      0.637900    0.020200    0.604450  ZrO2  6
+   Zr      0.637900    0.229800    0.854450  ZrO2  6
+   Zr      0.862100    0.270200    0.645550  ZrO2  6
+   Zr      0.862100    0.479800    0.895550  ZrO2  6
+   O       0.534500    0.171000    0.672500  ZrO2  6
+   O       0.534500    0.079000    0.922500  ZrO2  6
+   O       0.965500    0.421000    0.577500  ZrO2  6
+   O       0.965500    0.329000    0.827500  ZrO2  6
+   O       0.725500    0.379000    0.739500  ZrO2  6
+   O       0.725500    0.371000    0.989500  ZrO2  6
+   O       0.774500    0.129000    0.510500  ZrO2  6
+   O       0.774500    0.121000    0.760500  ZrO2  6
+   Zr      0.637900    0.520200    0.104450  ZrO2  7
+   Zr      0.637900    0.729800    0.354450  ZrO2  7
+   Zr      0.862100    0.770200    0.145550  ZrO2  7
+   Zr      0.862100    0.979800    0.395550  ZrO2  7
+   O       0.534500    0.671000    0.172500  ZrO2  7
+   O       0.534500    0.579000    0.422500  ZrO2  7
+   O       0.965500    0.921000    0.077500  ZrO2  7
+   O       0.965500    0.829000    0.327500  ZrO2  7
+   O       0.725500    0.879000    0.239500  ZrO2  7
+   O       0.725500    0.871000    0.489500  ZrO2  7
+   O       0.774500    0.629000    0.010500  ZrO2  7
+   O       0.774500    0.621000    0.260500  ZrO2  7
+   Zr      0.637900    0.520200    0.604450  ZrO2  8
+   Zr      0.637900    0.729800    0.854450  ZrO2  8
+   Zr      0.862100    0.770200    0.645550  ZrO2  8
+   Zr      0.862100    0.979800    0.895550  ZrO2  8
+   O       0.534500    0.671000    0.672500  ZrO2  8
+   O       0.534500    0.579000    0.922500  ZrO2  8
+   O       0.965500    0.921000    0.577500  ZrO2  8
+   O       0.965500    0.829000    0.827500  ZrO2  8
+   O       0.725500    0.879000    0.739500  ZrO2  8
+   O       0.725500    0.871000    0.989500  ZrO2  8
+   O       0.774500    0.629000    0.510500  ZrO2  8
+   O       0.774500    0.621000    0.760500  ZrO2  8
+  &END COORD
+  &PRINT
+   &ATOMIC_COORDINATES
+   &END ATOMIC_COORDINATES
+   &CELL
+   &END CELL
+   &KINDS
+   &END KINDS
+   &MOLECULES off
+   &END MOLECULES
+   &SYMMETRY off
+   &END SYMMETRY
+  &END PRINT
+  &TOPOLOGY
+   CONNECTIVITY user
+   DISABLE_EXCLUSION_LISTS
+   PARA_RES off
+  &END TOPOLOGY
+ &END SUBSYS
+&END FORCE_EVAL

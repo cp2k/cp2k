@@ -43,10 +43,11 @@ mc_cs_geo_opt_lbfgs.inp                               11      2e-14           -1
 cell_sym_cubic.inp                                    11      1e-10            -129.12247913626771
 cell_sym_hexagonal.inp                                11      4e-09            -129.05206532770148
 cell_sym_monoclinic.inp                               11      3e-09            -129.28637033131494
+cell_sym_monoclinic_gamma_ab.inp                      11      3e-09            -129.23692670296523
 cell_sym_none.inp                                     11      4e-09            -129.28637032411459
 cell_sym_orthorhombic.inp                             11      1E-11            -129.28636945323004
 cell_sym_rhombohedral.inp                             11      1E-13            -129.03437105082563
-cell_sym_tetragonal_ab.inp                            11      2e-09             -129.2369243617301
+cell_sym_tetragonal_ab.inp                            11      2e-09            -129.2369243617301
 cell_sym_tetragonal_ac.inp                            11      2e-08            -129.22195126442756
 cell_sym_tetragonal_bc.inp                            11      1E-13            -129.12318608682179
 cell_sym_tetragonal.inp                               11      2e-09             -129.2369243617301

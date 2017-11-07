@@ -17,8 +17,8 @@ MODULE input_cp2k_subsys
                                               VandeVondele2005a,&
                                               VandeVondele2007
    USE cell_types,                      ONLY: &
-        cell_sym_cubic, cell_sym_hexagonal, cell_sym_monoclinic, cell_sym_none, &
-        cell_sym_orthorhombic, cell_sym_rhombohedral, cell_sym_tetragonal_ab, &
+        cell_sym_cubic, cell_sym_hexagonal, cell_sym_monoclinic, cell_sym_monoclinic_gamma_ab, &
+        cell_sym_none, cell_sym_orthorhombic, cell_sym_rhombohedral, cell_sym_tetragonal_ab, &
         cell_sym_tetragonal_ac, cell_sym_tetragonal_bc, cell_sym_triclinic, use_perd_none, &
         use_perd_x, use_perd_xy, use_perd_xyz, use_perd_xz, use_perd_y, use_perd_yz, use_perd_z
    USE cp_output_handling,              ONLY: cp_print_key_section_create,&
@@ -195,6 +195,7 @@ CONTAINS
          enum_desc=s2a("No cell symmetry", &
                        "Triclinic (a &ne; b &ne; c &ne; a, &alpha; &ne; &beta; &ne; &gamma; &ne; &alpha; &ne; 90&deg;)", &
                        "Monoclinic (a &ne; b &ne; c &ne; a, &alpha; = &gamma; = 90&deg;, &beta; &ne; 90&deg;)", &
+                       "Monoclinic (a = b &ne; c, &alpha; = &beta; = 90&deg;, &gamma; &ne; 90&deg;)", &
                        "Orthorhombic (a &ne; b &ne; c, &alpha; = &beta; = &gamma; = 90&deg;)", &
                        "Tetragonal (a = b &ne; c, &alpha; = &beta; = &gamma; = 90&deg;)", &
                        "Tetragonal (a = c &ne; b, &alpha; = &beta; = &gamma; = 90&deg;)", &
@@ -203,10 +204,11 @@ CONTAINS
                        "Rhombohedral (a = b = c, &alpha; = &beta; = &gamma; &ne; 90&deg;)", &
                        "Hexagonal (a = b &ne; c, &alpha; = &beta; = 90&deg;, &gamma; = 60&deg;)", &
                        "Cubic (a = b = c, &alpha; = &beta; = &gamma; = 90&deg;)"), &
-         enum_c_vals=s2a("NONE", "TRICLINIC", "MONOCLINIC", "ORTHORHOMBIC", "TETRAGONAL_AB", "TETRAGONAL_AC", &
-                         "TETRAGONAL_BC", "TETRAGONAL", "RHOMBOHEDRAL", "HEXAGONAL", "CUBIC"), &
-         enum_i_vals=(/cell_sym_none, cell_sym_triclinic, cell_sym_monoclinic, cell_sym_orthorhombic, &
-                       cell_sym_tetragonal_ab, cell_sym_tetragonal_ac, cell_sym_tetragonal_bc, &
+         enum_c_vals=s2a("NONE", "TRICLINIC", "MONOCLINIC", "MONOCLINIC_GAMMA_AB", "ORTHORHOMBIC", &
+                         "TETRAGONAL_AB", "TETRAGONAL_AC", "TETRAGONAL_BC", "TETRAGONAL", "RHOMBOHEDRAL", &
+                         "HEXAGONAL", "CUBIC"), &
+         enum_i_vals=(/cell_sym_none, cell_sym_triclinic, cell_sym_monoclinic, cell_sym_monoclinic_gamma_ab, &
+                       cell_sym_orthorhombic, cell_sym_tetragonal_ab, cell_sym_tetragonal_ac, cell_sym_tetragonal_bc, &
                        cell_sym_tetragonal_ab, cell_sym_rhombohedral, cell_sym_hexagonal, cell_sym_cubic/), &
          default_i_val=cell_sym_none)
       CALL section_add_keyword(section, keyword)
