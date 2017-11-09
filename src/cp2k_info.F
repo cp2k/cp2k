@@ -278,6 +278,9 @@ CONTAINS
 #if defined __ACCELERATE
       flags = TRIM(flags)//" accelerate"
 #endif
+#if defined __MKL
+      flags = TRIM(flags)//" mkl"
+#endif
 
    END FUNCTION cp2k_flags
 

@@ -64,7 +64,6 @@ Flag __HAS_smm_ztn not mentioned in INSTALL
 Flag __HAS_smm_ztt not mentioned in INSTALL
 Flag __MIC__ not mentioned in INSTALL
 Flag __MIC__ not mentioned in cp2k_flags()
-Flag __MKL not mentioned in cp2k_flags()
 Flag __PILAENV_BLOCKSIZE not mentioned in cp2k_flags()
 Flag __PW_CUDA_NO_HOSTALLOC not mentioned in INSTALL
 Flag __RELEASE_VERSION not mentioned in INSTALL
