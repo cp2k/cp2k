@@ -165,10 +165,14 @@ CONTAINS
          END IF
 
          print_section => section_vals_get_subs_vals(gopt_env%gopt_dimer_env%geo_section, "PRINT")
+
          ! Correcting gradients for Translation K-DIMER or STANDARD
          IF (dimer_env%kdimer) THEN
             CALL cite_reference(Henkelman2014)
             ! K-DIMER
+            IF (iw > 0) THEN
+              WRITE (iw, '(T2,A)') "DIMER| Correcting gradients for Translation with K-DIMER method"                
+            END IF
             swf = 1.0_dp+EXP(dimer_env%beta*dimer_env%rot%curvature)
             gm2 = 1.0_dp-(1.0_dp/swf)
             gm1 = (2.0_dp/swf)-1.0_dp
@@ -178,6 +182,9 @@ CONTAINS
             IF (debug_this_module .AND. (iw > 0)) WRITE (iw, *) "K-DIMER", dimer_env%beta, dimer_env%rot%curvature, &
                dimer_env%rot%dCdp, gm1, gm2, swf
          ELSE
+            IF (iw > 0) THEN
+              WRITE (iw, '(T2,A)') "DIMER| Correcting gradients for Translation with standard method"                
+            END IF
             IF (dimer_env%rot%curvature > 0) THEN
                gradient = -DOT_PRODUCT(dimer_env%rot%g0, dimer_env%nvec)*dimer_env%nvec
                CALL remove_rot_transl_component(gopt_env, gradient, print_section)
