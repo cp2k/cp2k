@@ -566,7 +566,7 @@ CONTAINS
       CALL add_reference(key=Henkelman2014, ISI_record=s2a( &
                          "PT J", &
                          "AU Xiao, P, Wu, Q, Henkelman, G", &
-                         "TI Basin constrained κ-dimer method for saddle point finding", &
+                         "TI Basin constrained k-dimer method for saddle point finding", &
                          "SO JOURNAL OF CHEMICAL PHYSICS", &
                          "SN 0021-9606", &
                          "PD OCT 15", &
