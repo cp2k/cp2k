@@ -14,6 +14,7 @@ MODULE input_cp2k_motion
                                               Ceriotti2012,&
                                               Ceriotti2014,&
                                               Henkelman1999,&
+                                              Henkelman2014,&
                                               Kapil2016
    USE cp_output_handling,              ONLY: add_last_numeric,&
                                               cp_print_key_section_create,&
@@ -1136,6 +1137,24 @@ CONTAINS
                           " performed to optimize the orientation of the dimer.", &
                           usage="ANGLE_TOL {real}", unit_str='rad', &
                           default_r_val=cp_unit_to_cp2k(5.0_dp, "deg"))
+      CALL section_add_keyword(subsection, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, name="K-DIMER", &
+                          description="This keyword activates the constrained k-dimer translation"// &
+                          " J. Chem. Phys. 141, 164111 (2014).", &
+                          citations=(/Henkelman2014/), &
+                          usage="K-DIMER {logica}", &
+                          default_l_val=.FALSE., &
+                          lone_keyword_l_val=.FALSE.)
+      CALL section_add_keyword(subsection, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, name="BETA", &
+                          description="Exponential factor for the switching function used in K-DIMER", &
+                          usage="BETA {real}", &
+                          default_r_val=5.0_dp, &
+                          lone_keyword_r_val=5.0_dp)
       CALL section_add_keyword(subsection, keyword)
       CALL keyword_release(keyword)
 

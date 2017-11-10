@@ -6,7 +6,7 @@
 ! **************************************************************************************************
 !> \brief Contains types used for a Dimer Method calculations
 !> \par History
-!>      none
+!>      Luca Bellucci 11.2017 added kdimer and beta
 !> \author Luca Bellucci and Teodoro Laino - created [tlaino] - 01.2008
 ! **************************************************************************************************
 MODULE dimer_types
@@ -94,9 +94,11 @@ MODULE dimer_types
       INTEGER                                    :: ref_count, id_nr
       REAL(KIND=dp)                              :: dr
       REAL(KIND=dp), POINTER, DIMENSION(:)       :: nvec
+      REAL(KIND=dp)                              :: beta
       TYPE(dimer_rotational_type)                :: rot
       TYPE(dimer_translational_type)             :: tsl
       TYPE(dimer_cg_rot_type)                    :: cg_rot
+      LOGICAL                                    :: kdimer
    END TYPE dimer_env_type
 
 CONTAINS
@@ -108,6 +110,7 @@ CONTAINS
 !> \param globenv ...
 !> \param dimer_section ...
 !> \par History
+!>      Luca Bellucci 11.2017 added K-DIMER and BETA
 !>      2016/03/03 [LTong] changed input natom to subsys
 !> \author Luca Bellucci and Teodoro Laino - created [tlaino] - 01.2008
 ! **************************************************************************************************
@@ -191,6 +194,10 @@ CONTAINS
                                 l_val=dimer_env%rot%interpolate_gradient)
       CALL section_vals_val_get(dimer_section, "ANGLE_TOLERANCE", &
                                 r_val=dimer_env%rot%angle_tol)
+      CALL section_vals_val_get(dimer_section, "K-DIMER", &
+                                l_val=dimer_env%kdimer)
+      CALL section_vals_val_get(dimer_section, "BETA", &
+                                r_val=dimer_env%beta)
       ! initialise values
       dimer_env%cg_rot%norm_h = 1.0_dp
       dimer_env%cg_rot%norm_theta = 0.0_dp

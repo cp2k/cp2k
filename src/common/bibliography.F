@@ -46,7 +46,7 @@ MODULE bibliography
                             Lippert1997, Lippert1999, Krack2000, Krack2002, Iannuzzi2005, &
                             Iannuzzi2006, Iannuzzi2007, Toukmaji1996, Martyna1999, &
                             VandeVondele2005b, Perdew1981, Avezac2005, Porezag1995, &
-                            Seifert1996, Elstner1998, Zhechkov2005, Henkelman1999, &
+                            Seifert1996, Elstner1998, Zhechkov2005, Henkelman1999, Henkelman2014, &
                             Frigo2005, Nose1984a, Nose1984b, Brelaz1979, Bussi2007, &
                             Genovese2006, Genovese2007, Evans1983, Minary2003, Byrd1995, &
                             VandeVondele2007, Ortiz1994, Becke1988, Perdew1996, Zhang1998, &
@@ -562,6 +562,21 @@ CONTAINS
                          "UT ISI:000083051600040", &
                          "ER"), &
                          DOI="10.1063/1.480097")
+
+      CALL add_reference(key=Henkelman2014, ISI_record=s2a( &
+                         "PT J", &
+                         "AU Xiao, P, Wu, Q, Henkelman, G", &
+                         "TI Basin constrained κ-dimer method for saddle point finding", &
+                         "SO JOURNAL OF CHEMICAL PHYSICS", &
+                         "SN 0021-9606", &
+                         "PD OCT 15", &
+                         "PY 2014", &
+                         "VL 141", &
+                         "IS 16", &
+                         "AR 164111", &
+                         "ER"), &
+                         DOI="10.1063/1.4898664")
+
 
       CALL add_reference(key=Aguado2003, ISI_record=s2a( &
                          "PT J", &

@@ -6,10 +6,13 @@
 ! **************************************************************************************************
 !> \brief Contains types used for a Dimer Method calculations
 !> \par History
-!>      none
+!>     -Luca Bellucci 11.2017 - CNR-NANO, Pisa
+!>      add K-DIMER from doi:10.1063/1.4898664
 !> \author Luca Bellucci and Teodoro Laino - created [tlaino] - 01.2008
 ! **************************************************************************************************
 MODULE dimer_methods
+   USE bibliography,                    ONLY: Henkelman2014,&
+                                              cite_reference
    USE cp_log_handling,                 ONLY: cp_get_default_logger,&
                                               cp_logger_type
    USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
@@ -67,7 +70,7 @@ CONTAINS
 
       INTEGER                                            :: handle, iw
       LOGICAL                                            :: eval_analytical
-      REAL(KIND=dp)                                      :: angle1, angle2, f1, norm
+      REAL(KIND=dp)                                      :: angle1, angle2, f1, gm1, gm2, norm, swf 
       TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(dimer_env_type), POINTER                      :: dimer_env
       TYPE(section_vals_type), POINTER                   :: print_section
@@ -162,13 +165,26 @@ CONTAINS
          END IF
 
          print_section => section_vals_get_subs_vals(gopt_env%gopt_dimer_env%geo_section, "PRINT")
-         ! Correcting gradients for Translation
-         IF (dimer_env%rot%curvature > 0) THEN
-            gradient = -DOT_PRODUCT(dimer_env%rot%g0, dimer_env%nvec)*dimer_env%nvec
+         ! Correcting gradients for Translation K-DIMER or STANDARD
+         IF (dimer_env%kdimer) THEN
+            CALL cite_reference(Henkelman2014)
+            ! K-DIMER
+            swf = 1.0_dp+EXP(dimer_env%beta*dimer_env%rot%curvature)
+            gm2 = 1.0_dp-(1.0_dp/swf)
+            gm1 = (2.0_dp/swf)-1.0_dp
+            gradient = gm2*(dimer_env%rot%g0-2.0_dp*DOT_PRODUCT(dimer_env%rot%g0, dimer_env%nvec)*dimer_env%nvec) &
+                       -gm1*(DOT_PRODUCT(dimer_env%rot%g0, dimer_env%nvec)*dimer_env%nvec)
             CALL remove_rot_transl_component(gopt_env, gradient, print_section)
+            IF (debug_this_module .AND. (iw > 0)) WRITE (iw, *) "K-DIMER", dimer_env%beta, dimer_env%rot%curvature, &
+               dimer_env%rot%dCdp, gm1, gm2, swf
          ELSE
-            gradient = dimer_env%rot%g0-2.0_dp*DOT_PRODUCT(dimer_env%rot%g0, dimer_env%nvec)*dimer_env%nvec
-            CALL remove_rot_transl_component(gopt_env, gradient, print_section)
+            IF (dimer_env%rot%curvature > 0) THEN
+               gradient = -DOT_PRODUCT(dimer_env%rot%g0, dimer_env%nvec)*dimer_env%nvec
+               CALL remove_rot_transl_component(gopt_env, gradient, print_section)
+            ELSE
+               gradient = dimer_env%rot%g0-2.0_dp*DOT_PRODUCT(dimer_env%rot%g0, dimer_env%nvec)*dimer_env%nvec
+               CALL remove_rot_transl_component(gopt_env, gradient, print_section)
+            END IF
          END IF
          IF (debug_this_module .AND. (iw > 0)) THEN
             WRITE (iw, *) "final gradient:", gradient

@@ -25,6 +25,8 @@ USE cp_log_handling, ONLY: cp_logger_type
     USE averages_types,                  ONLY: average_quantities_type,&
                                                create_averages,&
                                                release_averages
+   USE bibliography,                    ONLY: Henkelman1999,&
+                                              cite_reference
     USE cell_opt_utils,                  ONLY: get_dg_dh,&
                                                gopt_new_logger_create,&
                                                gopt_new_logger_release
@@ -150,6 +152,7 @@ USE cp_log_handling, ONLY: cp_logger_type
          ! When doing dimer methods forces have to be always computed since the function
          ! to minimize is not the energy but the effective force
          CALL cp_eval_at_ts(gopt_env, x, f_ts, gradient_ts, calc_force=.TRUE.)
+         CALL cite_reference(Henkelman1999)
          ! Possibly take the potential energy
          IF (PRESENT(f)) f = f_ts
          ! Possibly take the gradients
