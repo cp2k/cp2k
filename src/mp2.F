@@ -81,9 +81,7 @@ MODULE mp2
         mp2_biel_type, mp2_method_direct, mp2_method_gpw, mp2_method_laplace, &
         mp2_ri_optimize_basis, mp2_type, ri_mp2_laplace, ri_mp2_method_gpw, ri_rpa_method_gpw
    USE particle_types,                  ONLY: particle_type
-   USE qs_energy_types,                 ONLY: allocate_qs_energy,&
-                                              deallocate_qs_energy,&
-                                              qs_energy_type
+   USE qs_energy_types,                 ONLY: qs_energy_type
    USE qs_environment_types,            ONLY: get_qs_env,&
                                               qs_environment_type
    USE qs_kind_types,                   ONLY: qs_kind_type
@@ -1081,7 +1079,7 @@ CONTAINS
       CHARACTER(len=*), PARAMETER :: routineN = 'calculate_exx', routineP = moduleN//':'//routineN
 
       INTEGER                                            :: handle, i, irep, n_rep_hf, ns
-      REAL(KIND=dp)                                      :: t1, t2
+      REAL(KIND=dp)                                      :: ehfx, t1, t2
       TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_ks, matrix_ks_aux_fit, rho_ao
       TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: matrix_ks_2d, rho_ao_2d
@@ -1151,12 +1149,13 @@ CONTAINS
             ELSE
                matrix_ks_2d(1:ns, 1:1) => matrix_ks(1:ns)
             END IF
-            CALL integrate_four_center(qs_env, matrix_ks_2d, energy, rho_ao_2d, hfx_sections, &
+            CALL integrate_four_center(qs_env, matrix_ks_2d, ehfx, rho_ao_2d, hfx_sections, &
                                        para_env, .TRUE., irep, .TRUE., &
                                        ispin=1, do_exx=.TRUE.)
          END DO
 
          ! include the EXX contribution to the total energy
+         energy%ex = ehfx
          energy%total = energy%total+energy%ex
       END IF
 
@@ -1198,7 +1197,7 @@ CONTAINS
                                                             n_rep_hf, nmo, ns
       LOGICAL                                            :: charge_constrain_tmp, do_admm_rpa, &
                                                             do_hfx, do_mix_exchange, do_ri_Sigma_x
-      REAL(KIND=dp)                                      :: frac_exx, hfx_fraction, t1, t2
+      REAL(KIND=dp)                                      :: ehfx, frac_exx, hfx_fraction, t1, t2
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: vec_Sigma_x_minus_vxc_gw
       TYPE(admm_type), POINTER                           :: admm_env
       TYPE(cp_fm_type), POINTER                          :: mo_coeff
@@ -1208,7 +1207,6 @@ CONTAINS
       TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: matrix_ks_2d, rho_ao_2d
       TYPE(dbcsr_type)                                   :: matrix_tmp, matrix_tmp_2, mo_coeff_b
       TYPE(dft_control_type), POINTER                    :: dft_control
-      TYPE(qs_energy_type), POINTER                      :: energy_dummy
       TYPE(qs_ks_env_type), POINTER                      :: ks_env
       TYPE(qs_rho_type), POINTER                         :: rho
       TYPE(section_vals_type), POINTER                   :: hfx_sections, input, xc_section, &
@@ -1217,7 +1215,7 @@ CONTAINS
 
       NULLIFY (admm_env, matrix_ks, matrix_ks_aux_fit, rho_ao, matrix_sigma_x_minus_vxc, input, &
                xc_section, xc_section_admm_aux, xc_section_admm_prim, hfx_sections, rho, &
-               energy_dummy, dft_control, para_env, ks_env, mo_coeff)
+               dft_control, para_env, ks_env, mo_coeff)
 
       t1 = m_walltime()
 
@@ -1379,10 +1377,6 @@ CONTAINS
 
       CALL section_vals_get(hfx_sections, n_repetition=n_rep_hf)
 
-      CALL allocate_qs_energy(energy_dummy)
-
-      energy_dummy%ex = 0.0_dp
-
       do_mix_exchange = mp2_env%ri_g0w0%mix_exchange
 
       ! in most cases, we calculate the exchange self-energy here. But if we do only RI for
@@ -1400,7 +1394,7 @@ CONTAINS
                matrix_ks_2d(1:ns, 1:1) => matrix_ks(1:ns)
             END IF
 
-            CALL integrate_four_center(qs_env, matrix_ks_2d, energy_dummy, rho_ao_2d, hfx_sections, &
+            CALL integrate_four_center(qs_env, matrix_ks_2d, ehfx, rho_ao_2d, hfx_sections, &
                                        para_env, .TRUE., irep, .TRUE., &
                                        ispin=1, do_exx=.TRUE.)
          END DO
@@ -1423,9 +1417,7 @@ CONTAINS
          CALL dbcsr_add(matrix_sigma_x_minus_vxc(ispin)%matrix, matrix_ks(ispin)%matrix, 1.0_dp, frac_exx)
       END DO
 
-      energy_ex = energy_dummy%ex
-
-      CALL deallocate_qs_energy(energy_dummy)
+      energy_ex = ehfx
 
       CALL dbcsr_desymmetrize(matrix_ks(1)%matrix, mo_coeff_b)
       CALL dbcsr_set(mo_coeff_b, 0.0_dp)

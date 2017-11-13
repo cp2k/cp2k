@@ -577,7 +577,6 @@ CONTAINS
                          "ER"), &
                          DOI="10.1063/1.4898664")
 
-
       CALL add_reference(key=Aguado2003, ISI_record=s2a( &
                          "PT J", &
                          "AU Aguado, A", &

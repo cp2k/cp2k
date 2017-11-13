@@ -9951,7 +9951,7 @@ CONTAINS
 
       INTEGER                                            :: aux, handle, irep, kkb, n_rep_hf, ns
       LOGICAL                                            :: my_recalc_hfx_integrals
-      REAL(KIND=dp)                                      :: e_axk_P, ex_energy
+      REAL(KIND=dp)                                      :: e_axk_P, ehfx
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: rho_work_ao
       TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: mat_2d, rho_ao_2d
       TYPE(hfx_type), DIMENSION(:, :), POINTER           :: x_data
@@ -9995,21 +9995,17 @@ CONTAINS
          aux = aux+1
 
          CALL dbcsr_copy(rho_work_ao(1)%matrix, dbcsr_Gamma_munu_P(aux)%matrix)
-         ! save old EX energy
-         ex_energy = energy%ex
 
          DO irep = 1, n_rep_hf
             ns = SIZE(rho_work_ao)
             rho_ao_2d(1:ns, 1:1) => rho_work_ao(1:ns)
 
             CALL dbcsr_set(mat_2d(1, 1)%matrix, 0.0_dp)
-            CALL integrate_four_center(qs_env, mat_2d, energy, rho_ao_2d, hfx_sections, &
+            CALL integrate_four_center(qs_env, mat_2d, ehfx, rho_ao_2d, hfx_sections, &
                                        para_env_sub, my_recalc_hfx_integrals, irep, .TRUE., &
                                        ispin=1, axk_x_data=x_data)
          END DO
 
-         ! restore original EX energy
-         energy%ex = ex_energy
          my_recalc_hfx_integrals = .FALSE.
          ! One more dbcsr multiplication and trace
          CALL dbcsr_multiply("T", "N", 1.0_dp, mat_2d(1, 1)%matrix, dbcsr_Gamma_munu_P(aux)%matrix, &

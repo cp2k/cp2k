@@ -83,7 +83,6 @@ MODULE hfx_energy_potential
                                               ncoset,&
                                               nso
    USE particle_types,                  ONLY: particle_type
-   USE qs_energy_types,                 ONLY: qs_energy_type
    USE qs_environment_types,            ONLY: get_qs_env,&
                                               qs_environment_type
    USE qs_ks_types,                     ONLY: get_ks_env,&
@@ -111,7 +110,7 @@ CONTAINS
 !>      Kohn-Sham-Matrix and energy. Uses all 8 eri symmetries
 !> \param qs_env ...
 !> \param ks_matrix ...
-!> \param energy ...
+!> \param ehfx energy calculated with the updated HFX matrix
 !> \param rho_ao density matrix in ao basis
 !> \param hfx_section input_section HFX
 !> \param para_env ...
@@ -129,13 +128,13 @@ CONTAINS
 !>      02.2009 completely rewritten screening part [Manuel Guidon]
 !> \author Manuel Guidon
 ! **************************************************************************************************
-   SUBROUTINE integrate_four_center(qs_env, ks_matrix, energy, rho_ao, hfx_section, para_env, &
+   SUBROUTINE integrate_four_center(qs_env, ks_matrix, ehfx, rho_ao, hfx_section, para_env, &
                                     geometry_did_change, irep, distribute_fock_matrix, &
                                     ispin, do_exx, axk_x_data)
 
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: ks_matrix
-      TYPE(qs_energy_type), POINTER                      :: energy
+      REAL(KIND=dp), INTENT(OUT)                         :: ehfx
       TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: rho_ao
       TYPE(section_vals_type), POINTER                   :: hfx_section
       TYPE(cp_para_env_type), POINTER                    :: para_env
@@ -186,7 +185,7 @@ CONTAINS
       INTEGER, SAVE                                      :: shm_number_of_p_entries
       LOGICAL :: bins_left, buffer_overflow, do_disk_storage, do_dynamic_load_balancing, do_it, &
          do_kpoints, do_p_screening, do_periodic, do_print_load_balance_info, is_anti_symmetric, &
-         ks_fully_occ, my_do_exx, treat_lsd_in_core, use_disk_storage
+         ks_fully_occ, my_do_exx, my_geo_change, treat_lsd_in_core, use_disk_storage
       LOGICAL, DIMENSION(:, :), POINTER                  :: shm_atomic_pair_list
       REAL(dp) :: afac, bintime_start, bintime_stop, cartesian_estimate, compression_factor, &
          compression_factor_disk, ene_x_aa, ene_x_aa_diag, ene_x_bb, ene_x_bb_diag, eps_schwarz, &
@@ -253,14 +252,17 @@ CONTAINS
       CALL cite_reference(Guidon2008)
       CALL cite_reference(Guidon2009)
 
+      ehfx = 0.0_dp
+
       ! ** This is not very clean, but effective. ispin can only be 2 if we do the beta spin part in core
-      IF (ispin == 2) geometry_did_change = .FALSE.
+      my_geo_change = geometry_did_change
+      IF (ispin == 2) my_geo_change = .FALSE.
 
       logger => cp_get_default_logger()
 
       is_anti_symmetric = dbcsr_get_matrix_type(rho_ao(1, 1)%matrix) .EQ. dbcsr_type_antisymmetric
 
-      IF (geometry_did_change) THEN
+      IF (my_geo_change) THEN
          CALL m_memory(memsize_before)
          CALL mp_max(memsize_before, para_env%group)
          iw = cp_print_key_unit_nr(logger, hfx_section, "HF_INFO", &
@@ -336,12 +338,12 @@ CONTAINS
 !$OMP PARALLEL DEFAULT(NONE) SHARED(qs_env,&
 !$OMP                                  x_data,&
 !$OMP                                  ks_matrix,&
-!$OMP                                  energy,&
+!$OMP                                  ehfx,&
 !$OMP                                  rho_ao,&
 !$OMP                                  matrix_ks_aux_fit_hfx,&
 !$OMP                                  hfx_section,&
 !$OMP                                  para_env,&
-!$OMP                                  geometry_did_change,&
+!$OMP                                  my_geo_change,&
 !$OMP                                  irep,&
 !$OMP                                  distribute_fock_matrix,&
 !$OMP                                  cell_to_index,&
@@ -572,7 +574,7 @@ CONTAINS
 !$OMP BARRIER
 !$OMP MASTER
       !! Calculate helper array that stores if a certain atomic pair is associated in the KS matrix
-      IF (geometry_did_change) THEN
+      IF (my_geo_change) THEN
          CALL get_atomic_block_maps(ks_matrix(1, 1)%matrix, basis_parameter, kind_of, &
                                     shm_master_x_data%is_assoc_atomic_block, &
                                     shm_master_x_data%number_of_p_entries, &
@@ -679,11 +681,11 @@ CONTAINS
          integral_caches_disk => actual_x_data%integral_caches_disk
       END IF
 
-      IF (geometry_did_change) THEN
+      IF (my_geo_change) THEN
          memory_parameter%ram_counter = HUGE(memory_parameter%ram_counter)
       END IF
 
-      IF (geometry_did_change) THEN
+      IF (my_geo_change) THEN
          memory_parameter%recalc_forces = .TRUE.
       ELSE
          IF (.NOT. memory_parameter%treat_forces_in_core) memory_parameter%recalc_forces = .TRUE.
@@ -756,7 +758,7 @@ CONTAINS
          IF (do_p_screening) THEN
             shm_initial_p => shm_master_x_data%initial_p
             shm_pmax_atom => shm_master_x_data%pmax_atom
-            IF (geometry_did_change) THEN
+            IF (my_geo_change) THEN
                CALL update_pmax_mat(shm_master_x_data%initial_p, &
                                     shm_master_x_data%map_atom_to_kind_atom, &
                                     shm_master_x_data%set_offset, &
@@ -784,7 +786,7 @@ CONTAINS
             NULLIFY (shm_initial_p)
             shm_initial_p => actual_x_data%initial_p
             shm_pmax_atom => shm_master_x_data%pmax_atom
-            IF (geometry_did_change) THEN
+            IF (my_geo_change) THEN
                CALL update_pmax_mat(shm_master_x_data%initial_p, &
                                     shm_master_x_data%map_atom_to_kind_atom, &
                                     shm_master_x_data%set_offset, &
@@ -865,7 +867,7 @@ CONTAINS
       CALL timeset(routineN//"_load", handle_load)
 !$OMP END MASTER
 !$OMP BARRIER
-      IF (geometry_did_change) THEN
+      IF (my_geo_change) THEN
          IF (actual_x_data%b_first_load_balance_energy) THEN
             CALL hfx_load_balance(actual_x_data, eps_schwarz, particle_set, max_set, para_env, &
                                   screen_coeffs_set, screen_coeffs_kind, &
@@ -936,7 +938,7 @@ CONTAINS
       !! We do not need the containers if MAX_MEM = 0
       IF (.NOT. memory_parameter%do_all_on_the_fly) THEN
          !! IF new md step -> reinitialize containers
-         IF (geometry_did_change) THEN
+         IF (my_geo_change) THEN
             CALL dealloc_containers(actual_x_data, hfx_do_eval_energy)
             CALL alloc_containers(actual_x_data, my_bin_size, hfx_do_eval_energy)
 
@@ -951,7 +953,7 @@ CONTAINS
          END IF
 
          !! Decompress the first cache for maxvals and integrals
-         IF (.NOT. geometry_did_change) THEN
+         IF (.NOT. my_geo_change) THEN
             DO bin = 1, my_bin_size
                maxval_cache => actual_x_data%maxval_cache(bin)
                maxval_container => actual_x_data%maxval_container(bin)
@@ -972,14 +974,14 @@ CONTAINS
       !! If we do disk storage, we have to initialize the containers/caches
       IF (do_disk_storage) THEN
          !! IF new md step -> reinitialize containers
-         IF (geometry_did_change) THEN
+         IF (my_geo_change) THEN
             CALL hfx_init_container(maxval_container_disk, memory_parameter%actual_memory_usage_disk, do_disk_storage)
             DO i = 1, 64
                CALL hfx_init_container(integral_containers_disk(i), memory_parameter%actual_memory_usage_disk, do_disk_storage)
             END DO
          END IF
          !! Decompress the first cache for maxvals and integrals
-         IF (.NOT. geometry_did_change) THEN
+         IF (.NOT. my_geo_change) THEN
             CALL hfx_decompress_first_cache(bits_max_val, maxval_cache_disk, maxval_container_disk, &
                                             memory_parameter%actual_memory_usage_disk, .TRUE.)
             DO i = 1, 64
@@ -1070,7 +1072,7 @@ CONTAINS
          END DO
       END IF
       shm_atomic_pair_list => actual_x_data%atomic_pair_list
-      IF (geometry_did_change) THEN
+      IF (my_geo_change) THEN
          CALL build_atomic_pair_list(natom, shm_atomic_pair_list, kind_of, basis_parameter, particle_set, &
                                      do_periodic, screen_coeffs_kind, coeffs_kind_max0, log10_eps_schwarz, cell, &
                                      actual_x_data%blocks)
@@ -1078,7 +1080,7 @@ CONTAINS
 
       my_bin_size = SIZE(actual_x_data%distribution_energy)
       ! reset timings for the new SCF round
-      IF (geometry_did_change) THEN
+      IF (my_geo_change) THEN
          DO bin = 1, my_bin_size
             actual_x_data%distribution_energy(bin)%time_first_scf = 0.0_dp
             actual_x_data%distribution_energy(bin)%time_other_scf = 0.0_dp
@@ -1120,7 +1122,7 @@ CONTAINS
                distribution_energy => x_data(irep, my_thread_id)%distribution_energy(my_bin_id)
                do_it = .TRUE.
                bins_left = .TRUE.
-               IF (geometry_did_change) THEN
+               IF (my_geo_change) THEN
                   distribution_energy%ram_counter = HUGE(distribution_energy%ram_counter)
                END IF
                counter = 0_Int_8
@@ -1362,7 +1364,7 @@ CONTAINS
 
                   !! At this stage, check for memory used in compression
 
-                  IF (geometry_did_change) THEN
+                  IF (my_geo_change) THEN
                      IF (.NOT. memory_parameter%do_all_on_the_fly) THEN
                         ! ** We know the maximum amount of integrals that we can store per MPI-process
                         ! ** Now we need to sum the current memory usage among all openMP threads
@@ -1469,7 +1471,7 @@ CONTAINS
                         END IF
 
                         !! Get integrals from buffer and update Kohn-Sham matrix
-                        IF (.NOT. buffer_overflow .AND. .NOT. geometry_did_change) THEN
+                        IF (.NOT. buffer_overflow .AND. .NOT. my_geo_change) THEN
                            nints = current_counter
                            IF (.NOT. use_disk_storage) THEN
                               CALL hfx_get_single_cache_element( &
@@ -1511,7 +1513,7 @@ CONTAINS
                            END DO
                         END IF
                         !! Calculate integrals if we run out of buffer or the geometry did change
-                        IF (geometry_did_change .OR. buffer_overflow) THEN
+                        IF (my_geo_change .OR. buffer_overflow) THEN
                            max_contraction_val = max_contraction(iset, iatom)* &
                                                  max_contraction(jset, jatom)* &
                                                  max_contraction(kset, katom)* &
@@ -1555,7 +1557,7 @@ CONTAINS
                            estimate_to_store_int = EXPONENT(cartesian_estimate)
                            estimate_to_store_int = MAX(estimate_to_store_int, -15_int_8)
                            cartesian_estimate = SET_EXPONENT(1.0_dp, estimate_to_store_int+1)
-                           IF (.NOT. buffer_overflow .AND. geometry_did_change) THEN
+                           IF (.NOT. buffer_overflow .AND. my_geo_change) THEN
                               IF (cartesian_estimate < eps_schwarz) THEN
                                  IF (.NOT. use_disk_storage) THEN
                                     CALL hfx_add_single_cache_element( &
@@ -1583,7 +1585,7 @@ CONTAINS
                            estimate_to_store_int = EXPONENT(spherical_estimate)
                            estimate_to_store_int = MAX(estimate_to_store_int, -15_int_8)
 
-                           IF (.NOT. buffer_overflow .AND. geometry_did_change) THEN
+                           IF (.NOT. buffer_overflow .AND. my_geo_change) THEN
                               IF (.NOT. use_disk_storage) THEN
                                  CALL hfx_add_single_cache_element( &
                                     estimate_to_store_int, 6, &
@@ -1697,7 +1699,7 @@ CONTAINS
             END DO !i_list_kl
          END DO atomic_blocks
          bintime_stop = m_walltime()
-         IF (geometry_did_change) THEN
+         IF (my_geo_change) THEN
             distribution_energy%time_first_scf = bintime_stop-bintime_start
          ELSE
             distribution_energy%time_other_scf = &
@@ -1914,8 +1916,8 @@ CONTAINS
                             name="HF exch. part of matrix_ks_aux_fit for ADMMS")
          END IF
 
+         ene_x_bb = 0.0_dp
          IF (nspins == 2 .AND. .NOT. treat_lsd_in_core) THEN
-            ene_x_bb = 0.0_dp
             DO img = 1, nkimages
                CALL dbcsr_trace(ks_matrix(2, img)%matrix, rho_ao(2, img)%matrix, &
                                 etmp)
@@ -1930,7 +1932,7 @@ CONTAINS
          END IF
 
          !! Update energy type
-         energy%ex = 0.5_dp*(ene_x_aa+ene_x_bb)+energy%ex
+         ehfx = 0.5_dp*(ene_x_aa+ene_x_bb)
       ELSE
          ! ** It is easier to correct the following expression by the diagonal energy contribution,
          ! ** than explicitly going throuhg the diagonal elements
@@ -1952,11 +1954,11 @@ CONTAINS
          END IF
          CALL mp_sum(ene_x_aa, para_env%group)
          IF (nspins == 2) CALL mp_sum(ene_x_bb, para_env%group)
-         energy%ex = 0.5_dp*(ene_x_aa+ene_x_bb)
+         ehfx = 0.5_dp*(ene_x_aa+ene_x_bb)
       END IF
 
       !! Print some memeory information if this is the first step
-      IF (geometry_did_change) THEN
+      IF (my_geo_change) THEN
          tmp_i8(1:8) = (/shm_storage_counter_integrals, shm_neris_onthefly, shm_neris_incore, shm_neris_disk, &
                          shm_neris_total, shm_stor_count_int_disk, shm_nprim_ints, shm_stor_count_max_val/)
          CALL mp_sum(tmp_i8, para_env%group)
@@ -2046,7 +2048,7 @@ CONTAINS
          my_bin_size = 1
       END IF
 
-      IF (geometry_did_change) THEN
+      IF (my_geo_change) THEN
          IF (.NOT. memory_parameter%do_all_on_the_fly) THEN
             DO bin = 1, my_bin_size
                maxval_cache => actual_x_data%maxval_cache(bin)
@@ -2083,7 +2085,7 @@ CONTAINS
 !$OMP CRITICAL
       IF (do_disk_storage) THEN
          !! flush caches if the geometry changed
-         IF (geometry_did_change) THEN
+         IF (my_geo_change) THEN
             CALL hfx_flush_last_cache(bits_max_val, maxval_cache_disk, maxval_container_disk, &
                                       memory_parameter%actual_memory_usage_disk, .TRUE.)
             DO i = 1, 64

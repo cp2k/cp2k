@@ -70,7 +70,7 @@ CONTAINS
 
       INTEGER                                            :: handle, iw
       LOGICAL                                            :: eval_analytical
-      REAL(KIND=dp)                                      :: angle1, angle2, f1, gm1, gm2, norm, swf 
+      REAL(KIND=dp)                                      :: angle1, angle2, f1, gm1, gm2, norm, swf
       TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(dimer_env_type), POINTER                      :: dimer_env
       TYPE(section_vals_type), POINTER                   :: print_section
@@ -171,7 +171,7 @@ CONTAINS
             CALL cite_reference(Henkelman2014)
             ! K-DIMER
             IF (iw > 0) THEN
-              WRITE (iw, '(T2,A)') "DIMER| Correcting gradients for Translation with K-DIMER method"                
+               WRITE (iw, '(T2,A)') "DIMER| Correcting gradients for Translation with K-DIMER method"
             END IF
             swf = 1.0_dp+EXP(dimer_env%beta*dimer_env%rot%curvature)
             gm2 = 1.0_dp-(1.0_dp/swf)
@@ -183,7 +183,7 @@ CONTAINS
                dimer_env%rot%dCdp, gm1, gm2, swf
          ELSE
             IF (iw > 0) THEN
-              WRITE (iw, '(T2,A)') "DIMER| Correcting gradients for Translation with standard method"                
+               WRITE (iw, '(T2,A)') "DIMER| Correcting gradients for Translation with standard method"
             END IF
             IF (dimer_env%rot%curvature > 0) THEN
                gradient = -DOT_PRODUCT(dimer_env%rot%g0, dimer_env%nvec)*dimer_env%nvec

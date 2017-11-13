@@ -386,7 +386,7 @@ CONTAINS
       IF (alpha_beta) factor = 2.0_dp
       CALL cphf_like_update(qs_env, para_env, homo, virtual, dimen, &
                             mo_coeff, mo_coeff_o, mo_coeff_v, Eigenval, &
-                            hfx_sections, energy, n_rep_hf, poisson_env, &
+                            hfx_sections, n_rep_hf, poisson_env, &
                             rho_work, pot_g, rho_g, rho_r, mat_mu_nu, P_mu_nu, &
                             P_mo, fm_G_mu_nu, fm_back, transf_type_in, out_alpha, &
                             L_jb, transf_type_out, &
@@ -396,7 +396,7 @@ CONTAINS
          ! Alpha-beta (Coulomb) part of L_jb(alpha)
          CALL cphf_like_update(qs_env, para_env, homo, virtual, dimen, &
                                mo_coeff, mo_coeff_o, mo_coeff_v, Eigenval, &
-                               hfx_sections, energy, n_rep_hf, poisson_env, &
+                               hfx_sections, n_rep_hf, poisson_env, &
                                rho_work, pot_g, rho_g, rho_r, mat_mu_nu, P_mu_nu, &
                                P_mo_beta, fm_G_mu_nu, fm_back, transf_type_in, out_alpha, &
                                L_jb, transf_type_out, &
@@ -408,7 +408,7 @@ CONTAINS
          ! Beta-beta (Coulomb and XC) part of L_jb(beta)
          CALL cphf_like_update(qs_env, para_env, homo_beta, virtual_beta, dimen, &
                                mo_coeff_beta, mo_coeff_o_beta, mo_coeff_v_beta, &
-                               Eigenval_beta, hfx_sections, energy, n_rep_hf, &
+                               Eigenval_beta, hfx_sections, n_rep_hf, &
                                poisson_env, rho_work, pot_g, rho_g, rho_r, mat_mu_nu, &
                                P_mu_nu, P_mo_beta, fm_G_mu_nu, fm_back, transf_type_in, &
                                out_alpha, L_jb_beta, transf_type_out, factor=factor)
@@ -416,7 +416,7 @@ CONTAINS
          CALL cphf_like_update(qs_env, para_env, homo_beta, virtual_beta, dimen, &
                                mo_coeff_beta, mo_coeff_o_beta, mo_coeff_v_beta, &
                                Eigenval_beta, &
-                               hfx_sections, energy, n_rep_hf, poisson_env, &
+                               hfx_sections, n_rep_hf, poisson_env, &
                                rho_work, pot_g, rho_g, rho_r, mat_mu_nu, P_mu_nu, &
                                P_mo, fm_G_mu_nu, fm_back, transf_type_in, out_alpha, &
                                L_jb_beta, transf_type_out, &
@@ -434,7 +434,7 @@ CONTAINS
       ! part of L_bj(alpha) for open shell
       CALL cphf_like_update(qs_env, para_env, homo, virtual, dimen, &
                             mo_coeff, mo_coeff_o, mo_coeff_v, Eigenval, &
-                            hfx_sections, energy, n_rep_hf, poisson_env, &
+                            hfx_sections, n_rep_hf, poisson_env, &
                             rho_work, pot_g, rho_g, rho_r, mat_mu_nu, P_mu_nu, &
                             P_mo, fm_G_mu_nu, fm_back, transf_type_in, out_alpha, &
                             L_jb, transf_type_out, factor=factor)
@@ -442,7 +442,7 @@ CONTAINS
          ! Alpha-beta (Coulomb) part of L_jb(alpha)
          CALL cphf_like_update(qs_env, para_env, homo, virtual, dimen, &
                                mo_coeff, mo_coeff_o, mo_coeff_v, Eigenval, &
-                               hfx_sections, energy, n_rep_hf, poisson_env, &
+                               hfx_sections, n_rep_hf, poisson_env, &
                                rho_work, pot_g, rho_g, rho_r, mat_mu_nu, P_mu_nu, &
                                P_mo_beta, fm_G_mu_nu, fm_back, transf_type_in, out_alpha, &
                                L_jb, transf_type_out, &
@@ -454,7 +454,7 @@ CONTAINS
          ! Beta-beta (Coulomb and XC) part of L_jb(beta)
          CALL cphf_like_update(qs_env, para_env, homo_beta, virtual_beta, dimen, &
                                mo_coeff_beta, mo_coeff_o_beta, mo_coeff_v_beta, &
-                               Eigenval_beta, hfx_sections, energy, n_rep_hf, &
+                               Eigenval_beta, hfx_sections, n_rep_hf, &
                                poisson_env, rho_work, pot_g, rho_g, rho_r, mat_mu_nu, &
                                P_mu_nu, P_mo_beta, fm_G_mu_nu, fm_back, transf_type_in, &
                                out_alpha, L_jb_beta, transf_type_out, factor=factor)
@@ -462,7 +462,7 @@ CONTAINS
          CALL cphf_like_update(qs_env, para_env, homo_beta, virtual_beta, dimen, &
                                mo_coeff_beta, mo_coeff_o_beta, mo_coeff_v_beta, &
                                Eigenval_beta, &
-                               hfx_sections, energy, n_rep_hf, poisson_env, &
+                               hfx_sections, n_rep_hf, poisson_env, &
                                rho_work, pot_g, rho_g, rho_r, mat_mu_nu, P_mu_nu, &
                                P_mo, fm_G_mu_nu, fm_back, transf_type_in, out_alpha, &
                                L_jb_beta, transf_type_out, &
@@ -491,13 +491,13 @@ CONTAINS
       IF (.NOT. alpha_beta) THEN
          CALL solve_z_vector_eq_low(qs_env, mp2_env, para_env, homo, virtual, dimen, unit_nr, &
                                     mo_coeff, mo_coeff_o, mo_coeff_v, Eigenval, blacs_env, &
-                                    hfx_sections, energy, n_rep_hf, &
+                                    hfx_sections, n_rep_hf, &
                                     poisson_env, rho_work, pot_g, rho_g, rho_r, mat_mu_nu, &
                                     P_mu_nu, L_jb, fm_G_mu_nu, fm_back, P_ia)
       ELSE
          CALL solve_z_vector_eq_low(qs_env, mp2_env, para_env, homo, virtual, dimen, unit_nr, &
                                     mo_coeff, mo_coeff_o, mo_coeff_v, Eigenval, blacs_env, &
-                                    hfx_sections, energy, n_rep_hf, &
+                                    hfx_sections, n_rep_hf, &
                                     poisson_env, rho_work, pot_g, rho_g, rho_r, mat_mu_nu, &
                                     P_mu_nu, L_jb, fm_G_mu_nu, fm_back, P_ia, &
                                     homo_beta, Eigenval_beta, P_ia_beta, mo_coeff_beta, &
@@ -596,7 +596,7 @@ CONTAINS
       ! part of W_mo(III)(alpha) for open shell
       CALL cphf_like_update(qs_env, para_env, homo, virtual, dimen, &
                             mo_coeff, mo_coeff_o, mo_coeff_v, Eigenval, &
-                            hfx_sections, energy, n_rep_hf, poisson_env, &
+                            hfx_sections, n_rep_hf, poisson_env, &
                             rho_work, pot_g, rho_g, rho_r, mat_mu_nu, P_mu_nu, &
                             P_mo, fm_G_mu_nu, fm_back, transf_type_in, out_alpha, &
                             W_mo, transf_type_out, factor=factor)
@@ -604,7 +604,7 @@ CONTAINS
          ! Alpha-beta (Coulomb) part of W_mo(III)(alpha)
          CALL cphf_like_update(qs_env, para_env, homo, virtual, dimen, &
                                mo_coeff, mo_coeff_o, mo_coeff_v, Eigenval, &
-                               hfx_sections, energy, n_rep_hf, poisson_env, &
+                               hfx_sections, n_rep_hf, poisson_env, &
                                rho_work, pot_g, rho_g, rho_r, mat_mu_nu, P_mu_nu, &
                                P_mo_beta, fm_G_mu_nu, fm_back, transf_type_in, out_alpha, &
                                W_mo, transf_type_out, &
@@ -616,7 +616,7 @@ CONTAINS
          ! Beta-beta (Coulomb and XC) part of W_mo(III)(beta)
          CALL cphf_like_update(qs_env, para_env, homo_beta, virtual_beta, dimen, &
                                mo_coeff_beta, mo_coeff_o_beta, mo_coeff_v_beta, &
-                               Eigenval_beta, hfx_sections, energy, n_rep_hf, &
+                               Eigenval_beta, hfx_sections, n_rep_hf, &
                                poisson_env, rho_work, pot_g, rho_g, rho_r, mat_mu_nu, &
                                P_mu_nu, P_mo_beta, fm_G_mu_nu, fm_back, transf_type_in, &
                                out_alpha, W_mo_beta, transf_type_out, factor=factor)
@@ -624,7 +624,7 @@ CONTAINS
          CALL cphf_like_update(qs_env, para_env, homo_beta, virtual_beta, dimen, &
                                mo_coeff_beta, mo_coeff_o_beta, mo_coeff_v_beta, &
                                Eigenval_beta, &
-                               hfx_sections, energy, n_rep_hf, poisson_env, &
+                               hfx_sections, n_rep_hf, poisson_env, &
                                rho_work, pot_g, rho_g, rho_r, mat_mu_nu, P_mu_nu, &
                                P_mo, fm_G_mu_nu, fm_back, transf_type_in, out_alpha, &
                                W_mo_beta, transf_type_out, &
@@ -969,7 +969,6 @@ CONTAINS
 !> \param mo_coeff_v ...
 !> \param Eigenval ...
 !> \param hfx_sections ...
-!> \param energy ...
 !> \param n_rep_hf ...
 !> \param poisson_env ...
 !> \param rho_work ...
@@ -996,7 +995,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE cphf_like_update(qs_env, para_env, homo, virtual, dimen, &
                                mo_coeff, mo_coeff_o, mo_coeff_v, Eigenval, &
-                               hfx_sections, energy, n_rep_hf, poisson_env, &
+                               hfx_sections, n_rep_hf, poisson_env, &
                                rho_work, pot_g, rho_g, rho_r, mat_mu_nu, P_mu_nu, &
                                fm_mo, fm_ao, fm_back, transf_type_in, out_alpha, &
                                fm_mo_out, transf_type_out, recalc_hfx_integrals, &
@@ -1008,7 +1007,6 @@ CONTAINS
       TYPE(cp_fm_type), POINTER                          :: mo_coeff, mo_coeff_o, mo_coeff_v
       REAL(KIND=dp), DIMENSION(:)                        :: Eigenval
       TYPE(section_vals_type), POINTER                   :: hfx_sections
-      TYPE(qs_energy_type), POINTER                      :: energy
       INTEGER                                            :: n_rep_hf
       TYPE(pw_poisson_type), POINTER                     :: poisson_env
       TYPE(qs_rho_type), POINTER                         :: rho_work
@@ -1033,7 +1031,7 @@ CONTAINS
                                                             jjB, ncol_local, nrow_local, ns
       INTEGER, DIMENSION(:), POINTER                     :: col_indices, row_indices
       LOGICAL                                            :: alpha_beta, my_recalc_hfx_integrals
-      REAL(KIND=dp)                                      :: ex_energy, pair_energy, total_rho
+      REAL(KIND=dp)                                      :: ehfx, pair_energy, total_rho
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: rho_work_ao
       TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: mat_2d, rho_ao_2d
       TYPE(qs_ks_env_type), POINTER                      :: ks_env
@@ -1300,19 +1298,15 @@ CONTAINS
          CALL qs_rho_get(rho_work, rho_ao=rho_work_ao)
          CALL dbcsr_set(rho_work_ao(1)%matrix, 0.0_dp)
          CALL dbcsr_copy(rho_work_ao(1)%matrix, P_mu_nu%matrix)
-         ! save old EX energy
-         ex_energy = energy%ex
          DO irep = 1, n_rep_hf
             ns = SIZE(rho_work_ao)
             rho_ao_2d(1:ns, 1:1) => rho_work_ao(1:ns)
             ns = SIZE(mat_mu_nu)
             mat_2d(1:ns, 1:1) => mat_mu_nu(1:ns)
-            CALL integrate_four_center(qs_env, mat_2d, energy, rho_ao_2d, hfx_sections, &
+            CALL integrate_four_center(qs_env, mat_2d, ehfx, rho_ao_2d, hfx_sections, &
                                        para_env, my_recalc_hfx_integrals, irep, .TRUE., &
                                        ispin=1)
          END DO
-         ! restore original EX energy
-         energy%ex = ex_energy
       ENDIF
 
       ! scale by a factor 4.0 (closed shell) or 2.0 (open-shell)
@@ -1393,7 +1387,6 @@ CONTAINS
 !> \param Eigenval ...
 !> \param blacs_env ...
 !> \param hfx_sections ...
-!> \param energy ...
 !> \param n_rep_hf ...
 !> \param poisson_env ...
 !> \param rho_work ...
@@ -1417,7 +1410,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE solve_z_vector_eq_low(qs_env, mp2_env, para_env, homo, virtual, dimen, unit_nr, &
                                     mo_coeff, mo_coeff_o, mo_coeff_v, Eigenval, blacs_env, &
-                                    hfx_sections, energy, n_rep_hf, poisson_env, &
+                                    hfx_sections, n_rep_hf, poisson_env, &
                                     rho_work, pot_g, rho_g, rho_r, mat_mu_nu, P_mu_nu, &
                                     L_jb, fm_G_mu_nu, fm_back, P_ia, homo_beta, Eigenval_beta, &
                                     P_ia_beta, mo_coeff_beta, mo_coeff_o_beta, mo_coeff_v_beta, &
@@ -1430,7 +1423,6 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:)                        :: Eigenval
       TYPE(cp_blacs_env_type), POINTER                   :: blacs_env
       TYPE(section_vals_type), POINTER                   :: hfx_sections
-      TYPE(qs_energy_type), POINTER                      :: energy
       INTEGER                                            :: n_rep_hf
       TYPE(pw_poisson_type), POINTER                     :: poisson_env
       TYPE(qs_rho_type), POINTER                         :: rho_work
@@ -1553,7 +1545,7 @@ CONTAINS
             ! Full for closed shell. Alpha-alpha part of alpha for open shell.
             CALL cphf_like_update(qs_env, para_env, homo, virtual, dimen, &
                                   mo_coeff, mo_coeff_o, mo_coeff_v, Eigenval, &
-                                  hfx_sections, energy, n_rep_hf, poisson_env, &
+                                  hfx_sections, n_rep_hf, poisson_env, &
                                   rho_work, pot_g, rho_g, rho_r, mat_mu_nu, P_mu_nu, &
                                   pk, fm_G_mu_nu, fm_back, transf_type_in, out_alpha, &
                                   Ap, transf_type_out, factor=factor)
@@ -1561,7 +1553,7 @@ CONTAINS
                ! Alpha-beta part of alpha.
                CALL cphf_like_update(qs_env, para_env, homo, virtual, dimen, &
                                      mo_coeff, mo_coeff_o, mo_coeff_v, Eigenval, &
-                                     hfx_sections, energy, n_rep_hf, poisson_env, &
+                                     hfx_sections, n_rep_hf, poisson_env, &
                                      rho_work, pot_g, rho_g, rho_r, mat_mu_nu, P_mu_nu, &
                                      pk_b, fm_G_mu_nu, fm_back, transf_type_in, out_alpha, &
                                      Ap, transf_type_out, factor=factor, &
@@ -1573,7 +1565,7 @@ CONTAINS
                CALL cp_fm_set_all(Ap_b, 0.0_dp)
                CALL cphf_like_update(qs_env, para_env, homo_beta, virtual_beta, dimen, &
                                      mo_coeff_beta, mo_coeff_o_beta, mo_coeff_v_beta, &
-                                     Eigenval_beta, hfx_sections, energy, n_rep_hf, &
+                                     Eigenval_beta, hfx_sections, n_rep_hf, &
                                      poisson_env, rho_work, pot_g, rho_g, rho_r, mat_mu_nu, &
                                      P_mu_nu, Pk_b, fm_G_mu_nu, fm_back, transf_type_in, &
                                      out_alpha, Ap_b, transf_type_out, factor=factor)
@@ -1581,7 +1573,7 @@ CONTAINS
                CALL cphf_like_update(qs_env, para_env, homo_beta, virtual_beta, dimen, &
                                      mo_coeff_beta, mo_coeff_o_beta, mo_coeff_v_beta, &
                                      Eigenval_beta, &
-                                     hfx_sections, energy, n_rep_hf, poisson_env, &
+                                     hfx_sections, n_rep_hf, poisson_env, &
                                      rho_work, pot_g, rho_g, rho_r, mat_mu_nu, P_mu_nu, &
                                      pk, fm_G_mu_nu, fm_back, transf_type_in, out_alpha, &
                                      Ap_b, transf_type_out, factor=factor, &
@@ -1834,7 +1826,7 @@ CONTAINS
             ! perform the matrix-vector product (CPHF like update)
             CALL cphf_like_update(qs_env, para_env, homo, virtual, dimen, &
                                   mo_coeff, mo_coeff_o, mo_coeff_v, Eigenval, &
-                                  hfx_sections, energy, n_rep_hf, poisson_env, &
+                                  hfx_sections, n_rep_hf, poisson_env, &
                                   rho_work, pot_g, rho_g, rho_r, mat_mu_nu, P_mu_nu, &
                                   xn(iiter)%matrix, fm_G_mu_nu, fm_back, transf_type_in, out_alpha, &
                                   Ax(iiter)%matrix, transf_type_out, factor=factor)
@@ -1846,7 +1838,7 @@ CONTAINS
                ! Alpha-beta part of alpha.
                CALL cphf_like_update(qs_env, para_env, homo, virtual, dimen, &
                                      mo_coeff, mo_coeff_o, mo_coeff_v, Eigenval, &
-                                     hfx_sections, energy, n_rep_hf, poisson_env, &
+                                     hfx_sections, n_rep_hf, poisson_env, &
                                      rho_work, pot_g, rho_g, rho_r, mat_mu_nu, P_mu_nu, &
                                      xn_b(iiter)%matrix, fm_G_mu_nu, fm_back, transf_type_in, out_alpha, &
                                      Ax_ab(iiter)%matrix, transf_type_out, factor=factor, &
@@ -1860,7 +1852,7 @@ CONTAINS
                CALL cp_fm_set_all(Ax_bb(iiter)%matrix, 0.0_dp)
                CALL cphf_like_update(qs_env, para_env, homo_beta, virtual_beta, dimen, &
                                      mo_coeff_beta, mo_coeff_o_beta, mo_coeff_v_beta, &
-                                     Eigenval_beta, hfx_sections, energy, n_rep_hf, &
+                                     Eigenval_beta, hfx_sections, n_rep_hf, &
                                      poisson_env, rho_work, pot_g, rho_g, rho_r, mat_mu_nu, &
                                      P_mu_nu, xn_b(iiter)%matrix, fm_G_mu_nu, fm_back, transf_type_in, &
                                      out_alpha, Ax_bb(iiter)%matrix, transf_type_out, factor=factor)
@@ -1871,7 +1863,7 @@ CONTAINS
                CALL cphf_like_update(qs_env, para_env, homo_beta, virtual_beta, dimen, &
                                      mo_coeff_beta, mo_coeff_o_beta, mo_coeff_v_beta, &
                                      Eigenval_beta, &
-                                     hfx_sections, energy, n_rep_hf, poisson_env, &
+                                     hfx_sections, n_rep_hf, poisson_env, &
                                      rho_work, pot_g, rho_g, rho_r, mat_mu_nu, P_mu_nu, &
                                      xn(iiter)%matrix, fm_G_mu_nu, fm_back, transf_type_in, out_alpha, &
                                      Ax_ba(iiter)%matrix, transf_type_out, factor=factor, &

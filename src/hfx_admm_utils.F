@@ -218,6 +218,7 @@ CONTAINS
                                                             do_adiabatic_rescaling, &
                                                             hfx_treat_lsd_in_core, &
                                                             s_mstruct_changed, use_virial
+      REAL(dp)                                           :: eh1, ehfx, ehfxrt
       REAL(dp), ALLOCATABLE, DIMENSION(:)                :: hf_energy
       TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_ks_1d, matrix_ks_aux_fit, &
@@ -282,8 +283,6 @@ CONTAINS
       END DO
 
       CALL section_vals_get(hfx_sections, n_repetition=n_rep_hf)
-      !! set hf exchange energy to zero
-      energy%ex = 0.0_dp
 
       IF (calculate_forces) THEN
          !! initalize force array to zero
@@ -293,6 +292,7 @@ CONTAINS
          END DO
       END IF
       ALLOCATE (hf_energy(n_rep_hf))
+
       DO irep = 1, n_rep_hf
 
          IF (do_adiabatic_rescaling .AND. hfx_treat_lsd_in_core) &
@@ -314,10 +314,12 @@ CONTAINS
          END IF
          CALL qs_rho_get(rho_struct=rho_orb, rho_ao_kp=rho_ao_orb)
          ! Finally the real hfx calulation
+         ehfx = 0.0_dp
          DO ispin = 1, mspin
-            CALL integrate_four_center(qs_env, matrix_ks_orb, energy, rho_ao_orb, hfx_sections, &
+            CALL integrate_four_center(qs_env, matrix_ks_orb, eh1, rho_ao_orb, hfx_sections, &
                                        para_env, s_mstruct_changed, irep, distribute_fock_matrix, &
                                        ispin=ispin)
+            ehfx = ehfx+eh1
          END DO
 
          IF (calculate_forces .AND. .NOT. do_adiabatic_rescaling) THEN
@@ -334,9 +336,10 @@ CONTAINS
          END IF
 
          !! If required, the calculation of the forces will be done later with adiabatic rescaling
-         IF (do_adiabatic_rescaling) hf_energy(irep) = energy%ex
+         IF (do_adiabatic_rescaling) hf_energy(irep) = ehfx
 
          ! special case RTP/EMD we have a full complex density and HFX has a contrinution from the imaginary part
+         ehfxrt = 0.0_dp
          IF (qs_env%run_rtp) THEN
 
             CALL get_qs_env(qs_env=qs_env, rtp=rtp)
@@ -360,10 +363,12 @@ CONTAINS
             ns = SIZE(rho_ao_1d)
             rho_ao_orb(1:ns, 1:1) => rho_ao_1d(1:ns)
 
+            ehfxrt = 0.0_dp
             DO ispin = 1, mspin
-               CALL integrate_four_center(qs_env, matrix_ks_orb, energy, rho_ao_orb, hfx_sections, &
+               CALL integrate_four_center(qs_env, matrix_ks_orb, eh1, rho_ao_orb, hfx_sections, &
                                           para_env, .FALSE., irep, distribute_fock_matrix, &
                                           ispin=ispin)
+               ehfxrt = ehfxrt+eh1
             END DO
 
             IF (calculate_forces .AND. .NOT. do_adiabatic_rescaling) THEN
@@ -372,7 +377,7 @@ CONTAINS
             END IF
 
             !! If required, the calculation of the forces will be done later with adiabatic rescaling
-            IF (do_adiabatic_rescaling) hf_energy(irep) = energy%ex
+            IF (do_adiabatic_rescaling) hf_energy(irep) = ehfx+ehfxrt
          END IF
 
          CALL pw_env_get(pw_env, auxbas_pw_pool=auxbas_pw_pool, &
@@ -380,6 +385,13 @@ CONTAINS
          CALL pw_hfx(qs_env, energy, hfx_sections, poisson_env, auxbas_pw_pool, irep)
 
       END DO
+
+      ! *** Set the total HFX energy
+!deb
+      WRITE (6, *) "EHFX   ", ehfx
+      WRITE (6, *) "EHFXRT ", ehfxrt
+!deb
+      energy%ex = ehfx+ehfxrt
 
       ! *** Add Core-Hamiltonian-Matrix ***
       DO ispin = 1, nspins
@@ -965,6 +977,7 @@ CONTAINS
       LOGICAL                                            :: distribute_fock_matrix, do_hfx, &
                                                             hfx_treat_lsd_in_core, &
                                                             s_mstruct_changed
+      REAL(KIND=dp)                                      :: eh1, ehfx
       TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: matrix_ks_kp, rho_ao_kp
       TYPE(dft_control_type), POINTER                    :: dft_control
@@ -1004,12 +1017,14 @@ CONTAINS
 
          DO irep = 1, n_rep_hf
             ! the real hfx calulation
+            ehfx = 0.0_dp
             DO ispin = 1, mspin
-               energy%ex = 0.0
-               CALL integrate_four_center(qs_env, matrix_ks_kp, energy, rho_ao_kp, hfx_sections, para_env, &
+               CALL integrate_four_center(qs_env, matrix_ks_kp, eh1, rho_ao_kp, hfx_sections, para_env, &
                                           s_mstruct_changed, irep, distribute_fock_matrix, ispin=ispin)
+               ehfx = ehfx+eh1
             END DO
          END DO
+         energy%ex = ehfx
       END IF
 
       CALL timestop(handle)
