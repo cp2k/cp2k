@@ -387,10 +387,6 @@ CONTAINS
       END DO
 
       ! *** Set the total HFX energy
-!deb
-      WRITE (6, *) "EHFX   ", ehfx
-      WRITE (6, *) "EHFXRT ", ehfxrt
-!deb
       energy%ex = ehfx+ehfxrt
 
       ! *** Add Core-Hamiltonian-Matrix ***
