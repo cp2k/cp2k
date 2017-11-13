@@ -627,8 +627,8 @@ CONTAINS
       ALLOCATE (p_matrix(max_nsgf, max_nsgf), STAT=istat)
       CPASSERT(istat == 0)
 
-!$    number_of_locks = nspins*natom
 !$OMP SINGLE
+!$    number_of_locks = nspins*natom
 !$    ALLOCATE (locks(number_of_locks))
 !$OMP END SINGLE
 
