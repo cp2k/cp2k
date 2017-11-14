@@ -23,7 +23,7 @@ MODULE xc_ke_gga
    USE xc_functionals_utilities,        ONLY: calc_wave_vector,&
                                               set_util
    USE xc_input_constants,              ONLY: &
-        ke_lc, ke_llp, ke_ol1, ke_ol2, ke_pbe, ke_pw86, ke_pw91, ke_revpbe, ke_t92
+        ke_lc, ke_llp, ke_ol1, ke_ol2, ke_pbe, ke_pw86, ke_pw91, ke_t92
    USE xc_rho_cflags_types,             ONLY: xc_rho_cflags_type
    USE xc_rho_set_types,                ONLY: xc_rho_set_get,&
                                               xc_rho_set_type
@@ -107,13 +107,11 @@ CONTAINS
          CASE (ke_t92)
             reference = "A.J. Thakkar, Phys. Rev. A, 46, 6920 (1992)"
          CASE (ke_pbe)
-            reference = " "
-         CASE (ke_revpbe)
-            reference = " "
+            reference = "J.P.Perdew, K.Burke, M.Ernzerhof, Phys. Rev. Letter, 77, 3865 (1996)"
          END SELECT
          IF (.NOT. lsd) THEN
             IF (LEN_TRIM(reference)+6 < LEN(reference)) THEN
-               reference(LEN_TRIM(reference):LEN_TRIM(reference)+6) = ' {LDA}'
+               reference(LEN_TRIM(reference):LEN_TRIM(reference)+6) = ' {spin unpolarized}'
             END IF
          END IF
       END IF
@@ -134,13 +132,11 @@ CONTAINS
          CASE (ke_t92)
             shortform = "Thakkar 1992 Functional"
          CASE (ke_pbe)
-            shortform = " "
-         CASE (ke_revpbe)
-            shortform = " "
+            shortform = "Perdew-Burke-Ernzerhof Functional (kinetic energy)"
          END SELECT
          IF (.NOT. lsd) THEN
             IF (LEN_TRIM(shortform)+6 < LEN(shortform)) THEN
-               shortform(LEN_TRIM(shortform):LEN_TRIM(shortform)+6) = ' {LDA}'
+               shortform(LEN_TRIM(shortform):LEN_TRIM(shortform)+6) = ' {spin unpolarized}'
             END IF
          END IF
       END IF
@@ -234,8 +230,6 @@ CONTAINS
          CALL efactor_t92(s, fs, m)
       CASE (ke_pbe)
          CALL efactor_pbex(s, fs, m, 1)
-      CASE (ke_revpbe)
-         CALL efactor_pbex(s, fs, m, 2)
       CASE DEFAULT
          CPABORT("")
       END SELECT
@@ -379,10 +373,6 @@ CONTAINS
          CASE (ke_pbe)
             tact = (1.0_dp/2.0_dp)**(1.0_dp/3.0_dp)
             CALL efactor_pbex(s, fs, m, 1, f2_lsd=tact)
-            tact = 1.0_dp
-         CASE (ke_revpbe)
-            tact = (1.0_dp/2.0_dp)**(1.0_dp/3.0_dp)
-            CALL efactor_pbex(s, fs, m, 2, f2_lsd=tact)
             tact = 1.0_dp
          CASE (ke_pw91)
             tact = (1.0_dp/2.0_dp)**(1.0_dp/3.0_dp)
