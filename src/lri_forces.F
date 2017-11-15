@@ -435,7 +435,8 @@ CONTAINS
          jneighbor, k, mepos, natom, nba, nbb, nfa, nfb, nkind, nlist, nn, nspin, nthread
       INTEGER, DIMENSION(:), POINTER                     :: atom_of_kind
       LOGICAL                                            :: found
-      REAL(KIND=dp)                                      :: ai, dab, dfw, fw, isna, isnb, threshold
+      REAL(KIND=dp)                                      :: ai, dab, dfw, fw, isna, isnb, rai, raj, &
+                                                            threshold
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: pab, wab
       REAL(KIND=dp), DIMENSION(3)                        :: dchargea, dchargeb, force_a, force_b, &
                                                             idava, idavb, rab
@@ -485,7 +486,7 @@ CONTAINS
 !$OMP          lri_force_a,lri_force_b,nfa,nfb,nba,nbb,nn,sta,stb,&
 !$OMP          dtveca,dtvecb,pbij,found,obasa,obasb,fbasa,fbasb,i,k,threshold,&
 !$OMP          dchargea,dchargeb,atom_a,atom_b,v_dadra,v_dadrb,force_a,force_b,&
-!$OMP          pab,wab,fw,dfw,dab,ai,vinta,vintb,isna,isnb,idava,idavb)
+!$OMP          rai,raj,pab,wab,fw,dfw,dab,ai,vinta,vintb,isna,isnb,idava,idavb)
 
             mepos = 0
 !$          mepos = omp_get_thread_num()
@@ -534,6 +535,12 @@ CONTAINS
                SELECT CASE (lri_env%distant_pair_method)
                CASE ("EW")
                   wab(1:nba, 1:nbb) = 0.5_dp
+               CASE ("AW")
+                  rai = lri_env%aradius(ikind)**2
+                  raj = lri_env%aradius(jkind)**2
+                  wab(1:nba, 1:nbb) = raj/(rai+raj)
+               CASE ("SW", "LW")
+                  wab(1:nba, 1:nbb) = lri_env%wmat(ikind, jkind)%mat(1:nba, 1:nbb)
                CASE DEFAULT
                   CPABORT("Unknown DISTANT_PAIR_METHOD in LRI")
                END SELECT

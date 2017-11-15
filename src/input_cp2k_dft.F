@@ -5819,7 +5819,9 @@ CONTAINS
       CALL keyword_release(keyword)
 
       CALL keyword_create(keyword, name="DISTANT_PAIR_METHOD", &
-                          description="Method used to separate pair density for distant pairs.", &
+                          description="Method used to separate pair density for distant pairs."// &
+                          "Options: EW (equal weights); AW (atomic weights); SW (set weights); "// &
+                          "LW (shell function weights)", &
                           usage="DISTANT_PAIR_METHOD {method}", &
                           default_c_val="EW")
       CALL section_add_keyword(section, keyword)

@@ -11,6 +11,7 @@
 !> \author Dorothea Golze
 ! **************************************************************************************************
 MODULE lri_environment_init
+   USE ao_util,                         ONLY: exp_radius
    USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                               get_atomic_kind_set
    USE basis_set_types,                 ONLY: copy_gto_basis_set,&
@@ -69,10 +70,10 @@ CONTAINS
 
       CHARACTER(len=*), PARAMETER :: routineN = 'lri_env_init', routineP = moduleN//':'//routineN
 
-      INTEGER                                            :: i1, i2, iat, ikind, lmax_ikind_orb, &
-                                                            lmax_ikind_ri, maxl_orb, maxl_ri, &
-                                                            natom, nbas, nkind, nribas, nspin
+      INTEGER :: i, i1, i2, iat, ikind, ip, ipgf, iset, ishell, jp, l, lmax_ikind_orb, &
+         lmax_ikind_ri, maxl_orb, maxl_ri, n1, n2, natom, nbas, nkind, nribas, nspin
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: kind_of
+      REAL(KIND=dp)                                      :: gcc, rad, rai, raj, xradius, zeta
       REAL(KIND=dp), DIMENSION(:), POINTER               :: int_aux, norm, radii
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       TYPE(dft_control_type), POINTER                    :: dft_control
@@ -152,6 +153,80 @@ CONTAINS
                                                  maxl_orb, maxl_ri)
          ENDIF
          CALL lri_basis_init(lri_env)
+         ! distant pair approximation
+         IF (lri_env%distant_pair_approximation) THEN
+            !
+            SELECT CASE (lri_env%distant_pair_method)
+            CASE ("EW")
+               ! equal weight of 0.5
+            CASE ("AW")
+               ALLOCATE (lri_env%aradius(nkind))
+               DO i = 1, nkind
+                  orb_basis_set => lri_env%orb_basis(i)%gto_basis_set
+                  lri_env%aradius(i) = orb_basis_set%kind_radius
+               END DO
+            CASE ("SW")
+               ALLOCATE (lri_env%wbas(nkind))
+               DO i = 1, nkind
+                  orb_basis_set => lri_env%orb_basis(i)%gto_basis_set
+                  n1 = orb_basis_set%nsgf
+                  ALLOCATE (lri_env%wbas(i)%vec(n1))
+                  DO iset = 1, orb_basis_set%nset
+                     i1 = orb_basis_set%first_sgf(1, iset)
+                     n2 = orb_basis_set%nshell(iset)
+                     i2 = orb_basis_set%last_sgf(n2, iset)
+                     lri_env%wbas(i)%vec(i1:i2) = orb_basis_set%set_radius(iset)
+                  END DO
+               END DO
+            CASE ("LW")
+               ALLOCATE (lri_env%wbas(nkind))
+               DO i = 1, nkind
+                  orb_basis_set => lri_env%orb_basis(i)%gto_basis_set
+                  n1 = orb_basis_set%nsgf
+                  ALLOCATE (lri_env%wbas(i)%vec(n1))
+                  DO iset = 1, orb_basis_set%nset
+                     DO ishell = 1, orb_basis_set%nshell(iset)
+                        i1 = orb_basis_set%first_sgf(ishell, iset)
+                        i2 = orb_basis_set%last_sgf(ishell, iset)
+                        l = orb_basis_set%l(ishell, iset)
+                        xradius = 0.0_dp
+                        DO ipgf = 1, orb_basis_set%npgf(iset)
+                           gcc = orb_basis_set%gcc(ipgf, ishell, iset)
+                           zeta = orb_basis_set%zet(ipgf, iset)
+                           rad = exp_radius(l, zeta, 1.e-5_dp, gcc)
+                           xradius = MAX(xradius, rad)
+                        END DO
+                        lri_env%wbas(i)%vec(i1:i2) = xradius
+                     END DO
+                  END DO
+               END DO
+            CASE DEFAULT
+               CPABORT("Unknown DISTANT_PAIR_METHOD in LRI")
+            END SELECT
+            !
+            SELECT CASE (lri_env%distant_pair_method)
+            CASE ("SW", "LW")
+               ALLOCATE (lri_env%wmat(nkind, nkind))
+               DO i1 = 1, nkind
+                  n1 = lri_env%orb_basis(i1)%gto_basis_set%nsgf
+                  DO i2 = 1, nkind
+                     n2 = lri_env%orb_basis(i2)%gto_basis_set%nsgf
+                     ALLOCATE (lri_env%wmat(i1, i2)%mat(n1, n2))
+                     DO ip = 1, SIZE(lri_env%wbas(i1)%vec)
+                        rai = lri_env%wbas(i1)%vec(ip)**2
+                        DO jp = 1, SIZE(lri_env%wbas(i2)%vec)
+                           raj = lri_env%wbas(i2)%vec(jp)**2
+                           IF (raj > rai) THEN
+                              lri_env%wmat(i1, i2)%mat(ip, jp) = 1.0_dp
+                           ELSE
+                              lri_env%wmat(i1, i2)%mat(ip, jp) = 0.0_dp
+                           END IF
+                        END DO
+                     END DO
+                  END DO
+               END DO
+            END SELECT
+         END IF
       ELSE IF (ri_type == "RI") THEN
          ALLOCATE (lri_env%ri_fit)
          NULLIFY (lri_env%ri_fit%nvec)

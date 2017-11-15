@@ -210,6 +210,13 @@ MODULE lri_environment_types
    END TYPE ri_fit_type
 
 ! **************************************************************************************************
+   TYPE wmat_type
+      REAL(KIND=dp), DIMENSION(:, :), POINTER                   :: mat
+   END TYPE wmat_type
+   TYPE wbas_type
+      REAL(KIND=dp), DIMENSION(:), POINTER                      :: vec
+   END TYPE wbas_type
+! **************************************************************************************************
 
    TYPE lri_environment_type
       INTEGER                                                 :: id_nr, ref_count, in_use
@@ -251,6 +258,9 @@ MODULE lri_environment_types
       CHARACTER(len=10)                                       :: distant_pair_method
       REAL(KIND=dp)                                           :: r_in
       REAL(KIND=dp)                                           :: r_out
+      REAL(KIND=dp), DIMENSION(:), POINTER                    :: aradius
+      TYPE(wbas_type), DIMENSION(:), POINTER                  :: wbas
+      TYPE(wmat_type), DIMENSION(:, :), POINTER                :: wmat
       ! RI overlap and inverse
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER               :: ri_smat, &
                                                                  ri_sinv
@@ -352,6 +362,9 @@ CONTAINS
       NULLIFY (lri_env%ri_sinv)
       NULLIFY (lri_env%ri_fit)
       NULLIFY (lri_env%o3c)
+      NULLIFY (lri_env%aradius)
+      NULLIFY (lri_env%wmat)
+      NULLIFY (lri_env%wbas)
 
       NULLIFY (lri_env%cg_shg)
       ALLOCATE (lri_env%cg_shg)
@@ -372,7 +385,7 @@ CONTAINS
       CHARACTER(len=*), PARAMETER :: routineN = 'lri_env_release', &
          routineP = moduleN//':'//routineN
 
-      INTEGER                                            :: i, ikind, nkind
+      INTEGER                                            :: i, ikind, j, nkind
 
       IF (ASSOCIATED(lri_env)) THEN
          lri_env%ref_count = 0
@@ -417,6 +430,27 @@ CONTAINS
             CALL deallocate_lri_ints_rho(lri_env%lri_ints_rho)
          END IF
          CALL deallocate_bas_properties(lri_env)
+         IF (ASSOCIATED(lri_env%aradius)) THEN
+            DEALLOCATE (lri_env%aradius)
+         END IF
+         IF (ASSOCIATED(lri_env%wmat)) THEN
+            DO i = 1, SIZE(lri_env%wmat, 1)
+               DO j = 1, SIZE(lri_env%wmat, 2)
+                  IF (ASSOCIATED(lri_env%wmat(i, j)%mat)) THEN
+                     DEALLOCATE (lri_env%wmat(i, j)%mat)
+                  END IF
+               END DO
+            END DO
+            DEALLOCATE (lri_env%wmat)
+         END IF
+         IF (ASSOCIATED(lri_env%wbas)) THEN
+            DO i = 1, SIZE(lri_env%wmat, 1)
+               IF (ASSOCIATED(lri_env%wbas(i)%vec)) THEN
+                  DEALLOCATE (lri_env%wbas(i)%vec)
+               END IF
+            END DO
+            DEALLOCATE (lri_env%wbas)
+         END IF
          IF (ASSOCIATED(lri_env%cg_shg)) THEN
             IF (ASSOCIATED(lri_env%cg_shg%cg_coeff)) THEN
                DEALLOCATE (lri_env%cg_shg%cg_coeff)
