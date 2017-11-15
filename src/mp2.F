@@ -1140,6 +1140,7 @@ CONTAINS
          energy%ex = E_ex_from_GW
       ELSE
 
+         ehfx = 0.0_dp
          DO irep = 1, n_rep_hf
             ns = SIZE(rho_ao)
             rho_ao_2d(1:ns, 1:1) => rho_ao(1:ns)
