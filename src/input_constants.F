@@ -630,6 +630,10 @@ MODULE input_constants
                                                tddfpt_dipole_length = 2, &
                                                tddfpt_dipole_velocity = 3
 
+   ! Time-dependent XAS
+   INTEGER, PARAMETER, PUBLIC               :: xas_tdp_by_index = 1, &
+                                               xas_tdp_by_kind = 2
+
    ! Linear Response for properties
    INTEGER, PARAMETER, PUBLIC               :: lr_none = 0, &
                                                lr_chemshift = 1, &
