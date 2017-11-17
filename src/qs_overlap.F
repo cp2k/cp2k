@@ -262,6 +262,8 @@ CONTAINS
       mepos = 0
 !$    mepos = omp_get_thread_num()
 
+      NULLIFY (p_block)
+
       ALLOCATE (oint(ldsab, ldsab, maxder), owork(ldsab, ldsab))
       IF (do_forces) ALLOCATE (pmat(ldsab, ldsab))
       ALLOCATE (sint(maxs))

@@ -697,7 +697,7 @@ CONTAINS
    SUBROUTINE repl_dense_${ndim}$d_array_to_dist_sparse_tensor_${dsuffix}$(tensor, array)
       TYPE(dbcsr_t_type), INTENT(INOUT)                             :: tensor
       ${dtype}$, ALLOCATABLE, DIMENSION(${shape_colon(ndim)}$),&
-         INTENT(OUT)                                             :: array
+         INTENT(INOUT)                                           :: array
       ${dtype}$, ALLOCATABLE, DIMENSION(${shape_colon(ndim)}$)   :: block
       INTEGER, DIMENSION(dbcsr_t_ndims(tensor))                  :: dims_nd, ind_nd, blk_size, blk_offset
       TYPE(dbcsr_t_iterator_type)                                     :: iterator
