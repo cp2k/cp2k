@@ -1399,7 +1399,8 @@ CONTAINS
                                        para_env, .TRUE., irep, .TRUE., &
                                        ispin=1, do_exx=.TRUE.)
          END DO
-
+      ELSE
+         ehfx = 0.0_dp
       END IF
 
       ! transform Fock-Matrix (calculated in integrate_four_center, written in matrix_ks_aux_fit in case
