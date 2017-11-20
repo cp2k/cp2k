@@ -5823,7 +5823,7 @@ CONTAINS
                           "Options: EW (equal weights); AW (atomic weights); SW (set weights); "// &
                           "LW (shell function weights)", &
                           usage="DISTANT_PAIR_METHOD {method}", &
-                          default_c_val="EW")
+                          default_c_val="LW")
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 

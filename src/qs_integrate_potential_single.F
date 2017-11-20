@@ -36,6 +36,8 @@ MODULE qs_integrate_potential_single
                                               pbc
    USE cp_control_types,                ONLY: dft_control_type
    USE cp_para_types,                   ONLY: cp_para_env_type
+   USE dbcsr_api,                       ONLY: dbcsr_get_block_p,&
+                                              dbcsr_type
    USE external_potential_types,        ONLY: get_potential,&
                                               gth_potential_type
    USE gaussian_gridlevels,             ONLY: gaussian_gridlevel,&
@@ -81,6 +83,7 @@ MODULE qs_integrate_potential_single
 ! *** qs_integrate_potential
 
    PUBLIC :: integrate_v_rspace_one_center, &
+             integrate_v_rspace_diagonal, &
              integrate_v_core_rspace, &
              integrate_ppl_rspace, &
              integrate_rho_nlcc
@@ -862,5 +865,250 @@ CONTAINS
       CALL timestop(handle)
 
    END SUBROUTINE integrate_v_rspace_one_center
+
+! **************************************************************************************************
+!> \brief computes integrals of product of v_rspace times the diagonal block basis functions
+!>        required for LRIGPW with exact 1c terms
+!> \param v_rspace ...
+!> \param ksmat ...
+!> \param pmat ...
+!> \param qs_env ...
+!> \param calculate_forces ...
+!> \param basis_type ...
+!> \author JGH
+! **************************************************************************************************
+   SUBROUTINE integrate_v_rspace_diagonal(v_rspace, ksmat, pmat, qs_env, calculate_forces, basis_type)
+      TYPE(pw_p_type), INTENT(IN)                        :: v_rspace
+      TYPE(dbcsr_type), INTENT(INOUT)                    :: ksmat, pmat
+      TYPE(qs_environment_type), POINTER                 :: qs_env
+      LOGICAL, INTENT(IN)                                :: calculate_forces
+      CHARACTER(len=*), INTENT(IN)                       :: basis_type
+
+      CHARACTER(len=*), PARAMETER :: routineN = 'integrate_v_rspace_diagonal', &
+         routineP = moduleN//':'//routineN
+
+      INTEGER :: atom_a, dir, group_size, handle, i, iatom, igrid_level, ikind, ipgf, iset, jpgf, &
+         jset, maxco, maxsgf_set, my_pos, na1, na2, natom_of_kind, nb1, nb2, ncoa, ncob, nkind, &
+         nseta, nsgfa, offset, sgfa, sgfb
+      INTEGER, DIMENSION(3)                              :: lb, location, tp, ub
+      INTEGER, DIMENSION(:), POINTER                     :: atom_list, la_max, la_min, npgfa, &
+                                                            nsgf_seta
+      INTEGER, DIMENSION(:, :), POINTER                  :: first_sgfa
+      LOGICAL                                            :: found, map_consistent, map_it_here, &
+                                                            use_virial
+      REAL(KIND=dp)                                      :: eps_gvg_rspace, eps_rho_rspace, rab2, &
+                                                            zetp
+      REAL(KIND=dp), DIMENSION(3)                        :: force_a, force_b, ra, rab
+      REAL(KIND=dp), DIMENSION(3, 3)                     :: my_virial_a, my_virial_b
+      REAL(KIND=dp), DIMENSION(:), POINTER               :: set_radius_a
+      REAL(KIND=dp), DIMENSION(:, :), POINTER            :: h_block, hab, hmat, p_block, pab, pblk, &
+                                                            rpgfa, sphi_a, work, zeta
+      TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
+      TYPE(cell_type), POINTER                           :: cell
+      TYPE(cp_para_env_type), POINTER                    :: para_env
+      TYPE(dft_control_type), POINTER                    :: dft_control
+      TYPE(gridlevel_info_type), POINTER                 :: gridlevel_info
+      TYPE(gto_basis_set_type), POINTER                  :: orb_basis_set
+      TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
+      TYPE(pw_env_type), POINTER                         :: pw_env
+      TYPE(qs_force_type), DIMENSION(:), POINTER         :: force
+      TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
+      TYPE(realspace_grid_p_type), DIMENSION(:), POINTER :: rs_v
+      TYPE(realspace_grid_type), POINTER                 :: rs_grid
+      TYPE(virial_type), POINTER                         :: virial
+
+      CALL timeset(routineN, handle)
+
+      CALL get_qs_env(qs_env=qs_env, pw_env=pw_env)
+      CALL pw_env_get(pw_env, rs_grids=rs_v)
+      DO i = 1, SIZE(rs_v)
+         CALL rs_grid_retain(rs_v(i)%rs_grid)
+      END DO
+      CALL potential_pw2rs(rs_v, v_rspace, pw_env)
+
+      gridlevel_info => pw_env%gridlevel_info
+
+      CALL get_qs_env(qs_env=qs_env, &
+                      atomic_kind_set=atomic_kind_set, &
+                      qs_kind_set=qs_kind_set, &
+                      cell=cell, &
+                      dft_control=dft_control, &
+                      nkind=nkind, &
+                      particle_set=particle_set, &
+                      force=force, &
+                      virial=virial, &
+                      para_env=para_env)
+
+      eps_rho_rspace = dft_control%qs_control%eps_rho_rspace
+      map_consistent = dft_control%qs_control%map_consistent
+      IF (map_consistent) THEN
+         eps_gvg_rspace = dft_control%qs_control%eps_rho_rspace
+      ELSE
+         eps_gvg_rspace = dft_control%qs_control%eps_gvg_rspace
+      ENDIF
+      use_virial = virial%pv_availability .AND. (.NOT. virial%pv_numer)
+
+      offset = 0
+      my_pos = v_rspace%pw%pw_grid%para%my_pos
+      group_size = v_rspace%pw%pw_grid%para%group_size
+
+      DO ikind = 1, nkind
+
+         CALL get_atomic_kind(atomic_kind_set(ikind), natom=natom_of_kind, atom_list=atom_list)
+         CALL get_qs_kind(qs_kind_set(ikind), basis_set=orb_basis_set, basis_type=basis_type)
+         CALL get_gto_basis_set(gto_basis_set=orb_basis_set, &
+                                lmax=la_max, lmin=la_min, maxco=maxco, maxsgf_set=maxsgf_set, &
+                                npgf=npgfa, nset=nseta, nsgf_set=nsgf_seta, nsgf=nsgfa, &
+                                first_sgf=first_sgfa, pgf_radius=rpgfa, set_radius=set_radius_a, &
+                                sphi=sphi_a, zet=zeta)
+
+         ALLOCATE (hab(maxco, maxco), work(maxco, maxsgf_set), hmat(nsgfa, nsgfa))
+         IF (calculate_forces) ALLOCATE (pab(maxco, maxco), pblk(nsgfa, nsgfa))
+
+         DO iatom = 1, natom_of_kind
+            atom_a = atom_list(iatom)
+            ra(:) = pbc(particle_set(atom_a)%r, cell)
+            rab(:) = 0.0_dp
+            rab2 = 0.0_dp
+            hmat = 0.0_dp
+            IF (calculate_forces) THEN
+               CALL dbcsr_get_block_p(matrix=pmat, row=atom_a, col=atom_a, BLOCK=p_block, found=found)
+               IF (found) THEN
+                  pblk(1:nsgfa, 1:nsgfa) = p_block(1:nsgfa, 1:nsgfa)
+               ELSE
+                  pblk = 0.0_dp
+               END IF
+               CALL mp_sum(pblk, para_env%group)
+               force_a(:) = 0._dp
+               force_b(:) = 0._dp
+               IF (use_virial) THEN
+                  my_virial_a = 0.0_dp
+                  my_virial_b = 0.0_dp
+               ENDIF
+            END IF
+            DO iset = 1, nseta
+               sgfa = first_sgfa(1, iset)
+               ncoa = npgfa(iset)*ncoset(la_max(iset))
+               DO jset = 1, nseta
+                  sgfb = first_sgfa(1, jset)
+                  ncob = npgfa(jset)*ncoset(la_max(jset))
+
+                  hab(:, :) = 0._dp
+                  IF (calculate_forces) THEN
+                     CALL dgemm("N", "N", ncoa, nsgf_seta(jset), nsgf_seta(iset), &
+                                1.0_dp, sphi_a(1, sgfa), SIZE(sphi_a, 1), &
+                                pblk(sgfa, sgfb), SIZE(pblk, 1), &
+                                0.0_dp, work(1, 1), SIZE(work, 1))
+                     CALL dgemm("N", "T", ncoa, ncob, nsgf_seta(jset), &
+                                1.0_dp, work(1, 1), SIZE(work, 1), &
+                                sphi_a(1, sgfb), SIZE(sphi_a, 1), &
+                                0.0_dp, pab(1, 1), SIZE(pab, 1))
+                  END IF
+
+                  DO ipgf = 1, npgfa(iset)
+                     na1 = (ipgf-1)*ncoset(la_max(iset))
+                     na2 = ipgf*ncoset(la_max(iset))
+                     DO jpgf = 1, npgfa(jset)
+                        nb1 = (jpgf-1)*ncoset(la_max(jset))
+                        nb2 = jpgf*ncoset(la_max(jset))
+
+                        zetp = zeta(ipgf, iset)+zeta(jpgf, jset)
+                        igrid_level = gaussian_gridlevel(gridlevel_info, zetp)
+                        rs_grid => rs_v(igrid_level)%rs_grid
+
+                        map_it_here = .FALSE.
+
+                        IF (.NOT. ALL(rs_grid%desc%perd == 1)) THEN
+                           DO dir = 1, 3
+                              ! bounds of local grid (i.e. removing the 'wings'), if periodic
+                              tp(dir) = FLOOR(DOT_PRODUCT(cell%h_inv(dir, :), ra)*rs_grid%desc%npts(dir))
+                              tp(dir) = MODULO(tp(dir), rs_grid%desc%npts(dir))
+                              IF (rs_grid%desc%perd(dir) .NE. 1) THEN
+                                 lb(dir) = rs_grid%lb_local(dir)+rs_grid%desc%border
+                                 ub(dir) = rs_grid%ub_local(dir)-rs_grid%desc%border
+                              ELSE
+                                 lb(dir) = rs_grid%lb_local(dir)
+                                 ub(dir) = rs_grid%ub_local(dir)
+                              ENDIF
+                              ! distributed grid, only map if it is local to the grid
+                              location(dir) = tp(dir)+rs_grid%desc%lb(dir)
+                           ENDDO
+                           IF (lb(1) <= location(1) .AND. location(1) <= ub(1) .AND. &
+                               lb(2) <= location(2) .AND. location(2) <= ub(2) .AND. &
+                               lb(3) <= location(3) .AND. location(3) <= ub(3)) THEN
+                              map_it_here = .TRUE.
+                           ENDIF
+                        ELSE
+                           ! not distributed, just a round-robin distribution over the full set of CPUs
+                           IF (MODULO(offset, group_size) == my_pos) map_it_here = .TRUE.
+                        ENDIF
+
+                        IF (map_it_here) THEN
+                           IF (calculate_forces) THEN
+                              CALL integrate_pgf_product_rspace( &
+                                 la_max(iset), zeta(ipgf, iset), la_min(iset), &
+                                 la_max(jset), zeta(jpgf, jset), la_min(jset), &
+                                 ra, rab, rab2, rs_v(igrid_level)%rs_grid, cell, &
+                                 pw_env%cube_info(igrid_level), &
+                                 hab, pab=pab, o1=na1, o2=nb1, &
+                                 eps_gvg_rspace=eps_gvg_rspace, &
+                                 calculate_forces=calculate_forces, &
+                                 force_a=force_a, force_b=force_b, &
+                                 use_virial=use_virial, my_virial_a=my_virial_a, my_virial_b=my_virial_b, &
+                                 map_consistent=map_consistent)
+                           ELSE
+                              CALL integrate_pgf_product_rspace( &
+                                 la_max(iset), zeta(ipgf, iset), la_min(iset), &
+                                 la_max(jset), zeta(jpgf, jset), la_min(jset), &
+                                 ra, rab, rab2, rs_v(igrid_level)%rs_grid, cell, &
+                                 pw_env%cube_info(igrid_level), &
+                                 hab, o1=na1, o2=nb1, &
+                                 eps_gvg_rspace=eps_gvg_rspace, &
+                                 calculate_forces=.FALSE., map_consistent=map_consistent)
+                           ENDIF
+                        ENDIF
+
+                     ENDDO
+                  ENDDO
+                  ! contract hab
+                  CALL dgemm("N", "N", ncoa, nsgf_seta(jset), ncob, &
+                             1.0_dp, hab(1, 1), SIZE(hab, 1), &
+                             sphi_a(1, sgfb), SIZE(sphi_a, 1), &
+                             0.0_dp, work(1, 1), SIZE(work, 1))
+                  CALL dgemm("T", "N", nsgf_seta(iset), nsgf_seta(jset), ncoa, &
+                             1.0_dp, sphi_a(1, sgfa), SIZE(sphi_a, 1), &
+                             work(1, 1), SIZE(work, 1), &
+                             1.0_dp, hmat(sgfa, sgfb), SIZE(hmat, 1))
+
+                  offset = offset+nsgf_seta(iset)*nsgf_seta(jset)
+
+               ENDDO
+            ENDDO
+            ! update KS matrix
+            CALL mp_sum(hmat, para_env%group)
+            CALL dbcsr_get_block_p(matrix=ksmat, row=atom_a, col=atom_a, BLOCK=h_block, found=found)
+            IF (found) THEN
+               h_block(1:nsgfa, 1:nsgfa) = h_block(1:nsgfa, 1:nsgfa)+hmat(1:nsgfa, 1:nsgfa)
+            END IF
+            IF (calculate_forces) THEN
+               force(ikind)%rho_elec(:, iatom) = force(ikind)%rho_elec(:, iatom)+2.0_dp*force_a(:)
+               IF (use_virial) THEN
+                  IF (use_virial .AND. calculate_forces) THEN
+                     virial%pv_virial = virial%pv_virial+2.0_dp*my_virial_a
+                  END IF
+               END IF
+            ENDIF
+         END DO
+         DEALLOCATE (hab, work, hmat)
+         IF (calculate_forces) DEALLOCATE (pab, pblk)
+      END DO
+
+      DO i = 1, SIZE(rs_v)
+         CALL rs_grid_release(rs_v(i)%rs_grid)
+      END DO
+
+      CALL timestop(handle)
+
+   END SUBROUTINE integrate_v_rspace_diagonal
 
 END MODULE qs_integrate_potential_single

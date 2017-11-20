@@ -97,6 +97,7 @@ MODULE qs_ks_utils
                                               qs_environment_type
    USE qs_force_types,                  ONLY: qs_force_type
    USE qs_integrate_potential,          ONLY: integrate_v_rspace,&
+                                              integrate_v_rspace_diagonal,&
                                               integrate_v_rspace_one_center
    USE qs_kind_types,                   ONLY: get_qs_kind_set,&
                                               qs_kind_type
@@ -1385,6 +1386,13 @@ CONTAINS
                lri_v_int => lri_density%lri_coefs(ispin)%lri_kinds
                CALL integrate_v_rspace_one_center(v_rspace_new(ispin), qs_env, &
                                                   lri_v_int, calculate_forces, "LRI")
+               IF (lri_env%exact_1c_terms) THEN
+                  rho_ao => my_rho(ispin, :)
+                  ksmat => ks_matrix(ispin, :)
+                  CALL integrate_v_rspace_diagonal(v_rspace_new(ispin), ksmat(1)%matrix, &
+                                                   rho_ao(1)%matrix, qs_env, &
+                                                   calculate_forces, "ORB")
+               END IF
             ELSEIF (rigpw) THEN
                lri_v_int => lri_density%lri_coefs(ispin)%lri_kinds
                CALL integrate_v_rspace_one_center(v_rspace_new(ispin), qs_env, &
@@ -1438,6 +1446,13 @@ CONTAINS
                lri_v_int => lri_density%lri_coefs(ispin)%lri_kinds
                CALL integrate_v_rspace_one_center(v_rspace, qs_env, &
                                                   lri_v_int, calculate_forces, "LRI")
+               IF (lri_env%exact_1c_terms) THEN
+                  rho_ao => my_rho(ispin, :)
+                  ksmat => ks_matrix(ispin, :)
+                  CALL integrate_v_rspace_diagonal(v_rspace, ksmat(1)%matrix, &
+                                                   rho_ao(1)%matrix, qs_env, &
+                                                   calculate_forces, "ORB")
+               END IF
             ELSEIF (rigpw) THEN
                lri_v_int => lri_density%lri_coefs(ispin)%lri_kinds
                CALL integrate_v_rspace_one_center(v_rspace, qs_env, &

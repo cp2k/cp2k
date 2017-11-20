@@ -414,7 +414,7 @@ CONTAINS
       DO ispin = 1, nspin
          lri_coef => lri_density%lri_coefs(ispin)%lri_kinds
          CALL calculate_lri_rho_elec(rho_g(ispin), rho_r(ispin), qs_env, &
-                                     lri_coef, tot_rho_r(ispin), "RI_HXC")
+                                     lri_coef, tot_rho_r(ispin), "RI_HXC", .FALSE.)
       ENDDO
 
       CALL timestop(handle)

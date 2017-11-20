@@ -117,6 +117,9 @@ CONTAINS
             dab = SQRT(SUM(rab*rab))
 
             IF (.NOT. ASSOCIATED(lri_env%lri_ints%lri_atom(iac)%lri_node)) CYCLE
+            IF (lri_env%exact_1c_terms) THEN
+               IF (iatom == jatom .AND. dab < lri_env%delta) CYCLE
+            END IF
 
             lrii => lri_env%lri_ints%lri_atom(iac)%lri_node(ilist)%lri_int(jneighbor)
 

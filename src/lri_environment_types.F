@@ -630,20 +630,22 @@ CONTAINS
          nfb = fbasb%nsgf
          nn = nfa+nfb
 
-         ALLOCATE (lrii%abaint(nba, nbb, nfa))
-         ALLOCATE (lrii%abascr(nfa))
-         lrii%abaint = 0._dp
-         lrii%abascr = 0._dp
-         ALLOCATE (lrii%abbint(nba, nbb, nfb))
-         ALLOCATE (lrii%abbscr(nfb))
-         lrii%abbint = 0._dp
-         lrii%abbscr = 0._dp
-
          IF (iatom == jatom .AND. dab < lri_env%delta) THEN
             e1c = lri_env%exact_1c_terms
          ELSE
             e1c = .FALSE.
          ENDIF
+
+         IF (.NOT. e1c) THEN
+            ALLOCATE (lrii%abaint(nba, nbb, nfa))
+            ALLOCATE (lrii%abascr(nfa))
+            lrii%abaint = 0._dp
+            lrii%abascr = 0._dp
+            ALLOCATE (lrii%abbint(nba, nbb, nfb))
+            ALLOCATE (lrii%abbscr(nfb))
+            lrii%abbint = 0._dp
+            lrii%abbscr = 0._dp
+         END IF
 
          IF (dpa) THEN
             lrii%wsr = pswitch(dab, ra, rb, 0)
@@ -667,6 +669,7 @@ CONTAINS
          IF (lrii%lrisr) THEN
             IF (e1c) THEN
                NULLIFY (lrii%n, lrii%sn)
+               NULLIFY (lrii%sinv)
             ELSE
                ALLOCATE (lrii%sab(nfa, nfb))
                lrii%sab = 0._dp
@@ -689,8 +692,8 @@ CONTAINS
                lrii%sn = 0._dp
             END IF
          ELSE
-            NULLIFY (lrii%sinv)
             NULLIFY (lrii%n, lrii%sn)
+            NULLIFY (lrii%sinv)
          ENDIF
 
          ! far field approximation
@@ -892,8 +895,10 @@ CONTAINS
             NULLIFY (lrho%avec, lrho%tvec)
             IF (lrii%lrisr) THEN
                IF (iatom == jatom .AND. dab < lri_env%delta) THEN
-                  ALLOCATE (lrho%avec(nfa))
-                  ALLOCATE (lrho%tvec(nfa))
+                  IF (.NOT. lri_env%exact_1c_terms) THEN
+                     ALLOCATE (lrho%avec(nfa))
+                     ALLOCATE (lrho%tvec(nfa))
+                  END IF
                ELSE
                   ALLOCATE (lrho%avec(nn))
                   ALLOCATE (lrho%tvec(nn))

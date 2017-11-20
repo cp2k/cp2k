@@ -25,8 +25,12 @@ MODULE lri_environment_methods
    USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
                                               cp_print_key_unit_nr
    USE cp_para_types,                   ONLY: cp_para_env_type
-   USE dbcsr_api,                       ONLY: dbcsr_get_block_p,&
+   USE dbcsr_api,                       ONLY: dbcsr_create,&
+                                              dbcsr_get_block_diag,&
+                                              dbcsr_get_block_p,&
                                               dbcsr_p_type,&
+                                              dbcsr_release,&
+                                              dbcsr_replicate_all,&
                                               dbcsr_type
    USE generic_os_integrals,            ONLY: int_overlap_aabb_os,&
                                               int_overlap_ab_os,&
@@ -125,7 +129,7 @@ CONTAINS
                                                             jkind, jneighbor, mepos, nba, nbb, &
                                                             nfa, nfb, nkind, nlist, nn, nneighbor, &
                                                             nthread
-      LOGICAL                                            :: use_virial
+      LOGICAL                                            :: e1c, use_virial
       REAL(KIND=dp)                                      :: dab
       REAL(KIND=dp), DIMENSION(3)                        :: rab
       TYPE(cell_type), POINTER                           :: cell
@@ -165,7 +169,7 @@ CONTAINS
 !$OMP PARALLEL DEFAULT(NONE)&
 !$OMP SHARED (nthread,nl_iterator,lri_env,lri_ints,nkind,use_virial)&
 !$OMP PRIVATE (mepos,ikind,jkind,iatom,jatom,nlist,ilist,nneighbor,jneighbor,rab,dab,&
-!$OMP          iac,obasa,obasb,fbasa,fbasb,lrii,nba,nbb,nfa,nfb,nn)
+!$OMP          e1c,iac,obasa,obasb,fbasa,fbasb,lrii,nba,nbb,nfa,nfb,nn)
 
          mepos = 0
 !$       mepos = omp_get_thread_num()
@@ -188,6 +192,11 @@ CONTAINS
 
             lrii => lri_ints%lri_atom(iac)%lri_node(ilist)%lri_int(jneighbor)
 
+            ! exact 1 center approximation
+            e1c = .FALSE.
+            IF (lri_env%exact_1c_terms) THEN
+               IF (iatom == jatom .AND. dab < lri_env%delta) e1c = .TRUE.
+            END IF
             ! forces: not every pair is giving contributions
             ! no forces for self-pair aa
             IF (iatom == jatom .AND. dab < lri_env%delta) THEN
@@ -213,19 +222,23 @@ CONTAINS
 
             ! full method is used
             ! calculate integrals (fa,fb), (a,b), (a,b,fa) and (a,b,fb)
-            IF (lri_env%use_shg_integrals) THEN
-               CALL lri_int_shg(lri_env, lrii, rab, obasa, obasb, fbasa, fbasb, &
-                                iatom, jatom, ikind, jkind, .FALSE.)
-            ELSE
-               CALL lri_int_os(lri_env, lrii, rab, obasa, obasb, fbasa, fbasb, &
-                               iatom, jatom, ikind, .FALSE.)
+            IF (.NOT. e1c) THEN
+               IF (lri_env%use_shg_integrals) THEN
+                  CALL lri_int_shg(lri_env, lrii, rab, obasa, obasb, fbasa, fbasb, &
+                                   iatom, jatom, ikind, jkind, .FALSE.)
+               ELSE
+                  CALL lri_int_os(lri_env, lrii, rab, obasa, obasb, fbasa, fbasb, &
+                                  iatom, jatom, ikind, .FALSE.)
+               ENDIF
             ENDIF
 
             ! Full LRI method
             IF (lrii%lrisr) THEN
                ! construct and invert S matrix
                IF (iatom == jatom .AND. dab < lri_env%delta) THEN
-                  lrii%sinv(1:nfa, 1:nfa) = lri_env%bas_prop(ikind)%ri_ovlp_inv(1:nfa, 1:nfa)
+                  IF (.NOT. e1c) THEN
+                     lrii%sinv(1:nfa, 1:nfa) = lri_env%bas_prop(ikind)%ri_ovlp_inv(1:nfa, 1:nfa)
+                  END IF
                ELSE
                   nn = nfa+nfb
                   lrii%sinv(1:nfa, 1:nfa) = lri_env%bas_prop(ikind)%ri_ovlp(1:nfa, 1:nfa)
@@ -236,17 +249,19 @@ CONTAINS
                ENDIF
 
                ! calculate Sinv*n and n*Sinv*n
-               lrii%n(1:nfa) = lri_env%bas_prop(ikind)%int_fbas(1:nfa)
-               IF (iatom == jatom .AND. dab < lri_env%delta) THEN
-                  CALL dgemv("N", nfa, nfa, 1.0_dp, lrii%sinv(1, 1), nfa, &
-                             lrii%n(1), 1, 0.0_dp, lrii%sn, 1)
-                  lrii%nsn = SUM(lrii%sn(1:nfa)*lrii%n(1:nfa))
-               ELSE
-                  lrii%n(nfa+1:nn) = lri_env%bas_prop(jkind)%int_fbas(1:nfb)
-                  CALL dgemv("N", nn, nn, 1.0_dp, lrii%sinv(1, 1), nn, &
-                             lrii%n(1), 1, 0.0_dp, lrii%sn, 1)
-                  lrii%nsn = SUM(lrii%sn(1:nn)*lrii%n(1:nn))
-               ENDIF
+               IF (.NOT. e1c) THEN
+                  lrii%n(1:nfa) = lri_env%bas_prop(ikind)%int_fbas(1:nfa)
+                  IF (iatom == jatom .AND. dab < lri_env%delta) THEN
+                     CALL dgemv("N", nfa, nfa, 1.0_dp, lrii%sinv(1, 1), nfa, &
+                                lrii%n(1), 1, 0.0_dp, lrii%sn, 1)
+                     lrii%nsn = SUM(lrii%sn(1:nfa)*lrii%n(1:nfa))
+                  ELSE
+                     lrii%n(nfa+1:nn) = lri_env%bas_prop(jkind)%int_fbas(1:nfb)
+                     CALL dgemv("N", nn, nn, 1.0_dp, lrii%sinv(1, 1), nn, &
+                                lrii%n(1), 1, 0.0_dp, lrii%sn, 1)
+                     lrii%nsn = SUM(lrii%sn(1:nn)*lrii%n(1:nn))
+                  ENDIF
+               END IF
             END IF
 
             ! Distant Pair methods
@@ -467,6 +482,7 @@ CONTAINS
                dab = SQRT(SUM(rab*rab))
 
                IF (.NOT. ASSOCIATED(lri_env%lri_ints%lri_atom(iac)%lri_node)) CYCLE
+               IF (iatom == jatom .AND. dab < lri_env%delta .AND. lri_env%exact_1c_terms) CYCLE
 
                ! get the density matrix Pab
                NULLIFY (pbij)
@@ -647,6 +663,8 @@ CONTAINS
       REAL(KIND=dp)                                      :: dab, fw, rab(3)
       REAL(KIND=dp), DIMENSION(:), POINTER               :: aci, acj, tot_rho_r
       TYPE(atomic_kind_type), POINTER                    :: atomic_kind
+      TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: matrix_p
+      TYPE(dbcsr_type)                                   :: pmat_diag
       TYPE(lri_int_type), POINTER                        :: lrii
       TYPE(lri_kind_type), DIMENSION(:), POINTER         :: lri_coef
       TYPE(lri_list_type), POINTER                       :: lri_rho
@@ -656,6 +674,7 @@ CONTAINS
       TYPE(neighbor_list_set_p_type), DIMENSION(:), &
          POINTER                                         :: soo_list
       TYPE(pw_p_type), DIMENSION(:), POINTER             :: rho_g, rho_r
+      TYPE(qs_rho_type), POINTER                         :: rho
 
       CALL timeset(routineN, handle)
       NULLIFY (aci, acj, atomic_kind, atom_of_kind, lri_coef, lri_rho, &
@@ -698,7 +717,9 @@ CONTAINS
                IF (lrii%lrisr) THEN
                   IF (iatom == jatom .AND. dab < lri_env%delta) THEN
                      !self pair aa
-                     aci(1:nfa) = aci(1:nfa)+lrho%avec(1:nfa)
+                     IF (.NOT. lri_env%exact_1c_terms) THEN
+                        aci(1:nfa) = aci(1:nfa)+lrho%avec(1:nfa)
+                     END IF
                   ELSE
                      IF (iatom == jatom) THEN
                         !periodic self pair aa'
@@ -741,10 +762,21 @@ CONTAINS
          CALL qs_rho_get(lri_rho_struct, rho_r=rho_r, rho_g=rho_g, &
                          tot_rho_r=tot_rho_r)
          DO ispin = 1, nspin
+            IF (lri_env%exact_1c_terms) THEN
+               ! 1 center terms (if requested)
+               CALL get_qs_env(qs_env, rho=rho)
+               CALL qs_rho_get(rho, rho_ao_kp=matrix_p)
+               CALL dbcsr_create(pmat_diag, name="Block diagonal density", template=matrix_p(1, 1)%matrix)
+               CALL dbcsr_get_block_diag(matrix_p(ispin, 1)%matrix, pmat_diag)
+               CALL dbcsr_replicate_all(pmat_diag)
+            END IF
+            !
             CALL calculate_lri_rho_elec(rho_g(ispin), &
                                         rho_r(ispin), qs_env, &
-                                        lri_density%lri_coefs(ispin)%lri_kinds, &
-                                        tot_rho_r(ispin), "LRI")
+                                        lri_density%lri_coefs(ispin)%lri_kinds, tot_rho_r(ispin), &
+                                        "LRI", lri_env%exact_1c_terms, pmat=pmat_diag)
+            !
+            IF (lri_env%exact_1c_terms) CALL dbcsr_release(pmat_diag)
          ENDDO
 
          CALL set_qs_env(qs_env, lri_density=lri_density)

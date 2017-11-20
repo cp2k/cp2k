@@ -62,7 +62,6 @@ MODULE qs_collocate_density
                                               gridlevel_info_type
    USE kinds,                           ONLY: default_string_length,&
                                               dp,&
-                                              dp_size,&
                                               int_8
    USE lgrid_types,                     ONLY: lgrid_allocate_grid,&
                                               lgrid_type
@@ -119,7 +118,6 @@ MODULE qs_collocate_density
    USE task_list_methods,               ONLY: int2pair,&
                                               rs_distribute_matrix
    USE task_list_types,                 ONLY: task_list_type
-   USE termination,                     ONLY: stop_memory
 
 !$ USE OMP_LIB, ONLY: omp_get_max_threads, omp_get_thread_num, omp_get_num_threads
 
@@ -535,44 +533,50 @@ CONTAINS
 !> \param lri_coef ...
 !> \param total_rho ...
 !> \param basis_type ...
+!> \param exact_1c_terms ...
+!> \param pmat replicated block diagonal density matrix (optional)
 !> \par History
 !>      04.2013
 !> \author Dorothea Golze
 ! **************************************************************************************************
    SUBROUTINE calculate_lri_rho_elec(lri_rho_g, lri_rho_r, qs_env, &
-                                     lri_coef, total_rho, basis_type)
+                                     lri_coef, total_rho, basis_type, exact_1c_terms, pmat)
 
       TYPE(pw_p_type), INTENT(INOUT)                     :: lri_rho_g, lri_rho_r
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(lri_kind_type), DIMENSION(:), POINTER         :: lri_coef
       REAL(KIND=dp), INTENT(OUT)                         :: total_rho
       CHARACTER(len=*), INTENT(IN)                       :: basis_type
+      LOGICAL, INTENT(IN)                                :: exact_1c_terms
+      TYPE(dbcsr_type), OPTIONAL                         :: pmat
 
       CHARACTER(len=*), PARAMETER :: routineN = 'calculate_lri_rho_elec', &
          routineP = moduleN//':'//routineN
 
-      INTEGER :: atom_a, dir, group_size, handle, iatom, ierr, igrid_level, ikind, ipgf, iset, &
-         lmax_global, m1, maxco, my_pos, na1, natom, ncoa, nseta, offset, sgfa
+      INTEGER :: atom_a, dir, group_size, handle, iatom, igrid_level, ikind, ipgf, iset, jpgf, &
+         jset, lmax_global, m1, maxco, maxpgf, maxset, maxsgf, maxsgf_set, my_pos, na1, na2, &
+         natom, nb1, nb2, ncoa, ncob, nseta, offset, sgfa, sgfb
       INTEGER, DIMENSION(3)                              :: lb, location, tp, ub
       INTEGER, DIMENSION(:), POINTER                     :: atom_list, la_max, la_min, mylmax, &
                                                             npgfa, nsgfa
       INTEGER, DIMENSION(:, :), POINTER                  :: first_sgfa
-      LOGICAL                                            :: map_consistent, map_it_here
-      REAL(KIND=dp)                                      :: eps_rho_rspace
-      REAL(KIND=dp), DIMENSION(3)                        :: ra
+      LOGICAL                                            :: found, map_consistent, map_it_here
+      REAL(KIND=dp)                                      :: eps_rho_rspace, rab2, zetp
+      REAL(KIND=dp), DIMENSION(3)                        :: ra, rab
       REAL(KIND=dp), DIMENSION(:), POINTER               :: aci
-      REAL(KIND=dp), DIMENSION(:, :), POINTER            :: pab, sphi_a, work, zeta
+      REAL(KIND=dp), DIMENSION(:, :), POINTER            :: p_block, pab, sphi_a, work, zeta
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       TYPE(cell_type), POINTER                           :: cell
       TYPE(cube_info_type), DIMENSION(:), POINTER        :: cube_info
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(gridlevel_info_type), POINTER                 :: gridlevel_info
-      TYPE(gto_basis_set_type), POINTER                  :: lri_basis_set
+      TYPE(gto_basis_set_type), POINTER                  :: lri_basis_set, orb_basis_set
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
       TYPE(pw_env_type), POINTER                         :: pw_env
       TYPE(pw_p_type), DIMENSION(:), POINTER             :: mgrid_gspace, mgrid_rspace
       TYPE(pw_pool_p_type), DIMENSION(:), POINTER        :: pw_pools
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
+      TYPE(qs_kind_type), POINTER                        :: qs_kind
       TYPE(realspace_grid_p_type), DIMENSION(:), POINTER :: rs_rho
       TYPE(realspace_grid_type), POINTER                 :: rs_grid
 
@@ -583,6 +587,10 @@ CONTAINS
                work, zeta, mylmax)
 
       CALL timeset(routineN, handle)
+
+      IF (exact_1c_terms) THEN
+         CPASSERT(PRESENT(pmat))
+      END IF
 
       CALL get_qs_env(qs_env=qs_env, qs_kind_set=qs_kind_set, &
                       atomic_kind_set=atomic_kind_set, &
@@ -617,9 +625,7 @@ CONTAINS
       CALL get_qs_kind_set(qs_kind_set=qs_kind_set, &
                            maxco=maxco, basis_type=basis_type)
 
-      ALLOCATE (pab(maxco, 1), STAT=ierr)
-      IF (ierr /= 0) CALL stop_memory(routineN, moduleN, __LINE__, &
-                                      "pab", maxco*dp_size)
+      ALLOCATE (pab(maxco, 1))
       offset = 0
       my_pos = mgrid_rspace(1)%pw%pw_grid%para%my_pos
       group_size = mgrid_rspace(1)%pw%pw_grid%para%group_size
@@ -719,6 +725,114 @@ CONTAINS
 
       DEALLOCATE (pab)
 
+      ! process the one-center terms
+      IF (exact_1c_terms) THEN
+         ! find maximum numbers
+         maxset = 0
+         maxpgf = 0
+         lmax_global = 0
+         DO ikind = 1, SIZE(qs_kind_set)
+            qs_kind => qs_kind_set(ikind)
+            CALL get_qs_kind(qs_kind=qs_kind, &
+                             basis_set=orb_basis_set, basis_type="ORB")
+            IF (.NOT. ASSOCIATED(orb_basis_set)) CYCLE
+            CALL get_gto_basis_set(gto_basis_set=orb_basis_set, &
+                                   npgf=npgfa, nset=nseta, lmax=mylmax)
+            maxset = MAX(nseta, maxset)
+            maxpgf = MAX(MAXVAL(npgfa), maxpgf)
+            lmax_global = MAX(MAXVAL(mylmax), lmax_global)
+         END DO
+         CALL get_qs_kind_set(qs_kind_set=qs_kind_set, &
+                              maxco=maxco, &
+                              maxsgf=maxsgf, &
+                              maxsgf_set=maxsgf_set, &
+                              basis_type="ORB")
+         ALLOCATE (pab(maxco, maxco), work(maxco, maxsgf_set))
+
+         DO ikind = 1, SIZE(atomic_kind_set)
+            CALL get_atomic_kind(atomic_kind_set(ikind), natom=natom, atom_list=atom_list)
+            CALL get_qs_kind(qs_kind_set(ikind), basis_set=orb_basis_set, basis_type="ORB")
+            CALL get_gto_basis_set(gto_basis_set=orb_basis_set, lmax=la_max, &
+                                   lmin=la_min, zet=zeta, nset=nseta, npgf=npgfa, &
+                                   sphi=sphi_a, first_sgf=first_sgfa, nsgf_set=nsgfa)
+            DO iatom = 1, natom
+               atom_a = atom_list(iatom)
+               ra(:) = pbc(particle_set(atom_a)%r, cell)
+               rab(:) = 0.0_dp
+               rab2 = 0.0_dp
+               CALL dbcsr_get_block_p(matrix=pmat, row=atom_a, col=atom_a, BLOCK=p_block, found=found)
+               DO iset = 1, nseta
+                  DO jset = 1, nseta
+                     ncoa = npgfa(iset)*ncoset(la_max(iset))
+                     sgfa = first_sgfa(1, iset)
+                     ncob = npgfa(jset)*ncoset(la_max(jset))
+                     sgfb = first_sgfa(1, jset)
+                     ! decontract density block
+                     CALL dgemm("N", "N", ncoa, nsgfa(jset), nsgfa(iset), &
+                                1.0_dp, sphi_a(1, sgfa), SIZE(sphi_a, 1), &
+                                p_block(sgfa, sgfb), SIZE(p_block, 1), &
+                                0.0_dp, work(1, 1), maxco)
+                     CALL dgemm("N", "T", ncoa, ncob, nsgfa(jset), &
+                                1.0_dp, work(1, 1), maxco, &
+                                sphi_a(1, sgfb), SIZE(sphi_a, 1), &
+                                0.0_dp, pab(1, 1), maxco)
+                     DO ipgf = 1, npgfa(iset)
+                        DO jpgf = 1, npgfa(jset)
+                           zetp = zeta(ipgf, iset)+zeta(jpgf, jset)
+                           igrid_level = gaussian_gridlevel(gridlevel_info, zetp)
+                           rs_grid => rs_rho(igrid_level)%rs_grid
+
+                           na1 = (ipgf-1)*ncoset(la_max(iset))+1
+                           na2 = ipgf*ncoset(la_max(iset))
+                           nb1 = (jpgf-1)*ncoset(la_max(jset))+1
+                           nb2 = jpgf*ncoset(la_max(jset))
+
+                           map_it_here = .FALSE.
+
+                           IF (.NOT. ALL(rs_grid%desc%perd == 1)) THEN
+                              DO dir = 1, 3
+                                 ! bounds of local grid (i.e. removing the 'wings'), if periodic
+                                 tp(dir) = FLOOR(DOT_PRODUCT(cell%h_inv(dir, :), ra)*rs_grid%desc%npts(dir))
+                                 tp(dir) = MODULO(tp(dir), rs_grid%desc%npts(dir))
+                                 IF (rs_grid%desc%perd(dir) .NE. 1) THEN
+                                    lb(dir) = rs_grid%lb_local(dir)+rs_grid%desc%border
+                                    ub(dir) = rs_grid%ub_local(dir)-rs_grid%desc%border
+                                 ELSE
+                                    lb(dir) = rs_grid%lb_local(dir)
+                                    ub(dir) = rs_grid%ub_local(dir)
+                                 ENDIF
+                                 ! distributed grid, only map if it is local to the grid
+                                 location(dir) = tp(dir)+rs_grid%desc%lb(dir)
+                              ENDDO
+                              IF (lb(1) <= location(1) .AND. location(1) <= ub(1) .AND. &
+                                  lb(2) <= location(2) .AND. location(2) <= ub(2) .AND. &
+                                  lb(3) <= location(3) .AND. location(3) <= ub(3)) THEN
+                                 map_it_here = .TRUE.
+                              ENDIF
+                           ELSE
+                              ! not distributed, just a round-robin distribution over the full set of CPUs
+                              IF (MODULO(offset, group_size) == my_pos) map_it_here = .TRUE.
+                           ENDIF
+
+                           IF (map_it_here) THEN
+                              CALL collocate_pgf_product_rspace( &
+                                 la_max(iset), zeta(ipgf, iset), la_min(iset), &
+                                 la_max(jset), zeta(jpgf, jset), la_min(jset), &
+                                 ra, rab, rab2, 1.0_dp, pab, na1-1, nb1-1, &
+                                 rs_grid, cell, cube_info(igrid_level), &
+                                 eps_rho_rspace, ga_gb_function=FUNC_AB, &
+                                 map_consistent=map_consistent, lmax_global=lmax_global)
+                           END IF
+                        END DO
+                     END DO
+                  END DO
+               END DO
+               !
+            END DO
+         END DO
+         DEALLOCATE (pab, work)
+      END IF
+
       CALL pw_zero(lri_rho_g%pw)
       CALL pw_zero(lri_rho_r%pw)
 
@@ -763,8 +877,8 @@ CONTAINS
       CHARACTER(len=*), PARAMETER :: routineN = 'calculate_rho_core', &
          routineP = moduleN//':'//routineN
 
-      INTEGER                                            :: atom_a, handle, iatom, ierr, ikind, &
-                                                            ithread, j, natom, npme, nthread
+      INTEGER                                            :: atom_a, handle, iatom, ikind, ithread, &
+                                                            j, natom, npme, nthread
       INTEGER(KIND=int_8)                                :: subpatch_pattern
       INTEGER, DIMENSION(:), POINTER                     :: atom_list, cores
       LOGICAL                                            :: my_only_nopaw, paw_atom
@@ -785,9 +899,7 @@ CONTAINS
       CALL timeset(routineN, handle)
       NULLIFY (cell, dft_control, pab, atomic_kind_set, qs_kind_set, particle_set, &
                atom_list, pw_env, rs_rho, auxbas_pw_pool, cores)
-      ALLOCATE (pab(1, 1), STAT=ierr)
-      IF (ierr /= 0) CALL stop_memory(routineN, moduleN, __LINE__, &
-                                      "pab", dp_size)
+      ALLOCATE (pab(1, 1))
 
       my_only_nopaw = .FALSE.
       IF (PRESENT(only_nopaw)) my_only_nopaw = only_nopaw
@@ -894,7 +1006,7 @@ CONTAINS
       CHARACTER(len=*), PARAMETER :: routineN = 'calculate_rho_single_gaussian', &
          routineP = moduleN//':'//routineN
 
-      INTEGER                                            :: atom_a, handle, iatom, ierr, npme
+      INTEGER                                            :: atom_a, handle, iatom, npme
       INTEGER(KIND=int_8)                                :: subpatch_pattern
       REAL(KIND=dp)                                      :: eps_rho_rspace
       REAL(KIND=dp), DIMENSION(3)                        :: ra
@@ -909,9 +1021,7 @@ CONTAINS
       CALL timeset(routineN, handle)
       NULLIFY (cell, dft_control, pab, pw_env, rs_rho, auxbas_pw_pool)
 
-      ALLOCATE (pab(1, 1), STAT=ierr)
-      IF (ierr /= 0) CALL stop_memory(routineN, moduleN, __LINE__, &
-                                      "pab", dp_size)
+      ALLOCATE (pab(1, 1))
 
       CALL get_qs_env(qs_env=qs_env, &
                       cell=cell, &
@@ -985,8 +1095,7 @@ CONTAINS
       CHARACTER(len=*), PARAMETER :: routineN = 'calculate_rho_metal', &
          routineP = moduleN//':'//routineN
 
-      INTEGER                                            :: atom_a, handle, iatom, ierr, j, natom, &
-                                                            npme
+      INTEGER                                            :: atom_a, handle, iatom, j, natom, npme
       INTEGER(KIND=int_8)                                :: subpatch_pattern
       INTEGER, DIMENSION(:), POINTER                     :: cores
       REAL(KIND=dp)                                      :: eps_rho_rspace
@@ -1003,9 +1112,7 @@ CONTAINS
 
       NULLIFY (cell, dft_control, pab, pw_env, rs_rho, auxbas_pw_pool, cores)
 
-      ALLOCATE (pab(1, 1), STAT=ierr)
-      IF (ierr /= 0) CALL stop_memory(routineN, moduleN, __LINE__, &
-                                      "pab", dp_size)
+      ALLOCATE (pab(1, 1))
 
       CALL get_qs_env(qs_env=qs_env, &
                       cell=cell, &
@@ -1091,7 +1198,7 @@ CONTAINS
       CHARACTER(len=*), PARAMETER :: routineN = 'calculate_rho_resp_single', &
          routineP = moduleN//':'//routineN
 
-      INTEGER                                            :: handle, iatom, ierr, npme
+      INTEGER                                            :: handle, iatom, npme
       INTEGER(KIND=int_8)                                :: subpatch_pattern
       REAL(KIND=dp)                                      :: eps_rho_rspace
       REAL(KIND=dp), DIMENSION(3)                        :: ra
@@ -1108,9 +1215,7 @@ CONTAINS
       NULLIFY (cell, dft_control, pab, pw_env, rs_rho, auxbas_pw_pool, &
                particle_set)
 
-      ALLOCATE (pab(1, 1), STAT=ierr)
-      IF (ierr /= 0) CALL stop_memory(routineN, moduleN, __LINE__, &
-                                      "pab", dp_size)
+      ALLOCATE (pab(1, 1))
 
       CALL get_qs_env(qs_env=qs_env, &
                       cell=cell, &
@@ -1186,7 +1291,7 @@ CONTAINS
       CHARACTER(len=*), PARAMETER :: routineN = 'calculate_rho_resp_all', &
          routineP = moduleN//':'//routineN
 
-      INTEGER                                            :: handle, iatom, ierr, j, npme
+      INTEGER                                            :: handle, iatom, j, npme
       INTEGER(KIND=int_8)                                :: subpatch_pattern
       INTEGER, DIMENSION(:), POINTER                     :: cores
       REAL(KIND=dp)                                      :: eps_rho_rspace
@@ -1205,9 +1310,7 @@ CONTAINS
       NULLIFY (cell, cores, dft_control, pab, pw_env, rs_rho, auxbas_pw_pool, &
                particle_set)
 
-      ALLOCATE (pab(1, 1), STAT=ierr)
-      IF (ierr /= 0) CALL stop_memory(routineN, moduleN, __LINE__, &
-                                      "pab", dp_size)
+      ALLOCATE (pab(1, 1))
 
       CALL get_qs_env(qs_env=qs_env, &
                       cell=cell, &
@@ -2275,8 +2378,7 @@ CONTAINS
 
       CHARACTER(LEN=default_string_length)               :: my_basis_type
       INTEGER :: dir, group, group_size, handle, i, iatom, igrid_level, ikind, ipgf, iset, &
-         lmax_global, maxco, maxsgf_set, my_pos, na1, na2, nao, natom, ncoa, nseta, offset, sgfa, &
-         stat
+         lmax_global, maxco, maxsgf_set, my_pos, na1, na2, nao, natom, ncoa, nseta, offset, sgfa
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: where_is_the_point
       INTEGER, DIMENSION(3)                              :: lb, location, tp, ub
       INTEGER, DIMENSION(:), POINTER                     :: la_max, la_min, mylmax, npgfa, nsgfa
@@ -2309,13 +2411,11 @@ CONTAINS
 
       IF (PRESENT(external_vector)) THEN
          nao = SIZE(external_vector)
-         ALLOCATE (eigenvector(nao), STAT=stat)
-         IF (stat .NE. 0) CALL stop_memory(routineN, moduleN, __LINE__, "eigenvector", dp_size*nao)
+         ALLOCATE (eigenvector(nao))
          eigenvector = external_vector
       ELSE
          CALL cp_fm_get_info(matrix=mo_vectors, nrow_global=nao)
-         ALLOCATE (eigenvector(nao), STAT=stat)
-         IF (stat .NE. 0) CALL stop_memory(routineN, moduleN, __LINE__, "eigenvector", dp_size*nao)
+         ALLOCATE (eigenvector(nao))
          DO i = 1, nao
             CALL cp_fm_get_element(mo_vectors, i, ivector, eigenvector(i), local)
          ENDDO
@@ -2347,12 +2447,8 @@ CONTAINS
                            maxsgf_set=maxsgf_set, &
                            basis_type=my_basis_type)
 
-      ALLOCATE (pab(maxco, 1), STAT=stat)
-      IF (stat /= 0) CALL stop_memory(routineN, moduleN, __LINE__, &
-                                      "pab", maxco*dp_size)
-      ALLOCATE (work(maxco, 1), STAT=stat)
-      IF (stat /= 0) CALL stop_memory(routineN, moduleN, __LINE__, &
-                                      "work", maxco*dp_size)
+      ALLOCATE (pab(maxco, 1))
+      ALLOCATE (work(maxco, 1))
 
       offset = 0
       group = mgrid_rspace(1)%pw%pw_grid%para%group
