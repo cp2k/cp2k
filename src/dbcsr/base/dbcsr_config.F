@@ -107,6 +107,7 @@ MODULE dbcsr_config
       INTEGER  :: accdrv_posterior_buffers = 80
       LOGICAL  :: accdrv_avoid_after_busy = .FALSE.
       INTEGER  :: accdrv_min_flop_process = 0
+      LOGICAL  :: accdrv_stack_sort = .TRUE.
       INTEGER  :: accdrv_min_flop_sort = 4000
       LOGICAL  :: accdrv_do_inhomogenous = .TRUE.
       INTEGER  :: accdrv_binning_nbins = 4096
@@ -140,6 +141,7 @@ CONTAINS
 !> \param accdrv_posterior_buffers ...
 !> \param accdrv_avoid_after_busy ...
 !> \param accdrv_min_flop_process ...
+!> \param accdrv_stack_sort ...
 !> \param accdrv_min_flop_sort ...
 !> \param accdrv_do_inhomogenous ...
 !> \param accdrv_binning_nbins ...
@@ -163,6 +165,7 @@ CONTAINS
       accdrv_posterior_buffers, &
       accdrv_avoid_after_busy, &
       accdrv_min_flop_process, &
+      accdrv_stack_sort, &
       accdrv_min_flop_sort, &
       accdrv_do_inhomogenous, &
       accdrv_binning_nbins, &
@@ -178,8 +181,9 @@ CONTAINS
       INTEGER, INTENT(IN), OPTIONAL :: comm_thread_load, multrec_limit, accdrv_priority_streams, &
          accdrv_priority_buffers, accdrv_posterior_streams, accdrv_posterior_buffers
       LOGICAL, INTENT(IN), OPTIONAL                      :: accdrv_avoid_after_busy
-      INTEGER, INTENT(IN), OPTIONAL                      :: accdrv_min_flop_process, &
-                                                            accdrv_min_flop_sort
+      INTEGER, INTENT(IN), OPTIONAL                      :: accdrv_min_flop_process
+      LOGICAL, INTENT(IN), OPTIONAL                      :: accdrv_stack_sort
+      INTEGER, INTENT(IN), OPTIONAL                      :: accdrv_min_flop_sort
       LOGICAL, INTENT(IN), OPTIONAL                      :: accdrv_do_inhomogenous
       INTEGER, INTENT(IN), OPTIONAL                      :: accdrv_binning_nbins, &
                                                             accdrv_binning_binsize
@@ -199,6 +203,7 @@ CONTAINS
       IF (PRESENT(accdrv_posterior_buffers)) dbcsr_cfg%accdrv_posterior_buffers = accdrv_posterior_buffers
       IF (PRESENT(accdrv_avoid_after_busy)) dbcsr_cfg%accdrv_avoid_after_busy = accdrv_avoid_after_busy
       IF (PRESENT(accdrv_min_flop_process)) dbcsr_cfg%accdrv_min_flop_process = accdrv_min_flop_process
+      IF (PRESENT(accdrv_stack_sort)) dbcsr_cfg%accdrv_stack_sort = accdrv_stack_sort
       IF (PRESENT(accdrv_min_flop_sort)) dbcsr_cfg%accdrv_min_flop_sort = accdrv_min_flop_sort
       IF (PRESENT(accdrv_do_inhomogenous)) dbcsr_cfg%accdrv_do_inhomogenous = accdrv_do_inhomogenous
       IF (PRESENT(accdrv_binning_nbins)) dbcsr_cfg%accdrv_binning_nbins = accdrv_binning_nbins
@@ -267,6 +272,7 @@ CONTAINS
 !> \param accdrv_posterior_buffers ...
 !> \param accdrv_avoid_after_busy ...
 !> \param accdrv_min_flop_process ...
+!> \param accdrv_stack_sort ...
 !> \param accdrv_min_flop_sort ...
 !> \param accdrv_do_inhomogenous ...
 !> \param accdrv_binning_nbins ...
@@ -289,6 +295,7 @@ CONTAINS
       accdrv_posterior_buffers, &
       accdrv_avoid_after_busy, &
       accdrv_min_flop_process, &
+      accdrv_stack_sort, &
       accdrv_min_flop_sort, &
       accdrv_do_inhomogenous, &
       accdrv_binning_nbins, &
@@ -303,8 +310,9 @@ CONTAINS
       INTEGER, INTENT(OUT), OPTIONAL :: comm_thread_load, multrec_limit, accdrv_priority_streams, &
          accdrv_priority_buffers, accdrv_posterior_streams, accdrv_posterior_buffers
       LOGICAL, INTENT(OUT), OPTIONAL                     :: accdrv_avoid_after_busy
-      INTEGER, INTENT(OUT), OPTIONAL                     :: accdrv_min_flop_process, &
-                                                            accdrv_min_flop_sort
+      INTEGER, INTENT(OUT), OPTIONAL                     :: accdrv_min_flop_process
+      LOGICAL, INTENT(OUT), OPTIONAL                     :: accdrv_stack_sort
+      INTEGER, INTENT(OUT), OPTIONAL                     :: accdrv_min_flop_sort
       LOGICAL, INTENT(OUT), OPTIONAL                     :: accdrv_do_inhomogenous
       INTEGER, INTENT(OUT), OPTIONAL                     :: accdrv_binning_nbins, &
                                                             accdrv_binning_binsize
@@ -327,6 +335,7 @@ CONTAINS
       IF (PRESENT(accdrv_posterior_buffers)) accdrv_posterior_buffers = default_cfg%accdrv_posterior_buffers
       IF (PRESENT(accdrv_avoid_after_busy)) accdrv_avoid_after_busy = default_cfg%accdrv_avoid_after_busy
       IF (PRESENT(accdrv_min_flop_process)) accdrv_min_flop_process = default_cfg%accdrv_min_flop_process
+      IF (PRESENT(accdrv_stack_sort)) accdrv_stack_sort = default_cfg%accdrv_stack_sort
       IF (PRESENT(accdrv_min_flop_sort)) accdrv_min_flop_sort = default_cfg%accdrv_min_flop_sort
       IF (PRESENT(accdrv_do_inhomogenous)) accdrv_do_inhomogenous = default_cfg%accdrv_do_inhomogenous
       IF (PRESENT(accdrv_binning_nbins)) accdrv_binning_nbins = default_cfg%accdrv_binning_nbins
@@ -419,12 +428,14 @@ CONTAINS
                "DBCSR| ACC: Process inhomogenous stacks", dbcsr_cfg%accdrv_do_inhomogenous
             WRITE (UNIT=unit_nr, FMT='(1X,A,T70,I11)') &
                "DBCSR| ACC: Min. flop for processing", dbcsr_cfg%accdrv_min_flop_process
-            WRITE (UNIT=unit_nr, FMT='(1X,A,T70,I11)') &
-               "DBCSR| ACC: Min. flop for sorting", dbcsr_cfg%accdrv_min_flop_sort
-            WRITE (UNIT=unit_nr, FMT='(1X,A,T70,I11)') &
-               "DBCSR| ACC: Number of binning bins", dbcsr_cfg%accdrv_binning_nbins
-            WRITE (UNIT=unit_nr, FMT='(1X,A,T70,I11)') &
-               "DBCSR| ACC: Size of binning bins", dbcsr_cfg%accdrv_binning_binsize
+            IF (dbcsr_cfg%accdrv_stack_sort) THEN
+               WRITE (UNIT=unit_nr, FMT='(1X,A,T70,I11)') &
+                  "DBCSR| ACC: Min. flop for sorting", dbcsr_cfg%accdrv_min_flop_sort
+               WRITE (UNIT=unit_nr, FMT='(1X,A,T70,I11)') &
+                  "DBCSR| ACC: Number of binning bins", dbcsr_cfg%accdrv_binning_nbins
+               WRITE (UNIT=unit_nr, FMT='(1X,A,T70,I11)') &
+                  "DBCSR| ACC: Size of binning bins", dbcsr_cfg%accdrv_binning_binsize
+            END IF
          END IF
       ENDIF
 

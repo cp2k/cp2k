@@ -599,11 +599,17 @@ CONTAINS
       CALL timeset(routineN//"_sort", error_handle2)
       flop_per_entry = 2*stack_descr%max_m*stack_descr%max_n*stack_descr%max_k
 
-      IF (flop_per_entry > dbcsr_cfg%accdrv_min_flop_sort) THEN
-         CALL stack_sort(params, stackbuf%hostmem, stack_size)
+      IF (dbcsr_cfg%accdrv_stack_sort) THEN
+         IF (flop_per_entry > dbcsr_cfg%accdrv_min_flop_sort) THEN
+            CALL stack_sort(params, stackbuf%hostmem, stack_size)
+         ELSE
+            CALL stack_binning(params, stackbuf%hostmem, stack_size)
+         END IF
       ELSE
-         CALL stack_binning(params, stackbuf%hostmem, stack_size)
-      ENDIF
+         DO i = 1, stack_size
+            stackbuf%hostmem(1:3, i) = params(4:6, i)
+         END DO
+      END IF
 
       CALL timestop(error_handle2)
 

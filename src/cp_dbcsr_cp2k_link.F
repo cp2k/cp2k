@@ -270,12 +270,19 @@ CONTAINS
       CALL section_add_keyword(subsection, keyword)
       CALL keyword_release(keyword)
 
+      CALL dbcsr_get_default_config(accdrv_stack_sort=ldefault)
+      CALL keyword_create(keyword, name="stack_sort", &
+                          description="Sort multiplication stacks according to C-access.", &
+                          default_l_val=ldefault)
+      CALL section_add_keyword(subsection, keyword)
+      CALL keyword_release(keyword)
+
       CALL dbcsr_get_default_config(accdrv_min_flop_sort=idefault)
       CALL keyword_create(keyword, name="min_flop_sort", &
                           description="Only sort stacks with more than the given number of " &
                           //"floating-point operations per stack-entry (2*m*n*k). " &
                           //"Alternatively, the stacks are roughly ordered through a " &
-                          //"binning-scheme by Peter Messmer.", &
+                          //"binning-scheme by Peter Messmer. (Depends on ACC%STACK_SORT)", &
                           default_i_val=idefault)
       CALL section_add_keyword(subsection, keyword)
       CALL keyword_release(keyword)
@@ -374,6 +381,9 @@ CONTAINS
 
       CALL section_vals_val_get(dbcsr_section, "ACC%min_flop_process", i_val=ival)
       CALL dbcsr_set_config(accdrv_min_flop_process=ival)
+
+      CALL section_vals_val_get(dbcsr_section, "ACC%stack_sort", l_val=lval)
+      CALL dbcsr_set_config(accdrv_stack_sort=lval)
 
       CALL section_vals_val_get(dbcsr_section, "ACC%min_flop_sort", i_val=ival)
       CALL dbcsr_set_config(accdrv_min_flop_sort=ival)
