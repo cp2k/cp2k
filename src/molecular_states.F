@@ -340,6 +340,7 @@ CONTAINS
                WRITE (filename, '(a9,I4.4,a1,I5.5,a4)') "MOLECULE_", imol, "_", i, tag
                WRITE (title, '(A,I0,A,I0,A,F14.6,A,I0)') "Mol. Eigenstate ", i, " of ", ns, " E [a.u.] = ", &
                   evals(i), " Orig. index ", ind(i)
+               mpi_io = .TRUE.
                unit_nr = cp_print_key_unit_nr(logger, loc_print_section, "MOLECULAR_STATES%CUBES", &
                                               extension=".cube", middle_name=TRIM(filename), log_filename=.FALSE., &
                                               mpi_io=mpi_io)
