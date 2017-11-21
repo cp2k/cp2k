@@ -656,7 +656,8 @@ CONTAINS
       INTEGER, DIMENSION(:), POINTER                     :: atom_list, la_max, la_min, npgfa, &
                                                             nsgf_seta
       INTEGER, DIMENSION(:, :), POINTER                  :: first_sgfa
-      LOGICAL                                            :: map_consistent, map_it_here, use_virial
+      LOGICAL                                            :: map_consistent, use_virial
+      LOGICAL, ALLOCATABLE, DIMENSION(:)                 :: map_it
       REAL(KIND=dp)                                      :: eps_gvg_rspace, eps_rho_rspace
       REAL(KIND=dp), DIMENSION(3)                        :: force_a, force_b, ra
       REAL(KIND=dp), DIMENSION(3, 3)                     :: my_virial_a, my_virial_b
@@ -738,9 +739,9 @@ CONTAINS
                                 sphi=sphi_a, &
                                 zet=zeta)
 
-         CALL reallocate(hab, 1, maxco, 1, 1)
-         CALL reallocate(pab, 1, maxco, 1, 1)
          int_res(ikind)%v_int = 0.0_dp
+
+         ALLOCATE (hab(maxco, 1), pab(maxco, 1))
          hab = 0._dp
          pab(:, 1) = 0._dp
 
@@ -753,30 +754,15 @@ CONTAINS
             my_virial_a(:, :) = 0._dp
             my_virial_b(:, :) = 0._dp
 
+            m1 = MAXVAL(npgfa(1:nseta))
+            ALLOCATE (map_it(m1))
+
             DO iset = 1, nseta
-               sgfa = first_sgfa(1, iset)
-               ncoa = npgfa(iset)*ncoset(la_max(iset))
-               hab(:, 1) = 0._dp
-               CALL reallocate(work_i, 1, nsgf_seta(iset), 1, 1)
-               work_i = 0.0_dp
-
-               ! get fit coefficients for forces
-               IF (calculate_forces) THEN
-                  m1 = sgfa+nsgf_seta(iset)-1
-                  CALL reallocate(work_f, 1, nsgf_seta(iset), 1, 1)
-                  work_f(1:nsgf_seta(iset), 1) = int_res(ikind)%acoef(iatom, sgfa:m1)
-                  CALL dgemm("N", "N", ncoa, 1, nsgf_seta(iset), 1.0_dp, sphi_a(1, sgfa), &
-                             SIZE(sphi_a, 1), work_f(1, 1), SIZE(work_f, 1), 0.0_dp, pab(1, 1), &
-                             SIZE(pab, 1))
-               ENDIF
-
+               !
+               map_it = .FALSE.
                DO ipgf = 1, npgfa(iset)
-                  na1 = (ipgf-1)*ncoset(la_max(iset))
                   igrid_level = gaussian_gridlevel(gridlevel_info, zeta(ipgf, iset))
                   rs_grid => rs_v(igrid_level)%rs_grid
-
-                  map_it_here = .FALSE.
-
                   IF (.NOT. ALL(rs_grid%desc%perd == 1)) THEN
                      DO dir = 1, 3
                         ! bounds of local grid (i.e. removing the 'wings'), if periodic
@@ -795,50 +781,74 @@ CONTAINS
                      IF (lb(1) <= location(1) .AND. location(1) <= ub(1) .AND. &
                          lb(2) <= location(2) .AND. location(2) <= ub(2) .AND. &
                          lb(3) <= location(3) .AND. location(3) <= ub(3)) THEN
-                        map_it_here = .TRUE.
+                        map_it(ipgf) = .TRUE.
                      ENDIF
                   ELSE
                      ! not distributed, just a round-robin distribution over the full set of CPUs
-                     IF (MODULO(offset, group_size) == my_pos) map_it_here = .TRUE.
+                     IF (MODULO(offset, group_size) == my_pos) map_it(ipgf) = .TRUE.
+                  ENDIF
+               END DO
+               offset = offset+1
+               !
+               IF (ANY(map_it(1:npgfa(iset)))) THEN
+                  sgfa = first_sgfa(1, iset)
+                  ncoa = npgfa(iset)*ncoset(la_max(iset))
+                  hab(:, 1) = 0._dp
+                  ALLOCATE (work_i(nsgf_seta(iset), 1))
+                  work_i = 0.0_dp
+
+                  ! get fit coefficients for forces
+                  IF (calculate_forces) THEN
+                     m1 = sgfa+nsgf_seta(iset)-1
+                     ALLOCATE (work_f(nsgf_seta(iset), 1))
+                     work_f(1:nsgf_seta(iset), 1) = int_res(ikind)%acoef(iatom, sgfa:m1)
+                     CALL dgemm("N", "N", ncoa, 1, nsgf_seta(iset), 1.0_dp, sphi_a(1, sgfa), &
+                                SIZE(sphi_a, 1), work_f(1, 1), SIZE(work_f, 1), 0.0_dp, pab(1, 1), &
+                                SIZE(pab, 1))
+                     DEALLOCATE (work_f)
                   ENDIF
 
-                  IF (map_it_here) THEN
-                     IF (.NOT. calculate_forces) THEN
-                        CALL integrate_pgf_product_rspace(la_max=la_max(iset), &
-                                                          zeta=zeta(ipgf, iset), la_min=la_min(iset), &
-                                                          lb_max=0, zetb=0.0_dp, lb_min=0, &
-                                                          ra=ra, rab=(/0.0_dp, 0.0_dp, 0.0_dp/), rab2=0.0_dp, &
-                                                          rsgrid=rs_grid, cell=cell, &
-                                                          cube_info=pw_env%cube_info(igrid_level), &
-                                                          hab=hab, o1=na1, o2=0, eps_gvg_rspace=eps_rho_rspace, &
-                                                          calculate_forces=calculate_forces, &
-                                                          map_consistent=map_consistent)
-                     ELSE
-                        CALL integrate_pgf_product_rspace(la_max=la_max(iset), &
-                                                          zeta=zeta(ipgf, iset), la_min=la_min(iset), &
-                                                          lb_max=0, zetb=0.0_dp, lb_min=0, &
-                                                          ra=ra, rab=(/0.0_dp, 0.0_dp, 0.0_dp/), rab2=0.0_dp, &
-                                                          rsgrid=rs_grid, cell=cell, &
-                                                          cube_info=pw_env%cube_info(igrid_level), &
-                                                          hab=hab, pab=pab, o1=na1, o2=0, eps_gvg_rspace=eps_rho_rspace, &
-                                                          calculate_forces=calculate_forces, &
-                                                          force_a=force_a, force_b=force_b, &
-                                                          use_virial=use_virial, &
-                                                          my_virial_a=my_virial_a, my_virial_b=my_virial_b, &
-                                                          map_consistent=map_consistent)
+                  DO ipgf = 1, npgfa(iset)
+                     na1 = (ipgf-1)*ncoset(la_max(iset))
+                     igrid_level = gaussian_gridlevel(gridlevel_info, zeta(ipgf, iset))
+                     rs_grid => rs_v(igrid_level)%rs_grid
+
+                     IF (map_it(ipgf)) THEN
+                        IF (.NOT. calculate_forces) THEN
+                           CALL integrate_pgf_product_rspace(la_max=la_max(iset), &
+                                                             zeta=zeta(ipgf, iset), la_min=la_min(iset), &
+                                                             lb_max=0, zetb=0.0_dp, lb_min=0, &
+                                                             ra=ra, rab=(/0.0_dp, 0.0_dp, 0.0_dp/), rab2=0.0_dp, &
+                                                             rsgrid=rs_grid, cell=cell, &
+                                                             cube_info=pw_env%cube_info(igrid_level), &
+                                                             hab=hab, o1=na1, o2=0, eps_gvg_rspace=eps_rho_rspace, &
+                                                             calculate_forces=calculate_forces, &
+                                                             map_consistent=map_consistent)
+                        ELSE
+                           CALL integrate_pgf_product_rspace(la_max=la_max(iset), &
+                                                             zeta=zeta(ipgf, iset), la_min=la_min(iset), &
+                                                             lb_max=0, zetb=0.0_dp, lb_min=0, &
+                                                             ra=ra, rab=(/0.0_dp, 0.0_dp, 0.0_dp/), rab2=0.0_dp, &
+                                                             rsgrid=rs_grid, cell=cell, &
+                                                             cube_info=pw_env%cube_info(igrid_level), &
+                                                             hab=hab, pab=pab, o1=na1, o2=0, eps_gvg_rspace=eps_rho_rspace, &
+                                                             calculate_forces=calculate_forces, &
+                                                             force_a=force_a, force_b=force_b, &
+                                                             use_virial=use_virial, &
+                                                             my_virial_a=my_virial_a, my_virial_b=my_virial_b, &
+                                                             map_consistent=map_consistent)
+                        ENDIF
                      ENDIF
-                  ENDIF
-               ENDDO
-               ! contract hab
-               CALL dgemm("T", "N", nsgf_seta(iset), 1, ncoa, 1.0_dp, sphi_a(1, sgfa), &
-                          SIZE(sphi_a, 1), hab(1, 1), SIZE(hab, 1), 0.0_dp, work_i(1, 1), SIZE(work_i, 1))
+                  ENDDO
+                  ! contract hab
+                  CALL dgemm("T", "N", nsgf_seta(iset), 1, ncoa, 1.0_dp, sphi_a(1, sgfa), &
+                             SIZE(sphi_a, 1), hab(1, 1), SIZE(hab, 1), 0.0_dp, work_i(1, 1), SIZE(work_i, 1))
 
-               int_res(ikind)%v_int(iatom, sgfa:sgfa-1+nsgf_seta(iset)) = work_i(1:nsgf_seta(iset), 1)
-
-               offset = offset+nsgf_seta(iset)
-
+                  int_res(ikind)%v_int(iatom, sgfa:sgfa-1+nsgf_seta(iset)) = work_i(1:nsgf_seta(iset), 1)
+                  DEALLOCATE (work_i)
+               END IF
             ENDDO
-
+            !
             IF (calculate_forces) THEN
                int_res(ikind)%v_dfdr(iatom, :) = force_a(:)
                IF (use_virial) THEN
@@ -846,10 +856,7 @@ CONTAINS
                ENDIF
             ENDIF
 
-            DEALLOCATE (work_i)
-            IF (calculate_forces) THEN
-               DEALLOCATE (work_f)
-            ENDIF
+            DEALLOCATE (map_it)
 
          END DO
 
@@ -888,14 +895,14 @@ CONTAINS
          routineP = moduleN//':'//routineN
 
       INTEGER :: atom_a, dir, group_size, handle, i, iatom, igrid_level, ikind, ipgf, iset, jpgf, &
-         jset, maxco, maxsgf_set, my_pos, na1, na2, natom_of_kind, nb1, nb2, ncoa, ncob, nkind, &
-         nseta, nsgfa, offset, sgfa, sgfb
+         jset, m1, maxco, maxsgf_set, my_pos, na1, na2, natom_of_kind, nb1, nb2, ncoa, ncob, &
+         nkind, nseta, nsgfa, offset, sgfa, sgfb
       INTEGER, DIMENSION(3)                              :: lb, location, tp, ub
       INTEGER, DIMENSION(:), POINTER                     :: atom_list, la_max, la_min, npgfa, &
                                                             nsgf_seta
       INTEGER, DIMENSION(:, :), POINTER                  :: first_sgfa
-      LOGICAL                                            :: found, map_consistent, map_it_here, &
-                                                            use_virial
+      LOGICAL                                            :: found, map_consistent, use_virial
+      LOGICAL, ALLOCATABLE, DIMENSION(:, :)              :: map_it2
       REAL(KIND=dp)                                      :: eps_gvg_rspace, eps_rho_rspace, rab2, &
                                                             zetp
       REAL(KIND=dp), DIMENSION(3)                        :: force_a, force_b, ra, rab
@@ -986,38 +993,21 @@ CONTAINS
                   my_virial_b = 0.0_dp
                ENDIF
             END IF
+            m1 = MAXVAL(npgfa(1:nseta))
+            ALLOCATE (map_it2(m1, m1))
             DO iset = 1, nseta
                sgfa = first_sgfa(1, iset)
                ncoa = npgfa(iset)*ncoset(la_max(iset))
                DO jset = 1, nseta
                   sgfb = first_sgfa(1, jset)
                   ncob = npgfa(jset)*ncoset(la_max(jset))
-
-                  hab(:, :) = 0._dp
-                  IF (calculate_forces) THEN
-                     CALL dgemm("N", "N", ncoa, nsgf_seta(jset), nsgf_seta(iset), &
-                                1.0_dp, sphi_a(1, sgfa), SIZE(sphi_a, 1), &
-                                pblk(sgfa, sgfb), SIZE(pblk, 1), &
-                                0.0_dp, work(1, 1), SIZE(work, 1))
-                     CALL dgemm("N", "T", ncoa, ncob, nsgf_seta(jset), &
-                                1.0_dp, work(1, 1), SIZE(work, 1), &
-                                sphi_a(1, sgfb), SIZE(sphi_a, 1), &
-                                0.0_dp, pab(1, 1), SIZE(pab, 1))
-                  END IF
-
+                  !
+                  map_it2 = .FALSE.
                   DO ipgf = 1, npgfa(iset)
-                     na1 = (ipgf-1)*ncoset(la_max(iset))
-                     na2 = ipgf*ncoset(la_max(iset))
                      DO jpgf = 1, npgfa(jset)
-                        nb1 = (jpgf-1)*ncoset(la_max(jset))
-                        nb2 = jpgf*ncoset(la_max(jset))
-
                         zetp = zeta(ipgf, iset)+zeta(jpgf, jset)
                         igrid_level = gaussian_gridlevel(gridlevel_info, zetp)
                         rs_grid => rs_v(igrid_level)%rs_grid
-
-                        map_it_here = .FALSE.
-
                         IF (.NOT. ALL(rs_grid%desc%perd == 1)) THEN
                            DO dir = 1, 3
                               ! bounds of local grid (i.e. removing the 'wings'), if periodic
@@ -1036,54 +1026,78 @@ CONTAINS
                            IF (lb(1) <= location(1) .AND. location(1) <= ub(1) .AND. &
                                lb(2) <= location(2) .AND. location(2) <= ub(2) .AND. &
                                lb(3) <= location(3) .AND. location(3) <= ub(3)) THEN
-                              map_it_here = .TRUE.
+                              map_it2(ipgf, jpgf) = .TRUE.
                            ENDIF
                         ELSE
                            ! not distributed, just a round-robin distribution over the full set of CPUs
-                           IF (MODULO(offset, group_size) == my_pos) map_it_here = .TRUE.
+                           IF (MODULO(offset, group_size) == my_pos) map_it2(ipgf, jpgf) = .TRUE.
                         ENDIF
+                     END DO
+                  END DO
+                  offset = offset+1
+                  !
+                  IF (ANY(map_it2(1:npgfa(iset), 1:npgfa(jset)))) THEN
+                     hab(:, :) = 0._dp
+                     IF (calculate_forces) THEN
+                        CALL dgemm("N", "N", ncoa, nsgf_seta(jset), nsgf_seta(iset), &
+                                   1.0_dp, sphi_a(1, sgfa), SIZE(sphi_a, 1), &
+                                   pblk(sgfa, sgfb), SIZE(pblk, 1), &
+                                   0.0_dp, work(1, 1), SIZE(work, 1))
+                        CALL dgemm("N", "T", ncoa, ncob, nsgf_seta(jset), &
+                                   1.0_dp, work(1, 1), SIZE(work, 1), &
+                                   sphi_a(1, sgfb), SIZE(sphi_a, 1), &
+                                   0.0_dp, pab(1, 1), SIZE(pab, 1))
+                     END IF
 
-                        IF (map_it_here) THEN
-                           IF (calculate_forces) THEN
-                              CALL integrate_pgf_product_rspace( &
-                                 la_max(iset), zeta(ipgf, iset), la_min(iset), &
-                                 la_max(jset), zeta(jpgf, jset), la_min(jset), &
-                                 ra, rab, rab2, rs_v(igrid_level)%rs_grid, cell, &
-                                 pw_env%cube_info(igrid_level), &
-                                 hab, pab=pab, o1=na1, o2=nb1, &
-                                 eps_gvg_rspace=eps_gvg_rspace, &
-                                 calculate_forces=calculate_forces, &
-                                 force_a=force_a, force_b=force_b, &
-                                 use_virial=use_virial, my_virial_a=my_virial_a, my_virial_b=my_virial_b, &
-                                 map_consistent=map_consistent)
-                           ELSE
-                              CALL integrate_pgf_product_rspace( &
-                                 la_max(iset), zeta(ipgf, iset), la_min(iset), &
-                                 la_max(jset), zeta(jpgf, jset), la_min(jset), &
-                                 ra, rab, rab2, rs_v(igrid_level)%rs_grid, cell, &
-                                 pw_env%cube_info(igrid_level), &
-                                 hab, o1=na1, o2=nb1, &
-                                 eps_gvg_rspace=eps_gvg_rspace, &
-                                 calculate_forces=.FALSE., map_consistent=map_consistent)
+                     DO ipgf = 1, npgfa(iset)
+                        na1 = (ipgf-1)*ncoset(la_max(iset))
+                        na2 = ipgf*ncoset(la_max(iset))
+                        DO jpgf = 1, npgfa(jset)
+                           nb1 = (jpgf-1)*ncoset(la_max(jset))
+                           nb2 = jpgf*ncoset(la_max(jset))
+
+                           zetp = zeta(ipgf, iset)+zeta(jpgf, jset)
+                           igrid_level = gaussian_gridlevel(gridlevel_info, zetp)
+                           rs_grid => rs_v(igrid_level)%rs_grid
+                           IF (map_it2(ipgf, jpgf)) THEN
+                              IF (calculate_forces) THEN
+                                 CALL integrate_pgf_product_rspace( &
+                                    la_max(iset), zeta(ipgf, iset), la_min(iset), &
+                                    la_max(jset), zeta(jpgf, jset), la_min(jset), &
+                                    ra, rab, rab2, rs_v(igrid_level)%rs_grid, cell, &
+                                    pw_env%cube_info(igrid_level), &
+                                    hab, pab=pab, o1=na1, o2=nb1, &
+                                    eps_gvg_rspace=eps_gvg_rspace, &
+                                    calculate_forces=calculate_forces, &
+                                    force_a=force_a, force_b=force_b, &
+                                    use_virial=use_virial, my_virial_a=my_virial_a, my_virial_b=my_virial_b, &
+                                    map_consistent=map_consistent)
+                              ELSE
+                                 CALL integrate_pgf_product_rspace( &
+                                    la_max(iset), zeta(ipgf, iset), la_min(iset), &
+                                    la_max(jset), zeta(jpgf, jset), la_min(jset), &
+                                    ra, rab, rab2, rs_v(igrid_level)%rs_grid, cell, &
+                                    pw_env%cube_info(igrid_level), &
+                                    hab, o1=na1, o2=nb1, &
+                                    eps_gvg_rspace=eps_gvg_rspace, &
+                                    calculate_forces=.FALSE., map_consistent=map_consistent)
+                              ENDIF
                            ENDIF
-                        ENDIF
-
+                        ENDDO
                      ENDDO
-                  ENDDO
-                  ! contract hab
-                  CALL dgemm("N", "N", ncoa, nsgf_seta(jset), ncob, &
-                             1.0_dp, hab(1, 1), SIZE(hab, 1), &
-                             sphi_a(1, sgfb), SIZE(sphi_a, 1), &
-                             0.0_dp, work(1, 1), SIZE(work, 1))
-                  CALL dgemm("T", "N", nsgf_seta(iset), nsgf_seta(jset), ncoa, &
-                             1.0_dp, sphi_a(1, sgfa), SIZE(sphi_a, 1), &
-                             work(1, 1), SIZE(work, 1), &
-                             1.0_dp, hmat(sgfa, sgfb), SIZE(hmat, 1))
-
-                  offset = offset+nsgf_seta(iset)*nsgf_seta(jset)
-
+                     ! contract hab
+                     CALL dgemm("N", "N", ncoa, nsgf_seta(jset), ncob, &
+                                1.0_dp, hab(1, 1), SIZE(hab, 1), &
+                                sphi_a(1, sgfb), SIZE(sphi_a, 1), &
+                                0.0_dp, work(1, 1), SIZE(work, 1))
+                     CALL dgemm("T", "N", nsgf_seta(iset), nsgf_seta(jset), ncoa, &
+                                1.0_dp, sphi_a(1, sgfa), SIZE(sphi_a, 1), &
+                                work(1, 1), SIZE(work, 1), &
+                                1.0_dp, hmat(sgfa, sgfb), SIZE(hmat, 1))
+                  END IF
                ENDDO
             ENDDO
+            DEALLOCATE (map_it2)
             ! update KS matrix
             CALL mp_sum(hmat, para_env%group)
             CALL dbcsr_get_block_p(matrix=ksmat, row=atom_a, col=atom_a, BLOCK=h_block, found=found)

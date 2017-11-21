@@ -554,13 +554,15 @@ CONTAINS
          routineP = moduleN//':'//routineN
 
       INTEGER :: atom_a, dir, group_size, handle, iatom, igrid_level, ikind, ipgf, iset, jpgf, &
-         jset, lmax_global, m1, maxco, maxpgf, maxset, maxsgf, maxsgf_set, my_pos, na1, na2, &
-         natom, nb1, nb2, ncoa, ncob, nseta, offset, sgfa, sgfb
+         jset, lmax_global, m1, maxco, maxpgf, maxset, maxsgf, maxsgf_set, my_pos, na1, natom, &
+         nb1, ncoa, ncob, nseta, offset, sgfa, sgfb
       INTEGER, DIMENSION(3)                              :: lb, location, tp, ub
       INTEGER, DIMENSION(:), POINTER                     :: atom_list, la_max, la_min, mylmax, &
                                                             npgfa, nsgfa
       INTEGER, DIMENSION(:, :), POINTER                  :: first_sgfa
-      LOGICAL                                            :: found, map_consistent, map_it_here
+      LOGICAL                                            :: found, map_consistent
+      LOGICAL, ALLOCATABLE, DIMENSION(:)                 :: map_it
+      LOGICAL, ALLOCATABLE, DIMENSION(:, :)              :: map_it2
       REAL(KIND=dp)                                      :: eps_rho_rspace, rab2, zetp
       REAL(KIND=dp), DIMENSION(3)                        :: ra, rab
       REAL(KIND=dp), DIMENSION(:), POINTER               :: aci
@@ -653,25 +655,14 @@ CONTAINS
             ra(:) = pbc(particle_set(atom_a)%r, cell)
             aci => lri_coef(ikind)%acoef(iatom, :)
 
+            m1 = MAXVAL(npgfa(1:nseta))
+            ALLOCATE (map_it(m1))
             DO iset = 1, nseta
-               sgfa = first_sgfa(1, iset)
-               ncoa = npgfa(iset)*ncoset(la_max(iset))
-               m1 = sgfa+nsgfa(iset)-1
-               CALL reallocate(work, 1, nsgfa(iset), 1, 1)
-               work(1:nsgfa(iset), 1) = aci(sgfa:m1)
-               pab = 0._dp
-
-               CALL dgemm("N", "N", ncoa, 1, nsgfa(iset), 1.0_dp, lri_basis_set%sphi(1, sgfa), &
-                          SIZE(lri_basis_set%sphi, 1), work(1, 1), SIZE(work, 1), 0.0_dp, pab(1, 1), &
-                          SIZE(pab, 1))
-
+               ! collocate this set locally?
+               map_it = .FALSE.
                DO ipgf = 1, npgfa(iset)
-                  na1 = (ipgf-1)*ncoset(la_max(iset))
                   igrid_level = gaussian_gridlevel(gridlevel_info, zeta(ipgf, iset))
                   rs_grid => rs_rho(igrid_level)%rs_grid
-
-                  map_it_here = .FALSE.
-
                   IF (.NOT. ALL(rs_grid%desc%perd == 1)) THEN
                      DO dir = 1, 3
                         ! bounds of local grid (i.e. removing the 'wings'), if periodic
@@ -690,36 +681,51 @@ CONTAINS
                      IF (lb(1) <= location(1) .AND. location(1) <= ub(1) .AND. &
                          lb(2) <= location(2) .AND. location(2) <= ub(2) .AND. &
                          lb(3) <= location(3) .AND. location(3) <= ub(3)) THEN
-                        map_it_here = .TRUE.
+                        map_it(ipgf) = .TRUE.
                      ENDIF
                   ELSE
                      ! not distributed, just a round-robin distribution over the full set of CPUs
-                     IF (MODULO(offset, group_size) == my_pos) map_it_here = .TRUE.
-                  ENDIF
-
-                  IF (map_it_here) THEN
-                     CALL collocate_pgf_product_rspace(la_max=la_max(iset), &
-                                                       zeta=zeta(ipgf, iset), &
-                                                       la_min=la_min(iset), &
-                                                       lb_max=0, zetb=0.0_dp, lb_min=0, &
-                                                       ra=ra, rab=(/0.0_dp, 0.0_dp, 0.0_dp/), &
-                                                       rab2=0.0_dp, scale=1._dp, &
-                                                       pab=pab, o1=na1, o2=0, &
-                                                       rsgrid=rs_grid, cell=cell, &
-                                                       cube_info=cube_info(igrid_level), &
-                                                       eps_rho_rspace=eps_rho_rspace, &
-                                                       ga_gb_function=FUNC_AB, &
-                                                       map_consistent=map_consistent, &
-                                                       lmax_global=lmax_global)
+                     IF (MODULO(offset, group_size) == my_pos) map_it(ipgf) = .TRUE.
                   ENDIF
                END DO
+               offset = offset+1
 
-               offset = offset+nsgfa(iset)
+               IF (ANY(map_it(1:npgfa(iset)))) THEN
+                  sgfa = first_sgfa(1, iset)
+                  ncoa = npgfa(iset)*ncoset(la_max(iset))
+                  m1 = sgfa+nsgfa(iset)-1
+                  ALLOCATE (work(nsgfa(iset), 1))
+                  work(1:nsgfa(iset), 1) = aci(sgfa:m1)
+                  pab = 0._dp
 
+                  CALL dgemm("N", "N", ncoa, 1, nsgfa(iset), 1.0_dp, lri_basis_set%sphi(1, sgfa), &
+                             SIZE(lri_basis_set%sphi, 1), work(1, 1), SIZE(work, 1), 0.0_dp, pab(1, 1), &
+                             SIZE(pab, 1))
+
+                  DO ipgf = 1, npgfa(iset)
+                     na1 = (ipgf-1)*ncoset(la_max(iset))
+                     igrid_level = gaussian_gridlevel(gridlevel_info, zeta(ipgf, iset))
+                     rs_grid => rs_rho(igrid_level)%rs_grid
+                     IF (map_it(ipgf)) THEN
+                        CALL collocate_pgf_product_rspace(la_max=la_max(iset), &
+                                                          zeta=zeta(ipgf, iset), &
+                                                          la_min=la_min(iset), &
+                                                          lb_max=0, zetb=0.0_dp, lb_min=0, &
+                                                          ra=ra, rab=(/0.0_dp, 0.0_dp, 0.0_dp/), &
+                                                          rab2=0.0_dp, scale=1._dp, &
+                                                          pab=pab, o1=na1, o2=0, &
+                                                          rsgrid=rs_grid, cell=cell, &
+                                                          cube_info=cube_info(igrid_level), &
+                                                          eps_rho_rspace=eps_rho_rspace, &
+                                                          ga_gb_function=FUNC_AB, &
+                                                          map_consistent=map_consistent, &
+                                                          lmax_global=lmax_global)
+                     ENDIF
+                  END DO
+                  DEALLOCATE (work)
+               END IF
             END DO
-
-            DEALLOCATE (work)
-
+            DEALLOCATE (map_it)
          END DO
       END DO
 
@@ -731,6 +737,7 @@ CONTAINS
          maxset = 0
          maxpgf = 0
          lmax_global = 0
+         offset = 0
          DO ikind = 1, SIZE(qs_kind_set)
             qs_kind => qs_kind_set(ikind)
             CALL get_qs_kind(qs_kind=qs_kind, &
@@ -761,34 +768,17 @@ CONTAINS
                rab(:) = 0.0_dp
                rab2 = 0.0_dp
                CALL dbcsr_get_block_p(matrix=pmat, row=atom_a, col=atom_a, BLOCK=p_block, found=found)
+               m1 = MAXVAL(npgfa(1:nseta))
+               ALLOCATE (map_it2(m1, m1))
                DO iset = 1, nseta
                   DO jset = 1, nseta
-                     ncoa = npgfa(iset)*ncoset(la_max(iset))
-                     sgfa = first_sgfa(1, iset)
-                     ncob = npgfa(jset)*ncoset(la_max(jset))
-                     sgfb = first_sgfa(1, jset)
-                     ! decontract density block
-                     CALL dgemm("N", "N", ncoa, nsgfa(jset), nsgfa(iset), &
-                                1.0_dp, sphi_a(1, sgfa), SIZE(sphi_a, 1), &
-                                p_block(sgfa, sgfb), SIZE(p_block, 1), &
-                                0.0_dp, work(1, 1), maxco)
-                     CALL dgemm("N", "T", ncoa, ncob, nsgfa(jset), &
-                                1.0_dp, work(1, 1), maxco, &
-                                sphi_a(1, sgfb), SIZE(sphi_a, 1), &
-                                0.0_dp, pab(1, 1), maxco)
+                     ! processor mappint
+                     map_it2 = .FALSE.
                      DO ipgf = 1, npgfa(iset)
                         DO jpgf = 1, npgfa(jset)
                            zetp = zeta(ipgf, iset)+zeta(jpgf, jset)
                            igrid_level = gaussian_gridlevel(gridlevel_info, zetp)
                            rs_grid => rs_rho(igrid_level)%rs_grid
-
-                           na1 = (ipgf-1)*ncoset(la_max(iset))+1
-                           na2 = ipgf*ncoset(la_max(iset))
-                           nb1 = (jpgf-1)*ncoset(la_max(jset))+1
-                           nb2 = jpgf*ncoset(la_max(jset))
-
-                           map_it_here = .FALSE.
-
                            IF (.NOT. ALL(rs_grid%desc%perd == 1)) THEN
                               DO dir = 1, 3
                                  ! bounds of local grid (i.e. removing the 'wings'), if periodic
@@ -807,26 +797,54 @@ CONTAINS
                               IF (lb(1) <= location(1) .AND. location(1) <= ub(1) .AND. &
                                   lb(2) <= location(2) .AND. location(2) <= ub(2) .AND. &
                                   lb(3) <= location(3) .AND. location(3) <= ub(3)) THEN
-                                 map_it_here = .TRUE.
+                                 map_it2(ipgf, jpgf) = .TRUE.
                               ENDIF
                            ELSE
                               ! not distributed, just a round-robin distribution over the full set of CPUs
-                              IF (MODULO(offset, group_size) == my_pos) map_it_here = .TRUE.
+                              IF (MODULO(offset, group_size) == my_pos) map_it2(ipgf, jpgf) = .TRUE.
                            ENDIF
-
-                           IF (map_it_here) THEN
-                              CALL collocate_pgf_product_rspace( &
-                                 la_max(iset), zeta(ipgf, iset), la_min(iset), &
-                                 la_max(jset), zeta(jpgf, jset), la_min(jset), &
-                                 ra, rab, rab2, 1.0_dp, pab, na1-1, nb1-1, &
-                                 rs_grid, cell, cube_info(igrid_level), &
-                                 eps_rho_rspace, ga_gb_function=FUNC_AB, &
-                                 map_consistent=map_consistent, lmax_global=lmax_global)
-                           END IF
                         END DO
                      END DO
+                     offset = offset+1
+                     !
+                     IF (ANY(map_it2(1:npgfa(iset), 1:npgfa(jset)))) THEN
+                        ncoa = npgfa(iset)*ncoset(la_max(iset))
+                        sgfa = first_sgfa(1, iset)
+                        ncob = npgfa(jset)*ncoset(la_max(jset))
+                        sgfb = first_sgfa(1, jset)
+                        ! decontract density block
+                        CALL dgemm("N", "N", ncoa, nsgfa(jset), nsgfa(iset), &
+                                   1.0_dp, sphi_a(1, sgfa), SIZE(sphi_a, 1), &
+                                   p_block(sgfa, sgfb), SIZE(p_block, 1), &
+                                   0.0_dp, work(1, 1), maxco)
+                        CALL dgemm("N", "T", ncoa, ncob, nsgfa(jset), &
+                                   1.0_dp, work(1, 1), maxco, &
+                                   sphi_a(1, sgfb), SIZE(sphi_a, 1), &
+                                   0.0_dp, pab(1, 1), maxco)
+                        DO ipgf = 1, npgfa(iset)
+                           DO jpgf = 1, npgfa(jset)
+                              zetp = zeta(ipgf, iset)+zeta(jpgf, jset)
+                              igrid_level = gaussian_gridlevel(gridlevel_info, zetp)
+                              rs_grid => rs_rho(igrid_level)%rs_grid
+
+                              na1 = (ipgf-1)*ncoset(la_max(iset))
+                              nb1 = (jpgf-1)*ncoset(la_max(jset))
+
+                              IF (map_it2(ipgf, jpgf)) THEN
+                                 CALL collocate_pgf_product_rspace( &
+                                    la_max(iset), zeta(ipgf, iset), la_min(iset), &
+                                    la_max(jset), zeta(jpgf, jset), la_min(jset), &
+                                    ra, rab, rab2, 1.0_dp, pab, na1, nb1, &
+                                    rs_grid, cell, cube_info(igrid_level), &
+                                    eps_rho_rspace, ga_gb_function=FUNC_AB, &
+                                    map_consistent=map_consistent, lmax_global=lmax_global)
+                              END IF
+                           END DO
+                        END DO
+                     END IF
                   END DO
                END DO
+               DEALLOCATE (map_it2)
                !
             END DO
          END DO
