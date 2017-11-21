@@ -102,6 +102,7 @@ CONTAINS
          routineP = moduleN//':'//routineN
 
       INTEGER                                            :: handle, iw, iw2
+      LOGICAL                                            :: mpi_io
       TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(dft_control_type), POINTER                    :: dft_control
@@ -204,14 +205,16 @@ CONTAINS
          ! Dump info on the electrostatic potential if requested
          IF (BTEST(cp_print_key_should_output(logger%iter_info, print_section, &
                                               "POTENTIAL"), cp_p_file)) THEN
+            mpi_io = .TRUE.
             iw2 = cp_print_key_unit_nr(logger, print_section, "POTENTIAL", &
-                                       extension=".qmmmLog")
+                                       extension=".qmmmLog", mpi_io=mpi_io)
             CALL cp_pw_to_cube(ks_qmmm_env_loc%v_qmmm_rspace%pw, iw2, &
                                particles=particles, &
                                stride=section_get_ivals(print_section, "POTENTIAL%STRIDE"), &
-                               title="QM/MM: MM ELECTROSTATIC POTENTIAL ")
+                               title="QM/MM: MM ELECTROSTATIC POTENTIAL ", &
+                               mpi_io=mpi_io)
             CALL cp_print_key_finished_output(iw2, logger, print_section, &
-                                              "POTENTIAL")
+                                              "POTENTIAL", mpi_io=mpi_io)
          END IF
       END IF
       CALL cp_print_key_finished_output(iw, logger, print_section, &

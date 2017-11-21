@@ -1210,7 +1210,7 @@ CONTAINS
       INTEGER                                            :: handle, i, ir, ivector, n_rep, nhomo, &
                                                             nlist, unit_nr
       INTEGER, DIMENSION(:), POINTER                     :: list, list_index
-      LOGICAL                                            :: append_cube
+      LOGICAL                                            :: append_cube, mpi_io
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       TYPE(cell_type), POINTER                           :: cell
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
@@ -1264,12 +1264,14 @@ CONTAINS
             CALL calculate_wavefunction(mo_coeff, ivector, wf_r, wf_g, atomic_kind_set, qs_kind_set, &
                                         cell, dft_control, particle_set, pw_env)
             WRITE (filename, '(a4,I5.5,a1,I1.1)') "WFN_", ivector, "_", ispin
+            mpi_io = .TRUE.
             unit_nr = cp_print_key_unit_nr(logger, input, "DFT%PRINT%MO_CUBES", extension=".cube", &
-                                           middle_name=TRIM(filename), file_position=my_pos_cube, log_filename=.FALSE.)
+                                           middle_name=TRIM(filename), file_position=my_pos_cube, log_filename=.FALSE., &
+                                           mpi_io=mpi_io)
             WRITE (title, *) "WAVEFUNCTION ", ivector, " spin ", ispin, " i.e. HOMO - ", ivector-homo
             CALL cp_pw_to_cube(wf_r%pw, unit_nr, title, particles=particles, &
-                               stride=section_get_ivals(dft_section, "PRINT%MO_CUBES%STRIDE"))
-            CALL cp_print_key_finished_output(unit_nr, logger, input, "DFT%PRINT%MO_CUBES")
+                               stride=section_get_ivals(dft_section, "PRINT%MO_CUBES%STRIDE"), mpi_io=mpi_io)
+            CALL cp_print_key_finished_output(unit_nr, logger, input, "DFT%PRINT%MO_CUBES", mpi_io=mpi_io)
          ENDDO
          IF (ASSOCIATED(list_index)) DEALLOCATE (list_index)
       END IF
@@ -1312,7 +1314,7 @@ CONTAINS
       CHARACTER(LEN=default_path_length)                 :: filename, my_pos_cube, title
       INTEGER                                            :: handle, ifirst, index_mo, ivector, &
                                                             unit_nr
-      LOGICAL                                            :: append_cube
+      LOGICAL                                            :: append_cube, mpi_io
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       TYPE(cell_type), POINTER                           :: cell
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
@@ -1347,13 +1349,15 @@ CONTAINS
                index_mo = ivector
             END IF
             WRITE (filename, '(a4,I5.5,a1,I1.1)') "WFN_", index_mo, "_", ispin
+            mpi_io = .TRUE.
 
             unit_nr = cp_print_key_unit_nr(logger, input, "DFT%PRINT%MO_CUBES", extension=".cube", &
-                                           middle_name=TRIM(filename), file_position=my_pos_cube, log_filename=.FALSE.)
+                                           middle_name=TRIM(filename), file_position=my_pos_cube, log_filename=.FALSE., &
+                                           mpi_io=mpi_io)
             WRITE (title, *) "WAVEFUNCTION ", index_mo, " spin ", ispin, " i.e. LUMO + ", ifirst+ivector-2
             CALL cp_pw_to_cube(wf_r%pw, unit_nr, title, particles=particles, &
-                               stride=section_get_ivals(dft_section, "PRINT%MO_CUBES%STRIDE"))
-            CALL cp_print_key_finished_output(unit_nr, logger, input, "DFT%PRINT%MO_CUBES")
+                               stride=section_get_ivals(dft_section, "PRINT%MO_CUBES%STRIDE"), mpi_io=mpi_io)
+            CALL cp_print_key_finished_output(unit_nr, logger, input, "DFT%PRINT%MO_CUBES", mpi_io=mpi_io)
          ENDDO
       ENDIF
 
@@ -1587,9 +1591,10 @@ CONTAINS
       CHARACTER(len=*), PARAMETER :: routineN = 'qs_scf_post_elf', &
          routineP = moduleN//':'//routineN
 
-      CHARACTER(LEN=default_path_length)                 :: filename, my_pos_cube, title
+      CHARACTER(LEN=default_path_length)                 :: filename, mpi_filename, my_pos_cube, &
+                                                            title
       INTEGER                                            :: handle, ispin, output_unit, unit_nr
-      LOGICAL                                            :: append_cube, do_elf, gapw
+      LOGICAL                                            :: append_cube, do_elf, gapw, mpi_io
       REAL(dp)                                           :: rho_cutoff
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(particle_list_type), POINTER                  :: particles
@@ -1641,18 +1646,24 @@ CONTAINS
             DO ispin = 1, dft_control%nspins
                WRITE (filename, '(a5,I1.1)') "ELF_S", ispin
                WRITE (title, *) "ELF spin ", ispin
+               mpi_io = .TRUE.
                unit_nr = cp_print_key_unit_nr(logger, input, "DFT%PRINT%ELF_CUBE", extension=".cube", &
-                                              middle_name=TRIM(filename), file_position=my_pos_cube, log_filename=.FALSE.)
+                                              middle_name=TRIM(filename), file_position=my_pos_cube, log_filename=.FALSE., &
+                                              mpi_io=mpi_io, fout=mpi_filename)
                IF (output_unit > 0) THEN
-                  INQUIRE (UNIT=unit_nr, NAME=filename)
+                  IF (.NOT. mpi_io) THEN
+                     INQUIRE (UNIT=unit_nr, NAME=filename)
+                  ELSE
+                     filename = mpi_filename
+                  END IF
                   WRITE (UNIT=output_unit, FMT="(/,T2,A,/,/,T2,A)") &
                      "ELF is written in cube file format to the file:", &
                      TRIM(filename)
                END IF
 
                CALL cp_pw_to_cube(elf_r(ispin)%pw, unit_nr, title, particles=particles, &
-                                  stride=section_get_ivals(elf_section, "STRIDE"))
-               CALL cp_print_key_finished_output(unit_nr, logger, input, "DFT%PRINT%ELF_CUBE")
+                                  stride=section_get_ivals(elf_section, "STRIDE"), mpi_io=mpi_io)
+               CALL cp_print_key_finished_output(unit_nr, logger, input, "DFT%PRINT%ELF_CUBE", mpi_io=mpi_io)
 
                CALL pw_pool_give_back_pw(auxbas_pw_pool, elf_r(ispin)%pw)
             END DO
@@ -2208,13 +2219,13 @@ CONTAINS
       CHARACTER(len=1), DIMENSION(3), PARAMETER          :: cdir = (/"x", "y", "z"/)
 
       CHARACTER(LEN=2)                                   :: element_symbol
-      CHARACTER(LEN=default_path_length)                 :: filename, my_pos_cube
+      CHARACTER(LEN=default_path_length)                 :: filename, mpi_filename, my_pos_cube
       CHARACTER(LEN=default_string_length)               :: name
       INTEGER                                            :: after, handle, i, iat, id, ikind, img, &
                                                             iso, ispin, iw, l, nd(3), ngto, niso, &
                                                             nkind, np, nr, output_unit, &
                                                             print_level, unit_nr
-      LOGICAL :: append_cube, do_kpoints, omit_headers, print_it, print_total_density, &
+      LOGICAL :: append_cube, do_kpoints, mpi_io, omit_headers, print_it, print_total_density, &
          rho_r_valid, write_ks, write_xc, xrd_interface
       REAL(KIND=dp)                                      :: q_max, rho_hard, rho_soft, rho_total, &
                                                             rho_total_rspace, udvol, volume
@@ -2301,14 +2312,15 @@ CONTAINS
             CALL pw_axpy(rho_r(ispin)%pw, wf_r%pw)
          END DO
          filename = "TOTAL_DENSITY"
+         mpi_io = .TRUE.
          unit_nr = cp_print_key_unit_nr(logger, input, "DFT%PRINT%TOT_DENSITY_CUBE", &
                                         extension=".cube", middle_name=TRIM(filename), file_position=my_pos_cube, &
-                                        log_filename=.FALSE.)
+                                        log_filename=.FALSE., mpi_io=mpi_io)
          CALL cp_pw_to_cube(wf_r%pw, unit_nr, "TOTAL DENSITY", &
                             particles=particles, &
-                            stride=section_get_ivals(dft_section, "PRINT%TOT_DENSITY_CUBE%STRIDE"))
+                            stride=section_get_ivals(dft_section, "PRINT%TOT_DENSITY_CUBE%STRIDE"), mpi_io=mpi_io)
          CALL cp_print_key_finished_output(unit_nr, logger, input, &
-                                           "DFT%PRINT%TOT_DENSITY_CUBE")
+                                           "DFT%PRINT%TOT_DENSITY_CUBE", mpi_io=mpi_io)
          CALL pw_pool_give_back_pw(auxbas_pw_pool, wf_r%pw)
       END IF
 
@@ -2475,11 +2487,17 @@ CONTAINS
             CALL pw_transfer(rho_elec_gspace%pw, rho_elec_rspace%pw, debug=.FALSE.)
             rho_total_rspace = pw_integrate_function(rho_elec_rspace%pw, isign=-1)/volume
             filename = "TOTAL_ELECTRON_DENSITY"
+            mpi_io = .TRUE.
             unit_nr = cp_print_key_unit_nr(logger, input, "DFT%PRINT%E_DENSITY_CUBE", &
                                            extension=".cube", middle_name=TRIM(filename), &
-                                           file_position=my_pos_cube, log_filename=.FALSE.)
+                                           file_position=my_pos_cube, log_filename=.FALSE., mpi_io=mpi_io, &
+                                           fout=mpi_filename)
             IF (output_unit > 0) THEN
-               INQUIRE (UNIT=unit_nr, NAME=filename)
+               IF (.NOT. mpi_io) THEN
+                  INQUIRE (UNIT=unit_nr, NAME=filename)
+               ELSE
+                  filename = mpi_filename
+               END IF
                WRITE (UNIT=output_unit, FMT="(/,T2,A,/,/,T2,A)") &
                   "The total electron density is written in cube file format to the file:", &
                   TRIM(filename)
@@ -2492,9 +2510,9 @@ CONTAINS
             END IF
             CALL cp_pw_to_cube(rho_elec_rspace%pw, unit_nr, "TOTAL ELECTRON DENSITY", &
                                particles=particles, &
-                               stride=section_get_ivals(dft_section, "PRINT%E_DENSITY_CUBE%STRIDE"))
+                               stride=section_get_ivals(dft_section, "PRINT%E_DENSITY_CUBE%STRIDE"), mpi_io=mpi_io)
             CALL cp_print_key_finished_output(unit_nr, logger, input, &
-                                              "DFT%PRINT%E_DENSITY_CUBE")
+                                              "DFT%PRINT%E_DENSITY_CUBE", mpi_io=mpi_io)
             ! Print total spin density for spin-polarized systems
             IF (dft_control%nspins > 1) THEN
                CALL pw_zero(rho_elec_gspace%pw)
@@ -2510,11 +2528,17 @@ CONTAINS
                CALL pw_transfer(rho_elec_gspace%pw, rho_elec_rspace%pw, debug=.FALSE.)
                rho_total_rspace = pw_integrate_function(rho_elec_rspace%pw, isign=-1)/volume
                filename = "TOTAL_SPIN_DENSITY"
+               mpi_io = .TRUE.
                unit_nr = cp_print_key_unit_nr(logger, input, "DFT%PRINT%E_DENSITY_CUBE", &
                                               extension=".cube", middle_name=TRIM(filename), &
-                                              file_position=my_pos_cube, log_filename=.FALSE.)
+                                              file_position=my_pos_cube, log_filename=.FALSE., mpi_io=mpi_io, &
+                                              fout=mpi_filename)
                IF (output_unit > 0) THEN
-                  INQUIRE (UNIT=unit_nr, NAME=filename)
+                  IF (.NOT. mpi_io) THEN
+                     INQUIRE (UNIT=unit_nr, NAME=filename)
+                  ELSE
+                     filename = mpi_filename
+                  END IF
                   WRITE (UNIT=output_unit, FMT="(/,T2,A,/,/,T2,A)") &
                      "The total spin density is written in cube file format to the file:", &
                      TRIM(filename)
@@ -2527,7 +2551,9 @@ CONTAINS
                END IF
                CALL cp_pw_to_cube(rho_elec_rspace%pw, unit_nr, "TOTAL SPIN DENSITY", &
                                   particles=particles, &
-                                  stride=section_get_ivals(dft_section, "PRINT%E_DENSITY_CUBE%STRIDE"))
+                                  stride=section_get_ivals(dft_section, "PRINT%E_DENSITY_CUBE%STRIDE"), mpi_io=mpi_io)
+               CALL cp_print_key_finished_output(unit_nr, logger, input, &
+                                                 "DFT%PRINT%E_DENSITY_CUBE", mpi_io=mpi_io)
             END IF
             CALL pw_pool_give_back_pw(auxbas_pw_pool, rho_elec_gspace%pw)
             CALL pw_pool_give_back_pw(auxbas_pw_pool, rho_elec_rspace%pw)
@@ -2545,53 +2571,72 @@ CONTAINS
                CALL pw_copy(rho_r(1)%pw, rho_elec_rspace%pw)
                CALL pw_axpy(rho_r(2)%pw, rho_elec_rspace%pw)
                filename = "ELECTRON_DENSITY"
+               mpi_io = .TRUE.
                unit_nr = cp_print_key_unit_nr(logger, input, "DFT%PRINT%E_DENSITY_CUBE", &
                                               extension=".cube", middle_name=TRIM(filename), &
-                                              file_position=my_pos_cube, log_filename=.FALSE.)
+                                              file_position=my_pos_cube, log_filename=.FALSE., mpi_io=mpi_io, &
+                                              fout=mpi_filename)
                IF (output_unit > 0) THEN
-                  INQUIRE (UNIT=unit_nr, NAME=filename)
+                  IF (.NOT. mpi_io) THEN
+                     INQUIRE (UNIT=unit_nr, NAME=filename)
+                  ELSE
+                     filename = mpi_filename
+                  END IF
                   WRITE (UNIT=output_unit, FMT="(/,T2,A,/,/,T2,A)") &
                      "The sum of alpha and beta density is written in cube file format to the file:", &
                      TRIM(filename)
                END IF
                CALL cp_pw_to_cube(rho_elec_rspace%pw, unit_nr, "SUM OF ALPHA AND BETA DENSITY", &
-                                  particles=particles, stride=section_get_ivals(dft_section, "PRINT%E_DENSITY_CUBE%STRIDE"))
+                                  particles=particles, stride=section_get_ivals(dft_section, "PRINT%E_DENSITY_CUBE%STRIDE"), &
+                                  mpi_io=mpi_io)
                CALL cp_print_key_finished_output(unit_nr, logger, input, &
-                                                 "DFT%PRINT%E_DENSITY_CUBE")
+                                                 "DFT%PRINT%E_DENSITY_CUBE", mpi_io=mpi_io)
                CALL pw_copy(rho_r(1)%pw, rho_elec_rspace%pw)
                CALL pw_axpy(rho_r(2)%pw, rho_elec_rspace%pw, alpha=-1.0_dp)
                filename = "SPIN_DENSITY"
+               mpi_io = .TRUE.
                unit_nr = cp_print_key_unit_nr(logger, input, "DFT%PRINT%E_DENSITY_CUBE", &
                                               extension=".cube", middle_name=TRIM(filename), &
-                                              file_position=my_pos_cube, log_filename=.FALSE.)
+                                              file_position=my_pos_cube, log_filename=.FALSE., mpi_io=mpi_io, &
+                                              fout=mpi_filename)
                IF (output_unit > 0) THEN
-                  INQUIRE (UNIT=unit_nr, NAME=filename)
+                  IF (.NOT. mpi_io) THEN
+                     INQUIRE (UNIT=unit_nr, NAME=filename)
+                  ELSE
+                     filename = mpi_filename
+                  END IF
                   WRITE (UNIT=output_unit, FMT="(/,T2,A,/,/,T2,A)") &
                      "The spin density is written in cube file format to the file:", &
                      TRIM(filename)
                END IF
                CALL cp_pw_to_cube(rho_elec_rspace%pw, unit_nr, "SPIN DENSITY", &
                                   particles=particles, &
-                                  stride=section_get_ivals(dft_section, "PRINT%E_DENSITY_CUBE%STRIDE"))
+                                  stride=section_get_ivals(dft_section, "PRINT%E_DENSITY_CUBE%STRIDE"), mpi_io=mpi_io)
                CALL cp_print_key_finished_output(unit_nr, logger, input, &
-                                                 "DFT%PRINT%E_DENSITY_CUBE")
+                                                 "DFT%PRINT%E_DENSITY_CUBE", mpi_io=mpi_io)
                CALL pw_pool_give_back_pw(auxbas_pw_pool, rho_elec_rspace%pw)
             ELSE
                filename = "ELECTRON_DENSITY"
+               mpi_io = .TRUE.
                unit_nr = cp_print_key_unit_nr(logger, input, "DFT%PRINT%E_DENSITY_CUBE", &
                                               extension=".cube", middle_name=TRIM(filename), &
-                                              file_position=my_pos_cube, log_filename=.FALSE.)
+                                              file_position=my_pos_cube, log_filename=.FALSE., mpi_io=mpi_io, &
+                                              fout=mpi_filename)
                IF (output_unit > 0) THEN
-                  INQUIRE (UNIT=unit_nr, NAME=filename)
+                  IF (.NOT. mpi_io) THEN
+                     INQUIRE (UNIT=unit_nr, NAME=filename)
+                  ELSE
+                     filename = mpi_filename
+                  END IF
                   WRITE (UNIT=output_unit, FMT="(/,T2,A,/,/,T2,A)") &
                      "The electron density is written in cube file format to the file:", &
                      TRIM(filename)
                END IF
                CALL cp_pw_to_cube(rho_r(1)%pw, unit_nr, "ELECTRON DENSITY", &
                                   particles=particles, &
-                                  stride=section_get_ivals(dft_section, "PRINT%E_DENSITY_CUBE%STRIDE"))
+                                  stride=section_get_ivals(dft_section, "PRINT%E_DENSITY_CUBE%STRIDE"), mpi_io=mpi_io)
                CALL cp_print_key_finished_output(unit_nr, logger, input, &
-                                                 "DFT%PRINT%E_DENSITY_CUBE")
+                                                 "DFT%PRINT%E_DENSITY_CUBE", mpi_io=mpi_io)
             END IF ! nspins
          END IF ! total density for GAPW
       END IF ! print key
@@ -2618,10 +2663,11 @@ CONTAINS
          IF (append_cube) THEN
             my_pos_cube = "APPEND"
          END IF
+         mpi_io = .TRUE.
          CALL get_qs_env(qs_env=qs_env, pw_env=pw_env)
          CALL pw_env_get(pw_env)
          unit_nr = cp_print_key_unit_nr(logger, input, "DFT%PRINT%V_HARTREE_CUBE", &
-                                        extension=".cube", middle_name="v_hartree", file_position=my_pos_cube)
+                                        extension=".cube", middle_name="v_hartree", file_position=my_pos_cube, mpi_io=mpi_io)
          udvol = 1.0_dp/v_hartree_rspace%pw_grid%dvol
 
          CALL pw_copy(v_hartree_rspace, aux_r%pw)
@@ -2629,9 +2675,9 @@ CONTAINS
 
          CALL cp_pw_to_cube(aux_r%pw, unit_nr, "HARTREE POTENTIAL", particles=particles, &
                             stride=section_get_ivals(dft_section, &
-                                                     "PRINT%V_HARTREE_CUBE%STRIDE"))
+                                                     "PRINT%V_HARTREE_CUBE%STRIDE"), mpi_io=mpi_io)
          CALL cp_print_key_finished_output(unit_nr, logger, input, &
-                                           "DFT%PRINT%V_HARTREE_CUBE")
+                                           "DFT%PRINT%V_HARTREE_CUBE", mpi_io=mpi_io)
 
          CALL pw_pool_give_back_pw(auxbas_pw_pool, aux_r%pw)
       ENDIF
@@ -2651,17 +2697,18 @@ CONTAINS
             IF (append_cube) THEN
                my_pos_cube = "APPEND"
             END IF
+            mpi_io = .TRUE.
             CALL pw_env_get(pw_env)
             unit_nr = cp_print_key_unit_nr(logger, input, "DFT%PRINT%EXTERNAL_POTENTIAL_CUBE", &
-                                           extension=".cube", middle_name="ext_pot", file_position=my_pos_cube)
+                                           extension=".cube", middle_name="ext_pot", file_position=my_pos_cube, mpi_io=mpi_io)
 
             CALL pw_copy(vee%pw, aux_r%pw)
 
             CALL cp_pw_to_cube(aux_r%pw, unit_nr, "EXTERNAL POTENTIAL", particles=particles, &
                                stride=section_get_ivals(dft_section, &
-                                                        "PRINT%EXTERNAL_POTENTIAL_CUBE%STRIDE"))
+                                                        "PRINT%EXTERNAL_POTENTIAL_CUBE%STRIDE"), mpi_io=mpi_io)
             CALL cp_print_key_finished_output(unit_nr, logger, input, &
-                                              "DFT%PRINT%EXTERNAL_POTENTIAL_CUBE")
+                                              "DFT%PRINT%EXTERNAL_POTENTIAL_CUBE", mpi_io=mpi_io)
 
             CALL pw_pool_give_back_pw(auxbas_pw_pool, aux_r%pw)
          ENDIF
@@ -2690,8 +2737,10 @@ CONTAINS
          CALL pw_env_get(pw_env)
          udvol = 1.0_dp/v_hartree_rspace%pw_grid%dvol
          DO id = 1, 3
+            mpi_io = .TRUE.
             unit_nr = cp_print_key_unit_nr(logger, input, "DFT%PRINT%EFIELD_CUBE", &
-                                           extension=".cube", middle_name="efield_"//cdir(id), file_position=my_pos_cube)
+                                           extension=".cube", middle_name="efield_"//cdir(id), file_position=my_pos_cube, &
+                                           mpi_io=mpi_io)
 
             CALL pw_transfer(v_hartree_rspace, aux_g%pw)
             nd = 0
@@ -2703,9 +2752,9 @@ CONTAINS
             CALL cp_pw_to_cube(aux_r%pw, &
                                unit_nr, "ELECTRIC FIELD", particles=particles, &
                                stride=section_get_ivals(dft_section, &
-                                                        "PRINT%EFIELD_CUBE%STRIDE"))
+                                                        "PRINT%EFIELD_CUBE%STRIDE"), mpi_io=mpi_io)
             CALL cp_print_key_finished_output(unit_nr, logger, input, &
-                                              "DFT%PRINT%EFIELD_CUBE")
+                                              "DFT%PRINT%EFIELD_CUBE", mpi_io=mpi_io)
          END DO
 
          CALL pw_pool_give_back_pw(auxbas_pw_pool, aux_r%pw)
@@ -3071,7 +3120,7 @@ CONTAINS
       INTEGER                                            :: boundary_condition, handle, i, j, &
                                                             n_cstr, n_tiles, unit_nr
       LOGICAL :: append_cube, do_cstr_charge_cube, do_dielectric_cube, do_dirichlet_bc_cube, &
-         has_dirichlet_bc, has_implicit_ps, tile_cubes
+         has_dirichlet_bc, has_implicit_ps, mpi_io, tile_cubes
       TYPE(particle_list_type), POINTER                  :: particles
       TYPE(pw_env_type), POINTER                         :: pw_env
       TYPE(pw_p_type)                                    :: aux_r
@@ -3103,8 +3152,10 @@ CONTAINS
          IF (append_cube) THEN
             my_pos_cube = "APPEND"
          END IF
+         mpi_io = .TRUE.
          unit_nr = cp_print_key_unit_nr(logger, input, "DFT%PRINT%IMPLICIT_PSOLVER%DIELECTRIC_CUBE", &
-                                        extension=".cube", middle_name="DIELECTRIC_CONSTANT", file_position=my_pos_cube)
+                                        extension=".cube", middle_name="DIELECTRIC_CONSTANT", file_position=my_pos_cube, &
+                                        mpi_io=mpi_io)
          CALL pw_env_get(pw_env, poisson_env=poisson_env, auxbas_pw_pool=auxbas_pw_pool)
          CALL pw_pool_create_pw(auxbas_pw_pool, aux_r%pw, use_data=REALDATA3D, in_space=REALSPACE)
 
@@ -3121,9 +3172,10 @@ CONTAINS
          END SELECT
 
          CALL cp_pw_to_cube(aux_r%pw, unit_nr, "DIELECTRIC CONSTANT", particles=particles, &
-                            stride=section_get_ivals(dft_section, "PRINT%IMPLICIT_PSOLVER%DIELECTRIC_CUBE%STRIDE"))
+                            stride=section_get_ivals(dft_section, "PRINT%IMPLICIT_PSOLVER%DIELECTRIC_CUBE%STRIDE"), &
+                            mpi_io=mpi_io)
          CALL cp_print_key_finished_output(unit_nr, logger, input, &
-                                           "DFT%PRINT%IMPLICIT_PSOLVER%DIELECTRIC_CUBE")
+                                           "DFT%PRINT%IMPLICIT_PSOLVER%DIELECTRIC_CUBE", mpi_io=mpi_io)
 
          CALL pw_pool_give_back_pw(auxbas_pw_pool, aux_r%pw)
       ENDIF
@@ -3147,9 +3199,11 @@ CONTAINS
          IF (append_cube) THEN
             my_pos_cube = "APPEND"
          END IF
+         mpi_io = .TRUE.
          unit_nr = cp_print_key_unit_nr(logger, input, &
                                         "DFT%PRINT%IMPLICIT_PSOLVER%DIRICHLET_CSTR_CHARGE_CUBE", &
-                                        extension=".cube", middle_name="dirichlet_cstr_charge", file_position=my_pos_cube)
+                                        extension=".cube", middle_name="dirichlet_cstr_charge", file_position=my_pos_cube, &
+                                        mpi_io=mpi_io)
          CALL pw_env_get(pw_env, poisson_env=poisson_env, auxbas_pw_pool=auxbas_pw_pool)
          CALL pw_pool_create_pw(auxbas_pw_pool, aux_r%pw, use_data=REALDATA3D, in_space=REALSPACE)
 
@@ -3166,9 +3220,10 @@ CONTAINS
          END SELECT
 
          CALL cp_pw_to_cube(aux_r%pw, unit_nr, "DIRICHLET CONSTRAINT CHARGE", particles=particles, &
-                            stride=section_get_ivals(dft_section, "PRINT%IMPLICIT_PSOLVER%DIRICHLET_CSTR_CHARGE_CUBE%STRIDE"))
+                            stride=section_get_ivals(dft_section, "PRINT%IMPLICIT_PSOLVER%DIRICHLET_CSTR_CHARGE_CUBE%STRIDE"), &
+                            mpi_io=mpi_io)
          CALL cp_print_key_finished_output(unit_nr, logger, input, &
-                                           "DFT%PRINT%IMPLICIT_PSOLVER%DIRICHLET_CSTR_CHARGE_CUBE")
+                                           "DFT%PRINT%IMPLICIT_PSOLVER%DIRICHLET_CSTR_CHARGE_CUBE", mpi_io=mpi_io)
 
          CALL pw_pool_give_back_pw(auxbas_pw_pool, aux_r%pw)
       ENDIF
@@ -3204,15 +3259,18 @@ CONTAINS
                DO i = 1, n_tiles
                   filename = "dirichlet_cstr_"//TRIM(ADJUSTL(cp_to_string(j)))// &
                              "_tile_"//TRIM(ADJUSTL(cp_to_string(i)))
+                  mpi_io = .TRUE.
                   unit_nr = cp_print_key_unit_nr(logger, input, "DFT%PRINT%IMPLICIT_PSOLVER%DIRICHLET_BC_CUBE", &
-                                                 extension=".cube", middle_name=filename, file_position=my_pos_cube)
+                                                 extension=".cube", middle_name=filename, file_position=my_pos_cube, &
+                                                 mpi_io=mpi_io)
 
                   CALL pw_copy(poisson_env%implicit_env%contacts(j)%dirichlet_bc%tiles(i)%tile%tile_pw, aux_r%pw)
 
                   CALL cp_pw_to_cube(aux_r%pw, unit_nr, "DIRICHLET TYPE CONSTRAINT", particles=particles, &
-                                     stride=section_get_ivals(dft_section, "PRINT%IMPLICIT_PSOLVER%DIRICHLET_BC_CUBE%STRIDE"))
+                                     stride=section_get_ivals(dft_section, "PRINT%IMPLICIT_PSOLVER%DIRICHLET_BC_CUBE%STRIDE"), &
+                                     mpi_io=mpi_io)
                   CALL cp_print_key_finished_output(unit_nr, logger, input, &
-                                                    "DFT%PRINT%IMPLICIT_PSOLVER%DIRICHLET_BC_CUBE")
+                                                    "DFT%PRINT%IMPLICIT_PSOLVER%DIRICHLET_BC_CUBE", mpi_io=mpi_io)
                END DO
             END DO
          ELSE
@@ -3220,8 +3278,10 @@ CONTAINS
             NULLIFY (dirichlet_tile)
             CALL pw_pool_create_pw(auxbas_pw_pool, dirichlet_tile, use_data=REALDATA3D, in_space=REALSPACE)
             CALL pw_zero(dirichlet_tile)
+            mpi_io = .TRUE.
             unit_nr = cp_print_key_unit_nr(logger, input, "DFT%PRINT%IMPLICIT_PSOLVER%DIRICHLET_BC_CUBE", &
-                                           extension=".cube", middle_name="DIRICHLET_CSTR", file_position=my_pos_cube)
+                                           extension=".cube", middle_name="DIRICHLET_CSTR", file_position=my_pos_cube, &
+                                           mpi_io=mpi_io)
 
             n_cstr = SIZE(poisson_env%implicit_env%contacts)
             DO j = 1, n_cstr
@@ -3233,9 +3293,10 @@ CONTAINS
             END DO
 
             CALL cp_pw_to_cube(aux_r%pw, unit_nr, "DIRICHLET TYPE CONSTRAINT", particles=particles, &
-                               stride=section_get_ivals(dft_section, "PRINT%IMPLICIT_PSOLVER%DIRICHLET_BC_CUBE%STRIDE"))
+                               stride=section_get_ivals(dft_section, "PRINT%IMPLICIT_PSOLVER%DIRICHLET_BC_CUBE%STRIDE"), &
+                               mpi_io=mpi_io)
             CALL cp_print_key_finished_output(unit_nr, logger, input, &
-                                              "DFT%PRINT%IMPLICIT_PSOLVER%DIRICHLET_BC_CUBE")
+                                              "DFT%PRINT%IMPLICIT_PSOLVER%DIRICHLET_BC_CUBE", mpi_io=mpi_io)
             CALL pw_pool_give_back_pw(auxbas_pw_pool, dirichlet_tile)
          END IF
 
@@ -3263,7 +3324,7 @@ CONTAINS
                                                             nelectron_total, newton_schulz_order, &
                                                             next, nwindows, print_unit, unit_nr
       INTEGER, DIMENSION(:), POINTER                     :: stride(:)
-      LOGICAL                                            :: print_cube, restrict_range
+      LOGICAL                                            :: mpi_io, print_cube, restrict_range
       REAL(KIND=dp) :: bin_width, density_ewindow_total, density_total, energy_range, fermi_level, &
          filter_eps, frob_norm, lanzcos_threshold, lower_bound, occupation, total_rho, upper_bound
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: eigenvalues
@@ -3432,13 +3493,14 @@ CONTAINS
                                     total_rho=total_rho, &
                                     ks_env=ks_env)
             WRITE (ext, "(A14,I5.5,A)") "-ENERGY-WINDOW", i, TRIM(cp_iter_string(logger%iter_info))//".cube"
+            mpi_io = .TRUE.
             print_unit = cp_print_key_unit_nr(logger, dft_section, "PRINT%ENERGY_WINDOWS", &
                                               extension=ext, file_status="REPLACE", file_action="WRITE", &
-                                              log_filename=.FALSE.)
+                                              log_filename=.FALSE., mpi_io=mpi_io)
             WRITE (title, "(A14,I5)") "ENERGY WINDOW ", i
-            CALL cp_pw_to_cube(rho_r%pw, print_unit, title, particles=particles, stride=stride)
+            CALL cp_pw_to_cube(rho_r%pw, print_unit, title, particles=particles, stride=stride, mpi_io=mpi_io)
             CALL cp_print_key_finished_output(print_unit, logger, dft_section, &
-                                              "PRINT%ENERGY_WINDOWS")
+                                              "PRINT%ENERGY_WINDOWS", mpi_io=mpi_io)
             density_ewindow_total = pw_integrate_function(rho_r%pw)
             IF (unit_nr > 0) WRITE (unit_nr, "(A,F16.10,A,I5,A,F20.14,A,F20.14)") " Energy Level: ", &
                lower_bound+(i-0.5_dp)*bin_width, " Number of states: ", next-last, " Occupation: ", &

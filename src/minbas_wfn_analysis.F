@@ -494,7 +494,7 @@ CONTAINS
       CHARACTER(LEN=default_path_length)                 :: filename, title
       INTEGER                                            :: i, i_rep, ivec, iw, j, n_rep, natom
       INTEGER, DIMENSION(:), POINTER                     :: blk_sizes, first_bas, ilist, stride
-      LOGICAL                                            :: explicit
+      LOGICAL                                            :: explicit, mpi_io
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       TYPE(cell_type), POINTER                           :: cell
       TYPE(cp_logger_type), POINTER                      :: logger
@@ -540,12 +540,14 @@ CONTAINS
             DO ivec = first_bas(i-1)+1, first_bas(i)
                WRITE (filename, '(a4,I5.5,a1,I1.1)') "MINBAS_", ivec, "_", ispin
                WRITE (title, *) "MINIMAL BASIS ", ivec, " atom ", i, " spin ", ispin
+               mpi_io = .TRUE.
                iw = cp_print_key_unit_nr(logger, print_section, "MINBAS_CUBE", extension=".cube", &
-                                         middle_name=TRIM(filename), file_position="REWIND", log_filename=.FALSE.)
+                                         middle_name=TRIM(filename), file_position="REWIND", log_filename=.FALSE., &
+                                         mpi_io=mpi_io)
                CALL calculate_wavefunction(minbas_coeff, ivec, wf_r, wf_g, atomic_kind_set, qs_kind_set, &
                                            cell, dft_control, particle_set, pw_env)
-               CALL cp_pw_to_cube(wf_r%pw, iw, title, particles=particles, stride=stride)
-               CALL cp_print_key_finished_output(iw, logger, print_section, "MINBAS_CUBE")
+               CALL cp_pw_to_cube(wf_r%pw, iw, title, particles=particles, stride=stride, mpi_io=mpi_io)
+               CALL cp_print_key_finished_output(iw, logger, print_section, "MINBAS_CUBE", mpi_io=mpi_io)
             END DO
          END DO
       ELSE
@@ -556,12 +558,14 @@ CONTAINS
                DO ivec = first_bas(j-1)+1, first_bas(j)
                   WRITE (filename, '(a4,I5.5,a1,I1.1)') "MINBAS_", ivec, "_", ispin
                   WRITE (title, *) "MINIMAL BASIS ", ivec, " atom ", j, " spin ", ispin
+                  mpi_io = .TRUE.
                   iw = cp_print_key_unit_nr(logger, print_section, "MINBAS_CUBE", extension=".cube", &
-                                            middle_name=TRIM(filename), file_position="REWIND", log_filename=.FALSE.)
+                                            middle_name=TRIM(filename), file_position="REWIND", log_filename=.FALSE., &
+                                            mpi_io=mpi_io)
                   CALL calculate_wavefunction(minbas_coeff, ivec, wf_r, wf_g, atomic_kind_set, qs_kind_set, &
                                               cell, dft_control, particle_set, pw_env)
-                  CALL cp_pw_to_cube(wf_r%pw, iw, title, particles=particles, stride=stride)
-                  CALL cp_print_key_finished_output(iw, logger, print_section, "MINBAS_CUBE")
+                  CALL cp_pw_to_cube(wf_r%pw, iw, title, particles=particles, stride=stride, mpi_io=mpi_io)
+                  CALL cp_print_key_finished_output(iw, logger, print_section, "MINBAS_CUBE", mpi_io=mpi_io)
                END DO
             END DO
          END DO

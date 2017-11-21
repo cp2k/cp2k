@@ -661,7 +661,7 @@ CONTAINS
       CHARACTER(len=14)                                  :: ext
       CHARACTER(len=2)                                   :: sdir
       INTEGER                                            :: dir, handle, unit_nr
-      LOGICAL                                            :: do_current_cube, do_transport
+      LOGICAL                                            :: do_current_cube, do_transport, mpi_io
       TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(current_env_type)                             :: current_env
       TYPE(dbcsr_type), POINTER                          :: zero
@@ -733,12 +733,15 @@ CONTAINS
                      sdir = "-z"
                   END SELECT
                   ext = sdir//".cube"
+                  mpi_io = .TRUE.
                   unit_nr = cp_print_key_unit_nr(logger, dft_section, "TRANSPORT%PRINT%CURRENT", &
                                                  extension=ext, file_status="REPLACE", file_action="WRITE", &
-                                                 log_filename=.FALSE.)
+                                                 log_filename=.FALSE., mpi_io=mpi_io)
                   CALL cp_pw_to_cube(rs%pw, unit_nr, "Transport current", particles=particles, &
-                                     stride=section_get_ivals(dft_section, "TRANSPORT%PRINT%CURRENT%STRIDE"))
-                  CALL cp_print_key_finished_output(unit_nr, logger, dft_section, "TRANSPORT%PRINT%CURRENT")
+                                     stride=section_get_ivals(dft_section, "TRANSPORT%PRINT%CURRENT%STRIDE"), &
+                                     mpi_io=mpi_io)
+                  CALL cp_print_key_finished_output(unit_nr, logger, dft_section, "TRANSPORT%PRINT%CURRENT", &
+                                                    mpi_io=mpi_io)
                END DO
 
                CALL dbcsr_deallocate_matrix(zero)

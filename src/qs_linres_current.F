@@ -183,7 +183,7 @@ CONTAINS
                                                             nstates(2), output_unit, unit_nr
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: first_sgf, last_sgf
       INTEGER, DIMENSION(:), POINTER                     :: row_blk_sizes
-      LOGICAL                                            :: append_cube, gapw
+      LOGICAL                                            :: append_cube, gapw, mpi_io
       REAL(dp)                                           :: dk(3), jrho_tot_G(3, 3), &
                                                             jrho_tot_R(3, 3), maxocc, scale_fac
       REAL(dp), ALLOCATABLE, DIMENSION(:, :)             :: ddk
@@ -487,17 +487,20 @@ CONTAINS
                CPABORT("GAPW needs to be finalized")
             ENDIF
             filename = "jresp"
+            mpi_io = .TRUE.
             WRITE (ext, '(a2,I1,a2,I1,a5)') "iB", iB, "_d", idir, ".cube"
             WRITE (ext, '(a2,a1,a2,a1,a5)') "iB", ACHAR(iB+119), "_d", ACHAR(idir+119), ".cube"
             unit_nr = cp_print_key_unit_nr(logger, current_section, "PRINT%CURRENT_CUBES", &
                                            extension=TRIM(ext), middle_name=TRIM(filename), &
-                                           log_filename=.FALSE., file_position=my_pos)
+                                           log_filename=.FALSE., file_position=my_pos, &
+                                           mpi_io=mpi_io)
 
             CALL cp_pw_to_cube(wf_r%pw, unit_nr, "RESPONSE CURRENT DENSITY ", &
                                particles=particles, &
-                               stride=section_get_ivals(current_section, "PRINT%CURRENT_CUBES%STRIDE"))
+                               stride=section_get_ivals(current_section, "PRINT%CURRENT_CUBES%STRIDE"), &
+                               mpi_io=mpi_io)
             CALL cp_print_key_finished_output(unit_nr, logger, current_section,&
-                 &                            "PRINT%CURRENT_CUBES")
+                 &                            "PRINT%CURRENT_CUBES", mpi_io=mpi_io)
          ENDDO
          !
          CALL pw_pool_give_back_pw(auxbas_pw_pool, wf_r%pw)

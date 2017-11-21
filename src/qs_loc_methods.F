@@ -859,7 +859,7 @@ CONTAINS
       CHARACTER(LEN=default_string_length)               :: title
       INTEGER                                            :: handle, ia, ie, istate, ivector, &
                                                             my_ispin, my_state0, unit_out_c
-      LOGICAL                                            :: add_idir, add_spin
+      LOGICAL                                            :: add_idir, add_spin, mpi_io
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       TYPE(cell_type), POINTER                           :: cell
       TYPE(cp_logger_type), POINTER                      :: logger
@@ -931,8 +931,10 @@ CONTAINS
          END IF
 
          ! Using the print_key tools to open the file with the proper name
+         mpi_io = .TRUE.
          unit_out_c = cp_print_key_unit_nr(logger, print_key, "", middle_name=filename, &
-                                           extension=".cube", file_position=my_pos, log_filename=.FALSE.)
+                                           extension=".cube", file_position=my_pos, log_filename=.FALSE., &
+                                           mpi_io=mpi_io)
          IF (SIZE(centers, 1) == 6) THEN
             WRITE (title, '(A7,I5.5,A2,I1.1,A1,6F10.4)') "WFN ", ivector, "_s", my_ispin, " ", &
                centers(1:3, istate)*angstrom, centers(4:6, istate)*angstrom
@@ -942,8 +944,8 @@ CONTAINS
          END IF
          CALL cp_pw_to_cube(wf_r%pw, unit_out_c, title, &
                             particles=particles, &
-                            stride=section_get_ivals(print_key, "STRIDE"))
-         CALL cp_print_key_finished_output(unit_out_c, logger, print_key, "")
+                            stride=section_get_ivals(print_key, "STRIDE"), mpi_io=mpi_io)
+         CALL cp_print_key_finished_output(unit_out_c, logger, print_key, "", mpi_io=mpi_io)
       END DO
 
       CALL pw_pool_give_back_pw(auxbas_pw_pool, wf_r%pw)

@@ -51,7 +51,8 @@ MODULE qs_sccs
                                               section_vals_get_subs_vals,&
                                               section_vals_type
    USE kahan_sum,                       ONLY: accurate_sum
-   USE kinds,                           ONLY: default_string_length,&
+   USE kinds,                           ONLY: default_path_length,&
+                                              default_string_length,&
                                               dp,&
                                               int_8
    USE mathconstants,                   ONLY: twopi
@@ -131,6 +132,7 @@ CONTAINS
       REAL(KIND=dp), PARAMETER                           :: tol = 1.0E-12_dp
 
       CHARACTER(LEN=4*default_string_length)             :: message
+      CHARACTER(LEN=default_path_length)                 :: mpi_filename
       CHARACTER(LEN=default_string_length)               :: cube_path, filename, my_pos_cube, &
                                                             print_path
       INTEGER                                            :: cube_unit, di, dj, handle, i, ispin, &
@@ -139,7 +141,7 @@ CONTAINS
       INTEGER(KIND=int_8)                                :: ngpts
       INTEGER, DIMENSION(3)                              :: lb, ub
       LOGICAL                                            :: append_cube, calculate_stress_tensor, &
-                                                            should_output
+                                                            mpi_io, should_output
       REAL(KIND=dp) :: cavity_surface, cavity_volume, cell_volume, dphi2, dvol, eps0, f, &
          norm_drho2, polarisation_charge, rho_delta, rho_delta_avg, rho_delta_max, rho_iter_new, &
          tot_rho_elec, tot_rho_solute
@@ -324,17 +326,24 @@ CONTAINS
          append_cube = section_get_lval(input, TRIM(cube_path)//"%APPEND")
          my_pos_cube = "REWIND"
          IF (append_cube) my_pos_cube = "APPEND"
+         mpi_io = .TRUE.
          cube_unit = cp_print_key_unit_nr(logger, input, TRIM(cube_path), &
                                           extension=".cube", middle_name=TRIM(filename), &
-                                          file_position=my_pos_cube, log_filename=.FALSE.)
+                                          file_position=my_pos_cube, log_filename=.FALSE., &
+                                          mpi_io=mpi_io, fout=mpi_filename)
          IF (output_unit > 0) THEN
-            INQUIRE (UNIT=cube_unit, NAME=filename)
+            IF (.NOT. mpi_io) THEN
+               INQUIRE (UNIT=cube_unit, NAME=filename)
+            ELSE
+               filename = mpi_filename
+            END IF
             WRITE (UNIT=output_unit, FMT="(/,T2,A,/,/,T2,A)") &
                "The dielectric function is written in cube file format to the file:", TRIM(filename)
          END IF
          CALL cp_pw_to_cube(eps_elec, cube_unit, TRIM(filename), particles=particles, &
-                            stride=section_get_ivals(input, TRIM(cube_path)//"%STRIDE"))
-         CALL cp_print_key_finished_output(cube_unit, logger, input, TRIM(cube_path))
+                            stride=section_get_ivals(input, TRIM(cube_path)//"%STRIDE"), &
+                            mpi_io=mpi_io)
+         CALL cp_print_key_finished_output(cube_unit, logger, input, TRIM(cube_path), mpi_io=mpi_io)
       END IF
 
       ! Calculate the (quantum) volume and surface of the solute cavity
@@ -401,17 +410,24 @@ CONTAINS
             append_cube = section_get_lval(input, TRIM(cube_path)//"%APPEND")
             my_pos_cube = "REWIND"
             IF (append_cube) my_pos_cube = "APPEND"
+            mpi_io = .TRUE.
             cube_unit = cp_print_key_unit_nr(logger, input, TRIM(cube_path), &
                                              extension=".cube", middle_name=TRIM(filename), &
-                                             file_position=my_pos_cube, log_filename=.FALSE.)
+                                             file_position=my_pos_cube, log_filename=.FALSE., &
+                                             mpi_io=mpi_io, fout=mpi_filename)
             IF (output_unit > 0) THEN
-               INQUIRE (UNIT=cube_unit, NAME=filename)
+               IF (.NOT. mpi_io) THEN
+                  INQUIRE (UNIT=cube_unit, NAME=filename)
+               ELSE
+                  filename = mpi_filename
+               END IF
                WRITE (UNIT=output_unit, FMT="(/,T2,A,/,/,T2,A)") &
                   "The norm of the density gradient is written in cube file format to the file:", TRIM(filename)
             END IF
             CALL cp_pw_to_cube(norm_drho_elec, cube_unit, TRIM(filename), particles=particles, &
-                               stride=section_get_ivals(input, TRIM(cube_path)//"%STRIDE"))
-            CALL cp_print_key_finished_output(cube_unit, logger, input, TRIM(cube_path))
+                               stride=section_get_ivals(input, TRIM(cube_path)//"%STRIDE"), &
+                               mpi_io=mpi_io)
+            CALL cp_print_key_finished_output(cube_unit, logger, input, TRIM(cube_path), mpi_io=mpi_io)
          END IF
 
          ! Calculate the (quantum) surface of the solute cavity
@@ -701,17 +717,23 @@ CONTAINS
          append_cube = section_get_lval(input, TRIM(cube_path)//"%APPEND")
          my_pos_cube = "REWIND"
          IF (append_cube) my_pos_cube = "APPEND"
+         mpi_io = .TRUE.
          cube_unit = cp_print_key_unit_nr(logger, input, TRIM(cube_path), &
                                           extension=".cube", middle_name=TRIM(filename), &
-                                          file_position=my_pos_cube, log_filename=.FALSE.)
+                                          file_position=my_pos_cube, log_filename=.FALSE., &
+                                          mpi_io=mpi_io, fout=mpi_filename)
          IF (output_unit > 0) THEN
-            INQUIRE (UNIT=cube_unit, NAME=filename)
+            IF (.NOT. mpi_io) THEN
+               INQUIRE (UNIT=cube_unit, NAME=filename)
+            ELSE
+               filename = mpi_filename
+            END IF
             WRITE (UNIT=output_unit, FMT="(/,T2,A,/,/,T2,A)") &
                "The SCCS polarisation potential is written in cube file format to the file:", TRIM(filename)
          END IF
          CALL cp_pw_to_cube(phi_pol, cube_unit, TRIM(filename), particles=particles, &
-                            stride=section_get_ivals(input, TRIM(cube_path)//"%STRIDE"))
-         CALL cp_print_key_finished_output(cube_unit, logger, input, TRIM(cube_path))
+                            stride=section_get_ivals(input, TRIM(cube_path)//"%STRIDE"), mpi_io=mpi_io)
+         CALL cp_print_key_finished_output(cube_unit, logger, input, TRIM(cube_path), mpi_io=mpi_io)
       END IF
 
       ! Calculate SCCS polarisation energy

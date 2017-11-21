@@ -1698,7 +1698,7 @@ CONTAINS
 
       CHARACTER(LEN=default_path_length)                 :: my_pos_cube
       INTEGER                                            :: handle, ip, jx, jy, jz, unit_nr
-      LOGICAL                                            :: append_cube
+      LOGICAL                                            :: append_cube, mpi_io
       REAL(KIND=dp)                                      :: dvol, normalize_factor, rms, rrms, &
                                                             sum_diff, sum_hartree, udvol
       TYPE(cp_logger_type), POINTER                      :: logger
@@ -1773,18 +1773,21 @@ CONTAINS
          IF (append_cube) THEN
             my_pos_cube = "APPEND"
          END IF
+         mpi_io = .TRUE.
          unit_nr = cp_print_key_unit_nr(logger, resp_section, &
                                         "PRINT%V_RESP_CUBE", &
                                         extension=".cube", &
-                                        file_position=my_pos_cube)
+                                        file_position=my_pos_cube, &
+                                        mpi_io=mpi_io)
          udvol = 1.0_dp/dvol
          CALL pw_copy(v_resp_rspace%pw, aux_r%pw)
          CALL pw_scale(aux_r%pw, udvol)
          CALL cp_pw_to_cube(aux_r%pw, unit_nr, "RESP POTENTIAL", particles=particles, &
                             stride=section_get_ivals(resp_section, &
-                                                     "PRINT%V_RESP_CUBE%STRIDE"))
+                                                     "PRINT%V_RESP_CUBE%STRIDE"), &
+                            mpi_io=mpi_io)
          CALL cp_print_key_finished_output(unit_nr, logger, resp_section, &
-                                           "PRINT%V_RESP_CUBE")
+                                           "PRINT%V_RESP_CUBE", mpi_io=mpi_io)
          CALL pw_pool_give_back_pw(auxbas_pw_pool, aux_r%pw)
       ENDIF
 

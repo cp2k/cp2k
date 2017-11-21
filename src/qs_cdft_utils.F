@@ -22,7 +22,8 @@ MODULE qs_cdft_utils
    USE cp_log_handling,                 ONLY: cp_get_default_logger,&
                                               cp_logger_type,&
                                               cp_to_string
-   USE cp_output_handling,              ONLY: cp_print_key_unit_nr
+   USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
+                                              cp_print_key_unit_nr
    USE cp_para_types,                   ONLY: cp_para_env_type
    USE cp_realspace_grid_cube,          ONLY: cp_pw_to_cube
    USE cp_units,                        ONLY: cp_unit_from_cp2k
@@ -98,7 +99,7 @@ CONTAINS
          jatom, katom, natom, nkind, npme, nthread, numexp, unit_nr
       INTEGER, DIMENSION(2, 3)                           :: bo
       INTEGER, DIMENSION(:), POINTER                     :: atom_list, cores, stride
-      LOGICAL                                            :: build, in_memory
+      LOGICAL                                            :: build, in_memory, mpi_io
       LOGICAL, ALLOCATABLE, DIMENSION(:)                 :: is_constraint
       REAL(KIND=dp)                                      :: alpha, chi, coef, eps_cavity, ircov, &
                                                             jrcov, uij
@@ -424,17 +425,19 @@ CONTAINS
             CALL hfun_zero(becke_control%cavity%pw%cr3d, eps_cavity, just_bounds=.FALSE.)
             ALLOCATE (stride(3))
             stride = (/2, 2, 2/)
+            mpi_io = .TRUE.
             ! Note PROGRAM_RUN_INFO section neeeds to be active!
             unit_nr = cp_print_key_unit_nr(logger, becke_constraint_section, "PROGRAM_RUN_INFO", &
                                            middle_name="BECKE_CAVITY", &
                                            extension=".cube", file_position="REWIND", &
-                                           log_filename=.FALSE.)
+                                           log_filename=.FALSE., mpi_io=mpi_io)
             IF (para_env%mepos == para_env%source .AND. unit_nr .LT. 1) &
                CALL cp_abort(__LOCATION__, &
                              "Please turn on PROGRAM_RUN_INFO to print cavity")
             CALL get_qs_env(qs_env, subsys=subsys)
             CALL qs_subsys_get(subsys, particles=particles)
-            CALL cp_pw_to_cube(becke_control%cavity%pw, unit_nr, "CAVITY", particles=particles, stride=stride)
+            CALL cp_pw_to_cube(becke_control%cavity%pw, unit_nr, "CAVITY", particles=particles, stride=stride, mpi_io=mpi_io)
+            CALL cp_print_key_finished_output(unit_nr, logger, becke_constraint_section, "PROGRAM_RUN_INFO", mpi_io=mpi_io)
             DEALLOCATE (stride)
          END IF
       END IF

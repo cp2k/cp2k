@@ -681,6 +681,7 @@ CONTAINS
       CHARACTER(len=2)                                   :: sdir
       INTEGER                                            :: dir, handle, print_unit
       INTEGER, DIMENSION(:), POINTER                     :: stride(:)
+      LOGICAL                                            :: mpi_io
       TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(current_env_type)                             :: current_env
       TYPE(dbcsr_type), POINTER                          :: tmp, zero
@@ -736,14 +737,16 @@ CONTAINS
          WRITE (char_spin, "(I1)") spin
 
          ext = "-SPIN-"//char_spin//sdir//".cube"
-
+         mpi_io = .TRUE.
          print_unit = cp_print_key_unit_nr(logger, dft_section, "REAL_TIME_PROPAGATION%PRINT%CURRENT", &
                                            extension=ext, file_status="REPLACE", file_action="WRITE", &
-                                           log_filename=.FALSE.)
+                                           log_filename=.FALSE., mpi_io=mpi_io)
 
-         CALL cp_pw_to_cube(rs%pw, print_unit, "EMD current", particles=particles, stride=stride)
+         CALL cp_pw_to_cube(rs%pw, print_unit, "EMD current", particles=particles, stride=stride, &
+                            mpi_io=mpi_io)
 
-         CALL cp_print_key_finished_output(print_unit, logger, dft_section, "REAL_TIME_PROPAGATION%PRINT%CURRENT")
+         CALL cp_print_key_finished_output(print_unit, logger, dft_section, "REAL_TIME_PROPAGATION%PRINT%CURRENT", &
+                                           mpi_io=mpi_io)
 
       END DO
 

@@ -279,6 +279,7 @@ CONTAINS
       INTEGER                                            :: handle, i, ibias, imo, iorb, ispin, &
                                                             istates, nmo, nspin, nstates(2), &
                                                             state_start(2), unit_nr
+      LOGICAL                                            :: mpi_io
       REAL(KIND=dp)                                      :: alpha, total_rho
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: occ_tot
       TYPE(cp_fm_struct_type), POINTER                   :: fm_struct_tmp
@@ -378,14 +379,16 @@ CONTAINS
                my_pos = "APPEND"
             END IF
 
+            mpi_io = .TRUE.
             unit_nr = cp_print_key_unit_nr(logger, stm_section, extension=".cube", &
                                            middle_name=TRIM(filename), file_position=my_pos, file_action="WRITE", &
-                                           log_filename=.FALSE.)
+                                           log_filename=.FALSE., mpi_io=mpi_io)
             WRITE (title, '(A,I0,A,I0,A,F16.8)') "STM cube ", ibias, " wfn deriv. ", iorb, " at bias ", stm_biases(ibias)
             CALL cp_pw_to_cube(wf_r%pw, unit_nr, title, particles=particles, &
-                               stride=section_get_ivals(stm_section, "STRIDE"), zero_tails=.TRUE.)
+                               stride=section_get_ivals(stm_section, "STRIDE"), zero_tails=.TRUE., &
+                               mpi_io=mpi_io)
 
-            CALL cp_print_key_finished_output(unit_nr, logger, stm_section)
+            CALL cp_print_key_finished_output(unit_nr, logger, stm_section, mpi_io=mpi_io)
          END DO
 
          CALL cp_fm_release(matrix_v)

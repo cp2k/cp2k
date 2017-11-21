@@ -1975,7 +1975,7 @@ CONTAINS
          numexp, offset_dlb, unit_nr
       INTEGER, DIMENSION(2, 3)                           :: bo, bo_conf
       INTEGER, DIMENSION(:), POINTER                     :: atom_list, cores, stride
-      LOGICAL                                            :: build
+      LOGICAL                                            :: build, mpi_io
       REAL(kind=dp)                                      :: alpha, chi, coef, ircov, jrcov, ra(3), &
                                                             uij
       REAL(kind=dp), DIMENSION(3)                        :: cell_v, dist_vec, dr, r, r1, shift
@@ -2292,17 +2292,18 @@ CONTAINS
             NULLIFY (stride)
             ALLOCATE (stride(3))
             stride = (/2, 2, 2/)
+            mpi_io = .TRUE.
             unit_nr = cp_print_key_unit_nr(logger, print_section, "", &
                                            middle_name="BECKE_CAVITY", &
                                            extension=".cube", file_position="REWIND", &
-                                           log_filename=.FALSE.)
+                                           log_filename=.FALSE., mpi_io=mpi_io)
             IF (force_env%para_env%mepos == force_env%para_env%source .AND. unit_nr .LT. 1) &
                CALL cp_abort(__LOCATION__, &
                              "Please turn on PROGRAM_RUN_INFO to print cavity")
             CALL cp_pw_to_cube(mixed_cdft%becke_control%cavity%pw, &
                                unit_nr, "CAVITY", particles=particles, &
-                               stride=stride)
-            CALL cp_print_key_finished_output(unit_nr, logger, print_section, '')
+                               stride=stride, mpi_io=mpi_io)
+            CALL cp_print_key_finished_output(unit_nr, logger, print_section, '', mpi_io=mpi_io)
             DEALLOCATE (stride)
          END IF
       END IF

@@ -783,7 +783,7 @@ CONTAINS
                                                             iw, jatom, natom, nelectron_total, &
                                                             nfrag_spins, nvar, unit_nr
       INTEGER, DIMENSION(:), POINTER                     :: stride
-      LOGICAL                                            :: needs_spin_density, paw_atom
+      LOGICAL                                            :: mpi_io, needs_spin_density, paw_atom
       REAL(kind=dp)                                      :: dvol, eps_cavity, multiplier(2), &
                                                             nelectron_frag, sign, tc(2), zeff
       REAL(kind=dp), ALLOCATABLE, DIMENSION(:)           :: dE, strength, target_val
@@ -979,22 +979,25 @@ CONTAINS
             IF (debug_this_module) THEN
                ALLOCATE (stride(3))
                stride = (/1, 1, 1/)
+               mpi_io = .TRUE.
                unit_nr = cp_print_key_unit_nr(logger, becke_constraint_section, "PROGRAM_RUN_INFO", &
                                               middle_name="BECKE_WEIGHT", &
                                               extension=".cube", file_position="REWIND", &
-                                              log_filename=.FALSE.)
+                                              log_filename=.FALSE., mpi_io=mpi_io)
                CALL get_qs_env(qs_env, subsys=subsys)
                CALL qs_subsys_get(subsys, particles=particles)
                CALL cp_pw_to_cube(becke_control%group(1)%weight%pw, &
                                   unit_nr, "BECKE_WEIGHT", particles=particles, &
-                                  stride=stride)
+                                  stride=stride, mpi_io=mpi_io)
+               CALL cp_print_key_finished_output(unit_nr, logger, becke_constraint_section, "PROGRAM_RUN_INFO", mpi_io=mpi_io)
                unit_nr = cp_print_key_unit_nr(logger, becke_constraint_section, "PROGRAM_RUN_INFO", &
                                               middle_name="FRAG_DENS", &
                                               extension=".cube", file_position="REWIND", &
-                                              log_filename=.FALSE.)
+                                              log_filename=.FALSE., mpi_io=mpi_io)
                CALL cp_pw_to_cube(rho_frag(1)%pw, &
                                   unit_nr, "FRAG_DENS", particles=particles, &
-                                  stride=stride)
+                                  stride=stride, mpi_io=mpi_io)
+               CALL cp_print_key_finished_output(unit_nr, logger, becke_constraint_section, "PROGRAM_RUN_INFO", mpi_io=mpi_io)
                DEALLOCATE (stride)
             END IF
             ! Calculate reference atomic charges int( w_i * rho_frag * dr )

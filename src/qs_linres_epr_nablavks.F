@@ -121,7 +121,7 @@ CONTAINS
       INTEGER, DIMENSION(2, 3)                           :: bo
       INTEGER, DIMENSION(:), POINTER                     :: atom_list
       LOGICAL                                            :: gapw, gapw_xc, gth_gspace, ionode, &
-                                                            make_soft, paw_atom
+                                                            make_soft, mpi_io, paw_atom
       REAL(KIND=dp) :: alpha, alpha_core, arg, charge, ehartree, exc, exp_rap, gapw_max_alpha, &
          hard_radius, hard_value, soft_value, sqrt_alpha, sqrt_rap
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: vh1_rad_h, vh1_rad_s
@@ -967,16 +967,19 @@ CONTAINS
             CALL qs_rho_get(nablavks_set(idir, 1)%rho, rho_r=rho_r)
             CALL pw_copy(rho_r(1)%pw, wf_r%pw) ! RA
             filename = "nablavks"
+            mpi_io = .TRUE.
             WRITE (ext, '(a2,I1,a5)') "_d", idir, ".cube"
             unit_nr = cp_print_key_unit_nr(logger, lr_section, "EPR%PRINT%NABLAVKS_CUBES", &
                                            extension=TRIM(ext), middle_name=TRIM(filename), &
-                                           log_filename=.FALSE., file_position="REWIND")
+                                           log_filename=.FALSE., file_position="REWIND", &
+                                           mpi_io=mpi_io)
             CALL cp_pw_to_cube(wf_r%pw, unit_nr, "NABLA V_KS ", &
                                particles=particles, &
                                stride=section_get_ivals(lr_section, &
-                                                        "EPR%PRINT%NABLAVKS_CUBES%STRIDE"))
+                                                        "EPR%PRINT%NABLAVKS_CUBES%STRIDE"), &
+                               mpi_io=mpi_io)
             CALL cp_print_key_finished_output(unit_nr, logger, lr_section, &
-                                              "EPR%PRINT%NABLAVKS_CUBES")
+                                              "EPR%PRINT%NABLAVKS_CUBES", mpi_io=mpi_io)
          END DO
          CALL pw_pool_give_back_pw(auxbas_pw_pool, wf_r%pw)
          DEALLOCATE (wf_r)
