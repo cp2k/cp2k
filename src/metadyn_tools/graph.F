@@ -39,6 +39,7 @@ PROGRAM graph
 
   CHARACTER(LEN=80)                        :: file, out1, out2, out3, wq_char, &
                                               path_file, out3_stride
+  CHARACTER(LEN=480)                       :: a, b
   CHARACTER(LEN=default_string_length)     :: active_label, per_label
   INTEGER                                  :: argcount, coor, i, id, ip, &
                                               it, iw, ix, j, ncount, ndim, &
@@ -468,11 +469,21 @@ PROGRAM graph
   IF      (l_cp2k) THEN
      CALL get_val_res(unit=unit_nr,section="&METADYN",subsection="&SPAWNED_HILLS_POS")
      DO i = 1, nt
-        READ(unit_nr,*)(ss0(i_map(id),i),id=1,ndim)
+        READ(unit_nr,'(A120)') a
+        DO WHILE (a(LEN_TRIM(a):LEN_TRIM(a))=='\')
+           READ(unit_nr,'(A120)') b 
+           a=a(1:LEN_TRIM(a)-1)//b(1:LEN_TRIM(b))
+        END DO
+        READ(a,*)(ss0(i_map(id),i),id=1,ndim)
      END DO
      CALL get_val_res(unit=unit_nr,section="&METADYN",subsection="&SPAWNED_HILLS_SCALE")
      DO i = 1, nt
-        READ(unit_nr,*)(delta_s(i_map(id),i),id=1,ndim)
+        READ(unit_nr,'(A120)') a
+        DO WHILE (a(LEN_TRIM(a):LEN_TRIM(a))=='\')
+           READ(unit_nr,'(A120)') b
+           a=a(1:LEN_TRIM(a)-1)//b(1:LEN_TRIM(b))
+        END DO
+        READ(a,*) (delta_s(i_map(id),i),id=1,ndim)
      END DO
      CALL get_val_res(unit=unit_nr,section="&METADYN",subsection="&SPAWNED_HILLS_HEIGHT")
      DO i = 1, nt
