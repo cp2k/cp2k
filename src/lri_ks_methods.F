@@ -149,20 +149,14 @@ CONTAINS
                hs_work(1:nba, 1:nbb) = isn*lrii%soo(1:nba, 1:nbb)
                IF (iatom == jatom .AND. dab < lri_env%delta) THEN
                   DO i = 1, nfa
-                     IF (lrii%abascr(i) > threshold) THEN
-                        hs_work(1:nba, 1:nbb) = hs_work(1:nba, 1:nbb)+vi(i)*lrii%abaint(1:nba, 1:nbb, i)
-                     END IF
+                     hs_work(1:nba, 1:nbb) = hs_work(1:nba, 1:nbb)+vi(i)*lrii%abaint(1:nba, 1:nbb, i)
                   ENDDO
                ELSE
                   DO i = 1, nfa
-                     IF (lrii%abascr(i) > threshold) THEN
-                        hs_work(1:nba, 1:nbb) = hs_work(1:nba, 1:nbb)+vi(i)*lrii%abaint(1:nba, 1:nbb, i)
-                     END IF
+                     hs_work(1:nba, 1:nbb) = hs_work(1:nba, 1:nbb)+vi(i)*lrii%abaint(1:nba, 1:nbb, i)
                   ENDDO
                   DO i = 1, nfb
-                     IF (lrii%abbscr(i) > threshold) THEN
-                        hs_work(1:nba, 1:nbb) = hs_work(1:nba, 1:nbb)+vi(nfa+i)*lrii%abbint(1:nba, 1:nbb, i)
-                     END IF
+                     hs_work(1:nba, 1:nbb) = hs_work(1:nba, 1:nbb)+vi(nfa+i)*lrii%abbint(1:nba, 1:nbb, i)
                   ENDDO
                END IF
                DEALLOCATE (vi)

@@ -222,6 +222,8 @@ CONTAINS
 
             ! full method is used
             ! calculate integrals (fa,fb), (a,b), (a,b,fa) and (a,b,fb)
+            IF (ALLOCATED(lrii%sab)) DEALLOCATE (lrii%sab)
+            ALLOCATE (lrii%sab(nfa, nfb))
             IF (.NOT. e1c) THEN
                IF (lri_env%use_shg_integrals) THEN
                   CALL lri_int_shg(lri_env, lrii, rab, obasa, obasb, fbasa, fbasb, &
@@ -262,6 +264,9 @@ CONTAINS
                      lrii%nsn = SUM(lrii%sn(1:nn)*lrii%n(1:nn))
                   ENDIF
                END IF
+            END IF
+            IF (.NOT. lri_env%store_integrals) THEN
+               IF (ALLOCATED(lrii%sab)) DEALLOCATE (lrii%sab)
             END IF
 
             ! Distant Pair methods

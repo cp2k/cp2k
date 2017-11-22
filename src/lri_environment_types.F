@@ -253,6 +253,8 @@ MODULE lri_environment_types
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER               :: ob_smat
       ! exact one-center terms
       LOGICAL                                                 :: exact_1c_terms
+      ! store integrals (needed for basis optimization)
+      LOGICAL                                                 :: store_integrals
       ! distant pair approximation
       LOGICAL                                                 :: distant_pair_approximation
       CHARACTER(len=10)                                       :: distant_pair_method
@@ -346,6 +348,8 @@ CONTAINS
 
       lri_env%debug = .FALSE.
       lri_env%delta = 1.E-6_dp
+
+      lri_env%store_integrals = .FALSE.
 
       NULLIFY (lri_env%orb_basis)
       NULLIFY (lri_env%ri_basis)
@@ -671,8 +675,6 @@ CONTAINS
                NULLIFY (lrii%n, lrii%sn)
                NULLIFY (lrii%sinv)
             ELSE
-               ALLOCATE (lrii%sab(nfa, nfb))
-               lrii%sab = 0._dp
                ALLOCATE (lrii%soo(nba, nbb))
                lrii%soo = 0._dp
 
@@ -706,12 +708,6 @@ CONTAINS
             ALLOCATE (lrii%nb(nfb), lrii%snb(nfb))
             lrii%nb = 0._dp
             lrii%snb = 0._dp
-            IF (.NOT. ALLOCATED(lrii%sab)) THEN
-               ALLOCATE (lrii%sab(nfa, nfb))
-               lrii%sab = 0._dp
-            ELSE
-               CPASSERT(SIZE(lrii%sab, 1) == nfa .AND. SIZE(lrii%sab, 2) == nfb)
-            END IF
             IF (.NOT. ALLOCATED(lrii%soo)) THEN
                ALLOCATE (lrii%soo(nba, nbb))
                lrii%soo = 0._dp

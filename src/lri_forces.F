@@ -258,10 +258,13 @@ CONTAINS
                END IF
 
                ! Calculate derivatives of overlap integrals (a,b), (fa,fb), (a,fa,b), (a,b,fb)
+               IF (ALLOCATED(lrii%sab)) DEALLOCATE (lrii%sab)
                IF (ALLOCATED(lrii%dsab)) DEALLOCATE (lrii%dsab)
                IF (ALLOCATED(lrii%dsoo)) DEALLOCATE (lrii%dsoo)
                IF (ALLOCATED(lrii%dabbint)) DEALLOCATE (lrii%dabbint)
                IF (ALLOCATED(lrii%dabdaint)) DEALLOCATE (lrii%dabdaint)
+               ALLOCATE (lrii%sab(nfa, nfb))
+               lrii%sab = 0._dp
                ALLOCATE (lrii%dsab(nfa, nfb, 3))
                lrii%dsab = 0._dp
                ALLOCATE (lrii%dsoo(nba, nbb, 3))
@@ -348,6 +351,7 @@ CONTAINS
                ENDDO
 
                ! deallocate derivative integrals
+               IF (ALLOCATED(lrii%sab)) DEALLOCATE (lrii%sab)
                IF (ALLOCATED(lrii%dsab)) DEALLOCATE (lrii%dsab)
                IF (ALLOCATED(lrii%dsoo)) DEALLOCATE (lrii%dsoo)
                IF (ALLOCATED(lrii%dabbint)) DEALLOCATE (lrii%dabbint)
@@ -546,10 +550,13 @@ CONTAINS
                END SELECT
 
                ! Calculate derivatives of overlap integrals (a,b), (fa,fb), (a,fa,b), (a,b,fb)
+               IF (ALLOCATED(lrii%sab)) DEALLOCATE (lrii%sab)
                IF (ALLOCATED(lrii%dsab)) DEALLOCATE (lrii%dsab)
                IF (ALLOCATED(lrii%dsoo)) DEALLOCATE (lrii%dsoo)
                IF (ALLOCATED(lrii%dabbint)) DEALLOCATE (lrii%dabbint)
                IF (ALLOCATED(lrii%dabdaint)) DEALLOCATE (lrii%dabdaint)
+               ALLOCATE (lrii%sab(nfa, nfb))
+               lrii%sab = 0._dp
                ALLOCATE (lrii%dsab(nfa, nfb, 3))
                lrii%dsab = 0._dp
                ALLOCATE (lrii%dsoo(nba, nbb, 3))
@@ -619,6 +626,7 @@ CONTAINS
                ENDDO
 
                ! deallocate derivative integrals
+               IF (ALLOCATED(lrii%sab)) DEALLOCATE (lrii%sab)
                IF (ALLOCATED(lrii%dsab)) DEALLOCATE (lrii%dsab)
                IF (ALLOCATED(lrii%dsoo)) DEALLOCATE (lrii%dsoo)
                IF (ALLOCATED(lrii%dabbint)) DEALLOCATE (lrii%dabbint)

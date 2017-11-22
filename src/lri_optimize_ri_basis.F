@@ -537,6 +537,7 @@ CONTAINS
       NULLIFY (fbas, npgf)
 
       !*** build new transformation matrices sphi with new exponents
+      lri_env%store_integrals = .TRUE.
       DO ikind = 1, nkind
          fbas => lri_env%ri_basis(ikind)%gto_basis_set
          CALL get_gto_basis_set(gto_basis_set=fbas, npgf=npgf, nset=nset)
