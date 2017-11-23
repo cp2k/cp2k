@@ -1682,9 +1682,8 @@ CONTAINS
 
       INTEGER                                            :: handle, info, iounit, istate, ivar, &
                                                             nforce_eval, work_array_size
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: eigenv, energy, work
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: eigenv, work
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: H_mat, H_mat_copy, S_mat, S_mat_copy
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: a
       REAL(KIND=dp), EXTERNAL                            :: dnrm2
       TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(mixed_cdft_type), POINTER                     :: mixed_cdft
@@ -1844,11 +1843,10 @@ CONTAINS
       INTEGER                                            :: handle, ipermutation, ispin, istate, &
                                                             jstate, nao, nforce_eval, nmo, &
                                                             npermutations, nspins
-      INTEGER, ALLOCATABLE, DIMENSION(:, :)              :: homo
-      LOGICAL                                            :: exist, natom_mismatch, uniform_occupation
+      LOGICAL                                            :: exist, natom_mismatch
       REAL(KIND=dp)                                      :: energy_diff, maxocc, Sda
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: coupling_wfn
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: a, overlaps
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: overlaps
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       TYPE(cp_fm_p_type), DIMENSION(:, :), POINTER       :: mixed_mo_coeff
       TYPE(cp_fm_struct_type), POINTER                   :: mo_mo_fmstruct
