@@ -1382,6 +1382,7 @@ CONTAINS
 
       ! in most cases, we calculate the exchange self-energy here. But if we do only RI for
       ! the exchange self-energy, we do not calculate exchange here
+      ehfx = 0.0_dp
       IF (.NOT. do_ri_Sigma_x .OR. do_mix_exchange) THEN
 
          ! add here HFX (=Sigma_exchange) to matrix_sigma_x_minus_vxc
@@ -1399,8 +1400,6 @@ CONTAINS
                                        para_env, .TRUE., irep, .TRUE., &
                                        ispin=1, do_exx=.TRUE.)
          END DO
-      ELSE
-         ehfx = 0.0_dp
       END IF
 
       ! transform Fock-Matrix (calculated in integrate_four_center, written in matrix_ks_aux_fit in case
