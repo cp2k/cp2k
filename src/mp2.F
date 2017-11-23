@@ -1153,7 +1153,7 @@ CONTAINS
             CALL integrate_four_center(qs_env, matrix_ks_2d, eh1, rho_ao_2d, hfx_sections, &
                                        para_env, .TRUE., irep, .TRUE., &
                                        ispin=1, do_exx=.TRUE.)
-            ehfx = ehfx + eh1
+            ehfx = ehfx+eh1
          END DO
 
          ! include the EXX contribution to the total energy
@@ -1400,7 +1400,7 @@ CONTAINS
             CALL integrate_four_center(qs_env, matrix_ks_2d, eh1, rho_ao_2d, hfx_sections, &
                                        para_env, .TRUE., irep, .TRUE., &
                                        ispin=1, do_exx=.TRUE.)
-            ehfx = ehfx + eh1
+            ehfx = ehfx+eh1
          END DO
       END IF
       energy_ex = ehfx
