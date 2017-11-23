@@ -72,8 +72,10 @@ MODULE mixed_cdft_utils
                                               mp_sum,&
                                               mp_wait,&
                                               mp_waitall
-   USE mixed_cdft_types,                ONLY: mixed_cdft_settings_type,&
-                                              mixed_cdft_type
+   USE mixed_cdft_types,                ONLY: mixed_cdft_result_type_release,&
+                                              mixed_cdft_settings_type,&
+                                              mixed_cdft_type,&
+                                              mixed_cdft_work_type_init
    USE mixed_environment_types,         ONLY: get_mixed_env,&
                                               mixed_environment_type
    USE pw_env_methods,                  ONLY: pw_env_create
@@ -108,7 +110,8 @@ MODULE mixed_cdft_utils
 
    PUBLIC :: mixed_cdft_parse_settings, mixed_cdft_transfer_settings, &
              mixed_cdft_init_structures, mixed_cdft_redistribute_arrays, &
-             map_permutation_to_states, hfun_zero
+             mixed_cdft_print_couplings, map_permutation_to_states, hfun_zero, &
+             mixed_cdft_release_work
 
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'mixed_cdft_utils'
 
@@ -930,21 +933,11 @@ CONTAINS
 !>        the mixed CDFT env, that is, move the arrays to the correct blacs context. For parallel
 !>        simulations, the array processor distributions also change from N to 2N processors.
 !> \param force_env the force_env that holds the CDFT states
-!> \param w_matrix matrix container for the matrix representations of all weight functions that
-!>                 define the two involved CDFT states
-!> \param mixed_matrix_s atomic orbital overlap matrix
-!> \param mixed_mo_coeff molecular orbitals coefficients for both states
-!> \param density_matrix density matrices for both states
 !> \par History
 !>       01.2017  created [Nico Holmberg]
 ! **************************************************************************************************
-   SUBROUTINE mixed_cdft_redistribute_arrays(force_env, w_matrix, mixed_matrix_s, &
-                                             mixed_mo_coeff, density_matrix)
+   SUBROUTINE mixed_cdft_redistribute_arrays(force_env)
       TYPE(force_env_type), POINTER                      :: force_env
-      TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: w_matrix
-      TYPE(dbcsr_type), POINTER                          :: mixed_matrix_s
-      TYPE(cp_fm_p_type), DIMENSION(:, :), POINTER       :: mixed_mo_coeff
-      TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: density_matrix
 
       CHARACTER(len=*), PARAMETER :: routineN = 'mixed_cdft_redistribute_arrays', &
          routineP = moduleN//':'//routineN
@@ -958,11 +951,14 @@ CONTAINS
       TYPE(cp_1d_r_p_type), ALLOCATABLE, DIMENSION(:, :) :: occno_tmp
       TYPE(cp_blacs_env_type), POINTER                   :: blacs_env
       TYPE(cp_fm_p_type), DIMENSION(:, :), POINTER       :: matrix_p_tmp, mixed_matrix_p_tmp, &
-                                                            mixed_wmat_tmp, mo_coeff_tmp, wmat_tmp
+                                                            mixed_mo_coeff, mixed_wmat_tmp, &
+                                                            mo_coeff_tmp, wmat_tmp
       TYPE(cp_fm_p_type), POINTER                        :: matrix_s_tmp, mixed_matrix_s_tmp
       TYPE(cp_fm_struct_type), POINTER                   :: fm_struct_mo, fm_struct_overlap, &
                                                             fm_struct_tmp, fm_struct_wmat
+      TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: density_matrix, w_matrix
       TYPE(dbcsr_type)                                   :: desymm_tmp
+      TYPE(dbcsr_type), POINTER                          :: mixed_matrix_s
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(force_env_type), POINTER                      :: force_env_qs
       TYPE(mixed_cdft_type), POINTER                     :: mixed_cdft
@@ -979,6 +975,7 @@ CONTAINS
       nforce_eval = SIZE(force_env%sub_force_env)
       CALL get_mixed_env(mixed_env, cdft_control=mixed_cdft)
       CPASSERT(ASSOCIATED(mixed_cdft))
+      CALL mixed_cdft_work_type_init(mixed_cdft%matrix)
       ! Get nspins and query for non-uniform occupation numbers
       ALLOCATE (has_occupation_numbers(nforce_eval))
       has_occupation_numbers = .FALSE.
@@ -1031,11 +1028,16 @@ CONTAINS
          END IF
       END IF
       ! Transfer data from sub_force_envs to temporaries
-      ALLOCATE (mixed_mo_coeff(nforce_eval, nspins))
-      ALLOCATE (w_matrix(nforce_eval, nvar))
-      CALL dbcsr_init_p(mixed_matrix_s)
-      IF (mixed_cdft%calculate_metric) &
-         ALLOCATE (density_matrix(nforce_eval, nspins))
+      ALLOCATE (mixed_cdft%matrix%mixed_mo_coeff(nforce_eval, nspins))
+      mixed_mo_coeff => mixed_cdft%matrix%mixed_mo_coeff
+      ALLOCATE (mixed_cdft%matrix%w_matrix(nforce_eval, nvar))
+      w_matrix => mixed_cdft%matrix%w_matrix
+      CALL dbcsr_init_p(mixed_cdft%matrix%mixed_matrix_s)
+      mixed_matrix_s => mixed_cdft%matrix%mixed_matrix_s
+      IF (mixed_cdft%calculate_metric) THEN
+         ALLOCATE (mixed_cdft%matrix%density_matrix(nforce_eval, nspins))
+         density_matrix => mixed_cdft%matrix%density_matrix
+      END IF
       ALLOCATE (mo_coeff_tmp(nforce_eval, nspins), wmat_tmp(nforce_eval, nvar))
       ALLOCATE (matrix_s_tmp, nrow_mo(nspins), ncol_mo(nspins))
       NULLIFY (matrix_s_tmp%matrix)
@@ -1244,6 +1246,150 @@ CONTAINS
       DEALLOCATE (ncol_mo, nrow_mo)
 
    END SUBROUTINE mixed_cdft_redistribute_arrays
+! **************************************************************************************************
+!> \brief Routine to print out the electronic coupling(s) between CDFT states.
+!> \param force_env the force_env that holds the CDFT states
+!> \par History
+!>       11.17  created [Nico Holmberg]
+! **************************************************************************************************
+   SUBROUTINE mixed_cdft_print_couplings(force_env)
+      TYPE(force_env_type), POINTER                      :: force_env
+
+      CHARACTER(len=*), PARAMETER :: routineN = 'mixed_cdft_print_couplings', &
+         routineP = moduleN//':'//routineN
+
+      INTEGER                                            :: iounit, ipermutation, istate, ivar, &
+                                                            jstate, nforce_eval, npermutations, &
+                                                            nvar
+      TYPE(cp_logger_type), POINTER                      :: logger
+      TYPE(mixed_cdft_type), POINTER                     :: mixed_cdft
+      TYPE(section_vals_type), POINTER                   :: force_env_section, print_section
+
+      NULLIFY (print_section, mixed_cdft)
+
+      logger => cp_get_default_logger()
+      CPASSERT(ASSOCIATED(force_env))
+      CALL force_env_get(force_env=force_env, &
+                         force_env_section=force_env_section)
+      CALL get_mixed_env(force_env%mixed_env, cdft_control=mixed_cdft)
+      CPASSERT(ASSOCIATED(mixed_cdft))
+      print_section => section_vals_get_subs_vals(force_env_section, "MIXED%MIXED_CDFT%PRINT%PROGRAM_RUN_INFO")
+      iounit = cp_print_key_unit_nr(logger, print_section, '', extension='.mixedLog')
+      !
+      CPASSERT(ALLOCATED(mixed_cdft%results%strength))
+      CPASSERT(ALLOCATED(mixed_cdft%results%W_diagonal))
+      CPASSERT(ALLOCATED(mixed_cdft%results%S))
+      CPASSERT(ALLOCATED(mixed_cdft%results%energy))
+      nforce_eval = SIZE(force_env%sub_force_env)
+      nvar = SIZE(mixed_cdft%results%strength, 1)
+      npermutations = nforce_eval*(nforce_eval-1)/2 ! Size of upper triangular part
+      IF (iounit > 0) THEN
+         WRITE (iounit, '(/,T3,A,T66)') &
+            '------------------------- CDFT coupling information --------------------------'
+         WRITE (iounit, '(T3,A,T66,(3X,F12.2))') &
+            'Information at step (fs):', mixed_cdft%sim_step*mixed_cdft%sim_dt
+         DO ipermutation = 1, npermutations
+            CALL map_permutation_to_states(nforce_eval, ipermutation, istate, jstate)
+            WRITE (iounit, '(/,T3,A)') REPEAT('#', 44)
+            WRITE (iounit, '(T3,A,I3,A,I3,A)') '###### CDFT states I =', istate, ' and J = ', jstate, ' ######'
+            WRITE (iounit, '(T3,A)') REPEAT('#', 44)
+            DO ivar = 1, nvar
+               IF (ivar > 1) &
+                  WRITE (iounit, '(A)') ''
+               WRITE (iounit, '(T3,A,T60,(3X,I18))') 'Atomic group:', ivar
+               WRITE (iounit, '(T3,A,T60,(3X,F18.12))') &
+                  'Strength of constraint I:', mixed_cdft%results%strength(ivar, istate)
+               WRITE (iounit, '(T3,A,T60,(3X,F18.12))') &
+                  'Strength of constraint J:', mixed_cdft%results%strength(ivar, jstate)
+               WRITE (iounit, '(T3,A,T60,(3X,F18.12))') &
+                  'Final value of constraint I:', mixed_cdft%results%W_diagonal(ivar, istate)
+               WRITE (iounit, '(T3,A,T60,(3X,F18.12))') &
+                  'Final value of constraint J:', mixed_cdft%results%W_diagonal(ivar, jstate)
+            END DO
+            WRITE (iounit, '(/,T3,A,T60,(3X,F18.12))') &
+               'Overlap between states I and J:', mixed_cdft%results%S(istate, jstate)
+            WRITE (iounit, '(T3,A,T60,(3X,F18.12))') &
+               'Charge transfer energy (J-I) (Hartree):', (mixed_cdft%results%energy(jstate)-mixed_cdft%results%energy(istate))
+            WRITE (iounit, *)
+            IF (ALLOCATED(mixed_cdft%results%rotation)) THEN
+               IF (ABS(mixed_cdft%results%rotation(ipermutation))*1.0E3_dp .GE. 0.1_dp) THEN
+                  WRITE (iounit, '(T3,A,T60,(3X,F18.12))') &
+                     'Diabatic electronic coupling (rotation, mHartree):', &
+                     ABS(mixed_cdft%results%rotation(ipermutation)*1.0E3_dp)
+               ELSE
+                  WRITE (iounit, '(T3,A,T60,(3X,F18.12))') &
+                     'Diabatic electronic coupling (rotation, microHartree):', &
+                     ABS(mixed_cdft%results%rotation(ipermutation)*1.0E6_dp)
+               END IF
+            END IF
+            IF (ALLOCATED(mixed_cdft%results%lowdin)) THEN
+               IF (ABS(mixed_cdft%results%lowdin(ipermutation))*1.0E3_dp .GE. 0.1_dp) THEN
+                  WRITE (iounit, '(T3,A,T60,(3X,F18.12))') &
+                     'Diabatic electronic coupling (Lowdin, mHartree):', &
+                     ABS(mixed_cdft%results%lowdin(ipermutation)*1.0E3_dp)
+               ELSE
+                  WRITE (iounit, '(T3,A,T60,(3X,F18.12))') &
+                     'Diabatic electronic coupling (Lowdin, microHartree):', &
+                     ABS(mixed_cdft%results%lowdin(ipermutation)*1.0E6_dp)
+               END IF
+            END IF
+            IF (ALLOCATED(mixed_cdft%results%wfn)) THEN
+               IF (mixed_cdft%results%wfn(ipermutation)*1.0E3_dp .GE. 0.1_dp) THEN
+                  WRITE (iounit, '(T3,A,T60,(3X,F18.12))') &
+                     'Diabatic electronic coupling (wfn overlap, mHartree):', &
+                     ABS(mixed_cdft%results%wfn(ipermutation)*1.0E3_dp)
+               ELSE
+                  WRITE (iounit, '(T3,A,T60,(3X,F18.12))') &
+                     'Diabatic electronic coupling (wfn overlap, microHartree):', &
+                     ABS(mixed_cdft%results%wfn(ipermutation)*1.0E6_dp)
+               END IF
+            END IF
+            IF (ALLOCATED(mixed_cdft%results%nonortho)) THEN
+               WRITE (iounit, '(T3,A,T60,(3X,F18.12))') &
+                  'Diabatic electronic coupling (nonorthogonal, Hartree):', mixed_cdft%results%nonortho(ipermutation)
+            END IF
+            IF (ALLOCATED(mixed_cdft%results%metric)) THEN
+               WRITE (iounit, *)
+               IF (SIZE(mixed_cdft%results%metric, 2) == 1) THEN
+                  WRITE (iounit, '(T3,A,T66,(3X,F12.6))') &
+                     'Coupling reliability metric (0 is ideal):', mixed_cdft%results%metric(ipermutation, 1)
+               ELSE
+                  WRITE (iounit, '(T3,A,T54,(3X,2F12.6))') &
+                     'Coupling reliability metric (0 is ideal):', &
+                     mixed_cdft%results%metric(ipermutation, 1), mixed_cdft%results%metric(ipermutation, 2)
+               END IF
+            END IF
+         END DO
+         WRITE (iounit, '(T3,A)') &
+            '------------------------------------------------------------------------------'
+      END IF
+      CALL cp_print_key_finished_output(iounit, logger, force_env_section, &
+                                        "MIXED%MIXED_CDFT%PRINT%PROGRAM_RUN_INFO")
+
+   END SUBROUTINE mixed_cdft_print_couplings
+
+! **************************************************************************************************
+!> \brief Release storage reserved for mixed CDFT matrices
+!> \param force_env the force_env that holds the CDFT states
+!> \par History
+!>       11.17  created [Nico Holmberg]
+! **************************************************************************************************
+   SUBROUTINE mixed_cdft_release_work(force_env)
+      TYPE(force_env_type), POINTER                      :: force_env
+
+      CHARACTER(len=*), PARAMETER :: routineN = 'mixed_cdft_release_work', &
+         routineP = moduleN//':'//routineN
+
+      TYPE(mixed_cdft_type), POINTER                     :: mixed_cdft
+
+      NULLIFY (mixed_cdft)
+
+      CPASSERT(ASSOCIATED(force_env))
+      CALL get_mixed_env(force_env%mixed_env, cdft_control=mixed_cdft)
+      CPASSERT(ASSOCIATED(mixed_cdft))
+      CALL mixed_cdft_result_type_release(mixed_cdft%results)
+
+   END SUBROUTINE mixed_cdft_release_work
 
 ! **************************************************************************************************
 !> \brief Given the size of a symmetric matrix and a permutation index, returns indices (i, j) of the

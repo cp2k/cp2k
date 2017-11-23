@@ -14,7 +14,6 @@ MODULE mixed_cdft_methods
                                               get_atomic_kind
    USE cell_types,                      ONLY: cell_type,&
                                               pbc
-   USE cp_blacs_env,                    ONLY: cp_blacs_env_type
    USE cp_control_types,                ONLY: dft_control_type
    USE cp_dbcsr_diag,                   ONLY: cp_dbcsr_syevd
    USE cp_dbcsr_operations,             ONLY: cp_dbcsr_sm_fm_multiply
@@ -78,14 +77,18 @@ MODULE mixed_cdft_methods
                                               mp_testall,&
                                               mp_wait,&
                                               mp_waitall
-   USE mixed_cdft_types,                ONLY: mixed_cdft_settings_type,&
+   USE mixed_cdft_types,                ONLY: mixed_cdft_result_type_set,&
+                                              mixed_cdft_settings_type,&
                                               mixed_cdft_type,&
-                                              mixed_cdft_type_create
+                                              mixed_cdft_type_create,&
+                                              mixed_cdft_work_type_release
    USE mixed_cdft_utils,                ONLY: hfun_zero,&
                                               map_permutation_to_states,&
                                               mixed_cdft_init_structures,&
                                               mixed_cdft_parse_settings,&
+                                              mixed_cdft_print_couplings,&
                                               mixed_cdft_redistribute_arrays,&
+                                              mixed_cdft_release_work,&
                                               mixed_cdft_transfer_settings
    USE mixed_environment_types,         ONLY: get_mixed_env,&
                                               mixed_environment_type,&
@@ -139,7 +142,7 @@ CONTAINS
 ! **************************************************************************************************
 !> \brief Initialize a mixed CDFT calculation (currently only relevant with Becke constraint)
 !> \param force_env the force_env that holds the CDFT states
-!> \param calculate_forces determines if forces should be calculted
+!> \param calculate_forces determines if forces should be calculated
 !> \par History
 !>       01.2016  created [Nico Holmberg]
 ! **************************************************************************************************
@@ -1014,7 +1017,7 @@ CONTAINS
    END SUBROUTINE mixed_cdft_transfer_weight
 
 ! **************************************************************************************************
-!> \brief ET coupling adapted to mixed calculations
+!> \brief Driver routine to calculate the electronic coupling(s) between CDFT states.
 !> \param force_env the force_env that holds the CDFT states
 !> \par History
 !>       02.15  created [Nico Holmberg]
@@ -1025,57 +1028,77 @@ CONTAINS
       CHARACTER(len=*), PARAMETER :: routineN = 'mixed_cdft_calculate_coupling', &
          routineP = moduleN//':'//routineN
 
-      CHARACTER(LEN=default_path_length)                 :: file_name
-      INTEGER :: check_ao(2), check_mo(2), handle, iforce_eval, info, iounit, ipermutation, ispin, &
-         istate, ivar, j, jstate, k, moeigvalunit, mounit, nao, ncol_local, nforce_eval, nmo, &
-         npermutations, nrow_local, nspins, nvar, work_array_size
+      INTEGER                                            :: handle
+
+      CPASSERT(ASSOCIATED(force_env))
+      CALL timeset(routineN, handle)
+      ! Move needed arrays from individual CDFT states to the mixed CDFT env
+      CALL mixed_cdft_redistribute_arrays(force_env)
+      ! Calculate the mixed CDFT Hamiltonian and overlap matrices.
+      ! All work matrices defined in the wavefunction basis get deallocated on exit.
+      ! Any analyses which depend on these work matrices are performed within.
+      CALL mixed_cdft_interaction_matrices(force_env)
+      ! Calculate eletronic couplings between states (Lowdin/rotation)
+      CALL mixed_cdft_calculate_coupling_low(force_env)
+      ! Print out couplings
+      CALL mixed_cdft_print_couplings(force_env)
+      ! CDFT Configuration Interaction
+      CALL mixed_cdft_configuration_interaction(force_env)
+      ! Clean up
+      CALL mixed_cdft_release_work(force_env)
+      CALL timestop(handle)
+
+   END SUBROUTINE mixed_cdft_calculate_coupling
+
+! **************************************************************************************************
+!> \brief Routine to calculate the mixed CDFT Hamiltonian and overlap matrices.
+!> \param force_env the force_env that holds the CDFT states
+!> \par History
+!>       11.17  created [Nico Holmberg]
+! **************************************************************************************************
+   SUBROUTINE mixed_cdft_interaction_matrices(force_env)
+      TYPE(force_env_type), POINTER                      :: force_env
+
+      CHARACTER(len=*), PARAMETER :: routineN = 'mixed_cdft_interaction_matrices', &
+         routineP = moduleN//':'//routineN
+
+      INTEGER :: check_ao(2), check_mo(2), handle, iforce_eval, ipermutation, ispin, istate, ivar, &
+         j, jstate, k, moeigvalunit, mounit, nao, ncol_local, nforce_eval, nmo, npermutations, &
+         nrow_local, nspins, nvar
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: ncol_mo, nrow_mo
       INTEGER, ALLOCATABLE, DIMENSION(:, :)              :: homo
-      LOGICAL :: exist, natom_mismatch, nelectron_mismatch, print_mo, print_mo_eigval, &
-         should_scale, uniform_occupation, use_lowdin, use_rotation
-      REAL(KIND=dp)                                      :: c(2), eps_occupied, maxocc, &
-                                                            nelectron_tot, sum_a(2), sum_b(2)
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: coupling_lowdin, coupling_nonortho, &
-                                                            coupling_rotation, coupling_wfn, &
-                                                            eigenv, energy, evals, Sda, work
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: H_mat, H_mat_copy, metric, S_det, S_mat, &
-                                                            S_mat_copy, strength, tmp_mat, &
-                                                            W_diagonal, W_mat, Wad, Wda
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: a, b, overlaps
+      LOGICAL                                            :: nelectron_mismatch, print_mo, &
+                                                            print_mo_eigval, should_scale, &
+                                                            uniform_occupation
+      REAL(KIND=dp)                                      :: c(2), eps_occupied, nelectron_tot, &
+                                                            sum_a(2), sum_b(2)
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: coupling_nonortho, eigenv, energy, Sda
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: H_mat, S_det, S_mat, strength, tmp_mat, &
+                                                            W_diagonal, Wad, Wda
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: a, b
       REAL(KIND=dp), DIMENSION(:), POINTER               :: mo_eigval
-      REAL(KIND=dp), EXTERNAL                            :: dnrm2
-      TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
-      TYPE(cp_blacs_env_type), POINTER                   :: blacs_env
       TYPE(cp_fm_p_type), DIMENSION(:), POINTER          :: mo_overlap
       TYPE(cp_fm_p_type), DIMENSION(:, :), POINTER       :: mixed_mo_coeff
       TYPE(cp_fm_p_type), DIMENSION(:, :, :), POINTER    :: w_matrix_mo
       TYPE(cp_fm_struct_type), POINTER                   :: fm_struct_mo, mo_mo_fmstruct
-      TYPE(cp_fm_type), POINTER                          :: inverse_mat, mo_overlap_wfn, mo_tmp, &
-                                                            Tinverse, tmp2
+      TYPE(cp_fm_type), POINTER                          :: inverse_mat, Tinverse, tmp2
       TYPE(cp_logger_type), POINTER                      :: logger
-      TYPE(cp_subsys_type), POINTER                      :: subsys_mix
       TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: density_matrix, density_matrix_diff, &
                                                             w_matrix
-      TYPE(dbcsr_type)                                   :: e_vectors
       TYPE(dbcsr_type), POINTER                          :: mixed_matrix_s
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(mixed_cdft_type), POINTER                     :: mixed_cdft
       TYPE(mixed_environment_type), POINTER              :: mixed_env
-      TYPE(mo_set_p_type), DIMENSION(:), POINTER         :: mo_set
-      TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
       TYPE(qs_energy_type), POINTER                      :: energy_qs
       TYPE(qs_environment_type), POINTER                 :: qs_env
-      TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
       TYPE(section_vals_type), POINTER                   :: force_env_section, mixed_cdft_section, &
                                                             print_section
 
-      EXTERNAL                                           :: dsygv
-
-      NULLIFY (subsys_mix, force_env_section, print_section, mixed_cdft_section, &
-               mixed_env, mixed_cdft, qs_env, dft_control, fm_struct_mo, density_matrix_diff, &
-               mo_mo_fmstruct, inverse_mat, mo_overlap, Tinverse, tmp2, mo_overlap_wfn, &
-               w_matrix_mo, mixed_mo_coeff, mixed_matrix_s, density_matrix, blacs_env, &
-               energy_qs, mo_set, particle_set, qs_kind_set, atomic_kind_set, w_matrix, mo_eigval)
+      NULLIFY (force_env_section, print_section, mixed_cdft_section, &
+               mixed_env, mixed_cdft, qs_env, dft_control, fm_struct_mo, &
+               density_matrix_diff, mo_mo_fmstruct, inverse_mat, mo_overlap, &
+               Tinverse, tmp2, w_matrix_mo, mixed_mo_coeff, mixed_matrix_s, &
+               density_matrix, energy_qs, w_matrix, mo_eigval)
       logger => cp_get_default_logger()
       CPASSERT(ASSOCIATED(force_env))
       CALL timeset(routineN, handle)
@@ -1084,8 +1107,6 @@ CONTAINS
       mixed_env => force_env%mixed_env
       nforce_eval = SIZE(force_env%sub_force_env)
       print_section => section_vals_get_subs_vals(force_env_section, "MIXED%MIXED_CDFT%PRINT%PROGRAM_RUN_INFO")
-      mixed_cdft_section => section_vals_get_subs_vals(force_env_section, "MIXED%MIXED_CDFT")
-      iounit = cp_print_key_unit_nr(logger, print_section, '', extension='.mixedLog')
       IF (section_get_lval(print_section, "MO_OVERLAP_MATRIX")) THEN
          print_mo = .TRUE.
          mounit = cp_print_key_unit_nr(logger, print_section, extension='.moOverlap', on_file=.TRUE.)
@@ -1099,29 +1120,23 @@ CONTAINS
          print_mo_eigval = .FALSE.
       END IF
       CALL get_mixed_env(mixed_env, cdft_control=mixed_cdft)
+      ! Get redistributed work matrices
       CPASSERT(ASSOCIATED(mixed_cdft))
-      ! Move needed arrays from individual CDFT states to the mixed CDFT env
-      CALL mixed_cdft_redistribute_arrays(force_env, w_matrix, mixed_matrix_s, mixed_mo_coeff, density_matrix)
-      ! Begin coupling calculation
+      CPASSERT(ASSOCIATED(mixed_cdft%matrix%mixed_mo_coeff))
+      CPASSERT(ASSOCIATED(mixed_cdft%matrix%w_matrix))
+      CPASSERT(ASSOCIATED(mixed_cdft%matrix%mixed_matrix_s))
+      mixed_mo_coeff => mixed_cdft%matrix%mixed_mo_coeff
+      w_matrix => mixed_cdft%matrix%w_matrix
+      mixed_matrix_s => mixed_cdft%matrix%mixed_matrix_s
+      IF (mixed_cdft%calculate_metric) THEN
+         CPASSERT(ASSOCIATED(mixed_cdft%matrix%density_matrix))
+         density_matrix => mixed_cdft%matrix%density_matrix
+      END IF
       ! Get number of weight functions per state
       nvar = SIZE(w_matrix, 2)
       nspins = SIZE(mixed_mo_coeff, 2)
-      ! Check for uniform occupations
-      uniform_occupation = .NOT. ALLOCATED(mixed_cdft%occupations)
-      ! Decide which methods to use for computing the coupling
-      ! Default behavior is to use rotation when a single constraint is active, otherwise uses Lowdin orthogonalization
-      ! The latter can also be explicitly requested when a single constraint is active
-      ! Possibly computes the coupling additionally with the wavefunction overlap method
-      IF (nvar == 1 .AND. mixed_cdft%identical_constraints) THEN
-         use_rotation = .TRUE.
-         use_lowdin = mixed_cdft%use_lowdin
-      ELSE
-         use_rotation = .FALSE.
-         use_lowdin = .TRUE.
-      END IF
-      ALLOCATE (w_matrix_mo(nforce_eval, nforce_eval, nvar))
-      ALLOCATE (nrow_mo(nspins), ncol_mo(nspins))
       ! Check that the number of MOs/AOs is equal in every CDFT state
+      ALLOCATE (nrow_mo(nspins), ncol_mo(nspins))
       DO ispin = 1, nspins
          CALL cp_fm_get_info(mixed_mo_coeff(1, ispin)%matrix, ncol_global=check_mo(1), nrow_global=check_ao(1))
          DO iforce_eval = 2, nforce_eval
@@ -1134,10 +1149,10 @@ CONTAINS
                              "The number of molecular orbitals must be the same in every CDFT state.")
          END DO
       END DO
+      ! Allocate work
       npermutations = nforce_eval*(nforce_eval-1)/2 ! Size of upper triangular part
+      ALLOCATE (w_matrix_mo(nforce_eval, nforce_eval, nvar))
       ALLOCATE (mo_overlap(npermutations), S_det(npermutations, nspins))
-      ALLOCATE (Wda(nvar, npermutations))
-      IF (.NOT. mixed_cdft%identical_constraints) ALLOCATE (Wad(nvar, npermutations))
       ALLOCATE (a(nspins, nvar, npermutations), b(nspins, nvar, npermutations))
       a = 0.0_dp
       b = 0.0_dp
@@ -1156,9 +1171,12 @@ CONTAINS
             END DO
          END DO
       END IF
+      ! Check for uniform occupations
+      uniform_occupation = .NOT. ALLOCATED(mixed_cdft%occupations)
       should_scale = .FALSE.
       IF (.NOT. uniform_occupation) THEN
          ALLOCATE (homo(nforce_eval, nspins))
+         mixed_cdft_section => section_vals_get_subs_vals(force_env_section, "MIXED%MIXED_CDFT")
          CALL section_vals_val_get(mixed_cdft_section, "EPS_OCCUPIED", r_val=eps_occupied)
          IF (eps_occupied .GT. 1.0_dp .OR. eps_occupied .LT. 0.0_dp) &
             CALL cp_abort(__LOCATION__, &
@@ -1169,6 +1187,7 @@ CONTAINS
                          "orbitals is strongly recommended to screen nearly orthogonal states.")
          CALL section_vals_val_get(mixed_cdft_section, "SCALE_WITH_OCCUPATION_NUMBERS", l_val=should_scale)
       END IF
+      ! Start the actual calculation
       DO ispin = 1, nspins
          ! Create the MOxMO fm struct (mo_mo_fm_pools%struct)
          ! The number of MOs/AOs is equal to the number of columns/rows of mo_coeff(:,:)%matrix
@@ -1400,11 +1419,6 @@ CONTAINS
                END DO
             END DO
          END DO
-         IF (mixed_cdft%calculate_metric) THEN
-            DO istate = 1, nforce_eval
-               CALL dbcsr_release_p(density_matrix(istate, ispin)%matrix)
-            END DO
-         END IF
          DO ipermutation = 1, npermutations
             CALL cp_fm_release(mo_overlap(ipermutation)%matrix)
          END DO
@@ -1412,14 +1426,21 @@ CONTAINS
          CALL cp_fm_release(inverse_mat)
       END DO
       DEALLOCATE (mo_overlap)
-      IF (mixed_cdft%calculate_metric) &
-         DEALLOCATE (density_matrix)
+      DEALLOCATE (w_matrix_mo)
       IF (.NOT. uniform_occupation) THEN
          DEALLOCATE (homo)
          DEALLOCATE (mixed_cdft%occupations)
       END IF
+      IF (print_mo) &
+         CALL cp_print_key_finished_output(mounit, logger, force_env_section, &
+                                           "MIXED%MIXED_CDFT%PRINT%PROGRAM_RUN_INFO", on_file=.TRUE.)
+      IF (print_mo_eigval) &
+         CALL cp_print_key_finished_output(moeigvalunit, logger, force_env_section, &
+                                           "MIXED%MIXED_CDFT%PRINT%PROGRAM_RUN_INFO", on_file=.TRUE.)
       ! solve eigenstates for the projector matrix
+      ALLOCATE (Wda(nvar, npermutations))
       ALLOCATE (Sda(npermutations))
+      IF (.NOT. mixed_cdft%identical_constraints) ALLOCATE (Wad(nvar, npermutations))
       DO ipermutation = 1, npermutations
          IF (nspins == 2) THEN
             Sda(ipermutation) = ABS(S_det(ipermutation, 1)*S_det(ipermutation, 2))
@@ -1437,6 +1458,7 @@ CONTAINS
             END IF
          END DO
       END DO
+      DEALLOCATE (a, b, S_det)
       ! Transfer info about the constraint calculations
       ALLOCATE (W_diagonal(nvar, nforce_eval), strength(nvar, nforce_eval), energy(nforce_eval))
       W_diagonal = 0.0_dp
@@ -1460,179 +1482,9 @@ CONTAINS
       END DO
       CALL mp_sum(W_diagonal, force_env%para_env%group)
       CALL mp_sum(energy, force_env%para_env%group)
-      ! Compute metric to assess reliability of coupling
-      IF (mixed_cdft%calculate_metric) THEN
-         ALLOCATE (metric(npermutations, nspins))
-         metric = 0.0_dp
-         CALL dbcsr_create(e_vectors, template=density_matrix_diff(1, 1)%matrix)
-         DO ispin = 1, nspins
-            ALLOCATE (evals(ncol_mo(ispin)))
-            DO ipermutation = 1, npermutations
-               ! Take into account doubly occupied orbitals without LSD
-               IF (nspins == 1) &
-                  CALL dbcsr_scale(density_matrix_diff(ipermutation, 1)%matrix, alpha_scalar=0.5_dp)
-               ! Diagonalize difference density matrix
-               CALL cp_dbcsr_syevd(density_matrix_diff(ipermutation, ispin)%matrix, e_vectors, evals, &
-                                   para_env=force_env%para_env, blacs_env=mixed_cdft%blacs_env)
-               CALL dbcsr_release_p(density_matrix_diff(ipermutation, ispin)%matrix)
-               DO j = 1, ncol_mo(ispin)
-                  metric(ipermutation, ispin) = metric(ipermutation, ispin)+(evals(j)**2-evals(j)**4)
-               END DO
-            END DO
-            DEALLOCATE (evals)
-         END DO
-         CALL dbcsr_release(e_vectors)
-         DEALLOCATE (density_matrix_diff)
-         metric(:, :) = metric(:, :)/4.0_dp
-      END IF
-      ! Compute coupling also with the wavefunction overlap method, see Migliore2009
-      ! Requires the unconstrained KS ground state wavefunction as input
-      IF (mixed_cdft%wfn_overlap_method) THEN
-         IF (.NOT. uniform_occupation) &
-            CALL cp_abort(__LOCATION__, &
-                          "Wavefunction overlap method supports only uniformly occupied MOs.")
-         ! Create mo_set for input wfn
-         ALLOCATE (mo_set(nspins))
-         IF (nspins == 2) THEN
-            maxocc = 1.0_dp
-         ELSE
-            maxocc = 2.0_dp
-         END IF
-         DO ispin = 1, nspins
-            nao = nrow_mo(ispin)
-            nmo = ncol_mo(ispin)
-            NULLIFY (mo_set(ispin)%mo_set)
-            ! Only OT with fully occupied orbitals is implicitly supported
-            CALL allocate_mo_set(mo_set(ispin)%mo_set, nao=nao, nmo=nmo, nelectron=INT(maxocc*nmo), &
-                                 n_el_f=REAL(maxocc*nmo, dp), maxocc=maxocc, &
-                                 flexible_electron_count=0.0_dp)
-            CALL set_mo_set(mo_set(ispin)%mo_set, uniform_occupation=.TRUE., homo=nmo)
-            CALL cp_fm_create(matrix=mo_set(ispin)%mo_set%mo_coeff, &
-                              matrix_struct=mixed_mo_coeff(1, ispin)%matrix%matrix_struct, &
-                              name="GS_MO_COEFF"//TRIM(ADJUSTL(cp_to_string(ispin)))//"MATRIX")
-            ALLOCATE (mo_set(ispin)%mo_set%eigenvalues(nmo))
-            ALLOCATE (mo_set(ispin)%mo_set%occupation_numbers(nmo))
-         END DO
-         ! Read wfn file (note we assume that the basis set is the same)
-         IF (force_env%mixed_env%do_mixed_qmmm_cdft) &
-            ! This really shouldnt be a problem?
-            CALL cp_abort(__LOCATION__, &
-                          "QMMM + wavefunction overlap method not supported.")
-         CALL force_env_get(force_env=force_env, subsys=subsys_mix)
-         mixed_cdft_section => section_vals_get_subs_vals(force_env_section, "MIXED%MIXED_CDFT")
-         CALL cp_subsys_get(subsys_mix, atomic_kind_set=atomic_kind_set, particle_set=particle_set)
-         CPASSERT(ASSOCIATED(mixed_cdft%qs_kind_set))
-         IF (force_env%para_env%ionode) &
-            CALL wfn_restart_file_name(file_name, exist, mixed_cdft_section, logger)
-         CALL mp_bcast(exist, force_env%para_env%source, force_env%para_env%group)
-         CALL mp_bcast(file_name, force_env%para_env%source, force_env%para_env%group)
-         IF (.NOT. exist) &
-            CALL cp_abort(__LOCATION__, &
-                          "User requested to restart the wavefunction from the file named: "// &
-                          TRIM(file_name)//". This file does not exist. Please check the existence of"// &
-                          " the file or change properly the value of the keyword WFN_RESTART_FILE_NAME in"// &
-                          " section FORCE_EVAL\MIXED\MIXED_CDFT.")
-         CALL read_mo_set(mo_array=mo_set, atomic_kind_set=atomic_kind_set, &
-                          qs_kind_set=mixed_cdft%qs_kind_set, particle_set=particle_set, &
-                          para_env=force_env%para_env, id_nr=0, multiplicity=mixed_cdft%multiplicity, &
-                          dft_section=mixed_cdft_section, natom_mismatch=natom_mismatch, &
-                          cdft=.TRUE.)
-         IF (natom_mismatch) &
-            CALL cp_abort(__LOCATION__, &
-                          "Restart wfn file has a wrong number of atoms")
-         ! Orthonormalize wfn
-         DO ispin = 1, nspins
-            IF (mixed_cdft%has_unit_metric) THEN
-               CALL make_basis_simple(mo_set(ispin)%mo_set%mo_coeff, ncol_mo(ispin))
-            ELSE
-               CALL make_basis_sm(mo_set(ispin)%mo_set%mo_coeff, ncol_mo(ispin), mixed_matrix_s)
-            END IF
-         END DO
-         ! Calculate MO overlaps between reference state (R) and CDFT state pairs I/J
-         ALLOCATE (coupling_wfn(npermutations))
-         ALLOCATE (overlaps(2, npermutations, nspins))
-         overlaps = 0.0_dp
-         DO ispin = 1, nspins
-            ! Allocate work
-            nao = nrow_mo(ispin)
-            nmo = ncol_mo(ispin)
-            CALL cp_fm_struct_create(mo_mo_fmstruct, nrow_global=nmo, ncol_global=nmo, &
-                                     context=mixed_cdft%blacs_env, para_env=force_env%para_env)
-            CALL cp_fm_create(matrix=mo_overlap_wfn, matrix_struct=mo_mo_fmstruct, &
-                              name="MO_OVERLAP_MATRIX_WFN")
-            CALL cp_fm_create(matrix=inverse_mat, matrix_struct=mo_mo_fmstruct, &
-                              name="INVERSE_MO_OVERLAP_MATRIX_WFN")
-            CALL cp_fm_struct_release(mo_mo_fmstruct)
-            CALL cp_fm_create(matrix=mo_tmp, &
-                              matrix_struct=mixed_mo_coeff(1, ispin)%matrix%matrix_struct, &
-                              name="OVERLAP_MO_COEFF_WFN")
-            DO ipermutation = 1, npermutations
-               CALL map_permutation_to_states(nforce_eval, ipermutation, istate, jstate)
-               ! S*C_r
-               CALL cp_dbcsr_sm_fm_multiply(mixed_matrix_s, mo_set(ispin)%mo_set%mo_coeff, &
-                                            mo_tmp, nmo, 1.0_dp, 0.0_dp)
-               ! C_i^T * (S*C_r)
-               CALL cp_fm_set_all(mo_overlap_wfn, alpha=0.0_dp)
-               CALL cp_gemm('T', 'N', nmo, nmo, nao, 1.0_dp, &
-                            mixed_mo_coeff(istate, ispin)%matrix, &
-                            mo_tmp, 0.0_dp, mo_overlap_wfn)
-               CALL cp_fm_invert(mo_overlap_wfn, inverse_mat, overlaps(1, ipermutation, ispin), eps_svd=mixed_cdft%eps_svd)
-               ! C_j^T * (S*C_r)
-               CALL cp_fm_set_all(mo_overlap_wfn, alpha=0.0_dp)
-               CALL cp_gemm('T', 'N', nmo, nmo, nao, 1.0_dp, &
-                            mixed_mo_coeff(jstate, ispin)%matrix, &
-                            mo_tmp, 0.0_dp, mo_overlap_wfn)
-               CALL cp_fm_invert(mo_overlap_wfn, inverse_mat, overlaps(2, ipermutation, ispin), eps_svd=mixed_cdft%eps_svd)
-            END DO
-            CALL cp_fm_release(mo_overlap_wfn)
-            CALL cp_fm_release(inverse_mat)
-            CALL cp_fm_release(mo_tmp)
-            CALL deallocate_mo_set(mo_set(ispin)%mo_set)
-         END DO
-         DEALLOCATE (mo_set)
-         DO ipermutation = 1, npermutations
-            CALL map_permutation_to_states(nforce_eval, ipermutation, istate, jstate)
-            IF (nspins == 2) THEN
-               overlaps(1, ipermutation, 1) = ABS(overlaps(1, ipermutation, 1)*overlaps(1, ipermutation, 2)) ! A in eq. 12c
-               overlaps(2, ipermutation, 1) = ABS(overlaps(2, ipermutation, 1)*overlaps(2, ipermutation, 2)) ! B in eq. 12c
-            ELSE
-               overlaps(1, ipermutation, 1) = overlaps(1, ipermutation, 1)**2
-               overlaps(2, ipermutation, 1) = overlaps(2, ipermutation, 1)**2
-            END IF
-            ! Calculate coupling using eq. 12c
-            ! The coupling is singular if A = B (i.e. states I/J are identical or charge in ground state is fully delocalized)
-            IF (ABS(overlaps(1, ipermutation, 1)-overlaps(2, ipermutation, 1)) .LE. 1.0e-14_dp) THEN
-               CALL cp_warn(__LOCATION__, &
-                            "Coupling between states is singular and set to zero. "// &
-                            "Potential causes: coupling is computed between identical CDFT states or the spin/charge "// &
-                            "density is fully delocalized in the unconstrained ground state.")
-               coupling_wfn(ipermutation) = 0.0_dp
-            ELSE
-               coupling_wfn(ipermutation) = ABS((overlaps(1, ipermutation, 1)*overlaps(2, ipermutation, 1)/ &
-                                                 (overlaps(1, ipermutation, 1)**2-overlaps(2, ipermutation, 1)**2))* &
-                                                (energy(jstate)-energy(istate))/(1.0_dp-Sda(ipermutation)**2)* &
-                                                (1.0_dp-(overlaps(1, ipermutation, 1)**2+overlaps(2, ipermutation, 1)**2)/ &
-                                                 (2.0_dp*overlaps(1, ipermutation, 1)*overlaps(2, ipermutation, 1))* &
-                                                 Sda(ipermutation)))
-            END IF
-         END DO
-         DEALLOCATE (overlaps)
-      END IF
-      ! Release remaining work
-      DEALLOCATE (nrow_mo, ncol_mo)
-      DO ispin = 1, nspins
-         DO iforce_eval = 1, nforce_eval
-            CALL cp_fm_release(mixed_mo_coeff(iforce_eval, ispin)%matrix)
-         END DO
-      END DO
-      DO ivar = 1, nvar
-         DO istate = 1, nforce_eval
-            CALL dbcsr_release_p(w_matrix(istate, ivar)%matrix)
-         END DO
-      END DO
-      DEALLOCATE (w_matrix)
-      CALL dbcsr_release_p(mixed_matrix_s)
-      DEALLOCATE (mixed_mo_coeff, w_matrix_mo)
+      CALL mixed_cdft_result_type_set(mixed_cdft%results, Wda=Wda, W_diagonal=W_diagonal, &
+                                      energy=energy, strength=strength)
+      IF (.NOT. mixed_cdft%identical_constraints) CALL mixed_cdft_result_type_set(mixed_cdft%results, Wad=Wad)
       ! Construct S
       ALLOCATE (S_mat(nforce_eval, nforce_eval))
       DO istate = 1, nforce_eval
@@ -1643,6 +1495,7 @@ CONTAINS
          S_mat(istate, jstate) = Sda(ipermutation)
          S_mat(jstate, istate) = Sda(ipermutation)
       END DO
+      CALL mixed_cdft_result_type_set(mixed_cdft%results, S=S_mat)
       ! Invert S via eigendecomposition and compute S^-(1/2)
       ALLOCATE (eigenv(nforce_eval), tmp_mat(nforce_eval, nforce_eval))
       CALL diamat_all(S_mat, eigenv, .TRUE.)
@@ -1659,6 +1512,8 @@ CONTAINS
       END DO
       tmp_mat(:, :) = MATMUL(tmp_mat, TRANSPOSE(S_mat))
       S_mat(:, :) = MATMUL(S_mat, tmp_mat) ! S^(-1/2)
+      CALL mixed_cdft_result_type_set(mixed_cdft%results, S_minushalf=S_mat)
+      DEALLOCATE (eigenv, tmp_mat, S_mat)
       ! Construct nonorthogonal diabatic Hamiltonian matrix H''
       ALLOCATE (H_mat(nforce_eval, nforce_eval))
       IF (mixed_cdft%nonortho_coupling) ALLOCATE (coupling_nonortho(npermutations))
@@ -1696,195 +1551,464 @@ CONTAINS
          H_mat(jstate, istate) = H_mat(istate, jstate)
          IF (mixed_cdft%nonortho_coupling) coupling_nonortho(ipermutation) = H_mat(istate, jstate)
       END DO
+      CALL mixed_cdft_result_type_set(mixed_cdft%results, H=H_mat)
+      DEALLOCATE (H_mat, W_diagonal, Wda, strength, energy, Sda)
+      IF (ALLOCATED(Wad)) DEALLOCATE (Wad)
+      IF (mixed_cdft%nonortho_coupling) THEN
+         CALL mixed_cdft_result_type_set(mixed_cdft%results, nonortho=coupling_nonortho)
+         DEALLOCATE (coupling_nonortho)
+      END IF
+      ! Compute metric to assess reliability of coupling
+      IF (mixed_cdft%calculate_metric) CALL mixed_cdft_calculate_metric(force_env, mixed_cdft, density_matrix_diff, ncol_mo)
+      ! Compute coupling also with the wavefunction overlap method, see Migliore2009
+      ! Requires the unconstrained KS ground state wavefunction as input
+      IF (mixed_cdft%wfn_overlap_method) THEN
+         IF (.NOT. uniform_occupation) &
+            CALL cp_abort(__LOCATION__, &
+                          "Wavefunction overlap method supports only uniformly occupied MOs.")
+         CALL mixed_cdft_wfn_overlap_method(force_env, mixed_cdft, ncol_mo, nrow_mo)
+      END IF
+      ! Release remaining work
+      DEALLOCATE (nrow_mo, ncol_mo)
+      CALL mixed_cdft_work_type_release(mixed_cdft%matrix)
+      CALL timestop(handle)
+
+   END SUBROUTINE mixed_cdft_interaction_matrices
+
+! **************************************************************************************************
+!> \brief Routine to calculate the CDFT electronic couplings.
+!> \param force_env the force_env that holds the CDFT states
+!> \par History
+!>       11.17  created [Nico Holmberg]
+! **************************************************************************************************
+   SUBROUTINE mixed_cdft_calculate_coupling_low(force_env)
+      TYPE(force_env_type), POINTER                      :: force_env
+
+      CHARACTER(len=*), PARAMETER :: routineN = 'mixed_cdft_calculate_coupling_low', &
+         routineP = moduleN//':'//routineN
+
+      INTEGER                                            :: handle, ipermutation, istate, jstate, &
+                                                            nforce_eval, npermutations, nvar
+      LOGICAL                                            :: use_lowdin, use_rotation
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: coupling_lowdin, coupling_rotation, &
+                                                            eigenv
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: tmp_mat, W_mat
+      TYPE(mixed_cdft_type), POINTER                     :: mixed_cdft
+
+      NULLIFY (mixed_cdft)
+      CPASSERT(ASSOCIATED(force_env))
+      CALL get_mixed_env(force_env%mixed_env, cdft_control=mixed_cdft)
+      CALL timeset(routineN, handle)
+      CPASSERT(ASSOCIATED(mixed_cdft))
+      CPASSERT(ALLOCATED(mixed_cdft%results%W_diagonal))
+      CPASSERT(ALLOCATED(mixed_cdft%results%Wda))
+      CPASSERT(ALLOCATED(mixed_cdft%results%S_minushalf))
+      CPASSERT(ALLOCATED(mixed_cdft%results%H))
+      ! Decide which methods to use for computing the coupling
+      ! Default behavior is to use rotation when a single constraint is active, otherwise uses Lowdin orthogonalization
+      ! The latter can also be explicitly requested when a single constraint is active
+      ! Possibly computes the coupling additionally with the wavefunction overlap method
+      nforce_eval = SIZE(mixed_cdft%results%H, 1)
+      nvar = SIZE(mixed_cdft%results%Wda, 1)
+      npermutations = nforce_eval*(nforce_eval-1)/2
+      ALLOCATE (tmp_mat(nforce_eval, nforce_eval))
+      IF (nvar == 1 .AND. mixed_cdft%identical_constraints) THEN
+         use_rotation = .TRUE.
+         use_lowdin = mixed_cdft%use_lowdin
+      ELSE
+         use_rotation = .FALSE.
+         use_lowdin = .TRUE.
+      END IF
       ! Calculate coupling by rotating the CDFT states to eigenstates of the weight matrix W (single constraint only)
       IF (use_rotation) THEN
          ! Construct W
          ALLOCATE (W_mat(nforce_eval, nforce_eval), coupling_rotation(npermutations))
+         ALLOCATE (eigenv(nforce_eval))
          ! W_mat(i, i) = N_i where N_i is the value of the constraint in state i
          DO istate = 1, nforce_eval
-            W_mat(istate, istate) = SUM(W_diagonal(:, istate))
+            W_mat(istate, istate) = SUM(mixed_cdft%results%W_diagonal(:, istate))
          END DO
          ! W_mat(i, j) = <Psi_i|w(r)|Psi_j>
          DO ipermutation = 1, npermutations
             CALL map_permutation_to_states(nforce_eval, ipermutation, istate, jstate)
-            W_mat(istate, jstate) = SUM(Wda(:, ipermutation))
+            W_mat(istate, jstate) = SUM(mixed_cdft%results%Wda(:, ipermutation))
             W_mat(jstate, istate) = W_mat(istate, jstate)
          END DO
          ! Solve generalized eigenvalue equation WV = SVL
          ! Convert to standard eigenvalue problem via symmetric orthogonalisation
-         tmp_mat(:, :) = MATMUL(W_mat, S_mat) ! W * S^(-1/2)
-         W_mat(:, :) = MATMUL(S_mat, tmp_mat) ! W' = S^(-1/2) * W * S^(-1/2)
+         tmp_mat(:, :) = MATMUL(W_mat, mixed_cdft%results%S_minushalf) ! W * S^(-1/2)
+         W_mat(:, :) = MATMUL(mixed_cdft%results%S_minushalf, tmp_mat) ! W' = S^(-1/2) * W * S^(-1/2)
          CALL diamat_all(W_mat, eigenv, .TRUE.) ! Solve W'V' = AV'
-         tmp_mat(:, :) = MATMUL(S_mat, W_mat) ! Reverse transformation V = S^(-1/2) V'
+         tmp_mat(:, :) = MATMUL(mixed_cdft%results%S_minushalf, W_mat) ! Reverse transformation V = S^(-1/2) V'
          ! Construct final, orthogonal diabatic Hamiltonian matrix H
-         W_mat(:, :) = MATMUL(H_mat, tmp_mat) ! H'' * V
+         W_mat(:, :) = MATMUL(mixed_cdft%results%H, tmp_mat) ! H'' * V
          W_mat(:, :) = MATMUL(TRANSPOSE(tmp_mat), W_mat) ! H = V^T * H'' * V
          DO ipermutation = 1, npermutations
             CALL map_permutation_to_states(nforce_eval, ipermutation, istate, jstate)
             coupling_rotation(ipermutation) = W_mat(istate, jstate)
          END DO
-         DEALLOCATE (W_mat)
+         CALL mixed_cdft_result_type_set(mixed_cdft%results, rotation=coupling_rotation)
+         DEALLOCATE (W_mat, coupling_rotation, eigenv)
       END IF
       ! Calculate coupling by Lowdin orthogonalization
       IF (use_lowdin) THEN
          ALLOCATE (coupling_lowdin(npermutations))
-         tmp_mat(:, :) = MATMUL(H_mat, S_mat) ! H'' * S^(-1/2)
+         tmp_mat(:, :) = MATMUL(mixed_cdft%results%H, mixed_cdft%results%S_minushalf) ! H'' * S^(-1/2)
          ! Final orthogonal diabatic Hamiltonian matrix H
-         tmp_mat(:, :) = MATMUL(S_mat, tmp_mat) ! H = S^(-1/2) * H'' * S^(-1/2)
+         tmp_mat(:, :) = MATMUL(mixed_cdft%results%S_minushalf, tmp_mat) ! H = S^(-1/2) * H'' * S^(-1/2)
          DO ipermutation = 1, npermutations
             CALL map_permutation_to_states(nforce_eval, ipermutation, istate, jstate)
             coupling_lowdin(ipermutation) = tmp_mat(istate, jstate)
          END DO
+         CALL mixed_cdft_result_type_set(mixed_cdft%results, lowdin=coupling_lowdin)
+         DEALLOCATE (coupling_lowdin)
       END IF
-      ! CDFT Configuration Interaction
-      IF (mixed_cdft%do_ci) THEN
-         ! Reconstruct S
-         DO istate = 1, nforce_eval
-            S_mat(istate, istate) = 1.0_dp
-         END DO
-         DO ipermutation = 1, npermutations
-            CALL map_permutation_to_states(nforce_eval, ipermutation, istate, jstate)
-            S_mat(istate, jstate) = Sda(ipermutation)
-            S_mat(jstate, istate) = Sda(ipermutation)
-         END DO
-         ! Workspace query
-         ALLOCATE (work(1))
-         info = 0
-         ALLOCATE (H_mat_copy(nforce_eval, nforce_eval), S_mat_copy(nforce_eval, nforce_eval))
-         H_mat_copy(:, :) = H_mat(:, :) ! Need explicit copies because dsygv destroys original values
-         S_mat_copy(:, :) = S_mat(:, :)
-         CALL dsygv(1, 'V', 'U', nforce_eval, H_mat_copy, nforce_eval, S_mat_copy, nforce_eval, eigenv, work, -1, info)
-         work_array_size = NINT(work(1))
-         DEALLOCATE (H_mat_copy, S_mat_copy)
-         ! Allocate work array
-         DEALLOCATE (work)
-         ALLOCATE (work(work_array_size))
-         work = 0.0_dp
-         ! Solve Hc = eSc
-         info = 0
-         CALL dsygv(1, 'V', 'U', nforce_eval, H_mat, nforce_eval, S_mat, nforce_eval, eigenv, work, work_array_size, info)
-         IF (info /= 0) CPABORT("Diagonalization of H matrix failed.")
-         ! dsygv returns eigenvectors (stored in columns of H_mat) that are normalized to H^T * S * H = I
-         ! Renormalize eigenvectors to H^T * H = I
-         DO ivar = 1, nforce_eval
-            H_mat(:, ivar) = H_mat(:, ivar)/dnrm2(nforce_eval, H_mat(:, ivar), 1)
-         END DO
-         DEALLOCATE (work)
-      END IF
+      DEALLOCATE (tmp_mat)
+      CALL timestop(handle)
+
+   END SUBROUTINE mixed_cdft_calculate_coupling_low
+
+! **************************************************************************************************
+!> \brief Performs a configuration interaction calculation in the basis spanned by the CDFT states.
+!> \param force_env the force_env that holds the CDFT states
+!> \par History
+!>       11.17  created [Nico Holmberg]
+! **************************************************************************************************
+   SUBROUTINE mixed_cdft_configuration_interaction(force_env)
+      TYPE(force_env_type), POINTER                      :: force_env
+
+      CHARACTER(len=*), PARAMETER :: routineN = 'mixed_cdft_configuration_interaction', &
+         routineP = moduleN//':'//routineN
+
+      INTEGER                                            :: handle, info, iounit, istate, ivar, &
+                                                            nforce_eval, work_array_size
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: eigenv, energy, work
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: H_mat, H_mat_copy, S_mat, S_mat_copy
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: a
+      REAL(KIND=dp), EXTERNAL                            :: dnrm2
+      TYPE(cp_logger_type), POINTER                      :: logger
+      TYPE(mixed_cdft_type), POINTER                     :: mixed_cdft
+      TYPE(section_vals_type), POINTER                   :: force_env_section, print_section
+
+      EXTERNAL                                           :: dsygv
+
+      NULLIFY (logger, force_env_section, print_section, mixed_cdft)
+
+      CPASSERT(ASSOCIATED(force_env))
+      CALL get_mixed_env(force_env%mixed_env, cdft_control=mixed_cdft)
+      CPASSERT(ASSOCIATED(mixed_cdft))
+
+      IF (.NOT. mixed_cdft%do_ci) RETURN
+
+      logger => cp_get_default_logger()
+      CALL timeset(routineN, handle)
+      CALL force_env_get(force_env=force_env, &
+                         force_env_section=force_env_section)
+      print_section => section_vals_get_subs_vals(force_env_section, "MIXED%MIXED_CDFT%PRINT%PROGRAM_RUN_INFO")
+      iounit = cp_print_key_unit_nr(logger, print_section, '', extension='.mixedLog')
+
+      CPASSERT(ALLOCATED(mixed_cdft%results%S))
+      CPASSERT(ALLOCATED(mixed_cdft%results%H))
+      nforce_eval = SIZE(mixed_cdft%results%S, 1)
+      ALLOCATE (S_mat(nforce_eval, nforce_eval), H_mat(nforce_eval, nforce_eval))
+      ALLOCATE (eigenv(nforce_eval))
+      S_mat(:, :) = mixed_cdft%results%S(:, :)
+      H_mat(:, :) = mixed_cdft%results%H(:, :)
+      ! Workspace query
+      ALLOCATE (work(1))
+      info = 0
+      ALLOCATE (H_mat_copy(nforce_eval, nforce_eval), S_mat_copy(nforce_eval, nforce_eval))
+      H_mat_copy(:, :) = H_mat(:, :) ! Need explicit copies because dsygv destroys original values
+      S_mat_copy(:, :) = S_mat(:, :)
+      CALL dsygv(1, 'V', 'U', nforce_eval, H_mat_copy, nforce_eval, S_mat_copy, nforce_eval, eigenv, work, -1, info)
+      work_array_size = NINT(work(1))
+      DEALLOCATE (H_mat_copy, S_mat_copy)
+      ! Allocate work array
+      DEALLOCATE (work)
+      ALLOCATE (work(work_array_size))
+      work = 0.0_dp
+      ! Solve Hc = eSc
+      info = 0
+      CALL dsygv(1, 'V', 'U', nforce_eval, H_mat, nforce_eval, S_mat, nforce_eval, eigenv, work, work_array_size, info)
+      IF (info /= 0) CPABORT("Diagonalization of H matrix failed.")
+      ! dsygv returns eigenvectors (stored in columns of H_mat) that are normalized to H^T * S * H = I
+      ! Renormalize eigenvectors to H^T * H = I
+      DO ivar = 1, nforce_eval
+         H_mat(:, ivar) = H_mat(:, ivar)/dnrm2(nforce_eval, H_mat(:, ivar), 1)
+      END DO
+      DEALLOCATE (work)
       IF (iounit > 0) THEN
-         WRITE (iounit, '(/,T3,A,T66)') &
-            '------------------------- CDFT coupling information --------------------------'
-         WRITE (iounit, '(T3,A,T66,(3X,F12.2))') &
-            'Information at step (fs):', mixed_cdft%sim_step*mixed_cdft%sim_dt
-         DO ipermutation = 1, npermutations
-            CALL map_permutation_to_states(nforce_eval, ipermutation, istate, jstate)
-            WRITE (iounit, '(/,T3,A)') REPEAT('#', 44)
-            WRITE (iounit, '(T3,A,I3,A,I3,A)') '###### CDFT states I =', istate, ' and J = ', jstate, ' ######'
-            WRITE (iounit, '(T3,A)') REPEAT('#', 44)
-            DO ivar = 1, nvar
-               IF (ivar > 1) &
-                  WRITE (iounit, '(A)') ''
-               WRITE (iounit, '(T3,A,T60,(3X,I18))') 'Atomic group:', ivar
-               WRITE (iounit, '(T3,A,T60,(3X,F18.12))') 'Strength of constraint I:', strength(ivar, istate)
-               WRITE (iounit, '(T3,A,T60,(3X,F18.12))') 'Strength of constraint J:', strength(ivar, jstate)
-               WRITE (iounit, '(T3,A,T60,(3X,F18.12))') 'Final value of constraint I:', W_diagonal(ivar, istate)
-               WRITE (iounit, '(T3,A,T60,(3X,F18.12))') 'Final value of constraint J:', W_diagonal(ivar, jstate)
-            END DO
-            WRITE (iounit, '(/,T3,A,T60,(3X,F18.12))') 'Overlap between states I and J:', Sda(ipermutation)
-            WRITE (iounit, '(T3,A,T60,(3X,F18.12))') 'Charge transfer energy (J-I) (Hartree):', (energy(jstate)-energy(istate))
-            WRITE (iounit, *)
-            IF (use_rotation) THEN
-               IF (ABS(coupling_rotation(ipermutation))*1.0E3_dp .GE. 0.1_dp) THEN
-                  WRITE (iounit, '(T3,A,T60,(3X,F18.12))') &
-                     'Diabatic electronic coupling (rotation, mHartree):', ABS(coupling_rotation(ipermutation)*1.0E3_dp)
-               ELSE
-                  WRITE (iounit, '(T3,A,T60,(3X,F18.12))') &
-                     'Diabatic electronic coupling (rotation, microHartree):', ABS(coupling_rotation(ipermutation)*1.0E6_dp)
-               END IF
+         WRITE (iounit, '(/,T3,A)') '------------------ CDFT Configuration Interaction (CDFT-CI) ------------------'
+         DO ivar = 1, nforce_eval
+            IF (ivar == 1) THEN
+               WRITE (iounit, '(T3,A,T58,(3X,F20.14))') 'Ground state energy:', eigenv(ivar)
+            ELSE
+               WRITE (iounit, '(/,T3,A,I2,A,T58,(3X,F20.14))') 'Excited state (', ivar-1, ' ) energy:', eigenv(ivar)
             END IF
-            IF (use_lowdin) THEN
-               IF (ABS(coupling_lowdin(ipermutation))*1.0E3_dp .GE. 0.1_dp) THEN
-                  WRITE (iounit, '(T3,A,T60,(3X,F18.12))') &
-                     'Diabatic electronic coupling (Lowdin, mHartree):', ABS(coupling_lowdin(ipermutation)*1.0E3_dp)
-               ELSE
-                  WRITE (iounit, '(T3,A,T60,(3X,F18.12))') &
-                     'Diabatic electronic coupling (Lowdin, microHartree):', ABS(coupling_lowdin(ipermutation)*1.0E6_dp)
-               END IF
-            END IF
-            IF (mixed_cdft%wfn_overlap_method) THEN
-               IF (coupling_wfn(ipermutation)*1.0E3_dp .GE. 0.1_dp) THEN
-                  WRITE (iounit, '(T3,A,T60,(3X,F18.12))') &
-                     'Diabatic electronic coupling (wfn overlap, mHartree):', coupling_wfn(ipermutation)*1.0E3_dp
-               ELSE
-                  WRITE (iounit, '(T3,A,T60,(3X,F18.12))') &
-                     'Diabatic electronic coupling (wfn overlap, microHartree):', coupling_wfn(ipermutation)*1.0E6_dp
-               END IF
-            END IF
-            IF (mixed_cdft%nonortho_coupling) THEN
-               WRITE (iounit, '(T3,A,T60,(3X,F18.12))') &
-                  'Diabatic electronic coupling (nonorthogonal, Hartree):', coupling_nonortho(ipermutation)
-            END IF
-            IF (mixed_cdft%calculate_metric) THEN
-               WRITE (iounit, *)
-               IF (nspins == 1) THEN
-                  WRITE (iounit, '(T3,A,T66,(3X,F12.6))') 'Coupling reliability metric (0 is ideal):', metric(ipermutation, 1)
-               ELSE
+            DO istate = 1, nforce_eval, 2
+               IF (istate == 1) THEN
                   WRITE (iounit, '(T3,A,T54,(3X,2F12.6))') &
-                     'Coupling reliability metric (0 is ideal):', metric(ipermutation, 1), metric(ipermutation, 2)
+                     'Expansion coefficients:', H_mat(istate, ivar), H_mat(istate+1, ivar)
+               ELSE IF (istate .LT. nforce_eval) THEN
+                  WRITE (iounit, '(T54,(3X,2F12.6))') H_mat(istate, ivar), H_mat(istate+1, ivar)
+               ELSE
+                  WRITE (iounit, '(T54,(3X,F12.6))') H_mat(istate, ivar)
                END IF
-            END IF
+            END DO
          END DO
          WRITE (iounit, '(T3,A)') &
             '------------------------------------------------------------------------------'
-         IF (mixed_cdft%do_ci) THEN
-            WRITE (iounit, '(/,T3,A)') '------------------ CDFT Configuration Interaction (CDFT-CI) ------------------'
-            DO ivar = 1, nforce_eval
-               IF (ivar == 1) THEN
-                  WRITE (iounit, '(T3,A,T58,(3X,F20.14))') 'Ground state energy:', eigenv(ivar)
-               ELSE
-                  WRITE (iounit, '(/,T3,A,I2,A,T58,(3X,F20.14))') 'Excited state (', ivar-1, ' ) energy:', eigenv(ivar)
-               END IF
-               DO istate = 1, nforce_eval, 2
-                  IF (istate == 1) THEN
-                     WRITE (iounit, '(T3,A,T54,(3X,2F12.6))') &
-                        'Expansion coefficients:', H_mat(istate, ivar), H_mat(istate+1, ivar)
-                  ELSE IF (istate .LT. nforce_eval) THEN
-                     WRITE (iounit, '(T54,(3X,2F12.6))') H_mat(istate, ivar), H_mat(istate+1, ivar)
-                  ELSE
-                     WRITE (iounit, '(T54,(3X,F12.6))') H_mat(istate, ivar)
-                  END IF
-               END DO
-            END DO
-            WRITE (iounit, '(T3,A)') &
-               '------------------------------------------------------------------------------'
-         END IF
       END IF
-      DEALLOCATE (energy, strength, a, b, S_det, W_diagonal, Wda)
-      IF (ALLOCATED(Wad)) DEALLOCATE (Wad)
-      DEALLOCATE (S_mat, H_mat, tmp_mat, eigenv, Sda)
-      IF (ALLOCATED(coupling_rotation)) &
-         DEALLOCATE (coupling_rotation)
-      IF (ALLOCATED(coupling_lowdin)) &
-         DEALLOCATE (coupling_lowdin)
-      IF (ALLOCATED(coupling_wfn)) &
-         DEALLOCATE (coupling_wfn)
-      IF (ALLOCATED(coupling_nonortho)) &
-         DEALLOCATE (coupling_nonortho)
-      IF (mixed_cdft%calculate_metric) DEALLOCATE (metric)
-
-      IF (print_mo) &
-         CALL cp_print_key_finished_output(mounit, logger, force_env_section, &
-                                           "MIXED%MIXED_CDFT%PRINT%PROGRAM_RUN_INFO", on_file=.TRUE.)
-      IF (print_mo_eigval) &
-         CALL cp_print_key_finished_output(moeigvalunit, logger, force_env_section, &
-                                           "MIXED%MIXED_CDFT%PRINT%PROGRAM_RUN_INFO", on_file=.TRUE.)
+      DEALLOCATE (S_mat, H_mat, eigenv)
       CALL cp_print_key_finished_output(iounit, logger, force_env_section, &
                                         "MIXED%MIXED_CDFT%PRINT%PROGRAM_RUN_INFO")
       CALL timestop(handle)
 
-   END SUBROUTINE mixed_cdft_calculate_coupling
+   END SUBROUTINE mixed_cdft_configuration_interaction
+
 ! **************************************************************************************************
-!> \brief Becke constraint adapted to mixed calculations, details in et_coupling.F
+!> \brief Routine to calculate the CDFT electronic coupling reliability metric
+!> \param force_env the force_env that holds the CDFT states
+!> \param mixed_cdft the mixed_cdft env
+!> \param density_matrix_diff array holding difference density matrices (P_j - P_i) for every CDFT
+!>                            state permutation
+!> \param ncol_mo the number of MOs per spin
+!> \par History
+!>       11.17  created [Nico Holmberg]
+! **************************************************************************************************
+   SUBROUTINE mixed_cdft_calculate_metric(force_env, mixed_cdft, density_matrix_diff, ncol_mo)
+      TYPE(force_env_type), POINTER                      :: force_env
+      TYPE(mixed_cdft_type), POINTER                     :: mixed_cdft
+      TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: density_matrix_diff
+      INTEGER, DIMENSION(:)                              :: ncol_mo
+
+      CHARACTER(len=*), PARAMETER :: routineN = 'mixed_cdft_calculate_metric', &
+         routineP = moduleN//':'//routineN
+
+      INTEGER                                            :: handle, ipermutation, ispin, j, &
+                                                            nforce_eval, npermutations, nspins
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: evals
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: metric
+      TYPE(dbcsr_type)                                   :: e_vectors
+
+      CALL timeset(routineN, handle)
+      nforce_eval = SIZE(mixed_cdft%results%H, 1)
+      npermutations = nforce_eval*(nforce_eval-1)/2
+      nspins = SIZE(density_matrix_diff, 2)
+      ALLOCATE (metric(npermutations, nspins))
+      metric = 0.0_dp
+      CALL dbcsr_create(e_vectors, template=density_matrix_diff(1, 1)%matrix)
+      DO ispin = 1, nspins
+         ALLOCATE (evals(ncol_mo(ispin)))
+         DO ipermutation = 1, npermutations
+            ! Take into account doubly occupied orbitals without LSD
+            IF (nspins == 1) &
+               CALL dbcsr_scale(density_matrix_diff(ipermutation, 1)%matrix, alpha_scalar=0.5_dp)
+            ! Diagonalize difference density matrix
+            CALL cp_dbcsr_syevd(density_matrix_diff(ipermutation, ispin)%matrix, e_vectors, evals, &
+                                para_env=force_env%para_env, blacs_env=mixed_cdft%blacs_env)
+            CALL dbcsr_release_p(density_matrix_diff(ipermutation, ispin)%matrix)
+            DO j = 1, ncol_mo(ispin)
+               metric(ipermutation, ispin) = metric(ipermutation, ispin)+(evals(j)**2-evals(j)**4)
+            END DO
+         END DO
+         DEALLOCATE (evals)
+      END DO
+      CALL dbcsr_release(e_vectors)
+      DEALLOCATE (density_matrix_diff)
+      metric(:, :) = metric(:, :)/4.0_dp
+      CALL mixed_cdft_result_type_set(mixed_cdft%results, metric=metric)
+      DEALLOCATE (metric)
+      CALL timestop(handle)
+
+   END SUBROUTINE mixed_cdft_calculate_metric
+
+! **************************************************************************************************
+!> \brief Routine to calculate the electronic coupling according to the wavefunction overlap method
+!> \param force_env the force_env that holds the CDFT states
+!> \param mixed_cdft the mixed_cdft env
+!> \param ncol_mo the number of MOs per spin
+!> \param nrow_mo the number of AOs per spin
+!> \par History
+!>       11.17  created [Nico Holmberg]
+! **************************************************************************************************
+   SUBROUTINE mixed_cdft_wfn_overlap_method(force_env, mixed_cdft, ncol_mo, nrow_mo)
+      TYPE(force_env_type), POINTER                      :: force_env
+      TYPE(mixed_cdft_type), POINTER                     :: mixed_cdft
+      INTEGER, DIMENSION(:)                              :: ncol_mo, nrow_mo
+
+      CHARACTER(len=*), PARAMETER :: routineN = 'mixed_cdft_wfn_overlap_method', &
+         routineP = moduleN//':'//routineN
+
+      CHARACTER(LEN=default_path_length)                 :: file_name
+      INTEGER                                            :: handle, ipermutation, ispin, istate, &
+                                                            jstate, nao, nforce_eval, nmo, &
+                                                            npermutations, nspins
+      INTEGER, ALLOCATABLE, DIMENSION(:, :)              :: homo
+      LOGICAL                                            :: exist, natom_mismatch, uniform_occupation
+      REAL(KIND=dp)                                      :: energy_diff, maxocc, Sda
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: coupling_wfn
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: a, overlaps
+      TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
+      TYPE(cp_fm_p_type), DIMENSION(:, :), POINTER       :: mixed_mo_coeff
+      TYPE(cp_fm_struct_type), POINTER                   :: mo_mo_fmstruct
+      TYPE(cp_fm_type), POINTER                          :: inverse_mat, mo_overlap_wfn, mo_tmp
+      TYPE(cp_logger_type), POINTER                      :: logger
+      TYPE(cp_subsys_type), POINTER                      :: subsys_mix
+      TYPE(dbcsr_type), POINTER                          :: mixed_matrix_s
+      TYPE(mo_set_p_type), DIMENSION(:), POINTER         :: mo_set
+      TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
+      TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
+      TYPE(section_vals_type), POINTER                   :: force_env_section, mixed_cdft_section
+
+      NULLIFY (mixed_cdft_section, subsys_mix, mo_set, particle_set, qs_kind_set, atomic_kind_set, &
+               mixed_mo_coeff, mixed_matrix_s, force_env_section)
+      logger => cp_get_default_logger()
+
+      CALL timeset(routineN, handle)
+      nforce_eval = SIZE(mixed_cdft%results%H, 1)
+      npermutations = nforce_eval*(nforce_eval-1)/2
+      nspins = SIZE(nrow_mo)
+      mixed_mo_coeff => mixed_cdft%matrix%mixed_mo_coeff
+      mixed_matrix_s => mixed_cdft%matrix%mixed_matrix_s
+      CALL force_env_get(force_env=force_env, &
+                         force_env_section=force_env_section)
+      ! Create mo_set for input wfn
+      ALLOCATE (mo_set(nspins))
+      IF (nspins == 2) THEN
+         maxocc = 1.0_dp
+      ELSE
+         maxocc = 2.0_dp
+      END IF
+      DO ispin = 1, nspins
+         nao = nrow_mo(ispin)
+         nmo = ncol_mo(ispin)
+         NULLIFY (mo_set(ispin)%mo_set)
+         ! Only OT with fully occupied orbitals is implicitly supported
+         CALL allocate_mo_set(mo_set(ispin)%mo_set, nao=nao, nmo=nmo, nelectron=INT(maxocc*nmo), &
+                              n_el_f=REAL(maxocc*nmo, dp), maxocc=maxocc, &
+                              flexible_electron_count=0.0_dp)
+         CALL set_mo_set(mo_set(ispin)%mo_set, uniform_occupation=.TRUE., homo=nmo)
+         CALL cp_fm_create(matrix=mo_set(ispin)%mo_set%mo_coeff, &
+                           matrix_struct=mixed_mo_coeff(1, ispin)%matrix%matrix_struct, &
+                           name="GS_MO_COEFF"//TRIM(ADJUSTL(cp_to_string(ispin)))//"MATRIX")
+         ALLOCATE (mo_set(ispin)%mo_set%eigenvalues(nmo))
+         ALLOCATE (mo_set(ispin)%mo_set%occupation_numbers(nmo))
+      END DO
+      ! Read wfn file (note we assume that the basis set is the same)
+      IF (force_env%mixed_env%do_mixed_qmmm_cdft) &
+         ! This really shouldnt be a problem?
+         CALL cp_abort(__LOCATION__, &
+                       "QMMM + wavefunction overlap method not supported.")
+      CALL force_env_get(force_env=force_env, subsys=subsys_mix)
+      mixed_cdft_section => section_vals_get_subs_vals(force_env_section, "MIXED%MIXED_CDFT")
+      CALL cp_subsys_get(subsys_mix, atomic_kind_set=atomic_kind_set, particle_set=particle_set)
+      CPASSERT(ASSOCIATED(mixed_cdft%qs_kind_set))
+      IF (force_env%para_env%ionode) &
+         CALL wfn_restart_file_name(file_name, exist, mixed_cdft_section, logger)
+      CALL mp_bcast(exist, force_env%para_env%source, force_env%para_env%group)
+      CALL mp_bcast(file_name, force_env%para_env%source, force_env%para_env%group)
+      IF (.NOT. exist) &
+         CALL cp_abort(__LOCATION__, &
+                       "User requested to restart the wavefunction from the file named: "// &
+                       TRIM(file_name)//". This file does not exist. Please check the existence of"// &
+                       " the file or change properly the value of the keyword WFN_RESTART_FILE_NAME in"// &
+                       " section FORCE_EVAL\MIXED\MIXED_CDFT.")
+      CALL read_mo_set(mo_array=mo_set, atomic_kind_set=atomic_kind_set, &
+                       qs_kind_set=mixed_cdft%qs_kind_set, particle_set=particle_set, &
+                       para_env=force_env%para_env, id_nr=0, multiplicity=mixed_cdft%multiplicity, &
+                       dft_section=mixed_cdft_section, natom_mismatch=natom_mismatch, &
+                       cdft=.TRUE.)
+      IF (natom_mismatch) &
+         CALL cp_abort(__LOCATION__, &
+                       "Restart wfn file has a wrong number of atoms")
+      ! Orthonormalize wfn
+      DO ispin = 1, nspins
+         IF (mixed_cdft%has_unit_metric) THEN
+            CALL make_basis_simple(mo_set(ispin)%mo_set%mo_coeff, ncol_mo(ispin))
+         ELSE
+            CALL make_basis_sm(mo_set(ispin)%mo_set%mo_coeff, ncol_mo(ispin), mixed_matrix_s)
+         END IF
+      END DO
+      ! Calculate MO overlaps between reference state (R) and CDFT state pairs I/J
+      ALLOCATE (coupling_wfn(npermutations))
+      ALLOCATE (overlaps(2, npermutations, nspins))
+      overlaps = 0.0_dp
+      DO ispin = 1, nspins
+         ! Allocate work
+         nao = nrow_mo(ispin)
+         nmo = ncol_mo(ispin)
+         CALL cp_fm_struct_create(mo_mo_fmstruct, nrow_global=nmo, ncol_global=nmo, &
+                                  context=mixed_cdft%blacs_env, para_env=force_env%para_env)
+         CALL cp_fm_create(matrix=mo_overlap_wfn, matrix_struct=mo_mo_fmstruct, &
+                           name="MO_OVERLAP_MATRIX_WFN")
+         CALL cp_fm_create(matrix=inverse_mat, matrix_struct=mo_mo_fmstruct, &
+                           name="INVERSE_MO_OVERLAP_MATRIX_WFN")
+         CALL cp_fm_struct_release(mo_mo_fmstruct)
+         CALL cp_fm_create(matrix=mo_tmp, &
+                           matrix_struct=mixed_mo_coeff(1, ispin)%matrix%matrix_struct, &
+                           name="OVERLAP_MO_COEFF_WFN")
+         DO ipermutation = 1, npermutations
+            CALL map_permutation_to_states(nforce_eval, ipermutation, istate, jstate)
+            ! S*C_r
+            CALL cp_dbcsr_sm_fm_multiply(mixed_matrix_s, mo_set(ispin)%mo_set%mo_coeff, &
+                                         mo_tmp, nmo, 1.0_dp, 0.0_dp)
+            ! C_i^T * (S*C_r)
+            CALL cp_fm_set_all(mo_overlap_wfn, alpha=0.0_dp)
+            CALL cp_gemm('T', 'N', nmo, nmo, nao, 1.0_dp, &
+                         mixed_mo_coeff(istate, ispin)%matrix, &
+                         mo_tmp, 0.0_dp, mo_overlap_wfn)
+            CALL cp_fm_invert(mo_overlap_wfn, inverse_mat, overlaps(1, ipermutation, ispin), eps_svd=mixed_cdft%eps_svd)
+            ! C_j^T * (S*C_r)
+            CALL cp_fm_set_all(mo_overlap_wfn, alpha=0.0_dp)
+            CALL cp_gemm('T', 'N', nmo, nmo, nao, 1.0_dp, &
+                         mixed_mo_coeff(jstate, ispin)%matrix, &
+                         mo_tmp, 0.0_dp, mo_overlap_wfn)
+            CALL cp_fm_invert(mo_overlap_wfn, inverse_mat, overlaps(2, ipermutation, ispin), eps_svd=mixed_cdft%eps_svd)
+         END DO
+         CALL cp_fm_release(mo_overlap_wfn)
+         CALL cp_fm_release(inverse_mat)
+         CALL cp_fm_release(mo_tmp)
+         CALL deallocate_mo_set(mo_set(ispin)%mo_set)
+      END DO
+      DEALLOCATE (mo_set)
+      DO ipermutation = 1, npermutations
+         CALL map_permutation_to_states(nforce_eval, ipermutation, istate, jstate)
+         IF (nspins == 2) THEN
+            overlaps(1, ipermutation, 1) = ABS(overlaps(1, ipermutation, 1)*overlaps(1, ipermutation, 2)) ! A in eq. 12c
+            overlaps(2, ipermutation, 1) = ABS(overlaps(2, ipermutation, 1)*overlaps(2, ipermutation, 2)) ! B in eq. 12c
+         ELSE
+            overlaps(1, ipermutation, 1) = overlaps(1, ipermutation, 1)**2
+            overlaps(2, ipermutation, 1) = overlaps(2, ipermutation, 1)**2
+         END IF
+         ! Calculate coupling using eq. 12c
+         ! The coupling is singular if A = B (i.e. states I/J are identical or charge in ground state is fully delocalized)
+         IF (ABS(overlaps(1, ipermutation, 1)-overlaps(2, ipermutation, 1)) .LE. 1.0e-14_dp) THEN
+            CALL cp_warn(__LOCATION__, &
+                         "Coupling between states is singular and set to zero. "// &
+                         "Potential causes: coupling is computed between identical CDFT states or the spin/charge "// &
+                         "density is fully delocalized in the unconstrained ground state.")
+            coupling_wfn(ipermutation) = 0.0_dp
+         ELSE
+            energy_diff = mixed_cdft%results%energy(jstate)-mixed_cdft%results%energy(istate)
+            Sda = mixed_cdft%results%S(istate, jstate)
+            coupling_wfn(ipermutation) = ABS((overlaps(1, ipermutation, 1)*overlaps(2, ipermutation, 1)/ &
+                                              (overlaps(1, ipermutation, 1)**2-overlaps(2, ipermutation, 1)**2))* &
+                                             (energy_diff)/(1.0_dp-Sda**2)* &
+                                             (1.0_dp-(overlaps(1, ipermutation, 1)**2+overlaps(2, ipermutation, 1)**2)/ &
+                                              (2.0_dp*overlaps(1, ipermutation, 1)*overlaps(2, ipermutation, 1))* &
+                                              Sda))
+         END IF
+      END DO
+      DEALLOCATE (overlaps)
+      CALL mixed_cdft_result_type_set(mixed_cdft%results, wfn=coupling_wfn)
+      DEALLOCATE (coupling_wfn)
+      CALL timestop(handle)
+
+   END SUBROUTINE mixed_cdft_wfn_overlap_method
+
+! **************************************************************************************************
+!> \brief Becke constraint adapted to mixed calculations, details in qs_cdft_methods.F
 !> \param force_env the force_env that holds the CDFT states
 !> \param calculate_forces determines if forces should be calculted
 !> \par History

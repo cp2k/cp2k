@@ -13,8 +13,13 @@ MODULE mixed_cdft_types
    USE cp_array_utils,                  ONLY: cp_1d_r_p_type
    USE cp_blacs_env,                    ONLY: cp_blacs_env_release,&
                                               cp_blacs_env_type
+   USE cp_fm_types,                     ONLY: cp_fm_p_type,&
+                                              cp_fm_release
    USE cp_log_handling,                 ONLY: cp_logger_p_type,&
                                               cp_logger_release
+   USE dbcsr_api,                       ONLY: dbcsr_p_type,&
+                                              dbcsr_release_p,&
+                                              dbcsr_type
    USE kinds,                           ONLY: dp
    USE pw_env_types,                    ONLY: pw_env_release,&
                                               pw_env_type
@@ -26,6 +31,45 @@ MODULE mixed_cdft_types
 
    IMPLICIT NONE
    PRIVATE
+
+! **************************************************************************************************
+!> \brief Container for results related to a mixed CDFT calculation
+! **************************************************************************************************
+   TYPE mixed_cdft_result_type
+      ! CDFT electronic couplings calculated with different methods
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)         :: lowdin, nonortho, &
+                                                          rotation, wfn
+      ! Energies of the CDFT states
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)         :: energy
+      ! Lagrangian multipliers of the CDFT constraints
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)      :: strength
+      ! Reliablity metric for CDFT electronic couplings
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)      :: metric
+      ! The mixed CDFT Hamiltonian matrix
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)      :: H
+      ! Overlaps between CDFT states
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)      :: S
+      ! S^(-1/2)
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)      :: S_minushalf
+      ! Off-diagonal elements of the weight function matrices <Psi_j | w_i(r) | Psi_i>
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)      :: Wad, Wda
+      ! Diagonal elements of the weight function matrices, i.e., the constraint values
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)      :: W_diagonal
+   END TYPE mixed_cdft_result_type
+
+! **************************************************************************************************
+!> \brief Container for mixed CDFT matrices
+! **************************************************************************************************
+   TYPE mixed_cdft_work_type
+      ! Matrix representations of the CDFT weight functions
+      TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: w_matrix
+      ! AO overlap matrix
+      TYPE(dbcsr_type), POINTER                          :: mixed_matrix_s
+      ! MO coefficients of each CDFT state
+      TYPE(cp_fm_p_type), DIMENSION(:, :), POINTER       :: mixed_mo_coeff
+      ! Density matrices of the CDFT states
+      TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: density_matrix
+   END TYPE mixed_cdft_work_type
 
 ! **************************************************************************************************
 !> \brief Buffers for load balancing
@@ -146,6 +190,8 @@ MODULE mixed_cdft_types
 !> \param becke_control container for becke_constraint_type
 !> \param sendbuff buffer that holds the data to be replicated
 !> \param blacs_env the blacs_env needed to redistribute arrays during a coupling calculation
+!> \param results container for mixed CDFT results
+!> \param matrix container for mixed CDFT work matrices
 !> \param dlb_control container for load balancing structures
 !> \param qs_kind_set the qs_kind_set needed to setup a confinement cavity
 !> \param pw_env the pw_env that holds the fully distributed realspace grid
@@ -177,6 +223,8 @@ MODULE mixed_cdft_types
          DIMENSION(:, :)                               :: occupations
       TYPE(cp_blacs_env_type), POINTER                 :: blacs_env
       TYPE(cp_logger_p_type), DIMENSION(:), POINTER    :: sub_logger
+      TYPE(mixed_cdft_result_type)                     :: results
+      TYPE(mixed_cdft_work_type)                       :: matrix
       TYPE(mixed_cdft_dlb_type), POINTER               :: dlb_control
       TYPE(pw_env_type), POINTER                       :: pw_env
       TYPE(qs_kind_type), DIMENSION(:), &
@@ -217,7 +265,11 @@ MODULE mixed_cdft_types
 ! *** Public subroutines ***
 
    PUBLIC :: mixed_cdft_type_create, &
-             mixed_cdft_type_release
+             mixed_cdft_type_release, &
+             mixed_cdft_result_type_set, &
+             mixed_cdft_result_type_release, &
+             mixed_cdft_work_type_init, &
+             mixed_cdft_work_type_release
 
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'mixed_cdft_types'
 
@@ -311,6 +363,8 @@ CONTAINS
          END DO
          DEALLOCATE (cdft_control%sub_logger)
       END IF
+      CALL mixed_cdft_result_type_release(cdft_control%results)
+      CALL mixed_cdft_work_type_release(cdft_control%matrix)
       DEALLOCATE (cdft_control)
 
    END SUBROUTINE mixed_cdft_type_release
@@ -410,5 +464,192 @@ CONTAINS
       END IF
 
    END SUBROUTINE mixed_cdft_p_buffers_release
+
+! **************************************************************************************************
+!> \brief Updates arrays within the mixed CDFT result container
+!> \param results      the array container
+!> \param lowdin       CDFT electronic couplings from Lowdin orthogonalization
+!> \param wfn          CDFT electronic couplings from wavefunction overlap method
+!> \param nonortho     CDFT electronic couplings (interaction energies) before orthogonalization
+!> \param metric       Reliablity metric for CDFT electronic couplings
+!> \param rotation     CDFT electronic couplings using the weight function matrix for orthogonalization
+!> \param H            The mixed CDFT Hamiltonian
+!> \param S            The overlap matrix between CDFT states
+!> \param Wad          Integrals of type <Psi_a | w_d(r) | Psi_d>
+!> \param Wda          Integrals of type <Psi_d | w_a(r) | Psi_a>
+!> \param W_diagonal   Values of the CDFT constraints
+!> \param energy       Energies of the CDFT states
+!> \param strength     Lagrangian multipliers of the CDFT states
+!> \param S_minushalf  S^(-1/2)
+!> \author Nico Holmberg [11.2017]
+! **************************************************************************************************
+   SUBROUTINE mixed_cdft_result_type_set(results, lowdin, wfn, nonortho, metric, rotation, &
+                                         H, S, Wad, Wda, W_diagonal, energy, strength, S_minushalf)
+      TYPE(mixed_cdft_result_type)                       :: results
+      REAL(KIND=dp), DIMENSION(:), OPTIONAL              :: lowdin, wfn, nonortho
+      REAL(KIND=dp), DIMENSION(:, :), OPTIONAL           :: metric
+      REAL(KIND=dp), DIMENSION(:), OPTIONAL              :: rotation
+      REAL(KIND=dp), DIMENSION(:, :), OPTIONAL           :: H, S, Wad, Wda, W_diagonal
+      REAL(KIND=dp), DIMENSION(:), OPTIONAL              :: energy
+      REAL(KIND=dp), DIMENSION(:, :), OPTIONAL           :: strength, S_minushalf
+
+      CHARACTER(len=*), PARAMETER :: routineN = 'mixed_cdft_result_type_set', &
+         routineP = moduleN//':'//routineN
+
+      IF (PRESENT(lowdin)) THEN
+         IF (ALLOCATED(results%lowdin)) DEALLOCATE (results%lowdin)
+         ALLOCATE (results%lowdin(SIZE(lowdin)))
+         results%lowdin(:) = lowdin(:)
+      END IF
+      IF (PRESENT(wfn)) THEN
+         IF (ALLOCATED(results%wfn)) DEALLOCATE (results%wfn)
+         ALLOCATE (results%wfn(SIZE(wfn)))
+         results%wfn(:) = wfn(:)
+      END IF
+      IF (PRESENT(nonortho)) THEN
+         IF (ALLOCATED(results%nonortho)) DEALLOCATE (results%nonortho)
+         ALLOCATE (results%nonortho(SIZE(nonortho)))
+         results%nonortho(:) = nonortho(:)
+      END IF
+      IF (PRESENT(rotation)) THEN
+         IF (ALLOCATED(results%rotation)) DEALLOCATE (results%rotation)
+         ALLOCATE (results%rotation(SIZE(rotation)))
+         results%rotation(:) = rotation(:)
+      END IF
+      IF (PRESENT(energy)) THEN
+         IF (ALLOCATED(results%energy)) DEALLOCATE (results%energy)
+         ALLOCATE (results%energy(SIZE(energy)))
+         results%energy(:) = energy(:)
+      END IF
+      IF (PRESENT(strength)) THEN
+         IF (ALLOCATED(results%strength)) DEALLOCATE (results%strength)
+         ALLOCATE (results%strength(SIZE(strength, 1), SIZE(strength, 2)))
+         results%strength(:, :) = strength(:, :)
+      END IF
+      IF (PRESENT(metric)) THEN
+         IF (ALLOCATED(results%metric)) DEALLOCATE (results%metric)
+         ALLOCATE (results%metric(SIZE(metric, 1), SIZE(metric, 2)))
+         results%metric(:, :) = metric(:, :)
+      END IF
+      IF (PRESENT(H)) THEN
+         IF (ALLOCATED(results%H)) DEALLOCATE (results%H)
+         ALLOCATE (results%H(SIZE(H, 1), SIZE(H, 2)))
+         results%H(:, :) = H(:, :)
+      END IF
+      IF (PRESENT(S)) THEN
+         IF (ALLOCATED(results%S)) DEALLOCATE (results%S)
+         ALLOCATE (results%S(SIZE(S, 1), SIZE(S, 2)))
+         results%S(:, :) = S(:, :)
+      END IF
+      IF (PRESENT(S_minushalf)) THEN
+         IF (ALLOCATED(results%S_minushalf)) DEALLOCATE (results%S_minushalf)
+         ALLOCATE (results%S_minushalf(SIZE(S_minushalf, 1), SIZE(S_minushalf, 2)))
+         results%S_minushalf(:, :) = S_minushalf(:, :)
+      END IF
+      IF (PRESENT(Wad)) THEN
+         IF (ALLOCATED(results%Wad)) DEALLOCATE (results%Wad)
+         ALLOCATE (results%Wad(SIZE(Wad, 1), SIZE(Wad, 2)))
+         results%Wad(:, :) = Wad(:, :)
+      END IF
+      IF (PRESENT(Wda)) THEN
+         IF (ALLOCATED(results%Wda)) DEALLOCATE (results%Wda)
+         ALLOCATE (results%Wda(SIZE(Wda, 1), SIZE(Wda, 2)))
+         results%Wda(:, :) = Wda(:, :)
+      END IF
+      IF (PRESENT(W_diagonal)) THEN
+         IF (ALLOCATED(results%W_diagonal)) DEALLOCATE (results%W_diagonal)
+         ALLOCATE (results%W_diagonal(SIZE(W_diagonal, 1), SIZE(W_diagonal, 2)))
+         results%W_diagonal(:, :) = W_diagonal(:, :)
+      END IF
+
+   END SUBROUTINE mixed_cdft_result_type_set
+
+! **************************************************************************************************
+!> \brief Releases all arrays within the mixed CDFT result container
+!> \param results the container
+!> \author Nico Holmberg [11.2017]
+! **************************************************************************************************
+   SUBROUTINE mixed_cdft_result_type_release(results)
+      TYPE(mixed_cdft_result_type)                       :: results
+
+      CHARACTER(len=*), PARAMETER :: routineN = 'mixed_cdft_result_type_release', &
+         routineP = moduleN//':'//routineN
+
+      IF (ALLOCATED(results%lowdin)) DEALLOCATE (results%lowdin)
+      IF (ALLOCATED(results%wfn)) DEALLOCATE (results%wfn)
+      IF (ALLOCATED(results%metric)) DEALLOCATE (results%metric)
+      IF (ALLOCATED(results%nonortho)) DEALLOCATE (results%nonortho)
+      IF (ALLOCATED(results%rotation)) DEALLOCATE (results%rotation)
+      IF (ALLOCATED(results%H)) DEALLOCATE (results%H)
+      IF (ALLOCATED(results%S)) DEALLOCATE (results%S)
+      IF (ALLOCATED(results%S_minushalf)) DEALLOCATE (results%S_minushalf)
+      IF (ALLOCATED(results%Wad)) DEALLOCATE (results%Wad)
+      IF (ALLOCATED(results%Wda)) DEALLOCATE (results%Wda)
+      IF (ALLOCATED(results%W_diagonal)) DEALLOCATE (results%W_diagonal)
+      IF (ALLOCATED(results%energy)) DEALLOCATE (results%energy)
+      IF (ALLOCATED(results%strength)) DEALLOCATE (results%strength)
+
+   END SUBROUTINE mixed_cdft_result_type_release
+
+! **************************************************************************************************
+!> \brief Initializes the mixed_cdft_work_type
+!> \param matrix the type to initialize
+!> \author Nico Holmberg [01.2017]
+! **************************************************************************************************
+   SUBROUTINE mixed_cdft_work_type_init(matrix)
+      TYPE(mixed_cdft_work_type)                         :: matrix
+
+      CHARACTER(len=*), PARAMETER :: routineN = 'mixed_cdft_work_type_init', &
+         routineP = moduleN//':'//routineN
+
+      NULLIFY (matrix%w_matrix)
+      NULLIFY (matrix%mixed_matrix_s)
+      NULLIFY (matrix%mixed_mo_coeff)
+      NULLIFY (matrix%density_matrix)
+
+   END SUBROUTINE mixed_cdft_work_type_init
+
+! **************************************************************************************************
+!> \brief Releases arrays within the mixed CDFT work matrix container
+!> \param matrix the container
+!> \author Nico Holmberg [01.2017]
+! **************************************************************************************************
+   SUBROUTINE mixed_cdft_work_type_release(matrix)
+      TYPE(mixed_cdft_work_type)                         :: matrix
+
+      CHARACTER(len=*), PARAMETER :: routineN = 'mixed_cdft_work_type_release', &
+         routineP = moduleN//':'//routineN
+
+      INTEGER                                            :: i, j
+
+      IF (ASSOCIATED(matrix%w_matrix)) THEN
+         DO i = 1, SIZE(matrix%w_matrix, 2)
+            DO j = 1, SIZE(matrix%w_matrix, 1)
+               CALL dbcsr_release_p(matrix%w_matrix(j, i)%matrix)
+            END DO
+         END DO
+         DEALLOCATE (matrix%w_matrix)
+      END IF
+      IF (ASSOCIATED(matrix%mixed_matrix_s)) THEN
+         CALL dbcsr_release_p(matrix%mixed_matrix_s)
+      END IF
+      IF (ASSOCIATED(matrix%mixed_mo_coeff)) THEN
+         DO i = 1, SIZE(matrix%mixed_mo_coeff, 2)
+            DO j = 1, SIZE(matrix%mixed_mo_coeff, 1)
+               CALL cp_fm_release(matrix%mixed_mo_coeff(j, i)%matrix)
+            END DO
+         END DO
+         DEALLOCATE (matrix%mixed_mo_coeff)
+      END IF
+      IF (ASSOCIATED(matrix%density_matrix)) THEN
+         DO i = 1, SIZE(matrix%density_matrix, 2)
+            DO j = 1, SIZE(matrix%density_matrix, 1)
+               CALL dbcsr_release_p(matrix%density_matrix(j, i)%matrix)
+            END DO
+         END DO
+         DEALLOCATE (matrix%density_matrix)
+      END IF
+
+   END SUBROUTINE mixed_cdft_work_type_release
 
 END MODULE mixed_cdft_types
