@@ -117,9 +117,9 @@ MODULE admm_types
                                                    eigvals_P_to_be_purified => Null()
       TYPE(section_vals_type), POINTER         :: xc_section_primary => Null(), &
                                                   xc_section_aux => Null()
-      REAL(KIND=dp)                            :: gsi(3), &
-                                                  lambda_merlot(2), &
-                                                  n_large_basis(3)
+      REAL(KIND=dp)                            :: gsi(3) = 0.0_dp, &
+                                                  lambda_merlot(2) = 0.0_dp, &
+                                                  n_large_basis(3) = 0.0_dp
       INTEGER                                  :: nao_orb, nao_aux_fit, nmo(2)
       INTEGER                                  :: purification_method
       LOGICAL                                  :: charge_constrain = .FALSE.

@@ -575,13 +575,13 @@ CONTAINS
 
       ! zmp
       IF (dft_control%apply_external_density .OR. dft_control%apply_external_vxc) THEN
-         energy%exc = 0.
+         energy%exc = 0.0_dp
          CALL calculate_zmp_potential(qs_env, v_rspace_new, rho, exc=energy%exc)
       ELSE
          ! Embedding potential
          IF (dft_control%apply_embed_pot) THEN
             NULLIFY (v_rspace_embed)
-            energy%embed_corr = 0.
+            energy%embed_corr = 0.0_dp
             CALL get_embed_potential_energy(qs_env, rho, v_rspace_embed, dft_control, &
                                             energy%embed_corr, just_energy)
          ENDIF
