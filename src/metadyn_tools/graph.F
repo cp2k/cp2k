@@ -470,7 +470,7 @@ PROGRAM graph
      CALL get_val_res(unit=unit_nr,section="&METADYN",subsection="&SPAWNED_HILLS_POS")
      DO i = 1, nt
         READ(unit_nr,'(A120)') a
-        DO WHILE (a(LEN_TRIM(a):LEN_TRIM(a))=='\')
+        DO WHILE (a(LEN_TRIM(a):LEN_TRIM(a))=='\\')
            READ(unit_nr,'(A120)') b 
            a=a(1:LEN_TRIM(a)-1)//b(1:LEN_TRIM(b))
         END DO
@@ -479,7 +479,7 @@ PROGRAM graph
      CALL get_val_res(unit=unit_nr,section="&METADYN",subsection="&SPAWNED_HILLS_SCALE")
      DO i = 1, nt
         READ(unit_nr,'(A120)') a
-        DO WHILE (a(LEN_TRIM(a):LEN_TRIM(a))=='\')
+        DO WHILE (a(LEN_TRIM(a):LEN_TRIM(a))=='\\')
            READ(unit_nr,'(A120)') b
            a=a(1:LEN_TRIM(a)-1)//b(1:LEN_TRIM(b))
         END DO
