@@ -140,6 +140,7 @@ CONTAINS
                tmp_pw, tmp_g, tmp_g2, my_vxc_tau, rho_g, rho_r, tau, rho_m_rspace, &
                rho_m_gspace, rho_nlcc, rho_nlcc_g, rho_struct_r, rho_struct_g, tau_struct_r)
 
+      exc = 0.0_dp
       my_just_energy = .FALSE.
       IF (PRESENT(just_energy)) my_just_energy = just_energy
       my_adiabatic_rescale_factor = 1.0_dp
