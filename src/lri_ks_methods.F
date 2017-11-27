@@ -19,6 +19,7 @@ MODULE lri_ks_methods
                                               dbcsr_get_block_p,&
                                               dbcsr_type
    USE kinds,                           ONLY: dp
+   USE lri_compression,                 ONLY: lri_decomp_i
    USE lri_environment_types,           ONLY: lri_environment_type,&
                                               lri_int_type,&
                                               lri_kind_type
@@ -73,7 +74,7 @@ CONTAINS
       REAL(KIND=dp)                                      :: dab, fw, isn, isna, isnb, rab(3), rai, &
                                                             raj, threshold
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: vi, via, vib
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: hf_work, hs_work, wab
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: hf_work, hs_work, int3, wab
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: h_block
       TYPE(lri_int_type), POINTER                        :: lrii
       TYPE(neighbor_list_iterator_p_type), &
@@ -103,7 +104,7 @@ CONTAINS
 !$OMP         h_matrix)&
 !$OMP PRIVATE (mepos,ikind,jkind,iatom,jatom,nlist,ilist,jneighbor,rab,iac,dab,lrii,&
 !$OMP          nfa,nfb,nba,nbb,nn,hs_work,hf_work,h_block,row,col,trans,found,wab,&
-!$OMP          rai,raj,atom_a,atom_b,isn,nm,vi,isna,isnb,via,vib,fw)
+!$OMP          rai,raj,atom_a,atom_b,isn,nm,vi,isna,isnb,via,vib,fw,int3)
 
          mepos = 0
 !$       mepos = omp_get_thread_num()
@@ -132,6 +133,7 @@ CONTAINS
             atom_a = atom_of_kind(iatom)
             atom_b = atom_of_kind(jatom)
 
+            ALLOCATE (int3(nba, nbb))
             IF (lrii%lrisr) THEN
                ALLOCATE (hs_work(nba, nbb))
                IF (iatom == jatom .AND. dab < lri_env%delta) THEN
@@ -149,14 +151,17 @@ CONTAINS
                hs_work(1:nba, 1:nbb) = isn*lrii%soo(1:nba, 1:nbb)
                IF (iatom == jatom .AND. dab < lri_env%delta) THEN
                   DO i = 1, nfa
-                     hs_work(1:nba, 1:nbb) = hs_work(1:nba, 1:nbb)+vi(i)*lrii%abaint(1:nba, 1:nbb, i)
+                     CALL lri_decomp_i(int3, lrii%cabai, i)
+                     hs_work(1:nba, 1:nbb) = hs_work(1:nba, 1:nbb)+vi(i)*int3(1:nba, 1:nbb)
                   ENDDO
                ELSE
                   DO i = 1, nfa
-                     hs_work(1:nba, 1:nbb) = hs_work(1:nba, 1:nbb)+vi(i)*lrii%abaint(1:nba, 1:nbb, i)
+                     CALL lri_decomp_i(int3, lrii%cabai, i)
+                     hs_work(1:nba, 1:nbb) = hs_work(1:nba, 1:nbb)+vi(i)*int3(1:nba, 1:nbb)
                   ENDDO
                   DO i = 1, nfb
-                     hs_work(1:nba, 1:nbb) = hs_work(1:nba, 1:nbb)+vi(nfa+i)*lrii%abbint(1:nba, 1:nbb, i)
+                     CALL lri_decomp_i(int3, lrii%cabbi, i)
+                     hs_work(1:nba, 1:nbb) = hs_work(1:nba, 1:nbb)+vi(nfa+i)*int3(1:nba, 1:nbb)
                   ENDDO
                END IF
                DEALLOCATE (vi)
@@ -191,19 +196,22 @@ CONTAINS
                !
                DO i = 1, nfa
                   IF (lrii%abascr(i) > threshold) THEN
+                     CALL lri_decomp_i(int3, lrii%cabai, i)
                      hf_work(1:nba, 1:nbb) = hf_work(1:nba, 1:nbb)+ &
-                                             via(i)*lrii%abaint(1:nba, 1:nbb, i)*wab(1:nba, 1:nbb)
+                                             via(i)*int3(1:nba, 1:nbb)*wab(1:nba, 1:nbb)
                   END IF
                ENDDO
                DO i = 1, nfb
                   IF (lrii%abbscr(i) > threshold) THEN
+                     CALL lri_decomp_i(int3, lrii%cabbi, i)
                      hf_work(1:nba, 1:nbb) = hf_work(1:nba, 1:nbb)+ &
-                                             vib(i)*lrii%abbint(1:nba, 1:nbb, i)*(1.0_dp-wab(1:nba, 1:nbb))
+                                             vib(i)*int3(1:nba, 1:nbb)*(1.0_dp-wab(1:nba, 1:nbb))
                   END IF
                ENDDO
                !
                DEALLOCATE (via, vib, wab)
             END IF
+            DEALLOCATE (int3)
 
             ! add h_work to core hamiltonian
             IF (iatom <= jatom) THEN

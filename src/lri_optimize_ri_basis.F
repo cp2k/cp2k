@@ -17,6 +17,7 @@ MODULE lri_optimize_ri_basis
    USE basis_set_types,                 ONLY: get_gto_basis_set,&
                                               gto_basis_set_type,&
                                               init_orb_basis_set
+   USE cell_types,                      ONLY: cell_type
    USE cp_log_handling,                 ONLY: cp_get_default_logger,&
                                               cp_logger_type
    USE cp_output_handling,              ONLY: cp_p_file,&
@@ -28,6 +29,7 @@ MODULE lri_optimize_ri_basis
    USE dbcsr_api,                       ONLY: dbcsr_get_block_p,&
                                               dbcsr_p_type,&
                                               dbcsr_type
+   USE generic_os_integrals,            ONLY: int_overlap_aabb_os
    USE input_constants,                 ONLY: do_lri_opt_all,&
                                               do_lri_opt_coeff,&
                                               do_lri_opt_exps
@@ -39,9 +41,10 @@ MODULE lri_optimize_ri_basis
                                               dp
    USE lri_environment_init,            ONLY: lri_basis_init
    USE lri_environment_methods,         ONLY: calculate_avec_lri,&
-                                              calculate_lri_integrals,&
-                                              calculate_lri_overlap_aabb
-   USE lri_environment_types,           ONLY: lri_density_type,&
+                                              calculate_lri_integrals
+   USE lri_environment_types,           ONLY: allocate_lri_ints_rho,&
+                                              deallocate_lri_ints_rho,&
+                                              lri_density_type,&
                                               lri_environment_type,&
                                               lri_int_rho_type,&
                                               lri_int_type,&
@@ -54,6 +57,7 @@ MODULE lri_optimize_ri_basis
                                               orthonormalize_gcc
    USE memory_utilities,                ONLY: reallocate
    USE message_passing,                 ONLY: mp_sum
+   USE particle_types,                  ONLY: particle_type
    USE powell,                          ONLY: opt_state_type,&
                                               powell_optimize
    USE qs_environment_types,            ONLY: get_qs_env,&
@@ -176,6 +180,86 @@ CONTAINS
       CALL deallocate_lri_opt(lri_opt)
 
    END SUBROUTINE optimize_lri_basis
+
+! **************************************************************************************************
+!> \brief calculates overlap integrals (aabb) of the orbital basis set,
+!>        reguired for LRI basis set optimization
+!> \param lri_env ...
+!> \param qs_env ...
+! **************************************************************************************************
+   SUBROUTINE calculate_lri_overlap_aabb(lri_env, qs_env)
+
+      TYPE(lri_environment_type), POINTER                :: lri_env
+      TYPE(qs_environment_type), POINTER                 :: qs_env
+
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'calculate_lri_overlap_aabb', &
+         routineP = moduleN//':'//routineN
+
+      INTEGER                                            :: handle, iac, iatom, ikind, ilist, jatom, &
+                                                            jkind, jneighbor, nba, nbb, nkind, &
+                                                            nlist, nneighbor
+      REAL(KIND=dp)                                      :: dab
+      REAL(KIND=dp), DIMENSION(3)                        :: rab
+      TYPE(cell_type), POINTER                           :: cell
+      TYPE(gto_basis_set_type), POINTER                  :: obasa, obasb
+      TYPE(lri_int_rho_type), POINTER                    :: lriir
+      TYPE(lri_list_type), POINTER                       :: lri_ints_rho
+      TYPE(neighbor_list_iterator_p_type), &
+         DIMENSION(:), POINTER                           :: nl_iterator
+      TYPE(neighbor_list_set_p_type), DIMENSION(:), &
+         POINTER                                         :: soo_list
+      TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
+
+      CALL timeset(routineN, handle)
+      NULLIFY (cell, lriir, lri_ints_rho, nl_iterator, obasa, obasb, &
+               particle_set, soo_list)
+
+      IF (ASSOCIATED(lri_env%soo_list)) THEN
+         soo_list => lri_env%soo_list
+
+         CALL get_qs_env(qs_env=qs_env, nkind=nkind, particle_set=particle_set, &
+                         cell=cell)
+
+         IF (ASSOCIATED(lri_env%lri_ints_rho)) THEN
+            CALL deallocate_lri_ints_rho(lri_env%lri_ints_rho)
+         END IF
+
+         CALL allocate_lri_ints_rho(lri_env, lri_env%lri_ints_rho, nkind)
+         lri_ints_rho => lri_env%lri_ints_rho
+
+         CALL neighbor_list_iterator_create(nl_iterator, soo_list)
+         DO WHILE (neighbor_list_iterate(nl_iterator) == 0)
+
+            CALL get_iterator_info(nl_iterator, ikind=ikind, jkind=jkind, &
+                                   nlist=nlist, ilist=ilist, nnode=nneighbor, inode=jneighbor, &
+                                   iatom=iatom, jatom=jatom, r=rab)
+
+            iac = ikind+nkind*(jkind-1)
+            dab = SQRT(SUM(rab*rab))
+
+            obasa => lri_env%orb_basis(ikind)%gto_basis_set
+            obasb => lri_env%orb_basis(jkind)%gto_basis_set
+            IF (.NOT. ASSOCIATED(obasa)) CYCLE
+            IF (.NOT. ASSOCIATED(obasb)) CYCLE
+
+            lriir => lri_ints_rho%lri_atom(iac)%lri_node(ilist)%lri_int_rho(jneighbor)
+
+            nba = obasa%nsgf
+            nbb = obasb%nsgf
+
+            ! calculate integrals (aa,bb)
+            CALL int_overlap_aabb_os(lriir%soaabb, obasa, obasb, rab, lri_env%debug, &
+                                     lriir%dmax_aabb)
+
+         END DO
+
+         CALL neighbor_list_iterator_release(nl_iterator)
+
+      ENDIF
+
+      CALL timestop(handle)
+
+   END SUBROUTINE calculate_lri_overlap_aabb
 
 ! **************************************************************************************************
 !> \brief initialize optimization parameter

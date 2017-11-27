@@ -190,7 +190,7 @@ CONTAINS
       CALL precalc_angular_shg_part(la_max, lb_max, rab, Waux_mat, dWaux_mat, calculate_forces)
 
       CALL int_overlap_ab_shg_low(vab, dvab, rab, fba, fbb, scona_shg, sconb_shg, &
-                                  Waux_mat, dWaux_mat, calculate_forces, contraction_high=.TRUE.)
+                                  Waux_mat, dWaux_mat, .TRUE., calculate_forces, contraction_high=.TRUE.)
 
       DEALLOCATE (Waux_mat, dWaux_mat)
 
@@ -260,12 +260,11 @@ CONTAINS
 !> \param cg_none0_list list of none-zero Clebsch-Gordon coefficients
 !> \param ncg_none0 number of non-zero Clebsch-Gordon coefficients
 !> \param calculate_forces ...
-!> \param screen ...
 ! **************************************************************************************************
    SUBROUTINE int_overlap_aba_shg(saba, dsaba, rab, oba, obb, fba, scon_obb, &
                                   scona_mix, oba_index, fba_index, &
                                   cg_coeff, cg_none0_list, ncg_none0, &
-                                  calculate_forces, screen)
+                                  calculate_forces)
 
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :), &
          INTENT(INOUT)                                   :: saba
@@ -280,7 +279,6 @@ CONTAINS
       INTEGER, DIMENSION(:, :, :), INTENT(IN)            :: cg_none0_list
       INTEGER, DIMENSION(:, :), INTENT(IN)               :: ncg_none0
       LOGICAL, INTENT(IN)                                :: calculate_forces
-      REAL(KIND=dp), DIMENSION(:), INTENT(INOUT)         :: screen
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'int_overlap_aba_shg', &
          routineP = moduleN//':'//routineN
@@ -301,7 +299,7 @@ CONTAINS
       CALL int_overlap_aba_shg_low(saba, dsaba, rab, oba, obb, fba, &
                                    scon_obb, scona_mix, oba_index, fba_index, &
                                    cg_coeff, cg_none0_list, ncg_none0, &
-                                   Waux_mat, dWaux_mat, calculate_forces, screen)
+                                   Waux_mat, dWaux_mat, .TRUE., calculate_forces)
 
       DEALLOCATE (Waux_mat, dWaux_mat)
 
@@ -325,12 +323,11 @@ CONTAINS
 !> \param cg_none0_list list of none-zero Clebsch-Gordon coefficients
 !> \param ncg_none0 number of non-zero Clebsch-Gordon coefficients
 !> \param calculate_forces ...
-!> \param screen ...
 ! **************************************************************************************************
    SUBROUTINE int_overlap_abb_shg(sabb, dsabb, rab, oba, obb, fbb, scon_oba, &
                                   sconb_mix, obb_index, fbb_index, &
                                   cg_coeff, cg_none0_list, ncg_none0, &
-                                  calculate_forces, screen)
+                                  calculate_forces)
 
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :), &
          INTENT(INOUT)                                   :: sabb
@@ -345,7 +342,6 @@ CONTAINS
       INTEGER, DIMENSION(:, :, :), INTENT(IN)            :: cg_none0_list
       INTEGER, DIMENSION(:, :), INTENT(IN)               :: ncg_none0
       LOGICAL, INTENT(IN)                                :: calculate_forces
-      REAL(KIND=dp), DIMENSION(:), INTENT(INOUT)         :: screen
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'int_overlap_abb_shg', &
          routineP = moduleN//':'//routineN
@@ -366,7 +362,7 @@ CONTAINS
       CALL int_overlap_abb_shg_low(sabb, dsabb, rab, oba, obb, fbb, &
                                    scon_oba, sconb_mix, obb_index, fbb_index, &
                                    cg_coeff, cg_none0_list, ncg_none0, &
-                                   Waux_mat, dWaux_mat, calculate_forces, screen)
+                                   Waux_mat, dWaux_mat, .TRUE., calculate_forces)
 
       DEALLOCATE (Waux_mat, dWaux_mat)
 
@@ -563,21 +559,20 @@ CONTAINS
 !> \param sconb_shg contraxtion matrix B
 !> \param Waux_mat W matrix that contains the angular-dependent part
 !> \param dWaux_mat derivative of the W matrix
+!> \param calculate_ints ...
 !> \param calculate_forces ...
 !> \param contraction_high ...
 ! **************************************************************************************************
    SUBROUTINE int_overlap_ab_shg_low(sab, dsab, rab, fba, fbb, scona_shg, sconb_shg, Waux_mat, dWaux_mat, &
-                                     calculate_forces, contraction_high)
+                                     calculate_ints, calculate_forces, contraction_high)
 
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :), &
-         INTENT(INOUT)                                   :: sab
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :), &
-         INTENT(INOUT)                                   :: dsab
+      REAL(KIND=dp), DIMENSION(:, :), INTENT(INOUT)      :: sab
+      REAL(KIND=dp), DIMENSION(:, :, :), INTENT(INOUT)   :: dsab
       REAL(KIND=dp), DIMENSION(3), INTENT(IN)            :: rab
       TYPE(gto_basis_set_type), POINTER                  :: fba, fbb
       REAL(KIND=dp), DIMENSION(:, :, :), INTENT(IN)      :: scona_shg, sconb_shg, Waux_mat
       REAL(KIND=dp), DIMENSION(:, :, :, :), INTENT(IN)   :: dWaux_mat
-      LOGICAL, INTENT(IN)                                :: calculate_forces
+      LOGICAL, INTENT(IN)                                :: calculate_ints, calculate_forces
       LOGICAL, INTENT(IN), OPTIONAL                      :: contraction_high
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'int_overlap_ab_shg_low', &
@@ -633,7 +628,7 @@ CONTAINS
       ALLOCATE (swork(npgfa_set, npgfb_set, nds_max))
       ALLOCATE (swork_cont(nds_max, nshella_set, nshellb_set))
 
-      sab = 0.0_dp
+      IF (calculate_ints) sab = 0.0_dp
       IF (calculate_forces) dsab = 0.0_dp
 
       my_contraction_high = .TRUE.
@@ -664,9 +659,11 @@ CONTAINS
                                           sconb_shg(:, :, jset), &
                                           swork, swork_cont, calculate_forces)
             ENDIF
-            CALL construct_int_shg_ab(la(:, iset), first_sgfa(:, iset), nshella(iset), &
-                                      lb(:, jset), first_sgfb(:, jset), nshellb(jset), &
-                                      swork_cont, Waux_mat, sab)
+            IF (calculate_ints) THEN
+               CALL construct_int_shg_ab(la(:, iset), first_sgfa(:, iset), nshella(iset), &
+                                         lb(:, jset), first_sgfb(:, jset), nshellb(jset), &
+                                         swork_cont, Waux_mat, sab)
+            END IF
             IF (calculate_forces) THEN
                !*** -rab, since Eq. in Ref. use Ra-Rb, not Rb-Ra
                CALL construct_dev_shg_ab(la(:, iset), first_sgfa(:, iset), nshella(iset), &
@@ -814,12 +811,12 @@ CONTAINS
 !> \param ncg_none0 number of non-zero Clebsch-Gordon coefficients
 !> \param Waux_mat W matrix that contains the angular-dependent part
 !> \param dWaux_mat derivative of the W matrix
+!> \param calculate_ints ...
 !> \param calculate_forces ...
-!> \param screen ...
 ! **************************************************************************************************
    SUBROUTINE int_overlap_abb_shg_low(abbint, dabbint, rab, oba, obb, fbb, scon_oba, sconb_mix, &
                                       obb_index, fbb_index, cg_coeff, cg_none0_list, &
-                                      ncg_none0, Waux_mat, dWaux_mat, calculate_forces, screen)
+                                      ncg_none0, Waux_mat, dWaux_mat, calculate_ints, calculate_forces)
 
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :), &
          INTENT(INOUT)                                   :: abbint
@@ -835,13 +832,12 @@ CONTAINS
       INTEGER, DIMENSION(:, :), INTENT(IN)               :: ncg_none0
       REAL(KIND=dp), DIMENSION(:, :, :), INTENT(IN)      :: Waux_mat
       REAL(KIND=dp), DIMENSION(:, :, :, :), INTENT(IN)   :: dWaux_mat
-      LOGICAL, INTENT(IN)                                :: calculate_forces
-      REAL(KIND=dp), DIMENSION(:), INTENT(INOUT)         :: screen
+      LOGICAL, INTENT(IN)                                :: calculate_ints, calculate_forces
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'int_overlap_abb_shg_low', &
          routineP = moduleN//':'//routineN
 
-      INTEGER :: handle, i, iset, jset, kset, la_max_set, lb_max_set, lbb_max, lbb_max_set, &
+      INTEGER :: handle, iset, jset, kset, la_max_set, lb_max_set, lbb_max, lbb_max_set, &
          lcb_max_set, na, nb, ncb, ndev, nds, nds_max, nl, nl_set, npgfa_set, npgfb_set, &
          npgfcb_set, nseta, nsetb, nsetcb, nshella_set, nshellb_set, nshellcb_set, sgfa, sgfb, &
          sgfcb
@@ -851,7 +847,6 @@ CONTAINS
       INTEGER, DIMENSION(:, :), POINTER                  :: first_sgfa, first_sgfb, first_sgfcb, la, &
                                                             lb, lcb
       REAL(KIND=dp)                                      :: dab, rab2
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: sscr
       REAL(KIND=dp), ALLOCATABLE, &
          DIMENSION(:, :, :, :, :)                        :: swork, swork_cont
       REAL(KIND=dp), DIMENSION(:), POINTER               :: set_radius_a, set_radius_b, set_radius_cb
@@ -917,9 +912,6 @@ CONTAINS
       nl_set = INT((lbb_max_set)/2)
       ALLOCATE (swork(npgfa_set, npgfb_set, npgfcb_set, nl_set+1, nds_max))
       ALLOCATE (swork_cont(nds_max, 0:nl_set, nshella_set, nshellb_set, nshellcb_set))
-      ! allocate intermediate screening array
-      ALLOCATE (sscr(nseta, nsetb, SIZE(screen)))
-      sscr = 0.0_dp
 
       DO iset = 1, nseta
 
@@ -948,11 +940,13 @@ CONTAINS
                                            swork(1:npgfa(iset), 1:npgfb(jset), 1:npgfcb(kset), 1:nl, 1:nds), &
                                            swork_cont, calculate_forces)
 
-               CALL construct_overlap_shg_abb(la(:, iset), first_sgfa(:, iset), nshella(iset), &
-                                              lb(:, jset), first_sgfb(:, jset), nshellb(jset), &
-                                              lcb(:, kset), first_sgfcb(:, kset), nshellcb(kset), &
-                                              cg_coeff, cg_none0_list, &
-                                              ncg_none0, swork_cont, Waux_mat, abbint)
+               IF (calculate_ints) THEN
+                  CALL construct_overlap_shg_abb(la(:, iset), first_sgfa(:, iset), nshella(iset), &
+                                                 lb(:, jset), first_sgfb(:, jset), nshellb(jset), &
+                                                 lcb(:, kset), first_sgfcb(:, kset), nshellcb(kset), &
+                                                 cg_coeff, cg_none0_list, &
+                                                 ncg_none0, swork_cont, Waux_mat, abbint)
+               ENDIF
                IF (calculate_forces) THEN
                   !*** -rab, since Eq. in Ref. use Ra-Rb, not Rb-Ra
                   CALL dev_overlap_shg_abb(la(:, iset), first_sgfa(:, iset), nshella(iset), &
@@ -968,19 +962,10 @@ CONTAINS
                nb = sgfb+nsgfb(jset)-1
                sgfcb = first_sgfcb(1, kset)
                ncb = sgfcb+nsgfcb(kset)-1
-               DO i = sgfcb, ncb
-                  sscr(iset, jset, i) = MAXVAL(ABS(abbint(sgfa:na, sgfb:nb, i)))
-               END DO
             END DO
          END DO
       END DO
 
-      !screening
-      DO i = 1, SIZE(screen)
-         screen(i) = MAXVAL(sscr(:, :, i))
-      END DO
-
-      DEALLOCATE (sscr)
       DEALLOCATE (swork_cont)
       DEALLOCATE (swork)
 
@@ -997,10 +982,11 @@ CONTAINS
 !> \param rab distance vector between A and B
 !> \param oba orbital basis at center A
 !> \param fba auxiliary basis set at center A
+!> \param calculate_ints ...
 !> \param calculate_forces ...
 ! **************************************************************************************************
    SUBROUTINE get_abb_same_kind(abbint, dabbint, abaint, dabdaint, rab, oba, fba, &
-                                calculate_forces)
+                                calculate_ints, calculate_forces)
 
       REAL(KIND=dp), DIMENSION(:, :, :), INTENT(INOUT)   :: abbint
       REAL(KIND=dp), ALLOCATABLE, &
@@ -1010,7 +996,7 @@ CONTAINS
          DIMENSION(:, :, :, :), INTENT(INOUT)            :: dabdaint
       REAL(KIND=dp), DIMENSION(3), INTENT(IN)            :: rab
       TYPE(gto_basis_set_type), POINTER                  :: oba, fba
-      LOGICAL, INTENT(IN)                                :: calculate_forces
+      LOGICAL, INTENT(IN)                                :: calculate_ints, calculate_forces
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'get_abb_same_kind', &
          routineP = moduleN//':'//routineN
@@ -1091,8 +1077,10 @@ CONTAINS
                      DO isgfa = istart, iend
                         lai = lai_set(isgfa)
                         IF (MODULO((lai+laj+lak), 2) /= 0) THEN
-                           abbint(isgfa, jsgfa, ksgfa) = &
-                              -abaint(jsgfa, isgfa, ksgfa)
+                           IF (calculate_ints) THEN
+                              abbint(isgfa, jsgfa, ksgfa) = &
+                                 -abaint(jsgfa, isgfa, ksgfa)
+                           END IF
                            IF (calculate_forces) THEN
                               DO i = 1, 3
                                  dabbint(isgfa, jsgfa, ksgfa, i) = &
@@ -1100,8 +1088,10 @@ CONTAINS
                               ENDDO
                            ENDIF
                         ELSE
-                           abbint(isgfa, jsgfa, ksgfa) = &
-                              abaint(jsgfa, isgfa, ksgfa)
+                           IF (calculate_ints) THEN
+                              abbint(isgfa, jsgfa, ksgfa) = &
+                                 abaint(jsgfa, isgfa, ksgfa)
+                           END IF
                            IF (calculate_forces) THEN
                               DO i = 1, 3
                                  dabbint(isgfa, jsgfa, ksgfa, i) = &
@@ -1139,12 +1129,12 @@ CONTAINS
 !> \param ncg_none0 number of non-zero Clebsch-Gordon coefficients
 !> \param Waux_mat W matrix that contains the angular-dependent part
 !> \param dWaux_mat derivative of the W matrix
+!> \param calculate_ints ...
 !> \param calculate_forces ...
-!> \param screen ...
 ! **************************************************************************************************
    SUBROUTINE int_overlap_aba_shg_low(abaint, dabdaint, rab, oba, obb, fba, scon_obb, scona_mix, &
                                       oba_index, fba_index, cg_coeff, cg_none0_list, &
-                                      ncg_none0, Waux_mat, dWaux_mat, calculate_forces, screen)
+                                      ncg_none0, Waux_mat, dWaux_mat, calculate_ints, calculate_forces)
 
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :), &
          INTENT(INOUT)                                   :: abaint
@@ -1160,13 +1150,12 @@ CONTAINS
       INTEGER, DIMENSION(:, :), INTENT(IN)               :: ncg_none0
       REAL(KIND=dp), DIMENSION(:, :, :), INTENT(IN)      :: Waux_mat
       REAL(KIND=dp), DIMENSION(:, :, :, :), INTENT(IN)   :: dWaux_mat
-      LOGICAL, INTENT(IN)                                :: calculate_forces
-      REAL(KIND=dp), DIMENSION(:), INTENT(INOUT)         :: screen
+      LOGICAL, INTENT(IN)                                :: calculate_ints, calculate_forces
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'int_overlap_aba_shg_low', &
          routineP = moduleN//':'//routineN
 
-      INTEGER :: handle, i, iset, jset, kset, la_max_set, laa_max, laa_max_set, lb_max_set, &
+      INTEGER :: handle, iset, jset, kset, la_max_set, laa_max, laa_max_set, lb_max_set, &
          lca_max_set, na, nb, nca, ndev, nds, nds_max, nl, nl_set, npgfa_set, npgfb_set, &
          npgfca_set, nseta, nsetb, nsetca, nshella_set, nshellb_set, nshellca_set, sgfa, sgfb, &
          sgfca
@@ -1176,7 +1165,6 @@ CONTAINS
       INTEGER, DIMENSION(:, :), POINTER                  :: first_sgfa, first_sgfb, first_sgfca, la, &
                                                             lb, lca
       REAL(KIND=dp)                                      :: dab, rab2
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: sscr
       REAL(KIND=dp), ALLOCATABLE, &
          DIMENSION(:, :, :, :, :)                        :: swork, swork_cont
       REAL(KIND=dp), DIMENSION(:), POINTER               :: set_radius_a, set_radius_b, set_radius_ca
@@ -1242,9 +1230,6 @@ CONTAINS
       nl_set = INT((laa_max_set)/2)
       ALLOCATE (swork(npgfb_set, npgfa_set, npgfca_set, nl_set+1, nds_max))
       ALLOCATE (swork_cont(nds_max, 0:nl_set, nshella_set, nshellb_set, nshellca_set))
-      ! allocate intermediate screening array
-      ALLOCATE (sscr(nseta, nsetb, SIZE(screen)))
-      sscr = 0.0_dp
 
       DO iset = 1, nseta
 
@@ -1273,11 +1258,13 @@ CONTAINS
                                            oba_index(:, :, iset), fba_index(:, :, kset), scona_mix, nl, nds, &
                                            swork(1:npgfb(jset), 1:npgfa(iset), 1:npgfca(kset), 1:nl, 1:nds), &
                                            swork_cont, calculate_forces)
-               CALL construct_overlap_shg_aba(la(:, iset), first_sgfa(:, iset), nshella(iset), &
-                                              lb(:, jset), first_sgfb(:, jset), nshellb(jset), &
-                                              lca(:, kset), first_sgfca(:, kset), nshellca(kset), &
-                                              cg_coeff, cg_none0_list, ncg_none0, &
-                                              swork_cont, Waux_mat, abaint)
+               IF (calculate_ints) THEN
+                  CALL construct_overlap_shg_aba(la(:, iset), first_sgfa(:, iset), nshella(iset), &
+                                                 lb(:, jset), first_sgfb(:, jset), nshellb(jset), &
+                                                 lca(:, kset), first_sgfca(:, kset), nshellca(kset), &
+                                                 cg_coeff, cg_none0_list, ncg_none0, &
+                                                 swork_cont, Waux_mat, abaint)
+               ENDIF
                IF (calculate_forces) THEN
                   !*** -rab, since Eq. in Ref. use Ra-Rb, not Rb-Ra
                   CALL dev_overlap_shg_aba(la(:, iset), first_sgfa(:, iset), nshella(iset), &
@@ -1293,19 +1280,11 @@ CONTAINS
                nb = sgfb+nsgfb(jset)-1
                sgfca = first_sgfca(1, kset)
                nca = sgfca+nsgfca(kset)-1
-               DO i = sgfca, nca
-                  sscr(iset, jset, i) = MAXVAL(ABS(abaint(sgfa:na, sgfb:nb, i)))
-               END DO
 
             END DO
          END DO
       END DO
-      !screening
-      DO i = 1, SIZE(screen)
-         screen(i) = MAXVAL(sscr(:, :, i))
-      END DO
 
-      DEALLOCATE (sscr)
       DEALLOCATE (swork_cont)
       DEALLOCATE (swork)
 

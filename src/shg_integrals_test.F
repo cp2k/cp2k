@@ -696,7 +696,6 @@ CONTAINS
                                                             dmax_overlap_abb, dtemp, dummy
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: saba_os, saba_shg, sabb_os, sabb_shg
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :, :)  :: dsaba_os, dsaba_shg, dsabb_os, dsabb_shg
-      REAL(KIND=dp), DIMENSION(:), POINTER               :: screen
       REAL(KIND=dp), DIMENSION(:, :, :), POINTER         :: cg_coeff
       REAL(KIND=dp), DIMENSION(:, :, :, :), POINTER      :: scona_mix, sconb_mix
 
@@ -732,7 +731,6 @@ CONTAINS
             lbb_max = MAXVAL(obb%lmax)+MAXVAL(fbb%lmax)
             ALLOCATE (sabb_shg(nba, nbb, nfb), dsabb_shg(nba, nbb, nfb, 3))
             ALLOCATE (sabb_os(nba, nbb, nfb), dsabb_os(nba, nbb, nfb, 3))
-            ALLOCATE (screen(nfb))
             CALL contraction_matrix_shg_mix(obb, fbb, obb_index, fbb_index, sconb_mix)
          ENDIF
          dummy = 0.0_dp
@@ -748,9 +746,9 @@ CONTAINS
                   CALL int_overlap_aba_shg(saba_shg, dsaba_shg, rab(:, iab), oba, obb, fba, &
                                            scon_obb, scona_mix, oba_index, fba_index, &
                                            cg_coeff, cg_none0_list, ncg_none0, &
-                                           calc_derivatives, screen)
+                                           calc_derivatives)
                   CALL int_overlap_aba_os(saba_os, dsaba_os, rab(:, iab), oba, obb, fba, &
-                                          calc_derivatives, debug=.FALSE., dmax=dummy, screen=screen)
+                                          calc_derivatives, debug=.FALSE., dmax=dummy)
                   CALL calculate_deviation_abx(saba_shg, saba_os, dsaba_shg, dsaba_os, dtemp, ddtemp)
                   dmax_overlap_aba = MAX(dmax_overlap_aba, dtemp)
                   ddmax_overlap_aba = MAX(ddmax_overlap_aba, ddtemp)
@@ -765,9 +763,9 @@ CONTAINS
                   CALL int_overlap_abb_shg(sabb_shg, dsabb_shg, rab(:, iab), oba, obb, fbb, &
                                            scon_oba, sconb_mix, obb_index, fbb_index, &
                                            cg_coeff, cg_none0_list, ncg_none0, &
-                                           calc_derivatives, screen)
+                                           calc_derivatives)
                   CALL int_overlap_abb_os(sabb_os, dsabb_os, rab(:, iab), oba, obb, fbb, &
-                                          calc_derivatives, debug=.FALSE., dmax=dummy, screen=screen)
+                                          calc_derivatives, debug=.FALSE., dmax=dummy)
                   CALL calculate_deviation_abx(sabb_shg, sabb_os, dsabb_shg, dsabb_os, dtemp, ddtemp)
                   dmax_overlap_abb = MAX(dmax_overlap_abb, dtemp)
                   ddmax_overlap_abb = MAX(ddmax_overlap_abb, ddtemp)
@@ -775,7 +773,6 @@ CONTAINS
             ENDDO
             DEALLOCATE (obb_index, fbb_index, sconb_mix)
             DEALLOCATE (sabb_shg, sabb_os, dsabb_shg, dsabb_os)
-            DEALLOCATE (screen)
          ENDIF
          IF (iw > 0) THEN
             WRITE (iw, FMT="(/,T2,A)") "TEST INFO [a|b|x] OVERLAP SHG and OS INTEGRALS:"

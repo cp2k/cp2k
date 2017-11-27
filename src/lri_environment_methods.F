@@ -32,26 +32,24 @@ MODULE lri_environment_methods
                                               dbcsr_release,&
                                               dbcsr_replicate_all,&
                                               dbcsr_type
-   USE generic_os_integrals,            ONLY: int_overlap_aabb_os,&
-                                              int_overlap_ab_os,&
-                                              int_overlap_aba_os,&
-                                              int_overlap_abb_os
-   USE generic_shg_integrals,           ONLY: get_abb_same_kind,&
-                                              int_overlap_ab_shg_low,&
-                                              int_overlap_aba_shg_low,&
-                                              int_overlap_abb_shg_low,&
-                                              lri_precalc_angular_shg_part
+   USE generic_os_integrals,            ONLY: int_overlap_aabb_os
    USE input_constants,                 ONLY: do_lri_inv,&
                                               do_lri_inv_auto,&
                                               do_lri_pseudoinv_diag,&
                                               do_lri_pseudoinv_svd
    USE input_section_types,             ONLY: section_vals_type
    USE kinds,                           ONLY: dp
+   USE lri_compression,                 ONLY: lri_comp,&
+                                              lri_decomp_i
    USE lri_environment_types,           ONLY: &
         allocate_lri_coefs, allocate_lri_ints, allocate_lri_ints_rho, allocate_lri_rhos, &
         deallocate_lri_ints, deallocate_lri_ints_rho, lri_density_create, lri_density_release, &
         lri_density_type, lri_environment_type, lri_int_rho_type, lri_int_type, lri_kind_type, &
         lri_list_type, lri_rhoab_type
+   USE lri_integrals,                   ONLY: allocate_int_type,&
+                                              deallocate_int_type,&
+                                              int_type,&
+                                              lri_int2
    USE mathlib,                         ONLY: get_pseudo_inverse_diag,&
                                               get_pseudo_inverse_svd,&
                                               invmat_symm
@@ -85,8 +83,7 @@ MODULE lri_environment_methods
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'lri_environment_methods'
 
    PUBLIC :: build_lri_matrices, calculate_lri_densities, &
-             calculate_lri_integrals, calculate_lri_overlap_aabb, calculate_avec_lri, &
-             lri_int_os, lri_int_shg
+             calculate_lri_integrals, calculate_avec_lri
 
 ! **************************************************************************************************
 
@@ -135,6 +132,7 @@ CONTAINS
       TYPE(cell_type), POINTER                           :: cell
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(gto_basis_set_type), POINTER                  :: fbasa, fbasb, obasa, obasb
+      TYPE(int_type)                                     :: lriint
       TYPE(lri_int_type), POINTER                        :: lrii
       TYPE(lri_list_type), POINTER                       :: lri_ints
       TYPE(neighbor_list_iterator_p_type), &
@@ -169,7 +167,7 @@ CONTAINS
 !$OMP PARALLEL DEFAULT(NONE)&
 !$OMP SHARED (nthread,nl_iterator,lri_env,lri_ints,nkind,use_virial)&
 !$OMP PRIVATE (mepos,ikind,jkind,iatom,jatom,nlist,ilist,nneighbor,jneighbor,rab,dab,&
-!$OMP          e1c,iac,obasa,obasb,fbasa,fbasb,lrii,nba,nbb,nfa,nfb,nn)
+!$OMP          e1c,iac,obasa,obasb,fbasa,fbasb,lrii,lriint,nba,nbb,nfa,nfb,nn)
 
          mepos = 0
 !$       mepos = omp_get_thread_num()
@@ -194,9 +192,7 @@ CONTAINS
 
             ! exact 1 center approximation
             e1c = .FALSE.
-            IF (lri_env%exact_1c_terms) THEN
-               IF (iatom == jatom .AND. dab < lri_env%delta) e1c = .TRUE.
-            END IF
+            IF (iatom == jatom .AND. dab < lri_env%delta) e1c = .TRUE.
             ! forces: not every pair is giving contributions
             ! no forces for self-pair aa
             IF (iatom == jatom .AND. dab < lri_env%delta) THEN
@@ -210,76 +206,82 @@ CONTAINS
                ENDIF
             ENDIF
 
-            nba = obasa%nsgf
-            nbb = obasb%nsgf
-            nfa = fbasa%nsgf
-            nfb = fbasb%nsgf
+            IF (e1c .AND. lri_env%exact_1c_terms) THEN
+               ! nothing to do
+            ELSE
+               nba = obasa%nsgf
+               nbb = obasb%nsgf
+               nfa = fbasa%nsgf
+               nfb = fbasb%nsgf
 
-            lrii%nba = nba
-            lrii%nbb = nbb
-            lrii%nfa = nfa
-            lrii%nfb = nfb
+               lrii%nba = nba
+               lrii%nbb = nbb
+               lrii%nfa = nfa
+               lrii%nfb = nfb
 
-            ! full method is used
-            ! calculate integrals (fa,fb), (a,b), (a,b,fa) and (a,b,fb)
-            IF (ALLOCATED(lrii%sab)) DEALLOCATE (lrii%sab)
-            ALLOCATE (lrii%sab(nfa, nfb))
-            IF (.NOT. e1c) THEN
-               IF (lri_env%use_shg_integrals) THEN
-                  CALL lri_int_shg(lri_env, lrii, rab, obasa, obasb, fbasa, fbasb, &
-                                   iatom, jatom, ikind, jkind, .FALSE.)
+               ! full method is used
+               ! calculate integrals (fa,fb), (a,b), (a,b,fa) and (a,b,fb)
+               CALL allocate_int_type(lriint=lriint, &
+                                      nba=nba, nbb=nbb, nfa=nfa, nfb=nfb, skip_sab=(.NOT. lrii%lrisr))
+               CALL lri_int2(lri_env, lrii, lriint, rab, obasa, obasb, fbasa, fbasb, &
+                             iatom, jatom, ikind, jkind)
+               ! store abaint/abbint in compressed form
+               IF (e1c) THEN
+                  CALL lri_comp(lriint%abaint, lrii%abascr, lrii%cabai)
                ELSE
-                  CALL lri_int_os(lri_env, lrii, rab, obasa, obasb, fbasa, fbasb, &
-                                  iatom, jatom, ikind, .FALSE.)
-               ENDIF
-            ENDIF
+                  CALL lri_comp(lriint%abaint, lrii%abascr, lrii%cabai)
+                  CALL lri_comp(lriint%abbint, lrii%abbscr, lrii%cabbi)
+               END IF
+               ! store overlap
+               lrii%soo(1:nba, 1:nbb) = lriint%sooint(1:nba, 1:nbb)
 
-            ! Full LRI method
-            IF (lrii%lrisr) THEN
-               ! construct and invert S matrix
-               IF (iatom == jatom .AND. dab < lri_env%delta) THEN
-                  IF (.NOT. e1c) THEN
+               ! Full LRI method
+               IF (lrii%lrisr) THEN
+                  ! construct and invert S matrix
+                  ! calculate Sinv*n and n*Sinv*n
+                  IF (e1c) THEN
                      lrii%sinv(1:nfa, 1:nfa) = lri_env%bas_prop(ikind)%ri_ovlp_inv(1:nfa, 1:nfa)
-                  END IF
-               ELSE
-                  nn = nfa+nfb
-                  lrii%sinv(1:nfa, 1:nfa) = lri_env%bas_prop(ikind)%ri_ovlp(1:nfa, 1:nfa)
-                  lrii%sinv(1:nfa, nfa+1:nn) = lrii%sab(1:nfa, 1:nfb)
-                  lrii%sinv(nfa+1:nn, 1:nfa) = TRANSPOSE(lrii%sab(1:nfa, 1:nfb))
-                  lrii%sinv(nfa+1:nn, nfa+1:nn) = lri_env%bas_prop(jkind)%ri_ovlp(1:nfb, 1:nfb)
-                  CALL inverse_lri_overlap(lri_env, lrii%sinv)
-               ENDIF
-
-               ! calculate Sinv*n and n*Sinv*n
-               IF (.NOT. e1c) THEN
-                  lrii%n(1:nfa) = lri_env%bas_prop(ikind)%int_fbas(1:nfa)
-                  IF (iatom == jatom .AND. dab < lri_env%delta) THEN
+                     lrii%n(1:nfa) = lri_env%bas_prop(ikind)%int_fbas(1:nfa)
                      CALL dgemv("N", nfa, nfa, 1.0_dp, lrii%sinv(1, 1), nfa, &
                                 lrii%n(1), 1, 0.0_dp, lrii%sn, 1)
                      lrii%nsn = SUM(lrii%sn(1:nfa)*lrii%n(1:nfa))
                   ELSE
+                     nn = nfa+nfb
+                     lrii%sinv(1:nfa, 1:nfa) = lri_env%bas_prop(ikind)%ri_ovlp(1:nfa, 1:nfa)
+                     lrii%sinv(1:nfa, nfa+1:nn) = lriint%sabint(1:nfa, 1:nfb)
+                     lrii%sinv(nfa+1:nn, 1:nfa) = TRANSPOSE(lriint%sabint(1:nfa, 1:nfb))
+                     lrii%sinv(nfa+1:nn, nfa+1:nn) = lri_env%bas_prop(jkind)%ri_ovlp(1:nfb, 1:nfb)
+                     CALL inverse_lri_overlap(lri_env, lrii%sinv)
+                     lrii%n(1:nfa) = lri_env%bas_prop(ikind)%int_fbas(1:nfa)
                      lrii%n(nfa+1:nn) = lri_env%bas_prop(jkind)%int_fbas(1:nfb)
                      CALL dgemv("N", nn, nn, 1.0_dp, lrii%sinv(1, 1), nn, &
                                 lrii%n(1), 1, 0.0_dp, lrii%sn, 1)
                      lrii%nsn = SUM(lrii%sn(1:nn)*lrii%n(1:nn))
                   ENDIF
+                  IF (lri_env%store_integrals) THEN
+                     IF (ALLOCATED(lrii%sab)) DEALLOCATE (lrii%sab)
+                     ALLOCATE (lrii%sab(nfa, nfb))
+                     lrii%sab(1:nfa, 1:nfb) = lriint%sabint(1:nfa, 1:nfb)
+                  END IF
                END IF
-            END IF
-            IF (.NOT. lri_env%store_integrals) THEN
-               IF (ALLOCATED(lrii%sab)) DEALLOCATE (lrii%sab)
-            END IF
 
-            ! Distant Pair methods
-            IF (lrii%lriff) THEN
-               ! calculate Sinv*n and n*Sinv*n for A and B centers
-               lrii%na(1:nfa) = lri_env%bas_prop(ikind)%int_fbas(1:nfa)
-               lrii%nb(1:nfb) = lri_env%bas_prop(jkind)%int_fbas(1:nfb)
-               CALL dgemv("N", nfa, nfa, 1.0_dp, lrii%asinv(1, 1), nfa, &
-                          lrii%na(1), 1, 0.0_dp, lrii%sna, 1)
-               lrii%nsna = SUM(lrii%sna(1:nfa)*lrii%na(1:nfa))
-               CALL dgemv("N", nfb, nfb, 1.0_dp, lrii%bsinv(1, 1), nfb, &
-                          lrii%nb(1), 1, 0.0_dp, lrii%snb, 1)
-               lrii%nsnb = SUM(lrii%snb(1:nfb)*lrii%nb(1:nfb))
+               ! Distant Pair methods
+               IF (lrii%lriff) THEN
+                  CPASSERT(.NOT. e1c)
+                  CPASSERT(.NOT. lri_env%store_integrals)
+                  ! calculate Sinv*n and n*Sinv*n for A and B centers
+                  lrii%na(1:nfa) = lri_env%bas_prop(ikind)%int_fbas(1:nfa)
+                  lrii%nb(1:nfb) = lri_env%bas_prop(jkind)%int_fbas(1:nfb)
+                  CALL dgemv("N", nfa, nfa, 1.0_dp, lrii%asinv(1, 1), nfa, &
+                             lrii%na(1), 1, 0.0_dp, lrii%sna, 1)
+                  lrii%nsna = SUM(lrii%sna(1:nfa)*lrii%na(1:nfa))
+                  CALL dgemv("N", nfb, nfb, 1.0_dp, lrii%bsinv(1, 1), nfb, &
+                             lrii%nb(1), 1, 0.0_dp, lrii%snb, 1)
+                  lrii%nsnb = SUM(lrii%snb(1:nfb)*lrii%nb(1:nfb))
+               END IF
+
+               CALL deallocate_int_type(lriint=lriint)
+
             END IF
 
          END DO
@@ -437,7 +439,7 @@ CONTAINS
       LOGICAL                                            :: found, trans
       REAL(KIND=dp)                                      :: dab, rab(3), rai, raj, threshold
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: m
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: paa, pab, pbb
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: int3, paa, pab, pbb
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: pbij
       TYPE(dbcsr_type), POINTER                          :: pmat
       TYPE(lri_int_type), POINTER                        :: lrii
@@ -474,7 +476,7 @@ CONTAINS
 !$OMP PARALLEL DEFAULT(NONE)&
 !$OMP SHARED (nthread,nl_iterator,lri_env,lri_rho,pmat,nkind)&
 !$OMP PRIVATE (mepos,ikind,jkind,iatom,jatom,nlist,ilist,nneighbor,jneighbor,rab,dab,iac,&
-!$OMP          trans,found,pbij,pab,paa,pbb,lrho,lrii,nba,nbb,nfa,nfb,nn,threshold,i,m,rai,raj)
+!$OMP          trans,found,pbij,pab,paa,pbb,int3,lrho,lrii,nba,nbb,nfa,nfb,nn,threshold,i,m,rai,raj)
 
             mepos = 0
 !$          mepos = omp_get_thread_num()
@@ -518,24 +520,18 @@ CONTAINS
                   pab(1:nba, 1:nbb) = pbij(1:nba, 1:nbb)
                END IF
 
+               ALLOCATE (int3(nba, nbb))
                IF (lrii%lrisr) THEN
                   ! full LRI method
-                  threshold = lri_env%eps_o3_int/MAX(SUM(ABS(pab(1:nba, 1:nbb))), 1.0e-14_dp)
                   lrho%charge = SUM(pab(1:nba, 1:nbb)*lrii%soo(1:nba, 1:nbb))
                   DO i = 1, nfa
-                     IF (lrii%abascr(i) > threshold) THEN
-                        lrho%tvec(i) = SUM(pab(1:nba, 1:nbb)*lrii%abaint(1:nba, 1:nbb, i))
-                     ELSE
-                        lrho%tvec(i) = 0.0_dp
-                     END IF
+                     CALL lri_decomp_i(int3, lrii%cabai, i)
+                     lrho%tvec(i) = SUM(pab(1:nba, 1:nbb)*int3(1:nba, 1:nbb))
                   END DO
                   IF (dab > lri_env%delta) THEN
                      DO i = 1, nfb
-                        IF (lrii%abbscr(i) > threshold) THEN
-                           lrho%tvec(nfa+i) = SUM(pab(1:nba, 1:nbb)*lrii%abbint(1:nba, 1:nbb, i))
-                        ELSE
-                           lrho%tvec(nfa+i) = 0.0_dp
-                        END IF
+                        CALL lri_decomp_i(int3, lrii%cabbi, i)
+                        lrho%tvec(nfa+i) = SUM(pab(1:nba, 1:nbb)*int3(1:nba, 1:nbb))
                      END DO
                   ENDIF
                   !
@@ -587,7 +583,8 @@ CONTAINS
                   lrho%chargea = SUM(paa(1:nba, 1:nbb)*lrii%soo(1:nba, 1:nbb))
                   DO i = 1, nfa
                      IF (lrii%abascr(i) > threshold) THEN
-                        lrho%tveca(i) = SUM(paa(1:nba, 1:nbb)*lrii%abaint(1:nba, 1:nbb, i))
+                        CALL lri_decomp_i(int3, lrii%cabai, i)
+                        lrho%tveca(i) = SUM(paa(1:nba, 1:nbb)*int3(1:nba, 1:nbb))
                      ELSE
                         lrho%tveca(i) = 0.0_dp
                      END IF
@@ -596,7 +593,8 @@ CONTAINS
                   lrho%chargeb = SUM(pbb(1:nba, 1:nbb)*lrii%soo(1:nba, 1:nbb))
                   DO i = 1, nfb
                      IF (lrii%abbscr(i) > threshold) THEN
-                        lrho%tvecb(i) = SUM(pbb(1:nba, 1:nbb)*lrii%abbint(1:nba, 1:nbb, i))
+                        CALL lri_decomp_i(int3, lrii%cabbi, i)
+                        lrho%tvecb(i) = SUM(pbb(1:nba, 1:nbb)*int3(1:nba, 1:nbb))
                      ELSE
                         lrho%tvecb(i) = 0.0_dp
                      END IF
@@ -621,7 +619,7 @@ CONTAINS
                   DEALLOCATE (paa, pbb)
                ENDIF
 
-               DEALLOCATE (pab)
+               DEALLOCATE (pab, int3)
 
             END DO
 !$OMP END PARALLEL
@@ -793,196 +791,6 @@ CONTAINS
       CALL timestop(handle)
 
    END SUBROUTINE distribute_lri_density_on_the_grid
-
-! **************************************************************************************************
-!> \brief calculates the lri intergrals according to the Obara-Saika (OS)
-!>        scheme
-!> \param lri_env ...
-!> \param lrii ...
-!> \param rab distance vector
-!> \param obasa orb basis on center A
-!> \param obasb orb basis on center B
-!> \param fbasa aux basis on center A
-!> \param fbasb aux basis on center B
-!> \param iatom index atom A
-!> \param jatom index atom B
-!> \param ikind kind atom A
-!> \param calculate_forces ...
-! **************************************************************************************************
-   SUBROUTINE lri_int_os(lri_env, lrii, rab, obasa, obasb, fbasa, fbasb, &
-                         iatom, jatom, ikind, calculate_forces)
-
-      TYPE(lri_environment_type), POINTER                :: lri_env
-      TYPE(lri_int_type), POINTER                        :: lrii
-      REAL(KIND=dp), DIMENSION(3), INTENT(IN)            :: rab
-      TYPE(gto_basis_set_type), POINTER                  :: obasa, obasb, fbasa, fbasb
-      INTEGER, INTENT(IN)                                :: iatom, jatom, ikind
-      LOGICAL, INTENT(IN)                                :: calculate_forces
-
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'lri_int_os', routineP = moduleN//':'//routineN
-
-      INTEGER                                            :: handle, nba, nbb, nfa, nfb
-      LOGICAL                                            :: do_force
-      REAL(KIND=dp)                                      :: dab
-
-      CALL timeset(routineN, handle)
-
-      dab = SQRT(SUM(rab*rab))
-      nba = obasa%nsgf
-      nbb = obasb%nsgf
-      nfa = fbasa%nsgf
-      nfb = fbasb%nsgf
-
-      !*** calculate overlap integrals; for iatom=jatom this is the self-overlap
-      IF (iatom == jatom .AND. dab < lri_env%delta) THEN
-         !*** (fa,fa)
-         lrii%sab(1:nfa, 1:nfa) = lri_env%bas_prop(ikind)%ri_ovlp(1:nfa, 1:nfa)
-         !*** (a,a)
-         lrii%soo(1:nba, 1:nba) = lri_env%bas_prop(ikind)%orb_ovlp(1:nba, 1:nba)
-         !*** (a,a,fa)
-         CALL int_overlap_aba_os(lrii%abaint, rab=rab, oba=obasa, obb=obasb, &
-                                 fba=fbasa, calculate_forces=.FALSE., debug=lri_env%debug, &
-                                 dmax=lrii%dmax_aba, screen=lrii%abascr)
-         IF (calculate_forces) THEN
-            lrii%dsab = 0._dp
-            lrii%dsoo = 0._dp
-            lrii%dabdaint = 0.0_dp
-            lrii%dabbint = 0.0_dp
-         END IF
-      ELSE
-         IF (calculate_forces) THEN
-            do_force = lrii%calc_force_pair
-         ELSE
-            do_force = .FALSE.
-         END IF
-         !*** (fa,fb)
-         CALL int_overlap_ab_os(lrii%sab, lrii%dsab, rab, fbasa, fbasb, &
-                                do_force, lri_env%debug, lrii%dmax_ab)
-         !*** (a,b)
-         CALL int_overlap_ab_os(lrii%soo, lrii%dsoo, rab, obasa, obasb, &
-                                do_force, lri_env%debug, lrii%dmax_oo)
-         !*** (a,b,fa)
-         CALL int_overlap_aba_os(lrii%abaint, lrii%dabdaint, rab, obasa, obasb, fbasa, &
-                                 do_force, lri_env%debug, lrii%dmax_aba, screen=lrii%abascr)
-         !*** (a,b,fb)
-         CALL int_overlap_abb_os(lrii%abbint, lrii%dabbint, rab, obasa, obasb, fbasb, &
-                                 do_force, lri_env%debug, lrii%dmax_abb, screen=lrii%abbscr)
-      ENDIF
-
-      CALL timestop(handle)
-
-   END SUBROUTINE lri_int_os
-
-! **************************************************************************************************
-!> \brief calcuates the lri integrals using solid harmonic Gaussians
-!> \param lri_env ...
-!> \param lrii ...
-!> \param rab distance vector
-!> \param obasa orb basis on A
-!> \param obasb orb basis on B
-!> \param fbasa aux basis on A
-!> \param fbasb aux basis on B
-!> \param iatom index atom A
-!> \param jatom index atom B
-!> \param ikind kind atom A
-!> \param jkind kind atom B
-!> \param calculate_forces ...
-! **************************************************************************************************
-   SUBROUTINE lri_int_shg(lri_env, lrii, rab, obasa, obasb, fbasa, fbasb, &
-                          iatom, jatom, ikind, jkind, calculate_forces)
-
-      TYPE(lri_environment_type), POINTER                :: lri_env
-      TYPE(lri_int_type), POINTER                        :: lrii
-      REAL(KIND=dp), DIMENSION(3), INTENT(IN)            :: rab
-      TYPE(gto_basis_set_type), POINTER                  :: obasa, obasb, fbasa, fbasb
-      INTEGER, INTENT(IN)                                :: iatom, jatom, ikind, jkind
-      LOGICAL, INTENT(IN)                                :: calculate_forces
-
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'lri_int_shg', routineP = moduleN//':'//routineN
-
-      INTEGER                                            :: handle, nba, nbb, nfa, nfb
-      INTEGER, DIMENSION(:, :, :), POINTER               :: fba_index, fbb_index, oba_index, &
-                                                            obb_index
-      LOGICAL                                            :: do_force
-      REAL(KIND=dp)                                      :: dab
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: Waux_mat
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :, :)  :: dWaux_mat
-      REAL(KIND=dp), DIMENSION(:, :, :), POINTER         :: scon_fba, scon_fbb, scon_oba, scon_obb
-      REAL(KIND=dp), DIMENSION(:, :, :, :), POINTER      :: scona_mix, sconb_mix
-
-      CALL timeset(routineN, handle)
-      NULLIFY (scon_oba, scon_obb, scon_fba, scon_fbb, scona_mix, sconb_mix, &
-               oba_index, obb_index, fba_index, fbb_index)
-      dab = SQRT(SUM(rab*rab))
-      nba = obasa%nsgf
-      nbb = obasb%nsgf
-      nfa = fbasa%nsgf
-      nfb = fbasb%nsgf
-
-      !*** calculate overlap integrals; for iatom=jatom this is the self-overlap
-      IF (iatom == jatom .AND. dab < lri_env%delta) THEN
-         !*** (fa,fa)
-         lrii%sab(1:nfa, 1:nfa) = lri_env%bas_prop(ikind)%ri_ovlp(1:nfa, 1:nfa)
-         !*** (a,a)
-         lrii%soo(1:nba, 1:nba) = lri_env%bas_prop(ikind)%orb_ovlp(1:nba, 1:nba)
-         !*** (a,a,fa)
-         lrii%abaint(1:nba, 1:nba, 1:nfa) = lri_env%bas_prop(ikind)%ovlp3
-         lrii%abascr(1:nfa) = 1.0_dp
-         IF (calculate_forces) THEN
-            lrii%dsab = 0._dp
-            lrii%dsoo = 0._dp
-            lrii%dabdaint = 0.0_dp
-            lrii%dabbint = 0.0_dp
-         END IF
-      ELSE
-         IF (calculate_forces) THEN
-            do_force = lrii%calc_force_pair
-         ELSE
-            do_force = .FALSE.
-         END IF
-         scon_oba => lri_env%bas_prop(ikind)%scon_orb
-         scon_obb => lri_env%bas_prop(jkind)%scon_orb
-         scon_fba => lri_env%bas_prop(ikind)%scon_ri
-         scon_fbb => lri_env%bas_prop(jkind)%scon_ri
-         scona_mix => lri_env%bas_prop(ikind)%scon_mix
-         sconb_mix => lri_env%bas_prop(jkind)%scon_mix
-         oba_index => lri_env%bas_prop(ikind)%orb_index
-         fba_index => lri_env%bas_prop(ikind)%ri_index
-         obb_index => lri_env%bas_prop(jkind)%orb_index
-         fbb_index => lri_env%bas_prop(jkind)%ri_index
-         CALL lri_precalc_angular_shg_part(obasa, obasb, fbasa, fbasb, rab, Waux_mat, dWaux_mat, &
-                                           do_force)
-         !*** (fa,fb)
-         CALL int_overlap_ab_shg_low(lrii%sab, lrii%dsab, rab, fbasa, fbasb, scon_fba, scon_fbb, &
-                                     Waux_mat, dWaux_mat, do_force, contraction_high=.FALSE.)
-         !*** (a,b)
-         CALL int_overlap_ab_shg_low(lrii%soo, lrii%dsoo, rab, obasa, obasb, scon_oba, scon_obb, &
-                                     Waux_mat, dWaux_mat, do_force, contraction_high=.TRUE.)
-         !*** (a,b,fa)
-         CALL int_overlap_aba_shg_low(lrii%abaint, lrii%dabdaint, rab, obasa, obasb, fbasa, &
-                                      scon_obb, scona_mix, oba_index, fba_index, &
-                                      lri_env%cg_shg%cg_coeff, lri_env%cg_shg%cg_none0_list, &
-                                      lri_env%cg_shg%ncg_none0, &
-                                      Waux_mat, dWaux_mat, do_force, lrii%abascr)
-         !*** (a,b,fb)
-         IF (ikind == jkind) THEN
-            CALL get_abb_same_kind(lrii%abbint, lrii%dabbint, lrii%abaint, lrii%dabdaint, &
-                                   rab, obasa, fbasa, do_force)
-            lrii%abbscr(:) = lrii%abascr(:)
-         ELSE
-            CALL int_overlap_abb_shg_low(lrii%abbint, lrii%dabbint, rab, obasa, obasb, fbasb, &
-                                         scon_oba, sconb_mix, obb_index, fbb_index, &
-                                         lri_env%cg_shg%cg_coeff, lri_env%cg_shg%cg_none0_list, &
-                                         lri_env%cg_shg%ncg_none0, &
-                                         Waux_mat, dWaux_mat, do_force, lrii%abbscr)
-         ENDIF
-
-         DEALLOCATE (Waux_mat, dWaux_mat)
-      ENDIF
-
-      CALL timestop(handle)
-
-   END SUBROUTINE lri_int_shg
 
 ! **************************************************************************************************
 !> \brief get inverse or pseudoinverse of lri overlap matrix for aux basis set

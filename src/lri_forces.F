@@ -21,12 +21,14 @@ MODULE lri_forces
                                               dbcsr_p_type,&
                                               dbcsr_type
    USE kinds,                           ONLY: dp
-   USE lri_environment_methods,         ONLY: lri_int_os,&
-                                              lri_int_shg
    USE lri_environment_types,           ONLY: &
         allocate_lri_force_components, deallocate_lri_force_components, lri_density_type, &
         lri_environment_type, lri_force_type, lri_int_type, lri_kind_type, lri_list_type, &
         lri_rhoab_type
+   USE lri_integrals,                   ONLY: allocate_int_type,&
+                                              deallocate_int_type,&
+                                              dint_type,&
+                                              lri_dint2
    USE qs_environment_types,            ONLY: get_qs_env,&
                                               qs_environment_type
    USE qs_force_types,                  ONLY: qs_force_type
@@ -168,6 +170,7 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: dssn, dsst, dtvec, pbij, sdssn, sdsst, &
                                                             sdt
       TYPE(dbcsr_type), POINTER                          :: pmat
+      TYPE(dint_type)                                    :: lridint
       TYPE(gto_basis_set_type), POINTER                  :: fbasa, fbasb, obasa, obasb
       TYPE(lri_force_type), POINTER                      :: lri_force
       TYPE(lri_int_type), POINTER                        :: lrii
@@ -212,7 +215,7 @@ CONTAINS
 !$OMP          lri_force,nfa,nfb,nba,nbb,nn,st,nsdsst,nsdssn,dsst,sdsst,dssn,sdssn,sdt,&
 !$OMP          nsdt,dtvec,pbij,found,obasa,obasb,fbasa,fbasb,i,k,threshold,&
 !$OMP          dcharge,dlambda,atom_a,atom_b,v_dadra,v_dadrb,force_a,force_b,&
-!$OMP          pab,fw,dfw,dab,ai,vint,isn,idav)
+!$OMP          lridint,pab,fw,dfw,dab,ai,vint,isn,idav)
 
             mepos = 0
 !$          mepos = omp_get_thread_num()
@@ -257,34 +260,15 @@ CONTAINS
                   pab(1:nba, 1:nbb) = TRANSPOSE(pbij(1:nbb, 1:nba))
                END IF
 
-               ! Calculate derivatives of overlap integrals (a,b), (fa,fb), (a,fa,b), (a,b,fb)
-               IF (ALLOCATED(lrii%sab)) DEALLOCATE (lrii%sab)
-               IF (ALLOCATED(lrii%dsab)) DEALLOCATE (lrii%dsab)
-               IF (ALLOCATED(lrii%dsoo)) DEALLOCATE (lrii%dsoo)
-               IF (ALLOCATED(lrii%dabbint)) DEALLOCATE (lrii%dabbint)
-               IF (ALLOCATED(lrii%dabdaint)) DEALLOCATE (lrii%dabdaint)
-               ALLOCATE (lrii%sab(nfa, nfb))
-               lrii%sab = 0._dp
-               ALLOCATE (lrii%dsab(nfa, nfb, 3))
-               lrii%dsab = 0._dp
-               ALLOCATE (lrii%dsoo(nba, nbb, 3))
-               lrii%dsoo = 0._dp
-               ALLOCATE (lrii%dabbint(nba, nbb, nfb, 3))
-               lrii%dabbint = 0._dp
-               ALLOCATE (lrii%dabdaint(nba, nbb, nfa, 3))
-               lrii%dabdaint = 0._dp
-               ! calculate integrals
                obasa => lri_env%orb_basis(ikind)%gto_basis_set
                obasb => lri_env%orb_basis(jkind)%gto_basis_set
                fbasa => lri_env%ri_basis(ikind)%gto_basis_set
                fbasb => lri_env%ri_basis(jkind)%gto_basis_set
-               IF (lri_env%use_shg_integrals) THEN
-                  CALL lri_int_shg(lri_env, lrii, rab, obasa, obasb, fbasa, fbasb, &
-                                   iatom, jatom, ikind, jkind, .TRUE.)
-               ELSE
-                  CALL lri_int_os(lri_env, lrii, rab, obasa, obasb, fbasa, fbasb, &
-                                  iatom, jatom, ikind, .TRUE.)
-               ENDIF
+
+               ! Calculate derivatives of overlap integrals (a,b), (fa,fb), (a,fa,b), (a,b,fb)
+               CALL allocate_int_type(lridint=lridint, nba=nba, nbb=nbb, nfa=nfa, nfb=nfb)
+               CALL lri_dint2(lri_env, lrii, lridint, rab, obasa, obasb, fbasa, fbasb, &
+                              iatom, jatom, ikind, jkind)
 
                NULLIFY (lri_force)
                CALL allocate_lri_force_components(lri_force, nfa, nfb)
@@ -296,15 +280,15 @@ CONTAINS
                ! compute dtvec/dRa = SUM_ab Pab *d(a,b,x)/dRa
                DO k = 1, 3
                   threshold = 0.01_dp*lri_env%eps_o3_int/MAX(SUM(ABS(pab(1:nba, 1:nbb))), 1.0e-14_dp)
-                  dcharge(k) = SUM(pab(1:nba, 1:nbb)*lrii%dsoo(1:nba, 1:nbb, k))
+                  dcharge(k) = SUM(pab(1:nba, 1:nbb)*lridint%dsooint(1:nba, 1:nbb, k))
                   DO i = 1, nfa
                      IF (lrii%abascr(i) > threshold) THEN
-                        dtvec(i, k) = SUM(pab(1:nba, 1:nbb)*lrii%dabdaint(1:nba, 1:nbb, i, k))
+                        dtvec(i, k) = SUM(pab(1:nba, 1:nbb)*lridint%dabaint(1:nba, 1:nbb, i, k))
                      END IF
                   END DO
                   DO i = 1, nfb
                      IF (lrii%abbscr(i) > threshold) THEN
-                        dtvec(nfa+i, k) = SUM(pab(1:nba, 1:nbb)*lrii%dabbint(1:nba, 1:nbb, i, k))
+                        dtvec(nfa+i, k) = SUM(pab(1:nba, 1:nbb)*lridint%dabbint(1:nba, 1:nbb, i, k))
                      END IF
                   END DO
                ENDDO
@@ -328,11 +312,11 @@ CONTAINS
                !dS: dsaa and dsbb are zero, only work with ab blocks in following
                st(1:nn) = MATMUL(lrii%sinv(1:nn, 1:nn), lrho%tvec(1:nn))
                DO k = 1, 3
-                  dsst(1:nfa, k) = MATMUL(lrii%dsab(1:nfa, 1:nfb, k), st(nfa+1:nn))
-                  dsst(nfa+1:nn, k) = MATMUL(st(1:nfa), lrii%dsab(1:nfa, 1:nfb, k))
+                  dsst(1:nfa, k) = MATMUL(lridint%dsabint(1:nfa, 1:nfb, k), st(nfa+1:nn))
+                  dsst(nfa+1:nn, k) = MATMUL(st(1:nfa), lridint%dsabint(1:nfa, 1:nfb, k))
                   nsdsst(k) = SUM(lrii%sn(1:nn)*dsst(1:nn, k))
-                  dssn(1:nfa, k) = MATMUL(lrii%dsab(1:nfa, 1:nfb, k), lrii%sn(nfa+1:nn))
-                  dssn(nfa+1:nn, k) = MATMUL(lrii%sn(1:nfa), lrii%dsab(1:nfa, 1:nfb, k))
+                  dssn(1:nfa, k) = MATMUL(lridint%dsabint(1:nfa, 1:nfb, k), lrii%sn(nfa+1:nn))
+                  dssn(nfa+1:nn, k) = MATMUL(lrii%sn(1:nfa), lridint%dsabint(1:nfa, 1:nfb, k))
                   nsdssn(k) = SUM(lrii%sn(1:nn)*dssn(1:nn, k))
                   nsdt(k) = SUM(dtvec(1:nn, k)*lrii%sn(1:nn))
                ENDDO
@@ -351,11 +335,7 @@ CONTAINS
                ENDDO
 
                ! deallocate derivative integrals
-               IF (ALLOCATED(lrii%sab)) DEALLOCATE (lrii%sab)
-               IF (ALLOCATED(lrii%dsab)) DEALLOCATE (lrii%dsab)
-               IF (ALLOCATED(lrii%dsoo)) DEALLOCATE (lrii%dsoo)
-               IF (ALLOCATED(lrii%dabbint)) DEALLOCATE (lrii%dabbint)
-               IF (ALLOCATED(lrii%dabdaint)) DEALLOCATE (lrii%dabdaint)
+               CALL deallocate_int_type(lridint=lridint)
 
                ! sum over atom pairs
                DO k = 1, 3
@@ -447,6 +427,7 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:), POINTER               :: sta, stb, v_dadra, v_dadrb, vinta, vintb
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: dtveca, dtvecb, pbij
       TYPE(dbcsr_type), POINTER                          :: pmat
+      TYPE(dint_type)                                    :: lridint
       TYPE(gto_basis_set_type), POINTER                  :: fbasa, fbasb, obasa, obasb
       TYPE(lri_force_type), POINTER                      :: lri_force_a, lri_force_b
       TYPE(lri_int_type), POINTER                        :: lrii
@@ -490,7 +471,7 @@ CONTAINS
 !$OMP          lri_force_a,lri_force_b,nfa,nfb,nba,nbb,nn,sta,stb,&
 !$OMP          dtveca,dtvecb,pbij,found,obasa,obasb,fbasa,fbasb,i,k,threshold,&
 !$OMP          dchargea,dchargeb,atom_a,atom_b,v_dadra,v_dadrb,force_a,force_b,&
-!$OMP          rai,raj,pab,wab,fw,dfw,dab,ai,vinta,vintb,isna,isnb,idava,idavb)
+!$OMP          lridint,rai,raj,pab,wab,fw,dfw,dab,ai,vinta,vintb,isna,isnb,idava,idavb)
 
             mepos = 0
 !$          mepos = omp_get_thread_num()
@@ -549,34 +530,16 @@ CONTAINS
                   CPABORT("Unknown DISTANT_PAIR_METHOD in LRI")
                END SELECT
 
-               ! Calculate derivatives of overlap integrals (a,b), (fa,fb), (a,fa,b), (a,b,fb)
-               IF (ALLOCATED(lrii%sab)) DEALLOCATE (lrii%sab)
-               IF (ALLOCATED(lrii%dsab)) DEALLOCATE (lrii%dsab)
-               IF (ALLOCATED(lrii%dsoo)) DEALLOCATE (lrii%dsoo)
-               IF (ALLOCATED(lrii%dabbint)) DEALLOCATE (lrii%dabbint)
-               IF (ALLOCATED(lrii%dabdaint)) DEALLOCATE (lrii%dabdaint)
-               ALLOCATE (lrii%sab(nfa, nfb))
-               lrii%sab = 0._dp
-               ALLOCATE (lrii%dsab(nfa, nfb, 3))
-               lrii%dsab = 0._dp
-               ALLOCATE (lrii%dsoo(nba, nbb, 3))
-               lrii%dsoo = 0._dp
-               ALLOCATE (lrii%dabbint(nba, nbb, nfb, 3))
-               lrii%dabbint = 0._dp
-               ALLOCATE (lrii%dabdaint(nba, nbb, nfa, 3))
-               lrii%dabdaint = 0._dp
-               ! calculate integrals
                obasa => lri_env%orb_basis(ikind)%gto_basis_set
                obasb => lri_env%orb_basis(jkind)%gto_basis_set
                fbasa => lri_env%ri_basis(ikind)%gto_basis_set
                fbasb => lri_env%ri_basis(jkind)%gto_basis_set
-               IF (lri_env%use_shg_integrals) THEN
-                  CALL lri_int_shg(lri_env, lrii, rab, obasa, obasb, fbasa, fbasb, &
-                                   iatom, jatom, ikind, jkind, .TRUE.)
-               ELSE
-                  CALL lri_int_os(lri_env, lrii, rab, obasa, obasb, fbasa, fbasb, &
-                                  iatom, jatom, ikind, .TRUE.)
-               ENDIF
+
+               ! Calculate derivatives of overlap integrals (a,b), (fa,fb), (a,fa,b), (a,b,fb)
+               CALL allocate_int_type(lridint=lridint, nba=nba, nbb=nbb, nfa=nfa, nfb=nfb, &
+                                      skip_dsab=.TRUE.)
+               CALL lri_dint2(lri_env, lrii, lridint, rab, obasa, obasb, fbasa, fbasb, &
+                              iatom, jatom, ikind, jkind)
 
                NULLIFY (lri_force_a, lri_force_b)
                CALL allocate_lri_force_components(lri_force_a, nfa, 0)
@@ -589,16 +552,16 @@ CONTAINS
                ! compute dtvec/dRa = SUM_ab Pab *d(a,b,x)/dRa
                DO k = 1, 3
                   threshold = 0.01_dp*lri_env%eps_o3_int/MAX(SUM(ABS(pab(1:nba, 1:nbb))), 1.0e-14_dp)
-                  dchargea(k) = SUM(wab(1:nba, 1:nbb)*pab(1:nba, 1:nbb)*lrii%dsoo(1:nba, 1:nbb, k))
+                  dchargea(k) = SUM(wab(1:nba, 1:nbb)*pab(1:nba, 1:nbb)*lridint%dsooint(1:nba, 1:nbb, k))
                   DO i = 1, nfa
                      IF (lrii%abascr(i) > threshold) THEN
-                        dtveca(i, k) = SUM(wab(1:nba, 1:nbb)*pab(1:nba, 1:nbb)*lrii%dabdaint(1:nba, 1:nbb, i, k))
+                        dtveca(i, k) = SUM(wab(1:nba, 1:nbb)*pab(1:nba, 1:nbb)*lridint%dabaint(1:nba, 1:nbb, i, k))
                      END IF
                   END DO
-                  dchargeb(k) = SUM((1.0_dp-wab(1:nba, 1:nbb))*pab(1:nba, 1:nbb)*lrii%dsoo(1:nba, 1:nbb, k))
+                  dchargeb(k) = SUM((1.0_dp-wab(1:nba, 1:nbb))*pab(1:nba, 1:nbb)*lridint%dsooint(1:nba, 1:nbb, k))
                   DO i = 1, nfb
                      IF (lrii%abbscr(i) > threshold) THEN
-                        dtvecb(i, k) = SUM((1.0_dp-wab(1:nba, 1:nbb))*pab(1:nba, 1:nbb)*lrii%dabbint(1:nba, 1:nbb, i, k))
+                        dtvecb(i, k) = SUM((1.0_dp-wab(1:nba, 1:nbb))*pab(1:nba, 1:nbb)*lridint%dabbint(1:nba, 1:nbb, i, k))
                      END IF
                   END DO
                ENDDO
@@ -626,11 +589,7 @@ CONTAINS
                ENDDO
 
                ! deallocate derivative integrals
-               IF (ALLOCATED(lrii%sab)) DEALLOCATE (lrii%sab)
-               IF (ALLOCATED(lrii%dsab)) DEALLOCATE (lrii%dsab)
-               IF (ALLOCATED(lrii%dsoo)) DEALLOCATE (lrii%dsoo)
-               IF (ALLOCATED(lrii%dabbint)) DEALLOCATE (lrii%dabbint)
-               IF (ALLOCATED(lrii%dabdaint)) DEALLOCATE (lrii%dabdaint)
+               CALL deallocate_int_type(lridint=lridint)
 
                ! sum over atom pairs
                DO k = 1, 3
