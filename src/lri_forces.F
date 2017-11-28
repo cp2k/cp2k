@@ -419,9 +419,8 @@ CONTAINS
          jneighbor, k, mepos, natom, nba, nbb, nfa, nfb, nkind, nlist, nn, nspin, nthread
       INTEGER, DIMENSION(:), POINTER                     :: atom_of_kind
       LOGICAL                                            :: found
-      REAL(KIND=dp)                                      :: ai, dab, dfw, fw, isna, isnb, rai, raj, &
-                                                            threshold
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: pab, wab
+      REAL(KIND=dp)                                      :: ai, dab, dfw, fw, isna, isnb, threshold
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: pab, wab, wbb
       REAL(KIND=dp), DIMENSION(3)                        :: dchargea, dchargeb, force_a, force_b, &
                                                             idava, idavb, rab
       REAL(KIND=dp), DIMENSION(:), POINTER               :: sta, stb, v_dadra, v_dadrb, vinta, vintb
@@ -471,7 +470,7 @@ CONTAINS
 !$OMP          lri_force_a,lri_force_b,nfa,nfb,nba,nbb,nn,sta,stb,&
 !$OMP          dtveca,dtvecb,pbij,found,obasa,obasb,fbasa,fbasb,i,k,threshold,&
 !$OMP          dchargea,dchargeb,atom_a,atom_b,v_dadra,v_dadrb,force_a,force_b,&
-!$OMP          lridint,rai,raj,pab,wab,fw,dfw,dab,ai,vinta,vintb,isna,isnb,idava,idavb)
+!$OMP          lridint,pab,wab,wbb,fw,dfw,dab,ai,vinta,vintb,isna,isnb,idava,idavb)
 
             mepos = 0
 !$          mepos = omp_get_thread_num()
@@ -516,19 +515,9 @@ CONTAINS
                   pab(1:nba, 1:nbb) = TRANSPOSE(pbij(1:nbb, 1:nba))
                END IF
 
-               ALLOCATE (wab(nba, nbb))
-               SELECT CASE (lri_env%distant_pair_method)
-               CASE ("EW")
-                  wab(1:nba, 1:nbb) = 0.5_dp
-               CASE ("AW")
-                  rai = lri_env%aradius(ikind)**2
-                  raj = lri_env%aradius(jkind)**2
-                  wab(1:nba, 1:nbb) = raj/(rai+raj)
-               CASE ("SW", "LW")
-                  wab(1:nba, 1:nbb) = lri_env%wmat(ikind, jkind)%mat(1:nba, 1:nbb)
-               CASE DEFAULT
-                  CPABORT("Unknown DISTANT_PAIR_METHOD in LRI")
-               END SELECT
+               ALLOCATE (wab(nba, nbb), wbb(nba, nbb))
+               wab(1:nba, 1:nbb) = lri_env%wmat(ikind, jkind)%mat(1:nba, 1:nbb)
+               wbb(1:nba, 1:nbb) = 1.0_dp-lri_env%wmat(ikind, jkind)%mat(1:nba, 1:nbb)
 
                obasa => lri_env%orb_basis(ikind)%gto_basis_set
                obasb => lri_env%orb_basis(jkind)%gto_basis_set
@@ -550,23 +539,23 @@ CONTAINS
                stb => lri_force_b%st
 
                ! compute dtvec/dRa = SUM_ab Pab *d(a,b,x)/dRa
+               threshold = 0.01_dp*lri_env%eps_o3_int/MAX(SUM(ABS(pab(1:nba, 1:nbb))), 1.0e-14_dp)
                DO k = 1, 3
-                  threshold = 0.01_dp*lri_env%eps_o3_int/MAX(SUM(ABS(pab(1:nba, 1:nbb))), 1.0e-14_dp)
                   dchargea(k) = SUM(wab(1:nba, 1:nbb)*pab(1:nba, 1:nbb)*lridint%dsooint(1:nba, 1:nbb, k))
                   DO i = 1, nfa
                      IF (lrii%abascr(i) > threshold) THEN
                         dtveca(i, k) = SUM(wab(1:nba, 1:nbb)*pab(1:nba, 1:nbb)*lridint%dabaint(1:nba, 1:nbb, i, k))
                      END IF
                   END DO
-                  dchargeb(k) = SUM((1.0_dp-wab(1:nba, 1:nbb))*pab(1:nba, 1:nbb)*lridint%dsooint(1:nba, 1:nbb, k))
+                  dchargeb(k) = SUM(wbb(1:nba, 1:nbb)*pab(1:nba, 1:nbb)*lridint%dsooint(1:nba, 1:nbb, k))
                   DO i = 1, nfb
                      IF (lrii%abbscr(i) > threshold) THEN
-                        dtvecb(i, k) = SUM((1.0_dp-wab(1:nba, 1:nbb))*pab(1:nba, 1:nbb)*lridint%dabbint(1:nba, 1:nbb, i, k))
+                        dtvecb(i, k) = SUM(wbb(1:nba, 1:nbb)*pab(1:nba, 1:nbb)*lridint%dabbint(1:nba, 1:nbb, i, k))
                      END IF
                   END DO
                ENDDO
 
-               DEALLOCATE (pab, wab)
+               DEALLOCATE (pab, wab, wbb)
 
                atom_a = atom_of_kind(iatom)
                atom_b = atom_of_kind(jatom)

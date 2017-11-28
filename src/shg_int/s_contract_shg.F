@@ -64,10 +64,8 @@ CONTAINS
 
       CHARACTER(len=*), PARAMETER :: routineN = 's_overlap_ab', routineP = moduleN//':'//routineN
 
-      INTEGER                                            :: handle, ids, ipgfa, jpgfb, ndev
+      INTEGER                                            :: ids, ipgfa, jpgfb, ndev
       REAL(KIND=dp)                                      :: a, b, rab2, xhi, zet
-
-      CALL timeset(routineN, handle)
 
       ! Distance of the centers a and b
       rab2 = rab(1)*rab(1)+rab(2)*rab(2)+rab(3)*rab(3)
@@ -94,8 +92,6 @@ CONTAINS
 
          END DO
       END DO
-
-      CALL timestop(handle)
 
    END SUBROUTINE s_overlap_ab
 
@@ -131,16 +127,13 @@ CONTAINS
 
       CHARACTER(len=*), PARAMETER :: routineN = 's_overlap_abb', routineP = moduleN//':'//routineN
 
-      INTEGER                                            :: handle, i, ids, il, ipgfa, j, jpgfb, &
-                                                            kpgfb, lbb_max, lmax, n, ndev, nds, &
-                                                            nfac, nl
+      INTEGER                                            :: i, ids, il, ipgfa, j, jpgfb, kpgfb, &
+                                                            lbb_max, lmax, n, ndev, nds, nfac, nl
       REAL(KIND=dp)                                      :: a, b, dfsr_int, exp_rab2, k, pfac, &
                                                             prefac, rab2, sqrt_pi3, sqrt_zet, &
                                                             sr_int, temp, xhi, zet
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: dsr_int, dtemp
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: coeff_srs
-
-      CALL timeset(routineN, handle)
 
       ! Distance of the centers a and b
       rab2 = rab(1)*rab(1)+rab(2)*rab(2)+rab(3)*rab(3)
@@ -336,8 +329,6 @@ CONTAINS
       DEALLOCATE (dtemp, dsr_int)
       DEALLOCATE (coeff_srs)
 
-      CALL timestop(handle)
-
    END SUBROUTINE s_overlap_abb
 
 ! **************************************************************************************************
@@ -368,15 +359,13 @@ CONTAINS
 
       CHARACTER(len=*), PARAMETER :: routineN = 's_ra2m_ab', routineP = moduleN//':'//routineN
 
-      INTEGER                                            :: handle, i, ids, il, ipgfa, j, jpgfb, n, &
-                                                            ndev, nds, nfac
+      INTEGER                                            :: i, ids, il, ipgfa, j, jpgfb, n, ndev, &
+                                                            nds, nfac
       REAL(KIND=dp)                                      :: a, b, dfsr_int, exp_rab2, k, pfac, &
                                                             prefac, rab2, sqrt_pi3, sqrt_zet, &
                                                             sr_int, temp, xhi, zet
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: dsr_int, dtemp
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: coeff_srs
-
-      CALL timeset(routineN, handle)
 
       ! Distance of the centers a and b
       rab2 = rab(1)*rab(1)+rab(2)*rab(2)+rab(3)*rab(3)
@@ -559,7 +548,6 @@ CONTAINS
 
       DEALLOCATE (coeff_srs)
       DEALLOCATE (dtemp, dsr_int)
-      CALL timestop(handle)
 
    END SUBROUTINE s_ra2m_ab
 
@@ -617,11 +605,9 @@ CONTAINS
 
       CHARACTER(len=*), PARAMETER :: routineN = 's_coulomb_ab', routineP = moduleN//':'//routineN
 
-      INTEGER                                            :: handle, ids, ipgfa, jpgfb, n, ndev, nmax
+      INTEGER                                            :: ids, ipgfa, jpgfb, n, ndev, nmax
       REAL(KIND=dp)                                      :: a, b, dummy, prefac, rab2, T, xhi, zet
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: f
-
-      CALL timeset(routineN, handle)
 
       dummy = omega
 
@@ -653,8 +639,6 @@ CONTAINS
       END DO
       DEALLOCATE (f)
 
-      CALL timestop(handle)
-
    END SUBROUTINE s_coulomb_ab
 
 ! **************************************************************************************************
@@ -683,12 +667,10 @@ CONTAINS
 
       CHARACTER(len=*), PARAMETER :: routineN = 's_verf_ab', routineP = moduleN//':'//routineN
 
-      INTEGER                                            :: handle, ids, ipgfa, jpgfb, n, ndev, nmax
+      INTEGER                                            :: ids, ipgfa, jpgfb, n, ndev, nmax
       REAL(KIND=dp)                                      :: a, Arg, b, comega, prefac, rab2, T, xhi, &
                                                             zet
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: f
-
-      CALL timeset(routineN, handle)
 
       ! Distance of the centers a and b
       rab2 = rab(1)*rab(1)+rab(2)*rab(2)+rab(3)*rab(3)
@@ -720,8 +702,6 @@ CONTAINS
       END DO
       DEALLOCATE (f)
 
-      CALL timestop(handle)
-
    END SUBROUTINE s_verf_ab
 
 ! **************************************************************************************************
@@ -751,12 +731,10 @@ CONTAINS
 
       CHARACTER(len=*), PARAMETER :: routineN = 's_verfc_ab', routineP = moduleN//':'//routineN
 
-      INTEGER                                            :: handle, ids, ipgfa, jpgfb, n, ndev, nmax
+      INTEGER                                            :: ids, ipgfa, jpgfb, n, ndev, nmax
       REAL(KIND=dp)                                      :: a, b, comega, comegaT, prefac, rab2, T, &
                                                             xhi, zet
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: fv, fverf
-
-      CALL timeset(routineN, handle)
 
       ! Distance of the centers a and b
       rab2 = rab(1)*rab(1)+rab(2)*rab(2)+rab(3)*rab(3)
@@ -789,8 +767,6 @@ CONTAINS
       END DO
       DEALLOCATE (fv, fverf)
 
-      CALL timestop(handle)
-
    END SUBROUTINE s_verfc_ab
 
 ! **************************************************************************************************
@@ -820,13 +796,10 @@ CONTAINS
 
       CHARACTER(len=*), PARAMETER :: routineN = 's_vgauss_ab', routineP = moduleN//':'//routineN
 
-      INTEGER                                            :: handle, ids, ipgfa, j, jpgfb, n, ndev, &
-                                                            nmax
+      INTEGER                                            :: ids, ipgfa, j, jpgfb, n, ndev, nmax
       REAL(KIND=dp)                                      :: a, b, eta, etaT, expT, oeta, prefac, &
                                                             rab2, T, xeta, xhi, zet
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: f
-
-      CALL timeset(routineN, handle)
 
       ! Distance of the centers a and b
       rab2 = rab(1)*rab(1)+rab(2)*rab(2)+rab(3)*rab(3)
@@ -865,8 +838,6 @@ CONTAINS
       END DO
       DEALLOCATE (f)
 
-      CALL timestop(handle)
-
    END SUBROUTINE s_vgauss_ab
 
 ! **************************************************************************************************
@@ -896,12 +867,10 @@ CONTAINS
 
       CHARACTER(len=*), PARAMETER :: routineN = 's_gauss_ab', routineP = moduleN//':'//routineN
 
-      INTEGER                                            :: handle, ids, ipgfa, jpgfb, n, ndev, nmax
+      INTEGER                                            :: ids, ipgfa, jpgfb, n, ndev, nmax
       REAL(KIND=dp)                                      :: a, b, eta, expT, oeta, prefac, rab2, T, &
                                                             xhi, zet
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: f
-
-      CALL timeset(routineN, handle)
 
       ! Distance of the centers a and b
       rab2 = rab(1)*rab(1)+rab(2)*rab(2)+rab(3)*rab(3)
@@ -932,8 +901,6 @@ CONTAINS
          END DO
       END DO
       DEALLOCATE (f)
-
-      CALL timestop(handle)
 
    END SUBROUTINE s_gauss_ab
 
@@ -968,10 +935,8 @@ CONTAINS
       CHARACTER(LEN=*), PARAMETER :: routineN = 'contract_sint_ab_clow', &
          routineP = moduleN//':'//routineN
 
-      INTEGER                                            :: handle, ids, ids_start, ipgfa, ishella, &
-                                                            jpgfb, jshellb, lai, lbj, ndev, nds
-
-      CALL timeset(routineN, handle)
+      INTEGER                                            :: ids, ids_start, ipgfa, ishella, jpgfb, &
+                                                            jshellb, lai, lbj, ndev, nds
 
       ndev = 0
       IF (calculate_forces) ndev = 1
@@ -995,8 +960,6 @@ CONTAINS
             ENDDO
          ENDDO
       ENDDO
-
-      CALL timestop(handle)
 
    END SUBROUTINE contract_sint_ab_clow
 
@@ -1028,10 +991,7 @@ CONTAINS
       CHARACTER(LEN=*), PARAMETER :: routineN = 'contract_sint_ab_chigh', &
          routineP = moduleN//':'//routineN
 
-      INTEGER                                            :: handle
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: work_pc
-
-      CALL timeset(routineN, handle)
 
       swork_cont = 0.0_dp
       ALLOCATE (work_pc(npgfb, nds, nshella))
@@ -1042,7 +1002,6 @@ CONTAINS
                  0.0_dp, swork_cont, nds*nshella)
 
       DEALLOCATE (work_pc)
-      CALL timestop(handle)
 
    END SUBROUTINE contract_sint_ab_chigh
 
@@ -1075,10 +1034,9 @@ CONTAINS
       CHARACTER(LEN=*), PARAMETER :: routineN = 'contract_s_ra2m_ab', &
          routineP = moduleN//':'//routineN
 
-      INTEGER                                            :: handle, i, my_m
+      INTEGER                                            :: i, my_m
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: work_pc
 
-      CALL timeset(routineN, handle)
       my_m = m+1
       ALLOCATE (work_pc(npgfb, nds_max, nshella))
       work_pc = 0.0_dp
@@ -1091,8 +1049,6 @@ CONTAINS
                  swork_cont, nds_max*nshella)
 
       DEALLOCATE (work_pc)
-
-      CALL timestop(handle)
 
    END SUBROUTINE contract_s_ra2m_ab
 
@@ -1140,14 +1096,12 @@ CONTAINS
       CHARACTER(len=*), PARAMETER :: routineN = 'contract_s_overlap_abb', &
          routineP = moduleN//':'//routineN
 
-      INTEGER                                            :: forb, fri, handle, ids, ids_start, iil, &
-                                                            il, ishella, jpgfb, jshellb, kpgfb, &
+      INTEGER                                            :: forb, fri, ids, ids_start, iil, il, &
+                                                            ishella, jpgfb, jshellb, kpgfb, &
                                                             kshellb, lai, lbb, lbj, lbk, ndev, &
                                                             nds, nl
       REAL(KIND=dp), ALLOCATABLE, &
          DIMENSION(:, :, :, :, :)                        :: work_ppc
-
-      CALL timeset(routineN, handle)
 
       ndev = 0
       IF (calculate_forces) ndev = 1
@@ -1187,7 +1141,6 @@ CONTAINS
          ENDDO
       ENDDO
       DEALLOCATE (work_ppc)
-      CALL timestop(handle)
 
    END SUBROUTINE contract_s_overlap_abb
 
@@ -1235,14 +1188,12 @@ CONTAINS
       CHARACTER(len=*), PARAMETER :: routineN = 'contract_s_overlap_aba', &
          routineP = moduleN//':'//routineN
 
-      INTEGER                                            :: forb, fri, handle, ids, ids_start, iil, &
-                                                            il, ipgfa, ishella, jshellb, kpgfa, &
+      INTEGER                                            :: forb, fri, ids, ids_start, iil, il, &
+                                                            ipgfa, ishella, jshellb, kpgfa, &
                                                             kshella, laa, lai, lak, lbj, ndev, &
                                                             nds, nl
       REAL(KIND=dp), ALLOCATABLE, &
          DIMENSION(:, :, :, :, :)                        :: work_ppc
-
-      CALL timeset(routineN, handle)
 
       ndev = 0
       IF (calculate_forces) ndev = 1
@@ -1283,8 +1234,6 @@ CONTAINS
       ENDDO
 
       DEALLOCATE (work_ppc)
-      CALL timestop(handle)
-
    END SUBROUTINE contract_s_overlap_aba
 
 END MODULE s_contract_shg

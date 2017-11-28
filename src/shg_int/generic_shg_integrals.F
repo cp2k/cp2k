@@ -108,7 +108,7 @@ CONTAINS
       CHARACTER(LEN=*), PARAMETER :: routineN = 'int_operators_r12_ab_shg', &
          routineP = moduleN//':'//routineN
 
-      INTEGER                                            :: handle, la_max, lb_max
+      INTEGER                                            :: la_max, lb_max
       REAL(KIND=dp)                                      :: my_omega
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: Waux_mat
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :, :)  :: dWaux_mat
@@ -116,7 +116,6 @@ CONTAINS
       PROCEDURE(ab_sint_shg), POINTER                    :: s_operator_ab
 
       NULLIFY (s_operator_ab)
-      CALL timeset(routineN, handle)
 
       la_max = MAXVAL(fba%lmax)
       lb_max = MAXVAL(fbb%lmax)
@@ -148,8 +147,6 @@ CONTAINS
 
       DEALLOCATE (Waux_mat, dWaux_mat)
 
-      CALL timestop(handle)
-
    END SUBROUTINE int_operators_r12_ab_shg
 
 ! **************************************************************************************************
@@ -178,11 +175,9 @@ CONTAINS
       CHARACTER(LEN=*), PARAMETER :: routineN = 'int_overlap_ab_shg', &
          routineP = moduleN//':'//routineN
 
-      INTEGER                                            :: handle, la_max, lb_max
+      INTEGER                                            :: la_max, lb_max
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: Waux_mat
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :, :)  :: dWaux_mat
-
-      CALL timeset(routineN, handle)
 
       la_max = MAXVAL(fba%lmax)
       lb_max = MAXVAL(fbb%lmax)
@@ -193,8 +188,6 @@ CONTAINS
                                   Waux_mat, dWaux_mat, .TRUE., calculate_forces, contraction_high=.TRUE.)
 
       DEALLOCATE (Waux_mat, dWaux_mat)
-
-      CALL timestop(handle)
 
    END SUBROUTINE int_overlap_ab_shg
 
@@ -225,11 +218,9 @@ CONTAINS
       CHARACTER(LEN=*), PARAMETER :: routineN = 'int_ra2m_ab_shg', &
          routineP = moduleN//':'//routineN
 
-      INTEGER                                            :: handle, la_max, lb_max
+      INTEGER                                            :: la_max, lb_max
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: Waux_mat
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :, :)  :: dWaux_mat
-
-      CALL timeset(routineN, handle)
 
       la_max = MAXVAL(fba%lmax)
       lb_max = MAXVAL(fbb%lmax)
@@ -239,8 +230,6 @@ CONTAINS
                                m, Waux_mat, dWaux_mat, calculate_forces)
 
       DEALLOCATE (Waux_mat, dWaux_mat)
-
-      CALL timestop(handle)
 
    END SUBROUTINE int_ra2m_ab_shg
 
@@ -283,11 +272,9 @@ CONTAINS
       CHARACTER(LEN=*), PARAMETER :: routineN = 'int_overlap_aba_shg', &
          routineP = moduleN//':'//routineN
 
-      INTEGER                                            :: handle, laa_max, lb_max
+      INTEGER                                            :: laa_max, lb_max
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: Waux_mat
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :, :)  :: dWaux_mat
-
-      CALL timeset(routineN, handle)
 
       laa_max = MAXVAL(oba%lmax)+MAXVAL(fba%lmax)
       lb_max = MAXVAL(obb%lmax)
@@ -302,8 +289,6 @@ CONTAINS
                                    Waux_mat, dWaux_mat, .TRUE., calculate_forces)
 
       DEALLOCATE (Waux_mat, dWaux_mat)
-
-      CALL timestop(handle)
 
    END SUBROUTINE int_overlap_aba_shg
 
@@ -346,11 +331,9 @@ CONTAINS
       CHARACTER(LEN=*), PARAMETER :: routineN = 'int_overlap_abb_shg', &
          routineP = moduleN//':'//routineN
 
-      INTEGER                                            :: handle, la_max, lbb_max
+      INTEGER                                            :: la_max, lbb_max
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: Waux_mat
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :, :)  :: dWaux_mat
-
-      CALL timeset(routineN, handle)
 
       la_max = MAXVAL(oba%lmax)
       lbb_max = MAXVAL(obb%lmax)+MAXVAL(fbb%lmax)
@@ -365,8 +348,6 @@ CONTAINS
                                    Waux_mat, dWaux_mat, .TRUE., calculate_forces)
 
       DEALLOCATE (Waux_mat, dWaux_mat)
-
-      CALL timestop(handle)
 
    END SUBROUTINE int_overlap_abb_shg
 
@@ -392,12 +373,10 @@ CONTAINS
       CHARACTER(len=*), PARAMETER :: routineN = 'precalc_angular_shg_part', &
          routineP = moduleN//':'//routineN
 
-      INTEGER                                            :: handle, lmax, mdim(3)
+      INTEGER                                            :: lmax, mdim(3)
       INTEGER, DIMENSION(:), POINTER                     :: la_max_all
       REAL(KIND=dp)                                      :: rab2
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: Rc, Rs
-
-      CALL timeset(routineN, handle)
 
       NULLIFY (la_max_all)
       rab2 = rab(1)*rab(1)+rab(2)*rab(2)+rab(3)*rab(3)
@@ -422,7 +401,6 @@ CONTAINS
       ENDIF
 
       DEALLOCATE (Rc, Rs, la_max_all)
-      CALL timestop(handle)
 
    END SUBROUTINE precalc_angular_shg_part
 
@@ -459,7 +437,7 @@ CONTAINS
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'int_operator_ab_shg_low', routineP = moduleN//':'//routineN
 
-      INTEGER :: handle, iset, jset, la_max_set, lb_max_set, ndev, nds, nds_max, npgfa_set, &
+      INTEGER :: iset, jset, la_max_set, lb_max_set, ndev, nds, nds_max, npgfa_set, &
                  npgfb_set, nseta, nsetb, nsgfa_set, nsgfb_set, nshella_set, nshellb_set
       INTEGER, DIMENSION(:), POINTER                     :: la_max, lb_max, npgfa, npgfb, nsgfa, &
                                                             nsgfb, nshella, nshellb
@@ -469,7 +447,6 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: zeta, zetb
       REAL(KIND=dp), DIMENSION(:, :, :), ALLOCATABLE     :: swork, swork_cont
 
-      CALL timeset(routineN, handle)
       NULLIFY (la_max, lb_max, npgfa, npgfb, first_sgfa, first_sgfb, set_radius_a, &
                set_radius_b, zeta, zetb)
 
@@ -544,8 +521,6 @@ CONTAINS
 
       DEALLOCATE (swork, swork_cont)
 
-      CALL timestop(handle)
-
    END SUBROUTINE int_operator_ab_shg_low
 
 ! **************************************************************************************************
@@ -578,8 +553,10 @@ CONTAINS
       CHARACTER(LEN=*), PARAMETER :: routineN = 'int_overlap_ab_shg_low', &
          routineP = moduleN//':'//routineN
 
-      INTEGER :: handle, iset, jset, la_max_set, lb_max_set, ndev, nds, nds_max, npgfa_set, &
-         npgfb_set, nseta, nsetb, nshella_set, nshellb_set
+      INTEGER                                            :: iset, jset, la_max_set, lb_max_set, &
+                                                            ndev, nds, nds_max, npgfa_set, &
+                                                            npgfb_set, nseta, nsetb, nshella_set, &
+                                                            nshellb_set
       INTEGER, DIMENSION(:), POINTER                     :: la_max, lb_max, npgfa, npgfb, nshella, &
                                                             nshellb
       INTEGER, DIMENSION(:, :), POINTER                  :: first_sgfa, first_sgfb, la, lb
@@ -589,7 +566,6 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:), POINTER               :: set_radius_a, set_radius_b
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: zeta, zetb
 
-      CALL timeset(routineN, handle)
       NULLIFY (la_max, lb_max, npgfa, npgfb, first_sgfa, first_sgfb, set_radius_a, &
                set_radius_b, zeta, zetb)
 
@@ -675,8 +651,6 @@ CONTAINS
 
       DEALLOCATE (swork, swork_cont)
 
-      CALL timestop(handle)
-
    END SUBROUTINE int_overlap_ab_shg_low
 
 ! **************************************************************************************************
@@ -710,8 +684,10 @@ CONTAINS
       CHARACTER(LEN=*), PARAMETER :: routineN = 'int_ra2m_ab_shg_low', &
          routineP = moduleN//':'//routineN
 
-      INTEGER :: handle, iset, jset, la_max_set, lb_max_set, ndev, nds, nds_max, npgfa_set, &
-         npgfb_set, nseta, nsetb, nshella_set, nshellb_set
+      INTEGER                                            :: iset, jset, la_max_set, lb_max_set, &
+                                                            ndev, nds, nds_max, npgfa_set, &
+                                                            npgfb_set, nseta, nsetb, nshella_set, &
+                                                            nshellb_set
       INTEGER, DIMENSION(:), POINTER                     :: la_max, lb_max, npgfa, npgfb, nsgfa, &
                                                             nsgfb, nshella, nshellb
       INTEGER, DIMENSION(:, :), POINTER                  :: first_sgfa, first_sgfb, la, lb
@@ -720,7 +696,6 @@ CONTAINS
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :, :)  :: swork
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: zeta, zetb
 
-      CALL timeset(routineN, handle)
       NULLIFY (la_max, lb_max, npgfa, npgfb, first_sgfa, first_sgfb, zeta, zetb)
 
       ! basis ikind
@@ -791,8 +766,6 @@ CONTAINS
 
       DEALLOCATE (swork, swork_cont)
 
-      CALL timestop(handle)
-
    END SUBROUTINE int_ra2m_ab_shg_low
 ! **************************************************************************************************
 !> \brief calculate integrals (a,b,fb); requires angular-dependent part as input
@@ -837,10 +810,9 @@ CONTAINS
       CHARACTER(LEN=*), PARAMETER :: routineN = 'int_overlap_abb_shg_low', &
          routineP = moduleN//':'//routineN
 
-      INTEGER :: handle, iset, jset, kset, la_max_set, lb_max_set, lbb_max, lbb_max_set, &
-         lcb_max_set, na, nb, ncb, ndev, nds, nds_max, nl, nl_set, npgfa_set, npgfb_set, &
-         npgfcb_set, nseta, nsetb, nsetcb, nshella_set, nshellb_set, nshellcb_set, sgfa, sgfb, &
-         sgfcb
+      INTEGER :: iset, jset, kset, la_max_set, lb_max_set, lbb_max, lbb_max_set, lcb_max_set, na, &
+         nb, ncb, ndev, nds, nds_max, nl, nl_set, npgfa_set, npgfb_set, npgfcb_set, nseta, nsetb, &
+         nsetcb, nshella_set, nshellb_set, nshellcb_set, sgfa, sgfb, sgfcb
       INTEGER, DIMENSION(:), POINTER                     :: la_max, lb_max, lcb_max, npgfa, npgfb, &
                                                             npgfcb, nsgfa, nsgfb, nsgfcb, nshella, &
                                                             nshellb, nshellcb
@@ -852,7 +824,6 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:), POINTER               :: set_radius_a, set_radius_b, set_radius_cb
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: zeta, zetb, zetcb
 
-      CALL timeset(routineN, handle)
       NULLIFY (la_max, lb_max, lcb_max, npgfa, npgfb, npgfcb)
       NULLIFY (first_sgfa, first_sgfb, first_sgfcb, set_radius_a, set_radius_b, &
                set_radius_cb, zeta, zetb, zetcb)
@@ -969,8 +940,6 @@ CONTAINS
       DEALLOCATE (swork_cont)
       DEALLOCATE (swork)
 
-      CALL timestop(handle)
-
    END SUBROUTINE int_overlap_abb_shg_low
 ! **************************************************************************************************
 !> \brief obtain integrals (a,b,fb) by symmetry relations from (a,b,fa) if basis sets at a and
@@ -1001,16 +970,14 @@ CONTAINS
       CHARACTER(LEN=*), PARAMETER :: routineN = 'get_abb_same_kind', &
          routineP = moduleN//':'//routineN
 
-      INTEGER :: handle, i, iend, iset, isgfa, ishella, istart, jend, jset, jsgfa, jshella, &
-         jstart, kend, kset, ksgfa, kshella, kstart, lai, laj, lak, nseta, nsetca, nsgfa, nsgfca, &
-         sgfa_end, sgfa_start
+      INTEGER :: i, iend, iset, isgfa, ishella, istart, jend, jset, jsgfa, jshella, jstart, kend, &
+         kset, ksgfa, kshella, kstart, lai, laj, lak, nseta, nsetca, nsgfa, nsgfca, sgfa_end, &
+         sgfa_start
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: lai_set, laj_set, lak_set
       INTEGER, DIMENSION(:), POINTER                     :: nsgfa_set, nsgfca_set, nshella, nshellca
       INTEGER, DIMENSION(:, :), POINTER                  :: first_sgfa, first_sgfca, la, lca
       REAL(KIND=dp)                                      :: dab
       REAL(KIND=dp), DIMENSION(:), POINTER               :: set_radius_a, set_radius_ca
-
-      CALL timeset(routineN, handle)
 
       NULLIFY (nshellca, first_sgfa, first_sgfca, lca, set_radius_a, &
                set_radius_ca)
@@ -1108,8 +1075,6 @@ CONTAINS
 
       DEALLOCATE (lai_set, laj_set, lak_set)
 
-      CALL timestop(handle)
-
    END SUBROUTINE get_abb_same_kind
 
 ! **************************************************************************************************
@@ -1155,10 +1120,9 @@ CONTAINS
       CHARACTER(LEN=*), PARAMETER :: routineN = 'int_overlap_aba_shg_low', &
          routineP = moduleN//':'//routineN
 
-      INTEGER :: handle, iset, jset, kset, la_max_set, laa_max, laa_max_set, lb_max_set, &
-         lca_max_set, na, nb, nca, ndev, nds, nds_max, nl, nl_set, npgfa_set, npgfb_set, &
-         npgfca_set, nseta, nsetb, nsetca, nshella_set, nshellb_set, nshellca_set, sgfa, sgfb, &
-         sgfca
+      INTEGER :: iset, jset, kset, la_max_set, laa_max, laa_max_set, lb_max_set, lca_max_set, na, &
+         nb, nca, ndev, nds, nds_max, nl, nl_set, npgfa_set, npgfb_set, npgfca_set, nseta, nsetb, &
+         nsetca, nshella_set, nshellb_set, nshellca_set, sgfa, sgfb, sgfca
       INTEGER, DIMENSION(:), POINTER                     :: la_max, lb_max, lca_max, npgfa, npgfb, &
                                                             npgfca, nsgfa, nsgfb, nsgfca, nshella, &
                                                             nshellb, nshellca
@@ -1170,7 +1134,6 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:), POINTER               :: set_radius_a, set_radius_b, set_radius_ca
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: zeta, zetb, zetca
 
-      CALL timeset(routineN, handle)
       NULLIFY (la_max, lb_max, lca_max, npgfa, npgfb, npgfca)
       NULLIFY (first_sgfa, first_sgfb, first_sgfca, set_radius_a, set_radius_b, &
                set_radius_ca, zeta, zetb, zetca)
@@ -1288,8 +1251,6 @@ CONTAINS
       DEALLOCATE (swork_cont)
       DEALLOCATE (swork)
 
-      CALL timestop(handle)
-
    END SUBROUTINE int_overlap_aba_shg_low
 
 ! **************************************************************************************************
@@ -1318,15 +1279,13 @@ CONTAINS
       CHARACTER(len=*), PARAMETER :: routineN = 'lri_precalc_angular_shg_part', &
          routineP = moduleN//':'//routineN
 
-      INTEGER                                            :: handle, i, isize, j, k, la_max, laa_max, &
-                                                            lb_max, lbb_max, lca_max, lcb_max, &
-                                                            li_max, lj_max, lmax, mdim(3), &
-                                                            size_int(4, 2), temp
+      INTEGER                                            :: i, isize, j, k, la_max, laa_max, lb_max, &
+                                                            lbb_max, lca_max, lcb_max, li_max, &
+                                                            lj_max, lmax, mdim(3), size_int(4, 2), &
+                                                            temp
       INTEGER, DIMENSION(:), POINTER                     :: li_max_all
       REAL(KIND=dp)                                      :: rab2
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: Rc, Rs
-
-      CALL timeset(routineN, handle)
 
       rab2 = rab(1)*rab(1)+rab(2)*rab(2)+rab(3)*rab(3)
 
@@ -1392,8 +1351,6 @@ CONTAINS
       ENDIF
 
       DEALLOCATE (Rc, Rs, li_max_all)
-
-      CALL timestop(handle)
 
    END SUBROUTINE lri_precalc_angular_shg_part
 

@@ -204,9 +204,34 @@ CONTAINS
                CPABORT("Unknown DISTANT_PAIR_METHOD in LRI")
             END SELECT
             !
+            ALLOCATE (lri_env%wmat(nkind, nkind))
             SELECT CASE (lri_env%distant_pair_method)
+            CASE ("EW")
+               ! equal weight of 0.5
+               DO i1 = 1, nkind
+                  n1 = lri_env%orb_basis(i1)%gto_basis_set%nsgf
+                  DO i2 = 1, nkind
+                     n2 = lri_env%orb_basis(i2)%gto_basis_set%nsgf
+                     ALLOCATE (lri_env%wmat(i1, i2)%mat(n1, n2))
+                     lri_env%wmat(i1, i2)%mat(:, :) = 0.5_dp
+                  END DO
+               END DO
+            CASE ("AW")
+               DO i1 = 1, nkind
+                  n1 = lri_env%orb_basis(i1)%gto_basis_set%nsgf
+                  DO i2 = 1, nkind
+                     n2 = lri_env%orb_basis(i2)%gto_basis_set%nsgf
+                     ALLOCATE (lri_env%wmat(i1, i2)%mat(n1, n2))
+                     rai = lri_env%aradius(i1)**2
+                     raj = lri_env%aradius(i2)**2
+                     IF (raj > rai) THEN
+                        lri_env%wmat(i1, i2)%mat(:, :) = 1.0_dp
+                     ELSE
+                        lri_env%wmat(i1, i2)%mat(:, :) = 0.0_dp
+                     END IF
+                  END DO
+               END DO
             CASE ("SW", "LW")
-               ALLOCATE (lri_env%wmat(nkind, nkind))
                DO i1 = 1, nkind
                   n1 = lri_env%orb_basis(i1)%gto_basis_set%nsgf
                   DO i2 = 1, nkind

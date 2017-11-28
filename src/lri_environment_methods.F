@@ -437,7 +437,7 @@ CONTAINS
       INTEGER :: handle, i, iac, iatom, ikind, ilist, ispin, jatom, jkind, jneighbor, mepos, nba, &
          nbb, nfa, nfb, nkind, nlist, nn, nneighbor, nspin, nthread
       LOGICAL                                            :: found, trans
-      REAL(KIND=dp)                                      :: dab, rab(3), rai, raj, threshold
+      REAL(KIND=dp)                                      :: dab, rab(3), threshold
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: m
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: int3, paa, pab, pbb
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: pbij
@@ -476,7 +476,7 @@ CONTAINS
 !$OMP PARALLEL DEFAULT(NONE)&
 !$OMP SHARED (nthread,nl_iterator,lri_env,lri_rho,pmat,nkind)&
 !$OMP PRIVATE (mepos,ikind,jkind,iatom,jatom,nlist,ilist,nneighbor,jneighbor,rab,dab,iac,&
-!$OMP          trans,found,pbij,pab,paa,pbb,int3,lrho,lrii,nba,nbb,nfa,nfb,nn,threshold,i,m,rai,raj)
+!$OMP          trans,found,pbij,pab,paa,pbb,int3,lrho,lrii,nba,nbb,nfa,nfb,nn,threshold,i,m)
 
             mepos = 0
 !$          mepos = omp_get_thread_num()
@@ -560,24 +560,8 @@ CONTAINS
                IF (lrii%lriff) THEN
                   ! distant pair approximations
                   ALLOCATE (paa(nba, nbb), pbb(nba, nbb))
-                  paa(1:nba, 1:nbb) = pab(1:nba, 1:nbb)
-                  pbb(1:nba, 1:nbb) = pab(1:nba, 1:nbb)
-                  !
-                  SELECT CASE (lri_env%distant_pair_method)
-                  CASE ("EW")
-                     paa(1:nba, 1:nbb) = 0.5_dp*paa(1:nba, 1:nbb)
-                     pbb(1:nba, 1:nbb) = 0.5_dp*pbb(1:nba, 1:nbb)
-                  CASE ("AW")
-                     rai = lri_env%aradius(ikind)**2
-                     raj = lri_env%aradius(jkind)**2
-                     paa(1:nba, 1:nbb) = raj/(rai+raj)*paa(1:nba, 1:nbb)
-                     pbb(1:nba, 1:nbb) = rai/(rai+raj)*pbb(1:nba, 1:nbb)
-                  CASE ("SW", "LW")
-                     paa(1:nba, 1:nbb) = paa(1:nba, 1:nbb)*lri_env%wmat(ikind, jkind)%mat(1:nba, 1:nbb)
-                     pbb(1:nba, 1:nbb) = pbb(1:nba, 1:nbb)*(1._dp-lri_env%wmat(ikind, jkind)%mat(1:nba, 1:nbb))
-                  CASE DEFAULT
-                     CPABORT("Unknown DISTANT_PAIR_METHOD in LRI")
-                  END SELECT
+                  paa(1:nba, 1:nbb) = pab(1:nba, 1:nbb)*lri_env%wmat(ikind, jkind)%mat(1:nba, 1:nbb)
+                  pbb(1:nba, 1:nbb) = pab(1:nba, 1:nbb)*(1._dp-lri_env%wmat(ikind, jkind)%mat(1:nba, 1:nbb))
                   !
                   threshold = lri_env%eps_o3_int/MAX(SUM(ABS(paa(1:nba, 1:nbb))), 1.0e-14_dp)
                   lrho%chargea = SUM(paa(1:nba, 1:nbb)*lrii%soo(1:nba, 1:nbb))

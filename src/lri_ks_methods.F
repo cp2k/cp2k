@@ -71,10 +71,10 @@ CONTAINS
          jneighbor, mepos, natom, nba, nbb, nfa, nfb, nkind, nlist, nm, nn, nthread, row
       INTEGER, DIMENSION(:), POINTER                     :: atom_of_kind
       LOGICAL                                            :: found, trans
-      REAL(KIND=dp)                                      :: dab, fw, isn, isna, isnb, rab(3), rai, &
-                                                            raj, threshold
+      REAL(KIND=dp)                                      :: dab, fw, isn, isna, isnb, rab(3), &
+                                                            threshold
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: vi, via, vib
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: hf_work, hs_work, int3, wab
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: hf_work, hs_work, int3, wab, wbb
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: h_block
       TYPE(lri_int_type), POINTER                        :: lrii
       TYPE(neighbor_list_iterator_p_type), &
@@ -103,8 +103,8 @@ CONTAINS
 !$OMP SHARED (nthread,nl_iterator,nkind,atom_of_kind,threshold,lri_env,lri_v_int,&
 !$OMP         h_matrix)&
 !$OMP PRIVATE (mepos,ikind,jkind,iatom,jatom,nlist,ilist,jneighbor,rab,iac,dab,lrii,&
-!$OMP          nfa,nfb,nba,nbb,nn,hs_work,hf_work,h_block,row,col,trans,found,wab,&
-!$OMP          rai,raj,atom_a,atom_b,isn,nm,vi,isna,isnb,via,vib,fw,int3)
+!$OMP          nfa,nfb,nba,nbb,nn,hs_work,hf_work,h_block,row,col,trans,found,wab,wbb,&
+!$OMP          atom_a,atom_b,isn,nm,vi,isna,isnb,via,vib,fw,int3)
 
          mepos = 0
 !$       mepos = omp_get_thread_num()
@@ -168,19 +168,9 @@ CONTAINS
             END IF
 
             IF (lrii%lriff) THEN
-               ALLOCATE (hf_work(nba, nbb), wab(nba, nbb))
-               SELECT CASE (lri_env%distant_pair_method)
-               CASE ("EW")
-                  wab(1:nba, 1:nbb) = 0.5_dp
-               CASE ("AW")
-                  rai = lri_env%aradius(ikind)**2
-                  raj = lri_env%aradius(jkind)**2
-                  wab(1:nba, 1:nbb) = raj/(rai+raj)
-               CASE ("SW", "LW")
-                  wab(1:nba, 1:nbb) = lri_env%wmat(ikind, jkind)%mat(1:nba, 1:nbb)
-               CASE DEFAULT
-                  CPABORT("Unknown DISTANT_PAIR_METHOD in LRI")
-               END SELECT
+               ALLOCATE (hf_work(nba, nbb), wab(nba, nbb), wbb(nba, nbb))
+               wab(1:nba, 1:nbb) = lri_env%wmat(ikind, jkind)%mat(1:nba, 1:nbb)
+               wbb(1:nba, 1:nbb) = 1.0_dp-lri_env%wmat(ikind, jkind)%mat(1:nba, 1:nbb)
                !
                ALLOCATE (via(nfa), vib(nfb))
                via(1:nfa) = lri_v_int(ikind)%v_int(atom_a, 1:nfa)
@@ -191,8 +181,7 @@ CONTAINS
                via(1:nfa) = MATMUL(lrii%asinv(1:nfa, 1:nfa), via(1:nfa))-isna*lrii%sna(1:nfa)
                vib(1:nfb) = MATMUL(lrii%bsinv(1:nfb, 1:nfb), vib(1:nfb))-isnb*lrii%snb(1:nfb)
                !
-               hf_work(1:nba, 1:nbb) = (isna*wab(1:nba, 1:nbb)+isnb*(1.0_dp-wab(1:nba, 1:nbb))) &
-                                       *lrii%soo(1:nba, 1:nbb)
+               hf_work(1:nba, 1:nbb) = (isna*wab(1:nba, 1:nbb)+isnb*wbb(1:nba, 1:nbb))*lrii%soo(1:nba, 1:nbb)
                !
                DO i = 1, nfa
                   IF (lrii%abascr(i) > threshold) THEN
@@ -205,11 +194,11 @@ CONTAINS
                   IF (lrii%abbscr(i) > threshold) THEN
                      CALL lri_decomp_i(int3, lrii%cabbi, i)
                      hf_work(1:nba, 1:nbb) = hf_work(1:nba, 1:nbb)+ &
-                                             vib(i)*int3(1:nba, 1:nbb)*(1.0_dp-wab(1:nba, 1:nbb))
+                                             vib(i)*int3(1:nba, 1:nbb)*wbb(1:nba, 1:nbb)
                   END IF
                ENDDO
                !
-               DEALLOCATE (via, vib, wab)
+               DEALLOCATE (via, vib, wab, wbb)
             END IF
             DEALLOCATE (int3)
 

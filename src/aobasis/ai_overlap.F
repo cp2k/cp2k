@@ -689,16 +689,13 @@ CONTAINS
 
       CHARACTER(len=*), PARAMETER :: routineN = 'overlap_ab', routineP = moduleN//':'//routineN
 
-      INTEGER                                            :: ax, ay, az, bx, by, bz, coa, cob, &
-                                                            handle, ia, ib, ipgf, jpgf, la, lb, &
-                                                            ldrr, lma, lmb, ma, mb, na, nb, ofa, &
-                                                            ofb
+      INTEGER                                            :: ax, ay, az, bx, by, bz, coa, cob, ia, &
+                                                            ib, ipgf, jpgf, la, lb, ldrr, lma, &
+                                                            lmb, ma, mb, na, nb, ofa, ofb
       REAL(KIND=dp)                                      :: a, ambm, ambp, apbm, apbp, b, dumx, &
                                                             dumy, dumz, f0, rab2, tab, xhi, zet
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: rr
       REAL(KIND=dp), DIMENSION(3)                        :: rap, rbp
-
-      CALL timeset(routineN, handle)
 
       ! Distance of the centers a and b
 
@@ -937,8 +934,6 @@ CONTAINS
 
       DEALLOCATE (rr)
 
-      CALL timestop(handle)
-
    END SUBROUTINE overlap_ab
 
 ! **************************************************************************************************
@@ -989,15 +984,13 @@ CONTAINS
 
       CHARACTER(len=*), PARAMETER :: routineN = 'overlap_aab', routineP = moduleN//':'//routineN
 
-      INTEGER :: ax, ax1, ax2, ay, ay1, ay2, az, az1, az2, bx, by, bz, coa1, coa2, cob, handle, &
-         i1pgf, i2pgf, ia1, ia2, ib, jpgf, la1, la2, lb, ldrr, lma, lmb, ma1, ma2, mb, na1, na2, &
-         nb, ofa1, ofa2, ofb
+      INTEGER :: ax, ax1, ax2, ay, ay1, ay2, az, az1, az2, bx, by, bz, coa1, coa2, cob, i1pgf, &
+         i2pgf, ia1, ia2, ib, jpgf, la1, la2, lb, ldrr, lma, lmb, ma1, ma2, mb, na1, na2, nb, &
+         ofa1, ofa2, ofb
       REAL(KIND=dp)                                      :: a, b, dumx, dumy, dumz, f0, rab2, rpgfa, &
                                                             tab, xhi, zet
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: rr
       REAL(KIND=dp), DIMENSION(3)                        :: rap, rbp
-
-      CALL timeset(routineN, handle)
 
       ! Distance of the centers a and b
 
@@ -1162,8 +1155,6 @@ CONTAINS
 
       DEALLOCATE (rr)
 
-      CALL timestop(handle)
-
    END SUBROUTINE overlap_aab
 
 ! **************************************************************************************************
@@ -1208,15 +1199,13 @@ CONTAINS
 
       CHARACTER(len=*), PARAMETER :: routineN = 'overlap_abb', routineP = moduleN//':'//routineN
 
-      INTEGER :: ax, ay, az, bx, bx1, bx2, by, by1, by2, bz, bz1, bz2, coa, cob1, cob2, handle, &
-         ia, ib1, ib2, ipgf, j1pgf, j2pgf, la, lb1, lb2, ldrr, lma, lmb, ma, mb1, mb2, na, nb1, &
-         nb2, ofa, ofb1, ofb2
+      INTEGER :: ax, ay, az, bx, bx1, bx2, by, by1, by2, bz, bz1, bz2, coa, cob1, cob2, ia, ib1, &
+         ib2, ipgf, j1pgf, j2pgf, la, lb1, lb2, ldrr, lma, lmb, ma, mb1, mb2, na, nb1, nb2, ofa, &
+         ofb1, ofb2
       REAL(KIND=dp)                                      :: a, b, dumx, dumy, dumz, f0, rab2, rpgfb, &
                                                             tab, xhi, zet
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: rr
       REAL(KIND=dp), DIMENSION(3)                        :: rap, rbp
-
-      CALL timeset(routineN, handle)
 
       ! Distance of the centers a and b
 
@@ -1346,8 +1335,6 @@ CONTAINS
       END DO
 
       DEALLOCATE (rr)
-
-      CALL timestop(handle)
 
    END SUBROUTINE overlap_abb
 

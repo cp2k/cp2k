@@ -55,11 +55,9 @@ CONTAINS
       CHARACTER(len=*), PARAMETER :: routineN = 'get_real_scaled_solid_harmonic', &
          routineP = moduleN//':'//routineN
 
-      INTEGER                                            :: handle, li, mi, prefac
+      INTEGER                                            :: li, mi, prefac
       REAL(KIND=dp)                                      :: Rc, Rc_00, Rlm, Rmlm, Rplm, Rs, Rs_00, &
                                                             temp_c
-
-      CALL timeset(routineN, handle)
 
       Rc_00 = 1.0_dp
       Rs_00 = 0.0_dp
@@ -136,8 +134,6 @@ CONTAINS
             ENDIF
          ENDDO
       ENDDO
-
-      CALL timestop(handle)
 
    END SUBROUTINE get_real_scaled_solid_harmonic
 
@@ -227,14 +223,11 @@ CONTAINS
 
       CHARACTER(len=*), PARAMETER :: routineN = 'get_W_matrix', routineP = moduleN//':'//routineN
 
-      INTEGER                                            :: handle, j, k, la, labmin, laj, lb, lbj, &
-                                                            ma, ma_m, ma_p, mb, mb_m, mb_p, nla, &
-                                                            nlb
+      INTEGER                                            :: j, k, la, labmin, laj, lb, lbj, ma, &
+                                                            ma_m, ma_p, mb, mb_m, mb_p, nla, nlb
       REAL(KIND=dp) :: A_jk, A_lama, A_lbmb, Alm_fac, delta_k, prefac, Rca_m, Rca_p, Rcb_m, Rcb_p, &
          Rsa_m, Rsa_p, Rsb_m, Rsb_p, sign_fac, Wa(4), Wb(4), Wmat(4)
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: A
-
-      CALL timeset(routineN, handle)
 
       Wa(:) = 0.0_dp
       Wb(:) = 0.0_dp
@@ -314,8 +307,6 @@ CONTAINS
 
       DEALLOCATE (A)
 
-      CALL timestop(handle)
-
    END SUBROUTINE get_W_matrix
 
 ! **************************************************************************************************
@@ -337,15 +328,12 @@ CONTAINS
 
       CHARACTER(len=*), PARAMETER :: routineN = 'get_dW_matrix', routineP = moduleN//':'//routineN
 
-      INTEGER                                            :: handle, ima, imam, imb, imbm, ipa, ipam, &
-                                                            ipb, ipbm, j, jmax, la, labm, labmin, &
-                                                            lamb, lb, lmax, ma, mb, nla, nlam, &
-                                                            nlb, nlbm
+      INTEGER                                            :: ima, imam, imb, imbm, ipa, ipam, ipb, &
+                                                            ipbm, j, jmax, la, labm, labmin, lamb, &
+                                                            lb, lmax, ma, mb, nla, nlam, nlb, nlbm
       REAL(KIND=dp)                                      :: dAa, dAa_m, dAa_p, dAb, dAb_m, dAb_p
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: dA, dA_m, dA_p, Wam, Wamm, Wamp, Wbm, &
                                                             Wbmm, Wbmp
-
-      CALL timeset(routineN, handle)
 
       jmax = MIN(MAXVAL(lamax), lbmax)
       ALLOCATE (Wam(0:jmax, 4), Wamm(0:jmax, 4), Wamp(0:jmax, 4))
@@ -487,8 +475,6 @@ CONTAINS
       DEALLOCATE (Wbm, Wbmm, Wbmp)
       DEALLOCATE (dA, dA_p, dA_m)
 
-      CALL timestop(handle)
-
    END SUBROUTINE get_dW_matrix
 
 ! **************************************************************************************************
@@ -517,12 +503,10 @@ CONTAINS
       CHARACTER(len=*), PARAMETER :: routineN = 'construct_int_shg_ab', &
          routineP = moduleN//':'//routineN
 
-      INTEGER                                            :: fnla, fnlb, fsgfa, fsgfb, handle, &
-                                                            ishella, j, jshellb, labmin, lai, lbj, &
-                                                            lnla, lnlb, lsgfa, lsgfb, mai, mbj
+      INTEGER                                            :: fnla, fnlb, fsgfa, fsgfb, ishella, j, &
+                                                            jshellb, labmin, lai, lbj, lnla, lnlb, &
+                                                            lsgfa, lsgfb, mai, mbj
       REAL(KIND=dp)                                      :: prefac
-
-      CALL timeset(routineN, handle)
 
       DO jshellb = 1, nshellb
          lbj = lb(jshellb)
@@ -548,8 +532,6 @@ CONTAINS
             ENDDO
          ENDDO
       ENDDO
-
-      CALL timestop(handle)
 
    END SUBROUTINE construct_int_shg_ab
 
@@ -583,12 +565,10 @@ CONTAINS
       CHARACTER(len=*), PARAMETER :: routineN = 'construct_dev_shg_ab', &
          routineP = moduleN//':'//routineN
 
-      INTEGER                                            :: fnla, fnlb, fsgfa, fsgfb, handle, i, &
-                                                            ishella, j, jshellb, labmin, lai, lbj, &
-                                                            lnla, lnlb, lsgfa, lsgfb
+      INTEGER                                            :: fnla, fnlb, fsgfa, fsgfb, i, ishella, j, &
+                                                            jshellb, labmin, lai, lbj, lnla, lnlb, &
+                                                            lsgfa, lsgfb
       REAL(KIND=dp)                                      :: dprefac, prefac, rabx2(3)
-
-      CALL timeset(routineN, handle)
 
       rabx2(:) = 2.0_dp*rab
       DO jshellb = 1, nshellb
@@ -615,8 +595,6 @@ CONTAINS
             ENDDO
          ENDDO
       ENDDO
-
-      CALL timestop(handle)
 
    END SUBROUTINE construct_dev_shg_ab
 
@@ -660,11 +638,9 @@ CONTAINS
       CHARACTER(len=*), PARAMETER :: routineN = 'construct_overlap_shg_aba', &
          routineP = moduleN//':'//routineN
 
-      INTEGER :: handle, ia, il, ilist, ishella, isoa1, isoa2, isoaa, j, jb, jshellb, ka, kshella, &
-         laa, labmin, lai, lak, lbj, maa, mai, mak, mbj, nla, nlb, sgfa, sgfb, sgfca
+      INTEGER :: ia, il, ilist, ishella, isoa1, isoa2, isoaa, j, jb, jshellb, ka, kshella, laa, &
+         labmin, lai, lak, lbj, maa, mai, mak, mbj, nla, nlb, sgfa, sgfb, sgfca
       REAL(KIND=dp)                                      :: prefac, stemp
-
-      CALL timeset(routineN, handle)
 
       DO kshella = 1, nshellca
          lak = lca(kshella)
@@ -704,8 +680,6 @@ CONTAINS
             ENDDO
          ENDDO
       ENDDO
-
-      CALL timestop(handle)
 
    END SUBROUTINE construct_overlap_shg_aba
 
@@ -755,11 +729,9 @@ CONTAINS
       CHARACTER(len=*), PARAMETER :: routineN = 'dev_overlap_shg_aba', &
          routineP = moduleN//':'//routineN
 
-      INTEGER :: handle, i, ia, il, ilist, ishella, isoa1, isoa2, isoaa, j, jb, jshellb, ka, &
-         kshella, laa, labmin, lai, lak, lbj, maa, mai, mak, mbj, nla, nlb, sgfa, sgfb, sgfca
+      INTEGER :: i, ia, il, ilist, ishella, isoa1, isoa2, isoaa, j, jb, jshellb, ka, kshella, laa, &
+         labmin, lai, lak, lbj, maa, mai, mak, mbj, nla, nlb, sgfa, sgfb, sgfca
       REAL(KIND=dp)                                      :: dprefac, dtemp(3), prefac, rabx2(3)
-
-      CALL timeset(routineN, handle)
 
       rabx2(:) = 2.0_dp*rab
 
@@ -809,8 +781,6 @@ CONTAINS
          ENDDO
       ENDDO
 
-      CALL timestop(handle)
-
    END SUBROUTINE dev_overlap_shg_aba
 
 ! **************************************************************************************************
@@ -853,11 +823,9 @@ CONTAINS
       CHARACTER(len=*), PARAMETER :: routineN = 'construct_overlap_shg_abb', &
          routineP = moduleN//':'//routineN
 
-      INTEGER :: handle, ia, il, ilist, ishella, isob1, isob2, isobb, j, jb, jshellb, kb, kshellb, &
-         labmin, lai, lbb, lbj, lbk, mai, mbb, mbj, mbk, nla, nlb, sgfa, sgfb, sgfcb
+      INTEGER :: ia, il, ilist, ishella, isob1, isob2, isobb, j, jb, jshellb, kb, kshellb, labmin, &
+         lai, lbb, lbj, lbk, mai, mbb, mbj, mbk, nla, nlb, sgfa, sgfb, sgfcb
       REAL(KIND=dp)                                      :: prefac, stemp, tsign
-
-      CALL timeset(routineN, handle)
 
       DO kshellb = 1, nshellcb
          lbk = lcb(kshellb)
@@ -900,8 +868,6 @@ CONTAINS
             ENDDO
          ENDDO
       ENDDO
-
-      CALL timestop(handle)
 
    END SUBROUTINE construct_overlap_shg_abb
 
@@ -951,12 +917,10 @@ CONTAINS
       CHARACTER(len=*), PARAMETER :: routineN = 'dev_overlap_shg_abb', &
          routineP = moduleN//':'//routineN
 
-      INTEGER :: handle, i, ia, il, ilist, ishella, isob1, isob2, isobb, j, jb, jshellb, kb, &
-         kshellb, labmin, lai, lbb, lbj, lbk, mai, mbb, mbj, mbk, nla, nlb, sgfa, sgfb, sgfcb
+      INTEGER :: i, ia, il, ilist, ishella, isob1, isob2, isobb, j, jb, jshellb, kb, kshellb, &
+         labmin, lai, lbb, lbj, lbk, mai, mbb, mbj, mbk, nla, nlb, sgfa, sgfb, sgfcb
       REAL(KIND=dp)                                      :: dprefac, dtemp(3), prefac, rabx2(3), &
                                                             tsign
-
-      CALL timeset(routineN, handle)
 
       rabx2(:) = 2.0_dp*rab
 
@@ -1008,8 +972,6 @@ CONTAINS
             ENDDO
          ENDDO
       ENDDO
-
-      CALL timestop(handle)
 
    END SUBROUTINE dev_overlap_shg_abb
 

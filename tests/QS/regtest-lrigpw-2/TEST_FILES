@@ -4,10 +4,10 @@
 #      1 compares the last total energy in the file
 #      for details see cp2k/tools/do_regtest
 # LRIGPW
-2H2O_dpa_1.inp                                         1      1e-08            -34.38600334435393 
-2H2O_dpa_2.inp                                         1      1e-08            -34.38595495194628 
-2H2O_dpa_3.inp                                         1      1e-08            -34.38555829255533 
-2H2O_dpa_4.inp                                         1      1e-08            -34.32111657805251 
-2H2O_dpa_5.inp                                         1      1e-08            -34.38555820284390 
-2H2O_dpa_6.inp                                         1      1e-08            -34.32111650834393 
+2H2O_dpa_1.inp                                         1      5e-08            -34.38600334435393 
+2H2O_dpa_2.inp                                         1      5e-08            -34.38595495194628 
+2H2O_dpa_3.inp                                         1      5e-08            -34.38555829255533 
+2H2O_dpa_4.inp                                         1      5e-08            -34.32111657805251 
+2H2O_dpa_5.inp                                         1      5e-08            -34.38555820284390 
+2H2O_dpa_6.inp                                         1      5e-08            -34.32111650834393 
 #EOF
