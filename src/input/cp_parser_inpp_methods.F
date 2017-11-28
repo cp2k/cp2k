@@ -16,7 +16,7 @@
 ! **************************************************************************************************
 MODULE cp_parser_inpp_methods
    USE cp_files,                        ONLY: close_file,&
-                                              open_file
+                                              open_file, file_exists
    USE cp_log_handling,                 ONLY: cp_logger_get_default_io_unit
    USE cp_parser_inpp_types,            ONLY: inpp_type
    USE kinds,                           ONLY: default_path_length,&
@@ -144,6 +144,96 @@ CONTAINS
 
          IF (debug_this_module .AND. output_unit > 0) THEN
             WRITE (UNIT=message, FMT="(3A,I6,2A)") "INPP_@INCLUDE: in file: ", &
+               TRIM(input_file_name), "  Line:", input_line_number, &
+               " Opened include file: ", TRIM(filename)
+            WRITE (output_unit, *) TRIM(message)
+         END IF
+
+         ! make room, save status and position the parser at the beginning of new file.
+         inpp%io_stack_level = inpp%io_stack_level+1
+         CALL reallocate(inpp%io_stack_channel, 1, inpp%io_stack_level)
+         CALL reallocate(inpp%io_stack_lineno, 1, inpp%io_stack_level)
+         CALL reallocate(p_long=inpp%io_stack_filename, lb_new=1, ub_new=inpp%io_stack_level)
+
+         inpp%io_stack_channel(inpp%io_stack_level) = input_unit
+         inpp%io_stack_lineno(inpp%io_stack_level) = input_line_number
+         inpp%io_stack_filename(inpp%io_stack_level) = input_file_name
+
+         input_file_name = TRIM(filename)
+         input_line_number = 0
+         input_unit = unit
+
+      CASE ("@XCTYPE")
+         ! Include a &XC section from the data/xc_section directory or the local directory
+         ! Get the filename.. allow for " or ' or nothing..
+         filename = TRIM(input_line(indf:))
+         IF (LEN_TRIM(filename) == 0) THEN
+            WRITE (UNIT=message, FMT="(3A,I6)") &
+               "INPP_@XCTYPE: Incorrect @XCTYPE directive in file: ", &
+               TRIM(input_file_name), "  Line:", input_line_number
+            CPABORT(TRIM(message))
+         ENDIF
+         indi = 1
+         DO WHILE (is_whitespace(filename(indi:indi)))
+            indi = indi+1
+         END DO
+         filename = TRIM(filename(indi:))
+
+         ! handle quoting of the filename
+         pos1 = INDEX(filename, '"')
+         pos2 = INDEX(filename(pos1+1:), '"')
+         IF ((pos1 /= 0) .AND. (pos2 /= 0)) THEN
+            filename = filename(pos1+1:pos1+pos2-1)
+         ELSE
+            pos1 = INDEX(filename, "'")
+            pos2 = INDEX(filename(pos1+1:), "'")
+            IF ((pos1 /= 0) .AND. (pos2 /= 0)) THEN
+               filename = filename(pos1+1:pos1+pos2-1)
+            ELSE
+               ! incorrect quotes (only one of ' or ").
+               pos2 = INDEX(filename, '"')
+               IF ((pos1 /= 0) .OR. (pos2 /= 0)) THEN
+                  WRITE (UNIT=message, FMT="(3A,I6)") &
+                     "INPP_@XCTYPE: Incorrect quoting of include file in file: ", &
+                     TRIM(input_file_name), "  Line:", input_line_number
+                  CPABORT(TRIM(message))
+               ENDIF
+               ! nothing to do. unquoted filename.
+            ENDIF
+         ENDIF
+
+         ! add file extension ".sec"
+         filename = TRIM(filename)//".sec"
+         ! check for file
+         IF (.NOT.file_exists(TRIM(filename))) THEN
+            IF (filename(1:1) == '/') THEN
+               ! this is an absolute path filename, don't change
+            ELSE
+               filename = "xc_section"//'/'//filename 
+            ENDIF
+         END IF
+         IF (.NOT.file_exists(TRIM(filename))) THEN
+            WRITE (UNIT=message, FMT="(3A,I6)") &
+               "INPP_@XCTYPE: Could not find input XC section: ", &
+               TRIM(input_file_name), "  Line:", input_line_number
+               CPABORT(TRIM(message))
+         END IF
+
+         ! Let's check that files already opened won't be again opened
+         DO i = 1, inpp%io_stack_level
+            check = TRIM(filename) /= TRIM(inpp%io_stack_filename(i))
+            CPASSERT(check)
+         END DO
+
+         ! this stops on so we can always assume success
+         CALL open_file(file_name=TRIM(filename), &
+                        file_status="OLD", &
+                        file_form="FORMATTED", &
+                        file_action="READ", &
+                        unit_number=unit)
+
+         IF (debug_this_module .AND. output_unit > 0) THEN
+            WRITE (UNIT=message, FMT="(3A,I6,2A)") "INPP_@XCTYPE: in file: ", &
                TRIM(input_file_name), "  Line:", input_line_number, &
                " Opened include file: ", TRIM(filename)
             WRITE (output_unit, *) TRIM(message)

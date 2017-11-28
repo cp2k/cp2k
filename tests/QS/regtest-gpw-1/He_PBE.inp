@@ -1,0 +1,40 @@
+&FORCE_EVAL
+  METHOD Quickstep
+  &DFT
+    BASIS_SET_FILE_NAME BASIS_SET
+    POTENTIAL_FILE_NAME POTENTIAL
+    LSD
+    &MGRID
+      CUTOFF 140
+    &END MGRID
+    &QS
+      EPS_DEFAULT 1.0E-8
+    &END QS
+    &SCF
+      EPS_DIIS 0.1
+      EPS_SCF 1.0E-4
+      MAX_DIIS 4
+      MAX_SCF 30
+      SCF_GUESS atomic
+    &END SCF
+    # TEST for inculde of XC section
+    @XCTYPE PBE
+  &END DFT
+  &SUBSYS
+    &CELL
+      ABC 8.0 4.0 4.0
+    &END CELL
+    &COORD
+    H     0.000000  0.000000  0.000000
+    H     1.000000  0.000000  0.000000
+    &END COORD
+    &KIND H
+      BASIS_SET DZV-GTH-PADE
+      POTENTIAL GTH-PADE-q1
+    &END KIND
+  &END SUBSYS
+&END FORCE_EVAL
+&GLOBAL
+  PROJECT H2
+  PRINT_LEVEL MEDIUM
+&END GLOBAL
