@@ -541,8 +541,10 @@ CONTAINS
    SUBROUTINE int_overlap_ab_shg_low(sab, dsab, rab, fba, fbb, scona_shg, sconb_shg, Waux_mat, dWaux_mat, &
                                      calculate_ints, calculate_forces, contraction_high)
 
-      REAL(KIND=dp), DIMENSION(:, :), INTENT(INOUT)      :: sab
-      REAL(KIND=dp), DIMENSION(:, :, :), INTENT(INOUT)   :: dsab
+      REAL(KIND=dp), DIMENSION(:, :), ALLOCATABLE, &
+                                      INTENT(INOUT)      :: sab
+      REAL(KIND=dp), DIMENSION(:, :, :), ALLOCATABLE, &
+                                      INTENT(INOUT)      :: dsab
       REAL(KIND=dp), DIMENSION(3), INTENT(IN)            :: rab
       TYPE(gto_basis_set_type), POINTER                  :: fba, fbb
       REAL(KIND=dp), DIMENSION(:, :, :), INTENT(IN)      :: scona_shg, sconb_shg, Waux_mat
