@@ -69,12 +69,12 @@
     &END CELL
     &KIND H
       BASIS_SET  cc-TZ
-      RI_AUX_BASIS_SET  RI_TZ
+      BASIS_SET RI_AUX  RI_TZ
       POTENTIAL  GTH-HF-q1
     &END KIND
     &KIND O
       BASIS_SET  cc-TZ
-      RI_AUX_BASIS_SET  RI_TZ
+      BASIS_SET RI_AUX  RI_TZ
       POTENTIAL  GTH-HF-q6
     &END KIND
     &COORD
@@ -127,12 +127,12 @@
     &END CELL
     &KIND H
       BASIS_SET  cc-TZ
-      RI_AUX_BASIS_SET  RI_TZ
+      BASIS_SET RI_AUX  RI_TZ
       POTENTIAL  GTH-HF-q1
     &END KIND
     &KIND O
       BASIS_SET  cc-TZ
-      RI_AUX_BASIS_SET  RI_TZ
+      BASIS_SET RI_AUX  RI_TZ
       POTENTIAL  GTH-HF-q6
     &END KIND
     &COORD
@@ -184,12 +184,12 @@
     &END CELL
     &KIND H
       BASIS_SET  cc-TZ
-      RI_AUX_BASIS_SET  RI_TZ
+      BASIS_SET RI_AUX  RI_TZ
       POTENTIAL  GTH-HF-q1
     &END KIND
     &KIND O
       BASIS_SET  cc-TZ
-      RI_AUX_BASIS_SET  RI_TZ
+      BASIS_SET RI_AUX  RI_TZ
       POTENTIAL  GTH-HF-q6
     &END KIND
     &COORD
@@ -250,12 +250,12 @@
     &END CELL
     &KIND H
       BASIS_SET  cc-TZ
-      RI_AUX_BASIS_SET  RI_TZ
+      BASIS_SET RI_AUX  RI_TZ
       POTENTIAL  GTH-HF-q1
     &END KIND
     &KIND O
       BASIS_SET  cc-TZ
-      RI_AUX_BASIS_SET  RI_TZ
+      BASIS_SET RI_AUX  RI_TZ
       POTENTIAL  GTH-HF-q6
     &END KIND
     &COORD
@@ -326,12 +326,12 @@
     &END CELL
     &KIND H
       BASIS_SET  cc-TZ
-      RI_AUX_BASIS_SET  RI_TZ
+      BASIS_SET RI_AUX  RI_TZ
       POTENTIAL  GTH-HF-q1
     &END KIND
     &KIND O
       BASIS_SET  cc-TZ
-      RI_AUX_BASIS_SET  RI_TZ
+      BASIS_SET RI_AUX  RI_TZ
       POTENTIAL  GTH-HF-q6
     &END KIND
     &COORD

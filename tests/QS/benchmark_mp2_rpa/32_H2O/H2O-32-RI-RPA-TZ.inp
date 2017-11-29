@@ -58,12 +58,12 @@
     &END TOPOLOGY
     &KIND H
       BASIS_SET         cc-TZ
-      RI_AUX_BASIS_SET  RI-cc-TZ
+      BASIS_SET RI_AUX  RI-cc-TZ
       POTENTIAL         GTH-PBE-q1
     &END KIND
     &KIND O
       BASIS_SET         cc-TZ
-      RI_AUX_BASIS_SET  RI-cc-TZ
+      BASIS_SET RI_AUX  RI-cc-TZ
       POTENTIAL         GTH-PBE-q6
     &END KIND
   &END SUBSYS

@@ -69,7 +69,7 @@
     &END CELL
     &KIND O
       BASIS_SET         DZVP-GTH
-      RI_AUX_BASIS_SET  RI_DZ_init
+      BASIS_SET RI_AUX  RI_DZ_init
       POTENTIAL         GTH-HF-q6
     &END KIND
     &COORD
