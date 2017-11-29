@@ -959,7 +959,8 @@ CONTAINS
    SUBROUTINE get_abb_same_kind(abbint, dabbint, abaint, dabdaint, rab, oba, fba, &
                                 calculate_ints, calculate_forces)
 
-      REAL(KIND=dp), DIMENSION(:, :, :), INTENT(INOUT)   :: abbint
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :), &
+         INTENT(INOUT)                                   :: abbint
       REAL(KIND=dp), ALLOCATABLE, &
          DIMENSION(:, :, :, :), INTENT(INOUT)            :: dabbint
       REAL(KIND=dp), DIMENSION(:, :, :), INTENT(INOUT)   :: abaint
