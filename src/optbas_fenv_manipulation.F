@@ -96,7 +96,9 @@ CONTAINS
       CHARACTER(len=*), PARAMETER :: routineN = 'modify_input_settings', &
          routineP = moduleN//':'//routineN
 
-      CHARACTER(LEN=default_string_length)               :: atom, orig_basis
+      CHARACTER(LEN=default_string_length)               :: atom
+      CHARACTER(LEN=default_string_length), &
+         DIMENSION(:), POINTER                           :: abasinfo, obasinfo
       INTEGER                                            :: ibasis, ikind, jkind, nbasis, nkind
       TYPE(section_vals_type), POINTER                   :: admm_section, dft_section, &
                                                             feval_section, kind_section, &
@@ -130,18 +132,35 @@ CONTAINS
          CALL section_vals_val_get(kind_section, "_SECTION_PARAMETERS_", &
                                    c_val=atom, i_rep_section=ikind)
          CALL uppercase(atom)
+         CALL section_vals_val_get(kind_section, "BASIS_SET", n_rep_val=nbasis, i_rep_section=ikind)
+         IF (nbasis > 1) THEN
+            CALL cp_abort(__LOCATION__, &
+                          "Basis set optimization: Only one single BASIS_SET allowed per KIND in the reference input")
+         END IF
          CALL section_vals_val_get(kind_section, "BASIS_SET", &
-                                   c_val=orig_basis, i_rep_section=ikind)
-         CALL section_vals_val_set(kind_section, "AUX_FIT_BASIS_SET", &
-                                   c_val=orig_basis, i_rep_section=ikind)
+                                   c_vals=obasinfo, i_rep_val=1, i_rep_section=ikind)
+         ALLOCATE (abasinfo(2))
+         abasinfo(1) = "AUX_FIT"
+         IF (SIZE(obasinfo) == 1) THEN
+            abasinfo(2) = obasinfo(1)
+         ELSE
+            abasinfo(2) = obasinfo(2)
+         END IF
+         CALL section_vals_val_set(kind_section, "BASIS_SET", &
+                                   c_vals_ptr=abasinfo, i_rep_val=2, i_rep_section=ikind)
+         CALL section_vals_val_get(kind_section, "BASIS_SET", n_rep_val=nbasis, i_rep_section=ikind)
+         CPASSERT(nbasis == 2)
 
          DO jkind = 1, basis_optimization%nkind
             IF (atom == basis_optimization%kind_basis(jkind)%element) THEN
 
+               NULLIFY (abasinfo)
+               CALL section_vals_val_get(kind_section, "BASIS_SET", &
+                                         c_vals=abasinfo, i_rep_val=2, i_rep_section=ikind)
                ibasis = basis_optimization%combination(bas_id, jkind)
-               CALL section_vals_val_set(kind_section, "AUX_FIT_BASIS_SET", &
-                                         c_val=TRIM(ADJUSTL(basis_optimization%kind_basis(jkind)%flex_basis(ibasis)%basis_name)), &
-                                         i_rep_section=ikind)
+               CPASSERT(SIZE(abasinfo) == 2)
+               CPASSERT(abasinfo(1) == "AUX_FIT")
+               abasinfo(2) = TRIM(ADJUSTL(basis_optimization%kind_basis(jkind)%flex_basis(ibasis)%basis_name))
                EXIT
             END IF
          END DO

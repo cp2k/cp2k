@@ -1481,32 +1481,28 @@ CONTAINS
                EXIT
             END IF
          END DO
+         !
          CALL section_vals_val_get(kind_section, i_rep_section=k_rep, &
                                    keyword_name="AUX_FIT_BASIS_SET", c_val=aux_fit_basis_set_name)
          IF (aux_fit_basis_set_name /= "") THEN
-            nb_rep = nb_rep+1
-            CPASSERT(nb_rep <= maxbas)
-            basis_set_type(nb_rep) = "AUX_FIT"
-            basis_set_name(nb_rep) = aux_fit_basis_set_name
+            CPWARN("AUX_FIT_BASIS_SET Keyword cannot be used any longer, use BASIS_SET AUX_FIT")
+            CPABORT("AUX_FIT_BASIS_SET")
          END IF
+         !
          CALL section_vals_val_get(kind_section, i_rep_section=k_rep, &
                                    keyword_name="AUX_BASIS_SET", c_val=aux_basis_set_name)
          IF (aux_basis_set_name /= "") THEN
-            nb_rep = nb_rep+1
-            CPASSERT(nb_rep <= maxbas)
-            basis_set_type(nb_rep) = "AUX"
-            basis_set_name(nb_rep) = aux_basis_set_name
+            CPWARN("AUX_BASIS_SET Keyword cannot be used any longer, use BASIS_SET AUX")
+            CPABORT("AUX_BASIS_SET")
          END IF
+         !
          CALL section_vals_val_get(kind_section, i_rep_section=k_rep, &
                                    keyword_name="LRI_BASIS_SET", c_val=lri_basis_set_name)
          IF (lri_basis_set_name /= "") THEN
-!           nb_rep = nb_rep+1
-!           CPASSERT(nb_rep <= maxbas)
-!           basis_set_type(nb_rep) = "LRI"
-!           basis_set_name(nb_rep) = lri_basis_set_name
             CPWARN("LRI_BASIS_SET Keyword cannot be used any longer, use BASIS_SET LRI")
             CPABORT("LRI_BASIS_SET")
          END IF
+         !
          CALL section_vals_val_get(kind_section, i_rep_section=k_rep, &
                                    keyword_name="RI_AUX_BASIS_SET", c_val=ri_aux_basis_set_name)
          IF (ri_aux_basis_set_name /= "") THEN

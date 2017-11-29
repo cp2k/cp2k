@@ -1,4 +1,4 @@
-#CPQA DEPENDS N3dye_geoopt.inp
+#CPQA DEPENDS H2O-ref.inp
 
 &GLOBAL
   PROJECT optbas-1

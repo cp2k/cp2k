@@ -66,7 +66,7 @@
     &END COORD
     &KIND O
       BASIS_SET          DZVP-GTH 
-      AUX_FIT_BASIS_SET  FIT3
+      BASIS_SET AUX_FIT  FIT3
       POTENTIAL          GTH-PBE-q6
     &END KIND
   &END SUBSYS

@@ -61,12 +61,12 @@ H       0.000000    0.744000     0.495000
     &END COORD
     &KIND H
       BASIS_SET          DZVP-GTH
-      AUX_FIT_BASIS_SET  FIT3
+      BASIS_SET AUX_FIT  FIT3
       POTENTIAL          GTH-PBE-q1
     &END KIND
     &KIND O
       BASIS_SET          DZVP-GTH 
-      AUX_FIT_BASIS_SET  FIT3
+      BASIS_SET AUX_FIT  FIT3
       POTENTIAL          GTH-PBE-q6
     &END KIND
   &END SUBSYS
