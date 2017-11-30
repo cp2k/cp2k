@@ -1,0 +1,14 @@
+# runs are executed in the same order as in this file
+# the second field tells which test should be run in order to compare with the last available output
+# see regtest/TEST_FILES
+#
+He2H-noconstraint.inp                                   1      2e-13              -5.88335521102478
+He2H-cdft-state-1a.inp                                 71      2e-9                1.594524947172
+He2H-cdft-state-1b.inp                                 71      2e-9                0.515235783150
+He2H-cdft-state-2a.inp                                 71      2e-9                1.994632273937
+He2H-cdft-state-2b.inp                                 71      2e-9                1.852668458861
+# CDFT-CI using a block diagonalized mixed CDFT Hamiltonian
+He2H-mixed-cdft-1.inp                                  77      5e-8             -243.18730843923225
+He2H-mixed-cdft-2.inp                                  77      2e-7            -1515.48769311481169
+He2H-mixed-cdft-3.inp                                  77      5e-8              -42.12923862528955
+#EOF

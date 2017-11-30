@@ -135,7 +135,7 @@ CONTAINS
                           "only two states with identical constraint definitions), whereas when it is set "// &
                           "to 1, the states are solved in serial (supports any number of states and nonequal "// &
                           "constraint definitions but the number of constraints must be the same across states).", &
-                          n_keywords=11, n_subsections=0, repeats=.FALSE., citations=(/Holmberg2017/))
+                          n_keywords=11, n_subsections=2, repeats=.FALSE., citations=(/Holmberg2017/))
 
       CALL keyword_create(keyword, name="LAMBDA", &
                           description="Specify the mixing parameter lambda in the formula.", &
@@ -291,7 +291,21 @@ CONTAINS
       CALL section_add_keyword(subsection, keyword)
       CALL keyword_release(keyword)
 
+      CALL keyword_create(keyword, name="BLOCK_DIAGONALIZE", &
+                          description="Block diagonalize the CDFT Hamiltonian. Control settings should be given in "// &
+                          "section &BLOCK_DIAGONALIZE. All requested electronic couplings are printed out after "// &
+                          "block diagonalization. When CDFT-CI and block diagonalization are both requested, "// &
+                          "the CI calculation is performed using the block diagonalized Hamiltonian.", &
+                          usage="BLOCK_DIAGONALIZE", type_of_var=logical_t, &
+                          default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
+      CALL section_add_keyword(subsection, keyword)
+      CALL keyword_release(keyword)
+
       NULLIFY (sub2section)
+      CALL create_mixed_cdft_block_section(sub2section)
+      CALL section_add_subsection(subsection, sub2section)
+      CALL section_release(sub2section)
+
       CALL create_print_mixed_cdft_section(sub2section)
       CALL section_add_subsection(subsection, sub2section)
       CALL section_release(sub2section)
@@ -560,5 +574,47 @@ CONTAINS
       CALL section_release(print_key)
 
    END SUBROUTINE create_print_mixed_cdft_section
+! **************************************************************************************************
+!> \brief Creates the control section used to setup block diagonalization of the mixed
+!>        CDFT Hamiltonian matrix
+!> \param section the section to create
+!> \author Nico Holmberg [11.2017]
+! **************************************************************************************************
+   SUBROUTINE create_mixed_cdft_block_section(section)
+      TYPE(section_type), POINTER                        :: section
+
+      CHARACTER(len=*), PARAMETER :: routineN = 'create_mixed_cdft_block_section', &
+         routineP = moduleN//':'//routineN
+
+      TYPE(keyword_type), POINTER                        :: keyword
+
+      CPASSERT(.NOT. ASSOCIATED(section))
+      CALL section_create(section, name="BLOCK_DIAGONALIZE", &
+                          description="Control section to setup block diagonalization of the mixed CDFT Hamiltonian. "// &
+                          "Constructs a new Hamiltonian by diagonalizing the initial matrix within each block and "// &
+                          "by rotating the off-diagonal blocks (which represent the interaction between different "// &
+                          "blocks) by the eigenvectors of diagonal blocks.", &
+                          n_keywords=2, n_subsections=0, repeats=.FALSE.)
+
+      NULLIFY (keyword)
+      CALL keyword_create(keyword, name="BLOCK", &
+                          description="Defines which CDFT states are included in a block. Each repetition of this keyword "// &
+                          "defines a new block. The Hamiltonian matrix elements of the requested states are collected "// &
+                          "into a new matrix and subsequently diagonalized. The eigenvectors of this matrix are used to "// &
+                          "rotate the matrix blocks describing the interactions between blocks.", &
+                          usage="BLOCK 1 2", repeats=.TRUE., &
+                          type_of_var=integer_t, n_var=-1)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, "IGNORE_EXCITED", &
+                          description="Ignore excited states related to each block when constructing the new mixed "// &
+                          "CDFT Hamiltonian. This reduces the dimensionality of the Hamiltonian.", &
+                          usage="IGNORE_EXCITED FALSE", type_of_var=logical_t, &
+                          default_l_val=.TRUE., lone_keyword_l_val=.TRUE.)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+   END SUBROUTINE create_mixed_cdft_block_section
 
 END MODULE input_cp2k_mixed

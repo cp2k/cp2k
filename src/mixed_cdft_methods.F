@@ -14,6 +14,9 @@ MODULE mixed_cdft_methods
                                               get_atomic_kind
    USE cell_types,                      ONLY: cell_type,&
                                               pbc
+   USE cp_array_utils,                  ONLY: cp_1d_i_p_type,&
+                                              cp_1d_r_p_type,&
+                                              cp_2d_r_p_type
    USE cp_control_types,                ONLY: dft_control_type
    USE cp_dbcsr_diag,                   ONLY: cp_dbcsr_syevd
    USE cp_dbcsr_operations,             ONLY: cp_dbcsr_sm_fm_multiply
@@ -286,6 +289,7 @@ CONTAINS
             mixed_cdft%do_ci = .FALSE.
             mixed_cdft%nonortho_coupling = .FALSE.
             mixed_cdft%identical_constraints = .TRUE.
+            mixed_cdft%block_diagonalize = .FALSE.
             IF (mixed_env%do_mixed_et) THEN
                CALL section_vals_val_get(mixed_section, "MIXED_CDFT%METRIC", &
                                          l_val=mixed_cdft%calculate_metric)
@@ -297,6 +301,8 @@ CONTAINS
                                          l_val=mixed_cdft%do_ci)
                CALL section_vals_val_get(mixed_section, "MIXED_CDFT%NONORTHOGONAL_COUPLING", &
                                          l_val=mixed_cdft%nonortho_coupling)
+               CALL section_vals_val_get(mixed_section, "MIXED_CDFT%BLOCK_DIAGONALIZE", &
+                                         l_val=mixed_cdft%block_diagonalize)
             END IF
             ! Inversion method
             CALL section_vals_val_get(mixed_section, "MIXED_CDFT%EPS_SVD", r_val=mixed_cdft%eps_svd)
@@ -345,6 +351,8 @@ CONTAINS
                   "MIXED_CDFT| Calculating electronic coupling reliability metric:     ", mixed_cdft%calculate_metric
                WRITE (iounit, FMT="(T2,A,T71,L10)") &
                   "MIXED_CDFT| Configuration interaction (CDFT-CI) was requested:      ", mixed_cdft%do_ci
+               WRITE (iounit, FMT="(T2,A,T71,L10)") &
+                  "MIXED_CDFT| Block diagonalizing the mixed CDFT Hamiltonian:         ", mixed_cdft%block_diagonalize
                WRITE (iounit, FMT="(T2,A,T71,L10)") &
                   "MIXED_CDFT| Dynamic load balancing enabled:                         ", mixed_cdft%dlb
                IF (mixed_cdft%dlb) THEN
@@ -1042,6 +1050,8 @@ CONTAINS
       CALL mixed_cdft_calculate_coupling_low(force_env)
       ! Print out couplings
       CALL mixed_cdft_print_couplings(force_env)
+      ! Block diagonalize the mixed CDFT Hamiltonian matrix
+      CALL mixed_cdft_block_diag(force_env)
       ! CDFT Configuration Interaction
       CALL mixed_cdft_configuration_interaction(force_env)
       ! Clean up
@@ -1729,7 +1739,13 @@ CONTAINS
       ! Solve Hc = eSc
       info = 0
       CALL dsygv(1, 'V', 'U', nforce_eval, H_mat, nforce_eval, S_mat, nforce_eval, eigenv, work, work_array_size, info)
-      IF (info /= 0) CPABORT("Diagonalization of H matrix failed.")
+      IF (info /= 0) THEN
+         IF (info > nforce_eval) THEN
+            CPABORT("Matrix S is not positive definite")
+         ELSE
+            CPABORT("Diagonalization of H matrix failed.")
+         END IF
+      END IF
       ! dsygv returns eigenvectors (stored in columns of H_mat) that are normalized to H^T * S * H = I
       ! Renormalize eigenvectors to H^T * H = I
       DO ivar = 1, nforce_eval
@@ -1764,7 +1780,301 @@ CONTAINS
       CALL timestop(handle)
 
    END SUBROUTINE mixed_cdft_configuration_interaction
+! **************************************************************************************************
+!> \brief Block diagonalizes the mixed CDFT Hamiltonian matrix.
+!> \param force_env the force_env that holds the CDFT states
+!> \par History
+!>       11.17  created [Nico Holmberg]
+! **************************************************************************************************
+   SUBROUTINE mixed_cdft_block_diag(force_env)
+      TYPE(force_env_type), POINTER                      :: force_env
 
+      CHARACTER(len=*), PARAMETER :: routineN = 'mixed_cdft_block_diag', &
+         routineP = moduleN//':'//routineN
+
+      CHARACTER(LEN=20)                                  :: ilabel, jlabel
+      CHARACTER(LEN=3)                                   :: tmp
+      INTEGER                                            :: handle, i, icol, info, iounit, &
+                                                            ipermutation, irow, j, k, l, nblk, &
+                                                            nforce_eval, npermutations, &
+                                                            work_array_size
+      INTEGER, DIMENSION(:), POINTER                     :: tmplist
+      LOGICAL                                            :: explicit, has_duplicates, ignore_excited
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: work
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: H_mat, H_mat_copy, H_offdiag, S_mat, &
+                                                            S_mat_copy, S_offdiag
+      TYPE(cp_1d_i_p_type), ALLOCATABLE, DIMENSION(:)    :: blocks
+      TYPE(cp_1d_r_p_type), ALLOCATABLE, DIMENSION(:)    :: eigenvalues
+      TYPE(cp_2d_r_p_type), ALLOCATABLE, DIMENSION(:)    :: H_block, S_block
+      TYPE(cp_logger_type), POINTER                      :: logger
+      TYPE(mixed_cdft_type), POINTER                     :: mixed_cdft
+      TYPE(section_vals_type), POINTER                   :: block_section, force_env_section, &
+                                                            print_section
+
+      EXTERNAL                                           :: dsygv
+
+      NULLIFY (logger, force_env_section, print_section, mixed_cdft)
+
+      CPASSERT(ASSOCIATED(force_env))
+      CALL get_mixed_env(force_env%mixed_env, cdft_control=mixed_cdft)
+      CPASSERT(ASSOCIATED(mixed_cdft))
+
+      IF (.NOT. mixed_cdft%block_diagonalize) RETURN
+
+      logger => cp_get_default_logger()
+      CALL timeset(routineN, handle)
+      CALL force_env_get(force_env=force_env, &
+                         force_env_section=force_env_section)
+      print_section => section_vals_get_subs_vals(force_env_section, "MIXED%MIXED_CDFT%PRINT%PROGRAM_RUN_INFO")
+      iounit = cp_print_key_unit_nr(logger, print_section, '', extension='.mixedLog')
+      block_section => section_vals_get_subs_vals(force_env_section, "MIXED%MIXED_CDFT%BLOCK_DIAGONALIZE")
+      CALL section_vals_get(block_section, explicit=explicit)
+      IF (.NOT. explicit) &
+         CALL cp_abort(__LOCATION__, &
+                       "Block diagonalization of CDFT Hamiltonian was requested, but the "// &
+                       "corresponding input section is missing!")
+
+      CPASSERT(ALLOCATED(mixed_cdft%results%S))
+      CPASSERT(ALLOCATED(mixed_cdft%results%H))
+      nforce_eval = SIZE(mixed_cdft%results%S, 1)
+      ! Read block definitions from input
+      CALL section_vals_val_get(block_section, "BLOCK", n_rep_val=nblk)
+      ALLOCATE (blocks(nblk))
+      DO i = 1, nblk
+         NULLIFY (blocks(i)%array)
+         CALL section_vals_val_get(block_section, "BLOCK", i_rep_val=i, i_vals=tmplist)
+         IF (SIZE(tmplist) < 1) &
+            CPABORT("Each BLOCK must contain at least 1 state.")
+         ALLOCATE (blocks(i)%array(SIZE(tmplist)))
+         blocks(i)%array(:) = tmplist(:)
+      END DO
+      CALL section_vals_val_get(block_section, "IGNORE_EXCITED", l_val=ignore_excited)
+      ! Check that the requested states exist
+      DO i = 1, nblk
+         DO j = 1, SIZE(blocks(i)%array)
+            IF (blocks(i)%array(j) < 1 .OR. blocks(i)%array(j) > nforce_eval) &
+               CPABORT("Requested state does not exist.")
+         END DO
+      END DO
+      ! Check for duplicates
+      has_duplicates = .FALSE.
+      DO i = 1, nblk
+         ! Within same block
+         DO j = 1, SIZE(blocks(i)%array)
+            DO k = j+1, SIZE(blocks(i)%array)
+               IF (blocks(i)%array(j) == blocks(i)%array(k)) has_duplicates = .TRUE.
+            END DO
+         END DO
+         ! Within different blocks
+         DO j = i+1, nblk
+            DO k = 1, SIZE(blocks(i)%array)
+               DO l = 1, SIZE(blocks(j)%array)
+                  IF (blocks(i)%array(k) == blocks(j)%array(l)) has_duplicates = .TRUE.
+               END DO
+            END DO
+         END DO
+      END DO
+      IF (has_duplicates) CPABORT("Duplicate states are not allowed.")
+      ! Print block definitions
+      IF (iounit > 0) THEN
+         WRITE (iounit, '(/,T3,A)') '-------------------------- CDFT BLOCK DIAGONALIZATION ------------------------'
+         WRITE (iounit, '(T3,A)') 'Block diagonalizing the mixed CDFT Hamiltonian'
+         WRITE (iounit, '(T3,A,I3)') 'Number of blocks:', nblk
+         WRITE (iounit, '(T3,A,L3)') 'Ignoring excited states within blocks:', ignore_excited
+         WRITE (iounit, '(/,T3,A)') 'List of CDFT states for each block'
+         DO i = 1, nblk
+            WRITE (iounit, '(T6,A,I3,A,6I3)') 'Block', i, ':', (blocks(i)%array(j), j=1, SIZE(blocks(i)%array))
+         END DO
+      END IF
+      ! Get the Hamiltonian and overlap matrices of each block
+      ALLOCATE (H_block(nblk), S_block(nblk))
+      DO i = 1, nblk
+         NULLIFY (H_block(i)%array)
+         NULLIFY (S_block(i)%array)
+         ALLOCATE (H_block(i)%array(SIZE(blocks(i)%array), SIZE(blocks(i)%array)))
+         ALLOCATE (S_block(i)%array(SIZE(blocks(i)%array), SIZE(blocks(i)%array)))
+         icol = 0
+         DO j = 1, SIZE(blocks(i)%array)
+            irow = 0
+            icol = icol+1
+            DO k = 1, SIZE(blocks(i)%array)
+               irow = irow+1
+               H_block(i)%array(irow, icol) = mixed_cdft%results%H(blocks(i)%array(k), blocks(i)%array(j))
+               S_block(i)%array(irow, icol) = mixed_cdft%results%S(blocks(i)%array(k), blocks(i)%array(j))
+            END DO
+         END DO
+      END DO
+      ! Diagonalize blocks
+      ALLOCATE (eigenvalues(nblk))
+      DO i = 1, nblk
+         NULLIFY (eigenvalues(i)%array)
+         ALLOCATE (eigenvalues(i)%array(SIZE(blocks(i)%array)))
+         eigenvalues(i)%array = 0.0_dp
+         ! Workspace query
+         ALLOCATE (work(1))
+         info = 0
+         ALLOCATE (H_mat_copy(SIZE(blocks(i)%array), SIZE(blocks(i)%array)))
+         ALLOCATE (S_mat_copy(SIZE(blocks(i)%array), SIZE(blocks(i)%array)))
+         H_mat_copy(:, :) = H_block(i)%array(:, :) ! Need explicit copies because dsygv destroys original values
+         S_mat_copy(:, :) = S_block(i)%array(:, :)
+         CALL dsygv(1, 'V', 'U', SIZE(blocks(i)%array), H_mat_copy, SIZE(blocks(i)%array), &
+                    S_mat_copy, SIZE(blocks(i)%array), eigenvalues(i)%array, work, -1, info)
+         work_array_size = NINT(work(1))
+         DEALLOCATE (H_mat_copy, S_mat_copy)
+         ! Allocate work array
+         DEALLOCATE (work)
+         ALLOCATE (work(work_array_size))
+         work = 0.0_dp
+         ! Solve Hc = eSc
+         info = 0
+         CALL dsygv(1, 'V', 'U', SIZE(blocks(i)%array), H_block(i)%array, SIZE(blocks(i)%array), &
+                    S_block(i)%array, SIZE(blocks(i)%array), eigenvalues(i)%array, work, work_array_size, info)
+         IF (info /= 0) THEN
+            IF (info > nforce_eval) THEN
+               CPABORT("Matrix S is not positive definite")
+            ELSE
+               CPABORT("Diagonalization of H matrix failed.")
+            END IF
+         END IF
+         DEALLOCATE (work)
+      END DO
+      ! Assemble the block diagonalized matrices
+      IF (ignore_excited) THEN
+         ALLOCATE (H_mat(nblk, nblk), S_mat(nblk, nblk))
+      ELSE
+         ALLOCATE (H_mat(nforce_eval, nforce_eval), S_mat(nforce_eval, nforce_eval))
+      END IF
+      ! The diagonal contains the eigenvalues of each block
+      IF (iounit > 0) WRITE (iounit, '(/,T3,A)') "Eigenvalues of the block diagonalized states"
+      H_mat(:, :) = 0.0_dp
+      S_mat(:, :) = 0.0_dp
+      k = 1
+      DO i = 1, nblk
+         IF (iounit > 0) WRITE (iounit, '(T6,A,I3)') "Block", i
+         DO j = 1, SIZE(eigenvalues(i)%array)
+            H_mat(k, k) = eigenvalues(i)%array(j)
+            S_mat(k, k) = 1.0_dp
+            k = k+1
+            IF (iounit > 0) THEN
+               IF (j == 1) THEN
+                  WRITE (iounit, '(T9,A,T58,(3X,F20.14))') 'Ground state energy:', eigenvalues(i)%array(j)
+               ELSE
+                  WRITE (iounit, '(T9,A,I2,A,T58,(3X,F20.14))') &
+                     'Excited state (', j-1, ' ) energy:', eigenvalues(i)%array(j)
+               END IF
+            END IF
+            IF (ignore_excited .AND. j == 1) EXIT
+         END DO
+      END DO
+      ! Transform the off-diagonal blocks using the eigenvectors of each block
+      npermutations = nblk*(nblk-1)/2
+      IF (iounit > 0) WRITE (iounit, '(/,T3,A)') "Interactions between block diagonalized states"
+      DO ipermutation = 1, npermutations
+         CALL map_permutation_to_states(nblk, ipermutation, i, j)
+         ! Get the untransformed off-diagonal block
+         ALLOCATE (H_offdiag(SIZE(blocks(i)%array), SIZE(blocks(j)%array)))
+         ALLOCATE (S_offdiag(SIZE(blocks(i)%array), SIZE(blocks(j)%array)))
+         icol = 0
+         DO k = 1, SIZE(blocks(j)%array)
+            irow = 0
+            icol = icol+1
+            DO l = 1, SIZE(blocks(i)%array)
+               irow = irow+1
+               H_offdiag(irow, icol) = mixed_cdft%results%H(blocks(i)%array(l), blocks(j)%array(k))
+               S_offdiag(irow, icol) = mixed_cdft%results%S(blocks(i)%array(l), blocks(j)%array(k))
+            END DO
+         END DO
+         ! Now transform: C_i^T * H * C_j
+         H_offdiag(:, :) = MATMUL(H_offdiag, H_block(j)%array)
+         H_offdiag(:, :) = MATMUL(TRANSPOSE(H_block(i)%array), H_offdiag)
+         S_offdiag(:, :) = MATMUL(S_offdiag, H_block(j)%array)
+         S_offdiag(:, :) = MATMUL(TRANSPOSE(H_block(i)%array), S_offdiag)
+         ! Transform any negative values to positive in S
+         DO l = 1, SIZE(S_offdiag, 2)
+            DO k = 1, SIZE(S_offdiag, 1)
+               S_offdiag(k, l) = ABS(S_offdiag(k, l))
+            END DO
+         END DO
+         IF (ignore_excited) THEN
+            H_mat(i, j) = H_offdiag(1, 1)
+            H_mat(j, i) = H_mat(i, j)
+            S_mat(i, j) = S_offdiag(1, 1)
+            S_mat(j, i) = S_mat(i, j)
+         ELSE
+            irow = 1
+            icol = 1
+            DO k = 1, i-1
+               irow = irow+SIZE(blocks(k)%array)
+            END DO
+            DO k = 1, j-1
+               icol = icol+SIZE(blocks(k)%array)
+            END DO
+            H_mat(irow:irow+SIZE(H_offdiag, 1)-1, icol:icol+SIZE(H_offdiag, 2)-1) = H_offdiag(:, :)
+            H_mat(icol:icol+SIZE(H_offdiag, 2)-1, irow:irow+SIZE(H_offdiag, 1)-1) = TRANSPOSE(H_offdiag)
+            S_mat(irow:irow+SIZE(H_offdiag, 1)-1, icol:icol+SIZE(H_offdiag, 2)-1) = S_offdiag(:, :)
+            S_mat(icol:icol+SIZE(H_offdiag, 2)-1, irow:irow+SIZE(H_offdiag, 1)-1) = TRANSPOSE(S_offdiag)
+         END IF
+         IF (iounit > 0) THEN
+            WRITE (iounit, '(/,T3,A)') REPEAT('#', 39)
+            WRITE (iounit, '(T3,A,I3,A,I3,A)') '###### Blocks I =', i, ' and J = ', j, ' ######'
+            WRITE (iounit, '(T3,A)') REPEAT('#', 39)
+            WRITE (iounit, '(T3,A)') 'Interaction energies'
+            DO irow = 1, SIZE(H_offdiag, 1)
+               ilabel = "(ground state)"
+               IF (irow > 1) THEN
+                  IF (ignore_excited) EXIT
+                  WRITE (tmp, '(I3)') irow-1
+                  ilabel = "(excited state "//TRIM(ADJUSTL(tmp))//")"
+               END IF
+               DO icol = 1, SIZE(H_offdiag, 2)
+                  jlabel = "(ground state)"
+                  IF (icol > 1) THEN
+                     IF (ignore_excited) EXIT
+                     WRITE (tmp, '(I3)') icol-1
+                     jlabel = "(excited state "//TRIM(ADJUSTL(tmp))//")"
+                  END IF
+                  WRITE (iounit, '(T6,A,T58,(3X,F20.14))') TRIM(ilabel)//'-'//TRIM(jlabel)//':', H_offdiag(irow, icol)
+               END DO
+            END DO
+            WRITE (iounit, '(T3,A)') 'Overlaps'
+            DO irow = 1, SIZE(H_offdiag, 1)
+               ilabel = "(ground state)"
+               IF (irow > 1) THEN
+                  IF (ignore_excited) EXIT
+                  ilabel = "(excited state)"
+                  WRITE (tmp, '(I3)') irow-1
+                  ilabel = "(excited state "//TRIM(ADJUSTL(tmp))//")"
+               END IF
+               DO icol = 1, SIZE(H_offdiag, 2)
+                  jlabel = "(ground state)"
+                  IF (icol > 1) THEN
+                     IF (ignore_excited) EXIT
+                     WRITE (tmp, '(I3)') icol-1
+                     jlabel = "(excited state "//TRIM(ADJUSTL(tmp))//")"
+                  END IF
+                  WRITE (iounit, '(T6,A,T58,(3X,F20.14))') TRIM(ilabel)//'-'//TRIM(jlabel)//':', S_offdiag(irow, icol)
+               END DO
+            END DO
+         END IF
+         DEALLOCATE (H_offdiag, S_offdiag)
+      END DO
+      CALL mixed_cdft_result_type_set(mixed_cdft%results, H=H_mat, S=S_mat)
+      ! Deallocate work
+      DEALLOCATE (H_mat, S_mat)
+      DO i = 1, nblk
+         DEALLOCATE (H_block(i)%array)
+         DEALLOCATE (S_block(i)%array)
+         DEALLOCATE (eigenvalues(i)%array)
+      END DO
+      DEALLOCATE (H_block, S_block, eigenvalues)
+      IF (iounit > 0) &
+         WRITE (iounit, '(T3,A)') &
+         '------------------------------------------------------------------------------'
+      CALL cp_print_key_finished_output(iounit, logger, force_env_section, &
+                                        "MIXED%MIXED_CDFT%PRINT%PROGRAM_RUN_INFO")
+      CALL timestop(handle)
+
+   END SUBROUTINE mixed_cdft_block_diag
 ! **************************************************************************************************
 !> \brief Routine to calculate the CDFT electronic coupling reliability metric
 !> \param force_env the force_env that holds the CDFT states

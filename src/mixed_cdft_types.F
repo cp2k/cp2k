@@ -180,6 +180,8 @@ MODULE mixed_cdft_types
 !>                          should be printed out
 !> \param identical_constraints flag which determines if the constraint definitions are identical
 !>                               across all CDFT states
+!> \param block_diagonalize     flag which determines if the CDFT Hamiltonian should be block
+!>                              diagonalized
 !> \param constraint_type list of integers which determine what type of constraint should be applied
 !>                             to each constraint group
 !> \param eps_rho_rspace threshold to determine when the realspace density can be considered zero
@@ -213,7 +215,8 @@ MODULE mixed_cdft_types
                                                           has_unit_metric, &
                                                           is_parallel, use_lowdin, &
                                                           do_ci, nonortho_coupling, &
-                                                          identical_constraints
+                                                          identical_constraints, &
+                                                          block_diagonalize
       REAL(KIND=dp)                                    :: eps_rho_rspace, sim_dt, &
                                                           eps_svd
       REAL(KIND=dp), POINTER, DIMENSION(:, :, :)       :: weight, cavity
