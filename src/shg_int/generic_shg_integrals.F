@@ -963,7 +963,8 @@ CONTAINS
          INTENT(INOUT)                                   :: abbint
       REAL(KIND=dp), ALLOCATABLE, &
          DIMENSION(:, :, :, :), INTENT(INOUT)            :: dabbint
-      REAL(KIND=dp), DIMENSION(:, :, :), INTENT(INOUT)   :: abaint
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :), &
+         INTENT(INOUT)                                   :: abaint
       REAL(KIND=dp), ALLOCATABLE, &
          DIMENSION(:, :, :, :), INTENT(INOUT)            :: dabdaint
       REAL(KIND=dp), DIMENSION(3), INTENT(IN)            :: rab
