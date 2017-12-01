@@ -2065,8 +2065,9 @@ CONTAINS
          DEALLOCATE (H_block(i)%array)
          DEALLOCATE (S_block(i)%array)
          DEALLOCATE (eigenvalues(i)%array)
+         DEALLOCATE (blocks(i)%array)
       END DO
-      DEALLOCATE (H_block, S_block, eigenvalues)
+      DEALLOCATE (H_block, S_block, eigenvalues, blocks)
       IF (iounit > 0) &
          WRITE (iounit, '(T3,A)') &
          '------------------------------------------------------------------------------'
