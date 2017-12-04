@@ -1995,6 +1995,14 @@ CONTAINS
                S_offdiag(k, l) = ABS(S_offdiag(k, l))
             END DO
          END DO
+         ! Make sure transformation preserves the sign of the (ground state)-(ground state) interaction
+         ! in the special case that block i or j contain only 1 state
+         IF (SIZE(blocks(i)%array) == 1 .OR. SIZE(blocks(j)%array) == 1) THEN
+            IF ((mixed_cdft%results%H(blocks(i)%array(1), blocks(j)%array(1)) < 0 .AND. .NOT. H_offdiag(1, 1) < 0) .OR. &
+                (mixed_cdft%results%H(blocks(i)%array(1), blocks(j)%array(1)) >= 0 .AND. .NOT. H_offdiag(1, 1) >= 0)) THEN
+               H_offdiag(:, :) = -1.0_dp*H_offdiag(:, :)
+            END IF
+         END IF
          IF (ignore_excited) THEN
             H_mat(i, j) = H_offdiag(1, 1)
             H_mat(j, i) = H_mat(i, j)
