@@ -4,7 +4,7 @@
 #
 He2H-noconstraint.inp                                   1      2e-13              -5.88335521102478
 He2H-cdft-state-1a.inp                                 71      2e-9                1.594524947172
-He2H-cdft-state-1b.inp                                 71      2e-9                0.515235783150
+He2H-cdft-state-1b.inp                                 71      3e-9                0.515235783150
 He2H-cdft-state-2a.inp                                 71      2e-9                1.994632273937
 He2H-cdft-state-2b.inp                                 71      2e-9                1.852668458861
 # CDFT-CI using a block diagonalized mixed CDFT Hamiltonian
