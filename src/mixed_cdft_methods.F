@@ -1903,6 +1903,11 @@ CONTAINS
                S_block(i)%array(irow, icol) = mixed_cdft%results%S(blocks(i)%array(k), blocks(i)%array(j))
             END DO
          END DO
+         ! Check that none of the interaction energies is repulsive
+         IF (ANY(H_block(i)%array .GE. 0.0_dp)) &
+            CALL cp_abort(__LOCATION__, &
+                          "At least one of the interaction energies within block "//TRIM(ADJUSTL(cp_to_string(i)))// &
+                          " is repulsive.")
       END DO
       ! Diagonalize blocks
       ALLOCATE (eigenvalues(nblk))
@@ -1984,24 +1989,29 @@ CONTAINS
                S_offdiag(irow, icol) = mixed_cdft%results%S(blocks(i)%array(l), blocks(j)%array(k))
             END DO
          END DO
+         ! Check that none of the interaction energies is repulsive
+         IF (ANY(H_offdiag .GE. 0.0_dp)) &
+            CALL cp_abort(__LOCATION__, &
+                          "At least one of the interaction energies between blocks "//TRIM(ADJUSTL(cp_to_string(i)))// &
+                          " and "//TRIM(ADJUSTL(cp_to_string(j)))//" is repulsive.")
          ! Now transform: C_i^T * H * C_j
          H_offdiag(:, :) = MATMUL(H_offdiag, H_block(j)%array)
          H_offdiag(:, :) = MATMUL(TRANSPOSE(H_block(i)%array), H_offdiag)
          S_offdiag(:, :) = MATMUL(S_offdiag, H_block(j)%array)
          S_offdiag(:, :) = MATMUL(TRANSPOSE(H_block(i)%array), S_offdiag)
-         ! Transform any negative values to positive in S
-         DO l = 1, SIZE(S_offdiag, 2)
-            DO k = 1, SIZE(S_offdiag, 1)
-               S_offdiag(k, l) = ABS(S_offdiag(k, l))
+         ! Make sure the transformation preserves the sign of elements in the S and H matrices
+         ! The S/H matrices contain only positive/negative values so that any sign flipping occurs in the
+         ! same elements in both matrices
+         ! Check for sign flipping using the S matrix
+         IF (ANY(S_offdiag .LT. 0.0_dp)) THEN
+            DO l = 1, SIZE(S_offdiag, 2)
+               DO k = 1, SIZE(S_offdiag, 1)
+                  IF (S_offdiag(k, l) .LT. 0.0_dp) THEN
+                     S_offdiag(k, l) = -1.0_dp*S_offdiag(k, l)
+                     H_offdiag(k, l) = -1.0_dp*H_offdiag(k, l)
+                  END IF
+               END DO
             END DO
-         END DO
-         ! Make sure transformation preserves the sign of the (ground state)-(ground state) interaction
-         ! in the special case that block i or j contain only 1 state
-         IF (SIZE(blocks(i)%array) == 1 .OR. SIZE(blocks(j)%array) == 1) THEN
-            IF ((mixed_cdft%results%H(blocks(i)%array(1), blocks(j)%array(1)) < 0 .AND. .NOT. H_offdiag(1, 1) < 0) .OR. &
-                (mixed_cdft%results%H(blocks(i)%array(1), blocks(j)%array(1)) >= 0 .AND. .NOT. H_offdiag(1, 1) >= 0)) THEN
-               H_offdiag(:, :) = -1.0_dp*H_offdiag(:, :)
-            END IF
          END IF
          IF (ignore_excited) THEN
             H_mat(i, j) = H_offdiag(1, 1)

@@ -8,7 +8,7 @@ He2H-cdft-state-1b.inp                                 71      3e-9             
 He2H-cdft-state-2a.inp                                 71      2e-9                1.994632273937
 He2H-cdft-state-2b.inp                                 71      2e-9                1.852668458861
 # CDFT-CI using a block diagonalized mixed CDFT Hamiltonian
-He2H-mixed-cdft-1.inp                                  77      5e-8             -243.18730843923225
-He2H-mixed-cdft-2.inp                                  77      2e-7            -1515.48769311481169
+He2H-mixed-cdft-1.inp                                  77      5e-8               -6.84813719910651
+He2H-mixed-cdft-2.inp                                  77      2e-7               -7.90368522838573
 He2H-mixed-cdft-3.inp                                  77      5e-8               -5.78009324749503
 #EOF
