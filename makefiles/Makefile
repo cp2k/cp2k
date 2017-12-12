@@ -223,9 +223,8 @@ OTHER_HELP += "install : Print installation help"
 # cleaning stuff ============================================================
 clean:
 	rm -rf  $(LIBCUSMM_DIR)/libcusmm.cu $(LIBCUSMM_DIR)/libcusmm_part*.cu
-	rm -rf $(foreach v, $(VERSION), $(MAINOBJDIR)/$(ARCH)/$(v)/*.o)
-	rm -rf $(foreach v, $(VERSION), $(MAINOBJDIR)/$(ARCH)/$(v)/*.mod $(MAINOBJDIR)/$(ARCH)/$(v)/*.MOD $(MAINOBJDIR)/$(ARCH)/$(v)/*.smod)
-	rm -rf $(foreach v, $(VERSION), $(MAINOBJDIR)/$(ARCH)/$(v)/*.dep)
+	rm -rf $(foreach v, $(VERSION), $(MAINOBJDIR)/$(ARCH)/$(v))
+	rm -rf $(foreach v, $(VERSION), $(MAINLIBDIR)/$(ARCH)/$(v))
 OTHER_HELP += "clean : Remove intermediate object and mod files, but not the libraries and executables, for given ARCH and VERSION"
 
 execlean:
