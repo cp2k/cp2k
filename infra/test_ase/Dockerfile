@@ -16,6 +16,6 @@ RUN pip install .
 #RUN pip install --upgrade git+https://gitlab.com/ase/ase.git@master
 
 COPY cmd.sh .
-CMD ["/opt/ase/cmd.sh"]
+CMD ["./cmd.sh"]
 
 #EOF

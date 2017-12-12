@@ -34,6 +34,7 @@ USER ubuntu
 WORKDIR /opt/aiida-cp2k/test/
 RUN ./configure_aiida.sh
 
-CMD ["./run_tests.sh"]
+COPY cmd.sh .
+CMD ["./cmd.sh"]
 
 #EOF
