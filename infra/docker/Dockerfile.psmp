@@ -18,5 +18,7 @@ RUN source /opt/cp2k-toolchain/install/setup  && \
     make -j VERSION="psmp" cp2k_shell         && \
     make VERSION="psmp" clean
 
-WORKDIR /opt/cp2k/exe/local
+ENV PATH="/opt/cp2k/exe/local:${PATH}"
+WORKDIR /
+
 #EOF
