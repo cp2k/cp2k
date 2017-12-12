@@ -1,4 +1,5 @@
-FROM ubuntu:latest
+FROM ubuntu:zesty
+USER root
 
 RUN apt-get update && apt-get install -y \
     build-essential \
@@ -24,7 +25,7 @@ RUN wget -q http://www.mpich.org/static/downloads/3.1.4/mpich-3.1.4.tar.gz \
     && rm -rf mpich-3.1.4 \
     && rm mpich-3.1.4.tar.gz
 
-WORKDIR /cp2k-toolchain/
+WORKDIR /opt/cp2k-toolchain/
 COPY install_cp2k_toolchain.sh ./
 COPY scripts ./scripts/
 RUN ./install_cp2k_toolchain.sh && rm -rf ./build
