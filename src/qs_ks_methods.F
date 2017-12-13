@@ -683,6 +683,11 @@ CONTAINS
                                 calculate_forces)
             ! substract kg corr from the total energy
             energy%exc = energy%exc-ekin_mol
+            ! virial corrections
+            IF (use_virial .AND. calculate_forces) THEN
+               virial%pv_virial = virial%pv_virial+virial%pv_xc
+               virial%pv_xc = 0.0_dp
+            END IF
          END IF
 
       END IF ! .NOT. just energy

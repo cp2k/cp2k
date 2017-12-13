@@ -36,6 +36,7 @@ MODULE kg_correction
                                               qs_rho_set,&
                                               qs_rho_type
    USE qs_vxc,                          ONLY: qs_vxc_create
+   USE virial_types,                    ONLY: virial_type
 #include "./base/base_uses.f90"
 
    IMPLICIT NONE
@@ -110,8 +111,9 @@ CONTAINS
       CHARACTER(LEN=*), PARAMETER :: routineN = 'kg_ekin_embed', routineP = moduleN//':'//routineN
 
       INTEGER                                            :: handle, ispin, isub, natom, nspins
-      LOGICAL                                            :: my_gapw, my_gapw_xc
+      LOGICAL                                            :: my_gapw, my_gapw_xc, use_virial
       REAL(KIND=dp)                                      :: ekin_imol
+      REAL(KIND=dp), DIMENSION(3, 3)                     :: xcvirial
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: density_matrix, matrix_h
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(kg_environment_type), POINTER                 :: kg_env
@@ -120,6 +122,7 @@ CONTAINS
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
       TYPE(qs_ks_env_type), POINTER                      :: ks_env
       TYPE(qs_rho_type), POINTER                         :: old_rho, rho_struct
+      TYPE(virial_type), POINTER                         :: virial
 
       CALL timeset(routineN, handle)
 
@@ -142,9 +145,12 @@ CONTAINS
                       matrix_h=matrix_h, &
                       natom=natom, &
                       dft_control=dft_control, &
+                      virial=virial, &
                       pw_env=pw_env)
 
       nspins = dft_control%nspins
+      use_virial = virial%pv_availability .AND. (.NOT. virial%pv_numer)
+      use_virial = use_virial .AND. calc_force
 
       CALL pw_env_get(pw_env, auxbas_pw_pool=auxbas_pw_pool)
 
@@ -158,6 +164,8 @@ CONTAINS
       CALL qs_rho_set(rho_struct, rho_ao=density_matrix) ! blocked_matrix
 
       CALL qs_rho_rebuild(rho_struct, qs_env, rebuild_ao=.FALSE., rebuild_grids=.TRUE.)
+
+      xcvirial(1:3, 1:3) = 0.0_dp
 
       ! loop over all subsets
       DO isub = 1, kg_env%nsubsets
@@ -196,6 +204,10 @@ CONTAINS
          END DO
          DEALLOCATE (vxc_rho)
 
+         IF (use_virial) THEN
+            xcvirial(1:3, 1:3) = xcvirial(1:3, 1:3)+virial%pv_xc(1:3, 1:3)
+         END IF
+
          IF (ASSOCIATED(vxc_tau)) THEN
             ! this case has NOT been tested yet...
 
@@ -216,6 +228,10 @@ CONTAINS
          END IF
 
       END DO
+
+      IF (use_virial) THEN
+         virial%pv_xc(1:3, 1:3) = xcvirial(1:3, 1:3)
+      END IF
 
       ! clean up rho_struct
       CALL qs_rho_set(rho_struct, rho_ao=Null())
