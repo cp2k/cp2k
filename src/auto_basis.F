@@ -14,6 +14,8 @@ MODULE auto_basis
    USE aux_basis_set,                   ONLY: create_aux_basis
    USE basis_set_types,                 ONLY: get_gto_basis_set,&
                                               gto_basis_set_type
+   USE bibliography,                    ONLY: Stoychev2016,&
+                                              cite_reference
    USE kinds,                           ONLY: default_string_length,&
                                               dp
    USE mathconstants,                   ONLY: dfac,&
@@ -67,7 +69,7 @@ CONTAINS
       TYPE(gto_basis_set_type), POINTER                  :: orb_basis_set
 
       !
-      CPABORT("Automatic basis set generation not activated")
+      CALL cite_reference(Stoychev2016)
       !
       bv(0:18) = (/1.8_dp, 2.0_dp, 2.2_dp, 2.2_dp, 2.3_dp, 3.0_dp, 3.0_dp, 3.0_dp, 3.0_dp, 3.0_dp, 3.0_dp, &
                    3.0_dp, 3.0_dp, 3.0_dp, 3.0_dp, 3.0_dp, 3.0_dp, 3.0_dp, 3.0_dp/)

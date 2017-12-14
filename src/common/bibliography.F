@@ -80,7 +80,8 @@ MODULE bibliography
                             Gilbert2008, Schonherr2014, Ceriotti2014, BaniHashemian2016, &
                             Kapil2016, Heinzmann1976, Ehrhardt1985, Rybkin2016, West2006, &
                             Bates2013, Andermatt2016, Zhu2016, Schuett2016, Lu2004, &
-                            Becke1988b, Migliore2009, Mavros2015, Holmberg2017, Marek2014
+                            Becke1988b, Migliore2009, Mavros2015, Holmberg2017, Marek2014, &
+                            Stoychev2016
 
 CONTAINS
 
@@ -3716,6 +3717,20 @@ CONTAINS
                          "IS 12", &
                          "ER"), &
                          DOI="10.1002/jcc.23887")
+
+      CALL add_reference(key=Stoychev2016, ISI_record=s2a( &
+                         "AU Stoychev, Georgi L.", &
+                         "   Auer, Alexander A.", &
+                         "   Neese, Frank", &
+                         "TI Automatic Generation of Auxiliary Basis Sets", &
+                         "SO J. Chem. Theory Comput.", &
+                         "PY 2017", &
+                         "VL 13", &
+                         "IS 2", &
+                         "BP 554", &
+                         "EP 562", &
+                         "ER"), &
+                         DOI="10.1021/acs.jctc.6b01041")
 
    END SUBROUTINE add_all_references
 
