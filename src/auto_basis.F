@@ -61,17 +61,18 @@ CONTAINS
       INTEGER, DIMENSION(:), POINTER                     :: econf
       REAL(KIND=dp)                                      :: xv, zval
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: zet
-      REAL(KIND=dp), DIMENSION(0:18) :: bv = (/1.8_dp, 2.0_dp, 2.2_dp, 2.2_dp, 2.3_dp, 3.0_dp, &
-         3.0_dp, 3.0_dp, 3.0_dp, 3.0_dp, 3.0_dp, 3.0_dp, 3.0_dp, 3.0_dp, 3.0_dp, 3.0_dp, 3.0_dp, &
-         3.0_dp, 3.0_dp/), bval, fv = (/20.0_dp, 4.0_dp, 4.0_dp, 3.5_dp, 2.5_dp, 2.0_dp, 2.0_dp, &
-         2.0_dp, 2.0_dp, 2.0_dp, 2.0_dp, 2.0_dp, 2.0_dp, 2.0_dp, 2.0_dp, 2.0_dp, 2.0_dp, 2.0_dp, &
-         2.0_dp/), peff, pend, pmax, pmin
+      REAL(KIND=dp), DIMENSION(0:18)                     :: bv, bval, fv, peff, pend, pmax, pmin
       REAL(KIND=dp), DIMENSION(0:9)                      :: zeff, zmax, zmin
       REAL(KIND=dp), DIMENSION(3)                        :: amax, amin, bmin
       TYPE(gto_basis_set_type), POINTER                  :: orb_basis_set
 
       !
       CPABORT("Automatic basis set generation not activated")
+      !
+      bv(0:18) = (/1.8_dp, 2.0_dp, 2.2_dp, 2.2_dp, 2.3_dp, 3.0_dp, 3.0_dp, 3.0_dp, 3.0_dp, 3.0_dp, 3.0_dp, &
+                   3.0_dp, 3.0_dp, 3.0_dp, 3.0_dp, 3.0_dp, 3.0_dp, 3.0_dp, 3.0_dp/)
+      fv(0:18) = (/20.0_dp, 4.0_dp, 4.0_dp, 3.5_dp, 2.5_dp, 2.0_dp, 2.0_dp, 2.0_dp, 2.0_dp, 2.0_dp, 2.0_dp, &
+                   2.0_dp, 2.0_dp, 2.0_dp, 2.0_dp, 2.0_dp, 2.0_dp, 2.0_dp, 2.0_dp/)
       !
       CPASSERT(.NOT. ASSOCIATED(ri_aux_basis_set))
       NULLIFY (orb_basis_set)
