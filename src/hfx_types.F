@@ -914,7 +914,7 @@ CONTAINS
       TYPE(hfx_basis_type), DIMENSION(:), POINTER        :: basis_parameter
       TYPE(hfx_basis_info_type)                          :: basis_info
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
-      LOGICAL                                            :: do_admm
+      LOGICAL, INTENT(IN)                                :: do_admm
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'hfx_create_basis_types', &
          routineP = moduleN//':'//routineN
@@ -929,8 +929,9 @@ CONTAINS
 
       CALL timeset(routineN, handle)
 
-      !! BASIS parameter
+      ! BASIS parameter
       nkind = SIZE(qs_kind_set, 1)
+      !
       ALLOCATE (basis_parameter(nkind))
       max_set = 0
       DO ikind = 1, nkind

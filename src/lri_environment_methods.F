@@ -761,7 +761,7 @@ CONTAINS
             CALL calculate_lri_rho_elec(rho_g(ispin), &
                                         rho_r(ispin), qs_env, &
                                         lri_density%lri_coefs(ispin)%lri_kinds, tot_rho_r(ispin), &
-                                        "LRI", lri_env%exact_1c_terms, pmat=pmat_diag)
+                                        "LRI_AUX", lri_env%exact_1c_terms, pmat=pmat_diag)
             !
             IF (lri_env%exact_1c_terms) CALL dbcsr_release(pmat_diag)
          ENDDO

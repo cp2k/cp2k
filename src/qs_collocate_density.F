@@ -635,7 +635,7 @@ CONTAINS
       !Find lmax_global across atomic_kind_set
       lmax_global = 0
       DO ikind = 1, SIZE(atomic_kind_set)
-         CALL get_qs_kind(qs_kind_set(ikind), basis_set=lri_basis_set, basis_type="LRI")
+         CALL get_qs_kind(qs_kind_set(ikind), basis_set=lri_basis_set, basis_type=basis_type)
          CALL get_gto_basis_set(gto_basis_set=lri_basis_set, lmax=mylmax)
          lmax_global = MAX(MAXVAL(mylmax), lmax_global)
       END DO
@@ -643,7 +643,7 @@ CONTAINS
       DO ikind = 1, SIZE(atomic_kind_set)
 
          CALL get_atomic_kind(atomic_kind_set(ikind), natom=natom, atom_list=atom_list)
-         CALL get_qs_kind(qs_kind_set(ikind), basis_set=lri_basis_set, basis_type="LRI")
+         CALL get_qs_kind(qs_kind_set(ikind), basis_set=lri_basis_set, basis_type=basis_type)
 
          !Take the lri basis set here!
          CALL get_gto_basis_set(gto_basis_set=lri_basis_set, lmax=la_max, &

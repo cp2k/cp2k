@@ -1385,7 +1385,7 @@ CONTAINS
             IF (lrigpw) THEN
                lri_v_int => lri_density%lri_coefs(ispin)%lri_kinds
                CALL integrate_v_rspace_one_center(v_rspace_new(ispin), qs_env, &
-                                                  lri_v_int, calculate_forces, "LRI")
+                                                  lri_v_int, calculate_forces, "LRI_AUX")
                IF (lri_env%exact_1c_terms) THEN
                   rho_ao => my_rho(ispin, :)
                   ksmat => ks_matrix(ispin, :)
@@ -1445,7 +1445,7 @@ CONTAINS
             IF (lrigpw) THEN
                lri_v_int => lri_density%lri_coefs(ispin)%lri_kinds
                CALL integrate_v_rspace_one_center(v_rspace, qs_env, &
-                                                  lri_v_int, calculate_forces, "LRI")
+                                                  lri_v_int, calculate_forces, "LRI_AUX")
                IF (lri_env%exact_1c_terms) THEN
                   rho_ao => my_rho(ispin, :)
                   ksmat => ks_matrix(ispin, :)

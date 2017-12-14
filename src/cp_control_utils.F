@@ -54,6 +54,7 @@ MODULE cp_control_utils
                                               dp
    USE qs_cdft_utils,                   ONLY: read_becke_section,&
                                               read_cdft_control_section
+   USE string_utilities,                ONLY: uppercase
    USE util,                            ONLY: sort
    USE xc_derivatives,                  ONLY: xc_functionals_get_needs
    USE xc_input_constants,              ONLY: xc_deriv_collocate
@@ -90,8 +91,10 @@ CONTAINS
          routineP = moduleN//':'//routineN
 
       CHARACTER(len=default_path_length)                 :: basis_set_file_name, potential_file_name
-      INTEGER                                            :: excitations, i, method_id, nrep, &
-                                                            xc_deriv_method_id
+      CHARACTER(LEN=default_string_length), &
+         DIMENSION(:), POINTER                           :: tmpstringlist
+      INTEGER                                            :: excitations, i, irep, isize, method_id, &
+                                                            nrep, xc_deriv_method_id
       LOGICAL                                            :: do_ot, do_rtp, explicit, is_present, &
                                                             l_param, not_SE, was_present
       REAL(KIND=dp)                                      :: density_cut, gradient_cut, tau_cut
@@ -171,6 +174,46 @@ CONTAINS
       IF (dft_control%drho_by_collocation) THEN
          CPABORT("derivatives by collocation not implemented")
       END IF
+
+      ! Automatic auxiliary basis set generation
+      CALL section_vals_val_get(dft_section, "AUTO_BASIS", n_rep_val=nrep)
+      DO irep = 1, nrep
+         CALL section_vals_val_get(dft_section, "AUTO_BASIS", i_rep_val=irep, c_vals=tmpstringlist)
+         IF (SIZE(tmpstringlist) == 2) THEN
+            CALL uppercase(tmpstringlist(2))
+            SELECT CASE (tmpstringlist (2))
+            CASE ("X")
+               isize = -1
+            CASE ("SMALL")
+               isize = 0
+            CASE ("MEDIUM")
+               isize = 1
+            CASE ("LARGE")
+               isize = 2
+            CASE ("HUGE")
+               isize = 3
+            CASE DEFAULT
+               CPWARN("Unknown basis size in AUTO_BASIS keyword:"//TRIM(tmpstringlist(1)))
+            END SELECT
+            !
+            SELECT CASE (tmpstringlist (1))
+            CASE ("X")
+            CASE ("RI_AUX")
+               dft_control%auto_basis_ri_aux = isize
+            CASE ("AUX_FIT")
+               dft_control%auto_basis_aux_fit = isize
+            CASE ("LRI_AUX")
+               dft_control%auto_basis_lri_aux = isize
+            CASE ("RI_HXC")
+               dft_control%auto_basis_ri_hxc = isize
+            CASE DEFAULT
+               CPWARN("Unknown basis type in AUTO_BASIS keyword:"//TRIM(tmpstringlist(1)))
+            END SELECT
+         ELSE
+            CALL cp_abort(__LOCATION__, &
+                          "AUTO_BASIS keyword in &DFT section has a wrong number of arguments.")
+         END IF
+      END DO
 
       !! check if we do wavefunction fitting
       tmp_section => section_vals_get_subs_vals(dft_section, "AUXILIARY_DENSITY_MATRIX_METHOD")

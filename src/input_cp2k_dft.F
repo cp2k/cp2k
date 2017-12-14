@@ -281,6 +281,14 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
+      CALL keyword_create(keyword, name="AUTO_BASIS", &
+                          description="Specify size of automatically generated auxiliary basis sets: "// &
+                          "Options={small,medium,large,huge}", &
+                          usage="AUTO_BASIS {basis_type} {basis_size}", &
+                          type_of_var=char_t, repeats=.TRUE., n_var=-1, default_c_vals=(/"X", "X"/))
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
       CALL keyword_create(keyword=keyword, &
                           name="SURFACE_DIPOLE_CORRECTION", &
                           variants=s2a("SURFACE_DIPOLE", &
@@ -307,6 +315,7 @@ CONTAINS
                           usage="SURF_DIP_DIR Z")
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
+
       NULLIFY (subsection)
       CALL create_scf_section(subsection)
       CALL section_add_subsection(section, subsection)
@@ -891,6 +900,12 @@ CONTAINS
       CALL cp_print_key_section_create(print_key, "PROGRAM_BANNER", &
                                        description="Controls the printing of the banner of the MM program", &
                                        print_level=silent_print_level, filename="__STD_OUT__")
+      CALL section_add_subsection(section, print_key)
+      CALL section_release(print_key)
+
+      CALL cp_print_key_section_create(print_key, "BASIS_SET_FILE", &
+                                       description="Controls the printing of a file with all basis sets used.", &
+                                       print_level=high_print_level, filename="LOCAL_BASIS_SETS")
       CALL section_add_subsection(section, print_key)
       CALL section_release(print_key)
 

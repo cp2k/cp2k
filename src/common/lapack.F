@@ -22,7 +22,8 @@ MODULE lapack
    PUBLIC :: lapack_ssyev, lapack_chpev, &
              lapack_sgesvd, lapack_cgesvd, &
              lapack_sgesv, lapack_sgelss, &
-             lapack_ssygv, lapack_sgbsv
+             lapack_ssygv, lapack_sgbsv, &
+             lapack_spotrf, lapack_strtri
 
    INTERFACE lapack_ssyev
 ! **************************************************************************************************

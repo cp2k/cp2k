@@ -861,6 +861,7 @@ CONTAINS
 
       CALL timeset(routineN, handle)
 
+      gto_basis_set%cphi = 0.0_dp
       DO iset = 1, gto_basis_set%nset
          n = ncoset(gto_basis_set%lmax(iset))
          DO ishell = 1, gto_basis_set%nshell(iset)
@@ -882,6 +883,7 @@ CONTAINS
 
       n = SIZE(gto_basis_set%cphi, 1)
 
+      gto_basis_set%sphi = 0.0_dp
       IF (n .GT. 0) THEN
          DO iset = 1, gto_basis_set%nset
             DO ishell = 1, gto_basis_set%nshell(iset)
@@ -901,6 +903,8 @@ CONTAINS
       ! Build the reduced transformation matrix "scon"
       ! This matrix transforms from cartesian primitifs to spherical contracted functions
       ! "scon" only includes primitifs (lmin -> lmax), whereas sphi is (0 -> lmax)
+
+      n = SIZE(gto_basis_set%scon, 1)
 
       gto_basis_set%scon = 0.0_dp
       IF (n .GT. 0) THEN

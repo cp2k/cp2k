@@ -7,8 +7,11 @@
 !> \brief Utility routines for qs_scf
 ! **************************************************************************************************
 MODULE qs_scf_post_scf
+   USE basis_set_output,                ONLY: print_basis_set_file
    USE cp_control_types,                ONLY: dft_control_type
-   USE input_section_types,             ONLY: section_vals_type
+   USE input_section_types,             ONLY: section_vals_get,&
+                                              section_vals_get_subs_vals,&
+                                              section_vals_type
    USE lri_optimize_ri_basis,           ONLY: optimize_lri_basis
    USE qs_band_structure,               ONLY: calculate_band_structure
    USE qs_environment_types,            ONLY: get_qs_env,&
@@ -43,8 +46,10 @@ CONTAINS
       CHARACTER(len=*), PARAMETER :: routineN = 'qs_scf_compute_properties', &
          routineP = moduleN//':'//routineN
 
+      LOGICAL                                            :: explicit
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(qs_scf_env_type), POINTER                     :: scf_env
+      TYPE(section_vals_type), POINTER                   :: print_section
 
       CALL get_qs_env(qs_env, scf_env=scf_env, dft_control=dft_control)
 
@@ -67,15 +72,12 @@ CONTAINS
       END IF
 
       CALL calculate_band_structure(qs_env)
-!     CALL get_qs_env(qs_env, do_kpoints=do_kpoints)
-!     IF (do_kpoints) THEN
-!        CALL calculate_band_structure(qs_env)
-!     ELSE
-!        NULLIFY (qs_env_kp)
-!        CALL create_kp_from_gamma(qs_env, qs_env_kp)
-!        CALL calculate_band_structure(qs_env_kp)
-!        CALL qs_env_release(qs_env_kp)
-!     END IF
+
+      print_section => section_vals_get_subs_vals(dft_section, "PRINT%BASIS_SET_FILE")
+      CALL section_vals_get(print_section, explicit=explicit)
+      IF (explicit) THEN
+         CALL print_basis_set_file(qs_env, print_section)
+      END IF
 
    END SUBROUTINE qs_scf_compute_properties
 

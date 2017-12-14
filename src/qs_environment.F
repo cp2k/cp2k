@@ -18,6 +18,11 @@ MODULE qs_environment
    USE almo_scf_env_methods,            ONLY: almo_scf_env_create
    USE atom_kind_orbitals,              ONLY: calculate_atomic_relkin
    USE atomic_kind_types,               ONLY: atomic_kind_type
+   USE auto_basis,                      ONLY: create_aux_fit_basis_set,&
+                                              create_lri_aux_basis_set,&
+                                              create_ri_aux_basis_set
+   USE basis_set_container_types,       ONLY: add_basis_set_to_container
+   USE basis_set_types,                 ONLY: gto_basis_set_type
    USE bibliography,                    ONLY: Iannuzzi2006,&
                                               Iannuzzi2007,&
                                               cite_reference
@@ -97,7 +102,9 @@ MODULE qs_environment
                                               kpoint_type,&
                                               read_kpoint_section,&
                                               write_kpoint_info
-   USE lri_environment_init,            ONLY: lri_env_init
+   USE lri_environment_init,            ONLY: lri_env_basis,&
+                                              lri_env_init
+   USE lri_environment_types,           ONLY: lri_environment_type
    USE machine,                         ONLY: m_flush
    USE molecule_kind_types,             ONLY: molecule_kind_type,&
                                               write_molecule_kind_set
@@ -135,8 +142,8 @@ MODULE qs_environment
                                               write_ppl_radii,&
                                               write_ppnl_radii
    USE qs_kind_types,                   ONLY: &
-        check_qs_kind_set, get_qs_kind_set, init_gapw_basis_set, init_gapw_nlcc, init_qs_kind_set, &
-        qs_kind_type, set_qs_kind, write_gto_basis_sets, write_qs_kind_set
+        check_qs_kind_set, get_qs_kind, get_qs_kind_set, init_gapw_basis_set, init_gapw_nlcc, &
+        init_qs_kind_set, qs_kind_type, set_qs_kind, write_gto_basis_sets, write_qs_kind_set
    USE qs_ks_types,                     ONLY: qs_ks_env_create,&
                                               qs_ks_env_type,&
                                               qs_ks_release,&
@@ -243,8 +250,7 @@ CONTAINS
       TYPE(rel_control_type), POINTER                    :: rel_control
       TYPE(section_vals_type), POINTER                   :: dft_section, et_coupling_section, &
                                                             hfx_section, kpoint_section, &
-                                                            lri_section, mp2_section, &
-                                                            transport_section
+                                                            mp2_section, transport_section
 
       NULLIFY (my_cell, my_cell_ref, atomic_kind_set, particle_set, &
                qs_kind_set, kpoint_section, dft_section, &
@@ -333,6 +339,15 @@ CONTAINS
       CALL qs_init_subsys(qs_env, para_env, subsys, my_cell, my_cell_ref, use_ref_cell, &
                           subsys_section, silent=silent)
 
+      CALL get_qs_env(qs_env, dft_control=dft_control)
+      IF (method_id == do_method_lrigpw .OR. dft_control%qs_control%lri_optbas) THEN
+         CALL lri_env_basis("LRI", qs_env, qs_kind_set)
+      ELSE IF (method_id == do_method_rigpw) THEN
+         CALL cp_warn(__LOCATION__, "Experimental code: "// &
+                      "RIGPW should only be used for testing.")
+         CALL lri_env_basis("RI", qs_env, qs_kind_set)
+      END IF
+
       ! more kpoint stuff
       kpoints%para_env => para_env
       CALL cp_para_env_retain(para_env)
@@ -391,16 +406,6 @@ CONTAINS
       CALL section_vals_get(et_coupling_section, explicit=do_et)
       IF (do_et) CALL et_coupling_create(qs_env%et_coupling)
 
-      ! lri or ri env initialization
-      lri_section => section_vals_get_subs_vals(force_env_section, "DFT%QS%LRIGPW")
-      IF (method_id == do_method_lrigpw .OR. dft_control%qs_control%lri_optbas) THEN
-         CALL lri_env_init("LRI", qs_env, lri_section, qs_kind_set)
-      ELSE IF (method_id == do_method_rigpw) THEN
-         CALL cp_warn(__LOCATION__, "Experimental code: "// &
-                      "RIGPW should only be used for testing.")
-         CALL lri_env_init("RI", qs_env, lri_section, qs_kind_set)
-      END IF
-
       transport_section => section_vals_get_subs_vals(qs_env%input, "DFT%TRANSPORT")
       CALL section_vals_get(transport_section, explicit=qs_env%do_transport)
       IF (qs_env%do_transport) THEN
@@ -458,9 +463,9 @@ CONTAINS
 
       CHARACTER(len=*), PARAMETER :: routineN = 'qs_init_subsys', routineP = moduleN//':'//routineN
 
-      INTEGER :: handle, ispin, iw, lmax_sphere, maxl, maxlgto, maxlgto_lri, maxlppl, maxlppnl, &
-         method_id, multiplicity, my_ival, n_ao, n_ao_aux_fit, n_mo_add, natom, nelectron, &
-         output_unit
+      INTEGER :: handle, ikind, ispin, iw, lmax_sphere, maxl, maxlgto, maxlgto_lri, maxlppl, &
+         maxlppnl, method_id, multiplicity, my_ival, n_ao, n_ao_aux_fit, n_mo_add, natom, &
+         nelectron, nkind, output_unit
       INTEGER, DIMENSION(2)                              :: n_mo, nelectron_spin
       LOGICAL                                            :: all_potential_present, be_silent, &
                                                             do_kpoints, has_unit_metric, &
@@ -475,6 +480,9 @@ CONTAINS
       TYPE(ewald_pw_type), POINTER                       :: ewald_pw
       TYPE(fist_nonbond_env_type), POINTER               :: se_nonbond_env
       TYPE(gapw_control_type), POINTER                   :: gapw_control
+      TYPE(gto_basis_set_type), POINTER                  :: aux_fit_basis, lri_aux_basis, &
+                                                            ri_hfx_basis
+      TYPE(lri_environment_type), POINTER                :: lri_env
       TYPE(mo_set_p_type), DIMENSION(:), POINTER         :: mos, mos_aux_fit
       TYPE(molecule_kind_type), DIMENSION(:), POINTER    :: molecule_kind_set
       TYPE(molecule_type), DIMENSION(:), POINTER         :: molecule_set
@@ -487,6 +495,7 @@ CONTAINS
       TYPE(qs_energy_type), POINTER                      :: energy
       TYPE(qs_force_type), DIMENSION(:), POINTER         :: force
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
+      TYPE(qs_kind_type), POINTER                        :: qs_kind
       TYPE(qs_ks_env_type), POINTER                      :: ks_env
       TYPE(qs_wf_history_type), POINTER                  :: wf_history
       TYPE(rel_control_type), POINTER                    :: rel_control
@@ -494,8 +503,8 @@ CONTAINS
       TYPE(scf_control_type), POINTER                    :: scf_control
       TYPE(se_taper_type), POINTER                       :: se_taper
       TYPE(section_vals_type), POINTER :: dft_section, et_becke_section, et_coupling_section, &
-         et_ddapc_section, ewald_section, nl_section, poisson_section, pp_section, print_section, &
-         qs_section, se_section, tddfpt_section, xc_section
+         et_ddapc_section, ewald_section, lri_section, nl_section, poisson_section, pp_section, &
+         print_section, qs_section, se_section, tddfpt_section, xc_section
       TYPE(semi_empirical_control_type), POINTER         :: se_control
       TYPE(semi_empirical_si_type), POINTER              :: se_store_int_env
 
@@ -536,8 +545,7 @@ CONTAINS
 
       ! original implementation of TDDFPT
       IF (dft_control%do_tddfpt_calculation) THEN
-         CALL read_tddfpt_control(dft_control%tddfpt_control, &
-                                  dft_section)
+         CALL read_tddfpt_control(dft_control%tddfpt_control, dft_section)
       END IF
 
       !   *** Print the Quickstep program banner (copyright and version number) ***
@@ -617,8 +625,13 @@ CONTAINS
          END IF
       END IF
 
-      ! DFT+U
-      CALL get_qs_kind_set(qs_kind_set, dft_plus_u_atom_present=dft_control%dft_plus_u)
+      ! lri or ri env initialization
+      lri_section => section_vals_get_subs_vals(qs_section, "LRIGPW")
+      IF (dft_control%qs_control%method_id == do_method_lrigpw .OR. &
+          dft_control%qs_control%lri_optbas .OR. &
+          dft_control%qs_control%method_id == do_method_rigpw) THEN
+         CALL lri_env_init(qs_env, lri_section)
+      END IF
 
       !   *** Check basis and fill in missing parts ***
       CALL check_qs_kind_set(qs_kind_set, dft_control, subsys_section=subsys_section)
@@ -633,6 +646,64 @@ CONTAINS
          END IF
       END IF
 
+      ! DFT+U
+      CALL get_qs_kind_set(qs_kind_set, dft_plus_u_atom_present=dft_control%dft_plus_u)
+
+      IF (dft_control%do_admm) THEN
+         ! Check if ADMM basis is available, auto-generate if needed
+         CALL get_qs_env(qs_env, nkind=nkind)
+         DO ikind = 1, nkind
+            NULLIFY (aux_fit_basis)
+            qs_kind => qs_kind_set(ikind)
+            CALL get_qs_kind(qs_kind, basis_set=aux_fit_basis, basis_type="AUX_FIT")
+            IF (.NOT. (ASSOCIATED(aux_fit_basis))) THEN
+               ! AUX_FIT basis set is not yet loaded
+               CALL cp_warn(__LOCATION__, "Automatic Generation of AUX_FIT basis. "// &
+                            "This is experimental code.")
+               ! Generate a default basis
+               CALL create_aux_fit_basis_set(aux_fit_basis, qs_kind, dft_control%auto_basis_aux_fit)
+               CALL add_basis_set_to_container(qs_kind%basis_sets, aux_fit_basis, "AUX_FIT")
+            END IF
+         END DO
+      END IF
+
+      IF (dft_control%qs_control%method_id == do_method_lrigpw .OR. dft_control%qs_control%lri_optbas) THEN
+         ! Check if LRI_AUX basis is available, auto-generate if needed
+         CALL get_qs_env(qs_env, nkind=nkind, lri_env=lri_env)
+         DO ikind = 1, nkind
+            NULLIFY (lri_aux_basis)
+            qs_kind => qs_kind_set(ikind)
+            CALL get_qs_kind(qs_kind, basis_set=lri_aux_basis, basis_type="LRI_AUX")
+            IF (.NOT. (ASSOCIATED(lri_aux_basis))) THEN
+               ! LRI_AUX basis set is not yet loaded
+               CALL cp_warn(__LOCATION__, "Automatic Generation of LRI_AUX basis. "// &
+                            "This is experimental code.")
+               ! Generate a default basis
+               CALL create_lri_aux_basis_set(lri_aux_basis, qs_kind, &
+                                             dft_control%auto_basis_lri_aux, lri_env%exact_1c_terms)
+               CALL add_basis_set_to_container(qs_kind%basis_sets, lri_aux_basis, "LRI_AUX")
+            END IF
+         END DO
+      END IF
+
+      IF (dft_control%qs_control%method_id == do_method_rigpw) THEN
+         ! Check if RI_HXC basis is available, auto-generate if needed
+         CALL get_qs_env(qs_env, nkind=nkind)
+         DO ikind = 1, nkind
+            NULLIFY (ri_hfx_basis)
+            qs_kind => qs_kind_set(ikind)
+            CALL get_qs_kind(qs_kind, basis_set=ri_hfx_basis, basis_type="RI_HXC")
+            IF (.NOT. (ASSOCIATED(ri_hfx_basis))) THEN
+               ! RI_HXC basis set is not yet loaded
+               CALL cp_warn(__LOCATION__, "Automatic Generation of RI_HXC basis. "// &
+                            "This is experimental code.")
+               ! Generate a default basis
+               CALL create_ri_aux_basis_set(ri_hfx_basis, qs_kind, dft_control%auto_basis_ri_hxc)
+               CALL add_basis_set_to_container(qs_kind%basis_sets, ri_hfx_basis, "RI_HXC")
+            END IF
+         END DO
+      END IF
+
       !   *** Initialize the spherical harmonics and ***
       !   *** the orbital transformation matrices    ***
       CALL get_qs_kind_set(qs_kind_set, maxlgto=maxlgto, maxlppl=maxlppl, maxlppnl=maxlppnl)
@@ -643,7 +714,7 @@ CONTAINS
          dft_control%qs_control%gapw_control%lmax_sphere = lmax_sphere
       END IF
       IF (dft_control%qs_control%method == "LRIGPW" .OR. dft_control%qs_control%lri_optbas) THEN
-         CALL get_qs_kind_set(qs_kind_set, maxlgto=maxlgto_lri, basis_type="LRI")
+         CALL get_qs_kind_set(qs_kind_set, maxlgto=maxlgto_lri, basis_type="LRI_AUX")
          !take maxlgto from lri basis if larger (usually)
          maxlgto = MAX(maxlgto, maxlgto_lri)
       ELSE IF (dft_control%qs_control%method == "RIGPW") THEN
@@ -1131,7 +1202,6 @@ CONTAINS
 
       ! no point in allocating these things here ?
       IF (dft_control%qs_control%do_ls_scf) THEN
-
          NULLIFY (mos)
       ELSE
          ALLOCATE (mos(dft_control%nspins))
@@ -1151,6 +1221,7 @@ CONTAINS
 
       ! If we use auxiliary density matrix methods , set mo_set_aux_fit
       IF (dft_control%do_admm) THEN
+         !
          CALL get_qs_kind_set(qs_kind_set, nelectron=nelectron, nsgf=n_ao_aux_fit, &
                               basis_type="AUX_FIT")
          ALLOCATE (mos_aux_fit(dft_control%nspins))
@@ -1320,6 +1391,72 @@ CONTAINS
          ELSE
             WRITE (UNIT=output_unit, FMT="(/,T3,A,T75,I6)") &
                "Maximum angular momentum of the orbital basis functions: ", maxlgto
+         END IF
+
+         ! LRI_AUX BASIS
+         CALL get_qs_kind_set(qs_kind_set, &
+                              maxlgto=maxlgto, &
+                              ncgf=ncgf, &
+                              npgf=npgf, &
+                              nset=nset, &
+                              nsgf=nsgf, &
+                              nshell=nshell, &
+                              basis_type="LRI_AUX")
+         IF (nset+npgf+ncgf > 0) THEN
+            WRITE (UNIT=output_unit, FMT="(/,T3,A,/,T3,A,(T30,A,T71,I10))") &
+               "LRI_AUX Basis: ", &
+               "Total number of", &
+               "- Shell sets:                    ", nset, &
+               "- Shells:                        ", nshell, &
+               "- Primitive Cartesian functions: ", npgf, &
+               "- Cartesian basis functions:     ", ncgf, &
+               "- Spherical basis functions:     ", nsgf
+            WRITE (UNIT=output_unit, FMT="(T30,A,T75,I6)") &
+               "  Maximum angular momentum ", maxlgto
+         END IF
+
+         ! RI_HXC BASIS
+         CALL get_qs_kind_set(qs_kind_set, &
+                              maxlgto=maxlgto, &
+                              ncgf=ncgf, &
+                              npgf=npgf, &
+                              nset=nset, &
+                              nsgf=nsgf, &
+                              nshell=nshell, &
+                              basis_type="RI_HXC")
+         IF (nset+npgf+ncgf > 0) THEN
+            WRITE (UNIT=output_unit, FMT="(/,T3,A,/,T3,A,(T30,A,T71,I10))") &
+               "RI_HXC Basis: ", &
+               "Total number of", &
+               "- Shell sets:                    ", nset, &
+               "- Shells:                        ", nshell, &
+               "- Primitive Cartesian functions: ", npgf, &
+               "- Cartesian basis functions:     ", ncgf, &
+               "- Spherical basis functions:     ", nsgf
+            WRITE (UNIT=output_unit, FMT="(T30,A,T75,I6)") &
+               "  Maximum angular momentum ", maxlgto
+         END IF
+
+         ! AUX_FIT BASIS
+         CALL get_qs_kind_set(qs_kind_set, &
+                              maxlgto=maxlgto, &
+                              ncgf=ncgf, &
+                              npgf=npgf, &
+                              nset=nset, &
+                              nsgf=nsgf, &
+                              nshell=nshell, &
+                              basis_type="AUX_FIT")
+         IF (nset+npgf+ncgf > 0) THEN
+            WRITE (UNIT=output_unit, FMT="(/,T3,A,/,T3,A,(T30,A,T71,I10))") &
+               "AUX_FIT ADMM-Basis: ", &
+               "Total number of", &
+               "- Shell sets:                    ", nset, &
+               "- Shells:                        ", nshell, &
+               "- Primitive Cartesian functions: ", npgf, &
+               "- Cartesian basis functions:     ", ncgf, &
+               "- Spherical basis functions:     ", nsgf
+            WRITE (UNIT=output_unit, FMT="(T30,A,T75,I6)") &
+               "  Maximum angular momentum ", maxlgto
          END IF
 
       END IF

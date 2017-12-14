@@ -2461,7 +2461,7 @@ CONTAINS
                   bstring = "RI Auxiliary Basis Set"
                CASE ("AUX_FIT")
                   bstring = "Auxiliary Fit Basis Set"
-               CASE ("LRI")
+               CASE ("LRI_AUX")
                   bstring = "LRI Basis Set"
                END SELECT
 
@@ -2634,7 +2634,7 @@ CONTAINS
                      bstring = "RI Auxiliary Basis Set"
                   CASE ("AUX_FIT")
                      bstring = "Auxiliary Fit Basis Set"
-                  CASE ("LRI")
+                  CASE ("LRI_AUX")
                      bstring = "LRI Basis Set"
                   END SELECT
 

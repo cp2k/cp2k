@@ -323,13 +323,13 @@ CONTAINS
 
       CALL cp_print_key_section_create(print_key, "TOTAL_NUMBERS", &
                                        description="Controls the printing of the total number of atoms, kinds,...", &
-                                       print_level=medium_print_level, filename="__STD_OUT__")
+                                       print_level=low_print_level, filename="__STD_OUT__")
       CALL section_add_subsection(section, print_key)
       CALL section_release(print_key)
 
       CALL cp_print_key_section_create(print_key, "DISTRIBUTION", &
                                        description="Controls the printing of the distribution of molecules, atoms, ...", &
-                                       print_level=medium_print_level, filename="__STD_OUT__")
+                                       print_level=high_print_level, filename="__STD_OUT__")
       CALL section_add_subsection(section, print_key)
       CALL section_release(print_key)
 

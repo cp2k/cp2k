@@ -48,7 +48,7 @@ MODULE lri_environment_init
 
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'lri_environment_init'
 
-   PUBLIC :: lri_env_init, lri_basis_init
+   PUBLIC :: lri_env_init, lri_env_basis, lri_basis_init
 
 ! **************************************************************************************************
 
@@ -56,60 +56,21 @@ CONTAINS
 
 ! **************************************************************************************************
 !> \brief initializes the lri env
-!> \param ri_type ...
 !> \param qs_env ...
 !> \param lri_section ...
-!> \param qs_kind_set ...
 ! **************************************************************************************************
-   SUBROUTINE lri_env_init(ri_type, qs_env, lri_section, qs_kind_set)
+   SUBROUTINE lri_env_init(qs_env, lri_section)
 
-      CHARACTER(len=*), INTENT(IN)                       :: ri_type
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(section_vals_type), POINTER                   :: lri_section
-      TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
 
       CHARACTER(len=*), PARAMETER :: routineN = 'lri_env_init', routineP = moduleN//':'//routineN
 
-      INTEGER :: i, i1, i2, iat, ikind, ip, ipgf, iset, ishell, jp, l, lmax_ikind_orb, &
-         lmax_ikind_ri, maxl_orb, maxl_ri, n1, n2, natom, nbas, nkind, nribas, nspin
-      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: kind_of
-      REAL(KIND=dp)                                      :: gcc, rad, rai, raj, xradius, zeta
-      REAL(KIND=dp), DIMENSION(:), POINTER               :: int_aux, norm, radii
-      TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
-      TYPE(dft_control_type), POINTER                    :: dft_control
-      TYPE(gto_basis_set_type), POINTER                  :: orb_basis_set, ri_basis_set
+      REAL(KIND=dp), DIMENSION(:), POINTER               :: radii
       TYPE(lri_environment_type), POINTER                :: lri_env
 
-      NULLIFY (atomic_kind_set, ri_basis_set, lri_env, orb_basis_set)
+      NULLIFY (lri_env)
       CALL lri_env_create(lri_env)
-
-      ! initialize the basic basis sets (orb and ri)
-      CALL get_qs_env(qs_env=qs_env, atomic_kind_set=atomic_kind_set)
-      nkind = SIZE(atomic_kind_set)
-      ALLOCATE (lri_env%orb_basis(nkind), lri_env%ri_basis(nkind))
-      maxl_orb = 0
-      maxl_ri = 0
-      DO ikind = 1, nkind
-         NULLIFY (orb_basis_set, ri_basis_set)
-         CALL get_qs_kind(qs_kind_set(ikind), basis_set=orb_basis_set, basis_type="ORB")
-         IF (ri_type == "LRI") THEN
-            CALL get_qs_kind(qs_kind_set(ikind), basis_set=ri_basis_set, basis_type="LRI")
-         ELSE IF (ri_type == "RI") THEN
-            CALL get_qs_kind(qs_kind_set(ikind), basis_set=ri_basis_set, basis_type="RI_HXC")
-         ELSE
-            CPABORT('ri_type')
-         END IF
-         NULLIFY (lri_env%orb_basis(ikind)%gto_basis_set)
-         NULLIFY (lri_env%ri_basis(ikind)%gto_basis_set)
-         IF (ASSOCIATED(orb_basis_set)) THEN
-            CALL copy_gto_basis_set(orb_basis_set, lri_env%orb_basis(ikind)%gto_basis_set)
-            CALL copy_gto_basis_set(ri_basis_set, lri_env%ri_basis(ikind)%gto_basis_set)
-         END IF
-         lmax_ikind_orb = MAXVAL(lri_env%orb_basis(ikind)%gto_basis_set%lmax)
-         lmax_ikind_ri = MAXVAL(lri_env%ri_basis(ikind)%gto_basis_set%lmax)
-         maxl_orb = MAX(maxl_orb, lmax_ikind_orb)
-         maxl_ri = MAX(maxl_ri, lmax_ikind_ri)
-      END DO
 
       ! init keywords
       ! use exact one-center terms
@@ -143,6 +104,66 @@ CONTAINS
       CPASSERT(radii(1) > 0.0_dp)
       lri_env%r_in = radii(1)
       lri_env%r_out = radii(2)
+
+      CALL set_qs_env(qs_env, lri_env=lri_env)
+
+      CALL cite_reference(Golze2017b)
+      IF (lri_env%use_shg_integrals) CALL cite_reference(Golze2017a)
+
+   END SUBROUTINE lri_env_init
+! **************************************************************************************************
+!> \brief initializes the lri env
+!> \param ri_type ...
+!> \param qs_env ...
+!> \param qs_kind_set ...
+! **************************************************************************************************
+   SUBROUTINE lri_env_basis(ri_type, qs_env, qs_kind_set)
+
+      CHARACTER(len=*), INTENT(IN)                       :: ri_type
+      TYPE(qs_environment_type), POINTER                 :: qs_env
+      TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
+
+      CHARACTER(len=*), PARAMETER :: routineN = 'lri_env_basis', routineP = moduleN//':'//routineN
+
+      INTEGER :: i, i1, i2, iat, ikind, ip, ipgf, iset, ishell, jp, l, lmax_ikind_orb, &
+         lmax_ikind_ri, maxl_orb, maxl_ri, n1, n2, natom, nbas, nkind, nribas, nspin
+      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: kind_of
+      REAL(KIND=dp)                                      :: gcc, rad, rai, raj, xradius, zeta
+      REAL(KIND=dp), DIMENSION(:), POINTER               :: int_aux, norm
+      TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
+      TYPE(dft_control_type), POINTER                    :: dft_control
+      TYPE(gto_basis_set_type), POINTER                  :: orb_basis_set, ri_basis_set
+      TYPE(lri_environment_type), POINTER                :: lri_env
+
+      CALL get_qs_env(qs_env=qs_env, lri_env=lri_env)
+
+      ! initialize the basic basis sets (orb and ri)
+      CALL get_qs_env(qs_env=qs_env, atomic_kind_set=atomic_kind_set)
+      nkind = SIZE(atomic_kind_set)
+      ALLOCATE (lri_env%orb_basis(nkind), lri_env%ri_basis(nkind))
+      maxl_orb = 0
+      maxl_ri = 0
+      DO ikind = 1, nkind
+         NULLIFY (orb_basis_set, ri_basis_set)
+         CALL get_qs_kind(qs_kind_set(ikind), basis_set=orb_basis_set, basis_type="ORB")
+         IF (ri_type == "LRI") THEN
+            CALL get_qs_kind(qs_kind_set(ikind), basis_set=ri_basis_set, basis_type="LRI_AUX")
+         ELSE IF (ri_type == "RI") THEN
+            CALL get_qs_kind(qs_kind_set(ikind), basis_set=ri_basis_set, basis_type="RI_HXC")
+         ELSE
+            CPABORT('ri_type')
+         END IF
+         NULLIFY (lri_env%orb_basis(ikind)%gto_basis_set)
+         NULLIFY (lri_env%ri_basis(ikind)%gto_basis_set)
+         IF (ASSOCIATED(orb_basis_set)) THEN
+            CALL copy_gto_basis_set(orb_basis_set, lri_env%orb_basis(ikind)%gto_basis_set)
+            CALL copy_gto_basis_set(ri_basis_set, lri_env%ri_basis(ikind)%gto_basis_set)
+         END IF
+         lmax_ikind_orb = MAXVAL(lri_env%orb_basis(ikind)%gto_basis_set%lmax)
+         lmax_ikind_ri = MAXVAL(lri_env%ri_basis(ikind)%gto_basis_set%lmax)
+         maxl_orb = MAX(maxl_orb, lmax_ikind_orb)
+         maxl_ri = MAX(maxl_ri, lmax_ikind_ri)
+      END DO
 
       IF (ri_type == "LRI") THEN
          ! CG coefficients needed for lri integrals
@@ -303,12 +324,7 @@ CONTAINS
          CPABORT('ri_type')
       END IF
 
-      CALL set_qs_env(qs_env, lri_env=lri_env)
-
-      CALL cite_reference(Golze2017b)
-      IF (lri_env%use_shg_integrals) CALL cite_reference(Golze2017a)
-
-   END SUBROUTINE lri_env_init
+   END SUBROUTINE lri_env_basis
 
 ! **************************************************************************************************
 !> \brief initializes the lri basis: calculates the norm, self-overlap

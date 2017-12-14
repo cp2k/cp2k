@@ -119,7 +119,7 @@ CONTAINS
          CALL get_qs_kind(qs_kind_set(ikind), basis_set=orb_basis_set, basis_type="ORB")
          CALL get_qs_kind(qs_kind_set(ikind), basis_set=aux_basis_set, basis_type="AUX")
          CALL get_qs_kind(qs_kind_set(ikind), basis_set=aux_fit_basis_set, basis_type="AUX_FIT")
-         CALL get_qs_kind(qs_kind_set(ikind), basis_set=lri_basis, basis_type="LRI")
+         CALL get_qs_kind(qs_kind_set(ikind), basis_set=lri_basis, basis_type="LRI_AUX")
          CALL get_qs_kind(qs_kind_set(ikind), basis_set=ri_basis, basis_type="RI_HXC")
          CALL get_qs_kind(qs_kind_set(ikind), basis_set=ri_aux_basis_set, basis_type="RI_AUX")
          CALL get_qs_kind(qs_kind_set(ikind), basis_set=mao_basis, basis_type="MAO")
@@ -669,7 +669,7 @@ CONTAINS
                                          kind_radius=kind_radius)
                END IF
             ELSE IF (bas(1:3) == "LOC") THEN
-               CALL get_qs_kind(qs_kind_set(ikind), basis_set=lri_basis_set, basis_type="LRI")
+               CALL get_qs_kind(qs_kind_set(ikind), basis_set=lri_basis_set, basis_type="LRI_AUX")
                IF (ASSOCIATED(lri_basis_set)) THEN
                   CALL get_gto_basis_set(gto_basis_set=lri_basis_set, &
                                          kind_radius=kind_radius)
@@ -713,7 +713,7 @@ CONTAINS
                                          set_radius=set_radius)
                END IF
             ELSE IF (bas(1:3) == "LOC") THEN
-               CALL get_qs_kind(qs_kind_set(ikind), basis_set=lri_basis_set, basis_type="LRI")
+               CALL get_qs_kind(qs_kind_set(ikind), basis_set=lri_basis_set, basis_type="LRI_AUX")
                IF (ASSOCIATED(lri_basis_set)) THEN
                   CALL get_gto_basis_set(gto_basis_set=lri_basis_set, &
                                          nset=nset, &
@@ -759,7 +759,7 @@ CONTAINS
                                          pgf_radius=pgf_radius)
                END IF
             ELSE IF (bas(1:3) == "LOC") THEN
-               CALL get_qs_kind(qs_kind_set(ikind), basis_set=lri_basis_set, basis_type="LRI")
+               CALL get_qs_kind(qs_kind_set(ikind), basis_set=lri_basis_set, basis_type="LRI_AUX")
                IF (ASSOCIATED(lri_basis_set)) THEN
                   CALL get_gto_basis_set(gto_basis_set=lri_basis_set, &
                                          nset=nset, &
