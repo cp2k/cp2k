@@ -1,10 +1,11 @@
-#!/bin/bash -e
+#!/bin/bash
 
 echo "========== running ASE tests =========="
 export OMP_NUM_THREADS=1
 export ASE_CP2K_COMMAND="mpiexec -np 2 cp2k_shell.psmp"
 
 (
+set -e # abort if error is encountered
 for i in ./ase/test/cp2k/cp2k_*.py
 do
   echo "Running $i ..."

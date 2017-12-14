@@ -1,8 +1,9 @@
-#!/bin/bash -e
+#!/bin/bash
 
 echo "========== running AiiDA-CP2K tests =========="
 
 (
+set -e # abort if error is encountered
 ./run_tests.sh
 )
 
