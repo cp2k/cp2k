@@ -679,14 +679,14 @@ MODULE message_passing
 
 ! **************************************************************************************************
    TYPE mp_perf_env_p_type
-      TYPE(mp_perf_env_type), POINTER         :: mp_perf_env
+      TYPE(mp_perf_env_type), POINTER         :: mp_perf_env => Null()
    END TYPE mp_perf_env_p_type
 
    ! introduce a stack of mp_perfs, first index is the stack pointer, for convience is replacing
    INTEGER, PARAMETER :: max_stack_size = 10
    INTEGER            :: stack_pointer = 0
    ! target attribute needed as a hack around ifc 7.1 bug
-   TYPE(mp_perf_env_p_type), DIMENSION(max_stack_size), TARGET :: mp_perf_stack
+   TYPE(mp_perf_env_p_type), DIMENSION(max_stack_size), TARGET, SAVE :: mp_perf_stack
 
    CHARACTER(LEN=20), PARAMETER :: sname(MAX_PERF) = &
                                    (/"MP_Group            ", "MP_Bcast            ", "MP_Allreduce        ", &
@@ -1036,6 +1036,8 @@ CONTAINS
 
 #if defined(__parallel)
       TYPE(mp_perf_type), POINTER              :: mp_perf
+
+      IF (.NOT. ASSOCIATED(mp_perf_stack(stack_pointer)%mp_perf_env)) return
 
       mp_perf => mp_perf_stack(stack_pointer)%mp_perf_env%mp_perfs(perf_id)
       IF (PRESENT(count)) THEN
