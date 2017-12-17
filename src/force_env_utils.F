@@ -487,10 +487,11 @@ CONTAINS
 !> \param ndigits ...
 !> \param total_force ...
 !> \param grand_total_force ...
+!> \param zero_force_core_shell_atom ...
 !> \author MK (06.09.2010)
 ! **************************************************************************************************
    SUBROUTINE write_forces(particles, output_unit, label, ndigits, total_force, &
-                           grand_total_force)
+                           grand_total_force, zero_force_core_shell_atom)
 
       TYPE(particle_list_type), POINTER                  :: particles
       INTEGER, INTENT(IN)                                :: output_unit
@@ -499,6 +500,7 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(3), INTENT(OUT)           :: total_force
       REAL(KIND=dp), DIMENSION(3), INTENT(INOUT), &
          OPTIONAL                                        :: grand_total_force
+      LOGICAL, INTENT(IN), OPTIONAL                      :: zero_force_core_shell_atom
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'write_forces', routineP = moduleN//':'//routineN
 
@@ -506,6 +508,8 @@ CONTAINS
       CHARACTER(LEN=36)                                  :: fmtstr2
       CHARACTER(LEN=46)                                  :: fmtstr1
       INTEGER                                            :: i, ikind, iparticle, n
+      LOGICAL                                            :: zero_force
+      REAL(KIND=dp), DIMENSION(3)                        :: f
 
       IF (output_unit > 0) THEN
          CPASSERT(ASSOCIATED(particles))
@@ -518,6 +522,11 @@ CONTAINS
          fmtstr3 = "(T2,A,T28,4(1X,F  .  ))"
          WRITE (UNIT=fmtstr3(20:21), FMT="(I2)") n
          WRITE (UNIT=fmtstr3(17:18), FMT="(I2)") n+6
+         IF (PRESENT(zero_force_core_shell_atom)) THEN
+            zero_force = zero_force_core_shell_atom
+         ELSE
+            zero_force = .FALSE.
+         END IF
          WRITE (UNIT=output_unit, FMT=fmtstr1) &
             label//" FORCES in [a.u.]", "# Atom", "Kind", "Element", "X", "Y", "Z"
          total_force(1:3) = 0.0_dp
@@ -528,10 +537,14 @@ CONTAINS
             ELSE
                i = iparticle
             END IF
+            IF (zero_force .AND. (particles%els(iparticle)%shell_index /= 0)) THEN
+               f(1:3) = 0.0_dp
+            ELSE
+               f(1:3) = particles%els(iparticle)%f(1:3)
+            END IF
             WRITE (UNIT=output_unit, FMT=fmtstr2) &
-               i, ikind, particles%els(iparticle)%atomic_kind%element_symbol, &
-               particles%els(iparticle)%f(1:3)
-            total_force(1:3) = total_force(1:3)+particles%els(iparticle)%f(1:3)
+               i, ikind, particles%els(iparticle)%atomic_kind%element_symbol, f(1:3)
+            total_force(1:3) = total_force(1:3)+f(1:3)
          END DO
          WRITE (UNIT=output_unit, FMT=fmtstr3) &
             "SUM OF "//label//" FORCES", total_force(1:3), SQRT(SUM(total_force(:)**2))
