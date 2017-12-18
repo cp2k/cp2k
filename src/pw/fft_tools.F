@@ -38,12 +38,10 @@ MODULE fft_tools
    USE fft_plan,                        ONLY: fft_plan_type
    USE kinds,                           ONLY: dp,&
                                               dp_size,&
-                                              int_size,&
                                               sp
    USE message_passing,                 ONLY: &
         mp_alltoall, mp_cart_coords, mp_cart_rank, mp_cart_sub, mp_comm_compare, mp_comm_free, &
         mp_comm_null, mp_environ, mp_irecv, mp_isend, mp_rank_compare, mp_sum, mp_sync, mp_waitall
-   USE termination,                     ONLY: stop_memory
 
 !$ USE OMP_LIB, ONLY: omp_get_max_threads, omp_get_thread_num, omp_get_num_threads
 
@@ -493,9 +491,9 @@ CONTAINS
 
       COMPLEX(KIND=dp), DIMENSION(:, :), POINTER         :: pbuf, qbuf, rbuf, sbuf
       COMPLEX(KIND=dp), DIMENSION(:, :, :), POINTER      :: tbuf
-      INTEGER :: g_pos, handle, ierr, iout, lg, lmax, mcx2, mcz1, mcz2, mg, mmax, mx1, mx2, my1, &
-         mz2, n1, n2, nmax, numtask, numtask_g, numtask_r, nx, ny, nz, output_unit, r_dim(2), &
-         r_pos(2), rp, sign, stat
+      INTEGER :: g_pos, handle, iout, lg, lmax, mcx2, mcz1, mcz2, mg, mmax, mx1, mx2, my1, mz2, &
+         n1, n2, nmax, numtask, numtask_g, numtask_r, nx, ny, nz, output_unit, r_dim(2), r_pos(2), &
+         rp, sign, stat
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: p2p
       LOGICAL                                            :: test
       REAL(KIND=dp)                                      :: norm, sum_data
@@ -544,9 +542,7 @@ CONTAINS
       END IF
       lmax = MAX(lg, (nx*ny*nz)/mmax+1)
 
-      ALLOCATE (p2p(0:numtask-1), STAT=ierr)
-      IF (ierr /= 0) CALL stop_memory(routineN, moduleN, __LINE__, &
-                                      "p2p", int_size*numtask)
+      ALLOCATE (p2p(0:numtask-1))
 
       CALL mp_rank_compare(gs_group, rs_group, p2p)
 

@@ -27,9 +27,7 @@ MODULE qs_fermi_contact
    USE dbcsr_api,                       ONLY: dbcsr_get_block_p,&
                                               dbcsr_p_type
    USE input_section_types,             ONLY: section_vals_val_get
-   USE kinds,                           ONLY: dp,&
-                                              dp_size,&
-                                              int_size
+   USE kinds,                           ONLY: dp
    USE orbital_pointers,                ONLY: init_orbital_pointers,&
                                               ncoset
    USE particle_types,                  ONLY: particle_type
@@ -44,7 +42,6 @@ MODULE qs_fermi_contact
                                               neighbor_list_iterator_p_type,&
                                               neighbor_list_iterator_release,&
                                               neighbor_list_set_p_type
-   USE termination,                     ONLY: stop_memory
 #include "./base/base_uses.f90"
 
    IMPLICIT NONE
@@ -81,9 +78,9 @@ CONTAINS
       CHARACTER(len=*), PARAMETER :: routineN = 'build_fermi_contact_matrix', &
          routineP = moduleN//':'//routineN
 
-      INTEGER :: after, handle, iatom, icol, ikind, inode, irow, iset, istat, iw, jatom, jkind, &
-         jset, last_jatom, ldai, ldfc, maxco, maxlgto, maxsgf, natom, ncoa, ncob, nkind, nseta, &
-         nsetb, sgfa, sgfb
+      INTEGER :: after, handle, iatom, icol, ikind, inode, irow, iset, iw, jatom, jkind, jset, &
+         last_jatom, ldai, ldfc, maxco, maxlgto, maxsgf, natom, ncoa, ncob, nkind, nseta, nsetb, &
+         sgfa, sgfb
       INTEGER, DIMENSION(:), POINTER                     :: la_max, la_min, lb_max, lb_min, npgfa, &
                                                             npgfb, nsgfa, nsgfb
       INTEGER, DIMENSION(:, :), POINTER                  :: first_sgfa, first_sgfb
@@ -135,24 +132,16 @@ CONTAINS
       CALL init_orbital_pointers(ldai)
 
       ldfc = maxco
-      ALLOCATE (fcab(ldfc, ldfc), STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routineN, moduleN, __LINE__, &
-                                       "fcab", ldfc*ldfc*dp_size)
+      ALLOCATE (fcab(ldfc, ldfc))
       fcab(:, :) = 0.0_dp
 
-      ALLOCATE (work(maxco, maxsgf), STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routineN, moduleN, __LINE__, &
-                                       "work", maxco*maxsgf*dp_size)
+      ALLOCATE (work(maxco, maxsgf))
       work(:, :) = 0.0_dp
 
-      ALLOCATE (fcint(1), STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routineN, moduleN, __LINE__, &
-                                       "fcint", 1*int_size)
+      ALLOCATE (fcint(1))
       NULLIFY (fcint(1)%block)
 
-      ALLOCATE (basis_set_list(nkind), STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routineN, moduleN, __LINE__, &
-                                       "basis_set_list", nkind)
+      ALLOCATE (basis_set_list(nkind))
       DO ikind = 1, nkind
          qs_kind => qs_kind_set(ikind)
          CALL get_qs_kind(qs_kind=qs_kind, basis_set=basis_set_a)

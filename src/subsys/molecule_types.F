@@ -16,8 +16,7 @@ MODULE molecule_types
    USE colvar_types,                    ONLY: colvar_counters,&
                                               colvar_release,&
                                               colvar_type
-   USE kinds,                           ONLY: dp,&
-                                              int_size
+   USE kinds,                           ONLY: dp
    USE molecule_kind_types,             ONLY: colvar_constraint_type,&
                                               fixd_constraint_type,&
                                               g3x3_constraint_type,&
@@ -25,7 +24,6 @@ MODULE molecule_types
                                               get_molecule_kind,&
                                               molecule_kind_type,&
                                               vsite_constraint_type
-   USE termination,                     ONLY: stop_memory
 #include "../base/base_uses.f90"
 
    IMPLICIT NONE
@@ -199,13 +197,11 @@ CONTAINS
       CHARACTER(len=*), PARAMETER :: routineN = 'allocate_molecule_set', &
          routineP = moduleN//':'//routineN
 
-      INTEGER                                            :: imolecule, istat
+      INTEGER                                            :: imolecule
 
       IF (ASSOCIATED(molecule_set)) CALL deallocate_molecule_set(molecule_set)
 
-      ALLOCATE (molecule_set(nmolecule), STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routineN, moduleN, __LINE__, &
-                                       "molecule_set", nmolecule*int_size)
+      ALLOCATE (molecule_set(nmolecule))
 
       DO imolecule = 1, nmolecule
          NULLIFY (molecule_set(imolecule)%molecule_kind)

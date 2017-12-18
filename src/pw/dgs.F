@@ -20,8 +20,7 @@ MODULE dgs
                                               FFT_RADIX_NEXT_ODD,&
                                               fft3d,&
                                               fft_radix_operations
-   USE kinds,                           ONLY: dp,&
-                                              dp_size
+   USE kinds,                           ONLY: dp
    USE mathlib,                         ONLY: det_3x3,&
                                               inv_3x3
    USE pw_grid_info,                    ONLY: pw_find_cutoff
@@ -35,7 +34,6 @@ MODULE dgs
    USE realspace_grid_types,            ONLY: realspace_grid_p_type,&
                                               realspace_grid_type
    USE structure_factors,               ONLY: structure_factor_evaluate
-   USE termination,                     ONLY: stop_memory
 #include "../base/base_uses.f90"
 
    IMPLICIT NONE
@@ -867,18 +865,14 @@ CONTAINS
       COMPLEX(KIND=dp)                                   :: za, zb
       COMPLEX(KIND=dp), ALLOCATABLE, DIMENSION(:)        :: zs
       COMPLEX(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)  :: cd
-      INTEGER                                            :: ierr, n, nd(3)
+      INTEGER                                            :: n, nd(3)
 
       nd = rhos1%pw%pw_grid%npts
       n = PRODUCT(nd)
 
-      ALLOCATE (zs(nd(1)*nd(2)), STAT=ierr)
-      IF (ierr /= 0) CALL stop_memory(routineN, moduleN, __LINE__, &
-                                      "zs", 2*dp_size*nd(1)*nd(2))
+      ALLOCATE (zs(nd(1)*nd(2)))
       zs = 0.0_dp
-      ALLOCATE (cd(nd(1), nd(2), nd(3)), STAT=ierr)
-      IF (ierr /= 0) CALL stop_memory(routineN, moduleN, __LINE__, &
-                                      "cd", 2*dp_size*nd(1)*nd(2)*nd(3))
+      ALLOCATE (cd(nd(1), nd(2), nd(3)))
       cd = 0.0_dp
 
       za = CMPLX(0.0_dp, 0.0_dp, KIND=dp)
@@ -923,18 +917,14 @@ CONTAINS
       COMPLEX(KIND=dp)                                   :: za, zb
       COMPLEX(KIND=dp), ALLOCATABLE, DIMENSION(:)        :: zs
       COMPLEX(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)  :: cd
-      INTEGER                                            :: ierr, n, nd(3)
+      INTEGER                                            :: n, nd(3)
 
       nd = rhos1%pw%pw_grid%npts
       n = PRODUCT(nd)
 
-      ALLOCATE (zs(nd(1)*nd(2)), STAT=ierr)
-      IF (ierr /= 0) CALL stop_memory(routineN, moduleN, __LINE__, &
-                                      "zs", 2*dp_size*nd(1)*nd(2))
+      ALLOCATE (zs(nd(1)*nd(2)))
       zs = 0.0_dp
-      ALLOCATE (cd(nd(1), nd(2), nd(3)), STAT=ierr)
-      IF (ierr /= 0) CALL stop_memory(routineN, moduleN, __LINE__, &
-                                      "cd", 2*dp_size*nd(1)*nd(2)*nd(3))
+      ALLOCATE (cd(nd(1), nd(2), nd(3)))
       cd = 0.0_dp
 
       za = CMPLX(0.0_dp, 0.0_dp, KIND=dp)

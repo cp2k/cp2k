@@ -48,8 +48,7 @@ MODULE distribution_methods
                                               section_vals_type,&
                                               section_vals_val_get
    USE kinds,                           ONLY: dp,&
-                                              int_8,&
-                                              int_size
+                                              int_8
    USE machine,                         ONLY: m_flush
    USE mathconstants,                   ONLY: pi
    USE mathlib,                         ONLY: gcd,&
@@ -68,7 +67,6 @@ MODULE distribution_methods
    USE particle_types,                  ONLY: particle_type
    USE qs_kind_types,                   ONLY: get_qs_kind,&
                                               qs_kind_type
-   USE termination,                     ONLY: stop_memory
    USE util,                            ONLY: sort
 #include "./base/base_uses.f90"
 
@@ -126,8 +124,8 @@ CONTAINS
          routineP = moduleN//':'//routineN
 
       INTEGER :: atom_a, bin, group, handle, iatom, imolecule, imolecule_kind, imolecule_local, &
-         imolecule_prev_kind, iparticle_kind, ipe, istat, iw, kind_a, molecule_a, mype, n, natom, &
-         nbins, nload, nmolecule, nmolecule_kind, nparticle_kind, npe, nsgf, output_unit
+         imolecule_prev_kind, iparticle_kind, ipe, iw, kind_a, molecule_a, mype, n, natom, nbins, &
+         nload, nmolecule, nmolecule_kind, nparticle_kind, npe, nsgf, output_unit
       INTEGER(int_8)                                     :: bin_price
       INTEGER(int_8), ALLOCATABLE, DIMENSION(:)          :: workload_count, workload_fill
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: nmolecule_local, nparticle_local, work
@@ -158,32 +156,22 @@ CONTAINS
       mype = logger%para_env%mepos+1
       npe = logger%para_env%num_pe
 
-      ALLOCATE (workload_count(npe), STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routineN, moduleN, __LINE__, &
-                                       "workload", npe*int_size)
+      ALLOCATE (workload_count(npe))
       workload_count(:) = 0
 
-      ALLOCATE (workload_fill(npe), STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routineN, moduleN, __LINE__, &
-                                       "workload_old", npe*int_size)
+      ALLOCATE (workload_fill(npe))
       workload_fill(:) = 0
 
       nmolecule_kind = SIZE(molecule_kind_set)
 
-      ALLOCATE (nmolecule_local(nmolecule_kind), STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routineN, moduleN, __LINE__, &
-                                       "nmolecule_local", nmolecule_kind*int_size)
+      ALLOCATE (nmolecule_local(nmolecule_kind))
       nmolecule_local(:) = 0
 
-      ALLOCATE (local_molecule(nmolecule_kind), STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routineN, moduleN, __LINE__, &
-                                       "local_molecule", nmolecule_kind*int_size)
+      ALLOCATE (local_molecule(nmolecule_kind))
 
       nparticle_kind = SIZE(atomic_kind_set)
 
-      ALLOCATE (nparticle_local(nparticle_kind), STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routineN, moduleN, __LINE__, &
-                                       "nparticle_local", nparticle_kind*int_size)
+      ALLOCATE (nparticle_local(nparticle_kind))
       nparticle_local(:) = 0
 
       nbins = npe
@@ -248,12 +236,7 @@ CONTAINS
          n = nmolecule_local(imolecule_kind)
 
          IF (n > 0) THEN
-            ALLOCATE (local_molecule(imolecule_kind)%array(n), STAT=istat)
-            IF (istat /= 0) THEN
-               CALL stop_memory(routineN, moduleN, __LINE__, &
-                                "local_molecule(imolecule_kind)%array", &
-                                n*int_size)
-            END IF
+            ALLOCATE (local_molecule(imolecule_kind)%array(n))
          ELSE
             NULLIFY (local_molecule(imolecule_kind)%array)
          END IF
@@ -360,9 +343,7 @@ CONTAINS
 
 !     *** Print molecule distribution ***
 
-         ALLOCATE (work(npe), STAT=istat)
-         IF (istat /= 0) CALL stop_memory(routineN, moduleN, __LINE__, &
-                                          "work", npe*int_size)
+         ALLOCATE (work(npe))
          work(:) = 0
 
          work(mype) = SUM(nmolecule_local)
@@ -512,7 +493,7 @@ CONTAINS
          routineP = moduleN//':'//routineN
 
       INTEGER :: cluster_price, cost_model, group, handle, iatom, iatom_mol, iatom_one, ikind, &
-         imol, imolecule, imolecule_kind, iparticle_kind, ipcol, iprow, istat, iw, kind_a, mypcol, &
+         imol, imolecule, imolecule_kind, iparticle_kind, ipcol, iprow, iw, kind_a, mypcol, &
          myprow, n, natom, natom_mol, nclusters, nmolecule, nmolecule_kind, nparticle_kind, npcol, &
          nprow, nsgf, output_unit
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: cluster_list, cluster_prices, &
@@ -565,36 +546,16 @@ CONTAINS
       ! we need to generate two representations of the distribution, one as a straight array with global particles
       ! one ordered wrt to kinds and only listing the local particles
       !
-      ALLOCATE (row_distribution(natom, 2), STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routineN, moduleN, __LINE__, &
-                                       "row_distribution", natom*int_size)
-
-      ALLOCATE (col_distribution(natom, 2), STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routineN, moduleN, __LINE__, &
-                                       "col_distribution", natom*int_size)
+      ALLOCATE (row_distribution(natom, 2))
+      ALLOCATE (col_distribution(natom, 2))
       ! Initialize the distributions to -1, as the second dimension only gets set with cluster optimization
       ! but the information is needed by dbcsr
       row_distribution = -1; col_distribution = -1
 
-      ALLOCATE (local_particle_col(nparticle_kind), STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routineN, moduleN, __LINE__, &
-                                       "local_particle_col", &
-                                       nparticle_kind*int_size)
-
-      ALLOCATE (local_particle_row(nparticle_kind), STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routineN, moduleN, __LINE__, &
-                                       "local_particle_col", &
-                                       nparticle_kind*int_size)
-
-      ALLOCATE (nparticle_local_row(nparticle_kind), STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routineN, moduleN, __LINE__, &
-                                       "nparticle_local_row", &
-                                       nparticle_kind*int_size)
-
-      ALLOCATE (nparticle_local_col(nparticle_kind), STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routineN, moduleN, __LINE__, &
-                                       "nparticle_local_col", &
-                                       nparticle_kind*int_size)
+      ALLOCATE (local_particle_col(nparticle_kind))
+      ALLOCATE (local_particle_row(nparticle_kind))
+      ALLOCATE (nparticle_local_row(nparticle_kind))
+      ALLOCATE (nparticle_local_col(nparticle_kind))
 
       IF (basic_optimization .OR. basic_spatial_optimization .OR. basic_cluster_optimization) THEN
 
@@ -604,18 +565,10 @@ CONTAINS
             nclusters = natom
          ENDIF
 
-         ALLOCATE (cluster_list(nclusters), stat=istat)
-         IF (istat /= 0) CALL stop_memory(routineN, moduleN, __LINE__, &
-                                          "cluster_list", nclusters*int_size)
-         ALLOCATE (cluster_prices(nclusters), stat=istat)
-         IF (istat /= 0) CALL stop_memory(routineN, moduleN, __LINE__, &
-                                          "cluster_prices", nclusters*int_size)
-         ALLOCATE (cluster_row_distribution(nclusters, 2), stat=istat)
-         IF (istat /= 0) CALL stop_memory(routineN, moduleN, __LINE__, &
-                                          "cluster_prices", nclusters*int_size)
-         ALLOCATE (cluster_col_distribution(nclusters, 2), stat=istat)
-         IF (istat /= 0) CALL stop_memory(routineN, moduleN, __LINE__, &
-                                          "cluster_prices", nclusters*int_size)
+         ALLOCATE (cluster_list(nclusters))
+         ALLOCATE (cluster_prices(nclusters))
+         ALLOCATE (cluster_row_distribution(nclusters, 2))
+         ALLOCATE (cluster_col_distribution(nclusters, 2))
          cluster_row_distribution = -1; cluster_col_distribution = -1
 
          ! Fill in the clusters and their prices
@@ -767,14 +720,10 @@ CONTAINS
       ! allocate space
       DO iparticle_kind = 1, nparticle_kind
          n = nparticle_local_row(iparticle_kind)
-         ALLOCATE (local_particle_row(iparticle_kind)%array(n), STAT=istat)
-         IF (istat /= 0) CALL stop_memory(routineN, moduleN, __LINE__, &
-                                          "local_particle_row(iparticle_kind)%array", n*int_size)
+         ALLOCATE (local_particle_row(iparticle_kind)%array(n))
 
          n = nparticle_local_col(iparticle_kind)
-         ALLOCATE (local_particle_col(iparticle_kind)%array(n), STAT=istat)
-         IF (istat /= 0) CALL stop_memory(routineN, moduleN, __LINE__, &
-                                          "local_particle_col(iparticle_kind)%array", n*int_size)
+         ALLOCATE (local_particle_col(iparticle_kind)%array(n))
       ENDDO
 
       ! store
@@ -816,11 +765,7 @@ CONTAINS
 
 !     *** Print row distribution ***
 
-         ALLOCATE (work(nprow), STAT=istat)
-         IF (istat /= 0) THEN
-            CALL stop_memory(routineN, moduleN, __LINE__, &
-                             "work", nprow*int_size)
-         END IF
+         ALLOCATE (work(nprow))
          work(:) = 0
 
          IF (mypcol == 1) work(myprow) = SUM(distribution_2d%n_local_rows)
@@ -842,11 +787,7 @@ CONTAINS
 
 !     *** Print column distribution ***
 
-         ALLOCATE (work(npcol), STAT=istat)
-         IF (istat /= 0) THEN
-            CALL stop_memory(routineN, moduleN, __LINE__, &
-                             "work", npcol*int_size)
-         END IF
+         ALLOCATE (work(npcol))
          work(:) = 0
 
          IF (myprow == 1) work(mypcol) = SUM(distribution_2d%n_local_cols)

@@ -36,8 +36,7 @@ MODULE qs_force
    USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                               section_vals_type,&
                                               section_vals_val_get
-   USE kinds,                           ONLY: dp,&
-                                              int_size
+   USE kinds,                           ONLY: dp
    USE lri_environment_types,           ONLY: lri_environment_type
    USE message_passing,                 ONLY: mp_sum
    USE mulliken,                        ONLY: mulliken_restraint
@@ -77,7 +76,6 @@ MODULE qs_force
                                               rt_admm_force
    USE se_core_core,                    ONLY: se_core_core_interaction
    USE se_core_matrix,                  ONLY: build_se_core_matrix
-   USE termination,                     ONLY: stop_memory
    USE virial_types,                    ONLY: virial_type
 #include "./base/base_uses.f90"
 
@@ -497,8 +495,7 @@ CONTAINS
       CHARACTER(LEN=20)                                  :: fmtstr3
       CHARACTER(LEN=35)                                  :: fmtstr2
       CHARACTER(LEN=48)                                  :: fmtstr1
-      INTEGER                                            :: i, iatom, ikind, istat, my_ftype, natom, &
-                                                            ndigits
+      INTEGER                                            :: i, iatom, ikind, my_ftype, natom, ndigits
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: atom_of_kind, kind_of
       REAL(KIND=dp), DIMENSION(3)                        :: grand_total
 
@@ -512,12 +509,8 @@ CONTAINS
 
          CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set, &
                                   natom=natom)
-         ALLOCATE (atom_of_kind(natom), STAT=istat)
-         IF (istat /= 0) CALL stop_memory(routineN, moduleN, __LINE__, &
-                                          "atom_of_kind", natom*int_size)
-         ALLOCATE (kind_of(natom), STAT=istat)
-         IF (istat /= 0) CALL stop_memory(routineN, moduleN, __LINE__, &
-                                          "kind_of", natom*int_size)
+         ALLOCATE (atom_of_kind(natom))
+         ALLOCATE (kind_of(natom))
          CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set, &
                                   atom_of_kind=atom_of_kind, &
                                   kind_of=kind_of)

@@ -23,6 +23,7 @@ MODULE input_keyword_types
         val_retain, val_type, val_write, val_write_internal
    USE kinds,                           ONLY: default_string_length,&
                                               dp
+   USE print_messages,                  ONLY: print_message
    USE reference_manager,               ONLY: get_citation_key,&
                                               print_format_journal,&
                                               print_reference
@@ -31,7 +32,6 @@ MODULE input_keyword_types
                                               substitute_special_xml_tokens,&
                                               typo_match,&
                                               uppercase
-   USE termination,                     ONLY: print_message
 #include "../base/base_uses.f90"
 
    IMPLICIT NONE

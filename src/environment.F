@@ -63,7 +63,6 @@ MODULE environment
                                               default_string_length,&
                                               dp,&
                                               int_8,&
-                                              int_size,&
                                               print_kind_info
    USE machine,                         ONLY: flush_should_flush,&
                                               m_cpuinfo,&
@@ -94,7 +93,6 @@ MODULE environment
    USE string_utilities,                ONLY: ascii_to_string,&
                                               integer_to_string,&
                                               string_to_ascii
-   USE termination,                     ONLY: stop_memory
    USE timings,                         ONLY: add_timer_env,&
                                               global_timings_level,&
                                               rm_timer_env,&
@@ -227,26 +225,18 @@ CONTAINS
       CHARACTER(len=*), PARAMETER :: routineN = 'echo_all_hosts', routineP = moduleN//':'//routineN
 
       CHARACTER(LEN=default_string_length)               :: string
-      INTEGER                                            :: ipe, istat
+      INTEGER                                            :: ipe
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: all_pid
       INTEGER, ALLOCATABLE, DIMENSION(:, :)              :: all_host
 
 !   *** Print a list of all started processes ***
 
-      ALLOCATE (all_pid(para_env%num_pe), STAT=istat)
-      IF (istat /= 0) THEN
-         CALL stop_memory(routineN, moduleN, __LINE__, "all_pid", &
-                          para_env%num_pe*int_size)
-      END IF
+      ALLOCATE (all_pid(para_env%num_pe))
       all_pid(:) = 0
       all_pid(para_env%mepos+1) = r_pid
 
       CALL mp_sum(all_pid, para_env%group)
-      ALLOCATE (all_host(30, para_env%num_pe), STAT=istat)
-      IF (istat /= 0) THEN
-         CALL stop_memory(routineN, moduleN, __LINE__, "all_host", &
-                          30*para_env%num_pe*int_size)
-      END IF
+      ALLOCATE (all_host(30, para_env%num_pe))
       all_host(:, :) = 0
       CALL string_to_ascii(r_host_name, all_host(:, para_env%mepos+1))
       CALL mp_sum(all_host, para_env%group)
@@ -279,15 +269,11 @@ CONTAINS
          routineP = moduleN//':'//routineN
 
       CHARACTER(LEN=default_string_length)               :: string, string_sec
-      INTEGER                                            :: ipe, istat, jpe, nr_occu
+      INTEGER                                            :: ipe, jpe, nr_occu
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: all_pid
       INTEGER, ALLOCATABLE, DIMENSION(:, :)              :: all_host
 
-      ALLOCATE (all_host(30, para_env%num_pe), STAT=istat)
-      IF (istat /= 0) THEN
-         CALL stop_memory(routineN, moduleN, __LINE__, "all_host", &
-                          30*para_env%num_pe*int_size)
-      END IF
+      ALLOCATE (all_host(30, para_env%num_pe))
       all_host(:, :) = 0
 
       IF (m_procrun(r_pid) .EQ. 1) THEN
@@ -296,11 +282,7 @@ CONTAINS
       ENDIF
 
       IF (output_unit > 0) THEN
-         ALLOCATE (all_pid(para_env%num_pe), STAT=istat)
-         IF (istat /= 0) THEN
-            CALL stop_memory(routineN, moduleN, __LINE__, "all_pid", &
-                             para_env%num_pe*int_size)
-         END IF
+         ALLOCATE (all_pid(para_env%num_pe))
          all_pid(:) = 0
 
          WRITE (UNIT=output_unit, FMT="(T2,A)") ""

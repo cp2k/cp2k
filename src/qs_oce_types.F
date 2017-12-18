@@ -9,7 +9,6 @@ MODULE qs_oce_types
    USE kinds,                           ONLY: dp
    USE sap_kind_types,                  ONLY: release_sap_int,&
                                               sap_int_type
-   USE termination,                     ONLY: stop_memory
 #include "./base/base_uses.f90"
 
    IMPLICIT NONE
@@ -82,12 +81,9 @@ CONTAINS
 
       CHARACTER(len=*), PARAMETER :: routineN = 'create_oce_set', routineP = moduleN//':'//routineN
 
-      INTEGER                                            :: istat
-
       IF (ASSOCIATED(oce_set)) CALL deallocate_oce_set(oce_set)
 
-      ALLOCATE (oce_set, STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routineN, moduleN, __LINE__, "oce_set", 0)
+      ALLOCATE (oce_set)
 
       NULLIFY (oce_set%intac)
 

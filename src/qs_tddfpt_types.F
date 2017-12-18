@@ -17,14 +17,11 @@ MODULE qs_tddfpt_types
                                               cp_fm_p_type,&
                                               cp_fm_release
    USE cp_para_types,                   ONLY: cp_para_env_type
-   USE kinds,                           ONLY: dp,&
-                                              dp_size,&
-                                              int_size
+   USE kinds,                           ONLY: dp
    USE qs_environment_types,            ONLY: get_qs_env,&
                                               qs_environment_type
    USE qs_matrix_pools,                 ONLY: mpools_get
    USE qs_p_env_types,                  ONLY: qs_p_env_type
-   USE termination,                     ONLY: stop_memory
 #include "./base/base_uses.f90"
 
    IMPLICIT NONE
@@ -65,7 +62,7 @@ CONTAINS
       CHARACTER(len=*), PARAMETER :: routineN = 'tddfpt_env_allocate', &
          routineP = moduleN//':'//routineN
 
-      INTEGER                                            :: i, n_ev, n_spins, spin, stat
+      INTEGER                                            :: i, n_ev, n_spins, spin
       TYPE(cp_blacs_env_type), POINTER                   :: blacs_env
       TYPE(cp_fm_struct_type), POINTER                   :: fm_struct
       TYPE(cp_para_env_type), POINTER                    :: para_env
@@ -82,13 +79,8 @@ CONTAINS
       n_spins = dft_control%nspins
       CALL mpools_get(qs_env%mpools, ao_mo_fm_pools=t_env%ao_mo_fm_pools)
 
-      ALLOCATE (t_env%evals(n_ev), STAT=stat)
-      IF (stat /= 0) CALL stop_memory(routineN, moduleN, __LINE__, &
-                                      "t_env%evals", dp_size*n_ev)
-
-      ALLOCATE (t_env%evecs(n_ev, n_spins), STAT=stat)
-      IF (stat /= 0) CALL stop_memory(routineN, moduleN, __LINE__, &
-                                      "t_env%evecs", dp_size*n_ev*n_spins)
+      ALLOCATE (t_env%evals(n_ev))
+      ALLOCATE (t_env%evecs(n_ev, n_spins))
       DO spin = 1, n_spins
          DO i = 1, n_ev
             CALL fm_pool_create_fm(t_env%ao_mo_fm_pools(spin)%pool, &
@@ -99,9 +91,7 @@ CONTAINS
       !-------------------------------------------------!
       ! allocate memory for the inverse of the S matrix !
       !-------------------------------------------------!
-      ALLOCATE (t_env%invS(n_spins), STAT=stat)
-      IF (stat /= 0) CALL stop_memory(routineN, moduleN, __LINE__, &
-                                      "t_env%invS", int_size*n_spins)
+      ALLOCATE (t_env%invS(n_spins))
       DO spin = 1, n_spins
          NULLIFY (fm_struct)
          CALL cp_fm_struct_create(fm_struct, para_env, blacs_env, &

@@ -13,23 +13,18 @@
 !>       processes will send their error dump to the default output unit.
 !> \par History
 !>      - Routine external_control moved to a separate module
+!>      - Delete stop_memory routine, rename module
 !> \author Matthias Krack (12.02.2001)
 ! **************************************************************************************************
-MODULE termination
-   USE kinds,                           ONLY: default_path_length,&
-                                              default_string_length,&
-                                              int_8
-   USE machine,                         ONLY: m_memory
+MODULE print_messages
 #include "../base/base_uses.f90"
-
    IMPLICIT NONE
 
    PRIVATE
 
-   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'termination'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'print_messages'
 
    PUBLIC :: print_message
-   PUBLIC :: stop_memory
 
 CONTAINS
 
@@ -190,61 +185,4 @@ CONTAINS
 
    END SUBROUTINE print_message
 
-! **************************************************************************************************
-!> \brief The memory allocation for a data object failed. Print an error
-!>        message and stop the program execution.
-!> \param routineN ...
-!> \param moduleN ...
-!> \param line_number ...
-!> \param object ...
-!> \param memory ...
-!> \par History
-!>      - CP2K by JGH 21.08.2000
-!>      - Revised (16.02.2011,MK)
-!> \author Matthias Krack (12.10.1999,MK)
-!> \note
-!>      routineN   : Name of the calling routine
-!>      moduleN    : Name of the calling module including the calling routine
-!>      line_number: Code line number in the module
-!>      object     : Name of the data object for which the allocation failed
-!>      memory     : Size of the data object in bytes. If zero no size is
-!>                   printed.
-! **************************************************************************************************
-   SUBROUTINE stop_memory(routineN, moduleN, line_number, object, memory)
-
-      CHARACTER(LEN=*), INTENT(IN)                       :: routineN, moduleN
-      INTEGER, INTENT(IN)                                :: line_number
-      CHARACTER(LEN=*), INTENT(IN)                       :: object
-      INTEGER, INTENT(IN)                                :: memory
-
-      CHARACTER(LEN=default_path_length)                 :: message
-      CHARACTER(len=default_string_length)               :: location
-      INTEGER(KIND=int_8)                                :: total_memory
-
-      CALL m_memory(total_memory)
-      total_memory = total_memory/1024
-
-      IF (memory == 0) THEN
-         message = "The memory allocation for the data object <"//TRIM(object)// &
-                   "> failed."
-      ELSE
-         WRITE (message, "(A,I0,A)") &
-            "The memory allocation for the data object <"//TRIM(object)// &
-            "> failed. The requested memory size is ", memory/1024, " KB."
-      END IF
-
-      IF (total_memory > 0) THEN
-         WRITE (message, "(A,I0,A)") &
-            TRIM(message)//" The current total memory allocated by CP2K is ", &
-            total_memory, " KB."
-      END IF
-
-      WRITE (location, FMT='(A,I6)') TRIM(routineN)// &
-         " (MODULE "//TRIM(moduleN)//")"// &
-         ":", line_number
-
-      CALL cp_abort(location, message)
-
-   END SUBROUTINE stop_memory
-
-END MODULE termination
+END MODULE print_messages

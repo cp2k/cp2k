@@ -11,10 +11,7 @@
 ! **************************************************************************************************
 MODULE qs_energy_types
 
-   USE kinds,                           ONLY: dp,&
-                                              dp_size,&
-                                              int_size
-   USE termination,                     ONLY: stop_memory
+   USE kinds,                           ONLY: dp
 #include "./base/base_uses.f90"
 
    IMPLICIT NONE
@@ -99,13 +96,11 @@ CONTAINS
       CHARACTER(len=*), PARAMETER :: routineN = 'allocate_qs_energy', &
          routineP = moduleN//':'//routineN
 
-      INTEGER                                            :: handle, istat
+      INTEGER                                            :: handle
 
       CALL timeset(routineN, handle)
       IF (.NOT. ASSOCIATED(qs_energy)) THEN
-         ALLOCATE (qs_energy, STAT=istat)
-         IF (istat /= 0) CALL stop_memory(routineN, moduleN, __LINE__, &
-                                          "qs_energy", int_size)
+         ALLOCATE (qs_energy)
          NULLIFY (qs_energy%ddapc_restraint)
       END IF
 
@@ -153,8 +148,6 @@ CONTAINS
 
       CHARACTER(len=*), PARAMETER :: routineN = 'init_qs_energy', routineP = moduleN//':'//routineN
 
-      INTEGER                                            :: istat
-
       IF (ASSOCIATED(qs_energy)) THEN
          qs_energy%core = 0.0_dp
          qs_energy%core_overlap = 0.0_dp
@@ -196,11 +189,7 @@ CONTAINS
          qs_energy%total = 0.0_dp
          qs_energy%singles_corr = 0.0_dp
          IF (.NOT. ASSOCIATED(qs_energy%ddapc_restraint)) THEN
-            ALLOCATE (qs_energy%ddapc_restraint(1), STAT=istat)
-            IF (istat /= 0) THEN
-               CALL stop_memory(routineN, moduleN, __LINE__, &
-                                "qs_energy%ddapc_restraint", dp_size)
-            END IF
+            ALLOCATE (qs_energy%ddapc_restraint(1))
          END IF
          qs_energy%ddapc_restraint(:) = 0.0_dp
       ELSE

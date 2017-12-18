@@ -9,11 +9,9 @@
 ! **************************************************************************************************
 MODULE structure_factors
 
-   USE kinds,                           ONLY: dp,&
-                                              dp_size
+   USE kinds,                           ONLY: dp
    USE mathconstants,                   ONLY: twopi
    USE structure_factor_types,          ONLY: structure_factor_type
-   USE termination,                     ONLY: stop_memory
 #include "../base/base_uses.f90"
 
    IMPLICIT NONE
@@ -103,17 +101,9 @@ CONTAINS
       CHARACTER(len=*), PARAMETER :: routineN = 'structure_factor_allocate', &
          routineP = moduleN//':'//routineN
 
-      INTEGER                                            :: isos
-
-      ALLOCATE (exp_igr%ex(bds(1, 1):bds(2, 1)+1, nparts), &
-                STAT=isos)
-      IF (isos /= 0) CALL stop_memory(routineN, moduleN, __LINE__, 'ex', 0)
-      ALLOCATE (exp_igr%ey(bds(1, 2):bds(2, 2)+1, nparts), &
-                STAT=isos)
-      IF (isos /= 0) CALL stop_memory(routineN, moduleN, __LINE__, 'ey', 0)
-      ALLOCATE (exp_igr%ez(bds(1, 3):bds(2, 3)+1, nparts), &
-                STAT=isos)
-      IF (isos /= 0) CALL stop_memory(routineN, moduleN, __LINE__, 'ez', 0)
+      ALLOCATE (exp_igr%ex(bds(1, 1):bds(2, 1)+1, nparts))
+      ALLOCATE (exp_igr%ey(bds(1, 2):bds(2, 2)+1, nparts))
+      ALLOCATE (exp_igr%ez(bds(1, 3):bds(2, 3)+1, nparts))
       NULLIFY (exp_igr%centre)
 
       exp_igr%lb(1) = LBOUND(exp_igr%ex, 1)
@@ -122,44 +112,26 @@ CONTAINS
 
       IF (PRESENT(allocate_centre)) THEN
          IF (allocate_centre) THEN
-            ALLOCATE (exp_igr%centre(3, nparts), STAT=isos)
-            IF (isos /= 0) CALL stop_memory(routineN, moduleN, __LINE__, &
-                                            'centre', dp_size*3*nparts)
+            ALLOCATE (exp_igr%centre(3, nparts))
          END IF
       END IF
 
       IF (PRESENT(allocate_shell_e)) THEN
          IF (allocate_shell_e) THEN
-            ALLOCATE (exp_igr%shell_ex(bds(1, 1):bds(2, 1)+1, nshell), &
-                      STAT=isos)
-            IF (isos /= 0) CALL stop_memory(routineN, moduleN, __LINE__, 'shell_ex', 0)
-            ALLOCATE (exp_igr%shell_ey(bds(1, 2):bds(2, 2)+1, nshell), &
-                      STAT=isos)
-            IF (isos /= 0) CALL stop_memory(routineN, moduleN, __LINE__, 'shell_ey', 0)
-            ALLOCATE (exp_igr%shell_ez(bds(1, 3):bds(2, 3)+1, nshell), &
-                      STAT=isos)
-            IF (isos /= 0) CALL stop_memory(routineN, moduleN, __LINE__, 'shell_ez', 0)
+            ALLOCATE (exp_igr%shell_ex(bds(1, 1):bds(2, 1)+1, nshell))
+            ALLOCATE (exp_igr%shell_ey(bds(1, 2):bds(2, 2)+1, nshell))
+            ALLOCATE (exp_igr%shell_ez(bds(1, 3):bds(2, 3)+1, nshell))
             NULLIFY (exp_igr%shell_centre)
 
-            ALLOCATE (exp_igr%core_ex(bds(1, 1):bds(2, 1)+1, nshell), &
-                      STAT=isos)
-            IF (isos /= 0) CALL stop_memory(routineN, moduleN, __LINE__, 'core_ex', 0)
-            ALLOCATE (exp_igr%core_ey(bds(1, 2):bds(2, 2)+1, nshell), &
-                      STAT=isos)
-            IF (isos /= 0) CALL stop_memory(routineN, moduleN, __LINE__, 'core_ey', 0)
-            ALLOCATE (exp_igr%core_ez(bds(1, 3):bds(2, 3)+1, nshell), &
-                      STAT=isos)
-            IF (isos /= 0) CALL stop_memory(routineN, moduleN, __LINE__, 'core_ez', 0)
+            ALLOCATE (exp_igr%core_ex(bds(1, 1):bds(2, 1)+1, nshell))
+            ALLOCATE (exp_igr%core_ey(bds(1, 2):bds(2, 2)+1, nshell))
+            ALLOCATE (exp_igr%core_ez(bds(1, 3):bds(2, 3)+1, nshell))
             NULLIFY (exp_igr%core_centre)
 
             IF (PRESENT(allocate_shell_centre)) THEN
                IF (allocate_shell_centre) THEN
-                  ALLOCATE (exp_igr%shell_centre(3, nshell), STAT=isos)
-                  IF (isos /= 0) &
-                     CALL stop_memory(routineN, moduleN, __LINE__, 'shell_centre', dp_size*3*nparts)
-                  ALLOCATE (exp_igr%core_centre(3, nshell), STAT=isos)
-                  IF (isos /= 0) &
-                     CALL stop_memory(routineN, moduleN, __LINE__, 'core_centre', dp_size*3*nparts)
+                  ALLOCATE (exp_igr%shell_centre(3, nshell))
+                  ALLOCATE (exp_igr%core_centre(3, nshell))
                END IF
             END IF
          END IF

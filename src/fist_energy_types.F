@@ -10,9 +10,7 @@
 ! **************************************************************************************************
 MODULE fist_energy_types
 
-   USE kinds,                           ONLY: dp,&
-                                              dp_size
-   USE termination,                     ONLY: stop_memory
+   USE kinds,                           ONLY: dp
 #include "./base/base_uses.f90"
 
    IMPLICIT NONE
@@ -50,12 +48,8 @@ CONTAINS
       CHARACTER(len=*), PARAMETER :: routineN = 'allocate_fist_energy', &
          routineP = moduleN//':'//routineN
 
-      INTEGER                                            :: istat
-
       IF (.NOT. ASSOCIATED(fist_energy)) THEN
-         ALLOCATE (fist_energy, STAT=istat)
-         IF (istat /= 0) CALL stop_memory(routineN, moduleN, __LINE__, &
-                                          "fist_energy", 8*dp_size)
+         ALLOCATE (fist_energy)
       END IF
 
       CALL init_fist_energy(fist_energy)

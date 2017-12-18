@@ -16,7 +16,6 @@ MODULE qs_rho0_ggrid
    USE cube_utils,                      ONLY: cube_info_type
    USE input_constants,                 ONLY: tddfpt_singlet
    USE kinds,                           ONLY: dp,&
-                                              dp_size,&
                                               int_8
    USE mathconstants,                   ONLY: dfac,&
                                               fourpi
@@ -65,7 +64,6 @@ MODULE qs_rho0_ggrid
         pw2rs, realspace_grid_desc_p_type, realspace_grid_desc_type, realspace_grid_p_type, &
         realspace_grid_type, rs2pw, rs_grid_create, rs_grid_release, rs_grid_retain, rs_grid_zero, &
         rs_pw_transfer
-   USE termination,                     ONLY: stop_memory
    USE util,                            ONLY: get_limit
    USE virial_types,                    ONLY: virial_type
 #include "./base/base_uses.f90"
@@ -100,9 +98,8 @@ CONTAINS
          routineP = moduleN//':'//routineN
 
       INTEGER                                            :: auxbas_grid, handle, iat, iatom, igrid, &
-                                                            ikind, istat, ithread, j, l0_ikind, &
-                                                            lmax0, lmax_global, nat, nch_ik, &
-                                                            nch_max, npme
+                                                            ikind, ithread, j, l0_ikind, lmax0, &
+                                                            lmax_global, nat, nch_ik, nch_max, npme
       INTEGER, DIMENSION(:), POINTER                     :: atom_list, cores
       LOGICAL                                            :: paw_atom
       REAL(KIND=dp)                                      :: eps_rho_rspace, rpgf0, zet0
@@ -162,12 +159,8 @@ CONTAINS
       CPASSERT(ASSOCIATED(pw_pool))
 
       IF (igrid /= auxbas_grid) THEN
-         ALLOCATE (coeff_rspace, STAT=istat)
-         IF (istat /= 0) CALL stop_memory(routineN, moduleN, __LINE__, &
-                                          "coeff_rspace", 0)
-         ALLOCATE (coeff_gspace, STAT=istat)
-         IF (istat /= 0) CALL stop_memory(routineN, moduleN, __LINE__, &
-                                          "coeff_gspace", 0)
+         ALLOCATE (coeff_rspace)
+         ALLOCATE (coeff_gspace)
 
          CALL pw_pool_create_pw(pw_pool, coeff_rspace%pw, use_data=REALDATA3D, &
                                 in_space=REALSPACE)
@@ -180,9 +173,7 @@ CONTAINS
 
       nch_max = ncoset(lmax0)
 
-      ALLOCATE (pab(nch_max, 1), STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routineN, moduleN, __LINE__, &
-                                       "pab", dp_size*nch_max)
+      ALLOCATE (pab(nch_max, 1))
 
       !Compute global lmax for use in collocate_pgf_product_rspace
       lmax_global = 0

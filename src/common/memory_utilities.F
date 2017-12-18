@@ -5,21 +5,15 @@
 
 ! **************************************************************************************************
 !> \brief Utility routines for the memory handling.
-!>        Uses stop_memory to handle exceptions
 !> \par History
-!>      none
+!>      (12.2017) remove stop_memory
 !> \author Matthias Krack (25.06.1999)
 ! **************************************************************************************************
 MODULE memory_utilities
 
    USE kinds,                           ONLY: default_path_length,&
                                               default_string_length,&
-                                              dp,&
-                                              dp_size,&
-                                              int_8,&
-                                              int_8_size,&
-                                              int_size
-   USE termination,                     ONLY: stop_memory
+                                              dp, int_8
 #include "../base/base_uses.f90"
 
    IMPLICIT NONE
@@ -46,7 +40,6 @@ CONTAINS
 #! *************************************************************************************************
 #:def reallocate(rank)
 
-      INTEGER :: istat
 #:for i in range(1, rank+1)
       INTEGER :: lb${i}$, lb${i}$_old, ub${i}$, ub${i}$_old
 #:endfor
@@ -63,11 +56,7 @@ CONTAINS
 #:set old_bounds = ','.join(['lb{0}:ub{0}'.format(i) for i in range(1, rank+1)])
 #:set old_size  = '*'.join(['(ub{0}-lb{0}+1)'.format(i) for i in range(1, rank+1)])
 
-       ALLOCATE (work( ${old_bounds}$ ), STAT=istat)
-       IF (istat /= 0) THEN
-          CALL stop_memory(routineN,moduleN,__LINE__,&
-                           "work",t_size*${old_size}$)
-       END IF
+       ALLOCATE (work( ${old_bounds}$ ))
        work(${old_bounds}$) = p(${old_bounds}$)
        DEALLOCATE (p)
     END IF
@@ -75,11 +64,7 @@ CONTAINS
 #:set new_bounds = ','.join(['lb{0}_new:ub{0}_new'.format(i) for i in range(1, rank+1)])
 #:set new_size  = '*'.join(['(ub{0}_new-lb{0}_new+1)'.format(i) for i in range(1, rank+1)])
 
-    ALLOCATE (p(${new_bounds}$),STAT=istat)
-    IF (istat /= 0) THEN
-       CALL stop_memory(routineN,moduleN,__LINE__,&
-                        "p",t_size*${new_size}$)
-    END IF
+    ALLOCATE (p(${new_bounds}$))
     p = zero
 
     IF (ASSOCIATED(p).AND.ALLOCATED(work)) THEN
@@ -105,7 +90,6 @@ CONTAINS
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'reallocate_c1', routineP = moduleN//':'//routineN
       COMPLEX(KIND=dp), PARAMETER                        :: zero = (0.0_dp, 0.0_dp)
-      INTEGER, PARAMETER                                 :: t_size = 2*dp_size
 
       COMPLEX(KIND=dp), ALLOCATABLE, DIMENSION(:)        :: work
 
@@ -131,7 +115,6 @@ $: reallocate(rank=1)
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'reallocate_c2', routineP = moduleN//':'//routineN
       COMPLEX(KIND=dp), PARAMETER                        :: zero = (0.0_dp, 0.0_dp)
-      INTEGER, PARAMETER                                 :: t_size = 2*dp_size
 
       COMPLEX(KIND=dp), ALLOCATABLE, DIMENSION(:, :)     :: work
 
@@ -160,7 +143,6 @@ $: reallocate(rank=2)
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'reallocate_c3', routineP = moduleN//':'//routineN
       COMPLEX(KIND=dp), PARAMETER                        :: zero = (0.0_dp, 0.0_dp)
-      INTEGER, PARAMETER                                 :: t_size = 2*dp_size
 
       COMPLEX(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)  :: work
 
@@ -192,7 +174,6 @@ $: reallocate(rank=3)
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'reallocate_c4', routineP = moduleN//':'//routineN
       COMPLEX(KIND=dp), PARAMETER                        :: zero = (0.0_dp, 0.0_dp)
-      INTEGER, PARAMETER                                 :: t_size = 2*dp_size
 
       COMPLEX(KIND=dp), ALLOCATABLE, &
          DIMENSION(:, :, :, :)                           :: work
@@ -216,7 +197,7 @@ $: reallocate(rank=4)
       INTEGER, INTENT(IN)                                :: lb1_new, ub1_new
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'reallocate_i1', routineP = moduleN//':'//routineN
-      INTEGER, PARAMETER                                 :: t_size = int_size, zero = 0
+      INTEGER, PARAMETER                                 :: zero = 0
 
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: work
 
@@ -241,7 +222,7 @@ $: reallocate(rank=1)
       INTEGER, INTENT(IN)                                :: lb1_new, ub1_new, lb2_new, ub2_new
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'reallocate_i2', routineP = moduleN//':'//routineN
-      INTEGER, PARAMETER                                 :: t_size = int_size, zero = 0
+      INTEGER, PARAMETER                                 :: zero = 0
 
       INTEGER, ALLOCATABLE, DIMENSION(:, :)              :: work
 
@@ -269,7 +250,7 @@ $: reallocate(rank=2)
                                                             lb3_new, ub3_new
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'reallocate_i3', routineP = moduleN//':'//routineN
-      INTEGER, PARAMETER                                 :: t_size = int_size, zero = 0
+      INTEGER, PARAMETER                                 :: zero = 0
 
       INTEGER, ALLOCATABLE, DIMENSION(:, :, :)           :: work
 
@@ -300,7 +281,7 @@ $: reallocate(rank=3)
                                                             lb3_new, ub3_new, lb4_new, ub4_new
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'reallocate_i4', routineP = moduleN//':'//routineN
-      INTEGER, PARAMETER                                 :: t_size = int_size, zero = 0
+      INTEGER, PARAMETER                                 :: zero = 0
 
       INTEGER, ALLOCATABLE, DIMENSION(:, :, :, :)        :: work
 
@@ -324,7 +305,6 @@ $: reallocate(rank=4)
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'reallocate_8i1', routineP = moduleN//':'//routineN
       INTEGER(KIND=int_8), PARAMETER                     :: zero = 0
-      INTEGER, PARAMETER                                 :: t_size = int_8_size
 
       INTEGER(KIND=int_8), ALLOCATABLE, DIMENSION(:)     :: work
 
@@ -350,7 +330,6 @@ $: reallocate(rank=1)
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'reallocate_8i2', routineP = moduleN//':'//routineN
       INTEGER(KIND=int_8), PARAMETER                     :: zero = 0
-      INTEGER, PARAMETER                                 :: t_size = int_8_size
 
       INTEGER(KIND=int_8), ALLOCATABLE, DIMENSION(:, :)  :: work
 
@@ -373,7 +352,6 @@ $: reallocate(rank=2)
       INTEGER, INTENT(IN)                                :: lb1_new, ub1_new
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'reallocate_r1', routineP = moduleN//':'//routineN
-      INTEGER, PARAMETER                                 :: t_size = dp_size
       REAL(KIND=dp), PARAMETER                           :: zero = 0.0_dp
 
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: work
@@ -399,7 +377,6 @@ $: reallocate(rank=1)
       INTEGER, INTENT(IN)                                :: lb1_new, ub1_new, lb2_new, ub2_new
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'reallocate_r2', routineP = moduleN//':'//routineN
-      INTEGER, PARAMETER                                 :: t_size = dp_size
       REAL(KIND=dp), PARAMETER                           :: zero = 0.0_dp
 
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: work
@@ -428,7 +405,6 @@ $: reallocate(rank=2)
                                                             lb3_new, ub3_new
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'reallocate_r3', routineP = moduleN//':'//routineN
-      INTEGER, PARAMETER                                 :: t_size = dp_size
       REAL(KIND=dp), PARAMETER                           :: zero = 0.0_dp
 
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: work
@@ -460,7 +436,6 @@ $: reallocate(rank=3)
                                                             lb3_new, ub3_new, lb4_new, ub4_new
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'reallocate_r4', routineP = moduleN//':'//routineN
-      INTEGER, PARAMETER                                 :: t_size = dp_size
       REAL(KIND=dp), PARAMETER                           :: zero = 0.0_dp
 
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :, :)  :: work
@@ -495,7 +470,6 @@ $: reallocate(rank=4)
                                                             lb5_new, ub5_new
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'reallocate_r5', routineP = moduleN//':'//routineN
-      INTEGER, PARAMETER                                 :: t_size = dp_size
       REAL(KIND=dp), PARAMETER                           :: zero = 0.0_dp
 
       REAL(KIND=dp), ALLOCATABLE, &
@@ -520,7 +494,6 @@ $: reallocate(rank=5)
       INTEGER, INTENT(IN)                                :: lb1_new, ub1_new
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'reallocate_l1', routineP = moduleN//':'//routineN
-      INTEGER, PARAMETER                                 :: t_size = int_size
       LOGICAL, PARAMETER                                 :: zero = .FALSE.
 
       LOGICAL, ALLOCATABLE, DIMENSION(:)                 :: work
@@ -583,7 +556,6 @@ $: reallocate(rank=1)
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'reallocate_ss1', routineP = moduleN//':'//routineN
       CHARACTER(LEN=default_string_length), PARAMETER    :: zero = ""
-      INTEGER, PARAMETER :: t_size = int_size*default_string_length
 
       CHARACTER(LEN=default_string_length), &
          ALLOCATABLE, DIMENSION(:)                       :: work
@@ -612,7 +584,6 @@ $: reallocate(rank=1)
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'reallocate_ls1', routineP = moduleN//':'//routineN
       CHARACTER(LEN=default_path_length), PARAMETER      :: zero = ""
-      INTEGER, PARAMETER :: t_size = int_size*default_path_length
 
       CHARACTER(LEN=default_path_length), ALLOCATABLE, &
          DIMENSION(:)                                    :: work

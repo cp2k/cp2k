@@ -42,8 +42,7 @@ MODULE qs_diis
    USE dm_ls_scf_types,                 ONLY: ls_scf_env_type
    USE input_section_types,             ONLY: section_vals_type
    USE kinds,                           ONLY: default_string_length,&
-                                              dp,&
-                                              dp_size
+                                              dp
    USE mathlib,                         ONLY: diamat_all
    USE qs_diis_types,                   ONLY: qs_diis_buffer_type,&
                                               qs_diis_buffer_type_sparse
@@ -52,7 +51,6 @@ MODULE qs_diis
    USE qs_mo_types,                     ONLY: get_mo_set,&
                                               mo_set_p_type
    USE string_utilities,                ONLY: compress
-   USE termination,                     ONLY: stop_memory
 #include "./base/base_uses.f90"
 
    IMPLICIT NONE
@@ -136,7 +134,7 @@ CONTAINS
       CHARACTER(LEN=*), PARAMETER :: routineN = 'qs_diis_b_check_i_alloc', &
          routineP = moduleN//':'//routineN
 
-      INTEGER                                            :: handle, ibuffer, ispin, istat, nbuffer, &
+      INTEGER                                            :: handle, ibuffer, ispin, nbuffer, &
                                                             output_unit
       TYPE(cp_logger_type), POINTER                      :: logger
 
@@ -152,9 +150,7 @@ CONTAINS
       nbuffer = diis_buffer%nbuffer
 
       IF (.NOT. ASSOCIATED(diis_buffer%error)) THEN
-         ALLOCATE (diis_buffer%error(nbuffer, nspin), STAT=istat)
-         IF (istat /= 0) CALL stop_memory(routineN, moduleN, __LINE__, &
-                                          "diis_buffer%error", 0)
+         ALLOCATE (diis_buffer%error(nbuffer, nspin))
 
          DO ispin = 1, nspin
             DO ibuffer = 1, nbuffer
@@ -171,9 +167,7 @@ CONTAINS
       END IF
 
       IF (.NOT. ASSOCIATED(diis_buffer%parameter)) THEN
-         ALLOCATE (diis_buffer%parameter(nbuffer, nspin), STAT=istat)
-         IF (istat /= 0) CALL stop_memory(routineN, moduleN, __LINE__, &
-                                          "diis_buffer%parameter", 0)
+         ALLOCATE (diis_buffer%parameter(nbuffer, nspin))
 
          DO ispin = 1, nspin
             DO ibuffer = 1, nbuffer
@@ -190,10 +184,7 @@ CONTAINS
       END IF
 
       IF (.NOT. ASSOCIATED(diis_buffer%b_matrix)) THEN
-         ALLOCATE (diis_buffer%b_matrix(nbuffer+1, nbuffer+1), STAT=istat)
-         IF (istat /= 0) CALL stop_memory(routineN, moduleN, __LINE__, &
-                                          "diis_buffer%b_matrix", &
-                                          (nbuffer+1)**2*dp_size)
+         ALLOCATE (diis_buffer%b_matrix(nbuffer+1, nbuffer+1))
          diis_buffer%b_matrix = 0.0_dp
          output_unit = cp_print_key_unit_nr(logger, scf_section, "PRINT%DIIS_INFO", &
                                             extension=".scfLog")
@@ -251,7 +242,7 @@ CONTAINS
       REAL(KIND=dp), PARAMETER :: eigenvalue_threshold = 1.0E-12_dp
 
       CHARACTER(LEN=2*default_string_length)             :: message
-      INTEGER                                            :: handle, homo, ib, imo, ispin, istat, jb, &
+      INTEGER                                            :: handle, homo, ib, imo, ispin, jb, &
                                                             my_nmixing, nao, nb, nb1, nmo, nspin, &
                                                             output_unit
       LOGICAL                                            :: eigenvectors_discarded, mo_uocc, my_roks
@@ -323,9 +314,7 @@ CONTAINS
 
          IF (my_roks) THEN
 
-            ALLOCATE (occ(nmo), STAT=istat)
-            IF (istat /= 0) CALL stop_memory(routineN, moduleN, __LINE__, &
-                                             "occ", nmo*dp_size)
+            ALLOCATE (occ(nmo))
 
             CALL get_mo_set(mo_set=mo_array(2)%mo_set, &
                             occupation_numbers=occb)
@@ -438,15 +427,9 @@ CONTAINS
 
          nb1 = nb+1
 
-         ALLOCATE (a(nb1, nb1), STAT=istat)
-         IF (istat /= 0) CALL stop_memory(routineN, moduleN, __LINE__, &
-                                          "a", nb1*nb1*dp_size)
-         ALLOCATE (b(nb1, nb1), STAT=istat)
-         IF (istat /= 0) CALL stop_memory(routineN, moduleN, __LINE__, &
-                                          "b", nb1*nb1*dp_size)
-         ALLOCATE (ev(nb1), STAT=istat)
-         IF (istat /= 0) CALL stop_memory(routineN, moduleN, __LINE__, &
-                                          "ev", nb1*dp_size)
+         ALLOCATE (a(nb1, nb1))
+         ALLOCATE (b(nb1, nb1))
+         ALLOCATE (ev(nb1))
 
          ! Set up the linear DIIS equation system
 
@@ -587,8 +570,8 @@ CONTAINS
          routineP = moduleN//':'//routineN
       REAL(KIND=dp), PARAMETER :: eigenvalue_threshold = 1.0E-12_dp
 
-      INTEGER                                            :: handle, ib, ispin, istat, jb, &
-                                                            my_nmixing, nb, nb1, nspin
+      INTEGER                                            :: handle, ib, ispin, jb, my_nmixing, nb, &
+                                                            nb1, nspin
       REAL(KIND=dp)                                      :: error_max, tmp
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: ev
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: a, b
@@ -723,15 +706,9 @@ CONTAINS
       ! Perform DIIS step
       IF (diis_step) THEN
          nb1 = nb+1
-         ALLOCATE (a(nb1, nb1), STAT=istat)
-         IF (istat /= 0) CALL stop_memory(routineN, moduleN, __LINE__, &
-                                          "a", nb1*nb1*dp_size)
-         ALLOCATE (b(nb1, nb1), STAT=istat)
-         IF (istat /= 0) CALL stop_memory(routineN, moduleN, __LINE__, &
-                                          "b", nb1*nb1*dp_size)
-         ALLOCATE (ev(nb1), STAT=istat)
-         IF (istat /= 0) CALL stop_memory(routineN, moduleN, __LINE__, &
-                                          "ev", nb1*dp_size)
+         ALLOCATE (a(nb1, nb1))
+         ALLOCATE (b(nb1, nb1))
+         ALLOCATE (ev(nb1))
          ! Set up the linear DIIS equation system
          b(1:nb, 1:nb) = diis_buffer%b_matrix(1:nb, 1:nb)
          b(1:nb, nb1) = -1.0_dp
@@ -808,7 +785,7 @@ CONTAINS
       CHARACTER(LEN=*), PARAMETER :: routineN = 'qs_diis_b_check_i_alloc_sparse', &
          routineP = moduleN//':'//routineN
 
-      INTEGER                                            :: handle, ibuffer, ispin, istat, nbuffer
+      INTEGER                                            :: handle, ibuffer, ispin, nbuffer
       TYPE(cp_logger_type), POINTER                      :: logger
 
 ! -------------------------------------------------------------------------
@@ -823,9 +800,7 @@ CONTAINS
       nbuffer = diis_buffer%nbuffer
 
       IF (.NOT. ASSOCIATED(diis_buffer%error)) THEN
-         ALLOCATE (diis_buffer%error(nbuffer, nspin), STAT=istat)
-         IF (istat /= 0) CALL stop_memory(routineN, moduleN, __LINE__, &
-                                          "diis_buffer%error", 0)
+         ALLOCATE (diis_buffer%error(nbuffer, nspin))
 
          DO ispin = 1, nspin
             DO ibuffer = 1, nbuffer
@@ -839,9 +814,7 @@ CONTAINS
       END IF
 
       IF (.NOT. ASSOCIATED(diis_buffer%parameter)) THEN
-         ALLOCATE (diis_buffer%parameter(nbuffer, nspin), STAT=istat)
-         IF (istat /= 0) CALL stop_memory(routineN, moduleN, __LINE__, &
-                                          "diis_buffer%parameter", 0)
+         ALLOCATE (diis_buffer%parameter(nbuffer, nspin))
 
          DO ispin = 1, nspin
             DO ibuffer = 1, nbuffer
@@ -854,10 +827,7 @@ CONTAINS
       END IF
 
       IF (.NOT. ASSOCIATED(diis_buffer%b_matrix)) THEN
-         ALLOCATE (diis_buffer%b_matrix(nbuffer+1, nbuffer+1), STAT=istat)
-         IF (istat /= 0) CALL stop_memory(routineN, moduleN, __LINE__, &
-                                          "diis_buffer%b_matrix", &
-                                          (nbuffer+1)**2*dp_size)
+         ALLOCATE (diis_buffer%b_matrix(nbuffer+1, nbuffer+1))
 
          diis_buffer%b_matrix = 0.0_dp
       END IF

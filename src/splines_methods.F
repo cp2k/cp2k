@@ -13,12 +13,10 @@ MODULE splines_methods
 
    USE cp_log_handling,                 ONLY: cp_logger_get_default_unit_nr,&
                                               cp_logger_type
-   USE kinds,                           ONLY: dp,&
-                                              dp_size
+   USE kinds,                           ONLY: dp
    USE splines_types,                   ONLY: spline_data_p_type,&
                                               spline_data_type,&
                                               spline_factor_type
-   USE termination,                     ONLY: stop_memory
 #include "./base/base_uses.f90"
 
    IMPLICIT NONE
@@ -51,8 +49,6 @@ CONTAINS
 
       CHARACTER(len=*), PARAMETER :: routineN = 'init_splinexy', routineP = moduleN//':'//routineN
 
-      INTEGER                                            :: err
-
       spl%n = nn
 
       IF (ASSOCIATED(spl%y)) THEN
@@ -65,13 +61,8 @@ CONTAINS
          NULLIFY (spl%y2)
       END IF
 
-      ALLOCATE (spl%y(1:nn), STAT=err)
-      IF (err /= 0) CALL stop_memory(routineN, moduleN, __LINE__, &
-                                     "spl%y", dp_size*nn)
-
-      ALLOCATE (spl%y2(1:nn), STAT=err)
-      IF (err /= 0) CALL stop_memory(routineN, moduleN, __LINE__, &
-                                     "spl%y2", dp_size*nn)
+      ALLOCATE (spl%y(1:nn))
+      ALLOCATE (spl%y2(1:nn))
 
    END SUBROUTINE init_splinexy
 
@@ -113,7 +104,7 @@ CONTAINS
 
       CHARACTER(len=*), PARAMETER :: routineN = 'init_spline', routineP = moduleN//':'//routineN
 
-      INTEGER                                            :: err, i, n
+      INTEGER                                            :: i, n
       REAL(KIND=dp)                                      :: p, s
       REAL(KIND=dp), POINTER                             :: ww(:)
 
@@ -122,9 +113,7 @@ CONTAINS
       spl%h = dx
       spl%invh = 1.0_dp/dx
       spl%h26 = dx**2/6.0_dp
-      ALLOCATE (ww(1:n), STAT=err)
-      IF (err /= 0) CALL stop_memory(routineN, moduleN, __LINE__, &
-                                     "ww", dp_size*n)
+      ALLOCATE (ww(1:n))
       IF (PRESENT(y1a)) THEN
          spl%y2(1) = -0.5_dp
          ww(1) = 3.0_dp*((spl%y(2)-spl%y(1))/dx-y1a)/dx

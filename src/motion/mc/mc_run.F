@@ -49,8 +49,7 @@ MODULE mc_run
                                               section_vals_get_subs_vals,&
                                               section_vals_type,&
                                               section_vals_val_get
-   USE kinds,                           ONLY: dp,&
-                                              int_size
+   USE kinds,                           ONLY: dp
    USE mc_control,                      ONLY: mc_create_force_env,&
                                               read_mc_restart
    USE mc_ensembles,                    ONLY: mc_compute_virial,&
@@ -71,7 +70,6 @@ MODULE mc_run
                                               delete_rng_stream,&
                                               rng_stream_type
    USE physcon,                         ONLY: angstrom
-   USE termination,                     ONLY: stop_memory
 #include "../../base/base_uses.f90"
 
    IMPLICIT NONE
@@ -112,8 +110,8 @@ CONTAINS
 
       CHARACTER(LEN=20)                                  :: ensemble
       CHARACTER(LEN=40)                                  :: box2_file, dat_file
-      INTEGER                                            :: box_number, ibox, isos, istat, iw, &
-                                                            nboxes, nmol_types
+      INTEGER                                            :: box_number, ibox, isos, iw, nboxes, &
+                                                            nmol_types
       INTEGER, DIMENSION(:), POINTER                     :: nunits_tot
       LOGICAL                                            :: lbias, lhmc, lrestart, lskip_box, &
                                                             lterminate
@@ -172,9 +170,7 @@ CONTAINS
       END SELECT
 
 ! now we create the various pointers that contain information for all boxes
-      ALLOCATE (force_env(1:nboxes), STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routineN, moduleN, __LINE__, &
-                                       "force_env", int_size*nboxes)
+      ALLOCATE (force_env(1:nboxes))
       SELECT CASE (ensemble)
       CASE ("TRADITIONAL", "VIRIAL")
          force_env(1)%force_env => force_env_1
@@ -182,12 +178,8 @@ CONTAINS
          force_env(1)%force_env => force_env_1
          force_env(2)%force_env => force_env_2
       END SELECT
-      ALLOCATE (mc_par(1:nboxes), STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routineN, moduleN, __LINE__, &
-                                       "mc_par", int_size*nboxes)
-      ALLOCATE (mc_env(1:nboxes), STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routineN, moduleN, __LINE__, &
-                                       "mc_env", int_size*nboxes)
+      ALLOCATE (mc_par(1:nboxes))
+      ALLOCATE (mc_env(1:nboxes))
 
 ! now we need the molecule information
 ! determine the total number of molecules and atoms

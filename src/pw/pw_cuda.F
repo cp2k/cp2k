@@ -26,8 +26,7 @@ MODULE pw_cuda
    USE fft_tools,                       ONLY: &
         cube_transpose_1, cube_transpose_2, fft_scratch_sizes, fft_scratch_type, get_fft_scratch, &
         release_fft_scratch, x_to_yz, xz_to_yz, yz_to_x, yz_to_xz
-   USE kinds,                           ONLY: dp,&
-                                              int_size
+   USE kinds,                           ONLY: dp
    USE message_passing,                 ONLY: mp_comm_compare,&
                                               mp_environ,&
                                               mp_rank_compare
@@ -35,7 +34,6 @@ MODULE pw_cuda
    USE pw_types,                        ONLY: REALSPACE,&
                                               RECIPROCALSPACE,&
                                               pw_type
-   USE termination,                     ONLY: stop_memory
 #include "../base/base_uses.f90"
 
    IMPLICIT NONE
@@ -402,7 +400,7 @@ CONTAINS
       MARK_USED(pw2)
       MARK_USED(scale)
 #else
-      INTEGER                                  :: handle, ierr
+      INTEGER                                  :: handle
       INTEGER                                  :: ngpts, iout
       INTEGER                                  :: lg, mg, mmax, lmax, rp, mx2, mz2, n1, n2, nmax
       INTEGER                                  :: g_pos, numtask, numtask_r, numtask_g
@@ -454,9 +452,7 @@ CONTAINS
          mmax = MAX(mg, 1)
          lmax = MAX(lg, (ngpts/mmax+1))
 
-         ALLOCATE (p2p(0:numtask-1), STAT=ierr)
-         IF (ierr /= 0) CALL stop_memory(routineN, moduleN, __LINE__, &
-                                         "p2p", int_size*numtask)
+         ALLOCATE (p2p(0:numtask-1))
 
          CALL mp_rank_compare(gs_group, rs_group, p2p)
 
@@ -593,8 +589,7 @@ CONTAINS
       MARK_USED(pw2)
       MARK_USED(scale)
 #else
-      INTEGER                                  :: handle, ierr
-
+      INTEGER                                  :: handle
       INTEGER                                  :: ngpts, iout
       INTEGER                                  :: lg, mg, mmax, lmax, rp, mx2, mz2, n1, n2, nmax
       INTEGER                                  :: g_pos, numtask, numtask_r, numtask_g
@@ -646,9 +641,7 @@ CONTAINS
          mmax = MAX(mg, 1)
          lmax = MAX(lg, (ngpts/mmax+1))
 
-         ALLOCATE (p2p(0:numtask-1), STAT=ierr)
-         IF (ierr /= 0) CALL stop_memory(routineN, moduleN, __LINE__, &
-                                         "p2p", int_size*numtask)
+         ALLOCATE (p2p(0:numtask-1))
 
          CALL mp_rank_compare(gs_group, rs_group, p2p)
 

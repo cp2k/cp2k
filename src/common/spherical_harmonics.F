@@ -22,13 +22,11 @@
 ! **************************************************************************************************
 MODULE spherical_harmonics
 
-   USE kinds,                           ONLY: dp,&
-                                              dp_size
+   USE kinds,                           ONLY: dp
    USE mathconstants,                   ONLY: dfac,&
                                               fac,&
                                               maxfac,&
                                               pi
-   USE termination,                     ONLY: stop_memory
 #include "../base/base_uses.f90"
 
    IMPLICIT NONE
@@ -241,8 +239,8 @@ CONTAINS
       CHARACTER(len=*), PARAMETER :: routineN = 'clebsch_gordon_init', &
          routineP = moduleN//':'//routineN
 
-      INTEGER                                            :: handle, i1, i2, ierr, ix, iy, l1, l2, &
-                                                            lp, m, m1, m2, ml, mp, n
+      INTEGER                                            :: handle, i1, i2, ix, iy, l1, l2, lp, m, &
+                                                            m1, m2, ml, mp, n
 
       CALL timeset(routineN, handle)
 
@@ -256,9 +254,7 @@ CONTAINS
       ! maximum size of table
       n = (l**4+6*l**3+15*l**2+18*l+8)/8
       m = l+1
-      ALLOCATE (cg_table(n, m, 2), STAT=ierr)
-      IF (ierr /= 0) CALL stop_memory(routineN, moduleN, __LINE__, &
-                                      "cg_table", dp_size*2*n*m)
+      ALLOCATE (cg_table(n, m, 2))
       lmax = l
 
       DO l1 = 0, lmax

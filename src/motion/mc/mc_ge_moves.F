@@ -32,8 +32,7 @@ MODULE mc_ge_moves
    USE input_constants,                 ONLY: dump_xmol
    USE input_section_types,             ONLY: section_type
    USE kinds,                           ONLY: default_string_length,&
-                                              dp,&
-                                              dp_size
+                                              dp
    USE mc_control,                      ONLY: mc_create_force_env
    USE mc_coordinates,                  ONLY: check_for_overlap,&
                                               generate_cbmc_swap_config,&
@@ -52,7 +51,6 @@ MODULE mc_ge_moves
                                               particle_list_type
    USE particle_methods,                ONLY: write_particle_coordinates
    USE physcon,                         ONLY: angstrom
-   USE termination,                     ONLY: stop_memory
 #include "../../base/base_uses.f90"
 
    IMPLICIT NONE
@@ -126,8 +124,8 @@ CONTAINS
          routineP = moduleN//':'//routineN
 
       INTEGER                                            :: end_mol, group, handle, ibox, iparticle, &
-                                                            iprint, istat, itype, jbox, &
-                                                            nmol_types, source, start_mol
+                                                            iprint, itype, jbox, nmol_types, &
+                                                            source, start_mol
       INTEGER, DIMENSION(:, :), POINTER                  :: nchains
       INTEGER, DIMENSION(:), POINTER                     :: mol_type, nunits, nunits_tot
       INTEGER, DIMENSION(1:nboxes)                       :: diff
@@ -159,12 +157,8 @@ CONTAINS
       ENDIF
 
 ! allocate some stuff
-      ALLOCATE (subsys_bias(1:nboxes), STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routineN, moduleN, __LINE__, &
-                                       "subsys_bias", nboxes)
-      ALLOCATE (particles_bias(1:nboxes), STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routineN, moduleN, __LINE__, &
-                                       "particles_bias", nboxes)
+      ALLOCATE (subsys_bias(1:nboxes))
+      ALLOCATE (particles_bias(1:nboxes))
 
 ! record the attempt...we really only care about molecule type 1 and box
 ! type 1, since the acceptance will be identical for all boxes and molecules
@@ -453,8 +447,8 @@ CONTAINS
       CHARACTER(LEN=200)                                 :: fft_lib
       CHARACTER(LEN=40), DIMENSION(1:2)                  :: dat_file
       INTEGER :: end_mol, group, handle, iatom, ibox, idim, iiatom, imolecule, ins_atoms, &
-         insert_box, ipart, istat, itype, jbox, molecule_type, nmol_types, nswapmoves, &
-         print_level, rem_atoms, remove_box, source, start_atom_ins, start_atom_rem, start_mol
+         insert_box, ipart, itype, jbox, molecule_type, nmol_types, nswapmoves, print_level, &
+         rem_atoms, remove_box, source, start_atom_ins, start_atom_rem, start_mol
       INTEGER, DIMENSION(:), POINTER                     :: mol_type, mol_type_test, nunits, &
                                                             nunits_tot
       INTEGER, DIMENSION(:, :), POINTER                  :: nchains, nchains_test
@@ -505,12 +499,8 @@ CONTAINS
       CALL get_mc_par(mc_par(2)%mc_par, dat_file=dat_file(2))
 
 ! allocate some stuff
-      ALLOCATE (oldsys(1:2), STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routineN, moduleN, __LINE__, &
-                                       "oldsys", 2)
-      ALLOCATE (particles_old(1:2), STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routineN, moduleN, __LINE__, &
-                                       "particles_old", 2)
+      ALLOCATE (oldsys(1:2))
+      ALLOCATE (particles_old(1:2))
 
 ! get the old coordinates
       DO ibox = 1, 2
@@ -610,26 +600,14 @@ CONTAINS
 ! now allocate the arrays that will hold the coordinates and the
 ! atom name, for writing to the dat file
       IF (rem_atoms == 0) THEN
-         ALLOCATE (remove_coords(1:3, 1:nunits(1)), STAT=istat)
-         IF (istat /= 0) CALL stop_memory(routineN, moduleN, __LINE__, &
-                                          "remove_coords", nunits(1)*3*dp_size)
-         ALLOCATE (atom_names_remove(1:nunits(1)), STAT=istat)
-         IF (istat /= 0) CALL stop_memory(routineN, moduleN, __LINE__, &
-                                          "atom_names_remove", nunits(1)*dp_size)
+         ALLOCATE (remove_coords(1:3, 1:nunits(1)))
+         ALLOCATE (atom_names_remove(1:nunits(1)))
       ELSE
-         ALLOCATE (remove_coords(1:3, 1:rem_atoms), STAT=istat)
-         IF (istat /= 0) CALL stop_memory(routineN, moduleN, __LINE__, &
-                                          "remove_coords", rem_atoms*3*dp_size)
-         ALLOCATE (atom_names_remove(1:rem_atoms), STAT=istat)
-         IF (istat /= 0) CALL stop_memory(routineN, moduleN, __LINE__, &
-                                          "atom_names_remove", rem_atoms*dp_size)
+         ALLOCATE (remove_coords(1:3, 1:rem_atoms))
+         ALLOCATE (atom_names_remove(1:rem_atoms))
       ENDIF
-      ALLOCATE (insert_coords(1:3, 1:ins_atoms), STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routineN, moduleN, __LINE__, &
-                                       "insert_coords", ins_atoms*3*dp_size)
-      ALLOCATE (atom_names_insert(1:ins_atoms), STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routineN, moduleN, __LINE__, &
-                                       "atom_names_insert", MAX(ins_atoms, rem_atoms)*dp_size)
+      ALLOCATE (insert_coords(1:3, 1:ins_atoms))
+      ALLOCATE (atom_names_insert(1:ins_atoms))
 
 ! grab the cells for later...acceptance and insertion
       IF (lbias) THEN
@@ -656,9 +634,7 @@ CONTAINS
       CALL mp_bcast(pos_insert, source, group)
 
 ! allocate some arrays we'll be using
-      ALLOCATE (r_insert_mol(1:3, 1:nunits(molecule_type)), STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routineN, moduleN, __LINE__, &
-                                       "r_insert_mol", 3*nunits(molecule_type))
+      ALLOCATE (r_insert_mol(1:3, 1:nunits(molecule_type)))
 
       iiatom = 1
       DO iatom = start_atom_rem, start_atom_rem+nunits(molecule_type)-1
@@ -812,21 +788,15 @@ CONTAINS
 
 ! now let's create the two new environments with the different number
 ! of molecules
-      ALLOCATE (test_env(1:2), STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routineN, moduleN, __LINE__, &
-                                       "test_env", 3*ins_atoms*dp_size)
+      ALLOCATE (test_env(1:2))
       CALL mc_create_force_env(test_env(insert_box)%force_env, input_declaration, &
                                para_env, dat_file(insert_box))
       CALL mc_create_force_env(test_env(remove_box)%force_env, input_declaration, &
                                para_env, dat_file(remove_box))
 
 ! allocate an array we'll need
-      ALLOCATE (r_cbmc(1:3, 1:ins_atoms), STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routineN, moduleN, __LINE__, &
-                                       "r_cbmc", 3*ins_atoms*dp_size)
-      ALLOCATE (cbmc_energies(1:nswapmoves, 1:2), STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routineN, moduleN, __LINE__, &
-                                       "cbmc_energies", nswapmoves*dp_size)
+      ALLOCATE (r_cbmc(1:3, 1:ins_atoms))
+      ALLOCATE (cbmc_energies(1:nswapmoves, 1:2))
 
       loverlap_ins = .FALSE.
       loverlap_rem = .FALSE.
@@ -919,9 +889,7 @@ CONTAINS
 ! potentials, and calculate the energies
       IF (lbias) THEN
 
-         ALLOCATE (test_env_bias(1:2), STAT=istat)
-         IF (istat /= 0) CALL stop_memory(routineN, moduleN, __LINE__, &
-                                          "test_env_bias", 2)
+         ALLOCATE (test_env_bias(1:2))
 
 ! first, the environment to which we added a molecule
          CALL get_mc_par(mc_par(insert_box)%mc_par, mc_input_file=mc_input_file)
@@ -1177,9 +1145,8 @@ CONTAINS
 
       CHARACTER(LEN=200)                                 :: fft_lib
       CHARACTER(LEN=40), DIMENSION(1:2)                  :: dat_file
-      INTEGER :: cl, end_atom, end_mol, group, handle, iatom, ibox, imolecule, iside, istat, j, &
-         jatom, jbox, max_atoms, molecule_index, molecule_type, print_level, source, start_atom, &
-         start_mol
+      INTEGER :: cl, end_atom, end_mol, group, handle, iatom, ibox, imolecule, iside, j, jatom, &
+         jbox, max_atoms, molecule_index, molecule_type, print_level, source, start_atom, start_mol
       INTEGER, DIMENSION(:), POINTER                     :: mol_type, nunits, nunits_tot
       INTEGER, DIMENSION(:, :), POINTER                  :: nchains
       LOGICAL                                            :: ionode
@@ -1219,27 +1186,13 @@ CONTAINS
 
 ! allocate some stuff
       max_atoms = MAX(nunits_tot(1), nunits_tot(2))
-      ALLOCATE (r(1:3, max_atoms, 1:2), STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routineN, moduleN, __LINE__, &
-                                       "r", 2*3*max_atoms*dp_size)
-      ALLOCATE (oldsys(1:2), STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routineN, moduleN, __LINE__, &
-                                       "oldsys", 2)
-      ALLOCATE (particles_old(1:2), STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routineN, moduleN, __LINE__, &
-                                       "particles_old", 2)
-      ALLOCATE (cell(1:2), STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routineN, moduleN, __LINE__, &
-                                       "cell", 2)
-      ALLOCATE (cell_test(1:2), STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routineN, moduleN, __LINE__, &
-                                       "cell_test", 2)
-      ALLOCATE (cell_old(1:2), STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routineN, moduleN, __LINE__, &
-                                       "cell_old", 2)
-      ALLOCATE (loverlap(1:2), STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routineN, moduleN, __LINE__, &
-                                       "loverlap", 2)
+      ALLOCATE (r(1:3, max_atoms, 1:2))
+      ALLOCATE (oldsys(1:2))
+      ALLOCATE (particles_old(1:2))
+      ALLOCATE (cell(1:2))
+      ALLOCATE (cell_test(1:2))
+      ALLOCATE (cell_old(1:2))
+      ALLOCATE (loverlap(1:2))
 
 ! check for empty boxes...need to be careful because we can't build
 ! a force_env with no particles

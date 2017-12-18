@@ -6,8 +6,7 @@
 MODULE qs_local_rho_types
 
    USE erf_fn,                          ONLY: erf
-   USE kinds,                           ONLY: dp,&
-                                              int_size
+   USE kinds,                           ONLY: dp
    USE mathconstants,                   ONLY: fourpi,&
                                               pi
    USE memory_utilities,                ONLY: reallocate
@@ -19,7 +18,6 @@ MODULE qs_local_rho_types
                                               rho0_mpole_type
    USE qs_rho_atom_types,               ONLY: deallocate_rho_atom_set,&
                                               rho_atom_type
-   USE termination,                     ONLY: stop_memory
 #include "./base/base_uses.f90"
 
    IMPLICIT NONE
@@ -71,15 +69,13 @@ CONTAINS
 
       CHARACTER(len=*), PARAMETER :: routineN = 'allocate_rhoz', routineP = moduleN//':'//routineN
 
-      INTEGER                                            :: ikind, istat
+      INTEGER                                            :: ikind
 
       IF (ASSOCIATED(rhoz_set)) THEN
          CALL deallocate_rhoz(rhoz_set)
       END IF
 
-      ALLOCATE (rhoz_set(nkind), STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routineN, moduleN, __LINE__, &
-                                       "rhoz_set", nkind*int_size)
+      ALLOCATE (rhoz_set(nkind))
 
       DO ikind = 1, nkind
          NULLIFY (rhoz_set(ikind)%r_coef)

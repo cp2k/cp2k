@@ -23,9 +23,6 @@ MODULE orbital_pointers
 ! nsoset: Number of spherical orbitals up to the angular momentum quantum
 !         number l.
 
-   USE kinds,                           ONLY: int_size
-   USE termination,                     ONLY: stop_memory
-
 !$ USE OMP_LIB,                         ONLY: omp_get_level
 
 #include "../base/base_uses.f90"
@@ -79,7 +76,7 @@ CONTAINS
       CHARACTER(len=*), PARAMETER :: routineN = 'create_orbital_pointers', &
          routineP = moduleN//':'//routineN
 
-      INTEGER                                            :: iso, istat, l, lx, ly, lz, m
+      INTEGER                                            :: iso, l, lx, ly, lz, m
 
       IF (current_maxl > -1) THEN
          CALL cp_abort(__LOCATION__, &
@@ -98,11 +95,7 @@ CONTAINS
 
 !   *** Number of Cartesian orbitals for each l ***
 
-      ALLOCATE (nco(-1:maxl), STAT=istat)
-      IF (istat /= 0) THEN
-         CALL stop_memory(routineN, moduleN, __LINE__, &
-                          "nco", (maxl+2)*int_size)
-      END IF
+      ALLOCATE (nco(-1:maxl))
 
       nco(-1) = 0
 
@@ -112,11 +105,7 @@ CONTAINS
 
 !   *** Number of Cartesian orbitals up to l ***
 
-      ALLOCATE (ncoset(-1:maxl), STAT=istat)
-      IF (istat /= 0) THEN
-         CALL stop_memory(routineN, moduleN, __LINE__, &
-                          "ncoset", (maxl+2)*int_size)
-      END IF
+      ALLOCATE (ncoset(-1:maxl))
 
       ncoset(-1) = 0
 
@@ -126,19 +115,11 @@ CONTAINS
 
 !   *** Build the Cartesian orbital pointer and the shell orbital pointer ***
 
-      ALLOCATE (co(0:maxl, 0:maxl, 0:maxl), STAT=istat)
-      IF (istat /= 0) THEN
-         CALL stop_memory(routineN, moduleN, __LINE__, &
-                          "co", (maxl+1)**3*int_size)
-      END IF
+      ALLOCATE (co(0:maxl, 0:maxl, 0:maxl))
 
       co(:, :, :) = 0
 
-      ALLOCATE (coset(-1:maxl, -1:maxl, -1:maxl), STAT=istat)
-      IF (istat /= 0) THEN
-         CALL stop_memory(routineN, moduleN, __LINE__, &
-                          "coset", (maxl+2)**3*int_size)
-      END IF
+      ALLOCATE (coset(-1:maxl, -1:maxl, -1:maxl))
 
       coset(:, :, :) = 0
 
@@ -157,11 +138,7 @@ CONTAINS
          END DO
       END DO
 
-      ALLOCATE (indco(3, ncoset(maxl)), STAT=istat)
-      IF (istat /= 0) THEN
-         CALL stop_memory(routineN, moduleN, __LINE__, &
-                          "indco", 3*ncoset(maxl)*int_size)
-      END IF
+      ALLOCATE (indco(3, ncoset(maxl)))
 
       indco(:, :) = 0
 
@@ -176,11 +153,7 @@ CONTAINS
 
 !   *** Number of spherical orbitals for each l ***
 
-      ALLOCATE (nso(-1:maxl), STAT=istat)
-      IF (istat /= 0) THEN
-         CALL stop_memory(routineN, moduleN, __LINE__, &
-                          "nso", (maxl+2)*int_size)
-      END IF
+      ALLOCATE (nso(-1:maxl))
 
       nso(-1) = 0
 
@@ -190,28 +163,16 @@ CONTAINS
 
 !   *** Number of spherical orbitals up to l ***
 
-      ALLOCATE (nsoset(-1:maxl), STAT=istat)
-      IF (istat /= 0) THEN
-         CALL stop_memory(routineN, moduleN, __LINE__, &
-                          "nsoset", (maxl+2)*int_size)
-      END IF
+      ALLOCATE (nsoset(-1:maxl))
       nsoset(-1) = 0
 
       DO l = 0, maxl
          nsoset(l) = nsoset(l-1)+nso(l)
       END DO
 
-      ALLOCATE (indso(2, nsoset(maxl)), STAT=istat)
-      IF (istat /= 0) THEN
-         CALL stop_memory(routineN, moduleN, __LINE__, &
-                          "indso", 2*nsoset(maxl)*int_size)
-      END IF
+      ALLOCATE (indso(2, nsoset(maxl)))
       ! indso_inv: inverse to indso
-      ALLOCATE (indso_inv(0:maxl, -maxl:maxl), STAT=istat)
-      IF (istat /= 0) THEN
-         CALL stop_memory(routineN, moduleN, __LINE__, &
-                          "indso_inv", 2*(1+maxl)*(2*maxl+1)*int_size)
-      END IF
+      ALLOCATE (indso_inv(0:maxl, -maxl:maxl))
 
       indso(:, :) = 0
       indso_inv(:, :) = 0
@@ -225,11 +186,7 @@ CONTAINS
          END DO
       END DO
 
-      ALLOCATE (so(0:maxl, -maxl:maxl), soset(0:maxl, -maxl:maxl), STAT=istat)
-      IF (istat /= 0) THEN
-         CALL stop_memory(routineN, moduleN, __LINE__, &
-                          "so,soset", 2*(1+maxl)*(2*maxl+1)*int_size)
-      END IF
+      ALLOCATE (so(0:maxl, -maxl:maxl), soset(0:maxl, -maxl:maxl))
 
       soset(:, :) = 0
       DO l = 0, maxl

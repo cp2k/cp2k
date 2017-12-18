@@ -29,8 +29,7 @@ MODULE pw_methods
                                               FWFFT,&
                                               fft3d
    USE kahan_sum,                       ONLY: accurate_sum
-   USE kinds,                           ONLY: dp,&
-                                              dp_size
+   USE kinds,                           ONLY: dp
    USE machine,                         ONLY: m_memory
    USE message_passing,                 ONLY: mp_sum
    USE pw_cuda,                         ONLY: pw_cuda_c1dr3d_3d,&
@@ -49,7 +48,6 @@ MODULE pw_methods
                                               REALSPACE,&
                                               RECIPROCALSPACE,&
                                               pw_type
-   USE termination,                     ONLY: stop_memory
 #include "../base/base_uses.f90"
 
    IMPLICIT NONE
@@ -134,12 +132,11 @@ CONTAINS
 
       CHARACTER(len=*), PARAMETER :: routineN = 'pw_copy', routineP = moduleN//':'//routineN
 
-      INTEGER                                            :: handle, i, j, ng, ng1, ng2, ns, &
-                                                            output_unit
+      INTEGER                                            :: handle, i, j, ng, ng1, ng2, ns, out_unit
       REAL(KIND=dp)                                      :: zc
 
       CALL timeset(routineN, handle)
-      output_unit = cp_logger_get_default_io_unit()
+      out_unit = cp_logger_get_default_io_unit()
       CPASSERT(pw1%ref_count > 0)
       CPASSERT(pw2%ref_count > 0)
       IF (pw1%pw_grid%id_nr /= pw2%pw_grid%id_nr) THEN
@@ -170,12 +167,12 @@ CONTAINS
                END IF
 
             ELSE
-               IF (output_unit > 0) THEN
-                  WRITE (output_unit, "(A,I5,T30,A,L1,T60,A,I5)") &
+               IF (out_unit > 0) THEN
+                  WRITE (out_unit, "(A,I5,T30,A,L1,T60,A,I5)") &
                      " grid 1 :", pw1%pw_grid%id_nr, &
                      " spherical :", pw1%pw_grid%spherical, &
                      " reference :", pw1%pw_grid%reference
-                  WRITE (output_unit, "(A,I5,T30,A,L1,T60,A,I5)") &
+                  WRITE (out_unit, "(A,I5,T30,A,L1,T60,A,I5)") &
                      " grid 2 :", pw2%pw_grid%id_nr, &
                      " spherical :", pw2%pw_grid%spherical, &
                      " reference :", pw2%pw_grid%reference
@@ -225,12 +222,12 @@ CONTAINS
                      END DO
                   END IF
                ELSE
-                  IF (output_unit > 0) THEN
-                     WRITE (output_unit, "(A,I5,T30,A,L1,T60,A,I5)") &
+                  IF (out_unit > 0) THEN
+                     WRITE (out_unit, "(A,I5,T30,A,L1,T60,A,I5)") &
                         " grid 1 :", pw1%pw_grid%id_nr, &
                         " spherical :", pw1%pw_grid%spherical, &
                         " reference :", pw1%pw_grid%reference
-                     WRITE (output_unit, "(A,I5,T30,A,L1,T60,A,I5)") &
+                     WRITE (out_unit, "(A,I5,T30,A,L1,T60,A,I5)") &
                         " grid 2 :", pw2%pw_grid%id_nr, &
                         " spherical :", pw2%pw_grid%spherical, &
                         " reference :", pw2%pw_grid%reference
@@ -245,12 +242,12 @@ CONTAINS
             pw2%in_space = RECIPROCALSPACE
 
          ELSE
-            IF (output_unit > 0) THEN
-               WRITE (output_unit, "(A,I5,T30,A,L1,T60,A,I5)") &
+            IF (out_unit > 0) THEN
+               WRITE (out_unit, "(A,I5,T30,A,L1,T60,A,I5)") &
                   " grid 1 :", pw1%pw_grid%id_nr, &
                   " spherical :", pw1%pw_grid%spherical, &
                   " reference :", pw1%pw_grid%reference
-               WRITE (output_unit, "(A,I5,T30,A,L1,T60,A,I5)") &
+               WRITE (out_unit, "(A,I5,T30,A,L1,T60,A,I5)") &
                   " grid 2 :", pw2%pw_grid%id_nr, &
                   " spherical :", pw2%pw_grid%spherical, &
                   " reference :", pw2%pw_grid%reference
@@ -693,11 +690,11 @@ CONTAINS
 
       CHARACTER(len=*), PARAMETER :: routineN = 'pw_axpy', routineP = moduleN//':'//routineN
 
-      INTEGER                                            :: handle, i, j, ng, ng1, ng2, output_unit
+      INTEGER                                            :: handle, i, j, ng, ng1, ng2, out_unit
       REAL(KIND=dp)                                      :: flop, my_alpha
 
       CALL timeset(routineN, handle)
-      output_unit = cp_logger_get_default_io_unit()
+      out_unit = cp_logger_get_default_io_unit()
 
       CPASSERT(pw1%ref_count > 0)
       CPASSERT(pw2%ref_count > 0)
@@ -846,12 +843,12 @@ CONTAINS
                   END IF
                END IF
             ELSE
-               IF (output_unit > 0) THEN
-                  WRITE (output_unit, "(A,I5,T30,A,L1,T60,A,I5)") &
+               IF (out_unit > 0) THEN
+                  WRITE (out_unit, "(A,I5,T30,A,L1,T60,A,I5)") &
                      " grid 1 :", pw1%pw_grid%id_nr, &
                      " sperical :", pw1%pw_grid%spherical, &
                      " reference :", pw1%pw_grid%reference
-                  WRITE (output_unit, "(A,I5,T30,A,L1,T60,A,I5)") &
+                  WRITE (out_unit, "(A,I5,T30,A,L1,T60,A,I5)") &
                      " grid 2 :", pw2%pw_grid%id_nr, &
                      " sperical :", pw2%pw_grid%spherical, &
                      " reference :", pw2%pw_grid%reference
@@ -865,12 +862,12 @@ CONTAINS
          END IF
 
       ELSE
-         IF (output_unit > 0) THEN
-            WRITE (output_unit, "(A,I5,T30,A,L1,T60,A,I5)") &
+         IF (out_unit > 0) THEN
+            WRITE (out_unit, "(A,I5,T30,A,L1,T60,A,I5)") &
                " grid 1 :", pw1%pw_grid%id_nr, &
                " sperical :", pw1%pw_grid%spherical, &
                " reference :", pw1%pw_grid%reference
-            WRITE (output_unit, "(A,I5,T30,A,L1,T60,A,I5)") &
+            WRITE (out_unit, "(A,I5,T30,A,L1,T60,A,I5)") &
                " grid 2 :", pw2%pw_grid%id_nr, &
                " sperical :", pw2%pw_grid%spherical, &
                " reference :", pw2%pw_grid%reference
@@ -1286,14 +1283,14 @@ CONTAINS
       COMPLEX(KIND=dp), DIMENSION(:, :), POINTER         :: grays
       COMPLEX(KIND=dp), DIMENSION(:, :, :), POINTER      :: c_in, c_out
       INTEGER                                            :: dir, handle, handle2, my_pos, nrays, &
-                                                            out_space, output_unit, stat
+                                                            out_space, out_unit
       INTEGER, DIMENSION(3)                              :: nloc
       INTEGER, DIMENSION(:), POINTER                     :: n
       LOGICAL                                            :: test, use_pw_cuda
       REAL(KIND=dp)                                      :: norm
 
       CALL timeset(routineN, handle2)
-      output_unit = cp_logger_get_default_io_unit()
+      out_unit = cp_logger_get_default_io_unit()
       CALL timeset(routineN//"_"//TRIM(ADJUSTL(cp_to_string( &
                                                CEILING(pw1%pw_grid%cutoff/10)*10))), handle)
 
@@ -1341,19 +1338,19 @@ CONTAINS
          !..replicated data, use local FFT
          !
 
-         IF (test .AND. output_unit > 0) THEN
-            WRITE (output_unit, '(A)') " FFT Protocol "
-            IF (dir == FWFFT) WRITE (output_unit, '(A,T76,A)') "  Transform direction ", "FWFFT"
-            IF (dir == BWFFT) WRITE (output_unit, '(A,T76,A)') "  Transform direction ", "BWFFT"
+         IF (test .AND. out_unit > 0) THEN
+            WRITE (out_unit, '(A)') " FFT Protocol "
+            IF (dir == FWFFT) WRITE (out_unit, '(A,T76,A)') "  Transform direction ", "FWFFT"
+            IF (dir == BWFFT) WRITE (out_unit, '(A,T76,A)') "  Transform direction ", "BWFFT"
             IF (pw1%in_space == REALSPACE) &
-               WRITE (output_unit, '(A,T72,A)') "  in space ", "REALSPACE"
+               WRITE (out_unit, '(A,T72,A)') "  in space ", "REALSPACE"
             IF (pw1%in_space == RECIPROCALSPACE) &
-               WRITE (output_unit, '(A,T66,A)') "  in space ", "RECIPROCALSPACE"
+               WRITE (out_unit, '(A,T66,A)') "  in space ", "RECIPROCALSPACE"
             IF (out_space == REALSPACE) &
-               WRITE (output_unit, '(A,T72,A)') "  out space ", "REALSPACE"
+               WRITE (out_unit, '(A,T72,A)') "  out space ", "REALSPACE"
             IF (out_space == RECIPROCALSPACE) &
-               WRITE (output_unit, '(A,T66,A)') "  out space ", "RECIPROCALSPACE"
-            WRITE (output_unit, '(A,T66,E15.6)') "  scale factor", norm
+               WRITE (out_unit, '(A,T66,A)') "  out space ", "RECIPROCALSPACE"
+            WRITE (out_unit, '(A,T66,E15.6)') "  scale factor", norm
          END IF
 
          SELECT CASE (mode)
@@ -1369,22 +1366,18 @@ CONTAINS
             CALL fft3d(dir, n, c_out, scale=norm, debug=test)
          CASE ("FW_C3DC1D")
             c_in => pw1%cc3d
-            ALLOCATE (c_out(n(1), n(2), n(3)), STAT=stat)
-            IF (stat /= 0) CALL stop_memory(routineN, moduleN, __LINE__, &
-                                            "c_out", 2*dp_size*PRODUCT(n(1:3)))
+            ALLOCATE (c_out(n(1), n(2), n(3)))
             ! transform
             CALL fft3d(dir, n, c_in, c_out, scale=norm, debug=test)
             ! gather results
-            IF (test .AND. output_unit > 0) WRITE (output_unit, '(A)') "  PW_GATHER : 3d -> 1d "
+            IF (test .AND. out_unit > 0) WRITE (out_unit, '(A)') "  PW_GATHER : 3d -> 1d "
             CALL pw_gather(pw2, c_out)
             DEALLOCATE (c_out)
          CASE ("FW_R3DC1D")
 #if defined (__PW_CUDA)
             CALL pw_cuda_r3dc1d_3d(pw1, pw2, scale=norm)
 #else
-            ALLOCATE (c_out(n(1), n(2), n(3)), STAT=stat)
-            IF (stat /= 0) CALL stop_memory(routineN, moduleN, __LINE__, &
-                                            "c_out", 2*dp_size*PRODUCT(n(1:3)))
+            ALLOCATE (c_out(n(1), n(2), n(3)))
             CALL copy_rc(pw1%cr3d, c_out)
             CALL fft3d(dir, n, c_out, scale=norm, debug=test)
             CALL pw_gather(pw2, c_out)
@@ -1396,38 +1389,34 @@ CONTAINS
             CALL fft3d(dir, n, c_in, c_out, scale=norm, debug=test)
          CASE ("BW_C3DR3D")
             c_in => pw1%cc3d
-            ALLOCATE (c_out(n(1), n(2), n(3)), STAT=stat)
-            IF (stat /= 0) CALL stop_memory(routineN, moduleN, __LINE__, &
-                                            "c_out", 2*dp_size*PRODUCT(n(1:3)))
+            ALLOCATE (c_out(n(1), n(2), n(3)))
             CALL fft3d(dir, n, c_in, c_out, scale=norm, debug=test)
             ! use real part only
-            IF (test .AND. output_unit > 0) WRITE (output_unit, '(A)') "  REAL part "
+            IF (test .AND. out_unit > 0) WRITE (out_unit, '(A)') "  REAL part "
             pw2%cr3d = REAL(c_out, KIND=dp)
             DEALLOCATE (c_out)
          CASE ("BW_C1DC3D")
             c_out => pw2%cc3d
-            IF (test .AND. output_unit > 0) WRITE (output_unit, '(A)') "  PW_SCATTER : 3d -> 1d "
+            IF (test .AND. out_unit > 0) WRITE (out_unit, '(A)') "  PW_SCATTER : 3d -> 1d "
             CALL pw_scatter(pw1, c_out)
             CALL fft3d(dir, n, c_out, scale=norm, debug=test)
          CASE ("BW_C1DR3D")
 #if defined (__PW_CUDA)
             CALL pw_cuda_c1dr3d_3d(pw1, pw2, scale=norm)
 #else
-            ALLOCATE (c_out(n(1), n(2), n(3)), STAT=stat)
-            IF (stat /= 0) CALL stop_memory(routineN, moduleN, __LINE__, &
-                                            "c_out", 2*dp_size*PRODUCT(n(1:3)))
-            IF (test .AND. output_unit > 0) WRITE (output_unit, '(A)') "  PW_SCATTER : 3d -> 1d "
+            ALLOCATE (c_out(n(1), n(2), n(3)))
+            IF (test .AND. out_unit > 0) WRITE (out_unit, '(A)') "  PW_SCATTER : 3d -> 1d "
             CALL pw_scatter(pw1, c_out)
             ! transform
             CALL fft3d(dir, n, c_out, scale=norm, debug=test)
             ! use real part only
-            IF (test .AND. output_unit > 0) WRITE (output_unit, '(A)') "  REAL part "
+            IF (test .AND. out_unit > 0) WRITE (out_unit, '(A)') "  REAL part "
             CALL copy_cr(c_out, pw2%cr3d)
             DEALLOCATE (c_out)
 #endif
          END SELECT
 
-         IF (test .AND. output_unit > 0) WRITE (output_unit, '(A)') " End of FFT Protocol "
+         IF (test .AND. out_unit > 0) WRITE (out_unit, '(A)') " End of FFT Protocol "
 
       ELSE
 
@@ -1435,19 +1424,19 @@ CONTAINS
          !..parallel FFT
          !
 
-         IF (test .AND. pw1%pw_grid%para%group_head .AND. output_unit > 0) THEN
-            WRITE (output_unit, '(A)') " FFT Protocol "
-            IF (dir == FWFFT) WRITE (output_unit, '(A,T76,A)') "  Transform direction ", "FWFFT"
-            IF (dir == BWFFT) WRITE (output_unit, '(A,T76,A)') "  Transform direction ", "BWFFT"
+         IF (test .AND. pw1%pw_grid%para%group_head .AND. out_unit > 0) THEN
+            WRITE (out_unit, '(A)') " FFT Protocol "
+            IF (dir == FWFFT) WRITE (out_unit, '(A,T76,A)') "  Transform direction ", "FWFFT"
+            IF (dir == BWFFT) WRITE (out_unit, '(A,T76,A)') "  Transform direction ", "BWFFT"
             IF (pw1%in_space == REALSPACE) &
-               WRITE (output_unit, '(A,T72,A)') "  in space ", "REALSPACE"
+               WRITE (out_unit, '(A,T72,A)') "  in space ", "REALSPACE"
             IF (pw1%in_space == RECIPROCALSPACE) &
-               WRITE (output_unit, '(A,T66,A)') "  in space ", "RECIPROCALSPACE"
+               WRITE (out_unit, '(A,T66,A)') "  in space ", "RECIPROCALSPACE"
             IF (out_space == REALSPACE) &
-               WRITE (output_unit, '(A,T72,A)') "  out space ", "REALSPACE"
+               WRITE (out_unit, '(A,T72,A)') "  out space ", "REALSPACE"
             IF (out_space == RECIPROCALSPACE) &
-               WRITE (output_unit, '(A,T66,A)') "  out space ", "RECIPROCALSPACE"
-            WRITE (output_unit, '(A,T66,E15.6)') "  scale factor", norm
+               WRITE (out_unit, '(A,T66,A)') "  out space ", "RECIPROCALSPACE"
+            WRITE (out_unit, '(A,T66,E15.6)') "  scale factor", norm
          END IF
 
          my_pos = pw1%pw_grid%para%my_pos
@@ -1476,8 +1465,8 @@ CONTAINS
                           pw1%pw_grid%para%bo, scale=norm, debug=test)
             END IF
             !..prepare output
-            IF (test .AND. pw1%pw_grid%para%group_head .AND. output_unit > 0) &
-               WRITE (output_unit, '(A)') "  PW_GATHER : 2d -> 1d "
+            IF (test .AND. pw1%pw_grid%para%group_head .AND. out_unit > 0) &
+               WRITE (out_unit, '(A)') "  PW_GATHER : 2d -> 1d "
             CALL pw_gather(pw2, grays)
          CASE ("FW_R3DC1D")
 #if defined (__PW_CUDA)
@@ -1491,9 +1480,7 @@ CONTAINS
             ELSE
                !..prepare input
                nloc = pw1%pw_grid%npts_local
-               ALLOCATE (c_in(nloc(1), nloc(2), nloc(3)), STAT=stat)
-               IF (stat /= 0) CALL stop_memory(routineN, moduleN, __LINE__, &
-                                               "c_in", 2*dp_size*PRODUCT(nloc(1:3)))
+               ALLOCATE (c_in(nloc(1), nloc(2), nloc(3)))
                CALL copy_rc(pw1%cr3d, c_in)
                CALL zero_c(grays)
                !..transform
@@ -1507,15 +1494,15 @@ CONTAINS
                              pw1%pw_grid%para%bo, scale=norm, debug=test)
                END IF
                !..prepare output
-               IF (test .AND. pw1%pw_grid%para%group_head .AND. output_unit > 0) &
-                  WRITE (output_unit, '(A)') "  PW_GATHER : 2d -> 1d "
+               IF (test .AND. pw1%pw_grid%para%group_head .AND. out_unit > 0) &
+                  WRITE (out_unit, '(A)') "  PW_GATHER : 2d -> 1d "
                CALL pw_gather(pw2, grays)
                DEALLOCATE (c_in)
             END IF
          CASE ("BW_C1DC3D")
             !..prepare input
-            IF (test .AND. pw1%pw_grid%para%group_head .AND. output_unit > 0) &
-               WRITE (output_unit, '(A)') "  PW_SCATTER : 2d -> 1d "
+            IF (test .AND. pw1%pw_grid%para%group_head .AND. out_unit > 0) &
+               WRITE (out_unit, '(A)') "  PW_SCATTER : 2d -> 1d "
             CALL zero_c(grays)
             CALL pw_scatter(pw1, grays)
             c_in => pw2%cc3d
@@ -1541,14 +1528,12 @@ CONTAINS
                CALL pw_cuda_c1dr3d_3d_ps(pw1, pw2, scale=norm)
             ELSE
                !..prepare input
-               IF (test .AND. pw1%pw_grid%para%group_head .AND. output_unit > 0) &
-                  WRITE (output_unit, '(A)') "  PW_SCATTER : 2d -> 1d "
+               IF (test .AND. pw1%pw_grid%para%group_head .AND. out_unit > 0) &
+                  WRITE (out_unit, '(A)') "  PW_SCATTER : 2d -> 1d "
                CALL zero_c(grays)
                CALL pw_scatter(pw1, grays)
                nloc = pw2%pw_grid%npts_local
-               ALLOCATE (c_in(nloc(1), nloc(2), nloc(3)), STAT=stat)
-               IF (stat /= 0) CALL stop_memory(routineN, moduleN, __LINE__, &
-                                               "c_in", 2*dp_size*PRODUCT(nloc(1:3)))
+               ALLOCATE (c_in(nloc(1), nloc(2), nloc(3)))
                !..transform
                IF (pw1%pw_grid%para%ray_distribution) THEN
                   CALL fft3d(dir, n, c_in, grays, pw1%pw_grid%para%group, &
@@ -1560,8 +1545,8 @@ CONTAINS
                              pw1%pw_grid%para%bo, scale=norm, debug=test)
                END IF
                !..prepare output
-               IF (test .AND. pw1%pw_grid%para%group_head .AND. output_unit > 0) &
-                  WRITE (output_unit, '(A)') "  Real part "
+               IF (test .AND. pw1%pw_grid%para%group_head .AND. out_unit > 0) &
+                  WRITE (out_unit, '(A)') "  Real part "
                CALL copy_cr(c_in, pw2%cr3d)
                DEALLOCATE (c_in)
             END IF
@@ -1572,8 +1557,8 @@ CONTAINS
       !..update the space tag for pw2
       pw2%in_space = out_space
 
-      IF (test .AND. pw1%pw_grid%para%group_head .AND. output_unit > 0) THEN
-         WRITE (output_unit, '(A)') " End of FFT Protocol "
+      IF (test .AND. pw1%pw_grid%para%group_head .AND. out_unit > 0) THEN
+         WRITE (out_unit, '(A)') " End of FFT Protocol "
       END IF
       CALL timestop(handle)
       CALL timestop(handle2)
@@ -1645,14 +1630,14 @@ CONTAINS
 
       CHARACTER(len=*), PARAMETER :: routineN = 'pw_write', routineP = moduleN//':'//routineN
 
-      INTEGER                                            :: iostat
+      INTEGER                                            :: iostatus
 
-      WRITE (unit=unit_nr, fmt="('<pw>:{ id_nr=',i8,',')", iostat=iostat) &
+      WRITE (unit=unit_nr, fmt="('<pw>:{ id_nr=',i8,',')", iostat=iostatus) &
          pw%id_nr
 
       SELECT CASE (pw%in_use)
       CASE (REALDATA1D)
-         WRITE (unit=unit_nr, fmt="(a)", iostat=iostat) " in_use=REALDATA1D"
+         WRITE (unit=unit_nr, fmt="(a)", iostat=iostatus) " in_use=REALDATA1D"
          IF (ASSOCIATED(pw%cr)) THEN
             WRITE (unit=unit_nr, fmt="(' cr=<real(',i8,':',i8,')>')") &
                LBOUND(pw%cr, 1), UBOUND(pw%cr, 1)
@@ -1660,7 +1645,7 @@ CONTAINS
             WRITE (unit=unit_nr, fmt="(' cr=*null*')")
          END IF
       CASE (REALDATA3D)
-         WRITE (unit=unit_nr, fmt="(a)", iostat=iostat) " in_use=REALDATA3D"
+         WRITE (unit=unit_nr, fmt="(a)", iostat=iostatus) " in_use=REALDATA3D"
          IF (ASSOCIATED(pw%cr3d)) THEN
             WRITE (unit=unit_nr, fmt="(' cr3d=<real(',i8,':',i8,',',i8,':',i8,',',i8,':',i8,')>')") &
                LBOUND(pw%cr3d, 1), UBOUND(pw%cr3d, 1), LBOUND(pw%cr3d, 2), UBOUND(pw%cr3d, 2), &
@@ -1669,7 +1654,7 @@ CONTAINS
             WRITE (unit=unit_nr, fmt="(' cr3d=*null*')")
          END IF
       CASE (COMPLEXDATA1D)
-         WRITE (unit=unit_nr, fmt="(a)", iostat=iostat) " in_use=COMPLEXDATA1D"
+         WRITE (unit=unit_nr, fmt="(a)", iostat=iostatus) " in_use=COMPLEXDATA1D"
          IF (ASSOCIATED(pw%cc)) THEN
             WRITE (unit=unit_nr, fmt="(' cc=<real(',i8,':',i8,')>')") &
                LBOUND(pw%cc, 1), UBOUND(pw%cc, 1)
@@ -1677,7 +1662,7 @@ CONTAINS
             WRITE (unit=unit_nr, fmt="(' cc=*null*')")
          END IF
       CASE (COMPLEXDATA3D)
-         WRITE (unit=unit_nr, fmt="(a)", iostat=iostat) " in_use=COMPLEXDATA3D"
+         WRITE (unit=unit_nr, fmt="(a)", iostat=iostatus) " in_use=COMPLEXDATA3D"
          IF (ASSOCIATED(pw%cc3d)) THEN
             WRITE (unit=unit_nr, fmt="(' cc3d=<real(',i8,':',i8,',',i8,':',i8,',',i8,':',i8,')>')") &
                LBOUND(pw%cc3d, 1), UBOUND(pw%cc3d, 1), LBOUND(pw%cc3d, 2), UBOUND(pw%cc3d, 2), &
@@ -1686,23 +1671,23 @@ CONTAINS
             WRITE (unit=unit_nr, fmt="(' cr3d=*null*')")
          END IF
       CASE default
-         WRITE (unit=unit_nr, fmt="(' in_use=',i8,',')", iostat=iostat) &
+         WRITE (unit=unit_nr, fmt="(' in_use=',i8,',')", iostat=iostatus) &
             pw%in_use
       END SELECT
 
       SELECT CASE (pw%in_space)
       CASE (NOSPACE)
-         WRITE (unit=unit_nr, fmt="(a)", iostat=iostat) " in_space=NOSPACE"
+         WRITE (unit=unit_nr, fmt="(a)", iostat=iostatus) " in_space=NOSPACE"
       CASE (REALSPACE)
-         WRITE (unit=unit_nr, fmt="(a)", iostat=iostat) " in_space=REALSPACE"
+         WRITE (unit=unit_nr, fmt="(a)", iostat=iostatus) " in_space=REALSPACE"
       CASE (RECIPROCALSPACE)
-         WRITE (unit=unit_nr, fmt="(a)", iostat=iostat) " in_space=RECIPROCALSPACE"
+         WRITE (unit=unit_nr, fmt="(a)", iostat=iostatus) " in_space=RECIPROCALSPACE"
       CASE default
-         WRITE (unit=unit_nr, fmt="(' in_space=',i8,',')", iostat=iostat) &
+         WRITE (unit=unit_nr, fmt="(' in_space=',i8,',')", iostat=iostatus) &
             pw%in_space
       END SELECT
 
-      WRITE (unit=unit_nr, fmt="(' pw_grid%id_nr=',i8,/,' }')", iostat=iostat) &
+      WRITE (unit=unit_nr, fmt="(' pw_grid%id_nr=',i8,/,' }')", iostat=iostatus) &
          pw%pw_grid%id_nr
 
    END SUBROUTINE pw_write

@@ -32,9 +32,7 @@ MODULE mc_control
    USE input_section_types,             ONLY: section_type
    USE kinds,                           ONLY: default_path_length,&
                                               default_string_length,&
-                                              dp,&
-                                              dp_size,&
-                                              int_size
+                                              dp
    USE mc_misc,                         ONLY: mc_make_dat_file_new
    USE mc_types,                        ONLY: get_mc_molecule_info,&
                                               get_mc_par,&
@@ -51,7 +49,6 @@ MODULE mc_control
                                               rng_stream_type
    USE particle_list_types,             ONLY: particle_list_type
    USE physcon,                         ONLY: angstrom
-   USE termination,                     ONLY: stop_memory
 #include "../../base/base_uses.f90"
 
    IMPLICIT NONE
@@ -185,7 +182,7 @@ CONTAINS
          DIMENSION(:, :), POINTER                        :: atom_names
       CHARACTER(LEN=20)                                  :: ensemble, mc_ensemble
       CHARACTER(LEN=default_path_length)                 :: dat_file, restart_file_name
-      INTEGER                                            :: group, handle, i, ipart, istat, iunit, &
+      INTEGER                                            :: group, handle, i, ipart, iunit, &
                                                             nmol_types, nstart, nunits_tot, &
                                                             print_level, source, unit
       INTEGER, DIMENSION(:), POINTER                     :: nchains, nunits
@@ -209,9 +206,7 @@ CONTAINS
       CALL get_mc_molecule_info(mc_molecule_info, nunits=nunits, &
                                 nmol_types=nmol_types, atom_names=atom_names)
 
-      ALLOCATE (nchains(1:nmol_types), STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routineN, moduleN, __LINE__, &
-                                       "nchains", nmol_types*int_size)
+      ALLOCATE (nchains(1:nmol_types))
 
       ! currently a hack, printlevel should be intern to the print_keys
       print_level = 1
@@ -287,12 +282,8 @@ CONTAINS
       ! allocate the array holding the coordiantes, and read in the coordiantes,
       ! and write the dat file so we can make a new force_env
       IF (SUM(nchains(:)) == 0) THEN
-         ALLOCATE (r(3, nunits(1)), STAT=istat)
-         IF (istat /= 0) CALL stop_memory(routineN, moduleN, __LINE__, &
-                                          "r", 3*nunits(1)*dp_size)
-         ALLOCATE (atom_symbols(nunits(1)), STAT=istat)
-         IF (istat /= 0) CALL stop_memory(routineN, moduleN, __LINE__, &
-                                          "ipart", nunits_tot*5)
+         ALLOCATE (r(3, nunits(1)))
+         ALLOCATE (atom_symbols(nunits(1)))
 
          DO iunit = 1, nunits(1)
             r(1:3, iunit) = (/REAL(iunit, dp), REAL(iunit, dp), REAL(iunit, dp)/)
@@ -305,12 +296,8 @@ CONTAINS
             CALL close_file(unit_number=unit)
          ENDIF
       ELSE
-         ALLOCATE (r(3, nunits_tot), STAT=istat)
-         IF (istat /= 0) CALL stop_memory(routineN, moduleN, __LINE__, &
-                                          "r", 3*nunits_tot*dp_size)
-         ALLOCATE (atom_symbols(nunits_tot), STAT=istat)
-         IF (istat /= 0) CALL stop_memory(routineN, moduleN, __LINE__, &
-                                          "ipart", nunits_tot*5)
+         ALLOCATE (r(3, nunits_tot))
+         ALLOCATE (atom_symbols(nunits_tot))
 
          IF (ionode) THEN
             DO ipart = 1, nunits_tot

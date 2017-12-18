@@ -79,7 +79,6 @@ MODULE input_cp2k_restarts
                                               thermostat_pile
    USE simpar_types,                    ONLY: simpar_type
    USE string_utilities,                ONLY: string_to_ascii
-   USE termination,                     ONLY: stop_memory
    USE thermostat_types,                ONLY: thermostat_type
    USE thermostat_utils,                ONLY: communication_thermo_low2,&
                                               get_kin_energies
@@ -1762,7 +1761,7 @@ CONTAINS
          routineP = moduleN//':'//routineN
 
       INTEGER                                            :: counter, i, iproc, j, nhc_len, num_nhc, &
-                                                            numneed, stat, tot_nhcneed
+                                                            numneed, tot_nhcneed
       INTEGER, DIMENSION(:), POINTER                     :: index, nhc_per_proc
       REAL(KIND=dp), DIMENSION(:), POINTER               :: work
       TYPE(map_info_type), POINTER                       :: map_info
@@ -1771,9 +1770,7 @@ CONTAINS
       num_nhc = nhc%loc_num_nhc
       numneed = num_nhc
       map_info => nhc%map_info
-      ALLOCATE (nhc_per_proc(para_env%num_pe), STAT=stat)
-      IF (stat /= 0) CALL stop_memory(routineN, moduleN, __LINE__, &
-                                      "nhc_per_proc", int_size*para_env%num_pe)
+      ALLOCATE (nhc_per_proc(para_env%num_pe))
       nhc_per_proc(:) = 0
 
       CALL mp_allgather(numneed, nhc_per_proc, para_env%group)
@@ -1784,9 +1781,7 @@ CONTAINS
       !-----------------------------------------------------------------------------
       ! nhc%eta
       !-----------------------------------------------------------------------------
-      ALLOCATE (eta(tot_nhcneed*nhc_len), STAT=stat)
-      IF (stat /= 0) CALL stop_memory(routineN, moduleN, __LINE__, &
-                                      "eta", dp_size*tot_nhcneed*nhc_len)
+      ALLOCATE (eta(tot_nhcneed*nhc_len))
       DO iproc = 1, para_env%num_pe
          CALL reallocate(work, 1, nhc_per_proc(iproc)*nhc_len)
          CALL reallocate(index, 1, nhc_per_proc(iproc))
@@ -1817,9 +1812,7 @@ CONTAINS
       !-----------------------------------------------------------------------------
       ! nhc%veta
       !-----------------------------------------------------------------------------
-      ALLOCATE (veta(tot_nhcneed*nhc_len), STAT=stat)
-      IF (stat /= 0) CALL stop_memory(routineN, moduleN, __LINE__, &
-                                      "veta", dp_size*tot_nhcneed*nhc_len)
+      ALLOCATE (veta(tot_nhcneed*nhc_len))
       DO iproc = 1, para_env%num_pe
          CALL reallocate(work, 1, nhc_per_proc(iproc)*nhc_len)
          CALL reallocate(index, 1, nhc_per_proc(iproc))
@@ -1850,9 +1843,7 @@ CONTAINS
       !-----------------------------------------------------------------------------
       ! nhc%force
       !-----------------------------------------------------------------------------
-      ALLOCATE (fnhc(tot_nhcneed*nhc_len), STAT=stat)
-      IF (stat /= 0) CALL stop_memory(routineN, moduleN, __LINE__, &
-                                      "fnhc", dp_size*tot_nhcneed*nhc_len)
+      ALLOCATE (fnhc(tot_nhcneed*nhc_len))
       DO iproc = 1, para_env%num_pe
          CALL reallocate(work, 1, nhc_per_proc(iproc)*nhc_len)
          CALL reallocate(index, 1, nhc_per_proc(iproc))
@@ -1883,9 +1874,7 @@ CONTAINS
       !-----------------------------------------------------------------------------
       ! nhc%mass
       !-----------------------------------------------------------------------------
-      ALLOCATE (mnhc(tot_nhcneed*nhc_len), STAT=stat)
-      IF (stat /= 0) CALL stop_memory(routineN, moduleN, __LINE__, &
-                                      "mnhc", dp_size*tot_nhcneed*nhc_len)
+      ALLOCATE (mnhc(tot_nhcneed*nhc_len))
       DO iproc = 1, para_env%num_pe
          CALL reallocate(work, 1, nhc_per_proc(iproc)*nhc_len)
          CALL reallocate(index, 1, nhc_per_proc(iproc))
@@ -2490,9 +2479,7 @@ CONTAINS
          END DO
 
          ! Write atomic kind numbers of all atoms
-         ALLOCATE (ibuf(natom), STAT=istat)
-         IF (istat /= 0) CALL stop_memory(routineN, moduleN, __LINE__, &
-                                          "ibuf", int_size*natom)
+         ALLOCATE (ibuf(natom))
          DO iatom = 1, natom
             ibuf(iatom) = particles%els(iatom)%atomic_kind%kind_number
          END DO
@@ -2502,9 +2489,7 @@ CONTAINS
                                          output_unit)
          n_int_size = n_int_size+natom
          ! Write atomic coordinates
-         ALLOCATE (rbuf(3, natom), STAT=istat)
-         IF (istat /= 0) CALL stop_memory(routineN, moduleN, __LINE__, &
-                                          "rbuf", dp_size*3*natom)
+         ALLOCATE (rbuf(3, natom))
          DO iatom = 1, natom
             rbuf(1:3, iatom) = particles%els(iatom)%r(1:3)
          END DO
@@ -2527,9 +2512,7 @@ CONTAINS
             END DO
             ! Write molecule (kind) index numbers for all atoms
             ibuf(:) = 0
-            ALLOCATE (imol(natom), STAT=istat)
-            IF (istat /= 0) CALL stop_memory(routineN, moduleN, __LINE__, &
-                                             "imol", int_size*natom)
+            ALLOCATE (imol(natom))
             imol(:) = 0
             DO imolecule = 1, nmolecule
                ikind = molecules%els(imolecule)%molecule_kind%kind_number
@@ -2566,9 +2549,7 @@ CONTAINS
          n_int_size = n_int_size+1
          IF (nshell > 0) THEN
             ! Write shell coordinates
-            ALLOCATE (rbuf(3, nshell), STAT=istat)
-            IF (istat /= 0) CALL stop_memory(routineN, moduleN, __LINE__, &
-                                             "rbuf", dp_size*3*nshell)
+            ALLOCATE (rbuf(3, nshell))
             DO ishell = 1, nshell
                rbuf(1:3, ishell) = shell_particles%els(ishell)%r(1:3)
             END DO
@@ -2579,9 +2560,7 @@ CONTAINS
             n_dp_size = n_dp_size+3*nshell
             DEALLOCATE (rbuf)
             ! Write atomic indices, i.e. number of the atom the shell belongs to
-            ALLOCATE (ibuf(nshell), STAT=istat)
-            IF (istat /= 0) CALL stop_memory(routineN, moduleN, __LINE__, &
-                                             "ibuf", int_size*nshell)
+            ALLOCATE (ibuf(nshell))
             DO ishell = 1, nshell
                ibuf(ishell) = shell_particles%els(ishell)%atom_index
             END DO
@@ -2602,9 +2581,7 @@ CONTAINS
          n_int_size = n_int_size+1
          IF (ncore > 0) THEN
             ! Write core coordinates
-            ALLOCATE (rbuf(3, ncore), STAT=istat)
-            IF (istat /= 0) CALL stop_memory(routineN, moduleN, __LINE__, &
-                                             "rbuf", dp_size*3*ncore)
+            ALLOCATE (rbuf(3, ncore))
             DO icore = 1, ncore
                rbuf(1:3, icore) = core_particles%els(icore)%r(1:3)
             END DO
@@ -2615,9 +2592,7 @@ CONTAINS
             n_dp_size = n_dp_size+3*ncore
             DEALLOCATE (rbuf)
             ! Write atomic indices, i.e. number of the atom the core belongs to
-            ALLOCATE (ibuf(ncore), STAT=istat)
-            IF (istat /= 0) CALL stop_memory(routineN, moduleN, __LINE__, &
-                                             "ibuf", int_size*ncore)
+            ALLOCATE (ibuf(ncore))
             DO icore = 1, ncore
                ibuf(icore) = core_particles%els(icore)%atom_index
             END DO
@@ -2706,9 +2681,7 @@ CONTAINS
                "Write "//TRIM(ADJUSTL(section_label))//" section", MERGE("YES", " NO", write_velocities)
          END IF
          IF (write_velocities) THEN
-            ALLOCATE (rbuf(3, natom), STAT=istat)
-            IF (istat /= 0) CALL stop_memory(routineN, moduleN, __LINE__, &
-                                             "rbuf", dp_size*3*natom)
+            ALLOCATE (rbuf(3, natom))
             ! Write atomic velocities
             DO iatom = 1, natom
                rbuf(1:3, iatom) = particles%els(iatom)%v(1:3)
@@ -2734,9 +2707,7 @@ CONTAINS
          END IF
          IF (nshell > 0) THEN
             IF (write_velocities) THEN
-               ALLOCATE (rbuf(3, nshell), STAT=istat)
-               IF (istat /= 0) CALL stop_memory(routineN, moduleN, __LINE__, &
-                                                "rbuf", dp_size*3*nshell)
+               ALLOCATE (rbuf(3, nshell))
                DO ishell = 1, nshell
                   rbuf(1:3, ishell) = shell_particles%els(ishell)%v(1:3)
                END DO
@@ -2762,9 +2733,7 @@ CONTAINS
          END IF
          IF (ncore > 0) THEN
             IF (write_velocities) THEN
-               ALLOCATE (rbuf(3, ncore), STAT=istat)
-               IF (istat /= 0) CALL stop_memory(routineN, moduleN, __LINE__, &
-                                                "rbuf", dp_size*3*ncore)
+               ALLOCATE (rbuf(3, ncore))
                DO icore = 1, ncore
                   rbuf(1:3, icore) = core_particles%els(icore)%v(1:3)
                END DO

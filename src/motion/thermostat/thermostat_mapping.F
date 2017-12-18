@@ -24,8 +24,7 @@ MODULE thermostat_mapping
                                               do_region_molecule,&
                                               do_thermo_communication,&
                                               do_thermo_no_communication
-   USE kinds,                           ONLY: dp,&
-                                              int_size
+   USE kinds,                           ONLY: dp
    USE memory_utilities,                ONLY: reallocate
    USE message_passing,                 ONLY: mp_allgather,&
                                               mp_bcast,&
@@ -40,7 +39,6 @@ MODULE thermostat_mapping
                                               global_constraint_type,&
                                               molecule_type
    USE simpar_types,                    ONLY: simpar_type
-   USE termination,                     ONLY: stop_memory
    USE util,                            ONLY: locate,&
                                               sort
 #include "../../base/base_uses.f90"
@@ -1107,7 +1105,7 @@ CONTAINS
          routineP = moduleN//':'//routineN
 
       INTEGER :: first_atom, first_shell, handle, i, ikind, imol, iproc, j, natom, ncount, nkind, &
-         nmol_per_kind, nshell, num_massive_atm, num_massive_atm_local, offset, stat
+         nmol_per_kind, nshell, num_massive_atm, num_massive_atm_local, offset
       INTEGER, DIMENSION(:), POINTER                     :: array_num_massive_atm, local_atm_list, &
                                                             work
       TYPE(molecule_kind_type), POINTER                  :: molecule_kind
@@ -1170,9 +1168,7 @@ CONTAINS
       END DO
 
       ! Sort atom list
-      ALLOCATE (work(num_massive_atm), STAT=stat)
-      IF (stat /= 0) CALL stop_memory(routineN, moduleN, __LINE__, &
-                                      "work", int_size*num_massive_atm)
+      ALLOCATE (work(num_massive_atm))
       CALL sort(massive_atom_list, num_massive_atm, work)
       DEALLOCATE (work)
 

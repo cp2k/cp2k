@@ -15,11 +15,9 @@
 ! **************************************************************************************************
 MODULE cube_utils
 
-   USE kinds,                           ONLY: dp,&
-                                              int_size
+   USE kinds,                           ONLY: dp
    USE mathlib,                         ONLY: matvec_3x3
    USE realspace_grid_types,            ONLY: realspace_grid_desc_type
-   USE termination,                     ONLY: stop_memory
 #include "../base/base_uses.f90"
 
    IMPLICIT NONE
@@ -225,8 +223,8 @@ CONTAINS
       CHARACTER(LEN=*), PARAMETER :: routineN = 'init_cube_info', routineP = moduleN//':'//routineN
 
       INTEGER                                            :: check_1, check_2, handle, i, igmin, imr, &
-                                                            istat, jg, jg2, jgmin, k, kg, kg2, &
-                                                            kgmin, lb(3), ub(3)
+                                                            jg, jg2, jgmin, k, kg, kg2, kgmin, &
+                                                            lb(3), ub(3)
       REAL(KIND=dp)                                      :: drmin, dxi, dy2, dyi, dz2, dzi, radius, &
                                                             radius2, rp(3)
 
@@ -286,10 +284,7 @@ CONTAINS
                ENDDO
             ENDDO
             info%sphere_bounds_count(i) = k-1
-            ALLOCATE (info%sphere_bounds(i)%p(info%sphere_bounds_count(i)), STAT=istat)
-            IF (istat /= 0) CALL stop_memory(routineN, moduleN, __LINE__, &
-                                             "info%sphere_bounds(i)%p", &
-                                             int_size*info%sphere_bounds_count(i))
+            ALLOCATE (info%sphere_bounds(i)%p(info%sphere_bounds_count(i)))
          ENDDO
 
 !       init sphere_bounds array

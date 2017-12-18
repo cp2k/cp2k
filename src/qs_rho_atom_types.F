@@ -5,9 +5,7 @@
 ! **************************************************************************************************
 MODULE qs_rho_atom_types
 
-   USE kinds,                           ONLY: dp,&
-                                              int_size
-   USE termination,                     ONLY: stop_memory
+   USE kinds,                           ONLY: dp
 #include "./base/base_uses.f90"
 
    IMPLICIT NONE
@@ -71,15 +69,13 @@ CONTAINS
       CHARACTER(len=*), PARAMETER :: routineN = 'allocate_rho_atom_set', &
          routineP = moduleN//':'//routineN
 
-      INTEGER                                            :: iat, istat
+      INTEGER                                            :: iat
 
       IF (ASSOCIATED(rho_atom_set)) THEN
          CALL deallocate_rho_atom_set(rho_atom_set)
       END IF
 
-      ALLOCATE (rho_atom_set(natom), STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routineN, moduleN, __LINE__, &
-                                       "allocate_rho_atom_set", natom*int_size)
+      ALLOCATE (rho_atom_set(natom))
 
       DO iat = 1, natom
 

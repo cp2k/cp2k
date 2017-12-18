@@ -26,9 +26,7 @@ MODULE qs_spin_orbit
    USE dbcsr_api,                       ONLY: dbcsr_get_block_p,&
                                               dbcsr_p_type
    USE input_section_types,             ONLY: section_vals_val_get
-   USE kinds,                           ONLY: dp,&
-                                              dp_size,&
-                                              int_size
+   USE kinds,                           ONLY: dp
    USE orbital_pointers,                ONLY: init_orbital_pointers,&
                                               ncoset
    USE particle_types,                  ONLY: particle_type
@@ -43,7 +41,6 @@ MODULE qs_spin_orbit
                                               neighbor_list_iterator_p_type,&
                                               neighbor_list_iterator_release,&
                                               neighbor_list_set_p_type
-   USE termination,                     ONLY: stop_memory
 #include "./base/base_uses.f90"
 
    IMPLICIT NONE
@@ -80,9 +77,9 @@ CONTAINS
       CHARACTER(len=*), PARAMETER :: routineN = 'build_pso_matrix', &
          routineP = moduleN//':'//routineN
 
-      INTEGER :: after, handle, i, iatom, icol, ikind, inode, irow, iset, istat, iw, jatom, jkind, &
-         jset, last_jatom, ldai, maxco, maxlgto, maxsgf, natom, ncoa, ncob, neighbor_list_id, &
-         nkind, nseta, nsetb, sgfa, sgfb
+      INTEGER :: after, handle, i, iatom, icol, ikind, inode, irow, iset, iw, jatom, jkind, jset, &
+         last_jatom, ldai, maxco, maxlgto, maxsgf, natom, ncoa, ncob, neighbor_list_id, nkind, &
+         nseta, nsetb, sgfa, sgfb
       INTEGER, DIMENSION(:), POINTER                     :: la_max, la_min, lb_max, lb_min, npgfa, &
                                                             npgfb, nsgfa, nsgfb
       INTEGER, DIMENSION(:, :), POINTER                  :: first_sgfa, first_sgfb
@@ -135,29 +132,16 @@ CONTAINS
       ldai = ncoset(maxlgto+1)
       CALL init_orbital_pointers(ldai)
 
-      ALLOCATE (rr_work(0:2*maxlgto+2, ldai, ldai), STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routineN, moduleN, __LINE__, &
-                                       "ff", (2*maxlgto+2)*dp_size)
-
-      ALLOCATE (soab(maxco, maxco, 3), STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routineN, moduleN, __LINE__, &
-                                       "soab", maxco*maxco*3*dp_size)
-
-      ALLOCATE (work(maxco, maxsgf), STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routineN, moduleN, __LINE__, &
-                                       "work", maxco*maxsgf*dp_size)
-
-      ALLOCATE (soint(3), STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routineN, moduleN, __LINE__, &
-                                       "soint", 3*int_size)
+      ALLOCATE (rr_work(0:2*maxlgto+2, ldai, ldai))
+      ALLOCATE (soab(maxco, maxco, 3))
+      ALLOCATE (work(maxco, maxsgf))
+      ALLOCATE (soint(3))
 
       rr_work(:, :, :) = 0.0_dp
       soab(:, :, :) = 0.0_dp
       work(:, :) = 0.0_dp
 
-      ALLOCATE (basis_set_list(nkind), STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routineN, moduleN, __LINE__, &
-                                       "basis_set_list", nkind)
+      ALLOCATE (basis_set_list(nkind))
       DO ikind = 1, nkind
          qs_kind => qs_kind_set(ikind)
          CALL get_qs_kind(qs_kind=qs_kind, basis_set=basis_set_a)

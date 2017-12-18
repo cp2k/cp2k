@@ -7,9 +7,7 @@ MODULE qs_rho0_types
 
    USE cp_units,                        ONLY: cp_unit_from_cp2k
    USE erf_fn,                          ONLY: erf
-   USE kinds,                           ONLY: dp,&
-                                              dp_size,&
-                                              int_size
+   USE kinds,                           ONLY: dp
    USE mathconstants,                   ONLY: fourpi,&
                                               pi,&
                                               rootpi
@@ -18,7 +16,6 @@ MODULE qs_rho0_types
                                               pw_release
    USE qs_grid_atom,                    ONLY: grid_atom_type
    USE qs_rho_atom_types,               ONLY: rho_atom_coeff
-   USE termination,                     ONLY: stop_memory
    USE whittaker,                       ONLY: whittaker_c0a,&
                                               whittaker_ci
 #include "./base/base_uses.f90"
@@ -103,15 +100,13 @@ CONTAINS
       CHARACTER(len=*), PARAMETER :: routineN = 'allocate_multipoles', &
          routineP = moduleN//':'//routineN
 
-      INTEGER                                            :: iat, ikind, istat
+      INTEGER                                            :: iat, ikind
 
       IF (ASSOCIATED(mp_rho)) THEN
          CALL deallocate_mpole_rho(mp_rho)
       END IF
 
-      ALLOCATE (mp_rho(natom), STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routineN, moduleN, __LINE__, &
-                                       "mp_rho", natom*int_size)
+      ALLOCATE (mp_rho(natom))
 
       DO iat = 1, natom
          NULLIFY (mp_rho(iat)%Qlm_h)
@@ -124,9 +119,7 @@ CONTAINS
          CALL deallocate_mpole_gau(mp_gau)
       END IF
 
-      ALLOCATE (mp_gau(nkind), STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routineN, moduleN, __LINE__, &
-                                       "mp_gau", nkind*int_size)
+      ALLOCATE (mp_gau(nkind))
 
       DO ikind = 1, nkind
          NULLIFY (mp_gau(ikind)%Qlm_gg)
@@ -151,15 +144,13 @@ CONTAINS
       CHARACTER(len=*), PARAMETER :: routineN = 'allocate_rho0_atom', &
          routineP = moduleN//':'//routineN
 
-      INTEGER                                            :: iat, istat
+      INTEGER                                            :: iat
 
       IF (ASSOCIATED(rho0_set)) THEN
          CALL deallocate_rho0_atom(rho0_set)
       END IF
 
-      ALLOCATE (rho0_set(natom), STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routineN, moduleN, __LINE__, &
-                                       "rho0_atom_set", natom*int_size)
+      ALLOCATE (rho0_set(natom))
 
       DO iat = 1, natom
          NULLIFY (rho0_set(iat)%rho0_rad_h)
@@ -182,26 +173,16 @@ CONTAINS
       CHARACTER(len=*), PARAMETER :: routineN = 'allocate_rho0_atom_rad', &
          routineP = moduleN//':'//routineN
 
-      INTEGER                                            :: istat
-
-      ALLOCATE (rho0_atom%rho0_rad_h, STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routineN, moduleN, __LINE__, &
-                                       "rho0_rad_h", int_size)
+      ALLOCATE (rho0_atom%rho0_rad_h)
 
       NULLIFY (rho0_atom%rho0_rad_h%r_coef)
-      ALLOCATE (rho0_atom%rho0_rad_h%r_coef(1:nr, 1:nchannels), STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routineN, moduleN, __LINE__, &
-                                       "rho0_rad_h", int_size)
+      ALLOCATE (rho0_atom%rho0_rad_h%r_coef(1:nr, 1:nchannels))
       rho0_atom%rho0_rad_h%r_coef = 0.0_dp
 
-      ALLOCATE (rho0_atom%vrho0_rad_h, STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routineN, moduleN, __LINE__, &
-                                       "vrho0_rad_h", int_size)
+      ALLOCATE (rho0_atom%vrho0_rad_h)
 
       NULLIFY (rho0_atom%vrho0_rad_h%r_coef)
-      ALLOCATE (rho0_atom%vrho0_rad_h%r_coef(1:nr, 1:nchannels), STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routineN, moduleN, __LINE__, &
-                                       "vrho0_rad_h", int_size)
+      ALLOCATE (rho0_atom%vrho0_rad_h%r_coef(1:nr, 1:nchannels))
       rho0_atom%vrho0_rad_h%r_coef = 0.0_dp
 
    END SUBROUTINE allocate_rho0_atom_rad
@@ -217,15 +198,11 @@ CONTAINS
       CHARACTER(len=*), PARAMETER :: routineN = 'allocate_rho0_mpole', &
          routineP = moduleN//':'//routineN
 
-      INTEGER                                            :: istat
-
       IF (ASSOCIATED(rho0)) THEN
          CALL deallocate_rho0_mpole(rho0)
       END IF
 
-      ALLOCATE (rho0, STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routineN, moduleN, __LINE__, &
-                                       "rho0_mpole", int_size)
+      ALLOCATE (rho0)
 
       NULLIFY (rho0%mp_rho)
       NULLIFY (rho0%mp_gau)
@@ -250,7 +227,7 @@ CONTAINS
 
       CHARACTER(len=*), PARAMETER :: routineN = 'calculate_g0', routineP = moduleN//':'//routineN
 
-      INTEGER                                            :: ir, istat, l, lmax, nr
+      INTEGER                                            :: ir, l, lmax, nr
       REAL(dp)                                           :: c1, prefactor, root_z_h, z_h
       REAL(dp), ALLOCATABLE, DIMENSION(:)                :: erf_z_h, gexp, gh_tmp, int1, int2
 
@@ -263,9 +240,7 @@ CONTAINS
       CALL reallocate(rho0_mpole%mp_gau(ik)%g0_h, 1, nr, 0, lmax)
       CALL reallocate(rho0_mpole%mp_gau(ik)%vg0_h, 1, nr, 0, lmax)
 
-      ALLOCATE (gexp(nr), gh_tmp(nr), erf_z_h(nr), int1(nr), int2(nr), STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routineN, moduleN, __LINE__, &
-                                       "gexp,gh_tmp,erf_z_h,in1,int2", 6*nr*dp_size)
+      ALLOCATE (gexp(nr), gh_tmp(nr), erf_z_h(nr), int1(nr), int2(nr))
 
       gh_tmp(1:nr) = EXP(-z_h*grid_atom%rad2(1:nr))
 
@@ -319,9 +294,8 @@ CONTAINS
       CHARACTER(len=*), PARAMETER :: routineN = 'deallocate_mpole_gau', &
          routineP = moduleN//':'//routineN
 
-      INTEGER                                            :: ikind, istat, nkind
+      INTEGER                                            :: ikind, nkind
 
-      istat = 0
       nkind = SIZE(mp_gau)
 
       DO ikind = 1, nkind

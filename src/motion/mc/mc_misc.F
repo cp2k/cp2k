@@ -20,7 +20,6 @@ MODULE mc_misc
         accattempt, get_mc_input_file, get_mc_molecule_info, get_mc_par, mc_averages_type, &
         mc_input_file_type, mc_molecule_info_type, mc_moves_p_type, mc_moves_type, mc_simpar_type
    USE physcon,                         ONLY: angstrom
-   USE termination,                     ONLY: stop_memory
 #include "../../base/base_uses.f90"
 
    IMPLICIT NONE
@@ -48,17 +47,14 @@ CONTAINS
       CHARACTER(len=*), PARAMETER :: routineN = 'mc_averages_create', &
          routineP = moduleN//':'//routineN
 
-      INTEGER                                            :: handle, stat
+      INTEGER                                            :: handle
 
 ! begin the timing of the subroutine
 
       CALL timeset(routineN, handle)
 
 ! allocate all the structures...not sure why, but it won't work otherwise
-      ALLOCATE (averages, stat=stat)
-      IF (stat /= 0) CALL stop_memory(routineN, moduleN, __LINE__, &
-                                      "averages", 0)
-
+      ALLOCATE (averages)
       averages%ave_energy = 0.0E0_dp
       averages%ave_energy_squared = 0.0E0_dp
       averages%ave_volume = 0.0E0_dp

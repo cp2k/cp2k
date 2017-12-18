@@ -40,9 +40,7 @@ MODULE molecular_states
                                               section_vals_val_get
    USE kinds,                           ONLY: default_path_length,&
                                               default_string_length,&
-                                              dp,&
-                                              dp_size,&
-                                              int_size
+                                              dp
    USE message_passing,                 ONLY: mp_bcast,&
                                               mp_maxloc
    USE molecule_types,                  ONLY: molecule_type
@@ -54,7 +52,6 @@ MODULE molecular_states
    USE qs_environment_types,            ONLY: get_qs_env,&
                                               qs_environment_type
    USE qs_kind_types,                   ONLY: qs_kind_type
-   USE termination,                     ONLY: stop_memory
 #include "./base/base_uses.f90"
 
    IMPLICIT NONE
@@ -109,7 +106,7 @@ CONTAINS
 
       CHARACTER(LEN=default_path_length)                 :: filename
       CHARACTER(LEN=default_string_length)               :: title
-      INTEGER                                            :: handle, i, imol, iproc, isos, k, n_rep, &
+      INTEGER                                            :: handle, i, imol, iproc, k, n_rep, &
                                                             ncol_global, nproc, nrow_global, ns, &
                                                             output_unit, unit_nr, unit_report
       INTEGER, DIMENSION(:), POINTER                     :: ind, mark_list
@@ -156,13 +153,9 @@ CONTAINS
       CALL section_vals_val_get(loc_print_section, "MOLECULAR_STATES%MARK_STATES", &
                                 n_rep_val=n_rep)
       IF (n_rep .GT. 0) THEN
-         ALLOCATE (mark_states(2, n_rep), STAT=isos)
-         IF (isos /= 0) CALL stop_memory(routineN, moduleN, __LINE__, &
-                                         "mark_states", int_size*2*n_rep)
+         ALLOCATE (mark_states(2, n_rep))
          IF (.NOT. ASSOCIATED(marked_states)) THEN
-            ALLOCATE (marked_states(n_rep), stat=isos)
-            IF (isos /= 0) CALL stop_memory(routineN, moduleN, __LINE__, &
-                                            "mark_states", int_size*n_rep)
+            ALLOCATE (marked_states(n_rep))
          END IF
          DO i = 1, n_rep
             CALL section_vals_val_get(loc_print_section, "MOLECULAR_STATES%MARK_STATES", &
@@ -201,9 +194,7 @@ CONTAINS
       !-----------------------------------------------------------------------------
       ! 4.
       !-----------------------------------------------------------------------------
-      ALLOCATE (nstates(2), STAT=isos)
-      IF (isos /= 0) CALL stop_memory(routineN, moduleN, __LINE__, &
-                                      "nstates", int_size*2)
+      ALLOCATE (nstates(2))
 
       CALL cp_fm_create(storage, mo_localized%matrix_struct, name='storage')
 
@@ -219,9 +210,7 @@ CONTAINS
 
          IF (nstates(1) == 0) CYCLE
          NULLIFY (states)
-         ALLOCATE (states(nstates(1)), STAT=isos)
-         IF (isos /= 0) CALL stop_memory(routineN, moduleN, __LINE__, &
-                                         "states", int_size*nstates(1))
+         ALLOCATE (states(nstates(1)))
          states(:) = 0
 
          iproc = nstates(2)
@@ -233,9 +222,7 @@ CONTAINS
 
          ns = nstates(1)
          ind => states(:)
-         ALLOCATE (evals(ns), STAT=isos)
-         IF (isos /= 0) CALL stop_memory(routineN, moduleN, __LINE__, &
-                                         "evals", dp_size*ns)
+         ALLOCATE (evals(ns))
 
          NULLIFY (b, c, d, fm_struct_tmp, e_vectors, rot_e_vectors)
 

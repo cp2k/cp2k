@@ -68,8 +68,7 @@ MODULE library_tests
                                               section_vals_get_subs_vals,&
                                               section_vals_type,&
                                               section_vals_val_get
-   USE kinds,                           ONLY: dp,&
-                                              dp_size
+   USE kinds,                           ONLY: dp
    USE machine,                         ONLY: m_flush,&
                                               m_walltime
    USE message_passing,                 ONLY: mp_bcast,&
@@ -108,7 +107,6 @@ MODULE library_tests
         rs_grid_release_descriptor, rs_grid_zero, rs_pw_transfer
    USE rpa_ri_gpw,                      ONLY: test_least_square_ft
    USE shg_integrals_test,              ONLY: shg_integrals_perf_acc_test
-   USE termination,                     ONLY: stop_memory
 #include "./base/base_uses.f90"
 
    IMPLICIT NONE
@@ -624,59 +622,44 @@ CONTAINS
                n = len
                IF (16.0_dp*REAL(len*len*len, KIND=dp) > max_memory*0.5_dp) EXIT
                ALLOCATE (ra(len, len, len), STAT=ierr)
-               IF (ierr /= 0) CALL stop_memory(routineN, moduleN, __LINE__, &
-                                               "ra", dp_size*len*len*len)
                ALLOCATE (ca(len, len, len), STAT=ierr)
-               IF (ierr /= 0) THEN
-                  CALL stop_memory(routineN, moduleN, __LINE__, &
-                                   "ca", 2*dp_size*len*len*len)
+               CALL RANDOM_NUMBER(ra)
+               ca(:, :, :) = ra
+               CALL RANDOM_NUMBER(ra)
+               ca(:, :, :) = ca+CMPLX(0.0_dp, 1.0_dp, KIND=dp)*ra
+               flops = REAL(len**3, KIND=dp)*15.0_dp*LOG(REAL(len, KIND=dp))
+               ntim = NINT(siz*1.e7_dp/flops)
+               ntim = MAX(ntim, 1)
+               ntim = MIN(ntim, 200)
+               scale = 1.0_dp/REAL(len**3, KIND=dp)
+               tstart = m_walltime()
+               DO j = 1, ntim
+                  CALL fft3d(FWFFT, n, ca)
+                  CALL fft3d(BWFFT, n, ca, SCALE=scale)
+               END DO
+               tend = m_walltime()
+               t = tend-tstart+threshold
+               IF (t > 0.0_dp) THEN
+                  perf = REAL(ntim, KIND=dp)*2.0_dp*flops*1.e-6_dp/t
                ELSE
-                  CALL RANDOM_NUMBER(ra)
-                  ca(:, :, :) = ra
-                  CALL RANDOM_NUMBER(ra)
-                  ca(:, :, :) = ca+CMPLX(0.0_dp, 1.0_dp, KIND=dp)*ra
-                  flops = REAL(len**3, KIND=dp)*15.0_dp*LOG(REAL(len, KIND=dp))
-                  ntim = NINT(siz*1.e7_dp/flops)
-                  ntim = MAX(ntim, 1)
-                  ntim = MIN(ntim, 200)
-                  scale = 1.0_dp/REAL(len**3, KIND=dp)
-                  tstart = m_walltime()
-                  DO j = 1, ntim
-                     CALL fft3d(FWFFT, n, ca)
-                     CALL fft3d(BWFFT, n, ca, SCALE=scale)
-                  END DO
-                  tend = m_walltime()
-                  t = tend-tstart+threshold
-                  IF (t > 0.0_dp) THEN
-                     perf = REAL(ntim, KIND=dp)*2.0_dp*flops*1.e-6_dp/t
-                  ELSE
-                     perf = 0.0_dp
-                  END IF
-
-                  IF (para_env%ionode) THEN
-                     WRITE (iw, '(T2,A,A,i6,T59,F14.4,A)') &
-                        ADJUSTR(method), " test (in-place)    Size = ", len, perf, " Mflop/s"
-                  END IF
-                  DEALLOCATE (ca)
-                  DEALLOCATE (ra)
+                  perf = 0.0_dp
                END IF
+
+               IF (para_env%ionode) THEN
+                  WRITE (iw, '(T2,A,A,i6,T59,F14.4,A)') &
+                     ADJUSTR(method), " test (in-place)    Size = ", len, perf, " Mflop/s"
+               END IF
+               DEALLOCATE (ca)
+               DEALLOCATE (ra)
             END DO
             IF (para_env%ionode) WRITE (iw, *)
             ! test if input data is preserved
             len = 24
             n = len
-            ALLOCATE (ra(len, len, len), STAT=ierr)
-            IF (ierr /= 0) CALL stop_memory(routineN, moduleN, __LINE__, &
-                                            "ra", dp_size*len*len*len)
-            ALLOCATE (ca(len, len, len), STAT=ierr)
-            IF (ierr /= 0) CALL stop_memory(routineN, moduleN, __LINE__, &
-                                            "ca", 2*dp_size*len*len*len)
-            ALLOCATE (cb(len, len, len), STAT=ierr)
-            IF (ierr /= 0) CALL stop_memory(routineN, moduleN, __LINE__, &
-                                            "cb", 2*dp_size*len*len*len)
-            ALLOCATE (cc(len, len, len), STAT=ierr)
-            IF (ierr /= 0) CALL stop_memory(routineN, moduleN, __LINE__, &
-                                            "cc", 2*dp_size*len*len*len)
+            ALLOCATE (ra(len, len, len))
+            ALLOCATE (ca(len, len, len))
+            ALLOCATE (cb(len, len, len))
+            ALLOCATE (cc(len, len, len))
             CALL RANDOM_NUMBER(ra)
             ca(:, :, :) = ra
             CALL RANDOM_NUMBER(ra)

@@ -40,9 +40,7 @@ MODULE mc_types
                                               section_vals_val_set
    USE kinds,                           ONLY: default_path_length,&
                                               default_string_length,&
-                                              dp,&
-                                              dp_size,&
-                                              int_size
+                                              dp
    USE mathconstants,                   ONLY: pi
    USE molecule_kind_list_types,        ONLY: molecule_kind_list_p_type
    USE molecule_kind_types,             ONLY: atom_type,&
@@ -54,7 +52,6 @@ MODULE mc_types
                                               joule
    USE string_utilities,                ONLY: uppercase,&
                                               xstring
-   USE termination,                     ONLY: stop_memory
 #include "../../base/base_uses.f90"
 
    IMPLICIT NONE
@@ -852,66 +849,30 @@ CONTAINS
       CHARACTER(len=*), PARAMETER :: routineN = 'mc_sim_par_create', &
          routineP = moduleN//':'//routineN
 
-      INTEGER                                            :: istat
-
       NULLIFY (mc_par)
 
       ALLOCATE (mc_par)
-      ALLOCATE (mc_par%pmtraion_mol(1:nmol_types), STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routineN, moduleN, __LINE__, &
-                                       "mc_par%pmtraion_mol", nmol_types*dp_size)
-      ALLOCATE (mc_par%pmtrans_mol(1:nmol_types), STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routineN, moduleN, __LINE__, &
-                                       "mc_par%pmtrans_mol", nmol_types*dp_size)
-      ALLOCATE (mc_par%pmrot_mol(1:nmol_types), STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routineN, moduleN, __LINE__, &
-                                       "mc_par%pmrot_mol", nmol_types*dp_size)
-      ALLOCATE (mc_par%pmswap_mol(1:nmol_types), STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routineN, moduleN, __LINE__, &
-                                       "mc_par%pmswap_mol", nmol_types*dp_size)
+      ALLOCATE (mc_par%pmtraion_mol(1:nmol_types))
+      ALLOCATE (mc_par%pmtrans_mol(1:nmol_types))
+      ALLOCATE (mc_par%pmrot_mol(1:nmol_types))
+      ALLOCATE (mc_par%pmswap_mol(1:nmol_types))
 
-      ALLOCATE (mc_par%eta(1:nmol_types), STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routineN, moduleN, __LINE__, &
-                                       "mc_par%eta", nmol_types*dp_size)
+      ALLOCATE (mc_par%eta(1:nmol_types))
 
-      ALLOCATE (mc_par%rmbond(1:nmol_types), STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routineN, moduleN, __LINE__, &
-                                       "mc_par%rmbond", nmol_types*dp_size)
-      ALLOCATE (mc_par%rmangle(1:nmol_types), STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routineN, moduleN, __LINE__, &
-                                       "mc_par%rmangle", nmol_types*dp_size)
-      ALLOCATE (mc_par%rmdihedral(1:nmol_types), STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routineN, moduleN, __LINE__, &
-                                       "mc_par%rmdihedral", nmol_types*dp_size)
-      ALLOCATE (mc_par%rmtrans(1:nmol_types), STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routineN, moduleN, __LINE__, &
-                                       "mc_par%rmtrans", nmol_types*dp_size)
-      ALLOCATE (mc_par%rmrot(1:nmol_types), STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routineN, moduleN, __LINE__, &
-                                       "mc_par%rmrot", nmol_types*dp_size)
+      ALLOCATE (mc_par%rmbond(1:nmol_types))
+      ALLOCATE (mc_par%rmangle(1:nmol_types))
+      ALLOCATE (mc_par%rmdihedral(1:nmol_types))
+      ALLOCATE (mc_par%rmtrans(1:nmol_types))
+      ALLOCATE (mc_par%rmrot(1:nmol_types))
 
-      ALLOCATE (mc_par%avbmc_atom(1:nmol_types), STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routineN, moduleN, __LINE__, &
-                                       "mc_par%avbmc_atom", nmol_types*int_size)
-      ALLOCATE (mc_par%avbmc_rmin(1:nmol_types), STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routineN, moduleN, __LINE__, &
-                                       "mc_par%avbmc_rmin", nmol_types*dp_size)
-      ALLOCATE (mc_par%avbmc_rmax(1:nmol_types), STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routineN, moduleN, __LINE__, &
-                                       "mc_par%avbmc_rmax", nmol_types*dp_size)
-      ALLOCATE (mc_par%pmavbmc_mol(1:nmol_types), STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routineN, moduleN, __LINE__, &
-                                       "mc_par%pmavbmc_mol", nmol_types*dp_size)
-      ALLOCATE (mc_par%pbias(1:nmol_types), STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routineN, moduleN, __LINE__, &
-                                       "mc_par%pbias", nmol_types*dp_size)
+      ALLOCATE (mc_par%avbmc_atom(1:nmol_types))
+      ALLOCATE (mc_par%avbmc_rmin(1:nmol_types))
+      ALLOCATE (mc_par%avbmc_rmax(1:nmol_types))
+      ALLOCATE (mc_par%pmavbmc_mol(1:nmol_types))
+      ALLOCATE (mc_par%pbias(1:nmol_types))
 
-      ALLOCATE (mc_par%mc_input_file, STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routineN, moduleN, __LINE__, &
-                                       "mc_par%mc_input_file", 1)
-      ALLOCATE (mc_par%mc_bias_file, STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routineN, moduleN, __LINE__, &
-                                       "mc_par%mc_bias_file", 1)
+      ALLOCATE (mc_par%mc_input_file)
+      ALLOCATE (mc_par%mc_bias_file)
 
    END SUBROUTINE mc_sim_par_create
 
@@ -981,8 +942,8 @@ CONTAINS
       CHARACTER(default_string_length)                   :: cdum, line, method_name
       CHARACTER(default_string_length), &
          DIMENSION(:, :), POINTER                        :: atom_names
-      INTEGER :: abc_column, abc_row, cell_column, cell_row, idum, iline, io_stat, irep, istat, &
-         iunit, iw, line_number, nlines, nmol_types, nstart, row_number, unit
+      INTEGER :: abc_column, abc_row, cell_column, cell_row, idum, iline, io_stat, irep, iunit, &
+         iw, line_number, nlines, nmol_types, nstart, row_number, unit
       INTEGER, DIMENSION(:), POINTER                     :: nunits
 
 ! some stuff in case we need to write error messages to the screen
@@ -992,12 +953,8 @@ CONTAINS
 ! allocate the array we'll need in case we have an empty box
       CALL get_mc_molecule_info(mc_molecule_info, nmol_types=nmol_types, &
                                 nunits=nunits, atom_names=atom_names)
-      ALLOCATE (mc_input_file%coordinates_empty(1:3, 1:nunits(1)), STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routineN, moduleN, __LINE__, &
-                                       "mc_input_file%coordinates_empty", nunits(1)*5)
-      ALLOCATE (mc_input_file%atom_names_empty(1:nunits(1)), STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routineN, moduleN, __LINE__, &
-                                       "mc_input_file%atom_names_empty", nunits(1)*5)
+      ALLOCATE (mc_input_file%coordinates_empty(1:3, 1:nunits(1)))
+      ALLOCATE (mc_input_file%atom_names_empty(1:nunits(1)))
       DO iunit = 1, nunits(1)
          mc_input_file%atom_names_empty(iunit) = atom_names(iunit, 1)
          mc_input_file%coordinates_empty(1:3, iunit) = empty_coords(1:3, iunit)
@@ -1005,12 +962,8 @@ CONTAINS
       mc_input_file%nunits_empty = nunits(1)
 
 ! allocate some arrays
-      ALLOCATE (mc_input_file%mol_set_nmol_row(1:nmol_types), STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routineN, moduleN, __LINE__, &
-                                       "mc_input_file%mol_set_nmol_row", nmol_types*int_size)
-      ALLOCATE (mc_input_file%mol_set_nmol_column(1:nmol_types), STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routineN, moduleN, __LINE__, &
-                                       "mc_input_file%mol_set_nmol_column", nmol_types*int_size)
+      ALLOCATE (mc_input_file%mol_set_nmol_row(1:nmol_types))
+      ALLOCATE (mc_input_file%mol_set_nmol_column(1:nmol_types))
 
 ! now read in and store the input file, first finding out how many lines it is
       CALL open_file(file_name=input_file_name, &
@@ -1023,9 +976,7 @@ CONTAINS
          nlines = nlines+1
       ENDDO
 
-      ALLOCATE (mc_input_file%text(1:nlines), STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routineN, moduleN, __LINE__, &
-                                       "mc_input_file%text", nlines*default_string_length)
+      ALLOCATE (mc_input_file%text(1:nlines))
 
       REWIND (unit)
       DO iline = 1, nlines
@@ -1272,7 +1223,7 @@ CONTAINS
                                                             tab_string_int
       CHARACTER(LEN=default_string_length)               :: format_box_string, format_string, &
                                                             format_string_int
-      INTEGER                                            :: handle, ia, ie, imol, istat, itype, iw, &
+      INTEGER                                            :: handle, ia, ie, imol, itype, iw, &
                                                             method_name_id, nmol_types, stop_num
       INTEGER, DIMENSION(:), POINTER                     :: temp_i_array
       REAL(dp), DIMENSION(:), POINTER                    :: temp_r_array
@@ -1423,9 +1374,7 @@ CONTAINS
       IF (mc_par%ensemble == "VIRIAL") THEN
          CALL section_vals_val_get(mc_section, "VIRIAL_TEMPS", r_vals=temp_r_array)
 ! yes, I'm allocating here...I cannot find a better place to do it, though
-         ALLOCATE (mc_par%virial_temps(1:SIZE(temp_r_array)), STAT=istat)
-         IF (istat /= 0) CALL stop_memory(routineN, moduleN, __LINE__, &
-                                          "virial_temps", dp_size*SIZE(temp_r_array))
+         ALLOCATE (mc_par%virial_temps(1:SIZE(temp_r_array)))
          DO imol = 1, SIZE(temp_r_array)
             mc_par%virial_temps(imol) = temp_r_array(imol)
          ENDDO
@@ -1852,9 +1801,9 @@ CONTAINS
       CHARACTER(LEN=default_string_length)               :: name
       CHARACTER(LEN=default_string_length), &
          ALLOCATABLE, DIMENSION(:)                       :: names_init
-      INTEGER :: first_mol, iatom, ibox, imol, imolecule, istat, itype, iunique, iunit, jtype, &
-         last_mol, natom, natoms_large, nbend, nbond, nboxes, nmol_types, nmolecule, ntorsion, &
-         ntypes, skip_box, this_molecule, total
+      INTEGER :: first_mol, iatom, ibox, imol, imolecule, itype, iunique, iunit, jtype, last_mol, &
+         natom, natoms_large, nbend, nbond, nboxes, nmol_types, nmolecule, ntorsion, ntypes, &
+         skip_box, this_molecule, total
       INTEGER, DIMENSION(:), POINTER                     :: molecule_list
       LOGICAL                                            :: lnew_type
       TYPE(atom_type), DIMENSION(:), POINTER             :: atom_list
@@ -1888,12 +1837,8 @@ CONTAINS
 ! box
       NULLIFY (subsys, molecule_kinds, molecule_kind)
 
-      ALLOCATE (particles(1:nboxes), STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routineN, moduleN, __LINE__, &
-                                       "particles", nboxes)
-      ALLOCATE (molecule_kinds(1:nboxes), STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routineN, moduleN, __LINE__, &
-                                       "molecule_kinds", nboxes)
+      ALLOCATE (particles(1:nboxes))
+      ALLOCATE (molecule_kinds(1:nboxes))
 
       ! find out how many types we have
       ntypes = 0
@@ -1907,9 +1852,7 @@ CONTAINS
          ntypes = ntypes+SIZE(molecule_kinds(ibox)%list%els(:))
       ENDDO
 
-      ALLOCATE (names_init(1:ntypes), STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routineN, moduleN, __LINE__, &
-                                       "names_init", ntypes*default_string_length)
+      ALLOCATE (names_init(1:ntypes))
 
 ! now get the names of all types so we can figure out how many distinct
 ! types we have
@@ -1943,27 +1886,13 @@ CONTAINS
 ! allocate arrays for the names of the molecules, the number of atoms, and
 ! the conformational probabilities
       mc_molecule_info%nmol_types = nmol_types
-      ALLOCATE (mc_molecule_info%names(1:nmol_types), STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routineN, moduleN, __LINE__, &
-                                       "mc_molecule_info%names", nmol_types*default_string_length)
-      ALLOCATE (mc_molecule_info%nunits(1:nmol_types), STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routineN, moduleN, __LINE__, &
-                                       "mc_molecule_info%nunits", nmol_types*int_size)
-      ALLOCATE (mc_molecule_info%conf_prob(1:3, 1:nmol_types), STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routineN, moduleN, __LINE__, &
-                                       "mc_molecule_info%conf_prob", 3*nmol_types*dp_size)
-      ALLOCATE (mc_molecule_info%nchains(1:nmol_types, 1:nboxes), STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routineN, moduleN, __LINE__, &
-                                       "mc_molecule_info%nchains", nboxes*nmol_types*dp_size)
-      ALLOCATE (mc_molecule_info%nunits_tot(1:nboxes), STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routineN, moduleN, __LINE__, &
-                                       "mc_molecule_info%nunits_tot", nboxes*int_size)
-      ALLOCATE (mc_molecule_info%atom_names(1:natoms_large, 1:nmol_types), STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routineN, moduleN, __LINE__, &
-                                       "mc_molecule_info%atom_names", natoms_large*nmol_types*default_string_length)
-      ALLOCATE (mc_molecule_info%mass(1:natoms_large, 1:nmol_types), STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routineN, moduleN, __LINE__, &
-                                       "mc_molecule_info%mass", natoms_large*nmol_types*dp_size)
+      ALLOCATE (mc_molecule_info%names(1:nmol_types))
+      ALLOCATE (mc_molecule_info%nunits(1:nmol_types))
+      ALLOCATE (mc_molecule_info%conf_prob(1:3, 1:nmol_types))
+      ALLOCATE (mc_molecule_info%nchains(1:nmol_types, 1:nboxes))
+      ALLOCATE (mc_molecule_info%nunits_tot(1:nboxes))
+      ALLOCATE (mc_molecule_info%atom_names(1:natoms_large, 1:nmol_types))
+      ALLOCATE (mc_molecule_info%mass(1:natoms_large, 1:nmol_types))
 
 ! now record all the information for every molecule type
       iunique = 0
@@ -2002,9 +1931,7 @@ CONTAINS
 
 ! figure out the empty coordinates
       IF (PRESENT(coordinates_empty)) THEN
-         ALLOCATE (coordinates_empty(1:3, 1:mc_molecule_info%nunits(1)), STAT=istat)
-         IF (istat /= 0) CALL stop_memory(routineN, moduleN, __LINE__, &
-                                          "coordinates_empty", 3*mc_molecule_info%nunits(1)*dp_size)
+         ALLOCATE (coordinates_empty(1:3, 1:mc_molecule_info%nunits(1)))
          DO iunit = 1, mc_molecule_info%nunits(1)
             coordinates_empty(1:3, iunit) = particles(1)%list%els(iunit)%r(1:3)
          ENDDO
@@ -2038,12 +1965,8 @@ CONTAINS
 
 ! now we need to figure out which type every molecule is,
 ! and which force_env (box) it's in
-      ALLOCATE (mc_molecule_info%mol_type(1:mc_molecule_info%nchain_total), STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routineN, moduleN, __LINE__, &
-                                       "mol_type", mc_molecule_info%nchain_total*int_size)
-      ALLOCATE (mc_molecule_info%in_box(1:mc_molecule_info%nchain_total), STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routineN, moduleN, __LINE__, &
-                                       "in_box", mc_molecule_info%nchain_total*int_size)
+      ALLOCATE (mc_molecule_info%mol_type(1:mc_molecule_info%nchain_total))
+      ALLOCATE (mc_molecule_info%in_box(1:mc_molecule_info%nchain_total))
 
       last_mol = 0
       DO ibox = 1, nboxes

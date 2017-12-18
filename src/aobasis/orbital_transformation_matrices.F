@@ -14,9 +14,7 @@
 ! **************************************************************************************************
 MODULE orbital_transformation_matrices
 
-   USE kinds,                           ONLY: dp,&
-                                              dp_size,&
-                                              int_size
+   USE kinds,                           ONLY: dp
    USE mathconstants,                   ONLY: dfac,&
                                               fac,&
                                               pi
@@ -28,7 +26,6 @@ MODULE orbital_transformation_matrices
                                               nsoset
    USE orbital_symbols,                 ONLY: cgf_symbol,&
                                               sgf_symbol
-   USE termination,                     ONLY: stop_memory
 
 !$ USE OMP_LIB,                         ONLY: omp_get_level
 
@@ -79,9 +76,9 @@ CONTAINS
       CHARACTER(len=*), PARAMETER :: routineN = 'create_spherical_harmonics', &
          routineP = moduleN//':'//routineN
 
-      INTEGER                                            :: expo, i, ic, ic1, ic2, is, istat, j, k, &
-                                                            l, lx, lx1, lx2, ly, ly1, ly2, lz, &
-                                                            lz1, lz2, m, ma, nc, ns
+      INTEGER                                            :: expo, i, ic, ic1, ic2, is, j, k, l, lx, &
+                                                            lx1, lx2, ly, ly1, ly2, lz, lz1, lz2, &
+                                                            m, ma, nc, ns
       REAL(KIND=dp)                                      :: s, s1, s2
 
 !$    IF (omp_get_level() > 0) &
@@ -99,18 +96,10 @@ CONTAINS
                        "number is invalid")
       END IF
 
-      ALLOCATE (orbtramat(0:maxl), STAT=istat)
-      IF (istat /= 0) THEN
-         CALL stop_memory(routineN, moduleN, __LINE__, &
-                          "orbtramat", (maxl+1)*int_size)
-      END IF
+      ALLOCATE (orbtramat(0:maxl))
       nc = ncoset(maxl)
       ns = nsoset(maxl)
-      ALLOCATE (c2s_tramat(ns, nc), s2c_tramat(ns, nc), STAT=istat)
-      IF (istat /= 0) THEN
-         CALL stop_memory(routineN, moduleN, __LINE__, &
-                          "c2s_tramat, s2c_tramat", (2*ns*nc)*int_size)
-      END IF
+      ALLOCATE (c2s_tramat(ns, nc), s2c_tramat(ns, nc))
       c2s_tramat = 0.0_dp
       s2c_tramat = 0.0_dp
 
@@ -119,25 +108,13 @@ CONTAINS
          nc = nco(l)
          ns = nso(l)
 
-         ALLOCATE (orbtramat(l)%c2s(ns, nc), STAT=istat)
-         IF (istat /= 0) THEN
-            CALL stop_memory(routineN, moduleN, __LINE__, &
-                             "orbtramat(l)%c2s", ns*nc*dp_size)
-         END IF
+         ALLOCATE (orbtramat(l)%c2s(ns, nc))
          orbtramat(l)%c2s = 0.0_dp
 
-         ALLOCATE (orbtramat(l)%slm(ns, nc), STAT=istat)
-         IF (istat /= 0) THEN
-            CALL stop_memory(routineN, moduleN, __LINE__, &
-                             "orbtramat(l)%slm", ns*nc*dp_size)
-         END IF
+         ALLOCATE (orbtramat(l)%slm(ns, nc))
          orbtramat(l)%slm = 0.0_dp
 
-         ALLOCATE (orbtramat(l)%s2c(ns, nc), STAT=istat)
-         IF (istat /= 0) THEN
-            CALL stop_memory(routineN, moduleN, __LINE__, &
-                             "orbtramat(l)%s2c", ns*nc*dp_size)
-         END IF
+         ALLOCATE (orbtramat(l)%s2c(ns, nc))
          orbtramat(l)%s2c = 0.0_dp
 
       END DO

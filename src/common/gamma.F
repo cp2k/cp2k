@@ -12,11 +12,9 @@
 ! **************************************************************************************************
 MODULE gamma
 
-   USE kinds,                           ONLY: dp,&
-                                              dp_size
+   USE kinds,                           ONLY: dp
    USE mathconstants,                   ONLY: ifac,&
                                               pi
-   USE termination,                     ONLY: stop_memory
 #include "../base/base_uses.f90"
 
    IMPLICIT NONE
@@ -69,7 +67,7 @@ CONTAINS
       CHARACTER(len=*), PARAMETER :: routineN = 'create_md_ftable', &
          routineP = moduleN//':'//routineN
 
-      INTEGER                                            :: istat, itab, itabmax, itabmin, n
+      INTEGER                                            :: itab, itabmax, itabmin, n
       REAL(KIND=dp)                                      :: t
 
       IF (current_nmax > -1) THEN
@@ -98,11 +96,7 @@ CONTAINS
       itabmin = FLOOR(tmin/tdelta)
       itabmax = CEILING((tmax-tmin)/tdelta)
 
-      ALLOCATE (ftable(0:n, itabmin:itabmax), STAT=istat)
-      IF (istat /= 0) THEN
-         CALL stop_memory(routineN, moduleN, __LINE__, "ftable", &
-                          (n+1)*(itabmax-itabmin+1)*dp_size)
-      END IF
+      ALLOCATE (ftable(0:n, itabmin:itabmax))
       ftable = 0.0_dp
 
 !   *** Fill table ***

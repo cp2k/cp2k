@@ -12,8 +12,7 @@ MODULE constraint_util
    USE cell_types,                      ONLY: cell_type
    USE colvar_methods,                  ONLY: colvar_eval_mol_f
    USE distribution_1d_types,           ONLY: distribution_1d_type
-   USE kinds,                           ONLY: dp,&
-                                              int_size
+   USE kinds,                           ONLY: dp
    USE mathlib,                         ONLY: matmul_3x3,&
                                               transpose_3d
    USE message_passing,                 ONLY: mp_sum
@@ -31,7 +30,6 @@ MODULE constraint_util
                                               local_g4x6_constraint_type,&
                                               molecule_type
    USE particle_types,                  ONLY: particle_type
-   USE termination,                     ONLY: stop_memory
    USE virial_types,                    ONLY: virial_type
 #include "./base/base_uses.f90"
 
@@ -614,12 +612,10 @@ CONTAINS
          routineP = moduleN//':'//routineN
 
       INTEGER                                            :: iparticle, iparticle_kind, &
-                                                            iparticle_local, nparticle_local, stat
+                                                            iparticle_local, nparticle_local
       LOGICAL, ALLOCATABLE, DIMENSION(:)                 :: wrk
 
-      ALLOCATE (wrk(SIZE(particle_set)), stat=stat)
-      IF (stat /= 0) CALL stop_memory(routineN, moduleN, __LINE__, &
-                                      "wrk", int_size*SIZE(particle_set))
+      ALLOCATE (wrk(SIZE(particle_set)))
       wrk = .TRUE.
       DO iparticle_kind = 1, SIZE(local_particles%n_el)
          nparticle_local = local_particles%n_el(iparticle_kind)

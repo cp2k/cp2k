@@ -38,9 +38,7 @@ MODULE particle_methods
                                               section_vals_val_get
    USE kinds,                           ONLY: default_string_length,&
                                               dp,&
-                                              dp_size,&
-                                              sp,&
-                                              sp_size
+                                              sp
    USE mathconstants,                   ONLY: degree
    USE mathlib,                         ONLY: angle,&
                                               dihedral_angle
@@ -54,7 +52,6 @@ MODULE particle_methods
    USE shell_potential_types,           ONLY: get_shell,&
                                               shell_kind_type
    USE string_utilities,                ONLY: uppercase
-   USE termination,                     ONLY: stop_memory
    USE util,                            ONLY: sort,&
                                               sort_unique
 #include "./base/base_uses.f90"
@@ -196,7 +193,7 @@ CONTAINS
       CHARACTER(LEN=2)                                   :: element_symbol
       CHARACTER(LEN=4)                                   :: name
       CHARACTER(LEN=default_string_length)               :: atm_name, my_format
-      INTEGER                                            :: handle, iatom, natom, stat
+      INTEGER                                            :: handle, iatom, natom
       LOGICAL                                            :: dummy, my_charge_beta, &
                                                             my_charge_extended, my_charge_occup
       REAL(KIND=dp)                                      :: angle_alpha, angle_beta, angle_gamma, &
@@ -325,9 +322,7 @@ CONTAINS
             h(1:3, 1:3) = MATMUL(cell_dcd%hmat(1:3, 1:3), cell%h_inv(1:3, 1:3))
             CALL cell_release(cell_dcd)
          END IF
-         ALLOCATE (arr(3, natom), STAT=stat)
-         IF (stat /= 0) CALL stop_memory(routineN, moduleN, __LINE__, &
-                                         "arr", 3*natom*dp_size)
+         ALLOCATE (arr(3, natom))
          IF (PRESENT(array)) THEN
             arr(1:3, 1:natom) = RESHAPE(array, (/3, natom/))
          ELSE
@@ -348,15 +343,9 @@ CONTAINS
                CPABORT("Illegal DCD dump type")
             END SELECT
          END IF
-         ALLOCATE (x4(natom), STAT=stat)
-         IF (stat /= 0) CALL stop_memory(routineN, moduleN, __LINE__, &
-                                         "x4", natom*sp_size)
-         ALLOCATE (y4(natom), STAT=stat)
-         IF (stat /= 0) CALL stop_memory(routineN, moduleN, __LINE__, &
-                                         "y4", natom*sp_size)
-         ALLOCATE (z4(natom), STAT=stat)
-         IF (stat /= 0) CALL stop_memory(routineN, moduleN, __LINE__, &
-                                         "z4", natom*sp_size)
+         ALLOCATE (x4(natom))
+         ALLOCATE (y4(natom))
+         ALLOCATE (z4(natom))
          IF (.NOT. cell%orthorhombic .AND. (output_format == dump_dcd_aligned_cell)) THEN
             x4(1:natom) = REAL(MATMUL(h(1, 1:3), arr(1:3, 1:natom)), KIND=sp)
             y4(1:natom) = REAL(MATMUL(h(2, 1:3), arr(1:3, 1:natom)), KIND=sp)

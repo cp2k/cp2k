@@ -14,9 +14,7 @@
 ! **************************************************************************************************
 MODULE qs_neighbor_list_types
 
-   USE kinds,                           ONLY: dp,&
-                                              int_size
-   USE termination,                     ONLY: stop_memory
+   USE kinds,                           ONLY: dp
    USE util,                            ONLY: locate,&
                                               sort
 #include "./base/base_uses.f90"
@@ -162,7 +160,7 @@ CONTAINS
       CHARACTER(len=*), PARAMETER :: routineN = 'neighbor_list_iterator_create', &
          routineP = moduleN//':'//routineN
 
-      INTEGER                                            :: iatom, il, ilist, istat, mthread, nlist
+      INTEGER                                            :: iatom, il, ilist, mthread, nlist
       TYPE(list_search_type), DIMENSION(:), POINTER      :: list_search
       TYPE(neighbor_list_iterator_type), POINTER         :: iterator
       TYPE(neighbor_list_type), POINTER                  :: neighbor_list
@@ -170,14 +168,10 @@ CONTAINS
       mthread = 1
       IF (PRESENT(nthread)) mthread = nthread
 
-      ALLOCATE (iterator_set(0:mthread-1), STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routineN, moduleN, __LINE__, &
-                                       "iterator_set", int_size*mthread)
+      ALLOCATE (iterator_set(0:mthread-1))
 
       DO il = 0, mthread-1
-         ALLOCATE (iterator_set(il)%neighbor_list_iterator, STAT=istat)
-         IF (istat /= 0) CALL stop_memory(routineN, moduleN, __LINE__, &
-                                          "neighbor_list_iterator", 0)
+         ALLOCATE (iterator_set(il)%neighbor_list_iterator)
 
          iterator => iterator_set(il)%neighbor_list_iterator
 
@@ -204,22 +198,14 @@ CONTAINS
 
       IF (PRESENT(search)) THEN
          IF (search) THEN
-            ALLOCATE (list_search(SIZE(nl)), STAT=istat)
-            IF (istat /= 0) CALL stop_memory(routineN, moduleN, __LINE__, &
-                                             "list_search", 0)
+            ALLOCATE (list_search(SIZE(nl)))
             DO il = 1, SIZE(nl)
                IF (ASSOCIATED(nl(il)%neighbor_list_set)) THEN
                   CALL get_neighbor_list_set(neighbor_list_set=nl(il)%neighbor_list_set, nlist=nlist)
                   list_search(il)%nlist = nlist
-                  ALLOCATE (list_search(il)%atom_list(nlist), STAT=istat)
-                  IF (istat /= 0) CALL stop_memory(routineN, moduleN, __LINE__, &
-                                                   "list_search(il)%atom_list", int_size*nlist)
-                  ALLOCATE (list_search(il)%atom_index(nlist), STAT=istat)
-                  IF (istat /= 0) CALL stop_memory(routineN, moduleN, __LINE__, &
-                                                   "list_search(il)%atom_index", int_size*nlist)
-                  ALLOCATE (list_search(il)%neighbor_list(nlist), STAT=istat)
-                  IF (istat /= 0) CALL stop_memory(routineN, moduleN, __LINE__, &
-                                                   "list_search(il)%neighbor_list", int_size*nlist)
+                  ALLOCATE (list_search(il)%atom_list(nlist))
+                  ALLOCATE (list_search(il)%atom_index(nlist))
+                  ALLOCATE (list_search(il)%neighbor_list(nlist))
 
                   NULLIFY (neighbor_list)
                   DO ilist = 1, nlist
@@ -606,7 +592,6 @@ CONTAINS
       CHARACTER(len=*), PARAMETER :: routineN = 'add_neighbor_list', &
          routineP = moduleN//':'//routineN
 
-      INTEGER                                            :: istat
       TYPE(neighbor_list_type), POINTER                  :: new_neighbor_list
 
       IF (ASSOCIATED(neighbor_list_set)) THEN
@@ -620,11 +605,7 @@ CONTAINS
 
 !         *** Allocate a new neighbor list ***
 
-               ALLOCATE (new_neighbor_list, STAT=istat)
-               IF (istat /= 0) THEN
-                  CALL stop_memory(routineN, moduleN, __LINE__, &
-                                   "new_neighbor_list", 0)
-               END IF
+               ALLOCATE (new_neighbor_list)
 
                NULLIFY (new_neighbor_list%next_neighbor_list)
                NULLIFY (new_neighbor_list%first_neighbor_node)
@@ -643,11 +624,7 @@ CONTAINS
 
 !         *** Allocate a new first neighbor list ***
 
-               ALLOCATE (new_neighbor_list, STAT=istat)
-               IF (istat /= 0) THEN
-                  CALL stop_memory(routineN, moduleN, __LINE__, &
-                                   "new_neighbor_list", 0)
-               END IF
+               ALLOCATE (new_neighbor_list)
 
                NULLIFY (new_neighbor_list%next_neighbor_list)
                NULLIFY (new_neighbor_list%first_neighbor_node)
@@ -711,7 +688,7 @@ CONTAINS
       CHARACTER(len=*), PARAMETER :: routineN = 'add_neighbor_node', &
          routineP = moduleN//':'//routineN
 
-      INTEGER                                            :: iatom, istat, my_nkind
+      INTEGER                                            :: iatom, my_nkind
       TYPE(neighbor_node_type), POINTER                  :: new_neighbor_node
 
       IF (ASSOCIATED(neighbor_list)) THEN
@@ -738,11 +715,7 @@ CONTAINS
 
 !         *** Allocate a new neighbor node ***
 
-               ALLOCATE (new_neighbor_node, STAT=istat)
-               IF (istat /= 0) THEN
-                  CALL stop_memory(routineN, moduleN, __LINE__, &
-                                   "new_neighbor_node", 0)
-               END IF
+               ALLOCATE (new_neighbor_node)
 
                NULLIFY (new_neighbor_node%next_neighbor_node)
 
@@ -760,11 +733,7 @@ CONTAINS
 
 !         *** Allocate a new first neighbor node ***
 
-               ALLOCATE (new_neighbor_node, STAT=istat)
-               IF (istat /= 0) THEN
-                  CALL stop_memory(routineN, moduleN, __LINE__, &
-                                   "new_neighbor_node", 0)
-               END IF
+               ALLOCATE (new_neighbor_node)
 
                NULLIFY (new_neighbor_node%next_neighbor_node)
 
@@ -814,8 +783,6 @@ CONTAINS
       CHARACTER(len=*), PARAMETER :: routineN = 'allocate_neighbor_list_set', &
          routineP = moduleN//':'//routineN
 
-      INTEGER                                            :: istat
-
 !   *** Deallocate the old neighbor list set ***
 
       IF (ASSOCIATED(neighbor_list_set)) THEN
@@ -824,11 +791,7 @@ CONTAINS
 
 !   *** Allocate a set of neighbor lists ***
 
-      ALLOCATE (neighbor_list_set, STAT=istat)
-      IF (istat /= 0) THEN
-         CALL stop_memory(routineN, moduleN, __LINE__, &
-                          "neighbor_list_set", 0)
-      END IF
+      ALLOCATE (neighbor_list_set)
 
       NULLIFY (neighbor_list_set%first_neighbor_list)
 

@@ -20,8 +20,7 @@ MODULE qs_vxc_atom
    USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                               section_vals_type,&
                                               section_vals_val_get
-   USE kinds,                           ONLY: dp,&
-                                              dp_size
+   USE kinds,                           ONLY: dp
    USE memory_utilities,                ONLY: reallocate
    USE message_passing,                 ONLY: mp_sum
    USE orbital_pointers,                ONLY: indso,&
@@ -41,7 +40,6 @@ MODULE qs_vxc_atom
    USE qs_rho_atom_types,               ONLY: get_rho_atom,&
                                               rho_atom_coeff,&
                                               rho_atom_type
-   USE termination,                     ONLY: stop_memory
    USE util,                            ONLY: get_limit
    USE xc_atom,                         ONLY: fill_rho_set,&
                                               vxc_of_r_new,&
@@ -994,9 +992,9 @@ CONTAINS
 
       CHARACTER(len=*), PARAMETER :: routineN = 'gaVxcgb_noGC', routineP = moduleN//':'//routineN
 
-      INTEGER :: handle, ia, ic, icg, ipgf1, ipgf2, ir, iset1, iset2, iso, iso1, iso2, ispin, &
-         istat, l, ld, lmax12, lmax_expansion, lmin12, m1, m2, max_iso_not0, max_iso_not0_local, &
-         max_s_harm, maxl, maxso, n1, n2, na, ngau1, ngau2, nngau1, nr, nset, size1
+      INTEGER :: handle, ia, ic, icg, ipgf1, ipgf2, ir, iset1, iset2, iso, iso1, iso2, ispin, l, &
+         ld, lmax12, lmax_expansion, lmin12, m1, m2, max_iso_not0, max_iso_not0_local, max_s_harm, &
+         maxl, maxso, n1, n2, na, ngau1, ngau2, nngau1, nr, nset, size1
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: cg_n_list
       INTEGER, ALLOCATABLE, DIMENSION(:, :, :)           :: cg_list
       INTEGER, DIMENSION(:), POINTER                     :: lmax, lmin, npgf
@@ -1029,24 +1027,11 @@ CONTAINS
       lmax_expansion = indso(1, max_iso_not0)
       max_s_harm = harmonics%max_s_harm
 
-      ALLOCATE (g1(nr), g2(nr), gg(nr, 0:2*maxl), STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routineN, moduleN, __LINE__, &
-                                       "g1,g2,gg", (2*nr+2*maxl*nr)*dp_size)
-
-      ALLOCATE (gVg_h(na, 0:2*maxl), gVg_s(na, 0:2*maxl), STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routineN, moduleN, __LINE__, &
-                                       "gVg_h,gVg_s", 4*na*maxl*dp_size)
-
+      ALLOCATE (g1(nr), g2(nr), gg(nr, 0:2*maxl))
+      ALLOCATE (gVg_h(na, 0:2*maxl), gVg_s(na, 0:2*maxl))
       ALLOCATE (matso_h(nsoset(maxl), nsoset(maxl)), &
-                matso_s(nsoset(maxl), nsoset(maxl)), STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routineN, moduleN, __LINE__, &
-                                       "matso_h,matso_s", &
-                                       2*nsoset(maxl)*nsoset(maxl)*dp_size)
-
-      ALLOCATE (vx(na, nr), STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routineN, moduleN, __LINE__, &
-                                       "vx", na*nr*dp_size)
-
+                matso_s(nsoset(maxl), nsoset(maxl)))
+      ALLOCATE (vx(na, nr))
       ALLOCATE (cg_list(2, nsoset(maxl)**2, max_s_harm), cg_n_list(max_s_harm))
 
       NULLIFY (int_hh, int_ss)
@@ -1181,9 +1166,9 @@ CONTAINS
       CHARACTER(len=*), PARAMETER :: routineN = 'gaVxcgb_GC', routineP = moduleN//':'//routineN
 
       INTEGER :: dmax_iso_not0, dmax_iso_not0_local, handle, ia, ic, icg, ipgf1, ipgf2, ir, iset1, &
-         iset2, iso, iso1, iso2, ispin, istat, l, lmax12, lmax_expansion, lmin12, m1, m2, &
-         max_iso_not0, max_iso_not0_local, max_s_harm, maxl, maxso, n1, n2, na, ngau1, ngau2, &
-         nngau1, nr, nset, size1
+         iset2, iso, iso1, iso2, ispin, l, lmax12, lmax_expansion, lmin12, m1, m2, max_iso_not0, &
+         max_iso_not0_local, max_s_harm, maxl, maxso, n1, n2, na, ngau1, ngau2, nngau1, nr, nset, &
+         size1
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: cg_n_list, dcg_n_list
       INTEGER, ALLOCATABLE, DIMENSION(:, :, :)           :: cg_list, dcg_list
       INTEGER, DIMENSION(:), POINTER                     :: lmax, lmin, npgf
@@ -1222,25 +1207,16 @@ CONTAINS
       lmax_expansion = indso(1, max_iso_not0)
       max_s_harm = harmonics%max_s_harm
 
-      ALLOCATE (g1(nr), g2(nr), gg(nr, 0:2*maxl), dgg(nr, 0:2*maxl), STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routineN, moduleN, __LINE__, &
-                                       "g1,g2,gg,dgg", (2*nr+4*nr*maxl)*dp_size)
-
-      ALLOCATE (gVXCg_h(na, 0:2*maxl), gVXCg_s(na, 0:2*maxl), STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routineN, moduleN, __LINE__, &
-                                       "gVXCg_h,gVXCg_s", 4*na*maxl*dp_size)
-      ALLOCATE (gVXGg_h(3, na, 0:2*maxl), gVXGg_s(3, na, 0:2*maxl), STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routineN, moduleN, __LINE__, &
-                                       "gVXCg_h,gVXCg_s", 12*na*maxl*dp_size)
+      ALLOCATE (g1(nr), g2(nr), gg(nr, 0:2*maxl), dgg(nr, 0:2*maxl))
+      ALLOCATE (gVXCg_h(na, 0:2*maxl), gVXCg_s(na, 0:2*maxl))
+      ALLOCATE (gVXGg_h(3, na, 0:2*maxl), gVXGg_s(3, na, 0:2*maxl))
       ALLOCATE (cg_list(2, nsoset(maxl)**2, max_s_harm), cg_n_list(max_s_harm), &
                 dcg_list(2, nsoset(maxl)**2, max_s_harm), dcg_n_list(max_s_harm))
 
       NULLIFY (int_hh, int_ss)
 
       ALLOCATE (matso_h(nsoset(maxl), nsoset(maxl)), &
-                matso_s(nsoset(maxl), nsoset(maxl)), STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routineN, moduleN, __LINE__, &
-                                       "matso_h,matso_s", 2*nsoset(maxl)*nsoset(maxl)*dp_size)
+                matso_s(nsoset(maxl), nsoset(maxl)))
 
       CALL get_rho_atom(rho_atom=rho_atom, ga_Vlocal_gb_h=int_hh, ga_Vlocal_gb_s=int_ss)
 

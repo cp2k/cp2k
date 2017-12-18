@@ -11,8 +11,7 @@
 ! **************************************************************************************************
 MODULE ao_util
 
-   USE kinds,                           ONLY: dp,&
-                                              dp_size
+   USE kinds,                           ONLY: dp
    USE mathconstants,                   ONLY: &
         dfac, fac, fourpi, oorootpi, rootpi, sqrt105, sqrt15, sqrt2, sqrt21, sqrt3, sqrt35, sqrt5, &
         sqrt7, sqrthalf
@@ -23,7 +22,6 @@ MODULE ao_util
                                               nso,&
                                               nsoset
    USE orbital_transformation_matrices, ONLY: orbtramat
-   USE termination,                     ONLY: stop_memory
 #include "../base/base_uses.f90"
 
    IMPLICIT NONE
@@ -482,14 +480,10 @@ CONTAINS
 
       CHARACTER(len=*), PARAMETER :: routineN = 'transform_c2s', routineP = moduleN//':'//routineN
 
-      INTEGER                                            :: ic1, ic2, is1, is2, istat, l, lx, ly, lz
+      INTEGER                                            :: ic1, ic2, is1, is2, l, lx, ly, lz
       REAL(dp), ALLOCATABLE, DIMENSION(:, :)             :: work
 
-      ALLOCATE (work(ncoset(maxl), nsoset(maxl)), STAT=istat)
-      IF (istat /= 0) THEN
-         CALL stop_memory(routineN, moduleN, __LINE__, &
-                          "work", dp_size*ncoset(maxl)*nsoset(maxl))
-      END IF
+      ALLOCATE (work(ncoset(maxl), nsoset(maxl)))
       CPC_so = 0.0_dp
       work = 0.0_dp
 
@@ -584,14 +578,10 @@ CONTAINS
       CHARACTER(len=*), PARAMETER :: routineN = 'transform_c2s_new', &
          routineP = moduleN//':'//routineN
 
-      INTEGER                                            :: iso, istat, ldc, lds
+      INTEGER                                            :: iso, ldc, lds
       REAL(dp), ALLOCATABLE, DIMENSION(:, :, :)          :: work
 
-      ALLOCATE (work(ncoset(maxl), ncoset(maxl), 1), STAT=istat)
-      IF (istat /= 0) THEN
-         CALL stop_memory(routineN, moduleN, __LINE__, &
-                          "work", dp_size*ncoset(maxl)*nsoset(maxl))
-      END IF
+      ALLOCATE (work(ncoset(maxl), ncoset(maxl), 1))
       ldc = ncoset(maxl)
       lds = nsoset(maxl)
       CPC_so = 0.0_dp
@@ -625,15 +615,11 @@ CONTAINS
 
       CHARACTER(len=*), PARAMETER :: routineN = 'transform_s2c', routineP = moduleN//':'//routineN
 
-      INTEGER                                            :: ic1, ic2, ico, is1, is2, iso, istat, l, &
-                                                            lx, ly, lz, nc1, nc2, ns1, ns2
+      INTEGER                                            :: ic1, ic2, ico, is1, is2, iso, l, lx, ly, &
+                                                            lz, nc1, nc2, ns1, ns2
       REAL(dp), ALLOCATABLE, DIMENSION(:, :)             :: matsc
 
-      ALLOCATE (matsc(nsoset(maxl), ncoset(maxl)), STAT=istat)
-      IF (istat /= 0) THEN
-         CALL stop_memory(routineN, moduleN, __LINE__, &
-                          "work", nsoset(maxl)*ncoset(maxl))
-      END IF
+      ALLOCATE (matsc(nsoset(maxl), ncoset(maxl)))
       matco = 0.0_dp
       matsc = 0.0_dp
 

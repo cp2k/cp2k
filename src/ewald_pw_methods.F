@@ -23,8 +23,7 @@ MODULE ewald_pw_methods
                                               ewald_pw_set,&
                                               ewald_pw_type
    USE input_section_types,             ONLY: section_vals_type
-   USE kinds,                           ONLY: dp,&
-                                              dp_size
+   USE kinds,                           ONLY: dp
    USE pw_grid_types,                   ONLY: pw_grid_type
    USE pw_grids,                        ONLY: pw_grid_change
    USE pw_poisson_methods,              ONLY: pw_poisson_set
@@ -40,7 +39,6 @@ MODULE ewald_pw_methods
                                               pw_poisson_type
    USE pw_pool_types,                   ONLY: pw_pool_p_type,&
                                               pw_pool_type
-   USE termination,                     ONLY: stop_memory
 #include "./base/base_uses.f90"
 
    IMPLICIT NONE
@@ -157,7 +155,7 @@ CONTAINS
       CHARACTER(len=*), PARAMETER :: routineN = 'ewald_pw_rho0_setup', &
          routineP = moduleN//':'//routineN
 
-      INTEGER                                            :: ewald_type, grid_index, isos
+      INTEGER                                            :: ewald_type, grid_index
       REAL(dp)                                           :: alpha
       REAL(dp), POINTER                                  :: gcc(:), zet(:)
       TYPE(dg_rho0_type), POINTER                        :: dg_rho0
@@ -170,9 +168,7 @@ CONTAINS
       grid_index = 1
 
       IF (.NOT. ASSOCIATED(zet)) THEN
-         ALLOCATE (zet(1), STAT=isos)
-         IF (isos /= 0) CALL stop_memory(routineN, moduleN, __LINE__, &
-                                         "zet", dp_size)
+         ALLOCATE (zet(1))
       ENDIF
 
 ! No contracted Gaussians are used here
