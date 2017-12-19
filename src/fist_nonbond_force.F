@@ -98,7 +98,7 @@ CONTAINS
       CHARACTER(LEN=*), PARAMETER :: routineN = 'force_nonbond', routineP = moduleN//':'//routineN
 
       INTEGER :: atom_a, atom_b, ewald_type, handle, i, iend, igrp, ikind, ilist, ipair, istart, &
-         istat, j, kind_a, kind_b, nkind, npairs, shell_a, shell_b, shell_type
+         j, kind_a, kind_b, nkind, npairs, shell_a, shell_b, shell_type
       INTEGER, DIMENSION(:, :), POINTER                  :: list
       LOGICAL                                            :: all_terms, do_multipoles, full_nl, &
                                                             shell_present
@@ -162,7 +162,6 @@ CONTAINS
       ALLOCATE (qcore(nkind))
       ALLOCATE (qshell(nkind))
       ALLOCATE (is_shell_kind(nkind))
-      CPASSERT(istat == 0)
       DO ikind = 1, nkind
          atomic_kind => atomic_kind_set(ikind)
          CALL get_atomic_kind(atomic_kind, &
