@@ -20,9 +20,12 @@ MODULE auto_basis
                                               dp
    USE mathconstants,                   ONLY: dfac,&
                                               fac,&
+                                              gamma1,&
                                               pi,&
                                               rootpi
    USE periodic_table,                  ONLY: get_ptable_info
+   USE powell,                          ONLY: opt_state_type,&
+                                              powell_optimize
    USE qs_kind_types,                   ONLY: get_qs_kind,&
                                               qs_kind_type
 #include "./base/base_uses.f90"
@@ -367,16 +370,19 @@ CONTAINS
 
       CHARACTER(LEN=2)                                   :: element_symbol
       CHARACTER(LEN=default_string_length)               :: bsname
-      INTEGER                                            :: i, ii, iset, l, laux, lmax, lval, &
-                                                            maxpgf, np, nsets, nx, z
+      INTEGER                                            :: i, iset, l, laux, lmax, lval, maxpgf, &
+                                                            mx, nf, np, nsets, nx, z
       INTEGER, DIMENSION(0:9)                            :: nfun, nval
       INTEGER, DIMENSION(0:9, 1:20)                      :: nl
       INTEGER, DIMENSION(1:20)                           :: lset, npgf
       INTEGER, DIMENSION(:), POINTER                     :: econf
-      REAL(KIND=dp)                                      :: acmin, amax, amin, bmin, zval
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: zet
+      REAL(KIND=dp)                                      :: amet, z1, z2, zvel
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: zval
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: gcval, zet
       REAL(KIND=dp), DIMENSION(0:9)                      :: zeff, zmax, zmin
+      REAL(KIND=dp), DIMENSION(25)                       :: afit, xval
       TYPE(gto_basis_set_type), POINTER                  :: orb_basis_set
+      TYPE(opt_state_type)                               :: ostate
 
       !
       CPABORT("Automatic basis set generation not activated")
@@ -386,13 +392,13 @@ CONTAINS
       CALL get_qs_kind(qs_kind, basis_set=orb_basis_set, basis_type="ORB")
       IF (ASSOCIATED(orb_basis_set)) THEN
          CALL get_basis_keyfigures(orb_basis_set, lmax, zmin, zmax, zeff)
-         CALL get_qs_kind(qs_kind, zeff=zval, elec_conf=econf, element_symbol=element_symbol)
+         CALL get_qs_kind(qs_kind, zeff=zvel, elec_conf=econf, element_symbol=element_symbol)
          CALL get_ptable_info(element_symbol, ielement=z)
          lval = 0
          DO l = 0, MAXVAL(UBOUND(econf))
             IF (econf(l) > 0) lval = l
          END DO
-         IF (SUM(econf) /= NINT(zval)) THEN
+         IF (SUM(econf) /= NINT(zvel)) THEN
             CPWARN("Valence charge and electron configuration not consistent")
          END IF
          nval = 0
@@ -436,18 +442,22 @@ CONTAINS
          CASE DEFAULT
             CPABORT("Invalid value of control variable")
          END SELECT
+         !
          nsets = 0
          maxpgf = 0
          DO l = 0, lval
+            z1 = MAX(zmin(l), 0.10_dp+l*0.025_dp)
+            z2 = zmax(l)
+            mx = NINT(LOG(z2/z1)/LOG(5.0_dp)+0.5_dp)
             IF (nval(l) > 1) THEN
                nsets = nsets+2
-               maxpgf = MAX(maxpgf, nval(l), 3)
+               maxpgf = MAX(maxpgf, nval(l), mx, 3)
             ELSEIF (nval(l) == 1) THEN
                nsets = nsets+1
-               maxpgf = MAX(maxpgf, 3)
+               maxpgf = MAX(maxpgf, mx, 3)
             END IF
             DO i = nval(l)+1, nfun(l)
-               maxpgf = MAX(maxpgf, 1)
+               maxpgf = MAX(maxpgf, mx, 1)
                nsets = nsets+1
             END DO
          END DO
@@ -460,101 +470,94 @@ CONTAINS
          zet = 0.0_dp
          nl = 0
          iset = 0
-         DO l = 0, lval
+         DO l = 0, laux
+            amet = 2.50_dp
+            ! optimize exponensts
+            z1 = MAX(zmin(l), 0.20_dp+l*0.025_dp)
+            z2 = zmax(l)
+            mx = NINT(LOG(z2/z1)/LOG(4.0_dp)+0.5_dp)
             IF (nval(l) > 1) THEN
+               nx = MAX(nfun(l), mx, 3)
+            ELSE IF (nval(l) == 1) THEN
+               nx = MAX(nfun(l), mx, 2)
+            ELSE
+               nx = nfun(l)
+            END IF
+            CPASSERT(nx <= 25)
+            ! Powell optimizer
+            CALL get_basis_functions(orb_basis_set, l, np, nf, zval, gcval)
+            ostate%nf = 0
+            ostate%nvar = nx
+            xval(:) = 5.00_dp
+            xval(1) = z1
+            ostate%rhoend = 1.e-8_dp
+            ostate%rhobeg = 5.e-1_dp
+            ostate%maxfun = 1000
+            ostate%iprint = 0
+            ostate%unit = 0
+            ostate%state = 0
+            DO
+               IF (ostate%state == 2) THEN
+                  afit(1) = xval(1)
+                  DO i = 2, nx
+                     afit(i) = afit(i-1)*xval(i)
+                  END DO
+                  CALL overlap_maximum(l, np, nf, zval, gcval, nx, afit, amet, ostate%f)
+                  CALL neb_potential(xval, ostate%nvar, ostate%f)
+               END IF
+               IF (ostate%state == -1) EXIT
+               CALL powell_optimize(ostate%nvar, xval, ostate)
+            END DO
+            ostate%state = 8
+            CALL powell_optimize(ostate%nvar, xval, ostate)
+            afit(1) = xval(1)
+            DO i = 2, nx
+               afit(i) = afit(i-1)*xval(i)
+            END DO
+            DEALLOCATE (zval, gcval)
+            !
+            IF (nval(l) > 1) THEN
+               ! split set
                iset = iset+1
                lset(iset) = l
-               nx = MAX(nval(l), 3)
-               npgf(iset) = nx
+               npgf(iset) = nx-1
                nl(l, iset) = nval(l)-1
-               np = nx+2
-               amax = zmax(l)
-               amin = MIN(10._dp*zmin(l), zeff(l))
-               bmin = (amax/amin)**(1._dp/(np-1))
-               bmin = MIN(bmin, 8.0_dp)
-               acmin = amax/(bmin)**(np-3)
-               DO i = 1, np
-                  zet(i, iset) = amax/bmin**(np-1)
-               END DO
+               zet(1:nx-1, iset) = afit(1:nx-1)
                ! new set
                iset = iset+1
                lset(iset) = l
-               nx = 2
-               npgf(iset) = nx
+               npgf(iset) = nx-1
                nl(l, iset) = 1
-               np = nx+(nfun(l)-nval(l))
-               amax = acmin
-               amin = MAX(zmin(l), 0.10_dp+l*0.025_dp)
-               bmin = (amax/amin)**(1.0_dp/(np-1))
-               bmin = MIN(bmin, 6.0_dp)
-               amax = amin*bmin**(np-1)
-               zet(1, iset) = amax
-               zet(2, iset) = amax/bmin
+               zet(1:nx-1, iset) = afit(2:nx)
+               DO i = 1, nfun(l)-2
+                  iset = iset+1
+                  lset(iset) = l
+                  npgf(iset) = 1
+                  zet(1, iset) = afit(nx-i+1)
+                  nl(l, iset) = 1
+               END DO
             ELSEIF (nval(l) == 1) THEN
                iset = iset+1
                lset(iset) = l
-               nx = 3
                npgf(iset) = nx
+               zet(1:nx, iset) = afit(1:nx)
                nl(l, iset) = 1
-               np = nx+(nfun(l)-nval(l))
-               amax = zmax(l)
-               amin = MAX(zmin(l), 0.10_dp+l*0.025_dp)
-               amin = MIN(amin, zeff(l))
-               bmin = (amax/amin)**(1.0_dp/(np-1))
-               bmin = MIN(bmin, 6.0_dp)
-               amax = amin*bmin**(np-1)
-               zet(1, iset) = amax
-               zet(2, iset) = amax/bmin
-               zet(3, iset) = amax/bmin/bmin
+               DO i = 1, nfun(l)-1
+                  iset = iset+1
+                  lset(iset) = l
+                  npgf(iset) = 1
+                  zet(1, iset) = afit(nx-i+1)
+                  nl(l, iset) = 1
+               END DO
             ELSE
-               nx = 0
-               np = nx+(nfun(l)-nval(l))
-               IF (np == 1) THEN
-                  amin = zeff(l)
-                  bmin = 2.00_dp
-               ELSEIF (np == 2) THEN
-                  amin = zeff(l)
-                  bmin = zmax(l)/amin
-                  bmin = MIN(4.0_dp, bmin)
-               ELSE
-                  bmin = (zmax(l)/zeff(l))**(1._dp/(np-2))
-                  bmin = MIN(4.0_dp, bmin)
-                  amin = zeff(l)/bmin
-               END IF
+               DO i = 1, nfun(l)
+                  iset = iset+1
+                  lset(iset) = l
+                  npgf(iset) = 1
+                  zet(1, iset) = afit(i)
+                  nl(l, iset) = 1
+               END DO
             END IF
-            DO i = nfun(l), nval(l)+1, -1
-               iset = iset+1
-               npgf(iset) = 1
-               lset(iset) = l
-               nl(l, iset) = 1
-               ii = i-nval(l)-1
-               zet(1, iset) = amin*bmin**ii
-            END DO
-         END DO
-         DO l = lval+1, laux
-            acmin = MAX(zeff(l), 0.10_dp+l*0.025_dp)
-            np = nfun(l)
-            bmin = 2.25_dp
-            ii = -(np-1)/2
-            amin = acmin*bmin**ii
-            IF (amin < zmin(l)) THEN
-               CPASSERT(ii /= 0)
-               bmin = (acmin/zmin(l))**(1._dp/REAL(-ii, dp))
-            END IF
-            ii = np/2
-            amax = acmin*bmin**ii
-            IF (amax > zmax(l)) THEN
-               CPASSERT(ii /= 0)
-               bmin = (zmax(l)/acmin)**(1._dp/REAL(ii, dp))
-            END IF
-            DO i = nfun(l), 1, -1
-               iset = iset+1
-               npgf(iset) = 1
-               lset(iset) = l
-               nl(l, iset) = 1
-               ii = -(np-1)/2+i-1
-               zet(1, iset) = acmin*bmin**ii
-            END DO
          END DO
          !
          bsname = TRIM(element_symbol)//"-AUX-FIT-"//TRIM(orb_basis_set%name)
@@ -677,5 +680,188 @@ CONTAINS
 
    END SUBROUTINE get_basis_products
 ! **************************************************************************************************
+!> \brief ...
+!> \param lm ...
+!> \param npgf ...
+!> \param nfun ...
+!> \param zet ...
+!> \param gcc ...
+!> \param nfit ...
+!> \param afit ...
+!> \param amet ...
+!> \param eval ...
+! **************************************************************************************************
+   SUBROUTINE overlap_maximum(lm, npgf, nfun, zet, gcc, nfit, afit, amet, eval)
+      INTEGER, INTENT(IN)                                :: lm, npgf, nfun
+      REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: zet
+      REAL(KIND=dp), DIMENSION(:, :), INTENT(IN)         :: gcc
+      INTEGER, INTENT(IN)                                :: nfit
+      REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: afit
+      REAL(KIND=dp), INTENT(IN)                          :: amet
+      REAL(KIND=dp), INTENT(OUT)                         :: eval
+
+      CHARACTER(len=*), PARAMETER :: routineN = 'overlap_maximum', &
+         routineP = moduleN//':'//routineN
+
+      INTEGER                                            :: i, ia, ib, info
+      REAL(KIND=dp)                                      :: fij, fxij, intab, p, xij
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: fx, tx, x2, xx
+
+      ! SUM_i(fi M fi)
+      fij = 0.0_dp
+      DO ia = 1, npgf
+         DO ib = 1, npgf
+            p = zet(ia)+zet(ib)+amet
+            intab = 0.5_dp/p**(lm+1.5_dp)*gamma1(lm+1)
+            DO i = 1, nfun
+               fij = fij+gcc(ia, i)*gcc(ib, i)*intab
+            END DO
+         END DO
+      END DO
+
+      !Integrals (fi M xj)
+      ALLOCATE (fx(nfit, nfun), tx(nfit, nfun))
+      fx = 0.0_dp
+      DO ia = 1, npgf
+         DO ib = 1, nfit
+            p = zet(ia)+afit(ib)+amet
+            intab = 0.5_dp/p**(lm+1.5_dp)*gamma1(lm+1)
+            DO i = 1, nfun
+               fx(ib, i) = fx(ib, i)+gcc(ia, i)*intab
+            END DO
+         END DO
+      END DO
+
+      !Integrals (xi M xj)
+      ALLOCATE (xx(nfit, nfit), x2(nfit, nfit))
+      DO ia = 1, nfit
+         DO ib = 1, nfit
+            p = afit(ia)+afit(ib)+amet
+            xx(ia, ib) = 0.5_dp/p**(lm+1.5_dp)*gamma1(lm+1)
+         END DO
+      END DO
+
+      !Solve for tab
+      tx(1:nfit, 1:nfun) = fx(1:nfit, 1:nfun)
+      x2(1:nfit, 1:nfit) = xx(1:nfit, 1:nfit)
+      CALL DPOSV("U", nfit, nfun, x2, nfit, tx, nfit, info)
+      IF (info == 0) THEN
+         ! value t*xx*t
+         xij = 0.0_dp
+         DO i = 1, nfun
+            xij = xij+DOT_PRODUCT(tx(:, i), MATMUL(xx, tx(:, i)))
+         END DO
+         ! value t*fx
+         fxij = 0.0_dp
+         DO i = 1, nfun
+            fxij = fxij+DOT_PRODUCT(tx(:, i), fx(:, i))
+         END DO
+         !
+         eval = fij-2.0_dp*fxij+xij
+      ELSE
+         ! error in solving for max overlap
+         eval = 1.0e10_dp
+      END IF
+
+      DEALLOCATE (fx, xx, x2, tx)
+
+   END SUBROUTINE overlap_maximum
+! **************************************************************************************************
+!> \brief ...
+!> \param x ...
+!> \param n ...
+!> \param eval ...
+! **************************************************************************************************
+   SUBROUTINE neb_potential(x, n, eval)
+      REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: x
+      INTEGER, INTENT(IN)                                :: n
+      REAL(KIND=dp), INTENT(INOUT)                       :: eval
+
+      CHARACTER(len=*), PARAMETER :: routineN = 'neb_potential', routineP = moduleN//':'//routineN
+
+      INTEGER                                            :: i
+
+      DO i = 2, n
+         IF (x(i) < 1.5_dp) THEN
+            eval = eval+10.0_dp*(1.5_dp-x(i))**2
+         END IF
+      END DO
+
+   END SUBROUTINE neb_potential
+! **************************************************************************************************
+!> \brief ...
+!> \param basis_set ...
+!> \param lin ...
+!> \param np ...
+!> \param nf ...
+!> \param zval ...
+!> \param gcval ...
+! **************************************************************************************************
+   SUBROUTINE get_basis_functions(basis_set, lin, np, nf, zval, gcval)
+      TYPE(gto_basis_set_type), POINTER                  :: basis_set
+      INTEGER, INTENT(IN)                                :: lin
+      INTEGER, INTENT(OUT)                               :: np, nf
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: zval
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: gcval
+
+      CHARACTER(len=*), PARAMETER :: routineN = 'get_basis_functions', &
+         routineP = moduleN//':'//routineN
+
+      INTEGER                                            :: iset, ishell, j1, j2, jf, jp, l, nset
+      INTEGER, DIMENSION(:), POINTER                     :: lm, npgf, nshell
+      INTEGER, DIMENSION(:, :), POINTER                  :: lshell
+      LOGICAL                                            :: toadd
+      REAL(KIND=dp), DIMENSION(:, :), POINTER            :: zet
+      REAL(KIND=dp), DIMENSION(:, :, :), POINTER         :: gcc
+
+      CALL get_gto_basis_set(gto_basis_set=basis_set, &
+                             nset=nset, &
+                             nshell=nshell, &
+                             npgf=npgf, &
+                             l=lshell, &
+                             lmax=lm, &
+                             zet=zet, &
+                             gcc=gcc)
+
+      np = 0
+      nf = 0
+      DO iset = 1, nset
+         toadd = .TRUE.
+         DO ishell = 1, nshell(iset)
+            l = lshell(ishell, iset)
+            IF (l == lin) THEN
+               nf = nf+1
+               IF (toadd) THEN
+                  np = np+npgf(iset)
+                  toadd = .FALSE.
+               END IF
+            END IF
+         END DO
+      END DO
+      ALLOCATE (zval(np), gcval(np, nf))
+      zval = 0.0_dp
+      gcval = 0.0_dp
+      !
+      jp = 0
+      jf = 0
+      DO iset = 1, nset
+         toadd = .TRUE.
+         DO ishell = 1, nshell(iset)
+            l = lshell(ishell, iset)
+            IF (l == lin) THEN
+               jf = jf+1
+               IF (toadd) THEN
+                  j1 = jp+1
+                  j2 = jp+npgf(iset)
+                  zval(j1:j2) = zet(1:npgf(iset), iset)
+                  jp = jp+npgf(iset)
+                  toadd = .FALSE.
+               END IF
+               gcval(j1:j2, jf) = gcc(1:npgf(iset), ishell, iset)
+            END IF
+         END DO
+      END DO
+
+   END SUBROUTINE get_basis_functions
 
 END MODULE auto_basis
