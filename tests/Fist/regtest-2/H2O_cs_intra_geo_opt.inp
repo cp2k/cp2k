@@ -1,0 +1,136 @@
+&GLOBAL
+ PROJECT H2O_cs_intra_geo_opt
+ RUN_TYPE geo_opt
+ PRINT_LEVEL low
+&END GLOBAL
+
+&MOTION
+ &GEO_OPT
+  OPTIMIZER BFGS
+  MAX_ITER 200
+  MAX_DR 0.001
+  RMS_DR 0.0003
+  MAX_FORCE 0.0001
+  RMS_FORCE 0.00003
+ &END GEO_OPT
+ &PRINT
+  &FORCES off
+  &END FORCES
+  &RESTART off
+  &END RESTART
+  &RESTART_HISTORY off
+  &END RESTART_HISTORY
+  &TRAJECTORY
+   FORMAT xyz
+   &EACH
+    GEO_OPT 1
+    MD 1
+   &END EACH
+  &END TRAJECTORY
+ &END PRINT
+&END MOTION
+
+&FORCE_EVAL
+ METHOD FIST
+ STRESS_TENSOR ANALYTICAL
+ &MM
+  &FORCEFIELD
+   IGNORE_MISSING_CRITICAL_PARAMS yes
+   &CHARGE
+    ATOM HW04
+    CHARGE 0.4
+   &END CHARGE
+   &SHELL O08
+    CORE_CHARGE 1.25
+    K2_SPRING [angstrom^-2*eV] 74.92
+    SHELL_CHARGE -2.05
+   &END SHELL
+   &BOND
+    ATOMS HW04 O08
+    K [eV] 6.203713 [angstrom^-1] 2.22003
+    KIND Morse
+    R0 [angstrom] 0.92
+   &END BOND
+   &BEND
+    ATOMS HW04 O08 HW04
+    KIND Harmonic
+    K [rad^-2kcalmol] 110.0
+    THETA0 [deg] 104.52
+   &END BEND
+   &NONBONDED
+    &BUCKMORSE
+     ATOMS HW04 O2
+     A1 0.0
+     A2 0.0
+     B1 [angstrom] 0.25
+     B2 0.0
+     BETA 0.0
+     C 0.0
+     D 0.0
+     F0 [angstrom^-1*eV] 1247.88
+     R0 0.0
+     RCUT [angstrom] 12.0
+    &END BUCKMORSE
+    &BUCKMORSE
+     ATOMS HW04 O08
+     A1 0.0
+     A2 0.0
+     B1 [angstrom] 0.25
+     B2 0.0
+     BETA 0.0
+     C 0.0
+     D 0.0
+     F0 [angstrom^-1*eV] 1585.08
+     R0 0.0
+     RCUT [angstrom] 12.0
+    &END BUCKMORSE
+    &LENNARD-JONES
+     ATOMS O08 O08
+     EPSILON [eV] 0.0113
+     RCUT [angstrom] 12.0
+     SIGMA [angstrom] 3.1262
+    &END LENNARD-JONES
+   &END NONBONDED
+   &SPLINE
+    EMAX_ACCURACY [hartree] 0.02
+    EMAX_SPLINE [hartree] 1.0E4
+    EPS_SPLINE [hartree] 1.0E-7
+    R0_NB [angstrom] 0.1
+   &END SPLINE
+  &END FORCEFIELD
+  &POISSON
+   &EWALD
+    EWALD_TYPE spme
+    ALPHA 0.3
+    GMAX 64
+    O_SPLINE 6
+    RCUT 12.0
+   &END EWALD
+  &END POISSON
+ &END MM
+ &PRINT
+  &FORCES on
+  &END FORCES
+ &END PRINT
+ &SUBSYS
+  &CELL
+   ABC 25.0 25.0 25.0
+  &END CELL
+  &COORD
+   O08       1.2029334001        0.1494430960        0.3036868564 H2O 1
+   HW04      1.1676119556        0.9765445237        0.7107609366 H2O 1
+   HW04      1.2981222093        0.3654570902       -0.5853067397 H2O 1
+   O08       1.2266545974        3.3141085089        0.1132627091 H2O 2
+   HW04      0.4971928597        3.8718588865        0.0369535581 H2O 2
+   HW04      1.9403144600        3.8917876756        0.1901927378 H2O 2
+  &END COORD
+  &PRINT
+   &TOPOLOGY_INFO
+    GENERATE_INFO
+   &END TOPOLOGY_INFO
+  &END PRINT
+  &TOPOLOGY
+   CONN_FILE_FORMAT generate
+  &END TOPOLOGY
+ &END SUBSYS
+&END FORCE_EVAL

@@ -21,8 +21,12 @@ H2O-32_SPME_fixed.inp                                  2    1.0E-14            -
 H2O-32_SPME_fixed_mol.inp                              2    1.0E-14            -0.629346529701E+00
 nacl_wat.inp                                           2    1.0E-14            -0.911029622425E+01
 #Stress Tensor automatic debug
-H2O-ST_debug.inp                 42     4e-03         1.9802000000000001e-06
+H2O-ST_debug.inp                                      42      4e-03         1.9802000000000001e-06
 #new colvars (position diagonal and cross term)
-H2O-32_SPME_fixed_clv.inp                              2      5e-12        -8.0220274432699995e-05
+H2O-32_SPME_fixed_clv.inp                              2      5e-12        -8.0220274432699995E-05
 H2O-32_SPME_fixed_cross_clv.inp                        2    1.0E-14            -0.452324222648E-02
+# Core-shell atoms plus intra-molecular forces
+H2O_cs_intra_debug.inp                                54    1.0E-14             0.0E+00
+H2O_cs_intra_debug.inp                                82    1.0E-14             0.00000157
+H2O_cs_intra_geo_opt.inp                              11    1.0E-14            -0.917699614533378
 #EOF
