@@ -82,7 +82,8 @@ CONTAINS
       LOGICAL                                            :: check_failed, debug_forces, &
                                                             debug_stress_tensor, skip, &
                                                             stop_on_mismatch
-      REAL(KIND=dp)                                      :: dx, eps_no_error_check, std_value
+      REAL(KIND=dp)                                      :: difference, dx, eps_no_error_check, &
+                                                            std_value, sum_of_differences
       REAL(KIND=dp), DIMENSION(2)                        :: numer_energy
       REAL(KIND=dp), DIMENSION(3)                        :: err, my_maxerr
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: analyt_forces, numer_forces
@@ -280,9 +281,14 @@ CONTAINS
                WRITE (UNIT=iw, FMT="(/,T2,A)") &
                   "DEBUG| Atom  Coordinate   f(numerical)   f(analytical)   Difference   Error [%]"
                DO k = 1, 3
-                  WRITE (UNIT=iw, FMT="(T2,A,I5,T19,A1,T26,F14.8,T42,F14.8,T57,F12.8,T71,F10.2)") &
-                     "DEBUG|", ip, ACHAR(119+k), numer_forces(ip, k), analyt_forces(ip, k), &
-                     analyt_forces(ip, k)-numer_forces(ip, k), err(k)
+                  difference = analyt_forces(ip, k)-numer_forces(ip, k)
+                  IF (ABS(analyt_forces(ip, k)) >= eps_no_error_check) THEN
+                     WRITE (UNIT=iw, FMT="(T2,A,I5,T19,A1,T26,F14.8,T42,F14.8,T57,F12.8,T71,F10.2)") &
+                        "DEBUG|", ip, ACHAR(119+k), numer_forces(ip, k), analyt_forces(ip, k), difference, err(k)
+                  ELSE
+                     WRITE (UNIT=iw, FMT="(T2,A,I5,T19,A1,T26,F14.8,T42,F14.8,T57,F12.8,T80,A1)") &
+                        "DEBUG|", ip, ACHAR(119+k), numer_forces(ip, k), analyt_forces(ip, k), difference, "-"
+                  END IF
                END DO
             END IF
             IF (ANY(ABS(err(1:3)) > my_maxerr(1:3))) THEN
@@ -301,21 +307,24 @@ CONTAINS
             WRITE (UNIT=iw, FMT="(/,(T2,A))") &
                "DEBUG|======================== BEGIN OF SUMMARY ===============================", &
                "DEBUG| Atom  Coordinate   f(numerical)   f(analytical)   Difference   Error [%]"
+            sum_of_differences = 0.0_dp
             DO ip = 1, np
                err(1:3) = 0.0_dp
                DO k = 1, 3
+                  difference = analyt_forces(ip, k)-numer_forces(ip, k)
                   IF (ABS(analyt_forces(ip, k)) >= eps_no_error_check) THEN
                      err(k) = 100_dp*(numer_forces(ip, k)-analyt_forces(ip, k))/analyt_forces(ip, k)
                      WRITE (UNIT=iw, FMT="(T2,A,I5,T19,A1,T26,F14.8,T42,F14.8,T57,F12.8,T71,F10.2)") &
-                        "DEBUG|", ip, ACHAR(119+k), numer_forces(ip, k), analyt_forces(ip, k), &
-                        analyt_forces(ip, k)-numer_forces(ip, k), err(k)
+                        "DEBUG|", ip, ACHAR(119+k), numer_forces(ip, k), analyt_forces(ip, k), difference, err(k)
                   ELSE
-                     WRITE (UNIT=iw, FMT="(T2,A,I5,T19,A1,T26,F14.8,T42,F14.8,T57,F12.8)") &
-                        "DEBUG|", ip, ACHAR(119+k), numer_forces(ip, k), analyt_forces(ip, k), &
-                        analyt_forces(ip, k)-numer_forces(ip, k)
+                     WRITE (UNIT=iw, FMT="(T2,A,I5,T19,A1,T26,F14.8,T42,F14.8,T57,F12.8,T80,A1)") &
+                        "DEBUG|", ip, ACHAR(119+k), numer_forces(ip, k), analyt_forces(ip, k), difference, "-"
                   END IF
+                  sum_of_differences = sum_of_differences+ABS(difference)
                END DO
             END DO
+            WRITE (UNIT=iw, FMT="(T2,A,T57,F12.8)") &
+               "DEBUG| Sum of differences:", sum_of_differences
             WRITE (UNIT=iw, FMT="(T2,A)") &
                "DEBUG|======================== END OF SUMMARY ================================="
          END IF

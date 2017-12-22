@@ -121,11 +121,12 @@ CONTAINS
          nparticle_local, nshell, shell_index
       LOGICAL                                            :: do_multipoles, shell_model_ad, &
                                                             shell_present, use_virial
-      REAL(KIND=dp) :: ef_ener, mass, massc, masss, pot_bend, pot_bond, pot_imptors, pot_manybody, &
-         pot_nonbond, pot_opbend, pot_shell, pot_torsion, pot_urey_bradley, umass, vg_coulomb, &
-         xdum1, xdum2, xdum3
+      REAL(KIND=dp) :: ef_ener, fc, fs, mass, pot_bend, pot_bond, pot_imptors, pot_manybody, &
+         pot_nonbond, pot_opbend, pot_shell, pot_torsion, pot_urey_bradley, vg_coulomb, xdum1, &
+         xdum2, xdum3
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :) :: ef_f, f_nonbond, f_total, fcore_nonbond, &
-         fcore_total, fg_coulomb, fgcore_coulomb, fgshell_coulomb, fshell_nonbond, fshell_total
+         fcore_shell_bonded, fcore_total, fg_coulomb, fgcore_coulomb, fgshell_coulomb, &
+         fshell_nonbond, fshell_total
       REAL(KIND=dp), DIMENSION(3, 3)                     :: ef_pv, ident, pv_bc, pv_bend, pv_bond, &
                                                             pv_g, pv_imptors, pv_nonbond, &
                                                             pv_opbend, pv_torsion, pv_urey_bradley
@@ -205,6 +206,7 @@ CONTAINS
       ENDDO
 
       ALLOCATE (f_nonbond(3, natoms))
+      f_nonbond = 0.0_dp
 
       nshell = 0
       IF (shell_present) THEN
@@ -214,7 +216,9 @@ CONTAINS
          CPASSERT(ASSOCIATED(core_particle_set))
          nshell = SIZE(shell_particle_set)
          ALLOCATE (fshell_nonbond(3, nshell))
+         fshell_nonbond = 0.0_dp
          ALLOCATE (fcore_nonbond(3, nshell))
+         fcore_nonbond = 0.0_dp
       ELSE
          NULLIFY (shell_particle_set, core_particle_set)
       END IF
@@ -302,15 +306,6 @@ CONTAINS
                                atomic_kind_set=atomic_kind_set, use_virial=use_virial)
             CALL force_nonbond_manybody(fist_nonbond_env, particle_set, cell, f_nonbond, pv_nonbond, &
                                         use_virial=use_virial)
-         END IF
-      ELSE
-         f_nonbond = 0.0_dp
-         IF (shell_present) THEN
-            fshell_nonbond = 0.0_dp
-            fcore_nonbond = 0.0_dp
-         END IF
-         IF (use_virial) THEN
-            pv_nonbond = 0.0_dp
          END IF
       END IF
 
@@ -441,7 +436,7 @@ CONTAINS
             CASE (do_ewald_spme)
                ! Parallelisation over grids --> allocate all atoms
                IF (shell_present) THEN
-                  ! Check if an array of chagres was provided and in case abort due to lack of implementation
+                  ! Check if an array of charges was provided and in case abort due to lack of implementation
                   IF (ASSOCIATED(fist_nonbond_env%charges)) THEN
                      CPABORT("Core-Shell and array charges not implemented!")
                   END IF
@@ -539,7 +534,27 @@ CONTAINS
                                   pot_torsion, pot_imptors, pot_opbend, pot_shell, pv_bond, pv_bend, &
                                   pv_urey_bradley, pv_torsion, pv_imptors, pv_opbend, &
                                   cell=cell, use_virial=use_virial, atprop_env=atprop_env)
-      ENDIF
+      END IF
+
+      ! Perform global sum of the intra-molecular (bonded) forces for the core-shell atoms
+      IF (shell_present .AND. shell_model_ad) THEN
+         ALLOCATE (fcore_shell_bonded(3, nshell))
+         fcore_shell_bonded = 0.0_dp
+         DO i = 1, natoms
+            shell_index = particle_set(i)%shell_index
+            IF (shell_index /= 0) THEN
+               fcore_shell_bonded(1:3, shell_index) = particle_set(i)%f(1:3)
+            END IF
+         END DO
+         CALL mp_sum(fcore_shell_bonded, para_env%group)
+         DO i = 1, natoms
+            shell_index = particle_set(i)%shell_index
+            IF (shell_index /= 0) THEN
+               particle_set(i)%f(1:3) = fcore_shell_bonded(1:3, shell_index)
+            END IF
+         END DO
+         DEALLOCATE (fcore_shell_bonded)
+      END IF
 
       IF (iw > 0) THEN
          xdum1 = cp_unit_from_cp2k(pot_bond, "kcalmol")
@@ -602,14 +617,16 @@ CONTAINS
       END DO
       IF (shell_present) THEN
          ALLOCATE (fshell_total(3, nshell))
+         fshell_total = 0.0_dp
          ALLOCATE (fcore_total(3, nshell))
+         fcore_total = 0.0_dp
          DO i = 1, nshell
-            fshell_total(1, i) = shell_particle_set(i)%f(1)+fshell_nonbond(1, i)
-            fshell_total(2, i) = shell_particle_set(i)%f(2)+fshell_nonbond(2, i)
-            fshell_total(3, i) = shell_particle_set(i)%f(3)+fshell_nonbond(3, i)
             fcore_total(1, i) = core_particle_set(i)%f(1)+fcore_nonbond(1, i)
             fcore_total(2, i) = core_particle_set(i)%f(2)+fcore_nonbond(2, i)
             fcore_total(3, i) = core_particle_set(i)%f(3)+fcore_nonbond(3, i)
+            fshell_total(1, i) = shell_particle_set(i)%f(1)+fshell_nonbond(1, i)
+            fshell_total(2, i) = shell_particle_set(i)%f(2)+fshell_nonbond(2, i)
+            fshell_total(3, i) = shell_particle_set(i)%f(3)+fshell_nonbond(3, i)
          END DO
       END IF
 
@@ -632,7 +649,6 @@ CONTAINS
             DO iparticle_local = 1, nparticle_local
                ii = local_particles%list(iparticle_kind)%array(iparticle_local)
                node = node+1
-
                f_total(1, ii) = f_total(1, ii)+fg_coulomb(1, node)
                f_total(2, ii) = f_total(2, ii)+fg_coulomb(2, node)
                f_total(3, ii) = f_total(3, ii)+fg_coulomb(3, node)
@@ -690,8 +706,8 @@ CONTAINS
       ! Sum total forces
       CALL mp_sum(f_total, para_env%group)
       IF (shell_present .AND. shell_model_ad) THEN
-         CALL mp_sum(fshell_total, para_env%group)
          CALL mp_sum(fcore_total, para_env%group)
+         CALL mp_sum(fshell_total, para_env%group)
       END IF
 
       ! contributions from fields (currently all quantities are fully replicated!)
@@ -709,33 +725,26 @@ CONTAINS
       CASE (do_ewald_spme, do_ewald_pme)
          IF (shell_present .AND. shell_model_ad) THEN
             DO i = 1, natoms
-               IF (particle_set(i)%shell_index /= 0) THEN
+               shell_index = particle_set(i)%shell_index
+               IF (shell_index == 0) THEN
+                  particle_set(i)%f(1:3) = f_total(1:3, i)+fg_coulomb(1:3, i)
+               ELSE
                   atomic_kind => particle_set(i)%atomic_kind
                   CALL get_atomic_kind(atomic_kind=atomic_kind, shell=shell, mass=mass)
-                  umass = 1.0_dp/mass
-                  massc = shell%mass_core*umass
-                  masss = shell%mass_shell*umass
-                  shell_index = particle_set(i)%shell_index
-                  fshell_total(1, shell_index) = fshell_total(1, shell_index)+particle_set(i)%f(1)*masss
-                  fshell_total(2, shell_index) = fshell_total(2, shell_index)+particle_set(i)%f(2)*masss
-                  fshell_total(3, shell_index) = fshell_total(3, shell_index)+particle_set(i)%f(3)*masss
-                  fcore_total(1, shell_index) = fcore_total(1, shell_index)+particle_set(i)%f(1)*massc
-                  fcore_total(2, shell_index) = fcore_total(2, shell_index)+particle_set(i)%f(2)*massc
-                  fcore_total(3, shell_index) = fcore_total(3, shell_index)+particle_set(i)%f(3)*massc
-               ELSE
-                  particle_set(i)%f(1) = f_total(1, i)+fg_coulomb(1, i)
-                  particle_set(i)%f(2) = f_total(2, i)+fg_coulomb(2, i)
-                  particle_set(i)%f(3) = f_total(3, i)+fg_coulomb(3, i)
+                  fc = shell%mass_core/mass
+                  fcore_total(1:3, shell_index) = fcore_total(1:3, shell_index)+particle_set(i)%f(1:3)*fc
+                  fs = shell%mass_shell/mass
+                  fshell_total(1:3, shell_index) = fshell_total(1:3, shell_index)+particle_set(i)%f(1:3)*fs
                END IF
             END DO
 
             DO i = 1, nshell
-               shell_particle_set(i)%f(1) = fshell_total(1, i)+fgshell_coulomb(1, i)
-               shell_particle_set(i)%f(2) = fshell_total(2, i)+fgshell_coulomb(2, i)
-               shell_particle_set(i)%f(3) = fshell_total(3, i)+fgshell_coulomb(3, i)
                core_particle_set(i)%f(1) = fcore_total(1, i)+fgcore_coulomb(1, i)
                core_particle_set(i)%f(2) = fcore_total(2, i)+fgcore_coulomb(2, i)
                core_particle_set(i)%f(3) = fcore_total(3, i)+fgcore_coulomb(3, i)
+               shell_particle_set(i)%f(1) = fshell_total(1, i)+fgshell_coulomb(1, i)
+               shell_particle_set(i)%f(2) = fshell_total(2, i)+fgshell_coulomb(2, i)
+               shell_particle_set(i)%f(3) = fshell_total(3, i)+fgshell_coulomb(3, i)
             END DO
 
          ELSEIF (shell_present .AND. .NOT. shell_model_ad) THEN
@@ -750,32 +759,25 @@ CONTAINS
       CASE (do_ewald_ewald, do_ewald_none)
          IF (shell_present .AND. shell_model_ad) THEN
             DO i = 1, natoms
-               IF (particle_set(i)%shell_index /= 0) THEN
+               shell_index = particle_set(i)%shell_index
+               IF (shell_index == 0) THEN
+                  particle_set(i)%f(1:3) = f_total(1:3, i)
+               ELSE
                   atomic_kind => particle_set(i)%atomic_kind
                   CALL get_atomic_kind(atomic_kind=atomic_kind, shell=shell, mass=mass)
-                  umass = 1.0_dp/mass
-                  massc = shell%mass_core*umass
-                  masss = shell%mass_shell*umass
-                  shell_index = particle_set(i)%shell_index
-                  fshell_total(1, shell_index) = fshell_total(1, shell_index)+particle_set(i)%f(1)*masss
-                  fshell_total(2, shell_index) = fshell_total(2, shell_index)+particle_set(i)%f(2)*masss
-                  fshell_total(3, shell_index) = fshell_total(3, shell_index)+particle_set(i)%f(3)*masss
-                  fcore_total(1, shell_index) = fcore_total(1, shell_index)+particle_set(i)%f(1)*massc
-                  fcore_total(2, shell_index) = fcore_total(2, shell_index)+particle_set(i)%f(2)*massc
-                  fcore_total(3, shell_index) = fcore_total(3, shell_index)+particle_set(i)%f(3)*massc
-               ELSE
-                  particle_set(i)%f(1) = f_total(1, i)
-                  particle_set(i)%f(2) = f_total(2, i)
-                  particle_set(i)%f(3) = f_total(3, i)
+                  fc = shell%mass_core/mass
+                  fcore_total(1:3, shell_index) = fcore_total(1:3, shell_index)+particle_set(i)%f(1:3)*fc
+                  fs = shell%mass_shell/mass
+                  fshell_total(1:3, shell_index) = fshell_total(1:3, shell_index)+particle_set(i)%f(1:3)*fs
                END IF
             END DO
             DO i = 1, nshell
-               shell_particle_set(i)%f(1) = fshell_total(1, i)
-               shell_particle_set(i)%f(2) = fshell_total(2, i)
-               shell_particle_set(i)%f(3) = fshell_total(3, i)
                core_particle_set(i)%f(1) = fcore_total(1, i)
                core_particle_set(i)%f(2) = fcore_total(2, i)
                core_particle_set(i)%f(3) = fcore_total(3, i)
+               shell_particle_set(i)%f(1) = fshell_total(1, i)
+               shell_particle_set(i)%f(2) = fshell_total(2, i)
+               shell_particle_set(i)%f(3) = fshell_total(3, i)
             END DO
          ELSEIF (shell_present .AND. .NOT. shell_model_ad) THEN
             CPABORT("Non adiabatic shell-model not implemented.")
