@@ -126,6 +126,9 @@ CONTAINS
 !>      08.2007 optimized load balance [Manuel Guidon]
 !>      09.2007 new parallelization [Manuel Guidon]
 !>      02.2009 completely rewritten screening part [Manuel Guidon]
+!>      12.2017 major bug fix. removed wrong cycle that was caussing segfault.
+!>              see https://groups.google.com/forum/#!topic/cp2k/pc6B14XOALY
+!>              [Tobias Binninger + Valery Weber]
 !> \author Manuel Guidon
 ! **************************************************************************************************
    SUBROUTINE integrate_four_center(qs_env, ks_matrix, ehfx, rho_ao, hfx_section, para_env, &
@@ -1489,6 +1492,11 @@ CONTAINS
                            nbits = EXPONENT(ANINT(spherical_estimate*pmax_entry/eps_storage))+1
                            buffer_left = nints
                            buffer_start = 1
+                           IF (.NOT. use_disk_storage) THEN
+                              neris_incore = neris_incore+INT(nints,int_8)
+                           ELSE
+                              neris_disk = neris_disk+INT(nints,int_8)
+                           END IF
                            DO WHILE (buffer_left > 0)
                               buffer_size = MIN(buffer_left, cache_size)
                               IF (.NOT. use_disk_storage) THEN
@@ -1553,27 +1561,27 @@ CONTAINS
                            nints = nsgfa(iset)*nsgfb(jset)*nsgfc(kset)*nsgfd(lset)
                            neris_total = neris_total+nints
                            nprim_ints = nprim_ints+neris_tmp
-                           IF (cartesian_estimate == 0.0_dp) cartesian_estimate = TINY(cartesian_estimate)
-                           estimate_to_store_int = EXPONENT(cartesian_estimate)
-                           estimate_to_store_int = MAX(estimate_to_store_int, -15_int_8)
-                           cartesian_estimate = SET_EXPONENT(1.0_dp, estimate_to_store_int+1)
-                           IF (.NOT. buffer_overflow .AND. my_geo_change) THEN
-                              IF (cartesian_estimate < eps_schwarz) THEN
-                                 IF (.NOT. use_disk_storage) THEN
-                                    CALL hfx_add_single_cache_element( &
-                                       estimate_to_store_int, 6, &
-                                       maxval_cache, maxval_container, memory_parameter%actual_memory_usage, &
-                                       use_disk_storage, max_val_memory)
-                                 ELSE
-                                    CALL hfx_add_single_cache_element( &
-                                       estimate_to_store_int, 6, &
-                                       maxval_cache_disk, maxval_container_disk, memory_parameter%actual_memory_usage_disk, &
-                                       use_disk_storage)
-                                 END IF
-                              END IF
-                           END IF
-
-                           IF (cartesian_estimate < eps_schwarz) CYCLE
+!                           IF (cartesian_estimate == 0.0_dp) cartesian_estimate = TINY(cartesian_estimate)
+!                           estimate_to_store_int = EXPONENT(cartesian_estimate)
+!                           estimate_to_store_int = MAX(estimate_to_store_int, -15_int_8)
+!                           cartesian_estimate = SET_EXPONENT(1.0_dp, estimate_to_store_int+1)
+!                           IF (.NOT. buffer_overflow .AND. my_geo_change) THEN
+!                              IF (cartesian_estimate < eps_schwarz) THEN
+!                                 IF (.NOT. use_disk_storage) THEN
+!                                    CALL hfx_add_single_cache_element( &
+!                                       estimate_to_store_int, 6, &
+!                                       maxval_cache, maxval_container, memory_parameter%actual_memory_usage, &
+!                                       use_disk_storage, max_val_memory)
+!                                 ELSE
+!                                    CALL hfx_add_single_cache_element( &
+!                                       estimate_to_store_int, 6, &
+!                                       maxval_cache_disk, maxval_container_disk, memory_parameter%actual_memory_usage_disk, &
+!                                       use_disk_storage)
+!                                 END IF
+!                              END IF
+!                           END IF
+!
+!                           IF (cartesian_estimate < eps_schwarz) CYCLE
 
                            !! Compress the array for storage
                            spherical_estimate = 0.0_dp
@@ -1605,9 +1613,11 @@ CONTAINS
                               buffer_left = nints
                               buffer_start = 1
                               IF (.NOT. use_disk_storage) THEN
-                                 neris_incore = neris_incore+nints
+                                 neris_incore = neris_incore+INT(nints,int_8)
+!                                 neris_incore = neris_incore+nints
                               ELSE
-                                 neris_disk = neris_disk+nints
+                                 neris_disk = neris_disk+INT(nints,int_8)
+!                                 neris_disk = neris_disk+nints
                               END IF
                               DO WHILE (buffer_left > 0)
                                  buffer_size = MIN(buffer_left, CACHE_SIZE)
