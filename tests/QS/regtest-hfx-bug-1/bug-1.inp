@@ -1,0 +1,99 @@
+! 12.2017 major bug fix. removed wrong cycle that was caussing segfault and
+!         added check on intergral (incore and disk) counts. [Tobias Binninger + Valery Weber]
+!         see https://groups.google.com/forum/#!topic/cp2k/pc6B14XOALY
+!
+! Warning: the segfault easily disappears with little modification (cell size, atomic positions, BS, ...).
+!
+ &GLOBAL
+   PRINT_LEVEL  LOW
+   PROJECT_NAME NaFeO2
+   RUN_TYPE  ENERGY
+ &END GLOBAL
+
+ &FORCE_EVAL
+   METHOD  QS
+   &DFT
+     BASIS_SET_FILE_NAME BASIS_MOLOPT
+     BASIS_SET_FILE_NAME BASIS_ADMM_lite
+     POTENTIAL_FILE_NAME GTH_POTENTIALS
+     &SCF
+       MAX_SCF  2
+       EPS_SCF     1.0E-06
+       &OT  T
+         ALGORITHM  IRAC
+         PRECONDITIONER  FULL_ALL
+         ENERGY_GAP     1.0E-01
+       &END OT
+     &END SCF
+     &QS
+      EPS_DEFAULT     1.0E-8
+     &END QS
+     &MGRID
+       CUTOFF     1.00E+02
+     &END MGRID
+
+    &AUXILIARY_DENSITY_MATRIX_METHOD
+       METHOD BASIS_PROJECTION
+       ADMM_PURIFICATION_METHOD  MO_DIAG
+    &END AUXILIARY_DENSITY_MATRIX_METHOD
+
+    &XC
+      &XC_FUNCTIONAL
+        &PBE
+          SCALE_X 0.75
+          SCALE_C 1.0
+        &END
+      &END XC_FUNCTIONAL
+      &HF
+        &SCREENING
+          EPS_SCHWARZ 1.0E-2
+          EPS_SCHWARZ_FORCES 1.0E-2
+          SCREEN_ON_INITIAL_P T
+          SCREEN_P_FORCES T
+        &END
+        &MEMORY
+          MAX_MEMORY  1
+          EPS_STORAGE_SCALING 0.1
+        &END
+        &INTERACTION_POTENTIAL
+          POTENTIAL_TYPE TRUNCATED
+          CUTOFF_RADIUS 2.0
+          T_C_G_DATA t_c_g.dat
+        &END
+        FRACTION 0.25
+      &END
+    &END XC
+  &END DFT
+
+   &SUBSYS
+     &CELL
+       A     5.5    0.0    0.0
+       B     0.0    5.7    0.0
+       C     0.0    0.0    7.1
+     &END CELL
+     &COORD
+Fe    0.0000000000000000E+00    0.0000000000000000E+00    0.0000000000000000E+00
+Fe    2.6945510356950164E+00    2.1093382598543182E+00    3.5672320716005652E+00
+Na    2.6407618353100051E+00    2.0342158468069704E+00   -2.3944311803165301E-02
+Na   -1.1141631424880116E-01    8.5248198749385246E-02    3.5276990471810978E+00
+O    1.7820335386425468E+00   -1.5033613479947458E-01    6.8220535199059515E+00
+O    4.5320148015026831E+00   -6.2171301952756242E-01    5.6073007758480786E+00
+     &END COORD
+
+     &KIND Fe
+       BASIS_SET SZV-MOLOPT-SR-GTH
+       BASIS_SET AUX_FIT cFIT13_lite
+       POTENTIAL GTH-PBE-q16
+     &END KIND
+     &KIND Na
+       BASIS_SET SZV-MOLOPT-SR-GTH
+       BASIS_SET AUX_FIT cFIT3_lite
+       POTENTIAL GTH-PBE-q9
+     &END KIND
+     &KIND O
+       BASIS_SET SZV-MOLOPT-SR-GTH
+       BASIS_SET AUX_FIT cFIT3_lite
+       POTENTIAL GTH-PBE-q6
+     &END KIND
+   &END SUBSYS
+ &END FORCE_EVAL
