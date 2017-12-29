@@ -77,6 +77,8 @@ case "$with_pexsi" in
             ln -sf "${pkg_install_dir}/lib/libpexsi_${OPENBLAS_ARCH}.a" \
                    "${pkg_install_dir}/lib/libpexsi.a"
 
+            cp -rv ./include/* ${pkg_install_dir}/include/  # bug: make install neglects most header files 
+
             touch "${install_lock_file}"
         fi
         PEXSI_CFLAGS="-I'${pkg_install_dir}/include'"
