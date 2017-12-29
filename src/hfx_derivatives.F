@@ -1242,12 +1242,12 @@ CONTAINS
                            spherical_estimate = SET_EXPONENT(1.0_dp, estimate_to_store_int+1)
 !                           IF (spherical_estimate*pmax_entry < eps_schwarz) CYCLE
                            IF (.NOT. use_virial) THEN
-                                IF (spherical_estimate*pmax_entry < eps_schwarz) CYCLE
+                              IF (spherical_estimate*pmax_entry < eps_schwarz) CYCLE
                            END IF
                            nbits = EXPONENT(ANINT(spherical_estimate*pmax_entry/eps_storage))+1
                            buffer_left = nints
                            buffer_start = 1
-                           neris_incore = neris_incore+INT(nints,int_8)
+                           neris_incore = neris_incore+INT(nints, int_8)
                            DO WHILE (buffer_left > 0)
                               buffer_size = MIN(buffer_left, cache_size)
                               CALL hfx_get_mult_cache_elements(primitive_forces(buffer_start), &
@@ -1350,7 +1350,7 @@ CONTAINS
                               buffer_left = nints
                               buffer_start = 1
 !                              neris_incore = neris_incore+nints
-                             neris_incore = neris_incore+INT(nints,int_8)
+                              neris_incore = neris_incore+INT(nints, int_8)
 
                               DO WHILE (buffer_left > 0)
                                  buffer_size = MIN(buffer_left, CACHE_SIZE)

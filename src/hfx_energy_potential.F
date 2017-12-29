@@ -1493,9 +1493,9 @@ CONTAINS
                            buffer_left = nints
                            buffer_start = 1
                            IF (.NOT. use_disk_storage) THEN
-                              neris_incore = neris_incore+INT(nints,int_8)
+                              neris_incore = neris_incore+INT(nints, int_8)
                            ELSE
-                              neris_disk = neris_disk+INT(nints,int_8)
+                              neris_disk = neris_disk+INT(nints, int_8)
                            END IF
                            DO WHILE (buffer_left > 0)
                               buffer_size = MIN(buffer_left, cache_size)
@@ -1613,10 +1613,10 @@ CONTAINS
                               buffer_left = nints
                               buffer_start = 1
                               IF (.NOT. use_disk_storage) THEN
-                                 neris_incore = neris_incore+INT(nints,int_8)
+                                 neris_incore = neris_incore+INT(nints, int_8)
 !                                 neris_incore = neris_incore+nints
                               ELSE
-                                 neris_disk = neris_disk+INT(nints,int_8)
+                                 neris_disk = neris_disk+INT(nints, int_8)
 !                                 neris_disk = neris_disk+nints
                               END IF
                               DO WHILE (buffer_left > 0)
