@@ -1,0 +1,103 @@
+# Global settings
+&GLOBAL
+  ECHO_INPUT .false.
+  PRINT_LEVEL low
+  PROGRAM_NAME cp2k
+  PROJECT_NAME hellium-pbe-3A
+  RUN_TYPE energy
+  SAVE_MEM .true.
+  SEED 50801
+  WALLTIME 01:00:00
+  &TIMINGS
+    THRESHOLD 1.0e-3
+  &END
+&END GLOBAL
+# Energy & forces calculation
+&FORCE_EVAL
+  # Electronic structure
+  METHOD qs
+  STRESS_TENSOR none
+  # DFT settings
+  &DFT
+    # Basis set & pseudopotentials
+    BASIS_SET_FILE_NAME GTH_BASIS_SETS
+    POTENTIAL_FILE_NAME GTH_POTENTIALS
+    # Charge & multiplicity
+    CHARGE 1
+    MULTIPLICITY 2
+    SPIN_POLARIZED .true.
+    # Realspace multi-grids
+    &MGRID
+      CUTOFF 200.0 
+      REL_CUTOFF 50.0
+    &END MGRID
+    # QuickStep solver setting
+    &QS
+      EPS_DEFAULT 1.0e-8
+      EXTRAPOLATION ps
+      EXTRAPOLATION_ORDER 3 
+      MAP_CONSISTENT .true.
+      METHOD GAPW
+    &END QS
+    # SCF procedure
+    &SCF
+      MAX_SCF 25
+      SCF_GUESS atomic
+      EPS_SCF 1.0e-5
+      ADDED_MOS 2
+      &DIAGONALIZATION on
+        ALGORITHM standard
+      &END DIAGONALIZATION
+      &MIXING
+        METHOD direct_p_mixing
+        ALPHA 0.5
+      &END MIXING
+      &PRINT
+        &RESTART off
+        &END
+      &END
+    &END SCF
+    # Exchange-correlation functional
+    &XC
+      &XC_FUNCTIONAL pbe
+      &END XC_FUNCTIONAL
+    &END XC
+  &END DFT
+  # Electronic coupling
+  &PROPERTIES
+    &ET_COUPLING
+      # POD method
+      &PROJECTION
+        # Donor
+        &BLOCK
+          ATOMS 1
+          NELECTRON 1
+        &END BLOCK
+        # Acceptor
+        &BLOCK
+          ATOMS 2
+          NELECTRON 1
+        &END BLOCK
+      &END PROJECTION
+    &END ET_COUPLING
+  &END PROPERTIES
+  # System description
+  &SUBSYS
+    # Cell vectors [A]
+    &CELL
+      ABC 7.000 7.000 10.000
+      ALPHA_BETA_GAMMA 90.0 90.0 90.0
+      PERIODIC xyz
+    &END CELL
+    # Coordinates [A]
+    &COORD
+      He     7.500000     7.500000     6.000000
+      He     7.500000     7.500000     9.000000
+    &END COORD
+    # Atomic types
+    &KIND He
+      BASIS_SET DZVP-GTH
+      POTENTIAL GTH-PBE
+    &END KIND
+  &END SUBSYS
+&END FORCE_EVAL

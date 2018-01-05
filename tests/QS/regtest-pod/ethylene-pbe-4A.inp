@@ -1,0 +1,111 @@
+# Global settings
+&GLOBAL
+  ECHO_INPUT .false.
+  PRINT_LEVEL low
+  PROGRAM_NAME cp2k
+  PROJECT_NAME ethylene-pbe-4A
+  RUN_TYPE energy
+  SAVE_MEM .true.
+  WALLTIME 01:00:00
+  &TIMINGS
+    THRESHOLD 1.0e-3
+  &END
+&END GLOBAL
+# Energy & forces calculation
+&FORCE_EVAL
+  # Electronic structure
+  METHOD qs
+  STRESS_TENSOR none
+  # DFT settings
+  &DFT
+    # Basis set & pseudopotentials
+    BASIS_SET_FILE_NAME GTH_BASIS_SETS
+    POTENTIAL_FILE_NAME POTENTIAL
+    # Charge & multiplicity
+    CHARGE 1
+    MULTIPLICITY 2
+    SPIN_POLARIZED .true.
+    # Realspace multi-grids
+    &MGRID
+      CUTOFF 200.0 
+      REL_CUTOFF 50.0
+    &END MGRID
+    # QuickStep solver setting
+    &QS
+      EPS_DEFAULT 1.0e-8
+      EXTRAPOLATION ps
+      EXTRAPOLATION_ORDER 3 
+      MAP_CONSISTENT .true.
+    &END QS
+    # SCF procedure
+    &SCF
+      MAX_SCF 10
+      SCF_GUESS atomic
+      EPS_SCF 1.0e-5
+      ADDED_MOS 2
+      &DIAGONALIZATION
+        ALGORITHM standard
+      &END DIAGONALIZATION
+      &PRINT
+        &RESTART off
+        &END
+      &END
+    &END SCF
+    # Exchange-correlation functional
+    &XC
+      &XC_FUNCTIONAL pbe
+      &END XC_FUNCTIONAL
+    &END XC
+  &END DFT
+  # Electronic coupling
+  &PROPERTIES
+    &ET_COUPLING
+      # POD method
+      &PROJECTION
+        # Donor
+        &BLOCK
+          ATOMS  1  2  3  4  5  6
+          NELECTRON 12
+        &END BLOCK
+        # Acceptor
+        &BLOCK
+          ATOMS  7  8  9 10 11 12
+          NELECTRON 12
+        &END BLOCK
+      &END PROJECTION
+    &END ET_COUPLING
+  &END PROPERTIES
+  # System description
+  &SUBSYS
+    # Cell vectors [A]
+    &CELL
+      ABC 8.000 10.000 8.000
+      ALPHA_BETA_GAMMA 90.0 90.0 90.0
+      PERIODIC xyz
+    &END CELL
+    # Coordinates [A]
+    &COORD
+ C         0.0000001495      -2.0000004611       0.0623172861
+ C         0.0000001471      -2.0000005746       1.3883843988
+ H         0.9209880052      -2.0000002746      -0.5055759834
+ H        -0.9209880605      -2.0000002249      -0.5055760233
+ H         0.9212802030      -2.0000000346       1.9558762357
+ H        -0.9212799857      -2.0000000210       1.9558761301
+ C         0.0000001495       1.9999995389       0.0623172861
+ C         0.0000001471       1.9999994254       1.3883843988
+ H         0.9209880052       1.9999997254      -0.5055759834
+ H        -0.9209880605       1.9999997751      -0.5055760233
+ H         0.9212802030       1.9999999654       1.9558762357
+ H        -0.9212799857       1.9999999790       1.9558761301
+    &END COORD
+    # Atomic types
+    &KIND H
+      BASIS_SET SZV-GTH
+      POTENTIAL GTH-PBE
+    &END KIND
+    &KIND C
+      BASIS_SET SZV-GTH
+      POTENTIAL GTH-PBE
+    &END KIND
+  &END SUBSYS
+&END FORCE_EVAL

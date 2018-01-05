@@ -1,0 +1,6 @@
+# POD regression test - coupling values
+hellium-pbe-3A.inp		83	1.0e-2		 0.357527E+02
+hellium-pbe-4A.inp		83	1.0e-2	 	-0.230910E+02
+hellium-pbe-5A.inp		83	1.0e-2		-0.554607E+01
+ethylene-pbe-4A.inp		83	1.0e-2		 0.199818E+02
+furane-pbe-4A.inp		83	1.0e-2		 0.146641E+02

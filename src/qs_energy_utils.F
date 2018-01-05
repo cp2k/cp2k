@@ -27,7 +27,9 @@ MODULE qs_energy_utils
         dbcsr_iterator_next_block, dbcsr_iterator_start, dbcsr_iterator_stop, dbcsr_iterator_type, &
         dbcsr_p_type, dbcsr_set, dbcsr_type
    USE et_coupling,                     ONLY: calc_et_coupling
-   USE input_section_types,             ONLY: section_vals_get_subs_vals,&
+   USE et_coupling_proj,                ONLY: calc_et_coupling_proj
+   USE input_section_types,             ONLY: section_vals_get,&
+                                              section_vals_get_subs_vals,&
                                               section_vals_type
    USE kinds,                           ONLY: dp
    USE kpoint_methods,                  ONLY: kpoint_density_matrices,&
@@ -217,14 +219,14 @@ CONTAINS
          routineP = moduleN//':'//routineN
 
       INTEGER                                            :: handle
-      LOGICAL                                            :: do_et
+      LOGICAL                                            :: do_et, do_et_proj
       TYPE(atprop_type), POINTER                         :: atprop
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(pw_env_type), POINTER                         :: pw_env
       TYPE(pw_p_type)                                    :: v_hartree_rspace
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
       TYPE(qs_energy_type), POINTER                      :: energy
-      TYPE(section_vals_type), POINTER                   :: input, rest_b_section
+      TYPE(section_vals_type), POINTER                   :: input, proj_section, rest_b_section
 
       NULLIFY (atprop, energy, pw_env)
       CALL timeset(routineN, handle)
@@ -254,6 +256,15 @@ CONTAINS
          CALL atprop_array_add(atprop%atener, atprop%atevdw)
          CALL atprop_array_add(atprop%atener, atprop%atecc)
          CALL atprop_array_add(atprop%atener, atprop%ate1c)
+      END IF
+
+      ! ET coupling - projection-operator approach
+      NULLIFY (proj_section)
+      proj_section => &
+         section_vals_get_subs_vals(qs_env%input, "PROPERTIES%ET_COUPLING%PROJECTION")
+      CALL section_vals_get(proj_section, explicit=do_et_proj)
+      IF (do_et_proj) THEN
+         CALL calc_et_coupling_proj(qs_env)
       END IF
 
       ! **********  Calculate the electron transfer coupling elements********

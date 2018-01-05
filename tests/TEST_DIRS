@@ -227,3 +227,4 @@ QS/regtest-fftw                                             fftw3
 Fist/regtest-quip                                           quip
 ATOM/regtest-libxc                                          libxc
 Fist/regtest-plumed2                                        plumed2
+QS/regtest-pod

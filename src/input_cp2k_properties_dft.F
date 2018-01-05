@@ -950,6 +950,11 @@ CONTAINS
       CALL section_add_subsection(section, subsection)
       CALL section_release(subsection)
 
+      NULLIFY (subsection)
+      CALL create_projection(subsection, "PROJECTION")
+      CALL section_add_subsection(section, subsection)
+      CALL section_release(subsection)
+
       CALL keyword_create(keyword, name="TYPE_OF_CONSTRAINT", &
                           description="Specifies the type of constraint", &
                           usage="TYPE_OF_CONSTRAINT DDAPC", &
@@ -968,6 +973,137 @@ CONTAINS
       CALL section_release(print_key)
 
    END SUBROUTINE create_et_coupling_section
+
+! **************************************************************************************************
+!> \brief defines input sections for specification of Hilbert space partitioning
+!>        in projection-operator approach of electronic coupling calulation
+!> \param section pointer to the section data structure
+!> \param section_name name of the projection section
+!> \author Z. Futera (02.2017)
+! **************************************************************************************************
+   SUBROUTINE create_projection(section, section_name)
+
+      ! Routine arguments
+      TYPE(section_type), POINTER                        :: section
+      CHARACTER(len=*), INTENT(in)                       :: section_name
+
+      CHARACTER(len=*), PARAMETER :: routineN = 'create_projection', &
+         routineP = moduleN//':'//routineN
+
+      TYPE(keyword_type), POINTER                        :: keyword
+      TYPE(section_type), POINTER                        :: print_key, section_block, section_print
+
+! Routine name for dubug purposes
+
+      ! Sanity check
+      CPASSERT(.NOT. ASSOCIATED(section))
+
+      ! Initialization
+      NULLIFY (keyword)
+      NULLIFY (print_key)
+      NULLIFY (section_block)
+      NULLIFY (section_print)
+
+      ! Input-file section definition
+      CALL section_create(section, TRIM(ADJUSTL(section_name)), &
+                          description="Projection-operator approach fo ET coupling calculation", &
+                          n_keywords=0, n_subsections=2, repeats=.FALSE.)
+
+      ! Subsection #0: Log printing
+      CALL cp_print_key_section_create(print_key, 'PROGRAM_RUN_INFO', &
+                                       description="Controls printing of data and informations to log file", &
+                                       print_level=low_print_level, filename="__STD_OUT__")
+      CALL section_add_subsection(section, print_key)
+      CALL section_release(print_key)
+
+      ! Subsection #1: Atomic blocks
+      CALL section_create(section_block, 'BLOCK', &
+                          description="Part of the system (donor, acceptor, bridge,...)", &
+                          n_keywords=2, n_subsections=1, repeats=.TRUE.)
+      CALL section_add_subsection(section, section_block)
+
+      ! S#1 - Keyword #1: Atom IDs defining a Hilbert space block
+      CALL keyword_create(keyword, name='ATOMS', &
+                          description="Array of atom IDs in the system part", &
+                          usage="ATOMS {integer} {integer} .. {integer}", &
+                          n_var=-1, type_of_var=integer_t, repeats=.FALSE.)
+      CALL section_add_keyword(section_block, keyword)
+      CALL keyword_release(keyword)
+
+      ! S#1 - Keyword #1: Atom IDs defining a Hilbert space block
+      CALL keyword_create(keyword, name='NELECTRON', &
+                          description="Number of electrons expected in the system part", &
+                          usage="NELECTRON {integer}", default_i_val=0)
+      CALL section_add_keyword(section_block, keyword)
+      CALL keyword_release(keyword)
+
+      ! S#1 - Subsection #1: Printing setting
+      CALL section_create(section_print, 'PRINT', &
+                          description="Possible printing options in ET system part", &
+                          n_keywords=0, n_subsections=0, repeats=.FALSE.)
+      CALL section_add_subsection(section_block, section_print)
+
+      ! S#1 - S#1 - Keyword #1: MO coefficient on specific atom
+      CALL keyword_create(keyword, name='MO_COEFF_ATOM', &
+                          description="Print out MO coeffiecients on given atom", &
+                          usage="MO_COEFF_ATOM {integer} {integer} .. {integer}", &
+                          type_of_var=integer_t, n_var=-1, repeats=.TRUE.)
+      CALL section_add_keyword(section_print, keyword)
+      CALL keyword_release(keyword)
+
+      ! S#1 - S#1 - Keyword #1: MO coefficient of specific state
+      CALL keyword_create(keyword, name='MO_COEFF_ATOM_STATE', &
+                          description="Print out MO coeffiecients of specific state", &
+                          usage="MO_COEFF_ATOM_STATE {integer} {integer} .. {integer}", &
+                          type_of_var=integer_t, n_var=-1, repeats=.TRUE.)
+      CALL section_add_keyword(section_print, keyword)
+      CALL keyword_release(keyword)
+
+      ! S#1 - S#1 - Subsection #1: Saving MOs to CUBE files
+      CALL cp_print_key_section_create(print_key, 'MO_CUBES', &
+                                       description="Controls saving of MO cube files", &
+                                       print_level=high_print_level, filename="")
+
+      ! S#1 - S#1 - S#1 - Keyword #1: Stride
+      CALL keyword_create(keyword, name='STRIDE', &
+                          description="The stride (X,Y,Z) used to write the cube file", &
+                          usage="STRIDE {integer} {integer} {integer}", n_var=-1, &
+                          default_i_vals=(/2, 2, 2/), type_of_var=integer_t)
+      CALL section_add_keyword(print_key, keyword)
+      CALL keyword_release(keyword)
+
+      ! S#1 - S#1 - S#1 - Keyword #2: List of MO IDs
+      CALL keyword_create(keyword, name='MO_LIST', &
+                          description="Indices of molecular orbitals to save", &
+                          usage="MO_LIST {integer} {integer} .. {integer}", &
+                          type_of_var=integer_t, n_var=-1, repeats=.TRUE.)
+      CALL section_add_keyword(print_key, keyword)
+      CALL keyword_release(keyword)
+
+      ! S#1 - S#1 - S#1 - Keyword #2: Number of unoccupied states
+      CALL keyword_create(keyword, name='NLUMO', &
+                          description="Number of unoccupied molecular orbitals to save", &
+                          usage="NLUMO {integer}", default_i_val=1)
+      CALL section_add_keyword(print_key, keyword)
+      CALL keyword_release(keyword)
+
+      ! S#1 - S#1 - S#1 - Keyword #3: Number of occupied states
+      CALL keyword_create(keyword, name='NHOMO', &
+                          description="Number of occupied molecular orbitals to save", &
+                          usage="NHOMO {integer}", default_i_val=1)
+      CALL section_add_keyword(print_key, keyword)
+      CALL keyword_release(keyword)
+
+      CALL section_add_subsection(section_print, print_key)
+      CALL section_release(print_key)
+
+      ! S#1 - S#1 - Clean
+      CALL section_release(section_print)
+
+      ! S#1 - Clean
+      CALL section_release(section_block)
+
+   END SUBROUTINE create_projection
 
 ! **************************************************************************************************
 !> \brief creates an input section for tddfpt calculation
