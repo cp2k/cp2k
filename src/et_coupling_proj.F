@@ -828,7 +828,7 @@ CONTAINS
             CALL cp_fm_to_fm(mat_u, dat(i)%matrix)
 
             ! Save state energies / vectors
-            CALL create_block_mo_set(output_unit, qs_env, ec, i, spin, mat_u, vec_e)
+            CALL create_block_mo_set(qs_env, ec, i, spin, mat_u, vec_e)
 
             ! Clean memory
             CALL cp_fm_release(matrix=mat_u)
@@ -887,7 +887,6 @@ CONTAINS
 
 ! **************************************************************************************************
 !> \brief Return sum of selected squared MO coefficients
-!> \param output_unit ...
 !> \param blk_at list of atoms in the block
 !> \param mo array of MO sets
 !> \param id state index
@@ -895,12 +894,11 @@ CONTAINS
 !> \retval c2 ...
 !> \author Z. Futera (02.2017)
 ! **************************************************************************************************
-   FUNCTION get_mo_c2_sum(output_unit, blk_at, mo, id, atom) RESULT(c2)
+   FUNCTION get_mo_c2_sum(blk_at, mo, id, atom) RESULT(c2)
 
       IMPLICIT NONE
 
       ! Routine arguments
-      INTEGER                                            :: output_unit
       TYPE(et_cpl_atom), DIMENSION(:), POINTER           :: blk_at
       TYPE(cp_fm_type), POINTER                          :: mo
       INTEGER                                            :: id
@@ -1061,14 +1059,14 @@ CONTAINS
                         DO l = 1, SIZE(list_mo)
 
                            IF (n_spins > 1) THEN
-                              c1 = get_mo_c2_sum(output_unit, ec%block(blk)%atom, mat_w(1)%matrix, &
+                              c1 = get_mo_c2_sum(ec%block(blk)%atom, mat_w(1)%matrix, &
                                                  list_mo(l), list_at)
-                              c2 = get_mo_c2_sum(output_unit, ec%block(blk)%atom, mat_w(2)%matrix, &
+                              c2 = get_mo_c2_sum(ec%block(blk)%atom, mat_w(2)%matrix, &
                                                  list_mo(l), list_at)
                               IF (output_unit > 0) &
                                  WRITE (output_unit, '(I5,A,I5,2F20.10)') j, ' /', list_mo(l), c1, c2
                            ELSE
-                              c1 = get_mo_c2_sum(output_unit, ec%block(blk)%atom, mat_w(1)%matrix, &
+                              c1 = get_mo_c2_sum(ec%block(blk)%atom, mat_w(1)%matrix, &
                                                  list_mo(l), list_at)
                               IF (output_unit > 0) &
                                  WRITE (output_unit, '(I5,A,I5,F20.10)') j, ' /', list_mo(l), c1
@@ -1384,7 +1382,6 @@ CONTAINS
 
 ! **************************************************************************************************
 !> \brief Transform block MO coefficients to original non-orthogonal basis set and save them
-!> \param output_unit ...
 !> \param qs_env QuickStep environment containing all system data
 !> \param ec electronic coupling data structure
 !> \param id block ID
@@ -1394,12 +1391,11 @@ CONTAINS
 !> \param n_mo number of block states
 !> \author Z. Futera (02.2017)
 ! **************************************************************************************************
-   SUBROUTINE set_mo_coefficients(output_unit, qs_env, ec, id, mo, mat_u, n_ao, n_mo)
+   SUBROUTINE set_mo_coefficients(qs_env, ec, id, mo, mat_u, n_ao, n_mo)
 
       IMPLICIT NONE
 
       ! Routine arguments
-      INTEGER                                            :: output_unit
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(et_cpl), POINTER                              :: ec
       INTEGER                                            :: id
@@ -1500,7 +1496,6 @@ CONTAINS
 
 ! **************************************************************************************************
 !> \brief Creates MO set corresponding to one atomic data block
-!> \param output_unit ...
 !> \param qs_env QuickStep environment containing all system data
 !> \param ec electronic coupling data structure
 !> \param id block ID
@@ -1509,10 +1504,9 @@ CONTAINS
 !> \param vec_e array of the block eigenvalues
 !> \author Z. Futera (02.2017)
 ! **************************************************************************************************
-   SUBROUTINE create_block_mo_set(output_unit, qs_env, ec, id, spin, mat_u, vec_e)
+   SUBROUTINE create_block_mo_set(qs_env, ec, id, spin, mat_u, vec_e)
 
       ! Routine arguments
-      INTEGER                                            :: output_unit
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(et_cpl), POINTER                              :: ec
       INTEGER                                            :: id, spin
@@ -1586,7 +1580,7 @@ CONTAINS
       CALL cp_fm_create(matrix=mo%mo_coeff, matrix_struct=fm_s, name='BLOCK STATES')
 
       ! Transform MO coefficients to original non-orthogonal basis set
-      CALL set_mo_coefficients(output_unit, qs_env, ec, id, mo, mat_u, n_ao, n_mo)
+      CALL set_mo_coefficients(qs_env, ec, id, mo, mat_u, n_ao, n_mo)
 
       ! Occupancies
       ALLOCATE (mo%occupation_numbers(n_mo))
