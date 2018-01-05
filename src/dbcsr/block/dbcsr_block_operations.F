@@ -511,12 +511,12 @@ CONTAINS
          dst%d%r_sp(lb_t:ub_t) = -dst%d%r_sp(lb_t:ub_t)
       CASE (dbcsr_type_complex_8)
          dst%d%c_dp(lb_t:ub_t) = CMPLX( &
-                                 REAL(dst%d%c_dp(lb_t:ub_t), KIND=real_8), &
+                                 -REAL(dst%d%c_dp(lb_t:ub_t), KIND=real_8), &
                                  AIMAG(dst%d%c_dp(lb_t:ub_t)), &
                                  KIND=real_8)
       CASE (dbcsr_type_complex_4)
          dst%d%c_sp(lb_t:ub_t) = CMPLX( &
-                                 REAL(dst%d%c_sp(lb_t:ub_t), KIND=real_4), &
+                                 -REAL(dst%d%c_sp(lb_t:ub_t), KIND=real_4), &
                                  AIMAG(dst%d%c_sp(lb_t:ub_t)), &
                                  KIND=real_4)
       CASE (dbcsr_type_real_8_2d)
@@ -528,13 +528,13 @@ CONTAINS
       CASE (dbcsr_type_complex_8_2d)
          dst%d%c2_dp(lb_t:lb_t+row_size-1, lb2_t:lb2_t+col_size-1) = &
             CMPLX( &
-            REAL(dst%d%c2_dp(lb_t:lb_t+row_size-1, lb2_t:lb2_t+col_size-1), KIND=real_8), &
+            -REAL(dst%d%c2_dp(lb_t:lb_t+row_size-1, lb2_t:lb2_t+col_size-1), KIND=real_8), &
             AIMAG(dst%d%c2_dp(lb_t:lb_t+row_size-1, lb2_t:lb2_t+col_size-1)), &
             KIND=real_8)
       CASE (dbcsr_type_complex_4_2d)
          dst%d%c2_sp(lb_t:lb_t+row_size-1, lb2_t:lb2_t+col_size-1) = &
             CMPLX( &
-            REAL(dst%d%c2_sp(lb_t:lb_t+row_size-1, lb2_t:lb2_t+col_size-1), KIND=real_4), &
+            -REAL(dst%d%c2_sp(lb_t:lb_t+row_size-1, lb2_t:lb2_t+col_size-1), KIND=real_4), &
             AIMAG(dst%d%c2_sp(lb_t:lb_t+row_size-1, lb2_t:lb2_t+col_size-1)), &
             KIND=real_4)
       CASE default
