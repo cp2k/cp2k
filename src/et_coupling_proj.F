@@ -746,16 +746,14 @@ CONTAINS
 
 ! **************************************************************************************************
 !> \brief Diagonalize diagonal blocks of the KS hamiltonian in separated orthogonalized basis set
-!> \param output_unit ...
 !> \param qs_env QuickStep environment containing all system data
 !> \param ec electronic coupling data structure
 !> \param mat_h Hamiltonian in separated orthogonalized basis set
 !> \author Z. Futera (02.2017)
 ! **************************************************************************************************
-   SUBROUTINE hamiltonian_block_diag(output_unit, qs_env, ec, mat_h)
+   SUBROUTINE hamiltonian_block_diag(qs_env, ec, mat_h)
 
       ! Routine arguments
-      INTEGER                                            :: output_unit
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(et_cpl), POINTER                              :: ec
       TYPE(cp_fm_p_type), DIMENSION(:), POINTER          :: mat_h
@@ -1959,7 +1957,7 @@ CONTAINS
             CALL get_block_hamiltonian(qs_env, ec, fm_s, mat_h, mat_w, n_ao, 2)
 
             ! Block diagonization
-            CALL hamiltonian_block_diag(output_unit, qs_env, ec, mat_h)
+            CALL hamiltonian_block_diag(qs_env, ec, mat_h)
 
             ! Print out energies and couplings
             DO i = 1, ec%n_blocks
@@ -2014,7 +2012,7 @@ CONTAINS
             CALL get_block_hamiltonian(qs_env, ec, fm_s, mat_h, mat_w, n_ao, 1)
 
             ! Block diagonization
-            CALL hamiltonian_block_diag(output_unit, qs_env, ec, mat_h)
+            CALL hamiltonian_block_diag(qs_env, ec, mat_h)
 
             ! Print out energies and couplings
             DO i = 1, ec%n_blocks
