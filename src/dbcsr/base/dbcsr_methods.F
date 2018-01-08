@@ -17,7 +17,8 @@ MODULE dbcsr_methods
                                               array_release
    USE btree,                           ONLY: btree_delete,&
                                               btree_new
-   USE dbcsr_data_methods,              ONLY: dbcsr_data_release
+   USE dbcsr_data_methods,              ONLY: dbcsr_data_get_size,&
+                                              dbcsr_data_release
    USE dbcsr_ptr_util,                  ONLY: memory_deallocate
    USE dbcsr_types,                     ONLY: &
         dbcsr_1d_array_type, dbcsr_2d_array_type, dbcsr_data_obj, dbcsr_distribution_obj, &
@@ -723,28 +724,15 @@ CONTAINS
       CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_get_data_size', &
          routineP = moduleN//':'//routineN
 
+      INTEGER                                            :: data_type
+
       data_size = 0
-      IF (ASSOCIATED(matrix%data_area%d)) THEN
-         SELECT CASE (matrix%data_area%d%data_type)
-         CASE (dbcsr_type_real_8)
-            IF (ASSOCIATED(matrix%data_area%d%r_dp)) &
-               data_size = SIZE(matrix%data_area%d%r_dp)
-         CASE (dbcsr_type_real_4)
-            IF (ASSOCIATED(matrix%data_area%d%r_sp)) &
-               data_size = SIZE(matrix%data_area%d%r_sp)
-         CASE (dbcsr_type_complex_8)
-            IF (ASSOCIATED(matrix%data_area%d%c_dp)) &
-               data_size = SIZE(matrix%data_area%d%c_dp)
-         CASE (dbcsr_type_complex_4)
-            IF (ASSOCIATED(matrix%data_area%d%c_sp)) &
-               data_size = SIZE(matrix%data_area%d%c_sp)
-         CASE default
-            CPABORT("Incorrect data type")
-         END SELECT
-      ELSE
-         CPWARN("Uninitialized data area")
-         data_size = 0
-      ENDIF
+      data_type = dbcsr_get_data_type(matrix)
+      IF (data_type .NE. dbcsr_type_real_8 .AND. &
+          data_type .NE. dbcsr_type_real_4 .AND. &
+          data_type .NE. dbcsr_type_complex_8 .AND. &
+          data_type .NE. dbcsr_type_complex_4) CPABORT("Incorrect data type")
+      data_size = dbcsr_data_get_size(matrix%data_area)
    END FUNCTION dbcsr_get_data_size
 
 ! **************************************************************************************************

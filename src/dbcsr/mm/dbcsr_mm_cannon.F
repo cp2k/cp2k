@@ -25,7 +25,8 @@ MODULE dbcsr_mm_cannon
                                               dbcsr_block_copy_aa,&
                                               dbcsr_block_real_neg,&
                                               dbcsr_block_scale,&
-                                              dbcsr_block_transpose_aa
+                                              dbcsr_block_transpose_aa,&
+                                              dbcsr_block_transpose
    USE dbcsr_config,                    ONLY: dbcsr_cfg,&
                                               has_acc
    USE dbcsr_data_methods,              ONLY: &
@@ -33,7 +34,7 @@ MODULE dbcsr_mm_cannon
         dbcsr_data_get_size_referenced, dbcsr_data_hold, dbcsr_data_host2dev, dbcsr_data_init, &
         dbcsr_data_new, dbcsr_data_release, dbcsr_data_set_pointer, &
         dbcsr_data_set_size_referenced, dbcsr_scalar_are_equal, dbcsr_scalar_negative, &
-        dbcsr_scalar_one
+        dbcsr_scalar_one, dbcsr_get_data_p_s, dbcsr_get_data_p_d, dbcsr_get_data_p_c, dbcsr_get_data_p_z
    USE dbcsr_data_types,                ONLY: dbcsr_datatype_sizeof
    USE dbcsr_dist_methods,              ONLY: dbcsr_distribution_col_dist,&
                                               dbcsr_distribution_has_threads,&
@@ -97,6 +98,7 @@ MODULE dbcsr_mm_cannon
                                               dbcsr_work_create
    USE kinds,                           ONLY: dp,&
                                               int_8,&
+                                              real_4,&
                                               real_8,&
                                               sp
    USE machine,                         ONLY: default_output_unit,&
@@ -613,63 +615,56 @@ CONTAINS
       CALL timeset(routineN//"_pack", handle2)
       ! Copies metadata and actual data to be sent into the send buffers.
       CALL dbcsr_iterator_start(iter, ism, shared=.TRUE.)
-      DO WHILE (dbcsr_iterator_blocks_left(iter))
-         CALL dbcsr_iterator_next_block(iter, row, col, blk, blk_p=blk_p, &
-                                        row_size=row_size, col_size=col_size)
-         nze = row_size*col_size
-         IF (nze .EQ. 0) CYCLE
-         bp = ABS(blk_p)
-         DO symmetry_i = 1, nsymmetries
-            IF (symmetry_i .EQ. 1) THEN
-               stored_row = row; stored_col = col; tr = blk_p .LT. 0
-               tr_row_size = col_size; tr_col_size = row_size
-            ELSE
-               IF (row .EQ. col) CYCLE
-               stored_row = col; stored_col = row; tr = blk_p .GT. 0
-               tr_row_size = row_size; tr_col_size = col_size
-            ENDIF
-            ! Where do we send this block?
-            row_img = 1
-            IF (nrow_images .GT. 1) row_img = row_img_dist(stored_row)
-            col_img = 1
-            IF (ncol_images .GT. 1) col_img = col_img_dist(stored_col)
-            CALL image_calculator(target_imgdist, &
-                                  prow=prow, rowi=rowi, &
-                                  pcol=pcol, coli=coli, &
-                                  vprow=vrow, vpcol=vcol, &
-                                  myprow=row_dist(stored_row), myrowi=row_img, &
-                                  mypcol=col_dist(stored_col), mycoli=col_img, &
-                                  shifting=predist_type_fwd)
-            dst_p = blacs2mpi(prow, pcol)
-            sm_pos = myt_smp(dst_p)
-            myt_smp(dst_p) = myt_smp(dst_p)+metalen
-            sd_pos = myt_sdp(dst_p)
-            myt_sdp(dst_p) = myt_sdp(dst_p)+nze
-            IF (tr) THEN
-               CALL dbcsr_block_transpose_aa(send_data_area, sm%data_area, tr_row_size, tr_col_size, &
-                                             sd_pos, bp, scale_value)
-               IF (sm%negate_real .AND. sm%negate_imaginary) THEN
-                  CALL dbcsr_block_scale(send_data_area, scale=scale_neg_one, &
-                                         row_size=nze, col_size=1, lb=sd_pos)
-               ELSEIF (sm%negate_real) THEN
-                  CALL dbcsr_block_real_neg(send_data_area, &
-                                            row_size=nze, col_size=1, lb=sd_pos)
-               ELSEIF (sm%negate_imaginary) THEN
-                  CALL dbcsr_block_conjg(send_data_area, &
-                                         row_size=nze, col_size=1, lb=sd_pos)
-               ENDIF
-            ELSE
-               CALL dbcsr_block_copy_aa(send_data_area, sm%data_area, row_size, col_size, &
-                                        sd_pos, bp, scale_value)
-            END IF
-
-            send_meta(sm_pos) = stored_row
-            send_meta(sm_pos+1) = stored_col
-            send_meta(sm_pos+2) = sd_pos-sd_disp(dst_p)+1
-            send_meta(sm_pos+3) = rowi
-            send_meta(sm_pos+4) = coli
-         ENDDO ! symmetry_i
-      ENDDO ! iterator
+      SELECT CASE (data_type)
+      CASE (dbcsr_type_real_4)
+         CALL prepare_buffers_s(sm%negate_real, sm%negate_imaginary, &
+                                iter, row, col, blk, blk_p, bp, &
+                                row_size, col_size, nze, nsymmetries, symmetry_i, &
+                                stored_row, stored_col, tr_row_size, tr_col_size, tr, &
+                                row_img, col_img, nrow_images, ncol_images, &
+                                row_img_dist, col_img_dist, predist_type_fwd, blacs2mpi, &
+                                target_imgdist, prow, pcol, rowi, coli, &
+                                row_dist, col_dist, dst_p, sm_pos, myt_smp, metalen, &
+                                sd_pos, myt_sdp, send_meta, sd_disp, &
+                                dbcsr_get_data_p_s(sm%data_area), &
+                                send_data_area, scale_neg_one, scale_value)
+      CASE (dbcsr_type_real_8)
+         CALL prepare_buffers_d(sm%negate_real, sm%negate_imaginary, &
+                                iter, row, col, blk, blk_p, bp, &
+                                row_size, col_size, nze, nsymmetries, symmetry_i, &
+                                stored_row, stored_col, tr_row_size, tr_col_size, tr, &
+                                row_img, col_img, nrow_images, ncol_images, &
+                                row_img_dist, col_img_dist, predist_type_fwd, blacs2mpi, &
+                                target_imgdist, prow, pcol, rowi, coli, &
+                                row_dist, col_dist, dst_p, sm_pos, myt_smp, metalen, &
+                                sd_pos, myt_sdp, send_meta, sd_disp, &
+                                dbcsr_get_data_p_d(sm%data_area), &
+                                send_data_area, scale_neg_one, scale_value)
+      CASE (dbcsr_type_complex_4)
+         CALL prepare_buffers_c(sm%negate_real, sm%negate_imaginary, &
+                                iter, row, col, blk, blk_p, bp, &
+                                row_size, col_size, nze, nsymmetries, symmetry_i, &
+                                stored_row, stored_col, tr_row_size, tr_col_size, tr, &
+                                row_img, col_img, nrow_images, ncol_images, &
+                                row_img_dist, col_img_dist, predist_type_fwd, blacs2mpi, &
+                                target_imgdist, prow, pcol, rowi, coli, &
+                                row_dist, col_dist, dst_p, sm_pos, myt_smp, metalen, &
+                                sd_pos, myt_sdp, send_meta, sd_disp, &
+                                dbcsr_get_data_p_c(sm%data_area), &
+                                send_data_area, scale_neg_one, scale_value)
+      CASE (dbcsr_type_complex_8)
+         CALL prepare_buffers_z(sm%negate_real, sm%negate_imaginary, &
+                                iter, row, col, blk, blk_p, bp, &
+                                row_size, col_size, nze, nsymmetries, symmetry_i, &
+                                stored_row, stored_col, tr_row_size, tr_col_size, tr, &
+                                row_img, col_img, nrow_images, ncol_images, &
+                                row_img_dist, col_img_dist, predist_type_fwd, blacs2mpi, &
+                                target_imgdist, prow, pcol, rowi, coli, &
+                                row_dist, col_dist, dst_p, sm_pos, myt_smp, metalen, &
+                                sd_pos, myt_sdp, send_meta, sd_disp, &
+                                dbcsr_get_data_p_z(sm%data_area), &
+                                send_data_area, scale_neg_one, scale_value)
+      END SELECT
       CALL dbcsr_iterator_stop(iter)
 
       ! Deallocate thread private data
@@ -2001,5 +1996,7 @@ CONTAINS
       area1p => area2p
       area2p => tmp_p
    END SUBROUTINE dbcsr_switch_d_ptrs
+
+#:include "dbcsr_mm_cannon.f90"
 
 END MODULE dbcsr_mm_cannon

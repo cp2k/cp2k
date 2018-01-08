@@ -29,7 +29,11 @@ MODULE dbcsr_block_access
                                               dbcsr_data_get_size_referenced,&
                                               dbcsr_data_set_pointer,&
                                               dbcsr_get_data,&
-                                              dbcsr_get_data_p
+                                              dbcsr_get_data_p,&
+                                              dbcsr_get_data_p_s,&
+                                              dbcsr_get_data_p_d,&
+                                              dbcsr_get_data_p_d,&
+                                              dbcsr_get_data_p_c
    USE dbcsr_dist_methods,              ONLY: dbcsr_distribution_local_cols,&
                                               dbcsr_distribution_local_rows,&
                                               dbcsr_distribution_mp
@@ -330,35 +334,37 @@ CONTAINS
       CASE (dbcsr_type_real_4)
          IF (do_scale) THEN
             IF (data_type_m .EQ. dbcsr_type_real_4) THEN
-               CALL dbcsr_put_block(matrix, row, col, block%d%r_sp, lb_row_col, transposed, &
+               CALL dbcsr_put_block(matrix, row, col, dbcsr_get_data_p_s(block), lb_row_col, transposed, &
                                     summation, flop, scale=scale%r_sp)
             ELSEIF (data_type_m .EQ. dbcsr_type_real_8) THEN
-               CALL dbcsr_put_block(matrix, row, col, REAL(block%d%r_sp, real_8), lb_row_col, transposed, &
+               CALL dbcsr_put_block(matrix, row, col, &
+                                    REAL(dbcsr_get_data_p_s(block), real_8), lb_row_col, transposed, &
                                     summation, flop, scale=REAL(scale%r_sp, real_8))
             ENDIF
          ELSE
             IF (data_type_m .EQ. dbcsr_type_real_4) THEN
-               CALL dbcsr_put_block(matrix, row, col, block%d%r_sp, lb_row_col, transposed, &
+               CALL dbcsr_put_block(matrix, row, col, dbcsr_get_data_p_s(block), lb_row_col, transposed, &
                                     summation, flop)
             ELSEIF (data_type_m .EQ. dbcsr_type_real_8) THEN
-               CALL dbcsr_put_block(matrix, row, col, REAL(block%d%r_sp, real_8), lb_row_col, transposed, &
+               CALL dbcsr_put_block(matrix, row, col, &
+                                    REAL(dbcsr_get_data_p_s(block), real_8), lb_row_col, transposed, &
                                     summation, flop)
             ENDIF
          ENDIF
       CASE (dbcsr_type_real_8)
          IF (do_scale) THEN
-            CALL dbcsr_put_block(matrix, row, col, block%d%r_dp, lb_row_col, transposed, &
+            CALL dbcsr_put_block(matrix, row, col, dbcsr_get_data_p_d(block), lb_row_col, transposed, &
                                  summation, flop, scale=scale%r_dp)
          ELSE
-            CALL dbcsr_put_block(matrix, row, col, block%d%r_dp, lb_row_col, transposed, &
+            CALL dbcsr_put_block(matrix, row, col, dbcsr_get_data_p_d(block), lb_row_col, transposed, &
                                  summation, flop)
          ENDIF
       CASE (dbcsr_type_complex_4)
          IF (do_scale) THEN
-            CALL dbcsr_put_block(matrix, row, col, block%d%c_sp, lb_row_col, transposed, &
+            CALL dbcsr_put_block(matrix, row, col, dbcsr_get_data_p_c(block), lb_row_col, transposed, &
                                  summation, flop, scale=scale%c_sp)
          ELSE
-            CALL dbcsr_put_block(matrix, row, col, block%d%c_sp, lb_row_col, transposed, &
+            CALL dbcsr_put_block(matrix, row, col, dbcsr_get_data_p_c(block), lb_row_col, transposed, &
                                  summation, flop)
          ENDIF
       CASE (dbcsr_type_complex_8)
