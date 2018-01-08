@@ -81,7 +81,7 @@ MODULE bibliography
                             Kapil2016, Heinzmann1976, Ehrhardt1985, Rybkin2016, West2006, &
                             Bates2013, Andermatt2016, Zhu2016, Schuett2016, Lu2004, &
                             Becke1988b, Migliore2009, Mavros2015, Holmberg2017, Marek2014, &
-                            Stoychev2016
+                            Stoychev2016, Futera2017
 
 CONTAINS
 
@@ -3731,6 +3731,21 @@ CONTAINS
                          "EP 562", &
                          "ER"), &
                          DOI="10.1021/acs.jctc.6b01041")
+
+      CALL add_reference(key=Futera2017, ISI_record=s2a( &
+                         "AU Futera, Zdenek", &
+                         "   Blumberger, Jochen", &
+                         "TI Electronic Couplings for Charge Transfer across Molecule/Metal and", &
+                         "   Molecule/Semiconductor Interfaces: Performance of the Projector ", &
+                         "   Operator-Based Diabatization Approach", &
+                         "SO J. Phys. Chem. C", &
+                         "PY 2017", &
+                         "VL 121", &
+                         "IS 36", &
+                         "BP 19677", &
+                         "EP 19689", &
+                         "ER"), &
+                         DOI="10.1021/acs.jpcc.7b06566")
 
    END SUBROUTINE add_all_references
 

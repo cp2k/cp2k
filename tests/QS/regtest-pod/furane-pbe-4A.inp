@@ -27,7 +27,7 @@
     SPIN_POLARIZED .true.
     # Realspace multi-grids
     &MGRID
-      CUTOFF 200.0 
+      CUTOFF 250.0 
       REL_CUTOFF 50.0
     &END MGRID
     # QuickStep solver setting
@@ -39,7 +39,7 @@
     &END QS
     # SCF procedure
     &SCF
-      MAX_SCF 10
+      MAX_SCF 25
       SCF_GUESS atomic
       EPS_SCF 1.0e-5
       ADDED_MOS 2

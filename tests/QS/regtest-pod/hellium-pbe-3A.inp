@@ -28,7 +28,7 @@
     SPIN_POLARIZED .true.
     # Realspace multi-grids
     &MGRID
-      CUTOFF 200.0 
+      CUTOFF 300.0 
       REL_CUTOFF 50.0
     &END MGRID
     # QuickStep solver setting
@@ -50,7 +50,8 @@
       &END DIAGONALIZATION
       &MIXING
         METHOD direct_p_mixing
-        ALPHA 0.5
+        ALPHA 0.1
+        NSKIP 10
       &END MIXING
       &PRINT
         &RESTART off
@@ -85,14 +86,14 @@
   &SUBSYS
     # Cell vectors [A]
     &CELL
-      ABC 7.000 7.000 10.000
+      ABC 8.000 8.000 10.000
       ALPHA_BETA_GAMMA 90.0 90.0 90.0
       PERIODIC xyz
     &END CELL
     # Coordinates [A]
     &COORD
-      He     7.500000     7.500000     6.000000
-      He     7.500000     7.500000     9.000000
+      He     4.000000     4.000000     3.500000
+      He     4.000000     4.000000     6.500000
     &END COORD
     # Atomic types
     &KIND He

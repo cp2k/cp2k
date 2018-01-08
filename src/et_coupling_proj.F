@@ -6,7 +6,6 @@
 ! **************************************************************************************************
 !> \brief calculates the electron transfer coupling elements by projection-operator approach
 !>        Kondov et al. J.Phys.Chem.C 2007, 111, 11970-11981
-!>        Futera and Blumberger, J.Phys.Chem.C. 2017, 121, 19677-19689
 !> \author Z. Futera (02.2017)
 ! **************************************************************************************************
 MODULE et_coupling_proj
@@ -15,13 +14,14 @@ MODULE et_coupling_proj
                                               get_atomic_kind
    USE basis_set_types,                 ONLY: get_gto_basis_set,&
                                               gto_basis_set_type
+   USE bibliography,                    ONLY: Futera2017,&
+                                              cite_reference
    USE cell_types,                      ONLY: cell_type
    USE cp_blacs_env,                    ONLY: cp_blacs_env_type
    USE cp_control_types,                ONLY: dft_control_type
    USE cp_dbcsr_operations,             ONLY: copy_dbcsr_to_fm,&
                                               cp_dbcsr_sm_fm_multiply
-   USE cp_fm_basic_linalg,              ONLY: cp_fm_column_scale,&
-                                              cp_fm_gemm
+   USE cp_fm_basic_linalg,              ONLY: cp_fm_column_scale
    USE cp_fm_diag,                      ONLY: choose_eigv_solver,&
                                               cp_fm_power
    USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
@@ -36,6 +36,7 @@ MODULE et_coupling_proj
                                               cp_fm_to_fm_submat,&
                                               cp_fm_type,&
                                               cp_fm_vectorssum
+   USE cp_gemm_interface,               ONLY: cp_gemm
    USE cp_log_handling,                 ONLY: cp_get_default_logger,&
                                               cp_logger_type,&
                                               cp_to_string
@@ -471,75 +472,6 @@ CONTAINS
    END SUBROUTINE get_fm_matrix_array
 
 ! **************************************************************************************************
-!> \brief print out full matrix
-!> \param output_unit unit number of the open output stream
-!> \param mat the full matrix
-!> \author Z. Futera (02.2017)
-! **************************************************************************************************
-   SUBROUTINE print_fm_matrix(output_unit, mat)
-
-      IMPLICIT NONE
-
-      ! Routine arguments
-      INTEGER                                            :: output_unit
-      TYPE(cp_fm_type), POINTER                          :: mat
-
-      ! Routine name for debug purposes
-      CHARACTER(len=*), PARAMETER :: routineN = 'print_fm_matrix', &
-                                     routineP = moduleN//':'//routineN
-
-      ! Local variables
-      INTEGER                                            :: i, j
-
-#if defined(__SCALAPACK)
-
-      INTEGER                                            :: nr, nc
-      REAL(KIND=dp), DIMENSION(:, :), POINTER             :: w
-
-      NULLIFY (w)
-
-      nr = mat%matrix_struct%nrow_global
-      nc = mat%matrix_struct%ncol_global
-      ALLOCATE (w(nr, nc))
-      CPASSERT(ASSOCIATED(w))
-
-#endif
-
-      IF (output_unit > 0) &
-         WRITE (output_unit, '(/,T3,A)') 'FM matrix ('//TRIM(ADJUSTL(mat%name))//')'
-
-#if defined(__SCALAPACK)
-
-      CALL get_fm_matrix_array(mat, w)
-
-      IF (output_unit > 0) THEN
-
-         DO i = 1, mat%matrix_struct%nrow_global
-            DO j = 1, mat%matrix_struct%ncol_global
-               WRITE (output_unit, '(F8.3)', ADVANCE='no') w(i, j)
-            END DO
-            WRITE (output_unit, *)
-         END DO
-
-      END IF
-
-      IF (ASSOCIATED(w)) &
-         DEALLOCATE (w)
-
-#else
-
-      DO i = 1, mat%matrix_struct%nrow_global
-         DO j = 1, mat%matrix_struct%ncol_global
-            WRITE (output_unit, '(F8.3)', ADVANCE='no') mat%local_data(i, j)
-         END DO
-         WRITE (output_unit, *)
-      END DO
-
-#endif
-
-   END SUBROUTINE print_fm_matrix
-
-! **************************************************************************************************
 !> \brief reorder Hamiltonian matrix according to defined atomic blocks
 !> \param ec electronic coupling data structure
 !> \param mat_h the Hamiltonian matrix
@@ -734,8 +666,8 @@ CONTAINS
          CALL copy_dbcsr_to_fm(mat_h(i)%matrix, mat_t(i)%matrix)
 
          ! Transform KS Hamiltonian to the orthogonalized AO basis set
-         CALL cp_fm_gemm("N", "N", n_ao, n_ao, n_ao, 1.0_dp, ec%m_transf, mat_t(i)%matrix, 0.0_dp, mat_w)
-         CALL cp_fm_gemm("N", "N", n_ao, n_ao, n_ao, 1.0_dp, mat_w, ec%m_transf, 0.0_dp, mat_t(i)%matrix)
+         CALL cp_gemm("N", "N", n_ao, n_ao, n_ao, 1.0_dp, ec%m_transf, mat_t(i)%matrix, 0.0_dp, mat_w)
+         CALL cp_gemm("N", "N", n_ao, n_ao, n_ao, 1.0_dp, mat_w, ec%m_transf, 0.0_dp, mat_t(i)%matrix)
 
          ! Reorder KS Hamiltonain elements to defined block structure
          CALL reorder_hamiltonian_matrix(ec, mat_t(i)%matrix, mat_w)
@@ -858,10 +790,10 @@ CONTAINS
 
                   ! Transformation
                   CALL cp_fm_create(matrix=mat_u, matrix_struct=fm_s, name='FULL WORK MATRIX')
-                  CALL cp_fm_gemm("T", "N", ec%block(i)%n_ao, ec%block(j)%n_ao, ec%block(i)%n_ao, &
-                                  1.0_dp, dat(i)%matrix, ec%block(i)%hab(spin, j)%matrix, 0.0_dp, mat_u)
-                  CALL cp_fm_gemm("N", "N", ec%block(i)%n_ao, ec%block(j)%n_ao, ec%block(j)%n_ao, &
-                                  1.0_dp, mat_u, dat(j)%matrix, 0.0_dp, ec%block(i)%hab(spin, j)%matrix)
+                  CALL cp_gemm("T", "N", ec%block(i)%n_ao, ec%block(j)%n_ao, ec%block(i)%n_ao, &
+                               1.0_dp, dat(i)%matrix, ec%block(i)%hab(spin, j)%matrix, 0.0_dp, mat_u)
+                  CALL cp_gemm("N", "N", ec%block(i)%n_ao, ec%block(j)%n_ao, ec%block(j)%n_ao, &
+                               1.0_dp, mat_u, dat(j)%matrix, 0.0_dp, ec%block(i)%hab(spin, j)%matrix)
 
                   ! Clean memory
                   CALL cp_fm_release(matrix=mat_u)
@@ -1028,8 +960,8 @@ CONTAINS
             CALL cp_fm_create(matrix=mat_w(j)%matrix, &
                               matrix_struct=ec%block(blk)%mo(j)%mo_set%mo_coeff%matrix_struct, &
                               name='BLOCK MOs IN ORTHONORMAL BASIS SET')
-            CALL cp_fm_gemm("N", "N", n_ao, n_mo, n_ao, 1.0_dp, ec%m_transf_inv, &
-                            ec%block(blk)%mo(j)%mo_set%mo_coeff, 0.0_dp, mat_w(j)%matrix)
+            CALL cp_gemm("N", "N", n_ao, n_mo, n_ao, 1.0_dp, ec%m_transf_inv, &
+                         ec%block(blk)%mo(j)%mo_set%mo_coeff, 0.0_dp, mat_w(j)%matrix)
          END DO
 
          DO j = 1, n
@@ -1360,7 +1292,7 @@ CONTAINS
                                nrow_global=n_mo, ncol_global=n_mo)
       CALL cp_fm_create(matrix=mat_t, matrix_struct=fm_s, &
                         name='C^T*S*C OVERLAP PRODUCT MATRIX')
-      CALL cp_fm_gemm('T', 'N', n_mo, n_mo, n_ao, 1.0_dp, mo%mo_coeff, mat_sc, 0.0_dp, mat_t)
+      CALL cp_gemm('T', 'N', n_mo, n_mo, n_ao, 1.0_dp, mo%mo_coeff, mat_sc, 0.0_dp, mat_t)
 
       ! Normalization
       ALLOCATE (vec_t(n_mo))
@@ -1484,7 +1416,7 @@ CONTAINS
       END DO
 
       ! Transformation to original non-orthogonal basis set
-      CALL cp_fm_gemm("N", "N", n_ao, n_mo, n_ao, 1.0_dp, ec%m_transf, mat_w, 0.0_dp, mo%mo_coeff)
+      CALL cp_gemm("N", "N", n_ao, n_mo, n_ao, 1.0_dp, ec%m_transf, mat_w, 0.0_dp, mo%mo_coeff)
       CALL normalize_mo_vectors(qs_env, mo, n_ao, n_mo)
 
       ! Clean memory
@@ -1828,6 +1760,9 @@ CONTAINS
       NULLIFY (mat_w)
 
       NULLIFY (ec)
+
+      ! Reference
+      CALL cite_reference(Futera2017)
 
       ! Stream for output to LOG file
       logger => cp_get_default_logger()
