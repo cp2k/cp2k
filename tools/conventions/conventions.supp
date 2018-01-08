@@ -443,3 +443,9 @@ xyz_to_vab_optimised.F: Routine XYZ_TO_VAB_4_3 called with an implicit interface
 xyz_to_vab_optimised.F: Routine XYZ_TO_VAB_4_4 called with an implicit interface.
 dbcsr_tensor_test.F: Found CALL RANDOM_NUMBER in procedure "dbcsr_t_random_dist"
 optimize_embedding_potential.F: Found FLOAT in "init_embed_pot"
+et_coupling_proj.F: Found CALL cp_fm_gemm in procedure "get_block_hamiltonian"
+et_coupling_proj.F: Found CALL cp_fm_gemm in procedure "hamiltonian_block_diag"
+et_coupling_proj.F: Found CALL cp_fm_gemm in procedure "normalize_mo_vectors"
+et_coupling_proj.F: Found CALL cp_fm_gemm in procedure "print_mo_coeff"
+et_coupling_proj.F: Found CALL cp_fm_gemm in procedure "set_mo_coefficients"
+et_coupling_proj.F: Routine INFOG2L called with an implicit interface.
