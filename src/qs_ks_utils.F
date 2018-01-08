@@ -611,6 +611,8 @@ CONTAINS
          ! compute the energy functional for this orbital and its derivative
 
          CALL pw_poisson_solve(poisson_env, orb_rho_g%pw, ener, work_v_gspace%pw)
+         ! no PBC correction is done here, see "calc_v_sic_rspace" for SIC methods
+         ! with PBC aware corrections
          energy%hartree = energy%hartree-dft_control%sic_scaling_a*ener
          IF (.NOT. just_energy) THEN
             CALL pw_transfer(work_v_gspace%pw, work_v_rspace%pw)
