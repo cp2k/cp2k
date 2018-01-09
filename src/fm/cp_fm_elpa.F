@@ -74,6 +74,7 @@ MODULE cp_fm_elpa
    LOGICAL, SAVE :: elpa_qr = .FALSE.
    LOGICAL, SAVE :: elpa_qr_unsafe = .FALSE.
    LOGICAL, SAVE :: elpa_should_print = .FALSE.
+   LOGICAL, SAVE :: elpa_use_gpu = .FALSE.
 
 CONTAINS
 
@@ -210,6 +211,7 @@ $: "#endif"
 @:        pick_macro(AVX512_BLOCK6)
         CASE(19)
 @:        pick_macro(GPU)
+          elpa_use_gpu = .TRUE.
         CASE DEFAULT
           CPABORT("Invalid ELPA kernel selected")
      END SELECT
@@ -237,7 +239,7 @@ $: "#endif"
       MARK_USED(use_qr_unsafe)
       elpa_qr = use_qr
       elpa_qr_unsafe = .FALSE.
-#elif (__ELPA==201605) || (__ELPA==201611) || (__ELPA==201705)
+#elif (__ELPA==201605) || (__ELPA==201611) || (__ELPA==201705) || (__ELPA==201711)
       elpa_qr = use_qr
       elpa_qr_unsafe = use_qr_unsafe
 #else
@@ -345,7 +347,7 @@ $: "#endif"
 #elif (__ELPA==201502) || (__ELPA==201505) || (__ELPA==201511)
       ! Matrix order must be an integer multiple of the block size
       use_qr = elpa_qr .AND. MOD(n, nblk).EQ.0
-#elif (__ELPA==201605) || (__ELPA==201611) || (__ELPA==201705)
+#elif (__ELPA==201605) || (__ELPA==201611) || (__ELPA==201705) || (__ELPA==201711)
       ! Matrix order must be even
       use_qr = elpa_qr .AND. MOD(n, 2).EQ.0 
       ! Matrix order and block size must be greater than or equal to 64
@@ -390,14 +392,14 @@ $: "#endif"
             IF (.NOT. use_qr) THEN
 #if (__ELPA==201502) || (__ELPA==201505) || (__ELPA==201511)               
                WRITE(io_unit, '(A)') "ELPA| Matrix order is NOT divisible by block size"
-#elif (__ELPA==201605) || (__ELPA==201611) || (__ELPA==201705)
+#elif (__ELPA==201605) || (__ELPA==201611) || (__ELPA==201705) || (__ELPA==201711)
                IF (MOD(n, 2).NE.0 ) &
                   WRITE(io_unit, '(A)') "ELPA| Matrix order is NOT even"
                IF (nblk .LT. 64 .AND. .NOT. elpa_qr_unsafe) &
                   WRITE(io_unit, '(A)') "ELPA| Matrix block size is NOT 64 or greater"
 #endif
             ELSE
-#if (__ELPA==201605) || (__ELPA==201611) || (__ELPA==201705)
+#if (__ELPA==201605) || (__ELPA==201611) || (__ELPA==201705) || (__ELPA==201711)
                IF (nblk .LT. 64 .AND. elpa_qr_unsafe) &
                   WRITE(io_unit, '(A,L14)') "ELPA| Matrix block size check was bypassed"
 #endif
@@ -458,26 +460,26 @@ $: "#endif"
       END IF
 
 !---------------------------------------------------------------------------------------------------
-#elif (__ELPA==201611) || (__ELPA==201705)
+#elif (__ELPA==201611) || (__ELPA==201705) || (__ELPA==201711)
       IF (elpa_kernel == -1) THEN ! auto
          success = elpa_solve_evp_real_2stage_double(n, neig, m, n_rows, eval, v, n_rows, nblk, n_cols, &
                                                      comm_row, comm_col, group, &
-                                                     useQR=use_qr)
+                                                     useQR=use_qr, useGPU=.FALSE.)
          IF (check_eigenvalues) THEN
             success_noqr = elpa_solve_evp_real_2stage_double(n, neig, m_noqr, n_rows, eval_noqr, v_noqr, n_rows, nblk, n_cols, &
                                                              comm_row, comm_col, group, &
-                                                             useQR=.FALSE.)
+                                                             useQR=.FALSE., useGPU=.FALSE.)
          END IF
       ELSE
          success = elpa_solve_evp_real_2stage_double(n, neig, m, n_rows, eval, v, n_rows, nblk, n_cols, &
                                                      comm_row, comm_col, group, &
                                                      elpa_kernel, &
-                                                     useQR=use_qr)
+                                                     useQR=use_qr, useGPU=elpa_use_gpu)
          IF (check_eigenvalues) THEN
             success_noqr = elpa_solve_evp_real_2stage_double(n, neig, m_noqr, n_rows, eval_noqr, v_noqr, n_rows, nblk, n_cols, &
                                                              comm_row, comm_col, group, &
                                                              elpa_kernel, &
-                                                             useQR=.FALSE.)
+                                                             useQR=.FALSE., useGPU=elpa_use_gpu)
          END IF         
       END IF
 
