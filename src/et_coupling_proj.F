@@ -744,7 +744,7 @@ CONTAINS
                                      nrow_global=ec%block(i)%n_ao, ncol_global=ec%block(i)%n_ao)
             CALL cp_fm_create(matrix=dat(i)%matrix, matrix_struct=fm_s, &
                               name='H_KS DIAGONAL BLOCK')
-        
+
             ALLOCATE (vec_e(ec%block(i)%n_ao))
             CPASSERT(ASSOCIATED(vec_e))
 
@@ -819,7 +819,7 @@ CONTAINS
 
       ! Clean memory
       IF (ASSOCIATED(dat)) &
-         DEALLOCATE(dat)
+         DEALLOCATE (dat)
 
    END SUBROUTINE hamiltonian_block_diag
 
@@ -1990,7 +1990,7 @@ CONTAINS
             IF (ASSOCIATED(mat_h(i)%matrix)) &
                CALL cp_fm_release(matrix=mat_h(i)%matrix)
          END DO
-         DEALLOCATE(mat_h)
+         DEALLOCATE (mat_h)
       END IF
       CALL release_ec_data(ec)
 
