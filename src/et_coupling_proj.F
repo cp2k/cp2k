@@ -733,7 +733,7 @@ CONTAINS
       END DO
 
       ! Spin components
-      DO spin = 1, SIZE(mat_h)
+      DO spin = 1, n_spins
 
          ! Diagonal blocks
          j = 1
@@ -744,6 +744,7 @@ CONTAINS
                                      nrow_global=ec%block(i)%n_ao, ncol_global=ec%block(i)%n_ao)
             CALL cp_fm_create(matrix=dat(i)%matrix, matrix_struct=fm_s, &
                               name='H_KS DIAGONAL BLOCK')
+        
             ALLOCATE (vec_e(ec%block(i)%n_ao))
             CPASSERT(ASSOCIATED(vec_e))
 
@@ -761,8 +762,8 @@ CONTAINS
             CALL create_block_mo_set(qs_env, ec, i, spin, mat_u, vec_e)
 
             ! Clean memory
-            CALL cp_fm_release(matrix=mat_u)
             CALL cp_fm_struct_release(fmstruct=fm_s)
+            CALL cp_fm_release(matrix=mat_u)
             DEALLOCATE (vec_e)
 
             ! Off-set for next block
@@ -796,8 +797,8 @@ CONTAINS
                                1.0_dp, mat_u, dat(j)%matrix, 0.0_dp, ec%block(i)%hab(spin, j)%matrix)
 
                   ! Clean memory
-                  CALL cp_fm_release(matrix=mat_u)
                   CALL cp_fm_struct_release(fmstruct=fm_s)
+                  CALL cp_fm_release(matrix=mat_u)
 
                END IF
                ! Off-set for next block
@@ -807,11 +808,18 @@ CONTAINS
             k = k+ec%block(i)%n_ao
          END DO
 
+         ! Clean memory
+         IF (ASSOCIATED(dat)) THEN
+            DO i = 1, SIZE(dat)
+               IF (ASSOCIATED(dat(i)%matrix)) &
+                  CALL cp_fm_release(matrix=dat(i)%matrix)
+            END DO
+         END IF
       END DO
 
       ! Clean memory
       IF (ASSOCIATED(dat)) &
-         DEALLOCATE (dat)
+         DEALLOCATE(dat)
 
    END SUBROUTINE hamiltonian_block_diag
 
@@ -1982,6 +1990,7 @@ CONTAINS
             IF (ASSOCIATED(mat_h(i)%matrix)) &
                CALL cp_fm_release(matrix=mat_h(i)%matrix)
          END DO
+         DEALLOCATE(mat_h)
       END IF
       CALL release_ec_data(ec)
 
