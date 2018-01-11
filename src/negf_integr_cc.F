@@ -10,9 +10,6 @@
 !>   * 05.2017 created [Sergey Chulkov]
 ! **************************************************************************************************
 MODULE negf_integr_cc
-   USE ISO_C_BINDING,                   ONLY: &
-        C_CHAR, C_DOUBLE, C_DOUBLE_COMPLEX, C_FLOAT, C_FLOAT_COMPLEX, C_FUNPTR, C_INT, C_INT32_T, &
-        C_INTPTR_T, C_PTR, C_SIZE_T
    USE cp_cfm_basic_linalg,             ONLY: cp_cfm_add,&
                                               cp_cfm_scale
    USE cp_cfm_types,                    ONLY: cp_cfm_create,&
@@ -28,7 +25,9 @@ MODULE negf_integr_cc
                                               cp_fm_release,&
                                               cp_fm_type
    USE kahan_sum,                       ONLY: accurate_sum
-   USE kinds,                           ONLY: dp
+   USE kinds,                           ONLY: dp,&
+                                              int_8
+   USE mathconstants,                   ONLY: z_one
    USE negf_integr_utils,               ONLY: contour_shape_arc,&
                                               contour_shape_linear,&
                                               equidistant_nodes_a_b,&
@@ -84,64 +83,39 @@ MODULE negf_integr_cc
       REAL(kind=dp), ALLOCATABLE, DIMENSION(:)           :: tnodes
    END TYPE ccquad_type
 
-   COMPLEX(kind=dp), PARAMETER, PRIVATE :: z_one = CMPLX(1.0_dp, 0.0_dp, dp), &
-                                           z_mone = CMPLX(-1.0_dp, 0.0_dp, dp), &
-                                           z_two = CMPLX(2.0_dp, 0.0_dp, dp), &
-                                           z_zero = CMPLX(0.0_dp, 0.0_dp, dp)
 #if defined ( __FFTW3 )
-   ! need to import 'C' types beforehand
-   INCLUDE'fftw3.f03'
+#define XFFTW_PLAN_DFT_1D dfftw_plan_dft_1d
+#define XFFTW_EXECUTE_DFT dfftw_execute_dft
+#define XFFTW_DESTROY_PLAN dfftw_destroy_plan
+
+   INCLUDE "fftw3.f"
+
+   INTERFACE
+      SUBROUTINE XFFTW_PLAN_DFT_1D(plan, n, fft_in, fft_out, fft_sign, flags)
+         IMPORT int_8, dp
+         INTEGER(kind=int_8), INTENT(in)                 :: plan
+         INTEGER, INTENT(in)                             :: n
+         COMPLEX(kind=dp), DIMENSION(*)                  :: fft_in
+         COMPLEX(kind=dp), DIMENSION(*)                  :: fft_out
+         INTEGER, INTENT(in)                             :: fft_sign
+         INTEGER, INTENT(in)                             :: flags
+      END SUBROUTINE XFFTW_PLAN_DFT_1D
+
+      SUBROUTINE XFFTW_EXECUTE_DFT(plan, fft_in, fft_out)
+         IMPORT int_8, dp
+         INTEGER(kind=int_8), INTENT(in)                 :: plan
+         COMPLEX(kind=dp), DIMENSION(*)                  :: fft_in
+         COMPLEX(kind=dp), DIMENSION(*)                  :: fft_out
+      END SUBROUTINE XFFTW_EXECUTE_DFT
+
+      SUBROUTINE XFFTW_DESTROY_PLAN(plan)
+         IMPORT int_8
+         INTEGER(kind=int_8), INTENT(in)                 :: plan
+      END SUBROUTINE XFFTW_DESTROY_PLAN
+   END INTERFACE
 #endif
 
 CONTAINS
-
-#if 0
-! **************************************************************************************************
-!> \brief private dummy subroutine to prevent removing 'unused' C-types by the 'prettify' script.
-!>        These types are actually needed for the included source file 'fftw3.f03'.
-!> \param dummy_char ...
-!> \param dummy_int ...
-!> \param dummy_int32 ...
-!> \param dummy_intptr ...
-!> \param dummy_double ...
-!> \param dummy_double_complex ...
-!> \param dummy_float ...
-!> \param dummy_float_complex ...
-!> \param dummy_size ...
-!> \param dummy_ptr ...
-!> \param dummy_funptr ...
-! **************************************************************************************************
-   SUBROUTINE dummy_subroutine(dummy_char, dummy_int, dummy_int32, dummy_intptr, dummy_double, &
-                               dummy_double_complex, dummy_float, dummy_float_complex, dummy_size, &
-                               dummy_ptr, dummy_funptr)
-      CHARACTER(C_CHAR), INTENT(in)                      :: dummy_char
-      INTEGER(C_INT), INTENT(in)                         :: dummy_int
-      INTEGER(C_INT32_T), INTENT(in)                     :: dummy_int32
-      INTEGER(C_INTPTR_T), INTENT(in)                    :: dummy_intptr
-      REAL(C_DOUBLE), INTENT(in)                         :: dummy_double
-      COMPLEX(C_DOUBLE_COMPLEX), INTENT(in)              :: dummy_double_complex
-      REAL(C_FLOAT), INTENT(in)                          :: dummy_float
-      COMPLEX(C_FLOAT_COMPLEX), INTENT(in)               :: dummy_float_complex
-      INTEGER(C_SIZE_T), INTENT(in)                      :: dummy_size
-      TYPE(C_PTR), INTENT(in)                            :: dummy_ptr
-      TYPE(C_FUNPTR), INTENT(in)                         :: dummy_funptr
-
-      CHARACTER(len=*), PARAMETER :: routineN = 'dummy_subroutine', &
-         routineP = moduleN//':'//routineN
-
-      MARK_USED(dummy_char)
-      MARK_USED(dummy_int)
-      MARK_USED(dummy_int32)
-      MARK_USED(dummy_intptr)
-      MARK_USED(dummy_double)
-      MARK_USED(dummy_double_complex)
-      MARK_USED(dummy_float)
-      MARK_USED(dummy_float_complex)
-      MARK_USED(dummy_size)
-      MARK_USED(dummy_ptr)
-
-   END SUBROUTINE dummy_subroutine
-#endif
 
 ! **************************************************************************************************
 !> \brief Initialise a Clenshaw-Curtis quadrature environment variable.
@@ -480,14 +454,13 @@ CONTAINS
       COMPLEX(kind=dp), ALLOCATABLE, DIMENSION(:)        :: ztmp, ztmp_dct
       INTEGER :: handle, icol, ipoint, irow, ncols_local, nintervals, nintervals_half, &
                  nintervals_half_plus_1, nintervals_half_plus_2, nintervals_plus_2, nrows_local
+      INTEGER(kind=int_8)                                :: plan
       LOGICAL                                            :: equiv
       REAL(kind=dp)                                      :: rscale
       REAL(kind=dp), ALLOCATABLE, DIMENSION(:)           :: weights
-      TYPE(C_PTR)                                        :: plan
       TYPE(cp_fm_struct_type), POINTER                   :: fm_struct
 
 #if defined ( __FFTW3 )
-
       CALL timeset(routineN, handle)
 
       CPASSERT(ALLOCATED(cc_env%zdata_cache))
@@ -533,7 +506,7 @@ CONTAINS
 
       ! TO DO: OpenMP
       ALLOCATE (ztmp(nintervals), ztmp_dct(nintervals))
-      plan = fftw_plan_dft_1d(nintervals, ztmp, ztmp_dct, FFTW_FORWARD, FFTW_ESTIMATE)
+      CALL XFFTW_PLAN_DFT_1D(plan, nintervals, ztmp, ztmp_dct, FFTW_FORWARD, FFTW_ESTIMATE)
 
       DO icol = 1, ncols_local
          DO irow = 1, nrows_local
@@ -545,7 +518,7 @@ CONTAINS
                ztmp(nintervals_half+ipoint) = ztmp(nintervals_half_plus_2-ipoint)
             END DO
 
-            CALL fftw_execute_dft(plan, ztmp, ztmp_dct)
+            CALL XFFTW_EXECUTE_DFT(plan, ztmp, ztmp_dct)
 
             ztmp_dct(1) = 0.5_dp*ztmp_dct(1)
             DO ipoint = 2, nintervals_half
@@ -558,7 +531,7 @@ CONTAINS
          END DO
       END DO
 
-      CALL fftw_destroy_plan(plan)
+      CALL XFFTW_DESTROY_PLAN(plan)
       DEALLOCATE (ztmp, ztmp_dct)
       ! END OpenMP
 

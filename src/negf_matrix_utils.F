@@ -99,9 +99,8 @@ CONTAINS
       CHARACTER(LEN=*), PARAMETER :: routineN = 'negf_copy_fm_submat_to_dbcsr', &
          routineP = moduleN//':'//routineN
 
-      INTEGER                                            :: first_sgf_col, first_sgf_row, handle, &
-                                                            iatom_col, iatom_row, natoms_col, &
-                                                            natoms_row, ncols, nparticles, nrows
+      INTEGER :: first_sgf_col, first_sgf_row, handle, iatom_col, iatom_row, icol, irow, &
+         natoms_col, natoms_row, ncols, nparticles, nrows
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: nsgfs
       LOGICAL                                            :: found
       REAL(kind=dp), ALLOCATABLE, DIMENSION(:, :)        :: fm_block
@@ -136,8 +135,16 @@ CONTAINS
             CALL dbcsr_get_block_p(matrix=matrix, row=atomlist_row(iatom_row), col=atomlist_col(iatom_col), &
                                    block=sm_block, found=found)
             IF (found) THEN
-               CALL dlacpy('F', nsgfs(atomlist_row(iatom_row)), nsgfs(atomlist_col(iatom_col)), &
-                           fm_block(first_sgf_row, first_sgf_col), SIZE(fm_block, 1), sm_block(1, 1), SIZE(sm_block, 1))
+               ! the following LAPACK call violates the coding convention
+               !CALL dlacpy('F', nsgfs(atomlist_row(iatom_row)), nsgfs(atomlist_col(iatom_col)), &
+               !            fm_block(first_sgf_row, first_sgf_col), SIZE(fm_block, 1), sm_block(1, 1), SIZE(sm_block, 1))
+               nrows = nsgfs(atomlist_row(iatom_row))
+               ncols = nsgfs(atomlist_col(iatom_col))
+               DO icol = 1, ncols
+                  DO irow = 1, nrows
+                     sm_block(irow, icol) = fm_block(first_sgf_row+irow-1, first_sgf_col+icol-1)
+                  END DO
+               END DO
             END IF
 
             first_sgf_row = first_sgf_row+nsgfs(atomlist_row(iatom_row))
