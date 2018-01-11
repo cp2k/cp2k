@@ -88,7 +88,7 @@ MODULE negf_integr_cc
 #define XFFTW_EXECUTE_DFT dfftw_execute_dft
 #define XFFTW_DESTROY_PLAN dfftw_destroy_plan
 
-   INCLUDE "fftw3.f"
+#include "fftw3.f"
 
    INTERFACE
       SUBROUTINE XFFTW_PLAN_DFT_1D(plan, n, fft_in, fft_out, fft_sign, flags)
@@ -450,9 +450,10 @@ CONTAINS
 
       CHARACTER(len=*), PARAMETER :: routineN = 'ccquad_refine_integral', &
                                      routineP = moduleN//':'//routineN
-
+      INTEGER :: handle
+#if defined ( __FFTW3 )
       COMPLEX(kind=dp), ALLOCATABLE, DIMENSION(:)        :: ztmp, ztmp_dct
-      INTEGER :: handle, icol, ipoint, irow, ncols_local, nintervals, nintervals_half, &
+      INTEGER :: icol, ipoint, irow, ncols_local, nintervals, nintervals_half, &
                  nintervals_half_plus_1, nintervals_half_plus_2, nintervals_plus_2, nrows_local
       INTEGER(kind=int_8)                                :: plan
       LOGICAL                                            :: equiv
@@ -460,7 +461,6 @@ CONTAINS
       REAL(kind=dp), ALLOCATABLE, DIMENSION(:)           :: weights
       TYPE(cp_fm_struct_type), POINTER                   :: fm_struct
 
-#if defined ( __FFTW3 )
       CALL timeset(routineN, handle)
 
       CPASSERT(ALLOCATED(cc_env%zdata_cache))
@@ -545,6 +545,7 @@ CONTAINS
       CALL cp_abort(__LOCATION__, &
                     "fftw3 library is required for "//routineN)
 
+      MARK_USED(cc_env)
       CALL timestop(handle)
 #endif
    END SUBROUTINE ccquad_refine_integral
