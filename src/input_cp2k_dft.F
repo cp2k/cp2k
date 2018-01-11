@@ -7875,10 +7875,10 @@ CONTAINS
 
       CPASSERT(.NOT. ASSOCIATED(section))
       CALL section_create(section, "xas_tdp", &
-                          description="XAS simulations using TDDFPT. Excitation from specified "//&
-                          "core orbitals are considered one at a time. In case of high symmetry "//&
+                          description="XAS simulations using TDDFPT. Excitation from specified "// &
+                          "core orbitals are considered one at a time. In case of high symmetry "// &
                           "structures, donor core orbitals should be localized.", &
-                          n_keywords=8, n_subsections=2, repeats=.FALSE.)
+                          n_keywords=9, n_subsections=2, repeats=.FALSE.)
 
       NULLIFY (keyword, subsection, print_key)
 
@@ -7889,12 +7889,12 @@ CONTAINS
                           default_l_val=.FALSE., &
                           lone_keyword_l_val=.TRUE.)
       CALL section_add_keyword(section, keyword)
-      CALL keyword_release(keyword)                  
+      CALL keyword_release(keyword)
 
       CALL keyword_create(keyword, name="ONLY_CHECK_DONOR_STATES", &
-                          description="This keyword defines whether the full calculation should "//&
-                                      "be done or not. If set to .TRUE., only the determination "//&
-                                      "of donor MOs is conducted for verfification purposes.", &
+                          description="This keyword defines whether the full calculation should "// &
+                          "be done or not. If set to .TRUE., only the determination "// &
+                          "of donor MOs is conducted for verfification purposes.", &
                           usage="ONLY_CHECK_DONOR_STATES logical", &
                           default_l_val=.FALSE., &
                           repeats=.FALSE.)
@@ -7911,7 +7911,6 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-
       CALL keyword_create(keyword, name="ATOM_LIST", &
                           variants=(/"AT_LIST"/), &
                           description="Indices of the atoms to be excited. "// &
@@ -7920,10 +7919,10 @@ CONTAINS
                           n_var=-1, type_of_var=integer_t, repeats=.FALSE.)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
-      
+
       CALL keyword_create(keyword, name="KIND_LIST", &
                           description="Kind of atoms to be excited. "// &
-                          "All atoms of the specified kinds are considered"//&
+                          "All atoms of the specified kinds are considered"// &
                           "Keyword only taken into account if DEFINE_EXCITED = BY_KIND", &
                           usage="KIND_LIST {string}  {string} ..  {string} ", &
                           n_var=-1, type_of_var=char_t, repeats=.FALSE.)
@@ -7932,38 +7931,38 @@ CONTAINS
 
       CALL keyword_create(keyword, name="STATE_TYPES", &
                           variants=(/"TYPES"/), &
-                          description="Types of orbitals that are excited, for each atom/kind, "//&
-                          "in order to do  tdp  xas spectra calculation."//&
-                          "This keyword MUST have the same number of entries as the relevant "//&
-                          "KIND_LIST or ATOM_LIST. The order of the specified state types must "//&
-                          "correspond to the order of the relevant kinds/indices."//&
-                          "This keyword can be repeated, usefull when  multiple orbital types "//&
+                          description="Types of orbitals that are excited, for each atom/kind, "// &
+                          "in order to do  tdp  xas spectra calculation."// &
+                          "This keyword MUST have the same number of entries as the relevant "// &
+                          "KIND_LIST or ATOM_LIST. The order of the specified state types must "// &
+                          "correspond to the order of the relevant kinds/indices."// &
+                          "This keyword can be repeated, usefull when  multiple orbital types "// &
                           "should be excited for specific kinds/atoms.", &
-                          n_var=-1, default_i_val = xas_not_excited, repeats=.TRUE.,&
+                          n_var=-1, default_i_val=xas_not_excited, repeats=.TRUE., &
                           usage="STATE_TYPES {string}  {string} .. {string}", &
-                          enum_c_vals=s2a("1S", "2S","2P", "NE"), &
+                          enum_c_vals=s2a("1S", "2S", "2P", "NE"), &
                           enum_desc=s2a("1s orbital", "2s orbital", "2p orbitals", "not excited"), &
                           enum_i_vals=(/xas_1s_type, xas_2s_type, xas_2p_type, xas_not_excited/))
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="STATE_SEARCH", & 
-                          variants=(/"NSEARCH"/),&
-                          description="Number of MOs to search to find specified donor core "//&
-                          "orbitals, starting from the lowest in energy and upward. By default, "//&
-                          "all HOMOs are searched. If the LOCALIZED subsection is used, then "//&
-                          "all searched states are first localized.",&
-                          usage="STATE_SEARCH {integer}",&
+      CALL keyword_create(keyword, name="STATE_SEARCH", &
+                          variants=(/"NSEARCH"/), &
+                          description="Number of MOs to search to find specified donor core "// &
+                          "orbitals, starting from the lowest in energy and upward. By default, "// &
+                          "all HOMOs are searched. If the LOCALIZED subsection is used, then "// &
+                          "all searched states are first localized.", &
+                          usage="STATE_SEARCH {integer}", &
                           default_i_val=-1)
-      CALL section_add_keyword(section, keyword)         
-      CALL keyword_release(keyword)        
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="NGAUSS", & 
-                          description="Number of GTOs used when expanding STOs for core donor  "//&
-                          "states identification.",&
-                          usage="NGAUSS {integer}",&
+      CALL keyword_create(keyword, name="NGAUSS", &
+                          description="Number of GTOs used when expanding STOs for core donor  "// &
+                          "states identification.", &
+                          usage="NGAUSS {integer}", &
                           default_i_val=3)
-      CALL section_add_keyword(section, keyword)         
+      CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
       CALL keyword_create(keyword, name="DIPOLE_FORM", &
@@ -7978,16 +7977,24 @@ CONTAINS
                           enum_i_vals=(/xas_dip_len, xas_dip_vel/))
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
-      
+
+      CALL keyword_create(keyword, name="TAMM_DANCOFF", &
+                          variants=(/"TDA"/), &
+                          description="Whether the Tamm-Dancoff approximation should be used.", &
+                          usage="TAMM_DANCOFF {logical}", &
+                          default_l_val=.FALSE.)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
       CALL create_localize_section(subsection)
-      CALL section_add_subsection(section, subsection)         
+      CALL section_add_subsection(section, subsection)
       CALL section_release(subsection)
-      
-      CALL section_create(subsection, "PRINT", "Controls the printing of information during "//&
+
+      CALL section_create(subsection, "PRINT", "Controls the printing of information during "// &
                           "XAS TDP calculations", repeats=.FALSE.)
-      CALL cp_print_key_section_create(print_key, "PROGRAM_RUN_INFO",&
-                                       description="Controls the printing of basic programm steps",&
-                                       print_level=low_print_level, add_last=add_last_numeric,&
+      CALL cp_print_key_section_create(print_key, "PROGRAM_RUN_INFO", &
+                                       description="Controls the printing of basic programm steps", &
+                                       print_level=low_print_level, add_last=add_last_numeric, &
                                        filename="__STD_OUT__")
       CALL section_add_subsection(subsection, print_key)
       CALL section_release(print_key)
@@ -7995,7 +8002,7 @@ CONTAINS
       CALL section_add_subsection(section, subsection)
       CALL section_release(subsection)
 
-   END SUBROUTINE create_xas_tdp_section  
+   END SUBROUTINE create_xas_tdp_section
 
 ! **************************************************************************************************
 !> \brief      Create CP2K input section for the smearing of occupation numbers
