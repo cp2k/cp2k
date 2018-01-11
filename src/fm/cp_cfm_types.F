@@ -16,7 +16,10 @@ MODULE cp_cfm_types
                                               cp_fm_struct_release,&
                                               cp_fm_struct_retain,&
                                               cp_fm_struct_type
-   USE cp_fm_types,                     ONLY: cp_fm_type
+   USE cp_fm_types,                     ONLY: cp_fm_copy_general,&
+                                              cp_fm_create,&
+                                              cp_fm_release,&
+                                              cp_fm_type
    USE cp_log_handling,                 ONLY: cp_to_string
    USE cp_para_types,                   ONLY: cp_para_env_type
    USE kinds,                           ONLY: dp
@@ -33,9 +36,10 @@ MODULE cp_cfm_types
    INTEGER, SAVE, PRIVATE :: last_cfm_id_nr = 0
 
    PUBLIC :: cp_cfm_type, cp_cfm_p_type
-   PUBLIC :: cp_cfm_create, cp_cfm_release
+   PUBLIC :: cp_cfm_create, cp_cfm_release, cp_cfm_retain
    PUBLIC :: cp_cfm_set_all, cp_cfm_get_info, cp_cfm_get_element
-   PUBLIC :: cp_cfm_set_element, cp_cfm_to_cfm, cp_cfm_to_fm
+   PUBLIC :: cp_cfm_set_element, cp_cfm_to_cfm, cp_cfm_to_fm, cp_fm_to_cfm
+   PUBLIC :: cp_cfm_get_submatrix, cp_cfm_set_submatrix, cp_cfm_copy_general
 
    INTERFACE cp_cfm_to_cfm
       MODULE PROCEDURE cp_cfm_to_cfm_matrix, & ! a full matrix
@@ -915,4 +919,58 @@ CONTAINS
 
    END SUBROUTINE cp_fm_to_cfm
 
+! **************************************************************************************************
+!> \brief General copy of a fm matrix to another fm matrix.
+!>        Calls the subroutine cp_fm_copy_general() which uses non-blocking MPI.
+!> \param source          input cfm matrix
+!> \param destination     output cfm matrix
+!> \param para_env        parallel environment corresponding to the BLACS env that covers all parts
+!>                        of the input and output matrices
+!> \note It should be a good idea to rely on non-blocking MPI calls in a similar way as
+!>       it is implemented in cp_fm_start_copy_general()
+! **************************************************************************************************
+   SUBROUTINE cp_cfm_copy_general(source, destination, para_env)
+      TYPE(cp_cfm_type), POINTER                         :: source, destination
+      TYPE(cp_para_env_type), POINTER                    :: para_env
+
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'cp_cfm_copy_general', &
+         routineP = moduleN//':'//routineN
+
+      INTEGER                                            :: handle
+      TYPE(cp_fm_type), POINTER                          :: destination_imag, destination_real, &
+                                                            source_imag, source_real
+
+      CALL timeset(routineN, handle)
+
+      NULLIFY (destination_imag, destination_real, source_imag, source_real)
+
+      IF (ASSOCIATED(source)) THEN
+         CALL cp_fm_create(source_real, source%matrix_struct)
+         CALL cp_fm_create(source_imag, source%matrix_struct)
+
+         CALL cp_cfm_to_fm(msource=source, mtargetr=source_real, mtargeti=source_imag)
+      END IF
+
+      IF (ASSOCIATED(destination)) THEN
+         CALL cp_fm_create(destination_real, destination%matrix_struct)
+         CALL cp_fm_create(destination_imag, destination%matrix_struct)
+      END IF
+
+      CALL cp_fm_copy_general(source_real, destination_real, para_env)
+      CALL cp_fm_copy_general(source_imag, destination_imag, para_env)
+
+      IF (ASSOCIATED(destination)) THEN
+         CALL cp_fm_to_cfm(msourcer=destination_real, msourcei=destination_imag, mtarget=destination)
+
+         CALL cp_fm_release(destination_imag)
+         CALL cp_fm_release(destination_real)
+      END IF
+
+      IF (ASSOCIATED(source)) THEN
+         CALL cp_fm_release(source_imag)
+         CALL cp_fm_release(source_real)
+      END IF
+
+      CALL timestop(handle)
+   END SUBROUTINE cp_cfm_copy_general
 END MODULE cp_cfm_types

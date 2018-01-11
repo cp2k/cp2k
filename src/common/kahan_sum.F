@@ -49,7 +49,7 @@ MODULE kahan_sum
    INTERFACE accurate_dot_product
       MODULE PROCEDURE &
          kahan_dot_product_d1, &
-         kahan_dot_product_s2, kahan_dot_product_d2, &
+         kahan_dot_product_s2, kahan_dot_product_d2, kahan_dot_product_z2, &
          kahan_dot_product_masked_d3
    END INTERFACE accurate_dot_product
 CONTAINS
@@ -125,9 +125,9 @@ CONTAINS
 
 ! **************************************************************************************************
 !> \brief computes the accurate sum of an array that is the element wise product of two input arrays.
-!> \param array1 the first input array to compute the product array
-!> \param array2 the second input array to compute the product array
-!> \retval ks the result of the summation
+!> \param array1 array of real numbers
+!> \param array2 another array of real numbers
+!> \retval ks    dot product
 ! **************************************************************************************************
    FUNCTION kahan_dot_product_d1(array1, array2) RESULT(ks)
       REAL(KIND=dp), DIMENSION(:), INTENT(in)            :: array1, array2
@@ -258,9 +258,9 @@ CONTAINS
 
 ! **************************************************************************************************
 !> \brief computes the accurate sum of an array that is the element wise product of two input arrays.
-!> \param array1 the first input array to compute the product array
-!> \param array2 the second input array to compute the product array
-!> \retval ks the result of the summation
+!> \param array1 2-D array of real numbers
+!> \param array2 another 2-D array of real numbers
+!> \retval ks    dot product
 ! **************************************************************************************************
    FUNCTION kahan_dot_product_s2(array1, array2) RESULT(ks)
       REAL(KIND=sp), DIMENSION(:, :), INTENT(in)         :: array1, array2
@@ -324,9 +324,9 @@ CONTAINS
 
 ! **************************************************************************************************
 !> \brief computes the accurate sum of an array that is the element wise product of two input arrays.
-!> \param array1 the first input array to compute the product array
-!> \param array2 the second input array to compute the product array
-!> \retval ks the result of the summation
+!> \param array1 2-D array of real numbers
+!> \param array2 another 2-D array of real numbers
+!> \retval ks    dot product
 ! **************************************************************************************************
    FUNCTION kahan_dot_product_d2(array1, array2) RESULT(ks)
       REAL(KIND=dp), DIMENSION(:, :), INTENT(in)         :: array1, array2
@@ -428,6 +428,33 @@ CONTAINS
    END FUNCTION kahan_sum_z2
 
 ! **************************************************************************************************
+!> \brief computes the accurate sum of an array that is the element wise product of two input arrays.
+!> \param array1 2-D array of complex numbers
+!> \param array2 another 2-D array of complex numbers
+!> \retval ks    dot product
+! **************************************************************************************************
+   FUNCTION kahan_dot_product_z2(array1, array2) RESULT(ks)
+      COMPLEX(KIND=dp), DIMENSION(:, :), INTENT(in)      :: array1, array2
+      COMPLEX(KIND=dp)                                   :: ks
+
+      COMPLEX(KIND=dp)                                   :: c, t, y
+      INTEGER                                            :: i1, i2, n1, n2
+
+      ks = dzero; t = dzero; y = dzero; c = dzero
+
+      n1 = SIZE(array1, 1)
+      n2 = SIZE(array1, 2)
+      DO i2 = 1, n2
+         DO i1 = 1, n1
+            y = array1(i1, i2)*array2(i1, i2)-c
+            t = ks+y
+            c = (t-ks)-y
+            ks = t
+         END DO
+      END DO
+   END FUNCTION kahan_dot_product_z2
+
+! **************************************************************************************************
 !> \brief ...
 !> \param array ...
 !> \param mask ...
@@ -521,7 +548,7 @@ CONTAINS
 !> \param mask the mask array
 !> \param th screening threshold: only array points where the value of mask is greater than th are
 !>           included in the sum
-!> \retval ks the result of the summation
+!> \retval ks the result of summation
 ! **************************************************************************************************
    FUNCTION kahan_dot_product_masked_d3(array1, array2, mask, th) RESULT(ks)
       REAL(KIND=dp), DIMENSION(:, :, :), INTENT(IN), &

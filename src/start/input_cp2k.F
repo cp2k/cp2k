@@ -29,6 +29,7 @@ MODULE input_cp2k
    USE input_cp2k_force_eval,           ONLY: create_force_eval_section
    USE input_cp2k_global,               ONLY: create_global_section
    USE input_cp2k_motion,               ONLY: create_motion_section
+   USE input_cp2k_negf,                 ONLY: create_negf_section
    USE input_cp2k_rsgrid,               ONLY: create_rsgrid_section
    USE input_cp2k_vib,                  ONLY: create_vib_section
    USE input_keyword_types,             ONLY: keyword_create,&
@@ -132,6 +133,10 @@ CONTAINS
       CALL section_release(section)
 
       CALL create_vib_section(section)
+      CALL section_add_subsection(root_section, section)
+      CALL section_release(section)
+
+      CALL create_negf_section(section)
       CALL section_add_subsection(root_section, section)
       CALL section_release(section)
 

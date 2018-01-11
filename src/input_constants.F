@@ -129,7 +129,8 @@ MODULE input_constants
                                                ehrenfest = 16, &
                                                do_tamc = 17, &
                                                tree_mc_run = 18, &
-                                               driver_run = 19
+                                               driver_run = 19, &
+                                               negf_run = 20
 
    ! Run Types of Atom Code
    INTEGER, PARAMETER, PUBLIC               :: atom_no_run = 1, &
@@ -1059,5 +1060,11 @@ MODULE input_constants
                                                fix_xy = 4, &
                                                fix_xz = 5, &
                                                fix_yz = 6
+
+   ! Non-equilibrium Green's function method
+   INTEGER, PARAMETER, PUBLIC               :: negfint_method_cc = 0, &
+                                               negfint_method_simpson = 1
+   INTEGER, PARAMETER, PUBLIC               :: negfrun_main = 0, &
+                                               negfrun_fermilevel = 1
 
 END MODULE input_constants

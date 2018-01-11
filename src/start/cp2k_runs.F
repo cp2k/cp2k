@@ -80,7 +80,7 @@ MODULE cp2k_runs
         do_mixed, do_opt_basis, do_optimize_input, do_qmmm, do_qs, do_swarm, do_tamc, do_test, &
         do_tree_mc, do_tree_mc_ana, driver_run, ehrenfest, electronic_spectra_run, &
         energy_force_run, energy_run, geo_opt_run, linear_response_run, mol_dyn_run, mon_car_run, &
-        none_run, pint_run, real_time_propagation, tree_mc_run, vib_anal
+        none_run, pint_run, real_time_propagation, tree_mc_run, vib_anal, negf_run
    USE input_cp2k,                      ONLY: create_cp2k_root_section
    USE input_cp2k_check,                ONLY: check_cp2k_input
    USE input_cp2k_global,               ONLY: create_global_section
@@ -114,6 +114,7 @@ MODULE cp2k_runs
    USE mscfg_methods,                   ONLY: do_mol_loop,&
                                               loop_over_molecules
    USE neb_methods,                     ONLY: neb
+   USE negf_methods,                    ONLY: do_negf
    USE optimize_basis,                  ONLY: run_optimize_basis
    USE optimize_input,                  ONLY: run_optimize_input
    USE pint_methods,                    ONLY: do_pint_run
@@ -372,6 +373,8 @@ CONTAINS
          CALL vb_anal(root_section, input_declaration, para_env, globenv)
       CASE (do_band)
          CALL neb(root_section, input_declaration, para_env, globenv)
+      CASE (negf_run)
+         CALL do_negf(force_env)
       CASE default
          CPABORT("")
       END SELECT

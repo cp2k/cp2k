@@ -81,7 +81,7 @@ MODULE bibliography
                             Kapil2016, Heinzmann1976, Ehrhardt1985, Rybkin2016, West2006, &
                             Bates2013, Andermatt2016, Zhu2016, Schuett2016, Lu2004, &
                             Becke1988b, Migliore2009, Mavros2015, Holmberg2017, Marek2014, &
-                            Stoychev2016, Futera2017
+                            Stoychev2016, Futera2017, Bailey2006, Papior2017
 
 CONTAINS
 
@@ -3746,6 +3746,43 @@ CONTAINS
                          "EP 19689", &
                          "ER"), &
                          DOI="10.1021/acs.jpcc.7b06566")
+
+      CALL add_reference(key=Bailey2006, ISI_record=s2a( &
+                         "PT J", &
+                         "AU Rocha, AR", &
+                         "   Garcia-Suarez, VM", &
+                         "   Bailey, S", &
+                         "   Lambert, C", &
+                         "   Ferrer, J", &
+                         "   Sanvito, S", &
+                         "TI Spin and molecular electronics in atomically generated orbital landscapes", &
+                         "SO PHYSICAL REVIEW B", &
+                         "PY 2006", &
+                         "VL 73", &
+                         "AR 085414", &
+                         "ER"), &
+                         DOI="10.1103/PhysRevB.73.085414")
+
+      CALL add_reference(key=Papior2017, ISI_record=s2a( &
+                         "PT J", &
+                         "AU Papior, N", &
+                         "   Lorente, N", &
+                         "   Frederiksen, T", &
+                         "   Garcia, A", &
+                         "   Brandbyge, M", &
+                         "AF Papior, Nick", &
+                         "   Lorente, Nicolas", &
+                         "   Frederiksen, Thomas", &
+                         "   Garcia, Alberto", &
+                         "   Brandbyge, Mads", &
+                         "TI Improvements on non-equilibrium and transport Green function techniques", &
+                         "SO COMPUTER PHYSICS COMMUNICATIONS", &
+                         "PY 2017", &
+                         "VL 212", &
+                         "BP 8", &
+                         "EP 24", &
+                         "ER"), &
+                         DOI="10.1016/j.cpc.2016.09.022")
 
    END SUBROUTINE add_all_references
 

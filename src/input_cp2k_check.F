@@ -20,10 +20,10 @@ MODULE input_cp2k_check
                                               cp_unit_set_type
    USE input_constants,                 ONLY: &
         do_region_global, do_thermo_al, do_thermo_csvr, do_thermo_gle, do_thermo_nose, &
-        do_thermo_same_as_part, npt_f_ensemble, npt_i_ensemble, vdw_nl_LMKLL, xc_funct_b3lyp, &
-        xc_funct_beefvdw, xc_funct_blyp, xc_funct_bp, xc_funct_hcth120, xc_funct_no_shortcut, &
-        xc_funct_olyp, xc_funct_pade, xc_funct_pbe, xc_funct_pbe0, xc_funct_tpss, xc_funct_xwpbe, &
-        xc_none, xc_vdw_fun_nonloc
+        do_thermo_same_as_part, negf_run, npt_f_ensemble, npt_i_ensemble, vdw_nl_LMKLL, &
+        xc_funct_b3lyp, xc_funct_beefvdw, xc_funct_blyp, xc_funct_bp, xc_funct_hcth120, &
+        xc_funct_no_shortcut, xc_funct_olyp, xc_funct_pade, xc_funct_pbe, xc_funct_pbe0, &
+        xc_funct_tpss, xc_funct_xwpbe, xc_none, xc_vdw_fun_nonloc
    USE input_keyword_types,             ONLY: keyword_type
    USE input_parsing,                   ONLY: section_vals_parse
    USE input_section_types,             ONLY: &
@@ -68,7 +68,8 @@ CONTAINS
       CHARACTER(len=*), PARAMETER :: routineN = 'check_cp2k_input', &
          routineP = moduleN//':'//routineN
 
-      INTEGER                                            :: handle, iforce_eval, nforce_eval
+      INTEGER                                            :: handle, iforce_eval, nforce_eval, &
+                                                            run_type
       LOGICAL                                            :: explicit, explicit_mix
       TYPE(section_vals_type), POINTER                   :: section, section1, section2, section3, &
                                                             sections
@@ -93,8 +94,10 @@ CONTAINS
          CALL section_vals_get(section3, explicit=explicit_mix)
          IF (explicit_mix) EXIT
       END DO
+      ! also allow multiple force_eval for NEGF run
+      CALL section_vals_val_get(input_file, "GLOBAL%RUN_TYPE", i_val=run_type)
 
-      IF ((explicit .AND. (nforce_eval == 1)) .OR. (.NOT. explicit .AND. (nforce_eval > 1))) THEN
+      IF (((explicit .AND. (nforce_eval == 1)) .OR. (.NOT. explicit .AND. (nforce_eval > 1))) .AND. run_type /= negf_run) THEN
          IF ((explicit_mix .AND. (nforce_eval == 1)) .OR. (.NOT. explicit_mix .AND. (nforce_eval > 1))) THEN
             CALL cp_abort(__LOCATION__, &
                           "Error multiple force_env without RESPA or MIXED, or RESPA with one single "// &

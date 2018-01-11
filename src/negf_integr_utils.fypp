@@ -1,0 +1,9 @@
+#!-------------------------------------------------------------------------------------------------!
+#!   CP2K: A general program to perform molecular dynamics simulations                             !
+#!   Copyright (C) 2000 - 2018  CP2K developers group                                              !
+#!-------------------------------------------------------------------------------------------------!
+#:mute
+#:set nametype1 = ['d', 'z']
+#:set type1 = ['REAL(kind=dp)', 'COMPLEX(kind=dp)']
+#:set inst_params = list(zip(nametype1, type1))
+#:endmute

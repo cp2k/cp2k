@@ -12,11 +12,13 @@
 !> \author Joost VandeVondele
 ! **************************************************************************************************
 MODULE cp_cfm_basic_linalg
+   USE cp_blacs_env,                    ONLY: cp_blacs_env_type
    USE cp_cfm_types,                    ONLY: cp_cfm_get_element,&
                                               cp_cfm_get_info,&
                                               cp_cfm_type
    USE cp_fm_struct,                    ONLY: cp_fm_struct_equivalent
    USE cp_fm_types,                     ONLY: cp_fm_type
+   USE kahan_sum,                       ONLY: accurate_dot_product
    USE kinds,                           ONLY: dp
    USE message_passing,                 ONLY: mp_sum
 #include "../base/base_uses.f90"
@@ -27,12 +29,16 @@ MODULE cp_cfm_basic_linalg
    LOGICAL, PRIVATE, PARAMETER :: debug_this_module = .TRUE.
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'cp_cfm_basic_linalg'
 
-   PUBLIC :: cp_cfm_add, cp_cfm_add_fm, cp_cfm_gemm, cp_cfm_lu_decompose, &
-             cp_cfm_scale, cp_cfm_column_scale, cp_cfm_schur_product, &
-             cp_cfm_solve, cp_cfm_cholesky_decompose, cp_cfm_triangular_multiply, &
+   PUBLIC :: cp_cfm_add, cp_cfm_add_fm, cp_cfm_cholesky_decompose, cp_cfm_gemm, cp_cfm_lu_decompose, &
+             cp_cfm_lu_invert, cp_cfm_norm, cp_cfm_scale, cp_cfm_column_scale, cp_cfm_schur_product, &
+             cp_cfm_solve, cp_cfm_trace, cp_cfm_transpose, cp_cfm_triangular_multiply, &
              cp_cfm_triangular_invert
 
    REAL(KIND=dp), EXTERNAL :: zlange, pzlange, pzlatra
+
+   INTERFACE cp_cfm_scale
+      MODULE PROCEDURE cp_cfm_dscale, cp_cfm_zscale
+   END INTERFACE cp_cfm_scale
 
 ! **************************************************************************************************
 
@@ -115,6 +121,7 @@ CONTAINS
       CALL timestop(handle)
 
    END SUBROUTINE cp_cfm_schur_product_cc
+
 ! **************************************************************************************************
 !> \brief   Scale and add two BLACS matrices (a <- alpha*a + beta*b).
 !> \param alpha ...
@@ -662,21 +669,19 @@ CONTAINS
    END SUBROUTINE cp_cfm_column_scale
 
 ! **************************************************************************************************
-!> \brief scales a matrix
+!> \brief scales a complex matrix by a real number
 !>      matrix_a = alpha * matrix_b
-!> \param alpha ...
-!> \param matrix_a ...
-!> \note
-!>      use cp_fm_set_all to zero (avoids problems with nan)
+!> \param alpha    scale factor
+!> \param matrix_a complex matrix to scale
 ! **************************************************************************************************
-   SUBROUTINE cp_cfm_scale(alpha, matrix_a)
-      COMPLEX(KIND=dp), INTENT(IN)                       :: alpha
+   SUBROUTINE cp_cfm_dscale(alpha, matrix_a)
+      REAL(kind=dp), INTENT(IN)                          :: alpha
       TYPE(cp_cfm_type), POINTER                         :: matrix_a
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'cp_cfm_scale', routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'cp_cfm_dscale', routineP = moduleN//':'//routineN
 
       COMPLEX(KIND=dp), DIMENSION(:, :), POINTER         :: a
-      INTEGER                                            :: handle, size_a
+      INTEGER                                            :: handle
 
       CALL timeset(routineN, handle)
 
@@ -686,13 +691,44 @@ CONTAINS
       CPASSERT(matrix_a%ref_count > 0)
 
       a => matrix_a%local_data
-      size_a = SIZE(a, 1)*SIZE(a, 2)
 
-      CALL ZSCAL(size_a, alpha, a, 1)
+      CALL zdscal(SIZE(a), alpha, a(1, 1), 1)
 
       CALL timestop(handle)
 
-   END SUBROUTINE cp_cfm_scale
+   END SUBROUTINE cp_cfm_dscale
+
+! **************************************************************************************************
+!> \brief scales a complex matrix by a complex number
+!>      matrix_a = alpha * matrix_b
+!> \param alpha    scale factor
+!> \param matrix_a complex matrix to scale
+!> \note
+!>      use cp_fm_set_all to zero (avoids problems with nan)
+! **************************************************************************************************
+   SUBROUTINE cp_cfm_zscale(alpha, matrix_a)
+      COMPLEX(KIND=dp), INTENT(IN)                       :: alpha
+      TYPE(cp_cfm_type), POINTER                         :: matrix_a
+
+      CHARACTER(len=*), PARAMETER :: routineN = 'cp_cfm_zscale', routineP = moduleN//':'//routineN
+
+      COMPLEX(KIND=dp), DIMENSION(:, :), POINTER         :: a
+      INTEGER                                            :: handle
+
+      CALL timeset(routineN, handle)
+
+      NULLIFY (a)
+
+      CPASSERT(ASSOCIATED(matrix_a))
+      CPASSERT(matrix_a%ref_count > 0)
+
+      a => matrix_a%local_data
+
+      CALL zscal(SIZE(a), alpha, a(1, 1), 1)
+
+      CALL timestop(handle)
+
+   END SUBROUTINE cp_cfm_zscale
 
 ! **************************************************************************************************
 !> \brief computs the the solution to A*b=A_general using lu decomposition
@@ -971,6 +1007,51 @@ CONTAINS
       CALL timestop(handle)
 
    END SUBROUTINE cp_cfm_cholesky_invert
+
+! **************************************************************************************************
+!> \brief returns the trace of matrix_a^T matrix_b, i.e
+!>      sum_{i,j}(matrix_a(i,j)*matrix_b(i,j))
+!> \param matrix_a a complex matrix
+!> \param matrix_b another complex matrix
+!> \param trace    value of the trace operator
+!> \par History
+!>    * 09.2017 created [Sergey Chulkov]
+!> \author Sergey Chulkov
+!> \note
+!>      Based on the subroutine cp_fm_trace(). Note the transposition of matrix_a!
+! **************************************************************************************************
+   SUBROUTINE cp_cfm_trace(matrix_a, matrix_b, trace)
+      TYPE(cp_cfm_type), POINTER                         :: matrix_a, matrix_b
+      COMPLEX(KIND=dp), INTENT(OUT)                      :: trace
+
+      CHARACTER(len=*), PARAMETER :: routineN = 'cp_cfm_trace', routineP = moduleN//':'//routineN
+
+      INTEGER                                            :: group, handle, mypcol, myprow, &
+                                                            ncol_local, npcol, nprow, nrow_local
+      TYPE(cp_blacs_env_type), POINTER                   :: context
+
+      CALL timeset(routineN, handle)
+
+      context => matrix_a%matrix_struct%context
+      myprow = context%mepos(1)
+      mypcol = context%mepos(2)
+      nprow = context%num_pe(1)
+      npcol = context%num_pe(2)
+
+      group = matrix_a%matrix_struct%para_env%group
+
+      nrow_local = MIN(matrix_a%matrix_struct%nrow_locals(myprow), matrix_b%matrix_struct%nrow_locals(myprow))
+      ncol_local = MIN(matrix_a%matrix_struct%ncol_locals(mypcol), matrix_b%matrix_struct%ncol_locals(mypcol))
+
+      ! compute an accurate dot-product
+      trace = accurate_dot_product(matrix_a%local_data(1:nrow_local, 1:ncol_local), &
+                                   matrix_b%local_data(1:nrow_local, 1:ncol_local))
+
+      CALL mp_sum(trace, group)
+
+      CALL timestop(handle)
+
+   END SUBROUTINE cp_cfm_trace
 
 ! **************************************************************************************************
 !> \brief multiplies in place by a triangular matrix:
