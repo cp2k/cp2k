@@ -127,7 +127,7 @@ MODULE fft_tools
 
    PRIVATE
    PUBLIC :: init_fft, fft3d, finalize_fft
-   PUBLIC :: fft_radix_operations
+   PUBLIC :: fft_radix_operations, fft_fw1d
    PUBLIC :: FWFFT, BWFFT
    PUBLIC :: FFT_RADIX_CLOSEST, FFT_RADIX_NEXT
    PUBLIC :: FFT_RADIX_NEXT_ODD
@@ -331,6 +331,43 @@ CONTAINS
       DEALLOCATE (DATA)
 
    END SUBROUTINE fft_radix_operations
+
+! **************************************************************************************************
+!> \brief Performs m 1-D forward FFT-s of size n.
+!> \param n      size of the FFT
+!> \param m      number of FFT-s
+!> \param trans  shape of input and output arrays: [n x m] if it is FALSE, [m x n] if it is TRUE
+!> \param zin    input array
+!> \param zout   output array
+!> \param scale  scaling factor
+!> \param stat   status of the operation, non-zero code indicates an error
+! **************************************************************************************************
+   SUBROUTINE fft_fw1d(n, m, trans, zin, zout, scale, stat)
+      INTEGER, INTENT(in)                                :: n, m
+      LOGICAL, INTENT(in)                                :: trans
+      COMPLEX(kind=dp), DIMENSION(*), INTENT(inout)      :: zin, zout
+      REAL(kind=dp), INTENT(in)                          :: scale
+      INTEGER, INTENT(out)                               :: stat
+
+      CHARACTER(len=*), PARAMETER :: routineN = 'fft_fw1d', routineP = moduleN//':'//routineN
+
+      INTEGER                                            :: handle
+      TYPE(fft_plan_type)                                :: fft_plan
+
+      CALL timeset(routineN, handle)
+
+      IF (fft_type == 3) THEN
+         CALL fft_create_plan_1dm(fft_plan, fft_type, FWFFT, trans, n, m, zin, zout, fft_plan_style)
+         CALL fft_1dm(fft_plan, zin, zout, scale, stat)
+         CALL fft_destroy_plan(fft_plan)
+      ELSE
+         CALL cp_warn(__LOCATION__, &
+                      "FFT library in use cannot handle transformation of an arbitrary length.")
+         stat = 1
+      END IF
+
+      CALL timestop(handle)
+   END SUBROUTINE fft_fw1d
 
 ! **************************************************************************************************
 !> \brief Calls the 3D-FFT function from the initialized library

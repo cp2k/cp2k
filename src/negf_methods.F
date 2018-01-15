@@ -654,7 +654,7 @@ CONTAINS
 
          CALL cp_fm_copy_general(work_fm, matrix_s_fm, para_env)
       ELSE
-         matrix_s_fm => negf_env%contacts(base_contact)%s_00
+         matrix_s_fm => negf_env%s_s
          CALL cp_fm_retain(matrix_s_fm)
          CALL cp_fm_get_info(matrix_s_fm, matrix_struct=fm_struct)
       END IF

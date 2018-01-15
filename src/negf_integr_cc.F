@@ -24,6 +24,7 @@ MODULE negf_integr_cc
                                               cp_fm_get_info,&
                                               cp_fm_release,&
                                               cp_fm_type
+   USE fft_tools,                       ONLY: fft_fw1d
    USE kahan_sum,                       ONLY: accurate_sum
    USE kinds,                           ONLY: dp,&
                                               int_8
@@ -82,38 +83,6 @@ MODULE negf_integr_cc
       TYPE(cp_cfm_p_type), ALLOCATABLE, DIMENSION(:)     :: zdata_cache
       REAL(kind=dp), ALLOCATABLE, DIMENSION(:)           :: tnodes
    END TYPE ccquad_type
-
-#if defined ( __FFTW3 )
-#define XFFTW_PLAN_DFT_1D dfftw_plan_dft_1d
-#define XFFTW_EXECUTE_DFT dfftw_execute_dft
-#define XFFTW_DESTROY_PLAN dfftw_destroy_plan
-
-#include "fftw3.f"
-
-   INTERFACE
-      SUBROUTINE XFFTW_PLAN_DFT_1D(plan, n, fft_in, fft_out, fft_sign, flags)
-         IMPORT int_8, dp
-         INTEGER(kind=int_8), INTENT(in)                 :: plan
-         INTEGER, INTENT(in)                             :: n
-         COMPLEX(kind=dp), DIMENSION(*)                  :: fft_in
-         COMPLEX(kind=dp), DIMENSION(*)                  :: fft_out
-         INTEGER, INTENT(in)                             :: fft_sign
-         INTEGER, INTENT(in)                             :: flags
-      END SUBROUTINE XFFTW_PLAN_DFT_1D
-
-      SUBROUTINE XFFTW_EXECUTE_DFT(plan, fft_in, fft_out)
-         IMPORT int_8, dp
-         INTEGER(kind=int_8), INTENT(in)                 :: plan
-         COMPLEX(kind=dp), DIMENSION(*)                  :: fft_in
-         COMPLEX(kind=dp), DIMENSION(*)                  :: fft_out
-      END SUBROUTINE XFFTW_EXECUTE_DFT
-
-      SUBROUTINE XFFTW_DESTROY_PLAN(plan)
-         IMPORT int_8
-         INTEGER(kind=int_8), INTENT(in)                 :: plan
-      END SUBROUTINE XFFTW_DESTROY_PLAN
-   END INTERFACE
-#endif
 
 CONTAINS
 
@@ -449,17 +418,18 @@ CONTAINS
       TYPE(ccquad_type), INTENT(inout)                   :: cc_env
 
       CHARACTER(len=*), PARAMETER :: routineN = 'ccquad_refine_integral', &
-                                     routineP = moduleN//':'//routineN
-      INTEGER :: handle
-#if defined ( __FFTW3 )
-      COMPLEX(kind=dp), ALLOCATABLE, DIMENSION(:)        :: ztmp, ztmp_dct
-      INTEGER :: icol, ipoint, irow, ncols_local, nintervals, nintervals_half, &
-                 nintervals_half_plus_1, nintervals_half_plus_2, nintervals_plus_2, nrows_local
-      INTEGER(kind=int_8)                                :: plan
+         routineP = moduleN//':'//routineN
+
+      COMPLEX(kind=dp), ALLOCATABLE, DIMENSION(:, :, :)  :: ztmp, ztmp_dct
+      INTEGER :: handle, icol, ipoint, irow, ncols_local, nintervals, nintervals_half, &
+         nintervals_half_plus_1, nintervals_half_plus_2, nintervals_plus_2, nrows_local, stat
       LOGICAL                                            :: equiv
       REAL(kind=dp)                                      :: rscale
       REAL(kind=dp), ALLOCATABLE, DIMENSION(:)           :: weights
       TYPE(cp_fm_struct_type), POINTER                   :: fm_struct
+
+!      TYPE(fft_plan_type)                                :: fft_plan
+!      INTEGER(kind=int_8)                                :: plan
 
       CALL timeset(routineN, handle)
 
@@ -504,50 +474,55 @@ CONTAINS
       ! 1.0 / nintervals
       rscale = 1.0_dp/rscale
 
-      ! TO DO: OpenMP
-      ALLOCATE (ztmp(nintervals), ztmp_dct(nintervals))
-      CALL XFFTW_PLAN_DFT_1D(plan, nintervals, ztmp, ztmp_dct, FFTW_FORWARD, FFTW_ESTIMATE)
+      ALLOCATE (ztmp(nintervals, nrows_local, ncols_local))
+      ALLOCATE (ztmp_dct(nintervals, nrows_local, ncols_local))
 
+!$OMP PARALLEL DO DEFAULT(NONE), PRIVATE(icol, ipoint, irow), &
+!$OMP             SHARED(cc_env, ncols_local, nintervals_half, nintervals_half_plus_1, nintervals_half_plus_2, nrows_local, ztmp)
       DO icol = 1, ncols_local
          DO irow = 1, nrows_local
             DO ipoint = 1, nintervals_half_plus_1
-               ztmp(ipoint) = cc_env%zdata_cache(ipoint)%matrix%local_data(irow, icol)
+               ztmp(ipoint, irow, icol) = cc_env%zdata_cache(ipoint)%matrix%local_data(irow, icol)
             END DO
 
             DO ipoint = 2, nintervals_half
-               ztmp(nintervals_half+ipoint) = ztmp(nintervals_half_plus_2-ipoint)
+               ztmp(nintervals_half+ipoint, irow, icol) = ztmp(nintervals_half_plus_2-ipoint, irow, icol)
             END DO
-
-            CALL XFFTW_EXECUTE_DFT(plan, ztmp, ztmp_dct)
-
-            ztmp_dct(1) = 0.5_dp*ztmp_dct(1)
-            DO ipoint = 2, nintervals_half
-               ztmp_dct(ipoint) = 0.5_dp*weights(ipoint)*(ztmp_dct(ipoint)+ztmp_dct(nintervals_plus_2-ipoint))
-            END DO
-            ztmp_dct(nintervals_half_plus_1) = weights(1)*ztmp_dct(nintervals_half_plus_1)
-
-            cc_env%integral%local_data(irow, icol) = rscale*accurate_sum(ztmp_dct(1:nintervals_half_plus_1))
-            cc_env%error_fm%local_data(irow, icol) = rscale*ABS(ztmp_dct(nintervals_half_plus_1))
          END DO
       END DO
+!$OMP END PARALLEL DO
 
-      CALL XFFTW_DESTROY_PLAN(plan)
+      CALL fft_fw1d(nintervals, nrows_local*ncols_local, .FALSE., ztmp, ztmp_dct, 1.0_dp, stat)
+      IF (stat /= 0) THEN
+         CALL cp_abort(__LOCATION__, &
+                       "An FFT library is required for Clenshaw-Curtis quadrature. "// &
+                       "You can use an alternative integration method instead.")
+      END IF
+
+!$OMP PARALLEL DO DEFAULT(NONE), PRIVATE(icol, ipoint, irow), &
+!$OMP             SHARED(cc_env, rscale, ncols_local, nintervals_half, nintervals_half_plus_1, nintervals_plus_2), &
+!$OMP             SHARED(nrows_local, weights, ztmp_dct)
+      DO icol = 1, ncols_local
+         DO irow = 1, nrows_local
+            ztmp_dct(1, irow, icol) = 0.5_dp*ztmp_dct(1, irow, icol)
+            DO ipoint = 2, nintervals_half
+               ztmp_dct(ipoint, irow, icol) = 0.5_dp*weights(ipoint)*(ztmp_dct(ipoint, irow, icol)+ &
+                                                                      ztmp_dct(nintervals_plus_2-ipoint, irow, icol))
+            END DO
+            ztmp_dct(nintervals_half_plus_1, irow, icol) = weights(1)*ztmp_dct(nintervals_half_plus_1, irow, icol)
+
+            cc_env%integral%local_data(irow, icol) = rscale*accurate_sum(ztmp_dct(1:nintervals_half_plus_1, irow, icol))
+            cc_env%error_fm%local_data(irow, icol) = rscale*ABS(ztmp_dct(nintervals_half_plus_1, irow, icol))
+         END DO
+      END DO
+!$OMP END PARALLEL DO
+
       DEALLOCATE (ztmp, ztmp_dct)
-      ! END OpenMP
 
       CALL cp_fm_trace(cc_env%error_fm, cc_env%weights, cc_env%error)
 
       DEALLOCATE (weights)
       CALL timestop(handle)
-#else
-      CALL timeset(routineN, handle)
-
-      CALL cp_abort(__LOCATION__, &
-                    "fftw3 library is required for "//routineN)
-
-      MARK_USED(cc_env)
-      CALL timestop(handle)
-#endif
    END SUBROUTINE ccquad_refine_integral
 
 END MODULE negf_integr_cc
