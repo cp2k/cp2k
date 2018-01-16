@@ -267,6 +267,10 @@ CONTAINS
          CALL array_nullify(matrix%global_rows)
          CALL array_nullify(matrix%local_cols)
          CALL array_nullify(matrix%global_cols)
+         !
+         IF (matrix%data_type /= matrix%data_area%d%data_type) &
+              CPABORT("Inconsistent data type for the existing buffer.")
+         CALL dbcsr_data_set_size_referenced(matrix%data_area, 0)
       ELSE
          ! Invalidate index
          NULLIFY (matrix%index)
@@ -1099,6 +1103,9 @@ CONTAINS
                     dbcsr_data_get_memory_type(matrix%data_area))
             quick = quick .AND. &
                     ASSOCIATED(matrix%wms(1)%row_i)
+            quick = quick .AND. &
+                    (matrix%wms(1)%datasize_after_filtering .LT. 0 .OR. &
+                     matrix%wms(1)%datasize .EQ. matrix%wms(1)%datasize_after_filtering)
          ENDIF
       ELSE
          quick = .FALSE.
@@ -1464,7 +1471,7 @@ CONTAINS
       LOGICAL, PARAMETER                                 :: dbg = .FALSE.
 
       INTEGER                                            :: handle, my_row_count, nblks, &
-                                                            new_data_size, nrows, nwms, row, t, &
+                                                            nrows, nwms, row, t, &
                                                             which_wm, wm_datasize
       INTEGER, ALLOCATABLE, DIMENSION(:), SAVE           :: all_data_offsets, all_data_sizes, &
                                                             new_blk_p_sorted, new_blk_sizes, &
@@ -1472,8 +1479,7 @@ CONTAINS
       INTEGER, ALLOCATABLE, DIMENSION(:), SAVE, TARGET   :: blk_d, new_blk_p, new_col_i
       INTEGER, DIMENSION(:), POINTER                     :: my_row_p
       INTEGER, DIMENSION(:), POINTER, SAVE               :: cbs, rbs
-      INTEGER, SAVE                                      :: max_row_count, nblks_to_add = 0, &
-                                                            new_nblks = 0, new_nze = 0
+      INTEGER, SAVE                                      :: max_row_count, new_nblks = 0, new_nze = 0
       TYPE(dbcsr_data_obj), ALLOCATABLE, DIMENSION(:), &
          SAVE                                            :: all_data_areas
       TYPE(dbcsr_work_type), POINTER                     :: wm
@@ -1520,7 +1526,6 @@ CONTAINS
       ! Initializations and some counts from the threads are summed.
       !
 !$OMP     MASTER
-      nblks_to_add = 0
       new_nblks = old_row_p(nrows+1)
       new_nze = matrix%nze
       ALLOCATE (all_row_p(nwms))
@@ -1547,10 +1552,12 @@ CONTAINS
 !$OMP     END MASTER
       !
 !$OMP     BARRIER
-      wm_datasize = wm%datasize
+      IF (sort_data .AND. wm%datasize_after_filtering.GT.0) THEN
+         wm_datasize = wm%datasize_after_filtering
+      ELSE
+         wm_datasize = wm%datasize
+      ENDIF
       nblks = wm%lastblk
-!$OMP     ATOMIC
-      nblks_to_add = nblks_to_add+nblks
 !$OMP     ATOMIC
       new_nblks = new_nblks+nblks
 !$OMP     ATOMIC
@@ -1577,11 +1584,9 @@ CONTAINS
       ! The threads must share their row_p, col_i, blk_p, and data areas
       ! among themselves.
       all_row_p(which_wm)%p => my_row_p
-      IF (sort_data) THEN
-         all_data_sizes(which_wm) = wm%datasize
-      ELSE
-         all_data_sizes(which_wm) = wm%datasize
-         IF (wm%datasize > dbcsr_data_get_size_referenced(wm%data_area)) &
+      all_data_sizes(which_wm) = wm_datasize
+      IF (.NOT. sort_data) THEN
+         IF (wm_datasize > dbcsr_data_get_size_referenced(wm%data_area)) &
             CPABORT("Data size mismatch.")
       ENDIF
       all_col_i(which_wm)%p => wm%col_i
@@ -1633,7 +1638,6 @@ CONTAINS
       ! The data is then merged in one of two ways.
       !
 !$OMP     MASTER
-      new_data_size = SUM(all_data_sizes)
       IF (sort_data) THEN
          ! The matrix gets a fresh data area.  Blocks from the work
          ! matrices will be copied into it in order.
@@ -1643,7 +1647,7 @@ CONTAINS
          CALL dbcsr_data_init(matrix%data_area)
 !$OMP        END CRITICAL (crit_data)
          CALL dbcsr_data_new(matrix%data_area, &
-                             data_size=new_data_size, &
+                             data_size=new_nze, &
                              data_type=dbcsr_data_get_type(all_data_areas(0)), &
                              memory_type=dbcsr_data_get_memory_type(all_data_areas(0)))
          ALLOCATE (new_blk_p_sorted(new_nblks))
@@ -1651,7 +1655,7 @@ CONTAINS
       ELSE
          ! Data stored in the work matrices will be just appended to the
          ! current data area.
-         CALL dbcsr_data_ensure_size(matrix%data_area, new_data_size)
+         CALL dbcsr_data_ensure_size(matrix%data_area, new_nze)
       ENDIF
 !$OMP     END MASTER
 !$OMP     BARRIER
@@ -1692,7 +1696,7 @@ CONTAINS
                                       DATA=new_blk_p)
       ENDIF
       matrix%nblks = new_nblks
-      matrix%nze = new_data_size
+      matrix%nze = new_nze
       matrix%index(dbcsr_slot_nblks) = matrix%nblks
       matrix%index(dbcsr_slot_nze) = matrix%nze
       CALL dbcsr_repoint_index(matrix)

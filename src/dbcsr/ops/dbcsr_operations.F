@@ -1010,29 +1010,41 @@ CONTAINS
                SELECT CASE (data_type)
                CASE (dbcsr_type_real_4)
                   c_data%d%r_sp(1:nze) = a_data%d%r_sp(1:nze)*b_data%d%r_sp(1:nze)
+                  CALL dbcsr_put_block(matrix_c, row, col, c_data%d%r_sp(1:nze), transposed=tr_a, &
+                                       summation=.FALSE.)
                CASE (dbcsr_type_real_8)
                   c_data%d%r_dp(1:nze) = a_data%d%r_dp(1:nze)*b_data%d%r_dp(1:nze)
+                  CALL dbcsr_put_block(matrix_c, row, col, c_data%d%r_dp(1:nze), transposed=tr_a, &
+                                       summation=.FALSE.)
                CASE (dbcsr_type_complex_4)
                   c_data%d%c_sp(1:nze) = a_data%d%c_sp(1:nze)*b_data%d%c_sp(1:nze)
+                  CALL dbcsr_put_block(matrix_c, row, col, c_data%d%c_sp(1:nze), transposed=tr_a, &
+                                       summation=.FALSE.)
                CASE (dbcsr_type_complex_8)
                   c_data%d%c_dp(1:nze) = a_data%d%c_dp(1:nze)*b_data%d%c_dp(1:nze)
+                  CALL dbcsr_put_block(matrix_c, row, col, c_data%d%c_dp(1:nze), transposed=tr_a, &
+                                       summation=.FALSE.)
                END SELECT
-               CALL dbcsr_put_block(matrix_c, row, col, c_data, transposed=tr_a, &
-                                    summation=.FALSE.)
             ELSE
                IF (assume_blocks_in_b) THEN ! this makes not too much sense, to delete ?
                   SELECT CASE (data_type)
                   CASE (dbcsr_type_real_4)
                      c_data%d%r_sp(1:nze) = a_data%d%r_sp(1:nze)*REAL(assumed_b_value, KIND=sp)
+                     CALL dbcsr_put_block(matrix_c, row, col, c_data%d%r_sp(1:nze), transposed=tr_a, &
+                                          summation=.FALSE.)
                   CASE (dbcsr_type_real_8)
                      c_data%d%r_dp(1:nze) = a_data%d%r_dp(1:nze)*assumed_b_value
+                     CALL dbcsr_put_block(matrix_c, row, col, c_data%d%r_dp(1:nze), transposed=tr_a, &
+                                          summation=.FALSE.)
                   CASE (dbcsr_type_complex_4)
                      c_data%d%c_sp(1:nze) = a_data%d%c_sp(1:nze)*REAL(assumed_b_value, KIND=sp)
+                     CALL dbcsr_put_block(matrix_c, row, col, c_data%d%c_sp(1:nze), transposed=tr_a, &
+                                          summation=.FALSE.)
                   CASE (dbcsr_type_complex_8)
                      c_data%d%c_dp(1:nze) = a_data%d%c_dp(1:nze)*assumed_b_value
+                     CALL dbcsr_put_block(matrix_c, row, col, c_data%d%c_dp(1:nze), transposed=tr_a, &
+                                          summation=.FALSE.)
                   END SELECT
-                  CALL dbcsr_put_block(matrix_c, row, col, c_data, transposed=tr_a, &
-                                       summation=.FALSE.)
                ENDIF
             ENDIF
             !CASE (dbcsr_type_complex_4)
@@ -1910,15 +1922,14 @@ CONTAINS
 !> \param[in] method       how the matrix is filtered
 !> \param[in] use_absolute ...
 !> \param[in] filter_diag  NYI
-!> \param[in] quick        (optional) filter just the index (no data copying)
 ! **************************************************************************************************
    SUBROUTINE dbcsr_filter_anytype(matrix, eps, method, &
-                                   use_absolute, filter_diag, quick)
+                                   use_absolute, filter_diag)
 
       TYPE(dbcsr_type), INTENT(INOUT)                    :: matrix
       TYPE(dbcsr_scalar_type), INTENT(IN)                :: eps
       INTEGER, INTENT(IN), OPTIONAL                      :: method
-      LOGICAL, INTENT(in), OPTIONAL                      :: use_absolute, filter_diag, quick
+      LOGICAL, INTENT(in), OPTIONAL                      :: use_absolute, filter_diag
 
       CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_filter_anytype', &
                                      routineP = moduleN//':'//routineN
@@ -1927,7 +1938,7 @@ CONTAINS
       COMPLEX(KIND=real_8), DIMENSION(:), POINTER        :: data_z
       INTEGER                                            :: blk, blk_nze, col, col_size, handle, &
                                                             my_method, row, row_size, data_type
-      LOGICAL                                            :: gt0, my_filter_diag, reshuffle, tr
+      LOGICAL                                            :: gt0, my_filter_diag, tr
       REAL(KIND=real_4)                                  :: nrm_s
       REAL(KIND=real_4), DIMENSION(:), POINTER           :: data_s
       REAL(KIND=real_8)                                  :: my_absolute, nrm_d
@@ -1950,8 +1961,6 @@ CONTAINS
       IF (PRESENT(use_absolute)) my_absolute = dbcsr_maxabs(matrix)
       my_filter_diag = .TRUE.
       IF (PRESENT(filter_diag)) my_filter_diag = filter_diag
-      reshuffle = .TRUE.
-      IF (PRESENT(quick)) reshuffle = .NOT. quick
 
       SELECT CASE (eps%data_type)
       CASE (dbcsr_type_real_4)
@@ -1971,7 +1980,7 @@ CONTAINS
 
 !$OMP        PARALLEL DEFAULT(NONE) PRIVATE(iter,row,col,data_s,data_d,data_c,data_z,tr, &
 !$OMP                                       blk,row_size,col_size,blk_nze,nrm_d,nrm_s) &
-!$OMP                               SHARED(my_method,reshuffle,my_absolute,eps,matrix,data_type)
+!$OMP                               SHARED(my_method,my_absolute,eps,matrix,data_type)
 
          CALL dbcsr_iterator_start(iter, matrix, contiguous_pointers=.TRUE.)
          DO WHILE (dbcsr_iterator_blocks_left(iter))
@@ -2046,10 +2055,10 @@ CONTAINS
             END SELECT
          ENDDO
          CALL dbcsr_iterator_stop(iter)
-         CALL dbcsr_finalize(matrix, reshuffle=reshuffle)
+         CALL dbcsr_finalize(matrix, reshuffle=.TRUE.)
 !$OMP        END PARALLEL
 
-         IF (reshuffle) CALL dbcsr_index_compact(matrix)
+         CALL dbcsr_index_compact(matrix)
 
       ENDIF
       CALL timestop(handle)

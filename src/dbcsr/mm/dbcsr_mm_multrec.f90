@@ -6,9 +6,9 @@
 !> \brief Use Frobenius norm
 ! **************************************************************************************************
   SUBROUTINE multrec_filtering_${nametype1}$(filter_eps, nblks, rowi, coli, blkp, &
-                                             rbs, cbs, DATA)
+                                             rbs, cbs, nze, DATA)
     REAL(kind=real_8), INTENT(IN)              :: filter_eps
-    INTEGER, INTENT(INOUT)                     :: nblks
+    INTEGER, INTENT(INOUT)                     :: nblks, nze
     INTEGER, DIMENSION(1:nblks), INTENT(INOUT) :: rowi, coli, blkp
     INTEGER, DIMENSION(:), INTENT(IN)          :: rbs, cbs
     ${type1}$, DIMENSION(:), &
@@ -25,6 +25,7 @@
 #endif
 
     lastblk = 0
+    nze = 0
     !
     DO blk = 1, nblks
        blk_p = blkp(blk)
@@ -40,6 +41,7 @@
              coli(lastblk) = coli(blk)
              blkp(lastblk) = blkp(blk)
           ENDIF
+          nze = nze + blk_nze
        ENDIF
     ENDDO
     ! 

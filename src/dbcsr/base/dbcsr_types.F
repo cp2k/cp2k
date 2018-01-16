@@ -379,6 +379,7 @@ MODULE dbcsr_types
       INTEGER, DIMENSION(:), POINTER          :: blk_p => Null()
       INTEGER                                 :: lastblk = -1
       INTEGER                                 :: datasize = -1
+      INTEGER                                 :: datasize_after_filtering = -1
       !TYPE(btree_i8_dp2d)                       :: tree
       TYPE(dbcsr_mutable_obj)                 :: mutable
    END TYPE dbcsr_work_type

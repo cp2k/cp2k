@@ -279,16 +279,15 @@
 !> \param method ...
 !> \param use_absolute ...
 !> \param filter_diag ...
-!> \param quick ...
 ! **************************************************************************************************
   SUBROUTINE dbcsr_filter_${nametype1}$ (matrix, eps, method, use_absolute, &
-       filter_diag, quick)
+       filter_diag)
     TYPE(dbcsr_type), INTENT(INOUT)           :: matrix
     ${type1}$, INTENT(IN)                      :: eps
     INTEGER, INTENT(IN), OPTIONAL            :: method
-    LOGICAL, INTENT(in), OPTIONAL            :: use_absolute, filter_diag, quick
+    LOGICAL, INTENT(in), OPTIONAL            :: use_absolute, filter_diag
     CALL dbcsr_filter_anytype (matrix, dbcsr_scalar(eps), method, &
-         use_absolute, filter_diag, quick)
+         use_absolute, filter_diag)
   END SUBROUTINE dbcsr_filter_${nametype1}$
 
 ! **************************************************************************************************

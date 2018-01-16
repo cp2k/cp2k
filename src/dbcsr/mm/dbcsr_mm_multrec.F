@@ -462,8 +462,11 @@ CONTAINS
                                  this%original_lastblk+1, this%product_wm%lastblk)
 
          ! if filtering is requested remove small blocks, unless the sparsity needs to be kept
-         IF (this%use_eps .AND. .NOT. this%keep_sparsity) &
+         IF (this%use_eps .AND. .NOT. this%keep_sparsity) THEN
             CALL multrec_filtering(this)
+         ELSE
+            this%product_wm%datasize_after_filtering = this%product_wm%datasize
+         ENDIF
       ENDIF
 
       this%initialized = .FALSE.
@@ -491,6 +494,7 @@ CONTAINS
               this%product_wm%col_i, &
               this%product_wm%blk_p, &
               this%m_global_sizes, this%n_global_sizes, &
+              this%product_wm%datasize_after_filtering, &
               this%product_wm%data_area%d%r_sp)
       CASE (dbcsr_type_real_8)
          CALL multrec_filtering_d(this%eps, &
@@ -499,6 +503,7 @@ CONTAINS
               this%product_wm%col_i, &
               this%product_wm%blk_p, &
               this%m_global_sizes, this%n_global_sizes, &
+              this%product_wm%datasize_after_filtering, &
               this%product_wm%data_area%d%r_dp)
       CASE (dbcsr_type_complex_4)
          CALL multrec_filtering_c(this%eps, &
@@ -507,6 +512,7 @@ CONTAINS
               this%product_wm%col_i, &
               this%product_wm%blk_p, &
               this%m_global_sizes, this%n_global_sizes, &
+              this%product_wm%datasize_after_filtering, &
               this%product_wm%data_area%d%c_sp)
       CASE (dbcsr_type_complex_8)
          CALL multrec_filtering_z(this%eps, &
@@ -515,6 +521,7 @@ CONTAINS
               this%product_wm%col_i, &
               this%product_wm%blk_p, &
               this%m_global_sizes, this%n_global_sizes, &
+              this%product_wm%datasize_after_filtering, &
               this%product_wm%data_area%d%c_dp)
       CASE DEFAULT
          CPABORT("Invalid data type.")

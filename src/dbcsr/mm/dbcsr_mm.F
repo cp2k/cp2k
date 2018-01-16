@@ -71,6 +71,7 @@ MODULE dbcsr_mm
                                               dbcsr_mp_numnodes
    USE dbcsr_operations,                ONLY: dbcsr_conjg,&
                                               dbcsr_copy,&
+                                              dbcsr_get_occupation,&
                                               dbcsr_may_be_dense,&
                                               dbcsr_scale
    USE dbcsr_toollib,                   ONLY: uppercase
@@ -407,6 +408,16 @@ CONTAINS
       TYPE(dbcsr_type)                                   :: matrix_left, matrix_right, product_matrix
 
       CALL timeset(routineN, handle)
+
+      IF (dbcsr_get_occupation(matrix_a) .GT. 1) &
+         CPABORT("Matrix A occupation > 1")
+
+      IF (dbcsr_get_occupation(matrix_b) .GT. 1) &
+         CPABORT("Matrix B occupation > 1")
+
+      IF (dbcsr_get_occupation(matrix_c) .GT. 1) &
+         CPABORT("Matrix C occupation > 1")
+
       CALL array_nullify(dense_k_sizes)
       CALL array_nullify(dense_col_sizes)
       CALL array_nullify(dense_row_sizes)
@@ -863,7 +874,7 @@ CONTAINS
                               retain_sparsity=retain_sparsity, &
                               filter_eps=filter_eps, &
                               flop=my_flop)
-         CALL dbcsr_finalize(product_matrix)
+         CALL dbcsr_finalize(product_matrix, reshuffle=PRESENT(filter_eps) .AND. .NOT. keep_sparsity)
       ENDIF
       !
       ! RMA implementation algorithm has to synchronize at the end of each multiplication

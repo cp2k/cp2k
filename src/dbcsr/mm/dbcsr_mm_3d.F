@@ -2236,7 +2236,7 @@ CONTAINS
 !$OMP END PARALLEL
       DEALLOCATE (multrec)
       DEALLOCATE (g2l_map_rows, g2l_map_cols)
-      CALL dbcsr_finalize(product_matrix)
+      CALL dbcsr_finalize(product_matrix, reshuffle=PRESENT(filter_eps) .AND. .NOT. keep_sparsity)
       !
       DO irow3D = 1, nrows3D
          DEALLOCATE (m_sizes(irow3D)%sizes)
