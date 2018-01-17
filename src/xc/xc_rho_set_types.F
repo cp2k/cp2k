@@ -591,7 +591,8 @@ CONTAINS
       INTEGER                                            :: i, idir, ispin, j, k, nspins
       INTEGER, DIMENSION(3, 3)                           :: nd, nd_laplace
       LOGICAL                                            :: gradient_f, my_rho_g_local, &
-                                                            my_rho_r_local, needs_rho_g
+                                                            my_rho_r_local, needs_laplace, &
+                                                            needs_rho_g
       REAL(kind=dp)                                      :: rho_cutoff
       TYPE(pw_p_type), DIMENSION(2)                      :: my_rho_r
       TYPE(pw_p_type), DIMENSION(3)                      :: drho_r_att
@@ -643,12 +644,19 @@ CONTAINS
 
       CALL xc_rho_set_clean(rho_set, pw_pool=pw_pool)
 
+      needs_laplace = (needs%laplace_rho .OR. needs%laplace_rho_spin)
       gradient_f = (needs%drho_spin .OR. needs%norm_drho_spin .OR. &
-                    needs%drhoa_drhob .OR. needs%drho .OR. needs%norm_drho .OR. needs%laplace_rho &
-                    .OR. needs%laplace_rho_spin)
+                    needs%drhoa_drhob .OR. needs%drho .OR. needs%norm_drho .OR. &
+                    needs_laplace)
       needs_rho_g = (xc_deriv_method_id == xc_deriv_spline3 .OR. &
                      xc_deriv_method_id == xc_deriv_spline2 .OR. &
                      xc_deriv_method_id == xc_deriv_pw)
+      IF ((gradient_f .AND. needs_laplace) .AND. &
+          (xc_deriv_method_id /= xc_deriv_pw)) THEN
+         CALL cp_abort(__LOCATION__, &
+                       "MGGA functionals that require the Laplacian are "// &
+                       "only compatible with 'XC_DERIV PW' and 'XC_SMOOTH_RHO NONE'")
+      END IF
       DO ispin = 1, nspins
          ! introduce a smoothing kernel on the density
          IF (xc_rho_smooth_id == xc_rho_no_smooth) THEN
