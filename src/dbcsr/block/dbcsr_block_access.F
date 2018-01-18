@@ -32,7 +32,6 @@ MODULE dbcsr_block_access
                                               dbcsr_get_data_p,&
                                               dbcsr_get_data_p_s,&
                                               dbcsr_get_data_p_d,&
-                                              dbcsr_get_data_p_d,&
                                               dbcsr_get_data_p_c
    USE dbcsr_dist_methods,              ONLY: dbcsr_distribution_local_cols,&
                                               dbcsr_distribution_local_rows,&

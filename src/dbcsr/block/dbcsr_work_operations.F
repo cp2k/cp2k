@@ -1540,13 +1540,10 @@ CONTAINS
 !$OMP        CRITICAL (crit_data)
          CALL dbcsr_data_hold(all_data_areas(0))
 !$OMP        END CRITICAL (crit_data)
-         !
-         ! The following is valid because the data actually referenced
-         ! by blocks is explicitly calculated in dbcsr_finalize.
-         all_data_sizes(0) = matrix%nze
-      ELSE
-         all_data_sizes(0) = dbcsr_data_get_size_referenced(matrix%data_area)
       ENDIF
+      ! The following is valid because the data actually referenced
+      ! by blocks is explicitly calculated in dbcsr_finalize.
+      all_data_sizes(0) = matrix%nze
       rbs => array_data(matrix%row_blk_size)
       cbs => array_data(matrix%col_blk_size)
 !$OMP     END MASTER
