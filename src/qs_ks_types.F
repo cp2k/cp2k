@@ -106,7 +106,7 @@ MODULE qs_ks_types
 !> \param vee a realspace grid with the external electrostatic potential
 !>
 !> \param neighbor_list_id the current version of the neighbor_list
-!> \param sab_orb ,sac_ae, sac_ppl, sap_ppnl:
+!> \param sab_orb ,sac_ae, sac_ppl, sac_lri, sap_ppnl:
 !>        neighbor lists for the calculation of the core Hamiltonian matrix
 !> \param sap_oce: neighbor lists for the calculation of the expansion
 !>        coefficients of the local atomic densities rho1_hard and rho1_soft
@@ -185,6 +185,7 @@ MODULE qs_ks_types
       TYPE(neighbor_list_set_p_type), DIMENSION(:), POINTER :: sab_orb => Null(), &
                                                                sac_ae => Null(), &
                                                                sac_ppl => Null(), &
+                                                               sac_lri => Null(), &
                                                                sap_ppnl => Null(), &
                                                                sap_oce => Null(), &
                                                                sab_se => Null(), &
@@ -297,6 +298,7 @@ CONTAINS
 !> \param sab_all ...
 !> \param sac_ae ...
 !> \param sac_ppl ...
+!> \param sac_lri ...
 !> \param sap_ppnl ...
 !> \param sap_oce ...
 !> \param sab_lrc ...
@@ -354,7 +356,7 @@ CONTAINS
                          vppl, rho_core, rho_nlcc, rho_nlcc_g, vee, &
                          neighbor_list_id, &
                          sab_orb, sab_aux_fit, sab_aux_fit_asymm, &
-                         sab_aux_fit_vs_orb, sab_all, sac_ae, sac_ppl, sap_ppnl, sap_oce, sab_lrc, &
+                         sab_aux_fit_vs_orb, sab_all, sac_ae, sac_ppl, sac_lri, sap_ppnl, sap_oce, sab_lrc, &
                          sab_se, sab_tbe, sab_core, sab_vdw, sab_scp, sab_almo, sab_kp, &
                          task_list, task_list_aux_fit, task_list_soft, &
                          kpoints, do_kpoints, &
@@ -381,8 +383,8 @@ CONTAINS
       TYPE(pw_p_type), OPTIONAL, POINTER                 :: vppl, rho_core, rho_nlcc, rho_nlcc_g, vee
       INTEGER, OPTIONAL                                  :: neighbor_list_id
       TYPE(neighbor_list_set_p_type), DIMENSION(:), OPTIONAL, POINTER :: sab_orb, sab_aux_fit, &
-         sab_aux_fit_asymm, sab_aux_fit_vs_orb, sab_all, sac_ae, sac_ppl, sap_ppnl, sap_oce, &
-         sab_lrc, sab_se, sab_tbe, sab_core, sab_vdw, sab_scp, sab_almo, sab_kp
+         sab_aux_fit_asymm, sab_aux_fit_vs_orb, sab_all, sac_ae, sac_ppl, sac_lri, sap_ppnl, &
+         sap_oce, sab_lrc, sab_se, sab_tbe, sab_core, sab_vdw, sab_scp, sab_almo, sab_kp
       TYPE(task_list_type), OPTIONAL, POINTER            :: task_list, task_list_aux_fit, &
                                                             task_list_soft
       TYPE(kpoint_type), OPTIONAL, POINTER               :: kpoints
@@ -475,6 +477,7 @@ CONTAINS
       IF (PRESENT(sab_scp)) sab_scp => ks_env%sab_scp
       IF (PRESENT(sac_ae)) sac_ae => ks_env%sac_ae
       IF (PRESENT(sac_ppl)) sac_ppl => ks_env%sac_ppl
+      IF (PRESENT(sac_lri)) sac_lri => ks_env%sac_lri
       IF (PRESENT(sap_ppnl)) sap_ppnl => ks_env%sap_ppnl
       IF (PRESENT(sap_oce)) sap_oce => ks_env%sap_oce
       IF (PRESENT(sab_se)) sab_se => ks_env%sab_se
@@ -570,6 +573,7 @@ CONTAINS
 !> \param sab_all ...
 !> \param sac_ae ...
 !> \param sac_ppl ...
+!> \param sac_lri ...
 !> \param sap_ppnl ...
 !> \param sap_oce ...
 !> \param sab_lrc ...
@@ -603,7 +607,7 @@ CONTAINS
                          neighbor_list_id, &
                          kpoints, &
                          sab_orb, sab_aux_fit, sab_aux_fit_asymm, &
-                         sab_aux_fit_vs_orb, sab_all, sac_ae, sac_ppl, sap_ppnl, sap_oce, sab_lrc, &
+                         sab_aux_fit_vs_orb, sab_all, sac_ae, sac_ppl, sac_lri, sap_ppnl, sap_oce, sab_lrc, &
                          sab_se, sab_tbe, sab_core, sab_vdw, sab_scp, sab_almo, sab_kp, &
                          task_list, task_list_aux_fit, task_list_soft, &
                          subsys, dft_control, dbcsr_dist, distribution_2d, pw_env, &
@@ -625,8 +629,8 @@ CONTAINS
       INTEGER, OPTIONAL                                  :: neighbor_list_id
       TYPE(kpoint_type), OPTIONAL, POINTER               :: kpoints
       TYPE(neighbor_list_set_p_type), DIMENSION(:), OPTIONAL, POINTER :: sab_orb, sab_aux_fit, &
-         sab_aux_fit_asymm, sab_aux_fit_vs_orb, sab_all, sac_ae, sac_ppl, sap_ppnl, sap_oce, &
-         sab_lrc, sab_se, sab_tbe, sab_core, sab_vdw, sab_scp, sab_almo, sab_kp
+         sab_aux_fit_asymm, sab_aux_fit_vs_orb, sab_all, sac_ae, sac_ppl, sac_lri, sap_ppnl, &
+         sap_oce, sab_lrc, sab_se, sab_tbe, sab_core, sab_vdw, sab_scp, sab_almo, sab_kp
       TYPE(task_list_type), OPTIONAL, POINTER            :: task_list, task_list_aux_fit, &
                                                             task_list_soft
       TYPE(qs_subsys_type), OPTIONAL, POINTER            :: subsys
@@ -695,6 +699,7 @@ CONTAINS
       IF (PRESENT(sab_all)) ks_env%sab_all => sab_all
       IF (PRESENT(sac_ae)) ks_env%sac_ae => sac_ae
       IF (PRESENT(sac_ppl)) ks_env%sac_ppl => sac_ppl
+      IF (PRESENT(sac_lri)) ks_env%sac_lri => sac_lri
       IF (PRESENT(sap_ppnl)) ks_env%sap_ppnl => sap_ppnl
       IF (PRESENT(sap_oce)) ks_env%sap_oce => sap_oce
       IF (PRESENT(sab_se)) ks_env%sab_se => sab_se
@@ -844,6 +849,7 @@ CONTAINS
             CALL release_sab(ks_env%sab_orb)
             CALL release_sab(ks_env%sac_ae)
             CALL release_sab(ks_env%sac_ppl)
+            CALL release_sab(ks_env%sac_lri)
             CALL release_sab(ks_env%sap_ppnl)
             CALL release_sab(ks_env%sap_oce)
             CALL release_sab(ks_env%sab_se)

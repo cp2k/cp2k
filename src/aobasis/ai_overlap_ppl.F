@@ -214,7 +214,7 @@ CONTAINS
       CHARACTER(len=*), PARAMETER :: routineN = 'ppl_integral_ri', &
          routineP = moduleN//':'//routineN
 
-      INTEGER                                            :: i, iexp, ipgf, mmax, na, nexp
+      INTEGER                                            :: i, iexp, ipgf, iw, mmax, na, nexp
       INTEGER, DIMENSION(3)                              :: ani, anm, anp
       LOGICAL                                            :: debug
       REAL(KIND=dp)                                      :: oint, oref, rho, t, zetc
@@ -257,6 +257,7 @@ CONTAINS
       DEALLOCATE (auxint)
 
       IF (debug) THEN
+         iw = 6
          na = 0
          DO ipgf = 1, npgfa
             IF (rpgfa(ipgf)+rpgfc < dac) THEN
@@ -270,7 +271,7 @@ CONTAINS
                oint = ppl_ri_test(rho, ani, rac, nexp_ppl, nct_ppl, alpha_ppl, cexp_ppl)
                ! test
                IF (ABS(oint-oref) > 1.0e-12_dp) THEN
-                  WRITE (*, '(A,3i2,i5,F10.4,2G24.12)') "PPL int error     ", ani, la_max_set, dac, oint, oref
+                  WRITE (iw, '(A,3i2,i5,F10.4,2G24.12)') "PPL int error     ", ani, la_max_set, dac, oint, oref
                END IF
                IF (PRESENT(dva)) THEN
                   anp = ani+(/1, 0, 0/)
@@ -287,7 +288,7 @@ CONTAINS
                              -ani(3)*ppl_ri_test(rho, anm, rac, nexp_ppl, nct_ppl, alpha_ppl, cexp_ppl)
                   doref(1:3) = dva(na+i, 1:3)
                   IF (ANY(ABS(doint-doref) > 1.0e-6_dp)) THEN
-                     WRITE (*, '(A,3i2,i5,F10.4,2G24.12)') " PPL dint error   ", &
+                     WRITE (iw, '(A,3i2,i5,F10.4,2G24.12)') " PPL dint error   ", &
                         ani, la_max_set, dac, SUM(ABS(doint)), SUM(ABS(doref))
                   END IF
                END IF

@@ -408,7 +408,7 @@ CONTAINS
       TYPE(lri_density_type), POINTER                    :: lri_density
       TYPE(lri_kind_type), DIMENSION(:), POINTER         :: lri_ppl_coef
       TYPE(neighbor_list_set_p_type), DIMENSION(:), &
-         POINTER                                         :: sac_ppl
+         POINTER                                         :: sac_lri
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
       TYPE(qs_force_type), DIMENSION(:), POINTER         :: force
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
@@ -428,7 +428,7 @@ CONTAINS
       CALL get_qs_env(qs_env, qs_kind_set=qs_kind_set, &
                       particle_set=particle_set, atomic_kind_set=atomic_kind_set)
       CALL allocate_lri_ppl_ints(lri_env, lri_env%lri_ppl_ints, atomic_kind_set)
-      CALL get_qs_env(qs_env, sac_ppl=sac_ppl, force=force, virial=virial, para_env=para_env)
+      CALL get_qs_env(qs_env, sac_lri=sac_lri, force=force, virial=virial, para_env=para_env)
       use_virial = virial%pv_availability .AND. (.NOT. virial%pv_numer)
       use_virial = use_virial .AND. calculate_forces
       !
@@ -454,7 +454,7 @@ CONTAINS
       END DO
       !
       CALL build_core_ppl_ri(lri_ppl_coef, force, virial, calculate_forces, use_virial, &
-                             qs_kind_set, atomic_kind_set, particle_set, sac_ppl, &
+                             qs_kind_set, atomic_kind_set, particle_set, sac_lri, &
                              "LRI_AUX")
       !
       IF (.NOT. calculate_forces) THEN

@@ -324,8 +324,8 @@ CONTAINS
       TYPE(molecule_type), DIMENSION(:), POINTER         :: molecule_set
       TYPE(neighbor_list_set_p_type), DIMENSION(:), POINTER :: saa_list, sab_all, sab_almo, &
          sab_aux_fit, sab_aux_fit_asymm, sab_aux_fit_vs_orb, sab_cn, sab_core, sab_kp, sab_lrc, &
-         sab_orb, sab_scp, sab_se, sab_tbe, sab_vdw, sac_ae, sac_ppl, sap_oce, sap_ppnl, soa_list, &
-         soo_list
+         sab_orb, sab_scp, sab_se, sab_tbe, sab_vdw, sac_ae, sac_lri, sac_ppl, sap_oce, sap_ppnl, &
+         soa_list, soo_list
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
       TYPE(paw_proj_set_type), POINTER                   :: paw_proj
       TYPE(qs_dftb_atom_type), POINTER                   :: dftb_atom
@@ -346,6 +346,7 @@ CONTAINS
       NULLIFY (sab_orb)
       NULLIFY (sac_ae)
       NULLIFY (sac_ppl)
+      NULLIFY (sac_lri)
       NULLIFY (sap_ppnl)
       NULLIFY (sap_oce)
       NULLIFY (sab_se)
@@ -392,6 +393,7 @@ CONTAINS
                       sab_aux_fit_asymm=sab_aux_fit_asymm, &
                       sac_ae=sac_ae, &
                       sac_ppl=sac_ppl, &
+                      sac_lri=sac_lri, &
                       sab_vdw=sab_vdw, &
                       sap_ppnl=sap_ppnl, &
                       sap_oce=sap_oce, &
@@ -671,6 +673,13 @@ CONTAINS
             CALL set_ks_env(ks_env=ks_env, sac_ppl=sac_ppl)
             CALL write_neighbor_lists(sac_ppl, particle_set, cell, para_env, neighbor_list_section, &
                                       "/SAC_PPL", "sac_ppl", "ORBITAL GTH-PPL")
+            IF (lrigpw) THEN
+               IF (qs_env%lri_env%ppl_ri) THEN
+                  CALL build_neighbor_lists(sac_lri, particle_set, atom2d, cell, pair_radius, &
+                                            subcells=subcells, symmetric=.FALSE., operator_type="PP", name="sac_lri")
+                  CALL set_ks_env(ks_env=ks_env, sac_lri=sac_lri)
+               END IF
+            END IF
          END IF
 
          IF (ANY(ppnl_present)) THEN
