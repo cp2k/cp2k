@@ -24,7 +24,7 @@ MODULE lri_compression
 
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'lri_compression'
 
-   PUBLIC :: lri_comp, lri_decomp_i
+   PUBLIC :: lri_comp, lri_decomp_i, lri_cont_mem
 
 ! **************************************************************************************************
 
@@ -98,6 +98,33 @@ CONTAINS
 
    END SUBROUTINE lri_comp
 
+! **************************************************************************************************
+!> \brief ...
+!> \param cont ...
+!> \retval cmem ...
+! **************************************************************************************************
+   FUNCTION lri_cont_mem(cont) RESULT(cmem)
+      TYPE(int_container), INTENT(IN)                    :: cont
+      REAL(KIND=dp)                                      :: cmem
+
+      INTEGER                                            :: i
+
+      cmem = 0.0_dp
+      IF (ASSOCIATED(cont%ca)) THEN
+         DO i = 1, SIZE(cont%ca)
+            IF (ASSOCIATED(cont%ca(i)%cdp)) THEN
+               cmem = cmem+SIZE(cont%ca(i)%cdp)
+            END IF
+            IF (ASSOCIATED(cont%ca(i)%csp)) THEN
+               cmem = cmem+0.5_dp*SIZE(cont%ca(i)%csp)
+            END IF
+            IF (ASSOCIATED(cont%ca(i)%cip)) THEN
+               cmem = cmem+SIZE(cont%ca(i)%cip)
+            END IF
+         END DO
+      END IF
+
+   END FUNCTION lri_cont_mem
 ! **************************************************************************************************
 !> \brief ...
 !> \param aval ...

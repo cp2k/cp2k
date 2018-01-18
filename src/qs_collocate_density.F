@@ -535,12 +535,13 @@ CONTAINS
 !> \param basis_type ...
 !> \param exact_1c_terms ...
 !> \param pmat replicated block diagonal density matrix (optional)
+!> \param atomlist list of atoms to be included (optional)
 !> \par History
 !>      04.2013
 !> \author Dorothea Golze
 ! **************************************************************************************************
    SUBROUTINE calculate_lri_rho_elec(lri_rho_g, lri_rho_r, qs_env, &
-                                     lri_coef, total_rho, basis_type, exact_1c_terms, pmat)
+                                     lri_coef, total_rho, basis_type, exact_1c_terms, pmat, atomlist)
 
       TYPE(pw_p_type), INTENT(INOUT)                     :: lri_rho_g, lri_rho_r
       TYPE(qs_environment_type), POINTER                 :: qs_env
@@ -549,6 +550,7 @@ CONTAINS
       CHARACTER(len=*), INTENT(IN)                       :: basis_type
       LOGICAL, INTENT(IN)                                :: exact_1c_terms
       TYPE(dbcsr_type), OPTIONAL                         :: pmat
+      INTEGER, DIMENSION(:), OPTIONAL                    :: atomlist
 
       CHARACTER(len=*), PARAMETER :: routineN = 'calculate_lri_rho_elec', &
          routineP = moduleN//':'//routineN
@@ -652,6 +654,9 @@ CONTAINS
 
          DO iatom = 1, natom
             atom_a = atom_list(iatom)
+            IF (PRESENT(ATOMLIST)) THEN
+               IF (atomlist(atom_a) == 0) CYCLE
+            END IF
             ra(:) = pbc(particle_set(atom_a)%r, cell)
             aci => lri_coef(ikind)%acoef(iatom, :)
 

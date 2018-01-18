@@ -110,7 +110,7 @@ CONTAINS
             CPABORT("Invalid value of control variable")
          END SELECT
          !
-         DO l = 2*lmax, laux
+         DO l = 2*lmax+1, laux
             xv = peff(2*lmax)
             pmin(l) = xv
             pmax(l) = xv
@@ -126,8 +126,8 @@ CONTAINS
                pend(l) = peff(l)
                bval(l) = bv(l)
             END IF
-            xv = LOG(pend(l)/pmin(l))/LOG(bval(l))
-            nval(l) = MAX(NINT(xv)+1, 0)
+            xv = LOG(pend(l)/pmin(l))/LOG(bval(l))+1.e-10_dp
+            nval(l) = MAX(CEILING(xv), 0)
          END DO
          ! first set include valence only
          nsets = 1
@@ -169,8 +169,8 @@ CONTAINS
                amin(i) = MIN(amin(i), pmin(j))
                bmin(i) = MIN(bmin(i), bval(j))
             END DO
-            xv = LOG(amax(i)/amin(i))/LOG(bmin(i))
-            npgf(i) = MAX(NINT(xv)+1, 0)
+            xv = LOG(amax(i)/amin(i))/LOG(bmin(i))+1.e-10_dp
+            npgf(i) = MAX(CEILING(xv), 0)
          END DO
          nx = MAXVAL(npgf(1:nsets))
          ALLOCATE (zet(nx, nsets))
@@ -213,28 +213,23 @@ CONTAINS
 
       CHARACTER(LEN=2)                                   :: element_symbol
       CHARACTER(LEN=default_string_length)               :: bsname
-      INTEGER                                            :: i, j, jj, l, laux, linc, lmax, lval, lx, &
-                                                            nsets, nx, z
+      INTEGER                                            :: i, j, l, laux, linc, lm, lmax, lval, n1, &
+                                                            n2, nsets, z
       INTEGER, DIMENSION(0:18)                           :: nval
-      INTEGER, DIMENSION(0:9, 1:20)                      :: nl
-      INTEGER, DIMENSION(1:3)                            :: ls1, ls2, npgf
+      INTEGER, DIMENSION(0:9, 1:50)                      :: nl
+      INTEGER, DIMENSION(1:50)                           :: ls1, ls2, npgf
       INTEGER, DIMENSION(:), POINTER                     :: econf
       REAL(KIND=dp)                                      :: xv, zval
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: zet
-      REAL(KIND=dp), DIMENSION(0:18)                     :: bv, bval, fv, peff, pend, pmax, pmin
+      REAL(KIND=dp), DIMENSION(0:18)                     :: bval, peff, pend, pmax, pmin
       REAL(KIND=dp), DIMENSION(0:9)                      :: zeff, zmax, zmin
-      REAL(KIND=dp), DIMENSION(3)                        :: amax, amin, bmin
+      REAL(KIND=dp), DIMENSION(4)                        :: bv, bx
       TYPE(gto_basis_set_type), POINTER                  :: orb_basis_set
 
       !
-      CPABORT("Automatic basis set generation not activated")
+      bv(1:4) = (/2.00_dp, 1.90_dp, 1.80_dp, 1.80_dp/)
+      bx(1:4) = (/2.60_dp, 2.40_dp, 2.20_dp, 2.20_dp/)
       !
-      bv(0:18) = (/1.8_dp, 2.0_dp, 2.2_dp, 2.2_dp, 2.3_dp, 3.0_dp, 3.0_dp, 3.0_dp, 3.0_dp, 3.0_dp, 3.0_dp, &
-                   3.0_dp, 3.0_dp, 3.0_dp, 3.0_dp, 3.0_dp, 3.0_dp, 3.0_dp, 3.0_dp/)
-      fv(0:18) = (/20.0_dp, 4.0_dp, 4.0_dp, 3.5_dp, 2.5_dp, 2.0_dp, 2.0_dp, 2.0_dp, 2.0_dp, 2.0_dp, 2.0_dp, &
-                   2.0_dp, 2.0_dp, 2.0_dp, 2.0_dp, 2.0_dp, 2.0_dp, 2.0_dp, 2.0_dp/)
-      !
-      CPASSERT(.NOT. exact_1c_terms)
       CPASSERT(.NOT. ASSOCIATED(lri_aux_basis_set))
       NULLIFY (orb_basis_set)
       CALL get_qs_kind(qs_kind, basis_set=orb_basis_set, basis_type="ORB")
@@ -250,100 +245,91 @@ CONTAINS
          IF (SUM(econf) /= NINT(zval)) THEN
             CPWARN("Valence charge and electron configuration not consistent")
          END IF
+         !
          pend = 0.0_dp
          linc = 1
          IF (z > 18) linc = 2
          SELECT CASE (basis_cntrl)
          CASE (0)
             laux = MAX(2*lval, lmax+linc)
+            laux = MIN(laux, 2+linc)
          CASE (1)
             laux = MAX(2*lval, lmax+linc)
-            laux = MAX(laux, 4)
+            laux = MIN(laux, 3+linc)
          CASE (2)
             laux = MAX(2*lval, lmax+linc+1)
-            laux = MAX(laux, 4)
+            laux = MIN(laux, 4+linc)
          CASE (3)
-            laux = MAX(2*lmax, lmax+linc+2)
-            laux = MAX(laux, 5)
+            laux = MAX(2*lval, lmax+linc+1)
+            laux = MIN(laux, 4+linc)
          CASE DEFAULT
             CPABORT("Invalid value of control variable")
          END SELECT
          !
-         DO l = 2*lmax, laux
-            xv = peff(2*lmax)
-            pmin(l) = xv
-            pmax(l) = xv
-            peff(l) = xv
-            pend(l) = xv
+         DO l = 2*lmax+1, laux
+            pmin(l) = pmin(2*lmax)
+            pmax(l) = pmax(2*lmax)
+            peff(l) = peff(2*lmax)
          END DO
          !
-         DO l = 0, laux
-            IF (l <= 2*lval) THEN
-               pend(l) = MIN(fv(l)*peff(l), pmax(l))
-               bval(l) = 1.8_dp
-            ELSE
-               pend(l) = peff(l)
-               bval(l) = bv(l)
-            END IF
-            xv = LOG(pend(l)/pmin(l))/LOG(bval(l))
-            nval(l) = MAX(NINT(xv)+1, 0)
-         END DO
-         ! first set include valence only
-         nsets = 1
-         ls1(1) = 0
-         ls2(1) = lval
-         DO l = lval+1, laux
-            IF (nval(l) < nval(lval)-1) EXIT
-            ls2(1) = l
-         END DO
-         ! second set up to 2*lval
-         IF (laux > ls2(1)) THEN
-            IF (lval == 0 .OR. 2*lval <= ls2(1)+1) THEN
-               nsets = 2
-               ls1(2) = ls2(1)+1
-               ls2(2) = laux
-            ELSE
-               nsets = 2
-               ls1(2) = ls2(1)+1
-               ls2(2) = MIN(2*lval, laux)
-               lx = ls2(2)
-               DO l = lx+1, laux
-                  IF (nval(l) < nval(lx)-1) EXIT
-                  ls2(2) = l
-               END DO
-               IF (laux > ls2(2)) THEN
-                  nsets = 3
-                  ls1(3) = ls2(2)+1
-                  ls2(3) = laux
+         IF (exact_1c_terms) THEN
+            DO l = 0, laux
+               IF (l <= lval+1) THEN
+                  pend(l) = zmax(l)+1.0_dp
+                  bval(l) = bv(basis_cntrl+1)
+               ELSE
+                  pend(l) = 2.0_dp*peff(l)
+                  bval(l) = bx(basis_cntrl+1)
                END IF
-            END IF
+               pmin(l) = zmin(l)
+               xv = LOG(pend(l)/pmin(l))/LOG(bval(l))+1.e-10_dp
+               nval(l) = MAX(CEILING(xv), 0)
+               bval(l) = (pend(l)/pmin(l))**(1._dp/nval(l))
+            END DO
+         ELSE
+            DO l = 0, laux
+               IF (l <= lval+1) THEN
+                  pend(l) = pmax(l)
+                  bval(l) = bv(basis_cntrl+1)
+                  pmin(l) = zmin(l)
+               ELSE
+                  pend(l) = 4.0_dp*peff(l)
+                  bval(l) = bx(basis_cntrl+1)
+               END IF
+               xv = LOG(pend(l)/pmin(l))/LOG(bval(l))+1.e-10_dp
+               nval(l) = MAX(CEILING(xv), 0)
+               bval(l) = (pend(l)/pmin(l))**(1._dp/nval(l))
+            END DO
          END IF
          !
-         amax = 0.0
-         amin = HUGE(0.0_dp)
-         bmin = HUGE(0.0_dp)
-         DO i = 1, nsets
-            DO j = ls1(i), ls2(i)
-               amax(i) = MAX(amax(i), pend(j))
-               amin(i) = MIN(amin(i), pmin(j))
-               bmin(i) = MIN(bmin(i), bval(j))
-            END DO
-            xv = LOG(amax(i)/amin(i))/LOG(bmin(i))
-            npgf(i) = MAX(NINT(xv)+1, 0)
-         END DO
-         nx = MAXVAL(npgf(1:nsets))
-         ALLOCATE (zet(nx, nsets))
+         lm = MIN(2*lval, 3)
+         n1 = MAXVAL(nval(0:lm))
+         n2 = MAXVAL(nval(lm+1:laux))
+         nsets = n1+n2
+         ALLOCATE (zet(1, nsets))
          zet = 0.0_dp
          nl = 0
-         DO i = 1, nsets
-            DO j = 1, npgf(i)
-               jj = npgf(i)-j+1
-               zet(jj, i) = amin(i)*bmin(i)**(j-1)
-            END DO
-            DO l = ls1(i), ls2(i)
-               nl(l, i) = nval(l)
+         j = MAXVAL(MAXLOC(nval(0:lm)))
+         DO i = 1, n1
+            ls1(i) = 0
+            ls2(i) = lm
+            npgf(i) = 1
+            zet(1, i) = pmin(j)*bval(j)**(i-1)
+            DO l = 0, lm
+               nl(l, i) = 1
             END DO
          END DO
+         j = lm+1
+         DO i = n1+1, nsets
+            ls1(i) = lm+1
+            ls2(i) = laux
+            npgf(i) = 1
+            zet(1, i) = pmin(j)*bval(j)**(i-n1-1)
+            DO l = lm+1, laux
+               nl(l, i) = 1
+            END DO
+         END DO
+         !
          bsname = TRIM(element_symbol)//"-LRI-AUX-"//TRIM(orb_basis_set%name)
          !
          CALL create_aux_basis(lri_aux_basis_set, bsname, nsets, ls1, ls2, nl, npgf, zet)
@@ -448,7 +434,7 @@ CONTAINS
          DO l = 0, lval
             z1 = MAX(zmin(l), 0.10_dp+l*0.025_dp)
             z2 = zmax(l)
-            mx = NINT(LOG(z2/z1)/LOG(5.0_dp)+0.5_dp)
+            mx = CEILING(LOG(z2/z1)/LOG(5.0_dp))
             IF (nval(l) > 1) THEN
                nsets = nsets+2
                maxpgf = MAX(maxpgf, nval(l), mx, 3)
@@ -475,7 +461,7 @@ CONTAINS
             ! optimize exponensts
             z1 = MAX(zmin(l), 0.20_dp+l*0.025_dp)
             z2 = zmax(l)
-            mx = NINT(LOG(z2/z1)/LOG(4.0_dp)+0.5_dp)
+            mx = CEILING(LOG(z2/z1)/LOG(4.0_dp))
             IF (nval(l) > 1) THEN
                nx = MAX(nfun(l), mx, 3)
             ELSE IF (nval(l) == 1) THEN

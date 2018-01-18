@@ -26,7 +26,8 @@ MODULE qs_rho_methods
                                               dbcsr_type_symmetric
    USE kinds,                           ONLY: default_string_length,&
                                               dp
-   USE kpoint_types,                    ONLY: kpoint_type
+   USE kpoint_types,                    ONLY: get_kpoint_info,&
+                                              kpoint_type
    USE lri_environment_methods,         ONLY: calculate_lri_densities
    USE lri_environment_types,           ONLY: lri_environment_type
    USE pw_env_types,                    ONLY: pw_env_get,&
@@ -44,7 +45,8 @@ MODULE qs_rho_methods
                                               calculate_rho_elec
    USE qs_environment_types,            ONLY: get_qs_env,&
                                               qs_environment_type
-   USE qs_ks_types,                     ONLY: qs_ks_env_type
+   USE qs_ks_types,                     ONLY: get_ks_env,&
+                                              qs_ks_env_type
    USE qs_local_rho_types,              ONLY: local_rho_type
    USE qs_neighbor_list_types,          ONLY: neighbor_list_set_p_type
    USE qs_rho_atom_methods,             ONLY: calculate_rho_atom_coeff
@@ -337,6 +339,7 @@ CONTAINS
          routineP = moduleN//':'//routineN
 
       INTEGER                                            :: handle, img, ispin, nimg, nspins
+      INTEGER, DIMENSION(:, :, :), POINTER               :: cell_to_index
       LOGICAL                                            :: gapw, gapw_xc
       REAL(KIND=dp)                                      :: dum
       REAL(KIND=dp), DIMENSION(:), POINTER               :: tot_rho_r, tot_rho_r_xc
@@ -345,6 +348,7 @@ CONTAINS
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: rho_ao
       TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: rho_ao_kp, rho_xc_ao
       TYPE(dft_control_type), POINTER                    :: dft_control
+      TYPE(kpoint_type), POINTER                         :: kpoints
       TYPE(lri_environment_type), POINTER                :: lri_env
       TYPE(pw_env_type), POINTER                         :: pw_env
       TYPE(pw_p_type), DIMENSION(:), POINTER             :: drho_g, drho_r, drho_xc_g, rho_g, rho_r, &
@@ -398,8 +402,10 @@ CONTAINS
          CALL qs_rho_set(rho_struct, rho_r_valid=.FALSE., rho_g_valid=.FALSE.)
       ELSEIF (dft_control%qs_control%lrigpw) THEN
          CPASSERT(.NOT. dft_control%use_kinetic_energy_density)
-         CALL qs_rho_get(rho_struct, rho_ao=rho_ao)
-         CALL calculate_lri_densities(lri_env, qs_env, rho_ao, &
+         CALL get_ks_env(ks_env=ks_env, kpoints=kpoints)
+         CALL get_kpoint_info(kpoint=kpoints, cell_to_index=cell_to_index)
+         CALL qs_rho_get(rho_struct, rho_ao_kp=rho_ao_kp)
+         CALL calculate_lri_densities(lri_env, qs_env, rho_ao_kp, cell_to_index, &
                                       lri_rho_struct=rho_struct, &
                                       atomic_kind_set=atomic_kind_set, &
                                       para_env=para_env)

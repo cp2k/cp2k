@@ -21,6 +21,8 @@ MODULE lri_forces
                                               dbcsr_p_type,&
                                               dbcsr_type
    USE kinds,                           ONLY: dp
+   USE kpoint_types,                    ONLY: get_kpoint_info,&
+                                              kpoint_type
    USE lri_environment_types,           ONLY: &
         allocate_lri_force_components, deallocate_lri_force_components, lri_density_type, &
         lri_environment_type, lri_force_type, lri_int_type, lri_kind_type, lri_list_type, &
@@ -32,6 +34,8 @@ MODULE lri_forces
    USE qs_environment_types,            ONLY: get_qs_env,&
                                               qs_environment_type
    USE qs_force_types,                  ONLY: qs_force_type
+   USE qs_ks_types,                     ONLY: get_ks_env,&
+                                              qs_ks_env_type
    USE qs_neighbor_list_types,          ONLY: get_iterator_info,&
                                               neighbor_list_iterate,&
                                               neighbor_list_iterator_create,&
@@ -76,7 +80,7 @@ CONTAINS
       TYPE(lri_environment_type), POINTER                :: lri_env
       TYPE(lri_density_type), POINTER                    :: lri_density
       TYPE(qs_environment_type), POINTER                 :: qs_env
-      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: pmatrix
+      TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: pmatrix
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'calculate_lri_forces', &
@@ -84,11 +88,14 @@ CONTAINS
 
       INTEGER                                            :: handle, iatom, ikind, ispin, natom, &
                                                             nkind, nspin
+      INTEGER, DIMENSION(:, :, :), POINTER               :: cell_to_index
       LOGICAL                                            :: use_virial
       REAL(KIND=dp), DIMENSION(:), POINTER               :: v_dadr, v_dfdr
       TYPE(atomic_kind_type), POINTER                    :: atomic_kind
+      TYPE(kpoint_type), POINTER                         :: kpoints
       TYPE(lri_kind_type), DIMENSION(:), POINTER         :: lri_coef
       TYPE(qs_force_type), DIMENSION(:), POINTER         :: force
+      TYPE(qs_ks_env_type), POINTER                      :: ks_env
       TYPE(virial_type), POINTER                         :: virial
 
       CALL timeset(routineN, handle)
@@ -97,16 +104,19 @@ CONTAINS
       IF (ASSOCIATED(lri_env%soo_list)) THEN
 
          nkind = lri_env%lri_ints%nkind
-         nspin = SIZE(pmatrix)
+         nspin = SIZE(pmatrix, 1)
          CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set, natom=natom)
          CALL get_qs_env(qs_env=qs_env, force=force, virial=virial)
          use_virial = virial%pv_availability .AND. (.NOT. virial%pv_numer)
+         CALL get_qs_env(qs_env=qs_env, ks_env=ks_env)
+         CALL get_ks_env(ks_env=ks_env, kpoints=kpoints)
+         CALL get_kpoint_info(kpoint=kpoints, cell_to_index=cell_to_index)
 
          !calculate SUM_i integral(V*fbas_i)*davec/dR
-         CALL calculate_v_dadr_sr(lri_env, lri_density, pmatrix, atomic_kind_set, &
+         CALL calculate_v_dadr_sr(lri_env, lri_density, pmatrix, cell_to_index, atomic_kind_set, &
                                   use_virial, virial)
          IF (lri_env%distant_pair_approximation) THEN
-            CALL calculate_v_dadr_ff(lri_env, lri_density, pmatrix, atomic_kind_set, &
+            CALL calculate_v_dadr_ff(lri_env, lri_density, pmatrix, cell_to_index, atomic_kind_set, &
                                      use_virial, virial)
          END IF
 
@@ -140,16 +150,18 @@ CONTAINS
 !> \param lri_env ...
 !> \param lri_density ...
 !> \param pmatrix ...
+!> \param cell_to_index ...
 !> \param atomic_kind_set ...
 !> \param use_virial ...
 !> \param virial ...
 ! **************************************************************************************************
-   SUBROUTINE calculate_v_dadr_sr(lri_env, lri_density, pmatrix, atomic_kind_set, &
+   SUBROUTINE calculate_v_dadr_sr(lri_env, lri_density, pmatrix, cell_to_index, atomic_kind_set, &
                                   use_virial, virial)
 
       TYPE(lri_environment_type), POINTER                :: lri_env
       TYPE(lri_density_type), POINTER                    :: lri_density
-      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: pmatrix
+      TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: pmatrix
+      INTEGER, DIMENSION(:, :, :), POINTER               :: cell_to_index
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       LOGICAL, INTENT(IN)                                :: use_virial
       TYPE(virial_type), POINTER                         :: virial
@@ -157,10 +169,11 @@ CONTAINS
       CHARACTER(LEN=*), PARAMETER :: routineN = 'calculate_v_dadr_sr', &
          routineP = moduleN//':'//routineN
 
-      INTEGER :: atom_a, atom_b, handle, i, iac, iatom, ikind, ilist, ispin, jatom, jkind, &
+      INTEGER :: atom_a, atom_b, handle, i, iac, iatom, ic, ikind, ilist, ispin, jatom, jkind, &
          jneighbor, k, mepos, natom, nba, nbb, nfa, nfb, nkind, nlist, nn, nspin, nthread
+      INTEGER, DIMENSION(3)                              :: cell
       INTEGER, DIMENSION(:), POINTER                     :: atom_of_kind
-      LOGICAL                                            :: found
+      LOGICAL                                            :: found, use_cell_mapping
       REAL(KIND=dp)                                      :: ai, dab, dfw, fw, isn, threshold
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: vint
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: pab
@@ -192,9 +205,10 @@ CONTAINS
          soo_list => lri_env%soo_list
 
          nkind = lri_env%lri_ints%nkind
-         nspin = SIZE(pmatrix)
+         nspin = SIZE(pmatrix, 1)
          nthread = 1
 !$       nthread = omp_get_max_threads()
+         use_cell_mapping = (SIZE(pmatrix, 2) > 1)
 
          CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set, natom=natom)
          ALLOCATE (atom_of_kind(natom))
@@ -203,19 +217,18 @@ CONTAINS
 
          DO ispin = 1, nspin
 
-            pmat => pmatrix(ispin)%matrix
             lri_coef => lri_density%lri_coefs(ispin)%lri_kinds
             lri_rho => lri_density%lri_rhos(ispin)%lri_list
 
             CALL neighbor_list_iterator_create(nl_iterator, soo_list, nthread=nthread)
 !$OMP PARALLEL DEFAULT(NONE)&
-!$OMP SHARED (nthread,nl_iterator,pmat,nkind,lri_env,lri_rho,lri_coef,&
-!$OMP         atom_of_kind,virial,use_virial)&
+!$OMP SHARED (nthread,nl_iterator,pmatrix,nkind,lri_env,lri_rho,lri_coef,&
+!$OMP         atom_of_kind,virial,use_virial,cell_to_index,use_cell_mapping,ispin)&
 !$OMP PRIVATE (mepos,ikind,jkind,iatom,jatom,nlist,ilist,jneighbor,rab,iac,lrii,lrho,&
 !$OMP          lri_force,nfa,nfb,nba,nbb,nn,st,nsdsst,nsdssn,dsst,sdsst,dssn,sdssn,sdt,&
 !$OMP          nsdt,dtvec,pbij,found,obasa,obasb,fbasa,fbasb,i,k,threshold,&
 !$OMP          dcharge,dlambda,atom_a,atom_b,v_dadra,v_dadrb,force_a,force_b,&
-!$OMP          lridint,pab,fw,dfw,dab,ai,vint,isn,idav)
+!$OMP          lridint,pab,fw,dfw,dab,ai,vint,isn,idav,cell,ic,pmat)
 
             mepos = 0
 !$          mepos = omp_get_thread_num()
@@ -223,7 +236,7 @@ CONTAINS
             DO WHILE (neighbor_list_iterate(nl_iterator, mepos) == 0)
                CALL get_iterator_info(nl_iterator, mepos=mepos, ikind=ikind, jkind=jkind, &
                                       iatom=iatom, jatom=jatom, nlist=nlist, ilist=ilist, &
-                                      inode=jneighbor, r=rab)
+                                      inode=jneighbor, r=rab, cell=cell)
 
                iac = ikind+nkind*(jkind-1)
 
@@ -246,6 +259,14 @@ CONTAINS
                nba = lrii%nba
                nbb = lrii%nbb
                nn = nfa+nfb
+
+               IF (use_cell_mapping) THEN
+                  ic = cell_to_index(cell(1), cell(2), cell(3))
+                  CPASSERT(ic > 0)
+               ELSE
+                  ic = 1
+               END IF
+               pmat => pmatrix(ispin, ic)%matrix
 
                ! get the density matrix Pab
                ALLOCATE (pab(nba, nbb))
@@ -398,16 +419,18 @@ CONTAINS
 !> \param lri_env ...
 !> \param lri_density ...
 !> \param pmatrix ...
+!> \param cell_to_index ...
 !> \param atomic_kind_set ...
 !> \param use_virial ...
 !> \param virial ...
 ! **************************************************************************************************
-   SUBROUTINE calculate_v_dadr_ff(lri_env, lri_density, pmatrix, atomic_kind_set, &
+   SUBROUTINE calculate_v_dadr_ff(lri_env, lri_density, pmatrix, cell_to_index, atomic_kind_set, &
                                   use_virial, virial)
 
       TYPE(lri_environment_type), POINTER                :: lri_env
       TYPE(lri_density_type), POINTER                    :: lri_density
-      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: pmatrix
+      TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: pmatrix
+      INTEGER, DIMENSION(:, :, :), POINTER               :: cell_to_index
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       LOGICAL, INTENT(IN)                                :: use_virial
       TYPE(virial_type), POINTER                         :: virial
@@ -415,10 +438,11 @@ CONTAINS
       CHARACTER(LEN=*), PARAMETER :: routineN = 'calculate_v_dadr_ff', &
          routineP = moduleN//':'//routineN
 
-      INTEGER :: atom_a, atom_b, handle, i, iac, iatom, ikind, ilist, ispin, jatom, jkind, &
+      INTEGER :: atom_a, atom_b, handle, i, iac, iatom, ic, ikind, ilist, ispin, jatom, jkind, &
          jneighbor, k, mepos, natom, nba, nbb, nfa, nfb, nkind, nlist, nn, nspin, nthread
+      INTEGER, DIMENSION(3)                              :: cell
       INTEGER, DIMENSION(:), POINTER                     :: atom_of_kind
-      LOGICAL                                            :: found
+      LOGICAL                                            :: found, use_cell_mapping
       REAL(KIND=dp)                                      :: ai, dab, dfw, fw, isna, isnb, threshold
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: pab, wab, wbb
       REAL(KIND=dp), DIMENSION(3)                        :: dchargea, dchargeb, force_a, force_b, &
@@ -447,9 +471,10 @@ CONTAINS
          soo_list => lri_env%soo_list
 
          nkind = lri_env%lri_ints%nkind
-         nspin = SIZE(pmatrix)
+         nspin = SIZE(pmatrix, 1)
          nthread = 1
 !$       nthread = omp_get_max_threads()
+         use_cell_mapping = (SIZE(pmatrix, 2) > 1)
 
          CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set, natom=natom)
          ALLOCATE (atom_of_kind(natom))
@@ -458,19 +483,18 @@ CONTAINS
 
          DO ispin = 1, nspin
 
-            pmat => pmatrix(ispin)%matrix
             lri_coef => lri_density%lri_coefs(ispin)%lri_kinds
             lri_rho => lri_density%lri_rhos(ispin)%lri_list
 
             CALL neighbor_list_iterator_create(nl_iterator, soo_list, nthread=nthread)
 !$OMP PARALLEL DEFAULT(NONE)&
-!$OMP SHARED (nthread,nl_iterator,pmat,nkind,lri_env,lri_rho,lri_coef,&
-!$OMP         atom_of_kind,virial,use_virial)&
+!$OMP SHARED (nthread,nl_iterator,pmatrix,nkind,lri_env,lri_rho,lri_coef,&
+!$OMP         atom_of_kind,virial,use_virial,cell_to_index,use_cell_mapping,ispin)&
 !$OMP PRIVATE (mepos,ikind,jkind,iatom,jatom,nlist,ilist,jneighbor,rab,iac,lrii,lrho,&
 !$OMP          lri_force_a,lri_force_b,nfa,nfb,nba,nbb,nn,sta,stb,&
 !$OMP          dtveca,dtvecb,pbij,found,obasa,obasb,fbasa,fbasb,i,k,threshold,&
 !$OMP          dchargea,dchargeb,atom_a,atom_b,v_dadra,v_dadrb,force_a,force_b,&
-!$OMP          lridint,pab,wab,wbb,fw,dfw,dab,ai,vinta,vintb,isna,isnb,idava,idavb)
+!$OMP          lridint,pab,wab,wbb,fw,dfw,dab,ai,vinta,vintb,isna,isnb,idava,idavb,cell,ic,pmat)
 
             mepos = 0
 !$          mepos = omp_get_thread_num()
@@ -478,7 +502,7 @@ CONTAINS
             DO WHILE (neighbor_list_iterate(nl_iterator, mepos) == 0)
                CALL get_iterator_info(nl_iterator, mepos=mepos, ikind=ikind, jkind=jkind, &
                                       iatom=iatom, jatom=jatom, nlist=nlist, ilist=ilist, &
-                                      inode=jneighbor, r=rab)
+                                      inode=jneighbor, r=rab, cell=cell)
 
                iac = ikind+nkind*(jkind-1)
 
@@ -501,6 +525,14 @@ CONTAINS
                nba = lrii%nba
                nbb = lrii%nbb
                nn = nfa+nfb
+
+               IF (use_cell_mapping) THEN
+                  ic = cell_to_index(cell(1), cell(2), cell(3))
+                  CPASSERT(ic > 0)
+               ELSE
+                  ic = 1
+               END IF
+               pmat => pmatrix(ispin, ic)%matrix
 
                ! get the density matrix Pab
                ALLOCATE (pab(nba, nbb))

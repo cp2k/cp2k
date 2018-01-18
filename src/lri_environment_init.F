@@ -32,7 +32,7 @@ MODULE lri_environment_init
                                               lri_environment_type
    USE mathconstants,                   ONLY: fac,&
                                               pi
-   USE mathlib,                         ONLY: invmat_symm
+   USE mathlib,                         ONLY: invert_matrix
    USE qs_environment_types,            ONLY: get_qs_env,&
                                               qs_environment_type,&
                                               set_qs_env
@@ -73,9 +73,15 @@ CONTAINS
       CALL lri_env_create(lri_env)
 
       ! init keywords
+      ! use RI for local pp terms
+      CALL section_vals_val_get(lri_section, "RI_STATISTIC", &
+                                l_val=lri_env%statistics)
       ! use exact one-center terms
       CALL section_vals_val_get(lri_section, "EXACT_1C_TERMS", &
                                 l_val=lri_env%exact_1c_terms)
+      ! use RI for local pp terms
+      CALL section_vals_val_get(lri_section, "PPL_RI", &
+                                l_val=lri_env%ppl_ri)
       ! check for debug (OS scheme)
       CALL section_vals_val_get(lri_section, "DEBUG_LRI_INTEGRALS", &
                                 l_val=lri_env%debug)
@@ -338,6 +344,7 @@ CONTAINS
 
       INTEGER                                            :: ikind, nkind
       INTEGER, DIMENSION(:, :, :), POINTER               :: orb_index, ri_index
+      REAL(KIND=dp)                                      :: delta
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :, :)  :: dovlp3
       REAL(KIND=dp), DIMENSION(:), POINTER               :: orb_norm_r, ri_int_fbas, ri_norm_r, &
                                                             ri_norm_s
@@ -397,8 +404,7 @@ CONTAINS
                   DEALLOCATE (orb_norm_r, ri_norm_r, ri_norm_s)
                   DEALLOCATE (dovlp3)
                   ALLOCATE (ri_ovlp_inv(ri_basis%nsgf, ri_basis%nsgf))
-                  ri_ovlp_inv(:, :) = ri_ovlp
-                  CALL invmat_symm(ri_ovlp_inv)
+                  CALL invert_matrix(ri_ovlp, ri_ovlp_inv, delta, improve=.TRUE.)
                   lri_env%bas_prop(ikind)%ri_ovlp_inv => ri_ovlp_inv
                END IF
             END DO

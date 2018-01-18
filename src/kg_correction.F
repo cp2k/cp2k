@@ -10,7 +10,9 @@
 !> \author Martin Haeufel and Florian Schiffmann
 ! **************************************************************************************************
 MODULE kg_correction
+   USE atomic_kind_types,               ONLY: atomic_kind_type
    USE cp_control_types,                ONLY: dft_control_type
+   USE cp_para_types,                   ONLY: cp_para_env_type
    USE dbcsr_api,                       ONLY: dbcsr_add,&
                                               dbcsr_p_type,&
                                               dbcsr_trace
@@ -19,6 +21,13 @@ MODULE kg_correction
                                               kg_tnadd_none
    USE kg_environment_types,            ONLY: kg_environment_type
    USE kinds,                           ONLY: dp
+   USE lri_environment_methods,         ONLY: lri_kg_rho_update
+   USE lri_environment_types,           ONLY: lri_density_type,&
+                                              lri_environment_type,&
+                                              lri_kind_type
+   USE lri_forces,                      ONLY: calculate_lri_forces
+   USE lri_ks_methods,                  ONLY: calculate_lri_ks_matrix
+   USE message_passing,                 ONLY: mp_sum
    USE pw_env_types,                    ONLY: pw_env_get,&
                                               pw_env_type
    USE pw_pool_types,                   ONLY: pw_pool_give_back_pw,&
@@ -26,7 +35,8 @@ MODULE kg_correction
    USE pw_types,                        ONLY: pw_p_type
    USE qs_environment_types,            ONLY: get_qs_env,&
                                               qs_environment_type
-   USE qs_integrate_potential,          ONLY: integrate_v_rspace
+   USE qs_integrate_potential,          ONLY: integrate_v_rspace,&
+                                              integrate_v_rspace_one_center
    USE qs_ks_types,                     ONLY: qs_ks_env_type
    USE qs_rho_methods,                  ONLY: qs_rho_rebuild,&
                                               qs_rho_update_rho
@@ -110,13 +120,21 @@ CONTAINS
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'kg_ekin_embed', routineP = moduleN//':'//routineN
 
-      INTEGER                                            :: handle, ispin, isub, natom, nspins
-      LOGICAL                                            :: my_gapw, my_gapw_xc, use_virial
+      INTEGER                                            :: color, handle, iatom, ikind, imol, &
+                                                            ispin, isub, natom, nkind, nspins
+      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: atomlist
+      LOGICAL                                            :: lrigpw, my_gapw, my_gapw_xc, use_virial
       REAL(KIND=dp)                                      :: ekin_imol
       REAL(KIND=dp), DIMENSION(3, 3)                     :: xcvirial
-      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: density_matrix, matrix_h
+      TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
+      TYPE(cp_para_env_type), POINTER                    :: para_env
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: density_matrix, ksmat
+      TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: pmat
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(kg_environment_type), POINTER                 :: kg_env
+      TYPE(lri_density_type), POINTER                    :: lri_density
+      TYPE(lri_environment_type), POINTER                :: lri_env
+      TYPE(lri_kind_type), DIMENSION(:), POINTER         :: lri_v_int
       TYPE(pw_env_type), POINTER                         :: pw_env
       TYPE(pw_p_type), DIMENSION(:), POINTER             :: vxc_rho, vxc_tau
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
@@ -128,7 +146,8 @@ CONTAINS
 
       NULLIFY (vxc_rho, vxc_tau, old_rho, rho_struct, ks_env)
 
-      kg_env => qs_env%kg_env
+      CALL get_qs_env(qs_env, kg_env=kg_env, dft_control=dft_control)
+      lrigpw = dft_control%qs_control%lrigpw
 
       my_gapw = .FALSE.
       IF (PRESENT(gapw)) my_gapw = gapw
@@ -142,10 +161,9 @@ CONTAINS
       CALL get_qs_env(qs_env, &
                       ks_env=ks_env, &
                       rho=old_rho, &
-                      matrix_h=matrix_h, &
                       natom=natom, &
-                      dft_control=dft_control, &
                       virial=virial, &
+                      para_env=para_env, &
                       pw_env=pw_env)
 
       nspins = dft_control%nspins
@@ -167,16 +185,42 @@ CONTAINS
 
       xcvirial(1:3, 1:3) = 0.0_dp
 
+      IF (lrigpw) THEN
+         CALL get_qs_env(qs_env, lri_env=lri_env, lri_density=lri_density, nkind=nkind)
+         IF (lri_env%exact_1c_terms) THEN
+            CPABORT(" KG with LRI and exact one-center terms not implemented")
+         END IF
+         ALLOCATE (atomlist(natom))
+         DO ispin = 1, nspins
+            lri_v_int => lri_density%lri_coefs(ispin)%lri_kinds
+            DO ikind = 1, nkind
+               lri_v_int(ikind)%v_int = 0.0_dp
+               IF (calc_force) THEN
+                  lri_v_int(ikind)%v_dadr = 0.0_dp
+                  lri_v_int(ikind)%v_dfdr = 0.0_dp
+               END IF
+            END DO
+         END DO
+      END IF
+
       ! loop over all subsets
       DO isub = 1, kg_env%nsubsets
          ! for gapw the task_list_soft would be needed
          IF (my_gapw .OR. my_gapw_xc) &
             CPABORT(" KG is currently not compatible with all electron calculations.")
-
-         ! calculate the densities for the given blocked density matrix - pass the subset task_list
-         CALL qs_rho_update_rho(rho_struct, qs_env, &
-                                !task_list_external=qs_env%task_list, &
-                                task_list_external=kg_env%subset(isub)%task_list)
+         IF (lrigpw) THEN
+            atomlist = 0
+            DO iatom = 1, natom
+               imol = kg_env%atom_to_molecule(iatom)
+               color = kg_env%subset_of_mol(imol)
+               IF (color == isub) atomlist(iatom) = 1
+            END DO
+            CALL lri_kg_rho_update(rho_struct, qs_env, lri_env, atomlist)
+         ELSE
+            ! calculate the densities for the given blocked density matrix - pass the subset task_list
+            CALL qs_rho_update_rho(rho_struct, qs_env, &
+                                   task_list_external=kg_env%subset(isub)%task_list)
+         END IF
 
          ekin_imol = 0.0_dp
 
@@ -188,15 +232,22 @@ CONTAINS
 
          DO ispin = 1, nspins
 
-            vxc_rho(ispin)%pw%cr3d = -vxc_rho(ispin)%pw%cr3d*vxc_rho(ispin)%pw%pw_grid%dvol*1.0_dp
+            vxc_rho(ispin)%pw%cr3d = -vxc_rho(ispin)%pw%cr3d*vxc_rho(ispin)%pw%pw_grid%dvol
 
-            CALL integrate_v_rspace(v_rspace=vxc_rho(ispin), &
-                                    pmat=density_matrix(ispin), &
-                                    hmat=ks_matrix(ispin), &
-                                    qs_env=qs_env, &
-                                    calculate_forces=calc_force, &
-                                    gapw=gapw, &
-                                    task_list_external=kg_env%subset(isub)%task_list)
+            IF (lrigpw) THEN
+               lri_v_int => lri_density%lri_coefs(ispin)%lri_kinds
+               CALL integrate_v_rspace_one_center(vxc_rho(ispin), qs_env, &
+                                                  lri_v_int, calc_force, &
+                                                  "LRI_AUX", atomlist=atomlist)
+            ELSE
+               CALL integrate_v_rspace(v_rspace=vxc_rho(ispin), &
+                                       pmat=density_matrix(ispin), &
+                                       hmat=ks_matrix(ispin), &
+                                       qs_env=qs_env, &
+                                       calculate_forces=calc_force, &
+                                       gapw=gapw, &
+                                       task_list_external=kg_env%subset(isub)%task_list)
+            END IF
 
             ! clean up vxc_rho
             CALL pw_pool_give_back_pw(auxbas_pw_pool, vxc_rho(ispin)%pw)
@@ -210,27 +261,38 @@ CONTAINS
 
          IF (ASSOCIATED(vxc_tau)) THEN
             ! this case has NOT been tested yet...
-
-            IF (.NOT. ASSOCIATED(vxc_tau)) &
-               CALL cp_abort(__LOCATION__, &
-                             " KG is currently not compatible with TPSS, Becke-Roussel, or other"// &
-                             " Meta-GGA functionals.")
-
+            CALL cp_warn(__LOCATION__, &
+                         " KG is not tested with TPSS, Becke-Roussel, or other"// &
+                         " Meta-GGA functionals.")
             DO ispin = 1, nspins
-
                ! clean up vxc_tau
                CALL pw_pool_give_back_pw(auxbas_pw_pool, vxc_tau(ispin)%pw)
-
             END DO
-
             DEALLOCATE (vxc_tau)
-
          END IF
 
       END DO
 
       IF (use_virial) THEN
          virial%pv_xc(1:3, 1:3) = xcvirial(1:3, 1:3)
+      END IF
+
+      IF (lrigpw) THEN
+         CALL get_qs_env(qs_env, atomic_kind_set=atomic_kind_set)
+         ALLOCATE (ksmat(1))
+         DO ispin = 1, nspins
+            lri_v_int => lri_density%lri_coefs(ispin)%lri_kinds
+            DO ikind = 1, nkind
+               CALL mp_sum(lri_v_int(ikind)%v_int, para_env%group)
+            END DO
+            ksmat(1)%matrix => ks_matrix(ispin)%matrix
+            CALL calculate_lri_ks_matrix(lri_env, lri_v_int, ksmat, atomic_kind_set)
+         END DO
+         IF (calc_force) THEN
+            pmat(1:nspins, 1:1) => density_matrix(1:nspins)
+            CALL calculate_lri_forces(lri_env, lri_density, qs_env, pmat, atomic_kind_set)
+         ENDIF
+         DEALLOCATE (atomlist, ksmat)
       END IF
 
       ! clean up rho_struct

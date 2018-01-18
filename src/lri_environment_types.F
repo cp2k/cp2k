@@ -213,6 +213,18 @@ MODULE lri_environment_types
 
 ! **************************************************************************************************
 
+   TYPE lri_ppl_type
+      ! integrals Vppl*fbas (potential*fit basis) dim(natom,nsgf)
+      REAL(KIND=dp), DIMENSION(:, :), POINTER                   :: v_int
+   END TYPE lri_ppl_type
+
+   TYPE lri_ppl_int_type
+      TYPE(lri_ppl_type), DIMENSION(:), POINTER                 :: lri_ppl
+      REAL(KIND=dp)                                             :: ecore_pp_ri
+   END TYPE lri_ppl_int_type
+
+! **************************************************************************************************
+
    TYPE ri_fit_type
       INTEGER, DIMENSION(:, :), POINTER                         :: bas_ptr
       REAL(KIND=dp), DIMENSION(:), POINTER                      :: nvec
@@ -234,6 +246,22 @@ MODULE lri_environment_types
    TYPE wbas_type
       REAL(KIND=dp), DIMENSION(:), POINTER                      :: vec
    END TYPE wbas_type
+! **************************************************************************************************
+   TYPE stat_type
+      REAL(KIND=dp)                                             :: pairs_tt
+      REAL(KIND=dp)                                             :: pairs_sr
+      REAL(KIND=dp)                                             :: pairs_ff
+      REAL(KIND=dp)                                             :: overlap_error
+      REAL(KIND=dp)                                             :: rho_tt
+      REAL(KIND=dp)                                             :: rho_sr
+      REAL(KIND=dp)                                             :: rho_ff
+      REAL(KIND=dp)                                             :: rho_1c
+      REAL(KIND=dp)                                             :: coef_mem
+      REAL(KIND=dp)                                             :: oint_mem
+      REAL(KIND=dp)                                             :: rhos_mem
+      REAL(KIND=dp)                                             :: abai_mem
+      REAL(KIND=dp)                                             :: ppli_mem
+   END TYPE stat_type
 ! **************************************************************************************************
 
    TYPE lri_environment_type
@@ -261,6 +289,8 @@ MODULE lri_environment_types
       TYPE(neighbor_list_set_p_type), DIMENSION(:), POINTER   :: soa_list
       ! local RI integrals
       TYPE(lri_list_type), POINTER                            :: lri_ints
+      ! local Vppl integrals
+      TYPE(lri_ppl_int_type), POINTER                         :: lri_ppl_ints
       ! local integral of rho**2; for optimization
       TYPE(lri_list_type), POINTER                            :: lri_ints_rho
       ! properties of orb and aux basis
@@ -269,8 +299,13 @@ MODULE lri_environment_types
       TYPE(lri_clebsch_gordon_type), POINTER                  :: cg_shg
       ! orbital basis overlap
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER               :: ob_smat
+      ! statistics
+      LOGICAL                                                 :: statistics
+      TYPE(stat_type)                                         :: stat
       ! exact one-center terms
       LOGICAL                                                 :: exact_1c_terms
+      ! use RI for local pp
+      LOGICAL                                                 :: ppl_ri
       ! store integrals (needed for basis optimization)
       LOGICAL                                                 :: store_integrals
       ! distant pair approximation
@@ -280,7 +315,7 @@ MODULE lri_environment_types
       REAL(KIND=dp)                                           :: r_out
       REAL(KIND=dp), DIMENSION(:), POINTER                    :: aradius
       TYPE(wbas_type), DIMENSION(:), POINTER                  :: wbas
-      TYPE(wmat_type), DIMENSION(:, :), POINTER                :: wmat
+      TYPE(wmat_type), DIMENSION(:, :), POINTER               :: wmat
       ! RI overlap and inverse
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER               :: ri_smat, &
                                                                  ri_sinv
@@ -340,6 +375,7 @@ MODULE lri_environment_types
    PUBLIC :: int_container, carray
    PUBLIC :: lri_env_create, lri_env_release, allocate_lri_coefs, &
              allocate_lri_ints, allocate_lri_ints_rho, lri_density_create, &
+             allocate_lri_ppl_ints, deallocate_lri_ppl_ints, &
              lri_density_release, allocate_lri_rhos, allocate_lri_force_components, &
              deallocate_lri_ints, deallocate_lri_ints_rho, &
              deallocate_lri_force_components, deallocate_bas_properties
@@ -377,6 +413,7 @@ CONTAINS
       NULLIFY (lri_env%saa_list)
       NULLIFY (lri_env%soa_list)
       NULLIFY (lri_env%lri_ints)
+      NULLIFY (lri_env%lri_ppl_ints)
       NULLIFY (lri_env%lri_ints_rho)
       NULLIFY (lri_env%bas_prop)
 
@@ -448,6 +485,9 @@ CONTAINS
          END IF
          IF (ASSOCIATED(lri_env%lri_ints)) THEN
             CALL deallocate_lri_ints(lri_env%lri_ints)
+         END IF
+         IF (ASSOCIATED(lri_env%lri_ppl_ints)) THEN
+            CALL deallocate_lri_ppl_ints(lri_env%lri_ppl_ints)
          END IF
          IF (ASSOCIATED(lri_env%lri_ints_rho)) THEN
             CALL deallocate_lri_ints_rho(lri_env%lri_ints_rho)
@@ -605,6 +645,7 @@ CONTAINS
       dpa = lri_env%distant_pair_approximation
       ra = lri_env%r_in
       rb = lri_env%r_out
+      lri_env%stat%oint_mem = 0.0_dp
 
       lri_ints%nkind = nkind
       ALLOCATE (lri_ints%lri_atom(nkind*nkind))
@@ -664,6 +705,7 @@ CONTAINS
             lrii%abascr = 0._dp
             ALLOCATE (lrii%abbscr(nfb))
             lrii%abbscr = 0._dp
+            lri_env%stat%oint_mem = lri_env%stat%oint_mem+nfa+nfb
          END IF
 
          IF (dpa) THEN
@@ -694,19 +736,24 @@ CONTAINS
                NULLIFY (lrii%sinv)
             ELSE
                ALLOCATE (lrii%soo(nba, nbb))
+               lri_env%stat%oint_mem = lri_env%stat%oint_mem+nba*nbb
                lrii%soo = 0._dp
 
                IF (iatom == jatom .AND. dab < lri_env%delta) THEN
                   ALLOCATE (lrii%sinv(nfa, nfa))
+                  lri_env%stat%oint_mem = lri_env%stat%oint_mem+nfa*nfa
                ELSE
                   ALLOCATE (lrii%sinv(nn, nn))
+                  lri_env%stat%oint_mem = lri_env%stat%oint_mem+nn*nn
                ENDIF
                lrii%sinv = 0._dp
 
                IF (iatom == jatom .AND. dab < lri_env%delta) THEN
                   ALLOCATE (lrii%n(nfa), lrii%sn(nfa))
+                  lri_env%stat%oint_mem = lri_env%stat%oint_mem+2.*nfa
                ELSE
                   ALLOCATE (lrii%n(nn), lrii%sn(nn))
+                  lri_env%stat%oint_mem = lri_env%stat%oint_mem+2.*nn
                ENDIF
                lrii%n = 0._dp
                lrii%sn = 0._dp
@@ -721,13 +768,16 @@ CONTAINS
             lrii%asinv => lri_env%bas_prop(ikind)%ri_ovlp_inv
             lrii%bsinv => lri_env%bas_prop(jkind)%ri_ovlp_inv
             ALLOCATE (lrii%na(nfa), lrii%sna(nfa))
+            lri_env%stat%oint_mem = lri_env%stat%oint_mem+2.*nfa
             lrii%na = 0._dp
             lrii%sna = 0._dp
             ALLOCATE (lrii%nb(nfb), lrii%snb(nfb))
+            lri_env%stat%oint_mem = lri_env%stat%oint_mem+2.*nfb
             lrii%nb = 0._dp
             lrii%snb = 0._dp
             IF (.NOT. ALLOCATED(lrii%soo)) THEN
                ALLOCATE (lrii%soo(nba, nbb))
+               lri_env%stat%oint_mem = lri_env%stat%oint_mem+nba*nbb
                lrii%soo = 0._dp
             ELSE
                CPASSERT(SIZE(lrii%soo, 1) == nba .AND. SIZE(lrii%soo, 2) == nbb)
@@ -749,6 +799,40 @@ CONTAINS
       CALL neighbor_list_iterator_release(nl_iterator)
 
    END SUBROUTINE allocate_lri_ints
+
+! **************************************************************************************************
+!> \brief allocate lri_ppl_ints, matrices that store LRI integrals
+!> \param lri_env ...
+!> \param lri_ppl_ints structure storing the LRI ppl integrals
+!> \param atomic_kind_set ...
+! **************************************************************************************************
+   SUBROUTINE allocate_lri_ppl_ints(lri_env, lri_ppl_ints, atomic_kind_set)
+
+      TYPE(lri_environment_type), POINTER                :: lri_env
+      TYPE(lri_ppl_int_type), POINTER                    :: lri_ppl_ints
+      TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
+
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'allocate_lri_ppl_ints', &
+         routineP = moduleN//':'//routineN
+
+      INTEGER                                            :: ikind, natom, nfa, nkind
+      TYPE(atomic_kind_type), POINTER                    :: atomic_kind
+      TYPE(gto_basis_set_type), POINTER                  :: fbasa
+
+      lri_env%stat%ppli_mem = 0.0_dp
+      nkind = SIZE(atomic_kind_set)
+      ALLOCATE (lri_ppl_ints)
+      ALLOCATE (lri_ppl_ints%lri_ppl(nkind))
+      DO ikind = 1, nkind
+         fbasa => lri_env%ri_basis(ikind)%gto_basis_set
+         nfa = fbasa%nsgf
+         atomic_kind => atomic_kind_set(ikind)
+         CALL get_atomic_kind(atomic_kind=atomic_kind, natom=natom)
+         ALLOCATE (lri_ppl_ints%lri_ppl(ikind)%v_int(natom, nfa))
+         lri_env%stat%ppli_mem = lri_env%stat%ppli_mem+natom*nfa
+      END DO
+
+   END SUBROUTINE allocate_lri_ppl_ints
 
 ! **************************************************************************************************
 !> \brief allocate lri_ints_rho, storing integral for the exact density
@@ -856,6 +940,8 @@ CONTAINS
 
       ALLOCATE (lri_rhos(nspin))
 
+      lri_env%stat%rhos_mem = 0.0_dp
+
       DO ispin = 1, nspin
 
          ALLOCATE (lri_rhos(ispin)%lri_list)
@@ -912,10 +998,12 @@ CONTAINS
                   IF (.NOT. lri_env%exact_1c_terms) THEN
                      ALLOCATE (lrho%avec(nfa))
                      ALLOCATE (lrho%tvec(nfa))
+                     lri_env%stat%rhos_mem = lri_env%stat%rhos_mem+2*nfa
                   END IF
                ELSE
                   ALLOCATE (lrho%avec(nn))
                   ALLOCATE (lrho%tvec(nn))
+                  lri_env%stat%rhos_mem = lri_env%stat%rhos_mem+2*nn
                ENDIF
             END IF
             NULLIFY (lrho%aveca, lrho%tveca)
@@ -925,6 +1013,7 @@ CONTAINS
                ALLOCATE (lrho%avecb(nfb))
                ALLOCATE (lrho%tveca(nfa))
                ALLOCATE (lrho%tvecb(nfb))
+               lri_env%stat%rhos_mem = lri_env%stat%rhos_mem+2*(nfa+nfb)
             END IF
 
          ENDDO
@@ -959,11 +1048,13 @@ CONTAINS
       nkind = SIZE(atomic_kind_set)
       nspin = lri_density%nspin
 
+      lri_env%stat%coef_mem = 0.0_dp
+
       ALLOCATE (lri_density%lri_coefs(nspin))
       lri_coefs => lri_density%lri_coefs
 
       DO ispin = 1, nspin
-         ALLOCATE (lri_density%lri_coefs(ispin)%lri_kinds(nkind))
+         ALLOCATE (lri_coefs(ispin)%lri_kinds(nkind))
          DO ikind = 1, nkind
             NULLIFY (lri_coefs(ispin)%lri_kinds(ikind)%acoef)
             NULLIFY (lri_coefs(ispin)%lri_kinds(ikind)%v_int)
@@ -981,6 +1072,8 @@ CONTAINS
             lri_coefs(ispin)%lri_kinds(ikind)%v_dadr = 0._dp
             ALLOCATE (lri_coefs(ispin)%lri_kinds(ikind)%v_dfdr(natom, 3))
             lri_coefs(ispin)%lri_kinds(ikind)%v_dfdr = 0._dp
+            !
+            lri_env%stat%coef_mem = lri_env%stat%coef_mem+2._dp*natom*(nsgf+3)
          END DO
       ENDDO
 
@@ -1180,6 +1273,33 @@ CONTAINS
       DEALLOCATE (lri_ints)
 
    END SUBROUTINE deallocate_lri_ints
+
+! **************************************************************************************************
+!> \brief deallocates the given lri_ppl_ints
+!> \param lri_ppl_ints ...
+! **************************************************************************************************
+   SUBROUTINE deallocate_lri_ppl_ints(lri_ppl_ints)
+
+      TYPE(lri_ppl_int_type), POINTER                    :: lri_ppl_ints
+
+      CHARACTER(len=*), PARAMETER :: routineN = 'deallocate_lri_ppl_ints', &
+         routineP = moduleN//':'//routineN
+
+      INTEGER                                            :: ikind, nkind
+
+      CPASSERT(ASSOCIATED(lri_ppl_ints))
+      IF (ASSOCIATED(lri_ppl_ints%lri_ppl)) THEN
+         nkind = SIZE(lri_ppl_ints%lri_ppl)
+         DO ikind = 1, nkind
+            IF (ASSOCIATED(lri_ppl_ints%lri_ppl(ikind)%v_int)) THEN
+               DEALLOCATE (lri_ppl_ints%lri_ppl(ikind)%v_int)
+            END IF
+         END DO
+         DEALLOCATE (lri_ppl_ints%lri_ppl)
+      END IF
+      DEALLOCATE (lri_ppl_ints)
+
+   END SUBROUTINE deallocate_lri_ppl_ints
 
 ! **************************************************************************************************
 !> \brief deallocates the given lri_ints_rho

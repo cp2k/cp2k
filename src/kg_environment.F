@@ -661,14 +661,13 @@ CONTAINS
       INTEGER(KIND=int_4)                                :: ncolors
       INTEGER(KIND=int_4), ALLOCATABLE, DIMENSION(:)     :: color_of_node
       INTEGER(KIND=int_4), ALLOCATABLE, DIMENSION(:, :)  :: msg_gather, pairs, pairs_buffer
-      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: index_of_color, nnodes_of_color
+      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: nnodes_of_color
       TYPE(neighbor_list_iterator_p_type), &
          DIMENSION(:), POINTER                           :: nl_iterator
 
-! first: get a (local) list of pairs from the (local) neighbor list data
-
       CALL timeset(routineN, handle)
 
+      ! first: get a (local) list of pairs from the (local) neighbor list data
       nmol = SIZE(kg_env%molecule_set)
 
       npairs = 0
@@ -842,17 +841,6 @@ CONTAINS
       END DO
 
       DEALLOCATE (nnodes_of_color)
-
-      ! store the subset information
-      ALLOCATE (index_of_color(ncolors))
-
-      index_of_color = 0
-      DO i = 1, nmol
-         color = color_of_node(i)
-         index_of_color(color) = index_of_color(color)+1
-      END DO
-      DEALLOCATE (index_of_color)
-
       DEALLOCATE (color_of_node)
 
       CALL timestop(handle)

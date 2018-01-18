@@ -17,6 +17,7 @@ MODULE lri_ks_methods
                                               dbcsr_add_block_node,&
                                               dbcsr_finalize,&
                                               dbcsr_get_block_p,&
+                                              dbcsr_p_type,&
                                               dbcsr_type
    USE kinds,                           ONLY: dp
    USE lri_compression,                 ONLY: lri_decomp_i
@@ -55,27 +56,31 @@ CONTAINS
 !> \param lri_v_int integrals of potential * ri basis set
 !> \param h_matrix KS matrix, on entry containing the core hamiltonian
 !> \param atomic_kind_set ...
+!> \param cell_to_index ...
 !> \note including this in lri_environment_methods?
 ! **************************************************************************************************
-   SUBROUTINE calculate_lri_ks_matrix(lri_env, lri_v_int, h_matrix, atomic_kind_set)
+   SUBROUTINE calculate_lri_ks_matrix(lri_env, lri_v_int, h_matrix, atomic_kind_set, cell_to_index)
 
       TYPE(lri_environment_type), POINTER                :: lri_env
       TYPE(lri_kind_type), DIMENSION(:), POINTER         :: lri_v_int
-      TYPE(dbcsr_type), POINTER                          :: h_matrix
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: h_matrix
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
+      INTEGER, DIMENSION(:, :, :), OPTIONAL, POINTER     :: cell_to_index
 
       CHARACTER(*), PARAMETER :: routineN = 'calculate_lri_ks_matrix', &
          routineP = moduleN//':'//routineN
 
-      INTEGER :: atom_a, atom_b, col, handle, i, iac, iatom, ikind, ilist, jatom, jkind, &
+      INTEGER :: atom_a, atom_b, col, handle, i, iac, iatom, ic, ikind, ilist, jatom, jkind, &
          jneighbor, mepos, natom, nba, nbb, nfa, nfb, nkind, nlist, nm, nn, nthread, row
+      INTEGER, DIMENSION(3)                              :: cell
       INTEGER, DIMENSION(:), POINTER                     :: atom_of_kind
-      LOGICAL                                            :: found, trans
+      LOGICAL                                            :: found, trans, use_cell_mapping
       REAL(KIND=dp)                                      :: dab, fw, isn, isna, isnb, rab(3), &
                                                             threshold
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: vi, via, vib
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: hf_work, hs_work, int3, wab, wbb
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: h_block
+      TYPE(dbcsr_type), POINTER                          :: hmat
       TYPE(lri_int_type), POINTER                        :: lrii
       TYPE(neighbor_list_iterator_p_type), &
          DIMENSION(:), POINTER                           :: nl_iterator
@@ -86,6 +91,11 @@ CONTAINS
       NULLIFY (atom_of_kind, h_block, lrii, nl_iterator, soo_list)
 
       threshold = lri_env%eps_o3_int
+
+      use_cell_mapping = (SIZE(h_matrix, 1) > 1)
+      IF (use_cell_mapping) THEN
+         CPASSERT(PRESENT(cell_to_index))
+      END IF
 
       IF (ASSOCIATED(lri_env%soo_list)) THEN
          soo_list => lri_env%soo_list
@@ -101,10 +111,10 @@ CONTAINS
          CALL neighbor_list_iterator_create(nl_iterator, soo_list, nthread=nthread)
 !$OMP PARALLEL DEFAULT(NONE)&
 !$OMP SHARED (nthread,nl_iterator,nkind,atom_of_kind,threshold,lri_env,lri_v_int,&
-!$OMP         h_matrix)&
+!$OMP         h_matrix,use_cell_mapping,cell_to_index)&
 !$OMP PRIVATE (mepos,ikind,jkind,iatom,jatom,nlist,ilist,jneighbor,rab,iac,dab,lrii,&
 !$OMP          nfa,nfb,nba,nbb,nn,hs_work,hf_work,h_block,row,col,trans,found,wab,wbb,&
-!$OMP          atom_a,atom_b,isn,nm,vi,isna,isnb,via,vib,fw,int3)
+!$OMP          atom_a,atom_b,isn,nm,vi,isna,isnb,via,vib,fw,int3,cell,ic,hmat)
 
          mepos = 0
 !$       mepos = omp_get_thread_num()
@@ -112,7 +122,7 @@ CONTAINS
          DO WHILE (neighbor_list_iterate(nl_iterator, mepos) == 0)
             CALL get_iterator_info(nl_iterator, mepos=mepos, ikind=ikind, jkind=jkind, iatom=iatom, &
                                    jatom=jatom, nlist=nlist, ilist=ilist, inode=jneighbor, &
-                                   r=rab)
+                                   r=rab, cell=cell)
 
             iac = ikind+nkind*(jkind-1)
             dab = SQRT(SUM(rab*rab))
@@ -132,6 +142,14 @@ CONTAINS
 
             atom_a = atom_of_kind(iatom)
             atom_b = atom_of_kind(jatom)
+
+            IF (use_cell_mapping) THEN
+               ic = cell_to_index(cell(1), cell(2), cell(3))
+               CPASSERT(ic > 0)
+            ELSE
+               ic = 1
+            END IF
+            hmat => h_matrix(ic)%matrix
 
             ALLOCATE (int3(nba, nbb))
             IF (lrii%lrisr) THEN
@@ -214,9 +232,9 @@ CONTAINS
             END IF
 !$OMP CRITICAL(addhamiltonian)
             NULLIFY (h_block)
-            CALL dbcsr_get_block_p(h_matrix, row, col, h_block, found)
+            CALL dbcsr_get_block_p(hmat, row, col, h_block, found)
             IF (.NOT. ASSOCIATED(h_block)) THEN
-               CALL dbcsr_add_block_node(h_matrix, row, col, h_block)
+               CALL dbcsr_add_block_node(hmat, row, col, h_block)
             END IF
             IF (lrii%lrisr) THEN
                fw = lrii%wsr
@@ -241,7 +259,9 @@ CONTAINS
          END DO
 !$OMP END PARALLEL
 
-         CALL dbcsr_finalize(h_matrix)
+         DO ic = 1, SIZE(h_matrix, 1)
+            CALL dbcsr_finalize(h_matrix(ic)%matrix)
+         END DO
 
          CALL neighbor_list_iterator_release(nl_iterator)
          DEALLOCATE (atom_of_kind)

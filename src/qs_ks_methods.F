@@ -73,6 +73,10 @@ MODULE qs_ks_methods
    USE kg_correction,                   ONLY: kg_ekin_subset
    USE kinds,                           ONLY: default_string_length,&
                                               dp
+   USE lri_environment_methods,         ONLY: v_int_ppl_energy
+   USE lri_environment_types,           ONLY: lri_density_type,&
+                                              lri_environment_type,&
+                                              lri_kind_type
    USE mathlib,                         ONLY: abnormal_value
    USE message_passing,                 ONLY: mp_sum
    USE negf_qs_env_methods,             ONLY: negf_modify_hartree_pot,&
@@ -228,6 +232,9 @@ CONTAINS
       TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: ks_matrix, matrix_h, matrix_s, my_rho, &
                                                             rho_ao
       TYPE(dft_control_type), POINTER                    :: dft_control
+      TYPE(lri_density_type), POINTER                    :: lri_density
+      TYPE(lri_environment_type), POINTER                :: lri_env
+      TYPE(lri_kind_type), DIMENSION(:), POINTER         :: lri_v_int
       TYPE(negf_qs_env_type), POINTER                    :: negf_qs_env
       TYPE(pw_env_type), POINTER                         :: pw_env
       TYPE(pw_p_type) :: rho_tot_gspace, v_efield_rspace, v_hartree_gspace, v_hartree_rspace, &
@@ -328,7 +335,7 @@ CONTAINS
       ! Check if LRIGPW is used
       lrigpw = dft_control%qs_control%lrigpw
       rigpw = dft_control%qs_control%rigpw
-      IF (lrigpw .OR. rigpw) THEN
+      IF (rigpw) THEN
          CPASSERT(nimages == 1)
       ENDIF
       IF (lrigpw .AND. rigpw) THEN
@@ -838,6 +845,19 @@ CONTAINS
          END DO
          CALL mp_sum(ecore_ppl, para_env%group)
          energy%core = energy%core+ecore_ppl
+      END IF
+
+      IF (lrigpw) THEN
+         ! update core energy for ppl_ri method
+         CALL get_qs_env(qs_env, lri_env=lri_env, lri_density=lri_density)
+         IF (lri_env%ppl_ri) THEN
+            ecore_ppl = 0._dp
+            DO ispin = 1, nspins
+               lri_v_int => lri_density%lri_coefs(ispin)%lri_kinds
+               CALL v_int_ppl_energy(qs_env, lri_v_int, ecore_ppl)
+            END DO
+            energy%core = energy%core+ecore_ppl
+         END IF
       END IF
 
       IF (.NOT. just_energy .AND. negf_qs_env%update_ks_matrix) THEN

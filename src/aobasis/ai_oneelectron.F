@@ -44,7 +44,7 @@ MODULE ai_oneelectron
 
 ! *** Public subroutines ***
 
-   PUBLIC :: os_3center
+   PUBLIC :: os_3center, os_2center
 
 CONTAINS
 
@@ -533,6 +533,184 @@ CONTAINS
       DEALLOCATE (iiap)
 
    END SUBROUTINE os_3center
+! **************************************************************************************************
+!> \brief   Calculation of two-center integrals <a|c> over
+!>          Cartesian Gaussian functions and a spherical potential
+!>
+!> \param la_max_set ...
+!> \param la_min_set ...
+!> \param npgfa ...
+!> \param rpgfa ...
+!> \param zeta ...
+!> \param auxint ...
+!> \param rpgfc ...
+!> \param rac ...
+!> \param dac ...
+!> \param va ...
+!> \param dva ...
+!> \date    December 2017
+!> \author  Juerg Hutter
+!> \version 1.0
+! **************************************************************************************************
+   SUBROUTINE os_2center(la_max_set, la_min_set, npgfa, rpgfa, zeta, &
+                         auxint, rpgfc, rac, dac, va, dva)
+      INTEGER, INTENT(IN)                                :: la_max_set, la_min_set, npgfa
+      REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: rpgfa, zeta
+      REAL(KIND=dp), DIMENSION(0:, :), INTENT(IN)        :: auxint
+      REAL(KIND=dp), INTENT(IN)                          :: rpgfc
+      REAL(KIND=dp), DIMENSION(3), INTENT(IN)            :: rac
+      REAL(KIND=dp), INTENT(IN)                          :: dac
+      REAL(KIND=dp), DIMENSION(:), INTENT(INOUT)         :: va
+      REAL(KIND=dp), DIMENSION(:, :), INTENT(INOUT), &
+         OPTIONAL                                        :: dva
+
+      CHARACTER(len=*), PARAMETER :: routineN = 'os_2center', routineP = moduleN//':'//routineN
+
+      INTEGER :: ax, ay, az, coa, coamx, coamy, coamz, coapx, coapy, coapz, da_max, i, ipgf, ir, &
+         ir1, ir2, irm(3), irr(3), irx, iry, irz, ix, ixx(1), la, la_max, la_min, llr, m, mmax, na
+      REAL(KIND=dp)                                      :: aai, fax, fay, faz, ftz, orho, s1
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: s
+
+      IF (PRESENT(dva)) THEN
+         da_max = 1
+      ELSE
+         da_max = 0
+      END IF
+
+      la_max = la_max_set+da_max
+      la_min = MAX(0, la_min_set-da_max)
+
+      mmax = la_max
+
+      ALLOCATE (s(ncoset(mmax), mmax+1))
+      na = 0
+      DO ipgf = 1, npgfa
+         IF (rpgfa(ipgf)+rpgfc < dac) THEN
+            na = na+ncoset(la_max_set)
+            CYCLE
+         END IF
+         s(1, 1:mmax+1) = auxint(0:mmax, ipgf)
+         IF (la_max > 0) THEN
+            ! Recurrence steps: [s|c] -> [a|c]
+            ! [a|c](m) = (Ci - Ai)*[a-1i|c](m+1) +
+            !             Ni(a-1i)/2a*[a-2i|c](m) -
+            !             Ni(a-1i)/2a*[a-2i|c](m+1)
+            !
+
+            orho = 0.5_dp/zeta(ipgf)
+
+            DO llr = 1, mmax
+               IF (llr == 1) THEN
+                  DO m = 0, mmax-llr
+                     s1 = s(1, m+2)
+                     s(2, m+1) = -rac(1)*s1 ! [px|o]
+                     s(3, m+1) = -rac(2)*s1 ! [py|o]
+                     s(4, m+1) = -rac(3)*s1 ! [pz|o]
+                  END DO
+               ELSE IF (llr == 2) THEN
+                  DO m = 0, mmax-llr
+                     s1 = s(1, m+1)-s(1, m+2)
+                     s(5, m+1) = -rac(1)*s(2, m+2)+orho*s1 ! [dx2|o]
+                     s(6, m+1) = -rac(1)*s(3, m+2) ! [dxy|o]
+                     s(7, m+1) = -rac(1)*s(4, m+2) ! [dxz|o]
+                     s(8, m+1) = -rac(2)*s(3, m+2)+orho*s1 ! [dy2|o]
+                     s(9, m+1) = -rac(2)*s(4, m+2) ! [dyz|o]
+                     s(10, m+1) = -rac(3)*s(4, m+2)+orho*s1 ! [dz2|o]
+                  END DO
+               ELSE IF (llr == 3) THEN
+                  DO m = 0, mmax-llr
+                     s(11, m+1) = -rac(1)*s(5, m+2)+2._dp*orho*(s(2, m+1)-s(2, m+2)) ! [fx3 |o]
+                     s(12, m+1) = -rac(1)*s(6, m+2)+orho*(s(3, m+1)-s(3, m+2)) ! [fx2y|o]
+                     s(13, m+1) = -rac(1)*s(7, m+2)+orho*(s(4, m+1)-s(4, m+2)) ! [fx2z|o]
+                     s(14, m+1) = -rac(2)*s(6, m+2)+orho*(s(2, m+1)-s(2, m+2)) ! [fxy2|o]
+                     s(15, m+1) = -rac(1)*s(9, m+2) ! [fxyz|o]
+                     s(16, m+1) = -rac(3)*s(7, m+2)+orho*(s(2, m+1)-s(2, m+2)) ! [fxz2|o]
+                     s(17, m+1) = -rac(2)*s(8, m+2)+2._dp*orho*(s(3, m+1)-s(3, m+2)) ! [fy3 |o]
+                     s(18, m+1) = -rac(2)*s(9, m+2)+orho*(s(4, m+1)-s(4, m+2)) ! [fy2z|o]
+                     s(19, m+1) = -rac(3)*s(9, m+2)+orho*(s(3, m+1)-s(3, m+2)) ! [fyz2|o]
+                     s(20, m+1) = -rac(3)*s(10, m+2)+2._dp*orho*(s(4, m+1)-s(4, m+2)) ! [fz3 |o]
+                  END DO
+               ELSE IF (llr == 4) THEN
+                  DO m = 0, mmax-llr
+                     s(21, m+1) = -rac(1)*s(11, m+2)+3._dp*orho*(s(5, m+1)-s(5, m+2)) ! [gx4  |s]
+                     s(22, m+1) = -rac(1)*s(12, m+2)+2._dp*orho*(s(6, m+1)-s(6, m+2)) ! [gx3y |s]
+                     s(23, m+1) = -rac(1)*s(13, m+2)+2._dp*orho*(s(7, m+1)-s(7, m+2)) ! [gx3z |s]
+                     s(24, m+1) = -rac(1)*s(14, m+2)+orho*(s(8, m+1)-s(8, m+2)) ! [gx2y2|s]
+                     s(25, m+1) = -rac(1)*s(15, m+2)+orho*(s(9, m+1)-s(9, m+2)) ! [gx2yz|s]
+                     s(26, m+1) = -rac(1)*s(16, m+2)+orho*(s(10, m+1)-s(10, m+2)) ! [gx2z2|s]
+                     s(27, m+1) = -rac(1)*s(17, m+2) ! [gxy3 |s]
+                     s(28, m+1) = -rac(1)*s(18, m+2) ! [gxy2z|s]
+                     s(29, m+1) = -rac(1)*s(19, m+2) ! [gxyz2|s]
+                     s(30, m+1) = -rac(1)*s(20, m+2) ! [gxz3 |s]
+                     s(31, m+1) = -rac(2)*s(17, m+2)+3._dp*orho*(s(8, m+1)-s(8, m+2)) ! [gy4  |s]
+                     s(32, m+1) = -rac(2)*s(18, m+2)+2._dp*orho*(s(9, m+1)-s(9, m+2)) ! [gy3z |s]
+                     s(33, m+1) = -rac(2)*s(19, m+2)+orho*(s(10, m+1)-s(10, m+2)) ! [gy2z2|s]
+                     s(34, m+1) = -rac(2)*s(20, m+2) ! [gyz3 |s]
+                     s(35, m+1) = -rac(3)*s(20, m+2)+3._dp*orho*(s(10, m+1)-s(10, m+2)) ! [gz4  |s]
+                  END DO
+               ELSE
+                  DO irx = 0, llr
+                     DO iry = 0, llr-irx
+                        irz = llr-irx-iry
+                        irr(1) = irx; irr(2) = iry; irr(3) = irz
+                        ixx = MAXLOC(irr)
+                        ix = ixx(1)
+                        ir = coset(irx, iry, irz)
+                        irm = irr
+                        irm(ix) = irm(ix)-1
+                        aai = REAL(MAX(irm(ix), 0), dp)*orho
+                        ir1 = coset(irm(1), irm(2), irm(3))
+                        irm(ix) = irm(ix)-1
+                        ir2 = coset(irm(1), irm(2), irm(3))
+                        DO m = 0, mmax-llr
+                           s(ir, m+1) = -rac(ix)*s(ir1, m+2)+aai*(s(ir2, m+1)-s(ir2, m+2))
+                        END DO
+                     END DO
+                  END DO
+               END IF
+            END DO
+
+         END IF
+
+         ! Store the primitive three-center overlap integrals
+         DO i = ncoset(la_min_set-1)+1, ncoset(la_max_set)
+            va(na+i) = va(na+i)+s(i, 1)
+         END DO
+
+         ! Calculate the requested derivatives with respect  ***
+         ! to the nuclear coordinates of the atomic center a ***
+         ! [da/dAi|c] = 2*zeta*[a+1i|c] - Ni(a)[a-1i|c] ***
+         IF (PRESENT(dva)) THEN
+            ftz = 2.0_dp*zeta(ipgf)
+            DO la = la_min_set, la_max_set
+               DO ax = 0, la
+                  fax = REAL(ax, dp)
+                  DO ay = 0, la-ax
+                     fay = REAL(ay, dp)
+                     az = la-ax-ay
+                     faz = REAL(az, dp)
+                     coa = coset(ax, ay, az)
+                     coamx = coset(ax-1, ay, az)
+                     coamy = coset(ax, ay-1, az)
+                     coamz = coset(ax, ay, az-1)
+                     coapx = coset(ax+1, ay, az)
+                     coapy = coset(ax, ay+1, az)
+                     coapz = coset(ax, ay, az+1)
+                     dva(na+coa, 1) = dva(na+coa, 1)+ftz*s(coapx, 1)-fax*s(coamx, 1)
+                     dva(na+coa, 2) = dva(na+coa, 2)+ftz*s(coapy, 1)-fay*s(coamy, 1)
+                     dva(na+coa, 3) = dva(na+coa, 3)+ftz*s(coapz, 1)-faz*s(coamz, 1)
+                  END DO
+               END DO
+            END DO
+         END IF
+
+         na = na+ncoset(la_max_set)
+
+      END DO
+
+      DEALLOCATE (s)
+
+   END SUBROUTINE os_2center
 ! **************************************************************************************************
 
 END MODULE ai_oneelectron

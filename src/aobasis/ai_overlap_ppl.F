@@ -23,10 +23,15 @@
 !> \author Matthias Krack (04.10.2000)
 ! **************************************************************************************************
 MODULE ai_overlap_ppl
-   USE ai_oneelectron,                  ONLY: os_3center
+   USE ai_oneelectron,                  ONLY: os_2center,&
+                                              os_3center
+   USE ai_overlap_debug,                ONLY: init_os_overlap2,&
+                                              os_overlap2
    USE kinds,                           ONLY: dp
    USE mathconstants,                   ONLY: fac,&
                                               pi
+   USE orbital_pointers,                ONLY: indco,&
+                                              ncoset
 #include "../base/base_uses.f90"
 
    IMPLICIT NONE
@@ -37,7 +42,7 @@ MODULE ai_overlap_ppl
 
 ! *** Public subroutines ***
 
-   PUBLIC :: ppl_integral
+   PUBLIC :: ppl_integral, ppl_integral_ri
 
 CONTAINS
 
@@ -162,6 +167,203 @@ CONTAINS
       DEALLOCATE (auxint)
 
    END SUBROUTINE ppl_integral
+! **************************************************************************************************
+!> \brief   Calculation of two-center overlap integrals <a|c> over
+!>          Cartesian Gaussian functions for the local part of the Goedecker
+!>          pseudopotential (GTH). c is a primitive Gaussian-type function
+!>          with a set of even angular momentum indices.
+!>
+!>          <a|V(ppl)|b> = <a| (C1 + C2*(alpha*r)**2 + C3*(alpha*r)**4 +
+!>                               C4*(alpha*r)**6)*exp(-(alpha*r)**2/2))|b>
+!>          zetc = alpha**2/2
+!>
+!> \param la_max_set ...
+!> \param la_min_set ...
+!> \param npgfa ...
+!> \param rpgfa ...
+!> \param zeta ...
+!> \param nexp_ppl ...
+!> \param alpha_ppl ...
+!> \param nct_ppl ...
+!> \param cexp_ppl ...
+!> \param rpgfc ...
+!> \param rac ...
+!> \param dac ...
+!> \param va ...
+!> \param dva ...
+!> \date    December 2017
+!> \author  Juerg Hutter
+!> \version 1.0
+! **************************************************************************************************
+   SUBROUTINE ppl_integral_ri(la_max_set, la_min_set, npgfa, rpgfa, zeta, &
+                              nexp_ppl, alpha_ppl, nct_ppl, cexp_ppl, rpgfc, &
+                              rac, dac, va, dva)
+      INTEGER, INTENT(IN)                                :: la_max_set, la_min_set, npgfa
+      REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: rpgfa, zeta
+      INTEGER, INTENT(IN)                                :: nexp_ppl
+      REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: alpha_ppl
+      INTEGER, DIMENSION(:), INTENT(IN)                  :: nct_ppl
+      REAL(KIND=dp), DIMENSION(:, :), INTENT(IN)         :: cexp_ppl
+      REAL(KIND=dp), INTENT(IN)                          :: rpgfc
+      REAL(KIND=dp), DIMENSION(3), INTENT(IN)            :: rac
+      REAL(KIND=dp), INTENT(IN)                          :: dac
+      REAL(KIND=dp), DIMENSION(:), INTENT(INOUT)         :: va
+      REAL(KIND=dp), DIMENSION(:, :), INTENT(INOUT), &
+         OPTIONAL                                        :: dva
+
+      CHARACTER(len=*), PARAMETER :: routineN = 'ppl_integral_ri', &
+         routineP = moduleN//':'//routineN
+
+      INTEGER                                            :: i, iexp, ipgf, mmax, na, nexp
+      INTEGER, DIMENSION(3)                              :: ani, anm, anp
+      LOGICAL                                            :: debug
+      REAL(KIND=dp)                                      :: oint, oref, rho, t, zetc
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: auxint
+      REAL(KIND=dp), DIMENSION(3)                        :: doint, doref
+
+      debug = .FALSE.
+
+      IF (PRESENT(dva)) THEN
+         mmax = la_max_set+1
+      ELSE
+         mmax = la_max_set
+      END IF
+
+      ALLOCATE (auxint(0:mmax, npgfa))
+      auxint = 0._dp
+
+      ! *** Calculate auxiliary integrals ***
+      DO ipgf = 1, npgfa
+         IF (rpgfa(ipgf)+rpgfc < dac) CYCLE
+         rho = zeta(ipgf)
+         t = rho*dac*dac
+
+         DO iexp = 1, nexp_ppl
+            nexp = nct_ppl(iexp)
+            zetc = alpha_ppl(iexp)
+            CALL ppl_aux(auxint(0:mmax, ipgf), mmax, t, rho, nexp, cexp_ppl(:, iexp), zetc)
+         END DO
+
+      END DO
+
+      IF (PRESENT(dva)) THEN
+         CALL os_2center(la_max_set, la_min_set, npgfa, rpgfa, zeta, &
+                         auxint, rpgfc, rac, dac, va, dva)
+      ELSE
+         CALL os_2center(la_max_set, la_min_set, npgfa, rpgfa, zeta, &
+                         auxint, rpgfc, rac, dac, va)
+      END IF
+
+      DEALLOCATE (auxint)
+
+      IF (debug) THEN
+         na = 0
+         DO ipgf = 1, npgfa
+            IF (rpgfa(ipgf)+rpgfc < dac) THEN
+               na = na+ncoset(la_max_set)
+               CYCLE
+            END IF
+            rho = zeta(ipgf)
+            DO i = ncoset(la_min_set-1)+1, ncoset(la_max_set)
+               oref = va(na+i)
+               ani(1:3) = indco(1:3, i)
+               oint = ppl_ri_test(rho, ani, rac, nexp_ppl, nct_ppl, alpha_ppl, cexp_ppl)
+               ! test
+               IF (ABS(oint-oref) > 1.0e-12_dp) THEN
+                  WRITE (*, '(A,3i2,i5,F10.4,2G24.12)') "PPL int error     ", ani, la_max_set, dac, oint, oref
+               END IF
+               IF (PRESENT(dva)) THEN
+                  anp = ani+(/1, 0, 0/)
+                  anm = ani-(/1, 0, 0/)
+                  doint(1) = 2._dp*rho*ppl_ri_test(rho, anp, rac, nexp_ppl, nct_ppl, alpha_ppl, cexp_ppl) &
+                             -ani(1)*ppl_ri_test(rho, anm, rac, nexp_ppl, nct_ppl, alpha_ppl, cexp_ppl)
+                  anp = ani+(/0, 1, 0/)
+                  anm = ani-(/0, 1, 0/)
+                  doint(2) = 2._dp*rho*ppl_ri_test(rho, anp, rac, nexp_ppl, nct_ppl, alpha_ppl, cexp_ppl) &
+                             -ani(2)*ppl_ri_test(rho, anm, rac, nexp_ppl, nct_ppl, alpha_ppl, cexp_ppl)
+                  anp = ani+(/0, 0, 1/)
+                  anm = ani-(/0, 0, 1/)
+                  doint(3) = 2._dp*rho*ppl_ri_test(rho, anp, rac, nexp_ppl, nct_ppl, alpha_ppl, cexp_ppl) &
+                             -ani(3)*ppl_ri_test(rho, anm, rac, nexp_ppl, nct_ppl, alpha_ppl, cexp_ppl)
+                  doref(1:3) = dva(na+i, 1:3)
+                  IF (ANY(ABS(doint-doref) > 1.0e-6_dp)) THEN
+                     WRITE (*, '(A,3i2,i5,F10.4,2G24.12)') " PPL dint error   ", &
+                        ani, la_max_set, dac, SUM(ABS(doint)), SUM(ABS(doref))
+                  END IF
+               END IF
+            END DO
+            na = na+ncoset(la_max_set)
+         END DO
+      END IF
+
+   END SUBROUTINE ppl_integral_ri
+
+! **************************************************************************************************
+!> \brief ...
+!> \param rho ...
+!> \param ani ...
+!> \param rac ...
+!> \param nexp_ppl ...
+!> \param nct_ppl ...
+!> \param alpha_ppl ...
+!> \param cexp_ppl ...
+!> \retval oint ...
+! **************************************************************************************************
+   FUNCTION ppl_ri_test(rho, ani, rac, nexp_ppl, nct_ppl, alpha_ppl, cexp_ppl) RESULT(oint)
+      REAL(KIND=dp), INTENT(IN)                          :: rho
+      INTEGER, DIMENSION(3), INTENT(IN)                  :: ani
+      REAL(KIND=dp), DIMENSION(3), INTENT(IN)            :: rac
+      INTEGER, INTENT(IN)                                :: nexp_ppl
+      INTEGER, DIMENSION(:), INTENT(IN)                  :: nct_ppl
+      REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: alpha_ppl
+      REAL(KIND=dp), DIMENSION(:, :), INTENT(IN)         :: cexp_ppl
+      REAL(KIND=dp)                                      :: oint
+
+      INTEGER                                            :: iexp, nexp, ni
+      REAL(KIND=dp)                                      :: cn, zetc
+      REAL(KIND=dp), DIMENSION(3)                        :: ra
+
+      oint = 0.0_dp
+      ra = 0.0_dp
+      DO iexp = 1, nexp_ppl
+         nexp = nct_ppl(iexp)
+         zetc = alpha_ppl(iexp)
+         CALL init_os_overlap2(rho, zetc, ra, -rac)
+         DO ni = 1, nexp
+            cn = cexp_ppl(ni, iexp)
+            SELECT CASE (ni)
+            CASE (1)
+               oint = oint+cn*os_overlap2(ani, (/0, 0, 0/))
+            CASE (2)
+               oint = oint+cn*os_overlap2(ani, (/2, 0, 0/))
+               oint = oint+cn*os_overlap2(ani, (/0, 2, 0/))
+               oint = oint+cn*os_overlap2(ani, (/0, 0, 2/))
+            CASE (3)
+               oint = oint+cn*os_overlap2(ani, (/4, 0, 0/))
+               oint = oint+cn*os_overlap2(ani, (/0, 4, 0/))
+               oint = oint+cn*os_overlap2(ani, (/0, 0, 4/))
+               oint = oint+2.0_dp*cn*os_overlap2(ani, (/2, 2, 0/))
+               oint = oint+2.0_dp*cn*os_overlap2(ani, (/0, 2, 2/))
+               oint = oint+2.0_dp*cn*os_overlap2(ani, (/2, 0, 2/))
+            CASE (4)
+               oint = oint+cn*os_overlap2(ani, (/6, 0, 0/))
+               oint = oint+cn*os_overlap2(ani, (/0, 6, 0/))
+               oint = oint+cn*os_overlap2(ani, (/0, 0, 6/))
+               oint = oint+3.0_dp*cn*os_overlap2(ani, (/4, 2, 0/))
+               oint = oint+3.0_dp*cn*os_overlap2(ani, (/4, 0, 2/))
+               oint = oint+3.0_dp*cn*os_overlap2(ani, (/2, 4, 0/))
+               oint = oint+3.0_dp*cn*os_overlap2(ani, (/0, 4, 2/))
+               oint = oint+3.0_dp*cn*os_overlap2(ani, (/2, 0, 4/))
+               oint = oint+3.0_dp*cn*os_overlap2(ani, (/0, 2, 4/))
+               oint = oint+6.0_dp*cn*os_overlap2(ani, (/2, 2, 2/))
+            CASE DEFAULT
+               CPABORT("OVERLAP_PPL")
+            END SELECT
+         END DO
+      END DO
+
+   END FUNCTION ppl_ri_test
+
 ! **************************************************************************************************
 !> \brief ...
 !> \param auxint ...

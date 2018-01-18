@@ -14,6 +14,7 @@ MODULE qs_energy
    USE cp_control_types,                ONLY: dft_control_type
    USE dm_ls_scf,                       ONLY: ls_scf
    USE kg_energy_corrections,           ONLY: kg_energy_correction
+   USE lri_environment_methods,         ONLY: lri_print_stat
    USE qs_energy_init,                  ONLY: qs_energies_init
    USE qs_energy_types,                 ONLY: qs_energy_type
    USE qs_energy_utils,                 ONLY: qs_energies_compute_matrix_w,&
@@ -108,6 +109,10 @@ CONTAINS
          END IF
 
          CALL qs_energies_properties(qs_env)
+
+         IF (dft_control%qs_control%lrigpw) THEN
+            CALL lri_print_stat(qs_env)
+         END IF
 
       END IF
 

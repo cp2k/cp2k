@@ -5826,6 +5826,20 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
+      CALL keyword_create(keyword, name="PPL_RI", &
+                          description="Use LRI/RI for local pseudopotential.", &
+                          usage="PPL_RI TRUE", &
+                          default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, name="RI_STATISTIC", &
+                          description="Print statistical information on the RI calculation.", &
+                          usage="RI_STATISTIC TRUE", &
+                          default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
       CALL keyword_create(keyword, name="DISTANT_PAIR_APPROXIMATION", &
                           description="Calculate distant pairs using an independent atom approximation.", &
                           usage="DISTANT_PAIR_APPROXIMATION TRUE", &

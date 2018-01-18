@@ -104,7 +104,7 @@ CONTAINS
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(cp_para_env_type), POINTER                    :: para_env
-      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: pmatrix
+      TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: pmatrix
       TYPE(lri_density_type), POINTER                    :: lri_density
       TYPE(lri_environment_type), POINTER                :: lri_env
       TYPE(lri_opt_type), POINTER                        :: lri_opt
@@ -121,7 +121,7 @@ CONTAINS
                       para_env=para_env, rho=rho_struct)
 
       ! density matrix
-      CALL qs_rho_get(rho_struct, rho_ao=pmatrix)
+      CALL qs_rho_get(rho_struct, rho_ao_kp=pmatrix)
 
       logger => cp_get_default_logger()
       dft_section => section_vals_get_subs_vals(input, "DFT")
@@ -607,7 +607,7 @@ CONTAINS
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(lri_opt_type), POINTER                        :: lri_opt
       TYPE(opt_state_type)                               :: opt_state
-      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: pmatrix
+      TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: pmatrix
       TYPE(cp_para_env_type), POINTER                    :: para_env
       INTEGER, INTENT(IN)                                :: nkind
 
@@ -616,6 +616,7 @@ CONTAINS
 
       INTEGER                                            :: ikind, nset
       INTEGER, DIMENSION(:), POINTER                     :: npgf
+      INTEGER, DIMENSION(:, :, :), POINTER               :: cell_to_index
       TYPE(gto_basis_set_type), POINTER                  :: fbas
 
       NULLIFY (fbas, npgf)
@@ -631,7 +632,7 @@ CONTAINS
       ENDDO
       CALL lri_basis_init(lri_env)
       CALL calculate_lri_integrals(lri_env, qs_env)
-      CALL calculate_avec_lri(lri_env, lri_density, pmatrix)
+      CALL calculate_avec_lri(lri_env, lri_density, pmatrix, cell_to_index)
       IF (lri_opt%use_condition_number) THEN
          CALL get_condition_number_of_overlap(lri_env)
       ENDIF
@@ -657,7 +658,7 @@ CONTAINS
       TYPE(lri_environment_type), POINTER                :: lri_env
       TYPE(lri_density_type), POINTER                    :: lri_density
       TYPE(lri_opt_type), POINTER                        :: lri_opt
-      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: pmatrix
+      TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: pmatrix
       TYPE(cp_para_env_type), POINTER                    :: para_env
       REAL(KIND=dp), INTENT(OUT)                         :: fobj
 
@@ -686,7 +687,8 @@ CONTAINS
          soo_list => lri_env%soo_list
 
          nkind = lri_env%lri_ints%nkind
-         nspin = SIZE(pmatrix)
+         nspin = SIZE(pmatrix, 1)
+         CPASSERT(SIZE(pmatrix, 2) == 1)
          nthread = 1
 !$       nthread = omp_get_max_threads()
 
@@ -695,7 +697,7 @@ CONTAINS
 
          DO ispin = 1, nspin
 
-            pmat => pmatrix(ispin)%matrix
+            pmat => pmatrix(ispin, 1)%matrix
             lri_rho => lri_density%lri_rhos(ispin)%lri_list
 
             CALL neighbor_list_iterator_create(nl_iterator, soo_list, nthread=nthread)

@@ -637,15 +637,17 @@ CONTAINS
 !> \param int_res ...
 !> \param calculate_forces ...
 !> \param basis_type ...
+!> \param atomlist ...
 !> \author Dorothea Golze
 ! **************************************************************************************************
    SUBROUTINE integrate_v_rspace_one_center(v_rspace, qs_env, int_res, &
-                                            calculate_forces, basis_type)
+                                            calculate_forces, basis_type, atomlist)
       TYPE(pw_p_type), INTENT(IN)                        :: v_rspace
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(lri_kind_type), DIMENSION(:), POINTER         :: int_res
       LOGICAL, INTENT(IN)                                :: calculate_forces
       CHARACTER(len=*), INTENT(IN)                       :: basis_type
+      INTEGER, DIMENSION(:), OPTIONAL                    :: atomlist
 
       CHARACTER(len=*), PARAMETER :: routineN = 'integrate_v_rspace_one_center', &
          routineP = moduleN//':'//routineN
@@ -666,7 +668,6 @@ CONTAINS
                                                             zeta
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       TYPE(cell_type), POINTER                           :: cell
-      TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(gridlevel_info_type), POINTER                 :: gridlevel_info
       TYPE(gto_basis_set_type), POINTER                  :: lri_basis_set
@@ -681,7 +682,7 @@ CONTAINS
 
       NULLIFY (atomic_kind_set, qs_kind_set, atom_list, cell, dft_control, &
                first_sgfa, gridlevel_info, hab, la_max, la_min, lri_basis_set, &
-               npgfa, nsgf_seta, pab, para_env, particle_set, pw_env, rpgfa, &
+               npgfa, nsgf_seta, pab, particle_set, pw_env, rpgfa, &
                rs_grid, rs_v, virial, set_radius_a, sphi_a, work_f, &
                work_i, zeta)
 
@@ -704,7 +705,7 @@ CONTAINS
                       dft_control=dft_control, &
                       nkind=nkind, &
                       particle_set=particle_set, &
-                      para_env=para_env, pw_env=pw_env, &
+                      pw_env=pw_env, &
                       virial=virial)
 
       use_virial = virial%pv_availability .AND. (.NOT. virial%pv_numer)
@@ -739,8 +740,6 @@ CONTAINS
                                 sphi=sphi_a, &
                                 zet=zeta)
 
-         int_res(ikind)%v_int = 0.0_dp
-
          ALLOCATE (hab(maxco, 1), pab(maxco, 1))
          hab = 0._dp
          pab(:, 1) = 0._dp
@@ -748,6 +747,9 @@ CONTAINS
          DO iatom = 1, natom_of_kind
 
             atom_a = atom_list(iatom)
+            IF (PRESENT(atomlist)) THEN
+               IF (atomlist(atom_a) == 0) CYCLE
+            END IF
             ra(:) = pbc(particle_set(atom_a)%r, cell)
             force_a(:) = 0._dp
             force_b(:) = 0._dp
@@ -844,13 +846,14 @@ CONTAINS
                   CALL dgemm("T", "N", nsgf_seta(iset), 1, ncoa, 1.0_dp, sphi_a(1, sgfa), &
                              SIZE(sphi_a, 1), hab(1, 1), SIZE(hab, 1), 0.0_dp, work_i(1, 1), SIZE(work_i, 1))
 
-                  int_res(ikind)%v_int(iatom, sgfa:sgfa-1+nsgf_seta(iset)) = work_i(1:nsgf_seta(iset), 1)
+                  int_res(ikind)%v_int(iatom, sgfa:sgfa-1+nsgf_seta(iset)) = &
+                     int_res(ikind)%v_int(iatom, sgfa:sgfa-1+nsgf_seta(iset))+work_i(1:nsgf_seta(iset), 1)
                   DEALLOCATE (work_i)
                END IF
             ENDDO
             !
             IF (calculate_forces) THEN
-               int_res(ikind)%v_dfdr(iatom, :) = force_a(:)
+               int_res(ikind)%v_dfdr(iatom, :) = int_res(ikind)%v_dfdr(iatom, :)+force_a(:)
                IF (use_virial) THEN
                   virial%pv_virial = virial%pv_virial+my_virial_a
                ENDIF
@@ -859,8 +862,6 @@ CONTAINS
             DEALLOCATE (map_it)
 
          END DO
-
-         CALL mp_sum(int_res(ikind)%v_int, para_env%group)
 
          DEALLOCATE (hab, pab)
       END DO

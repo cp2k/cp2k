@@ -106,6 +106,7 @@ MODULE qs_core_hamiltonian
    USE kinds,                           ONLY: dp
    USE kpoint_types,                    ONLY: get_kpoint_info,&
                                               kpoint_type
+   USE lri_environment_types,           ONLY: lri_environment_type
    USE particle_types,                  ONLY: particle_type
    USE qs_condnum,                      ONLY: overlap_condnum
    USE qs_environment_types,            ONLY: get_qs_env,&
@@ -454,6 +455,7 @@ CONTAINS
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(kpoint_type), POINTER                         :: kpoints
+      TYPE(lri_environment_type), POINTER                :: lri_env
       TYPE(neighbor_list_set_p_type), DIMENSION(:), &
          POINTER                                         :: sab_orb, sac_ae, sac_ppl, sap_ppnl
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
@@ -506,9 +508,16 @@ CONTAINS
       ppl_present = ASSOCIATED(sac_ppl)
       IF (ppl_present) THEN
          IF (dft_control%qs_control%do_ppl_method == do_ppl_analytic) THEN
-            CALL build_core_ppl(matrix_h, matrix_p, force, virial, calculate_forces, use_virial, nder, &
-                                qs_kind_set, atomic_kind_set, particle_set, sab_orb, sac_ppl, &
-                                nimages, cell_to_index, "ORB")
+            CALL get_qs_env(qs_env, lri_env=lri_env)
+            IF (dft_control%qs_control%lrigpw .AND. lri_env%ppl_ri) THEN
+               IF (lri_env%exact_1c_terms) THEN
+                  CPABORT("not implemented")
+               END IF
+            ELSE
+               CALL build_core_ppl(matrix_h, matrix_p, force, virial, calculate_forces, use_virial, nder, &
+                                   qs_kind_set, atomic_kind_set, particle_set, sab_orb, sac_ppl, &
+                                   nimages, cell_to_index, "ORB")
+            END IF
          END IF
       END IF
 
