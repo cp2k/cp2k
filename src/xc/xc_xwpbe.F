@@ -5330,7 +5330,7 @@ CONTAINS
                                          allocate_deriv=.TRUE.)
          CALL xc_derivative_get(deriv, deriv_data=e_ndrhob_rhob)
          deriv => xc_dset_get_derivative(deriv_set, &
-                                         "(norm_drhoa)(norm_drha)", allocate_deriv=.TRUE.)
+                                         "(norm_drhoa)(norm_drhoa)", allocate_deriv=.TRUE.)
          CALL xc_derivative_get(deriv, deriv_data=e_ndrhoa_ndrhoa)
          deriv => xc_dset_get_derivative(deriv_set, &
                                          "(norm_drhob)(norm_drhob)", allocate_deriv=.TRUE.)
