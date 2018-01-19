@@ -416,6 +416,8 @@ CONTAINS
 
       CALL timeset(routineN, handle)
 
+      CALL get_qs_env(qs_env, qs_kind_set=qs_kind_set, &
+                      particle_set=particle_set, atomic_kind_set=atomic_kind_set)
       IF (calculate_forces) THEN
          CPASSERT(ASSOCIATED(lri_env%lri_ppl_ints))
          CALL get_qs_env(qs_env, lri_density=lri_density)
@@ -424,12 +426,9 @@ CONTAINS
          IF (ASSOCIATED(lri_env%lri_ppl_ints)) THEN
             CALL deallocate_lri_ppl_ints(lri_env%lri_ppl_ints)
          END IF
-      END IF
-      CALL get_qs_env(qs_env, qs_kind_set=qs_kind_set, &
-                      particle_set=particle_set, atomic_kind_set=atomic_kind_set)
-      IF (.NOT. calculate_forces) THEN
          CALL allocate_lri_ppl_ints(lri_env, lri_env%lri_ppl_ints, atomic_kind_set)
-      ENDIF
+      END IF
+      !
       CALL get_qs_env(qs_env, sac_lri=sac_lri, force=force, virial=virial, para_env=para_env)
       use_virial = virial%pv_availability .AND. (.NOT. virial%pv_numer)
       use_virial = use_virial .AND. calculate_forces

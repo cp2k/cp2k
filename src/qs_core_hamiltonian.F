@@ -508,10 +508,16 @@ CONTAINS
       ppl_present = ASSOCIATED(sac_ppl)
       IF (ppl_present) THEN
          IF (dft_control%qs_control%do_ppl_method == do_ppl_analytic) THEN
-            CALL get_qs_env(qs_env, lri_env=lri_env)
-            IF (dft_control%qs_control%lrigpw .AND. lri_env%ppl_ri) THEN
-               IF (lri_env%exact_1c_terms) THEN
-                  CPABORT("not implemented")
+            IF (dft_control%qs_control%lrigpw) THEN
+               CALL get_qs_env(qs_env, lri_env=lri_env)
+               IF (lri_env%ppl_ri) THEN
+                  IF (lri_env%exact_1c_terms) THEN
+                     CPABORT("not implemented")
+                  END IF
+               ELSE
+                  CALL build_core_ppl(matrix_h, matrix_p, force, virial, calculate_forces, use_virial, nder, &
+                                      qs_kind_set, atomic_kind_set, particle_set, sab_orb, sac_ppl, &
+                                      nimages, cell_to_index, "ORB")
                END IF
             ELSE
                CALL build_core_ppl(matrix_h, matrix_p, force, virial, calculate_forces, use_virial, nder, &
