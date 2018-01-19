@@ -530,8 +530,8 @@ CONTAINS
       INTEGER, PARAMETER                                 :: nexp_max = 30
 
       INTEGER :: atom_a, atom_c, handle, i, iatom, ikind, inode, iset, katom, kkind, maxco, &
-         maxsgf, mepos, n_local, natom, ncoa, nexp_lpot, nexp_ppl, nkind, nloc, nseta, nthread, &
-         sgfa, sgfb
+         maxsgf, mepos, n_local, natom, ncoa, nexp_lpot, nexp_ppl, nfun, nkind, nloc, nseta, &
+         nthread, sgfa, sgfb
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: atom_of_kind
       INTEGER, DIMENSION(1:10)                           :: nrloc
       INTEGER, DIMENSION(:), POINTER                     :: la_max, la_min, nct_lpot, npgfa, nsgfa
@@ -539,7 +539,7 @@ CONTAINS
       INTEGER, DIMENSION(nexp_max)                       :: nct_ppl
       LOGICAL                                            :: ecp_local, lpotextended
       REAL(KIND=dp)                                      :: alpha, dac, ppl_radius
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: va
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: va, work
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: dva, dvas
       REAL(KIND=dp), DIMENSION(1:10)                     :: aloc, bloc
       REAL(KIND=dp), DIMENSION(3)                        :: force_a, rac
@@ -587,18 +587,18 @@ CONTAINS
 
 !$OMP PARALLEL &
 !$OMP DEFAULT (NONE) &
-!$OMP SHARED  (nl_iterator,maxco,basis_set_list,calculate_forces,lri_ppl_coef,qs_kind_set,&
-!$OMP          force,use_virial,ncoset,atom_of_kind) &
+!$OMP SHARED  (nl_iterator,maxco,maxsgf,basis_set_list,calculate_forces,lri_ppl_coef,qs_kind_set,&
+!$OMP          force,use_virial,virial,ncoset,atom_of_kind) &
 !$OMP PRIVATE (ikind,kkind,inode,iatom,katom,rac,mepos,va,dva,dvas,basis_set,&
 !$OMP          atom_a,atom_c,first_sgfa,la_max,la_min,npgfa,nseta,nsgfa,rpgfa,set_radius_a,&
 !$OMP          sphi_a,zeta,gth_potential,sgp_potential,alpha,cexp_ppl,lpotextended,ppl_radius,&
-!$OMP          nexp_ppl,alpha_ppl,nct_ppl,cval_ppl,nloc,n_local,nrloc,a_local,aloc,bloc,c_local,&
-!$OMP          dac,force_a,iset,virial,sgfa,sgfb,ncoa,bcon,cval_lpot,nct_lpot,alpha_lpot,nexp_lpot,ecp_local)
+!$OMP          nexp_ppl,alpha_ppl,nct_ppl,cval_ppl,nloc,n_local,nrloc,a_local,aloc,bloc,c_local,nfun,work,&
+!$OMP          dac,force_a,iset,sgfa,sgfb,ncoa,bcon,cval_lpot,nct_lpot,alpha_lpot,nexp_lpot,ecp_local)
 
       mepos = 0
 !$    mepos = omp_get_thread_num()
 
-      ALLOCATE (va(maxco))
+      ALLOCATE (va(maxco), work(maxsgf))
       IF (calculate_forces) THEN
          ALLOCATE (dva(maxco, 3), dvas(maxco, 3))
       END IF
@@ -621,6 +621,7 @@ CONTAINS
          npgfa => basis_set%npgf
          nseta = basis_set%nset
          nsgfa => basis_set%nsgf_set
+         nfun = basis_set%nsgf
          rpgfa => basis_set%pgf_radius
          set_radius_a => basis_set%set_radius
          sphi_a => basis_set%sphi
@@ -672,6 +673,7 @@ CONTAINS
          dac = SQRT(SUM(rac*rac))
          IF ((MAXVAL(set_radius_a(:))+ppl_radius < dac)) CYCLE
          IF (calculate_forces) force_a = 0.0_dp
+         work(1:nfun) = 0.0_dp
 
          DO iset = 1, nseta
             IF (set_radius_a(iset)+ppl_radius < dac) CYCLE
@@ -695,8 +697,7 @@ CONTAINS
             sgfb = sgfa+nsgfa(iset)-1
             ncoa = npgfa(iset)*ncoset(la_max(iset))
             bcon => sphi_a(1:ncoa, sgfa:sgfb)
-            lri_ppl_coef(ikind)%v_int(atom_a, sgfa:sgfb) = lri_ppl_coef(ikind)%v_int(atom_a, sgfa:sgfb) &
-                                                           +MATMUL(TRANSPOSE(bcon), va(1:ncoa))
+            work(sgfa:sgfb) = MATMUL(TRANSPOSE(bcon), va(1:ncoa))
             IF (calculate_forces) THEN
                dvas(1:nsgfa(iset), 1:3) = MATMUL(TRANSPOSE(bcon), dva(1:ncoa, 1:3))
                force_a(1) = force_a(1)+SUM(lri_ppl_coef(ikind)%acoef(atom_a, sgfa:sgfb)*dvas(1:nsgfa(iset), 1))
@@ -704,6 +705,9 @@ CONTAINS
                force_a(3) = force_a(3)+SUM(lri_ppl_coef(ikind)%acoef(atom_a, sgfa:sgfb)*dvas(1:nsgfa(iset), 3))
             END IF
          END DO
+!$OMP CRITICAL(int_critical)
+         lri_ppl_coef(ikind)%v_int(atom_a, 1:nfun) = lri_ppl_coef(ikind)%v_int(atom_a, 1:nfun)+work(1:nfun)
+!$OMP END CRITICAL(int_critical)
          IF (calculate_forces) THEN
 !$OMP CRITICAL(force_critical)
             force(ikind)%gth_ppl(1, atom_a) = force(ikind)%gth_ppl(1, atom_a)+force_a(1)
@@ -719,7 +723,7 @@ CONTAINS
          END IF
       END DO
 
-      DEALLOCATE (va)
+      DEALLOCATE (va, work)
       IF (calculate_forces) THEN
          DEALLOCATE (dva, dvas)
       END IF

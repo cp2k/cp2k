@@ -1047,8 +1047,9 @@ CONTAINS
       END SELECT
 
       delta = inv_test(s, sinv)
-      ! not thread save (ignored as it is only for statistics)
+!$OMP CRITICAL(sum_critical)
       lri_env%stat%overlap_error = MAX(delta, lri_env%stat%overlap_error)
+!$OMP END CRITICAL(sum_critical)
 
       DEALLOCATE (s)
 
