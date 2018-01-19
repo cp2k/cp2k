@@ -217,7 +217,7 @@ CONTAINS
       TYPE(pw_env_type), POINTER                         :: new_pw_env
       TYPE(pw_p_type), POINTER                           :: embed_pot, external_vxc, rho0_gs, &
                                                             rho0_rs, rho_core, rho_nlcc, &
-                                                            rho_nlcc_g, vee, vppl
+                                                            rho_nlcc_g, spin_embed_pot, vee, vppl
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
       TYPE(pw_type), POINTER                             :: v_hartree_rspace
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
@@ -228,7 +228,8 @@ CONTAINS
       ! rebuild pw_env
       NULLIFY (dft_control, cell, ks_env, v_hartree_rspace, auxbas_pw_pool)
       NULLIFY (rho0_mpole, rho0_gs, rho0_rs)
-      NULLIFY (ewald_env, ewald_pw, new_pw_env, external_vxc, rho_core, rho_nlcc, rho_nlcc_g, vee, vppl, embed_pot)
+      NULLIFY (ewald_env, ewald_pw, new_pw_env, external_vxc, rho_core, rho_nlcc, rho_nlcc_g, vee, vppl, &
+               embed_pot, spin_embed_pot)
 
       CALL get_qs_env(qs_env, ks_env=ks_env, pw_env=new_pw_env)
       IF (.NOT. ASSOCIATED(new_pw_env)) THEN
@@ -401,6 +402,18 @@ CONTAINS
             CALL pw_pool_create_pw(auxbas_pw_pool, embed_pot%pw, use_data=REALDATA3D)
             embed_pot%pw%in_space = REALSPACE
             CALL set_qs_env(qs_env, embed_pot=embed_pot)
+
+            NULLIFY (spin_embed_pot)
+            CALL get_qs_env(qs_env, pw_env=new_pw_env, spin_embed_pot=spin_embed_pot)
+            IF (ASSOCIATED(spin_embed_pot)) THEN
+               CALL pw_release(spin_embed_pot%pw)
+               DEALLOCATE (spin_embed_pot)
+            ENDIF
+            ALLOCATE (spin_embed_pot)
+            CALL pw_env_get(new_pw_env, auxbas_pw_pool=auxbas_pw_pool)
+            CALL pw_pool_create_pw(auxbas_pw_pool, spin_embed_pot%pw, use_data=REALDATA3D)
+            spin_embed_pot%pw%in_space = REALSPACE
+            CALL set_qs_env(qs_env, spin_embed_pot=spin_embed_pot)
          END IF
 
          CALL get_ks_env(ks_env, v_hartree_rspace=v_hartree_rspace)

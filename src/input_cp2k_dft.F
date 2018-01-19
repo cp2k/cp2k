@@ -5985,7 +5985,7 @@ CONTAINS
       CPASSERT(.NOT. ASSOCIATED(section))
       CALL section_create(section, name="OPT_EMBED", &
                           description="This section specifies optional parameters for DFT embedding potential optimization.", &
-                          n_keywords=10, n_subsections=0, repeats=.FALSE.)
+                          n_keywords=12, n_subsections=0, repeats=.FALSE.)
 
       NULLIFY (keyword)
 
@@ -6018,6 +6018,20 @@ CONTAINS
       CALL keyword_release(keyword)
 
       CALL keyword_create(keyword, name="DENS_CONV_INT", &
+                          description="Convergence criterion for "// &
+                          "the integrated electron density difference.", &
+                          usage="DENS_CONV_INT 0.1", default_r_val=0.1_dp)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, name="SPIN_DENS_CONV_MAX", &
+                          description="Convergence criterion for "// &
+                          "the maximum electron density difference.", &
+                          usage="DENS_CONV_MAX 0.01", default_r_val=0.01_dp)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, name="SPIN_DENS_CONV_INT", &
                           description="Convergence criterion for "// &
                           "the integrated electron density difference.", &
                           usage="DENS_CONV_INT 0.1", default_r_val=0.1_dp)

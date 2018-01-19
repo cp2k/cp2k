@@ -21,13 +21,15 @@ MODULE opt_embed_pot_types
                                                    prev_embed_pot_coef, prev_embed_pot_grad, &
                                                    prev_embed_pot_hess, kinetic_mat
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)  :: w_func, max_diff, int_diff
-      INTEGER                                   :: n_iter, i_iter, dimen_aux, last_accepted
+      INTEGER                                   :: n_iter, i_iter, dimen_aux, last_accepted, dimen_var_aux
       REAL(KIND=dp)                             :: lambda, allowed_decrease, max_trad, min_trad, &
                                                    grad_norm
       TYPE(pw_p_type), POINTER                  :: const_pot
-      REAL(KIND=dp)                             :: reg_term, trust_rad, conv_max, conv_int, step_len
+      REAL(KIND=dp)                             :: reg_term, trust_rad, conv_max, conv_int, &
+                                                   conv_max_spin, conv_int_spin, step_len
       LOGICAL                                   :: accept_step, newton_step, level_shift, &
-                                                   add_const_pot, converged, read_embed_pot
+                                                   add_const_pot, converged, read_embed_pot, &
+                                                   change_spin, open_shell_embed
 
    END TYPE opt_embed_pot_type
 

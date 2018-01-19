@@ -1388,10 +1388,9 @@ CONTAINS
             END SELECT
             ! DFT embedding
             IF (dft_control%apply_embed_pot) THEN
-               ! So far for closed shells
-               IF (ispin == 1) v_rspace_new(ispin)%pw%cr3d = v_rspace_new(ispin)%pw%cr3d+ &
-                                                             v_rspace_embed(ispin)%pw%pw_grid%dvol* &
-                                                             v_rspace_embed(ispin)%pw%cr3d
+               v_rspace_new(ispin)%pw%cr3d = v_rspace_new(ispin)%pw%cr3d+ &
+                                             v_rspace_embed(ispin)%pw%pw_grid%dvol* &
+                                             v_rspace_embed(ispin)%pw%cr3d
                CALL pw_pool_give_back_pw(auxbas_pw_pool, v_rspace_embed(ispin)%pw)
             ENDIF
             IF (lrigpw) THEN
@@ -1466,9 +1465,9 @@ CONTAINS
             ! DFT embedding
             IF (dft_control%apply_embed_pot) THEN
                ! So far for closed shells
-               IF (ispin == 1) v_rspace%pw%cr3d = v_rspace%pw%cr3d+ &
-                                                  v_rspace_embed(ispin)%pw%pw_grid%dvol* &
-                                                  v_rspace_embed(ispin)%pw%cr3d
+               v_rspace%pw%cr3d = v_rspace%pw%cr3d+ &
+                                  v_rspace_embed(ispin)%pw%pw_grid%dvol* &
+                                  v_rspace_embed(ispin)%pw%cr3d
                CALL pw_pool_give_back_pw(auxbas_pw_pool, v_rspace_embed(ispin)%pw)
             ENDIF
             IF (lrigpw) THEN
@@ -1763,6 +1762,7 @@ CONTAINS
          routineP = moduleN//':'//routineN
 
       INTEGER                                            :: handle, ispin, ns1, ns2
+      REAL(KIND=dp)                                      :: embed_corr_local
       TYPE(pw_env_type), POINTER                         :: pw_env
       TYPE(pw_p_type), DIMENSION(:), POINTER             :: rho_r
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
@@ -1779,24 +1779,40 @@ CONTAINS
                       auxbas_pw_pool=auxbas_pw_pool)
       CALL qs_rho_get(rho, rho_r=rho_r)
       ALLOCATE (v_rspace_embed(dft_control%nspins))
-      DO ispin = 1, dft_control%nspins
-         CALL pw_pool_create_pw(pool=auxbas_pw_pool, pw=v_rspace_embed(1)%pw, &
-                                use_data=REALDATA3D, in_space=REALSPACE)
-         CALL pw_zero(v_rspace_embed(1)%pw)
-      ENDDO
-
-      ns1 = SIZE(qs_env%embed_pot%pw%cr3d)
-      ns2 = SIZE(v_rspace_embed(1)%pw%cr3d)
-      IF (ns1 .NE. ns2) CPABORT("Subsystem grids must be identical")
-
-      v_rspace_embed(1)%pw%cr3d(:, :, :) = qs_env%embed_pot%pw%cr3d
 
       embed_corr = 0.0_dp
-      embed_corr = accurate_sum(v_rspace_embed(1)%pw%cr3d*rho_r(1)%pw%cr3d)* &
-                   v_rspace_embed(1)%pw%pw_grid%dvol
-      IF (v_rspace_embed(1)%pw%pw_grid%para%mode == PW_MODE_DISTRIBUTED) THEN
-         CALL mp_sum(embed_corr, v_rspace_embed(1)%pw%pw_grid%para%group)
-      END IF
+
+      DO ispin = 1, dft_control%nspins
+         CALL pw_pool_create_pw(pool=auxbas_pw_pool, pw=v_rspace_embed(ispin)%pw, &
+                                use_data=REALDATA3D, in_space=REALSPACE)
+         CALL pw_zero(v_rspace_embed(ispin)%pw)
+         ns1 = SIZE(qs_env%embed_pot%pw%cr3d)
+         ns2 = SIZE(v_rspace_embed(ispin)%pw%cr3d)
+         IF (ns1 .NE. ns2) CPABORT("Subsystem grids must be identical")
+
+         v_rspace_embed(ispin)%pw%cr3d(:, :, :) = qs_env%embed_pot%pw%cr3d
+         embed_corr_local = 0.0_dp
+
+         ! Spin embedding potential in open-shell case
+         IF (dft_control%nspins .EQ. 2) THEN
+            ns1 = SIZE(qs_env%spin_embed_pot%pw%cr3d)
+            IF (ns1 .NE. ns2) CPABORT("Subsystem grids must be identical")
+            IF (ispin .EQ. 1) v_rspace_embed(ispin)%pw%cr3d(:, :, :) = &
+               v_rspace_embed(ispin)%pw%cr3d(:, :, :)+qs_env%spin_embed_pot%pw%cr3d
+            IF (ispin .EQ. 2) v_rspace_embed(ispin)%pw%cr3d(:, :, :) = &
+               v_rspace_embed(ispin)%pw%cr3d(:, :, :)-qs_env%spin_embed_pot%pw%cr3d
+         ENDIF
+         ! Integrate the density*potential
+         embed_corr_local = accurate_sum(v_rspace_embed(ispin)%pw%cr3d*rho_r(ispin)%pw%cr3d)* &
+                            v_rspace_embed(ispin)%pw%pw_grid%dvol
+
+         IF (v_rspace_embed(ispin)%pw%pw_grid%para%mode == PW_MODE_DISTRIBUTED) THEN
+            CALL mp_sum(embed_corr_local, v_rspace_embed(ispin)%pw%pw_grid%para%group)
+         END IF
+
+         embed_corr = embed_corr+embed_corr_local
+
+      ENDDO
 
       ! If only energy requiested we delete the potential
       IF (just_energy) THEN
