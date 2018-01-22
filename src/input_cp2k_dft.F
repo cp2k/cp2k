@@ -4793,7 +4793,7 @@ CONTAINS
 
       CALL keyword_create(keyword, name="transformation", &
                           description="Type of DKH transformation", &
-                          usage="transformation (FULL|MOLECULE|ATOM)", default_i_val=rel_trans_full, &
+                          usage="transformation (FULL|MOLECULE|ATOM)", default_i_val=rel_trans_atom, &
                           enum_c_vals=s2a("FULL", "MOLECULE", "ATOM"), &
                           enum_i_vals=(/rel_trans_full, rel_trans_molecule, rel_trans_atom/), &
                           enum_desc=s2a("Use full matrix transformation", &
