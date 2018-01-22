@@ -14,16 +14,16 @@ MODULE negf_matrix_utils
                                               cp_fm_set_submatrix,&
                                               cp_fm_type
    USE cp_para_types,                   ONLY: cp_para_env_type
-   USE dbcsr_api,                       ONLY: dbcsr_add,&
-                                              dbcsr_copy,&
-                                              dbcsr_deallocate_matrix,&
-                                              dbcsr_get_block_p,&
-                                              dbcsr_init_p,&
-                                              dbcsr_p_type,&
-                                              dbcsr_set,&
-                                              dbcsr_type
+   USE dbcsr_api,                       ONLY: &
+        dbcsr_add, dbcsr_copy, dbcsr_deallocate_matrix, dbcsr_get_block_p, dbcsr_get_info, &
+        dbcsr_init_p, dbcsr_p_type, dbcsr_set, dbcsr_type
    USE kinds,                           ONLY: dp
-   USE message_passing,                 ONLY: mp_sum
+   USE message_passing,                 ONLY: mp_irecv,&
+                                              mp_isend,&
+                                              mp_sum,&
+                                              mp_wait
+   USE negf_alloc_types,                ONLY: negf_allocatable_rvector
+   USE negf_atom_map,                   ONLY: negf_atom_map_type
    USE particle_methods,                ONLY: get_particle_set
    USE particle_types,                  ONLY: particle_type
    USE qs_kind_types,                   ONLY: qs_kind_type
@@ -38,7 +38,7 @@ MODULE negf_matrix_utils
    LOGICAL, PARAMETER, PRIVATE          :: debug_this_module = .TRUE.
 
    PUBLIC :: number_of_atomic_orbitals, negf_copy_fm_submat_to_dbcsr, negf_copy_sym_dbcsr_to_fm_submat
-   PUBLIC :: negf_copy_contact_matrix
+   PUBLIC :: negf_copy_contact_matrix, negf_reference_contact_matrix
    PUBLIC :: invert_cell_to_index, get_index_by_cell
 
 CONTAINS
@@ -46,14 +46,14 @@ CONTAINS
 ! **************************************************************************************************
 !> \brief Compute the number of atomic orbitals of the given set of atoms.
 !> \param subsys    QuickStep subsystem
-!> \param atomlist  list of selected atom; when absent all the atoms are taken into account
+!> \param atom_list list of selected atom; when absent all the atoms are taken into account
 !> \retval nao      number of atomic orbitals
 !> \par History
 !>   * 02.2017 created [Sergey Chulkov]
 ! **************************************************************************************************
-   FUNCTION number_of_atomic_orbitals(subsys, atomlist) RESULT(nao)
+   FUNCTION number_of_atomic_orbitals(subsys, atom_list) RESULT(nao)
       TYPE(qs_subsys_type), POINTER                      :: subsys
-      INTEGER, DIMENSION(:), INTENT(in), OPTIONAL        :: atomlist
+      INTEGER, DIMENSION(:), INTENT(in), OPTIONAL        :: atom_list
       INTEGER                                            :: nao
 
       INTEGER                                            :: iatom, natoms
@@ -65,12 +65,12 @@ CONTAINS
       ALLOCATE (nsgfs(SIZE(particle_set)))
       CALL get_particle_set(particle_set, qs_kind_set, nsgf=nsgfs)
 
-      IF (PRESENT(atomlist)) THEN
-         natoms = SIZE(atomlist)
+      IF (PRESENT(atom_list)) THEN
+         natoms = SIZE(atom_list)
          nao = 0
 
          DO iatom = 1, natoms
-            nao = nao+nsgfs(atomlist(iatom))
+            nao = nao+nsgfs(atom_list(iatom))
          END DO
       ELSE
          nao = SUM(nsgfs)
@@ -284,26 +284,40 @@ CONTAINS
 !> \param direction_axis  axis towards the secondary unit cell
 !> \param matrix_kp       set of DBCSR matrices
 !> \param index_to_cell   inverted mapping between unit cells and DBCSR matrix images
-!> \param atom_list       list of atoms to extract
+!> \param atom_list0      list of atoms which belong to the primary contact unit cell
+!> \param atom_list1      list of atoms which belong to the secondary contact unit cell
 !> \param subsys          QuickStep subsystem
 !> \param mpi_comm_global global MPI communicator
+!> \param is_same_cell    for every atomic pair indicates whether or not both atoms are assigned to
+!>                        the same (0) or different (-1) unit cells (initialised when the optional
+!>                        argument 'matrix_ref' is given)
+!> \param matrix_ref      reference DBCSR matrix
 !> \par History
 !>   * 10.2017 created [Sergey Chulkov]
 ! **************************************************************************************************
    SUBROUTINE negf_copy_contact_matrix(fm_cell0, fm_cell1, direction_axis, matrix_kp, index_to_cell, &
-                                       atom_list, subsys, mpi_comm_global)
+                                       atom_list0, atom_list1, subsys, mpi_comm_global, is_same_cell, matrix_ref)
       TYPE(cp_fm_type), POINTER                          :: fm_cell0, fm_cell1
       INTEGER, INTENT(in)                                :: direction_axis
       TYPE(dbcsr_p_type), DIMENSION(:), INTENT(in)       :: matrix_kp
       INTEGER, DIMENSION(:, :), INTENT(in)               :: index_to_cell
-      INTEGER, DIMENSION(:), INTENT(in)                  :: atom_list
+      INTEGER, DIMENSION(:), INTENT(in)                  :: atom_list0, atom_list1
       TYPE(qs_subsys_type), POINTER                      :: subsys
       INTEGER, INTENT(in)                                :: mpi_comm_global
+      INTEGER, DIMENSION(:, :), INTENT(inout)            :: is_same_cell
+      TYPE(dbcsr_type), OPTIONAL, POINTER                :: matrix_ref
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'negf_copy_contact_matrix', &
          routineP = moduleN//':'//routineN
+      REAL(kind=dp), PARAMETER                           :: threshold = 1e-12_dp
 
-      INTEGER                                            :: handle, image, nimages, rep
+      INTEGER                                            :: direction_axis_abs, handle, iatom_col, &
+                                                            iatom_row, image, natoms, nimages, &
+                                                            phase, rep
+      LOGICAL                                            :: found
+      REAL(kind=dp)                                      :: error_diff, error_same
+      REAL(kind=dp), DIMENSION(:, :), POINTER            :: block_dest, block_src
+      TYPE(dbcsr_p_type), ALLOCATABLE, DIMENSION(:)      :: matrix_cells_raw
       TYPE(dbcsr_type), POINTER                          :: matrix_cell_0, matrix_cell_1, &
                                                             matrix_cell_minus1
 
@@ -314,6 +328,20 @@ CONTAINS
       CPASSERT(ASSOCIATED(subsys))
 
       nimages = SIZE(index_to_cell, 2)
+      direction_axis_abs = ABS(direction_axis)
+
+      ! 0 -- primary unit cell;
+      ! +- 1 -- upper- and lower-diagonal matrices for the secondary unit cell;
+      ! when the distance between two atoms within the unit cell becomes bigger than
+      ! the distance between the same atoms from different cell replicas, the third
+      ! unit cell replica (+- 2) is also needed.
+      ALLOCATE (matrix_cells_raw(-2:2))
+      DO rep = -2, 2
+         NULLIFY (matrix_cells_raw(rep)%matrix)
+         CALL dbcsr_init_p(matrix_cells_raw(rep)%matrix)
+         CALL dbcsr_copy(matrix_cells_raw(rep)%matrix, matrix_kp(1)%matrix)
+         CALL dbcsr_set(matrix_cells_raw(rep)%matrix, 0.0_dp)
+      END DO
 
       NULLIFY (matrix_cell_0, matrix_cell_1, matrix_cell_minus1)
 
@@ -330,34 +358,381 @@ CONTAINS
       CALL dbcsr_set(matrix_cell_minus1, 0.0_dp)
 
       DO image = 1, nimages
-         rep = index_to_cell(direction_axis, image)
+         rep = index_to_cell(direction_axis_abs, image)
 
-         IF (rep == 0) THEN
-            CALL dbcsr_add(matrix_cell_0, matrix_kp(image)%matrix, 1.0_dp, 1.0_dp)
-         ELSE IF (rep == 1) THEN
-            CALL dbcsr_add(matrix_cell_1, matrix_kp(image)%matrix, 1.0_dp, 1.0_dp)
-         ELSE IF (rep == -1) THEN
-            CALL dbcsr_add(matrix_cell_minus1, matrix_kp(image)%matrix, 1.0_dp, 1.0_dp)
-         END IF
+         IF (ABS(rep) <= 2) &
+            CALL dbcsr_add(matrix_cells_raw(rep)%matrix, matrix_kp(image)%matrix, 1.0_dp, 1.0_dp)
       END DO
 
-      ! upper-diagonal part of fm_cell1
-      CALL negf_copy_sym_dbcsr_to_fm_submat(matrix_cell_1, fm_cell1, atom_list, atom_list, &
-                                            subsys, mpi_comm_global, do_upper_diag=.TRUE., do_lower=.FALSE.)
-      ! lower-diagonal part of fm_cell1
-      CALL negf_copy_sym_dbcsr_to_fm_submat(matrix_cell_minus1, fm_cell0, atom_list, atom_list, &
-                                            subsys, mpi_comm_global, do_upper_diag=.FALSE., do_lower=.TRUE.)
+      CALL dbcsr_get_info(matrix_cell_0, nblkrows_total=natoms)
+
+      IF (PRESENT(matrix_ref)) THEN
+         !  0 -- atoms belong to the same cell or absent (zero) matrix block;
+         ! +1 -- atoms belong to different cells
+         is_same_cell(:, :) = 0
+
+         DO iatom_col = 1, natoms
+            DO iatom_row = 1, iatom_col
+               CALL dbcsr_get_block_p(matrix=matrix_ref, &
+                                      row=iatom_row, col=iatom_col, &
+                                      block=block_src, found=found)
+
+               IF (found) THEN
+                  ! it should be much safe to rely on atomic indices (iatom / jatom) obtained using a neighbour list iterator:
+                  ! phase == 1 when iatom <= jatom, and phase == -1 when iatom > jatom
+                  IF (MOD(iatom_col-iatom_row, 2) == 0) THEN
+                     phase = 1
+                  ELSE
+                     phase = -1
+                  END IF
+
+                  CALL dbcsr_get_block_p(matrix=matrix_cells_raw(0)%matrix, &
+                                         row=iatom_row, col=iatom_col, &
+                                         block=block_dest, found=found)
+                  CPASSERT(found)
+
+                  error_same = MAXVAL(ABS(block_dest(:, :)-block_src(:, :)))
+
+                  CALL dbcsr_get_block_p(matrix=matrix_cells_raw(phase)%matrix, &
+                                         row=iatom_row, col=iatom_col, &
+                                         block=block_dest, found=found)
+                  CPASSERT(found)
+                  error_diff = MAXVAL(ABS(block_dest(:, :)-block_src(:, :)))
+
+                  IF (error_same <= error_diff) THEN
+                     is_same_cell(iatom_row, iatom_col) = 0
+                  ELSE
+                     is_same_cell(iatom_row, iatom_col) = 1
+                  END IF
+               END IF
+            END DO
+         END DO
+      END IF
+
+      DO iatom_col = 1, natoms
+         DO iatom_row = 1, iatom_col
+            CALL dbcsr_get_block_p(matrix=matrix_cell_0, &
+                                   row=iatom_row, col=iatom_col, block=block_dest, found=found)
+
+            IF (found) THEN
+               ! it should be much safe to rely on a neighbour list iterator
+               IF (MOD(iatom_col-iatom_row, 2) == 0) THEN
+                  phase = 1
+               ELSE
+                  phase = -1
+               END IF
+               rep = phase*is_same_cell(iatom_row, iatom_col)
+
+               ! primary unit cell:
+               !   matrix(i,j) <-        [0]%matrix(i,j)  when i and j are from the same replica
+               !   matrix(i,j) <-    [phase]%matrix(i,j)  when i and j are from different replicas
+               CALL dbcsr_get_block_p(matrix=matrix_cells_raw(rep)%matrix, &
+                                      row=iatom_row, col=iatom_col, block=block_src, found=found)
+               CPASSERT(found)
+               block_dest(:, :) = block_src(:, :)
+
+               ! secondary unit cell, i <= j:
+               !   matrix(i,j) <-    [phase]%matrix(i,j)  when i and j are from the same replica
+               !   matrix(i,j) <-  [2*phase]%matrix(i,j)  when i and j are from different replicas
+               CALL dbcsr_get_block_p(matrix=matrix_cell_1, &
+                                      row=iatom_row, col=iatom_col, block=block_dest, found=found)
+               CPASSERT(found)
+               CALL dbcsr_get_block_p(matrix=matrix_cells_raw(rep+phase)%matrix, &
+                                      row=iatom_row, col=iatom_col, block=block_src, found=found)
+               CPASSERT(found)
+               block_dest(:, :) = block_src(:, :)
+
+               ! secondary unit cell, i > j:
+               !   matrix(i,j) <-   [-phase]%matrix(i,j)  when i and j are from the same replica
+               !   matrix(i,j) <- [-2*phase]%matrix(i,j)  when i and j are from different replicas
+               CALL dbcsr_get_block_p(matrix=matrix_cell_minus1, &
+                                      row=iatom_row, col=iatom_col, block=block_dest, found=found)
+               CPASSERT(found)
+               CALL dbcsr_get_block_p(matrix=matrix_cells_raw(rep-phase)%matrix, &
+                                      row=iatom_row, col=iatom_col, block=block_src, found=found)
+               CPASSERT(found)
+               block_dest(:, :) = block_src(:, :)
+            END IF
+         END DO
+      END DO
+
+      IF (direction_axis >= 0) THEN
+         ! upper-diagonal part of fm_cell1
+         CALL negf_copy_sym_dbcsr_to_fm_submat(matrix_cell_1, fm_cell1, atom_list0, atom_list1, &
+                                               subsys, mpi_comm_global, do_upper_diag=.TRUE., do_lower=.FALSE.)
+         ! lower-diagonal part of fm_cell1
+         CALL negf_copy_sym_dbcsr_to_fm_submat(matrix_cell_minus1, fm_cell0, atom_list0, atom_list1, &
+                                               subsys, mpi_comm_global, do_upper_diag=.FALSE., do_lower=.TRUE.)
+      ELSE
+         ! upper-diagonal part of fm_cell1
+         CALL negf_copy_sym_dbcsr_to_fm_submat(matrix_cell_minus1, fm_cell1, atom_list0, atom_list1, &
+                                               subsys, mpi_comm_global, do_upper_diag=.TRUE., do_lower=.FALSE.)
+         ! lower-diagonal part of fm_cell1
+         CALL negf_copy_sym_dbcsr_to_fm_submat(matrix_cell_1, fm_cell0, atom_list0, atom_list1, &
+                                               subsys, mpi_comm_global, do_upper_diag=.FALSE., do_lower=.TRUE.)
+
+      END IF
       CALL cp_fm_scale_and_add(1.0_dp, fm_cell1, 1.0_dp, fm_cell0)
 
       ! symmetric matrix fm_cell0
-      CALL negf_copy_sym_dbcsr_to_fm_submat(matrix_cell_0, fm_cell0, atom_list, atom_list, &
+      CALL negf_copy_sym_dbcsr_to_fm_submat(matrix_cell_0, fm_cell0, atom_list0, atom_list0, &
                                             subsys, mpi_comm_global, do_upper_diag=.TRUE., do_lower=.TRUE.)
 
       CALL dbcsr_deallocate_matrix(matrix_cell_0)
       CALL dbcsr_deallocate_matrix(matrix_cell_1)
       CALL dbcsr_deallocate_matrix(matrix_cell_minus1)
+
+      DO rep = -2, 2
+         CALL dbcsr_deallocate_matrix(matrix_cells_raw(rep)%matrix)
+      END DO
+      DEALLOCATE (matrix_cells_raw)
+
       CALL timestop(handle)
    END SUBROUTINE negf_copy_contact_matrix
+
+! **************************************************************************************************
+!> \brief Extract part of the DBCSR matrix based on selected atoms and copy it into another DBCSR
+!>        matrix.
+!> \param matrix_contact  extracted DBCSR matrix
+!> \param matrix_device   original DBCSR matrix
+!> \param atom_list       list of selected atoms
+!> \param atom_map        atomic map between device and contact force environments
+!> \param para_env        parallel environment
+! **************************************************************************************************
+   SUBROUTINE negf_reference_contact_matrix(matrix_contact, matrix_device, atom_list, atom_map, para_env)
+      TYPE(dbcsr_type), POINTER                          :: matrix_contact, matrix_device
+      INTEGER, DIMENSION(:), INTENT(in)                  :: atom_list
+      TYPE(negf_atom_map_type), DIMENSION(:), INTENT(in) :: atom_map
+      TYPE(cp_para_env_type), POINTER                    :: para_env
+
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'negf_reference_contact_matrix', &
+         routineP = moduleN//':'//routineN
+
+      INTEGER                                            :: handle, i1, i2, iatom_col, iatom_row, &
+                                                            icol, iproc, irow, max_atom, &
+                                                            mepos_plus1, n1, n2, natoms, offset
+      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: recv_handlers, recv_nelems, &
+                                                            send_handlers, send_nelems
+      INTEGER, ALLOCATABLE, DIMENSION(:, :)              :: rank_contact, rank_device
+      LOGICAL                                            :: found, transp
+      REAL(kind=dp), DIMENSION(:, :), POINTER            :: rblock
+      TYPE(negf_allocatable_rvector), ALLOCATABLE, &
+         DIMENSION(:)                                    :: recv_packed_blocks, send_packed_blocks
+
+      CALL timeset(routineN, handle)
+      mepos_plus1 = para_env%mepos+1
+
+      natoms = SIZE(atom_list)
+      max_atom = 0
+      DO iatom_row = 1, natoms
+         IF (atom_map(iatom_row)%iatom > max_atom) max_atom = atom_map(iatom_row)%iatom
+      END DO
+
+      ! find out which block goes to which node
+      ALLOCATE (rank_contact(max_atom, max_atom))
+      ALLOCATE (rank_device(max_atom, max_atom))
+
+      rank_contact(:, :) = 0
+      rank_device(:, :) = 0
+
+      DO iatom_col = 1, natoms
+         DO iatom_row = 1, iatom_col
+            IF (atom_map(iatom_row)%iatom <= atom_map(iatom_col)%iatom) THEN
+               icol = atom_map(iatom_col)%iatom
+               irow = atom_map(iatom_row)%iatom
+            ELSE
+               icol = atom_map(iatom_row)%iatom
+               irow = atom_map(iatom_col)%iatom
+            END IF
+
+            CALL dbcsr_get_block_p(matrix=matrix_device, &
+                                   row=atom_list(iatom_row), col=atom_list(iatom_col), &
+                                   block=rblock, found=found)
+            IF (found) rank_device(irow, icol) = mepos_plus1
+
+            CALL dbcsr_get_block_p(matrix=matrix_contact, row=irow, col=icol, block=rblock, found=found)
+            IF (found) rank_contact(irow, icol) = mepos_plus1
+         END DO
+      END DO
+
+      CALL mp_sum(rank_device, para_env%group)
+      CALL mp_sum(rank_contact, para_env%group)
+
+      ! compute number of packed matrix elements to send to / receive from each processor
+      ALLOCATE (recv_nelems(para_env%num_pe))
+      ALLOCATE (send_nelems(para_env%num_pe))
+      recv_nelems(:) = 0
+      send_nelems(:) = 0
+
+      DO iatom_col = 1, natoms
+         DO iatom_row = 1, iatom_col
+            IF (atom_map(iatom_row)%iatom <= atom_map(iatom_col)%iatom) THEN
+               icol = atom_map(iatom_col)%iatom
+               irow = atom_map(iatom_row)%iatom
+            ELSE
+               icol = atom_map(iatom_row)%iatom
+               irow = atom_map(iatom_col)%iatom
+            END IF
+
+            CALL dbcsr_get_block_p(matrix=matrix_device, &
+                                   row=atom_list(iatom_row), col=atom_list(iatom_col), &
+                                   block=rblock, found=found)
+            IF (found) THEN
+               iproc = rank_contact(irow, icol)
+               IF (iproc > 0) &
+                  send_nelems(iproc) = send_nelems(iproc)+SIZE(rblock)
+            END IF
+
+            CALL dbcsr_get_block_p(matrix=matrix_contact, row=irow, col=icol, block=rblock, found=found)
+            IF (found) THEN
+               iproc = rank_device(irow, icol)
+               IF (iproc > 0) &
+                  recv_nelems(iproc) = recv_nelems(iproc)+SIZE(rblock)
+            END IF
+         END DO
+      END DO
+
+      ! pack blocks
+      ALLOCATE (recv_packed_blocks(para_env%num_pe))
+      DO iproc = 1, para_env%num_pe
+         IF (iproc /= mepos_plus1 .AND. recv_nelems(iproc) > 0) &
+            ALLOCATE (recv_packed_blocks(iproc)%vector(recv_nelems(iproc)))
+      END DO
+
+      ALLOCATE (send_packed_blocks(para_env%num_pe))
+      DO iproc = 1, para_env%num_pe
+         IF (send_nelems(iproc) > 0) &
+            ALLOCATE (send_packed_blocks(iproc)%vector(send_nelems(iproc)))
+      END DO
+
+      send_nelems(:) = 0
+      DO iatom_col = 1, natoms
+         DO iatom_row = 1, iatom_col
+            IF (atom_map(iatom_row)%iatom <= atom_map(iatom_col)%iatom) THEN
+               icol = atom_map(iatom_col)%iatom
+               irow = atom_map(iatom_row)%iatom
+               transp = .FALSE.
+            ELSE
+               icol = atom_map(iatom_row)%iatom
+               irow = atom_map(iatom_col)%iatom
+               transp = .TRUE.
+            END IF
+
+            iproc = rank_contact(irow, icol)
+            IF (iproc > 0) THEN
+               CALL dbcsr_get_block_p(matrix=matrix_device, &
+                                      row=atom_list(iatom_row), col=atom_list(iatom_col), &
+                                      block=rblock, found=found)
+               IF (found) THEN
+                  offset = send_nelems(iproc)
+                  n1 = SIZE(rblock, 1)
+                  n2 = SIZE(rblock, 2)
+
+                  IF (transp) THEN
+                     DO i1 = 1, n1
+                        DO i2 = 1, n2
+                           send_packed_blocks(iproc)%vector(offset+i2) = rblock(i1, i2)
+                        END DO
+                        offset = offset+n2
+                     END DO
+                  ELSE
+                     DO i2 = 1, n2
+                        DO i1 = 1, n1
+                           send_packed_blocks(iproc)%vector(offset+i1) = rblock(i1, i2)
+                        END DO
+                        offset = offset+n1
+                     END DO
+                  END IF
+
+                  send_nelems(iproc) = offset
+               END IF
+            END IF
+         END DO
+      END DO
+
+      ! send blocks
+      ALLOCATE (recv_handlers(para_env%num_pe), send_handlers(para_env%num_pe))
+
+      DO iproc = 1, para_env%num_pe
+         IF (iproc /= mepos_plus1 .AND. send_nelems(iproc) > 0) THEN
+            CALL mp_isend(send_packed_blocks(iproc)%vector, iproc-1, para_env%group, send_handlers(iproc), 1)
+         END IF
+      END DO
+
+      ! receive blocks
+      DO iproc = 1, para_env%num_pe
+         IF (iproc /= mepos_plus1) THEN
+            IF (recv_nelems(iproc) > 0) THEN
+               CALL mp_irecv(recv_packed_blocks(iproc)%vector, iproc-1, para_env%group, recv_handlers(iproc), 1)
+            END IF
+         ELSE
+            IF (ALLOCATED(send_packed_blocks(iproc)%vector)) &
+               CALL MOVE_ALLOC(send_packed_blocks(iproc)%vector, recv_packed_blocks(iproc)%vector)
+         END IF
+      END DO
+
+      ! unpack blocks
+      DO iproc = 1, para_env%num_pe
+         IF (iproc /= mepos_plus1 .AND. recv_nelems(iproc) > 0) &
+            CALL mp_wait(recv_handlers(iproc))
+      END DO
+
+      recv_nelems(:) = 0
+      DO iatom_col = 1, natoms
+         DO iatom_row = 1, iatom_col
+            IF (atom_map(iatom_row)%iatom <= atom_map(iatom_col)%iatom) THEN
+               icol = atom_map(iatom_col)%iatom
+               irow = atom_map(iatom_row)%iatom
+            ELSE
+               icol = atom_map(iatom_row)%iatom
+               irow = atom_map(iatom_col)%iatom
+            END IF
+
+            iproc = rank_device(irow, icol)
+            IF (iproc > 0) THEN
+               CALL dbcsr_get_block_p(matrix=matrix_contact, row=irow, col=icol, block=rblock, found=found)
+
+               IF (found) THEN
+                  offset = recv_nelems(iproc)
+                  n1 = SIZE(rblock, 1)
+                  n2 = SIZE(rblock, 2)
+
+                  DO i2 = 1, n2
+                     DO i1 = 1, n1
+                        rblock(i1, i2) = recv_packed_blocks(iproc)%vector(offset+i1)
+                     END DO
+                     offset = offset+n1
+                  END DO
+
+                  recv_nelems(iproc) = offset
+               END IF
+            END IF
+         END DO
+      END DO
+
+      DO iproc = 1, para_env%num_pe
+         IF (iproc /= mepos_plus1 .AND. send_nelems(iproc) > 0) &
+            CALL mp_wait(send_handlers(iproc))
+      END DO
+
+      ! release memory
+      DEALLOCATE (recv_handlers, send_handlers)
+
+      DO iproc = para_env%num_pe, 1, -1
+         IF (ALLOCATED(send_packed_blocks(iproc)%vector)) &
+            DEALLOCATE (send_packed_blocks(iproc)%vector)
+      END DO
+      DEALLOCATE (send_packed_blocks)
+
+      DO iproc = para_env%num_pe, 1, -1
+         IF (ALLOCATED(recv_packed_blocks(iproc)%vector)) &
+            DEALLOCATE (recv_packed_blocks(iproc)%vector)
+      END DO
+      DEALLOCATE (recv_packed_blocks)
+
+      DEALLOCATE (rank_contact, rank_device)
+      CALL timestop(handle)
+   END SUBROUTINE negf_reference_contact_matrix
 
 ! **************************************************************************************************
 !> \brief Invert cell_to_index mapping between unit cells and DBCSR matrix images.

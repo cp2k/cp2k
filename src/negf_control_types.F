@@ -216,14 +216,14 @@ CONTAINS
          END IF
 
          is_explicit = read_negf_atomlist(negf_control%contacts(i_rep)%atomlist_bulk, &
-                                          subsection, i_rep, "BULK_CONTACT", subsys)
+                                          subsection, i_rep, "BULK_REGION", subsys)
          IF ((.NOT. is_explicit) .AND. do_negf) THEN
             WRITE (contact_id_str, '(I11)') i_rep
             CALL cp_abort(__LOCATION__, &
                           "The bulk region must be defined for the contact "//TRIM(ADJUSTL(contact_id_str))//".")
          END IF
 
-         CALL section_vals_val_get(subsection, "BULK_FORCE_EVAL_SECTION", &
+         CALL section_vals_val_get(subsection, "FORCE_EVAL_SECTION", &
                                    i_val=negf_control%contacts(i_rep)%force_env_index, &
                                    i_rep_section=i_rep)
 

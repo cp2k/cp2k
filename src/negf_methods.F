@@ -176,8 +176,9 @@ CONTAINS
       CALL cite_reference(Bailey2006)
       CALL cite_reference(Papior2017)
 
-      NULLIFY (blacs_env, global_env, qs_env, root_section, cp_subsys)
-      CALL force_env_get(force_env, globenv=global_env, qs_env=qs_env, root_section=root_section, subsys=cp_subsys)
+      NULLIFY (blacs_env, cp_subsys, global_env, qs_env, root_section, sub_force_env)
+      CALL force_env_get(force_env, globenv=global_env, qs_env=qs_env, root_section=root_section, &
+                         sub_force_env=sub_force_env, subsys=cp_subsys)
 
       CALL get_qs_env(qs_env, blacs_env=blacs_env)
 
@@ -192,13 +193,11 @@ CONTAINS
       CALL negf_sub_env_create(sub_env, negf_control, blacs_env, global_env%blacs_grid_layout, global_env%blacs_repeatable)
       CALL negf_env_create(negf_env, sub_env, negf_control, force_env, negf_mixing_section, log_unit)
 
-      CALL force_env_get(force_env, sub_force_env=sub_force_env)
-
       ! compute contact Fermi level as well as requested properties
       ncontacts = SIZE(negf_control%contacts)
       DO icontact = 1, ncontacts
          NULLIFY (qs_env)
-         CALL force_env_get(sub_force_env(1)%force_env, qs_env=qs_env)
+         CALL force_env_get(sub_force_env(icontact)%force_env, qs_env=qs_env)
          CALL guess_fermi_level(icontact, negf_env, negf_control, sub_env, qs_env, log_unit)
 
          print_section => section_vals_get_subs_vals(negf_contact_section, "PRINT", i_rep_section=icontact)
@@ -309,8 +308,8 @@ CONTAINS
 
       CHARACTER(len=default_string_length)               :: temperature_str
       COMPLEX(kind=dp)                                   :: lbound_cpath, lbound_lpath, ubound_lpath
-      INTEGER                                            :: direction_axis, handle, image, ispin, &
-                                                            nao, nimages, nspins, step
+      INTEGER                                            :: direction_axis_abs, handle, image, &
+                                                            ispin, nao, nimages, nspins, step
       INTEGER, ALLOCATABLE, DIMENSION(:, :)              :: index_to_cell
       INTEGER, DIMENSION(:, :, :), POINTER               :: cell_to_index
       LOGICAL                                            :: do_kpoints
@@ -344,7 +343,7 @@ CONTAINS
 
          nimages = dft_control%nimages
          nspins = dft_control%nspins
-         direction_axis = negf_env%contacts(contact_id)%direction_axis
+         direction_axis_abs = ABS(negf_env%contacts(contact_id)%direction_axis)
 
          CPASSERT(SIZE(negf_env%contacts(contact_id)%h_00) == nspins)
 
@@ -394,12 +393,12 @@ CONTAINS
          nelectrons_qs_cell0 = 0.0_dp
          nelectrons_qs_cell1 = 0.0_dp
          DO image = 1, nimages
-            IF (index_to_cell(direction_axis, image) == 0) THEN
+            IF (index_to_cell(direction_axis_abs, image) == 0) THEN
                DO ispin = 1, nspins
                   CALL dbcsr_trace(rho_ao_qs_kp(ispin, image)%matrix, matrix_s_kp(1, image)%matrix, trace)
                   nelectrons_qs_cell0 = nelectrons_qs_cell0+trace
                END DO
-            ELSE IF (ABS(index_to_cell(direction_axis, image)) == 1) THEN
+            ELSE IF (ABS(index_to_cell(direction_axis_abs, image)) == 1) THEN
                DO ispin = 1, nspins
                   CALL dbcsr_trace(rho_ao_qs_kp(ispin, image)%matrix, matrix_s_kp(1, image)%matrix, trace)
                   nelectrons_qs_cell1 = nelectrons_qs_cell1+trace
@@ -775,8 +774,8 @@ CONTAINS
                                               sub_env=sub_env, &
                                               ispin=ispin, &
                                               base_contact=base_contact, &
-                                              integr_lbound=lbound_cpath, &
-                                              integr_ubound=ubound_cpath, &
+                                              integr_lbound=ubound_cpath, &
+                                              integr_ubound=ubound_lpath, &
                                               matrix_s_global=matrix_s_fm, &
                                               is_circular=.FALSE., &
                                               g_surf_cache=g_surf_linear(ispin))

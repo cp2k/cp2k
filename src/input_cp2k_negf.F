@@ -228,7 +228,7 @@ CONTAINS
 
       NULLIFY (keyword, print_key, subsection)
 
-      CALL create_atomlist_section(subsection, "BULK_CONTACT", &
+      CALL create_atomlist_section(subsection, "BULK_REGION", &
                                    "the bulk contact adjacent to the screening region.")
       CALL section_add_subsection(section, subsection)
       CALL section_release(subsection)
@@ -238,7 +238,7 @@ CONTAINS
       CALL section_add_subsection(section, subsection)
       CALL section_release(subsection)
 
-      CALL keyword_create(keyword, name="BULK_FORCE_EVAL_SECTION", &
+      CALL keyword_create(keyword, name="FORCE_EVAL_SECTION", &
                           description=" Index of the FORCE_EVAL section which will be used for bulk calculation.", &
                           n_var=1, type_of_var=integer_t)
       CALL section_add_keyword(section, keyword)
