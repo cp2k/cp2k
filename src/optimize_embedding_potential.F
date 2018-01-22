@@ -137,7 +137,7 @@ CONTAINS
             open_shell_embed = .TRUE.
 
          ! If it's open shell, we need to check spin states
-         IF (.NOT. open_shell_embed) THEN
+         IF (open_shell_embed) THEN
 
             IF (all_nspins(3) .EQ. 1) THEN
                total_spin = 0
