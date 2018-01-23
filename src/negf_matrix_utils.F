@@ -320,8 +320,6 @@ CONTAINS
       TYPE(dbcsr_type), POINTER                          :: matrix_cell_0, matrix_cell_1, &
                                                             matrix_cell_minus1
 
-!      REAL(kind=dp), PARAMETER                           :: threshold = 1e-12_dp
-
       CALL timeset(routineN, handle)
 
       CPASSERT(ASSOCIATED(fm_cell0))

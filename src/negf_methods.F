@@ -17,8 +17,10 @@ MODULE negf_methods
                                               cp_cfm_scale,&
                                               cp_cfm_trace
    USE cp_cfm_types,                    ONLY: &
-        cp_cfm_copy_general, cp_cfm_create, cp_cfm_get_info, cp_cfm_get_submatrix, cp_cfm_p_type, &
-        cp_cfm_release, cp_cfm_retain, cp_cfm_set_submatrix, cp_cfm_to_fm
+        copy_cfm_info_type, cp_cfm_cleanup_copy_general, cp_cfm_create, &
+        cp_cfm_finish_copy_general, cp_cfm_get_info, cp_cfm_get_submatrix, cp_cfm_p_type, &
+        cp_cfm_release, cp_cfm_retain, cp_cfm_set_submatrix, cp_cfm_start_copy_general, &
+        cp_cfm_to_fm
    USE cp_control_types,                ONLY: dft_control_type
    USE cp_fm_basic_linalg,              ONLY: cp_fm_scale,&
                                               cp_fm_scale_and_add,&
@@ -1052,6 +1054,10 @@ CONTAINS
 
       INTEGER                                            :: handle, icontact, igroup, ipoint, &
                                                             ncontacts, npoints, nrows
+      TYPE(copy_cfm_info_type), ALLOCATABLE, &
+         DIMENSION(:)                                    :: info1
+      TYPE(copy_cfm_info_type), ALLOCATABLE, &
+         DIMENSION(:, :)                                 :: info2
       TYPE(cp_cfm_p_type), ALLOCATABLE, DIMENSION(:)     :: g_ret_s_group, self_energy_contacts, &
                                                             zwork1_contacts, zwork2_contacts
       TYPE(cp_cfm_p_type), ALLOCATABLE, DIMENSION(:, :)  :: gamma_contacts_group, &
@@ -1290,10 +1296,25 @@ CONTAINS
             END DO
 
             IF (ASSOCIATED(para_env)) THEN
+               ALLOCATE (info1(npoints))
+
                DO ipoint = 1, npoints
-                  IF (ASSOCIATED(g_ret_s(ipoint)%matrix)) &
-                     CALL cp_cfm_copy_general(g_ret_s_group(ipoint)%matrix, g_ret_s(ipoint)%matrix, para_env)
+                  IF (ASSOCIATED(g_ret_s(ipoint)%matrix)) THEN
+                     CALL cp_cfm_start_copy_general(g_ret_s_group(ipoint)%matrix, &
+                                                    g_ret_s(ipoint)%matrix, &
+                                                    para_env, info1(ipoint))
+                  END IF
                END DO
+
+               DO ipoint = 1, npoints
+                  IF (ASSOCIATED(g_ret_s(ipoint)%matrix)) THEN
+                     CALL cp_cfm_finish_copy_general(g_ret_s(ipoint)%matrix, info1(ipoint))
+                     IF (ASSOCIATED(g_ret_s_group(ipoint)%matrix)) &
+                        CALL cp_cfm_cleanup_copy_general(g_ret_s_group(ipoint)%matrix, info1(ipoint))
+                  END IF
+               END DO
+
+               DEALLOCATE (info1)
             END IF
          END IF
       END IF
@@ -1311,14 +1332,31 @@ CONTAINS
             END DO pnt1
 
             IF (ASSOCIATED(para_env)) THEN
+               ALLOCATE (info2(ncontacts, npoints))
+
                DO ipoint = 1, npoints
                   DO icontact = 1, ncontacts
                      IF (ASSOCIATED(gamma_contacts(icontact, ipoint)%matrix)) THEN
-                        CALL cp_cfm_copy_general(gamma_contacts_group(icontact, ipoint)%matrix, &
-                                                 gamma_contacts(icontact, ipoint)%matrix, para_env)
+                        CALL cp_cfm_start_copy_general(gamma_contacts_group(icontact, ipoint)%matrix, &
+                                                       gamma_contacts(icontact, ipoint)%matrix, &
+                                                       para_env, info2(icontact, ipoint))
                      END IF
                   END DO
                END DO
+
+               DO ipoint = 1, npoints
+                  DO icontact = 1, ncontacts
+                     IF (ASSOCIATED(gamma_contacts(icontact, ipoint)%matrix)) THEN
+                        CALL cp_cfm_finish_copy_general(gamma_contacts(icontact, ipoint)%matrix, info2(icontact, ipoint))
+                        IF (ASSOCIATED(gamma_contacts_group(icontact, ipoint)%matrix)) THEN
+                           CALL cp_cfm_cleanup_copy_general(gamma_contacts_group(icontact, ipoint)%matrix, &
+                                                            info2(icontact, ipoint))
+                        END IF
+                     END IF
+                  END DO
+               END DO
+
+               DEALLOCATE (info2)
             END IF
          END IF
       END IF
@@ -1337,14 +1375,31 @@ CONTAINS
             END DO pnt2
 
             IF (ASSOCIATED(para_env)) THEN
+               ALLOCATE (info2(ncontacts, npoints))
+
                DO ipoint = 1, npoints
                   DO icontact = 1, ncontacts
                      IF (ASSOCIATED(gret_gamma_gadv(icontact, ipoint)%matrix)) THEN
-                        CALL cp_cfm_copy_general(gret_gamma_gadv_group(icontact, ipoint)%matrix, &
-                                                 gret_gamma_gadv(icontact, ipoint)%matrix, para_env)
+                        CALL cp_cfm_start_copy_general(gret_gamma_gadv_group(icontact, ipoint)%matrix, &
+                                                       gret_gamma_gadv(icontact, ipoint)%matrix, &
+                                                       para_env, info2(icontact, ipoint))
                      END IF
                   END DO
                END DO
+
+               DO ipoint = 1, npoints
+                  DO icontact = 1, ncontacts
+                     IF (ASSOCIATED(gret_gamma_gadv(icontact, ipoint)%matrix)) THEN
+                        CALL cp_cfm_finish_copy_general(gret_gamma_gadv(icontact, ipoint)%matrix, info2(icontact, ipoint))
+                        IF (ASSOCIATED(gret_gamma_gadv_group(icontact, ipoint)%matrix)) THEN
+                           CALL cp_cfm_cleanup_copy_general(gret_gamma_gadv_group(icontact, ipoint)%matrix, &
+                                                            info2(icontact, ipoint))
+                        END IF
+                     END IF
+                  END DO
+               END DO
+
+               DEALLOCATE (info2)
             END IF
          END IF
       END IF
