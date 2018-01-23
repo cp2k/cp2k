@@ -1799,10 +1799,12 @@ CONTAINS
       !DOS from density matrix
       CALL cp_print_key_section_create(print_key, "ENERGY_WINDOWS", &
                                        description="Controls the printing of the DOS from the density matrix. "// &
-                                       "This allows the calculation of the DOS even in density matrix based/linear scaling. "// &
+                                       "This allows the calculation of the DOS even in density matrix based"// &
+                                       "REAL_TIME_PROPAGATION and LS_SCF. "// &
                                        "However, it requires a cubically scaling diagonalization of the Hamiltonian. "// &
                                        "Hartree-Fock NYI, values will be wrong. "// &
-                                       "Careful, the orbitals in rtp/emd are not actually eigenstates of the Hamiltonian.", &
+                                       "Careful, the orbitals in rtp/emd are not actually eigenstates of the Hamiltonian."// &
+                                       "Assumes absence of spin polarization (so far).", &
                                        print_level=high_print_level, common_iter_levels=3, &
                                        each_iter_names=s2a("MD"), each_iter_values=(/100/), &
                                        add_last=add_last_numeric, filename="energy-windows")
