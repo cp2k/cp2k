@@ -309,7 +309,6 @@ CONTAINS
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'negf_copy_contact_matrix', &
          routineP = moduleN//':'//routineN
-      REAL(kind=dp), PARAMETER                           :: threshold = 1e-12_dp
 
       INTEGER                                            :: direction_axis_abs, handle, iatom_col, &
                                                             iatom_row, image, natoms, nimages, &
@@ -320,6 +319,8 @@ CONTAINS
       TYPE(dbcsr_p_type), ALLOCATABLE, DIMENSION(:)      :: matrix_cells_raw
       TYPE(dbcsr_type), POINTER                          :: matrix_cell_0, matrix_cell_1, &
                                                             matrix_cell_minus1
+
+!      REAL(kind=dp), PARAMETER                           :: threshold = 1e-12_dp
 
       CALL timeset(routineN, handle)
 
