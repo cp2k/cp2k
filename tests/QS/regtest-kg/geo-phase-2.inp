@@ -63,13 +63,17 @@
        ! satur 27 colors (~250s) , greedy 37 (~1s)
        COLORING_METHOD DSATUR
        ! COLORING_METHOD GREEDY
+       &XC
+         &XC_FUNCTIONAL
+           &KE_GGA
+             FUNCTIONAL LLP
+           &END
+         &END XC_FUNCTIONAL
+       &END XC
     &END
     &XC
       &XC_FUNCTIONAL
         &PBE
-        &END
-        &KE_GGA
-          FUNCTIONAL LLP
         &END
       &END XC_FUNCTIONAL
     &END XC

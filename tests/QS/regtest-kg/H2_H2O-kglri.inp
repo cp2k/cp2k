@@ -1,17 +1,18 @@
 &FORCE_EVAL
   METHOD Quickstep
+  &PRINT
+     &FORCES
+     &END
+  &END
   &DFT
     BASIS_SET_FILE_NAME BASIS_MOLOPT
     POTENTIAL_FILE_NAME GTH_POTENTIALS
     &MGRID
-      CUTOFF 100
-      &RS_GRID
-         MAX_DISTRIBUTED_LEVEL 5
-      &END
-      SKIP_LOAD_BALANCE_DISTRIBUTED
+      CUTOFF 400
     &END MGRID
     &QS
-      EPS_DEFAULT 5.8E-9
+      METHOD GPW
+      EPS_DEFAULT 5.0E-14
       EPS_KG_ORB 1.0E-6
       LS_SCF
       KG_METHOD
@@ -24,8 +25,8 @@
       PURIFICATION_METHOD TRS4
     &END
     &SCF
-      EPS_SCF 1.0E-8
-      SCF_GUESS ATOMIC 
+      EPS_SCF 1.0E-5
+      MAX_SCF 50
     &END
     &KG_METHOD
       &XC
@@ -34,18 +35,16 @@
             FUNCTIONAL T92
           &END
         &END
-        &XC_GRID
-          XC_DERIV SPLINE2
-        &END
       &END XC
+      &LRIGPW
+         RI_STATISTIC  T
+         EPS_O3_INT   1.e-14
+      &END LRIGPW
     &END KG_METHOD
     &XC
       &XC_FUNCTIONAL
         &PADE
         &END
-      &END
-      &XC_GRID
-        XC_DERIV SPLINE2
       &END
     &END XC
   &END DFT
@@ -61,7 +60,7 @@
     H   2.000000   -2.500000    0.000000 H2
     &END COORD
     &KIND H
-      BASIS_SET SZV-MOLOPT-GTH
+      BASIS_SET DZVP-MOLOPT-GTH
       POTENTIAL GTH-PADE-q1
     &END KIND
     &KIND O
@@ -72,7 +71,6 @@
 &END FORCE_EVAL
 &GLOBAL
   PROJECT H2
-  RUN_TYPE ENERGY
+  RUN_TYPE ENERGY_FORCE
   PRINT_LEVEL MEDIUM
-  ! EXTENDED_FFT_LENGTHS ! enable for large systems and FFTW
 &END GLOBAL

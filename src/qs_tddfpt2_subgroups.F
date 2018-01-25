@@ -604,7 +604,7 @@ CONTAINS
       NULLIFY (sab)
       CALL section_vals_val_get(input, "DFT%SUBCELLS", r_val=subcells)
       CALL build_neighbor_lists(sab, particle_set, atom2d, cell, pair_radius, &
-                                mic=.FALSE., subcells=subcells, molecular=.FALSE., name="sab_orb")
+                                mic=.FALSE., subcells=subcells, molecular=.FALSE., nlname="sab_orb")
 
       CALL atom2d_cleanup(atom2d)
       DEALLOCATE (atom2d, orb_present, orb_radius, pair_radius)

@@ -62,8 +62,7 @@ MODULE lri_environment_methods
    USE pw_types,                        ONLY: pw_p_type
    USE qs_collocate_density,            ONLY: calculate_lri_rho_elec
    USE qs_environment_types,            ONLY: get_qs_env,&
-                                              qs_environment_type,&
-                                              set_qs_env
+                                              qs_environment_type
    USE qs_force_types,                  ONLY: qs_force_type
    USE qs_kind_types,                   ONLY: qs_kind_type
    USE qs_neighbor_list_types,          ONLY: get_iterator_info,&
@@ -337,13 +336,15 @@ CONTAINS
 !> \param rho_struct ...
 !> \param qs_env ...
 !> \param lri_env ...
+!> \param lri_density ...
 !> \param atomlist ...
 ! **************************************************************************************************
-   SUBROUTINE lri_kg_rho_update(rho_struct, qs_env, lri_env, atomlist)
+   SUBROUTINE lri_kg_rho_update(rho_struct, qs_env, lri_env, lri_density, atomlist)
 
       TYPE(qs_rho_type), POINTER                         :: rho_struct
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(lri_environment_type), POINTER                :: lri_env
+      TYPE(lri_density_type), POINTER                    :: lri_density
       INTEGER, DIMENSION(:), INTENT(IN)                  :: atomlist
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'lri_kg_rho_update', &
@@ -354,7 +355,6 @@ CONTAINS
       TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(dbcsr_type)                                   :: pmat_diag
       TYPE(dft_control_type), POINTER                    :: dft_control
-      TYPE(lri_density_type), POINTER                    :: lri_density
       TYPE(pw_p_type), DIMENSION(:), POINTER             :: rho_g, rho_r
 
       CALL timeset(routineN, handle)
@@ -362,7 +362,6 @@ CONTAINS
       CPASSERT(ASSOCIATED(rho_struct))
 
       CALL get_qs_env(qs_env, dft_control=dft_control, para_env=para_env)
-      CALL get_qs_env(qs_env, lri_density=lri_density)
 
       CALL qs_rho_get(rho_struct, rho_r=rho_r, rho_g=rho_g, tot_rho_r=tot_rho_r)
 
@@ -561,6 +560,7 @@ CONTAINS
 !> \brief performs the fitting of the density and distributes the fitted
 !>        density on the grid
 !> \param lri_env the lri environment
+!> \param lri_density ...
 !> \param qs_env ...
 !> \param pmatrix ...
 !> \param cell_to_index ...
@@ -568,10 +568,11 @@ CONTAINS
 !> \param atomic_kind_set ...
 !> \param para_env ...
 ! **************************************************************************************************
-   SUBROUTINE calculate_lri_densities(lri_env, qs_env, pmatrix, cell_to_index, &
+   SUBROUTINE calculate_lri_densities(lri_env, lri_density, qs_env, pmatrix, cell_to_index, &
                                       lri_rho_struct, atomic_kind_set, para_env)
 
       TYPE(lri_environment_type), POINTER                :: lri_env
+      TYPE(lri_density_type), POINTER                    :: lri_density
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: pmatrix
       INTEGER, DIMENSION(:, :, :), POINTER               :: cell_to_index
@@ -582,12 +583,7 @@ CONTAINS
       CHARACTER(LEN=*), PARAMETER :: routineN = 'calculate_lri_densities', &
          routineP = moduleN//':'//routineN
 
-      TYPE(lri_density_type), POINTER                    :: lri_density
-
-      CALL get_qs_env(qs_env, lri_density=lri_density)
       CALL calculate_avec_lri(lri_env, lri_density, pmatrix, cell_to_index)
-      CALL set_qs_env(qs_env, lri_density=lri_density)
-
       CALL distribute_lri_density_on_the_grid(lri_env, lri_density, qs_env, &
                                               lri_rho_struct, atomic_kind_set, para_env)
 
@@ -962,8 +958,6 @@ CONTAINS
             !
             IF (lri_env%exact_1c_terms) CALL dbcsr_release(pmat_diag)
          ENDDO
-
-         CALL set_qs_env(qs_env, lri_density=lri_density)
 
          DEALLOCATE (atom_of_kind)
 

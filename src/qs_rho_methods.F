@@ -29,7 +29,8 @@ MODULE qs_rho_methods
    USE kpoint_types,                    ONLY: get_kpoint_info,&
                                               kpoint_type
    USE lri_environment_methods,         ONLY: calculate_lri_densities
-   USE lri_environment_types,           ONLY: lri_environment_type
+   USE lri_environment_types,           ONLY: lri_density_type,&
+                                              lri_environment_type
    USE pw_env_types,                    ONLY: pw_env_get,&
                                               pw_env_type
    USE pw_methods,                      ONLY: pw_zero
@@ -44,7 +45,8 @@ MODULE qs_rho_methods
    USE qs_collocate_density,            ONLY: calculate_drho_elec,&
                                               calculate_rho_elec
    USE qs_environment_types,            ONLY: get_qs_env,&
-                                              qs_environment_type
+                                              qs_environment_type,&
+                                              set_qs_env
    USE qs_ks_types,                     ONLY: get_ks_env,&
                                               qs_ks_env_type
    USE qs_local_rho_types,              ONLY: local_rho_type
@@ -349,6 +351,7 @@ CONTAINS
       TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: rho_ao_kp, rho_xc_ao
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(kpoint_type), POINTER                         :: kpoints
+      TYPE(lri_density_type), POINTER                    :: lri_density
       TYPE(lri_environment_type), POINTER                :: lri_env
       TYPE(pw_env_type), POINTER                         :: pw_env
       TYPE(pw_p_type), DIMENSION(:), POINTER             :: drho_g, drho_r, drho_xc_g, rho_g, rho_r, &
@@ -405,10 +408,12 @@ CONTAINS
          CALL get_ks_env(ks_env=ks_env, kpoints=kpoints)
          CALL get_kpoint_info(kpoint=kpoints, cell_to_index=cell_to_index)
          CALL qs_rho_get(rho_struct, rho_ao_kp=rho_ao_kp)
-         CALL calculate_lri_densities(lri_env, qs_env, rho_ao_kp, cell_to_index, &
+         CALL get_qs_env(qs_env, lri_density=lri_density)
+         CALL calculate_lri_densities(lri_env, lri_density, qs_env, rho_ao_kp, cell_to_index, &
                                       lri_rho_struct=rho_struct, &
                                       atomic_kind_set=atomic_kind_set, &
                                       para_env=para_env)
+         CALL set_qs_env(qs_env, lri_density=lri_density)
          CALL qs_rho_set(rho_struct, rho_r_valid=.TRUE., rho_g_valid=.TRUE.)
       ELSEIF (dft_control%qs_control%rigpw) THEN
          CPASSERT(.NOT. dft_control%use_kinetic_energy_density)

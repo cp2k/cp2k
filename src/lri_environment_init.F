@@ -34,8 +34,7 @@ MODULE lri_environment_init
                                               pi
    USE mathlib,                         ONLY: invert_matrix
    USE qs_environment_types,            ONLY: get_qs_env,&
-                                              qs_environment_type,&
-                                              set_qs_env
+                                              qs_environment_type
    USE qs_kind_types,                   ONLY: get_qs_kind,&
                                               qs_kind_type
 #include "./base/base_uses.f90"
@@ -56,18 +55,17 @@ CONTAINS
 
 ! **************************************************************************************************
 !> \brief initializes the lri env
-!> \param qs_env ...
+!> \param lri_env ...
 !> \param lri_section ...
 ! **************************************************************************************************
-   SUBROUTINE lri_env_init(qs_env, lri_section)
+   SUBROUTINE lri_env_init(lri_env, lri_section)
 
-      TYPE(qs_environment_type), POINTER                 :: qs_env
+      TYPE(lri_environment_type), POINTER                :: lri_env
       TYPE(section_vals_type), POINTER                   :: lri_section
 
       CHARACTER(len=*), PARAMETER :: routineN = 'lri_env_init', routineP = moduleN//':'//routineN
 
       REAL(KIND=dp), DIMENSION(:), POINTER               :: radii
-      TYPE(lri_environment_type), POINTER                :: lri_env
 
       NULLIFY (lri_env)
       CALL lri_env_create(lri_env)
@@ -111,8 +109,6 @@ CONTAINS
       lri_env%r_in = radii(1)
       lri_env%r_out = radii(2)
 
-      CALL set_qs_env(qs_env, lri_env=lri_env)
-
       CALL cite_reference(Golze2017b)
       IF (lri_env%use_shg_integrals) CALL cite_reference(Golze2017a)
 
@@ -121,12 +117,14 @@ CONTAINS
 !> \brief initializes the lri env
 !> \param ri_type ...
 !> \param qs_env ...
+!> \param lri_env ...
 !> \param qs_kind_set ...
 ! **************************************************************************************************
-   SUBROUTINE lri_env_basis(ri_type, qs_env, qs_kind_set)
+   SUBROUTINE lri_env_basis(ri_type, qs_env, lri_env, qs_kind_set)
 
       CHARACTER(len=*), INTENT(IN)                       :: ri_type
       TYPE(qs_environment_type), POINTER                 :: qs_env
+      TYPE(lri_environment_type), POINTER                :: lri_env
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
 
       CHARACTER(len=*), PARAMETER :: routineN = 'lri_env_basis', routineP = moduleN//':'//routineN
@@ -139,9 +137,6 @@ CONTAINS
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(gto_basis_set_type), POINTER                  :: orb_basis_set, ri_basis_set
-      TYPE(lri_environment_type), POINTER                :: lri_env
-
-      CALL get_qs_env(qs_env=qs_env, lri_env=lri_env)
 
       ! initialize the basic basis sets (orb and ri)
       CALL get_qs_env(qs_env=qs_env, atomic_kind_set=atomic_kind_set)

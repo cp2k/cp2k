@@ -40,12 +40,18 @@
       MAX_ITER_LANCZOS 30
       SIGN_SQRT_ORDER 3
     &END LS_SCF
+    &KG_METHOD
+      &XC
+        &XC_FUNCTIONAL
+          &KE_GGA
+            FUNCTIONAL LLP
+          &END
+        &END XC_FUNCTIONAL
+      &END XC
+    &END KG_METHOD
     &XC
       &XC_FUNCTIONAL
         &PBE
-        &END
-        &KE_GGA
-          FUNCTIONAL LLP
         &END
       &END XC_FUNCTIONAL
     &END XC

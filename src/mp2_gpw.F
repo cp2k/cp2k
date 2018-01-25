@@ -2295,7 +2295,7 @@ CONTAINS
       CALL pair_radius_setup(orb_present, orb_present, orb_radius, orb_radius, pair_radius)
 
       CALL build_neighbor_lists(sab_orb_sub, particle_set, atom2d, cell, pair_radius, &
-                                mic=.FALSE., subcells=subcells, molecular=.FALSE., name="sab_orb_sub")
+                                mic=.FALSE., subcells=subcells, molecular=.FALSE., nlname="sab_orb_sub")
       CALL atom2d_cleanup(atom2d)
       DEALLOCATE (atom2d)
       DEALLOCATE (orb_present, orb_radius, pair_radius)
@@ -2435,7 +2435,7 @@ CONTAINS
          CALL pair_radius_setup(orb_present, orb_present, orb_radius, orb_radius, pair_radius)
 
          CALL build_neighbor_lists(sab_orb_all, particle_set, atom2d, cell, pair_radius, &
-                                   mic=.FALSE., subcells=subcells, molecular=.FALSE., name="sab_orb_sub")
+                                   mic=.FALSE., subcells=subcells, molecular=.FALSE., nlname="sab_orb_sub")
          CALL atom2d_cleanup(atom2d)
          DEALLOCATE (atom2d)
          DEALLOCATE (orb_present, orb_radius, pair_radius)

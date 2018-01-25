@@ -32,20 +32,21 @@ MODULE kg_environment
    USE input_constants,                 ONLY: kg_ec_functional_harris,&
                                               kg_tnadd_atomic,&
                                               kg_tnadd_embed,&
+                                              kg_tnadd_embed_ri,&
                                               kg_tnadd_none,&
-                                              xc_funct_no_shortcut,&
                                               xc_vdw_fun_nonloc,&
                                               xc_vdw_fun_pairpot
-   USE input_section_types,             ONLY: &
-        section_vals_create, section_vals_duplicate, section_vals_get, section_vals_get_subs_vals, &
-        section_vals_release, section_vals_set_subs_vals, section_vals_type, section_vals_val_get, &
-        section_vals_val_set
+   USE input_section_types,             ONLY: section_vals_get_subs_vals,&
+                                              section_vals_type,&
+                                              section_vals_val_get
    USE kg_environment_types,            ONLY: kg_environment_type
    USE kg_vertex_coloring_methods,      ONLY: kg_vertex_coloring
    USE kinds,                           ONLY: dp,&
                                               int_4,&
                                               int_4_size,&
                                               int_8
+   USE lri_environment_init,            ONLY: lri_env_basis,&
+                                              lri_env_init
    USE message_passing,                 ONLY: mp_bcast,&
                                               mp_gather,&
                                               mp_max
@@ -118,6 +119,7 @@ CONTAINS
 !> \param input ...
 !> \par History
 !>       2012.07 created [Martin Haeufel]
+!>       2018.01 TNADD correction {JGH]
 !> \author Martin Haeufel
 ! **************************************************************************************************
    SUBROUTINE init_kg_env(qs_env, kg_env, qs_kind_set, input)
@@ -128,17 +130,15 @@ CONTAINS
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'init_kg_env', routineP = moduleN//':'//routineN
 
-      INTEGER                                            :: handle, ikind, ke_sections, nkind
-      LOGICAL                                            :: is_set
+      INTEGER                                            :: handle, ikind, nkind
       REAL(KIND=dp)                                      :: eps_pgf_orb
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(dft_control_type), POINTER                    :: dft_control
-      TYPE(gto_basis_set_type), POINTER                  :: basis_set, harris_basis
+      TYPE(gto_basis_set_type), POINTER                  :: basis_set, harris_basis, lri_aux_basis
       TYPE(qs_dispersion_type), POINTER                  :: dispersion_env
       TYPE(qs_kind_type), POINTER                        :: qs_kind
-      TYPE(section_vals_type), POINTER                   :: kef_section, nl_section, pp_section, &
-                                                            xc_fun_section, xc_fun_section_kg, &
+      TYPE(section_vals_type), POINTER                   :: lri_section, nl_section, pp_section, &
                                                             xc_section, xc_section_kg
 
       CALL timeset(routineN, handle)
@@ -151,6 +151,8 @@ CONTAINS
       NULLIFY (kg_env%subset_of_mol)
       NULLIFY (kg_env%subset)
       NULLIFY (kg_env%tnadd_mat)
+      NULLIFY (kg_env%lri_env)
+      NULLIFY (kg_env%lri_density)
       NULLIFY (kg_env%ec_env%sab_orb, kg_env%ec_env%sac_ppl, kg_env%ec_env%sap_ppnl)
       NULLIFY (kg_env%ec_env%matrix_ks, kg_env%ec_env%matrix_h, kg_env%ec_env%matrix_s)
       NULLIFY (kg_env%ec_env%matrix_t, kg_env%ec_env%matrix_p)
@@ -167,6 +169,7 @@ CONTAINS
       CALL section_vals_val_get(input, "DFT%KG_METHOD%COLORING_METHOD", i_val=kg_env%coloring_method)
       ! get method for nonadditive kinetic energy embedding potential
       CALL section_vals_val_get(input, "DFT%KG_METHOD%TNADD_METHOD", i_val=kg_env%tnadd_method)
+      !
       CALL section_vals_val_get(input, "DFT%KG_METHOD%ENERGY_CORRECTION%_SECTION_PARAMETERS_", &
                                 l_val=kg_env%energy_correction)
       IF (kg_env%energy_correction) THEN
@@ -250,17 +253,8 @@ CONTAINS
          xc_section_kg => section_vals_get_subs_vals(input, "DFT%KG_METHOD%ENERGY_CORRECTION%XC")
          IF (ASSOCIATED(xc_section_kg)) THEN
             kg_env%ec_env%xc_section => xc_section_kg
-
-!        section1 => section_vals_get_subs_vals(section, "XC")
-!        section2 => section_vals_get_subs_vals(section, "XC%XC_FUNCTIONAL")
-!        CALL xc_functionals_expand(section2, section1)
-
          ELSE
             kg_env%ec_env%xc_section => xc_section
-            CPABORT("KG energy correction needs XC section, with no KE functional")
-!          CALL cp_assert(kg_env%tnadd_method /= kg_tnadd_embed, cp_fatal_level, cp_assertion_failed, routineP, &
-!          "KG energy correction with full embedding requires a special XC section "// &
-!          "in the ENERGY_CORRECTION section. There should be no KE functional in this section.")
          END IF
          ! dispersion
          ALLOCATE (dispersion_env)
@@ -280,96 +274,33 @@ CONTAINS
          kg_env%ec_env%dispersion_env => dispersion_env
       END IF
 
-      IF (kg_env%tnadd_method == kg_tnadd_embed) THEN
-         ! generate a new XC section with only the KE functional
-         NULLIFY (xc_fun_section_kg, xc_section_kg)
-
-         xc_section => section_vals_get_subs_vals(input, "DFT%XC")
-         xc_fun_section => section_vals_get_subs_vals(xc_section, "XC_FUNCTIONAL")
-
-         CALL section_vals_duplicate(xc_section, xc_section_kg)
-
-         ! test for TF, TFW, KE_GGA, and KE_LIBXC sections in turn
-         ke_sections = 0
-         NULLIFY (kef_section)
-         kef_section => section_vals_get_subs_vals(xc_fun_section, "TF")
-         CALL section_vals_get(kef_section, explicit=is_set)
-         IF (is_set) THEN
-            NULLIFY (xc_fun_section_kg)
-            CALL section_vals_create(xc_fun_section_kg, xc_fun_section%section)
-            CALL section_vals_val_set(xc_fun_section_kg, "_SECTION_PARAMETERS_", &
-                                      i_val=xc_funct_no_shortcut)
-            CALL section_vals_set_subs_vals(xc_fun_section_kg, "TF", &
-                                            kef_section)
-            CALL section_vals_set_subs_vals(xc_section_kg, "XC_FUNCTIONAL", &
-                                            xc_fun_section_kg)
-            ke_sections = ke_sections+1
-         END IF
-
-         NULLIFY (kef_section)
-         kef_section => section_vals_get_subs_vals(xc_fun_section, "TFW")
-         CALL section_vals_get(kef_section, explicit=is_set)
-         IF (is_set) THEN
-            NULLIFY (xc_fun_section_kg)
-            CALL section_vals_create(xc_fun_section_kg, xc_fun_section%section)
-            CALL section_vals_val_set(xc_fun_section_kg, "_SECTION_PARAMETERS_", &
-                                      i_val=xc_funct_no_shortcut)
-            CALL section_vals_set_subs_vals(xc_fun_section_kg, "TFW", &
-                                            kef_section)
-            CALL section_vals_set_subs_vals(xc_section_kg, "XC_FUNCTIONAL", &
-                                            xc_fun_section_kg)
-            ke_sections = ke_sections+1
-         END IF
-
-         NULLIFY (kef_section)
-         kef_section => section_vals_get_subs_vals(xc_fun_section, "KE_GGA")
-         CALL section_vals_get(kef_section, explicit=is_set)
-         IF (is_set) THEN
-            NULLIFY (xc_fun_section_kg)
-            CALL section_vals_create(xc_fun_section_kg, xc_fun_section%section)
-            CALL section_vals_val_set(xc_fun_section_kg, "_SECTION_PARAMETERS_", &
-                                      i_val=xc_funct_no_shortcut)
-            CALL section_vals_set_subs_vals(xc_fun_section_kg, "KE_GGA", &
-                                            kef_section)
-            CALL section_vals_set_subs_vals(xc_section_kg, "XC_FUNCTIONAL", &
-                                            xc_fun_section_kg)
-            ke_sections = ke_sections+1
-         END IF
-
-         NULLIFY (kef_section)
-         kef_section => section_vals_get_subs_vals(xc_fun_section, "KE_LIBXC")
-         CALL section_vals_get(kef_section, explicit=is_set)
-         IF (is_set) THEN
-            NULLIFY (xc_fun_section_kg)
-            CALL section_vals_create(xc_fun_section_kg, xc_fun_section%section)
-            CALL section_vals_val_set(xc_fun_section_kg, "_SECTION_PARAMETERS_", &
-                                      i_val=xc_funct_no_shortcut)
-            CALL section_vals_set_subs_vals(xc_fun_section_kg, "KE_LIBXC", &
-                                            kef_section)
-            CALL section_vals_set_subs_vals(xc_section_kg, "XC_FUNCTIONAL", &
-                                            xc_fun_section_kg)
-            ke_sections = ke_sections+1
-         END IF
-
-         ! stop if there is more than one kinetic energy functional section present
-         !CPPostcondition(ke_sections==1,cp_failure_level,routineP,failure)
-         IF (ke_sections /= 1) &
+      SELECT CASE (kg_env%tnadd_method)
+      CASE (kg_tnadd_embed, kg_tnadd_embed_ri)
+         ! kinetic energy functional
+         kg_env%xc_section_kg => section_vals_get_subs_vals(input, "DFT%KG_METHOD%XC")
+         IF (.NOT. ASSOCIATED(kg_env%xc_section_kg)) THEN
             CALL cp_abort(__LOCATION__, &
-                          "KG runs require a kinetic energy functional. Exactly one of the following "// &
-                          "subsections of XC_FUNCTIONAL needs to be present: KE_GGA, TF, TFW, or KE_LIBXC.")
-
-         kg_env%xc_section_kg => xc_section_kg
-
-         NULLIFY (kef_section, xc_fun_section)
-
-         CALL section_vals_release(xc_fun_section_kg)
-
-      ELSEIF (kg_env%tnadd_method == kg_tnadd_atomic) THEN
+                          "KG runs require a kinetic energy functional set in &KG_METHOD")
+         END IF
+      CASE (kg_tnadd_atomic, kg_tnadd_none)
          NULLIFY (kg_env%xc_section_kg)
-      ELSEIF (kg_env%tnadd_method == kg_tnadd_none) THEN
-         NULLIFY (kg_env%xc_section_kg)
-      ELSE
-         CPABORT("")
+      CASE DEFAULT
+         CPABORT("KG:TNADD METHOD")
+      END SELECT
+
+      IF (kg_env%tnadd_method == kg_tnadd_embed_ri) THEN
+         ! initialize the LRI environment
+         ! Check if LRI_AUX basis is available, auto-generate if needed
+         nkind = SIZE(qs_kind_set)
+         DO ikind = 1, nkind
+            qs_kind => qs_kind_set(ikind)
+            NULLIFY (lri_aux_basis)
+            CALL get_qs_kind(qs_kind, basis_set=lri_aux_basis, basis_type="LRI_AUX")
+            CPASSERT(ASSOCIATED(lri_aux_basis))
+         END DO
+         lri_section => section_vals_get_subs_vals(input, "DFT%KG_METHOD%LRIGPW")
+         CALL lri_env_init(kg_env%lri_env, lri_section)
+         CALL lri_env_basis("LRI", qs_env, kg_env%lri_env, qs_kind_set)
       END IF
 
       CALL timestop(handle)
@@ -402,7 +333,7 @@ CONTAINS
          routineP = moduleN//':'//routineN
 
       INTEGER                                            :: handle, ikind, nkind
-      LOGICAL                                            :: molecule_only
+      LOGICAL                                            :: mic, molecule_only
       LOGICAL, ALLOCATABLE, DIMENSION(:)                 :: orb_present, tpot_present
       REAL(dp)                                           :: subcells
       REAL(dp), ALLOCATABLE, DIMENSION(:)                :: orb_radius, tpot_radius
@@ -423,8 +354,11 @@ CONTAINS
       CALL timeset(routineN, handle)
       NULLIFY (para_env)
 
+      ! restrict lists to molecular subgroups
       molecule_only = .FALSE.
       IF (PRESENT(molecular)) molecule_only = molecular
+      ! enforce minimum image convention if we use molecules
+      mic = molecule_only
 
       CALL get_qs_env(qs_env=qs_env, &
                       atomic_kind_set=atomic_kind_set, &
@@ -467,22 +401,18 @@ CONTAINS
       END DO
 
       IF (PRESENT(sab_orb)) THEN
-
          ! Build the orbital-orbital overlap neighbor list
          CALL pair_radius_setup(orb_present, orb_present, orb_radius, orb_radius, pair_radius)
-
          IF (PRESENT(subset_of_mol)) THEN
             CALL build_neighbor_lists(sab_orb, particle_set, atom2d, cell, pair_radius, &
-                                      mic=.FALSE., subcells=subcells, molecular=molecule_only, subset_of_mol=subset_of_mol, &
-                                      current_subset=current_subset, name="sab_orb")
+                                      mic=mic, subcells=subcells, molecular=molecule_only, subset_of_mol=subset_of_mol, &
+                                      current_subset=current_subset, nlname="sab_orb")
          ELSE
             CALL build_neighbor_lists(sab_orb, particle_set, atom2d, cell, pair_radius, &
-                                      mic=.FALSE., subcells=subcells, molecular=molecule_only, name="sab_orb")
+                                      mic=mic, subcells=subcells, molecular=molecule_only, nlname="sab_orb")
          END IF
-
          ! Print out the neighborlist
          neighbor_list_section => section_vals_get_subs_vals(qs_env%input, "DFT%KG_METHOD%PRINT%NEIGHBOR_LISTS")
-
          IF (molecule_only) THEN
             CALL write_neighbor_lists(sab_orb, particle_set, cell, para_env, neighbor_list_section, &
                                       "/SAB_ORB_MOLECULAR", "sab_orb", "MOLECULAR SUBSET NEIGHBORLIST")
@@ -490,7 +420,6 @@ CONTAINS
             CALL write_neighbor_lists(sab_orb, particle_set, cell, para_env, neighbor_list_section, &
                                       "/SAB_ORB_FULL", "sab_orb", "FULL NEIGHBORLIST")
          END IF
-
       END IF
 
       IF (PRESENT(sac_kin)) THEN
@@ -504,7 +433,7 @@ CONTAINS
          END DO
          CALL pair_radius_setup(orb_present, tpot_present, orb_radius, tpot_radius, pair_radius)
          CALL build_neighbor_lists(sac_kin, particle_set, atom2d, cell, pair_radius, &
-                                   subcells=subcells, operator_type="ABC", name="sac_kin")
+                                   subcells=subcells, operator_type="ABC", nlname="sac_kin")
          neighbor_list_section => section_vals_get_subs_vals(qs_env%input, &
                                                              "DFT%KG_METHOD%PRINT%NEIGHBOR_LISTS")
          CALL write_neighbor_lists(sac_kin, particle_set, cell, para_env, neighbor_list_section, &
@@ -570,7 +499,7 @@ CONTAINS
 
       CALL timestop(handle)
 
-   END SUBROUTINE
+   END SUBROUTINE kg_remove_duplicates
 
 ! **************************************************************************************************
 !> \brief writes the graph to file using the DIMACS standard format
@@ -641,7 +570,7 @@ CONTAINS
 
       CALL timestop(handle)
 
-   END SUBROUTINE
+   END SUBROUTINE write_to_file
 
 ! **************************************************************************************************
 !> \brief ...
@@ -845,6 +774,6 @@ CONTAINS
 
       CALL timestop(handle)
 
-   END SUBROUTINE
+   END SUBROUTINE kg_build_subsets
 
 END MODULE kg_environment

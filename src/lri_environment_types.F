@@ -1401,6 +1401,7 @@ CONTAINS
          DEALLOCATE (lri_rhos)
 
       END IF
+      NULLIFY (lri_rhos)
 
    END SUBROUTINE deallocate_lri_rhos
 

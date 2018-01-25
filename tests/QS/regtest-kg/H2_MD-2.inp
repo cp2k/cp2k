@@ -27,12 +27,21 @@
       EPS_SCF 1.0E-8
       SCF_GUESS ATOMIC 
     &END
+    &KG_METHOD
+      &XC
+        &XC_FUNCTIONAL
+          &KE_GGA
+            FUNCTIONAL LLP
+          &END
+        &END
+        &XC_GRID
+          XC_DERIV SPLINE2
+        &END
+      &END XC
+    &END KG_METHOD
     &XC
       &XC_FUNCTIONAL
         &PADE
-        &END
-        &KE_GGA
-          FUNCTIONAL LLP
         &END
       &END
       &XC_GRID

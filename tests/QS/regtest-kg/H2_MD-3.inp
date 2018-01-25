@@ -18,6 +18,16 @@
     &END QS
     &KG_METHOD
       COLORING_METHOD GREEDY
+      &XC
+        &XC_FUNCTIONAL
+          &KE_GGA
+            FUNCTIONAL LLP
+          &END
+        &END
+        &XC_GRID
+          XC_DERIV SPLINE2
+        &END
+      &END XC
     &END KG_METHOD
     &LS_SCF
       MAX_SCF     40
@@ -33,9 +43,6 @@
     &XC
       &XC_FUNCTIONAL
         &PADE
-        &END
-        &KE_GGA
-          FUNCTIONAL LLP
         &END
       &END
       &XC_GRID

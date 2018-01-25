@@ -20,6 +20,12 @@
       PURIFICATION_METHOD TRS4
     &END
     &KG_METHOD
+       &XC
+         &XC_FUNCTIONAL
+           &TF
+           &END
+         &END
+       &END XC
        &ENERGY_CORRECTION
          HARRIS_BASIS HARRIS
          &XC
@@ -37,8 +43,6 @@
     &XC
       &XC_FUNCTIONAL
         &PADE
-        &END
-        &TF
         &END
       &END
     &END XC

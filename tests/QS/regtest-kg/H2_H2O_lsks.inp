@@ -34,9 +34,6 @@
       &XC_FUNCTIONAL
         &PADE
         &END
-#        &KE_GGA
-#          FUNCTIONAL LLP
-#        &END
       &END
       &XC_GRID
         XC_DERIV SPLINE2

@@ -16,7 +16,8 @@ MODULE qs_update_s_mstruct
    USE cp_ddapc_util,                   ONLY: cp_ddapc_init
    USE input_constants,                 ONLY: do_ppl_analytic,&
                                               do_ppl_grid,&
-                                              kg_tnadd_embed
+                                              kg_tnadd_embed,&
+                                              kg_tnadd_embed_ri
    USE pw_methods,                      ONLY: pw_transfer
    USE pw_types,                        ONLY: pw_p_type,&
                                               pw_release
@@ -211,7 +212,8 @@ CONTAINS
       IF (dft_control%qs_control%do_kg) THEN
          soft_valid = (dft_control%qs_control%gapw .OR. dft_control%qs_control%gapw_xc)
 
-         IF (qs_env%kg_env%tnadd_method == kg_tnadd_embed) THEN
+         IF (qs_env%kg_env%tnadd_method == kg_tnadd_embed .OR. &
+             qs_env%kg_env%tnadd_method == kg_tnadd_embed_ri) THEN
 
             IF (ASSOCIATED(qs_env%kg_env%subset)) THEN
                DO isub = 1, qs_env%kg_env%nsubsets
@@ -223,15 +225,12 @@ CONTAINS
             END IF
 
             DO isub = 1, qs_env%kg_env%nsubsets
-
                CALL allocate_task_list(qs_env%kg_env%subset(isub)%task_list)
-
                ! generate the subset task list from the neighborlist
                CALL generate_qs_task_list(ks_env, qs_env%kg_env%subset(isub)%task_list, &
                                           reorder_rs_grid_ranks=.FALSE., soft_valid=soft_valid, &
                                           skip_load_balance_distributed=skip_load_balance_distributed, &
                                           sab_orb_external=qs_env%kg_env%subset(isub)%sab_orb)
-
             END DO
 
          END IF

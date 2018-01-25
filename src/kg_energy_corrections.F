@@ -912,19 +912,19 @@ CONTAINS
       ! overlap
       CALL pair_radius_setup(orb_present, orb_present, orb_radius, orb_radius, pair_radius)
       CALL build_neighbor_lists(ec_env%sab_orb, particle_set, atom2d, cell, pair_radius, &
-                                subcells=subcells, name="sab_orb")
+                                subcells=subcells, nlname="sab_orb")
       ! pseudopotential
       IF (gth_potential_present .OR. sgp_potential_present) THEN
          IF (ANY(ppl_present)) THEN
             CALL pair_radius_setup(orb_present, ppl_present, orb_radius, ppl_radius, pair_radius)
             CALL build_neighbor_lists(ec_env%sac_ppl, particle_set, atom2d, cell, pair_radius, &
-                                      subcells=subcells, operator_type="ABC", name="sac_ppl")
+                                      subcells=subcells, operator_type="ABC", nlname="sac_ppl")
          END IF
 
          IF (ANY(ppnl_present)) THEN
             CALL pair_radius_setup(orb_present, ppnl_present, orb_radius, ppnl_radius, pair_radius)
             CALL build_neighbor_lists(ec_env%sap_ppnl, particle_set, atom2d, cell, pair_radius, &
-                                      subcells=subcells, operator_type="ABBA", name="sap_ppnl")
+                                      subcells=subcells, operator_type="ABBA", nlname="sap_ppnl")
          END IF
       END IF
 

@@ -7,8 +7,6 @@
   &DFT
     BASIS_SET_FILE_NAME BASIS_MOLOPT
     POTENTIAL_FILE_NAME GTH_POTENTIALS
-    &KG_METHOD
-    &END
     &MGRID
       CUTOFF 400
     &END MGRID
@@ -39,12 +37,18 @@
       EPS_SCF 1.0E-5
       MAX_SCF 50
     &END
+    &KG_METHOD
+      &XC
+        &XC_FUNCTIONAL
+          &KE_GGA
+            FUNCTIONAL T92
+          &END
+        &END
+      &END XC
+    &END KG_METHOD
     &XC
       &XC_FUNCTIONAL
         &PADE
-        &END
-        &KE_GGA
-          FUNCTIONAL T92
         &END
       &END
     &END XC

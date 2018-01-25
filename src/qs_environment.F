@@ -86,7 +86,7 @@ MODULE qs_environment
         do_method_gapw_xc, do_method_gpw, do_method_lrigpw, do_method_mndo, do_method_mndod, &
         do_method_ofgpw, do_method_pdg, do_method_pm3, do_method_pm6, do_method_pm6fm, &
         do_method_pnnl, do_method_rigpw, do_method_rm1, do_qmmm_gauss, do_qmmm_swave, &
-        general_roks, rel_none, rel_trans_atom, vdw_pairpot_dftd3, wfi_aspc_nr, &
+        general_roks, kg_tnadd_embed_ri, rel_none, rel_trans_atom, vdw_pairpot_dftd3, wfi_aspc_nr, &
         wfi_linear_ps_method_nr, wfi_linear_wf_method_nr, wfi_ps_method_nr, &
         wfi_use_guess_method_nr, xc_vdw_fun_none, xc_vdw_fun_nonloc, xc_vdw_fun_pairpot
    USE input_section_types,             ONLY: section_vals_get,&
@@ -242,6 +242,7 @@ CONTAINS
       TYPE(cp_blacs_env_type), POINTER                   :: blacs_env
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(kpoint_type), POINTER                         :: kpoints
+      TYPE(lri_environment_type), POINTER                :: lri_env
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
       TYPE(qs_ks_env_type), POINTER                      :: ks_env
@@ -341,11 +342,13 @@ CONTAINS
 
       CALL get_qs_env(qs_env, dft_control=dft_control)
       IF (method_id == do_method_lrigpw .OR. dft_control%qs_control%lri_optbas) THEN
-         CALL lri_env_basis("LRI", qs_env, qs_kind_set)
+         CALL get_qs_env(qs_env=qs_env, lri_env=lri_env)
+         CALL lri_env_basis("LRI", qs_env, lri_env, qs_kind_set)
       ELSE IF (method_id == do_method_rigpw) THEN
          CALL cp_warn(__LOCATION__, "Experimental code: "// &
                       "RIGPW should only be used for testing.")
-         CALL lri_env_basis("RI", qs_env, qs_kind_set)
+         CALL get_qs_env(qs_env=qs_env, lri_env=lri_env)
+         CALL lri_env_basis("RI", qs_env, lri_env, qs_kind_set)
       END IF
 
       ! more kpoint stuff
@@ -465,10 +468,10 @@ CONTAINS
 
       INTEGER :: handle, ikind, ispin, iw, lmax_sphere, maxl, maxlgto, maxlgto_lri, maxlppl, &
          maxlppnl, method_id, multiplicity, my_ival, n_ao, n_ao_aux_fit, n_mo_add, natom, &
-         nelectron, nkind, output_unit
+         nelectron, nkind, output_unit, tnadd_method
       INTEGER, DIMENSION(2)                              :: n_mo, nelectron_spin
       LOGICAL                                            :: all_potential_present, be_silent, &
-                                                            do_kpoints, has_unit_metric, &
+                                                            do_kpoints, has_unit_metric, lribas, &
                                                             was_present
       REAL(dp)                                           :: ewald_rcut, maxocc, verlet_skin
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
@@ -630,7 +633,8 @@ CONTAINS
       IF (dft_control%qs_control%method_id == do_method_lrigpw .OR. &
           dft_control%qs_control%lri_optbas .OR. &
           dft_control%qs_control%method_id == do_method_rigpw) THEN
-         CALL lri_env_init(qs_env, lri_section)
+         CALL lri_env_init(lri_env, lri_section)
+         CALL set_qs_env(qs_env, lri_env=lri_env)
       END IF
 
       !   *** Check basis and fill in missing parts ***
@@ -667,7 +671,13 @@ CONTAINS
          END DO
       END IF
 
-      IF (dft_control%qs_control%method_id == do_method_lrigpw .OR. dft_control%qs_control%lri_optbas) THEN
+      lribas = .FALSE.
+      IF (dft_control%qs_control%method_id == do_method_lrigpw) lribas = .TRUE.
+      IF (dft_control%qs_control%do_kg) THEN
+         CALL section_vals_val_get(dft_section, "KG_METHOD%TNADD_METHOD", i_val=tnadd_method)
+         IF (tnadd_method == kg_tnadd_embed_ri) lribas = .TRUE.
+      END IF
+      IF (lribas) THEN
          ! Check if LRI_AUX basis is available, auto-generate if needed
          CALL get_qs_env(qs_env, nkind=nkind, lri_env=lri_env)
          DO ikind = 1, nkind

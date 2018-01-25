@@ -20,15 +20,18 @@ MODULE qs_energy_init
    USE efield_utils,                    ONLY: calculate_ecore_efield
    USE input_constants,                 ONLY: kg_tnadd_atomic,&
                                               kg_tnadd_embed,&
+                                              kg_tnadd_embed_ri,&
                                               kg_tnadd_none,&
                                               outer_scf_hirshfeld_constraint
    USE input_section_types,             ONLY: section_vals_type
    USE kg_environment,                  ONLY: kg_build_neighborlist,&
                                               kg_build_subsets
+   USE kg_environment_types,            ONLY: kg_environment_type
    USE kinds,                           ONLY: dp
    USE kpoint_methods,                  ONLY: kpoint_init_cell_index
    USE kpoint_types,                    ONLY: kpoint_type
-   USE lri_environment_methods,         ONLY: build_lri_matrices
+   USE lri_environment_methods,         ONLY: build_lri_matrices,&
+                                              calculate_lri_integrals
    USE lri_environment_types,           ONLY: lri_environment_type
    USE molecule_types,                  ONLY: molecule_of_atom,&
                                               molecule_type
@@ -94,17 +97,22 @@ CONTAINS
 
       NULLIFY (ks_env, matrix_w, matrix_w_mp2, matrix_s, dft_control)
 
-      CALL qs_energies_init_kg(qs_env, molecule_only)
+      CALL get_qs_env(qs_env, dft_control=dft_control)
+      IF (dft_control%qs_control%do_kg) THEN
+         molecule_only = .TRUE.
+         CALL qs_energies_init_kg(qs_env)
+      ELSE
+         molecule_only = .FALSE.
+      END IF
       CALL qs_energies_init_hamiltonians(qs_env, calc_forces, molecule_only)
       CALL qs_ks_allocate_basics(qs_env)
-      CALL get_qs_env(qs_env, has_unit_metric=has_unit_metric)
 
       ! if need forces allocate energy weighted density matrices
+      CALL get_qs_env(qs_env, has_unit_metric=has_unit_metric)
       IF (calc_forces .AND. .NOT. has_unit_metric) THEN
          CALL get_qs_env(qs_env, &
                          ks_env=ks_env, &
-                         matrix_s_kp=matrix_s, &
-                         dft_control=dft_control)
+                         matrix_s_kp=matrix_s)
          nspin = dft_control%nspins
          nimg = dft_control%nimages
          matrix => matrix_s(1, 1)%matrix
@@ -136,14 +144,12 @@ CONTAINS
 !> \brief Refactoring of qs_energies_scf. Puts initialization of the Kim-Gordon
 !>        settings into separate subroutine
 !> \param qs_env ...
-!> \param molecule_only ...
 !> \par History
 !>      05.2013 created [Florian Schiffmann]
 ! **************************************************************************************************
 
-   SUBROUTINE qs_energies_init_kg(qs_env, molecule_only)
+   SUBROUTINE qs_energies_init_kg(qs_env)
       TYPE(qs_environment_type), POINTER                 :: qs_env
-      LOGICAL                                            :: molecule_only
 
       CHARACTER(len=*), PARAMETER :: routineN = 'qs_energies_init_kg', &
          routineP = moduleN//':'//routineN
@@ -151,57 +157,63 @@ CONTAINS
       INTEGER                                            :: handle, isubset, natom
       TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(dft_control_type), POINTER                    :: dft_control
+      TYPE(kg_environment_type), POINTER                 :: kg_env
       TYPE(molecule_type), DIMENSION(:), POINTER         :: molecule_set
+      TYPE(neighbor_list_set_p_type), DIMENSION(:), &
+         POINTER                                         :: soo_list
 
       CALL timeset(routineN, handle)
-      NULLIFY (dft_control, para_env)
-      molecule_only = .FALSE.
 
       CALL get_qs_env(qs_env, dft_control=dft_control, para_env=para_env)
-      IF (dft_control%qs_control%do_kg) THEN
+      CPASSERT(dft_control%qs_control%do_kg)
 
-         ! create neighbor lists with molecular blocks
-         molecule_only = .TRUE.
+      kg_env => qs_env%kg_env
 
-         ! get the set of molecules
-         CALL get_qs_env(qs_env=qs_env, molecule_set=molecule_set, natom=natom)
+      ! get the set of molecules
+      CALL get_qs_env(qs_env=qs_env, molecule_set=molecule_set, natom=natom)
+      kg_env%natom = natom
+      ! store set of molecules in kg_env
+      kg_env%molecule_set => molecule_set
+      ! build the (new) full neighborlist
+      CALL kg_build_neighborlist(qs_env, sab_orb=kg_env%sab_orb_full)
 
-         qs_env%kg_env%natom = natom
-
-         ! store set of molecules in kg_env
-         qs_env%kg_env%molecule_set => molecule_set
-
-         ! build the (new) full neighborlist
-         CALL kg_build_neighborlist(qs_env, sab_orb=qs_env%kg_env%sab_orb_full)
-
-         IF (.NOT. ALLOCATED(qs_env%kg_env%atom_to_molecule)) THEN
-            ALLOCATE (qs_env%kg_env%atom_to_molecule(natom))
-
-            ! get the mapping from atoms to molecules
-            CALL molecule_of_atom(molecule_set, atom_to_mol=qs_env%kg_env%atom_to_molecule)
-         END IF
-
-         IF (qs_env%kg_env%tnadd_method == kg_tnadd_embed) THEN
-            ! allocate the subset list
-            IF (.NOT. ASSOCIATED(qs_env%kg_env%subset_of_mol)) ALLOCATE (qs_env%kg_env%subset_of_mol(SIZE(molecule_set)))
-
-            CALL kg_build_subsets(qs_env%kg_env, para_env)
-
-            DO isubset = 1, qs_env%kg_env%nsubsets
-               ! build the (new) molecular neighborlist of the current subset
-               CALL kg_build_neighborlist(qs_env, sab_orb=qs_env%kg_env%subset(isubset)%sab_orb, molecular=.TRUE., &
-                                          subset_of_mol=qs_env%kg_env%subset_of_mol, current_subset=isubset)
-            END DO
-         ELSE IF (qs_env%kg_env%tnadd_method == kg_tnadd_atomic) THEN
-            ! build the A-C list for the nonadditive kinetic energy potential
-            CALL kg_build_neighborlist(qs_env, sac_kin=qs_env%kg_env%sac_kin)
-         ELSE IF (qs_env%kg_env%tnadd_method == kg_tnadd_none) THEN
-            ! nothing to do
-         ELSE
-            CPABORT("KG:TNADD METHOD")
-         END IF
-
+      IF (.NOT. ALLOCATED(kg_env%atom_to_molecule)) THEN
+         ALLOCATE (kg_env%atom_to_molecule(natom))
+         ! get the mapping from atoms to molecules
+         CALL molecule_of_atom(molecule_set, atom_to_mol=kg_env%atom_to_molecule)
       END IF
+
+      SELECT CASE (kg_env%tnadd_method)
+      CASE (kg_tnadd_embed, kg_tnadd_embed_ri)
+         ! allocate the subset list
+         IF (.NOT. ASSOCIATED(kg_env%subset_of_mol)) THEN
+            ALLOCATE (kg_env%subset_of_mol(SIZE(molecule_set)))
+         END IF
+         !
+         CALL kg_build_subsets(kg_env, para_env)
+         !
+         DO isubset = 1, kg_env%nsubsets
+            ! build the (new) molecular neighborlist of the current subset
+            CALL kg_build_neighborlist(qs_env, sab_orb=kg_env%subset(isubset)%sab_orb, molecular=.TRUE., &
+                                       subset_of_mol=kg_env%subset_of_mol, current_subset=isubset)
+         END DO
+      CASE (kg_tnadd_atomic)
+         ! build the A-C list for the nonadditive kinetic energy potential
+         CALL kg_build_neighborlist(qs_env, sac_kin=kg_env%sac_kin)
+      CASE (kg_tnadd_none)
+         ! nothing to do
+      CASE DEFAULT
+         CPABORT("KG:TNADD METHOD")
+      END SELECT
+
+      ! LRI neighborlist
+      IF (kg_env%tnadd_method == kg_tnadd_embed_ri) THEN
+         NULLIFY (soo_list)
+         CALL kg_build_neighborlist(qs_env, sab_orb=soo_list, molecular=.TRUE.)
+         kg_env%lri_env%soo_list => soo_list
+         CALL calculate_lri_integrals(kg_env%lri_env, qs_env)
+      END IF
+
       CALL timestop(handle)
 
    END SUBROUTINE qs_energies_init_kg

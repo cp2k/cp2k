@@ -13,9 +13,12 @@
 MODULE kg_environment_types
    USE dbcsr_api,                       ONLY: dbcsr_deallocate_matrix_set,&
                                               dbcsr_p_type
-   USE input_section_types,             ONLY: section_vals_release,&
-                                              section_vals_type
+   USE input_section_types,             ONLY: section_vals_type
    USE kinds,                           ONLY: dp
+   USE lri_environment_types,           ONLY: lri_density_release,&
+                                              lri_density_type,&
+                                              lri_env_release,&
+                                              lri_environment_type
    USE molecule_types,                  ONLY: molecule_type
    USE qs_dispersion_types,             ONLY: qs_dispersion_release,&
                                               qs_dispersion_type
@@ -108,6 +111,9 @@ MODULE kg_environment_types
       INTEGER                                         :: tnadd_method
       LOGICAL                                         :: energy_correction
       TYPE(energy_correction_type)                    :: ec_env
+      ! LRI
+      TYPE(lri_environment_type), POINTER             :: lri_env
+      TYPE(lri_density_type), POINTER                 :: lri_density
    END TYPE kg_environment_type
 
 CONTAINS
@@ -126,8 +132,6 @@ CONTAINS
       CALL timeset(routineN, handle)
 
       CPASSERT(ASSOCIATED(kg_env))
-
-      CALL section_vals_release(kg_env%xc_section_kg)
 
       IF (ASSOCIATED(kg_env%sab_orb_full)) THEN
          DO iab = 1, SIZE(kg_env%sab_orb_full)
@@ -158,6 +162,14 @@ CONTAINS
       IF (ASSOCIATED(kg_env%subset)) DEALLOCATE (kg_env%subset)
 
       IF (ALLOCATED(kg_env%atom_to_molecule)) DEALLOCATE (kg_env%atom_to_molecule)
+
+      ! LRI
+      IF (ASSOCIATED(kg_env%lri_env)) THEN
+         CALL lri_env_release(kg_env%lri_env)
+      END IF
+      IF (ASSOCIATED(kg_env%lri_density)) THEN
+         CALL lri_density_release(kg_env%lri_density)
+      END IF
 
       ! energy correction
       IF (kg_env%energy_correction) THEN

@@ -648,10 +648,10 @@ CONTAINS
       ! calculate KG correction
       IF (dft_control%qs_control%do_kg .AND. just_energy) THEN
 
+         CPASSERT(.NOT. (gapw .OR. gapw_xc))
          CPASSERT(nimages == 1)
          ksmat => ks_matrix(:, 1)
-         CALL kg_ekin_subset(qs_env, ksmat, gapw, gapw_xc, ekin_mol, &
-                             calculate_forces)
+         CALL kg_ekin_subset(qs_env, ksmat, ekin_mol, calculate_forces)
 
          ! substract kg corr from the total energy
          energy%exc = energy%exc-ekin_mol
@@ -694,10 +694,10 @@ CONTAINS
                                    becke, cdft_control, calculate_forces)
 
          IF (dft_control%qs_control%do_kg) THEN
+            CPASSERT(.NOT. (gapw .OR. gapw_xc))
             CPASSERT(nimages == 1)
             ksmat => ks_matrix(:, 1)
-            CALL kg_ekin_subset(qs_env, ksmat, gapw, gapw_xc, ekin_mol, &
-                                calculate_forces)
+            CALL kg_ekin_subset(qs_env, ksmat, ekin_mol, calculate_forces)
             ! substract kg corr from the total energy
             energy%exc = energy%exc-ekin_mol
             ! virial corrections

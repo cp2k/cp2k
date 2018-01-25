@@ -24,13 +24,23 @@
       PURIFICATION_METHOD TRS4
     &END
     &KG_METHOD
+       &XC
+         &XC_FUNCTIONAL
+           &KE_GGA
+             FUNCTIONAL LLP
+           &END
+         &END
+         &XC_GRID
+           XC_DERIV SPLINE2
+         &END
+       &END XC
        &ENERGY_CORRECTION
-            &XC
-      &XC_FUNCTIONAL
-        &PADE
-        &END
-      &END
-    &END XC
+          &XC
+            &XC_FUNCTIONAL
+              &PADE
+              &END
+            &END
+          &END XC
        &END ENERGY_CORRECTION
     &END KG_METHOD
     &SCF
@@ -40,9 +50,6 @@
     &XC
       &XC_FUNCTIONAL
         &PADE
-        &END
-        &KE_GGA
-          FUNCTIONAL LLP
         &END
       &END
       &XC_GRID
