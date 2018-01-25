@@ -615,6 +615,17 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
+      CALL keyword_create(keyword, "RECURSIVE_DIAGONALIZATION", &
+                          description="Perform block diagonalization recursively until only two blocks remain. "// &
+                          "For example, if the elements of a 8x8 matrix are first collected into 4 four blocks "// &
+                          "(using keyword BLOCK), this keyword will block diagonalize the resulting 4x4 matrix "// &
+                          "yielding a 2x2 matrix. In this example, the new blocks would be assembled from the "// &
+                          " first and last 2 blocks of the previous matrix.", &
+                          usage="RECURSIVE_DIAGONALIZATION TRUE", type_of_var=logical_t, &
+                          default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
    END SUBROUTINE create_mixed_cdft_block_section
 
 END MODULE input_cp2k_mixed
