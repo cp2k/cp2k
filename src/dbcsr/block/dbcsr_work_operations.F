@@ -1549,7 +1549,7 @@ CONTAINS
 !$OMP     END MASTER
       !
 !$OMP     BARRIER
-      IF (sort_data .AND. wm%datasize_after_filtering.GT.0) THEN
+      IF (sort_data .AND. wm%datasize_after_filtering .GE. 0) THEN
          wm_datasize = wm%datasize_after_filtering
       ELSE
          wm_datasize = wm%datasize
