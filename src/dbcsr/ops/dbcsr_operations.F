@@ -27,12 +27,13 @@ MODULE dbcsr_operations
                                               dbcsr_block_real_neg,&
                                               dbcsr_block_scale,&
                                               dbcsr_data_clear
+   USE dbcsr_config,                    ONLY: default_resize_factor
    USE dbcsr_data_methods,              ONLY: &
         dbcsr_data_clear_pointer, dbcsr_data_ensure_size, dbcsr_data_get_size, &
         dbcsr_data_get_size_referenced, dbcsr_data_get_type, dbcsr_data_init, dbcsr_data_new, &
         dbcsr_data_release, dbcsr_data_set_pointer, dbcsr_get_data, dbcsr_scalar, &
         dbcsr_scalar_are_equal, dbcsr_scalar_fill_all, dbcsr_scalar_get_type, dbcsr_scalar_one, &
-        dbcsr_scalar_zero, dbcsr_type_1d_to_2d
+        dbcsr_scalar_zero, dbcsr_type_1d_to_2d, dbcsr_get_data_p_d, dbcsr_get_data_p_s
    USE dbcsr_data_operations,           ONLY: dbcsr_data_convert,&
                                               dbcsr_data_copyall,&
                                               dbcsr_switch_data_area
@@ -44,7 +45,8 @@ MODULE dbcsr_operations
    USE dbcsr_dist_operations,           ONLY: checker_square_proc,&
                                               checker_tr,&
                                               dbcsr_find_column,&
-                                              dbcsr_get_stored_coordinates
+                                              dbcsr_get_stored_coordinates, &
+                                              dbcsr_get_stored_block_info
    USE dbcsr_index_operations,          ONLY: dbcsr_index_checksum,&
                                               dbcsr_index_compact,&
                                               dbcsr_repoint_index
@@ -57,7 +59,8 @@ MODULE dbcsr_operations
         dbcsr_get_index_memory_type, dbcsr_get_matrix_type, dbcsr_get_num_blocks, &
         dbcsr_get_replication_type, dbcsr_has_symmetry, dbcsr_max_col_size, dbcsr_max_row_size, &
         dbcsr_nblkcols_total, dbcsr_nblkrows_total, dbcsr_nfullcols_total, dbcsr_nfullrows_total, &
-        dbcsr_row_block_offsets, dbcsr_valid_index
+        dbcsr_row_block_offsets, dbcsr_valid_index, dbcsr_get_nze, dbcsr_nfullcols_local, &
+        dbcsr_nfullrows_local, dbcsr_get_num_blocks
    USE dbcsr_mp_methods,                ONLY: dbcsr_mp_group,&
                                               dbcsr_mp_mynode,&
                                               dbcsr_mp_mypcol,&
@@ -80,8 +83,10 @@ MODULE dbcsr_operations
    USE dbcsr_util,                      ONLY: find_block_of_element
    USE dbcsr_work_operations,           ONLY: dbcsr_create,&
                                               dbcsr_finalize,&
-                                              dbcsr_work_create
+                                              dbcsr_work_create,&
+                                              add_work_coordinate
    USE kinds,                           ONLY: dp,&
+                                              int_4,&
                                               int_8,&
                                               real_4,&
                                               real_8,&
@@ -177,8 +182,6 @@ MODULE dbcsr_operations
 
    LOGICAL, PARAMETER :: debug_mod = .FALSE.
    LOGICAL, PARAMETER :: careful_mod = .FALSE.
-
-#define temp_transpose(v, r, c) RESHAPE(TRANSPOSE(RESHAPE(v,(/r,c/))),(/r*c/))
 
    INTEGER, PARAMETER, PRIVATE :: rpslot_owner = 1
    INTEGER, PARAMETER, PRIVATE :: rpslot_addblks = 2
@@ -536,12 +539,10 @@ CONTAINS
       CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_add_anytype', &
          routineP = moduleN//':'//routineN
 
-      INTEGER                                            :: blk, col, data_type_a, data_type_b, &
-                                                            handle, row, size_a, size_b
-      INTEGER(KIND=int_8)                                :: my_flop
-      INTEGER, DIMENSION(2)                              :: lb_row_col
-      LOGICAL                                            :: do_scale, tr
-      TYPE(dbcsr_data_obj)                               :: data_block
+      INTEGER                                            :: data_type_a, data_type_b, &
+                                                            handle, size_work, iw
+      INTEGER(KIND=int_8)                                :: my_flop, local_matrix_size
+      LOGICAL                                            :: do_scale
       TYPE(dbcsr_iterator)                               :: iter
       TYPE(dbcsr_scalar_type)                            :: my_beta_scalar
 
@@ -565,63 +566,61 @@ CONTAINS
       IF (PRESENT(beta_scalar)) my_beta_scalar = beta_scalar
       !
       ! let's go
-      IF (dbcsr_nblkrows_total(matrix_a) .NE. dbcsr_nblkrows_total(matrix_b)) &
+      IF ((dbcsr_nblkrows_total(matrix_a) .NE. dbcsr_nblkrows_total(matrix_b)) .OR. &
+          (dbcsr_nblkcols_total(matrix_a) .NE. dbcsr_nblkcols_total(matrix_b)) .OR. &
+          (data_type_a .NE. data_type_b)) &
          CPABORT("matrices not consistent")
 
-      do_scale = dbcsr_scalar_are_equal( &
-                 my_beta_scalar, dbcsr_scalar_one(data_type_b))
+      IF (data_type_a .NE. my_beta_scalar%data_type) &
+         CPABORT("beta type parameter not consistent with matrices type")
+
+      do_scale = .NOT. dbcsr_scalar_are_equal(my_beta_scalar, dbcsr_scalar_one(data_type_b))
 
       IF (PRESENT(alpha_scalar)) THEN
          CALL dbcsr_scale(matrix_a, alpha_scalar=alpha_scalar)
       ENDIF
 
-      ! Pre-size work arrays of matrix_a to avoid continuous reallocation.
-      size_a = dbcsr_data_get_size_referenced(matrix_a%data_area)
-      size_b = dbcsr_data_get_size_referenced(matrix_b%data_area)
-      IF (.NOT. dbcsr_scalar_are_equal(my_beta_scalar, &
-                                       dbcsr_scalar_zero(data_type_b))) THEN
+      IF ((.NOT. dbcsr_scalar_are_equal(my_beta_scalar, &
+                                        dbcsr_scalar_zero(data_type_b))) .AND. &
+           dbcsr_get_num_blocks(matrix_b) .GT. 0) THEN
+
+         ! Pre-size work arrays of matrix_a to avoid continuous reallocation.
+         ! Overestimate for summetric matrix and multiple threads!
+         local_matrix_size = dbcsr_nfullrows_local(matrix_a)* &
+              dbcsr_nfullcols_local(matrix_a)
+         size_work = MAX(0, INT(MIN(local_matrix_size-INT(dbcsr_get_nze(matrix_a), KIND=int_8), &
+                                    INT(dbcsr_get_nze(matrix_b), KIND=int_8)), KIND=int_4))
          my_flop = 0
 !$OMP        PARALLEL DEFAULT (NONE) &
-!$OMP                 PRIVATE (iter, data_block) &
-!$OMP                 PRIVATE (row, col, tr, blk, lb_row_col) &
-!$OMP                 SHARED (matrix_a, matrix_b, data_type_b, size_b, size_a) &
+!$OMP                 PRIVATE (iter, iw) &
+!$OMP                 SHARED (matrix_a, matrix_b, data_type_b, size_work) &
 !$OMP                 SHARED (do_scale, my_beta_scalar) &
 !$OMP                 REDUCTION (+ : my_flop)
-         lb_row_col(:) = 0
-         IF (size_b .GT. size_a .AND. matrix_b%nblks .GT. matrix_a%nblks) THEN
-            CALL dbcsr_work_create(matrix_a, &
-                                   nblks_guess=matrix_b%nblks-matrix_a%nblks, &
-                                   sizedata_guess=size_b-size_a, &
-                                   work_mutable=.FALSE.)
-         ELSE
-            CALL dbcsr_work_create(matrix_a, &
-                                   work_mutable=.FALSE.)
-         ENDIF
+         CALL dbcsr_work_create(matrix_a, &
+                                nblks_guess=matrix_b%nblks, &
+                                sizedata_guess=size_work, &
+                                work_mutable=.FALSE.)
 !$OMP        BARRIER
-         CALL dbcsr_data_init(data_block)
-         CALL dbcsr_data_new(data_block, data_type_b)
+         iw = 1
+!$       iw = omp_get_thread_num () + 1
          CALL dbcsr_iterator_start(iter, matrix_b, &
                                    shared=.TRUE., read_only=.TRUE., contiguous_pointers=.FALSE., &
                                    dynamic=.TRUE., dynamic_byrows=.TRUE.)
-
-         DO WHILE (dbcsr_iterator_blocks_left(iter))
-
-            CALL dbcsr_iterator_next_block(iter, row, col, data_block, tr, blk)
-
-            IF (do_scale) THEN
-               CALL dbcsr_put_block(matrix_a, row, col, data_block, lb_row_col, tr, &
-                                    summation=.TRUE., flop=my_flop)
-            ELSE
-               CALL dbcsr_put_block(matrix_a, row, col, data_block, lb_row_col, tr, &
-                                    summation=.TRUE., flop=my_flop, scale=my_beta_scalar)
-            ENDIF
-
-         ENDDO
-
+         SELECT CASE (data_type_b)
+         CASE (dbcsr_type_real_4)
+            CALL dbcsr_add_anytype_s(matrix_a, matrix_b, iter, iw, do_scale, my_beta_scalar, my_flop)
+         CASE (dbcsr_type_real_8)
+            CALL dbcsr_add_anytype_d(matrix_a, matrix_b, iter, iw, do_scale, my_beta_scalar, my_flop)
+         CASE (dbcsr_type_complex_4)
+            CALL dbcsr_add_anytype_c(matrix_a, matrix_b, iter, iw, do_scale, my_beta_scalar, my_flop)
+         CASE (dbcsr_type_complex_8)
+            CALL dbcsr_add_anytype_z(matrix_a, matrix_b, iter, iw, do_scale, my_beta_scalar, my_flop)
+         CASE default
+            CPABORT("Invalid data type")
+         END SELECT
          CALL dbcsr_iterator_stop(iter)
+
          CALL dbcsr_finalize(matrix_a)
-         CALL dbcsr_data_clear_pointer(data_block)
-         CALL dbcsr_data_release(data_block)
 !$OMP        END PARALLEL
          IF (PRESENT(flop)) flop = flop+my_flop
       ENDIF
@@ -665,16 +664,6 @@ CONTAINS
          CALL dbcsr_add_anytype(matrix_a, matrix_b, &
                                 alpha_scalar=dbcsr_scalar(CMPLX(alpha_scalar, 0, real_8)), &
                                 beta_scalar=dbcsr_scalar(CMPLX(beta_scalar, 0, real_8)))
-      ELSEIF (dbcsr_get_data_type(matrix_a) .EQ. dbcsr_type_real_8 .AND. &
-              dbcsr_get_data_type(matrix_b) .EQ. dbcsr_type_real_4) THEN
-         CALL dbcsr_add_anytype(matrix_a, matrix_b, &
-                                alpha_scalar=dbcsr_scalar(alpha_scalar), &
-                                beta_scalar=dbcsr_scalar(REAL(beta_scalar, real_4)))
-      ELSEIF (dbcsr_get_data_type(matrix_a) .EQ. dbcsr_type_real_4 .AND. &
-              dbcsr_get_data_type(matrix_b) .EQ. dbcsr_type_real_8) THEN
-         CALL dbcsr_add_anytype(matrix_a, matrix_b, &
-                                alpha_scalar=dbcsr_scalar(REAL(alpha_scalar, real_4)), &
-                                beta_scalar=dbcsr_scalar(beta_scalar))
       ELSE
          CPABORT("Invalid combination of data type, NYI")
       ENDIF

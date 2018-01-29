@@ -99,9 +99,9 @@
              ! Copy the block
              IF (PRESENT(scale_value)) THEN
                 send_data_area%d%${base1}$_${prec1}$(sd_pos:myt_sdp(dst_p)-1) = &
-                     data_area(bp:bp+nze-1)*scale_value%${base1}$_${prec1}$;
+                     data_area(bp:bp+nze-1)*scale_value%${base1}$_${prec1}$
              ELSE
-                send_data_area%d%${base1}$_${prec1}$(sd_pos:myt_sdp(dst_p)-1) = data_area(bp:bp+nze-1);
+                send_data_area%d%${base1}$_${prec1}$(sd_pos:myt_sdp(dst_p)-1) = data_area(bp:bp+nze-1)
              ENDIF
           END IF
 

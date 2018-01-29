@@ -321,8 +321,7 @@
                                                 row_size, blk_p,&
                                                 stored_row, stored_col,&
                                                 iw, nwms
-    LOGICAL                                  :: found, tr, do_sum, tr_diff,&
-                                                sym_tr
+    LOGICAL                                  :: found, tr, do_sum, tr_diff
     ${type1}$, DIMENSION(:), POINTER           :: block_1d
     INTEGER(KIND=int_8)                      :: my_flop
 
@@ -342,8 +341,7 @@
     col_size = dbcsr_blk_column_size(matrix, col)
     IF (tr) CALL swap (row_size, col_size)
 
-    stored_row = row ; stored_col = col; sym_tr = .FALSE.
-    CALL dbcsr_get_stored_coordinates (matrix, stored_row, stored_col)
+    stored_row = row ; stored_col = col
     nze = row_size*col_size
     !
     IF (debug_mod .AND. SIZE(block) < nze) &
@@ -390,7 +388,7 @@
        !     cp_caller_error, routineN, "Work matrices not prepared")
        IF (.NOT.ASSOCIATED (matrix%wms)) THEN
           CALL dbcsr_work_create (matrix, nblks_guess=1,&
-               sizedata_guess=SIZE(block))
+               sizedata_guess=nze)
        ENDIF
        nwms = SIZE(matrix%wms)
        iw = 1
@@ -402,14 +400,14 @@
           IF (tr) blk_p = -blk_p
           CALL add_work_coordinate (matrix%wms(iw), row, col, blk_p)
           CALL dbcsr_data_ensure_size (matrix%wms(iw)%data_area,&
-               matrix%wms(iw)%datasize+SIZE(block),&
+               matrix%wms(iw)%datasize+nze,&
                factor=default_resize_factor)
           IF (PRESENT (scale)) THEN
              CALL dbcsr_data_set (matrix%wms(iw)%data_area, ABS(blk_p),&
-                  data_size=SIZE(block), src=scale*block, source_lb=1)
+                  data_size=nze, src=scale*block, source_lb=1)
           ELSE
              CALL dbcsr_data_set (matrix%wms(iw)%data_area, ABS(blk_p),&
-                  data_size=SIZE(block), src=block, source_lb=1)
+                  data_size=nze, src=block, source_lb=1)
           ENDIF
        ELSE
           ALLOCATE (data_block%p (row_size, col_size))
@@ -452,8 +450,7 @@
           ENDIF
        ENDIF
        IF (.NOT. found) THEN
-          matrix%wms(iw)%datasize = matrix%wms(iw)%datasize + SIZE (block)
-       ELSE
+          matrix%wms(iw)%datasize = matrix%wms(iw)%datasize + nze
        ENDIF
 !$OMP CRITICAL (dbcsr_put_block_critical)
        matrix%valid = .FALSE.

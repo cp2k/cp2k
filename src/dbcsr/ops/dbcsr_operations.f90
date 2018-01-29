@@ -433,4 +433,73 @@
       CALL dbcsr_finalize(matrix)
       CALL timestop(handle)
    END SUBROUTINE dbcsr_add_on_diag_${nametype1}$
+
+! **************************************************************************************************
+!> \brief Low level function to sum two matrices (matrix_a = matrix_a + beta*matrix_b
+!> \param[inout] matrix_a       DBCSR matrix
+!> \param[in]    matrix_b       DBCSR matrix
+!> \param[in]    beta scalar
+! **************************************************************************************************
+
+   SUBROUTINE dbcsr_add_anytype_${nametype1}$(matrix_a, matrix_b, iter, iw, do_scale, &
+                                              my_beta_scalar, my_flop)
+     TYPE(dbcsr_type), INTENT(INOUT)                         :: matrix_a
+     TYPE(dbcsr_type), INTENT(IN)                            :: matrix_b
+     TYPE(dbcsr_iterator), INTENT(INOUT)                     :: iter
+     INTEGER, INTENT(IN)                                     :: iw
+     LOGICAL, INTENT(IN)                                     :: do_scale
+     TYPE(dbcsr_scalar_type), INTENT(IN)                     :: my_beta_scalar
+     INTEGER(KIND=int_8), INTENT(INOUT)                      :: my_flop
+
+     INTEGER                                                 :: row, col, row_size, col_size, &
+                                                                nze, blk, lb_a, lb_b
+     INTEGER, DIMENSION(2)                                   :: lb_row_blk
+     LOGICAL                                                 :: found, tr
+
+     lb_row_blk(:) = 0
+     DO WHILE (dbcsr_iterator_blocks_left(iter))
+        CALL dbcsr_iterator_next_block(iter, row, col, blk, tr, lb_b, &
+                                       row_size, col_size)
+        nze = row_size*col_size
+        IF (nze .LE. 0) CYCLE
+        IF (lb_row_blk(1) .LT. row) THEN
+           lb_row_blk(1) = row
+           lb_row_blk(2) = matrix_a%row_p(row)+1
+        ENDIF
+        lb_b = ABS(lb_b)
+        CALL dbcsr_find_column(col, lb_row_blk(2), matrix_a%row_p(row+1), &
+             matrix_a%col_i, matrix_a%blk_p, blk, found)
+        lb_row_blk(2) = blk+1
+        IF (found) THEN
+           ! let's sum the block
+           lb_a = ABS (matrix_a%blk_p(blk))
+           IF (do_scale) THEN
+              CALL ${nametype1}$axpy (nze, my_beta_scalar%${base1}$_${prec1}$,  &
+                          matrix_b%data_area%d%${base1}$_${prec1}$(lb_b:lb_b+nze-1), 1, &
+                          matrix_a%data_area%d%${base1}$_${prec1}$(lb_a:lb_a+nze-1), 1)
+           ELSE
+              matrix_a%data_area%d%${base1}$_${prec1}$(lb_a:lb_a+nze-1) = &
+                   matrix_a%data_area%d%${base1}$_${prec1}$(lb_a:lb_a+nze-1) + &
+                   matrix_b%data_area%d%${base1}$_${prec1}$(lb_b:lb_b+nze-1)
+           ENDIF
+           my_flop = my_flop + nze * 2
+        ELSE
+           ! let's sum the block in the wms
+           lb_a = matrix_a%wms(iw)%datasize + 1
+           matrix_a%wms(iw)%datasize = matrix_a%wms(iw)%datasize + nze
+           IF (do_scale) THEN
+              matrix_a%wms(iw)%data_area%d%${base1}$_${prec1}$(lb_a:matrix_a%wms(iw)%datasize) = &
+                   my_beta_scalar%${base1}$_${prec1}$*matrix_b%data_area%d%${base1}$_${prec1}$(lb_b:lb_b+nze-1)
+           ELSE
+              matrix_a%wms(iw)%data_area%d%${base1}$_${prec1}$(lb_a:matrix_a%wms(iw)%datasize) = &
+                   matrix_b%data_area%d%${base1}$_${prec1}$(lb_b:lb_b+nze-1)
+           ENDIF
+           IF (tr) lb_a = -lb_a
+           matrix_a%wms(iw)%lastblk = matrix_a%wms(iw)%lastblk+1
+           matrix_a%wms(iw)%row_i(matrix_a%wms(iw)%lastblk) = row
+           matrix_a%wms(iw)%col_i(matrix_a%wms(iw)%lastblk) = col
+           matrix_a%wms(iw)%blk_p(matrix_a%wms(iw)%lastblk) = lb_a
+        ENDIF
+     ENDDO
+   END SUBROUTINE dbcsr_add_anytype_${nametype1}$
 #:endfor

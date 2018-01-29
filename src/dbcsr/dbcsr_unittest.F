@@ -94,7 +94,7 @@ PROGRAM dbcsr_unittest
                         bs_m=(/1, 2/), bs_n=(/1, 2, 1, 3/), &
                         limits=(/1, 50, 1, 25/))
 
-   CALL dbcsr_test_adds("add_1", &
+   CALL dbcsr_test_adds("add_2", &
                         group, mp_env, npdims, io_unit, matrix_sizes=(/50, 50/), &
                         sparsities=(/0.4_dp, 0.5_dp/), retain_sparsity=.TRUE., &
                         alpha=CMPLX(3.0_dp, 2.0_dp, dp), beta=CMPLX(4.0_dp, 0.5_dp, dp), &
