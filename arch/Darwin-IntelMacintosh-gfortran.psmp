@@ -1,12 +1,17 @@
 # With GCC 4.9 or later, for gcc and gfortran
 # With a recent OpenMPI and scalapack installed
+# libxc is installed in LIBXC_INCLUDE_DIR / LIBXC_LIB_DIR
 CC       = gcc
 CPP      = 
 FC       = mpif90
 LD       = mpif90
 AR       = ar -r
 RANLIB   = ranlib
-DFLAGS   = -fopenmp -D__MPI_VERSION=3 -D__parallel -D__SCALAPACK -D__NO_STATM_ACCESS -D__ACCELERATE
-FCFLAGS  = -O2 -ffast-math -funroll-loops -ftree-vectorize -ffree-form $(DFLAGS)
+DFLAGS   = -D__MPI_VERSION=3 -D__parallel -D__SCALAPACK \
+           -D__NO_STATM_ACCESS -D__ACCELERATE -D__LIBXC
+FCFLAGS  = -I $(LIBXC_INCLUDE_DIR) -fopenmp -O2 -ffast-math \
+           -funroll-loops -ftree-vectorize -ffree-form $(DFLAGS)
 LDFLAGS  = $(FCFLAGS) 
-LIBS     = -framework Accelerate -lscalapack
+LIBS     = -framework Accelerate -lscalapack \
+           -L$(LIBXC_LIB_DIR) \
+           -lxcf90 -lxc
