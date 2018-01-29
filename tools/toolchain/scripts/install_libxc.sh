@@ -50,7 +50,7 @@ case "$with_libxc" in
         ;;
     __SYSTEM__)
         echo "==================== Finding LIBXC from system paths ===================="
-        check_lib -lxcf90 "libxc"
+        check_lib -lxcf03 "libxc"
         check_lib -lxc "libxc"
         add_include_from_paths LIBXC_CFLAGS "xc.h" $INCLUDE_PATHS
         add_lib_from_paths LIBXC_LDFLAGS "libxc.*" $LIB_PATHS
@@ -67,7 +67,7 @@ case "$with_libxc" in
         ;;
 esac
 if [ "$with_libxc" != "__DONTUSE__" ] ; then
-    LIBXC_LIBS="-lxcf90 -lxc"
+    LIBXC_LIBS="-lxcf03 -lxc"
     if [ "$with_libxc" != "__SYSTEM__" ] ; then
         cat <<EOF > "${BUILDDIR}/setup_libxc"
 prepend_path LD_LIBRARY_PATH "$pkg_install_dir/lib"
