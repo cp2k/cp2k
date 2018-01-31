@@ -18,26 +18,30 @@ MODULE xas_tdp_methods
         set_sto_basis_set, srules, sto_basis_set_type
    USE cell_types,                      ONLY: cell_type,&
                                               pbc
+   USE constants_operator,              ONLY: operator_coulomb
    USE cp_blacs_env,                    ONLY: cp_blacs_env_type
    USE cp_control_types,                ONLY: dft_control_type
    USE cp_dbcsr_operations,             ONLY: cp_dbcsr_sm_fm_multiply
-   USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
-                                              cp_fm_struct_release,&
-                                              cp_fm_struct_type
-   USE cp_fm_types,                     ONLY: &
-        cp_fm_create, cp_fm_get_info, cp_fm_get_submatrix, cp_fm_p_type, cp_fm_release, &
-        cp_fm_set_all, cp_fm_set_submatrix, cp_fm_to_fm_submat, cp_fm_type
+   USE cp_fm_basic_linalg,              ONLY: cp_fm_invert
+   USE cp_fm_struct,                    ONLY: cp_fm_struct_type, cp_fm_struct_create,&
+                                              cp_fm_struct_release
+   USE cp_fm_types,                     ONLY: cp_fm_type, cp_fm_get_submatrix, cp_fm_create,&
+                                              cp_fm_release, cp_fm_set_all, cp_fm_p_type,&
+                                              cp_fm_get_info, cp_fm_to_fm_submat, & 
+                                              cp_fm_set_submatrix
    USE cp_gemm_interface,               ONLY: cp_gemm
    USE cp_log_handling,                 ONLY: cp_get_default_logger,&
                                               cp_logger_type
    USE cp_output_handling,              ONLY: cp_print_key_unit_nr,&
                                               debug_print_level
    USE cp_para_types,                   ONLY: cp_para_env_type
-   USE dbcsr_api,                       ONLY: dbcsr_p_type,&
-                                              dbcsr_release,&
-                                              dbcsr_type
-   USE input_constants,                 ONLY: do_loc_none,&
-                                              op_loc_berry,&
+   USE cp_output_handling,              ONLY: cp_print_key_unit_nr, debug_print_level
+   USE dbcsr_api,                       ONLY: dbcsr_p_type, dbcsr_type, dbcsr_release
+   USE generic_os_integrals,            ONLY: int_operators_r12_ab_os
+   USE input_constants,                 ONLY: xas_tdp_by_index,&
+                                              xas_tdp_by_kind,&
+                                              xas_not_excited,&
+                                              do_loc_none,&
                                               xas_1s_type,&
                                               xas_2p_type,&
                                               xas_2s_type,&
@@ -48,6 +52,7 @@ MODULE xas_tdp_methods
                                               section_vals_type,&
                                               section_vals_val_set
    USE kinds,                           ONLY: dp
+   USE memory_utilities,                ONLY: reallocate
    USE particle_methods,                ONLY: get_particle_set
    USE particle_types,                  ONLY: particle_type
    USE periodic_table,                  ONLY: ptable
@@ -73,9 +78,9 @@ MODULE xas_tdp_methods
         donor_state_type, read_xas_tdp_control, set_donor_state, set_xas_tdp_env, &
         xas_tdp_control_create, xas_tdp_control_type, xas_tdp_env_create, xas_tdp_env_release, &
         xas_tdp_env_type
-   USE xas_tdp_utils,                   ONLY: compute_oscillator_strength,&
-                                              setup_xas_tdp_geeig_prob,&
-                                              solve_xas_tdp_geeig_prob
+   USE xas_tdp_utils,                   ONLY: compute_oscillator_strength, &
+                                              setup_xas_tdp_full_prob, &
+                                              solve_xas_tdp_full_prob
 #include "./base/base_uses.f90"
 
    IMPLICIT NONE
@@ -101,6 +106,11 @@ CONTAINS
 
       CHARACTER(len=*), PARAMETER :: routineN = 'xas_tdp', routineP = moduleN//':'//routineN
 
+      INTEGER                                            :: handle, ikind, iat, istate, tmp_index,&
+                                                            current_state_index, output_unit, i
+      TYPE(xas_tdp_env_type), POINTER                    :: xas_tdp_env
+      TYPE(xas_tdp_control_type), POINTER                :: xas_tdp_control
+      TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       CHARACTER(len=2)                                   :: symbol_of_kind
       CHARACTER(len=2), DIMENSION(3)                     :: state_type_char
       INTEGER                                            :: current_state_index, handle, iat, ikind, &
@@ -182,6 +192,9 @@ CONTAINS
       CALL write_mos_to_ex_atoms_association(xas_tdp_env, qs_env, output_unit)
 
 !  Loop over donor states for calculation
+!  TODO: I suspect that for parallel run with mpirun, all the processors do not go at the same speed
+!        causing some pointer to be dealloacted before they are called by the other processors
+!        Get bad pointer memory leak
 
       CALL get_qs_env(qs_env=qs_env, atomic_kind_set=atomic_kind_set)
       current_state_index = 1
@@ -227,25 +240,35 @@ CONTAINS
 
                      IF (.NOT. xas_tdp_control%check_donor_states) THEN
 !                       Do main calculations here
-                        PRINT *, "Should perform calculations"
 
-!                       Testing
-                        ALLOCATE (matrix_tdp)
-                        ALLOCATE (matrix_lhs)
-                        CALL setup_xas_tdp_geeig_prob(matrix_tdp, matrix_lhs, current_state, &
-                                                      qs_env, xas_tdp_control)
-                        CALL solve_xas_tdp_geeig_prob(matrix_tdp, matrix_lhs, current_state, &
-                                                      qs_env, xas_tdp_control)
-                        CALL compute_oscillator_strength(current_state, qs_env, xas_tdp_control)
+                        IF (xas_tdp_control%full_diag) THEN
+                           ALLOCATE(matrix_tdp)
+                           ALLOCATE(matrix_lhs)
+                           CALL setup_xas_tdp_full_prob(matrix_tdp, matrix_lhs, current_state, &
+                                                        qs_env, xas_tdp_control)
+                           CALL solve_xas_tdp_full_prob(matrix_tdp, matrix_lhs, current_state, &
+                                                        qs_env, xas_tdp_control)
+                           CALL compute_oscillator_strength(current_state, qs_env, xas_tdp_control)
+                           
+                           IF (output_unit > 0 ) THEN
+                              i=0
+                              PRINT*, "evals, oscillator_strength"
+                              DO i = 1,SIZE(current_state%lr_evals)
+                                 PRINT*, current_state%lr_evals(i), "   ,    ", current_state%osc_str(i)
+                              END DO
+                           END IF
 
-                        PRINT *, "evals: "
-                        PRINT *, current_state%lr_evals
+                           CALL dbcsr_release(matrix_tdp)
+                           CALL dbcsr_release(matrix_lhs)
+                           DEALLOCATE(matrix_tdp)
+                           DEALLOCATE(matrix_lhs)
+                        ELSE IF (.NOT. xas_tdp_control%full_diag) THEN
+                           
+                           CPABORT("Iterative solver not implemented yet")
 
-                        CALL dbcsr_release(matrix_tdp)
-                        CALL dbcsr_release(matrix_lhs)
-                        DEALLOCATE (matrix_tdp)
-                        DEALLOCATE (matrix_lhs)
-                     END IF
+                        END IF !full_diag
+
+                     END IF !check donor_states
 
                      current_state_index = current_state_index+1
                      NULLIFY (current_state)
@@ -284,19 +307,30 @@ CONTAINS
 
       CHARACTER(len=*), PARAMETER :: routineN = 'xas_tdp_init', routineP = moduleN//':'//routineN
 
-      CHARACTER(len=2)                                   :: symbol
-      INTEGER                                            :: homo, i, j, k, n_donor_states, n_kinds, &
-                                                            nat_of_kind, natom, nex_atoms, &
-                                                            nex_kinds, nmatch, nspins
+      TYPE(section_vals_type), POINTER                   :: dft_section, xas_tdp_section,&
+                                                            loc_section
+      TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: at_kind_set
+      INTEGER                                            :: nex_atoms, n_kinds, i, nat_of_kind,&
+                                                            j, nex_kinds, k, n_donor_states,&
+                                                            nspins, homo, natom, nmatch, kind_ind, &
+                                                            nsgf
       INTEGER, DIMENSION(2)                              :: n_mo, n_moloc
       INTEGER, DIMENSION(:), POINTER                     :: ind_of_kind
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: at_kind_set
       TYPE(mo_set_p_type), DIMENSION(:), POINTER         :: mos
-      TYPE(qs_loc_env_new_type), POINTER                 :: qs_loc_env
-      TYPE(section_vals_type), POINTER                   :: dft_section, loc_section, xas_tdp_section
+      TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
+      TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
+      TYPE(gto_basis_set_type), POINTER                  :: ex_kind_ri_basis
+      REAL(dp), DIMENSION(3)                             :: rab
+      REAL(dp), DIMENSION(:,:), POINTER                  :: work_array
+      TYPE(cp_fm_struct_type), POINTER                   :: fm_struct
+      TYPE(cp_fm_type), POINTER                          :: work_fm
+      TYPE(cp_para_env_type), POINTER                    :: para_env
+      TYPE(cp_blacs_env_type), POINTER                   :: blacs_env
 
-      NULLIFY (dft_section, xas_tdp_section, at_kind_set, ind_of_kind)
-      NULLIFY (qs_loc_env, loc_section, mos)
+      NULLIFY(dft_section, xas_tdp_section, at_kind_set, ind_of_kind, work_array, para_env, blacs_env)
+      NULLIFY(qs_loc_env, loc_section, mos, qs_kind_set, particle_set, ex_kind_ri_basis, fm_struct)
+      NULLIFY(work_fm)
 
 !  XAS TDP control type initialization
       dft_section => section_vals_get_subs_vals(qs_env%input, "DFT")
@@ -313,7 +347,7 @@ CONTAINS
 !  Retrieving the excited atoms indices and correspondig state types
       IF (xas_tdp_control%define_excited == xas_tdp_by_index) THEN
 
-!        simply copy from xas_tdp_control
+!        simply copy indices from xas_tdp_control
          nex_atoms = SIZE(xas_tdp_control%list_ex_atoms)
          CALL set_xas_tdp_env(xas_tdp_env, nex_atoms=nex_atoms)
          ALLOCATE (xas_tdp_env%ex_atom_indices(nex_atoms))
@@ -327,6 +361,23 @@ CONTAINS
             CPABORT("Invalid index for the ATOM_LIST keyword.")
          END IF
 
+!        Check atom kinds and fill corresponding array
+         ALLOCATE(xas_tdp_env%ex_kind_indices(nex_atoms))
+         xas_tdp_env%ex_kind_indices = 0
+         k = 0
+         CALL get_qs_env(qs_env, particle_set=particle_set)
+         DO i =1,nex_atoms
+            CALL get_atomic_kind(particle_set(i)%atomic_kind, kind_number=j)
+            IF (ALL(ABS(xas_tdp_env%ex_kind_indices-j) .NE. 0)) THEN
+               k = k +1
+               xas_tdp_env%ex_kind_indices(k) = j
+            END IF
+         END DO
+         nex_kinds = k
+         CALL set_xas_tdp_env(xas_tdp_env, nex_kinds=nex_kinds)
+         CALL reallocate(xas_tdp_env%ex_kind_indices, 1 , k)
+         
+
       ELSE IF (xas_tdp_control%define_excited == xas_tdp_by_kind) THEN
 
 !        need to find out which atom of which kind is excited
@@ -334,15 +385,22 @@ CONTAINS
          n_kinds = SIZE(at_kind_set)
          nex_atoms = 0
 
-         DO i = 1, n_kinds
-            CALL get_atomic_kind(atomic_kind=at_kind_set(i), element_symbol=symbol, &
-                                 natom=nat_of_kind)
-            IF (ANY(xas_tdp_control%list_ex_kinds == symbol)) nex_atoms = nex_atoms+nat_of_kind
+         nex_kinds = SIZE(xas_tdp_control%list_ex_kinds)
+         ALLOCATE(xas_tdp_env%ex_kind_indices(nex_kinds))
+         k = 0
+
+         DO i = 1,n_kinds
+            CALL get_atomic_kind(atomic_kind=at_kind_set(i), element_symbol=symbol,&
+                                 natom=nat_of_kind, kind_number=kind_ind)
+            IF (ANY(xas_tdp_control%list_ex_kinds == symbol)) THEN
+               nex_atoms = nex_atoms + nat_of_kind
+               k=k+1
+               xas_tdp_env%ex_kind_indices(k) = kind_ind
+            END IF
          END DO
 
-         ALLOCATE (xas_tdp_env%ex_atom_indices(nex_atoms))
-         ALLOCATE (xas_tdp_env%state_types(SIZE(xas_tdp_control%state_types, 1), nex_atoms))
-         nex_kinds = SIZE(xas_tdp_control%list_ex_kinds)
+         ALLOCATE(xas_tdp_env%ex_atom_indices(nex_atoms))
+         ALLOCATE(xas_tdp_env%state_types(SIZE(xas_tdp_control%state_types,1),nex_atoms))
          nex_atoms = 0
          nmatch = 0
 
@@ -362,7 +420,7 @@ CONTAINS
             END DO
          END DO
 
-         CALL set_xas_tdp_env(xas_tdp_env, nex_atoms=nex_atoms)
+         CALL set_xas_tdp_env(xas_tdp_env, nex_atoms=nex_atoms, nex_kinds=nex_kinds)         
 
 !        Verifying that the input was valid
          IF (nmatch .NE. SIZE(xas_tdp_control%list_ex_kinds)) THEN
@@ -403,8 +461,45 @@ CONTAINS
 
 !  Allocating memory for the array of excited atoms MOs. Worst case senario, all searched MOs are
 !  associated to the same atom
-      ALLOCATE (xas_tdp_env%mos_of_ex_atoms(xas_tdp_control%n_search, nex_atoms))
+      ALLOCATE(xas_tdp_env%mos_of_ex_atoms(xas_tdp_control%n_search, nex_atoms))
 
+!  Precomputing for RI => compute and invert the two-center two-electron repulsion matrix for the RI
+!  aux basis, for each excited kind
+      ALLOCATE(xas_tdp_env%ri_inv_mats(nex_kinds))
+      CALL get_qs_env(qs_env, qs_kind_set=qs_kind_set, blacs_env=blacs_env, para_env=para_env)
+
+!     Loop over excited kinds
+      DO i = 1,nex_kinds
+         k = xas_tdp_env%ex_kind_indices(i)
+
+!        Retrieving the RI_AUX basis
+         CALL get_qs_kind(qs_kind_set(k), basis_set=ex_kind_ri_basis, basis_type="RI_AUX")   
+
+!        Computing the two-centers two-electrons Coulomb repulsion between the basis and itself
+         rab = 0.0_dp
+         CALL get_gto_basis_set(ex_kind_ri_basis, nsgf=nsgf)
+         ALLOCATE(work_array(nsgf,nsgf))
+         CALL int_operators_r12_ab_os(r12_operator=operator_coulomb, vab=work_array, rab=rab, &
+                                      fba=ex_kind_ri_basis, fbb=ex_kind_ri_basis, &
+                                      calculate_forces = .FALSE.)
+
+!        Matrix is not sparse, only one block => full matrix
+         CALL cp_fm_struct_create(fm_struct, context=blacs_env, para_env=para_env, &
+                                  nrow_global=nsgf, ncol_global=nsgf)
+         CALL cp_fm_create(work_fm, fm_struct)
+         CALL cp_fm_set_submatrix(work_fm, work_array)
+
+         CALL cp_fm_create(xas_tdp_env%ri_inv_mats(i)%matrix, fm_struct)
+         CALL cp_fm_invert(work_fm, xas_tdp_env%ri_inv_mats(i)%matrix)
+
+!        Clean-up
+         CALL cp_fm_struct_release(fm_struct)
+         CALL cp_fm_release(work_fm)
+         NULLIFY(ex_kind_ri_basis)
+         DEALLOCATE(work_array)
+
+      END DO
+      
    END SUBROUTINE xas_tdp_init
 
 !> *************************************************************************************************
@@ -565,7 +660,7 @@ CONTAINS
       CALL get_qs_kind(qs_kind_set(donor_state%kind_index), zeff=zeff)
       zval = INT(zeff)
 
-!     Electronic configureation (copied from MI's XAS)
+!     Electronic configuration (copied from MI's XAS)
       ne = 0
       DO l = 1, 4
          nj = 2*(l-1)+1
@@ -716,7 +811,7 @@ CONTAINS
                CALL cp_dbcsr_sm_fm_multiply(matrix_ks(1)%matrix, col_coeff_j, work_vector, ncol=1)
                CALL cp_fm_get_submatrix(work_vector, work_array)
 
-               DO i = 1, n_states
+               DO i = j,n_states
 !                 Retrieving mo_coeff for psi_i
                   CALL cp_fm_get_submatrix(fm=mo_coeff, target_m=tmp_coeff, start_row=1, &
                                            start_col=my_mos(i), n_rows=nao, n_cols=1, &
@@ -727,6 +822,8 @@ CONTAINS
                      donor_state%energy_evals(i, j) = donor_state%energy_evals(i, j)+ &
                                                       tmp_coeff(k, 1)*work_array(k, 1)
                   END DO
+                  donor_state%energy_evals(j,i) = donor_state%energy_evals(i,j)
+
                END DO
             END DO
 
