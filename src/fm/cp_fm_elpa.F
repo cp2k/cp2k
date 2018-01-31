@@ -10,6 +10,8 @@
 MODULE cp_fm_elpa
    USE cp_blacs_env,                    ONLY: cp_blacs_env_type
    USE cp_fm_basic_linalg,              ONLY: cp_fm_upper_to_full
+   USE cp_fm_diag_utils,                ONLY: cp_fm_redistribute_start,&
+                                              cp_fm_redistribute_end
    USE cp_fm_struct,                    ONLY: cp_fm_struct_get
    USE cp_fm_types,                     ONLY: cp_fm_type, &
                                               cp_fm_to_fm, &
@@ -17,7 +19,7 @@ MODULE cp_fm_elpa
                                               cp_fm_create
    USE cp_log_handling,                 ONLY: cp_get_default_logger, &
                                               cp_logger_get_default_io_unit, &
-                                              cp_logger_type   
+                                              cp_logger_type
    USE kinds,                           ONLY: default_string_length,&
                                               dp
    USE message_passing,                 ONLY: mp_comm_free,&
@@ -235,7 +237,7 @@ $: "#endif"
       MARK_USED(use_qr_unsafe)
       elpa_qr = .FALSE.
       elpa_qr_unsafe = .FALSE.
-#elif (__ELPA==201502) || (__ELPA==201505) || (__ELPA==201511) 
+#elif (__ELPA==201502) || (__ELPA==201505) || (__ELPA==201511)
       MARK_USED(use_qr_unsafe)
       elpa_qr = use_qr
       elpa_qr_unsafe = .FALSE.
@@ -272,10 +274,10 @@ $: "#endif"
    END SUBROUTINE set_elpa_print
 
 ! **************************************************************************************************
-!> \brief ...
-!> \param matrix ...
-!> \param eigenvectors ...
-!> \param eigenvalues ...
+!> \brief Driver routine to diagonalize a FM matrix with the ELPA library.
+!> \param matrix the matrix that is diagonalized
+!> \param eigenvectors eigenvectors of the input matrix
+!> \param eigenvalues eigenvalues of the input matrix
 ! **************************************************************************************************
    SUBROUTINE cp_fm_diag_elpa(matrix, eigenvectors, eigenvalues)
 
@@ -286,7 +288,53 @@ $: "#endif"
 
       INTEGER                                  :: handle
 #if defined(__ELPA)
-      CHARACTER(len=14)                        :: kernel     
+      TYPE(cp_fm_type), POINTER                :: eigenvectors_new, matrix_new
+#endif
+
+      CALL timeset(routineN, handle)
+#if defined(__ELPA)
+      ! Determine if the input matrix needs to be redistributed before diagonalization.
+      ! Heuristics are used to determine the optimal number of CPUs for diagonalization.
+      ! The redistributed matrix is stored in matrix_new, which is just a pointer
+      ! to the original matrix if no redistribution is required.
+      ! With ELPA, we have to make sure that all processor columns have nonzero width
+      CALL cp_fm_redistribute_start(matrix, eigenvectors, matrix_new, eigenvectors_new, caller_is_elpa=.TRUE.)
+
+      ! Call ELPA on CPUs that hold the new matrix
+      IF (ASSOCIATED(matrix_new)) CALL cp_fm_diag_elpa_base(matrix_new, eigenvectors_new, eigenvalues)
+
+      ! Redistribute results and clean up
+      CALL cp_fm_redistribute_end(matrix, eigenvectors, eigenvalues, matrix_new, eigenvectors_new)
+
+#else
+
+      MARK_USED(matrix)
+      MARK_USED(eigenvectors)
+      MARK_USED(eigenvalues)
+
+      CPABORT("CP2K compiled without the ELPA library.")
+#endif
+
+      CALL timestop(handle)
+
+   END SUBROUTINE cp_fm_diag_elpa
+
+! **************************************************************************************************
+!> \brief Actual routine that calls ELPA to diagonalize a FM matrix.
+!> \param matrix the matrix that is diagonalized
+!> \param eigenvectors eigenvectors of the input matrix
+!> \param eigenvalues eigenvalues of the input matrix
+! **************************************************************************************************
+   SUBROUTINE cp_fm_diag_elpa_base(matrix, eigenvectors, eigenvalues)
+
+      TYPE(cp_fm_type), POINTER                :: matrix, eigenvectors
+      REAL(KIND=dp), DIMENSION(:)              :: eigenvalues
+
+      CHARACTER(len=*), PARAMETER :: routineN = 'cp_fm_diag_elpa_base'
+
+      INTEGER                                  :: handle
+#if defined(__ELPA)
+      CHARACTER(len=14)                        :: kernel
       CHARACTER(len=default_string_length), &
          DIMENSION(19)                         :: kernels
       INTEGER                                  :: comm_col, comm_row, group, &
@@ -311,7 +359,7 @@ $: "#endif"
       check_eigenvalues = .FALSE.
       logger => cp_get_default_logger()
       io_unit = cp_logger_get_default_io_unit(logger)
-      
+
       n = matrix%matrix_struct%nrow_global
       m => matrix%local_data
       context => matrix%matrix_struct%context
@@ -349,17 +397,17 @@ $: "#endif"
       use_qr = elpa_qr .AND. MOD(n, nblk).EQ.0
 #elif (__ELPA==201605) || (__ELPA==201611) || (__ELPA==201705) || (__ELPA==201711)
       ! Matrix order must be even
-      use_qr = elpa_qr .AND. MOD(n, 2).EQ.0 
+      use_qr = elpa_qr .AND. MOD(n, 2).EQ.0
       ! Matrix order and block size must be greater than or equal to 64
       IF (.NOT. elpa_qr_unsafe) &
-         use_qr = use_qr .AND. n.GE. 64 .AND. nblk .GE. 64 
+         use_qr = use_qr .AND. n.GE. 64 .AND. nblk .GE. 64
 #else
    Error: Unknown ELPA version, please specify library release date via __ELPA=YYYYMM
 #endif
       ! Check if eigenvalues computed with ELPA_QR_UNSAFE should be verified
       IF (use_qr .AND. elpa_qr_unsafe .AND. elpa_should_print) &
          check_eigenvalues = .TRUE.
-      CALL mp_bcast(check_eigenvalues, logger%para_env%source, logger%para_env%group)
+      CALL mp_bcast(check_eigenvalues, matrix%matrix_struct%para_env%source, matrix%matrix_struct%para_env%group)
       IF (check_eigenvalues) THEN
          ! Allocate and initialize needed temporaries to compute eigenvalues without ELPA QR
          ALLOCATE(eval_noqr(n))
@@ -390,7 +438,7 @@ $: "#endif"
             WRITE(io_unit, '(A,L14)') "ELPA| Use potentially unsafe QR: ", elpa_qr_unsafe
             WRITE(io_unit, '(A,L14)') "ELPA| Matrix is suitable for QR: ", use_qr
             IF (.NOT. use_qr) THEN
-#if (__ELPA==201502) || (__ELPA==201505) || (__ELPA==201511)               
+#if (__ELPA==201502) || (__ELPA==201505) || (__ELPA==201511)
                WRITE(io_unit, '(A)') "ELPA| Matrix order is NOT divisible by block size"
 #elif (__ELPA==201605) || (__ELPA==201611) || (__ELPA==201705) || (__ELPA==201711)
                IF (MOD(n, 2).NE.0 ) &
@@ -432,7 +480,7 @@ $: "#endif"
          success = solve_evp_real_2stage(n, neig, m, n_rows, eval, v, n_rows, nblk, &
                                          comm_row, comm_col, group, &
                                          elpa_kernel, &
-                                         useQR=use_qr)  
+                                         useQR=use_qr)
       END IF
 
 !---------------------------------------------------------------------------------------------------
@@ -456,7 +504,7 @@ $: "#endif"
                                                  comm_row, comm_col, group, &
                                                  elpa_kernel, &
                                                  useQR=.FALSE.)
-         END IF         
+         END IF
       END IF
 
 !---------------------------------------------------------------------------------------------------
@@ -480,7 +528,7 @@ $: "#endif"
                                                              comm_row, comm_col, group, &
                                                              elpa_kernel, &
                                                              useQR=.FALSE., useGPU=elpa_use_gpu)
-         END IF         
+         END IF
       END IF
 
 !---------------------------------------------------------------------------------------------------
@@ -505,7 +553,7 @@ $: "#endif"
          DEALLOCATE(eval_noqr)
          NULLIFY(m_noqr, eval_noqr)
          CALL cp_fm_release(matrix_noqr)
-         CALL cp_fm_release(eigenvectors_noqr) 
+         CALL cp_fm_release(eigenvectors_noqr)
       END IF
 
       DEALLOCATE (eval)
@@ -525,6 +573,6 @@ $: "#endif"
 
       CALL timestop(handle)
 
-   END SUBROUTINE cp_fm_diag_elpa
+   END SUBROUTINE cp_fm_diag_elpa_base
 
 END MODULE cp_fm_elpa

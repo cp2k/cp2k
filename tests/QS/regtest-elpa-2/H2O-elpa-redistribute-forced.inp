@@ -1,0 +1,60 @@
+&FORCE_EVAL
+  METHOD Quickstep
+  &DFT
+    BASIS_SET_FILE_NAME BASIS_SET
+    POTENTIAL_FILE_NAME POTENTIAL
+    &MGRID
+      CUTOFF 100
+    &END MGRID
+    &QS
+      EPS_DEFAULT 1.0E-8
+    &END QS
+    &SCF
+      ADDED_MOS 1 0
+      EPS_SCF 1.0E-4
+      SCF_GUESS ATOMIC
+    &END SCF
+    &XC
+      &XC_FUNCTIONAL Pade
+      &END XC_FUNCTIONAL
+    &END XC
+  &END DFT
+  &SUBSYS
+    &CELL
+      ABC 6.0 6.0 6.0
+    &END CELL
+    &COORD
+    O   0.000000    0.000000   -0.065587
+    H   0.000000   -0.757136    0.520545
+    H   0.000000    0.757136    0.520545
+    &END COORD
+    &KIND H
+      BASIS_SET SZV-GTH-PADE
+      POTENTIAL GTH-PADE-q1
+    &END KIND
+    &KIND O
+      BASIS_SET SZV-GTH-PADE
+      POTENTIAL GTH-PADE-q6
+    &END KIND
+  &END SUBSYS
+&END FORCE_EVAL
+&GLOBAL
+  PROJECT H2O-elpa-redistribute-forced
+  PRINT_LEVEL LOW
+  PREFERRED_DIAG_LIBRARY ELPA
+  ! Lets print information about diagonalization
+  &FM_DIAG_SETTINGS ON
+    PRINT_FM_REDISTRIBUTE TRUE
+    ! Force redistribution onto 2 processors instead of the default,
+    ! which is the maximum number of CPUs that can safely be used
+    ! without ELPA crashing
+    ! (for 8 MPI processes the maximum is 6 for this system)
+    ! For most systems, this keyword should be turned off (default)
+    ! for better performance
+    PARAMETER_A 2
+    PARAMETER_X 4
+    ELPA_FORCE_REDISTRIBUTE TRUE
+  &END FM_DIAG_SETTINGS
+  &PRINT_ELPA ON
+  &END
+&END GLOBAL

@@ -24,6 +24,7 @@ MODULE environment
                                               get_data_dir,&
                                               open_file
    USE cp_fm_diag,                      ONLY: diag_init
+   USE cp_fm_diag_utils,                ONLY: cp_fm_redistribute_init
    USE cp_fm_struct,                    ONLY: cp_fm_struct_config
    USE cp_fm_types,                     ONLY: cp_fm_setup
    USE cp_log_handling,                 ONLY: &
@@ -548,6 +549,7 @@ CONTAINS
                                          extension=".log")
 
       CALL fm_setup(global_section)
+      CALL fm_diag_rules_setup(global_section)
 
       IF (trace .AND. (.NOT. trace_master .OR. para_env%mepos == 0)) THEN
          unit_nr = -1
@@ -994,6 +996,33 @@ CONTAINS
       CALL cp_fm_setup(multiplication_type)
 
    END SUBROUTINE fm_setup
+
+! **************************************************************************************************
+!> \brief   Parses the input section used to define the heuristic rules which determine if
+!>          a FM matrix should be redistributed before diagonalizing it.
+!> \param glob_section the global input section
+!> \author Nico Holmberg [01.2018]
+! **************************************************************************************************
+   SUBROUTINE fm_diag_rules_setup(glob_section)
+      TYPE(section_vals_type), POINTER                   :: glob_section
+
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'fm_diag_rules_setup', &
+         routineP = moduleN//':'//routineN
+
+      INTEGER                                            :: a, x
+      LOGICAL                                            :: elpa_force_redistribute, should_print
+      TYPE(section_vals_type), POINTER                   :: section
+
+      section => section_vals_get_subs_vals(glob_section, "FM_DIAG_SETTINGS")
+
+      CALL section_vals_val_get(section, "PARAMETER_A", i_val=a)
+      CALL section_vals_val_get(section, "PARAMETER_X", i_val=x)
+      CALL section_vals_val_get(section, "PRINT_FM_REDISTRIBUTE", l_val=should_print)
+      CALL section_vals_val_get(section, "ELPA_FORCE_REDISTRIBUTE", l_val=elpa_force_redistribute)
+
+      CALL cp_fm_redistribute_init(a, x, should_print, elpa_force_redistribute)
+
+   END SUBROUTINE fm_diag_rules_setup
 ! **************************************************************************************************
 !> \brief reads the Walltime also in format HH:MM:SS
 !> \param section ...

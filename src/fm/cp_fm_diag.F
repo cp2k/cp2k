@@ -26,6 +26,8 @@ MODULE cp_fm_diag
                                               cp_fm_triangular_multiply,&
                                               cp_fm_upper_to_full
    USE cp_fm_cholesky,                  ONLY: cp_fm_cholesky_decompose
+   USE cp_fm_diag_utils,                ONLY: cp_fm_redistribute_start,&
+                                              cp_fm_redistribute_end
    USE cp_fm_elpa,                      ONLY: cp_fm_diag_elpa,&
                                               set_elpa_kernel,&
                                               set_elpa_qr,&
@@ -216,16 +218,7 @@ CONTAINS
       INTEGER                                  :: handle, myinfo, n, nmo
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: eig
 #if defined(__SCALAPACK)
-      TYPE(cp_blacs_env_type), POINTER         :: blacs_env_new
-      TYPE(cp_fm_struct_type), POINTER         :: fm_struct_new
       TYPE(cp_fm_type), POINTER                :: eigenvectors_new, matrix_new
-      REAL(KIND=dp)                            :: fake_local_data(1, 1)
-      INTEGER                                  :: fake_descriptor(9), mepos_old, &
-                                                  ngroups, num_pe_new, &
-                                                  num_pe_old, subgroup
-      INTEGER, DIMENSION(:), POINTER           :: group_distribution, &
-                                                  group_partition
-      TYPE(cp_para_env_type), POINTER          :: para_env, para_env_new
 #else
       INTEGER                                  :: liwork, lwork
       INTEGER, DIMENSION(:), POINTER           :: iwork
@@ -242,94 +235,17 @@ CONTAINS
 
 #if defined(__SCALAPACK)
 
-      ! first figure out the optimal number of cpus
-      ! this is pure heuristics, based on rosa timings
-      ! that demonstrate that timings go up sharply if too many tasks are used
-      ! we take a multiple of 4, and approximately n/60
-      num_pe_old = matrix%matrix_struct%para_env%num_pe
-      num_pe_new = ((n+60*4-1)/(60*4))*4
-      para_env => matrix%matrix_struct%para_env
-      mepos_old = para_env%mepos
+      ! Determine if the input matrix needs to be redistributed before diagonalization.
+      ! Heuristics are used to determine the optimal number of CPUs for diagonalization.
+      ! The redistributed matrix is stored in matrix_new, which is just a pointer
+      ! to the original matrix if no redistribution is required
+      CALL cp_fm_redistribute_start(matrix, eigenvectors, matrix_new, eigenvectors_new)
 
-      ! if the optimal is smaller than num_pe, we will redistribute the input matrix
-      ! it seems sensible to refactor redistributing matrices as this might be useful elsewhere
-      IF (num_pe_new < num_pe_old) THEN
+      ! Call scalapack on CPUs that hold the new matrix
+      IF (ASSOCIATED(matrix_new)) CALL cp_fm_syevd_base(matrix_new, eigenvectors_new, eig, myinfo)
 
-         ! split comm, the first num_pe_new tasks will do the work
-         ALLOCATE (group_distribution(0:num_pe_old-1))
-         ALLOCATE (group_partition(0:1))
-         group_partition = (/num_pe_new, num_pe_old-num_pe_new/)
-         CALL mp_comm_split(comm=para_env%group, sub_comm=subgroup, &
-                            ngroups=ngroups, group_distribution=group_distribution, &
-                            n_subgroups=2, group_partition=group_partition)
-
-         IF (group_distribution(mepos_old) == 0) THEN
-
-            ! create para_env, might need a proper bound to this para_env
-            NULLIFY (para_env_new)
-            CALL cp_para_env_create(para_env_new, subgroup)
-            ! test a sync
-            CALL mp_sync(para_env_new%group)
-
-            ! create blacs, should inherit the preferences for the layout and so on, from the higher level
-            NULLIFY (blacs_env_new)
-            CALL cp_blacs_env_create(blacs_env=blacs_env_new, para_env=para_env_new)
-
-            ! create new matrix
-            NULLIFY (fm_struct_new)
-            CALL cp_fm_struct_create(fmstruct=fm_struct_new, para_env=para_env_new, context=blacs_env_new, &
-                                     nrow_global=n, ncol_global=n)
-            CALL cp_fm_create(matrix_new, matrix_struct=fm_struct_new, name="yevd_new_mat")
-            CALL cp_fm_create(eigenvectors_new, matrix_struct=fm_struct_new, name="yevd_new_vec")
-
-            ! redistribute old
-            CALL pdgemr2d(n, n, matrix%local_data(1, 1), 1, 1, matrix%matrix_struct%descriptor, &
-                          matrix_new%local_data(1, 1), 1, 1, matrix_new%matrix_struct%descriptor, &
-                          matrix%matrix_struct%context%group)
-
-            ! call scalapack
-            CALL cp_fm_syevd_base(matrix_new, eigenvectors_new, eig, myinfo)
-
-            ! redistribute results
-            CALL pdgemr2d(n, n, eigenvectors_new%local_data(1, 1), 1, 1, eigenvectors_new%matrix_struct%descriptor, &
-                          eigenvectors%local_data(1, 1), 1, 1, eigenvectors%matrix_struct%descriptor, &
-                          eigenvectors%matrix_struct%context%group)
-
-            ! free stuff
-            CALL cp_fm_struct_release(fm_struct_new)
-            CALL cp_fm_release(matrix_new)
-            CALL cp_fm_release(eigenvectors_new)
-            CALL cp_blacs_env_release(blacs_env_new)
-            CALL cp_para_env_release(para_env_new)
-
-         ELSE
-            ! these tasks must help redistribute (they own part of the data),
-            ! but need fake 'new' data, and their descriptor must indicate this with -1
-            ! see also scalapack comments on pdgemr2d
-            fake_descriptor = -1
-            CALL pdgemr2d(n, n, matrix%local_data(1, 1), 1, 1, matrix%matrix_struct%descriptor, &
-                          fake_local_data(1, 1), 1, 1, fake_descriptor, &
-                          matrix%matrix_struct%context%group)
-
-            CALL pdgemr2d(n, n, fake_local_data(1, 1), 1, 1, fake_descriptor, &
-                          eigenvectors%local_data(1, 1), 1, 1, eigenvectors%matrix_struct%descriptor, &
-                          eigenvectors%matrix_struct%context%group)
-
-            ! free stuff
-            CALL mp_comm_free(subgroup)
-         ENDIF
-
-         ! finally, also the eigenvalues need to end up on the non-group member tasks
-         CALL mp_bcast(eig, 0, para_env%group)
-
-         ! free more stuff
-         DEALLOCATE (group_distribution, group_partition)
-
-      ELSE
-
-         CALL cp_fm_syevd_base(matrix, eigenvectors, eig, myinfo)
-
-      ENDIF
+      ! Redistribute results and clean up
+      CALL cp_fm_redistribute_end(matrix, eigenvectors, eig, matrix_new, eigenvectors_new)
 
 #else
 
