@@ -118,8 +118,6 @@ MODULE xc_libxc_wrap
              xc_libxc_wrap_needs_laplace, &
              xc_libxc_wrap_functional_set_params
 
-   LOGICAL, SAVE :: first_time = .TRUE.
-
 CONTAINS
 
 ! **************************************************************************************************
