@@ -12,5 +12,5 @@ FCFLAGS  = -I $(LIBXC_INCLUDE_DIR) -fopenmp -ffast-math -funroll-loops \
            -ftree-vectorize -ffree-form -O2 $(DFLAGS)
 LDFLAGS  = $(FCFLAGS) 
 LIBS     = -framework Accelerate \
-           -L$(LIBXC_LIB_DIR) -lxcf90 -lxc \
+           -L$(LIBXC_LIB_DIR) -lxcf03 -lxc \
            -L$(LIBINT_LIB_DIR) -lderiv -lint
