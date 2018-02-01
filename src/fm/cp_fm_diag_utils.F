@@ -176,6 +176,7 @@ CONTAINS
       LOGICAL                                  :: max_cpu_found
 #endif
 
+      ncpu = 0
 #if defined(__SCALAPACK)
       NULLIFY (ncol_locals)
       ! First check if there are any zero width columns in current layout
@@ -217,14 +218,13 @@ CONTAINS
             max_cpu_found = .TRUE.
          ELSE
             ncpu = ncpu-nzero
-            ncpu = ncpu-MODULO(ncpu, 2)
+            IF (ncpu /= 1) ncpu = ncpu-MODULO(ncpu, 2)
          END IF
       END DO
       CPASSERT(ncpu .GT. 0)
 #else
 
       MARK_USED(matrix)
-      MARK_USED(ncpu)
       CPABORT("Routine called in non-parallel case.")
 #endif
 
