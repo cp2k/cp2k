@@ -12,8 +12,8 @@
 MODULE input_cp2k_xc
    USE bibliography,                    ONLY: &
         Becke1988, Becke1997, BeckeRoussel1989, Goedecker1996, Grimme2006, Grimme2010, Grimme2011, &
-        Heyd2004, Lee1988, Marques2012, Ortiz1994, Perdew1981, Perdew1996, Perdew2008, &
-        Proynov2007, Tao2003, Tran2013, Vosko1980, Wellendorff2012, Zhang1998
+        Heyd2004, Lee1988, Lehtola2018, Marques2012, Ortiz1994, Perdew1981, Perdew1996, &
+        Perdew2008, Proynov2007, Tao2003, Tran2013, Vosko1980, Wellendorff2012, Zhang1998
    USE cp_output_handling,              ONLY: add_last_numeric,&
                                               cp_print_key_section_create,&
                                               high_print_level
@@ -220,7 +220,7 @@ CONTAINS
 
       CALL section_create(subsection, name="HCTH", &
                           description="Uses the HCTH class of functionals", &
-                          n_keywords=0, n_subsections=0, repeats=.TRUE.)
+                          n_keywords=0, n_subsections=0, repeats=.FALSE.)
       CALL keyword_create(keyword, name="PARAMETER_SET", &
                           description="Which version of the parameters should be used", &
                           usage="PARAMETER_SET 407", &
@@ -270,14 +270,14 @@ CONTAINS
 
       CALL create_libxc_section(subsection, "LIBXC", &
                                 "Uses functionals from LIBXC, see also "// &
-                                "http://www.tddft.org/programs/octopus/wiki/index.php/Libxc_functionals ", &
-                                "FUNCTIONAL GGA_X_PBE GGA_C_PBE")
+                                "https://gitlab.com/libxc/libxc/wikis/Functionals-list-4.0.4", &
+                                "FUNCTIONAL GGA_X_PBE")
       CALL section_add_subsection(section, subsection)
       CALL section_release(subsection)
 
       CALL create_libxc_section(subsection, "KE_LIBXC", &
                                 "To be used for KG runs. Uses kinetic energy functionals from LIBXC, "// &
-                                "see also http://www.tddft.org/programs/octopus/wiki/index.php/Libxc_functionals ", &
+                                "https://gitlab.com/libxc/libxc/wikis/Functionals-list-4.0.4", &
                                 "FUNCTIONAL GGA_K_LLP")
       CALL section_add_subsection(section, subsection)
       CALL section_release(subsection)
@@ -747,30 +747,31 @@ CONTAINS
       CPASSERT(name == "LIBXC" .OR. name == "KE_LIBXC")
       NULLIFY (keyword)
       CALL section_create(section, name, description, &
-                          n_keywords=3, n_subsections=0, repeats=.FALSE., &
-                          citations=(/Marques2012/))
+                          n_keywords=3, n_subsections=0, repeats=.TRUE., &
+                          citations=(/Marques2012, Lehtola2018/))
       CALL keyword_create(keyword, "_SECTION_PARAMETERS_", &
-                          description="activates the functional", &
+                          description="activates functionals from libxc library", &
                           lone_keyword_l_val=.TRUE., default_l_val=.FALSE.)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
       CALL keyword_create(keyword, name="FUNCTIONAL", &
-                          description="names of the functionals, see also "// &
-                          "http://www.tddft.org/programs/octopus/wiki/index.php/Libxc_functionals ."// &
+                          description="name of the functional, see also "// &
+                          "https://gitlab.com/libxc/libxc/wikis/Functionals-list-4.0.4 "// &
                           "The precise list of available functionals depends on "// &
-                          "the version of libxc interfaced (currently 2.2.2).", &
+                          "the version of libxc interfaced (currently 4.0.3)", &
                           usage=usage, type_of_var=char_t, n_var=-1)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
       CALL keyword_create(keyword, name="SCALE", &
-                          description="scaling factors of the functionals", &
-                          usage="SCALE 1.0 1.0", type_of_var=real_t, &
-                          default_r_vals=(/1.0_dp/), n_var=-1)
+                          description="scaling factors for the functional", &
+                          usage="SCALE 0.8", type_of_var=real_t, &
+                          default_r_val=1.0_dp)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
       CALL keyword_create(keyword, name="PARAMETERS", &
-                          description="parameters of the functionals", &
-                          type_of_var=real_t, default_r_vals=(/1e20_dp/), n_var=-1)
+                          description="list of external parameters for the functional", &
+                          usage="PARAMETERS 0.3 [0.5 [1.4]]", type_of_var=real_t, &
+                          default_r_vals=(/HUGE(0.0_dp)/), n_var=-1)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
    END SUBROUTINE

@@ -81,7 +81,7 @@ MODULE bibliography
                             Kapil2016, Heinzmann1976, Ehrhardt1985, Rybkin2016, West2006, &
                             Bates2013, Andermatt2016, Zhu2016, Schuett2016, Lu2004, &
                             Becke1988b, Migliore2009, Mavros2015, Holmberg2017, Marek2014, &
-                            Stoychev2016, Futera2017, Bailey2006, Papior2017
+                            Stoychev2016, Futera2017, Bailey2006, Papior2017, Lehtola2018
 
 CONTAINS
 
@@ -2114,6 +2114,28 @@ CONTAINS
                          "UT WOS:000306771900024", &
                          "ER"), &
                          DOI="10.1016/j.cpc.2012.05.007")
+
+      CALL add_reference(key=Lehtola2018, ISI_record=s2a( &
+                         "AU Lehtola, S", &
+                         "   Steigemann, C", &
+                         "   Oliveira, MJT", &
+                         "   Marques, MAL", &
+                         "AF Lehtola, Susi", &
+                         "   Steigemann, Conrad", &
+                         "   Oliveira, Micael J. T.", &
+                         "   Marques, Miguel A. L.", &
+                         "TI Recent developments in libxc - A comprehensive library of functionals", &
+                         "   for density functional theory", &
+                         "SO SoftwareX", &
+                         "SN 2352-7110", &
+                         "PD JAN", &
+                         "PY 2018", &
+                         "VL 7", &
+                         "BP 1", &
+                         "EP 5", &
+                         "DI 10.1016/j.softx.2017.11.002", &
+                         "ER"), &
+                         DOI="10.1016/j.softx.2017.11.002")
 
       CALL add_reference(key=Jones2011, ISI_record=s2a( &
                          "AU Jones, Andrew", &

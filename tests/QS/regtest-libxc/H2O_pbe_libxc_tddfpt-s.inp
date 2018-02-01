@@ -29,7 +29,10 @@
       &XC
         &XC_FUNCTIONAL
           &LIBXC
-            FUNCTIONAL XC_GGA_X_PBE XC_GGA_C_PBE
+            FUNCTIONAL XC_GGA_X_PBE
+          &END LIBXC
+          &LIBXC
+            FUNCTIONAL XC_GGA_C_PBE
           &END LIBXC
         &END XC_FUNCTIONAL
         &XC_GRID
@@ -40,7 +43,10 @@
     &XC
       &XC_FUNCTIONAL
         &LIBXC
-          FUNCTIONAL XC_GGA_X_PBE XC_GGA_C_PBE
+          FUNCTIONAL XC_GGA_X_PBE
+        &END LIBXC
+        &LIBXC
+          FUNCTIONAL XC_GGA_C_PBE
         &END LIBXC
       &END XC_FUNCTIONAL
     &END XC

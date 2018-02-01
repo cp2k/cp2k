@@ -6,11 +6,13 @@
 ! **************************************************************************************************
 MODULE xc_derivatives
 
-   USE input_section_types,             ONLY: section_vals_get_subs_vals2,&
+   USE input_section_types,             ONLY: section_vals_duplicate,&
+                                              section_vals_get,&
+                                              section_vals_get_subs_vals2,&
+                                              section_vals_release,&
                                               section_vals_type,&
                                               section_vals_val_get
-   USE kinds,                           ONLY: default_string_length,&
-                                              dp
+   USE kinds,                           ONLY: dp
    USE xc_b97,                          ONLY: b97_lda_eval,&
                                               b97_lda_info,&
                                               b97_lsd_eval,&
@@ -139,17 +141,15 @@ CONTAINS
 !> \param needs the flags corresponding to the inputs needed by this
 !>        functional are set to true (the flags not needed aren't touched)
 !> \param max_deriv the maximal derivative available
-!> \param ifunc_name ...
 !> \author fawzi
 ! **************************************************************************************************
    SUBROUTINE xc_functional_get_info(functional, lsd, reference, shortform, &
-                                     needs, max_deriv, ifunc_name)
+                                     needs, max_deriv)
       TYPE(section_vals_type), POINTER                   :: functional
       LOGICAL, INTENT(in)                                :: lsd
       CHARACTER(LEN=*), INTENT(OUT), OPTIONAL            :: reference, shortform
       TYPE(xc_rho_cflags_type), INTENT(inout), OPTIONAL  :: needs
       INTEGER, INTENT(out), OPTIONAL                     :: max_deriv
-      INTEGER, INTENT(in), OPTIONAL                      :: ifunc_name
 
       CHARACTER(len=*), PARAMETER :: routineN = 'xc_functional_get_info', &
          routineP = moduleN//':'//routineN
@@ -229,11 +229,9 @@ CONTAINS
          ENDIF
       CASE ("LIBXC", "KE_LIBXC")
          IF (lsd) THEN
-            CALL libxc_lsd_info(functional, reference, shortform, needs, max_deriv, &
-                                ifunc_name)
+            CALL libxc_lsd_info(functional, reference, shortform, needs, max_deriv)
          ELSE
-            CALL libxc_lda_info(functional, reference, shortform, needs, max_deriv, &
-                                ifunc_name)
+            CALL libxc_lda_info(functional, reference, shortform, needs, max_deriv)
          ENDIF
       CASE ("CS1")
          IF (lsd) THEN
@@ -340,20 +338,17 @@ CONTAINS
 !>        the code all the derivatives might be calculated, you should ignore
 !>        them when adding derivatives of various functionals they might contain
 !>        the derivative of just one functional)
-!> \param ifunc_name ...
 !> \par History
 !>      11.2003 created [fawzi]
 !> \author fawzi
 ! **************************************************************************************************
-   SUBROUTINE xc_functional_eval(functional, lsd, rho_set, deriv_set, &
-                                 deriv_order, ifunc_name)
+   SUBROUTINE xc_functional_eval(functional, lsd, rho_set, deriv_set, deriv_order)
 
       TYPE(section_vals_type), POINTER                   :: functional
       LOGICAL, INTENT(in)                                :: lsd
       TYPE(xc_rho_set_type), POINTER                     :: rho_set
       TYPE(xc_derivative_set_type), POINTER              :: deriv_set
       INTEGER, INTENT(IN)                                :: deriv_order
-      INTEGER, INTENT(in), OPTIONAL                      :: ifunc_name
 
       CHARACTER(len=*), PARAMETER :: routineN = 'xc_functional_eval', &
          routineP = moduleN//':'//routineN
@@ -435,9 +430,9 @@ CONTAINS
          ENDIF
       CASE ("LIBXC", "KE_LIBXC")
          IF (lsd) THEN
-            CALL libxc_lsd_eval(rho_set, deriv_set, deriv_order, functional, ifunc_name)
+            CALL libxc_lsd_eval(rho_set, deriv_set, deriv_order, functional)
          ELSE
-            CALL libxc_lda_eval(rho_set, deriv_set, deriv_order, functional, ifunc_name)
+            CALL libxc_lda_eval(rho_set, deriv_set, deriv_order, functional)
          ENDIF
       CASE ("CS1")
          IF (lsd) THEN
@@ -582,10 +577,8 @@ CONTAINS
       CHARACTER(len=*), PARAMETER :: routineN = 'xc_functionals_eval', &
          routineP = moduleN//':'//routineN
 
-      CHARACTER(len=default_string_length), &
-         DIMENSION(:), POINTER                           :: func_name
-      INTEGER                                            :: ifun, ifunc_name
-      TYPE(section_vals_type), POINTER                   :: xc_fun
+      INTEGER                                            :: i_rep, ifun, n_rep
+      TYPE(section_vals_type), POINTER                   :: libxc_fun, xc_fun
 
       CPASSERT(ASSOCIATED(functionals))
       ifun = 0
@@ -593,21 +586,26 @@ CONTAINS
          ifun = ifun+1
          xc_fun => section_vals_get_subs_vals2(functionals, i_section=ifun)
          IF (.NOT. ASSOCIATED(xc_fun)) EXIT
-         CALL xc_functional_eval(xc_fun, &
-                                 lsd=lsd, &
-                                 rho_set=rho_set, &
-                                 deriv_set=deriv_set, &
-                                 deriv_order=deriv_order, &
-                                 ifunc_name=1)
-         IF (TRIM(xc_fun%section%name) == "LIBXC") THEN
-            CALL section_vals_val_get(xc_fun, "functional", c_vals=func_name)
-            DO ifunc_name = 2, SIZE(func_name)
-               CALL xc_functional_eval(xc_fun, &
+         IF (TRIM(xc_fun%section%name) /= "LIBXC") THEN
+            CALL xc_functional_eval(xc_fun, &
+                                    lsd=lsd, &
+                                    rho_set=rho_set, &
+                                    deriv_set=deriv_set, &
+                                    deriv_order=deriv_order)
+         ELSE
+            ! LIBXC is the only repeatable functional section - for each we need
+            ! NOT the single values, but the whole section_vals_type independently
+            CALL section_vals_get(xc_fun, n_repetition=n_rep)
+            DO i_rep = 1, n_rep
+               NULLIFY (libxc_fun)
+               CALL section_vals_duplicate(xc_fun, libxc_fun, i_rep_start=i_rep, i_rep_end=i_rep)
+               IF (.NOT. ASSOCIATED(libxc_fun)) EXIT
+               CALL xc_functional_eval(libxc_fun, &
                                        lsd=lsd, &
                                        rho_set=rho_set, &
                                        deriv_set=deriv_set, &
-                                       deriv_order=deriv_order, &
-                                       ifunc_name=ifunc_name)
+                                       deriv_order=deriv_order)
+               CALL section_vals_release(libxc_fun)
             END DO
          END IF
       END DO
@@ -634,29 +632,37 @@ CONTAINS
       CHARACTER(len=*), PARAMETER :: routineN = 'xc_functionals_get_needs', &
          routineP = moduleN//':'//routineN
 
-      CHARACTER(len=80), DIMENSION(:), POINTER           :: func_name
-      INTEGER                                            :: ifun, ifunc_name
+      INTEGER                                            :: i_rep, ifun, n_rep
       LOGICAL                                            :: my_add_basic_components
-      TYPE(section_vals_type), POINTER                   :: xc_fun
+      TYPE(section_vals_type), POINTER                   :: libxc_fun, xc_fun
 
       my_add_basic_components = .FALSE.
       IF (PRESENT(add_basic_components)) my_add_basic_components = add_basic_components
 
       CPASSERT(ASSOCIATED(functionals))
       CALL xc_rho_cflags_setall(needs, .FALSE.)
+
       ifun = 0
       DO
          ifun = ifun+1
          xc_fun => section_vals_get_subs_vals2(functionals, i_section=ifun)
          IF (.NOT. ASSOCIATED(xc_fun)) EXIT
-         CALL xc_functional_get_info(xc_fun, lsd=lsd, needs=needs, ifunc_name=1)
-         IF (TRIM(xc_fun%section%name) == "LIBXC") THEN
-            CALL section_vals_val_get(xc_fun, "functional", c_vals=func_name)
-            DO ifunc_name = 2, SIZE(func_name)
-               CALL xc_functional_get_info(xc_fun, lsd=lsd, needs=needs, ifunc_name=ifunc_name)
+         IF (TRIM(xc_fun%section%name) /= "LIBXC") THEN
+            CALL xc_functional_get_info(xc_fun, lsd=lsd, needs=needs)
+         ELSE
+            ! LIBXC is the only repeatable functional section - for each we need
+            ! NOT the single values, but the whole section_vals_type independently
+            CALL section_vals_get(xc_fun, n_repetition=n_rep)
+            DO i_rep = 1, n_rep
+               NULLIFY (libxc_fun)
+               CALL section_vals_duplicate(xc_fun, libxc_fun, i_rep_start=i_rep, i_rep_end=i_rep)
+               IF (.NOT. ASSOCIATED(libxc_fun)) EXIT
+               CALL xc_functional_get_info(libxc_fun, lsd=lsd, needs=needs)
+               CALL section_vals_release(libxc_fun)
             END DO
          END IF
       END DO
+
       IF (my_add_basic_components) THEN
          IF (lsd) THEN
             needs%rho_spin = .TRUE.

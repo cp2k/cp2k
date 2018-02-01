@@ -775,7 +775,7 @@ CONTAINS
                   END DO
                   CPABORT("Drho collocation not implemented")
                CASE default
-                  CPABORT("")
+                  CPABORT("Derivatives using PW are not implemented for this 'XC_DERIV'")
                END SELECT
                CALL pw_pool_give_back_pw(pw_pool, tmp_g)
                IF (my_rho_g_local) THEN
