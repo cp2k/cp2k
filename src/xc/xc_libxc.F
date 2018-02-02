@@ -181,6 +181,11 @@ CONTAINS
 
       CALL xc_f03_func_end(xc_func)
 #else
+      MARK_USED(libxc_params)
+      MARK_USED(reference)
+      MARK_USED(shortform)
+      MARK_USED(needs)
+      MARK_USED(max_deriv)
       CPABORT("In order to use libxc you need to download and install it")
 #endif
 
@@ -278,6 +283,11 @@ CONTAINS
 
       CALL xc_f03_func_end(xc_func)
 #else
+      MARK_USED(libxc_params)
+      MARK_USED(reference)
+      MARK_USED(shortform)
+      MARK_USED(needs)
+      MARK_USED(max_deriv)
       CPABORT("In order to use libxc you need to download and install it")
 #endif
 
@@ -539,6 +549,10 @@ CONTAINS
 
       CALL timestop(handle)
 #else
+      MARK_USED(rho_set)
+      MARK_USED(deriv_set)
+      MARK_USED(grad_deriv)
+      MARK_USED(libxc_params)
       CPABORT("In order to use libxc you need to download and install it")
 #endif
    END SUBROUTINE libxc_lda_eval
@@ -1074,6 +1088,10 @@ CONTAINS
 
       CALL timestop(handle)
 #else
+      MARK_USED(rho_set)
+      MARK_USED(deriv_set)
+      MARK_USED(grad_deriv)
+      MARK_USED(libxc_params)
       CPABORT("In order to use libxc you need to download and install it")
 #endif
    END SUBROUTINE libxc_lsd_eval
@@ -1111,6 +1129,7 @@ CONTAINS
 !> \param params parameters of the functional
 !> \author F. Tran
 ! **************************************************************************************************
+#if defined (__LIBXC)
    SUBROUTINE libxc_lda_calc(rho, norm_drho, laplace_rho, tau, &
                              e_0, e_rho, e_ndrho, e_laplace_rho, e_tau, e_rho_rho, e_ndrho_rho, &
                              e_ndrho_ndrho, e_rho_laplace_rho, e_rho_tau, e_ndrho_laplace_rho, &
@@ -1134,7 +1153,6 @@ CONTAINS
       CHARACTER(len=*), PARAMETER :: routineN = 'libxc_lda_calc', &
                                      routineP = moduleN//':'//routineN
 
-#if defined (__LIBXC)
       INTEGER                                  :: func_id, ii
       LOGICAL                                  :: no_exc
       REAL(KIND=dp), DIMENSION(1) :: exc, my_tau, sigma, v2lapl2, v2lapltau, v2rho2, v2rholapl, &
@@ -1445,11 +1463,9 @@ CONTAINS
       END SELECT
 
       CALL xc_f03_func_end(xc_func)
-#else
-      CPABORT("In order to use libxc you need to download and install it")
-#endif
 
    END SUBROUTINE libxc_lda_calc
+#endif
 
 ! **************************************************************************************************
 !> \brief libxc exchange-correlation functionals
@@ -1532,6 +1548,7 @@ CONTAINS
 !> \param params parameters of the functional
 !> \author F. Tran
 ! **************************************************************************************************
+#if defined (__LIBXC)
    SUBROUTINE libxc_lsd_calc(rhoa, rhob, norm_drho, norm_drhoa, &
                              norm_drhob, laplace_rhoa, laplace_rhob, tau_a, tau_b, &
                              e_0, e_rhoa, e_rhob, e_ndrho, e_ndrhoa, e_ndrhob, &
@@ -1591,7 +1608,6 @@ CONTAINS
       CHARACTER(len=*), PARAMETER :: routineN = 'libxc_lsd_calc', &
                                      routineP = moduleN//':'//routineN
 
-#if defined (__LIBXC)
       INTEGER                                  :: func_id, ii
       LOGICAL                                  :: no_exc
       REAL(KIND=dp)                            :: my_norm_drho, &
@@ -2278,10 +2294,8 @@ CONTAINS
       END SELECT
 
       CALL xc_f03_func_end(xc_func)
-#else
-      CPABORT("In order to use libxc you need to download and install it")
-#endif
 
    END SUBROUTINE libxc_lsd_calc
+#endif
 
 END MODULE xc_libxc
