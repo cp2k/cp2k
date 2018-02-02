@@ -1,4 +1,4 @@
-# Tested with: GFortran 6.4, MPICH 3.2, LAPACK 3.5.0, ScaLAPACK 2.0.2
+# Tested with: GFortran 6.4, MPICH 3.2, LAPACK 3.5.0, ScaLAPACK 2.0.2, FFTW 3.3, Libxc 4.0.3
 CC         = gcc
 CPP        =
 FC         = mpif90
@@ -8,8 +8,8 @@ FFTW_INC   = $(GCC_DIR)/fftw/3.3-gnu/include
 FFTW_LIB   = $(GCC_DIR)/fftw/3.3-gnu/lib64
 LIBINT_INC = $(GCC_DIR)/libint/1.1.4-LARGE_L-gnu/include
 LIBINT_LIB = $(GCC_DIR)/libint/1.1.4-LARGE_L-gnu/lib64
-LIBXC_INC  = $(GCC_DIR)/libxc/3.0.0-gnu/include
-LIBXC_LIB  = $(GCC_DIR)/libxc/3.0.0-gnu/lib64
+LIBXC_INC  = $(GCC_DIR)/libxc/4.0.3-gnu/include
+LIBXC_LIB  = $(GCC_DIR)/libxc/4.0.3-gnu/lib64
 DFLAGS     = -D__FFTW3 -D__LIBINT -D__LIBXC -D__MPI_VERSION=3\
              -D__LIBINT_MAX_AM=7 -D__LIBDERIV_MAX_AM1=6 -D__MAX_CONTR=4\
              -D__parallel -D__SCALAPACK
@@ -23,7 +23,7 @@ LIBS       = $(MPI_LIBRARY_PATH)/libscalapack-gnu.a\
              $(LIBPATH)/liblapack-gnu.a\
              $(LIBPATH)/libblas-gnu.a\
              $(FFTW_LIB)/libfftw3.a\
-             $(LIBXC_LIB)/libxcf90.a\
+             $(LIBXC_LIB)/libxcf03.a\
              $(LIBXC_LIB)/libxc.a\
              $(LIBINT_LIB)/libderiv.a\
              $(LIBINT_LIB)/libint.a
