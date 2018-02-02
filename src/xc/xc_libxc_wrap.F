@@ -335,39 +335,13 @@ CONTAINS
 
       IF ((n_params > 0) .AND. (i_params > 0) .AND. (params(1) < HUGE(0.0_dp))) THEN
          IF (i_params == n_params) THEN
-            CALL xc_f03_func_set_ext_params(xc_func, params) ! this is wrong, but XC's F90-interface is missing the '*'
+            CALL xc_f03_func_set_ext_params(xc_func, params)
          ELSE
             CALL cp_abort(__LOCATION__, &
                "LIBXC: Inconsistent number of optional external parameters. (required: "&
                &//cp_to_string(n_params)//", given: "//cp_to_string(i_params)//")")
          END IF
       END IF
-
-!         SELECT CASE (func_id)
-!         CASE (XC_LDA_X)
-!            CALL xc_f03_lda_x_set_par(xc_func, params(1), NINT(params(2)), params(3))
-!         CASE (XC_LDA_C_XALPHA)
-!            CALL xc_f03_lda_c_xalpha_set_par(xc_func, params(1))
-!         CASE (XC_LDA_C_2D_PRM)
-!            CALL xc_f03_lda_c_2d_prm_set_par(xc_func, params(1))
-!         CASE (XC_LDA_C_1D_CSC)
-!            CALL xc_f03_lda_c_1d_csc_set_par(xc_func, NINT(params(1)), params(2))
-!         CASE (XC_LDA_X_1D)
-!            CALL xc_f03_lda_x_1d_set_par(xc_func, NINT(params(1)), params(2))
-!         CASE (XC_GGA_X_LB)
-!            CALL xc_f03_gga_lb_set_par(xc_func, NINT(params(1)), params(2), params(3), params(4))
-!         CASE (XC_MGGA_X_TB09)
-!            CALL xc_f03_mgga_x_tb09_set_par(xc_func, params(1))
-!         CASE (XC_HYB_GGA_XC_HSE03, XC_HYB_GGA_XC_HSE06)
-!            CALL xc_f03_hyb_gga_xc_hse_set_par(xc_func, params(1), params(2))
-!         CASE (XC_HYB_GGA_XC_HJS_PBE, XC_HYB_GGA_XC_HJS_PBE_SOL, &
-!               XC_HYB_GGA_XC_HJS_B88, XC_HYB_GGA_XC_HJS_B97X, &
-!               XC_GGA_X_HJS_PBE, XC_GGA_X_HJS_PBE_SOL, &
-!               XC_GGA_X_HJS_B88, XC_GGA_X_HJS_B97X)
-!            CALL xc_f03_gga_x_hjs_set_par(xc_func, params(1))
-!         CASE (XC_GGA_X_WPBEH)
-!            CALL xc_f03_gga_x_wpbeh_set_par(xc_func, params(1))
-!         END SELECT
 
       IF (IAND(xc_f03_func_info_get_flags(xc_info), XC_FLAGS_HAVE_EXC) == XC_FLAGS_HAVE_EXC) THEN
          no_exc = .FALSE.
