@@ -129,11 +129,11 @@ CONTAINS
       ALLOCATE (piglet_therm%smalls(piglet_therm%nsp1, ndim*p))
       piglet_therm%smalls(:, :) = 0.0_dp
       NULLIFY (piglet_therm%temp1)
-      ALLOCATE (piglet_therm%temp1(piglet_therm%nsp1, ndim*p))
+      ALLOCATE (piglet_therm%temp1(piglet_therm%nsp1, ndim))
       piglet_therm%temp1(:, :) = 0.0_dp
       NULLIFY (piglet_therm%temp2)
-      ALLOCATE (piglet_therm%temp2(piglet_therm%nsp1))
-      piglet_therm%temp2(:) = 0.0_dp
+      ALLOCATE (piglet_therm%temp2(piglet_therm%nsp1, ndim))
+      piglet_therm%temp2(:, :) = 0.0_dp
       NULLIFY (piglet_therm%sqrtmass)
       ALLOCATE (piglet_therm%sqrtmass(piglet_therm%p, piglet_therm%ndim))
       piglet_therm%sqrtmass(:, :) = 0.0_dp
@@ -382,24 +382,32 @@ CONTAINS
                                      piglet_therm%c_mat(:, :, ibead), & ! matrix to decompose
                                      Mtmp) ! result
             END IF
+            ! Fill a vector with random numbers
             DO idim = 1, piglet_therm%ndim
-               i = (ibead-1)*piglet_therm%ndim+idim
-               ! Fill a vector with random numbers
                DO j = 1, piglet_therm%nsp1
-                  piglet_therm%temp2(j) = next_random_number(piglet_therm%gaussian_rng_stream)
+                  piglet_therm%temp2(j, idim) = next_random_number(piglet_therm%gaussian_rng_stream)
+                  !piglet_therm%temp2(j,idim) = 1.0_dp
                END DO
-               !piglet_therm%smalls(:,i) = MATMUL(Mtmp, piglet_therm%temp2)
-               CALL DGEMV('N', & ! Matrix Mtmp is not transposed
-                          piglet_therm%nsp1, & ! Number of rows of matrix
-                          piglet_therm%nsp1, & ! Number of columns of matrix
-                          1.0_dp, & ! scaling of matrix
-                          Mtmp(1, 1), & ! Matrix Mtmp
-                          piglet_therm%nsp1, & ! leading dimension of Mtmp
-                          piglet_therm%temp2, & ! Vector
-                          1, & ! increment of vector
-                          0.0_dp, & ! scaling of smalls as additive
-                          piglet_therm%smalls(1, i), & ! result vector
-                          1) ! increment of result vector
+            END DO
+            CALL DGEMM("N", & ! Matrix Mtmp is not transposed
+                       "N", & ! Matrix temp2 is not transposed
+                       piglet_therm%nsp1, & ! Number of rows of matrix Mtmp
+                       piglet_therm%ndim, & ! Number of columns of matrix temp2
+                       piglet_therm%nsp1, & ! Number of columns of matrix Mtmp
+                       1.0_dp, & !scaling of Mtmp
+                       Mtmp(1, 1), & ! Matrix Mtmp
+                       piglet_therm%nsp1, & ! leading dimension of Mtmp
+                       piglet_therm%temp2(1, 1), & ! temp2 matrix
+                       piglet_therm%nsp1, & ! leading dimension of temp2
+                       0.0_dp, & ! scaling of added matrix smalls
+                       piglet_therm%temp1(1, 1), & ! firts element of result matrix
+                       piglet_therm%nsp1) ! leading dimension of result matrix
+
+            DO idim = 1, piglet_therm%ndim
+               j = (idim-1)*piglet_therm%p+ibead
+               DO i = 1, piglet_therm%nsp1
+                  piglet_therm%smalls(i, j) = piglet_therm%temp1(i, idim)
+               END DO
             END DO
          END DO
       END IF
@@ -434,7 +442,7 @@ CONTAINS
 
       INTEGER                                            :: handle, i, ibead, idim, j, ndim, ndimp, &
                                                             nsp1, p
-      REAL(KIND=dp)                                      :: alpha, beta, delta_ekin
+      REAL(KIND=dp)                                      :: delta_ekin
 
       CALL timeset(routineN, handle)
       nsp1 = piglet_therm%nsp1
@@ -445,76 +453,71 @@ CONTAINS
       ! smalls = gle_t*smalls + gle_s*rand_mat
       ! Copy mass scaled momenta to temp1 matrix
       ! p/sqrt(m) we use velocities so v*sqrt(m)
-      DO idim = 1, ndim
-         DO ibead = first_mode, p
-            i = (idim-1)*p+ibead
-            piglet_therm%temp1(1, i) = vold(ibead, idim)*piglet_therm%sqrtmass(ibead, idim)
+      DO ibead = first_mode, p
+         ! Copy mass scaled momenta to temp1 matrix
+         ! p/sqrt(m) we use velocities so v*sqrt(m)
+         DO idim = 1, ndim
+            piglet_therm%temp1(1, idim) = vold(ibead, idim)*piglet_therm%sqrtmass(ibead, idim)
          END DO
-      END DO
-      ! copy the extra degrees of freedom to the temp1 matrix
-      DO j = 1, ndimp
-         DO i = 2, nsp1
-            piglet_therm%temp1(i, j) = piglet_therm%smalls(i, j)
-         END DO
-      END DO
-
-      alpha = 1.0_dp
-      beta = 0.0_dp
-      ! Start the big multiplication loop
-      DO idim = 1, ndim
-         ! TODO could be accelerated by one big matrix matrix multiplication.
-         DO ibead = first_mode, p
-            !fill temp2 with gaussian random noise
-            DO j = 1, nsp1
-               piglet_therm%temp2(j) = next_random_number(piglet_therm%gaussian_rng_stream)
+         ! copy the extra degrees of freedom to the temp1 matrix
+         DO idim = 1, ndim
+            DO i = 2, nsp1
+               piglet_therm%temp1(i, idim) = piglet_therm%smalls(i, (ibead-1)*ndim+idim)
             END DO
-            beta = 0.0_dp
-
-            i = (idim-1)*p+ibead
-            !smalls(:,i) = alpha * S *temp2 + 0 * smalls
-            CALL DGEMM("N", & ! S-matrix should not be transposed
-                       "N", & ! tmp2 matrix shoud not be transposed
-                       nsp1, & ! Number of rows of S-Matrix
-                       1, & ! Number of columns of temp2 vector
-                       nsp1, & ! Number of Columns of S-Matrix
-                       alpha, & ! Scaling of S-Matrix
-                       piglet_therm%gle_s(1, 1, ibead), & ! First element of S-matrix
-                       nsp1, & ! Leading dimension of S-matrix
-                       piglet_therm%temp2(1), & ! First element of temp2 vector
-                       nsp1, & ! Leading dimension of temp2
-                       beta, & ! scaling factor of added smalls vector
-                       piglet_therm%smalls(1, i), & ! First element of result vector
-                       nsp1) ! Leading dimension of result vector
-            ! Now add the product of T-matrix * old smalls vectors
-            ! smalls (:,i) = alpha * T * temp1 + 1.0 * smalls
-            beta = 1.0_dp
-            CALL DGEMM("N", & ! T-matrix should not be transposed
-                       "N", & ! temp1 matrix shoud not be transposed
-                       nsp1, & ! Number of rows of T-Matrix
-                       1, & ! Number of columns of temp1 vector
-                       nsp1, & ! Number of Columns of T-Matrix
-                       alpha, & ! Scaling of T-Matrix
-                       piglet_therm%gle_t(1, 1, ibead), & ! First element of T-matrix
-                       nsp1, & ! Leading dimension of T-matrix
-                       piglet_therm%temp1(1, i), & ! First element of temp1 vector
-                       nsp1, & ! Leading dimension of temp1
-                       beta, & ! scaling factor of added smalls vector
-                       piglet_therm%smalls(1, i), & ! First element of result vector
-                       nsp1) ! Leading dimension of result vector
          END DO
+
+         !fill temp2 with gaussian random noise
+         DO j = 1, nsp1
+            DO idim = 1, ndim
+               piglet_therm%temp2(j, idim) = next_random_number(piglet_therm%gaussian_rng_stream)
+               !piglet_therm%temp2(j,idim) = 1.0_dp
+            END DO
+         END DO
+
+         i = (ibead-1)*piglet_therm%ndim+1
+         !smalls(:,i) = 1*S*temp2 + 0 * smalls
+         CALL DGEMM("N", & ! S-matrix should not be transposed
+                    "N", & ! tmp2 matrix shoud not be transposed
+                    nsp1, & ! Number of rows of S-Matrix
+                    ndim, & ! Number of columns of temp2 vector
+                    nsp1, & ! Number of Columns of S-Matrix
+                    1.0_dp, & ! Scaling of S-Matrix
+                    piglet_therm%gle_s(1, 1, ibead), & ! First element of S-matrix
+                    nsp1, & ! Leading dimension of S-matrix
+                    piglet_therm%temp2(1, 1), & ! First element of temp2 vector
+                    nsp1, & ! Leading dimension of temp2
+                    0.0_dp, & ! scaling factor of added smalls vector
+                    piglet_therm%smalls(1, i), & ! First element of result vector
+                    nsp1) ! Leading dimension of result vector
+
+         ! Now add the product of T-matrix * old smalls vectors
+         ! smalls (:,i) = 1*T*temp1 + 1*smalls
+         CALL DGEMM("N", & ! T-matrix should not be transposed
+                    "N", & ! temp1 matrix shoud not be transposed
+                    nsp1, & ! Number of rows of T-Matrix
+                    ndim, & ! Number of columns of temp1 vector
+                    nsp1, & ! Number of Columns of T-Matrix
+                    1.0_dp, & ! Scaling of T-Matrix
+                    piglet_therm%gle_t(1, 1, ibead), & ! First element of T-matrix
+                    nsp1, & ! Leading dimension of T-matrix
+                    piglet_therm%temp1(1, 1), & ! First element of temp1 vector
+                    nsp1, & ! Leading dimension of temp1
+                    1.0_dp, & ! scaling factor of added smalls vector
+                    piglet_therm%smalls(1, i), & ! First element of result vector
+                    nsp1) ! Leading dimension of result vector
       END DO
 
       ! Copy the mass scales momenta to the outgoing velocities
       delta_ekin = 0.0_dp
       DO idim = 1, ndim
-         DO ibead = first_mode, p
-            i = (idim-1)*p+ibead
-            vnew(ibead, idim) = piglet_therm%smalls(1, i)/piglet_therm%sqrtmass(ibead, idim)
+         DO ibead = 1, p
+            vnew(ibead, idim) = piglet_therm%smalls(1, (ibead-1)*ndim+idim)/piglet_therm%sqrtmass(ibead, idim)
             delta_ekin = delta_ekin+masses(ibead, idim)*( &
                          vnew(ibead, idim)*vnew(ibead, idim)- &
                          vold(ibead, idim)*vold(ibead, idim))
          END DO
       END DO
+
       ! the piglet is such a strong thermostat, that it messes up the "exact" integration. The thermostats energy will rise lineary, because "it will suck up its own mess" (quote from Michele Ceriotti)
       piglet_therm%thermostat_energy = piglet_therm%thermostat_energy-0.5_dp*delta_ekin
 
@@ -800,7 +803,7 @@ CONTAINS
                  -1, & ! size of temporary real work array
                  info) ! information about success
 
-      lwork = INT(tmplwork+0.5)
+      lwork = INT(tmplwork+0.5_dp)
       ALLOCATE (work(lwork))
       work(:) = 0.0_dp
 

@@ -227,7 +227,7 @@ MODULE pint_types
       REAL(KIND=dp), DIMENSION(:, :, :), POINTER :: gle_s, gle_t
       REAL(KIND=dp), DIMENSION(:, :), POINTER :: smalls
       REAL(KIND=dp), DIMENSION(:, :), POINTER :: temp1
-      REAL(KIND=dp), DIMENSION(:), POINTER   :: temp2
+      REAL(KIND=dp), DIMENSION(:, :), POINTER :: temp2
       REAL(KIND=dp), DIMENSION(:, :), POINTER :: sqrtmass
       TYPE(rng_stream_type), POINTER       :: gaussian_rng_stream
    END TYPE piglet_therm_type
