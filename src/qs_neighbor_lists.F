@@ -418,7 +418,8 @@ CONTAINS
       IF (dokp) THEN
          ! no MIC for kpoints
          mic = .FALSE.
-      ELSEIF (nddo .OR. dftb) THEN
+!deb  ELSEIF (nddo .OR. dftb) THEN
+      ELSEIF (nddo) THEN
          ! enforce MIC for interaction lists in SE and DFTB
          mic = .TRUE.
       END IF
