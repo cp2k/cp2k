@@ -296,7 +296,7 @@ CONTAINS
       CALL section_create(subsection, name="XGGA", &
                           description="Uses one of the XGGA functionals (optimized versions of "// &
                           "some of these functionals might be available outside this section).", &
-                          n_keywords=1, n_subsections=0, repeats=.TRUE.)
+                          n_keywords=1, n_subsections=0, repeats=.FALSE.)
       CALL keyword_create(keyword, "_SECTION_PARAMETERS_", &
                           description="activates the functional", &
                           lone_keyword_l_val=.TRUE., default_l_val=.FALSE.)
@@ -325,7 +325,7 @@ CONTAINS
                           "some of these functionals might be available outside this section). "// &
                           "These functionals are needed for the computation of the kinetic "// &
                           "energy in the Kim-Gordon method.", &
-                          n_keywords=1, n_subsections=0, repeats=.TRUE.)
+                          n_keywords=1, n_subsections=0, repeats=.FALSE.)
       CALL keyword_create(keyword, "_SECTION_PARAMETERS_", &
                           description="activates the functional", &
                           lone_keyword_l_val=.TRUE., default_l_val=.FALSE.)
@@ -368,7 +368,7 @@ CONTAINS
 
       CALL section_create(subsection, name="PW92", &
                           description="Uses the PerdewWang correlation functional.", &
-                          n_keywords=1, n_subsections=0, repeats=.TRUE.)
+                          n_keywords=1, n_subsections=0, repeats=.FALSE.)
       CALL keyword_create(keyword, "_SECTION_PARAMETERS_", &
                           description="activates the functional", &
                           lone_keyword_l_val=.TRUE., default_l_val=.FALSE.)
@@ -395,7 +395,7 @@ CONTAINS
 
       CALL section_create(subsection, name="PZ81", &
                           description="Uses the PZ functional.", &
-                          n_keywords=1, n_subsections=0, repeats=.TRUE., &
+                          n_keywords=1, n_subsections=0, repeats=.FALSE., &
                           citations=(/Perdew1981, Ortiz1994/))
       CALL keyword_create(keyword, "_SECTION_PARAMETERS_", &
                           description="activates the functional", &
@@ -475,7 +475,7 @@ CONTAINS
 
       CALL section_create(subsection, name="XALPHA", &
                           description="Uses the XALPHA (SLATER) functional.", &
-                          n_keywords=1, n_subsections=0, repeats=.TRUE.)
+                          n_keywords=1, n_subsections=0, repeats=.FALSE.)
       CALL keyword_create(keyword, "_SECTION_PARAMETERS_", &
                           description="activates the functional", &
                           lone_keyword_l_val=.TRUE., default_l_val=.FALSE.)
