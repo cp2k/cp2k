@@ -10,8 +10,8 @@
 
 MODULE matrix_exp
 
-   USE cp_cfm_basic_linalg,             ONLY: cp_cfm_add,&
-                                              cp_cfm_gemm,&
+   USE cp_cfm_basic_linalg,             ONLY: cp_cfm_gemm,&
+                                              cp_cfm_scale_and_add,&
                                               cp_cfm_solve
    USE cp_cfm_types,                    ONLY: cp_cfm_create,&
                                               cp_cfm_p_type,&
@@ -36,7 +36,9 @@ MODULE matrix_exp
    USE cp_log_handling,                 ONLY: cp_to_string
    USE cp_para_types,                   ONLY: cp_para_env_type
    USE kinds,                           ONLY: dp
-   USE mathconstants,                   ONLY: fac
+   USE mathconstants,                   ONLY: fac,&
+                                              z_one,&
+                                              z_zero
    USE message_passing,                 ONLY: mp_comm_free,&
                                               mp_max,&
                                               mp_reordering,&
@@ -170,8 +172,6 @@ CONTAINS
 
       CHARACTER(len=*), PARAMETER :: routineN = 'taylor_full_complex', &
          routineP = moduleN//':'//routineN
-      COMPLEX(KIND=dp), PARAMETER                        :: one = (1.0_dp, 0.0_dp), &
-                                                            zero = (0.0_dp, 0.0_dp)
 
       COMPLEX(KIND=dp)                                   :: Tfac
       INTEGER                                            :: handle, i, ndim
@@ -202,22 +202,22 @@ CONTAINS
                          matrix_struct=T1%matrix_struct, &
                          name="Tres")
       tmp = 1.0_dp
-      CALL cp_cfm_set_all(Tres, zero, one)
-      CALL cp_cfm_set_all(T2, zero, one)
-      Tfac = one
+      CALL cp_cfm_set_all(Tres, z_zero, z_one)
+      CALL cp_cfm_set_all(T2, z_zero, z_one)
+      Tfac = z_one
 
       DO i = 1, ntaylor
          tmp = tmp*REAL(i, dp)
-         CALL cp_cfm_gemm("N", "N", ndim, ndim, ndim, one, T1, T2, zero, &
+         CALL cp_cfm_gemm("N", "N", ndim, ndim, ndim, z_one, T1, T2, z_zero, &
                           T3)
          Tfac = CMPLX(1._dp/tmp, 0.0_dp, kind=dp)
-         CALL cp_cfm_add(one, Tres, Tfac, T3)
+         CALL cp_cfm_scale_and_add(z_one, Tres, Tfac, T3)
          CALL cp_cfm_to_cfm(T3, T2)
       END DO
 
       IF (nsquare .GT. 0) THEN
          DO i = 1, nsquare
-            CALL cp_cfm_gemm("N", "N", ndim, ndim, ndim, one, Tres, Tres, zero, &
+            CALL cp_cfm_gemm("N", "N", ndim, ndim, ndim, z_one, Tres, Tres, z_zero, &
                              T2)
             CALL cp_cfm_to_cfm(T2, Tres)
          END DO
@@ -352,8 +352,6 @@ CONTAINS
 
       CHARACTER(len=*), PARAMETER :: routineN = 'exp_pade_full_complex', &
          routineP = moduleN//':'//routineN
-      COMPLEX(KIND=dp), PARAMETER                        :: one = (1.0_dp, 0.0_dp), &
-                                                            zero = (0.0_dp, 0.0_dp)
 
       COMPLEX(KIND=dp)                                   :: scaleD, scaleN
       INTEGER                                            :: handle, i, ldim, ndim, p, q
@@ -399,20 +397,20 @@ CONTAINS
       mult_p(1)%matrix => T2
       mult_p(2)%matrix => Tres
       tmp = 1.0_dp
-      CALL cp_cfm_set_all(Npq, zero, one)
-      CALL cp_cfm_set_all(Dpq, zero, one)
+      CALL cp_cfm_set_all(Npq, z_zero, z_one)
+      CALL cp_cfm_set_all(Dpq, z_zero, z_one)
 
-      CALL cp_cfm_add(one, Npq, one*0.5_dp, T2)
-      CALL cp_cfm_add(one, Dpq, -one*0.5_dp, T2)
+      CALL cp_cfm_scale_and_add(z_one, Npq, z_one*0.5_dp, T2)
+      CALL cp_cfm_scale_and_add(z_one, Dpq, -z_one*0.5_dp, T2)
 
       IF (npade .GT. 2) THEN
          DO i = 2, npade
             IF (i .LE. p) scaleN = CMPLX(fac(p+q-i)*fac(p)/(fac(p+q)*fac(i)*fac(p-i)), 0.0_dp, kind=dp)
             scaleD = CMPLX((-1.0_dp)**i*fac(p+q-i)*fac(q)/(fac(p+q)*fac(i)*fac(q-i)), 0.0_dp, kind=dp)
-            CALL cp_cfm_gemm("N", "N", ndim, ndim, ndim, one, T1, mult_p(MOD(i, 2)+1)%matrix, zero, &
+            CALL cp_cfm_gemm("N", "N", ndim, ndim, ndim, z_one, T1, mult_p(MOD(i, 2)+1)%matrix, z_zero, &
                              mult_p(MOD(i+1, 2)+1)%matrix)
-            IF (i .LE. p) CALL cp_cfm_add(one, Npq, scaleN, mult_p(MOD(i+1, 2)+1)%matrix)
-            IF (i .LE. q) CALL cp_cfm_add(one, Dpq, scaleD, mult_p(MOD(i+1, 2)+1)%matrix)
+            IF (i .LE. p) CALL cp_cfm_scale_and_add(z_one, Npq, scaleN, mult_p(MOD(i+1, 2)+1)%matrix)
+            IF (i .LE. q) CALL cp_cfm_scale_and_add(z_one, Dpq, scaleD, mult_p(MOD(i+1, 2)+1)%matrix)
          END DO
       END IF
 
@@ -422,7 +420,7 @@ CONTAINS
       mult_p(1)%matrix => Tres
       IF (nsquare .GT. 0) THEN
          DO i = 1, nsquare
-            CALL cp_cfm_gemm("N", "N", ndim, ndim, ndim, one, mult_p(MOD(i, 2)+1)%matrix, mult_p(MOD(i, 2)+1)%matrix, zero, &
+            CALL cp_cfm_gemm("N", "N", ndim, ndim, ndim, z_one, mult_p(MOD(i, 2)+1)%matrix, mult_p(MOD(i, 2)+1)%matrix, z_zero, &
                              mult_p(MOD(i+1, 2)+1)%matrix)
             fin_p => mult_p(MOD(i+1, 2)+1)%matrix
          END DO
@@ -461,8 +459,6 @@ CONTAINS
 
       CHARACTER(len=*), PARAMETER :: routineN = 'exp_pade_only_imaginary', &
          routineP = moduleN//':'//routineN
-      COMPLEX(KIND=dp), PARAMETER                        :: one = (1.0_dp, 0.0_dp), &
-                                                            zero = (0.0_dp, 0.0_dp)
       REAL(KIND=dp), PARAMETER                           :: rone = 1.0_dp, rzero = 0.0_dp
 
       COMPLEX(KIND=dp)                                   :: scaleD, scaleN
@@ -507,8 +503,8 @@ CONTAINS
 
       CALL cp_fm_to_fm(im_part, T2)
 
-      CALL cp_cfm_set_all(Npq, zero, one)
-      CALL cp_cfm_set_all(Dpq, zero, one)
+      CALL cp_cfm_set_all(Npq, z_zero, z_one)
+      CALL cp_cfm_set_all(Dpq, z_zero, z_one)
 
       DO i = 1, ldim
          Npq%local_data(:, i) = Npq%local_data(:, i)+CMPLX(rzero, 0.5_dp*square_fac*local_data_im(:, i), dp)
@@ -548,7 +544,7 @@ CONTAINS
       cmult_p(1)%matrix => T1
       IF (nsquare .GT. 0) THEN
          DO i = 1, nsquare
-            CALL cp_cfm_gemm("N", "N", ndim, ndim, ndim, one, cmult_p(MOD(i, 2)+1)%matrix, cmult_p(MOD(i, 2)+1)%matrix, zero, &
+            CALL cp_cfm_gemm("N", "N", ndim, ndim, ndim, z_one, cmult_p(MOD(i, 2)+1)%matrix, cmult_p(MOD(i, 2)+1)%matrix, z_zero, &
                              cmult_p(MOD(i+1, 2)+1)%matrix)
             fin_p => cmult_p(MOD(i+1, 2)+1)%matrix
          END DO
@@ -704,8 +700,6 @@ CONTAINS
       INTEGER, INTENT(inout)                             :: narn_old
 
       CHARACTER(len=*), PARAMETER :: routineN = 'arnoldi', routineP = moduleN//':'//routineN
-      COMPLEX(KIND=dp), PARAMETER                        :: one = (1.0_dp, 0.0_dp), &
-                                                            zero = (0.0_dp, 0.0_dp)
       REAL(KIND=dp), PARAMETER                           :: rone = 1.0_dp, rzero = 0.0_dp
 
       INTEGER                                            :: col_group, handle, i, icol_local, idim, &
@@ -864,8 +858,8 @@ CONTAINS
                pade_step = 1
                DO idim = 1, 4
                   pade_step = pade_step+1
-                  CALL dgemm("N", 'N', mydim, mydim, mydim, one, mat1(1, 1), &
-                             mydim, mat3(1, 1), mydim, zero, mat2(1, 1), mydim)
+                  CALL dgemm("N", 'N', mydim, mydim, mydim, rone, mat1(1, 1), &
+                             mydim, mat3(1, 1), mydim, rzero, mat2(1, 1), mydim)
                   scaleN = REAL(fac(2*npade-pade_step)*fac(npade)/ &
                                 (fac(2*npade)*fac(pade_step)*fac(npade-pade_step)), dp)
                   scaleD = REAL((-1.0_dp)**pade_step*fac(2*npade-pade_step)*fac(npade)/ &
@@ -873,8 +867,8 @@ CONTAINS
                   N(:, :) = N+scaleN*mat2
                   D(:, :) = D+scaleD*mat2
                   pade_step = pade_step+1
-                  CALL dgemm("N", 'N', mydim, mydim, mydim, one, mat2(1, 1), &
-                             mydim, mat1(1, 1), mydim, zero, mat3(1, 1), mydim)
+                  CALL dgemm("N", 'N', mydim, mydim, mydim, rone, mat2(1, 1), &
+                             mydim, mat1(1, 1), mydim, rzero, mat3(1, 1), mydim)
                   scaleN = REAL(fac(2*npade-pade_step)*fac(npade)/ &
                                 (fac(2*npade)*fac(pade_step)*fac(npade-pade_step)), dp)
                   scaleD = REAL((-1.0_dp)**pade_step*fac(2*npade-pade_step)*fac(npade)/ &
@@ -885,10 +879,10 @@ CONTAINS
 
                CALL dgetrf(mydim, mydim, D(1, 1), mydim, ipivot, info)
                CALL dgetrs("N", mydim, mydim, D(1, 1), mydim, ipivot, N, mydim, info)
-               CALL dgemm("N", 'N', mydim, mydim, mydim, one, N(1, 1), mydim, N(1, 1), mydim, zero, mat1(1, 1), mydim)
-               CALL dgemm("N", 'N', mydim, mydim, mydim, one, mat1(1, 1), mydim, mat1(1, 1), mydim, zero, N(1, 1), mydim)
-               CALL dgemm("N", 'N', mydim, mydim, mydim, one, N(1, 1), mydim, N(1, 1), mydim, zero, mat1(1, 1), mydim)
-               CALL dgemm("N", 'N', mydim, mydim, mydim, one, mat1(1, 1), mydim, mat1(1, 1), mydim, zero, N(1, 1), mydim)
+               CALL dgemm("N", 'N', mydim, mydim, mydim, rone, N(1, 1), mydim, N(1, 1), mydim, rzero, mat1(1, 1), mydim)
+               CALL dgemm("N", 'N', mydim, mydim, mydim, rone, mat1(1, 1), mydim, mat1(1, 1), mydim, rzero, N(1, 1), mydim)
+               CALL dgemm("N", 'N', mydim, mydim, mydim, rone, N(1, 1), mydim, N(1, 1), mydim, rzero, mat1(1, 1), mydim)
+               CALL dgemm("N", 'N', mydim, mydim, mydim, rone, mat1(1, 1), mydim, mat1(1, 1), mydim, rzero, N(1, 1), mydim)
                DO idim = 1, mydim
                   DO j = 1, mydim
                      H_approx(idim, j, icol_local) = N(idim, j)
@@ -926,7 +920,7 @@ CONTAINS
                            N(idim, j) = H_approx(idim, j, icol_local)
                         END DO
                      END DO
-                     CALL dgemm("N", 'N', mydim, mydim, mydim, one, N(1, 1), mydim, N(1, 1), mydim, zero, mat1(1, 1), mydim)
+                     CALL dgemm("N", 'N', mydim, mydim, mydim, rone, N(1, 1), mydim, N(1, 1), mydim, rzero, mat1(1, 1), mydim)
                      DO idim = 1, mydim
                         DO j = 1, mydim
                            H_approx(idim, j, icol_local) = mat1(idim, j)

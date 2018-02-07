@@ -151,7 +151,7 @@ MODULE message_passing
    PUBLIC :: mp_probe
 
    ! message passing
-   PUBLIC :: mp_bcast, mp_sum, mp_sum_partial, mp_max, mp_maxloc, mp_minloc, mp_min, mp_sync
+   PUBLIC :: mp_bcast, mp_sum, mp_sum_partial, mp_max, mp_maxloc, mp_minloc, mp_min, mp_prod, mp_sync
    PUBLIC :: mp_isync, mp_isum
    PUBLIC :: mp_gather, mp_alltoall, mp_sendrecv, mp_allgather, mp_iallgather
    PUBLIC :: mp_isend, mp_irecv, mp_ibcast
@@ -327,6 +327,10 @@ MODULE message_passing
          mp_min_d, mp_min_dv, &
          mp_min_c, mp_min_cv, &
          mp_min_z, mp_min_zv
+   END INTERFACE
+
+   INTERFACE mp_prod
+      MODULE PROCEDURE mp_prod_r, mp_prod_d, mp_prod_c, mp_prod_z
    END INTERFACE
 
    INTERFACE mp_gather

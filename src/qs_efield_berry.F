@@ -20,7 +20,7 @@ MODULE qs_efield_berry
    USE block_p_types,                   ONLY: block_p_type
    USE cell_types,                      ONLY: cell_type,&
                                               pbc
-   USE cp_cfm_basic_linalg,             ONLY: cp_cfm_add_fm,&
+   USE cp_cfm_basic_linalg,             ONLY: cp_cfm_scale_and_add_fm,&
                                               cp_cfm_solve
    USE cp_cfm_types,                    ONLY: cp_cfm_create,&
                                               cp_cfm_p_type,&
@@ -49,8 +49,11 @@ MODULE qs_efield_berry
                                               dbcsr_set,&
                                               dbcsr_type
    USE kinds,                           ONLY: dp
-   USE mathconstants,                   ONLY: pi,&
-                                              twopi
+   USE mathconstants,                   ONLY: gaussi,&
+                                              pi,&
+                                              twopi,&
+                                              z_one,&
+                                              z_zero
    USE message_passing,                 ONLY: mp_sum
    USE orbital_pointers,                ONLY: ncoset
    USE particle_types,                  ONLY: particle_type
@@ -186,9 +189,6 @@ CONTAINS
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'qs_efield_derivatives', &
          routineP = moduleN//':'//routineN
-      COMPLEX(KIND=dp), PARAMETER                        :: one = (1.0_dp, 0.0_dp), &
-                                                            zero = (0.0_dp, 0.0_dp), &
-                                                            zone = (0.0_dp, 1.0_dp)
 
       COMPLEX(dp)                                        :: zdet, zdeta, zi(3)
       INTEGER :: atom_a, atom_b, handle, i, ia, iatom, icol, idir, ikind, irow, iset, ispin, j, &
@@ -361,7 +361,7 @@ CONTAINS
       !loop over all cell vectors
       DO idir = 1, 3
          ci(idir) = 0.0_dp
-         zi(idir) = zero
+         zi(idir) = z_zero
          IF (ABS(fpolvec(idir)) .GT. 1.0E-12_dp) THEN
             cosmat => efield%cosmat(idir)%matrix
             sinmat => efield%sinmat(idir)%matrix
@@ -382,11 +382,11 @@ CONTAINS
                             op_fm_set(2, ispin)%matrix)
             ENDDO
             !second step invert C^T S_berry C
-            zdet = one
+            zdet = z_one
             DO ispin = 1, dft_control%nspins
-               CALL cp_cfm_add_fm(zero, eigrmat(ispin)%matrix, one, op_fm_set(1, ispin)%matrix)
-               CALL cp_cfm_add_fm(one, eigrmat(ispin)%matrix, -zone, op_fm_set(2, ispin)%matrix)
-               CALL cp_cfm_set_all(inv_mat(ispin)%matrix, zero, one)
+               CALL cp_cfm_scale_and_add_fm(z_zero, eigrmat(ispin)%matrix, z_one, op_fm_set(1, ispin)%matrix)
+               CALL cp_cfm_scale_and_add_fm(z_one, eigrmat(ispin)%matrix, -gaussi, op_fm_set(2, ispin)%matrix)
+               CALL cp_cfm_set_all(inv_mat(ispin)%matrix, z_zero, z_one)
                CALL cp_cfm_solve(eigrmat(ispin)%matrix, inv_mat(ispin)%matrix, zdeta)
                zdet = zdet*zdeta
             END DO
@@ -673,9 +673,6 @@ CONTAINS
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'qs_dispfield_derivatives', &
          routineP = moduleN//':'//routineN
-      COMPLEX(KIND=dp), PARAMETER                        :: one = (1.0_dp, 0.0_dp), &
-                                                            zero = (0.0_dp, 0.0_dp), &
-                                                            zone = (0.0_dp, 1.0_dp)
 
       COMPLEX(dp)                                        :: zdet, zdeta, zi(3)
       INTEGER :: handle, i, ia, iatom, icol, idir, ikind, irow, iset, ispin, jatom, jkind, jset, &
@@ -849,7 +846,7 @@ CONTAINS
       !Start the MO derivative calculation
       !loop over all cell vectors
       DO idir = 1, 3
-         zi(idir) = zero
+         zi(idir) = z_zero
          cosmat => efield%cosmat(idir)%matrix
          sinmat => efield%sinmat(idir)%matrix
          !evaluate the expression needed for the derivative (S_berry * C  and [C^T S_berry C]^-1)
@@ -869,11 +866,11 @@ CONTAINS
                          op_fm_set(2, ispin)%matrix)
          ENDDO
          !second step invert C^T S_berry C
-         zdet = one
+         zdet = z_one
          DO ispin = 1, dft_control%nspins
-            CALL cp_cfm_add_fm(zero, eigrmat(ispin)%matrix, one, op_fm_set(1, ispin)%matrix)
-            CALL cp_cfm_add_fm(one, eigrmat(ispin)%matrix, -zone, op_fm_set(2, ispin)%matrix)
-            CALL cp_cfm_set_all(inv_mat(ispin)%matrix, zero, one)
+            CALL cp_cfm_scale_and_add_fm(z_zero, eigrmat(ispin)%matrix, z_one, op_fm_set(1, ispin)%matrix)
+            CALL cp_cfm_scale_and_add_fm(z_one, eigrmat(ispin)%matrix, -gaussi, op_fm_set(2, ispin)%matrix)
+            CALL cp_cfm_set_all(inv_mat(ispin)%matrix, z_zero, z_one)
             CALL cp_cfm_solve(eigrmat(ispin)%matrix, inv_mat(ispin)%matrix, zdeta)
             zdet = zdet*zdeta
          END DO

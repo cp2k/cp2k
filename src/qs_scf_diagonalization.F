@@ -12,7 +12,7 @@
 ! **************************************************************************************************
 MODULE qs_scf_diagonalization
    USE cp_array_utils,                  ONLY: cp_1d_r_p_type
-   USE cp_cfm_basic_linalg,             ONLY: cp_cfm_add_fm
+   USE cp_cfm_basic_linalg,             ONLY: cp_cfm_scale_and_add_fm
    USE cp_cfm_diag,                     ONLY: cp_cfm_geeig,&
                                               cp_cfm_geeig_canon
    USE cp_cfm_types,                    ONLY: cp_cfm_create,&
@@ -493,13 +493,13 @@ CONTAINS
                      CALL cp_fm_finish_copy_general(rsmat, info(indx, 2))
                   ELSE
                      CALL cp_fm_finish_copy_general(fmlocal, info(indx, 1))
-                     CALL cp_cfm_add_fm(czero, cksmat, cone, fmlocal)
+                     CALL cp_cfm_scale_and_add_fm(czero, cksmat, cone, fmlocal)
                      CALL cp_fm_finish_copy_general(fmlocal, info(indx, 2))
-                     CALL cp_cfm_add_fm(cone, cksmat, ione, fmlocal)
+                     CALL cp_cfm_scale_and_add_fm(cone, cksmat, ione, fmlocal)
                      CALL cp_fm_finish_copy_general(fmlocal, info(indx, 3))
-                     CALL cp_cfm_add_fm(czero, csmat, cone, fmlocal)
+                     CALL cp_cfm_scale_and_add_fm(czero, csmat, cone, fmlocal)
                      CALL cp_fm_finish_copy_general(fmlocal, info(indx, 4))
-                     CALL cp_cfm_add_fm(cone, csmat, ione, fmlocal)
+                     CALL cp_cfm_scale_and_add_fm(cone, csmat, ione, fmlocal)
                   END IF
                END IF
             END DO

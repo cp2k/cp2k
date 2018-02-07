@@ -7,12 +7,12 @@
 !> \brief Subroutines to compute Green functions
 ! **************************************************************************************************
 MODULE negf_green_methods
-   USE cp_cfm_basic_linalg,             ONLY: cp_cfm_add,&
-                                              cp_cfm_add_fm,&
-                                              cp_cfm_gemm,&
+   USE cp_cfm_basic_linalg,             ONLY: cp_cfm_gemm,&
                                               cp_cfm_lu_invert,&
                                               cp_cfm_norm,&
                                               cp_cfm_scale,&
+                                              cp_cfm_scale_and_add,&
+                                              cp_cfm_scale_and_add_fm,&
                                               cp_cfm_transpose
    USE cp_cfm_types,                    ONLY: cp_cfm_create,&
                                               cp_cfm_get_info,&
@@ -156,7 +156,7 @@ CONTAINS
 
       ! A^{ret.}_0 = omega * s0 - h0
       CALL cp_fm_to_cfm(msourcer=s0, mtarget=work%a)
-      CALL cp_cfm_add_fm(omega, work%a, z_mone, h0)
+      CALL cp_cfm_scale_and_add_fm(omega, work%a, z_mone, h0)
       ! A0^{ret.}_0 = A^{ret.}_0
       CALL cp_cfm_to_cfm(work%a, work%a0)
 
@@ -165,14 +165,14 @@ CONTAINS
       IF (transp) THEN
          ! beta = omega * s1 - h1
          CALL cp_fm_to_cfm(msourcer=s1, mtarget=work%c)
-         CALL cp_cfm_add_fm(omega, work%c, z_mone, h1)
+         CALL cp_cfm_scale_and_add_fm(omega, work%c, z_mone, h1)
 
          ! alpha = omega * s1' - h1'
          CALL cp_cfm_transpose(matrix=work%c, trans='T', matrixt=work%b)
       ELSE
          ! alpha  = omega * s1 - h1
          CALL cp_fm_to_cfm(msourcer=s1, mtarget=work%b)
-         CALL cp_cfm_add_fm(omega, work%b, z_mone, h1)
+         CALL cp_cfm_scale_and_add_fm(omega, work%b, z_mone, h1)
 
          ! beta = omega * s1' - h1'
          CALL cp_cfm_transpose(matrix=work%b, trans='T', matrixt=work%c)
@@ -203,11 +203,11 @@ CONTAINS
          CALL cp_cfm_to_cfm(g_surf, work%c)
 
          ! A0_{n+1} = A0_n + D_n = A0_n - B_n A_n^-1 C_n
-         CALL cp_cfm_add(z_one, work%a0, z_one, work%d)
+         CALL cp_cfm_scale_and_add(z_one, work%a0, z_one, work%d)
 
          ! A_{n+1} = A0_n + D_n + E_n = A_n - B_n A_n^-1 C_n - C_n A_n^-1 B_n
-         CALL cp_cfm_add(z_one, work%a, z_one, work%d)
-         CALL cp_cfm_add(z_one, work%a, z_one, work%e)
+         CALL cp_cfm_scale_and_add(z_one, work%a, z_one, work%d)
+         CALL cp_cfm_scale_and_add(z_one, work%a, z_one, work%e)
       END DO
 
       ! g_surf = A0_n^-1
@@ -250,7 +250,7 @@ CONTAINS
       ! zwork1 = omega * S_SC0   - KS_SC0     if transp = .FALSE., or
       !        = omega * S_SC0^T - KS_SC0^T   if transp = .TRUE.
       CALL cp_fm_to_cfm(msourcer=s_sc0, mtarget=zwork1)
-      CALL cp_cfm_add_fm(omega, zwork1, z_mone, h_sc0)
+      CALL cp_cfm_scale_and_add_fm(omega, zwork1, z_mone, h_sc0)
 
       IF (transp) THEN
          CALL cp_fm_get_info(s_sc0, nrow_global=nao_contact, ncol_global=nao_scattering)
@@ -296,7 +296,7 @@ CONTAINS
       ! gamma_contact = i [self_energy_contact - self_energy_contact^C] .
 
       CALL cp_cfm_transpose(self_energy_c, 'C', gamma_c)
-      CALL cp_cfm_add(z_mone, gamma_c, z_one, self_energy_c)
+      CALL cp_cfm_scale_and_add(z_mone, gamma_c, z_one, self_energy_c)
       CALL cp_cfm_scale(gaussi, gamma_c)
 
       CALL timestop(handle)
@@ -329,10 +329,10 @@ CONTAINS
       !
       ! omega * S_S - H_S
       CALL cp_fm_to_cfm(msourcer=s_s, mtarget=g_ret_s)
-      CALL cp_cfm_add_fm(omega, g_ret_s, z_mone, h_s)
+      CALL cp_cfm_scale_and_add_fm(omega, g_ret_s, z_mone, h_s)
 
       ! g_ret_s = [omega * S_S - H_S - \sum_{contact} self_energy_{contact}^{ret.} ]^-1
-      CALL cp_cfm_add(z_one, g_ret_s, z_mone, self_energy_ret_sum)
+      CALL cp_cfm_scale_and_add(z_one, g_ret_s, z_mone, self_energy_ret_sum)
 
       CALL cp_cfm_lu_invert(g_ret_s)
 

@@ -12,9 +12,9 @@ MODULE negf_methods
                                               Papior2017,&
                                               cite_reference
    USE cp_blacs_env,                    ONLY: cp_blacs_env_type
-   USE cp_cfm_basic_linalg,             ONLY: cp_cfm_add,&
-                                              cp_cfm_gemm,&
+   USE cp_cfm_basic_linalg,             ONLY: cp_cfm_gemm,&
                                               cp_cfm_scale,&
+                                              cp_cfm_scale_and_add,&
                                               cp_cfm_trace
    USE cp_cfm_types,                    ONLY: &
         copy_cfm_info_type, cp_cfm_cleanup_copy_general, cp_cfm_create, &
@@ -1242,7 +1242,7 @@ CONTAINS
             IF (ALLOCATED(g_ret_s_group)) THEN
                ! sum up self energies for all contacts
                DO icontact = 2, ncontacts
-                  CALL cp_cfm_add(z_one, self_energy_contacts(1)%matrix, z_one, self_energy_contacts(icontact)%matrix)
+                  CALL cp_cfm_scale_and_add(z_one, self_energy_contacts(1)%matrix, z_one, self_energy_contacts(icontact)%matrix)
                END DO
 
                ! retarded Green's function for the scattering region
@@ -1636,7 +1636,7 @@ CONTAINS
          CALL green_functions_cache_release(g_surf_cache)
 
          DO ipole = 2, npoles
-            CALL cp_cfm_add(z_one, g_ret_s(1)%matrix, z_one, g_ret_s(ipole)%matrix)
+            CALL cp_cfm_scale_and_add(z_one, g_ret_s(1)%matrix, z_one, g_ret_s(ipole)%matrix)
          END DO
 
          !Re(-i * (-2*pi*i*kB*T/(-pi) * [Re(G)+i*Im(G)]) == 2*kB*T * Re(G)

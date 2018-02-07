@@ -10,8 +10,8 @@
 !>   * 05.2017 created [Sergey Chulkov]
 ! **************************************************************************************************
 MODULE negf_integr_cc
-   USE cp_cfm_basic_linalg,             ONLY: cp_cfm_add,&
-                                              cp_cfm_scale
+   USE cp_cfm_basic_linalg,             ONLY: cp_cfm_scale,&
+                                              cp_cfm_scale_and_add
    USE cp_cfm_types,                    ONLY: cp_cfm_create,&
                                               cp_cfm_get_info,&
                                               cp_cfm_p_type,&
@@ -377,7 +377,7 @@ CONTAINS
 
       IF (cc_env%interval_id == cc_interval_full) THEN
          DO ipoint = nnodes_next/2, 1, -1
-            CALL cp_cfm_add(z_one, zdata_next(ipoint)%matrix, z_one, zdata_next(nnodes_next-ipoint+1)%matrix)
+            CALL cp_cfm_scale_and_add(z_one, zdata_next(ipoint)%matrix, z_one, zdata_next(nnodes_next-ipoint+1)%matrix)
          END DO
       END IF
 

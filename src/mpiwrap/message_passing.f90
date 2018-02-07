@@ -1435,6 +1435,37 @@
     CALL mp_timestop(handle)
   END SUBROUTINE mp_min_${nametype1}$v
 
+! *****************************************************************************
+!> \brief Multiplies a set of numbers scattered across a number of processes,
+!>        then replicates the result.
+!> \param[in,out] msg         a number to multiply (input) and result (output)
+!> \param[in] gid             mssage passing environment identifier
+!> \par MPI mapping
+!>      mpi_allreduce
+! *****************************************************************************
+  SUBROUTINE mp_prod_${nametype1}$(msg,gid)
+    ${type1}$, INTENT(INOUT)                   :: msg
+    INTEGER, INTENT(IN)                      :: gid
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'mp_sum_${nametype1}$', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: handle, ierr, msglen
+
+    ierr = 0
+    CALL mp_timeset(routineN,handle)
+
+    msglen = 1
+#if defined(__parallel)
+    CALL mpi_allreduce(MPI_IN_PLACE,msg,msglen,${mpi_type1}$,MPI_PROD,gid,ierr)
+    IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_allreduce @ "//routineN )
+    CALL add_perf(perf_id=3, count=1, msg_size=msglen*${bytes1}$)
+#else
+    MARK_USED(msg)
+    MARK_USED(gid)
+#endif
+    CALL mp_timestop(handle)
+  END SUBROUTINE mp_prod_${nametype1}$
 
 ! *****************************************************************************
 !> \brief Scatters data from one processes to all others

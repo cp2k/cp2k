@@ -7,8 +7,8 @@
 !> \brief Adaptive Simpson's rule algorithm to integrate a complex-valued function in a complex plane
 ! **************************************************************************************************
 MODULE negf_integr_simpson
-   USE cp_cfm_basic_linalg,             ONLY: cp_cfm_add,&
-                                              cp_cfm_scale
+   USE cp_cfm_basic_linalg,             ONLY: cp_cfm_scale,&
+                                              cp_cfm_scale_and_add
    USE cp_cfm_types,                    ONLY: cp_cfm_create,&
                                               cp_cfm_get_info,&
                                               cp_cfm_p_type,&
@@ -465,8 +465,8 @@ CONTAINS
                               subintervals(interval)%fe, &
                               0.25_dp*rscale)
 
-         CALL cp_cfm_add(z_one, sr_env%integral_abc, z_one, sr_env%integral_cde)
-         CALL cp_cfm_add(z_one, sr_env%integral_ace, z_one, sr_env%integral_abc)
+         CALL cp_cfm_scale_and_add(z_one, sr_env%integral_abc, z_one, sr_env%integral_cde)
+         CALL cp_cfm_scale_and_add(z_one, sr_env%integral_ace, z_one, sr_env%integral_abc)
 
          IF (is_boole) THEN
             CALL do_boole_rule(sr_env%integral_abc, &
@@ -478,7 +478,7 @@ CONTAINS
                                0.5_dp*rscale, sr_env%integral_cde)
          END IF
 
-         CALL cp_cfm_add(z_one, sr_env%integral, z_one, sr_env%integral_abc)
+         CALL cp_cfm_scale_and_add(z_one, sr_env%integral, z_one, sr_env%integral_abc)
 
          ! sr_env%error_fm = ABS(sr_env%integral_ace); no temporary arrays as pointers have different types
          error_rdata(:, :) = ABS(error_zdata(:, :))
@@ -488,7 +488,7 @@ CONTAINS
 
          ! add contributions from converged subintervals, so we could drop them afterward
          IF (subintervals(interval)%error <= subintervals(interval)%conv) THEN
-            CALL cp_cfm_add(z_one, sr_env%integral_conv, z_one, sr_env%integral_abc)
+            CALL cp_cfm_scale_and_add(z_one, sr_env%integral_conv, z_one, sr_env%integral_abc)
             sr_env%error_conv = sr_env%error_conv+subintervals(interval)%error
          END IF
       END DO
@@ -567,8 +567,8 @@ CONTAINS
       REAL(kind=dp), INTENT(in)                          :: length
 
       CALL cp_cfm_to_cfm(fa, integral)
-      CALL cp_cfm_add(z_one, integral, z_four, fb)
-      CALL cp_cfm_add(z_one, integral, z_one, fc)
+      CALL cp_cfm_scale_and_add(z_one, integral, z_four, fb)
+      CALL cp_cfm_scale_and_add(z_one, integral, z_one, fc)
       CALL cp_cfm_scale(length/6.0_dp, integral)
    END SUBROUTINE do_simpson_rule
 
@@ -599,13 +599,13 @@ CONTAINS
       CALL cp_cfm_scale(12.0_dp*rscale, integral)
 
       CALL cp_cfm_to_cfm(fa, work)
-      CALL cp_cfm_add(z_one, work, z_one, fe)
+      CALL cp_cfm_scale_and_add(z_one, work, z_one, fe)
       CALL cp_cfm_scale(7.0_dp*rscale, work)
-      CALL cp_cfm_add(z_one, integral, z_one, work)
+      CALL cp_cfm_scale_and_add(z_one, integral, z_one, work)
 
       CALL cp_cfm_to_cfm(fb, work)
-      CALL cp_cfm_add(z_one, work, z_one, fd)
+      CALL cp_cfm_scale_and_add(z_one, work, z_one, fd)
       CALL cp_cfm_scale(32.0_dp*rscale, work)
-      CALL cp_cfm_add(z_one, integral, z_one, work)
+      CALL cp_cfm_scale_and_add(z_one, integral, z_one, work)
    END SUBROUTINE do_boole_rule
 END MODULE negf_integr_simpson
