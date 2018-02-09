@@ -11,9 +11,10 @@ MODULE beta_gamma_psi
 #include "./base/base_uses.f90"
 
  IMPLICIT NONE
+
  PRIVATE
 
- PUBLIC :: gamln,erf,psi
+ PUBLIC :: erf1, gamln, psi
 
 CONTAINS
 
@@ -280,7 +281,7 @@ END FUNCTION alnrel
 !> \param x ...
 !> \retval fn_val ...
 ! **************************************************************************************************
-FUNCTION erf (x) RESULT(fn_val)
+FUNCTION erf1(x) RESULT(fn_val)
 !-----------------------------------------------------------------------
 !             EVALUATION OF THE REAL ERROR FUNCTION
 !-----------------------------------------------------------------------
@@ -333,7 +334,7 @@ ELSE
   fn_val = SIGN(1.0e0_dp,x)
 END IF
 
-END FUNCTION erf
+END FUNCTION erf1
 
 ! **************************************************************************************************
 !> \brief ...
@@ -716,7 +717,7 @@ IF (a*x == zero) THEN
 ENDIF
 IF (a == half) THEN
 IF (x < quarter) THEN
-    pp = erf(SQRT(x))
+    pp = erf1(SQRT(x))
     qq = half + (half - pp)
   ELSE
     qq = erfc1(0,SQRT(x))

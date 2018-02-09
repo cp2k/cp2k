@@ -24,7 +24,7 @@ WFLAGS     = -Waliasing -Wampersand -Wc-binding-type -Wconversion\
              -Werror
 FCFLAGS    = $(DFLAGS) -O1 -fcheck=bounds,do,recursion,pointer -ffree-form\
              -ffree-line-length-none -fimplicit-none -fno-omit-frame-pointer\
-             -fopenmp -g -mtune=generic -std=f2003\
+             -fopenmp -g -mtune=generic -std=f2008\
              -I$(ELPA_INC)/elpa -I$(ELPA_INC)/modules\
              -I$(FFTW_INC) -I$(LIBINT_INC) -I$(LIBXC_INC) $(WFLAGS)
 LDFLAGS    = $(FCFLAGS) -fsanitize=leak -static

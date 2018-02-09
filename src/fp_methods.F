@@ -11,7 +11,7 @@
 ! **************************************************************************************************
 MODULE fp_methods
 
-   USE beta_gamma_psi,                  ONLY: erf,&
+   USE beta_gamma_psi,                  ONLY: erf1,&
                                               gamln,&
                                               psi
    USE cell_types,                      ONLY: cell_type,&
@@ -228,7 +228,7 @@ CONTAINS
 
       arg = (r1-r)/width
 
-      c = (1.0_dp+erf(arg))/2.0_dp
+      c = (1.0_dp+erf1(arg))/2.0_dp
       dcdr = (-oorootpi/width)*EXP(-arg**2)
 
    END SUBROUTINE
