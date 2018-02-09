@@ -47,6 +47,9 @@ MODULE f77_interface
    USE eip_environment_types,           ONLY: eip_env_create,&
                                               eip_env_release,&
                                               eip_environment_type
+   USE embed_main,                      ONLY: embed_create_force_env
+   USE embed_types,                     ONLY: embed_env_release,&
+                                              embed_env_type
    USE environment,                     ONLY: cp2k_finalize,&
                                               cp2k_init,&
                                               cp2k_read,&
@@ -68,6 +71,7 @@ MODULE f77_interface
                                               globenv_release,&
                                               globenv_retain
    USE input_constants,                 ONLY: do_eip,&
+                                              do_embed,&
                                               do_fist,&
                                               do_mixed,&
                                               do_qmmm,&
@@ -561,6 +565,7 @@ CONTAINS
       TYPE(cp_logger_type), POINTER                      :: logger, my_logger
       TYPE(cp_para_env_type), POINTER                    :: my_para_env, para_env
       TYPE(eip_environment_type), POINTER                :: eip_env
+      TYPE(embed_env_type), POINTER                      :: embed_env
       TYPE(enumeration_type), POINTER                    :: enum
       TYPE(f_env_p_type), DIMENSION(:), POINTER          :: f_envs_old
       TYPE(force_env_type), POINTER                      :: force_env, my_force_env
@@ -581,7 +586,7 @@ CONTAINS
 
       CPASSERT(ASSOCIATED(input_declaration))
       NULLIFY (para_env, force_env, timer_env, mp_perf_env, globenv, meta_env, &
-               fp_env, eip_env, mixed_env, qs_env, qmmm_env)
+               fp_env, eip_env, mixed_env, qs_env, qmmm_env, embed_env)
       new_env_id = -1
       IF (PRESENT(mpi_comm)) THEN
          CALL cp_para_env_create(para_env, group=mpi_comm, owns_group=.FALSE.)
@@ -705,22 +710,38 @@ CONTAINS
             ! Check that the order of the force_eval is the correct one
             CALL section_vals_val_get(force_env_sections, "METHOD", i_val=method_name_id, &
                                       i_rep_section=i_force_eval(1))
-            IF (method_name_id /= do_mixed) &
+            IF ((method_name_id /= do_mixed) .AND. (method_name_id /= do_embed)) &
                CALL cp_abort(__LOCATION__, &
                              "In case of multiple force_eval the MAIN force_eval (the first in the list of FORCE_EVAL_ORDER or "// &
                              "the one omitted from that order list) must be a MIXED_ENV type calculation. Please check your "// &
                              "input file and possibly correct the MULTIPLE_FORCE_EVAL%FORCE_EVAL_ORDER. ")
-            check = ASSOCIATED(force_env%mixed_env%sub_para_env)
-            CPASSERT(check)
-            ngroups = force_env%mixed_env%ngroups
-            my_group = lgroup_distribution(para_env%mepos)
-            isubforce_eval = iforce_eval-1
-            ! If task not allocated on this procs skip setup..
-            IF (MODULO(isubforce_eval-1, ngroups) /= my_group) CYCLE
-            my_para_env => force_env%mixed_env%sub_para_env(my_group+1)%para_env
-            my_logger => force_env%mixed_env%sub_logger(my_group+1)%p
-            CALL cp_rm_default_logger()
-            CALL cp_add_default_logger(my_logger)
+
+            IF (method_name_id .EQ. do_mixed) THEN
+               check = ASSOCIATED(force_env%mixed_env%sub_para_env)
+               CPASSERT(check)
+               ngroups = force_env%mixed_env%ngroups
+               my_group = lgroup_distribution(para_env%mepos)
+               isubforce_eval = iforce_eval-1
+               ! If task not allocated on this procs skip setup..
+               IF (MODULO(isubforce_eval-1, ngroups) /= my_group) CYCLE
+               my_para_env => force_env%mixed_env%sub_para_env(my_group+1)%para_env
+               my_logger => force_env%mixed_env%sub_logger(my_group+1)%p
+               CALL cp_rm_default_logger()
+               CALL cp_add_default_logger(my_logger)
+            ENDIF
+            IF (method_name_id .EQ. do_embed) THEN
+               check = ASSOCIATED(force_env%embed_env%sub_para_env)
+               CPASSERT(check)
+               ngroups = force_env%embed_env%ngroups
+               my_group = lgroup_distribution(para_env%mepos)
+               isubforce_eval = iforce_eval-1
+               ! If task not allocated on this procs skip setup..
+               IF (MODULO(isubforce_eval-1, ngroups) /= my_group) CYCLE
+               my_para_env => force_env%embed_env%sub_para_env(my_group+1)%para_env
+               my_logger => force_env%embed_env%sub_logger(my_group+1)%p
+               CALL cp_rm_default_logger()
+               CALL cp_add_default_logger(my_logger)
+            ENDIF
          ELSE
             my_para_env => para_env
          END IF
@@ -793,6 +814,18 @@ CONTAINS
             use_multiple_para_env = .TRUE.
             CALL cp_add_default_logger(logger) ! just to get the logger swapping started
             lgroup_distribution => my_force_env%mixed_env%group_distribution
+
+         CASE (do_embed)
+            CALL embed_create_force_env(embed_env, root_section, my_para_env, &
+                                        force_env_section=force_env_section, n_subforce_eval=nsubforce_size, &
+                                        use_motion_section=use_motion_section)
+            CALL force_env_create(my_force_env, root_section, embed_env=embed_env, para_env=my_para_env, &
+                                  globenv=globenv, force_env_section=force_env_section)
+            CALL embed_env_release(embed_env)
+            !TODO: the sub_force_envs should really be created via recursion
+            use_multiple_para_env = .TRUE.
+            CALL cp_add_default_logger(logger) ! just to get the logger swapping started
+            lgroup_distribution => my_force_env%embed_env%group_distribution
 
          CASE default
             CALL create_force_eval_section(section)

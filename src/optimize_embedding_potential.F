@@ -37,6 +37,7 @@ MODULE optimize_embedding_potential
    USE cp_realspace_grid_cube,          ONLY: cp_pw_to_cube
    USE dbcsr_api,                       ONLY: dbcsr_deallocate_matrix_set,&
                                               dbcsr_p_type
+   USE embed_types,                     ONLY: opt_embed_pot_type
    USE force_env_types,                 ONLY: force_env_type
    USE input_section_types,             ONLY: section_get_ivals,&
                                               section_vals_get_subs_vals,&
@@ -47,7 +48,6 @@ MODULE optimize_embedding_potential
    USE message_passing,                 ONLY: mp_bcast,&
                                               mp_max,&
                                               mp_sum
-   USE opt_embed_pot_types,             ONLY: opt_embed_pot_type
    USE particle_list_types,             ONLY: particle_list_type
    USE particle_types,                  ONLY: particle_type
    USE pw_env_types,                    ONLY: pw_env_get,&

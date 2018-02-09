@@ -26,6 +26,9 @@ MODULE force_env_types
    USE eip_environment_types,           ONLY: eip_env_get,&
                                               eip_env_release,&
                                               eip_environment_type
+   USE embed_types,                     ONLY: embed_env_release,&
+                                              embed_env_type,&
+                                              get_embed_env
    USE fist_energy_types,               ONLY: fist_energy_type
    USE fist_environment_types,          ONLY: fist_env_get,&
                                               fist_env_release,&
@@ -71,16 +74,18 @@ MODULE force_env_types
                                  use_qmmm = 503, &
                                  use_qmmmx = 504, &
                                  use_eip_force = 505, &
-                                 use_mixed_force = 506
+                                 use_mixed_force = 506, &
+                                 use_embed = 507
 
-   CHARACTER(LEN=10), DIMENSION(501:506), PARAMETER, PUBLIC :: &
+   CHARACTER(LEN=10), DIMENSION(501:507), PARAMETER, PUBLIC :: &
       use_prog_name = (/ &
       "FIST  ", &
       "QS    ", &
       "QMMM  ", &
       "QMMMX ", &
       "EIP   ", &
-      "MIXED "/)
+      "MIXED ", &
+      "EMBED "/)
 
    PUBLIC :: force_env_type, &
              force_env_p_type
@@ -135,9 +140,9 @@ MODULE force_env_types
       TYPE(qmmm_env_type), POINTER                     :: qmmm_env
       TYPE(qmmmx_env_type), POINTER                    :: qmmmx_env
       TYPE(mixed_environment_type), POINTER            :: mixed_env
+      TYPE(embed_env_type), POINTER                     :: embed_env
       TYPE(section_vals_type), POINTER                 :: force_env_section
       TYPE(section_vals_type), POINTER                 :: root_section
-      LOGICAL                                          :: do_embedding
    END TYPE force_env_type
 
 ! **************************************************************************************************
@@ -205,8 +210,16 @@ CONTAINS
                      my_logger => force_env%mixed_env%sub_logger(my_group+1)%p
                      CALL cp_add_default_logger(my_logger)
                   END IF
+                  ! The same for embedding
+                  IF (force_env%in_use == use_embed) THEN
+                     my_group = force_env%embed_env%group_distribution(force_env%para_env%mepos)
+                     my_logger => force_env%embed_env%sub_logger(my_group+1)%p
+                     CALL cp_add_default_logger(my_logger)
+                  END IF
                   CALL force_env_release(force_env%sub_force_env(i)%force_env)
                   IF (force_env%in_use == use_mixed_force) &
+                     CALL cp_rm_default_logger()
+                  IF (force_env%in_use == use_embed) &
                      CALL cp_rm_default_logger()
                END DO
                DEALLOCATE (force_env%sub_force_env)
@@ -221,6 +234,8 @@ CONTAINS
                CALL eip_env_release(force_env%eip_env)
             CASE (use_mixed_force)
                CALL mixed_env_release(force_env%mixed_env)
+            CASE (use_embed)
+               CALL embed_env_release(force_env%embed_env)
             END SELECT
             CALL globenv_release(force_env%globenv)
             CALL cp_para_env_release(force_env%para_env)
@@ -229,6 +244,7 @@ CONTAINS
             CPASSERT(.NOT. ASSOCIATED(force_env%qs_env))
             CPASSERT(.NOT. ASSOCIATED(force_env%eip_env))
             CPASSERT(.NOT. ASSOCIATED(force_env%mixed_env))
+            CPASSERT(.NOT. ASSOCIATED(force_env%embed_env))
             CALL meta_env_release(force_env%meta_env)
             CALL fp_env_release(force_env%fp_env)
             CALL qmmm_env_release(force_env%qmmm_env)
@@ -267,6 +283,7 @@ CONTAINS
 !> \param method_name_id ...
 !> \param root_section ...
 !> \param mixed_env ...
+!> \param embed_env ...
 !> \par History
 !>      04.2003 created [fawzi]
 !> \author fawzi
@@ -275,7 +292,7 @@ CONTAINS
                                       meta_env, fp_env, subsys, para_env, potential_energy, additional_potential, &
                                       kinetic_energy, harmonic_shell, kinetic_shell, cell, sub_force_env, &
                                       qmmm_env, qmmmx_env, eip_env, globenv, input, force_env_section, &
-                                      method_name_id, root_section, mixed_env)
+                                      method_name_id, root_section, mixed_env, embed_env)
       TYPE(force_env_type), POINTER                      :: force_env
       INTEGER, INTENT(out), OPTIONAL                     :: in_use
       TYPE(fist_environment_type), OPTIONAL, POINTER     :: fist_env
@@ -298,6 +315,7 @@ CONTAINS
       INTEGER, INTENT(out), OPTIONAL                     :: method_name_id
       TYPE(section_vals_type), OPTIONAL, POINTER         :: root_section
       TYPE(mixed_environment_type), OPTIONAL, POINTER    :: mixed_env
+      TYPE(embed_env_type), OPTIONAL, POINTER            :: embed_env
 
       CHARACTER(len=*), PARAMETER :: routineN = 'force_env_get', routineP = moduleN//':'//routineN
 
@@ -368,6 +386,13 @@ CONTAINS
                             subsys=subsys)
          IF (PRESENT(potential_energy)) potential_energy = mixed_energy%pot
          IF (PRESENT(kinetic_energy)) kinetic_energy = mixed_energy%kin
+         ! In embedding we only have potential energies (electronic energies)
+      CASE (use_embed)
+         CPASSERT(ASSOCIATED(force_env%embed_env))
+         CPASSERT(.NOT. PRESENT(input))
+         CALL get_embed_env(force_env%embed_env, &
+                            pot_energy=potential_energy, &
+                            subsys=subsys)
       CASE DEFAULT
          CPABORT("unknown in_use flag value ")
       END SELECT
@@ -419,6 +444,7 @@ CONTAINS
       IF (PRESENT(qmmm_env)) qmmm_env => force_env%qmmm_env
       IF (PRESENT(qmmmx_env)) qmmmx_env => force_env%qmmmx_env
       IF (PRESENT(mixed_env)) mixed_env => force_env%mixed_env
+      IF (PRESENT(embed_env)) embed_env => force_env%embed_env
       IF (PRESENT(globenv)) globenv => force_env%globenv
       IF (PRESENT(root_section)) root_section => force_env%root_section
 

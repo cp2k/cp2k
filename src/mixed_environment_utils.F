@@ -134,13 +134,16 @@ CONTAINS
 !> \param iforce_eval ...
 !> \param nforce_eval ...
 !> \param map_index ...
+!> \param force_eval_embed ...
 !> \author Teodoro Laino - University of Zurich [tlaino] - 05.2007
 ! **************************************************************************************************
-   SUBROUTINE get_subsys_map_index(mapping_section, natom, iforce_eval, nforce_eval, map_index)
+   SUBROUTINE get_subsys_map_index(mapping_section, natom, iforce_eval, nforce_eval, map_index, &
+                                   force_eval_embed)
 
       TYPE(section_vals_type), POINTER                   :: mapping_section
       INTEGER, INTENT(IN)                                :: natom, iforce_eval, nforce_eval
       INTEGER, DIMENSION(:), POINTER                     :: map_index
+      LOGICAL, OPTIONAL                                  :: force_eval_embed
 
       CHARACTER(len=*), PARAMETER :: routineN = 'get_subsys_map_index', &
          routineP = moduleN//':'//routineN
@@ -162,7 +165,11 @@ CONTAINS
          END DO
       ELSE
          ! Mapping systems with different structures
-         map_full_sys => section_vals_get_subs_vals(mapping_section, "FORCE_EVAL_MIXED")
+         IF (.NOT. PRESENT(force_eval_embed)) THEN
+            map_full_sys => section_vals_get_subs_vals(mapping_section, "FORCE_EVAL_MIXED")
+         ELSE
+            map_full_sys => section_vals_get_subs_vals(mapping_section, "FORCE_EVAL_EMBED")
+         ENDIF
          map_force_ev => section_vals_get_subs_vals(mapping_section, "FORCE_EVAL")
          CALL section_vals_get(map_full_sys, explicit=explicit)
          CPASSERT(explicit)

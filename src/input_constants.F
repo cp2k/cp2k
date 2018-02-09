@@ -48,7 +48,8 @@ MODULE input_constants
                                                do_qmmm = 3, &
                                                do_qmmmx = 4, &
                                                do_eip = 5, &
-                                               do_mixed = 6
+                                               do_mixed = 6, &
+                                               do_embed = 7
 
    ! QMMM
    REAL(KIND=dp), PARAMETER, PUBLIC         :: RADIUS_QMMM_DEFAULT = 0.80_dp, & ! Angstrom

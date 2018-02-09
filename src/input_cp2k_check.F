@@ -70,9 +70,9 @@ CONTAINS
 
       INTEGER                                            :: handle, iforce_eval, nforce_eval, &
                                                             run_type
-      LOGICAL                                            :: explicit, explicit_mix
+      LOGICAL                                            :: explicit, explicit_embed, explicit_mix
       TYPE(section_vals_type), POINTER                   :: section, section1, section2, section3, &
-                                                            sections
+                                                            section4, sections
 
       CALL timeset(routineN, handle)
       CPASSERT(ASSOCIATED(input_file))
@@ -85,7 +85,7 @@ CONTAINS
       sections => section_vals_get_subs_vals(input_file, "FORCE_EVAL")
       CALL section_vals_get(sections, n_repetition=nforce_eval)
 
-      ! multiple force_eval only if present RESPA or MIXED calculation is performed
+      ! multiple force_eval only if present RESPA, or MIXED or EMBED calculation is performed
       section2 => section_vals_get_subs_vals(input_file, "MOTION%MD%RESPA")
       CALL section_vals_get(section2, explicit=explicit)
       DO iforce_eval = 1, nforce_eval
@@ -94,14 +94,22 @@ CONTAINS
          CALL section_vals_get(section3, explicit=explicit_mix)
          IF (explicit_mix) EXIT
       END DO
+      DO iforce_eval = 1, nforce_eval
+         section4 => section_vals_get_subs_vals(sections, "EMBED", &
+                                                i_rep_section=iforce_eval)
+         CALL section_vals_get(section4, explicit=explicit_embed)
+         IF (explicit_embed) EXIT
+      END DO
       ! also allow multiple force_eval for NEGF run
       CALL section_vals_val_get(input_file, "GLOBAL%RUN_TYPE", i_val=run_type)
 
       IF (((explicit .AND. (nforce_eval == 1)) .OR. (.NOT. explicit .AND. (nforce_eval > 1))) .AND. run_type /= negf_run) THEN
          IF ((explicit_mix .AND. (nforce_eval == 1)) .OR. (.NOT. explicit_mix .AND. (nforce_eval > 1))) THEN
-            CALL cp_abort(__LOCATION__, &
-                          "Error multiple force_env without RESPA or MIXED, or RESPA with one single "// &
-                          " or MIXED with only two force_env section.")
+            IF ((explicit_embed .AND. (nforce_eval == 1)) .OR. (.NOT. explicit_embed .AND. (nforce_eval > 1))) THEN
+               CALL cp_abort(__LOCATION__, &
+                             "Error multiple force_env without RESPA or MIXED or EMBED, or RESPA with one single "// &
+                             " or MIXED with only two force_env section.")
+            END IF
          END IF
       END IF
       DO iforce_eval = 1, nforce_eval

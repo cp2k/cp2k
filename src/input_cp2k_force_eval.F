@@ -17,11 +17,13 @@ MODULE input_cp2k_force_eval
                                               medium_print_level
    USE cp_units,                        ONLY: cp_unit_to_cp2k
    USE input_constants,                 ONLY: &
-        do_eip, do_fist, do_mixed, do_qmmm, do_qs, do_stress_analytical, do_stress_diagonal_anal, &
-        do_stress_diagonal_numer, do_stress_none, do_stress_numerical, numerical
+        do_eip, do_embed, do_fist, do_mixed, do_qmmm, do_qs, do_stress_analytical, &
+        do_stress_diagonal_anal, do_stress_diagonal_numer, do_stress_none, do_stress_numerical, &
+        numerical
    USE input_cp2k_dft,                  ONLY: create_bsse_section,&
                                               create_dft_section
    USE input_cp2k_eip,                  ONLY: create_eip_section
+   USE input_cp2k_embed,                ONLY: create_embed_section
    USE input_cp2k_mixed,                ONLY: create_mix_section
    USE input_cp2k_mm,                   ONLY: create_mm_section
    USE input_cp2k_properties_dft,       ONLY: create_properties_section
@@ -83,14 +85,16 @@ CONTAINS
                                           "QMMM", &
                                           "EIP", &
                                           "QUICKSTEP", &
-                                          "MIXED"), &
+                                          "MIXED", &
+                                          "EMBED"), &
                           enum_desc=s2a("Alias for QUICKSTEP", &
                                         "Molecular Mechanics", &
                                         "Hybrid quantum classical", &
                                         "Empirical Interatomic Potential", &
                                         "Electronic structure methods (DFT, ...)", &
-                                        "Use a combination of two of the above"), &
-                          enum_i_vals=(/do_qs, do_fist, do_qmmm, do_eip, do_qs, do_mixed/), &
+                                        "Use a combination of two of the above", &
+                                        "Perform an embedded calculation"), &
+                          enum_i_vals=(/do_qs, do_fist, do_qmmm, do_eip, do_qs, do_mixed, do_embed/), &
                           default_i_val=do_qs)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
@@ -129,6 +133,10 @@ CONTAINS
       CALL section_release(subsection)
 
       CALL create_mix_section(subsection)
+      CALL section_add_subsection(section, subsection)
+      CALL section_release(subsection)
+
+      CALL create_embed_section(subsection)
       CALL section_add_subsection(section, subsection)
       CALL section_release(subsection)
 
