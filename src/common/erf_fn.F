@@ -308,6 +308,11 @@ END SUBROUTINE CALERF
       CALL calerf(x,erf_val,0)
    END FUNCTION cp2k_erf
 #else
+! **************************************************************************************************
+!> \brief ...
+!> \param x ...
+!> \retval erf_val ...
+! **************************************************************************************************
    FUNCTION erf(x) RESULT(erf_val)
       REAL(KIND=dp)                                      :: x, erf_val
 
@@ -332,6 +337,11 @@ END SUBROUTINE CALERF
       CALL calerf(x,erfc_val,1)
    END FUNCTION cp2k_erfc
 #else
+! **************************************************************************************************
+!> \brief ...
+!> \param x ...
+!> \retval erfc_val ...
+! **************************************************************************************************
    FUNCTION erfc(x) RESULT(erfc_val)
       REAL(KIND=dp)                                      :: x, erfc_val
 
