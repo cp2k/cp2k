@@ -14,7 +14,7 @@ LIBINT_INC = $(GCC_DIR)/libint/1.1.4-default-gnu-regtest/include
 LIBINT_LIB = $(GCC_DIR)/libint/1.1.4-default-gnu-regtest/lib64
 LIBXC_INC  = $(GCC_DIR)/libxc/4.0.3-gnu-regtest/include
 LIBXC_LIB  = $(GCC_DIR)/libxc/4.0.3-gnu-regtest/lib64
-DFLAGS     = -D__ELPA=201705 -D__FFTW3 -D__LIBINT -D__LIBXC -D__MPI_VERSION=3 -D__PLUMED2\
+DFLAGS     = -D__ELPA=201705 -D__F2008 -D__FFTW3 -D__LIBINT -D__LIBXC -D__MPI_VERSION=3 -D__PLUMED2\
              -D__parallel -D__SCALAPACK
 CPPFLAGS   =
 WFLAGS     = -Waliasing -Wampersand -Wc-binding-type -Wconversion\

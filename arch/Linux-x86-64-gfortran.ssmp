@@ -12,7 +12,7 @@ LIBXC_INC   = $(GCC_DIR)/libxc/4.0.3-gnu/include
 LIBXC_LIB   = $(GCC_DIR)/libxc/4.0.3-gnu/lib64
 LIBXSMM_INC = $(GCC_DIR)/libxsmm/1.8.3/include
 LIBXSMM_LIB = $(GCC_DIR)/libxsmm/1.8.3/lib
-DFLAGS      = -D__FFTW3 -D__LIBINT -D__LIBXC -D__LIBXSMM\
+DFLAGS      = -D__F2008 -D__FFTW3 -D__LIBINT -D__LIBXC -D__LIBXSMM\
               -D__LIBINT_MAX_AM=7 -D__LIBDERIV_MAX_AM1=6 -D__MAX_CONTR=4
 CPPFLAGS    =
 FCFLAGS     = $(DFLAGS) -O2 -ffast-math -ffree-form -ffree-line-length-none\

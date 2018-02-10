@@ -17,6 +17,7 @@ MODULE erf_fn
 
    PRIVATE
 
+#if defined(__F2008)
    INTERFACE erf
       MODULE PROCEDURE cp2k_erf
    END INTERFACE erf
@@ -26,8 +27,9 @@ MODULE erf_fn
    END INTERFACE erfc
 
    INTRINSIC :: erf, erfc
+#endif
 
-   PUBLIC :: erf, erfc
+   PUBLIC :: erf, erfc, erfcx
 
 CONTAINS
 
@@ -299,11 +301,19 @@ END SUBROUTINE CALERF
 !> \param x ...
 !> \retval erf_val ...
 ! **************************************************************************************************
+#if defined(__F2008)
    FUNCTION cp2k_erf(x) RESULT(erf_val)
       REAL(KIND=dp)                                      :: x, erf_val
 
       CALL calerf(x,erf_val,0)
    END FUNCTION cp2k_erf
+#else
+   FUNCTION erf(x) RESULT(erf_val)
+      REAL(KIND=dp)                                      :: x, erf_val
+
+      CALL calerf(x,erf_val,0)
+   END FUNCTION erf
+#endif
 
 !--------------------------------------------------------------------
 ! Compute approximate values for erfc(x)
@@ -315,11 +325,19 @@ END SUBROUTINE CALERF
 !> \param x ...
 !> \retval erfc_val ...
 ! **************************************************************************************************
+#if defined(__F2008)
    FUNCTION cp2k_erfc(x) RESULT(erfc_val)
       REAL(KIND=dp)                                      :: x, erfc_val
 
       CALL calerf(x,erfc_val,1)
    END FUNCTION cp2k_erfc
+#else
+   FUNCTION erfc(x) RESULT(erfc_val)
+      REAL(KIND=dp)                                      :: x, erfc_val
+
+      CALL calerf(x,erfc_val,1)
+   END FUNCTION erfc
+#endif
 
 !--------------------------------------------------------------------
 ! Compute approximate values for exp(x*x) * erfc(x)
@@ -331,10 +349,10 @@ END SUBROUTINE CALERF
 !> \param x ...
 !> \retval erfcx_val ...
 ! **************************************************************************************************
-   FUNCTION cp2k_erfcx(x) RESULT(erfcx_val)
+   FUNCTION erfcx(x) RESULT(erfcx_val)
       REAL(KIND=dp)                                      :: x, erfcx_val
 
       CALL calerf(x,erfcx_val,2)
-   END FUNCTION cp2k_erfcx
+   END FUNCTION erfcx
 
 END  MODULE erf_fn
