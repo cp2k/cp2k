@@ -1013,7 +1013,7 @@ CONTAINS
 !> \param g_ret_scale        scale factor for retarded Green's functions
 !> \param gamma_contacts     2-D array of globally distributed matrices to store broadening matrices
 !>                           for every contact ([n_contacts, npoints])
-!> \param gret_gamma_gadv    2-D array of globally distributed matrices to store the quantity:
+!> \param gret_gamma_gadv    2-D array of globally distributed matrices to store the spectral function:
 !>                           g_ret_s * gamma * g_ret_s^C for every contact ([n_contacts, n_points])
 !> \param dos                density of states at 'omega' ([n_points])
 !> \param transm_coeff       transmission coefficients between two contacts 'transm_contact1'
@@ -1179,8 +1179,9 @@ CONTAINS
       DO ipoint = 1, npoints
          IF (ASSOCIATED(g_surf_contacts(1, ipoint)%matrix)) THEN
             IF (sub_env%ngroups > 1 .OR. .NOT. PRESENT(g_ret_s)) THEN
-               ! create a group-specific matrix to store the computed Green's function if there are at least two parallel groups;
-               ! otherwise pointers to group-specific matrices have already been initialised and they point to globally distributed matrices
+               ! create a group-specific matrix to store retarded Green's function if there are
+               ! at least two parallel groups; otherwise pointers to group-specific matrices have
+               ! already been initialised and they point to globally distributed matrices
                IF (ALLOCATED(g_ret_s_group)) THEN
                   CALL cp_cfm_create(g_ret_s_group(ipoint)%matrix, fm_struct)
                END IF
@@ -1207,8 +1208,7 @@ CONTAINS
                ! self energy of the "left" (1) and "right" contacts
                DO icontact = 1, ncontacts
                   CALL negf_contact_self_energy(self_energy_c=self_energy_contacts(icontact)%matrix, &
-                                                !omega=omega(ipoint), &
-                                                omega=omega(ipoint)-negf_control%contacts(just_contact)%v_external, &
+                                                omega=omega(ipoint), &
                                                 g_surf_c=g_surf_contacts(icontact, ipoint)%matrix, &
                                                 h_sc0=negf_env%contacts(just_contact)%h_01(ispin)%matrix, &
                                                 s_sc0=negf_env%contacts(just_contact)%s_01, &
@@ -1220,7 +1220,6 @@ CONTAINS
                ! contact self energies
                DO icontact = 1, ncontacts
                   CALL negf_contact_self_energy(self_energy_c=self_energy_contacts(icontact)%matrix, &
-                                                !omega=omega(ipoint), & ! INCORRECT
                                                 omega=omega(ipoint)-negf_control%contacts(icontact)%v_external, &
                                                 g_surf_c=g_surf_contacts(icontact, ipoint)%matrix, &
                                                 h_sc0=negf_env%h_sc(ispin, icontact)%matrix, &
@@ -1598,7 +1597,7 @@ CONTAINS
          IF (PRESENT(just_contact)) THEN
             ! do not apply the external potential when computing the Fermi level of a bulk contact.
             ! We are using a ficticious electronic device, which identical to the bulk contact in question;
-            ! icontact == 1 correspond to the "left" contact, so the matrices h_01 and s_01 needs to be transposed
+            ! icontact == 1 corresponds to the "left" contact, so the matrices h_01 and s_01 needs to be transposed,
             ! while icontact == 2 correspond to the "right" contact and we should use the matrices h_01 and s_01 as is.
             DO icontact = 1, ncontacts
                CALL negf_surface_green_function_batch(g_surf=g_surf_cache%g_surf_contacts(icontact, :), &

@@ -1318,6 +1318,7 @@ CONTAINS
       CHARACTER(len=*), PARAMETER :: routineN = 'qs_env_release', routineP = moduleN//':'//routineN
 
       INTEGER                                            :: i
+      TYPE(pw_env_type), POINTER                         :: pw_env
 
       IF (ASSOCIATED(qs_env)) THEN
          CPASSERT(qs_env%ref_count > 0)
@@ -1429,7 +1430,8 @@ CONTAINS
 
             ! NEGF
             IF (ASSOCIATED(qs_env%negf_env)) THEN
-               CALL negf_qs_env_release(qs_env%negf_env)
+               CALL get_ks_env(qs_env%ks_env, pw_env=pw_env)
+               CALL negf_qs_env_release(qs_env%negf_env, pw_env)
             END IF
 
             CALL qs_charges_release(qs_env%qs_charges)

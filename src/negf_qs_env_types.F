@@ -10,6 +10,11 @@
 MODULE negf_qs_env_types
    USE kinds,                           ONLY: dp
    USE negf_alloc_types,                ONLY: negf_allocatable_rmatrix
+   USE pw_env_types,                    ONLY: pw_env_get,&
+                                              pw_env_type
+   USE pw_pool_types,                   ONLY: pw_pool_give_back_pw,&
+                                              pw_pool_type
+   USE pw_types,                        ONLY: pw_type
 #include "./base/base_uses.f90"
 
    IMPLICIT NONE
@@ -59,6 +64,8 @@ MODULE negf_qs_env_types
       LOGICAL                                            :: update_ks_matrix
       TYPE(negf_qs_env_contact_type), ALLOCATABLE, &
          DIMENSION(:)                                    :: contacts
+      !> reference Hartree potential (with no bias)
+      TYPE(pw_type), POINTER                             :: v_hartree_ref
    END TYPE negf_qs_env_type
 
    PUBLIC :: negf_qs_env_type, negf_qs_env_contact_type, negf_matrix_block_map_type
@@ -86,6 +93,7 @@ CONTAINS
       ALLOCATE (negf_qs_env)
       negf_qs_env%apply_bias = .FALSE.
       negf_qs_env%update_ks_matrix = .FALSE.
+      NULLIFY (negf_qs_env%v_hartree_ref)
 
       CALL timestop(handle)
    END SUBROUTINE negf_qs_env_create
@@ -93,16 +101,19 @@ CONTAINS
 ! **************************************************************************************************
 !> \brief Release memory allocated for NEGF control options.
 !> \param negf_qs_env an object to release
+!> \param pw_env      plane-wave environment used to create the reference Hartree potential
 !> \par History
 !>    * 10.2017 created [Sergey Chulkov]
 ! **************************************************************************************************
-   SUBROUTINE negf_qs_env_release(negf_qs_env)
+   SUBROUTINE negf_qs_env_release(negf_qs_env, pw_env)
       TYPE(negf_qs_env_type), POINTER                    :: negf_qs_env
+      TYPE(pw_env_type), POINTER                         :: pw_env
 
       CHARACTER(len=*), PARAMETER :: routineN = 'negf_qs_env_release', &
          routineP = moduleN//':'//routineN
 
       INTEGER                                            :: handle, iblock, icontact, ispin
+      TYPE(pw_pool_type), POINTER                        :: pw_pool
 
       CALL timeset(routineN, handle)
 
@@ -125,6 +136,11 @@ CONTAINS
             END DO
 
             DEALLOCATE (negf_qs_env%contacts)
+         END IF
+
+         IF (ASSOCIATED(negf_qs_env%v_hartree_ref)) THEN
+            CALL pw_env_get(pw_env, auxbas_pw_pool=pw_pool)
+            CALL pw_pool_give_back_pw(pw_pool, negf_qs_env%v_hartree_ref)
          END IF
 
          DEALLOCATE (negf_qs_env)

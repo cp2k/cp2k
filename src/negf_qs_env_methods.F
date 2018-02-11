@@ -13,7 +13,8 @@ MODULE negf_qs_env_methods
    USE negf_qs_env_types,               ONLY: negf_qs_env_contact_type,&
                                               negf_qs_env_type
    USE negf_vectors,                    ONLY: projection_on_direction_vector
-   USE pw_types,                        ONLY: pw_p_type
+   USE pw_types,                        ONLY: pw_p_type,&
+                                              pw_type
 #include "./base/base_uses.f90"
 
    IMPLICIT NONE
@@ -114,9 +115,10 @@ CONTAINS
 
       INTEGER                                            :: dx, dy, dz, handle, icontact, ix, iy, &
                                                             iz, lx, ly, lz, ncontacts, ux, uy, uz
-      REAL(kind=dp)                                      :: pot, proj, v1, v2
+      REAL(kind=dp)                                      :: dvol, pot, proj, v1, v2
       REAL(kind=dp), DIMENSION(3)                        :: dirvector_bias, point_coord, &
                                                             point_indices, vector
+      TYPE(pw_type), POINTER                             :: v_hartree_ref
 
       CALL timeset(routineN, handle)
 
@@ -139,6 +141,9 @@ CONTAINS
          dy = v_hartree%pw%pw_grid%npts(2)/2
          dz = v_hartree%pw%pw_grid%npts(3)/2
 
+         dvol = v_hartree%pw%pw_grid%dvol
+         v_hartree_ref => negf_qs_env%v_hartree_ref
+
          DO iz = lz, uz
             point_indices(3) = REAL(iz+dz, kind=dp)
             DO iy = ly, uy
@@ -160,6 +165,7 @@ CONTAINS
                         proj = 1.0_dp
                      END IF
                      pot = v1+(v2-v1)*proj
+                     v_hartree%pw%cr3d(ix, iy, iz) = v_hartree%pw%cr3d(ix, iy, iz)+pot*dvol
                   ELSE
                      pot = 0.0_dp
                      DO icontact = 1, ncontacts
@@ -173,7 +179,7 @@ CONTAINS
                      END DO
                   END IF
 
-                  v_hartree%pw%cr3d(ix, iy, iz) = v_hartree%pw%cr3d(ix, iy, iz)+pot*v_hartree%pw%pw_grid%dvol
+                  v_hartree%pw%cr3d(ix, iy, iz) = v_hartree_ref%cr3d(ix, iy, iz)+pot*dvol
                END DO
             END DO
          END DO

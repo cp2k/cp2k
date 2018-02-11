@@ -52,6 +52,14 @@ MODULE negf_env_types
    USE negf_vectors,                    ONLY: contact_direction_vector,&
                                               projection_on_direction_vector
    USE particle_types,                  ONLY: particle_type
+   USE pw_env_types,                    ONLY: pw_env_get,&
+                                              pw_env_type
+   USE pw_methods,                      ONLY: pw_copy
+   USE pw_pool_types,                   ONLY: pw_pool_create_pw,&
+                                              pw_pool_type
+   USE pw_types,                        ONLY: REALDATA3D,&
+                                              REALSPACE,&
+                                              pw_type
    USE qs_density_mixing_types,         ONLY: mixing_storage_create,&
                                               mixing_storage_release,&
                                               mixing_storage_type
@@ -169,6 +177,9 @@ CONTAINS
       TYPE(negf_atom_map_contact_type), ALLOCATABLE, &
          DIMENSION(:)                                    :: map_contact
       TYPE(negf_qs_env_type), POINTER                    :: negf_qs_env
+      TYPE(pw_env_type), POINTER                         :: pw_env
+      TYPE(pw_pool_type), POINTER                        :: pw_pool
+      TYPE(pw_type), POINTER                             :: v_hartree_rspace
       TYPE(qs_environment_type), POINTER                 :: qs_env, qs_env_contact
       TYPE(qs_subsys_type), POINTER                      :: subsys, subsys_contact
 
@@ -218,7 +229,9 @@ CONTAINS
       CALL qs_energies_init(qs_env, calc_forces=.FALSE.)
       CALL get_qs_env(qs_env, blacs_env=blacs_env, do_kpoints=do_kpoints, &
                       matrix_s_kp=matrix_s_kp, matrix_ks_kp=matrix_ks_kp, &
-                      negf_env=negf_qs_env, subsys=subsys)
+                      negf_env=negf_qs_env, pw_env=pw_env, subsys=subsys, &
+                      v_hartree_rspace=v_hartree_rspace)
+      CALL pw_env_get(pw_env, auxbas_pw_pool=pw_pool)
 
       IF (do_kpoints) THEN
          CPABORT("k-points are currently not supported for device FORCE_EVAL")
@@ -283,6 +296,10 @@ CONTAINS
       ! obtain an initial KS-matrix for the scattering region
       CALL qs_energies(qs_env, consistent_energies=.FALSE., calc_forces=.FALSE.)
       CALL negf_env_device_init_matrices(negf_env, negf_control, sub_env, qs_env)
+
+      ! reference Hartree potential
+      CALL pw_pool_create_pw(pw_pool, negf_qs_env%v_hartree_ref, use_data=REALDATA3D, in_space=REALSPACE)
+      CALL pw_copy(v_hartree_rspace, negf_qs_env%v_hartree_ref)
 
       ! electron density mixing;
       ! the input section below should be consistent with the subroutine create_negf_section()
