@@ -444,6 +444,9 @@ CONTAINS
 ! if we need the initial kinetic energy for Hybrid Monte Carlo
       IF (PRESENT(hmc_e_initial)) hmc_e_initial = md_ener%ekin
 
+      IF (itimes >= simpar%max_steps) CALL cp_abort(__LOCATION__, &
+                                                    "maximum step number smaller than initial step value")
+
       ! Real MD Loop
       DO istep = 1, simpar%nsteps, md_stride
          ! Increase counters
@@ -490,6 +493,9 @@ CONTAINS
          ! to compute energy and forces is not SCF based) activating the print_key
          ! MOTION%MD%PRINT%FORCE_LAST.
          CALL external_control(should_stop, "MD", globenv=globenv)
+
+         !check if upper bound of total steps has been reached
+         IF (itimes >= simpar%max_steps) should_stop = .TRUE.
 
          ! call external hook e.g. from global optimization
          IF (PRESENT(mdctrl)) &

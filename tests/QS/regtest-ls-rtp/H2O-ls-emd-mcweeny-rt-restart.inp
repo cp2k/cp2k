@@ -77,7 +77,7 @@
 &MOTION
   &MD
     ENSEMBLE NVE
-    STEPS 2
+    MAX_STEPS 4
     TIMESTEP [au_t] 0.25
     TEMPERATURE 300.0
   &END MD

@@ -104,8 +104,14 @@ CONTAINS
       CALL keyword_release(keyword)
 
       CALL keyword_create(keyword, name="steps", &
-                          description="The number of MD steps to perform", &
+                          description="The number of MD steps to perform, counting from step_start_val. ", &
                           usage="steps 100", default_i_val=3)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, name="max_steps", &
+                          description="The number of MD steps to perform, counting from step 1", &
+                          usage="max_steps 100", default_i_val=1000000000)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 

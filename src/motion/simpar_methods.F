@@ -273,6 +273,7 @@ CONTAINS
       NULLIFY (tmp_section)
       CALL section_vals_val_get(md_section, "ENSEMBLE", i_val=simpar%ensemble)
       CALL section_vals_val_get(md_section, "STEPS", i_val=simpar%nsteps)
+      CALL section_vals_val_get(md_section, "MAX_STEPS", i_val=simpar%max_steps)
       CALL section_vals_val_get(md_section, "TEMPERATURE", r_val=simpar%temp_ext)
       CALL section_vals_val_get(md_section, "TEMP_TOL", r_val=simpar%temp_tol)
       CALL section_vals_val_get(md_section, "ANGVEL_ZERO", l_val=simpar%angvel_zero)

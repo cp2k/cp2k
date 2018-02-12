@@ -26,7 +26,8 @@ MODULE simpar_types
 !>         reorganization of the original routines/modules
 ! **************************************************************************************************
    TYPE simpar_type
-      INTEGER        :: nsteps
+      INTEGER       :: nsteps
+      INTEGER       :: max_steps
       REAL(KIND=dp) :: dt
       REAL(KIND=dp) :: dt_fact
       REAL(KIND=dp) :: dr_tol
