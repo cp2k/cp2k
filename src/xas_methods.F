@@ -1417,7 +1417,7 @@ CONTAINS
 
          DO jset = 1, nsetb
 
-            nb = npgfb(jset)*(ncoset(lb_max(jset))-ncoset(lb_min(iset)-1))
+            nb = npgfb(jset)*(ncoset(lb_max(jset))-ncoset(lb_min(jset)-1))
             sgfb = first_sgfb(1, jset)
 
             CALL overlap_ab(la_max(iset), la_min(iset), npgfa(iset), rpgfa(:, iset), zeta(:, iset), &
