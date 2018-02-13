@@ -65,19 +65,19 @@ endif
 
 # Discover files and directories ============================================
 ALL_SRC_DIRS := $(shell find $(SRCDIR) -type d ! -name preprettify  ! -path "*/.svn*" | awk '{printf("%s:",$$1)}')
-LIBCUSMM_DIR := $(shell cd $(SRCDIR) ; find -type d -name "libcusmm")
+LIBCUSMM_DIR := $(shell cd $(SRCDIR) ; find . -type d -name "libcusmm")
 ALL_PREPRETTY_DIRS = $(shell find $(SRCDIR) -type d -name preprettify)
 
 ALL_PKG_FILES  = $(shell find $(SRCDIR) ! -path "*/preprettify/*" -name "PACKAGE")
-OBJ_SRC_FILES  = $(shell cd $(SRCDIR); find  ! -path "*/preprettify/*" -name "*.F")
-OBJ_SRC_FILES += $(shell cd $(SRCDIR); find  ! -path "*/preprettify/*" -name "*.c")
-OBJ_SRC_FILES += $(shell cd $(SRCDIR); find  ! -path "*/preprettify/*" -name "*.cpp")
-OBJ_SRC_FILES += $(shell cd $(SRCDIR); find  ! -path "*/preprettify/*" -name "*.cxx")
-OBJ_SRC_FILES += $(shell cd $(SRCDIR); find  ! -path "*/preprettify/*" -name "*.cc")
+OBJ_SRC_FILES  = $(shell cd $(SRCDIR); find . ! -path "*/preprettify/*" -name "*.F")
+OBJ_SRC_FILES += $(shell cd $(SRCDIR); find . ! -path "*/preprettify/*" -name "*.c")
+OBJ_SRC_FILES += $(shell cd $(SRCDIR); find . ! -path "*/preprettify/*" -name "*.cpp")
+OBJ_SRC_FILES += $(shell cd $(SRCDIR); find . ! -path "*/preprettify/*" -name "*.cxx")
+OBJ_SRC_FILES += $(shell cd $(SRCDIR); find . ! -path "*/preprettify/*" -name "*.cc")
 
 
 ifneq ($(NVCC),)
-OBJ_SRC_FILES += $(shell cd $(SRCDIR);  find  ! -path "*/preprettify/*" ! -name "libcusmm.cu" -name "*.cu")
+OBJ_SRC_FILES += $(shell cd $(SRCDIR);  find . ! -path "*/preprettify/*" ! -name "libcusmm.cu" -name "*.cu")
 OBJ_SRC_FILES += $(LIBCUSMM_DIR)/libcusmm.cu
 endif
 
