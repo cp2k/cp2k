@@ -12,7 +12,7 @@
 !>
 ! **************************************************************************************************
   SUBROUTINE dbcsr_trace_a_${nametype1}$(matrix_a, trace)
-    TYPE(dbcsr_type), INTENT(INOUT)           :: matrix_a
+    TYPE(dbcsr_type), INTENT(IN)              :: matrix_a
     ${type1}$, INTENT(INOUT)                   :: trace
 
     CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_trace_a_${nametype1}$', &
@@ -82,7 +82,7 @@
 !> \param[out] trace             the trace of the product of the matrices
 ! **************************************************************************************************
   SUBROUTINE dbcsr_trace_ab_${nametype1}$(matrix_a, matrix_b, trace)
-    TYPE(dbcsr_type), INTENT(INOUT)           :: matrix_a, matrix_b
+    TYPE(dbcsr_type), INTENT(IN)               :: matrix_a, matrix_b
     ${type1}$, INTENT(INOUT)                   :: trace
 
     CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_trace_ab_${nametype1}$', &

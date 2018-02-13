@@ -221,7 +221,7 @@
 !> \param trace ...
 ! **************************************************************************************************
   SUBROUTINE dbcsr_trace_a_${nametype1}$ (matrix_a, trace)
-    TYPE(dbcsr_type), INTENT(INOUT)          :: matrix_a
+    TYPE(dbcsr_type), INTENT(IN)              :: matrix_a
     ${type1}$, INTENT(OUT)                     :: trace
 
     TYPE(dbcsr_scalar_type)                  :: trace_scalar
@@ -240,7 +240,7 @@
 !> \param trace ...
 ! **************************************************************************************************
   SUBROUTINE dbcsr_trace_ab_${nametype1}$ (matrix_a, matrix_b, trace)
-    TYPE(dbcsr_type), INTENT(INOUT)          :: matrix_a, matrix_b
+    TYPE(dbcsr_type), INTENT(IN)              :: matrix_a, matrix_b
     ${type1}$, INTENT(INOUT)                   :: trace
 
     CALL dbcsr_trace_prv(matrix_a%prv, matrix_b%prv, trace)

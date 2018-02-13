@@ -13,6 +13,7 @@
 !> - Created 2011-04-05
 ! **************************************************************************************************
 MODULE dbcsr_config
+   USE acc_device,                      ONLY: acc_get_ndevices
    USE dbcsr_ptr_util,                  ONLY: dbcsr_data_allocation,&
                                               dbcsr_data_allocation_type
    USE kinds,                           ONLY: default_string_length,&
@@ -414,6 +415,8 @@ CONTAINS
          ENDIF
 
          IF (has_acc) THEN
+            WRITE (UNIT=unit_nr, FMT='(1X,A,T70,I11)') &
+               "DBCSR| ACC: Number of devices/node", acc_get_ndevices()
             WRITE (UNIT=unit_nr, FMT='(1X,A,T70,I11)') &
                "DBCSR| ACC: Number of priority stack-buffers", dbcsr_cfg%accdrv_priority_buffers
             WRITE (UNIT=unit_nr, FMT='(1X,A,T70,I11)') &

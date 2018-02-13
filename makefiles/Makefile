@@ -65,7 +65,7 @@ endif
 
 # Discover files and directories ============================================
 ALL_SRC_DIRS := $(shell find $(SRCDIR) -type d ! -name preprettify  ! -path "*/.svn*" | awk '{printf("%s:",$$1)}')
-LIBCUSMM_DIR := $(shell find $(SRCDIR) -type d -name "libcusmm")
+LIBCUSMM_DIR := $(shell cd $(SRCDIR) ; find -type d -name "libcusmm")
 ALL_PREPRETTY_DIRS = $(shell find $(SRCDIR) -type d -name preprettify)
 
 ALL_PKG_FILES  = $(shell find $(SRCDIR) ! -path "*/preprettify/*" -name "PACKAGE")

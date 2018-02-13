@@ -2513,7 +2513,7 @@ CONTAINS
 !> \param trace ...
 ! **************************************************************************************************
    SUBROUTINE dbcsr_trace_a_b_d(matrix_a, matrix_b, trace)
-      TYPE(dbcsr_type), INTENT(INOUT)                    :: matrix_a, matrix_b
+      TYPE(dbcsr_type), INTENT(IN)                       :: matrix_a, matrix_b
       REAL(kind=real_8), INTENT(INOUT)                   :: trace
 
       CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_trace_a_b_d', &
@@ -2547,7 +2547,7 @@ CONTAINS
 !> \param trace ...
 ! **************************************************************************************************
    SUBROUTINE dbcsr_trace_a_any(matrix_a, trace)
-      TYPE(dbcsr_type), INTENT(INOUT)                    :: matrix_a
+      TYPE(dbcsr_type), INTENT(IN)                       :: matrix_a
       TYPE(dbcsr_scalar_type), INTENT(INOUT)             :: trace
 
       CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_trace_a_any', &
