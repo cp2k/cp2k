@@ -25,7 +25,13 @@ def main():
     mod_format = sys.argv[2]
     mode = sys.argv[3]
     archive_ext = sys.argv[4]
-    src_files = sys.argv[5:]
+    src_dir = sys.argv[5]
+    src_files_tmp = sys.argv[6:]
+    src_files = []
+    for fn_part in src_files_tmp:
+        fn_part = fn_part[1:]
+        fn = src_dir + fn_part
+        src_files.append(fn)
     if(mod_format not in ('lower', 'upper', 'no')):
         error('Module filename format must be eighter of "lower", "upper", or "no".')
     if(mode not in ('normal', 'hackdep', 'mod_compiler')):
