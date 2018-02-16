@@ -442,7 +442,8 @@ CONTAINS
 !> \param embed_pot_coef ...
 !> \param open_shell_embed ...
 ! **************************************************************************************************
-   SUBROUTINE read_embed_pot(qs_env, embed_pot, spin_embed_pot, section, embed_pot_coef, open_shell_embed)
+   SUBROUTINE read_embed_pot(qs_env, embed_pot, spin_embed_pot, section, embed_pot_coef, &
+                             open_shell_embed)
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(pw_p_type), POINTER                           :: embed_pot, spin_embed_pot
       TYPE(section_vals_type), POINTER                   :: section
@@ -451,7 +452,8 @@ CONTAINS
 
       CHARACTER(LEN=default_path_length)                 :: filename
       INTEGER                                            :: dimen_aux, dimen_restart_basis, &
-                                                            l_global, LLL, nrow_local, restart_unit
+                                                            dimen_var_aux, l_global, LLL, &
+                                                            nrow_local, restart_unit
       INTEGER, DIMENSION(:), POINTER                     :: row_indices
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: coef, coef_read
       TYPE(cp_blacs_env_type), POINTER                   :: blacs_env
@@ -461,6 +463,11 @@ CONTAINS
 
       ! Get the vector dimension
       CALL find_aux_dimen(qs_env, dimen_aux)
+      IF (open_shell_embed) THEN
+         dimen_var_aux = dimen_aux*2
+      ELSE
+         dimen_var_aux = dimen_aux
+      ENDIF
 
       ! We need a temporary vector of coefficients
       CALL get_qs_env(qs_env=qs_env, &
@@ -469,13 +476,13 @@ CONTAINS
       NULLIFY (my_embed_pot_coef, fm_struct)
       CALL cp_blacs_env_create(blacs_env=blacs_env, para_env=para_env)
       CALL cp_fm_struct_create(fm_struct, para_env=para_env, context=blacs_env, &
-                               nrow_global=dimen_aux, ncol_global=1)
+                               nrow_global=dimen_var_aux, ncol_global=1)
       CALL cp_fm_create(my_embed_pot_coef, fm_struct, name="my_pot_coef")
       IF (.NOT. (PRESENT(embed_pot_coef))) THEN
          NULLIFY (embed_pot_coef)
          CALL cp_fm_create(my_embed_pot_coef, fm_struct, name="pot_coef")
-         CALL cp_fm_set_all(my_embed_pot_coef, 0.0_dp)
       ENDIF
+
       CALL cp_fm_struct_release(fm_struct)
       CALL cp_fm_set_all(my_embed_pot_coef, 0.0_dp)
 
@@ -483,13 +490,11 @@ CONTAINS
       restart_unit = -1
 
       ! Allocate the attay to read the coefficients
-      ALLOCATE (coef(dimen_aux))
+      ALLOCATE (coef(dimen_var_aux))
       coef = 0.0_dp
 
       IF (para_env%ionode) THEN
 
-         ALLOCATE (coef_read(dimen_aux))
-         coef_read = 0.0_dp
          ! Get the restart file name
          CALL embed_restart_file_name(filename, section)
 
@@ -503,6 +508,9 @@ CONTAINS
          ! Check the dimensions of the bases: the actual and the restart one
          IF (.NOT. (dimen_restart_basis == dimen_aux)) &
             CPABORT("Wrong dimension of the embedding basis in the restart file.")
+
+         ALLOCATE (coef_read(dimen_var_aux))
+         coef_read = 0.0_dp
 
          READ (restart_unit) coef_read
          coef(:) = coef_read(:)
@@ -526,6 +534,7 @@ CONTAINS
          l_global = row_indices(LLL)
          my_embed_pot_coef%local_data(LLL, 1) = coef(l_global)
       ENDDO
+
       DEALLOCATE (coef)
 
       ! Copy to the my_embed_pot_coef to embed_pot_coef
@@ -1894,13 +1903,18 @@ CONTAINS
 !> \param embed_pot_coef ...
 !> \param embed_pot ...
 !> \param i_iter ...
+!> \param embed_pot_spin ...
+!> \param open_shell_embed ...
 ! **************************************************************************************************
-   SUBROUTINE print_embed_restart(qs_env, dimen_aux, embed_pot_coef, embed_pot, i_iter)
+   SUBROUTINE print_embed_restart(qs_env, dimen_aux, embed_pot_coef, embed_pot, i_iter, &
+                                  embed_pot_spin, open_shell_embed)
       TYPE(qs_environment_type), POINTER                 :: qs_env
       INTEGER                                            :: dimen_aux
       TYPE(cp_fm_type), POINTER                          :: embed_pot_coef
       TYPE(pw_p_type), POINTER                           :: embed_pot
       INTEGER                                            :: i_iter
+      TYPE(pw_p_type), POINTER                           :: embed_pot_spin
+      LOGICAL                                            :: open_shell_embed
 
       CHARACTER(LEN=default_path_length)                 :: filename, my_pos_cube, title
       INTEGER                                            :: unit_nr
@@ -1930,7 +1944,7 @@ CONTAINS
          ENDIF
       ENDIF
 
-      ! Second a cube file
+      ! Second, cube files
       dft_section => section_vals_get_subs_vals(input, "DFT")
       CALL qs_subsys_get(subsys, particles=particles)
 
@@ -1948,6 +1962,19 @@ CONTAINS
                             stride=section_get_ivals(dft_section, "QS%OPT_EMBED%EMBED_POT_CUBE%STRIDE"))
          CALL cp_print_key_finished_output(unit_nr, logger, input, &
                                            "DFT%QS%OPT_EMBED%EMBED_POT_CUBE")
+         IF (open_shell_embed) THEN ! Print spin part of the embedding potential
+            my_pos_cube = "REWIND"
+            WRITE (filename, '(a15,I3.3)') "spin_embed_pot_", i_iter
+            unit_nr = cp_print_key_unit_nr(logger, input, "DFT%QS%OPT_EMBED%EMBED_POT_CUBE", &
+                                           extension=".cube", middle_name=TRIM(filename), file_position=my_pos_cube, &
+                                           log_filename=.FALSE.)
+
+            WRITE (title, *) "SPIN EMBEDDING POTENTIAL at optimization step ", i_iter
+            CALL cp_pw_to_cube(embed_pot_spin%pw, unit_nr, title, particles=particles, &
+                               stride=section_get_ivals(dft_section, "QS%OPT_EMBED%EMBED_POT_CUBE%STRIDE"))
+            CALL cp_print_key_finished_output(unit_nr, logger, input, &
+                                              "DFT%QS%OPT_EMBED%EMBED_POT_CUBE")
+         ENDIF
       ENDIF
 
    END SUBROUTINE print_embed_restart

@@ -1743,7 +1743,8 @@ CONTAINS
 
          ! Print embedding potential for restart
          CALL print_embed_restart(force_env%sub_force_env(ref_subsys_number)%force_env%qs_env, &
-                                  opt_embed%dimen_aux, opt_embed%embed_pot_coef, embed_pot, i_iter)
+                                  opt_embed%dimen_aux, opt_embed%embed_pot_coef, embed_pot, i_iter, &
+                                  spin_embed_pot, opt_embed%open_shell_embed)
          ! Print information and check convergence
          CALL print_emb_opt_info(output_unit, i_iter, opt_embed)
          CALL conv_check_embed(opt_embed, diff_rho_r, diff_rho_spin, output_unit)
