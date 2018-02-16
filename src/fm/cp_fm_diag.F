@@ -121,6 +121,7 @@ CONTAINS
 
 #if defined (__ELPA)
             diag_type = 3
+            MARK_USED(switched)
 #else
             ! ELPA library not linked, switch to SL
             diag_type = 1
@@ -130,6 +131,7 @@ CONTAINS
 
 #if defined (__SCALAPACK2)
             diag_type = 2
+            MARK_USED(switched)
 #else
             ! SL2 library not linked, switch to SL
             diag_type = 1
@@ -426,8 +428,10 @@ CONTAINS
       CHARACTER(LEN=*), PARAMETER :: routineN = "cp_fm_syevx", &
                                      routineP = moduleN//":"//routineN
 
-      REAL(KIND=dp), PARAMETER                     :: orfac = -1.0_dp, &
-                                                      vl = 0.0_dp, &
+#if defined(__SCALAPACK)
+      REAL(KIND=dp), PARAMETER                     :: orfac = -1.0_dp
+#endif
+      REAL(KIND=dp), PARAMETER                     :: vl = 0.0_dp, &
                                                       vu = 0.0_dp
 
       TYPE(cp_blacs_env_type), POINTER             :: context
@@ -659,8 +663,10 @@ CONTAINS
 
       CHARACTER(LEN=*), PARAMETER :: routineN = "cp_fm_syevr", &
                                      routineP = moduleN//":"//routineN
+#if (!defined(__SCALAPACK) || defined(__SCALAPACK2))
       REAL(KIND=dp), PARAMETER  :: vl = 0.0_dp, &
                                    vu = 0.0_dp
+#endif
 
       CHARACTER(LEN=1)                           :: job_type
       INTEGER                                    :: handle, ilow_local, &

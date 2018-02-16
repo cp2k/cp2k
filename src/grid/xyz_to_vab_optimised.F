@@ -18,7 +18,6 @@
 !> \author Ruyman Reyes
 ! **************************************************************************************************
 ! We use the caller routine in libgrid.a (which may have a different range of la/lb_max_local implemented
-
 #ifdef __HAS_LIBGRID
 
 #else
@@ -47,8 +46,7 @@ SUBROUTINE call_to_xyz_to_vab(prefactor, coef_xyz, lp, &
                               rp, ra, rab, vab, coset, &
                               la_min_local, lb_min_local, &
                               maxl, lvab, hvab)
-
-              USE kinds,                        ONLY: dp
+   USE kinds,                           ONLY: dp
 
    REAL(KIND=dp), INTENT(IN) :: prefactor
    INTEGER, INTENT(IN) :: lp
@@ -61,6 +59,84 @@ SUBROUTINE call_to_xyz_to_vab(prefactor, coef_xyz, lp, &
    REAL(kind=dp), DIMENSION(lvab, hvab), INTENT(INOUT)  :: vab
    INTEGER, DIMENSION(-1:maxl, -1:maxl, -1:maxl), &
       INTENT(IN)     :: coset
+
+   INTERFACE
+      SUBROUTINE xyz_to_vab(prefactor, coef_xyz, lp, la_max_local, &
+                            lb_max_local, rp, ra, rab, vab, coset, &
+                            la_min_local, lb_min_local, maxl, lvab, hvab)
+         IMPORT :: dp
+         REAL(kind=dp), INTENT(in)                       :: prefactor
+         INTEGER, INTENT(in) :: lp, la_max_local, lb_max_local, &
+                                la_min_local, lb_min_local, maxl, lvab, hvab
+         INTEGER, DIMENSION(-1:maxl, -1:maxl, -1:maxl), &
+            INTENT(in)                                   :: coset
+         REAL(kind=dp), DIMENSION(((lp+1)*(lp+2)*(lp+3))/6), &
+            INTENT(inout)                                :: coef_xyz
+         REAL(kind=dp), DIMENSION(3), INTENT(in)         :: rp, ra, rab
+         REAL(kind=dp), DIMENSION(lvab, hvab), &
+            INTENT(inout)                                :: vab
+      END SUBROUTINE xyz_to_vab
+
+      SUBROUTINE xyz_to_vab_0_0(prefactor, coef_xyz, lp, vab, lvab, hvab)
+         IMPORT :: dp
+         REAL(kind=dp), INTENT(in)                       :: prefactor
+         INTEGER, INTENT(in)                             :: lp, lvab, hvab
+         REAL(kind=dp), DIMENSION(((lp+1)*(lp+2)*(lp+3))/6), &
+            INTENT(inout)                                :: coef_xyz
+         REAL(kind=dp), DIMENSION(lvab, hvab), &
+            INTENT(inout)                                :: vab
+      END SUBROUTINE xyz_to_vab_0_0
+
+#:for name2 in range(1, 5)
+      SUBROUTINE xyz_to_vab_0_${name2}$(prefactor, coef_xyz, lp, rp, ra, rab, vab, &
+                                        coset, lb_min_local, maxl, lvab, hvab)
+         IMPORT :: dp
+         REAL(kind=dp), INTENT(in)                       :: prefactor
+         INTEGER, INTENT(in)                             :: lp, lb_min_local, maxl, lvab, hvab
+         INTEGER, DIMENSION(-1:maxl, -1:maxl, -1:maxl), &
+            INTENT(in)                                   :: coset
+         REAL(kind=dp), DIMENSION(((lp+1)*(lp+2)*(lp+3))/6), &
+            INTENT(inout)                                :: coef_xyz
+         REAL(kind=dp), DIMENSION(lvab, hvab), &
+            INTENT(inout)                                :: vab
+         REAL(kind=dp), DIMENSION(3), INTENT(in)         :: rp, ra, rab
+      END SUBROUTINE xyz_to_vab_0_${name2}$
+#:endfor
+
+#:for name1 in range(1, 5)
+      SUBROUTINE xyz_to_vab_${name1}$_0(prefactor, coef_xyz, lp, rp, ra, vab, &
+                                coset, la_min_local, maxl, lvab, hvab)
+         IMPORT :: dp
+         REAL(kind=dp), INTENT(in)                       :: prefactor
+         INTEGER, INTENT(in)                             :: lp, la_min_local, maxl, lvab, hvab
+         INTEGER, DIMENSION(-1:maxl, -1:maxl, -1:maxl), &
+            INTENT(in)                                   :: coset
+         REAL(kind=dp), DIMENSION(((lp+1)*(lp+2)*(lp+3))/6), &
+            INTENT(inout)                                :: coef_xyz
+         REAL(kind=dp), DIMENSION(lvab, hvab), &
+            INTENT(inout)                                :: vab
+         REAL(kind=dp), DIMENSION(3), INTENT(in)         :: rp, ra
+      END SUBROUTINE xyz_to_vab_${name1}$_0
+#:endfor
+
+#:for name1 in range(1, 5)
+#:for name2 in range(1, 5)
+      SUBROUTINE xyz_to_vab_${name1}$_${name2}$(prefactor, coef_xyz, lp, rp, ra, rab, vab, &
+                                                coset, la_min_local, lb_min_local, maxl, lvab, hvab)
+         IMPORT :: dp
+         REAL(kind=dp), INTENT(in)                       :: prefactor
+         INTEGER, INTENT(in) :: lp, lb_min_local, la_min_local, maxl, lvab, hvab
+         INTEGER, DIMENSION(-1:maxl, -1:maxl, -1:maxl), &
+            INTENT(in)                                   :: coset
+         REAL(kind=dp), DIMENSION(((lp+1)*(lp+2)*(lp+3))/6), &
+            INTENT(inout)                                :: coef_xyz
+         REAL(kind=dp), DIMENSION(lvab, hvab), &
+            INTENT(inout)                                :: vab
+         REAL(kind=dp), DIMENSION(3), INTENT(in)         :: rp, ra, rab
+      END SUBROUTINE xyz_to_vab_${name1}$_${name2}$
+#:endfor
+#:endfor
+   END INTERFACE
 
    SELECT CASE (la_max_local)
    CASE (0)

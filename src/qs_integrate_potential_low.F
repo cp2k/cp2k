@@ -33,6 +33,25 @@ MODULE qs_integrate_potential_low
 
    PUBLIC :: integrate_pgf_product_rspace
 
+   INTERFACE
+      SUBROUTINE call_to_xyz_to_vab(prefactor, coef_xyz, lp, la_max_local, lb_max_local, &
+                                    rp, ra, rab, vab, coset, la_min_local, lb_min_local, &
+                                    maxl, lvab, hvab)
+         IMPORT :: dp
+         REAL(KIND=dp), INTENT(in)                       :: prefactor
+         INTEGER, INTENT(in)                             :: lp
+         REAL(kind=dp), DIMENSION(((lp+1)*(lp+2)*(lp+3))/6), &
+            INTENT(inout)                                :: coef_xyz
+         INTEGER, INTENT(in) :: la_max_local, lb_max_local, la_min_local, &
+                                lb_min_local, maxl, lvab, hvab
+         REAL(kind=dp), DIMENSION(3), INTENT(in)         :: rp, ra, rab
+         REAL(kind=dp), DIMENSION(lvab, hvab), &
+            INTENT(inout)                                :: vab
+         INTEGER, DIMENSION(-1:maxl, -1:maxl, -1:maxl), &
+            INTENT(in)                                   :: coset
+      END SUBROUTINE call_to_xyz_to_vab
+   END INTERFACE
+
 CONTAINS
 
 ! **************************************************************************************************

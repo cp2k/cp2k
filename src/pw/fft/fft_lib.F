@@ -170,9 +170,6 @@ CONTAINS
 !> \param stat ...
 ! **************************************************************************************************
    SUBROUTINE fft_3d(plan, scale, zin, zout, stat)
-
-  USE fft_plan,                           ONLY: fft_plan_type
-  USE fft_kinds,                          ONLY: dp
       TYPE(fft_plan_type), INTENT(IN)                    :: plan
       REAL(KIND=dp), INTENT(IN)                          :: scale
       COMPLEX(KIND=dp), DIMENSION(*), INTENT(INOUT)      :: zin, zout
@@ -213,9 +210,6 @@ CONTAINS
 !> \param plan_style ...
 ! **************************************************************************************************
    SUBROUTINE fft_create_plan_1dm(plan, fft_type, fsign, trans, n, m, zin, zout, plan_style)
-
-  USE fft_plan,                           ONLY: fft_plan_type
-  USE fft_kinds,                          ONLY: dp
       TYPE(fft_plan_type), INTENT(INOUT)                 :: plan
       INTEGER, INTENT(IN)                                :: fft_type, fsign
       LOGICAL, INTENT(IN)                                :: trans
@@ -245,9 +239,6 @@ CONTAINS
 !> \param plan ...
 ! **************************************************************************************************
    SUBROUTINE fft_destroy_plan(plan)
-
-  USE fft_plan,                           ONLY: fft_plan_type
-  USE fft_kinds,                          ONLY: dp
       TYPE(fft_plan_type), INTENT(INOUT)                 :: plan
 
 ! Planning only needed for FFTW3
@@ -268,7 +259,6 @@ CONTAINS
 !> \param stat ...
 ! **************************************************************************************************
    SUBROUTINE fft_1dm(plan, zin, zout, scale, stat)
-
       TYPE(fft_plan_type), INTENT(IN)                    :: plan
       COMPLEX(KIND=dp), DIMENSION(*), INTENT(INOUT)      :: zin, zout
       REAL(KIND=dp), INTENT(IN)                          :: scale
