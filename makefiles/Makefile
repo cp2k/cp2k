@@ -66,6 +66,7 @@ endif
 # Discover files and directories ============================================
 ALL_SRC_DIRS := $(shell find $(SRCDIR) -type d ! -name preprettify  ! -path "*/.svn*" | awk '{printf("%s:",$$1)}')
 LIBCUSMM_DIR := $(shell cd $(SRCDIR) ; find . -type d -name "libcusmm")
+LIBCUSMM_ABS_DIR := $(shell find $(SRCDIR) -type d -name "libcusmm")
 ALL_PREPRETTY_DIRS = $(shell find $(SRCDIR) -type d -name preprettify)
 
 ALL_PKG_FILES  = $(shell find $(SRCDIR) ! -path "*/preprettify/*" -name "PACKAGE")
@@ -223,7 +224,7 @@ OTHER_HELP += "install : Print installation help"
 #
 # cleaning stuff ============================================================
 clean:
-	rm -rf  $(LIBCUSMM_DIR)/libcusmm.cu $(LIBCUSMM_DIR)/libcusmm_part*.cu
+	rm -rf  $(LIBCUSMM_ABS_DIR)/libcusmm.cu $(LIBCUSMM_ABS_DIR)/libcusmm_part*.cu
 	rm -rf $(foreach v, $(VERSION), $(MAINOBJDIR)/$(ARCH)/$(v))
 	rm -rf $(foreach v, $(VERSION), $(MAINLIBDIR)/$(ARCH)/$(v))
 OTHER_HELP += "clean : Remove intermediate object and mod files, but not the libraries and executables, for given ARCH and VERSION"
@@ -253,7 +254,7 @@ OTHER_HELP += "testrealclean : Remove all LAST-* and TEST-* files for given ARCH
 # Remove all files from previous builds
 #
 distclean: prettyclean doxifyclean testrealclean
-	rm -rf $(DOXYGENDIR) $(MAINEXEDIR) $(MAINOBJDIR) $(MAINLIBDIR) $(MAINTSTDIR) $(LIBCUSMM_DIR)/libcusmm.cu
+	rm -rf $(DOXYGENDIR) $(MAINEXEDIR) $(MAINOBJDIR) $(MAINLIBDIR) $(MAINTSTDIR) $(LIBCUSMM_ABS_DIR)/libcusmm.cu
 OTHER_HELP += "distclean : Remove all files from previous builds"
 
 #
@@ -335,8 +336,8 @@ TOOL_HELP += "doxygen : Generate the doxygen documentation"
 
 
 # Libcusmm stuff ============================================================
-$(LIBCUSMM_DIR)/libcusmm.cu: $(LIBCUSMM_DIR)/generate.py $(LIBCUSMM_DIR)/parameters_K20X.txt $(wildcard $(LIBCUSMM_DIR)/kernels/*.py)
-	cd $(LIBCUSMM_DIR); ./generate.py $(LIBCUSMM_FLAGS)
+$(LIBCUSMM_ABS_DIR)/libcusmm.cu: $(LIBCUSMM_ABS_DIR)/generate.py $(LIBCUSMM_ABS_DIR)/parameters_K20X.txt $(wildcard $(LIBCUSMM_ABS_DIR)/kernels/*.py)
+	cd $(LIBCUSMM_ABS_DIR); ./generate.py $(LIBCUSMM_FLAGS)
 
 
 # automatic dependency generation ===========================================
