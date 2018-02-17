@@ -172,8 +172,9 @@ CONTAINS
 !> \param atom2kind ...
 !> \param positions ...
 !> \param xblocks ...
+!> \param ml_range ...
 ! **************************************************************************************************
-   SUBROUTINE pao_read_raw(filename, param, hmat, kinds, atom2kind, positions, xblocks)
+   SUBROUTINE pao_read_raw(filename, param, hmat, kinds, atom2kind, positions, xblocks, ml_range)
       CHARACTER(LEN=default_path_length), INTENT(IN)     :: filename
       CHARACTER(LEN=default_string_length), INTENT(OUT)  :: param
       REAL(dp), ALLOCATABLE, DIMENSION(:, :)             :: hmat
@@ -181,6 +182,7 @@ CONTAINS
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: atom2kind
       REAL(dp), ALLOCATABLE, DIMENSION(:, :)             :: positions
       TYPE(pao_ioblock_type), ALLOCATABLE, DIMENSION(:)  :: xblocks
+      INTEGER, DIMENSION(2), INTENT(OUT), OPTIONAL       :: ml_range
 
       CHARACTER(len=*), PARAMETER :: routineN = 'pao_read_raw', routineP = moduleN//':'//routineN
 
@@ -266,6 +268,14 @@ CONTAINS
             READ (unit_nr, fmt=*) label, natoms
             ALLOCATE (positions(natoms, 3), atom2kind(natoms), xblocks(natoms))
             positions = 0.0_dp; atom2kind = -1
+            IF (PRESENT(ml_range)) ml_range = (/1, natoms/)
+
+         ELSE IF (TRIM(label) == "MLRange") THEN
+            ! Natoms entry has to come first
+            CPASSERT(natoms > 0)
+            ! range of atoms whose xblocks are used for machine learning
+            READ (unit_nr, fmt=*) label, i1, i2
+            IF (PRESENT(ml_range)) ml_range = (/i1, i2/)
 
          ELSE IF (TRIM(label) == "Atom") THEN
             READ (unit_nr, fmt=*) label, iatom, str_in, pos_in

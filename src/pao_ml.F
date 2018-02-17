@@ -149,6 +149,7 @@ CONTAINS
       CHARACTER(LEN=default_string_length)               :: param
       INTEGER                                            :: iatom, ikind, natoms, nkinds, nparams
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: atom2kind, kindsmap
+      INTEGER, DIMENSION(2)                              :: ml_range
       REAL(dp), ALLOCATABLE, DIMENSION(:, :)             :: hmat, positions
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       TYPE(cell_type), POINTER                           :: cell
@@ -167,7 +168,7 @@ CONTAINS
 
       ! parse training data on first rank
       IF (para_env%mepos == para_env%source) THEN
-         CALL pao_read_raw(filename, param, hmat, kinds, atom2kind, positions, xblocks)
+         CALL pao_read_raw(filename, param, hmat, kinds, atom2kind, positions, xblocks, ml_range)
 
          ! check parametrization
          IF (TRIM(param) .NE. TRIM(ADJUSTL(id2str(pao%parameterization)))) &
@@ -192,6 +193,10 @@ CONTAINS
       CALL mp_bcast(kindsmap, para_env%source, para_env%group)
       CALL mp_bcast(atom2kind, para_env%source, para_env%group)
       CALL mp_bcast(positions, para_env%source, para_env%group)
+      CALL mp_bcast(ml_range, para_env%source, para_env%group)
+
+      IF (ml_range(1) /= 1 .OR. ml_range(2) /= natoms) &
+         CPWARN("Skipping some atoms for PAO-ML training.")
 
       ! create cell from read-in h-matrix
       CALL cell_create(cell, hmat)
@@ -210,6 +215,7 @@ CONTAINS
       ! however the input and output arrays will only be allocated on one rank per entry.
       ! We farm out the expensive calculation of the descriptor across ranks.
       DO iatom = 1, natoms
+         IF (iatom < ml_range(1) .OR. ml_range(2) < iatom) CYCLE
          ALLOCATE (new_point)
 
          ! training-point input, calculate descriptor only on one rank
