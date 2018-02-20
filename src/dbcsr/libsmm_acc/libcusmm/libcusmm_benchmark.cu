@@ -216,7 +216,7 @@ int libcusmm_benchmark(libcusmm_benchmark_t* h,
      n_warm = min(3, n_iter);
  }
 
- const int stream = 0;
+ const cudaStream_t stream = 0;
 
  int error_counter = 0;
  int best_kernel = -1;
@@ -251,7 +251,7 @@ int libcusmm_benchmark(libcusmm_benchmark_t* h,
     //warmup run (more often if n_iter is small)
     for(int i=0; i<n_warm; i++)
         launchers[ikern](h->d_stack, h->n_stack, stream, mat_m, mat_n, mat_k, h->d_mat_a, h->d_mat_b, h->d_mat_c);
-    cudaMemset(h->d_mat_c, stream, h->n_c * mat_m * mat_n * sizeof(double));
+    cudaMemset(h->d_mat_c, 0, h->n_c * mat_m * mat_n * sizeof(double));
 
     cudaEventRecord(h->t_start, stream);
 
