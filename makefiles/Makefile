@@ -227,12 +227,12 @@ OTHER_HELP += "install : Print installation help"
 # and a wildcard expression is then used to remove the appropriate files
 # cleaning stuff ============================================================
 define get_extensions
-	$(shell find $(1) -type f -name "*.*" ! -name "*.gcda" | sed 's|.*\.||' | sort -u)
+	$(shell test -d $(1) && find $(1) -type f -name "*.*" ! -name "*.gcda" | sed 's|.*\.||' | sort -u)
 endef
 clean:
 	rm -rf  $(LIBCUSMM_ABS_DIR)/libcusmm.cu $(LIBCUSMM_ABS_DIR)/libcusmm_part*.cu
-	@echo rm -rf $(foreach v, $(VERSION), $(foreach ext, $(call get_extensions, $(MAINOBJDIR)/$(ARCH)/$(v)/), $(MAINOBJDIR)/$(ARCH)/$(v)/*.$(ext)))
-	$(foreach v, $(VERSION), $(foreach ext, $(call get_extensions, $(MAINOBJDIR)/$(ARCH)/$(v)/), $(shell rm -rf $(MAINOBJDIR)/$(ARCH)/$(v)/*.$(ext))))
+	@echo rm -rf $(foreach v, $(VERSION), $(MAINOBJDIR)/$(ARCH)/$(v))
+	@$(foreach v, $(VERSION), $(foreach ext, $(call get_extensions, $(MAINOBJDIR)/$(ARCH)/$(v)/), $(shell rm -rf $(MAINOBJDIR)/$(ARCH)/$(v)/*.$(ext))))
 	rm -rf $(foreach v, $(VERSION), $(MAINLIBDIR)/$(ARCH)/$(v))
 OTHER_HELP += "clean : Remove intermediate object and mod files, but not the libraries and executables, for given ARCH and VERSION"
 
