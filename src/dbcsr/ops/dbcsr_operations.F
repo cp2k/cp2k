@@ -586,7 +586,7 @@ CONTAINS
 
          ! Pre-size work arrays of matrix_a to avoid continuous reallocation.
          ! Overestimate for summetric matrix and multiple threads!
-         local_matrix_size = dbcsr_nfullrows_local(matrix_a)* &
+         local_matrix_size = INT(dbcsr_nfullrows_local(matrix_a), KIND=int_8)* &
               dbcsr_nfullcols_local(matrix_a)
          size_work = MAX(0, INT(MIN(local_matrix_size-INT(dbcsr_get_nze(matrix_a), KIND=int_8), &
                                     INT(dbcsr_get_nze(matrix_b), KIND=int_8)), KIND=int_4))
