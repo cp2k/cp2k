@@ -87,7 +87,7 @@ def gen_frontpage(config, log, abook_fn, status_fn, outdir):
     output += '</div>\n'
     output += '<table border="1" cellspacing="3" cellpadding="5">\n'
     output += '<tr><th>Name</th><th>Host</th><th>Status</th>'
-    output += '<th>Revision</th><th>Summary</th><th>Last OK</th><th>Tickets</th></tr>\n\n'
+    output += '<th>Revision</th><th>Summary</th><th>Last OK</th></tr>\n\n'
 
     def get_sortkey(s):
         return config.getint(s, "sortkey")
@@ -145,8 +145,6 @@ def gen_frontpage(config, log, abook_fn, status_fn, outdir):
             output += revision_cell(status[s]['last_ok'], trunk_revision)
         else:
             output += '<td></td>'
-
-        output += ticket_cell(label=s)
 
         output += '</tr>\n\n'
 
@@ -511,30 +509,6 @@ def revision_cell(rev, trunk_rev):
     rev_url = "https://sourceforge.net/p/cp2k/code/%d/"%rev
     rev_delta = "(%d)"%(rev - trunk_rev) if(trunk_rev) else ""
     output = '<td align="left"><a href="%s">%s</a> %s</td>'%(rev_url, rev, rev_delta)
-    return(output)
-
-#===============================================================================
-def ticket_cell(label):
-    base_url = "https://sourceforge.net/p/cp2k/bugs"
-    new_url = base_url+"/new/?" + urlencode({'labels':label})
-    query = urlencode({'q':'!status:wont-fix && !status:closed && labels:"%s"'%label})
-    feed_url = base_url+"/search_feed/?limit=25&sort=ticket_num_i+asc&" + query
-    output = '<td  align="right">'
-    try:
-        # sometime the http-request to sourceforge times out
-        tickets_xml = urlopen(feed_url, timeout=5).read()
-        dom = minidom.parseString(tickets_xml)
-        for entry in dom.getElementsByTagName("item"):
-            title = entry.getElementsByTagName('title')[0].firstChild.nodeValue
-            link = entry.getElementsByTagName('link')[0].firstChild.nodeValue
-            tid = int(link.strip("/ ").split("/")[-1])
-            output += '<a href="%s" title="%s">#%d</a>, '%(link, title, tid)
-    except:
-        print(traceback.print_exc())
-        output += "N/A "
-    output += '<a href="%s"'%new_url
-    output += ' style="text-decoration:none;font-weight:bold;font-size:larger;"'
-    output += ' title="Create a new Ticket">+</a></td>'
     return(output)
 
 #===============================================================================
