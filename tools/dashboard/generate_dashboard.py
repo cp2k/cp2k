@@ -278,7 +278,7 @@ def gen_plots(all_reports, log, outdir, full_archive):
         ax.set_ylabel(p['ylabel'])
         markers = itertools.cycle('os>^*')
         for cname in sorted(p['curves'].keys()):
-            c= p['curves'][cname]
+            c = p['curves'][cname]
             if(full_archive):
                 ax.plot(c['x'], c['y'], label=c['label'], linewidth=2) # less crowded
             else:
@@ -289,12 +289,12 @@ def gen_plots(all_reports, log, outdir, full_archive):
         ax.legend(bbox_to_anchor=(1.01, 1), loc='upper left',
                   numpoints=1, fancybox=True, shadow=True, borderaxespad=0.0)
         visibles = [[y for x,y in zip(c['x'],c['y']) if x>=rev_start] for c in p['curves'].values()] # visible y-values
-        ymin  = min([min(ys) for ys in visibles]) # lowest point from lowest curve
-        ymax = max([max(ys) for ys in visibles]) # highest point from highest curve
+        ymin  = min([min(ys) for ys in visibles if ys]) # lowest point from lowest curve
+        ymax = max([max(ys) for ys in visibles if ys]) # highest point from highest curve
         if(full_archive):
             ax.set_ylim(0.98*ymin, 1.02*ymax)
         else:
-            ymax2 = max([min(ys) for ys in visibles]) # lowest point from highest curve
+            ymax2 = max([min(ys) for ys in visibles if ys]) # lowest point from highest curve
             ax.set_ylim(0.98*ymin, min(1.02*ymax, 1.3*ymax2))  # protect against outlayers
         fig.savefig(outdir+pname+fig_ext)
 
