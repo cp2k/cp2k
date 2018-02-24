@@ -61,11 +61,12 @@ def main():
 
     if(full_archive):
         log = svn_log() # fetch entire history
-        gen_archive(config, log, outdir, full_archive=True)
     else:
         log = svn_log(limit=100)
         gen_frontpage(config, log, abook_fn, status_fn, outdir)
-        gen_archive(config, log, outdir)
+
+    gen_archive(config, log, outdir, full_archive)
+    gen_url_list(config, outdir, full_archive)
 
 #===============================================================================
 def gen_frontpage(config, log, abook_fn, status_fn, outdir):
@@ -155,30 +156,41 @@ def gen_frontpage(config, log, abook_fn, status_fn, outdir):
     write_file(status_fn, pformat(status))
 
 #===============================================================================
-def gen_archive(config, log, outdir, full_archive=False):
+def gen_archive(config, log, outdir, full_archive):
     log_index = dict([(r['num'], r) for r in log])
 
     if(full_archive):
         print("Doing the full archive index pages")
-        trunk_revision = None # trunk_version changes too quickly, leave it out.
-        out_fn = "index_full.html"
+        trunk_revision   = None # trunk_version changes quickly, leave it out.
+        html_out_postfix = "index_full.html"
+        urls_out_postfix = "list_full.txt"
         other_index_link = '<p>View <a href="index.html">recent archive</a></p>'
     else:
         print("Doing recent archive index pages")
-        trunk_revision = log[0]['num']
-        out_fn = "index.html"
+        trunk_revision   = log[0]['num']
+        html_out_postfix = "index.html"
+        urls_out_postfix = "list_recent.txt"
         other_index_link = '<p>View <a href="index_full.html">full archive</a></p>'
 
-    url_list = ""
     for s in config.sections():
         print("Working on archive page of: "+s)
-        name        = config.get(s,"name")
-        report_type = config.get(s,"report_type")
-        info_url    = config.get(s,"info_url") if(config.has_option(s,"info_url")) else None
+        name          = config.get(s,"name")
+        report_type   = config.get(s,"report_type")
+        info_url      = config.get(s,"info_url") if(config.has_option(s,"info_url")) else None
+        html_out_fn   = outdir+"archive/%s/%s"%(s,html_out_postfix)
+        urls_out_fn   = outdir+"archive/%s/%s"%(s,urls_out_postfix)
+        archive_files = glob(outdir+"archive/%s/rev_*.txt.gz"%s)
+
+        # check if anything has changed
+        if(path.exists(html_out_fn)):
+            last_change = max([path.getmtime(fn) for fn in archive_files])
+            if(last_change < path.getmtime(html_out_fn)):
+                print("Nothing has changed, skipping: "+html_out_fn)
+                continue
 
         # read all archived reports
         archive_reports = dict()
-        for fn in sorted(glob(outdir+"archive/%s/rev_*.txt.gz"%s), reverse=True):
+        for fn in sorted(archive_files, reverse=True):
             report_txt = gzip.open(fn, 'rb').read()
             report = parse_report(report_txt, report_type)
             report['url'] = path.basename(fn)[:-3]
@@ -196,6 +208,7 @@ def gen_archive(config, log, outdir, full_archive=False):
         archive_output += '<tr><th>Revision</th><th>Status</th><th>Summary</th><th>Author</th><th>Commit Message</th></tr>\n\n'
 
         # loop over all relevant revisions
+        url_list = ""
         rev_start = max(min(archive_reports.keys()), min(log_index.keys()))
         rev_end = max(log_index.keys())
         for r in range(rev_end, rev_start-1, -1):
@@ -216,10 +229,20 @@ def gen_archive(config, log, outdir, full_archive=False):
         archive_output += '</table>\n'
         archive_output += other_index_link
         archive_output += html_footer()
-        write_file(outdir+"archive/%s/%s"%(s,out_fn), archive_output.encode("utf8"))
+        write_file(html_out_fn, archive_output.encode("utf8"))
+        write_file(urls_out_fn, url_list)
 
-    out_fn = "list_full.txt" if (full_archive) else "list_recent.txt"
-    write_file(outdir+"archive/"+out_fn, url_list)
+#===============================================================================
+def gen_url_list(config, outdir, full_archive):
+    print("Working url list:")
+    urls_out_postfix = "list_full.txt" if full_archive else "list_recent.txt"
+    url_list = ""
+    for s in config.sections():
+        fn = outdir+"archive/%s/%s"%(s,urls_out_postfix)
+        if(not path.exists(fn)):
+            continue
+        url_list += open(fn).read()
+    write_file(outdir+"archive/"+urls_out_postfix, url_list)
 
 #===============================================================================
 def gen_plots(all_reports, log, outdir, full_archive):
@@ -460,6 +483,11 @@ def write_file(fn, content, gz=False):
     if(len(d) > 0 and not path.exists(d)):
         os.makedirs(d)
         print("Created dir: "+d)
+    if(path.exists(fn)):
+        old_content = gzip.open(fn, 'rb').read() if(gz) else open(fn).read()
+        if(old_content == content):
+            print("File did not change: "+fn)
+            return
     f = gzip.open(fn, 'wb') if(gz) else open(fn, "w")
     f.write(content)
     f.close()
