@@ -1,4 +1,4 @@
-FROM ubuntu:zesty
+FROM ubuntu:latest
 USER root
 
 # install Ubuntu packages
