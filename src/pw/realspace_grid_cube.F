@@ -280,7 +280,7 @@ CONTAINS
 
          IF (my_rank == 0) THEN
             IF (output_unit > 0) THEN
-               WRITE (output_unit, FMT="(/,T2,A,/,/,T2,A)") "Reading the cube file:     ", filename
+               WRITE (output_unit, FMT="(/,T2,A,/,/,T2,A,/)") "Reading the cube file:     ", TRIM(filename)
             END IF
 
             CALL open_file(file_name=filename, &
@@ -417,7 +417,7 @@ CONTAINS
       ! Read header information and determine byte offset of cube data on master process
       IF (my_rank == 0) THEN
          IF (output_unit > 0) THEN
-            WRITE (output_unit, FMT="(/,T2,A,/,/,T2,A)") "Reading the cube file:     ", filename
+            WRITE (output_unit, FMT="(/,T2,A,/,/,T2,A,/)") "Reading the cube file:     ", TRIM(filename)
          END IF
 
          CALL open_file(file_name=filename, &

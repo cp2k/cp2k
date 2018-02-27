@@ -1706,6 +1706,8 @@ CONTAINS
                   " Line search continues until best step size is found or max steps are reached"
             END IF
             WRITE (output_unit, '(/,A,F5.3)') &
+               " Initial step size: ", alpha
+            WRITE (output_unit, '(/,A,F5.3)') &
                " Step size update factor: ", factor
             WRITE (output_unit, '(/,A,I10,A,I10)') &
                " Energy evaluation: ", cdft_control%ienergy, ", CDFT SCF iteration: ", iter_count

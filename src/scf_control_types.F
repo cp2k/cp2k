@@ -560,7 +560,7 @@ CONTAINS
              scf_control%outer_scf%factor_ls .GE. 1.0_dp) &
             CALL cp_abort(__LOCATION__, &
                           "Illegal value for keyword FACTOR_LS.")
-         IF (exists .AND. ABS(scf_control%outer_scf%step_size) .LE. 1.0_dp) THEN
+         IF (exists) THEN
             scf_control%outer_scf%newton_step = ABS(scf_control%outer_scf%step_size)
             ! Permanent copy needed in case line search is performed
             scf_control%outer_scf%newton_step_save = scf_control%outer_scf%newton_step
