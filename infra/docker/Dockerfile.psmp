@@ -11,6 +11,9 @@ COPY tests ./tests
 COPY data ./data
 COPY src ./src
 
+ARG REVISION
+RUN echo ${REVISION} > ./REVISION
+
 WORKDIR /opt/cp2k/makefiles
 RUN ln -sf bash /bin/sh
 RUN source /opt/cp2k-toolchain/install/setup  && \
