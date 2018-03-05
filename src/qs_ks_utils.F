@@ -1464,7 +1464,6 @@ CONTAINS
             END IF
             ! DFT embedding
             IF (dft_control%apply_embed_pot) THEN
-               ! So far for closed shells
                v_rspace%pw%cr3d = v_rspace%pw%cr3d+ &
                                   v_rspace_embed(ispin)%pw%pw_grid%dvol* &
                                   v_rspace_embed(ispin)%pw%cr3d

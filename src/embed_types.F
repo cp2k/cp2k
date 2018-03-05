@@ -29,6 +29,7 @@ MODULE embed_types
                                               section_vals_retain,&
                                               section_vals_type
    USE kinds,                           ONLY: dp
+   USE lri_environment_types,           ONLY: lri_kind_type
    USE molecule_kind_list_types,        ONLY: molecule_kind_list_create,&
                                               molecule_kind_list_release,&
                                               molecule_kind_list_type
@@ -60,6 +61,14 @@ MODULE embed_types
    INTEGER, PRIVATE, SAVE :: last_embed_env_id_nr = 0
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'embed_types'
 
+! **************************************************************************************************
+!> \brief Type containing main data for embedding potential optimization
+!> \param qs_env ...
+!> \param opt_embed ...
+!> \param opt_embed_section ...
+!> \author Vladimir Rybkin
+! **************************************************************************************************
+
    TYPE opt_embed_pot_type
       TYPE(cp_fm_type), POINTER                 :: embed_pot_coef, embed_pot_grad, &
                                                    step, embed_pot_hess, &
@@ -75,6 +84,7 @@ MODULE embed_types
       LOGICAL                                   :: accept_step, newton_step, level_shift, &
                                                    add_const_pot, converged, read_embed_pot, &
                                                    change_spin, open_shell_embed
+      TYPE(lri_kind_type), DIMENSION(:), POINTER :: lri ! Needed to store integrals
 
    END TYPE opt_embed_pot_type
 

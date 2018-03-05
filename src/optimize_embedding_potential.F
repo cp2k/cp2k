@@ -6,6 +6,7 @@
 MODULE optimize_embedding_potential
 
    USE atomic_kind_types,               ONLY: atomic_kind_type,&
+                                              get_atomic_kind,&
                                               get_atomic_kind_set
    USE cell_types,                      ONLY: cell_type
    USE cp_blacs_env,                    ONLY: cp_blacs_env_create,&
@@ -45,6 +46,7 @@ MODULE optimize_embedding_potential
                                               section_vals_val_get
    USE kinds,                           ONLY: default_path_length,&
                                               dp
+   USE lri_environment_types,           ONLY: lri_kind_type
    USE message_passing,                 ONLY: mp_bcast,&
                                               mp_max,&
                                               mp_sum
@@ -54,7 +56,6 @@ MODULE optimize_embedding_potential
                                               pw_env_type
    USE pw_methods,                      ONLY: pw_axpy,&
                                               pw_copy,&
-                                              pw_integral_ab,&
                                               pw_integrate_function,&
                                               pw_scale,&
                                               pw_zero
@@ -71,6 +72,7 @@ MODULE optimize_embedding_potential
                                               calculate_wavefunction
    USE qs_environment_types,            ONLY: get_qs_env,&
                                               qs_environment_type
+   USE qs_integrate_potential_single,   ONLY: integrate_v_rspace_one_center
    USE qs_kind_types,                   ONLY: get_qs_kind,&
                                               qs_kind_type
    USE qs_kinetic,                      ONLY: build_kinetic_matrix
@@ -290,6 +292,9 @@ CONTAINS
       NULLIFY (blacs_env)
       CALL cp_blacs_env_create(blacs_env=blacs_env, para_env=para_env)
 
+      ! Prepare the object for integrals
+      CALL make_lri_object(qs_env, opt_embed%lri)
+
       ! In case if spin embedding potential has to be optimized,
       ! the dimension of variational space is two times larger
       IF (opt_embed%open_shell_embed) THEN
@@ -432,6 +437,41 @@ CONTAINS
       DEALLOCATE (kind_of)
 
    END SUBROUTINE find_aux_dimen
+
+! **************************************************************************************************
+!> \brief Prepare the lri_kind_type object for integrals between density and aux. basis functions
+!> \param qs_env ...
+!> \param lri ...
+! **************************************************************************************************
+   SUBROUTINE make_lri_object(qs_env, lri)
+      TYPE(qs_environment_type), POINTER                 :: qs_env
+      TYPE(lri_kind_type), DIMENSION(:), POINTER         :: lri
+
+      INTEGER                                            :: ikind, natom, nkind, nsgf
+      TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
+      TYPE(atomic_kind_type), POINTER                    :: atomic_kind
+      TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
+
+      NULLIFY (atomic_kind, lri)
+      CALL get_qs_env(qs_env=qs_env, atomic_kind_set=atomic_kind_set, &
+                      qs_kind_set=qs_kind_set)
+      nkind = SIZE(atomic_kind_set)
+
+      ALLOCATE (lri(nkind))
+      ! Here we need only v_int and acoef (the latter as dummies)
+      DO ikind = 1, nkind
+         NULLIFY (lri(ikind)%acoef)
+         NULLIFY (lri(ikind)%v_int)
+         atomic_kind => atomic_kind_set(ikind)
+         CALL get_atomic_kind(atomic_kind=atomic_kind, natom=natom)
+         CALL get_qs_kind(qs_kind=qs_kind_set(ikind), nsgf=nsgf, basis_type="RI_AUX")
+         ALLOCATE (lri(ikind)%acoef(natom, nsgf))
+         lri(ikind)%acoef = 0._dp
+         ALLOCATE (lri(ikind)%v_int(natom, nsgf))
+         lri(ikind)%v_int = 0._dp
+      END DO
+
+   END SUBROUTINE make_lri_object
 
 ! **************************************************************************************************
 !> \brief Read the embedding potential from the binary file
@@ -579,6 +619,8 @@ CONTAINS
    SUBROUTINE release_opt_embed(opt_embed)
       TYPE(opt_embed_pot_type)                           :: opt_embed
 
+      INTEGER                                            :: ikind
+
       CALL cp_fm_release(opt_embed%embed_pot_grad)
       CALL cp_fm_release(opt_embed%embed_pot_coef)
       CALL cp_fm_release(opt_embed%step)
@@ -594,6 +636,13 @@ CONTAINS
       ENDIF
       DEALLOCATE (opt_embed%max_diff)
       DEALLOCATE (opt_embed%int_diff)
+
+      DO ikind = 1, SIZE(opt_embed%lri)
+         DEALLOCATE (opt_embed%lri(ikind)%v_int)
+         DEALLOCATE (opt_embed%lri(ikind)%acoef)
+      ENDDO
+      DEALLOCATE (opt_embed%lri)
+
    END SUBROUTINE release_opt_embed
 
 ! **************************************************************************************************
@@ -677,7 +726,6 @@ CONTAINS
                                                             regular_term, spin_reg, spinless_reg
       TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(pw_env_type), POINTER                         :: pw_env
-      TYPE(pw_p_type)                                    :: psi_L, rho_g
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
 
       CALL timeset(routineN, handle)
@@ -694,21 +742,10 @@ CONTAINS
       ! Get plane waves pool
       CALL pw_env_get(pw_env, auxbas_pw_pool=auxbas_pw_pool)
 
-      ! get some of the grids ready
-      NULLIFY (rho_g%pw)
-      CALL pw_pool_create_pw(auxbas_pw_pool, rho_g%pw, &
-                             use_data=COMPLEXDATA1D, &
-                             in_space=RECIPROCALSPACE)
-
-      NULLIFY (psi_L%pw)
-      CALL pw_pool_create_pw(auxbas_pw_pool, psi_L%pw, &
-                             use_data=REALDATA3D, &
-                             in_space=REALSPACE)
-
       ! Calculate potential gradient coefficients
-      CALL calculate_embed_pot_grad_inner(qs_env, opt_embed%dimen_aux, diff_rho_r, diff_rho_spin, rho_g, &
-                                          psi_L, pw_env, opt_embed%embed_pot_grad, &
-                                          opt_embed%open_shell_embed)
+      CALL calculate_embed_pot_grad_inner(qs_env, opt_embed%dimen_aux, diff_rho_r, diff_rho_spin, &
+                                          opt_embed%embed_pot_grad, &
+                                          opt_embed%open_shell_embed, opt_embed%lri)
 
       ! Add regularization with kinetic matrix
       IF (opt_embed%i_iter .EQ. 1) THEN ! Else it is kept in memory
@@ -796,10 +833,6 @@ CONTAINS
       ! Deallocate regular term
       CALL cp_fm_release(regular_term)
 
-      ! Give back plane wave pool
-      CALL pw_pool_give_back_pw(auxbas_pw_pool, psi_L%pw)
-      CALL pw_pool_give_back_pw(auxbas_pw_pool, rho_g%pw)
-
       CALL timestop(handle)
 
    END SUBROUTINE calculate_embed_pot_grad
@@ -810,37 +843,35 @@ CONTAINS
 !> \param dimen_aux ...
 !> \param rho_r ...
 !> \param rho_spin ...
-!> \param rho_g ...
-!> \param psi_L ...
-!> \param pw_env ...
 !> \param embed_pot_grad ...
 !> \param open_shell_embed ...
+!> \param lri ...
 !> \author Vladimir Rybkin
 ! **************************************************************************************************
-   SUBROUTINE calculate_embed_pot_grad_inner(qs_env, dimen_aux, &
-                                             rho_r, rho_spin, rho_g, psi_L, pw_env, embed_pot_grad, &
-                                             open_shell_embed)
+   SUBROUTINE calculate_embed_pot_grad_inner(qs_env, dimen_aux, rho_r, rho_spin, embed_pot_grad, &
+                                             open_shell_embed, lri)
       TYPE(qs_environment_type), POINTER                 :: qs_env
       INTEGER                                            :: dimen_aux
       TYPE(pw_p_type), POINTER                           :: rho_r, rho_spin
-      TYPE(pw_p_type)                                    :: rho_g, psi_L
-      TYPE(pw_env_type), POINTER                         :: pw_env
       TYPE(cp_fm_type), POINTER                          :: embed_pot_grad
       LOGICAL                                            :: open_shell_embed
+      TYPE(lri_kind_type), DIMENSION(:), POINTER         :: lri
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'calculate_embed_pot_grad_inner', &
          routineP = moduleN//':'//routineN
 
-      INTEGER                                            :: handle, l_global, LLL, nrow_local
+      INTEGER                                            :: handle, iatom, ikind, l_global, LLL, &
+                                                            nrow_local, nsgf, start_pos
       INTEGER, DIMENSION(:), POINTER                     :: row_indices
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: pot_grad, wf_vector
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: pot_grad
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       TYPE(cell_type), POINTER                           :: cell
-      TYPE(cp_fm_type), POINTER                          :: mo_coeff
+      TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(dft_control_type), POINTER                    :: dft_control
-      TYPE(mo_set_p_type), DIMENSION(:), POINTER         :: mos
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
+
+! Needed to store integrals
 
       CALL timeset(routineN, handle)
 
@@ -850,57 +881,73 @@ CONTAINS
                       dft_control=dft_control, &
                       cell=cell, &
                       atomic_kind_set=atomic_kind_set, &
-                      mos=mos)
-      ! Get MO coefficients: we need only the structure, therefore don't care about the spin
-      CALL get_mo_set(mo_set=mos(1)%mo_set, mo_coeff=mo_coeff)
+                      para_env=para_env)
 
       ! Create wf_vector and gradient
-      ALLOCATE (wf_vector(dimen_aux))
       IF (open_shell_embed) THEN
          ALLOCATE (pot_grad(dimen_aux*2))
       ELSE
          ALLOCATE (pot_grad(dimen_aux))
       ENDIF
 
+      ! Use lri subroutine
+      DO ikind = 1, SIZE(lri)
+         lri(ikind)%v_int = 0.0_dp
+      END DO
+
+      CALL integrate_v_rspace_one_center(rho_r, qs_env, lri, &
+                                         .FALSE., "RI_AUX")
+      DO ikind = 1, SIZE(lri)
+         CALL mp_sum(lri(ikind)%v_int, para_env%group)
+      END DO
+
+      pot_grad = 0.0_dp
+      start_pos = 1
+      DO ikind = 1, SIZE(lri)
+         DO iatom = 1, SIZE(lri(ikind)%v_int, DIM=1)
+            nsgf = SIZE(lri(ikind)%v_int(iatom, :))
+            pot_grad(start_pos:start_pos+nsgf-1) = lri(ikind)%v_int(iatom, :)
+            start_pos = start_pos+nsgf
+         ENDDO
+      ENDDO
+
+      ! Open-shell embedding
+      IF (open_shell_embed) THEN
+         DO ikind = 1, SIZE(lri)
+            lri(ikind)%v_int = 0.0_dp
+         END DO
+
+         CALL integrate_v_rspace_one_center(rho_spin, qs_env, lri, &
+                                            .FALSE., "RI_AUX")
+         DO ikind = 1, SIZE(lri)
+            CALL mp_sum(lri(ikind)%v_int, para_env%group)
+         END DO
+
+         start_pos = dimen_aux+1
+         DO ikind = 1, SIZE(lri)
+            DO iatom = 1, SIZE(lri(ikind)%v_int, DIM=1)
+               nsgf = SIZE(lri(ikind)%v_int(iatom, :))
+               pot_grad(start_pos:start_pos+nsgf-1) = lri(ikind)%v_int(iatom, :)
+               start_pos = start_pos+nsgf
+            ENDDO
+         ENDDO
+      ENDIF
+
+      ! Scale by the cell volume
+      pot_grad = pot_grad*rho_r%pw%pw_grid%dvol
+
       ! Information about full matrix gradient
       CALL cp_fm_get_info(matrix=embed_pot_grad, &
                           nrow_local=nrow_local, &
                           row_indices=row_indices)
 
-      ! Calculate the gradient
-
-      DO LLL = 1, dimen_aux
-
-         ! Integrate basis_function*rho
-
-         wf_vector = 0.0_dp
-         !wf_vector(l_global) = 1.0_dp
-         wf_vector(LLL) = 1.0_dp
-
-         ! pseudo psi_L
-         CALL pw_zero(psi_L%pw)
-         CALL calculate_wavefunction(mo_coeff, 1, psi_L, rho_g, atomic_kind_set, &
-                                     qs_kind_set, cell, dft_control, particle_set, pw_env, &
-                                     basis_type="RI_AUX", &
-                                     external_vector=wf_vector)
-
-         ! Calculate integral over rho*rho_basis_function
-         pot_grad(LLL) = pw_integral_ab(psi_L%pw, rho_r%pw)
-
-         ! Spin part for open shell embedding
-         IF (open_shell_embed) THEN
-            ! Calculate integral over rho_spin*rho_basis_function
-            pot_grad(dimen_aux+LLL) = pw_integral_ab(psi_L%pw, rho_spin%pw)
-         ENDIF
-
-      ENDDO
-
+      ! Copy the gradient into the full matrix
       DO LLL = 1, nrow_local
          l_global = row_indices(LLL)
          embed_pot_grad%local_data(LLL, 1) = pot_grad(l_global)
       ENDDO
 
-      DEALLOCATE (wf_vector, pot_grad)
+      DEALLOCATE (pot_grad)
 
       CALL timestop(handle)
 
