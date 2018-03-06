@@ -81,7 +81,8 @@ MODULE bibliography
                             Kapil2016, Heinzmann1976, Ehrhardt1985, Rybkin2016, West2006, &
                             Bates2013, Andermatt2016, Zhu2016, Schuett2016, Lu2004, &
                             Becke1988b, Migliore2009, Mavros2015, Holmberg2017, Marek2014, &
-                            Stoychev2016, Futera2017, Bailey2006, Papior2017, Lehtola2018
+                            Stoychev2016, Futera2017, Bailey2006, Papior2017, Lehtola2018, &
+                            Brieuc2016
 
 CONTAINS
 
@@ -3805,6 +3806,18 @@ CONTAINS
                          "EP 24", &
                          "ER"), &
                          DOI="10.1016/j.cpc.2016.09.022")
+
+      CALL add_reference(key=Brieuc2016, ISI_record=s2a( &
+                         "AU Brieuc, F", &
+                         "   Dammak, H", &
+                         "   Hayoun, M", &
+                         "TI Quantum thermal Bath for Path Integral Molecular Dynamics Simulation", &
+                         "SO Journal of Chemical Theory and Computation", &
+                         "SN 1351-1359", &
+                         "PY 2016", &
+                         "VL 12", &
+                         "ER"), &
+                         DOI="10.1021/acs.jctc.5b01146")
 
    END SUBROUTINE add_all_references
 

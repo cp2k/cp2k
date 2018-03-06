@@ -76,7 +76,8 @@ MODULE input_cp2k_restarts
                                               thermostat_gle,&
                                               thermostat_nose,&
                                               thermostat_piglet,&
-                                              thermostat_pile
+                                              thermostat_pile,&
+                                              thermostat_qtb
    USE simpar_types,                    ONLY: simpar_type
    USE string_utilities,                ONLY: string_to_ascii
    USE thermostat_types,                ONLY: thermostat_type
@@ -1010,6 +1011,13 @@ CONTAINS
          CALL dump_rng_stream(rng_stream=pint_env%pile_therm%gaussian_rng_stream, &
                               rng_record=rng_record)
          CALL string_to_ascii(rng_record, ascii(:, 1))
+         CALL section_rng_val_set(rng_section=tmpsec, nsize=1, &
+                                  ascii=ascii)
+      ELSE IF (pint_env%pimd_thermostat == thermostat_qtb) THEN
+         tmpsec => section_vals_get_subs_vals(pint_section, &
+                                              "QTB%RNG_INIT")
+         CALL string_to_ascii(pint_env%qtb_therm%rng_status(1), &
+                              ascii(:, 1))
          CALL section_rng_val_set(rng_section=tmpsec, nsize=1, &
                                   ascii=ascii)
       ELSE IF (pint_env%pimd_thermostat == thermostat_piglet) THEN

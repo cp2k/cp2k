@@ -9,7 +9,8 @@ MODULE pint_types
    USE gle_system_types,                ONLY: gle_type
    USE input_section_types,             ONLY: section_vals_type
    USE kinds,                           ONLY: dp
-   USE parallel_rng_types,              ONLY: rng_stream_type
+   USE parallel_rng_types,              ONLY: rng_record_length,&
+                                              rng_stream_type
    USE replica_types,                   ONLY: replica_env_type
 #include "../base/base_uses.f90"
 
@@ -30,13 +31,15 @@ MODULE pint_types
                                  thermostat_nose = 1, &
                                  thermostat_gle = 2, &
                                  thermostat_pile = 3, &
-                                 thermostat_piglet = 4
+                                 thermostat_piglet = 4, &
+                                 thermostat_qtb = 5
 
    PUBLIC :: pint_env_type
    PUBLIC :: normalmode_env_type
    PUBLIC :: staging_env_type
    PUBLIC :: pile_therm_type
    PUBLIC :: piglet_therm_type
+   PUBLIC :: qtb_therm_type
 
    ! ***************************************************************************
    !> \brief environment for a path integral run
@@ -103,13 +106,14 @@ MODULE pint_types
    !>      2009-06-15 helium_solvent_type object is no longer a member of
    !>                   pint_env_type [lwalewski]
    !>      2014-10-23 added pile_therm [Felix Uhl]
+   !>      2018-02-13 added qtb_therm [Fabien Brieuc]
    ! ***************************************************************************
    TYPE pint_env_type
       INTEGER :: ref_count, id_nr, p, nnos, nrespa, iter, ndim, transform
       INTEGER :: first_step, last_step, num_steps, first_propagated_mode
       INTEGER :: pimd_thermostat, harm_integrator, thermostat_rng_seed
       REAL(KIND=dp) :: t_tol, v_tol, kT, beta, dt, &
-                       e_gle, e_pile, e_piglet, e_pot_h, e_kin_beads, e_pot_t, e_kin_t, t, time_per_step
+                       e_gle, e_pile, e_piglet, e_qtb, e_pot_h, e_kin_beads, e_pot_t, e_kin_t, t, time_per_step
       REAL(KIND=dp) :: link_action, pot_action
       TYPE(cp_logger_type), POINTER :: logger
       TYPE(replica_env_type), POINTER :: replicas
@@ -127,9 +131,10 @@ MODULE pint_types
       REAL(KIND=dp), DIMENSION(:), POINTER :: Q ! dim p, make it (p,ndim)?
       REAL(KIND=dp), DIMENSION(:), POINTER :: rtmp_ndim, rtmp_natom
       REAL(KIND=dp), DIMENSION(:), POINTER :: iwsinex, wsinex, cosex
-      TYPE(pile_therm_type), POINTER :: pile_therm
-      TYPE(piglet_therm_type), POINTER :: piglet_therm
-      TYPE(pint_propagator_type), POINTER :: propagator
+      TYPE(pile_therm_type), POINTER       :: pile_therm
+      TYPE(piglet_therm_type), POINTER     :: piglet_therm
+      TYPE(qtb_therm_type), POINTER        :: qtb_therm
+      TYPE(pint_propagator_type), POINTER  :: propagator
    END TYPE pint_env_type
 
    ! ***************************************************************************
@@ -231,6 +236,50 @@ MODULE pint_types
       REAL(KIND=dp), DIMENSION(:, :), POINTER :: sqrtmass
       TYPE(rng_stream_type), POINTER       :: gaussian_rng_stream
    END TYPE piglet_therm_type
+
+   ! ***************************************************************************
+   !> \brief data to use the qtb thermostat
+   !> \note
+   !>    tau           - time constant (1/friction) for centroid mode
+   !>    lamb          - scaling of time constants to the ring polymer NM freq.
+   !>    taucut        - inverse of frequency cutoff for QTB forces
+   !>    lambcut       - scaling of the cutoff angular freq. to the ring polymer
+   !>    c1            - scaling of the old momenta
+   !>    c2            - scaling of the friction term
+   !>    g_fric        - mode specific friction
+   !>    massfact      - Mass prefactor to get units right
+   !>    rf            -  stores the QTB forces
+   !>    h             - filter for computation of QTB forces
+   !>    r             - store random numbers for computation of QTB forces
+   !>                  - NM freq.
+   !>    step          - update QTB forces every qtb_step
+   !>    cpt           - to know when to draw new random forces (every qtb_step)
+   !>    fp            - defines if we use f_P^(0) or f_P^(1)
+   !>    nf            - nb of points used for the convolution product (memory)
+   !>    gaussian_rng_stream - random number generator
+   !>    rng_status          - keep track of rng status for restart purposes
+   !>    thermostat_energy   - energy difference for conserved quantity
+   !> \author Fabien Brieuc
+   ! ***************************************************************************
+   TYPE qtb_therm_type
+      INTEGER                                    :: ref_count
+      REAL(KIND=dp)                              :: tau, lamb
+      REAL(KIND=dp)                              :: taucut, lambcut
+      REAL(KIND=dp), DIMENSION(:), POINTER       :: c1
+      REAL(KIND=dp), DIMENSION(:), POINTER       :: c2
+      REAL(KIND=dp), DIMENSION(:), POINTER       :: g_fric
+      REAL(KIND=dp), DIMENSION(:, :), POINTER    :: massfact
+      REAL(KIND=dp), DIMENSION(:, :), POINTER    :: rf
+      REAL(KIND=dp), DIMENSION(:, :), POINTER    :: h
+      REAL(KIND=dp), DIMENSION(:, :, :), POINTER :: r
+      INTEGER, DIMENSION(:), POINTER             :: step
+      INTEGER, DIMENSION(:), POINTER             :: cpt
+      INTEGER                                    :: fp
+      INTEGER                                    :: nf
+      REAL(KIND=dp)                              :: thermostat_energy
+      TYPE(rng_stream_type), POINTER             :: gaussian_rng_stream
+      CHARACTER(LEN=rng_record_length), DIMENSION(:), POINTER :: rng_status
+   END TYPE qtb_therm_type
 
    ! ***************************************************************************
    !> \brief data for the use of different Path Integral propagators

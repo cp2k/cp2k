@@ -22,7 +22,7 @@ skip_dirs[1]=""
 ndirstorestrict=0
 restrict_dirs[1]=""
 default_err_tolerance="1.0E-14"
-mpiexec="mpiexec"
+mpiexec="mpiexec --bind-to none"
 
 # parse options
 while [ $# -ge 1 ]; do

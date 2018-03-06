@@ -16,7 +16,8 @@
 MODULE pint_methods
 
    USE atomic_kind_types,               ONLY: get_atomic_kind
-   USE bibliography,                    ONLY: Ceriotti2010,&
+   USE bibliography,                    ONLY: Brieuc2016,&
+                                              Ceriotti2010,&
                                               Ceriotti2012,&
                                               cite_reference
    USE cp_external_control,             ONLY: external_control
@@ -103,6 +104,10 @@ MODULE pint_methods
                                               pint_pile_release,&
                                               pint_pile_step
    USE pint_public,                     ONLY: pint_levy_walk
+   USE pint_qtb,                        ONLY: pint_calc_qtb_energy,&
+                                              pint_qtb_init,&
+                                              pint_qtb_release,&
+                                              pint_qtb_step
    USE pint_staging,                    ONLY: staging_calc_uf_h,&
                                               staging_env_create,&
                                               staging_init_masses,&
@@ -112,7 +117,8 @@ MODULE pint_methods
                                               pint_x2u
    USE pint_types,                      ONLY: &
         e_conserved_id, e_kin_thermo_id, e_kin_virial_id, e_potential_id, pint_env_type, &
-        thermostat_gle, thermostat_none, thermostat_nose, thermostat_piglet, thermostat_pile
+        thermostat_gle, thermostat_none, thermostat_nose, thermostat_piglet, thermostat_pile, &
+        thermostat_qtb
    USE replica_methods,                 ONLY: rep_env_calc_e_f,&
                                               rep_env_create
    USE replica_types,                   ONLY: rep_env_release,&
@@ -166,7 +172,8 @@ CONTAINS
       TYPE(replica_env_type), POINTER                    :: rep_env
       TYPE(section_vals_type), POINTER                   :: gle_section, nose_section, &
                                                             piglet_section, pile_section, &
-                                                            pint_section, transform_section
+                                                            pint_section, qtb_section, &
+                                                            transform_section
 
       CALL timeset(routineN, handle)
 
@@ -329,6 +336,7 @@ CONTAINS
       pint_env%e_gle = 0._dp
       pint_env%e_pile = 0._dp
       pint_env%e_piglet = 0._dp
+      pint_env%e_qtb = 0._dp
       pint_env%e_kin_t = 0._dp
       pint_env%energy(:) = 0.0_dp
 
@@ -498,6 +506,26 @@ CONTAINS
          END IF
       END IF
 
+      !Setup qtb thermostat
+      NULLIFY (pint_env%qtb_therm)
+      qtb_section => section_vals_get_subs_vals(input, "MOTION%PINT%QTB")
+      CALL section_vals_get(qtb_section, explicit=explicit)
+      IF (explicit) THEN
+         CALL cite_reference(Brieuc2016)
+         CALL section_vals_val_get(pint_env%input, &
+                                   "MOTION%PINT%INIT%THERMOSTAT_SEED", &
+                                   i_val=pint_env%thermostat_rng_seed)
+         IF (pint_env%pimd_thermostat == thermostat_none) THEN
+            pint_env%pimd_thermostat = thermostat_qtb
+            CALL pint_qtb_init(qtb_therm=pint_env%qtb_therm, &
+                               pint_env=pint_env, &
+                               normalmode_env=pint_env%normalmode_env, &
+                               section=qtb_section)
+         ELSE
+            CPABORT("QTB thermostat can't be used with another thermostat.")
+         END IF
+      END IF
+
       !Initialize integrator scheme
       CALL section_vals_val_get(pint_section, "HARM_INT", i_val=pint_env%harm_integrator)
       IF (pint_env%harm_integrator == integrate_exact) THEN
@@ -522,6 +550,12 @@ CONTAINS
          END IF
          IF (pint_env%pimd_thermostat == thermostat_piglet) THEN
             WRITE (UNIT=msg, FMT=*) "PINT WARNING| PIGLET Thermostat only avaliable in "// &
+               "the exact harmonic integrator. Switching to exact harmonic integrator."
+            CPWARN(msg)
+            pint_env%harm_integrator = integrate_exact
+         END IF
+         IF (pint_env%pimd_thermostat == thermostat_qtb) THEN
+            WRITE (UNIT=msg, FMT=*) "PINT WARNING| QTB Thermostat only avaliable in "// &
                "the exact harmonic integrator. Switching to exact harmonic integrator."
             CPWARN(msg)
             pint_env%harm_integrator = integrate_exact
@@ -649,6 +683,8 @@ CONTAINS
                CALL pint_pile_release(pint_env%pile_therm)
             CASE (thermostat_piglet)
                CALL pint_piglet_release(pint_env%piglet_therm)
+            CASE (thermostat_qtb)
+               CALL pint_qtb_release(pint_env%qtb_therm)
             END SELECT
 
             DEALLOCATE (pint_env%Q)
@@ -1860,6 +1896,13 @@ CONTAINS
                                   first_mode=pint_env%first_propagated_mode, &
                                   masses=pint_env%mass_fict, &
                                   piglet_therm=pint_env%piglet_therm)
+         CASE (thermostat_qtb)
+            CALL pint_qtb_step(vold=pint_env%uv, &
+                               vnew=pint_env%uv_t, &
+                               p=pint_env%p, &
+                               ndim=pint_env%ndim, &
+                               masses=pint_env%mass_fict, &
+                               qtb_therm=pint_env%qtb_therm)
          CASE DEFAULT
             pint_env%uv_t = pint_env%uv
          END SELECT
@@ -1928,6 +1971,13 @@ CONTAINS
                                   first_mode=pint_env%first_propagated_mode, &
                                   masses=pint_env%mass_fict, &
                                   piglet_therm=pint_env%piglet_therm)
+         CASE (thermostat_qtb)
+            CALL pint_qtb_step(vold=pint_env%uv_t, &
+                               vnew=pint_env%uv, &
+                               p=pint_env%p, &
+                               ndim=pint_env%ndim, &
+                               masses=pint_env%mass_fict, &
+                               qtb_therm=pint_env%qtb_therm)
          CASE DEFAULT
             pint_env%uv = pint_env%uv_t
          END SELECT
@@ -1980,6 +2030,8 @@ CONTAINS
          CALL pint_calc_gle_energy(pint_env)
       CASE (thermostat_pile)
          CALL pint_calc_pile_energy(pint_env)
+      CASE (thermostat_qtb)
+         CALL pint_calc_qtb_energy(pint_env)
       CASE (thermostat_piglet)
          CALL pint_calc_piglet_energy(pint_env)
       END SELECT
@@ -1995,7 +2047,8 @@ CONTAINS
          pint_env%e_pot_h+ &
          pint_env%e_kin_beads+ &
          pint_env%e_pot_t+ &
-         pint_env%e_kin_t+pint_env%e_gle+pint_env%e_pile+pint_env%e_piglet
+         pint_env%e_kin_t+ &
+         pint_env%e_gle+pint_env%e_pile+pint_env%e_piglet+pint_env%e_qtb
 
       pint_env%energy(e_potential_id) = &
          pint_env%energy(e_potential_id)/REAL(pint_env%p, dp)

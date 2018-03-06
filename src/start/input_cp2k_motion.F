@@ -9,7 +9,8 @@
 !> \author teo & fawzi
 ! **************************************************************************************************
 MODULE input_cp2k_motion
-   USE bibliography,                    ONLY: Byrd1995,&
+   USE bibliography,                    ONLY: Brieuc2016,&
+                                              Byrd1995,&
                                               Ceriotti2010,&
                                               Ceriotti2012,&
                                               Ceriotti2014,&
@@ -1643,7 +1644,7 @@ CONTAINS
       CPASSERT(.NOT. ASSOCIATED(section))
       CALL section_create(section, name="PINT", &
                           description="The section that controls a path integral run", &
-                          n_keywords=13, n_subsections=8, repeats=.FALSE.)
+                          n_keywords=13, n_subsections=9, repeats=.FALSE.)
       NULLIFY (keyword)
 
       CALL keyword_create(keyword, name="p", &
@@ -1868,6 +1869,55 @@ CONTAINS
                           default_i_val=matrix_init_cholesky, &
                           enum_c_vals=s2a("CHOLESKY", "DIAGONAL"), &
                           enum_i_vals=(/matrix_init_cholesky, matrix_init_diagonal/))
+      CALL section_add_keyword(subsection, keyword)
+      CALL keyword_release(keyword)
+      CALL section_add_subsection(section, subsection)
+      CALL section_release(subsection)
+
+      CALL section_create(subsection, name="QTB", &
+                          description="Controls the QTB-PILE thermostat."// &
+                          " Needs the exact harmonic integrator", &
+                          citations=(/Brieuc2016/), &
+                          n_keywords=6, n_subsections=1, &
+                          repeats=.FALSE.)
+      CALL create_rng_section(subsubsection)
+      CALL section_add_subsection(subsection, subsubsection)
+      CALL section_release(subsubsection)
+      CALL keyword_create(keyword, name="TAU", &
+                          description="Time constant for centroid motion. ", &
+                          usage="TAU {real}", type_of_var=real_t, &
+                          unit_str="fs", n_var=1, default_r_val=1000.0_dp)
+      CALL section_add_keyword(subsection, keyword)
+      CALL keyword_release(keyword)
+      CALL keyword_create(keyword, name="LAMBDA", &
+                          description="Scaling of friction to ring polymer NM freq.", &
+                          usage="LAMBDA {real}", type_of_var=real_t, &
+                          n_var=1, default_r_val=0.5_dp)
+      CALL section_add_keyword(subsection, keyword)
+      CALL keyword_release(keyword)
+      CALL keyword_create(keyword, name="FP", &
+                          description="Defines which version to use "// &
+                          "0: f_P^(0), 1: f_P^(1)", &
+                          usage="FP {integer}", type_of_var=integer_t, &
+                          n_var=1, default_i_val=1)
+      CALL section_add_keyword(subsection, keyword)
+      CALL keyword_release(keyword)
+      CALL keyword_create(keyword, name="TAUCUT", &
+                          description="Inverse of cutoff freq. for the centroid mode", &
+                          usage="TAUCUT {real}", type_of_var=real_t, &
+                          unit_str="fs", n_var=1, default_r_val=0.5_dp)
+      CALL section_add_keyword(subsection, keyword)
+      CALL keyword_release(keyword)
+      CALL keyword_create(keyword, name="LAMBCUT", &
+                          description="Scaling of cutoff freq. to ring polymer NM freq.", &
+                          usage="LAMBCUT {real}", type_of_var=real_t, &
+                          n_var=1, default_r_val=2.0_dp)
+      CALL section_add_keyword(subsection, keyword)
+      CALL keyword_release(keyword)
+      CALL keyword_create(keyword, name="NF", &
+                          description="Number of points used for the convolution product.", &
+                          usage="NF {integer}", type_of_var=integer_t, &
+                          n_var=1, default_i_val=100)
       CALL section_add_keyword(subsection, keyword)
       CALL keyword_release(keyword)
       CALL section_add_subsection(section, subsection)

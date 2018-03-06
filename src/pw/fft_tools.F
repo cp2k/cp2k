@@ -150,6 +150,7 @@ MODULE fft_tools
    PUBLIC :: cube_transpose_1, cube_transpose_2
    PUBLIC :: yz_to_x, x_to_yz, xz_to_yz, yz_to_xz
    PUBLIC :: fft_scratch_sizes, fft_scratch_type
+   PUBLIC :: fft_type, fft_plan_style
 
    INTERFACE fft3d
       MODULE PROCEDURE fft3d_s, fft3d_ps, fft3d_pb

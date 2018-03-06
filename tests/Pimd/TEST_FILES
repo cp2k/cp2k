@@ -18,6 +18,9 @@ w512_pint_nose.inp                                     9      8e-14             
 w512_pint_gle.inp                                      9      3e-13            -3.5646497002020765
 w512_pint_pile.inp                                     9      3e-12            0.86626194213382846
 w512_pint_piglet.inp                                   9      1e-11           74.121568533050350
+w512_pint_qtb_fp0.inp                                  9      3e-12            0.74347535535535769
+w512_pint_qtb_fp1.inp                                  9      3e-12            0.69077193563644101
+w512_pint_qtb_fp1-1.restart                            9      3e-12            1.2332554721613818
 centroid_velocity_init.inp                             9    1.0E-14            0.32999751991202331
 he32_density.inp                                      40      2e-14       -6.8167031351590079E-005
 he32_only_worm.inp                                    40      1e-11        1.9115591620126446
