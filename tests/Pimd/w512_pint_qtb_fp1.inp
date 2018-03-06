@@ -25,7 +25,7 @@
       TAUCUT                1.0
       LAMBCUT               2.0
       FP                    1
-      NF                    100
+      NF                    128
     &END QTB
     &INIT
       RANDOMIZE_POS          F

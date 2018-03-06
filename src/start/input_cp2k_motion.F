@@ -1917,7 +1917,7 @@ CONTAINS
       CALL keyword_create(keyword, name="NF", &
                           description="Number of points used for the convolution product.", &
                           usage="NF {integer}", type_of_var=integer_t, &
-                          n_var=1, default_i_val=100)
+                          n_var=1, default_i_val=128)
       CALL section_add_keyword(subsection, keyword)
       CALL keyword_release(keyword)
       CALL section_add_subsection(section, subsection)

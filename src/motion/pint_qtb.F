@@ -414,7 +414,7 @@ CONTAINS
             END DO
 
             DO i = 0, nf-1
-               qtb_therm%h(i+1, ibead) = REAL(filter(i))
+               qtb_therm%h(i+1, ibead) = REAL(filter(i), dp)
             END DO
          END DO
 
@@ -583,7 +583,7 @@ CONTAINS
       !fp = theta(w, T) / kT
       IF (p == 1) THEN
          DO j = 1, n
-            w = FLOAT(j)*dw
+            w = j*dw
             tmp = hbokT*w
             fp(j) = tmp*(0.5_dp+1.0_dp/(EXP(tmp)-1.0_dp))
          END DO
@@ -607,7 +607,7 @@ CONTAINS
          nx = nx+nx/5 !add 20% points to avoid any problems at the end
          !of the interval (probably unnecessary)
          IF (ibead == 1) THEN
-            op = 1.0_dp/FLOAT(p)
+            op = 1.0_dp/p
             malpha = op !mixing parameter alpha = 1/P
             niter = 30 !30 iterations are enough to converge
 
@@ -641,7 +641,7 @@ CONTAINS
                fp1(j) = op*x(j)/TANH(x(j)*op)
                IF (x(j)*op <= 1.0e-10_dp) fp1(j) = 1.0_dp
                DO k = 1, p-1
-                  xk2(k, j) = x2(j)+(FLOAT(p)*SIN(FLOAT(k)*pi*op))**2
+                  xk2(k, j) = x2(j)+(p*SIN(k*pi*op))**2
                   xk(k, j) = SQRT(xk2(k, j))
                   kk(k, j) = NINT((xk(k, j)-xmin)/dx)+1
                   fpxk(k, j) = xk(k, j)*op/TANH(xk(k, j)*op)
@@ -662,7 +662,7 @@ CONTAINS
                   fp1(j) = malpha*(h(j)-tmp)+(1.0_dp-malpha)*fp1(j)
                   IF (j <= n) err = err+ABS(1.0_dp-fp1(j)/fprev) ! compute "errors"
                END DO
-               err = err/FLOAT(n)
+               err = err/n
 
                ! Linear regression on the last 20% of the F_P function
                CALL pint_qtb_linreg(fp1(8*nx/10:nx), x(8*nx/10:nx), aa, bb, r2, log_unit, print_level)
@@ -726,7 +726,7 @@ CONTAINS
          ! compute values of fP on the grid points for the current NM
          ! through linear interpolation / regression
          DO j = 1, n
-            x1 = FLOAT(j)*dx1
+            x1 = j*dx1
             k = NINT((x1-xmin)/dx)+1
             IF (k > nx) THEN
                fp(j) = aa*x1+bb
@@ -806,9 +806,9 @@ CONTAINS
          nx = INT((xmax-xmin)/dx)+1
          nx = nx+nx/5 !add 20% points to avoid problem at the end
          !of the interval (probably unnecessary)
-         op = 1.0_dp/FLOAT(p)
+         op = 1.0_dp/p
          IF (ibead == 2) THEN
-            op1 = 1.0_dp/FLOAT(p-1)
+            op1 = 1.0_dp/(p-1)
             malpha = op !mixing parameter alpha = 1/P
             niter = 40 !40 iterations are enough to converge
 
@@ -843,8 +843,8 @@ CONTAINS
                fp1(j) = op1*x(j)/TANH(x(j)*op1)
                IF (x(j)*op1 <= 1.0e-10_dp) fp1(j) = 1.0_dp
                DO k = 1, p-1
-                  xk2(k, j) = x2(j)+(FLOAT(p)*SIN(FLOAT(k)*pi*op))**2
-                  xk(k, j) = SQRT(xk2(k, j)-(FLOAT(p)*SIN(pi*op))**2)
+                  xk2(k, j) = x2(j)+(p*SIN(k*pi*op))**2
+                  xk(k, j) = SQRT(xk2(k, j)-(p*SIN(pi*op))**2)
                   kk(k, j) = NINT((xk(k, j)-xmin)/dx)+1
                   fpxk(k, j) = xk(k, j)*op1/TANH(xk(k, j)*op1)
                   IF (xk(k, j)*op1 <= 1.0e-10_dp) fpxk(k, j) = 1.0_dp
@@ -861,11 +861,11 @@ CONTAINS
                      tmp = tmp+fpxk(k, j)*x2(j)/xk2(k, j)
                   END DO
                   fprev = fp1(j)
-                  tmp1 = 1.0_dp+(FLOAT(p)*SIN(pi*op)/x(j))**2
+                  tmp1 = 1.0_dp+(p*SIN(pi*op)/x(j))**2
                   fp1(j) = malpha*tmp1*(h(j)-1.0_dp-tmp)+(1.0_dp-malpha)*fp1(j)
                   IF (j <= n) err = err+ABS(1.0_dp-fp1(j)/fprev) ! compute "errors"
                END DO
-               err = err/FLOAT(n)
+               err = err/n
 
                ! Linear regression on the last 20% of the F_P function
                CALL pint_qtb_linreg(fp1(8*nx/10:nx), x(8*nx/10:nx), aa, bb, r2, log_unit, print_level)
@@ -922,7 +922,7 @@ CONTAINS
          ! compute values of fP on the grid points for the current NM
          ! trough linear interpolation / regression
          DO j = 1, n
-            tmp = (FLOAT(j)*dx1)**2-(FLOAT(p)*SIN(pi*op))**2
+            tmp = (j*dx1)**2-(p*SIN(pi*op))**2
             IF (tmp < 0.d0) THEN
                fp(j) = fp1(1)
             ELSE
@@ -989,13 +989,13 @@ CONTAINS
          yvar = yvar+y(i)**2
       END DO
 
-      xav = xav/FLOAT(n)
-      yav = yav/FLOAT(n)
-      xycov = xycov/FLOAT(n)
+      xav = xav/n
+      yav = yav/n
+      xycov = xycov/n
       xycov = xycov-xav*yav
-      xvar = xvar/FLOAT(n)
+      xvar = xvar/n
       xvar = xvar-xav**2
-      yvar = yvar/FLOAT(n)
+      yvar = yvar/n
       yvar = yvar-yav**2
 
       a = xycov/xvar
