@@ -41,8 +41,6 @@ MODULE global_types
                          HIGH = 3, &
                          DEBUG = 4
 
-   INTEGER, SAVE :: last_globenv_id = 0
-
    ! Public parameters
 
    ! Public data types
@@ -101,8 +99,6 @@ CONTAINS
 
       CPASSERT(.NOT. ASSOCIATED(globenv))
       ALLOCATE (globenv)
-      last_globenv_id = last_globenv_id+1
-      globenv%id_nr = last_globenv_id
       globenv%ref_count = 1
       globenv%run_type_id = 0
       globenv%diag_library = "SL"
