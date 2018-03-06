@@ -566,8 +566,7 @@ CONTAINS
       CHARACTER(LEN=*), PARAMETER :: routineN = 'helium_intpot_model_water', &
          routineP = moduleN//':'//routineN
 
-      INTEGER                                            :: i, ig, num_chlorine, num_hydrogen, &
-                                                            num_oxygen
+      INTEGER                                            :: i, ig
       REAL(KIND=dp)                                      :: d, d2, dd, ep, eps, s1, s2, sig
       REAL(KIND=dp), DIMENSION(3)                        :: dr, solute_r
 
