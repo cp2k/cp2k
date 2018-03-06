@@ -383,27 +383,6 @@ CONTAINS
             WRITE (unit_nr, '(T2,A,1X,I0)') TRIM(my_label)// &
                " Total number of solute particles:  ", helium%solute_atoms* &
                helium%solute_beads
-            DO i = 1, helium%enum
-               WRITE (unit_nr, '(T2,A,1X,A2,A,I0,A,I0,A)', ADVANCE='NO') &
-                  TRIM(my_label)//" Solute atom type: ", &
-                  helium%ename(i), &
-                  "(", &
-                  helium%eid(i), &
-                  "), count: ", &
-                  SIZE(helium%solute_i(helium%eid(i))%iap), &
-                  ", "
-               first = .TRUE.
-               DO j = 1, SIZE(helium%solute_i(helium%eid(i))%iap)
-                  IF (first) THEN
-                     WRITE (unit_nr, '(A)', ADVANCE='NO') "indices: "
-                     first = .FALSE.
-                  ELSE
-                     WRITE (unit_nr, '(A)', ADVANCE='NO') ", "
-                  END IF
-                  WRITE (unit_nr, '(I0)', ADVANCE='NO') helium%solute_i(helium%eid(i))%iap(j)
-               END DO
-               WRITE (unit_nr, '(1X)')
-            END DO
 
             stmp1 = ""
             SELECT CASE (helium%solute_interaction)

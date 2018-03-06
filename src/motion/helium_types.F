@@ -54,16 +54,6 @@ MODULE helium_types
       rho_winding_cycle = 4, &
       rho_moment_of_inertia = 5
 
-   !> number of atom type identifiers
-   INTEGER, PARAMETER, PUBLIC :: hid_num = 4
-
-   !> atom type identifier names (for helium-solute interactions)
-   INTEGER, PARAMETER, PUBLIC :: &
-      hid_chlorine = 1, &
-      hid_oxygen = 2, &
-      hid_hydrogen = 3, &
-      hid_carbon = 4
-
    !> derived data types
    PUBLIC :: helium_solvent_type
    PUBLIC :: helium_solvent_p_type
@@ -251,12 +241,10 @@ MODULE helium_types
       INTEGER :: solute_beads !< number of solute beads (pint_env%p)
       INTEGER :: get_helium_forces !< parameter to determine whether the average or last MC force should be taken to MD
       CHARACTER(LEN=2), DIMENSION(:), POINTER :: solute_element !< element names of solute atoms (pint_env%ndim/3)
-      TYPE(int_arr_ptr), DIMENSION(:), POINTER :: solute_i !< indices of solute atoms sorted by atomic kinds
       TYPE(cell_type), POINTER  :: solute_cell !< dimensions of the solvated system cell (a,b,c) (should be removed at some point)
       REAL(KIND=dp), DIMENSION(:, :), POINTER :: force_avrg !< averaged forces exerted by He solvent on the solute DIM(p,ndim)
       REAL(KIND=dp), DIMENSION(:, :), POINTER :: force_inst !< instantaneous forces exerted by He on the solute (p,ndim)
       CHARACTER(LEN=2), DIMENSION(:), POINTER  :: ename
-      INTEGER, DIMENSION(:), POINTER           :: eid
       INTEGER :: enum
       INTEGER :: solute_interaction
 

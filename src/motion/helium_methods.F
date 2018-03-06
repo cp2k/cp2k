@@ -33,10 +33,15 @@ MODULE helium_methods
                                               helium_write_line,&
                                               helium_write_setup
    USE helium_sampling,                 ONLY: helium_sample
-   USE helium_types,                    ONLY: &
-        he_mass, helium_destroy_int_arr_ptr, helium_solvent_p_type, helium_solvent_type, &
-        hid_carbon, hid_chlorine, hid_hydrogen, hid_num, hid_oxygen, rho_atom_number, &
-        rho_moment_of_inertia, rho_num, rho_projected_area, rho_winding_cycle, rho_winding_number
+   USE helium_types,                    ONLY: he_mass, &
+                                              helium_destroy_int_arr_ptr, &
+                                              helium_solvent_p_type, &
+                                              helium_solvent_type, &
+                                              rho_atom_number, &
+                                              rho_moment_of_inertia, &
+                                              rho_num, rho_projected_area, &
+                                              rho_winding_cycle, &
+                                              rho_winding_number
    USE input_constants,                 ONLY: helium_cell_shape_cube,&
                                               helium_cell_shape_octahedron,&
                                               helium_solute_intpot_none
@@ -209,8 +214,7 @@ CONTAINS
                      helium_env(k)%helium%plength_avrg, &
                      helium_env(k)%helium%plength_inst, &
                      helium_env(k)%helium%atom_plength, &
-                     helium_env(k)%helium%ename, &
-                     helium_env(k)%helium%eid &
+                     helium_env(k)%helium%ename &
                      )
 
             helium_env(k)%helium%ref_count = 1
@@ -874,7 +878,6 @@ CONTAINS
 
                ! deallocate solute-related arrays
                IF (helium_env(k)%helium%solute_present) THEN
-                  CALL helium_destroy_int_arr_ptr(helium_env(k)%helium%solute_i)
                   DEALLOCATE (helium_env(k)%helium%solute_element)
                   NULLIFY (helium_env(k)%helium%solute_element)
                END IF
@@ -883,11 +886,6 @@ CONTAINS
                IF (ASSOCIATED(helium_env(k)%helium%ename)) THEN
                   DEALLOCATE (helium_env(k)%helium%ename)
                   NULLIFY (helium_env(k)%helium%ename)
-               END IF
-
-               IF (ASSOCIATED(helium_env(k)%helium%eid)) THEN
-                  DEALLOCATE (helium_env(k)%helium%eid)
-                  NULLIFY (helium_env(k)%helium%eid)
                END IF
 
                DEALLOCATE (helium_env(k)%helium)
@@ -2430,11 +2428,8 @@ CONTAINS
       CHARACTER(len=*), PARAMETER :: routineN = 'helium_set_solute_indices', &
          routineP = moduleN//':'//routineN
 
-      CHARACTER(LEN=2)                                   :: cur_ename
       CHARACTER(len=default_path_length)                 :: msg_str
-      INTEGER                                            :: cur_eid, i, j, mnum, natoms
-      INTEGER, DIMENSION(hid_num)                        :: el_counts
-      LOGICAL                                            :: found
+      INTEGER                                            :: iatom, natoms
       REAL(KIND=dp)                                      :: mass
       TYPE(cp_subsys_type), POINTER                      :: my_subsys
       TYPE(f_env_type), POINTER                          :: my_f_env
@@ -2453,91 +2448,12 @@ CONTAINS
       NULLIFY (helium%solute_element)
       ALLOCATE (helium%solute_element(natoms))
 
-      NULLIFY (helium%ename, helium%eid)
-      ALLOCATE (helium%ename(hid_num))
-      ALLOCATE (helium%eid(hid_num))
-
-      NULLIFY (helium%solute_i)
-      ALLOCATE (helium%solute_i(hid_num))
-      DO i = 1, hid_num
-!TODO important to nullify here, otherwise helium_destroy_int_arr_ptr
-!     in helium_release will fail
-!     safer solution: change int_arr_ptr%iap from POINTER to ALLOCATABLE
-         NULLIFY (helium%solute_i(i)%iap)
-      END DO
-
       ! find out how many different atomic types are there
       helium%enum = 0
-      el_counts(:) = 0
-      DO i = 1, natoms
-         CALL get_atomic_kind(my_particles%els(i)%atomic_kind, mass=mass)
-         mnum = NINT(cp_unit_from_cp2k(mass, "amu"))
-         SELECT CASE (mnum)
-         CASE (35)
-            cur_ename = "CL"
-            cur_eid = hid_chlorine
-         CASE (16)
-            cur_ename = "O "
-            cur_eid = hid_oxygen
-         CASE (1)
-            cur_ename = "H "
-            cur_eid = hid_hydrogen
-         CASE (12)
-            cur_ename = "C "
-            cur_eid = hid_carbon
-         CASE DEFAULT
-            cur_ename = "XX"
-            cur_eid = -1
-            WRITE (msg_str, '(A,I0,A)') &
-               "Atomic mass number '", &
-               mnum, &
-               "' not supported by the HELIUM code."
-            CPABORT(msg_str)
-         END SELECT
-         helium%solute_element(i) = cur_ename
-         el_counts(cur_eid) = el_counts(cur_eid)+1
-         ! check if this element symbol is already present in element table
-         found = .FALSE.
-         DO j = 1, helium%enum
-            IF (helium%ename(j) == cur_ename) THEN
-               found = .TRUE.
-               EXIT
-            END IF
-         END DO
-         IF (.NOT. found) THEN
-            ! increase current number of different elements
-            helium%enum = helium%enum+1
-            helium%eid(helium%enum) = cur_eid
-            helium%ename(helium%enum) = cur_ename
-         END IF
-      END DO
-      CPASSERT(helium%enum .LE. hid_num)
-
-      DO i = 1, helium%enum
-         ALLOCATE (helium%solute_i(helium%eid(i))%iap(el_counts(helium%eid(i))))
-      END DO
-
-      ! store atomic indices of different atomic kinds
-      el_counts(:) = 0
-      DO i = 1, natoms
-         SELECT CASE (helium%solute_element (i))
-         CASE ("CL")
-            el_counts(hid_chlorine) = el_counts(hid_chlorine)+1
-            helium%solute_i(hid_chlorine)%iap(el_counts(hid_chlorine)) = i
-         CASE ("O ")
-            el_counts(hid_oxygen) = el_counts(hid_oxygen)+1
-            helium%solute_i(hid_oxygen)%iap(el_counts(hid_oxygen)) = i
-         CASE ("H ")
-            el_counts(hid_hydrogen) = el_counts(hid_hydrogen)+1
-            helium%solute_i(hid_hydrogen)%iap(el_counts(hid_hydrogen)) = i
-         CASE ("C ")
-            el_counts(hid_carbon) = el_counts(hid_carbon)+1
-            helium%solute_i(hid_carbon)%iap(el_counts(hid_carbon)) = i
-         CASE DEFAULT
-            WRITE (msg_str, '(A)') &
-               "Should never get here, check what happened!"
-            CPABORT(msg_str)
-         END SELECT
+      DO iatom = 1, natoms
+         CALL get_atomic_kind(my_particles%els(iatom)%atomic_kind, &
+                              mass=mass,&
+                              element_symbol=helium%solute_element(iatom))
       END DO
 
       RETURN
