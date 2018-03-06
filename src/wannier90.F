@@ -344,9 +344,10 @@ CONTAINS
 
       REAL(kind=dp), PARAMETER                           :: eta = 99999999.0_dp
 
-      INTEGER :: counter, i, ifneg, ifound, ifpos, j, l, loop, loop_b, loop_s, m, &
-         multi(search_shells), n, na, nap, ndnn, ndnntot, ndnnx, nkp, nkp2, nlist, nn, nnsh, &
-         nnshell(num_kpts, search_shells), nnx, shell
+      INTEGER :: counter, i, ifound, j, l, loop, loop_b, loop_s, m, multi(search_shells), n, na, &
+         nap, ndnn, ndnntot, ndnnx, nkp, nkp2, nlist, nn, nnsh, nnshell(num_kpts, search_shells), &
+         nnx, shell
+      LOGICAL                                            :: isneg, ispos
       REAL(kind=dp) :: bb1, bbn, bk_local(3, num_nnmax, num_kpts), bweight(max_shells), ddelta, &
          dist, dnn(search_shells), dnn0, dnn1, vkpp(3), vkpp2(3), wb_local(num_nnmax)
       REAL(kind=dp), ALLOCATABLE                         :: bvec_tmp(:, :)
@@ -577,8 +578,8 @@ CONTAINS
          ifound = 0
          IF (na .NE. 0) THEN
             DO nap = 1, na
-               CALL utility_compar(bka(1, nap), bk_local(1, nn, 1), ifpos, ifneg)
-               IF (ifneg .EQ. 1) ifound = 1
+               CALL utility_compar(bka(1, nap), bk_local(1, nn, 1), ispos, isneg)
+               IF (isneg) ifound = 1
             ENDDO
          ENDIF
          IF (ifound .EQ. 0) THEN
@@ -617,8 +618,8 @@ CONTAINS
             neigh(nkp, na) = 0
             ! now search through list of neighbours of this k-point
             DO nn = 1, nntot
-               CALL utility_compar(bka(1, na), bk_local(1, nn, nkp), ifpos, ifneg)
-               IF (ifpos .EQ. 1) neigh(nkp, na) = nn
+               CALL utility_compar(bka(1, na), bk_local(1, nn, nkp), ispos, isneg)
+               IF (ispos) neigh(nkp, na) = nn
             ENDDO
             ! check found
             IF (neigh(nkp, na) .EQ. 0) THEN
@@ -939,25 +940,18 @@ CONTAINS
    END SUBROUTINE kmesh_get_bvectors
 
 ! **************************************************************************************************
-!> \brief ...
-!> \param a ...
-!> \param b ...
-!> \param ifpos ...
-!> \param ifneg ...
+!> \brief Checks whether a ~= b (ispos) or a ~= -b (isneg) up to a precision of eps8
+!> \param a 3-vector
+!> \param b 3-vector
+!> \param ispos true if |a-b|^2 < eps8, otherwise false
+!> \param isneg true if |a+b|^2 < eps8, otherwise false
 ! **************************************************************************************************
-   SUBROUTINE utility_compar(a, b, ifpos, ifneg)
-      REAL(kind=dp), INTENT(in)                          :: a(3), b(3)
-      INTEGER, INTENT(out)                               :: ifpos, ifneg
+   PURE SUBROUTINE utility_compar(a, b, ispos, isneg)
+      REAL(kind=dp), DIMENSION(3), INTENT(in)            :: a, b
+      LOGICAL, INTENT(out)                               :: ispos, isneg
 
-      REAL(kind=dp)                                      :: rrm, rrp
-
-      rrp = (a(1)-b(1))**2+(a(2)-b(2))**2+(a(3)-b(3))**2
-      rrm = (a(1)+b(1))**2+(a(2)+b(2))**2+(a(3)+b(3))**2
-      ifpos = 0
-      IF (ABS(rrp) .LT. eps8) ifpos = 1
-      ifneg = 0
-      IF (ABS(rrm) .LT. eps8) ifneg = 1
-
+      ispos = SUM((a-b)**2) .LT. eps8
+      isneg = SUM((a+b)**2) .LT. eps8
    END SUBROUTINE utility_compar
 
 ! **************************************************************************************************
