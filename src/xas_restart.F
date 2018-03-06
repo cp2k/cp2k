@@ -106,7 +106,7 @@ CONTAINS
          routineP = moduleN//':'//routineN
 
       CHARACTER(LEN=default_path_length)                 :: filename
-      INTEGER :: group, handle, i, ia, ie, ispin, nao, nao_read, nelectron, nexc_atoms, &
+      INTEGER :: group, handle, i, ia, ie, ispin, my_spin, nao, nao_read, nelectron, nexc_atoms, &
          nexc_atoms_read, nexc_search, nexc_search_read, nmo, nmo_read, output_unit, rst_unit, &
          source, xas_estate, xas_estate_read, xas_method_read
       LOGICAL                                            :: file_exists
@@ -168,7 +168,8 @@ CONTAINS
       CALL mp_bcast(file_exists, source, group)
 
       CALL get_xas_env(xas_env=xas_env, occ_estate=occ_estate, xas_estate=xas_estate, &
-                       xas_nelectron=xas_nelectron, nexc_search=nexc_search, nexc_atoms=nexc_atoms)
+                       xas_nelectron=xas_nelectron, nexc_search=nexc_search, &
+                       nexc_atoms=nexc_atoms, spin_channel=my_spin)
 
       IF (file_exists) THEN
          CALL get_qs_env(qs_env=qs_env, mos=mos, matrix_s=matrix_s)
@@ -190,7 +191,7 @@ CONTAINS
          CALL set_xas_env(xas_env=xas_env, xas_estate=xas_estate_read)
          estate = xas_estate_read
 
-         CALL get_mo_set(mo_set=mos(1)%mo_set, nao=nao)
+         CALL get_mo_set(mo_set=mos(my_spin)%mo_set, nao=nao)
          ALLOCATE (vecbuffer(1, nao))
 
          DO ispin = 1, SIZE(mos)
@@ -370,7 +371,7 @@ CONTAINS
       CHARACTER(LEN=*), PARAMETER :: routineN = 'xas_initialize_rho', &
          routineP = moduleN//':'//routineN
 
-      INTEGER                                            :: handle, ispin, nelectron
+      INTEGER                                            :: handle, ispin, my_spin, nelectron
       TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: rho_ao
       TYPE(mo_set_p_type), DIMENSION(:), POINTER         :: mos
@@ -388,9 +389,10 @@ CONTAINS
                       xas_env=xas_env, &
                       para_env=para_env)
 
+      my_spin = xas_env%spin_channel
       CALL qs_rho_get(rho, rho_ao=rho_ao)
       DO ispin = 1, SIZE(mos)
-         IF (ispin == 1) THEN
+         IF (ispin == my_spin) THEN
             IF (xas_env%homo_occ == 0) THEN
                CALL get_mo_set(mos(ispin)%mo_set, nelectron=nelectron)
                nelectron = nelectron-1
@@ -437,7 +439,7 @@ CONTAINS
       CHARACTER(LEN=*), PARAMETER :: routineN = 'find_excited_core_orbital', &
          routineP = moduleN//':'//routineN
 
-      INTEGER                                            :: i, ic_max, ir_max, m, n, nao, &
+      INTEGER                                            :: i, ic_max, ir_max, m, my_spin, n, nao, &
                                                             nexc_search, nmo, xas_estate
       INTEGER, DIMENSION(:), POINTER                     :: col_indices
       REAL(dp)                                           :: a_max, b_max, ip_energy, occ_estate
@@ -450,10 +452,10 @@ CONTAINS
       ! Some elements from the xas_env
       CALL get_xas_env(xas_env=xas_env, excvec_coeff=excvec_coeff, &
                        excvec_overlap=excvec_overlap, nexc_search=nexc_search, &
-                       xas_estate=xas_estate, occ_estate=occ_estate)
+                       xas_estate=xas_estate, occ_estate=occ_estate, spin_channel=my_spin)
       CPASSERT(ASSOCIATED(excvec_overlap))
 
-      CALL get_mo_set(mos(1)%mo_set, mo_coeff=mo_coeff, nao=nao, nmo=nmo, &
+      CALL get_mo_set(mos(my_spin)%mo_set, mo_coeff=mo_coeff, nao=nao, nmo=nmo, &
                       eigenvalues=eigenvalues, occupation_numbers=occupation_numbers)
       ALLOCATE (vecbuffer(1, nao))
       vecbuffer = 0.0_dp

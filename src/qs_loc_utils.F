@@ -462,9 +462,8 @@ CONTAINS
          routineP = moduleN//':'//routineN
 
       INTEGER                                            :: dim_op, handle, i, iatom, imo, imoloc, &
-                                                            ispin, j, l_spin, lb, my_nspins, nao, &
-                                                            naosub, natoms, nmo, nmosub, nspins, &
-                                                            s_spin, ub
+                                                            ispin, j, l_spin, lb, nao, naosub, &
+                                                            natoms, nmo, nmosub, nspins, s_spin, ub
       REAL(KIND=dp)                                      :: my_occ, occ_imo
       REAL(KIND=dp), DIMENSION(:), POINTER               :: occupations
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: vecbuffer
@@ -489,13 +488,11 @@ CONTAINS
          nspins = SIZE(mos, 1)
          s_spin = 1
          l_spin = nspins
-         my_nspins = nspins
          IF (PRESENT(myspin)) THEN
             s_spin = myspin
             l_spin = myspin
-            my_nspins = 1
          END IF
-         ALLOCATE (moloc_coeff(my_nspins))
+         ALLOCATE (moloc_coeff(s_spin:l_spin))
          DO ispin = s_spin, l_spin
             NULLIFY (tmp_fm_struct, mo_coeff)
             CALL get_mo_set(mos(ispin)%mo_set, mo_coeff=mo_coeff, nao=nao, nmo=nmo)
@@ -1180,16 +1177,17 @@ CONTAINS
 !> \param do_homo ...
 !> \param do_xas ...
 !> \param nloc_xas ...
+!> \param spin_xas ...
 !> \par History
 !>      2009 created
 ! **************************************************************************************************
-   SUBROUTINE qs_loc_control_init(qs_loc_env, loc_section, do_homo, do_xas, nloc_xas)
+   SUBROUTINE qs_loc_control_init(qs_loc_env, loc_section, do_homo, do_xas, nloc_xas, spin_xas)
 
       TYPE(qs_loc_env_new_type), POINTER                 :: qs_loc_env
       TYPE(section_vals_type), POINTER                   :: loc_section
       LOGICAL, INTENT(IN)                                :: do_homo
       LOGICAL, INTENT(IN), OPTIONAL                      :: do_xas
-      INTEGER, INTENT(IN), OPTIONAL                      :: nloc_xas
+      INTEGER, INTENT(IN), OPTIONAL                      :: nloc_xas, spin_xas
 
       CHARACTER(len=*), PARAMETER :: routineN = 'qs_loc_control_init', &
          routineP = moduleN//':'//routineN
@@ -1204,7 +1202,7 @@ CONTAINS
       CALL get_qs_loc_env(qs_loc_env, localized_wfn_control=localized_wfn_control)
       localized_wfn_control%do_homo = do_homo
       CALL read_loc_section(localized_wfn_control, loc_section, &
-                            qs_loc_env%do_localize, do_xas, nloc_xas)
+                            qs_loc_env%do_localize, do_xas, nloc_xas, spin_xas)
 
    END SUBROUTINE qs_loc_control_init
 
@@ -1402,23 +1400,25 @@ CONTAINS
 !> \param localize ...
 !> \param do_xas ...
 !> \param nloc_xas ...
+!> \param spin_channel_xas ...
 !> \par History
 !>      05.2005 created [MI]
 ! **************************************************************************************************
    SUBROUTINE read_loc_section(localized_wfn_control, loc_section, &
-                               localize, do_xas, nloc_xas)
+                               localize, do_xas, nloc_xas, spin_channel_xas)
 
       TYPE(localized_wfn_control_type), POINTER          :: localized_wfn_control
       TYPE(section_vals_type), POINTER                   :: loc_section
       LOGICAL, INTENT(OUT)                               :: localize
       LOGICAL, INTENT(IN), OPTIONAL                      :: do_xas
-      INTEGER, INTENT(IN), OPTIONAL                      :: nloc_xas
+      INTEGER, INTENT(IN), OPTIONAL                      :: nloc_xas, spin_channel_xas
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'read_loc_section', &
          routineP = moduleN//':'//routineN
 
       INTEGER                                            :: i, ind, ir, n_list, n_rep, n_state, &
-                                                            nline, output_unit
+                                                            nline, other_spin, output_unit, &
+                                                            spin_xas
       INTEGER, DIMENSION(:), POINTER                     :: list, loc_list
       LOGICAL                                            :: my_do_xas
       REAL(dp), POINTER                                  :: ene(:)
@@ -1426,10 +1426,12 @@ CONTAINS
       TYPE(section_vals_type), POINTER                   :: loc_print_section
 
       my_do_xas = .FALSE.
+      spin_xas = 1
       IF (PRESENT(do_xas)) THEN
          my_do_xas = do_xas
          CPASSERT(PRESENT(nloc_xas))
       END IF
+      IF (PRESENT(spin_channel_xas)) spin_xas = spin_channel_xas
       CPASSERT(ASSOCIATED(loc_section))
       NULLIFY (logger)
       logger => cp_get_default_logger()
@@ -1495,9 +1497,12 @@ CONTAINS
                   localized_wfn_control%loc_states(:, 1) = loc_list(:)
                   localized_wfn_control%loc_states(:, 2) = loc_list(:)
                   localized_wfn_control%nloc_states(1) = n_list
+                  localized_wfn_control%nloc_states(2) = n_list
                   IF (my_do_xas) THEN
-                     localized_wfn_control%nloc_states(2) = 0
-                     localized_wfn_control%loc_states(:, 2) = 0
+                     other_spin = 2
+                     IF (spin_xas == 2) other_spin = 1
+                     localized_wfn_control%nloc_states(other_spin) = 0
+                     localized_wfn_control%loc_states(:, other_spin) = 0
                   END IF
                   DEALLOCATE (loc_list)
                END IF
@@ -1544,12 +1549,12 @@ CONTAINS
          IF (localized_wfn_control%set_of_states == 0) THEN
             IF (my_do_xas) THEN
                localized_wfn_control%set_of_states = state_loc_range
-               localized_wfn_control%nloc_states(1) = nloc_xas
-               localized_wfn_control%lu_bound_states(1, 1) = 1
-               localized_wfn_control%lu_bound_states(2, 1) = nloc_xas
-               localized_wfn_control%nloc_states(2) = 0
-               localized_wfn_control%lu_bound_states(1, 2) = 0
-               localized_wfn_control%lu_bound_states(2, 2) = 0
+               localized_wfn_control%nloc_states(:) = 0
+               localized_wfn_control%lu_bound_states(1, :) = 0
+               localized_wfn_control%lu_bound_states(2, :) = 0
+               localized_wfn_control%nloc_states(spin_xas) = nloc_xas
+               localized_wfn_control%lu_bound_states(1, spin_xas) = 1
+               localized_wfn_control%lu_bound_states(2, spin_xas) = nloc_xas
             ELSE
                localized_wfn_control%set_of_states = state_loc_all
             END IF
@@ -1582,8 +1587,8 @@ CONTAINS
             CASE (state_loc_range)
                WRITE (UNIT=output_unit, FMT="(T2,A,T65,I8,A,I8)") &
                   "LOCALIZE| Orbitals to be localized: Those with index between ", &
-                  localized_wfn_control%lu_bound_states(1, 1), " and ", &
-                  localized_wfn_control%lu_bound_states(2, 1)
+                  localized_wfn_control%lu_bound_states(1, spin_xas), " and ", &
+                  localized_wfn_control%lu_bound_states(2, spin_xas)
             CASE (state_loc_list)
                WRITE (UNIT=output_unit, FMT="(T2,A)") &
                   "LOCALIZE| Orbitals to be localized: Those with index in the following list"
@@ -1691,14 +1696,16 @@ CONTAINS
 !> \param nmoloc ...
 !> \param nmo ...
 !> \param nspins ...
+!> \param my_spin ...
 !> \par History
 !>      04.2005 created [MI]
 ! **************************************************************************************************
-   SUBROUTINE set_loc_wfn_lists(localized_wfn_control, nmoloc, nmo, nspins)
+   SUBROUTINE set_loc_wfn_lists(localized_wfn_control, nmoloc, nmo, nspins, my_spin)
 
       TYPE(localized_wfn_control_type)                   :: localized_wfn_control
       INTEGER, DIMENSION(2), INTENT(IN)                  :: nmoloc, nmo
       INTEGER, INTENT(IN)                                :: nspins
+      INTEGER, INTENT(IN), OPTIONAL                      :: my_spin
 
       CHARACTER(len=*), PARAMETER :: routineN = 'set_loc_wfn_lists', &
          routineP = moduleN//':'//routineN
@@ -1728,9 +1735,9 @@ CONTAINS
          localized_wfn_control%loc_states = 0
          DO ispin = 1, nspins
             localized_wfn_control%lu_bound_states(1, ispin) = &
-               localized_wfn_control%lu_bound_states(1, 1)
+               localized_wfn_control%lu_bound_states(1, my_spin)
             localized_wfn_control%lu_bound_states(2, ispin) = &
-               localized_wfn_control%lu_bound_states(1, 1)+nmoloc(ispin)-1
+               localized_wfn_control%lu_bound_states(1, my_spin)+nmoloc(ispin)-1
             max_iloc = localized_wfn_control%lu_bound_states(2, ispin)
             DO i = 1, nmoloc(ispin)
                localized_wfn_control%loc_states(i, ispin) = localized_wfn_control%lu_bound_states(1, ispin)+i-1

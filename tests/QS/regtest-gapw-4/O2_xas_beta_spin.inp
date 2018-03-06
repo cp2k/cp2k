@@ -1,0 +1,110 @@
+&FORCE_EVAL
+  METHOD Quickstep
+  &DFT
+    LSD
+    BASIS_SET_FILE_NAME BASIS_def2_QZVP_RI_ALL
+    POTENTIAL_FILE_NAME POTENTIAL
+ 
+    CHARGE 0
+    MULTIPLICITY 3
+    &MGRID
+      CUTOFF 150
+    &END MGRID
+    &POISSON
+       PERIODIC NONE
+       POISSON_SOLVER MT
+    &END
+    &QS
+      METHOD GAPW
+    &END QS
+    &SCF
+      MAX_SCF 2
+      SCF_GUESS ATOMIC
+      EPS_SCF 1.0E-6
+      &DIAGONALIZATION
+      &END
+    &END SCF
+    &XC
+      &XC_FUNCTIONAL PBE
+      &END XC_FUNCTIONAL
+    &END XC
+    &PRINT
+     &MO
+       EIGENVALUES
+       MO_RANGE 1 50
+       OCCUPATION_NUMBERS
+     &END
+    &END
+    &XAS 
+      &SCF
+        EPS_SCF 8.5E-2
+        MAX_SCF 30
+      &END
+      METHOD        TP_FH
+      DIPOLE_FORM   VELOCITY
+      STATE_TYPE    1s
+      STATE_SEARCH  2
+      SPIN_CHANNEL  2
+      ATOMS_LIST    1 
+      ADDED_MOS     10
+      &LOCALIZE
+      &END
+      &PRINT
+         &PROGRAM_RUN_INFO
+         &END 
+         &RESTART
+         &END 
+         &XES_SPECTRUM
+         &END
+         &XAS_SPECTRUM
+         &END
+      &END
+
+    &END
+  &END DFT
+
+
+  &SUBSYS
+    &CELL
+      ABC [angstrom]  6.0  6.0  6.0
+      PERIODIC NONE
+    &END CELL
+
+    &COORD
+      O  0.00000000  0.00000000  -0.00423076  
+      O  0.00000000  -0.00000000  1.21423076  
+    &END
+
+    &KIND H
+      BASIS_SET  def2-QZVP
+      POTENTIAL ALL
+    &END KIND
+
+    &KIND O
+      BASIS_SET  def2-QZVP
+      POTENTIAL ALL
+    &END KIND
+
+    &KIND N
+      BASIS_SET  def2-QZVP
+      POTENTIAL ALL
+    &END KIND
+
+    &KIND C
+      BASIS_SET  def2-QZVP
+      POTENTIAL ALL
+    &END KIND
+
+    &KIND F
+      BASIS_SET  def2-QZVP
+      POTENTIAL ALL
+    &END KIND
+
+  &END SUBSYS
+&END FORCE_EVAL
+&GLOBAL
+  PROJECT 7782-44-7 
+  RUN_TYPE energy
+  WALLTIME  10700
+&END GLOBAL
+

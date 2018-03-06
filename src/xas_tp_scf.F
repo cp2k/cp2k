@@ -142,8 +142,9 @@ CONTAINS
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'xas_do_tp_scf', routineP = moduleN//':'//routineN
 
-      INTEGER                                            :: handle, handle2, ispin, iter_count, &
-                                                            nspin, output_unit
+      INTEGER                                            :: handle, handle2, hole_spin, ispin, &
+                                                            iter_count, my_spin, nspin, occ_spin, &
+                                                            output_unit
       LOGICAL                                            :: diis_step, energy_only, exit_loop, gapw
       REAL(KIND=dp)                                      :: t1, t2
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
@@ -181,7 +182,7 @@ CONTAINS
                       qs_charges=qs_charges, &
                       ks_env=ks_env, para_env=para_env)
 
-      CALL get_xas_env(xas_env, scf_control=scf_control)
+      CALL get_xas_env(xas_env, scf_control=scf_control, spin_channel=my_spin)
 
       energy_only = .FALSE.
       output_unit = cp_print_key_unit_nr(logger, xas_section, "PRINT%PROGRAM_RUN_INFO", &
@@ -239,10 +240,18 @@ CONTAINS
                                       matrix_s, scf_control, scf_section, &
                                       diis_step)
             CALL find_excited_core_orbital(xas_env, mos, matrix_s)
-            CALL set_mo_occupation(mo_set=mos(1)%mo_set, &
+            ! set occupation for the respective spin channels
+            IF (my_spin == 1) THEN
+               hole_spin = 1 ! hole is generated in channel 1
+               occ_spin = 2
+            ELSE
+               hole_spin = 2
+               occ_spin = 1
+            ENDIF
+            CALL set_mo_occupation(mo_set=mos(hole_spin)%mo_set, &
                                    smear=scf_control%smear, &
                                    xas_env=xas_env)
-            CALL set_mo_occupation(mo_set=mos(2)%mo_set, &
+            CALL set_mo_occupation(mo_set=mos(occ_spin)%mo_set, &
                                    smear=scf_control%smear)
             DO ispin = 1, nspin
                ! does not yet handle k-points
@@ -389,10 +398,8 @@ CONTAINS
       CHARACTER(LEN=*), PARAMETER :: routineN = 'cls_prepare_states', &
          routineP = moduleN//':'//routineN
 
-      INTEGER                                            :: handle, i, ikind, isgf, ispin, istate, &
-                                                            j, my_kind, my_state, nao, natom, &
-                                                            nexc_search, nmo, nvirtual2, uno_iter, &
-                                                            xas_estate
+      INTEGER :: handle, i, ikind, isgf, ispin, istate, j, my_kind, my_spin, my_state, nao, natom, &
+         nexc_search, nmo, nvirtual2, uno_iter, xas_estate
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: first_sgf
       INTEGER, DIMENSION(:), POINTER                     :: mykind_of_kind
       REAL(dp), DIMENSION(:, :), POINTER                 :: centers_wfn
@@ -446,10 +453,11 @@ CONTAINS
                        all_vectors=all_vectors, all_evals=all_evals, &
                        excvec_coeff=excvec_coeff, &
                        nvirtual2=nvirtual2, xas_estate=xas_estate, &
-                       excvec_overlap=excvec_overlap, nexc_search=nexc_search, scf_control=scf_control)
+                       excvec_overlap=excvec_overlap, nexc_search=nexc_search, &
+                       spin_channel=my_spin, scf_control=scf_control)
       CPASSERT(ASSOCIATED(excvec_overlap))
 
-      CALL get_mo_set(mos(1)%mo_set, mo_coeff=mo_coeff, nao=nao, &
+      CALL get_mo_set(mos(my_spin)%mo_set, mo_coeff=mo_coeff, nao=nao, &
                       eigenvalues=eigenvalues)
 
       ALLOCATE (vecbuffer(1, nao))
@@ -502,9 +510,9 @@ CONTAINS
          !Search for the core state to be excited
          max_overlap = 0.0_dp
          DO istate = 1, nexc_search
-            centers_wfn(1, istate) = localized_wfn_control%centers_set(1)%array(1, istate)
-            centers_wfn(2, istate) = localized_wfn_control%centers_set(1)%array(2, istate)
-            centers_wfn(3, istate) = localized_wfn_control%centers_set(1)%array(3, istate)
+            centers_wfn(1, istate) = localized_wfn_control%centers_set(my_spin)%array(1, istate)
+            centers_wfn(2, istate) = localized_wfn_control%centers_set(my_spin)%array(2, istate)
+            centers_wfn(3, istate) = localized_wfn_control%centers_set(my_spin)%array(3, istate)
 
             rc(1:3) = centers_wfn(1:3, istate)
             rac = pbc(ra, rc, cell)
@@ -531,7 +539,7 @@ CONTAINS
             xas_estate = my_state
          END DO !  istate
 
-         CALL get_mo_set(mos(1)%mo_set, mo_coeff=mo_coeff)
+         CALL get_mo_set(mos(my_spin)%mo_set, mo_coeff=mo_coeff)
          CALL cp_fm_get_submatrix(mo_coeff, vecbuffer, 1, xas_estate, &
                                   nao, 1, transpose=.TRUE.)
          CALL cp_fm_set_submatrix(excvec_coeff, vecbuffer2, 1, 1, &
@@ -543,7 +551,7 @@ CONTAINS
       !Calculate the virtual states from the KS matrix matrix_ks(1)
       IF (nvirtual2 .GT. 0) THEN
          NULLIFY (mo_coeff)
-         CALL get_mo_set(mos(1)%mo_set, mo_coeff=mo_coeff, nmo=nmo)
+         CALL get_mo_set(mos(my_spin)%mo_set, mo_coeff=mo_coeff, nmo=nmo)
          IF (output_unit > 0) THEN
             WRITE (UNIT=output_unit, FMT="(/,/,T2,A,I5,A,I6,A)") " Calculation of ", nvirtual2, &
                " additional virtual states of the subspace complementary to the "// &
@@ -558,22 +566,22 @@ CONTAINS
          CALL make_preconditioner(local_preconditioner, &
                                   precon_type=ot_precond_full_kinetic, &
                                   solver_type=ot_precond_solver_default, &
-                                  matrix_h=matrix_ks(1)%matrix, &
+                                  matrix_h=matrix_ks(my_spin)%matrix, &
                                   matrix_s=matrix_s(1)%matrix, &
                                   matrix_t=kinetic(1)%matrix, &
                                   convert_precond_to_dbcsr=.TRUE., &
-                                  mo_set=mos(1)%mo_set, energy_gap=0.2_dp)
+                                  mo_set=mos(my_spin)%mo_set, energy_gap=0.2_dp)
 
          CALL get_xas_env(xas_env=xas_env, unoccupied_orbs=uno_orbs, &
                           unoccupied_evals=uno_evals, unoccupied_eps=uno_eps, unoccupied_max_iter=uno_iter)
          CALL cp_fm_init_random(uno_orbs, nvirtual2)
 
-         CALL ot_eigensolver(matrix_h=matrix_ks(1)%matrix, matrix_s=matrix_s(1)%matrix, &
+         CALL ot_eigensolver(matrix_h=matrix_ks(my_spin)%matrix, matrix_s=matrix_s(1)%matrix, &
                              matrix_c_fm=uno_orbs, matrix_orthogonal_space_fm=mo_coeff, &
                              preconditioner=local_preconditioner, eps_gradient=uno_eps, &
                              iter_max=uno_iter, size_ortho_space=nmo)
 
-         CALL calculate_subspace_eigenvalues(uno_orbs, matrix_ks(1)%matrix, &
+         CALL calculate_subspace_eigenvalues(uno_orbs, matrix_ks(my_spin)%matrix, &
                                              uno_evals, do_rotation=.TRUE.)
          CALL destroy_preconditioner(local_preconditioner)
 
@@ -587,7 +595,7 @@ CONTAINS
          NULLIFY (all_vectors, all_evals)
          CALL get_xas_env(xas_env=xas_env, all_vectors=all_vectors, &
                           all_evals=all_evals)
-         CALL get_mo_set(mos(1)%mo_set, eigenvalues=eigenvalues, mo_coeff=mo_coeff, &
+         CALL get_mo_set(mos(my_spin)%mo_set, eigenvalues=eigenvalues, mo_coeff=mo_coeff, &
                          nmo=nmo)
 
          CALL cp_fm_to_fm(mo_coeff, all_vectors, ncol=nmo, &
@@ -630,8 +638,8 @@ CONTAINS
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'xes_scf_once', routineP = moduleN//':'//routineN
 
-      INTEGER                                            :: handle, ispin, istate, nmo, nvirtual, &
-                                                            nvirtual2, output_unit
+      INTEGER                                            :: handle, ispin, istate, my_spin, nmo, &
+                                                            nvirtual, nvirtual2, output_unit
       REAL(KIND=dp), DIMENSION(:), POINTER               :: all_evals, eigenvalues
       TYPE(cp_fm_type), POINTER                          :: all_vectors, mo_coeff
       TYPE(cp_logger_type), POINTER                      :: logger
@@ -657,7 +665,7 @@ CONTAINS
                       matrix_ks=matrix_ks, mos=mos, para_env=para_env)
 
       xas_control => dft_control%xas_control
-      CALL get_xas_env(xas_env, scf_control=scf_control)
+      CALL get_xas_env(xas_env, scf_control=scf_control, spin_channel=my_spin)
 
       dft_section => section_vals_get_subs_vals(qs_env%input, "DFT")
       xas_section => section_vals_get_subs_vals(dft_section, "XAS")
@@ -699,7 +707,7 @@ CONTAINS
       END IF
       CALL get_xas_env(xas_env=xas_env, all_vectors=all_vectors, &
                        all_evals=all_evals, nvirtual2=nvirtual2)
-      CALL get_mo_set(mos(1)%mo_set, eigenvalues=eigenvalues, mo_coeff=mo_coeff, nmo=nmo)
+      CALL get_mo_set(mos(my_spin)%mo_set, eigenvalues=eigenvalues, mo_coeff=mo_coeff, nmo=nmo)
 
       CALL cp_fm_to_fm(mo_coeff, all_vectors, ncol=nmo, &
                        source_start=1, target_start=1)

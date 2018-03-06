@@ -205,7 +205,7 @@ CONTAINS
       CHARACTER(len=*), PARAMETER :: routineN = 'qs_loc_env_destroy', &
          routineP = moduleN//':'//routineN
 
-      INTEGER                                            :: i, j
+      INTEGER                                            :: i, ii, j
 
       CPASSERT(ASSOCIATED(qs_loc_env))
 
@@ -220,7 +220,8 @@ CONTAINS
 
       IF (ASSOCIATED(qs_loc_env%moloc_coeff)) THEN
          DO i = 1, SIZE(qs_loc_env%moloc_coeff, 1)
-            CALL cp_fm_release(qs_loc_env%moloc_coeff(i)%matrix)
+            ii = LBOUND(qs_loc_env%moloc_coeff, 1)+i-1
+            CALL cp_fm_release(qs_loc_env%moloc_coeff(ii)%matrix)
          END DO
          DEALLOCATE (qs_loc_env%moloc_coeff)
       END IF

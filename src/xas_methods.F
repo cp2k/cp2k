@@ -153,8 +153,8 @@ CONTAINS
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'xas', routineP = moduleN//':'//routineN
 
-      INTEGER :: handle, homo, i, iat, iatom, ispin, my_homo(2), my_nelectron(2), nao, nexc_atoms, &
-         nexc_search, nmo, nspins, output_unit, state_to_be_excited
+      INTEGER :: handle, homo, i, iat, iatom, ispin, my_homo(2), my_nelectron(2), my_spin, nao, &
+         nexc_atoms, nexc_search, nmo, nspins, output_unit, state_to_be_excited
       INTEGER, DIMENSION(2)                              :: added_mos
       INTEGER, DIMENSION(:), POINTER                     :: state_of_atom
       LOGICAL                                            :: ch_method_flags, converged, my_uocc(2), &
@@ -279,15 +279,16 @@ CONTAINS
          CPABORT("XAS with TP method requires LSD calculations")
       END IF
 
-!   Set of states among which there is the state to be excited
-      CALL get_mo_set(mos(1)%mo_set, nao=nao, homo=homo)
-      IF (xas_control%nexc_search < 0) xas_control%nexc_search = homo
-      nexc_search = xas_control%nexc_search
-
       CALL get_xas_env(xas_env=xas_env, &
                        state_of_atom=state_of_atom, all_vectors=all_vectors, &
                        groundstate_coeff=groundstate_coeff, excvec_coeff=excvec_coeff, &
-                       nexc_atoms=nexc_atoms, occ_estate=occ_estate, xas_nelectron=xas_nelectron)
+                       nexc_atoms=nexc_atoms, occ_estate=occ_estate, xas_nelectron=xas_nelectron, &
+                       spin_channel=my_spin)
+
+!   Set of states among which there is the state to be excited
+      CALL get_mo_set(mos(my_spin)%mo_set, nao=nao, homo=homo)
+      IF (xas_control%nexc_search < 0) xas_control%nexc_search = homo
+      nexc_search = xas_control%nexc_search
 
       CALL set_xas_env(xas_env=xas_env, nexc_search=nexc_search)
 
@@ -295,20 +296,20 @@ CONTAINS
       CALL get_xas_env(xas_env=xas_env, qs_loc_env=qs_loc_env)
       IF (qs_loc_env%do_localize) THEN
          IF (output_unit > 0) THEN
-            WRITE (UNIT=output_unit, FMT="(/,T10,A,/)") &
-               "Localize a sub-set of MOs with spin alpha,"// &
+            WRITE (UNIT=output_unit, FMT="(/,T2,A34,I3,A36/)") &
+               "Localize a sub-set of MOs of spin ", my_spin, ","// &
                " to better identify the core states"
             IF ( &
                qs_loc_env%localized_wfn_control%set_of_states == state_loc_range) THEN
                WRITE (UNIT=output_unit, FMT="( A , I7, A, I7)") " The sub-set contains states from ", &
-                  qs_loc_env%localized_wfn_control%lu_bound_states(1, 1), " to ", &
-                  qs_loc_env%localized_wfn_control%lu_bound_states(2, 1)
+                  qs_loc_env%localized_wfn_control%lu_bound_states(1, my_spin), " to ", &
+                  qs_loc_env%localized_wfn_control%lu_bound_states(2, my_spin)
             ELSEIF (qs_loc_env%localized_wfn_control%set_of_states == state_loc_list) THEN
                WRITE (UNIT=output_unit, FMT="( A )") " The sub-set contains states given in the input list"
             END IF
 
          END IF
-         CALL qs_loc_driver(qs_env, qs_loc_env, print_loc_section, myspin=1)
+         CALL qs_loc_driver(qs_env, qs_loc_env, print_loc_section, myspin=my_spin)
       END IF
 
       CPASSERT(ASSOCIATED(groundstate_coeff))
@@ -382,7 +383,7 @@ CONTAINS
                                   qs_env)
 
       IF (skip_scf) THEN
-         CALL get_mo_set(mos(1)%mo_set, mo_coeff=mo_coeff)
+         CALL get_mo_set(mos(my_spin)%mo_set, mo_coeff=mo_coeff)
          CALL cp_fm_to_fm(mo_coeff, all_vectors, ncol=nexc_search, &
                           source_start=1, target_start=1)
       END IF
@@ -411,7 +412,7 @@ CONTAINS
          state_to_be_excited = state_of_atom(iat)
 
          ! Take the state_to_be_excited vector from the full set and copy into excvec_coeff
-         CALL get_mo_set(mos(1)%mo_set, nmo=nmo)
+         CALL get_mo_set(mos(my_spin)%mo_set, nmo=nmo)
          CALL get_xas_env(xas_env, occ_estate=occ_estate, xas_nelectron=xas_nelectron)
          tmp = xas_nelectron+1.0_dp-occ_estate
          IF (nmo < tmp) &
@@ -427,7 +428,7 @@ CONTAINS
          END IF
 
          CALL set_xas_env(xas_env=xas_env, xas_estate=state_to_be_excited)
-         CALL get_mo_set(mos(1)%mo_set, mo_coeff=mo_coeff)
+         CALL get_mo_set(mos(my_spin)%mo_set, mo_coeff=mo_coeff)
          CPASSERT(ASSOCIATED(excvec_coeff))
          CALL cp_fm_get_submatrix(mo_coeff, vecbuffer, 1, state_to_be_excited, &
                                   nao, 1, transpose=.TRUE.)
@@ -447,8 +448,8 @@ CONTAINS
                         "Start Core Level Spectroscopy Calculation with TP approach for ATOM ", iatom
                      WRITE (UNIT=output_unit, FMT='(T10,A,T50,f10.4)') "Occupation of the core orbital", &
                         occ_estate
-                     WRITE (UNIT=output_unit, FMT='(T10,A,T50,f10.4)') "Number of electrons in Spin 1", &
-                        xas_nelectron
+                     WRITE (UNIT=output_unit, FMT='(T10,A28,I3, T50,F10.4)') "Number of electrons in Spin ", &
+                        my_spin, xas_nelectron
                   END IF
                END IF
 
@@ -578,9 +579,9 @@ CONTAINS
       CHARACTER(len=*), PARAMETER :: routineN = 'xas_env_init', routineP = moduleN//':'//routineN
 
       CHARACTER(LEN=default_string_length)               :: name_sto
-      INTEGER :: homo, i, iat, iatom, ik, ikind, ispin, j, l, lfomo, n_mo(2), n_rep, nao, natom, &
-         ncubes, nelectron, nexc_atoms, nexc_search, nj, nk, nkind, nmo, nmoloc(2), norb(0:3), &
-         nsgf_gto, nsgf_sto, nspins, nvirtual, nvirtual2
+      INTEGER :: homo, i, iat, iatom, ik, ikind, ispin, j, l, lfomo, my_spin, n_mo(2), n_rep, nao, &
+         natom, ncubes, nelectron, nexc_atoms, nexc_search, nj, nk, nkind, nmo, nmoloc(2), &
+         norb(0:3), nsgf_gto, nsgf_sto, nspins, nvirtual, nvirtual2
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: first_sgf, kind_type_tmp, kind_z_tmp, &
                                                             last_sgf
       INTEGER, DIMENSION(4, 7)                           :: ne
@@ -638,22 +639,23 @@ CONTAINS
       CALL scf_c_release(scf_control)
       CALL get_xas_env(xas_env, scf_control=scf_control)
 
+      my_spin = xas_control%spin_channel
       nexc_search = xas_control%nexc_search
       IF (nexc_search < 0) THEN
          ! ground state occupation
-         CALL get_mo_set(mos(1)%mo_set, nmo=nmo, lfomo=lfomo)
+         CALL get_mo_set(mos(my_spin)%mo_set, nmo=nmo, lfomo=lfomo)
          nexc_search = lfomo-1
       END IF
       nexc_atoms = xas_control%nexc_atoms
       ALLOCATE (xas_env%exc_atoms(nexc_atoms))
       xas_env%exc_atoms = xas_control%exc_atoms
       CALL set_xas_env(xas_env=xas_env, nexc_search=nexc_search, &
-                       nexc_atoms=nexc_atoms)
+                       nexc_atoms=nexc_atoms, spin_channel=my_spin)
 
       CALL mpools_get(mpools, ao_mo_fm_pools=xas_env%ao_mo_fm_pools)
 
       NULLIFY (mo_coeff)
-      CALL get_mo_set(mos(1)%mo_set, nao=nao, homo=homo, nmo=nmo, mo_coeff=mo_coeff, nelectron=nelectron)
+      CALL get_mo_set(mos(my_spin)%mo_set, nao=nao, homo=homo, nmo=nmo, mo_coeff=mo_coeff, nelectron=nelectron)
 
       nvirtual2 = 0
       IF (xas_control%added_mos .GT. 0) THEN
@@ -874,15 +876,15 @@ CONTAINS
          CALL get_xas_env(xas_env=xas_env, qs_loc_env=qs_loc_env)
          loc_section => section_vals_get_subs_vals(xas_section, "LOCALIZE")
          CALL qs_loc_control_init(qs_loc_env, loc_section, do_homo=.TRUE., &
-                                  do_xas=.TRUE., nloc_xas=nexc_search)
+                                  do_xas=.TRUE., nloc_xas=nexc_search, spin_xas=my_spin)
          IF (.NOT. qs_loc_env%do_localize) THEN
             qs_loc_env%localized_wfn_control%localization_method = do_loc_none
          ELSE
             nmoloc = qs_loc_env%localized_wfn_control%nloc_states
-            CALL set_loc_wfn_lists(qs_loc_env%localized_wfn_control, nmoloc, n_mo, nspins)
+            CALL set_loc_wfn_lists(qs_loc_env%localized_wfn_control, nmoloc, n_mo, nspins, my_spin)
             CALL set_loc_centers(qs_loc_env%localized_wfn_control, nmoloc, nspins)
             CALL qs_loc_env_init(qs_loc_env, qs_loc_env%localized_wfn_control, &
-                                 qs_env, myspin=1, do_localize=qs_loc_env%do_localize)
+                                 qs_env, myspin=my_spin, do_localize=qs_loc_env%do_localize)
          END IF
       END IF
 
@@ -1003,8 +1005,8 @@ CONTAINS
       CHARACTER(LEN=*), PARAMETER :: routineN = 'cls_calculate_spectrum', &
          routineP = moduleN//':'//routineN
 
-      INTEGER                                            :: homo, i, lfomo, nabs, nmo, nvirtual, &
-                                                            output_unit, xas_estate
+      INTEGER                                            :: homo, i, lfomo, my_spin, nabs, nmo, &
+                                                            nvirtual, output_unit, xas_estate
       LOGICAL                                            :: append_cube, length
       REAL(dp)                                           :: rc(3)
       REAL(dp), DIMENSION(:), POINTER                    :: all_evals
@@ -1028,10 +1030,10 @@ CONTAINS
       CALL get_qs_env(qs_env=qs_env, &
                       mos=mos, particle_set=particle_set)
 
-      CALL get_mo_set(mos(1)%mo_set, homo=homo, lfomo=lfomo, nmo=nmo)
       CALL get_xas_env(xas_env=xas_env, all_vectors=all_vectors, xas_estate=xas_estate, &
                        all_evals=all_evals, dip_fm_set=dip_fm_set, excvec_coeff=excvec_coeff, &
-                       ostrength_sm=ostrength_sm, nvirtual=nvirtual)
+                       ostrength_sm=ostrength_sm, nvirtual=nvirtual, spin_channel=my_spin)
+      CALL get_mo_set(mos(my_spin)%mo_set, homo=homo, lfomo=lfomo, nmo=nmo)
 
       nabs = nvirtual-lfomo+1
       ALLOCATE (sp_em(6, homo))
@@ -1049,7 +1051,7 @@ CONTAINS
             CALL rRc_xyz_ao(op_sm, qs_env, rc, order=1, minimum_image=.TRUE.)
             CALL spectrum_dip_vel(dip_fm_set, op_sm, mos, excvec_coeff, &
                                   all_vectors, all_evals, &
-                                  sp_em, sp_ab, xas_estate, nvirtual)
+                                  sp_em, sp_ab, xas_estate, nvirtual, my_spin)
             DO i = 1, SIZE(ostrength_sm, 1)
                CALL dbcsr_set(ostrength_sm(i)%matrix, 0.0_dp)
             END DO
@@ -1060,11 +1062,11 @@ CONTAINS
             END DO
             CALL spectrum_dip_vel(dip_fm_set, op_sm, mos, excvec_coeff, &
                                   all_vectors, all_evals, &
-                                  sp_em, sp_ab, xas_estate, nvirtual)
+                                  sp_em, sp_ab, xas_estate, nvirtual, my_spin)
          END IF
       END IF
 
-      CALL get_mo_set(mos(1)%mo_set, lfomo=lfomo)
+      CALL get_mo_set(mos(my_spin)%mo_set, lfomo=lfomo)
       ! writw thw spectrum, if the file exists it is appended
       IF (.NOT. xas_control%xas_method == xas_dscf) THEN
          length = (.NOT. xas_control%dipole_form == xas_dip_vel)
@@ -1198,7 +1200,7 @@ CONTAINS
          routineP = moduleN//':'//routineN
 
       CHARACTER(LEN=default_string_length)               :: my_mittle, my_pos
-      INTEGER                                            :: homo, istate0, nspins, nstates
+      INTEGER                                            :: homo, istate0, my_spin, nspins, nstates
       REAL(dp), DIMENSION(:, :), POINTER                 :: centers
       TYPE(section_vals_type), POINTER                   :: print_key
 
@@ -1214,8 +1216,9 @@ CONTAINS
          ALLOCATE (centers(6, nstates))
          centers = 0.0_dp
       END IF
+      my_spin = xas_control%spin_channel
 
-      CALL get_mo_set(mos(1)%mo_set, homo=homo)
+      CALL get_mo_set(mos(my_spin)%mo_set, homo=homo)
       istate0 = 0
 
       my_pos = "REWIND"
@@ -1288,12 +1291,13 @@ CONTAINS
 !> \param sp_ab ...
 !> \param estate index of the excited state
 !> \param nstate ...
+!> \param my_spin ...
 !> \par History
 !>      06.2005 created [MI]
 !> \author MI
 ! **************************************************************************************************
    SUBROUTINE spectrum_dip_vel(fm_set, op_sm, mos, excvec, &
-                               all_vectors, all_evals, sp_em, sp_ab, estate, nstate)
+                               all_vectors, all_evals, sp_em, sp_ab, estate, nstate, my_spin)
 
       TYPE(cp_fm_p_type), DIMENSION(:, :), POINTER       :: fm_set
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: op_sm
@@ -1301,7 +1305,7 @@ CONTAINS
       TYPE(cp_fm_type), POINTER                          :: excvec, all_vectors
       REAL(dp), DIMENSION(:), POINTER                    :: all_evals
       REAL(dp), DIMENSION(:, :), POINTER                 :: sp_em, sp_ab
-      INTEGER, INTENT(IN)                                :: estate, nstate
+      INTEGER, INTENT(IN)                                :: estate, nstate, my_spin
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'spectrum_dip_vel', &
          routineP = moduleN//':'//routineN
@@ -1315,17 +1319,17 @@ CONTAINS
       CPASSERT(ASSOCIATED(mos))
       NULLIFY (eigenvalues, occupation_numbers, fm_work)
 
-      CALL get_mo_set(mos(1)%mo_set, eigenvalues=eigenvalues, occupation_numbers=occupation_numbers, &
+      CALL get_mo_set(mos(my_spin)%mo_set, eigenvalues=eigenvalues, occupation_numbers=occupation_numbers, &
                       nao=nao, nmo=nmo, homo=homo, lfomo=lfomo)
 
       CALL cp_fm_create(fm_work, all_vectors%matrix_struct)
       DO i = 1, SIZE(fm_set, 2)
-         CPASSERT(ASSOCIATED(fm_set(1, i)%matrix))
-         CALL cp_fm_set_all(fm_set(1, i)%matrix, 0.0_dp)
+         CPASSERT(ASSOCIATED(fm_set(my_spin, i)%matrix))
+         CALL cp_fm_set_all(fm_set(my_spin, i)%matrix, 0.0_dp)
          CALL cp_fm_set_all(fm_work, 0.0_dp)
          CALL cp_dbcsr_sm_fm_multiply(op_sm(i)%matrix, all_vectors, fm_work, ncol=nstate)
          CALL cp_gemm("T", "N", 1, nstate, nao, 1.0_dp, excvec, &
-                      fm_work, 0.0_dp, fm_set(1, i)%matrix, b_first_col=1)
+                      fm_work, 0.0_dp, fm_set(my_spin, i)%matrix, b_first_col=1)
       END DO
       CALL cp_fm_release(fm_work)
 
@@ -1335,9 +1339,8 @@ CONTAINS
 
       DO istate = 1, nstate
          ene_f = all_evals(istate)
-
          DO i = 1, 3
-            CALL cp_fm_get_element(fm_set(1, i)%matrix, 1, istate, dip(i))
+            CALL cp_fm_get_element(fm_set(my_spin, i)%matrix, 1, istate, dip(i))
          END DO
          IF (istate <= homo) THEN
             sp_em(1, istate) = ene_f-ene_i
@@ -1464,8 +1467,9 @@ CONTAINS
          routineP = moduleN//':'//routineN
 
       INTEGER                                            :: homo, i, iat, iatom, ikind, isgf, &
-                                                            istate, j, my_kind, nao, natom, &
-                                                            nexc_atoms, nexc_search, output_unit
+                                                            istate, j, my_kind, my_spin, nao, &
+                                                            natom, nexc_atoms, nexc_search, &
+                                                            output_unit
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: first_sgf
       INTEGER, DIMENSION(3)                              :: perd0
       INTEGER, DIMENSION(:), POINTER                     :: atom_of_state, mykind_of_kind, &
@@ -1502,13 +1506,14 @@ CONTAINS
       perd0(1:3) = cell%perd(1:3)
       cell%perd(1:3) = 1
 
-      CALL get_mo_set(mos(1)%mo_set, mo_coeff=mo_coeff, maxocc=maxocc, nao=nao, homo=homo)
-
       CALL get_xas_env(xas_env=xas_env, &
                        centers_wfn=centers_wfn, atom_of_state=atom_of_state, &
                        mykind_of_kind=mykind_of_kind, &
                        type_of_state=type_of_state, state_of_atom=state_of_atom, &
-                       stogto_overlap=stogto_overlap, nexc_atoms=nexc_atoms, nexc_search=nexc_search)
+                       stogto_overlap=stogto_overlap, nexc_atoms=nexc_atoms, &
+                       spin_channel=my_spin, nexc_search=nexc_search)
+
+      CALL get_mo_set(mos(my_spin)%mo_set, mo_coeff=mo_coeff, maxocc=maxocc, nao=nao, homo=homo)
 
       ! scratch array for the state
       ALLOCATE (vecbuffer(1, nao))
@@ -1524,9 +1529,9 @@ CONTAINS
       atom_of_state = 0
 
       DO istate = 1, nexc_search
-         centers_wfn(1, istate) = localized_wfn_control%centers_set(1)%array(1, istate)
-         centers_wfn(2, istate) = localized_wfn_control%centers_set(1)%array(2, istate)
-         centers_wfn(3, istate) = localized_wfn_control%centers_set(1)%array(3, istate)
+         centers_wfn(1, istate) = localized_wfn_control%centers_set(my_spin)%array(1, istate)
+         centers_wfn(2, istate) = localized_wfn_control%centers_set(my_spin)%array(2, istate)
+         centers_wfn(3, istate) = localized_wfn_control%centers_set(my_spin)%array(3, istate)
 
          ! Assign the state to the closest atom
          distmin = 100.0_dp

@@ -73,6 +73,7 @@ MODULE xas_env_types
       INTEGER :: iter_count
       INTEGER :: nao, exc_state, xas_estate
       INTEGER :: nexc_search, nexc_atoms
+      INTEGER :: spin_channel
       INTEGER :: nvirtual, nvirtual2
       INTEGER :: unoccupied_max_iter
       INTEGER, DIMENSION(:), POINTER :: state_of_atom
@@ -139,6 +140,7 @@ CONTAINS
 !> \param xas_estate ...
 !> \param nexc_atoms ...
 !> \param nexc_search ...
+!> \param spin_channel ...
 !> \param scf_env ...
 !> \param scf_control ...
 ! **************************************************************************************************
@@ -148,7 +150,8 @@ CONTAINS
                           dip_fm_set, excvec_coeff, excvec_overlap, &
                           unoccupied_orbs, unoccupied_evals, unoccupied_max_iter, unoccupied_eps, &
                           all_vectors, all_evals, my_gto_basis, qs_loc_env, &
-                          stogto_overlap, occ_estate, xas_nelectron, xas_estate, nexc_atoms, nexc_search, scf_env, scf_control)
+                          stogto_overlap, occ_estate, xas_nelectron, xas_estate, nexc_atoms, nexc_search, spin_channel, &
+                          scf_env, scf_control)
 
       TYPE(xas_environment_type), POINTER                :: xas_env
       INTEGER, INTENT(OUT), OPTIONAL                     :: iter_count, exc_state, nao, nvirtual, &
@@ -177,7 +180,8 @@ CONTAINS
       TYPE(cp_2d_r_p_type), DIMENSION(:), OPTIONAL, &
          POINTER                                         :: stogto_overlap
       REAL(dp), INTENT(OUT), OPTIONAL                    :: occ_estate, xas_nelectron
-      INTEGER, INTENT(OUT), OPTIONAL                     :: xas_estate, nexc_atoms, nexc_search
+      INTEGER, INTENT(OUT), OPTIONAL                     :: xas_estate, nexc_atoms, nexc_search, &
+                                                            spin_channel
       TYPE(qs_scf_env_type), OPTIONAL, POINTER           :: scf_env
       TYPE(scf_control_type), OPTIONAL, POINTER          :: scf_control
 
@@ -194,6 +198,7 @@ CONTAINS
       IF (PRESENT(occ_estate)) occ_estate = xas_env%occ_estate
       IF (PRESENT(xas_estate)) xas_estate = xas_env%xas_estate
       IF (PRESENT(nexc_search)) nexc_search = xas_env%nexc_search
+      IF (PRESENT(spin_channel)) spin_channel = xas_env%spin_channel
       IF (PRESENT(nexc_atoms)) nexc_atoms = xas_env%nexc_atoms
       IF (PRESENT(unoccupied_eps)) unoccupied_eps = xas_env%unoccupied_eps
       IF (PRESENT(unoccupied_max_iter)) unoccupied_max_iter = xas_env%unoccupied_max_iter
@@ -226,6 +231,7 @@ CONTAINS
 !> \param xas_env ...
 !> \param iter_count ...
 !> \param nexc_search ...
+!> \param spin_channel ...
 !> \param nexc_atoms ...
 !> \param nvirtual ...
 !> \param nvirtual2 ...
@@ -238,13 +244,13 @@ CONTAINS
 !> \param scf_env ...
 !> \param scf_control ...
 ! **************************************************************************************************
-   SUBROUTINE set_xas_env(xas_env, iter_count, nexc_search, nexc_atoms, &
+   SUBROUTINE set_xas_env(xas_env, iter_count, nexc_search, spin_channel, nexc_atoms, &
                           nvirtual, nvirtual2, ip_energy, occ_estate, qs_loc_env, &
                           xas_estate, xas_nelectron, homo_occ, scf_env, scf_control)
 
       TYPE(xas_environment_type), POINTER                :: xas_env
-      INTEGER, INTENT(IN), OPTIONAL                      :: iter_count, nexc_search, nexc_atoms, &
-                                                            nvirtual, nvirtual2
+      INTEGER, INTENT(IN), OPTIONAL                      :: iter_count, nexc_search, spin_channel, &
+                                                            nexc_atoms, nvirtual, nvirtual2
       REAL(dp), INTENT(IN), OPTIONAL                     :: ip_energy, occ_estate
       TYPE(qs_loc_env_new_type), OPTIONAL, POINTER       :: qs_loc_env
       INTEGER, INTENT(IN), OPTIONAL                      :: xas_estate
@@ -258,6 +264,7 @@ CONTAINS
 
       IF (PRESENT(iter_count)) xas_env%iter_count = iter_count
       IF (PRESENT(nexc_search)) xas_env%nexc_search = nexc_search
+      IF (PRESENT(spin_channel)) xas_env%spin_channel = spin_channel
       IF (PRESENT(nexc_atoms)) xas_env%nexc_atoms = nexc_atoms
       IF (PRESENT(nvirtual)) xas_env%nvirtual = nvirtual
       IF (PRESENT(nvirtual2)) xas_env%nvirtual2 = nvirtual2

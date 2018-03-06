@@ -39,6 +39,7 @@ MODULE xas_control
       INTEGER                             :: ref_count
       INTEGER                             :: nexc_atoms
       INTEGER                             :: nexc_search
+      INTEGER                             :: spin_channel
       INTEGER                             :: state_type
       INTEGER                             :: xas_method
       INTEGER                             :: dipole_form
@@ -108,6 +109,9 @@ CONTAINS
 
       CALL section_vals_val_get(xas_section, "STATE_SEARCH", &
                                 i_val=xas_control%nexc_search)
+
+      CALL section_vals_val_get(xas_section, "SPIN_CHANNEL", &
+                                i_val=xas_control%spin_channel)
 
       CALL section_vals_val_get(xas_section, "XAS_CORE", &
                                 r_val=xas_control%xas_core_occupation)
@@ -255,6 +259,7 @@ CONTAINS
       xas_control%ref_count = 1
       xas_control%xas_method = xas_tp_hh
       xas_control%nexc_atoms = 1
+      xas_control%spin_channel = 1
       xas_control%nexc_search = -1
       xas_control%state_type = xas_1s_type
       xas_control%xas_restart = .FALSE.
