@@ -360,7 +360,7 @@ CONTAINS
       TYPE(mp_perf_env_type), POINTER                    :: mp_perf_env
       INTEGER, INTENT(in)                                :: id_nr
       TYPE(cp_logger_type), POINTER                      :: logger
-      CHARACTER(len=*), INTENT(in), OPTIONAL             :: old_dir
+      CHARACTER(len=*), INTENT(in)                       :: old_dir
 
       CHARACTER(len=*), PARAMETER :: routineN = 'f_env_create', routineP = moduleN//':'//routineN
 
@@ -375,8 +375,7 @@ CONTAINS
       CALL mp_perf_env_retain(f_env%mp_perf_env)
       f_env%id_nr = id_nr
       CALL m_getcwd(f_env%my_path)
-      f_env%old_path = f_env%my_path
-      IF (PRESENT(old_dir)) f_env%old_path = old_dir
+      f_env%old_path = old_dir
    END SUBROUTINE f_env_create
 
 ! **************************************************************************************************
