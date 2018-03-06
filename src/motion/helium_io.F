@@ -197,9 +197,8 @@ CONTAINS
 
       CHARACTER(len=default_string_length)               :: msg_str, my_label, stmp, stmp1, stmp2, &
                                                             unit_str
-      INTEGER                                            :: i, itmp, j, unit_nr
+      INTEGER                                            :: i, itmp, unit_nr
       INTEGER(KIND=int_8)                                :: i8tmp
-      LOGICAL                                            :: first
       REAL(KIND=dp)                                      :: rtmp, v1, v2, v3
       REAL(KIND=dp), DIMENSION(3)                        :: my_abc
       TYPE(cp_logger_type), POINTER                      :: logger

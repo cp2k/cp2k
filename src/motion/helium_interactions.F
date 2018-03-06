@@ -12,15 +12,14 @@ MODULE helium_interactions
 
    USE helium_common,                   ONLY: helium_eval_expansion,&
                                               helium_pbc
-   USE helium_types,                    ONLY: e_id_interact, &
-                                              e_id_kinetic, &
-                                              e_id_potential, &
-                                              e_id_thermo, &
-                                              e_id_total, &
-                                              e_id_virial, &
-                                              helium_solvent_p_type, &
-                                              helium_solvent_type, &
-                                              int_arr_ptr
+   USE helium_types,                    ONLY: e_id_interact,&
+                                              e_id_kinetic,&
+                                              e_id_potential,&
+                                              e_id_thermo,&
+                                              e_id_total,&
+                                              e_id_virial,&
+                                              helium_solvent_p_type,&
+                                              helium_solvent_type
    USE input_constants,                 ONLY: helium_solute_intpot_mwater,&
                                               helium_solute_intpot_none
    USE kinds,                           ONLY: dp
@@ -580,7 +579,7 @@ CONTAINS
       s1 = 0.0_dp
       DO i = 1, SIZE(helium%solute_element)
          IF (helium%solute_element(i) == "H ") THEN
-            ig = i - 1
+            ig = i-1
             solute_r(1) = solute_x(3*ig+1)
             solute_r(2) = solute_x(3*ig+2)
             solute_r(3) = solute_x(3*ig+3)
@@ -606,7 +605,7 @@ CONTAINS
       s1 = 0.0_dp
       DO i = 1, SIZE(helium%solute_element)
          IF (helium%solute_element(i) == "O ") THEN
-            ig = i - 1
+            ig = i-1
             solute_r(1) = solute_x(3*ig+1)
             solute_r(2) = solute_x(3*ig+2)
             solute_r(3) = solute_x(3*ig+3)

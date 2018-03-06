@@ -22,7 +22,6 @@ MODULE helium_methods
    USE cp_output_handling,              ONLY: cp_printkey_is_on
    USE cp_subsys_types,                 ONLY: cp_subsys_get,&
                                               cp_subsys_type
-   USE cp_units,                        ONLY: cp_unit_from_cp2k
    USE f77_interface,                   ONLY: f_env_add_defaults,&
                                               f_env_rm_defaults,&
                                               f_env_type
@@ -33,15 +32,9 @@ MODULE helium_methods
                                               helium_write_line,&
                                               helium_write_setup
    USE helium_sampling,                 ONLY: helium_sample
-   USE helium_types,                    ONLY: he_mass, &
-                                              helium_destroy_int_arr_ptr, &
-                                              helium_solvent_p_type, &
-                                              helium_solvent_type, &
-                                              rho_atom_number, &
-                                              rho_moment_of_inertia, &
-                                              rho_num, rho_projected_area, &
-                                              rho_winding_cycle, &
-                                              rho_winding_number
+   USE helium_types,                    ONLY: &
+        he_mass, helium_solvent_p_type, helium_solvent_type, rho_atom_number, &
+        rho_moment_of_inertia, rho_num, rho_projected_area, rho_winding_cycle, rho_winding_number
    USE input_constants,                 ONLY: helium_cell_shape_cube,&
                                               helium_cell_shape_octahedron,&
                                               helium_solute_intpot_none
@@ -2428,7 +2421,6 @@ CONTAINS
       CHARACTER(len=*), PARAMETER :: routineN = 'helium_set_solute_indices', &
          routineP = moduleN//':'//routineN
 
-      CHARACTER(len=default_path_length)                 :: msg_str
       INTEGER                                            :: iatom, natoms
       REAL(KIND=dp)                                      :: mass
       TYPE(cp_subsys_type), POINTER                      :: my_subsys
@@ -2452,7 +2444,7 @@ CONTAINS
       helium%enum = 0
       DO iatom = 1, natoms
          CALL get_atomic_kind(my_particles%els(iatom)%atomic_kind, &
-                              mass=mass,&
+                              mass=mass, &
                               element_symbol=helium%solute_element(iatom))
       END DO
 
