@@ -800,7 +800,7 @@ CONTAINS
       ELSE
          !**** initialization ****
          dx1 = 0.5_dp*hbokt*dw
-         xmin = 1.0e-6_dp !these values allows for an acceptable
+         xmin = 1.0e-3_dp !these values allows for an acceptable
          dx = 0.05_dp !ratio between accuracy, computing time and
          xmax = 10000.0_dp !memory requirement - tested for P up to 1024
          nx = INT((xmax-xmin)/dx)+1
