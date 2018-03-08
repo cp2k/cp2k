@@ -334,7 +334,7 @@ CONTAINS
                                         a_norms, b_norms, k_sizes)
       TYPE(dbcsr_mm_multrec_type), INTENT(inout)         :: this
       TYPE(dbcsr_type), INTENT(IN)                       :: left, right
-      INTEGER(KIND=int_8), INTENT(OUT)                   :: flop
+      INTEGER(KIND=int_8), INTENT(INOUT)                 :: flop
       REAL(kind=sp), DIMENSION(:), INTENT(in), TARGET    :: a_norms, b_norms
       INTEGER, DIMENSION(:), INTENT(IN), POINTER         :: k_sizes
 

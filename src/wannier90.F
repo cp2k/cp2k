@@ -166,7 +166,7 @@ CONTAINS
       recip_lattice = recip_lattice_loc
       ALLOCATE (kpt_latt(3, num_kpts))
       ALLOCATE (kpt_cart(3, num_kpts))
-      kpt_latt(1:3, 1:nkp) = kpt_latt_loc(1:3, 1:nkp)
+      kpt_latt(1:3, 1:num_kpts) = kpt_latt_loc(1:3, 1:num_kpts)
       DO nkp = 1, num_kpts
          kpt_cart(:, nkp) = MATMUL(kpt_latt(:, nkp), recip_lattice(:, :))
       END DO

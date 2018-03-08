@@ -118,7 +118,7 @@ CONTAINS
       INTEGER                                            :: handle, i, ik, iounit, ir, is, natom, &
                                                             nr, ns
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: atype
-      LOGICAL                                            :: inv, spez, symmo
+      LOGICAL                                            :: spez
       REAL(KIND=dp)                                      :: wsum
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: coord, scoord
       TYPE(csym_type)                                    :: crys_sym
@@ -249,7 +249,7 @@ CONTAINS
                IF (.NOT. spez) EXIT ikloop
             END DO
          END DO ikloop
-         IF (.NOT. spez .AND. .NOT. (inv .AND. symmo)) THEN
+         IF (.NOT. spez) THEN
             ! Warning: real wfn might be wrong for this system
             CALL cp_warn(__LOCATION__, &
                          "A calculation using real wavefunctions is requested. "// &

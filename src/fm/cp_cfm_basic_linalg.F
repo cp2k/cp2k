@@ -828,7 +828,7 @@ CONTAINS
       DEALLOCATE (ipivot)
 
       IF (PRESENT(info_out)) THEN
-         info = info_out
+         info_out = info
       ELSE
          IF (info /= 0) &
             CALL cp_abort(__LOCATION__, "LU inversion has failed")
@@ -886,7 +886,7 @@ CONTAINS
 #endif
 
       IF (PRESENT(info_out)) THEN
-         info = info_out
+         info_out = info
       ELSE
          IF (info /= 0) &
             CALL cp_abort(__LOCATION__, &
@@ -1150,7 +1150,7 @@ CONTAINS
 #endif
 
       IF (PRESENT(info_out)) THEN
-         info = info_out
+         info_out = info
       ELSE
          IF (info /= 0) &
             CALL cp_abort(__LOCATION__, &

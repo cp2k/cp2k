@@ -494,6 +494,7 @@ CONTAINS
                               kind_number=ikind)
          my_kind = mykind_of_kind(ikind)
 
+         my_state = 0
          CALL cp_fm_get_submatrix(mo_coeff, vecbuffer2, 1, my_state, &
                                   nao, 1, transpose=.TRUE.)
 

@@ -2261,6 +2261,7 @@ FUNCTION basym (a, b, lambda, eps) RESULT(fn_val)
 
 fn_val = 0.0e0_dp
 IF (a >= b) THEN
+   h = b/a
    r0 = 1.0e0_dp/(1.0e0_dp + h)
    r1 = (b - a)/a
    w0 = 1.0e0_dp/SQRT(b*(1.0e0_dp + h))

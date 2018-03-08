@@ -2904,6 +2904,8 @@ CONTAINS
       num_entries_rec(:) = 0
       num_entries_send(:) = 0
 
+      dummy_proc = 0
+
       ! get the process, where the elements from L_local_col have to be sent
       DO LLL = 1, dimen_RI
 

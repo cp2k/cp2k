@@ -147,6 +147,7 @@ CONTAINS
       ! 1) loop over my local data and define a map for the proc to send data
       ALLOCATE (map_send_size(0:para_env_RPA%num_pe-1))
       map_send_size = 0
+      dummy_proc = 0
       DO jjB = 1, ncol_local_s
          j_global = col_indices_s(jjB)
          send_pcol = cp_fm_indxg2p(j_global, ncol_block_d, dummy_proc, &
@@ -384,6 +385,7 @@ CONTAINS
       npcol_d = fm_mat_dest%matrix_struct%context%num_pe(2)
 
       ! 0) check if the local data has to be stored in the new fm_mat_S
+      dummy_proc = 0
       CALL timeset(routineN//"_loc", handle2)
       IF (map_rec_size(para_env_RPA%mepos) > 0) THEN
          DO jjB = 1, ncol_local_s
@@ -697,6 +699,7 @@ CONTAINS
       ! loop over local index range and define the sending map
       ALLOCATE (map_send_size(0:para_env_sub%num_pe-1))
       map_send_size = 0
+      dummy_proc = 0
       DO iaia = my_ia_start, my_ia_end
          i_global = (iaia-1)/virtual+1
          j_global = MOD(iaia-1, virtual)+1

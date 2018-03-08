@@ -864,6 +864,7 @@ CONTAINS
       my_file_action = "WRITE"
       my_file_status = "UNKNOWN"
       my_on_file = .FALSE.
+      mpi_amode = 0
       IF (PRESENT(file_form)) my_file_form = file_form
       IF (PRESENT(file_position)) my_file_position = file_position
       IF (PRESENT(file_action)) my_file_action = file_action

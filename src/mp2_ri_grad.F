@@ -1378,6 +1378,7 @@ CONTAINS
       ALLOCATE (col_indeces_info_1i(2, max_col_size, 0:para_env_sub%num_pe-1))
       row_indeces_info_1i = 0
       col_indeces_info_1i = 0
+      dummy_proc = 0
       ! row
       DO iiB = 1, nrow_local_1i
          i_global = row_indices_1i(iiB)

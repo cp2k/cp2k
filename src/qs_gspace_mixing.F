@@ -1044,6 +1044,7 @@ CONTAINS
 !      ib = MIN(mixing_store%ncall, nbuffer)
 !      nb = MIN(mixing_store%ncall, nbuffer)
 !      ibb = MIN(mixing_store%ncall+1, nbuffer)
+      ibb = 0
 
       ALLOCATE (res_rho(ng))
       ALLOCATE (res_rho_p(ng))

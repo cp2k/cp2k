@@ -462,6 +462,7 @@ FUNCTION fftw3_is_mkl_wrapper() RESULT(is_mkl)
   howmany_istride(2) = 1
   howmany_ostride(1) = 1
   howmany_ostride(2) = 1
+  zin = CMPLX(0.0_dp, 0.0_dp, KIND=dp)
   CALL fftw3_create_guru_plan(test_plan,1, &
                               dim_n,dim_istride,dim_ostride, &
                               2,howmany_n,howmany_istride,howmany_ostride, &

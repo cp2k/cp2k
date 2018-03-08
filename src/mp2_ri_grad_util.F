@@ -699,6 +699,7 @@ CONTAINS
       ! 1) loop over my local data and define a map for the proc to send data
       ALLOCATE (map_send_size(0:para_env%num_pe-1))
       map_send_size = 0
+      dummy_proc = 0
       DO jjB = my_start_col, my_end_col
          send_pcol = cp_fm_indxg2p(jjB, ncol_block, dummy_proc, &
                                    fm_mat%matrix_struct%first_p_pos(2), npcol)
@@ -1142,6 +1143,7 @@ CONTAINS
       ! 2) loop over my local data of the array and define a map for the proc from which rec data
       ALLOCATE (map_rec_size(0:para_env%num_pe-1))
       map_rec_size = 0
+      dummy_proc = 0
       DO jjB = my_start_col, my_end_col
          rec_pcol = cp_fm_indxg2p(jjB, ncol_block, dummy_proc, &
                                   fm_mat%matrix_struct%first_p_pos(2), npcol)
@@ -1476,6 +1478,7 @@ CONTAINS
       ! loop over local index range and define the sending map
       ALLOCATE (map_send_size(0:para_env_sub%num_pe-1))
       map_send_size = 0
+      dummy_proc = 0
       DO iaia = my_ia_start, my_ia_end
          i_global = (iaia-1)/virtual+1
          j_global = MOD(iaia-1, virtual)+1

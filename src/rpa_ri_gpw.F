@@ -1272,6 +1272,7 @@ CONTAINS
             ! 1) loop over my local data and define a map for the proc to send data
             ALLOCATE (map_send_size(0:para_env_RPA%num_pe-1))
             map_send_size = 0
+            dummy_proc = 0
             DO jjB = my_group_L_start, my_group_L_end
                send_pcol = cp_fm_indxg2p(jjB, ncol_block, dummy_proc, &
                                          fm_mat_S%matrix_struct%first_p_pos(2), npcol)
