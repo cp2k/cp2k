@@ -82,7 +82,7 @@ MODULE bibliography
                             Bates2013, Andermatt2016, Zhu2016, Schuett2016, Lu2004, &
                             Becke1988b, Migliore2009, Mavros2015, Holmberg2017, Marek2014, &
                             Stoychev2016, Futera2017, Bailey2006, Papior2017, Lehtola2018, &
-                            Brieuc2016
+                            Brieuc2016, Barca2018
 
 CONTAINS
 
@@ -3353,6 +3353,24 @@ CONTAINS
                          "BP 13164", &
                          "EP 13171", &
                          "DI 10.1021/jp801738f", &
+                         "ER"), &
+                         DOI="10.1021/jp801738f")
+
+      CALL add_reference(key=Barca2018, ISI_record=s2a( &
+                         "PT J", &
+                         "AU Barca, GMJ", &
+                         "   Gilbert, ATB", &
+                         "   Gill, PMW", &
+                         "AF Barca, Giuseppe M. J.", &
+                         "   Gilbert, Andrew T. B.", &
+                         "   Gill, Peter M. W.", &
+                         "TI Simple models for difficult electronic excitations", &
+                         "SO JOURNAL OF CHEMICAL THEORY AND COMPUTATION", &
+                         "PY 2018", &
+                         "VL XXXX", &
+                         "BP XXX", &
+                         "EP XXX", &
+                         "DI 10.1021/acs.jctc.7b00994", &
                          "ER"), &
                          DOI="10.1021/jp801738f")
 

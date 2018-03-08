@@ -207,6 +207,10 @@ MODULE input_constants
    INTEGER, PARAMETER, PUBLIC               :: momproj_norm = 0, &
                                                momproj_sum = 1
 
+   ! Type of the MOM method
+   INTEGER, PARAMETER, PUBLIC               :: momtype_mom = 0, &
+                                               momtype_imom = 1
+
    INTEGER, PARAMETER, PUBLIC               :: almo_frz_none = 0, &
                                                almo_frz_isolated = 1, &
                                                almo_frz_crystal = 2, &

@@ -7,29 +7,32 @@
 !> \brief methods for deltaSCF calculations
 ! **************************************************************************************************
 MODULE qs_mom_methods
-   USE bibliography,                    ONLY: Gilbert2008,&
+   USE bibliography,                    ONLY: Barca2018,&
+                                              Gilbert2008,&
                                               cite_reference
+   USE cp_blacs_env,                    ONLY: cp_blacs_env_type
    USE cp_dbcsr_operations,             ONLY: cp_dbcsr_sm_fm_multiply
    USE cp_fm_basic_linalg,              ONLY: cp_fm_column_scale
    USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
                                               cp_fm_struct_release,&
                                               cp_fm_struct_type
    USE cp_fm_types,                     ONLY: cp_fm_create,&
+                                              cp_fm_get_info,&
                                               cp_fm_maxabsval,&
-                                              cp_fm_release,&
+                                              cp_fm_to_fm,&
                                               cp_fm_type,&
                                               cp_fm_vectorsnorm,&
                                               cp_fm_vectorssum
    USE cp_gemm_interface,               ONLY: cp_gemm
    USE dbcsr_api,                       ONLY: dbcsr_p_type
    USE input_constants,                 ONLY: momproj_norm,&
-                                              momproj_sum
+                                              momproj_sum,&
+                                              momtype_imom,&
+                                              momtype_mom
    USE input_section_types,             ONLY: section_vals_type
    USE kinds,                           ONLY: dp
    USE qs_mo_methods,                   ONLY: calculate_density_matrix
-   USE qs_mo_types,                     ONLY: deallocate_mo_set,&
-                                              duplicate_mo_set,&
-                                              get_mo_set,&
+   USE qs_mo_types,                     ONLY: get_mo_set,&
                                               mo_set_p_type,&
                                               mo_set_type,&
                                               set_mo_set
@@ -232,7 +235,7 @@ CONTAINS
 !> \param scf_control SCF control variables
 !> \param p_rmpv      density matrix to be computed
 !> \par History
-!>      01.2016 created [Sergey Chulkov]
+!>    * 01.2016 created [Sergey Chulkov]
 ! **************************************************************************************************
    SUBROUTINE do_mom_guess(nspins, mos, scf_control, p_rmpv)
       INTEGER, INTENT(in)                                :: nspins
@@ -252,7 +255,11 @@ CONTAINS
 
       ! we are about to initialise the maximum overlap method,
       ! so cite the relevant reference first
-      CALL cite_reference(Gilbert2008)
+      IF (scf_control%diagonalization%mom_type == momtype_mom) THEN
+         CALL cite_reference(Gilbert2008)
+      ELSE IF (scf_control%diagonalization%mom_type == momtype_imom) THEN
+         CALL cite_reference(Barca2018)
+      END IF
 
       ! ensure we do not have duplicated orbital indices
       IF (.NOT. &
@@ -361,12 +368,11 @@ CONTAINS
 !> \param scf_section SCF input section
 !> \param diis_step   have we done a DIIS step
 !> \par History
-!>      07.2014 created [Matt Watkins]
-!>      01.2016 release version [Sergey Chulkov]
+!>    * 07.2014 created [Matt Watkins]
+!>    * 01.2016 release version [Sergey Chulkov]
+!>    * 03.2018 initial maximum overlap method [Sergey Chulkov]
 ! **************************************************************************************************
-   SUBROUTINE do_mom_diag(scf_env, mos, matrix_ks, &
-                          matrix_s, scf_control, scf_section, &
-                          diis_step)
+   SUBROUTINE do_mom_diag(scf_env, mos, matrix_ks, matrix_s, scf_control, scf_section, diis_step)
       TYPE(qs_scf_env_type), POINTER                     :: scf_env
       TYPE(mo_set_p_type), DIMENSION(:), POINTER         :: mos
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_ks, matrix_s
@@ -381,9 +387,9 @@ CONTAINS
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: inds
       REAL(kind=dp)                                      :: maxocc
       REAL(kind=dp), DIMENSION(:), POINTER               :: occ_nums, proj, tmp_occ_nums
-      TYPE(cp_fm_struct_type), POINTER                   :: mo_mo_fmstruct
-      TYPE(cp_fm_type), POINTER                          :: mo_coeff, mo_coeff_orig, overlap, svec
-      TYPE(mo_set_p_type), DIMENSION(:), POINTER         :: mos_orig
+      TYPE(cp_blacs_env_type), POINTER                   :: blacs_env
+      TYPE(cp_fm_struct_type), POINTER                   :: ao_mo_fmstruct, mo_mo_fmstruct
+      TYPE(cp_fm_type), POINTER                          :: mo_coeff, mo_coeff_ref, overlap, svec
 
       CALL timeset(routineN, handle)
 
@@ -391,57 +397,86 @@ CONTAINS
          CALL cp_abort(__LOCATION__, &
                        "The current implementation of the maximum overlap method is incompatible with the initial SCF guess")
 
+      ! number of spins == dft_control%nspins
+      nspins = SIZE(matrix_ks)
+
       ! copy old molecular orbitals
       IF (scf_env%iter_count >= scf_control%diagonalization%mom_start) THEN
-         ALLOCATE (mos_orig(SIZE(mos)))
-         DO ispin = 1, SIZE(mos)
-            CALL duplicate_mo_set(mos_orig(ispin)%mo_set, mos(ispin)%mo_set)
-         END DO
+         IF (.NOT. ASSOCIATED(scf_env%mom_ref_mo_coeff)) THEN
+            ALLOCATE (scf_env%mom_ref_mo_coeff(nspins))
+            DO ispin = 1, nspins
+               NULLIFY (ao_mo_fmstruct, scf_env%mom_ref_mo_coeff(ispin)%matrix)
+               CALL get_mo_set(mo_set=mos(ispin)%mo_set, mo_coeff=mo_coeff, occupation_numbers=occ_nums)
+               CALL cp_fm_get_info(mo_coeff, matrix_struct=ao_mo_fmstruct)
+               CALL cp_fm_create(scf_env%mom_ref_mo_coeff(ispin)%matrix, ao_mo_fmstruct)
+
+               ! Initial Maximum Overlap Method: keep initial molecular orbitals
+               IF (scf_control%diagonalization%mom_type == momtype_imom) THEN
+                  CALL cp_fm_to_fm(mo_coeff, scf_env%mom_ref_mo_coeff(ispin)%matrix)
+                  CALL cp_fm_column_scale(scf_env%mom_ref_mo_coeff(ispin)%matrix, occ_nums)
+               END IF
+            END DO
+         END IF
+
+         ! allocate the molecular orbitals overlap matrix
+         IF (.NOT. ASSOCIATED(scf_env%mom_overlap)) THEN
+            ALLOCATE (scf_env%mom_overlap(nspins))
+            DO ispin = 1, nspins
+               NULLIFY (blacs_env, mo_mo_fmstruct, scf_env%mom_overlap(ispin)%matrix)
+               CALL get_mo_set(mo_set=mos(ispin)%mo_set, nmo=nmo, mo_coeff=mo_coeff)
+               CALL cp_fm_get_info(mo_coeff, context=blacs_env)
+               CALL cp_fm_struct_create(mo_mo_fmstruct, nrow_global=nmo, ncol_global=nmo, context=blacs_env)
+               CALL cp_fm_create(scf_env%mom_overlap(ispin)%matrix, mo_mo_fmstruct)
+               CALL cp_fm_struct_release(mo_mo_fmstruct)
+            END DO
+         END IF
+
+         ! allocate a matrix to store the product S * mo_coeff
+         IF (.NOT. ASSOCIATED(scf_env%mom_s_mo_coeff)) THEN
+            ALLOCATE (scf_env%mom_s_mo_coeff(nspins))
+            DO ispin = 1, nspins
+               NULLIFY (ao_mo_fmstruct, scf_env%mom_s_mo_coeff(ispin)%matrix)
+               CALL get_mo_set(mo_set=mos(ispin)%mo_set, mo_coeff=mo_coeff)
+               CALL cp_fm_get_info(mo_coeff, matrix_struct=ao_mo_fmstruct)
+               CALL cp_fm_create(scf_env%mom_s_mo_coeff(ispin)%matrix, ao_mo_fmstruct)
+            END DO
+         END IF
+
+         ! Original Maximum Overlap Method: keep orbitals from the previous SCF iteration
+         IF (scf_control%diagonalization%mom_type == momtype_mom) THEN
+            DO ispin = 1, nspins
+               CALL get_mo_set(mo_set=mos(ispin)%mo_set, mo_coeff=mo_coeff, occupation_numbers=occ_nums)
+               CALL cp_fm_to_fm(mo_coeff, scf_env%mom_ref_mo_coeff(ispin)%matrix)
+               CALL cp_fm_column_scale(scf_env%mom_ref_mo_coeff(ispin)%matrix, occ_nums)
+            END DO
+         END IF
       END IF
 
       ! solve the eigenproblem
       CALL general_eigenproblem(scf_env, mos, matrix_ks, matrix_s, scf_control, scf_section, diis_step)
 
-      ! number of spins == dft_control%nspins
-      nspins = SIZE(matrix_ks)
-
       IF (scf_env%iter_count >= scf_control%diagonalization%mom_start) THEN
          DO ispin = 1, nspins
 
-            CALL get_mo_set(mo_set=mos(ispin)%mo_set, maxocc=maxocc, &
+            ! TO DO: sparse-matrix variant; check if use_mo_coeff_b is set, and if yes use mo_coeff_b instead
+            CALL get_mo_set(mo_set=mos(ispin)%mo_set, maxocc=maxocc, mo_coeff=mo_coeff, &
                             nao=nao, nmo=nmo, occupation_numbers=occ_nums)
 
-            ! TO DO: sparse-matrix variant; check if use_mo_coeff_b is set, and if yes use mo_coeff_b instead
-            CALL get_mo_set(mo_set=mos(ispin)%mo_set, mo_coeff=mo_coeff)
-            CALL get_mo_set(mo_set=mos_orig(ispin)%mo_set, mo_coeff=mo_coeff_orig)
+            mo_coeff_ref => scf_env%mom_ref_mo_coeff(ispin)%matrix
+            overlap => scf_env%mom_overlap(ispin)%matrix
+            svec => scf_env%mom_s_mo_coeff(ispin)%matrix
 
-            NULLIFY (svec, overlap, mo_mo_fmstruct)
-
-            ! NOTE: whereas it is possible to store the result of the following
-            ! matrix multiplication into work matrices scf_env%scf_work2(1:nspins),
-            ! we create the our own work storage, since these mentioned works matrices
-            ! are allocated only if neither OT nor davidson diagonalization is in use.
-            CALL cp_fm_create(svec, mo_coeff%matrix_struct)
-
-            ! S * C(new)
+            ! svec = S * C(new)
             CALL cp_dbcsr_sm_fm_multiply(matrix_s(1)%matrix, mo_coeff, svec, nmo)
 
-            ! a temporary overlap matrix
-            CALL cp_fm_struct_create(mo_mo_fmstruct, nrow_global=nmo, ncol_global=nmo, &
-                                     para_env=mo_coeff%matrix_struct%para_env, context=mo_coeff%matrix_struct%context)
-            CALL cp_fm_create(overlap, mo_mo_fmstruct)
-            CALL cp_fm_struct_release(mo_mo_fmstruct)
-
-            ! C(old occupied)^T * S * C(new)
-            CALL cp_fm_column_scale(mo_coeff_orig, occ_nums)
-            CALL cp_gemm('T', 'N', nmo, nmo, nao, 1.0_dp, mo_coeff_orig, svec, 0.0_dp, overlap)
-            CALL cp_fm_release(svec)
+            ! overlap = C(reference occupied)^T * S * C(new)
+            CALL cp_gemm('T', 'N', nmo, nmo, nao, 1.0_dp, mo_coeff_ref, svec, 0.0_dp, overlap)
 
             ALLOCATE (proj(nmo))
             ALLOCATE (inds(nmo))
             ALLOCATE (tmp_occ_nums(nmo))
 
-            ! project the new molecular orbitals into the space of the occupied old ones
+            ! project the new molecular orbitals into the space of the reference occupied orbitals
             SELECT CASE (scf_control%diagonalization%mom_proj_formula)
             CASE (momproj_sum)
                ! proj_j = abs( \sum_i overlap(i, j) )
@@ -458,8 +493,6 @@ CONTAINS
             CASE DEFAULT
                CPABORT("Unimplemented projection formula")
             END SELECT
-
-            CALL cp_fm_release(overlap)
 
             tmp_occ_nums(:) = occ_nums(:)
             ! sort occupation numbers in ascending order
@@ -487,13 +520,7 @@ CONTAINS
             ENDDO
 
             CALL set_mo_set(mo_set=mos(ispin)%mo_set, homo=homo, lfomo=lfomo)
-
          END DO
-
-         DO ispin = 1, SIZE(mos_orig)
-            CALL deallocate_mo_set(mos_orig(ispin)%mo_set)
-         ENDDO
-         DEALLOCATE (mos_orig)
       ENDIF
 
       ! recompute density matrix

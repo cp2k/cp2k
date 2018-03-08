@@ -129,6 +129,10 @@ MODULE qs_scf_types
       TYPE(davidson_type), POINTER, DIMENSION(:) :: block_davidson_env
       TYPE(fb_env_obj) :: filter_matrix_env
       TYPE(floating_basis_type) :: floating_basis
+      !> reference molecular orbitals for the maximum overlap method
+      TYPE(cp_fm_p_type), DIMENSION(:), POINTER          :: mom_ref_mo_coeff
+      !> MOM-related work matrices
+      TYPE(cp_fm_p_type), DIMENSION(:), POINTER          :: mom_overlap, mom_s_mo_coeff
    END TYPE qs_scf_env_type
 
 CONTAINS
@@ -196,6 +200,9 @@ CONTAINS
       NULLIFY (scf_env%block_davidson_env)
       NULLIFY (scf_env%floating_basis%gradient)
       CALL fb_env_nullify(scf_env%filter_matrix_env)
+      NULLIFY (scf_env%mom_ref_mo_coeff)
+      NULLIFY (scf_env%mom_overlap)
+      NULLIFY (scf_env%mom_s_mo_coeff)
 
       CALL timestop(handle)
 
@@ -239,7 +246,7 @@ CONTAINS
       CHARACTER(len=*), PARAMETER :: routineN = 'scf_env_did_change', &
          routineP = moduleN//':'//routineN
 
-      INTEGER                                            :: handle
+      INTEGER                                            :: handle, i
 
       CALL timeset(routineN, handle)
 
@@ -251,6 +258,12 @@ CONTAINS
       END IF
       IF (ASSOCIATED(scf_env%p_delta)) THEN
          CALL dbcsr_deallocate_matrix_set(scf_env%p_delta)
+      END IF
+      IF (ASSOCIATED(scf_env%mom_ref_mo_coeff)) THEN
+         DO i = 1, SIZE(scf_env%mom_ref_mo_coeff)
+            CALL cp_fm_release(scf_env%mom_ref_mo_coeff(i)%matrix)
+         END DO
+         DEALLOCATE (scf_env%mom_ref_mo_coeff)
       END IF
 
       CALL timestop(handle)
@@ -359,6 +372,24 @@ CONTAINS
             END IF
             IF (ASSOCIATED(scf_env%floating_basis%gradient)) THEN
                DEALLOCATE (scf_env%floating_basis%gradient)
+            END IF
+            IF (ASSOCIATED(scf_env%mom_ref_mo_coeff)) THEN
+               DO i = 1, SIZE(scf_env%mom_ref_mo_coeff)
+                  CALL cp_fm_release(scf_env%mom_ref_mo_coeff(i)%matrix)
+               END DO
+               DEALLOCATE (scf_env%mom_ref_mo_coeff)
+            END IF
+            IF (ASSOCIATED(scf_env%mom_overlap)) THEN
+               DO i = 1, SIZE(scf_env%mom_overlap)
+                  CALL cp_fm_release(scf_env%mom_overlap(i)%matrix)
+               END DO
+               DEALLOCATE (scf_env%mom_overlap)
+            END IF
+            IF (ASSOCIATED(scf_env%mom_s_mo_coeff)) THEN
+               DO i = 1, SIZE(scf_env%mom_s_mo_coeff)
+                  CALL cp_fm_release(scf_env%mom_s_mo_coeff(i)%matrix)
+               END DO
+               DEALLOCATE (scf_env%mom_s_mo_coeff)
             END IF
             DEALLOCATE (scf_env)
          END IF

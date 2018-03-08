@@ -7,9 +7,12 @@
 !> \brief manage control variables for the maximum overlap method
 ! **************************************************************************************************
 MODULE qs_mom_types
-   USE bibliography,                    ONLY: Gilbert2008
+   USE bibliography,                    ONLY: Barca2018,&
+                                              Gilbert2008
    USE input_constants,                 ONLY: momproj_norm,&
-                                              momproj_sum
+                                              momproj_sum,&
+                                              momtype_imom,&
+                                              momtype_mom
    USE input_keyword_types,             ONLY: keyword_create,&
                                               keyword_release,&
                                               keyword_type
@@ -60,8 +63,8 @@ CONTAINS
                           "The MOM procedures activated by this section are only active for diagonalization "// &
                           "methods, i.e. not with minimization methods based on OT. "// &
                           "Incompatible with core-level excitation spectra (XAS).", &
-                          n_keywords=7, n_subsections=0, repeats=.FALSE., &
-                          citations=(/Gilbert2008/))
+                          n_keywords=8, n_subsections=0, repeats=.FALSE., &
+                          citations=(/Gilbert2008, Barca2018/))
 
       NULLIFY (keyword)
 
@@ -71,6 +74,18 @@ CONTAINS
                           usage="MOM ON", &
                           default_l_val=.FALSE., &
                           lone_keyword_l_val=.TRUE.)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, name="MOM_TYPE", &
+                          description="Revision of the maximum overlap method to be used", &
+                          usage="MOM_TYPE mom", default_i_val=momtype_mom, &
+                          enum_c_vals=s2a("MOM", "IMOM"), &
+                          enum_desc=s2a( &
+                          "Originally proposed MOM protocol which uses molecular orbitals"// &
+                          " from the previous SCF cycle as reference", &
+                          "Initial-MOM which uses molecular orbitals of the initial guess as reference"), &
+                          enum_i_vals=(/momtype_mom, momtype_imom/))
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
@@ -133,7 +148,7 @@ CONTAINS
 
       CALL keyword_create(keyword, name="PROJ_FORMULA", &
                           description="Projection formula to be used", &
-                          usage="SCF_GUESS RESTART", default_i_val=momproj_norm, &
+                          usage="PROJ_FORMULA norm", default_i_val=momproj_norm, &
                           enum_c_vals=s2a("NORM", "SUM"), &
                           enum_desc=s2a( &
                           "The one which ignores the phase of molecular orbitals: proj_j = \sqrt(\sum_i overlap(i, j)^2)", &
