@@ -680,6 +680,7 @@ CONTAINS
       INTEGER                                            :: i, istat, iw, j, jj, k, nvibs, &
                                                             output_molden, output_unit, stat
       INTEGER, DIMENSION(:), POINTER                     :: tmplist
+      LOGICAL                                            :: reading_vib
       REAL(KIND=dp)                                      :: my_val, norm
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: freq, tmp
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: modes
@@ -708,6 +709,7 @@ CONTAINS
          READ (iw, *, IOSTAT=stat) info
          istat = 0
          nvibs = 0
+         reading_vib = .FALSE.
          DO
             READ (iw, *, IOSTAT=stat) info
             istat = istat+stat
@@ -715,7 +717,8 @@ CONTAINS
 
             CPASSERT(stat == 0)
 
-            nvibs = nvibs+1
+            IF (reading_vib) nvibs = nvibs+1
+            IF (TRIM(ADJUSTL(info)) == "[FREQ]") reading_vib = .TRUE.
          END DO
          REWIND (iw)
          istat = 0
@@ -723,7 +726,14 @@ CONTAINS
          istat = istat+stat
          READ (iw, *, IOSTAT=stat) info
          istat = istat+stat
-
+         ! Skip [Atoms] section
+         DO
+            READ (iw, *, IOSTAT=stat) info
+            istat = istat+stat
+            CPASSERT(stat == 0)
+            IF (TRIM(ADJUSTL(info)) == "[FREQ]") EXIT
+         END DO
+         ! Read frequencies and modes
          ALLOCATE (freq(nvibs))
          ALLOCATE (modes(ncoord, nvibs))
 
