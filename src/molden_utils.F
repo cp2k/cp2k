@@ -359,7 +359,7 @@ CONTAINS
          routineP = moduleN//':'//routineN
 
       CHARACTER(LEN=2)                                   :: element_symbol
-      INTEGER                                            :: handle, i, iw, j, k, l
+      INTEGER                                            :: handle, i, iw, j, k, l, z
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: my_list
 
       CALL timeset(routineN, handle)
@@ -385,6 +385,16 @@ CONTAINS
             END DO
          END IF
          WRITE (iw, '(T2,A)') "[Molden Format]"
+         WRITE (iw, '(T2,A)') "[Atoms] AU"
+         DO i = 1, SIZE(particles)
+            CALL get_atomic_kind(atomic_kind=particles(i)%atomic_kind, &
+                                 element_symbol=element_symbol)
+            CALL get_ptable_info(element_symbol, number=z)
+
+            WRITE (iw, '(T2,A2,I8,I8,3X,3(F12.6,3X))') &
+               element_symbol, i, z, particles(i)%r(:)
+
+         END DO
          WRITE (iw, '(T2,A)') "[FREQ]"
          DO i = 1, SIZE(freq, 1)
             IF ((.NOT. dump_only_positive) .OR. (freq(i) >= 0._dp)) WRITE (iw, '(T5,F12.6)') freq(i)
