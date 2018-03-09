@@ -23,8 +23,7 @@
 MODULE spherical_harmonics
 
    USE kinds,                           ONLY: dp
-   USE mathconstants,                   ONLY: dfac,&
-                                              fac,&
+   USE mathconstants,                   ONLY: fac,&
                                               maxfac,&
                                               pi
 #include "../base/base_uses.f90"
@@ -1356,9 +1355,7 @@ CONTAINS
 
       CHARACTER(len=*), PARAMETER :: routineN = 'dlegendre', routineP = moduleN//':'//routineN
 
-      INTEGER                                            :: il, im, mm
-      REAL(KIND=dp)                                      :: dpll, dpmm, dpmmp1, dsomx2, fact, pll, &
-                                                            plm, pmm, pmmp1, somx2
+      INTEGER                                            :: mm
 
       IF (ABS(x) > 1.0_dp) CPABORT("x value > 1")
       SELECT CASE (l)
@@ -1470,47 +1467,10 @@ CONTAINS
                    6.5625_dp*2.0_dp*x
          END SELECT
       CASE DEFAULT
-!    CPABORT("l > 6 dplm not implemented")
          mm = ABS(m)
          IF (mm > l) CPABORT("m out of bounds")
-! use recurence from numerical recipies
-         pmm = 1.0_dp
-         dpmm = 0.0_dp
-         IF (mm > 0) THEN
-            somx2 = SQRT((1.0_dp-x)*(1.0_dp+x))
-            dsomx2 = ((1e0_dp-x)*(1e0_dp+x))**(0.5e0_dp*m-1)
-            dpmm = -m*x*dsomx2*dfac(2*m-1)
-            fact = 1.0_dp
-            DO im = 1, mm
-               pmm = -pmm*fact*somx2
-               dpmm = -dpmm
-               fact = fact+2.0_dp
-            END DO
-         END IF
-         IF (l == mm) THEN
-            plm = pmm
-            dplm = dpmm
-         ELSE
-            pmmp1 = x*REAL(2*mm+1, KIND=dp)*pmm
-            dpmmp1 = (2*mm+1)*pmm+x*(2*mm+1)*dpmm
-            IF (l == mm+1) THEN
-               plm = pmmp1
-               dplm = dpmmp1
-            ELSE
-               DO il = mm+2, l
-                  pll = (x*REAL(2*il-1, KIND=dp)*pmmp1- &
-                         REAL(il+mm-1, KIND=dp)*pmm)/REAL(il-mm, KIND=dp)
-                  dpll = ((2*il-1)*pmmp1+x*(2*il-1)*dpmmp1-(il+mm-1)*dpmm)/(il-mm)
-                  pmm = pmmp1
-                  pmmp1 = pll
-                  dpmm = dpmmp1
-                  dpmmp1 = dpll
-               END DO
-               plm = pll
-               dplm = dpll
-            END IF
-         END IF
-
+         ! dPlm(x) = (1-x^2) * Plm+1(x) + (1-x^2)^(m-1) * m * x * Plm(x)
+         CPABORT("l > 6 dplm not implemented")
       END SELECT
 
    END FUNCTION dlegendre

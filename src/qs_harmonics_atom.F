@@ -206,7 +206,7 @@ CONTAINS
       !   *** allocate and calculate the spherical harmonics LM for this grid ***
       !       and their derivatives
       CALL reallocate(harmonics%slm, 1, na, 1, max_s_harm)
-      CALL reallocate(harmonics%dslm, 1, 2, 1, na, 1, max_s_harm)
+      CALL reallocate(harmonics%dslm, 1, 2, 1, na, 1, maxs)
       CALL reallocate(harmonics%dslm_dxyz, 1, 3, 1, na, 1, max_s_harm)
       CALL reallocate(harmonics%a, 1, 3, 1, na)
       CALL reallocate(y, 1, na)
@@ -220,17 +220,13 @@ CONTAINS
       slm_int = 0.0_dp
 
       DO iso = 1, max_s_harm
-
          l = indso(1, iso)
          m = indso(2, iso)
-
          CALL y_lm(lebedev_grid(ll)%r, y, l, m)
          slm(1:na, iso) = y(1:na)
-
          DO i = 1, na
             slm_int(iso) = slm_int(iso)+slm(i, iso)*wa(i)
          END DO ! i
-
       END DO ! iso
 
       DO i = 1, 3
@@ -382,7 +378,7 @@ CONTAINS
       ! Calculate the derivatives of the harmonics with respect of the 2 angles
       ! the first angle (polar) is acos(lebedev_grid(ll)%r(3))
       ! the second angle (azimutal) is atan(lebedev_grid(ll)%r(2)/lebedev_grid(ll)%r(1))
-      DO iso = 1, max_s_harm
+      DO iso = 1, maxs
          l = indso(1, iso)
          m = indso(2, iso)
          DO ia = 1, na
