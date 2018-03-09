@@ -46,16 +46,13 @@ MODULE qs_scf
    USE atomic_kind_types,               ONLY: atomic_kind_type
    USE cp_control_types,                ONLY: dft_control_type
    USE cp_dbcsr_operations,             ONLY: copy_dbcsr_to_fm
-   USE cp_files,                        ONLY: close_file,&
-                                              get_unit_number,&
-                                              open_file
+   USE cp_files,                        ONLY: close_file
    USE cp_fm_types,                     ONLY: cp_fm_create,&
                                               cp_fm_release,&
                                               cp_fm_to_fm,&
                                               cp_fm_type
    USE cp_log_handling,                 ONLY: cp_add_default_logger,&
                                               cp_get_default_logger,&
-                                              cp_logger_create,&
                                               cp_logger_release,&
                                               cp_logger_type,&
                                               cp_rm_default_logger,&
@@ -81,11 +78,9 @@ MODULE qs_scf
    USE input_constants,                 ONLY: &
         broyden_type_1, broyden_type_1_explicit, broyden_type_1_explicit_ls, broyden_type_1_ls, &
         broyden_type_2, broyden_type_2_explicit, broyden_type_2_explicit_ls, broyden_type_2_ls, &
-        cdft2ot, history_guess, jacobian_fd1, jacobian_fd1_backward, jacobian_fd1_central, &
-        jacobian_fd2, jacobian_fd2_backward, ot2cdft, ot_precond_full_all, ot_precond_full_single, &
+        cdft2ot, history_guess, ot2cdft, ot_precond_full_all, ot_precond_full_single, &
         ot_precond_full_single_inverse, ot_precond_none, ot_precond_s_inverse, &
-        outer_scf_hirshfeld_constraint, outer_scf_optimizer_broyden, outer_scf_optimizer_newton, &
-        outer_scf_optimizer_newton_ls
+        outer_scf_hirshfeld_constraint, outer_scf_optimizer_broyden, outer_scf_optimizer_newton_ls
    USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                               section_vals_type
    USE kinds,                           ONLY: default_path_length,&
@@ -105,6 +100,12 @@ MODULE qs_scf
    USE pw_pool_types,                   ONLY: pw_pool_give_back_pw,&
                                               pw_pool_type
    USE qs_block_davidson_types,         ONLY: block_davidson_deallocate
+   USE qs_cdft_scf_utils,               ONLY: build_diagonal_jacobian,&
+                                              create_tmp_logger,&
+                                              initialize_inverse_jacobian,&
+                                              prepare_jacobian_stencil,&
+                                              print_inverse_jacobian,&
+                                              restart_inverse_jacobian
    USE qs_cdft_types,                   ONLY: cdft_control_type
    USE qs_charges_types,                ONLY: qs_charges_type
    USE qs_density_mixing_types,         ONLY: gspace_mixing_nr
@@ -1181,8 +1182,9 @@ CONTAINS
          routineP = moduleN//':'//routineN
 
       CHARACTER(len=default_path_length)                 :: project_name
-      INTEGER :: counter, handle, i, ihistory, ispin, iter_count, iwork, j, lp, max_scf, nspins, &
-         nsteps, nvar, nwork, outer_scf_ihistory, output_unit, pwork, twork
+      INTEGER                                            :: counter, handle, i, ispin, iter_count, &
+                                                            iwork, j, max_scf, nspins, nsteps, &
+                                                            nvar, nwork, output_unit, pwork, twork
       LOGICAL                                            :: converged, explicit_jacobian, &
                                                             should_build, should_stop, &
                                                             use_md_history
@@ -1190,8 +1192,7 @@ CONTAINS
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: coeff, step_multiplier
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: jacobian
       REAL(KIND=dp), DIMENSION(:), POINTER               :: energy
-      REAL(KIND=dp), DIMENSION(:, :), POINTER            :: gradient, gradient_history, &
-                                                            inv_jacobian, variable_history
+      REAL(KIND=dp), DIMENSION(:, :), POINTER            :: gradient, inv_jacobian
       TYPE(cdft_control_type), POINTER                   :: cdft_control
       TYPE(cp_logger_type), POINTER                      :: logger, tmp_logger
       TYPE(cp_para_env_type), POINTER                    :: para_env
@@ -1207,10 +1208,9 @@ CONTAINS
 
       CALL timeset(routineN, handle)
 
-      NULLIFY (energy, gradient, p_rmpv, rho_ao_kp, mos, rho, &
-               mos_stashed, ks_env, scf_env, scf_control, dft_control, &
-               cdft_control, inv_jacobian, para_env, &
-               tmp_logger, gradient_history, variable_history, energy_qs)
+      NULLIFY (energy, gradient, p_rmpv, rho_ao_kp, mos, rho, mos_stashed, &
+               ks_env, scf_env, scf_control, dft_control, cdft_control, &
+               inv_jacobian, para_env, tmp_logger, energy_qs)
       logger => cp_get_default_logger()
 
       CPASSERT(ASSOCIATED(qs_env))
@@ -1222,63 +1222,12 @@ CONTAINS
       should_build = .FALSE.
       use_md_history = .FALSE.
       iter_count = scf_env%outer_scf%iter_count
-      SELECT CASE (scf_control%outer_scf%optimizer)
-      CASE DEFAULT
-         scf_control%outer_scf%build_jacobian = .FALSE.
-      CASE (outer_scf_optimizer_newton, outer_scf_optimizer_newton_ls)
-         scf_control%outer_scf%build_jacobian = .TRUE.
-         explicit_jacobian = .TRUE.
-      CASE (outer_scf_optimizer_broyden)
-         SELECT CASE (scf_control%outer_scf%broyden_type)
-         CASE (broyden_type_1, broyden_type_2, broyden_type_1_ls, broyden_type_2_ls)
-            scf_control%outer_scf%build_jacobian = .TRUE.
-            explicit_jacobian = .FALSE.
-         CASE (broyden_type_1_explicit, broyden_type_2_explicit, broyden_type_1_explicit_ls, broyden_type_2_explicit_ls)
-            scf_control%outer_scf%build_jacobian = .TRUE.
-            explicit_jacobian = .TRUE.
-         END SELECT
-      END SELECT
-      IF (scf_control%outer_scf%build_jacobian) THEN
-         ! Check if an old Jacobian can be reused avoiding a rebuild
-         IF (ASSOCIATED(scf_env%outer_scf%inv_jacobian)) THEN
-            ! Rebuild if number of previous energy evaluations exceeds limit
-            IF (scf_control%outer_scf%ijacobian .GE. scf_control%outer_scf%jacobian_freq(2) &
-                .AND. .NOT. used_history) THEN
-               should_build = .TRUE.
-               ! Zero the corresponding counter
-               scf_control%outer_scf%ijacobian = 0
-               ! Rebuild if number of previous SCF iterations exceeds limit (on this energy eval)
-            ELSE IF (MODULO(iter_count, scf_control%outer_scf%jacobian_freq(1)) == 0) THEN
-               should_build = .TRUE.
-            END IF
-            IF (should_build) DEALLOCATE (scf_env%outer_scf%inv_jacobian)
-         ELSE
-            should_build = .TRUE.
-            ! Zero the counter
-            scf_control%outer_scf%ijacobian = 0
-         END IF
-      END IF
+      ! Check if Jacobian should be calculated and initialize
+      CALL initialize_inverse_jacobian(scf_control, scf_env, explicit_jacobian, should_build, used_history)
       IF (scf_control%outer_scf%jacobian_restart) THEN
          ! Restart from previously calculated inverse Jacobian
          should_build = .FALSE.
-         nvar = SIZE(scf_env%outer_scf%variables, 1)
-         CPASSERT(ASSOCIATED(scf_control%outer_scf%jacobian_vector))
-         IF (SIZE(scf_control%outer_scf%jacobian_vector) /= nvar**2) &
-            CALL cp_abort(__LOCATION__, &
-                          "Too many or too few values defined for restarting inverse Jacobian.")
-         IF (.NOT. ASSOCIATED(scf_env%outer_scf%inv_jacobian)) &
-            ALLOCATE (scf_env%outer_scf%inv_jacobian(nvar, nvar))
-         inv_jacobian => scf_env%outer_scf%inv_jacobian
-         iwork = 1
-         DO i = 1, nvar
-            DO j = 1, nvar
-               inv_jacobian(i, j) = scf_control%outer_scf%jacobian_vector(iwork)
-               iwork = iwork+1
-            END DO
-         END DO
-         DEALLOCATE (scf_control%outer_scf%jacobian_vector)
-         scf_control%outer_scf%jacobian_restart = .FALSE.
-         scf_control%outer_scf%broyden_update = .FALSE.
+         CALL restart_inverse_jacobian(qs_env)
       END IF
       IF (should_build) THEN
          scf_env%outer_scf%deallocate_jacobian = .FALSE.
@@ -1292,19 +1241,7 @@ CONTAINS
                              " only be used together with a valid CDFT constraint.")
             ! Redirect output from Jacobian calculation to a new file by creating a temporary logger
             project_name = logger%iter_info%project_name
-            IF (para_env%mepos == para_env%source) THEN
-               lp = LEN_TRIM(project_name)
-               project_name(lp+1:LEN(project_name)) = "-JacobianInfo.out"
-               CALL open_file(file_name=project_name, file_status="UNKNOWN", &
-                              file_action="WRITE", file_position="APPEND", &
-                              unit_number=output_unit)
-            ELSE
-               output_unit = -1
-            END IF
-            CALL cp_logger_create(tmp_logger, &
-                                  para_env=para_env, &
-                                  default_global_unit_nr=output_unit, &
-                                  close_global_unit_on_dealloc=.FALSE.)
+            CALL create_tmp_logger(para_env, project_name, "-JacobianInfo.out", output_unit, tmp_logger)
             ! Save last converged state so we can roll back to it (mo_coeff and some outer_loop variables)
             nspins = dft_control%nspins
             ALLOCATE (mos_stashed(nspins))
@@ -1324,95 +1261,11 @@ CONTAINS
             jacobian = 0.0_dp
             nsteps = cdft_control%total_steps
             ! Setup finite difference scheme
-            SELECT CASE (scf_control%outer_scf%jacobian_type)
-            CASE DEFAULT
-               CALL cp_abort(__LOCATION__, &
-                             "Unknown Jacobian type: "// &
-                             cp_to_string(scf_control%outer_scf%jacobian_type))
-            CASE (jacobian_fd1)
-               ! f'(x0) = [ f(x0+h) - f(x0) ] / h
-               nwork = 0
-               pwork = 1
-               ALLOCATE (coeff(nwork:pwork), step_multiplier(nwork:pwork))
-               coeff(nwork) = -1.0_dp
-               coeff(pwork) = 1.0_dp
-               step_multiplier = 1.0_dp
-               dh = scf_control%outer_scf%jacobian_step
-            CASE (jacobian_fd1_backward)
-               ! f'(x0) = [ f(x0) - f(x0-h) ] / h
-               nwork = -1
-               pwork = 0
-               ALLOCATE (coeff(nwork:pwork), step_multiplier(nwork:pwork))
-               coeff(nwork) = -1.0_dp
-               coeff(pwork) = 1.0_dp
-               step_multiplier = -1.0_dp
-               dh = scf_control%outer_scf%jacobian_step
-            CASE (jacobian_fd2)
-               ! f'(x0) = [ -f(x0+2h) + 4f(x0+h) - 3f(x0) ] / 2h
-               nwork = 0
-               pwork = 2
-               ALLOCATE (coeff(nwork:pwork), step_multiplier(nwork:pwork))
-               coeff(0) = -3.0_dp
-               coeff(1) = 4.0_dp
-               coeff(2) = -1.0_dp
-               step_multiplier(0) = 0.0_dp
-               step_multiplier(1) = 1.0_dp
-               step_multiplier(2) = 2.0_dp
-               dh = 2.0_dp*scf_control%outer_scf%jacobian_step
-            CASE (jacobian_fd2_backward)
-               ! f'(x0) = [ 3f(x0) - 4f(x0-h) + f(x0-2h) ] / 2h
-               nwork = -2
-               pwork = 0
-               ALLOCATE (coeff(nwork:pwork), step_multiplier(nwork:pwork))
-               coeff(0) = 3.0_dp
-               coeff(-1) = -4.0_dp
-               coeff(-2) = 1.0_dp
-               step_multiplier(0) = 0.0_dp
-               step_multiplier(-1) = -1.0_dp
-               step_multiplier(-2) = -2.0_dp
-               dh = 2.0_dp*scf_control%outer_scf%jacobian_step
-            CASE (jacobian_fd1_central)
-               ! f'(x0) = [ f(x0+h) - f(x0-h) ] / 2h
-               nwork = -1
-               pwork = 1
-               ALLOCATE (coeff(nwork:pwork), step_multiplier(nwork:pwork))
-               coeff(0) = 0.0_dp
-               coeff(nwork) = -1.0_dp
-               coeff(pwork) = 1.0_dp
-               step_multiplier(0) = 0.0_dp
-               step_multiplier(nwork) = -1.0_dp
-               step_multiplier(pwork) = 1.0_dp
-               dh = 2.0_dp*scf_control%outer_scf%jacobian_step
-            END SELECT
+            CALL prepare_jacobian_stencil(qs_env, output_unit, nwork, pwork, coeff, step_multiplier, dh)
             twork = pwork-nwork
             DO i = 1, nvar
                jacobian(i, :) = coeff(0)*scf_env%outer_scf%gradient(i, iter_count)
             END DO
-            ! Print some info
-            IF (output_unit > 0) THEN
-               WRITE (output_unit, FMT="(/,A)") &
-                  " ================================== JACOBIAN CALCULATION ================================="
-               WRITE (output_unit, FMT="(A)") &
-                  " Evaluating inverse Jacobian using finite differences"
-               WRITE (output_unit, '(A,I10,A,I10)') &
-                  " Energy evaluation: ", cdft_control%ienergy, ", CDFT SCF iteration: ", iter_count
-               SELECT CASE (scf_control%outer_scf%jacobian_type)
-               CASE (jacobian_fd1)
-                  WRITE (output_unit, '(A)') " Type               : First order forward difference"
-               CASE (jacobian_fd1_backward)
-                  WRITE (output_unit, '(A)') " Type               : First order backward difference"
-               CASE (jacobian_fd2)
-                  WRITE (output_unit, '(A)') " Type               : Second order forward difference"
-               CASE (jacobian_fd2_backward)
-                  WRITE (output_unit, '(A)') " Type               : Second order backward difference"
-               CASE (jacobian_fd1_central)
-                  WRITE (output_unit, '(A)') " Type               : First order central difference"
-               CASE DEFAULT
-                  CALL cp_abort(__LOCATION__, "Unknown Jacobian type: "// &
-                                cp_to_string(scf_control%outer_scf%jacobian_type))
-               END SELECT
-               WRITE (output_unit, '(A,ES12.4)') " Step size          : ", scf_control%outer_scf%jacobian_step
-            END IF
             ! Calculate the Jacobian by perturbing each Lagrangian and recalculating the energy self-consistently
             CALL cp_add_default_logger(tmp_logger)
             DO i = 1, nvar
@@ -1494,78 +1347,12 @@ CONTAINS
             END IF
          ELSE
             ! Build a strictly diagonal Jacobian from history and invert it
-            CALL get_qs_env(qs_env, outer_scf_ihistory=outer_scf_ihistory)
-            ihistory = scf_env%outer_scf%iter_count
-            IF (outer_scf_ihistory .GE. 3 .AND. .NOT. used_history) THEN
-               ! First, lets try using the history from previous energy evaluations
-               CALL get_qs_env(qs_env, gradient_history=gradient_history, &
-                               variable_history=variable_history)
-               nvar = SIZE(scf_env%outer_scf%variables, 1)
-               use_md_history = .TRUE.
-               ! Check that none of the history values are identical in which case we should try something different
-               DO i = 1, nvar
-                  IF (ABS(variable_history(i, 2)-variable_history(i, 1)) .LT. 1.0E-12_dp) &
-                     use_md_history = .FALSE.
-               END DO
-               IF (use_md_history) THEN
-                  ALLOCATE (jacobian(nvar, nvar))
-                  DO i = 1, nvar
-                     jacobian(i, i) = (gradient_history(i, 2)-gradient_history(i, 1))/ &
-                                      (variable_history(i, 2)-variable_history(i, 1))
-                  END DO
-                  IF (.NOT. ASSOCIATED(scf_env%outer_scf%inv_jacobian)) &
-                     ALLOCATE (scf_env%outer_scf%inv_jacobian(nvar, nvar))
-                  inv_jacobian => scf_env%outer_scf%inv_jacobian
-                  CALL invert_matrix(jacobian, inv_jacobian, inv_error)
-                  DEALLOCATE (jacobian)
-                  ! Mark that an inverse Jacobian was just built and the next outer_loop_optimize should not perform
-                  ! a Broyden update of it
-                  scf_control%outer_scf%broyden_update = .FALSE.
-                  ! Mark that the MD history has been used and should not be reused anymore on this energy evaluation
-                  used_history = .TRUE.
-               END IF
-            END IF
-            IF (ihistory .GE. 2 .AND. .NOT. ASSOCIATED(scf_env%outer_scf%inv_jacobian)) THEN
-               ! Next, try history from current SCF procedure
-               nvar = SIZE(scf_env%outer_scf%variables, 1)
-               IF (SIZE(scf_env%outer_scf%gradient, 2) .LT. 3) &
-                  CALL cp_abort(__LOCATION__, &
-                                "Keyword EXTRAPOLATION_ORDER in section OUTER_SCF must be greater than or equal "// &
-                                "to 3 for optimizers that build the Jacobian from SCF history.")
-               ALLOCATE (jacobian(nvar, nvar))
-               DO i = 1, nvar
-                  jacobian(i, i) = (scf_env%outer_scf%gradient(i, ihistory)-scf_env%outer_scf%gradient(i, ihistory-1))/ &
-                                   (scf_env%outer_scf%variables(i, ihistory)-scf_env%outer_scf%variables(i, ihistory-1))
-               END DO
-               IF (.NOT. ASSOCIATED(scf_env%outer_scf%inv_jacobian)) &
-                  ALLOCATE (scf_env%outer_scf%inv_jacobian(nvar, nvar))
-               inv_jacobian => scf_env%outer_scf%inv_jacobian
-               CALL invert_matrix(jacobian, inv_jacobian, inv_error)
-               DEALLOCATE (jacobian)
-               scf_control%outer_scf%broyden_update = .FALSE.
-            ELSE
-               ! No history => will fall back to SD optimizer in outer_loop_optimize
-            END IF
+            CALL build_diagonal_jacobian(qs_env, used_history)
          END IF
       END IF
       IF (ASSOCIATED(scf_env%outer_scf%inv_jacobian) .AND. para_env%mepos == para_env%source) THEN
-         inv_jacobian => scf_env%outer_scf%inv_jacobian
-         nvar = SIZE(inv_jacobian, 1)
-         output_unit = get_unit_number()
-         project_name = logger%iter_info%project_name
-         lp = LEN_TRIM(project_name)
-         project_name(lp+1:LEN(project_name)) = ".inverseJacobian"
-         CALL open_file(file_name=project_name, file_status="UNKNOWN", &
-                        file_action="WRITE", file_position="APPEND", &
-                        unit_number=output_unit)
-         WRITE (output_unit, FMT="(/,A)") "Inverse Jacobian matrix in row major order"
-         WRITE (output_unit, FMT="(A,I10)") "Iteration: ", scf_env%outer_scf%iter_count
-         DO i = 1, nvar
-            DO j = 1, nvar
-               WRITE (output_unit, *) inv_jacobian(i, j)
-            END DO
-         END DO
-         CALL close_file(unit_number=output_unit)
+         ! Write restart file for inverse Jacobian
+         CALL print_inverse_jacobian(logger, scf_env%outer_scf%inv_jacobian, iter_count)
       END IF
       CALL timestop(handle)
 
@@ -1586,7 +1373,7 @@ CONTAINS
          routineP = moduleN//':'//routineN
 
       CHARACTER(len=default_path_length)                 :: project_name
-      INTEGER                                            :: handle, i, ispin, iter_count, lp, &
+      INTEGER                                            :: handle, i, ispin, iter_count, &
                                                             max_linesearch, max_scf, nspins, &
                                                             nsteps, nvar, output_unit
       LOGICAL :: continue_ls, continue_ls_exit, converged, do_linesearch, found_solution, &
@@ -1653,19 +1440,7 @@ CONTAINS
          iter_count = scf_env%outer_scf%iter_count
          ! Redirect output from line search procedure to a new file by creating a temporary logger
          project_name = logger%iter_info%project_name
-         IF (para_env%mepos == para_env%source) THEN
-            lp = LEN_TRIM(project_name)
-            project_name(lp+1:LEN(project_name)) = "-LineSearch.out"
-            CALL open_file(file_name=project_name, file_status="UNKNOWN", &
-                           file_action="WRITE", file_position="APPEND", &
-                           unit_number=output_unit)
-         ELSE
-            output_unit = -1
-         END IF
-         CALL cp_logger_create(tmp_logger, &
-                               para_env=para_env, &
-                               default_global_unit_nr=output_unit, &
-                               close_global_unit_on_dealloc=.FALSE.)
+         CALL create_tmp_logger(para_env, project_name, "-LineSearch.out", output_unit, tmp_logger)
          ! Save last converged state so we can roll back to it (mo_coeff and some outer_loop variables)
          nspins = dft_control%nspins
          ALLOCATE (mos_stashed(nspins))
