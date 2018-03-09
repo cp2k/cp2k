@@ -1187,7 +1187,12 @@ CONTAINS
 
       CHARACTER(len=*), PARAMETER :: routineN = 'dcy_lm', routineP = moduleN//':'//routineN
 
+      REAL(KIND=dp), DIMENSION(2)                        :: dd
+
       CPABORT("Not implemented")
+      CALL dry_lm(c, dd, l, m)
+      dy(1) = CMPLX(dd(1), 0.0_dp, KIND=dp)
+      dy(2) = CMPLX(dd(2), 0.0_dp, KIND=dp)
 
    END SUBROUTINE dcy_lm
 
