@@ -25,7 +25,7 @@ MODULE qs_grid_atom
       INTEGER                         :: nr, ng_sphere
       REAL(dp), DIMENSION(:), POINTER :: rad, rad2, &
                                          wr, wa, &
-                                         azi, cos_azi, sin_azi, cotan_pol, &
+                                         azi, cos_azi, sin_azi, &
                                          pol, cos_pol, sin_pol, usin_azi
       REAL(dp), DIMENSION(:, :), &
          POINTER :: rad2l, oorad2l, weight
@@ -67,7 +67,6 @@ CONTAINS
       NULLIFY (grid_atom%azi)
       NULLIFY (grid_atom%cos_azi)
       NULLIFY (grid_atom%sin_azi)
-      NULLIFY (grid_atom%cotan_pol)
       NULLIFY (grid_atom%pol)
       NULLIFY (grid_atom%cos_pol)
       NULLIFY (grid_atom%sin_pol)
@@ -122,10 +121,6 @@ CONTAINS
 
          IF (ASSOCIATED(grid_atom%sin_azi)) THEN
             DEALLOCATE (grid_atom%sin_azi)
-         END IF
-
-         IF (ASSOCIATED(grid_atom%cotan_pol)) THEN
-            DEALLOCATE (grid_atom%cotan_pol)
          END IF
 
          IF (ASSOCIATED(grid_atom%pol)) THEN
@@ -196,7 +191,6 @@ CONTAINS
          CALL reallocate(grid_atom%azi, 1, na)
          CALL reallocate(grid_atom%cos_azi, 1, na)
          CALL reallocate(grid_atom%sin_azi, 1, na)
-         CALL reallocate(grid_atom%cotan_pol, 1, na)
          CALL reallocate(grid_atom%pol, 1, na)
          CALL reallocate(grid_atom%cos_pol, 1, na)
          CALL reallocate(grid_atom%sin_pol, 1, na)
@@ -242,12 +236,6 @@ CONTAINS
                IF (grid_atom%sin_pol(ia) < 0.0_dp) pol = -pol
                grid_atom%pol(ia) = pol
                grid_atom%sin_pol(ia) = SIN(grid_atom%pol(ia))
-               IF (ABS(grid_atom%sin_pol(ia)) > EPSILON(1.0_dp)) THEN
-                  grid_atom%cotan_pol(ia) = &
-                     grid_atom%cos_pol(ia)/grid_atom%sin_pol(ia)
-               ELSE
-                  grid_atom%cotan_pol(ia) = 0.0_dp
-               END IF
 
                grid_atom%sin_azi(ia) = SIN(grid_atom%azi(ia))
                IF (ABS(grid_atom%sin_azi(ia)) > EPSILON(1.0_dp)) THEN

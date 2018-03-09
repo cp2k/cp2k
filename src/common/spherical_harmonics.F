@@ -33,13 +33,17 @@ MODULE spherical_harmonics
 
    PRIVATE
 
-   PUBLIC :: y_lm
+   PUBLIC :: y_lm, dy_lm
    PUBLIC :: clebsch_gordon_deallocate, clebsch_gordon_init, &
              clebsch_gordon
    PUBLIC :: legendre, dlegendre
 
    INTERFACE y_lm
       MODULE PROCEDURE rvy_lm, rry_lm, cvy_lm, ccy_lm
+   END INTERFACE
+
+   INTERFACE dy_lm
+      MODULE PROCEDURE dry_lm, dcy_lm
    END INTERFACE
 
    INTERFACE clebsch_gordon
@@ -997,6 +1001,196 @@ CONTAINS
 
    END SUBROUTINE ccy_lm
 
+! Calculation of derivatives of Spherical Harmonics
+
+! **************************************************************************************************
+!> \brief ...
+!> \param c ...
+!> \param dy ...
+!> \param l ...
+!> \param m ...
+! **************************************************************************************************
+   SUBROUTINE dry_lm(c, dy, l, m)
+!
+! Real Spherical Harmonics
+!                   _                   _
+!                  |  [(2l+1)(l-|m|)!]   |1/2 m         cos(m p)   m>=0
+!  Y_lm ( t, p ) = |---------------------|   P_l(cos(t))
+!                  |[2Pi(1+d_m0)(l+|m|)!]|              sin(|m| p) m<0
+!
+! Input: c == (t,p)
+! Output: dy == (dy/dt, dy/dp)
+!
+! x == sin(t)*cos(p)
+! y == sin(t)*sin(p)
+! z == cos(t)
+!
+
+      REAL(KIND=dp), DIMENSION(2), INTENT(IN)            :: c
+      REAL(KIND=dp), DIMENSION(2), INTENT(OUT)           :: dy
+      INTEGER, INTENT(IN)                                :: l, m
+
+      CHARACTER(len=*), PARAMETER :: routineN = 'dry_lm', routineP = moduleN//':'//routineN
+
+      REAL(KIND=dp)                                      :: cp, ct, dplm, lmm, lpm, p, pf, rxy, sp, &
+                                                            st, t, tt, y, z
+      REAL(KIND=dp), DIMENSION(3)                        :: r
+
+      t = c(1)
+      ct = COS(t)
+      st = SIN(t)
+      p = c(2)
+      cp = COS(p)
+      sp = SIN(p)
+      r(1) = st*cp
+      r(2) = st*sp
+      r(3) = ct
+
+! dY/dp
+      IF (m == 0) THEN
+         dy(2) = 0.0_dp
+      ELSE
+         CALL y_lm(r, y, l, -m)
+         dy(2) = -REAL(m, KIND=dp)*y
+      END IF
+
+! dY/dt
+      SELECT CASE (l)
+      CASE (:-1)
+         CPABORT("Negative l value")
+      CASE (0)
+         IF (m /= 0) CPABORT("l = 0 and m value out of bounds")
+         dy(1) = 0.0_dp
+      CASE (1)
+         SELECT CASE (m)
+         CASE DEFAULT
+            CPABORT("l = 1 and m value out of bounds")
+         CASE (1)
+            pf = SQRT(3.0_dp/(4.0_dp*pi))
+            dy(1) = pf*ct*cp
+         CASE (0)
+            pf = SQRT(3.0_dp/(4.0_dp*pi))
+            dy(1) = -pf*st
+         CASE (-1)
+            pf = SQRT(3.0_dp/(4.0_dp*pi))
+            dy(1) = pf*ct*sp
+         END SELECT
+      CASE (2)
+         SELECT CASE (m)
+         CASE DEFAULT
+            CPABORT("l = 2 and m value out of bounds")
+         CASE (2)
+            pf = SQRT(15.0_dp/(16.0_dp*pi))
+            dy(1) = pf*2.0_dp*st*ct*COS(2._dp*p)
+         CASE (1)
+            pf = SQRT(15.0_dp/(4.0_dp*pi))
+            dy(1) = pf*cp*(ct*ct-st*st)
+         CASE (0)
+            pf = SQRT(5.0_dp/(16.0_dp*pi))
+            dy(1) = -pf*6.0_dp*ct*st
+         CASE (-1)
+            pf = SQRT(15.0_dp/(4.0_dp*pi))
+            dy(1) = pf*sp*(ct*ct-st*st)
+         CASE (-2)
+            pf = SQRT(15.0_dp/(16.0_dp*pi))
+            dy(1) = pf*2.0_dp*st*ct*SIN(2._dp*p)
+         END SELECT
+      CASE (3)
+         SELECT CASE (m)
+         CASE DEFAULT
+            CPABORT("l = 3 and m value out of bounds")
+         CASE (3)
+            pf = SQRT(35.0_dp/(32.0_dp*pi))
+            dy(1) = pf*3.0_dp*COS(3._dp*p)*ct*st*st
+         CASE (2)
+            pf = SQRT(105.0_dp/(16.0_dp*pi))
+            dy(1) = pf*2.0_dp*COS(2._dp*p)*ct*st
+         CASE (1)
+            pf = SQRT(21.0_dp/(32.0_dp*pi))
+            dy(1) = pf*cp*(ct*(5.0_dp*ct-1.0_dp)-5.0_dp*st*st)
+         CASE (0)
+            pf = SQRT(7.0_dp/(16.0_dp*pi))
+            dy(1) = pf*r(3)*(3.0_dp-15.0_dp*ct*ct)*st
+         CASE (-1)
+            pf = SQRT(21.0_dp/(32.0_dp*pi))
+            dy(1) = pf*sp*(ct*(5.0_dp*ct-1.0_dp)-5.0_dp*st*st)
+         CASE (-2)
+            pf = SQRT(105.0_dp/(16.0_dp*pi))
+            dy(1) = pf*2.0_dp*SIN(2._dp*p)*ct*st
+         CASE (-3)
+            pf = SQRT(35.0_dp/(32.0_dp*pi))
+            dy(1) = pf*3.0_dp*SIN(3._dp*p)*ct*st*st
+         END SELECT
+      CASE DEFAULT
+         IF (m < -l .OR. m > l) CPABORT("m value out of bounds")
+         lpm = fac(l+ABS(m))
+         lmm = fac(l-ABS(m))
+         IF (m == 0) THEN
+            tt = 4.0_dp*pi
+         ELSE
+            tt = 2.0_dp*pi
+         END IF
+         IF (ABS(lpm) < EPSILON(1.0_dp)) THEN
+            pf = REAL(2*l+1, KIND=dp)/tt
+         ELSE
+            pf = (REAL(2*l+1, KIND=dp)*lmm)/(tt*lpm)
+         ENDIF
+         pf = SQRT(pf)
+         z = ct
+         dplm = dlegendre(z, l, m)
+         IF (m == 0) THEN
+            y = pf*dplm
+         ELSE
+            rxy = SQRT(r(1)**2+r(2)**2)
+            IF (rxy < EPSILON(1.0_dp)) THEN
+               y = 0.0_dp
+            ELSE
+               IF (m > 0) THEN
+                  y = pf*dplm*cosn(m, cp, sp)
+               ELSE
+                  y = pf*dplm*sinn(-m, cp, sp)
+               END IF
+            END IF
+         END IF
+      END SELECT
+
+   END SUBROUTINE dry_lm
+
+! **************************************************************************************************
+!> \brief ...
+!> \param c ...
+!> \param dy ...
+!> \param l ...
+!> \param m ...
+! **************************************************************************************************
+   SUBROUTINE dcy_lm(c, dy, l, m)
+!
+! Complex Spherical Harmonics
+!                   _                _
+!                  | [(2l+1)(l-|m|)!] |1/2 m
+!  Y_lm ( t, p ) = |------------------|   P_l(cos(t)) Exp[ i m p ]
+!                  |  [4Pi(l+|m|)!]|  |
+!
+! Input: r == (x,y,z) : normalised    x^2 + y^2 + z^2 = 1
+!
+! Input: c == (t,p)
+! Output: dy == (dy/dt, dy/dp)
+!
+! x == sin(t)*cos(p)
+! y == sin(t)*sin(p)
+! z == cos(t)
+!
+
+      REAL(KIND=dp), DIMENSION(2), INTENT(IN)            :: c
+      COMPLEX(KIND=dp), DIMENSION(2), INTENT(OUT)        :: dy
+      INTEGER, INTENT(IN)                                :: l, m
+
+      CHARACTER(len=*), PARAMETER :: routineN = 'dcy_lm', routineP = moduleN//':'//routineN
+
+      CPABORT("Not implemented")
+
+   END SUBROUTINE dcy_lm
+
 ! **************************************************************************************************
 !> \brief ...
 !> \param x ...
@@ -1635,185 +1829,5 @@ CONTAINS
       END IF
 
    END FUNCTION dsinn_dsp
-
-! **************************************************************************************************
-!> \brief ...
-!> \param r ...
-!> \param dy ...
-!> \param l ...
-!> \param m ...
-! **************************************************************************************************
-   SUBROUTINE drvy_lm(r, dy, l, m)
-!
-! Real Spherical Harmonics
-!                   _                   _
-!                  |  [(2l+1)(l-|m|)!]   |1/2 m         cos(m p)   m>=0
-!  Y_lm ( t, p ) = |---------------------|   P_l(cos(t))
-!                  |[2Pi(1+d_m0)(l+|m|)!]|              sin(|m| p) m<0
-!
-! Input: r == (x,y,z) : normalised    x^2 + y^2 + z^2 = 1
-!
-      REAL(KIND=dp), DIMENSION(:, :), INTENT(IN)         :: r
-      REAL(KIND=dp), DIMENSION(:, :), INTENT(OUT)        :: dy
-      INTEGER, INTENT(IN)                                :: l, m
-
-      CHARACTER(len=*), PARAMETER :: routineN = 'drvy_lm', routineP = moduleN//':'//routineN
-
-      INTEGER                                            :: i
-      REAL(KIND=dp)                                      :: cp, dcp_dx, dcp_dy, dplm, dsp_dx, &
-                                                            dsp_dy, lmm, lpm, pf, plm, rxy, sp, t, &
-                                                            z
-
-      SELECT CASE (l)
-      CASE (:-1)
-         CPABORT("Negative l value")
-      CASE (0)
-         pf = SQRT(1.0_dp/(4.0_dp*pi))
-         IF (m /= 0) CPABORT("l = 0 and m value out of bounds")
-         dy(1:3, :) = 0.0_dp
-      CASE (1)
-         SELECT CASE (m)
-         CASE DEFAULT
-            CPABORT("l = 1 and m value out of bounds")
-         CASE (1)
-            pf = SQRT(3.0_dp/(4.0_dp*pi))
-            dy(1, :) = pf
-            dy(2, :) = 0.0_dp
-            dy(3, :) = 0.0_dp
-         CASE (0)
-            pf = SQRT(3.0_dp/(4.0_dp*pi))
-            dy(1, :) = 0.0_dp
-            dy(2, :) = 0.0_dp
-            dy(3, :) = pf
-         CASE (-1)
-            pf = SQRT(3.0_dp/(4.0_dp*pi))
-            dy(1, :) = 0.0_dp
-            dy(2, :) = pf
-            dy(3, :) = 0.0_dp
-         END SELECT
-      CASE (2)
-         SELECT CASE (m)
-         CASE DEFAULT
-            CPABORT("l = 2 and m value out of bounds")
-         CASE (2)
-            pf = SQRT(15.0_dp/(16.0_dp*pi))
-            dy(1, :) = pf*2.0_dp*r(1, :)
-            dy(2, :) = -pf*2.0_dp*r(2, :)
-            dy(3, :) = 0.0_dp
-         CASE (1)
-            pf = SQRT(15.0_dp/(4.0_dp*pi))
-            dy(1, :) = pf*r(3, :)
-            dy(2, :) = 0.0_dp
-            dy(3, :) = pf*r(1, :)
-         CASE (0)
-            pf = SQRT(5.0_dp/(16.0_dp*pi))
-            dy(1, :) = 0.0_dp
-            dy(2, :) = 0.0_dp
-            dy(3, :) = pf*6.0_dp*r(3, :)
-         CASE (-1)
-            pf = SQRT(15.0_dp/(4.0_dp*pi))
-            dy(1, :) = 0.0_dp
-            dy(2, :) = pf*r(3, :)
-            dy(3, :) = pf*r(2, :)
-         CASE (-2)
-            pf = SQRT(15.0_dp/(16.0_dp*pi))
-            dy(1, :) = pf*2.0_dp*r(2, :)
-            dy(2, :) = pf*2.0_dp*r(1, :)
-            dy(3, :) = 0.0_dp
-         END SELECT
-      CASE (3)
-         SELECT CASE (m)
-         CASE DEFAULT
-            CPABORT("l = 3 and m value out of bounds")
-         CASE (3)
-            pf = SQRT(35.0_dp/(32.0_dp*pi))
-            dy(1, :) = pf*3.0_dp*(r(1, :)*r(1, :)-r(2, :)*r(2, :))
-            dy(2, :) = -pf*6.0_dp*r(1, :)*r(2, :)
-            dy(3, :) = 0.0_dp
-         CASE (2)
-            pf = SQRT(105.0_dp/(16.0_dp*pi))
-            dy(1, :) = pf*2.0_dp*r(3, :)*r(1, :)
-            dy(2, :) = -pf*2.0_dp*r(3, :)*r(2, :)
-            dy(3, :) = pf*(r(1, :)**2-r(2, :)**2)
-         CASE (1)
-            pf = SQRT(21.0_dp/(32.0_dp*pi))
-            dy(1, :) = pf*(5.0_dp*r(3, :)*r(3, :)-1.0_dp)
-            dy(2, :) = 0.0_dp
-            dy(3, :) = pf*10.0_dp*r(1, :)*r(3, :)
-         CASE (0)
-            pf = SQRT(7.0_dp/(16.0_dp*pi))
-            dy(1, :) = 0.0_dp
-            dy(2, :) = 0.0_dp
-            dy(3, :) = pf*(15.0_dp*r(3, :)*r(3, :)-3.0_dp)
-         CASE (-1)
-            pf = SQRT(21.0_dp/(32.0_dp*pi))
-            dy(1, :) = 0.0_dp
-            dy(2, :) = pf*(5.0_dp*r(3, :)*r(3, :)-1.0_dp)
-            dy(3, :) = pf*10.0_dp*r(2, :)*r(3, :)
-         CASE (-2)
-            pf = SQRT(105.0_dp/(16.0_dp*pi))
-            dy(1, :) = pf*2.0_dp*r(2, :)*r(3, :)
-            dy(2, :) = pf*2.0_dp*r(1, :)*r(3, :)
-            dy(3, :) = pf*2.0_dp*r(1, :)*r(2, :)
-         CASE (-3)
-            pf = SQRT(35.0_dp/(32.0_dp*pi))
-            dy(1, :) = pf*6.0_dp*r(1, :)*r(2, :)
-            dy(2, :) = pf*3.0_dp*(r(1, :)*r(1, :)-r(2, :)*r(2, :))
-            dy(3, :) = 0.0_dp
-         END SELECT
-      CASE DEFAULT
-         IF (m < -l .OR. m > l) CPABORT("m value out of bounds")
-         lpm = fac(l+ABS(m))
-         lmm = fac(l-ABS(m))
-         IF (m == 0) THEN
-            t = 4.0_dp*pi
-         ELSE
-            t = 2.0_dp*pi
-         END IF
-         IF (ABS(lpm) < EPSILON(1.0_dp)) THEN
-            pf = REAL(2*l+1, KIND=dp)/t
-         ELSE
-            pf = (REAL(2*l+1, KIND=dp)*lmm)/(t*lpm)
-         ENDIF
-         pf = SQRT(pf)
-         DO i = 1, SIZE(r, 2)
-            z = r(3, i)
-            dplm = dlegendre(z, l, ABS(m))
-            plm = legendre(z, l, m)
-
-            IF (m == 0) THEN
-               dy(1, i) = 0.0_dp
-               dy(2, i) = 0.0_dp
-               dy(3, i) = pf*dplm
-            ELSE
-               rxy = SQRT(r(1, i)**2+r(2, i)**2)
-               IF (rxy < EPSILON(1.0_dp)) THEN
-                  dy(1:3, i) = 0.0_dp
-               ELSE
-                  cp = r(1, i)/rxy
-                  sp = r(2, i)/rxy
-                  dcp_dx = (rxy-2.0_dp*r(1, i)**2)/(rxy*rxy)
-                  dcp_dy = -2.0_dp*r(1, i)*r(2, i)/(rxy*rxy)
-                  dsp_dy = (rxy-2.0_dp*r(2, i)**2)/(rxy*rxy)
-                  dsp_dx = -2.0_dp*r(1, i)*r(2, i)/(rxy*rxy)
-                  IF (m > 0) THEN
-                     dy(1, i) = pf*plm*(dcosn_dcp(m, cp, sp)*dcp_dx+ &
-                                        dcosn_dsp(m, cp, sp)*dsp_dx)
-                     dy(2, i) = pf*plm*(dcosn_dcp(m, cp, sp)*dcp_dy+ &
-                                        dcosn_dsp(m, cp, sp)*dsp_dy)
-                     dy(3, i) = pf*dplm*cosn(m, cp, sp)
-                  ELSE
-                     dy(1, i) = pf*plm*(dsinn_dcp(-m, cp, sp)*dcp_dx+ &
-                                        dsinn_dsp(-m, cp, sp)*dsp_dx)
-                     dy(2, i) = pf*plm*(dsinn_dcp(-m, cp, sp)*dcp_dy+ &
-                                        dsinn_dsp(-m, cp, sp)*dsp_dy)
-                     dy(3, i) = pf*dplm*sinn(-m, cp, sp)
-                  END IF
-               END IF
-            END IF
-         END DO
-      END SELECT
-
-   END SUBROUTINE drvy_lm
 
 END MODULE spherical_harmonics

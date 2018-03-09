@@ -958,8 +958,7 @@ CONTAINS
          maxs = nsoset(maxl)
          CALL create_harmonics_atom(harmonics, &
                                     my_CG, na, llmax, maxs, max_s_harm, ll, grid_atom%wa, &
-                                    grid_atom%pol, grid_atom%cos_pol, &
-                                    grid_atom%cotan_pol)
+                                    grid_atom%azi, grid_atom%pol)
          CALL get_maxl_CG(harmonics, orb_basis_set, llmax, max_s_harm)
 
       END DO

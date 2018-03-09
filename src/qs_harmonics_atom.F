@@ -15,10 +15,10 @@ MODULE qs_harmonics_atom
                                               nco,&
                                               ncoset,&
                                               nso,&
-                                              nsoset,&
-                                              soset
+                                              nsoset
    USE orbital_transformation_matrices, ONLY: orbtramat
-   USE spherical_harmonics,             ONLY: y_lm
+   USE spherical_harmonics,             ONLY: dy_lm,&
+                                              y_lm
 #include "./base/base_uses.f90"
 
    IMPLICIT NONE
@@ -33,7 +33,7 @@ MODULE qs_harmonics_atom
                                                 dmax_iso_not0, &
                                                 damax_iso_not0, &
                                                 ngrid
-      REAL(dp), DIMENSION(:, :), POINTER   :: a, slm, dmslm
+      REAL(dp), DIMENSION(:, :), POINTER   :: a, slm
       REAL(dp), DIMENSION(:, :, :), POINTER   :: dslm, dslm_dxyz
       REAL(dp), DIMENSION(:, :, :), POINTER   :: my_CG, my_dCG
       REAL(dp), DIMENSION(:, :, :, :), POINTER :: my_CG_dxyz
@@ -79,7 +79,6 @@ CONTAINS
       harmonics%ngrid = 0
 
       NULLIFY (harmonics%slm)
-      NULLIFY (harmonics%dmslm)
       NULLIFY (harmonics%dslm)
       NULLIFY (harmonics%dslm_dxyz)
       NULLIFY (harmonics%slm_int)
@@ -107,10 +106,6 @@ CONTAINS
 
          IF (ASSOCIATED(harmonics%slm)) THEN
             DEALLOCATE (harmonics%slm)
-         ENDIF
-
-         IF (ASSOCIATED(harmonics%dmslm)) THEN
-            DEALLOCATE (harmonics%dmslm)
          ENDIF
 
          IF (ASSOCIATED(harmonics%dslm)) THEN
@@ -164,27 +159,25 @@ CONTAINS
 !> \param max_s_harm ...
 !> \param ll ...
 !> \param wa ...
+!> \param azi ...
 !> \param pol ...
-!> \param cos_pol ...
-!> \param cotan_pol ...
 ! **************************************************************************************************
-   SUBROUTINE create_harmonics_atom(harmonics, my_CG, na, &
-                                    llmax, maxs, max_s_harm, ll, wa, pol, cos_pol, cotan_pol)
+   SUBROUTINE create_harmonics_atom(harmonics, my_CG, na, llmax, maxs, max_s_harm, ll, wa, azi, pol)
 
       TYPE(harmonics_atom_type), POINTER                 :: harmonics
       REAL(dp), DIMENSION(:, :, :), POINTER              :: my_CG
       INTEGER, INTENT(IN)                                :: na, llmax, maxs, max_s_harm, ll
-      REAL(dp), DIMENSION(:), INTENT(IN)                 :: wa, pol, cos_pol, cotan_pol
+      REAL(dp), DIMENSION(:), INTENT(IN)                 :: wa, azi, pol
 
       CHARACTER(len=*), PARAMETER :: routineN = 'create_harmonics_atom', &
          routineP = moduleN//':'//routineN
 
       INTEGER                                            :: handle, i, ia, ic, is, is1, is2, iso, &
-                                                            iso1, iso2, iso_mm, iso_mm1, iso_mp1, &
-                                                            l, l1, l2, lx, ly, lz, m, m1, m2, n
-      REAL(dp)                                           :: abs_m, cosmp1, drx, dry, drz, int1, &
-                                                            int2, int3, l_r, m_r, rx, ry, rz, &
-                                                            sinmp1
+                                                            iso1, iso2, l, l1, l2, lx, ly, lz, m, &
+                                                            m1, m2, n
+      REAL(dp)                                           :: drx, dry, drz, int1, int2, int3, rx, ry, &
+                                                            rz
+      REAL(dp), DIMENSION(2)                             :: cin, dylm
       REAL(dp), DIMENSION(:), POINTER                    :: slm_int, y
       REAL(dp), DIMENSION(:, :), POINTER                 :: dc, dy, slm
       REAL(dp), DIMENSION(:, :, :), POINTER              :: dslm_dxyz
@@ -213,7 +206,6 @@ CONTAINS
       !   *** allocate and calculate the spherical harmonics LM for this grid ***
       !       and their derivatives
       CALL reallocate(harmonics%slm, 1, na, 1, max_s_harm)
-      CALL reallocate(harmonics%dmslm, 1, na, 1, max_s_harm)
       CALL reallocate(harmonics%dslm, 1, 2, 1, na, 1, max_s_harm)
       CALL reallocate(harmonics%dslm_dxyz, 1, 3, 1, na, 1, max_s_harm)
       CALL reallocate(harmonics%a, 1, 3, 1, na)
@@ -391,74 +383,15 @@ CONTAINS
       ! the first angle (polar) is acos(lebedev_grid(ll)%r(3))
       ! the second angle (azimutal) is atan(lebedev_grid(ll)%r(2)/lebedev_grid(ll)%r(1))
       DO iso = 1, max_s_harm
-
          l = indso(1, iso)
          m = indso(2, iso)
-         l_r = REAL(l, dp)
-         m_r = REAL(m, dp)
-
-         ! Derivative with respect to the azimuthal angle
-         IF (m == 0) THEN
-            harmonics%dslm(2, 1:na, iso) = 0.0_dp
-         ELSE
-            iso_mm = soset(l, -m)
-            harmonics%dslm(2, 1:na, iso) = -m_r*harmonics%slm(1:na, iso_mm)
-         END IF
-
-         !  Derivative with respect to the polar angle
-         IF (m > 0) THEN
-
-            DO ia = 1, na
-
-               harmonics%dslm(1, ia, iso) = m_r*cotan_pol(ia)*harmonics%slm(ia, iso)
-
-               IF (m /= l) THEN
-                  iso_mp1 = soset(l, m+1)
-
-                  cosmp1 = COS((m_r+1)*pol(ia))
-                  IF (ABS(cosmp1) > EPSILON(1.0_dp)) THEN
-                     harmonics%dslm(1, ia, iso) = harmonics%dslm(1, ia, iso)+ &
-                                                  COS(m_r*pol(ia))*harmonics%slm(ia, iso_mp1)/ &
-                                                  cosmp1*SQRT((l_r-m_r)*(l_r+m_r+1._dp))
-                  END IF
-
-               END IF
-            END DO
-
-         ELSEIF (m == 0) THEN
-            IF (l == 0) THEN
-               harmonics%dslm(1, 1:na, iso) = 0.0_dp
-            ELSE
-               iso_mp1 = soset(l, 1)
-               iso_mm1 = soset(l, -1)
-               DO ia = 1, na
-
-                  IF (ABS(cos_pol(ia)) > EPSILON(1.0_dp)) THEN
-                     harmonics%dslm(1, ia, iso) = SQRT(0.5_dp*l_r*(l_r+1._dp))* &
-                                                  harmonics%slm(ia, iso_mp1)/cos_pol(ia)
-                  END IF
-               END DO
-            END IF
-         ELSE
-
-            abs_m = ABS(m_r)
-            DO ia = 1, na
-               harmonics%dslm(1, ia, iso) = abs_m*cotan_pol(ia)* &
-                                            harmonics%slm(ia, iso)
-               IF (m /= -l) THEN
-                  iso_mm1 = soset(l, m-1)
-
-                  sinmp1 = SIN((abs_m+1._dp)*pol(ia))
-                  IF (ABS(sinmp1) > EPSILON(1.0_dp)) THEN
-                     harmonics%dslm(1, ia, iso) = harmonics%dslm(1, ia, iso)+ &
-                                                  SIN(abs_m*pol(ia))*harmonics%slm(ia, iso_mm1)/ &
-                                                  sinmp1*SQRT((l_r-abs_m)*(l_r+abs_m+1._dp))
-                  END IF
-               END IF
-            END DO
-
-         END IF
-
+         DO ia = 1, na
+            cin(1) = pol(ia)
+            cin(2) = azi(ia)
+            CALL dy_lm(cin, dylm, l, m)
+            harmonics%dslm(1, ia, iso) = dylm(1)
+            harmonics%dslm(2, ia, iso) = dylm(2)
+         END DO
       END DO
 
       ! expansion coefficients of product of polar angle derivatives (dslm(1...)) in
