@@ -758,8 +758,8 @@ CONTAINS
                           description="name of the functional, see also "// &
                           "https://gitlab.com/libxc/libxc/wikis/Functionals-list-4.0.4 "// &
                           "The precise list of available functionals depends on "// &
-                          "the version of libxc interfaced (currently 4.0.3)", &
-                          usage=usage, type_of_var=char_t, n_var=-1)
+                          "the version of the linked libxc.", &
+                          usage=usage, type_of_var=char_t)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
       CALL keyword_create(keyword, name="SCALE", &
