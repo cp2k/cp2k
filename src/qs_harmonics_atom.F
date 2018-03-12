@@ -203,8 +203,8 @@ CONTAINS
          END DO
       END DO
 
-      !   *** allocate and calculate the spherical harmonics LM for this grid ***
-      !       and their derivatives
+      ! allocate and calculate the spherical harmonics LM for this grid
+      ! and their derivatives
       CALL reallocate(harmonics%slm, 1, na, 1, max_s_harm)
       CALL reallocate(harmonics%dslm, 1, 2, 1, na, 1, maxs)
       CALL reallocate(harmonics%dslm_dxyz, 1, 3, 1, na, 1, max_s_harm)
@@ -233,6 +233,11 @@ CONTAINS
          harmonics%a(i, 1:na) = lebedev_grid(ll)%r(i, 1:na)
       END DO
 
+      !
+      ! The derivatives dslm_dxyz and its expansions my_CG_dxyz and my_CG_dxyz_asymm
+      ! are NOT the dSlm/dx but the scaled by r**(l-1) derivatives of the monomial
+      ! terms x^n1 y^n2 z^n3 tranformed by spherical harmonics expansion coefficients
+      !
       DO ia = 1, na
          DO l = 0, indso(1, max_s_harm)
             DO ic = 1, nco(l)
