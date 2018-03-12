@@ -23,6 +23,7 @@ ndirstorestrict=0
 restrict_dirs[1]=""
 default_err_tolerance="1.0E-14"
 mpiexec="mpiexec --bind-to none"
+svnrec=
 
 # parse options
 while [ $# -ge 1 ]; do
@@ -95,6 +96,9 @@ while [ $# -ge 1 ]; do
   svndate=$2
   datum_short=${svndate}
   shift;;
+ -svnrev)
+  svnrev=$2
+  shift;;
  # do not check if code has changed
  -noemptycheck)
   emptycheck="NO";;
@@ -118,6 +122,7 @@ while [ $# -ge 1 ]; do
   echo ""
   echo "Svn:"
   echo "  -svndate DATE             checkout svn revision of given DATE. Default: use trunk."
+  echo "  -svnrev REV               checkout svn revision of given REV. Default: use trunk."
   echo "  -nosvn                    do not run svn update. Default: off."
   echo "  -noemptycheck             run tests even when no changes in svn were made. Default: on."
   echo ""
@@ -693,7 +698,11 @@ echo " regtesting location last dir: $dir_last"
 # Start testing
 echo "*************************** testing started ******************************"
 echo " started on " `date`
-echo " checking version ${svndate} "
+if [ -z "$svnver" ]; then
+    echo " checking version ${svndate} "
+else
+    echo " checking version ${svnrev} "
+fi
 echo " configuration: ${dir_triplet}-${cp2k_version} "
 file_info
 #
@@ -720,7 +729,11 @@ echo "noreset          = ${noreset}"
 echo "skiptest         = ${skiptest}"
 echo "do_unit_test     = ${do_unit_test}"
 echo "farming          = ${farming}"
-echo "svndate          = ${svndate}"
+if [ -z "$svnver" ]; then
+    echo "svndate          = ${svndate}"
+else
+    echo "svnrev          = ${svnrev}"
+fi
 t=1
 while [ $t -le ${ndirstoskip} ]; do
  echo "skip_dirs        = ${skip_dirs[t]}"
@@ -746,7 +759,11 @@ if [[ ${nosvn} != "nosvn" ]]; then
   for d in src data makefiles tests tools
   do
       echo "Updating $d ..."
-      svn update -r {${svndate}} $d &>${svn_out}
+      if [ -z "$svnver" ]; then
+	  svn update -r {${svndate}} $d &>${svn_out}
+      else
+	  svn update -r ${svnrev} $d &>${svn_out}
+      fi
       if (( $? )); then
          echo "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx" >>${error_description_file}
          cat ${svn_out} >>${error_description_file}
@@ -831,9 +848,9 @@ if [[ ${nobuild} != "nobuild" ]]; then
       echo "Module system not installed."
    fi
    echo "------------------------ compiling cp2k ----------------------------------"
-   echo "${make} -j $((maxtasks)) ${ARCH_SPEC} VERSION=${cp2k_version}"
+   echo "${make} -j ${ARCH_SPEC} VERSION=${cp2k_version}"
    echo "(make output is written to ${make_out})"
-   ${make} -j $((maxtasks)) ${ARCH_SPEC} VERSION=${cp2k_version} >>${make_out} 2>&1
+   ${make} -j ${ARCH_SPEC} VERSION=${cp2k_version} >>${make_out} 2>&1
    if (( $? )); then
       echo "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx" >>${error_description_file}
       cat ${make_out} >>${error_description_file}
