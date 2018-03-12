@@ -144,11 +144,23 @@ dirs:
 toolversions:
 ifneq ($(FC),)
 	@echo "=========== FC ($(ONEVERSION)) ==========="
+ifeq (Cray,$(shell $(CC) -V 2>&1 | head -n1 | cut -d' ' -f1))
+	$(FC) -V
+else ifeq (IBM,$(shell $(CC) -qversion 2>&1 | head -n1 | cut -d' ' -f1))
+	$(FC) -qversion
+else
 	$(FC) --version
+endif
 endif
 ifneq ($(CC),)
 	@echo "=========== CC ($(ONEVERSION)) ==========="
+ifeq (Cray,$(shell $(CC) -V 2>&1 | head -n1 | cut -d' ' -f1))
+	$(CC) -V
+else ifeq (IBM,$(shell $(CC) -qversion 2>&1 | head -n1 | cut -d' ' -f1))
+	$(CC) -qversion
+else
 	$(CC) --version
+endif
 endif
 ifneq ($(NVCC),)
 	@echo "========== NVCC ($(ONEVERSION)) =========="
