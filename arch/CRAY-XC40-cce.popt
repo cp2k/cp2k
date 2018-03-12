@@ -1,0 +1,18 @@
+# Author: Alfio Lazzaro (alfio.lazzaro@chem.uzh.ch), UZH, 2018
+# Program environments:
+# - module load PrgEnv-cce ; module load cray-libsci ; module load fftw
+# Tested with CCE v8.6.x
+
+CC       = cc
+CPP      = 
+FC       = ftn
+LD       = ftn
+AR       = ar -r
+CPPFLAGS =
+DFLAGS   = -D__FFTW3 -D__parallel -D__SCALAPACK -D__HAS_NO_SHARED_GLIBC
+DFLAGS  += -hnoomp
+CFLAGS   = $(DFLAGS)
+FCFLAGS  = $(DFLAGS) -O2 -emf -ffree
+FCFLAGS += -hflex_mp=strict
+LDFLAGS  = $(FCFLAGS)
+LIBS     = -lfftw3
