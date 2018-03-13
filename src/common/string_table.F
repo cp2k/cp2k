@@ -58,7 +58,7 @@ CONTAINS
 !> \brief returns a unique id for a given string, and stores the string for
 !>      later retrieval using the id.
 !> \param str the string to be stored (default_string_length)
-!> \retval id ...
+!> \return ...
 !> \par History
 !>      09.2006 created [Joost VandeVondele]
 !> \note
@@ -102,7 +102,7 @@ CONTAINS
 ! **************************************************************************************************
 !> \brief returns the string associated with a given id
 !> \param id the id to be converted into a string
-!> \retval str ...
+!> \return ...
 !> \par History
 !>      09.2006 created [Joost VandeVondele]
 !> \note
@@ -128,7 +128,7 @@ CONTAINS
 ! **************************************************************************************************
 !> \brief converts a string in a string of default_string_length
 !> \param str ...
-!> \retval res ...
+!> \return ...
 !> \par History
 !>      09.2006 created [Joost VandeVondele]
 !> \note
@@ -204,7 +204,7 @@ CONTAINS
 ! **************************************************************************************************
 !> \brief generates the hash of a string and the index in the table
 !> \param key a string of any length
-!> \retval hash_index ...
+!> \return ...
 !> \par History
 !>       09.2006 created [Joost VandeVondele]
 !> \note

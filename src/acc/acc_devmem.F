@@ -249,7 +249,7 @@ CONTAINS
 ! **************************************************************************************************
 !> \brief Returns a logical, which indicates if the given devmem is allocated.
 !> \param[in] this device memory
-!> \retval res true if device memory is allocated, false otherwise
+!> \return true if device memory is allocated, false otherwise
 !> \author  Ole Schuett
 ! **************************************************************************************************
    FUNCTION acc_devmem_allocated(this) RESULT(res)
@@ -262,7 +262,7 @@ CONTAINS
 ! **************************************************************************************************
 !> \brief Returns size of given devmem in terms of item count (not bytes!)
 !> \param[in] this device memory
-!> \retval res size of device memory (item count)
+!> \return size of device memory (item count)
 !> \author  Ole Schuett
 ! **************************************************************************************************
    FUNCTION acc_devmem_size_in_bytes(this) RESULT(res)
@@ -277,7 +277,7 @@ CONTAINS
 ! **************************************************************************************************
 !> \brief Returns C-pointer to data of given devmem.
 !> \param[in] this device memory
-!> \retval res false (accelerator support is not enabled)
+!> \return false (accelerator support is not enabled)
 !> \author  Ole Schuett
 ! **************************************************************************************************
 #if ! defined (__ACC)
@@ -292,7 +292,7 @@ CONTAINS
 ! **************************************************************************************************
 !> \brief Returns C-pointer to data of given devmem.
 !> \param[in] this device memory
-!> \retval res C-pointer to data of given devmem
+!> \return C-pointer to data of given devmem
 !> \author  Ole Schuett
 ! **************************************************************************************************
    FUNCTION acc_devmem_cptr(this) RESULT(res)

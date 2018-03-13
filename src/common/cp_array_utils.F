@@ -257,7 +257,7 @@ END SUBROUTINE cp_2d_${nametype1}$_write
 !> \param el the element to look for
 !> \param l_index the lower index for binary search (defaults to 1)
 !> \param u_index the upper index for binary search (defaults to size(array))
-!> \retval res ...
+!> \return ...
 !> \par History
 !>      06.2003 created [fawzi]
 !> \author Fawzi Mohamed

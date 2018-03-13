@@ -57,7 +57,7 @@
 !> \param[in] select_data_type   force datatype
 !> \param[in] lb         (optional) lower bound for pointer
 !> \param[in] ub         (optional) upper bound for pointer
-!> \retval data          pointer to data
+!> \return pointer to data
 !> \par Calling
 !>      This routine is hidden behind the dbcsr_get_data interface, hence the
 !>      need for the select_data_type argument.
@@ -110,7 +110,7 @@
 !> \param[in] area       data area
 !> \param[in] lb         (optional) lower bound for pointer
 !> \param[in] ub         (optional) upper bound for pointer
-!> \retval DATA pointer to data
+!> \return pointer to data
 !> \par Calling
 !>      This routine can be called explicitly.
 ! **************************************************************************************************
@@ -154,7 +154,7 @@
 !> \param[in] area       data area
 !> \param[in] lb         (optional) lower bound for pointer
 !> \param[in] ub         (optional) upper bound for pointer
-!> \retval DATA pointer to data
+!> \return pointer to data
 !> \par Calling
 !>      This routine can be called explicitly.
 ! **************************************************************************************************
@@ -288,7 +288,7 @@
 ! **************************************************************************************************
 !> \brief Sets a scalar in an encapsulated data structure
 !> \param[in] scalar                    scalar to encapsulate
-!> \retval encapsulated_scalar          encapsulated scalar
+!> \return encapsulated scalar
 ! **************************************************************************************************
   ELEMENTAL FUNCTION dbcsr_scalar_${nametype1}$ (scalar) RESULT (encapsulated_scalar)
     ${type1}$, INTENT(IN)       :: scalar

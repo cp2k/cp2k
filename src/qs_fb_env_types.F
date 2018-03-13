@@ -175,7 +175,7 @@ CONTAINS
 !> \brief Checks if a fb_env object is associated with an actual
 !>        data content or not
 !> \param fb_env the fb_env object
-!> \retval res ...
+!> \return ...
 !> \author Lianheng Tong (LT) lianheng.tong@kcl.ac.uk
 ! **************************************************************************************************
    FUNCTION fb_env_has_data(fb_env) RESULT(res)

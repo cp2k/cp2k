@@ -61,7 +61,7 @@ CONTAINS
 !> \param description the description of the derivative you want to have
 !> \param allocate_deriv if the derivative should be allocated when not present
 !>                        Defaults to false.
-!> \retval res ...
+!> \return ...
 ! **************************************************************************************************
    FUNCTION xc_dset_get_derivative(derivative_set, description, allocate_deriv) &
       RESULT(res)

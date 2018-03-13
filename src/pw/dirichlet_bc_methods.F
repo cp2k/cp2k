@@ -1080,7 +1080,7 @@ CONTAINS
 !> \param a starting value
 !> \param b end value
 !> \param N number of evenly-spaced points between a and b
-!> \retval arr array containg N evenly-spaced points between a and b
+!> \return array containg N evenly-spaced points between a and b
 !> \par History
 !>       07.2014 created [Hossein Bani-Hashemian]
 !> \author Mohammad Hossein Bani-Hashemian
@@ -1169,7 +1169,7 @@ CONTAINS
 !> \param Tp image of the origin under the translation
 !> \param direction forward or backward transformation
 !> \param vec input vector
-!> \retval vec_transfd transformed vector
+!> \return transformed vector
 !> \par History
 !>       11.2015 created [Hossein Bani-Hashemian]
 !> \author Mohammad Hossein Bani-Hashemian

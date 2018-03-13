@@ -171,7 +171,7 @@ CONTAINS
 ! **************************************************************************************************
 !> \brief returns the position of the force env corresponding to the given id
 !> \param env_id the id of the requested environment
-!> \retval res ...
+!> \return ...
 !> \author fawzi
 !> \note
 !>      private utility function

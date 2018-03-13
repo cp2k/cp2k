@@ -1240,7 +1240,7 @@ CONTAINS
 !>                   '1' or 'O' one norm, i.e. maximum column sum,
 !>                   'I' infinity norm, i.e. maximum row sum,
 !>                   'F' or 'E' Frobenius norm, i.e. sqrt of sum of all squares of elements
-!> \retval res       the norm according to mode
+!> \return the norm according to mode
 !> \author Lianheng Tong
 ! **************************************************************************************************
    FUNCTION cp_cfm_norm(matrix, mode) RESULT(res)

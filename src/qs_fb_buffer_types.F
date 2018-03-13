@@ -224,7 +224,7 @@ CONTAINS
 ! **************************************************************************************************
 !> \brief check if an object as associated data
 !> \param buffer : fb_buffer object
-!> \retval res : .TRUE. if buffer has associated data
+!> \return : .TRUE. if buffer has associated data
 !> \author Lianheng Tong (LT) lianheng.tong@kcl.ac.uk
 ! **************************************************************************************************
    PURE FUNCTION fb_buffer_i_has_data(buffer) RESULT(res)
@@ -572,7 +572,7 @@ CONTAINS
 ! **************************************************************************************************
 !> \brief check if an object as associated data
 !> \param buffer : fb_buffer object
-!> \retval res : .TRUE. if buffer has associated data
+!> \return : .TRUE. if buffer has associated data
 !> \author Lianheng Tong (LT) lianheng.tong@kcl.ac.uk
 ! **************************************************************************************************
    PURE FUNCTION fb_buffer_d_has_data(buffer) RESULT(res)

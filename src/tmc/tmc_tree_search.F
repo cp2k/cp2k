@@ -271,7 +271,7 @@ CONTAINS
 ! **************************************************************************************************
 !> \brief searching the parent element (last accepted configuration before)
 !> \param current actual tree element
-!> \retval parent parent tree element (last accepted one)
+!> \return parent tree element (last accepted one)
 !> \author Mandes 12.2012
 !> \note routine searches last (assumed) accepted element in subtree
 ! **************************************************************************************************

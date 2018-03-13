@@ -94,7 +94,7 @@ CONTAINS
 !> \param map1_2d which nd-indices map to first matrix index and in which order
 !> \param map2_2d which nd-indices map to second matrix index and in which order
 !> \param dims_nd nd dimensions
-!> \retval communicator with nd cartesian grid
+!> \return with nd cartesian grid
 ! **************************************************************************************************
    FUNCTION dbcsr_t_nd_mp_comm(comm_2d, map1_2d, map2_2d, dims_nd)
       INTEGER, INTENT(IN)                               :: comm_2d
@@ -451,7 +451,7 @@ CONTAINS
 ! **************************************************************************************************
 !> \brief tensor rank
 !> \param tensor ...
-!> \retval ndims_tensor ...
+!> \return ...
 ! **************************************************************************************************
    PURE FUNCTION ndims_tensor(tensor)
       TYPE(dbcsr_t_type), INTENT(IN) :: tensor
@@ -477,7 +477,7 @@ CONTAINS
 ! **************************************************************************************************
 !> \brief tensor data type
 !> \param tensor ...
-!> \retval dbcsr_t_get_data_type ...
+!> \return ...
 ! **************************************************************************************************
    FUNCTION dbcsr_t_get_data_type(tensor) RESULT(data_type)
       TYPE(dbcsr_t_type), INTENT(IN) :: tensor

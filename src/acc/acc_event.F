@@ -203,7 +203,7 @@ CONTAINS
 ! **************************************************************************************************
 !> \brief Fortran-wrapper for cudaEventQuery.
 !> \param[in] this event
-!> \retval res true if event has occured, false otherwise
+!> \return true if event has occured, false otherwise
 !> \author  Ole Schuett
 ! **************************************************************************************************
    FUNCTION acc_event_query(this) RESULT(res)

@@ -218,7 +218,7 @@ CONTAINS
 !> \brief Checks if a fb_atomic_halo object is associated with an actual
 !>        data content or not
 !> \param atomic_halo the fb_atomic_halo object
-!> \retval res ...
+!> \return ...
 !> \author Lianheng Tong (LT) lianheng.tong@kcl.ac.uk
 ! **************************************************************************************************
    FUNCTION fb_atomic_halo_has_data(atomic_halo) RESULT(res)
@@ -444,7 +444,7 @@ CONTAINS
 !> \param atomic_halo the atomic_halo object
 !> \param particle_set an array of cp2k particle set objects (this
 !>                       gives atomic information)
-!> \retval nelectrons estimate of electron number
+!> \return estimate of electron number
 !> \author Lianheng Tong (LT) lianheng.tong@kcl.ac.uk
 ! **************************************************************************************************
    FUNCTION fb_atomic_halo_nelectrons_estimate_Z(atomic_halo, particle_set) RESULT(nelectrons)
@@ -483,7 +483,7 @@ CONTAINS
 !> \param qs_kind_set  : cp2k qs_kind objects, provides information on the
 !>                       number of contracted gaussian functions each kind
 !>                       has
-!> \retval cost        : computation cost w.r.t. the filter matrix
+!> \return : computation cost w.r.t. the filter matrix
 !>                       calculation for this atomic halo
 !> \author Lianheng Tong (LT) lianheng.tong@kcl.ac.uk
 ! **************************************************************************************************
@@ -659,7 +659,7 @@ CONTAINS
 !> \brief Checks if a fb_atomic_halo_list object is associated with
 !>        an actual data content or not
 !> \param atomic_halos the fb_atomic_halo_list object
-!> \retval res ...
+!> \return ...
 !> \author Lianheng Tong (LT) lianheng.tong@kcl.ac.uk
 ! **************************************************************************************************
    FUNCTION fb_atomic_halo_list_has_data(atomic_halos) RESULT(res)

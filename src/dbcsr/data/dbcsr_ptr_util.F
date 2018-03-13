@@ -105,7 +105,7 @@ CONTAINS
 !> \param[in] area            area to point into
 !> \param[in] offset          point to this offset in area
 !> \param[in] len             (optional) length of data area to point to
-!> \retval narea2 copy of new_area
+!> \return copy of new_area
 ! **************************************************************************************************
    FUNCTION pointer_view_a(new_area, area, offset, len) RESULT(narea2)
       TYPE(dbcsr_data_obj), INTENT(INOUT)                :: new_area

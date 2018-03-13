@@ -152,7 +152,7 @@ CONTAINS
 !> \brief maps an integer to a string
 !> \param enum the enumeration to use for the mapping
 !> \param i the value to map
-!> \retval res ...
+!> \return ...
 !> \author fawzi
 ! **************************************************************************************************
    FUNCTION enum_i2c(enum, i) RESULT(res)
@@ -194,7 +194,7 @@ CONTAINS
 !> \brief maps a string to an integer
 !> \param enum the enumeration to use for the mapping
 !> \param c the value to map
-!> \retval res ...
+!> \return ...
 !> \author fawzi
 ! **************************************************************************************************
    FUNCTION enum_c2i(enum, c) RESULT(res)

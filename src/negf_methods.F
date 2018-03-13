@@ -1515,7 +1515,7 @@ CONTAINS
 !> \brief Fermi function (exp(E/(kT)) + 1) ^ {-1} .
 !> \param omega       'energy' point on the complex plane
 !> \param temperature temperature in atomic units
-!> \retval            value
+!> \return value
 !> \par History
 !>    * 05.2017 created [Sergey Chulkov]
 ! **************************************************************************************************
@@ -2161,7 +2161,7 @@ CONTAINS
 !> \brief Generate an integration method description string.
 !> \param stats              integration statistics
 !> \param integration_method integration method used
-!> \retval method_descr      description string
+!> \return description string
 !> \author Sergey Chulkov
 ! **************************************************************************************************
    PURE FUNCTION get_method_description_string(stats, integration_method) RESULT(method_descr)
@@ -2196,7 +2196,7 @@ CONTAINS
 !> \param sub_env           NEGF parallel (sub)group environment
 !> \param ispin             spin conponent to proceed
 !> \param blacs_env_global  global BLACS environment
-!> \retval current          electric current
+!> \return electric current
 !> \author Sergey Chulkov
 ! **************************************************************************************************
    FUNCTION negf_compute_current(contact_id1, contact_id2, negf_env, negf_control, sub_env, ispin, &

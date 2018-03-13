@@ -48,7 +48,7 @@ CONTAINS
 !> \brief returns extended filename for global and sub trees
 !> \param tmc_params param environment for creating the file name
 !> \param ind index of the subtree (0 = global tree)
-!> \retval filename ...
+!> \return ...
 !> \author Mandes 12.2012
 ! **************************************************************************************************
    FUNCTION get_dot_file_name(tmc_params, ind) RESULT(filename)

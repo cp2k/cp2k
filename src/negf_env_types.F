@@ -662,7 +662,7 @@ CONTAINS
 !> \param direction_vector    direction vector
 !> \param subsys_contact      QuickStep subsystem of the contact force environment
 !> \param eps_geometry        accuracy in mapping atoms between different force environments
-!> \retval direction_axis     direction axis: 0 (undefined), 1 (x), 2(y), 3 (z)
+!> \return direction axis: 0 (undefined), 1 (x), 2(y), 3 (z)
 !> \par History
 !>   * 08.2017 created [Sergey Chulkov]
 ! **************************************************************************************************

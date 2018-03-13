@@ -82,7 +82,7 @@ CONTAINS
 
 ! **************************************************************************************************
 !> \brief Return the number of available ELPA kernels
-!> \retval num ...
+!> \return ...
 ! **************************************************************************************************
    PURE FUNCTION get_elpa_number_kernels() RESULT(num)
       INTEGER                                            :: num
@@ -92,7 +92,7 @@ CONTAINS
 
 ! **************************************************************************************************
 !> \brief Returns the names of the availabel ELPA kernels
-!> \retval names ...
+!> \return ...
 ! **************************************************************************************************
    FUNCTION get_elpa_kernel_names() RESULT(names)
       CHARACTER(len=default_string_length), DIMENSION(19) :: names
@@ -121,7 +121,7 @@ CONTAINS
 
 ! **************************************************************************************************
 !> \brief Returns the description texts of the availabel ELPA kernels
-!> \retval descriptions ...
+!> \return ...
 ! **************************************************************************************************
    FUNCTION get_elpa_kernel_descriptions() RESULT(descriptions)
       CHARACTER(len=default_string_length), DIMENSION(19) :: descriptions

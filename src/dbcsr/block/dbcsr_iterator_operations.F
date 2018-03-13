@@ -753,7 +753,7 @@ CONTAINS
 ! **************************************************************************************************
 !> \brief Returns whether there any blocks left in the iterator.
 !> \param[in] iterator       the iterator
-!> \retval blocks_left ...
+!> \return ...
 !> \param[in]
 ! **************************************************************************************************
    PURE FUNCTION dbcsr_iterator_blocks_left(iterator) RESULT(blocks_left)

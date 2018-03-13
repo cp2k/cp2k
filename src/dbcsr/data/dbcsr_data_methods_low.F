@@ -111,7 +111,7 @@ CONTAINS
 ! **************************************************************************************************
 !> \brief Returns data type of a data area
 !> \param[in] area         data area
-!> \retval data_type       data type of the data area
+!> \return data type of the data area
 ! **************************************************************************************************
    PURE FUNCTION dbcsr_data_get_type(area) RESULT(data_type)
       TYPE(dbcsr_data_obj), INTENT(IN)                   :: area
@@ -123,7 +123,7 @@ CONTAINS
 ! **************************************************************************************************
 !> \brief Returns if there is a single reference of the data
 !> \param[in] area         data area
-!> \retval unique          true if reference is 1
+!> \return true if reference is 1
 ! **************************************************************************************************
    PURE FUNCTION dbcsr_data_unique(area) RESULT(unique)
       TYPE(dbcsr_data_obj), INTENT(IN)                   :: area
@@ -135,7 +135,7 @@ CONTAINS
 ! **************************************************************************************************
 !> \brief ...
 !> \param area ...
-!> \retval memory_type ...
+!> \return ...
 ! **************************************************************************************************
    FUNCTION dbcsr_data_get_memory_type(area) RESULT(memory_type)
       TYPE(dbcsr_data_obj), INTENT(IN)                   :: area
@@ -331,7 +331,7 @@ CONTAINS
 ! **************************************************************************************************
 !> \brief Checks whether a data area is valid
 !> \param[in] area         data area
-!> \retval valid           whether the data area is valid
+!> \return whether the data area is valid
 ! **************************************************************************************************
    ELEMENTAL FUNCTION dbcsr_data_valid(area) RESULT(valid)
       TYPE(dbcsr_data_obj), INTENT(IN)                   :: area
@@ -348,7 +348,7 @@ CONTAINS
 ! **************************************************************************************************
 !> \brief Checks whether a data pointer exists
 !> \param[in] area         data area
-!> \retval valid           whether the data pointer exists
+!> \return whether the data pointer exists
 ! **************************************************************************************************
    FUNCTION dbcsr_data_exists(area) RESULT(valid)
       TYPE(dbcsr_data_obj), INTENT(IN)                   :: area
@@ -540,7 +540,7 @@ CONTAINS
 ! **************************************************************************************************
 !> \brief Returns the allocated data size
 !> \param[in] area       data area
-!> \retval data_size      size of data
+!> \return size of data
 ! **************************************************************************************************
    FUNCTION dbcsr_data_get_size(area) RESULT(data_size)
       TYPE(dbcsr_data_obj), INTENT(IN)                   :: area
@@ -849,7 +849,7 @@ CONTAINS
 ! **************************************************************************************************
 !> \brief Returns an encapsulated scalar "1"
 !> \param[in] data_type       use the data type
-!> \retval one                encapsulated value of one
+!> \return encapsulated value of one
 ! **************************************************************************************************
    ELEMENTAL FUNCTION dbcsr_scalar_one(data_type) RESULT(one)
       INTEGER, INTENT(IN)                                :: data_type
@@ -871,7 +871,7 @@ CONTAINS
 ! **************************************************************************************************
 !> \brief Returns an encapsulated scalar "sqrt(-1)"
 !> \param[in] data_type       use the data type
-!> \retval i                 encapsulated value of i
+!> \return encapsulated value of i
 ! **************************************************************************************************
    ELEMENTAL FUNCTION dbcsr_scalar_i(data_type) RESULT(i)
       INTEGER, INTENT(IN)                                :: data_type
@@ -893,7 +893,7 @@ CONTAINS
 ! **************************************************************************************************
 !> \brief Returns an encapsulated scalar "0"
 !> \param[in] data_type       use the data type
-!> \retval zero               encapsulated value of zero
+!> \return encapsulated value of zero
 ! **************************************************************************************************
    ELEMENTAL FUNCTION dbcsr_scalar_zero(data_type) RESULT(zero)
       INTEGER, INTENT(IN)                                :: data_type
@@ -910,7 +910,7 @@ CONTAINS
 !> \brief Returns whether an encapsulated scalar is equal to another value
 !> \param[in] s1                    one value
 !> \param[in] s2                    another value
-!> \retval are_equal                whether values are equal
+!> \return whether values are equal
 ! **************************************************************************************************
    ELEMENTAL FUNCTION dbcsr_scalar_are_equal(s1, s2) RESULT(are_equal)
       TYPE(dbcsr_scalar_type), INTENT(IN)                :: s1, s2
@@ -937,7 +937,7 @@ CONTAINS
 ! **************************************************************************************************
 !> \brief Returns an encapsulated scalar as a negation of the given
 !> \param[in] s                    given value
-!> \retval negated                 negated value
+!> \return negated value
 ! **************************************************************************************************
    ELEMENTAL FUNCTION dbcsr_scalar_negative(s) RESULT(negated)
       TYPE(dbcsr_scalar_type), INTENT(IN)                :: s
@@ -962,7 +962,7 @@ CONTAINS
 !> \brief Returns an encapsulated scalar as a negation of the given
 !> \param s1 ...
 !> \param s2 ...
-!> \retval s_sum ...
+!> \return ...
 ! **************************************************************************************************
    ELEMENTAL FUNCTION dbcsr_scalar_add(s1, s2) RESULT(s_sum)
       TYPE(dbcsr_scalar_type), INTENT(IN)                :: s1, s2
@@ -987,7 +987,7 @@ CONTAINS
 !> \brief ...
 !> \param s1 ...
 !> \param s2 ...
-!> \retval s_product ...
+!> \return ...
 ! **************************************************************************************************
    ELEMENTAL FUNCTION dbcsr_scalar_multiply(s1, s2) RESULT(s_product)
       TYPE(dbcsr_scalar_type), INTENT(IN)                :: s1, s2
@@ -1011,7 +1011,7 @@ CONTAINS
 ! **************************************************************************************************
 !> \brief Returns data type of a scalar
 !> \param[in] scalar       scalar
-!> \retval data_type       data type of the scalar
+!> \return data type of the scalar
 ! **************************************************************************************************
    ELEMENTAL FUNCTION dbcsr_scalar_get_type(scalar) RESULT(data_type)
       TYPE(dbcsr_scalar_type), INTENT(IN)                :: scalar
@@ -1066,7 +1066,7 @@ CONTAINS
 ! **************************************************************************************************
 !> \brief Checks whether the data type is 2-D.
 !> \param data_type ...
-!> \retval dbcsr_type_is_2d Data type is 2-D.
+!> \return Data type is 2-D.
 ! **************************************************************************************************
    PURE FUNCTION dbcsr_type_is_2d(data_type)
       INTEGER, INTENT(IN)                                :: data_type
@@ -1081,7 +1081,7 @@ CONTAINS
 ! **************************************************************************************************
 !> \brief Returns 1-d data type corresponding to the given 2-D one.
 !> \param data_type ...
-!> \retval dbcsr_type_2d_to_1d 1-D data type
+!> \return 1-D data type
 ! **************************************************************************************************
    PURE FUNCTION dbcsr_type_2d_to_1d(data_type)
       INTEGER, INTENT(IN)                                :: data_type
@@ -1112,7 +1112,7 @@ CONTAINS
 ! **************************************************************************************************
 !> \brief Returns 2-D data type corresponding to the given 1-D one.
 !> \param data_type ...
-!> \retval dbcsr_type_1d_to_2d 2-D data type
+!> \return 2-D data type
 ! **************************************************************************************************
    PURE FUNCTION dbcsr_type_1d_to_2d(data_type)
       INTEGER, INTENT(IN)                                :: data_type
@@ -1143,7 +1143,7 @@ CONTAINS
 ! **************************************************************************************************
 !> \brief Get actual data storage used for matrix
 !> \param[in] area            Count data of this matrix
-!> \retval data_size_referenced Data size used by matrix
+!> \return Data size used by matrix
 ! **************************************************************************************************
    PURE FUNCTION dbcsr_data_get_size_referenced(area) RESULT(data_size_referenced)
       TYPE(dbcsr_data_obj), INTENT(IN)                   :: area

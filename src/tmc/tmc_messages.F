@@ -80,7 +80,7 @@ CONTAINS
 ! **************************************************************************************************
 !> \brief checks if the core is the group master
 !> \param para_env defines the mpi communicator
-!> \retval master return value, logical
+!> \return return value, logical
 !> \author Mandes 01.2013
 ! **************************************************************************************************
    FUNCTION check_if_group_master(para_env) RESULT(master)

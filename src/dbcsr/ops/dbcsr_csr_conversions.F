@@ -1009,7 +1009,7 @@ CONTAINS
 !>        structure and same sparsity pattern
 !> \param[in] matrix_a  ...
 !> \param[in] matrix_b ...
-!> \retval is_equal whether matrix_a and matrix_b have the same block structure
+!> \return whether matrix_a and matrix_b have the same block structure
 !> \par History
 !>      11.2014 created [Patrick Seewald]
 !> \author Patrick Seewald

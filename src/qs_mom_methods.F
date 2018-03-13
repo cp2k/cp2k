@@ -60,7 +60,7 @@ CONTAINS
 !>        (de-)occupation list supplied by user. Check that all the indices
 !>        are positive integers and abort if it is not the case.
 !> \param  iarr      list of molecular orbital indices to be checked
-!> \retval is_unique .true. if all the elements are unique or the list contains
+!> \return .true. if all the elements are unique or the list contains
 !>         exactly one 0 element (meaning no excitation)
 !> \par History
 !>      01.2016 created [Sergey Chulkov]

@@ -72,7 +72,7 @@ CONTAINS
 !> \brief Determines whether a transpose must be applied
 !> \param[in] row   The absolute matrix row.
 !> \param[in] column          The absolute matrix column.
-!> \retval transpose ...
+!> \return ...
 ! **************************************************************************************************
    ELEMENTAL FUNCTION checker_tr(row, column) RESULT(transpose)
       INTEGER, INTENT(IN)                                :: row, column
@@ -89,7 +89,7 @@ CONTAINS
 !> \param[in] pgrid           process grid
 !> \param[in] row_dist        row distribution
 !> \param[in] col_dist        column distribution
-!> \retval process            home process of the given element
+!> \return home process of the given element
 !> \note This routine is a more low-level version of
 !>       dbcsr_get_stored_coordinate without the setting the row and column
 !>       to the stored position.
@@ -722,7 +722,7 @@ CONTAINS
 ! **************************************************************************************************
 !> \brief Determines whether most blocks are stored transposed in normally.
 !> \param[in] blk_p           Pointers to blocks
-!> \retval mostly_non_transposed ...
+!> \return ...
 !> \note Tries to be quick and not necessarily accurate.
 ! **************************************************************************************************
    PURE FUNCTION mostly_non_transposed(blk_p)

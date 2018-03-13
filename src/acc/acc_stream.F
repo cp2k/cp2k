@@ -81,7 +81,7 @@ CONTAINS
 ! **************************************************************************************************
 !> \brief Returns C-pointer of given stream.
 !> \param[in] this stream ID
-!> \retval res false (accelerator support is not enabled)
+!> \return false (accelerator support is not enabled)
 !> \author  Ole Schuett
 ! **************************************************************************************************
 #if ! defined (__ACC)
@@ -97,7 +97,7 @@ CONTAINS
 ! **************************************************************************************************
 !> \brief Returns C-pointer of given stream.
 !> \param[in] this stream ID
-!> \retval res C-pointer of a given stream
+!> \return C-pointer of a given stream
 !> \author  Ole Schuett
 ! **************************************************************************************************
    FUNCTION acc_stream_cptr(this) RESULT(res)
@@ -211,7 +211,7 @@ CONTAINS
 !> \brief Checks if two streams are equal
 !> \param[in] this first stream
 !> \param[in] other second stream
-!> \retval res true if equal, false otherwise
+!> \return true if equal, false otherwise
 !> \author  Ole Schuett
 ! **************************************************************************************************
    FUNCTION acc_stream_equal(this, other) RESULT(res)
@@ -229,7 +229,7 @@ CONTAINS
 ! **************************************************************************************************
 !> \brief Checks if a streams is associated
 !> \param[in] this stream
-!> \retval res true if associated, false otherwise
+!> \return true if associated, false otherwise
 !> \author  Ole Schuett
 ! **************************************************************************************************
    FUNCTION acc_stream_associated(this) RESULT(res)

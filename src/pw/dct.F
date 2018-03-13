@@ -1209,7 +1209,7 @@ CONTAINS
 !> \brief   precalculates the local bounds of a 3d array after applying flipud
 !> \param bndsl_in current local lower and upper bounds
 !> \param bounds global lower and upper bounds
-!> \retval bndsl_out new local lower and upper bounds
+!> \return new local lower and upper bounds
 !> \par History
 !>       07.2014 created [Hossein Bani-Hashemian]
 !> \author Mohammad Hossein Bani-Hashemian
@@ -1245,7 +1245,7 @@ CONTAINS
 !> \brief   precalculates the local bounds of a 3d array after applying fliplr
 !> \param bndsl_in current local lower and upper bounds
 !> \param bounds global lower and upper bounds
-!> \retval bndsl_out new local lower and upper bounds
+!> \return new local lower and upper bounds
 !> \par History
 !>       07.2014 created [Hossein Bani-Hashemian]
 !> \author Mohammad Hossein Bani-Hashemian
@@ -1281,7 +1281,7 @@ CONTAINS
 !> \brief   precalculates the local bounds of a 3d array after applying flipbf
 !> \param bndsl_in current local lower and upper bounds
 !> \param bounds global lower and upper bounds
-!> \retval bndsl_out new local lower and upper bounds
+!> \return new local lower and upper bounds
 !> \par History
 !>       07.2014 created [Hossein Bani-Hashemian]
 !> \author Mohammad Hossein Bani-Hashemian
@@ -1317,7 +1317,7 @@ CONTAINS
 !> \brief   precalculates the local bounds of a 3d array after applying rot180
 !> \param bndsl_in current local lower and upper bounds
 !> \param bounds global lower and upper bounds
-!> \retval bndsl_out new local lower and upper bounds
+!> \return new local lower and upper bounds
 !> \par History
 !>       07.2014 created [Hossein Bani-Hashemian]
 !> \author Mohammad Hossein Bani-Hashemian

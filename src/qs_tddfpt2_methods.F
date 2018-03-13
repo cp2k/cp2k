@@ -1266,7 +1266,7 @@ CONTAINS
 ! **************************************************************************************************
 !> \brief Compute the number of possible singly excited states (occ -> virt)
 !> \param gs_mos          occupied and virtual molecular orbitals optimised for the ground state
-!> \retval nstates_total  the number of possible single excitations
+!> \return the number of possible single excitations
 !> \par History
 !>    * 01.2017 created [Sergey Chulkov]
 ! **************************************************************************************************
@@ -1506,7 +1506,7 @@ CONTAINS
 !>                  excited state wave functions
 !> \param work_fm_mo_occ_mo_occ work matrices with shape [nmo_occ(spin) x nmo_occ(spin)]
 !>                              to store matrix products S_0^T * S * evects (modified on exit)
-!> \retval is_nonortho true if trial vectors are non-orthogonal to occupied molecular orbitals
+!> \return true if trial vectors are non-orthogonal to occupied molecular orbitals
 !> \par History
 !>    * 07.2016 created [Sergey Chulkov]
 ! **************************************************************************************************
@@ -2529,7 +2529,7 @@ CONTAINS
 !> \param energy_unit           I/O unit to write detailed energy information
 !> \param tddfpt_print_section  TDDFPT print input section (need to write TDDFPT restart files)
 !> \param work_matrices         collection of work matrices (modified on exit)
-!> \retval conv                 energy convergence achieved (in Hartree)
+!> \return energy convergence achieved (in Hartree)
 !> \par History
 !>    * 03.2017 code related to Davidson eigensolver has been moved here from the main subroutine
 !>              tddfpt() [Sergey Chulkov]
@@ -3232,7 +3232,7 @@ CONTAINS
 !> \param tddfpt_print_section TDDFPT%PRINT input section
 !> \param fm_pool_ao_mo_occ    pools of dense matrices with shape [nao x nmo_occ(spin)]
 !> \param blacs_env_global     BLACS parallel environment involving all the processor
-!> \retval nstates_read        the number of excited states found in the restart file
+!> \return the number of excited states found in the restart file
 !> \par History
 !>    * 08.2016 created [Sergey Chulkov]
 ! **************************************************************************************************

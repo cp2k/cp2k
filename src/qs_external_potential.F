@@ -437,7 +437,7 @@ CONTAINS
 !> \param subgrid     part of external potential on a grid
 !> \param origin      center of grid
 !> \param dr          step size
-!> \retval value_at_r interpolated value of external potential
+!> \return interpolated value of external potential
 ! **************************************************************************************************
    FUNCTION trilinear_interpolation(r, subgrid, origin, dr) RESULT(value_at_r)
       REAL(KIND=dp), DIMENSION(3)                        :: r
@@ -465,7 +465,7 @@ CONTAINS
 !> \param i ...
 !> \param lowbound ...
 !> \param upbound ...
-!> \retval pbc_index ...
+!> \return ...
 ! **************************************************************************************************
    FUNCTION pbc_index(i, lowbound, upbound)
       INTEGER                                            :: i, lowbound, upbound, pbc_index

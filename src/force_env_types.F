@@ -453,7 +453,7 @@ CONTAINS
 ! **************************************************************************************************
 !> \brief returns the number of atoms
 !> \param force_env the force_env you what information about
-!> \retval n_atom the number of atoms
+!> \return the number of atoms
 !> \date   22.11.2010 updated (MK)
 !> \author fawzi
 ! **************************************************************************************************
@@ -477,7 +477,7 @@ CONTAINS
 ! **************************************************************************************************
 !> \brief returns the number of particles in a force environment
 !> \param force_env the force_env you what information about
-!> \retval n_particle the number of particles
+!> \return the number of particles
 !> \date   22.11.2010 (MK)
 !> \author Matthias Krack
 ! **************************************************************************************************

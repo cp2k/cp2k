@@ -66,7 +66,7 @@ CONTAINS
 !>        (instead of the ending)
 !> \param file_name original file name
 !> \param extra string to be added before the file extention
-!> \retval result_file_name the new filename
+!> \return the new filename
 !> \author Mandes 11.2012
 ! **************************************************************************************************
    FUNCTION expand_file_name_ending(file_name, extra) RESULT(result_file_name)
@@ -96,7 +96,7 @@ CONTAINS
 !>        (before the file extention)
 !> \param file_name original file name
 !> \param extra string to be added before the file extention
-!> \retval result_file_name the new filename
+!> \return the new filename
 !> \author Mandes 11.2012
 ! **************************************************************************************************
    FUNCTION expand_file_name_char(file_name, extra) RESULT(result_file_name)
@@ -126,7 +126,7 @@ CONTAINS
 !>        (before the file extention)
 !> \param file_name original file name
 !> \param rvalue temperature to be added
-!> \retval result_file_name the new filename
+!> \return the new filename
 !> \author Mandes 11.2012
 ! **************************************************************************************************
    FUNCTION expand_file_name_temp(file_name, rvalue) RESULT(result_file_name)
@@ -166,7 +166,7 @@ CONTAINS
 !>        (before the file extention)
 !> \param file_name original file name
 !> \param ivalue number to be added
-!> \retval result_file_name the new filename
+!> \return the new filename
 !> \author Mandes 11.2012
 ! **************************************************************************************************
    FUNCTION expand_file_name_int(file_name, ivalue) RESULT(result_file_name)

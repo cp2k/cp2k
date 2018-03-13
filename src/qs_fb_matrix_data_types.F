@@ -221,7 +221,7 @@ CONTAINS
 ! **************************************************************************************************
 !> \brief check if the object has data associated to it
 !> \param matrix_data : the fb_matrix_data object in question
-!> \retval res        : true if matrix_data%obj is associated, false otherwise
+!> \return : true if matrix_data%obj is associated, false otherwise
 !> \author Lianheng Tong (LT) lianheng.tong@kcl.ac.uk
 ! **************************************************************************************************
    PURE FUNCTION fb_matrix_data_has_data(matrix_data) RESULT(res)
@@ -387,7 +387,7 @@ CONTAINS
 !> \param row     : row index (assume to start counting from 1)
 !> \param col     : col index (assume to start counting from 1)
 !> \param nencode : integer used for encoding
-!> \retval pair_ind : the returned value
+!> \return : the returned value
 !> \author Lianheng Tong (LT) lianheng.tong@kcl.ac.uk
 ! **************************************************************************************************
    PURE FUNCTION fb_matrix_data_encode_pair(row, col, nencode) &

@@ -131,7 +131,7 @@ CONTAINS
 !> \brief The sum of a subset of rows/columns
 !> \param[in] all_offsets     ordered offsets of all the elements
 !> \param[in] local_elements  enumerated local elements
-!> \retval nfull_elements     sum of sizes of local elemetns 
+!> \return sum of sizes of local elemetns 
 !> \note Used for making matrices dense/undense
 ! **************************************************************************************************
   PURE FUNCTION nfull_elements (all_offsets, local_elements)
@@ -356,7 +356,7 @@ CONTAINS
 !> \param n ...
 !> \param oldsign ...
 !> \param x ...
-!> \retval val ...
+!> \return ...
 ! **************************************************************************************************
   ELEMENTAL FUNCTION sgn (n, oldsign, x) RESULT (val)
       INTEGER, INTENT(IN)                                :: n, oldsign
@@ -493,7 +493,7 @@ CONTAINS
 !> \param[in] matrix          matrix
 !> \param[in] local           (optional) no global communication
 !> \param[in] pos             (optional) position-dependent checksum
-!> \retval checksum calculated checksum
+!> \return calculated checksum
 ! **************************************************************************************************
   FUNCTION dbcsr_checksum(matrix, local, pos) RESULT(checksum)
       TYPE(dbcsr_type), INTENT(IN)                       :: matrix
@@ -618,7 +618,7 @@ CONTAINS
 !> \param tr ...
 !> \param ro ...
 !> \param co ...
-!> \retval pd_cs ...
+!> \return ...
 ! **************************************************************************************************
   PURE FUNCTION pd_blk_cs (ld, od, DATA, tr, ro, co) RESULT (pd_cs)
       INTEGER, INTENT(IN)                                :: ld, od

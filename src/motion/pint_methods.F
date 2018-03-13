@@ -2261,7 +2261,7 @@ CONTAINS
 ! ***************************************************************************
 !> \brief calculates the total link action of the PI system (excluding helium)
 !> \param pint_env the path integral environment
-!> \retval link_action ...
+!> \return ...
 !> \author Felix Uhl
 ! **************************************************************************************************
    FUNCTION pint_calc_total_link_action(pint_env) RESULT(link_action)
@@ -2309,7 +2309,7 @@ CONTAINS
 ! ***************************************************************************
 !> \brief calculates the potential action of the PI system (excluding helium)
 !> \param pint_env the path integral environment
-!> \retval pot_action ...
+!> \return ...
 !> \author Felix Uhl
 ! **************************************************************************************************
    FUNCTION pint_calc_total_pot_action(pint_env) RESULT(pot_action)

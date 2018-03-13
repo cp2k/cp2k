@@ -138,7 +138,7 @@ CONTAINS
 ! **************************************************************************************************
 !> \brief  Calculates the optimal number of CPUs for diagonalizing a matrix.
 !> \param  size  the size of the diagonalized matrix
-!> \retval ncpu  the optimal number of CPUs
+!> \return the optimal number of CPUs
 !> \author Nico Holmberg [01.2018]
 ! **************************************************************************************************
    FUNCTION cp_fm_diag_get_optimal_ncpu(size) RESULT(ncpu)
@@ -156,7 +156,7 @@ CONTAINS
 !> \brief  Determines the largest number of CPUs a matrix can be distributed on when the matrix is
 !>         diagonalized with the ELPA library.
 !> \param  matrix the matrix that will be diagonalized
-!> \retval ncpu   the maximum number of CPUs for ELPA
+!> \return the maximum number of CPUs for ELPA
 !> \author Nico Holmberg [01.2018]
 ! **************************************************************************************************
    FUNCTION cp_fm_elpa_get_max_ncpu(matrix) RESULT(ncpu)

@@ -214,7 +214,7 @@ CONTAINS
 !>      *** is only used by initialize_velocities below ***
 !> \param part ...
 !> \param ireg ...
-!> \retval ekin ...
+!> \return ...
 !> \par History
 !>      2007-11-6: created
 !> \author Toon Verstraelen <Toon.Verstraelen@gmail.com>
@@ -1088,7 +1088,7 @@ CONTAINS
 !>                       to total energy
 !> \param dof          : total number of degrees of freedom, = 3*natoms
 !> \param scale        : scale to make sure the sum of vibrational modes give the correct energy
-!> \retval res         : outputs icart-th cartesian component of initial position of atom iatom
+!> \return : outputs icart-th cartesian component of initial position of atom iatom
 !> \author Lianheng Tong, lianheng.tong@kcl.ac.uk
 ! **************************************************************************************************
   PURE FUNCTION dr_from_vib_data(iatom, &
@@ -1149,7 +1149,7 @@ CONTAINS
 !>                       to total energy
 !> \param dof          : total number of degrees of freedom, = 3*natoms
 !> \param scale        : scale to make sure the sum of vibrational modes give the correct energy
-!> \retval res         : outputs icart-th cartesian component of initial velocity of atom iatom
+!> \return : outputs icart-th cartesian component of initial velocity of atom iatom
 !> \author Lianheng Tong, lianheng.tong@kcl.ac.uk
 ! **************************************************************************************************
   PURE FUNCTION dv_from_vib_data(iatom, &

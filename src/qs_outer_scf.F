@@ -59,7 +59,7 @@ CONTAINS
 !>        this value is returned by the cdft_control type
 !> \param scf_control the outer loop control type
 !> \param cdft_control the cdft loop control type
-!> \retval res the number of variables
+!> \return the number of variables
 !> \par History
 !>      03.2006 created [Joost VandeVondele]
 ! **************************************************************************************************

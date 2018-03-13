@@ -874,7 +874,7 @@ CONTAINS
 !> \brief selects a move type related to the weighings and the entered rnd nr
 !> \param move_types structure for storing sizes and probabilities of moves
 !> \param rnd random number
-!> \retval mv_type (result) move type
+!> \return (result) move type
 !> \author Mandes 12.2012
 !> \note function returns a possible move type without the PT swap moves
 !> \note (are selected in global tree, this routine is for sub tree elements)

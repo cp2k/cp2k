@@ -674,7 +674,7 @@ CONTAINS
 !> \param basic_kind the kind of the unit of the value
 !> \param basic_unit the unit of the value
 !> \param power the power of the unit (defaults to 1)
-!> \retval res ...
+!> \return ...
 !> \author fawzi
 ! **************************************************************************************************
    FUNCTION cp_basic_unit_to_cp2k(value, basic_kind, basic_unit, power) RESULT(res)
@@ -842,7 +842,7 @@ CONTAINS
 !> \param basic_unit the unit of the value
 !> \param power the power of the unit (defaults to 1)
 !> \param accept_undefined ...
-!> \retval res ...
+!> \return ...
 !> \author fawzi
 ! **************************************************************************************************
    FUNCTION cp_basic_unit_desc(basic_kind, basic_unit, power, accept_undefined) &
@@ -1071,7 +1071,7 @@ CONTAINS
 !> \param defaults defaults for the undefined units, optional
 !> \param accept_undefined if defaults is not present or is not associated
 !>        whether undefined units should be accepted (defaults to false)
-!> \retval res ...
+!> \return ...
 !> \author fawzi
 ! **************************************************************************************************
    FUNCTION cp_unit_desc(unit, defaults, accept_undefined) &
@@ -1124,7 +1124,7 @@ CONTAINS
 !> \param defaults the defaults unit for those that are left free
 !>        (cp_units_none)
 !> \param power the power of the unit (defaults to 1)
-!> \retval res ...
+!> \return ...
 !> \author fawzi
 ! **************************************************************************************************
    FUNCTION cp_unit_to_cp2k1(value, unit, defaults, power) RESULT(res)
@@ -1165,7 +1165,7 @@ CONTAINS
 !> \param defaults the defaults unit for those that are left free
 !>        (cp_units_none)
 !> \param power the power of the unit (defaults to 1)
-!> \retval res ...
+!> \return ...
 !> \author fawzi
 ! **************************************************************************************************
    FUNCTION cp_unit_from_cp2k1(value, unit, defaults, power) RESULT(res)
@@ -1197,7 +1197,7 @@ CONTAINS
 !> \param defaults the defaults unit for those that are left free
 !>        (cp_units_none)
 !> \param power the power of the unit (defaults to 1)
-!> \retval res ...
+!> \return ...
 !> \author fawzi
 ! **************************************************************************************************
    FUNCTION cp_unit_to_cp2k(value, unit_str, defaults, power) RESULT(res)
@@ -1230,7 +1230,7 @@ CONTAINS
 !> \param defaults the defaults unit for those that are left free
 !>        (cp_units_none)
 !> \param power the power of the unit (defaults to 1)
-!> \retval res ...
+!> \return ...
 !> \author fawzi
 ! **************************************************************************************************
    FUNCTION cp_unit_from_cp2k(value, unit_str, defaults, power) RESULT(res)
@@ -1260,7 +1260,7 @@ CONTAINS
 !> \brief returs true if the two units are compatible
 !> \param ref_unit ...
 !> \param unit ...
-!> \retval res ...
+!> \return ...
 !> \author Teodoro Laino [tlaino] - 11.2007 - University of Zurich
 ! **************************************************************************************************
    FUNCTION cp_unit_compatible(ref_unit, unit) RESULT(res)

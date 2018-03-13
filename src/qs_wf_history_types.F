@@ -212,7 +212,7 @@ CONTAINS
 !> \brief returns a snapshot, the first being the latest snapshot
 !> \param wf_history the plage where to get the snapshot
 !> \param index the index of the snapshot you want
-!> \retval res ...
+!> \return ...
 !> \par History
 !>      12.2002 created [fawzi]
 !> \author fawzi

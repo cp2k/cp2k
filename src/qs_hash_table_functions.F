@@ -24,7 +24,7 @@ CONTAINS
 ! **************************************************************************************************
 !> \brief Find a prime number equal or larger than ii
 !> \param ii   : input integer
-!> \retval res : the prime number
+!> \return : the prime number
 ! **************************************************************************************************
    PURE FUNCTION hash_table_matching_prime(ii) RESULT(res)
       INTEGER, INTENT(IN)                                :: ii
@@ -42,7 +42,7 @@ CONTAINS
 ! **************************************************************************************************
 !> \brief Check if a number is a positive prime
 !> \param num  : number to check
-!> \retval res : returns TRUE if num is a positive prime, FALSE otherwise
+!> \return : returns TRUE if num is a positive prime, FALSE otherwise
 !> \author Lianheng Tong (LT) lianheng.tong@kcl.ac.uk
 ! **************************************************************************************************
    PURE FUNCTION is_positive_prime(num) RESULT(res)

@@ -262,7 +262,7 @@ ${private_routines}$
 ! **************************************************************************************************
 !> \brief returns the first element stored in the list
 !> \param sll the single linked list to get the element from
-!> \retval res ...
+!> \return ...
 !> \par History
 !>      none
 !> \author Fawzi Mohamed
@@ -283,7 +283,7 @@ ${private_routines}$
 !> \param sll the single linked list to get the rest from
 !> \param iter how many times the call to rest should be iterated,
 !>            defaults to 1; -1 means till end of the list.
-!> \retval res ...
+!> \return ...
 !> \par History
 !>      none
 !> \author Fawzi Mohamed
@@ -328,7 +328,7 @@ ${private_routines}$
 ! **************************************************************************************************
 !> \brief returns the length of the list
 !> \param sll the list you want to know the length of
-!> \retval res ...
+!> \return ...
 !> \par History
 !>      none
 !> \author Fawzi Mohamed
@@ -360,7 +360,7 @@ ${private_routines}$
 !> \brief returns the element at the given index
 !> \param sll the list you get the element from
 !> \param index the position of the element (stating at 1)
-!> \retval res ...
+!> \return ...
 !> \par History
 !>      none
 !> \author Fawzi Mohamed
@@ -426,7 +426,7 @@ ${private_routines}$
 !>      moves the iterator to the next element
 !> \param iterator iterator that moves along the list
 !> \param el_att the actual element (valid only if the function returns true)
-!> \retval res ...
+!> \return ...
 !> \par History
 !>      none
 !> \author Fawzi Mohamed
@@ -602,7 +602,7 @@ ${private_routines}$
 !> \brief returns a newly allocated array with the same contents as
 !>      the linked list
 !> \param sll the list to trasform in array
-!> \retval res ...
+!> \return ...
 !> \par History
 !>      07.2002 created [fawzi]
 !> \author Fawzi Mohamed

@@ -353,7 +353,7 @@ CONTAINS
 !>      otherwise.
 !> \param fmstruct1 one of the full matrix structures to compare
 !> \param fmstruct2 the second of the full matrix structures to compare
-!> \retval res ...
+!> \return ...
 !> \par History
 !>      08.2002 created [fawzi]
 !> \author Fawzi Mohamed
@@ -581,7 +581,7 @@ CONTAINS
 
 ! **************************************************************************************************
 !> \brief ...
-!> \retval res ...
+!> \return ...
 ! **************************************************************************************************
    FUNCTION cp_fm_struct_get_nrow_block() RESULT(res)
       INTEGER                                            :: res
@@ -591,7 +591,7 @@ CONTAINS
 
 ! **************************************************************************************************
 !> \brief ...
-!> \retval res ...
+!> \return ...
 ! **************************************************************************************************
    FUNCTION cp_fm_struct_get_ncol_block() RESULT(res)
       INTEGER                                            :: res

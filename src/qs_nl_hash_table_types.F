@@ -201,7 +201,7 @@ CONTAINS
 ! **************************************************************************************************
 !> \brief check if the object has data associated to it
 !> \param hash_table : the nl_hash_table object in question
-!> \retval res       : true if hash_table%obj is associated, false otherwise
+!> \return : true if hash_table%obj is associated, false otherwise
 ! **************************************************************************************************
    PURE FUNCTION nl_hash_table_has_data(hash_table) RESULT(res)
       TYPE(nl_hash_table_obj), INTENT(IN)                :: hash_table
@@ -382,7 +382,7 @@ CONTAINS
 !> \brief Linear probing algorithm for the hash table
 !> \param hash_table : the nl_hash_table object
 !> \param key        : key to locate
-!> \retval islot     : slot location in the table correspond to key, 0 if key not found
+!> \return : slot location in the table correspond to key, 0 if key not found
 ! **************************************************************************************************
    PURE FUNCTION nl_hash_table_linear_probe(hash_table, key) RESULT(islot)
       TYPE(nl_hash_table_obj), INTENT(IN)                :: hash_table
@@ -416,7 +416,7 @@ CONTAINS
 !> \brief Hash function
 !> \param hash_table : the nl_hash_table object
 !> \param key        : key to locate
-!> \retval islot     : slot location in the table correspond to key, 0 if key not found
+!> \return : slot location in the table correspond to key, 0 if key not found
 ! **************************************************************************************************
    PURE FUNCTION nl_hash_table_hash_function(hash_table, key) RESULT(hash)
       TYPE(nl_hash_table_obj), INTENT(IN)                :: hash_table

@@ -279,7 +279,7 @@ CONTAINS
 ! **************************************************************************************************
 !> \brief tries to pop an element from the given list (no error on failure)
 !> \param list the list to pop
-!> \retval res ...
+!> \return ...
 !> \par History
 !>      08.2002 created [fawzi]
 !> \author Fawzi Mohamed

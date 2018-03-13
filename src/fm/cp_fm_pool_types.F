@@ -246,7 +246,7 @@ CONTAINS
 ! **************************************************************************************************
 !> \brief returns the structure of the elements in this pool
 !> \param pool the pool you are interested in
-!> \retval res ...
+!> \return ...
 !> \par History
 !>      05.2002 created [fawzi]
 !> \author Fawzi Mohamed

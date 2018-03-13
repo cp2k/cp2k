@@ -355,7 +355,7 @@ CONTAINS
 ! **************************************************************************************************
 !> \brief Creates an MPI combined type from the given anytype.
 !> \param[in] data_area       Data area of any type
-!> \retval mp_type            Type descriptor
+!> \return Type descriptor
 ! **************************************************************************************************
    FUNCTION dbcsr_mp_type_from_anytype(data_area) RESULT(mp_type)
       TYPE(dbcsr_data_obj), INTENT(IN)                   :: data_area
@@ -702,7 +702,7 @@ CONTAINS
 !> \param lengths ...
 !> \param displs ...
 !> \param data_type ...
-!> \retval new_mp_data_type ...
+!> \return ...
 ! **************************************************************************************************
    FUNCTION dbcsr_mp_type_indexed_make_any(count, lengths, displs, data_type) &
       RESULT(new_mp_data_type)

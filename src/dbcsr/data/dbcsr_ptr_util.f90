@@ -10,7 +10,7 @@
 !> \param[in] original   original data pointer
 !> \param[in] lb lower and upper bound for the new pointer view
 !> \param[in] ub lower and upper bound for the new pointer view
-!> \retval view new pointer
+!> \return new pointer
 ! **************************************************************************************************
   FUNCTION pointer_view_${nametype1}$ (original, lb, ub) RESULT (view)
     ${type1}$, DIMENSION(:), POINTER :: original, view

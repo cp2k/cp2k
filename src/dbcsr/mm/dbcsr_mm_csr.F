@@ -971,7 +971,7 @@ CONTAINS
 !> \brief Determines whether a transpose must be applied
 !> \param[in] row   The absolute matrix row.
 !> \param[in] column          The absolute matrix column.
-!> \retval transpose ...
+!> \return ...
 !> \par Source
 !> This function is copied from dbcsr_dist_operations for speed reasons.
 ! **************************************************************************************************

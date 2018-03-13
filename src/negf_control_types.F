@@ -375,7 +375,7 @@ CONTAINS
 !> \param i_rep_section   index of the CONTACT subsection ()
 !> \param subsection_name name of subsection to read
 !> \param subsys          subsystem environment
-!> \retval logical that indicates whether of not the subsection has been given explicitly
+!> \return that indicates whether of not the subsection has been given explicitly
 ! **************************************************************************************************
    FUNCTION read_negf_atomlist(atomlist, negf_section, i_rep_section, subsection_name, subsys) RESULT(is_explicit)
       INTEGER, ALLOCATABLE, DIMENSION(:), INTENT(out)    :: atomlist

@@ -310,7 +310,7 @@ CONTAINS
 !> \brief Checks if a fb_com_tasks object is associated with an actual
 !>        data content or not
 !> \param com_tasks the fb_com_tasks object
-!> \retval res ...
+!> \return ...
 !> \author Lianheng Tong (LT) lianheng.tong@kcl.ac.uk
 ! **************************************************************************************************
    FUNCTION fb_com_tasks_has_data(com_tasks) RESULT(res)
@@ -327,7 +327,7 @@ CONTAINS
 !> \brief Checks if a fb_com_atom_pairs object is associated with an actual
 !>        data content or not
 !> \param atom_pairs the fb_com_atom_pairs object
-!> \retval res ...
+!> \return ...
 !> \author Lianheng Tong (LT) lianheng.tong@kcl.ac.uk
 ! **************************************************************************************************
    FUNCTION fb_com_atom_pairs_has_data(atom_pairs) RESULT(res)

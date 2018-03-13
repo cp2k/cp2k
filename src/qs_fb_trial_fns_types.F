@@ -141,7 +141,7 @@ CONTAINS
 ! **************************************************************************************************
 !> \brief check if the object has data associated to it
 !> \param trial_fns : the fb_trial_fns object in question
-!> \retval res : true if trial_fns%obj is associated, false otherwise
+!> \return : true if trial_fns%obj is associated, false otherwise
 !> \author Lianheng Tong (LT) lianheng.tong@kcl.ac.uk
 ! **************************************************************************************************
    FUNCTION fb_trial_fns_has_data(trial_fns) RESULT(res)

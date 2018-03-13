@@ -118,7 +118,7 @@ CONTAINS
 !> \brief Compute arc radius.
 !> \param a       lower bound
 !> \param b       upper bound
-!> \retval        arc radius
+!> \return radius
 !> \par History
 !>    * 05.2017 created [Sergey Chulkov]
 !> \note Assuming Re(a) < Re(b) and Im(a) < Im(b)
@@ -148,7 +148,7 @@ CONTAINS
 !> \brief Compute the angle phi.
 !> \param a       lower bound
 !> \param b       upper bound
-!> \retval        phi angle
+!> \return angle
 !> \par History
 !>    * 05.2017 created [Sergey Chulkov]
 !> \note Assuming Re(a) < Re(b) and Im(a) < Im(b)

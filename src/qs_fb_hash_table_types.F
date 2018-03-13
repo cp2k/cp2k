@@ -206,7 +206,7 @@ CONTAINS
 ! **************************************************************************************************
 !> \brief check if the object has data associated to it
 !> \param hash_table : the fb_hash_table object in question
-!> \retval res       : true if hash_table%obj is associated, false otherwise
+!> \return : true if hash_table%obj is associated, false otherwise
 !> \author Lianheng Tong (LT) lianheng.tong@kcl.ac.uk
 ! **************************************************************************************************
    PURE FUNCTION fb_hash_table_has_data(hash_table) RESULT(res)
@@ -431,7 +431,7 @@ CONTAINS
 !> \brief Linear probing algorithm for the hash table
 !> \param hash_table : the fb_hash_table object
 !> \param key        : key to locate
-!> \retval islot     : slot location in the table correspond to key, 0 if key
+!> \return : slot location in the table correspond to key, 0 if key
 !>                     not found
 !> \author Lianheng Tong (LT) lianheng.tong@kcl.ac.uk
 ! **************************************************************************************************
@@ -466,7 +466,7 @@ CONTAINS
 !> \brief Hash function
 !> \param hash_table : the fb_hash_table object
 !> \param key        : key to locate
-!> \retval islot     : slot location in the table correspond to key, 0 if key
+!> \return : slot location in the table correspond to key, 0 if key
 !>                     not found
 !> \author Lianheng Tong (LT) lianheng.tong@kcl.ac.uk
 ! **************************************************************************************************

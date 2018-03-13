@@ -114,7 +114,7 @@ CONTAINS
 ! **************************************************************************************************
 !> \brief ...
 !> \param map ...
-!> \retval ndims_mapping ...
+!> \return ...
 ! **************************************************************************************************
    PURE FUNCTION ndims_mapping(map)
       TYPE(nd_to_2d_mapping), INTENT(IN)                 :: map
@@ -190,7 +190,7 @@ CONTAINS
 !> \param dims nd dimensions
 !> \param base base index, default 1 (Fortran style)
 !> \param col_major column major ordering, default .TRUE. (Fortran style)
-!> \retval ind_out flat index
+!> \return flat index
 ! **************************************************************************************************
    FUNCTION combine_index(ind_in, dims, base, col_major) RESULT(ind_out)
       INTEGER, DIMENSION(:), INTENT(IN)                  :: ind_in, dims
@@ -238,7 +238,7 @@ CONTAINS
 !> \param dims nd dimensions
 !> \param base base index, default 1 (Fortran style)
 !> \param col_major column major ordering, default .TRUE. (Fortran style)
-!> \retval ind_out nd index
+!> \return nd index
 ! **************************************************************************************************
    FUNCTION split_index(ind_in, dims, base, col_major) RESULT(ind_out)
       INTEGER, INTENT(IN)                                :: ind_in
@@ -285,7 +285,7 @@ CONTAINS
 !> \brief transform nd index to 2d index, using info from index mapping.
 !> \param map index mapping
 !> \param ind_in nd index
-!> \retval ind_out 2d index
+!> \return 2d index
 ! **************************************************************************************************
    FUNCTION get_2d_indices(map, ind_in) RESULT(ind_out)
       TYPE(nd_to_2d_mapping), INTENT(IN)                 :: map
@@ -305,7 +305,7 @@ CONTAINS
 !> \brief transform 2d index to nd index, using info from index mapping.
 !> \param map index mapping
 !> \param ind_in 2d index
-!> \retval ind_out nd index
+!> \return nd index
 ! **************************************************************************************************
    FUNCTION get_nd_indices(map, ind_in) RESULT(ind_out)
       TYPE(nd_to_2d_mapping), INTENT(IN)                 :: map
@@ -325,7 +325,7 @@ CONTAINS
 ! **************************************************************************************************
 !> \brief Invert order
 !> \param order ...
-!> \retval dbcsr_t_inverse_order ...
+!> \return ...
 ! **************************************************************************************************
    FUNCTION dbcsr_t_inverse_order(order)
       INTEGER, DIMENSION(:), INTENT(IN)                  :: order

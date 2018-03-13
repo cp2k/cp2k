@@ -82,7 +82,7 @@ CONTAINS
 ! **************************************************************************************************
 !> \brief Returns whether the index structure of the matrix is valid.
 !> \param[in] matrix          verify index validity of this matrix
-!> \retval valid_index        index validity
+!> \return index validity
 ! **************************************************************************************************
    PURE FUNCTION dbcsr_valid_index(matrix) RESULT(valid_index)
       TYPE(dbcsr_type), INTENT(IN)                       :: matrix
@@ -292,7 +292,7 @@ CONTAINS
 ! **************************************************************************************************
 !> \brief ...
 !> \param matrix ...
-!> \retval nblkrows_total ...
+!> \return ...
 ! **************************************************************************************************
    FUNCTION dbcsr_nblkrows_total(matrix) RESULT(nblkrows_total)
       TYPE(dbcsr_type), INTENT(IN)                       :: matrix
@@ -304,7 +304,7 @@ CONTAINS
 ! **************************************************************************************************
 !> \brief ...
 !> \param matrix ...
-!> \retval nblkcols_total ...
+!> \return ...
 ! **************************************************************************************************
    FUNCTION dbcsr_nblkcols_total(matrix) RESULT(nblkcols_total)
       TYPE(dbcsr_type), INTENT(IN)                       :: matrix
@@ -315,7 +315,7 @@ CONTAINS
 ! **************************************************************************************************
 !> \brief ...
 !> \param matrix ...
-!> \retval nfullrows_total ...
+!> \return ...
 ! **************************************************************************************************
    FUNCTION dbcsr_nfullrows_total(matrix) RESULT(nfullrows_total)
       TYPE(dbcsr_type), INTENT(IN)                       :: matrix
@@ -326,7 +326,7 @@ CONTAINS
 ! **************************************************************************************************
 !> \brief ...
 !> \param matrix ...
-!> \retval nfullcols_total ...
+!> \return ...
 ! **************************************************************************************************
    FUNCTION dbcsr_nfullcols_total(matrix) RESULT(nfullcols_total)
       TYPE(dbcsr_type), INTENT(IN)                       :: matrix
@@ -337,7 +337,7 @@ CONTAINS
 ! **************************************************************************************************
 !> \brief ...
 !> \param matrix ...
-!> \retval nblkrows_local ...
+!> \return ...
 ! **************************************************************************************************
    FUNCTION dbcsr_nblkrows_local(matrix) RESULT(nblkrows_local)
       TYPE(dbcsr_type), INTENT(IN)                       :: matrix
@@ -348,7 +348,7 @@ CONTAINS
 ! **************************************************************************************************
 !> \brief ...
 !> \param matrix ...
-!> \retval nblkcols_local ...
+!> \return ...
 ! **************************************************************************************************
    FUNCTION dbcsr_nblkcols_local(matrix) RESULT(nblkcols_local)
       TYPE(dbcsr_type), INTENT(IN)                       :: matrix
@@ -359,7 +359,7 @@ CONTAINS
 ! **************************************************************************************************
 !> \brief ...
 !> \param matrix ...
-!> \retval nfullrows_local ...
+!> \return ...
 ! **************************************************************************************************
    FUNCTION dbcsr_nfullrows_local(matrix) RESULT(nfullrows_local)
       TYPE(dbcsr_type), INTENT(IN)                       :: matrix
@@ -370,7 +370,7 @@ CONTAINS
 ! **************************************************************************************************
 !> \brief ...
 !> \param matrix ...
-!> \retval nfullcols_local ...
+!> \return ...
 ! **************************************************************************************************
    FUNCTION dbcsr_nfullcols_local(matrix) RESULT(nfullcols_local)
       TYPE(dbcsr_type), INTENT(IN)                       :: matrix
@@ -381,7 +381,7 @@ CONTAINS
 ! **************************************************************************************************
 !> \brief ...
 !> \param matrix ...
-!> \retval max_row_size ...
+!> \return ...
 ! **************************************************************************************************
    FUNCTION dbcsr_max_row_size(matrix) RESULT(max_row_size)
       TYPE(dbcsr_type), INTENT(IN)                       :: matrix
@@ -392,7 +392,7 @@ CONTAINS
 ! **************************************************************************************************
 !> \brief ...
 !> \param matrix ...
-!> \retval max_col_size ...
+!> \return ...
 ! **************************************************************************************************
    FUNCTION dbcsr_max_col_size(matrix) RESULT(max_col_size)
       TYPE(dbcsr_type), INTENT(IN)                       :: matrix
@@ -404,7 +404,7 @@ CONTAINS
 ! **************************************************************************************************
 !> \brief ...
 !> \param matrix ...
-!> \retval distribution ...
+!> \return ...
 ! **************************************************************************************************
    FUNCTION dbcsr_distribution(matrix) RESULT(distribution)
       TYPE(dbcsr_type), INTENT(IN)                       :: matrix
@@ -416,7 +416,7 @@ CONTAINS
 ! **************************************************************************************************
 !> \brief ...
 !> \param matrix ...
-!> \retval name ...
+!> \return ...
 ! **************************************************************************************************
    FUNCTION dbcsr_name(matrix) RESULT(name)
       TYPE(dbcsr_type), INTENT(IN)                       :: matrix
@@ -429,7 +429,7 @@ CONTAINS
 !> \brief ...
 !> \param matrix ...
 !> \param newname ...
-!> \retval name ...
+!> \return ...
 ! **************************************************************************************************
 
    SUBROUTINE dbcsr_setname(matrix, newname)
@@ -442,7 +442,7 @@ CONTAINS
 ! **************************************************************************************************
 !> \brief Returns whether this work matrix uses the mutable type
 !> \param[in] wm              work matrix
-!> \retval use_mutable        use the mutable and not append-only working
+!> \return use the mutable and not append-only working
 !>                            structures
 ! **************************************************************************************************
    PURE FUNCTION dbcsr_wm_use_mutable(wm) RESULT(use_mutable)
@@ -457,7 +457,7 @@ CONTAINS
 ! **************************************************************************************************
 !> \brief Returns whether work matrices should use the mutable data type
 !> \param[in] matrix          matrix
-!> \retval use_mutable        use the mutable and not append-only working
+!> \return use the mutable and not append-only working
 !>                            structures
 ! **************************************************************************************************
    PURE FUNCTION dbcsr_use_mutable(matrix) RESULT(use_mutable)
@@ -472,7 +472,7 @@ CONTAINS
 ! **************************************************************************************************
 !> \brief ...
 !> \param matrix ...
-!> \retval row_blk_sizes ...
+!> \return ...
 ! **************************************************************************************************
    FUNCTION dbcsr_row_block_sizes(matrix) RESULT(row_blk_sizes)
       TYPE(dbcsr_type), INTENT(IN)                       :: matrix
@@ -484,7 +484,7 @@ CONTAINS
 ! **************************************************************************************************
 !> \brief ...
 !> \param matrix ...
-!> \retval col_blk_sizes ...
+!> \return ...
 ! **************************************************************************************************
    FUNCTION dbcsr_col_block_sizes(matrix) RESULT(col_blk_sizes)
       TYPE(dbcsr_type), INTENT(IN)                       :: matrix
@@ -496,7 +496,7 @@ CONTAINS
 ! **************************************************************************************************
 !> \brief ...
 !> \param matrix ...
-!> \retval col_blk_offsets ...
+!> \return ...
 ! **************************************************************************************************
    FUNCTION dbcsr_col_block_offsets(matrix) RESULT(col_blk_offsets)
       TYPE(dbcsr_type), INTENT(IN)                       :: matrix
@@ -508,7 +508,7 @@ CONTAINS
 ! **************************************************************************************************
 !> \brief ...
 !> \param matrix ...
-!> \retval row_blk_offsets ...
+!> \return ...
 ! **************************************************************************************************
    FUNCTION dbcsr_row_block_offsets(matrix) RESULT(row_blk_offsets)
       TYPE(dbcsr_type), INTENT(IN)                       :: matrix
@@ -523,7 +523,7 @@ CONTAINS
 !> This routine is optimized for speed and no checks are performed.
 !> \param[in] matrix          DBCSR matrix
 !> \param[in] row             row number
-!> \retval row_size           blocked row size
+!> \return blocked row size
 ! **************************************************************************************************
    PURE FUNCTION dbcsr_blk_row_size(matrix, row) RESULT(row_size)
       TYPE(dbcsr_type), INTENT(IN)                       :: matrix
@@ -537,7 +537,7 @@ CONTAINS
 !> \brief ...
 !> \param matrix ...
 !> \param row ...
-!> \retval row_offset ...
+!> \return ...
 ! **************************************************************************************************
    PURE FUNCTION dbcsr_blk_row_offset(matrix, row) RESULT(row_offset)
       TYPE(dbcsr_type), INTENT(IN)                       :: matrix
@@ -553,7 +553,7 @@ CONTAINS
 !> This routine is optimized for speed and no checks are performed.
 !> \param[in] matrix          DBCSR matrix
 !> \param[in] column          column number
-!> \retval column_size        blocked row size
+!> \return blocked row size
 ! **************************************************************************************************
    PURE FUNCTION dbcsr_blk_column_size(matrix, column) RESULT(column_size)
       TYPE(dbcsr_type), INTENT(IN)                       :: matrix
@@ -567,7 +567,7 @@ CONTAINS
 !> \brief ...
 !> \param matrix ...
 !> \param col ...
-!> \retval col_offset ...
+!> \return ...
 ! **************************************************************************************************
    PURE FUNCTION dbcsr_blk_col_offset(matrix, col) RESULT(col_offset)
       TYPE(dbcsr_type), INTENT(IN)                       :: matrix
@@ -580,7 +580,7 @@ CONTAINS
 ! **************************************************************************************************
 !> \brief Returns the data area
 !> \param matrix     matrix from which to get data
-!> \retval data_area data area
+!> \return data area
 ! **************************************************************************************************
    FUNCTION dbcsr_data_area(matrix) RESULT(data_area)
       TYPE(dbcsr_type), INTENT(IN)                       :: matrix
@@ -592,7 +592,7 @@ CONTAINS
 ! **************************************************************************************************
 !> \brief Returns the matrix type
 !> \param matrix              query this matrix
-!> \retval matrix_type        matrix_type (see dbcsr_types.F for possible
+!> \return matrix_type (see dbcsr_types.F for possible
 !>                            values)
 ! **************************************************************************************************
    PURE FUNCTION dbcsr_get_matrix_type(matrix) RESULT(matrix_type)
@@ -618,7 +618,7 @@ CONTAINS
 ! **************************************************************************************************
 !> \brief Whether matrix has symmetry
 !> \param matrix              query this matrix
-!> \retval has_symmetry       matrix has symmetry
+!> \return matrix has symmetry
 ! **************************************************************************************************
    PURE FUNCTION dbcsr_has_symmetry(matrix) RESULT(has_symmetry)
       TYPE(dbcsr_type), INTENT(IN)                       :: matrix
@@ -630,7 +630,7 @@ CONTAINS
 ! **************************************************************************************************
 !> \brief Returns the data type stored in the matrix
 !> \param matrix              query this matrix
-!> \retval repl_type repl_type (see dbcsr_types.F for possible
+!> \return repl_type (see dbcsr_types.F for possible
 !>                            values)
 ! **************************************************************************************************
 
@@ -644,7 +644,7 @@ CONTAINS
 ! **************************************************************************************************
 !> \brief Returns the data type stored in the matrix
 !> \param matrix              query this matrix
-!> \retval data_type          data_type (see dbcsr_types.F for possible
+!> \return data_type (see dbcsr_types.F for possible
 !>                            values)
 ! **************************************************************************************************
    PURE FUNCTION dbcsr_get_data_type(matrix) RESULT(data_type)
@@ -657,7 +657,7 @@ CONTAINS
 ! **************************************************************************************************
 !> \brief Returns the type of memory used for data in the matrix
 !> \param[in] matrix           query this matrix
-!> \retval memory_type         memory type used for data
+!> \return memory type used for data
 !> \note It returns the declared data type, not the actually used type
 ! **************************************************************************************************
    FUNCTION dbcsr_get_data_memory_type(matrix) &
@@ -671,7 +671,7 @@ CONTAINS
 ! **************************************************************************************************
 !> \brief Returns the type of memory used for the index in the matrix
 !> \param[in] matrix          query this matrix
-!> \retval memory_type        memory type used for the index
+!> \return memory type used for the index
 ! **************************************************************************************************
    FUNCTION dbcsr_get_index_memory_type(matrix) RESULT(memory_type)
       TYPE(dbcsr_type), INTENT(IN)                       :: matrix
@@ -715,7 +715,7 @@ CONTAINS
 ! **************************************************************************************************
 !> \brief Returns the allocated data size of a DBCSR matrix
 !> \param[in] matrix      matrix
-!> \retval data_size      size of data
+!> \return size of data
 ! **************************************************************************************************
    FUNCTION dbcsr_get_data_size(matrix) RESULT(data_size)
       TYPE(dbcsr_type), INTENT(IN)                       :: matrix
@@ -738,7 +738,7 @@ CONTAINS
 ! **************************************************************************************************
 !> \brief Count actual data storage used for matrix data.
 !> \param[in] matrix          Count data of this matrix
-!> \retval data_size          Data size used by matrix
+!> \return Data size used by matrix
 ! **************************************************************************************************
    FUNCTION dbcsr_get_data_size_used(matrix) RESULT(data_size)
       TYPE(dbcsr_type), INTENT(IN)                       :: matrix
@@ -774,7 +774,7 @@ CONTAINS
 ! **************************************************************************************************
 !> \brief Returns the number of blocks in the matrix
 !> \param matrix     matrix from which to get data
-!> \retval num_blocks ...
+!> \return ...
 ! **************************************************************************************************
    PURE FUNCTION dbcsr_get_num_blocks(matrix) RESULT(num_blocks)
       TYPE(dbcsr_type), INTENT(IN)                       :: matrix
@@ -786,7 +786,7 @@ CONTAINS
 ! **************************************************************************************************
 !> \brief Returns the number of non-zero elements in the matrix
 !> \param matrix     matrix from which to get data
-!> \retval num_nze ...
+!> \return ...
 ! **************************************************************************************************
    PURE FUNCTION dbcsr_get_nze(matrix) RESULT(num_nze)
       TYPE(dbcsr_type), INTENT(IN)                       :: matrix
@@ -1024,7 +1024,7 @@ CONTAINS
 !>
 !> The object is destroy when there is no reference to it left.
 !> \param[in] mutable         mutable data
-!> \retval instantiated       whether the object is instantiated
+!> \return whether the object is instantiated
 ! **************************************************************************************************
    PURE FUNCTION dbcsr_mutable_instantiated(mutable) RESULT(instantiated)
       TYPE(dbcsr_mutable_obj), INTENT(IN)                :: mutable

@@ -46,7 +46,7 @@ CONTAINS
 
 ! **************************************************************************************************
 !> \brief Get number of accelerator devices
-!> \retval n number of accelerator devices
+!> \return number of accelerator devices
 ! **************************************************************************************************
    FUNCTION acc_get_ndevices() RESULT(n)
       INTEGER                                  :: n

@@ -872,7 +872,7 @@ CONTAINS
 !> \brief checks if element is ready for accaptance probability update
 !>        checks status and the amount of already received intermediate energies
 !> \param elem sub tree element to update
-!> \retval ready return value
+!> \return return value
 !> \author Mandes 12.2012
 ! **************************************************************************************************
    FUNCTION ready_for_update_acc_prob(elem) RESULT(ready)

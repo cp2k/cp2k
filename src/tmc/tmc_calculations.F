@@ -236,7 +236,7 @@ CONTAINS
 !> \param x2 ...
 !> \param cell ...
 !> \param box_scale ...
-!> \retval res ...
+!> \return ...
 !> \author Mandes 11.2012
 ! **************************************************************************************************
    FUNCTION nearest_distance(x1, x2, cell, box_scale) RESULT(res)
@@ -396,7 +396,7 @@ CONTAINS
 !>        and atom mass, both in atomic units
 !> \param vel ...
 !> \param atoms ...
-!> \retval ekin ...
+!> \return ...
 !> \author Mandes 11.2012
 ! **************************************************************************************************
    FUNCTION calc_e_kin(vel, atoms) RESULT(ekin)
@@ -506,7 +506,7 @@ CONTAINS
 !>         energies
 !> \param p the random number, the criteria has to be smaller than this
 !> \param beta ...
-!> \retval prob return probability of acceptance
+!> \return return probability of acceptance
 !> \author Mandes 12.2012
 ! **************************************************************************************************
    FUNCTION compute_prob(E_n_mu, E_n_sigma, E_o_mu, E_o_sigma, E_classical_diff, &
@@ -537,7 +537,7 @@ CONTAINS
 !> \param rnd_nr random number acceptance check will be done with
 !> \param beta 1/(kB*T) can differ for different acceptance checks
 !> \param tmc_params TMC environment parameters
-!> \retval prob estimated acceptance probability
+!> \return estimated acceptance probability
 !> \author Mandes 12.2012
 ! **************************************************************************************************
    FUNCTION compute_estimated_prob(elem_old, elem_new, E_classical_diff, &

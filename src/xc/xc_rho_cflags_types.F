@@ -84,7 +84,7 @@ CONTAINS
 !> \brief return true if the two cflags are equal
 !> \param cflags1 the flags to compare
 !> \param cflags2 the flags to compare
-!> \retval equal ...
+!> \return ...
 ! **************************************************************************************************
    FUNCTION xc_rho_cflags_equal(cflags1, cflags2) RESULT(equal)
       TYPE(xc_rho_cflags_type), INTENT(in)               :: cflags1, cflags2

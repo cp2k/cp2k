@@ -829,7 +829,7 @@ CONTAINS
 !> \param mo array of MO sets
 !> \param id state index
 !> \param atom list of atoms for MO coefficient summing
-!> \retval c2 ...
+!> \return ...
 !> \author Z. Futera (02.2017)
 ! **************************************************************************************************
    FUNCTION get_mo_c2_sum(blk_at, mo, id, atom) RESULT(c2)

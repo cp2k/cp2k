@@ -1004,7 +1004,7 @@ CONTAINS
 
 ! **************************************************************************************************
 !> \brief ...
-!> \retval res ...
+!> \return ...
 ! **************************************************************************************************
    FUNCTION get_mp_perf_env() RESULT(res)
       TYPE(mp_perf_env_type), POINTER                    :: res
@@ -1794,7 +1794,7 @@ CONTAINS
 !> \brief Tests for completion of the given requests.
 !> \brief We use mpi_test so that we can use a single status.
 !> \param requests the list of requests to test
-!> \retval flag logical which determines if requests are complete
+!> \return logical which determines if requests are complete
 !> \par History
 !>      3.2016 adapted to any shape [Nico Holmberg]
 !> \author Alfio Lazzaro
@@ -3532,7 +3532,7 @@ CONTAINS
 !> \param subtypes ...
 !> \param vector_descriptor ...
 !> \param index_descriptor ...
-!> \retval type_descriptor ...
+!> \return ...
 ! **************************************************************************************************
    FUNCTION mp_type_make_struct(subtypes, &
                                 vector_descriptor, index_descriptor) &
@@ -3645,7 +3645,7 @@ CONTAINS
 !> \param count   number of array blocks to read
 !> \param lengths lengths of each array block
 !> \param displs  byte offsets for array blocks
-!> \retval type_descriptor container holding the created type
+!> \return container holding the created type
 !> \author Nico Holmberg [05.2017]
 ! **************************************************************************************************
    FUNCTION mp_file_type_hindexed_make_chv(count, lengths, displs) &

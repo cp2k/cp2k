@@ -47,7 +47,7 @@ CONTAINS
 !> \brief Compute the number of atomic orbitals of the given set of atoms.
 !> \param subsys    QuickStep subsystem
 !> \param atom_list list of selected atom; when absent all the atoms are taken into account
-!> \retval nao      number of atomic orbitals
+!> \return number of atomic orbitals
 !> \par History
 !>   * 02.2017 created [Sergey Chulkov]
 ! **************************************************************************************************
@@ -779,7 +779,7 @@ CONTAINS
 !>        Can be used with any usin cell.
 !> \param cell           indices of the unit cell
 !> \param cell_to_index  mapping: unit_cell -> image_index
-!> \retval image         DBCSR matrix images
+!> \return DBCSR matrix images
 !>                       (0 means there are no non-zero matrix elements in the image)
 !> \par History
 !>   * 10.2017 created [Sergey Chulkov]

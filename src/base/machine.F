@@ -62,7 +62,7 @@ END SUBROUTINE
 ! **************************************************************************************************
 !> \brief returns time from a real-time clock, protected against rolling
 !>      early/easily
-!> \retval wt ...
+!> \return ...
 !> \par History
 !>      03.2006 created [Joost VandeVondele]
 !> \note
@@ -151,7 +151,7 @@ END SUBROUTINE m_cpuinfo
 !> \brief returns the energy used since some time in the past.
 !>        The precise meaning depends on the infrastructure is available.
 !>        In the cray_pm_energy case, this is the energy used by the node in kJ.
-!> \retval wt ...
+!> \return ...
 !> \par History
 !>      09.2013 created [Joost VandeVondele, Ole Schuett]
 ! **************************************************************************************************
@@ -172,7 +172,7 @@ END FUNCTION m_energy
 ! **************************************************************************************************
 !> \brief reads energy values from the sys-filesystem
 !> \param filename ...
-!> \retval wt ...
+!> \return ...
 !> \par History
 !>      09.2013 created [Joost VandeVondele, Ole Schuett]
 ! **************************************************************************************************

@@ -81,7 +81,7 @@ CONTAINS
 ! **************************************************************************************************
 !> \brief list all compile time options that influence the capabilities of cp2k.
 !>        All new flags should be added here (and be unique grep-able)
-!> \retval flags ...
+!> \return ...
 ! **************************************************************************************************
    FUNCTION cp2k_flags() RESULT(flags)
       CHARACTER(len=10*default_string_length)            :: flags

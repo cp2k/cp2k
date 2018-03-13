@@ -107,7 +107,7 @@ CONTAINS
 !> \brief project the 'vector' onto the direction 'vector0'. Both vectors should have the same origin.
 !> \param vector   vector to project
 !> \param vector0  direction vector
-!> \retval proj    projection (in terms of the direction vector's length)
+!> \return projection (in terms of the direction vector's length)
 !> \author Sergey Chulkov
 !> \note \parblock
 !>          & vector

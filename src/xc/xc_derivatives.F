@@ -619,7 +619,7 @@ CONTAINS
 !> \param add_basic_components makes sure that if some gradient combination
 !>        is needed also the gradient components are requested, and if lsd
 !>        is true rho_spin is requested. Defaults to false.
-!> \retval needs ...
+!> \return ...
 !> \author fawzi
 ! **************************************************************************************************
    FUNCTION xc_functionals_get_needs(functionals, lsd, add_basic_components) &

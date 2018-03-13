@@ -74,6 +74,7 @@ my ($hasParam,
     $hasAuthor,
     $hasNote,
     $hasRetVal,
+    $hasReturn,
     $hasRandom,
     $hasRemainder);
 
@@ -87,6 +88,7 @@ my (%params,
     $authors,
     $notes,
     $retVals,
+    $returns,
     $randoms,
     $remainders);
 
@@ -100,7 +102,7 @@ my $hasAmpersand = 0;
 my $inParentheses = 0;
 
 # Whether the procedure definition contains the RETURN value
-my $hasRetValAsArg = 0;
+my $hasReturnAsArg = 0;
 
 # Keeps track of which parameters in the current procedure have
 # a matching doxygen header
@@ -219,6 +221,7 @@ sub initVariables {
     $authors = $EMPTY;
     $notes = $EMPTY;
     $retVals = $EMPTY;
+    $returns = $EMPTY;
     $randoms = $EMPTY;
     $remainders = $EMPTY;
     $buffer = $EMPTY;
@@ -377,6 +380,16 @@ sub processDoxygenHeader {
             $retVals = $retVals . $currline;
             initToggles();
             $hasRetVal = 1;
+        } elsif ($currline =~ m/!>\s\\returns\s*/xms) {
+            print_debug("Got return header");
+            $returns = $returns . $currline;
+            initToggles();
+            $hasReturn = 1;
+        } elsif ($currline =~ m/!>\s\\return\s*/xms) {
+            print_debug("Got return header");
+            $returns = $returns . $currline;
+            initToggles();
+            $hasReturn = 1;
         } elsif ($currline =~ m/!>\s\\\S+/xms) {
             # Randoms contains anything else that looks
             # like a DOXYGEN header. with a \whatever
@@ -416,6 +429,8 @@ sub processDoxygenHeader {
                 $notes = $notes . $currline;
             } elsif ($hasRetVal) {
                 $retVals = $retVals . $currline;
+            } elsif ($hasReturn) {
+                $returns = $returns . $currline;
             } elsif ($hasRandom) {
                 # Must check to see if line has already been commented
                 if (($currline !~ m/UNKNOWN_DOXYGEN_COMMENT/xms) &&
@@ -496,7 +511,7 @@ sub processSubroutineDefinition {
     chomp($functionLine);
 
     $hasAmpersand = 0;
-    $hasRetValAsArg = 0;
+    $hasReturnAsArg = 0;
     my $lelement = $EMPTY;
 
     # Split the subroutine or function definition by space or comma
@@ -525,17 +540,17 @@ sub processSubroutineDefinition {
             if ($inParentheses) {
                 print_debug("In parentheses, parameter: $p, previous parameter: $lelement");
                 # Must have either a parameter of a function return value
-                if (($lelement =~ m/RESULT/ixms) && ($hasRetValAsArg)) {
+                if (($lelement =~ m/RESULT/ixms) && ($hasReturnAsArg)) {
                     print_debug("Got return parameter $p");
-                    if ($retVals eq $EMPTY) {
+                    if ($returns eq $EMPTY) {
                         # If the previous element was RESULT outside of
                         # parantheses then this element must be whatever
                         # gets returned by the procedure.
-                        # if no retval data is available print out the ...
+                        # if no return data is available print out the ...
                         # to header
                         # Only stored for now so it is always printed
                         # in the same place (after the \params)
-                        $retVals = "!> \\retval $p ...\n";
+                        $returns = "!> \\return ...\n";
                     }
                 } else {
                     # Must be parameter
@@ -595,7 +610,7 @@ sub processSubroutineDefinition {
                 } elsif ($p =~ m/RESULT/ixms) {
                     # Check to see if parameter is RESULT for a FUNCTION
                     print_debug("Need to get function result parameter");
-                    $hasRetValAsArg = 1;
+                    $hasReturnAsArg = 1;
                 }
             }
             $lelement = $p; # Take a note of the array element for comparison, ignoring & and ()
@@ -631,14 +646,18 @@ sub processSubroutineDefinition {
     # If after looping through the elements there is no ampersand
     # we close off the comment and write out the procedure definition
     if (!($hasAmpersand)) {
-        if ($retVals ne $EMPTY) {
+        if ($returns ne $EMPTY) {
             # Print RESULT value first so that it should come straight after the \param definitions
-            print $OUTPUT $retVals;
+            print $OUTPUT $returns;
         } else {
             # Get return value from function name
             if ($isFunction) {
-                print $OUTPUT "!> \\retval $procedureName ...\n";
+                print $OUTPUT "!> \\return ...\n";
             }
+        }
+        if ($retVals ne $EMPTY) {
+            # Print return values definitions second so that they come after any \return definitions
+            print $OUTPUT $retVals;
         }
         if (($dates eq $EMPTY) || ($dates eq "!> \\date\n")) {
             # dates entry empty or exists and contains no text

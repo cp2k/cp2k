@@ -331,7 +331,7 @@ CONTAINS
 !> \param used_print_key here the print_key that was used is returned
 !> \param first_time if it ist the first time that an output is written
 !>        (not fully correct, but most of the time)
-!> \retval res ...
+!> \return ...
 !> \author fawzi
 !> \note
 !>      not all the propreties support can be stored
@@ -426,7 +426,7 @@ CONTAINS
 !>      does not look if this iteration it should be printed
 !> \param iteration_info information about the actual iteration level
 !> \param print_key the section values of the key to be printed
-!> \retval res ...
+!> \return ...
 !> \author fawzi
 ! **************************************************************************************************
    FUNCTION cp_printkey_is_on(iteration_info, print_key) RESULT(res)
@@ -458,7 +458,7 @@ CONTAINS
 !> \param print_key the section values of the key to be printed
 !> \param first_time returns if it is the first time that output is written
 !>        (not fully correct, but most of the time)
-!> \retval res ...
+!> \return ...
 !> \author fawzi
 ! **************************************************************************************************
    FUNCTION cp_printkey_is_iter(iteration_info, print_key, first_time) &
@@ -520,7 +520,7 @@ CONTAINS
 !>        (and should consequently ignore some iteration levels depending
 !>        on COMMON_ITERATION_LEVELS).
 !>        Defaults to false.
-!> \retval res ...
+!> \return ...
 !> \author fawzi
 !> \note
 !>      If the root level is 1 removes it
@@ -718,7 +718,7 @@ CONTAINS
 !> \param extension extension to be applied to the filename (including the ".")
 !> \param my_local if the unit should be local to this task, or global to the
 !>        program (defaults to false).
-!> \retval filename ...
+!> \return ...
 !> \author Fawzi Mohamed
 ! **************************************************************************************************
    FUNCTION cp_print_key_generate_filename(logger, print_key, middle_name, extension, &
@@ -815,7 +815,7 @@ CONTAINS
 !> \param fout   Name of the actual file where the output will be written. Needed mainly for MPI IO
 !>               because inquiring the filename from the MPI filehandle does not work across
 !>               all MPI libraries.
-!> \retval res ...
+!> \return ...
 ! **************************************************************************************************
    FUNCTION cp_print_key_unit_nr(logger, basis_section, print_key_path, extension, &
                                  middle_name, local, log_filename, ignore_should_output, file_form, file_position, &

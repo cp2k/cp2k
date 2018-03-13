@@ -467,7 +467,7 @@ CONTAINS
 ! **************************************************************************************************
 !> \brief computes the norm 2 of a vector in the three-dimensional real space
 !> \param vec input vector
-!> \retval vec_norm2 ...
+!> \return ...
 ! **************************************************************************************************
       PURE FUNCTION vec_norm2(vec)
       REAL(dp), DIMENSION(3), INTENT(IN)                 :: vec

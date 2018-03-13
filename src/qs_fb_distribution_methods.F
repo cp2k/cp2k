@@ -346,7 +346,7 @@ CONTAINS
 !>                    move
 !> \param dist_to   : the destination distribution
 !> \param threshold ...
-!> \retval res : TRUE or FALSE
+!> \return : TRUE or FALSE
 !> \author Lianheng Tong (LT) lianheng.tong@kcl.ac.uk
 ! **************************************************************************************************
    PURE FUNCTION fb_distribution_acceptable_move(dist_from, &
@@ -668,7 +668,7 @@ CONTAINS
 !>        the list will always be ordered with respect to cost
 !> \param dist        : the distribution in question
 !> \param element     : element to be added
-!> \retval pos        : the correct position to add the new element
+!> \return : the correct position to add the new element
 !> \author Lianheng Tong (LT) lianheng.tong@kcl.ac.uk
 ! **************************************************************************************************
    PURE FUNCTION fb_distribution_find_slot(dist, element) RESULT(pos)

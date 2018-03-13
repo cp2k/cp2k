@@ -138,7 +138,7 @@ CONTAINS
 
 ! **************************************************************************************************
 !> \brief returns the current timer env from the stack
-!> \retval timer_env ...
+!> \return ...
 !> \author fawzi
 ! **************************************************************************************************
    FUNCTION get_timer_env() RESULT(timer_env)
@@ -459,7 +459,7 @@ CONTAINS
 !>        If no routine with given name is found in timer_env%routine_names
 !>        then a new entiry is created.
 !> \param routineN ...
-!> \retval routine_id ...
+!> \return ...
 !> \author Ole Schuett
 ! **************************************************************************************************
    FUNCTION routine_name2id(routineN) RESULT(routine_id)
