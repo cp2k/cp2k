@@ -3070,6 +3070,9 @@ CONTAINS
       INTEGER                                            :: ierr
 
       ierr = 0
+      
+      version = ''
+
 #if defined(__parallel)
 #if __MPI_VERSION > 2
       CALL mpi_get_library_version(version, resultlen, ierr)
