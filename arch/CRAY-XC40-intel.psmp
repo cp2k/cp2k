@@ -25,6 +25,7 @@ DFLAGS   = -D__FFTW3 -D__HAS_NO_SHARED_GLIBC -D__LIBXSMM \
            -D__MAX_CONTR=4
 CFLAGS   = $(DFLAGS) -O2
 FCFLAGS  = $(DFLAGS) -O2 -fopenmp -funroll-loops -fpp -free
+FCFLAGS += -fp-model precise
 FCFLAGS += -g -traceback
 FCFLAGS += -I$(LIBXSMM)/include
 FCFLAGS += -I$(LIBXC)/include
