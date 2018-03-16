@@ -92,12 +92,12 @@ CONTAINS
       CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_data_copyall', &
          routineP = moduleN//':'//routineN
 
-      INTEGER                                            :: error_handle, i, n
+      INTEGER                                            :: i, n
       LOGICAL                                            :: shallow_copy
 
 !   ---------------------------------------------------------------------------
 
-      CALL timeset(routineN, error_handle)
+!      CALL timeset(routineN, error_handle)
       IF (.NOT. ASSOCIATED(source_area%d)) &
          CPABORT("Attempt to copy unassigned data")
       IF (source_area%d%refcount .LE. 0) &
@@ -138,7 +138,7 @@ CONTAINS
             CPABORT("Invalid data type")
          END SELECT
       ENDIF
-      CALL timestop(error_handle)
+!      CALL timestop(error_handle)
    END SUBROUTINE dbcsr_data_copyall
 
 ! **************************************************************************************************
