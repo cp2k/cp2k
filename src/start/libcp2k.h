@@ -86,7 +86,7 @@ void cp2k_set_velocities(force_env_t force_env, const double* new_vel, int n_el)
  * \param results Pre-allocated array
  * \param n_el size of the results array
  */
-void cp2k_get_results(force_env_t force_env, const char* description, double* result, int n_el);
+void cp2k_get_result(force_env_t force_env, const char* description, double* result, int n_el);
 
 /** \brief Get the number of atoms
  * \param force_env the force environment
