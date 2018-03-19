@@ -4,14 +4,20 @@
 !>        the ERI's, there are always 4 matrix elements to be considered.
 !>        CASE 0-15 belong to an energy calculation (linear screening)
 !>        CASE 16-31 belong to a force calculation (square screening)
-!> \param ptr_p Pointers to atomic denisty matrices
-!> \param ijklset Current set
+!> \param ptr_p_1 Pointers to atomic denisty matrices
+!> \param ptr_p_2 Pointers to atomic denisty matrices
+!> \param ptr_p_3 Pointers to atomic denisty matrices
+!> \param ptr_p_4 Pointers to atomic denisty matrices
+!> \param iset Current set
+!> \param jset Current set
+!> \param kset Current set
+!> \param lset Current set
 !> \param pmax_val value to be calculated
 !> \param swap_id Defines how the matrices are accessed
 !> \par History
 !>      06.2009 created [Manuel Guidon]
 !> \author Manuel Guidon
-! *****************************************************************************
+! **************************************************************************************************
   PURE SUBROUTINE get_pmax_val(ptr_p_1, ptr_p_2, ptr_p_3, ptr_p_4, &
                                iset, jset, kset, lset, &
                                pmax_val, swap_id)
