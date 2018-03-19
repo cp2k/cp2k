@@ -81,7 +81,7 @@ MODULE dbcsr_mm_csr
       TYPE(dbcsr_mm_sched_type)                      :: sched
    END TYPE dbcsr_mm_csr_type
 
-#include "../base/hash_table_types.f90"
+#include "../base/dbcsr_hash_table_types.f90"
 
 ! **************************************************************************************************
    PUBLIC :: dbcsr_mm_csr_type
@@ -983,6 +983,6 @@ CONTAINS
 
    END FUNCTION my_checker_tr
 
-#include "../base/hash_table.f90"
+#include "../base/dbcsr_hash_table.f90"
 
 END MODULE dbcsr_mm_csr
