@@ -56,7 +56,7 @@ void cp2k_create_force_env(force_env_t* new_force_env, const char* input_file_pa
  * \param input_file_path Path to a CP2K input file
  * \param output_file_path Path to a file where CP2K is going to write its output.
  *                         Will be created if not existent, otherwise appended.
- * \param mpi_comm MPI_COMM if MPI is not managed by CP2K
+ * \param mpi_comm Fortran MPI communicator if MPI is not managed by CP2K
  * \warning You are supposed to call cp2k_destroy_force_env() to cleanup, before cp2k_finalize().
  */
 void cp2k_create_force_env_comm(force_env_t* new_force_env, const char* input_file_path, const char* output_file_path, int mpi_comm);
@@ -139,7 +139,7 @@ void cp2k_run_input(const char* input_file_path, const char* output_file_path);
 /** \brief Make a CP2K run with the given input file (custom managed MPI)
  * \param input_file_path Path to a CP2K input file
  * \param output_file_path Path to a file where CP2K is going to append its output (created if non-existent)
- * \param mpi_comm MPI_COMM if MPI is not managed by CP2K
+ * \param mpi_comm Fortran MPI communicator if MPI is not managed by CP2K
  */
 void cp2k_run_input_comm(const char* input_file_path, const char* output_file_path, int mpi_comm);
 
