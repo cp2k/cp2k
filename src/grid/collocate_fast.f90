@@ -36,8 +36,8 @@
 
 #else
 
-This is an error, and unknown definition of GRID_CORE (__GRID_CORE) has been used
+This is an error, and unknown definition of GRID_CORE(__GRID_CORE) has been used
 
 #endif
 
-#endif 
+#endif

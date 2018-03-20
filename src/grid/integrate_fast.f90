@@ -3,7 +3,7 @@
 ! the included fortran files represent the same kernel, with a fortran representation that optimizes best for a given compiler
 
 #ifdef __HAS_LIBGRID
-! Nothing here, the libgrid.a is present 
+! Nothing here, the libgrid.a is present
 #else
 
 #if !defined(__GRID_CORE)
@@ -36,10 +36,8 @@
 
 #else
 
-This is an error, and unknown definition of GRID_CORE (__GRID_CORE) has been used
+This is an error, and unknown definition of GRID_CORE(__GRID_CORE) has been used
 
 #endif
 
-
-
-#endif 
+#endif

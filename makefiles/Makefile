@@ -83,7 +83,7 @@ OBJ_SRC_FILES += $(LIBCUSMM_DIR)/libcusmm.cu
 endif
 
 # Included files used by Fypp preprocessor and standard includes
-INCLUDED_SRC_FILES = $(notdir $(shell find $(SRCDIR) ! -path "*/preprettify/*" -name "*.f90"))
+INCLUDED_SRC_FILES = $(filter-out base_uses.f90, $(notdir $(shell find $(SRCDIR) ! -path "*/preprettify/*" -name "*.f90")))
 
 # Include also source files which won't compile into an object file
 ALL_SRC_FILES  = $(strip $(subst $(NULL) .,$(NULL) $(SRCDIR),$(NULL) $(OBJ_SRC_FILES)))
@@ -303,8 +303,8 @@ $(PRETTYOBJDIR)/%.pretty: %.F $(DOXIFYOBJDIR)/%.doxified
 	@touch $@
 
 $(PRETTYOBJDIR)/%.pretty_included: %.f90 $(DOXIFYOBJDIR)/%.doxified_included
-#   TODO: call indent here?
 	@mkdir -p $(PRETTYOBJDIR)
+	cd $(dir $<); $(TOOLSRC)/prettify/fprettify.py --do-backup --backup-dir=$(PRETTYOBJDIR) $(notdir $<)
 	@touch $@
 
 $(PRETTYOBJDIR)/%.pretty: %.c $(DOXIFYOBJDIR)/%.doxified
