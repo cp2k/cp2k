@@ -29,6 +29,7 @@ MODULE qs_active_space_types
 
    PUBLIC :: active_space_type, eri_type, eri_type_eri_element_func
    PUBLIC :: create_active_space_type, release_active_space_type
+   PUBLIC :: csr_idx_to_combined, csr_idx_from_combined, get_irange_csr
 
 ! **************************************************************************************************
 !> \brief Quantities needed for AS determination

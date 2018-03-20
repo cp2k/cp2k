@@ -60,8 +60,7 @@ MODULE qs_active_space_methods
                                               int_8
    USE mathconstants,                   ONLY: fourpi
    USE memory_utilities,                ONLY: reallocate
-   USE message_passing,                 ONLY: mp_environ,&
-                                              mp_sum
+   USE message_passing,                 ONLY: mp_sum
    USE particle_list_types,             ONLY: particle_list_type
    USE particle_types,                  ONLY: particle_type
    USE periodic_table,                  ONLY: ptable
@@ -93,8 +92,11 @@ MODULE qs_active_space_methods
                                               pw_type
    USE qs_active_space_types,           ONLY: active_space_type,&
                                               create_active_space_type,&
+                                              csr_idx_from_combined,&
+                                              csr_idx_to_combined,&
                                               eri_type,&
-                                              eri_type_eri_element_func
+                                              eri_type_eri_element_func,&
+                                              get_irange_csr
    USE qs_collocate_density,            ONLY: calculate_wavefunction
    USE qs_energy_types,                 ONLY: qs_energy_type
    USE qs_environment_types,            ONLY: get_qs_env,&
@@ -1107,7 +1109,7 @@ CONTAINS
                CPABORT("")
             END IF
             DO iwa2 = iwa1, nmo1
-               iwa12 = get_index_ij(iwa1, iwa2, nmo1)
+               iwa12 = csr_idx_to_combined(iwa1, iwa2, nmo1)
                IF (iwa12 >= irange(1) .AND. iwa12 <= irange(2)) THEN
                   iwa12 = iwa12-irange(1)+1
                ELSE
@@ -1166,7 +1168,7 @@ CONTAINS
                               END IF
                               icount2 = icount2+1
                               eri(icount2) = erint
-                              eri_index(icount2) = get_index_ij(iwb1, iwb2, nmo2)
+                              eri_index(icount2) = csr_idx_to_combined(iwb1, iwb2, nmo2)
                            END IF
                         END DO
                      END DO
@@ -1331,91 +1333,6 @@ CONTAINS
       END SELECT
 
    END SUBROUTINE pw_eri_green_create
-
-! **************************************************************************************************
-!> \brief calculates combined index (ij)
-!> \param i ...
-!> \param j ...
-!> \param n ...
-!> \return ...
-!> \par History
-!>      04.2016 created [JGH]
-! **************************************************************************************************
-   FUNCTION get_index_ij(i, j, n) RESULT(ij)
-
-      INTEGER                                            :: i, j, n, ij
-
-      CPASSERT(i <= j)
-      CPASSERT(i <= n)
-      CPASSERT(j <= n)
-
-      ij = (i-1)*n-((i-1)*(i-2))/2+(j-i+1)
-
-      CPASSERT(ij <= (n*(n+1))/2)
-
-   END FUNCTION get_index_ij
-! **************************************************************************************************
-!> \brief extracts indeces i and j from combined index ij
-!> \param ij ...
-!> \param n ...
-!> \param i ...
-!> \param j ...
-!> \par History
-!>      04.2016 created [JGH]
-! **************************************************************************************************
-   SUBROUTINE get_index_pair(ij, n, i, j)
-      INTEGER                                            :: ij, n, i, j
-
-      INTEGER                                            :: m, m0
-
-      m = MAX(ij/n, 1)
-      DO i = m, n
-         m0 = (i-1)*n-((i-1)*(i-2))/2
-         j = ij-m0+i-1
-         IF (j <= n) EXIT
-      END DO
-
-      CPASSERT(i > 0 .AND. i <= n)
-      CPASSERT(j > 0 .AND. j <= n)
-      CPASSERT(i <= j)
-
-   END SUBROUTINE get_index_pair
-! **************************************************************************************************
-!> \brief calculates index range for processor in group mp_group
-!> \param nindex ...
-!> \param mp_group ...
-!> \return ...
-!> \par History
-!>      04.2016 created [JGH]
-! **************************************************************************************************
-   FUNCTION get_irange_csr(nindex, mp_group) RESULT(irange)
-
-      INTEGER                                            :: nindex, mp_group
-      INTEGER, DIMENSION(2)                              :: irange
-
-      INTEGER                                            :: numtask, taskid
-      REAL(KIND=dp)                                      :: rat
-
-      CALL mp_environ(numtask, taskid, mp_group)
-
-      IF (numtask == 1 .AND. taskid == 0) THEN
-         irange(1) = 1
-         irange(2) = nindex
-      ELSEIF (numtask >= nindex) THEN
-         IF (taskid >= nindex) THEN
-            irange(1) = 1
-            irange(2) = 0
-         ELSE
-            irange(1) = taskid+1
-            irange(2) = taskid+1
-         END IF
-      ELSE
-         rat = REAL(nindex, KIND=dp)/REAL(numtask, KIND=dp)
-         irange(1) = NINT(rat*taskid)+1
-         irange(2) = NINT(rat*taskid+rat)
-      END IF
-
-   END FUNCTION get_irange_csr
 
 ! **************************************************************************************************
 !> \brief Adds data for a new row to the csr matrix
@@ -1701,13 +1618,13 @@ CONTAINS
          irange = get_irange_csr(nindex, eri%mp_group)
          DO i1 = 1, norb
             DO i2 = i1, norb
-               i12 = get_index_ij(i1, i2, norb)
+               i12 = csr_idx_to_combined(i1, i2, norb)
                IF (i12 >= irange(1) .AND. i12 <= irange(2)) THEN
                   i12l = i12-irange(1)+1
                   irptr = eri%rowptr_local(i12l)-1
                   DO i34l = 1, eri%nzerow_local(i12l)
                      i34 = eri%colind_local(irptr+i34l)
-                     CALL get_index_pair(i34, norb, i3, i4)
+                     CALL csr_idx_from_combined(i34, norb, i3, i4)
                      erint = eri%nzval_local%r_dp(irptr+i34l)
                      ! Coulomb
                      ks_ref(i1, i2) = ks_ref(i1, i2)+erint*p_mat(i3, i4)
