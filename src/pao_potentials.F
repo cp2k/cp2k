@@ -19,7 +19,7 @@ MODULE pao_potentials
    USE mathlib,                         ONLY: multinomial
    USE orbital_pointers,                ONLY: indco,&
                                               ncoset,&
-                                              orbital_pointers_maxl=>current_maxl
+                                              orbital_pointers_maxl => current_maxl
    USE particle_types,                  ONLY: particle_type
    USE qs_environment_types,            ONLY: get_qs_env,&
                                               qs_environment_type

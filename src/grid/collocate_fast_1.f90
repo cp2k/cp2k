@@ -12,7 +12,7 @@
 !> \param gridbounds ...
 ! **************************************************************************************************
   SUBROUTINE collocate_core_default(grid, coef_xyz, pol_x, pol_y, pol_z, map, sphere_bounds, lp, cmax, gridbounds)
-    USE kinds,                        ONLY: dp
+     USE kinds, ONLY: dp
      INTEGER, INTENT(IN)                      :: sphere_bounds(*), lp
      REAL(dp), INTENT(IN) :: coef_xyz(((lp+1)*(lp+2)*(lp+3))/6)
      INTEGER, INTENT(IN)                      :: cmax
@@ -112,7 +112,7 @@
 !> \param gridbounds ...
 ! **************************************************************************************************
   SUBROUTINE collocate_core_0(grid, coef_xyz, pol_x, pol_y, pol_z, map, sphere_bounds, cmax, gridbounds)
-    USE kinds,                        ONLY: dp
+     USE kinds, ONLY: dp
      INTEGER, INTENT(IN)                      :: sphere_bounds(*), cmax, &
                                                  map(-cmax:cmax, 1:3), &
                                                  gridbounds(2, 3)
@@ -197,7 +197,7 @@
 !> \param gridbounds ...
 ! **************************************************************************************************
   SUBROUTINE collocate_core_1(grid, coef_xyz, pol_x, pol_y, pol_z, map, sphere_bounds, cmax, gridbounds)
-    USE kinds,                        ONLY: dp
+     USE kinds, ONLY: dp
      INTEGER, INTENT(IN)                      :: sphere_bounds(*), cmax, &
                                                  map(-cmax:cmax, 1:3), &
                                                  gridbounds(2, 3)
@@ -294,7 +294,7 @@
 !> \param gridbounds ...
 ! **************************************************************************************************
   SUBROUTINE collocate_core_2(grid, coef_xyz, pol_x, pol_y, pol_z, map, sphere_bounds, cmax, gridbounds)
-    USE kinds,                        ONLY: dp
+     USE kinds, ONLY: dp
      INTEGER, INTENT(IN)                      :: sphere_bounds(*), cmax, &
                                                  map(-cmax:cmax, 1:3), &
                                                  gridbounds(2, 3)
@@ -407,7 +407,7 @@
 !> \param gridbounds ...
 ! **************************************************************************************************
   SUBROUTINE collocate_core_3(grid, coef_xyz, pol_x, pol_y, pol_z, map, sphere_bounds, cmax, gridbounds)
-    USE kinds,                        ONLY: dp
+     USE kinds, ONLY: dp
      INTEGER, INTENT(IN)                      :: sphere_bounds(*), cmax, &
                                                  map(-cmax:cmax, 1:3), &
                                                  gridbounds(2, 3)
@@ -567,7 +567,7 @@
 !> \param gridbounds ...
 ! **************************************************************************************************
   SUBROUTINE collocate_core_4(grid, coef_xyz, pol_x, pol_y, pol_z, map, sphere_bounds, cmax, gridbounds)
-    USE kinds,                        ONLY: dp
+     USE kinds, ONLY: dp
      INTEGER, INTENT(IN)                      :: sphere_bounds(*), cmax, &
                                                  map(-cmax:cmax, 1:3), &
                                                  gridbounds(2, 3)
@@ -781,7 +781,7 @@
 !> \param gridbounds ...
 ! **************************************************************************************************
   SUBROUTINE collocate_core_5(grid, coef_xyz, pol_x, pol_y, pol_z, map, sphere_bounds, cmax, gridbounds)
-    USE kinds,                        ONLY: dp
+     USE kinds, ONLY: dp
      INTEGER, INTENT(IN)                      :: sphere_bounds(*), cmax, &
                                                  map(-cmax:cmax, 1:3), &
                                                  gridbounds(2, 3)
@@ -1065,7 +1065,7 @@
 !> \param gridbounds ...
 ! **************************************************************************************************
   SUBROUTINE collocate_core_6(grid, coef_xyz, pol_x, pol_y, pol_z, map, sphere_bounds, cmax, gridbounds)
-    USE kinds,                        ONLY: dp
+     USE kinds, ONLY: dp
      INTEGER, INTENT(IN)                      :: sphere_bounds(*), cmax, &
                                                  map(-cmax:cmax, 1:3), &
                                                  gridbounds(2, 3)
@@ -1437,7 +1437,7 @@
 !> \param gridbounds ...
 ! **************************************************************************************************
   SUBROUTINE collocate_core_7(grid, coef_xyz, pol_x, pol_y, pol_z, map, sphere_bounds, cmax, gridbounds)
-    USE kinds,                        ONLY: dp
+     USE kinds, ONLY: dp
      INTEGER, INTENT(IN)                      :: sphere_bounds(*), cmax, &
                                                  map(-cmax:cmax, 1:3), &
                                                  gridbounds(2, 3)
@@ -1917,7 +1917,7 @@
 !> \param gridbounds ...
 ! **************************************************************************************************
   SUBROUTINE collocate_core_8(grid, coef_xyz, pol_x, pol_y, pol_z, map, sphere_bounds, cmax, gridbounds)
-    USE kinds,                        ONLY: dp
+     USE kinds, ONLY: dp
      INTEGER, INTENT(IN)                      :: sphere_bounds(*), cmax, &
                                                  map(-cmax:cmax, 1:3), &
                                                  gridbounds(2, 3)
@@ -2527,7 +2527,7 @@
 !> \param gridbounds ...
 ! **************************************************************************************************
   SUBROUTINE collocate_core_9(grid, coef_xyz, pol_x, pol_y, pol_z, map, sphere_bounds, cmax, gridbounds)
-    USE kinds,                        ONLY: dp
+     USE kinds, ONLY: dp
      INTEGER, INTENT(IN)                      :: sphere_bounds(*), cmax, &
                                                  map(-cmax:cmax, 1:3), &
                                                  gridbounds(2, 3)

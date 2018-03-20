@@ -1132,10 +1132,10 @@ CONTAINS
             ny = pw_grid%para%bo(2, 2, ipl, 3)- &
                  pw_grid%para%bo(1, 2, ipl, 3)+1
             DO n = pw_grid%para%bo(1, 3, ipl, 3), &
-                   pw_grid%para%bo(2, 3, ipl, 3)
+               pw_grid%para%bo(2, 3, ipl, 3)
                i = n-pw_grid%para%bo(1, 3, ipl, 3)
                DO m = pw_grid%para%bo(1, 2, ipl, 3), &
-                      pw_grid%para%bo(2, 2, ipl, 3)
+                  pw_grid%para%bo(2, 2, ipl, 3)
                   j = m-pw_grid%para%bo(1, 2, ipl, 3)+1
                   pw_grid%para%yzq(m, n) = j+i*ny
                END DO
@@ -1155,10 +1155,10 @@ CONTAINS
                ipp = pemap(ip)
                ns = 0
                DO n = pw_grid%para%bo(1, 3, ipp, 3), &
-                      pw_grid%para%bo(2, 3, ipp, 3)
+                  pw_grid%para%bo(2, 3, ipp, 3)
                   i = n-pw_grid%bounds(1, 3)+1
                   DO m = pw_grid%para%bo(1, 2, ipp, 3), &
-                         pw_grid%para%bo(2, 2, ipp, 3)
+                     pw_grid%para%bo(2, 2, ipp, 3)
                      j = m-pw_grid%bounds(1, 2)+1
                      ns = ns+1
                      pw_grid%para%yzp(1, ns, ip) = j

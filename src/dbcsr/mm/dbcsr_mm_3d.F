@@ -106,8 +106,8 @@ MODULE dbcsr_mm_3d
         mp_win_create, mp_win_free, mp_win_lock_all, mp_win_unlock_all
 #include "../../base/base_uses.f90"
 
-!$ USE OMP_LIB, ONLY: omp_get_max_threads, omp_get_thread_num, omp_get_num_threads,&
-!$                    omp_set_lock, omp_unset_lock, omp_init_lock, omp_lock_kind, omp_destroy_lock
+!$ USE OMP_LIB, ONLY: omp_get_max_threads, omp_get_thread_num, omp_get_num_threads, &
+!$    omp_set_lock, omp_unset_lock, omp_init_lock, omp_lock_kind, omp_destroy_lock
 
    IMPLICIT NONE
 
@@ -941,7 +941,7 @@ CONTAINS
             ELSE
                ! Copy meta, block by block
                DO blk = recv_displs(imeta, ithread, ui, dst_proc), &
-                        recv_displs(imeta, ithread, ui, dst_proc)+recv_sizes(imeta, ithread, ui, dst_proc)-1, 3
+                  recv_displs(imeta, ithread, ui, dst_proc)+recv_sizes(imeta, ithread, ui, dst_proc)-1, 3
                   stored_row = local_g2l_map_rows(make_buffers_meta_recv(blk))
                   stored_col = local_g2l_map_cols(make_buffers_meta_recv(blk+1))
                   meta_buffer_p(offset_threads(imeta, ithread, ui)) = stored_row

@@ -5,26 +5,26 @@
 
 MODULE manybody_quip
 
-USE cp_log_handling, ONLY: cp_logger_get_default_io_unit
-  USE atomic_kind_types,               ONLY: atomic_kind_type
-  USE bibliography,                    ONLY: QUIP_ref,&
-                                             cite_reference
-  USE cell_types,                      ONLY: cell_type
-  USE cp_para_types,                   ONLY: cp_para_env_type
-  USE fist_nonbond_env_types,          ONLY: fist_nonbond_env_get,&
-                                             fist_nonbond_env_set,&
-                                             fist_nonbond_env_type,&
-                                             quip_data_type
-  USE kinds,                           ONLY: dp
-  USE pair_potential_types,            ONLY: pair_potential_pp_type,&
-                                             pair_potential_single_type,&
-                                             quip_pot_type,&
-                                             quip_type
-  USE particle_types,                  ONLY: particle_type
-  USE physcon,                         ONLY: angstrom,&
-                                             evolt
+   USE cp_log_handling, ONLY: cp_logger_get_default_io_unit
+   USE atomic_kind_types, ONLY: atomic_kind_type
+   USE bibliography, ONLY: QUIP_ref, &
+      cite_reference
+   USE cell_types, ONLY: cell_type
+   USE cp_para_types, ONLY: cp_para_env_type
+   USE fist_nonbond_env_types, ONLY: fist_nonbond_env_get, &
+      fist_nonbond_env_set, &
+      fist_nonbond_env_type, &
+      quip_data_type
+   USE kinds, ONLY: dp
+   USE pair_potential_types, ONLY: pair_potential_pp_type, &
+      pair_potential_single_type, &
+      quip_pot_type, &
+      quip_type
+   USE particle_types, ONLY: particle_type
+   USE physcon, ONLY: angstrom, &
+      evolt
 #ifdef __QUIP
-  USE quip_unified_wrapper_module,    ONLY : quip_unified_wrapper
+   USE quip_unified_wrapper_module, ONLY: quip_unified_wrapper
 #endif
 
 #include "./base/base_uses.f90"

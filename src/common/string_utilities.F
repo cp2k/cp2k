@@ -13,7 +13,7 @@
 ! **************************************************************************************************
 MODULE string_utilities
 
-   USE glob_matching,                   ONLY: pattern_match=>string_match
+   USE glob_matching,                   ONLY: pattern_match => string_match
    USE kinds,                           ONLY: default_blank_character
 
    IMPLICIT NONE

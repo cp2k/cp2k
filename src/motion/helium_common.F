@@ -1167,7 +1167,7 @@ CONTAINS
          DO j = 1, nb
             v = v+p(j)*lens(j)
          END DO
-         PRINT*, "Expected number of comparisons with i=", i, v
+         PRINT *, "Expected number of comparisons with i=", i, v
 #endif
 
          ! reset the nodes, for the canonical tree we just need the leaf info
@@ -1267,7 +1267,7 @@ CONTAINS
             END IF
             !PRINT *,lens(j),c*p(j),(lens(j)-c*p(j))/sqrt(c*p(j))
          END DO
-         PRINT*, "MAXDEV:", k, lens(k), c*p(k), v
+         PRINT *, "MAXDEV:", k, lens(k), c*p(k), v
          !PRINT *,"TMAT:",tmatrix(i,:)
          !PRINT *,"NMAT:",nmatrix(i,:)
          !STOP
@@ -1288,8 +1288,8 @@ CONTAINS
                !PRINT *,c,1.0/ipmatrix(i,c),p(j+nb)-tmatrix(i,j)
                IF (ABS(1.0/ipmatrix(i, c)-(p(j+nb)-tmatrix(i, j))) > &
                    10.0_dp*EPSILON(1.0_dp)) THEN
-                  PRINT*, "Probability mismatch for particle i->j", i, c
-                  PRINT*, "Got", p(j+nb)-tmatrix(i, j), "should be", 1.0/ipmatrix(i, c)
+                  PRINT *, "Probability mismatch for particle i->j", i, c
+                  PRINT *, "Got", p(j+nb)-tmatrix(i, j), "should be", 1.0/ipmatrix(i, c)
                   STOP
                END IF
             END IF
@@ -1303,13 +1303,13 @@ CONTAINS
                !PRINT *,c,1.0/ipmatrix(i,c),tmatrix(i,j)-p(j)
                IF (ABS(1.0/ipmatrix(i, c)-(tmatrix(i, j)-p(j))) > &
                    10.0_dp*EPSILON(1.0_dp)) THEN
-                  PRINT*, "Probability mismatch for particle i->j", i, c
-                  PRINT*, "Got", tmatrix(i, j)-p(j), "should be", 1.0/ipmatrix(i, c)
+                  PRINT *, "Probability mismatch for particle i->j", i, c
+                  PRINT *, "Got", tmatrix(i, j)-p(j), "should be", 1.0/ipmatrix(i, c)
                   STOP
                END IF
             END IF
          END DO
-         PRINT*, "Probabilities ok"
+         PRINT *, "Probabilities ok"
 #endif
 
       END DO

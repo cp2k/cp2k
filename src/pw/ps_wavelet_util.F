@@ -253,23 +253,23 @@ CONTAINS
       CALL fourier_dim(l1, n1)
       IF (n1 == m1) THEN
       ELSE
-         PRINT*, 'the FFT in the x direction is not allowed'
-         PRINT*, 'n01 dimension', n01
+         PRINT *, 'the FFT in the x direction is not allowed'
+         PRINT *, 'n01 dimension', n01
          CPABORT("")
       END IF
       l1 = l1+1
       CALL fourier_dim(l2, n2)
       IF (n2 == m2) THEN
       ELSE
-         PRINT*, 'the FFT in the z direction is not allowed'
-         PRINT*, 'n03 dimension', n03
+         PRINT *, 'the FFT in the z direction is not allowed'
+         PRINT *, 'n03 dimension', n03
          CPABORT("")
       END IF
       CALL fourier_dim(l3, n3)
       IF (n3 == m3) THEN
       ELSE
-         PRINT*, 'the FFT in the y direction is not allowed'
-         PRINT*, 'n02 dimension', n02
+         PRINT *, 'the FFT in the y direction is not allowed'
+         PRINT *, 'n02 dimension', n02
          CPABORT("")
       END IF
 
@@ -353,16 +353,16 @@ CONTAINS
       CALL fourier_dim(l1, n1)
       IF (n1 == m1) THEN
       ELSE
-         PRINT*, 'the FFT in the x direction is not allowed'
-         PRINT*, 'n01 dimension', n01
+         PRINT *, 'the FFT in the x direction is not allowed'
+         PRINT *, 'n01 dimension', n01
          CPABORT("")
       END IF
       l1 = l1+1
       CALL fourier_dim(l2, n2)
       IF (n2 == m2) THEN
       ELSE
-         PRINT*, 'the FFT in the z direction is not allowed'
-         PRINT*, 'n03 dimension', n03
+         PRINT *, 'the FFT in the z direction is not allowed'
+         PRINT *, 'n03 dimension', n03
          CPABORT("")
       END IF
       DO

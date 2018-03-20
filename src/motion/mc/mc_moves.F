@@ -62,7 +62,7 @@ MODULE mc_moves
    PRIVATE
 
    PRIVATE  :: change_bond_angle, change_bond_length, depth_first_search, &
-      change_dihedral
+               change_dihedral
 
 ! *** Global parameters ***
 

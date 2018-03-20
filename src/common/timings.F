@@ -318,7 +318,7 @@ CONTAINS
       r_stat => list_get(timer_env%routine_stats, cs_entry%routine_id)
 
       IF (handle /= cs_entry%routine_id) THEN
-         PRINT*, "list_size(timer_env%callstack) ", list_size(timer_env%callstack), &
+         PRINT *, "list_size(timer_env%callstack) ", list_size(timer_env%callstack), &
             " handle ", handle, " list_size(timers_stack) ", list_size(timers_stack)
          CPABORT('mismatched timestop '//TRIM(r_stat%routineN)//' in routine timestop')
       END IF

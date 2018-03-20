@@ -19,7 +19,7 @@ MODULE cp_error_handling
    USE print_messages,                  ONLY: print_message
    USE timings,                         ONLY: print_stack
 
-!$ USE OMP_LIB,                        ONLY: omp_get_thread_num
+!$ USE OMP_LIB, ONLY: omp_get_thread_num
 
    IMPLICIT NONE
    PRIVATE

@@ -2741,7 +2741,7 @@ CONTAINS
       INTERFACE
 ! **************************************************************************************************
          SUBROUTINE linOp(pw_in, pw_out)
-         USE pw_types, ONLY: pw_type
+            USE pw_types, ONLY: pw_type
             TYPE(pw_type), POINTER :: pw_in, pw_out
          END SUBROUTINE linOp
       END INTERFACE

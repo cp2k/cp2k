@@ -13,16 +13,16 @@
 MODULE pexsi_interface
 
 #ifdef __LIBPEXSI
-  USE f_ppexsi_interface,              ONLY: f_ppexsi_dft_driver,&
-                                             f_ppexsi_load_real_hs_matrix,&
-                                             f_ppexsi_options,&
-                                             f_ppexsi_plan_finalize,&
-                                             f_ppexsi_plan_initialize,&
-                                             f_ppexsi_retrieve_real_dft_matrix,&
-                                             f_ppexsi_set_default_options
+   USE f_ppexsi_interface, ONLY: f_ppexsi_dft_driver, &
+      f_ppexsi_load_real_hs_matrix, &
+      f_ppexsi_options, &
+      f_ppexsi_plan_finalize, &
+      f_ppexsi_plan_initialize, &
+      f_ppexsi_retrieve_real_dft_matrix, &
+      f_ppexsi_set_default_options
 #endif
-  USE kinds,                           ONLY: int_8,&
-                                             real_8
+   USE kinds, ONLY: int_8, &
+      real_8
 #include "./base/base_uses.f90"
 
    IMPLICIT NONE

@@ -2525,7 +2525,7 @@ CONTAINS
             DO imolecule = 1, nmolecule
                ikind = molecules%els(imolecule)%molecule_kind%kind_number
                DO iatom = molecules%els(imolecule)%first_atom, &
-                          molecules%els(imolecule)%last_atom
+                  molecules%els(imolecule)%last_atom
                   ibuf(iatom) = ikind
                   imol(iatom) = imolecule
                END DO

@@ -10,62 +10,62 @@
 !>      11.2007 Teodoro Laino [tlaino] - University of Zurich
 ! **************************************************************************************************
 MODULE metadynamics
-USE cp_log_handling, ONLY: cp_logger_type, cp_get_default_logger
-  USE bibliography,                    ONLY: VandenCic2006
+   USE cp_log_handling, ONLY: cp_logger_type, cp_get_default_logger
+   USE bibliography, ONLY: VandenCic2006
 #if defined (__PLUMED2)
-  USE cell_types,                      ONLY: cell_type,&
-                                             pbc_cp2k_plumed_getset_cell
+   USE cell_types, ONLY: cell_type, &
+      pbc_cp2k_plumed_getset_cell
 #else
-  USE cell_types,                      ONLY: cell_type
+   USE cell_types, ONLY: cell_type
 #endif
-  USE colvar_methods,                  ONLY: colvar_eval_glob_f
-  USE colvar_types,                    ONLY: colvar_p_type,&
-                                             torsion_colvar_id
-  USE constraint_fxd,                  ONLY: fix_atom_control
-  USE cp_output_handling,              ONLY: cp_add_iter_level,&
-                                             cp_iterate,&
-                                             cp_print_key_finished_output,&
-                                             cp_print_key_unit_nr,&
-                                             cp_rm_iter_level
-  USE cp_subsys_types,                 ONLY: cp_subsys_get,&
-                                             cp_subsys_type
-  USE force_env_types,                 ONLY: force_env_get,&
-                                             force_env_type
-  USE input_constants,                 ONLY: do_wall_m,&
-                                             do_wall_p,&
-                                             do_wall_reflective
-  USE input_section_types,             ONLY: section_vals_get,&
-                                             section_vals_get_subs_vals,&
-                                             section_vals_type,&
-                                             section_vals_val_get
-  USE kinds,                           ONLY: dp
-  USE message_passing,                 ONLY: mp_bcast, cp2k_is_parallel
-  USE metadynamics_types,              ONLY: hills_env_type,&
-                                             meta_env_type,&
-                                             metavar_type,&
-                                             multiple_walkers_type
-  USE metadynamics_utils,              ONLY: add_hill_single,&
-                                             get_meta_iter_level,&
-                                             meta_walls,&
-                                             restart_hills,&
-                                             synchronize_multiple_walkers
-  USE parallel_rng_types,              ONLY: next_random_number
-  USE particle_list_types,             ONLY: particle_list_type
+   USE colvar_methods, ONLY: colvar_eval_glob_f
+   USE colvar_types, ONLY: colvar_p_type, &
+      torsion_colvar_id
+   USE constraint_fxd, ONLY: fix_atom_control
+   USE cp_output_handling, ONLY: cp_add_iter_level, &
+      cp_iterate, &
+      cp_print_key_finished_output, &
+      cp_print_key_unit_nr, &
+      cp_rm_iter_level
+   USE cp_subsys_types, ONLY: cp_subsys_get, &
+      cp_subsys_type
+   USE force_env_types, ONLY: force_env_get, &
+      force_env_type
+   USE input_constants, ONLY: do_wall_m, &
+      do_wall_p, &
+      do_wall_reflective
+   USE input_section_types, ONLY: section_vals_get, &
+      section_vals_get_subs_vals, &
+      section_vals_type, &
+      section_vals_val_get
+   USE kinds, ONLY: dp
+   USE message_passing, ONLY: mp_bcast, cp2k_is_parallel
+   USE metadynamics_types, ONLY: hills_env_type, &
+      meta_env_type, &
+      metavar_type, &
+      multiple_walkers_type
+   USE metadynamics_utils, ONLY: add_hill_single, &
+      get_meta_iter_level, &
+      meta_walls, &
+      restart_hills, &
+      synchronize_multiple_walkers
+   USE parallel_rng_types, ONLY: next_random_number
+   USE particle_list_types, ONLY: particle_list_type
 #if defined (__PLUMED2)
-  USE physcon,                         ONLY: angstrom,&
-                                             boltzmann,&
-                                             femtoseconds,&
-                                             joule,&
-                                             kelvin,kjmol,&
-                                             picoseconds
+   USE physcon, ONLY: angstrom, &
+      boltzmann, &
+      femtoseconds, &
+      joule, &
+      kelvin, kjmol, &
+      picoseconds
 #else
-  USE physcon,                         ONLY: boltzmann,&
-                                             femtoseconds,&
-                                             joule,&
-                                             kelvin
+   USE physcon, ONLY: boltzmann, &
+      femtoseconds, &
+      joule, &
+      kelvin
 #endif
-  USE reference_manager,               ONLY: cite_reference
-  USE simpar_types,                    ONLY: simpar_type
+   USE reference_manager, ONLY: cite_reference
+   USE simpar_types, ONLY: simpar_type
 #include "./base/base_uses.f90"
 
    IMPLICIT NONE

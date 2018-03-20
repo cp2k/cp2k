@@ -622,11 +622,11 @@ CONTAINS
             IF (iostat /= 0) THEN
                CALL m_getpid(pid)
                CALL m_hostnm(host_name)
-               PRINT*, " *** Error trying to WRITE to the local logger ***"
-               PRINT*, " *** MPI_id           = ", lggr%para_env%mepos
-               PRINT*, " *** MPI_Communicator = ", lggr%para_env%group
-               PRINT*, " *** PID              = ", pid
-               PRINT*, " *** Hostname         = "//TRIM(host_name)
+               PRINT *, " *** Error trying to WRITE to the local logger ***"
+               PRINT *, " *** MPI_id           = ", lggr%para_env%mepos
+               PRINT *, " *** MPI_Communicator = ", lggr%para_env%group
+               PRINT *, " *** PID              = ", pid
+               PRINT *, " *** Hostname         = "//TRIM(host_name)
                CALL print_stack(default_output_unit)
             ELSE
                CALL print_stack(lggr%default_global_unit_nr)
@@ -655,11 +655,11 @@ CONTAINS
             IF (iostat /= 0) THEN
                CALL m_getpid(pid)
                CALL m_hostnm(host_name)
-               PRINT*, " *** Error trying to WRITE to the local logger ***"
-               PRINT*, " *** MPI_id           = ", lggr%para_env%mepos
-               PRINT*, " *** MPI_Communicator = ", lggr%para_env%group
-               PRINT*, " *** PID              = ", pid
-               PRINT*, " *** Hostname         = "//TRIM(host_name)
+               PRINT *, " *** Error trying to WRITE to the local logger ***"
+               PRINT *, " *** MPI_id           = ", lggr%para_env%mepos
+               PRINT *, " *** MPI_Communicator = ", lggr%para_env%group
+               PRINT *, " *** PID              = ", pid
+               PRINT *, " *** Hostname         = "//TRIM(host_name)
                CALL print_stack(default_output_unit)
             END IF
 
@@ -795,7 +795,7 @@ CONTAINS
       END IF
       res = t_res
       IF (iostat /= 0) THEN
-         PRINT*, "cp_int_to_string ioerror", iostat
+         PRINT *, "cp_int_to_string ioerror", iostat
          CALL print_stack(cp_logger_get_default_unit_nr())
       END IF
    END FUNCTION cp_int_to_string

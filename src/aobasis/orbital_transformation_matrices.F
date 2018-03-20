@@ -27,7 +27,7 @@ MODULE orbital_transformation_matrices
    USE orbital_symbols,                 ONLY: cgf_symbol,&
                                               sgf_symbol
 
-!$ USE OMP_LIB,                         ONLY: omp_get_level
+!$ USE OMP_LIB, ONLY: omp_get_level
 
 #include "../base/base_uses.f90"
 

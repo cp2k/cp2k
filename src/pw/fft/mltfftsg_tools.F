@@ -224,7 +224,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE fftrot_cmplx(mm, nfft, m, nn, n, zin, zout, trig, now, after, before, isign)
 
-  USE fft_kinds, ONLY     : dp
+      USE fft_kinds, ONLY: dp
       INTEGER, INTENT(IN)                                :: mm, nfft, m, nn, n
       COMPLEX(dp), DIMENSION(mm, m), INTENT(IN), TARGET  :: zin
       COMPLEX(dp), DIMENSION(n, nn), INTENT(INOUT), &
@@ -269,7 +269,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE fftrot(mm, nfft, m, nn, n, zin, zout, trig, now, after, before, isign)
 
-  USE fft_kinds, ONLY     : dp
+      USE fft_kinds, ONLY: dp
       INTEGER, INTENT(IN)                                :: mm, nfft, m, nn, n
       REAL(dp), DIMENSION(2, mm, m), INTENT(IN)          :: zin
       REAL(dp), DIMENSION(2, n, nn), INTENT(INOUT)       :: zout

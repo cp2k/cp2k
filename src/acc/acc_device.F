@@ -5,7 +5,7 @@
 
 MODULE acc_device
 #if defined (__ACC)
-  USE ISO_C_BINDING,                  ONLY: C_INT
+   USE ISO_C_BINDING, ONLY: C_INT
 #endif
 #include "../base/base_uses.f90"
 

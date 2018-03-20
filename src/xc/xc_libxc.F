@@ -23,60 +23,60 @@
 !> \author F. Tran
 ! **************************************************************************************************
 MODULE xc_libxc
-  USE bibliography,                    ONLY: Lehtola2018,&
-                                             Marques2012,&
-                                             cite_reference
+   USE bibliography, ONLY: Lehtola2018, &
+      Marques2012, &
+      cite_reference
 
-  USE input_section_types,             ONLY: section_vals_type,&
-                                             section_vals_val_get
-  USE kinds,                           ONLY: default_string_length,&
-                                             dp
-  USE xc_derivative_set_types,         ONLY: xc_derivative_set_type,&
-                                             xc_dset_get_derivative
-  USE xc_derivative_types,             ONLY: xc_derivative_get,&
-                                             xc_derivative_type
-  USE xc_rho_cflags_types,             ONLY: xc_rho_cflags_type
-  USE xc_rho_set_types,                ONLY: xc_rho_set_get,&
-                                             xc_rho_set_type
+   USE input_section_types, ONLY: section_vals_type, &
+      section_vals_val_get
+   USE kinds, ONLY: default_string_length, &
+      dp
+   USE xc_derivative_set_types, ONLY: xc_derivative_set_type, &
+      xc_dset_get_derivative
+   USE xc_derivative_types, ONLY: xc_derivative_get, &
+      xc_derivative_type
+   USE xc_rho_cflags_types, ONLY: xc_rho_cflags_type
+   USE xc_rho_set_types, ONLY: xc_rho_set_get, &
+      xc_rho_set_type
 #if defined (__LIBXC)
-  USE xc_libxc_wrap,                   ONLY: xc_f03_func_t,&
-                                             xc_f03_func_init,&
-                                             xc_f03_func_end,&
-                                             xc_f03_func_info_t,&
-                                             xc_f03_func_get_info,&
-                                             xc_f03_func_info_get_family,&
-                                             xc_f03_func_info_get_kind,&
-                                             xc_f03_func_info_get_name,&
-                                             xc_f03_gga_exc,&
-                                             xc_f03_gga_exc_vxc,&
-                                             xc_f03_gga_fxc,&
-                                             xc_f03_gga_vxc,&
-                                             xc_f03_lda,&
-                                             xc_f03_lda_exc,&
-                                             xc_f03_lda_exc_vxc,&
-                                             xc_f03_lda_fxc,&
-                                             xc_f03_lda_kxc,&
-                                             xc_f03_lda_vxc,&
-                                             xc_f03_mgga,&
-                                             xc_f03_mgga_exc,&
-                                             xc_f03_mgga_exc_vxc,&
-                                             xc_f03_mgga_fxc,&
-                                             xc_f03_mgga_vxc,&
-                                             XC_POLARIZED,&
-                                             XC_UNPOLARIZED,&
-                                             XC_FAMILY_LDA,&
-                                             XC_FAMILY_GGA,&
-                                             XC_FAMILY_MGGA,&
-                                             XC_FAMILY_HYB_GGA,&
-                                             XC_CORRELATION,&
-                                             XC_EXCHANGE,&
-                                             XC_EXCHANGE_CORRELATION,&
-                                             XC_KINETIC,&
-                                             xc_libxc_wrap_info_refs,&
-                                             xc_libxc_wrap_version,&
-                                             xc_libxc_wrap_functional_get_number,&
-                                             xc_libxc_wrap_needs_laplace,&
-                                             xc_libxc_wrap_functional_set_params
+   USE xc_libxc_wrap, ONLY: xc_f03_func_t, &
+      xc_f03_func_init, &
+      xc_f03_func_end, &
+      xc_f03_func_info_t, &
+      xc_f03_func_get_info, &
+      xc_f03_func_info_get_family, &
+      xc_f03_func_info_get_kind, &
+      xc_f03_func_info_get_name, &
+      xc_f03_gga_exc, &
+      xc_f03_gga_exc_vxc, &
+      xc_f03_gga_fxc, &
+      xc_f03_gga_vxc, &
+      xc_f03_lda, &
+      xc_f03_lda_exc, &
+      xc_f03_lda_exc_vxc, &
+      xc_f03_lda_fxc, &
+      xc_f03_lda_kxc, &
+      xc_f03_lda_vxc, &
+      xc_f03_mgga, &
+      xc_f03_mgga_exc, &
+      xc_f03_mgga_exc_vxc, &
+      xc_f03_mgga_fxc, &
+      xc_f03_mgga_vxc, &
+      XC_POLARIZED, &
+      XC_UNPOLARIZED, &
+      XC_FAMILY_LDA, &
+      XC_FAMILY_GGA, &
+      XC_FAMILY_MGGA, &
+      XC_FAMILY_HYB_GGA, &
+      XC_CORRELATION, &
+      XC_EXCHANGE, &
+      XC_EXCHANGE_CORRELATION, &
+      XC_KINETIC, &
+      xc_libxc_wrap_info_refs, &
+      xc_libxc_wrap_version, &
+      xc_libxc_wrap_functional_get_number, &
+      xc_libxc_wrap_needs_laplace, &
+      xc_libxc_wrap_functional_set_params
 #endif
 
 #include "../base/base_uses.f90"

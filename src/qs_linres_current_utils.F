@@ -1042,7 +1042,7 @@ CONTAINS
          jstate = 0
          DO icenter = 1, current_env%nbr_center(ispin)
             DO i = current_env%center_list(ispin)%array(1, icenter), &
-                   current_env%center_list(ispin)%array(1, icenter+1)-1
+               current_env%center_list(ispin)%array(1, icenter+1)-1
                !
                istate = current_env%center_list(ispin)%array(2, i)
                jstate = jstate+1

@@ -16,13 +16,13 @@
 ! **************************************************************************************************
 SUBROUTINE check_rotmat_der(sepi, sepj, rjiv, ij_matrix, do_invert)
 
-  USE kinds,                           ONLY: dp
-  USE semi_empirical_int_utils,        ONLY: rotmat
-  USE semi_empirical_types,            ONLY: rotmat_create,&
-                                             rotmat_release,&
-                                             rotmat_type,&
-                                             semi_empirical_type,&
-                                             se_int_control_type
+   USE kinds, ONLY: dp
+   USE semi_empirical_int_utils, ONLY: rotmat
+   USE semi_empirical_types, ONLY: rotmat_create, &
+      rotmat_release, &
+      rotmat_type, &
+      semi_empirical_type, &
+      se_int_control_type
 #include "./base/base_uses.f90"
    IMPLICIT NONE
    TYPE(semi_empirical_type), POINTER       :: sepi, sepj
@@ -148,17 +148,17 @@ END SUBROUTINE check_rotmat_der
 ! **************************************************************************************************
 SUBROUTINE rot_2el_2c_first_debug(sepi, sepj, rijv, se_int_control, se_taper, invert, ii, kk, v_d)
 
-  USE kinds,                           ONLY: dp
-  USE semi_empirical_int_utils,        ONLY: rotmat
-  USE semi_empirical_int_arrays,       ONLY: indexb
-  USE semi_empirical_int_num,          ONLY: terep_num
-  USE semi_empirical_types,            ONLY: semi_empirical_type,&
-                                             rotmat_type,&
-                                             rotmat_create,&
-                                             rotmat_release,&
-                                             se_int_control_type,&
-                                             se_taper_type
-  USE semi_empirical_int_utils,        ONLY: rot_2el_2c_first
+   USE kinds, ONLY: dp
+   USE semi_empirical_int_utils, ONLY: rotmat
+   USE semi_empirical_int_arrays, ONLY: indexb
+   USE semi_empirical_int_num, ONLY: terep_num
+   USE semi_empirical_types, ONLY: semi_empirical_type, &
+      rotmat_type, &
+      rotmat_create, &
+      rotmat_release, &
+      se_int_control_type, &
+      se_taper_type
+   USE semi_empirical_int_utils, ONLY: rot_2el_2c_first
 #include "./base/base_uses.f90"
    IMPLICIT NONE
    TYPE(semi_empirical_type), POINTER       :: sepi, sepj
@@ -249,11 +249,11 @@ END SUBROUTINE rot_2el_2c_first_debug
 ! **************************************************************************************************
 SUBROUTINE check_dssss_nucint_ana(sepi, sepj, r, dssss, itype, se_int_control, se_taper)
 
-  USE kinds,                           ONLY: dp
-  USE semi_empirical_int_num,          ONLY: ssss_nucint_num
-  USE semi_empirical_types,            ONLY: semi_empirical_type,&
-                                             se_int_control_type,&
-                                             se_taper_type
+   USE kinds, ONLY: dp
+   USE semi_empirical_int_num, ONLY: ssss_nucint_num
+   USE semi_empirical_types, ONLY: semi_empirical_type, &
+      se_int_control_type, &
+      se_taper_type
 #include "./base/base_uses.f90"
    IMPLICIT NONE
    TYPE(semi_empirical_type), POINTER       :: sepi, sepj
@@ -301,11 +301,11 @@ END SUBROUTINE check_dssss_nucint_ana
 ! **************************************************************************************************
 SUBROUTINE check_dcore_nucint_ana(sepi, sepj, r, dcore, itype, se_int_control, se_taper)
 
-  USE kinds,                           ONLY: dp
-  USE semi_empirical_int_num,          ONLY: core_nucint_num
-  USE semi_empirical_types,            ONLY: semi_empirical_type,&
-                                             se_int_control_type,&
-                                             se_taper_type
+   USE kinds, ONLY: dp
+   USE semi_empirical_int_num, ONLY: core_nucint_num
+   USE semi_empirical_types, ONLY: semi_empirical_type, &
+      se_int_control_type, &
+      se_taper_type
 #include "./base/base_uses.f90"
    IMPLICIT NONE
    TYPE(semi_empirical_type), POINTER       :: sepi, sepj
@@ -356,7 +356,7 @@ END SUBROUTINE check_dcore_nucint_ana
 !>      Debug routine
 ! **************************************************************************************************
 FUNCTION check_value(num, ana, minval, thrs) RESULT(passed)
-  USE kinds,                           ONLY: dp
+   USE kinds, ONLY: dp
    IMPLICIT NONE
    REAL(KIND=dp)                            :: num, ana, thrs, minval
    LOGICAL                                  :: passed
@@ -401,12 +401,12 @@ END FUNCTION check_value
 ! **************************************************************************************************
 SUBROUTINE check_drotnuc_ana(sepi, sepj, rijv, itype, se_int_control, se_taper, e1b, e2a, de1b, de2a)
 
-  USE kinds,                           ONLY: dp
-  USE semi_empirical_int_num,          ONLY: rotnuc_num,&
-                                             drotnuc_num
-  USE semi_empirical_types,            ONLY: semi_empirical_type,&
-                                             se_int_control_type,&
-                                             se_taper_type
+   USE kinds, ONLY: dp
+   USE semi_empirical_int_num, ONLY: rotnuc_num, &
+      drotnuc_num
+   USE semi_empirical_types, ONLY: semi_empirical_type, &
+      se_int_control_type, &
+      se_taper_type
 #include "./base/base_uses.f90"
    IMPLICIT NONE
    TYPE(semi_empirical_type), POINTER       :: sepi, sepj
@@ -506,12 +506,12 @@ END SUBROUTINE check_drotnuc_ana
 ! **************************************************************************************************
 SUBROUTINE check_dcorecore_ana(sepi, sepj, rijv, itype, se_int_control, se_taper, enuc, denuc)
 
-  USE kinds,                           ONLY: dp
-  USE semi_empirical_int_num,          ONLY: corecore_num,&
-                                             dcorecore_num
-  USE semi_empirical_types,            ONLY: semi_empirical_type,&
-                                             se_int_control_type,&
-                                             se_taper_type
+   USE kinds, ONLY: dp
+   USE semi_empirical_int_num, ONLY: corecore_num, &
+      dcorecore_num
+   USE semi_empirical_types, ONLY: semi_empirical_type, &
+      se_int_control_type, &
+      se_taper_type
 #include "./base/base_uses.f90"
    IMPLICIT NONE
    TYPE(semi_empirical_type), POINTER       :: sepi, sepj
@@ -570,11 +570,11 @@ END SUBROUTINE check_dcorecore_ana
 ! **************************************************************************************************
 SUBROUTINE check_dterep_ana(sepi, sepj, r, ri, dri, se_int_control, se_taper, lgrad)
 
-  USE kinds,                           ONLY: dp
-  USE semi_empirical_int_num,          ONLY: terep_num
-  USE semi_empirical_types,            ONLY: semi_empirical_type,&
-                                             se_int_control_type,&
-                                             se_taper_type
+   USE kinds, ONLY: dp
+   USE semi_empirical_int_num, ONLY: terep_num
+   USE semi_empirical_types, ONLY: semi_empirical_type, &
+      se_int_control_type, &
+      se_taper_type
 #include "./base/base_uses.f90"
    IMPLICIT NONE
    TYPE(semi_empirical_type), POINTER       :: sepi, sepj
@@ -640,12 +640,12 @@ END SUBROUTINE check_dterep_ana
 ! **************************************************************************************************
 SUBROUTINE check_rotint_ana(sepi, sepj, rijv, w, dw, se_int_control, se_taper)
 
-  USE kinds,                           ONLY: dp
-  USE semi_empirical_int_num,          ONLY: rotint_num,&
-                                             drotint_num
-  USE semi_empirical_types,            ONLY: semi_empirical_type,&
-                                             se_int_control_type,&
-                                             se_taper_type
+   USE kinds, ONLY: dp
+   USE semi_empirical_int_num, ONLY: rotint_num, &
+      drotint_num
+   USE semi_empirical_types, ONLY: semi_empirical_type, &
+      se_int_control_type, &
+      se_taper_type
 #include "./base/base_uses.f90"
    IMPLICIT NONE
    TYPE(semi_empirical_type), POINTER       :: sepi, sepj

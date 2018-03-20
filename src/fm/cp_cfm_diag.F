@@ -10,21 +10,21 @@
 !> \author Joost VandeVondele (2003-09)
 ! **************************************************************************************************
 MODULE cp_cfm_diag
-  USE cp_cfm_basic_linalg,             ONLY: cp_cfm_cholesky_decompose,&
-                                             cp_cfm_gemm,&
-                                             cp_cfm_column_scale,&
-                                             cp_cfm_scale,&
-                                             cp_cfm_triangular_invert,&
-                                             cp_cfm_triangular_multiply
-  USE cp_cfm_types,                    ONLY: cp_cfm_get_info,&
-                                             cp_cfm_set_element,&
-                                             cp_cfm_to_cfm,&
-                                             cp_cfm_type
-  USE kinds,                           ONLY: dp
+   USE cp_cfm_basic_linalg, ONLY: cp_cfm_cholesky_decompose, &
+      cp_cfm_gemm, &
+      cp_cfm_column_scale, &
+      cp_cfm_scale, &
+      cp_cfm_triangular_invert, &
+      cp_cfm_triangular_multiply
+   USE cp_cfm_types, ONLY: cp_cfm_get_info, &
+      cp_cfm_set_element, &
+      cp_cfm_to_cfm, &
+      cp_cfm_type
+   USE kinds, ONLY: dp
 #if defined (__HAS_IEEE_EXCEPTIONS)
-  USE ieee_exceptions,                 ONLY: ieee_get_halting_mode,&
-                                             ieee_set_halting_mode,&
-                                             ieee_all
+   USE ieee_exceptions, ONLY: ieee_get_halting_mode, &
+      ieee_set_halting_mode, &
+      ieee_all
 #endif
 
 #include "../base/base_uses.f90"

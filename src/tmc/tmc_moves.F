@@ -1070,7 +1070,7 @@ CONTAINS
             ! O atom next to not involved proton for axis calculation
             dist_near = HUGE(dist_near)
             search_O_loop: DO ind = 1, SIZE(elem%pos), &
-                                    tmc_params%dim_per_elem*3
+               tmc_params%dim_per_elem*3
                IF (ind .EQ. ind_arr(i)) CYCLE search_O_loop
                tmp = nearest_distance(x1=vec_2H_f, &
                                       x2=elem%pos(ind:ind+tmc_params%dim_per_elem-1), &

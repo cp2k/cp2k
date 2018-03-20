@@ -26,62 +26,62 @@ MODULE xc_libxc_wrap
 #else
 
    ! Functionals which require parameters
-  USE cp_log_handling,                 ONLY: cp_to_string
-  USE kinds,                           ONLY: dp
-  USE xc_f03_lib_m,                    ONLY: xc_f03_func_end,&
-                                             xc_f03_func_init,&
-                                             xc_f03_func_set_ext_params,&
-                                             xc_f03_functional_get_number,&
-!
-                                             xc_f03_gga_exc,&
-                                             xc_f03_gga_exc_vxc,&
-                                             xc_f03_gga_fxc,&
-                                             xc_f03_gga_vxc,&
-!
-                                             xc_f03_func_get_info,&
-                                             xc_f03_func_info_get_family,&
-                                             xc_f03_func_info_get_kind,&
-                                             xc_f03_func_info_get_name,&
-                                             xc_f03_func_info_get_references,&
-                                             xc_f03_func_info_get_flags,&
-                                             xc_f03_func_info_get_n_ext_params,&
-                                             xc_f03_func_info_get_ext_params_description,&
-!
-                                             xc_f03_func_reference_get_ref, &
-                                             xc_f03_func_reference_get_doi, &
-!
-                                             xc_f03_lda, &
-                                             xc_f03_lda_exc, &
-                                             xc_f03_lda_exc_vxc, &
-                                             xc_f03_lda_fxc, &
-                                             xc_f03_lda_kxc, &
-                                             xc_f03_lda_vxc, &
-!
-                                             xc_f03_mgga, &
-                                             xc_f03_mgga_exc, &
-                                             xc_f03_mgga_exc_vxc, &
-                                             xc_f03_mgga_fxc, &
-                                             xc_f03_mgga_vxc, &
-!
-                                             xc_f03_func_t, &
-                                             xc_f03_func_info_t, &
-                                             xc_f03_func_reference_t, &
-!
-                                             XC_FAMILY_LDA, &
-                                             XC_FAMILY_GGA, &
-                                             XC_FAMILY_MGGA, &
-                                             XC_FAMILY_HYB_GGA, &
-!
-                                             XC_UNPOLARIZED, &
-                                             XC_POLARIZED, &
-!
-                                             XC_EXCHANGE, &
-                                             XC_CORRELATION, &
-                                             XC_EXCHANGE_CORRELATION, &
-                                             XC_KINETIC, &
-!
-                                             XC_FLAGS_NEEDS_LAPLACIAN, &
-                                             XC_FLAGS_HAVE_EXC
+   USE cp_log_handling, ONLY: cp_to_string
+   USE kinds, ONLY: dp
+   USE xc_f03_lib_m, ONLY: xc_f03_func_end, &
+      xc_f03_func_init, &
+      xc_f03_func_set_ext_params, &
+      xc_f03_functional_get_number, &
+      !
+      xc_f03_gga_exc, &
+      xc_f03_gga_exc_vxc, &
+      xc_f03_gga_fxc, &
+      xc_f03_gga_vxc, &
+      !
+      xc_f03_func_get_info, &
+      xc_f03_func_info_get_family, &
+      xc_f03_func_info_get_kind, &
+      xc_f03_func_info_get_name, &
+      xc_f03_func_info_get_references, &
+      xc_f03_func_info_get_flags, &
+      xc_f03_func_info_get_n_ext_params, &
+      xc_f03_func_info_get_ext_params_description, &
+      !
+      xc_f03_func_reference_get_ref, &
+      xc_f03_func_reference_get_doi, &
+      !
+      xc_f03_lda, &
+      xc_f03_lda_exc, &
+      xc_f03_lda_exc_vxc, &
+      xc_f03_lda_fxc, &
+      xc_f03_lda_kxc, &
+      xc_f03_lda_vxc, &
+      !
+      xc_f03_mgga, &
+      xc_f03_mgga_exc, &
+      xc_f03_mgga_exc_vxc, &
+      xc_f03_mgga_fxc, &
+      xc_f03_mgga_vxc, &
+      !
+      xc_f03_func_t, &
+      xc_f03_func_info_t, &
+      xc_f03_func_reference_t, &
+      !
+      XC_FAMILY_LDA, &
+      XC_FAMILY_GGA, &
+      XC_FAMILY_MGGA, &
+      XC_FAMILY_HYB_GGA, &
+      !
+      XC_UNPOLARIZED, &
+      XC_POLARIZED, &
+      !
+      XC_EXCHANGE, &
+      XC_CORRELATION, &
+      XC_EXCHANGE_CORRELATION, &
+      XC_KINETIC, &
+      !
+      XC_FLAGS_NEEDS_LAPLACIAN, &
+      XC_FLAGS_HAVE_EXC
 
 #include "../base/base_uses.f90"
 

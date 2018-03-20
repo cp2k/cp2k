@@ -65,11 +65,11 @@ MODULE qs_rho_atom_methods
    USE whittaker,                       ONLY: whittaker_c0a,&
                                               whittaker_ci
 
-!$ USE OMP_LIB,                         ONLY: omp_get_max_threads,&
-!$                                            omp_get_thread_num,&
-!$                                            omp_lock_kind,&
-!$                                            omp_init_lock, omp_set_lock,&
-!$                                            omp_unset_lock, omp_destroy_lock
+!$ USE OMP_LIB, ONLY: omp_get_max_threads, &
+!$    omp_get_thread_num, &
+!$    omp_lock_kind, &
+!$    omp_init_lock, omp_set_lock, &
+!$    omp_unset_lock, omp_destroy_lock
 
 #include "./base/base_uses.f90"
 

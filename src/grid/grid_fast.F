@@ -23,7 +23,7 @@
 !> \param xub ...
 ! **************************************************************************************************
 SUBROUTINE collocate_gf_npbc(grid, xdat, ydat, zdat, bo1, bo2, zlb, zub, ylb, yub, xlb, xub)
-    USE kinds,                        ONLY: dp
+   USE kinds, ONLY: dp
    INTEGER, INTENT(IN)                      :: bo1(2, 3)
    REAL(dp), INTENT(INOUT) :: &
       grid(bo1(1, 1):bo1(2, 1), bo1(1, 2):bo1(2, 2), bo1(1, 3):bo1(2, 3))
@@ -63,7 +63,7 @@ END SUBROUTINE
 !> \param force ...
 ! **************************************************************************************************
 SUBROUTINE integrate_gf_npbc(grid, xdat, ydat, zdat, bo, zlb, zub, ylb, yub, xlb, xub, force)
-    USE kinds,                        ONLY: dp
+   USE kinds, ONLY: dp
    INTEGER, INTENT(IN)                      :: bo(2, 3)
    REAL(dp), INTENT(IN)                     :: zdat(2, bo(1, 3):bo(2, 3)), &
                                                ydat(2, bo(1, 2):bo(2, 2)), &

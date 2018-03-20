@@ -39,7 +39,7 @@ MODULE lapack
 !> \param info ...
 ! **************************************************************************************************
       SUBROUTINE dsyev(jobz, uplo, n, a, lda, w, work, lwork, info)
-       USE kinds, ONLY: dp
+         USE kinds, ONLY: dp
       CHARACTER                                          :: jobz, uplo
       INTEGER                                            :: N, LDA
       REAL(KIND=dp)                                      :: A(LDA, *), W(*), WORK(*)
@@ -65,7 +65,7 @@ MODULE lapack
 !> \param info ...
 ! **************************************************************************************************
       SUBROUTINE dsygv(itype, jobz, uplo, n, a, lda, b, ldb, w, work, lwork, info)
-       USE kinds, ONLY: dp
+         USE kinds, ONLY: dp
       INTEGER                                            :: itype
       CHARACTER                                          :: jobz, uplo
       INTEGER                                            :: N, LDA
@@ -92,7 +92,7 @@ MODULE lapack
 !> \param info ...
 ! **************************************************************************************************
       SUBROUTINE zhpev(jobz, uplo, n, ap, w, z, ldz, work, rwork, info)
-       USE kinds, ONLY: dp
+         USE kinds, ONLY: dp
       CHARACTER                                          :: jobz, uplo
       INTEGER                                            :: n
       COMPLEX(KIND=dp)                                   :: ap(*)
@@ -122,7 +122,7 @@ MODULE lapack
 ! **************************************************************************************************
       SUBROUTINE dspgv(itype, jobz, uplo, n, ap, bp, w, z, ldz, work, &
                        info)
-       USE kinds, ONLY: dp
+         USE kinds, ONLY: dp
       INTEGER                                            :: itype
       CHARACTER                                          :: jobz, uplo
       INTEGER                                            :: n
@@ -152,7 +152,7 @@ MODULE lapack
 ! **************************************************************************************************
       SUBROUTINE zhpgv(itype, jobz, uplo, n, ap, bp, w, z, ldz, work, &
                        rwork, info)
-       USE kinds, ONLY: dp
+         USE kinds, ONLY: dp
       INTEGER                                            :: itype
       CHARACTER                                          :: jobz, uplo
       INTEGER                                            :: n
@@ -186,7 +186,7 @@ MODULE lapack
 ! **************************************************************************************************
       SUBROUTINE dgesvd(jobu, jobvt, m, n, a, lda, s, u, ldu, vt, ldvt, &
                         work, lwork, info)
-       USE kinds, ONLY: dp
+         USE kinds, ONLY: dp
       CHARACTER                                          :: jobu, jobvt
       INTEGER                                            :: m, n, lda
       REAL(KIND=dp)                                      :: a(lda, *), s(*)
@@ -220,7 +220,7 @@ MODULE lapack
 ! **************************************************************************************************
       SUBROUTINE zgesvd(jobu, jobvt, m, n, a, lda, s, u, ldu, vt, ldvt, &
                         work, lwork, rwork, info)
-       USE kinds, ONLY: dp
+         USE kinds, ONLY: dp
       CHARACTER                                          :: jobu, jobvt
       INTEGER                                            :: m, n, lda
       COMPLEX(KIND=dp)                                   :: a(lda, *)
@@ -246,7 +246,7 @@ MODULE lapack
 !> \param info ...
 ! **************************************************************************************************
       SUBROUTINE dpotrf(uplo, n, a, lda, info)
-       USE kinds, ONLY: dp
+         USE kinds, ONLY: dp
       CHARACTER                                          :: uplo
       INTEGER                                            :: n, lda
       REAL(KIND=dp)                                      :: a(lda, *)
@@ -265,7 +265,7 @@ MODULE lapack
 !> \param info ...
 ! **************************************************************************************************
       SUBROUTINE zpotrf(uplo, n, a, lda, info)
-       USE kinds, ONLY: dp
+         USE kinds, ONLY: dp
       CHARACTER                                          :: uplo
       INTEGER                                            :: n, lda
       COMPLEX(KIND=dp)                                   :: a(lda, *)
@@ -285,7 +285,7 @@ MODULE lapack
 !> \param info ...
 ! **************************************************************************************************
       SUBROUTINE dtrtri(uplo, diag, n, a, lda, info)
-       USE kinds, ONLY: dp
+         USE kinds, ONLY: dp
       CHARACTER                                          :: uplo, diag
       INTEGER                                            :: n, lda
       REAL(KIND=dp)                                      :: a(lda, *)
@@ -305,7 +305,7 @@ MODULE lapack
 !> \param info ...
 ! **************************************************************************************************
       SUBROUTINE ztrtri(uplo, diag, n, a, lda, info)
-       USE kinds, ONLY: dp
+         USE kinds, ONLY: dp
       CHARACTER                                          :: uplo, diag
       INTEGER                                            :: n, lda
       COMPLEX(KIND=dp)                                   :: a(lda, *)
@@ -327,7 +327,7 @@ MODULE lapack
 !> \param info ...
 ! **************************************************************************************************
       SUBROUTINE dgesv(n, nrhs, a, lda, ipiv, b, ldb, info)
-       USE kinds, ONLY: dp
+         USE kinds, ONLY: dp
       INTEGER                                            :: N, NRHS, LDA
       REAL(KIND=dp)                                      :: A(LDA, *)
       INTEGER                                            :: IPIV(*), LDB
@@ -352,7 +352,7 @@ MODULE lapack
 !> \param info ...
 ! **************************************************************************************************
       SUBROUTINE dgbsv(n, kl, ku, nrhs, ab, ldab, ipiv, b, ldb, info)
-       USE kinds, ONLY: dp
+         USE kinds, ONLY: dp
       INTEGER                                            :: N, KL, KU, NRHS, LDAB
       REAL(KIND=dp)                                      :: AB(LDAB, *)
       INTEGER                                            :: IPIV(*), LDB
@@ -380,7 +380,7 @@ MODULE lapack
 !> \param info ...
 ! **************************************************************************************************
       SUBROUTINE dgelss(m, n, nrhs, a, lda, b, ldb, s, rcond, rank, work, lwork, info)
-       USE kinds, ONLY: dp
+         USE kinds, ONLY: dp
       INTEGER                                            :: m, n, nrhs, lda
       REAL(KIND=dp)                                      :: a(lda, *)
       INTEGER                                            :: ldb

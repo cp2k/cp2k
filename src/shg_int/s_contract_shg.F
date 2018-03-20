@@ -18,7 +18,7 @@
 !> \author Dorothea Golze
 ! **************************************************************************************************
 MODULE s_contract_shg
-   USE gamma,                           ONLY: fgamma=>fgamma_0
+   USE gamma,                           ONLY: fgamma => fgamma_0
    USE kinds,                           ONLY: dp
    USE mathconstants,                   ONLY: dfac,&
                                               fac,&

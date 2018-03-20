@@ -234,7 +234,7 @@ CONTAINS
          END DO
       END IF
 
-      PRINT*, "about to calculate xc (lda)"
+      PRINT *, "about to calculate xc (lda)"
       CALL xc_rho_set_and_dset_create(rho_r=rho_r, rho_g=rho_g, &
                                       tau=tau, xc_section=xc_section, &
                                       pw_pool=pw_pool, rho_set=rho_set1, &
@@ -244,8 +244,8 @@ CONTAINS
                             vxc_rho=vxc_rho, vxc_tau=vxc_tau, exc=exc, xc_section=xc_section, &
                             pw_pool=pw_pool, &
                             compute_virial=compute_virial, virial_xc=virial_xc)
-      PRINT*, "did calculate xc (lda)"
-      PRINT*, "about to calculate xc (lsd)"
+      PRINT *, "did calculate xc (lda)"
+      PRINT *, "about to calculate xc (lsd)"
       CALL xc_rho_set_and_dset_create(rho_set=rho_set2, deriv_set=dSet2, &
                                       rho_r=rho2_r, rho_g=rho2_g, tau=tau2, xc_section=xc_section, &
                                       pw_pool=pw_pool, deriv_order=1, &
@@ -253,8 +253,8 @@ CONTAINS
       CALL xc_vxc_pw_create(rho_r=rho2_r, rho_g=rho2_g, tau=tau2, &
                             vxc_rho=vxc_rho2, vxc_tau=vxc_tau2, exc=exc2, xc_section=xc_section, &
                             pw_pool=pw_pool, compute_virial=compute_virial, virial_xc=virial_xc)
-      PRINT*, "did calculate xc (new)"
-      PRINT*, "at (0,0,0) rho_r=", rho_r(1)%pw%cr3d(0, 0, 0), &
+      PRINT *, "did calculate xc (new)"
+      PRINT *, "at (0,0,0) rho_r=", rho_r(1)%pw%cr3d(0, 0, 0), &
          "rho2_r(1)=", rho2_r(1)%pw%cr3d(0, 0, 0), &
          "rho2_r(2)=", rho2_r(2)%pw%cr3d(0, 0, 0), &
          "rho_r_sm=", rho_set1%rho(0, 0, 0), "rhoa2_r_sm=", rho_set2%rhoa(0, 0, 0), &
@@ -338,7 +338,7 @@ CONTAINS
          CLOSE (unit=120)
       END IF
 
-      PRINT*, "calc diff on vxc"
+      PRINT *, "calc diff on vxc"
       maxDiff = 0.0_dp
       DO ispin = 1, 1
          ii = 0
@@ -349,12 +349,12 @@ CONTAINS
                   diff = ABS(vxc_rho(ispin)%pw%cr3d(i, j, k)- &
                              vxc_rho2(ispin)%pw%cr3d(i, j, k))
                   IF (ii == 1) THEN
-                     PRINT*, "vxc", ispin, "=", vxc_rho(ispin)%pw%cr3d(i, j, k), &
+                     PRINT *, "vxc", ispin, "=", vxc_rho(ispin)%pw%cr3d(i, j, k), &
                         "vs", vxc_rho2(ispin)%pw%cr3d(i, j, k), "diff=", diff
                   END IF
                   IF (maxDiff < diff) THEN
                      maxDiff = diff
-                     PRINT*, "diff=", diff, " at ", i, ",", j, ",", k, &
+                     PRINT *, "diff=", diff, " at ", i, ",", j, ",", k, &
                         " spin=", ispin, "rho=", rho_set1%rho(i, j, k), &
                         " ndrho=", rho_set1%norm_drho(i, j, k)
                   END IF
@@ -362,12 +362,12 @@ CONTAINS
             END DO
          END DO
       END DO
-      PRINT*, "diff exc=", ABS(exc-exc2), "diff vxc=", maxdiff
+      PRINT *, "diff exc=", ABS(exc-exc2), "diff vxc=", maxdiff
       ! CPASSERT(maxdiff<5.e-11)
       ! CPASSERT(ABS(exc-exc2)<1.e-14)
 
       IF (ASSOCIATED(vxc_tau)) THEN
-         PRINT*, "calc diff on vxc_tau"
+         PRINT *, "calc diff on vxc_tau"
          maxDiff = 0.0_dp
          DO ispin = 1, 1
             ii = 0
@@ -378,12 +378,12 @@ CONTAINS
                      diff = ABS(vxc_tau(ispin)%pw%cr3d(i, j, k)- &
                                 vxc_tau2(ispin)%pw%cr3d(i, j, k))
                      IF (ii == 1) THEN
-                        PRINT*, "vxc_tau", ispin, "=", vxc_tau(ispin)%pw%cr3d(i, j, k), &
+                        PRINT *, "vxc_tau", ispin, "=", vxc_tau(ispin)%pw%cr3d(i, j, k), &
                            "vs", vxc_tau2(ispin)%pw%cr3d(i, j, k), "diff=", diff
                      END IF
                      IF (maxDiff < diff) THEN
                         maxDiff = diff
-                        PRINT*, "diff=", diff, " at ", i, ",", j, ",", k, &
+                        PRINT *, "diff=", diff, " at ", i, ",", j, ",", k, &
                            " spin=", ispin, "rho=", rho_set1%rho(i, j, k), &
                            " ndrho=", rho_set1%norm_drho(i, j, k)
                      END IF
@@ -391,7 +391,7 @@ CONTAINS
                END DO
             END DO
          END DO
-         PRINT*, "diff exc=", ABS(exc-exc2), "diff vxc_tau=", maxdiff
+         PRINT *, "diff exc=", ABS(exc-exc2), "diff vxc_tau=", maxdiff
       END IF
       deriv_iter => dSet1%derivs
       DO WHILE (cp_sll_xc_deriv_next(deriv_iter, el_att=deriv))
@@ -430,7 +430,7 @@ CONTAINS
          END SELECT
          CALL xc_derivative_get(deriv2, &
                                 deriv_data=pot2)
-         PRINT*, "checking ", filename
+         PRINT *, "checking ", filename
          maxDiff = 0.0_dp
          DO k = bo(1, 3), bo(2, 3)
             DO j = bo(1, 2), bo(2, 2)
@@ -438,14 +438,14 @@ CONTAINS
                   diff = ABS(pot(i, j, k)-pot2(i, j, k))
                   IF (maxDiff < diff) THEN
                      maxDiff = diff
-                     PRINT*, "ediff(", i, j, k, ")=", maxDiff, &
+                     PRINT *, "ediff(", i, j, k, ")=", maxDiff, &
                         "rho=", rho_set1%rho(i, j, k), &
                         "ndrho=", rho_set1%norm_drho(i, j, k)
                   END IF
                END DO
             END DO
          END DO
-         PRINT*, "maxdiff ", filename, "=", maxDiff
+         PRINT *, "maxdiff ", filename, "=", maxDiff
          OPEN (unit=120, file=TRIM(filename), status="unknown", &
                access='sequential', &
                form="unformatted")

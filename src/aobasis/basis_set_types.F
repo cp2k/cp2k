@@ -866,7 +866,7 @@ CONTAINS
          n = ncoset(gto_basis_set%lmax(iset))
          DO ishell = 1, gto_basis_set%nshell(iset)
             DO icgf = gto_basis_set%first_cgf(ishell, iset), &
-                      gto_basis_set%last_cgf(ishell, iset)
+               gto_basis_set%last_cgf(ishell, iset)
                ico = coset(gto_basis_set%lx(icgf), &
                            gto_basis_set%ly(icgf), &
                            gto_basis_set%lz(icgf))
@@ -981,7 +981,7 @@ CONTAINS
                        (/0.0_dp, 0.0_dp, 0.0_dp/), 0.0_dp, gaa, vv, ff(0:))
          DO ishell = 1, gto_basis_set%nshell(iset)
             DO icgf = gto_basis_set%first_cgf(ishell, iset), &
-                      gto_basis_set%last_cgf(ishell, iset)
+               gto_basis_set%last_cgf(ishell, iset)
                lx = gto_basis_set%lx(icgf)
                ly = gto_basis_set%ly(icgf)
                lz = gto_basis_set%lz(icgf)
@@ -1027,7 +1027,7 @@ CONTAINS
       DO iset = 1, gto_basis_set%nset
          DO ishell = 1, gto_basis_set%nshell(iset)
             DO icgf = gto_basis_set%first_cgf(ishell, iset), &
-                      gto_basis_set%last_cgf(ishell, iset)
+               gto_basis_set%last_cgf(ishell, iset)
                gto_basis_set%norm_cgf(icgf) = 1.0_dp
             END DO
          END DO
@@ -1077,7 +1077,7 @@ CONTAINS
             fnorm = 0.5_dp**l*pi**1.5_dp*fnorm
 
             DO icgf = gto_basis_set%first_cgf(ishell, iset), &
-                      gto_basis_set%last_cgf(ishell, iset)
+               gto_basis_set%last_cgf(ishell, iset)
                lx = gto_basis_set%lx(icgf)
                ly = gto_basis_set%ly(icgf)
                lz = gto_basis_set%lz(icgf)
@@ -1119,7 +1119,7 @@ CONTAINS
                gto_basis_set%gcc(ipgf, ishell, iset) = prefac*zeta**expzet*gcca
             END DO
             DO icgf = gto_basis_set%first_cgf(ishell, iset), &
-                      gto_basis_set%last_cgf(ishell, iset)
+               gto_basis_set%last_cgf(ishell, iset)
                gto_basis_set%norm_cgf(icgf) = 1.0_dp
             END DO
          END DO

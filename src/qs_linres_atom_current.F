@@ -66,11 +66,11 @@ MODULE qs_linres_atom_current
                                               get_alist
    USE util,                            ONLY: get_limit
 
-!$ USE OMP_LIB,                         ONLY: omp_get_max_threads,&
-!$                                            omp_get_thread_num,&
-!$                                            omp_lock_kind,&
-!$                                            omp_init_lock, omp_set_lock,&
-!$                                            omp_unset_lock, omp_destroy_lock
+!$ USE OMP_LIB, ONLY: omp_get_max_threads, &
+!$    omp_get_thread_num, &
+!$    omp_lock_kind, &
+!$    omp_init_lock, omp_set_lock, &
+!$    omp_unset_lock, omp_destroy_lock
 
 #include "./base/base_uses.f90"
 

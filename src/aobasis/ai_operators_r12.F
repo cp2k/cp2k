@@ -32,7 +32,7 @@
 ! **************************************************************************************************
 MODULE ai_operators_r12
 
-   USE gamma,                           ONLY: fgamma=>fgamma_0
+   USE gamma,                           ONLY: fgamma => fgamma_0
    USE kinds,                           ONLY: dp
    USE mathconstants,                   ONLY: fac,&
                                               pi
@@ -62,7 +62,7 @@ MODULE ai_operators_r12
 !> \param omega ...
 ! **************************************************************************************************
       SUBROUTINE ab_sint_os(v, nmax, zetp, zetq, zetw, rho, rac2, omega)
-       USE kinds,                           ONLY: dp
+         USE kinds, ONLY: dp
       REAL(KIND=dp), DIMENSION(:, :, :), INTENT(INOUT)   :: v
       INTEGER, INTENT(IN)                                :: nmax
       REAL(KIND=dp), INTENT(IN)                          :: zetp, zetq, zetw, rho, rac2, omega

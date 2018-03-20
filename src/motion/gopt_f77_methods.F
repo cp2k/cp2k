@@ -21,57 +21,57 @@
 RECURSIVE SUBROUTINE cp_eval_at(gopt_env, x, f, gradient, master, &
                                 final_evaluation, para_env)
 
-USE cp_log_handling, ONLY: cp_logger_type
-    USE averages_types,                  ONLY: average_quantities_type,&
-                                               create_averages,&
-                                               release_averages
-   USE bibliography,                    ONLY: Henkelman1999,&
-                                              cite_reference
-    USE cell_opt_utils,                  ONLY: get_dg_dh,&
-                                               gopt_new_logger_create,&
-                                               gopt_new_logger_release
-    USE cell_types,                      ONLY: cell_type
-    USE cell_methods,                    ONLY: write_cell
-    USE cp_para_types,                   ONLY: cp_para_env_type
-    USE cp_subsys_types,                 ONLY: cp_subsys_get,&
-                                               cp_subsys_type,&
-                                               pack_subsys_particles,&
-                                               unpack_subsys_particles
-    USE dimer_methods,                   ONLY: cp_eval_at_ts
-    USE force_env_methods,               ONLY: force_env_calc_energy_force
-    USE force_env_types,                 ONLY: force_env_get,&
-                                               force_env_get_nparticle
-    USE geo_opt,                         ONLY: cp_geo_opt
-    USE gopt_f_types,                    ONLY: gopt_f_type
-    USE gopt_f_methods,                  ONLY: apply_cell_change
-    USE input_constants,                 ONLY: default_minimization_method_id,&
-                                               default_ts_method_id,&
-                                               default_cell_direct_id,&
-                                               default_cell_method_id,&
-                                               default_cell_geo_opt_id,&
-                                               default_cell_md_id,&
-                                               default_shellcore_method_id,&
-                                               nvt_ensemble,&
-                                               mol_dyn_run,&
-                                               geo_opt_run,&
-                                               cell_opt_run
-    USE input_section_types,             ONLY: section_vals_get,&
-                                               section_vals_get_subs_vals,&
-                                               section_vals_type,&
-                                               section_vals_val_get
-    USE md_run,                          ONLY: qs_mol_dyn
-    USE message_passing,                 ONLY: mp_bcast
-    USE kinds,                           ONLY: dp,&
-                                               default_string_length
-    USE particle_list_types,             ONLY: particle_list_type
-    USE particle_methods,                ONLY: write_structure_data
-    USE virial_methods,                  ONLY: virial_update
-    USE virial_types,                    ONLY: cp_virial,&
-                                               virial_create,&
-                                               virial_release,&
-                                               virial_type
-    USE cp_log_handling,                 ONLY: cp_add_default_logger,&
-                                               cp_rm_default_logger
+   USE cp_log_handling, ONLY: cp_logger_type
+   USE averages_types, ONLY: average_quantities_type, &
+      create_averages, &
+      release_averages
+   USE bibliography, ONLY: Henkelman1999, &
+      cite_reference
+   USE cell_opt_utils, ONLY: get_dg_dh, &
+      gopt_new_logger_create, &
+      gopt_new_logger_release
+   USE cell_types, ONLY: cell_type
+   USE cell_methods, ONLY: write_cell
+   USE cp_para_types, ONLY: cp_para_env_type
+   USE cp_subsys_types, ONLY: cp_subsys_get, &
+      cp_subsys_type, &
+      pack_subsys_particles, &
+      unpack_subsys_particles
+   USE dimer_methods, ONLY: cp_eval_at_ts
+   USE force_env_methods, ONLY: force_env_calc_energy_force
+   USE force_env_types, ONLY: force_env_get, &
+      force_env_get_nparticle
+   USE geo_opt, ONLY: cp_geo_opt
+   USE gopt_f_types, ONLY: gopt_f_type
+   USE gopt_f_methods, ONLY: apply_cell_change
+   USE input_constants, ONLY: default_minimization_method_id, &
+      default_ts_method_id, &
+      default_cell_direct_id, &
+      default_cell_method_id, &
+      default_cell_geo_opt_id, &
+      default_cell_md_id, &
+      default_shellcore_method_id, &
+      nvt_ensemble, &
+      mol_dyn_run, &
+      geo_opt_run, &
+      cell_opt_run
+   USE input_section_types, ONLY: section_vals_get, &
+      section_vals_get_subs_vals, &
+      section_vals_type, &
+      section_vals_val_get
+   USE md_run, ONLY: qs_mol_dyn
+   USE message_passing, ONLY: mp_bcast
+   USE kinds, ONLY: dp, &
+      default_string_length
+   USE particle_list_types, ONLY: particle_list_type
+   USE particle_methods, ONLY: write_structure_data
+   USE virial_methods, ONLY: virial_update
+   USE virial_types, ONLY: cp_virial, &
+      virial_create, &
+      virial_release, &
+      virial_type
+   USE cp_log_handling, ONLY: cp_add_default_logger, &
+      cp_rm_default_logger
 
 #include "../base/base_uses.f90"
    IMPLICIT NONE

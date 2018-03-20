@@ -63,7 +63,7 @@ MODULE generic_shg_integrals
 !> \param calculate_forces ...
 ! **************************************************************************************************
       SUBROUTINE ab_sint_shg(la_max, npgfa, zeta, lb_max, npgfb, zetb, omega, rab, v, calculate_forces)
-      USE kinds,                        ONLY: dp
+         USE kinds, ONLY: dp
       INTEGER, INTENT(IN)                                :: la_max, npgfa
       REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: zeta
       INTEGER, INTENT(IN)                                :: lb_max, npgfb

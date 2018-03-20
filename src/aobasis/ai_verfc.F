@@ -79,7 +79,7 @@
 
 MODULE ai_verfc
 
-   USE gamma,                           ONLY: fgamma=>fgamma_0
+   USE gamma,                           ONLY: fgamma => fgamma_0
    USE kinds,                           ONLY: dp
    USE mathconstants,                   ONLY: pi
    USE orbital_pointers,                ONLY: coset,&

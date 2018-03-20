@@ -321,7 +321,7 @@ CONTAINS
       occ_a_out = dbcsr_get_occupation(m_a)
 
       IF (.FALSE.) THEN
-         PRINT*, 'retain_sparsity', retain_sparsity, occ_a_in, occ_b, occ_a_out
+         PRINT *, 'retain_sparsity', retain_sparsity, occ_a_in, occ_b, occ_a_out
          CALL dbcsr_print(m_a, matlab_format=.TRUE., variable_name='a_out_')
       ENDIF
 

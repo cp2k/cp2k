@@ -10,10 +10,10 @@
 ! **************************************************************************************************
 MODULE acc_event
 #if defined (__ACC)
-  USE ISO_C_BINDING, ONLY: C_INT, C_NULL_PTR, C_PTR, C_ASSOCIATED, C_NULL_PTR
+   USE ISO_C_BINDING, ONLY: C_INT, C_NULL_PTR, C_PTR, C_ASSOCIATED, C_NULL_PTR
 #endif
-  USE acc_stream,                      ONLY: acc_stream_cptr,&
-                                             acc_stream_type
+   USE acc_stream, ONLY: acc_stream_cptr, &
+      acc_stream_type
 #include "../base/base_uses.f90"
 
    IMPLICIT NONE

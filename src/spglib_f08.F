@@ -116,7 +116,7 @@
 ! **************************************************************************************************
    MODULE spglib_f08
 
-   USE kinds, ONLY: dp
+      USE kinds, ONLY: dp
 
 #include "./base/base_uses.f90"
 

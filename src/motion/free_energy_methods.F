@@ -244,7 +244,7 @@ CONTAINS
                EXIT
             END IF
             CALL k_test(wrk, my_reject+1, ng_points, tau, z, prob)
-            PRINT*, prob, fe_env%conv_par%k_conf_lm
+            PRINT *, prob, fe_env%conv_par%k_conf_lm
             IF (prob < fe_env%conv_par%k_conf_lm) EXIT
             my_reject = my_reject+1
          END DO
@@ -272,7 +272,7 @@ CONTAINS
                   EXIT
                END IF
                CALL k_test(wrk, my_reject+1, ng_points, tau, z, prob)
-               PRINT*, prob, fe_env%conv_par%k_conf_lm
+               PRINT *, prob, fe_env%conv_par%k_conf_lm
                IF (prob < fe_env%conv_par%k_conf_lm) EXIT
                my_reject = my_reject+1
             END DO
@@ -403,7 +403,7 @@ CONTAINS
       test_passed = .FALSE.
       DO WHILE (fe_env%conv_par%cg_width < fe_env%conv_par%max_cg_width)
          ng_points = nr_points/fe_env%conv_par%cg_width
-         PRINT*, ng_points
+         PRINT *, ng_points
          IF (ng_points < min_sample_size) EXIT
          CALL ui_check_norm_sc_low(fe_env, nr_points, output_unit)
          test_passed = fe_env%conv_par%test_vn .AND. fe_env%conv_par%test_sw
@@ -460,7 +460,7 @@ CONTAINS
          ! Test of Shapiro - Wilks for normality
          !                 - Average
          CALL sw_test(wrk, ng_points, w, pw)
-         PRINT*, 1.0_dp-pw, fe_env%conv_par%sw_conf_lm
+         PRINT *, 1.0_dp-pw, fe_env%conv_par%sw_conf_lm
          avg_test_passed = (1.0_dp-pw) <= fe_env%conv_par%sw_conf_lm
          fe_env%conv_par%test_sw = avg_test_passed
          IF (output_unit > 0) THEN
@@ -469,7 +469,7 @@ CONTAINS
          ! Test of von Neumann for serial correlation
          !                 - Average
          CALL vn_test(wrk, ng_points, r, u, prob)
-         PRINT*, prob, fe_env%conv_par%vn_conf_lm
+         PRINT *, prob, fe_env%conv_par%vn_conf_lm
          avg_test_passed = prob <= fe_env%conv_par%vn_conf_lm
          fe_env%conv_par%test_vn = avg_test_passed
          IF (output_unit > 0) THEN
@@ -487,7 +487,7 @@ CONTAINS
                ! Test of Shapiro - Wilks for normality
                !                 - Standard Deviation
                CALL sw_test(wrk, ng_points, w, pw)
-               PRINT*, 1.0_dp-pw, fe_env%conv_par%sw_conf_lm
+               PRINT *, 1.0_dp-pw, fe_env%conv_par%sw_conf_lm
                sdv_test_passed = (1.0_dp-pw) <= fe_env%conv_par%sw_conf_lm
                fe_env%conv_par%test_sw = fe_env%conv_par%test_sw .AND. sdv_test_passed
                IF (output_unit > 0) THEN
@@ -496,7 +496,7 @@ CONTAINS
                ! Test of von Neumann for serial correlation
                !                 - Standard Deviation
                CALL vn_test(wrk, ng_points, r, u, prob)
-               PRINT*, prob, fe_env%conv_par%vn_conf_lm
+               PRINT *, prob, fe_env%conv_par%vn_conf_lm
                sdv_test_passed = prob <= fe_env%conv_par%vn_conf_lm
                fe_env%conv_par%test_vn = fe_env%conv_par%test_vn .AND. sdv_test_passed
                IF (output_unit > 0) THEN

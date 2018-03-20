@@ -23,7 +23,7 @@ MODULE orbital_pointers
 ! nsoset: Number of spherical orbitals up to the angular momentum quantum
 !         number l.
 
-!$ USE OMP_LIB,                         ONLY: omp_get_level
+!$ USE OMP_LIB, ONLY: omp_get_level
 
 #include "../base/base_uses.f90"
 

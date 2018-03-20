@@ -4394,7 +4394,7 @@ CONTAINS
 
                   ! only correct levels for which contour deformation is enabled
                   DO n_level_gw = contour_def_start-(homo_beta-gw_corr_lev_occ_beta), &
-                                  contour_def_end-(homo_beta-gw_corr_lev_occ_beta)
+                     contour_def_end-(homo_beta-gw_corr_lev_occ_beta)
 
                      ! reset the values from analytic continuation
                      vec_gw_energ_beta(n_level_gw) = 0.0_dp

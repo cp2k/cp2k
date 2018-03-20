@@ -65,8 +65,8 @@ MODULE task_list_methods
    USE task_list_types,                 ONLY: task_list_type
    USE util,                            ONLY: sort
 
-!$ USE OMP_LIB, ONLY: omp_destroy_lock, omp_get_num_threads, omp_init_lock,&
-!$                    omp_lock_kind, omp_set_lock, omp_unset_lock
+!$ USE OMP_LIB, ONLY: omp_destroy_lock, omp_get_num_threads, omp_init_lock, &
+!$    omp_lock_kind, omp_set_lock, omp_unset_lock
 #include "./base/base_uses.f90"
 
    IMPLICIT NONE
