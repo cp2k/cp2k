@@ -220,7 +220,7 @@ CONTAINS
       IF (INT(nrows_total, kind=int_8)*INT(ncols_total, kind=int_8) .LT. nze_total) &
          CPABORT("Total number of non-zero elements must not exceed total matrix size")
 
-      IF (nrows_local*ncols_total .LT. nze_local) &
+      IF (INT(nrows_local, kind=int_8)*INT(ncols_total, kind=int_8) .LT. nze_local) &
          CPABORT("Local number of non-zero elements must not exceed local matrix size")
 
       csr_mat%ncols_total = ncols_total
