@@ -4,7 +4,7 @@
 #
 # fypp -- Python powered Fortran preprocessor
 #
-# Copyright (c) 2016-2017 Bálint Aradi, Universität Bremen
+# Copyright (c) 2017 Bálint Aradi, Universität Bremen
 #
 # All rights reserved.
 #
@@ -68,7 +68,7 @@ else:
 # Prevent cluttering user directory with Python bytecode
 sys.dont_write_bytecode = True
 
-VERSION = '2.0'
+VERSION = '2.1.1'
 
 STDIN = '<stdin>'
 
@@ -1134,7 +1134,7 @@ class Builder:
         # If nextarg or endcall immediately followed call, then first argument
         # is empty and should be removed (to allow for calls without arguments
         # and named first argument in calls)
-        if len(args) and not len(args[0]):
+        if args and not args[0]:
             if len(argnames) == len(args):
                 del argnames[0]
             del args[0]
@@ -1496,15 +1496,13 @@ class Renderer:
                             argnames):
         posargs, kwargs = self._get_call_arguments(fname, spans, argexpr,
                                                    contents, argnames)
-        # Since callobj uses the evaluators scope, the globals must be updated
-        # before calling it.
-        self._update_globals(fname, spans[0][0])
         try:
             callobj = self._evaluate(name, fname, spans[0][0])
             result = callobj(*posargs, **kwargs)
         except Exception as exc:
             msg = "exception occured when calling '{0}'".format(name)
             raise FyppFatalError(msg, fname, spans[0], exc)
+        self._update_predef_globals(fname, spans[0][0])
         span = (spans[0][0], spans[-1][1])
         out = []
         ieval = []
@@ -1622,7 +1620,11 @@ class Renderer:
     def _define_variable(self, fname, span, name, valstr):
         result = ''
         try:
-            self._define(name, self._evaluate(valstr, fname, span[0]))
+            if valstr is None:
+                expr = None
+            else:
+                expr = self._evaluate(valstr, fname, span[0])
+            self._define(name, expr)
         except Exception as exc:
             msg = "exception occured when setting variable(s) '{0}' to '{1}'"\
                 .format(name, valstr)
@@ -1703,16 +1705,18 @@ class Renderer:
 
 
     def _evaluate(self, expr, fname, linenr):
-        self._update_globals(fname, linenr)
-        return self._evaluator.evaluate(expr)
+        self._update_predef_globals(fname, linenr)
+        result = self._evaluator.evaluate(expr)
+        self._update_predef_globals(fname, linenr)
+        return result
 
 
-    def _update_globals(self, fname, linenr):
+    def _update_predef_globals(self, fname, linenr):
         self._evaluator.updatelocals(
             _DATE_=time.strftime('%Y-%m-%d'), _TIME_=time.strftime('%H:%M:%S'),
             _THIS_FILE_=fname, _THIS_LINE_=linenr + 1)
         if not self._fixedposition:
-            self._evaluator.updatelocals(_FILE_=fname, _LINE_=linenr + 1)
+            self._evaluator.updateglobals(_FILE_=fname, _LINE_=linenr + 1)
 
 
     def _define(self, var, value):
@@ -1900,6 +1904,7 @@ class Evaluator:
         'zip': builtins.zip,
     }
 
+
     def __init__(self, env=None):
 
         # Global scope
@@ -2039,6 +2044,23 @@ class Evaluator:
                 self._globalrefs.add(varname)
 
 
+    def updateglobals(self, **vardict):
+        '''Update variables in the global scope.
+
+        This is a shortcut function to inject protected variables in the global
+        scope without extensive checks (as in define()). Vardict must not
+        contain any global entries which can be shadowed in local scopes
+        (e.g. should only contain variables with forbidden prefix).
+
+        Args:
+            **vardict: variable defintions.
+
+        '''
+        self._scope.update(vardict)
+        if self._locals is not None:
+            self._globals.update(vardict)
+
+
     def updatelocals(self, **vardict):
         '''Update variables in the local scope.
 
@@ -2046,7 +2068,7 @@ class Evaluator:
         without extensive checks (as in define()). Vardict must not contain any
         entries which have been made global via addglobal() before. In order to
         ensure this, updatelocals() should be called immediately after
-        openscope(), or with variable names, which are warrantedly not globlas
+        openscope(), or with variable names, which are warrantedly not globals
         (e.g variables starting with forbidden prefix)
 
         Args:
