@@ -61,8 +61,7 @@ MODULE qs_active_space_methods
    USE mathconstants,                   ONLY: fourpi
    USE memory_utilities,                ONLY: reallocate
    USE message_passing,                 ONLY: mp_environ,&
-                                              mp_sum,&
-                                              mp_sync
+                                              mp_sum
    USE particle_list_types,             ONLY: particle_list_type
    USE particle_types,                  ONLY: particle_type
    USE periodic_table,                  ONLY: ptable
@@ -94,7 +93,8 @@ MODULE qs_active_space_methods
                                               pw_type
    USE qs_active_space_types,           ONLY: active_space_type,&
                                               create_active_space_type,&
-                                              eri_type
+                                              eri_type,&
+                                              eri_type_eri_element_func
    USE qs_collocate_density,            ONLY: calculate_wavefunction
    USE qs_energy_types,                 ONLY: qs_energy_type
    USE qs_environment_types,            ONLY: get_qs_env,&
@@ -134,6 +134,12 @@ MODULE qs_active_space_methods
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_active_space_methods'
 
    PUBLIC :: active_space_main
+
+   TYPE, EXTENDS(eri_type_eri_element_func) :: eri_fcidump_print
+      INTEGER :: unit_nr
+   CONTAINS
+      PROCEDURE :: func => eri_fcidump_print_func
+   END TYPE
 
 ! **************************************************************************************************
 
@@ -659,6 +665,7 @@ CONTAINS
          nn1 = (n1*(n1+1))/2
          nn2 = (n2*(n2+1))/2
          CALL csr_create(eri_mat, nn1, nn2, 0_int_8, 0, 0, para_env%group)
+         CALL get_mo_set(active_space_env%mos_active(i)%mo_set, nmo=active_space_env%eri%norb)
       END DO
 
       SELECT CASE (eri_method)
@@ -1576,16 +1583,11 @@ CONTAINS
 
       CHARACTER(len=*), PARAMETER :: routineN = 'fcidump', routineP = moduleN//':'//routineN
 
-      INTEGER                                            :: i, i1, i12, i12l, i2, i3, i34, i34l, i4, &
-                                                            irange(2), irptr, isym, iw, ms2, &
-                                                            nelec, nindex, norb, nspins
-      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: colind
-      REAL(KIND=dp)                                      :: erint, esub, mval
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: erival
+      INTEGER                                            :: i, i1, i2, i3, i4, isym, iw, nspins
+      REAL(KIND=dp)                                      :: esub, mval
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: fmat
       TYPE(cp_fm_type), POINTER                          :: matrix
       TYPE(cp_logger_type), POINTER                      :: logger
-      TYPE(csr_type), POINTER                            :: eri
 
       logger => cp_get_default_logger()
       IF (BTEST(cp_print_key_should_output(logger%iter_info, &
@@ -1595,77 +1597,49 @@ CONTAINS
          !
          nspins = active_space_env%nspins
          IF (nspins == 1) THEN
-            ms2 = 0 !active_space_env%multiplicity ?
-            nelec = active_space_env%nactive
-            CALL get_mo_set(active_space_env%mos_active(1)%mo_set, nmo=norb)
-            IF (iw > 0) THEN
-               WRITE (iw, "(A,A,I4,A,I4,A,I2,A)") "&FCI", " NORB=", norb, ",NELEC=", nelec, ",MS2=", ms2, ","
-               isym = 1
-               WRITE (iw, "(A,1000(I1,','))") "  ORBSYM=", (isym, i=1, norb)
-               isym = 0
-               WRITE (iw, "(A,I1,A)") "  ISYM=", isym, ","
-               WRITE (iw, "(A)") " /"
-            END IF
-            !
-            ! Print integrals: ERI
-            eri => active_space_env%eri%eri(1)%csr_mat
-            nindex = (norb*(norb+1))/2
-            irange = get_irange_csr(nindex, eri%mp_group)
-            ALLOCATE (erival(nindex), colind(nindex))
-            DO i1 = 1, norb
-               DO i2 = i1, norb
-                  i12 = get_index_ij(i1, i2, norb)
-                  IF (i12 >= irange(1) .AND. i12 <= irange(2)) THEN
-                     i12l = i12-irange(1)+1
-                     irptr = eri%rowptr_local(i12l)
-                     nindex = eri%nzerow_local(i12l)
-                     colind(1:nindex) = eri%colind_local(irptr:irptr+nindex-1)
-                     erival(1:nindex) = eri%nzval_local%r_dp(irptr:irptr+nindex-1)
-                  ELSE
-                     erival = 0.0_dp
-                     colind = 0
-                     nindex = 0
-                  END IF
-                  CALL mp_sum(nindex, eri%mp_group)
-                  CALL mp_sum(colind(1:nindex), eri%mp_group)
-                  CALL mp_sum(erival(1:nindex), eri%mp_group)
-                  CALL mp_sync(eri%mp_group)
-                  IF (iw > 0) THEN
-                     DO i34l = 1, nindex
-                        i34 = colind(i34l)
-                        erint = erival(i34l)
-                        CALL get_index_pair(i34, norb, i3, i4)
-                        WRITE (iw, "(ES23.16,4I4)") erint, i1, i2, i3, i4
-                     END DO
-                  END IF
-               END DO
-            END DO
-            DEALLOCATE (erival, colind)
-            ! Print integrals: Fij
-            ! replicate Fock matrix
-            ALLOCATE (fmat(norb, norb))
-            fmat = 0.0_dp
-            matrix => active_space_env%fock_sub(1)%matrix
-            DO i1 = 1, norb
-               DO i2 = i1, norb
-                  CALL cp_fm_get_element(matrix, i1, i2, mval)
-                  fmat(i1, i2) = mval
-                  fmat(i2, i1) = mval
-               END DO
-            END DO
-            IF (iw > 0) THEN
-               i3 = 0; i4 = 0
+            ASSOCIATE (norb=>active_space_env%eri%norb, &
+                       ms2=>0, & ! active_space_env%multiplicity ?
+                       nelec=>active_space_env%nactive)
+
+               IF (iw > 0) THEN
+                  WRITE (iw, "(A,A,I4,A,I4,A,I2,A)") "&FCI", " NORB=", norb, ",NELEC=", nelec, ",MS2=", ms2, ","
+                  isym = 1
+                  WRITE (iw, "(A,1000(I1,','))") "  ORBSYM=", (isym, i=1, norb)
+                  isym = 0
+                  WRITE (iw, "(A,I1,A)") "  ISYM=", isym, ","
+                  WRITE (iw, "(A)") " /"
+               END IF
+               !
+               ! Print integrals: ERI
+               IF (iw > 0) THEN
+                  CALL active_space_env%eri%eri_foreach(1, eri_fcidump_print(iw))
+               END IF
+               ! Print integrals: Fij
+               ! replicate Fock matrix
+               ALLOCATE (fmat(norb, norb))
+               fmat = 0.0_dp
+               matrix => active_space_env%fock_sub(1)%matrix
                DO i1 = 1, norb
                   DO i2 = i1, norb
-                     WRITE (iw, "(ES23.16,4I4)") fmat(i1, i2), i1, i2, i3, i4
+                     CALL cp_fm_get_element(matrix, i1, i2, mval)
+                     fmat(i1, i2) = mval
+                     fmat(i2, i1) = mval
                   END DO
                END DO
-            END IF
-            DEALLOCATE (fmat)
-            ! Print energy
-            esub = active_space_env%energy_inactive
-            i1 = 0; i2 = 0; i3 = 0; i4 = 0
-            IF (iw > 0) WRITE (iw, "(ES23.16,4I4)") esub, i1, i2, i3, i4
+               IF (iw > 0) THEN
+                  i3 = 0; i4 = 0
+                  DO i1 = 1, norb
+                     DO i2 = i1, norb
+                        WRITE (iw, "(ES23.16,4I4)") fmat(i1, i2), i1, i2, i3, i4
+                     END DO
+                  END DO
+               END IF
+               DEALLOCATE (fmat)
+               ! Print energy
+               esub = active_space_env%energy_inactive
+               i1 = 0; i2 = 0; i3 = 0; i4 = 0
+               IF (iw > 0) WRITE (iw, "(ES23.16,4I4)") esub, i1, i2, i3, i4
+            END ASSOCIATE
          ELSE
             CPABORT("Option not yet available")
          END IF
@@ -1971,5 +1945,18 @@ CONTAINS
       CALL cp_fm_release(bmat)
 
    END SUBROUTINE cp_fm_sqrt
+
+   LOGICAL FUNCTION eri_fcidump_print_func(this, i, j, k, l, val) RESULT(cont)
+      CLASS(eri_fcidump_print), INTENT(inout) :: this
+      INTEGER, INTENT(in)                     :: i, j, k, l
+      REAL(KIND=dp), INTENT(in)               :: val
+
+      ! write to the actual file only on the master
+      IF (this%unit_nr > 0) THEN
+         WRITE (this%unit_nr, "(ES23.16,4I4)") val, i, j, k, l
+      END IF
+
+      cont = .TRUE.
+   END FUNCTION eri_fcidump_print_func
 
 END MODULE qs_active_space_methods

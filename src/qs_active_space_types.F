@@ -27,7 +27,7 @@ MODULE qs_active_space_types
 
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_active_space_types'
 
-   PUBLIC :: active_space_type, eri_type
+   PUBLIC :: active_space_type, eri_type, eri_type_eri_element_func
    PUBLIC :: create_active_space_type, release_active_space_type
 
 ! **************************************************************************************************
@@ -53,7 +53,31 @@ MODULE qs_active_space_types
       TYPE(eri_gpw_type)            :: eri_gpw
       TYPE(csr_p_type), &
          DIMENSION(:), POINTER      :: eri => NULL()
+      INTEGER                       :: norb
+
+   CONTAINS
+      PROCEDURE :: eri_foreach => eri_type_eri_foreach
    END TYPE eri_type
+
+! **************************************************************************************************
+!> \brief Abstract function object for the `eri_type_eri_foreach` method
+! **************************************************************************************************
+   TYPE, ABSTRACT :: eri_type_eri_element_func
+   CONTAINS
+      PROCEDURE(eri_type_eri_element_func_interface), DEFERRED :: func
+   END TYPE eri_type_eri_element_func
+
+! **************************************************************************************************
+!> \brief The function signature to be implemented by a child of `eri_type_eri_element_func`
+! **************************************************************************************************
+   ABSTRACT INTERFACE
+      LOGICAL FUNCTION eri_type_eri_element_func_interface(this, i, j, k, l, val)
+         IMPORT                                       :: eri_type_eri_element_func, dp
+         CLASS(eri_type_eri_element_func), INTENT(inout) :: this
+         INTEGER, INTENT(in)                             :: i, j, k, l
+         REAL(KIND=dp), INTENT(in)                       :: val
+      END FUNCTION eri_type_eri_element_func_interface
+   END INTERFACE
 
    TYPE active_space_type
       INTEGER                       :: nactive
@@ -203,5 +227,148 @@ CONTAINS
    END SUBROUTINE release_eri_type
 
 ! **************************************************************************************************
+!> \brief calculates combined index (ij)
+!> \param i Index j
+!> \param j Index i
+!> \param n Dimension in i or j direction
+!> \returns The combined index
+!> \par History
+!>      04.2016 created [JGH]
+! **************************************************************************************************
+   INTEGER FUNCTION csr_idx_to_combined(i, j, n) RESULT(ij)
+      INTEGER, INTENT(IN) :: i, j, n
+
+      CPASSERT(i <= j)
+      CPASSERT(i <= n)
+      CPASSERT(j <= n)
+
+      ij = (i-1)*n-((i-1)*(i-2))/2+(j-i+1)
+
+      CPASSERT(ij <= (n*(n+1))/2)
+
+   END FUNCTION csr_idx_to_combined
+
+! **************************************************************************************************
+!> \brief extracts indices i and j from combined index ij
+!> \param ij The combined index
+!> \param n Dimension in i or j direction
+!> \param i Resulting i index
+!> \param j Resulting j index
+!> \par History
+!>      04.2016 created [JGH]
+! **************************************************************************************************
+   SUBROUTINE csr_idx_from_combined(ij, n, i, j)
+      INTEGER, INTENT(IN)                                :: ij, n
+      INTEGER, INTENT(OUT)                               :: i, j
+
+      INTEGER                                            :: m, m0
+
+      m = MAX(ij/n, 1)
+      DO i = m, n
+         m0 = (i-1)*n-((i-1)*(i-2))/2
+         j = ij-m0+i-1
+         IF (j <= n) EXIT
+      END DO
+
+      CPASSERT(i > 0 .AND. i <= n)
+      CPASSERT(j > 0 .AND. j <= n)
+      CPASSERT(i <= j)
+
+   END SUBROUTINE csr_idx_from_combined
+
+! **************************************************************************************************
+!> \brief calculates index range for processor in group mp_group
+!> \param nindex ...
+!> \param mp_group ...
+!> \retval irange ...
+!> \par History
+!>      04.2016 created [JGH]
+! **************************************************************************************************
+   FUNCTION get_irange_csr(nindex, mp_group) RESULT(irange)
+      USE message_passing, ONLY: mp_environ
+      INTEGER                                            :: nindex, mp_group
+      INTEGER, DIMENSION(2)                              :: irange
+
+      INTEGER                                            :: numtask, taskid
+      REAL(KIND=dp)                                      :: rat
+
+      CALL mp_environ(numtask, taskid, mp_group)
+
+      IF (numtask == 1 .AND. taskid == 0) THEN
+         irange(1) = 1
+         irange(2) = nindex
+      ELSEIF (numtask >= nindex) THEN
+         IF (taskid >= nindex) THEN
+            irange(1) = 1
+            irange(2) = 0
+         ELSE
+            irange(1) = taskid+1
+            irange(2) = taskid+1
+         END IF
+      ELSE
+         rat = REAL(nindex, KIND=dp)/REAL(numtask, KIND=dp)
+         irange(1) = NINT(rat*taskid)+1
+         irange(2) = NINT(rat*taskid+rat)
+      END IF
+
+   END FUNCTION get_irange_csr
+
+! **************************************************************************************************
+!> \brief Calls the provided function for each element in the ERI
+!> \param ispin The spin number
+!> \param fobj The function object from which to call `func(i, j, k, l, val)`
+!> \par History
+!>      04.2016 created [JHU]
+!>      06.2016 factored out from qs_a_s_methods:fcidump [TMU]
+! **************************************************************************************************
+   SUBROUTINE eri_type_eri_foreach(this, ispin, fobj)
+      USE message_passing, ONLY: mp_sum, mp_sync
+      CLASS(eri_type), INTENT(in)              :: this
+      CLASS(eri_type_eri_element_func)         :: fobj
+      INTEGER                                  :: i1, i12, i12l, i2, i3, i34, i34l, i4, &
+                                                  irange(2), irptr, ispin, nindex
+      INTEGER, ALLOCATABLE, DIMENSION(:)       :: colind
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: erival
+      REAL(KIND=dp)                            :: erint
+
+      ASSOCIATE (eri=>this%eri(ispin)%csr_mat, norb=>this%norb)
+         nindex = norb*(norb+1)
+         irange = get_irange_csr(nindex, eri%mp_group)
+         ALLOCATE (erival(nindex), colind(nindex))
+
+         DO i1 = 1, norb
+            DO i2 = i1, norb
+               i12 = csr_idx_to_combined(i1, i2, norb)
+
+               IF (i12 >= irange(1) .AND. i12 <= irange(2)) THEN
+                  i12l = i12-irange(1)+1
+                  irptr = eri%rowptr_local(i12l)
+                  nindex = eri%nzerow_local(i12l)
+                  colind(1:nindex) = eri%colind_local(irptr:irptr+nindex-1)
+                  erival(1:nindex) = eri%nzval_local%r_dp(irptr:irptr+nindex-1)
+               ELSE
+                  erival = 0.0_dp
+                  colind = 0
+                  nindex = 0
+               END IF
+
+               CALL mp_sum(nindex, eri%mp_group)
+               CALL mp_sum(colind(1:nindex), eri%mp_group)
+               CALL mp_sum(erival(1:nindex), eri%mp_group)
+               CALL mp_sync(eri%mp_group)
+
+               DO i34l = 1, nindex
+                  i34 = colind(i34l)
+                  erint = erival(i34l)
+                  CALL csr_idx_from_combined(i34, norb, i3, i4)
+
+                  ! terminate the loop prematurely if the function returns false
+                  IF (.NOT. fobj%func(i1, i2, i3, i4, erint)) RETURN
+               END DO
+
+            END DO
+         END DO
+      END ASSOCIATE
+   END SUBROUTINE eri_type_eri_foreach
 
 END MODULE qs_active_space_types
