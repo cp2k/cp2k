@@ -1528,9 +1528,7 @@ CONTAINS
                END IF
                !
                ! Print integrals: ERI
-               IF (iw > 0) THEN
-                  CALL active_space_env%eri%eri_foreach(1, eri_fcidump_print(iw))
-               END IF
+               CALL active_space_env%eri%eri_foreach(1, eri_fcidump_print(iw))
                ! Print integrals: Fij
                ! replicate Fock matrix
                ALLOCATE (fmat(norb, norb))

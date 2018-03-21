@@ -324,24 +324,25 @@ CONTAINS
 ! **************************************************************************************************
 !> \brief Calls the provided function for each element in the ERI
 !> \param this object reference
-!> \param ispin The spin number
+!> \param nspin The spin number
 !> \param fobj The function object from which to call `func(i, j, k, l, val)`
+!> \note Calls MPI, must be executed on all ranks.
 !> \par History
 !>      04.2016 created [JHU]
 !>      06.2016 factored out from qs_a_s_methods:fcidump [TMU]
 ! **************************************************************************************************
-   SUBROUTINE eri_type_eri_foreach(this, ispin, fobj)
+   SUBROUTINE eri_type_eri_foreach(this, nspin, fobj)
       USE message_passing, ONLY: mp_sum, mp_sync
       CLASS(eri_type), INTENT(in)              :: this
       CLASS(eri_type_eri_element_func)         :: fobj
       INTEGER                                  :: i1, i12, i12l, i2, i3, i34, i34l, i4, &
-                                                  irange(2), irptr, ispin, nindex
+                                                  irange(2), irptr, nspin, nindex
       INTEGER, ALLOCATABLE, DIMENSION(:)       :: colind
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: erival
       REAL(KIND=dp)                            :: erint
 
-      ASSOCIATE (eri=>this%eri(ispin)%csr_mat, norb=>this%norb)
-         nindex = norb*(norb+1)
+      ASSOCIATE (eri=>this%eri(nspin)%csr_mat, norb=>this%norb)
+         nindex = (norb*(norb+1))/2
          irange = get_irange_csr(nindex, eri%mp_group)
          ALLOCATE (erival(nindex), colind(nindex))
 
