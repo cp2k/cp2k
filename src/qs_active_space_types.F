@@ -326,10 +326,10 @@ CONTAINS
 !> \param this object reference
 !> \param nspin The spin number
 !> \param fobj The function object from which to call `func(i, j, k, l, val)`
-!> \note Calls MPI, must be executed on all ranks.
 !> \par History
 !>      04.2016 created [JHU]
 !>      06.2016 factored out from qs_a_s_methods:fcidump [TMU]
+!> \note Calls MPI, must be executed on all ranks.
 ! **************************************************************************************************
    SUBROUTINE eri_type_eri_foreach(this, nspin, fobj)
       USE message_passing, ONLY: mp_sum, mp_sync
