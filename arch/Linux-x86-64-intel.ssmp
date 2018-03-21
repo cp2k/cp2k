@@ -5,10 +5,10 @@ LIBXSMM  = /home/users/p02464/libxsmm/1.8.3_skl_intel
 LIBXC    = /home/users/p02464/libs/libxc/intel/4.0.3
 LIBINT   = /home/users/p02464/libs/libint/intel/1.1.6
 
-CC       = gcc
+CC       = icc
 CPP      = 
-FC       = gfortran
-LD       = gfortran
+FC       = ifort
+LD       = ifort
 AR       = ar -r
 CPPFLAGS =
 DFLAGS   = -D__MKL -D__FFTW3 -D__HAS_NO_SHARED_GLIBC -D__LIBXSMM \
