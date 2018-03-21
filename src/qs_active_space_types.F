@@ -68,12 +68,19 @@ MODULE qs_active_space_types
       PROCEDURE(eri_type_eri_element_func_interface), DEFERRED :: func
    END TYPE eri_type_eri_element_func
 
+   ABSTRACT INTERFACE
 ! **************************************************************************************************
 !> \brief The function signature to be implemented by a child of `eri_type_eri_element_func`
+!> \param this object reference
+!> \param i i-index
+!> \param j j-index
+!> \param k k-index
+!> \param l l-index
+!> \param val value of the integral at (i,j,k.l)
+!> \return True if the ERI foreach loop should continue, false, if not
 ! **************************************************************************************************
-   ABSTRACT INTERFACE
       LOGICAL FUNCTION eri_type_eri_element_func_interface(this, i, j, k, l, val)
-         IMPORT                                       :: eri_type_eri_element_func, dp
+         IMPORT :: eri_type_eri_element_func, dp
          CLASS(eri_type_eri_element_func), INTENT(inout) :: this
          INTEGER, INTENT(in)                             :: i, j, k, l
          REAL(KIND=dp), INTENT(in)                       :: val
@@ -281,7 +288,7 @@ CONTAINS
 !> \brief calculates index range for processor in group mp_group
 !> \param nindex ...
 !> \param mp_group ...
-!> \retval irange ...
+!> \return a range tuple
 !> \par History
 !>      04.2016 created [JGH]
 ! **************************************************************************************************
@@ -316,6 +323,7 @@ CONTAINS
 
 ! **************************************************************************************************
 !> \brief Calls the provided function for each element in the ERI
+!> \param this object reference
 !> \param ispin The spin number
 !> \param fobj The function object from which to call `func(i, j, k, l, val)`
 !> \par History

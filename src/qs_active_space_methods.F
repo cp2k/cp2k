@@ -1863,6 +1863,16 @@ CONTAINS
 
    END SUBROUTINE cp_fm_sqrt
 
+! **************************************************************************************************
+!> \brief Print each value on the master node
+!> \param this object reference
+!> \param i i-index
+!> \param j j-index
+!> \param k k-index
+!> \param l l-index
+!> \param val value of the integral at (i,j,k.l)
+!> \return always true to dump all integrals
+! **************************************************************************************************
    LOGICAL FUNCTION eri_fcidump_print_func(this, i, j, k, l, val) RESULT(cont)
       CLASS(eri_fcidump_print), INTENT(inout) :: this
       INTEGER, INTENT(in)                     :: i, j, k, l
