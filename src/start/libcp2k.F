@@ -12,6 +12,7 @@
 !> \par History
 !>       12.2012 created [Hossein Bani-Hashemian]
 !>       04.2016 restructured [Hossein Bani-Hashemian, Ole Schuett]
+!>       03.2018 added Active Space functions [Tiziano Mueller]
 !> \author Mohammad Hossein Bani-Hashemian
 ! **************************************************************************************************
 MODULE libcp2k
@@ -33,11 +34,20 @@ MODULE libcp2k
                                               section_type
    USE kinds,                           ONLY: default_path_length,&
                                               default_string_length
+   USE qs_active_space_types,           ONLY: eri_type_eri_element_func
 #include "../base/base_uses.f90"
 
    IMPLICIT NONE
 
    PRIVATE
+
+   TYPE, EXTENDS(eri_type_eri_element_func) :: eri2array
+      INTEGER(C_INT), POINTER :: coords(:)
+      REAL(C_DOUBLE), POINTER :: values(:)
+      INTEGER                 :: idx = 1
+   CONTAINS
+      PROCEDURE :: func => eri2array_func
+   END TYPE
 
 CONTAINS
 
@@ -400,6 +410,169 @@ CONTAINS
    END SUBROUTINE cp2k_transport_set_callback
 
 ! **************************************************************************************************
+!> \brief Get the number of molecular orbitals
+!> \param f_env_id  the force env id
+!> \return The number of elements or -1 if unavailable
+!> \author Tiziano Mueller
+! **************************************************************************************************
+   INTEGER(C_INT) FUNCTION cp2k_active_space_get_mo_count(f_env_id) RESULT(nmo) BIND(C)
+      USE qs_active_space_types, ONLY: active_space_type
+      USE qs_mo_types, ONLY: get_mo_set
+      USE qs_environment_types, ONLY: get_qs_env
+
+      INTEGER(C_INT), VALUE            :: f_env_id
+      INTEGER                          :: ierr
+      TYPE(f_env_type), POINTER        :: f_env
+      TYPE(active_space_type), POINTER :: active_space_env
+
+      nmo = -1
+      NULLIFY (f_env)
+      CALL f_env_add_defaults(f_env_id, f_env)
+
+      CALL get_qs_env(f_env%force_env%qs_env, active_space=active_space_env)
+      IF (.NOT. ASSOCIATED(active_space_env)) THEN
+         GOTO 999
+      END IF
+
+      CALL get_mo_set(active_space_env%mos_active(1)%mo_set, nmo=nmo)
+
+999   CALL f_env_rm_defaults(f_env, ierr)
+      CPASSERT(ierr == 0)
+   END FUNCTION cp2k_active_space_get_mo_count
+
+! **************************************************************************************************
+!> \brief Get the active space Fock sub-matrix (as a full matrix)
+!> \param f_env_id the force env id
+!> \param buf C array to write the data to
+!> \param buf_len The length of the C array to write the data to (must be at least mo_count^2)
+!> \return The number of elements written or -1 if unavailable or buffer too small
+!> \author Tiziano Mueller
+! **************************************************************************************************
+   INTEGER(C_INT) FUNCTION cp2k_active_space_get_fock_sub(f_env_id, buf, buf_len) RESULT(nelem) BIND(C)
+      USE qs_active_space_types, ONLY: active_space_type
+      USE qs_mo_types, ONLY: get_mo_set
+      USE qs_environment_types, ONLY: get_qs_env
+
+      INTEGER(C_INT), VALUE                               :: f_env_id
+      INTEGER(C_INT), VALUE                               :: buf_len
+      REAL(C_DOUBLE), DIMENSION(0:buf_len-1), INTENT(OUT) :: buf
+      INTEGER                                             :: norb, i, j, ierr
+      REAL(C_DOUBLE)                                      :: mval
+      TYPE(f_env_type), POINTER                           :: f_env
+      TYPE(active_space_type), POINTER                    :: active_space_env
+
+      nelem = -1
+      NULLIFY (f_env)
+
+      CALL f_env_add_defaults(f_env_id, f_env)
+      CALL get_qs_env(f_env%force_env%qs_env, active_space=active_space_env)
+
+      IF (.NOT. ASSOCIATED(active_space_env)) THEN
+         GOTO 999
+      END IF
+
+      CALL get_mo_set(active_space_env%mos_active(1)%mo_set, nmo=norb)
+
+      IF (buf_len < norb*norb) THEN
+         GOTO 999
+      END IF
+
+      DO i = 0, norb-1
+         DO j = 0, norb-1
+            CALL cp_fm_get_element(active_space_env%fock_sub(1)%matrix, i+1, j+1, mval)
+            buf(norb*i+j) = mval
+            buf(norb*j+i) = mval
+         END DO
+      END DO
+
+      ! finished successfully, set number of written elements
+      nelem = norb**norb
+
+999   CALL f_env_rm_defaults(f_env, ierr)
+      CPASSERT(ierr == 0)
+   END FUNCTION cp2k_active_space_get_fock_sub
+
+! **************************************************************************************************
+!> \brief Get the number of non-zero elements of the ERI
+!> \param f_env_id the force env id
+!> \return The number of elements or -1 if unavailable
+!> \author Tiziano Mueller
+! **************************************************************************************************
+   INTEGER(C_INT) FUNCTION cp2k_active_space_get_eri_nze_count(f_env_id) RESULT(nze_count) BIND(C)
+      USE qs_active_space_types, ONLY: active_space_type
+      USE qs_environment_types, ONLY: get_qs_env
+
+      INTEGER(C_INT), VALUE            :: f_env_id
+      INTEGER                          :: ierr
+      TYPE(f_env_type), POINTER        :: f_env
+      TYPE(active_space_type), POINTER :: active_space_env
+
+      nze_count = -1
+      NULLIFY (f_env)
+
+      CALL f_env_add_defaults(f_env_id, f_env)
+      CALL get_qs_env(f_env%force_env%qs_env, active_space=active_space_env)
+
+      IF (.NOT. ASSOCIATED(active_space_env)) THEN
+         GOTO 999
+      END IF
+
+      nze_count = active_space_env%eri%eri(1)%csr_mat%nze_total
+
+999   CALL f_env_rm_defaults(f_env, ierr)
+      CPASSERT(ierr == 0)
+   END FUNCTION cp2k_active_space_get_eri_nze_count
+
+! **************************************************************************************************
+!> \brief Get the electron repulsion integrals (as a sparse tensor)
+!> \param f_env_id the force env id
+!> \param buf_coords C array to write the indizes (i,j,k,l) to
+!> \param buf_coords_len size of the buffer, must be at least 4*nze_count
+!> \param buf_values C array to write the values to
+!> \param buf_values_len size of the buffer, must be at least nze_count
+!> \return The number of elements written or -1 if unavailable or buffer too small
+!> \author Tiziano Mueller
+! **************************************************************************************************
+   INTEGER(C_INT) FUNCTION cp2k_active_space_get_eri(f_env_id, &
+                                                     buf_coords, buf_coords_len, &
+                                                     buf_values, buf_values_len) RESULT(nelem) BIND(C)
+      USE qs_active_space_types, ONLY: active_space_type
+      USE qs_mo_types, ONLY: get_mo_set
+      USE qs_environment_types, ONLY: get_qs_env
+
+      INTEGER(C_INT), VALUE, INTENT(IN)   :: f_env_id
+      INTEGER(C_INT), VALUE, INTENT(IN)   :: buf_coords_len, buf_values_len
+      INTEGER(C_INT), TARGET, INTENT(OUT) :: buf_coords(1:buf_coords_len)
+      REAL(C_DOUBLE), TARGET, INTENT(OUT) :: buf_values(1:buf_values_len)
+      INTEGER                             :: ierr
+      TYPE(f_env_type), POINTER           :: f_env
+      TYPE(active_space_type), POINTER    :: active_space_env
+
+      nelem = -1
+      NULLIFY (f_env)
+
+      CALL f_env_add_defaults(f_env_id, f_env)
+      CALL get_qs_env(f_env%force_env%qs_env, active_space=active_space_env)
+
+      IF (.NOT. ASSOCIATED(active_space_env)) THEN
+         GOTO 999
+      END IF
+
+      ASSOCIATE (nze=>active_space_env%eri%eri(1)%csr_mat%nze_total)
+         IF (buf_coords_len < 4*nze .OR. buf_values_len < nze) THEN
+            GOTO 999
+         END IF
+
+         CALL active_space_env%eri%eri_foreach(1, eri2array(buf_coords, buf_values))
+
+         nelem = nze
+      END ASSOCIATE
+
+999   CALL f_env_rm_defaults(f_env, ierr)
+      CPASSERT(ierr == 0)
+   END FUNCTION cp2k_active_space_get_eri
+
+! **************************************************************************************************
 !> \brief Copy the content of a \0-terminated C-string to a finite-length Fortran string
 !>
 !> The content of the new string may be truncated if the number of characters before the '\0'
@@ -419,5 +592,32 @@ CONTAINS
          fstring(i:i) = cstring(i)
       END DO
    END SUBROUTINE strncpy_c2f
+
+! **************************************************************************************************
+!> \brief Copy the active space ERI to C buffers
+!> \param this Class pointer
+!> \param i The i index of the value `val`
+!> \param j The j index of the value `val`
+!> \param k The k index of the value `val`
+!> \param l The l index of the value `val`
+!> \param val The value at the given index
+!> \return Always true to continue with the loop
+!> \author Tiziano Mueller
+! **************************************************************************************************
+   LOGICAL FUNCTION eri2array_func(this, i, j, k, l, val) RESULT(cont)
+      CLASS(eri2array), INTENT(inout) :: this
+      INTEGER, INTENT(in)             :: i, j, k, l
+      REAL(KIND=dp), INTENT(in)       :: val
+
+      this%coords(4*(this%idx-1)+1) = i
+      this%coords(4*(this%idx-1)+2) = j
+      this%coords(4*(this%idx-1)+3) = k
+      this%coords(4*(this%idx-1)+4) = l
+      this%values(this%idx) = val
+
+      this%idx = this%idx+1
+
+      cont = .TRUE.
+   END FUNCTION eri2array_func
 
 END MODULE libcp2k

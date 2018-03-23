@@ -248,6 +248,43 @@ typedef void (*ext_method_callback_f_ptr) (
  */
 void cp2k_transport_set_callback(force_env_t force_env, ext_method_callback_f_ptr func);
 
+/** \brief Get the number of molecular orbitals in the active space
+ * \param force_env the force environment
+ * \returns The number of elements or -1 if unavailable
+ */
+int cp2k_active_space_get_mo_count(force_env_t force_env);
+
+/** \brief Get the Fock submatrix for the active space
+ * \param force_env the force environment
+ * \param buf Pre-allocated array of at least mo_count^2 elements.
+ *            Use `cp2k_active_space_get_mo_count()` to get the number of molecular orbitals.
+ * \param buf_len Size of the buf array
+ * \returns The number of elements written to buf or -1 if unavailable
+ */
+int cp2k_active_space_get_fock_sub(force_env_t force_env, double* buf, int buf_len);
+
+/** \brief Get the number of non-zero elements in the ERI matrix
+ * \param force_env the force environment
+ * \returns The number of elements or -1 if unavailable
+ */
+int cp2k_active_space_get_eri_nze_count(force_env_t force_env);
+
+/** \brief Get the non-zero elements of the ERI matrix
+ *
+ * The buf_coords will contain the coordinates in the format `[i1, j1, k1, l1, i2, j2, k2, l2, ... ]`.
+ * \param force_env the force environment
+ * \param buf_coords Pre-allocated array of at least 4*nze_count elements.
+ *                   Use `cp2k_active_space_get_eri_nze_count()` to get the number of non-zero elements.
+ * \param buf_coords_len Size of the buf_coords array
+ * \param buf_values Pre-allocated array of at least nze_count elements.
+ *                   Use `cp2k_active_space_get_eri_nze_count()` to get the number of non-zero elements.
+ * \param buf_values_len Size of the buf_values array
+ * \returns The number of elements written to buf_values or -1 if unavailable
+ */
+int cp2k_active_space_get_eri(force_env_t force_env,
+                              int* buf_coords, int buf_coords_len,
+                              double* buf_values, int buf_values_len);
+
 #ifdef __cplusplus
 }
 #endif
