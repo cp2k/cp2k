@@ -10,8 +10,8 @@
 #
 CC       = mpixlc
 CPP      = cpp -E  
-FC       = mpixlf95_r
-LD       = mpixlf95_r 
+FC       = mpixlf2003_r
+LD       = mpixlf2003_r 
 AR       = ar -r
 
 DFLAGS   = -D__AIX -D__FFTW3 -D__FFTSG -D__parallel -D__BLACS -D__SCALAPACK 

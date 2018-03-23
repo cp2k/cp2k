@@ -11,8 +11,8 @@
 CC       = mpixlc_r
 CXX      = mpixlcxx_r
 CPP      = cpp -P -traditional-cpp
-FC       = mpixlf95_r
-LD       = mpixlf95_r
+FC       = mpixlf2003_r
+LD       = mpixlf2003_r
 AR       = ar -r
 LIBXC_INCLUDE=$(HOME)/libxc-2.2.2-install/include
 DFLAGS   = -D__FFTW3 -D__parallel -D__SCALAPACK -D__LIBINT -D__LIBXC2 -D__MPI_VERSION=2
