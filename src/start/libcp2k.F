@@ -21,6 +21,7 @@ MODULE libcp2k
                                               C_FUNPTR,&
                                               C_INT,&
                                               C_NULL_CHAR
+   USE cp_fm_types,                     ONLY: cp_fm_get_element
    USE cp2k_info,                       ONLY: cp2k_version
    USE cp2k_runs,                       ONLY: run_input
    USE f77_interface,                   ONLY: &
@@ -32,7 +33,8 @@ MODULE libcp2k
    USE input_cp2k,                      ONLY: create_cp2k_root_section
    USE input_section_types,             ONLY: section_release,&
                                               section_type
-   USE kinds,                           ONLY: default_path_length,&
+   USE kinds,                           ONLY: dp,&
+                                              default_path_length,&
                                               default_string_length
    USE qs_active_space_types,           ONLY: eri_type_eri_element_func
 #include "../base/base_uses.f90"
