@@ -374,3 +374,7 @@ xml_parser.F: Found WRITE statement with hardcoded unit in "xml_report_errors_st
 dbcsr_tensor_test.F: Found CALL RANDOM_NUMBER in procedure "dbcsr_t_random_dist"
 optimize_embedding_potential.F: Found FLOAT in "init_embed_pot"
 et_coupling_proj.F: Routine INFOG2L called with an implicit interface.
+libcp2k.F: Found GOTO statement in procedure "cp2k_active_space_get_eri"
+libcp2k.F: Found GOTO statement in procedure "cp2k_active_space_get_eri_nze_count"
+libcp2k.F: Found GOTO statement in procedure "cp2k_active_space_get_fock_sub"
+libcp2k.F: Found GOTO statement in procedure "cp2k_active_space_get_mo_count"
