@@ -36,23 +36,20 @@ MODULE xas_tdp_methods
                                               debug_print_level
    USE cp_para_types,                   ONLY: cp_para_env_type
    USE cp_output_handling,              ONLY: cp_print_key_unit_nr, debug_print_level
-   USE dbcsr_api,                       ONLY: dbcsr_p_type, dbcsr_type, dbcsr_release
+   USE dbcsr_api,                       ONLY: dbcsr_p_type, dbcsr_type, dbcsr_release, dbcsr_print, &
+                                              dbcsr_create, dbcsr_multiply, dbcsr_add_on_diag, &
+                                              dbcsr_finalize, dbcsr_allocate_matrix_set, dbcsr_copy,&
+                                              dbcsr_set, dbcsr_deallocate_matrix_set
    USE generic_os_integrals,            ONLY: int_operators_r12_ab_os
-   USE input_constants,                 ONLY: xas_tdp_by_index,&
-                                              xas_tdp_by_kind,&
-                                              xas_not_excited,&
-                                              do_loc_none,&
-                                              xas_1s_type,&
-                                              xas_2p_type,&
-                                              xas_2s_type,&
-                                              xas_not_excited,&
-                                              xas_tdp_by_index,&
-                                              xas_tdp_by_kind
-   USE input_section_types,             ONLY: section_vals_get_subs_vals,&
-                                              section_vals_type,&
+   USE input_constants,                 ONLY: xas_tdp_by_index, xas_tdp_by_kind, xas_not_excited,&
+                                              do_loc_none, xas_1s_type, xas_2s_type, xas_2p_type,&
+                                              op_loc_berry, xas_dip_len, xas_dip_vel
+   USE input_section_types,             ONLY: section_vals_type,&
+                                              section_vals_get_subs_vals,&
                                               section_vals_val_set
    USE kinds,                           ONLY: dp
    USE memory_utilities,                ONLY: reallocate
+   USE message_passing,                 ONLY: mp_sync
    USE particle_methods,                ONLY: get_particle_set
    USE particle_types,                  ONLY: particle_type
    USE periodic_table,                  ONLY: ptable
@@ -73,14 +70,22 @@ MODULE xas_tdp_methods
                                               set_loc_wfn_lists
    USE qs_mo_types,                     ONLY: get_mo_set,&
                                               mo_set_p_type
+   USE qs_operators_ao,                 ONLY: p_xyz_ao, rRc_xyz_ao       
+   USE qs_rho_types,                    ONLY: qs_rho_get, qs_rho_type
    USE xas_methods,                     ONLY: calc_stogto_overlap
-   USE xas_tdp_types,                   ONLY: &
-        donor_state_type, read_xas_tdp_control, set_donor_state, set_xas_tdp_env, &
-        xas_tdp_control_create, xas_tdp_control_type, xas_tdp_env_create, xas_tdp_env_release, &
-        xas_tdp_env_type
-   USE xas_tdp_utils,                   ONLY: compute_oscillator_strength, &
-                                              setup_xas_tdp_full_prob, &
-                                              solve_xas_tdp_full_prob
+   USE xas_tdp_types,                   ONLY: xas_tdp_control_type,&
+                                              read_xas_tdp_control,&
+                                              xas_tdp_control_create,&
+                                              xas_tdp_env_type,&
+                                              xas_tdp_env_create,&
+                                              xas_tdp_env_release,&
+                                              set_xas_tdp_env,&
+                                              donor_state_type,&
+                                              set_donor_state, &
+                                              free_ds_memory
+   USE xas_tdp_utils,                   ONLY: setup_xas_tdp_full_prob, &
+                                              solve_xas_tdp_full_prob, &
+                                              compute_oscillator_strength
 #include "./base/base_uses.f90"
 
    IMPLICIT NONE
@@ -111,6 +116,7 @@ CONTAINS
       TYPE(xas_tdp_env_type), POINTER                    :: xas_tdp_env
       TYPE(xas_tdp_control_type), POINTER                :: xas_tdp_control
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
+      TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set       
       CHARACTER(len=2)                                   :: symbol_of_kind
       CHARACTER(len=2), DIMENSION(3)                     :: state_type_char
       INTEGER                                            :: current_state_index, handle, iat, ikind, &
@@ -121,11 +127,12 @@ CONTAINS
       TYPE(dbcsr_type), POINTER                          :: matrix_lhs, matrix_tdp
       TYPE(donor_state_type), POINTER                    :: current_state
       TYPE(section_vals_type), POINTER                   :: dft_section, xas_tdp_section
-      TYPE(xas_tdp_control_type), POINTER                :: xas_tdp_control
-      TYPE(xas_tdp_env_type), POINTER                    :: xas_tdp_env
+      CHARACTER(len=2), DIMENSION(3)                     :: state_type_char
+      TYPE(cp_para_env_type), POINTER                    :: para_env
+      REAL(dp), DIMENSION(3)                             :: rc
 
-      NULLIFY (xas_tdp_env, xas_tdp_control, atomic_kind_set, atoms_of_kind, current_state)
-      NULLIFY (matrix_tdp, matrix_lhs)
+      NULLIFY(xas_tdp_env, xas_tdp_control, atomic_kind_set, atoms_of_kind, current_state, para_env)
+      NULLIFY(particle_set)
 
       CALL timeset(routineN, handle)
 
@@ -196,7 +203,7 @@ CONTAINS
 !        causing some pointer to be dealloacted before they are called by the other processors
 !        Get bad pointer memory leak
 
-      CALL get_qs_env(qs_env=qs_env, atomic_kind_set=atomic_kind_set)
+      CALL get_qs_env(qs_env=qs_env, atomic_kind_set=atomic_kind_set, para_env=para_env)      
       current_state_index = 1
 
 !     Loop over atomic kinds
@@ -210,6 +217,16 @@ CONTAINS
 
             IF (ANY(xas_tdp_env%ex_atom_indices == atoms_of_kind(iat))) THEN
                tmp_index = MINLOC(ABS(xas_tdp_env%ex_atom_indices-atoms_of_kind(iat)), 1)
+
+!              If length representation for the dipole, compute it here in the AO basis, for this atom
+               IF (xas_tdp_control%dipole_form == xas_dip_len) THEN
+                  CALL get_qs_env(qs_env, particle_set=particle_set)
+                  rc = particle_set(tmp_index)%r    
+                  CALL dbcsr_set(xas_tdp_env%dipmat(1)%matrix, 0.0_dp)
+                  CALL dbcsr_set(xas_tdp_env%dipmat(2)%matrix, 0.0_dp)
+                  CALL dbcsr_set(xas_tdp_env%dipmat(3)%matrix, 0.0_dp)
+                  CALL rRc_xyz_ao(xas_tdp_env%dipmat, qs_env, rc, order=1)
+               END IF
 
 !              Loop over states of excited atom of kind
                DO istate = 1, SIZE(xas_tdp_env%state_types, 1)
@@ -242,13 +259,11 @@ CONTAINS
 !                       Do main calculations here
 
                         IF (xas_tdp_control%full_diag) THEN
-                           ALLOCATE(matrix_tdp)
-                           ALLOCATE(matrix_lhs)
-                           CALL setup_xas_tdp_full_prob(matrix_tdp, matrix_lhs, current_state, &
-                                                        qs_env, xas_tdp_control)
-                           CALL solve_xas_tdp_full_prob(matrix_tdp, matrix_lhs, current_state, &
-                                                        qs_env, xas_tdp_control)
-                           CALL compute_oscillator_strength(current_state, qs_env, xas_tdp_control)
+                           CALL setup_xas_tdp_full_prob(current_state, &
+                                                        qs_env, xas_tdp_env, xas_tdp_control)
+                           CALL solve_xas_tdp_full_prob(current_state, xas_tdp_control, qs_env)
+                           CALL compute_oscillator_strength(current_state, xas_tdp_control, &
+                                                            xas_tdp_env, qs_env)
                            
                            IF (output_unit > 0 ) THEN
                               i=0
@@ -258,10 +273,6 @@ CONTAINS
                               END DO
                            END IF
 
-                           CALL dbcsr_release(matrix_tdp)
-                           CALL dbcsr_release(matrix_lhs)
-                           DEALLOCATE(matrix_tdp)
-                           DEALLOCATE(matrix_lhs)
                         ELSE IF (.NOT. xas_tdp_control%full_diag) THEN
                            
                            CPABORT("Iterative solver not implemented yet")
@@ -270,8 +281,16 @@ CONTAINS
 
                      END IF !check donor_states
 
-                     current_state_index = current_state_index+1
-                     NULLIFY (current_state)
+!                    Free some unneeded attributes of current_state
+                     CALL free_ds_memory(current_state)
+
+                     current_state_index = current_state_index + 1
+                     NULLIFY(current_state)
+
+!                    Making sure we are synchronized before going to the next state
+!                    TODO: does not seem to work as intended
+                     CALL mp_sync(para_env%group)
+
                   END IF
                END DO ! state type
             END IF ! if excited
@@ -327,10 +346,12 @@ CONTAINS
       TYPE(cp_fm_type), POINTER                          :: work_fm
       TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(cp_blacs_env_type), POINTER                   :: blacs_env
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_s, rho_ao
+      TYPE(qs_rho_type), POINTER                         :: rho
 
       NULLIFY(dft_section, xas_tdp_section, at_kind_set, ind_of_kind, work_array, para_env, blacs_env)
       NULLIFY(qs_loc_env, loc_section, mos, qs_kind_set, particle_set, ex_kind_ri_basis, fm_struct)
-      NULLIFY(work_fm)
+      NULLIFY(work_fm, rho, rho_ao)
 
 !  XAS TDP control type initialization
       dft_section => section_vals_get_subs_vals(qs_env%input, "DFT")
@@ -452,8 +473,8 @@ CONTAINS
          qs_loc_env%localized_wfn_control%localization_method = do_loc_none
       ELSE IF (qs_loc_env%do_localize) THEN
          n_moloc = qs_loc_env%localized_wfn_control%nloc_states
-         CALL set_loc_wfn_lists(qs_loc_env%localized_wfn_control, n_moloc, n_mo, nspins)
-         CALL set_loc_centers(qs_loc_env%localized_wfn_control, n_moloc, nspins)
+         CALL set_loc_wfn_lists(qs_loc_env%localized_wfn_control, n_moloc, n_mo, nspins, my_spin=1)  
+         CALL set_loc_centers(qs_loc_env%localized_wfn_control, n_moloc, nspins)  
 !        closed shell => myspin=1
          CALL qs_loc_env_init(qs_loc_env, qs_loc_env%localized_wfn_control, &
                               qs_env, myspin=1, do_localize=qs_loc_env%do_localize)
@@ -476,6 +497,7 @@ CONTAINS
          CALL get_qs_kind(qs_kind_set(k), basis_set=ex_kind_ri_basis, basis_type="RI_AUX")   
 
 !        Computing the two-centers two-electrons Coulomb repulsion between the basis and itself
+!        TODO: should we consider PBCs here ?
          rab = 0.0_dp
          CALL get_gto_basis_set(ex_kind_ri_basis, nsgf=nsgf)
          ALLOCATE(work_array(nsgf,nsgf))
@@ -497,9 +519,31 @@ CONTAINS
          CALL cp_fm_release(work_fm)
          NULLIFY(ex_kind_ri_basis)
          DEALLOCATE(work_array)
-
       END DO
-      
+
+!  Compute the projector on the unoccupied, unperturbed ground state: Q = 1 - SP
+      CALL get_qs_env(qs_env, rho=rho, matrix_s=matrix_s)
+      CALL qs_rho_get(rho, rho_ao=rho_ao)
+      ALLOCATE(xas_tdp_env%q_projector)
+      CALL dbcsr_create(xas_tdp_env%q_projector, name="Q PROJECTOR", template=matrix_s(1)%matrix, &
+                        matrix_type="N") 
+!     TODO: Add a filter_eps in the multiplication ? Cuz many almost zero blocks
+      CALL dbcsr_multiply('N', 'N', -1.0_dp, matrix_s(1)%matrix, rho_ao(1)%matrix, 0.0_dp, &
+                          xas_tdp_env%q_projector)
+      CALL dbcsr_add_on_diag(xas_tdp_env%q_projector, 1.0_dp)
+      CALL dbcsr_finalize(xas_tdp_env%q_projector)
+
+!  Create the structure for the dipole in the AO basis 
+      CALL dbcsr_allocate_matrix_set(xas_tdp_env%dipmat, 3)           
+      DO i =1,3
+         ALLOCATE(xas_tdp_env%dipmat(i)%matrix)          
+         CALL dbcsr_copy(xas_tdp_env%dipmat(i)%matrix, matrix_s(1)%matrix, name="XAS TDP dipole matrix")
+         CALL dbcsr_set(xas_tdp_env%dipmat(i)%matrix, 0.0_dp)
+      END DO
+
+!     Precompute it if velocity represnetation. If length, need to do it for each excited atom 
+      IF (xas_tdp_control%dipole_form == xas_dip_vel) CALL p_xyz_ao(xas_tdp_env%dipmat, qs_env)      
+     
    END SUBROUTINE xas_tdp_init
 
 !> *************************************************************************************************
