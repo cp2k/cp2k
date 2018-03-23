@@ -11,6 +11,8 @@
 MODULE xas_tdp_types
    
    USE cp_fm_types,                     ONLY: cp_fm_type, cp_fm_release, cp_fm_p_type
+   USE dbcsr_api,                       ONLY: dbcsr_type, dbcsr_release, dbcsr_p_type, &
+                                              dbcsr_deallocate_matrix_set
    USE input_constants,                 ONLY: xas_1s_type,&
                                               xas_dip_vel,&
                                               xas_tdp_by_index,&
@@ -73,6 +75,11 @@ MODULE xas_tdp_types
 !> \param ri_inv_mats collection of kind specific electron repulsion inverse matrices for each
 !>        excited kinds, based on basis functions of the RI auxiliary basis used for Coulomb and
 !>        exchange kernels
+!> \param q_projector the projector on the unperturbed, unoccupied ground state as a dbcsr matrix
+!> \param dipmat the dbcsr matrices containing the dipole in x,y,z directions evaluated on the 
+!>        contracted spherical gaussians. It can either be in the length or the velocity 
+!>        representation. For length representation, it has to be computed once with the origin on 
+!>        each excited atom
 !> *************************************************************************************************
    TYPE xas_tdp_env_type
       INTEGER                                 :: nex_atoms
@@ -86,6 +93,9 @@ MODULE xas_tdp_types
       TYPE(qs_loc_env_new_type), POINTER      :: qs_loc_env
       TYPE(cp_fm_p_type), DIMENSION(:), &
                                     POINTER   :: ri_inv_mats
+      TYPE(dbcsr_type), POINTER               :: q_projector
+      TYPE(dbcsr_p_type), DIMENSION(:), &
+                                    POINTER   :: dipmat
    END TYPE xas_tdp_env_type
 
 !> *************************************************************************************************
@@ -100,6 +110,7 @@ MODULE xas_tdp_types
 !> \param lr_coeffs solutions of the linear-response TDDFT equation retricted to this state (vector)
 !> \param lr_evals excitation energies => the eigenvalues of the linear response equation
 !> \param osc_str oscillator strengths for the different excitation energies
+!> \param matrix_tdp the dbcsr matrix to be diagonalized to solve the problem
 !> *************************************************************************************************
    TYPE donor_state_type
       INTEGER                                 :: at_index
@@ -111,6 +122,7 @@ MODULE xas_tdp_types
       TYPE(cp_fm_type), POINTER               :: lr_coeffs
       REAL(dp), DIMENSION(:), POINTER         :: lr_evals
       REAL(dp), DIMENSION(:), POINTER         :: osc_str
+      TYPE(dbcsr_type), POINTER               :: matrix_tdp
    END TYPE donor_state_type
 
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'xas_tdp_types'
@@ -121,7 +133,7 @@ MODULE xas_tdp_types
 ! *** Public subroutines ***
    PUBLIC :: xas_tdp_control_create, xas_tdp_control_release, read_xas_tdp_control, &
              xas_tdp_env_create, xas_tdp_env_release, set_xas_tdp_env, &
-             set_donor_state
+             set_donor_state, free_ds_memory
 
 CONTAINS
 
@@ -303,6 +315,8 @@ CONTAINS
       NULLIFY (xas_tdp_env%qs_loc_env)
       NULLIFY (xas_tdp_env%mos_of_ex_atoms)
       NULLIFY (xas_tdp_env%ri_inv_mats)
+      NULLIFY (xas_tdp_env%q_projector)
+      NULLIFY (xas_tdp_env%dipmat)
 
    END SUBROUTINE xas_tdp_env_create
 
@@ -344,6 +358,13 @@ CONTAINS
                CALL cp_fm_release(xas_tdp_env%ri_inv_mats(i)%matrix)
             END DO
             DEALLOCATE(xas_tdp_env%ri_inv_mats)
+         END IF
+         IF (ASSOCIATED(xas_tdp_env%q_projector)) THEN
+            CALL dbcsr_release(xas_tdp_env%q_projector)
+            DEALLOCATE(xas_tdp_env%q_projector)
+         END IF
+         IF (ASSOCIATED(xas_tdp_env%dipmat)) THEN
+            CALL dbcsr_deallocate_matrix_set(xas_tdp_env%dipmat)
          END IF
          DEALLOCATE (xas_tdp_env)
       END IF
@@ -429,10 +450,35 @@ CONTAINS
                DEALLOCATE (donor_state_set(i)%mo_indices)
             END IF
 
+            IF (ASSOCIATED(donor_state_set(i)%matrix_tdp)) THEN
+               CALL dbcsr_release(donor_state_set(i)%matrix_tdp)
+               DEALLOCATE(donor_state_set(i)%matrix_tdp)
+            END IF
+                        
          END DO
          DEALLOCATE (donor_state_set)
       END IF
 
    END SUBROUTINE deallocate_donor_state_set
+
+!> *************************************************************************************************
+!> \brief Deallocate a donor_state's heavy attributes
+!> \param donor_state ...
+!> *************************************************************************************************
+   SUBROUTINE free_ds_memory(donor_state)
+      
+      TYPE(donor_state_type), POINTER                    :: donor_state
+
+      CHARACTER(len=*), PARAMETER :: routineN = "free_ds_memory", routineP = moduleN//":"//routineN
+
+      IF (ASSOCIATED(donor_state%lr_evals)) DEALLOCATE(donor_state%lr_evals)
+      IF (ASSOCIATED(donor_state%osc_str)) DEALLOCATE(donor_state%osc_str)
+      IF (ASSOCIATED(donor_state%lr_coeffs)) CALL cp_fm_release(donor_state%lr_coeffs)
+      IF (ASSOCIATED(donor_state%matrix_tdp)) THEN
+         CALL dbcsr_release(donor_state%matrix_tdp)
+         DEALLOCATE(donor_state%matrix_tdp)
+      END IF
+
+   END SUBROUTINE free_ds_memory
 
 END MODULE xas_tdp_types
