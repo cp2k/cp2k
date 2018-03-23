@@ -20,6 +20,7 @@ MODULE libcp2k
                                               C_DOUBLE,&
                                               C_FUNPTR,&
                                               C_INT,&
+                                              C_LONG,&
                                               C_NULL_CHAR
    USE cp_fm_types,                     ONLY: cp_fm_get_element
    USE cp2k_info,                       ONLY: cp2k_version
@@ -450,13 +451,13 @@ CONTAINS
 !> \return The number of elements written or -1 if unavailable or buffer too small
 !> \author Tiziano Mueller
 ! **************************************************************************************************
-   INTEGER(C_INT) FUNCTION cp2k_active_space_get_fock_sub(f_env_id, buf, buf_len) RESULT(nelem) BIND(C)
+   INTEGER(C_LONG) FUNCTION cp2k_active_space_get_fock_sub(f_env_id, buf, buf_len) RESULT(nelem) BIND(C)
       USE qs_active_space_types, ONLY: active_space_type
       USE qs_mo_types, ONLY: get_mo_set
       USE qs_environment_types, ONLY: get_qs_env
 
       INTEGER(C_INT), VALUE                               :: f_env_id
-      INTEGER(C_INT), VALUE                               :: buf_len
+      INTEGER(C_LONG), VALUE                              :: buf_len
       REAL(C_DOUBLE), DIMENSION(0:buf_len-1), INTENT(OUT) :: buf
       INTEGER                                             :: norb, i, j, ierr
       REAL(C_DOUBLE)                                      :: mval
@@ -500,7 +501,7 @@ CONTAINS
 !> \return The number of elements or -1 if unavailable
 !> \author Tiziano Mueller
 ! **************************************************************************************************
-   INTEGER(C_INT) FUNCTION cp2k_active_space_get_eri_nze_count(f_env_id) RESULT(nze_count) BIND(C)
+   INTEGER(C_LONG) FUNCTION cp2k_active_space_get_eri_nze_count(f_env_id) RESULT(nze_count) BIND(C)
       USE qs_active_space_types, ONLY: active_space_type
       USE qs_environment_types, ONLY: get_qs_env
 
@@ -535,15 +536,15 @@ CONTAINS
 !> \return The number of elements written or -1 if unavailable or buffer too small
 !> \author Tiziano Mueller
 ! **************************************************************************************************
-   INTEGER(C_INT) FUNCTION cp2k_active_space_get_eri(f_env_id, &
-                                                     buf_coords, buf_coords_len, &
-                                                     buf_values, buf_values_len) RESULT(nelem) BIND(C)
+   INTEGER(C_LONG) FUNCTION cp2k_active_space_get_eri(f_env_id, &
+                                                      buf_coords, buf_coords_len, &
+                                                      buf_values, buf_values_len) RESULT(nelem) BIND(C)
       USE qs_active_space_types, ONLY: active_space_type
       USE qs_mo_types, ONLY: get_mo_set
       USE qs_environment_types, ONLY: get_qs_env
 
       INTEGER(C_INT), VALUE, INTENT(IN)   :: f_env_id
-      INTEGER(C_INT), VALUE, INTENT(IN)   :: buf_coords_len, buf_values_len
+      INTEGER(C_LONG), VALUE, INTENT(IN)  :: buf_coords_len, buf_values_len
       INTEGER(C_INT), TARGET, INTENT(OUT) :: buf_coords(1:buf_coords_len)
       REAL(C_DOUBLE), TARGET, INTENT(OUT) :: buf_values(1:buf_values_len)
       INTEGER                             :: ierr

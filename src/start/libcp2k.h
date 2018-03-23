@@ -261,13 +261,13 @@ int cp2k_active_space_get_mo_count(force_env_t force_env);
  * \param buf_len Size of the buf array
  * \returns The number of elements written to buf or -1 if unavailable
  */
-int cp2k_active_space_get_fock_sub(force_env_t force_env, double* buf, int buf_len);
+long int cp2k_active_space_get_fock_sub(force_env_t force_env, double* buf, long int buf_len);
 
 /** \brief Get the number of non-zero elements in the ERI matrix
  * \param force_env the force environment
  * \returns The number of elements or -1 if unavailable
  */
-int cp2k_active_space_get_eri_nze_count(force_env_t force_env);
+long int cp2k_active_space_get_eri_nze_count(force_env_t force_env);
 
 /** \brief Get the non-zero elements of the ERI matrix
  *
@@ -282,8 +282,8 @@ int cp2k_active_space_get_eri_nze_count(force_env_t force_env);
  * \returns The number of elements written to buf_values or -1 if unavailable
  */
 int cp2k_active_space_get_eri(force_env_t force_env,
-                              int* buf_coords, int buf_coords_len,
-                              double* buf_values, int buf_values_len);
+                              int* buf_coords, long int buf_coords_len,
+                              double* buf_values, long int buf_values_len);
 
 #ifdef __cplusplus
 }
