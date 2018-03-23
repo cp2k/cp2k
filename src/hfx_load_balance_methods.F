@@ -1794,8 +1794,11 @@ CONTAINS
 !> \return ...
 ! **************************************************************************************************
       REAL(KIND=dp) FUNCTION estimate_basic(p) RESULT(res)
-         REAL(KIND=dp) :: p(12)
-         REAL(KIND=dp) :: p1, p2, p3, p4, p5, p6, p7, p8, p9, p10, p11, p12
+      REAL(KIND=dp)                                      :: p(12)
+
+      REAL(KIND=dp)                                      :: p1, p10, p11, p12, p2, p3, p4, p5, p6, &
+                                                            p7, p8, p9
+
          p1 = p(1); p2 = p(2); p3 = p(3); p4 = p(4)
          p5 = p(5); p6 = p(6); p7 = p(7); p8 = p(8)
          p9 = p(9); p10 = p(10); p11 = p(11); p12 = p(12)
@@ -1815,8 +1818,9 @@ CONTAINS
 !> \return ...
 ! **************************************************************************************************
       REAL(KIND=dp) FUNCTION poly2(x, a0, a1, a2)
-         INTEGER :: x
-         REAL(KIND=dp) :: a0, a1, a2
+      INTEGER                                            :: x
+      REAL(KIND=dp)                                      :: a0, a1, a2
+
          poly2 = a0+a1*x+a2*x*x
       END FUNCTION poly2
 
@@ -1840,7 +1844,7 @@ CONTAINS
       LOGICAL, INTENT(IN)                                :: do_randomize
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'optimize_distribution', &
-         routineP = moduleN//':'//routineN
+                                     routineP = moduleN//':'//routineN
 
       INTEGER                                            :: i, itmp, j, nstep
       INTEGER(int_8), DIMENSION(:), POINTER              :: my_cost_cpu, tmp_cost, tmp_cpu_cost

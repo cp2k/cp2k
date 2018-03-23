@@ -22,9 +22,9 @@ MODULE libcp2k
                                               C_INT,&
                                               C_LONG,&
                                               C_NULL_CHAR
-   USE cp_fm_types,                     ONLY: cp_fm_get_element
    USE cp2k_info,                       ONLY: cp2k_version
    USE cp2k_runs,                       ONLY: run_input
+   USE cp_fm_types,                     ONLY: cp_fm_get_element
    USE f77_interface,                   ONLY: &
         calc_energy_force, create_force_env, destroy_force_env, f_env_add_defaults, &
         f_env_rm_defaults, f_env_type, finalize_cp2k, get_energy, get_force, get_natom, &
@@ -34,9 +34,9 @@ MODULE libcp2k
    USE input_cp2k,                      ONLY: create_cp2k_root_section
    USE input_section_types,             ONLY: section_release,&
                                               section_type
-   USE kinds,                           ONLY: dp,&
-                                              default_path_length,&
-                                              default_string_length
+   USE kinds,                           ONLY: default_path_length,&
+                                              default_string_length,&
+                                              dp
    USE qs_active_space_types,           ONLY: eri_type_eri_element_func
 #include "../base/base_uses.f90"
 
@@ -422,11 +422,11 @@ CONTAINS
       USE qs_active_space_types, ONLY: active_space_type
       USE qs_mo_types, ONLY: get_mo_set
       USE qs_environment_types, ONLY: get_qs_env
+      INTEGER(C_INT), VALUE                              :: f_env_id
 
-      INTEGER(C_INT), VALUE            :: f_env_id
-      INTEGER                          :: ierr
-      TYPE(f_env_type), POINTER        :: f_env
-      TYPE(active_space_type), POINTER :: active_space_env
+      INTEGER                                            :: ierr
+      TYPE(active_space_type), POINTER                   :: active_space_env
+      TYPE(f_env_type), POINTER                          :: f_env
 
       nmo = -1
       NULLIFY (f_env)
@@ -455,14 +455,15 @@ CONTAINS
       USE qs_active_space_types, ONLY: active_space_type
       USE qs_mo_types, ONLY: get_mo_set
       USE qs_environment_types, ONLY: get_qs_env
+      INTEGER(C_INT), VALUE                              :: f_env_id
+      INTEGER(C_LONG), VALUE                             :: buf_len
+      REAL(C_DOUBLE), DIMENSION(0:buf_len-1), &
+         INTENT(OUT)                                     :: buf
 
-      INTEGER(C_INT), VALUE                               :: f_env_id
-      INTEGER(C_LONG), VALUE                              :: buf_len
-      REAL(C_DOUBLE), DIMENSION(0:buf_len-1), INTENT(OUT) :: buf
-      INTEGER                                             :: norb, i, j, ierr
-      REAL(C_DOUBLE)                                      :: mval
-      TYPE(f_env_type), POINTER                           :: f_env
-      TYPE(active_space_type), POINTER                    :: active_space_env
+      INTEGER                                            :: i, ierr, j, norb
+      REAL(C_DOUBLE)                                     :: mval
+      TYPE(active_space_type), POINTER                   :: active_space_env
+      TYPE(f_env_type), POINTER                          :: f_env
 
       nelem = -1
       NULLIFY (f_env)
@@ -504,11 +505,11 @@ CONTAINS
    INTEGER(C_LONG) FUNCTION cp2k_active_space_get_eri_nze_count(f_env_id) RESULT(nze_count) BIND(C)
       USE qs_active_space_types, ONLY: active_space_type
       USE qs_environment_types, ONLY: get_qs_env
+      INTEGER(C_INT), VALUE                              :: f_env_id
 
-      INTEGER(C_INT), VALUE            :: f_env_id
-      INTEGER                          :: ierr
-      TYPE(f_env_type), POINTER        :: f_env
-      TYPE(active_space_type), POINTER :: active_space_env
+      INTEGER                                            :: ierr
+      TYPE(active_space_type), POINTER                   :: active_space_env
+      TYPE(f_env_type), POINTER                          :: f_env
 
       nze_count = -1
       NULLIFY (f_env)
@@ -542,14 +543,15 @@ CONTAINS
       USE qs_active_space_types, ONLY: active_space_type
       USE qs_mo_types, ONLY: get_mo_set
       USE qs_environment_types, ONLY: get_qs_env
+      INTEGER(C_INT), INTENT(IN), VALUE                  :: f_env_id
+      INTEGER(C_LONG), INTENT(IN), VALUE                 :: buf_coords_len
+      INTEGER(C_INT), INTENT(OUT), TARGET                :: buf_coords(1:buf_coords_len)
+      INTEGER(C_LONG), INTENT(IN), VALUE                 :: buf_values_len
+      REAL(C_DOUBLE), INTENT(OUT), TARGET                :: buf_values(1:buf_values_len)
 
-      INTEGER(C_INT), VALUE, INTENT(IN)   :: f_env_id
-      INTEGER(C_LONG), VALUE, INTENT(IN)  :: buf_coords_len, buf_values_len
-      INTEGER(C_INT), TARGET, INTENT(OUT) :: buf_coords(1:buf_coords_len)
-      REAL(C_DOUBLE), TARGET, INTENT(OUT) :: buf_values(1:buf_values_len)
-      INTEGER                             :: ierr
-      TYPE(f_env_type), POINTER           :: f_env
-      TYPE(active_space_type), POINTER    :: active_space_env
+      INTEGER                                            :: ierr
+      TYPE(active_space_type), POINTER                   :: active_space_env
+      TYPE(f_env_type), POINTER                          :: f_env
 
       nelem = -1
       NULLIFY (f_env)

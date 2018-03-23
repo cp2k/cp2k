@@ -176,7 +176,8 @@ CONTAINS
 !> \return ...
 ! **************************************************************************************************
    INTEGER FUNCTION return_cube_max_iradius(info)
-      TYPE(cube_info_type)                     :: info
+      TYPE(cube_info_type)                               :: info
+
       return_cube_max_iradius = info%max_radius
    END FUNCTION return_cube_max_iradius
 

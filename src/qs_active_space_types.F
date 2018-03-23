@@ -68,25 +68,6 @@ MODULE qs_active_space_types
       PROCEDURE(eri_type_eri_element_func_interface), DEFERRED :: func
    END TYPE eri_type_eri_element_func
 
-   ABSTRACT INTERFACE
-! **************************************************************************************************
-!> \brief The function signature to be implemented by a child of `eri_type_eri_element_func`
-!> \param this object reference
-!> \param i i-index
-!> \param j j-index
-!> \param k k-index
-!> \param l l-index
-!> \param val value of the integral at (i,j,k.l)
-!> \return True if the ERI foreach loop should continue, false, if not
-! **************************************************************************************************
-      LOGICAL FUNCTION eri_type_eri_element_func_interface(this, i, j, k, l, val)
-         IMPORT :: eri_type_eri_element_func, dp
-         CLASS(eri_type_eri_element_func), INTENT(inout) :: this
-         INTEGER, INTENT(in)                             :: i, j, k, l
-         REAL(KIND=dp), INTENT(in)                       :: val
-      END FUNCTION eri_type_eri_element_func_interface
-   END INTERFACE
-
    TYPE active_space_type
       INTEGER                       :: nactive
       INTEGER                       :: ninactive
@@ -110,6 +91,25 @@ MODULE qs_active_space_types
       TYPE(cp_fm_p_type), DIMENSION(:), POINTER   :: fock_sub
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER:: pmat_inactive
    END TYPE active_space_type
+
+   ABSTRACT INTERFACE
+! **************************************************************************************************
+!> \brief The function signature to be implemented by a child of `eri_type_eri_element_func`
+!> \param this object reference
+!> \param i i-index
+!> \param j j-index
+!> \param k k-index
+!> \param l l-index
+!> \param val value of the integral at (i,j,k.l)
+!> \return True if the ERI foreach loop should continue, false, if not
+! **************************************************************************************************
+      LOGICAL FUNCTION eri_type_eri_element_func_interface(this, i, j, k, l, val)
+         IMPORT :: eri_type_eri_element_func, dp
+         CLASS(eri_type_eri_element_func), INTENT(inout) :: this
+         INTEGER, INTENT(in)                             :: i, j, k, l
+         REAL(KIND=dp), INTENT(in)                       :: val
+      END FUNCTION eri_type_eri_element_func_interface
+   END INTERFACE
 
 ! **************************************************************************************************
 
@@ -244,7 +244,7 @@ CONTAINS
 !>      04.2016 created [JGH]
 ! **************************************************************************************************
    INTEGER FUNCTION csr_idx_to_combined(i, j, n) RESULT(ij)
-      INTEGER, INTENT(IN) :: i, j, n
+      INTEGER, INTENT(IN)                                :: i, j, n
 
       CPASSERT(i <= j)
       CPASSERT(i <= n)

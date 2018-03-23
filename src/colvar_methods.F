@@ -6049,7 +6049,7 @@ CONTAINS
 !> \return ...
 ! **************************************************************************************************
       REAL(dp) FUNCTION distance(rij)
-         REAL(dp), INTENT(in) :: rij(3)
+      REAL(dp), INTENT(in)                               :: rij(3)
 
          s = MATMUL(cell%h_inv, rij)
          s = s-NINT(s)
@@ -6169,7 +6169,7 @@ CONTAINS
 !> \return ...
 ! **************************************************************************************************
       REAL(dp) FUNCTION distance(rij)
-         REAL(dp), INTENT(in) :: rij(3)
+      REAL(dp), INTENT(in)                               :: rij(3)
 
          s = MATMUL(cell%h_inv, rij)
          s = s-NINT(s)

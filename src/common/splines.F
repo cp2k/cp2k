@@ -298,10 +298,13 @@ CONTAINS
       ! N.B.: x outside [x1,xn] are indexed to nearest end.
       ! Uses bisection, except if "x" lies in the first or second elements (which is
       ! often the case)
-      REAL(dp), INTENT(in) :: x ! target value
-      REAL(dp), INTENT(in) :: xi(:) ! mesh, xi(i) < xi(i+1)
-      INTEGER n ! number of mesh points
-      INTEGER i2, ic
+      REAL(dp), INTENT(in)                               :: x, xi(:)
+
+      INTEGER                                            :: i2, ic, n
+
+! target value
+! mesh, xi(i) < xi(i+1)
+! number of mesh points
 
       n = SIZE(xi)
       i1 = 1
@@ -347,8 +350,9 @@ CONTAINS
 ! **************************************************************************************************
    INTEGER FUNCTION iixmin(x, xi, i_min) RESULT(ip)
       ! Just like iix, but assumes that x >= xi(i_min)
-      REAL(dp), INTENT(in) :: x, xi(:)
-      INTEGER, INTENT(in) :: i_min
+      REAL(dp), INTENT(in)                               :: x, xi(:)
+      INTEGER, INTENT(in)                                :: i_min
+
       IF (i_min >= 1 .AND. i_min <= SIZE(xi)-1) THEN
          ip = iix(x, xi(i_min:))+i_min-1
       ELSE

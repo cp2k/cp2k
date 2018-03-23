@@ -239,12 +239,12 @@ CONTAINS
 !>
 ! **************************************************************************************************
    INTEGER FUNCTION xc_libxc_wrap_functional_get_number(func_string) RESULT(func_id)
-      CHARACTER(LEN=*), INTENT(IN)       :: func_string
+      CHARACTER(LEN=*), INTENT(IN)                       :: func_string
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'xc_libxc_wrap_version', &
-                                     routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'xc_libxc_wrap_functional_get_number', &
+         routineP = moduleN//':'//routineN
 
-      INTEGER                            :: handle
+      INTEGER                                            :: handle
 
       CALL timeset(routineN, handle)
 
@@ -271,14 +271,14 @@ CONTAINS
 ! **************************************************************************************************
    LOGICAL FUNCTION xc_libxc_wrap_needs_laplace(func_id)
       ! Only some MGGA functionals needs the laplacian
-      INTEGER, INTENT(IN)                        :: func_id
+      INTEGER, INTENT(IN)                                :: func_id
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'xc_libxc_wrap_needs_laplace', &
-                                     routineP = moduleN//':'//routineN
+         routineP = moduleN//':'//routineN
 
-      INTEGER                                  :: handle
-      TYPE(xc_f03_func_t)                      :: xc_func
-      TYPE(xc_f03_func_info_t)                 :: xc_info
+      INTEGER                                            :: handle
+      TYPE(xc_f03_func_info_t)                           :: xc_info
+      TYPE(xc_f03_func_t)                                :: xc_func
 
       CALL timeset(routineN, handle)
 

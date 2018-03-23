@@ -170,11 +170,15 @@ def parseRoutine(inFile):
     """Parses a routine"""
     logger = logging.getLogger('prettify-logger')
 
-    startRe = re.compile(
-        r" *(?:recursive +|pure +|elemental +)*(?:subroutine|function)", re.IGNORECASE)
+    FCT_RE = re.compile(
+        r"^([^\"'!]* )?FUNCTION\s+\w+\s*(\(.*\))?(\s*RESULT\s*\(\w+\))?\s*;?\s*$",
+        re.IGNORECASE)
+
+    SUBR_RE = re.compile(
+        r"^([^\"'!]* )?SUBROUTINE\s+\w+\s*(\(.*\))?\s*;?\s*$", re.IGNORECASE)
+
     endRe = re.compile(r" *end\s*(?:subroutine|function)", re.IGNORECASE)
-    startRoutineRe = re.compile(
-        r" *(?:recursive +|pure +|elemental +)*(?P<kind>subroutine|function) +(?P<name>[a-zA-Z_][a-zA-Z_0-9]*) *(?:\((?P<arguments>[^()]*)\))? *(?:result *\( *(?P<result>[a-zA-Z_][a-zA-Z_0-9]*) *\))? *(?:bind *\([^()]+\))? *\n?", re.IGNORECASE)  # $
+    startRoutineRe = re.compile(r"^([^\"'!]* )?(?P<kind>subroutine|function) +(?P<name>[a-zA-Z_][a-zA-Z_0-9]*) *(?:\((?P<arguments>[^()]*)\))? *(?:result *\( *(?P<result>[a-zA-Z_][a-zA-Z_0-9]*) *\))? *(?:bind *\([^()]+\))? *\n?", re.IGNORECASE)  # $
     typeBeginRe = re.compile(r" *(?P<type>integer(?: *\* *[0-9]+)?|logical|character(?: *\* *[0-9]+)?|real(?: *\* *[0-9]+)?|complex(?: *\* *[0-9]+)?|type)[,( ]",
                              re.IGNORECASE)
     attributeRe = re.compile(
@@ -204,7 +208,7 @@ def parseRoutine(inFile):
         (jline, _, lines) = stream.nextFortranLine()
         if len(lines) == 0:
             break
-        if startRe.match(jline):
+        if FCT_RE.match(jline) or SUBR_RE.match(jline):
             break
         routine['preRoutine'].extend(lines)
         m = includeRe.match(lines[0])

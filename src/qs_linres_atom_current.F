@@ -1414,7 +1414,7 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: iB, idir
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'calculate_jrho_atom', &
-         routineP = moduleN//':'//routineN
+                                     routineP = moduleN//':'//routineN
 
       INTEGER                                            :: iat, iatom, ikind, ispin, jatom, &
                                                             natm_gauge, natm_tot, natom, nkind, &

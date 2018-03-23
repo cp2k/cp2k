@@ -555,7 +555,7 @@ CONTAINS
       TYPE(dbcsr_type), INTENT(INOUT)                    :: dbcsr_mat
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'convert_csr_interop_to_dbcsr', &
-         routineP = moduleN//':'//routineN
+                                     routineP = moduleN//':'//routineN
 
       INTEGER                                            :: data_type, handle, ncols_total, &
                                                             nrows_local, nrows_total, nze_local, &

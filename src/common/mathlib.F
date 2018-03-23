@@ -143,8 +143,9 @@ CONTAINS
 !> \return TRUE for NaN and Inf
 ! **************************************************************************************************
    LOGICAL FUNCTION abnormal_value(a)
-      REAL(KIND=dp) :: a
-      CHARACTER(LEN=32) :: buffer
+      REAL(KIND=dp)                                      :: a
+
+      CHARACTER(LEN=32)                                  :: buffer
 
       abnormal_value = .FALSE.
       ! the function should work when compiled witht -ffast-math and similar

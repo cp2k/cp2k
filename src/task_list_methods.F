@@ -649,12 +649,13 @@ CONTAINS
 !> \return ...
 ! **************************************************************************************************
    INTEGER FUNCTION cost_model(lb_cube, ub_cube, fraction, lmax, is_ortho)
-      INTEGER, DIMENSION(3), INTENT(IN)       :: lb_cube, ub_cube
-      REAL(KIND=dp), INTENT(IN)               :: fraction
+      INTEGER, DIMENSION(3), INTENT(IN)                  :: lb_cube, ub_cube
+      REAL(KIND=dp), INTENT(IN)                          :: fraction
+      INTEGER                                            :: lmax
+      LOGICAL                                            :: is_ortho
 
-      INTEGER :: cmax, lmax
-      LOGICAL :: is_ortho
-      REAL(KIND=dp) :: v1, v2, v3, v4, v5
+      INTEGER                                            :: cmax
+      REAL(KIND=dp)                                      :: v1, v2, v3, v4, v5
 
       cmax = MAXVAL(((ub_cube-lb_cube)+1)/2)
 
@@ -1386,8 +1387,9 @@ CONTAINS
 !>      created 2008-10-06 [Joost VandeVondele]
 ! **************************************************************************************************
    INTEGER FUNCTION list_index(list, rank, dest)
-      INTEGER, DIMENSION(:, :, 0:), INTENT(IN)  :: list
-      INTEGER, INTENT(IN)                      :: rank, dest
+      INTEGER, DIMENSION(:, :, 0:), INTENT(IN)           :: list
+      INTEGER, INTENT(IN)                                :: rank, dest
+
       list_index = 1
       DO
          IF (list(1, list_index, dest) == rank) EXIT

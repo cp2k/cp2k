@@ -1200,7 +1200,7 @@ CONTAINS
       INTEGER, INTENT(IN), OPTIONAL                      :: unit_nr
 
       CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_print_block_sum', &
-         routineP = moduleN//':'//routineN
+                                     routineP = moduleN//':'//routineN
 
       COMPLEX(KIND=real_4)                               :: blk_sum_c_sp
       COMPLEX(KIND=real_4), DIMENSION(:), POINTER        :: c_sp

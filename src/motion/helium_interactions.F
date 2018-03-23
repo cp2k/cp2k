@@ -173,15 +173,14 @@ CONTAINS
 ! **************************************************************************************************
    REAL(KIND=dp) FUNCTION helium_total_link_action(helium) RESULT(linkaction)
 
-      IMPLICIT NONE
-      TYPE(helium_solvent_type), POINTER       :: helium
+      TYPE(helium_solvent_type), POINTER                 :: helium
 
       CHARACTER(len=*), PARAMETER :: routineN = 'helium_total_link_action', &
-                                     routineP = moduleN//':'//routineN
+         routineP = moduleN//':'//routineN
 
-      REAL(KIND=dp), DIMENSION(3) :: r
-      INTEGER :: ibead, iatom
-      INTEGER, DIMENSION(:), POINTER           :: perm
+      INTEGER                                            :: iatom, ibead
+      INTEGER, DIMENSION(:), POINTER                     :: perm
+      REAL(KIND=dp), DIMENSION(3)                        :: r
 
       perm => helium%permutation
       linkaction = 0.0_dp
@@ -216,15 +215,14 @@ CONTAINS
 ! **************************************************************************************************
    REAL(KIND=dp) FUNCTION helium_total_pair_action(helium) RESULT(pairaction)
 
-      IMPLICIT NONE
-      TYPE(helium_solvent_type), POINTER       :: helium
+      TYPE(helium_solvent_type), POINTER                 :: helium
 
       CHARACTER(len=*), PARAMETER :: routineN = 'helium_total_pair_action', &
-                                     routineP = moduleN//':'//routineN
+         routineP = moduleN//':'//routineN
 
-      REAL(KIND=dp), DIMENSION(3) :: r, rp
-      INTEGER :: ibead, iatom, jatom
-      INTEGER, DIMENSION(:), POINTER           :: perm
+      INTEGER                                            :: iatom, ibead, jatom
+      INTEGER, DIMENSION(:), POINTER                     :: perm
+      REAL(KIND=dp), DIMENSION(3)                        :: r, rp
 
       perm => helium%permutation
       pairaction = 0.0_dp
@@ -263,15 +261,14 @@ CONTAINS
 ! **************************************************************************************************
    REAL(KIND=dp) FUNCTION helium_total_inter_action(pint_env, helium) RESULT(interaction)
 
-      IMPLICIT NONE
-      TYPE(pint_env_type), POINTER             :: pint_env
-      TYPE(helium_solvent_type), POINTER       :: helium
+      TYPE(pint_env_type), POINTER                       :: pint_env
+      TYPE(helium_solvent_type), POINTER                 :: helium
 
       CHARACTER(len=*), PARAMETER :: routineN = 'helium_total_inter_action', &
-                                     routineP = moduleN//':'//routineN
+         routineP = moduleN//':'//routineN
 
-      INTEGER :: ibead, iatom
-      REAL(KIND=dp) :: e
+      INTEGER                                            :: iatom, ibead
+      REAL(KIND=dp)                                      :: e
 
       interaction = 0.0_dp
 

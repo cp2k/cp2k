@@ -3764,7 +3764,7 @@ CONTAINS
       TYPE(pw_type), POINTER                             :: pw
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'collocate_pgf_product_gspace', &
-         routineP = moduleN//':'//routineN
+                                     routineP = moduleN//':'//routineN
 
       COMPLEX(dp), DIMENSION(3)                          :: phasefactor
       COMPLEX(dp), DIMENSION(:), POINTER                 :: rag, rbg
