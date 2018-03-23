@@ -848,9 +848,9 @@ if [[ ${nobuild} != "nobuild" ]]; then
       echo "Module system not installed."
    fi
    echo "------------------------ compiling cp2k ----------------------------------"
-   echo "${make} -j ${ARCH_SPEC} VERSION=${cp2k_version}"
+   echo "${make} -j $((maxtasks)) ${ARCH_SPEC} VERSION=${cp2k_version}"
    echo "(make output is written to ${make_out})"
-   ${make} -j ${ARCH_SPEC} VERSION=${cp2k_version} >>${make_out} 2>&1
+   ${make} -j $((maxtasks)) ${ARCH_SPEC} VERSION=${cp2k_version} >>${make_out} 2>&1
    if (( $? )); then
       echo "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx" >>${error_description_file}
       cat ${make_out} >>${error_description_file}
