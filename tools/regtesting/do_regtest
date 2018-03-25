@@ -61,6 +61,9 @@ while [ $# -ge 1 ]; do
  -maxtasks)
   maxtasks=$2
   shift;;
+ -maxbuildtasks)
+  maxbuildtasks=$2
+  shift;;
  # maximum time for a job [in s]
  -jobmaxtime)
   job_max_time=$2
@@ -136,6 +139,7 @@ while [ $# -ge 1 ]; do
   echo "  -mpiranks NRANKS          number of mpi-ranks. Default: 2 for parallel versions, 1 for serial."
   echo "  -ompthreads NTHREADS      number of OpenMP threads. Default: 2 for smp versions otherwise 1."
   echo "  -maxtasks NPROCS          total number of processor to use. Default: \`nproc --all\`."
+  echo "  -maxbuildtasks NPROCS     total number of processor to use for compilation. Default taken from -maxtasks."
   echo "  -jobmaxtime SECONDS       maximum execution time of a single test. Default 600."
   echo "  -farming                  test via a single farming run (only for parallel cp2k)."
   echo ""
@@ -199,6 +203,7 @@ svndate=${svndate:-"$datum_full"}
 # by default we use all proc of the machine
 maxtasksdefault=`nproc --all`
 maxtasks=${maxtasks:-${maxtasksdefault}}
+maxbuildtasks=${maxbuildtasks:-${maxtasks}}
 
 if [[ $dir_triplet == *valgrind* ]] ; then
    valgrindstring="valgrind $VALGRIND_OPTIONS"
@@ -729,6 +734,7 @@ echo "noreset          = ${noreset}"
 echo "skiptest         = ${skiptest}"
 echo "do_unit_test     = ${do_unit_test}"
 echo "farming          = ${farming}"
+echo "maxbuildtasks    = ${maxbuildtasks}"
 if [ -z "$svnver" ]; then
     echo "svndate          = ${svndate}"
 else
@@ -848,19 +854,19 @@ if [[ ${nobuild} != "nobuild" ]]; then
       echo "Module system not installed."
    fi
    echo "------------------------ compiling cp2k ----------------------------------"
-   echo "${make} -j $((maxtasks)) ${ARCH_SPEC} VERSION=${cp2k_version}"
+   echo "${make} -j $((maxbuildtasks)) ${ARCH_SPEC} VERSION=${cp2k_version}"
    echo "(make output is written to ${make_out})"
-   ${make} -j $((maxtasks)) ${ARCH_SPEC} VERSION=${cp2k_version} >>${make_out} 2>&1
+   ${make} -j ${maxbuildtasks} ${ARCH_SPEC} VERSION=${cp2k_version} >>${make_out} 2>&1
    if (( $? )); then
       echo "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx" >>${error_description_file}
       cat ${make_out} >>${error_description_file}
       echo "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx" >>${error_description_file}
-      echo "ERROR: ${make} -j $((maxtasks)) ${ARCH_SPEC} VERSION=${cp2k_version} failed" >>${error_description_file}
+      echo "ERROR: ${make} -j $((maxbuildtasks)) ${ARCH_SPEC} VERSION=${cp2k_version} failed" >>${error_description_file}
       cat "${error_description_file}"
       end_test 4 ${lockfile}
    else
       compile_warnings=`grep "Warning" ${make_out} | wc -l`
-      echo "${make} -j $((maxtasks)) ${ARCH_SPEC} VERSION=${cp2k_version} went fine (${compile_warnings} warnings)"
+      echo "${make} -j $((maxbuildtasks)) ${ARCH_SPEC} VERSION=${cp2k_version} went fine (${compile_warnings} warnings)"
    fi
 else
    echo "No build, continue regression testing"
