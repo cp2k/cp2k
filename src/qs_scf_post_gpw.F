@@ -3599,7 +3599,7 @@ CONTAINS
       IF (do_ks_csr_write .AND. (.NOT. do_kpoints)) THEN
          CALL section_vals_val_get(dft_section, "PRINT%KS_CSR_WRITE%THRESHOLD", r_val=thld)
          CALL section_vals_val_get(dft_section, "PRINT%KS_CSR_WRITE%UPPER_TRIANGULAR", l_val=uptr)
-         CALL section_vals_val_get(dft_section, "PRINT%S_CSR_WRITE%BINARY", l_val=bin)
+         CALL section_vals_val_get(dft_section, "PRINT%KS_CSR_WRITE%BINARY", l_val=bin)
          CALL get_qs_env(qs_env=qs_env, matrix_ks=matrix_ks)
 
          IF (bin) THEN
