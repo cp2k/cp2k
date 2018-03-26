@@ -222,12 +222,12 @@ CONTAINS
          area%d%refcount = 1
          area%d%memory_type = my_memory_type
          area%d%data_type = data_type
-         area%d%ref_size = 0
          IF (PRESENT(data_size)) THEN
-            area%d%ref_size = total_size_oversized
             CALL internal_data_allocate(area%d, sizes_oversized(1:d))
          END IF
       ENDIF
+
+      area%d%ref_size = total_size_requested
 
       CALL timestop(handle)
    END SUBROUTINE dbcsr_data_new
