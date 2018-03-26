@@ -1907,6 +1907,17 @@ CONTAINS
       CALL section_add_subsection(section, print_key)
       CALL section_release(print_key)
 
+      ! interaction adjacency matrix
+      CALL cp_print_key_section_create(print_key, "ADJMAT_WRITE", &
+                                       description="Writes an (upper-triangular) adjacency matrix indicating the "// &
+                                       "interaction between atoms (according to overlapping basis functions). The "// &
+                                       "columns are: iatom, jatom, ikind, jkind; where iatom and jatom are the atom "// &
+                                       "indices (based on the coordinate file), ikind and jkind are the atomic kinds "// &
+                                       "(indeces as shown in the ATOMIC KIND INFORMATION section of a CP2K output). ", &
+                                       print_level=debug_print_level, filename="")
+      CALL section_add_subsection(section, print_key)
+      CALL section_release(print_key)
+
       ! Xray diffraction
       CALL cp_print_key_section_create( &
          print_key_section=print_key, &
