@@ -1864,6 +1864,14 @@ CONTAINS
                           lone_keyword_l_val=.TRUE.)
       CALL section_add_keyword(print_key, keyword)
       CALL keyword_release(keyword)
+      CALL keyword_create(keyword=keyword, name="Binary", &
+                          description="Whether or not to generate the file in a binary format. ", &
+                          usage="BINARY {logical}", &
+                          repeats=.FALSE., &
+                          default_l_val=.FALSE., &
+                          lone_keyword_l_val=.TRUE.)
+      CALL section_add_keyword(print_key, keyword)
+      CALL keyword_release(keyword)
       CALL section_add_subsection(section, print_key)
       CALL section_release(print_key)
 
@@ -1883,6 +1891,14 @@ CONTAINS
       CALL keyword_create(keyword=keyword, name="Upper_triangular", &
                           description="Print only the upper triangular part of the matrix. ", &
                           usage="UPPER_TRIANGULAR {logical}", &
+                          repeats=.FALSE., &
+                          default_l_val=.FALSE., &
+                          lone_keyword_l_val=.TRUE.)
+      CALL section_add_keyword(print_key, keyword)
+      CALL keyword_release(keyword)
+      CALL keyword_create(keyword=keyword, name="Binary", &
+                          description="Whether or not to generate the file in a binary format. ", &
+                          usage="BINARY {logical}", &
                           repeats=.FALSE., &
                           default_l_val=.FALSE., &
                           lone_keyword_l_val=.TRUE.)

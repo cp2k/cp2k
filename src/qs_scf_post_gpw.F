@@ -3572,9 +3572,9 @@ CONTAINS
       CHARACTER(len=*), PARAMETER :: routineN = 'write_ks_matrix_csr', &
          routineP = moduleN//':'//routineN
 
-      CHARACTER(LEN=default_path_length)                 :: file_name
+      CHARACTER(LEN=default_path_length)                 :: file_name, fileformat
       INTEGER                                            :: handle, ispin, output_unit, unit_nr
-      LOGICAL                                            :: do_kpoints, do_ks_csr_write, uptr
+      LOGICAL                                            :: bin, do_kpoints, do_ks_csr_write, uptr
       REAL(KIND=dp)                                      :: thld
       TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(csr_type)                                     :: ks_mat_csr
@@ -3599,7 +3599,14 @@ CONTAINS
       IF (do_ks_csr_write .AND. (.NOT. do_kpoints)) THEN
          CALL section_vals_val_get(dft_section, "PRINT%KS_CSR_WRITE%THRESHOLD", r_val=thld)
          CALL section_vals_val_get(dft_section, "PRINT%KS_CSR_WRITE%UPPER_TRIANGULAR", l_val=uptr)
+         CALL section_vals_val_get(dft_section, "PRINT%S_CSR_WRITE%BINARY", l_val=bin)
          CALL get_qs_env(qs_env=qs_env, matrix_ks=matrix_ks)
+
+         IF (bin) THEN
+            fileformat = "UNFORMATTED"
+         ELSE
+            fileformat = "FORMATTED"
+         END IF
 
          DO ispin = 1, SIZE(matrix_ks)
 
@@ -3615,8 +3622,8 @@ CONTAINS
             WRITE (file_name, '(A,I0)') "KS_SPIN_", ispin
             unit_nr = cp_print_key_unit_nr(logger, dft_section, "PRINT%KS_CSR_WRITE", &
                                            extension=".csr", middle_name=TRIM(file_name), &
-                                           file_status="REPLACE", file_form="FORMATTED")
-            CALL csr_write(ks_mat_csr, unit_nr, upper_triangle=uptr, threshold=thld)
+                                           file_status="REPLACE", file_form=fileformat)
+            CALL csr_write(ks_mat_csr, unit_nr, upper_triangle=uptr, threshold=thld, binary=bin)
 
             CALL cp_print_key_finished_output(unit_nr, logger, dft_section, "PRINT%KS_CSR_WRITE")
 
@@ -3642,9 +3649,9 @@ CONTAINS
       CHARACTER(len=*), PARAMETER :: routineN = 'write_s_matrix_csr', &
          routineP = moduleN//':'//routineN
 
-      CHARACTER(LEN=default_path_length)                 :: file_name
+      CHARACTER(LEN=default_path_length)                 :: file_name, fileformat
       INTEGER                                            :: handle, ispin, output_unit, unit_nr
-      LOGICAL                                            :: do_kpoints, do_s_csr_write, uptr
+      LOGICAL                                            :: bin, do_kpoints, do_s_csr_write, uptr
       REAL(KIND=dp)                                      :: thld
       TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(csr_type)                                     :: s_mat_csr
@@ -3669,7 +3676,14 @@ CONTAINS
       IF (do_s_csr_write .AND. (.NOT. do_kpoints)) THEN
          CALL section_vals_val_get(dft_section, "PRINT%S_CSR_WRITE%THRESHOLD", r_val=thld)
          CALL section_vals_val_get(dft_section, "PRINT%S_CSR_WRITE%UPPER_TRIANGULAR", l_val=uptr)
+         CALL section_vals_val_get(dft_section, "PRINT%S_CSR_WRITE%BINARY", l_val=bin)
          CALL get_qs_env(qs_env=qs_env, matrix_s=matrix_s)
+
+         IF (bin) THEN
+            fileformat = "UNFORMATTED"
+         ELSE
+            fileformat = "FORMATTED"
+         END IF
 
          DO ispin = 1, SIZE(matrix_s)
 
@@ -3685,8 +3699,8 @@ CONTAINS
             WRITE (file_name, '(A,I0)') "S_SPIN_", ispin
             unit_nr = cp_print_key_unit_nr(logger, dft_section, "PRINT%S_CSR_WRITE", &
                                            extension=".csr", middle_name=TRIM(file_name), &
-                                           file_status="REPLACE", file_form="FORMATTED")
-            CALL csr_write(s_mat_csr, unit_nr, upper_triangle=uptr, threshold=thld)
+                                           file_status="REPLACE", file_form=fileformat)
+            CALL csr_write(s_mat_csr, unit_nr, upper_triangle=uptr, threshold=thld, binary=bin)
 
             CALL cp_print_key_finished_output(unit_nr, logger, dft_section, "PRINT%S_CSR_WRITE")
 

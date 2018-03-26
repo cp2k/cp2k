@@ -1247,15 +1247,17 @@ CONTAINS
 !> \param[in] upper_triangle    If true (default: false), write only upper
 !>                              triangular part of matrix
 !> \param[in] threshold         threshold on the absolute value of the elements to be printed
+!> \param binary ...
 !> \par History
 !>      11.2014 created [Patrick Seewald]
 !> \author Patrick Seewald
 ! **************************************************************************************************
-   SUBROUTINE csr_write(csr_mat, unit_nr, upper_triangle, threshold)
+   SUBROUTINE csr_write(csr_mat, unit_nr, upper_triangle, threshold, binary)
       TYPE(csr_type), INTENT(IN)                         :: csr_mat
       INTEGER, INTENT(IN)                                :: unit_nr
       LOGICAL, INTENT(IN), OPTIONAL                      :: upper_triangle
       REAL(KIND=real_8), INTENT(IN), OPTIONAL            :: threshold
+      LOGICAL, INTENT(IN), OPTIONAL                      :: binary
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'csr_write', routineP = moduleN//':'//routineN
 
@@ -1266,7 +1268,7 @@ CONTAINS
                                                             numnodes, rowind, tag1, tag2, tag3
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: colind_to_master, nzerow_to_master, &
                                                             sizes_numrowlocal, sizes_nzelocal
-      LOGICAL                                            :: ut
+      LOGICAL                                            :: bin, ut
       REAL(KIND=real_4), ALLOCATABLE, DIMENSION(:)       :: nzval_to_master_r_sp
       REAL(KIND=real_8)                                  :: thld
       REAL(KIND=real_8), ALLOCATABLE, DIMENSION(:)       :: nzval_to_master_r_dp
@@ -1283,6 +1285,12 @@ CONTAINS
          thld = threshold
       ELSE
          thld = 0.0_dp
+      ENDIF
+
+      IF (PRESENT(binary)) THEN
+         bin = binary
+      ELSE
+         bin = .FALSE.
       ENDIF
 
       IF (.NOT. csr_mat%valid) &
@@ -1380,23 +1388,39 @@ CONTAINS
                      SELECT CASE (csr_mat%nzval_local%data_type)
                      CASE (dbcsr_type_real_4)
                         IF (ABS(nzval_to_master_r_sp(m)) .GE. thld) THEN
-                           WRITE (unit_nr, data_format) rowind, colind_to_master(m), &
-                              nzval_to_master_r_sp(m)
+                           IF (bin) THEN
+                              WRITE (unit_nr) rowind, colind_to_master(m), nzval_to_master_r_sp(m)
+                           ELSE
+                              WRITE (unit_nr, data_format) rowind, colind_to_master(m), &
+                                 nzval_to_master_r_sp(m)
+                           END IF
                         END IF
                      CASE (dbcsr_type_real_8)
                         IF (ABS(nzval_to_master_r_dp(m)) .GE. thld) THEN
-                           WRITE (unit_nr, data_format) rowind, colind_to_master(m), &
-                              nzval_to_master_r_dp(m)
+                           IF (bin) THEN
+                              WRITE (unit_nr) rowind, colind_to_master(m), nzval_to_master_r_dp(m)
+                           ELSE
+                              WRITE (unit_nr, data_format) rowind, colind_to_master(m), &
+                                 nzval_to_master_r_dp(m)
+                           END IF
                         END IF
                      CASE (dbcsr_type_complex_4)
                         IF (ABS(nzval_to_master_c_sp(m)) .GE. thld) THEN
-                           WRITE (unit_nr, data_format) rowind, colind_to_master(m), &
-                              nzval_to_master_c_sp(m)
+                           IF (bin) THEN
+                              WRITE (unit_nr) rowind, colind_to_master(m), nzval_to_master_c_sp(m)
+                           ELSE
+                              WRITE (unit_nr, data_format) rowind, colind_to_master(m), &
+                                 nzval_to_master_c_sp(m)
+                           END IF
                         END IF
                      CASE (dbcsr_type_complex_8)
                         IF (ABS(nzval_to_master_c_dp(m)) .GE. thld) THEN
-                           WRITE (unit_nr, data_format) rowind, colind_to_master(m), &
-                              nzval_to_master_c_dp(m)
+                           IF (bin) THEN
+                              WRITE (unit_nr) rowind, colind_to_master(m), nzval_to_master_c_dp(m)
+                           ELSE
+                              WRITE (unit_nr, data_format) rowind, colind_to_master(m), &
+                                 nzval_to_master_c_dp(m)
+                           END IF
                         END IF
                      END SELECT
                   ENDIF
