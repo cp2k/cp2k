@@ -3330,8 +3330,7 @@ CONTAINS
 
       CHARACTER(len=*), PARAMETER :: routineN = 'energy_windows', routineP = moduleN//':'//routineN
       LOGICAL, PARAMETER                                 :: debug = .FALSE.
-      REAL(KIND=dp), PARAMETER                           :: filter_eps = 0.0_dp, one = 1.0_dp, &
-                                                            zero = 0.0_dp
+      REAL(KIND=dp), PARAMETER                           :: one = 1.0_dp, zero = 0.0_dp
 
       CHARACTER(len=40)                                  :: ext, title
       INTEGER                                            :: handle, i, lanzcos_max_iter, last, nao, &
@@ -3340,7 +3339,7 @@ CONTAINS
       INTEGER, DIMENSION(:), POINTER                     :: stride(:)
       LOGICAL                                            :: mpi_io, print_cube, restrict_range
       REAL(KIND=dp) :: bin_width, density_ewindow_total, density_total, energy_range, fermi_level, &
-         frob_norm, lanzcos_threshold, lower_bound, occupation, total_rho, upper_bound
+         filter_eps, frob_norm, lanzcos_threshold, lower_bound, occupation, total_rho, upper_bound
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: eigenvalues, P_eigenvalues, &
                                                             window_eigenvalues
       TYPE(cp_blacs_env_type), POINTER                   :: blacs_env
@@ -3384,7 +3383,7 @@ CONTAINS
       NULLIFY (stride)
       ALLOCATE (stride(3))
       stride = section_get_ivals(dft_section, "PRINT%ENERGY_WINDOWS%STRIDE")
-      ! CALL section_vals_val_get(ls_scf_section, "EPS_FILTER", r_val=filter_eps) ! disable filtering, as many parts here are full matrix anyway
+      CALL section_vals_val_get(dft_section, "PRINT%ENERGY_WINDOWS%EPS_FILTER", r_val=filter_eps)
       CALL section_vals_val_get(ls_scf_section, "EPS_LANCZOS", r_val=lanzcos_threshold)
       CALL section_vals_val_get(ls_scf_section, "MAX_ITER_LANCZOS", i_val=lanzcos_max_iter)
       CALL section_vals_val_get(ls_scf_section, "SIGN_SQRT_ORDER", i_val=newton_schulz_order)

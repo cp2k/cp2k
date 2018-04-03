@@ -61,6 +61,7 @@
            MD 2
          &END EACH
          RESTRICT_RANGE
+         EPS_FILTER 1.0E-6
          RANGE 0.5
          N_WINDOWS 5
          PRINT_CUBES
