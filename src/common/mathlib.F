@@ -927,7 +927,7 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:, :)                     :: a, a_pinverse
       REAL(KIND=dp), INTENT(IN)                          :: rskip
       REAL(KIND=dp), INTENT(OUT), OPTIONAL               :: determinant
-      REAL(KIND=dp), DIMENSION(:), INTENT(OUT), &
+      REAL(KIND=dp), DIMENSION(:), INTENT(INOUT), &
          OPTIONAL, POINTER                               :: sval
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'get_pseudo_inverse_svd', &

@@ -507,7 +507,7 @@ CONTAINS
             DEALLOCATE (lri_env%wmat)
          END IF
          IF (ASSOCIATED(lri_env%wbas)) THEN
-            DO i = 1, SIZE(lri_env%wmat, 1)
+            DO i = 1, SIZE(lri_env%wbas, 1)
                IF (ASSOCIATED(lri_env%wbas(i)%vec)) THEN
                   DEALLOCATE (lri_env%wbas(i)%vec)
                END IF

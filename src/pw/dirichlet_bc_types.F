@@ -164,9 +164,8 @@ CONTAINS
 
       CALL timeset(routineN, handle)
 
-      n_contacts = SIZE(contacts)
-
       IF (ASSOCIATED(contacts)) THEN
+         n_contacts = SIZE(contacts)
          IF (do_dbc_cube) THEN
             DO i = 1, n_contacts
                CALL dbc_tile_release(contacts(i)%dirichlet_bc, pw_pool)

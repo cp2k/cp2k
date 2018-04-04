@@ -22,7 +22,7 @@ MODULE xc_libxc_wrap
 ! check for LibXC version
 #if (XC_MAJOR_VERSION < 4)
    This version of CP2K ONLY works with libxc versions 4.0.3 and above.
-   Furthermore, -I[LIBXC_DIR]/INCLUDE needs to be added to FCFLAGS.
+   Furthermore, -I${LIBXC_DIR}/include needs to be added to FCFLAGS.
 #else
 
    ! Functionals which require parameters

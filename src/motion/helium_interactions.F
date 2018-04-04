@@ -306,7 +306,7 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: helium_part_index, helium_slice_index
       REAL(KIND=dp), DIMENSION(3), INTENT(IN), OPTIONAL  :: helium_r_opt
       REAL(KIND=dp), INTENT(OUT)                         :: energy
-      REAL(KIND=dp), DIMENSION(:, :), INTENT(OUT), &
+      REAL(KIND=dp), DIMENSION(:, :), INTENT(INOUT), &
          OPTIONAL, POINTER                               :: force
 
       CHARACTER(len=*), PARAMETER :: routineN = 'helium_bead_solute_e_f', &
@@ -556,7 +556,7 @@ CONTAINS
       TYPE(helium_solvent_type), POINTER                 :: helium
       REAL(KIND=dp), DIMENSION(3), INTENT(IN)            :: helium_x
       REAL(KIND=dp), INTENT(OUT)                         :: energy
-      REAL(KIND=dp), DIMENSION(:), INTENT(OUT), &
+      REAL(KIND=dp), DIMENSION(:), INTENT(INOUT), &
          OPTIONAL, POINTER                               :: force
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'helium_intpot_model_water', &

@@ -1303,7 +1303,7 @@ CONTAINS
       REAL(KIND=dp), INTENT(OUT), OPTIONAL     :: det_a
       REAL(KIND=dp), INTENT(IN), OPTIONAL      :: eps_svd
       REAL(KIND=dp), DIMENSION(:), POINTER, &
-         INTENT(OUT), OPTIONAL                 :: eigval
+         INTENT(INOUT), OPTIONAL               :: eigval
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'cp_fm_invert', &
                                      routineP = moduleN//':'//routineN
