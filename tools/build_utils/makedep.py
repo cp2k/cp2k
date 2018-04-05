@@ -116,7 +116,7 @@ def main():
         deps = collect_pkg_deps(packages, p)
         makefile += " ".join(["$(LIBDIR)/"+a+archive_ext for a in deps]) + "\n"
         makefile += "\t" + "$(LD) $(LDFLAGS)"
-        if(fn.endswith(".c")):
+        if(fn.endswith(".c") or fn.endswith(".cu")):
             makefile += " $(LDFLAGS_C)"
         makefile += " -L$(LIBDIR) -o $@ %s.o "%bfn
         makefile += "$(EXTERNAL_OBJECTS) "
