@@ -5387,11 +5387,12 @@ CONTAINS
          routineP = moduleN//':'//routineN
 
       TYPE(keyword_type), POINTER                        :: keyword
+      TYPE(section_type), POINTER                        :: subsection
 
       CPASSERT(.NOT. ASSOCIATED(section))
       CALL section_create(section, "OUTER_SCF", &
                           description="parameters controlling the outer SCF loop", &
-                          n_keywords=13, n_subsections=0, repeats=.FALSE.)
+                          n_keywords=13, n_subsections=1, repeats=.FALSE.)
 
       NULLIFY (keyword)
 
@@ -5400,6 +5401,12 @@ CONTAINS
                           usage="&OUTER_SCF ON", default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
+
+      ! add CDFT_OPT section
+      NULLIFY (subsection)
+      CALL create_cdft_opt_section(subsection)
+      CALL section_add_subsection(section, subsection)
+      CALL section_release(subsection)
 
       CALL keyword_create(keyword, name="TYPE", &
                           description="Specifies which kind of outer SCF should be employed", &
@@ -5449,78 +5456,6 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="BROYDEN_TYPE", &
-                          description="Specifies the Broyden optimizer variant to use.", &
-                          usage="BROYDEN_TYPE BT1", &
-                          default_i_val=broyden_type_1, &
-                          enum_c_vals=s2a("BT1", "BT1_EXPLICIT", "BT2", "BT2_EXPLICIT", &
-                                          "BT1_LS", "BT1_EXPLICIT_LS", "BT2_LS", "BT2_EXPLICIT_LS"), &
-                          enum_desc=s2a("Broyden's first method, also known as the good method. The initial Jacobian"// &
-                                        " is built from MD history if available. Otherwise switches to SD for one"// &
-                                        " SCF iteration until a Jacobian can be built from the SCF history.", &
-                                        "Same as BT1, but computes the explicit Jacobian with finite differences. "// &
-                                        "Requires a CDFT SCF procedure to be active.", &
-                                        "Same as BT1, but uses Broyden's second method, also known as the bad method.", &
-                                        "Same as BT1_EXPLICIT, but using Broyden's second method.", &
-                                        "Same as BT1, but uses backtracking line search for optimizing the step size "// &
-                                        "(see optimizer NEWTON_LS).", &
-                                        "Same as BT1_EXPLICIT, but uses backtracking line search for optimizing the step size.", &
-                                        "Same as BT2, but uses backtracking line search for optimizing the step size.", &
-                                        "Same as BT2_EXPLICIT, but uses backtracking line search for optimizing the step size."), &
-                          enum_i_vals=(/broyden_type_1, broyden_type_1_explicit, broyden_type_2, &
-                                        broyden_type_2_explicit, broyden_type_1_ls, broyden_type_1_explicit_ls, &
-                                        broyden_type_2_ls, broyden_type_2_explicit_ls/))
-      CALL section_add_keyword(section, keyword)
-      CALL keyword_release(keyword)
-
-      CALL keyword_create(keyword, name="JACOBIAN_TYPE", &
-                          description="Finite difference method used to calculate the inverse Jacobian "// &
-                          "needed by some optimizers. Compatible only with CDFT constraints.", &
-                          usage="JACOBIAN_TYPE FD1", &
-                          default_i_val=jacobian_fd1, &
-                          enum_c_vals=s2a("FD1", "FD1_BACKWARD", "FD2", "FD2_BACKWARD", "FD1_CENTRAL"), &
-                          enum_desc=s2a("First order forward difference (one extra energy evaluation per constraint).", &
-                                        "First order backward difference (one extra energy evaluation per constraint).", &
-                                        "Second order forward difference (two extra energy evaluations per constraint).", &
-                                        "Second order backward difference (two extra energy evaluations per constraint).", &
-                                        "First order central difference (two extra energy evaluations per constraint)."), &
-                          enum_i_vals=(/jacobian_fd1, jacobian_fd1_backward, jacobian_fd2, &
-                                        jacobian_fd2_backward, jacobian_fd1_central/))
-      CALL section_add_keyword(section, keyword)
-      CALL keyword_release(keyword)
-
-      CALL keyword_create(keyword, name="JACOBIAN_STEP", &
-                          description="Step size to use in the calculation of the inverse Jacobian with finite differences.", &
-                          usage="JACOBIAN_STEP 5.0E-3 ", default_r_val=5.0E-3_dp)
-      CALL section_add_keyword(section, keyword)
-      CALL keyword_release(keyword)
-
-      CALL keyword_create(keyword, name="JACOBIAN_FREQ", &
-                          description="Defines parameters that control how often the explicit Jacobian is built, "// &
-                          "which is needed by some optimizers. Expects two values. The first value "// &
-                          "determines how many consecutive CDFT SCF iterations should skip a rebuild,"// &
-                          " whereas the latter how many MD steps. The values can be zero (meaning never "// &
-                          " rebuild) or positive. Both values cannot be zero.", &
-                          usage="JACOBIAN_FREQ 1 1", n_var=2, &
-                          default_i_vals=(/1, 1/), type_of_var=integer_t)
-      CALL section_add_keyword(section, keyword)
-      CALL keyword_release(keyword)
-
-      CALL keyword_create(keyword, name="JACOBIAN_RESTART", &
-                          description="Restart the inverse Jacobian using the vector defined with keyword JACOBIAN_VECTOR.", &
-                          usage="JACOBIAN_RESTART TRUE", &
-                          default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
-      CALL section_add_keyword(section, keyword)
-      CALL keyword_release(keyword)
-
-      CALL keyword_create(keyword, name="JACOBIAN_VECTOR", &
-                          description="Defines the inverse Jacobian matrix. Useful for restarting calculations. "// &
-                          "Expects n^2 values where n is the total number of constraints. "// &
-                          "The matrix should be given in row major order.", &
-                          usage="JACOBIAN_VECTOR 1.0 0.0", n_var=-1, type_of_var=real_t)
-      CALL section_add_keyword(section, keyword)
-      CALL keyword_release(keyword)
-
       CALL keyword_create(keyword, name="BISECT_TRUST_COUNT", &
                           description="Maximum number of times the same point will be used in bisection,"// &
                           " a small number guards against the effect of wrongly converged states.", &
@@ -5553,28 +5488,6 @@ CONTAINS
       CALL keyword_create(keyword, name="MAX_SCF", &
                           description="The maximum number of outer loops ", &
                           usage="MAX_SCF 20", default_i_val=50)
-      CALL section_add_keyword(section, keyword)
-      CALL keyword_release(keyword)
-
-      CALL keyword_create(keyword, name="MAX_LS", &
-                          description="The maximum number of backtracking line search steps to perform.", &
-                          usage="MAX_LS 5", default_i_val=5)
-      CALL section_add_keyword(section, keyword)
-      CALL keyword_release(keyword)
-
-      CALL keyword_create(keyword, name="FACTOR_LS", &
-                          description="Control parameter for backtracking line search. The step size is reduced by "// &
-                          "this factor on every line search iteration. Value must be between 0 and 1 (exclusive).", &
-                          usage="FACTOR_LS 0.5", default_r_val=0.5_dp)
-      CALL section_add_keyword(section, keyword)
-      CALL keyword_release(keyword)
-
-      CALL keyword_create(keyword, name="CONTINUE_LS", &
-                          description="Continue backtracking line search until MAX_LS steps are reached or the "// &
-                          "norm of the CDFT gradient no longer decreases. Default (false) behavior exits the "// &
-                          "line search procedure on the first step that the gradient decreases.", &
-                          usage="CONTINUE_LS TRUE", &
-                          default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
@@ -8814,5 +8727,127 @@ CONTAINS
       CALL section_release(print_key)
 
    END SUBROUTINE create_implicit_psolver_section
+
+! **************************************************************************************************
+!> \brief creates the input section for parameters related to CDFT specific optimizers
+!> \param section the section to be created
+!> \par History
+!>      03.2018 separated from create_outer_scf_section [Nico Holmberg]
+!> \author Nico Holmberg
+! **************************************************************************************************
+   SUBROUTINE create_cdft_opt_section(section)
+      TYPE(section_type), POINTER                        :: section
+
+      CHARACTER(len=*), PARAMETER :: routineN = 'create_cdft_opt_section', &
+         routineP = moduleN//':'//routineN
+
+      TYPE(keyword_type), POINTER                        :: keyword
+
+      CPASSERT(.NOT. ASSOCIATED(section))
+      CALL section_create(section, "CDFT_OPT", &
+                          description="Parameters controlling optimization methods that are compatible "// &
+                          "only with CDFT based constraints (i.e. CDFT SCF is active). Specifically, "// &
+                          "the control parameters for the Broyden and Newton optimizers are defined in this "// &
+                          "section.", &
+                          n_keywords=10, n_subsections=0, repeats=.FALSE.)
+
+      NULLIFY (keyword)
+
+      CALL keyword_create(keyword, name="BROYDEN_TYPE", &
+                          description="Specifies the Broyden optimizer variant to use.", &
+                          usage="BROYDEN_TYPE BT1", &
+                          default_i_val=broyden_type_1, &
+                          enum_c_vals=s2a("BT1", "BT1_EXPLICIT", "BT2", "BT2_EXPLICIT", &
+                                          "BT1_LS", "BT1_EXPLICIT_LS", "BT2_LS", "BT2_EXPLICIT_LS"), &
+                          enum_desc=s2a("Broyden's first method, also known as the good method. The initial Jacobian"// &
+                                        " is built from MD history if available. Otherwise switches to SD for one"// &
+                                        " SCF iteration until a Jacobian can be built from the SCF history.", &
+                                        "Same as BT1, but computes the explicit Jacobian with finite differences. "// &
+                                        "Requires a CDFT SCF procedure to be active.", &
+                                        "Same as BT1, but uses Broyden's second method, also known as the bad method.", &
+                                        "Same as BT1_EXPLICIT, but using Broyden's second method.", &
+                                        "Same as BT1, but uses backtracking line search for optimizing the step size "// &
+                                        "(see optimizer NEWTON_LS).", &
+                                        "Same as BT1_EXPLICIT, but uses backtracking line search for optimizing the step size.", &
+                                        "Same as BT2, but uses backtracking line search for optimizing the step size.", &
+                                        "Same as BT2_EXPLICIT, but uses backtracking line search for optimizing the step size."), &
+                          enum_i_vals=(/broyden_type_1, broyden_type_1_explicit, broyden_type_2, &
+                                        broyden_type_2_explicit, broyden_type_1_ls, broyden_type_1_explicit_ls, &
+                                        broyden_type_2_ls, broyden_type_2_explicit_ls/))
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, name="JACOBIAN_TYPE", &
+                          description="Finite difference method used to calculate the inverse Jacobian "// &
+                          "needed by some optimizers. Compatible only with CDFT constraints.", &
+                          usage="JACOBIAN_TYPE FD1", &
+                          default_i_val=jacobian_fd1, &
+                          enum_c_vals=s2a("FD1", "FD1_BACKWARD", "FD2", "FD2_BACKWARD", "FD1_CENTRAL"), &
+                          enum_desc=s2a("First order forward difference (one extra energy evaluation per constraint).", &
+                                        "First order backward difference (one extra energy evaluation per constraint).", &
+                                        "Second order forward difference (two extra energy evaluations per constraint).", &
+                                        "Second order backward difference (two extra energy evaluations per constraint).", &
+                                        "First order central difference (two extra energy evaluations per constraint)."), &
+                          enum_i_vals=(/jacobian_fd1, jacobian_fd1_backward, jacobian_fd2, &
+                                        jacobian_fd2_backward, jacobian_fd1_central/))
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, name="JACOBIAN_STEP", &
+                          description="Step size to use in the calculation of the inverse Jacobian with finite differences. "// &
+                          "Expects one value for all constraints, or one value per constraint.", &
+                          usage="JACOBIAN_STEP 5.0E-3 ", n_var=-1, default_r_val=5.0E-3_dp)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, name="JACOBIAN_FREQ", &
+                          description="Defines parameters that control how often the explicit Jacobian is built, "// &
+                          "which is needed by some optimizers. Expects two values. The first value "// &
+                          "determines how many consecutive CDFT SCF iterations should skip a rebuild,"// &
+                          " whereas the latter how many MD steps. The values can be zero (meaning never "// &
+                          " rebuild) or positive. Both values cannot be zero.", &
+                          usage="JACOBIAN_FREQ 1 1", n_var=2, &
+                          default_i_vals=(/1, 1/), type_of_var=integer_t)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, name="JACOBIAN_RESTART", &
+                          description="Restart the inverse Jacobian using the vector defined with keyword JACOBIAN_VECTOR.", &
+                          usage="JACOBIAN_RESTART TRUE", &
+                          default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, name="JACOBIAN_VECTOR", &
+                          description="Defines the inverse Jacobian matrix. Useful for restarting calculations. "// &
+                          "Expects n^2 values where n is the total number of constraints. "// &
+                          "The matrix should be given in row major order.", &
+                          usage="JACOBIAN_VECTOR 1.0 0.0", n_var=-1, type_of_var=real_t)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, name="MAX_LS", &
+                          description="The maximum number of backtracking line search steps to perform.", &
+                          usage="MAX_LS 5", default_i_val=5)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, name="FACTOR_LS", &
+                          description="Control parameter for backtracking line search. The step size is reduced by "// &
+                          "this factor on every line search iteration. Value must be between 0 and 1 (exclusive).", &
+                          usage="FACTOR_LS 0.5", default_r_val=0.5_dp)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, name="CONTINUE_LS", &
+                          description="Continue backtracking line search until MAX_LS steps are reached or the "// &
+                          "norm of the CDFT gradient no longer decreases. Default (false) behavior exits the "// &
+                          "line search procedure on the first step that the gradient decreases.", &
+                          usage="CONTINUE_LS TRUE", &
+                          default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+   END SUBROUTINE create_cdft_opt_section
 
 END MODULE input_cp2k_dft

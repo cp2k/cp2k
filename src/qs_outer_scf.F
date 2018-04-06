@@ -28,6 +28,8 @@ MODULE qs_outer_scf
    USE qs_basis_gradient,               ONLY: qs_basis_center_gradient,&
                                               qs_update_basis_center_pos,&
                                               return_basis_center_gradient_norm
+   USE qs_cdft_opt_types,               ONLY: cdft_opt_type_copy,&
+                                              cdft_opt_type_release
    USE qs_cdft_types,                   ONLY: becke_constraint_type,&
                                               cdft_control_type
    USE qs_energy_types,                 ONLY: qs_energy_type
@@ -323,9 +325,9 @@ CONTAINS
                inv_jacobian => scf_env%outer_scf%inv_jacobian
                IF (ihistory < 2) THEN
                   ! Cannot perform a Broyden update without enough SCF history on this energy evaluation
-                  scf_control%outer_scf%broyden_update = .FALSE.
+                  scf_control%outer_scf%cdft_opt_control%broyden_update = .FALSE.
                END IF
-               IF (scf_control%outer_scf%broyden_update) THEN
+               IF (scf_control%outer_scf%cdft_opt_control%broyden_update) THEN
                   ! Perform a Broyden update of the inverse Jacobian J^(-1)
                   IF (SIZE(scf_env%outer_scf%gradient, 2) .LT. 3) &
                      CALL cp_abort(__LOCATION__, &
@@ -337,7 +339,7 @@ CONTAINS
                      f(i, 1) = scf_env%outer_scf%gradient(i, ihistory)-scf_env%outer_scf%gradient(i, ihistory-1)
                      x(i, 1) = scf_env%outer_scf%variables(i, ihistory)-scf_env%outer_scf%variables(i, ihistory-1)
                   END DO
-                  SELECT CASE (scf_control%outer_scf%broyden_type)
+                  SELECT CASE (scf_control%outer_scf%cdft_opt_control%broyden_type)
                   CASE (broyden_type_1, broyden_type_1_explicit, broyden_type_1_ls, broyden_type_1_explicit_ls)
                      ! Broyden's 1st method
                      ! Denote: dx_n = \delta x_n; df_n = \delta f_n
@@ -357,21 +359,21 @@ CONTAINS
                   CASE DEFAULT
                      CALL cp_abort(__LOCATION__, &
                                    "Unknown Broyden type: "// &
-                                   cp_to_string(scf_control%outer_scf%broyden_type))
+                                   cp_to_string(scf_control%outer_scf%cdft_opt_control%broyden_type))
                   END SELECT
                   ! Clean up
                   DEALLOCATE (f, x)
                END IF
                ! Update variables x_(n+1) = x_n - J^(-1)*f(x_n)
                scf_env%outer_scf%variables(:, ihistory+1) = scf_env%outer_scf%variables(:, ihistory)- &
-                                                            scf_control%outer_scf%newton_step* &
+                                                            scf_control%outer_scf%cdft_opt_control%newton_step* &
                                                             MATMUL(inv_jacobian, scf_env%outer_scf%gradient(:, ihistory))
-               scf_control%outer_scf%broyden_update = .TRUE.
+               scf_control%outer_scf%cdft_opt_control%broyden_update = .TRUE.
             CASE (outer_scf_optimizer_newton, outer_scf_optimizer_newton_ls)
                CPASSERT(ASSOCIATED(scf_env%outer_scf%inv_jacobian))
                inv_jacobian => scf_env%outer_scf%inv_jacobian
                scf_env%outer_scf%variables(:, ihistory+1) = scf_env%outer_scf%variables(:, ihistory)- &
-                                                            scf_control%outer_scf%newton_step* &
+                                                            scf_control%outer_scf%cdft_opt_control%newton_step* &
                                                             MATMUL(inv_jacobian, scf_env%outer_scf%gradient(:, ihistory))
             CASE DEFAULT
                CPABORT("")
@@ -574,40 +576,22 @@ CONTAINS
       CASE (cdft2ot)
          ! Constraint -> OT
          ! Switch data in scf_control: first save values that might have changed
-         cdft_control%constraint_control%broyden_update = scf_control%outer_scf%broyden_update
-         cdft_control%constraint_control%newton_step = scf_control%outer_scf%newton_step
-         cdft_control%constraint_control%ijacobian = scf_control%outer_scf%ijacobian
+         IF (ASSOCIATED(scf_control%outer_scf%cdft_opt_control)) THEN
+            CPASSERT(ASSOCIATED(cdft_control%constraint_control%cdft_opt_control))
+            CALL cdft_opt_type_copy(cdft_control%constraint_control%cdft_opt_control, &
+                                    scf_control%outer_scf%cdft_opt_control)
+            ! OT SCF does not need cdft_opt_control
+            CALL cdft_opt_type_release(scf_control%outer_scf%cdft_opt_control)
+         END IF
          ! Now switch
          scf_control%outer_scf%have_scf = cdft_control%ot_control%have_scf
          scf_control%outer_scf%max_scf = cdft_control%ot_control%max_scf
-         scf_control%outer_scf%max_ls = cdft_control%ot_control%max_ls
-         scf_control%outer_scf%continue_ls = cdft_control%ot_control%continue_ls
-         scf_control%outer_scf%factor_ls = cdft_control%ot_control%factor_ls
          scf_control%outer_scf%eps_scf = cdft_control%ot_control%eps_scf
          scf_control%outer_scf%step_size = cdft_control%ot_control%step_size
          scf_control%outer_scf%type = cdft_control%ot_control%type
          scf_control%outer_scf%optimizer = cdft_control%ot_control%optimizer
          scf_control%outer_scf%diis_buffer_length = cdft_control%ot_control%diis_buffer_length
          scf_control%outer_scf%bisect_trust_count = cdft_control%ot_control%bisect_trust_count
-         scf_control%outer_scf%jacobian_type = cdft_control%ot_control%jacobian_type
-         scf_control%outer_scf%jacobian_step = cdft_control%ot_control%jacobian_step
-         scf_control%outer_scf%jacobian_freq = cdft_control%ot_control%jacobian_freq
-         scf_control%outer_scf%newton_step = cdft_control%ot_control%newton_step
-         scf_control%outer_scf%newton_step_save = cdft_control%ot_control%newton_step_save
-         scf_control%outer_scf%ijacobian = cdft_control%ot_control%ijacobian
-         scf_control%outer_scf%build_jacobian = cdft_control%ot_control%build_jacobian
-         scf_control%outer_scf%broyden_type = cdft_control%ot_control%broyden_type
-         scf_control%outer_scf%broyden_update = cdft_control%ot_control%broyden_update
-         IF (cdft_control%constraint_control%jacobian_restart) THEN
-            ! Transfer restart vector for inverse Jacobian matrix
-            ! (qs_calculate_inverse_jacobian handles deallocation of transferred vector)
-            scf_control%outer_scf%jacobian_restart = .TRUE.
-            ALLOCATE (scf_control%outer_scf% &
-                      jacobian_vector(SIZE(cdft_control%constraint_control%jacobian_vector)))
-            scf_control%outer_scf%jacobian_vector = cdft_control%constraint_control%jacobian_vector
-            DEALLOCATE (cdft_control%constraint_control%jacobian_vector)
-            cdft_control%constraint_control%jacobian_restart = .FALSE.
-         END IF
          ! Switch data in scf_env: first save current values for constraint
          cdft_control%constraint%iter_count = scf_env%outer_scf%iter_count
          cdft_control%constraint%energy = scf_env%outer_scf%energy
@@ -646,24 +630,14 @@ CONTAINS
          ! OT -> constraint
          scf_control%outer_scf%have_scf = cdft_control%constraint_control%have_scf
          scf_control%outer_scf%max_scf = cdft_control%constraint_control%max_scf
-         scf_control%outer_scf%max_ls = cdft_control%constraint_control%max_ls
-         scf_control%outer_scf%factor_ls = cdft_control%constraint_control%factor_ls
-         scf_control%outer_scf%continue_ls = cdft_control%constraint_control%continue_ls
          scf_control%outer_scf%eps_scf = cdft_control%constraint_control%eps_scf
          scf_control%outer_scf%step_size = cdft_control%constraint_control%step_size
          scf_control%outer_scf%type = cdft_control%constraint_control%type
          scf_control%outer_scf%optimizer = cdft_control%constraint_control%optimizer
          scf_control%outer_scf%diis_buffer_length = cdft_control%constraint_control%diis_buffer_length
          scf_control%outer_scf%bisect_trust_count = cdft_control%constraint_control%bisect_trust_count
-         scf_control%outer_scf%jacobian_type = cdft_control%constraint_control%jacobian_type
-         scf_control%outer_scf%jacobian_step = cdft_control%constraint_control%jacobian_step
-         scf_control%outer_scf%jacobian_freq = cdft_control%constraint_control%jacobian_freq
-         scf_control%outer_scf%ijacobian = cdft_control%constraint_control%ijacobian
-         scf_control%outer_scf%build_jacobian = cdft_control%constraint_control%build_jacobian
-         scf_control%outer_scf%broyden_type = cdft_control%constraint_control%broyden_type
-         scf_control%outer_scf%broyden_update = cdft_control%constraint_control%broyden_update
-         scf_control%outer_scf%newton_step = cdft_control%constraint_control%newton_step
-         scf_control%outer_scf%newton_step_save = cdft_control%constraint_control%newton_step_save
+         CALL cdft_opt_type_copy(scf_control%outer_scf%cdft_opt_control, &
+                                 cdft_control%constraint_control%cdft_opt_control)
          nvariables = SIZE(cdft_control%constraint%variables, 1)
          IF (ASSOCIATED(scf_env%outer_scf%energy)) &
             DEALLOCATE (scf_env%outer_scf%energy)

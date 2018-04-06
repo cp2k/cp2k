@@ -7,18 +7,20 @@
   &CDFT
     TYPE_OF_CONSTRAINT BECKE
     &OUTER_SCF ON
-      EPS_SCF 3.0e-1
+      EPS_SCF 1.0E-2
       TYPE BECKE_CONSTRAINT
-      OPTIMIZER NEWTON
+      OPTIMIZER ${OPTIMIZER}
       BISECT_TRUST_COUNT 8
       EXTRAPOLATION_ORDER 2
-      MAX_SCF  ${MAX_SCF}
+      MAX_SCF  2
       STEP_SIZE -1.0
       &CDFT_OPT
-        BROYDEN_TYPE BT1
-        JACOBIAN_STEP 1.0E-4
-        JACOBIAN_TYPE FD1
-        JACOBIAN_FREQ 1 1
+        JACOBIAN_TYPE ${JACOBIAN_TYPE}
+        BROYDEN_TYPE ${BROYDEN_TYPE}
+        JACOBIAN_STEP 1.0E-2 5.0E-3
+        JACOBIAN_FREQ ${JACOBIAN_FREQ_1} ${JACOBIAN_FREQ_2}
+        JACOBIAN_RESTART ${RESTART_JACOBIAN}
+        JACOBIAN_VECTOR ${JACOB_VEC1} ${JACOB_VEC2} ${JACOB_VEC3} ${JACOB_VEC4}
       &END CDFT_OPT
     &END
   &END CDFT
@@ -32,10 +34,10 @@
       ! Defaults to false
       ATOMIC_CHARGES  TRUE
     @ENDIF
-    STRENGTH        ${BECKE_STR}
+    STRENGTH        ${BECKE_STR} ${BECKE_STR2}
     ! The constraint target: sum_i coeff_i * N_i
     ! where N_i is the number of VALENCE electrons on i
-    TARGET          ${BECKE_TARGET}
+    TARGET          ${BECKE_TARGET} ${BECKE_TARGET2}
     @IF ( ${BECKE_CUTOFF_ELEMENT} == TRUE )
       CUTOFF_TYPE     ELEMENT
       ELEMENT_CUTOFF  2.0 2.0
@@ -65,19 +67,16 @@
       ! Defaults to false
       CAVITY_PRINT    TRUE
     @ENDIF
-    @IF ( ${BECKE_FRAGMENT} == TRUE )
-      &ATOM_GROUP
-        ATOMS           1
-        COEFF           1
-        FRAGMENT_CONSTRAINT
-      &END ATOM_GROUP
-      FRAGMENT_A_FILE_NAME He+-noconstraint-ELECTRON_DENSITY-1_0.cube
-      FRAGMENT_B_FILE_NAME H-noconstraint-ELECTRON_DENSITY-1_0.cube
-    @ENDIF
     @IF ( ${BECKE_FRAGMENT} == FALSE )
       &ATOM_GROUP
-        ATOMS           1..2
-        COEFF           1 -1
+        ATOMS 1..2
+        COEFF 1 -1
+        CONSTRAINT_TYPE ALPHA
+      &END ATOM_GROUP
+      &ATOM_GROUP
+        ATOMS 1..2
+        COEFF 1 -1
+        CONSTRAINT_TYPE BETA
       &END ATOM_GROUP
     @ENDIF
     &PROGRAM_RUN_INFO ON

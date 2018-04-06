@@ -10,27 +10,29 @@
       EPS_SCF 1.0E-2
       TYPE BECKE_CONSTRAINT
       OPTIMIZER ${OPTIMIZER}
-      JACOBIAN_TYPE ${JACOBIAN_TYPE}
-      BROYDEN_TYPE ${BROYDEN_TYPE}
-      JACOBIAN_STEP 1.0E-4
-      JACOBIAN_FREQ ${JACOBIAN_FREQ_1} ${JACOBIAN_FREQ_2}
       BISECT_TRUST_COUNT 8
       EXTRAPOLATION_ORDER 2
       MAX_SCF  ${MAX_SCF}
       STEP_SIZE -1.0
-      @IF ( ${RESTART_JACOBIAN} == TRUE )
-        JACOBIAN_RESTART TRUE
-        JACOBIAN_VECTOR -0.91773106138385885
-      @ENDIF
-      @IF ( ${SCF_CONTINUE_LS} == TRUE )
-        ! Continue line search until norm no longer decreases or
-        ! max steps are reached
-        CONTINUE_LS TRUE
-        ! We use more LS steps and a smaller update factor to
-        ! demonstrate the quick exit conditions of CONTINUE_LS
-        MAX_LS 8
-        FACTOR_LS 0.8
-      @ENDIF
+      &CDFT_OPT
+        JACOBIAN_TYPE ${JACOBIAN_TYPE}
+        BROYDEN_TYPE ${BROYDEN_TYPE}
+        JACOBIAN_STEP 1.0E-4
+        JACOBIAN_FREQ ${JACOBIAN_FREQ_1} ${JACOBIAN_FREQ_2}
+        @IF ( ${RESTART_JACOBIAN} == TRUE )
+          JACOBIAN_RESTART TRUE
+          JACOBIAN_VECTOR -0.91773106138385885
+        @ENDIF
+        @IF ( ${SCF_CONTINUE_LS} == TRUE )
+          ! Continue line search until norm no longer decreases or
+          ! max steps are reached
+          CONTINUE_LS TRUE
+          ! We use more LS steps and a smaller update factor to
+          ! demonstrate the quick exit conditions of CONTINUE_LS
+          MAX_LS 8
+          FACTOR_LS 0.8
+        @ENDIF
+      &END CDFT_OPT
     &END
   &END CDFT
   &BECKE_CONSTRAINT

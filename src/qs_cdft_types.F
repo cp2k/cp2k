@@ -21,6 +21,8 @@ MODULE qs_cdft_types
    USE kinds,                           ONLY: default_path_length,&
                                               dp
    USE pw_types,                        ONLY: pw_p_type
+   USE qs_cdft_opt_types,               ONLY: cdft_opt_type,&
+                                              cdft_opt_type_release
 #include "./base/base_uses.f90"
 
    IMPLICIT NONE
@@ -228,28 +230,15 @@ MODULE qs_cdft_types
 
    ! Copied from scf_control_types to avoid circular dependency
    TYPE outer_scf_control_type
-      LOGICAL                              :: have_scf
-      LOGICAL                              :: build_jacobian
-      LOGICAL                              :: broyden_update
-      LOGICAL                              :: continue_ls
-      LOGICAL                              :: jacobian_restart
-      INTEGER                              :: max_scf, &
-                                              ijacobian
-      REAL(KIND=dp)                        :: eps_scf, step_size, &
-                                              jacobian_step, &
-                                              newton_step, &
-                                              newton_step_save, &
-                                              factor_ls
-      REAL(KIND=dp), DIMENSION(:), POINTER :: jacobian_vector
-      INTEGER                              :: TYPE
-      INTEGER                              :: optimizer
-      INTEGER                              :: diis_buffer_length
-      INTEGER                              :: extrapolation_order
-      INTEGER                              :: bisect_trust_count
-      INTEGER                              :: jacobian_type
-      INTEGER                              :: broyden_type
-      INTEGER                              :: jacobian_freq(2)
-      INTEGER                              :: max_ls
+      LOGICAL       :: have_scf
+      INTEGER       :: max_scf
+      REAL(KIND=dp) :: eps_scf, step_size
+      INTEGER       :: TYPE
+      INTEGER       :: optimizer
+      INTEGER       :: diis_buffer_length
+      INTEGER       :: extrapolation_order
+      INTEGER       :: bisect_trust_count
+      TYPE(cdft_opt_type), POINTER :: cdft_opt_control
    END TYPE outer_scf_control_type
 
    TYPE cdft_control_type
@@ -498,12 +487,7 @@ CONTAINS
       cdft_control%ot_control%type = -1
       cdft_control%ot_control%optimizer = -1
       cdft_control%ot_control%diis_buffer_length = -1
-      cdft_control%ot_control%jacobian_type = -1
-      cdft_control%ot_control%jacobian_step = 0.0_dp
-      cdft_control%ot_control%jacobian_restart = .FALSE.
-      NULLIFY (cdft_control%ot_control%jacobian_vector)
-      cdft_control%ot_control%newton_step = 1.0_dp
-      cdft_control%ot_control%newton_step_save = 1.0_dp
+      NULLIFY (cdft_control%ot_control%cdft_opt_control)
       cdft_control%constraint_control%have_scf = .FALSE.
       cdft_control%constraint_control%max_scf = 0
       cdft_control%constraint_control%eps_scf = 0.0_dp
@@ -511,20 +495,7 @@ CONTAINS
       cdft_control%constraint_control%type = -1
       cdft_control%constraint_control%optimizer = -1
       cdft_control%constraint_control%diis_buffer_length = -1
-      cdft_control%constraint_control%jacobian_type = -1
-      cdft_control%constraint_control%broyden_type = -1
-      cdft_control%constraint_control%jacobian_freq = 1
-      cdft_control%constraint_control%jacobian_step = 0.0_dp
-      cdft_control%constraint_control%jacobian_restart = .FALSE.
-      NULLIFY (cdft_control%constraint_control%jacobian_vector)
-      cdft_control%constraint_control%newton_step = 1.0_dp
-      cdft_control%constraint_control%newton_step_save = 1.0_dp
-      cdft_control%constraint_control%factor_ls = 0.5_dp
-      cdft_control%constraint_control%ijacobian = 0
-      cdft_control%constraint_control%max_ls = 0
-      cdft_control%constraint_control%build_jacobian = .FALSE.
-      cdft_control%constraint_control%broyden_update = .FALSE.
-      cdft_control%constraint_control%continue_ls = .FALSE.
+      NULLIFY (cdft_control%constraint_control%cdft_opt_control)
       cdft_control%constraint%iter_count = 0
       NULLIFY (cdft_control%constraint%variables)
       NULLIFY (cdft_control%constraint%gradient)
@@ -580,10 +551,8 @@ CONTAINS
                DEALLOCATE (cdft_control%hirshfeld_control%coeff)
             DEALLOCATE (cdft_control%hirshfeld_control)
          END IF
-         IF (ASSOCIATED(cdft_control%ot_control%jacobian_vector)) &
-            DEALLOCATE (cdft_control%ot_control%jacobian_vector)
-         IF (ASSOCIATED(cdft_control%constraint_control%jacobian_vector)) &
-            DEALLOCATE (cdft_control%constraint_control%jacobian_vector)
+         CALL cdft_opt_type_release(cdft_control%ot_control%cdft_opt_control)
+         CALL cdft_opt_type_release(cdft_control%constraint_control%cdft_opt_control)
          IF (ASSOCIATED(cdft_control%constraint%variables)) &
             DEALLOCATE (cdft_control%constraint%variables)
          IF (ASSOCIATED(cdft_control%constraint%count)) &

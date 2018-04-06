@@ -58,6 +58,7 @@ MODULE qs_scf_initialization
    USE qmmm_image_charge,               ONLY: conditional_calc_image_matrix
    USE qs_block_davidson_types,         ONLY: block_davidson_allocate,&
                                               block_davidson_env_create
+   USE qs_cdft_opt_types,               ONLY: cdft_opt_type_copy
    USE qs_density_mixing_types,         ONLY: direct_mixing_nr,&
                                               mixing_storage_create,&
                                               mixing_storage_release,&
@@ -265,12 +266,14 @@ CONTAINS
 
 ! **************************************************************************************************
 !> \brief performs allocation of outer SCF variables
-!> \param scf_env ...
-!> \param scf_control ...
+!> \param scf_env the SCF environment which contains the outer SCF variables
+!> \param scf_control control settings for the outer SCF loop
+!> \param nvar (optional) set number of outer SCF variables externally if CDFT SCF is active
 ! **************************************************************************************************
-   SUBROUTINE qs_scf_ensure_outer_loop_vars(scf_env, scf_control)
+   SUBROUTINE qs_scf_ensure_outer_loop_vars(scf_env, scf_control, nvar)
       TYPE(qs_scf_env_type), POINTER                     :: scf_env
       TYPE(scf_control_type), POINTER                    :: scf_control
+      INTEGER, OPTIONAL                                  :: nvar
 
       CHARACTER(len=*), PARAMETER :: routineN = 'qs_scf_ensure_outer_loop_vars', &
          routineP = moduleN//':'//routineN
@@ -279,7 +282,15 @@ CONTAINS
 
       IF (scf_control%outer_scf%have_scf) THEN
          nhistory = scf_control%outer_scf%max_scf+1
-         nvariables = outer_loop_variables_count(scf_control)
+         IF (PRESENT(nvar)) THEN
+            IF (nvar > 0) THEN
+               nvariables = nvar
+            ELSE
+               nvariables = outer_loop_variables_count(scf_control)
+            END IF
+         ELSE
+            nvariables = outer_loop_variables_count(scf_control)
+         END IF
          ALLOCATE (scf_env%outer_scf%variables(nvariables, nhistory))
          ALLOCATE (scf_env%outer_scf%count(nhistory))
          scf_env%outer_scf%count = 0
@@ -344,7 +355,7 @@ CONTAINS
          dft_control%qs_control%cdft_control%constraint%count = 0
          ALLOCATE (dft_control%qs_control%cdft_control%constraint%gradient(nvariables, nhistory))
          ALLOCATE (dft_control%qs_control%cdft_control%constraint%energy(nhistory))
-         CALL qs_scf_ensure_outer_loop_vars(scf_env, scf_control)
+         CALL qs_scf_ensure_outer_loop_vars(scf_env, scf_control, nvariables)
       ENDIF
       ! Executed only on first call (OT settings active in scf_control)
       ! Save OT settings and constraint initial values in CDFT control
@@ -353,38 +364,14 @@ CONTAINS
          IF (scf_control%outer_scf%type == outer_scf_none) THEN
             dft_control%qs_control%cdft_control%ot_control%have_scf = .TRUE.
             dft_control%qs_control%cdft_control%ot_control%max_scf = scf_control%outer_scf%max_scf
-            dft_control%qs_control%cdft_control%ot_control%max_ls = scf_control%outer_scf%max_ls
-            dft_control%qs_control%cdft_control%ot_control%continue_ls = scf_control%outer_scf%continue_ls
-            dft_control%qs_control%cdft_control%ot_control%factor_ls = scf_control%outer_scf%factor_ls
             dft_control%qs_control%cdft_control%ot_control%eps_scf = scf_control%outer_scf%eps_scf
             dft_control%qs_control%cdft_control%ot_control%step_size = scf_control%outer_scf%step_size
             dft_control%qs_control%cdft_control%ot_control%type = scf_control%outer_scf%type
             dft_control%qs_control%cdft_control%ot_control%optimizer = scf_control%outer_scf%optimizer
             dft_control%qs_control%cdft_control%ot_control%diis_buffer_length = scf_control%outer_scf%diis_buffer_length
-            dft_control%qs_control%cdft_control%ot_control%jacobian_type = scf_control%outer_scf%jacobian_type
             dft_control%qs_control%cdft_control%ot_control%bisect_trust_count = scf_control%outer_scf%bisect_trust_count
-            dft_control%qs_control%cdft_control%ot_control%jacobian_step = scf_control%outer_scf%jacobian_step
-            dft_control%qs_control%cdft_control%ot_control%newton_step = scf_control%outer_scf%newton_step
-            dft_control%qs_control%cdft_control%ot_control%newton_step_save = scf_control%outer_scf%newton_step_save
-            dft_control%qs_control%cdft_control%ot_control%jacobian_freq = scf_control%outer_scf%jacobian_freq
-            dft_control%qs_control%cdft_control%ot_control%ijacobian = scf_control%outer_scf%ijacobian
-            dft_control%qs_control%cdft_control%ot_control%build_jacobian = scf_control%outer_scf%build_jacobian
-            dft_control%qs_control%cdft_control%ot_control%broyden_type = scf_control%outer_scf%broyden_type
-            dft_control%qs_control%cdft_control%ot_control%broyden_update = scf_control%outer_scf%broyden_update
-            IF (scf_control%outer_scf%jacobian_restart) THEN
-               ! This code block should not do anything
-               dft_control%qs_control%cdft_control%ot_control%jacobian_restart = .TRUE.
-               nvariables = SIZE(scf_control%outer_scf%jacobian_vector)
-               IF (ASSOCIATED(dft_control%qs_control%cdft_control%ot_control%jacobian_vector)) &
-                  CPABORT("")
-               ALLOCATE (dft_control%qs_control%cdft_control%ot_control%jacobian_vector(nvariables))
-               IF (ASSOCIATED(dft_control%qs_control%cdft_control%constraint_control%jacobian_vector)) &
-                  CPABORT("")
-               ALLOCATE (dft_control%qs_control%cdft_control%constraint_control%jacobian_vector(nvariables))
-               dft_control%qs_control%cdft_control%constraint_control%jacobian_vector = scf_control%outer_scf%jacobian_vector
-               dft_control%qs_control%cdft_control%ot_control%jacobian_vector = scf_control%outer_scf%jacobian_vector
-            END IF
-
+            CALL cdft_opt_type_copy(dft_control%qs_control%cdft_control%ot_control%cdft_opt_control, &
+                                    scf_control%outer_scf%cdft_opt_control)
             nvariables = 1
             ! Constraint specific initializations
             IF (dft_control%qs_control%becke_constraint) THEN

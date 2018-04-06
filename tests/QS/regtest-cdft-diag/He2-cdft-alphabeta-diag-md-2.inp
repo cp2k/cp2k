@@ -1,7 +1,7 @@
 @SET RESTART_WFN          TRUE
 @SET WFN_FILE_1           He2-energy-diag-1_0.wfn
 @SET WFN_FILE_2           He2-energy-diag-1_0.wfn
-@SET PROJECT_NAME         He2-cdft-alphabeta-diag-2
+@SET PROJECT_NAME         He2-cdft-alphabeta-diag-md-2
 @SET NAME                 ${PROJECT_NAME}
 
 @SET WRITE_WFN            1
@@ -42,30 +42,38 @@
 
 @SET OPTIMIZER            NEWTON
 @SET JACOBIAN_TYPE        FD1
-@SET JACOBIAN_FREQ_1      2
-@SET JACOBIAN_FREQ_2      1
+! On each MD step, reuse Jacobian for 10 CDFT SCF iterations
+@SET JACOBIAN_FREQ_1      10
+! Each MD step, reuse old Jacobian
+@SET JACOBIAN_FREQ_2      0
 @SET BROYDEN_TYPE         BT1
 
-@SET RESTART_JACOBIAN     TRUE
-@SET JACOB_VEC1           +120000000.0
+@SET RESTART_JACOBIAN     FALSE
+@SET JACOB_VEC1           -120000000.0
 @SET JACOB_VEC2           0.0
 @SET JACOB_VEC3           0.0
 @SET JACOB_VEC4           -90.0
 
 &GLOBAL
   PROJECT ${PROJECT_NAME}
-  RUN_TYPE ENERGY
+  RUN_TYPE MD
   PRINT_LEVEL MEDIUM
 &END GLOBAL
 
+&MOTION
+  &MD
+    STEPS 1
+  &END MD
+&END MOTION
+
 &FORCE_EVAL
   METHOD QS
-  @SET BECKE_STR    ${BECKE_STR_2}
-  @SET BECKE_STR2   ${BECKE_STR_2_2}
-  @SET BECKE_TARGET ${BECKE_TARGET_2}
-  @SET BECKE_TARGET2 ${BECKE_TARGET_2_2}
+  @SET BECKE_STR    ${BECKE_STR_1}
+  @SET BECKE_STR2   ${BECKE_STR_1_2}
+  @SET BECKE_TARGET ${BECKE_TARGET_1}
+  @SET BECKE_TARGET2 ${BECKE_TARGET_1_2}
   @SET PROJECT_NAME ${NAME}
-  @SET WFN_FILE     ${WFN_FILE_2}
+  @SET WFN_FILE     ${WFN_FILE_1}
   @include subsys.inc
   @include dft-common-params-alphabeta.inc
 &END FORCE_EVAL

@@ -20,9 +20,7 @@ MODULE scf_control_types
                                               cp_print_key_unit_nr
    USE cp_units,                        ONLY: cp_unit_from_cp2k
    USE input_constants,                 ONLY: &
-        atomic_guess, broyden_type_1, broyden_type_1_explicit, broyden_type_1_explicit_ls, &
-        broyden_type_1_ls, broyden_type_2, broyden_type_2_explicit, broyden_type_2_explicit_ls, &
-        broyden_type_2_ls, core_guess, diag_ot, direct_p_mix, general_roks, high_spin_roks, &
+        atomic_guess, core_guess, diag_ot, direct_p_mix, general_roks, high_spin_roks, &
         ot_algo_taylor_or_diag, outer_scf_basis_center_opt, outer_scf_becke_constraint, &
         outer_scf_ddapc_constraint, outer_scf_none, outer_scf_optimizer_bisect, &
         outer_scf_optimizer_broyden, outer_scf_optimizer_diis, outer_scf_optimizer_newton, &
@@ -42,6 +40,11 @@ MODULE scf_control_types
                                               section_vals_type,&
                                               section_vals_val_get
    USE kinds,                           ONLY: dp
+   USE qs_cdft_opt_types,               ONLY: cdft_opt_type,&
+                                              cdft_opt_type_create,&
+                                              cdft_opt_type_read,&
+                                              cdft_opt_type_release,&
+                                              cdft_opt_type_write
    USE qs_ot_types,                     ONLY: ot_readwrite_input,&
                                               qs_ot_settings_init,&
                                               qs_ot_settings_type
@@ -84,21 +87,8 @@ MODULE scf_control_types
 !> \param id_nr unique number to identify an scf control
 !> \param ref_count reference count (see cp2k/doc/ReferenceCounting.html)
 !> \param added_mos additional number of MOs that might be used in the SCF
-!> \param build_jacobian logical which determines if the inverse Jacobian should be computed
 !> \param step_size the optimizer step size
-!> \param jacobian_step the step size for calculating the finite difference Jacobian
-!> \param newton_step the step size used by the Newton optimizer with values between 0 and 1
-!> \param newton_step_save permanent copy of the above
-!> \param jacobian_type the finite difference scheme to compute the Jacobian
-!> \param broyden_type the variant of Broyden's method to use
-!> \param jacobian_freq control parameters defining how often the Jacobian is built
-!> \param ijacobian counter to track how many outer_scf iterations have passed since the last
-!>                  Jacobian rebuild
-!> \param broyden_update logical which determines if a Broyden update is needed
-!> \param max_ls the maximum number of backtracking line search steps to perform
-!> \param continue_ls continue line search until max steps are reached or until the gradient
-!>                    no longer decreases
-!> \param factor_ls line search parameter used in generating a new step size
+!> \param cdft_opt_control settings for optimizers that work only together with CDFT constraints
 !> \par History
 !>      09.2002 created [fawzi]
 !> \author Fawzi Mohamed
@@ -106,27 +96,14 @@ MODULE scf_control_types
 
    TYPE outer_scf_control_type
       LOGICAL       :: have_scf
-      LOGICAL       :: build_jacobian
-      LOGICAL       :: broyden_update
-      LOGICAL       :: continue_ls
-      LOGICAL       :: jacobian_restart
       INTEGER       :: max_scf
-      REAL(KIND=dp) :: eps_scf, step_size, &
-                       jacobian_step, &
-                       newton_step, &
-                       newton_step_save, &
-                       factor_ls
-      REAL(KIND=dp), DIMENSION(:), POINTER :: jacobian_vector
+      REAL(KIND=dp) :: eps_scf, step_size
       INTEGER       :: TYPE
       INTEGER       :: optimizer
       INTEGER       :: diis_buffer_length
       INTEGER       :: extrapolation_order
       INTEGER       :: bisect_trust_count
-      INTEGER       :: jacobian_type
-      INTEGER       :: broyden_type
-      INTEGER       :: jacobian_freq(2)
-      INTEGER       :: ijacobian
-      INTEGER       :: max_ls
+      TYPE(cdft_opt_type), POINTER :: cdft_opt_control
    END TYPE outer_scf_control_type
 
    TYPE smear_type
@@ -293,20 +270,7 @@ CONTAINS
       scf_control%outer_scf%type = -1
       scf_control%outer_scf%optimizer = -1
       scf_control%outer_scf%diis_buffer_length = -1
-      scf_control%outer_scf%jacobian_type = -1
-      scf_control%outer_scf%broyden_type = -1
-      scf_control%outer_scf%jacobian_freq = 1
-      scf_control%outer_scf%jacobian_step = 0.0_dp
-      scf_control%outer_scf%newton_step = 1.0_dp
-      scf_control%outer_scf%newton_step_save = 1.0_dp
-      scf_control%outer_scf%factor_ls = 0.5_dp
-      scf_control%outer_scf%ijacobian = 0
-      scf_control%outer_scf%max_ls = 0
-      scf_control%outer_scf%build_jacobian = .FALSE.
-      scf_control%outer_scf%broyden_update = .FALSE.
-      scf_control%outer_scf%continue_ls = .FALSE.
-      scf_control%outer_scf%jacobian_restart = .FALSE.
-      NULLIFY (scf_control%outer_scf%jacobian_vector)
+      NULLIFY (scf_control%outer_scf%cdft_opt_control)
 
       ! Smearing of the MO occupations
 
@@ -362,8 +326,8 @@ CONTAINS
             ENDIF
             DEALLOCATE (scf_control%smear)
 
-            IF (ASSOCIATED(scf_control%outer_scf%jacobian_vector)) &
-               DEALLOCATE (scf_control%outer_scf%jacobian_vector)
+            IF (ASSOCIATED(scf_control%outer_scf%cdft_opt_control)) &
+               CALL cdft_opt_type_release(scf_control%outer_scf%cdft_opt_control)
 
             ! Maximum overlap method orbital indices lists
             ! mom_deoccA, mom_deoccB, mom_occA, mom_occB
@@ -396,9 +360,9 @@ CONTAINS
          routineP = moduleN//':'//routineN
 
       INTEGER                                            :: cholesky_flag, handle, ialgo
-      INTEGER, DIMENSION(:), POINTER                     :: added_mos, tmplist
+      INTEGER, DIMENSION(:), POINTER                     :: added_mos
       LOGICAL                                            :: do_mixing, exists
-      REAL(KIND=dp), DIMENSION(:), POINTER               :: roks_parameter, rtmplist
+      REAL(KIND=dp), DIMENSION(:), POINTER               :: roks_parameter
       TYPE(section_vals_type), POINTER                   :: mixing_section, outer_scf_section, &
                                                             scf_section, smear_section
 
@@ -542,62 +506,29 @@ CONTAINS
                                    i_val=scf_control%outer_scf%bisect_trust_count)
          CALL section_vals_val_get(outer_scf_section, "TYPE", &
                                    i_val=scf_control%outer_scf%type)
-         CALL section_vals_val_get(outer_scf_section, "OPTIMIZER", &
-                                   i_val=scf_control%outer_scf%optimizer)
          CALL section_vals_val_get(outer_scf_section, "MAX_SCF", &
                                    i_val=scf_control%outer_scf%max_scf)
-         CALL section_vals_val_get(outer_scf_section, "MAX_LS", &
-                                   i_val=scf_control%outer_scf%max_ls)
          CALL section_vals_val_get(outer_scf_section, "EXTRAPOLATION_ORDER", &
                                    i_val=scf_control%outer_scf%extrapolation_order)
-         CALL section_vals_val_get(outer_scf_section, "JACOBIAN_TYPE", &
-                                   i_val=scf_control%outer_scf%jacobian_type)
-         CALL section_vals_val_get(outer_scf_section, "JACOBIAN_STEP", &
-                                   r_val=scf_control%outer_scf%jacobian_step)
-         CALL section_vals_val_get(outer_scf_section, "BROYDEN_TYPE", &
-                                   i_val=scf_control%outer_scf%broyden_type)
-         CALL section_vals_val_get(outer_scf_section, "CONTINUE_LS", &
-                                   l_val=scf_control%outer_scf%continue_ls)
-         CALL section_vals_val_get(outer_scf_section, "FACTOR_LS", &
-                                   r_val=scf_control%outer_scf%factor_ls)
-         IF (scf_control%outer_scf%factor_ls .LE. 0.0_dp .OR. &
-             scf_control%outer_scf%factor_ls .GE. 1.0_dp) &
-            CALL cp_abort(__LOCATION__, &
-                          "Illegal value for keyword FACTOR_LS.")
-         IF (exists) THEN
-            scf_control%outer_scf%newton_step = ABS(scf_control%outer_scf%step_size)
-            ! Permanent copy needed in case line search is performed
-            scf_control%outer_scf%newton_step_save = scf_control%outer_scf%newton_step
-         END IF
-         CALL section_vals_val_get(outer_scf_section, "JACOBIAN_FREQ", explicit=exists)
-         IF (exists) THEN
-            CALL section_vals_val_get(outer_scf_section, "JACOBIAN_FREQ", &
-                                      i_vals=tmplist)
-            IF (SIZE(tmplist) /= 2) &
-               CALL cp_abort(__LOCATION__, &
-                             "Keyword JACOBIAN_FREQ takes exactly two input values.")
-            IF (ANY(tmplist .LT. 0)) &
-               CALL cp_abort(__LOCATION__, &
-                             "Keyword JACOBIAN_FREQ takes only positive values.")
-            IF (ALL(tmplist .EQ. 0)) &
-               CALL cp_abort(__LOCATION__, &
-                             "Both values to keyword JACOBIAN_FREQ cannot be zero.")
-            scf_control%outer_scf%jacobian_freq(:) = tmplist(1:2)
-         END IF
-         CALL section_vals_val_get(outer_scf_section, "JACOBIAN_RESTART", &
-                                   l_val=scf_control%outer_scf%jacobian_restart)
+         CALL section_vals_val_get(outer_scf_section, "OPTIMIZER", &
+                                   i_val=scf_control%outer_scf%optimizer)
+         ! Optimizer specific initializations
          SELECT CASE (scf_control%outer_scf%optimizer)
          CASE DEFAULT
-            scf_control%outer_scf%jacobian_restart = .FALSE.
-         CASE (outer_scf_optimizer_newton, outer_scf_optimizer_newton_ls, outer_scf_optimizer_broyden)
-            ! Use parsed value
+            ! Do nothing
+         CASE (outer_scf_optimizer_broyden, outer_scf_optimizer_newton, &
+               outer_scf_optimizer_newton_ls)
+            ! CDFT optimizer -> read CDFT_OPT section
+            CALL cdft_opt_type_create(scf_control%outer_scf%cdft_opt_control)
+            CALL cdft_opt_type_read(scf_control%outer_scf%cdft_opt_control, &
+                                    outer_scf_section)
+            IF (exists) THEN
+               scf_control%outer_scf%cdft_opt_control%newton_step = ABS(scf_control%outer_scf%step_size)
+               ! Permanent copy needed in case line search is performed
+               scf_control%outer_scf%cdft_opt_control%newton_step_save = &
+                  scf_control%outer_scf%cdft_opt_control%newton_step
+            END IF
          END SELECT
-         IF (scf_control%outer_scf%jacobian_restart) THEN
-            CALL section_vals_val_get(outer_scf_section, "JACOBIAN_VECTOR", &
-                                      r_vals=rtmplist)
-            ALLOCATE (scf_control%outer_scf%jacobian_vector(SIZE(rtmplist)))
-            scf_control%outer_scf%jacobian_vector = rtmplist
-         END IF
       END IF
 
       smear_section => section_vals_get_subs_vals(scf_section, "SMEAR")
@@ -842,54 +773,10 @@ CONTAINS
                   WRITE (output_unit, '(T25,A)') "DIIS optimization"
                   WRITE (output_unit, '(T25,A,T72,I9)') "DIIS buffer length", &
                      scf_control%outer_scf%diis_buffer_length
-               CASE (outer_scf_optimizer_broyden)
-                  WRITE (output_unit, '(T25,A)') "Optimization with Broyden's method"
-                  SELECT CASE (scf_control%outer_scf%broyden_type)
-                  CASE (broyden_type_1)
-                     WRITE (output_unit, '(A)') "                  variant : 1st method"
-                  CASE (broyden_type_1_explicit)
-                     WRITE (output_unit, '(A)') "                  variant : 1st method with explicit initial Jacobian"
-                  CASE (broyden_type_1_ls)
-                     WRITE (output_unit, '(A)') "                  variant : 1st method with backtracking line search"
-                  CASE (broyden_type_1_explicit_ls)
-                     WRITE (output_unit, '(A)') &
-                        "                  variant : 1st method with explicit initial Jacobian"
-                     WRITE (output_unit, '(A)') &
-                        "                            and backtracking line search"
-                  CASE (broyden_type_2)
-                     WRITE (output_unit, '(A)') "                  variant : 2nd method"
-                  CASE (broyden_type_2_explicit)
-                     WRITE (output_unit, '(A)') "                  variant : 2nd method with explicit initial Jacobian"
-                  CASE (broyden_type_2_ls)
-                     WRITE (output_unit, '(A)') "                  variant : 2nd method with backtracking line search"
-                  CASE (broyden_type_2_explicit_ls)
-                     WRITE (output_unit, '(A)') &
-                        "                  variant : 2nd method with explicit initial Jacobian"
-                     WRITE (output_unit, '(A)') &
-                        "                            and backtracking line search"
-                  END SELECT
-                  WRITE (output_unit, '(T25,A,I4,A)') &
-                     "The Jacobian is restarted every ", scf_control%outer_scf%jacobian_freq(2), " energy evaluation"
-                  WRITE (output_unit, '(T25,A,I4,A)') &
-                     " or if the number of SCF iterations exceeds ", scf_control%outer_scf%jacobian_freq(1)
-                  WRITE (output_unit, '(T25,A,F8.4)') &
-                     "Optimizer step size: ", scf_control%outer_scf%newton_step_save
-               CASE (outer_scf_optimizer_newton)
-                  WRITE (output_unit, '(T25,A)') "Optimization with Newton's method"
-                  WRITE (output_unit, '(T25,A,I4,A)') &
-                     "The Jacobian is restarted every ", scf_control%outer_scf%jacobian_freq(2), " energy evaluation"
-                  WRITE (output_unit, '(T25,A,I4,A)') &
-                     " or if the number of SCF iterations exceeds ", scf_control%outer_scf%jacobian_freq(1)
-                  WRITE (output_unit, '(T25,A,F8.4)') &
-                     "Optimizer step size: ", scf_control%outer_scf%newton_step_save
-               CASE (outer_scf_optimizer_newton_ls)
-                  WRITE (output_unit, '(T25,A)') "Optimization with Newton's method using backtracking line search"
-                  WRITE (output_unit, '(T25,A,I4,A)') &
-                     "The Jacobian is restarted every ", scf_control%outer_scf%jacobian_freq(2), " energy evaluation"
-                  WRITE (output_unit, '(T25,A,I4,A)') &
-                     " or if the number of SCF iterations exceeds ", scf_control%outer_scf%jacobian_freq(1)
-                  WRITE (output_unit, '(T25,A,F8.4)') &
-                     "Optimizer step size: ", scf_control%outer_scf%newton_step_save
+               CASE (outer_scf_optimizer_broyden, outer_scf_optimizer_newton, &
+                     outer_scf_optimizer_newton_ls)
+                  CALL cdft_opt_type_write(scf_control%outer_scf%cdft_opt_control, &
+                                           scf_control%outer_scf%optimizer, output_unit)
                CASE (outer_scf_optimizer_secant)
                   WRITE (output_unit, '(T25,A)') "Optimization with the secant method"
                CASE DEFAULT
