@@ -17,6 +17,6 @@ svn info || true
 
 set -x
 docker build -t img_cp2k_test_${TESTNAME} ./test_${TESTNAME}/
-docker run -ti --init --volume ${CP2K_LOCAL}:/opt/cp2k_local/ img_cp2k_test_${TESTNAME}
+docker run -i --init --volume ${CP2K_LOCAL}:/opt/cp2k_local/ img_cp2k_test_${TESTNAME}
 
 #EOF
