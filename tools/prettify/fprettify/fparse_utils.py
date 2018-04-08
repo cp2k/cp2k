@@ -21,8 +21,6 @@
 
 from __future__ import (absolute_import, division,
                         print_function, unicode_literals)
-from builtins import *
-
 import re
 from collections import deque
 
@@ -71,6 +69,10 @@ class CharFilter(object):
 
     def __iter__(self):
         return self
+
+    def next(self):
+        """ Python 2 compatibility """
+        return self.__next__()
 
     def __next__(self):
         pos, char = next(self._it)
