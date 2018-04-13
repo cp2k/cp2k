@@ -285,6 +285,7 @@ CONTAINS
       TYPE(cp_blacs_env_type), POINTER                   :: blacs_env
       TYPE(cp_fm_struct_type), POINTER                   :: fm_struct
       TYPE(cp_para_env_type), POINTER                    :: para_env
+
       !TYPE(pw_env_type), POINTER                         :: pw_env
       !TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
 
@@ -360,7 +361,7 @@ CONTAINS
          ! Release blacs environment
          CALL cp_blacs_env_release(blacs_env)
 
-      !ELSE ! Grid-based optimization
+         !ELSE ! Grid-based optimization
          !my_spins = 1
          !IF (opt_embed%open_shell_embed) my_spins = 2
          !CALL get_qs_env(qs_env=qs_env, pw_env=pw_env)
@@ -691,9 +692,9 @@ CONTAINS
          CALL cp_fm_release(opt_embed%embed_pot_grad)
          CALL cp_fm_release(opt_embed%embed_pot_coef)
          CALL cp_fm_release(opt_embed%step)
-      
+
          CALL cp_fm_release(opt_embed%prev_step)
-      
+
          CALL cp_fm_release(opt_embed%embed_pot_hess)
          CALL cp_fm_release(opt_embed%prev_embed_pot_grad)
          CALL cp_fm_release(opt_embed%prev_embed_pot_coef)
@@ -706,19 +707,19 @@ CONTAINS
          ENDIF
          DEALLOCATE (opt_embed%max_diff)
          DEALLOCATE (opt_embed%int_diff)
-      
+
          DO ikind = 1, SIZE(opt_embed%lri)
             DEALLOCATE (opt_embed%lri(ikind)%v_int)
             DEALLOCATE (opt_embed%lri(ikind)%acoef)
          ENDDO
          DEALLOCATE (opt_embed%lri)
-      !ELSE
-      !DO ispin = 1, SIZE(opt_embed%prev_grid_pot)
-      !   CALL pw_release(opt_embed%prev_grid_pot(ispin)%pw)
-      !   CALL pw_release(opt_embed%prev_grid_grad(ispin)%pw)
-      !ENDDO
-      !DEALLOCATE (opt_embed%prev_grid_pot)
-      !DEALLOCATE (opt_embed%prev_grid_grad)
+         !ELSE
+         !DO ispin = 1, SIZE(opt_embed%prev_grid_pot)
+         !   CALL pw_release(opt_embed%prev_grid_pot(ispin)%pw)
+         !   CALL pw_release(opt_embed%prev_grid_grad(ispin)%pw)
+         !ENDDO
+         !DEALLOCATE (opt_embed%prev_grid_pot)
+         !DEALLOCATE (opt_embed%prev_grid_grad)
       ENDIF
 
    END SUBROUTINE release_opt_embed
