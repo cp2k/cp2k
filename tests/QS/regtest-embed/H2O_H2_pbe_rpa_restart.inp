@@ -215,6 +215,7 @@
          DENS_CONV_MAX 0.025
          READ_EMBED_POT .TRUE.
          EMBED_RESTART_FILE_NAME h2o_h2_pbe_mp2-embed_pot_002-1_0.wfn
+         OPTIMIZER QUASI_NEWTON
       &END
     &END QS
     &SCF

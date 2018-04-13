@@ -212,6 +212,7 @@
          N_ITER 50
          DENS_CONV_INT 0.5
          DENS_CONV_MAX 0.025
+         OPTIMIZER LEVEL_SHIFT
       &END
     &END QS
     &SCF

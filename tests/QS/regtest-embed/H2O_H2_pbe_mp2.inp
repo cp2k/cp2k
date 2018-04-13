@@ -215,6 +215,7 @@
          N_ITER 3
          DENS_CONV_INT 0.5
          DENS_CONV_MAX 0.025
+         OPTIMIZER QUASI_NEWTON
       &END
     &END QS
     &SCF
