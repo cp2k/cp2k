@@ -71,7 +71,7 @@ MODULE embed_types
 
    TYPE opt_embed_pot_type
       TYPE(cp_fm_type), POINTER                 :: embed_pot_coef, embed_pot_grad, &
-                                                   step, embed_pot_hess, &
+                                                   prev_step, step, embed_pot_hess, &
                                                    prev_embed_pot_coef, prev_embed_pot_grad, &
                                                    prev_embed_pot_hess, kinetic_mat
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)  :: w_func, max_diff, int_diff
@@ -79,11 +79,12 @@ MODULE embed_types
       REAL(KIND=dp)                             :: lambda, allowed_decrease, max_trad, min_trad, &
                                                    grad_norm
       TYPE(pw_p_type), POINTER                  :: const_pot
+      TYPE(pw_p_type), DIMENSION(:), POINTER    :: prev_grid_grad, prev_grid_pot
       REAL(KIND=dp)                             :: reg_term, trust_rad, conv_max, conv_int, &
                                                    conv_max_spin, conv_int_spin, step_len
-      LOGICAL                                   :: accept_step, newton_step, level_shift, &
+      LOGICAL                                   :: accept_step, newton_step, level_shift, steep_desc, &
                                                    add_const_pot, converged, read_embed_pot, &
-                                                   change_spin, open_shell_embed
+                                                   change_spin, open_shell_embed, grid_opt
       TYPE(lri_kind_type), DIMENSION(:), POINTER :: lri ! Needed to store integrals
 
    END TYPE opt_embed_pot_type

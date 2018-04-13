@@ -1744,11 +1744,7 @@ CONTAINS
          ! Print embedding potential for restart
          CALL print_embed_restart(force_env%sub_force_env(ref_subsys_number)%force_env%qs_env, &
                                   opt_embed%dimen_aux, opt_embed%embed_pot_coef, embed_pot, i_iter, &
-                                  spin_embed_pot, opt_embed%open_shell_embed)
-         ! Print information and check convergence
-         CALL print_emb_opt_info(output_unit, i_iter, opt_embed)
-         CALL conv_check_embed(opt_embed, diff_rho_r, diff_rho_spin, output_unit)
-         IF (opt_embed%converged) EXIT
+                                  spin_embed_pot, opt_embed%open_shell_embed, opt_embed%grid_opt)
 
          ! Integrate the potential over density differences and add to w functional; also add regularization contribution
          DO i_spin = 1, nspins ! Sum over nspins for the reference system, not subsystem!
@@ -1766,18 +1762,25 @@ CONTAINS
          ! Finally, add the regularization term
          opt_embed%w_func(i_iter) = opt_embed%w_func(i_iter)+opt_embed%reg_term
 
+         ! Print information and check convergence
+         CALL print_emb_opt_info(output_unit, i_iter, opt_embed)
+         CALL conv_check_embed(opt_embed, diff_rho_r, diff_rho_spin, output_unit)
+         IF (opt_embed%converged) EXIT
+
          ! Update the trust radius and control the step
-         IF (i_iter .GT. 1) CALL step_control(opt_embed)
+         IF ((i_iter .GT. 1) .AND. (.NOT. opt_embed%steep_desc)) CALL step_control(opt_embed)
 
          ! Print density difference
          CALL print_rho_diff(diff_rho_r, i_iter, force_env%sub_force_env(ref_subsys_number)%force_env%qs_env)
 
          ! Calculate potential gradient if the step has been accepted. Otherwise, we reuse the previous one
 
-         IF (opt_embed%accept_step) CALL calculate_embed_pot_grad(force_env%sub_force_env(ref_subsys_number)%force_env%qs_env, &
-                                                                  diff_rho_r, diff_rho_spin, opt_embed)
+         IF (opt_embed%accept_step .AND. (.NOT. opt_embed%grid_opt)) &
+            CALL calculate_embed_pot_grad(force_env%sub_force_env(ref_subsys_number)%force_env%qs_env, &
+                                          diff_rho_r, diff_rho_spin, opt_embed)
          ! Take the embedding step
-         CALL opt_embed_step(opt_embed, embed_pot, spin_embed_pot, force_env%sub_force_env(ref_subsys_number)%force_env%qs_env)
+         CALL opt_embed_step(diff_rho_r, diff_rho_spin, opt_embed, embed_pot, spin_embed_pot, &
+                             force_env%sub_force_env(ref_subsys_number)%force_env%qs_env)
 
       ENDDO ! i_iter
 
@@ -1795,8 +1798,6 @@ CONTAINS
       CALL cp_print_key_finished_output(output_unit, logger, force_env%force_env_section, &
                                         "PRINT%PROGRAM_RUN_INFO")
 
-      ! Remove DEBUG
-      opt_embed%converged = .TRUE.
       ! If converged send the embedding potential to the higher-level calculation.
       IF (opt_embed%converged) THEN
          CALL get_qs_env(force_env%sub_force_env(ref_subsys_number+1)%force_env%qs_env, dft_control=dft_control, &

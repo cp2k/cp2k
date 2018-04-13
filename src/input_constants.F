@@ -1073,4 +1073,9 @@ MODULE input_constants
    INTEGER, PARAMETER, PUBLIC               :: negfrun_main = 0, &
                                                negfrun_fermilevel = 1
 
+   ! DFT embedding: optimization of potential
+   INTEGER, PARAMETER, PUBLIC               :: embed_steep_desc = 0, &
+                                               embed_quasi_newton = 1, &
+                                               embed_level_shift = 2
+
 END MODULE input_constants
