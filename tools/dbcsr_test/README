@@ -4,32 +4,6 @@ DBCSR Testing and Performance
 (C) 2010-2011 Valery Weber, Urban Borstnik, and CP2K developers group.
 Licensed under the GNU Public Licence v2 and v3.
 
-Testing:
-========
-
-* The dbcsr_testing.py script runs several tests of the addition and
-  multiplication operations.  Tests are described in .par files in this
-  directory or its subdirectories.
-
-* Building: compile libdbcsr as usual but use the 'dbcsr_test_driver' target, i.e.:
-
-  user@host:/dir> cd $LIBDBCSR_HOME
-  user@host:/dir> make -j ARCH=Linux-x86-64-gfortran VERSION=psmp dbcsr_test_driver
-
-* Running, examples:
-
-  a) To test all combinations of node counts from [n1] to [n2] with stride [ns]:
-
-  user@host:/dir> cd $LIBDBCSR_HOME/tests
-  user@host:/dir> python dbcsr_testing.py -n "[n1] [n2] [ns]" -e "../../exe/Linux-x86-64-gfortran/dbcsr_test_driver.popt" 2>&1 | tee test.log
-
-  b) To test all combinations of node counts from [n1] to [n2] with stride [ns]
-  and thread counts from [t1] to [t2] with stride [ts]:
-
-  user@host:/dir> cd $LIBDBCSR_HOME/tests
-  user@host:/dir> python dbcsr_testing.py -n "[n1] [n2] [ns]" -t "[t1] [t2] [ts]" -e "../../exe/Linux-x86-64-gfortran/dbcsr_test_driver.psmp" 2>&1 | tee test.log
-
-
 Performance:
 ============
 
