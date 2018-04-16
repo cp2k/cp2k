@@ -1126,6 +1126,7 @@ CONTAINS
             CALL cp_fm_scale_and_add(0.0_dp, opt_embed%prev_step, 1.0_dp, opt_embed%step)
             CALL cp_fm_set_all(opt_embed%step, 0.0_dp)
             CALL cp_fm_scale_and_add(1.0_dp, opt_embed%step, opt_embed%trust_rad, opt_embed%embed_pot_grad)
+            opt_embed%step_len = opt_embed%trust_rad
          ELSE
 
             ! First, update the Hessian inverse if needed
@@ -1268,11 +1269,12 @@ CONTAINS
 
       CALL timeset(routineN, handle)
 
+      opt_embed%step_len = opt_embed%trust_rad
       ! Take the step for spin-free part
-      CALL pw_axpy(diff_rho_r%pw, embed_pot%pw, opt_embed%trust_rad)
+      CALL pw_axpy(diff_rho_r%pw, embed_pot%pw, opt_embed%step_len)
 
       IF (opt_embed%open_shell_embed) THEN
-         CALL pw_axpy(diff_rho_spin%pw, spin_embed_pot%pw, opt_embed%trust_rad)
+         CALL pw_axpy(diff_rho_spin%pw, spin_embed_pot%pw, opt_embed%step_len)
       ENDIF
 
       CALL timestop(handle)
