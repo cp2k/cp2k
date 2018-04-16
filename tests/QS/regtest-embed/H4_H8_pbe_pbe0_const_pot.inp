@@ -238,9 +238,10 @@ H    6.0     6.2645     7.42105263158
          REG_LAMBDA 0.00001
          N_ITER 50
          TRUST_RAD 0.1
-         DENS_CONV_INT 1.3
+         DENS_CONV_INT 1.35
          DENS_CONV_MAX 0.2
          ADD_CONST_POT .TRUE.
+         OPTIMIZER LEVEL_SHIFT
          &EMBED_POT_CUBE MEDIUM
          &END
       &END
@@ -270,9 +271,6 @@ H    6.0     6.2645     7.42105263158
     &KIND H
       BASIS_SET  cc-TZ
       BASIS_SET RI_AUX  RI_TZ
-      !BASIS_SET   DZVP-GTH
-      !BASIS_SET RI_AUX  RI_DZVP-GTH
-      !POTENTIAL  GTH-PBE-q1
       POTENTIAL  GTH-HF-q1
     &END KIND
     &COORD
