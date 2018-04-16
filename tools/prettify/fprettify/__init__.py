@@ -101,7 +101,7 @@ FORTRAN_EXTENSIONS += [_.upper() for _ in FORTRAN_EXTENSIONS]
 FORMATTER_ERROR_MESSAGE = (" Wrong usage of formatting-specific directives"
                            " '&', '!&', '!&<' or '!&>'.")
 LINESPLIT_MESSAGE = ("auto indentation failed due to 132 chars limit, "
-                     "line should be splitted")
+                     "line should be split")
 
 EOL_STR = r"\s*;?\s*$"  # end of fortran line
 EOL_SC = r"\s*;\s*$"  # whether line is ended with semicolon
@@ -867,14 +867,14 @@ def split_reformatted_line(line_orig, linebreak_pos_orig, ampersand_sep, line, f
 
     # We split line into parts and we insert ampersands at line end, but not
     # for empty lines and comment lines
-    lines_splitted = [(line[l:r].rstrip(' ') +
+    lines_split = [(line[l:r].rstrip(' ') +
                        ' ' * ampersand_sep[pos] + '&' * min(1, r - l))
                       for pos, (l, r) in enumerate(zip(linebreak_pos_ftd[0:-1],
                                                        linebreak_pos_ftd[1:]))]
 
-    lines_splitted.append(line[linebreak_pos_ftd[-1]:])
+    lines_split.append(line[linebreak_pos_ftd[-1]:])
 
-    return lines_splitted
+    return lines_split
 
 
 def reformat_inplace(filename, stdout=False, **kwargs):  # pragma: no cover
