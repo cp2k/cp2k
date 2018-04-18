@@ -876,6 +876,7 @@ CONTAINS
                                                             u_ramping
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: q_eigval
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: q_eigvec, q_matrix, q_work
+      REAL(KIND=dp), DIMENSION(:), POINTER               :: nelec
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: h_block, p_block, q_block, s_block, &
                                                             v_block
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
@@ -905,6 +906,7 @@ CONTAINS
       NULLIFY (matrix_s)
       NULLIFY (l)
       NULLIFY (last_sgf)
+      NULLIFY (nelec)
       NULLIFY (nshell)
       NULLIFY (orb_basis_set)
       NULLIFY (p_block)
@@ -1074,6 +1076,7 @@ CONTAINS
                              u_minus_j_target=u_minus_j_target, &
                              u_ramping=u_ramping, &
                              eps_u_ramping=eps_u_ramping, &
+                             nelec=nelec, &
                              orbitals=orbitals, &
                              eps_scf=eps_scf, &
                              max_scf=max_scf, &
@@ -1202,6 +1205,10 @@ CONTAINS
                         norb = SIZE(orbitals)
                         CALL jacobi(q_matrix, q_eigval, q_eigvec)
                         q_matrix(:, :) = 0.0_dp
+                        IF (nelec(ispin) >= 0.5_dp) THEN
+                           trq = nelec(ispin)/SUM(q_eigval(1:n))
+                           q_eigval(1:n) = trq*q_eigval(1:n)
+                        END IF
                         DO isb = 1, nsb
                            trq = 0.0_dp
                            DO i = (isb-1)*nsbsize+1, isb*nsbsize

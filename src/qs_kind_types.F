@@ -114,6 +114,7 @@ MODULE qs_kind_types
       INTEGER, DIMENSION(:), POINTER         :: orbitals
       LOGICAL                                :: init_u_ramping_each_scf, &
                                                 smear
+      REAL(KIND=dp), DIMENSION(:), POINTER   :: nelec => Null()
    END TYPE dft_plus_u_type
 
 ! **************************************************************************************************
@@ -283,6 +284,9 @@ CONTAINS
                IF (ASSOCIATED(qs_kind_set(ikind)%dft_plus_u%orbitals)) THEN
                   DEALLOCATE (qs_kind_set(ikind)%dft_plus_u%orbitals)
                END IF
+               IF (ASSOCIATED(qs_kind_set(ikind)%dft_plus_u%nelec)) THEN
+                  DEALLOCATE (qs_kind_set(ikind)%dft_plus_u%nelec)
+               END IF
                DEALLOCATE (qs_kind_set(ikind)%dft_plus_u)
             END IF
 
@@ -389,6 +393,7 @@ CONTAINS
 !> \param pao_basis_size ...
 !> \param pao_potentials ...
 !> \param pao_descriptors ...
+!> \param nelec ...
 ! **************************************************************************************************
    SUBROUTINE get_qs_kind(qs_kind, &
                           basis_set, basis_type, ncgf, nsgf, &
@@ -404,7 +409,7 @@ CONTAINS
                           bs_occupation, magnetization, no_optimize, addel, laddel, naddel, orbitals, &
                           max_scf, eps_scf, smear, u_ramping, u_minus_j_target, eps_u_ramping, &
                           init_u_ramping_each_scf, reltmat, ghost, floating, name, element_symbol, &
-                          pao_basis_size, pao_potentials, pao_descriptors)
+                          pao_basis_size, pao_potentials, pao_descriptors, nelec)
 
       TYPE(qs_kind_type)                                 :: qs_kind
       TYPE(gto_basis_set_type), OPTIONAL, POINTER        :: basis_set
@@ -456,6 +461,7 @@ CONTAINS
          POINTER                                         :: pao_potentials
       TYPE(pao_descriptor_type), DIMENSION(:), &
          OPTIONAL, POINTER                               :: pao_descriptors
+      REAL(KIND=dp), DIMENSION(:), OPTIONAL, POINTER     :: nelec
 
       CHARACTER(len=*), PARAMETER :: routineN = 'get_qs_kind', routineP = moduleN//':'//routineN
 
@@ -660,6 +666,14 @@ CONTAINS
             eps_u_ramping = qs_kind%dft_plus_u%eps_u_ramping
          ELSE
             eps_u_ramping = 1.0E-5_dp
+         END IF
+      END IF
+      IF (PRESENT(nelec)) THEN
+         NULLIFY (nelec)
+         IF (ASSOCIATED(qs_kind%dft_plus_u)) THEN
+            IF (ASSOCIATED(qs_kind%dft_plus_u%nelec)) THEN
+               nelec => qs_kind%dft_plus_u%nelec
+            END IF
          END IF
       END IF
       IF (PRESENT(orbitals)) THEN
@@ -1343,13 +1357,13 @@ CONTAINS
       CHARACTER(LEN=default_string_length), &
          DIMENSION(maxbas)                               :: basis_set_name, basis_set_type
       INTEGER :: handle, i, i_rep, ipaodesc, ipaopot, ipos, j, jj, k_rep, l, m, n_rep, nb_rep, &
-         nexp, ngauss, nlcc, nloc, nnl, norbitals, npaodesc, npaopot, nppnl, z
+         nexp, ngauss, nlcc, nloc, nnl, norbitals, npaodesc, npaopot, nppnl, nspin, z
       INTEGER, DIMENSION(:), POINTER                     :: add_el, elec_conf, orbitals
       LOGICAL :: check, explicit, explicit_basis, explicit_kgpot, explicit_potential, nobasis, &
          section_enabled, subsection_enabled, update_input
       REAL(KIND=dp)                                      :: alpha, ccore, rc, zeff_correction
       REAL(KIND=dp), DIMENSION(3)                        :: error
-      REAL(KIND=dp), DIMENSION(:), POINTER               :: a_nl, aloc, anlcc, cloc, cnlcc
+      REAL(KIND=dp), DIMENSION(:), POINTER               :: a_nl, aloc, anlcc, cloc, cnlcc, nelec
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: h_nl
       REAL(KIND=dp), DIMENSION(:, :, :), POINTER         :: c_nl
       TYPE(atom_ecppot_type)                             :: ecppot
@@ -1738,6 +1752,7 @@ CONTAINS
                                    l_val=section_enabled)
          IF (section_enabled) THEN
             ALLOCATE (qs_kind%dft_plus_u)
+            NULLIFY (qs_kind%dft_plus_u%nelec)
             NULLIFY (qs_kind%dft_plus_u%orbitals)
             CALL section_vals_val_get(dft_plus_u_section, &
                                       keyword_name="L", &
@@ -1771,6 +1786,13 @@ CONTAINS
                                       keyword_name="_SECTION_PARAMETERS_", &
                                       l_val=subsection_enabled)
             IF (subsection_enabled) THEN
+               NULLIFY (nelec)
+               CALL section_vals_val_get(enforce_occupation_section, &
+                                         keyword_name="NELEC", &
+                                         r_vals=nelec)
+               nspin = SIZE(nelec)
+               ALLOCATE (qs_kind%dft_plus_u%nelec(nspin))
+               qs_kind%dft_plus_u%nelec(:) = nelec(:)
                NULLIFY (orbitals)
                CALL section_vals_val_get(enforce_occupation_section, &
                                          keyword_name="ORBITALS", &
@@ -2512,6 +2534,21 @@ CONTAINS
                IF (ASSOCIATED(qs_kind%dft_plus_u%orbitals)) THEN
                   WRITE (UNIT=output_unit, FMT="(T8,A)") &
                      "An initial orbital occupation is requested:"
+                  IF (ASSOCIATED(qs_kind%dft_plus_u%nelec)) THEN
+                     IF (ANY(qs_kind%dft_plus_u%nelec(:) >= 0.5_dp)) THEN
+                        IF (SIZE(qs_kind%dft_plus_u%nelec) > 1) THEN
+                           WRITE (UNIT=output_unit, FMT="(T9,A,T75,F6.2)") &
+                              "Number of alpha electrons:", &
+                              qs_kind%dft_plus_u%nelec(1), &
+                              "Number of beta electrons:", &
+                              qs_kind%dft_plus_u%nelec(2)
+                        ELSE
+                           WRITE (UNIT=output_unit, FMT="(T9,A,T75,F6.2)") &
+                              "Number of electrons:", &
+                              qs_kind%dft_plus_u%nelec(1)
+                        END IF
+                     END IF
+                  END IF
                   WRITE (UNIT=output_unit, FMT="(T9,A,(T78,I3))") &
                      "Preferred (initial) orbital occupation order (orbital M values):", &
                      qs_kind%dft_plus_u%orbitals(:)

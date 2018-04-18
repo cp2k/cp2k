@@ -2347,6 +2347,17 @@ CONTAINS
       CALL section_add_keyword(subsection, keyword)
       CALL keyword_release(keyword)
 
+      CALL keyword_create(keyword, name="NELEC", &
+                          variants=(/"N_ELECTRONS"/), &
+                          description="Number of alpha and beta electrons. An occupation (per spin) smaller than 0.5 is ignored.", &
+                          repeats=.FALSE., &
+                          n_var=-1, &
+                          type_of_var=real_t, &
+                          default_r_val=0.0_dp, &
+                          usage="NELEC 5.0 4.0")
+      CALL section_add_keyword(subsection, keyword)
+      CALL keyword_release(keyword)
+
       CALL keyword_create(keyword, &
                           name="ORBITALS", &
                           variants=(/"M"/), &
