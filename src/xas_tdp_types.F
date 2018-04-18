@@ -16,10 +16,11 @@ MODULE xas_tdp_types
    USE input_constants,                 ONLY: xas_1s_type,&
                                               xas_dip_vel,&
                                               xas_tdp_by_index,&
-                                              xas_tdp_by_kind
-   USE input_section_types,             ONLY: section_vals_get_subs_vals,&
-                                              section_vals_type,&
-                                              section_vals_val_get
+                                              xas_tdp_by_kind, &
+                                              tddfpt_singlet
+   USE input_section_types,             ONLY: section_vals_type,&
+                                              section_vals_val_get,&
+                                              section_vals_get_subs_vals
    USE kinds,                           ONLY: default_string_length,&
                                               dp
    USE memory_utilities,                ONLY: reallocate
@@ -42,8 +43,10 @@ MODULE xas_tdp_types
 !> \param full_diag whether the LR matrix should be fully built and diagonalized
 !> \param list_ex_atoms list of excited atom indices, kept empty if define_excited=by_kind
 !> \param list_ex_kinds list of excited atom kinds, kept empty if define_excited=by_index
+!> \param do_singlet whether the excitations to consider are singlet (versus triplet)
 !> \param state_types columns correspond to the states to excite for each atom kind/index
 !>                    the number of rows is the number of times the keyword is repeated
+!> \param eri_mme_subsection the subsection dealing with the param for the eri_mme for the kernels
 ! **************************************************************************************************
    TYPE xas_tdp_control_type
       INTEGER                                 :: define_excited
@@ -53,12 +56,14 @@ MODULE xas_tdp_types
       LOGICAL                                 :: check_donor_states
       LOGICAL                                 :: tamm_dancoff
       LOGICAL                                 :: full_diag
+      LOGICAL                                 :: do_singlet
       INTEGER, DIMENSION(:), POINTER          :: list_ex_atoms
       CHARACTER(len=default_string_length), &
          DIMENSION(:), POINTER    :: list_ex_kinds
       INTEGER, DIMENSION(:, :), POINTER        :: state_types
       TYPE(section_vals_type), POINTER        :: loc_subsection
       TYPE(section_vals_type), POINTER        :: print_loc_subsection
+      TYPE(section_vals_type), POINTER        :: eri_mme_subsection
 
    END TYPE xas_tdp_control_type
 
@@ -74,12 +79,14 @@ MODULE xas_tdp_types
 !>        association between the MO irow and the excited atom icolumn
 !> \param ri_inv_mats collection of kind specific electron repulsion inverse matrices for each
 !>        excited kinds, based on basis functions of the RI auxiliary basis used for Coulomb and
-!>        exchange kernels
+!>        exchange kernels. TODO: adapt the type when switching to dbcsr_tensor
 !> \param q_projector the projector on the unperturbed, unoccupied ground state as a dbcsr matrix
 !> \param dipmat the dbcsr matrices containing the dipole in x,y,z directions evaluated on the 
 !>        contracted spherical gaussians. It can either be in the length or the velocity 
 !>        representation. For length representation, it has to be computed once with the origin on 
 !>        each excited atom
+!> \param ri_coul3 the 3D array (TODO: dbcsr tensor in the future) containing the 3-center coulomb
+!>        integrals (ab|P) with the RI basis centered on P. Updated for each new excited atom
 !> *************************************************************************************************
    TYPE xas_tdp_env_type
       INTEGER                                 :: nex_atoms
@@ -87,6 +94,7 @@ MODULE xas_tdp_types
       INTEGER, DIMENSION(:), POINTER          :: ex_atom_indices
       INTEGER, DIMENSION(:), POINTEr          :: ex_kind_indices
       INTEGER, DIMENSION(:,:), POINTER        :: state_types
+      REAL(dp), DIMENSION(:,:,:), POINTER     :: ri_coul3
       TYPE(donor_state_type), DIMENSION(:),&
                         POINTER               :: donor_states
       INTEGER, DIMENSION(:,:), POINTER        :: mos_of_ex_atoms
@@ -158,11 +166,13 @@ CONTAINS
       xas_tdp_control%check_donor_states = .FALSE.
       xas_tdp_control%tamm_dancoff = .FALSE.
       xas_tdp_control%full_diag = .FALSE.
+      xas_tdp_control%do_singlet = .TRUE.
       NULLIFY (xas_tdp_control%state_types)
       NULLIFY (xas_tdp_control%list_ex_atoms)
       NULLIFY (xas_tdp_control%list_ex_kinds)
       NULLIFY (xas_tdp_control%loc_subsection)
       NULLIFY (xas_tdp_control%print_loc_subsection)
+      NULLIFY (xas_tdp_control%eri_mme_subsection)
 
    END SUBROUTINE xas_tdp_control_create
 
@@ -193,6 +203,9 @@ CONTAINS
          IF (ASSOCIATED(xas_tdp_control%print_loc_subsection)) THEN
             DEALLOCATE (xas_tdp_control%print_loc_subsection)
          END IF
+         IF (ASSOCIATED(xas_tdp_control%eri_mme_subsection)) THEN
+            DEALLOCATE(xas_tdp_control%eri_mme_subsection)
+         END IF
          DEALLOCATE (xas_tdp_control)
       END IF
 
@@ -208,12 +221,9 @@ CONTAINS
       TYPE(xas_tdp_control_type), POINTER                :: xas_tdp_control
       TYPE(section_vals_type), POINTER                   :: xas_tdp_section
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'read_xas_tdp_control', &
-         routineP = moduleN//':'//routineN
-
-      CHARACTER(len=default_string_length), &
-         DIMENSION(:), POINTER                           :: k_list
-      INTEGER                                            :: irep, nexc, nrep
+      INTEGER                                            :: irep, nrep, nexc, excitation 
+      CHARACTER(len=default_string_length),&
+                     DIMENSION(:), POINTER               :: k_list
       INTEGER, DIMENSION(:), POINTER                     :: a_list, t_list
 
       NULLIFY (k_list, a_list, t_list)
@@ -232,6 +242,12 @@ CONTAINS
       CALL section_vals_val_get(xas_tdp_section, "FULL_DIAG", &
                                 l_val=xas_tdp_control%full_diag)
 
+      CALL section_vals_val_get(xas_tdp_section, "EXCITATIONS", i_val=excitation)
+      IF (excitation == tddfpt_singlet) THEN
+         xas_tdp_control%do_singlet = .TRUE.
+      ELSE
+         xas_tdp_control%do_singlet = .FALSE.
+      END IF
 
       IF (.NOT. ASSOCIATED(xas_tdp_control%list_ex_kinds)) THEN
          IF (xas_tdp_control%define_excited .EQ. xas_tdp_by_index) THEN
@@ -286,9 +302,15 @@ CONTAINS
 
       CALL section_vals_val_get(xas_tdp_section, "NGAUSS", i_val=xas_tdp_control%n_gauss)
 
-      xas_tdp_control%loc_subsection => section_vals_get_subs_vals(xas_tdp_section, "LOCALIZE")
-      xas_tdp_control%print_loc_subsection => section_vals_get_subs_vals( &
-                                              xas_tdp_control%loc_subsection, "PRINT")
+      xas_tdp_control%loc_subsection => section_vals_get_subs_vals(xas_tdp_section, "LOCALIZE")       
+      xas_tdp_control%print_loc_subsection => section_vals_get_subs_vals(&
+                                                         xas_tdp_control%loc_subsection, "PRINT")                      
+      
+      xas_tdp_control%eri_mme_subsection => section_vals_get_subs_vals(xas_tdp_section, "ERI_MME")   
+
+      IF (.NOT. ASSOCIATED(xas_tdp_control%eri_mme_subsection)) THEN
+         CPABORT("The ERI_MME subsection is needed for the computation of the Coulomb kernel")
+      END IF
 
    END SUBROUTINE read_xas_tdp_control
 
@@ -317,6 +339,7 @@ CONTAINS
       NULLIFY (xas_tdp_env%ri_inv_mats)
       NULLIFY (xas_tdp_env%q_projector)
       NULLIFY (xas_tdp_env%dipmat)
+      NULLIFY (xas_tdp_env%ri_coul3)
 
    END SUBROUTINE xas_tdp_env_create
 
@@ -365,6 +388,9 @@ CONTAINS
          END IF
          IF (ASSOCIATED(xas_tdp_env%dipmat)) THEN
             CALL dbcsr_deallocate_matrix_set(xas_tdp_env%dipmat)
+         END IF
+         IF (ASSOCIATED(xas_tdp_env%ri_coul3)) THEN
+            DEALLOCATE(xas_tdp_env%ri_coul3)
          END IF
          DEALLOCATE (xas_tdp_env)
       END IF

@@ -30,6 +30,7 @@ MODULE input_cp2k_dft
                                               spline3_nopbc_interp,&
                                               spline3_pbc_interp
    USE cp_units,                        ONLY: cp_unit_to_cp2k
+   USE cp_eri_mme_interface,            ONLY: create_eri_mme_section
    USE input_constants,                 ONLY: &
         atomic_guess, becke_cutoff_element, becke_cutoff_global, broyden_type_1, &
         broyden_type_1_explicit, broyden_type_1_explicit_ls, broyden_type_1_ls, broyden_type_2, &
@@ -94,7 +95,8 @@ MODULE input_cp2k_dft
         wfi_use_prev_rho_r_method_nr, wfi_use_prev_wf_method_nr, xas_1s_type, xas_2p_type, &
         xas_2s_type, xas_3d_type, xas_3p_type, xas_3s_type, xas_4d_type, xas_4f_type, xas_4p_type, &
         xas_4s_type, xas_dip_len, xas_dip_vel, xas_dscf, xas_none, xas_tp_fh, xas_tp_flex, &
-        xas_tp_hh, xas_tp_xfh, xas_tp_xhh, xes_tp_val
+        xas_tp_hh, xas_tp_xfh, xas_tp_xhh, xes_tp_val, xas_not_excited, xas_tdp_by_kind, &
+        xas_tdp_by_index, xas_tdp_exop_coulomb
    USE input_cp2k_almo,                 ONLY: create_almo_scf_section
    USE input_cp2k_distribution,         ONLY: create_distribution_section
    USE input_cp2k_field,                ONLY: create_efield_section,&
@@ -7878,7 +7880,7 @@ CONTAINS
                           description="XAS simulations using TDDFPT. Excitation from specified "// &
                           "core orbitals are considered one at a time. In case of high symmetry "// &
                           "structures, donor core orbitals should be localized.", &
-                          n_keywords=10, n_subsections=2, repeats=.FALSE.)
+                          n_keywords=11, n_subsections=3, repeats=.FALSE.)
 
       NULLIFY (keyword, subsection, print_key)
 
@@ -7978,6 +7980,17 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
+      CALL keyword_create(keyword, name="EXCITATIONS", &
+                          variants=(/"EXCITATION"/), &
+                          description="Whether singlet or triplet excitations should be "// &
+                                     "considered (starting from the spin-restricted ground state)",&
+                          usage="EXCITATIONS {string}", &
+                          default_i_val=tddfpt_singlet, &
+                          enum_c_vals=s2a("SINGLET", "TRIPLET"), & 
+                          enum_i_vals=(/tddfpt_singlet, tddfpt_triplet/))
+      CALL section_add_keyword(section, keyword)      
+      CALL keyword_release(keyword)
+
       CALL keyword_create(keyword, name="TAMM_DANCOFF", &
                           variants=(/"TDA"/), &
                           description="Whether the Tamm-Dancoff approximation should be used.", &
@@ -7993,12 +8006,16 @@ CONTAINS
                           default_l_val=.FALSE.)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
-
+      
       CALL create_localize_section(subsection)
       CALL section_add_subsection(section, subsection)
       CALL section_release(subsection)
 
-      CALL section_create(subsection, "PRINT", "Controls the printing of information during "// &
+      CALL create_eri_mme_section(subsection)
+      CALL section_add_subsection(section, subsection)
+      CALL section_release(subsection) 
+      
+      CALL section_create(subsection, "PRINT", "Controls the printing of information during "//&
                           "XAS TDP calculations", repeats=.FALSE.)
       CALL cp_print_key_section_create(print_key, "PROGRAM_RUN_INFO", &
                                        description="Controls the printing of basic programm steps", &

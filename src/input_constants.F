@@ -633,7 +633,8 @@ MODULE input_constants
 
    ! Time-dependent XAS
    INTEGER, PARAMETER, PUBLIC               :: xas_tdp_by_index = 1, &
-                                               xas_tdp_by_kind = 2
+                                               xas_tdp_by_kind = 2, &
+                                               xas_tdp_exop_coulomb = 1
 
    ! Linear Response for properties
    INTEGER, PARAMETER, PUBLIC               :: lr_none = 0, &
