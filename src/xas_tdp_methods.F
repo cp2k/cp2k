@@ -18,11 +18,9 @@ MODULE xas_tdp_methods
         set_sto_basis_set, srules, sto_basis_set_type
    USE cell_types,                      ONLY: cell_type,&
                                               pbc
-   USE constants_operator,              ONLY: operator_coulomb
    USE cp_blacs_env,                    ONLY: cp_blacs_env_type
    USE cp_control_types,                ONLY: dft_control_type
    USE cp_dbcsr_operations,             ONLY: cp_dbcsr_sm_fm_multiply
-   USE cp_fm_basic_linalg,              ONLY: cp_fm_invert
    USE cp_fm_struct,                    ONLY: cp_fm_struct_type, cp_fm_struct_create,&
                                               cp_fm_struct_release
    USE cp_fm_types,                     ONLY: cp_fm_type, cp_fm_get_submatrix, cp_fm_create,&
@@ -40,7 +38,6 @@ MODULE xas_tdp_methods
                                               dbcsr_create, dbcsr_multiply, dbcsr_add_on_diag, &
                                               dbcsr_finalize, dbcsr_allocate_matrix_set, dbcsr_copy,&
                                               dbcsr_set, dbcsr_deallocate_matrix_set
-   USE generic_os_integrals,            ONLY: int_operators_r12_ab_os
    USE input_constants,                 ONLY: xas_tdp_by_index, xas_tdp_by_kind, xas_not_excited,&
                                               do_loc_none, xas_1s_type, xas_2s_type, xas_2p_type,&
                                               op_loc_berry, xas_dip_len, xas_dip_vel
@@ -85,7 +82,9 @@ MODULE xas_tdp_methods
                                               free_ds_memory
    USE xas_tdp_utils,                   ONLY: setup_xas_tdp_full_prob, &
                                               solve_xas_tdp_full_prob, &
-                                              compute_oscillator_strength
+                                              compute_oscillator_strength, &
+                                              compute_ri_coulomb3_int, &
+                                              compute_ri_coulomb2_int
 #include "./base/base_uses.f90"
 
    IMPLICIT NONE
@@ -130,9 +129,10 @@ CONTAINS
       CHARACTER(len=2), DIMENSION(3)                     :: state_type_char
       TYPE(cp_para_env_type), POINTER                    :: para_env
       REAL(dp), DIMENSION(3)                             :: rc
+      TYPE(cell_type), POINTER                           :: cell
 
       NULLIFY(xas_tdp_env, xas_tdp_control, atomic_kind_set, atoms_of_kind, current_state, para_env)
-      NULLIFY(particle_set)
+      NULLIFY(particle_set, cell)
 
       CALL timeset(routineN, handle)
 
@@ -167,6 +167,24 @@ CONTAINS
 !  Safety checks
       IF (dft_control%lsd) THEN
          CPABORT("XAS TDP only implemented for closed shell ground state calculations")
+      END IF
+!     Check on periodicity: inform on which ERI scheme is used and potentially issue warnings
+      CALL get_qs_env(qs_env, cell=cell)
+      IF (ALL(cell%perd .EQ. 1)) THEN
+         IF (output_unit > 0) THEN
+            WRITE(UNIT=output_unit, FMT="(/,T5,A,/,T5,A,/)") &
+               "INFO: Fully periodic boundary conditions: the two- and three-center electron ", &
+               "      repulsion integrals are computed using the ERI_MME scheme."
+         END IF
+      ELSE IF (ALL(cell%perd .EQ. 0)) THEN
+         IF (output_unit > 0) THEN
+            WRITE(UNIT=output_unit, FMT="(/,T5,A,/,T5,A,/,T5,A,/)") &
+               "INFO: Non-periodic boundary conditions: the two- and three-center electron ", & 
+               "      repulsion integrals are computed using the OS scheme.", &
+               "CAUTION: Currently, only RI basis with a single pgf per set can be used. "
+         END IF
+      ELSE
+         CPABORT("XAS TDP calculation only support fully periodic or non-periodic BCs")
       END IF
       IF (xas_tdp_env%qs_loc_env%do_localize .AND. &
           xas_tdp_env%qs_loc_env%localized_wfn_control%operator_type /= op_loc_berry) THEN
@@ -221,12 +239,16 @@ CONTAINS
 !              If length representation for the dipole, compute it here in the AO basis, for this atom
                IF (xas_tdp_control%dipole_form == xas_dip_len) THEN
                   CALL get_qs_env(qs_env, particle_set=particle_set)
-                  rc = particle_set(tmp_index)%r    
+                  rc = particle_set(xas_tdp_env%ex_atom_indices(tmp_index))%r    
                   CALL dbcsr_set(xas_tdp_env%dipmat(1)%matrix, 0.0_dp)
                   CALL dbcsr_set(xas_tdp_env%dipmat(2)%matrix, 0.0_dp)
                   CALL dbcsr_set(xas_tdp_env%dipmat(3)%matrix, 0.0_dp)
                   CALL rRc_xyz_ao(xas_tdp_env%dipmat, qs_env, rc, order=1)
                END IF
+
+!              For this excited atom, also compute the RI coulomb integrals
+               CALL compute_ri_coulomb3_int(xas_tdp_env%ex_atom_indices(tmp_index), &
+                                            xas_tdp_env, qs_env, xas_tdp_control)
 
 !              Loop over states of excited atom of kind
                DO istate = 1, SIZE(xas_tdp_env%state_types, 1)
@@ -271,6 +293,7 @@ CONTAINS
                               DO i = 1,SIZE(current_state%lr_evals)
                                  PRINT*, current_state%lr_evals(i), "   ,    ", current_state%osc_str(i)
                               END DO
+                              PRINT*, "sum:", SUM(ABS(current_state%osc_str))
                            END IF
 
                         ELSE IF (.NOT. xas_tdp_control%full_diag) THEN
@@ -331,27 +354,18 @@ CONTAINS
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: at_kind_set
       INTEGER                                            :: nex_atoms, n_kinds, i, nat_of_kind,&
                                                             j, nex_kinds, k, n_donor_states,&
-                                                            nspins, homo, natom, nmatch, kind_ind, &
-                                                            nsgf
+                                                            nspins, homo, natom, nmatch, kind_ind
       INTEGER, DIMENSION(2)                              :: n_mo, n_moloc
       INTEGER, DIMENSION(:), POINTER                     :: ind_of_kind
-      TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: at_kind_set
+      CHARACTER(len=2)                                   :: symbol
+      TYPE(qs_loc_env_new_type), POINTER                 :: qs_loc_env
       TYPE(mo_set_p_type), DIMENSION(:), POINTER         :: mos
-      TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
-      TYPE(gto_basis_set_type), POINTER                  :: ex_kind_ri_basis
-      REAL(dp), DIMENSION(3)                             :: rab
-      REAL(dp), DIMENSION(:,:), POINTER                  :: work_array
-      TYPE(cp_fm_struct_type), POINTER                   :: fm_struct
-      TYPE(cp_fm_type), POINTER                          :: work_fm
-      TYPE(cp_para_env_type), POINTER                    :: para_env
-      TYPE(cp_blacs_env_type), POINTER                   :: blacs_env
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_s, rho_ao
       TYPE(qs_rho_type), POINTER                         :: rho
 
-      NULLIFY(dft_section, xas_tdp_section, at_kind_set, ind_of_kind, work_array, para_env, blacs_env)
-      NULLIFY(qs_loc_env, loc_section, mos, qs_kind_set, particle_set, ex_kind_ri_basis, fm_struct)
-      NULLIFY(work_fm, rho, rho_ao)
+      NULLIFY(dft_section, xas_tdp_section, at_kind_set, ind_of_kind)
+      NULLIFY(qs_loc_env, loc_section, mos, particle_set, rho, rho_ao)
 
 !  XAS TDP control type initialization
       dft_section => section_vals_get_subs_vals(qs_env%input, "DFT")
@@ -486,40 +500,8 @@ CONTAINS
 
 !  Precomputing for RI => compute and invert the two-center two-electron repulsion matrix for the RI
 !  aux basis, for each excited kind
-      ALLOCATE(xas_tdp_env%ri_inv_mats(nex_kinds))
-      CALL get_qs_env(qs_env, qs_kind_set=qs_kind_set, blacs_env=blacs_env, para_env=para_env)
 
-!     Loop over excited kinds
-      DO i = 1,nex_kinds
-         k = xas_tdp_env%ex_kind_indices(i)
-
-!        Retrieving the RI_AUX basis
-         CALL get_qs_kind(qs_kind_set(k), basis_set=ex_kind_ri_basis, basis_type="RI_AUX")   
-
-!        Computing the two-centers two-electrons Coulomb repulsion between the basis and itself
-!        TODO: should we consider PBCs here ?
-         rab = 0.0_dp
-         CALL get_gto_basis_set(ex_kind_ri_basis, nsgf=nsgf)
-         ALLOCATE(work_array(nsgf,nsgf))
-         CALL int_operators_r12_ab_os(r12_operator=operator_coulomb, vab=work_array, rab=rab, &
-                                      fba=ex_kind_ri_basis, fbb=ex_kind_ri_basis, &
-                                      calculate_forces = .FALSE.)
-
-!        Matrix is not sparse, only one block => full matrix
-         CALL cp_fm_struct_create(fm_struct, context=blacs_env, para_env=para_env, &
-                                  nrow_global=nsgf, ncol_global=nsgf)
-         CALL cp_fm_create(work_fm, fm_struct)
-         CALL cp_fm_set_submatrix(work_fm, work_array)
-
-         CALL cp_fm_create(xas_tdp_env%ri_inv_mats(i)%matrix, fm_struct)
-         CALL cp_fm_invert(work_fm, xas_tdp_env%ri_inv_mats(i)%matrix)
-
-!        Clean-up
-         CALL cp_fm_struct_release(fm_struct)
-         CALL cp_fm_release(work_fm)
-         NULLIFY(ex_kind_ri_basis)
-         DEALLOCATE(work_array)
-      END DO
+      CALL compute_ri_coulomb2_int(xas_tdp_env, qs_env, xas_tdp_control)
 
 !  Compute the projector on the unoccupied, unperturbed ground state: Q = 1 - SP
       CALL get_qs_env(qs_env, rho=rho, matrix_s=matrix_s)
