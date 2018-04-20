@@ -33,7 +33,7 @@ class GitLog(list):
     def __init__(self):
         cmd = ["git", "log", "--pretty=format:%H%n%ct%n%an%n%s%n%b<--seperator-->"]
         outbytes = check_output(cmd)
-        output = outbytes.decode("utf-8")
+        output = outbytes.decode("utf-8", errors='replace')
         for entry in output.split("<--seperator-->")[:-1]:
             lines = entry.strip().split("\n")
             commit = dict()
@@ -165,13 +165,22 @@ def gen_archive(config, log, outdir):
         archive_files = glob(outdir+"archive/%s/rev_*.txt.gz"%s) + \
                         glob(outdir+"archive/%s/commit_*.txt.gz"%s)
 
+        # check if anything has changed
+        last_change = max([path.getmtime(fn) for fn in archive_files])
+        if(last_change < path.getmtime(outdir+'archive/%s/index.html'%s)):
+            print("Nothing has changed, skipping.")
+            continue
+
+
         # read all archived reports
         archive_reports = dict()
         for fn in archive_files:
-            report_txt = gzip.open(fn, 'rb').read().decode("utf-8")
+            report_txt = gzip.open(fn, 'rb').read().decode("utf-8", errors='replace')
             report = parse_report(report_txt, report_type, log)
             report['url'] = path.basename(fn)[:-3]
             sha = report['git-sha']
+            if sha is None:
+                continue # Skipping report, it's usually a svn commit from a different branch
             assert sha not in archive_reports
             archive_reports[sha] = report
 
@@ -473,7 +482,8 @@ def write_file(fn, content, gz=False):
         os.makedirs(d)
         print("Created dir: "+d)
     if(path.exists(fn)):
-        old_content = gzip.open(fn, 'rb').read() if(gz) else open(fn).read()
+        old_bytes = gzip.open(fn, 'rb').read() if(gz) else open(fn, 'rb').read()
+        old_content = old_bytes.decode('utf-8', errors='replace')
         if(old_content == content):
             print("File did not change: "+fn)
             return
@@ -510,7 +520,7 @@ def commit_cell(git_sha, log):
 #===============================================================================
 def retrieve_report(report_url):
     try:
-        return urlopen(report_url, timeout=5).read().decode("utf-8")
+        return urlopen(report_url, timeout=5).read().decode("utf-8", errors='replace')
     except:
         print(traceback.print_exc())
         return None
