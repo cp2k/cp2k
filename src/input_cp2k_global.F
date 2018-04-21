@@ -626,7 +626,7 @@ CONTAINS
       CALL section_create(section, name="FM_DIAG_SETTINGS", &
                           description="This section defines a set of heuristic rules which are "// &
                           "used to calculate the optimal number of CPUs, M, needed to diagonalize a "// &
-                          "full matrix distributed on N processors (FM type). If M<N, the matrix "// &
+                          "full matrix distributed on N processors (FM type). If M &lt N, the matrix "// &
                           "is redistributed onto M processors before it is diagonalized. "// &
                           "The optimal value is calculate according to M = ((K+a*x-1)/(a*x))*a, "// &
                           "where K is the size of the matrix, and {a, x} are integers defined below. "// &
