@@ -562,12 +562,12 @@ def parse_regtest_report(report_txt):
         return({'status':'UNKNOWN', 'summary':m.group(1)})
 
     report = dict()
-    m = re.search("(revision|Revision:) (\d+)\.?\n", report_txt)
-    if (m):
-        report['svn-rev'] = int(m.group(2))
     m = re.search("(^|\n)CommitSHA: (\w{40})\n", report_txt)
     if (m):
         report['git-sha'] = m.group(2)
+    else:
+        m = re.search("(revision|Revision:) (\d+)\.?\n", report_txt)
+        report['svn-rev'] = int(m.group(2))
 
     if("LOCKFILE" in report_txt):
         report['status'] = "UNKNOWN"
@@ -614,12 +614,12 @@ def parse_generic_report(report_txt):
         return({'status':'UNKNOWN', 'summary':m.group(1)})
     report = dict()
 
-    m = re.search("(^|\n)Revision: (\d+)\n", report_txt)
-    if (m):
-        report['svn-rev'] = int(m.group(2))
     m = re.search("(^|\n)CommitSHA: (\w{40})\n", report_txt)
     if (m):
         report['git-sha'] = m.group(2)
+    else:
+        m = re.search("(^|\n)Revision: (\d+)\n", report_txt)
+        report['svn-rev'] = int(m.group(2))
 
     report['summary'] = re.search("(^|\n)Summary: (.+)\n", report_txt).group(2)
     report['status'] = re.search("(^|\n)Status: (.+)\n", report_txt).group(2)
