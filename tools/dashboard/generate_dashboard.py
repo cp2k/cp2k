@@ -567,7 +567,7 @@ def parse_regtest_report(report_txt):
         report['svn-rev'] = int(m.group(2))
     m = re.search("(commit|Commit:) (\w{40})\n", report_txt)
     if (m):
-        report['git-sha'] = int(m.group(2))
+        report['git-sha'] = m.group(2)
 
     if("LOCKFILE" in report_txt):
         report['status'] = "UNKNOWN"
@@ -619,7 +619,7 @@ def parse_generic_report(report_txt):
         report['svn-rev'] = int(m.group(2))
     m = re.search("(^|\n)Commit: (\w{40})\n", report_txt)
     if (m):
-        report['git-sha'] = int(m.group(2))
+        report['git-sha'] = m.group(2)
 
     report['summary'] = re.search("(^|\n)Summary: (.+)\n", report_txt).group(2)
     report['status'] = re.search("(^|\n)Status: (.+)\n", report_txt).group(2)
