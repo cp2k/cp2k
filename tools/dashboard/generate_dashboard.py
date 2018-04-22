@@ -354,7 +354,7 @@ def send_notification(report, last_ok, log, name, s):
     msg_txt += "   test name:      %s\n"%name
     msg_txt += "   report state:   %s\n"%report['status']
     msg_txt += "   report summary: %s\n"%report['summary']
-    msg_txt += "   last OK commit: %d\n\n"%last_ok
+    msg_txt += "   last OK commit: %s\n\n"%last_ok[:7]
     msg_txt += "For more information visit:\n"
     msg_txt += "   https://dashboard.cp2k.org/archive/%s/index.html \n\n"%s
     msg_txt += "Sincerely,\n"
