@@ -19,8 +19,6 @@ RUN wget -O cp2k-master.zip https://github.com/cp2k/cp2k/archive/master.zip && \
     rm cp2k-master.zip
 
 WORKDIR /opt/cp2k-master/cp2k
-#TODO change test_formatting.sh
-RUN sed -i s/svn/#svn/g ./tools/formatting/test_formatting.sh
 RUN ./tools/formatting/test_formatting.sh
 
 WORKDIR /opt/cp2k_test_formatting

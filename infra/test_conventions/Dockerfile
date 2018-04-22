@@ -11,7 +11,6 @@ RUN wget -O cp2k-master.zip https://github.com/cp2k/cp2k/archive/master.zip && \
 WORKDIR /opt/cp2k-master/cp2k/arch
 RUN ln -vs /opt/cp2k-toolchain/install/arch/local* .
 
-#TODO remove redirection into  make_conventions[12].out
 WORKDIR /opt/cp2k-master/cp2k/tools/conventions/
 RUN source /opt/cp2k-toolchain/install/setup            && \
     ./test_conventions.sh                               && \

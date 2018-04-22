@@ -1,15 +1,9 @@
-#!/bin/bash -e
+#!/bin/bash
 
 # Test if prettify was run
 # author: Ole Schuett
 
-echo -n "Date: "
-date --utc --rfc-3339=seconds
-
-svn revert -R .
-svn up
-svn info
-
+set -e
 rm -rf preprettify
 
 find ./src/ -type f -not -path "*/preprettify/*" -not -path "*/.svn/*" -print0 | xargs -0 md5sum > checksums.md5

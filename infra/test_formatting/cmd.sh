@@ -20,8 +20,6 @@ rsync --exclude="*~"          \
 
 echo -e "\n========== Running formatting test =========="
 cd /opt/cp2k-master/cp2k
-#TODO change test_formatting.sh
-sed -i s/svn/#svn/g ./tools/formatting/test_formatting.sh
 ./tools/formatting/test_formatting.sh
 
 #EOF

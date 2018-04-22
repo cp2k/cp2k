@@ -565,7 +565,7 @@ def parse_regtest_report(report_txt):
     m = re.search("(revision|Revision:) (\d+)\.?\n", report_txt)
     if (m):
         report['svn-rev'] = int(m.group(2))
-    m = re.search("(commit|Commit:) (\w{40})\n", report_txt)
+    m = re.search("(^|\n)CommitSHA: (\w{40})\n", report_txt)
     if (m):
         report['git-sha'] = m.group(2)
 
@@ -617,7 +617,7 @@ def parse_generic_report(report_txt):
     m = re.search("(^|\n)Revision: (\d+)\n", report_txt)
     if (m):
         report['svn-rev'] = int(m.group(2))
-    m = re.search("(^|\n)Commit: (\w{40})\n", report_txt)
+    m = re.search("(^|\n)CommitSHA: (\w{40})\n", report_txt)
     if (m):
         report['git-sha'] = m.group(2)
 
