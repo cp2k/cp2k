@@ -31,7 +31,7 @@ from matplotlib.ticker import AutoMinorLocator
 #===============================================================================
 class GitLog(list):
     def __init__(self):
-        cmd = ["git", "log", "--pretty=format:%H%n%ct%n%an%n%s%n%b<--seperator-->"]
+        cmd = ["git", "log", "--pretty=format:%H%n%ct%n%an%n%ae%n%s%n%b<--seperator-->"]
         outbytes = check_output(cmd)
         output = outbytes.decode("utf-8", errors='replace')
         for entry in output.split("<--seperator-->")[:-1]:
@@ -39,8 +39,9 @@ class GitLog(list):
             commit = dict()
             commit['git-sha'] = lines[0]
             commit['date'] = datetime.fromtimestamp(float(lines[1]))
-            commit['author'] = lines[2]
-            commit['msg'] = lines[3]
+            commit['author-name'] = lines[2]
+            commit['author-email'] = lines[3]
+            commit['msg'] = lines[4]
             m = re.match("git-svn-id: svn://svn.code.sf.net/p/cp2k/code/trunk@(\d+) .+", lines[-1])
             if(m):
                 commit['svn-rev'] = int(m.group(1))
@@ -53,11 +54,11 @@ class GitLog(list):
 
 #===============================================================================
 def main():
-    if(len(sys.argv) != 5):
-        print("Usage update_dashboard.py <config-file> <addressbook> <status-file> <output-dir>")
+    if(len(sys.argv) != 4):
+        print("Usage update_dashboard.py <config-file> <status-file> <output-dir>")
         sys.exit(1)
 
-    config_fn, abook_fn, status_fn, outdir = sys.argv[1:]
+    config_fn, status_fn, outdir = sys.argv[1:]
     assert(outdir.endswith("/"))
     assert(path.exists(config_fn))
 
@@ -65,14 +66,12 @@ def main():
     config.read(config_fn)
     log = GitLog()  # Reads history from local git repo.
 
-    gen_frontpage(config, log, abook_fn, status_fn, outdir)
+    gen_frontpage(config, log, status_fn, outdir)
     gen_archive(config, log, outdir)
     gen_url_list(config, outdir)
 
 #===============================================================================
-def gen_frontpage(config, log, abook_fn, status_fn, outdir):
-    addressbook = dict([line.split() for line in open(abook_fn).readlines()])
-
+def gen_frontpage(config, log, status_fn, outdir):
     if(path.exists(status_fn)):
         status = eval(open(status_fn).read())
     else:
@@ -117,7 +116,7 @@ def gen_frontpage(config, log, abook_fn, status_fn, outdir):
             status[s]['last_ok'] = report['git-sha']
             status[s]['notified'] = False
         elif(do_notify and not status[s]['notified']):
-            send_notification(report, addressbook, status[s]['last_ok'], log, name, s)
+            send_notification(report, status[s]['last_ok'], log, name, s)
             status[s]['notified'] = True
 
         if(report['git-sha']):
@@ -200,7 +199,7 @@ def gen_archive(config, log, outdir):
             else:
                 html_row += 2*'<td></td>'
                 url_row = ""
-            html_row += '<td align="left">%s</td>'%commit['author']
+            html_row += '<td align="left">%s</td>'%commit['author-name']
             html_row += '<td align="left">%s</td>'%commit['msg']
             html_row += '</tr>\n\n'
             all_html_rows.append(html_row)
@@ -343,12 +342,11 @@ def gen_plots(archive_reports, log, outdir, full_archive):
     return(html_output)
 
 #===============================================================================
-def send_notification(report, addressbook, last_ok, log, name, s):
+def send_notification(report, last_ok, log, name, s):
     idx_end = log.index[report['git-sha']] if(report['git-sha']) else 0
     idx_last_ok = log.index[last_ok]
     if(idx_end == idx_last_ok): return # probably a flapping tester
-    authors = set([log[i]['author'] for i in range(idx_end, last_ok)])
-    emails = [addressbook[a] for a in authors]
+    emails = set([log[i]['author-email'] for i in range(idx_end, idx_last_ok)])
     print("Sending email to: "+", ".join(emails))
 
     msg_txt  = "Dear CP2K developer,\n\n"
@@ -464,7 +462,7 @@ def html_gitbox(log):
         output += '<small>git:' + commit['git-sha'][:7]
         if 'svn-rev' in commit:
             output += ' / svn:%d'%commit['svn-rev']
-        output += '<br>\n%s %.1fh ago.</small></p>\n'%(commit['author'], age)
+        output += '<br>\n%s %.1fh ago.</small></p>\n'%(commit['author-name'], age)
     output += '</div>\n'
     return(output)
 
