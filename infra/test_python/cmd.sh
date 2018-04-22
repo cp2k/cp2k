@@ -1,4 +1,8 @@
-#!/bin/bash -e
+#!/bin/bash
+
+# author: Ole Schuett
+
+set -e
 
 run_selftests() {
     PYTHON=$1
@@ -7,12 +11,16 @@ run_selftests() {
     VERSION=`$PYTHON -V 2>&1 | tr -d '\n'`
     echo ""
     echo "==========" $VERSION "=========="
-    find ./src/ ./tools/ -name "*.pyc" -exec rm {} \;
+    #find ./src/ ./tools/ -name "*.pyc" -exec rm {} \;
     for i in $@ ; do
+        set +e #disable error trapping
+        if [[ `head -n1 $i` =~ "python3" && "$PYTHON" != "python3" ]]; then
+          echo "Skipping $i - it's Python3 only."
+          continue
+        fi
         echo "Selftesting" $i
         cd $(dirname $i)
-        set +e #disable error trapping
-        $PYTHON ./$(basename $i) --selftest
+        $PYTHON -B ./$(basename $i) --selftest
         if [ $? -ne 0 ]; then
             echo "Selftest of $i failed"
             ERRORS=$((ERRORS+1))
@@ -24,8 +32,12 @@ run_selftests() {
 
 
 #===============================================================================
-
-cd /opt/cp2k_local/
+echo "Copy start..."
+mkdir /opt/cp2k-local-rw/
+cp -r /opt/cp2k-local/cp2k/tools /opt/cp2k-local-rw/tools
+cp -r /opt/cp2k-local/cp2k/src /opt/cp2k-local-rw/src
+cd /opt/cp2k-local-rw/
+echo "Copy done."
 
 ERRORS=0
 

@@ -1,10 +1,45 @@
 #!/bin/bash
 
-echo "========== running AiiDA-CP2K tests =========="
+# author: Ole Schuett
 
+set -e
+
+echo -e "\n========== Rsyncing =========="
+rsync --exclude="*~"          \
+      --exclude=".*/"         \
+      --exclude="*.pyc"       \
+      --exclude=/cp2k/obj/    \
+      --exclude=/cp2k/lib/    \
+      --exclude=/cp2k/exe/    \
+      --ignore-times          \
+      --update                \
+      --verbose               \
+      --recursive             \
+      --checksum              \
+      /opt/cp2k-local/  /opt/cp2k-master/
+
+echo -e "\n========== Compiling CP2K =========="
+source /opt/cp2k-toolchain/install/setup
+cd /opt/cp2k-master/cp2k/makefiles
+make -j VERSION=pdbg cp2k
+ln -s /opt/cp2k-master/cp2k/exe/local/cp2k.pdbg /usr/bin/cp2k
+
+echo -e "\n========== Installing AiiDA-CP2K plugin =========="
+cd /opt/
+git clone https://github.com/cp2k/aiida-cp2k.git
+pip install ./aiida-cp2k/
+
+echo -e "\n========== Configuring AiiDA =========="
+SUDO="sudo -u ubuntu -H"
+cd /opt/aiida-cp2k/test/
+$SUDO ./configure_aiida.sh
+
+echo -e "\n========== Running AiiDA-CP2K tests =========="
+cd  /opt/aiida-cp2k/test/
+set +e
 (
-set -e # abort if error is encountered
-./run_tests.sh
+set -e # abort on error
+$SUDO ./run_tests.sh
 )
 
 EXIT_CODE=$?

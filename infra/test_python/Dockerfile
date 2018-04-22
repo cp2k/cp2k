@@ -1,5 +1,9 @@
 FROM ubuntu:rolling
 
+# author: Ole Schuett
+
+# TODO: maybe use conda instead?
+
 RUN apt-get update && apt-get install -y --no-install-recommends \
     python                \
     python3               \

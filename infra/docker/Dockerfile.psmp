@@ -1,5 +1,6 @@
 FROM cp2k/toolchain:latest
 
+# author: Ole Schuett
 # Has to be build from cp2k root directory:
 # docker build -f ./infra/docker/Dockerfile.psmp .
 
