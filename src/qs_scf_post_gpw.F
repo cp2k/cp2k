@@ -129,6 +129,7 @@ MODULE qs_scf_post_gpw
                                               pw_scale,&
                                               pw_transfer,&
                                               pw_zero
+   USE pw_poisson_methods,              ONLY: pw_poisson_solve
    USE pw_poisson_types,                ONLY: pw_poisson_implicit,&
                                               pw_poisson_type
    USE pw_pool_types,                   ONLY: pw_pool_create_pw,&
@@ -156,7 +157,8 @@ MODULE qs_scf_post_gpw
    USE qs_integral_utils,               ONLY: basis_set_list_setup
    USE qs_kind_types,                   ONLY: get_qs_kind,&
                                               qs_kind_type
-   USE qs_ks_methods,                   ONLY: qs_ks_update_qs_env
+   USE qs_ks_methods,                   ONLY: calc_rho_tot_gspace,&
+                                              qs_ks_update_qs_env
    USE qs_ks_types,                     ONLY: qs_ks_did_change,&
                                               qs_ks_env_type
    USE qs_loc_methods,                  ONLY: qs_loc_driver
@@ -204,6 +206,7 @@ MODULE qs_scf_post_gpw
    USE scf_control_types,               ONLY: scf_control_type
    USE stm_images,                      ONLY: th_stm_image
    USE transport,                       ONLY: qs_scf_post_transport
+   USE virial_types,                    ONLY: virial_type
    USE wannier_states,                  ONLY: construct_wannier_states
    USE wannier_states_types,            ONLY: wannier_centres_type
    USE xray_diffraction,                ONLY: calculate_rhotot_elec_gspace,&
@@ -341,6 +344,9 @@ CONTAINS
       CALL qs_subsys_get(subsys, particles=particles)
 
       CALL qs_rho_get(rho, rho_ao_kp=rho_ao)
+
+      ! In MP2 case update the Hartree potential
+      IF (ASSOCIATED(qs_env%mp2_env)) CALL update_hartree_with_mp2(rho, qs_env)
 
       !    **** the kinetic energy
       IF (cp_print_key_should_output(logger%iter_info, input, &
@@ -3842,5 +3848,58 @@ CONTAINS
       CALL timestop(handle)
 
    END SUBROUTINE write_adjacency_matrix
+
+! **************************************************************************************************
+!> \brief Updates Hartree potential with MP2 density. Important for REPEAT charges
+!> \param rho ...
+!> \param qs_env ...
+!> \author Vladimir Rybkin
+! **************************************************************************************************
+   SUBROUTINE update_hartree_with_mp2(rho, qs_env)
+      TYPE(qs_rho_type), POINTER                         :: rho
+      TYPE(qs_environment_type), POINTER                 :: qs_env
+
+      LOGICAL                                            :: use_virial
+      TYPE(pw_env_type), POINTER                         :: pw_env
+      TYPE(pw_p_type)                                    :: rho_tot_gspace, v_hartree_gspace, &
+                                                            v_hartree_rspace
+      TYPE(pw_p_type), POINTER                           :: rho_core
+      TYPE(pw_poisson_type), POINTER                     :: poisson_env
+      TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
+      TYPE(qs_energy_type), POINTER                      :: energy
+      TYPE(virial_type), POINTER                         :: virial
+
+      NULLIFY (auxbas_pw_pool, pw_env, poisson_env, energy, rho_core, v_hartree_rspace%pw, virial)
+      CALL get_qs_env(qs_env, pw_env=pw_env, energy=energy, &
+                      rho_core=rho_core, virial=virial, &
+                      v_hartree_rspace=v_hartree_rspace%pw)
+
+      use_virial = virial%pv_availability .AND. (.NOT. virial%pv_numer)
+
+      IF (.NOT. use_virial) THEN
+
+         CALL pw_env_get(pw_env, auxbas_pw_pool=auxbas_pw_pool, &
+                         poisson_env=poisson_env)
+         CALL pw_pool_create_pw(auxbas_pw_pool, &
+                                v_hartree_gspace%pw, &
+                                use_data=COMPLEXDATA1D, &
+                                in_space=RECIPROCALSPACE)
+         CALL pw_pool_create_pw(auxbas_pw_pool, &
+                                rho_tot_gspace%pw, &
+                                use_data=COMPLEXDATA1D, &
+                                in_space=RECIPROCALSPACE)
+
+         CALL calc_rho_tot_gspace(rho_tot_gspace, qs_env, rho)
+         CALL pw_poisson_solve(poisson_env, rho_tot_gspace%pw, energy%hartree, &
+                               v_hartree_gspace%pw, rho_core=rho_core)
+
+         CALL pw_transfer(v_hartree_gspace%pw, v_hartree_rspace%pw)
+         CALL pw_scale(v_hartree_rspace%pw, v_hartree_rspace%pw%pw_grid%dvol)
+
+         CALL pw_pool_give_back_pw(auxbas_pw_pool, v_hartree_gspace%pw)
+         CALL pw_pool_give_back_pw(auxbas_pw_pool, rho_tot_gspace%pw)
+      ENDIF
+
+   END SUBROUTINE update_hartree_with_mp2
 
 END MODULE qs_scf_post_gpw
