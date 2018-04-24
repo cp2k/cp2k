@@ -15,14 +15,21 @@ MODULE pao_io
    USE cp_files,                        ONLY: close_file,&
                                               open_file
    USE cp_log_handling,                 ONLY: cp_get_default_logger,&
+                                              cp_logger_get_default_io_unit,&
                                               cp_logger_type
-   USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
+   USE cp_output_handling,              ONLY: cp_p_file,&
+                                              cp_print_key_finished_output,&
+                                              cp_print_key_should_output,&
                                               cp_print_key_unit_nr
    USE cp_para_types,                   ONLY: cp_para_env_type
-   USE dbcsr_api,                       ONLY: dbcsr_get_block_p,&
-                                              dbcsr_get_info,&
-                                              dbcsr_type
-   USE input_section_types,             ONLY: section_vals_type
+   USE dbcsr_api,                       ONLY: &
+        convert_dbcsr_to_csr, csr_create_from_dbcsr, csr_dbcsr_blkrow_dist, csr_destroy, csr_type, &
+        csr_write, dbcsr_copy, dbcsr_desymmetrize, dbcsr_get_block_p, dbcsr_get_info, &
+        dbcsr_has_symmetry, dbcsr_release, dbcsr_type
+   USE dm_ls_scf_types,                 ONLY: ls_scf_env_type
+   USE input_section_types,             ONLY: section_vals_get_subs_vals,&
+                                              section_vals_type,&
+                                              section_vals_val_get
    USE kinds,                           ONLY: default_path_length,&
                                               default_string_length,&
                                               dp
@@ -50,6 +57,7 @@ MODULE pao_io
    PUBLIC :: pao_read_restart, pao_write_restart
    PUBLIC :: pao_read_raw, pao_kinds_ensure_equal
    PUBLIC :: pao_ioblock_type, pao_iokind_type
+   PUBLIC :: pao_write_ks_matrix_csr, pao_write_s_matrix_csr
 
    ! data types used by pao_read_raw()
    TYPE pao_ioblock_type
@@ -547,5 +555,154 @@ CONTAINS
       ENDDO
 
    END SUBROUTINE write_restart_header
+
+!**************************************************************************************************
+!> \brief writing the KS matrix (in terms of the PAO basis) in csr format into a file
+!> \param qs_env qs environment
+!> \param ls_scf_env ls environment
+!> \author Mohammad Hossein Bani-Hashemian
+! **************************************************************************************************
+   SUBROUTINE pao_write_ks_matrix_csr(qs_env, ls_scf_env)
+      TYPE(qs_environment_type), POINTER                 :: qs_env
+      TYPE(ls_scf_env_type), TARGET                      :: ls_scf_env
+
+      CHARACTER(len=*), PARAMETER :: routineN = 'pao_write_ks_matrix_csr', &
+         routineP = moduleN//':'//routineN
+
+      CHARACTER(LEN=default_path_length)                 :: file_name, fileformat
+      INTEGER                                            :: handle, ispin, output_unit, unit_nr
+      LOGICAL                                            :: bin, do_kpoints, do_ks_csr_write, uptr
+      REAL(KIND=dp)                                      :: thld
+      TYPE(cp_logger_type), POINTER                      :: logger
+      TYPE(csr_type)                                     :: ks_mat_csr
+      TYPE(dbcsr_type)                                   :: matrix_ks_nosym
+      TYPE(section_vals_type), POINTER                   :: dft_section, input
+
+      CALL timeset(routineN, handle)
+
+      NULLIFY (dft_section)
+
+      logger => cp_get_default_logger()
+      output_unit = cp_logger_get_default_io_unit(logger)
+
+      CALL get_qs_env(qs_env, input=input)
+      dft_section => section_vals_get_subs_vals(input, "DFT")
+      do_ks_csr_write = BTEST(cp_print_key_should_output(logger%iter_info, dft_section, &
+                                                         "PRINT%KS_CSR_WRITE"), cp_p_file)
+
+      ! NOTE: k-points has to be treated differently later. k-points has KS matrix as double pointer.
+      CALL get_qs_env(qs_env=qs_env, do_kpoints=do_kpoints)
+
+      IF (do_ks_csr_write .AND. (.NOT. do_kpoints)) THEN
+         CALL section_vals_val_get(dft_section, "PRINT%KS_CSR_WRITE%THRESHOLD", r_val=thld)
+         CALL section_vals_val_get(dft_section, "PRINT%KS_CSR_WRITE%UPPER_TRIANGULAR", l_val=uptr)
+         CALL section_vals_val_get(dft_section, "PRINT%KS_CSR_WRITE%BINARY", l_val=bin)
+
+         IF (bin) THEN
+            fileformat = "UNFORMATTED"
+         ELSE
+            fileformat = "FORMATTED"
+         END IF
+
+         DO ispin = 1, SIZE(ls_scf_env%matrix_ks)
+
+            IF (dbcsr_has_symmetry(ls_scf_env%matrix_ks(ispin))) THEN
+               CALL dbcsr_desymmetrize(ls_scf_env%matrix_ks(ispin), matrix_ks_nosym)
+            ELSE
+               CALL dbcsr_copy(matrix_ks_nosym, ls_scf_env%matrix_ks(ispin))
+            END IF
+
+            CALL csr_create_from_dbcsr(matrix_ks_nosym, ks_mat_csr, csr_dbcsr_blkrow_dist)
+            CALL convert_dbcsr_to_csr(matrix_ks_nosym, ks_mat_csr)
+
+            WRITE (file_name, '(A,I0)') "PAO_KS_SPIN_", ispin
+            unit_nr = cp_print_key_unit_nr(logger, dft_section, "PRINT%KS_CSR_WRITE", &
+                                           extension=".csr", middle_name=TRIM(file_name), &
+                                           file_status="REPLACE", file_form=fileformat)
+            CALL csr_write(ks_mat_csr, unit_nr, upper_triangle=uptr, threshold=thld, binary=bin)
+
+            CALL cp_print_key_finished_output(unit_nr, logger, dft_section, "PRINT%KS_CSR_WRITE")
+
+            CALL csr_destroy(ks_mat_csr)
+            CALL dbcsr_release(matrix_ks_nosym)
+         END DO
+      END IF
+
+      CALL timestop(handle)
+
+   END SUBROUTINE pao_write_ks_matrix_csr
+
+!**************************************************************************************************
+!> \brief writing the overlap matrix (in terms of the PAO basis) in csr format into a file
+!> \param qs_env qs environment
+!> \param ls_scf_env ls environment
+!> \author Mohammad Hossein Bani-Hashemian
+! **************************************************************************************************
+   SUBROUTINE pao_write_s_matrix_csr(qs_env, ls_scf_env)
+      TYPE(qs_environment_type), POINTER                 :: qs_env
+      TYPE(ls_scf_env_type), TARGET                      :: ls_scf_env
+
+      CHARACTER(len=*), PARAMETER :: routineN = 'pao_write_s_matrix_csr', &
+         routineP = moduleN//':'//routineN
+
+      CHARACTER(LEN=default_path_length)                 :: file_name, fileformat
+      INTEGER                                            :: handle, output_unit, unit_nr
+      LOGICAL                                            :: bin, do_kpoints, do_s_csr_write, uptr
+      REAL(KIND=dp)                                      :: thld
+      TYPE(cp_logger_type), POINTER                      :: logger
+      TYPE(csr_type)                                     :: s_mat_csr
+      TYPE(dbcsr_type)                                   :: matrix_s_nosym
+      TYPE(section_vals_type), POINTER                   :: dft_section, input
+
+      CALL timeset(routineN, handle)
+
+      NULLIFY (dft_section)
+
+      logger => cp_get_default_logger()
+      output_unit = cp_logger_get_default_io_unit(logger)
+
+      CALL get_qs_env(qs_env, input=input)
+      dft_section => section_vals_get_subs_vals(input, "DFT")
+      do_s_csr_write = BTEST(cp_print_key_should_output(logger%iter_info, dft_section, &
+                                                        "PRINT%S_CSR_WRITE"), cp_p_file)
+
+      ! NOTE: k-points has to be treated differently later. k-points has overlap matrix as double pointer.
+      CALL get_qs_env(qs_env=qs_env, do_kpoints=do_kpoints)
+
+      IF (do_s_csr_write .AND. (.NOT. do_kpoints)) THEN
+         CALL section_vals_val_get(dft_section, "PRINT%S_CSR_WRITE%THRESHOLD", r_val=thld)
+         CALL section_vals_val_get(dft_section, "PRINT%S_CSR_WRITE%UPPER_TRIANGULAR", l_val=uptr)
+         CALL section_vals_val_get(dft_section, "PRINT%S_CSR_WRITE%BINARY", l_val=bin)
+
+         IF (bin) THEN
+            fileformat = "UNFORMATTED"
+         ELSE
+            fileformat = "FORMATTED"
+         END IF
+
+         IF (dbcsr_has_symmetry(ls_scf_env%matrix_s)) THEN
+            CALL dbcsr_desymmetrize(ls_scf_env%matrix_s, matrix_s_nosym)
+         ELSE
+            CALL dbcsr_copy(matrix_s_nosym, ls_scf_env%matrix_s)
+         END IF
+
+         CALL csr_create_from_dbcsr(matrix_s_nosym, s_mat_csr, csr_dbcsr_blkrow_dist)
+         CALL convert_dbcsr_to_csr(matrix_s_nosym, s_mat_csr)
+
+         WRITE (file_name, '(A,I0)') "PAO_S"
+         unit_nr = cp_print_key_unit_nr(logger, dft_section, "PRINT%S_CSR_WRITE", &
+                                        extension=".csr", middle_name=TRIM(file_name), &
+                                        file_status="REPLACE", file_form=fileformat)
+         CALL csr_write(s_mat_csr, unit_nr, upper_triangle=uptr, threshold=thld, binary=bin)
+
+         CALL cp_print_key_finished_output(unit_nr, logger, dft_section, "PRINT%S_CSR_WRITE")
+
+         CALL csr_destroy(s_mat_csr)
+         CALL dbcsr_release(matrix_s_nosym)
+      END IF
+
+      CALL timestop(handle)
+
+   END SUBROUTINE pao_write_s_matrix_csr
 
 END MODULE pao_io

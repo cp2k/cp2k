@@ -29,7 +29,9 @@ MODULE pao_main
    USE machine,                         ONLY: m_walltime
    USE pao_input,                       ONLY: parse_pao_section
    USE pao_io,                          ONLY: pao_read_restart,&
-                                              pao_write_restart
+                                              pao_write_ks_matrix_csr,&
+                                              pao_write_restart,&
+                                              pao_write_s_matrix_csr
    USE pao_methods,                     ONLY: &
         pao_add_forces, pao_build_core_hamiltonian, pao_build_diag_distribution, &
         pao_build_matrix_X, pao_build_orthogonalizer, pao_build_selector, pao_calc_energy, &
@@ -332,6 +334,11 @@ CONTAINS
       IF (.NOT. pao_is_done) RETURN
 
       CALL timeset(routineN, handle)
+
+      ! print out the matrices here before pao_store_P converts them back into matrices in
+      ! terms of the primary basis
+      CALL pao_write_ks_matrix_csr(qs_env, ls_scf_env)
+      CALL pao_write_s_matrix_csr(qs_env, ls_scf_env)
 
       CALL pao_store_P(qs_env, ls_scf_env)
       IF (ls_scf_env%calculate_forces) CALL pao_add_forces(qs_env, ls_scf_env)

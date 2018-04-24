@@ -126,6 +126,7 @@ CONTAINS
 
       ! parse the ls_scf section and set derived quantities
       CALL ls_scf_init_read_write_input(input, ls_scf_env, unit_nr)
+      dft_control%qs_control%pao = ls_scf_env%do_pao
 
       ! set up the buffer for the history of matrices
       ls_scf_env%scf_history%nstore = ls_scf_env%extrapolation_order

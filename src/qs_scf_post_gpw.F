@@ -2834,8 +2834,11 @@ CONTAINS
       END IF
 
       ! write csr matrices
-      CALL write_ks_matrix_csr(qs_env, input)
-      CALL write_s_matrix_csr(qs_env, input)
+      ! matrices in terms of the PAO basis will be taken care of in pao_post_scf.
+      IF (.NOT. dft_control%qs_control%pao) THEN
+         CALL write_ks_matrix_csr(qs_env, input)
+         CALL write_s_matrix_csr(qs_env, input)
+      END IF
 
       ! write adjacency matrix
       CALL write_adjacency_matrix(qs_env, input)
