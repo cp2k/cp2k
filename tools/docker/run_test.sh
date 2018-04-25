@@ -11,7 +11,7 @@ fi
 set -e
 TESTNAME=$1
 echo "Running ${TESTNAME} ..."
-CP2K_LOCAL=`realpath ../../`
+CP2K_LOCAL=`realpath ../../../`
 
 echo -n "Date: "
 date --utc --rfc-3339=seconds
