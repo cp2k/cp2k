@@ -9,7 +9,6 @@ This is the CP2K software suite
  * src: The source code
  * tests: Inputs for regression tests
  * tools: Mixed collection of useful scripts related to cp2k
- * infra: Infrastructure
  * data: Simulation parameters e.g. basis sets and pseudopotentials
 
 Additional directories created during build process:
