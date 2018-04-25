@@ -1508,8 +1508,6 @@ CONTAINS
       REAL(KIND=dp), INTENT(in)                          :: fval, ftarget
       REAL(KIND=dp)                                      :: errval
 
-      REAL(KIND=dp), PARAMETER                           :: dt = LOG(10._dp)
-
       CPASSERT(fval >= 0.0_dp)
 
       IF (fval <= ftarget) THEN
