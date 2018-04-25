@@ -4,7 +4,7 @@
 
 set -e
 
-echo -e "\n========== Rsyncing =========="
+echo -e "\n========== Copying Changed Files =========="
 rsync --exclude="*~"          \
       --exclude=".*/"         \
       --exclude="*.pyc"       \
@@ -25,14 +25,15 @@ make -j VERSION=pdbg cp2k_shell
 ln -s /opt/cp2k-master/cp2k/exe/local/cp2k.pdbg /usr/bin/cp2k
 
 echo -e "\n========== Installing ASE =========="
-cd /opt/
-git clone https://gitlab.com/ase/ase.git
-pip3 install ./ase/
+cd /opt/ase/
+git pull
+pip3 install .
 
-echo -e "\n========== Running ASE tests =========="
+echo -e "\n========== Running ASE Tests =========="
 cd /opt/ase/
 export ASE_CP2K_COMMAND="mpiexec -np 2 /opt/cp2k-master/cp2k/exe/local/cp2k_shell.pdbg"
 
+set +e # disable error trapping for remainder of script
 (
 set -e # abort if error is encountered
 for i in ./ase/test/cp2k/cp2k_*.py

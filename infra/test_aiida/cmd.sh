@@ -4,7 +4,7 @@
 
 set -e
 
-echo -e "\n========== Rsyncing =========="
+echo -e "\n========== Copying Changed Files =========="
 rsync --exclude="*~"          \
       --exclude=".*/"         \
       --exclude="*.pyc"       \
@@ -34,9 +34,10 @@ SUDO="sudo -u ubuntu -H"
 cd /opt/aiida-cp2k/test/
 $SUDO ./configure_aiida.sh
 
-echo -e "\n========== Running AiiDA-CP2K tests =========="
+echo -e "\n========== Running AiiDA-CP2K Tests =========="
 cd  /opt/aiida-cp2k/test/
-set +e
+
+set +e # disable error trapping for remainder of script
 (
 set -e # abort on error
 $SUDO ./run_tests.sh

@@ -10,7 +10,7 @@ run_selftests() {
     BASEDIR=`pwd`
     VERSION=`$PYTHON -V 2>&1 | tr -d '\n'`
     echo ""
-    echo "==========" $VERSION "=========="
+    echo "========== Running ${VERSION} Tests =========="
     #find ./src/ ./tools/ -name "*.pyc" -exec rm {} \;
     for i in $@ ; do
         set +e #disable error trapping
@@ -32,12 +32,12 @@ run_selftests() {
 
 
 #===============================================================================
-echo "Copy start..."
+echo -e "\n========== Copying Changed Files =========="
 mkdir /opt/cp2k-local-rw/
 cp -r /opt/cp2k-local/cp2k/tools /opt/cp2k-local-rw/tools
 cp -r /opt/cp2k-local/cp2k/src /opt/cp2k-local-rw/src
 cd /opt/cp2k-local-rw/
-echo "Copy done."
+
 
 ERRORS=0
 
