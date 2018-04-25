@@ -60,7 +60,7 @@ if (( $IPI_EXIT_CODE || $CP2K_EXIT_CODE )); then
     echo "Summary: Something is wrong with i-Pi commit ${IPI_REVISION}."
     echo "Status: FAILED"
 else
-    echo "Summary: I-Pi commit ${IPI_REVISION} works fine."
+    echo "Summary: i-Pi commit ${IPI_REVISION} works fine."
     echo "Status: OK"
 fi
 

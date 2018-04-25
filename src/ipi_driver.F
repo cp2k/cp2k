@@ -20,6 +20,7 @@ MODULE ipi_driver
                                               Kapil2016,&
                                               cite_reference
    USE cell_types,                      ONLY: cell_create,&
+                                              cell_release,&
                                               cell_type,&
                                               init_cell
    USE cp_external_control,             ONLY: external_control
@@ -496,6 +497,10 @@ CONTAINS
             EXIT
          ENDIF
       ENDDO driver_loop
+
+      ! clean up
+      CALL cell_release(cpcell)
+      DEALLOCATE (wait_msg)
 #endif
 
       CALL timestop(handle)
