@@ -730,7 +730,7 @@ CONTAINS
          CALL open_file(file_name="GTH-PARAMETER", file_status="UNKNOWN", file_action="WRITE", unit_number=iw)
       END IF
       WRITE (iw, '(A2,A)') gthpot%symbol, ADJUSTL(TRIM(gthpot%pname))
-      WRITE (iw, '(4I5)') gthpot%econf
+      WRITE (iw, '(4I5)') gthpot%econf(0:3)
       WRITE (iw, '(F20.14,I8,5F20.14)') gthpot%rc, gthpot%ncl, (gthpot%cl(i), i=1, gthpot%ncl)
       IF (gthpot%lpotextended) THEN
          WRITE (iw, '(A,I5)') "  LPOT", gthpot%nexp_lpot

@@ -938,7 +938,7 @@ CONTAINS
          CALL atom_write_pseudo_param(ppot%gth_pot)
          ! dx < SQRT(ostate%rhoend)
          IF ((dx*dx) < ostate%rhoend) EXIT
-         ostate%rhobeg = 0.25_dp*ostate%rhobeg
+         ostate%rhobeg = 0.75_dp*ostate%rhobeg
       END DO
       DEALLOCATE (xi)
 
@@ -1510,21 +1510,13 @@ CONTAINS
 
       REAL(KIND=dp), PARAMETER                           :: dt = LOG(10._dp)
 
-      REAL(KIND=dp)                                      :: lt, lv, t2
-
       CPASSERT(fval >= 0.0_dp)
 
       IF (fval <= ftarget) THEN
          errval = 0.0_dp
       ELSE
-         lv = LOG(fval)
-         lt = LOG(ftarget)
-         errval = -(LOG(fval)-LOG(ftarget))/LOG(ftarget)
-         errval = SQRT(-(lv-lt)/lt)
-         t2 = lt+dt
-         errval = errval*0.5_dp*(1._dp+TANH((lv-t2)/dt/12.566_dp))
-         t2 = ABS(fval-ftarget)-100_dp*ABS(ftarget)
-         IF (t2 > 0._dp) errval = errval+10._dp*t2*t2
+         errval = (fval-ftarget)/MAX(ftarget, 1.e-10_dp)
+         errval = errval*errval
       END IF
 
    END FUNCTION get_error_value
