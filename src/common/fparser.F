@@ -18,6 +18,8 @@ MODULE fparser
    !
    !------- -------- --------- --------- --------- --------- --------- --------- -------
 
+   USE erf_fn,                          ONLY: erf,&
+                                              erfc
    USE kinds,                           ONLY: default_string_length,&
                                               rn => dp
 #include "../base/base_uses.f90"
@@ -58,13 +60,15 @@ MODULE fparser
                              cAsin = 19, &
                              cAcos = 20, &
                              cAtan = 21, &
-                             VarBegin = 22
+                             cErf = 22, &
+                             cErfc = 23, &
+                             VarBegin = 24
    CHARACTER(LEN=1), DIMENSION(cAdd:cPow), PARAMETER :: Ops = (/'+', &
                                                                 '-', &
                                                                 '*', &
                                                                 '/', &
                                                                 '^'/)
-   CHARACTER(LEN=5), DIMENSION(cAbs:cAtan), PARAMETER :: Funcs = (/'abs  ', &
+   CHARACTER(LEN=5), DIMENSION(cAbs:cErfc), PARAMETER :: Funcs = (/'abs  ', &
                                                                    'exp  ', &
                                                                    'log10', &
                                                                    'log  ', &
@@ -77,7 +81,9 @@ MODULE fparser
                                                                    'tan  ', &
                                                                    'asin ', &
                                                                    'acos ', &
-                                                                   'atan '/)
+                                                                   'atan ', &
+                                                                   'erf  ', &
+                                                                   'erfc '/)
 ! **************************************************************************************************
    TYPE tComp
       INTEGER(is), DIMENSION(:), POINTER :: ByteCode
@@ -250,6 +256,8 @@ CONTAINS
                EvalErrType = 4; res = zero; RETURN; ENDIF
             Comp(i)%Stack(SP) = ACOS(Comp(i)%Stack(SP))
          CASE (cAtan); Comp(i)%Stack(SP) = ATAN(Comp(i)%Stack(SP))
+         CASE (cErf); Comp(i)%Stack(SP) = ERF(Comp(i)%Stack(SP))
+         CASE (cErfc); Comp(i)%Stack(SP) = ERFC(Comp(i)%Stack(SP))
          CASE DEFAULT; SP = SP+1; Comp(i)%Stack(SP) = Val(Comp(i)%ByteCode(IP)-VarBegin+1)
          END SELECT
       END DO
@@ -451,7 +459,7 @@ CONTAINS
 !----- -------- --------- --------- --------- --------- --------- --------- -------
 
       n = 0
-      DO j = cAbs, cAtan ! Check all math functions
+      DO j = cAbs, cErfc ! Check all math functions
          k = MIN(LEN_TRIM(Funcs(j)), LEN(str))
          CALL LowCase(str(1:k), fun)
          IF (fun == Funcs(j)) THEN ! Compare lower case letters
