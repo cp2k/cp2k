@@ -19,8 +19,12 @@ if git rev-parse; then
   git log -1 --pretty="%nCommitSHA: %H%nCommitTime: %ci%nCommitAuthor: %an%nCommitSubject: %s%n"
 fi
 
+BUILDARGS=""
+if [ -f ./test_${TESTNAME}/buildargs.sh ]; then
+  source ./test_${TESTNAME}/buildargs.sh
+fi
 set -x
-docker build -t img_cp2k_test_${TESTNAME} ./test_${TESTNAME}/
+docker build -t img_cp2k_test_${TESTNAME} ${BUILDARGS} ./test_${TESTNAME}/
 docker run -i --init --volume ${CP2K_LOCAL}:/opt/cp2k-local/:ro img_cp2k_test_${TESTNAME}
 
 #EOF
