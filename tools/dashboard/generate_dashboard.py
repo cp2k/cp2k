@@ -22,6 +22,7 @@ import itertools
 from urllib.parse import urlencode
 from urllib.request import urlopen
 import configparser
+import pickle
 
 import matplotlib as mpl
 mpl.use('Agg')  # change backend, to run without X11
@@ -164,29 +165,39 @@ def gen_archive(config, log, outdir):
         archive_files = glob(outdir+"archive/%s/rev_*.txt.gz"%s) + \
                         glob(outdir+"archive/%s/commit_*.txt.gz"%s)
 
-        # check if anything has changed
-        last_change = max([path.getmtime(fn) for fn in archive_files])
-        if(last_change < path.getmtime(outdir+'archive/%s/index.html'%s)):
-            print("Nothing has changed, skipping.")
-            continue
-
+        # read cache
+        cache_fn = outdir+"archive/%s/reports.cache"%s
+        if not path.exists(cache_fn):
+            reports_cache = dict()
+        else:
+            reports_cache = pickle.load(open(cache_fn, "rb"))
+            cache_age = path.getmtime(cache_fn)
+            # remove outdated cache entries
+            reports_cache = {k:v for k,v in reports_cache.items() if path.getmtime(k) < cache_age }
 
         # read all archived reports
         archive_reports = dict()
         for fn in archive_files:
-            report_txt = gzip.open(fn, 'rb').read().decode("utf-8", errors='replace')
-            report = parse_report(report_txt, report_type, log)
-            report['url'] = path.basename(fn)[:-3]
+            if fn in reports_cache:
+                report = reports_cache[fn]
+            else:
+                report_txt = gzip.open(fn, 'rb').read().decode("utf-8", errors='replace')
+                report = parse_report(report_txt, report_type, log)
+                report['url'] = path.basename(fn)[:-3]
+                reports_cache[fn] = report
             sha = report['git-sha']
             if sha is None:
                 continue # Skipping report, it's usually a svn commit from a different branch
             assert sha not in archive_reports
             archive_reports[sha] = report
 
+        # write cache
+        pickle.dump(reports_cache, open(cache_fn, "wb"))
+
         # loop over all relevant commits
         all_url_rows = []
         all_html_rows = []
-        max_age = max([log.index[sha] for sha in archive_reports.keys()])
+        max_age = 1 + max([log.index[sha] for sha in archive_reports.keys()])
         for commit in log[:max_age]:
             sha = commit['git-sha']
             html_row  = '<tr>'
@@ -572,18 +583,18 @@ def parse_regtest_report(report_txt):
         report['summary'] = "Test directory is locked."
         return(report)
 
-    m = re.search("\nGREPME (\d+) (\d+) (\d+) (\d+) (\d+) (.+)\n", report_txt)
+    m = re.findall("\nGREPME (\d+) (\d+) (\d+) (\d+) (\d+) (.+)\n", report_txt)
     if(not m and re.search("make: .* Error .*", report_txt)):
         report['status'] = "FAILED"
         report['summary'] = "Compilation failed."
         return(report)
 
-    runtime_errors = int(m.group(1))
-    wrong_results  = int(m.group(2))
-    correct_tests  = int(m.group(3))
-    new_inputs     = int(m.group(4))
-    num_tests      = int(m.group(5))
-    memory_leaks   = int(m.group(6).replace("X", "0"))
+    runtime_errors = int(m[-1][0])
+    wrong_results  = int(m[-1][1])
+    correct_tests  = int(m[-1][2])
+    new_inputs     = int(m[-1][3])
+    num_tests      = int(m[-1][4])
+    memory_leaks   = int(m[-1][5].replace("X", "0"))
 
     report['summary'] = "correct: %d / %d"%(correct_tests, num_tests)
     if(new_inputs > 0):
@@ -619,8 +630,8 @@ def parse_generic_report(report_txt):
         m = re.search("(^|\n)Revision: (\d+)\n", report_txt)
         report['svn-rev'] = int(m.group(2))
 
-    report['summary'] = re.search("(^|\n)Summary: (.+)\n", report_txt).group(2)
-    report['status'] = re.search("(^|\n)Status: (.+)\n", report_txt).group(2)
+    report['summary'] = re.findall("(^|\n)Summary: (.+)\n", report_txt)[-1][1]
+    report['status'] = re.findall("(^|\n)Status: (.+)\n", report_txt)[-1][1]
     report['plots'] = [eval("dict(%s)"%m[1]) for m in re.findall("(^|\n)Plot: (.+)(?=\n)", report_txt)]
     report['plotpoints'] = [eval("dict(%s)"%m[1]) for m in re.findall("(^|\n)PlotPoint: (.+)(?=\n)", report_txt)]
     return(report)
