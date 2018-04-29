@@ -15,7 +15,7 @@ elif [[ "${TESTNAME}" == "minimal" ]]; then
 elif [[ "${TESTNAME}" =~ ^coverage-(sdbg|pdbg)$ ]]; then
   BUILDARGS="$BUILDARGS --build-arg ARCH=local_coverage --build-arg VERSION=${TESTNAME:9}"
 
-elif [[ "${TESTNAME}" =~ ^valgrind-(sdbg|pdbg)$ ]]; then
+elif [[ "${TESTNAME}" =~ ^valgrind-(sdbg|sopt|pdbg|popt)$ ]]; then
   BUILDARGS="$BUILDARGS --build-arg ARCH=local_valgrind --build-arg VERSION=${TESTNAME:9}"
 
 else
