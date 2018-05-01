@@ -1,8 +1,9 @@
-#!/usr/bin/python
+#!/usr/bin/python3
 # -*- coding: utf-8 -*-
 
 # author: Ole Schuett
 
+from urllib.request import urlopen
 from datetime import datetime
 from glob import glob
 import numpy as np
@@ -17,11 +18,11 @@ except ImportError:
 
 #===============================================================================
 def main():
-    if(len(sys.argv) != 2):
-        print("Usage generate_regtest_survey.py <output-dir>")
+    if(len(sys.argv) != 3):
+        print("Usage generate_regtest_survey.py <dashboard.conf> <output-dir>")
         sys.exit(1)
 
-    outdir = sys.argv[1]
+    config_fn, outdir = sys.argv[1:]
     assert(outdir.endswith("/"))
 
     # parse ../../tests/*/*/TEST_FILES
@@ -33,7 +34,7 @@ def main():
     # find eligible testers
     tester_names = list()
     config = configparser.ConfigParser()
-    config.read("dashboard.conf")
+    config.read(config_fn)
     def get_sortkey(s): return config.getint(s, "sortkey")
     for s in sorted(config.sections(), key=get_sortkey):
         if(config.get(s,"report_type") == "regtest"):
@@ -41,12 +42,11 @@ def main():
 
     # parse latest reports
     tester_values = dict()
-    tester_revision = dict()
     inp_names = set()
     for tname in tester_names:
-        latest_report_fn = sorted(glob(outdir+"archive/%s/rev_*.txt.gz"%tname))[-1]
-        tester_revision[tname] = int(latest_report_fn.rsplit("/rev_")[1][:5])
-        report = parse_report(latest_report_fn)
+        list_recent = open(outdir+"archive/%s/list_recent.txt"%tname).readlines()
+        latest_report_url = list_recent[0].strip()
+        report = parse_report(latest_report_url)
         inp_names.update(report.keys())
         tester_values[tname] = report
 
@@ -100,7 +100,7 @@ def main():
     n = len([t for t in test_defs.values() if int(t["type"])!=0])
     output += '<tr><td>Numeric tests, ie. type &ne; 0</td>'
     output += '<td align="right">%d</td><td align="right">%.1f%%</td></tr>\n'%(n,n/(0.01*ntests))
-    n = len([t for t in test_defs.values() if t.has_key("ref-value")])
+    n = len([t for t in test_defs.values() if "ref-value" in t])
     output += '<tr><td>Numeric tests with fixed reference</td>'
     output += '<td align="right">%d</td><td align="right">%.1f%%</td></tr>\n'%(n,n/(0.01*ntests))
     for i in range(14, 9, -1):
@@ -160,7 +160,6 @@ def main():
     theader += '<th>Reference</th><th>Median</th><th>MAD</th><th>#failed</th>\n'
     for tname in tester_names:
         theader += '<th><span class="nowrap">%s</span>'%config.get(tname, "name")
-        theader += '<br>svn-rev: %d'%tester_revision[tname]
         theader += '<br>#failed: %d'%tester_nfailed[tname]
         theader += '<br>#skipped: %d'%tester_nskipped[tname]
         theader += '</th>\n'
@@ -234,11 +233,12 @@ def parse_test_types():
     return(test_types)
 
 #===============================================================================
-def parse_report(fn):
-    print("Parsing: "+fn)
+def parse_report(report_url):
+    print("Parsing: "+report_url)
+    data = urlopen(report_url, timeout=5).read()
+    report_txt =  gzip.decompress(data).decode('utf-8', errors='replace')
 
     values = dict()
-    report_txt = gzip.open(fn, 'rb').read()
     m = re.search("\n-+ ?regtesting cp2k ?-+\n(.*)\n-+ Summary -+\n", report_txt, re.DOTALL)
     if(not m):
         print("Regtests not finished, skipping.")
@@ -261,7 +261,7 @@ def parse_report(fn):
             if("FAILED START" in line):
                 continue  # ignore crashed farming run
             parts = line.split()
-            if(not parts[0].endswith(".inp")):
+            if(parts[0].rsplit(".",1)[1] not in ("inp", "restart")):
                 print("Found strange line:\n"+line)
                 continue
             test_name = curr_dir+parts[0]
