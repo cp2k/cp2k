@@ -1162,7 +1162,7 @@ CONTAINS
       ! rejection of the whole move if any centroid is farther away
       ! from the current center of gravity than HELIUM%DROPLET_RADIUS [lwalewski]
       ! AND ist not moving towards the center
-      IF (helium%droplet_radius .LT. HUGE(1.0_dp)) THEN
+      IF (.NOT. helium%periodic) THEN
          IF (helium%solute_present) THEN
             new_com(:) = helium%center(:)
          ELSE
@@ -1217,7 +1217,6 @@ CONTAINS
                perm(p(1)) = c
             END IF
             RETURN
-         ELSE
          END IF
       END IF
       ! accepted.

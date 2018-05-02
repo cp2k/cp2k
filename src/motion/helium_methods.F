@@ -956,6 +956,15 @@ CONTAINS
                                       i_val=helium_env(k)%helium%get_helium_forces)
          END DO
 
+         DO k = 1, SIZE(helium_env)
+            ! init center of mass
+            IF (helium_env(k)%helium%solute_present) THEN
+               helium_env(k)%helium%center(:) = pint_com_pos(pint_env)
+            ELSE
+               helium_env(k)%helium%center(:) = (/0.0_dp, 0.0_dp, 0.0_dp/)
+            END IF
+         END DO
+
          ! init/restore coordinates
          NULLIFY (sec)
          sec => section_vals_get_subs_vals(helium_section, "COORD")
@@ -1086,7 +1095,7 @@ CONTAINS
                   r1 = next_random_number(helium_env(k)%helium%rng_stream_uniform)
                   r1 = r1*helium_env(k)%helium%cell_size
                   DO ib = 1, helium_env(k)%helium%beads
-!TODO       use thermal gaussian instead
+                     !TODO: use thermal gaussian instead
                      r2 = next_random_number(helium_env(k)%helium%rng_stream_uniform)
                      helium_env(k)%helium%pos(ic, ia, ib) = r1+0.1_dp*r2
                   END DO
@@ -1098,11 +1107,11 @@ CONTAINS
          ELSE
             DO ia = 1, helium_env(k)%helium%atoms
                r2 = 2.0_dp*helium_env(k)%helium%droplet_radius**2
-               DO WHILE (r2 > helium_env(k)%helium%droplet_radius**2)
+               DO WHILE (r2 > (0.95_dp*helium_env(k)%helium%droplet_radius)**2)
                   DO ic = 1, 3
                      rvek(ic) = next_random_number(helium_env(k)%helium%rng_stream_uniform)
                      rvek(ic) = 2.0_dp*rvek(ic)-1.0_dp
-                     rvek(ic) = rvek(ic)*helium_env(k)%helium%droplet_radius
+                     rvek(ic) = rvek(ic)*0.95_dp*helium_env(k)%helium%droplet_radius
                   END DO
                   r2 = DOT_PRODUCT(rvek, rvek)
                   ! make sure the helium does not collide with the solute
@@ -1124,8 +1133,13 @@ CONTAINS
                         helium_env(k)%helium%droplet_radius/r1* &
                         helium_env(k)%helium%pos(:, ia, ib)
                   END IF
+                  ! transfer to position around actual center of droplet
+                  helium_env(k)%helium%pos(:, ia, ib) = &
+                     helium_env(k)%helium%pos(:, ia, ib)+ &
+                     helium_env(k)%helium%center(:)
                END DO
             END DO
+
          END IF
          ! store positions at time slice nbeads+1 (rperez):
          DO ia = 1, helium_env(k)%helium%atoms
