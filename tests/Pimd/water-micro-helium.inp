@@ -21,18 +21,18 @@
       PRESAMPLE              T
       SOLUTE_INTERACTION     MWATER
       POTENTIAL_FILE_NAME    lj-test-pot.dat
-      NATOMS                 2
+      NATOMS                 5
       NBEADS                16
-      NUM_ENV                7
-      INOROT               200
-      IROT                 100
+      NUM_ENV                5
+      N_INNER               50
+      N_OUTER                7
       SAMPLING_METHOD        CEPERLEY
       &CEPERLEY
         BISECTION              8
         MAX_PERM_CYCLE         1
       &END CEPERLEY
       PERIODIC               F
-      DROPLET_RADIUS        15
+      DROPLET_RADIUS        10
       &PRINT
         &COORDINATES ON
           &EACH

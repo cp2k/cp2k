@@ -1066,6 +1066,7 @@ CONTAINS
 !> \date   2009-11-09
 !> \par    History
 !>         2016-07-14 Modified to work with independent helium_env [cschran]
+!>         2018-04-30 Usefull initialization for droplets [fuhl]
 !> \author Lukasz Walewski
 ! **************************************************************************************************
    SUBROUTINE helium_coord_init(helium_env)
@@ -1076,28 +1077,60 @@ CONTAINS
 
       INTEGER                                            :: ia, ib, ic, k
       REAL(KIND=dp)                                      :: r1, r2
+      REAL(KIND=dp), DIMENSION(3)                        :: rvek
 
       DO k = 1, SIZE(helium_env)
-         DO ia = 1, helium_env(k)%helium%atoms
-            DO ic = 1, 3
-               r1 = next_random_number(helium_env(k)%helium%rng_stream_uniform)
-               r1 = r1*helium_env(k)%helium%cell_size
+         IF (helium_env(k)%helium%periodic) THEN
+            DO ia = 1, helium_env(k)%helium%atoms
+               DO ic = 1, 3
+                  r1 = next_random_number(helium_env(k)%helium%rng_stream_uniform)
+                  r1 = r1*helium_env(k)%helium%cell_size
+                  DO ib = 1, helium_env(k)%helium%beads
+!TODO       use thermal gaussian instead
+                     r2 = next_random_number(helium_env(k)%helium%rng_stream_uniform)
+                     helium_env(k)%helium%pos(ic, ia, ib) = r1+0.1_dp*r2
+                  END DO
+               END DO
                DO ib = 1, helium_env(k)%helium%beads
-!TODO    use thermal gaussian instead
-                  r2 = next_random_number(helium_env(k)%helium%rng_stream_uniform)
-                  helium_env(k)%helium%pos(ic, ia, ib) = r1+0.1_dp*r2
+                  CALL helium_pbc(helium_env(k)%helium, helium_env(k)%helium%pos(:, ia, ib))
                END DO
             END DO
-            DO ib = 1, helium_env(k)%helium%beads
-               CALL helium_pbc(helium_env(k)%helium, helium_env(k)%helium%pos(:, ia, ib))
+         ELSE
+            DO ia = 1, helium_env(k)%helium%atoms
+               r2 = 2.0_dp*helium_env(k)%helium%droplet_radius**2
+               DO WHILE (r2 > helium_env(k)%helium%droplet_radius**2)
+                  DO ic = 1, 3
+                     rvek(ic) = next_random_number(helium_env(k)%helium%rng_stream_uniform)
+                     rvek(ic) = 2.0_dp*rvek(ic)-1.0_dp
+                     rvek(ic) = rvek(ic)*helium_env(k)%helium%droplet_radius
+                  END DO
+                  r2 = DOT_PRODUCT(rvek, rvek)
+                  ! make sure the helium does not collide with the solute
+                  IF (helium_env(k)%helium%solute_present) THEN
+                     IF (r2 <= 2.0_dp) r2 = 2.0_dp*helium_env(k)%helium%droplet_radius**2
+                  END IF
+               END DO
+               DO ib = 1, helium_env(k)%helium%beads
+                  DO ic = 1, 3
+                     r2 = next_random_number(helium_env(k)%helium%rng_stream_uniform)
+                     helium_env(k)%helium%pos(ic, ia, ib) = rvek(ic)+0.1_dp*r2
+                  END DO
+                  ! Make sure, that nothing lies outside the droplet radius
+                  r1 = DOT_PRODUCT(helium_env(k)%helium%pos(:, ia, ib), &
+                                   helium_env(k)%helium%pos(:, ia, ib))
+                  IF (r1 >= helium_env(k)%helium%droplet_radius**2) THEN
+                     r1 = SQRT(r1)
+                     helium_env(k)%helium%pos(:, ia, ib) = &
+                        helium_env(k)%helium%droplet_radius/r1* &
+                        helium_env(k)%helium%pos(:, ia, ib)
+                  END IF
+               END DO
             END DO
-         END DO
-
+         END IF
          ! store positions at time slice nbeads+1 (rperez):
          DO ia = 1, helium_env(k)%helium%atoms
             helium_env(k)%helium%pos(:, ia, helium_env(k)%helium%beads+1) = helium_env(k)%helium%pos(:, ia, 1)
          END DO
-         ! initialize work array (rperez):
          helium_env(k)%helium%work = helium_env(k)%helium%pos
       END DO
 

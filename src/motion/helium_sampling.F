@@ -761,12 +761,13 @@ CONTAINS
          routineP = moduleN//':'//routineN
 
       CHARACTER(len=default_string_length)               :: err_str, stmp
-      INTEGER                                            :: c, ifix, j, k, l, level, pk1, pk2, stride
+      INTEGER                                            :: c, ia, ib, ic, ifix, j, k, l, level, &
+                                                            pk1, pk2, stride
       INTEGER, DIMENSION(:), POINTER                     :: p, perm
       LOGICAL                                            :: nperiodic, should_reject
       REAL(KIND=dp)                                      :: cell_size, ds, dtk, e1, e2, pds, &
-                                                            prev_ds, r, rtmp, sigma, x
-      REAL(KIND=dp), DIMENSION(3)                        :: bis, new_com, rm1, rm2, tmp1, tmp2
+                                                            prev_ds, r, rtmp, rtmpo, sigma, x
+      REAL(KIND=dp), DIMENSION(3)                        :: bis, biso, new_com, rm1, rm2, tmp1, tmp2
       REAL(KIND=dp), DIMENSION(:, :, :), POINTER         :: pos, work
       TYPE(spline_data_p_type), DIMENSION(:, :), POINTER :: uij
 
@@ -1158,8 +1159,9 @@ CONTAINS
       END IF
       ! accepted.
 
-      ! rejection of the whole move if any of the new positions is farther away
+      ! rejection of the whole move if any centroid is farther away
       ! from the current center of gravity than HELIUM%DROPLET_RADIUS [lwalewski]
+      ! AND ist not moving towards the center
       IF (helium%droplet_radius .LT. HUGE(1.0_dp)) THEN
          IF (helium%solute_present) THEN
             new_com(:) = helium%center(:)
@@ -1172,18 +1174,33 @@ CONTAINS
             END DO
             new_com(:) = new_com(:)/helium%atoms/helium%beads
          END IF
-         ! cycle through new positions
+         ! Cycle through atoms (ignore connectivity)
          should_reject = .FALSE.
-         outer: DO c = ifix, helium%beads
-            DO k = 1, cyclen
-               bis(:) = work(:, p(k), c)-new_com(:)
-               rtmp = SQRT(bis(1)*bis(1)+bis(2)*bis(2)+bis(3)*bis(3))
-               IF (rtmp .GE. helium%droplet_radius) THEN
+         outer: DO ia = 1, helium%atoms
+            bis(:) = 0.0_dp
+            DO ib = 1, helium%beads
+               DO ic = 1, 3
+                  bis(ic) = bis(ic)+work(ic, ia, ib)-new_com(ic)
+               END DO
+            END DO
+            bis(:) = bis(:)/helium%beads
+            rtmp = DOT_PRODUCT(bis, bis)
+            IF (rtmp .GE. helium%droplet_radius**2) THEN
+               biso(:) = 0.0_dp
+               DO ib = 1, helium%beads
+                  DO ic = 1, 3
+                     biso(ic) = biso(ic)+pos(ic, ia, ib)-helium%center(ic)
+                  END DO
+               END DO
+               biso(:) = biso(:)/helium%beads
+               rtmpo = DOT_PRODUCT(biso, biso)
+               ! only reject if it moves away from COM outside the droplet radius
+               IF (rtmpo < rtmp) THEN
                   ! found - this one does not fit within R from the center
                   should_reject = .TRUE.
                   EXIT outer
                END IF
-            END DO
+            END IF
          END DO outer
          IF (should_reject) THEN
             ! restore work and perm, then return
@@ -1200,6 +1217,7 @@ CONTAINS
                perm(p(1)) = c
             END IF
             RETURN
+         ELSE
          END IF
       END IF
       ! accepted.
