@@ -238,7 +238,8 @@ CONTAINS
       NULLIFY (keyword, subsection, print_key)
       CPASSERT(.NOT. ASSOCIATED(section))
       CALL section_create(section, name="MODE_SELECTIVE", &
-                          description="All parameters needed for to run a mode selective vibrational analysis", &
+                          description="All parameters needed for to run a mode selective vibrational analysis. "// &
+                          "The keywords FREQUENCY, RANGE, and the subsection INVOLVED_ATOMS are mutually exclusive.", &
                           n_keywords=8, n_subsections=1, repeats=.FALSE.)
 
       CALL keyword_create(keyword, name="FREQUENCY", &
@@ -348,7 +349,9 @@ CONTAINS
       CPASSERT(.NOT. ASSOCIATED(section))
       CALL section_create( &
          section, name="INVOLVED_ATOMS", &
-         description="All parameters needed for the tracking of modes dominated by the motion of selected atoms ", &
+         description="All parameters needed for the tracking of modes dominated by the motion of selected atoms. "// &
+         "Warning, if many atoms are involved, only low frequency modes are detected, "// &
+         "since they are more delocalized and match the tracked eigenvector.", &
          n_keywords=2, n_subsections=0, repeats=.FALSE.)
 
       CALL keyword_create( &
