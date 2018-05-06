@@ -1124,7 +1124,8 @@ CONTAINS
       CALL keyword_release(keyword)
 
       CALL keyword_create(keyword, name="MAGNETIZATION", &
-                          description="Specifieds a magnetization used in the atomic initial guess", &
+                          description="The magnetization used in the atomic initial guess. "// &
+                          "Adds magnetization/2 spin-alpha electrons and removes magnetization/2 spin-beta electrons.", &
                           usage="MAGNETIZATION 0.5", n_var=1, &
                           default_r_val=0.0_dp)
       CALL section_add_keyword(section, keyword)
