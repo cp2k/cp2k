@@ -1,19 +1,19 @@
-# Tested with: GFortran 6.4, MPICH 3.2, LAPACK 3.5.0, ScaLAPACK 2.0.2, FFTW 3.3, Libxc 4.0.3, ELPA 2017.05.003, PLUMED 2.1.2
+# Tested with: GFortran 6.4.0, MPICH 3.2.1, LAPACK 3.5.0, ScaLAPACK 2.0.2, FFTW 3.3, Libxc 4.0.4, ELPA 2017.05.003, PLUMED 2.1.2
 CC         = gcc
 CPP        =
 FC         = mpif90
 LD         = mpif90
 AR         = ar -r
-include      $(GCC_DIR)/plumed/2.1.2-gnu-regtest/lib/plumed/src/lib/Plumed.inc.static
+include      $(GCC_DIR)/plumed/2.1.2-regtest/lib/plumed/src/lib/Plumed.inc.static
 ELPA_VER   = 2017.05.003
-ELPA_INC   = $(GCC_DIR)/elpa/$(ELPA_VER)-gnu-openmp-regtest/include/elpa_openmp-$(ELPA_VER)
-ELPA_LIB   = $(GCC_DIR)/elpa/$(ELPA_VER)-gnu-openmp-regtest/lib
-FFTW_INC   = $(GCC_DIR)/fftw/3.3-gnu-regtest/include
-FFTW_LIB   = $(GCC_DIR)/fftw/3.3-gnu-regtest/lib64
-LIBINT_INC = $(GCC_DIR)/libint/1.1.4-default-gnu-regtest/include
-LIBINT_LIB = $(GCC_DIR)/libint/1.1.4-default-gnu-regtest/lib64
-LIBXC_INC  = $(GCC_DIR)/libxc/4.0.3-gnu-regtest/include
-LIBXC_LIB  = $(GCC_DIR)/libxc/4.0.3-gnu-regtest/lib64
+ELPA_INC   = $(MPI_PATH)/elpa/$(ELPA_VER)-openmp-regtest/include/elpa_openmp-$(ELPA_VER)
+ELPA_LIB   = $(MPI_PATH)/elpa/$(ELPA_VER)-openmp-regtest/lib
+FFTW_INC   = $(GCC_DIR)/fftw/3.3-regtest/include
+FFTW_LIB   = $(GCC_DIR)/fftw/3.3-regtest/lib
+LIBINT_INC = $(GCC_DIR)/libint/1.1.4-default-regtest/include
+LIBINT_LIB = $(GCC_DIR)/libint/1.1.4-default-regtest/lib
+LIBXC_INC  = $(GCC_DIR)/libxc/4.0.4-regtest/include
+LIBXC_LIB  = $(GCC_DIR)/libxc/4.0.4-regtest/lib
 DFLAGS     = -D__ELPA=201705 -D__F2008 -D__FFTW3 -D__LIBINT -D__LIBXC -D__MPI_VERSION=3 -D__PLUMED2\
              -D__parallel -D__SCALAPACK
 CPPFLAGS   =
