@@ -1,8 +1,10 @@
+#CPQA DEPENDS  H_H_pbe_pbe0_triplet_grid.inp
 !
 !  Open-shell grid-based optimization of the embedding potential
+!  with restart from potetnials in cube format 
 ! 
 &GLOBAL                                                                                           
-  PROJECT  h_h_pbe_pbe0_triplet_grid
+  PROJECT  h_h_pbe_pbe0_triplet_grid_restart_cube
   PRINT_LEVEL MEDIUM
   RUN_TYPE ENERGY
 &END GLOBAL
@@ -210,6 +212,9 @@
          GRID_OPT .TRUE.
          &EMBED_POT_CUBE MEDIUM
          &END
+         READ_EMBED_POT_CUBE .TRUE.
+         EMBED_CUBE_FILE_NAME  h_h_pbe_pbe0_triplet_grid-embed_pot_002-1_0.cube
+         EMBED_SPIN_CUBE_FILE_NAME h_h_pbe_pbe0_triplet_grid-spin_embed_pot_002-1_0.cube
       &END
     &END QS
     &SCF

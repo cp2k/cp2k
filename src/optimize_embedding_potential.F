@@ -85,6 +85,7 @@ MODULE optimize_embedding_potential
    USE qs_neighbor_list_types,          ONLY: neighbor_list_set_p_type
    USE qs_subsys_types,                 ONLY: qs_subsys_get,&
                                               qs_subsys_type
+   USE realspace_grid_cube,             ONLY: cube_to_pw
 #include "./base/base_uses.f90"
 
    IMPLICIT NONE
@@ -450,6 +451,9 @@ CONTAINS
       CALL section_vals_val_get(opt_embed_section, "READ_EMBED_POT", &
                                 l_val=opt_embed%read_embed_pot)
 
+      CALL section_vals_val_get(opt_embed_section, "READ_EMBED_POT_CUBE", &
+                                l_val=opt_embed%read_embed_pot_cube)
+
       CALL section_vals_val_get(opt_embed_section, "GRID_OPT", &
                                 l_val=opt_embed%grid_opt)
 
@@ -541,6 +545,69 @@ CONTAINS
    END SUBROUTINE make_lri_object
 
 ! **************************************************************************************************
+!> \brief ...
+!> \param qs_env ...
+!> \param embed_pot ...
+!> \param spin_embed_pot ...
+!> \param section ...
+!> \param opt_embed ...
+! **************************************************************************************************
+   SUBROUTINE read_embed_pot(qs_env, embed_pot, spin_embed_pot, section, opt_embed)
+      TYPE(qs_environment_type), POINTER                 :: qs_env
+      TYPE(pw_p_type), POINTER                           :: embed_pot, spin_embed_pot
+      TYPE(section_vals_type), POINTER                   :: section
+      TYPE(opt_embed_pot_type)                           :: opt_embed
+
+      ! Read the potential as a vector in the auxiliary basis
+      IF (opt_embed%read_embed_pot) &
+         CALL read_embed_pot_vector(qs_env, embed_pot, spin_embed_pot, section, opt_embed%embed_pot_coef, &
+                                    opt_embed%open_shell_embed)
+      ! Read the potential as a cube (two cubes for open shell)
+      IF (opt_embed%read_embed_pot_cube) &
+         CALL read_embed_pot_cube(embed_pot, spin_embed_pot, section, opt_embed%open_shell_embed)
+
+   END SUBROUTINE read_embed_pot
+
+! **************************************************************************************************
+!> \brief ...
+!> \param embed_pot ...
+!> \param spin_embed_pot ...
+!> \param section ...
+!> \param open_shell_embed ...
+! **************************************************************************************************
+   SUBROUTINE read_embed_pot_cube(embed_pot, spin_embed_pot, section, open_shell_embed)
+      TYPE(pw_p_type), POINTER                           :: embed_pot, spin_embed_pot
+      TYPE(section_vals_type), POINTER                   :: section
+      LOGICAL                                            :: open_shell_embed
+
+      CHARACTER(LEN=default_path_length)                 :: filename
+      LOGICAL                                            :: exist
+      REAL(KIND=dp)                                      :: scaling_factor
+
+      exist = .FALSE.
+      CALL section_vals_val_get(section, "EMBED_CUBE_FILE_NAME", c_val=filename)
+      INQUIRE (FILE=filename, exist=exist)
+      IF (.NOT. exist) &
+         CPABORT("Embedding cube file not found. ")
+
+      scaling_factor = 1.0_dp
+      CALL cube_to_pw(embed_pot%pw, filename, scaling_factor)
+
+      ! Spin-dependent part of the potential
+      IF (open_shell_embed) THEN
+         exist = .FALSE.
+         CALL section_vals_val_get(section, "EMBED_SPIN_CUBE_FILE_NAME", c_val=filename)
+         INQUIRE (FILE=filename, exist=exist)
+         IF (.NOT. exist) &
+            CPABORT("Embedding spin cube file not found. ")
+
+         scaling_factor = 1.0_dp
+         CALL cube_to_pw(spin_embed_pot%pw, filename, scaling_factor)
+      ENDIF
+
+   END SUBROUTINE read_embed_pot_cube
+
+! **************************************************************************************************
 !> \brief Read the embedding potential from the binary file
 !> \param qs_env ...
 !> \param embed_pot ...
@@ -549,8 +616,8 @@ CONTAINS
 !> \param embed_pot_coef ...
 !> \param open_shell_embed ...
 ! **************************************************************************************************
-   SUBROUTINE read_embed_pot(qs_env, embed_pot, spin_embed_pot, section, embed_pot_coef, &
-                             open_shell_embed)
+   SUBROUTINE read_embed_pot_vector(qs_env, embed_pot, spin_embed_pot, section, embed_pot_coef, &
+                                    open_shell_embed)
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(pw_p_type), POINTER                           :: embed_pot, spin_embed_pot
       TYPE(section_vals_type), POINTER                   :: section
@@ -658,7 +725,7 @@ CONTAINS
       ! Release blacs environment
       CALL cp_blacs_env_release(blacs_env)
 
-   END SUBROUTINE read_embed_pot
+   END SUBROUTINE read_embed_pot_vector
 
 ! **************************************************************************************************
 !> \brief Find the embedding restart file name
@@ -2200,8 +2267,9 @@ CONTAINS
                                         log_filename=.FALSE.)
 
          WRITE (title, *) "EMBEDDING POTENTIAL at optimization step ", i_iter
-         CALL cp_pw_to_cube(embed_pot%pw, unit_nr, title, particles=particles, &
-                            stride=section_get_ivals(dft_section, "QS%OPT_EMBED%EMBED_POT_CUBE%STRIDE"))
+         CALL cp_pw_to_cube(embed_pot%pw, unit_nr, title, particles=particles)
+!, &
+!                            stride=section_get_ivals(dft_section, "QS%OPT_EMBED%EMBED_POT_CUBE%STRIDE"))
          CALL cp_print_key_finished_output(unit_nr, logger, input, &
                                            "DFT%QS%OPT_EMBED%EMBED_POT_CUBE")
          IF (open_shell_embed) THEN ! Print spin part of the embedding potential
@@ -2212,8 +2280,9 @@ CONTAINS
                                            log_filename=.FALSE.)
 
             WRITE (title, *) "SPIN EMBEDDING POTENTIAL at optimization step ", i_iter
-            CALL cp_pw_to_cube(embed_pot_spin%pw, unit_nr, title, particles=particles, &
-                               stride=section_get_ivals(dft_section, "QS%OPT_EMBED%EMBED_POT_CUBE%STRIDE"))
+            CALL cp_pw_to_cube(embed_pot_spin%pw, unit_nr, title, particles=particles)
+!,  &
+!                               stride=section_get_ivals(dft_section, "QS%OPT_EMBED%EMBED_POT_CUBE%STRIDE"))
             CALL cp_print_key_finished_output(unit_nr, logger, input, &
                                               "DFT%QS%OPT_EMBED%EMBED_POT_CUBE")
          ENDIF

@@ -1586,9 +1586,9 @@ CONTAINS
                           opt_embed%add_const_pot, opt_embed%const_pot, opt_embed%open_shell_embed, spin_embed_pot)
 
       ! Read embeding potential vector from the file
-      IF (opt_embed%read_embed_pot) CALL read_embed_pot( &
+      IF (opt_embed%read_embed_pot .OR. opt_embed%read_embed_pot_cube) CALL read_embed_pot( &
          force_env%sub_force_env(ref_subsys_number)%force_env%qs_env, embed_pot, spin_embed_pot, &
-         opt_embed_section, opt_embed%embed_pot_coef, opt_embed%open_shell_embed)
+         opt_embed_section, opt_embed)
 
       ! Prepare the pw object to store density differences
       CALL pw_env_get(pw_env, auxbas_pw_pool=auxbas_pw_pool)

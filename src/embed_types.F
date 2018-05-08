@@ -84,7 +84,8 @@ MODULE embed_types
                                                    conv_max_spin, conv_int_spin, step_len
       LOGICAL                                   :: accept_step, newton_step, level_shift, steep_desc, &
                                                    add_const_pot, converged, read_embed_pot, &
-                                                   change_spin, open_shell_embed, grid_opt
+                                                   read_embed_pot_cube, change_spin, open_shell_embed, &
+                                                   grid_opt
       TYPE(lri_kind_type), DIMENSION(:), POINTER :: lri ! Needed to store integrals
 
    END TYPE opt_embed_pot_type
