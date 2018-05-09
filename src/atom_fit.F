@@ -495,8 +495,8 @@ CONTAINS
       INTEGER, DIMENSION(0:lmat)                         :: ncore
       LOGICAL                                            :: explicit
       REAL(KIND=dp) :: afun, charge, de, deig, drho, dx, eig, fopt, oc, pchg, peig, pv, rcm, rcov, &
-         rmax, semicore_level, t_ener, t_psir0, t_semi, t_valence, t_virt, w_ener, w_node, &
-         w_psir0, w_semi, w_valence, w_virt, wtot
+         rmax, semicore_level, step_size_scaling, t_ener, t_psir0, t_semi, t_valence, t_virt, &
+         w_ener, w_node, w_psir0, w_semi, w_valence, w_virt, wtot
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: x, xi
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: wem
       REAL(KIND=dp), ALLOCATABLE, &
@@ -511,6 +511,7 @@ CONTAINS
       CALL section_vals_val_get(powell_section, "STEP_SIZE", r_val=ostate%rhobeg)
       CALL section_vals_val_get(powell_section, "MAX_FUN", i_val=ostate%maxfun)
       CALL section_vals_val_get(powell_section, "MAX_INIT", i_val=nreinit)
+      CALL section_vals_val_get(powell_section, "STEP_SIZE_SCALING", r_val=step_size_scaling)
 
       CALL section_vals_val_get(powell_section, "WEIGHT_POT_VALENCE", r_val=w_valence)
       CALL section_vals_val_get(powell_section, "WEIGHT_POT_VIRTUAL", r_val=w_virt)
@@ -938,7 +939,7 @@ CONTAINS
          CALL atom_write_pseudo_param(ppot%gth_pot)
          ! dx < SQRT(ostate%rhoend)
          IF ((dx*dx) < ostate%rhoend) EXIT
-         ostate%rhobeg = 0.75_dp*ostate%rhobeg
+         ostate%rhobeg = step_size_scaling*ostate%rhobeg
       END DO
       DEALLOCATE (xi)
 

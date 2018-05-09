@@ -1110,6 +1110,13 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
+      CALL keyword_create(keyword, name="STEP_SIZE_SCALING", &
+                          description="Scaling of Step Size on re-initialization of Powell method", &
+                          usage="STEP_SIZE_SCALING 0.80", &
+                          default_r_val=0.75_dp)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
       CALL keyword_create(keyword, name="WEIGHT_POT_VIRTUAL", &
                           description="Weight for virtual states in pseudopotential optimization", &
                           usage="WEIGHT_POT_VIRTUAL 1.0", &
