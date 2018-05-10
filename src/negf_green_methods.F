@@ -310,13 +310,14 @@ CONTAINS
 !> \param self_energy_ret_sum sum of contact self-energies
 !> \param h_s                Kohn-Sham matrix block of the scattering region
 !> \param s_s                overlap matrix block of the scattering region
+!> \param v_hartree_s        contribution to the Kohn-Sham matrix from the external potential
 !> \author Sergey Chulkov
 ! **************************************************************************************************
-   SUBROUTINE negf_retarded_green_function(g_ret_s, omega, self_energy_ret_sum, h_s, s_s)
+   SUBROUTINE negf_retarded_green_function(g_ret_s, omega, self_energy_ret_sum, h_s, s_s, v_hartree_s)
       TYPE(cp_cfm_type), POINTER                         :: g_ret_s
       COMPLEX(kind=dp), INTENT(in)                       :: omega
       TYPE(cp_cfm_type), POINTER                         :: self_energy_ret_sum
-      TYPE(cp_fm_type), POINTER                          :: h_s, s_s
+      TYPE(cp_fm_type), POINTER                          :: h_s, s_s, v_hartree_s
 
       CHARACTER(len=*), PARAMETER :: routineN = 'negf_retarded_green_function', &
          routineP = moduleN//':'//routineN
@@ -327,9 +328,11 @@ CONTAINS
 
       ! g_ret_s = [ omega * S_S - H_S - self_energy_left - self_energy_right]^{-1}
       !
-      ! omega * S_S - H_S
+      ! omega * S_S - H_S - V_Hartree
       CALL cp_fm_to_cfm(msourcer=s_s, mtarget=g_ret_s)
       CALL cp_cfm_scale_and_add_fm(omega, g_ret_s, z_mone, h_s)
+      IF (ASSOCIATED(v_hartree_s)) &
+         CALL cp_cfm_scale_and_add_fm(z_one, g_ret_s, z_one, v_hartree_s)
 
       ! g_ret_s = [omega * S_S - H_S - \sum_{contact} self_energy_{contact}^{ret.} ]^-1
       CALL cp_cfm_scale_and_add(z_one, g_ret_s, z_mone, self_energy_ret_sum)

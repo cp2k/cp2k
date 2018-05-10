@@ -79,9 +79,6 @@ MODULE qs_ks_methods
                                               lri_kind_type
    USE mathlib,                         ONLY: abnormal_value
    USE message_passing,                 ONLY: mp_sum
-   USE negf_qs_env_methods,             ONLY: negf_modify_hartree_pot,&
-                                              negf_update_ks_matrix
-   USE negf_qs_env_types,               ONLY: negf_qs_env_type
    USE pw_env_types,                    ONLY: pw_env_get,&
                                               pw_env_type
    USE pw_methods,                      ONLY: pw_axpy,&
@@ -235,7 +232,6 @@ CONTAINS
       TYPE(lri_density_type), POINTER                    :: lri_density
       TYPE(lri_environment_type), POINTER                :: lri_env
       TYPE(lri_kind_type), DIMENSION(:), POINTER         :: lri_v_int
-      TYPE(negf_qs_env_type), POINTER                    :: negf_qs_env
       TYPE(pw_env_type), POINTER                         :: pw_env
       TYPE(pw_p_type) :: rho_tot_gspace, v_efield_rspace, v_hartree_gspace, v_hartree_rspace, &
          v_minus_veps, v_sccs_rspace, v_sic_rspace, v_spin_ddapc_rest_r
@@ -289,8 +285,7 @@ CONTAINS
                       rho=rho, &
                       rho_core=rho_core, &
                       rho_xc=rho_xc, &
-                      energy=energy, &
-                      negf_env=negf_qs_env)
+                      energy=energy)
 
       CALL qs_rho_get(rho, rho_r=rho_r, rho_ao_kp=rho_ao)
 
@@ -533,11 +528,6 @@ CONTAINS
          END IF
       END IF
       CALL pw_pool_give_back_pw(auxbas_pw_pool, rho_tot_gspace%pw)
-
-      ! external NEGF potential
-      IF (negf_qs_env%apply_bias) THEN
-         CALL negf_modify_hartree_pot(v_hartree_rspace, negf_qs_env)
-      END IF
 
       ! calculate the density matrix for the fitted mo_coeffs
       IF (dft_control%do_admm) THEN
@@ -858,12 +848,6 @@ CONTAINS
             END DO
             energy%core = energy%core+ecore_ppl
          END IF
-      END IF
-
-      IF (.NOT. just_energy .AND. negf_qs_env%update_ks_matrix) THEN
-         ! ensure that Konh-Sham matrix elements which correspond to the bulk
-         ! contact region are identical to the actual bulk calculation
-         CALL negf_update_ks_matrix(ks_matrix, negf_qs_env)
       END IF
 
       ! Sum all energy terms to obtain the total energy

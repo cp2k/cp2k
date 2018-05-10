@@ -47,18 +47,18 @@ MODULE negf_env_types
                                               negf_copy_sym_dbcsr_to_fm_submat,&
                                               negf_reference_contact_matrix,&
                                               number_of_atomic_orbitals
-   USE negf_qs_env_types,               ONLY: negf_qs_env_type
    USE negf_subgroup_types,             ONLY: negf_subgroup_env_type
    USE negf_vectors,                    ONLY: contact_direction_vector,&
                                               projection_on_direction_vector
    USE particle_types,                  ONLY: particle_type
    USE pw_env_types,                    ONLY: pw_env_get,&
                                               pw_env_type
-   USE pw_methods,                      ONLY: pw_copy
    USE pw_pool_types,                   ONLY: pw_pool_create_pw,&
+                                              pw_pool_give_back_pw,&
                                               pw_pool_type
    USE pw_types,                        ONLY: REALDATA3D,&
                                               REALSPACE,&
+                                              pw_p_type,&
                                               pw_type
    USE qs_density_mixing_types,         ONLY: mixing_storage_create,&
                                               mixing_storage_release,&
@@ -67,6 +67,7 @@ MODULE negf_env_types
    USE qs_energy_init,                  ONLY: qs_energies_init
    USE qs_environment_types,            ONLY: get_qs_env,&
                                               qs_environment_type
+   USE qs_integrate_potential,          ONLY: integrate_v_rspace
    USE qs_mo_types,                     ONLY: get_mo_set,&
                                               mo_set_p_type
    USE qs_rho_types,                    ONLY: qs_rho_get,&
@@ -90,6 +91,7 @@ MODULE negf_env_types
 ! **************************************************************************************************
    TYPE negf_env_contact_type
       REAL(kind=dp), DIMENSION(3)                        :: direction_vector, origin
+      REAL(kind=dp), DIMENSION(3)                        :: direction_vector_bias, origin_bias
       !> an axis towards the secondary contact unit cell which coincides with the transport direction
       !> 0 (undefined), 1 (+x), 2 (+y), 3 (+z), -1 (-x), -2 (-y), -3 (-z)
       INTEGER                                            :: direction_axis
@@ -125,6 +127,8 @@ MODULE negf_env_types
       TYPE(cp_fm_p_type), ALLOCATABLE, DIMENSION(:, :)    :: h_sc
       !> overlap matrix of the scattering region
       TYPE(cp_fm_type), POINTER                           :: s_s => null()
+      !> an external Hartree potential in atomic basis set representation
+      TYPE(cp_fm_type), POINTER                           :: v_hartree_s => null()
       !> overlap matrix of the scattering region -- contact interface for every contact ([ncontacts])
       TYPE(cp_fm_p_type), ALLOCATABLE, DIMENSION(:)       :: s_sc
       !> structure needed for density mixing
@@ -176,9 +180,6 @@ CONTAINS
       TYPE(force_env_p_type), DIMENSION(:), POINTER      :: sub_force_env
       TYPE(negf_atom_map_contact_type), ALLOCATABLE, &
          DIMENSION(:)                                    :: map_contact
-      TYPE(negf_qs_env_type), POINTER                    :: negf_qs_env
-      TYPE(pw_env_type), POINTER                         :: pw_env
-      TYPE(pw_pool_type), POINTER                        :: pw_pool
       TYPE(pw_type), POINTER                             :: v_hartree_rspace
       TYPE(qs_environment_type), POINTER                 :: qs_env, qs_env_contact
       TYPE(qs_subsys_type), POINTER                      :: subsys, subsys_contact
@@ -229,9 +230,7 @@ CONTAINS
       CALL qs_energies_init(qs_env, calc_forces=.FALSE.)
       CALL get_qs_env(qs_env, blacs_env=blacs_env, do_kpoints=do_kpoints, &
                       matrix_s_kp=matrix_s_kp, matrix_ks_kp=matrix_ks_kp, &
-                      negf_env=negf_qs_env, pw_env=pw_env, subsys=subsys, &
-                      v_hartree_rspace=v_hartree_rspace)
-      CALL pw_env_get(pw_env, auxbas_pw_pool=pw_pool)
+                      subsys=subsys, v_hartree_rspace=v_hartree_rspace)
 
       IF (do_kpoints) THEN
          CPABORT("k-points are currently not supported for device FORCE_EVAL")
@@ -262,12 +261,6 @@ CONTAINS
          END IF
       END DO
 
-      ! obtain a Konh-Sham and overlap matrices for each contact
-      ALLOCATE (negf_qs_env%contacts(ncontacts))
-
-      ! The following code is kept commented until we find a way to obtain matrix elements in a consistent way
-      ! ***********************************************************************************************************************
-      !
       ! stage 2: obtain relevant Kohn-Sham matrix blocks for each contact
       DO icontact = 1, ncontacts
          IF (log_unit > 0) &
@@ -279,27 +272,11 @@ CONTAINS
 
          CALL negf_env_contact_init_matrices(contact_env=negf_env%contacts(icontact), sub_env=sub_env, &
                                              qs_env_contact=qs_env_contact, matrix_s_device=matrix_s_kp(1, 1)%matrix)
-         !
-         !  CALL negf_get_bulk_contact_matrix(negf_control_aux%contacts(icontact)%ks_block_map, &
-         !                                    negf_control_aux%contacts(icontact)%ks_block_storage,&
-         !                                    matrix_ks_kp, negf_control%contacts(icontact)%atomlist_bulk, &
-         !                                    map_contact(icontact)%atom_map, &
-         !                                    matrix_ks_kp_contact, cell_to_index, blacs_env%para_env)
-
-         negf_qs_env%contacts(icontact)%direction_vector = negf_env%contacts(icontact)%direction_vector
-         negf_qs_env%contacts(icontact)%origin_scattering = negf_env%contacts(icontact)%origin
-         negf_qs_env%contacts(icontact)%v_external = negf_control%contacts(icontact)%v_external
       END DO
-      !negf_control_aux%update_ks_matrix = .TRUE.
-      ! ***********************************************************************************************************************
 
       ! obtain an initial KS-matrix for the scattering region
       CALL qs_energies(qs_env, consistent_energies=.FALSE., calc_forces=.FALSE.)
       CALL negf_env_device_init_matrices(negf_env, negf_control, sub_env, qs_env)
-
-      ! reference Hartree potential
-      CALL pw_pool_create_pw(pw_pool, negf_qs_env%v_hartree_ref, use_data=REALDATA3D, in_space=REALSPACE)
-      CALL pw_copy(v_hartree_rspace, negf_qs_env%v_hartree_ref)
 
       ! electron density mixing;
       ! the input section below should be consistent with the subroutine create_negf_section()
@@ -341,6 +318,8 @@ CONTAINS
 
       CALL contact_direction_vector(contact_env%origin, &
                                     contact_env%direction_vector, &
+                                    contact_env%origin_bias, &
+                                    contact_env%direction_vector_bias, &
                                     contact_control%atomlist_screening, &
                                     contact_control%atomlist_bulk, &
                                     subsys_device)
@@ -563,8 +542,12 @@ CONTAINS
       LOGICAL                                            :: do_kpoints
       TYPE(cp_fm_struct_type), POINTER                   :: fm_struct
       TYPE(cp_para_env_type), POINTER                    :: para_env
+      TYPE(dbcsr_p_type)                                 :: hmat
       TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: matrix_ks_kp, matrix_s_kp
       TYPE(dft_control_type), POINTER                    :: dft_control
+      TYPE(pw_env_type), POINTER                         :: pw_env
+      TYPE(pw_p_type)                                    :: v_hartree
+      TYPE(pw_pool_type), POINTER                        :: pw_pool
       TYPE(qs_subsys_type), POINTER                      :: subsys
 
       CALL timeset(routineN, handle)
@@ -576,7 +559,10 @@ CONTAINS
                          matrix_ks_kp=matrix_ks_kp, &
                          matrix_s_kp=matrix_s_kp, &
                          para_env=para_env, &
+                         pw_env=pw_env, &
                          subsys=subsys)
+         CALL pw_env_get(pw_env, auxbas_pw_pool=pw_pool)
+
          IF (do_kpoints) THEN
             CALL cp_abort(__LOCATION__, &
                           "K-points in device region have not been implemented yet.")
@@ -589,7 +575,7 @@ CONTAINS
          nao_s = number_of_atomic_orbitals(subsys, negf_control%atomlist_S_screening)
 
          ! ++ create matrices: h_s, s_s
-         NULLIFY (negf_env%s_s, fm_struct)
+         NULLIFY (negf_env%s_s, negf_env%v_hartree_s, fm_struct)
          ALLOCATE (negf_env%h_s(nspins))
 
          CALL cp_fm_struct_create(fm_struct, nrow_global=nao_s, ncol_global=nao_s, context=sub_env%blacs_env)
@@ -598,6 +584,7 @@ CONTAINS
             NULLIFY (negf_env%h_s(ispin)%matrix)
             CALL cp_fm_create(negf_env%h_s(ispin)%matrix, fm_struct)
          END DO
+         CALL cp_fm_create(negf_env%v_hartree_s, fm_struct)
          CALL cp_fm_struct_release(fm_struct)
 
          ! ++ create matrices: h_sc, s_sc
@@ -634,6 +621,30 @@ CONTAINS
                                                subsys=subsys, mpi_comm_global=para_env%group, &
                                                do_upper_diag=.TRUE., do_lower=.TRUE.)
 
+         ! v_hartree_s
+         NULLIFY (hmat%matrix)
+         CALL dbcsr_init_p(hmat%matrix)
+         CALL dbcsr_copy(matrix_b=hmat%matrix, matrix_a=matrix_s_kp(1, 1)%matrix)
+         CALL dbcsr_set(hmat%matrix, 0.0_dp)
+
+         NULLIFY (v_hartree%pw)
+         CALL pw_pool_create_pw(pw_pool, v_hartree%pw, use_data=REALDATA3D, in_space=REALSPACE)
+         CALL negf_env_init_v_hartree(v_hartree%pw, negf_env%contacts, negf_control%contacts)
+
+         CALL integrate_v_rspace(v_rspace=v_hartree, hmat=hmat, qs_env=qs_env, &
+                                 calculate_forces=.FALSE., compute_tau=.FALSE., gapw=.FALSE.)
+
+         CALL pw_pool_give_back_pw(pw_pool, v_hartree%pw)
+
+         CALL negf_copy_sym_dbcsr_to_fm_submat(matrix=hmat%matrix, &
+                                               fm=negf_env%v_hartree_s, &
+                                               atomlist_row=negf_control%atomlist_S_screening, &
+                                               atomlist_col=negf_control%atomlist_S_screening, &
+                                               subsys=subsys, mpi_comm_global=para_env%group, &
+                                               do_upper_diag=.TRUE., do_lower=.TRUE.)
+
+         CALL dbcsr_deallocate_matrix(hmat%matrix)
+
          ! extract matrices: h_sc, s_sc
          DO icontact = 1, ncontacts
             DO ispin = 1, nspins
@@ -656,6 +667,95 @@ CONTAINS
 
       CALL timestop(handle)
    END SUBROUTINE negf_env_device_init_matrices
+
+! **************************************************************************************************
+!> \brief Contribution to the Hartree potential related to the external bias voltage.
+!> \param v_hartree        Hartree potential (modified on exit)
+!> \param contact_env      NEGF environment for every contact
+!> \param contact_control  NEGF control for every contact
+!> \author Sergey Chulkov
+! **************************************************************************************************
+   SUBROUTINE negf_env_init_v_hartree(v_hartree, contact_env, contact_control)
+      TYPE(pw_type), POINTER                             :: v_hartree
+      TYPE(negf_env_contact_type), DIMENSION(:), &
+         INTENT(in)                                      :: contact_env
+      TYPE(negf_control_contact_type), DIMENSION(:), &
+         INTENT(in)                                      :: contact_control
+
+      CHARACTER(len=*), PARAMETER :: routineN = 'negf_env_init_v_hartree', &
+         routineP = moduleN//':'//routineN
+      REAL(kind=dp), PARAMETER :: threshold = 16.0_dp*EPSILON(0.0_dp)
+
+      INTEGER                                            :: dx, dy, dz, handle, icontact, ix, iy, &
+                                                            iz, lx, ly, lz, ncontacts, ux, uy, uz
+      REAL(kind=dp)                                      :: dvol, pot, proj, v1, v2
+      REAL(kind=dp), DIMENSION(3)                        :: dirvector_bias, point_coord, &
+                                                            point_indices, vector
+
+      CALL timeset(routineN, handle)
+
+      ncontacts = SIZE(contact_env)
+      CPASSERT(SIZE(contact_control) == ncontacts)
+      CPASSERT(ncontacts == 2)
+
+      dirvector_bias = contact_env(2)%origin_bias-contact_env(1)%origin_bias
+      v1 = contact_control(1)%v_external
+      v2 = contact_control(2)%v_external
+
+      lx = v_hartree%pw_grid%bounds_local(1, 1)
+      ux = v_hartree%pw_grid%bounds_local(2, 1)
+      ly = v_hartree%pw_grid%bounds_local(1, 2)
+      uy = v_hartree%pw_grid%bounds_local(2, 2)
+      lz = v_hartree%pw_grid%bounds_local(1, 3)
+      uz = v_hartree%pw_grid%bounds_local(2, 3)
+
+      dx = v_hartree%pw_grid%npts(1)/2
+      dy = v_hartree%pw_grid%npts(2)/2
+      dz = v_hartree%pw_grid%npts(3)/2
+
+      dvol = v_hartree%pw_grid%dvol
+
+      DO iz = lz, uz
+         point_indices(3) = REAL(iz+dz, kind=dp)
+         DO iy = ly, uy
+            point_indices(2) = REAL(iy+dy, kind=dp)
+
+            DO ix = lx, ux
+               point_indices(1) = REAL(ix+dx, kind=dp)
+               point_coord(:) = MATMUL(v_hartree%pw_grid%dh, point_indices)
+
+               vector = point_coord-contact_env(1)%origin_bias
+               proj = projection_on_direction_vector(vector, dirvector_bias)
+               IF (proj+threshold >= 0.0_dp .AND. proj-threshold <= 1.0_dp) THEN
+                  ! scattering region
+                  ! proj == 0   we are at the first contact boundary
+                  ! proj == 1   we are at the second contact boundary
+                  IF (proj < 0.0_dp) THEN
+                     proj = 0.0_dp
+                  ELSE IF (proj > 1.0_dp) THEN
+                     proj = 1.0_dp
+                  END IF
+                  pot = v1+(v2-v1)*proj
+               ELSE
+                  pot = 0.0_dp
+                  DO icontact = 1, ncontacts
+                     vector = point_coord-contact_env(icontact)%origin_bias
+                     proj = projection_on_direction_vector(vector, contact_env(icontact)%direction_vector_bias)
+
+                     IF (proj+threshold >= 0.0_dp .AND. proj-threshold <= 1.0_dp) THEN
+                        pot = contact_control(icontact)%v_external
+                        EXIT
+                     END IF
+                  END DO
+               END IF
+
+               v_hartree%cr3d(ix, iy, iz) = pot*dvol
+            END DO
+         END DO
+      END DO
+
+      CALL timestop(handle)
+   END SUBROUTINE negf_env_init_v_hartree
 
 ! **************************************************************************************************
 !> \brief Detect the axis towards secondary unit cell.
@@ -999,6 +1099,10 @@ CONTAINS
          END DO
          DEALLOCATE (negf_env%s_sc)
       END IF
+
+      ! v_hartree_s
+      IF (ASSOCIATED(negf_env%v_hartree_s)) &
+         CALL cp_fm_release(negf_env%v_hartree_s)
 
       ! density mixing
       CALL mixing_storage_release(negf_env%mixing_storage)

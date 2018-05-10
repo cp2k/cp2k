@@ -53,6 +53,8 @@ MODULE negf_control_types
       LOGICAL                                            :: refine_fermi_level
       !> Fermi level
       REAL(kind=dp)                                      :: fermi_level
+      !> temperature [in a.u.]
+      REAL(kind=dp)                                      :: temperature
       !> applied electric potential
       REAL(kind=dp)                                      :: v_external
    END TYPE negf_control_contact_type
@@ -70,6 +72,8 @@ MODULE negf_control_types
       !> atoms belonging to the scattering region as well as atoms belonging to
       !> screening regions of all the contacts
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: atomlist_S_screening
+      !> do not keep contact self-energy matrices
+      LOGICAL                                            :: disable_cache
       !> convergence criteria for adaptive integration methods
       REAL(kind=dp)                                      :: conv_density
       !> convergence criteria for iterative Lopez-Sancho algorithm
@@ -78,15 +82,13 @@ MODULE negf_control_types
       REAL(kind=dp)                                      :: conv_scf
       !> accuracy in mapping atoms between different force environments
       REAL(kind=dp)                                      :: eps_geometry
-      !> temperature [in a.u.]
-      REAL(kind=dp)                                      :: temperature
       !> applied bias [in a.u.]
       REAL(kind=dp)                                      :: v_bias
       !> integration lower bound [in a.u.]
       REAL(kind=dp)                                      :: energy_lbound
       !> infinitesimal offset along the imaginary axis [in a.u.]
       REAL(kind=dp)                                      :: eta
-      !> initial guess in determine the actual Fermi level of bulk contacts [in a.u.]
+      !> initial guess to determine the actual Fermi level of bulk contacts [in a.u.]
       REAL(kind=dp)                                      :: homo_lumo_gap
       !> number of residuals (poles of the Fermi function)
       INTEGER                                            :: delta_npoles
@@ -102,6 +104,12 @@ MODULE negf_control_types
       INTEGER                                            :: max_scf
       !> minimal number of MPI processes to be used to compute Green's function per energy point
       INTEGER                                            :: nprocs
+      !> shift in Hartree potential [in a.u.]
+      REAL(kind=dp)                                      :: v_shift
+      !> initial offset to determine the correct shift in Hartree potential [in a.u.]
+      REAL(kind=dp)                                      :: v_shift_offset
+      !> maximal number of iteration to determine the shift in Hartree potential
+      INTEGER                                            :: v_shift_maxiters
    END TYPE negf_control_type
 
    PRIVATE :: read_negf_atomlist
@@ -237,6 +245,13 @@ CONTAINS
          negf_control%contacts(i_rep)%compute_fermi_level = (.NOT. is_explicit) .OR. &
                                                             negf_control%contacts(i_rep)%refine_fermi_level
 
+         CALL section_vals_val_get(subsection, "TEMPERATURE", &
+                                   r_val=negf_control%contacts(i_rep)%temperature, &
+                                   i_rep_section=i_rep)
+         IF (negf_control%contacts(i_rep)%temperature <= 0.0_dp) THEN
+            CALL cp_abort(__LOCATION__, "Electronic temperature must be > 0")
+         END IF
+
          CALL section_vals_val_get(subsection, "ELECTRIC_POTENTIAL", &
                                    r_val=negf_control%contacts(i_rep)%v_external, &
                                    i_rep_section=i_rep)
@@ -244,13 +259,13 @@ CONTAINS
 
       is_explicit = read_negf_atomlist(negf_control%atomlist_S, negf_section, 1, "SCATTERING_REGION", subsys)
 
+      CALL section_vals_val_get(negf_section, "DISABLE_CACHE", l_val=negf_control%disable_cache)
+
       CALL section_vals_val_get(negf_section, "EPS_DENSITY", r_val=negf_control%conv_density)
       CALL section_vals_val_get(negf_section, "EPS_GREEN", r_val=negf_control%conv_green)
       CALL section_vals_val_get(negf_section, "EPS_SCF", r_val=negf_control%conv_scf)
 
       CALL section_vals_val_get(negf_section, "EPS_GEO", r_val=negf_control%eps_geometry)
-
-      CALL section_vals_val_get(negf_section, "TEMPERATURE", r_val=negf_control%temperature)
 
       CALL section_vals_val_get(negf_section, "ENERGY_LBOUND", r_val=negf_control%energy_lbound)
       CALL section_vals_val_get(negf_section, "ETA", r_val=negf_control%eta)
@@ -269,38 +284,47 @@ CONTAINS
 
       CALL section_vals_val_get(negf_section, "NPROC_POINT", i_val=negf_control%nprocs)
 
+      CALL section_vals_val_get(negf_section, "V_SHIFT", r_val=negf_control%v_shift)
+      CALL section_vals_val_get(negf_section, "V_SHIFT_OFFSET", r_val=negf_control%v_shift_offset)
+      CALL section_vals_val_get(negf_section, "V_SHIFT_MAX_ITERS", i_val=negf_control%v_shift_maxiters)
+
       ! check consistency
       IF (negf_control%eta < 0.0_dp) THEN
          CALL cp_abort(__LOCATION__, "ETA must be >= 0")
       END IF
 
-      IF (negf_control%temperature <= 0.0_dp) THEN
-         CALL cp_abort(__LOCATION__, "Electronic temperature must be > 0")
+      IF (n_rep > 0) THEN
+         delta_npoles_min = NINT(0.5_dp*(negf_control%eta/(pi*MAXVAL(negf_control%contacts(:)%temperature))+1.0_dp))
+      ELSE
+         delta_npoles_min = 1
       END IF
 
-      delta_npoles_min = NINT(0.5_dp*(negf_control%eta/(pi*negf_control%temperature)+1.0_dp))
-
       IF (negf_control%delta_npoles < delta_npoles_min) THEN
-         eta_max = REAL(2*negf_control%delta_npoles-1, kind=dp)*pi*negf_control%temperature
-         temp_current = negf_control%temperature*kelvin
-         temp_min = negf_control%eta/(pi*REAL(2*negf_control%delta_npoles-1, kind=dp))*kelvin
+         IF (n_rep > 0) THEN
+            eta_max = REAL(2*negf_control%delta_npoles-1, kind=dp)*pi*MAXVAL(negf_control%contacts(:)%temperature)
+            temp_current = MAXVAL(negf_control%contacts(:)%temperature)*kelvin
+            temp_min = negf_control%eta/(pi*REAL(2*negf_control%delta_npoles-1, kind=dp))*kelvin
 
-         WRITE (eta_current_str, '(ES11.4E2)') negf_control%eta
-         WRITE (eta_max_str, '(ES11.4E2)') eta_max
-         WRITE (npoles_current_str, '(I11)') negf_control%delta_npoles
-         WRITE (npoles_min_str, '(I11)') delta_npoles_min
-         WRITE (temp_current_str, '(F11.3)') temp_current
-         WRITE (temp_min_str, '(F11.3)') temp_min
+            WRITE (eta_current_str, '(ES11.4E2)') negf_control%eta
+            WRITE (eta_max_str, '(ES11.4E2)') eta_max
+            WRITE (npoles_current_str, '(I11)') negf_control%delta_npoles
+            WRITE (npoles_min_str, '(I11)') delta_npoles_min
+            WRITE (temp_current_str, '(F11.3)') temp_current
+            WRITE (temp_min_str, '(F11.3)') temp_min
 
-         CALL cp_abort(__LOCATION__, &
-                       "Parameter DELTA_NPOLES must be at least "//TRIM(ADJUSTL(npoles_min_str))// &
-                       " (instead of "//TRIM(ADJUSTL(npoles_current_str))// &
-                       ") for given TEMPERATURE ("//TRIM(ADJUSTL(temp_current_str))// &
-                       " K) and ETA ("//TRIM(ADJUSTL(eta_current_str))// &
-                       "). Alternatively you can increase TEMPERATURE above "//TRIM(ADJUSTL(temp_min_str))// &
-                       " K, or decrease ETA below "//TRIM(ADJUSTL(eta_max_str))// &
-                       ". Please keep in mind that very tight ETA may result in dramatical precision loss"// &
-                       " due to inversion of ill-conditioned matrices.")
+            CALL cp_abort(__LOCATION__, &
+                          "Parameter DELTA_NPOLES must be at least "//TRIM(ADJUSTL(npoles_min_str))// &
+                          " (instead of "//TRIM(ADJUSTL(npoles_current_str))// &
+                          ") for given TEMPERATURE ("//TRIM(ADJUSTL(temp_current_str))// &
+                          " K) and ETA ("//TRIM(ADJUSTL(eta_current_str))// &
+                          "). Alternatively you can increase TEMPERATURE above "//TRIM(ADJUSTL(temp_min_str))// &
+                          " K, or decrease ETA below "//TRIM(ADJUSTL(eta_max_str))// &
+                          ". Please keep in mind that very tight ETA may result in dramatical precision loss"// &
+                          " due to inversion of ill-conditioned matrices.")
+         ELSE
+            ! no leads have been defined, so calculation will abort anyway
+            negf_control%delta_npoles = delta_npoles_min
+         END IF
       END IF
 
       ! expand scattering region by adding atoms from contact screening regions

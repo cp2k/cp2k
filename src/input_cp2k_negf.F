@@ -77,6 +77,12 @@ CONTAINS
       CALL section_add_subsection(section, subsection)
       CALL section_release(subsection)
 
+      CALL keyword_create(keyword, name="DISABLE_CACHE", &
+                          description="Do not keep contact self-energy matrices for future reuse", &
+                          default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
       ! convergence thresholds
       CALL keyword_create(keyword, name="EPS_DENSITY", &
                           description="Target accuracy for electronic density.", &
@@ -103,13 +109,6 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="TEMPERATURE", &
-                          description="Electronic temperature.", &
-                          n_var=1, type_of_var=real_t, unit_str="K", &
-                          default_r_val=300.0_dp/kelvin)
-      CALL section_add_keyword(section, keyword)
-      CALL keyword_release(keyword)
-
       CALL keyword_create(keyword, name="ENERGY_LBOUND", &
                           description="Lower bound energy of the conductance band.", &
                           n_var=1, type_of_var=real_t, unit_str="hartree", &
@@ -125,8 +124,8 @@ CONTAINS
       CALL keyword_release(keyword)
 
       CALL keyword_create(keyword, name="HOMO_LUMO_GAP", &
-                          description="The gap between the HOMO and some fictitions LUMO. This option is used as"// &
-                          " an initial offset in determine the actual Fermi level of bulk contacts."// &
+                          description="The gap between the HOMO and some fictitious LUMO. This option is used as"// &
+                          " an initial offset to determine the actual Fermi level of bulk contacts."// &
                           " It does not need to be exact HOMO-LUMO gap, just some value to start with.", &
                           n_var=1, type_of_var=real_t, unit_str="hartree", &
                           default_r_val=0.2_dp)
@@ -188,6 +187,25 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
+      CALL keyword_create(keyword, name="V_SHIFT", &
+                          description="Initial value of the Hartree potential shift", &
+                          n_var=1, type_of_var=real_t, unit_str="hartree", &
+                          default_r_val=0.0_dp)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, name="V_SHIFT_OFFSET", &
+                          description="Initial offset to determine the optimal shift in Hartree potential.", &
+                          n_var=1, type_of_var=real_t, default_r_val=0.10_dp)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, name="V_SHIFT_MAX_ITERS", &
+                          description="Maximal number of iteration to determine the optimal shift in Hartree potential.", &
+                          n_var=1, type_of_var=integer_t, default_i_val=30)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
       ! PRINT subsection
       CALL section_create(subsection, "PRINT", "Print properties for the scattering region.", &
                           repeats=.FALSE.)
@@ -224,7 +242,7 @@ CONTAINS
 
       CALL section_create(section, "CONTACT", &
                           description="Section defining the contact region of NEGF setup.", &
-                          n_keywords=4, n_subsections=3, repeats=.TRUE.)
+                          n_keywords=5, n_subsections=3, repeats=.TRUE.)
 
       NULLIFY (keyword, print_key, subsection)
 
@@ -265,6 +283,13 @@ CONTAINS
                           " as a starting point. By default the Fermi level is computed only"// &
                           " when the keyword FERMI_LEVEL is not given explicitly.", &
                           default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, name="TEMPERATURE", &
+                          description="Electronic temperature.", &
+                          n_var=1, type_of_var=real_t, unit_str="K", &
+                          default_r_val=300.0_dp/kelvin)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
