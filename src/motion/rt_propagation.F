@@ -132,6 +132,7 @@ CONTAINS
       CALL section_vals_val_get(md_section, "TIMESTEP", r_val=qs_env%rtp%dt)
       CALL section_vals_val_get(md_section, "STEP_START_VAL", i_val=qs_env%rtp%i_start)
       CALL section_vals_val_get(md_section, "STEPS", i_val=rtp%nsteps)
+      CALL section_vals_val_get(md_section, "MAX_STEPS", i_val=rtp%max_steps)
 
       ls_scf_section => section_vals_get_subs_vals(input, "DFT%LS_SCF")
       CALL section_vals_val_get(ls_scf_section, "EPS_FILTER", r_val=rtp%filter_eps)
@@ -287,7 +288,7 @@ CONTAINS
       CALL get_qs_env(qs_env=qs_env, dft_control=dft_control, rtp=rtp, energy=energy)
 
       rtp_control => dft_control%rtp_control
-      max_steps = rtp%nsteps
+      max_steps = MIN(rtp%i_start+rtp%nsteps, rtp%max_steps)
       max_iter = rtp_control%max_iter
       eps_ener = rtp_control%eps_ener
 
@@ -297,6 +298,8 @@ CONTAINS
       time_iter_start = m_walltime()
       CALL cp_add_iter_level(logger%iter_info, "MD")
       CALL cp_iterate(logger%iter_info, iter_nr=0)
+      IF (rtp%i_start >= max_steps) CALL cp_abort(__LOCATION__, &
+                                                  "maximum step number smaller than initial step value")
       DO i_step = rtp%i_start+1, max_steps
          energy%efield_core = 0.0_dp
          qs_env%sim_time = REAL(i_step, dp)*rtp%dt

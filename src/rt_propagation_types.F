@@ -98,7 +98,7 @@ MODULE rt_propagation_types
       LOGICAL                                     :: mixing
       LOGICAL                                     :: do_hfx
       INTEGER, DIMENSION(:, :), ALLOCATABLE          :: orders
-      INTEGER                                     :: nsteps, istep, i_start
+      INTEGER                                     :: nsteps, istep, i_start, max_steps
       INTEGER                                     :: iter
       INTEGER                                     :: narn_old
       LOGICAL                                     :: converged
