@@ -898,6 +898,8 @@ CONTAINS
 
          END IF
 
+         WRITE (iunit, '(" POWELL| Start optimization",I4," of total",I4,T60,"rhobeg = ",F12.8)') &
+            nre, nreinit, ostate%rhobeg
          fopt = HUGE(0._dp)
          ostate%state = 0
          CALL powell_optimize(ostate%nvar, x, ostate)
