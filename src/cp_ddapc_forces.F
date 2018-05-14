@@ -563,7 +563,7 @@ CONTAINS
             factor2 = 0.0_dp
             IF (pos1*pos2 /= 0.0_dp) THEN
                pos1i = 1.0_dp/pos1
-               pos2i = 1.0_dp/pos1
+               pos2i = 1.0_dp/pos2
                dpos1 = pos1i*r1
                dpos2 = pos2i*r2
                ptcos = DOT_PRODUCT(r1, r2)
