@@ -138,7 +138,7 @@ while [ $# -ge 1 ]; do
   echo "Runtime:"
   echo "  -mpiranks NRANKS          number of mpi-ranks. Default: 2 for parallel versions, 1 for serial."
   echo "  -ompthreads NTHREADS      number of OpenMP threads. Default: 2 for smp versions otherwise 1."
-  echo "  -maxtasks NPROCS          total number of processor to use. Default: \`nproc --all\`."
+  echo "  -maxtasks NPROCS          total number of processor to use. Default: \`nproc\`."
   echo "  -maxbuildtasks NPROCS     total number of processor to use for compilation. Default taken from -maxtasks."
   echo "  -jobmaxtime SECONDS       maximum execution time of a single test. Default 600."
   echo "  -farming                  test via a single farming run (only for parallel cp2k)."
@@ -200,8 +200,8 @@ svndate=${svndate:-"$datum_full"}
 #
 # guessing the number of tasks / threads / ranks
 #
-# by default we use all proc of the machine
-maxtasksdefault=`nproc --all`
+# by default we use all available processors, obeys e.g. docker --cpuset-cpus
+maxtasksdefault=`nproc`
 maxtasks=${maxtasks:-${maxtasksdefault}}
 maxbuildtasks=${maxbuildtasks:-${maxtasks}}
 
