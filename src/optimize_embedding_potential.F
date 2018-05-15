@@ -74,7 +74,8 @@ MODULE optimize_embedding_potential
    USE qs_collocate_density,            ONLY: calculate_ppl_grid,&
                                               calculate_wavefunction
    USE qs_environment_types,            ONLY: get_qs_env,&
-                                              qs_environment_type
+                                              qs_environment_type,&
+                                              set_qs_env
    USE qs_integrate_potential_single,   ONLY: integrate_v_rspace_one_center
    USE qs_kind_types,                   ONLY: get_qs_kind,&
                                               qs_kind_type
@@ -97,7 +98,7 @@ MODULE optimize_embedding_potential
    PUBLIC :: prepare_embed_opt, init_embed_pot, release_opt_embed, calculate_embed_pot_grad, &
              opt_embed_step, print_rho_diff, step_control, max_dens_diff, print_emb_opt_info, &
              conv_check_embed, make_subsys_embed_pot, print_embed_restart, find_aux_dimen, &
-             read_embed_pot, understand_spin_states
+             read_embed_pot, understand_spin_states, given_embed_pot
 
 CONTAINS
 
@@ -543,6 +544,63 @@ CONTAINS
       END DO
 
    END SUBROUTINE make_lri_object
+
+! **************************************************************************************************
+!> \brief Read the external embedding potential, not to be optimized
+!> \param qs_env ...
+! **************************************************************************************************
+   SUBROUTINE given_embed_pot(qs_env)
+      TYPE(qs_environment_type), POINTER                 :: qs_env
+
+      LOGICAL                                            :: open_shell_embed
+      TYPE(dft_control_type), POINTER                    :: dft_control
+      TYPE(pw_env_type), POINTER                         :: pw_env
+      TYPE(pw_p_type), POINTER                           :: embed_pot, spin_embed_pot
+      TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool_subsys
+      TYPE(section_vals_type), POINTER                   :: input, qs_section
+
+      qs_env%given_embed_pot = .TRUE.
+      NULLIFY (input, dft_control, embed_pot, spin_embed_pot, embed_pot, spin_embed_pot, &
+               qs_section)
+      CALL get_qs_env(qs_env=qs_env, &
+                      input=input, &
+                      dft_control=dft_control, &
+                      pw_env=pw_env)
+      qs_section => section_vals_get_subs_vals(input, "DFT%QS")
+      open_shell_embed = .FALSE.
+      IF (dft_control%nspins .EQ. 2) open_shell_embed = .TRUE.
+
+      ! Prepare plane-waves pool
+      CALL pw_env_get(pw_env, auxbas_pw_pool=auxbas_pw_pool_subsys)
+
+      ! Create embedding potential
+      !CALL get_qs_env(qs_env=qs_env, &
+      !                embed_pot=embed_pot)
+      ALLOCATE (embed_pot)
+      NULLIFY (embed_pot%pw)
+      CALL pw_pool_create_pw(auxbas_pw_pool_subsys, embed_pot%pw, &
+                             use_data=REALDATA3D, &
+                             in_space=REALSPACE)
+      IF (open_shell_embed) THEN
+         ! Create spin embedding potential
+         !  CALL get_qs_env(qs_env=qs_env, &
+         !               spin_embed_pot=spin_embed_pot)
+         ALLOCATE (spin_embed_pot)
+         NULLIFY (spin_embed_pot%pw)
+         CALL pw_pool_create_pw(auxbas_pw_pool_subsys, spin_embed_pot%pw, &
+                                use_data=REALDATA3D, &
+                                in_space=REALSPACE)
+      ENDIF
+      ! Read the cubes
+      CALL read_embed_pot_cube(embed_pot, spin_embed_pot, qs_section, open_shell_embed)
+
+      IF (.NOT. open_shell_embed) THEN
+         CALL set_qs_env(qs_env=qs_env, embed_pot=embed_pot)
+      ELSE
+         CALL set_qs_env(qs_env=qs_env, embed_pot=embed_pot, spin_embed_pot=spin_embed_pot)
+      ENDIF
+
+   END SUBROUTINE given_embed_pot
 
 ! **************************************************************************************************
 !> \brief ...

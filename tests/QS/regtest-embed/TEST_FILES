@@ -8,4 +8,5 @@ H_H_pbe_pbe0_singlet_roks.inp                         11      1e-9            -1
 H2O_H2_pbe_grid.inp                                   11      1e-9            -18.3246514511
 H_H_pbe_pbe0_triplet_grid.inp                         11      1e-9            -0.94028826539
 H_H_pbe_pbe0_triplet_grid_restart_cube.inp            11      1e-9            -0.94028826537
+H_H_given_embed.inp                                   11      1e-9            -0.49080678947
 #EOF

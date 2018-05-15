@@ -223,6 +223,7 @@ MODULE qs_environment_types
       LOGICAL :: calc_image_preconditioner
       LOGICAL :: do_transport
       LOGICAL :: single_point_run
+      LOGICAL :: given_embed_pot
       REAL(KIND=dp)                                         :: sim_time
       REAL(KIND=dp) :: start_time, target_time
       REAL(KIND=dp), DIMENSION(:, :), POINTER               :: image_matrix
@@ -911,6 +912,7 @@ CONTAINS
       qs_env%has_unit_metric = .FALSE.
       qs_env%calc_image_preconditioner = .TRUE.
       qs_env%do_transport = .FALSE.
+      qs_env%given_embed_pot = .FALSE.
       IF (PRESENT(globenv)) THEN
          qs_env%target_time = globenv%cp2k_target_time
          qs_env%start_time = globenv%cp2k_start_time
@@ -1411,6 +1413,15 @@ CONTAINS
             ENDIF
             IF (ASSOCIATED(qs_env%active_space)) THEN
                CALL release_active_space_type(qs_env%active_space)
+            ENDIF
+            ! Embedding potentials if provided as input
+            IF (qs_env%given_embed_pot) THEN
+               CALL pw_release(qs_env%embed_pot%pw)
+               DEALLOCATE (qs_env%embed_pot)
+               IF (ASSOCIATED(qs_env%spin_embed_pot)) THEN
+                  CALL pw_release(qs_env%spin_embed_pot%pw)
+                  DEALLOCATE (qs_env%spin_embed_pot)
+               ENDIF
             ENDIF
 
             CALL qs_charges_release(qs_env%qs_charges)

@@ -286,6 +286,7 @@ MODULE cp_control_types
       LOGICAL                              :: ref_embed_subsys
       LOGICAL                              :: cluster_embed_subsys
       LOGICAL                              :: high_level_embed_subsys
+      LOGICAL                              :: dfet_embedded
    END TYPE qs_control_type
 
 ! **************************************************************************************************

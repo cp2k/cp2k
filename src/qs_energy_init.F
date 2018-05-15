@@ -35,6 +35,7 @@ MODULE qs_energy_init
    USE lri_environment_types,           ONLY: lri_environment_type
    USE molecule_types,                  ONLY: molecule_of_atom,&
                                               molecule_type
+   USE optimize_embedding_potential,    ONLY: given_embed_pot
    USE qs_core_energies,                ONLY: calculate_ecore_overlap,&
                                               calculate_ecore_self
    USE qs_core_hamiltonian,             ONLY: build_core_hamiltonian_matrix
@@ -322,6 +323,11 @@ CONTAINS
          CALL calculate_dispersion_pairpot(qs_env, dispersion_env, energy%dispersion, calc_forces)
 
       END IF
+      ! Embedding potential
+      IF (dft_control%qs_control%dfet_embedded) THEN
+         dft_control%apply_embed_pot = .TRUE.
+         CALL given_embed_pot(qs_env)
+      ENDIF
 
       CALL timestop(handle)
 
