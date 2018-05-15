@@ -17,13 +17,9 @@ rsync --exclude="*~"          \
       --checksum              \
       /opt/cp2k-local/  /opt/cp2k-master/
 
-echo -e "\n========== Compiling CP2K =========="
-echo "ARCH=${ARCH} VERSION=${VERSION}"
+echo -e "\n========== Running Regtests =========="
 source /opt/cp2k-toolchain/install/setup
 cd /opt/cp2k-master/cp2k/makefiles
-make -j ARCH=${ARCH} VERSION=${VERSION}
-
-echo -e "\n========== Running Regtests =========="
 rm -rf ../obj/${ARCH}/${VERSION}/*.gcda   # remove old gcov statistics
 
 if [[ "$TESTNAME" != "farming" ]]; then

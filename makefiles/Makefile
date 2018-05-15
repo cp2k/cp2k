@@ -128,9 +128,11 @@ $(EXE_NAMES): dirs makedep
 all: dirs makedep
 	@+$(MAKE) --no-print-directory -C $(OBJDIR) -f $(MAKEFILE) all INCLUDE_DEPS=true
 
-test: dirs makedep all
-	@+$(MAKE) --no-print-directory -C $(TSTDIR) -f $(MAKEFILE) test INCLUDE_DEPS=true
+# foreground testing, compilation happens in do_regtest
+test: dirs
+	cd $(TSTDIR); $(TOOLSRC)/regtesting/do_regtest -nosvn -quick -arch $(ARCH) -version $(ONEVERSION) -cp2kdir ../../../  $(TESTOPTS)
 
+# background testing, compilation happens here
 testbg: dirs makedep all
 	@+$(MAKE) --no-print-directory -C $(TSTDIR) -f $(MAKEFILE) testbg INCLUDE_DEPS=true
 
@@ -186,10 +188,6 @@ else
 # stage 4: Include $(OBJDIR)/all.dep, expand target all and libcp2k, and perform actual build.
 all: $(foreach e, $(EXE_NAMES), $(EXEDIR)/$(e).$(ONEVERSION))
 $(LIBDIR)/libcp2k$(ARCHIVE_EXT) : $(ALL_NONEXE_OBJECTS)
-
-# ================= testing ===============
-test:
-	$(TOOLSRC)/regtesting/do_regtest -nobuild -nosvn -arch $(ARCH) -version $(ONEVERSION) -cp2kdir ../../../  $(TESTOPTS)
 
 testbg:
 	@echo "testing: $(ONEVERSION) : full log in $(TSTDIR)/regtest.log "
