@@ -487,6 +487,7 @@ CONTAINS
 
       CHARACTER(len=*), PARAMETER :: routineN = 'atom_fit_pseudo', &
          routineP = moduleN//':'//routineN
+      LOGICAL, PARAMETER                                 :: debug = .FALSE.
 
       CHARACTER(len=2)                                   :: pc1, pc2, pct
       INTEGER                                            :: i, i1, i2, iw, j, j1, j2, k, l, m, n, &
@@ -566,7 +567,9 @@ CONTAINS
          END DO
       END IF
 
-      CALL open_file(file_name="POWELL_RESULT", file_status="UNKNOWN", file_action="WRITE", unit_number=iw)
+      IF (debug) THEN
+         CALL open_file(file_name="POWELL_RESULT", file_status="UNKNOWN", file_action="WRITE", unit_number=iw)
+      END IF
 
       ALLOCATE (xi(200))
       !decide here what to optimize
@@ -927,7 +930,9 @@ CONTAINS
 
             IF (fopt < 1.e-12_dp) EXIT
 
-            WRITE (iw, *) ostate%nf, ostate%f, x(1:ostate%nvar)
+            IF (debug) THEN
+               WRITE (iw, *) ostate%nf, ostate%f, x(1:ostate%nvar)
+            END IF
 
          END DO
 
