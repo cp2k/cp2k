@@ -544,12 +544,12 @@ CONTAINS
 !> \param x_xtnt the x extent of the cuboidal region
 !> \param y_xtnt the y extent of the cuboidal region
 !> \param z_xtnt the z extent of the cuboidal region
-!> \param x_glbl x grid vetor of the simulation box
-!> \param y_glbl y grid vetor of the simulation box
-!> \param z_glbl z grid vetor of the simulation box
-!> \param x_locl x grid vetor of the simulation box local to this process
-!> \param y_locl y grid vetor of the simulation box local to this process
-!> \param z_locl z grid vetor of the simulation box local to this process
+!> \param x_glbl x grid vector of the simulation box
+!> \param y_glbl y grid vector of the simulation box
+!> \param z_glbl z grid vector of the simulation box
+!> \param x_locl x grid vector of the simulation box local to this process
+!> \param y_locl y grid vector of the simulation box local to this process
+!> \param z_locl z grid vector of the simulation box local to this process
 !> \par History
 !>       07.2015 created [Hossein Bani-Hashemian]
 !> \author Mohammad Hossein Bani-Hashemian
@@ -640,12 +640,12 @@ CONTAINS
 !> \param x_xtnt the x extent of the annular region
 !> \param base_center the y and z coordinates of the cylinder's base
 !> \param base_radii the radii of the annulus' base
-!> \param x_glbl x grid vetor of the simulation box
-!> \param y_glbl y grid vetor of the simulation box
-!> \param z_glbl z grid vetor of the simulation box
-!> \param x_locl x grid vetor of the simulation box local to this process
-!> \param y_locl y grid vetor of the simulation box local to this process
-!> \param z_locl z grid vetor of the simulation box local to this process
+!> \param x_glbl x grid vector of the simulation box
+!> \param y_glbl y grid vector of the simulation box
+!> \param z_glbl z grid vector of the simulation box
+!> \param x_locl x grid vector of the simulation box local to this process
+!> \param y_locl y grid vector of the simulation box local to this process
+!> \param z_locl z grid vector of the simulation box local to this process
 !> \par History
 !>       07.2015 created [Hossein Bani-Hashemian]
 !> \author Mohammad Hossein Bani-Hashemian

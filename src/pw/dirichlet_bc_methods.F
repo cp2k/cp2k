@@ -267,13 +267,13 @@ CONTAINS
 ! **************************************************************************************************
 !> \brief Partitions a dirichlet_bc_type into tiles
 !> \param sigma the width of the transition region between 0 and 1 at the edges of the tile
-!> \param n_prtn vetor of size 3 specifying the number of times that the x, y and
+!> \param n_prtn vector of size 3 specifying the number of times that the x, y and
 !>               z interval (defining the region) should be partitioned into
 !> \param pw_pool pool of plane-wave grid
 !> \param cell_xtnts extents of the simulation cell
-!> \param x_locl x grid vetor of the simulation box local to this process
-!> \param y_locl y grid vetor of the simulation box local to this process
-!> \param z_locl z grid vetor of the simulation box local to this process
+!> \param x_locl x grid vector of the simulation box local to this process
+!> \param y_locl y grid vector of the simulation box local to this process
+!> \param z_locl z grid vector of the simulation box local to this process
 !> \param is_periodic whether or not the tile is periodic with a periodicity of one unit cell
 !> \param verbose whether or not to print out the coordinates of the vertices
 !> \param dirichlet_bc the dirichlet_bc object to be partitioned
@@ -769,9 +769,9 @@ CONTAINS
 !>     do not share any edge.
 !> \param pw_pool  pool of plane wave grid
 !> \param cell_xtnts extents of the simulation cell
-!> \param x_locl x grid vetor of the simulation box local to this process
-!> \param y_locl y grid vetor of the simulation box local to this process
-!> \param z_locl z grid vetor of the simulation box local to this process
+!> \param x_locl x grid vector of the simulation box local to this process
+!> \param y_locl y grid vector of the simulation box local to this process
+!> \param z_locl z grid vector of the simulation box local to this process
 !> \param apx_type the type of the n-gonal prism approximating the cylinder
 !> \param parallel_axis the coordinate axis that the cylindrical region extends along
 !> \param xtnt the x extent of the cylindrical region along its central axis
@@ -1203,7 +1203,7 @@ CONTAINS
 ! **************************************************************************************************
 !> \brief  Partitions an axis-aligned cuboid into tiles.
 !> \param dbc_vertices vertices of the axis-aligned Dirichlet region to be partitioned
-!> \param n_prtn vetor of size 3 specifying the number of times that the x, y and
+!> \param n_prtn vector of size 3 specifying the number of times that the x, y and
 !>               z interval (defining the region) should be partitioned into
 !> \param tiles the obtained tiles
 !> \par History
@@ -1386,9 +1386,9 @@ CONTAINS
 ! **************************************************************************************************
 !> \brief computes the pw data corresponding to an axis-aligned tile
 !> \param cell_xtnts extents of the simulation cell
-!> \param x_locl x grid vetor of the simulation box local to this process
-!> \param y_locl y grid vetor of the simulation box local to this process
-!> \param z_locl z grid vetor of the simulation box local to this process
+!> \param x_locl x grid vector of the simulation box local to this process
+!> \param y_locl y grid vector of the simulation box local to this process
+!> \param z_locl z grid vector of the simulation box local to this process
 !> \param tile_vertices coordinates of the vertices of the input tile
 !> \param sigma the width of the transition region between 0 and 1 at the edges of the tile
 !> \param is_periodic whether or not the tile is periodic with a periodicity of one unit cell
@@ -1491,9 +1491,9 @@ CONTAINS
 ! **************************************************************************************************
 !> \brief computes the pw data corresponding to an arbitrary (rectangular-shaped) tile
 !> \param cell_xtnts extents of the simulation cell
-!> \param x_locl x grid vetor of the simulation box local to this process
-!> \param y_locl y grid vetor of the simulation box local to this process
-!> \param z_locl z grid vetor of the simulation box local to this process
+!> \param x_locl x grid vector of the simulation box local to this process
+!> \param y_locl y grid vector of the simulation box local to this process
+!> \param z_locl z grid vector of the simulation box local to this process
 !> \param tile_vertices coordinates of the vertices of the input tile
 !> \param sigma the width of the transition region between 0 and 1 at the edges of the tile
 !> \param tile_pw the output pw data

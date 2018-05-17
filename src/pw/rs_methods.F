@@ -59,7 +59,7 @@ CONTAINS
    SUBROUTINE derive_fdm_cd3(f, df, rs_grid)
 
       TYPE(pw_type), POINTER                             :: f
-      TYPE(pw_p_type), DIMENSION(3), INTENT(OUT)         :: df
+      TYPE(pw_p_type), DIMENSION(3), INTENT(INOUT)       :: df
       TYPE(realspace_grid_type), POINTER                 :: rs_grid
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'derive_fdm_cd3', routineP = moduleN//':'//routineN
@@ -201,7 +201,7 @@ CONTAINS
    SUBROUTINE derive_fdm_cd7(f, df, rs_grid)
 
       TYPE(pw_type), POINTER                             :: f
-      TYPE(pw_p_type), DIMENSION(3), INTENT(OUT)         :: df
+      TYPE(pw_p_type), DIMENSION(3), INTENT(INOUT)       :: df
       TYPE(realspace_grid_type), POINTER                 :: rs_grid
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'derive_fdm_cd7', routineP = moduleN//':'//routineN
@@ -265,12 +265,12 @@ CONTAINS
 !> \brief returns the global axes and the portion of the axes that are local to
 !>        the current mpi rank
 !> \param pw_grid plane wave grid
-!> \param x_glbl x grid vetor of the simulation box
-!> \param y_glbl y grid vetor of the simulation box
-!> \param z_glbl z grid vetor of the simulation box
-!> \param x_locl x grid vetor of the simulation box local to this process
-!> \param y_locl y grid vetor of the simulation box local to this process
-!> \param z_locl z grid vetor of the simulation box local to this process
+!> \param x_glbl x grid vector of the simulation box
+!> \param y_glbl y grid vector of the simulation box
+!> \param z_glbl z grid vector of the simulation box
+!> \param x_locl x grid vector of the simulation box local to this process
+!> \param y_locl y grid vector of the simulation box local to this process
+!> \param z_locl z grid vector of the simulation box local to this process
 !> \par History
 !>       07.2014 created [Hossein Bani-Hashemian]
 !>       07.2015 moved here from dirichlet_bc_utils.F [Hossein Bani-Hashemian]
@@ -359,9 +359,9 @@ CONTAINS
 !>             = 0,                                  otherwise
 !> \param pw_pool pool of pw grid
 !> \param zeta paramter \zeta defining the width of the mollifier
-!> \param x_glbl x grid vetor of the simulation box
-!> \param y_glbl y grid vetor of the simulation box
-!> \param z_glbl z grid vetor of the simulation box
+!> \param x_glbl x grid vector of the simulation box
+!> \param y_glbl y grid vector of the simulation box
+!> \param z_glbl z grid vector of the simulation box
 !> \param pw_in the input function
 !> \param pw_out the convoluted function
 !> \par History
