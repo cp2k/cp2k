@@ -98,7 +98,7 @@ CONTAINS
   SUBROUTINE m_memory(mem)
 
       INTEGER(KIND=int_8), OPTIONAL, INTENT(OUT)         :: mem
-      INTEGER(KIND=int_8)                      :: m1,m2,m3,mem_local
+      INTEGER(KIND=int_8)                      :: mem_local
 
       !
       ! __NO_STATM_ACCESS can be used to disable the stuff, if getpagesize
@@ -107,6 +107,7 @@ CONTAINS
 #if defined(__NO_STATM_ACCESS)
       mem_local=0
 #else
+      INTEGER(KIND=int_8)                      :: m1,m2,m3
       CHARACTER(LEN=80) :: DATA
       INTEGER :: iostat,i
 
