@@ -41,7 +41,6 @@ MODULE cp_control_utils
         sccs_derivative_cd7, sccs_derivative_fft, sccs_fattebert_gygi, sic_ad, sic_eo, &
         sic_list_all, sic_list_unpaired, sic_mauri_spz, sic_mauri_us, sic_none, slater, &
         tddfpt_excitations, use_mom_ref_user, xas_dip_len
-   USE input_cp2k_check,                ONLY: xc_functionals_expand
    USE input_cp2k_dft,                  ONLY: create_dft_section,&
                                               create_qs_section
    USE input_enumeration_types,         ONLY: enum_i2c,&

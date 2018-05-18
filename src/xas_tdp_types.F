@@ -13,16 +13,14 @@ MODULE xas_tdp_types
    USE cp_fm_types,                     ONLY: cp_fm_type, cp_fm_release, cp_fm_p_type
    USE dbcsr_api,                       ONLY: dbcsr_type, dbcsr_release, dbcsr_p_type, &
                                               dbcsr_deallocate_matrix_set
-   USE input_constants,                 ONLY: xas_1s_type,&
-                                              xas_dip_vel,&
+   USE input_constants,                 ONLY: xas_dip_vel,&
                                               xas_tdp_by_index,&
                                               xas_tdp_by_kind, &
                                               tddfpt_singlet
    USE input_section_types,             ONLY: section_vals_type,&
                                               section_vals_val_get,&
                                               section_vals_get_subs_vals
-   USE kinds,                           ONLY: default_string_length,&
-                                              dp
+   USE kinds,                           ONLY: dp ,default_string_length
    USE memory_utilities,                ONLY: reallocate
    USE qs_loc_types,                    ONLY: qs_loc_env_new_type,&
                                               qs_loc_env_release
@@ -49,7 +47,7 @@ MODULE xas_tdp_types
 !> \param eri_mme_subsection the subsection dealing with the param for the eri_mme for the kernels
 ! **************************************************************************************************
    TYPE xas_tdp_control_type
-      INTEGER                                 :: define_excited
+      INTEGER                                 :: define_excited   
       INTEGER                                 :: dipole_form
       INTEGER                                 :: n_search
       INTEGER                                 :: n_gauss
@@ -58,17 +56,18 @@ MODULE xas_tdp_types
       LOGICAL                                 :: full_diag
       LOGICAL                                 :: do_singlet
       INTEGER, DIMENSION(:), POINTER          :: list_ex_atoms
-      CHARACTER(len=default_string_length), &
-         DIMENSION(:), POINTER    :: list_ex_kinds
-      INTEGER, DIMENSION(:, :), POINTER        :: state_types
+      CHARACTER(len=default_string_length),&
+                     DIMENSION(:), POINTER    :: list_ex_kinds
+      INTEGER, DIMENSION(:,:), POINTER        :: state_types 
       TYPE(section_vals_type), POINTER        :: loc_subsection
       TYPE(section_vals_type), POINTER        :: print_loc_subsection
       TYPE(section_vals_type), POINTER        :: eri_mme_subsection
 
    END TYPE xas_tdp_control_type
-
+   
 !> *************************************************************************************************
 !> \brief Type containing informations such as inputs and results for TDP XAS calculations
+!> \param state_type_char an array containing the general donor state types as char (1s, 2s, 2p, ...)
 !> \param nex_atoms number of excited atoms
 !> \param nex_kinds number of excited kinds
 !> \param ex_atom_indices array containing the indices of the excited atoms
@@ -89,6 +88,7 @@ MODULE xas_tdp_types
 !>        integrals (ab|P) with the RI basis centered on P. Updated for each new excited atom
 !> *************************************************************************************************
    TYPE xas_tdp_env_type
+      CHARACTER(len=2), DIMENSION(3)          :: state_type_char
       INTEGER                                 :: nex_atoms
       INTEGER                                 :: nex_kinds
       INTEGER, DIMENSION(:), POINTER          :: ex_atom_indices
@@ -119,6 +119,7 @@ MODULE xas_tdp_types
 !> \param lr_evals excitation energies => the eigenvalues of the linear response equation
 !> \param osc_str oscillator strengths for the different excitation energies
 !> \param matrix_tdp the dbcsr matrix to be diagonalized to solve the problem
+!> \param metric the metric of the linear response problem M*c = omega*S*c
 !> *************************************************************************************************
    TYPE donor_state_type
       INTEGER                                 :: at_index
@@ -131,17 +132,18 @@ MODULE xas_tdp_types
       REAL(dp), DIMENSION(:), POINTER         :: lr_evals
       REAL(dp), DIMENSION(:), POINTER         :: osc_str
       TYPE(dbcsr_type), POINTER               :: matrix_tdp
+      TYPE(dbcsr_type), POINTER               :: metric
    END TYPE donor_state_type
 
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'xas_tdp_types'
 
 ! *** Public data types ***
-   PUBLIC :: xas_tdp_control_type, xas_tdp_env_type, donor_state_type
+   PUBLIC :: xas_tdp_env_type, donor_state_type, xas_tdp_control_type
 
 ! *** Public subroutines ***
-   PUBLIC :: xas_tdp_control_create, xas_tdp_control_release, read_xas_tdp_control, &
+   PUBLIC :: set_donor_state, free_ds_memory, &
              xas_tdp_env_create, xas_tdp_env_release, set_xas_tdp_env, &
-             set_donor_state, free_ds_memory
+             xas_tdp_control_create, xas_tdp_control_release, read_xas_tdp_control
 
 CONTAINS
 
@@ -150,15 +152,15 @@ CONTAINS
 !> \param xas_tdp_control the type to initialize
 ! **************************************************************************************************
    SUBROUTINE xas_tdp_control_create(xas_tdp_control)
-
+      
       TYPE(xas_tdp_control_type), POINTER                :: xas_tdp_control
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'xas_tdp_control_create', &
-         routineP = moduleN//':'//routineN
-
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'xas_tdp_control_create', &
+                                                            routineP = moduleN//':'//routineN
+      
       CPASSERT(.NOT. ASSOCIATED(xas_tdp_control))
       ALLOCATE (xas_tdp_control)
-
+      
       xas_tdp_control%dipole_form = xas_dip_vel
       xas_tdp_control%define_excited = xas_tdp_by_index
       xas_tdp_control%n_search = -1
@@ -181,12 +183,12 @@ CONTAINS
 !> \param xas_tdp_control the type to release
 ! **************************************************************************************************
    SUBROUTINE xas_tdp_control_release(xas_tdp_control)
-
+      
       TYPE(xas_tdp_control_type), POINTER                :: xas_tdp_control
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'xas_tdp_control_release', &
-         routineP = moduleN//':'//routineN
-
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'xas_tdp_control_release', &
+                                                            routineP = moduleN//':'//routineN
+      
       IF (ASSOCIATED(xas_tdp_control)) THEN
          IF (ASSOCIATED(xas_tdp_control%list_ex_atoms)) THEN
             DEALLOCATE (xas_tdp_control%list_ex_atoms)
@@ -195,13 +197,13 @@ CONTAINS
             DEALLOCATE (xas_tdp_control%list_ex_kinds)
          END IF
          IF (ASSOCIATED(xas_tdp_control%state_types)) THEN
-            DEALLOCATE (xas_tdp_control%state_types)
+            DEALLOCATE(xas_tdp_control%state_types)
          END IF
          IF (ASSOCIATED(xas_tdp_control%loc_subsection)) THEN
-            DEALLOCATE (xas_tdp_control%loc_subsection)
+            DEALLOCATE(xas_tdp_control%loc_subsection)
          END IF
          IF (ASSOCIATED(xas_tdp_control%print_loc_subsection)) THEN
-            DEALLOCATE (xas_tdp_control%print_loc_subsection)
+            DEALLOCATE(xas_tdp_control%print_loc_subsection)
          END IF
          IF (ASSOCIATED(xas_tdp_control%eri_mme_subsection)) THEN
             DEALLOCATE(xas_tdp_control%eri_mme_subsection)
@@ -220,14 +222,17 @@ CONTAINS
 
       TYPE(xas_tdp_control_type), POINTER                :: xas_tdp_control
       TYPE(section_vals_type), POINTER                   :: xas_tdp_section
+      
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'read_xas_tdp_control', &
+                                                            routineP = moduleN//':'//routineN
 
       INTEGER                                            :: irep, nrep, nexc, excitation 
       CHARACTER(len=default_string_length),&
                      DIMENSION(:), POINTER               :: k_list
       INTEGER, DIMENSION(:), POINTER                     :: a_list, t_list
 
-      NULLIFY (k_list, a_list, t_list)
-
+      NULLIFY (k_list,a_list,t_list)
+      
       CALL section_vals_val_get(xas_tdp_section, "DEFINE_EXCITED", &
                                 i_val=xas_tdp_control%define_excited)
 
@@ -254,10 +259,10 @@ CONTAINS
 
             ALLOCATE (xas_tdp_control%list_ex_kinds(0))
 
-         ELSE IF (xas_tdp_control%define_excited .EQ. xas_tdp_by_kind) THEN
+         ELSE IF (xas_tdp_control%define_excited .EQ. xas_tdp_by_kind) THEN                   
 
             CALL section_vals_val_get(xas_tdp_section, "KIND_LIST", c_vals=k_list)
-
+         
             IF (ASSOCIATED(k_list)) THEN
                nexc = SIZE(k_list)
                ALLOCATE (xas_tdp_control%list_ex_kinds(nexc))
@@ -269,7 +274,7 @@ CONTAINS
 
       IF (.NOT. ASSOCIATED(xas_tdp_control%list_ex_atoms)) THEN
          IF (xas_tdp_control%define_excited .EQ. xas_tdp_by_kind) THEN
-
+            
             ALLOCATE (xas_tdp_control%list_ex_atoms(0))
 
          ELSE IF (xas_tdp_control%define_excited .EQ. xas_tdp_by_index) THEN
@@ -287,17 +292,17 @@ CONTAINS
 
       CALL section_vals_val_get(xas_tdp_section, "STATE_TYPES", n_rep_val=nrep)
 
-      IF (.NOT. ASSOCIATED(xas_tdp_control%state_types)) THEN
-         ALLOCATE (xas_tdp_control%state_types(nrep, nexc))
-         DO irep = 1, nrep
+      IF(.NOT. ASSOCIATED(xas_tdp_control%state_types)) THEN
+         ALLOCATE (xas_tdp_control%state_types(nrep,nexc))
+         DO irep = 1,nrep
             CALL section_vals_val_get(xas_tdp_section, "STATE_TYPES", i_rep_val=irep, i_vals=t_list)
             IF (SIZE(t_list) .NE. nexc) THEN
                CPABORT("The STATE_TYPES keywords do not have the correct number of entries.")
             END IF
-            xas_tdp_control%state_types(irep, :) = t_list
+            xas_tdp_control%state_types(irep,:) = t_list
          END DO
       END IF
-
+      
       CALL section_vals_val_get(xas_tdp_section, "STATE_SEARCH", i_val=xas_tdp_control%n_search)
 
       CALL section_vals_val_get(xas_tdp_section, "NGAUSS", i_val=xas_tdp_control%n_gauss)
@@ -340,6 +345,11 @@ CONTAINS
       NULLIFY (xas_tdp_env%q_projector)
       NULLIFY (xas_tdp_env%dipmat)
       NULLIFY (xas_tdp_env%ri_coul3)
+
+!     Putting the state types as char manually
+      xas_tdp_env%state_type_char(1) = "1s"
+      xas_tdp_env%state_type_char(2) = "2s"
+      xas_tdp_env%state_type_char(3) = "2p"
 
    END SUBROUTINE xas_tdp_env_create
 
@@ -446,6 +456,7 @@ CONTAINS
 !> \param donor_state_set the set of donor states to deallocate
 !> *************************************************************************************************
    SUBROUTINE deallocate_donor_state_set(donor_state_set)
+
       TYPE(donor_state_type), DIMENSION(:), POINTER      :: donor_state_set
 
       CHARACTER(len=*), PARAMETER :: routineN = 'deallocate_donor_state_set', &
@@ -480,6 +491,11 @@ CONTAINS
                CALL dbcsr_release(donor_state_set(i)%matrix_tdp)
                DEALLOCATE(donor_state_set(i)%matrix_tdp)
             END IF
+
+            IF (ASSOCIATED(donor_state_set(i)%metric)) THEN  
+               CALL dbcsr_release(donor_state_set(i)%metric)      
+               DEALLOCATE(donor_state_set(i)%metric)           
+            END IF
                         
          END DO
          DEALLOCATE (donor_state_set)
@@ -500,9 +516,15 @@ CONTAINS
       IF (ASSOCIATED(donor_state%lr_evals)) DEALLOCATE(donor_state%lr_evals)
       IF (ASSOCIATED(donor_state%osc_str)) DEALLOCATE(donor_state%osc_str)
       IF (ASSOCIATED(donor_state%lr_coeffs)) CALL cp_fm_release(donor_state%lr_coeffs)
+
       IF (ASSOCIATED(donor_state%matrix_tdp)) THEN
          CALL dbcsr_release(donor_state%matrix_tdp)
          DEALLOCATE(donor_state%matrix_tdp)
+      END IF
+
+      IF (ASSOCIATED(donor_state%metric)) THEN   
+         CALL dbcsr_release(donor_state%metric) 
+         DEALLOCATE(donor_state%metric)  
       END IF
 
    END SUBROUTINE free_ds_memory
