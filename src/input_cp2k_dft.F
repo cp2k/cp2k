@@ -8017,10 +8017,16 @@ CONTAINS
       
       CALL section_create(subsection, "PRINT", "Controls the printing of information during "//&
                           "XAS TDP calculations", repeats=.FALSE.)
-      CALL cp_print_key_section_create(print_key, "PROGRAM_RUN_INFO", &
-                                       description="Controls the printing of basic programm steps", &
-                                       print_level=low_print_level, add_last=add_last_numeric, &
+      CALL cp_print_key_section_create(print_key, "PROGRAM_RUN_INFO",&
+                                       description="Controls the printing of basic programm steps information",&
+                                       print_level=low_print_level, add_last=add_last_numeric,&
                                        filename="__STD_OUT__")
+      CALL section_add_subsection(subsection, print_key)
+      CALL section_release(print_key)
+
+      CALL cp_print_key_section_create(print_key, "SPECTRUM", &
+                                       description="Controles the dumping of the XAS TDP spectrum in ouput files", &
+                                       print_level=low_print_level, filename="", common_iter_levels=3)
       CALL section_add_subsection(subsection, print_key)
       CALL section_release(print_key)
 
