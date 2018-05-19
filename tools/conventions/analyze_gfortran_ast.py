@@ -123,7 +123,8 @@ def process_log_file(fn, public_symbols, used_symbols):
                 print(loc+': Found WRITE statement with hardcoded unit in "'+curr_procedure+'"')
 
         elif(line.startswith("DEALLOCATE") and "STAT=" in line):
-            print(loc+': Found DEALLOCATE with STAT argument in "'+curr_procedure+'"')
+            if (":ignore __final_" not in line):  # skip over auto-generated destructors
+                print(loc+': Found DEALLOCATE with STAT argument in "'+curr_procedure+'"')
 
         elif("STAT=" in line): # catches also IOSTAT
             stat_var = line.split("STAT=",1)[1].split()[0]
