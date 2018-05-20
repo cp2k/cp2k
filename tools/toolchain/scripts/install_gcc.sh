@@ -155,6 +155,9 @@ leak:Cblacs_gridmap
 leak:blacs_gridmap_
 # leaks related to PEXSI
 leak:PPEXSIDFTDriver
+# bug in gfortran 7.3, see https://gcc.gnu.org/bugzilla/show_bug.cgi?id=85840
+#TODO: upon removal, also remove fast_unwind_on_malloc=0 from LSAN_OPTIONS
+leak:write_float_0
 EOF
 cat << EOF >> ${INSTALLDIR}/tsan.supp
 # tsan bugs likely related to gcc
@@ -169,6 +172,6 @@ EOF
 
 # need to also link to the .supp file in setup file
 cat <<EOF >> ${SETUPFILE}
-export LSAN_OPTIONS=suppressions=${INSTALLDIR}/lsan.supp
+export LSAN_OPTIONS=suppressions=${INSTALLDIR}/lsan.supp:fast_unwind_on_malloc=0
 export TSAN_OPTIONS=suppressions=${INSTALLDIR}/tsan.supp
 EOF
