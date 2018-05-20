@@ -13,14 +13,19 @@ TESTNAME=$1
 shift
 echo "Running ${TESTNAME} ..."
 
-echo -n "Date: "
+echo -n "DateBegin: "
 date --utc --rfc-3339=seconds
+
 if git rev-parse; then
   git --no-pager log -1 --pretty="%nCommitSHA: %H%nCommitTime: %ci%nCommitAuthor: %an%nCommitSubject: %s%n"
 fi
 
 CP2K_LOCAL=`realpath ../../../`
 set -x
-docker run -i --init --rm --volume ${CP2K_LOCAL}:/opt/cp2k-local/:ro $@ img_cp2k_test_${TESTNAME}
+# SYS_PTRACE needed by ThreadSanitizer.
+docker run -i --init --rm --cap-add=SYS_PTRACE --volume ${CP2K_LOCAL}:/opt/cp2k-local/:ro $@ img_cp2k_test_${TESTNAME}
+
+echo -n "DateEnd: "
+date --utc --rfc-3339=seconds
 
 #EOF
