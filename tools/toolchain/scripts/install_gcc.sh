@@ -172,6 +172,6 @@ EOF
 
 # need to also link to the .supp file in setup file
 cat <<EOF >> ${SETUPFILE}
-export LSAN_OPTIONS=suppressions=${INSTALLDIR}/lsan.supp:fast_unwind_on_malloc=0
+export LSAN_OPTIONS=suppressions=${INSTALLDIR}/lsan.supp:fast_unwind_on_malloc=0:malloc_context_size=3
 export TSAN_OPTIONS=suppressions=${INSTALLDIR}/tsan.supp
 EOF

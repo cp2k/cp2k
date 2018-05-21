@@ -13,7 +13,7 @@ TESTNAME=$1
 shift
 echo "Running ${TESTNAME} ..."
 
-echo -n "DateBegin: "
+echo -n "StartDate: "
 date --utc --rfc-3339=seconds
 
 if git rev-parse; then
@@ -22,10 +22,10 @@ fi
 
 CP2K_LOCAL=`realpath ../../../`
 set -x
-# SYS_PTRACE needed by ThreadSanitizer.
+# SYS_PTRACE needed by LeakSanitizer.
 docker run -i --init --rm --cap-add=SYS_PTRACE --volume ${CP2K_LOCAL}:/opt/cp2k-local/:ro $@ img_cp2k_test_${TESTNAME}
 
-echo -n "DateEnd: "
+echo -n "EndDate: "
 date --utc --rfc-3339=seconds
 
 #EOF
