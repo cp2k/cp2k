@@ -155,6 +155,8 @@ leak:Cblacs_gridmap
 leak:blacs_gridmap_
 # leaks related to PEXSI
 leak:PPEXSIDFTDriver
+# leaks in SuperLU
+leak:symbfact_distributeMatrix
 # bug in gfortran 7.3, see https://gcc.gnu.org/bugzilla/show_bug.cgi?id=85840
 #TODO: upon removal, also remove fast_unwind_on_malloc=0 from LSAN_OPTIONS
 leak:write_float_0
