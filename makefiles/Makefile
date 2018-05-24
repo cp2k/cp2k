@@ -366,7 +366,7 @@ TOOL_HELP += "doxygen : Generate the doxygen documentation"
 
 
 # Libcusmm stuff ============================================================
-$(LIBCUSMM_ABS_DIR)/libcusmm.cu: $(LIBCUSMM_ABS_DIR)/generate.py $(LIBCUSMM_ABS_DIR)/parameters_K20X.txt $(wildcard $(LIBCUSMM_ABS_DIR)/kernels/*.py)
+$(LIBCUSMM_ABS_DIR)/libcusmm.cu: $(LIBCUSMM_ABS_DIR)/generate.py $(LIBCUSMM_ABS_DIR)/parameters_P100.txt $(wildcard $(LIBCUSMM_ABS_DIR)/kernels/*.py)
 	cd $(LIBCUSMM_ABS_DIR); ./generate.py $(LIBCUSMM_FLAGS)
 
 
