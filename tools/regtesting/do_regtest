@@ -45,6 +45,10 @@ while [ $# -ge 1 ]; do
  -cp2kdir)
   cp2k_dir=$2
   shift ;;
+ # root path of output folder (default is ${dir_base})
+ -dirout)
+  dir_out=$2
+  shift ;;
  # MPI executable
  -mpiexec)
   mpiexec=$2 
@@ -121,6 +125,7 @@ while [ $# -ge 1 ]; do
   echo "  -h, -help, --help         print this help screen."
   echo "  -c, -config FILE          read any of the following configuration switches from FILE."
   echo "  -cp2kdir PATH             location of cp2k source tree relative to current working directory."
+  echo "  -dirout PATH              root path of output folder (default: current working directory)."
   echo "  -mpiexec EXE              name of the executable to run mpi-ranks. Default: mpiexec."
   echo ""
   echo "Svn:"
@@ -182,6 +187,7 @@ done
 #
 ###################################################################################
 cp2k_version=${cp2k_version:-sopt}
+dir_out=${dir_out:-${dir_base}}
 dir_triplet=${dir_triplet:-Linux-x86-64-gfortran}
 emptycheck=${emptycheck:-"NO"}
 leakcheck=${leakcheck:-"NO"}
@@ -258,7 +264,8 @@ cp2k_postfix=${cp2k_postfix:-"${cp2k_run_postfix}"}
 ###################################################################################
 test_types_file=${dir_base}/${cp2k_dir}/tests/TEST_TYPES
 dir_last=${dir_base}/LAST-${dir_triplet}-${cp2k_version}
-dir_out=${dir_base}/TEST-${dir_triplet}-${cp2k_version}-${datum_short}
+dirout=${dirout:-${dir_base}}
+dir_out=${dir_out}/TEST-${dir_triplet}-${cp2k_version}-${datum_short}
 changelog=${dir_last}/ChangeLog
 changelog_diff=${changelog}.diff
 changelog_new=${changelog}.new
@@ -920,20 +927,25 @@ if [[ ${skiptest} != "skiptest" ]]; then
    echo "ldd  ${dir_base}/${cp2k_dir}/exe/${dir_triplet}/cp2k.${cp2k_version} : "
    ldd  ${dir_base}/${cp2k_dir}/exe/${dir_triplet}/cp2k.${cp2k_version}
    echo "--------------------------------------------------------------------------"
-   
+
    printf "Copying tests into working directory ... "
-   
+
    # Copy the tests into the working regtest directory.
-   cp -al ${dir_base}/${cp2k_dir}/tests ${dir_out}/tests || \
-   cp -rpl ${dir_base}/${cp2k_dir}/tests ${dir_out}/tests || ( \
-     echo "Could not copy testing directory as hard links."
+   source_device=$(df --output=target ${dir_base}/${cp2k_dir}/tests | tail -1)
+   target_device=$(df --output=target ${dir_out} | tail -1)
+   if [[ ${source_device} == ${target_device} ]]; then
+      cp -al ${dir_base}/${cp2k_dir}/tests ${dir_out}/tests || \
+      cp -rpl ${dir_base}/${cp2k_dir}/tests ${dir_out}/tests
+   else
+     echo "cannot use hard links to copy the tests folder."
+     echo "Source device is ${source_device} for ${dir_base}/${cp2k_dir}/tests"
+     echo "Target device is ${target_device} for ${dir_out}"
      echo "Using normal copy instead."
-     sleep 10
-     cp -R -p ${dir_base}/${cp2k_dir}/tests ${dir_out}/tests
-   )
-   
+     cp -a ${dir_base}/${cp2k_dir}/tests ${dir_out}
+   fi
+
    printf "done!\n"
-   
+
    #
    # preprocess the restrict directories if the retest is enabled
    #
