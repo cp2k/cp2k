@@ -21,6 +21,11 @@ MODULE pexsi_interface
       f_ppexsi_retrieve_real_dft_matrix, &
       f_ppexsi_set_default_options
 #endif
+#if defined (__HAS_IEEE_EXCEPTIONS)
+   USE ieee_exceptions, ONLY: ieee_get_halting_mode, &
+      ieee_set_halting_mode, &
+      ieee_all
+#endif
    USE kinds, ONLY: int_8, &
       real_8
 #include "./base/base_uses.f90"
@@ -380,11 +385,27 @@ CONTAINS
 
 #ifdef  __LIBPEXSI
       INTEGER                                  :: handle, info
+#if defined (__HAS_IEEE_EXCEPTIONS)
+      LOGICAL, DIMENSION(5)                    :: halt
+#endif
 
       CALL timeset(routineN, handle)
+
+      ! Unfortuntatelly, some PEXSI kernels raise IEEE754 exceptions.
+      ! Therefore, we disable floating point traps temporarily.
+#if defined (__HAS_IEEE_EXCEPTIONS)
+      CALL ieee_get_halting_mode(IEEE_ALL, halt)
+      CALL ieee_set_halting_mode(IEEE_ALL, .FALSE.)
+#endif
+
       CALL f_ppexsi_dft_driver(plan, pexsi_options%options, numElectronExact, muPEXSI, &
                                numElectronPEXSI, muMinInertia, muMaxInertia, &
                                numTotalInertiaIter, numTotalPEXSIIter, info)
+
+#if defined (__HAS_IEEE_EXCEPTIONS)
+      CALL ieee_set_halting_mode(IEEE_ALL, halt)
+#endif
+
       IF (info .NE. 0) &
          CPABORT("Pexsi returned an error. Consider logPEXSI0 for details.")
       CALL timestop(handle)
