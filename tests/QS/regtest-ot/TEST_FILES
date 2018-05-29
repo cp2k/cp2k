@@ -9,7 +9,7 @@ C2H4.inp                                               1      3e-14             
 # test ddapc constraints
 He2_ddapc_constraint.inp                               1      6e-13              -5.12409717641076
 He2_ddapc_constraint-2.inp                             1      4e-05            -45.939163153444291
-He2_ddapc_constraint-3.inp                             1      2e-09            -6.8373640812944796
+He2_ddapc_constraint-3.inp                             1      4e-09            -6.8373640812944796
 # outer scf loop none
 He2_none.inp                                           1      3e-13              -5.14307655580282
 He2_none_full_all.inp             1     7e-13            -5.1463341944901098
