@@ -66,5 +66,5 @@ UO2-4x4x4-fixd.inp                                    11      9e-14           -6
 UO2-4x4x4-cs-fixd.inp                                 43    1.0E-14                       0.008410
 UO2-4x4x4-cs-fixd-restart.inp                         44    1.0E-14                       0.017655
 UO2-4x4x4-cs-fixd-nvt.inp                             54    1.0E-14                       0.041076
-UO2-4x4x4-cs-fixd-npt.inp                             54    1.0E-14                       0.021386
+UO2-4x4x4-cs-fixd-npt.inp                             54    1.0E-14                       0.045987
 #EOF
