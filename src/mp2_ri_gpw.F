@@ -3906,7 +3906,7 @@ CONTAINS
 
       ! Calculate the maximum number of ij pairs that have to be computed
       ! among groups
-      CALL mp2_ri_communication(my_alpha_beta_case, total_ij_pairs, homo, homo_beta, num_IJ_blocks, &
+      CALL mp2_ri_communication(my_alpha_beta_case, total_ij_pairs, homo, my_homo_beta, num_IJ_blocks, &
                                 block_size, ngroup, ij_map, color_sub, my_ij_pairs, my_open_shell_SS, unit_nr)
 
       ALLOCATE (num_ij_pairs(0:para_env_exchange%num_pe-1))
