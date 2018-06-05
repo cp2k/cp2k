@@ -17,11 +17,13 @@ MODULE dbcsr_tensor_api
                                               dbcsr_t_get_block,&
                                               dbcsr_t_get_stored_coordinates,&
                                               dbcsr_t_put_block,&
-                                              dbcsr_t_reserve_blocks
+                                              dbcsr_t_reserve_blocks,&
+                                              dbcsr_t_split_blocks
    USE dbcsr_tensor_block,              ONLY: dbcsr_t_iterator_blocks_left,&
                                               dbcsr_t_iterator_next_block,&
                                               dbcsr_t_iterator_start,&
-                                              dbcsr_t_iterator_stop
+                                              dbcsr_t_iterator_stop,&
+                                              dbcsr_t_iterator_type
    USE dbcsr_tensor_types,              ONLY: dbcsr_t_create,&
                                               dbcsr_t_destroy,&
                                               dbcsr_t_distribution_destroy,&
@@ -46,5 +48,7 @@ MODULE dbcsr_tensor_api
    PUBLIC :: dbcsr_t_iterator_blocks_left
    PUBLIC :: dbcsr_t_iterator_stop
    PUBLIC :: dbcsr_t_iterator_start
+   PUBLIC :: dbcsr_t_iterator_type
+   PUBLIC :: dbcsr_t_split_blocks
 
 END MODULE dbcsr_tensor_api
