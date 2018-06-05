@@ -55,24 +55,12 @@ MODULE mp2_ri_gpw
         dbcsr_iterator_start, dbcsr_iterator_stop, dbcsr_iterator_type, dbcsr_multiply, &
         dbcsr_p_type, dbcsr_put_block, dbcsr_release, dbcsr_release_p, dbcsr_reserve_blocks, &
         dbcsr_set, dbcsr_type, dbcsr_type_no_symmetry, dbcsr_type_real_8
-   USE dbcsr_tensor,                    ONLY: dbcsr_t_contract,&
-                                              dbcsr_t_get_block,&
-                                              dbcsr_t_get_stored_coordinates,&
-                                              dbcsr_t_put_block,&
-                                              dbcsr_t_reserve_blocks,&
-                                              dbcsr_t_split_blocks
-   USE dbcsr_tensor_types,              ONLY: dbcsr_t_create,&
-                                              dbcsr_t_destroy,&
-                                              dbcsr_t_distribution_destroy,&
-                                              dbcsr_t_distribution_new,&
-                                              dbcsr_t_distribution_type,&
-                                              dbcsr_t_nd_mp_comm,&
-                                              dbcsr_t_type
-   USE dbcsr_tensor_block,              ONLY: dbcsr_t_iterator_type,&
-                                              dbcsr_t_iterator_next_block, &
-                                              dbcsr_t_iterator_blocks_left, &
-                                              dbcsr_t_iterator_stop, &
-                                              dbcsr_t_iterator_start
+   USE dbcsr_tensor_api,                ONLY: &
+        dbcsr_t_contract, dbcsr_t_create, dbcsr_t_destroy, dbcsr_t_distribution_destroy, &
+        dbcsr_t_distribution_new, dbcsr_t_distribution_type, dbcsr_t_get_block, &
+        dbcsr_t_get_stored_coordinates, dbcsr_t_iterator_blocks_left, dbcsr_t_iterator_next_block, &
+        dbcsr_t_iterator_start, dbcsr_t_iterator_stop, dbcsr_t_iterator_type, dbcsr_t_nd_mp_comm, &
+        dbcsr_t_put_block, dbcsr_t_reserve_blocks, dbcsr_t_split_blocks, dbcsr_t_type
    USE gaussian_gridlevels,             ONLY: gaussian_gridlevel
    USE input_constants,                 ONLY: do_eri_gpw,&
                                               do_eri_mme,&
@@ -966,6 +954,7 @@ CONTAINS
 !> \param my_Lrows (R|P)
 !> \param sizes_B number of a (virtual) indices per subgroup process
 !> \param sizes_L number of P / R (auxiliary) indices per subgroup
+!> \param blk_size ...
 !> \param ngroup how many subgroups (NG)
 !> \param igroup subgroup color
 !> \param mp_comm_2d communicator with 2d Cartesian grid with dimensions (NG x Nw)
@@ -975,27 +964,30 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:, :, :), INTENT(INOUT)   :: BIb_C
       REAL(KIND=dp), DIMENSION(:, :), INTENT(IN)         :: my_Lrows
       INTEGER, DIMENSION(:), INTENT(IN)                  :: sizes_B, sizes_L
-      INTEGER, INTENT(IN)                                :: ngroup, igroup, mp_comm_2d
       INTEGER, DIMENSION(2), INTENT(IN)                  :: blk_size
+      INTEGER, INTENT(IN)                                :: ngroup, igroup, mp_comm_2d
       TYPE(cp_para_env_type), POINTER                    :: para_env_sub
 
       LOGICAL, PARAMETER                                 :: debug = .FALSE.
 
-      INTEGER                                            :: check_proc, i, iend, ii, ioff, iproc, &
-                                                            iproc_glob, istart, loc_a, loc_P, &
-                                                            mp_comm_B, mp_comm_L, nproc, nproc_glob, blk
+      INTEGER                                            :: blk, check_proc, i, iend, ii, ioff, &
+                                                            iproc, iproc_glob, istart, loc_a, &
+                                                            loc_P, mp_comm_B, mp_comm_L, nproc, &
+                                                            nproc_glob
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: block_ind_L_P, block_ind_L_R
       INTEGER, DIMENSION(1)                              :: dist_B_i, map_B_1, map_L_1, map_L_2, &
                                                             sizes_i
       INTEGER, DIMENSION(2)                              :: map_B_2
+      INTEGER, DIMENSION(3)                              :: blk_ind, blk_offset, blk_offset_first, &
+                                                            blk_sizes, offset_B
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: blk_data
+      LOGICAL                                            :: first_block
       INTEGER, DIMENSION(ngroup)                         :: dist_L_P, dist_L_R
       INTEGER, DIMENSION(para_env_sub%num_pe)            :: dist_B_a
       TYPE(dbcsr_t_distribution_type)                    :: dist_B, dist_L
-      TYPE(dbcsr_t_type)                                 :: tB_in, tB_in_split, tB_out, tB_out_split, tL, tL_split
       TYPE(dbcsr_t_iterator_type)                        :: iter
-      INTEGER, DIMENSION(3) :: blk_ind, blk_sizes, blk_offset, blk_offset_first, offset_B
-      REAL(KIND=dp), DIMENSION(:,:,:), ALLOCATABLE       :: blk_data
-      LOGICAL                                            :: first_block
+      TYPE(dbcsr_t_type)                                 :: tB_in, tB_in_split, tB_out, &
+                                                            tB_out_split, tL, tL_split
 
       sizes_i(1) = SIZE(BIb_C, 3)
 
@@ -1103,19 +1095,19 @@ CONTAINS
       ! retrieve local block of contraction result (P|ai)
       CALL dbcsr_t_iterator_start(iter, tB_out_split)
       first_block = .TRUE.
-      DO WHILE(dbcsr_t_iterator_blocks_left(iter))
+      DO WHILE (dbcsr_t_iterator_blocks_left(iter))
          CALL dbcsr_t_iterator_next_block(iter, blk_ind, blk, blk_size=blk_sizes, blk_offset=blk_offset)
-         IF(first_block) THEN
+         IF (first_block) THEN
             blk_offset_first(:) = blk_offset(:)
             first_block = .FALSE.
          ENDIF
-         offset_B(:) = blk_offset(:) - blk_offset_first(:)
+         offset_B(:) = blk_offset(:)-blk_offset_first(:)
          CALL dbcsr_t_get_block(tB_out_split, blk_ind, blk_data)
-         BIb_C(offset_B(1) + 1:offset_B(1) + blk_sizes(1), &
-               offset_B(2) + 1:offset_B(2) + blk_sizes(2), &
-               offset_B(3) + 1:offset_B(3) + blk_sizes(3)) = &
+         BIb_C(offset_B(1)+1:offset_B(1)+blk_sizes(1), &
+               offset_B(2)+1:offset_B(2)+blk_sizes(2), &
+               offset_B(3)+1:offset_B(3)+blk_sizes(3)) = &
             blk_data(:, :, :)
-         DEALLOCATE(blk_data)
+         DEALLOCATE (blk_data)
       END DO
       CALL dbcsr_t_iterator_stop(iter)
 

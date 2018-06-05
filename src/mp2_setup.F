@@ -312,7 +312,7 @@ CONTAINS
          eri_mme_section => section_vals_get_subs_vals(mp2_section, "ERI_MME")
          CALL cp_eri_mme_init_read_input(eri_mme_section, mp2_env%eri_mme_param)
       ENDIF
-      CALL section_vals_val_get(mp2_section, "ERI_BLKSIZE", i_vals = mp2_env%eri_blksize)
+      CALL section_vals_val_get(mp2_section, "ERI_BLKSIZE", i_vals=mp2_env%eri_blksize)
 
       ! Set some parameters in case of P screening
       mp2_env%not_last_hfx = .TRUE.
