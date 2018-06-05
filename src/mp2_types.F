@@ -252,6 +252,7 @@ MODULE mp2_types
       LOGICAL  :: not_last_hfx
       INTEGER  :: eri_method
       TYPE(cp_eri_mme_param), POINTER  :: eri_mme_param
+      INTEGER, DIMENSION(:), POINTER  :: eri_blksize => NULL()
    END TYPE
 
    TYPE integ_mat_buffer_type

@@ -59,7 +59,8 @@ MODULE mp2_ri_gpw
                                               dbcsr_t_get_block,&
                                               dbcsr_t_get_stored_coordinates,&
                                               dbcsr_t_put_block,&
-                                              dbcsr_t_reserve_blocks
+                                              dbcsr_t_reserve_blocks,&
+                                              dbcsr_t_split_blocks
    USE dbcsr_tensor_types,              ONLY: dbcsr_t_create,&
                                               dbcsr_t_destroy,&
                                               dbcsr_t_distribution_destroy,&
@@ -67,6 +68,11 @@ MODULE mp2_ri_gpw
                                               dbcsr_t_distribution_type,&
                                               dbcsr_t_nd_mp_comm,&
                                               dbcsr_t_type
+   USE dbcsr_tensor_block,              ONLY: dbcsr_t_iterator_type,&
+                                              dbcsr_t_iterator_next_block, &
+                                              dbcsr_t_iterator_blocks_left, &
+                                              dbcsr_t_iterator_stop, &
+                                              dbcsr_t_iterator_start
    USE gaussian_gridlevels,             ONLY: gaussian_gridlevel
    USE input_constants,                 ONLY: do_eri_gpw,&
                                               do_eri_mme,&
@@ -634,7 +640,7 @@ CONTAINS
                                          mo_coeff_o, mo_coeff_v, eps_filter, max_row_col_local, sub_proc_map, &
                                          local_col_row_info, my_B_virtual_end, my_B_virtual_start, "alpha")
             ENDDO
-            CALL contract_B_L(BIb_C, my_Lrows, sizes_B_virtual, sizes_array, &
+            CALL contract_B_L(BIb_C, my_Lrows, sizes_B_virtual, sizes_array, qs_env%mp2_env%eri_blksize, &
                               ngroup, color_sub, mp_comm_2d, para_env_sub)
 
             IF (do_alpha_beta) THEN
@@ -645,7 +651,7 @@ CONTAINS
                                             mo_coeff_o_beta, mo_coeff_v_beta, eps_filter, max_row_col_local_beta, sub_proc_map, &
                                             local_col_row_info_beta, my_B_virtual_end_beta, my_B_virtual_start_beta, "beta")
                ENDDO
-               CALL contract_B_L(BIb_C_beta, my_Lrows, sizes_B_virtual_beta, sizes_array, &
+               CALL contract_B_L(BIb_C_beta, my_Lrows, sizes_B_virtual_beta, sizes_array, qs_env%mp2_env%eri_blksize, &
                                  ngroup, color_sub, mp_comm_2d, para_env_sub)
 
             ENDIF
@@ -658,7 +664,7 @@ CONTAINS
                                             mo_coeff_gw, mo_coeff_all, eps_filter, max_row_col_local_gw, sub_proc_map, &
                                             local_col_row_info_gw, my_B_all_end, my_B_all_start, "gw_alpha")
                ENDDO
-               CALL contract_B_L(BIb_C_gw, my_Lrows, sizes_B_all, sizes_array, &
+               CALL contract_B_L(BIb_C_gw, my_Lrows, sizes_B_all, sizes_array, qs_env%mp2_env%eri_blksize, &
                                  ngroup, color_sub, mp_comm_2d, para_env_sub)
 
                IF (do_alpha_beta) THEN
@@ -669,7 +675,7 @@ CONTAINS
                                                mo_coeff_gw_beta, mo_coeff_all_beta, eps_filter, max_row_col_local_gw, &
                                                sub_proc_map, local_col_row_info_gw, my_B_all_end, my_B_all_start, "gw_beta")
                   ENDDO
-                  CALL contract_B_L(BIb_C_gw_beta, my_Lrows, sizes_B_all, sizes_array, &
+                  CALL contract_B_L(BIb_C_gw_beta, my_Lrows, sizes_B_all, sizes_array, qs_env%mp2_env%eri_blksize, &
                                     ngroup, color_sub, mp_comm_2d, para_env_sub)
 
                ENDIF
@@ -684,7 +690,7 @@ CONTAINS
                                             mo_coeff_v, mo_coeff_v, eps_filter, max_row_col_local_virt_bse, &
                                             sub_proc_map, local_col_row_info_virt_bse, my_B_all_end, my_B_all_start, "bse_ab")
                ENDDO
-               CALL contract_B_L(BIb_C_bse_ab, my_Lrows, sizes_B_virt_bse, sizes_array, &
+               CALL contract_B_L(BIb_C_bse_ab, my_Lrows, sizes_B_virt_bse, sizes_array, qs_env%mp2_env%eri_blksize, &
                                  ngroup, color_sub, mp_comm_2d, para_env_sub)
 
                ! B^ij_P matrix elements for BSE
@@ -695,7 +701,7 @@ CONTAINS
                                             sub_proc_map, local_col_row_info_occ_bse, &
                                             my_B_occ_bse_end, my_B_occ_bse_start, "bse_ij")
                ENDDO
-               CALL contract_B_L(BIb_C_bse_ij, my_Lrows, sizes_B_occ_bse, sizes_array, &
+               CALL contract_B_L(BIb_C_bse_ij, my_Lrows, sizes_B_occ_bse, sizes_array, qs_env%mp2_env%eri_blksize, &
                                  ngroup, color_sub, mp_comm_2d, para_env_sub)
 
             END IF
@@ -965,18 +971,19 @@ CONTAINS
 !> \param mp_comm_2d communicator with 2d Cartesian grid with dimensions (NG x Nw)
 !> \param para_env_sub ...
 ! **************************************************************************************************
-   SUBROUTINE contract_B_L(BIb_C, my_Lrows, sizes_B, sizes_L, ngroup, igroup, mp_comm_2d, para_env_sub)
+   SUBROUTINE contract_B_L(BIb_C, my_Lrows, sizes_B, sizes_L, blk_size, ngroup, igroup, mp_comm_2d, para_env_sub)
       REAL(KIND=dp), DIMENSION(:, :, :), INTENT(INOUT)   :: BIb_C
       REAL(KIND=dp), DIMENSION(:, :), INTENT(IN)         :: my_Lrows
       INTEGER, DIMENSION(:), INTENT(IN)                  :: sizes_B, sizes_L
       INTEGER, INTENT(IN)                                :: ngroup, igroup, mp_comm_2d
+      INTEGER, DIMENSION(2), INTENT(IN)                  :: blk_size
       TYPE(cp_para_env_type), POINTER                    :: para_env_sub
 
       LOGICAL, PARAMETER                                 :: debug = .FALSE.
 
       INTEGER                                            :: check_proc, i, iend, ii, ioff, iproc, &
                                                             iproc_glob, istart, loc_a, loc_P, &
-                                                            mp_comm_B, mp_comm_L, nproc, nproc_glob
+                                                            mp_comm_B, mp_comm_L, nproc, nproc_glob, blk
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: block_ind_L_P, block_ind_L_R
       INTEGER, DIMENSION(1)                              :: dist_B_i, map_B_1, map_L_1, map_L_2, &
                                                             sizes_i
@@ -984,7 +991,11 @@ CONTAINS
       INTEGER, DIMENSION(ngroup)                         :: dist_L_P, dist_L_R
       INTEGER, DIMENSION(para_env_sub%num_pe)            :: dist_B_a
       TYPE(dbcsr_t_distribution_type)                    :: dist_B, dist_L
-      TYPE(dbcsr_t_type)                                 :: tB_in, tB_out, tL
+      TYPE(dbcsr_t_type)                                 :: tB_in, tB_in_split, tB_out, tB_out_split, tL, tL_split
+      TYPE(dbcsr_t_iterator_type)                        :: iter
+      INTEGER, DIMENSION(3) :: blk_ind, blk_sizes, blk_offset, blk_offset_first, offset_B
+      REAL(KIND=dp), DIMENSION(:,:,:), ALLOCATABLE       :: blk_data
+      LOGICAL                                            :: first_block
 
       sizes_i(1) = SIZE(BIb_C, 3)
 
@@ -1079,19 +1090,42 @@ CONTAINS
          ENDIF
       ENDDO
 
+      CALL dbcsr_t_split_blocks(tB_in, tB_in_split, [blk_size(2), blk_size(1), blk_size(1)])
+      CALL dbcsr_t_split_blocks(tL, tL_split, [blk_size(2), blk_size(2)])
+      CALL dbcsr_t_split_blocks(tB_out, tB_out_split, [blk_size(2), blk_size(1), blk_size(1)])
+
       ! contract
-      CALL dbcsr_t_contract(tensor_1=tB_in, tensor_2=tL, tensor_3=tB_out, &
+      CALL dbcsr_t_contract(tensor_1=tB_in_split, tensor_2=tL_split, tensor_3=tB_out_split, &
                             contract_1=[1], notcontract_1=[2, 3], &
                             contract_2=[1], notcontract_2=[2], &
                             map_1=[2, 3], map_2=[1])
 
       ! retrieve local block of contraction result (P|ai)
-      CALL dbcsr_t_get_block(tB_out, [loc_P, loc_a, 1], SHAPE(BIb_C), BIb_C)
+      CALL dbcsr_t_iterator_start(iter, tB_out_split)
+      first_block = .TRUE.
+      DO WHILE(dbcsr_t_iterator_blocks_left(iter))
+         CALL dbcsr_t_iterator_next_block(iter, blk_ind, blk, blk_size=blk_sizes, blk_offset=blk_offset)
+         IF(first_block) THEN
+            blk_offset_first(:) = blk_offset(:)
+            first_block = .FALSE.
+         ENDIF
+         offset_B(:) = blk_offset(:) - blk_offset_first(:)
+         CALL dbcsr_t_get_block(tB_out_split, blk_ind, blk_data)
+         BIb_C(offset_B(1) + 1:offset_B(1) + blk_sizes(1), &
+               offset_B(2) + 1:offset_B(2) + blk_sizes(2), &
+               offset_B(3) + 1:offset_B(3) + blk_sizes(3)) = &
+            blk_data(:, :, :)
+         DEALLOCATE(blk_data)
+      END DO
+      CALL dbcsr_t_iterator_stop(iter)
 
       ! cleanup
       CALL dbcsr_t_destroy(tB_in)
+      CALL dbcsr_t_destroy(tB_in_split)
       CALL dbcsr_t_destroy(tB_out)
+      CALL dbcsr_t_destroy(tB_out_split)
       CALL dbcsr_t_destroy(tL)
+      CALL dbcsr_t_destroy(tL_split)
 
       CALL dbcsr_t_distribution_destroy(dist_B)
       CALL dbcsr_t_distribution_destroy(dist_L)

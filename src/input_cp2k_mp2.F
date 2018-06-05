@@ -202,6 +202,15 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
+      CALL keyword_create(keyword, name="ERI_BLKSIZE", &
+                          description="block sizes for tensors (only used if ERI_METHOD=MME). First value "// &
+                          "is the block size for ORB basis, second value is the block size for RI_AUX basis.", &
+                          usage="ERI_BLKSIZE", &
+                          n_var = 2, &
+                          default_i_vals=(/4, 16/))
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
       CALL cp_print_key_section_create(print_key, "MP2_INFO", &
                                        description="Controls the printing basic info about MP2 method", &
                                        print_level=low_print_level, add_last=add_last_numeric, filename="__STD_OUT__")

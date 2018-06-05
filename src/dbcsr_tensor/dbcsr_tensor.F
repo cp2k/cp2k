@@ -28,7 +28,7 @@ MODULE dbcsr_tensor
         dbcsr_copy, dbcsr_type, dbcsr_create, dbcsr_iterator_type, dbcsr_iterator_blocks_left, &
         dbcsr_iterator_next_block, dbcsr_iterator_start, dbcsr_iterator_stop, &
         dbcsr_finalize, dbcsr_transpose, dbcsr_no_transpose, dbcsr_get_data_type, dbcsr_multiply, &
-        dbcsr_get_info
+        dbcsr_get_info, ${uselist(dtype_float_param)}$
    USE dbcsr_tensor_block,              ONLY: dbcsr_t_iterator_type, &
                                               dbcsr_t_get_block, &
                                               dbcsr_t_put_block, &
@@ -37,7 +37,8 @@ MODULE dbcsr_tensor
                                               dbcsr_t_iterator_stop, &
                                               dbcsr_t_iterator_next_block, &
                                               ndims_iterator,&
-                                              dbcsr_t_reserve_blocks
+                                              dbcsr_t_reserve_blocks, &
+                                              block_nd
    USE dbcsr_tensor_index,              ONLY: get_mapping_info,&
                                               nd_to_2d_mapping,&
                                               dbcsr_t_inverse_order,&
@@ -82,7 +83,8 @@ MODULE dbcsr_tensor
       dbcsr_t_iterator_type, &
       dbcsr_t_ndims, &
       dbcsr_t_put_block, &
-      dbcsr_t_reserve_blocks
+      dbcsr_t_reserve_blocks, &
+      dbcsr_t_split_blocks
 
    INTERFACE dbcsr_t_ndims
       MODULE PROCEDURE ndims_tensor
@@ -588,6 +590,160 @@ CONTAINS
       tensor_out%valid = .TRUE.
 
       CALL timestop(handle)
+   END SUBROUTINE
+
+! **************************************************************************************************
+!> \brief Split tensor blocks into smaller blocks of maximum size PRODUCT(block_sizes).
+!> \param tensor_in Input tensor
+!> \param tensor_out Output tensor (splitted blocks)
+!> \param block_sizes block sizes for each of the tensor dimensions
+! **************************************************************************************************
+   SUBROUTINE dbcsr_t_split_blocks(tensor_in, tensor_out, block_sizes)
+      TYPE(dbcsr_t_type), INTENT(INOUT)               :: tensor_in
+      TYPE(dbcsr_t_type), INTENT(OUT)                 :: tensor_out
+      INTEGER, DIMENSION(dbcsr_t_ndims(tensor_in)), &
+         INTENT(IN)                                   :: block_sizes
+
+      TYPE(dbcsr_t_distribution_type)                 :: dist_old, dist_split
+      TYPE(dbcsr_t_iterator_type)                     :: iter
+      INTEGER, DIMENSION(:), ALLOCATABLE              :: ${varlist("nd_dist_split")}$
+      INTEGER, DIMENSION(:), ALLOCATABLE              :: ${varlist("nd_blk_size_split")}$
+      INTEGER, DIMENSION(:), ALLOCATABLE              :: ${varlist("index_split_offset")}$
+      INTEGER                                         :: ${varlist("split_blk")}$
+      INTEGER :: idim, i, isplit_sum, blk_remainder, comm_2d, blk, nsplit, isplit
+      INTEGER, DIMENSION(:), ALLOCATABLE :: dist_d, blk_size_d, blk_size_split_d, dist_split_d, &
+         map1_2d, map2_2d
+      INTEGER, DIMENSION(dbcsr_t_ndims(tensor_in)) :: blk_index, blk_size, blk_offset, nsplit_blk, &
+         isplit_sum_blk, blk_remainder_nd, blk_shape
+      INTEGER, DIMENSION(${maxdim}$) :: split_index
+
+#:for dparam, dtype, dsuffix in dtype_float_list
+#:for ndim in ndims
+      ${dtype}$, DIMENSION(${shape_colon(n=ndim)}$), ALLOCATABLE :: block_${dsuffix}$_${ndim}$d
+#:endfor
+#:endfor
+
+      dist_old = dbcsr_t_distribution(tensor_in)
+
+      DO idim = 1, ndims_tensor(tensor_in)
+         CALL get_ith_array(dist_old%nd_dist, idim, dist_d)
+         CALL get_ith_array(tensor_in%blk_sizes, idim, blk_size_d)
+
+#:for idim in range(1, maxdim+1)
+         IF (idim == ${idim}$) THEN
+            ALLOCATE(index_split_offset_${idim}$(SIZE(dist_d)))
+         ENDIF
+#:endfor
+
+         isplit_sum=0
+         DO i = 1, SIZE(dist_d)
+            nsplit = (blk_size_d(i)+block_sizes(idim)-1)/block_sizes(idim)
+            isplit_sum = isplit_sum+nsplit
+         ENDDO
+         ALLOCATE(dist_split_d(isplit_sum))
+         ALLOCATE(blk_size_split_d(isplit_sum))
+
+         isplit_sum = 0
+         DO i = 1, SIZE(dist_d)
+            nsplit = (blk_size_d(i)+block_sizes(idim)-1)/block_sizes(idim)
+            blk_remainder = blk_size_d(i)
+#:for idim in range(1, maxdim+1)
+            IF(idim == ${idim}$) THEN
+               index_split_offset_${idim}$(i) = isplit_sum
+            ENDIF
+#:endfor
+            DO isplit = 1, nsplit
+               isplit_sum = isplit_sum + 1
+               dist_split_d(isplit_sum) = dist_d(i)
+               blk_size_split_d(isplit_sum) = MIN(block_sizes(idim), blk_remainder)
+               blk_remainder = blk_remainder - block_sizes(idim)
+            ENDDO
+
+         ENDDO
+
+#:for idim in range(1, maxdim+1)
+         IF(idim == ${idim}$) THEN
+            CALL allocate_any(nd_dist_split_${idim}$, source=dist_split_d)
+            CALL allocate_any(nd_blk_size_split_${idim}$, source=blk_size_split_d)
+         ENDIF
+#:endfor
+         DEALLOCATE(dist_split_d)
+         DEALLOCATE(blk_size_split_d)
+
+      ENDDO
+
+      CALL dbcsr_get_info(tensor_in%matrix_rep, group=comm_2d)
+      CALL get_mapping_info(tensor_in%nd_index_blk, map1_2d=map1_2d, map2_2d=map2_2d)
+
+#:for ndim in ndims
+      IF (ndims_tensor(tensor_in) == ${ndim}$) THEN
+         CALL dbcsr_t_distribution_new(dist_split, tensor_in%comm_nd, comm_2d, map1_2d, map2_2d, &
+                                       ${varlist("nd_dist_split", nmax=ndim)}$)
+         CALL dbcsr_t_create(tensor_out, tensor_in%name, dist_split, map1_2d, map2_2d, &
+                             dbcsr_t_get_data_type(tensor_in), ${varlist("nd_blk_size_split", nmax=ndim)}$)
+      ENDIF
+#:endfor
+
+      CALL dbcsr_t_distribution_destroy(dist_split)
+
+      CALL dbcsr_t_iterator_start(iter, tensor_in)
+
+      DO WHILE (dbcsr_t_iterator_blocks_left(iter))
+         CALL dbcsr_t_iterator_next_block(iter, blk_index, blk, blk_size=blk_size, blk_offset=blk_offset)
+#:for dparam, dtype, dsuffix in dtype_float_list
+         IF (dbcsr_t_get_data_type(tensor_in) == ${dparam}$) THEN
+#:for ndim in ndims
+            IF (dbcsr_t_ndims(tensor_in) == ${ndim}$) THEN
+               CALL dbcsr_t_get_block(tensor_in, blk_index, block_${dsuffix}$_${ndim}$d)
+            ENDIF
+#:endfor
+         ENDIF
+#:endfor
+
+         nsplit_blk = (blk_size + block_sizes - 1)/block_sizes
+
+#:for ndim in ndims
+         IF (dbcsr_t_ndims(tensor_in) == ${ndim}$) THEN
+#:for idim in range(1,ndim+1)
+
+            blk_remainder_nd(${idim}$) = blk_size(${idim}$)
+            isplit_sum_blk(${idim}$) = 0
+            DO split_blk_${idim}$ = 1, nsplit_blk(${idim}$)
+               isplit_sum_blk(${idim}$) = isplit_sum_blk(${idim}$) + 1
+
+               blk_shape(${idim}$) = MIN(block_sizes(${idim}$), blk_remainder_nd(${idim}$))
+               blk_remainder_nd(${idim}$) = blk_remainder_nd(${idim}$) - block_sizes(${idim}$)
+#:endfor
+
+               split_index(1:${ndim}$) = [${", ".join(["index_split_offset_"+str(idim)+"(blk_index("+str(idim)+")) + isplit_sum_blk("+str(idim)+")" for idim in range(1, ndim+1)])}$]
+
+#:for dparam, dtype, dsuffix in dtype_float_list
+
+               IF (dbcsr_t_get_data_type(tensor_in) == ${dparam}$) THEN
+
+                  CALL dbcsr_t_put_block(tensor_out, split_index(1:${ndim}$), &
+                                         blk_shape, &
+                                         block_${dsuffix}$_${ndim}$d( &
+                                         ${", ".join(["(isplit_sum_blk("+str(idim)+") - 1)*block_sizes("+str(idim)+") + 1:MIN(isplit_sum_blk("+str(idim)+")*block_sizes("+str(idim)+"), blk_size("+str(idim)+"))" for idim in range(1, ndim+1)])}$))
+               ENDIF
+#:endfor
+
+#:for idim in range(1,ndim+1)
+            ENDDO
+#:endfor
+
+#:for dparam, dtype, dsuffix in dtype_float_list
+            IF (dbcsr_t_get_data_type(tensor_in) == ${dparam}$) THEN
+               DEALLOCATE(block_${dsuffix}$_${ndim}$d)
+            ENDIF
+#:endfor
+         ENDIF
+#:endfor
+      ENDDO
+      CALL dbcsr_t_iterator_stop(iter)
+
+      CALL dbcsr_finalize(tensor_out%matrix_rep)
+
    END SUBROUTINE
 
 END MODULE
