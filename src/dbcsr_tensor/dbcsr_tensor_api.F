@@ -32,6 +32,12 @@ MODULE dbcsr_tensor_api
                                               dbcsr_t_nd_mp_comm,&
                                               dbcsr_t_type
 
+   IMPLICIT NONE
+
+   PRIVATE
+
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'dbcsr_tensor_api'
+
    PUBLIC :: dbcsr_t_contract
    PUBLIC :: dbcsr_t_get_block
    PUBLIC :: dbcsr_t_get_stored_coordinates
