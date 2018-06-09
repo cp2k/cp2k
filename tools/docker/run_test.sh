@@ -23,8 +23,9 @@ fi
 CP2K_LOCAL=`realpath ../../../`
 set -x
 # SYS_PTRACE needed by LeakSanitizer.
-docker run -i --init --rm --cap-add=SYS_PTRACE --volume ${CP2K_LOCAL}:/opt/cp2k-local/:ro $@ img_cp2k_test_${TESTNAME}
+docker run -i --init --rm --cap-add=SYS_PTRACE --volume ${CP2K_LOCAL}:/opt/cp2k-local/:ro "$@" img_cp2k_test_${TESTNAME}
 
+set +x
 echo -n "EndDate: "
 date --utc --rfc-3339=seconds
 

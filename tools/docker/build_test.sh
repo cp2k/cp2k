@@ -19,6 +19,6 @@ if [ -f ./test_${TESTNAME}/buildargs.sh ]; then
 fi
 
 set -x
-docker build -t img_cp2k_test_${TESTNAME} ${BUILDARGS} $@ ./test_${TESTNAME}/
+docker build -t img_cp2k_test_${TESTNAME} ${BUILDARGS} "$@" ./test_${TESTNAME}/
 
 #EOF

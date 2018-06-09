@@ -23,9 +23,9 @@ cd /opt/cp2k-master/cp2k/makefiles
 rm -rf ../obj/${ARCH}/${VERSION}/*.gcda   # remove old gcov statistics
 
 if [[ "$TESTNAME" != "farming" ]]; then
-   make ARCH=${ARCH} VERSION=${VERSION} test
+   make ARCH=${ARCH} VERSION=${VERSION} test TESTOPTS="${TESTOPTS}"
 else
-   make ARCH=${ARCH} VERSION=${VERSION} test TESTOPTS="-farming -skipunittest -skipdir TMC/regtest_ana_on_the_fly -skipdir TMC/regtest_ana_post_proc -skipdir TMC/regtest"
+   make ARCH=${ARCH} VERSION=${VERSION} test TESTOPTS="-farming -skipunittest -skipdir TMC/regtest_ana_on_the_fly -skipdir TMC/regtest_ana_post_proc -skipdir TMC/regtest ${TESTOPTS}"
 fi
 
 #EOF
