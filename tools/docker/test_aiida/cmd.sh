@@ -22,7 +22,7 @@ echo -e "\n========== Compiling CP2K =========="
 source /opt/cp2k-toolchain/install/setup
 cd /opt/cp2k-master/cp2k/makefiles
 make -j VERSION=pdbg cp2k
-ln -s /opt/cp2k-master/cp2k/exe/local/cp2k.pdbg /usr/bin/cp2k
+ln -fs /opt/cp2k-master/cp2k/exe/local/cp2k.pdbg /usr/bin/cp2k
 
 echo -e "\n========== Installing AiiDA-CP2K plugin =========="
 cd /opt/
@@ -30,6 +30,7 @@ git clone https://github.com/cp2k/aiida-cp2k.git
 pip install ./aiida-cp2k/
 
 echo -e "\n========== Configuring AiiDA =========="
+ln -fs $(which mpirun) /usr/bin/
 SUDO="sudo -u ubuntu -H"
 cd /opt/aiida-cp2k/test/
 $SUDO ./configure_aiida.sh
