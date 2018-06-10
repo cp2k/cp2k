@@ -16,12 +16,9 @@ RUN source /opt/cp2k-toolchain/install/setup  && \
     make -j VERSION=pdbg                      && \
     rm -rf ../lib/ ../exe/
 
-# silence tzdata's setup dialog
-ENV DEBIAN_FRONTEND=noninteractive
-ENV DEBCONF_NONINTERACTIVE_SEEN=true
-
 # install Debian packages
-RUN apt-get update && apt-get install -y --no-install-recommends \
+RUN export DEBIAN_FRONTEND=noninteractive DEBCONF_NONINTERACTIVE_SEEN=true && \
+  apt-get update && apt-get install -y --no-install-recommends \
     build-essential       \
     python-setuptools     \
     python-wheel          \

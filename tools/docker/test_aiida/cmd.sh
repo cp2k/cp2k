@@ -30,7 +30,7 @@ git clone https://github.com/cp2k/aiida-cp2k.git
 pip install ./aiida-cp2k/
 
 echo -e "\n========== Configuring AiiDA =========="
-ln -fs $(which mpirun) /usr/bin/
+for i in $(dirname $(which mpirun))/* ; do ln -sf $i /usr/bin/; done
 SUDO="sudo -u ubuntu -H"
 cd /opt/aiida-cp2k/test/
 $SUDO ./configure_aiida.sh
