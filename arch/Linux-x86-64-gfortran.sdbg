@@ -1,31 +1,38 @@
-# Tested with: GFortran 4.9.2, FFTW 3.3, LAPACK 3.5.0, Libxc 4.0.3
-CC         = gcc
-CPP        =
-FC         = gfortran
-LD         = gfortran
-AR         = ar -r
-FFTW_INC   = $(GCC_DIR)/fftw/3.3-gnu-regtest/include
-FFTW_LIB   = $(GCC_DIR)/fftw/3.3-gnu-regtest/lib64
-LIBINT_INC = $(GCC_DIR)/libint/1.1.4-default-gnu-regtest/include
-LIBINT_LIB = $(GCC_DIR)/libint/1.1.4-default-gnu-regtest/lib64
-LIBXC_INC  = $(GCC_DIR)/libxc/4.0.3-gnu-regtest/include
-LIBXC_LIB  = $(GCC_DIR)/libxc/4.0.3-gnu-regtest/lib64
-DFLAGS     = -D__F2008 -D__FFTW3 -D__LIBINT -D__LIBXC\
-             -D__LIBINT_MAX_AM=7 -D__LIBDERIV_MAX_AM1=6 -D__MAX_CONTR=4
-CPPFLAGS   =
-WFLAGS     = -Waliasing -Wampersand -Wc-binding-type -Wconversion\
-             -Wintrinsic-shadow -Wintrinsics-std -Wline-truncation\
-             -Wno-tabs -Wrealloc-lhs-all -Wtarget-lifetime -Wunderflow\
-             -Wunused-but-set-variable -Wunused-variable -Werror
-FCFLAGS    = $(DFLAGS) -O1 -fcheck=bounds,do,recursion,pointer -ffree-form\
-             -ffree-line-length-none -fimplicit-none -fno-omit-frame-pointer\
-             -g -mtune=generic -std=f2008\
-             -I$(FFTW_INC) -I$(LIBINT_INC) -I$(LIBXC_INC) $(WFLAGS)
-LDFLAGS    = $(FCFLAGS) -static-libgfortran
-LIBS       = $(LIBPATH)/liblapack-gnu-regtest.a\
-             $(LIBPATH)/libblas-gnu-regtest.a\
-             $(FFTW_LIB)/libfftw3.a\
-             $(LIBXC_LIB)/libxcf03.a\
-             $(LIBXC_LIB)/libxc.a\
-             $(LIBINT_LIB)/libderiv.a\
-             $(LIBINT_LIB)/libint.a
+# Tested with: GFortran 6.4.0, LAPACK 3.5.0, FFTW 3.3, Libint 1.1.4, Libxc 4.0.4, libxsmm 1.8.3
+# Author: Matthias Krack (matthias.krack@psi.ch, PSI, 2018)
+CC          = gcc
+CPP         =
+FC          = gfortran
+LD          = gfortran
+AR          = ar -r
+FFTW_INC    = $(GCC_DIR)/fftw/3.3-regtest/include
+FFTW_LIB    = $(GCC_DIR)/fftw/3.3-regtest/lib
+LIBINT_INC  = $(GCC_DIR)/libint/1.1.4-LARGE_L-regtest/include
+LIBINT_LIB  = $(GCC_DIR)/libint/1.1.4-LARGE_L-regtest/lib
+LIBXC_INC   = $(GCC_DIR)/libxc/4.0.4-regtest/include
+LIBXC_LIB   = $(GCC_DIR)/libxc/4.0.4-regtest/lib
+LIBXSMM_INC = $(GCC_DIR)/libxsmm/1.8.3/include
+LIBXSMM_LIB = $(GCC_DIR)/libxsmm/1.8.3/lib
+DFLAGS      = -D__F2008 -D__FFTW3 -D__LIBINT -D__LIBXC -D__LIBXSMM\
+              -D__LIBINT_MAX_AM=7 -D__LIBDERIV_MAX_AM1=6 -D__MAX_CONTR=4
+CPPFLAGS    =
+WFLAGS      = -Waliasing -Wampersand -Wc-binding-type -Wconversion\
+              -Wintrinsic-shadow -Wintrinsics-std -Wline-truncation\
+              -Wno-tabs -Wrealloc-lhs-all -Wtarget-lifetime -Wunderflow\
+              -Wunused-but-set-variable -Wunused-variable -Werror
+FCFLAGS     = $(DFLAGS) -O1 -fcheck=bounds,do,recursion,pointer -ffree-form\
+              -ffree-line-length-none -fimplicit-none -fno-omit-frame-pointer\
+              -g -mtune=generic -std=f2008\
+              -I$(FFTW_INC) -I$(LIBINT_INC) -I$(LIBXC_INC) -I$(LIBXSMM_INC)\
+              $(WFLAGS)
+LDFLAGS     = $(FCFLAGS) -static
+LIBS        = $(LIBPATH)/liblapack-gnu-regtest.a\
+              $(LIBPATH)/libblas-gnu-regtest.a\
+              $(FFTW_LIB)/libfftw3.a\
+              $(LIBXC_LIB)/libxcf03.a\
+              $(LIBXC_LIB)/libxc.a\
+              $(LIBINT_LIB)/libderiv.a\
+              $(LIBINT_LIB)/libint.a\
+              $(LIBXSMM_LIB)/libxsmmf.a\
+              $(LIBXSMM_LIB)/libxsmm.a\
+              -ldl -lpthread
