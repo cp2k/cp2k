@@ -17,7 +17,7 @@ else
    shift
 fi
 cp2kexe=../../exe/${arch}/cp2k.${version}
-echo "CP2K executable:  ${cp2kexe}"
+echo "CP2K executable: ${cp2kexe}"
 if [[ -z $1 ]]; then
    mandir=
 else
