@@ -625,6 +625,11 @@ MODULE input_constants
    INTEGER, PARAMETER, PUBLIC               :: xas_scf_default = 0, &
                                                xas_scf_general = 1
 
+   ! Form of dipole operator for TDDFPT oscillator strength calculation
+   INTEGER, PARAMETER, PUBLIC               :: tddfpt_dipole_berry = 1, &
+                                               tddfpt_dipole_length = 2, &
+                                               tddfpt_dipole_velocity = 3
+
    ! Linear Response for properties
    INTEGER, PARAMETER, PUBLIC               :: lr_none = 0, &
                                                lr_chemshift = 1, &
