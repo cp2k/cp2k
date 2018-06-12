@@ -1,17 +1,18 @@
-# Tested with: GFortran 6.4, MPICH 3.2, LAPACK 3.5.0, ScaLAPACK 2.0.2, FFTW 3.3, Libxc 4.0.3, libxsmm 1.8.3
+# Tested with: GFortran 6.4.0, MPICH 3.2, LAPACK 3.5.0, ScaLAPACK 2.0.2, FFTW 3.3, Libint 1.1.4, Libxc 4.0.4, libxsmm 1.9
+# Author: Matthias Krack (matthias.krack@psi.ch, PSI, June 2018)
 CC          = gcc
 CPP         =
 FC          = mpif90
 LD          = mpif90
 AR          = ar -r
-FFTW_INC    = $(GCC_DIR)/fftw/3.3-gnu/include
-FFTW_LIB    = $(GCC_DIR)/fftw/3.3-gnu/lib64
-LIBINT_INC  = $(GCC_DIR)/libint/1.1.4-LARGE_L-gnu/include
-LIBINT_LIB  = $(GCC_DIR)/libint/1.1.4-LARGE_L-gnu/lib64
-LIBXC_INC   = $(GCC_DIR)/libxc/4.0.3-gnu/include
-LIBXC_LIB   = $(GCC_DIR)/libxc/4.0.3-gnu/lib64
-LIBXSMM_INC = $(GCC_DIR)/libxsmm/1.8.3/include
-LIBXSMM_LIB = $(GCC_DIR)/libxsmm/1.8.3/lib
+FFTW_INC    = $(GCC_DIR)/fftw/3.3/include
+FFTW_LIB    = $(GCC_DIR)/fftw/3.3/lib
+LIBINT_INC  = $(GCC_DIR)/libint/1.1.4-LARGE_L/include
+LIBINT_LIB  = $(GCC_DIR)/libint/1.1.4-LARGE_L/lib
+LIBXC_INC   = $(GCC_DIR)/libxc/4.0.4/include
+LIBXC_LIB   = $(GCC_DIR)/libxc/4.0.4/lib
+LIBXSMM_INC = $(GCC_DIR)/libxsmm/1.9/include
+LIBXSMM_LIB = $(GCC_DIR)/libxsmm/1.9/lib
 DFLAGS      = -D__F2008 -D__FFTW3 -D__LIBINT -D__LIBXC -D__LIBXSMM -D__MPI_VERSION=3\
               -D__LIBINT_MAX_AM=7 -D__LIBDERIV_MAX_AM1=6 -D__MAX_CONTR=4\
               -D__parallel -D__SCALAPACK
