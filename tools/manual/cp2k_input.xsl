@@ -226,7 +226,7 @@
    </td>
    <td align="center">
     Input reference of
-    <a href=""https://github.com/cp2k/cp2k/tree/{substring-after(/CP2K_INPUT/COMPILE_REVISION,':')}" target="_blank"><xsl:value-of select="/CP2K_INPUT/CP2K_VERSION"/> (<xsl:value-of select="/CP2K_INPUT/COMPILE_REVISION"/>)</a>
+    <a href="https://github.com/cp2k/cp2k/tree/{substring-after(/CP2K_INPUT/COMPILE_REVISION,':')}" target="_blank"><xsl:value-of select="/CP2K_INPUT/CP2K_VERSION"/> (<xsl:value-of select="/CP2K_INPUT/COMPILE_REVISION"/>)</a>
    </td>
    <td align="right">
     <xsl:call-template name="searchform"/>
