@@ -129,6 +129,11 @@ MODULE message_passing
 
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'message_passing'
 
+#if defined(__parallel)
+   ! internal reference counter used to debug communicator leaks
+   INTEGER, PRIVATE, SAVE :: debug_comm_count
+#endif
+
    ! init and error
    PUBLIC :: mp_world_init, mp_world_finalize
    PUBLIC :: mp_abort
@@ -758,6 +763,7 @@ CONTAINS
       CALL mpi_errhandler_set(MPI_COMM_WORLD, MPI_ERRORS_RETURN, ierr)
       IF (ierr /= 0) CALL mp_stop(ierr, "mpi_errhandler_set @ mp_world_init")
       mp_comm = MPI_COMM_WORLD
+      debug_comm_count = 1
 #else
       mp_comm = 0
 #endif
@@ -807,6 +813,7 @@ CONTAINS
 
       ! update the system default communicator
       mp_new_comm = newcomm
+      debug_comm_count = debug_comm_count+1
 
       CALL add_perf(perf_id=1, count=1)
 #else
@@ -828,6 +835,12 @@ CONTAINS
       CALL mpi_barrier(MPI_COMM_WORLD, ierr) ! call mpi directly to avoid 0 stack pointer
       CALL rm_mp_perf_env()
       IF (ierr /= 0) CALL mp_stop(ierr, "mpi_barrier @ mp_world_finalize")
+      debug_comm_count = debug_comm_count-1
+      IF (debug_comm_count .NE. 0) THEN
+         ! A bug, we're leaking or double-freeing communicators. Needs to be fixed where the leak happens.
+         ! Memory leak checking might be helpful to locate the culprit
+         CPABORT("mp_world_finalize: assert failed:  leaking communicators")
+      ENDIF
       CALL mpi_finalize(ierr)
       IF (ierr /= 0) CALL mp_stop(ierr, "mpi_finalize @ mp_world_finalize")
 #else
@@ -1313,6 +1326,7 @@ CONTAINS
       IF (ierr /= 0) CALL mp_stop(ierr, "mpi_cart_create @ mp_cart_create")
 
       IF (comm_cart /= MPI_COMM_NULL) THEN
+         debug_comm_count = debug_comm_count+1
          CALL mpi_cart_get(comm_cart, ndims, dims, period, pos, ierr)
          IF (ierr /= 0) CALL mp_stop(ierr, "mpi_cart_get @ mp_cart_create")
       END IF
@@ -1427,6 +1441,7 @@ CONTAINS
 #if defined(__parallel)
       CALL mpi_cart_sub(comm, rdim, sub_comm, ierr)
       IF (ierr /= 0) CALL mp_stop(ierr, "mpi_cart_sub @ mp_cart_sub")
+      debug_comm_count = debug_comm_count+1
 #else
       MARK_USED(comm)
       MARK_USED(rdim)
@@ -1454,6 +1469,7 @@ CONTAINS
 #if defined(__parallel)
       CALL mpi_comm_free(comm, ierr)
       IF (ierr /= 0) CALL mp_stop(ierr, "mpi_comm_free @ mp_comm_free")
+      debug_comm_count = debug_comm_count-1
 #else
       MARK_USED(comm)
 #endif
@@ -1482,6 +1498,7 @@ CONTAINS
 #if defined(__parallel)
       CALL mpi_comm_dup(comm1, comm2, ierr)
       IF (ierr /= 0) CALL mp_stop(ierr, "mpi_comm_dup @ mp_comm_dup")
+      debug_comm_count = debug_comm_count+1
 #else
       comm2 = comm1
 #endif
@@ -1966,6 +1983,7 @@ CONTAINS
 #if defined(__parallel)
       IF (PRESENT(key)) my_key = key
       CALL mpi_comm_split(comm, color, my_key, sub_comm, ierr)
+      debug_comm_count = debug_comm_count+1
       IF (ierr /= mpi_success) CALL mp_stop(ierr, routineN)
       CALL add_perf(perf_id=10, count=1)
 #else
@@ -2089,6 +2107,7 @@ CONTAINS
       ENDIF
       color = group_distribution(mepos)
       CALL mpi_comm_split(comm, color, 0, sub_comm, ierr)
+      debug_comm_count = debug_comm_count+1
       IF (ierr /= mpi_success) CALL mp_stop(ierr, "in "//routineP//" split")
 
       CALL add_perf(perf_id=10, count=1)
