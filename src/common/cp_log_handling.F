@@ -531,6 +531,9 @@ CONTAINS
 
       IF (PRESENT(logger)) THEN
          local_logger => logger
+      ELSE IF (stack_pointer == 0) THEN
+         res = -1 ! edge case: default logger not yet/anymore available
+         RETURN
       ELSE
          local_logger => cp_get_default_logger()
       ENDIF

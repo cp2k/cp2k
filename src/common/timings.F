@@ -443,6 +443,12 @@ CONTAINS
       TYPE(routine_stat_type), POINTER                   :: r_stat
       TYPE(timer_env_type), POINTER                      :: timer_env
 
+      ! catch edge cases where timer_env is not yet/anymore available
+      IF (.NOT. list_isready(timers_stack)) &
+         RETURN
+      IF (list_size(timers_stack) == 0) &
+         RETURN
+
       timer_env => list_peek(timers_stack)
       WRITE (unit_nr, '(/,A,/)') " ===== Routine Calling Stack ===== "
       DO i = list_size(timer_env%callstack), 1, -1
