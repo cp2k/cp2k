@@ -122,7 +122,10 @@ def read_file(filename,field,special_keys,stats_keys):
         sys.exit(-1)
 
 def print_value(ref,value):
-    comp=(value-ref)/ref*100
+    if ref>0:
+        comp=(value-ref)/ref*100
+    else:
+        comp=float('Inf')
     color='\033[0m'
     endc='\033[0m'
     if comp>0: color='\033[92m'
