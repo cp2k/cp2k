@@ -59,8 +59,11 @@ MODULE optimize_embedding_potential
                                               pw_env_type
    USE pw_methods,                      ONLY: pw_axpy,&
                                               pw_copy,&
+                                              pw_derive,&
+                                              pw_dr2,&
                                               pw_integrate_function,&
                                               pw_scale,&
+                                              pw_transfer,&
                                               pw_zero
    USE pw_pool_types,                   ONLY: pw_pool_create_pw,&
                                               pw_pool_give_back_pw,&
@@ -70,7 +73,8 @@ MODULE optimize_embedding_potential
                                               REALSPACE,&
                                               RECIPROCALSPACE,&
                                               pw_p_type,&
-                                              pw_release
+                                              pw_release,&
+                                              pw_type
    USE qs_collocate_density,            ONLY: calculate_ppl_grid,&
                                               calculate_wavefunction
    USE qs_environment_types,            ONLY: get_qs_env,&
@@ -1200,6 +1204,128 @@ CONTAINS
    END SUBROUTINE compute_kinetic_mat
 
 ! **************************************************************************************************
+!> \brief Regularizes the Wu-Yang potential on the grid
+!> \param potential ...
+!> \param pw_env ...
+!> \param lambda ...
+!> \param reg_term ...
+! **************************************************************************************************
+   SUBROUTINE grid_regularize(potential, pw_env, lambda, reg_term)
+      TYPE(pw_p_type), POINTER                           :: potential
+      TYPE(pw_env_type), POINTER                         :: pw_env
+      REAL(KIND=dp)                                      :: lambda, reg_term
+
+      INTEGER                                            :: i, j, k
+      INTEGER, DIMENSION(3)                              :: lb, n, ub
+      TYPE(pw_p_type), DIMENSION(3)                      :: dpot, dpot_g
+      TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
+      TYPE(pw_type), POINTER                             :: dr2_pot, grid_reg, grid_reg_g, &
+                                                            potential_g, square_norm_dpot
+
+      !
+      ! First, the contribution to the gradient
+      !
+
+      ! Get some of the grids ready
+      CALL pw_env_get(pw_env, auxbas_pw_pool=auxbas_pw_pool)
+
+      NULLIFY (potential_g)
+      CALL pw_pool_create_pw(auxbas_pw_pool, potential_g, &
+                             use_data=COMPLEXDATA1D, &
+                             in_space=RECIPROCALSPACE)
+
+      NULLIFY (dr2_pot)
+      CALL pw_pool_create_pw(auxbas_pw_pool, dr2_pot, &
+                             use_data=COMPLEXDATA1D, &
+                             in_space=RECIPROCALSPACE)
+
+      NULLIFY (grid_reg)
+      CALL pw_pool_create_pw(auxbas_pw_pool, grid_reg, &
+                             use_data=REALDATA3D, &
+                             in_space=REALSPACE)
+
+      NULLIFY (grid_reg_g)
+      CALL pw_pool_create_pw(auxbas_pw_pool, grid_reg_g, &
+                             use_data=COMPLEXDATA1D, &
+                             in_space=RECIPROCALSPACE)
+      CALL pw_zero(grid_reg_g)
+
+      ! Transfer potential to the reciprocal space
+      CALL pw_transfer(potential%pw, potential_g)
+
+      ! Calculate second derivatives: dx^2, dy^2, dz^2
+      DO i = 1, 3
+         CALL pw_dr2(potential_g, dr2_pot, i, i)
+         CALL pw_axpy(dr2_pot, grid_reg_g, 1.0_dp)
+      ENDDO
+      ! Transfer potential to the real space
+      CALL pw_transfer(grid_reg_g, grid_reg)
+
+      ! Update the potential with a regularization term
+      CALL pw_axpy(grid_reg, potential%pw, -4.0_dp*lambda)
+
+      !
+      ! Second, the contribution to the functional
+      !
+      DO i = 1, 3
+         NULLIFY (dpot(i)%pw)
+         CALL pw_pool_create_pw(auxbas_pw_pool, dpot(i)%pw, &
+                                use_data=REALDATA3D, &
+                                in_space=REALSPACE)
+         NULLIFY (dpot_g(i)%pw)
+         CALL pw_pool_create_pw(auxbas_pw_pool, dpot_g(i)%pw, &
+                                use_data=COMPLEXDATA1D, &
+                                in_space=RECIPROCALSPACE)
+      ENDDO
+
+      NULLIFY (square_norm_dpot)
+      CALL pw_pool_create_pw(auxbas_pw_pool, square_norm_dpot, &
+                             use_data=REALDATA3D, &
+                             in_space=REALSPACE)
+
+      DO i = 1, 3
+         n(:) = 0
+         n(i) = 1
+         CALL pw_copy(potential_g, dpot_g(i)%pw)
+         CALL pw_derive(dpot_g(i)%pw, n(:))
+         CALL pw_transfer(dpot_g(i)%pw, dpot(i)%pw)
+      END DO
+
+      lb(1:3) = square_norm_dpot%pw_grid%bounds_local(1, 1:3)
+      ub(1:3) = square_norm_dpot%pw_grid%bounds_local(2, 1:3)
+!$OMP    PARALLEL DO DEFAULT(NONE) &
+!$OMP                PRIVATE(i,j,k) &
+!$OMP                SHARED(dpot,lb,square_norm_dpot,ub)
+      DO k = lb(3), ub(3)
+         DO j = lb(2), ub(2)
+            DO i = lb(1), ub(1)
+               square_norm_dpot%cr3d(i, j, k) = (dpot(1)%pw%cr3d(i, j, k)* &
+                                                 dpot(1)%pw%cr3d(i, j, k)+ &
+                                                 dpot(2)%pw%cr3d(i, j, k)* &
+                                                 dpot(2)%pw%cr3d(i, j, k)+ &
+                                                 dpot(3)%pw%cr3d(i, j, k)* &
+                                                 dpot(3)%pw%cr3d(i, j, k))
+            END DO
+         END DO
+      END DO
+!$OMP    END PARALLEL DO
+
+      reg_term = 2*lambda*pw_integrate_function(fun=square_norm_dpot)
+
+      ! Release
+      CALL pw_pool_give_back_pw(auxbas_pw_pool, potential_g)
+      CALL pw_pool_give_back_pw(auxbas_pw_pool, dr2_pot)
+      CALL pw_pool_give_back_pw(auxbas_pw_pool, grid_reg)
+      CALL pw_pool_give_back_pw(auxbas_pw_pool, grid_reg_g)
+      CALL pw_pool_give_back_pw(auxbas_pw_pool, square_norm_dpot)
+      DO i = 1, 3
+         CALL pw_pool_give_back_pw(auxbas_pw_pool, dpot(i)%pw)
+         CALL pw_pool_give_back_pw(auxbas_pw_pool, dpot_g(i)%pw)
+      END DO
+
+   END SUBROUTINE grid_regularize
+
+! **************************************************************************************************
 !> \brief Takes maximization step in embedding potential optimization
 !> \param diff_rho_r ...
 !> \param diff_rho_spin ...
@@ -1223,11 +1349,13 @@ CONTAINS
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: eigenval
       TYPE(cp_fm_struct_type), POINTER                   :: fm_struct
       TYPE(cp_fm_type), POINTER                          :: diag_grad, diag_step, fm_U, fm_U_scale
+      TYPE(pw_env_type), POINTER                         :: pw_env
 
       CALL timeset(routineN, handle)
 
       IF (opt_embed%grid_opt) THEN ! Grid based optimization
-         CALL grid_based_step(diff_rho_r, diff_rho_spin, opt_embed, embed_pot, spin_embed_pot)
+         CALL get_qs_env(qs_env=qs_env, pw_env=pw_env)
+         CALL grid_based_step(diff_rho_r, diff_rho_spin, pw_env, opt_embed, embed_pot, spin_embed_pot)
 
       ELSE ! Finite basis optimization
          ! If the previous step has been rejected, we go back to the previous expansion coefficients
@@ -1378,12 +1506,14 @@ CONTAINS
 !> \brief ...
 !> \param diff_rho_r ...
 !> \param diff_rho_spin ...
+!> \param pw_env ...
 !> \param opt_embed ...
 !> \param embed_pot ...
 !> \param spin_embed_pot ...
 ! **************************************************************************************************
-   SUBROUTINE grid_based_step(diff_rho_r, diff_rho_spin, opt_embed, embed_pot, spin_embed_pot)
+   SUBROUTINE grid_based_step(diff_rho_r, diff_rho_spin, pw_env, opt_embed, embed_pot, spin_embed_pot)
       TYPE(pw_p_type), POINTER                           :: diff_rho_r, diff_rho_spin
+      TYPE(pw_env_type), POINTER                         :: pw_env
       TYPE(opt_embed_pot_type)                           :: opt_embed
       TYPE(pw_p_type), POINTER                           :: embed_pot, spin_embed_pot
 
@@ -1391,15 +1521,21 @@ CONTAINS
          routineP = moduleN//':'//routineN
 
       INTEGER                                            :: handle
+      REAL(KIND=dp)                                      :: my_reg_term
 
       CALL timeset(routineN, handle)
 
       opt_embed%step_len = opt_embed%trust_rad
       ! Take the step for spin-free part
       CALL pw_axpy(diff_rho_r%pw, embed_pot%pw, opt_embed%step_len)
+      ! Regularize
+      CALL grid_regularize(embed_pot, pw_env, opt_embed%lambda, my_reg_term)
+      opt_embed%reg_term = opt_embed%reg_term+my_reg_term
 
       IF (opt_embed%open_shell_embed) THEN
          CALL pw_axpy(diff_rho_spin%pw, spin_embed_pot%pw, opt_embed%step_len)
+         CALL grid_regularize(spin_embed_pot, pw_env, opt_embed%lambda, my_reg_term)
+         opt_embed%reg_term = opt_embed%reg_term+my_reg_term
       ENDIF
 
       CALL timestop(handle)

@@ -116,14 +116,6 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="EMBED", &
-                          description="Activates exporting electronic densities of the subsystems in DFET.", &
-                          usage="EMBED FALSE", &
-                          default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
-
-      CALL section_add_keyword(section, keyword)
-      CALL keyword_release(keyword)
-
       CALL create_ext_pot_section(subsection)
       CALL section_add_subsection(section, subsection)
       CALL section_release(subsection)
