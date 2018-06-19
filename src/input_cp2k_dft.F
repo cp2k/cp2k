@@ -6043,7 +6043,7 @@ CONTAINS
       CALL keyword_create(keyword, name="GRID_OPT", &
                           description="Optimize embedding potential on the grid. ", &
                           usage="GRID_OPT .TRUE.", &
-                          default_l_val=.FALSE.)
+                          default_l_val=.TRUE.)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 

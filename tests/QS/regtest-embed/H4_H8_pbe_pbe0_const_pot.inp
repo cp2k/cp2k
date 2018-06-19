@@ -242,6 +242,7 @@ H    6.0     6.2645     7.42105263158
          DENS_CONV_MAX 0.2
          ADD_CONST_POT .TRUE.
          OPTIMIZER LEVEL_SHIFT
+         GRID_OPT .FALSE.
          &EMBED_POT_CUBE MEDIUM
          &END
       &END

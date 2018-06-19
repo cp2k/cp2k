@@ -8,6 +8,8 @@
 !> \author Vladimir Rybkin - University of Zurich
 ! **************************************************************************************************
 MODULE input_cp2k_embed
+   USE bibliography,                    ONLY: Heaton_Burgess2007,&
+                                              Huang2011
    USE cp_output_handling,              ONLY: add_last_numeric,&
                                               cp_print_key_section_create,&
                                               low_print_level
@@ -51,7 +53,8 @@ CONTAINS
       CALL section_create(section, name="EMBED", &
                           description="This section contains all information to run embedded "// &
                           "calculations.", &
-                          n_keywords=1, n_subsections=0, repeats=.FALSE.)
+                          n_keywords=1, n_subsections=0, repeats=.FALSE., &
+                          citations=(/Huang2011, Heaton_Burgess2007/))
       NULLIFY (keyword, subsection)
 
       CALL keyword_create(keyword, name="DFET", &
@@ -72,9 +75,8 @@ CONTAINS
       CALL keyword_release(keyword)
 
       CALL keyword_create(keyword, name="NGROUPS", variants=(/"NGROUP"/), &
-                          description="Gives the wanted number of groups. If not specified the number"// &
-                          " of groups is set to the number of subforce_eval defined.", &
-                          usage="ngroups 4", type_of_var=integer_t)
+                          description="Gives the wanted number of groups. Currently must be set to 1", &
+                          usage="ngroups 4", type_of_var=integer_t, default_i_val=1)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 

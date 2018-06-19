@@ -211,6 +211,7 @@
          &END
          READ_EMBED_POT .TRUE.
          EMBED_RESTART_FILE_NAME  h_h_pbe_pbe0_triplet-embed_pot_002-1_0.wfn
+         GRID_OPT .FALSE.
       &END
     &END QS
     &SCF

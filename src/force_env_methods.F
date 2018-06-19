@@ -15,6 +15,9 @@
 MODULE force_env_methods
    USE atprop_types,                    ONLY: atprop_init,&
                                               atprop_type
+   USE bibliography,                    ONLY: Heaton_Burgess2007,&
+                                              Huang2011,&
+                                              cite_reference
    USE cell_types,                      ONLY: cell_clone,&
                                               cell_create,&
                                               cell_release,&
@@ -107,7 +110,8 @@ MODULE force_env_methods
    USE optimize_embedding_potential,    ONLY: &
         calculate_embed_pot_grad, conv_check_embed, init_embed_pot, make_subsys_embed_pot, &
         opt_embed_step, prepare_embed_opt, print_emb_opt_info, print_embed_restart, &
-        print_rho_diff, read_embed_pot, release_opt_embed, step_control, understand_spin_states
+        print_rho_diff, print_rho_spin_diff, read_embed_pot, release_opt_embed, step_control, &
+        understand_spin_states
    USE particle_list_types,             ONLY: particle_list_p_type,&
                                               particle_list_type
    USE physcon,                         ONLY: debye
@@ -1551,6 +1555,9 @@ CONTAINS
 
       CALL timeset(routineN, handle)
 
+      CALL cite_reference(Huang2011)
+      CALL cite_reference(Heaton_Burgess2007)
+
       CALL get_qs_env(qs_env=force_env%sub_force_env(ref_subsys_number)%force_env%qs_env)
 
       ! Reveal input file
@@ -1646,7 +1653,10 @@ CONTAINS
       ENDDO
 
       ! Print density difference
-      CALL print_rho_diff(diff_rho_r, 0, force_env%sub_force_env(ref_subsys_number)%force_env%qs_env)
+      CALL print_rho_diff(diff_rho_r, 0, force_env%sub_force_env(ref_subsys_number)%force_env%qs_env, .FALSE.)
+      IF (opt_embed%open_shell_embed) THEN ! Spin part
+         CALL print_rho_spin_diff(diff_rho_spin, 0, force_env%sub_force_env(ref_subsys_number)%force_env%qs_env, .FALSE.)
+      ENDIF
 
       ! Calculate subsystems with trial embedding potential
       DO i_iter = 1, opt_embed%n_iter
@@ -1744,7 +1754,7 @@ CONTAINS
          ! Print embedding potential for restart
          CALL print_embed_restart(force_env%sub_force_env(ref_subsys_number)%force_env%qs_env, &
                                   opt_embed%dimen_aux, opt_embed%embed_pot_coef, embed_pot, i_iter, &
-                                  spin_embed_pot, opt_embed%open_shell_embed, opt_embed%grid_opt)
+                                  spin_embed_pot, opt_embed%open_shell_embed, opt_embed%grid_opt, .FALSE.)
 
          ! Integrate the potential over density differences and add to w functional; also add regularization contribution
          DO i_spin = 1, nspins ! Sum over nspins for the reference system, not subsystem!
@@ -1771,7 +1781,10 @@ CONTAINS
          IF ((i_iter .GT. 1) .AND. (.NOT. opt_embed%steep_desc)) CALL step_control(opt_embed)
 
          ! Print density difference
-         CALL print_rho_diff(diff_rho_r, i_iter, force_env%sub_force_env(ref_subsys_number)%force_env%qs_env)
+         CALL print_rho_diff(diff_rho_r, i_iter, force_env%sub_force_env(ref_subsys_number)%force_env%qs_env, .FALSE.)
+         IF (opt_embed%open_shell_embed) THEN ! Spin part
+            CALL print_rho_spin_diff(diff_rho_spin, i_iter, force_env%sub_force_env(ref_subsys_number)%force_env%qs_env, .FALSE.)
+         ENDIF
 
          ! Calculate potential gradient if the step has been accepted. Otherwise, we reuse the previous one
 
@@ -1783,6 +1796,16 @@ CONTAINS
                              force_env%sub_force_env(ref_subsys_number)%force_env%qs_env)
 
       ENDDO ! i_iter
+
+      ! Print final embedding potential for restart
+      CALL print_embed_restart(force_env%sub_force_env(ref_subsys_number)%force_env%qs_env, &
+                               opt_embed%dimen_aux, opt_embed%embed_pot_coef, embed_pot, i_iter, &
+                               spin_embed_pot, opt_embed%open_shell_embed, opt_embed%grid_opt, .TRUE.)
+      ! Print final density difference
+      CALL print_rho_diff(diff_rho_r, i_iter, force_env%sub_force_env(ref_subsys_number)%force_env%qs_env, .TRUE.)
+      IF (opt_embed%open_shell_embed) THEN ! Spin part
+         CALL print_rho_spin_diff(diff_rho_spin, i_iter, force_env%sub_force_env(ref_subsys_number)%force_env%qs_env, .TRUE.)
+      ENDIF
 
       ! Give away plane waves pools
       CALL pw_release(diff_rho_r%pw)

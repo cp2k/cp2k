@@ -102,7 +102,7 @@ MODULE optimize_embedding_potential
    PUBLIC :: prepare_embed_opt, init_embed_pot, release_opt_embed, calculate_embed_pot_grad, &
              opt_embed_step, print_rho_diff, step_control, max_dens_diff, print_emb_opt_info, &
              conv_check_embed, make_subsys_embed_pot, print_embed_restart, find_aux_dimen, &
-             read_embed_pot, understand_spin_states, given_embed_pot
+             read_embed_pot, understand_spin_states, given_embed_pot, print_rho_spin_diff
 
 CONTAINS
 
@@ -2356,12 +2356,14 @@ CONTAINS
 !> \param diff_rho_r ...
 !> \param i_iter ...
 !> \param qs_env ...
+!> \param final_one ...
 !> \author Vladimir Rybkin
 ! **************************************************************************************************
-   SUBROUTINE print_rho_diff(diff_rho_r, i_iter, qs_env)
+   SUBROUTINE print_rho_diff(diff_rho_r, i_iter, qs_env, final_one)
       TYPE(pw_p_type), POINTER                           :: diff_rho_r
       INTEGER                                            :: i_iter
       TYPE(qs_environment_type), POINTER                 :: qs_env
+      LOGICAL                                            :: final_one
 
       CHARACTER(LEN=default_path_length)                 :: filename, my_pos_cube, title
       INTEGER                                            :: unit_nr
@@ -2382,7 +2384,11 @@ CONTAINS
       IF (BTEST(cp_print_key_should_output(logger%iter_info, input, &
                                            "DFT%QS%OPT_EMBED%EMBED_DENS_DIFF"), cp_p_file)) THEN
          my_pos_cube = "REWIND"
-         WRITE (filename, '(a5,I3.3,a1,I1.1)') "DIFF_", i_iter
+         IF (.NOT. final_one) THEN
+            WRITE (filename, '(a5,I3.3,a1,I1.1)') "DIFF_", i_iter
+         ELSE
+            WRITE (filename, '(a5,I3.3,a1,I1.1)') "DIFF"
+         ENDIF
          unit_nr = cp_print_key_unit_nr(logger, input, "DFT%QS%OPT_EMBED%EMBED_DENS_DIFF", &
                                         extension=".cube", middle_name=TRIM(filename), file_position=my_pos_cube, &
                                         log_filename=.FALSE.)
@@ -2397,6 +2403,56 @@ CONTAINS
    END SUBROUTINE print_rho_diff
 
 ! **************************************************************************************************
+!> \brief Prints a cube for the (spin_rho_A + spin_rho_B - spin_rho_ref) to be minimized in embedding
+!> \param spin_diff_rho_r ...
+!> \param i_iter ...
+!> \param qs_env ...
+!> \param final_one ...
+!> \author Vladimir Rybkin
+! **************************************************************************************************
+   SUBROUTINE print_rho_spin_diff(spin_diff_rho_r, i_iter, qs_env, final_one)
+      TYPE(pw_p_type), POINTER                           :: spin_diff_rho_r
+      INTEGER                                            :: i_iter
+      TYPE(qs_environment_type), POINTER                 :: qs_env
+      LOGICAL                                            :: final_one
+
+      CHARACTER(LEN=default_path_length)                 :: filename, my_pos_cube, title
+      INTEGER                                            :: unit_nr
+      TYPE(cp_logger_type), POINTER                      :: logger
+      TYPE(particle_list_type), POINTER                  :: particles
+      TYPE(qs_subsys_type), POINTER                      :: subsys
+      TYPE(section_vals_type), POINTER                   :: dft_section, input
+
+      NULLIFY (subsys, input)
+
+      CALL get_qs_env(qs_env=qs_env, &
+                      subsys=subsys, &
+                      input=input)
+      dft_section => section_vals_get_subs_vals(input, "DFT")
+      CALL qs_subsys_get(subsys, particles=particles)
+
+      logger => cp_get_default_logger()
+      IF (BTEST(cp_print_key_should_output(logger%iter_info, input, &
+                                           "DFT%QS%OPT_EMBED%EMBED_DENS_DIFF"), cp_p_file)) THEN
+         my_pos_cube = "REWIND"
+         IF (.NOT. final_one) THEN
+            WRITE (filename, '(a5,I3.3,a1,I1.1)') "SPIN_DIFF_", i_iter
+         ELSE
+            WRITE (filename, '(a9,I3.3,a1,I1.1)') "SPIN_DIFF"
+         ENDIF
+         unit_nr = cp_print_key_unit_nr(logger, input, "DFT%QS%OPT_EMBED%EMBED_DENS_DIFF", &
+                                        extension=".cube", middle_name=TRIM(filename), file_position=my_pos_cube, &
+                                        log_filename=.FALSE.)
+
+         WRITE (title, *) "EMBEDDING SPIN DENSITY DIFFERENCE ", " optimization step ", i_iter
+         CALL cp_pw_to_cube(spin_diff_rho_r%pw, unit_nr, title, particles=particles, &
+                            stride=section_get_ivals(dft_section, "QS%OPT_EMBED%EMBED_DENS_DIFF%STRIDE"))
+         CALL cp_print_key_finished_output(unit_nr, logger, input, &
+                                           "DFT%QS%OPT_EMBED%EMBED_DENS_DIFF")
+      ENDIF
+
+   END SUBROUTINE print_rho_spin_diff
+! **************************************************************************************************
 !> \brief Print embedding potential as a cube and as a binary (for restarting)
 !> \param qs_env ...
 !> \param dimen_aux ...
@@ -2406,16 +2462,17 @@ CONTAINS
 !> \param embed_pot_spin ...
 !> \param open_shell_embed ...
 !> \param grid_opt ...
+!> \param final_one ...
 ! **************************************************************************************************
    SUBROUTINE print_embed_restart(qs_env, dimen_aux, embed_pot_coef, embed_pot, i_iter, &
-                                  embed_pot_spin, open_shell_embed, grid_opt)
+                                  embed_pot_spin, open_shell_embed, grid_opt, final_one)
       TYPE(qs_environment_type), POINTER                 :: qs_env
       INTEGER                                            :: dimen_aux
       TYPE(cp_fm_type), POINTER                          :: embed_pot_coef
       TYPE(pw_p_type), POINTER                           :: embed_pot
       INTEGER                                            :: i_iter
       TYPE(pw_p_type), POINTER                           :: embed_pot_spin
-      LOGICAL                                            :: open_shell_embed, grid_opt
+      LOGICAL                                            :: open_shell_embed, grid_opt, final_one
 
       CHARACTER(LEN=default_path_length)                 :: filename, my_pos_cube, title
       INTEGER                                            :: unit_nr
@@ -2433,8 +2490,11 @@ CONTAINS
          logger => cp_get_default_logger()
          IF (BTEST(cp_print_key_should_output(logger%iter_info, input, &
                                               "DFT%QS%OPT_EMBED%EMBED_POT_VECTOR"), cp_p_file)) THEN
-
-            WRITE (filename, '(a10,I3.3)') "embed_pot_", i_iter
+            IF (.NOT. final_one) THEN
+               WRITE (filename, '(a10,I3.3)') "embed_pot_", i_iter
+            ELSE
+               WRITE (filename, '(a10,I3.3)') "embed_pot"
+            ENDIF
             unit_nr = cp_print_key_unit_nr(logger, input, "DFT%QS%OPT_EMBED%EMBED_POT_VECTOR", extension=".wfn", &
                                            middle_name=TRIM(filename), file_form="UNFORMATTED")
             IF (unit_nr > 0) THEN
@@ -2455,7 +2515,11 @@ CONTAINS
       IF (BTEST(cp_print_key_should_output(logger%iter_info, input, &
                                            "DFT%QS%OPT_EMBED%EMBED_POT_CUBE"), cp_p_file)) THEN
          my_pos_cube = "REWIND"
-         WRITE (filename, '(a10,I3.3)') "embed_pot_", i_iter
+         IF (.NOT. final_one) THEN
+            WRITE (filename, '(a10,I3.3)') "embed_pot_", i_iter
+         ELSE
+            WRITE (filename, '(a10,I3.3)') "embed_pot"
+         ENDIF
          unit_nr = cp_print_key_unit_nr(logger, input, "DFT%QS%OPT_EMBED%EMBED_POT_CUBE", &
                                         extension=".cube", middle_name=TRIM(filename), file_position=my_pos_cube, &
                                         log_filename=.FALSE.)
@@ -2468,7 +2532,11 @@ CONTAINS
                                            "DFT%QS%OPT_EMBED%EMBED_POT_CUBE")
          IF (open_shell_embed) THEN ! Print spin part of the embedding potential
             my_pos_cube = "REWIND"
-            WRITE (filename, '(a15,I3.3)') "spin_embed_pot_", i_iter
+            IF (.NOT. final_one) THEN
+               WRITE (filename, '(a15,I3.3)') "spin_embed_pot_", i_iter
+            ELSE
+               WRITE (filename, '(a15,I3.3)') "spin_embed_pot"
+            ENDIF
             unit_nr = cp_print_key_unit_nr(logger, input, "DFT%QS%OPT_EMBED%EMBED_POT_CUBE", &
                                            extension=".cube", middle_name=TRIM(filename), file_position=my_pos_cube, &
                                            log_filename=.FALSE.)

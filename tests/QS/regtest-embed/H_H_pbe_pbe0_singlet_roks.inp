@@ -196,6 +196,7 @@
          SPIN_DENS_CONV_INT 1.5
          DENS_CONV_MAX 0.1
          SPIN_DENS_CONV_MAX 0.15
+         GRID_OPT .FALSE.
          OPTIMIZER LEVEL_SHIFT
       &END
     &END QS

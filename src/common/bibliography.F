@@ -82,7 +82,7 @@ MODULE bibliography
                             Bates2013, Andermatt2016, Zhu2016, Schuett2016, Lu2004, &
                             Becke1988b, Migliore2009, Mavros2015, Holmberg2017, Marek2014, &
                             Stoychev2016, Futera2017, Bailey2006, Papior2017, Lehtola2018, &
-                            Brieuc2016, Barca2018
+                            Brieuc2016, Barca2018, Huang2011, Heaton_Burgess2007
 
 CONTAINS
 
@@ -3836,6 +3836,32 @@ CONTAINS
                          "VL 12", &
                          "ER"), &
                          DOI="10.1021/acs.jctc.5b01146")
+
+      CALL add_reference(key=Huang2011, ISI_record=s2a( &
+                         "AU Huang, C", &
+                         "   Pavone, M", &
+                         "   Carter, EA", &
+                         "TI Quantum mechanical embedding theory based on a unique"// &
+                         " embedding potential", &
+                         "SO Journal of Chemical Physics", &
+                         "AR 154110", &
+                         "PY 2011", &
+                         "VL 134", &
+                         "ER"), &
+                         DOI="10.1063/1.3577516")
+
+      CALL add_reference(key=Heaton_Burgess2007, ISI_record=s2a( &
+                         "AU Heaton-Burgess, T.", &
+                         "   Bulat, FA", &
+                         "   Yang, WT", &
+                         "TI Optimized effective potentials in finite basis sets", &
+                         "SO PHYSICAL REVIEW LETTERS", &
+                         "PY 2007", &
+                         "VL 98", &
+                         "IS 25", &
+                         "AR 256401 ", &
+                         "ER"), &
+                         DOI="10.1103/PhysRevLett.98.256401")
 
    END SUBROUTINE add_all_references
 

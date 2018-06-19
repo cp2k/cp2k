@@ -203,6 +203,7 @@
          DENS_CONV_INT 0.5
          SPIN_DENS_CONV_INT 0.5
          DENS_CONV_MAX 0.025
+         GRID_OPT .FALSE.
       &END
     &END QS
     &SCF
