@@ -159,8 +159,8 @@ CONTAINS
 
       CHARACTER(len=*), PARAMETER :: routineN = 'pint_create', routineP = moduleN//':'//routineN
 
+      CHARACTER(len=2*default_string_length)             :: msg
       CHARACTER(len=default_path_length)                 :: output_file_name, project_name
-      CHARACTER(len=default_string_length)               :: msg
       INTEGER                                            :: handle, iat, ibead, idim, idir, ierr, &
                                                             itmp, nrep, prep, stat
       LOGICAL                                            :: explicit, ltmp
