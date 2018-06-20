@@ -763,9 +763,17 @@ CONTAINS
       WRITE (iw, '(I8)') n
       DO i = 0, n-1
          WRITE (iw, '(F20.14,I8,5F20.14)') gthpot%rcnl(i), gthpot%nl(i), (gthpot%hnl(1, k, i), k=1, gthpot%nl(i))
-         DO j = 2, gthpot%nl(i)
-            WRITE (iw, '(T20,5F20.14)') (gthpot%hnl(j, k, i), k=j, gthpot%nl(i))
-         END DO
+         SELECT CASE (gthpot%nl (i))
+         CASE (2)
+            WRITE (iw, '(T49,F20.14)') gthpot%hnl(2, 2, i)
+         CASE (3)
+            WRITE (iw, '(T49,2F20.14)') gthpot%hnl(2, 2, i), gthpot%hnl(2, 3, i)
+            WRITE (iw, '(T69,F20.14)') gthpot%hnl(3, 3, i)
+         CASE DEFAULT
+            DO j = 2, gthpot%nl(i)
+               WRITE (iw, '(T29,5F20.14)') (gthpot%hnl(j, k, i), k=j, gthpot%nl(i))
+            END DO
+         END SELECT
       END DO
       IF (.NOT. PRESENT(iunit)) CALL close_file(unit_number=iw)
 
