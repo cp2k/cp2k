@@ -56,7 +56,7 @@ He3_multi_ddapc.inp                                    1      3e-09             
 N.inp                                                  1      2e-13              -9.66927782728161
 N_notfixedMM.inp                                       1      2e-13              -9.66080048623250
 #new diagonalization
-h2o-otdiag.inp                                         1      4e-13            -17.099513470015619
+h2o-otdiag.inp                                         1      8e-13            -17.099513470015619
 h2o-diag.inp                                           1      6e-14            -16.101057762203698
 h2o-diag-sub.inp                                       1      6e-14             -17.10796281400148
 h2o-otdiag-lsd.inp                                     1      1E-13            -12.439395172921079
