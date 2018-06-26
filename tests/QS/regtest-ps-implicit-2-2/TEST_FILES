@@ -1,4 +1,4 @@
-H2O_mixed_periodic_aa_planar.inp                       1      1e-12             -17.233246473321387
-H2O_mixed_periodic_planar.inp                          1      1e-12             -17.230576823598504           
+H2O_mixed_periodic_aa_planar.inp                       1      1e-12             -17.23324626886945
+H2O_mixed_periodic_planar.inp                          1      1e-12             -17.23057683721551            
 H2O_spatial_rho_dep_dielec.inp                         1      1e-12             -17.224464501922753
 #EOF

@@ -14,7 +14,7 @@ H2-geo-3.inp                                           1      4e-14             
 H2-geo-4.inp                                           1      4e-13              -1.09108573590439
 H2-geo-5.inp                                           1      1E-11              -1.15154865141102
 # some problems with CU
-Cu.inp                                                 1    1.0E-14             -64.51883511637986
+Cu.inp                                                 1    1.0E-14             -64.51883502592328
 # test derivatives and keywords
 H2O-debug-1.inp                   1     3e-14              -8.12084591824419
 H2O-debug-2.inp                                        1    1.0E-14             -16.00183627256370
@@ -31,7 +31,7 @@ spin_restraint.inp                                     1      9e-11            -
 #New grouping colvar
 H2O-meta_g.inp                    1     2e-14             -17.16168353864566
 #Colvar for hydronium
-H2O-meta_hydro.inp                                     1      1e-13             -77.65379785881467 
+H2O-meta_hydro.inp                                     1      1e-13             -77.65379785725696 
 #NPT ensemble with QS
 H2O-7.inp                                              1      3e-14             -17.14737299477585
 #test wavelet based poisson solver for different boundary conditions
@@ -39,22 +39,22 @@ H2O_wavelet_free.inp                                   1      1e-13            -
 H2O_wavelet_free2.inp                                  1      3e-14            -16.582172771025778
 H2O_wavelet_XZ.inp                1     3e-14             -16.58705134777258
 #function to compute splined values - distributed grids
-NO2-EFG-1.inp                    19     7e-09            0.28952078662756131
-H2O-8.inp                                              1      2e-13             -16.99998000521669
-H2O-9.inp                                              1      2e-13            -17.161512889864429
+NO2-EFG-1.inp                    19     7e-09            0.2895206349779316
+H2O-8.inp                                              1      2e-13             -16.99998002341023
+H2O-9.inp                                              1      2e-13             -17.16151288983608
 # a system with a very small (1x1) KS matrix
 H.inp                                                  1      2e-13              -0.40345508311902
 # one (ghost) atom has no basis set associated
-basis_none_1.inp                                       1      3e-12            -17.105695832610849
-basis_none_2.inp                                       1      2e-12             -17.11076702829529
+basis_none_1.inp                                       1      3e-12             -17.10569678703742
+basis_none_2.inp                                       1      2e-12             -17.11076726662862
 # cell opt with a restart
 cell-1.inp                                             7    1.0E-14                 -21.0495583581
 cell-2.inp                                             7    1.0E-14                 -21.0496558677
 #multiple ddapc restraints
 He3_multi_ddapc.inp                                    1      3e-09              -7.33496694404064
 #many added MOS with LSD
-N.inp                                                  1      2e-13              -9.66927782728161
-N_notfixedMM.inp                                       1      2e-13              -9.66080048623250
+N.inp                                                  1      2e-13              -9.66927782045851
+N_notfixedMM.inp                                       1      2e-13              -9.66080047890004
 #new diagonalization
 h2o-otdiag.inp                                         1      8e-13            -17.099513470015619
 h2o-diag.inp                                           1      6e-14            -16.101057762203698
@@ -66,8 +66,8 @@ H-extpot.inp                                          11      1e-12             
 H2O-analytic_vee.inp             11     3e-12            -17.165089831978857
 H2O-read_cube.inp                11     3e-12            -17.165069594465521
 # welltempered metadynamics
-2H2O_meta_welltemp.inp                                 1      2e-14            -34.163021551576243
-ND3_meta_welltemp.inp             1     2e-14             -11.80921591726063
+2H2O_meta_welltemp.inp                                 1      2e-14             -34.16302155141452
+ND3_meta_welltemp.inp                                  1      2e-14             -11.80921591725914
 # gapw + npt
 H2O-gapw.inp                                           1      3e-14            -17.138804316237351
 #EOF

@@ -173,13 +173,13 @@ MODULE atom_types
 !> \brief Provides all information on states and occupation
 ! **************************************************************************************************
    TYPE atom_state
-      REAL(KIND=dp), DIMENSION(0:lmat, 10)          :: occ
-      REAL(KIND=dp), DIMENSION(0:lmat, 10)          :: core
-      REAL(KIND=dp), DIMENSION(0:lmat, 10)          :: occupation
+      REAL(KIND=dp), DIMENSION(0:lmat, 10)          :: occ = 0.0_dp
+      REAL(KIND=dp), DIMENSION(0:lmat, 10)          :: core = 0.0_dp
+      REAL(KIND=dp), DIMENSION(0:lmat, 10)          :: occupation = 0.0_dp
       INTEGER                                       :: maxl_occ
-      INTEGER, DIMENSION(0:lmat)                    :: maxn_occ
+      INTEGER, DIMENSION(0:lmat)                    :: maxn_occ = 0
       INTEGER                                       :: maxl_calc
-      INTEGER, DIMENSION(0:lmat)                    :: maxn_calc
+      INTEGER, DIMENSION(0:lmat)                    :: maxn_calc = 0
       INTEGER                                       :: multiplicity
       REAL(KIND=dp), DIMENSION(0:lmat, 10)          :: occa = 0.0_dp, occb = 0.0_dp
    END TYPE atom_state

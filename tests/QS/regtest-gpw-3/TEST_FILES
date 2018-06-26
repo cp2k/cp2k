@@ -17,7 +17,7 @@ H2O-bloechl-restraint.inp                              1      3e-12             
 # S**2
 CN.inp                                                 4    1.0E-14                       0.751382
 # testing of distributed rs grids
-rsgrid-dist-1.inp                 1     3e-11              -1.71460240489808
+rsgrid-dist-1.inp                 1     3e-11              -1.71460240870923
 #BSSE
 2H2O_bsse.inp                                          5    1.0E-14                      -0.000221
 2H2O_bsse_r.inp                                        5    1.0E-14                      -0.000221
@@ -47,17 +47,17 @@ H2O-solv2.inp                     1     3e-13             -14.76967241572270
 #XC_FUN NONE
 H2O-xc_none.inp                                        1      5e-14             -13.34544335665420
 # ghost atom dynamics
-dynamics.inp                      1     8e-09             -15.53409412609153
+dynamics.inp                      1     8e-09             -15.53408184176079
 # RESP charges
 CH3OH.inp                                              0
 # distributed non-ortho grids
-rsgrid-dist-2.inp                                      1      3e-14             -17.15330028494082
+rsgrid-dist-2.inp                                      1      3e-14             -17.15330028497962
 # also write wavefunctions
-rsgrid-dist-3.inp                                      1      3e-14             -16.47648910363991
+rsgrid-dist-3.inp                                      1      3e-14             -16.47649111001175
 # ghost atom dynamics at high cutoff highlights problems
-dynamics-2.inp                                         1      2e-13            -17.196994275195369
-ghost_overlap.inp                                      1      7e-14             -17.10554012837765
-ghost_overlap_vdw.inp                                  1      7e-14             -17.10561529908495
+dynamics-2.inp                                         1      2e-13             -17.19699427513456
+ghost_overlap.inp                                      1      7e-14             -17.10554013166121
+ghost_overlap_vdw.inp                                  1      7e-14             -17.10561530236850
 # Population analyses
 NO2-mulliken.inp                                      41    1.0E-14                       1.000000
 NO2-lowdin.inp                                        41    1.0E-14                       1.000000

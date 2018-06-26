@@ -3,15 +3,15 @@
 # e.g. 0 means do not compare anything, running is enough
 #      1 compares the last total energy in the file
 #      for details see cp2k/tools/do_regtest
-ch2o_1.inp                                             1      3e-13             -22.566443355725031
-ch2o_2.inp                                             1      3e-13             -22.566443355725031
-ch2o_3.inp                                             1      3e-13             -59.936031283964795
-ch2o_4.inp                                             1      3e-13             -59.936031283964795
-ch2o_5.inp                                             1      3e-13             -22.566443355725031
-ch2o_6.inp                                             1      3e-13             -59.936031283964795
-ch2o_7.inp                                             1      3e-13             -22.566443355725031
-ch2o_8.inp                                             1      3e-13             -22.566443355725031
-ch2o_9.inp                                             1      3e-13             -22.566443355725031
+ch2o_1.inp                                             1      3e-13             -22.56644338703015
+ch2o_2.inp                                             1      3e-13             -22.56644338703015 
+ch2o_3.inp                                             1      3e-13             -59.93603129436690 
+ch2o_4.inp                                             1      3e-13             -59.93603129436690 
+ch2o_5.inp                                             1      3e-13             -22.56644338703015 
+ch2o_6.inp                                             1      3e-13             -59.93603129436690 
+ch2o_7.inp                                             1      3e-13             -22.56644338703015 
+ch2o_8.inp                                             1      3e-13             -22.56644338703015 
+ch2o_9.inp                                             1      3e-13             -22.56644338703015 
 # disable unstable test
 #H2_upf.inp                                             1      3e-13              -1.135018770048071
 #EOF
