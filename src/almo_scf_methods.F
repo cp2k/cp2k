@@ -14,18 +14,22 @@ MODULE almo_scf_methods
                                               almo_scf_history_type
    USE bibliography,                    ONLY: Kolafa2004,&
                                               cite_reference
+   USE cp_blacs_env,                    ONLY: cp_blacs_env_type
+   USE cp_dbcsr_cholesky,               ONLY: cp_dbcsr_cholesky_decompose,&
+                                              cp_dbcsr_cholesky_invert
    USE cp_log_handling,                 ONLY: cp_get_default_logger,&
                                               cp_logger_get_default_unit_nr,&
                                               cp_logger_type
+   USE cp_para_types,                   ONLY: cp_para_env_type
    USE dbcsr_api,                       ONLY: &
-        dbcsr_add, dbcsr_add_on_diag, dbcsr_copy, dbcsr_create, dbcsr_desymmetrize, &
-        dbcsr_distribution_get, dbcsr_distribution_type, dbcsr_filter, dbcsr_finalize, &
-        dbcsr_frobenius_norm, dbcsr_get_block_p, dbcsr_get_diag, dbcsr_get_info, &
+        dbcsr_add, dbcsr_add_on_diag, dbcsr_copy, dbcsr_create, dbcsr_distribution_get, &
+        dbcsr_distribution_type, dbcsr_filter, dbcsr_finalize, dbcsr_frobenius_norm, &
+        dbcsr_get_block_p, dbcsr_get_diag, dbcsr_get_info, dbcsr_get_stored_coordinates, &
         dbcsr_init_random, dbcsr_iterator_blocks_left, dbcsr_iterator_next_block, &
         dbcsr_iterator_start, dbcsr_iterator_stop, dbcsr_iterator_type, dbcsr_multiply, &
-        dbcsr_nblkcols_total, dbcsr_norm, dbcsr_norm_maxabsnorm, dbcsr_print, dbcsr_release, &
-        dbcsr_reserve_block2d, dbcsr_scale, dbcsr_set, dbcsr_set_diag, dbcsr_transposed, &
-        dbcsr_type, dbcsr_type_no_symmetry, dbcsr_type_symmetric, dbcsr_work_create
+        dbcsr_nblkcols_total, dbcsr_nblkrows_total, dbcsr_print, dbcsr_release, &
+        dbcsr_reserve_block2d, dbcsr_set, dbcsr_set_diag, dbcsr_transposed, dbcsr_type, &
+        dbcsr_type_no_symmetry, dbcsr_type_symmetric, dbcsr_work_create
    USE domain_submatrix_methods,        ONLY: &
         add_submatrices, construct_dbcsr_from_submatrices, construct_submatrices, &
         copy_submatrices, copy_submatrix_data, init_submatrices, multiply_submatrices, &
@@ -36,8 +40,12 @@ MODULE almo_scf_methods
                                               select_row_col
    USE input_constants,                 ONLY: almo_domain_layout_molecular,&
                                               almo_mat_distr_atomic,&
-                                              almo_scf_diag
+                                              almo_scf_diag,&
+                                              spd_inversion_dense_cholesky,&
+                                              spd_inversion_ls_hotelling,&
+                                              spd_inversion_ls_taylor
    USE iterate_matrix,                  ONLY: invert_Hotelling,&
+                                              invert_Taylor,&
                                               matrix_sqrt_Newton_Schulz
    USE kinds,                           ONLY: dp
    USE mathlib,                         ONLY: binomial
@@ -51,12 +59,11 @@ MODULE almo_scf_methods
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'almo_scf_methods'
 
    PUBLIC almo_scf_ks_to_ks_blk, almo_scf_p_blk_to_t_blk, &
-      almo_scf_t_blk_to_p, almo_scf_t_blk_to_t_blk_orthonormal, &
-      almo_scf_t_to_p, almo_scf_ks_blk_to_tv_blk, &
+      almo_scf_t_to_proj, almo_scf_ks_blk_to_tv_blk, &
       almo_scf_ks_xx_to_tv_xx, &
       apply_projector, get_overlap, &
       generator_to_unitary, &
-      newton_grad_to_step, orthogonalize_mos, &
+      orthogonalize_mos, &
       pseudo_invert_diagonal_blk, construct_test, &
       construct_domain_preconditioner, &
       apply_domain_operators, &
@@ -489,6 +496,8 @@ CONTAINS
                              filter_eps=eps_multiply)
 
          ! 5. KS_blk=KS_blk-TMP4_blk
+         CALL dbcsr_copy(almo_scf_env%matrix_ks_blk(ispin), &
+                         almo_scf_env%matrix_ks(ispin), keep_sparsity=.TRUE.)
          CALL dbcsr_add(almo_scf_env%matrix_ks_blk(ispin), &
                         matrix_tmp4, &
                         1.0_dp, -1.0_dp)
@@ -584,6 +593,7 @@ CONTAINS
                              matrix_tmp_err, &
                              0.0_dp, almo_scf_env%matrix_err_blk(ispin), &
                              filter_eps=eps_multiply)
+
          ! subtract transpose
          CALL dbcsr_transposed(matrix_tmp_err, &
                                almo_scf_env%matrix_err_blk(ispin))
@@ -790,9 +800,6 @@ CONTAINS
                   CPABORT("DSYEV failed")
                END IF
 
-!WRITE (*,*) "Domain", idomain ,"OCC energies", eigenvalues( 1:almo_scf_env%nocc_of_domain(idomain,ispin) )
-!WRITE (*,*) "Domain", idomain ,"VIR energies", eigenvalues( almo_scf_env%nocc_of_domain(idomain,ispin)+1 : iblock_size )
-
                ! Copy occupied eigenvectors
                IF (almo_scf_env%domain_t(idomain, ispin)%ncols .NE. &
                    almo_scf_env%nocc_of_domain(idomain, ispin)) THEN
@@ -907,14 +914,14 @@ CONTAINS
          DO WHILE (dbcsr_iterator_blocks_left(iter))
             CALL dbcsr_iterator_next_block(iter, iblock_row, iblock_col, data_p, row_size=iblock_size)
 
-            block_needed = .FALSE.
-
-            IF (iblock_row == iblock_col) THEN
-               block_needed = .TRUE.
+            IF (iblock_row .NE. iblock_col) THEN
+               CPABORT("off-diagonal block found")
             ENDIF
 
-            IF (.NOT. block_needed) THEN
-               CPABORT("off-diagonal block found")
+            block_needed = .TRUE.
+            IF (almo_scf_env%nocc_of_domain(iblock_col, ispin) .EQ. 0 .AND. &
+                almo_scf_env%nvirt_of_domain(iblock_col, ispin) .EQ. 0) THEN
+               block_needed = .FALSE.
             ENDIF
 
             IF (block_needed) THEN
@@ -944,38 +951,39 @@ CONTAINS
                !!! THE CORRESPONDING DIAGONAL BLOCKS OF THE FOCK MATRIX:     !!!
                !!! T, V, E_o, E_v
 
-               ! copy eigenvectors into two cp_dbcsr matrices - occupied and virtuals
-               NULLIFY (p_new_block)
-               CALL dbcsr_reserve_block2d(matrix_t_blk_orthog, iblock_row, iblock_col, p_new_block)
-               nocc_of_block = SIZE(p_new_block, 2)
-               CPASSERT(ASSOCIATED(p_new_block))
-               CPASSERT(nocc_of_block .GT. 0)
-               p_new_block(:, :) = data_copy(:, 1:nocc_of_block)
-               ! now virtuals
-               NULLIFY (p_new_block)
-               CALL dbcsr_reserve_block2d(matrix_v_blk_orthog, iblock_row, iblock_col, p_new_block)
-               nvirt_of_block = SIZE(p_new_block, 2)
-               CPASSERT(ASSOCIATED(p_new_block))
-               CPASSERT(nvirt_of_block .GT. 0)
-               !CPPrecondition((nvirt_of_block+nocc_of_block.eq.iblock_size),cp_failure_level,routineP,failure)
-               p_new_block(:, :) = data_copy(:, (nocc_of_block+1):(nocc_of_block+nvirt_of_block))
+               ! copy eigenvectors into two dbcsr matrices - occupied and virtuals
+               nocc_of_block = almo_scf_env%nocc_of_domain(iblock_col, ispin)
+               IF (nocc_of_block .GT. 0) THEN
+                  NULLIFY (p_new_block)
+                  CALL dbcsr_reserve_block2d(matrix_t_blk_orthog, iblock_row, iblock_col, p_new_block)
+                  CPASSERT(ASSOCIATED(p_new_block))
+                  p_new_block(:, :) = data_copy(:, 1:nocc_of_block)
+                  ! copy eigenvalues into diagonal dbcsr matrix - Eoo
+                  NULLIFY (p_new_block)
+                  CALL dbcsr_reserve_block2d(almo_scf_env%matrix_eoo(ispin), iblock_row, iblock_col, p_new_block)
+                  CPASSERT(ASSOCIATED(p_new_block))
+                  p_new_block(:, :) = 0.0_dp
+                  DO orbital = 1, nocc_of_block
+                     p_new_block(orbital, orbital) = eigenvalues(orbital)
+                  ENDDO
+               ENDIF
 
-               ! copy eigenvalues into two diagonal cp_dbcsr matrices - Eoo and Evv
-               NULLIFY (p_new_block)
-               CALL dbcsr_reserve_block2d(almo_scf_env%matrix_eoo(ispin), iblock_row, iblock_col, p_new_block)
-               CPASSERT(ASSOCIATED(p_new_block))
-               p_new_block(:, :) = 0.0_dp
-               DO orbital = 1, nocc_of_block
-                  p_new_block(orbital, orbital) = eigenvalues(orbital)
-               ENDDO
-               ! virtual energies
-               NULLIFY (p_new_block)
-               CALL dbcsr_reserve_block2d(almo_scf_env%matrix_evv_full(ispin), iblock_row, iblock_col, p_new_block)
-               CPASSERT(ASSOCIATED(p_new_block))
-               p_new_block(:, :) = 0.0_dp
-               DO orbital = 1, nvirt_of_block
-                  p_new_block(orbital, orbital) = eigenvalues(nocc_of_block+orbital)
-               ENDDO
+               ! now virtuals
+               nvirt_of_block = almo_scf_env%nvirt_of_domain(iblock_col, ispin)
+               IF (nvirt_of_block .GT. 0) THEN
+                  NULLIFY (p_new_block)
+                  CALL dbcsr_reserve_block2d(matrix_v_blk_orthog, iblock_row, iblock_col, p_new_block)
+                  CPASSERT(ASSOCIATED(p_new_block))
+                  p_new_block(:, :) = data_copy(:, (nocc_of_block+1):(nocc_of_block+nvirt_of_block))
+                  ! virtual energies
+                  NULLIFY (p_new_block)
+                  CALL dbcsr_reserve_block2d(almo_scf_env%matrix_evv_full(ispin), iblock_row, iblock_col, p_new_block)
+                  CPASSERT(ASSOCIATED(p_new_block))
+                  p_new_block(:, :) = 0.0_dp
+                  DO orbital = 1, nvirt_of_block
+                     p_new_block(orbital, orbital) = eigenvalues(nocc_of_block+orbital)
+                  ENDDO
+               ENDIF
 
                DEALLOCATE (WORK)
                DEALLOCATE (data_copy)
@@ -1014,7 +1022,7 @@ CONTAINS
    END SUBROUTINE almo_scf_ks_blk_to_tv_blk
 
 ! **************************************************************************************************
-!> \brief inverts block-diagonal blocks of a cp_dbcsr_matrix
+!> \brief inverts block-diagonal blocks of a dbcsr_matrix
 !> \param matrix_in ...
 !> \param matrix_out ...
 !> \param nocc ...
@@ -1062,7 +1070,6 @@ CONTAINS
                                       range1=nocc(iblock_row), range2=nocc(iblock_row), &
                                       !range1_thr,range2_thr,&
                                       shift=1.0E-5_dp)
-
             !!! IT IS EXTREMELY IMPORTANT THAT THE BLOCKS OF THE "OUT"  !!!
             !!! MATRIX ARE DISTRIBUTED AS THE BLOCKS OF THE "IN" MATRIX !!!
 
@@ -1173,7 +1180,7 @@ CONTAINS
                !!! IT IS EXTREMELY IMPORTANT THAT THE DIAGONAL BLOCKS OF THE !!!
                !!! P AND T MATRICES ARE LOCATED ON THE SAME NODES            !!!
 
-               ! copy eigenvectors into two cp_dbcsr matrices - occupied and virtuals
+               ! copy eigenvectors into two dbcsr matrices - occupied and virtuals
                NULLIFY (p_new_block)
                CALL dbcsr_reserve_block2d(matrix_t_blk_tmp, &
                                           iblock_row, iblock_col, p_new_block)
@@ -1284,131 +1291,6 @@ CONTAINS
 
    END SUBROUTINE get_overlap
 
-!! **************************************************************************************************
-!!> \brief Create the overlap matrix of virtual orbitals
-!!> \par History
-!!>       2011.07 created [Rustam Z Khaliullin]
-!!> \author Rustam Z Khaliullin
-!! **************************************************************************************************
-!  SUBROUTINE almo_scf_v_to_sigma_vv(almo_scf_env)
-!
-!    TYPE(almo_scf_env_type), INTENT(INOUT)   :: almo_scf_env
-!
-!    CHARACTER(LEN=*), PARAMETER :: &
-!      routineN = 'almo_scf_v_to_sigma_vv', &
-!      routineP = moduleN//':'//routineN
-!
-!    TYPE(dbcsr_type)                      :: tmp
-!    INTEGER                                  :: ispin, handle
-!
-!    CALL timeset(routineN,handle)
-!
-!    DO ispin=1,almo_scf_env%nspins
-!
-!       CALL dbcsr_init(tmp)
-!       CALL dbcsr_create(tmp,&
-!               template=almo_scf_env%matrix_v(ispin),&
-!               matrix_type=dbcsr_type_no_symmetry)
-!
-!       ! TMP=S.V
-!       CALL dbcsr_multiply("N","N",1.0_dp,&
-!               almo_scf_env%matrix_s(1),&
-!               almo_scf_env%matrix_v(ispin),&
-!               0.0_dp,tmp,&
-!               filter_eps=almo_scf_env%eps_filter)
-!
-!       ! Sig_vv=tr(V).S.V - get MO overlap
-!       CALL dbcsr_multiply("T","N",1.0_dp,&
-!               almo_scf_env%matrix_v(ispin),&
-!               tmp,&
-!               0.0_dp,almo_scf_env%matrix_sigma_vv(ispin),&
-!               filter_eps=almo_scf_env%eps_filter)
-!
-!       CALL dbcsr_release(tmp)
-!
-!    END DO
-!
-!    CALL timestop(handle)
-!
-!  END SUBROUTINE almo_scf_v_to_sigma_vv
-
-!! **************************************************************************************************
-!!> \brief orthogonalize virtual oribitals within a domain
-!!> \par History
-!!>       2011.07 created [Rustam Z Khaliullin]
-!!> \author Rustam Z Khaliullin
-!! **************************************************************************************************
-!  SUBROUTINE almo_scf_v_to_v_orthonormal_blk(almo_scf_env)
-!
-!    TYPE(almo_scf_env_type), INTENT(INOUT)   :: almo_scf_env
-!
-!    CHARACTER(LEN=*), PARAMETER :: &
-!      routineN = 'almo_scf_v_to_v_orthonormal_blk', &
-!      routineP = moduleN//':'//routineN
-!
-!    TYPE(dbcsr_type)                      :: matrix_v_tmp,&
-!                                                sigma_vv_blk_sqrt,&
-!                                                sigma_vv_blk_sqrt_inv
-!    INTEGER                                  :: ispin, handle
-!
-!
-!    CALL timeset(routineN,handle)
-!
-!    DO ispin=1,almo_scf_env%nspins
-!
-!       CALL dbcsr_init(matrix_v_tmp)
-!       CALL dbcsr_create(matrix_v_tmp,&
-!                            template=almo_scf_env%matrix_v(ispin))
-!
-!       ! TMP=S.V
-!       CALL dbcsr_multiply("N", "N", 1.0_dp, almo_scf_env%matrix_s(1),&
-!                              almo_scf_env%matrix_v(ispin),&
-!                              0.0_dp, matrix_v_tmp,&
-!                              filter_eps=almo_scf_env%eps_filter)
-!
-!       ! Sig_blk=tr(V).TMP - get blocked MO overlap
-!       CALL dbcsr_multiply("T", "N", 1.0_dp,&
-!                              almo_scf_env%matrix_v(ispin),&
-!                              matrix_v_tmp,&
-!                              0.0_dp, almo_scf_env%matrix_sigma_vv_blk(ispin),&
-!                              filter_eps=almo_scf_env%eps_filter,&
-!                              retain_sparsity=.TRUE.)
-!
-!       CALL dbcsr_init(sigma_vv_blk_sqrt)
-!       CALL dbcsr_init(sigma_vv_blk_sqrt_inv)
-!       CALL dbcsr_create(sigma_vv_blk_sqrt,template=almo_scf_env%matrix_sigma_vv_blk(ispin),&
-!                            matrix_type=dbcsr_type_no_symmetry)
-!       CALL dbcsr_create(sigma_vv_blk_sqrt_inv,template=almo_scf_env%matrix_sigma_vv_blk(ispin),&
-!                            matrix_type=dbcsr_type_no_symmetry)
-!
-!       ! compute sqrt and sqrt_inv of the blocked MO overlap
-!       CALL matrix_sqrt_Newton_Schulz(sigma_vv_blk_sqrt,sigma_vv_blk_sqrt_inv,&
-!                                      almo_scf_env%matrix_sigma_vv_blk(ispin),&
-!                                      threshold=almo_scf_env%eps_filter,&
-!                                      order=almo_scf_env%order_lanczos,&
-!                                      eps_lanczos=almo_scf_env%eps_lancsoz,&
-!                                      max_iter_lanczos=almo_scf_env%max_iter_lanczos)
-!
-!       ! TMP_blk=V.SigSQRTInv_blk
-!       CALL dbcsr_multiply("N", "N", 1.0_dp,&
-!                              almo_scf_env%matrix_v(ispin),&
-!                              sigma_vv_blk_sqrt_inv,&
-!                              0.0_dp, matrix_v_tmp,&
-!                              filter_eps=almo_scf_env%eps_filter)
-!
-!       ! update the orbitals with the orthonormalized MOs
-!       CALL dbcsr_copy(almo_scf_env%matrix_v(ispin),matrix_v_tmp)
-!
-!       CALL dbcsr_release (matrix_v_tmp)
-!       CALL dbcsr_release (sigma_vv_blk_sqrt)
-!       CALL dbcsr_release (sigma_vv_blk_sqrt_inv)
-!
-!    END DO
-!
-!    CALL timestop(handle)
-!
-!  END SUBROUTINE almo_scf_v_to_v_orthonormal_blk
-
 ! **************************************************************************************************
 !> \brief orthogonalize MOs
 !> \param ket ...
@@ -1416,24 +1298,28 @@ CONTAINS
 !> \param metric ...
 !> \param retain_locality ...
 !> \param only_normalize ...
+!> \param nocc_of_domain ...
 !> \param eps_filter ...
 !> \param order_lanczos ...
 !> \param eps_lanczos ...
 !> \param max_iter_lanczos ...
+!> \param overlap_sqrti ...
 !> \par History
 !>       2012.03 created [Rustam Z Khaliullin]
 !> \author Rustam Z Khaliullin
 ! **************************************************************************************************
    SUBROUTINE orthogonalize_mos(ket, overlap, metric, retain_locality, only_normalize, &
-                                eps_filter, order_lanczos, eps_lanczos, max_iter_lanczos)
+                                nocc_of_domain, eps_filter, order_lanczos, eps_lanczos, max_iter_lanczos, overlap_sqrti)
 
       TYPE(dbcsr_type), INTENT(INOUT)                    :: ket, overlap
       TYPE(dbcsr_type), INTENT(IN)                       :: metric
       LOGICAL, INTENT(IN)                                :: retain_locality, only_normalize
+      INTEGER, DIMENSION(:), INTENT(IN)                  :: nocc_of_domain
       REAL(KIND=dp)                                      :: eps_filter
       INTEGER, INTENT(IN)                                :: order_lanczos
       REAL(KIND=dp), INTENT(IN)                          :: eps_lanczos
       INTEGER, INTENT(IN)                                :: max_iter_lanczos
+      TYPE(dbcsr_type), INTENT(INOUT), OPTIONAL          :: overlap_sqrti
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'orthogonalize_mos', &
          routineP = moduleN//':'//routineN
@@ -1474,11 +1360,15 @@ CONTAINS
                         matrix_type=dbcsr_type_no_symmetry)
 
       ! compute sqrt and sqrt_inv of the blocked MO overlap
+      CALL set_zero_electron_blocks_in_mo_mo_matrix(overlap, nocc_of_domain, 1.0_dp)
       CALL matrix_sqrt_Newton_Schulz(matrix_sigma_blk_sqrt, matrix_sigma_blk_sqrt_inv, &
                                      overlap, threshold=eps_filter, &
                                      order=order_lanczos, &
                                      eps_lanczos=eps_lanczos, &
                                      max_iter_lanczos=max_iter_lanczos)
+      CALL set_zero_electron_blocks_in_mo_mo_matrix(overlap, nocc_of_domain, 0.0_dp)
+      !CALL set_zero_electron_blocks_in_mo_mo_matrix(matrix_sigma_blk_sqrt,nocc_of_domain,0.0_dp)
+      CALL set_zero_electron_blocks_in_mo_mo_matrix(matrix_sigma_blk_sqrt_inv, nocc_of_domain, 0.0_dp)
 
       CALL dbcsr_create(matrix_t_blk_tmp, &
                         template=ket, &
@@ -1489,10 +1379,15 @@ CONTAINS
                           matrix_sigma_blk_sqrt_inv, &
                           0.0_dp, matrix_t_blk_tmp, &
                           filter_eps=eps_filter)
-      !retain_sparsity=retain_locality,&
 
       ! update the orbitals with the orthonormalized MOs
       CALL dbcsr_copy(ket, matrix_t_blk_tmp)
+
+      ! return overlap SQRT_INV if necessary
+      IF (PRESENT(overlap_sqrti)) THEN
+         CALL dbcsr_copy(overlap_sqrti, &
+                         matrix_sigma_blk_sqrt_inv)
+      ENDIF
 
       CALL dbcsr_release(matrix_t_blk_tmp)
       CALL dbcsr_release(matrix_sigma_blk_sqrt)
@@ -1503,128 +1398,81 @@ CONTAINS
    END SUBROUTINE orthogonalize_mos
 
 ! **************************************************************************************************
-!> \brief orthogonalize ALMOs within a domain (obsolete, use orthogonalize_mos)
-!> \param almo_scf_env ...
-!> \par History
-!>       2011.06 created [Rustam Z Khaliullin]
-!> \author Rustam Z Khaliullin
-! **************************************************************************************************
-   SUBROUTINE almo_scf_t_blk_to_t_blk_orthonormal(almo_scf_env)
-
-      TYPE(almo_scf_env_type), INTENT(INOUT)             :: almo_scf_env
-
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'almo_scf_t_blk_to_t_blk_orthonormal', &
-         routineP = moduleN//':'//routineN
-
-      INTEGER                                            :: handle, ispin
-      TYPE(dbcsr_type)                                   :: matrix_sigma_blk_sqrt, &
-                                                            matrix_sigma_blk_sqrt_inv, &
-                                                            matrix_t_blk_tmp
-
-      CALL timeset(routineN, handle)
-
-      DO ispin = 1, almo_scf_env%nspins
-
-         CALL dbcsr_create(matrix_t_blk_tmp, &
-                           template=almo_scf_env%matrix_t_blk(ispin), &
-                           matrix_type=dbcsr_type_no_symmetry)
-
-         ! TMP_blk=S_blk.T_blk
-         CALL dbcsr_multiply("N", "N", 1.0_dp, almo_scf_env%matrix_s_blk(1), &
-                             almo_scf_env%matrix_t_blk(ispin), &
-                             0.0_dp, matrix_t_blk_tmp, &
-                             filter_eps=almo_scf_env%eps_filter)
-
-         ! Sig_blk=tr(T_blk).TMP_blk - get blocked MO overlap
-         CALL dbcsr_multiply("T", "N", 1.0_dp, &
-                             almo_scf_env%matrix_t_blk(ispin), &
-                             matrix_t_blk_tmp, &
-                             0.0_dp, almo_scf_env%matrix_sigma_blk(ispin), &
-                             filter_eps=almo_scf_env%eps_filter, &
-                             retain_sparsity=.TRUE.)
-
-         ! RZK-warning try to use symmetry of the sqrt and sqrt_inv matrices
-         CALL dbcsr_create(matrix_sigma_blk_sqrt, template=almo_scf_env%matrix_sigma_blk(ispin), &
-                           matrix_type=dbcsr_type_no_symmetry)
-         CALL dbcsr_create(matrix_sigma_blk_sqrt_inv, template=almo_scf_env%matrix_sigma_blk(ispin), &
-                           matrix_type=dbcsr_type_no_symmetry)
-
-         ! compute sqrt and sqrt_inv of the blocked MO overlap
-         CALL matrix_sqrt_Newton_Schulz(matrix_sigma_blk_sqrt, matrix_sigma_blk_sqrt_inv, &
-                                        almo_scf_env%matrix_sigma_blk(ispin), &
-                                        threshold=almo_scf_env%eps_filter, &
-                                        order=almo_scf_env%order_lanczos, &
-                                        eps_lanczos=almo_scf_env%eps_lanczos, &
-                                        max_iter_lanczos=almo_scf_env%max_iter_lanczos)
-
-         ! TMP_blk=T_blk.SigSQRTInv_blk
-         CALL dbcsr_multiply("N", "N", 1.0_dp, &
-                             almo_scf_env%matrix_t_blk(ispin), &
-                             matrix_sigma_blk_sqrt_inv, &
-                             0.0_dp, matrix_t_blk_tmp, &
-                             filter_eps=almo_scf_env%eps_filter, &
-                             retain_sparsity=.TRUE.)
-
-         ! update the orbitals with the orthonormalized ALMOs
-         CALL dbcsr_copy(almo_scf_env%matrix_t_blk(ispin), matrix_t_blk_tmp, &
-                         keep_sparsity=.TRUE.)
-
-         CALL dbcsr_release(matrix_t_blk_tmp)
-         CALL dbcsr_release(matrix_sigma_blk_sqrt)
-         CALL dbcsr_release(matrix_sigma_blk_sqrt_inv)
-
-      END DO
-
-      CALL timestop(handle)
-
-   END SUBROUTINE almo_scf_t_blk_to_t_blk_orthonormal
-
-! **************************************************************************************************
 !> \brief computes the idempotent density matrix from MOs
 !>        MOs can be either orthogonal or non-orthogonal
 !> \param t ...
 !> \param p ...
 !> \param eps_filter ...
 !> \param orthog_orbs ...
+!> \param nocc_of_domain ...
 !> \param s ...
 !> \param sigma ...
 !> \param sigma_inv ...
 !> \param use_guess ...
+!> \param algorithm to inver sigma: 0 - Hotelling (linear), 1 - Cholesky (cubic, low prefactor)
+!> \param para_env ...
+!> \param blacs_env ...
+!> \param eps_lanczos ...
+!> \param max_iter_lanczos ...
+!> \param inverse_accelerator ...
+!> \param inv_eps_factor ...
 !> \par History
 !>       2011.07 created [Rustam Z Khaliullin]
 !> \author Rustam Z Khaliullin
 ! **************************************************************************************************
-   SUBROUTINE almo_scf_t_to_p(t, p, eps_filter, orthog_orbs, s, sigma, sigma_inv, &
-                              use_guess)
+   SUBROUTINE almo_scf_t_to_proj(t, p, eps_filter, orthog_orbs, nocc_of_domain, s, sigma, sigma_inv, &
+                                 use_guess, algorithm, para_env, blacs_env, eps_lanczos, &
+                                 max_iter_lanczos, inverse_accelerator, inv_eps_factor)
 
       TYPE(dbcsr_type), INTENT(IN)                       :: t
       TYPE(dbcsr_type), INTENT(INOUT)                    :: p
       REAL(KIND=dp), INTENT(IN)                          :: eps_filter
       LOGICAL, INTENT(IN)                                :: orthog_orbs
+      INTEGER, DIMENSION(:), INTENT(IN), OPTIONAL        :: nocc_of_domain
       TYPE(dbcsr_type), INTENT(IN), OPTIONAL             :: s
       TYPE(dbcsr_type), INTENT(INOUT), OPTIONAL          :: sigma, sigma_inv
       LOGICAL, INTENT(IN), OPTIONAL                      :: use_guess
+      INTEGER, INTENT(IN), OPTIONAL                      :: algorithm
+      TYPE(cp_para_env_type), OPTIONAL, POINTER          :: para_env
+      TYPE(cp_blacs_env_type), OPTIONAL, POINTER         :: blacs_env
+      REAL(KIND=dp), INTENT(IN), OPTIONAL                :: eps_lanczos
+      INTEGER, INTENT(IN), OPTIONAL                      :: max_iter_lanczos, inverse_accelerator
+      REAL(KIND=dp), INTENT(IN), OPTIONAL                :: inv_eps_factor
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'almo_scf_t_to_p', &
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'almo_scf_t_to_proj', &
          routineP = moduleN//':'//routineN
 
-      INTEGER                                            :: handle
+      INTEGER                                            :: handle, my_accelerator, my_algorithm
       LOGICAL                                            :: use_sigma_inv_guess
+      REAL(KIND=dp)                                      :: my_inv_eps_factor
       TYPE(dbcsr_type)                                   :: t_tmp
 
       CALL timeset(routineN, handle)
 
       ! make sure that S, sigma and sigma_inv are present for non-orthogonal orbitals
       IF (.NOT. orthog_orbs) THEN
-         IF ((.NOT. PRESENT(s)) .OR. (.NOT. PRESENT(sigma)) .OR. (.NOT. PRESENT(sigma_inv))) THEN
-            CPABORT("")
+         IF ((.NOT. PRESENT(s)) .OR. (.NOT. PRESENT(sigma)) .OR. &
+             (.NOT. PRESENT(sigma_inv)) .OR. (.NOT. PRESENT(nocc_of_domain))) THEN
+            CPABORT("Nonorthogonal orbitals need more input")
          ENDIF
       ENDIF
+
+      my_algorithm = 0
+      IF (PRESENT(algorithm)) my_algorithm = algorithm
+
+      IF (my_algorithm == 1 .AND. (.NOT. PRESENT(para_env) .OR. .NOT. PRESENT(blacs_env))) &
+         CPABORT("PARA and BLACS env are necessary for cholesky algorithm")
 
       use_sigma_inv_guess = .FALSE.
       IF (PRESENT(use_guess)) THEN
          use_sigma_inv_guess = use_guess
       ENDIF
+
+      my_accelerator = 1
+      IF (PRESENT(inverse_accelerator)) my_accelerator = inverse_accelerator
+
+      my_inv_eps_factor = 10.0_dp
+      IF (PRESENT(inv_eps_factor)) my_inv_eps_factor = inv_eps_factor
 
       IF (orthog_orbs) THEN
 
@@ -1644,11 +1492,52 @@ CONTAINS
                              filter_eps=eps_filter)
 
          ! invert MO overlap
-         CALL invert_Hotelling( &
-            matrix_inverse=sigma_inv, &
-            matrix=sigma, &
-            use_inv_as_guess=use_sigma_inv_guess, &
-            threshold=eps_filter)
+         CALL set_zero_electron_blocks_in_mo_mo_matrix(sigma, nocc_of_domain, 1.0_dp)
+         SELECT CASE (my_algorithm)
+         CASE (spd_inversion_ls_taylor)
+
+            CALL invert_Taylor( &
+               matrix_inverse=sigma_inv, &
+               matrix=sigma, &
+               use_inv_as_guess=use_sigma_inv_guess, &
+               threshold=eps_filter*my_inv_eps_factor, &
+               filter_eps=eps_filter, &
+               !accelerator_order=my_accelerator, &
+               !eps_lanczos=eps_lanczos, &
+               !max_iter_lanczos=max_iter_lanczos, &
+               silent=.FALSE.)
+
+         CASE (spd_inversion_ls_hotelling)
+
+            CALL invert_Hotelling( &
+               matrix_inverse=sigma_inv, &
+               matrix=sigma, &
+               use_inv_as_guess=use_sigma_inv_guess, &
+               threshold=eps_filter*my_inv_eps_factor, &
+               filter_eps=eps_filter, &
+               accelerator_order=my_accelerator, &
+               eps_lanczos=eps_lanczos, &
+               max_iter_lanczos=max_iter_lanczos, &
+               silent=.FALSE.)
+
+         CASE (spd_inversion_dense_cholesky)
+
+            ! invert using cholesky
+            CALL dbcsr_copy(sigma_inv, sigma)
+            CALL cp_dbcsr_cholesky_decompose(sigma_inv, &
+                                             para_env=para_env, &
+                                             blacs_env=blacs_env)
+            CALL cp_dbcsr_cholesky_invert(sigma_inv, &
+                                          para_env=para_env, &
+                                          blacs_env=blacs_env, &
+                                          upper_to_full=.TRUE.)
+            CALL dbcsr_filter(sigma_inv, &
+                              eps=eps_filter)
+         CASE DEFAULT
+            CPABORT("Illegal MO overalp inversion algorithm")
+         END SELECT
+         CALL set_zero_electron_blocks_in_mo_mo_matrix(sigma, nocc_of_domain, 0.0_dp)
+         CALL set_zero_electron_blocks_in_mo_mo_matrix(sigma_inv, nocc_of_domain, 0.0_dp)
 
          ! TMP=T.SigInv
          CALL dbcsr_multiply("N", "N", 1.0_dp, t, sigma_inv, 0.0_dp, t_tmp, &
@@ -1664,7 +1553,60 @@ CONTAINS
 
       CALL timestop(handle)
 
-   END SUBROUTINE almo_scf_t_to_p
+   END SUBROUTINE almo_scf_t_to_proj
+
+! **************************************************************************************************
+!> \brief self-explanatory
+!> \param matrix ...
+!> \param nocc_of_domain ...
+!> \param value ...
+!> \param
+!> \par History
+!>       2016.12 created [Rustam Z Khaliullin]
+!> \author Rustam Z Khaliullin
+! **************************************************************************************************
+   SUBROUTINE set_zero_electron_blocks_in_mo_mo_matrix(matrix, nocc_of_domain, value)
+
+      TYPE(dbcsr_type), INTENT(INOUT)                    :: matrix
+      INTEGER, DIMENSION(:), INTENT(IN)                  :: nocc_of_domain
+      REAL(KIND=dp), INTENT(IN)                          :: value
+
+      INTEGER                                            :: hold, iblock_col, iblock_row, mynode, &
+                                                            nblkrows_tot, row
+      LOGICAL                                            :: found, tr
+      REAL(KIND=dp), DIMENSION(:, :), POINTER            :: p_new_block
+      TYPE(dbcsr_distribution_type)                      :: dist
+
+      CALL dbcsr_get_info(matrix, distribution=dist)
+      CALL dbcsr_distribution_get(dist, mynode=mynode)
+      !mynode = dbcsr_mp_mynode(dbcsr_distribution_mp(dbcsr_distribution(matrix)))
+      CALL dbcsr_work_create(matrix, work_mutable=.TRUE.)
+
+      nblkrows_tot = dbcsr_nblkrows_total(matrix)
+
+      DO row = 1, nblkrows_tot
+         IF (nocc_of_domain(row) == 0) THEN
+            tr = .FALSE.
+            iblock_row = row
+            iblock_col = row
+            CALL dbcsr_get_stored_coordinates(matrix, iblock_row, iblock_col, hold)
+            IF (hold .EQ. mynode) THEN
+               NULLIFY (p_new_block)
+               CALL dbcsr_get_block_p(matrix, iblock_row, iblock_col, p_new_block, found)
+               IF (found) THEN
+                  p_new_block(1, 1) = value
+               ELSE
+                  CALL dbcsr_reserve_block2d(matrix, iblock_row, iblock_col, p_new_block)
+                  CPASSERT(ASSOCIATED(p_new_block))
+                  p_new_block(1, 1) = value
+               ENDIF
+            ENDIF ! mynode
+         ENDIF !zero-electron block
+      ENDDO
+
+      CALL dbcsr_finalize(matrix)
+
+   END SUBROUTINE set_zero_electron_blocks_in_mo_mo_matrix
 
 ! **************************************************************************************************
 !> \brief applies projector to the orbitals
@@ -1832,58 +1774,6 @@ CONTAINS
 !    CALL timestop(handle)
 !
 !  END SUBROUTINE almo_scf_p_out_from_v
-
-! **************************************************************************************************
-!> \brief computes the idempotent density matrix from ALMOs
-!> \param almo_scf_env ...
-!> \param use_sigma_inv_guess ...
-!> \par History
-!>       2011.06 created [Rustam Z Khaliullin]
-!>       2011.07 converted into a wrapper which calls almo_scf_t_to_p
-!> \author Rustam Z Khaliullin
-! **************************************************************************************************
-   SUBROUTINE almo_scf_t_blk_to_p(almo_scf_env, use_sigma_inv_guess)
-
-      TYPE(almo_scf_env_type), INTENT(INOUT)             :: almo_scf_env
-      LOGICAL, INTENT(IN), OPTIONAL                      :: use_sigma_inv_guess
-
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'almo_scf_t_blk_to_p', &
-         routineP = moduleN//':'//routineN
-
-      INTEGER                                            :: handle, ispin
-      LOGICAL                                            :: use_guess
-      REAL(KIND=dp)                                      :: spin_factor
-
-      CALL timeset(routineN, handle)
-
-      use_guess = .FALSE.
-      IF (PRESENT(use_sigma_inv_guess)) THEN
-         use_guess = use_sigma_inv_guess
-      ENDIF
-
-      DO ispin = 1, almo_scf_env%nspins
-
-         CALL almo_scf_t_to_p(t=almo_scf_env%matrix_t_blk(ispin), &
-                              p=almo_scf_env%matrix_p(ispin), &
-                              eps_filter=almo_scf_env%eps_filter, &
-                              orthog_orbs=.FALSE., &
-                              s=almo_scf_env%matrix_s(1), &
-                              sigma=almo_scf_env%matrix_sigma(ispin), &
-                              sigma_inv=almo_scf_env%matrix_sigma_inv(ispin), &
-                              use_guess=use_guess)
-
-         IF (almo_scf_env%nspins == 1) THEN
-            spin_factor = 2.0_dp
-         ELSE
-            spin_factor = 1.0_dp
-         ENDIF
-         CALL dbcsr_scale(almo_scf_env%matrix_p(ispin), spin_factor)
-
-      END DO
-
-      CALL timestop(handle)
-
-   END SUBROUTINE almo_scf_t_blk_to_p
 
 ! **************************************************************************************************
 !> \brief computes a unitary matrix from an arbitrary "generator" matrix
@@ -2096,32 +1986,40 @@ CONTAINS
 !>         0. simple preconditioner
 !> \param matrix_main ...
 !> \param subm_s_inv ...
+!> \param subm_s_inv_half ...
+!> \param subm_s_half ...
 !> \param subm_r_down ...
 !> \param matrix_trimmer ...
 !> \param dpattern ...
 !> \param map ...
 !> \param node_of_domain ...
 !> \param preconditioner ...
+!> \param bad_modes_projector_down ...
 !> \param use_trimmer ...
+!> \param eps_zero_eigenvalues ...
 !> \param my_action ...
 !> \par History
 !>       2013.01 created [Rustam Z. Khaliullin]
 !> \author Rustam Z. Khaliullin
 ! **************************************************************************************************
-   SUBROUTINE construct_domain_preconditioner(matrix_main, subm_s_inv, &
+   SUBROUTINE construct_domain_preconditioner(matrix_main, subm_s_inv, subm_s_inv_half, subm_s_half, &
                                               subm_r_down, matrix_trimmer, dpattern, map, node_of_domain, preconditioner, &
-                                              use_trimmer, my_action)
+                                              bad_modes_projector_down, use_trimmer, eps_zero_eigenvalues, my_action)
 
       TYPE(dbcsr_type), INTENT(INOUT)                    :: matrix_main
       TYPE(domain_submatrix_type), DIMENSION(:), &
-         INTENT(IN), OPTIONAL                            :: subm_s_inv, subm_r_down
+         INTENT(IN), OPTIONAL                            :: subm_s_inv, subm_s_inv_half, &
+                                                            subm_s_half, subm_r_down
       TYPE(dbcsr_type), INTENT(INOUT), OPTIONAL          :: matrix_trimmer
       TYPE(dbcsr_type), INTENT(IN)                       :: dpattern
       TYPE(domain_map_type), INTENT(IN)                  :: map
       INTEGER, DIMENSION(:), INTENT(IN)                  :: node_of_domain
       TYPE(domain_submatrix_type), DIMENSION(:), &
          INTENT(INOUT)                                   :: preconditioner
+      TYPE(domain_submatrix_type), DIMENSION(:), &
+         INTENT(INOUT), OPTIONAL                         :: bad_modes_projector_down
       LOGICAL, INTENT(IN), OPTIONAL                      :: use_trimmer
+      REAL(KIND=dp), INTENT(IN), OPTIONAL                :: eps_zero_eigenvalues
       INTEGER, INTENT(IN)                                :: my_action
 
       CHARACTER(len=*), PARAMETER :: routineN = 'construct_domain_preconditioner', &
@@ -2134,7 +2032,7 @@ CONTAINS
       LOGICAL                                            :: matrix_r_required, &
                                                             matrix_s_inv_required, &
                                                             matrix_trimmer_required, my_use_trimmer
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: Minv
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: Minv, proj_array
       TYPE(domain_submatrix_type), ALLOCATABLE, &
          DIMENSION(:)                                    :: subm_main, subm_tmp, subm_tmp2
 
@@ -2259,14 +2157,55 @@ CONTAINS
             !!!TRIM    subm_out=MATMUL(tmp,sigma)
             !!!TRIM    deallocate(tmp)
             !!!TRIM ELSE
-            CALL pseudo_invert_matrix(A=subm_main(idomain)%mdata, Ainv=Minv, N=naos, method=1, &
-                                      range1=nmos(idomain), range2=n_domain_mos)
+
+            IF (PRESENT(bad_modes_projector_down)) THEN
+               ALLOCATE (proj_array(naos, naos))
+            ENDIF
+
+            IF (PRESENT(eps_zero_eigenvalues)) THEN
+               IF (PRESENT(subm_s_inv_half)) THEN
+                  CALL pseudo_invert_matrix(A=subm_main(idomain)%mdata, Ainv=Minv, N=naos, method=1, &
+                                            range1=nmos(idomain), range2=n_domain_mos, &
+                                            range1_thr=eps_zero_eigenvalues, &
+                                            bad_modes_projector_down=proj_array, &
+                                            s_inv_half=subm_s_inv_half(idomain)%mdata, &
+                                            s_half=subm_s_half(idomain)%mdata &
+                                            !metric_inv=subm_s_inv(idomain)%mdata &
+                                            )
+               ELSE
+                  CALL pseudo_invert_matrix(A=subm_main(idomain)%mdata, Ainv=Minv, N=naos, method=1, &
+                                            range1=nmos(idomain), range2=n_domain_mos, &
+                                            range1_thr=eps_zero_eigenvalues, &
+                                            bad_modes_projector_down=proj_array &
+                                            )
+               ENDIF
+            ELSE
+               IF (PRESENT(subm_s_inv_half)) THEN
+                  CALL pseudo_invert_matrix(A=subm_main(idomain)%mdata, Ainv=Minv, N=naos, method=1, &
+                                            range1=nmos(idomain), range2=n_domain_mos, &
+                                            bad_modes_projector_down=proj_array, &
+                                            s_inv_half=subm_s_inv_half(idomain)%mdata, &
+                                            s_half=subm_s_inv(idomain)%mdata)
+               ELSE
+                  CALL pseudo_invert_matrix(A=subm_main(idomain)%mdata, Ainv=Minv, N=naos, method=1, &
+                                            range1=nmos(idomain), range2=n_domain_mos, &
+                                            bad_modes_projector_down=proj_array)
+               ENDIF
+            ENDIF ! eps_zero_eigenvalues
             !!!TRIM ENDIF
 
             CALL copy_submatrices(subm_main(idomain), preconditioner(idomain), .FALSE.)
             CALL copy_submatrix_data(Minv, preconditioner(idomain))
 
+            IF (PRESENT(bad_modes_projector_down)) THEN
+               CALL copy_submatrices(subm_main(idomain), bad_modes_projector_down(idomain), .FALSE.)
+               CALL copy_submatrix_data(proj_array, bad_modes_projector_down(idomain))
+            ENDIF
+
             DEALLOCATE (Minv)
+            IF (PRESENT(bad_modes_projector_down)) THEN
+               DEALLOCATE (proj_array)
+            ENDIF
 
          ENDIF ! submatrix for the domain exists
 
@@ -2377,7 +2316,6 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE construct_domain_s_inv(matrix_s, subm_s_inv, dpattern, map, &
                                      node_of_domain)
-
       TYPE(dbcsr_type), INTENT(IN)                       :: matrix_s
       TYPE(domain_submatrix_type), DIMENSION(:), &
          INTENT(INOUT)                                   :: subm_s_inv
@@ -2434,7 +2372,7 @@ CONTAINS
    END SUBROUTINE construct_domain_s_inv
 
 ! **************************************************************************************************
-!> \brief Constructs subblocks of the covariant-covariant DM
+!> \brief Constructs subblocks of the covariant-covariant projectors (i.e. DM without spin factor)
 !> \param matrix_t ...
 !> \param matrix_sigma_inv ...
 !> \param matrix_s ...
@@ -2619,30 +2557,36 @@ CONTAINS
 !> \param range1 ...
 !> \param range2 ...
 !> \param range1_thr ...
-!> \param range2_thr ...
 !> \param shift ...
+!> \param bad_modes_projector_down ...
+!> \param s_inv_half ...
+!> \param s_half ...
 !> \par History
 !>       2012.04 created [Rustam Z. Khaliullin]
 !> \author Rustam Z. Khaliullin
 ! **************************************************************************************************
-   SUBROUTINE pseudo_invert_matrix(A, Ainv, N, method, range1, range2, range1_thr, range2_thr, &
-                                   shift)
+   SUBROUTINE pseudo_invert_matrix(A, Ainv, N, method, range1, range2, range1_thr, &
+                                   shift, bad_modes_projector_down, s_inv_half, s_half)
 
       REAL(KIND=dp), DIMENSION(:, :), INTENT(IN)         :: A
       REAL(KIND=dp), DIMENSION(:, :), INTENT(INOUT)      :: Ainv
       INTEGER, INTENT(IN)                                :: N, method
       INTEGER, INTENT(IN), OPTIONAL                      :: range1, range2
-      REAL(KIND=dp), INTENT(IN), OPTIONAL                :: range1_thr, range2_thr, shift
+      REAL(KIND=dp), INTENT(IN), OPTIONAL                :: range1_thr, shift
+      REAL(KIND=dp), DIMENSION(:, :), INTENT(INOUT), &
+         OPTIONAL                                        :: bad_modes_projector_down
+      REAL(KIND=dp), DIMENSION(:, :), INTENT(IN), &
+         OPTIONAL                                        :: s_inv_half, s_half
 
       CHARACTER(len=*), PARAMETER :: routineN = 'pseudo_invert_matrix', &
          routineP = moduleN//':'//routineN
 
       INTEGER                                            :: handle, ii, INFO, jj, LWORK, range1_eiv, &
                                                             range2_eiv, range3_eiv, unit_nr
-      LOGICAL                                            :: use_ranges
+      LOGICAL                                            :: use_both, use_ranges
       REAL(KIND=dp)                                      :: my_shift
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: eigenvalues, WORK
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: test, testN
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: temp1, temp2, temp3, temp4
       TYPE(cp_logger_type), POINTER                      :: logger
 
       CALL timeset(routineN, handle)
@@ -2656,16 +2600,19 @@ CONTAINS
       END IF
 
       IF (method .EQ. 1) THEN
-         IF (PRESENT(range1)) THEN
-            use_ranges = .TRUE.
-            IF (.NOT. PRESENT(range2)) THEN
-               CPABORT("SPECIFY TWO RANGES")
-            ENDIF
+         IF (PRESENT(range1) .AND. PRESENT(range1_thr)) THEN
+            use_both = .TRUE.
          ELSE
-            use_ranges = .FALSE.
-            IF ((.NOT. PRESENT(range1_thr)) .OR. (.NOT. PRESENT(range2_thr))) THEN
-               CPABORT("SPECIFY TWO THRESHOLDS")
+            use_both = .FALSE.
+            IF (PRESENT(range1)) THEN
+               use_ranges = .TRUE.
+            ELSE
+               use_ranges = .FALSE.
             ENDIF
+         ENDIF
+
+         IF ((PRESENT(s_half) .AND. (.NOT. PRESENT(s_inv_half))) .OR. (PRESENT(s_inv_half) .AND. (.NOT. PRESENT(s_half)))) THEN
+            CPABORT("Domain overlap matrix missing")
          ENDIF
       ENDIF
 
@@ -2700,62 +2647,105 @@ CONTAINS
 
          ! diagonalize first
          ALLOCATE (eigenvalues(N))
+         ALLOCATE (temp1(N, N))
+         ALLOCATE (temp4(N, N))
+         IF (PRESENT(s_inv_half)) THEN
+            CALL DSYMM('L', 'U', N, N, 1.0_dp, s_inv_half, N, A, N, 0.0_dp, temp1, N)
+            CALL DSYMM('R', 'U', N, N, 1.0_dp, s_inv_half, N, temp1, N, 0.0_dp, Ainv, N)
+         ENDIF
          ! Query the optimal workspace for dsyev
          LWORK = -1
          ALLOCATE (WORK(MAX(1, LWORK)))
          CALL DSYEV('V', 'L', N, Ainv, N, eigenvalues, WORK, LWORK, INFO)
+
          LWORK = INT(WORK(1))
          DEALLOCATE (WORK)
          ! Allocate the workspace and solve the eigenproblem
          ALLOCATE (WORK(MAX(1, LWORK)))
          CALL DSYEV('V', 'L', N, Ainv, N, eigenvalues, WORK, LWORK, INFO)
+
          IF (INFO .NE. 0) THEN
-            IF (unit_nr > 0) WRITE (unit_nr, *) 'DSYEV ERROR MESSAGE: ', INFO
-            CPABORT("DSYEV failed")
+            IF (unit_nr > 0) WRITE (unit_nr, *) 'EIGENSYSTEM ERROR MESSAGE: ', INFO
+            CPABORT("Eigenproblem routine failed")
          END IF
          DEALLOCATE (WORK)
 
          !WRITE(*,*) "EIGENVALS: "
          !WRITE(*,'(4F13.9)') eigenvalues(:)
 
-         ! invert eigenvalues and use eigenvectors to compute the Hessian inverse
-         ! project out zero-eigenvalue directions
-         ALLOCATE (test(N, N))
+         ! invert eigenvalues and use eigenvectors to compute pseudo Ainv
+         ! project out near-zero eigenvalue modes
+         ALLOCATE (temp2(N, N))
+         IF (PRESENT(bad_modes_projector_down)) ALLOCATE (temp3(N, N))
+         temp2(1:N, 1:N) = Ainv(1:N, 1:N)
+
          range1_eiv = 0
          range2_eiv = 0
          range3_eiv = 0
-         IF (use_ranges) THEN
+
+         IF (use_both) THEN
             DO jj = 1, N
-               IF (jj .LE. range1) THEN
-                  test(jj, :) = Ainv(:, jj)*0.0_dp
+               IF ((jj .LE. range2) .AND. (eigenvalues(jj) .LT. range1_thr)) THEN
+                  temp1(jj, :) = temp2(:, jj)*0.0_dp
+                  IF (PRESENT(bad_modes_projector_down)) temp3(jj, :) = Ainv(:, jj)*1.0_dp
                   range1_eiv = range1_eiv+1
-               ELSE IF (jj .LE. range2) THEN
-                  test(jj, :) = Ainv(:, jj)*1.0_dp
-                  range2_eiv = range2_eiv+1
                ELSE
-                  test(jj, :) = Ainv(:, jj)/(eigenvalues(jj)+my_shift)
-                  range3_eiv = range3_eiv+1
+                  temp1(jj, :) = temp2(:, jj)/(eigenvalues(jj)+my_shift)
+                  IF (PRESENT(bad_modes_projector_down)) temp3(jj, :) = Ainv(:, jj)*0.0_dp
+                  range2_eiv = range2_eiv+1
                ENDIF
             ENDDO
          ELSE
-            DO jj = 1, N
-               IF (eigenvalues(jj) .LT. range1_thr) THEN
-                  test(jj, :) = Ainv(:, jj)*0.0_dp
-                  range1_eiv = range1_eiv+1
-               ELSE IF (eigenvalues(jj) .LT. range2_thr) THEN
-                  test(jj, :) = Ainv(:, jj)*1.0_dp
-                  range2_eiv = range2_eiv+1
-               ELSE
-                  test(jj, :) = Ainv(:, jj)/(eigenvalues(jj)+my_shift)
-                  range3_eiv = range3_eiv+1
-               ENDIF
-            ENDDO
+            IF (use_ranges) THEN
+               DO jj = 1, N
+                  IF (jj .LE. range1) THEN
+                     temp1(jj, :) = temp2(:, jj)*0.0_dp
+                     IF (PRESENT(bad_modes_projector_down)) temp3(jj, :) = Ainv(:, jj)*1.0_dp
+                     range1_eiv = range1_eiv+1
+                  ELSE IF (jj .LE. range2) THEN
+                     temp1(jj, :) = temp2(:, jj)*1.0_dp
+                     IF (PRESENT(bad_modes_projector_down)) temp3(jj, :) = Ainv(:, jj)*1.0_dp
+                     range2_eiv = range2_eiv+1
+                  ELSE
+                     temp1(jj, :) = temp2(:, jj)/(eigenvalues(jj)+my_shift)
+                     IF (PRESENT(bad_modes_projector_down)) temp3(jj, :) = Ainv(:, jj)*0.0_dp
+                     range3_eiv = range3_eiv+1
+                  ENDIF
+               ENDDO
+            ELSE
+               DO jj = 1, N
+                  IF (eigenvalues(jj) .LT. range1_thr) THEN
+                     temp1(jj, :) = temp2(:, jj)*0.0_dp
+                     IF (PRESENT(bad_modes_projector_down)) temp3(jj, :) = Ainv(:, jj)*1.0_dp
+                     range1_eiv = range1_eiv+1
+                  ELSE
+                     temp1(jj, :) = temp2(:, jj)/(eigenvalues(jj)+my_shift)
+                     IF (PRESENT(bad_modes_projector_down)) temp3(jj, :) = Ainv(:, jj)*0.0_dp
+                     range2_eiv = range2_eiv+1
+                  ENDIF
+               ENDDO
+            ENDIF
          ENDIF
          !WRITE(*,*) ' EIV RANGES: ', range1_eiv, range2_eiv, range3_eiv
-         ALLOCATE (testN(N, N))
-         testN(:, :) = MATMUL(Ainv, test)
-         Ainv = testN
-         DEALLOCATE (test, testN)
+         IF (PRESENT(bad_modes_projector_down)) THEN
+            IF (PRESENT(s_half)) THEN
+               CALL DSYMM('L', 'U', N, N, 1.0_dp, s_half, N, temp2, N, 0.0_dp, Ainv, N)
+               CALL DSYMM('R', 'U', N, N, 1.0_dp, s_half, N, temp3, N, 0.0_dp, temp4, N)
+               CALL DGEMM('N', 'N', N, N, N, 1.0_dp, Ainv, N, temp4, N, 0.0_dp, bad_modes_projector_down, N)
+            ELSE
+               CALL DGEMM('N', 'N', N, N, N, 1.0_dp, temp2, N, temp3, N, 0.0_dp, bad_modes_projector_down, N)
+            ENDIF
+         ENDIF
+
+         IF (PRESENT(s_inv_half)) THEN
+            CALL DSYMM('L', 'U', N, N, 1.0_dp, s_inv_half, N, temp2, N, 0.0_dp, temp4, N)
+            CALL DSYMM('R', 'U', N, N, 1.0_dp, s_inv_half, N, temp1, N, 0.0_dp, temp2, N)
+            CALL DGEMM('N', 'N', N, N, N, 1.0_dp, temp4, N, temp2, N, 0.0_dp, Ainv, N)
+         ELSE
+            CALL DGEMM('N', 'N', N, N, N, 1.0_dp, temp2, N, temp1, N, 0.0_dp, Ainv, N)
+         ENDIF
+         DEALLOCATE (temp1, temp2, temp4)
+         IF (PRESENT(bad_modes_projector_down)) DEALLOCATE (temp3)
          DEALLOCATE (eigenvalues)
 
       CASE DEFAULT
@@ -2765,57 +2755,57 @@ CONTAINS
       END SELECT
 
       !! compute the inversion error
-      !allocate(test(N,N))
-      !test=MATMUL(Ainv,A)
+      !allocate(temp1(N,N))
+      !temp1=MATMUL(Ainv,A)
       !DO ii=1,N
-      !   test(ii,ii)=test(ii,ii)-1.0_dp
+      !   temp1(ii,ii)=temp1(ii,ii)-1.0_dp
       !ENDDO
-      !test_error=0.0_dp
+      !temp1_error=0.0_dp
       !DO ii=1,N
       !   DO jj=1,N
-      !      test_error=test_error+test(jj,ii)*test(jj,ii)
+      !      temp1_error=temp1_error+temp1(jj,ii)*temp1(jj,ii)
       !   ENDDO
       !ENDDO
-      !WRITE(*,*) "Inversion error: ", SQRT(test_error)
-      !deallocate(test)
+      !WRITE(*,*) "Inversion error: ", SQRT(temp1_error)
+      !deallocate(temp1)
 
       CALL timestop(handle)
 
    END SUBROUTINE pseudo_invert_matrix
 
 ! **************************************************************************************************
-!> \brief computes the step matrix from the gradient and Hessian using
-!>         the Newton-Raphson method
-!> \param matrix_grad ...
-!> \param matrix_step ...
-!> \param matrix_s ...
-!> \param matrix_ks ...
-!> \param matrix_t ...
-!> \param matrix_sigma_inv ...
-!> \param quench_t ...
-!> \param spin_factor ...
-!> \param eps_filter ...
+!> \brief Find matrix power using diagonalization
+!> \param A ...
+!> \param Apow ...
+!> \param power ...
+!> \param N ...
+!> \param range1 ...
+!> \param range1_thr ...
+!> \param shift ...
 !> \par History
-!>       2012.02 created [Rustam Z. Khaliullin]
+!>       2012.04 created [Rustam Z. Khaliullin]
 !> \author Rustam Z. Khaliullin
 ! **************************************************************************************************
-   SUBROUTINE newton_grad_to_step(matrix_grad, matrix_step, matrix_s, matrix_ks, &
-                                  matrix_t, matrix_sigma_inv, quench_t, spin_factor, eps_filter)
 
-      TYPE(dbcsr_type), INTENT(INOUT)                    :: matrix_grad, matrix_step, matrix_s
-      TYPE(dbcsr_type), INTENT(IN)                       :: matrix_ks, matrix_t
-      TYPE(dbcsr_type), INTENT(INOUT)                    :: matrix_sigma_inv, quench_t
-      REAL(KIND=dp), INTENT(IN)                          :: spin_factor, eps_filter
+   SUBROUTINE pseudo_matrix_power(A, Apow, power, N, range1, range1_thr, shift)
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'newton_grad_to_step', &
+      REAL(KIND=dp), DIMENSION(:, :), INTENT(IN)         :: A
+      REAL(KIND=dp), DIMENSION(:, :), INTENT(INOUT)      :: Apow
+      REAL(KIND=dp), INTENT(IN)                          :: power
+      INTEGER, INTENT(IN)                                :: N
+      INTEGER, INTENT(IN), OPTIONAL                      :: range1
+      REAL(KIND=dp), INTENT(IN), OPTIONAL                :: range1_thr, shift
+
+      CHARACTER(len=*), PARAMETER :: routineN = 'pseudo_matrix_power', &
          routineP = moduleN//':'//routineN
 
-      INTEGER                                            :: handle, unit_nr
-      REAL(KIND=dp)                                      :: res_norm
+      INTEGER                                            :: handle, INFO, jj, LWORK, range1_eiv, &
+                                                            range2_eiv, unit_nr
+      LOGICAL                                            :: use_both, use_ranges, use_thr
+      REAL(KIND=dp)                                      :: my_shift
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: eigenvalues, WORK
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: temp1, temp2
       TYPE(cp_logger_type), POINTER                      :: logger
-      TYPE(dbcsr_type)                                   :: m_tmp_no_1, m_tmp_no_3, m_tmp_oo_2, &
-                                                            matrix_f_ao, matrix_f_mo, matrix_f_vo, &
-                                                            matrix_s_ao, matrix_s_mo, matrix_s_vo
 
       CALL timeset(routineN, handle)
 
@@ -2827,761 +2817,109 @@ CONTAINS
          unit_nr = -1
       END IF
 
-      CALL dbcsr_create(matrix_s_ao, &
-                        template=matrix_s, &
-                        matrix_type=dbcsr_type_no_symmetry)
-      CALL dbcsr_create(matrix_f_ao, &
-                        template=matrix_s, &
-                        matrix_type=dbcsr_type_no_symmetry)
-      CALL dbcsr_create(matrix_f_mo, &
-                        template=matrix_sigma_inv, &
-                        matrix_type=dbcsr_type_no_symmetry)
-      CALL dbcsr_create(matrix_s_mo, &
-                        template=matrix_sigma_inv, &
-                        matrix_type=dbcsr_type_no_symmetry)
-      CALL dbcsr_create(matrix_f_vo, &
-                        template=matrix_t)
-      CALL dbcsr_create(matrix_s_vo, &
-                        template=matrix_t)
-
-      CALL dbcsr_create(m_tmp_no_1, &
-                        template=matrix_t)
-      CALL dbcsr_create(m_tmp_no_3, &
-                        template=matrix_t)
-      CALL dbcsr_create(m_tmp_oo_2, &
-                        template=matrix_sigma_inv, &
-                        matrix_type=dbcsr_type_no_symmetry)
-
-      ! calculate S-SRS and (1-R)F(1-R)
-      ! RZK-warning some optimization is ABSOLUTELY NECESSARY
-      CALL dbcsr_multiply("N", "N", 1.0_dp, &
-                          matrix_s, &
-                          matrix_t, &
-                          0.0_dp, m_tmp_no_1, &
-                          filter_eps=eps_filter)
-      CALL dbcsr_multiply("N", "N", 1.0_dp, &
-                          m_tmp_no_1, &
-                          matrix_sigma_inv, &
-                          0.0_dp, matrix_s_vo, &
-                          filter_eps=eps_filter)
-      CALL dbcsr_desymmetrize(matrix_s, &
-                              matrix_s_ao)
-      CALL dbcsr_multiply("N", "T", -1.0_dp, &
-                          m_tmp_no_1, &
-                          matrix_s_vo, &
-                          1.0_dp, matrix_s_ao, &
-                          filter_eps=eps_filter)
-
-      CALL dbcsr_multiply("N", "N", 1.0_dp, &
-                          matrix_ks, &
-                          matrix_t, &
-                          0.0_dp, m_tmp_no_1, &
-                          filter_eps=eps_filter)
-      CALL dbcsr_desymmetrize(matrix_ks, matrix_f_ao)
-      CALL dbcsr_multiply("N", "T", -1.0_dp, &
-                          m_tmp_no_1, &
-                          matrix_s_vo, &
-                          1.0_dp, matrix_f_ao, &
-                          filter_eps=eps_filter)
-      CALL dbcsr_multiply("N", "T", -1.0_dp, &
-                          matrix_s_vo, &
-                          m_tmp_no_1, &
-                          1.0_dp, matrix_f_ao, &
-                          filter_eps=eps_filter)
-      CALL dbcsr_multiply("T", "N", 1.0_dp, &
-                          matrix_t, &
-                          m_tmp_no_1, &
-                          0.0_dp, matrix_f_mo, &
-                          filter_eps=eps_filter)
-      CALL dbcsr_multiply("N", "N", 1.0_dp, &
-                          matrix_s_vo, &
-                          matrix_f_mo, &
-                          0.0_dp, m_tmp_no_1, &
-                          filter_eps=eps_filter)
-      CALL dbcsr_multiply("N", "T", 1.0_dp, &
-                          m_tmp_no_1, &
-                          matrix_s_vo, &
-                          1.0_dp, matrix_f_ao, &
-                          filter_eps=eps_filter)
-
-      ! calculate F_mo
-      CALL dbcsr_multiply("N", "N", 1.0_dp, &
-                          matrix_sigma_inv, &
-                          matrix_f_mo, &
-                          0.0_dp, m_tmp_oo_2, &
-                          filter_eps=eps_filter)
-      CALL dbcsr_multiply("N", "N", 1.0_dp, &
-                          m_tmp_oo_2, &
-                          matrix_sigma_inv, &
-                          1.0_dp, matrix_f_mo, &
-                          filter_eps=eps_filter)
-
-      ! calculate F_vo
-      CALL dbcsr_multiply("N", "N", 1.0_dp, &
-                          matrix_ks, &
-                          matrix_t, &
-                          0.0_dp, m_tmp_no_1, &
-                          filter_eps=eps_filter)
-      CALL dbcsr_multiply("N", "N", 1.0_dp, &
-                          m_tmp_no_1, &
-                          matrix_sigma_inv, &
-                          0.0_dp, matrix_f_vo, &
-                          filter_eps=eps_filter)
-      CALL dbcsr_multiply("N", "T", -1.0_dp, &
-                          matrix_s_vo, &
-                          m_tmp_oo_2, &
-                          1.0_dp, matrix_f_vo, &
-                          filter_eps=eps_filter)
-
-      CALL dbcsr_desymmetrize(matrix_sigma_inv, matrix_s_mo)
-
-      !!! RZK-warning: this is HIGHLIGHTED BLOCK
-      !!! check it first if the procedure does not function as it supposed to
-      !CALL dbcsr_desymmetrize(matrix_s,matrix_s_ao)
-      CALL dbcsr_add(matrix_f_ao, matrix_s_ao, 1.0_dp, 1.0_dp)
-
-      CALL dbcsr_set(matrix_f_mo, 0.0_dp)
-      CALL dbcsr_add_on_diag(matrix_f_mo, 1.0_dp)
-      CALL dbcsr_filter(matrix_f_mo, eps_filter)
-
-      CALL dbcsr_set(matrix_s_mo, 0.0_dp)
-      CALL dbcsr_add_on_diag(matrix_s_mo, 1.0_dp)
-      CALL dbcsr_filter(matrix_s_mo, eps_filter)
-
-      CALL dbcsr_set(matrix_s_ao, 0.0_dp)
-      !CALL dbcsr_add_on_diag(matrix_s_ao,1.0_dp)
-      CALL dbcsr_filter(matrix_s_ao, eps_filter)
-      !!! RZK-warning: end of HIGHLIGHTED BLOCK
-
-      CALL dbcsr_scale(matrix_f_ao, &
-                       2.0_dp*spin_factor)
-      CALL dbcsr_scale(matrix_s_ao, &
-                       -2.0_dp*spin_factor)
-      CALL dbcsr_scale(matrix_f_vo, &
-                       2.0_dp*spin_factor)
-
-      !WRITE(*,*) "INSIDE newton_grad_to_step: "
-      !CALL dbcsr_print(matrix_s_mo)
-      !CALL dbcsr_print(matrix_ks)
-      !CALL dbcsr_print(matrix_s)
-      !CALL dbcsr_print(matrix_sigma_inv)
-
-      CALL hessian_diag_apply(matrix_grad, matrix_step, matrix_s_ao, &
-                              matrix_f_ao, matrix_s_mo, matrix_f_mo, &
-                              matrix_s_vo, matrix_f_vo, quench_t)
-
-      ! check that the step satisfies H.step=-grad
-      CALL dbcsr_copy(m_tmp_no_3, quench_t)
-      CALL dbcsr_copy(m_tmp_no_1, quench_t)
-      CALL dbcsr_multiply("N", "N", 1.0_dp, &
-                          matrix_f_ao, &
-                          matrix_step, &
-                          0.0_dp, m_tmp_no_1, &
-                          !retain_sparsity=.TRUE.,&
-                          filter_eps=eps_filter)
-      CALL dbcsr_multiply("N", "N", 1.0_dp, &
-                          m_tmp_no_1, &
-                          matrix_s_mo, &
-                          0.0_dp, m_tmp_no_3, &
-                          retain_sparsity=.TRUE., &
-                          filter_eps=eps_filter)
-      CALL dbcsr_copy(m_tmp_no_1, quench_t)
-      CALL dbcsr_multiply("N", "N", 1.0_dp, &
-                          matrix_s_ao, &
-                          matrix_step, &
-                          0.0_dp, m_tmp_no_1, &
-                          !retain_sparsity=.TRUE.,&
-                          filter_eps=eps_filter)
-      CALL dbcsr_multiply("N", "N", -1.0_dp, &
-                          m_tmp_no_1, &
-                          matrix_f_mo, &
-                          1.0_dp, m_tmp_no_3, &
-                          retain_sparsity=.TRUE., &
-                          filter_eps=eps_filter)
-      CALL dbcsr_add(m_tmp_no_3, matrix_grad, &
-                     1.0_dp, 1.0_dp)
-      CALL dbcsr_norm(m_tmp_no_3, &
-                      dbcsr_norm_maxabsnorm, norm_scalar=res_norm)
-      IF (unit_nr > 0) WRITE (unit_nr, *) "NEWTON step error: ", res_norm
-
-      CALL dbcsr_release(m_tmp_no_3)
-      CALL dbcsr_release(m_tmp_no_1)
-      CALL dbcsr_release(m_tmp_oo_2)
-      CALL dbcsr_release(matrix_s_ao)
-      CALL dbcsr_release(matrix_s_mo)
-      CALL dbcsr_release(matrix_f_ao)
-      CALL dbcsr_release(matrix_f_mo)
-      CALL dbcsr_release(matrix_s_vo)
-      CALL dbcsr_release(matrix_f_vo)
-
-      CALL timestop(handle)
-
-   END SUBROUTINE newton_grad_to_step
-
-! **************************************************************************************************
-!> \brief Serial code that constructs an approximate Hessian
-!> \param matrix_grad ...
-!> \param matrix_step ...
-!> \param matrix_S_ao ...
-!> \param matrix_F_ao ...
-!> \param matrix_S_mo ...
-!> \param matrix_F_mo ...
-!> \param matrix_S_vo ...
-!> \param matrix_F_vo ...
-!> \param quench_t ...
-!> \par History
-!>       2012.02 created [Rustam Z. Khaliullin]
-!> \author Rustam Z. Khaliullin
-! **************************************************************************************************
-   SUBROUTINE hessian_diag_apply(matrix_grad, matrix_step, matrix_S_ao, &
-                                 matrix_F_ao, matrix_S_mo, matrix_F_mo, matrix_S_vo, matrix_F_vo, quench_t)
-
-      TYPE(dbcsr_type), INTENT(INOUT)                    :: matrix_grad, matrix_step, matrix_S_ao, &
-                                                            matrix_F_ao, matrix_S_mo, matrix_F_mo, &
-                                                            matrix_S_vo, matrix_F_vo, quench_t
-
-      CHARACTER(len=*), PARAMETER :: routineN = 'hessian_diag_apply', &
-         routineP = moduleN//':'//routineN
-
-      INTEGER :: ao_hori_offset, ao_vert_offset, block_col, block_row, col, copy, H_size, handle, &
-         ii, INFO, jj, lev1_hori_offset, lev1_vert_offset, lev2_hori_offset, lev2_vert_offset, &
-         LWORK, nblkcols_tot, nblkrows_tot, orb_i, orb_j, row, unit_nr, zero_neg_eiv
-      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: ao_block_sizes, ao_domain_sizes, &
-                                                            mo_block_sizes
-      INTEGER, DIMENSION(:), POINTER                     :: ao_blk_sizes, mo_blk_sizes
-      LOGICAL                                            :: found, found2, found_col, found_row
-      REAL(KIND=dp)                                      :: test_error
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: eigenvalues, Grad_vec, Step_vec, tmp, &
-                                                            tmpr, work
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: F_ao_block, F_mo_block, H, H1, H2, Hinv, &
-                                                            S_ao_block, S_mo_block, test, test2
-      REAL(KIND=dp), DIMENSION(:, :), POINTER            :: block_p, block_p2, p_new_block
-      TYPE(cp_logger_type), POINTER                      :: logger
-      TYPE(dbcsr_type)                                   :: matrix_F_ao_sym, matrix_F_mo_sym, &
-                                                            matrix_S_ao_sym, matrix_S_mo_sym
-
-      CALL timeset(routineN, handle)
-
-      ! get a useful unit_nr
-      logger => cp_get_default_logger()
-      IF (logger%para_env%mepos == logger%para_env%source) THEN
-         unit_nr = cp_logger_get_default_unit_nr(logger, local=.TRUE.)
+      IF (PRESENT(range1) .AND. PRESENT(range1_thr)) THEN
+         use_both = .TRUE.
       ELSE
-         unit_nr = -1
-      END IF
-
-      CALL dbcsr_get_info(quench_t, &
-                          nblkrows_total=nblkrows_tot, &
-                          nblkcols_total=nblkcols_tot, &
-                          col_blk_size=mo_blk_sizes, &
-                          row_blk_size=ao_blk_sizes)
-
-      CPASSERT(nblkrows_tot == nblkcols_tot)
-      ALLOCATE (mo_block_sizes(nblkcols_tot), ao_block_sizes(nblkcols_tot))
-      ALLOCATE (ao_domain_sizes(nblkcols_tot))
-      mo_block_sizes(:) = mo_blk_sizes(:)
-      ao_block_sizes(:) = ao_blk_sizes(:)
-      ao_domain_sizes(:) = 0
-
-      CALL dbcsr_create(matrix_S_ao_sym, &
-                        template=matrix_S_ao, &
-                        matrix_type=dbcsr_type_no_symmetry)
-      CALL dbcsr_desymmetrize(matrix_S_ao, matrix_S_ao_sym)
-
-      CALL dbcsr_create(matrix_F_ao_sym, &
-                        template=matrix_F_ao, &
-                        matrix_type=dbcsr_type_no_symmetry)
-      CALL dbcsr_desymmetrize(matrix_F_ao, matrix_F_ao_sym)
-
-      CALL dbcsr_create(matrix_S_mo_sym, &
-                        template=matrix_S_mo, &
-                        matrix_type=dbcsr_type_no_symmetry)
-      CALL dbcsr_desymmetrize(matrix_S_mo, matrix_S_mo_sym)
-
-      CALL dbcsr_create(matrix_F_mo_sym, &
-                        template=matrix_F_mo, &
-                        matrix_type=dbcsr_type_no_symmetry)
-      CALL dbcsr_desymmetrize(matrix_F_mo, matrix_F_mo_sym)
-
-      !CALL dbcsr_print(matrix_grad)
-      !CALL dbcsr_print(matrix_F_ao_sym)
-      !CALL dbcsr_print(matrix_S_ao_sym)
-      !CALL dbcsr_print(matrix_F_mo_sym)
-      !CALL dbcsr_print(matrix_S_mo_sym)
-
-      ! loop over domains to find the size of the Hessian
-      H_size = 0
-      DO col = 1, nblkcols_tot
-
-         ! find sizes of AO submatrices
-         DO row = 1, nblkrows_tot
-
-            CALL dbcsr_get_block_p(quench_t, &
-                                   row, col, block_p, found)
-            IF (found) THEN
-               ao_domain_sizes(col) = ao_domain_sizes(col)+ao_blk_sizes(row)
+         use_both = .FALSE.
+         IF (PRESENT(range1)) THEN
+            use_ranges = .TRUE.
+         ELSE
+            use_ranges = .FALSE.
+            IF (PRESENT(range1_thr)) THEN
+               use_thr = .TRUE.
+            ELSE
+               use_thr = .FALSE.
             ENDIF
-
-         ENDDO
-
-         H_size = H_size+ao_domain_sizes(col)*mo_block_sizes(col)
-
-      ENDDO
-
-      ALLOCATE (H(H_size, H_size))
-
-      ! fill the Hessian matrix
-      lev1_vert_offset = 0
-      ! loop over all pairs of fragments
-      DO row = 1, nblkcols_tot
-
-         lev1_hori_offset = 0
-         DO col = 1, nblkcols_tot
-
-            ! prepare blocks for the current row-column fragment pair
-            ALLOCATE (F_ao_block(ao_domain_sizes(row), ao_domain_sizes(col)))
-            ALLOCATE (S_ao_block(ao_domain_sizes(row), ao_domain_sizes(col)))
-            ALLOCATE (F_mo_block(mo_block_sizes(row), mo_block_sizes(col)))
-            ALLOCATE (S_mo_block(mo_block_sizes(row), mo_block_sizes(col)))
-
-            F_ao_block(:, :) = 0.0_dp
-            S_ao_block(:, :) = 0.0_dp
-            F_mo_block(:, :) = 0.0_dp
-            S_mo_block(:, :) = 0.0_dp
-
-            ! fill AO submatrices
-            ! loop over all blocks of the AO dbcsr matrix
-            ao_vert_offset = 0
-            DO block_row = 1, nblkcols_tot
-
-               CALL dbcsr_get_block_p(quench_t, &
-                                      block_row, row, block_p, found_row)
-               IF (found_row) THEN
-
-                  ao_hori_offset = 0
-                  DO block_col = 1, nblkcols_tot
-
-                     CALL dbcsr_get_block_p(quench_t, &
-                                            block_col, col, block_p, found_col)
-                     IF (found_col) THEN
-
-                        CALL dbcsr_get_block_p(matrix_F_ao_sym, &
-                                               block_row, block_col, block_p, found)
-                        IF (found) THEN
-                           ! copy the block into the submatrix
-                           F_ao_block(ao_vert_offset+1:ao_vert_offset+ao_block_sizes(block_row), &
-                                      ao_hori_offset+1:ao_hori_offset+ao_block_sizes(block_col)) &
-                              = block_p(:, :)
-                        ENDIF
-
-                        CALL dbcsr_get_block_p(matrix_S_ao_sym, &
-                                               block_row, block_col, block_p, found)
-                        IF (found) THEN
-                           ! copy the block into the submatrix
-                           S_ao_block(ao_vert_offset+1:ao_vert_offset+ao_block_sizes(block_row), &
-                                      ao_hori_offset+1:ao_hori_offset+ao_block_sizes(block_col)) &
-                              = block_p(:, :)
-                        ENDIF
-
-                        ao_hori_offset = ao_hori_offset+ao_block_sizes(block_col)
-
-                     ENDIF
-
-                  ENDDO
-
-                  ao_vert_offset = ao_vert_offset+ao_block_sizes(block_row)
-
-               ENDIF
-
-            ENDDO
-
-            ! fill MO submatrices
-            CALL dbcsr_get_block_p(matrix_F_mo_sym, row, col, block_p, found)
-            IF (found) THEN
-               ! copy the block into the submatrix
-               F_mo_block(1:mo_block_sizes(row), 1:mo_block_sizes(col)) = block_p(:, :)
-            ENDIF
-            CALL dbcsr_get_block_p(matrix_S_mo_sym, row, col, block_p, found)
-            IF (found) THEN
-               ! copy the block into the submatrix
-               S_mo_block(1:mo_block_sizes(row), 1:mo_block_sizes(col)) = block_p(:, :)
-            ENDIF
-
-            !WRITE(*,*) "F_AO_BLOCK", row, col, ao_domain_sizes(row), ao_domain_sizes(col)
-            !DO ii=1,ao_domain_sizes(row)
-            !  WRITE(*,'(100F13.9)') F_ao_block(ii,:)
-            !ENDDO
-            !WRITE(*,*) "S_AO_BLOCK", row, col
-            !DO ii=1,ao_domain_sizes(row)
-            !  WRITE(*,'(100F13.9)') S_ao_block(ii,:)
-            !ENDDO
-            !WRITE(*,*) "F_MO_BLOCK", row, col
-            !DO ii=1,mo_block_sizes(row)
-            !  WRITE(*,'(100F13.9)') F_mo_block(ii,:)
-            !ENDDO
-            !WRITE(*,*) "S_MO_BLOCK", row, col, mo_block_sizes(row), mo_block_sizes(col)
-            !DO ii=1,mo_block_sizes(row)
-            !  WRITE(*,'(100F13.9)') S_mo_block(ii,:)
-            !ENDDO
-
-            ! construct tensor products for the current row-column fragment pair
-            lev2_vert_offset = 0
-            DO orb_j = 1, mo_block_sizes(row)
-
-               lev2_hori_offset = 0
-               DO orb_i = 1, mo_block_sizes(col)
-
-                  H(lev1_vert_offset+lev2_vert_offset+1:lev1_vert_offset+lev2_vert_offset+ao_domain_sizes(row), &
-                    lev1_hori_offset+lev2_hori_offset+1:lev1_hori_offset+lev2_hori_offset+ao_domain_sizes(col)) &
-                     = S_mo_block(orb_j, orb_i)*F_ao_block(:, :) &
-                       -F_mo_block(orb_j, orb_i)*S_ao_block(:, :)
-
-                  !WRITE(*,*) row, col, orb_j, orb_i, lev1_vert_offset+lev2_vert_offset+1, ao_domain_sizes(row),&
-                  !   lev1_hori_offset+lev2_hori_offset+1, ao_domain_sizes(col), S_mo_block(orb_j,orb_i)
-
-                  lev2_hori_offset = lev2_hori_offset+ao_domain_sizes(col)
-
-               ENDDO
-
-               lev2_vert_offset = lev2_vert_offset+ao_domain_sizes(row)
-
-            ENDDO
-
-            lev1_hori_offset = lev1_hori_offset+ao_domain_sizes(col)*mo_block_sizes(col)
-
-            DEALLOCATE (F_ao_block)
-            DEALLOCATE (S_ao_block)
-            DEALLOCATE (F_mo_block)
-            DEALLOCATE (S_mo_block)
-
-         ENDDO ! col fragment
-
-         lev1_vert_offset = lev1_vert_offset+ao_domain_sizes(row)*mo_block_sizes(row)
-
-      ENDDO ! row fragment
-
-      CALL dbcsr_release(matrix_S_ao_sym)
-      CALL dbcsr_release(matrix_F_ao_sym)
-      CALL dbcsr_release(matrix_S_mo_sym)
-      CALL dbcsr_release(matrix_F_mo_sym)
-
-      ! two more terms of the Hessian
-      ALLOCATE (H1(H_size, H_size))
-      ALLOCATE (H2(H_size, H_size))
-      H1 = 0.0_dp
-      H2 = 0.0_dp
-      DO row = 1, nblkcols_tot
-
-         lev1_hori_offset = 0
-         DO col = 1, nblkcols_tot
-
-            CALL dbcsr_get_block_p(matrix_F_vo, &
-                                   row, col, block_p, found)
-            CALL dbcsr_get_block_p(matrix_S_vo, &
-                                   row, col, block_p2, found2)
-
-            lev1_vert_offset = 0
-            DO block_col = 1, nblkcols_tot
-
-               CALL dbcsr_get_block_p(quench_t, &
-                                      row, block_col, p_new_block, found_row)
-
-               IF (found_row) THEN
-
-                  ! determine offset in this short loop
-                  lev2_vert_offset = 0
-                  DO block_row = 1, row-1
-                     CALL dbcsr_get_block_p(quench_t, &
-                                            block_row, block_col, p_new_block, found_col)
-                     IF (found_col) lev2_vert_offset = lev2_vert_offset+ao_block_sizes(block_row)
-                  ENDDO
-                  !!!!!!!! short loop
-
-                  ! over all electrons of the block
-                  DO orb_i = 1, mo_block_sizes(col)
-
-                     ! into all possible locations
-                     DO orb_j = 1, mo_block_sizes(block_col)
-
-                        ! column is copied several times
-                        DO copy = 1, ao_domain_sizes(col)
-
-                           IF (found) THEN
-
-                              !WRITE(*,*) row, col, block_col, orb_i, orb_j, copy,&
-                              ! lev1_vert_offset+(orb_j-1)*ao_domain_sizes(block_col)+lev2_vert_offset+1,&
-                              ! lev1_hori_offset+(orb_i-1)*ao_domain_sizes(col)+copy
-
-                              H1(lev1_vert_offset+(orb_j-1)*ao_domain_sizes(block_col)+lev2_vert_offset+1: &
-                                 lev1_vert_offset+(orb_j-1)*ao_domain_sizes(block_col)+lev2_vert_offset+ao_block_sizes(row), &
-                                 lev1_hori_offset+(orb_i-1)*ao_domain_sizes(col)+copy) &
-                                 = block_p(:, orb_i)
-
-                           ENDIF ! found block in the data matrix
-
-                           IF (found2) THEN
-
-                              H2(lev1_vert_offset+(orb_j-1)*ao_domain_sizes(block_col)+lev2_vert_offset+1: &
-                                 lev1_vert_offset+(orb_j-1)*ao_domain_sizes(block_col)+lev2_vert_offset+ao_block_sizes(row), &
-                                 lev1_hori_offset+(orb_i-1)*ao_domain_sizes(col)+copy) &
-                                 = block_p2(:, orb_i)
-
-                           ENDIF ! found block in the data matrix
-
-                        ENDDO
-
-                     ENDDO
-
-                  ENDDO
-
-                  !lev2_vert_offset=lev2_vert_offset+ao_block_sizes(row)
-
-               ENDIF ! found block in the quench matrix
-
-               lev1_vert_offset = lev1_vert_offset+ &
-                                  ao_domain_sizes(block_col)*mo_block_sizes(block_col)
-
-            ENDDO
-
-            lev1_hori_offset = lev1_hori_offset+ &
-                               ao_domain_sizes(col)*mo_block_sizes(col)
-
-         ENDDO
-
-         !lev2_vert_offset=lev2_vert_offset+ao_block_sizes(row)
-
-      ENDDO
-      ! add terms to the hessian
-!WRITE(*,*) "F_vo"
-!DO ii=1,H_size
-! WRITE(*,'(100F13.9)') H1(ii,:)
-!ENDDO
-!WRITE(*,*) "S_vo"
-!DO ii=1,H_size
-! WRITE(*,'(100F13.9)') H2(ii,:)
-!ENDDO
-      !DO ii=1,H_size
-      !   DO jj=1,H_size
-      !      H(ii,jj)=H(ii,jj)-H1(ii,jj)*H2(jj,ii)-H1(jj,ii)*H2(ii,jj)
-      !   ENDDO
-      !ENDDO
-      DEALLOCATE (H1)
-      DEALLOCATE (H2)
-
-      ! convert gradient from the dbcsr matrix to the vector form
-      ALLOCATE (Grad_vec(H_size))
-      Grad_vec(:) = 0.0_dp
-      lev1_vert_offset = 0
-      ! loop over all electron blocks
-      DO col = 1, nblkcols_tot
-
-         ! loop over AO-rows of the dbcsr matrix
-         lev2_vert_offset = 0
-         DO row = 1, nblkrows_tot
-
-            CALL dbcsr_get_block_p(quench_t, &
-                                   row, col, block_p, found_row)
-            IF (found_row) THEN
-
-               CALL dbcsr_get_block_p(matrix_grad, &
-                                      row, col, block_p, found)
-               IF (found) THEN
-                  ! copy the data into the vector, column by column
-                  DO orb_i = 1, mo_block_sizes(col)
-                     Grad_vec(lev1_vert_offset+ao_domain_sizes(col)*(orb_i-1)+lev2_vert_offset+1: &
-                              lev1_vert_offset+ao_domain_sizes(col)*(orb_i-1)+lev2_vert_offset+ao_block_sizes(row)) &
-                        = block_p(:, orb_i)
-!WRITE(*,*) "GRAD: ", row, col, orb_i, lev1_vert_offset+ao_domain_sizes(col)*(orb_i-1)+lev2_vert_offset+1, ao_block_sizes(row)
-                  ENDDO
-
-               ENDIF
-
-               lev2_vert_offset = lev2_vert_offset+ao_block_sizes(row)
-
-            ENDIF
-
-         ENDDO
-
-         lev1_vert_offset = lev1_vert_offset+ao_domain_sizes(col)*mo_block_sizes(col)
-
-      ENDDO ! loop over electron blocks
-
-!WRITE(*,*) "HESSIAN"
-!DO ii=1,H_size
-! WRITE(*,'(100F13.9)') H(ii,:)
-!ENDDO
-
-      ! invert the Hessian
+         ENDIF
+      ENDIF
+
+      my_shift = 0.0_dp
+      IF (PRESENT(shift)) THEN
+         my_shift = shift
+      ENDIF
+
+      Apow = A
       INFO = 0
-      ALLOCATE (Hinv(H_size, H_size))
-      Hinv(:, :) = H(:, :)
 
-      ! before inverting diagonalize
-      ALLOCATE (eigenvalues(H_size))
+      ! diagonalize first
+      ALLOCATE (eigenvalues(N))
+      ALLOCATE (temp1(N, N))
+
       ! Query the optimal workspace for dsyev
       LWORK = -1
       ALLOCATE (WORK(MAX(1, LWORK)))
-      CALL DSYEV('V', 'L', H_size, Hinv, H_size, eigenvalues, WORK, LWORK, INFO)
+      CALL DSYEV('V', 'L', N, Apow, N, eigenvalues, WORK, LWORK, INFO)
+
       LWORK = INT(WORK(1))
       DEALLOCATE (WORK)
       ! Allocate the workspace and solve the eigenproblem
       ALLOCATE (WORK(MAX(1, LWORK)))
-      CALL DSYEV('V', 'L', H_size, Hinv, H_size, eigenvalues, WORK, LWORK, INFO)
+
+      CALL DSYEV('V', 'L', N, Apow, N, eigenvalues, WORK, LWORK, INFO)
+
       IF (INFO .NE. 0) THEN
-         IF (unit_nr > 0) WRITE (unit_nr, *) 'DSYEV ERROR MESSAGE: ', INFO
-         CPABORT("DSYEV failed")
+         IF (unit_nr > 0) WRITE (unit_nr, *) 'EIGENSYSTEM ERROR MESSAGE: ', INFO
+         CPABORT("Eigenproblem routine failed")
       END IF
       DEALLOCATE (WORK)
 
-      ! invert eigenvalues and use eigenvectors to compute the Hessian inverse
-      ! project out zero-eigenvalue directions
-      ALLOCATE (test(H_size, H_size))
-      zero_neg_eiv = 0
-      DO jj = 1, H_size
-         IF (eigenvalues(jj) .GT. 1.0E-8) THEN
-            test(jj, :) = Hinv(:, jj)/eigenvalues(jj)
-         ELSE
-            test(jj, :) = Hinv(:, jj)*0.0_dp
-            zero_neg_eiv = zero_neg_eiv+1
-         ENDIF
-      ENDDO
-      IF (unit_nr > 0) WRITE (unit_nr, *) 'ZERO OR NEGATIVE EIGENVALUES: ', zero_neg_eiv
-      ALLOCATE (test2(H_size, H_size))
-      test2(:, :) = MATMUL(Hinv, test)
-      Hinv(:, :) = test2(:, :)
-      DEALLOCATE (test, test2)
+      !WRITE(*,*) "EIGENVALS: "
+      !WRITE(*,'(4F13.9)') eigenvalues(:)
 
-      !! shift to kill singularity
-      !shift=0.0_dp
-      !IF (eigenvalues(1).lt.0.0_dp) THEN
-      !   CPErrorMessage(cp_failure_level,routineP,"Negative eigenvalue(s)")
-      !   shift=abs(eigenvalues(1))
-      !   WRITE(*,*) "Lowest eigenvalue: ", eigenvalues(1)
-      !ENDIF
-      !DO ii=1, H_size
-      !   IF (eigenvalues(ii).gt.1.0E-6_dp) THEN
-      !      shift=shift+min(1.0_dp,eigenvalues(ii))*1.0E-4_dp
-      !      EXIT
-      !   ENDIF
-      !ENDDO
-      !WRITE(*,*) "Hessian shift: ", shift
-      !DO ii=1, H_size
-      !   H(ii,ii)=H(ii,ii)+shift
-      !ENDDO
-      !! end shift
+      ! invert eigenvalues and use eigenvectors to compute pseudo Ainv
+      ! project out near-zero eigenvalue modes
+      ALLOCATE (temp2(N, N))
 
-      DEALLOCATE (eigenvalues)
+      temp2(1:N, 1:N) = Apow(1:N, 1:N)
 
-!!!!    Hinv=H
-!!!!    INFO=0
-!!!!    CALL DPOTRF('L', H_size, Hinv, H_size, INFO )
-!!!!    IF( INFO.NE.0 ) THEN
-!!!!       WRITE(*,*) 'DPOTRF ERROR MESSAGE: ', INFO
-!!!!       CPErrorMessage(cp_failure_level,routineP,"DPOTRF failed")
-!!!!       CPPrecondition(.FALSE.,cp_failure_level,routineP,failure)
-!!!!    END IF
-!!!!    CALL DPOTRI('L', H_size, Hinv, H_size, INFO )
-!!!!    IF( INFO.NE.0 ) THEN
-!!!!       WRITE(*,*) 'DPOTRI ERROR MESSAGE: ', INFO
-!!!!       CPErrorMessage(cp_failure_level,routineP,"DPOTRI failed")
-!!!!       CPPrecondition(.FALSE.,cp_failure_level,routineP,failure)
-!!!!    END IF
-!!!!    ! complete the matrix
-!!!!    DO ii=1,H_size
-!!!!       DO jj=ii+1,H_size
-!!!!          Hinv(ii,jj)=Hinv(jj,ii)
-!!!!       ENDDO
-!!!!    ENDDO
+      range1_eiv = 0
+      range2_eiv = 0
 
-      ! compute the inversion error
-      ALLOCATE (test(H_size, H_size))
-!    WRITE(*,*) "SIZE: ", H_size
-      test(:, :) = MATMUL(Hinv, H)
-!WRITE(*,*) "TEST"
-!DO ii=1,H_size
-! WRITE(*,'(100F8.4)') test(ii,:)
-!ENDDO
-      DO ii = 1, H_size
-         test(ii, ii) = test(ii, ii)-1.0_dp
-      ENDDO
-      test_error = 0.0_dp
-      DO ii = 1, H_size
-         DO jj = 1, H_size
-            test_error = test_error+test(jj, ii)*test(jj, ii)
-         ENDDO
-      ENDDO
-      IF (unit_nr > 0) WRITE (unit_nr, *) "Hessian inversion error: ", SQRT(test_error)
-      DEALLOCATE (test)
-
-      ! prepare the output vector
-      ALLOCATE (Step_vec(H_size))
-      ALLOCATE (tmp(H_size))
-      tmp(:) = MATMUL(Hinv, Grad_vec)
-      Step_vec(:) = -1.0_dp*tmp(:)
-
-      ALLOCATE (tmpr(H_size))
-      tmpr(:) = MATMUL(H, Step_vec)
-      tmp(:) = tmpr(:)+Grad_vec(:)
-      DEALLOCATE (tmpr)
-      IF (unit_nr > 0) WRITE (unit_nr, *) "NEWTOV step error: ", MAXVAL(ABS(tmp))
-
-      DEALLOCATE (tmp)
-
-      DEALLOCATE (H)
-      DEALLOCATE (Hinv)
-      DEALLOCATE (Grad_vec)
-
-      ! copy the step from the vector into the cp_dbcsr matrix
-
-      ! re-create the step matrix to remove all blocks
-      CALL dbcsr_create(matrix_step, &
-                        template=matrix_grad, &
-                        matrix_type=dbcsr_type_no_symmetry)
-      CALL dbcsr_work_create(matrix_step, work_mutable=.TRUE.)
-
-      lev1_vert_offset = 0
-      ! loop over all electron blocks
-      DO col = 1, nblkcols_tot
-
-         ! loop over AO-rows of the dbcsr matrix
-         lev2_vert_offset = 0
-         DO row = 1, nblkrows_tot
-
-            CALL dbcsr_get_block_p(quench_t, &
-                                   row, col, block_p, found_row)
-            IF (found_row) THEN
-
-               NULLIFY (p_new_block)
-               CALL dbcsr_reserve_block2d(matrix_step, row, col, p_new_block)
-               CPASSERT(ASSOCIATED(p_new_block))
-               ! copy the data column by column
-               DO orb_i = 1, mo_block_sizes(col)
-                  p_new_block(:, orb_i) = &
-                     Step_vec(lev1_vert_offset+ao_domain_sizes(col)*(orb_i-1)+lev2_vert_offset+1: &
-                              lev1_vert_offset+ao_domain_sizes(col)*(orb_i-1)+lev2_vert_offset+ao_block_sizes(row))
-!WRITE(*,*) "STEP: ", row, col, orb_i, lev1_vert_offset+ao_domain_sizes(col)*(orb_i-1)+lev2_vert_offset+1, ao_block_sizes(row)
-               ENDDO
-
-               lev2_vert_offset = lev2_vert_offset+ao_block_sizes(row)
-
+      IF (use_both) THEN
+         DO jj = 1, N
+            IF ((jj .LE. range1) .AND. (eigenvalues(jj) .LT. range1_thr)) THEN
+               temp1(jj, :) = temp2(:, jj)*0.0_dp
+               range1_eiv = range1_eiv+1
+            ELSE
+               temp1(jj, :) = temp2(:, jj)*((eigenvalues(jj)+my_shift)**power)
             ENDIF
-
          ENDDO
+      ELSE
+         IF (use_ranges) THEN
+            DO jj = 1, N
+               IF (jj .LE. range1) THEN
+                  temp1(jj, :) = temp2(:, jj)*0.0_dp
+                  range1_eiv = range1_eiv+1
+               ELSE
+                  temp1(jj, :) = temp2(:, jj)*((eigenvalues(jj)+my_shift)**power)
+               ENDIF
+            ENDDO
+         ELSE
+            IF (use_thr) THEN
+               DO jj = 1, N
+                  IF (eigenvalues(jj) .LT. range1_thr) THEN
+                     temp1(jj, :) = temp2(:, jj)*0.0_dp
 
-         lev1_vert_offset = lev1_vert_offset+ao_domain_sizes(col)*mo_block_sizes(col)
-
-      ENDDO ! loop over electron blocks
-
-      DEALLOCATE (Step_vec)
-
-      CALL dbcsr_finalize(matrix_step)
-
-      DEALLOCATE (mo_block_sizes, ao_block_sizes)
-      DEALLOCATE (ao_domain_sizes)
+                     range1_eiv = range1_eiv+1
+                  ELSE
+                     temp1(jj, :) = temp2(:, jj)*((eigenvalues(jj)+my_shift)**power)
+                  ENDIF
+               ENDDO
+            ELSE
+               DO jj = 1, N
+                  temp1(jj, :) = temp2(:, jj)*((eigenvalues(jj)+my_shift)**power)
+               ENDDO
+            ENDIF
+         ENDIF
+      ENDIF
+      !WRITE(*,*) ' EIV RANGES: ', range1_eiv, range2_eiv, range3_eiv
+      Apow = MATMUL(temp2, temp1)
+      DEALLOCATE (temp1, temp2)
+      DEALLOCATE (eigenvalues)
 
       CALL timestop(handle)
 
-   END SUBROUTINE hessian_diag_apply
+   END SUBROUTINE pseudo_matrix_power
 
 ! **************************************************************************************************
 !> \brief Load balancing of the submatrix computations
@@ -3708,6 +3046,7 @@ CONTAINS
 !> \param order_lanczos ...
 !> \param eps_lanczos ...
 !> \param max_iter_lanczos ...
+!> \param nocc_of_domain ...
 !> \par History
 !>       2016.11 created [Rustam Z Khaliullin]
 !> \author Rustam Z Khaliullin
@@ -3715,7 +3054,7 @@ CONTAINS
    SUBROUTINE xalmo_initial_guess(m_guess, m_t_in, m_t0, m_quench_t, &
                                   m_overlap, m_sigma_tmpl, nspins, xalmo_history, assume_t0_q0x, &
                                   optimize_theta, envelope_amplitude, eps_filter, order_lanczos, eps_lanczos, &
-                                  max_iter_lanczos)
+                                  max_iter_lanczos, nocc_of_domain)
 
       TYPE(dbcsr_type), DIMENSION(:), INTENT(INOUT)      :: m_guess
       TYPE(dbcsr_type), DIMENSION(:), INTENT(IN)         :: m_t_in, m_t0, m_quench_t
@@ -3728,6 +3067,7 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: order_lanczos
       REAL(KIND=dp), INTENT(IN)                          :: eps_lanczos
       INTEGER, INTENT(IN)                                :: max_iter_lanczos
+      INTEGER, DIMENSION(:, :), INTENT(IN)               :: nocc_of_domain
 
       CHARACTER(len=*), PARAMETER :: routineN = 'xalmo_initial_guess', &
          routineP = moduleN//':'//routineN
@@ -3794,6 +3134,8 @@ CONTAINS
 
             CALL dbcsr_create(m_extrapolated, &
                               template=m_quench_t(ispin), matrix_type=dbcsr_type_no_symmetry)
+            CALL dbcsr_create(m_sigma_tmp, &
+                              template=m_sigma_tmpl(ispin), matrix_type=dbcsr_type_no_symmetry)
 
             ! set to zero before accumulation
             CALL dbcsr_set(m_guess(ispin), 0.0_dp)
@@ -3814,14 +3156,27 @@ CONTAINS
                CALL dbcsr_copy(m_extrapolated, m_quench_t(ispin))
 
                ! project t0 onto the previous DMs
-               ! note that t0 is projected instead of anything else
-               ! this is done to keep orbitals phase (i.e. sign) the same
-               ! if this is not done the extrapolation will fail
+               ! note that t0 is projected instead of any other matrix (e.g.
+               ! t_SCF from the prev step or random t)
+               ! this is done to keep orbitals phase (i.e. sign) the same as in
+               ! t0. if this is not done then subtracting t0 on the next step
+               ! will produce a terrible guess and extrapolation will fail
                CALL dbcsr_multiply("N", "N", 1.0_dp, &
                                    xalmo_history%matrix_p_up_down(ispin, istore), &
                                    m_t0(ispin), &
                                    0.0_dp, m_extrapolated, &
                                    retain_sparsity=.TRUE.)
+               ! normalize MOs
+               CALL orthogonalize_mos(ket=m_extrapolated, &
+                                      overlap=m_sigma_tmp, &
+                                      metric=m_overlap, &
+                                      retain_locality=.TRUE., &
+                                      only_normalize=.FALSE., &
+                                      nocc_of_domain=nocc_of_domain(:, ispin), &
+                                      eps_filter=eps_filter, &
+                                      order_lanczos=order_lanczos, &
+                                      eps_lanczos=eps_lanczos, &
+                                      max_iter_lanczos=max_iter_lanczos)
 
                ! now accumulate. correct sparsity is ensured
                CALL dbcsr_add(m_guess(ispin), m_extrapolated, &
@@ -3832,14 +3187,12 @@ CONTAINS
             CALL dbcsr_release(m_extrapolated)
 
             ! normalize MOs
-            CALL dbcsr_create(m_sigma_tmp, &
-                              template=m_sigma_tmpl(ispin), matrix_type=dbcsr_type_no_symmetry)
-
             CALL orthogonalize_mos(ket=m_guess(ispin), &
                                    overlap=m_sigma_tmp, &
                                    metric=m_overlap, &
                                    retain_locality=.TRUE., &
                                    only_normalize=.FALSE., &
+                                   nocc_of_domain=nocc_of_domain(:, ispin), &
                                    eps_filter=eps_filter, &
                                    order_lanczos=order_lanczos, &
                                    eps_lanczos=eps_lanczos, &
@@ -3852,98 +3205,6 @@ CONTAINS
             IF (assume_t0_q0x) THEN
                CALL dbcsr_add(m_guess(ispin), m_t0(ispin), &
                               1.0_dp, -1.0_dp)
-
-               !! multiply by the pseudo-inverse of (S-RSR)
-               !! this part was brought from outside and was never adapted
-               !! perhaps it is not important and can be deleted later
-               !IF (my_special_case .EQ. xalmo_case_fully_deloc) THEN
-
-               !   CALL dbcsr_init(m_tmp_no_1)
-               !   CALL dbcsr_init(m_tmp_nn_1)
-               !   CALL dbcsr_init(prec_vv)
-               !   CALL dbcsr_init(ST)
-               !   CALL dbcsr_create(ST, &
-               !                          template=matrix_t_out(ispin), &
-               !                          matrix_type=dbcsr_type_no_symmetry)
-               !   CALL dbcsr_create(m_tmp_no_1, &
-               !                          template=matrix_t_out(ispin), &
-               !                          matrix_type=dbcsr_type_no_symmetry)
-               !   CALL dbcsr_create(m_tmp_nn_1, &
-               !                        template=almo_scf_env%matrix_s(1), &
-               !                        matrix_type=dbcsr_type_no_symmetry)
-               !   CALL dbcsr_create(prec_vv, &
-               !                        template=almo_scf_env%matrix_s(1), &
-               !                        matrix_type=dbcsr_type_no_symmetry)
-               !   ! First S-SRS
-               !   CALL dbcsr_multiply("N","N",1.0_dp,&
-               !           almo_scf_env%matrix_s(1),&
-               !           almo_scf_env%matrix_t_blk(ispin),&
-               !           0.0_dp,ST,&
-               !           filter_eps=almo_scf_env%eps_filter)
-               !   CALL dbcsr_multiply("N", "N", 1.0_dp, &
-               !                          ST, &
-               !                          almo_scf_env%matrix_sigma_inv_0deloc(ispin), &
-               !                          0.0_dp, m_tmp_no_1, &
-               !                          filter_eps=almo_scf_env%eps_filter)
-               !   CALL dbcsr_desymmetrize(almo_scf_env%matrix_s(1), &
-               !                              m_tmp_nn_1)
-               !   CALL dbcsr_multiply("N", "T", -1.0_dp, &
-               !                             ST, &
-               !                             m_tmp_no_1, &
-               !                             1.0_dp, m_tmp_nn_1, &
-               !                             filter_eps=almo_scf_env%eps_filter)
-
-               !   ! pseudo-invert the virtual projector
-               !   CALL dbcsr_get_info(m_tmp_nn_1, nfullrows_total=dim0)
-               !   ALLOCATE (evals(dim0))
-               !   CALL cp_dbcsr_syevd(m_tmp_nn_1, prec_vv, evals, &
-               !                       almo_scf_env%para_env, almo_scf_env%blacs_env)
-               !   ! invert eigenvalues and use eigenvectors to compute the pseudo-inverse
-               !   zero_neg_eiv = 0
-               !   CALL dbcsr_get_info(almo_scf_env%matrix_sigma_inv_0deloc(ispin), nfullrows_total=occ1)
-               !   DO jj = 1, dim0
-               !      IF (jj .LE. occ1) THEN
-               !         zero_neg_eiv = zero_neg_eiv+1
-               !         evals(jj) = evals(jj)*0.0_dp
-               !      ELSE
-               !         evals(jj) = 1.0_dp/evals(jj)
-               !      ENDIF
-               !   ENDDO
-               !   IF (unit_nr > 0) THEN
-               !      WRITE (*, *) 'ZERO OR NEGATIVE EIGENVALUES: ', zero_neg_eiv, SUM(evals(1:zero_neg_eiv))
-               !   ENDIF
-               !   CALL dbcsr_init(inv_eiv)
-               !   CALL dbcsr_create(inv_eiv, &
-               !                        template=m_tmp_nn_1, &
-               !                        matrix_type=dbcsr_type_no_symmetry)
-               !   CALL dbcsr_add_on_diag(inv_eiv, 1.0_dp)
-               !   CALL dbcsr_set_diag(inv_eiv, evals)
-               !   CALL dbcsr_multiply("N", "N", 1.0_dp, &
-               !                          prec_vv, &
-               !                          inv_eiv, &
-               !                          0.0_dp, m_tmp_nn_1, &
-               !                          filter_eps=almo_scf_env%eps_filter)
-               !   CALL dbcsr_multiply("N", "T", 1.0_dp, &
-               !                          m_tmp_nn_1, &
-               !                          prec_vv, &
-               !                          0.0_dp, inv_eiv, &
-               !                          filter_eps=almo_scf_env%eps_filter)
-               !   CALL dbcsr_multiply("N", "N", 1.0_dp, &
-               !                          inv_eiv, &
-               !                          m_theta(ispin), &
-               !                          0.0_dp, m_tmp_no_1, &
-               !                          filter_eps=almo_scf_env%eps_filter)
-               !   CALL dbcsr_copy(m_theta(ispin),m_tmp_no_1)
-
-               !   CALL dbcsr_release(inv_eiv)
-               !   CALL dbcsr_release(m_tmp_no_1)
-               !   CALL dbcsr_release(m_tmp_nn_1)
-               !   CALL dbcsr_release(prec_vv)
-               !   CALL dbcsr_release(ST)
-               !   DEALLOCATE (evals)
-
-               !ENDIF !special_case
-
             ENDIF !assume_t0_q0x
 
          ENDDO !ispin

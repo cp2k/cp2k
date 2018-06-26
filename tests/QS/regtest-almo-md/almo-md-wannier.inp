@@ -36,7 +36,9 @@
       
       DELOCALIZE_METHOD          NONE
       XALMO_R_CUTOFF_FACTOR      1.4
-      
+     
+      RETURN_ORTHOGONALIZED_MOS  TRUE
+ 
       &XALMO_OPTIMIZER_PCG
         MAX_ITER                 100
         EPS_ERROR                5.0E-4

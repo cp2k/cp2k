@@ -289,14 +289,17 @@ CONTAINS
                               qs_env%admm_env%work_aux_aux, energy(my_id))
 
          my_time(my_id) = m_walltime()-start_time(icalc)
-         IF (.NOT. para_env%ionode) THEN
-            f_vec = 0.0_dp; cond_vec = 0.0_dp; my_time = 0.0_dp; energy = 0.0_dp
-         END IF
       END DO
+      IF (.NOT. para_env%ionode) THEN
+         f_vec = 0.0_dp; cond_vec = 0.0_dp; my_time = 0.0_dp; energy = 0.0_dp
+      END IF
 
       DEALLOCATE (start_time)
 
-      CALL mp_sum(f_vec, para_env_top%group); CALL mp_sum(cond_vec, para_env_top%group); CALL mp_sum(my_time, para_env_top%group)
+      CALL mp_sum(f_vec, para_env_top%group)
+      CALL mp_sum(cond_vec, para_env_top%group)
+      CALL mp_sum(my_time, para_env_top%group)
+      CALL mp_sum(energy, para_env_top%group)
       opt_bas%powell_param%f = 0.0_dp
       DO icalc = 1, SIZE(f_vec)
          icomb = MOD(icalc-1, opt_bas%ncombinations)

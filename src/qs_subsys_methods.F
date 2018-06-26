@@ -162,11 +162,10 @@ CONTAINS
          routineP = moduleN//':'//routineN
 
       INTEGER                                            :: arbitrary_spin, iatom, ikind, imol, &
-                                                            ispin, n_ao, natom, nmol_kind, nsgf, &
-                                                            nspins, z_molecule
+                                                            n_ao, natom, nmol_kind, nsgf, nspins, &
+                                                            z_molecule
       INTEGER, DIMENSION(0:lmat, 10)                     :: ne_core, ne_elem, ne_explicit
-      INTEGER, DIMENSION(2)                              :: n_elec_alpha_and_beta, &
-                                                            n_occ_alpha_and_beta
+      INTEGER, DIMENSION(2)                              :: n_occ_alpha_and_beta
       REAL(KIND=dp)                                      :: charge_molecule, zeff, zeff_correction
       REAL(KIND=dp), DIMENSION(0:lmat, 10, 2)            :: edelta
       TYPE(all_potential_type), POINTER                  :: all_potential
@@ -183,6 +182,7 @@ CONTAINS
          natom = 0
 
          !   *** Initialize the molecule kind data structure ***
+         ARBITRARY_SPIN = 1
          DO imol = 1, nmol_kind
 
             molecule_kind => molecule_kind_set(imol)
@@ -191,7 +191,6 @@ CONTAINS
             !nelectron = 0
             n_ao = 0
             n_occ_alpha_and_beta(1:nspins) = 0
-            n_elec_alpha_and_beta(1:nspins) = 0
             z_molecule = 0
 
             DO iatom = 1, natom
@@ -204,25 +203,30 @@ CONTAINS
                                 gth_potential=gth_potential, &
                                 sgp_potential=sgp_potential)
 
-               ! Get the electronic state of the atom that is used
-               !  to calculate the ATOMIC GUESS
-               ! The spin loop is becsause ATOMIC guess can be calculated twice
-               !  for two separate states with their own alpha-beta combinations
-               ! This is done to break the spin symmetry of the initial wfn
+               ! Obtain the electronic state of the atom
+               ! The same state is used to calculate the ATOMIC GUESS
+               ! It is great that we are consistent with ATOMIC_GUESS
                CALL init_atom_electronic_state(atomic_kind=atomic_kind, &
                                                qs_kind=qs_kind_set(ikind), &
                                                ncalc=ne_explicit, &
                                                ncore=ne_core, &
                                                nelem=ne_elem, &
                                                edelta=edelta)
-               DO ispin = 1, nspins
-                  ! Get the number of electrons: explicit (i.e. with orbitals) and total
-                  ! Note that it is impossible to separate alpha and beta electrons
-                  ! because the mupliplicity of the atomic state is not specified in ATOMIC GUESS
-                  n_occ_alpha_and_beta(ispin) = n_occ_alpha_and_beta(ispin)+SUM(ne_explicit)+ &
-                                                SUM(NINT(edelta(:, :, ispin)))
-                  n_elec_alpha_and_beta(ispin) = n_elec_alpha_and_beta(ispin)+SUM(ne_elem)
-               ENDDO
+
+               ! If &BS section is used ATOMIC_GUESS is calculated twice
+               ! for two separate wfns with their own alpha-beta combinations
+               ! This is done to break the spin symmetry of the initial wfn
+               ! For now, only alpha part of &BS is used to count electrons on
+               ! molecules
+               ! Get the number of explicit electrons (i.e. with orbitals)
+               ! For now, only the total number of electrons can be obtained
+               ! from init_atom_electronic_state
+               n_occ_alpha_and_beta(ARBITRARY_SPIN) = &
+                  n_occ_alpha_and_beta(ARBITRARY_SPIN)+SUM(ne_explicit)+ &
+                  SUM(NINT(2*edelta(:, :, ARBITRARY_SPIN)))
+               ! We need a way to specify the number of alpha and beta electrons
+               ! on each molecule (i.e. multiplicity is not enough)
+               !n_occ(ispin) = n_occ(ispin) + SUM(ne_explicit) + SUM(NINT(2*edelta(:, :, ispin)))
 
                IF (ASSOCIATED(all_potential)) THEN
                   CALL get_potential(potential=all_potential, zeff=zeff, &
@@ -254,13 +258,6 @@ CONTAINS
 
             ! At this point we have the number of electrons (alpha+beta) on the molecule
             !  as they are seen by the ATOMIC GUESS routines
-            ! First compare two copies of the ATOMIC GUESS
-            ! If they are different warn the user that only the ALPHA copy is currently
-            !  assigned to the molecule
-            ARBITRARY_SPIN = 1
-!      IF( n_occ_alpha_and_beta(1).ne.n_occ_alpha_and_beta(2) ) THEN
-!         CPErrorMessage(cp_failure_level,routineP,"SECOND SPIN CONFIG IS IGNORED WHEN MOLECULAR STATES ARE ASSIGNED!")
-!      END IF
             charge_molecule = REAL(z_molecule-n_occ_alpha_and_beta(ARBITRARY_SPIN), dp)
             CALL set_molecule_kind(molecule_kind=molecule_kind, &
                                    nelectron=n_occ_alpha_and_beta(ARBITRARY_SPIN), &

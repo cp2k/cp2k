@@ -891,7 +891,11 @@ MODULE input_constants
 
    INTEGER, PARAMETER, PUBLIC   :: almo_scf_dm_sign = 1, &
                                    almo_scf_diag = 2, &
-                                   almo_scf_pcg = 3
+                                   almo_scf_pcg = 3, &
+                                   almo_scf_skip = 4
+
+   INTEGER, PARAMETER, PUBLIC   :: almo_occ_vol_penalty_none = 0, &
+                                   almo_occ_vol_penalty_lndet = 1
 
    ! optimizer parameters
    INTEGER, PARAMETER, PUBLIC   :: cg_zero = 0, &
@@ -903,13 +907,16 @@ MODULE input_constants
                                    cg_dai_yuan = 6, &
                                    cg_hager_zhang = 7
    INTEGER, PARAMETER, PUBLIC   :: optimizer_diis = 1, &
-                                   optimizer_pcg = 2
-   INTEGER, PARAMETER, PUBLIC   :: prec_zero = 0, &
-                                   prec_default = -1, &
-                                   prec_ks_plus_s = 4
+                                   optimizer_pcg = 2, &
+                                   optimizer_lin_eq_pcg = 3
+   INTEGER, PARAMETER, PUBLIC   :: xalmo_prec_zero = 0, &
+                                   xalmo_prec_domain = 1, &
+                                   xalmo_prec_full = 2
    INTEGER, PARAMETER, PUBLIC   :: xalmo_case_block_diag = 0, &
                                    xalmo_case_fully_deloc = 1, &
                                    xalmo_case_normal = -1
+   INTEGER, PARAMETER, PUBLIC   :: xalmo_trial_simplex = 0, &
+                                   xalmo_trial_r0_out = 1
 
    ! parameters for CT methods
    INTEGER, PARAMETER, PUBLIC   :: tensor_orthogonal = 1, &
@@ -918,6 +925,11 @@ MODULE input_constants
                                    virt_minimal = 2, &
                                    virt_occ_size = 3, &
                                    virt_number = 4
+
+   ! spd matrix inversion algorithm
+   INTEGER, PARAMETER, PUBLIC   :: spd_inversion_ls_hotelling = 0, &
+                                   spd_inversion_dense_cholesky = 1, &
+                                   spd_inversion_ls_taylor = 2
 
    ! some MP2 parameters
    INTEGER, PARAMETER, PUBLIC               :: mp2_method_none = 0, &

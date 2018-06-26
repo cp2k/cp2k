@@ -17,6 +17,7 @@
       EPS_FILTER                 1.0E-8
       ALMO_ALGORITHM             DIAG
       ALMO_SCF_GUESS             ATOMIC
+      RETURN_ORTHOGONALIZED_MOS  TRUE
 
       &ALMO_OPTIMIZER_DIIS
         MAX_ITER                 10

@@ -1,0 +1,132 @@
+&GLOBAL
+  PROJECT md-atomic-part
+  RUN_TYPE MD
+  PRINT_LEVEL LOW
+&END GLOBAL
+
+&MOTION
+  &MD
+    ENSEMBLE  NVE
+    STEPS  4
+    TIMESTEP     0.5
+    TEMPERATURE     298
+  &END MD
+&END MOTION
+
+&FORCE_EVAL
+  METHOD QS
+  &DFT
+
+    BASIS_SET_FILE_NAME GTH_BASIS_SETS
+    POTENTIAL_FILE_NAME POTENTIAL
+
+    &MGRID
+      CUTOFF 400
+    &END MGRID
+
+    &QS
+      ALMO_SCF    T
+      EPS_DEFAULT 1.0E-8 ! 1.0E-12
+      WF_INTERPOLATION PS
+    &END QS
+
+    &ALMO_SCF
+      EPS_FILTER                 1.0E-8 ! 1.0E-11
+      ALMO_ALGORITHM             SKIP
+      ALMO_SCF_GUESS             ATOMIC
+      MO_OVERLAP_INV_ALG         DENSE_CHOLESKY         
+      XALMO_TRIAL_WF             SIMPLE
+      DELOCALIZE_METHOD          XALMO_SCF
+      XALMO_R_CUTOFF_FACTOR      1.3
+      XALMO_EXTRAPOLATION_ORDER  4
+
+      &MATRIX_ITERATE
+        EPS_TARGET_FACTOR        10.
+        !EPS_LANCZOS              1.0E-3
+        !MAX_ITER_LANCZOS         64
+        !ORDER_LANCZOS            3
+      &END MATRIX_ITERATE
+
+      &XALMO_OPTIMIZER_PCG
+        MAX_ITER                 15
+        EPS_ERROR                5.0E-5
+        CONJUGATOR               FLETCHER_REEVES
+        LIN_SEARCH_EPS_ERROR     0.05
+        LIN_SEARCH_STEP_SIZE_GUESS 0.1
+        MAX_ITER_OUTER_LOOP      50
+        PRECOND_FILTER_THRESHOLD 0.008
+      &END XALMO_OPTIMIZER_PCG
+      
+    &END ALMO_SCF
+
+    &XC
+      &XC_FUNCTIONAL BLYP
+      &END XC_FUNCTIONAL
+    &END XC
+
+  &END DFT
+
+  &SUBSYS
+
+    &KIND H
+      BASIS_SET SZV-GTH ! TZV2P-GTH
+      POTENTIAL GTH-BLYP-q1
+      &BS
+        &ALPHA
+          NEL -1
+          L    0
+          N    1
+        &END
+        ! BETA FUNCTION SHOULD BE THE SAME TO AVOID WARNINGS
+        &BETA
+          NEL -1
+          L    0 
+          N    1
+        &END
+      &END
+    &END KIND
+
+    &KIND O
+      BASIS_SET SZV-GTH ! TZV2P-GTH
+      POTENTIAL GTH-BLYP-q6
+      &BS
+        &ALPHA
+          NEL +2
+          L    1
+          N    2
+        &END
+        ! BETA FUNCTION SHOULD BE THE SAME TO AVOID WARNINGS
+        &BETA
+          NEL +2
+          L    1 
+          N    2
+        &END
+      &END
+    &END KIND
+
+    &CELL
+      ABC  3.00000000       3.00000000       5.00000000
+      MULTIPLE_UNIT_CELL 1 1 1 
+    &END CELL
+
+    &TOPOLOGY
+      &GENERATE # fragments contain single atoms
+        BONDLENGTH_MAX 1.0
+        BONDPARM COVALENT
+        BONDPARM_FACTOR 0.3
+      &END GENERATE
+      MULTIPLE_UNIT_CELL 1 1 1
+    &END
+    
+    &COORD
+      O         1.5285821781        1.7062403635       3.9140529453
+      H         1.6296675630        1.2721242389       4.7873221686
+      H         2.0421991683        2.5306450214       4.0774366182
+      O         1.6497475797        0.9866814243       1.1082336734
+      H         1.5853337875        1.1818653541       2.0640644445
+      H         0.6898667621        0.8787694446       0.8082114051
+    &END COORD
+
+  &END SUBSYS
+&END FORCE_EVAL
+

@@ -374,7 +374,7 @@ CONTAINS
 
       INTEGER                                            :: almo_guess_type, frz_term_type, &
                                                             method_name_id, scf_guess_type
-      LOGICAL                                            :: is_crystal, is_fast_dirty
+      LOGICAL                                            :: almo_scf_is_on, is_crystal, is_fast_dirty
       TYPE(molecular_scf_guess_env_type), POINTER        :: mscfg_env
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(section_vals_type), POINTER                   :: force_env_section, subsection
@@ -383,6 +383,7 @@ CONTAINS
       ! What kind of options are we using in the loop ?
       is_fast_dirty = .TRUE.
       is_crystal = .FALSE.
+      almo_scf_is_on = .FALSE.
 
       NULLIFY (qs_env, mscfg_env, force_env_section, subsection)
       CALL force_env_get(force_env, force_env_section=force_env_section)
@@ -405,6 +406,10 @@ CONTAINS
          NULLIFY (subsection)
          subsection => section_vals_get_subs_vals(force_env_section, "DFT%ALMO_SCF")
          CALL section_vals_val_get(subsection, "ALMO_SCF_GUESS", i_val=almo_guess_type)
+         ! check whether ALMO SCF is on
+         NULLIFY (subsection)
+         subsection => section_vals_get_subs_vals(force_env_section, "DFT%QS")
+         CALL section_vals_val_get(subsection, "ALMO_SCF", l_val=almo_scf_is_on)
 
          ! check SCF guess option
          NULLIFY (subsection)
@@ -419,7 +424,7 @@ CONTAINS
 
          ! Are we doing the loop ?
          IF (scf_guess_type .EQ. molecular_guess .OR. & ! SCF guess is molecular
-             almo_guess_type .EQ. molecular_guess .OR. & ! ALMO SCF guess is molecular
+             (almo_guess_type .EQ. molecular_guess .AND. almo_scf_is_on) .OR. & ! ALMO SCF guess is molecular
              frz_term_type .NE. almo_frz_none) THEN ! ALMO FRZ term is requested
 
             do_mol_loop = .TRUE.

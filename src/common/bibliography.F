@@ -82,7 +82,7 @@ MODULE bibliography
                             Bates2013, Andermatt2016, Zhu2016, Schuett2016, Lu2004, &
                             Becke1988b, Migliore2009, Mavros2015, Holmberg2017, Marek2014, &
                             Stoychev2016, Futera2017, Bailey2006, Papior2017, Lehtola2018, &
-                            Brieuc2016, Barca2018, Huang2011, Heaton_Burgess2007
+                            Brieuc2016, Barca2018, Scheiber2018, Huang2011, Heaton_Burgess2007
 
 CONTAINS
 
@@ -3862,6 +3862,23 @@ CONTAINS
                          "AR 256401 ", &
                          "ER"), &
                          DOI="10.1103/PhysRevLett.98.256401")
+
+      CALL add_reference(key=Scheiber2018, ISI_record=s2a( &
+                         "AU Scheiber, H", &
+                         "   Shi, Y", &
+                         "   Khaliullin, RZ", &
+                         "AF Scheiber, Hayden", &
+                         "   Shi, Yifei", &
+                         "   Khaliullin, Rustam Z.", &
+                 "TI Compact orbitals enable low-cost linear-scaling ab initio molecular dynamics for weakly-interacting systems", &
+                         "SO The Journal of Chemical Physics", &
+                         "PD JUN 21", &
+                         "PY 2018", &
+                         "VL 148", &
+                         "AR 231103", &
+                         "DI 10.1063/1.5029939", &
+                         "ER"), &
+                         DOI="10.1063/1.5029939")
 
    END SUBROUTINE add_all_references
 

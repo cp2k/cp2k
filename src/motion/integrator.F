@@ -215,6 +215,9 @@ CONTAINS
     ! atoms because of the possiblity of Langevin regions, and var_w
     ! for each region should depend on the temperature defined in the
     ! region
+    ! RZK explains: sigma is the variance of the Wiener process associated
+    ! with the stochastic term, sigma = m*var_w = m*(2*k_B*T*gamma*dt),
+    ! noisy_gamma adds excessive noise that is not balanced by the damping term
     ALLOCATE(var_w(nparticle))
     var_w(1:nparticle) = simpar%var_w
     IF (simpar%do_thermal_region) THEN

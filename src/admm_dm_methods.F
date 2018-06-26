@@ -135,6 +135,7 @@ CONTAINS
 
       INTEGER                                            :: ispin
       LOGICAL                                            :: s_mstruct_changed
+      REAL(KIND=dp)                                      :: threshold
       TYPE(admm_dm_type), POINTER                        :: admm_dm
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_s_aux, matrix_s_mixed, rho_ao, &
                                                             rho_ao_aux
@@ -160,7 +161,8 @@ CONTAINS
       IF (s_mstruct_changed) THEN
          ! Calculate A = S_aux^(-1) * S_mixed
          CALL dbcsr_create(matrix_s_aux_inv, template=matrix_s_aux(1)%matrix, matrix_type="N")
-         CALL invert_Hotelling(matrix_s_aux_inv, matrix_s_aux(1)%matrix, admm_dm%eps_filter)
+         threshold = MAX(admm_dm%eps_filter, 1.0e-12_dp)
+         CALL invert_Hotelling(matrix_s_aux_inv, matrix_s_aux(1)%matrix, threshold)
 
          IF (.NOT. ASSOCIATED(admm_dm%matrix_A)) THEN
             ALLOCATE (admm_dm%matrix_A)
