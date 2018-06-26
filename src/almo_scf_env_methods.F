@@ -472,7 +472,8 @@ CONTAINS
          IF (almo_scf_env%deloc_method .NE. almo_deloc_x .AND. &
              almo_scf_env%deloc_method .NE. almo_deloc_scf .AND. &
              almo_scf_env%deloc_method .NE. almo_deloc_x_then_scf) THEN
-            CPABORT("Occupied volume penalty seems to work only with completely delocalized orbitals")
+            CALL cp_abort(__LOCATION__, &
+                          "Occupied volume penalty seems to work only with completely delocalized orbitals")
          ENDIF
       ENDIF ! end penalty settings
 
