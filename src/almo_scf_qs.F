@@ -389,25 +389,33 @@ CONTAINS
                DO dimen = 1, 2 ! 1 - row, 2 - column dimension
                   IF (size_keys(dimen) == almo_mat_dim_occ) one_dim_is_mo = .TRUE.
                ENDDO
-               IF (one_dim_is_mo .AND. almo_scf_env%nocc_of_domain(row, spin_key) == 0) active = .FALSE.
+               IF (one_dim_is_mo) THEN
+                  IF (almo_scf_env%nocc_of_domain(row, spin_key) == 0) active = .FALSE.
+               END IF
 
                one_dim_is_mo = .FALSE.
                DO dimen = 1, 2
                   IF (size_keys(dimen) == almo_mat_dim_virt) one_dim_is_mo = .TRUE.
                ENDDO
-               IF (one_dim_is_mo .AND. almo_scf_env%nvirt_of_domain(row, spin_key) == 0) active = .FALSE.
+               IF (one_dim_is_mo) THEN
+                  IF (almo_scf_env%nvirt_of_domain(row, spin_key) == 0) active = .FALSE.
+               END IF
 
                one_dim_is_mo = .FALSE.
                DO dimen = 1, 2
                   IF (size_keys(dimen) == almo_mat_dim_virt_disc) one_dim_is_mo = .TRUE.
                ENDDO
-               IF (one_dim_is_mo .AND. almo_scf_env%nvirt_disc_of_domain(row, spin_key) == 0) active = .FALSE.
+               IF (one_dim_is_mo) THEN
+                  IF (almo_scf_env%nvirt_disc_of_domain(row, spin_key) == 0) active = .FALSE.
+               END IF
 
                one_dim_is_mo = .FALSE.
                DO dimen = 1, 2
                   IF (size_keys(dimen) == almo_mat_dim_virt_full) one_dim_is_mo = .TRUE.
                ENDDO
-               IF (one_dim_is_mo .AND. almo_scf_env%nvirt_full_of_domain(row, spin_key) == 0) active = .FALSE.
+               IF (one_dim_is_mo) THEN
+                  IF (almo_scf_env%nvirt_full_of_domain(row, spin_key) == 0) active = .FALSE.
+               END IF
 
                IF (active) THEN
                   NULLIFY (p_new_block)
