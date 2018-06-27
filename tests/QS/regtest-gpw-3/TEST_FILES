@@ -62,7 +62,7 @@ ghost_overlap_vdw.inp                                  1      7e-14             
 NO2-mulliken.inp                                      41    1.0E-14                       1.000000
 NO2-lowdin.inp                                        41    1.0E-14                       1.000000
 # Test the new option relax_multiplicity
-O2-UKS-GPW-relax_multip.inp                            1    1.0E-14             -31.86509210046759
+O2-UKS-GPW-relax_multip.inp                            1    5.0E-14             -31.86509210046759
 H2O-UKS-GPW-relax_multip.inp                           1      1e-13             -17.15478069235402
 O2-UKS-OTdiag-relax_multip.inp                         1      5e-14            -31.865092095711109
 #EOF
