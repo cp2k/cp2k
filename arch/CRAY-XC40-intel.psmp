@@ -17,7 +17,7 @@ FC       = ftn
 LD       = ftn
 AR       = ar -r
 CPPFLAGS =
-DFLAGS   = -D__FFTW3 -D__HAS_NO_SHARED_GLIBC -D__LIBXSMM \
+DFLAGS   = -D__FFTW3 -D__LIBXSMM \
 	   -D__parallel -D__SCALAPACK \
 	   -D__ELPA=201705 \
 	   -D__LIBXC \

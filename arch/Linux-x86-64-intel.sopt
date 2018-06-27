@@ -11,7 +11,7 @@ FC       = ifort
 LD       = ifort
 AR       = ar -r
 CPPFLAGS =
-DFLAGS   = -D__MKL -D__FFTW3 -D__HAS_NO_SHARED_GLIBC -D__LIBXSMM \
+DFLAGS   = -D__MKL -D__FFTW3 -D__LIBXSMM \
 	   -D__LIBXC \
            -D__LIBINT -D__LIBINT_MAX_AM=7 -D__LIBDERIV_MAX_AM1=6 \
            -D__MAX_CONTR=4
