@@ -67,8 +67,7 @@ MODULE qs_linres_module
    USE qs_linres_op,                    ONLY: current_operators,&
                                               issc_operators,&
                                               polar_operators
-   USE qs_linres_polar_utils,           ONLY: polar_env_cleanup,&
-                                              polar_env_init,&
+   USE qs_linres_polar_utils,           ONLY: polar_env_init,&
                                               polar_polar,&
                                               polar_print,&
                                               polar_response
@@ -78,8 +77,7 @@ MODULE qs_linres_module
                                               linres_control_create,&
                                               linres_control_release,&
                                               linres_control_type,&
-                                              nmr_env_type,&
-                                              polar_env_type
+                                              nmr_env_type
    USE qs_mo_methods,                   ONLY: calculate_density_matrix
    USE qs_mo_types,                     ONLY: mo_set_p_type
    USE qs_p_env_methods,                ONLY: p_env_create,&
@@ -130,7 +128,7 @@ CONTAINS
       CASE (use_qmmm)
          qs_env => force_env%qmmm_env%qs_env
       CASE DEFAULT
-         CPABORT("Doesnt recognize this force_env.")
+         CPABORT("Does not recognize this force_env")
       END SELECT
 
       qs_env%linres_run = .TRUE.
@@ -170,6 +168,7 @@ CONTAINS
       TYPE(section_vals_type), POINTER                   :: lr_section, prop_section
 
       CALL timeset(routineN, handle)
+
       lr_calculation = .FALSE.
       nmr_present = .FALSE.
       epr_present = .FALSE.
@@ -189,9 +188,9 @@ CONTAINS
          CALL get_qs_env(qs_env=qs_env, dft_control=dft_control, &
                          linres_control=linres_control)
 
-         !The type of perturbation has not been defined yet
+         ! The type of perturbation has not been defined yet
          linres_control%property = lr_none
-         !
+
          ! We do NMR or EPR, then compute the current response
          prop_section => section_vals_get_subs_vals(lr_section, "NMR")
          CALL section_vals_get(prop_section, explicit=nmr_present)
@@ -202,7 +201,7 @@ CONTAINS
             CALL nmr_epr_linres(linres_control, qs_env, p_env, dft_control, &
                                 nmr_present, epr_present, output_unit)
          ENDIF
-         !
+
          ! We do the indirect spin-spin coupling calculation
          prop_section => section_vals_get_subs_vals(lr_section, "SPINSPIN")
          CALL section_vals_get(prop_section, explicit=issc_present)
@@ -211,11 +210,9 @@ CONTAINS
             CALL issc_linres(linres_control, qs_env, p_env, dft_control)
          ENDIF
 
-         !
          ! We do the polarizability calculation
          prop_section => section_vals_get_subs_vals(lr_section, "POLAR")
          CALL section_vals_get(prop_section, explicit=polar_present)
-
          IF (polar_present) THEN
             CALL polar_linres(qs_env, p_env)
          END IF
@@ -326,8 +323,8 @@ CONTAINS
             "START LINRES CALCULATION", &
             REPEAT("=", 77)
 
-         WRITE (UNIT=output_unit, FMT="(/,T10,A,/)") &
-            "Properties to be Calulated:"
+         WRITE (UNIT=output_unit, FMT="(/,T2,A,/)") &
+            "LINRES| Properties to be calulated:"
          CALL section_vals_val_get(lr_section, "NMR%_SECTION_PARAMETERS_", &
                                    l_val=do_it)
          IF (do_it) WRITE (UNIT=output_unit, FMT="(T45,A)") &
@@ -558,6 +555,8 @@ CONTAINS
 !> \brief ...
 !> \param qs_env ...
 !> \param p_env ...
+!> \par History
+!>      06.2018 polar_env integrated into qs_env (MK)
 ! **************************************************************************************************
    SUBROUTINE polar_linres(qs_env, p_env)
 
@@ -566,18 +565,12 @@ CONTAINS
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'polar_linres', routineP = moduleN//':'//routineN
 
-      TYPE(polar_env_type)                               :: polar_env
-
-      polar_env%ref_count = 0
-      CALL polar_env_init(polar_env, qs_env)
-      CALL polar_operators(polar_env, qs_env)
-      CALL polar_response(polar_env, p_env, qs_env)
-      CALL polar_polar(polar_env, qs_env)
-      !
-      CALL polar_print(polar_env, qs_env)
-      CALL polar_env_cleanup(polar_env)
+      CALL polar_env_init(qs_env)
+      CALL polar_operators(qs_env)
+      CALL polar_response(p_env, qs_env)
+      CALL polar_polar(qs_env)
+      CALL polar_print(qs_env)
 
    END SUBROUTINE polar_linres
 
 END MODULE qs_linres_module
-

@@ -629,16 +629,15 @@ CONTAINS
 !>         the ground state wave function (see paper Putrino et al., JCP, 13, 7102) for the AOs;
 !>        afterwards multiply with the ground state MO coefficients
 !>
-!> \param polar_env ...
 !> \param qs_env ...
 !> \par History
 !>      01.2013 created [SL]
+!>      06.2018 polar_env integrated into qs_env (MK)
 !> \author SL
 ! **************************************************************************************************
 
-   SUBROUTINE polar_operators(polar_env, qs_env)
+   SUBROUTINE polar_operators(qs_env)
 
-      TYPE(polar_env_type)                               :: polar_env
       TYPE(qs_environment_type), POINTER                 :: qs_env
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'polar_operators', &
@@ -664,12 +663,14 @@ CONTAINS
       TYPE(dbcsr_type), POINTER                          :: cosmat, sinmat
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(mo_set_p_type), DIMENSION(:), POINTER         :: mos
+      TYPE(polar_env_type), POINTER                      :: polar_env
       TYPE(section_vals_type), POINTER                   :: lr_section
 
       CALL timeset(routineN, handle)
 
       NULLIFY (dBerry_psi0, inv_work, mo_derivs, &
                op_fm_set, opvec, sinmat, cosmat)
+      NULLIFY (polar_env)
 
       logger => cp_get_default_logger()
       lr_section => section_vals_get_subs_vals(qs_env%input, &
@@ -682,6 +683,7 @@ CONTAINS
                       cell=cell, &
                       dft_control=dft_control, &
                       para_env=para_env, &
+                      polar_env=polar_env, &
                       mos=mos, &
                       matrix_s=matrix_s)
 
@@ -700,9 +702,6 @@ CONTAINS
                CALL cp_fm_set_all(mo_derivs(i, ispin)%matrix, 0.0_dp)
             ENDDO
          END DO
-
-         !
-         !
 
          ! initialize all work matrices needed
          ALLOCATE (opvec(2, dft_control%nspins))
@@ -728,11 +727,9 @@ CONTAINS
                CALL cp_cfm_create(inv_mat(i, ispin)%matrix, op_fm_set(1, ispin)%matrix%matrix_struct)
                CALL cp_fm_create(inv_work(2, i, ispin)%matrix, op_fm_set(2, ispin)%matrix%matrix_struct)
                CALL cp_fm_create(inv_work(1, i, ispin)%matrix, op_fm_set(1, ispin)%matrix%matrix_struct)
-
             END DO
          END DO
 
-         !
          NULLIFY (cosmat, sinmat)
          ALLOCATE (cosmat, sinmat)
          CALL dbcsr_copy(cosmat, matrix_s(1)%matrix, 'COS MOM')
@@ -758,7 +755,7 @@ CONTAINS
 
             ENDDO
 
-            !second step invert C^T S_berry C
+            ! Second step invert C^T S_berry C
             zdet = one
             DO ispin = 1, dft_control%nspins
                CALL cp_cfm_get_info(eigrmat(ispin)%matrix, ncol_local=tmp_dim)
@@ -770,9 +767,8 @@ CONTAINS
                CALL cp_cfm_set_all(inv_mat(i, ispin)%matrix, zero, one)
                CALL cp_cfm_solve(eigrmat(ispin)%matrix, inv_mat(i, ispin)%matrix, zdeta)
             END DO
-            !
-            !
-            !compute the derivative and add the result to mo_derivatives
+
+            ! Compute the derivative and add the result to mo_derivatives
             DO ispin = 1, dft_control%nspins
                CALL cp_cfm_get_info(eigrmat(ispin)%matrix, ncol_local=tmp_dim)
                CALL get_mo_set(mo_set=mos(ispin)%mo_set, nao=nao, nmo=nmo, maxocc=maxocc)
@@ -816,7 +812,7 @@ CONTAINS
          DEALLOCATE (eigrmat)
          DEALLOCATE (inv_mat)
 
-      ENDIF ! raman
+      ENDIF ! do_raman
       CALL cp_print_key_finished_output(output_unit, logger, lr_section, &
                                         "PRINT%PROGRAM_RUN_INFO")
 

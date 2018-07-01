@@ -275,9 +275,6 @@ CONTAINS
       TYPE(mo_set_p_type), DIMENSION(:), POINTER         :: mos
       TYPE(section_vals_type), POINTER                   :: lr_section
 
-!
-!
-
       CALL timeset(routineN, handle)
 
       NULLIFY (dft_control, linres_control, matrix_s, matrix_t, matrix_ks, para_env)
@@ -296,7 +293,6 @@ CONTAINS
                       para_env=para_env, &
                       mos=mos)
 
-      !
       nspins = dft_control%nspins
       CALL get_mo_set(mos(1)%mo_set, nao=nao)
       maxnmo = 0
@@ -591,7 +587,7 @@ CONTAINS
             tr_rz0(ispin) = tr_rz1(ispin)
          ENDDO
 
-         ! ** can we exit the SCF loop  ?
+         ! Can we exit the SCF loop?
          CALL external_control(should_stop, "LINRES", target_time=qs_env%target_time, &
                                start_time=qs_env%start_time)
 
@@ -1510,9 +1506,8 @@ CONTAINS
                                                    extension=".lr", middle_name=TRIM(my_middle), my_local=.FALSE.)
 
          IF (output_unit > 0) THEN
-            WRITE (UNIT=output_unit, FMT="(/,T10,A,A,/)") &
-               "Linres response functions are written to restart file", &
-               TRIM(filename)
+            WRITE (UNIT=output_unit, FMT="(T2,A)") &
+               "LINRES| Writing response functions to the restart file <"//TRIM(ADJUSTL(filename))//">"
          END IF
 
          !
@@ -1639,11 +1634,11 @@ CONTAINS
                            file_status="OLD", &
                            unit_number=rst_unit)
 
-            IF (output_unit > 0) WRITE (output_unit, "(/,T20,A,A)") &
-               "Read response wavefunction from restart file ", TRIM(filename)
+            IF (output_unit > 0) WRITE (output_unit, "(T2,A)") &
+               "LINRES| Reading response wavefunctions from the restart file <"//TRIM(ADJUSTL(filename))//">"
          ELSE
-            IF (output_unit > 0) WRITE (output_unit, "(/,T10,A)") &
-               "Restart file not available filename=<"//TRIM(filename)//'>'
+            IF (output_unit > 0) WRITE (output_unit, "(T2,A)") &
+               "LINRES| Restart file  <"//TRIM(ADJUSTL(filename))//"> not found"
          ENDIF
       ENDIF
 
@@ -1706,9 +1701,9 @@ CONTAINS
             IF (ivec .EQ. ivec_tmp) EXIT
          ENDDO
 
-         IF (iostat .NE. 0) THEN
-            IF (output_unit > 0) WRITE (output_unit, "(/,T10,A,A,/)") &
-               "Restart file: didnt find ", TRIM(filename)
+         IF (iostat /= 0) THEN
+            IF (output_unit > 0) WRITE (output_unit, "(T2,A)") &
+               "LINRES| Restart file <"//TRIM(ADJUSTL(filename))//"> not found"
          ENDIF
 
          DEALLOCATE (vecbuffer)

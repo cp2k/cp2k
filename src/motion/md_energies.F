@@ -71,6 +71,7 @@ MODULE md_energies
                                               femtoseconds,&
                                               kelvin
    USE qmmm_types,                      ONLY: qmmm_env_type
+   USE qs_linres_polar_utils,           ONLY: write_polarisability_tensor
    USE reftraj_types,                   ONLY: reftraj_type
    USE simpar_types,                    ONLY: simpar_type
    USE thermal_region_types,            ONLY: thermal_regions_type
@@ -459,8 +460,12 @@ CONTAINS
          CALL print_barostat_status(barostat, simpar, my_pos, my_act, cell, itimes, time)
 
          ! Print Stress Tensor
-         CALL write_stress_tensor(virial, cell, motion_section, itimes, time*femtoseconds, &
-                                  my_pos, my_act)
+         CALL write_stress_tensor(virial, cell, motion_section, itimes, time*femtoseconds, my_pos, my_act)
+
+         ! Print Polarisability Tensor
+         IF (ASSOCIATED(force_env%qs_env)) THEN
+            CALL write_polarisability_tensor(force_env, motion_section, itimes, time*femtoseconds, my_pos, my_act)
+         END IF
 
          ! Temperature per Kinds
          IF (simpar%temperature_per_kind) THEN

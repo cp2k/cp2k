@@ -155,7 +155,7 @@ CONTAINS
       CALL section_release(print_key)
 
       CALL cp_print_key_section_create(print_key, "SHELL_FORCES", &
-                                       description="controls the output of the forces on shells when shell-model is used", &
+                                       description="Controls the output of the forces on shells when shell-model is used", &
                                        print_level=high_print_level, common_iter_levels=1, &
                                        filename="", unit_str="hartree*bohr^-1")
       CALL add_format_keyword(keyword, print_key, pos=.FALSE., &
@@ -164,7 +164,7 @@ CONTAINS
       CALL section_release(print_key)
 
       CALL cp_print_key_section_create(print_key, "CORE_FORCES", &
-                                       description="controls the output of the forces on cores when shell-model is used", &
+                                       description="Controls the output of the forces on cores when shell-model is used", &
                                        print_level=high_print_level, common_iter_levels=1, &
                                        filename="", unit_str="hartree*bohr^-1")
       CALL add_format_keyword(keyword, print_key, pos=.FALSE., &
@@ -184,6 +184,13 @@ CONTAINS
       CALL cp_print_key_section_create(print_key, "STRESS", &
                                        description="Controls the output of the stress tensor", &
                                        print_level=high_print_level, common_iter_levels=1, &
+                                       filename="")
+      CALL section_add_subsection(section, print_key)
+      CALL section_release(print_key)
+
+      CALL cp_print_key_section_create(print_key, "POLAR_MATRIX", &
+                                       description="Controls the output of the polarisability tensor during an MD run", &
+                                       print_level=low_print_level, common_iter_levels=1, &
                                        filename="")
       CALL section_add_subsection(section, print_key)
       CALL section_release(print_key)

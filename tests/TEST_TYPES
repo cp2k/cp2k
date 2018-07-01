@@ -58,7 +58,7 @@ Final value of function !6
 Emp2-RI = !3
 Final checksums !3
 GLBOPT| Lowest reported potential energy !7
-xx,yy,zz !2
+POLAR| xx,yy,zz !3
 POWELL| Final value of function !6
 Gibbs energy correction !6
 \ \ C         !2
