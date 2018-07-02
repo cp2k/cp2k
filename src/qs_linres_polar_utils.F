@@ -119,7 +119,7 @@ CONTAINS
 
       IF (output_unit > 0) THEN
          WRITE (output_unit, "(/,(T2,A))") "POLAR| Starting polarizability calculation", &
-                                           "POLAR| Initialization of the polar environment"
+            "POLAR| Initialization of the polar environment"
       ENDIF
 
       polar_section => section_vals_get_subs_vals(qs_env%input, &
