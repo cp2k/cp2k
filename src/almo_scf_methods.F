@@ -2573,8 +2573,8 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: N, method
       INTEGER, INTENT(IN), OPTIONAL                      :: range1, range2
       REAL(KIND=dp), INTENT(IN), OPTIONAL                :: range1_thr, shift
-      REAL(KIND=dp), DIMENSION(:, :), INTENT(INOUT), &
-         OPTIONAL                                        :: bad_modes_projector_down
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :), &
+         INTENT(INOUT), OPTIONAL                         :: bad_modes_projector_down
       REAL(KIND=dp), DIMENSION(:, :), INTENT(IN), &
          OPTIONAL                                        :: s_inv_half, s_half
 
@@ -2676,7 +2676,9 @@ CONTAINS
          ! invert eigenvalues and use eigenvectors to compute pseudo Ainv
          ! project out near-zero eigenvalue modes
          ALLOCATE (temp2(N, N))
-         IF (PRESENT(bad_modes_projector_down)) ALLOCATE (temp3(N, N))
+         IF (PRESENT(bad_modes_projector_down)) THEN
+            IF (ALLOCATED(bad_modes_projector_down)) ALLOCATE (temp3(N, N))
+         ENDIF
          temp2(1:N, 1:N) = Ainv(1:N, 1:N)
 
          range1_eiv = 0
@@ -2687,11 +2689,15 @@ CONTAINS
             DO jj = 1, N
                IF ((jj .LE. range2) .AND. (eigenvalues(jj) .LT. range1_thr)) THEN
                   temp1(jj, :) = temp2(:, jj)*0.0_dp
-                  IF (PRESENT(bad_modes_projector_down)) temp3(jj, :) = Ainv(:, jj)*1.0_dp
+                  IF (PRESENT(bad_modes_projector_down)) THEN
+                     IF (ALLOCATED(bad_modes_projector_down)) temp3(jj, :) = Ainv(:, jj)*1.0_dp
+                  ENDIF
                   range1_eiv = range1_eiv+1
                ELSE
                   temp1(jj, :) = temp2(:, jj)/(eigenvalues(jj)+my_shift)
-                  IF (PRESENT(bad_modes_projector_down)) temp3(jj, :) = Ainv(:, jj)*0.0_dp
+                  IF (PRESENT(bad_modes_projector_down)) THEN
+                     IF (ALLOCATED(bad_modes_projector_down)) temp3(jj, :) = Ainv(:, jj)*0.0_dp
+                  ENDIF
                   range2_eiv = range2_eiv+1
                ENDIF
             ENDDO
@@ -2700,15 +2706,21 @@ CONTAINS
                DO jj = 1, N
                   IF (jj .LE. range1) THEN
                      temp1(jj, :) = temp2(:, jj)*0.0_dp
-                     IF (PRESENT(bad_modes_projector_down)) temp3(jj, :) = Ainv(:, jj)*1.0_dp
+                     IF (PRESENT(bad_modes_projector_down)) THEN
+                        IF (ALLOCATED(bad_modes_projector_down)) temp3(jj, :) = Ainv(:, jj)*1.0_dp
+                     ENDIF
                      range1_eiv = range1_eiv+1
                   ELSE IF (jj .LE. range2) THEN
                      temp1(jj, :) = temp2(:, jj)*1.0_dp
-                     IF (PRESENT(bad_modes_projector_down)) temp3(jj, :) = Ainv(:, jj)*1.0_dp
+                     IF (PRESENT(bad_modes_projector_down)) THEN
+                        IF (ALLOCATED(bad_modes_projector_down)) temp3(jj, :) = Ainv(:, jj)*1.0_dp
+                     ENDIF
                      range2_eiv = range2_eiv+1
                   ELSE
                      temp1(jj, :) = temp2(:, jj)/(eigenvalues(jj)+my_shift)
-                     IF (PRESENT(bad_modes_projector_down)) temp3(jj, :) = Ainv(:, jj)*0.0_dp
+                     IF (PRESENT(bad_modes_projector_down)) THEN
+                        IF (ALLOCATED(bad_modes_projector_down)) temp3(jj, :) = Ainv(:, jj)*0.0_dp
+                     ENDIF
                      range3_eiv = range3_eiv+1
                   ENDIF
                ENDDO
@@ -2716,11 +2728,16 @@ CONTAINS
                DO jj = 1, N
                   IF (eigenvalues(jj) .LT. range1_thr) THEN
                      temp1(jj, :) = temp2(:, jj)*0.0_dp
-                     IF (PRESENT(bad_modes_projector_down)) temp3(jj, :) = Ainv(:, jj)*1.0_dp
+                     IF (PRESENT(bad_modes_projector_down)) THEN
+                        IF (ALLOCATED(bad_modes_projector_down)) temp3(jj, :) = Ainv(:, jj)*1.0_dp
+                     ENDIF
                      range1_eiv = range1_eiv+1
                   ELSE
                      temp1(jj, :) = temp2(:, jj)/(eigenvalues(jj)+my_shift)
-                     IF (PRESENT(bad_modes_projector_down)) temp3(jj, :) = Ainv(:, jj)*0.0_dp
+                     IF (PRESENT(bad_modes_projector_down)) THEN
+                        IF (ALLOCATED(bad_modes_projector_down)) temp3(jj, :) = Ainv(:, jj)*0.0_dp
+                     ENDIF
+
                      range2_eiv = range2_eiv+1
                   ENDIF
                ENDDO
@@ -2728,12 +2745,14 @@ CONTAINS
          ENDIF
          !WRITE(*,*) ' EIV RANGES: ', range1_eiv, range2_eiv, range3_eiv
          IF (PRESENT(bad_modes_projector_down)) THEN
-            IF (PRESENT(s_half)) THEN
-               CALL DSYMM('L', 'U', N, N, 1.0_dp, s_half, N, temp2, N, 0.0_dp, Ainv, N)
-               CALL DSYMM('R', 'U', N, N, 1.0_dp, s_half, N, temp3, N, 0.0_dp, temp4, N)
-               CALL DGEMM('N', 'N', N, N, N, 1.0_dp, Ainv, N, temp4, N, 0.0_dp, bad_modes_projector_down, N)
-            ELSE
-               CALL DGEMM('N', 'N', N, N, N, 1.0_dp, temp2, N, temp3, N, 0.0_dp, bad_modes_projector_down, N)
+            IF (ALLOCATED(bad_modes_projector_down)) THEN
+               IF (PRESENT(s_half)) THEN
+                  CALL DSYMM('L', 'U', N, N, 1.0_dp, s_half, N, temp2, N, 0.0_dp, Ainv, N)
+                  CALL DSYMM('R', 'U', N, N, 1.0_dp, s_half, N, temp3, N, 0.0_dp, temp4, N)
+                  CALL DGEMM('N', 'N', N, N, N, 1.0_dp, Ainv, N, temp4, N, 0.0_dp, bad_modes_projector_down, N)
+               ELSE
+                  CALL DGEMM('N', 'N', N, N, N, 1.0_dp, temp2, N, temp3, N, 0.0_dp, bad_modes_projector_down, N)
+               ENDIF
             ENDIF
          ENDIF
 
@@ -2745,7 +2764,9 @@ CONTAINS
             CALL DGEMM('N', 'N', N, N, N, 1.0_dp, temp2, N, temp1, N, 0.0_dp, Ainv, N)
          ENDIF
          DEALLOCATE (temp1, temp2, temp4)
-         IF (PRESENT(bad_modes_projector_down)) DEALLOCATE (temp3)
+         IF (PRESENT(bad_modes_projector_down)) THEN
+            IF (ALLOCATED(bad_modes_projector_down)) DEALLOCATE (temp3)
+         ENDIF
          DEALLOCATE (eigenvalues)
 
       CASE DEFAULT
