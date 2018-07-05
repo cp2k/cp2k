@@ -1525,6 +1525,7 @@ CONTAINS
                DEALLOCATE (polar_env%psi1_dBerry)
             ENDIF
          ENDIF
+         DEALLOCATE (polar_env)
          NULLIFY (polar_env)
       ENDIF
 
