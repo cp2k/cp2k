@@ -1,15 +1,16 @@
-# Tested with: GFortran 6.4, FFTW 3.3, LAPACK 3.5.0, Libxc 4.0.3
+# Tested with: GFortran 6.4.0, FFTW 3.3, LAPACK 3.5.0, Libxc 4.0.4
+# Author: Matthias Krack (matthias.krack@psi.ch, PSI, July 2018)
 CC         = gcc
 CPP        =
 FC         = gfortran
 LD         = gfortran
 AR         = ar -r
-FFTW_INC   = $(GCC_DIR)/fftw/3.3-gnu-regtest/include
-FFTW_LIB   = $(GCC_DIR)/fftw/3.3-gnu-regtest/lib64
-LIBINT_INC = $(GCC_DIR)/libint/1.1.4-default-gnu-regtest/include
-LIBINT_LIB = $(GCC_DIR)/libint/1.1.4-default-gnu-regtest/lib64
-LIBXC_INC  = $(GCC_DIR)/libxc/4.0.3-gnu-regtest/include
-LIBXC_LIB  = $(GCC_DIR)/libxc/4.0.3-gnu-regtest/lib64
+FFTW_INC   = $(GCC_DIR)/fftw/3.3-regtest/include
+FFTW_LIB   = $(GCC_DIR)/fftw/3.3-regtest/lib
+LIBINT_INC = $(GCC_DIR)/libint/1.1.4-default-regtest/include
+LIBINT_LIB = $(GCC_DIR)/libint/1.1.4-default-regtest/lib
+LIBXC_INC  = $(GCC_DIR)/libxc/4.0.4-regtest/include
+LIBXC_LIB  = $(GCC_DIR)/libxc/4.0.4-regtest/lib
 DFLAGS     = -D__F2008 -D__FFTW3 -D__LIBINT -D__LIBXC
 CPPFLAGS   =
 WFLAGS     = -Waliasing -Wampersand -Wc-binding-type -Wconversion\
@@ -21,7 +22,7 @@ FCFLAGS    = $(DFLAGS) -O1 -fcheck=bounds,do,recursion,pointer -ffree-form\
              -ffree-line-length-none -fimplicit-none -fno-omit-frame-pointer\
              -g -mtune=generic -std=f2008\
              -I$(FFTW_INC) -I$(LIBINT_INC) -I$(LIBXC_INC) $(WFLAGS)
-LDFLAGS    = $(FCFLAGS) -fsanitize=leak -static
+LDFLAGS    = $(FCFLAGS) -fsanitize=leak
 LIBS       = $(LIBPATH)/liblapack-gnu-regtest.a\
              $(LIBPATH)/libblas-gnu-regtest.a\
              $(FFTW_LIB)/libfftw3.a\
