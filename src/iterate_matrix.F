@@ -402,7 +402,7 @@ CONTAINS
       IF (maxnorm_matrix > convergence) THEN
          converged = .FALSE.
          IF (unit_nr > 0) THEN
-            WRITE (*, *) 'Final convergence check failed'
+            WRITE (unit_nr, *) 'Final convergence check failed'
          ENDIF
       ENDIF
 

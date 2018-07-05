@@ -5574,7 +5574,7 @@ CONTAINS
 
 #if 0
 !penalty_only=.TRUE.
-      WRITE (*, *) "prefactor0:", penalty_occ_vol_prefactor
+      WRITE (unit_nr, *) "prefactor0:", penalty_occ_vol_prefactor
       !IF (penalty_occ_vol) THEN
       CALL dbcsr_desymmetrize(m_s, &
                               m_prec_out)
@@ -6367,9 +6367,9 @@ CONTAINS
 
             CALL dbcsr_copy(m_zet(ispin), m_grad(ispin))
             CALL dbcsr_trace(m_delta(ispin), m_zet(ispin), alpha)
-            WRITE (*, *) "trace(grad.delta): ", alpha
+            WRITE (unit_nr, *) "trace(grad.delta): ", alpha
             alpha = -1.0_dp/(penalty_occ_vol_pf2(ispin)*alpha-1.0_dp)
-            WRITE (*, *) "correction alpha: ", alpha
+            WRITE (unit_nr, *) "correction alpha: ", alpha
             CALL dbcsr_scale(m_delta(ispin), alpha)
 
          ENDDO
@@ -6405,14 +6405,14 @@ CONTAINS
                              retain_sparsity=.TRUE.)
          CALL dbcsr_norm(m_zet(ispin), dbcsr_norm_maxabsnorm, &
                          norm_scalar=alpha)
-         WRITE (*, "(A50,2F20.10)") "Occupied-space projection of the step", alpha
+         WRITE (unit_nr, "(A50,2F20.10)") "Occupied-space projection of the step", alpha
          CALL dbcsr_add(m_zet(ispin), m_delta(ispin), -1.0_dp, 1.0_dp)
          CALL dbcsr_norm(m_zet(ispin), dbcsr_norm_maxabsnorm, &
                          norm_scalar=alpha)
-         WRITE (*, "(A50,2F20.10)") "Virtual-space projection of the step", alpha
+         WRITE (unit_nr, "(A50,2F20.10)") "Virtual-space projection of the step", alpha
          CALL dbcsr_norm(m_delta(ispin), dbcsr_norm_maxabsnorm, &
                          norm_scalar=alpha)
-         WRITE (*, "(A50,2F20.10)") "Full step", alpha
+         WRITE (unit_nr, "(A50,2F20.10)") "Full step", alpha
          CALL dbcsr_release(m_tmp_oo_1)
          CALL dbcsr_release(m_tmp_oo_2)
 
@@ -6815,7 +6815,7 @@ CONTAINS
 
       INTEGER :: ao_hori_offset, ao_vert_offset, block_col, block_row, col, H_size, handle, ii, &
          INFO, jj, lev1_hori_offset, lev1_vert_offset, lev2_hori_offset, lev2_vert_offset, LWORK, &
-         nblkcols_tot, nblkrows_tot, ncores, orb_i, orb_j, row, zero_neg_eiv
+         nblkcols_tot, nblkrows_tot, ncores, orb_i, orb_j, row, unit_nr, zero_neg_eiv
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: ao_block_sizes, ao_domain_sizes, &
                                                             mo_block_sizes
       INTEGER, DIMENSION(:), POINTER                     :: ao_blk_sizes, mo_blk_sizes
@@ -6826,11 +6826,20 @@ CONTAINS
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: F_ao_block, F_mo_block, H, Hinv, &
                                                             S_ao_block, S_mo_block, test, test2
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: block_p, p_new_block
+      TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(dbcsr_distribution_type)                      :: main_dist
       TYPE(dbcsr_type)                                   :: matrix_F_ao_sym, matrix_F_mo_sym, &
                                                             matrix_S_ao_sym, matrix_S_mo_sym
 
       CALL timeset(routineN, handle)
+
+      ! get a useful output_unit
+      logger => cp_get_default_logger()
+      IF (logger%para_env%mepos == logger%para_env%source) THEN
+         unit_nr = cp_logger_get_default_unit_nr(logger, local=.TRUE.)
+      ELSE
+         unit_nr = -1
+      ENDIF
 
       !JHU use and test for unused debug variables
       CPASSERT(ASSOCIATED(blacs_env))
@@ -6885,8 +6894,8 @@ CONTAINS
          penalty_prefactor_local = 0.0_dp
       ENDIF
 
-      WRITE (*, *) "penalty_prefactor_local: ", penalty_prefactor_local
-      WRITE (*, *) "penalty_prefactor_2: ", penalty_occ_vol_pf2
+      WRITE (unit_nr, *) "penalty_prefactor_local: ", penalty_prefactor_local
+      WRITE (unit_nr, *) "penalty_prefactor_2: ", penalty_occ_vol_pf2
 
       !CALL dbcsr_print(matrix_grad)
       !CALL dbcsr_print(matrix_F_ao_sym)
@@ -7302,7 +7311,7 @@ CONTAINS
       ALLOCATE (WORK(MAX(1, LWORK)))
       CALL DSYEV('V', 'L', H_size, Hinv, H_size, eigenvalues, WORK, LWORK, INFO)
       IF (INFO .NE. 0) THEN
-         WRITE (*, *) 'DSYEV ERROR MESSAGE: ', INFO
+         WRITE (unit_nr, *) 'DSYEV ERROR MESSAGE: ', INFO
          CPABORT("DSYEV failed")
       END IF
       DEALLOCATE (WORK)
@@ -7332,7 +7341,7 @@ CONTAINS
       ALLOCATE (test(H_size, H_size))
       zero_neg_eiv = 0
       DO jj = 1, H_size
-         WRITE (*, "(I10,F20.10,F20.10)") jj, eigenvalues(jj), Step_vec(jj)
+         WRITE (unit_nr, "(I10,F20.10,F20.10)") jj, eigenvalues(jj), Step_vec(jj)
          IF (eigenvalues(jj) .GT. eps_zero) THEN
             test(jj, :) = Hinv(:, jj)/eigenvalues(jj)
          ELSE
@@ -7340,7 +7349,7 @@ CONTAINS
             zero_neg_eiv = zero_neg_eiv+1
          ENDIF
       ENDDO
-      WRITE (*, *) 'ZERO OR NEGATIVE EIGENVALUES: ', zero_neg_eiv
+      WRITE (unit_nr, *) 'ZERO OR NEGATIVE EIGENVALUES: ', zero_neg_eiv
       DEALLOCATE (Step_vec)
 
       ALLOCATE (test2(H_size, H_size))
@@ -7400,7 +7409,7 @@ CONTAINS
             test_error = test_error+test(jj, ii)*test(jj, ii)
          ENDDO
       ENDDO
-      WRITE (*, *) "Hessian inversion error: ", SQRT(test_error)
+      WRITE (unit_nr, *) "Hessian inversion error: ", SQRT(test_error)
       DEALLOCATE (test)
 
       ! prepare the output vector
@@ -7414,7 +7423,7 @@ CONTAINS
       tmpr(:) = MATMUL(H, Step_vec)
       tmp(:) = tmpr(:)+Grad_vec(:)
       DEALLOCATE (tmpr)
-      WRITE (*, *) "NEWTOV step error: ", MAXVAL(ABS(tmp))
+      WRITE (unit_nr, *) "NEWTOV step error: ", MAXVAL(ABS(tmp))
 
       DEALLOCATE (tmp)
 
@@ -7509,7 +7518,7 @@ CONTAINS
                      1.0_dp, 1.0_dp)
       CALL dbcsr_norm(matrix_S_ao_sym, dbcsr_norm_maxabsnorm, &
                       norm_scalar=test_error)
-      WRITE (*, *) "NEWTOL step error: ", test_error
+      WRITE (unit_nr, *) "NEWTOL step error: ", test_error
       CALL dbcsr_release(matrix_S_ao_sym)
       CALL dbcsr_release(matrix_F_ao_sym)
 
