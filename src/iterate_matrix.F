@@ -326,7 +326,11 @@ CONTAINS
             !CALL dbcsr_print(tmp1)
             ! invert the main diagonal
             CALL dbcsr_get_diag(matrix, p_diagonal)
-            p_diagonal(:) = 1.0_dp/p_diagonal(:)
+            DO i = 1, nrows
+               IF (p_diagonal(i) .NE. 0.0_dp) THEN
+                  p_diagonal(i) = 1.0_dp/p_diagonal(i)
+               ENDIF
+            ENDDO
             CALL dbcsr_set(matrix_inverse, 0.0_dp)
             CALL dbcsr_add_on_diag(matrix_inverse, 1.0_dp)
             CALL dbcsr_set_diag(matrix_inverse, p_diagonal)
