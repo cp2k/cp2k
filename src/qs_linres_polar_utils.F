@@ -147,9 +147,36 @@ CONTAINS
          ALLOCATE (polar_env%polar(3, 3))
          polar_env%polar(:, :) = 0.0_dp
       ENDIF
-      IF (.NOT. ASSOCIATED(polar_env%dBerry_psi0)) ALLOCATE (polar_env%dBerry_psi0(3, nspins))
-      IF (.NOT. ASSOCIATED(polar_env%mo_derivs)) ALLOCATE (polar_env%mo_derivs(3, nspins))
-      IF (.NOT. ASSOCIATED(polar_env%psi1_dBerry)) ALLOCATE (polar_env%psi1_dBerry(3, nspins))
+      IF (.NOT. ASSOCIATED(polar_env%dBerry_psi0)) THEN
+         ALLOCATE (polar_env%dBerry_psi0(3, nspins))
+      ELSE
+         ! Remove previous matrices
+         DO ispin = 1, nspins
+            DO idir = 1, 3
+               CALL cp_fm_release(polar_env%dBerry_psi0(idir, ispin)%matrix)
+            ENDDO
+         ENDDO
+      ENDIF
+      IF (.NOT. ASSOCIATED(polar_env%mo_derivs)) THEN
+         ALLOCATE (polar_env%mo_derivs(3, nspins))
+      ELSE
+         ! Remove previous matrices
+         DO ispin = 1, nspins
+            DO idir = 1, 3
+               CALL cp_fm_release(polar_env%mo_derivs(idir, ispin)%matrix)
+            ENDDO
+         ENDDO
+      ENDIF
+      IF (.NOT. ASSOCIATED(polar_env%psi1_dBerry)) THEN
+         ALLOCATE (polar_env%psi1_dBerry(3, nspins))
+      ELSE
+         ! Remove previous matrices
+         DO ispin = 1, nspins
+            DO idir = 1, 3
+               CALL cp_fm_release(polar_env%psi1_dBerry(idir, ispin)%matrix)
+            ENDDO
+         ENDDO
+      ENDIF
       DO ispin = 1, nspins
          CALL get_mo_set(mo_set=mos(ispin)%mo_set, mo_coeff=mo_coeff, nao=nao, nmo=nmo)
          CALL cp_fm_get_info(mo_coeff, ncol_global=m, nrow_global=nao)
@@ -158,9 +185,6 @@ CONTAINS
                                   ncol_global=m, &
                                   context=mo_coeff%matrix_struct%context)
          DO idir = 1, 3
-            NULLIFY (polar_env%dBerry_psi0(idir, ispin)%matrix, &
-                     polar_env%mo_derivs(idir, ispin)%matrix, &
-                     polar_env%psi1_dBerry(idir, ispin)%matrix)
             CALL cp_fm_create(polar_env%dBerry_psi0(idir, ispin)%matrix, tmp_fm_struct)
             CALL cp_fm_create(polar_env%mo_derivs(idir, ispin)%matrix, tmp_fm_struct)
             CALL cp_fm_create(polar_env%psi1_dBerry(idir, ispin)%matrix, tmp_fm_struct)
