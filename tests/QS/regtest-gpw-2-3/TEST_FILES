@@ -2,7 +2,7 @@ hcn_ts.inp                                             7      1e-09           -0
 hcn_ts_r.inp                                           7      1e-07                    0.084182408
 hcn_ts_kdimer.inp                                          7      1e-07           -0.0006648450 
 # dimer method with fixed atom constraints
-hcn_ts_fix_e.inp                  7     1e-07                  -0.0641024515
+hcn_ts_fix_e.inp                  7     1e-06                  -0.0641024915
 hcn_ts_fix_x.inp                                      63      1e-14             1.2200000000
 hcn_ts_fix_y.inp                                      64      1e-14            -0.0003000000
 hcn_ts_fix_z.inp                                      65      1e-14             0.0000000000
