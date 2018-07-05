@@ -931,16 +931,22 @@ if [[ ${skiptest} != "skiptest" ]]; then
    printf "Copying tests into working directory ... "
 
    # Copy the tests into the working regtest directory.
-   source_device=$(df --output=target ${dir_base}/${cp2k_dir}/tests | tail -1)
-   target_device=$(df --output=target ${dir_out} | tail -1)
-   if [[ ${source_device} == ${target_device} ]]; then
-      cp -al ${dir_base}/${cp2k_dir}/tests ${dir_out}/tests || \
-      cp -rpl ${dir_base}/${cp2k_dir}/tests ${dir_out}/tests
+   if df --output=target ; then
+     # GNU coreutils version for Linux etc.
+     source_device=$(df --output=target ${dir_base}/${cp2k_dir}/tests | tail -1)
+     target_device=$(df --output=target ${dir_out} | tail -1)
+     if [[ ${source_device} == ${target_device} ]]; then
+        cp -al ${dir_base}/${cp2k_dir}/tests ${dir_out}/tests || \
+        cp -rpl ${dir_base}/${cp2k_dir}/tests ${dir_out}/tests
+     else
+       echo "cannot use hard links to copy the tests folder."
+       echo "Source device is ${source_device} for ${dir_base}/${cp2k_dir}/tests"
+       echo "Target device is ${target_device} for ${dir_out}"
+       echo "Using normal copy instead."
+       cp -a ${dir_base}/${cp2k_dir}/tests ${dir_out}
+     fi
    else
-     echo "cannot use hard links to copy the tests folder."
-     echo "Source device is ${source_device} for ${dir_base}/${cp2k_dir}/tests"
-     echo "Target device is ${target_device} for ${dir_out}"
-     echo "Using normal copy instead."
+     # Probably running on a mac, just use normal cp
      cp -a ${dir_base}/${cp2k_dir}/tests ${dir_out}
    fi
 
