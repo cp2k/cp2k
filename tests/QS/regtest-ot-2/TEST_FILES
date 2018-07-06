@@ -5,7 +5,7 @@
 #      for details see cp2k/tools/do_regtest
 # some tests of restricted
 N3-1.inp                                               1      1e-13             -29.59821176173586 
-N3-2.inp                                               1      4e-12            -29.659321253359352
+N3-2.inp                                               1      1e-11            -29.659321253359352
 # some tests of SIC needs restarting from N3-1 for stability
 # teo: no need anymore due to the new way of handling the restart
 #      file. it's not overwritten anymore..
