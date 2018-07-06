@@ -53,7 +53,7 @@ CH3OH.inp                                              0
 # distributed non-ortho grids
 rsgrid-dist-2.inp                                      1      3e-14             -17.15330028497962
 # also write wavefunctions
-rsgrid-dist-3.inp                                      1      3e-14             -16.47649111001175
+rsgrid-dist-3.inp                                      1      1e-13             -16.47649111001175
 # ghost atom dynamics at high cutoff highlights problems
 dynamics-2.inp                                         1      2e-13             -17.19699427513456
 ghost_overlap.inp                                      1      7e-14             -17.10554013166121
