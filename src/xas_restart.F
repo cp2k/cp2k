@@ -89,18 +89,20 @@ CONTAINS
 !> \param xas_method ...
 !> \param iatom index of the absorbing atom
 !> \param estate index of the core-hole orbital
+!> \param istate counter of excited states per atom
 !>      error:
 !> \par History
 !>      09.2006 created [MI]
 !> \author MI
 ! **************************************************************************************************
-   SUBROUTINE xas_read_restart(xas_env, xas_section, qs_env, xas_method, iatom, estate)
+   SUBROUTINE xas_read_restart(xas_env, xas_section, qs_env, xas_method, iatom, estate, istate)
 
       TYPE(xas_environment_type), POINTER                :: xas_env
       TYPE(section_vals_type), POINTER                   :: xas_section
       TYPE(qs_environment_type), POINTER                 :: qs_env
       INTEGER, INTENT(IN)                                :: xas_method, iatom
       INTEGER, INTENT(OUT)                               :: estate
+      INTEGER, INTENT(IN)                                :: istate
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'xas_read_restart', &
          routineP = moduleN//':'//routineN
@@ -142,8 +144,8 @@ CONTAINS
                                     xas=.TRUE.)
 
          CALL xstring(filename, ia, ie)
-         filename = filename(ia:ie)//'-at'// &
-                    TRIM(ADJUSTL(cp_to_string(iatom)))//'.rst'
+         filename = filename(ia:ie)//'-at'//TRIM(ADJUSTL(cp_to_string(iatom)))// &
+                    '_st'//TRIM(ADJUSTL(cp_to_string(istate)))//'.rst'
 
          INQUIRE (FILE=filename, EXIST=file_exists)
          ! open file
@@ -268,13 +270,14 @@ CONTAINS
 !> \param qs_env ...
 !> \param xas_method ...
 !> \param iatom ...
+!> \param istate ...
 ! **************************************************************************************************
-   SUBROUTINE xas_write_restart(xas_env, xas_section, qs_env, xas_method, iatom)
+   SUBROUTINE xas_write_restart(xas_env, xas_section, qs_env, xas_method, iatom, istate)
 
       TYPE(xas_environment_type), POINTER                :: xas_env
       TYPE(section_vals_type), POINTER                   :: xas_section
       TYPE(qs_environment_type), POINTER                 :: qs_env
-      INTEGER, INTENT(IN)                                :: xas_method, iatom
+      INTEGER, INTENT(IN)                                :: xas_method, iatom, istate
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'xas_write_restart', &
          routineP = moduleN//':'//routineN
@@ -309,7 +312,7 @@ CONTAINS
 
          ! Open file
          rst_unit = -1
-         my_middle = 'at'//TRIM(ADJUSTL(cp_to_string(iatom)))
+         my_middle = 'at'//TRIM(ADJUSTL(cp_to_string(iatom)))//'_st'//TRIM(ADJUSTL(cp_to_string(istate)))
          rst_unit = cp_print_key_unit_nr(logger, xas_section, "PRINT%RESTART", &
                                          extension=".rst", file_status="REPLACE", file_action="WRITE", &
                                          file_form="UNFORMATTED", middle_name=TRIM(my_middle))
@@ -479,6 +482,7 @@ CONTAINS
          a_max = ABS(vecbuffer2(1, i))
          IF (a_max > b_max) THEN
             ic_max = i
+
             b_max = a_max
          ENDIF
       END DO

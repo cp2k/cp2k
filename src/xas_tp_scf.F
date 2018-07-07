@@ -119,6 +119,7 @@ CONTAINS
 !> \param dft_control ...
 !> \param xas_env the environment for XAS  calculations
 !> \param iatom ...
+!> \param istate keeps track of the state index for restart writing
 !> \param scf_env the scf_env where to perform the scf procedure
 !> \param qs_env the qs_env, the scf_env and xas_env live in
 !> \param xas_section ...
@@ -129,12 +130,12 @@ CONTAINS
 !>      05.2005 created [MI]
 !> \author MI
 ! **************************************************************************************************
-   SUBROUTINE xas_do_tp_scf(dft_control, xas_env, iatom, scf_env, qs_env, &
+   SUBROUTINE xas_do_tp_scf(dft_control, xas_env, iatom, istate, scf_env, qs_env, &
                             xas_section, scf_section, converged, should_stop)
 
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(xas_environment_type), POINTER                :: xas_env
-      INTEGER, INTENT(IN)                                :: iatom
+      INTEGER, INTENT(IN)                                :: iatom, istate
       TYPE(qs_scf_env_type), POINTER                     :: scf_env
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(section_vals_type), POINTER                   :: xas_section, scf_section
@@ -235,11 +236,16 @@ CONTAINS
                           cp_to_string(scf_env%method))
 
          CASE (general_diag_method_nr) ! diagonalisation (default)
+
             scf_env%iter_count = iter_count
             CALL general_eigenproblem(scf_env, mos, matrix_ks, &
                                       matrix_s, scf_control, scf_section, &
                                       diis_step)
+
+!dbg
+            WRITE (*, *) 'tp scf ', xas_env%xas_estate
             CALL find_excited_core_orbital(xas_env, mos, matrix_s)
+
             ! set occupation for the respective spin channels
             IF (my_spin == 1) THEN
                hole_spin = 1 ! hole is generated in channel 1
@@ -323,7 +329,7 @@ CONTAINS
 
          ! ** Write restart file **
          CALL xas_write_restart(xas_env, xas_section, qs_env, xas_control%xas_method, &
-                                iatom)
+                                iatom, istate)
 
          IF (exit_loop) THEN
             CALL timestop(handle2)
@@ -532,6 +538,7 @@ CONTAINS
                   sto_state_overlap = sto_state_overlap+ &
                                       component*component
                END DO ! i size
+
                IF (sto_state_overlap .GT. max_overlap) THEN
                   max_overlap = sto_state_overlap
                   my_state = istate

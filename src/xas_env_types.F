@@ -53,10 +53,12 @@ MODULE xas_env_types
 !> \param nao number of atomic orbitals in the basis
 !> \param exc_state state that is now excited (this change atom by atom)
 !> \param nvirtual number of empy states to take into account for the spectrum
-!> \param state_of_atom for each atom the state that have to be excited (global index)
-!>                      dimension is the number of atoms to be excited
+!> \param state_of_atom for each atom the states that have to be excited (global index)
+!>        dimension is the number of atoms to be excited by the largest number of included states
 !> \param atom_of_state atom to which each state is assigned,
-!>                     dimension is the number of states occupied that might be excited
+!>        dimension is the number of states occupied that might be excited
+!> \param nexc_states number of states to be excited per atom
+!>        dimension is the number of atoms to be excited
 !> \param type_of_state character of the state (1s,2s,2p...)
 !> \param spectrum for each excitation the energy and the oscillator strength
 !> \param centers_wfn for each wfn the center of charge (optimized by localization)
@@ -76,12 +78,15 @@ MODULE xas_env_types
       INTEGER :: spin_channel
       INTEGER :: nvirtual, nvirtual2
       INTEGER :: unoccupied_max_iter
-      INTEGER, DIMENSION(:), POINTER :: state_of_atom
+
       INTEGER, DIMENSION(:), POINTER :: atom_of_state
       INTEGER, DIMENSION(:), POINTER :: type_of_state
       INTEGER, DIMENSION(:), POINTER :: mykind_of_atom
       INTEGER, DIMENSION(:), POINTER :: mykind_of_kind
       INTEGER, DIMENSION(:), POINTER :: exc_atoms
+      INTEGER, DIMENSION(:), POINTER :: nexc_states
+      INTEGER, DIMENSION(:, :), POINTER :: state_of_atom
+
       REAL(dp) :: ip_energy, occ_estate, unoccupied_eps, xas_nelectron, homo_occ
       REAL(dp), DIMENSION(:), POINTER :: all_evals
       REAL(dp), DIMENSION(:), POINTER :: unoccupied_evals
@@ -116,6 +121,7 @@ CONTAINS
 !> \param centers_wfn ...
 !> \param atom_of_state ...
 !> \param exc_atoms ...
+!> \param nexc_states ...
 !> \param type_of_state ...
 !> \param mykind_of_atom ...
 !> \param mykind_of_kind ...
@@ -145,8 +151,8 @@ CONTAINS
 !> \param scf_control ...
 ! **************************************************************************************************
    SUBROUTINE get_xas_env(xas_env, iter_count, exc_state, nao, nvirtual, nvirtual2, &
-                          centers_wfn, atom_of_state, exc_atoms, type_of_state, mykind_of_atom, mykind_of_kind, &
-                          state_of_atom, spectrum, groundstate_coeff, ostrength_sm, &
+                          centers_wfn, atom_of_state, exc_atoms, nexc_states, type_of_state, mykind_of_atom, &
+                          mykind_of_kind, state_of_atom, spectrum, groundstate_coeff, ostrength_sm, &
                           dip_fm_set, excvec_coeff, excvec_overlap, &
                           unoccupied_orbs, unoccupied_evals, unoccupied_max_iter, unoccupied_eps, &
                           all_vectors, all_evals, my_gto_basis, qs_loc_env, &
@@ -157,9 +163,10 @@ CONTAINS
       INTEGER, INTENT(OUT), OPTIONAL                     :: iter_count, exc_state, nao, nvirtual, &
                                                             nvirtual2
       REAL(dp), DIMENSION(:, :), OPTIONAL, POINTER       :: centers_wfn
-      INTEGER, DIMENSION(:), OPTIONAL, POINTER           :: atom_of_state, exc_atoms, type_of_state, &
-                                                            mykind_of_atom, mykind_of_kind, &
-                                                            state_of_atom
+      INTEGER, DIMENSION(:), OPTIONAL, POINTER           :: atom_of_state, exc_atoms, nexc_states, &
+                                                            type_of_state, mykind_of_atom, &
+                                                            mykind_of_kind
+      INTEGER, DIMENSION(:, :), OPTIONAL, POINTER        :: state_of_atom
       REAL(dp), DIMENSION(:, :), OPTIONAL, POINTER       :: spectrum
       TYPE(cp_fm_p_type), DIMENSION(:), OPTIONAL, &
          POINTER                                         :: groundstate_coeff
@@ -198,6 +205,7 @@ CONTAINS
       IF (PRESENT(occ_estate)) occ_estate = xas_env%occ_estate
       IF (PRESENT(xas_estate)) xas_estate = xas_env%xas_estate
       IF (PRESENT(nexc_search)) nexc_search = xas_env%nexc_search
+      IF (PRESENT(nexc_states)) nexc_states => xas_env%nexc_states
       IF (PRESENT(spin_channel)) spin_channel = xas_env%spin_channel
       IF (PRESENT(nexc_atoms)) nexc_atoms = xas_env%nexc_atoms
       IF (PRESENT(unoccupied_eps)) unoccupied_eps = xas_env%unoccupied_eps
@@ -311,7 +319,9 @@ CONTAINS
 
       NULLIFY (xas_env%ao_mo_fm_pools)
       NULLIFY (xas_env%my_gto_basis)
-      NULLIFY (xas_env%state_of_atom, xas_env%atom_of_state)
+      NULLIFY (xas_env%atom_of_state)
+      NULLIFY (xas_env%nexc_states)
+      NULLIFY (xas_env%state_of_atom)
       NULLIFY (xas_env%exc_atoms)
       NULLIFY (xas_env%excvec_coeff, xas_env%excvec_overlap)
       NULLIFY (xas_env%type_of_state, xas_env%mykind_of_atom)
@@ -345,6 +355,7 @@ CONTAINS
          IF (xas_env%ref_count == 0) THEN
 
             DEALLOCATE (xas_env%state_of_atom, xas_env%atom_of_state)
+            DEALLOCATE (xas_env%nexc_states)
             DEALLOCATE (xas_env%type_of_state)
             DEALLOCATE (xas_env%mykind_of_atom)
             DEALLOCATE (xas_env%mykind_of_kind)

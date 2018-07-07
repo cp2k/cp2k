@@ -51,6 +51,7 @@ MODULE xas_methods
         dbcsr_distribution_type, dbcsr_p_type, dbcsr_set, dbcsr_type, dbcsr_type_antisymmetric
    USE input_constants,                 ONLY: &
         do_loc_none, state_loc_list, state_loc_range, xas_1s_type, xas_2p_type, xas_2s_type, &
+        xas_3d_type, xas_3p_type, xas_3s_type, xas_4d_type, xas_4f_type, xas_4p_type, xas_4s_type, &
         xas_dip_len, xas_dip_vel, xas_dscf, xas_tp_fh, xas_tp_flex, xas_tp_hh, xas_tp_xfh, &
         xas_tp_xhh, xes_tp_val
    USE input_section_types,             ONLY: section_get_lval,&
@@ -139,7 +140,7 @@ CONTAINS
 !>      05.2005 created [MI]
 !> \author MI
 !> \note
-!>      the iteration counter is not finilized yet
+!>      the iteration counter is not finalized yet
 !>      only the transition potential approach is active
 !>      the localization can be switched off, otherwise
 !>      it uses by default the berry phase approach
@@ -153,10 +154,11 @@ CONTAINS
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'xas', routineP = moduleN//':'//routineN
 
-      INTEGER :: handle, homo, i, iat, iatom, ispin, my_homo(2), my_nelectron(2), my_spin, nao, &
-         nexc_atoms, nexc_search, nmo, nspins, output_unit, state_to_be_excited
+      INTEGER :: handle, homo, i, iat, iatom, ispin, istate, my_homo(2), my_nelectron(2), my_spin, &
+         nao, nexc_atoms, nexc_search, nmo, nspins, output_unit, state_to_be_excited
       INTEGER, DIMENSION(2)                              :: added_mos
-      INTEGER, DIMENSION(:), POINTER                     :: state_of_atom
+      INTEGER, DIMENSION(:), POINTER                     :: nexc_states
+      INTEGER, DIMENSION(:, :), POINTER                  :: state_of_atom
       LOGICAL                                            :: ch_method_flags, converged, my_uocc(2), &
                                                             should_stop, skip_scf, &
                                                             transition_potential
@@ -196,9 +198,9 @@ CONTAINS
       output_unit = cp_logger_get_default_io_unit(logger)
 
       NULLIFY (xas_env, groundstate_coeff, ostrength_sm, op_sm)
-      NULLIFY (excvec_coeff, state_of_atom, qs_loc_env, cell, scf_env)
+      NULLIFY (excvec_coeff, qs_loc_env, cell, scf_env)
       NULLIFY (matrix_ks)
-      NULLIFY (all_vectors, state_of_atom, xas_control)
+      NULLIFY (all_vectors, state_of_atom, nexc_states, xas_control)
       NULLIFY (vecbuffer, op_sm, mo_coeff_b)
       NULLIFY (dft_section, xas_section, scf_section, loc_section, print_loc_section)
       dft_section => section_vals_get_subs_vals(qs_env%input, "DFT")
@@ -280,9 +282,9 @@ CONTAINS
       END IF
 
       CALL get_xas_env(xas_env=xas_env, &
-                       state_of_atom=state_of_atom, all_vectors=all_vectors, &
+                       all_vectors=all_vectors, &
                        groundstate_coeff=groundstate_coeff, excvec_coeff=excvec_coeff, &
-                       nexc_atoms=nexc_atoms, occ_estate=occ_estate, xas_nelectron=xas_nelectron, &
+                       nexc_atoms=nexc_atoms, &
                        spin_channel=my_spin)
 
 !   Set of states among which there is the state to be excited
@@ -381,6 +383,8 @@ CONTAINS
       ! through the overlap with atomic-like states
       CALL cls_assign_core_states(xas_control, xas_env, qs_loc_env%localized_wfn_control, &
                                   qs_env)
+      CALL get_xas_env(xas_env=xas_env, &
+                       state_of_atom=state_of_atom, nexc_states=nexc_states)
 
       IF (skip_scf) THEN
          CALL get_mo_set(mos(my_spin)%mo_set, mo_coeff=mo_coeff)
@@ -393,7 +397,6 @@ CONTAINS
 
       ! copy the coefficients of the mos in a temporary fm with the right structure
       IF (transition_potential) THEN
-
          ! Calculate the operator
          CALL get_xas_env(xas_env=xas_env, ostrength_sm=ostrength_sm)
          DO i = 1, 3
@@ -408,125 +411,128 @@ CONTAINS
       ! DO SCF if required
       DO iat = 1, nexc_atoms
          iatom = xas_env%exc_atoms(iat)
-         ! determine which state has to be excited in the global list
-         state_to_be_excited = state_of_atom(iat)
+         DO istate = 1, nexc_states(iat)
+            ! determine which state has to be excited in the global list
+            state_to_be_excited = state_of_atom(iat, istate)
 
-         ! Take the state_to_be_excited vector from the full set and copy into excvec_coeff
-         CALL get_mo_set(mos(my_spin)%mo_set, nmo=nmo)
-         CALL get_xas_env(xas_env, occ_estate=occ_estate, xas_nelectron=xas_nelectron)
-         tmp = xas_nelectron+1.0_dp-occ_estate
-         IF (nmo < tmp) &
-            CPABORT("CLS: the required method needs added_mos to the ground state")
-         ! If the restart file for this atom exists, the mos and the
-         ! occupation numbers are overwritten
-         ! It is necessary that the restart is for the same xas method
-         ! otherwise the number of electrons and the occupation numbers
-         ! may not  be consistent
-         IF (xas_control%xas_restart) THEN
-            CALL xas_read_restart(xas_env, xas_section, qs_env, xas_control%xas_method, iatom, &
-                                  state_to_be_excited)
-         END IF
-
-         CALL set_xas_env(xas_env=xas_env, xas_estate=state_to_be_excited)
-         CALL get_mo_set(mos(my_spin)%mo_set, mo_coeff=mo_coeff)
-         CPASSERT(ASSOCIATED(excvec_coeff))
-         CALL cp_fm_get_submatrix(mo_coeff, vecbuffer, 1, state_to_be_excited, &
-                                  nao, 1, transpose=.TRUE.)
-         CALL cp_fm_set_submatrix(excvec_coeff, vecbuffer, 1, 1, &
-                                  nao, 1, transpose=.TRUE.)
-
-         IF (transition_potential) THEN
-
-            IF (.NOT. skip_scf) THEN
-               IF (output_unit > 0) THEN
-                  WRITE (UNIT=output_unit, FMT='(/,T5,A)') REPEAT("-", 75)
-                  IF (xas_control%xas_method == xas_dscf) THEN
-                     WRITE (UNIT=output_unit, FMT='(/,/,T10,A,I6)') &
-                        "START DeltaSCF for the first excited state from the core state of ATOM ", iatom
-                  ELSE
-                     WRITE (UNIT=output_unit, FMT='(/,T10,A,I6)') &
-                        "Start Core Level Spectroscopy Calculation with TP approach for ATOM ", iatom
-                     WRITE (UNIT=output_unit, FMT='(T10,A,T50,f10.4)') "Occupation of the core orbital", &
-                        occ_estate
-                     WRITE (UNIT=output_unit, FMT='(T10,A28,I3, T50,F10.4)') "Number of electrons in Spin ", &
-                        my_spin, xas_nelectron
-                  END IF
-               END IF
-
-               CALL get_xas_env(xas_env=xas_env, scf_env=scf_env)
-               IF (.NOT. ASSOCIATED(scf_env)) THEN
-                  CALL qs_scf_env_initialize(qs_env, scf_env, scf_control, scf_section)
-!     Moved here from qs_scf_env_initialize to be able to have more scf_env
-                  CALL set_xas_env(xas_env, scf_env=scf_env)
-                  CALL scf_env_release(scf_env)
-                  CALL get_xas_env(xas_env=xas_env, scf_env=scf_env)
-               ELSE
-                  CALL qs_scf_env_initialize(qs_env, scf_env, scf_control, scf_section)
-               ENDIF
-
-               DO ispin = 1, SIZE(mos)
-                  IF (ASSOCIATED(mos(ispin)%mo_set%mo_coeff_b)) THEN !fm->dbcsr
-                     CALL copy_fm_to_dbcsr(mos(ispin)%mo_set%mo_coeff, &
-                                           mos(ispin)%mo_set%mo_coeff_b) !fm->dbcsr
-                  ENDIF !fm->dbcsr
-               ENDDO !fm->dbcsr
-
-               IF (.NOT. scf_env%skip_diis) THEN
-                  IF (.NOT. ASSOCIATED(scf_env%scf_diis_buffer)) THEN
-                     CALL qs_diis_b_create(scf_env%scf_diis_buffer, nbuffer=scf_control%max_diis)
-                  END IF
-                  CALL qs_diis_b_clear(scf_env%scf_diis_buffer)
-               END IF
-
-               CALL xas_do_tp_scf(dft_control, xas_env, iatom, scf_env, qs_env, &
-                                  xas_section, scf_section, converged, should_stop)
-
-               CALL external_control(should_stop, "CLS", target_time=qs_env%target_time, &
-                                     start_time=qs_env%start_time)
-               IF (should_stop) THEN
-                  CALL scf_env_cleanup(scf_env)
-                  EXIT
-               END IF
-
+            ! Take the state_to_be_excited vector from the full set and copy into excvec_coeff
+            CALL get_mo_set(mos(my_spin)%mo_set, nmo=nmo)
+            CALL get_xas_env(xas_env, occ_estate=occ_estate, xas_nelectron=xas_nelectron)
+            tmp = xas_nelectron+1.0_dp-occ_estate
+            IF (nmo < tmp) &
+               CPABORT("CLS: the required method needs added_mos to the ground state")
+            ! If the restart file for this atom exists, the mos and the
+            ! occupation numbers are overwritten
+            ! It is necessary that the restart is for the same xas method
+            ! otherwise the number of electrons and the occupation numbers
+            ! may not  be consistent
+            IF (xas_control%xas_restart) THEN
+               CALL xas_read_restart(xas_env, xas_section, qs_env, xas_control%xas_method, iatom, &
+                                     state_to_be_excited, istate)
             END IF
-            ! SCF DONE
+            CALL set_xas_env(xas_env=xas_env, xas_estate=state_to_be_excited)
+            CALL get_mo_set(mos(my_spin)%mo_set, mo_coeff=mo_coeff)
+            CPASSERT(ASSOCIATED(excvec_coeff))
+            CALL cp_fm_get_submatrix(mo_coeff, vecbuffer, 1, state_to_be_excited, &
+                                     nao, 1, transpose=.TRUE.)
+            CALL cp_fm_set_submatrix(excvec_coeff, vecbuffer, 1, 1, &
+                                     nao, 1, transpose=.TRUE.)
+
+            IF (transition_potential) THEN
+
+               IF (.NOT. skip_scf) THEN
+                  IF (output_unit > 0) THEN
+                     WRITE (UNIT=output_unit, FMT='(/,T5,A)') REPEAT("-", 75)
+                     IF (xas_control%xas_method == xas_dscf) THEN
+                        WRITE (UNIT=output_unit, FMT='(/,/,T10,A,I6)') &
+                           "START DeltaSCF for the first excited state from the core state of ATOM ", iatom
+                     ELSE
+                        WRITE (UNIT=output_unit, FMT='(/,T10,A,I6)') &
+                           "Start Core Level Spectroscopy Calculation with TP approach for ATOM ", iatom
+                        WRITE (UNIT=output_unit, FMT='(/,T10,A,I6,T34,A,T54,I6)') &
+                           "Excited state", istate, "out of", nexc_states(iat)
+                        WRITE (UNIT=output_unit, FMT='(T10,A,T50,f10.4)') "Occupation of the core orbital", &
+                           occ_estate
+                        WRITE (UNIT=output_unit, FMT='(T10,A28,I3, T50,F10.4)') "Number of electrons in Spin ", &
+                           my_spin, xas_nelectron
+                     END IF
+                  END IF
+
+                  CALL get_xas_env(xas_env=xas_env, scf_env=scf_env)
+                  IF (.NOT. ASSOCIATED(scf_env)) THEN
+                     CALL qs_scf_env_initialize(qs_env, scf_env, scf_control, scf_section)
+                     !     Moved here from qs_scf_env_initialize to be able to have more scf_env
+                     CALL set_xas_env(xas_env, scf_env=scf_env)
+                     CALL scf_env_release(scf_env)
+                     CALL get_xas_env(xas_env=xas_env, scf_env=scf_env)
+                  ELSE
+                     CALL qs_scf_env_initialize(qs_env, scf_env, scf_control, scf_section)
+                  ENDIF
+
+                  DO ispin = 1, SIZE(mos)
+                     IF (ASSOCIATED(mos(ispin)%mo_set%mo_coeff_b)) THEN !fm->dbcsr
+                        CALL copy_fm_to_dbcsr(mos(ispin)%mo_set%mo_coeff, &
+                                              mos(ispin)%mo_set%mo_coeff_b) !fm->dbcsr
+                     ENDIF !fm->dbcsr
+                  ENDDO !fm->dbcsr
+
+                  IF (.NOT. scf_env%skip_diis) THEN
+                     IF (.NOT. ASSOCIATED(scf_env%scf_diis_buffer)) THEN
+                        CALL qs_diis_b_create(scf_env%scf_diis_buffer, nbuffer=scf_control%max_diis)
+                     END IF
+                     CALL qs_diis_b_clear(scf_env%scf_diis_buffer)
+                  END IF
+
+                  CALL xas_do_tp_scf(dft_control, xas_env, iatom, istate, scf_env, qs_env, &
+                                     xas_section, scf_section, converged, should_stop)
+
+                  CALL external_control(should_stop, "CLS", target_time=qs_env%target_time, &
+                                        start_time=qs_env%start_time)
+                  IF (should_stop) THEN
+                     CALL scf_env_cleanup(scf_env)
+                     EXIT
+                  END IF
+
+               END IF
+               ! SCF DONE
 
 !   *** Write last wavefunction to screen ***
-            DO ispin = 1, nspins
-               CALL write_mo_set(mos(ispin)%mo_set, atomic_kind_set, qs_kind_set, particle_set, 4, &
-                                 dft_section)
-            ENDDO
+               DO ispin = 1, nspins
+                  CALL write_mo_set(mos(ispin)%mo_set, atomic_kind_set, qs_kind_set, particle_set, 4, &
+                                    dft_section)
+               ENDDO
 
-         ELSE
-            ! Core level spectroscopy by TDDFT is not yet implemented
-            ! the states defined by the rotation are the ground state orbitals
-            ! the initial state from which I excite should be localized
-            ! I take the excitations from lumo to nmo
-         END IF
-
-         IF (converged) THEN
-            CALL cls_calculate_spectrum(xas_control, xas_env, qs_env, xas_section, &
-                                        iatom)
-         ELSE
-            IF (output_unit > 0) WRITE (UNIT=output_unit, FMT='(/,/,T10,A,I6)') &
-               "SCF with core hole NOT converged for ATOM ", iatom
-         END IF
-
-         IF (.NOT. skip_scf) THEN
-            ! Reset the initial core orbitals.
-            ! The valence orbitals are taken from the last SCF,
-            ! it should be a better initial guess
-            CALL get_qs_env(qs_env, mos=mos)
-            DO ispin = 1, nspins
-               CALL get_mo_set(mos(ispin)%mo_set, mo_coeff=mo_coeff, nmo=nmo)
-               CALL cp_fm_to_fm(groundstate_coeff(ispin)%matrix, mos(ispin)%mo_set%mo_coeff, nmo, 1, 1)
-            END DO
-            IF (iat == nexc_atoms) THEN
-               CALL scf_env_cleanup(scf_env)
-               CALL scf_env_release(xas_env%scf_env)
+            ELSE
+               ! Core level spectroscopy by TDDFT is not yet implemented
+               ! the states defined by the rotation are the ground state orbitals
+               ! the initial state from which I excite should be localized
+               ! I take the excitations from lumo to nmo
             END IF
-         END IF
 
+            IF (converged) THEN
+               CALL cls_calculate_spectrum(xas_control, xas_env, qs_env, xas_section, &
+                                           iatom, istate)
+            ELSE
+               IF (output_unit > 0) WRITE (UNIT=output_unit, FMT='(/,/,T10,A,I6)') &
+                  "SCF with core hole NOT converged for ATOM ", iatom
+            END IF
+
+            IF (.NOT. skip_scf) THEN
+               ! Reset the initial core orbitals.
+               ! The valence orbitals are taken from the last SCF,
+               ! it should be a better initial guess
+               CALL get_qs_env(qs_env, mos=mos)
+               DO ispin = 1, nspins
+                  CALL get_mo_set(mos(ispin)%mo_set, mo_coeff=mo_coeff, nmo=nmo)
+                  CALL cp_fm_to_fm(groundstate_coeff(ispin)%matrix, mos(ispin)%mo_set%mo_coeff, nmo, 1, 1)
+               END DO
+               IF (iat == nexc_atoms) THEN
+                  CALL scf_env_cleanup(scf_env)
+                  CALL scf_env_release(xas_env%scf_env)
+               END IF
+            END IF
+
+         END DO ! istate
       END DO ! iat = 1,nexc_atoms
 
       ! END of Calculation
@@ -581,7 +587,7 @@ CONTAINS
       CHARACTER(LEN=default_string_length)               :: name_sto
       INTEGER :: homo, i, iat, iatom, ik, ikind, ispin, j, l, lfomo, my_spin, n_mo(2), n_rep, nao, &
          natom, ncubes, nelectron, nexc_atoms, nexc_search, nj, nk, nkind, nmo, nmoloc(2), &
-         norb(0:3), nsgf_gto, nsgf_sto, nspins, nvirtual, nvirtual2
+         nsgf_gto, nsgf_sto, nspins, nvirtual, nvirtual2
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: first_sgf, kind_type_tmp, kind_z_tmp, &
                                                             last_sgf
       INTEGER, DIMENSION(4, 7)                           :: ne
@@ -670,7 +676,8 @@ CONTAINS
       ALLOCATE (xas_env%centers_wfn(3, nexc_search))
       ALLOCATE (xas_env%atom_of_state(nexc_search))
       ALLOCATE (xas_env%type_of_state(nexc_search))
-      ALLOCATE (xas_env%state_of_atom(nexc_atoms))
+      ALLOCATE (xas_env%state_of_atom(nexc_atoms, nexc_search))
+      ALLOCATE (xas_env%nexc_states(nexc_atoms))
       ALLOCATE (xas_env%mykind_of_atom(nexc_atoms))
       nkind = SIZE(atomic_kind_set, 1)
       ALLOCATE (xas_env%mykind_of_kind(nkind))
@@ -875,10 +882,13 @@ CONTAINS
          CALL qs_loc_env_release(qs_loc_env)
          CALL get_xas_env(xas_env=xas_env, qs_loc_env=qs_loc_env)
          loc_section => section_vals_get_subs_vals(xas_section, "LOCALIZE")
+
          CALL qs_loc_control_init(qs_loc_env, loc_section, do_homo=.TRUE., &
                                   do_xas=.TRUE., nloc_xas=nexc_search, spin_xas=my_spin)
+
          IF (.NOT. qs_loc_env%do_localize) THEN
             qs_loc_env%localized_wfn_control%localization_method = do_loc_none
+
          ELSE
             nmoloc = qs_loc_env%localized_wfn_control%nloc_states
             CALL set_loc_wfn_lists(qs_loc_env%localized_wfn_control, nmoloc, n_mo, nspins, my_spin)
@@ -889,21 +899,37 @@ CONTAINS
       END IF
 
       !Type of state
-      norb = 0
       ALLOCATE (nq(1), lq(1), sto_zet(1))
       IF (xas_control%state_type == xas_1s_type) THEN
-         norb(0) = 1
          nq(1) = 1
          lq(1) = 0
       ELSEIF (xas_control%state_type == xas_2s_type) THEN
-         norb(0) = 2
          nq(1) = 2
          lq(1) = 0
       ELSEIF (xas_control%state_type == xas_2p_type) THEN
-         norb(0) = 2
-         norb(1) = 1
          nq(1) = 2
          lq(1) = 1
+      ELSEIF (xas_control%state_type == xas_3s_type) THEN
+         nq(1) = 3
+         lq(1) = 0
+      ELSEIF (xas_control%state_type == xas_3p_type) THEN
+         nq(1) = 3
+         lq(1) = 1
+      ELSEIF (xas_control%state_type == xas_3d_type) THEN
+         nq(1) = 3
+         lq(1) = 2
+      ELSEIF (xas_control%state_type == xas_4s_type) THEN
+         nq(1) = 4
+         lq(1) = 0
+      ELSEIF (xas_control%state_type == xas_4p_type) THEN
+         nq(1) = 4
+         lq(1) = 1
+      ELSEIF (xas_control%state_type == xas_4d_type) THEN
+         nq(1) = 4
+         lq(1) = 2
+      ELSEIF (xas_control%state_type == xas_4f_type) THEN
+         nq(1) = 4
+         lq(1) = 3
       ELSE
          CPABORT("XAS type of state not implemented")
       END IF
@@ -942,9 +968,9 @@ CONTAINS
       DO ik = 1, nk
          NULLIFY (xas_env%my_gto_basis(ik)%gto_basis_set, sto_basis_set)
          ne = 0
-         DO l = 1, 4 !lq(1)+1
+         DO l = 1, lq(1)+1
             nj = 2*(l-1)+1
-            DO i = l, 7 ! nq(1)
+            DO i = l, nq(1)
                ne(l, i) = ptable(kind_z_tmp(ik))%e_conv(l-1)-2*nj*(i-l)
                ne(l, i) = MAX(ne(l, i), 0)
                ne(l, i) = MIN(ne(l, i), 2*nj)
@@ -987,6 +1013,7 @@ CONTAINS
 !> \param qs_env ...
 !> \param xas_section ...
 !> \param iatom index of the excited atom
+!> \param istate ...
 !> \par History
 !>      03.2006 created [MI]
 !> \author MI
@@ -994,13 +1021,13 @@ CONTAINS
 !>      for the tddft calculation should be re-thought
 ! **************************************************************************************************
    SUBROUTINE cls_calculate_spectrum(xas_control, xas_env, qs_env, xas_section, &
-                                     iatom)
+                                     iatom, istate)
 
       TYPE(xas_control_type)                             :: xas_control
       TYPE(xas_environment_type), POINTER                :: xas_env
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(section_vals_type), POINTER                   :: xas_section
-      INTEGER, INTENT(IN)                                :: iatom
+      INTEGER, INTENT(IN)                                :: iatom, istate
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'cls_calculate_spectrum', &
          routineP = moduleN//':'//routineN
@@ -1067,11 +1094,11 @@ CONTAINS
       END IF
 
       CALL get_mo_set(mos(my_spin)%mo_set, lfomo=lfomo)
-      ! writw thw spectrum, if the file exists it is appended
+      ! write the spectrum, if the file exists it is appended
       IF (.NOT. xas_control%xas_method == xas_dscf) THEN
          length = (.NOT. xas_control%dipole_form == xas_dip_vel)
          CALL xas_write(sp_em, sp_ab, xas_estate, &
-                        xas_section, iatom, lfomo, length=length)
+                        xas_section, iatom, istate, lfomo, length=length)
       END IF
 
       DEALLOCATE (sp_em)
@@ -1100,6 +1127,7 @@ CONTAINS
 !> \param estate ...
 !> \param xas_section ...
 !> \param iatom index of the excited atom
+!> \param state_to_be_excited ...
 !> \param lfomo ...
 !> \param length ...
 !> \par History
@@ -1108,13 +1136,13 @@ CONTAINS
 !> \note
 !>      the iteration counter is not finilized yet
 ! **************************************************************************************************
-   SUBROUTINE xas_write(sp_em, sp_ab, estate, xas_section, iatom, &
+   SUBROUTINE xas_write(sp_em, sp_ab, estate, xas_section, iatom, state_to_be_excited, &
                         lfomo, length)
 
       REAL(dp), DIMENSION(:, :), POINTER                 :: sp_em, sp_ab
       INTEGER, INTENT(IN)                                :: estate
       TYPE(section_vals_type), POINTER                   :: xas_section
-      INTEGER, INTENT(IN)                                :: iatom, lfomo
+      INTEGER, INTENT(IN)                                :: iatom, state_to_be_excited, lfomo
       LOGICAL, INTENT(IN)                                :: length
 
       CHARACTER(len=*), PARAMETER :: routineN = 'xas_write', routineP = moduleN//':'//routineN
@@ -1130,7 +1158,8 @@ CONTAINS
       my_pos = "APPEND"
       my_act = "WRITE"
 
-      mittle_em = "xes_at"//TRIM(ADJUSTL(cp_to_string(iatom)))
+      mittle_em = "xes_at"//TRIM(ADJUSTL(cp_to_string(iatom)))//"_st"//TRIM(ADJUSTL(cp_to_string(state_to_be_excited)))
+
       out_sp_em = cp_print_key_unit_nr(logger, xas_section, "PRINT%XES_SPECTRUM", &
                                        extension=".spectrum", file_position=my_pos, file_action=my_act, &
                                        file_form="FORMATTED", middle_name=TRIM(mittle_em))
@@ -1149,7 +1178,7 @@ CONTAINS
       CALL cp_print_key_finished_output(out_sp_em, logger, xas_section, &
                                         "PRINT%XES_SPECTRUM")
 
-      mittle_ab = "xas_at"//TRIM(ADJUSTL(cp_to_string(iatom)))
+      mittle_ab = "xas_at"//TRIM(ADJUSTL(cp_to_string(iatom)))//"_st"//TRIM(ADJUSTL(cp_to_string(state_to_be_excited)))
       out_sp_ab = cp_print_key_unit_nr(logger, xas_section, "PRINT%XAS_SPECTRUM", &
                                        extension=".spectrum", file_position=my_pos, file_action=my_act, &
                                        file_form="FORMATTED", middle_name=TRIM(mittle_ab))
@@ -1336,7 +1365,6 @@ CONTAINS
       sp_em = 0.0_dp
       sp_ab = 0.0_dp
       ene_i = eigenvalues(estate)
-
       DO istate = 1, nstate
          ene_f = all_evals(istate)
          DO i = 1, 3
@@ -1419,7 +1447,6 @@ CONTAINS
          sgfa = first_sgfa(1, iset)
 
          DO jset = 1, nsetb
-
             nb = npgfb(jset)*(ncoset(lb_max(jset))-ncoset(lb_min(jset)-1))
             sgfb = first_sgfb(1, jset)
 
@@ -1432,7 +1459,6 @@ CONTAINS
 
          END DO ! jset
       END DO ! iset
-
       DEALLOCATE (sab, work)
 
    END SUBROUTINE calc_stogto_overlap
@@ -1466,15 +1492,16 @@ CONTAINS
       CHARACTER(LEN=*), PARAMETER :: routineN = 'cls_assign_core_states', &
          routineP = moduleN//':'//routineN
 
-      INTEGER                                            :: homo, i, iat, iatom, ikind, isgf, &
-                                                            istate, j, my_kind, my_spin, nao, &
-                                                            natom, nexc_atoms, nexc_search, &
-                                                            output_unit
+      INTEGER                                            :: chosen_state, homo, i, iat, iatom, &
+                                                            ikind, isgf, istate, j, my_kind, &
+                                                            my_spin, nao, natom, nexc_atoms, &
+                                                            nexc_search, output_unit
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: first_sgf
       INTEGER, DIMENSION(3)                              :: perd0
       INTEGER, DIMENSION(:), POINTER                     :: atom_of_state, mykind_of_kind, &
-                                                            state_of_atom, state_of_mytype, &
+                                                            nexc_states, state_of_mytype, &
                                                             type_of_state
+      INTEGER, DIMENSION(:, :), POINTER                  :: state_of_atom
       REAL(dp)                                           :: component, dist, distmin, maxocc, ra(3), &
                                                             rac(3), rc(3)
       REAL(dp), DIMENSION(:), POINTER                    :: max_overlap, sto_state_overlap
@@ -1490,7 +1517,7 @@ CONTAINS
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
 
       NULLIFY (cell, mos, particle_set)
-      NULLIFY (atom_of_state, centers_wfn, mykind_of_kind, state_of_atom)
+      NULLIFY (atom_of_state, centers_wfn, mykind_of_kind, state_of_atom, nexc_states)
       NULLIFY (stogto_overlap, type_of_state, max_overlap, qs_kind_set)
       NULLIFY (state_of_mytype, type_of_state, sto_state_overlap)
 
@@ -1511,7 +1538,7 @@ CONTAINS
                        mykind_of_kind=mykind_of_kind, &
                        type_of_state=type_of_state, state_of_atom=state_of_atom, &
                        stogto_overlap=stogto_overlap, nexc_atoms=nexc_atoms, &
-                       spin_channel=my_spin, nexc_search=nexc_search)
+                       spin_channel=my_spin, nexc_search=nexc_search, nexc_states=nexc_states)
 
       CALL get_mo_set(mos(my_spin)%mo_set, mo_coeff=mo_coeff, maxocc=maxocc, nao=nao, homo=homo)
 
@@ -1527,74 +1554,181 @@ CONTAINS
       ALLOCATE (state_of_mytype(natom))
       state_of_mytype = 0
       atom_of_state = 0
+      nexc_states = 1
+      state_of_atom = 0
 
-      DO istate = 1, nexc_search
-         centers_wfn(1, istate) = localized_wfn_control%centers_set(my_spin)%array(1, istate)
-         centers_wfn(2, istate) = localized_wfn_control%centers_set(my_spin)%array(2, istate)
-         centers_wfn(3, istate) = localized_wfn_control%centers_set(my_spin)%array(3, istate)
+      IF (xas_control%orbital_list(1) < 0) THEN !Checks for manually selected orbitals from the localized set
 
-         ! Assign the state to the closest atom
-         distmin = 100.0_dp
+         DO istate = 1, nexc_search
+            centers_wfn(1, istate) = localized_wfn_control%centers_set(my_spin)%array(1, istate)
+            centers_wfn(2, istate) = localized_wfn_control%centers_set(my_spin)%array(2, istate)
+            centers_wfn(3, istate) = localized_wfn_control%centers_set(my_spin)%array(3, istate)
+
+            ! Assign the state to the closest atom
+            distmin = 100.0_dp
+            DO iat = 1, nexc_atoms
+               iatom = xas_control%exc_atoms(iat)
+               ra(1:3) = particle_set(iatom)%r(1:3)
+               rc(1:3) = centers_wfn(1:3, istate)
+               rac = pbc(ra, rc, cell)
+               dist = rac(1)*rac(1)+rac(2)*rac(2)+rac(3)*rac(3)
+
+               IF (dist < distmin) THEN
+
+                  atom_of_state(istate) = iatom
+                  distmin = dist
+               END IF
+            END DO
+            IF (atom_of_state(istate) /= 0) THEN
+               !Character of the state
+               CALL cp_fm_get_submatrix(mo_coeff, vecbuffer, 1, istate, &
+                                        nao, 1, transpose=.TRUE.)
+
+               iatom = atom_of_state(istate)
+
+               NULLIFY (atomic_kind)
+               atomic_kind => particle_set(iatom)%atomic_kind
+               CALL get_atomic_kind(atomic_kind=atomic_kind, &
+                                    kind_number=ikind)
+
+               my_kind = mykind_of_kind(ikind)
+
+               sto_state_overlap(istate) = 0.0_dp
+               DO i = 1, SIZE(stogto_overlap(my_kind)%array, 1)
+                  component = 0.0_dp
+                  DO j = 1, SIZE(stogto_overlap(my_kind)%array, 2)
+                     isgf = first_sgf(iatom)+j-1
+                     component = component+stogto_overlap(my_kind)%array(i, j)*vecbuffer(1, isgf)
+                  END DO
+                  sto_state_overlap(istate) = sto_state_overlap(istate)+ &
+                                              component*component
+               END DO
+
+               IF (sto_state_overlap(istate) > max_overlap(iatom)) THEN
+                  state_of_mytype(iatom) = istate
+                  max_overlap(iatom) = sto_state_overlap(istate)
+               END IF
+            END IF
+         END DO ! istate
+
+         ! Includes all states within the chosen threshold relative to the maximum overlap
+         IF (xas_control%overlap_threshold < 1) THEN
+            DO iat = 1, nexc_atoms
+               iatom = xas_control%exc_atoms(iat)
+               DO istate = 1, nexc_search
+                  IF (atom_of_state(istate) == iatom) THEN
+                     IF (sto_state_overlap(istate) > max_overlap(iatom)*xas_control%overlap_threshold &
+                         .AND. istate /= state_of_mytype(iat)) THEN
+                        nexc_states(iat) = nexc_states(iat)+1
+                        state_of_atom(iat, nexc_states(iat)) = istate
+                     END IF
+                  END IF
+               END DO
+            END DO
+         END IF
+
+         ! In the set of states, assign the index of the state to be excited for iatom
+         IF (output_unit > 0) THEN
+            WRITE (UNIT=output_unit, FMT="(/,T10,A,/)") &
+               "List the atoms to be excited and the relative of MOs index "
+         END IF
 
          DO iat = 1, nexc_atoms
-            iatom = xas_control%exc_atoms(iat)
-            ra(1:3) = particle_set(iatom)%r(1:3)
-            rc(1:3) = centers_wfn(1:3, istate)
-            rac = pbc(ra, rc, cell)
-            dist = rac(1)*rac(1)+rac(2)*rac(2)+rac(3)*rac(3)
-
-            IF (dist < distmin) THEN
-               atom_of_state(istate) = iatom
-               distmin = dist
+            iatom = xas_env%exc_atoms(iat)
+            state_of_atom(iat, 1) = state_of_mytype(iatom) ! Place the state with maximum overlap first in the list
+            IF (output_unit > 0) THEN
+               WRITE (UNIT=output_unit, FMT="(T10,A,I3,T26,A)", advance='NO') &
+                  'Atom: ', iatom, "MO index:"
+            END IF
+            DO istate = 1, nexc_states(iat)
+               IF (istate < nexc_states(iat)) THEN
+                  IF (output_unit > 0) WRITE (UNIT=output_unit, FMT="(I4)", advance='NO') state_of_atom(iat, istate)
+               ELSE
+                  IF (output_unit > 0) WRITE (UNIT=output_unit, FMT="(I4)") state_of_atom(iat, istate)
+               END IF
+            END DO
+            IF (state_of_atom(iat, 1) == 0 .OR. state_of_atom(iat, 1) .GT. homo) THEN
+               CPABORT("A wrong state has been selected for excitation, check the Wannier centers")
             END IF
          END DO
-         IF (atom_of_state(istate) /= 0) THEN
-            !Character of the state
-            CALL cp_fm_get_submatrix(mo_coeff, vecbuffer, 1, istate, &
-                                     nao, 1, transpose=.TRUE.)
 
-            iatom = atom_of_state(istate)
-
-            NULLIFY (atomic_kind)
-            atomic_kind => particle_set(iatom)%atomic_kind
-            CALL get_atomic_kind(atomic_kind=atomic_kind, &
-                                 kind_number=ikind)
-
-            my_kind = mykind_of_kind(ikind)
-
-            sto_state_overlap(istate) = 0.0_dp
-            DO i = 1, SIZE(stogto_overlap(my_kind)%array, 1)
-               component = 0.0_dp
-               DO j = 1, SIZE(stogto_overlap(my_kind)%array, 2)
-                  isgf = first_sgf(iatom)+j-1
-                  component = component+stogto_overlap(my_kind)%array(i, j)*vecbuffer(1, isgf)
-               END DO
-               sto_state_overlap(istate) = sto_state_overlap(istate)+ &
-                                           component*component
+         IF (xas_control%overlap_threshold < 1) THEN
+            DO iat = 1, nexc_atoms
+               IF (output_unit > 0) THEN
+                  WRITE (UNIT=output_unit, FMT="(/,T10,A,I6)") &
+                     'Overlap integrals for Atom: ', iat
+                  DO istate = 1, nexc_states(iat)
+                     WRITE (UNIT=output_unit, FMT="(T10,A,I3,T26,A,T38,f10.8)") &
+                        'State: ', state_of_atom(iat, istate), "Overlap:", sto_state_overlap(state_of_atom(iat, istate))
+                  END DO
+               END IF
             END DO
-            IF (sto_state_overlap(istate) > max_overlap(iatom)) THEN
-               state_of_mytype(iatom) = istate
-               max_overlap(iatom) = sto_state_overlap(istate)
-            END IF
          END IF
-      END DO ! istate
 
-      ! In the set of states, assign the index of the state to be excited for iatom
-      IF (output_unit > 0) THEN
-         WRITE (UNIT=output_unit, FMT="(/,T10,A,/)") &
-            "List the atoms to be excited and the relative of MOs index "
-      END IF
-      DO iat = 1, nexc_atoms
-         iatom = xas_env%exc_atoms(iat)
-         state_of_atom(iat) = state_of_mytype(iatom)
+         CALL reallocate(xas_env%state_of_atom, 1, nexc_atoms, 1, MAXVAL(nexc_states)) ! Scales down the 2d-array to the minimal size
+
+      ELSE ! Manually selected orbital indices
+
+         ! Reallocate nexc_states and state_of_atom to include any atom
+         CALL reallocate(xas_env%nexc_states, 1, natom)
+         CALL reallocate(xas_env%state_of_atom, 1, natom, 1, SIZE(xas_control%orbital_list))
+         CALL get_xas_env(xas_env, nexc_states=nexc_states, state_of_atom=state_of_atom)
+
+         nexc_states = 0
+         state_of_atom = 0
+         nexc_atoms = natom !To include all possible atoms in the spectrum calculation
+
+         DO istate = 1, SIZE(xas_control%orbital_list)
+
+            chosen_state = xas_control%orbital_list(istate)
+            nexc_atoms = 1
+            centers_wfn(1, chosen_state) = localized_wfn_control%centers_set(my_spin)%array(1, chosen_state)
+            centers_wfn(2, chosen_state) = localized_wfn_control%centers_set(my_spin)%array(2, chosen_state)
+            centers_wfn(3, chosen_state) = localized_wfn_control%centers_set(my_spin)%array(3, chosen_state)
+
+            distmin = 100.0_dp
+            DO iat = 1, natom
+               ra(1:3) = particle_set(iat)%r(1:3)
+               rc(1:3) = centers_wfn(1:3, chosen_state)
+               rac = pbc(ra, rc, cell)
+               dist = rac(1)*rac(1)+rac(2)*rac(2)+rac(3)*rac(3)
+               IF (dist < distmin) THEN
+                  atom_of_state(chosen_state) = iat !?
+                  distmin = dist
+               END IF
+            END DO ! iat
+
+            nexc_states(atom_of_state(chosen_state)) = nexc_states(atom_of_state(chosen_state))+1
+            state_of_atom(atom_of_state(chosen_state), nexc_states(atom_of_state(chosen_state))) = chosen_state
+
+         END DO !istate
+
+         ! In the set of states, assign the index of the state to be excited for iatom
          IF (output_unit > 0) THEN
-            WRITE (UNIT=output_unit, FMT="(T10,A,I6,T32,A,I6)") 'Atom: ', iatom, &
-               "MO index", state_of_atom(iat)
+            WRITE (UNIT=output_unit, FMT="(/,T10,A,/)") &
+               "List the atoms to be excited and the relative of MOs index "
          END IF
-         IF (state_of_atom(iat) == 0 .OR. state_of_atom(iat) .GT. homo) THEN
-            CPABORT("A wrong state has been selected for excitation, check the Wannier centers")
-         END IF
-      END DO
+
+         DO iat = 1, natom
+            IF (output_unit > 0 .AND. state_of_atom(iat, 1) /= 0) THEN
+               WRITE (UNIT=output_unit, FMT="(T10,A,I3,T26,A)", advance='NO') &
+                  'Atom: ', iat, "MO index:"
+               DO i = 1, nexc_states(iat)
+                  IF (i < nexc_states(iat)) THEN
+                     WRITE (UNIT=output_unit, FMT="(I4)", advance='NO') state_of_atom(iat, i)
+                  ELSE
+                     WRITE (UNIT=output_unit, FMT="(I4)") state_of_atom(iat, i)
+                  END IF
+               END DO
+            END IF
+            IF (state_of_atom(iat, 1) .GT. homo) THEN
+               CPABORT("A wrong state has been selected for excitation, check the Wannier centers")
+            END IF
+         END DO
+
+         CALL reallocate(xas_env%state_of_atom, 1, natom, 1, MAXVAL(nexc_states)) ! Scales down the 2d-array to the minimal size
+
+      END IF !Checks for manually selected orbitals from the localized set
 
       ! Set back the correct periodicity
       cell%perd(1:3) = perd0(1:3)

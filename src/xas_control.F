@@ -48,11 +48,12 @@ MODULE xas_control
       INTEGER                             :: ngauss
       INTEGER                             :: stride
       INTEGER, DIMENSION(:), POINTER      :: exc_atoms
+      INTEGER, DIMENSION(:), POINTER      :: orbital_list
       LOGICAL                             :: cubes, do_centers
       LOGICAL                             :: xas_restart
       INTEGER, DIMENSION(:), POINTER      :: list_cubes
 !
-      REAL(dp)                            :: eps_added
+      REAL(dp)                            :: eps_added, overlap_threshold
       REAL(dp)                            :: xes_core_occupation
       REAL(dp)                            :: xes_homo_occupation
       REAL(dp)                            :: nel_tot, xas_core_occupation
@@ -87,7 +88,7 @@ CONTAINS
       CHARACTER(LEN=*), PARAMETER :: routineN = 'read_xas_control', &
          routineP = moduleN//':'//routineN
 
-      INTEGER                                            :: i, ir, n_rep, nex_at
+      INTEGER                                            :: i, ir, n_rep, nex_at, nex_st
       INTEGER, DIMENSION(:), POINTER                     :: list
       LOGICAL                                            :: hempty, was_present
 
@@ -171,6 +172,31 @@ CONTAINS
 
       CALL section_vals_val_get(xas_section, "NGAUSS", &
                                 i_val=xas_control%ngauss)
+
+      CALL section_vals_val_get(xas_section, "OVERLAP_THRESHOLD", &
+                                r_val=xas_control%overlap_threshold)
+
+      CALL section_vals_val_get(xas_section, "ORBITAL_LIST", &
+                                n_rep_val=n_rep)
+      IF (n_rep > 0) THEN
+         nex_st = 0
+         DO ir = 1, n_rep
+            NULLIFY (list)
+            CALL section_vals_val_get(xas_section, "ORBITAL_LIST", &
+                                      i_rep_val=ir, i_vals=list)
+
+            IF (ASSOCIATED(list)) THEN
+               CALL reallocate(xas_control%orbital_list, 1, nex_st+SIZE(list))
+               DO i = 1, SIZE(list)
+                  xas_control%orbital_list(i+nex_st) = list(i)
+               END DO
+               nex_st = nex_st+SIZE(list)
+            END IF
+         END DO ! ir
+      ELSE
+         ALLOCATE (xas_control%orbital_list(1))
+         xas_control%orbital_list(1) = -1
+      END IF
 
    END SUBROUTINE read_xas_control
 
@@ -267,6 +293,7 @@ CONTAINS
       xas_control%xes_core_occupation = 1.0_dp
       xas_control%xes_homo_occupation = 1.0_dp
       NULLIFY (xas_control%exc_atoms)
+      NULLIFY (xas_control%orbital_list)
       xas_control%cubes = .FALSE.
       xas_control%do_centers = .FALSE.
       NULLIFY (xas_control%list_cubes)
@@ -291,6 +318,9 @@ CONTAINS
             IF (ASSOCIATED(xas_control%exc_atoms)) THEN
                DEALLOCATE (xas_control%exc_atoms)
             END IF
+            IF (ASSOCIATED(xas_control%orbital_list)) THEN
+               DEALLOCATE (xas_control%orbital_list)
+            END IF
             IF (ASSOCIATED(xas_control%list_cubes)) THEN
                DEALLOCATE (xas_control%list_cubes)
             END IF
@@ -299,7 +329,6 @@ CONTAINS
       END IF
 
    END SUBROUTINE xas_control_release
-
 ! **************************************************************************************************
 !> \brief ...
 !> \param xas_control ...
