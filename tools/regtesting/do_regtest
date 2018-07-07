@@ -931,7 +931,7 @@ if [[ ${skiptest} != "skiptest" ]]; then
    printf "Copying tests into working directory ... "
 
    # Copy the tests into the working regtest directory.
-   if df --output=target ; then
+   if df --output=target >/dev/null ; then
      # GNU coreutils version for Linux etc.
      source_device=$(df --output=target ${dir_base}/${cp2k_dir}/tests | tail -1)
      target_device=$(df --output=target ${dir_out} | tail -1)
