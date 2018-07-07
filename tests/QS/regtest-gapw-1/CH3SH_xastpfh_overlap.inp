@@ -1,0 +1,137 @@
+#CPQA DEPENDS CO.inp
+
+&GLOBAL
+ PROJECT      CH3SH_xastpfh_overlap
+ IOLEVEL      MEDIUM
+ RUN_TYPE     ENERGY
+&END 
+
+&FORCE_EVAL
+  METHOD Quickstep
+
+  &DFT
+    LSD
+    BASIS_SET_FILE_NAME ALL_BASIS_SETS
+    POTENTIAL_FILE_NAME POTENTIAL
+    RESTART_FILE_NAME   CH3SH-RESTART
+    &XC
+      &XC_FUNCTIONAL PADE
+      &END
+    &END
+    &QS
+      METHOD       GAPW
+      EPS_GVG      1.0E-8
+      EPS_PGF_ORB  1.0E-8
+      QUADRATURE   GC_LOG
+      EPSFIT       1.E-4
+      EPSISO       1.0E-12
+      EPSRHO0      1.E-8
+      LMAXN0       2
+      LMAXN1       6
+      ALPHA0_H     10
+     &END
+    &MGRID
+      CUTOFF       50
+      NGRIDS        1
+    &END
+    &SCF
+      SCF_GUESS RESTART
+      EPS_SCF 5.E-7
+      EPS_DIIS 0.4
+      MAX_SCF 1
+       
+      ADDED_MOS  1 1
+      &OT OFF
+        PRECONDITIONER FULL_ALL
+      &END OT
+      &PRINT
+        &TOTAL_DENSITIES MEDIUM
+        &END
+        &RESTART
+           FILENAME =RESTART
+        &END
+      &END
+    &END SCF
+   &POISSON
+     POISSON_SOLVER MT
+     &MT
+      ALPHA 7.0
+      REL_CUTOFF 1.2
+     &END
+     PERIODIC NONE
+    &END POISSON
+
+    &XAS 
+      &SCF
+        EPS_SCF 0.000001
+        MAX_SCF 10
+        EPS_DIIS   0.4
+      &END
+      METHOD        TP_FH
+      DIPOLE_FORM   VELOCITY
+      STATE_SEARCH  8
+##      ORBITAL_LIST 2 4
+      STATE_TYPE    2P
+      OVERLAP_THRESHOLD   0.5
+      ADDED_MOS     20
+      &LOCALIZE
+      &END
+      &PRINT
+         &PROGRAM_RUN_INFO
+         &END 
+         &RESTART
+             &EACH
+               XAS_SCF 1
+             &END
+         &END 
+         &XES_SPECTRUM
+         &END
+         &XAS_SPECTRUM
+         &END
+      &END
+
+    &END
+##    &PRINT
+##      &MO
+##        EIGENVALUES
+##        OCCUPATION_NUMBERS
+##      &END
+##    &END
+  &END SECTION DFT
+  &SUBSYS
+    &CELL
+       ABC    6.0    6.0     6.0 
+       PERIODIC NONE
+    &END CELL
+
+    &KIND S
+      BASIS_SET  6-31G*
+      POTENTIAL ALL
+      LEBEDEV_GRID 50
+      RADIAL_GRID 100
+    &END
+
+    &KIND  C
+      BASIS_SET  6-31G*
+      POTENTIAL  ALL
+      LEBEDEV_GRID 50
+      RADIAL_GRID 100
+    &END
+    
+    &KIND  H
+      BASIS_SET  6-31G*
+      POTENTIAL  ALL
+      LEBEDEV_GRID 50
+      RADIAL_GRID 100
+    &END
+
+    &COORD
+  S         0.9238500982       -0.5377228792       -0.1750956230
+  C        -0.8404956281       -0.0171339884       -0.1881274541
+  H         1.4120195367        0.5663886053        0.4235650274
+  H        -0.9839763436        0.8733189771       -0.8026085967
+  H        -1.3992748140       -0.8460720835       -0.6269904043
+  H        -1.2058329252        0.1580376693        0.8254678046
+    &END
+  &END SUBSYS
+&END FORCE_EVAL
