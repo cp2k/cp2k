@@ -95,12 +95,7 @@ EOF
                       grep "(Open MPI)" | awk '{print $4}')
     major_version=$(echo $raw_version | cut -d '.' -f 1)
     minor_version=$(echo $raw_version | cut -d '.' -f 2)
-    # old versions required -lmpi_cxx to link cxx code, new version don't
-    if [ $major_version -gt 1 ] ; then
-       OPENMPI_LIBS="-lmpi"
-    else
-       OPENMPI_LIBS="-lmpi -lmpi_cxx"
-    fi
+    OPENMPI_LIBS="-lmpi -lmpi_cxx"
     # old versions didn't support MPI 3, so adjust __MPI_VERSION accordingly (needed e.g. for pexsi)
     if [ $major_version -lt 1 ] || \
        [ $major_version -eq 1 -a $minor_version -lt 7 ] ; then

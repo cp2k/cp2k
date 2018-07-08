@@ -291,10 +291,11 @@ add_lib_from_paths() {
 }
 
 # check if environment variable is assigned and non-empty
+# https://serverfault.com/questions/7503/how-to-determine-if-a-bash-variable-is-empty
 require_env() {
     local __env_var_name=$1
     local __env_var="$(eval echo \"\$$__env_var_name\")"
-    if [ -z "$__env_var" ] ; then
+    if [ -z "${__env_var+set}" ] ; then
         report_error "requires environment variable $__env_var_name to work"
         return 1
     fi
@@ -572,7 +573,7 @@ checksum() {
 # downloader for the package tars, excludes checksum
 download_pkg_no_checksum() {
     # usage: download_pkg_no_checksum [-n] [-o output_filename] url
-    local __wget_flags=''
+    local __wget_flags='--quiet'
     local __url=''
     while [ $# -ge 1 ] ; do
         case "$1" in
@@ -599,7 +600,7 @@ download_pkg_no_checksum() {
 # downloader for the package tars, includes checksum
 download_pkg() {
     # usage: download_pkg [-n] [-o output_filename] url
-    local __wget_flags=''
+    local __wget_flags='--quiet'
     local __filename=''
     local __url=''
     while [ $# -ge 1 ] ; do

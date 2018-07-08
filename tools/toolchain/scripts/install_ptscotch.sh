@@ -35,9 +35,9 @@ case "$with_scotch" in
             tar -xzf scotch_${scotch_ver}.tar.gz
             cd scotch_${scotch_ver}/src
             cat Make.inc/Makefile.inc.x86-64_pc_linux2 | \
-                sed -e "s|\(^CCS\).*|\1 = $CC|g" \
+                sed -e "s|\(^CCS\).*|\1 = $MPICC|g" \
                     -e "s|\(^CCP\).*|\1 = $MPICC|g" \
-                    -e "s|\(^CCD\).*|\1 = $CC|g" \
+                    -e "s|\(^CCD\).*|\1 = $MPICC|g" \
                     -e "s|\(^CFLAGS\).*|\1 = $CFLAGS -DCOMMON_RANDOM_FIXED_SEED -DSCOTCH_RENAME -Drestrict=__restrict -DIDXSIZE64 ${MPI_CFLAGS}|g" \
                     > Makefile.inc
             make scotch -j $NPROCS > make.log 2>&1
