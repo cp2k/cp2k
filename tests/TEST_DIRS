@@ -188,7 +188,7 @@ QS/regtest-almo-eda
 Fist/regtest-gauss
 SE/regtest-3-3
 QS/regtest-epr-2
-QS/regtest-ot-1-vib                                         mpiranks==1||mpiranks==2||mpiranks==4
+QS/regtest-ot-1-vib                                         mpiranks==1||mpiranks==2
 QS/regtest-elpa-qr                                          elpa_qr mpiranks==1||mpiranks==2||mpiranks==4||mpiranks==6||mpiranks==8
 QS/regtest-all-electron
 QS/regtest-hybrid-1                                         libint
