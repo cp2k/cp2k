@@ -31,7 +31,7 @@
       ALPHA0_H     10
      &END
     &MGRID
-      CUTOFF       50
+      CUTOFF       200
       NGRIDS        1
     &END
     &SCF
