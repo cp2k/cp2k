@@ -243,7 +243,9 @@ CONTAINS
                                       diis_step)
 
 !dbg
-            WRITE (*, *) 'tp scf ', xas_env%xas_estate
+            IF (output_unit > 0) THEN
+               WRITE (UNIT=output_unit, FMT="(A,I6)") 'tp scf ', xas_env%xas_estate
+            ENDIF
             CALL find_excited_core_orbital(xas_env, mos, matrix_s)
 
             ! set occupation for the respective spin channels
