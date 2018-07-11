@@ -236,8 +236,8 @@ CONTAINS
                      END IF
 
                      DEALLOCATE (sabc_contr)
+                     DEALLOCATE (sabc)
                   END IF
-                  DEALLOCATE (sabc)
                   IF (do_force) THEN
                      DEALLOCATE (sdabc, sabdc)
                   END IF

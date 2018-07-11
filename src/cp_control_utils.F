@@ -206,6 +206,8 @@ CONTAINS
                dft_control%auto_basis_lri_aux = isize
             CASE ("RI_HXC")
                dft_control%auto_basis_ri_hxc = isize
+            CASE ("RI_XAS")
+               dft_control%auto_basis_ri_xas = isize
             CASE DEFAULT
                CPWARN("Unknown basis type in AUTO_BASIS keyword:"//TRIM(tmpstringlist(1)))
             END SELECT

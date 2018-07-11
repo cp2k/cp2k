@@ -96,7 +96,7 @@ MODULE input_cp2k_dft
         xas_2s_type, xas_3d_type, xas_3p_type, xas_3s_type, xas_4d_type, xas_4f_type, xas_4p_type, &
         xas_4s_type, xas_dip_len, xas_dip_vel, xas_dscf, xas_none, xas_tp_fh, xas_tp_flex, &
         xas_tp_hh, xas_tp_xfh, xas_tp_xhh, xes_tp_val, xas_not_excited, xas_tdp_by_kind, &
-        xas_tdp_by_index, xas_tdp_exop_coulomb
+        xas_tdp_by_index, xas_tdp_hfx, xas_tdp_pade
    USE input_cp2k_almo,                 ONLY: create_almo_scf_section
    USE input_cp2k_distribution,         ONLY: create_distribution_section
    USE input_cp2k_field,                ONLY: create_efield_section,&
@@ -7854,7 +7854,7 @@ CONTAINS
       CALL section_add_subsection(subsection, print_key)
       CALL section_release(print_key)
 
-      CALL section_add_subsection(section, subsection)
+      CALL section_add_subsection(section, subsection) 
       CALL section_release(subsection)
 
    END SUBROUTINE create_xas_section
@@ -7880,7 +7880,7 @@ CONTAINS
                           description="XAS simulations using TDDFPT. Excitation from specified "// &
                           "core orbitals are considered one at a time. In case of high symmetry "// &
                           "structures, donor core orbitals should be localized.", &
-                          n_keywords=11, n_subsections=3, repeats=.FALSE.)
+                          n_keywords=11, n_subsections=4, repeats=.FALSE.)
 
       NULLIFY (keyword, subsection, print_key)
 
@@ -8006,6 +8006,39 @@ CONTAINS
                           default_l_val=.FALSE.)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
+
+      !*** XC_KERNEL subsection ***!
+      CALL section_create(subsection, "XC_KERNEL", &
+                          description="This subsection sets parameter for the xc kernel "//&
+                                      "evaluation such as the functional to use and the atomic "//&
+                                      "grids specification", &
+                                      n_keywords=2, n_subsections=0, repeats=.FALSE.)
+
+      CALL keyword_create(keyword, name="FUNCTIONAL", &
+                          description="This keyword is used to chose the functional with which "//&
+                                      "the XC kernel should be evaluated. Currently only exact "//&
+                                      "exchange and the PADE(LDA) are available.", &
+                          usage="FUNCTIONAL string", &
+                          default_i_val=xas_tdp_hfx, &
+                          enum_c_vals=s2a("HFX", "PADE"), &
+                          enum_i_vals=(/xas_tdp_hfx, xas_tdp_pade/))
+      CALL section_add_keyword(subsection, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, name="GRID", &
+                          description="Specification of the atomic grids for the excited kinds."//&
+                                      "This keyword can/should be repeated for each excited kind. "//&
+                                      "The default grid dimensions are those set for the GAPW "// &
+                                      "ground state calculation.", &
+                          usage="GRID kind na nr", &
+                          n_var=3, type_of_var=char_t, repeats=.TRUE.)
+      CALL section_add_keyword(subsection, keyword)
+      CALL keyword_release(keyword)
+
+      CALL section_add_subsection(section, subsection)
+      CALL section_release(subsection)
+
+      !*** END of XC_KERNEL subsection ***!
       
       CALL create_localize_section(subsection)
       CALL section_add_subsection(section, subsection)

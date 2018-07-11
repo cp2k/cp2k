@@ -291,6 +291,10 @@ CONTAINS
          CALL xas(qs_env, dft_control)
       END IF
 
+      IF (dft_control%do_xas_tdp_calculation) THEN
+         CALL xas_tdp(qs_env)
+      END IF  
+
       ! Compute Linear Response properties as post-scf
       IF (.NOT. qs_env%linres_run) THEN
          CALL linres_calculation_low(qs_env)
