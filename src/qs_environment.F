@@ -506,7 +506,7 @@ CONTAINS
       TYPE(fist_nonbond_env_type), POINTER               :: se_nonbond_env
       TYPE(gapw_control_type), POINTER                   :: gapw_control
       TYPE(gto_basis_set_type), POINTER                  :: aux_fit_basis, lri_aux_basis, &
-                                                            ri_hfx_basis, tmp_basis_set
+                                                            ri_hfx_basis, tmp_basis_set, ri_xas_basis
       TYPE(lri_environment_type), POINTER                :: lri_env
       TYPE(mo_set_p_type), DIMENSION(:), POINTER         :: mos, mos_aux_fit
       TYPE(molecule_kind_type), DIMENSION(:), POINTER    :: molecule_kind_set
@@ -792,6 +792,22 @@ CONTAINS
          END DO
       END IF
 
+      IF (dft_control%do_xas_tdp_calculation) THEN
+         ! Check if RI_XAS basis is given, auto-generate if not
+         CALL get_qs_env(qs_env, nkind=nkind)
+         DO ikind = 1, nkind
+            NULLIFY(ri_xas_basis)
+            qs_kind => qs_kind_set(ikind)
+            CALL get_qs_kind(qs_kind, basis_Set=ri_xas_basis, basis_type="RI_XAS")
+            IF (.NOT. ASSOCIATED(ri_xas_basis)) THEN
+               CALL cp_warn(__LOCATION__, "Automatic Generation of RI_XAS basis. "// & 
+                            "This is experimental code.")
+               CALL create_ri_aux_basis_set(ri_xas_basis, qs_kind, dft_control%auto_basis_ri_xas)
+               CALL add_basis_set_to_container(qs_kind%basis_sets, ri_xas_basis, "RI_XAS")
+            END IF
+         END DO
+      END IF
+
       !   *** Initialize the spherical harmonics and ***
       !   *** the orbital transformation matrices    ***
       CALL get_qs_kind_set(qs_kind_set, maxlgto=maxlgto, maxlppl=maxlppl, maxlppnl=maxlppnl)
@@ -807,6 +823,11 @@ CONTAINS
          maxlgto = MAX(maxlgto, maxlgto_lri)
       ELSE IF (dft_control%qs_control%method == "RIGPW") THEN
          CALL get_qs_kind_set(qs_kind_set, maxlgto=maxlgto_lri, basis_type="RI_HXC")
+         maxlgto = MAX(maxlgto, maxlgto_lri)
+      END IF
+      IF (dft_control%do_xas_tdp_calculation) THEN
+         !done as a precaution
+         CALL get_qs_kind_set(qs_kind_set, maxlgto=maxlgto_lri, basis_type="RI_XAS")
          maxlgto = MAX(maxlgto, maxlgto_lri)
       END IF
       maxl = MAX(2*maxlgto, maxlppl, maxlppnl, lmax_sphere)+1

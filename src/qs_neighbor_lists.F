@@ -959,15 +959,17 @@ CONTAINS
 !> \param current_subset ...
 !> \param operator_type ...
 !> \param nlname ...
+!> \param atomb_to_keep the list of atom indices to keep for pairs from the atom2d%b_list
 !> \date    20.03.2002
 !> \par History
 !>          - Major refactoring (25.07.2010,jhu)
+!>          - Added option to filter out atoms from list_b (08.2018, A.  Bussy)
 !> \author  MK
 !> \version 2.0
 ! **************************************************************************************************
    SUBROUTINE build_neighbor_lists(ab_list, particle_set, atom, cell, pair_radius, subcells, &
                                    mic, symmetric, molecular, subset_of_mol, current_subset, &
-                                   operator_type, nlname)
+                                   operator_type, nlname, atomb_to_keep)
 
       TYPE(neighbor_list_set_p_type), DIMENSION(:), &
          POINTER                                         :: ab_list
@@ -981,6 +983,7 @@ CONTAINS
       INTEGER, OPTIONAL                                  :: current_subset
       CHARACTER(LEN=*), INTENT(IN), OPTIONAL             :: operator_type
       CHARACTER(LEN=*), INTENT(IN)                       :: nlname
+      INTEGER, DIMENSION(:), INTENT(IN), OPTIONAL        :: atomb_to_keep
 
       CHARACTER(len=*), PARAMETER :: routineN = 'build_neighbor_lists', &
          routineP = moduleN//':'//routineN
@@ -995,7 +998,7 @@ CONTAINS
                                                   nsubcell, periodic
       INTEGER, DIMENSION(:), POINTER           :: index_list
       LOGICAL                                  :: include_ab, my_mic, &
-                                                  my_molecular, my_symmetric
+                                                  my_molecular, my_symmetric, my_sort_atomb
       LOGICAL, ALLOCATABLE, DIMENSION(:)       :: pres_a, pres_b
       REAL(dp)                                 :: rab2, rab2_max, rab_max, rabm, deth, subcell_scale
       REAL(dp), DIMENSION(3)                   :: r, rab, ra, rb, sab_max, sb, &
@@ -1039,6 +1042,10 @@ CONTAINS
       ELSE
          ! default is a simple AB neighbor list
          otype = 1
+      END IF
+      my_sort_atomb = .FALSE.
+      IF (PRESENT(atomb_to_keep)) THEN
+         my_sort_atomb = .TRUE.
       END IF
 
       ! Deallocate the old neighbor list structure
@@ -1204,6 +1211,9 @@ CONTAINS
 
             DO jatom_local = 1, nlistb(jkind)
                jatom = listb(jkind)%list(jatom_local)
+               IF (my_sort_atomb) THEN
+                  IF (.NOT. ANY(atomb_to_keep == jatom)) CYCLE
+               END IF
                atom_b = atom(jkind)%list(jatom)
                IF (my_molecular) THEN
                   mol_b = atom(jkind)%list_b_mol(jatom_local)

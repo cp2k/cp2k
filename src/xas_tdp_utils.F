@@ -9,20 +9,19 @@
 ! **************************************************************************************************
 
 MODULE xas_tdp_utils
-   
+   USE ai_contraction_sphi,             ONLY: abc_contract
+   USE ai_coulomb,                      ONLY: coulomb3
+   USE arnoldi_api,                     ONLY: arnoldi_extremal
    USE basis_set_types,                 ONLY: gto_basis_set_type, get_gto_basis_set, &
                                               gto_basis_set_p_type
    USE cell_types,                      ONLY: cell_type, pbc
+   USE constants_operator,              ONLY: operator_coulomb
    USE cp_dbcsr_operations,             ONLY: copy_dbcsr_to_fm, cp_dbcsr_sm_fm_multiply, &
                                               copy_fm_to_dbcsr
-   USE cp_eri_mme_interface,            ONLY: cp_eri_mme_finalize, cp_eri_mme_param, &
-                                              cp_eri_mme_set_params, cp_eri_mme_init_read_input, &
-                                              cp_eri_mme_update_local_counts
    USE cp_cfm_types,                    ONLY: cp_fm_to_cfm, cp_cfm_to_fm, cp_cfm_type, &
                                               cp_cfm_create, cp_cfm_release
-   USE cp_fm_basic_linalg,              ONLY: cp_fm_scale_and_add, cp_fm_gemm, cp_fm_column_scale, &
-                                              cp_fm_invert
-   USE cp_fm_diag,                      ONLY: cp_fm_geeig
+   USE cp_fm_basic_linalg,              ONLY: cp_fm_scale_and_add, cp_fm_gemm, cp_fm_column_scale
+   USE cp_fm_diag,                      ONLY: cp_fm_geeig, cp_fm_power, cp_fm_syevd
    USE cp_fm_struct,                    ONLY: cp_fm_struct_create, cp_fm_struct_release, &     
                                               cp_fm_struct_type
    USE cp_fm_types,                     ONLY: cp_fm_create, cp_fm_release, cp_fm_type, &
@@ -37,18 +36,19 @@ MODULE xas_tdp_utils
                                               dbcsr_get_block_p, dbcsr_print, &
                                               dbcsr_put_block, dbcsr_release, dbcsr_finalize,&
                                               dbcsr_distribution_release, &
-                                              dbcsr_copy, dbcsr_set, dbcsr_deallocate_matrix_set, &
-                                              dbcsr_allocate_matrix_set, dbcsr_multiply, &
+                                              dbcsr_copy, dbcsr_set, dbcsr_multiply, &
                                               dbcsr_get_stored_coordinates, dbcsr_desymmetrize, &
                                               dbcsr_complete_redistribute, dbcsr_iterator_type, &
                                               dbcsr_iterator_blocks_left, dbcsr_iterator_start, &
                                               dbcsr_iterator_stop, dbcsr_iterator_next_block, &
                                               dbcsr_add
-   USE eri_mme_types,                   ONLY: eri_mme_init
-   USE input_constants,                 ONLY: xas_dip_len, xas_dip_vel, do_eri_mme, do_eri_os
+   USE generic_os_integrals,            ONLY: int_operators_r12_ab_os
+   USE input_constants,                 ONLY: xas_dip_len, xas_dip_vel, do_eri_mme, do_eri_os, &
+                                              xas_tdp_hfx, xas_tdp_pade
    USE iterate_matrix,                  ONLY: invert_Hotelling
    USE kinds,                           ONLY: dp
-   USE mp2_eri,                         ONLY: integrate_set_3c, integrate_set_2c
+   USE mathlib,                         ONLY: invmat_symm
+   USE orbital_pointers,                ONLY: ncoset
    USE particle_methods,                ONLY: get_particle_set
    USE particle_types,                  ONLY: particle_type
    USE qs_environment_types,            ONLY: qs_environment_type, get_qs_env
@@ -60,6 +60,7 @@ MODULE xas_tdp_utils
                                               neighbor_list_iterator_p_type, &
                                               neighbor_list_iterator_release,&
                                               neighbor_list_set_p_type
+   USE util,                            ONLY: locate
    USE xas_tdp_types,                   ONLY: donor_state_type, xas_tdp_env_type, &
                                               xas_tdp_control_type
 
@@ -70,7 +71,7 @@ MODULE xas_tdp_utils
 
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'xas_tdp_utils'
 
-   PUBLIC :: setup_xas_tdp_full_prob, solve_xas_tdp_full_prob, compute_oscillator_strength, &
+   PUBLIC :: setup_xas_tdp_full_prob, solve_xas_tdp_full_prob, compute_dipole_fosc, &
              compute_ri_coulomb3_int, compute_ri_coulomb2_int
 
 CONTAINS
@@ -87,18 +88,21 @@ CONTAINS
 !>                                 |  G^-1*M_o    G^-1*M_d |,                                        
 !>       depending on whther we consider singlet or triplet excitation, the diagonal (M_d) and 
 !>       off-diagonal (M_o) parts of M differ:
-!>       - For singlet: M_d = A + 2B - D
-!>                      M_o = 2B - E
-!>       - For triplet: M_d = A - D
-!>                      M_o = - E
+!>       - For singlet: M_d = A + 2B + C_aa + C_ab - D
+!>                      M_o = 2B + C_aa + C_ab - E 
+!>       - For triplet: M_d = A + C_aa - C_ab - D
+!>                      M_o = C_aa - C_ab - E
 !>       where other subroutines computes the matrices A, B, E, D and G, which are:
 !>       - A: the ground-state contribution F_ab*delta_IJ - epsilon_IJ*S_ab
 !>       - B: the Coulob kernel ~(aI|Jb)
+!>       - C: the xc kernel c_aa (double derivatibe wrt to n_alpha) and C_ab (wrt n_alpha and n_beta)
 !>       - D: the on-digonal exact exchange kernel ~(ab|IJ)
 !>       - E: the off-diagonal exact exchange kernel ~(aJ|Ib)
 !>       - G: the metric  S_ab*delta_IJ
+!>       For the PADE xc functional, C_aa + C_ab is the same as 2*C (with d2fxc_d2n)
+!>                               and C_aa - C_ab simplifies a lot
 !>       In the above definitions, I,J label the donnor MOs and a,b the sgfs of the basis
-!>       The matrix M (matrix_tdp) has the same (i.e. 2x2 replicated) dbcsr_dist as usual
+!>       In the case of non-TDA, one turns the problem Hermitian 
 ! **************************************************************************************************
    SUBROUTINE setup_xas_tdp_full_prob(donor_state, qs_env, xas_tdp_env, xas_tdp_control)
 
@@ -110,26 +114,26 @@ CONTAINS
       CHARACTER(len=*), PARAMETER :: routineN = 'setup_xas_tdp_full_prob', &
                                      routineP = moduleN//":"//routineN
       
-      INTEGER                                         :: handle, group , iblk, jblk, nblk_sub, blk
-      
+      INTEGER                                         :: handle , fxc, nrow, n_dependent, nblk_sub
       TYPE(dbcsr_type), POINTER                       :: matrix_tdp
-      TYPE(dbcsr_type), POINTER                       :: matrix_a, matrix_g, diag_mat, & 
-                                                         matrix_g_inv, offdiag_mat, matrix_b, &
-                                                         matrix_d, matrix_e, tmp_mat
-      TYPE(dbcsr_distribution_type), POINTER          :: submat_dist, supmat_dist
-      INTEGER, DIMENSION(:), POINTER                  :: submat_blk_size, supmat_blk_size, &
-                                                         col_dist_sub, row_dist_sub, &
-                                                         col_dist_sup, row_dist_sup
+      TYPE(dbcsr_type), POINTER                       :: matrix_a, matrix_b, matrix_d, matrix_e, &
+                                                         tmp_mat, matrix_c
+      TYPE(dbcsr_distribution_type), POINTER          :: submat_dist
+      INTEGER, DIMENSION(:), POINTER                  :: submat_blk_size, col_dist_sub, &
+                                                         row_dist_sub
       INTEGER, DIMENSION(:,:), POINTER                :: pgrid
-      LOGICAL                                         :: found_block
-      REAL(dp), DIMENSION(:), POINTER                 :: work_block
-      TYPE(dbcsr_iterator_type)                       :: iter     
+      LOGICAL                                         :: conv
+      TYPE(cp_fm_struct_type), POINTER                :: fm_struct
+      TYPE(cp_fm_type), POINTER                       :: fm_tmp, work
+      TYPE(cp_para_env_type), POINTER                 :: para_env
+      TYPE(cp_blacs_env_type), POINTER                :: blacs_env
+      REAL(dp)                                        :: min_ev, max_ev
 
       CALL timeset(routineN, handle)
 
-      NULLIFY(matrix_a, submat_dist, submat_blk_size, supmat_dist, supmat_blk_size, col_dist_sub)
-      NULLIFY(row_dist_sub, col_dist_sup, row_dist_sup, work_block, matrix_g, pgrid, diag_mat)
-      NULLIFY(matrix_tdp, offdiag_mat, matrix_b, matrix_d, matrix_e, tmp_mat) 
+      NULLIFY(matrix_a, submat_dist, submat_blk_size, col_dist_sub, row_dist_sub)
+      NULLIFY(pgrid, matrix_tdp, matrix_b, matrix_d, matrix_e, tmp_mat, matrix_c) 
+      NULLIFY(fm_struct, fm_tmp, para_env, blacs_env, work)
 
       CPASSERT(ASSOCIATED(donor_state))
       CPASSERT(ASSOCIATED(qs_env))
@@ -137,6 +141,7 @@ CONTAINS
       CPASSERT(ASSOCIATED(xas_tdp_control))
       ALLOCATE(donor_state%matrix_tdp)
       matrix_tdp => donor_state%matrix_tdp
+      fxc = xas_tdp_control%fxc_func
 
 !  Get the submatrices distribution and block sizes
       CALL compute_submat_dist_and_blk_size(submat_dist, submat_blk_size, donor_state, qs_env)
@@ -146,162 +151,110 @@ CONTAINS
       IF (xas_tdp_control%tamm_dancoff) THEN
 
 !     Compute the submatrices, store the metric and ignore the offdiag exchange kernel
+!     Only compute needed forms of the kernel according to the functional
          ALLOCATE(matrix_a)
          ALLOCATE(matrix_b)
+         ALLOCATE(matrix_c)
          ALLOCATE(matrix_d)
-         ALLOCATE(donor_state%metric)
+         ALLOCATE(donor_state%metric(1))
          CALL build_gs_contribution(matrix_a, submat_dist, submat_blk_size, donor_state, xas_tdp_env, qs_env)
          CALL build_kernel_coulomb(matrix_b, submat_dist, submat_blk_size, donor_state, xas_tdp_env, qs_env)
-         CALL build_kernel_exchange(ex_ker_diag=matrix_d, dist=submat_dist, blk_size=submat_blk_size, &
-                                    donor_state=donor_state, xas_tdp_env=xas_tdp_env, qs_env=qs_env)     
+         IF (fxc == xas_tdp_pade) CALL build_kernel_xc(matrix_c, submat_dist, &
+                                                       submat_blk_size, donor_state, xas_tdp_env, qs_env)
+         IF (fxc == xas_tdp_hfx ) CALL build_kernel_exchange(ex_ker_diag=matrix_d, &
+                                                            dist=submat_dist, blk_size=submat_blk_size, &
+                                                            donor_state=donor_state, xas_tdp_env=xas_tdp_env, &
+                                                            qs_env=qs_env)     
          CALL build_metric(donor_state%metric, submat_dist, submat_blk_size, donor_state, qs_env)
 
 !     Create the simplfied TDA matrix_tdp
          CALL dbcsr_copy(matrix_tdp, matrix_a, name="MATRIX TDP")
          IF (xas_tdp_control%do_singlet) CALL dbcsr_add(matrix_tdp, matrix_b, 1.0_dp, 2.0_dp) 
-         CALL dbcsr_add(matrix_tdp, matrix_d, 1.0_dp, -1.0_dp)
+         IF (fxc == xas_tdp_pade) CALL dbcsr_add(matrix_tdp, matrix_c, 1.0_dp, 1.0_dp) !pure pade
+         IF (fxc == xas_tdp_hfx) CALL dbcsr_add(matrix_tdp, matrix_d, 1.0_dp, -1.0_dp) !pure hfx
 
 !     Some clean-up
          CALL dbcsr_release(matrix_a)   
          CALL dbcsr_release(matrix_b) 
+         CALL dbcsr_release(matrix_c)
          CALL dbcsr_release(matrix_d)
-         DEALLOCATE(matrix_a, matrix_b, matrix_d)
+         DEALLOCATE(matrix_a, matrix_b, matrix_c, matrix_d)
 
       ELSE IF (.NOT. xas_tdp_control%tamm_dancoff) THEN
 
-!     Compute the submatrices A, G and the different kernels (B, D and E)
+!     Compute the submatrices A, G and the different kernels (B, C, D and E)
          ALLOCATE(tmp_mat)
          ALLOCATE(matrix_a)
          ALLOCATE(matrix_b)
+         ALLOCATE(matrix_c)
          ALLOCATE(matrix_d)
          ALLOCATE(matrix_e)
-         ALLOCATE(matrix_g)
+         ALLOCATE(donor_state%metric(2))
          CALL build_gs_contribution(matrix_a, submat_dist, submat_blk_size, donor_state, xas_tdp_env, qs_env)
          CALL build_kernel_coulomb(matrix_b, submat_dist, submat_blk_size, donor_state, xas_tdp_env, qs_env)
-         CALL build_kernel_exchange(matrix_d, matrix_e, submat_dist, submat_blk_size, &
-                                    donor_state, xas_tdp_env, qs_env)
-         CALL build_metric(matrix_g, submat_dist, submat_blk_size, donor_state, qs_env)       
+         IF (fxc == xas_tdp_pade )CALL build_kernel_xc(matrix_c, submat_dist, submat_blk_size, &
+                                                       donor_state, xas_tdp_env, qs_env)
+         IF (fxc == xas_tdp_hfx) CALL build_kernel_exchange(matrix_d, matrix_e, submat_dist, &
+                                                            submat_blk_size, donor_state, xas_tdp_env, qs_env)
+         CALL build_metric(donor_state%metric, submat_dist, submat_blk_size, donor_state, qs_env, do_inv=.TRUE.)       
 
-!     Invert matrix G
-         ALLOCATE(matrix_g_inv)
-         CALL dbcsr_create(matrix=matrix_g_inv, name="MATRIX G INV", matrix_type="S", &              
-                           dist=submat_dist, row_blk_size=submat_blk_size, col_blk_size=submat_blk_size)
-!        TODO: impose values of threshold and eps_filter or not?. Current values taken from LRI
-         CALL invert_Hotelling(matrix_g_inv, matrix_g, threshold=1.0E-10_dp, use_inv_as_guess=.FALSE., &
-                               norm_convergence=1.0E-10_dp, filter_eps=1.0E-12_dp, silent=.TRUE.)
-         CALL dbcsr_finalize(matrix_g_inv)
-
-!     Create the matrix that will be on the diagonal of matrix_tdp: G^-1*(A+B-D)
-         ALLOCATE(diag_mat)
-         CALL dbcsr_create(matrix=diag_mat, name="Diag TDP block", matrix_type="N", dist=submat_dist,&
-                           row_blk_size=submat_blk_size, col_blk_size=submat_blk_size)
-
-         CALL dbcsr_copy(tmp_mat, matrix_a, name="TMP TDP block")
-         IF (xas_tdp_control%do_singlet) CALL dbcsr_add(tmp_mat, matrix_b, 1.0_dp, 2.0_dp)
-         CALL dbcsr_add(tmp_mat, matrix_d, 1.0_dp, -1.0_dp)
-         CALL dbcsr_multiply('N', 'N', 1.0_dp, matrix_g_inv, tmp_mat, 0.0_dp, diag_mat)
-         CALL dbcsr_finalize(diag_mat)
-
-!        Reinitializ the tmp matrix
-         CALL dbcsr_release(tmp_mat)
-
-!     Create the matrix that will be in the off-diagonal of matrix_tdp: G^-1*(B-E)
-         ALLOCATE(offdiag_mat)
-         CALL dbcsr_create(matrix=offdiag_mat, name="Offdiag TDP block", matrix_type="N", & 
-                           dist=submat_dist, row_blk_size=submat_blk_size, col_blk_size=submat_blk_size)
-
-
-         CALL dbcsr_copy(tmp_mat, matrix_b, name="TMP TDP block")
-         IF (xas_tdp_control%do_singlet) THEN
-            CALL dbcsr_add(tmp_mat, matrix_e, 2.0_dp, -1.0_dp)
-         ELSE
-            CALL dbcsr_add(tmp_mat, matrix_e, 0.0_dp, -1.0_dp)
+!     Build the auxiliary matrix (A-D+E)^0.5
+         CALL dbcsr_copy(tmp_mat, matrix_a)
+         IF (fxc == xas_tdp_hfx) THEN
+            CALL dbcsr_add(tmp_mat, matrix_d, 1.0_dp, -1.0_dp)
+            CALL dbcsr_add(tmp_mat, matrix_e, 1.0_dp, 1.0_dp)
          END IF
-         CALL dbcsr_multiply('N', 'N', 1.0_dp, matrix_g_inv, tmp_mat, 0.0_dp, offdiag_mat)
-         CALL dbcsr_finalize(offdiag_mat)
+         
+!     Warn the user if the matrix is not positive semi-definite and the procedure not sound
+         CALL arnoldi_extremal(tmp_mat, max_ev, min_ev, threshold=1.0E-4_dp, max_iter=50, converged=conv)         
+         IF (min_ev < 0.0_dp .AND. ABS(min_ev) > 1.0E-6_dp) THEN
+            CPWARN("The full TDDFT problem might not have been soundly turned Hermitian. Try TDA.")
+         END IF
+
+         ALLOCATE(donor_state%matrix_aux)
+         CALL dbcsr_create(matrix=donor_state%matrix_aux, matrix_type="S", dist=submat_dist, &
+                           row_blk_size=submat_blk_size, col_blk_size=submat_blk_size, name="MAT_AUX")
+
+!        Go through fm to get the square root. Iterative procedures have failed in tests
+         CALL get_qs_env(qs_env, blacs_env=blacs_env, para_env=para_env)
+         CALL dbcsr_get_info(tmp_mat, nfullrows_total=nrow) 
+         CALL cp_fm_struct_create(fm_struct,context=blacs_env, nrow_global=nrow, para_env=para_env,&
+                                  ncol_global=nrow)
+         CALL cp_fm_create(fm_tmp, fm_struct)
+         CALL cp_fm_create(work, fm_struct)
+
+         CALL copy_dbcsr_to_fm(tmp_mat, fm_tmp)
+         CALL cp_fm_power(fm_tmp, work, 0.5_dp, 1.0E-8_dp, n_dependent)
+         CALL copy_fm_to_dbcsr(fm_tmp, donor_state%matrix_aux)
+
+         CALL dbcsr_finalize(donor_state%matrix_aux)
+
+         CALL cp_fm_release(work)
+         CALL cp_fm_release(fm_tmp)
+         CALL cp_fm_struct_release(fm_struct)
+
+!     Create the main matrix_tdp as:
+!     M = (A-D+E)^0.5 * G^-1 * (A+4B+2C-E-D) * G^-1 * (A-D+E)^0.5
+!     Only pass the middle sum as matrix_tdp, the product is done in the solve routine
+         CALL dbcsr_create(matrix=matrix_tdp, name="XAS TDP MATRIX",matrix_type="S",dist=submat_dist,&
+                           row_blk_size=submat_blk_size, col_blk_size=submat_blk_size) 
+
+         !the central matrix
+         CALL dbcsr_copy(matrix_tdp, matrix_a)
+         CALL dbcsr_add(matrix_tdp, matrix_b, 1.0_dp, 4.0_dp)
+         IF (fxc == xas_tdp_pade) CALL dbcsr_add(matrix_tdp, matrix_c, 1.0_dp, 2.0_dp)
+         If (fxc == xas_tdp_hfx) CALL dbcsr_add(matrix_tdp, matrix_d, 1.0_dp, -1.0_dp)
+         If (fxc == xas_tdp_hfx) CALL dbcsr_add(matrix_tdp, matrix_e, 1.0_dp, -1.0_dp)
+
 
 !     Some clean-up
-         CALL dbcsr_release(matrix_g_inv)
          CALL dbcsr_release(matrix_a)
          CALL dbcsr_release(matrix_b)
+         CALL dbcsr_release(matrix_c)
          CALL dbcsr_release(matrix_d)
          CALL dbcsr_release(matrix_e)
-         CALL dbcsr_release(matrix_g)
          CALL dbcsr_release(tmp_mat)
-         DEALLOCATE(matrix_g_inv, matrix_a, matrix_b, matrix_g, matrix_d, matrix_e, tmp_mat)
-
-!     The supermatrix matrix_tdp is built with the submatrices as a 2x2 block matrices 
-!     Create the dbcsr dist by repeating the submatrices structure
-         ALLOCATE (supmat_dist)
-
-         CALL dbcsr_distribution_get(submat_dist, row_dist=row_dist_sub, col_dist=col_dist_sub, &
-                                     group=group, pgrid=pgrid)
-
-         ALLOCATE (row_dist_sup(2*SIZE(row_dist_sub)))
-         ALLOCATE (col_dist_sup(2*SIZE(col_dist_sub)))
-
-         row_dist_sup(1:SIZE(row_dist_sub)) = row_dist_sub
-         col_dist_sup(1:SIZE(col_dist_sub)) = col_dist_sub
-         row_dist_sup(1+SIZE(row_dist_sub):2*SIZE(row_dist_sub)) = row_dist_sub
-         col_dist_sup(1+SIZE(col_dist_sub):2*SIZE(col_dist_sub)) = col_dist_sub
-
-         CALL dbcsr_distribution_new(supmat_dist, group=group, pgrid=pgrid, &
-                                     col_dist=col_dist_sup, row_dist=row_dist_sup)
-
-         DEALLOCATE (row_dist_sup, col_dist_sup)
-
-!        Creating the non-symmetric supermatrix matrix_tdp  with the 2x2 replication of the submatrices
-!        block sizes and distribution.
-         ALLOCATE(supmat_blk_size(2*nblk_sub))
-         supmat_blk_size(1:nblk_sub) = submat_blk_size
-         supmat_blk_size(nblk_sub+1:2*nblk_sub) = submat_blk_size 
-         CALL dbcsr_create(matrix=matrix_tdp, name="XAS TDP MATRIX",matrix_type="N", dist=supmat_dist,&
-                           row_blk_size=supmat_blk_size, col_blk_size=supmat_blk_size)
-         DEALLOCATE(supmat_blk_size)
-
-!     Filling the supermatrix matrix_tdp with submatrices +-G^-1*(A+B-D) and +-G^-1*(B-E)
-
-!        For each diagonal block of the super matrix, loop over blocks of G^-1*(A+B-D)
-         CALL dbcsr_iterator_start(iter, diag_mat)
-         DO WHILE(dbcsr_iterator_blocks_left(iter))
-
-            found_block = .FALSE.
-            CALL dbcsr_iterator_next_block(iter, row=iblk, column=jblk, blk=blk)
-            CALL dbcsr_get_block_p(diag_mat, iblk, jblk, work_block, found_block)
-
-            IF (found_block) THEN
-!              Put -G^-1*(A+B-D) in the upper left block and G^-1*(A+B-D) in the lower right block
-               CALL dbcsr_put_block(matrix_tdp, iblk, jblk, -work_block) 
-               CALL dbcsr_put_block(matrix_tdp, nblk_sub+iblk, nblk_sub+jblk, work_block)
-            END IF
-            NULLIFY(work_block)
-
-         END DO ! iterator
-         CALL dbcsr_iterator_stop(iter) 
-
-!        For each off-diagonal block of supermatrix, loop over blocks of G^-1*(B-E)
-         CALL dbcsr_iterator_start(iter, offdiag_mat)
-         DO WHILE(dbcsr_iterator_blocks_left(iter))
-
-            found_block = .FALSE.
-            CALL dbcsr_iterator_next_block(iter, row=iblk, column=jblk, blk=blk)
-            CALL dbcsr_get_block_p(offdiag_mat, iblk, jblk, work_block, found_block) 
-
-            IF (found_block) THEN 
-!              Put -G^-1*B in the upper right and G^-1*B in the lower left
-               CALL dbcsr_put_block(matrix_tdp, iblk, nblk_sub+jblk, -work_block)
-               CALL dbcsr_put_block(matrix_tdp, nblk_sub+iblk, jblk, work_block)
-            END IF
-            NULLIFY(work_block)
-
-         END DO ! iterator
-         CALL dbcsr_iterator_stop(iter)
-
-!        Some clean-up
-         CALL dbcsr_distribution_release(supmat_dist)
-         CALL dbcsr_release(diag_mat)     
-         CALL dbcsr_release(offdiag_mat)
-         DEALLOCATE(supmat_dist, diag_mat, offdiag_mat)
+         DEALLOCATE(matrix_a, matrix_b, matrix_c, matrix_d, matrix_e, tmp_mat)
 
       END IF ! Tamm_Dancoff
 
@@ -323,6 +276,8 @@ CONTAINS
 !> \param xas_tdp_control ...
 !> \param qs_env ...
 !> \note The computed eigenvalues and eigenvectors are stored in the donor_state
+!>       The eigenvectors are the LR-coefficients. In case of TDA, c^- is stored. In the general
+!>       case, the sum c^+ + c^- is stored
 ! **************************************************************************************************
    SUBROUTINE solve_xas_tdp_full_prob(donor_state, xas_tdp_control, qs_env)  
 
@@ -333,17 +288,22 @@ CONTAINS
       CHARACTER(len=*), PARAMETER :: routineN = "solve_xas_tdp_full_prob", &
                                      routineP = moduleN//":"//routineN
 
+      INTEGER                                         :: nrow, i, nao, nstates, imo, &
+                                                         to_remove, ndo_mo, nelectron, istate
       TYPE(cp_para_env_type), POINTER                 :: para_env
-      TYPE(dbcsr_type), POINTER                       :: matrix_tdp
+      TYPE(dbcsr_type), POINTER                       :: matrix_tdp, tmp_mat 
       TYPE(cp_blacs_env_type), POINTER                :: blacs_env
       INTEGER                                         :: handle
-      TYPE(cp_fm_struct_type), POINTER                :: fm_struct
-      TYPE(cp_fm_type), POINTER                       :: rhs_matrix, lhs_matrix, work
-      INTEGER                                         :: nrow
+      TYPE(cp_fm_struct_type), POINTER                :: fm_struct, gs_struct
+      TYPE(cp_fm_type), POINTER                       :: rhs_matrix, lhs_matrix, work, c_diff, &
+                                                         c_sum
+      REAL(dp), DIMENSION(:), ALLOCATABLE             :: scaling
+      REAL(dp), DIMENSION(:), POINTER                 :: tmp_evals
 
       CALL timeset(routineN, handle)
 
-      NULLIFY(para_env, blacs_env, fm_struct, rhs_matrix, matrix_tdp, lhs_matrix, work)
+      NULLIFY(para_env, blacs_env, fm_struct, rhs_matrix, matrix_tdp, lhs_matrix, work, tmp_mat)
+      NULLIFY(c_diff, c_sum, gs_struct, tmp_evals)
 
       matrix_tdp => donor_state%matrix_tdp
       CALL get_qs_env(qs_env=qs_env, para_env=para_env, blacs_env=blacs_env) 
@@ -355,305 +315,286 @@ CONTAINS
 
 !     Need to go to full matrices to diagonalize
       CALL cp_fm_create(rhs_matrix, fm_struct)
-      CALL copy_dbcsr_to_fm(matrix_tdp, rhs_matrix)
          
 !     Allocating space for solutions
       ALLOCATE(donor_state%lr_evals(nrow))
-      CALL cp_fm_create(donor_state%lr_coeffs, fm_struct)
+      CALL cp_fm_create(c_sum, fm_struct)
+      CALL cp_fm_create(work, fm_struct)
+
+!     Allocate the scaling vector used for normalization
+      ALLOCATE(scaling(nrow))
 
 !     Test on TDA
       IF (xas_tdp_control%tamm_dancoff) THEN
+
+!        Get the main matrix as fm
+         CALL copy_dbcsr_to_fm(matrix_tdp, rhs_matrix)
          
 !        Get the metric as a fm
          CALL cp_fm_create(lhs_matrix, fm_struct)
-         CALL cp_fm_create(work, fm_struct)
-         CALL copy_dbcsr_to_fm(donor_state%metric, lhs_matrix)
+         CALL copy_dbcsr_to_fm(donor_state%metric(1)%matrix, lhs_matrix)
 
 !        Diagonalisation (Cholesky decomposition)
-         CALL cp_fm_geeig(rhs_matrix, lhs_matrix, donor_state%lr_coeffs, donor_state%lr_evals, work)
+         CALL cp_fm_geeig(rhs_matrix, lhs_matrix, c_sum, donor_state%lr_evals, work)
 
 !        TDA specific clean-up
          CALL cp_fm_release(lhs_matrix)
-         CALL cp_fm_release(work)
+
+!        Normalize. c_sum is just c^- for TDA
+         scaling = 0.0_dp
+         CALL get_normal_scaling(scaling, c_sum, donor_state)
+         CALL cp_fm_column_scale(c_sum, scaling)
 
       ELSE ! not TDA
 
-!        Diagonalize the matrix
-#if defined(__SCALAPACK) 
-         CALL pdiag_nonsymm_mat(rhs_matrix, donor_state%lr_evals, donor_state%lr_coeffs)
-#else
-         CALL diag_nonsymm_mat(rhs_matrix, donor_state%lr_evals, donor_state%lr_coeffs)
-#endif
-      END IF
+!        Make the problem Hermitian by solving M*z = omega^2*z with 
+!        M = (A-D+E)^0.5 * G^-1 * (A+4B+2C-E-D) * G^-1 * (A-D+E)^0.5
+         ALLOCATE(tmp_mat)
+         CALL dbcsr_create(matrix=tmp_mat, template=donor_state%matrix_aux, matrix_type="N")
+
+!        First compute G^-1 * (A+4B+2C-E-D) * G^-1 and store it in matrix_tdp
+         CALL dbcsr_multiply('N', 'N', 1.0_dp, matrix_tdp, donor_state%metric(2)%matrix, 0.0_dp, tmp_mat)
+         CALL dbcsr_multiply('N', 'N', 1.0_dp, donor_state%metric(2)%matrix, tmp_mat, 0.0_dp, matrix_tdp)
+
+!        Compute the full matrix M and store it in tmp_mat
+         CALL dbcsr_multiply('N', 'N', 1.0_dp, matrix_tdp, donor_state%matrix_aux, 0.0_dp, tmp_mat)
+         CALL dbcsr_multiply('N', 'N', 1.0_dp, donor_state%matrix_aux, tmp_mat, 0.0_dp, tmp_mat)
+
+!        Get the matrix M as fm
+         CALL copy_dbcsr_to_fm(tmp_mat, rhs_matrix)
+
+!        The problemed has been turned Hermitian. Call stendard routine
+         CALL cp_fm_syevd(rhs_matrix, work, donor_state%lr_evals)
+
+!        Filter out residual negative (and tiny) eigenvalues
+         WHERE (donor_state%lr_evals < 1.0E-6_dp) donor_state%lr_evals = 0.0_dp
+
+!        Take the square root since we computed omega^2
+         donor_state%lr_evals = SQRT(donor_state%lr_evals)
+
+!        Need to normalize the eigenvectors. Need to retrieve the difference of the LR coeffs:
+!        (c^+ - c^-) = 1/omega^2 * G^-1 * (A+4B+2C-E-D) * G^-1 * (A-D+E)^0.5 * z
+         CALL cp_fm_create(c_diff, fm_struct)
+         CALL dbcsr_multiply('N', 'N', 1.0_dp, matrix_tdp, donor_state%matrix_aux, 0.0_dp, tmp_mat)
+         CALL cp_dbcsr_sm_fm_multiply(tmp_mat, work, c_diff, ncol=nrow)
+
+         scaling = 0.0_dp
+         WHERE (donor_state%lr_evals > 0.0_dp) scaling = 1.0_dp/donor_state%lr_evals**2
+         CALL cp_fm_column_scale(c_diff, scaling)
+
+!        The normalization is c_diff * G * c_diff = +- 1
+         scaling = 0.0_dp
+         CALL get_normal_scaling(scaling, c_diff, donor_state)
+         CALL cp_fm_column_scale(c_diff, scaling)
+
+!        Get the sum c^+ + c^- = -1/omega G^-1 * (A-D+E)*(c^+ - c^-)
+         CALL dbcsr_multiply('N', 'N', 1.0_dp, donor_state%matrix_aux, donor_state%matrix_aux, &
+                             0.0_dp, tmp_mat)
+         CALL dbcsr_multiply('N', 'N', 1.0_dp, donor_state%metric(2)%matrix, tmp_mat, 0.0_dp, tmp_mat)
+         CALL cp_dbcsr_sm_fm_multiply(tmp_mat, c_diff, c_sum, ncol=nrow)
+         scaling = 0.0_dp
+         WHERE (donor_state%lr_evals > 0.0_dp) scaling = -1.0_dp/donor_state%lr_evals
+         CALL cp_fm_column_scale(c_sum, scaling)
+
+!        Some clean-up
+         CALL dbcsr_release(tmp_mat)
+         CALL cp_fm_release(c_diff)
+         DEALLOCATE(tmp_mat)
+
+      END IF ! TDA
+
+!  Get rid of all the states with zero eigenvalues because of the projection on the unoccupied KS
+!  orbitals. Need to remove the number of GS MO time the number of donor states
+      CALL cp_fm_get_info(c_sum, ncol_global=nstates)
+      ndo_mo = SIZE(donor_state%mo_indices)  
+      CALL get_qs_env(qs_env, nelectron_total=nelectron)
+      to_remove = ndo_mo*nelectron/2
+      ALLOCATE(tmp_evals(nstates-to_remove))
+
+      !evals are ordered
+      tmp_evals(:) = donor_state%lr_evals(to_remove+1:nstates)
+      DEALLOCATE(donor_state%lr_evals)
+      donor_state%lr_evals => tmp_evals
+
+!  Reorganize the eigenvectors in array of cp_fm_p_types so that each element corresponds to an 
+!  excited state. Makes later calls to those easier and more efficient
+      CALL cp_fm_get_info(donor_state%gs_coeffs, matrix_struct=gs_struct, nrow_global=nao)      
+      ALLOCATE(donor_state%lr_coeffs(nstates-to_remove))
+
+      DO i = 1,nstates-to_remove
+         istate = to_remove + i
+
+         CALL cp_fm_create(donor_state%lr_coeffs(i)%matrix, gs_struct)
+
+         DO imo = 1, ndo_mo
+            
+            CALL cp_fm_to_fm_submat(msource=c_sum, mtarget=donor_state%lr_coeffs(i)%matrix, &
+                                    nrow=nao, ncol=1, s_firstrow=(imo-1)*nao+1, s_firstcol=istate, &
+                                    t_firstrow=1, t_firstcol=imo)
+
+         END DO !imo
+      END DO !istate
          
-!     Clean-up
+!  Clean-up
+      DEALLOCATE(scaling)
       CALL cp_fm_release(rhs_matrix)
+      CALL cp_fm_release(work)
+      CALL cp_fm_release(c_sum)
       CALL cp_fm_struct_release(fm_struct)
 
-!  Making sure that the response orbitals are normalized 
-      CALL normalize_lr_orbitals(donor_state, xas_tdp_control, qs_env)
+!  Perform a partial clean-up of the donor_state
+      CALL dbcsr_release(matrix_tdp)
+      CALL dbcsr_release(donor_state%metric(1)%matrix)
+      IF (.NOT. xas_tdp_control%tamm_dancoff) THEN
+         CALL dbcsr_release(donor_state%matrix_aux)
+         CALL dbcsr_release(donor_state%metric(2)%matrix)
+      END IF
 
       CALL timestop(handle)
 
    END SUBROUTINE solve_xas_tdp_full_prob
 
 ! **************************************************************************************************
-!> \brief Normalizes the response orbitals so that |C^-T * G * C^- - C^+T * G *C^+| = +-1 
+!> \brief Returns the scaling to apply to normalize the LR eigenvectors. 
+!> \param scaling the scaling array to apply 
+!> \param lr_coeffs the linear response coefficients as a fm
 !> \param donor_state ...
-!> \param xas_tdp_control ...
-!> \param qs_env ... 
+!> \note The LR coeffs are normalized when c^T G c = +- 1, G is the metric, c = c^- for TDA and
+!>       c = c^+ - c^- for the full problem
 ! **************************************************************************************************
-   SUBROUTINE normalize_lr_orbitals(donor_state, xas_tdp_control, qs_env)
+   SUBROUTINE get_normal_scaling(scaling, lr_coeffs, donor_state)
 
+      REAL(dp), DIMENSION(:), ALLOCATABLE             :: scaling
+      TYPE(cp_fm_type), POINTER                       :: lr_coeffs
       TYPE(donor_state_type), POINTER                 :: donor_state
-      TYPE(xas_tdp_control_type), POINTER             :: xas_tdp_control
-      TYPE(qs_environment_type), POINTER              :: qs_env
 
-      CHARACTER(len=*), PARAMETER :: routineN = "normalize_lr_orbitals", &
-                                      routineP = moduleN//":"//routineN     
-
-      INTEGER                                         :: nao, nvals, ndo_mo, ido_mo
-      TYPE(cp_para_env_type), POINTER                 :: para_env
-      TYPE(cp_blacs_env_type), POINTER                :: blacs_env
-      TYPE(dbcsr_p_type), DIMENSION(:), POINTER       :: matrix_s
-      TYPE(cp_fm_struct_type), POINTER                :: c_struct, norm_struct 
-      TYPE(cp_fm_type), POINTER                       :: c_plus, c_minus, work_vect, lr_coeffs, &
-                                                         fm_norm 
-      REAL(dp), DIMENSION(:), ALLOCATABLE             :: scaling, norm
-      
-      NULLIFY(para_env, blacs_env, matrix_s)
-      NULLIFY(c_struct, c_plus, c_minus, work_vect, lr_coeffs, fm_norm, norm_struct)
-      
-      CPASSERT(ASSOCIATED(donor_state%lr_coeffs))
-
-!  Initialization
-      CALL get_qs_env(qs_env, para_env=para_env, blacs_env=blacs_env, matrix_s=matrix_s)
-      CALL dbcsr_get_info(matrix_s(1)%matrix, nfullrows_total=nao)
-      nvals = SIZE(donor_state%lr_evals)
-
-      CALL cp_fm_struct_create(c_struct, para_env=para_env, context=blacs_env, &
-                               nrow_global=nao, ncol_global= nvals)
-      CALL cp_fm_struct_create(norm_struct, para_env=para_env, context=blacs_env, & 
-                               nrow_global=nvals, ncol_global=nvals)   
-
-      CALL cp_fm_create(c_plus, c_struct)
-      CALL cp_fm_create(c_minus, c_struct)
-      CALL cp_fm_create(work_vect, c_struct)
-      CALL cp_fm_create(fm_norm, norm_struct)
-
-      ndo_mo = SIZE(donor_state%mo_indices)
-      ALLOCATE(scaling(nvals))
-      scaling = 0.0_dp
-      ALLOCATE(norm(nvals))
-      norm = 0.0_dp
-
-      lr_coeffs => donor_state%lr_coeffs
-
-!  Loop over the different donor MOs, consider all eigenvectors at once
-      DO ido_mo = 1,ndo_mo
-
-!        If TDA, only have the C^-
-         IF (xas_tdp_control%tamm_dancoff) THEN
-
-!           Retrieve the C^- coeff for current donor_state
-            CALL cp_fm_to_fm_submat(msource=lr_coeffs, mtarget=c_minus, nrow=nao, ncol=nvals, &
-                                    s_firstrow=(ido_mo-1)*nao+1, s_firstcol=1, t_firstrow=1, &
-                                    t_firstcol=1)
-
-         ELSE ! not TDA
-
-!           Retrieve the C^+ coeff for current donor_state
-            CALL cp_fm_to_fm_submat(msource=lr_coeffs, mtarget=c_plus, nrow=nao, ncol=nvals, &      
-                                    s_firstrow=(ido_mo-1)*nao+1, s_firstcol=1, t_firstrow=1, &
-                                    t_firstcol=1)  
-
-!           Retrieve the C^- coeff for current donor_state
-            CALL cp_fm_to_fm_submat(msource=lr_coeffs, mtarget=c_minus, nrow=nao, ncol=nvals, &
-                                    s_firstrow=(ndo_mo+ido_mo-1)*nao+1, s_firstcol=1, t_firstrow=1, &
-                                    t_firstcol=1)
-
-         END IF ! TDA
-
-!        Compute C^-T * S * C^- for current donor state
-         CALL cp_dbcsr_sm_fm_multiply(matrix_s(1)%matrix, c_minus, work_vect, ncol=nvals)
-         CALL cp_fm_gemm('T', 'N', nvals, nvals, nao, 1.0_dp, c_minus, work_vect, 0.0_dp, fm_norm)
-
-!        Add the diagonal (corrsponding to the product for each eigenvector) to the scaling array
-         CALL cp_fm_get_diag(fm_norm, norm) 
-         scaling(:) = scaling(:) + norm(:)
-
-!        If not TDA, need to substract the C^+T * S * C^+ product
-         IF (.NOT. xas_tdp_control%tamm_dancoff) THEN
-   
-            CALL cp_dbcsr_sm_fm_multiply(matrix_s(1)%matrix, c_plus, work_vect, ncol=nvals)
-            CALL cp_fm_gemm('T', 'N', nvals, nvals, nao, 1.0_dp, c_plus, work_vect, 0.0_dp, fm_norm)
-            CALL cp_fm_get_diag(fm_norm, norm)
-            scaling(:) = scaling(:) - norm(:)
-
-         END IF ! not TDA
-
-      END DO ! ido_mo
-
-!  Need to scale each eigenvector 
-!  TODO: deal with special case where divison by zero
-      scaling = 1.0_dp/SQRT(ABS(scaling))
-      CALL cp_fm_column_scale(lr_coeffs, scaling)
-
-!  Clean-up
-      CALL cp_fm_struct_release(c_struct)
-      CALL cp_fm_struct_release(norm_struct)
-      CALL cp_fm_release(c_plus)
-      CALL cp_fm_release(c_minus)
-      CALL cp_fm_release(work_vect)
-      CALL cp_fm_release(fm_norm)
-      
-   END SUBROUTINE normalize_lr_orbitals
-
-! **************************************************************************************************
-!> \brief Computes the oscillator strength based on the dipole moment (velocity or position rep
-!>        for all available excitation energies of a donor_state. Stores the result in donor_state
-!> \param donor_state the donor state which is excited
-!> \param xas_tdp_control ...
-!> \param xas_tdp_env ...
-!> \param qs_env ...
-!> \note The oscillator strength is a scalar: osc_str = 2/3*omega*(dipole_r)^2 = 2/(3*omega)*(dipole_v)^2
-!>       But because there is a risk of very tiny omega, multiply both cases by omega to avoid division
-!>       The formulae for the dipoles come from the trace of the dipole operator with the transition
-!>       densities, i.e. what we get from digonalizing the matrix_tdp
-! **************************************************************************************************
-   SUBROUTINE compute_oscillator_strength(donor_state, xas_tdp_control, xas_tdp_env, qs_env)
-
-      TYPE(donor_state_type), POINTER                 :: donor_state
-      TYPE(qs_environment_type), POINTER              :: qs_env
-      TYPE(xas_tdp_control_type), POINTER             :: xas_tdp_control
-      TYPE(xas_tdp_env_type), POINTER                 :: xas_tdp_env
-      
-      CHARACTER(len=*), PARAMETER :: routineN = "compute_oscillator_strength", &
+      CHARACTER(len=*), PARAMETER :: routineN = "get_normal_scaling", &
                                      routineP = moduleN//":"//routineN
 
-      INTEGER                                         :: nosc, nao, i, ndo_mo,j, k, jdo_mo,l
-      TYPE(mo_set_p_type), DIMENSION(:), POINTER      :: mos
-      TYPE(cp_fm_type), POINTER                       :: mo_coeff
+      INTEGER                                         :: nvals, nrow
       TYPE(cp_para_env_type), POINTER                 :: para_env
       TYPE(cp_blacs_env_type), POINTER                :: blacs_env
+      TYPE(cp_fm_type), POINTER                       :: work, fm_norm
+      TYPE(cp_fm_struct_type), POINTER                :: norm_struct, work_struct
+
+      NULLIFY(para_env, blacs_env, norm_struct, work, fm_norm, work_struct)
+
+!  Creating the matrix structures and initializing the work matrices
+      CALL cp_fm_get_info(lr_coeffs, context=blacs_env, para_env=para_env, &
+                          matrix_struct=work_struct, ncol_global=nvals, nrow_global=nrow)
+      CALL cp_fm_struct_create(norm_struct, para_env=para_env, context=blacs_env, &
+                               nrow_global=nvals, ncol_global=nvals)
+
+      CALL cp_fm_create(work, work_struct)
+      CALL cp_fm_create(fm_norm, norm_struct)
+
+
+!  Taking c^T * G * C
+      CALL cp_dbcsr_sm_fm_multiply(donor_state%metric(1)%matrix, lr_coeffs, work, ncol=nvals)
+      CALL cp_fm_gemm('T', 'N', nvals, nvals, nrow, 1.0_dp, lr_coeffs, work, 0.0_dp, fm_norm)
+
+!  Computing the needed scaling
+      CALL cp_fm_get_diag(fm_norm, scaling)
+      WHERE(scaling .NE. 0.0_dp) scaling = 1.0_dp/SQRT(ABS(scaling))
+
+!  Clean-up
+      CALL cp_fm_release(work)
+      CALL cp_fm_release(fm_norm)
+      CALL cp_fm_struct_release(norm_struct)
+
+   END SUBROUTINE get_normal_scaling
+
+
+! **************************************************************************************************
+!> \brief Computes the oscillator strength based on the dipole moment (velocity or length rep) for
+!>        all available excitation energies and store the results in the donor_state
+!> \param donor_state the donor state which is excited
+!> \param xas_tdp_control ...
+!> \param xas_tdp_env ... 
+!> \note The oscillator strength is a scalar: osc_str = 2/3*omega*(dipole_r)^2 = 2/(3*omega)*(dipole_v)^2
+!>       The formulae for the dipoles come from the trace of the dipole operator with the transition
+!>       densities, i.e. what we get from solving the xas_tdp problem. Same procedure with or wo TDA
+! **************************************************************************************************
+   SUBROUTINE compute_dipole_fosc(donor_state, xas_tdp_control, xas_tdp_env)
+
+      TYPE(donor_state_type), POINTER                 :: donor_state
+      TYPE(xas_tdp_control_type), POINTER             :: xas_tdp_control
+      TYPE(xas_tdp_env_type), POINTER                 :: xas_tdp_env
+
+      CHARACTER(len=*), PARAMETER :: routineN = "compute_dipole_fosc", &
+                                     routineP = moduleN//":"//routineN
+
+      INTEGER                                         :: nosc, iosc, ndo_mo, j, nao
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER       :: dipmat
-      TYPE(particle_type), DIMENSION(:), POINTER      :: particle_set
-      REAL(dp), DIMENSION(3)                          :: xyz_moments
+      TYPE(cp_fm_type), POINTER                       :: col_work, mat_work, lr_coeffs
+      TYPE(cp_fm_struct_type), POINTER                :: col_struct, mat_struct
+      REAL(dp), DIMENSION(:), ALLOCATABLE             :: diag
+      TYPE(cp_para_env_type), POINTER                 :: para_env
+      TYPE(cp_blacs_env_type), POINTER                :: blacs_env
+      REAL(dp)                                        :: dip_mom
       REAL(dp), DIMENSION(:), POINTER                 :: osc_str
-      REAL(dp), DIMENSION(:,:), POINTER               :: gs_coeff, work_array
-      TYPE(dbcsr_p_type), DIMENSION(:), POINTER       :: matrix_s
-      TYPE(cp_fm_struct_type), POINTER                :: col_vect_struct
-      TYPE(cp_fm_type), POINTER                       :: c_vect, work_vect
-      REAL(dp)                                        :: contrib
 
-      NULLIFY(mos, mo_coeff, para_env, blacs_env, dipmat, particle_set, osc_str, matrix_s)
-      NULLIFY(col_vect_struct, c_vect, work_vect, gs_coeff, work_array)
+      NULLIFY(dipmat, col_work, mat_work, col_struct, mat_struct, para_env, blacs_env, lr_coeffs, osc_str)
 
-!     General initialization
+!  Initialization
       ndo_mo = SIZE(donor_state%mo_indices)
-      nosc = SIZE(donor_state%lr_evals) 
+      nosc = SIZE(donor_state%lr_evals)
       ALLOCATE(donor_state%osc_str(nosc))
       osc_str => donor_state%osc_str
       osc_str = 0.0_dp
 
-!     For spin-unpolarized ground state, only have transition density if singlet 
+!     For spin-unpolarized ground state, only have transition density if singlet
       IF (xas_tdp_control%do_singlet) THEN
 
-         CALL get_qs_env(qs_env, mos=mos, para_env=para_env, blacs_env=blacs_env, &
-                         particle_set=particle_set, matrix_s=matrix_s)
-         CALL get_mo_set(mos(1)%mo_set, mo_coeff=mo_coeff, nao=nao)
          dipmat => xas_tdp_env%dipmat
-
-!        TODO: The normalization of the response coeff is kind of abitrary (but consistent) 
-!        => factor 2/3 can probably be dropped
+         !compute the prefactor
          IF (xas_tdp_control%dipole_form == xas_dip_len) THEN
-!           Add the dipole form specific prefactor 2/3*omega
             osc_str = 2.0_dp/3.0_dp*donor_state%lr_evals
-         
-         ELSE IF (xas_tdp_control%dipole_form == xas_dip_vel) THEN
-!           Add the dipole form specific prefactor 2/3/omega, no minus sign as p_xyz is real here
-            osc_str = 2.0_dp/3.0_dp/donor_state%lr_evals 
-
+         ELSE
+            osc_str = 2.0_dp/3.0_dp/donor_state%lr_evals
          END IF
 
-!        Some more initialization before heavy computing
-         CALL cp_fm_struct_create(col_vect_struct, para_env=para_env, context=blacs_env, &
-                                   nrow_global=nao, ncol_global=1)
-         CALL cp_fm_create(c_vect, col_vect_struct)
-         CALL cp_fm_create(work_vect, col_vect_struct)
-         ALLOCATE(gs_coeff(nao,1))
-         ALLOCATE(work_array(nao,1))
+         ! do some work matrix initialization
+         CALL cp_fm_get_info(donor_state%gs_coeffs, matrix_struct=col_struct, para_env=para_env, &
+                             context=blacs_env, nrow_global=nao)
+         CALL cp_fm_struct_create(mat_struct, para_env=para_env, context=blacs_env, &
+                                  nrow_global=ndo_mo, ncol_global=ndo_mo)
+         CALL cp_fm_create(col_work, col_struct)
+         CALL cp_fm_create(mat_work, mat_struct)
+         ALLOCATE(diag(ndo_mo))
 
-!        the dipole moment is <mu> = sum_j C^0_j*M*C^1_j, where j labels donor MOs, M is the dipmat,
-!        C^0_i is the ground state coefficient row vector and and C^1 the column vector of lr coeffs
-         DO i = 1,nosc ! loop on excitation energies
-            xyz_moments = 0.0_dp
-            DO j = 1,ndo_mo ! loop on donor MOs
+         DO iosc = 1,nosc
+            
+            dip_mom = 0.0_dp
+            !looping over the cartesian coordinates
+            DO j = 1,3
 
-               jdo_mo = donor_state%mo_indices(j)
+               lr_coeffs => donor_state%lr_coeffs(iosc)%matrix
+               !computing c^0 * dipmat(j) * c^i
+               CALL cp_dbcsr_sm_fm_multiply(dipmat(j)%matrix, lr_coeffs, col_work, ncol=ndo_mo)
+               CALL cp_fm_gemm('T', 'N', ndo_mo, ndo_mo, nao, 1.0_dp, donor_state%gs_coeffs, &
+                               col_work, 0.0_dp, mat_work)
 
-!              Retrieve column vector C^1. Test for Tamm Dancoff
-               IF (xas_tdp_control%tamm_dancoff) THEN
+               !get the sum of the dipole moments
+               CALL cp_fm_get_diag(mat_work, diag)
+               dip_mom = dip_mom + SUM(diag)**2
 
-!                 For TDA, C^+ = 0, hence C^1 = C^- and lr_coeffs = C^-
-                  CALL cp_fm_to_fm_submat(msource=donor_state%lr_coeffs, mtarget=c_vect, nrow=nao, & 
-                                          ncol=1,s_firstrow=(j-1)*nao+1, s_firstcol=i, t_firstrow=1, &
-                                          t_firstcol=1)
+            END DO !j
+            
+            !factor 2 because of singlet definition u = 0.5*(c_alpha + c_beta)
+            osc_str(iosc) = 2*osc_str(iosc)*dip_mom
 
-               ELSE IF (.NOT. xas_tdp_control%tamm_dancoff) THEN
+         END DO !iosc
 
-!                 In the general case, C^1 = C^+ + C^-, which are both stored in lr_coeffs
-                  CALL cp_fm_to_fm_submat(msource=donor_state%lr_coeffs, mtarget=c_vect, nrow=nao, &
-                                          ncol=1, s_firstrow=(j-1)*nao+1, s_firstcol=i, t_firstrow=1, &
-                                          t_firstcol=1) ! C^+
+         !clean-up
+         CALL cp_fm_release(mat_work)
+         CALL cp_fm_release(col_work)
+         CALL cp_fm_struct_release(mat_struct)
+         DEALLOCATE(diag)
 
-                  CALL cp_fm_to_fm_submat(msource=donor_state%lr_coeffs, mtarget=work_vect, nrow=nao, &
-                                          ncol=1, s_firstrow=(ndo_mo+j-1)*nao+1, s_firstcol=i, & 
-                                          t_firstrow=1, t_firstcol=1) ! C^-
+      END IF !singlet
 
-!                 store the sum in c_vect
-                  CALL cp_fm_scale_and_add(1.0_dp, c_vect, 1.0_dp, work_vect)
-
-               END IF
-
-               gs_coeff = 0.0_dp
-!              Retrieve array of ground state MO coeff
-               CALL cp_fm_get_submatrix(fm=mo_coeff, target_m=gs_coeff, start_row=1, & 
-                                        start_col=jdo_mo, n_rows=nao, n_cols=1, transpose=.FALSE.)
-
-               DO k =1,3 ! loop on cartesian coordinates
-!                 Computing M*C^-_j
-                  CALL cp_dbcsr_sm_fm_multiply(dipmat(k)%matrix, c_vect, work_vect, ncol=1)
-                  work_array = 0.0_dp
-                  CALL cp_fm_get_submatrix(work_vect, work_array)
-
-!                 Computing C^0_j*M*C^-_j
-                  DO l = 1,nao 
-                     xyz_moments(k) = xyz_moments(k) + gs_coeff(l,1)*work_array(l,1) 
-                  END DO ! l
-               END DO ! k
-            END DO ! j
-
-!           Compute the oscilaltor strength for this specific energy
-            contrib = 0.0_dp
-            DO k = 1,3
-               contrib = contrib +  osc_str(i)*xyz_moments(k)**2
-            END DO ! k
-            osc_str(i) = contrib
-         END DO ! i
-
-!        Add a factor of 2 coming from the singlet definition u = 0.5(c_alpha + c_beta)
-         osc_str = 2*osc_str
-         
-!        Clean-up
-         DEALLOCATE(gs_coeff, work_array)
-         CALL cp_fm_release(c_vect)
-         CALL cp_fm_release(work_vect)
-         CALL cp_fm_struct_release(col_vect_struct)
-
-      END IF ! do_singlet
-
-   END SUBROUTINE compute_oscillator_strength
+   END SUBROUTINE compute_dipole_fosc
 
 ! **************************************************************************************************
 !> \breif This subroutine computes the row/column block structure as well as the dbcsr ditrinution
@@ -880,21 +821,24 @@ CONTAINS
    END SUBROUTINE build_gs_contribution
 
 ! **************************************************************************************************
-!> \brief Creates the metric (aka  matrix G) needed for the generalized eigenvalue problem
+!> \brief Creates the metric (aka  matrix G) needed for the generalized eigenvalue problem and inverse
 !>         => G_{pi,qj} = S_pq*delta_ij
 !> \param matrix_g dbcsr matrix containing G
 !> \param dist_g dbcsr distribution of G
 !> \param blk_size_g block sizes of G
 !> \param donor_state ...
 !> \param qs_env ...
+!> \param do_inv if the inverse of G should be computed
+!> \note Compute the inverse only if the dimension of the incoming array is 1
 ! **************************************************************************************************
-   SUBROUTINE build_metric(matrix_g, dist_g, blk_size_g, donor_state, qs_env)
+   SUBROUTINE build_metric(matrix_g, dist_g, blk_size_g, donor_state, qs_env, do_inv)
 
-      TYPE(dbcsr_type), POINTER                          :: matrix_g
-      TYPE(dbcsr_distribution_type), POINTER             :: dist_g
-      INTEGER, DIMENSION(:), POINTER                     :: blk_size_g
-      TYPE(donor_state_type), POINTER                    :: donor_state
-      TYPE(qs_environment_type), POINTER                 :: qs_env
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER       :: matrix_g
+      TYPE(dbcsr_distribution_type), POINTER          :: dist_g
+      INTEGER, DIMENSION(:), POINTER                  :: blk_size_g
+      TYPE(donor_state_type), POINTER                 :: donor_state
+      TYPE(qs_environment_type), POINTER              :: qs_env
+      LOGICAL, OPTIONAL, INTENT(IN)                   :: do_inv
 
       CHARACTER(len=*), PARAMETER :: routineN = 'build_metric', routineP = moduleN//":"//routineN
       
@@ -904,6 +848,8 @@ CONTAINS
       REAL(dp), DIMENSION(:), POINTER                 :: work_block
       LOGICAL                                         :: found_block
       TYPE(dbcsr_iterator_type)                       :: iter     
+      TYPE(dbcsr_type), POINTER                       :: matrix_sinv
+      LOGICAL                                         :: my_do_inv
 
       NULLIFY(matrix_s, row_blk_size, work_block)
 
@@ -912,12 +858,15 @@ CONTAINS
       CALL get_qs_env(qs_env=qs_env, matrix_s=matrix_s)
       CALL dbcsr_get_info(matrix_s(1)%matrix, row_blk_size=row_blk_size)
       nblk_row = SIZE(row_blk_size)
+      my_do_inv = .FALSE.
+      IF (PRESENT(do_inv)) my_do_inv = do_inv
 
-!  Creating the symmetric  matrix G with the right size and distribution
-      CALL dbcsr_create(matrix=matrix_g, name="MATRIX G", matrix_type="S", dist=dist_g, &
+!  Creating the symmetric  matrices G and G^-1 with the right size and distribution 
+      ALLOCATE(matrix_g(1)%matrix)
+      CALL dbcsr_create(matrix=matrix_g(1)%matrix, name="MATRIX G", matrix_type="S", dist=dist_g, &
                         row_blk_size=blk_size_g, col_blk_size=blk_size_g)
 
-!  Fill the matrix G by looping over the block of S and putting them on the diagonal
+!  Fill the matrices G by looping over the block of S and putting them on the diagonal
       CALL dbcsr_iterator_start(iter, matrix_s(1)%matrix)
       DO WHILE (dbcsr_iterator_blocks_left(iter))
 
@@ -931,7 +880,7 @@ CONTAINS
 
 !           Go over the diagonal of G => donor MOs ii
             DO i = 1,ndo_mo
-               CALL dbcsr_put_block(matrix_g, (i-1)*nblk_row+iblk, (i-1)*nblk_row+jblk, work_block)
+               CALL dbcsr_put_block(matrix_g(1)%matrix, (i-1)*nblk_row+iblk, (i-1)*nblk_row+jblk, work_block)
             END DO
 
          END IF
@@ -941,283 +890,57 @@ CONTAINS
       CALL dbcsr_iterator_stop(iter)
 
 !  Finalize
-      CALL dbcsr_finalize(matrix_g)
+      CALL dbcsr_finalize(matrix_g(1)%matrix)
 
+!  If the inverse of G is required, do the same as above with the inverse
+      IF (my_do_inv) THEN
+         
+         CPASSERT(SIZE(matrix_g) == 2)
+
+         ! Create the matrix
+         ALLOCATE(matrix_g(2)%matrix)
+         CALL dbcsr_create(matrix=matrix_g(2)%matrix, name="MATRIX GINV", matrix_type="S", &
+                           dist=dist_g, row_blk_size=blk_size_g, col_blk_size=blk_size_g)  
+
+         ! Invert the overlap matrix
+         ALLOCATE(matrix_sinv)
+         CALL dbcsr_create(matrix=matrix_sinv, template=matrix_s(1)%matrix)
+         CALL invert_Hotelling(matrix_sinv, matrix_s(1)%matrix, threshold=1.0E-10_dp, use_inv_as_guess=.FALSE., &
+                               norm_convergence=1.0E-10_dp, filter_eps=1.0E-12_dp, silent=.TRUE.)
+         CALL dbcsr_finalize(matrix_sinv)
+
+!     Fill the matrices G^-1 by looping over the block of S^-1 and putting them on the diagonal
+         CALL dbcsr_iterator_start(iter, matrix_sinv)
+         DO WHILE (dbcsr_iterator_blocks_left(iter))
+
+            CALL dbcsr_iterator_next_block(iter, row=iblk, column=jblk, blk=blk)
+
+!           Get the block
+            found_block = .FALSE.
+            CALL dbcsr_get_block_p(matrix_sinv, iblk, jblk, work_block, found_block)
+
+            IF (found_block .AND. jblk>=iblk) THEN
+
+!              Go over the diagonal of G => donor MOs ii
+               DO i = 1,ndo_mo
+                  CALL dbcsr_put_block(matrix_g(2)%matrix, (i-1)*nblk_row+iblk, (i-1)*nblk_row+jblk, work_block)
+               END DO
+
+            END IF
+            NULLIFY(work_block)
+
+         END DO ! dbcsr_iterator
+         CALL dbcsr_iterator_stop(iter)
+
+         !  Finalize
+         CALL dbcsr_finalize(matrix_g(2)%matrix)
+
+         !  Clean-up
+         CALL dbcsr_release(matrix_sinv)
+         DEALLOCATE(matrix_sinv)
+      END IF !do_inv
+      
    END SUBROUTINE build_metric
-
-! **************************************************************************************************
-!> \brief Diagonalises a non-symmetric real square matrix. Returns the the assumed real eigenvectors
-!>        and eigenvalues. This is base on the LAPACK library and is not paralellized
-!> \param matrix the full matrix to diagonalize
-!> \param evals the array containing the computed eigenvalues
-!> \param evecs the square matrix where the eigenvectors are stored
-!> \note the input matrix is changed during the subroutine
-! **************************************************************************************************
-   SUBROUTINE diag_nonsymm_mat(matrix, evals, evecs)
-
-      TYPE(cp_fm_type), POINTER                       :: matrix
-      REAL(dp), DIMENSION(:), POINTER                 :: evals
-      TYPE(cp_fm_type), POINTER                       :: evecs
-
-      CHARACTER(len=*), PARAMETER :: routineN = "diag_nonsymm_mat", &
-                                     routineP = moduleN//":"//routineN
-
-      INTEGER                                         :: order, lda, ilo, ihi, info, lwork, m
-      REAL(dp), DIMENSION(:,:), POINTER               :: qmat, vr, wmat
-      REAL(dp), DIMENSION(:), ALLOCATABLE             :: scal, work, tau, wi
-      LOGICAL, DIMENSION(:), ALLOCATABLE              :: sel
-
-      NULLIFY(qmat, vr, wmat)
-
-!  Initialization
-      CPASSERT(ASSOCIATED(matrix))
-      CPASSERT(ASSOCIATED(evals))
-      CPASSERT(ASSOCIATED(evecs))
-
-!  Saqure matrix => order = leading dimension (lda)
-      CALL cp_fm_get_info(matrix, nrow_global=order)
-      lda = order
-      wmat => matrix%local_data
-!     Not implemented for parallel run yet !
-      CPASSERT(SIZE(wmat,1) == order)
-      CPASSERT(SIZE(wmat,2) == order)
-
-!  Balancing the matrix, to make it block upper diagonal: gebal subroutine
-      ALLOCATE(scal(lda))
-      CALL dgebal("B", order, wmat, lda, ilo, ihi, scal, info)
-      IF (info .NE. 0 ) CPABORT("gebal failed in non-symmetric matrix diagonalization")
-
-!  Reduction to upper-Hessenberg form: gehrd
-      lwork = -1
-      ALLOCATE(work(1))
-      ALLOCATE(tau(order-1))
-
-!     First call to determine optimal size of work array
-      CALL dgehrd(order, ilo, ihi, wmat, lda, tau, work, lwork, info)
-      IF (info .NE. 0 ) CPABORT("gehrd failed in non-symmetric matrix diagonalization")
-
-      lwork = INT(work(1))
-      DEALLOCATE(work)
-      ALLOCATE(work(lwork))
-
-!     Actual matrix reduction
-      CALL dgehrd(order, ilo, ihi, wmat, lda, tau, work, lwork, info) 
-      IF (info .NE. 0 ) CPABORT("gehrd failed in non-symmetric matrix diagonalization") 
-
-!  Compute the matrix Q that reduces the matrix to upper-Hessenberg: orghr
-      ALLOCATE(qmat(order,order)) 
-      qmat = wmat
-      CALL dorghr(order, ilo, ihi, qmat, lda, tau, work, lwork, info)
-      IF (info .NE. 0 ) CPABORT("orghr failed in non-symmetric matrix diagonalization")
-
-!  Compute eigenvalues and Schur factorization: hseqr
-      CPASSERT(SIZE(evals) == order)
-      ALLOCATE(wi(order))
-      CALL dhseqr('S', 'V', order, ilo, ihi, wmat, lda, evals, wi, qmat, lda, work, lwork, info)
-      IF (info .NE. 0 ) CPABORT("hseqr failed in non-symmetric matrix diagonalization")
-
-!  Compute eigenvectors: trevc
-      ALLOCATE(vr(order,order))
-      ALLOCATE(sel(1))
-      CALL dtrevc('R', 'A', sel, order, wmat, lda, vr, lda,  vr, lda, order, m, work, info)
-      IF (info .NE. 0 ) CPABORT("trevc failed in non-symmetric matrix diagonalization")
-
-!  Transform eigenvectors to those of the original matrix: gebak
-      vr = MATMUL(qmat,vr)
-      CALL dgebak("B", "R", order, ilo, ihi, scal, order, vr, lda, info)
-      IF (info .NE. 0 ) CPABORT("gebak failed in non-symmetric matrix diagonalization") 
-
-!  Return the eigenvectors
-      CPASSERT(SIZE(evecs%local_data,1) == order)
-      CPASSERT(SIZE(evecs%local_data,2) == order)
-      evecs%local_data = vr
-
-! Clean-up
-      DEALLOCATE(qmat, vr)
-
-   END SUBROUTINE diag_nonsymm_mat
-
-
-! **************************************************************************************************
-!> \brief Solves the non-symmetric eigenvalue problem in parallel using ScaLapack. It is assumed
-!>        that the eigenvectors and eigenvalues are real
-!> \param matrix the full matrix to be diagonalised
-!> \param evals the array the will contain the real eigenvalues as output
-!> \param evecs the full matrix containing the real eigenvectors
-!> \note  The input matrix is modified during execution
-! **************************************************************************************************
-   SUBROUTINE pdiag_nonsymm_mat(matrix, evals, evecs)
-
-      TYPE(cp_fm_type), POINTER                       :: matrix 
-      REAL(dp), DIMENSION(:), POINTER                 :: evals    
-      TYPE(cp_fm_type), POINTER                       :: evecs       
-
-      CHARACTER(len=*), PARAMETER :: routineN = "pdiag_nonsymm_mat", &
-                                     routineP = moduleN//":"//routineN
-
-      INTEGER                                         :: order, ilo, ihi, ia, ja, info, &
-                                                         lwork, m, liwork
-      REAL(dp), DIMENSION(:,:), POINTER               :: amat, wmat
-      REAL(dp), DIMENSION(:), ALLOCATABLE             :: work, tau, wi
-      COMPLEX(dp), DIMENSION(:), ALLOCATABLE          :: cwork
-      COMPLEX(dp), DIMENSION(:,:), POINTER            :: cmat, cevecs
-      LOGICAL, DIMENSION(:), ALLOCATABLE              :: selec
-      INTEGER, DIMENSION(:), ALLOCATABLE              :: iwork
-      INTEGER, DIMENSION(9)                           :: desca, descw, descvr
-      TYPE(cp_fm_type), POINTER                       :: work_mat, work_evecs
-      TYPE(cp_cfm_type), POINTER                      :: comp_mat, comp_evecs
-
-      NULLIFY(amat, work_mat, wmat, comp_mat, comp_evecs, cmat, cevecs, work_evecs)
-
-!  We assume SCALAPACK is available
-      CPASSERT(ASSOCIATED(matrix))
-      CPASSERT(ASSOCIATED(evals))
-      CPASSERT(ASSOCIATED(evecs))
-
-!  Initialization
-      order = matrix%matrix_struct%nrow_global 
-      amat => matrix%local_data
-      desca = matrix%matrix_struct%descriptor
-!     intereseted in the whole matrix
-      ilo = 1
-      ihi = order
-      ia = 1
-      ja = 1
-
-!  Workspace querry
-      info = -1
-      lwork = -1
-      ALLOCATE(work(1))
-      ALLOCATE(tau(ja+order-2))
-
-#if defined(__SCALAPACK)
-      CALL pdgehrd(order, ilo, ihi, amat(1,1), ia, ja, desca, tau, work(1), lwork, info)
-#endif
-
-      IF (info .NE. 0) CPABORT("Routine pdgehrd of ScaLAPACK failed for non-symmetric matrix diag")
-      lwork = INT(work(1))
-      DEALLOCATE(work)
-      ALLOCATE(work(lwork))
-
-!  Actual call to pdgehrd => Reduction to upper Hessenberg form
-#if defined(__SCALAPACK)                                                                             
-      CALL pdgehrd(order, ilo, ihi, amat(1,1), ia, ja, desca, tau(1), work(1), lwork, info)                     
-#endif
-
-      IF (info .NE. 0) CPABORT("Routine pdgehrd of ScaLAPACK failed for non-symmetric matrix diag")
-
-!  Need to get the orthogonal transormation matrix Q, do that by multiplying the ouput of pdgehrd by
-!  identity (hack since output of pdgehrd is in a very weird format)
-      CALL cp_fm_create(work_mat, matrix%matrix_struct)
-      CALL cp_fm_set_all(work_mat, alpha=0.0_dp, beta=1.0_dp)
-      wmat => work_mat%local_data
-      descw = work_mat%matrix_struct%descriptor
-
-!  First work space querry
-      DEALLOCATE(work)
-      ALLOCATE(work(1))
-      lwork = -1
-
-#if defined(__SCALAPACK) 
-      CALL pdormhr('R', 'N', order, order, ilo, ihi, amat(1,1), ia, ja, desca, tau(1), wmat(1,1), ia, ja, descw,&
-                   work(1), lwork, info)
-#endif
-
-      IF (info .NE. 0 ) CPABORT("Routine pdormhr of ScaLAPACK failed for non-symmetric matrix diag")
-
-      lwork = INT(work(1))
-      DEALLOCATE(work)
-      ALLOCATE(work(lwork))
-
-!  Actual call of pdormhr
-
-#if defined(__SCALAPACK)                                                                             
-      CALL pdormhr('R', 'N', order, order, ilo, ihi, amat(1,1), ia, ja, desca, tau(1), wmat(1,1), ia, ja, descw,& 
-                   work(1), lwork, info)                                                                
-#endif 
-
-      IF (info .NE. 0 ) CPABORT("Routine pdormhr of ScaLAPACK failed for non-symmetric matrix diag")
-      DEALLOCATE(work)
-      DEALLOCATE(tau)
-
-!  Compute eigenvalues and Schur factorization using pdlaqr1
-      CPASSERT(SIZE(evals) == order)
-
-!  workspace querry
-      lwork = -1
-      liwork = -1
-      ALLOCATE(work(1))
-      ALLOCATE(iwork(1)) 
-      ALLOCATE(wi(order))
-
-#if defined(__SCALAPACK)  
-      CALL pdlaqr1(.TRUE., .TRUE., order, ilo, ihi, amat, desca, evals, wi, ilo, ihi, wmat, &
-                   descw, work, lwork, iwork, liwork, info)
-#endif
-      
-      IF (info .NE. 0 ) CPABORT("Routine pdlaqr1 of ScaLAPACK failed for non-symmetric matrix diag")
-
-      lwork = INT(work(1))
-      liwork = INT(iwork(1)) 
-      DEALLOCATE(work, iwork)         
-      ALLOCATE(work(lwork))
-      ALLOCATE(iwork(liwork))
-
-!  Actual call to pdlaqr1
-
-#if defined(__SCALAPACK)                                                                             
-      CALL pdlaqr1(.TRUE., .TRUE., order, ilo, ihi, amat, desca, evals, wi, ilo, ihi, wmat, &
-                   descw, work, lwork, iwork, liwork, info)                                    
-#endif
-      IF (info .NE. 0 ) CPABORT("Routine pdlaqr1 of ScaLAPACK failed for non-symmetric matrix diag")
-            
-      DEALLOCATE(iwork)
-      DEALLOCATE(wi)
-
-!  Now get the eigenvectors. Note: we have a real matrix and expect real eigenvectors. However,
-!  ScalLAPACK only has such a routine for complex cases => need to convert
-      
-!     real to complex conversion, keep same matrix structure
-      CALL cp_cfm_create(comp_mat, matrix%matrix_struct)
-      CALL cp_cfm_create(comp_evecs, evecs%matrix_struct)
-      CALL cp_fm_to_cfm(msourcer=matrix, mtarget=comp_mat)
-      descvr = comp_evecs%matrix_struct%descriptor
-      cmat => comp_mat%local_data
-      cevecs => comp_evecs%local_data
-
-!     other initializations
-      ALLOCATE(selec(1))
-      selec(1) = .TRUE.
-      DEALLOCATE(work)
-      ALLOCATE(work(desca(9))) !local leading dimension
-      ALLOCATE(cwork(2*desca(9)))
-      m = 0
-
-!  todo: need to properly check the performances of this guy.. Apparently slow
-!        also, can only compute a subset of the eigenvectors. Maybe do that to
-
-#if defined(__SCALAPACK) 
-      CALL pztrevc('R', 'A', selec(1), order, cmat(1,1), desca, cevecs(1,1), descvr, cevecs(1,1), descvr, order, m, &
-                   cwork(1), work(1), info)
-#endif
-
-      IF (info .NE. 0 ) CPABORT("Routine pztrevc of ScaLAPACK failed for non-symmetric matrix diag")
-
-!  Go back to real matrices (assume no imaginary part)
-      CALL cp_fm_create(work_evecs, evecs%matrix_struct)
-      CALL cp_cfm_to_fm(msource=comp_mat, mtargetr=matrix)
-      CALL cp_cfm_to_fm(msource=comp_evecs, mtargetr=work_evecs)
-
-!  To obtain the proper eigenvectors, need to compute evecs = Q*evecs, Q stored in work_mat
-      CALL cp_fm_gemm('N', 'N', order, order, order, 1.0_dp, work_mat, work_evecs, 0.0_dp, evecs)
-
-!  Clean-up
-      CALL cp_fm_release(work_mat)
-      CALL cp_fm_release(work_evecs)
-      CALL cp_cfm_release(comp_mat)
-      CALL cp_cfm_release(comp_evecs)
-
-   END SUBROUTINE pdiag_nonsymm_mat
 
 ! **************************************************************************************************!
 !> \brief Computes the two-center Coulomb integral needed for the RI in kernel calculation. Given
@@ -1226,57 +949,29 @@ CONTAINS
 !> \param nao the number of AOs
 !> \param xas_tdp_env ...
 !> \param qs_env ...
-!> \param xas_tdp_control ...
-!> \note Stores  (P|Q)^-1 in the xas_tdp_env, for now, uses eri_mme and only works for PBCs
+!> \note Stores  (P|Q)^-1 in the xas_tdp_env, use the OS scheme
 ! **************************************************************************************************
-   SUBROUTINE compute_ri_coulomb2_int(xas_tdp_env, qs_env, xas_tdp_control)
+   SUBROUTINE compute_ri_coulomb2_int(xas_tdp_env, qs_env)
 
       TYPE(xas_tdp_env_type), POINTER                 :: xas_tdp_env
       TYPE(qs_environment_type), POINTER              :: qs_env 
-      TYPE(xas_tdp_control_type), POINTER             :: xas_tdp_control  
 
       CHARACTER(len=*), PARAMETER :: routineN = "compute_ri_coulomb2_int", &
                                      routineP = moduleN//":"//routineN
 
-      INTEGER                                         :: nset, pset, qset, G_count, & 
-                                                         R_count, ikind, i, offset_p_start, &
-                                                         offset_p_end, offset_q_start, &
-                                                         offset_q_end, sgfp, sgfq, eri_method
+      INTEGER                                         :: ikind, i, nsgf
       TYPE(gto_basis_set_type), POINTER               :: ri_basis
-      REAL(dp), DIMENSION(:,:), POINTER               :: zet, sphi
       TYPE(qs_kind_type), DIMENSION(:), POINTER       :: qs_kind_set        
-      INTEGER, DIMENSION(:), POINTER                  :: lmax, lmin, ex_kinds, nsgf, npgf
-      INTEGER, DIMENSION(:,:), POINTER                :: first_sgf
-      TYPE(cp_eri_mme_param), POINTER                 :: eri_param
-      TYPE(cp_para_env_type), POINTER                 :: para_env
-      TYPE(cell_type), POINTER                        :: cell 
+      INTEGER, DIMENSION(:), POINTER                  :: ex_kinds
       REAL(dp), DIMENSION(:,:), ALLOCATABLE           :: tmp_int
-      TYPE(cp_blacs_env_type), POINTER                :: blacs_env
-      TYPE(cp_fm_type), POINTER                       :: work_fm  
-      TYPE(cp_fm_struct_type), POINTER                :: fm_struct 
-      REAL(dp), DIMENSION(3)                          :: r
 
-      NULLIFY(ri_basis, zet, sphi, qs_kind_set, lmax, lmin, first_sgf, eri_param, para_env)
-      NULLIFY(work_fm, fm_struct, blacs_env)
+      NULLIFY(ri_basis, qs_kind_set)
       CPASSERT(ASSOCIATED(xas_tdp_env))
 
 !  Initialization
-      CALL get_qs_env(qs_env, qs_kind_set=qs_kind_set, cell=cell, para_env=para_env, blacs_env=blacs_env)
+      CALL get_qs_env(qs_env, qs_kind_set=qs_kind_set)
       ex_kinds => xas_tdp_env%ex_kind_indices
       ALLOCATE(xas_tdp_env%ri_inv_mats(SIZE(ex_kinds)))
-
-!  Check on the periodicity to choose the eri method
-      IF (ALL(cell%perd == 1)) eri_method = do_eri_mme
-      IF (ALL(cell%perd == 0)) eri_method = do_eri_os
-      
-
-!  Reading the ERI_MME params and calibrate them (not centralized to avoid circular dependency)
-      ALLOCATE(eri_param)
-      CALL cp_eri_mme_init_read_input(xas_tdp_control%eri_mme_subsection, eri_param)
-      CALL cp_eri_mme_set_params(eri_param, cell, qs_kind_set, basis_type_1="RI_XAS", &
-                                 basis_type_2="RI_XAS", para_env=para_env)      
-      G_count = 0
-      R_count = 0
 
 !  Loop over the excited kinds
       DO i = 1,SIZE(ex_kinds)
@@ -1284,61 +979,26 @@ CONTAINS
 
 !        Get the RI basis of interest and its quantum numbers
          CALL get_qs_kind(qs_kind_set(ikind), basis_set=ri_basis, basis_type="RI_XAS")
-         CALL get_gto_basis_set(ri_basis, lmax=lmax, npgf=npgf, zet=zet, lmin=lmin, nset=nset, &
-                                nsgf_set=nsgf, sphi=sphi, first_sgf=first_sgf) 
+         CALL get_gto_basis_set(ri_basis, nsgf=nsgf) 
 
 !        The 2D array with the integrals for this kind
-         ALLOCATE(tmp_int(SUM(nsgf,1), SUM(nsgf,1)))
+         ALLOCATE(tmp_int(nsgf, nsgf))
          tmp_int = 0.0_dp
 
-!        Loop over the sets of the basis
-!        TODO: can probably avoid to go over all sets by using some symmetry
+         CALL int_operators_r12_ab_os(r12_operator=operator_coulomb, vab=tmp_int, &
+                                      rab=(/0.0_dp,0.0_dp,0.0_dp/), fba=ri_basis, fbb=ri_basis, &
+                                      calculate_forces=.FALSE.)
 
-         offset_p_end = 0
+!        Inverting and storing in the xas_tdp_env
+         CALL invmat_symm(tmp_int)  
 
-         DO pset = 1,nset
-            offset_p_start = offset_p_end
-            offset_p_end = offset_p_end+nsgf(pset)
-            offset_q_end = 0
-            sgfp = first_sgf(1, pset)
-            
-            DO qset = 1,nset
-               offset_q_start = offset_q_end 
-               offset_q_end = offset_q_end+nsgf(qset) 
-               sgfq = first_sgf(1, qset)
-
-               r = 0.0_dp
-               CALL integrate_set_2c(eri_param%par, lmin(pset), lmax(pset), lmin(qset), lmax(qset),&
-                                     npgf(pset), npgf(qset), zet(:,pset), zet(:,qset), r, r, tmp_int, &
-                                     nsgf(pset), nsgf(qset), offset_p_start, offset_q_start, 0, 0,&
-                                     sphi, sphi, sgfp, sgfq, nsgf(pset), nsgf(qset), eri_method, &
-                                     G_count=G_count, R_count=R_count)
-
-            END DO ! qset
-         END DO !pset
-
-!        Storing it into the xas_tdp_env
-         CALL cp_fm_struct_create(fm_struct, context=blacs_env, para_env=para_env, & 
-                                  nrow_global=SUM(nsgf,1), ncol_global=SUM(nsgf,1))
-
-         CALL cp_fm_create(work_fm, fm_struct)
-         CALL cp_fm_set_submatrix(work_fm, tmp_int)
-
-         CALL cp_fm_create(xas_tdp_env%ri_inv_mats(i)%matrix, fm_struct)
-         CALL cp_fm_invert(work_fm, xas_tdp_env%ri_inv_mats(i)%matrix) 
+         ALLOCATE(xas_tdp_env%ri_inv_mats(i)%array(nsgf,nsgf))
+         xas_tdp_env%ri_inv_mats(i)%array(:,:) = tmp_int(:,:)
 
 !        clean-up before next kind
-         CALL cp_fm_struct_release(fm_struct)   
-         CALL cp_fm_release(work_fm)       
          DEALLOCATE(tmp_int)
 
       END DO ! loop on kinds
-
-!  Clean-up
-      CALL cp_eri_mme_update_local_counts(eri_param, para_env, G_count_2c=G_count, &
-                                          R_count_2c=R_count)
-      CALL cp_eri_mme_finalize(eri_param)
-      DEALLOCATE(eri_param)
 
    END SUBROUTINE compute_ri_coulomb2_int
 
@@ -1352,19 +1012,16 @@ CONTAINS
 !> \para, exat_kind the kind of the excited atom, to get the RI basis
 !> \param xas_tdp_env the xas_tdp_Env to update with the 3-center Coulomb integrals
 !> \param qs_env ...
-!> \param xas_tdp_control ...
 !> \note Currently creates a 3D array, will later switch to DBCSR tensors (TODO). Will be used for 
 !>       the Coulomb kernel after contraction (aI|P) = sum_b C_b (ab|P) and possibly for the exchange
 !>       part too (if non-PBCs and coulomb operator requested). TODO: if exchange operator is not
 !>       coulomb, screen the integrals to only compute (ab|P) where C_b is non-zero
-!>       Based on the 3-center ERI_MME integrals
 ! **************************************************************************************************
-   SUBROUTINE compute_ri_coulomb3_int(exat_index, exat_kind, xas_tdp_env, qs_env, xas_tdp_control)
+   SUBROUTINE compute_ri_coulomb3_int(exat_index, exat_kind, xas_tdp_env, qs_env)
 
       INTEGER, INTENT(IN)                             :: exat_index, exat_kind
       TYPE(xas_tdp_env_type), POINTER                 :: xas_tdp_env
       TYPE(qs_environment_type), POINTER              :: qs_env
-      TYPE(xas_tdp_control_type), POINTER             :: xas_tdp_control
 
       CHARACTER(len=*), PARAMETER :: routineN = 'compute_ri_coulomb3_int', &
                                      routineP = moduleN//':'//routineN
@@ -1372,9 +1029,9 @@ CONTAINS
       INTEGER                                         :: nsetp, nsetb, natom, &
                                                          nao, nseta, bat, aset, bset, pset, &
                                                          sgfa, sgfp, sgfb, aat, akind, bkind, & 
-                                                         nkind, igp, i, GG_count, &
-                                                         GR_count, RR_count, inode, last_bat, &
-                                                         eri_method
+                                                         nkind, igp, i, ncoa, ncob, ncop, ipgf, &
+                                                         startp, endp
+      REAL(dp)                                        :: rab2, rap2, rbp2, rpgfp
       TYPE(qs_kind_type), DIMENSION(:), POINTER       :: qs_kind_set
       TYPE(gto_basis_set_p_type), DIMENSION(:), &
                                              POINTER  :: basis_set_list
@@ -1383,11 +1040,11 @@ CONTAINS
                                                          npgfb, la_max, la_min, npgfa, nsgfa, &
                                                          nsgfb, nsgfp
       INTEGER, DIMENSION(:,:), POINTER                :: first_sgfa, first_sgfb, first_sgfp
-      REAL(dp), DIMENSION(:,:), POINTER               :: zetp, rpgfp, zetb, rpgfb, zeta, rpgfa,&
+      REAL(dp), DIMENSION(:,:), POINTER               :: zetp, zetb, zeta, &
                                                          sphi_p, sphi_a, sphi_b
       TYPE(particle_type), DIMENSION(:), POINTER      :: particle_set
       TYPE(mo_set_p_type), DIMENSION(:), POINTER      :: mos 
-      REAL(dp), DIMENSION(:,:,:), ALLOCATABLE         :: int_abp_set, int_array
+      REAL(dp), DIMENSION(:,:,:), ALLOCATABLE         :: int_abp_set, int_array, int_abp
       REAL(dp), DIMENSION(3)                          :: ra, rb, rp, rab
       INTEGER, DIMENSION(:), ALLOCATABLE              :: first_sgf_set
       TYPE(neighbor_list_set_p_type), DIMENSION(:), & 
@@ -1395,14 +1052,16 @@ CONTAINS
       TYPE(neighbor_list_iterator_p_type), &                                                         
                             DIMENSION(:), POINTER     :: nl_iterator   
       TYPE(cell_type), POINTER                        :: cell
-      TYPE(cp_eri_mme_param), POINTER                 :: eri_param   
       TYPE(cp_para_env_type), POINTER                 :: para_env
+      REAL(dp), DIMENSION(:), ALLOCATABLE             :: gccc, f, rpgfa, rpgfb
+      REAL(dp), DIMENSION(:,:), ALLOCATABLE           :: vabc
+      REAL(dp), DIMENSION(:,:,:,:), ALLOCATABLE       :: v
 
       NULLIFY(qs_kind_set, p_basis, b_basis, a_basis, particle_set, mos)
-      NULLIFY(lp_max, lp_min, npgfp, zetp, rpgfp, sphi_p, first_sgfp)
-      NULLIFY(lb_max, lb_min, npgfb, zetb, rpgfb, sphi_b, first_sgfb)
-      NULLIFY(la_max, la_min, npgfa, zeta, rpgfa, sphi_a, first_sgfa)
-      NULLIFY(sab_orb, nl_iterator, cell, basis_set_list, eri_param, para_env)
+      NULLIFY(lp_max, lp_min, npgfp, zetp, sphi_p, first_sgfp)
+      NULLIFY(lb_max, lb_min, npgfb, zetb, sphi_b, first_sgfb)
+      NULLIFY(la_max, la_min, npgfa, zeta, sphi_a, first_sgfa)
+      NULLIFY(sab_orb, nl_iterator, cell, basis_set_list, para_env)
 
 !  Get all we need from the qs_env
       CALL get_qs_env(qs_env, qs_kind_set=qs_kind_set, particle_set=particle_set, mos=mos, &
@@ -1415,11 +1074,7 @@ CONTAINS
       CALL get_qs_kind(qs_kind_set(exat_kind), basis_set=p_basis, basis_type="RI_XAS")
 
       CALL get_gto_basis_set(p_basis, lmax=lp_max, npgf=npgfp, zet=zetp, lmin=lp_min, nset=nsetp, &
-                             nsgf_set=nsgfp, sphi=sphi_p, first_sgf=first_sgfp, pgf_radius=rpgfp) 
-
-!  Check on periodicity to impose ERI method
-      IF (ALL(cell%perd == 1)) eri_method = do_eri_mme                                               
-      IF (ALL(cell%perd == 0)) eri_method = do_eri_os
+                             nsgf_set=nsgfp, sphi=sphi_p, first_sgf=first_sgfp) 
 
 !  Allocate the 3D array where results will be stored
       ALLOCATE(int_array(nao, nao, SUM(nsgfp)))
@@ -1430,30 +1085,11 @@ CONTAINS
       ALLOCATE(basis_set_list(nkind))
       CALL basis_set_list_setup(basis_set_list, "ORB", qs_kind_set)
 
-!  Get the mme params form the ERI_MME subsection. Do that here to avoid circular dependency
-!  TODO: is that expensive, is there a way around ?
-      ALLOCATE(eri_param)
-      CALL cp_eri_mme_init_read_input(xas_tdp_control%eri_mme_subsection, eri_param)
-      CALL cp_eri_mme_set_params(eri_param, cell, qs_kind_set, basis_type_1="ORB", & 
-                                              basis_type_2="RI_XAS", para_env=para_env)
-      GG_count = 0
-      GR_count = 0
-      RR_count = 0
-
+!  TODO: be very carfeul when enabeling PBCs
 !  Loop over all neighbouring atoms a,b and compute (ab|P)
       CALL neighbor_list_iterator_create(nl_iterator, sab_orb)
       DO WHILE (neighbor_list_iterate(nl_iterator) == 0)
-         CALL get_iterator_info(nl_iterator, ikind=akind, jkind=bkind, iatom=aat, jatom=bat, r=rab,&
-                                inode=inode)
-
-!        Discard periodic images because ERI_MME intrinsically periodic
-         IF (inode == 1) last_bat = 0
-
-         IF (bat /= last_bat) THEN
-            last_bat = bat
-         ELSE
-            CYCLE
-         END IF
+         CALL get_iterator_info(nl_iterator, ikind=akind, jkind=bkind, iatom=aat, jatom=bat, r=rab)
 
 !        Retrieve the basis sets for a and b
          a_basis => basis_set_list(akind)%gto_basis_set
@@ -1461,52 +1097,72 @@ CONTAINS
          
 !        Retrieve the quantum numbers for both basis sets
          CALL get_gto_basis_set(a_basis, lmax=la_max, npgf=npgfa, zet=zeta, lmin=la_min, &
-                                nset=nseta, nsgf_set=nsgfa, sphi=sphi_a, first_sgf=first_sgfa, &
-                                pgf_radius=rpgfa)   
+                                nset=nseta, nsgf_set=nsgfa, sphi=sphi_a, first_sgf=first_sgfa)   
          CALL get_gto_basis_set(b_basis, lmax=lb_max, npgf=npgfb, zet=zetb, lmin=lb_min, &
-                                nset=nsetb, nsgf_set=nsgfb, sphi=sphi_b, first_sgf=first_sgfb, &
-                                pgf_radius=rpgfb)         
+                                nset=nsetb, nsgf_set=nsgfb, sphi=sphi_b, first_sgf=first_sgfb)         
 
 !        Get the different positions/distances
          ra = pbc(particle_set(aat)%r, cell) 
          rb = pbc(particle_set(bat)%r, cell)         
          rp = pbc(particle_set(exat_index)%r, cell)
+         rab2 = DOT_PRODUCT(rb-ra,rb-ra)
+         rap2 = DOT_PRODUCT(rp-ra,rp-ra)
+         rbp2 = DOT_PRODUCT(rp-rb,rp-rb) 
 
 !        Loop over sets of the 3 basis
          DO aset = 1,nseta
             DO bset = 1,nsetb
                DO pset = 1,nsetp
 
-!                 Abort if coulomb3 subroutine screens stuff out, abort if more than one pgf per 
-!                 set in RI basis
-                  IF (eri_method == do_eri_os) THEN
-                     IF (SIZE(rpgfp,1) .GT. 1) THEN
-                        CPABORT("For OS scheme in NPBCs, only one pgf per set is allowed in the RI basis")
-                     END IF
-                  END IF
-
 !                 Some initialization
                   sgfa = first_sgfa(1, aset) 
                   sgfb = first_sgfb(1, bset)
                   sgfp = first_sgfp(1, pset)   
+                  ncoa = npgfa(aset)*ncoset(la_max(aset))
+                  ncob = npgfb(bset)*ncoset(lb_max(bset))
+                  ncop = npgfp(pset)*ncoset(lp_max(pset))
 
 !                 Allocate array for the current comnbination of sets
                   ALLOCATE(int_abp_set(nsgfa(aset), nsgfb(bset), nsgfp(pset)))
                   int_abp_set = 0.0_dp
 
-!                 Took inspiration form mp2. Integrals are already contracted as sgf
-!                 the do_symmetric argument only matters for forces
-                  CALL integrate_set_3c(eri_param%par, la_min(aset), la_max(aset), lb_min(bset), &
-                                        lb_max(bset), lp_min(pset), lp_max(pset), npgfa(aset), &
-                                        npgfb(bset), npgfp(pset), zeta(:, aset), zetb(:, bset), &
-                                        zetp(:, pset), ra, rb, rp, int_abp_set, nsgfa(aset), &
-                                        nsgfb(bset), nsgfp(pset), 0, 0, 0, 0, 0, 0, sphi_a, &
-                                        sphi_b, sphi_p, sgfa, sgfb, sgfp, nsgfa(aset), &
-                                        nsgfb(bset), nsgfp(pset), eri_method, do_symmetric=.FALSE.,&
-                                        GG_count=GG_count, GR_count=GR_count, RR_count=RR_count)
+!                 Allocate some work arrays
+                  ALLOCATE(f(0:la_max(aset)+lb_max(bset)+lp_max(pset)+2))
+                  ALLOCATE(v(ncoa, ncob, ncop, la_max(aset)+lb_max(bset)+lp_max(pset)+1))
+                  ALLOCATE(gccc(ncop))
+                  ALLOCATE(vabc(ncoa, ncob))
+                  ALLOCATE(int_abp(ncoa, ncob, ncop))
+                  f = 0.0_dp
+                  v = 0.0_dp
+                  gccc = 0.0_dp
+                  vabc = 0.0_dp
+                  int_abp = 0.0_dp
+
+!                 hack: set the rpgf to avoid screening out
+                  ALLOCATE(rpgfa(npgfa(aset)))
+                  ALLOCATE(rpgfb(npgfb(bset)))
+                  rpgfa = 1.0E10_dp
+                  rpgfb = 1.0E10_dp
+                  rpgfp = 1.0E10_dp
+
+!                 Go one pgf at a time because of how coulomb3 is designed
+                  endp = 0
+                  DO ipgf = 1, npgfp(pset)
+                     startp = endp + ncoset(lp_min(pset)-1) + 1
+                     endp = endp + ncoset(lp_max(pset))
+                     CALL coulomb3(la_max(aset), npgfa(aset), zeta(:,aset), rpgfa(:), la_min(aset), &
+                                   lb_max(bset), npgfb(bset), zetb(:,bset), rpgfb(:), lb_min(bset), &
+                                   lp_max(pset), zetp(ipgf,pset), rpgfp, lp_min(pset), gccc, &
+                                   rb-ra, rab2, rp-ra, rap2, rbp2, vabc, &
+                                   int_abp(:,:,startp:endp), v, f)
+                  END DO !ipgf
+
+!                 Contract into sgf
+                  CALL abc_contract(int_abp_set, int_abp, sphi_a(:,sgfa:), sphi_b(:,sgfb:), &
+                                    sphi_p(:,sgfp:), ncoa, ncob, ncop, nsgfa(aset), nsgfb(bset), &
+                                    nsgfp(pset)) 
 
 !                 Put it at the right place in the final array
-!                 TODO: in case of PBCs, might need to do += since pair a,b might involve images
                   int_array(first_sgf_set(aat)+sgfa-1:first_sgf_set(aat)+sgfa+nsgfa(aset)-2, &
                             first_sgf_set(bat)+sgfb-1:first_sgf_set(bat)+sgfb+nsgfb(bset)-2, &
                             sgfp:sgfp+nsgfp(pset)-1) = int_abp_set
@@ -1520,20 +1176,14 @@ CONTAINS
                   END DO
 
 !                 Deallocate before next loop
-                  DEALLOCATE(int_abp_set)
+                  DEALLOCATE(int_abp_set, int_abp, f, v, gccc, vabc, rpgfa, rpgfb)
 
                END DO ! pset
             END DO ! bset
          END DO !aset
-      
+
       END DO !neighbor iteration on a,b
       CALL neighbor_list_iterator_release(nl_iterator)
-
-!  Clean the eri params 
-      CALL cp_eri_mme_update_local_counts(eri_param, para_env, GG_count_3c=GG_count, &
-                                          GR_count_3c=GR_count, RR_count_3c=RR_count)
-      CALL cp_eri_mme_finalize(eri_param)
-      DEALLOCATE(eri_param)
 
 !  Updating the xas_tdp_env with the new integrals
       IF (ASSOCIATED(xas_tdp_env%ri_coul3)) DEALLOCATE(xas_tdp_env%ri_coul3)
@@ -1554,6 +1204,7 @@ CONTAINS
 !> \param xas_tdp_env ...
 !> \param qs_env ...
 !> \note Currently working with array in a serial manner. Will be improved with the switch to tensors
+!>       Will also change: call to the gs_coeffs
 ! **************************************************************************************************
    SUBROUTINE contract_int_kernel(contr_int, domo_index, xas_tdp_env, qs_env)
       
@@ -1598,7 +1249,7 @@ CONTAINS
                                n_rows=nao, n_cols=1, transpose=.FALSE.) 
 
       DO i = 1,nao
-         contr_once(:,:) = contr_once(:,:) + coeffs(i,1)*integrals(:,i,:) 
+         CALL daxpy(nao*nsgfp, coeffs(i,1), integrals(:,i,:), 1, contr_once(:,:), 1)
       END DO
 
 !  Do the second contraction if requested
@@ -1608,7 +1259,7 @@ CONTAINS
                                   start_col=domo_index(2), n_rows=nao, n_cols=1, transpose=.FALSE.)
 
          DO i = 1,nao
-            contr_twice(1,:) = contr_twice(1,:) + coeffs(i,1)*contr_once(i,:)
+            CALL daxpy(nsgfp, coeffs(i,1), contr_once(i,:), 1, contr_twice(1,:), 1)
          END DO
       END IF
 
@@ -1648,8 +1299,9 @@ CONTAINS
 
       INTEGER                                         :: handle, ndo_mo, i, j, nsgfp, nao, iblk, &
                                                          jblk, nblk,  nrow_blk, ncol_blk
-      REAL(dp), DIMENSION(:,:), ALLOCATABLE           :: int_aI, int_bJ, PQ, proj_Q, work1, work2, &
+      REAL(dp), DIMENSION(:,:), ALLOCATABLE           :: int_aI, int_bJ, proj_Q, work1, work2, &
                                                          aIJb_prod
+      REAL(dp), DIMENSION(:,:), POINTER               :: PQ
       TYPE(cp_para_env_type), POINTER                 :: para_env
       TYPE(cp_blacs_env_type), POINTER                :: context
       TYPE(cp_fm_type), POINTER                       :: work_fm     
@@ -1660,22 +1312,21 @@ CONTAINS
 
       CALL timeset(routineN, handle)
 
-      NULLIFY(para_env, context, work_fm, fm_struct, qs_kind_set, particle_set)
+      NULLIFY(PQ, para_env, context, work_fm, fm_struct, qs_kind_set, particle_set)
 
 !  Initialization
       ndo_mo = SIZE(donor_state%mo_indices,1)                       
-      CALL get_qs_env(qs_env, natom=nblk, particle_set=particle_set, qs_kind_set=qs_kind_set)
+      CALL get_qs_env(qs_env, natom=nblk, particle_set=particle_set, qs_kind_set=qs_kind_set, &
+                      blacs_env=context, para_env=para_env)
       ALLOCATE(first_sgf(nblk))
       CALL get_particle_set(particle_set, qs_kind_set, first_sgf=first_sgf)
 
-!     Get the (P|Q)^-1 as an array
-      i = MINLOC(ABS(xas_tdp_env%ex_kind_indices-donor_state%kind_index), 1)
-      CALL cp_fm_get_info(xas_tdp_env%ri_inv_mats(i)%matrix, ncol_global=nsgfp, &
-                          context=context, para_env=para_env) 
+!     Get the (P|Q)^-1 from the ri_inv_mats
+      i = locate(xas_tdp_env%ex_kind_indices, donor_state%kind_index)
+      PQ => xas_tdp_env%ri_inv_mats(i)%array
+      nsgfp = SIZE(PQ,1)
       nao = SIZE(xas_tdp_env%ri_coul3, 1)
-      ALLOCATE(PQ(nsgfp, nsgfp))
-      CALL cp_fm_get_submatrix(fm=xas_tdp_env%ri_inv_mats(i)%matrix, target_m=PQ)
-
+      
 !     Get the projector Q as an array (dbcsr => fm => array)
       ALLOCATE(proj_Q(nao,nao))
       CALL cp_fm_struct_create(fm_struct, context=context, para_env=para_env, nrow_global=nao, &
@@ -1785,31 +1436,31 @@ CONTAINS
       INTEGER, DIMENSION(:), ALLOCATABLE              :: first_sgf          
       TYPE(cp_blacs_env_type), POINTER                :: context
       TYPE(cp_para_env_type), POINTER                 :: para_env
-      REAL(dp), DIMENSION(:,:), ALLOCATABLE           :: PQ, proj_Q, int_aJ, int_bI, int_IJ, work1,&
+      REAL(dp), DIMENSION(:,:), ALLOCATABLE           :: proj_Q, int_aJ, int_bI, int_IJ, work1,&
                                                          work2, work3, abIJ_prod, aJIb_prod, work4
+      REAL(dp), DIMENSION(:,:), POINTER               :: PQ
       TYPE(cp_fm_type), POINTER                       :: work_fm                      
       TYPE(cp_fm_struct_type), POINTER                :: fm_struct      
       LOGICAL                                         :: do_offdiag
 
       CALL timeset(routineN, handle)
 
-      NULLIFY(particle_set, qs_kind_set, para_env, context, work_fm, fm_struct)
+      NULLIFY(particle_set, qs_kind_set, para_env, context, work_fm, fm_struct, PQ)
 
 !  Initialization
       do_offdiag = .FALSE.
       IF (PRESENT(ex_ker_offdiag)) do_offdiag = .TRUE.
       ndo_mo = SIZE(donor_state%mo_indices,1)
-      CALL get_qs_env(qs_env, natom=nblk, particle_set=particle_set, qs_kind_set=qs_kind_set)       
+      CALL get_qs_env(qs_env, natom=nblk, particle_set=particle_set, qs_kind_set=qs_kind_set, &
+                      blacs_env=context, para_env=para_env)       
       ALLOCATE(first_sgf(nblk))        
       CALL get_particle_set(particle_set, qs_kind_set, first_sgf=first_sgf)
 
-!     Get the (P|Q)^-1 as an array      
-      i = MINLOC(ABS(xas_tdp_env%ex_kind_indices-donor_state%kind_index), 1)          
-      CALL cp_fm_get_info(xas_tdp_env%ri_inv_mats(i)%matrix, ncol_global=nsgfp, &
-                          context=context, para_env=para_env)                                 
-      nao = SIZE(xas_tdp_env%ri_coul3, 1)    
-      ALLOCATE(PQ(nsgfp, nsgfp))
-      CALL cp_fm_get_submatrix(fm=xas_tdp_env%ri_inv_mats(i)%matrix, target_m=PQ)               
+!     Get the (P|Q)^-1 from the xas_tdp_env 
+      i = locate(xas_tdp_env%ex_kind_indices, donor_state%kind_index)
+      PQ => xas_tdp_env%ri_inv_mats(i)%array
+      nsgfp = SIZE(PQ,1)
+      nao = SIZE(xas_tdp_env%ri_coul3, 1)
 
 !     Get the projector Q as an array (dbcsr => fm => array)
       ALLOCATE(proj_Q(nao,nao))
@@ -1886,7 +1537,7 @@ CONTAINS
 
 !           Multiply by (ab|P) from the left 
             DO k = 1,nsgfp
-               abIJ_prod(:,:) = abIJ_prod(:,:) + xas_tdp_env%ri_coul3(:,:,k)*work3(k,1)
+               CALL daxpy(nao*nao, work3(k,1), xas_tdp_env%ri_coul3(:,:,k), 1, abIJ_prod(:,:), 1)
             END DO !k
 
 !           Multiply by the Q projector
@@ -1933,6 +1584,156 @@ CONTAINS
       CALL timestop(handle)
 
    END SUBROUTINE build_kernel_exchange
+
+! **************************************************************************************************
+!> \brief Computes the XC part of the kernel base on atomic grid integrals
+!> \param xc_kernel the dbcsr_matrix where the xc kernel is stored
+!> \param dist the dbcsr_distribution of the matrix. Same as for matrices A,B or G
+!> \param blk_size the block sizes of the matrix 
+!> \param donor_state the donor_state for which we compute the kernel 
+!> \param xas_tdp_env ...
+!> \param qs_env ...
+!> \note currently coded with arrays and such low level types. TODO: switch to dbcsr tensors         
+!>       Everythin is gonna change later on, so don't care about performance
+! **************************************************************************************************
+   SUBROUTINE build_kernel_xc(xc_kernel, dist, blk_size, donor_state, xas_tdp_env, qs_env)
+
+      TYPE(dbcsr_type), POINTER                       :: xc_kernel
+      TYPE(dbcsr_distribution_type), POINTER          :: dist
+      INTEGER, DIMENSION(:), POINTER                  :: blk_size
+      TYPE(donor_state_type), POINTER                 :: donor_state
+      TYPE(xas_tdp_env_type), POINTER                 :: xas_tdp_env
+      TYPE(qs_environment_type), POINTER              :: qs_env
+
+      CHARACTER(len=*), PARAMETER :: routineN = "build_kernel_xc", &                            
+                                     routineP = moduleN//":"//routineN
+
+      INTEGER                                         :: handle, ndo_mo, nblk, i, nsgfp, nao, j, &
+                                                         iblk, jblk, nrow_blk, ncol_blk
+      TYPE(particle_type), DIMENSION(:), POINTER      :: particle_set
+      TYPE(qs_kind_type), DIMENSION(:), POINTER       :: qs_kind_set 
+      INTEGER, DIMENSION(:), ALLOCATABLE              :: first_sgf
+      TYPE(cp_blacs_env_type), POINTER                :: context
+      TYPE(cp_para_env_type), POINTER                 :: para_env
+      REAL(dp), DIMENSION(:,:), ALLOCATABLE           :: proj_Q, int_aI, int_bJ, work1, &
+                                                         work2, aIJb_prod, work3
+      REAL(dp), DIMENSION(:,:), POINTER               :: PQ
+      REAL(dp), DIMENSION(:,:), POINTER               :: fxc
+      TYPE(cp_fm_struct_type), POINTER                :: fm_struct
+      TYPE(cp_fm_type), POINTER                       :: work_fm
+      LOGICAL                                         :: found_block
+
+      CALL timeset(routineN, handle)
+
+      NULLIFY(particle_set, qs_kind_set, context, para_env, fm_struct, work_fm, PQ)
+
+!  Initialization
+      ndo_mo = SIZE(donor_state%mo_indices,1) 
+      CALL get_qs_env(qs_env, natom=nblk, particle_set=particle_set, qs_kind_set=qs_kind_set, &
+                      blacs_env=context, para_env=para_env)
+      ALLOCATE(first_sgf(nblk))
+      CALL get_particle_set(particle_set, qs_kind_set, first_sgf=first_sgf)
+
+!     Get the (P|Q)^-1 as an array
+      i = locate(xas_tdp_env%ex_kind_indices, donor_state%kind_index)
+      PQ => xas_tdp_env%ri_inv_mats(i)%array
+      nsgfp = SIZE(PQ, 1)
+      nao = SIZE(xas_tdp_env%ri_coul3, 1)
+
+!     Get the projector Q as an array (dbcsr => fm => array)
+      ALLOCATE(proj_Q(nao,nao))
+      CALL cp_fm_struct_create(fm_struct, context=context, para_env=para_env, nrow_global=nao, &     
+                                        ncol_global=nao)
+      CALL cp_fm_create(work_fm, fm_struct)
+      CALL copy_dbcsr_to_fm(xas_tdp_env%q_projector, work_fm)
+      CALL cp_fm_get_submatrix(fm=work_fm, target_m=proj_Q)
+      CALL cp_fm_struct_release(fm_struct)
+      CALL cp_fm_release(work_fm)
+
+!     Get the 2-center integrel (Q|fxc|R) as an array (a block from a dbcsr matrix)
+!     For now assume serial => don't check for which proc the block is on
+!     TODO: maybe that storing the atom integrals in a dbcsr matrix is not the best
+      found_block = .FALSE.
+      CALL dbcsr_get_block_p(xas_tdp_env%ri_atom_int%matrix, donor_state%at_index, &
+                            donor_state%at_index, fxc, found_block)
+      CPASSERT(found_block)
+      CPASSERT(ALL(SHAPE(fxc)==nsgfp))
+
+!     Build the dbcsr matrix for the kernel
+      CALL dbcsr_create(matrix=xc_kernel, name="XC KERNEL", matrix_type='S', dist=dist, &
+                        row_blk_size=blk_size, col_blk_size=blk_size)
+
+!     Allocating work arrays to store the intemediate products
+      ALLOCATE(work1(nao, nsgfp))
+      ALLOCATE(work2(nao, nsgfp))
+      ALLOCATE(work3(nao, nao))
+      ALLOCATE(aIJb_prod(nao, nao))
+
+!  Loop over the donor MOs and compute the matrix product projQ * W *projQ^T, where W is
+!  W_ab = (aI|P) * (P|Q)^-1 * (Q|fxc|R) * (R|S)^-1 * (S|Jb) ~= (aI|fxc|Jb)
+!  Symmetric matrix => only span upper triangle
+      DO i = 1,ndo_mo
+         CALL contract_int_kernel(int_aI, (/donor_state%mo_indices(i)/), xas_tdp_env, qs_env)
+         DO j = i,ndo_mo
+            CALL contract_int_kernel(int_bJ, (/donor_state%mo_indices(j)/), xas_tdp_env, qs_env)
+
+            work1 = 0.0_dp
+            work2 = 0.0_dp
+            work3 = 0.0_dp
+            aIJb_prod = 0.0_dp
+
+!           Do the product (aI|P)*(P|Q)^-1 and stroe in work1
+            CALL dgemm('N', 'N', nao, nsgfp, nsgfp, 1.0_dp, int_aI, nao, PQ, nsgfp, 0.0_dp, & 
+                        work1, nao)
+
+!           Muliply the above by (Q|fxc|R) and store in work2
+            CALL dgemm('N', 'N', nao, nsgfp, nsgfp, 1.0_dp, work1, nao, fxc, nsgfp, 0.0_dp, &
+                       work2, nao)
+            work1 = 0.0_dp
+
+!           Multiply the above by (R|S)^-1 => (aI|P)*(P|Q)^-1 *(Q|fxc|R)*(R|S)^-1 = work1
+            CALL dgemm('N', 'N', nao, nsgfp, nsgfp, 1.0_dp, work2, nao, PQ, nsgfp, 0.0_dp, &
+                       work1, nao)
+
+!           Multiply the above by (S|Jb) = (Jb|S)^T and temporarly store in aIJb_prod
+            CALL dgemm('N', 'T', nao, nao, nsgfp, 1.0_dp, work1, nao, int_bJ, nao, 0.0_dp, &
+                       aIJb_prod, nao)
+
+!           Muliply by the projector from both sides => projQ * W *projQ^T
+            CALL dgemm('N', 'N', nao, nao, nao,  1.0_dp, proj_Q, nao, aIJb_prod, nao, 0.0_dp, &      
+                        work3, nao)
+            aIJb_prod = 0.0_dp
+            CALL dgemm('N', 'T', nao, nao, nao,  1.0_dp, work3, nao, proj_Q, nao, 0.0_dp, &          
+                        aIJb_prod, nao)
+
+!           Put the product in the dbcsr_matrix, for the right I,J block
+            DO iblk = 1,nblk
+               DO jblk = 1,nblk
+
+!                 If on the block diagonal, just take jblk >= iblk
+                  IF (jblk < iblk .AND. i==j) CYCLE
+
+!                 Size of the current block
+                  nrow_blk = blk_size(iblk)
+                  ncol_blk = blk_size(jblk)
+
+                  CALL dbcsr_put_block(xc_kernel, (i-1)*nblk+iblk, (j-1)*nblk+jblk, & 
+                                       aIJb_prod(first_sgf(iblk):first_sgf(iblk)+nrow_blk-1, &
+                                                 first_sgf(jblk):first_sgf(jblk)+ncol_blk-1))
+
+               END DO ! jblk
+            END DO ! iblk
+
+            DEALLOCATE(int_bJ)
+         END DO ! donor MO j
+         DEALLOCATE(int_aI)
+      END DO ! donor MO i
+
+      CALL dbcsr_finalize(xc_kernel)
+
+      CALL timestop(handle)
+
+   END SUBROUTINE build_kernel_xc
 
 END MODULE xas_tdp_utils
 
