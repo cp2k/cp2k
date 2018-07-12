@@ -87,7 +87,7 @@ CONTAINS
                           usage="ALMO_SCF_GUESS MOLECULAR", &
                           default_i_val=atomic_guess, &
                           enum_c_vals=s2a("MOLECULAR", "ATOMIC"), &
-                          enum_desc=s2a("SCF calculations on single molecules controled by the regular SCF "// &
+                          enum_desc=s2a("SCF calculations on single molecules controlled by the regular SCF "// &
                                         "keywords outside ALMO options. This kind of calculation is expensive "// &
                                         "and only recommended if ALMO SCF does not converge from the ATOMIC guess.", &
                                         "Superposition of atomic densities."), &
