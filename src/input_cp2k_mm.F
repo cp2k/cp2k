@@ -1320,12 +1320,12 @@ CONTAINS
 
       CPASSERT(.NOT. ASSOCIATED(section))
       CALL section_create(section, name="GENPOT", &
-                          description="This section specifies the input parameters for a generic potential type."// &
+                          description="This section specifies the input parameters for a generic potential type. "// &
                           "A functional form is specified. Mathematical Operators recognized are +, -, *, /, ** "// &
                           "or alternatively ^, whereas symbols for brackets must be (). "// &
                           "The function parser recognizes the (single argument) Fortran 90 intrinsic functions "// &
-                          "abs, exp, log10, log, sqrt, sinh, cosh, tanh, sin, cos, tan, asin, acos, atan. "// &
-                          "Parsing for INTRINSIC functions is CASE INsensitive.", &
+                          "abs, exp, log10, log, sqrt, sinh, cosh, tanh, sin, cos, tan, asin, acos, atan, erf, erfc. "// &
+                          "Parsing for intrinsic functions is not case sensitive.", &
                           n_keywords=1, n_subsections=0, repeats=.TRUE.)
 
       NULLIFY (keyword)
@@ -1339,7 +1339,7 @@ CONTAINS
 
       CALL keyword_create(keyword, name="FUNCTION", &
                           description="Specifies the functional form in mathematical notation.", &
-                          usage="FUNCTION  a*EXP(-b*x^2)/x+D*log10(x)", type_of_var=lchar_t, &
+                          usage="FUNCTION a*EXP(-b*x^2)/x+D*log10(x)", type_of_var=lchar_t, &
                           n_var=1)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
