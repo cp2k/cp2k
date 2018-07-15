@@ -36,8 +36,8 @@
         &END
         &INTERACTION_POTENTIAL
            POTENTIAL_TYPE MIX_CL
-           SCALE_COULOMB   0.833
-           SCALE_LONGRANGE 0.167
+           SCALE_COULOMB   0.167
+           SCALE_LONGRANGE 0.833
            OMEGA 0.30
         &END
         &MEMORY
