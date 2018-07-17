@@ -87,7 +87,10 @@ while [ $# -ge 1 ]; do
  # enable partial testing of only those directories that contain failed tests
  -retest)
   doretest="yes";;
- # do not update the SVN
+ # Perform no git pull
+ -nogit)
+  nogit="nogit";;
+ # Perform no svn update
  -nosvn)
   nosvn="nosvn";;
  # do not reset reference outputs
@@ -127,6 +130,9 @@ while [ $# -ge 1 ]; do
   echo "  -cp2kdir PATH             location of cp2k source tree relative to current working directory."
   echo "  -dirout PATH              root path of output folder (default: current working directory)."
   echo "  -mpiexec EXE              name of the executable to run mpi-ranks. Default: mpiexec."
+  echo ""
+  echo "Git:"
+  echo "  -nogit                    do not run git pull. Default: off."
   echo ""
   echo "Svn:"
   echo "  -svndate DATE             checkout svn revision of given DATE. Default: use trunk."
@@ -192,6 +198,7 @@ dir_triplet=${dir_triplet:-Linux-x86-64-gfortran}
 emptycheck=${emptycheck:-"NO"}
 leakcheck=${leakcheck:-"NO"}
 doretest=${doretest:-"no"}
+nogit=${nogit:-"git"}
 nosvn=${nosvn:-"svn"}
 nobuild=${nobuild:-"build"}
 cp2k_run_postfix=${cp2k_run_postfix:-""}
@@ -262,7 +269,8 @@ cp2k_postfix=${cp2k_postfix:-"${cp2k_run_postfix}"}
 # set up the initial directory structures
 #
 ###################################################################################
-test_types_file=${dir_base}/${cp2k_dir}/tests/TEST_TYPES
+repo_dir=${dir_base}/${cp2k_dir}
+test_types_file=${repo_dir}/tests/TEST_TYPES
 dir_last=${dir_base}/LAST-${dir_triplet}-${cp2k_version}
 dirout=${dirout:-${dir_base}}
 dir_out=${dir_out}/TEST-${dir_triplet}-${cp2k_version}-${datum_short}
@@ -277,6 +285,7 @@ changelog_tests_old=${changelog_tests}.old
 mkdir -p ${dir_out}
 mkdir -p ${dir_last}
 svn_out=${dir_out}/svn.out
+git_out=${dir_out}/git.out
 make_out=${dir_out}/make.out
 error_description_file=${dir_out}/error_summary
 >${error_description_file}
@@ -284,7 +293,6 @@ memory_description_file=${dir_out}/memory_summary
 >${memory_description_file}
 summary=${dir_out}/summary.txt
 printf "Summary of the regression tester run from ${datum_short} using ${dir_triplet} ${cp2k_version} \n" >${summary}
-
 
 ###################################################################################
 #
@@ -734,6 +742,7 @@ echo "job_max_time     = ${job_max_time}"
 echo "emptycheck       = ${emptycheck}"
 echo "leakcheck        = ${leakcheck}"
 echo "doretest         = ${doretest}"
+echo "nogit            = ${nogit}"
 echo "nosvn            = ${nosvn}"
 echo "nobuild          = ${nobuild}"
 echo "quick            = ${quick}"
@@ -757,58 +766,80 @@ while [ $t -le ${ndirstorestrict} ]; do
  echo "restrict_dirs    = ${restrict_dirs[t]}"
  let t=t+1
 done
+# Check for svn and perform update if requested
 echo "--------------------------- SVN ------------------------------------------"
-
-if [[ ${nosvn} != "nosvn" ]]; then
-
-  cd ${dir_base}/${cp2k_dir}
-
-  # If ChangeLog does not exist for the first time, it is created
-  if [[ ! -s ${changelog} ]]; then
-     echo "Creating ChangeLog file for the first time. This may take a while ..."
-     ${dir_base}/${cp2k_dir}/tools/svn2cl/svn2cl.sh -i -o ${changelog}
-  fi
-
-  for d in src data makefiles tests tools
-  do
-      echo "Updating $d ..."
-      if [ -z "$svnver" ]; then
-	  svn update -r {${svndate}} $d &>${svn_out}
-      else
-	  svn update -r ${svnrev} $d &>${svn_out}
+if svn info ${repo_dir} &>/dev/null; then
+   if [[ ${nosvn} != "nosvn" ]]; then
+      cd ${repo_dir}
+      # If ChangeLog does not exist for the first time, it is created
+      if [[ ! -s ${changelog} ]]; then
+         echo "Creating ChangeLog file for the first time. This may take a while ..."
+         ${repo_dir}/tools/svn2cl/svn2cl.sh -i -o ${changelog}
       fi
-      if (( $? )); then
-         echo "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx" >>${error_description_file}
-         cat ${svn_out} >>${error_description_file}
-         echo "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx" >>${error_description_file}
-         echo "ERROR: svn update $d failed ... bailing out" >>${error_description_file}
-         cat "${error_description_file}"
-         end_test 1 ${lockfile}
-      fi
-      cat ${svn_out}
-  done
-
-  #  cp2k_lines=`wc *.F | tail -1 |  ${awk} '{print $1}'`
-  #  echo "cp2k is now ${cp2k_lines} lines .F"
-
-  echo "--------------------------- ChangeLog diff -------------------------------"
-  # Using svn2cl.pl to generate GNU like ChangeLog
-  ${dir_base}/${cp2k_dir}/tools/svn2cl/svn2cl.sh --limit 100 -i -o ${changelog_new} >>${error_description_file} 2>&1
-
-  line1="$(head -n 1 ${changelog})"
-  nline=$(grep -n "${line1}" ${changelog_new} | head -n 1 | cut -f 1 -d:)
-  mv ${changelog} ${changelog_old}
-  head -n $((nline - 1)) ${changelog_new} >${changelog}
-  cat ${changelog_old} >>${changelog}
-
-  diff ${changelog} ${changelog_old} >${changelog_diff}
-  cat ${changelog_diff}
-  rm ${changelog_new} ${changelog_old}
-
+      for d in src data makefiles tests tools; do
+         echo "Updating $d ..."
+         if [ -z "$svnver" ]; then
+            svn update -r {${svndate}} $d &>${svn_out}
+         else
+            svn update -r ${svnrev} $d &>${svn_out}
+         fi
+         if (( $? )); then
+            echo "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx" >>${error_description_file}
+            cat ${svn_out} >>${error_description_file}
+            echo "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx" >>${error_description_file}
+            echo "ERROR: svn update $d failed ... bailing out" >>${error_description_file}
+            cat "${error_description_file}"
+            end_test 1 ${lockfile}
+         fi
+         cat ${svn_out}
+      done
+      #  cp2k_lines=`wc *.F | tail -1 |  ${awk} '{print $1}'`
+      #  echo "cp2k is now ${cp2k_lines} lines .F"
+      echo "--------------------------- ChangeLog diff -------------------------------"
+      # Using svn2cl.pl to generate GNU like ChangeLog
+      ${repo_dir}/tools/svn2cl/svn2cl.sh --limit 100 -i -o ${changelog_new} >>${error_description_file} 2>&1
+      line1="$(head -n 1 ${changelog})"
+      nline=$(grep -n "${line1}" ${changelog_new} | head -n 1 | cut -f 1 -d:)
+      mv ${changelog} ${changelog_old}
+      head -n $((nline - 1)) ${changelog_new} >${changelog}
+      cat ${changelog_old} >>${changelog}
+      diff ${changelog} ${changelog_old} >${changelog_diff}
+      cat ${changelog_diff}
+      rm ${changelog_new} ${changelog_old}
+   else
+      echo "No svn update has been performed due to user request"
+   fi
 else
-
-  echo "No SVN updating"
-
+   echo "No svn repository found in ${repo_dir}"
+   echo "--------------------------- GIT ------------------------------------------"
+   if git -C ${repo_dir} rev-parse &>/dev/null; then
+      if [[ ${nogit} != "nogit" ]]; then
+         sha1_old=$(git -C ${repo_dir} log -1 --pretty='%H')
+         git -C ${repo_dir} log --pretty="CommitSHA: %H%nCommitTime: %ci%nCommitAuthor: %an%nCommitAuthorEmail: %ae%nCommitSubject: %s%n#" >${changelog_old}
+         git -C ${repo_dir} pull &>${git_out}
+         if (( $? )); then
+            echo "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx" >>${error_description_file}
+            cat ${git_out} >>${error_description_file}
+            echo "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx" >>${error_description_file}
+            echo "ERROR: git -C ${repo_dir} pull failed ... bailing out" >>${error_description_file}
+            cat "${error_description_file}"
+            end_test 1 ${lockfile}
+         fi
+         sha1_new=$(git -C ${repo_dir} log -1 --pretty='%H')
+         git -C ${repo_dir} log --pretty="CommitSHA: %H%nCommitTime: %ci%nCommitAuthor: %an%nCommitAuthorEmail: %ae%nCommitSubject: %s%n#" >${changelog}
+         cat ${git_out}
+         echo "--------------------------- ChangeLog diff -------------------------------"
+         line1="$(head -n 1 ${changelog_old})"
+         nline=$(grep -n "${line1}" ${changelog} | head -n 1 | cut -f 1 -d:)
+         head -n $(( nline - 1 )) ${changelog} >${changelog_diff}
+         cat ${changelog_diff}
+         rm ${changelog_old}
+      else
+         echo "No git pull has been performed due to user request"
+      fi
+   else
+      echo "No git repository found in ${repo_dir}"
+   fi
 fi
 
 echo "--------------------------- Preparations ---------------------------------"
@@ -942,7 +973,7 @@ if [[ ${skiptest} != "skiptest" ]]; then
        echo "cannot use hard links to copy the tests folder."
        echo "Source device is ${source_device} for ${dir_base}/${cp2k_dir}/tests"
        echo "Target device is ${target_device} for ${dir_out}"
-       echo "Using normal copy instead."
+       printf "Using normal copy instead ... "
        cp -a ${dir_base}/${cp2k_dir}/tests ${dir_out}
      fi
    else
