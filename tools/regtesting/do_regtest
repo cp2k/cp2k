@@ -838,7 +838,17 @@ else
          echo "No git pull has been performed due to user request"
       fi
    else
-      echo "No git repository found in ${repo_dir}"
+      if [[ ${nogit} != "nogit" ]]; then
+         git_version=$(git --version | awk '{print $3}' | cut -d. -f1)
+         if (( git_version < 2 )); then
+            echo "$(git --version) is too old"
+            echo "No update of the git repository ${repo_dir} was performed"
+         else
+            echo "No git repository found in ${repo_dir}"
+         fi
+      else
+         echo "No git pull has been performed due to user request"
+      fi
    fi
 fi
 
