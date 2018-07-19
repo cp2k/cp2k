@@ -655,7 +655,7 @@ MODULE message_passing
 
    TYPE mp_file_indexing_meta_type
       INTEGER, DIMENSION(:), POINTER   :: index
-      INTEGER(kind=address_kind), &
+      INTEGER(kind=file_offset), &
          DIMENSION(:), POINTER         :: chunks
    END TYPE mp_file_indexing_meta_type
 
@@ -3656,7 +3656,7 @@ CONTAINS
       INTEGER, INTENT(IN)                       :: count
       INTEGER, DIMENSION(1:count), &
          INTENT(IN), TARGET                     :: lengths
-      INTEGER(kind=address_kind), &
+      INTEGER(kind=file_offset), &
          DIMENSION(1:count), INTENT(in), TARGET :: displs
       TYPE(mp_file_descriptor_type)             :: type_descriptor
 

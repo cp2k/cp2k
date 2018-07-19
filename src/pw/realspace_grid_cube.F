@@ -12,11 +12,10 @@ MODULE realspace_grid_cube
    USE cp_log_handling,                 ONLY: cp_logger_get_default_io_unit
    USE kinds,                           ONLY: dp
    USE message_passing,                 ONLY: &
-        address_kind, file_amode_rdonly, file_offset, mp_bcast, mp_file_close, &
-        mp_file_descriptor_type, mp_file_get_position, mp_file_open, mp_file_read_all_chv, &
-        mp_file_type_free, mp_file_type_hindexed_make_chv, mp_file_type_set_view_chv, &
-        mp_file_write_all_chv, mp_file_write_at, mp_maxloc, mp_recv, mp_send, mp_sum, mp_sync, &
-        mpi_character_size
+        file_amode_rdonly, file_offset, mp_bcast, mp_file_close, mp_file_descriptor_type, &
+        mp_file_get_position, mp_file_open, mp_file_read_all_chv, mp_file_type_free, &
+        mp_file_type_hindexed_make_chv, mp_file_type_set_view_chv, mp_file_write_all_chv, &
+        mp_file_write_at, mp_maxloc, mp_recv, mp_send, mp_sum, mp_sync, mpi_character_size
    USE pw_grid_types,                   ONLY: PW_MODE_LOCAL
    USE pw_types,                        ONLY: pw_type
 #include "../base/base_uses.f90"
@@ -379,9 +378,9 @@ CONTAINS
       INTEGER, DIMENSION(3)                              :: lbounds, lbounds_local, npoints, &
                                                             npoints_local, ubounds, ubounds_local
       INTEGER, ALLOCATABLE, DIMENSION(:), TARGET         :: blocklengths
-      INTEGER(kind=file_offset)                          :: BOF
-      INTEGER(kind=address_kind), ALLOCATABLE, &
+      INTEGER(kind=file_offset), ALLOCATABLE, &
          DIMENSION(:), TARGET                            :: displacements
+      INTEGER(kind=file_offset)                          :: BOF
       INTEGER :: extunit, gid, i, ientry, ip, islice, j, k, master, my_rank, nat, ndum, nslices, &
          num_pe, offset_global, output_unit, pos, readstat, size_of_z, tag
       CHARACTER(LEN=msglen), ALLOCATABLE, DIMENSION(:)   :: readbuffer
