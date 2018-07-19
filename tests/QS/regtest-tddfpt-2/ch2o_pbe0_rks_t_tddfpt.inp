@@ -44,7 +44,7 @@
       &END XC_FUNCTIONAL
 
       &XC_GRID
-        XC_DERIV SPLINE2_SMOOTH
+        XC_DERIV SPLINE3_SMOOTH
       &END XC_GRID
 
       &HF

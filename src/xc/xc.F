@@ -152,10 +152,10 @@ CONTAINS
 !> \brief calculates vxc using lsd with rhoa=rhob=0.5*rho and compares
 !>      with the lda result
 !> \param vxc_rho will contain the v_xc part that depend on rho
-!>        (if one of the choosen xc functionals has it it is allocated and you
+!>        (if one of the chosen xc functionals has it it is allocated and you
 !>        are responsible for it)
 !> \param vxc_tau will contain the kinetic (tau) part of v_xc
-!>        (if one of the choosen xc functionals has it it is allocated and you
+!>        (if one of the chosen xc functionals has it it is allocated and you
 !>        are responsible for it)
 !> \param rho_r the value of the density in the real space
 !> \param rho_g value of the density in the g space (needs to be associated
@@ -492,10 +492,10 @@ CONTAINS
 !> \brief calculates vxc outputting the yz plane of rho, and of the various components
 !>      of the the derivatives and of vxc
 !> \param vxc_rho will contain the v_xc part that depend on rho
-!>        (if one of the choosen xc functionals has it it is allocated and you
+!>        (if one of the chosen xc functionals has it it is allocated and you
 !>        are responsible for it)
 !> \param vxc_tau will contain the kinetic (tau) part of v_xc
-!>        (if one of the choosen xc functionals has it it is allocated and you
+!>        (if one of the chosen xc functionals has it it is allocated and you
 !>        are responsible for it)
 !> \param rho_r the value of the density in the real space
 !> \param rho_g value of the density in the g space (needs to be associated
@@ -1029,10 +1029,10 @@ CONTAINS
 ! **************************************************************************************************
 !> \brief Exchange and Correlation functional calculations
 !> \param vxc_rho will contain the v_xc part that depend on rho
-!>        (if one of the choosen xc functionals has it it is allocated and you
+!>        (if one of the chosen xc functionals has it it is allocated and you
 !>        are responsible for it)
 !> \param vxc_tau will contain the kinetic (tau) part of v_xc
-!>        (if one of the choosen xc functionals has it it is allocated and you
+!>        (if one of the chosen xc functionals has it it is allocated and you
 !>        are responsible for it)
 !> \param exc the xc energy
 !> \param rho_r the value of the density in the real space
@@ -1800,17 +1800,17 @@ CONTAINS
 ! **************************************************************************************************
 !> \brief calculates just the exchange and correlation energy
 !>      (no vxc)
-!> \param rho_r ...
-!> \param rho_g ...
-!> \param tau ...
-!> \param xc_section ...
-!> \param pw_pool ...
-!> \return ...
+!> \param rho_r      realspace density on the grid
+!> \param rho_g      g-space density on the grid
+!> \param tau        kinetic energy density on the grid
+!> \param xc_section XC parameters
+!> \param pw_pool    pool of plain-wave grids
+!> \return the XC energy
 !> \par History
 !>      11.2003 created [fawzi]
 !> \author fawzi
 !> \note
-!>      has to be kept consistent with xc_vxc_create
+!>      has to be kept consistent with xc_vxc_pw_create
 ! **************************************************************************************************
    FUNCTION xc_exc_calc(rho_r, rho_g, tau, xc_section, pw_pool) &
       RESULT(exc)
@@ -1832,7 +1832,7 @@ CONTAINS
       NULLIFY (rho_set, deriv_set, deriv, e_0)
       exc = 0.0_dp
 
-      ! this has to be consistent with what is done in xc_vxc_create
+      ! this has to be consistent with what is done in xc_vxc_pw_create
       CALL xc_rho_set_and_dset_create(rho_set=rho_set, &
                                       deriv_set=deriv_set, deriv_order=0, &
                                       rho_r=rho_r, rho_g=rho_g, tau=tau, xc_section=xc_section, &
@@ -1867,33 +1867,33 @@ CONTAINS
 !> \brief Calculates the second derivative of E_xc at rho in the direction
 !>      rho1  (if you see the second derivative as bilinear form)
 !>      partial_rho|_(rho=rho) partial_rho|_(rho=rho) E_xc drho(rho1)drho
-!>      The other direction is still indetermined, thus it returns
+!>      The other direction is still undetermined, thus it returns
 !>      a potential (partial integration is performed to reduce it to
 !>      function of rho, removing the dependence from its partial derivs)
 !>      Has to be called after the setup by xc_prep_2nd_deriv.
-!> \param v_xc ...
-!> \param deriv_set object containing the potentials
-!> \param rho_set object containing the density at which the derivatives were calculated
-!> \param rho1_set object containing the density with which to fold
-!> \param pw_pool the pool for the grids
-!> \param xc_section ...
-!> \param gapw ...
+!> \param v_xc       exchange-correlation potential
+!> \param deriv_set  derivatives of the exchange-correlation potential
+!> \param rho_set    object containing the density at which the derivatives were calculated
+!> \param rho1_set   object containing the density with which to fold
+!> \param pw_pool    the pool for the grids
+!> \param xc_section XC parameters
+!> \param gapw       Gaussian and augmented plane waves calculation
 !> \param vxg ...
 !> \param tddfpt_fac factor that multiplies the crossterms (tddfpt triplets
-!>        on a closed shell sistem it should be -1, defaults to 1)
+!>        on a closed shell system it should be -1, defaults to 1)
 !> \note
 !>      The old version of this routine was smarter: it handled split_desc(1)
-!>      and split_desc(2) separatly, thus the code automatically handled all
+!>      and split_desc(2) separately, thus the code automatically handled all
 !>      possible cross terms (you only had to check if it was diagonal to avoid
 !>      double counting). I think that is the way to go if you want to add more
 !>      terms (tau,rho in LSD,...). The problem with the old code was that it
 !>      because of the old functional structure it sometime guessed wrongly
 !>      which derivative was where. There were probably still bugs with gradient
 !>      corrected functionals (never tested), and it didn't contain first
-!>      derivatives with respect to drho (that contibute also to the second
+!>      derivatives with respect to drho (that contribute also to the second
 !>      derivative wrt. rho).
 !>      The code was a little complex because it really tried to handle any
-!>      functional derivative in the most efficent way with the given contents of
+!>      functional derivative in the most efficient way with the given contents of
 !>      rho_set.
 !>      Anyway I strongly encourage whoever wants to modify this code to give a
 !>      look to the old version. [fawzi]
@@ -1918,8 +1918,9 @@ CONTAINS
       CHARACTER(len=MAX_LABEL_LENGTH), DIMENSION(:), &
          POINTER                                         :: split_desc
       INTEGER                                            :: handle, i, ia, idir, ir, ispin, j, k, &
-                                                            nspins, order, stat, xc_deriv_method_id
+                                                            nspins, order, xc_deriv_method_id
       INTEGER, DIMENSION(2, 3)                           :: bo
+      INTEGER, DIMENSION(3, 3)                           :: nd
       LOGICAL                                            :: gradient_f, lsd, my_gapw, unknown_deriv
       REAL(KIND=dp)                                      :: dr1dr, fac, gradient_cut
       REAL(kind=dp), DIMENSION(:, :, :), POINTER         :: deriv_data, e_drhoa, e_drhob, &
@@ -1928,9 +1929,8 @@ CONTAINS
       TYPE(cp_sll_xc_deriv_type), POINTER                :: pos
       TYPE(pw_p_type)                                    :: v_drho
       TYPE(pw_p_type), DIMENSION(:), POINTER             :: tmp_a, tmp_b, tmp_r, tmp_r2
+      TYPE(pw_type), POINTER                             :: tmp_g
       TYPE(xc_derivative_type), POINTER                  :: deriv_att
-
-! PARAMETER
 
       CALL timeset(routineN, handle)
 
@@ -1961,6 +1961,7 @@ CONTAINS
          NULLIFY (tmp_r(ispin)%pw, tmp_r2(ispin)%pw, tmp_a(ispin)%pw, tmp_b(nspins)%pw)
       END DO
 
+      nd = RESHAPE((/1, 0, 0, 0, 1, 0, 0, 0, 1/), (/3, 3/))
       bo = rho_set%local_bounds
 
       gradient_f = .FALSE.
@@ -2049,6 +2050,20 @@ CONTAINS
          IF (gradient_f) THEN
             CALL xc_rho_set_get(rho_set, drhoa=drhoa, drhob=drhob)
             CALL xc_rho_set_get(rho1_set, drhoa=drho1a, drhob=drho1b)
+
+            IF (xc_deriv_method_id == xc_deriv_pw .OR. &
+                xc_deriv_method_id == xc_deriv_spline3 .OR. &
+                xc_deriv_method_id == xc_deriv_spline2) THEN
+               IF (ASSOCIATED(pw_pool)) THEN
+                  NULLIFY (tmp_g)
+                  CALL pw_pool_create_pw(pw_pool, tmp_g, &
+                                         use_data=COMPLEXDATA1D, in_space=RECIPROCALSPACE)
+               ELSE
+                  ! remember to refix for gapw
+                  CPABORT("XC_DERIV method is not implemented in GAPW")
+               END IF
+            END IF
+
             DO ispin = 1, nspins
                IF (ASSOCIATED(pw_pool)) THEN
                   CALL pw_pool_create_pw(pw_pool, tmp_a(ispin)%pw, &
@@ -2067,9 +2082,7 @@ CONTAINS
                   ALLOCATE (tmp_a(ispin)%pw, tmp_b(ispin)%pw, tmp_r(ispin)%pw)
                   ALLOCATE (tmp_a(ispin)%pw%cr3d(bo(1, 1):bo(2, 1), bo(1, 2):bo(2, 2), bo(1, 3):bo(2, 3)), &
                             tmp_b(ispin)%pw%cr3d(bo(1, 1):bo(2, 1), bo(1, 2):bo(2, 2), bo(1, 3):bo(2, 3)), &
-                            tmp_r(ispin)%pw%cr3d(bo(1, 1):bo(2, 1), bo(1, 2):bo(2, 2), bo(1, 3):bo(2, 3)), &
-                            stat=stat)
-                  CPASSERT(stat == 0)
+                            tmp_r(ispin)%pw%cr3d(bo(1, 1):bo(2, 1), bo(1, 2):bo(2, 2), bo(1, 3):bo(2, 3)))
                   tmp_a(ispin)%pw%cr3d = 0.0_dp
                   tmp_b(ispin)%pw%cr3d = 0.0_dp
                END IF
@@ -2647,7 +2660,29 @@ CONTAINS
                   END DO
 
                   DO ispin = 1, nspins
+
                      SELECT CASE (xc_deriv_method_id)
+
+                     CASE (xc_deriv_pw)
+                        CALL pw_transfer(tmp_r(ispin)%pw, tmp_g)
+                        CALL pw_derive(tmp_g, nd(:, idir))
+                        CALL pw_transfer(tmp_g, tmp_r(ispin)%pw)
+                        CALL pw_axpy(tmp_r(ispin)%pw, v_xc(ispin)%pw)
+
+                     CASE (xc_deriv_spline2)
+                        CALL pw_transfer(tmp_r(ispin)%pw, tmp_g)
+                        CALL pw_spline2_interpolate_values_g(tmp_g)
+                        CALL pw_spline2_deriv_g(tmp_g, idir=idir)
+                        CALL pw_transfer(tmp_g, tmp_r(ispin)%pw)
+                        CALL pw_axpy(tmp_r(ispin)%pw, v_xc(ispin)%pw)
+
+                     CASE (xc_deriv_spline3)
+                        CALL pw_transfer(tmp_r(ispin)%pw, tmp_g)
+                        CALL pw_spline3_interpolate_values_g(tmp_g)
+                        CALL pw_spline3_deriv_g(tmp_g, idir=idir)
+                        CALL pw_transfer(tmp_g, tmp_r(ispin)%pw)
+                        CALL pw_axpy(tmp_r(ispin)%pw, v_xc(ispin)%pw)
+
                      CASE (xc_deriv_spline2_smooth)
                         CALL pw_nn_deriv_r(pw_in=tmp_r(ispin)%pw, &
                                            pw_out=v_xc(ispin)%pw, coeffs=spline2_deriv_coeffs, &
@@ -2665,7 +2700,7 @@ CONTAINS
                                            pw_out=v_xc(ispin)%pw, coeffs=nn50_deriv_coeffs, &
                                            idir=idir)
                      CASE default
-                        CPABORT("XC_DERIV method not implemented for GPW-LSD!")
+                        CPABORT("XC_DERIV method is not implemented")
                      END SELECT
                   END DO ! ispin
 
@@ -2683,6 +2718,14 @@ CONTAINS
                   DEALLOCATE (tmp_a(ispin)%pw, tmp_b(ispin)%pw, tmp_r(ispin)%pw)
                END IF
             END DO
+
+            IF (xc_deriv_method_id == xc_deriv_pw .OR. &
+                xc_deriv_method_id == xc_deriv_spline3 .OR. &
+                xc_deriv_method_id == xc_deriv_spline2) THEN
+               IF (ASSOCIATED(pw_pool)) THEN
+                  CALL pw_pool_give_back_pw(pw_pool, tmp_g)
+               END IF
+            END IF
 
          END IF ! gradient_f
 
@@ -2810,11 +2853,25 @@ CONTAINS
                   CALL pw_pool_create_pw(pw_pool, tmp_r(1)%pw, &
                                          use_data=REALDATA3D, &
                                          in_space=REALSPACE)
+                  IF (xc_deriv_method_id == xc_deriv_pw .OR. &
+                      xc_deriv_method_id == xc_deriv_spline3 .OR. &
+                      xc_deriv_method_id == xc_deriv_spline2) THEN
+                     NULLIFY (tmp_g)
+                     CALL pw_pool_create_pw(pw_pool, tmp_g, &
+                                            use_data=COMPLEXDATA1D, in_space=RECIPROCALSPACE)
+                  END IF
+
                ELSE
                   ALLOCATE (tmp_r(1)%pw)
-                  ALLOCATE (tmp_r(1)%pw%cr3d(bo(1, 1):bo(2, 1), bo(1, 2):bo(2, 2), bo(1, 3):bo(2, 3)), &
-                            stat=stat)
-                  CPASSERT(stat == 0)
+                  ALLOCATE (tmp_r(1)%pw%cr3d(bo(1, 1):bo(2, 1), bo(1, 2):bo(2, 2), bo(1, 3):bo(2, 3)))
+
+                  ! remember to refix for gapw
+                  IF (xc_deriv_method_id == xc_deriv_pw .OR. &
+                      xc_deriv_method_id == xc_deriv_spline3 .OR. &
+                      xc_deriv_method_id == xc_deriv_spline2) THEN
+
+                     CPABORT("XC_DERIV method is not implemented in GAPW")
+                  END IF
                END IF
 
                DO idir = 1, 3
@@ -2830,6 +2887,27 @@ CONTAINS
                   END DO
 
                   SELECT CASE (xc_deriv_method_id)
+
+                  CASE (xc_deriv_pw)
+                     CALL pw_transfer(tmp_r(1)%pw, tmp_g)
+                     CALL pw_derive(tmp_g, nd(:, idir))
+                     CALL pw_transfer(tmp_g, tmp_r(1)%pw)
+                     CALL pw_axpy(tmp_r(1)%pw, v_xc(1)%pw)
+
+                  CASE (xc_deriv_spline2)
+                     CALL pw_transfer(tmp_r(1)%pw, tmp_g)
+                     CALL pw_spline2_interpolate_values_g(tmp_g)
+                     CALL pw_spline2_deriv_g(tmp_g, idir=idir)
+                     CALL pw_transfer(tmp_g, tmp_r(1)%pw)
+                     CALL pw_axpy(tmp_r(1)%pw, v_xc(1)%pw)
+
+                  CASE (xc_deriv_spline3)
+                     CALL pw_transfer(tmp_r(1)%pw, tmp_g)
+                     CALL pw_spline3_interpolate_values_g(tmp_g)
+                     CALL pw_spline3_deriv_g(tmp_g, idir=idir)
+                     CALL pw_transfer(tmp_g, tmp_r(1)%pw)
+                     CALL pw_axpy(tmp_r(1)%pw, v_xc(1)%pw)
+
                   CASE (xc_deriv_spline2_smooth)
                      CALL pw_nn_deriv_r(pw_in=tmp_r(1)%pw, &
                                         pw_out=v_xc(1)%pw, coeffs=spline2_deriv_coeffs, &
@@ -2847,13 +2925,18 @@ CONTAINS
                                         pw_out=v_xc(1)%pw, coeffs=nn50_deriv_coeffs, &
                                         idir=idir)
                   CASE default
-                     CPABORT("XC_DERIV method not implemented for GPW!")
+                     CPABORT("XC_DERIV method is not implemented")
                   END SELECT
 
                END DO
 
                IF (ASSOCIATED(pw_pool)) THEN
                   CALL pw_pool_give_back_pw(pw_pool, tmp_r(1)%pw)
+                  IF (xc_deriv_method_id == xc_deriv_pw .OR. &
+                      xc_deriv_method_id == xc_deriv_spline3 .OR. &
+                      xc_deriv_method_id == xc_deriv_spline2) THEN
+                     CALL pw_pool_give_back_pw(pw_pool, tmp_g)
+                  END IF
                ELSE
                   DEALLOCATE (tmp_r(1)%pw%cr3d)
                   DEALLOCATE (tmp_r(1)%pw)
@@ -2876,14 +2959,8 @@ CONTAINS
    END SUBROUTINE xc_calc_2nd_deriv
 
 ! **************************************************************************************************
-!> \brief Does the first prepartions for the calculation of the 2nd deriv
-!>      The calculation must then be performed with xc_calc_2nd_deriv
-!>      Calculates the second derivative of E_xc at rho in the direction
-!>      rho1  (if you see the second derivative as bilinear form)
-!>      partial_rho|_(rho=rho) partial_rho|_(rho=rho) E_xc drho(rho1)drho
-!>      The other direction is still indetermined, thus it returns
-!>      a potential (partial integration is performed to reduce it to
-!>      function of rho, removing the dependence from its partial derivs)
+!> \brief Prepare objects for the calculation of the 2nd derivatives of the density functional.
+!>      The calculation must then be performed with xc_calc_2nd_deriv.
 !> \param deriv_set object containing the potentials
 !> \param rho_set object that will contain the density at which the
 !>        derivatives were calculated

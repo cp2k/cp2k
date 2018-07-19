@@ -5,14 +5,14 @@
 #      for details see cp2k/tools/do_regtest
 #
 # Compute the lowest 3 singlet and triplet excited states of a formaldehyde molecule at PBE / aug-TZV2P-GTH level of theory.
-# Reference TDDFT singlet excitation energies (in eV): 3.84, 5.84, 6.59
-# Reference TDDFT triplet excitation energies (in eV): 3.16, 5.69, 6.98
-ch2o_pbe_rks_s_tddfpt.inp                             68    1.0E-03             3.83726
-ch2o_pbe_rks_t_tddfpt.inp                             68    1.0E-03             3.16431
+# Reference TDDFT singlet excitation energies (in eV): 3.85, 5.85, 6.60
+# Reference TDDFT triplet excitation energies (in eV): 3.18, 5.70, 6.94
+ch2o_pbe_rks_s_tddfpt.inp                             68    1.0E-03             3.85331
+ch2o_pbe_rks_t_tddfpt.inp                             68    1.0E-03             3.17512
 # Compute the lowest 3 singlet and triplet excited states of a formaldehyde molecule at PBE0 / aug-TZV2P-GTH level of theory.
-# Reference TDDFT singlet excitation energies (in eV): 3.91, 6.70, 7.51
+# Reference TDDFT singlet excitation energies (in eV): 3.90, 6.68, 7.50
 # Reference TDDFT triplet excitation energies (in eV): 3.16, 4.79, 6.48
-ch2o_pbe0_rks_s_tddfpt.inp                            68    1.0E-03             3.90624
+ch2o_pbe0_rks_s_tddfpt.inp                            68    1.0E-03             3.90427
 ch2o_pbe0_rks_t_tddfpt.inp                            68    1.0E-03             3.15772
 # Compute the lowest 2 singlet excited states of a formaldehyde molecule at PBE0 / aug-TZV2P-GTH level of theory
 # using the auxiliary density matrix method with aug-cFIT3 auxiliary basis set.
@@ -20,7 +20,7 @@ ch2o_pbe0_rks_t_tddfpt.inp                            68    1.0E-03             
 #   ch2o_pbe0_rks_s_tddfpt_admm  -- compute excited states simultaneously using one MPI process per excited state
 #   ch2o_pbe0_rks_s_tddfpt_admm2 -- reduced TDDFPT plane wave cutoff
 # Reference TDDFT singlet excitation energies (in eV): 3.87, 6.70
-ch2o_pbe0_rks_s_tddfpt_admm.inp                       68    1.0E-03             3.87158
+ch2o_pbe0_rks_s_tddfpt_admm.inp                       68    1.0E-03             3.87158 
 ch2o_pbe0_rks_s_tddfpt_admm2.inp                      68    1.0E-03             3.87076
 # Compute the lowest 3 doublet excited states of a nitrogen monooxyde molecule at PBE / aug-TZV2P-GTH level of theory.
 # Reference excitation energies (in eV): 0.13, 5.44, 6.14

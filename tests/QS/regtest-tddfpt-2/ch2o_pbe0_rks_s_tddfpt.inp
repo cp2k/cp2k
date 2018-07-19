@@ -42,10 +42,6 @@
       &XC_FUNCTIONAL pbe0
       &END XC_FUNCTIONAL
 
-      &XC_GRID
-        XC_DERIV SPLINE2_SMOOTH
-      &END XC_GRID
-
       &HF
         &SCREENING
           EPS_SCHWARZ 1.0E-10
