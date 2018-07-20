@@ -68,7 +68,8 @@ MODULE hfx_energy_potential
                                               do_hfx_potential_truncated,&
                                               hfx_do_eval_energy
    USE input_section_types,             ONLY: section_vals_type
-   USE kinds,                           ONLY: dp,&
+   USE kinds,                           ONLY: default_string_length,&
+                                              dp,&
                                               int_8
    USE kpoint_types,                    ONLY: get_kpoint_info,&
                                               kpoint_type
@@ -151,6 +152,7 @@ CONTAINS
       CHARACTER(LEN=*), PARAMETER :: routineN = 'integrate_four_center', &
          routineP = moduleN//':'//routineN
 
+      CHARACTER(len=default_string_length)               :: eps_scaling_str, eps_schwarz_min_str
       INTEGER :: act_atomic_block_offset, act_set_offset, atomic_offset_ac, atomic_offset_ad, &
          atomic_offset_bc, atomic_offset_bd, bin, bits_max_val, buffer_left, buffer_size, &
          buffer_start, cache_size, current_counter, handle, handle_bin, handle_dist_ks, &
@@ -419,7 +421,7 @@ CONTAINS
 !$OMP         tmp_screen_pgf1,tmp_screen_pgf2,cartesian_estimate,bintime_stop,iw,memsize_after,storage_counter_integrals,&
 !$OMP         stor_count_int_disk,stor_count_max_val,ene_x_aa,ene_x_bb,mb_size_p,mb_size_f,mb_size_buffers,afac,ene_x_aa_diag,&
 !$OMP         ene_x_bb_diag,act_atomic_block_offset,act_set_offset,j,handle_dist_ks,tmp_i8,tmp_i4,dft_control,&
-!$OMP         etmp,nkimages,img,bin)
+!$OMP         etmp,nkimages,img,bin,eps_scaling_str,eps_schwarz_min_str)
 
       ln_10 = LOG(10.0_dp)
       i_thread = 0
@@ -1610,6 +1612,33 @@ CONTAINS
                            IF (spherical_estimate*pmax_entry < eps_schwarz) CYCLE
                            IF (.NOT. buffer_overflow) THEN
                               nbits = EXPONENT(ANINT(spherical_estimate*pmax_entry/eps_storage))+1
+
+                              ! In case of a tight eps_storage threshold the number of significant
+                              ! bits in the integer number NINT(value*pmax_entry/eps_storage) may
+                              ! exceed the width of the storage element. As the compression algorithm
+                              ! is designed for IEEE 754 double precision numbers, a 64-bit signed
+                              ! integer variable which is used to store the result of this float-to-
+                              ! integer conversion (we have no wish to use more memory for storing
+                              ! compressed ERIs than it is needed for uncompressed ERIs) may overflow.
+                              ! Abort with a meaningful message when it happens.
+                              !
+                              ! The magic number 63 stands for the number of magnitude bits
+                              ! (64 bits minus one sign bit).
+                              IF (nbits > 63) THEN
+                                 WRITE (eps_schwarz_min_str, '(ES10.3E2)') &
+                                    spherical_estimate*pmax_entry/ &
+                                    (SET_EXPONENT(1.0_dp, 63)*memory_parameter%eps_storage_scaling)
+
+                                 WRITE (eps_scaling_str, '(ES10.3E2)') &
+                                    spherical_estimate*pmax_entry/(SET_EXPONENT(1.0_dp, 63)*eps_schwarz)
+
+                                 CALL cp_abort(__LOCATION__, &
+                                               "Overflow during ERI's compression. Please use a larger "// &
+                                               "EPS_SCHWARZ threshold (above "//TRIM(ADJUSTL(eps_schwarz_min_str))// &
+                                               ") or increase the EPS_STORAGE_SCALING factor above "// &
+                                               TRIM(ADJUSTL(eps_scaling_str))//".")
+                              END IF
+
                               buffer_left = nints
                               buffer_start = 1
                               IF (.NOT. use_disk_storage) THEN
