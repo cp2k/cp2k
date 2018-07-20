@@ -89,7 +89,8 @@ export LIBINT_LIBS="${LIBINT_LIBS}"
 export CP_DFLAGS="\${CP_DFLAGS} -D__LIBINT -D__LIBINT_MAX_AM=6 -D__LIBDERIV_MAX_AM1=5"
 export CP_CFLAGS="\${CP_CFLAGS} ${LIBINT_CFLAGS}"
 export CP_LDFLAGS="\${CP_LDFLAGS} ${LIBINT_LDFLAGS}"
-export CP_LIBS="${LIBINT_LIBS} \${CP_LIBS}"
+# Libint doesn't always work with dynamic linking.
+export CP_LIBS="-Wl,-Bstatic ${LIBINT_LIBS} -Wl,-Bdynamic \${CP_LIBS}"
 EOF
 fi
 cd "${ROOTDIR}"
