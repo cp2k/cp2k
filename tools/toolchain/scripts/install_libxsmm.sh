@@ -55,20 +55,16 @@ EOF
             # stage of building an executable that uses the libxsmm
             # library
             cd libxsmm-${libxsmm_ver}
-            # we rely on the jit, but as it is not available for SSE,
-            # we also generate a subset statically.
             make -j $NPROCS \
                  CXX=$CXX \
                  CC=$CC \
                  FC=$FC \
-                 MNK="1 4 5 6 8 9 13 16 17 22 23 24 26 32" \
                  PREFIX=${pkg_install_dir} \
                  > make.log 2>&1
             make -j $NPROCS \
                  CXX=$CXX \
                  CC=$CC \
                  FC=$FC \
-                 MNK="1 4 5 6 8 9 13 16 17 22 23 24 26 32" \
                  PREFIX=${pkg_install_dir} \
                  install > install.log 2>&1
             cd ..
