@@ -980,7 +980,10 @@ if [[ ${skiptest} != "skiptest" ]]; then
      # GNU coreutils version for Linux etc.
      source_device=$(df --output=target ${dir_base}/${cp2k_dir}/tests | tail -1)
      target_device=$(df --output=target ${dir_out} | tail -1)
-     if [[ ${source_device} == ${target_device} ]]; then
+     if [[ -f /.dockerenv ]]; then
+       printf "Inside Docker, using normal copy ... "
+       cp -a ${dir_base}/${cp2k_dir}/tests ${dir_out}
+     elif [[ ${source_device} == ${target_device} ]]; then
         cp -al ${dir_base}/${cp2k_dir}/tests ${dir_out}/tests || \
         cp -rpl ${dir_base}/${cp2k_dir}/tests ${dir_out}/tests
      else
