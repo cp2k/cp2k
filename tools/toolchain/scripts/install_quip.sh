@@ -2,8 +2,8 @@
 [ "${BASH_SOURCE[0]}" ] && SCRIPT_NAME="${BASH_SOURCE[0]}" || SCRIPT_NAME=$0
 SCRIPT_DIR="$(cd "$(dirname "$SCRIPT_NAME")" && pwd -P)"
 
+quip_ver=${quip_ver:-cc83ceea5776c40fcb5ab224a25ab04d62175449}
 source "${SCRIPT_DIR}"/common_vars.sh
-source "${SCRIPT_DIR}"/package_versions.sh
 source "${SCRIPT_DIR}"/tool_kit.sh
 source "${SCRIPT_DIR}"/signal_trap.sh
 

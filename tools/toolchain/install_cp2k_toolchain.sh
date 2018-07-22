@@ -30,7 +30,6 @@ export ARCH_FILE_TEMPLATE="${SCRIPTDIR}/arch_base.tmpl"
 # Load common variables and tools
 # ------------------------------------------------------------------------
 source "${SCRIPTDIR}"/common_vars.sh
-source "${SCRIPTDIR}"/package_versions.sh
 source "${SCRIPTDIR}"/tool_kit.sh
 
 # ------------------------------------------------------------------------

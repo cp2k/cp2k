@@ -36,9 +36,6 @@
     constructs in the script. Nested structures will be parsed
     correctly. See IF_XYZ constructs below.
 
-  - script/package_versions.sh contains the version of the packages to
-    be installed (if they are to be installed).
-
   - checksums.sha256 contains the precalculated SHA256 checksums for
     the tar balls of all of the packages. This is used by the
     download_pkg macro in script/toolkit.sh
