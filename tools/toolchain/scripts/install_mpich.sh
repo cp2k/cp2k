@@ -21,7 +21,7 @@ case "$with_mpich" in
         echo "==================== Installing MPICH ===================="
         pkg_install_dir="${INSTALLDIR}/mpich-${mpich_ver}"
         install_lock_file="$pkg_install_dir/install_successful"
-        if [ -f "${install_lock_file}" ] ; then
+        if [[ $install_lock_file -nt $SCRIPT_NAME ]]; then
             echo "mpich-${mpich_ver} is already installed, skipping it."
         else
             if [ -f mpich-${mpich_ver}.tar.gz ] ; then

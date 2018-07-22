@@ -21,7 +21,7 @@ case "$with_openblas" in
         echo "==================== Installing OpenBLAS ===================="
         pkg_install_dir="${INSTALLDIR}/openblas-${openblas_ver}"
         install_lock_file="$pkg_install_dir/install_successful"
-        if [ -f "${install_lock_file}" ] ; then
+        if [[ $install_lock_file -nt $SCRIPT_NAME ]]; then
             echo "openblas-${openblas_ver} is already installed, skipping it."
         else
             if [ -f OpenBLAS-${openblas_ver}.tar.gz ] ; then

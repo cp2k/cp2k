@@ -26,7 +26,7 @@ case "$with_superlu" in
         require_env MATH_LIBS
         pkg_install_dir="${INSTALLDIR}/superlu_dist-${superlu_ver}"
         install_lock_file="$pkg_install_dir/install_successful"
-        if [ -f "${install_lock_file}" ] ; then
+        if [[ $install_lock_file -nt $SCRIPT_NAME ]]; then
             echo "superlu_dist-${superlu_ver} is already installed, skipping it."
         else
             if [ -f superlu_dist_${superlu_ver}.tar.gz ] ; then

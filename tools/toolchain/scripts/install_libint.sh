@@ -21,7 +21,7 @@ case "$with_libint" in
         echo "==================== Installing LIBINT ===================="
         pkg_install_dir="${INSTALLDIR}/libint-${libint_ver}"
         install_lock_file="$pkg_install_dir/install_successful"
-        if [ -f "${install_lock_file}" ] ; then
+        if [[ $install_lock_file -nt $SCRIPT_NAME ]]; then
             echo "libint-${libint_ver} is already installed, skipping it."
         else
             if [ -f libint-${libint_ver}.tar.gz ] ; then

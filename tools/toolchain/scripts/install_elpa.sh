@@ -33,7 +33,7 @@ case "$with_elpa" in
         echo "==================== Installing ELPA ===================="
         pkg_install_dir="${INSTALLDIR}/elpa-${elpa_ver}"
         install_lock_file="$pkg_install_dir/install_successful"
-        if [ -f "${install_lock_file}" ] ; then
+        if [[ $install_lock_file -nt $SCRIPT_NAME ]]; then
             echo "elpa-${elpa_ver} is already installed, skipping it."
         else
             require_env MATH_LIBS

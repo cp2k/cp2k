@@ -30,7 +30,7 @@ case "$with_libsmm" in
         echo "==================== Installing libsmm ===================="
         pkg_install_dir="${INSTALLDIR}/libsmm"
         install_lock_file="$pkg_install_dir/install_successful"
-        if [ -f "${install_lock_file}" ] ; then
+        if [[ $install_lock_file -nt $SCRIPT_NAME ]]; then
             echo "libsmm is already installed, skipping it."
         else
             echo "Searching for an optimised libsmm binary from CP2K website"

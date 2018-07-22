@@ -30,7 +30,7 @@ case "$with_pexsi" in
         require_env MPI_LIBS
         pkg_install_dir="${INSTALLDIR}/pexsi-${pexsi_ver}"
         install_lock_file="$pkg_install_dir/install_successful"
-        if [ -f "${install_lock_file}" ] ; then
+        if [[ $install_lock_file -nt $SCRIPT_NAME ]]; then
             echo "pexsi_dist-${pexsi_ver} is already installed, skipping it."
         else
             if [ -f pexsi_v${pexsi_ver}.tar.gz ] ; then

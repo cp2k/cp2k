@@ -21,7 +21,7 @@ case "$with_scotch" in
         echo "==================== Installing PT-Scotch ===================="
         pkg_install_dir="${INSTALLDIR}/scotch-${scotch_ver}"
         install_lock_file="$pkg_install_dir/install_successful"
-        if [ -f "${install_lock_file}" ] ; then
+        if [[ $install_lock_file -nt $SCRIPT_NAME ]]; then
             echo "scotch-${scotch_ver} is already installed, skipping it."
         else
             if [ -f scotch_${scotch_ver}.tar.gz ] ; then

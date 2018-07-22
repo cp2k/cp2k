@@ -30,7 +30,7 @@ case "$with_quip" in
         require_env MATH_LIBS
         pkg_install_dir="${INSTALLDIR}/quip-${quip_ver}"
         install_lock_file="$pkg_install_dir/install_successful"
-        if [ -f "${install_lock_file}" ] ; then
+        if [[ $install_lock_file -nt $SCRIPT_NAME ]]; then
             echo "quip_dist-${quip_ver} is already installed, skipping it."
         else
             if [ -f QUIP-${quip_ver}.zip ] ; then
