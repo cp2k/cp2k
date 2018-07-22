@@ -4,8 +4,8 @@ FROM cp2k/toolchain:latest
 
 # download and compile cp2k snapshot
 WORKDIR /opt/
-RUN wget -O cp2k-master.zip https://github.com/cp2k/cp2k/archive/master.zip && \
-    unzip cp2k-master.zip  && \
+RUN wget -q -O cp2k-master.zip https://github.com/cp2k/cp2k/archive/master.zip && \
+    unzip -q cp2k-master.zip  && \
     rm cp2k-master.zip
 
 WORKDIR /opt/cp2k-master/cp2k/arch
