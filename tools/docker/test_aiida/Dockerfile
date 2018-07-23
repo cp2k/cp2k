@@ -42,6 +42,6 @@ RUN adduser --disabled-password --gecos "" ubuntu               && \
 
 WORKDIR /opt/cp2k_test_aiida
 COPY cmd.sh .
-CMD ["/opt/cp2k_test_aiida/cmd.sh"]
+CMD ["./cmd.sh"]
 
 #EOF

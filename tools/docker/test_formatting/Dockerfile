@@ -23,6 +23,6 @@ RUN ./tools/formatting/test_formatting.sh
 
 WORKDIR /opt/cp2k_test_formatting
 COPY cmd.sh .
-CMD ["/opt/cp2k_test_formatting/cmd.sh"]
+CMD ["./cmd.sh"]
 
 #EOF

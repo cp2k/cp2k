@@ -23,6 +23,6 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 
 WORKDIR /opt/cp2k_test_conventions
 COPY cmd.sh .
-CMD ["/opt/cp2k_test_conventions/cmd.sh"]
+CMD ["./cmd.sh"]
 
 #EOF

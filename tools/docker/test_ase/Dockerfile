@@ -37,6 +37,6 @@ RUN git clone https://gitlab.com/ase/ase.git
 
 WORKDIR /opt/cp2k_test_ase
 COPY cmd.sh .
-CMD ["/opt/cp2k_test_ase/cmd.sh"]
+CMD ["./cmd.sh"]
 
 #EOF

@@ -35,7 +35,7 @@ RUN git clone https://github.com/i-pi/i-pi.git
 
 WORKDIR /opt/cp2k_test_i-pi
 COPY cmd.sh .
-CMD ["/opt/cp2k_test_i-pi/cmd.sh"]
+CMD ["./cmd.sh"]
 
 #EOF
 

@@ -34,8 +34,8 @@ RUN wget https://www.python.org/ftp/python/2.6.9/Python-2.6.9.tgz  && \
     cd ..                                                          && \
     rm -rf Python-2.6.9*
 
-WORKDIR /opt/cp2k_python_test
+WORKDIR /opt/cp2k_test_python
 COPY cmd.sh .
-CMD ["/opt/cp2k_python_test/cmd.sh"]
+CMD ["./cmd.sh"]
 
 #EOF
