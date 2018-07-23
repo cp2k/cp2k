@@ -89,9 +89,8 @@ case "$with_openblas" in
         ;;
     __SYSTEM__)
         echo "==================== Finding LAPACK from system paths ===================="
+        # assume that system openblas is threaded
         check_lib -lopenblas "OpenBLAS"
-        # somewhat unclear ... the system threaded openblas might not be suffixed _omp
-        [ $ENABLE_OMP = "__TRUE__" ] && check_lib -lopenblas_omp "OpenBLAS"
         add_include_from_paths OPENBLAS_CFLAGS "openblas_config.h" $INCLUDE_PATHS
         add_lib_from_paths OPENBLAS_LDFLAGS "libopenblas.*" $LIB_PATHS
         ;;
