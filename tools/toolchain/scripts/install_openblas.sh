@@ -107,8 +107,9 @@ case "$with_openblas" in
 esac
 if [ "$with_openblas" != "__DONTUSE__" ] ; then
     OPENBLAS_LIBS="-lopenblas"
-    OPENBLAS_LIBS_OMP="-lopenblas_omp"
+    OPENBLAS_LIBS_OMP="-lopenblas"
     if [ "$with_openblas" != "__SYSTEM__" ] ; then
+        OPENBLAS_LIBS_OMP="-lopenblas_omp"
         cat <<EOF > "${BUILDDIR}/setup_openblas"
 prepend_path LD_LIBRARY_PATH "$pkg_install_dir/lib"
 prepend_path LD_RUN_PATH "$pkg_install_dir/lib"
