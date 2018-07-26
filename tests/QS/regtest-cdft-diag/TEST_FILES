@@ -15,7 +15,7 @@ He2-mixed-cdft-diag-7.inp                             73      1e-11             
 # Constrain alpha and beta spin densities separately
 He2-cdft-alphabeta-diag-1.inp                         11      6e-10             -3.044689112623726
 He2-cdft-alphabeta-diag-2.inp                         11      6e-10             -3.044689417773989
-He2-mixed-cdft-alphabeta-diag-1.inp                   76      5e-8                  5.100790096990
+He2-mixed-cdft-alphabeta-diag-1.inp                   76      1e-7                  5.100790096990
 # MD with two constraints testing various Jacobian reusing schemes
 He2-cdft-alphabeta-diag-md-1.inp                      11      6e-10             -4.092821224519497
 He2-cdft-alphabeta-diag-md-2.inp                      11      6e-10             -4.332289335492456
