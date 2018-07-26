@@ -207,15 +207,11 @@ CONTAINS
                          blacs_env=blacs_env, &
                          energy=energy, &
                          rho=rho, &
-                         !                        mos=mos, &
                          kpoints=kpoints, &
                          scf_env=scf_env, &
-                         !                        virial=virial, &
                          matrix_ks_kp=matrix_ks_kp, &
                          matrix_s_kp=matrix_s_kp, &
-                         !                        matrix_ks_aux_fit=matrix_ks_aux, &
-                         mp2_env=mp2_env) !, &
-!                        admm_env=admm_env)
+                         mp2_env=mp2_env)
 
          CALL get_gamma(matrix_s, matrix_ks, mos, &
                         matrix_s_kp, matrix_ks_kp, kpoints)
@@ -1604,7 +1600,7 @@ CONTAINS
       nspins = SIZE(matrix_ks_kp, 1)
 
       matrix_ks(1:nspins) => matrix_ks_kp(1:nspins, 1)
-      matrix_s(1:nspins) => matrix_s_kp(1:nspins, 1)
+      matrix_s(1:1) => matrix_s_kp(1:1, 1)
       mos(1:nspins) => kpoints%kp_env(1)%kpoint_env%mos(1:nspins, 1)
 
    END SUBROUTINE

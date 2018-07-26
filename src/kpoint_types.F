@@ -217,6 +217,10 @@ CONTAINS
 
       ALLOCATE (kpoint%cell_to_index(0:0, 0:0, 0:0))
       kpoint%cell_to_index(:, :, :) = 1
+
+      ALLOCATE (kpoint%index_to_cell(0:0, 0:0))
+      kpoint%index_to_cell(:, :) = 0
+
    END SUBROUTINE kpoint_create
 
 ! **************************************************************************************************

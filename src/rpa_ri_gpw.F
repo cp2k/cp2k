@@ -1,5 +1,3 @@
-
-!--------------------------------------------------------------------------------------------------!
 !--------------------------------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations                              !
 !   Copyright (C) 2000 - 2018  CP2K developers group                                               !
@@ -1897,7 +1895,7 @@ CONTAINS
       NULLIFY (mat_mo_coeff)
       CALL dbcsr_init_p(mat_mo_coeff)
       CALL dbcsr_create(matrix=mat_mo_coeff, &
-                        template=matrix_s(ispin)%matrix, &
+                        template=matrix_s(1)%matrix, &
                         matrix_type=dbcsr_type_no_symmetry)
 
       CALL copy_fm_to_dbcsr(fm_mo_coeff, mat_mo_coeff, keep_sparsity=.FALSE.)

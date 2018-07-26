@@ -641,6 +641,9 @@ CONTAINS
          END DO
       END DO
 
+      IF (ASSOCIATED(kpoint%index_to_cell)) THEN
+         DEALLOCATE (kpoint%index_to_cell)
+      END IF
       ALLOCATE (kpoint%index_to_cell(3, ncount))
       index_to_cell => kpoint%index_to_cell
       DO ic = 1, ncount

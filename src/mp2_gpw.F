@@ -370,7 +370,7 @@ CONTAINS
                       dft_control=dft_control, &
                       matrix_s_kp=matrix_s_kp)
 
-      matrix_s(1:nspins) => matrix_s_kp(1:nspins, 1)
+      matrix_s(1:1) => matrix_s_kp(1:1, 1)
 
       CALL get_eps_old(dft_control, eps_pgf_orb_old, eps_rho_rspace_old, eps_gvg_rspace_old)
 
