@@ -570,9 +570,8 @@ CONTAINS
 
       INTEGER                                            :: handle, i1, i2, i3, ic, icount, it, &
                                                             ncount
-      INTEGER, ALLOCATABLE, DIMENSION(:, :)              :: index_to_cell
       INTEGER, DIMENSION(3)                              :: cell, itm
-      INTEGER, DIMENSION(:, :), POINTER                  :: list
+      INTEGER, DIMENSION(:, :), POINTER                  :: index_to_cell, list
       INTEGER, DIMENSION(:, :, :), POINTER               :: cti
       LOGICAL                                            :: new
       TYPE(neighbor_list_iterator_p_type), &
@@ -642,7 +641,8 @@ CONTAINS
          END DO
       END DO
 
-      ALLOCATE (index_to_cell(3, ncount))
+      ALLOCATE (kpoint%index_to_cell(3, ncount))
+      index_to_cell => kpoint%index_to_cell
       DO ic = 1, ncount
          cell = MINLOC(cti)
          i1 = cell(1)-1-itm(1)
@@ -667,7 +667,7 @@ CONTAINS
       ! set number of images
       dft_control%nimages = SIZE(index_to_cell, 2)
 
-      DEALLOCATE (list, index_to_cell)
+      DEALLOCATE (list)
 
       CALL timestop(handle)
    END SUBROUTINE kpoint_init_cell_index

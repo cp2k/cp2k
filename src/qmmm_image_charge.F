@@ -856,7 +856,7 @@ CONTAINS
          jpgf = MOD(ipgf_prod-1, npgfb)+1
          rab(:) = ra(:, ipgf)-rb(:, jpgf)
          CALL eri_mme_2c_integrate(param%par, 0, 0, 0, 0, zeta(ipgf), &
-                                   zetb(jpgf), rab, hab, ipgf-1, jpgf-1, G_count, R_count)
+                                   zetb(jpgf), rab, hab, ipgf-1, jpgf-1, G_count=G_count, R_count=R_count)
       ENDDO
 
       CALL cp_eri_mme_update_local_counts(param, para_env, G_count_2c=G_count, R_count_2c=R_count)

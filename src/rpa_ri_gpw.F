@@ -1,3 +1,5 @@
+
+!--------------------------------------------------------------------------------------------------!
 !--------------------------------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations                              !
 !   Copyright (C) 2000 - 2018  CP2K developers group                                               !
@@ -24,6 +26,14 @@ MODULE rpa_ri_gpw
    USE cp_blacs_env,                    ONLY: cp_blacs_env_create,&
                                               cp_blacs_env_release,&
                                               cp_blacs_env_type
+   USE cp_cfm_basic_linalg,             ONLY: cp_cfm_cholesky_decompose,&
+                                              cp_cfm_gemm,&
+                                              cp_cfm_scale_and_add_fm
+   USE cp_cfm_types,                    ONLY: cp_cfm_create,&
+                                              cp_cfm_get_info,&
+                                              cp_cfm_release,&
+                                              cp_cfm_set_all,&
+                                              cp_cfm_type
    USE cp_dbcsr_operations,             ONLY: copy_dbcsr_to_fm,&
                                               copy_fm_to_dbcsr,&
                                               cp_dbcsr_m_by_n_from_row_template,&
@@ -53,11 +63,11 @@ MODULE rpa_ri_gpw
    USE dbcsr_api,                       ONLY: &
         dbcsr_add, dbcsr_add_on_diag, dbcsr_allocate_matrix_set, dbcsr_copy, dbcsr_create, &
         dbcsr_deallocate_matrix_set, dbcsr_desymmetrize, dbcsr_filter, dbcsr_get_diag, &
-        dbcsr_get_info, dbcsr_get_stored_coordinates, dbcsr_init_p, dbcsr_iterator_blocks_left, &
-        dbcsr_iterator_next_block, dbcsr_iterator_start, dbcsr_iterator_stop, dbcsr_iterator_type, &
-        dbcsr_multiply, dbcsr_p_type, dbcsr_release, dbcsr_release_p, dbcsr_reserve_all_blocks, &
-        dbcsr_scale, dbcsr_set, dbcsr_trace, dbcsr_transposed, dbcsr_type, dbcsr_type_no_symmetry, &
-        dbcsr_type_real_default
+        dbcsr_get_info, dbcsr_get_occupation, dbcsr_get_stored_coordinates, dbcsr_init_p, &
+        dbcsr_iterator_blocks_left, dbcsr_iterator_next_block, dbcsr_iterator_start, &
+        dbcsr_iterator_stop, dbcsr_iterator_type, dbcsr_multiply, dbcsr_p_type, dbcsr_release, &
+        dbcsr_release_p, dbcsr_reserve_all_blocks, dbcsr_scale, dbcsr_set, dbcsr_trace, &
+        dbcsr_transposed, dbcsr_type, dbcsr_type_no_symmetry, dbcsr_type_real_default
    USE hfx_energy_potential,            ONLY: integrate_four_center
    USE hfx_types,                       ONLY: hfx_release,&
                                               hfx_type
@@ -72,7 +82,8 @@ MODULE rpa_ri_gpw
    USE input_section_types,             ONLY: section_vals_type
    USE kinds,                           ONLY: dp,&
                                               int_8
-   USE kpoint_types,                    ONLY: kpoint_create,&
+   USE kpoint_types,                    ONLY: get_kpoint_info,&
+                                              kpoint_create,&
                                               kpoint_release,&
                                               kpoint_sym_create,&
                                               kpoint_type
@@ -80,8 +91,11 @@ MODULE rpa_ri_gpw
                                               m_memory,&
                                               m_walltime
    USE mathconstants,                   ONLY: fourpi,&
+                                              gaussi,&
                                               pi,&
-                                              twopi
+                                              twopi,&
+                                              z_one,&
+                                              z_zero
    USE message_passing,                 ONLY: &
         mp_alltoall, mp_bcast, mp_comm_split_direct, mp_irecv, mp_isend, mp_min, mp_sendrecv, &
         mp_sum, mp_sync, mp_wait, mp_waitall
@@ -116,6 +130,7 @@ MODULE rpa_ri_gpw
                                               release_buffer
    USE rpa_im_time,                     ONLY: communicate_buffer,&
                                               compute_mat_P_omega,&
+                                              gap_and_max_eig_diff_kpoints,&
                                               get_mat_3c_overl_int_gw,&
                                               setup_mat_for_mem_cut_3c,&
                                               zero_mat_P_omega
@@ -227,7 +242,8 @@ CONTAINS
          sizes_B_virtual, sizes_B_all, starts_array, starts_B_virtual, starts_B_all, &
          starts_B_occ_bse, sizes_B_occ_bse, ends_B_occ_bse, starts_B_virt_bse, sizes_B_virt_bse, &
          ends_B_virt_bse
-      TYPE(cp_fm_type), POINTER                          :: mo_coeff, fm_matrix_L_RI_metric
+      TYPE(cp_fm_type), POINTER                          :: mo_coeff
+      TYPE(cp_fm_p_type), DIMENSION(:, :), POINTER       :: fm_matrix_L_RI_metric
       REAL(KIND=dp), DIMENSION(:)                        :: Eigenval
       INTEGER                                            :: nmo, homo, dimen_RI, gw_corr_lev_occ, &
                                                             gw_corr_lev_virt, unit_nr
@@ -238,7 +254,7 @@ CONTAINS
       TYPE(dbcsr_p_type)                                 :: mat_munu, mat_dm_occ_local, &
                                                             mat_dm_virt_local, mat_P_local, &
                                                             mat_P_global, mat_M
-      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: mat_3c_overl_int, &
+      TYPE(dbcsr_p_type), DIMENSION(:, :, :), POINTER    :: mat_3c_overl_int, &
                                                             mat_3c_overl_int_mao_for_occ, &
                                                             mat_3c_overl_int_mao_for_virt
       REAL(KIND=dp)                                      :: eps_filter
@@ -2022,13 +2038,18 @@ CONTAINS
       REAL(KIND=dp)                                      :: fermi_level_offset
       INTEGER                                            :: crossing_search, max_iter_fit, mm_style
       LOGICAL                                            :: do_minimax_quad, do_im_time, do_mao
-      TYPE(cp_fm_type), POINTER :: fm_mo_coeff_occ, fm_mo_coeff_virt, mo_coeff, &
-         fm_matrix_L_RI_metric, fm_scaled_dm_occ_tau, fm_scaled_dm_virt_tau
+      TYPE(cp_fm_type), POINTER                          :: fm_mo_coeff_occ, fm_mo_coeff_virt, &
+                                                            mo_coeff
+      TYPE(cp_fm_p_type), DIMENSION(:, :), POINTER       :: fm_matrix_L_RI_metric
+      TYPE(cp_fm_type), POINTER                          :: fm_scaled_dm_occ_tau, &
+                                                            fm_scaled_dm_virt_tau
       TYPE(dbcsr_p_type)                                 :: mat_munu, mat_dm_occ_local, &
                                                             mat_dm_virt_local, mat_P_local, &
                                                             mat_P_global, mat_M
-      TYPE(dbcsr_p_type), DIMENSION(:), POINTER :: mat_3c_overl_int, mat_3c_overl_int_mao_for_occ, &
-         mat_3c_overl_int_mao_for_virt, matrix_s, mao_coeff_occ, mao_coeff_virt
+      TYPE(dbcsr_p_type), DIMENSION(:, :, :), POINTER    :: mat_3c_overl_int, &
+                                                            mat_3c_overl_int_mao_for_occ, &
+                                                            mat_3c_overl_int_mao_for_virt
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_s, mao_coeff_occ, mao_coeff_virt
       REAL(KIND=dp)                                      :: eps_filter
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: starts_array, ends_array, sizes_array
       INTEGER                                            :: color_sub
@@ -2049,38 +2070,42 @@ CONTAINS
       COMPLEX(KIND=dp), ALLOCATABLE, DIMENSION(:, :)     :: vec_Sigma_c_gw, vec_Sigma_c_gw_beta
       INTEGER :: avirt, col_start_local, color_sub_col, color_sub_row, contour_def_end, &
          contour_def_level_tot, contour_def_start, count_ev_sc_GW, cut_memory, cut_RI, &
-         group_size_P, gw_corr_lev_tot, handle, handle2, handle3, handle4, i_cut_RI, i_ener, &
-         i_global, i_mem, i_mo, ierr, iiB, index_contour_def, info_chol, iocc, iquad, iter_ev_sc, &
-         j_global, j_mem, j_mo, jjB, jquad, LLL, m_global, m_global_beta, max_iter_bse, &
-         my_group_L_size_im_time, my_num_dgemm_call, n_global, n_global_beta, n_group_col, &
-         n_group_row, n_level_gw, n_level_gw_ref, n_local_col, n_local_row, nblkrows_total, &
-         ncol_local
-      INTEGER :: ngroup_RI_orig, nm_global, nmo, nrow_local, num_fit_points, num_points_corr, &
+         group_size_P, gw_corr_lev_tot, handle, handle2, handle3, handle4, i_cell, i_cut_RI, &
+         i_dim, i_ener, i_global, i_kp, i_mem, i_mo, i_size, ierr, iiB, ikp, index_contour_def, &
+         info_chol, iocc, iquad, iter_ev_sc, j_cell, j_global, j_mem, j_mo, j_size, jjB, jquad, &
+         LLL, m_global, m_global_beta, max_iter_bse, my_group_L_size_im_time, my_num_dgemm_call, &
+         n_global, n_global_beta, n_group_col, n_group_row, n_level_gw, n_level_gw_ref, n_local_col
+      INTEGER :: n_local_row, nblkrows_total, ncol_local, ngroup_RI_orig, nkp, nm_global, nmo, &
+         nrow_local, num_3c_repl, num_cells_dm, num_fit_points, num_points_corr, &
          num_points_per_magnitude, num_real_freq_cont_def, num_residues, num_var, num_Z_vectors, &
          number_of_rec, number_of_rec_axk, number_of_rec_beta, number_of_send, number_of_send_axk, &
-         number_of_send_beta, row, row_start_local
+         number_of_send_beta, row, row_start_local, size_P
       INTEGER, ALLOCATABLE, DIMENSION(:) :: alpha_beta_from_jquad, map_rec_size, map_rec_size_axk, &
          map_rec_size_beta, map_send_size, map_send_size_axk, map_send_size_beta, &
          mepos_P_from_RI_row, mo_from_jquad, my_group_L_sizes_im_time, my_group_L_starts_im_time, &
          residue_from_jquad, row_from_LLL, RPA_proc_map
       INTEGER, ALLOCATABLE, DIMENSION(:, :) :: ends_array_prim_col, ends_array_prim_fullcol, &
-         ends_array_prim_fullrow, ends_array_prim_row, local_size_source, local_size_source_axk, &
-         local_size_source_beta, sizes_array_prim_col, sizes_array_prim_row, &
-         starts_array_prim_col, starts_array_prim_fullcol, starts_array_prim_fullrow, &
-         starts_array_prim_row
-      INTEGER, ALLOCATABLE, DIMENSION(:, :, :)           :: non_zero_blocks_3c
+         ends_array_prim_fullrow, ends_array_prim_row, index_to_cell_3c, local_size_source, &
+         local_size_source_axk, local_size_source_beta, sizes_array_prim_col, &
+         sizes_array_prim_row, starts_array_prim_col, starts_array_prim_fullcol, &
+         starts_array_prim_fullrow, starts_array_prim_row
+      INTEGER, ALLOCATABLE, DIMENSION(:, :, :)           :: cell_to_index_3c, non_zero_blocks_3c
       INTEGER, ALLOCATABLE, DIMENSION(:, :, :, :)        :: non_zero_blocks_3c_cut_col
+      INTEGER, DIMENSION(3)                              :: cell_grid_dm
       INTEGER, DIMENSION(:), POINTER :: atom_list, col_blk_size, col_indices, ends_array_cm, &
          ends_array_cm_mao_occ, ends_array_cm_mao_virt, prim_blk_sizes, RI_blk_sizes, &
          row_blk_offset, row_blk_size, row_indices, starts_array_cm, starts_array_cm_mao_occ, &
          starts_array_cm_mao_virt
       LOGICAL :: do_apply_ic_corr_to_gw, do_contour_def, do_gw_im_time, do_ic_model, &
-         do_ic_opt_homo_lumo, do_mix_exchange, do_neglect_norm, do_normalize_Sigma, do_periodic, &
-         do_ri_Sigma_x, first_cycle, first_cycle_periodic_correction, my_open_shell, &
-         print_ic_values, remove_neg_virt_energies
+         do_ic_opt_homo_lumo, do_kpoints_cubic_RPA, do_mix_exchange, do_neglect_norm, &
+         do_normalize_Sigma, do_periodic, do_ri_Sigma_x, first_cycle, &
+         first_cycle_periodic_correction, my_open_shell, print_ic_values, remove_neg_virt_energies
       LOGICAL, ALLOCATABLE, DIMENSION(:)                 :: do_GW_corr
-      LOGICAL, ALLOCATABLE, DIMENSION(:, :)              :: multiply_needed_occ, multiply_needed_virt
-      LOGICAL, ALLOCATABLE, DIMENSION(:, :, :)           :: cycle_due_to_sparse_dm
+      LOGICAL, ALLOCATABLE, DIMENSION(:, :, :)           :: cycle_due_to_sparse_dm, &
+                                                            multiply_needed_occ, &
+                                                            multiply_needed_virt
+      LOGICAL, ALLOCATABLE, DIMENSION(:, :, :, :) :: needed_cutRI_mem_R1vec_R2vec_for_kp
+      LOGICAL, ALLOCATABLE, DIMENSION(:, :, :, :, :)     :: has_mat_P_blocks
       REAL(KIND=dp) :: a_scaling, actual_flop_rate, alpha, contour_def_offset, delta_corr_nn, &
          delta_corr_nn_beta, e_axk, e_axk_corr, e_fermi, e_fermi_beta, E_Range, eigen_diff, Emax, &
          Emax_beta, Emin, Emin_beta, eps_charge, eps_filter_im_time, eps_min_trans, FComega, &
@@ -2099,8 +2124,10 @@ CONTAINS
                                                             B_bar_ijQ_bse_local, B_iaQ_bse_local
       REAL(KIND=dp), DIMENSION(:), POINTER               :: ic_corr_list, ic_corr_list_beta
       TYPE(cp_blacs_env_type), POINTER                   :: blacs_env
+      TYPE(cp_cfm_type), POINTER                         :: cfm_mat_Q
       TYPE(cp_fm_p_type), DIMENSION(:), POINTER          :: fm_mat_W_tau
-      TYPE(cp_fm_type), POINTER :: fm_mat_L, fm_mat_L_transposed, fm_mat_Q_static_bse, &
+      TYPE(cp_fm_p_type), DIMENSION(:, :), POINTER       :: fm_mat_L
+      TYPE(cp_fm_type), POINTER :: fm_mat_L_transposed, fm_mat_Q_static_bse, &
          fm_mat_Q_static_bse_gemm, fm_mat_S_contour_def, fm_mat_S_contour_def_beta, &
          fm_mat_S_gw_work, fm_mat_S_gw_work_beta, fm_mat_work, fm_mo_coeff_occ_scaled, &
          fm_mo_coeff_virt_scaled
@@ -2111,10 +2138,11 @@ CONTAINS
          mat_3c_overl_nnP_ic, mat_3c_overl_nnP_ic_beta, mat_3c_overl_nnP_ic_reflected, &
          mat_3c_overl_nnP_ic_reflected_beta, mat_greens_fct_occ, mat_greens_fct_occ_beta, &
          mat_greens_fct_virt, mat_greens_fct_virt_beta, mat_M_mu_Pnu_occ, mat_M_mu_Pnu_virt, &
-         mat_P_omega, mat_W, matrix_berry_im_mo_mo, matrix_berry_re_mo_mo
-      TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER :: mat_3c_overl_int_cut, &
-         mat_3c_overl_int_mao_for_occ_cut, mat_3c_overl_int_mao_for_virt_cut, mat_dm_loc_occ_cut, &
-         mat_dm_loc_virt_cut
+         mat_W, matrix_berry_im_mo_mo, matrix_berry_re_mo_mo
+      TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: mat_P_omega, mat_P_omega_im_part
+      TYPE(dbcsr_p_type), DIMENSION(:, :, :), POINTER    :: mat_dm_loc_occ_cut, mat_dm_loc_virt_cut
+      TYPE(dbcsr_p_type), DIMENSION(:, :, :, :), POINTER :: mat_3c_overl_int_cut, &
+         mat_3c_overl_int_mao_for_occ_cut, mat_3c_overl_int_mao_for_virt_cut
       TYPE(dbcsr_type), POINTER                          :: mat_contr_gf_occ, mat_contr_gf_virt, &
                                                             mat_contr_W, mat_dm_loc_occ, &
                                                             mat_dm_loc_virt
@@ -2150,6 +2178,7 @@ CONTAINS
       do_periodic = mp2_env%ri_g0w0%do_periodic
       ic_corr_list => mp2_env%ri_g0w0%ic_corr_list
       ic_corr_list_beta => mp2_env%ri_g0w0%ic_corr_list_beta
+      do_kpoints_cubic_RPA = mp2_env%ri_rpa_im_time%do_im_time_kpoints
 
       do_apply_ic_corr_to_gw = .FALSE.
       IF (ic_corr_list(1) > 0.0_dp) do_apply_ic_corr_to_gw = .TRUE.
@@ -2201,12 +2230,20 @@ CONTAINS
          ALLOCATE (my_group_L_sizes_im_time(cut_RI))
          my_group_L_sizes_im_time(:) = mp2_env%ri_rpa_im_time_util(1)%my_group_L_sizes_im_time
 
+         num_3c_repl = SIZE(mat_3c_overl_int, 3)
+
          DO i_cut_RI = 1, cut_RI
 
             my_group_L_size_im_time = my_group_L_sizes_im_time(i_cut_RI)
 
-            CALL dbcsr_filter(mat_3c_overl_int(i_cut_RI)%matrix, &
-                              eps_filter*SQRT(REAL(my_group_L_size_im_time, KIND=dp)))
+            DO i_cell = 1, num_3c_repl
+            DO j_cell = 1, num_3c_repl
+
+               CALL dbcsr_filter(mat_3c_overl_int(i_cut_RI, i_cell, j_cell)%matrix, &
+                                 eps_filter*SQRT(REAL(my_group_L_size_im_time, KIND=dp)))
+
+            END DO
+            END DO
 
          END DO
 
@@ -2226,18 +2263,50 @@ CONTAINS
          CALL timestop(handle4)
          CALL timeset(routineN//"_im_t_alloc_mat_3", handle4)
 
+         IF (do_kpoints_cubic_RPA) THEN
+            CALL get_qs_env(qs_env, &
+                            kpoints=kpoints)
+            ! we always use an odd number of image cells
+            ! CAUTION: also at another point, cell_grid_dm is defined, these definitions have to be identical
+            DO i_dim = 1, 3
+               cell_grid_dm(i_dim) = (kpoints%nkp_grid(i_dim)/2)*2-1
+            END DO
+            num_cells_dm = cell_grid_dm(1)*cell_grid_dm(2)*cell_grid_dm(3)
+            ALLOCATE (index_to_cell_3c(3, SIZE(kpoints%index_to_cell, 2)))
+            CPASSERT(SIZE(kpoints%index_to_cell, 1) == 3)
+            index_to_cell_3c(:, :) = kpoints%index_to_cell(:, :)
+            ALLOCATE (cell_to_index_3c(LBOUND(kpoints%cell_to_index, 1):UBOUND(kpoints%cell_to_index, 1), &
+                                       LBOUND(kpoints%cell_to_index, 2):UBOUND(kpoints%cell_to_index, 2), &
+                                       LBOUND(kpoints%cell_to_index, 3):UBOUND(kpoints%cell_to_index, 3)))
+            cell_to_index_3c(:, :, :) = kpoints%cell_to_index(:, :, :)
+
+            NULLIFY (cfm_mat_Q)
+            CALL cp_cfm_create(cfm_mat_Q, fm_mat_Q%matrix_struct)
+            CALL cp_cfm_set_all(cfm_mat_Q, z_zero)
+
+         ELSE
+            ALLOCATE (index_to_cell_3c(3, 1))
+            index_to_cell_3c(:, 1) = 0
+            ALLOCATE (cell_to_index_3c(0:0, 0:0, 0:0))
+            cell_to_index_3c(0, 0, 0) = 1
+            num_cells_dm = 1
+         END IF
+
          NULLIFY (mat_dm_loc_occ_cut)
-         CALL dbcsr_allocate_matrix_set(mat_dm_loc_occ_cut, cut_RI, cut_memory)
+         CALL dbcsr_allocate_matrix_set(mat_dm_loc_occ_cut, cut_RI, cut_memory, num_cells_dm)
 
          CALL timestop(handle4)
          CALL timeset(routineN//"_im_t_alloc_mat_4", handle4)
 
          DO i_mem = 1, cut_memory
             DO i_cut_RI = 1, cut_RI
+               DO i_cell = 1, num_cells_dm
 
-               ALLOCATE (mat_dm_loc_occ_cut(i_cut_RI, i_mem)%matrix)
-               CALL dbcsr_create(matrix=mat_dm_loc_occ_cut(i_cut_RI, i_mem)%matrix, &
-                                 template=mat_dm_loc_occ)
+                  ALLOCATE (mat_dm_loc_occ_cut(i_cut_RI, i_mem, i_cell)%matrix)
+                  CALL dbcsr_create(matrix=mat_dm_loc_occ_cut(i_cut_RI, i_mem, i_cell)%matrix, &
+                                    template=mat_dm_loc_occ)
+
+               END DO
             END DO
          END DO
 
@@ -2252,18 +2321,20 @@ CONTAINS
          CALL timeset(routineN//"_im_t_alloc_mat_6", handle4)
 
          NULLIFY (mat_dm_loc_virt_cut)
-         CALL dbcsr_allocate_matrix_set(mat_dm_loc_virt_cut, cut_RI, cut_memory)
+         CALL dbcsr_allocate_matrix_set(mat_dm_loc_virt_cut, cut_RI, cut_memory, num_cells_dm)
 
          CALL timestop(handle4)
          CALL timeset(routineN//"_im_t_alloc_mat_7", handle4)
 
          DO i_mem = 1, cut_memory
             DO i_cut_RI = 1, cut_RI
+               DO i_cell = 1, num_cells_dm
 
-               ALLOCATE (mat_dm_loc_virt_cut(i_cut_RI, i_mem)%matrix)
-               CALL dbcsr_create(matrix=mat_dm_loc_virt_cut(i_cut_RI, i_mem)%matrix, &
-                                 template=mat_dm_loc_virt)
+                  ALLOCATE (mat_dm_loc_virt_cut(i_cut_RI, i_mem, i_cell)%matrix)
+                  CALL dbcsr_create(matrix=mat_dm_loc_virt_cut(i_cut_RI, i_mem, i_cell)%matrix, &
+                                    template=mat_dm_loc_virt)
 
+               END DO
             END DO
          END DO
 
@@ -2300,7 +2371,7 @@ CONTAINS
          DO i_cut_RI = 1, cut_RI
             ALLOCATE (mat_M_mu_Pnu_occ(i_cut_RI)%matrix)
             CALL dbcsr_create(matrix=mat_M_mu_Pnu_occ(i_cut_RI)%matrix, &
-                              template=mat_3c_overl_int_mao_for_occ(i_cut_RI)%matrix)
+                              template=mat_3c_overl_int_mao_for_occ(i_cut_RI, 1, 1)%matrix)
          END DO
 
          CALL timestop(handle4)
@@ -2311,20 +2382,46 @@ CONTAINS
          DO i_cut_RI = 1, cut_RI
             ALLOCATE (mat_M_mu_Pnu_virt(i_cut_RI)%matrix)
             CALL dbcsr_create(matrix=mat_M_mu_Pnu_virt(i_cut_RI)%matrix, &
-                              template=mat_3c_overl_int_mao_for_virt(i_cut_RI)%matrix)
+                              template=mat_3c_overl_int_mao_for_virt(i_cut_RI, 1, 1)%matrix)
          END DO
 
          CALL timestop(handle4)
          CALL timeset(routineN//"_im_t_alloc_mat_13", handle4)
 
+         ! if we do kpoints, mat_P has a kpoint and mat_P_omega has the inted
+         ! mat_P(tau, kpoint)
+         IF (do_kpoints_cubic_RPA) THEN
+            CALL get_kpoint_info(kpoints, nkp=nkp)
+            size_P = MAX(num_cells_dm/2+1, nkp)
+         ELSE
+            size_P = 1
+         END IF
+
          NULLIFY (mat_P_omega)
-         CALL dbcsr_allocate_matrix_set(mat_P_omega, num_integ_points)
+         CALL dbcsr_allocate_matrix_set(mat_P_omega, num_integ_points, size_P)
          DO jquad = 1, num_integ_points
-            ALLOCATE (mat_P_omega(jquad)%matrix)
-            CALL dbcsr_create(matrix=mat_P_omega(jquad)%matrix, &
-                              template=mat_P_global%matrix)
-            CALL dbcsr_set(mat_P_omega(jquad)%matrix, 0.0_dp)
+            DO i_kp = 1, size_P
+               ALLOCATE (mat_P_omega(jquad, i_kp)%matrix)
+               CALL dbcsr_create(matrix=mat_P_omega(jquad, i_kp)%matrix, &
+                                 template=mat_P_global%matrix)
+               CALL dbcsr_set(mat_P_omega(jquad, i_kp)%matrix, 0.0_dp)
+            END DO
          END DO
+
+         IF (do_kpoints_cubic_RPA) THEN
+
+            NULLIFY (mat_P_omega_im_part)
+            CALL dbcsr_allocate_matrix_set(mat_P_omega_im_part, num_integ_points, size_P)
+            DO jquad = 1, num_integ_points
+               DO i_kp = 1, size_P
+                  ALLOCATE (mat_P_omega_im_part(jquad, i_kp)%matrix)
+                  CALL dbcsr_create(matrix=mat_P_omega_im_part(jquad, i_kp)%matrix, &
+                                    template=mat_P_global%matrix)
+                  CALL dbcsr_set(mat_P_omega_im_part(jquad, i_kp)%matrix, 0.0_dp)
+               END DO
+            END DO
+
+         END IF
 
          CALL timestop(handle4)
          CALL timeset(routineN//"_im_t_alloc_mat_14", handle4)
@@ -2450,10 +2547,13 @@ CONTAINS
          CALL timestop(handle4)
          CALL timeset(routineN//"_im_t_alloc_mat_19", handle4)
 
-         NULLIFY (fm_mat_L)
-         CALL cp_fm_create(fm_mat_L, fm_mat_Q%matrix_struct)
-         CALL cp_fm_to_fm(fm_mat_Q, fm_mat_L)
-         CALL cp_fm_set_all(matrix=fm_mat_L, alpha=0.0_dp)
+         ALLOCATE (fm_mat_L(SIZE(fm_matrix_L_RI_metric, 1), SIZE(fm_matrix_L_RI_metric, 2)))
+         DO i_size = 1, SIZE(fm_matrix_L_RI_metric, 1)
+            DO j_size = 1, SIZE(fm_matrix_L_RI_metric, 2)
+               CALL cp_fm_create(fm_mat_L(i_size, j_size)%matrix, fm_mat_Q%matrix_struct)
+               CALL cp_fm_set_all(fm_mat_L(i_size, j_size)%matrix, 0.0_dp)
+            END DO
+         END DO
 
          ALLOCATE (row_from_LLL(dimen_RI))
          row_from_LLL = 0
@@ -2677,21 +2777,28 @@ CONTAINS
          CALL get_non_zero_blocks_3c_cut_col(mat_3c_overl_int_cut, para_env_sub, cut_RI, &
                                              cut_memory, non_zero_blocks_3c_cut_col)
 
+         CALL check_sparsity_arrays_for_kp(needed_cutRI_mem_R1vec_R2vec_for_kp, &
+                                           mat_3c_overl_int_cut, cut_RI, cut_memory, para_env_sub, &
+                                           do_kpoints_cubic_RPA)
+
          ALLOCATE (cycle_due_to_sparse_dm(cut_memory, cut_memory, num_integ_points))
          cycle_due_to_sparse_dm = .FALSE.
 
-         ALLOCATE (multiply_needed_occ(cut_memory, cut_RI))
+         ALLOCATE (multiply_needed_occ(cut_memory, cut_RI, num_cells_dm))
          multiply_needed_occ = .TRUE.
 
-         ALLOCATE (multiply_needed_virt(cut_memory, cut_RI))
+         ALLOCATE (multiply_needed_virt(cut_memory, cut_RI, num_cells_dm))
          multiply_needed_virt = .TRUE.
+
+         ALLOCATE (has_mat_P_blocks(num_cells_dm/2+1, cut_memory, cut_memory, num_3c_repl, num_3c_repl))
+         has_mat_P_blocks = .TRUE.
 
          CALL timestop(handle4)
          CALL timeset(routineN//"_im_t_alloc_mat_23", handle4)
 
          NULLIFY (fm_mat_L_transposed)
-         CALL cp_fm_create(fm_mat_L_transposed, fm_mat_L%matrix_struct)
-         CALL cp_fm_to_fm(fm_mat_L, fm_mat_L_transposed)
+         CALL cp_fm_create(fm_mat_L_transposed, fm_mat_L(1, 1)%matrix%matrix_struct)
+         CALL cp_fm_to_fm(fm_mat_L(1, 1)%matrix, fm_mat_L_transposed)
          CALL cp_fm_set_all(matrix=fm_mat_L_transposed, alpha=0.0_dp)
 
          CALL timestop(handle4)
@@ -2699,11 +2806,26 @@ CONTAINS
 
          CALL cp_fm_get_info(fm_mat_L_transposed, context=blacs_env)
 
-         CALL cp_fm_copy_general(fm_matrix_L_RI_metric, fm_mat_L_transposed, blacs_env%para_env)
+         ! without kpoints, the size of fm_mat_L is 1x1. with kpoints, the size is N_kpoints x 2 (2 for real/complex)
+         DO i_size = 1, SIZE(fm_matrix_L_RI_metric, 1)
+         DO j_size = 1, SIZE(fm_matrix_L_RI_metric, 2)
 
-         CALL cp_fm_release(fm_matrix_L_RI_metric)
+            CALL cp_fm_copy_general(fm_matrix_L_RI_metric(i_size, j_size)%matrix, fm_mat_L_transposed, blacs_env%para_env)
+            IF (do_kpoints_cubic_RPA) THEN
+               CALL cp_fm_to_fm(fm_mat_L_transposed, fm_mat_L(i_size, j_size)%matrix)
+            ELSE
+               CALL cp_fm_transpose(fm_mat_L_transposed, fm_mat_L(i_size, j_size)%matrix)
+            END IF
 
-         CALL cp_fm_transpose(fm_mat_L_transposed, fm_mat_L)
+         END DO
+         END DO
+
+         DO i_size = 1, SIZE(fm_matrix_L_RI_metric, 1)
+         DO j_size = 1, SIZE(fm_matrix_L_RI_metric, 2)
+            CALL cp_fm_release(fm_matrix_L_RI_metric(i_size, j_size)%matrix)
+         END DO
+         END DO
+         DEALLOCATE (fm_matrix_L_RI_metric)
 
          CALL cp_fm_release(fm_mat_L_transposed)
 
@@ -2717,7 +2839,9 @@ CONTAINS
          CALL timestop(handle4)
          CALL timeset(routineN//"_im_t_alloc_mat_26", handle4)
 
-         CALL copy_fm_to_dbcsr(fm_mat_L, mat_L%matrix)
+         IF (.NOT. do_kpoints_cubic_RPA) THEN
+            CALL copy_fm_to_dbcsr(fm_mat_L(1, 1)%matrix, mat_L%matrix)
+         END IF
 
          CALL timestop(handle4)
          CALL timeset(routineN//"_im_t_alloc_mat_27", handle4)
@@ -2751,17 +2875,27 @@ CONTAINS
          ALLOCATE (x_tw(2*num_integ_points))
          x_tw = 0.0_dp
 
-         Emin = Eigenval(homo+1)-Eigenval(homo)
-         Emax = MAXVAL(Eigenval)-MINVAL(Eigenval)
-         IF (my_open_shell) THEN
-            IF (homo_beta > 0) THEN
-               Emin_beta = Eigenval_beta(homo_beta+1)-Eigenval_beta(homo_beta)
-               Emax_beta = MAXVAL(Eigenval_beta)-MINVAL(Eigenval_beta)
-               Emin = MIN(Emin, Emin_beta)
-               Emax = MAX(Emax, Emax_beta)
+         IF (do_kpoints_cubic_RPA) THEN
+
+            CALL gap_and_max_eig_diff_kpoints(qs_env, para_env, Emin, Emax, e_fermi)
+
+            E_Range = Emax/Emin
+
+         ELSE
+
+            Emin = Eigenval(homo+1)-Eigenval(homo)
+            Emax = MAXVAL(Eigenval)-MINVAL(Eigenval)
+            IF (my_open_shell) THEN
+               IF (homo_beta > 0) THEN
+                  Emin_beta = Eigenval_beta(homo_beta+1)-Eigenval_beta(homo_beta)
+                  Emax_beta = MAXVAL(Eigenval_beta)-MINVAL(Eigenval_beta)
+                  Emin = MIN(Emin, Emin_beta)
+                  Emax = MAX(Emax, Emax_beta)
+               END IF
             END IF
+            E_Range = Emax/Emin
+
          END IF
-         E_Range = Emax/Emin
 
          ierr = 0
          CALL get_rpa_minimax_coeff(num_integ_points, E_Range, x_tw, ierr)
@@ -3304,9 +3438,11 @@ CONTAINS
          ! calculate Q_PQ(it)
          IF (do_im_time) THEN
 
-            e_fermi = (Eigenval(homo)+Eigenval(homo+1))*0.5_dp
-            IF (my_open_shell) THEN
-               e_fermi_beta = (Eigenval_beta(homo_beta)+Eigenval_beta(homo_beta+1))*0.5_dp
+            IF (.NOT. do_kpoints_cubic_RPA) THEN
+               e_fermi = (Eigenval(homo)+Eigenval(homo+1))*0.5_dp
+               IF (my_open_shell) THEN
+                  e_fermi_beta = (Eigenval_beta(homo_beta)+Eigenval_beta(homo_beta+1))*0.5_dp
+               END IF
             END IF
 
             tau = 0.0_dp
@@ -3326,10 +3462,10 @@ CONTAINS
                "SPARSITY_INFO| Second eps filter for imaginary time:", eps_filter_im_time
 
             ! for evGW, we have to ensure that mat_P_omega is zero
-            CALL zero_mat_P_omega(mat_P_omega, num_integ_points)
+            CALL zero_mat_P_omega(mat_P_omega, num_integ_points, size_P)
 
             ! compute the matrix Q(it) and Fourier transform it directly to mat_P_omega(iw)
-            CALL compute_mat_P_omega(mat_P_omega, fm_scaled_dm_occ_tau, &
+            CALL compute_mat_P_omega(mat_P_omega, mat_P_omega_im_part, fm_scaled_dm_occ_tau, &
                                      fm_scaled_dm_virt_tau, fm_mo_coeff_occ, fm_mo_coeff_virt, &
                                      fm_mo_coeff_occ_scaled, fm_mo_coeff_virt_scaled, &
                                      mat_P_local, mat_P_global, mat_P_global_copy, &
@@ -3352,12 +3488,14 @@ CONTAINS
                                      mepos_P_from_RI_row, row_from_LLL, cycle_due_to_sparse_dm, &
                                      multiply_needed_occ, multiply_needed_virt, &
                                      non_zero_blocks_3c, non_zero_blocks_3c_cut_col, buffer_mat_M, &
-                                     do_mao, stabilize_exp)
+                                     do_mao, stabilize_exp, qs_env, index_to_cell_3c, cell_to_index_3c, &
+                                     needed_cutRI_mem_R1vec_R2vec_for_kp, &
+                                     has_mat_P_blocks)
 
             ! the same for open shell, use fm_mo_coeff_occ_beta and fm_mo_coeff_virt_beta
             IF (my_open_shell) THEN
 
-               CALL compute_mat_P_omega(mat_P_omega, fm_scaled_dm_occ_tau, &
+               CALL compute_mat_P_omega(mat_P_omega, mat_P_omega_im_part, fm_scaled_dm_occ_tau, &
                                         fm_scaled_dm_virt_tau, fm_mo_coeff_occ_beta, fm_mo_coeff_virt_beta, &
                                         fm_mo_coeff_occ_scaled, fm_mo_coeff_virt_scaled, &
                                         mat_P_local, mat_P_global, mat_P_global_copy, &
@@ -3380,7 +3518,9 @@ CONTAINS
                                         mepos_P_from_RI_row, row_from_LLL, cycle_due_to_sparse_dm, &
                                         multiply_needed_occ, multiply_needed_virt, &
                                         non_zero_blocks_3c, non_zero_blocks_3c_cut_col, buffer_mat_M, &
-                                        do_mao, stabilize_exp)
+                                        do_mao, stabilize_exp, qs_env, index_to_cell_3c, cell_to_index_3c, &
+                                        needed_cutRI_mem_R1vec_R2vec_for_kp, &
+                                        has_mat_P_blocks)
 
             END IF
 
@@ -3524,14 +3664,18 @@ CONTAINS
 
                ! in case we do imag time, we already calculated fm_mat_Q by a Fourier transform from im. time
 
-               ! multiplication with RI metric/Coulomb operator
-               CALL dbcsr_multiply("N", "T", 1.0_dp, mat_P_omega(jquad)%matrix, mat_L%matrix, &
-                                   0.0_dp, mat_P_global%matrix, filter_eps=eps_filter_im_time)
+               IF (.NOT. do_kpoints_cubic_RPA) THEN
 
-               CALL copy_dbcsr_to_fm(mat_P_global%matrix, fm_mat_work)
+                  ! multiplication with RI metric/Coulomb operator
+                  CALL dbcsr_multiply("N", "T", 1.0_dp, mat_P_omega(jquad, 1)%matrix, mat_L%matrix, &
+                                      0.0_dp, mat_P_global%matrix, filter_eps=eps_filter_im_time)
 
-               CALL cp_gemm('N', 'N', dimen_RI, dimen_RI, dimen_RI, 1.0_dp, fm_mat_L, fm_mat_work, &
-                            0.0_dp, fm_mat_Q)
+                  CALL copy_dbcsr_to_fm(mat_P_global%matrix, fm_mat_work)
+
+                  CALL cp_gemm('N', 'N', dimen_RI, dimen_RI, dimen_RI, 1.0_dp, fm_mat_L(1, 1)%matrix, fm_mat_work, &
+                               0.0_dp, fm_mat_Q)
+
+               END IF
 
             ELSE
 
@@ -3852,7 +3996,7 @@ CONTAINS
             END DO
             CALL mp_sum(trace_Qomega, para_env_RPA%group)
 
-            IF (jquad <= num_integ_points) THEN
+            IF (jquad <= num_integ_points .AND. .NOT. do_kpoints_cubic_RPA) THEN
 
                ! calculate Trace(Log(Matrix)) as Log(DET(Matrix)) via cholesky decomposition
                CALL cp_fm_cholesky_decompose(matrix=fm_mat_Q, n=dimen_RI, info_out=info_chol)
@@ -3887,6 +4031,31 @@ CONTAINS
                END DO
 
                Erpa = Erpa+FComega*wj(jquad)
+
+            END IF
+
+            IF (do_kpoints_cubic_RPA) THEN
+
+               CALL get_kpoint_info(kpoints, nkp=nkp)
+
+               DO ikp = 1, nkp
+
+                  ! 1. multiplication Q(iw,k) = K^T(k)P(iw,k)K(k)
+                  CALL compute_Q(cfm_mat_Q, &
+                                 mat_P_omega(jquad, ikp)%matrix, &
+                                 mat_P_omega_im_part(jquad, ikp)%matrix, &
+                                 fm_mat_L(ikp, 1)%matrix, &
+                                 fm_mat_L(ikp, 2)%matrix, &
+                                 dimen_RI)
+
+                  ! 2. Cholesky decomposition of Id + Q(iw,k)
+                  CALL cholesky_decomp_Q(cfm_mat_Q, para_env_RPA, trace_Qomega, dimen_RI)
+
+                  ! 3. Computing E_c^RPA = E_c^RPA + a_w/N_k*sum_k ln[det(1+Q(iw,k))-Tr(Q(iw,k))]
+                  CALL frequency_and_kpoint_integration(Erpa, cfm_mat_Q, para_env_RPA, trace_Qomega, &
+                                                        dimen_RI, wj(jquad), kpoints%wkp(ikp))
+
+               END DO
 
             END IF
 
@@ -4152,9 +4321,9 @@ CONTAINS
                CALL timeset(routineN//"_multiply_L^TQL", handle3)
 
                ! multiply with L from the left and the right to get the screened Coulomb interaction
-               CALL cp_gemm('T', 'N', dimen_RI, dimen_RI, dimen_RI, 1.0_dp, fm_mat_L, fm_mat_Q, &
+               CALL cp_gemm('T', 'N', dimen_RI, dimen_RI, dimen_RI, 1.0_dp, fm_mat_L(1, 1)%matrix, fm_mat_Q, &
                             0.0_dp, fm_mat_work)
-               CALL cp_gemm('N', 'N', dimen_RI, dimen_RI, dimen_RI, 1.0_dp, fm_mat_work, fm_mat_L, &
+               CALL cp_gemm('N', 'N', dimen_RI, dimen_RI, dimen_RI, 1.0_dp, fm_mat_work, fm_mat_L(1, 1)%matrix, &
                             0.0_dp, fm_mat_Q)
 
                CALL timestop(handle3)
@@ -4610,7 +4779,12 @@ CONTAINS
             CALL cp_fm_release(fm_mo_coeff_virt_beta)
          END IF
 
-         CALL cp_fm_release(fm_mat_L)
+         DO i_size = 1, SIZE(fm_mat_L, 1)
+         DO j_size = 1, SIZE(fm_mat_L, 2)
+            CALL cp_fm_release(fm_mat_L(i_size, j_size)%matrix)
+         END DO
+         END DO
+         DEALLOCATE (fm_mat_L)
          CALL cp_fm_release(fm_mat_work)
 
          CALL dbcsr_release_p(mat_dm_loc_occ)
@@ -4636,6 +4810,8 @@ CONTAINS
             DEALLOCATE (mat_dm%matrix)
          END IF
 
+         DEALLOCATE (index_to_cell_3c, cell_to_index_3c)
+
          CALL dbcsr_deallocate_matrix_set(mat_M_mu_Pnu_occ)
          CALL dbcsr_deallocate_matrix_set(mat_M_mu_Pnu_virt)
 
@@ -4652,6 +4828,8 @@ CONTAINS
          DEALLOCATE (non_zero_blocks_3c_cut_col)
          DEALLOCATE (cycle_due_to_sparse_dm, multiply_needed_occ, multiply_needed_virt)
          DEALLOCATE (row_from_LLL)
+         DEALLOCATE (needed_cutRI_mem_R1vec_R2vec_for_kp)
+         DEALLOCATE (has_mat_P_blocks)
 
          IF (do_gw_im_time) THEN
             CALL dbcsr_deallocate_matrix_set(mat_3c_overl_int_gw)
@@ -4702,6 +4880,11 @@ CONTAINS
 
          END IF
 
+         IF (do_kpoints_cubic_RPA) THEN
+            CALL dbcsr_deallocate_matrix_set(mat_P_omega_im_part)
+            CALL cp_cfm_release(cfm_mat_Q)
+         END IF
+
       END IF
 
       DEALLOCATE (tj)
@@ -4712,6 +4895,192 @@ CONTAINS
       CALL timestop(handle)
 
    END SUBROUTINE rpa_num_int
+
+! **************************************************************************************************
+!> \brief ...
+!> \param cfm_mat_Q ...
+!> \param mat_P_omega_re ...
+!> \param mat_P_omega_im ...
+!> \param fm_mat_L_re ...
+!> \param fm_mat_L_im ...
+!> \param dimen_RI ...
+! **************************************************************************************************
+   SUBROUTINE compute_Q(cfm_mat_Q, mat_P_omega_re, mat_P_omega_im, fm_mat_L_re, fm_mat_L_im, dimen_RI)
+
+      TYPE(cp_cfm_type), POINTER                         :: cfm_mat_Q
+      TYPE(dbcsr_type), POINTER                          :: mat_P_omega_re, mat_P_omega_im
+      TYPE(cp_fm_type), POINTER                          :: fm_mat_L_re, fm_mat_L_im
+      INTEGER                                            :: dimen_RI
+
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'compute_Q', routineP = moduleN//':'//routineN
+
+      INTEGER                                            :: handle
+      TYPE(cp_cfm_type), POINTER                         :: cfm_mat_L, cfm_mat_work
+      TYPE(cp_fm_type), POINTER                          :: fm_mat_work
+
+      CALL timeset(routineN, handle)
+
+      NULLIFY (cfm_mat_work)
+      CALL cp_cfm_create(cfm_mat_work, fm_mat_L_re%matrix_struct)
+      CALL cp_cfm_set_all(cfm_mat_work, z_zero)
+
+      NULLIFY (cfm_mat_L)
+      CALL cp_cfm_create(cfm_mat_L, fm_mat_L_re%matrix_struct)
+      CALL cp_cfm_set_all(cfm_mat_L, z_zero)
+
+      NULLIFY (fm_mat_work)
+      CALL cp_fm_create(fm_mat_work, fm_mat_L_re%matrix_struct)
+      CALL cp_fm_set_all(fm_mat_work, 0.0_dp)
+
+      ! 1. Copy dbcsr matrices mat_P_omega_re and mat_P_omega_im to cfm_mat_Q
+      CALL cp_fm_set_all(fm_mat_work, 0.0_dp)
+      CALL copy_dbcsr_to_fm(mat_P_omega_re, fm_mat_work)
+      CALL cp_cfm_scale_and_add_fm(z_zero, cfm_mat_Q, z_one, fm_mat_work)
+
+      CALL cp_fm_set_all(fm_mat_work, 0.0_dp)
+      CALL copy_dbcsr_to_fm(mat_P_omega_im, fm_mat_work)
+      CALL cp_cfm_scale_and_add_fm(z_one, cfm_mat_Q, gaussi, fm_mat_work)
+
+      ! 2. Copy fm_mat_L_re and fm_mat_L_re to cfm_mat_L
+      CALL cp_cfm_scale_and_add_fm(z_zero, cfm_mat_L, z_one, fm_mat_L_re)
+      CALL cp_cfm_scale_and_add_fm(z_one, cfm_mat_L, gaussi, fm_mat_L_im)
+
+      ! 3. work = P(iw,k)*L(k)
+      CALL cp_cfm_gemm('N', 'N', dimen_RI, dimen_RI, dimen_RI, z_one, cfm_mat_Q, cfm_mat_L, &
+                       z_zero, cfm_mat_work)
+
+      ! 4. Q(iw,k) = L^T(k)*work
+      CALL cp_cfm_gemm('C', 'N', dimen_RI, dimen_RI, dimen_RI, z_one, cfm_mat_L, cfm_mat_work, &
+                       z_zero, cfm_mat_Q)
+
+      CALL cp_cfm_release(cfm_mat_work)
+      CALL cp_cfm_release(cfm_mat_L)
+      CALL cp_fm_release(fm_mat_work)
+
+      CALL timestop(handle)
+
+   END SUBROUTINE
+
+! **************************************************************************************************
+!> \brief ...
+!> \param cfm_mat_Q ...
+!> \param para_env_RPA ...
+!> \param trace_Qomega ...
+!> \param dimen_RI ...
+! **************************************************************************************************
+   SUBROUTINE cholesky_decomp_Q(cfm_mat_Q, para_env_RPA, trace_Qomega, dimen_RI)
+
+      TYPE(cp_cfm_type), POINTER                         :: cfm_mat_Q
+      TYPE(cp_para_env_type), POINTER                    :: para_env_RPA
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: trace_Qomega
+      INTEGER                                            :: dimen_RI
+
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'cholesky_decomp_Q', &
+         routineP = moduleN//':'//routineN
+
+      INTEGER                                            :: handle, i_global, iiB, info_chol, &
+                                                            j_global, jjB, ncol_local, nrow_local
+      INTEGER, DIMENSION(:), POINTER                     :: col_indices, row_indices
+
+      CALL timeset(routineN, handle)
+
+      ! get info of fm_mat_Q
+      CALL cp_cfm_get_info(matrix=cfm_mat_Q, &
+                           nrow_local=nrow_local, &
+                           ncol_local=ncol_local, &
+                           row_indices=row_indices, &
+                           col_indices=col_indices)
+
+      ! calcualte the trace of Q and add 1 on the diagonal
+      trace_Qomega = 0.0_dp
+!$OMP     PARALLEL DO DEFAULT(NONE) PRIVATE(jjB,iiB,i_global,j_global) &
+!$OMP                 SHARED(ncol_local,nrow_local,col_indices,row_indices,trace_Qomega,cfm_mat_Q,dimen_RI)
+      DO jjB = 1, ncol_local
+         j_global = col_indices(jjB)
+         DO iiB = 1, nrow_local
+            i_global = row_indices(iiB)
+            IF (j_global == i_global .AND. i_global <= dimen_RI) THEN
+               trace_Qomega(i_global) = REAL(cfm_mat_Q%local_data(iiB, jjB))
+               cfm_mat_Q%local_data(iiB, jjB) = cfm_mat_Q%local_data(iiB, jjB)+z_one
+            END IF
+         END DO
+      END DO
+      CALL mp_sum(trace_Qomega, para_env_RPA%group)
+
+      CALL cp_cfm_cholesky_decompose(matrix=cfm_mat_Q, n=dimen_RI, info_out=info_chol)
+      CPASSERT(info_chol == 0)
+
+      CALL timestop(handle)
+
+   END SUBROUTINE
+
+! **************************************************************************************************
+!> \brief ...
+!> \param Erpa ...
+!> \param cfm_mat_Q ...
+!> \param para_env_RPA ...
+!> \param trace_Qomega ...
+!> \param dimen_RI ...
+!> \param freq_weight ...
+!> \param kp_weight ...
+! **************************************************************************************************
+   SUBROUTINE frequency_and_kpoint_integration(Erpa, cfm_mat_Q, para_env_RPA, trace_Qomega, &
+                                               dimen_RI, freq_weight, kp_weight)
+
+      REAL(KIND=dp)                                      :: Erpa
+      TYPE(cp_cfm_type), POINTER                         :: cfm_mat_Q
+      TYPE(cp_para_env_type), POINTER                    :: para_env_RPA
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: trace_Qomega
+      INTEGER                                            :: dimen_RI
+      REAL(KIND=dp)                                      :: freq_weight, kp_weight
+
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'frequency_and_kpoint_integration', &
+         routineP = moduleN//':'//routineN
+
+      INTEGER                                            :: handle, i_global, iiB, j_global, jjB, &
+                                                            ncol_local, nrow_local
+      INTEGER, DIMENSION(:), POINTER                     :: col_indices, row_indices
+      REAL(KIND=dp)                                      :: FComega
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: Q_log
+
+      CALL timeset(routineN, handle)
+
+      ! get info of cholesky_decomposed(fm_mat_Q)
+      CALL cp_cfm_get_info(matrix=cfm_mat_Q, &
+                           nrow_local=nrow_local, &
+                           ncol_local=ncol_local, &
+                           row_indices=row_indices, &
+                           col_indices=col_indices)
+
+      ALLOCATE (Q_log(dimen_RI))
+      Q_log = 0.0_dp
+!$OMP    PARALLEL DO DEFAULT(NONE) PRIVATE(jjB,iiB,i_global,j_global) &
+!$OMP                SHARED(ncol_local,nrow_local,col_indices,row_indices,Q_log,cfm_mat_Q,dimen_RI)
+      DO jjB = 1, ncol_local
+         j_global = col_indices(jjB)
+         DO iiB = 1, nrow_local
+            i_global = row_indices(iiB)
+            IF (j_global == i_global .AND. i_global <= dimen_RI) THEN
+               Q_log(i_global) = 2.0_dp*LOG(REAL(cfm_mat_Q%local_data(iiB, jjB)))
+            END IF
+         END DO
+      END DO
+      CALL mp_sum(Q_log, para_env_RPA%group)
+
+      FComega = 0.0_dp
+      DO iiB = 1, dimen_RI
+         IF (MODULO(iiB, para_env_RPA%num_pe) /= para_env_RPA%mepos) CYCLE
+         ! FComega=FComega+(LOG(Q_log(iiB))-trace_Qomega(iiB))/2.0_dp
+         FComega = FComega+(Q_log(iiB)-trace_Qomega(iiB))/2.0_dp
+      END DO
+
+      Erpa = Erpa+FComega*freq_weight*kp_weight
+
+      DEALLOCATE (Q_log)
+
+      CALL timestop(handle)
+
+   END SUBROUTINE
 
 ! **************************************************************************************************
 !> \brief ...
@@ -9338,7 +9707,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE get_non_zero_blocks_3c(mat_3c_overl_int, para_env_sub, cut_RI, non_zero_blocks_3c)
 
-      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: mat_3c_overl_int
+      TYPE(dbcsr_p_type), DIMENSION(:, :, :), POINTER    :: mat_3c_overl_int
       TYPE(cp_para_env_type), POINTER                    :: para_env_sub
       INTEGER                                            :: cut_RI
       INTEGER, ALLOCATABLE, DIMENSION(:, :, :)           :: non_zero_blocks_3c
@@ -9346,31 +9715,41 @@ CONTAINS
       CHARACTER(LEN=*), PARAMETER :: routineN = 'get_non_zero_blocks_3c', &
          routineP = moduleN//':'//routineN
 
-      INTEGER                                            :: blk, block_counter, col, handle, &
-                                                            i_cut_RI, iblk, imepos, maxlength, &
-                                                            maxlength_tmp, nblkrows_total, row
+      INTEGER :: blk, block_counter, col, handle, i_cell, i_cut_RI, iblk, imepos, j_cell, &
+         maxlength, maxlength_tmp, nblkrows_total, num_cells_3c, row
       INTEGER, ALLOCATABLE, DIMENSION(:, :, :)           :: non_zero_blocks_3c_tmp
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: data_block
       TYPE(dbcsr_iterator_type)                          :: iter
 
       CALL timeset(routineN, handle)
 
-      CALL dbcsr_get_info(mat_3c_overl_int(1)%matrix, nblkrows_total=nblkrows_total)
+      num_cells_3c = SIZE(mat_3c_overl_int, 2)
+      CPASSERT(num_cells_3c == SIZE(mat_3c_overl_int, 3))
+
+      CALL dbcsr_get_info(mat_3c_overl_int(1, 1, 1)%matrix, nblkrows_total=nblkrows_total)
 
       ALLOCATE (non_zero_blocks_3c_tmp(1:cut_RI, 1:nblkrows_total, 0:(para_env_sub%num_pe-1)))
       non_zero_blocks_3c_tmp = 0
 
       DO i_cut_RI = 1, cut_RI
 
-         CALL dbcsr_iterator_start(iter, mat_3c_overl_int(i_cut_RI)%matrix)
-         DO WHILE (dbcsr_iterator_blocks_left(iter))
-            CALL dbcsr_iterator_next_block(iter, row, col, data_block, blk)
+         DO i_cell = 1, num_cells_3c
 
-            non_zero_blocks_3c_tmp(i_cut_RI, row, para_env_sub%mepos) = 1
+            DO j_cell = 1, num_cells_3c
 
-         ENDDO
+               CALL dbcsr_iterator_start(iter, mat_3c_overl_int(i_cut_RI, i_cell, j_cell)%matrix)
+               DO WHILE (dbcsr_iterator_blocks_left(iter))
+                  CALL dbcsr_iterator_next_block(iter, row, col, data_block, blk)
 
-         CALL dbcsr_iterator_stop(iter)
+                  non_zero_blocks_3c_tmp(i_cut_RI, row, para_env_sub%mepos) = 1
+
+               ENDDO
+
+               CALL dbcsr_iterator_stop(iter)
+
+            END DO
+
+         END DO
 
       END DO
 
@@ -9425,7 +9804,7 @@ CONTAINS
    SUBROUTINE get_non_zero_blocks_3c_cut_col(mat_3c_overl_int_cut_col, para_env_sub, cut_RI, cut_memory, &
                                              non_zero_blocks_3c_cut)
 
-      TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: mat_3c_overl_int_cut_col
+      TYPE(dbcsr_p_type), DIMENSION(:, :, :, :), POINTER :: mat_3c_overl_int_cut_col
       TYPE(cp_para_env_type), POINTER                    :: para_env_sub
       INTEGER                                            :: cut_RI, cut_memory
       INTEGER, ALLOCATABLE, DIMENSION(:, :, :, :)        :: non_zero_blocks_3c_cut
@@ -9433,8 +9812,8 @@ CONTAINS
       CHARACTER(LEN=*), PARAMETER :: routineN = 'get_non_zero_blocks_3c_cut_col', &
          routineP = moduleN//':'//routineN
 
-      INTEGER :: blk, block_counter, col, handle, i_cut_RI, i_mem, iblk, imepos, maxlength, &
-         maxlength_tmp, nblkrows_total, nblkrows_total_max, row
+      INTEGER :: blk, block_counter, col, handle, i_cell, i_cut_RI, i_mem, iblk, imepos, j_cell, &
+         maxlength, maxlength_tmp, nblkrows_total, nblkrows_total_max, num_3c_repl, row
       INTEGER, ALLOCATABLE, DIMENSION(:, :, :)           :: non_zero_blocks_3c_tmp
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: data_block
       TYPE(dbcsr_iterator_type)                          :: iter
@@ -9443,9 +9822,14 @@ CONTAINS
 
       nblkrows_total_max = 0
 
+      num_3c_repl = SIZE(mat_3c_overl_int_cut_col, 3)
+      ! quickly check that replica of fourth component matches the one of third component
+      CPASSERT(num_3c_repl == SIZE(mat_3c_overl_int_cut_col, 4))
+
       DO i_cut_RI = 1, cut_RI
          DO i_mem = 1, cut_memory
-            CALL dbcsr_get_info(mat_3c_overl_int_cut_col(i_cut_RI, i_mem)%matrix, nblkrows_total=nblkrows_total)
+            CALL dbcsr_get_info(mat_3c_overl_int_cut_col(i_cut_RI, i_mem, 1, 1)%matrix, &
+                                nblkrows_total=nblkrows_total)
             IF (nblkrows_total > nblkrows_total_max) THEN
                nblkrows_total_max = nblkrows_total
             END IF
@@ -9462,15 +9846,23 @@ CONTAINS
 
          DO i_cut_RI = 1, cut_RI
 
-            CALL dbcsr_iterator_start(iter, mat_3c_overl_int_cut_col(i_cut_RI, i_mem)%matrix)
-            DO WHILE (dbcsr_iterator_blocks_left(iter))
-               CALL dbcsr_iterator_next_block(iter, row, col, data_block, blk)
+            DO i_cell = 1, num_3c_repl
 
-               non_zero_blocks_3c_tmp(i_cut_RI, col, para_env_sub%mepos) = 1
+               DO j_cell = 1, num_3c_repl
 
-            ENDDO
+                  CALL dbcsr_iterator_start(iter, mat_3c_overl_int_cut_col(i_cut_RI, i_mem, i_cell, j_cell)%matrix)
+                  DO WHILE (dbcsr_iterator_blocks_left(iter))
+                     CALL dbcsr_iterator_next_block(iter, row, col, data_block, blk)
 
-            CALL dbcsr_iterator_stop(iter)
+                     non_zero_blocks_3c_tmp(i_cut_RI, col, para_env_sub%mepos) = 1
+
+                  ENDDO
+
+                  CALL dbcsr_iterator_stop(iter)
+
+               END DO
+
+            END DO
 
          END DO ! cut_RI
 
@@ -9506,15 +9898,22 @@ CONTAINS
 
          DO i_cut_RI = 1, cut_RI
 
-            CALL dbcsr_iterator_start(iter, mat_3c_overl_int_cut_col(i_cut_RI, i_mem)%matrix)
-            DO WHILE (dbcsr_iterator_blocks_left(iter))
-               CALL dbcsr_iterator_next_block(iter, row, col, data_block, blk)
+            DO i_cell = 1, num_3c_repl
 
-               non_zero_blocks_3c_tmp(i_cut_RI, col, para_env_sub%mepos) = 1
+               DO j_cell = 1, num_3c_repl
 
-            ENDDO
+                  CALL dbcsr_iterator_start(iter, mat_3c_overl_int_cut_col(i_cut_RI, i_mem, i_cell, j_cell)%matrix)
+                  DO WHILE (dbcsr_iterator_blocks_left(iter))
+                     CALL dbcsr_iterator_next_block(iter, row, col, data_block, blk)
 
-            CALL dbcsr_iterator_stop(iter)
+                     non_zero_blocks_3c_tmp(i_cut_RI, col, para_env_sub%mepos) = 1
+
+                  ENDDO
+
+                  CALL dbcsr_iterator_stop(iter)
+
+               END DO
+            END DO
 
          END DO ! cut_RI
 
@@ -9538,6 +9937,77 @@ CONTAINS
       ! end fill non_zero_blocks_3c_cut
 
       DEALLOCATE (non_zero_blocks_3c_tmp)
+
+      CALL timestop(handle)
+
+   END SUBROUTINE
+
+! **************************************************************************************************
+!> \brief ...
+!> \param needed_cutRI_mem_R1vec_R2vec_for_kp ...
+!> \param mat_3c_overl_int_cut ...
+!> \param cut_RI ...
+!> \param cut_memory ...
+!> \param para_env_sub ...
+!> \param do_kpoints_cubic_RPA ...
+! **************************************************************************************************
+   SUBROUTINE check_sparsity_arrays_for_kp(needed_cutRI_mem_R1vec_R2vec_for_kp, &
+                                           mat_3c_overl_int_cut, cut_RI, cut_memory, para_env_sub, &
+                                           do_kpoints_cubic_RPA)
+
+      LOGICAL, ALLOCATABLE, DIMENSION(:, :, :, :) :: needed_cutRI_mem_R1vec_R2vec_for_kp
+      TYPE(dbcsr_p_type), DIMENSION(:, :, :, :), POINTER :: mat_3c_overl_int_cut
+      INTEGER                                            :: cut_RI, cut_memory
+      TYPE(cp_para_env_type), POINTER                    :: para_env_sub
+      LOGICAL                                            :: do_kpoints_cubic_RPA
+
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'check_sparsity_arrays_for_kp', &
+         routineP = moduleN//':'//routineN
+
+      INTEGER                                            :: handle, i_cell, i_cut_RI, i_mem, j_cell, &
+                                                            num_cells_3c
+      REAL(KIND=dp)                                      :: occ_local, occ_local_sum_j_cell
+
+      CALL timeset(routineN, handle)
+
+      num_cells_3c = SIZE(mat_3c_overl_int_cut, 3)
+
+      ALLOCATE (needed_cutRI_mem_R1vec_R2vec_for_kp(cut_RI, cut_memory, 0:num_cells_3c, 0:num_cells_3c))
+      needed_cutRI_mem_R1vec_R2vec_for_kp(:, :, :, :) = .TRUE.
+
+      IF (do_kpoints_cubic_RPA) THEN
+
+         DO i_mem = 1, cut_memory
+
+            DO i_cell = 1, num_cells_3c
+
+               occ_local_sum_j_cell = 0.0_dp
+
+               DO i_cut_RI = 1, cut_RI
+
+                  DO j_cell = 1, num_cells_3c
+
+                     occ_local = dbcsr_get_occupation(mat_3c_overl_int_cut(i_cut_RI, i_mem, &
+                                                                           j_cell, i_cell)%matrix)
+
+                     CALL mp_sum(occ_local, para_env_sub%group)
+
+                     IF (occ_local < 1E-100_dp) THEN
+
+                        needed_cutRI_mem_R1vec_R2vec_for_kp(i_cut_RI, i_mem, j_cell, i_cell) = .FALSE.
+
+                     END IF
+
+                     occ_local_sum_j_cell = occ_local_sum_j_cell+occ_local
+
+                  END DO ! j_cell
+
+               END DO ! i_cut_RI
+
+            END DO ! i_cell
+         END DO ! i_mem
+
+      END IF
 
       CALL timestop(handle)
 

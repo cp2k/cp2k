@@ -1360,6 +1360,17 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
+      CALL keyword_create( &
+         keyword=keyword, &
+         name="DO_KPOINTS", &
+         description="Besides in DFT, this keyword has to be switched on if one wants to do kpoints in. "// &
+         "cubic RPA.", &
+         usage="DO_KPOINTS", &
+         default_l_val=.FALSE., &
+         lone_keyword_l_val=.TRUE.)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
       ! here we generate a RPA imag. time subsection to use for MAOs
       CALL create_mao_section(subsection)
       CALL section_add_subsection(section, subsection)
@@ -1531,7 +1542,7 @@ CONTAINS
                           description="Compute the Cholesky decomposition of V and S (Coulomb and overlap "// &
                           "matrix in the RI basis in two different subgroups. May be benefitial "// &
                           "for very large systems where cp_fm_cholesky_decompose is expensive. "// &
-                          "Is only needed for RI with the overlap metric.", &
+                          "Is only needed for RI with the overlap metric. Neglected when doing k-points.", &
                           usage="DSC", &
                           default_l_val=.FALSE., &
                           lone_keyword_l_val=.TRUE.)
@@ -1546,6 +1557,13 @@ CONTAINS
                           "is used.", &
                           usage="SIZE_CS  144", &
                           default_i_val=-1)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, name="SIZE_LATTICE_SUM", &
+                          description="Size of sum range L. ", &
+                          usage="SIZE_LATTICE_SUM  10", &
+                          default_i_val=1)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 

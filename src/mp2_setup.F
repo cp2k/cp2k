@@ -102,6 +102,8 @@ CONTAINS
                                 l_val=mp2_env%mp2_gpw%do_chol_subgrp)
       CALL section_vals_val_get(mp2_section, "WFC_GPW%SIZE_CHOLESKY_SUBGROUP", &
                                 i_val=mp2_env%mp2_gpw%size_chol_from_input)
+      CALL section_vals_val_get(mp2_section, "WFC_GPW%SIZE_LATTICE_SUM", &
+                                i_val=mp2_env%mp2_gpw%size_lattice_sum)
 
       CALL section_vals_val_get(mp2_section, "RI_RPA%RPA_NUM_QUAD_POINTS", &
                                 i_val=mp2_env%ri_rpa%rpa_num_quad_points)
@@ -235,7 +237,6 @@ CONTAINS
                                 l_val=mp2_env%ri_rpa_im_time%memory_info)
       CALL section_vals_val_get(mp2_section, "RI_RPA%IM_TIME%MAO", &
                                 l_val=mp2_env%ri_rpa_im_time%do_mao)
-
       CALL section_vals_val_get(mp2_section, "RI_RPA%IM_TIME%MAO%MAO_OCC", &
                                 i_vals=mp2_env%ri_rpa_im_time%nmao_occ)
       CALL section_vals_val_get(mp2_section, "RI_RPA%IM_TIME%MAO%MAO_VIRT", &
@@ -252,7 +253,6 @@ CONTAINS
                                 l_val=mp2_env%ri_rpa_im_time%opt_sc_dm_occ)
       CALL section_vals_val_get(mp2_section, "RI_RPA%IM_TIME%MAO%OPTIMIZE_SCALED_VIRT_DM", &
                                 l_val=mp2_env%ri_rpa_im_time%opt_sc_dm_virt)
-
       CALL section_vals_val_get(mp2_section, "RI_RPA%IM_TIME%GROUP_SIZE_3c", &
                                 i_val=mp2_env%ri_rpa_im_time%group_size_3c)
       CALL section_vals_val_get(mp2_section, "RI_RPA%IM_TIME%GROUP_SIZE_P", &
@@ -263,6 +263,8 @@ CONTAINS
                                 r_val=mp2_env%ri_rpa_im_time%eps_filter_im_time)
       CALL section_vals_val_get(mp2_section, "RI_RPA%IM_TIME%STABILIZE_EXP", &
                                 r_val=mp2_env%ri_rpa_im_time%stabilize_exp)
+      CALL section_vals_val_get(mp2_section, "RI_RPA%IM_TIME%DO_KPOINTS", &
+                                l_val=mp2_env%ri_rpa_im_time%do_im_time_kpoints)
 
       CALL section_vals_val_get(mp2_section, "RI_RPA%IM_TIME%RI_G0W0", &
                                 l_val=mp2_env%ri_rpa_im_time%do_gw_im_time)

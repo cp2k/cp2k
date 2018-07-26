@@ -81,7 +81,7 @@ MODULE mp2_types
       REAL(KIND=dp)            :: cutoff
       REAL(KIND=dp)            :: relative_cutoff
       LOGICAL                  :: do_mult_2c, do_chol_subgrp
-      INTEGER                  :: size_chol_from_input
+      INTEGER                  :: size_chol_from_input, size_lattice_sum
    END TYPE mp2_gpw_type
 
    TYPE ri_mp2_type
@@ -145,7 +145,7 @@ MODULE mp2_types
                                             sizes_array_cm_mao_virt, starts_array_cm_mao_virt, &
                                             ends_array_cm_mao_virt
       INTEGER, DIMENSION(:), POINTER     :: nmao_occ, nmao_virt
-      LOGICAL                  :: do_gw_im_time
+      LOGICAL                  :: do_gw_im_time, do_im_time_kpoints
       REAL(KIND=dp)            :: stabilize_exp
    END TYPE
 

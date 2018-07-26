@@ -71,6 +71,7 @@ MODULE mp2
                                               section_vals_val_set
    USE kinds,                           ONLY: dp,&
                                               int_8
+   USE kpoint_types,                    ONLY: kpoint_type
    USE machine,                         ONLY: m_flush,&
                                               m_memory,&
                                               m_walltime
@@ -140,9 +141,8 @@ CONTAINS
          unit_nr
       INTEGER(KIND=int_8)                                :: mem
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: kind_of
-      LOGICAL                                            :: calc_ex, do_admm, do_admm_rpa_exx, &
-                                                            do_dynamic_load_balancing, do_exx, &
-                                                            do_gw, free_hfx_buffer
+      LOGICAL :: calc_ex, do_admm, do_admm_rpa_exx, do_dynamic_load_balancing, do_exx, do_gw, &
+         do_kpoints_cubic_RPA, free_hfx_buffer
       REAL(KIND=dp) :: E_ex_from_GW, Emp2, Emp2_AA, Emp2_AA_Cou, Emp2_AA_ex, Emp2_AB, Emp2_AB_Cou, &
          Emp2_AB_ex, Emp2_BB, Emp2_BB_Cou, Emp2_BB_ex, Emp2_Cou, Emp2_ex, Emp2_S, Emp2_T, maxocc, &
          mem_real, t1, t2, t3
@@ -158,6 +158,7 @@ CONTAINS
       TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_ks, matrix_ks_aux, matrix_s
+      TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: matrix_ks_kp, matrix_s_kp
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(gto_basis_set_type), POINTER                  :: ri_aux_basis_set
       TYPE(hfx_basis_info_type)                          :: basis_info
@@ -165,6 +166,7 @@ CONTAINS
       TYPE(hfx_container_type), DIMENSION(:), POINTER    :: integral_containers
       TYPE(hfx_container_type), POINTER                  :: maxval_container
       TYPE(hfx_type), POINTER                            :: actual_x_data
+      TYPE(kpoint_type), POINTER                         :: kpoints
       TYPE(mo_set_p_type), DIMENSION(:), POINTER         :: mos, mos_mp2
       TYPE(mp2_biel_type)                                :: mp2_biel
       TYPE(mp2_type), POINTER                            :: mp2_env
@@ -184,29 +186,61 @@ CONTAINS
                        "not possible to run MP2")
       ENDIF
 
-      NULLIFY (virial, dft_control, blacs_env)
+      NULLIFY (virial, dft_control, blacs_env, kpoints)
       CALL timeset(routineN, handle)
       logger => cp_get_default_logger()
 
       CALL cite_reference(DelBen2012)
 
-      CALL get_qs_env(qs_env, &
-                      input=input, &
-                      atomic_kind_set=atomic_kind_set, &
-                      qs_kind_set=qs_kind_set, &
-                      dft_control=dft_control, &
-                      particle_set=particle_set, &
-                      para_env=para_env, &
-                      blacs_env=blacs_env, &
-                      energy=energy, &
-                      rho=rho, &
-                      mos=mos, &
-                      scf_env=scf_env, virial=virial, &
-                      matrix_ks=matrix_ks, &
-                      matrix_s=matrix_s, &
-                      matrix_ks_aux_fit=matrix_ks_aux, &
-                      mp2_env=mp2_env, &
-                      admm_env=admm_env)
+      do_kpoints_cubic_RPA = qs_env%mp2_env%ri_rpa_im_time%do_im_time_kpoints
+
+      ! for cubic RPA and GW, we have kpoints and therefore, we get other matrices later
+      IF (do_kpoints_cubic_RPA) THEN
+
+         CALL get_qs_env(qs_env, &
+                         input=input, &
+                         atomic_kind_set=atomic_kind_set, &
+                         qs_kind_set=qs_kind_set, &
+                         dft_control=dft_control, &
+                         particle_set=particle_set, &
+                         para_env=para_env, &
+                         blacs_env=blacs_env, &
+                         energy=energy, &
+                         rho=rho, &
+                         !                        mos=mos, &
+                         kpoints=kpoints, &
+                         scf_env=scf_env, &
+                         !                        virial=virial, &
+                         matrix_ks_kp=matrix_ks_kp, &
+                         matrix_s_kp=matrix_s_kp, &
+                         !                        matrix_ks_aux_fit=matrix_ks_aux, &
+                         mp2_env=mp2_env) !, &
+!                        admm_env=admm_env)
+
+         CALL get_gamma(matrix_s, matrix_ks, mos, &
+                        matrix_s_kp, matrix_ks_kp, kpoints)
+
+      ELSE
+
+         CALL get_qs_env(qs_env, &
+                         input=input, &
+                         atomic_kind_set=atomic_kind_set, &
+                         qs_kind_set=qs_kind_set, &
+                         dft_control=dft_control, &
+                         particle_set=particle_set, &
+                         para_env=para_env, &
+                         blacs_env=blacs_env, &
+                         energy=energy, &
+                         rho=rho, &
+                         mos=mos, &
+                         scf_env=scf_env, virial=virial, &
+                         matrix_ks=matrix_ks, &
+                         matrix_s=matrix_s, &
+                         matrix_ks_aux_fit=matrix_ks_aux, &
+                         mp2_env=mp2_env, &
+                         admm_env=admm_env)
+
+      END IF
 
       unit_nr = cp_print_key_unit_nr(logger, input, "DFT%XC%WF_CORRELATION%MP2_INFO", &
                                      extension=".mp2Log")
@@ -235,8 +269,10 @@ CONTAINS
          END IF
       ENDIF
 
-      IF (virial%pv_availability .AND. (.NOT. virial%pv_numer) .AND. mp2_env%eri_method == do_eri_mme) THEN
-         CPABORT("analytical stress not implemented with ERI_METHOD = MME")
+      IF (.NOT. do_kpoints_cubic_RPA) THEN
+         IF (virial%pv_availability .AND. (.NOT. virial%pv_numer) .AND. mp2_env%eri_method == do_eri_mme) THEN
+            CPABORT("analytical stress not implemented with ERI_METHOD = MME")
+         ENDIF
       ENDIF
 
       IF (mp2_env%ri_rpa%do_im_time .AND. mp2_env%eri_method .NE. do_eri_gpw) THEN
@@ -347,7 +383,7 @@ CONTAINS
 
       CALL cp_fm_get_info(matrix=fm_matrix_ks, nrow_block=nrow_block, ncol_block=ncol_block)
 
-      ! calculate S^(-1/2) (cholescky decomposition)
+      ! calculate S^(-1/2) (cholesky decomposition)
       CALL cp_fm_cholesky_decompose(fm_matrix_s)
       CALL cp_fm_triangular_invert(fm_matrix_s)
 
@@ -423,11 +459,14 @@ CONTAINS
          IF (calc_forces .AND. (.NOT. mp2_env%ri_mp2%free_hfx_buffer)) free_hfx_buffer = .FALSE.
       END IF
 
+      IF (.NOT. do_kpoints_cubic_RPA) THEN
       IF (virial%pv_numer) THEN
          ! in the case of numerical stress we don't have to free the HFX integrals
          free_hfx_buffer = .FALSE.
          mp2_env%ri_mp2%free_hfx_buffer = .FALSE.
       END IF
+      END IF
+
       ! calculate the matrix sigma_x - vxc for G0W0
       t3 = 0
       IF (mp2_env%ri_rpa%do_ri_g0w0 .OR. mp2_env%ri_rpa_im_time%do_gw_im_time) THEN
@@ -1541,6 +1580,34 @@ CONTAINS
       t3 = t2-t1
 
    END SUBROUTINE compute_vec_Sigma_x_minus_vxc_gw
+
+!*********************************************************************
+! **************************************************************************************************
+!> \brief ...
+!> \param matrix_s ...
+!> \param matrix_ks ...
+!> \param mos ...
+!> \param matrix_s_kp ...
+!> \param matrix_ks_kp ...
+!> \param kpoints ...
+! **************************************************************************************************
+   SUBROUTINE get_gamma(matrix_s, matrix_ks, mos, &
+                        matrix_s_kp, matrix_ks_kp, kpoints)
+
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_s, matrix_ks
+      TYPE(mo_set_p_type), DIMENSION(:), POINTER         :: mos
+      TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: matrix_s_kp, matrix_ks_kp
+      TYPE(kpoint_type), POINTER                         :: kpoints
+
+      INTEGER                                            :: nspins
+
+      nspins = SIZE(matrix_ks_kp, 1)
+
+      matrix_ks(1:nspins) => matrix_ks_kp(1:nspins, 1)
+      matrix_s(1:nspins) => matrix_s_kp(1:nspins, 1)
+      mos(1:nspins) => kpoints%kp_env(1)%kpoint_env%mos(1:nspins, 1)
+
+   END SUBROUTINE
 
 END MODULE mp2
 
