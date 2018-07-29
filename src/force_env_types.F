@@ -51,6 +51,10 @@ MODULE force_env_types
    USE mixed_environment_types,         ONLY: get_mixed_env,&
                                               mixed_env_release,&
                                               mixed_environment_type
+   USE pwdft_environment_types,         ONLY: pwdft_energy_type,&
+                                              pwdft_env_get,&
+                                              pwdft_env_release,&
+                                              pwdft_environment_type
    USE qmmm_types,                      ONLY: qmmm_env_get,&
                                               qmmm_env_release,&
                                               qmmm_env_type
@@ -75,9 +79,10 @@ MODULE force_env_types
                                  use_qmmmx = 504, &
                                  use_eip_force = 505, &
                                  use_mixed_force = 506, &
-                                 use_embed = 507
+                                 use_embed = 507, &
+                                 use_pwdft_force = 508
 
-   CHARACTER(LEN=10), DIMENSION(501:507), PARAMETER, PUBLIC :: &
+   CHARACTER(LEN=10), DIMENSION(501:508), PARAMETER, PUBLIC :: &
       use_prog_name = (/ &
       "FIST  ", &
       "QS    ", &
@@ -85,7 +90,8 @@ MODULE force_env_types
       "QMMMX ", &
       "EIP   ", &
       "MIXED ", &
-      "EMBED "/)
+      "EMBED ", &
+      "SIRIUS"/)
 
    PUBLIC :: force_env_type, &
              force_env_p_type
@@ -134,13 +140,14 @@ MODULE force_env_types
       TYPE(fp_type), POINTER                           :: fp_env
       TYPE(qs_environment_type), POINTER               :: qs_env
       TYPE(eip_environment_type), POINTER              :: eip_env
+      TYPE(pwdft_environment_type), POINTER            :: pwdft_env
       TYPE(global_environment_type), POINTER           :: globenv
       TYPE(cp_para_env_type), POINTER                  :: para_env
       TYPE(force_env_p_type), DIMENSION(:), POINTER    :: sub_force_env
       TYPE(qmmm_env_type), POINTER                     :: qmmm_env
       TYPE(qmmmx_env_type), POINTER                    :: qmmmx_env
       TYPE(mixed_environment_type), POINTER            :: mixed_env
-      TYPE(embed_env_type), POINTER                     :: embed_env
+      TYPE(embed_env_type), POINTER                    :: embed_env
       TYPE(section_vals_type), POINTER                 :: force_env_section
       TYPE(section_vals_type), POINTER                 :: root_section
    END TYPE force_env_type
@@ -232,6 +239,8 @@ CONTAINS
                CALL qs_env_release(force_env%qs_env)
             CASE (use_eip_force)
                CALL eip_env_release(force_env%eip_env)
+            CASE (use_pwdft_force)
+               CALL pwdft_env_release(force_env%pwdft_env)
             CASE (use_mixed_force)
                CALL mixed_env_release(force_env%mixed_env)
             CASE (use_embed)
@@ -243,6 +252,7 @@ CONTAINS
             CPASSERT(.NOT. ASSOCIATED(force_env%fist_env))
             CPASSERT(.NOT. ASSOCIATED(force_env%qs_env))
             CPASSERT(.NOT. ASSOCIATED(force_env%eip_env))
+            CPASSERT(.NOT. ASSOCIATED(force_env%pwdft_env))
             CPASSERT(.NOT. ASSOCIATED(force_env%mixed_env))
             CPASSERT(.NOT. ASSOCIATED(force_env%embed_env))
             CALL meta_env_release(force_env%meta_env)
@@ -277,6 +287,7 @@ CONTAINS
 !> \param qmmm_env ...
 !> \param qmmmx_env ...
 !> \param eip_env ...
+!> \param pwdft_env ...
 !> \param globenv ...
 !> \param input ...
 !> \param force_env_section ...
@@ -291,7 +302,7 @@ CONTAINS
    RECURSIVE SUBROUTINE force_env_get(force_env, in_use, fist_env, qs_env, &
                                       meta_env, fp_env, subsys, para_env, potential_energy, additional_potential, &
                                       kinetic_energy, harmonic_shell, kinetic_shell, cell, sub_force_env, &
-                                      qmmm_env, qmmmx_env, eip_env, globenv, input, force_env_section, &
+                                      qmmm_env, qmmmx_env, eip_env, pwdft_env, globenv, input, force_env_section, &
                                       method_name_id, root_section, mixed_env, embed_env)
       TYPE(force_env_type), POINTER                      :: force_env
       INTEGER, INTENT(out), OPTIONAL                     :: in_use
@@ -310,6 +321,7 @@ CONTAINS
       TYPE(qmmm_env_type), OPTIONAL, POINTER             :: qmmm_env
       TYPE(qmmmx_env_type), OPTIONAL, POINTER            :: qmmmx_env
       TYPE(eip_environment_type), OPTIONAL, POINTER      :: eip_env
+      TYPE(pwdft_environment_type), OPTIONAL, POINTER    :: pwdft_env
       TYPE(global_environment_type), OPTIONAL, POINTER   :: globenv
       TYPE(section_vals_type), OPTIONAL, POINTER         :: input, force_env_section
       INTEGER, INTENT(out), OPTIONAL                     :: method_name_id
@@ -323,6 +335,7 @@ CONTAINS
       TYPE(cp_subsys_type), POINTER                      :: subsys_tmp
       TYPE(fist_energy_type), POINTER                    :: thermo
       TYPE(mixed_energy_type), POINTER                   :: mixed_energy
+      TYPE(pwdft_energy_type), POINTER                   :: pwdft_energy
       TYPE(qs_energy_type), POINTER                      :: qs_energy
 
       NULLIFY (subsys_tmp)
@@ -335,6 +348,7 @@ CONTAINS
          CPASSERT(ASSOCIATED(force_env%qs_env))
          CPASSERT(.NOT. PRESENT(fist_env))
          CPASSERT(.NOT. PRESENT(eip_env))
+         CPASSERT(.NOT. PRESENT(pwdft_env))
          CALL get_qs_env(force_env%qs_env, &
                          energy=qs_energy, &
                          input=input, &
@@ -343,8 +357,6 @@ CONTAINS
          CPASSERT(.NOT. PRESENT(kinetic_energy))
       CASE (use_fist_force)
          CPASSERT(ASSOCIATED(force_env%fist_env))
-!          CPPreconditionNoFail(.NOT.PRESENT(qs_env),cp_warning_level,routineP)
-!          CPPreconditionNoFail(.NOT.PRESENT(eip_env),cp_warning_level,routineP)
          CPASSERT(.NOT. PRESENT(input))
          CALL fist_env_get(force_env%fist_env, &
                            thermo=thermo, &
@@ -366,6 +378,14 @@ CONTAINS
          END IF
          IF (PRESENT(kinetic_energy)) kinetic_energy = eip_kinetic_energy
          CPASSERT(.NOT. PRESENT(kinetic_energy))
+      CASE (use_pwdft_force)
+         CPASSERT(ASSOCIATED(force_env%pwdft_env))
+         CPASSERT(.NOT. PRESENT(qs_env))
+         CPASSERT(.NOT. PRESENT(fist_env))
+         CALL pwdft_env_get(force_env%pwdft_env, energy=pwdft_energy)
+         CALL pwdft_env_get(force_env%pwdft_env, cp_subsys=subsys)
+         IF (PRESENT(potential_energy)) potential_energy = pwdft_energy%etotal
+         CPASSERT(.NOT. PRESENT(kinetic_energy))
       CASE (use_qmmm)
          CALL qmmm_env_get(force_env%qmmm_env, &
                            subsys=subsys, &
@@ -378,8 +398,6 @@ CONTAINS
                             kinetic_energy=kinetic_energy)
       CASE (use_mixed_force)
          CPASSERT(ASSOCIATED(force_env%mixed_env))
-!          CPPreconditionNoFail(.NOT.PRESENT(qs_env),cp_warning_level,routineP)
-!          CPPreconditionNoFail(.NOT.PRESENT(eip_env),cp_warning_level,routineP)
          CPASSERT(.NOT. PRESENT(input))
          CALL get_mixed_env(force_env%mixed_env, &
                             mixed_energy=mixed_energy, &
@@ -408,6 +426,9 @@ CONTAINS
       END IF
       IF (PRESENT(eip_env)) THEN
          eip_env => force_env%eip_env
+      END IF
+      IF (PRESENT(pwdft_env)) THEN
+         pwdft_env => force_env%pwdft_env
       END IF
       IF (PRESENT(para_env)) para_env => force_env%para_env
       ! adjust the total energy for the metadynamics

@@ -77,7 +77,7 @@ MODULE cp2k_runs
                                               globenv_retain
    USE input_constants,                 ONLY: &
         bsse_run, cell_opt_run, debug_run, do_atom, do_band, do_cp2k, do_farming, do_fist, &
-        do_mixed, do_opt_basis, do_optimize_input, do_qmmm, do_qs, do_swarm, do_tamc, do_test, &
+        do_mixed, do_opt_basis, do_optimize_input, do_qmmm, do_qs, do_sirius, do_swarm, do_tamc, do_test, &
         do_embed, do_tree_mc, do_tree_mc_ana, driver_run, ehrenfest, electronic_spectra_run, &
         energy_force_run, energy_run, geo_opt_run, linear_response_run, mol_dyn_run, mon_car_run, &
         none_run, pint_run, real_time_propagation, tree_mc_run, vib_anal, negf_run
@@ -126,6 +126,7 @@ MODULE cp2k_runs
    USE reference_manager,               ONLY: print_all_references,&
                                               print_format_html
    USE rt_propagation,                  ONLY: rt_prop_setup
+   USE sirius_interface,                ONLY: cp_sirius_init, cp_sirius_finalize
    USE string_utilities,                ONLY: html_entity_table,&
                                               write_html_tables
    USE swarm,                           ONLY: run_swarm
@@ -201,6 +202,8 @@ CONTAINS
       CALL pw_cuda_init()
 
       CALL dbcsr_init_lib()
+
+      CALL cp_sirius_init()
 
       NULLIFY (globenv, force_env)
 
@@ -302,6 +305,7 @@ CONTAINS
          CALL run_driver(force_env, globenv)
       CASE (energy_run, energy_force_run)
          IF (method_name_id /= do_qs .AND. &
+             method_name_id /= do_sirius .AND. &
              method_name_id /= do_qmmm .AND. &
              method_name_id /= do_mixed .AND. &
              method_name_id /= do_embed .AND. &
@@ -382,6 +386,8 @@ CONTAINS
 
       !sample peak memory
       CALL m_memory()
+
+      CALL cp_sirius_finalize()
 
       CALL pw_cuda_finalize()
       CALL dbcsr_finalize_lib(group=mpi_comm, output_unit=output_unit)

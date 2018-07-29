@@ -165,8 +165,8 @@ CONTAINS
       TYPE(section_type), POINTER                        :: subsection
 
       CPASSERT(.NOT. ASSOCIATED(section))
-      CALL section_create(section, name="dft", &
-                          description="parameter needed by dft programs", &
+      CALL section_create(section, name="DFT", &
+                          description="Parameter needed by LCAO DFT programs", &
                           n_keywords=3, n_subsections=4, repeats=.FALSE.)
 
       NULLIFY (keyword)

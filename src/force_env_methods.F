@@ -65,8 +65,8 @@ MODULE force_env_methods
    USE fist_force,                      ONLY: fist_calc_energy_force
    USE force_env_types,                 ONLY: &
         force_env_get, force_env_get_natom, force_env_p_type, force_env_set, force_env_type, &
-        use_eip_force, use_embed, use_fist_force, use_mixed_force, use_prog_name, use_qmmm, &
-        use_qmmmx, use_qs_force
+        use_eip_force, use_embed, use_fist_force, use_mixed_force, use_prog_name, use_pwdft_force, &
+        use_qmmm, use_qmmmx, use_qs_force
    USE force_env_utils,                 ONLY: rescale_forces,&
                                               write_forces,&
                                               write_stress_tensor
@@ -126,6 +126,9 @@ MODULE force_env_methods
                                               REALSPACE,&
                                               pw_p_type,&
                                               pw_release
+   USE pwdft_environment,               ONLY: pwdft_calc_energy_force
+   USE pwdft_environment_types,         ONLY: pwdft_env_retain,&
+                                              pwdft_environment_type
    USE qmmm_force,                      ONLY: qmmm_calc_energy_force
    USE qmmm_types,                      ONLY: qmmm_env_retain,&
                                               qmmm_env_type
@@ -244,6 +247,8 @@ CONTAINS
             CALL fist_calc_energy_force(force_env%fist_env)
          CASE (use_qs_force)
             CALL qs_calc_energy_force(force_env%qs_env, calculate_forces, energy_consistency, linres_run)
+         CASE (use_pwdft_force)
+            CALL pwdft_calc_energy_force(force_env%pwdft_env, calculate_forces)
          CASE (use_eip_force)
             IF (force_env%eip_env%eip_model == use_lenosky_eip) THEN
                CALL eip_lenosky(force_env%eip_env)
@@ -669,6 +674,7 @@ CONTAINS
 !> \param qmmm_env ...
 !> \param qmmmx_env ...
 !> \param eip_env ...
+!> \param pwdft_env ...
 !> \param force_env_section ...
 !> \param mixed_env ...
 !> \param embed_env ...
@@ -677,7 +683,7 @@ CONTAINS
 !> \author fawzi
 ! **************************************************************************************************
    SUBROUTINE force_env_create(force_env, root_section, para_env, globenv, fist_env, &
-                               qs_env, meta_env, sub_force_env, qmmm_env, qmmmx_env, eip_env, force_env_section, &
+                               qs_env, meta_env, sub_force_env, qmmm_env, qmmmx_env, eip_env, pwdft_env, force_env_section, &
                                mixed_env, embed_env)
 
       TYPE(force_env_type), POINTER                      :: force_env
@@ -692,6 +698,7 @@ CONTAINS
       TYPE(qmmm_env_type), OPTIONAL, POINTER             :: qmmm_env
       TYPE(qmmmx_env_type), OPTIONAL, POINTER            :: qmmmx_env
       TYPE(eip_environment_type), OPTIONAL, POINTER      :: eip_env
+      TYPE(pwdft_environment_type), OPTIONAL, POINTER    :: pwdft_env
       TYPE(section_vals_type), POINTER                   :: force_env_section
       TYPE(mixed_environment_type), OPTIONAL, POINTER    :: mixed_env
       TYPE(embed_env_type), OPTIONAL, POINTER            :: embed_env
@@ -705,7 +712,7 @@ CONTAINS
                force_env%meta_env, force_env%sub_force_env, &
                force_env%qmmm_env, force_env%qmmmx_env, force_env%fp_env, &
                force_env%force_env_section, force_env%eip_env, force_env%mixed_env, &
-               force_env%embed_env, force_env%root_section)
+               force_env%embed_env, force_env%pwdft_env, force_env%root_section)
       last_force_env_id = last_force_env_id+1
       force_env%id_nr = last_force_env_id
       force_env%ref_count = 1
@@ -737,6 +744,13 @@ CONTAINS
          force_env%in_use = use_eip_force
          force_env%eip_env => eip_env
          CALL eip_env_retain(eip_env)
+      END IF
+      IF (PRESENT(pwdft_env)) THEN
+         CPASSERT(ASSOCIATED(pwdft_env))
+         CPASSERT(force_env%in_use == 0)
+         force_env%in_use = use_pwdft_force
+         force_env%pwdft_env => pwdft_env
+         CALL pwdft_env_retain(pwdft_env)
       END IF
       IF (PRESENT(qs_env)) THEN
          CPASSERT(ASSOCIATED(qs_env))

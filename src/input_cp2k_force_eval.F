@@ -17,7 +17,7 @@ MODULE input_cp2k_force_eval
                                               medium_print_level
    USE cp_units,                        ONLY: cp_unit_to_cp2k
    USE input_constants,                 ONLY: &
-        do_eip, do_embed, do_fist, do_mixed, do_qmmm, do_qs, do_stress_analytical, &
+        do_eip, do_embed, do_fist, do_mixed, do_qmmm, do_qs, do_sirius, do_stress_analytical, &
         do_stress_diagonal_anal, do_stress_diagonal_numer, do_stress_none, do_stress_numerical, &
         numerical
    USE input_cp2k_dft,                  ONLY: create_bsse_section,&
@@ -27,6 +27,7 @@ MODULE input_cp2k_force_eval
    USE input_cp2k_mixed,                ONLY: create_mix_section
    USE input_cp2k_mm,                   ONLY: create_mm_section
    USE input_cp2k_properties_dft,       ONLY: create_properties_section
+   USE input_cp2k_pwdft,                ONLY: create_pwdft_section
    USE input_cp2k_qmmm,                 ONLY: create_qmmm_section
    USE input_cp2k_subsys,               ONLY: create_subsys_section
    USE input_keyword_types,             ONLY: keyword_create,&
@@ -81,6 +82,7 @@ CONTAINS
                           description="Which method should be used to compute forces", &
                           usage="METHOD <STRING>", &
                           enum_c_vals=s2a("QS", &
+                                          "SIRIUS", &
                                           "FIST", &
                                           "QMMM", &
                                           "EIP", &
@@ -88,13 +90,14 @@ CONTAINS
                                           "MIXED", &
                                           "EMBED"), &
                           enum_desc=s2a("Alias for QUICKSTEP", &
+                                        "PW DFT using the SIRIUS library", &
                                         "Molecular Mechanics", &
                                         "Hybrid quantum classical", &
                                         "Empirical Interatomic Potential", &
                                         "Electronic structure methods (DFT, ...)", &
                                         "Use a combination of two of the above", &
                                         "Perform an embedded calculation"), &
-                          enum_i_vals=(/do_qs, do_fist, do_qmmm, do_eip, do_qs, do_mixed, do_embed/), &
+                          enum_i_vals=(/do_qs, do_sirius, do_fist, do_qmmm, do_eip, do_qs, do_mixed, do_embed/), &
                           default_i_val=do_qs)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
@@ -133,6 +136,10 @@ CONTAINS
       CALL section_release(subsection)
 
       CALL create_dft_section(subsection)
+      CALL section_add_subsection(section, subsection)
+      CALL section_release(subsection)
+
+      CALL create_pwdft_section(subsection)
       CALL section_add_subsection(section, subsection)
       CALL section_release(subsection)
 

@@ -46,7 +46,7 @@ MODULE atomic_kind_types
       TYPE(fist_potential_type), POINTER     :: fist_potential => Null()
       CHARACTER(LEN=default_string_length)   :: name = ""
       CHARACTER(LEN=2)                       :: element_symbol = ""
-      REAL(KIND=dp)                        :: mass = 0.0_dp
+      REAL(KIND=dp)                          :: mass = 0.0_dp
       INTEGER                                :: kind_number = -1
       INTEGER                                :: natom = -1
       INTEGER, DIMENSION(:), POINTER         :: atom_list => Null()

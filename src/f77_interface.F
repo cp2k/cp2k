@@ -76,7 +76,8 @@ MODULE f77_interface
                                               do_mixed,&
                                               do_qmmm,&
                                               do_qmmmx,&
-                                              do_qs
+                                              do_qs,&
+                                              do_sirius
    USE input_cp2k_check,                ONLY: check_cp2k_input
    USE input_cp2k_force_eval,           ONLY: create_force_eval_section
    USE input_cp2k_read,                 ONLY: empty_initial_variables,&
@@ -109,6 +110,10 @@ MODULE f77_interface
    USE periodic_table,                  ONLY: init_periodic_table
    USE pw_cuda,                         ONLY: pw_cuda_finalize,&
                                               pw_cuda_init
+   USE pwdft_environment,               ONLY: pwdft_init
+   USE pwdft_environment_types,         ONLY: pwdft_env_create,&
+                                              pwdft_env_release,&
+                                              pwdft_environment_type
    USE qmmm_create,                     ONLY: qmmm_env_create
    USE qmmm_types,                      ONLY: qmmm_env_release,&
                                               qmmm_env_type
@@ -574,6 +579,7 @@ CONTAINS
       TYPE(meta_env_type), POINTER                       :: meta_env
       TYPE(mixed_environment_type), POINTER              :: mixed_env
       TYPE(mp_perf_env_type), POINTER                    :: mp_perf_env
+      TYPE(pwdft_environment_type), POINTER              :: pwdft_env
       TYPE(qmmm_env_type), POINTER                       :: qmmm_env
       TYPE(qmmmx_env_type), POINTER                      :: qmmmx_env
       TYPE(qs_environment_type), POINTER                 :: qs_env
@@ -585,7 +591,7 @@ CONTAINS
 
       CPASSERT(ASSOCIATED(input_declaration))
       NULLIFY (para_env, force_env, timer_env, mp_perf_env, globenv, meta_env, &
-               fp_env, eip_env, mixed_env, qs_env, qmmm_env, embed_env)
+               fp_env, eip_env, pwdft_env, mixed_env, qs_env, qmmm_env, embed_env)
       new_env_id = -1
       IF (PRESENT(mpi_comm)) THEN
          CALL cp_para_env_create(para_env, group=mpi_comm, owns_group=.FALSE.)
@@ -801,6 +807,14 @@ CONTAINS
             CALL force_env_create(my_force_env, root_section, eip_env=eip_env, para_env=my_para_env, &
                                   globenv=globenv, force_env_section=force_env_section)
             CALL eip_env_release(eip_env)
+
+         CASE (do_sirius)
+            CALL pwdft_env_create(pwdft_env)
+            CALL pwdft_init(pwdft_env, root_section, my_para_env, force_env_section=force_env_section, &
+                            subsys_section=subsys_section, use_motion_section=use_motion_section)
+            CALL force_env_create(my_force_env, root_section, pwdft_env=pwdft_env, para_env=my_para_env, &
+                                  globenv=globenv, force_env_section=force_env_section)
+            CALL pwdft_env_release(pwdft_env)
 
          CASE (do_mixed)
             CALL mixed_create_force_env(mixed_env, root_section, my_para_env, &

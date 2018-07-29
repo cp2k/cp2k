@@ -49,7 +49,8 @@ MODULE input_constants
                                                do_qmmmx = 4, &
                                                do_eip = 5, &
                                                do_mixed = 6, &
-                                               do_embed = 7
+                                               do_embed = 7, &
+                                               do_sirius = 8
 
    ! QMMM
    REAL(KIND=dp), PARAMETER, PUBLIC         :: RADIUS_QMMM_DEFAULT = 0.80_dp, & ! Angstrom
@@ -256,7 +257,8 @@ MODULE input_constants
                                                do_method_pchg = 15, &
                                                do_method_pnnl = 16, &
                                                do_method_ofgpw = 17, &
-                                               do_method_pm6fm = 18
+                                               do_method_pm6fm = 18, &
+                                               do_method_pw = 19
 
    INTEGER, PARAMETER, PUBLIC               :: do_multipole_section_on = 0, &
                                                do_multipole_section_off = 1

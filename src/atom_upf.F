@@ -5,16 +5,19 @@
 
 ! **************************************************************************************************
 MODULE atom_upf
-   USE cp_parser_methods,               ONLY: parser_get_next_line,&
-                                              parser_get_object,&
-                                              parser_test_next_token
-   USE cp_parser_types,                 ONLY: cp_parser_type,&
-                                              parser_create,&
-                                              parser_release
-   USE kinds,                           ONLY: default_string_length,&
-                                              dp
-   USE periodic_table,                  ONLY: get_ptable_info,&
-                                              ptable
+#if defined(__JSON)
+   USE json_module
+#endif
+   USE cp_parser_methods, ONLY: parser_get_next_line, &
+      parser_get_object, &
+      parser_test_next_token
+   USE cp_parser_types, ONLY: cp_parser_type, &
+      parser_create, &
+      parser_release
+   USE kinds, ONLY: default_string_length, &
+      dp
+   USE periodic_table, ONLY: get_ptable_info, &
+      ptable
 #include "./base/base_uses.f90"
 
    IMPLICIT NONE
@@ -28,6 +31,7 @@ MODULE atom_upf
       INTEGER, DIMENSION(0:lmat)                     :: econf = 0
       REAL(dp)                                       :: zion
       CHARACTER(LEN=default_string_length)           :: version
+      CHARACTER(LEN=default_string_length)           :: filename = ""
       ! <INFO>
       INTEGER                                        :: maxinfo = 100
       CHARACTER(LEN=default_string_length), DIMENSION(100) &
@@ -88,17 +92,105 @@ CONTAINS
 !> \brief ...
 !> \param pot ...
 !> \param upf_filename ...
+!> \param read_header ...
 ! **************************************************************************************************
-   SUBROUTINE atom_read_upf(pot, upf_filename)
+   SUBROUTINE atom_read_upf(pot, upf_filename, read_header)
 
       TYPE(atom_upfpot_type)                             :: pot
       CHARACTER(len=*), INTENT(IN)                       :: upf_filename
+      LOGICAL, INTENT(IN), OPTIONAL                      :: read_header
 
       CHARACTER(len=*), PARAMETER :: routineN = 'atom_read_upf', routineP = moduleN//':'//routineN
 
       CHARACTER(LEN=2)                                   :: symbol
+      INTEGER                                            :: l1, l2, ncore, nel
+      LOGICAL                                            :: readall
+
+      IF (PRESENT(read_header)) THEN
+         readall = .NOT. read_header
+      ELSE
+         readall = .TRUE.
+      END IF
+
+      ! check for json file
+      l2 = LEN_TRIM(upf_filename)
+      l1 = l2-4
+      IF (upf_filename(l1:l2) == '.json') THEN
+         CALL atom_read_upf_json(pot, upf_filename)
+      ELSE
+         CALL atom_read_upf_orig(pot, upf_filename, readall)
+      END IF
+
+      ! set up econf
+      IF (SUM(pot%econf) == 0) THEN
+         symbol = ADJUSTL(TRIM(pot%symbol))
+         CALL get_ptable_info(symbol, number=ncore)
+         pot%econf(0:3) = ptable(ncore)%e_conv(0:3)
+         nel = NINT(ncore-pot%zion)
+         SELECT CASE (nel)
+         CASE DEFAULT
+            CPABORT("Unknown Core State")
+         CASE (0)
+            ! no core electron
+         CASE (2)
+            pot%econf(0:3) = pot%econf(0:3)-ptable(2)%e_conv(0:3)
+         CASE (10)
+            pot%econf(0:3) = pot%econf(0:3)-ptable(10)%e_conv(0:3)
+         CASE (18)
+            pot%econf(0:3) = pot%econf(0:3)-ptable(18)%e_conv(0:3)
+         CASE (28)
+            pot%econf(0:3) = pot%econf(0:3)-ptable(18)%e_conv(0:3)
+            pot%econf(2) = pot%econf(2)-10
+         CASE (36)
+            pot%econf(0:3) = pot%econf(0:3)-ptable(36)%e_conv(0:3)
+         CASE (46)
+            pot%econf(0:3) = pot%econf(0:3)-ptable(36)%e_conv(0:3)
+            pot%econf(2) = pot%econf(2)-10
+         CASE (54)
+            pot%econf(0:3) = pot%econf(0:3)-ptable(54)%e_conv(0:3)
+         CASE (60)
+            pot%econf(0:3) = pot%econf(0:3)-ptable(36)%e_conv(0:3)
+            pot%econf(2) = pot%econf(2)-10
+            pot%econf(3) = pot%econf(3)-14
+         CASE (68)
+            pot%econf(0:3) = pot%econf(0:3)-ptable(54)%e_conv(0:3)
+            pot%econf(3) = pot%econf(3)-14
+         CASE (78)
+            pot%econf(0:3) = pot%econf(0:3)-ptable(54)%e_conv(0:3)
+            pot%econf(2) = pot%econf(2)-10
+            pot%econf(3) = pot%econf(3)-14
+         END SELECT
+         !
+         CPASSERT(ALL(pot%econf >= 0))
+      END IF
+
+      ! name
+      IF (pot%pname == "") THEN
+         pot%pname = ADJUSTL(TRIM(pot%symbol))
+      END IF
+
+      ! filename
+      pot%filename = ADJUSTL(TRIM(upf_filename))
+
+   END SUBROUTINE atom_read_upf
+
+! **************************************************************************************************
+!> \brief ...
+!> \param pot ...
+!> \param upf_filename ...
+!> \param readall ...
+! **************************************************************************************************
+   SUBROUTINE atom_read_upf_orig(pot, upf_filename, readall)
+
+      TYPE(atom_upfpot_type)                             :: pot
+      CHARACTER(len=*), INTENT(IN)                       :: upf_filename
+      LOGICAL, INTENT(IN)                                :: readall
+
+      CHARACTER(len=*), PARAMETER :: routineN = 'atom_read_upf_orig', &
+         routineP = moduleN//':'//routineN
+
       CHARACTER(LEN=default_string_length)               :: nametag
-      INTEGER                                            :: ib, ncore, nel, ntag
+      INTEGER                                            :: ib, ntag
       LOGICAL                                            :: at_end
       TYPE(cp_parser_type), POINTER                      :: parser
 
@@ -181,62 +273,16 @@ CONTAINS
       END IF
 
       ! test for not supported options
-      IF (pot%is_ultrasoft) THEN
-         CPABORT("UPF ultrasoft pseudopotential not implemented")
-      END IF
-      IF (pot%is_paw) THEN
-         CPABORT("UPF PAW potential not implemented")
-      END IF
-
-      ! set up econf
-      IF (SUM(pot%econf) == 0) THEN
-         symbol = ADJUSTL(TRIM(pot%symbol))
-         CALL get_ptable_info(symbol, number=ncore)
-         pot%econf(0:3) = ptable(ncore)%e_conv(0:3)
-         nel = NINT(ncore-pot%zion)
-         SELECT CASE (nel)
-         CASE DEFAULT
-            CPABORT("Unknown Core State")
-         CASE (0)
-            ! no core electron
-         CASE (2)
-            pot%econf(0:3) = pot%econf(0:3)-ptable(2)%e_conv(0:3)
-         CASE (10)
-            pot%econf(0:3) = pot%econf(0:3)-ptable(10)%e_conv(0:3)
-         CASE (18)
-            pot%econf(0:3) = pot%econf(0:3)-ptable(18)%e_conv(0:3)
-         CASE (28)
-            pot%econf(0:3) = pot%econf(0:3)-ptable(18)%e_conv(0:3)
-            pot%econf(2) = pot%econf(2)-10
-         CASE (36)
-            pot%econf(0:3) = pot%econf(0:3)-ptable(36)%e_conv(0:3)
-         CASE (46)
-            pot%econf(0:3) = pot%econf(0:3)-ptable(36)%e_conv(0:3)
-            pot%econf(2) = pot%econf(2)-10
-         CASE (54)
-            pot%econf(0:3) = pot%econf(0:3)-ptable(54)%e_conv(0:3)
-         CASE (60)
-            pot%econf(0:3) = pot%econf(0:3)-ptable(36)%e_conv(0:3)
-            pot%econf(2) = pot%econf(2)-10
-            pot%econf(3) = pot%econf(3)-14
-         CASE (68)
-            pot%econf(0:3) = pot%econf(0:3)-ptable(54)%e_conv(0:3)
-            pot%econf(3) = pot%econf(3)-14
-         CASE (78)
-            pot%econf(0:3) = pot%econf(0:3)-ptable(54)%e_conv(0:3)
-            pot%econf(2) = pot%econf(2)-10
-            pot%econf(3) = pot%econf(3)-14
-         END SELECT
-         !
-         CPASSERT(ALL(pot%econf >= 0))
+      IF (readall) THEN
+         IF (pot%is_ultrasoft) THEN
+            CPABORT("UPF ultrasoft pseudopotential not implemented")
+         END IF
+         IF (pot%is_paw) THEN
+            CPABORT("UPF PAW potential not implemented")
+         END IF
       END IF
 
-      ! name
-      IF (pot%pname == "") THEN
-         pot%pname = ADJUSTL(TRIM(pot%symbol))
-      END IF
-
-   END SUBROUTINE atom_read_upf
+   END SUBROUTINE atom_read_upf_orig
 ! **************************************************************************************************
 !> \brief ...
 !> \param parser ...
@@ -951,6 +997,44 @@ CONTAINS
       pot%vsemi = 0.5_dp*pot%vsemi
 
    END SUBROUTINE upf_semilocal_section
+
+! **************************************************************************************************
+!> \brief ...
+!> \param pot ...
+!> \param upf_filename ...
+! **************************************************************************************************
+   SUBROUTINE atom_read_upf_json(pot, upf_filename)
+
+      TYPE(atom_upfpot_type)                             :: pot
+      CHARACTER(len=*), INTENT(IN)                       :: upf_filename
+
+      CHARACTER(len=*), PARAMETER :: routineN = 'atom_read_upf_json', routineP = moduleN//':'//routineN
+
+#if defined(__JSON)
+      TYPE(json_file)                                    :: json
+      LOGICAL                                            :: found
+      CHARACTER(LEN=:), ALLOCATABLE                      :: symbol
+      CHARACTER(LEN=default_string_length)               :: nametag
+      REAL(KIND=dp)                                      :: z_valence
+#endif
+
+#if defined(__JSON)
+      CALL json%initialize(compact_reals=.TRUE.)
+      CALL json%load_file(filename=upf_filename)
+      CALL json%get('$.pseudo_potential.header.z_valence', z_valence, found)
+      CPASSERT(found)
+      CALL json%get('$.pseudo_potential.header.element', symbol, found)
+      CPASSERT(found)
+      CALL json%destroy()
+      pot%zion = z_valence
+      pot%symbol = TRIM(symbol)
+#else
+      pot%symbol = upf_filename(1:2)
+      CPWARN(upf_filename)
+      CPABORT("No json support available")
+#endif
+
+   END SUBROUTINE atom_read_upf_json
 
 ! **************************************************************************************************
 !> \brief ...

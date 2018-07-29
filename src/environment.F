@@ -49,7 +49,7 @@ MODULE environment
                                               cp2k_header
    USE input_constants,                 ONLY: &
         callgraph_all, callgraph_none, do_cp2k, do_diag_elpa, do_diag_sl, do_diag_sl2, do_eip, &
-        do_farming, do_fft_fftw3, do_fft_sg, do_fist, do_qs, do_test, energy_run, &
+        do_farming, do_fft_fftw3, do_fft_sg, do_fist, do_qs, do_sirius, do_test, energy_run, &
         id_development_version, mol_dyn_run, none_run
    USE input_cp2k_global,               ONLY: create_global_section
    USE input_enumeration_types,         ONLY: enum_i2c,&
@@ -604,6 +604,8 @@ CONTAINS
                CASE (do_eip)
                   globenv%run_type_id = mol_dyn_run
                CASE (do_qs)
+                  globenv%run_type_id = energy_run
+               CASE (do_sirius)
                   globenv%run_type_id = energy_run
                END SELECT
             END IF
