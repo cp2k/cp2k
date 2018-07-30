@@ -4922,7 +4922,7 @@ CONTAINS
       ! cell indices T from index_to_cell(:,1:num_cells/2+1)
       DO i_cell = 1, num_cells/2+1
 
-         index_min_dist = MINLOC(abs_cell_vectors(1:num_cells/2+1), num_cells/2+1)
+         index_min_dist = MINLOC(abs_cell_vectors(1:num_cells/2+1), DIM=1)
 
          xcell = index_to_cell_unsorted(1, index_min_dist)
          ycell = index_to_cell_unsorted(2, index_min_dist)
@@ -4941,7 +4941,7 @@ CONTAINS
       ! now all the remaining cells
       DO i_cell = num_cells/2+2, num_cells
 
-         index_min_dist = MINLOC(abs_cell_vectors(1:num_cells), num_cells)
+         index_min_dist = MINLOC(abs_cell_vectors(1:num_cells), DIM=1)
 
          xcell = index_to_cell_unsorted(1, index_min_dist)
          ycell = index_to_cell_unsorted(2, index_min_dist)
