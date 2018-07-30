@@ -55,7 +55,7 @@ UO2-2x2x2-nocs2cs-nvt2nve-1.inp                       11    1.0E-14            -
 UO2-2x2x2-nocs2cs-nvt2nve-2.inp                       11    1.0E-14           -118.463067373915493
 UO2-2x2x2-nocs2cs-nvt2nve-3.inp                       11    1.0E-14            -77.402162598499288
 # Fix (BFGS) geometry optimisation for shell models
-UO2-2x2x2-geo_opt-bfgs.inp                            11    1.0E-14            -77.448416774070523
+UO2-2x2x2-geo_opt-bfgs.inp                            11      1E-10            -77.448416774070523
 UO2-2x2x2-geo_opt-cg.inp                              11      1E-13            -77.448416774069074
 UO2-2x2x2-geo_opt-lbfgs.inp                           11    1.0E-14            -77.448416774070864
 UO2-2x2x2-cs-geo_opt-bfgs.inp                         11      2e-13            -118.53015882785337
