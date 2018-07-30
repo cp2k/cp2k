@@ -556,7 +556,7 @@ CONTAINS
       REAL(KIND=dp), INTENT(in)                          :: th
       REAL(KIND=dp)                                      :: ks
 
-      INTEGER                                            :: i1, i2, i3, nflops
+      INTEGER                                            :: i1, i2, i3
       REAL(KIND=dp)                                      :: c, t, y
 
       ks = dzero; t = dzero; y = dzero; c = dzero
@@ -568,7 +568,6 @@ CONTAINS
             t = ks+y
             c = (t-ks)-y
             ks = t
-            nflops = nflops+1
          END IF
       ENDDO
       ENDDO
