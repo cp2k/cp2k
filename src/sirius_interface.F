@@ -90,7 +90,7 @@ CONTAINS
 !> \brief ...
 ! **************************************************************************************************
    SUBROUTINE cp_sirius_init()
-      CPWARN("Sirius library is missing")
+      ! Do nothing - Sirius library is missing.
    END SUBROUTINE cp_sirius_init
 #endif
 
@@ -461,7 +461,7 @@ CONTAINS
       TYPE(pwdft_environment_type), POINTER              :: pwdft_env
 
       CPASSERT(ASSOCIATED(pwdft_env))
-      CPWARN("Sirius library is missing")
+      CPABORT("Sirius library is missing")
 
    END SUBROUTINE cp_sirius_energy_force
 #endif
