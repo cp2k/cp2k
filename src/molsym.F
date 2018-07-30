@@ -1727,12 +1727,18 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:, :), INTENT(inout)      :: coord
       INTEGER, DIMENSION(3), INTENT(IN)                  :: idx
 
-! Transformation of the atomic coordinates  ***
+      INTEGER                                            :: iatom, natom
+      REAL(KIND=dp), DIMENSION(3, 3)                     :: tenvec
 
-      coord(idx, :) = MATMUL(TRANSPOSE(sym%tenvec(:, :)), coord(:, :))
+      ! Transformation of the atomic coordinates  ***
+      natom = SIZE(coord, 2)
+      tenvec = TRANSPOSE(sym%tenvec)
+      DO iatom = 1, natom
+         coord(idx, iatom) = MATMUL(tenvec, coord(:, iatom))
+      END DO
 
       ! Modify the transformation matrix for input orientation -> standard orientation
-      sym%inptostd(idx, :) = TRANSPOSE(sym%tenvec(:, :))
+      sym%inptostd(idx, :) = tenvec
 
    END SUBROUTINE tracar
 
