@@ -275,6 +275,12 @@ CONTAINS
 #if defined __MKL
       flags = TRIM(flags)//" mkl"
 #endif
+#if defined __JSON
+      flags = TRIM(flags)//" json"
+#endif
+#if defined __SIRIUS
+      flags = TRIM(flags)//" sirius"
+#endif
 
    END FUNCTION cp2k_flags
 

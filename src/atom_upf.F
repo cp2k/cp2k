@@ -398,7 +398,7 @@ CONTAINS
             CALL parser_get_object(parser, line)
             line = ADJUSTL(line)
             il = LEN_TRIM(line)
-            pot%functional = line(2:il-1)
+            READ (line(2:il-1), *) pot%functional
          CASE ("Z_VALENCE")
             CALL parser_get_object(parser, line)
             line = ADJUSTL(line)

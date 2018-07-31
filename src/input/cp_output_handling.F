@@ -737,7 +737,7 @@ CONTAINS
 
       CALL section_vals_val_get(print_key, "FILENAME", c_val=outPath)
       IF (outPath(1:1) == '=') THEN
-         filename = outPath(2:LEN_TRIM(outPath))
+         filename = outPath(2:)
          RETURN
       END IF
       IF (outPath == "__STD_OUT__") outPath = ""

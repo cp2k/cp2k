@@ -69,6 +69,7 @@ def check_warnings(fn):
 
         # we ignore these warnings
         if("-Wrealloc-lhs" in warning): continue
+        if("-Wdo-subscript" in warning): continue
         if("-Wmaybe-uninitialized" in warning): continue
         if("Creating array temporary" in warning): continue
         if("quality comparison" in warning): continue

@@ -280,12 +280,12 @@ CONTAINS
             ! Try to read the next line from file
             parser%buffer%input_line_numbers(iline) = last_buffered_line_number
             READ (UNIT=parser%input_unit, FMT="(A)", IOSTAT=istat) parser%buffer%input_lines(iline)
-            islen = LEN_TRIM(parser%buffer%input_lines(iline))
 
             ! Pre-processing steps:
             ! 1. Expand variables 2. Process directives and read next line.
             ! On read failure try to go back from included file to previous i/o-stream.
             IF (istat == 0) THEN
+               islen = LEN_TRIM(parser%buffer%input_lines(iline))
                this_line_is_white_or_comment = is_comment_line(parser, parser%buffer%input_lines(iline))
                IF (.NOT. this_line_is_white_or_comment .AND. parser%apply_preprocessing) THEN
                   imark = INDEX(parser%buffer%input_lines(iline) (1:islen), "$")
@@ -1383,14 +1383,13 @@ CONTAINS
             iop = n-i+2
             parsing_done = .TRUE.
          END IF
+         istat = 1
          IF (iop-1 > 0) THEN
             ! need an explicit fmtstr here. With 'FMT=*' compilers from intel and pgi will also
             ! read float numbers as integers, without setting istat non-zero, i.e. string="0.3", istat=0, iz8=0
             ! this leads to wrong CP2K results (e.g. parsing force fields).
             WRITE (fmtstr, FMT='(A,I0,A)') '(I', iop-1, ')'
             READ (UNIT=string(i:i+iop-2), FMT=fmtstr, IOSTAT=istat) iz8
-         ELSE
-            istat = 1
          ENDIF
          IF (istat /= 0) THEN
             error_message = "An integer type object was expected, found <"// &
