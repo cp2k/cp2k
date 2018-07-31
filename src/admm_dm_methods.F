@@ -13,12 +13,13 @@ MODULE admm_dm_methods
    USE admm_dm_types,                   ONLY: admm_dm_type,&
                                               mcweeny_history_type
    USE cp_control_types,                ONLY: dft_control_type
+   USE cp_dbcsr_operations,             ONLY: dbcsr_deallocate_matrix_set
    USE cp_log_handling,                 ONLY: cp_logger_get_default_unit_nr
    USE dbcsr_api,                       ONLY: &
-        dbcsr_add, dbcsr_copy, dbcsr_create, dbcsr_deallocate_matrix_set, dbcsr_frobenius_norm, &
-        dbcsr_get_block_p, dbcsr_iterator_blocks_left, dbcsr_iterator_next_block, &
-        dbcsr_iterator_start, dbcsr_iterator_stop, dbcsr_iterator_type, dbcsr_multiply, &
-        dbcsr_p_type, dbcsr_release, dbcsr_scale, dbcsr_set, dbcsr_type
+        dbcsr_add, dbcsr_copy, dbcsr_create, dbcsr_frobenius_norm, dbcsr_get_block_p, &
+        dbcsr_iterator_blocks_left, dbcsr_iterator_next_block, dbcsr_iterator_start, &
+        dbcsr_iterator_stop, dbcsr_iterator_type, dbcsr_multiply, dbcsr_p_type, dbcsr_release, &
+        dbcsr_scale, dbcsr_set, dbcsr_type
    USE input_constants,                 ONLY: do_admm_basis_projection,&
                                               do_admm_blocked_projection
    USE iterate_matrix,                  ONLY: invert_Hotelling

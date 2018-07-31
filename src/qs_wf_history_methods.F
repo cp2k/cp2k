@@ -21,7 +21,9 @@ MODULE qs_wf_history_methods
                                               VandeVondele2005a,&
                                               cite_reference
    USE cp_control_types,                ONLY: dft_control_type
-   USE cp_dbcsr_operations,             ONLY: cp_dbcsr_sm_fm_multiply
+   USE cp_dbcsr_operations,             ONLY: cp_dbcsr_sm_fm_multiply,&
+                                              dbcsr_allocate_matrix_set,&
+                                              dbcsr_deallocate_matrix_set
    USE cp_fm_basic_linalg,              ONLY: cp_fm_scale,&
                                               cp_fm_scale_and_add
    USE cp_fm_pool_types,                ONLY: cp_fm_pool_p_type,&
@@ -44,10 +46,8 @@ MODULE qs_wf_history_methods
                                               cp_print_key_unit_nr,&
                                               low_print_level
    USE dbcsr_api,                       ONLY: dbcsr_add,&
-                                              dbcsr_allocate_matrix_set,&
                                               dbcsr_copy,&
                                               dbcsr_deallocate_matrix,&
-                                              dbcsr_deallocate_matrix_set,&
                                               dbcsr_p_type
    USE input_constants,                 ONLY: &
         wfi_aspc_nr, wfi_frozen_method_nr, wfi_linear_p_method_nr, wfi_linear_ps_method_nr, &

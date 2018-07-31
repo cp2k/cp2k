@@ -15,7 +15,8 @@ MODULE qs_p_env_methods
    USE cp_blacs_env,                    ONLY: cp_blacs_env_type
    USE cp_control_types,                ONLY: dft_control_type
    USE cp_dbcsr_operations,             ONLY: cp_dbcsr_plus_fm_fm_t,&
-                                              cp_dbcsr_sm_fm_multiply
+                                              cp_dbcsr_sm_fm_multiply,&
+                                              dbcsr_allocate_matrix_set
    USE cp_fm_basic_linalg,              ONLY: cp_fm_scale_and_add,&
                                               cp_fm_symm,&
                                               cp_fm_triangular_multiply
@@ -47,8 +48,7 @@ MODULE qs_p_env_methods
    USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
                                               cp_print_key_unit_nr
    USE cp_para_types,                   ONLY: cp_para_env_type
-   USE dbcsr_api,                       ONLY: dbcsr_allocate_matrix_set,&
-                                              dbcsr_copy,&
+   USE dbcsr_api,                       ONLY: dbcsr_copy,&
                                               dbcsr_p_type,&
                                               dbcsr_scale,&
                                               dbcsr_set,&

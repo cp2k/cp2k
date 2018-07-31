@@ -11,7 +11,9 @@
 MODULE rt_propagation_output
    USE atomic_kind_types,               ONLY: atomic_kind_type
    USE cp_control_types,                ONLY: dft_control_type
-   USE cp_dbcsr_operations,             ONLY: cp_dbcsr_sm_fm_multiply
+   USE cp_dbcsr_operations,             ONLY: cp_dbcsr_sm_fm_multiply,&
+                                              dbcsr_allocate_matrix_set,&
+                                              dbcsr_deallocate_matrix_set
    USE cp_fm_basic_linalg,              ONLY: cp_fm_scale_and_add
    USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
                                               cp_fm_struct_double,&
@@ -35,11 +37,11 @@ MODULE rt_propagation_output
                                               cp_print_key_unit_nr
    USE cp_realspace_grid_cube,          ONLY: cp_pw_to_cube
    USE dbcsr_api,                       ONLY: &
-        dbcsr_add, dbcsr_allocate_matrix_set, dbcsr_binary_write, dbcsr_checksum, dbcsr_copy, &
-        dbcsr_create, dbcsr_deallocate_matrix, dbcsr_deallocate_matrix_set, dbcsr_desymmetrize, &
-        dbcsr_filter, dbcsr_get_info, dbcsr_get_occupation, dbcsr_init_p, &
-        dbcsr_iterator_blocks_left, dbcsr_iterator_next_block, dbcsr_iterator_start, &
-        dbcsr_iterator_stop, dbcsr_iterator_type, dbcsr_p_type, dbcsr_scale, dbcsr_set, dbcsr_type
+        dbcsr_add, dbcsr_binary_write, dbcsr_checksum, dbcsr_copy, dbcsr_create, &
+        dbcsr_deallocate_matrix, dbcsr_desymmetrize, dbcsr_filter, dbcsr_get_info, &
+        dbcsr_get_occupation, dbcsr_init_p, dbcsr_iterator_blocks_left, dbcsr_iterator_next_block, &
+        dbcsr_iterator_start, dbcsr_iterator_stop, dbcsr_iterator_type, dbcsr_p_type, dbcsr_scale, &
+        dbcsr_set, dbcsr_type
    USE input_constants,                 ONLY: ehrenfest,&
                                               real_time_propagation
    USE input_section_types,             ONLY: section_get_ivals,&

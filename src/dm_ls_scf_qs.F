@@ -14,18 +14,18 @@ MODULE dm_ls_scf_qs
    USE atomic_kind_types,               ONLY: atomic_kind_type
    USE cp_control_types,                ONLY: dft_control_type
    USE cp_dbcsr_cp2k_link,              ONLY: cp_dbcsr_alloc_block_from_nbl
+   USE cp_dbcsr_operations,             ONLY: dbcsr_allocate_matrix_set
    USE cp_log_handling,                 ONLY: cp_get_default_logger,&
                                               cp_logger_get_default_unit_nr,&
                                               cp_logger_type
    USE cp_para_types,                   ONLY: cp_para_env_type
    USE cp_realspace_grid_cube,          ONLY: cp_pw_to_cube
    USE dbcsr_api,                       ONLY: &
-        dbcsr_allocate_matrix_set, dbcsr_complete_redistribute, dbcsr_copy, &
-        dbcsr_copy_into_existing, dbcsr_create, dbcsr_desymmetrize, dbcsr_distribution_get, &
-        dbcsr_distribution_hold, dbcsr_distribution_new, dbcsr_distribution_release, &
-        dbcsr_distribution_type, dbcsr_finalize, dbcsr_get_info, dbcsr_multiply, &
-        dbcsr_nblkrows_total, dbcsr_p_type, dbcsr_release, dbcsr_set, dbcsr_type, &
-        dbcsr_type_real_4, dbcsr_type_real_8
+        dbcsr_complete_redistribute, dbcsr_copy, dbcsr_copy_into_existing, dbcsr_create, &
+        dbcsr_desymmetrize, dbcsr_distribution_get, dbcsr_distribution_hold, &
+        dbcsr_distribution_new, dbcsr_distribution_release, dbcsr_distribution_type, &
+        dbcsr_finalize, dbcsr_get_info, dbcsr_multiply, dbcsr_nblkrows_total, dbcsr_p_type, &
+        dbcsr_release, dbcsr_set, dbcsr_type, dbcsr_type_real_4, dbcsr_type_real_8
    USE dm_ls_scf_types,                 ONLY: ls_cluster_atomic,&
                                               ls_cluster_molecular,&
                                               ls_mstruct_type,&

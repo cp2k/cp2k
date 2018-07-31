@@ -16,7 +16,8 @@ MODULE mp2_ri_grad
                                               pbc
    USE cp_blacs_env,                    ONLY: cp_blacs_env_type
    USE cp_control_types,                ONLY: dft_control_type
-   USE cp_dbcsr_operations,             ONLY: copy_dbcsr_to_fm
+   USE cp_dbcsr_operations,             ONLY: copy_dbcsr_to_fm,&
+                                              dbcsr_deallocate_matrix_set
    USE cp_eri_mme_interface,            ONLY: cp_eri_mme_param
    USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
                                               cp_fm_struct_release,&
@@ -34,9 +35,9 @@ MODULE mp2_ri_grad
                                               cp_para_env_release
    USE cp_para_types,                   ONLY: cp_para_env_type
    USE dbcsr_api,                       ONLY: &
-        dbcsr_add, dbcsr_copy, dbcsr_copy_into_existing, dbcsr_create, &
-        dbcsr_deallocate_matrix_set, dbcsr_multiply, dbcsr_p_type, dbcsr_release, dbcsr_set, &
-        dbcsr_transposed, dbcsr_type, dbcsr_type_no_symmetry, dbcsr_type_symmetric
+        dbcsr_add, dbcsr_copy, dbcsr_copy_into_existing, dbcsr_create, dbcsr_multiply, &
+        dbcsr_p_type, dbcsr_release, dbcsr_set, dbcsr_transposed, dbcsr_type, &
+        dbcsr_type_no_symmetry, dbcsr_type_symmetric
    USE gaussian_gridlevels,             ONLY: gaussian_gridlevel
    USE input_constants,                 ONLY: do_eri_gpw,&
                                               do_eri_mme

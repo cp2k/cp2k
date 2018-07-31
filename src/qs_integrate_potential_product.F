@@ -35,11 +35,12 @@ MODULE qs_integrate_potential_product
    USE cell_types,                      ONLY: cell_type,&
                                               pbc
    USE cp_control_types,                ONLY: dft_control_type
+   USE cp_dbcsr_operations,             ONLY: dbcsr_deallocate_matrix_set
    USE cube_utils,                      ONLY: cube_info_type
    USE dbcsr_api,                       ONLY: &
-        dbcsr_add_block_node, dbcsr_copy, dbcsr_create, dbcsr_deallocate_matrix_set, &
-        dbcsr_distribution_get, dbcsr_distribution_type, dbcsr_finalize, dbcsr_get_block_p, &
-        dbcsr_get_info, dbcsr_p_type, dbcsr_type, dbcsr_work_create
+        dbcsr_add_block_node, dbcsr_copy, dbcsr_create, dbcsr_distribution_get, &
+        dbcsr_distribution_type, dbcsr_finalize, dbcsr_get_block_p, dbcsr_get_info, dbcsr_p_type, &
+        dbcsr_type, dbcsr_work_create
    USE gaussian_gridlevels,             ONLY: gridlevel_info_type
    USE input_constants,                 ONLY: do_admm_exch_scaling_merlot
    USE kinds,                           ONLY: default_string_length,&

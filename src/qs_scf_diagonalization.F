@@ -23,7 +23,8 @@ MODULE qs_scf_diagonalization
    USE cp_dbcsr_cp2k_link,              ONLY: cp_dbcsr_alloc_block_from_nbl
    USE cp_dbcsr_operations,             ONLY: copy_dbcsr_to_fm,&
                                               copy_fm_to_dbcsr,&
-                                              cp_dbcsr_sm_fm_multiply
+                                              cp_dbcsr_sm_fm_multiply,&
+                                              dbcsr_allocate_matrix_set
    USE cp_fm_basic_linalg,              ONLY: cp_fm_symm,&
                                               cp_fm_upper_to_full
    USE cp_fm_cholesky,                  ONLY: cp_fm_cholesky_reduce,&
@@ -48,9 +49,9 @@ MODULE qs_scf_diagonalization
                                               cp_print_key_unit_nr
    USE cp_para_types,                   ONLY: cp_para_env_type
    USE dbcsr_api,                       ONLY: &
-        dbcsr_allocate_matrix_set, dbcsr_copy, dbcsr_create, dbcsr_deallocate_matrix, &
-        dbcsr_desymmetrize, dbcsr_p_type, dbcsr_set, dbcsr_type, dbcsr_type_antisymmetric, &
-        dbcsr_type_no_symmetry, dbcsr_type_symmetric
+        dbcsr_copy, dbcsr_create, dbcsr_deallocate_matrix, dbcsr_desymmetrize, dbcsr_p_type, &
+        dbcsr_set, dbcsr_type, dbcsr_type_antisymmetric, dbcsr_type_no_symmetry, &
+        dbcsr_type_symmetric
    USE input_constants,                 ONLY: &
         cholesky_dbcsr, cholesky_inverse, cholesky_off, cholesky_reduce, cholesky_restore, &
         core_guess, general_roks, high_spin_roks, restart_guess

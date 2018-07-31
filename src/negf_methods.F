@@ -22,6 +22,7 @@ MODULE negf_methods
         cp_cfm_release, cp_cfm_retain, cp_cfm_set_submatrix, cp_cfm_start_copy_general, &
         cp_cfm_to_fm, cp_cfm_type
    USE cp_control_types,                ONLY: dft_control_type
+   USE cp_dbcsr_operations,             ONLY: dbcsr_allocate_matrix_set
    USE cp_fm_basic_linalg,              ONLY: cp_fm_scale,&
                                               cp_fm_scale_and_add,&
                                               cp_fm_trace
@@ -40,8 +41,7 @@ MODULE negf_methods
                                               cp_print_key_unit_nr
    USE cp_para_types,                   ONLY: cp_para_env_type
    USE cp_subsys_types,                 ONLY: cp_subsys_type
-   USE dbcsr_api,                       ONLY: dbcsr_allocate_matrix_set,&
-                                              dbcsr_copy,&
+   USE dbcsr_api,                       ONLY: dbcsr_copy,&
                                               dbcsr_deallocate_matrix,&
                                               dbcsr_init_p,&
                                               dbcsr_p_type,&

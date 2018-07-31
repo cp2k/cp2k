@@ -35,7 +35,9 @@ MODULE rpa_ri_gpw
    USE cp_dbcsr_operations,             ONLY: copy_dbcsr_to_fm,&
                                               copy_fm_to_dbcsr,&
                                               cp_dbcsr_m_by_n_from_row_template,&
-                                              cp_dbcsr_m_by_n_from_template
+                                              cp_dbcsr_m_by_n_from_template,&
+                                              dbcsr_allocate_matrix_set,&
+                                              dbcsr_deallocate_matrix_set
    USE cp_fm_basic_linalg,              ONLY: cp_fm_column_scale,&
                                               cp_fm_invert,&
                                               cp_fm_scale,&
@@ -59,10 +61,9 @@ MODULE rpa_ri_gpw
                                               cp_para_env_release
    USE cp_para_types,                   ONLY: cp_para_env_type
    USE dbcsr_api,                       ONLY: &
-        dbcsr_add, dbcsr_add_on_diag, dbcsr_allocate_matrix_set, dbcsr_copy, dbcsr_create, &
-        dbcsr_deallocate_matrix_set, dbcsr_desymmetrize, dbcsr_filter, dbcsr_get_diag, &
-        dbcsr_get_info, dbcsr_get_occupation, dbcsr_get_stored_coordinates, dbcsr_init_p, &
-        dbcsr_iterator_blocks_left, dbcsr_iterator_next_block, dbcsr_iterator_start, &
+        dbcsr_add, dbcsr_add_on_diag, dbcsr_copy, dbcsr_create, dbcsr_desymmetrize, dbcsr_filter, &
+        dbcsr_get_diag, dbcsr_get_info, dbcsr_get_occupation, dbcsr_get_stored_coordinates, &
+        dbcsr_init_p, dbcsr_iterator_blocks_left, dbcsr_iterator_next_block, dbcsr_iterator_start, &
         dbcsr_iterator_stop, dbcsr_iterator_type, dbcsr_multiply, dbcsr_p_type, dbcsr_release, &
         dbcsr_release_p, dbcsr_reserve_all_blocks, dbcsr_scale, dbcsr_set, dbcsr_trace, &
         dbcsr_transposed, dbcsr_type, dbcsr_type_no_symmetry, dbcsr_type_real_default

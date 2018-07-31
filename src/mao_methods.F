@@ -21,7 +21,8 @@ MODULE mao_methods
    USE cp_control_types,                ONLY: dft_control_type
    USE cp_dbcsr_cp2k_link,              ONLY: cp_dbcsr_alloc_block_from_nbl
    USE cp_dbcsr_operations,             ONLY: copy_dbcsr_to_fm,&
-                                              cp_dbcsr_plus_fm_fm_t
+                                              cp_dbcsr_plus_fm_fm_t,&
+                                              dbcsr_allocate_matrix_set
    USE cp_fm_diag,                      ONLY: cp_fm_geeig
    USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
                                               cp_fm_struct_release,&
@@ -31,8 +32,8 @@ MODULE mao_methods
                                               cp_fm_type
    USE cp_para_types,                   ONLY: cp_para_env_type
    USE dbcsr_api,                       ONLY: &
-        dbcsr_allocate_matrix_set, dbcsr_create, dbcsr_desymmetrize, dbcsr_distribution_type, &
-        dbcsr_get_block_p, dbcsr_get_info, dbcsr_iterator_blocks_left, dbcsr_iterator_next_block, &
+        dbcsr_create, dbcsr_desymmetrize, dbcsr_distribution_type, dbcsr_get_block_p, &
+        dbcsr_get_info, dbcsr_iterator_blocks_left, dbcsr_iterator_next_block, &
         dbcsr_iterator_start, dbcsr_iterator_stop, dbcsr_iterator_type, dbcsr_multiply, &
         dbcsr_p_type, dbcsr_release, dbcsr_reserve_diag_blocks, dbcsr_set, dbcsr_trace, &
         dbcsr_type, dbcsr_type_no_symmetry

@@ -32,6 +32,7 @@ MODULE qs_ks_methods
                                               copy_fm_to_dbcsr,&
                                               cp_dbcsr_plus_fm_fm_t,&
                                               cp_dbcsr_sm_fm_multiply,&
+                                              dbcsr_allocate_matrix_set,&
                                               dbcsr_copy_columns_hack
    USE cp_ddapc,                        ONLY: qs_ks_ddapc
    USE cp_fm_basic_linalg,              ONLY: cp_fm_column_scale,&
@@ -56,9 +57,8 @@ MODULE qs_ks_methods
                                               cp_print_key_should_output
    USE cp_para_types,                   ONLY: cp_para_env_type
    USE dbcsr_api,                       ONLY: &
-        dbcsr_add, dbcsr_allocate_matrix_set, dbcsr_copy, dbcsr_create, dbcsr_filter, &
-        dbcsr_get_info, dbcsr_multiply, dbcsr_p_type, dbcsr_release, dbcsr_set, dbcsr_type, &
-        dbcsr_type_symmetric
+        dbcsr_add, dbcsr_copy, dbcsr_create, dbcsr_filter, dbcsr_get_info, dbcsr_multiply, &
+        dbcsr_p_type, dbcsr_release, dbcsr_set, dbcsr_type, dbcsr_type_symmetric
    USE dft_plus_u,                      ONLY: plus_u
    USE efield_utils,                    ONLY: efield_potential
    USE hartree_local_methods,           ONLY: Vh_1c_gg_integrals

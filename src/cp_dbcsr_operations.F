@@ -20,11 +20,12 @@ MODULE cp_dbcsr_operations
    USE dbcsr_api,              ONLY: dbcsr_distribution_get, &
         convert_sizes_to_offsets, dbcsr_add, &
         dbcsr_complete_redistribute, dbcsr_copy, dbcsr_create, &
+        dbcsr_deallocate_matrix, &
         dbcsr_desymmetrize, dbcsr_distribution_new, &
         dbcsr_get_data_type, dbcsr_get_info, dbcsr_get_matrix_type, &
         dbcsr_iterator_type, dbcsr_iterator_blocks_left, dbcsr_iterator_next_block, &
         dbcsr_iterator_start, dbcsr_iterator_stop, &
-        dbcsr_multiply, dbcsr_norm, dbcsr_release, &
+        dbcsr_multiply, dbcsr_norm, dbcsr_p_type, dbcsr_release, &
         dbcsr_reserve_all_blocks, dbcsr_scale, dbcsr_type, &
         dbcsr_valid_index, dbcsr_verify_matrix, &
         dbcsr_distribution_type, dbcsr_distribution_release, &
@@ -70,13 +71,25 @@ MODULE cp_dbcsr_operations
 
    PUBLIC :: dbcsr_copy_columns_hack
 
-   
+   ! matrix set
+   PUBLIC :: dbcsr_allocate_matrix_set
+   PUBLIC :: dbcsr_deallocate_matrix_set
+
+   INTERFACE dbcsr_allocate_matrix_set
+#:for ii in range(1, 6)
+      MODULE PROCEDURE allocate_dbcsr_matrix_set_${ii}$d
+#:endfor
+   END INTERFACE
+
+   INTERFACE dbcsr_deallocate_matrix_set
+#:for ii in range(1, 6)
+      MODULE PROCEDURE deallocate_dbcsr_matrix_set_${ii}$d
+#:endfor
+   END INTERFACE
 
    PRIVATE
 
 CONTAINS
-
-
 
 #:for fm, type, constr in [("fm", "REAL", "REAL"), ("cfm", "COMPLEX", "CMPLX")]
 
@@ -1268,5 +1281,283 @@ CONTAINS
 
 
   END SUBROUTINE dbcsr_create_dist_block_cyclic
+
+! **************************************************************************************************
+!> \brief   Allocate and initialize a real matrix 1-dimensional set.
+!> \param[in,out] matrix_set  Set containing the DBCSR matrices
+!> \param[in] nmatrix         Size of set
+!> \par History
+!>      2009-08-17 Adapted from sparse_matrix_type for DBCSR
+! **************************************************************************************************
+   SUBROUTINE allocate_dbcsr_matrix_set_1d(matrix_set, nmatrix)
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_set
+      INTEGER, INTENT(IN)                                :: nmatrix
+
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'allocate_dbcsr_matrix_set_1d', &
+         routineP = moduleN//':'//routineN
+
+      INTEGER                                            :: imatrix
+
+      IF (ASSOCIATED(matrix_set)) CALL dbcsr_deallocate_matrix_set(matrix_set)
+      ALLOCATE (matrix_set(nmatrix))
+      DO imatrix = 1, nmatrix
+         NULLIFY (matrix_set(imatrix)%matrix)
+      END DO
+   END SUBROUTINE allocate_dbcsr_matrix_set_1d
+
+! **************************************************************************************************
+!> \brief   Allocate and initialize a real matrix 2-dimensional set.
+!> \param[in,out] matrix_set  Set containing the DBCSR matrix pointer type
+!> \param[in] nmatrix         Size of set
+!> \param mmatrix ...
+!> \par History
+!>      2009-08-17 Adapted from sparse_matrix_type for DBCSR
+! **************************************************************************************************
+   SUBROUTINE allocate_dbcsr_matrix_set_2d(matrix_set, nmatrix, mmatrix)
+      TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: matrix_set
+      INTEGER, INTENT(IN)                                :: nmatrix, mmatrix
+
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'allocate_dbcsr_matrix_set_2d', &
+         routineP = moduleN//':'//routineN
+
+      INTEGER                                            :: imatrix, jmatrix
+
+      IF (ASSOCIATED(matrix_set)) CALL dbcsr_deallocate_matrix_set(matrix_set)
+      ALLOCATE (matrix_set(nmatrix, mmatrix))
+      DO jmatrix = 1, mmatrix
+         DO imatrix = 1, nmatrix
+            NULLIFY (matrix_set(imatrix, jmatrix)%matrix)
+         END DO
+      END DO
+   END SUBROUTINE allocate_dbcsr_matrix_set_2d
+
+! **************************************************************************************************
+!> \brief   Allocate and initialize a real matrix 3-dimensional set.
+!> \param[in,out] matrix_set  Set containing the DBCSR matrix pointer type
+!> \param[in] nmatrix         Size of set
+!> \param mmatrix ...
+!> \param pmatrix ...
+!> \par History
+!>      2009-08-17 Adapted from sparse_matrix_type for DBCSR
+! **************************************************************************************************
+   SUBROUTINE allocate_dbcsr_matrix_set_3d(matrix_set, nmatrix, mmatrix, pmatrix)
+      TYPE(dbcsr_p_type), DIMENSION(:, :, :), POINTER    :: matrix_set
+      INTEGER, INTENT(IN)                                :: nmatrix, mmatrix, pmatrix
+
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'allocate_dbcsr_matrix_set_3d', &
+         routineP = moduleN//':'//routineN
+
+      INTEGER                                            :: imatrix, jmatrix, kmatrix
+
+      IF (ASSOCIATED(matrix_set)) CALL dbcsr_deallocate_matrix_set(matrix_set)
+      ALLOCATE (matrix_set(nmatrix, mmatrix, pmatrix))
+      DO kmatrix = 1, pmatrix
+         DO jmatrix = 1, mmatrix
+            DO imatrix = 1, nmatrix
+               NULLIFY (matrix_set(imatrix, jmatrix, kmatrix)%matrix)
+            END DO
+         END DO
+      END DO
+   END SUBROUTINE allocate_dbcsr_matrix_set_3d
+
+! **************************************************************************************************
+!> \brief   Allocate and initialize a real matrix 4-dimensional set.
+!> \param[in,out] matrix_set  Set containing the DBCSR matrix pointer type
+!> \param[in] nmatrix         Size of set
+!> \param mmatrix ...
+!> \param pmatrix ...
+!> \par History
+!>      2009-08-17 Adapted from sparse_matrix_type for DBCSR
+! **************************************************************************************************
+   SUBROUTINE allocate_dbcsr_matrix_set_4d(matrix_set, nmatrix, mmatrix, pmatrix, qmatrix)
+      TYPE(dbcsr_p_type), DIMENSION(:, :, :,:), POINTER    :: matrix_set
+      INTEGER, INTENT(IN)                                :: nmatrix, mmatrix, pmatrix, qmatrix
+
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'allocate_dbcsr_matrix_set_4d', &
+         routineP = moduleN//':'//routineN
+
+      INTEGER                                            :: imatrix, jmatrix, kmatrix, lmatrix
+
+      IF (ASSOCIATED(matrix_set)) CALL dbcsr_deallocate_matrix_set(matrix_set)
+      ALLOCATE (matrix_set(nmatrix, mmatrix, pmatrix, qmatrix))
+      DO lmatrix = 1, qmatrix
+      DO kmatrix = 1, pmatrix
+         DO jmatrix = 1, mmatrix
+            DO imatrix = 1, nmatrix
+               NULLIFY (matrix_set(imatrix, jmatrix, kmatrix, lmatrix)%matrix)
+            END DO
+         END DO
+      END DO
+      END DO
+   END SUBROUTINE allocate_dbcsr_matrix_set_4d
+
+! **************************************************************************************************
+!> \brief   Allocate and initialize a real matrix 5-dimensional set.
+!> \param[in,out] matrix_set  Set containing the DBCSR matrix pointer type
+!> \param[in] nmatrix         Size of set
+!> \param mmatrix ...
+!> \param pmatrix ...
+!> \par History
+!>      2009-08-17 Adapted from sparse_matrix_type for DBCSR
+! **************************************************************************************************
+   SUBROUTINE allocate_dbcsr_matrix_set_5d(matrix_set, nmatrix, mmatrix, pmatrix, qmatrix, smatrix)
+      TYPE(dbcsr_p_type), DIMENSION(:, :, :,:,:), POINTER    :: matrix_set
+      INTEGER, INTENT(IN)                                :: nmatrix, mmatrix, pmatrix, qmatrix, smatrix
+
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'allocate_dbcsr_matrix_set_5d', &
+         routineP = moduleN//':'//routineN
+
+      INTEGER                                            :: imatrix, jmatrix, kmatrix, lmatrix, hmatrix
+
+      IF (ASSOCIATED(matrix_set)) CALL dbcsr_deallocate_matrix_set(matrix_set)
+      ALLOCATE (matrix_set(nmatrix, mmatrix, pmatrix, qmatrix, smatrix))
+      DO hmatrix = 1, smatrix
+      DO lmatrix = 1, qmatrix
+      DO kmatrix = 1, pmatrix
+         DO jmatrix = 1, mmatrix
+            DO imatrix = 1, nmatrix
+               NULLIFY (matrix_set(imatrix, jmatrix, kmatrix, lmatrix, hmatrix)%matrix)
+            END DO
+         END DO
+      END DO
+      END DO
+      END DO
+   END SUBROUTINE allocate_dbcsr_matrix_set_5d
+
+ ! **************************************************************************************************
+!> \brief Deallocate a real matrix set and release all of the member matrices.
+!> \param[in,out] matrix_set  Set containing the DBCSR matrix pointer type
+!> \par History
+!>      2009-08-17 Adapted from sparse_matrix_type for DBCSR
+! **************************************************************************************************
+   SUBROUTINE deallocate_dbcsr_matrix_set_1d(matrix_set)
+
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_set
+
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'deallocate_dbcsr_matrix_set_1d', &
+         routineP = moduleN//':'//routineN
+
+      INTEGER                                            :: imatrix
+
+      IF (ASSOCIATED(matrix_set)) THEN
+         DO imatrix = 1, SIZE(matrix_set)
+            CALL dbcsr_deallocate_matrix(matrix_set(imatrix)%matrix)
+         END DO
+         DEALLOCATE (matrix_set)
+      END IF
+
+   END SUBROUTINE deallocate_dbcsr_matrix_set_1d
+
+! **************************************************************************************************
+!> \brief Deallocate a real matrix set and release all of the member matrices.
+!> \param[in,out] matrix_set  Set containing the DBCSR matrix pointer type
+!> \par History
+!>      2009-08-17 Adapted from sparse_matrix_type for DBCSR
+! **************************************************************************************************
+   SUBROUTINE deallocate_dbcsr_matrix_set_2d(matrix_set)
+
+      TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: matrix_set
+
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'deallocate_dbcsr_matrix_set_2d', &
+         routineP = moduleN//':'//routineN
+
+      INTEGER                                            :: imatrix, jmatrix
+
+      IF (ASSOCIATED(matrix_set)) THEN
+         DO jmatrix = 1, SIZE(matrix_set, 2)
+            DO imatrix = 1, SIZE(matrix_set, 1)
+               CALL dbcsr_deallocate_matrix(matrix_set(imatrix, jmatrix)%matrix)
+            END DO
+         END DO
+         DEALLOCATE (matrix_set)
+      END IF
+   END SUBROUTINE deallocate_dbcsr_matrix_set_2d
+
+! **************************************************************************************************
+!> \brief Deallocate a real matrix set and release all of the member matrices.
+!> \param[in,out] matrix_set  Set containing the DBCSR matrix pointer type
+!> \par History
+!>      2009-08-17 Adapted from sparse_matrix_type for DBCSR
+! **************************************************************************************************
+   SUBROUTINE deallocate_dbcsr_matrix_set_3d(matrix_set)
+
+      TYPE(dbcsr_p_type), DIMENSION(:, :, :), POINTER    :: matrix_set
+
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'deallocate_dbcsr_matrix_set_3d', &
+         routineP = moduleN//':'//routineN
+
+      INTEGER                                            :: imatrix, jmatrix, kmatrix
+
+      IF (ASSOCIATED(matrix_set)) THEN
+         DO kmatrix = 1, SIZE(matrix_set, 3)
+            DO jmatrix = 1, SIZE(matrix_set, 2)
+               DO imatrix = 1, SIZE(matrix_set, 1)
+                  CALL dbcsr_deallocate_matrix(matrix_set(imatrix, jmatrix, kmatrix)%matrix)
+               END DO
+            END DO
+         END DO
+         DEALLOCATE (matrix_set)
+      END IF
+   END SUBROUTINE deallocate_dbcsr_matrix_set_3d
+
+! **************************************************************************************************
+!> \brief Deallocate a real matrix set and release all of the member matrices.
+!> \param[in,out] matrix_set  Set containing the DBCSR matrix pointer type
+!> \par History
+!>      2009-08-17 Adapted from sparse_matrix_type for DBCSR
+! **************************************************************************************************
+   SUBROUTINE deallocate_dbcsr_matrix_set_4d(matrix_set)
+
+      TYPE(dbcsr_p_type), DIMENSION(:, :, :, :), POINTER    :: matrix_set
+
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'deallocate_dbcsr_matrix_set_4d', &
+         routineP = moduleN//':'//routineN
+
+      INTEGER                                            :: imatrix, jmatrix, kmatrix, lmatrix
+
+      IF (ASSOCIATED(matrix_set)) THEN
+         DO lmatrix= 1, SIZE(matrix_set, 4)
+         DO kmatrix = 1, SIZE(matrix_set, 3)
+            DO jmatrix = 1, SIZE(matrix_set, 2)
+               DO imatrix = 1, SIZE(matrix_set, 1)
+                  CALL dbcsr_deallocate_matrix(matrix_set(imatrix, jmatrix, kmatrix, lmatrix)%matrix)
+               END DO
+               END DO
+            END DO
+         END DO
+         DEALLOCATE (matrix_set)
+      END IF
+   END SUBROUTINE deallocate_dbcsr_matrix_set_4d
+
+! **************************************************************************************************
+!> \brief Deallocate a real matrix set and release all of the member matrices.
+!> \param[in,out] matrix_set  Set containing the DBCSR matrix pointer type
+!> \par History
+!>      2009-08-17 Adapted from sparse_matrix_type for DBCSR
+! **************************************************************************************************
+   SUBROUTINE deallocate_dbcsr_matrix_set_5d(matrix_set)
+
+      TYPE(dbcsr_p_type), DIMENSION(:, :, :, :, :), POINTER    :: matrix_set
+
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'deallocate_dbcsr_matrix_set_5d', &
+         routineP = moduleN//':'//routineN
+
+      INTEGER                                            :: imatrix, jmatrix, kmatrix, hmatrix, lmatrix
+
+      IF (ASSOCIATED(matrix_set)) THEN
+          DO hmatrix= 1, SIZE(matrix_set, 5)
+         DO lmatrix= 1, SIZE(matrix_set, 4)
+         DO kmatrix = 1, SIZE(matrix_set, 3)
+            DO jmatrix = 1, SIZE(matrix_set, 2)
+               DO imatrix = 1, SIZE(matrix_set, 1)
+                  CALL dbcsr_deallocate_matrix(matrix_set(imatrix, jmatrix, kmatrix, lmatrix, hmatrix)%matrix)
+               END DO
+               END DO
+            END DO
+         END DO
+         END DO
+         DEALLOCATE (matrix_set)
+      END IF
+   END SUBROUTINE deallocate_dbcsr_matrix_set_5d
 
 END MODULE cp_dbcsr_operations

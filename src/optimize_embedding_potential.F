@@ -13,7 +13,8 @@ MODULE optimize_embedding_potential
                                               cp_blacs_env_release,&
                                               cp_blacs_env_type
    USE cp_control_types,                ONLY: dft_control_type
-   USE cp_dbcsr_operations,             ONLY: copy_dbcsr_to_fm
+   USE cp_dbcsr_operations,             ONLY: copy_dbcsr_to_fm,&
+                                              dbcsr_deallocate_matrix_set
    USE cp_files,                        ONLY: close_file,&
                                               open_file
    USE cp_fm_basic_linalg,              ONLY: cp_fm_column_scale,&
@@ -36,8 +37,7 @@ MODULE optimize_embedding_potential
                                               cp_print_key_unit_nr
    USE cp_para_types,                   ONLY: cp_para_env_type
    USE cp_realspace_grid_cube,          ONLY: cp_pw_to_cube
-   USE dbcsr_api,                       ONLY: dbcsr_deallocate_matrix_set,&
-                                              dbcsr_p_type
+   USE dbcsr_api,                       ONLY: dbcsr_p_type
    USE embed_types,                     ONLY: opt_embed_pot_type
    USE force_env_types,                 ONLY: force_env_type
    USE input_constants,                 ONLY: embed_level_shift,&

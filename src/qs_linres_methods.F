@@ -13,7 +13,8 @@
 MODULE qs_linres_methods
    USE cp_control_types,                ONLY: dft_control_type
    USE cp_dbcsr_operations,             ONLY: cp_dbcsr_plus_fm_fm_t,&
-                                              cp_dbcsr_sm_fm_multiply
+                                              cp_dbcsr_sm_fm_multiply,&
+                                              dbcsr_allocate_matrix_set
    USE cp_external_control,             ONLY: external_control
    USE cp_files,                        ONLY: close_file,&
                                               open_file
@@ -41,8 +42,7 @@ MODULE qs_linres_methods
                                               cp_print_key_should_output,&
                                               cp_print_key_unit_nr
    USE cp_para_types,                   ONLY: cp_para_env_type
-   USE dbcsr_api,                       ONLY: dbcsr_allocate_matrix_set,&
-                                              dbcsr_checksum,&
+   USE dbcsr_api,                       ONLY: dbcsr_checksum,&
                                               dbcsr_copy,&
                                               dbcsr_p_type,&
                                               dbcsr_set,&

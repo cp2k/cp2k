@@ -21,16 +21,16 @@ MODULE pexsi_methods
                                               set_arnoldi_initial_vector,&
                                               setup_arnoldi_data
    USE cp_dbcsr_cp2k_link,              ONLY: cp_dbcsr_to_csr_screening
+   USE cp_dbcsr_operations,             ONLY: dbcsr_allocate_matrix_set
    USE cp_log_handling,                 ONLY: cp_get_default_logger,&
                                               cp_logger_get_default_unit_nr,&
                                               cp_logger_type
    USE dbcsr_api,                       ONLY: &
         convert_csr_to_dbcsr, convert_dbcsr_to_csr, csr_create, csr_create_from_dbcsr, &
-        csr_destroy, csr_eqrow_floor_dist, csr_print_sparsity, dbcsr_allocate_matrix_set, &
-        dbcsr_copy, dbcsr_copy_into_existing, dbcsr_create, dbcsr_desymmetrize, &
-        dbcsr_distribution_get, dbcsr_distribution_type, dbcsr_get_info, dbcsr_has_symmetry, &
-        dbcsr_p_type, dbcsr_release, dbcsr_scale, dbcsr_set, dbcsr_type, dbcsr_type_no_symmetry, &
-        dbcsr_type_real_8
+        csr_destroy, csr_eqrow_floor_dist, csr_print_sparsity, dbcsr_copy, &
+        dbcsr_copy_into_existing, dbcsr_create, dbcsr_desymmetrize, dbcsr_distribution_get, &
+        dbcsr_distribution_type, dbcsr_get_info, dbcsr_has_symmetry, dbcsr_p_type, dbcsr_release, &
+        dbcsr_scale, dbcsr_set, dbcsr_type, dbcsr_type_no_symmetry, dbcsr_type_real_8
    USE dm_ls_scf_qs,                    ONLY: matrix_ls_to_qs
    USE dm_ls_scf_types,                 ONLY: ls_scf_env_type
    USE input_section_types,             ONLY: section_vals_type,&

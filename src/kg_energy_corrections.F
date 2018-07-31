@@ -22,7 +22,9 @@ MODULE kg_energy_corrections
    USE cp_control_types,                ONLY: dft_control_type
    USE cp_dbcsr_cp2k_link,              ONLY: cp_dbcsr_alloc_block_from_nbl
    USE cp_dbcsr_operations,             ONLY: copy_dbcsr_to_fm,&
-                                              copy_fm_to_dbcsr
+                                              copy_fm_to_dbcsr,&
+                                              dbcsr_allocate_matrix_set,&
+                                              dbcsr_deallocate_matrix_set
    USE cp_fm_basic_linalg,              ONLY: cp_fm_triangular_invert
    USE cp_fm_cholesky,                  ONLY: cp_fm_cholesky_decompose
    USE cp_fm_diag,                      ONLY: choose_eigv_solver
@@ -39,10 +41,9 @@ MODULE kg_energy_corrections
                                               cp_logger_type
    USE cp_para_types,                   ONLY: cp_para_env_type
    USE dbcsr_api,                       ONLY: &
-        dbcsr_add, dbcsr_allocate_matrix_set, dbcsr_copy, dbcsr_create, &
-        dbcsr_deallocate_matrix_set, dbcsr_desymmetrize, dbcsr_distribution_type, dbcsr_filter, &
-        dbcsr_get_info, dbcsr_init_p, dbcsr_multiply, dbcsr_p_type, dbcsr_release, dbcsr_set, &
-        dbcsr_trace, dbcsr_type, dbcsr_type_no_symmetry, dbcsr_type_symmetric
+        dbcsr_add, dbcsr_copy, dbcsr_create, dbcsr_desymmetrize, dbcsr_distribution_type, &
+        dbcsr_filter, dbcsr_get_info, dbcsr_init_p, dbcsr_multiply, dbcsr_p_type, dbcsr_release, &
+        dbcsr_set, dbcsr_trace, dbcsr_type, dbcsr_type_no_symmetry, dbcsr_type_symmetric
    USE distribution_1d_types,           ONLY: distribution_1d_type
    USE distribution_2d_types,           ONLY: distribution_2d_type
    USE external_potential_types,        ONLY: get_potential,&

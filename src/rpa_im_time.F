@@ -13,7 +13,9 @@ MODULE rpa_im_time
                                               get_cell,&
                                               pbc
    USE cp_control_types,                ONLY: dft_control_type
-   USE cp_dbcsr_operations,             ONLY: copy_fm_to_dbcsr
+   USE cp_dbcsr_operations,             ONLY: copy_fm_to_dbcsr,&
+                                              dbcsr_allocate_matrix_set,&
+                                              dbcsr_deallocate_matrix_set
    USE cp_fm_basic_linalg,              ONLY: cp_fm_column_scale,&
                                               cp_fm_scale
    USE cp_fm_struct,                    ONLY: cp_fm_struct_type
@@ -26,10 +28,9 @@ MODULE rpa_im_time
    USE cp_gemm_interface,               ONLY: cp_gemm
    USE cp_para_types,                   ONLY: cp_para_env_type
    USE dbcsr_api,                       ONLY: &
-        dbcsr_add, dbcsr_allocate_matrix_set, dbcsr_copy, dbcsr_create, &
-        dbcsr_deallocate_matrix_set, dbcsr_filter, dbcsr_finalize, dbcsr_get_diag, dbcsr_get_info, &
-        dbcsr_get_num_blocks, dbcsr_get_occupation, dbcsr_get_stored_coordinates, dbcsr_init_p, &
-        dbcsr_iterator_blocks_left, dbcsr_iterator_next_block, dbcsr_iterator_start, &
+        dbcsr_add, dbcsr_copy, dbcsr_create, dbcsr_filter, dbcsr_finalize, dbcsr_get_diag, &
+        dbcsr_get_info, dbcsr_get_num_blocks, dbcsr_get_occupation, dbcsr_get_stored_coordinates, &
+        dbcsr_init_p, dbcsr_iterator_blocks_left, dbcsr_iterator_next_block, dbcsr_iterator_start, &
         dbcsr_iterator_stop, dbcsr_iterator_type, dbcsr_multiply, dbcsr_p_type, dbcsr_release_p, &
         dbcsr_reserve_all_blocks, dbcsr_reserve_blocks, dbcsr_scale, dbcsr_set, dbcsr_transposed, &
         dbcsr_type, dbcsr_type_no_symmetry

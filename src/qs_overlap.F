@@ -27,10 +27,11 @@ MODULE qs_overlap
    USE block_p_types,                   ONLY: block_p_type
    USE cp_control_types,                ONLY: dft_control_type
    USE cp_dbcsr_cp2k_link,              ONLY: cp_dbcsr_alloc_block_from_nbl
+   USE cp_dbcsr_operations,             ONLY: dbcsr_allocate_matrix_set
    USE dbcsr_api,                       ONLY: &
-        dbcsr_allocate_matrix_set, dbcsr_create, dbcsr_distribution_type, dbcsr_filter, &
-        dbcsr_finalize, dbcsr_get_block_p, dbcsr_p_type, dbcsr_type, dbcsr_type_antisymmetric, &
-        dbcsr_type_no_symmetry, dbcsr_type_symmetric
+        dbcsr_create, dbcsr_distribution_type, dbcsr_filter, dbcsr_finalize, dbcsr_get_block_p, &
+        dbcsr_p_type, dbcsr_type, dbcsr_type_antisymmetric, dbcsr_type_no_symmetry, &
+        dbcsr_type_symmetric
    USE kinds,                           ONLY: default_string_length,&
                                               dp
    USE kpoint_types,                    ONLY: get_kpoint_info,&

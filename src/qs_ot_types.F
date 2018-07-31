@@ -18,16 +18,22 @@ MODULE qs_ot_types
                                               cp_blacs_env_retain,&
                                               cp_blacs_env_type
    USE cp_dbcsr_operations,             ONLY: cp_dbcsr_m_by_n_from_row_template,&
-                                              cp_dbcsr_m_by_n_from_template
+                                              cp_dbcsr_m_by_n_from_template,&
+                                              dbcsr_allocate_matrix_set,&
+                                              dbcsr_deallocate_matrix_set
    USE cp_fm_struct,                    ONLY: cp_fm_struct_get,&
                                               cp_fm_struct_type
    USE cp_para_env,                     ONLY: cp_para_env_release,&
                                               cp_para_env_retain
    USE cp_para_types,                   ONLY: cp_para_env_type
-   USE dbcsr_api,                       ONLY: &
-        dbcsr_allocate_matrix_set, dbcsr_deallocate_matrix_set, dbcsr_init_p, dbcsr_p_type, &
-        dbcsr_release_p, dbcsr_set, dbcsr_type, dbcsr_type_complex_default, &
-        dbcsr_type_no_symmetry, dbcsr_type_real_8
+   USE dbcsr_api,                       ONLY: dbcsr_init_p,&
+                                              dbcsr_p_type,&
+                                              dbcsr_release_p,&
+                                              dbcsr_set,&
+                                              dbcsr_type,&
+                                              dbcsr_type_complex_default,&
+                                              dbcsr_type_no_symmetry,&
+                                              dbcsr_type_real_8
    USE input_constants,                 ONLY: &
         cholesky_reduce, ls_2pnt, ls_3pnt, ls_gold, ls_none, ot_algo_irac, ot_algo_taylor_or_diag, &
         ot_chol_irac, ot_lwdn_irac, ot_mini_broyden, ot_mini_cg, ot_mini_diis, ot_mini_sd, &

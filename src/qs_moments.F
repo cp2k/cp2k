@@ -28,7 +28,9 @@ MODULE qs_moments
                                               cp_cfm_release
    USE cp_control_types,                ONLY: dft_control_type
    USE cp_dbcsr_cp2k_link,              ONLY: cp_dbcsr_alloc_block_from_nbl
-   USE cp_dbcsr_operations,             ONLY: cp_dbcsr_sm_fm_multiply
+   USE cp_dbcsr_operations,             ONLY: cp_dbcsr_sm_fm_multiply,&
+                                              dbcsr_allocate_matrix_set,&
+                                              dbcsr_deallocate_matrix_set
    USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
                                               cp_fm_struct_double,&
                                               cp_fm_struct_release,&
@@ -45,9 +47,8 @@ MODULE qs_moments
                                               put_results
    USE cp_result_types,                 ONLY: cp_result_type
    USE dbcsr_api,                       ONLY: &
-        dbcsr_allocate_matrix_set, dbcsr_copy, dbcsr_create, dbcsr_deallocate_matrix, &
-        dbcsr_deallocate_matrix_set, dbcsr_distribution_type, dbcsr_get_block_p, dbcsr_p_type, &
-        dbcsr_set, dbcsr_trace, dbcsr_type, dbcsr_type_symmetric
+        dbcsr_copy, dbcsr_create, dbcsr_deallocate_matrix, dbcsr_distribution_type, &
+        dbcsr_get_block_p, dbcsr_p_type, dbcsr_set, dbcsr_trace, dbcsr_type, dbcsr_type_symmetric
    USE distribution_1d_types,           ONLY: distribution_1d_type
    USE kinds,                           ONLY: default_string_length,&
                                               dp

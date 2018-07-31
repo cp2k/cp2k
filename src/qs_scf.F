@@ -45,7 +45,8 @@
 MODULE qs_scf
    USE atomic_kind_types,               ONLY: atomic_kind_type
    USE cp_control_types,                ONLY: dft_control_type
-   USE cp_dbcsr_operations,             ONLY: copy_dbcsr_to_fm
+   USE cp_dbcsr_operations,             ONLY: copy_dbcsr_to_fm,&
+                                              dbcsr_deallocate_matrix_set
    USE cp_files,                        ONLY: close_file
    USE cp_fm_types,                     ONLY: cp_fm_create,&
                                               cp_fm_release,&
@@ -69,7 +70,6 @@ MODULE qs_scf
    USE cp_result_types,                 ONLY: cp_result_type
    USE dbcsr_api,                       ONLY: dbcsr_copy,&
                                               dbcsr_deallocate_matrix,&
-                                              dbcsr_deallocate_matrix_set,&
                                               dbcsr_get_info,&
                                               dbcsr_init_p,&
                                               dbcsr_p_type,&

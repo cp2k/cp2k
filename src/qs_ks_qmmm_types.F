@@ -9,10 +9,10 @@
 !> \author Teodoro Laino
 ! **************************************************************************************************
 MODULE qs_ks_qmmm_types
+   USE cp_dbcsr_operations,             ONLY: dbcsr_deallocate_matrix_set
    USE cube_utils,                      ONLY: cube_info_type,&
                                               destroy_cube_info
-   USE dbcsr_api,                       ONLY: dbcsr_deallocate_matrix_set,&
-                                              dbcsr_p_type
+   USE dbcsr_api,                       ONLY: dbcsr_p_type
    USE kinds,                           ONLY: dp
    USE pw_env_types,                    ONLY: pw_env_get,&
                                               pw_env_release,&

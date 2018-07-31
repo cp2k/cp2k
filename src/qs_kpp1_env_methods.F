@@ -11,6 +11,8 @@
 !> \author Fawzi Mohamed
 ! **************************************************************************************************
 MODULE qs_kpp1_env_methods
+   USE cp_dbcsr_operations,             ONLY: dbcsr_allocate_matrix_set,&
+                                              dbcsr_deallocate_matrix_set
    USE cp_log_handling,                 ONLY: cp_get_default_logger,&
                                               cp_logger_type,&
                                               cp_to_string
@@ -18,9 +20,7 @@ MODULE qs_kpp1_env_methods
                                               cp_print_key_should_output,&
                                               cp_print_key_unit_nr
    USE dbcsr_api,                       ONLY: dbcsr_add,&
-                                              dbcsr_allocate_matrix_set,&
                                               dbcsr_copy,&
-                                              dbcsr_deallocate_matrix_set,&
                                               dbcsr_p_type,&
                                               dbcsr_scale,&
                                               dbcsr_set

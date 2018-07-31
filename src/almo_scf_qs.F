@@ -21,6 +21,7 @@ MODULE almo_scf_qs
                                               pbc
    USE cp_control_types,                ONLY: dft_control_type
    USE cp_dbcsr_cp2k_link,              ONLY: cp_dbcsr_alloc_block_from_nbl
+   USE cp_dbcsr_operations,             ONLY: dbcsr_allocate_matrix_set
    USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
                                               cp_fm_struct_release,&
                                               cp_fm_struct_type
@@ -32,13 +33,12 @@ MODULE almo_scf_qs
                                               cp_logger_type
    USE cp_units,                        ONLY: cp_unit_to_cp2k
    USE dbcsr_api,                       ONLY: &
-        dbcsr_allocate_matrix_set, dbcsr_complete_redistribute, dbcsr_copy, &
-        dbcsr_copy_into_existing, dbcsr_create, dbcsr_desymmetrize, dbcsr_distribution_get, &
-        dbcsr_distribution_new, dbcsr_distribution_release, dbcsr_distribution_type, dbcsr_filter, &
-        dbcsr_finalize, dbcsr_get_block_p, dbcsr_get_info, dbcsr_get_num_blocks, &
-        dbcsr_get_stored_coordinates, dbcsr_multiply, dbcsr_nblkcols_total, dbcsr_nblkrows_total, &
-        dbcsr_p_type, dbcsr_release, dbcsr_reserve_block2d, dbcsr_set, dbcsr_type, &
-        dbcsr_type_no_symmetry, dbcsr_work_create
+        dbcsr_complete_redistribute, dbcsr_copy, dbcsr_copy_into_existing, dbcsr_create, &
+        dbcsr_desymmetrize, dbcsr_distribution_get, dbcsr_distribution_new, &
+        dbcsr_distribution_release, dbcsr_distribution_type, dbcsr_filter, dbcsr_finalize, &
+        dbcsr_get_block_p, dbcsr_get_info, dbcsr_get_num_blocks, dbcsr_get_stored_coordinates, &
+        dbcsr_multiply, dbcsr_nblkcols_total, dbcsr_nblkrows_total, dbcsr_p_type, dbcsr_release, &
+        dbcsr_reserve_block2d, dbcsr_set, dbcsr_type, dbcsr_type_no_symmetry, dbcsr_work_create
    USE input_constants,                 ONLY: almo_constraint_ao_overlap,&
                                               almo_constraint_block_diagonal,&
                                               almo_constraint_distance,&

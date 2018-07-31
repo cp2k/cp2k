@@ -14,7 +14,8 @@ MODULE rpa_communication
                                               cp_blacs_env_release,&
                                               cp_blacs_env_type
    USE cp_dbcsr_operations,             ONLY: copy_fm_to_dbcsr,&
-                                              cp_dbcsr_m_by_n_from_template
+                                              cp_dbcsr_m_by_n_from_template,&
+                                              dbcsr_allocate_matrix_set
    USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
                                               cp_fm_struct_release,&
                                               cp_fm_struct_type
@@ -27,8 +28,7 @@ MODULE rpa_communication
                                               cp_fm_set_all,&
                                               cp_fm_type
    USE cp_para_types,                   ONLY: cp_para_env_type
-   USE dbcsr_api,                       ONLY: dbcsr_allocate_matrix_set,&
-                                              dbcsr_p_type,&
+   USE dbcsr_api,                       ONLY: dbcsr_p_type,&
                                               dbcsr_type,&
                                               dbcsr_type_no_symmetry
    USE kinds,                           ONLY: dp

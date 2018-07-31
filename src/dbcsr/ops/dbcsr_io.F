@@ -557,7 +557,7 @@ CONTAINS
       IF (m .GT. 10000) m = 0
       IF (n .GT. 10000) n = 0
       IF (m*n .LT. 1 .OR. m*n .GT. SIZE(matrix)) RETURN
-      WRITE (f, FMT="('(',I4,'(F15.9))')") cols
+      WRITE (f, FMT="('(',I4,'(F9.4))')") cols
       DO r = 1, rows
          IF (.NOT. t) THEN
             WRITE (iunit, FMT=f) matrix(r:r+(cols-1)*rows:rows)

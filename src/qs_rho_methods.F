@@ -14,12 +14,12 @@ MODULE qs_rho_methods
    USE atomic_kind_types,               ONLY: atomic_kind_type
    USE cp_control_types,                ONLY: dft_control_type
    USE cp_dbcsr_cp2k_link,              ONLY: cp_dbcsr_alloc_block_from_nbl
+   USE cp_dbcsr_operations,             ONLY: dbcsr_allocate_matrix_set,&
+                                              dbcsr_deallocate_matrix_set
    USE cp_log_handling,                 ONLY: cp_to_string
    USE cp_para_types,                   ONLY: cp_para_env_type
-   USE dbcsr_api,                       ONLY: dbcsr_allocate_matrix_set,&
-                                              dbcsr_copy,&
+   USE dbcsr_api,                       ONLY: dbcsr_copy,&
                                               dbcsr_create,&
-                                              dbcsr_deallocate_matrix_set,&
                                               dbcsr_p_type,&
                                               dbcsr_set,&
                                               dbcsr_type,&

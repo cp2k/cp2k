@@ -14,8 +14,8 @@
 !> \author Fawzi Mohamed
 ! **************************************************************************************************
 MODULE qs_rho_types
-   USE dbcsr_api,                       ONLY: dbcsr_deallocate_matrix_set,&
-                                              dbcsr_p_type
+   USE cp_dbcsr_operations,             ONLY: dbcsr_deallocate_matrix_set
+   USE dbcsr_api,                       ONLY: dbcsr_p_type
    USE kinds,                           ONLY: dp
    USE kpoint_transitional,             ONLY: get_1d_pointer,&
                                               get_2d_pointer,&

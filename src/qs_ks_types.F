@@ -22,13 +22,13 @@ MODULE qs_ks_types
    USE cp_control_types,                ONLY: dft_control_release,&
                                               dft_control_retain,&
                                               dft_control_type
+   USE cp_dbcsr_operations,             ONLY: dbcsr_deallocate_matrix_set
    USE cp_para_env,                     ONLY: cp_para_env_release,&
                                               cp_para_env_retain
    USE cp_para_types,                   ONLY: cp_para_env_type
    USE cp_result_types,                 ONLY: cp_result_type
    USE cp_subsys_types,                 ONLY: cp_subsys_type
-   USE dbcsr_api,                       ONLY: dbcsr_deallocate_matrix_set,&
-                                              dbcsr_distribution_release,&
+   USE dbcsr_api,                       ONLY: dbcsr_distribution_release,&
                                               dbcsr_distribution_type,&
                                               dbcsr_p_type
    USE distribution_1d_types,           ONLY: distribution_1d_type

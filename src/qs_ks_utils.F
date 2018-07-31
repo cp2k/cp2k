@@ -24,7 +24,9 @@ MODULE qs_ks_utils
    USE cp_dbcsr_operations,             ONLY: copy_dbcsr_to_fm,&
                                               copy_fm_to_dbcsr,&
                                               cp_dbcsr_plus_fm_fm_t,&
-                                              cp_dbcsr_sm_fm_multiply
+                                              cp_dbcsr_sm_fm_multiply,&
+                                              dbcsr_allocate_matrix_set,&
+                                              dbcsr_deallocate_matrix_set
    USE cp_ddapc,                        ONLY: cp_ddapc_apply_CD
    USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
                                               cp_fm_struct_release,&
@@ -45,9 +47,9 @@ MODULE qs_ks_utils
                                               cp_print_key_unit_nr
    USE cp_para_types,                   ONLY: cp_para_env_type
    USE dbcsr_api,                       ONLY: &
-        dbcsr_add, dbcsr_allocate_matrix_set, dbcsr_copy, dbcsr_deallocate_matrix, &
-        dbcsr_deallocate_matrix_set, dbcsr_get_info, dbcsr_init_p, dbcsr_multiply, dbcsr_p_type, &
-        dbcsr_release_p, dbcsr_scale, dbcsr_scale_by_vector, dbcsr_set, dbcsr_trace, dbcsr_type
+        dbcsr_add, dbcsr_copy, dbcsr_deallocate_matrix, dbcsr_get_info, dbcsr_init_p, &
+        dbcsr_multiply, dbcsr_p_type, dbcsr_release_p, dbcsr_scale, dbcsr_scale_by_vector, &
+        dbcsr_set, dbcsr_trace, dbcsr_type
    USE input_constants,                 ONLY: &
         cdft_alpha_constraint, cdft_beta_constraint, cdft_charge_constraint, &
         cdft_magnetization_constraint, do_ppl_grid, outer_scf_hirshfeld_constraint, sic_ad, &

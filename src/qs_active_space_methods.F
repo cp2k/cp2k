@@ -19,7 +19,8 @@ MODULE qs_active_space_methods
    USE cell_types,                      ONLY: cell_type
    USE cp_control_types,                ONLY: dft_control_type
    USE cp_dbcsr_operations,             ONLY: cp_dbcsr_plus_fm_fm_t,&
-                                              cp_dbcsr_sm_fm_multiply
+                                              cp_dbcsr_sm_fm_multiply,&
+                                              dbcsr_allocate_matrix_set
    USE cp_files,                        ONLY: close_file,&
                                               open_file
    USE cp_fm_basic_linalg,              ONLY: cp_fm_column_scale
@@ -43,7 +44,6 @@ MODULE qs_active_space_methods
    USE cp_realspace_grid_cube,          ONLY: cp_pw_to_cube
    USE dbcsr_api,                       ONLY: csr_create,&
                                               csr_type,&
-                                              dbcsr_allocate_matrix_set,&
                                               dbcsr_copy,&
                                               dbcsr_p_type,&
                                               dbcsr_type

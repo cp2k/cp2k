@@ -11,9 +11,9 @@
 ! **************************************************************************************************
 MODULE qs_energy_init
    USE cp_control_types,                ONLY: dft_control_type
+   USE cp_dbcsr_operations,             ONLY: dbcsr_allocate_matrix_set
    USE cp_para_types,                   ONLY: cp_para_env_type
-   USE dbcsr_api,                       ONLY: dbcsr_allocate_matrix_set,&
-                                              dbcsr_copy,&
+   USE dbcsr_api,                       ONLY: dbcsr_copy,&
                                               dbcsr_p_type,&
                                               dbcsr_set,&
                                               dbcsr_type

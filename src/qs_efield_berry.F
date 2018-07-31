@@ -30,7 +30,8 @@ MODULE qs_efield_berry
    USE cp_dbcsr_operations,             ONLY: copy_dbcsr_to_fm,&
                                               copy_fm_to_dbcsr,&
                                               cp_dbcsr_plus_fm_fm_t,&
-                                              cp_dbcsr_sm_fm_multiply
+                                              cp_dbcsr_sm_fm_multiply,&
+                                              dbcsr_deallocate_matrix_set
    USE cp_fm_basic_linalg,              ONLY: cp_fm_scale_and_add
    USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
                                               cp_fm_struct_release,&
@@ -43,7 +44,6 @@ MODULE qs_efield_berry
    USE cp_gemm_interface,               ONLY: cp_gemm
    USE cp_para_types,                   ONLY: cp_para_env_type
    USE dbcsr_api,                       ONLY: dbcsr_copy,&
-                                              dbcsr_deallocate_matrix_set,&
                                               dbcsr_get_block_p,&
                                               dbcsr_p_type,&
                                               dbcsr_set,&

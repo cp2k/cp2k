@@ -27,7 +27,8 @@ MODULE xas_methods
    USE cp_control_types,                ONLY: dft_control_type
    USE cp_dbcsr_cp2k_link,              ONLY: cp_dbcsr_alloc_block_from_nbl
    USE cp_dbcsr_operations,             ONLY: copy_fm_to_dbcsr,&
-                                              cp_dbcsr_sm_fm_multiply
+                                              cp_dbcsr_sm_fm_multiply,&
+                                              dbcsr_allocate_matrix_set
    USE cp_external_control,             ONLY: external_control
    USE cp_fm_pool_types,                ONLY: fm_pool_create_fm
    USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
@@ -46,9 +47,14 @@ MODULE xas_methods
                                               cp_print_key_should_output,&
                                               cp_print_key_unit_nr
    USE cp_para_types,                   ONLY: cp_para_env_type
-   USE dbcsr_api,                       ONLY: &
-        convert_offsets_to_sizes, dbcsr_allocate_matrix_set, dbcsr_copy, dbcsr_create, &
-        dbcsr_distribution_type, dbcsr_p_type, dbcsr_set, dbcsr_type, dbcsr_type_antisymmetric
+   USE dbcsr_api,                       ONLY: convert_offsets_to_sizes,&
+                                              dbcsr_copy,&
+                                              dbcsr_create,&
+                                              dbcsr_distribution_type,&
+                                              dbcsr_p_type,&
+                                              dbcsr_set,&
+                                              dbcsr_type,&
+                                              dbcsr_type_antisymmetric
    USE input_constants,                 ONLY: &
         do_loc_none, state_loc_list, state_loc_range, xas_1s_type, xas_2p_type, xas_2s_type, &
         xas_3d_type, xas_3p_type, xas_3s_type, xas_4d_type, xas_4f_type, xas_4p_type, xas_4s_type, &

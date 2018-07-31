@@ -13,7 +13,9 @@ MODULE qs_fb_env_methods
    USE cell_types,                      ONLY: cell_type
    USE cp_blacs_env,                    ONLY: cp_blacs_env_type
    USE cp_control_types,                ONLY: dft_control_type
-   USE cp_dbcsr_operations,             ONLY: copy_dbcsr_to_fm
+   USE cp_dbcsr_operations,             ONLY: copy_dbcsr_to_fm,&
+                                              dbcsr_allocate_matrix_set,&
+                                              dbcsr_deallocate_matrix_set
    USE cp_fm_basic_linalg,              ONLY: cp_fm_gemm,&
                                               cp_fm_symm,&
                                               cp_fm_triangular_invert,&
@@ -40,10 +42,9 @@ MODULE qs_fb_env_methods
    USE cp_para_types,                   ONLY: cp_para_env_type
    USE cp_units,                        ONLY: cp_unit_from_cp2k
    USE dbcsr_api,                       ONLY: &
-        dbcsr_allocate_matrix_set, dbcsr_create, dbcsr_deallocate_matrix_set, dbcsr_finalize, &
-        dbcsr_get_info, dbcsr_iterator_blocks_left, dbcsr_iterator_next_block, &
-        dbcsr_iterator_start, dbcsr_iterator_stop, dbcsr_iterator_type, dbcsr_multiply, &
-        dbcsr_p_type, dbcsr_release, dbcsr_reserve_blocks, dbcsr_set, dbcsr_type, &
+        dbcsr_create, dbcsr_finalize, dbcsr_get_info, dbcsr_iterator_blocks_left, &
+        dbcsr_iterator_next_block, dbcsr_iterator_start, dbcsr_iterator_stop, dbcsr_iterator_type, &
+        dbcsr_multiply, dbcsr_p_type, dbcsr_release, dbcsr_reserve_blocks, dbcsr_set, dbcsr_type, &
         dbcsr_type_no_symmetry
    USE input_constants,                 ONLY: cholesky_dbcsr,&
                                               cholesky_inverse,&

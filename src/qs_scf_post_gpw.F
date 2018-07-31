@@ -26,7 +26,8 @@ MODULE qs_scf_post_gpw
    USE cp_blacs_env,                    ONLY: cp_blacs_env_type
    USE cp_control_types,                ONLY: dft_control_type
    USE cp_dbcsr_operations,             ONLY: copy_dbcsr_to_fm,&
-                                              copy_fm_to_dbcsr
+                                              copy_fm_to_dbcsr,&
+                                              dbcsr_deallocate_matrix_set
    USE cp_dbcsr_output,                 ONLY: cp_dbcsr_write_sparse_matrix
    USE cp_ddapc_util,                   ONLY: get_ddapc
    USE cp_fm_basic_linalg,              ONLY: cp_fm_trace
@@ -61,8 +62,8 @@ MODULE qs_scf_post_gpw
    USE dbcsr_api,                       ONLY: &
         convert_dbcsr_to_csr, csr_create_from_dbcsr, csr_dbcsr_blkrow_dist, csr_destroy, csr_type, &
         csr_write, dbcsr_add, dbcsr_copy, dbcsr_copy_into_existing, dbcsr_create, &
-        dbcsr_deallocate_matrix_set, dbcsr_desymmetrize, dbcsr_frobenius_norm, dbcsr_get_info, &
-        dbcsr_has_symmetry, dbcsr_multiply, dbcsr_p_type, dbcsr_release, dbcsr_type
+        dbcsr_desymmetrize, dbcsr_frobenius_norm, dbcsr_get_info, dbcsr_has_symmetry, &
+        dbcsr_multiply, dbcsr_p_type, dbcsr_release, dbcsr_type
    USE dct,                             ONLY: pw_shrink
    USE et_coupling_types,               ONLY: set_et_coupling_type
    USE hirshfeld_methods,               ONLY: comp_hirshfeld_charges,&

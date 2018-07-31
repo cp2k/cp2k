@@ -11,8 +11,8 @@
 !> \author Martin Haeufel
 ! **************************************************************************************************
 MODULE kg_environment_types
-   USE dbcsr_api,                       ONLY: dbcsr_deallocate_matrix_set,&
-                                              dbcsr_p_type
+   USE cp_dbcsr_operations,             ONLY: dbcsr_deallocate_matrix_set
+   USE dbcsr_api,                       ONLY: dbcsr_p_type
    USE input_section_types,             ONLY: section_vals_type
    USE kinds,                           ONLY: dp
    USE lri_environment_types,           ONLY: lri_density_release,&

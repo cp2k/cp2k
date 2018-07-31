@@ -21,7 +21,9 @@ MODULE qs_tddfpt2_methods
                                               tddfpt2_control_type
    USE cp_dbcsr_operations,             ONLY: copy_dbcsr_to_fm,&
                                               copy_fm_to_dbcsr,&
-                                              cp_dbcsr_sm_fm_multiply
+                                              cp_dbcsr_sm_fm_multiply,&
+                                              dbcsr_allocate_matrix_set,&
+                                              dbcsr_deallocate_matrix_set
    USE cp_files,                        ONLY: close_file,&
                                               open_file
    USE cp_fm_basic_linalg,              ONLY: cp_fm_column_scale,&
@@ -61,9 +63,8 @@ MODULE qs_tddfpt2_methods
                                               cp_rm_iter_level
    USE cp_para_types,                   ONLY: cp_para_env_type
    USE dbcsr_api,                       ONLY: &
-        dbcsr_allocate_matrix_set, dbcsr_copy, dbcsr_deallocate_matrix, &
-        dbcsr_deallocate_matrix_set, dbcsr_distribution_type, dbcsr_get_info, dbcsr_init_p, &
-        dbcsr_p_type, dbcsr_scale, dbcsr_set, dbcsr_type
+        dbcsr_copy, dbcsr_deallocate_matrix, dbcsr_distribution_type, dbcsr_get_info, &
+        dbcsr_init_p, dbcsr_p_type, dbcsr_scale, dbcsr_set, dbcsr_type
    USE hfx_admm_utils,                  ONLY: tddft_hfx_matrix
    USE input_constants,                 ONLY: cholesky_dbcsr,&
                                               cholesky_inverse,&

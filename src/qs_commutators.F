@@ -14,8 +14,8 @@ MODULE qs_commutators
    USE commutator_rpnl,                 ONLY: build_com_rpnl
    USE cp_control_types,                ONLY: dft_control_type
    USE cp_dbcsr_cp2k_link,              ONLY: cp_dbcsr_alloc_block_from_nbl
-   USE dbcsr_api,                       ONLY: dbcsr_allocate_matrix_set,&
-                                              dbcsr_create,&
+   USE cp_dbcsr_operations,             ONLY: dbcsr_allocate_matrix_set
+   USE dbcsr_api,                       ONLY: dbcsr_create,&
                                               dbcsr_p_type,&
                                               dbcsr_set
    USE kinds,                           ONLY: dp

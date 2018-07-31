@@ -17,7 +17,8 @@ MODULE qs_wannier90
                                               cp_blacs_env_type
    USE cp_control_types,                ONLY: dft_control_type
    USE cp_dbcsr_cp2k_link,              ONLY: cp_dbcsr_alloc_block_from_nbl
-   USE cp_dbcsr_operations,             ONLY: cp_dbcsr_sm_fm_multiply
+   USE cp_dbcsr_operations,             ONLY: cp_dbcsr_sm_fm_multiply,&
+                                              dbcsr_deallocate_matrix_set
    USE cp_files,                        ONLY: close_file,&
                                               open_file
    USE cp_fm_pool_types,                ONLY: cp_fm_pool_p_type
@@ -37,7 +38,6 @@ MODULE qs_wannier90
    USE cp_para_types,                   ONLY: cp_para_env_type
    USE dbcsr_api,                       ONLY: dbcsr_create,&
                                               dbcsr_deallocate_matrix,&
-                                              dbcsr_deallocate_matrix_set,&
                                               dbcsr_p_type,&
                                               dbcsr_set,&
                                               dbcsr_type,&

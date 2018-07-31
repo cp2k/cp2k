@@ -41,6 +41,8 @@ MODULE qs_collocate_density
    USE cell_types,                      ONLY: cell_type,&
                                               pbc
    USE cp_control_types,                ONLY: dft_control_type
+   USE cp_dbcsr_operations,             ONLY: dbcsr_allocate_matrix_set,&
+                                              dbcsr_deallocate_matrix_set
    USE cp_fm_types,                     ONLY: cp_fm_get_element,&
                                               cp_fm_get_info,&
                                               cp_fm_type
@@ -49,9 +51,7 @@ MODULE qs_collocate_density
                                               return_cube,&
                                               return_cube_nonortho
    USE d3_poly,                         ONLY: poly_cp2k2d3
-   USE dbcsr_api,                       ONLY: dbcsr_allocate_matrix_set,&
-                                              dbcsr_copy,&
-                                              dbcsr_deallocate_matrix_set,&
+   USE dbcsr_api,                       ONLY: dbcsr_copy,&
                                               dbcsr_get_block_p,&
                                               dbcsr_p_type,&
                                               dbcsr_type

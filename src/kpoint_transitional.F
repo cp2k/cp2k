@@ -15,8 +15,8 @@
 !> \author Ole Schuett
 ! **************************************************************************************************
 MODULE kpoint_transitional
-   USE dbcsr_api,                       ONLY: dbcsr_deallocate_matrix_set,&
-                                              dbcsr_p_type
+   USE cp_dbcsr_operations,             ONLY: dbcsr_deallocate_matrix_set
+   USE dbcsr_api,                       ONLY: dbcsr_p_type
 #include "./base/base_uses.f90"
 
    IMPLICIT NONE

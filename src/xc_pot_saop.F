@@ -10,7 +10,9 @@ MODULE xc_pot_saop
    USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                               get_atomic_kind
    USE cp_array_utils,                  ONLY: cp_1d_r_p_type
-   USE cp_dbcsr_operations,             ONLY: cp_dbcsr_plus_fm_fm_t
+   USE cp_dbcsr_operations,             ONLY: cp_dbcsr_plus_fm_fm_t,&
+                                              dbcsr_allocate_matrix_set,&
+                                              dbcsr_deallocate_matrix_set
    USE cp_fm_types,                     ONLY: cp_fm_create,&
                                               cp_fm_get_info,&
                                               cp_fm_get_submatrix,&
@@ -20,10 +22,8 @@ MODULE xc_pot_saop
                                               cp_fm_set_submatrix,&
                                               cp_fm_type
    USE cp_para_types,                   ONLY: cp_para_env_type
-   USE dbcsr_api,                       ONLY: dbcsr_allocate_matrix_set,&
-                                              dbcsr_copy,&
+   USE dbcsr_api,                       ONLY: dbcsr_copy,&
                                               dbcsr_deallocate_matrix,&
-                                              dbcsr_deallocate_matrix_set,&
                                               dbcsr_p_type,&
                                               dbcsr_set
    USE input_constants,                 ONLY: do_method_gapw,&

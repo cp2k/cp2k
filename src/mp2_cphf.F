@@ -15,7 +15,8 @@ MODULE mp2_cphf
    USE cp_control_types,                ONLY: dft_control_type
    USE cp_dbcsr_cp2k_link,              ONLY: cp_dbcsr_alloc_block_from_nbl
    USE cp_dbcsr_operations,             ONLY: copy_dbcsr_to_fm,&
-                                              copy_fm_to_dbcsr
+                                              copy_fm_to_dbcsr,&
+                                              dbcsr_allocate_matrix_set
    USE cp_fm_basic_linalg,              ONLY: cp_fm_upper_to_full
    USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
                                               cp_fm_struct_release,&
@@ -29,9 +30,14 @@ MODULE mp2_cphf
                                               cp_fm_type
    USE cp_gemm_interface,               ONLY: cp_gemm
    USE cp_para_types,                   ONLY: cp_para_env_type
-   USE dbcsr_api,                       ONLY: &
-        dbcsr_add, dbcsr_allocate_matrix_set, dbcsr_copy, dbcsr_create, dbcsr_p_type, &
-        dbcsr_release, dbcsr_scale, dbcsr_set, dbcsr_type_symmetric
+   USE dbcsr_api,                       ONLY: dbcsr_add,&
+                                              dbcsr_copy,&
+                                              dbcsr_create,&
+                                              dbcsr_p_type,&
+                                              dbcsr_release,&
+                                              dbcsr_scale,&
+                                              dbcsr_set,&
+                                              dbcsr_type_symmetric
    USE hfx_energy_potential,            ONLY: integrate_four_center
    USE hfx_types,                       ONLY: alloc_containers,&
                                               hfx_container_type,&

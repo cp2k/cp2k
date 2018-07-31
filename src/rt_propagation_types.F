@@ -22,6 +22,8 @@ MODULE rt_propagation_types
                                               cite_reference
    USE cp_control_types,                ONLY: dft_control_type,&
                                               rtp_control_type
+   USE cp_dbcsr_operations,             ONLY: dbcsr_allocate_matrix_set,&
+                                              dbcsr_deallocate_matrix_set
    USE cp_fm_pool_types,                ONLY: cp_fm_pool_p_type,&
                                               fm_pool_get_el_struct
    USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
@@ -33,10 +35,8 @@ MODULE rt_propagation_types
                                               cp_fm_release
    USE cp_fm_vect,                      ONLY: cp_fm_vect_dealloc
    USE cp_log_handling,                 ONLY: cp_to_string
-   USE dbcsr_api,                       ONLY: dbcsr_allocate_matrix_set,&
-                                              dbcsr_create,&
+   USE dbcsr_api,                       ONLY: dbcsr_create,&
                                               dbcsr_deallocate_matrix,&
-                                              dbcsr_deallocate_matrix_set,&
                                               dbcsr_init_p,&
                                               dbcsr_p_type,&
                                               dbcsr_type

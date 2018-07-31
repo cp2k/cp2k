@@ -37,7 +37,9 @@ MODULE mp2_ri_gpw
    USE cp_control_types,                ONLY: dft_control_type
    USE cp_dbcsr_cp2k_link,              ONLY: cp_dbcsr_alloc_block_from_nbl
    USE cp_dbcsr_operations,             ONLY: copy_dbcsr_to_fm,&
-                                              cp_dbcsr_m_by_n_from_template
+                                              cp_dbcsr_m_by_n_from_template,&
+                                              dbcsr_allocate_matrix_set,&
+                                              dbcsr_deallocate_matrix_set
    USE cp_eri_mme_interface,            ONLY: cp_eri_mme_param,&
                                               cp_eri_mme_set_params
    USE cp_fm_basic_linalg,              ONLY: cp_fm_triangular_invert
@@ -54,14 +56,14 @@ MODULE mp2_ri_gpw
                                               cp_para_env_release
    USE cp_para_types,                   ONLY: cp_para_env_type
    USE dbcsr_api,                       ONLY: &
-        dbcsr_allocate_matrix_set, dbcsr_complete_redistribute, dbcsr_copy, dbcsr_create, &
-        dbcsr_deallocate_matrix, dbcsr_deallocate_matrix_set, dbcsr_desymmetrize, &
-        dbcsr_distribution_type, dbcsr_filter, dbcsr_finalize, dbcsr_get_block_p, dbcsr_get_info, &
-        dbcsr_get_stored_coordinates, dbcsr_iterator_blocks_left, dbcsr_iterator_next_block, &
-        dbcsr_iterator_start, dbcsr_iterator_stop, dbcsr_iterator_type, dbcsr_multiply, &
-        dbcsr_p_type, dbcsr_put_block, dbcsr_release, dbcsr_release_p, dbcsr_reserve_all_blocks, &
-        dbcsr_reserve_blocks, dbcsr_set, dbcsr_type, dbcsr_type_antisymmetric, &
-        dbcsr_type_no_symmetry, dbcsr_type_real_8, dbcsr_type_symmetric
+        dbcsr_complete_redistribute, dbcsr_copy, dbcsr_create, dbcsr_deallocate_matrix, &
+        dbcsr_desymmetrize, dbcsr_distribution_type, dbcsr_filter, dbcsr_finalize, &
+        dbcsr_get_block_p, dbcsr_get_info, dbcsr_get_stored_coordinates, &
+        dbcsr_iterator_blocks_left, dbcsr_iterator_next_block, dbcsr_iterator_start, &
+        dbcsr_iterator_stop, dbcsr_iterator_type, dbcsr_multiply, dbcsr_p_type, dbcsr_put_block, &
+        dbcsr_release, dbcsr_release_p, dbcsr_reserve_all_blocks, dbcsr_reserve_blocks, dbcsr_set, &
+        dbcsr_type, dbcsr_type_antisymmetric, dbcsr_type_no_symmetry, dbcsr_type_real_8, &
+        dbcsr_type_symmetric
    USE dbcsr_tensor_api,                ONLY: &
         dbcsr_t_contract, dbcsr_t_create, dbcsr_t_destroy, dbcsr_t_distribution_destroy, &
         dbcsr_t_distribution_new, dbcsr_t_distribution_type, dbcsr_t_get_block, &

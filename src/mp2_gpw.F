@@ -26,7 +26,9 @@ MODULE mp2_gpw
                                               copy_fm_to_dbcsr,&
                                               cp_dbcsr_dist2d_to_dist,&
                                               cp_dbcsr_m_by_n_from_row_template,&
-                                              cp_dbcsr_m_by_n_from_template
+                                              cp_dbcsr_m_by_n_from_template,&
+                                              dbcsr_allocate_matrix_set,&
+                                              dbcsr_deallocate_matrix_set
    USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
                                               cp_fm_struct_release,&
                                               cp_fm_struct_type
@@ -50,8 +52,7 @@ MODULE mp2_gpw
                                               cp_para_env_release
    USE cp_para_types,                   ONLY: cp_para_env_type
    USE dbcsr_api,                       ONLY: &
-        dbcsr_add_on_diag, dbcsr_allocate_matrix_set, dbcsr_clear_mempools, dbcsr_copy, &
-        dbcsr_create, dbcsr_deallocate_matrix_set, dbcsr_distribution_new, &
+        dbcsr_add_on_diag, dbcsr_clear_mempools, dbcsr_copy, dbcsr_create, dbcsr_distribution_new, &
         dbcsr_distribution_release, dbcsr_distribution_type, dbcsr_filter, dbcsr_get_block_p, &
         dbcsr_get_info, dbcsr_init_p, dbcsr_iterator_blocks_left, dbcsr_iterator_next_block, &
         dbcsr_iterator_start, dbcsr_iterator_stop, dbcsr_iterator_type, dbcsr_multiply, &

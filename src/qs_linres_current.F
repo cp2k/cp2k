@@ -23,7 +23,9 @@ MODULE qs_linres_current
    USE cp_control_types,                ONLY: dft_control_type
    USE cp_dbcsr_cp2k_link,              ONLY: cp_dbcsr_alloc_block_from_nbl
    USE cp_dbcsr_operations,             ONLY: cp_dbcsr_plus_fm_fm_t,&
-                                              cp_dbcsr_sm_fm_multiply
+                                              cp_dbcsr_sm_fm_multiply,&
+                                              dbcsr_allocate_matrix_set,&
+                                              dbcsr_deallocate_matrix_set
    USE cp_fm_basic_linalg,              ONLY: cp_fm_scale_and_add,&
                                               cp_fm_trace
    USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
@@ -47,10 +49,9 @@ MODULE qs_linres_current
    USE cp_realspace_grid_cube,          ONLY: cp_pw_to_cube
    USE cube_utils,                      ONLY: cube_info_type
    USE dbcsr_api,                       ONLY: &
-        convert_offsets_to_sizes, dbcsr_add_block_node, dbcsr_allocate_matrix_set, dbcsr_copy, &
-        dbcsr_create, dbcsr_deallocate_matrix, dbcsr_deallocate_matrix_set, &
-        dbcsr_distribution_type, dbcsr_finalize, dbcsr_get_block_p, dbcsr_p_type, dbcsr_set, &
-        dbcsr_type, dbcsr_type_antisymmetric, dbcsr_type_no_symmetry
+        convert_offsets_to_sizes, dbcsr_add_block_node, dbcsr_copy, dbcsr_create, &
+        dbcsr_deallocate_matrix, dbcsr_distribution_type, dbcsr_finalize, dbcsr_get_block_p, &
+        dbcsr_p_type, dbcsr_set, dbcsr_type, dbcsr_type_antisymmetric, dbcsr_type_no_symmetry
    USE gaussian_gridlevels,             ONLY: gridlevel_info_type
    USE input_constants,                 ONLY: current_gauge_atom
    USE input_section_types,             ONLY: section_get_ivals,&

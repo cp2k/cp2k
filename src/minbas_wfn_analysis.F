@@ -20,7 +20,9 @@ MODULE minbas_wfn_analysis
    USE cp_control_types,                ONLY: dft_control_type
    USE cp_dbcsr_operations,             ONLY: copy_dbcsr_to_fm,&
                                               cp_dbcsr_plus_fm_fm_t,&
-                                              cp_dbcsr_sm_fm_multiply
+                                              cp_dbcsr_sm_fm_multiply,&
+                                              dbcsr_allocate_matrix_set,&
+                                              dbcsr_deallocate_matrix_set
    USE cp_fm_basic_linalg,              ONLY: cp_fm_column_scale
    USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
                                               cp_fm_struct_release,&
@@ -38,11 +40,11 @@ MODULE minbas_wfn_analysis
    USE cp_para_types,                   ONLY: cp_para_env_type
    USE cp_realspace_grid_cube,          ONLY: cp_pw_to_cube
    USE dbcsr_api,                       ONLY: &
-        dbcsr_allocate_matrix_set, dbcsr_copy, dbcsr_create, dbcsr_deallocate_matrix_set, &
-        dbcsr_distribution_type, dbcsr_get_block_p, dbcsr_get_occupation, &
-        dbcsr_iterator_blocks_left, dbcsr_iterator_next_block, dbcsr_iterator_start, &
-        dbcsr_iterator_stop, dbcsr_iterator_type, dbcsr_multiply, dbcsr_p_type, dbcsr_release, &
-        dbcsr_set, dbcsr_trace, dbcsr_type, dbcsr_type_no_symmetry, dbcsr_type_symmetric
+        dbcsr_copy, dbcsr_create, dbcsr_distribution_type, dbcsr_get_block_p, &
+        dbcsr_get_occupation, dbcsr_iterator_blocks_left, dbcsr_iterator_next_block, &
+        dbcsr_iterator_start, dbcsr_iterator_stop, dbcsr_iterator_type, dbcsr_multiply, &
+        dbcsr_p_type, dbcsr_release, dbcsr_set, dbcsr_trace, dbcsr_type, dbcsr_type_no_symmetry, &
+        dbcsr_type_symmetric
    USE input_section_types,             ONLY: section_get_ivals,&
                                               section_vals_get,&
                                               section_vals_get_subs_vals,&
