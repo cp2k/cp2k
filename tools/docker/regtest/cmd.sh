@@ -58,5 +58,16 @@ if [[ "$TESTNAME" == coverage-* ]]; then
    cd /opt/cp2k_test_artifacts/coverage
    lcov --directory /opt/cp2k-master/cp2k/obj/${ARCH}/${VERSION} --capture --output-file coverage.info > lcov.log
    genhtml coverage.info > genhtml.log
+
+   # plot
+   DA=$(grep "^DA:" coverage.info  | wc -l)
+   DA_ZERO=$(grep "^DA:.*,0" coverage.info  | wc -l)
+   DA_PERCENT=$(python -c "print(100.0 * ($DA - $DA_ZERO) / $DA)")
+   FNDA=$(grep "^FNDA:" coverage.info  | wc -l)
+   FNDA_ZERO=$(grep "^FNDA:0" coverage.info  | wc -l)
+   FNDA_PERCENT=$(python -c "print(100.0 * ($FNDA - $FNDA_ZERO) / $FNDA)")
+   echo 'Plot: name="cov", title="Test Coverage", ylabel="Coverage %"'
+   echo "PlotPoint: name='lines', plot='cov', label='Lines', y=$DA_PERCENT, yerr=0"
+   echo "PlotPoint: name='funcs', plot='cov', label='Functions', y=$FNDA_PERCENT, yerr=0"
 fi
 #EOF
