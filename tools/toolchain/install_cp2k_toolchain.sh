@@ -995,6 +995,12 @@ FCLOGPIPE   =  2> \\\$(notdir \\\$<).warn
 export LC_ALL=C
 EOF
     fi
+    if [ "$with_gcc" != "__DONTUSE__" ] ; then
+        cat <<EOF >> $__filename
+#
+FYPPFLAGS   = -n --line-marker-format=gfortran5
+EOF
+    fi
     # replace variable values in output file using eval
     local __TMPL=$(cat $__filename)
     eval "printf \"${__TMPL}\n\"" > $__filename

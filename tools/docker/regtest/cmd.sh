@@ -42,4 +42,21 @@ else
    make ARCH=${ARCH} VERSION=${VERSION} test TESTOPTS="-farming -skipunittest -skipdir TMC/regtest_ana_on_the_fly -skipdir TMC/regtest_ana_post_proc -skipdir TMC/regtest ${TESTOPTS}"
 fi
 
+if [[ "$TESTNAME" == coverage-* ]]; then
+   # gcov gets stuck on some files...
+   # Maybe related: https://bugs.launchpad.net/gcc-arm-embedded/+bug/1694644
+   # As a workaround we'll simply remove the offending files for now.
+   rm -v /opt/cp2k-master/cp2k/obj/${ARCH}/${VERSION}/almo_scf_types.gcda
+   rm -v /opt/cp2k-master/cp2k/obj/${ARCH}/${VERSION}/dbcsr_tensor_types.gcda
+   rm -v /opt/cp2k-master/cp2k/obj/${ARCH}/${VERSION}/mp2_types.gcda
+   #cd /tmp
+   #for i in /opt/cp2k-master/cp2k/obj/${ARCH}/${VERSION}/*.gcda; do
+   #    timeout 30 gcov $i >/dev/null 2>&1 || rm -v $i
+   #done
+
+   mkdir -p /opt/cp2k_test_artifacts/coverage
+   cd /opt/cp2k_test_artifacts/coverage
+   lcov --directory /opt/cp2k-master/cp2k/obj/${ARCH}/${VERSION} --capture --output-file coverage.info > lcov.log
+   genhtml coverage.info > genhtml.log
+fi
 #EOF
