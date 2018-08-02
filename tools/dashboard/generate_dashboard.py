@@ -234,8 +234,7 @@ def gen_archive(config, log, outdir):
             output += '<p>Go back to <a href="../../index.html">main page</a></p>\n'
             if(info_url):
                 output += '<p>Get <a href="%s">more information</a></p>\n'%info_url
-            if(report_type == "generic"):
-                output += gen_plots(archive_reports, log, outdir+"archive/"+s+"/", full_archive)
+            output += gen_plots(archive_reports, log, outdir+"archive/"+s+"/", full_archive)
             output += other_index_link
             output += '<table border="1" cellspacing="3" cellpadding="5">\n'
             output += '<tr><th>Commit</th><th>Status</th><th>Summary</th><th>Author</th><th>Commit Message</th></tr>\n\n'
@@ -614,6 +613,7 @@ def parse_regtest_report(report_txt):
     else:
         report['status'] = "OK"
 
+    report.update(parse_plots(report_txt))
     return(report)
 
 #===============================================================================
@@ -632,9 +632,14 @@ def parse_generic_report(report_txt):
 
     report['summary'] = re.findall("(^|\n)Summary: (.+)\n", report_txt)[-1][1]
     report['status'] = re.findall("(^|\n)Status: (.+)\n", report_txt)[-1][1]
-    report['plots'] = [eval("dict(%s)"%m[1]) for m in re.findall("(^|\n)Plot: (.+)(?=\n)", report_txt)]
-    report['plotpoints'] = [eval("dict(%s)"%m[1]) for m in re.findall("(^|\n)PlotPoint: (.+)(?=\n)", report_txt)]
+    report.update(parse_plots(report_txt))
     return(report)
+
+#===============================================================================
+def parse_plots(report_txt):
+    plots = [eval("dict(%s)"%m[1]) for m in re.findall("(^|\n)Plot: (.+)(?=\n)", report_txt)]
+    plotpoints = [eval("dict(%s)"%m[1]) for m in re.findall("(^|\n)PlotPoint: (.+)(?=\n)", report_txt)]
+    return({'plots': plots, 'plotpoints': plotpoints})
 
 #===============================================================================
 if(len(sys.argv)==2 and sys.argv[-1]=="--selftest"):
