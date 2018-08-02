@@ -54,20 +54,20 @@ if [[ "$TESTNAME" == coverage-* ]]; then
    #    timeout 30 gcov $i >/dev/null 2>&1 || rm -v $i
    #done
 
+   # collect coverage stats
    mkdir -p /opt/cp2k_test_artifacts/coverage
    cd /opt/cp2k_test_artifacts/coverage
    lcov --directory /opt/cp2k-master/cp2k/obj/${ARCH}/${VERSION} --capture --output-file coverage.info > lcov.log
-   genhtml coverage.info > genhtml.log
+   lcov --summary coverage.info
+
+   # generate html report
+   genhtml --title "CP2K Regtests (${CP2K_REVISION})" coverage.info > genhtml.log
 
    # plot
-   DA=$(grep "^DA:" coverage.info  | wc -l)
-   DA_ZERO=$(grep "^DA:.*,0" coverage.info  | wc -l)
-   DA_PERCENT=$(python -c "print(100.0 * ($DA - $DA_ZERO) / $DA)")
-   FNDA=$(grep "^FNDA:" coverage.info  | wc -l)
-   FNDA_ZERO=$(grep "^FNDA:0" coverage.info  | wc -l)
-   FNDA_PERCENT=$(python -c "print(100.0 * ($FNDA - $FNDA_ZERO) / $FNDA)")
+   LINE_COV=$(lcov --summary coverage.info | grep lines | awk '{print substr($2, 1, length($2)-1)}')
+   FUNC_COV=$(lcov --summary coverage.info | grep funct | awk '{print substr($2, 1, length($2)-1)}')
    echo 'Plot: name="cov", title="Test Coverage", ylabel="Coverage %"'
-   echo "PlotPoint: name='lines', plot='cov', label='Lines', y=$DA_PERCENT, yerr=0"
-   echo "PlotPoint: name='funcs', plot='cov', label='Functions', y=$FNDA_PERCENT, yerr=0"
+   echo "PlotPoint: name='lines', plot='cov', label='Lines', y=$LINE_COV, yerr=0"
+   echo "PlotPoint: name='funcs', plot='cov', label='Functions', y=$FUNC_COV, yerr=0"
 fi
 #EOF
