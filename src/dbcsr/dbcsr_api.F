@@ -790,9 +790,8 @@ CONTAINS
          nfullcols_total, nblkrows_local, nblkcols_local, nfullrows_local, nfullcols_local, &
          my_prow, my_pcol
       INTEGER, DIMENSION(:), OPTIONAL, POINTER           :: local_rows, local_cols, proc_row_dist, &
-                                                            proc_col_dist
-      INTEGER, DIMENSION(:), INTENT(OUT), OPTIONAL, &
-         POINTER                                         :: row_blk_size, col_blk_size, &
+                                                            proc_col_dist, &
+                                                            row_blk_size, col_blk_size, &
                                                             row_blk_offset, col_blk_offset
       TYPE(dbcsr_distribution_type), INTENT(OUT), &
          OPTIONAL                                        :: distribution
