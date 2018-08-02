@@ -552,12 +552,15 @@ def parse_report(report_txt, report_type, log):
             report = parse_generic_report(report_txt)
         else:
             raise(Exception("Unknown report_type"))
+
         if ('svn-rev' in report):
             assert 'git-sha' not in report
             rev = report['svn-rev']
             if rev not in log.svn2git:
                 return( {'status':'UNKNOWN', 'summary':'Could not convert svn revision to git commit.', 'git-sha':None} )
             report['git-sha'] = log.svn2git[rev]
+
+        report.update(parse_plots(report_txt))
         return(report)
     except:
         print(traceback.print_exc())
@@ -613,7 +616,6 @@ def parse_regtest_report(report_txt):
     else:
         report['status'] = "OK"
 
-    report.update(parse_plots(report_txt))
     return(report)
 
 #===============================================================================
@@ -632,7 +634,6 @@ def parse_generic_report(report_txt):
 
     report['summary'] = re.findall("(^|\n)Summary: (.+)\n", report_txt)[-1][1]
     report['status'] = re.findall("(^|\n)Status: (.+)\n", report_txt)[-1][1]
-    report.update(parse_plots(report_txt))
     return(report)
 
 #===============================================================================
