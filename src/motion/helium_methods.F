@@ -1137,7 +1137,7 @@ CONTAINS
                   CALL helium_pbc(helium_env(k)%helium, tvek(:))
                   rvek(:) = tvek(:)-centroids(:, ia)
                   r2 = DOT_PRODUCT(rvek, rvek)
-                  IF (r2 > 1.0_dp*10**(-6)) THEN
+                  IF (r2 > 1.0_dp*10.0_dp**(-6)) THEN
                      invalidpos = .TRUE.
                   ELSE
                      ! check for helium-helium collision
