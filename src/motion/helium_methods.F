@@ -47,7 +47,8 @@ MODULE helium_methods
                                               default_string_length,&
                                               dp,&
                                               max_line_length
-   USE mathconstants,                   ONLY: twopi
+   USE mathconstants,                   ONLY: pi,&
+                                              twopi
    USE message_passing,                 ONLY: mp_allgather,&
                                               mp_bcast,&
                                               mp_comm_free,&
@@ -496,7 +497,8 @@ CONTAINS
 
             ! hard coded He4 directly (mass so i get my original hb2m value)
             ! He4 mass defined as a constant in helium_types.F now [lwalewski]
-            helium_env(k)%helium%hb2m = 1.0_dp/(he_mass*massunit)
+            helium_env(k)%helium%he_mass_au = he_mass*massunit
+            helium_env(k)%helium%hb2m = 1.0_dp/helium_env(k)%helium%he_mass_au
 
             helium_env(k)%helium%pweight = 0.0_dp
          END DO
@@ -915,6 +917,7 @@ CONTAINS
 
       INTEGER                                            :: handle, i, k
       LOGICAL                                            :: coords_presampled, explicit, presample
+      REAL(KIND=dp)                                      :: initkT, solute_radius
       TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(section_vals_type), POINTER                   :: helium_section, sec
 
@@ -971,8 +974,16 @@ CONTAINS
          CALL section_vals_get(sec, explicit=explicit)
          IF (explicit) THEN
             CALL helium_coord_restore(helium_env)
+            CALL helium_write_line("Coordinates restarted.")
          ELSE
-            CALL helium_coord_init(helium_env)
+            CALL section_vals_val_get(helium_section, "COORD_INIT_TEMP", r_val=initkT)
+            CALL section_vals_val_get(helium_section, "SOLUTE_RADIUS", r_val=solute_radius)
+            CALL helium_coord_init(helium_env, initkT, solute_radius)
+            IF (initkT > 0.0_dp) THEN
+               CALL helium_write_line("Coordinates initialized with thermal gaussian.")
+            ELSE
+               CALL helium_write_line("Coordinates initialized as point particles.")
+            END IF
          END IF
 
          DO k = 1, SIZE(helium_env)
@@ -1072,66 +1083,178 @@ CONTAINS
 ! ***************************************************************************
 !> \brief  Initialize helium coordinates with random positions.
 !> \param helium_env ...
+!> \param initkT ...
+!> \param solute_radius ...
 !> \date   2009-11-09
 !> \par    History
 !>         2016-07-14 Modified to work with independent helium_env [cschran]
 !>         2018-04-30 Usefull initialization for droplets [fuhl]
 !> \author Lukasz Walewski
 ! **************************************************************************************************
-   SUBROUTINE helium_coord_init(helium_env)
-      TYPE(helium_solvent_p_type), DIMENSION(:), POINTER :: helium_env
+   SUBROUTINE helium_coord_init(helium_env, initkT, solute_radius)
+      TYPE(helium_solvent_p_type), DIMENSION(:), &
+         INTENT(IN), POINTER                             :: helium_env
+      REAL(KIND=dp), INTENT(IN)                          :: initkT, solute_radius
 
       CHARACTER(len=*), PARAMETER :: routineN = 'helium_coord_init', &
          routineP = moduleN//':'//routineN
+      REAL(KIND=dp), PARAMETER                           :: minHeHedst = 5.669177966_dp
 
-      INTEGER                                            :: ia, ib, ic, k
-      REAL(KIND=dp)                                      :: r1, r2
-      REAL(KIND=dp), DIMENSION(3)                        :: rvek
+      INTEGER                                            :: ia, ib, ic, id, iter, k
+      LOGICAL                                            :: invalidpos
+      REAL(KIND=dp)                                      :: minHeHedsttmp, r1, r2
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: centroids
+      REAL(KIND=dp), DIMENSION(3)                        :: cvek, rvek, tvek
+
+!corresponds to three angstrom (roughly first maximum of He-He-rdf)
+
+      minHeHedsttmp = minHeHedst
 
       DO k = 1, SIZE(helium_env)
+         IF (helium_env(k)%helium%solute_present) THEN
+            cvek(:) = helium_env(k)%helium%center(:)
+            CALL helium_pbc(helium_env(k)%helium, cvek)
+         END IF
+
+         ALLOCATE (centroids(3, helium_env(k)%helium%atoms))
          IF (helium_env(k)%helium%periodic) THEN
             DO ia = 1, helium_env(k)%helium%atoms
-               DO ic = 1, 3
-                  r1 = next_random_number(helium_env(k)%helium%rng_stream_uniform)
-                  r1 = r1*helium_env(k)%helium%cell_size
+               invalidpos = .TRUE.
+               iter = 0
+               DO WHILE (invalidpos)
+                  iter = iter+1
+                  invalidpos = .FALSE.
+                  ! if sampling fails to often, reduce he he criterion
+                  minHeHedsttmp = 0.90_dp**MIN(0, iter-2)*minHeHedst
+                  DO ic = 1, 3
+                     r1 = next_random_number(helium_env(k)%helium%rng_stream_uniform)
+                     r1 = 2.0_dp*r1-1.0_dp
+                     r1 = r1*helium_env(k)%helium%cell_size
+                     centroids(ic, ia) = r1
+                  END DO
+                  ! check if helium is outside of cell
+                  tvek(:) = centroids(:, ia)
+                  CALL helium_pbc(helium_env(k)%helium, tvek(:))
+                  rvek(:) = tvek(:)-centroids(:, ia)
+                  r2 = DOT_PRODUCT(rvek, rvek)
+                  IF (r2 > 1.0_dp*10**(-6)) THEN
+                     invalidpos = .TRUE.
+                  ELSE
+                     ! check for helium-helium collision
+                     DO id = 1, ia-1
+                        rvek = centroids(:, ia)-centroids(:, id)
+                        CALL helium_pbc(helium_env(k)%helium, rvek)
+                        r2 = DOT_PRODUCT(rvek, rvek)
+                        IF (r2 < minHeHedsttmp**2) THEN
+                           invalidpos = .TRUE.
+                           EXIT
+                        END IF
+                     END DO
+                  END IF
+                  IF (.NOT. invalidpos) THEN
+                     ! check if centroid collides with molecule
+                     IF (helium_env(k)%helium%solute_present) THEN
+                        rvek(:) = (cvek(:)-centroids(:, ia))
+                        r2 = DOT_PRODUCT(rvek, rvek)
+                        IF (r2 <= solute_radius**2) invalidpos = .TRUE.
+                     END IF
+                  END IF
+               END DO
+            END DO
+            ! do thermal gaussian delocalization of hot start
+            IF (initkT > 0.0_dp) THEN
+               CALL helium_thermal_gaussian_beads_init(helium_env(k)%helium, centroids, initkT)
+            ELSE
+               DO ia = 1, helium_env(k)%helium%atoms
                   DO ib = 1, helium_env(k)%helium%beads
-                     !TODO: use thermal gaussian instead
-                     r2 = next_random_number(helium_env(k)%helium%rng_stream_uniform)
-                     helium_env(k)%helium%pos(ic, ia, ib) = r1+0.1_dp*r2
+                     helium_env(k)%helium%pos(:, ia, ib) = centroids(:, ia)
                   END DO
                END DO
+            END IF
+            ! apply PBC to bead coords
+            DO ia = 1, helium_env(k)%helium%atoms
                DO ib = 1, helium_env(k)%helium%beads
                   CALL helium_pbc(helium_env(k)%helium, helium_env(k)%helium%pos(:, ia, ib))
+                  ! check if bead collides with molecule
+                  IF (helium_env(k)%helium%solute_present) THEN
+                     rvek(:) = (cvek(:)-helium_env(k)%helium%pos(:, ia, ib))
+                     r2 = DOT_PRODUCT(rvek, rvek)
+                     IF (r2 <= solute_radius**2) THEN
+                        r1 = SQRT(r2)
+                        helium_env(k)%helium%pos(:, ia, ib) = &
+                           cvek(:)+solute_radius/r1*rvek(:)
+                     END IF
+                  END IF
                END DO
             END DO
          ELSE
             DO ia = 1, helium_env(k)%helium%atoms
-               r2 = 2.0_dp*helium_env(k)%helium%droplet_radius**2
-               DO WHILE (r2 > (0.95_dp*helium_env(k)%helium%droplet_radius)**2)
+               iter = 0
+               invalidpos = .TRUE.
+               DO WHILE (invalidpos)
+                  invalidpos = .FALSE.
+                  iter = iter+1
+                  ! if sampling fails to often, reduce he he criterion
+                  minHeHedsttmp = 0.90_dp**MIN(0, iter-2)*minHeHedst
                   DO ic = 1, 3
                      rvek(ic) = next_random_number(helium_env(k)%helium%rng_stream_uniform)
                      rvek(ic) = 2.0_dp*rvek(ic)-1.0_dp
-                     rvek(ic) = rvek(ic)*0.95_dp*helium_env(k)%helium%droplet_radius
+                     rvek(ic) = rvek(ic)*helium_env(k)%helium%droplet_radius
                   END DO
+                  centroids(:, ia) = rvek(:)
+                  ! check if helium is outside of the droplet
                   r2 = DOT_PRODUCT(rvek, rvek)
-                  ! make sure the helium does not collide with the solute
-                  IF (helium_env(k)%helium%solute_present) THEN
-                     IF (r2 <= 2.0_dp) r2 = 2.0_dp*helium_env(k)%helium%droplet_radius**2
+                  IF (r2 > helium_env(k)%helium%droplet_radius**2) THEN
+                     invalidpos = .TRUE.
+                  ELSE
+                     ! check for helium-helium collision
+                     DO id = 1, ia-1
+                        rvek = centroids(:, ia)-centroids(:, id)
+                        r2 = DOT_PRODUCT(rvek, rvek)
+                        IF (r2 < minHeHedsttmp**2) THEN
+                           invalidpos = .TRUE.
+                           EXIT
+                        END IF
+                     END DO
+                  END IF
+                  IF (.NOT. invalidpos) THEN
+                     ! make sure the helium does not collide with the solute
+                     IF (helium_env(k)%helium%solute_present) THEN
+                        rvek(:) = (cvek(:)-centroids(:, ia))
+                        r2 = DOT_PRODUCT(rvek, rvek)
+                        IF (r2 <= solute_radius**2) invalidpos = .TRUE.
+                     END IF
                   END IF
                END DO
-               DO ib = 1, helium_env(k)%helium%beads
-                  DO ic = 1, 3
-                     r2 = next_random_number(helium_env(k)%helium%rng_stream_uniform)
-                     helium_env(k)%helium%pos(ic, ia, ib) = rvek(ic)+0.1_dp*r2
+            END DO
+            ! do thermal gaussian delocalization of hot start
+            IF (initkT > 0.0_dp) THEN
+               CALL helium_thermal_gaussian_beads_init(helium_env(k)%helium, centroids, initkT)
+            ELSE
+               DO ia = 1, helium_env(k)%helium%atoms
+                  DO ib = 1, helium_env(k)%helium%beads
+                     helium_env(k)%helium%pos(:, ia, ib) = centroids(:, ia)
                   END DO
+               END DO
+            END IF
+            DO ia = 1, helium_env(k)%helium%atoms
+               DO ib = 1, helium_env(k)%helium%beads
                   ! Make sure, that nothing lies outside the droplet radius
                   r1 = DOT_PRODUCT(helium_env(k)%helium%pos(:, ia, ib), &
                                    helium_env(k)%helium%pos(:, ia, ib))
-                  IF (r1 >= helium_env(k)%helium%droplet_radius**2) THEN
+                  IF (r1 > helium_env(k)%helium%droplet_radius**2) THEN
                      r1 = SQRT(r1)
                      helium_env(k)%helium%pos(:, ia, ib) = &
                         helium_env(k)%helium%droplet_radius/r1* &
                         helium_env(k)%helium%pos(:, ia, ib)
+                  ELSE IF (helium_env(k)%helium%solute_present) THEN
+                     IF (r1 < solute_radius**2) THEN
+                        !make sure that nothing lies within the molecule
+                        r1 = SQRT(r1)
+                        helium_env(k)%helium%pos(:, ia, ib) = &
+                           solute_radius/r1* &
+                           helium_env(k)%helium%pos(:, ia, ib)
+                     END IF
                   END IF
                   ! transfer to position around actual center of droplet
                   helium_env(k)%helium%pos(:, ia, ib) = &
@@ -1139,17 +1262,80 @@ CONTAINS
                      helium_env(k)%helium%center(:)
                END DO
             END DO
-
          END IF
          ! store positions at time slice nbeads+1 (rperez):
          DO ia = 1, helium_env(k)%helium%atoms
             helium_env(k)%helium%pos(:, ia, helium_env(k)%helium%beads+1) = helium_env(k)%helium%pos(:, ia, 1)
          END DO
          helium_env(k)%helium%work = helium_env(k)%helium%pos
+         DEALLOCATE (centroids)
       END DO
 
       RETURN
    END SUBROUTINE helium_coord_init
+
+! **************************************************************************************************
+!> \brief ...
+!> \param helium_env ...
+!> \param centroids ...
+!> \param kbT ...
+! **************************************************************************************************
+   SUBROUTINE helium_thermal_gaussian_beads_init(helium_env, centroids, kbT)
+
+      TYPE(helium_solvent_type), POINTER                 :: helium_env
+      REAL(KIND=dp), DIMENSION(3, helium_env%atoms), &
+         INTENT(IN)                                      :: centroids
+      REAL(KIND=dp), INTENT(IN)                          :: kbT
+
+      INTEGER                                            :: i, iatom, idim, imode, j, p
+      REAL(KIND=dp)                                      :: invsqrtp, omega, pip, rand, sqrt2p, &
+                                                            sqrtp, twopip, variance
+      REAL(KIND=dp), &
+         DIMENSION(helium_env%beads, helium_env%beads)   :: u2x
+      REAL(KIND=dp), DIMENSION(helium_env%beads)         :: nmhecoords
+
+      p = helium_env%beads
+
+      sqrt2p = SQRT(2.0_dp/REAL(p, dp))
+      twopip = twopi/REAL(p, dp)
+      pip = pi/REAL(p, dp)
+      sqrtp = SQRT(REAL(p, dp))
+      invsqrtp = 1.0_dp/SQRT(REAL(p, dp))
+
+      ! set up normal mode backtransform matrix
+      u2x(:, :) = 0.0_dp
+      u2x(:, 1) = invsqrtp
+      DO i = 2, p/2+1
+         DO j = 1, p
+            u2x(j, i) = sqrt2p*COS(twopip*(i-1)*(j-1))
+         END DO
+      END DO
+      DO i = p/2+2, p
+         DO j = 1, p
+            u2x(j, i) = sqrt2p*SIN(twopip*(i-1)*(j-1))
+         END DO
+      END DO
+      IF (MOD(p, 2) == 0) THEN
+         DO i = 1, p-1, 2
+            u2x(i, p/2+1) = invsqrtp
+            u2x(i+1, p/2+1) = -1.0_dp*invsqrtp
+         END DO
+      END IF
+
+      DO iatom = 1, helium_env%atoms
+         DO idim = 1, 3
+            nmhecoords(1) = sqrtp*centroids(idim, iatom)
+            DO imode = 2, p
+               omega = 2.0_dp*p*kbT*SIN((imode-1)*pip)
+               variance = kbT*p/(helium_env%he_mass_au*omega**2)
+               rand = next_random_number(helium_env%rng_stream_gaussian)
+               nmhecoords(imode) = rand*SQRT(variance)
+            END DO
+            helium_env%pos(idim, iatom, 1:p) = MATMUL(u2x, nmhecoords)
+         END DO
+      END DO
+
+   END SUBROUTINE helium_thermal_gaussian_beads_init
 
 ! ***************************************************************************
 !> \brief  Restore coordinates from the input structure.
@@ -2082,6 +2268,7 @@ CONTAINS
       TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(section_vals_type), POINTER                   :: print_key, section
 
+      is_active = .FALSE.
       NULLIFY (logger)
       logger => cp_get_default_logger()
 

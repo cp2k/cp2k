@@ -1,5 +1,5 @@
 &GLOBAL
-  PROJECT_NAME               water-in-helium-worm
+  PROJECT_NAME               water-micro-helium
   RUN_TYPE                   PINT
   PRINT_LEVEL                MEDIUM
 &END GLOBAL
@@ -8,43 +8,45 @@
   &PINT
     P                        4
     PROC_PER_REPLICA         1
-    NUM_STEPS                3
+    NUM_STEPS                5
     DT                       0.5
-    NRESPA                   1
-    PROPAGATOR               RPMD
-    HARM_INT                 EXACT
+    NRESPA                   2
     TEMP                     7.5
     T_TOL                    0.0
     TRANSFORMATION           NORMAL
-    &PILE
-    &END PILE
+    &NOSE
+      NNOS                   3
+    &END NOSE
     &HELIUM
+      PRESAMPLE              T
       SOLUTE_INTERACTION     MWATER
       POTENTIAL_FILE_NAME    lj-test-pot.dat
-      COORD_INIT_TEMP        -1
-      GET_FORCES             LAST
-      NATOMS                32
+      COORD_INIT_TEMP        7.5
+      SOLUTE_RADIUS          3
+      NATOMS                 5
       NBEADS                16
-      NUM_ENV                2
-      INOROT                80
-      IROT                  40
+      NUM_ENV                5
+      N_INNER               50
+      N_OUTER                7
+      SAMPLING_METHOD        CEPERLEY
+      &CEPERLEY
+        BISECTION              8
+        MAX_PERM_CYCLE         1
+      &END CEPERLEY
       PERIODIC               F
-      CELL_SHAPE             OCTAHEDRON
-      SAMPLING_METHOD        WORM
-      DROPLET_RADIUS        20
-      &WORM
-         CENTROID_MOVE_FREQ   300
-         CENTROID_MOVE_DRMAX  0.15
-         STAGING_MOVE_REP     1
-         STAGING_MOVE_L       1
-         G-SECTOR_MOVE        T
-         G-SECTOR_MOVE_REP    10
-         OPEN_CLOSE_MOVE_C    0.00005
-         OPEN_CLOSE_MOVE_LMAX 5
-         HEAD_TAIL_MOVE_LMAX  5
-         SWAP_MOVE_LMAX       5
-         WRITE                T
-       &END WORM
+      DROPLET_RADIUS        10
+      &PRINT
+        &COORDINATES ON
+          &EACH
+            MD               1
+          &END EACH
+        &END COORDINATES
+        &ACTION ON
+          &EACH
+            MD               1
+          &END EACH
+        &END ACTION
+      &END PRINT
     &END HELIUM
   &END PINT
 &END MOTION

@@ -2078,7 +2078,7 @@ CONTAINS
       CALL section_create(section, name="HELIUM", &
                           description="The section that controls optional helium solvent"// &
                           " environment (highly experimental, not for general use yet)", &
-                          n_keywords=29, n_subsections=9, repeats=.FALSE.)
+                          n_keywords=31, n_subsections=9, repeats=.FALSE.)
 
       NULLIFY (keyword)
       CALL keyword_create(keyword, name="_SECTION_PARAMETERS_", &
@@ -2180,6 +2180,22 @@ CONTAINS
                           default_i_val=helium_sampling_ceperley, &
                           enum_c_vals=s2a("CEPERLEY", "WORM"), &
                           enum_i_vals=(/helium_sampling_ceperley, helium_sampling_worm/))
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, name="COORD_INIT_TEMP", &
+                          description="Temperature for thermal gaussian initialization of the helium."// &
+                          "Negative values correspond to a hot start.", &
+                          default_r_val=cp_unit_to_cp2k(300._dp, "K"), &
+                          unit_str="K")
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, name="SOLUTE_RADIUS", &
+                          description="Radius of the solute molecule for prevention of"// &
+                          "coordinate collision during initialization", &
+                          default_r_val=cp_unit_to_cp2k(0.0_dp, "angstrom"), &
+                          repeats=.FALSE., type_of_var=real_t, unit_str="angstrom")
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 

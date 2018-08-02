@@ -21,6 +21,7 @@
       SOLUTE_INTERACTION     MWATER
       POTENTIAL_FILE_NAME    lj-test-pot.dat
       GET_FORCES             LAST
+      SOLUTE_RADIUS          2.0
       NATOMS                32
       NBEADS                16
       NUM_ENV                2

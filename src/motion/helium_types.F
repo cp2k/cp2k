@@ -103,8 +103,10 @@ MODULE helium_types
 
       ! some useful constants
       !
+      REAL(KIND=dp) :: he_mass_au ! mass of helium 4 in electron masses
       REAL(KIND=dp) :: hb2m !< hbar squared over m for 4He in CP2k units
       REAL(KIND=dp) :: tau !< 1/(k_B T p) with T - He temperature, p - number of beads
+      REAL(KIND=dp) :: initkT !< temperature to init the helium coordinates with
       REAL(KIND=dp) :: wpref !< prefactor for calculating superfluid fraction from <(M*W)^2>
       REAL(KIND=dp) :: apref !< prefactor for calculating superfluid fraction from <A^2/I_c>
 
@@ -237,6 +239,7 @@ MODULE helium_types
       ! variables related to solvated molecular system
       !
       LOGICAL :: solute_present !< switch the interactions with the solute on or off
+      REAL(KIND=dp) :: solute_radius !< solute radius in bohr
       INTEGER :: solute_atoms !< number of solute atoms (pint_env%ndim/3)
       INTEGER :: solute_beads !< number of solute beads (pint_env%p)
       INTEGER :: get_helium_forces !< parameter to determine whether the average or last MC force should be taken to MD
