@@ -36,6 +36,10 @@ def main(argv):
     #triples += combinations(5,13,16,32)
     #triples += combinations(6,7,8)
     #triples += combinations(13,14,25,26,32)
+    #triples += combinations(11, 12, 20, 25, 32)
+    #triples += combinations(12, 26, 32)
+    #triples += combinations(9, 10, 12, 32)
+    #triples += combinations(12, 16, 32)
 
     usage = "Generator of LibCuSMM. The Library for Cuda Small Matrix Multiplications."
     parser = OptionParser(usage)
