@@ -396,7 +396,7 @@ CONTAINS
       CALL section_vals_val_get(vdw_section, "PAIR_POTENTIAL%REFERENCE_FUNCTIONAL", c_val=functional)
 
       ! values for different functionals from:
-      ! http://www.thch.uni-bonn.de/tc/downloads/DFT-D3/functionals.html
+      ! https://www.chemie.uni-bonn.de/pctc/mulliken-center/software/dft-d3/dft-d3
       SELECT CASE (TRIM (functional))
       CASE DEFAULT
          ! unknown functional
