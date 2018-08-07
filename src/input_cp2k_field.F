@@ -58,7 +58,8 @@ CONTAINS
       CALL section_create(section, "PERIODIC_EFIELD", &
                           description="parameters for finite periodic electric field computed using "// &
                           "the Berry phase approach. IMPORTANT: Can only be used in combination "// &
-                          " with OT. Can not be used in combination with RTP or EMD.", &
+                          " with OT. Can not be used in combination with RTP or EMD,"// &
+                          " e.g. RESTART_RTP has to be .FALSE. when restarting the job.", &
                           citations=(/Souza2002, Umari2002/), &
                           n_keywords=6, n_subsections=1, repeats=.TRUE.)
 
