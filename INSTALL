@@ -206,6 +206,18 @@ A library for finding and handling crystal symmetries
   * The spglib can be downloaded from https://github.com/atztogo/spglib
   * For building CP2K with the spglib add -D__SPGLIB to DFLAGS
 
+==== 2q. JSON-Fortran (optional, required for SIRIUS) ====
+JSON-Fortran is a Fortran 2008 JSON API.
+  * The code is available at https://github.com/jacobwilliams/json-fortran
+  * For building CP2K with JSON-Fortran add -D__JSON to DFLAGS.
+
+==== 2r. SIRIUS (optional, plane wave calculations) ====
+SIRIUS is a domain specific library for electronic structure calculations.
+  * The code is available at https://github.com/electronic-structure/SIRIUS
+  * For building CP2K with SIRIUS add -D__SIRIUS to DFLAGS.
+  * Furthermore, SIRIUS depends on JSON-Fortran.
+  * See https://electronic-structure.github.io/SIRIUS/ for more information.
+
 ===== 3. Compile =====
 
 ==== 3a. ARCH files ====
