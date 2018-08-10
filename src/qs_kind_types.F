@@ -35,9 +35,11 @@ MODULE qs_kind_types
                                               remove_basis_from_container,&
                                               remove_basis_set_container
    USE basis_set_types,                 ONLY: &
-        allocate_gto_basis_set, combine_basis_sets, deallocate_gto_basis_set, get_gto_basis_set, &
-        gto_basis_set_type, init_aux_basis_set, init_orb_basis_set, read_gto_basis_set, &
-        write_gto_basis_set, write_orb_basis_set
+        allocate_gto_basis_set, allocate_sto_basis_set, combine_basis_sets, &
+        create_gto_from_sto_basis, deallocate_gto_basis_set, deallocate_sto_basis_set, &
+        get_gto_basis_set, gto_basis_set_type, init_aux_basis_set, init_orb_basis_set, &
+        read_gto_basis_set, read_sto_basis_set, sto_basis_set_type, write_gto_basis_set, &
+        write_orb_basis_set
    USE cp_control_types,                ONLY: dft_control_type,&
                                               qs_control_type
    USE cp_log_handling,                 ONLY: cp_get_default_logger,&
@@ -1372,7 +1374,8 @@ CONTAINS
       CHARACTER(LEN=default_string_length), &
          DIMENSION(:), POINTER                           :: tmpstringlist
       CHARACTER(LEN=default_string_length), &
-         DIMENSION(maxbas)                               :: basis_set_name, basis_set_type
+         DIMENSION(maxbas)                               :: basis_set_form, basis_set_name, &
+                                                            basis_set_type
       INTEGER :: handle, i, i_rep, ipaodesc, ipaopot, ipos, j, jj, k_rep, l, m, n_rep, nb_rep, &
          nexp, ngauss, nlcc, nloc, nnl, norbitals, npaodesc, npaopot, nppnl, nspin, z
       INTEGER, DIMENSION(:), POINTER                     :: add_el, elec_conf, orbitals
@@ -1390,6 +1393,7 @@ CONTAINS
       TYPE(section_vals_type), POINTER :: basis_section, bs_section, dft_plus_u_section, &
          dft_section, enforce_occupation_section, kgpot_section, pao_desc_section, &
          pao_pot_section, potential_section, spin_section
+      TYPE(sto_basis_set_type), POINTER                  :: sto_basis_set
 
       CALL timeset(routineN, handle)
 
@@ -1398,6 +1402,7 @@ CONTAINS
       update_input = .TRUE.
       basis_set_name(:) = ""
       basis_set_type(:) = ""
+      basis_set_form(:) = ""
       aux_basis_set_name = ""
       ri_aux_basis_set_name = ""
       orb_basis_set_name = ""
@@ -1494,14 +1499,25 @@ CONTAINS
             CALL section_vals_val_get(kind_section, i_rep_section=k_rep, &
                                       keyword_name="BASIS_SET", i_rep_val=i, c_vals=tmpstringlist)
             IF (SIZE(tmpstringlist) == 1) THEN
-               ! default is orbital type
+               ! default is orbital type and GTO
                basis_set_type(i) = "ORB"
+               basis_set_form(i) = "GTO"
                basis_set_name(i) = tmpstringlist(1)
             ELSEIF (SIZE(tmpstringlist) == 2) THEN
+               ! default is GTO
                basis_set_type(i) = tmpstringlist(1)
+               basis_set_form(i) = "GTO"
                basis_set_name(i) = tmpstringlist(2)
+            ELSEIF (SIZE(tmpstringlist) == 3) THEN
+               basis_set_type(i) = tmpstringlist(1)
+               basis_set_form(i) = tmpstringlist(2)
+               basis_set_name(i) = tmpstringlist(3)
             ELSE
                CPABORT("")
+            END IF
+            ! check that we have a valid basis set form
+            IF (basis_set_form(i) /= "GTO" .AND. basis_set_form(i) /= "STO") THEN
+               CPABORT("BASIS_SET_FORM invalid")
             END IF
          END DO
 
@@ -1540,6 +1556,7 @@ CONTAINS
             nb_rep = nb_rep+1
             CPASSERT(nb_rep <= maxbas)
             basis_set_type(nb_rep) = "RI_AUX"
+            basis_set_form(nb_rep) = "GTO"
             basis_set_name(nb_rep) = ri_aux_basis_set_name
          END IF
          ! end of deprecated input
@@ -1975,13 +1992,30 @@ CONTAINS
 
       CASE DEFAULT
 
+         ! set nauss for STO expansion
+         CALL section_vals_val_get(dft_section, "QS%STO_NG", i_val=ngauss)
          ! Allocate and initialise the basis set data set structure
          ! first external basis sets
          DO i = 1, nb_rep
-            NULLIFY (tmp_basis_set)
-            CALL allocate_gto_basis_set(tmp_basis_set)
-            CALL read_gto_basis_set(qs_kind%element_symbol, basis_set_name(i), &
-                                    tmp_basis_set, para_env, dft_section)
+            SELECT CASE (basis_set_form (i))
+            CASE ("GTO")
+               NULLIFY (tmp_basis_set)
+               CALL allocate_gto_basis_set(tmp_basis_set)
+               CALL read_gto_basis_set(qs_kind%element_symbol, basis_set_name(i), &
+                                       tmp_basis_set, para_env, dft_section)
+            CASE ("STO")
+               NULLIFY (sto_basis_set)
+               CALL allocate_sto_basis_set(sto_basis_set)
+               CALL read_sto_basis_set(qs_kind%element_symbol, basis_set_name(i), &
+                                       sto_basis_set, para_env, dft_section)
+               NULLIFY (tmp_basis_set)
+               CALL create_gto_from_sto_basis(sto_basis_set, tmp_basis_set, ngauss)
+               CALL deallocate_sto_basis_set(sto_basis_set)
+            CASE DEFAULT
+               CALL cp_abort(__LOCATION__, &
+                             "Invalid basis set form "//TRIM(basis_set_form(i))// &
+                             "for atomic kind <"//TRIM(qs_kind%name)//">")
+            END SELECT
             tmp = basis_set_type(i)
             CALL uppercase(tmp)
             CALL add_basis_set_to_container(qs_kind%basis_sets, tmp_basis_set, tmp)

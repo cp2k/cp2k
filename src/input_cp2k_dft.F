@@ -2961,6 +2961,12 @@ CONTAINS
       CALL keyword_release(keyword)
 
       ! Integers
+      CALL keyword_create(keyword, name="STO_NG", &
+                          description="Order of Gaussian type expansion of Slater orbital basis sets.", &
+                          usage="STO_NG", default_i_val=6)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
       CALL keyword_create(keyword, name="LMAXN1", &
                           variants=(/"LMAXRHO1"/), &
                           description="GAPW : max L number for expansion of the atomic densities in spherical gaussians", &

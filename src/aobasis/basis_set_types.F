@@ -123,6 +123,7 @@ MODULE basis_set_types
              write_orb_basis_set
 
    PUBLIC :: allocate_sto_basis_set, &
+             read_sto_basis_set, &
              create_gto_from_sto_basis, &
              deallocate_sto_basis_set, &
              set_sto_basis_set, &
@@ -2222,6 +2223,179 @@ CONTAINS
       END IF
 
    END SUBROUTINE set_sto_basis_set
+
+! **************************************************************************************************
+!> \brief ...
+!> \param element_symbol ...
+!> \param basis_set_name ...
+!> \param sto_basis_set ...
+!> \param para_env ...
+!> \param dft_section ...
+! **************************************************************************************************
+   SUBROUTINE read_sto_basis_set(element_symbol, basis_set_name, sto_basis_set, para_env, dft_section)
+
+      ! Read a Slater-type orbital (STO) basis set from the database file.
+
+      CHARACTER(LEN=*), INTENT(IN)                       :: element_symbol, basis_set_name
+      TYPE(sto_basis_set_type), POINTER                  :: sto_basis_set
+      TYPE(cp_para_env_type), POINTER                    :: para_env
+      TYPE(section_vals_type), POINTER                   :: dft_section
+
+      CHARACTER(len=*), PARAMETER :: routineN = 'read_sto_basis_set', &
+         routineP = moduleN//':'//routineN
+
+      CHARACTER(LEN=10)                                  :: nlsym
+      CHARACTER(LEN=2)                                   :: lsym
+      CHARACTER(LEN=240)                                 :: line
+      CHARACTER(LEN=242)                                 :: line2
+      CHARACTER(len=default_path_length)                 :: basis_set_file_name, tmp
+      CHARACTER(LEN=default_path_length), DIMENSION(:), &
+         POINTER                                         :: cbasis
+      CHARACTER(LEN=LEN(basis_set_name))                 :: bsname
+      CHARACTER(LEN=LEN(basis_set_name)+2)               :: bsname2
+      CHARACTER(LEN=LEN(element_symbol))                 :: symbol
+      CHARACTER(LEN=LEN(element_symbol)+2)               :: symbol2
+      INTEGER                                            :: ibasis, irep, iset, nbasis, nq, nset, &
+                                                            strlen1, strlen2
+      LOGICAL                                            :: basis_found, found, match
+      REAL(KIND=dp)                                      :: zet
+      TYPE(cp_parser_type), POINTER                      :: parser
+
+      line = ""
+      line2 = ""
+      symbol = ""
+      symbol2 = ""
+      bsname = ""
+      bsname2 = ""
+
+      nbasis = 1
+
+      sto_basis_set%name = basis_set_name
+      CALL section_vals_val_get(dft_section, "BASIS_SET_FILE_NAME", &
+                                n_rep_val=nbasis)
+      ALLOCATE (cbasis(nbasis))
+      DO ibasis = 1, nbasis
+         CALL section_vals_val_get(dft_section, "BASIS_SET_FILE_NAME", &
+                                   i_rep_val=ibasis, c_val=cbasis(ibasis))
+         NULLIFY (parser)
+         basis_set_file_name = cbasis(ibasis)
+         tmp = basis_set_file_name
+         CALL uppercase(tmp)
+      END DO
+
+      ! Search for the requested basis set in the basis set file
+      ! until the basis set is found or the end of file is reached
+
+      basis_found = .FALSE.
+      basis_loop: DO ibasis = 1, nbasis
+         IF (basis_found) EXIT basis_loop
+         NULLIFY (parser)
+         basis_set_file_name = cbasis(ibasis)
+         CALL parser_create(parser, basis_set_file_name, para_env=para_env)
+
+         bsname = basis_set_name
+         symbol = element_symbol
+         irep = 0
+
+         tmp = basis_set_name
+         CALL uppercase(tmp)
+
+         IF (tmp .NE. "NONE") THEN
+            search_loop: DO
+
+               CALL parser_search_string(parser, TRIM(bsname), .TRUE., found, line)
+               IF (found) THEN
+                  CALL uppercase(symbol)
+                  CALL uppercase(bsname)
+
+                  match = .FALSE.
+                  CALL uppercase(line)
+                  ! Check both the element symbol and the basis set name
+                  line2 = " "//line//" "
+                  symbol2 = " "//TRIM(symbol)//" "
+                  bsname2 = " "//TRIM(bsname)//" "
+                  strlen1 = LEN_TRIM(symbol2)+1
+                  strlen2 = LEN_TRIM(bsname2)+1
+
+                  IF ((INDEX(line2, symbol2(:strlen1)) > 0) .AND. &
+                      (INDEX(line2, bsname2(:strlen2)) > 0)) match = .TRUE.
+                  IF (match) THEN
+                     ! Read the basis set information
+                     CALL parser_get_object(parser, nset, newline=.TRUE.)
+                     sto_basis_set%nshell = nset
+
+                     CALL reallocate(sto_basis_set%nq, 1, nset)
+                     CALL reallocate(sto_basis_set%lq, 1, nset)
+                     CALL reallocate(sto_basis_set%zet, 1, nset)
+                     ALLOCATE (sto_basis_set%symbol(nset))
+
+                     DO iset = 1, nset
+                        CALL parser_get_object(parser, nq, newline=.TRUE.)
+                        CALL parser_get_object(parser, lsym)
+                        CALL parser_get_object(parser, zet)
+                        sto_basis_set%nq(iset) = nq
+                        sto_basis_set%zet(iset) = zet
+                        WRITE (nlsym, "(I2,A)") nq, TRIM(lsym)
+                        sto_basis_set%symbol(iset) = TRIM(nlsym)
+                        SELECT CASE (TRIM (lsym))
+                        CASE ("S", "s")
+                           sto_basis_set%lq(iset) = 0
+                        CASE ("P", "p")
+                           sto_basis_set%lq(iset) = 1
+                        CASE ("D", "d")
+                           sto_basis_set%lq(iset) = 2
+                        CASE ("F", "f")
+                           sto_basis_set%lq(iset) = 3
+                        CASE ("G", "g")
+                           sto_basis_set%lq(iset) = 4
+                        CASE ("H", "h")
+                           sto_basis_set%lq(iset) = 5
+                        CASE ("I", "i", "J", "j")
+                           sto_basis_set%lq(iset) = 6
+                        CASE ("K", "k")
+                           sto_basis_set%lq(iset) = 7
+                        CASE ("L", "l")
+                           sto_basis_set%lq(iset) = 8
+                        CASE ("M", "m")
+                           sto_basis_set%lq(iset) = 9
+                        CASE DEFAULT
+                           CALL cp_abort(__LOCATION__, &
+                                         "The requested basis set <"//TRIM(bsname)// &
+                                         "> for element <"//TRIM(symbol)//"> has an ivalid component: ")
+                        END SELECT
+                     END DO
+
+                     basis_found = .TRUE.
+                     EXIT search_loop
+                  END IF
+               ELSE
+                  EXIT search_loop
+               END IF
+            END DO search_loop
+         ELSE
+            match = .FALSE.
+         ENDIF
+
+         CALL parser_release(parser)
+
+      END DO basis_loop
+
+      IF (tmp .NE. "NONE") THEN
+         IF (.NOT. basis_found) THEN
+            basis_set_file_name = ""
+            DO ibasis = 1, nbasis
+               basis_set_file_name = TRIM(basis_set_file_name)//"<"//TRIM(cbasis(ibasis))//"> "
+            END DO
+            CALL cp_abort(__LOCATION__, &
+                          "The requested basis set <"//TRIM(bsname)// &
+                          "> for element <"//TRIM(symbol)//"> was not "// &
+                          "found in the basis set files "// &
+                          TRIM(basis_set_file_name))
+         END IF
+      END IF
+      DEALLOCATE (cbasis)
+
+   END SUBROUTINE read_sto_basis_set
 
 ! **************************************************************************************************
 !> \brief ...
