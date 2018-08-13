@@ -30,7 +30,6 @@ MODULE qs_tddfpt2_methods
                                               cp_fm_contracted_trace,&
                                               cp_fm_scale,&
                                               cp_fm_scale_and_add,&
-                                              cp_fm_schur_product,&
                                               cp_fm_trace,&
                                               cp_fm_triangular_invert
    USE cp_fm_cholesky,                  ONLY: cp_fm_cholesky_decompose
@@ -86,8 +85,7 @@ MODULE qs_tddfpt2_methods
                                               int_8
    USE machine,                         ONLY: m_flush,&
                                               m_walltime
-   USE mathconstants,                   ONLY: pi,&
-                                              twopi,&
+   USE mathconstants,                   ONLY: twopi,&
                                               z_one,&
                                               z_zero
    USE message_passing,                 ONLY: mp_bcast,&
@@ -314,23 +312,19 @@ CONTAINS
 
       CHARACTER(len=20)                                  :: nstates_str
       INTEGER                                            :: energy_unit, handle, ispin, istate, &
-                                                            iter, log_unit, mult, ndim_periodic, &
-                                                            niters, nspins, nstates, nstates_read
+                                                            iter, log_unit, mult, niters, nspins, &
+                                                            nstates, nstates_read
       LOGICAL                                            :: do_admm, do_hfx, is_restarted
       REAL(kind=dp)                                      :: C_hf, conv
       REAL(kind=dp), ALLOCATABLE, DIMENSION(:)           :: evals
-      REAL(kind=dp), DIMENSION(3)                        :: kvec, reference_point
       TYPE(admm_type), POINTER                           :: admm_env
       TYPE(cell_type), POINTER                           :: cell
       TYPE(cp_blacs_env_type), POINTER                   :: blacs_env
-      TYPE(cp_fm_p_type), ALLOCATABLE, DIMENSION(:, :)   :: evects, S_evects
+      TYPE(cp_fm_p_type), ALLOCATABLE, DIMENSION(:, :)   :: dipole_op_mos_occ, evects, S_evects
       TYPE(cp_logger_type), POINTER                      :: logger
-      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: berry_cossin_xyz, dipole_op_xyz, &
-                                                            matrix_ks, matrix_s, rRc_xyz
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_ks, matrix_s
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(mo_set_p_type), DIMENSION(:), POINTER         :: mos
-      TYPE(pw_env_type), POINTER                         :: pw_env
-      TYPE(pw_poisson_type), POINTER                     :: poisson_env
       TYPE(section_vals_type), POINTER                   :: hfx_section, input, &
                                                             tddfpt_print_section, tddfpt_section, &
                                                             xc_section
@@ -346,9 +340,9 @@ CONTAINS
 
       CALL cite_reference(Iannuzzi2005)
 
-      NULLIFY (blacs_env, cell, dft_control, input, matrix_ks, matrix_s, mos, pw_env)
+      NULLIFY (blacs_env, cell, dft_control, input, matrix_ks, matrix_s, mos)
       CALL get_qs_env(qs_env, blacs_env=blacs_env, cell=cell, dft_control=dft_control, &
-                      input=input, matrix_ks=matrix_ks, matrix_s=matrix_s, mos=mos, pw_env=pw_env)
+                      input=input, matrix_ks=matrix_ks, matrix_s=matrix_s, mos=mos)
       tddfpt_control => dft_control%tddfpt2_control
 
       nspins = dft_control%nspins
@@ -383,76 +377,6 @@ CONTAINS
          CALL cp_warn(__LOCATION__, "Keyword RKS_TRIPLETS has been ignored for spin-polarised calculations")
       END IF
 
-      ! check that the chosen dipole operator is consistent with the periodic boundary conditions used
-      CALL pw_env_get(pw_env, poisson_env=poisson_env)
-      ndim_periodic = COUNT(poisson_env%parameters%periodic == 1)
-
-      ! choose appropriate components of the dipole operator
-      NULLIFY (dipole_op_xyz)
-      SELECT CASE (tddfpt_control%dipole_form)
-      CASE (tddfpt_dipole_berry)
-         IF (ndim_periodic /= 3) THEN
-            CALL cp_warn(__LOCATION__, &
-                         "Fully periodic Poisson solver (PERIODIC xyz) is needed "// &
-                         "for oscillator strengths based on the Berry phase formula")
-         END IF
-
-         NULLIFY (berry_cossin_xyz)
-         ! index: 1 = Re[exp(-i * G_x * x)], 2 = Im[exp(-i * G_x * x)],
-         !        3 = Re[exp(-i * G_y * y)], 4 = Im[exp(-i * G_y * y)],
-         !        5 = Re[exp(-i * G_z * z)], 4 = Im[exp(-i * G_z * z)].
-         CALL dbcsr_allocate_matrix_set(berry_cossin_xyz, 2*nderivs)
-
-         DO ispin = 1, nderivs
-            ! cos component
-            CALL dbcsr_init_p(berry_cossin_xyz(2*ispin-1)%matrix)
-            CALL dbcsr_copy(berry_cossin_xyz(2*ispin-1)%matrix, matrix_s(1)%matrix)
-            CALL dbcsr_set(berry_cossin_xyz(2*ispin-1)%matrix, 0.0_dp)
-
-            ! sin component
-            CALL dbcsr_init_p(berry_cossin_xyz(2*ispin)%matrix)
-            CALL dbcsr_copy(berry_cossin_xyz(2*ispin)%matrix, matrix_s(1)%matrix)
-            CALL dbcsr_set(berry_cossin_xyz(2*ispin)%matrix, 0.0_dp)
-
-            kvec(:) = twopi*cell%h_inv(ispin, :)
-            CALL build_berry_moment_matrix(qs_env, berry_cossin_xyz(2*ispin-1)%matrix, berry_cossin_xyz(2*ispin)%matrix, kvec)
-         END DO
-
-         ! assign computed components to the generic variable
-         dipole_op_xyz => berry_cossin_xyz
-
-      CASE (tddfpt_dipole_length)
-         IF (ndim_periodic /= 0) THEN
-            CALL cp_warn(__LOCATION__, &
-                         "Non-periodic Poisson solver (PERIODIC none) is needed "// &
-                         "for oscillator strengths based on the length operator")
-         END IF
-
-         ! compute components of the dipole operator in the length form
-         NULLIFY (rRc_xyz)
-         CALL dbcsr_allocate_matrix_set(rRc_xyz, nderivs)
-
-         DO ispin = 1, nderivs
-            CALL dbcsr_init_p(rRc_xyz(ispin)%matrix)
-            CALL dbcsr_copy(rRc_xyz(ispin)%matrix, matrix_s(1)%matrix)
-         END DO
-
-         CALL get_reference_point(reference_point, qs_env=qs_env, &
-                                  reference=tddfpt_control%dipole_reference, &
-                                  ref_point=tddfpt_control%dipole_ref_point)
-
-         CALL rRc_xyz_ao(op=rRc_xyz, qs_env=qs_env, rc=reference_point, order=1, minimum_image=.FALSE., soft=.FALSE.)
-
-         ! assign computed components to the generic variable
-         dipole_op_xyz => rRc_xyz
-
-      CASE (tddfpt_dipole_velocity)
-         dipole_op_xyz => matrix_s(2:nderivs+1)
-
-      CASE DEFAULT
-         CPABORT("Unimplemented form of the dipole operator")
-      END SELECT
-
       ! recompute ground-state Kohn-Sham orbitals
       ALLOCATE (gs_mos(nspins))
       DO ispin = 1, nspins
@@ -460,6 +384,9 @@ CONTAINS
                                            blacs_env=blacs_env, cholesky_method=cholesky_restore, &
                                            matrix_ks=matrix_ks(ispin)%matrix, matrix_s=matrix_s(1)%matrix)
       END DO
+
+      ! components of the dipole operator
+      CALL tddfpt_dipole_operator(dipole_op_mos_occ, tddfpt_control, gs_mos, qs_env)
 
       ! multiplicity of molecular system
       IF (nspins > 1) THEN
@@ -611,10 +538,9 @@ CONTAINS
       ! *** print summary information ***
       log_unit = cp_logger_get_default_io_unit()
 
-      CALL tddfpt_print_summary(log_unit, evects, evals, mult, gs_mos, matrix_s=matrix_s(1)%matrix, &
-                                dipole_op_xyz=dipole_op_xyz, dipole_form=tddfpt_control%dipole_form, &
-                                cell=cell, min_amplitude=tddfpt_control%min_excitation_amplitude, &
-                                fm_pool_ao_mo_occ=work_matrices%fm_pool_ao_mo_occ)
+      CALL tddfpt_print_summary(log_unit, evects, evals, mult, dipole_op_mos_occ)
+      CALL tddfpt_print_excitation_analysis(log_unit, evects, gs_mos, matrix_s(1)%matrix, &
+                                            min_amplitude=tddfpt_control%min_excitation_amplitude)
 
       ! -- clean up all useless stuff
       DO istate = SIZE(evects, 2), 1, -1
@@ -632,15 +558,19 @@ CONTAINS
       CALL tddfpt_release_work_matrices(work_matrices, sub_env)
       CALL tddfpt_sub_env_release(sub_env)
 
+      IF (ALLOCATED(dipole_op_mos_occ)) THEN
+         DO ispin = nspins, 1, -1
+            DO istate = SIZE(dipole_op_mos_occ, 1), 1, -1
+               CALL cp_fm_release(dipole_op_mos_occ(istate, ispin)%matrix)
+            END DO
+         END DO
+         DEALLOCATE (dipole_op_mos_occ)
+      END IF
+
       DO ispin = nspins, 1, -1
          CALL tddfpt_release_ground_state_mos(gs_mos(ispin))
       END DO
       DEALLOCATE (gs_mos)
-
-      IF (tddfpt_control%dipole_form == tddfpt_dipole_length) &
-         CALL dbcsr_deallocate_matrix_set(rRc_xyz)
-      IF (tddfpt_control%dipole_form == tddfpt_dipole_berry) &
-         CALL dbcsr_deallocate_matrix_set(berry_cossin_xyz)
 
       CALL timestop(handle)
    END SUBROUTINE tddfpt
@@ -2781,23 +2711,17 @@ CONTAINS
    END FUNCTION tddfpt_davidson_solver
 
 ! **************************************************************************************************
-!> \brief Print final TDDFPT excitation energies and analysis.
-!> \param log_unit           output unit
-!> \param evects             TDDFPT trial vectors (SIZE(evects,1) -- number of spins;
-!>                           SIZE(evects,2) -- number of excited states to print)
-!> \param evals              TDDFPT eigenvalues
-!> \param mult               multiplicity
+!> \brief Compute the action of the dipole operator on the ground state wave function.
+!> \param dipole_op_mos_occ  2-D array [x,y,z ; spin] of matrices where to put the computed quantity
+!>                           (allocated and initialised on exit)
+!> \param tddfpt_control     TDDFPT control parameters
 !> \param gs_mos             molecular orbitals optimised for the ground state
-!> \param matrix_s           overlap matrix
-!> \param dipole_op_xyz      components of the dipole operator in terms of contracted basis functions
-!> \param dipole_form        form of the dipole operator (berry-phase / length / vector)
-!> \param cell               unit cell
-!> \param min_amplitude      the smallest excitation amplitude to print
-!> \param fm_pool_ao_mo_occ  pools of dense matrices with shape [nao x nmo_occ(spin)]
+!> \param qs_env             Quickstep environment
 !> \par History
-!>    * 05.2016 created [Sergey Chulkov]
-!>    * 06.2016 transition dipole moments and oscillator strengths [Sergey Chulkov]
-!>    * 07.2016 spin-unpolarised electron density [Sergey Chulkov]
+!>    * 05.2016 created as 'tddfpt_print_summary' [Sergey Chulkov]
+!>    * 06.2018 dipole operator based on the Berry-phase formula [Sergey Chulkov]
+!>    * 08.2018 splited of from 'tddfpt_print_summary' and merged with code from 'tddfpt'
+!>              [Sergey Chulkov]
 !> \note \parblock
 !>       Adapted version of the subroutine find_contributions() which was originally created
 !>       by Thomas Chassaing on 02.2005.
@@ -2809,29 +2733,481 @@ CONTAINS
 !>       \f[\vec{r}\hat{H} - \hat{H}\vec{r} = [\vec{r},\hat{H}] = [\vec{r},-1/2 \nabla^2] = \nabla\f] .
 !>       \endparblock
 ! **************************************************************************************************
-   SUBROUTINE tddfpt_print_summary(log_unit, evects, evals, mult, gs_mos, matrix_s, dipole_op_xyz, &
-                                   dipole_form, cell, min_amplitude, fm_pool_ao_mo_occ)
+   SUBROUTINE tddfpt_dipole_operator(dipole_op_mos_occ, tddfpt_control, gs_mos, qs_env)
+      TYPE(cp_fm_p_type), ALLOCATABLE, DIMENSION(:, :), &
+         INTENT(inout)                                   :: dipole_op_mos_occ
+      TYPE(tddfpt2_control_type), POINTER                :: tddfpt_control
+      TYPE(tddfpt_ground_state_mos), DIMENSION(:), &
+         INTENT(in)                                      :: gs_mos
+      TYPE(qs_environment_type), POINTER                 :: qs_env
+
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'tddfpt_dipole_operator', &
+         routineP = moduleN//':'//routineN
+
+      INTEGER                                            :: handle, i_cos_sin, icol, ideriv, irow, &
+                                                            ispin, jderiv, nao, ncols_local, &
+                                                            ndim_periodic, nrows_local, nspins
+      INTEGER, DIMENSION(:), POINTER                     :: col_indices, row_indices
+      INTEGER, DIMENSION(maxspins)                       :: nmo_occ, nmo_virt
+      REAL(kind=dp)                                      :: eval_occ
+      REAL(kind=dp), DIMENSION(3)                        :: kvec, reference_point
+      REAL(kind=dp), DIMENSION(:, :), POINTER            :: local_data_ediff, local_data_wfm
+      TYPE(cell_type), POINTER                           :: cell
+      TYPE(cp_blacs_env_type), POINTER                   :: blacs_env
+      TYPE(cp_cfm_p_type), ALLOCATABLE, DIMENSION(:)     :: gamma_00, gamma_inv_00
+      TYPE(cp_fm_p_type), ALLOCATABLE, DIMENSION(:)      :: S_mos_virt
+      TYPE(cp_fm_p_type), ALLOCATABLE, DIMENSION(:, :)   :: dBerry_mos_occ, gamma_real_imag, opvec
+      TYPE(cp_fm_struct_type), POINTER                   :: fm_struct
+      TYPE(cp_fm_type), POINTER                          :: ediff_inv, rRc_mos_occ, wfm_ao_ao, &
+                                                            wfm_mo_virt_mo_occ
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: berry_cossin_xyz, matrix_s, rRc_xyz
+      TYPE(pw_env_type), POINTER                         :: pw_env
+      TYPE(pw_poisson_type), POINTER                     :: poisson_env
+
+      CALL timeset(routineN, handle)
+
+      NULLIFY (blacs_env, cell, matrix_s, pw_env)
+      CALL get_qs_env(qs_env, blacs_env=blacs_env, cell=cell, matrix_s=matrix_s, pw_env=pw_env)
+
+      nspins = SIZE(gs_mos)
+      CALL dbcsr_get_info(matrix_s(1)%matrix, nfullrows_total=nao)
+      DO ispin = 1, nspins
+         nmo_occ(ispin) = SIZE(gs_mos(ispin)%evals_occ)
+         nmo_virt(ispin) = SIZE(gs_mos(ispin)%evals_virt)
+      END DO
+
+      ! +++ allocate dipole operator matrices (must be deallocated elsewhere)
+      ALLOCATE (dipole_op_mos_occ(nderivs, nspins))
+      DO ispin = 1, nspins
+         CALL cp_fm_get_info(gs_mos(ispin)%mos_occ, matrix_struct=fm_struct)
+
+         DO ideriv = 1, nderivs
+            NULLIFY (dipole_op_mos_occ(ideriv, ispin)%matrix)
+            CALL cp_fm_create(dipole_op_mos_occ(ideriv, ispin)%matrix, fm_struct)
+         END DO
+      END DO
+
+      ! +++ allocate work matrices
+      ALLOCATE (S_mos_virt(nspins))
+      DO ispin = 1, nspins
+         NULLIFY (S_mos_virt(ispin)%matrix)
+         CALL cp_fm_get_info(gs_mos(ispin)%mos_virt, matrix_struct=fm_struct)
+         CALL cp_fm_create(S_mos_virt(ispin)%matrix, fm_struct)
+         CALL cp_dbcsr_sm_fm_multiply(matrix_s(1)%matrix, &
+                                      gs_mos(ispin)%mos_virt, &
+                                      S_mos_virt(ispin)%matrix, &
+                                      ncol=nmo_virt(ispin), alpha=1.0_dp, beta=0.0_dp)
+      END DO
+
+      ! check that the chosen dipole operator is consistent with the periodic boundary conditions used
+      CALL pw_env_get(pw_env, poisson_env=poisson_env)
+      ndim_periodic = COUNT(poisson_env%parameters%periodic == 1)
+
+      SELECT CASE (tddfpt_control%dipole_form)
+      CASE (tddfpt_dipole_berry)
+         IF (ndim_periodic /= 3) THEN
+            CALL cp_warn(__LOCATION__, &
+                         "Fully periodic Poisson solver (PERIODIC xyz) is needed "// &
+                         "for oscillator strengths based on the Berry phase formula")
+         END IF
+
+         NULLIFY (berry_cossin_xyz)
+         ! index: 1 = Re[exp(-i * G_t * t)],
+         !        2 = Im[exp(-i * G_t * t)];
+         ! t = x,y,z
+         CALL dbcsr_allocate_matrix_set(berry_cossin_xyz, 2)
+
+         DO i_cos_sin = 1, 2
+            CALL dbcsr_init_p(berry_cossin_xyz(i_cos_sin)%matrix)
+            CALL dbcsr_copy(berry_cossin_xyz(i_cos_sin)%matrix, matrix_s(1)%matrix)
+         END DO
+
+         ! +++ allocate berry-phase-related work matrices
+         ALLOCATE (gamma_00(nspins), gamma_inv_00(nspins), gamma_real_imag(2, nspins), opvec(2, nspins))
+         ALLOCATE (dBerry_mos_occ(nderivs, nspins))
+         DO ispin = 1, nspins
+            NULLIFY (fm_struct)
+            CALL cp_fm_struct_create(fm_struct, nrow_global=nmo_occ(ispin), ncol_global=nmo_occ(ispin), context=blacs_env)
+
+            NULLIFY (gamma_00(ispin)%matrix, gamma_inv_00(ispin)%matrix)
+            CALL cp_cfm_create(gamma_00(ispin)%matrix, fm_struct)
+            CALL cp_cfm_create(gamma_inv_00(ispin)%matrix, fm_struct)
+
+            DO i_cos_sin = 1, 2
+               NULLIFY (gamma_real_imag(i_cos_sin, ispin)%matrix)
+               CALL cp_fm_create(gamma_real_imag(i_cos_sin, ispin)%matrix, fm_struct)
+            END DO
+            CALL cp_fm_struct_release(fm_struct)
+
+            ! G_real C_0, G_imag C_0
+            CALL cp_fm_get_info(gs_mos(ispin)%mos_occ, matrix_struct=fm_struct)
+            DO i_cos_sin = 1, 2
+               NULLIFY (opvec(i_cos_sin, ispin)%matrix)
+               CALL cp_fm_create(opvec(i_cos_sin, ispin)%matrix, fm_struct)
+            END DO
+
+            ! dBerry * C_0
+            DO ideriv = 1, nderivs
+               NULLIFY (dBerry_mos_occ(ideriv, ispin)%matrix)
+               CALL cp_fm_create(dBerry_mos_occ(ideriv, ispin)%matrix, fm_struct)
+               CALL cp_fm_set_all(dBerry_mos_occ(ideriv, ispin)%matrix, 0.0_dp)
+            END DO
+         END DO
+
+         DO ideriv = 1, nderivs
+            kvec(:) = twopi*cell%h_inv(ideriv, :)
+            DO i_cos_sin = 1, 2
+               CALL dbcsr_set(berry_cossin_xyz(i_cos_sin)%matrix, 0.0_dp)
+            END DO
+            CALL build_berry_moment_matrix(qs_env, berry_cossin_xyz(1)%matrix, berry_cossin_xyz(2)%matrix, kvec)
+
+            DO ispin = 1, nspins
+               ! i_cos_sin = 1: cos (real) component; opvec(1) = gamma_real C_0
+               ! i_cos_sin = 2: sin (imaginary) component; opvec(2) = gamma_imag C_0
+               DO i_cos_sin = 1, 2
+                  CALL cp_dbcsr_sm_fm_multiply(berry_cossin_xyz(i_cos_sin)%matrix, &
+                                               gs_mos(ispin)%mos_occ, &
+                                               opvec(i_cos_sin, ispin)%matrix, &
+                                               ncol=nmo_occ(ispin), alpha=1.0_dp, beta=0.0_dp)
+               END DO
+
+               CALL cp_gemm('T', 'N', nmo_occ(ispin), nmo_occ(ispin), nao, &
+                            1.0_dp, gs_mos(ispin)%mos_occ, opvec(1, ispin)%matrix, &
+                            0.0_dp, gamma_real_imag(1, ispin)%matrix)
+
+               CALL cp_gemm('T', 'N', nmo_occ(ispin), nmo_occ(ispin), nao, &
+                            -1.0_dp, gs_mos(ispin)%mos_occ, opvec(2, ispin)%matrix, &
+                            0.0_dp, gamma_real_imag(2, ispin)%matrix)
+
+               CALL cp_fm_to_cfm(msourcer=gamma_real_imag(1, ispin)%matrix, &
+                                 msourcei=gamma_real_imag(2, ispin)%matrix, &
+                                 mtarget=gamma_00(ispin)%matrix)
+
+               ! gamma_inv_00 = Q = [C_0^T (gamma_real - i gamma_imag) C_0] ^ {-1}
+               CALL cp_cfm_set_all(gamma_inv_00(ispin)%matrix, z_zero, z_one)
+               CALL cp_cfm_solve(gamma_00(ispin)%matrix, gamma_inv_00(ispin)%matrix)
+
+               CALL cp_cfm_to_fm(msource=gamma_inv_00(ispin)%matrix, &
+                                 mtargetr=gamma_real_imag(1, ispin)%matrix, &
+                                 mtargeti=gamma_real_imag(2, ispin)%matrix)
+
+               ! dBerry_mos_occ is identical to dBerry_psi0 from qs_linres_op % polar_operators()
+               CALL cp_gemm("N", "N", nao, nmo_occ(ispin), nmo_occ(ispin), &
+                            1.0_dp, opvec(1, ispin)%matrix, gamma_real_imag(2, ispin)%matrix, &
+                            0.0_dp, dipole_op_mos_occ(1, ispin)%matrix)
+               CALL cp_gemm("N", "N", nao, nmo_occ(ispin), nmo_occ(ispin), &
+                            -1.0_dp, opvec(2, ispin)%matrix, gamma_real_imag(1, ispin)%matrix, &
+                            1.0_dp, dipole_op_mos_occ(1, ispin)%matrix)
+
+               DO jderiv = 1, nderivs
+                  CALL cp_fm_scale_and_add(1.0_dp, dBerry_mos_occ(jderiv, ispin)%matrix, &
+                                           cell%hmat(jderiv, ideriv), dipole_op_mos_occ(1, ispin)%matrix)
+               END DO
+            END DO
+         END DO
+
+         ! --- release berry-phase-related work matrices
+         DO ispin = nspins, 1, -1
+            DO i_cos_sin = SIZE(opvec, 1), 1, -1
+               CALL cp_fm_release(opvec(i_cos_sin, ispin)%matrix)
+            END DO
+
+            DO i_cos_sin = SIZE(gamma_real_imag, 1), 1, -1
+               CALL cp_fm_release(gamma_real_imag(i_cos_sin, ispin)%matrix)
+            END DO
+
+            CALL cp_cfm_release(gamma_inv_00(ispin)%matrix)
+            CALL cp_cfm_release(gamma_00(ispin)%matrix)
+         END DO
+         DEALLOCATE (gamma_00, gamma_inv_00, gamma_real_imag, opvec)
+         CALL dbcsr_deallocate_matrix_set(berry_cossin_xyz)
+
+         NULLIFY (fm_struct, wfm_ao_ao)
+         CALL cp_fm_struct_create(fm_struct, nrow_global=nao, ncol_global=nao, context=blacs_env)
+         CALL cp_fm_create(wfm_ao_ao, fm_struct)
+         CALL cp_fm_struct_release(fm_struct)
+
+         ! trans_dipole = 2|e|/|G_mu| * Tr Imag(evects^T * (gamma_real - i gamma_imag) * C_0 * gamma_inv_00) +
+         !                2|e|/|G_mu| * Tr Imag(C_0^T * (gamma_real - i gamma_imag) * evects * gamma_inv_00) ,
+         !
+         ! Taking into account the symmetry of the matrices 'gamma_real' and 'gamma_imag' and the fact
+         ! that the response wave-function is a real-valued function, the above expression can be simplified as
+         ! trans_dipole = 4|e|/|G_mu| * Tr Imag(evects^T * (gamma_real - i gamma_imag) * C_0 * gamma_inv_00)
+         !
+         ! 1/|G_mu| = |lattice_vector_mu| / (2*pi) .
+         DO ispin = 1, nspins
+            ! wfm_ao_ao = S * mos_virt * mos_virt^T
+            CALL cp_gemm('N', 'T', nao, nao, nmo_virt(ispin), &
+                         1.0_dp/twopi, S_mos_virt(ispin)%matrix, gs_mos(ispin)%mos_virt, &
+                         0.0_dp, wfm_ao_ao)
+
+            DO ideriv = 1, nderivs
+               CALL cp_gemm('N', 'N', nao, nmo_occ(ispin), nao, &
+                            1.0_dp, wfm_ao_ao, dBerry_mos_occ(ideriv, ispin)%matrix, &
+                            0.0_dp, dipole_op_mos_occ(ideriv, ispin)%matrix)
+            END DO
+         END DO
+
+         CALL cp_fm_release(wfm_ao_ao)
+
+         DO ispin = nspins, 1, -1
+            DO ideriv = SIZE(dBerry_mos_occ, 1), 1, -1
+               CALL cp_fm_release(dBerry_mos_occ(ideriv, ispin)%matrix)
+            END DO
+         END DO
+         DEALLOCATE (dBerry_mos_occ)
+
+      CASE (tddfpt_dipole_length)
+         IF (ndim_periodic /= 0) THEN
+            CALL cp_warn(__LOCATION__, &
+                         "Non-periodic Poisson solver (PERIODIC none) is needed "// &
+                         "for oscillator strengths based on the length operator")
+         END IF
+
+         ! compute components of the dipole operator in the length form
+         NULLIFY (rRc_xyz)
+         CALL dbcsr_allocate_matrix_set(rRc_xyz, nderivs)
+
+         DO ideriv = 1, nderivs
+            CALL dbcsr_init_p(rRc_xyz(ideriv)%matrix)
+            CALL dbcsr_copy(rRc_xyz(ideriv)%matrix, matrix_s(1)%matrix)
+         END DO
+
+         CALL get_reference_point(reference_point, qs_env=qs_env, &
+                                  reference=tddfpt_control%dipole_reference, &
+                                  ref_point=tddfpt_control%dipole_ref_point)
+
+         CALL rRc_xyz_ao(op=rRc_xyz, qs_env=qs_env, rc=reference_point, order=1, minimum_image=.FALSE., soft=.FALSE.)
+
+         NULLIFY (fm_struct, wfm_ao_ao)
+         CALL cp_fm_struct_create(fm_struct, nrow_global=nao, ncol_global=nao, context=blacs_env)
+         CALL cp_fm_create(wfm_ao_ao, fm_struct)
+         CALL cp_fm_struct_release(fm_struct)
+
+         DO ispin = 1, nspins
+            NULLIFY (rRc_mos_occ)
+            CALL cp_fm_get_info(gs_mos(ispin)%mos_occ, matrix_struct=fm_struct)
+            CALL cp_fm_create(rRc_mos_occ, fm_struct)
+
+            ! wfm_ao_ao = S * mos_virt * mos_virt^T
+            CALL cp_gemm('N', 'T', nao, nao, nmo_virt(ispin), &
+                         1.0_dp, S_mos_virt(ispin)%matrix, gs_mos(ispin)%mos_virt, &
+                         0.0_dp, wfm_ao_ao)
+
+            DO ideriv = 1, nderivs
+               CALL cp_dbcsr_sm_fm_multiply(rRc_xyz(ideriv)%matrix, &
+                                            gs_mos(ispin)%mos_occ, &
+                                            rRc_mos_occ, &
+                                            ncol=nmo_occ(ispin), alpha=1.0_dp, beta=0.0_dp)
+
+               CALL cp_gemm('N', 'N', nao, nmo_occ(ispin), nao, &
+                            1.0_dp, wfm_ao_ao, rRc_mos_occ, &
+                            0.0_dp, dipole_op_mos_occ(ideriv, ispin)%matrix)
+            END DO
+
+            CALL cp_fm_release(rRc_mos_occ)
+         END DO
+
+         CALL cp_fm_release(wfm_ao_ao)
+         CALL dbcsr_deallocate_matrix_set(rRc_xyz)
+
+      CASE (tddfpt_dipole_velocity)
+         IF (SIZE(matrix_s) < nderivs+1) THEN
+            CPABORT("Where is the derivative?")
+         END IF
+
+         DO ispin = 1, nspins
+            NULLIFY (fm_struct, ediff_inv, wfm_mo_virt_mo_occ)
+            CALL cp_fm_struct_create(fm_struct, nrow_global=nmo_virt(ispin), ncol_global=nmo_occ(ispin), context=blacs_env)
+            CALL cp_fm_create(ediff_inv, fm_struct)
+            CALL cp_fm_create(wfm_mo_virt_mo_occ, fm_struct)
+            CALL cp_fm_struct_release(fm_struct)
+
+            CALL cp_fm_get_info(ediff_inv, nrow_local=nrows_local, ncol_local=ncols_local, &
+                                row_indices=row_indices, col_indices=col_indices, local_data=local_data_ediff)
+            CALL cp_fm_get_info(wfm_mo_virt_mo_occ, local_data=local_data_wfm)
+
+!$OMP       PARALLEL DO DEFAULT(NONE), &
+!$OMP                PRIVATE(eval_occ, icol, irow), &
+!$OMP                SHARED(col_indices, gs_mos, ispin, local_data_ediff, ncols_local, nrows_local, row_indices)
+            DO icol = 1, ncols_local
+               ! E_occ_i ; imo_occ = col_indices(icol)
+               eval_occ = gs_mos(ispin)%evals_occ(col_indices(icol))
+
+               DO irow = 1, nrows_local
+                  ! ediff_inv_weights(a, i) = 1.0 / (E_virt_a - E_occ_i)
+                  ! imo_virt = row_indices(irow)
+                  local_data_ediff(irow, icol) = 1.0_dp/(gs_mos(ispin)%evals_virt(row_indices(irow))-eval_occ)
+               END DO
+            END DO
+!$OMP       END PARALLEL DO
+
+            DO ideriv = 1, nderivs
+               CALL cp_dbcsr_sm_fm_multiply(matrix_s(ideriv+1)%matrix, &
+                                            gs_mos(ispin)%mos_occ, &
+                                            dipole_op_mos_occ(ideriv, ispin)%matrix, &
+                                            ncol=nmo_occ(ispin), alpha=1.0_dp, beta=0.0_dp)
+
+               CALL cp_gemm('T', 'N', nmo_virt(ispin), nmo_occ(ispin), nao, &
+                            1.0_dp, gs_mos(ispin)%mos_virt, dipole_op_mos_occ(ideriv, ispin)%matrix, &
+                            0.0_dp, wfm_mo_virt_mo_occ)
+
+               ! in-place element-wise (Schur) product;
+               ! avoid allocation of a temporary [nmo_virt x nmo_occ] matrix which is needed for cp_fm_schur_product() subroutine call
+
+!$OMP          PARALLEL DO DEFAULT(NONE), &
+!$OMP                   PRIVATE(icol, irow), &
+!$OMP                   SHARED(ispin, local_data_ediff, local_data_wfm, ncols_local, nrows_local)
+               DO icol = 1, ncols_local
+                  DO irow = 1, nrows_local
+                     local_data_wfm(irow, icol) = local_data_wfm(irow, icol)*local_data_ediff(irow, icol)
+                  END DO
+               END DO
+!$OMP          END PARALLEL DO
+
+               CALL cp_gemm('N', 'N', nao, nmo_occ(ispin), nmo_virt(ispin), &
+                            1.0_dp, S_mos_virt(ispin)%matrix, wfm_mo_virt_mo_occ, &
+                            0.0_dp, dipole_op_mos_occ(ideriv, ispin)%matrix)
+            END DO
+
+            CALL cp_fm_release(wfm_mo_virt_mo_occ)
+            CALL cp_fm_release(ediff_inv)
+         END DO
+
+      CASE DEFAULT
+         CPABORT("Unimplemented form of the dipole operator")
+      END SELECT
+
+      ! --- release work matrices
+      DO ispin = nspins, 1, -1
+         CALL cp_fm_release(S_mos_virt(ispin)%matrix)
+      END DO
+      DEALLOCATE (S_mos_virt)
+
+      CALL timestop(handle)
+   END SUBROUTINE tddfpt_dipole_operator
+
+! **************************************************************************************************
+!> \brief Print final TDDFPT excitation energies and oscillator strengths.
+!> \param log_unit           output unit
+!> \param evects             TDDFPT trial vectors (SIZE(evects,1) -- number of spins;
+!>                           SIZE(evects,2) -- number of excited states to print)
+!> \param evals              TDDFPT eigenvalues
+!> \param mult               multiplicity
+!> \param dipole_op_mos_occ  action of the dipole operator on the ground state wave function
+!>                           [x,y,z ; spin]
+!> \par History
+!>    * 05.2016 created [Sergey Chulkov]
+!>    * 06.2016 transition dipole moments and oscillator strengths [Sergey Chulkov]
+!>    * 07.2016 spin-unpolarised electron density [Sergey Chulkov]
+!>    * 08.2018 compute 'dipole_op_mos_occ' in a separate subroutine [Sergey Chulkov]
+!> \note \parblock
+!>       Adapted version of the subroutine find_contributions() which was originally created
+!>       by Thomas Chassaing on 02.2005.
+!>
+!>       Transition dipole moment along direction 'd' is computed as following:
+!>       \f[ t_d(spin) = Tr[evects^T dipole\_op\_mos\_occ(d, spin)] .\f]
+!>       \endparblock
+! **************************************************************************************************
+   SUBROUTINE tddfpt_print_summary(log_unit, evects, evals, mult, dipole_op_mos_occ)
       INTEGER, INTENT(in)                                :: log_unit
       TYPE(cp_fm_p_type), DIMENSION(:, :), INTENT(in)    :: evects
       REAL(kind=dp), DIMENSION(:), INTENT(in)            :: evals
       INTEGER, INTENT(in)                                :: mult
-      TYPE(tddfpt_ground_state_mos), DIMENSION(:), &
-         INTENT(in)                                      :: gs_mos
-      TYPE(dbcsr_type), POINTER                          :: matrix_s
-      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: dipole_op_xyz
-      INTEGER, INTENT(in)                                :: dipole_form
-      TYPE(cell_type), POINTER                           :: cell
-      REAL(kind=dp), INTENT(in)                          :: min_amplitude
-      TYPE(cp_fm_pool_p_type), DIMENSION(:), INTENT(in)  :: fm_pool_ao_mo_occ
+      TYPE(cp_fm_p_type), DIMENSION(:, :), INTENT(in)    :: dipole_op_mos_occ
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'tddfpt_print_summary', &
          routineP = moduleN//':'//routineN
 
       CHARACTER(len=1)                                   :: lsd_str
       CHARACTER(len=20)                                  :: mult_str
+      INTEGER                                            :: handle, ideriv, ispin, istate, nspins, &
+                                                            nstates
+      REAL(kind=dp)                                      :: osc_strength
+      REAL(kind=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: trans_dipoles
+
+      CALL timeset(routineN, handle)
+
+      nspins = SIZE(evects, 1)
+      nstates = SIZE(evects, 2)
+
+      IF (nspins > 1) THEN
+         lsd_str = 'U'
+      ELSE
+         lsd_str = 'R'
+      END IF
+
+      ! *** summary header ***
+      IF (log_unit > 0) THEN
+         CALL integer_to_string(mult, mult_str)
+         WRITE (log_unit, '(/,1X,A1,A,1X,A,/)') lsd_str, "-TDDFPT states of multiplicity", TRIM(mult_str)
+
+         WRITE (log_unit, '(T10,A,T19,A,T37,A,T69,A)') "State", "Excitation", "Transition dipole (a.u.)", "Oscillator"
+         WRITE (log_unit, '(T10,A,T19,A,T37,A,T49,A,T61,A,T67,A)') "number", "energy (eV)", "x", "y", "z", "strength (a.u.)"
+         WRITE (log_unit, '(T10,72("-"))')
+      END IF
+
+      ! transition dipole moment
+      ALLOCATE (trans_dipoles(nstates, nderivs, nspins))
+      trans_dipoles(:, :, :) = 0.0_dp
+
+      ! nspins == 1 .AND. mult == 3 : spin-flip transitions are forbidden due to symmetry reasons
+      IF (nspins > 1 .OR. mult == 1) THEN
+         DO ispin = 1, nspins
+            DO ideriv = 1, nderivs
+               CALL cp_fm_trace(evects(ispin, :), dipole_op_mos_occ(ideriv, ispin)%matrix, trans_dipoles(:, ideriv, ispin))
+            END DO
+         END DO
+
+         IF (nspins == 1) THEN
+            trans_dipoles(:, :, 1) = SQRT(2.0_dp)*trans_dipoles(:, :, 1)
+         ELSE
+            trans_dipoles(:, :, 1) = SQRT(trans_dipoles(:, :, 1)**2+trans_dipoles(:, :, 2)**2)
+         END IF
+      END IF
+
+      ! *** summary information ***
+      DO istate = 1, nstates
+         IF (log_unit > 0) THEN
+            osc_strength = 2.0_dp/3.0_dp*evals(istate)* &
+                           accurate_dot_product(trans_dipoles(istate, :, 1), trans_dipoles(istate, :, 1))
+
+            WRITE (log_unit, '(1X,A,T9,I7,T19,F11.5,T31,3(1X,ES11.4E2),T69,ES12.5E2)') &
+               "TDDFPT|", istate, evals(istate)*evolt, trans_dipoles(istate, 1:nderivs, 1), osc_strength
+         END IF
+      END DO
+
+      DEALLOCATE (trans_dipoles)
+
+      CALL timestop(handle)
+   END SUBROUTINE tddfpt_print_summary
+
+! **************************************************************************************************
+!> \brief Print excitation analysis.
+!> \param log_unit           output unit
+!> \param evects             TDDFPT trial vectors (SIZE(evects,1) -- number of spins;
+!>                           SIZE(evects,2) -- number of excited states to print)
+!> \param gs_mos             molecular orbitals optimised for the ground state
+!> \param matrix_s           overlap matrix
+!> \param min_amplitude      the smallest excitation amplitude to print
+!> \par History
+!>    * 05.2016 created as 'tddfpt_print_summary' [Sergey Chulkov]
+!>    * 08.2018 splited of from 'tddfpt_print_summary' [Sergey Chulkov]
+! **************************************************************************************************
+   SUBROUTINE tddfpt_print_excitation_analysis(log_unit, evects, gs_mos, matrix_s, min_amplitude)
+      INTEGER, INTENT(in)                                :: log_unit
+      TYPE(cp_fm_p_type), DIMENSION(:, :), INTENT(in)    :: evects
+      TYPE(tddfpt_ground_state_mos), DIMENSION(:), &
+         INTENT(in)                                      :: gs_mos
+      TYPE(dbcsr_type), POINTER                          :: matrix_s
+      REAL(kind=dp), INTENT(in)                          :: min_amplitude
+
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'tddfpt_print_excitation_analysis', &
+         routineP = moduleN//':'//routineN
+
       CHARACTER(len=5)                                   :: spin_label
-      INTEGER :: handle, icol, ideriv, iproc, irow, ispin, istate, jderiv, nao, ncols_local, &
-         nrows_local, nspins, nstates, send_handler, send_handler2, state_spin
+      INTEGER :: handle, icol, iproc, irow, ispin, istate, nao, ncols_local, nrows_local, nspins, &
+         nstates, send_handler, send_handler2, state_spin
       INTEGER(kind=int_8)                                :: iexc, imo_occ, imo_virt, ind, nexcs, &
                                                             nexcs_local, nexcs_max_local, &
                                                             nmo_virt_occ, nmo_virt_occ_alpha
@@ -2842,17 +3218,11 @@ CONTAINS
       INTEGER, DIMENSION(:), POINTER                     :: col_indices, row_indices
       INTEGER, DIMENSION(maxspins)                       :: nmo_occ, nmo_virt
       LOGICAL                                            :: do_exc_analysis
-      REAL(kind=dp)                                      :: eval_occ, osc_strength, trans_dipole
       REAL(kind=dp), ALLOCATABLE, DIMENSION(:)           :: weights_local, weights_neg_abs_recv, &
                                                             weights_recv
       REAL(kind=dp), DIMENSION(:, :), POINTER            :: local_data
-      REAL(kind=dp), DIMENSION(nderivs)                  :: trans_dipoles
       TYPE(cp_blacs_env_type), POINTER                   :: blacs_env
-      TYPE(cp_cfm_p_type), ALLOCATABLE, DIMENSION(:)     :: gamma_00, gamma_inv_00
-      TYPE(cp_fm_p_type), ALLOCATABLE, DIMENSION(:)      :: ediff_inv, ediff_inv_weights, &
-                                                            gamma_imag, gamma_real, S_mos_virt, &
-                                                            scaled_evect, weights_fm
-      TYPE(cp_fm_p_type), ALLOCATABLE, DIMENSION(:, :)   :: dS_mos_occ, opvec
+      TYPE(cp_fm_p_type), ALLOCATABLE, DIMENSION(:)      :: S_mos_virt, weights_fm
       TYPE(cp_fm_struct_type), POINTER                   :: fm_struct
       TYPE(cp_para_env_type), POINTER                    :: para_env
 
@@ -2861,16 +3231,9 @@ CONTAINS
       nspins = SIZE(evects, 1)
       nstates = SIZE(evects, 2)
       do_exc_analysis = min_amplitude < 1.0_dp
-      osc_strength = 0.0_dp
 
+      CALL cp_fm_get_info(gs_mos(1)%mos_occ, context=blacs_env, para_env=para_env)
       CALL dbcsr_get_info(matrix_s, nfullrows_total=nao)
-      CALL cp_fm_get_info(gs_mos(1)%mos_virt, context=blacs_env, para_env=para_env)
-
-      IF (nspins > 1) THEN
-         lsd_str = 'U'
-      ELSE
-         lsd_str = 'R'
-      END IF
 
       DO ispin = 1, nspins
          nmo_occ(ispin) = SIZE(gs_mos(ispin)%evals_occ)
@@ -2878,226 +3241,6 @@ CONTAINS
          nmo_occ8(ispin) = SIZE(gs_mos(ispin)%evals_occ, kind=int_8)
          nmo_virt8(ispin) = SIZE(gs_mos(ispin)%evals_virt, kind=int_8)
       END DO
-
-      ALLOCATE (dS_mos_occ(nderivs, nspins), S_mos_virt(nspins), weights_fm(nspins))
-      DO ispin = 1, nspins
-         DO ideriv = 1, nderivs
-            NULLIFY (dS_mos_occ(ideriv, ispin)%matrix)
-            CALL fm_pool_create_fm(fm_pool_ao_mo_occ(ispin)%pool, dS_mos_occ(ideriv, ispin)%matrix)
-         END DO
-
-         NULLIFY (S_mos_virt(ispin)%matrix)
-         CALL cp_fm_get_info(gs_mos(ispin)%mos_virt, matrix_struct=fm_struct)
-         CALL cp_fm_create(S_mos_virt(ispin)%matrix, fm_struct)
-
-         NULLIFY (fm_struct, weights_fm(ispin)%matrix)
-         CALL cp_fm_struct_create(fm_struct, nrow_global=nmo_virt(ispin), ncol_global=nmo_occ(ispin), context=blacs_env)
-         CALL cp_fm_create(weights_fm(ispin)%matrix, fm_struct)
-         CALL cp_fm_struct_release(fm_struct)
-      END DO
-
-      IF (dipole_form == tddfpt_dipole_berry) THEN
-         ALLOCATE (gamma_00(nspins), gamma_inv_00(nspins), gamma_imag(nspins), gamma_real(nspins), opvec(2, nspins))
-         NULLIFY (fm_struct)
-
-         DO ispin = 1, nspins
-            CALL cp_fm_struct_create(fm_struct, nrow_global=nmo_occ(ispin), ncol_global=nmo_occ(ispin), context=blacs_env)
-
-            NULLIFY (gamma_00(ispin)%matrix, gamma_inv_00(ispin)%matrix)
-            NULLIFY (gamma_imag(ispin)%matrix, gamma_real(ispin)%matrix)
-
-            CALL cp_cfm_create(gamma_00(ispin)%matrix, fm_struct)
-            CALL cp_cfm_create(gamma_inv_00(ispin)%matrix, fm_struct)
-            CALL cp_fm_create(gamma_imag(ispin)%matrix, fm_struct)
-            CALL cp_fm_create(gamma_real(ispin)%matrix, fm_struct)
-
-            CALL cp_fm_struct_release(fm_struct)
-
-            DO ideriv = 1, 2 ! G_real C_0, G_imag C_0
-               NULLIFY (opvec(ideriv, ispin)%matrix)
-               CALL fm_pool_create_fm(fm_pool_ao_mo_occ(ispin)%pool, opvec(ideriv, ispin)%matrix)
-            END DO
-         END DO
-
-         DO ispin = 1, nspins
-            DO ideriv = 1, nderivs
-               ! cos (real) component; opvec(1) = gamma_real C_0
-               CALL cp_dbcsr_sm_fm_multiply(dipole_op_xyz(2*ideriv-1)%matrix, gs_mos(ispin)%mos_occ, &
-                                            opvec(1, ispin)%matrix, ncol=nmo_occ(ispin), alpha=1.0_dp, beta=0.0_dp)
-               CALL cp_gemm('T', 'N', nmo_occ(ispin), nmo_occ(ispin), nao, 1.0_dp, gs_mos(ispin)%mos_occ, &
-                            opvec(1, ispin)%matrix, 0.0_dp, gamma_real(ispin)%matrix)
-
-               ! sin (imaginary) component; opvec(2) = gamma_imag C_0
-               CALL cp_dbcsr_sm_fm_multiply(dipole_op_xyz(2*ideriv)%matrix, gs_mos(ispin)%mos_occ, &
-                                            opvec(2, ispin)%matrix, ncol=nmo_occ(ispin), alpha=1.0_dp, beta=0.0_dp)
-               CALL cp_gemm('T', 'N', nmo_occ(ispin), nmo_occ(ispin), nao, -1.0_dp, gs_mos(ispin)%mos_occ, &
-                            opvec(2, ispin)%matrix, 0.0_dp, gamma_imag(ispin)%matrix)
-
-               CALL cp_fm_to_cfm(msourcer=gamma_real(ispin)%matrix, &
-                                 msourcei=gamma_imag(ispin)%matrix, &
-                                 mtarget=gamma_00(ispin)%matrix)
-
-               ! gamma_inv_00 = Q = [C_0^T (gamma_real - i gamma_imag) C_0] ^ {-1}
-               CALL cp_cfm_set_all(gamma_inv_00(ispin)%matrix, z_zero, z_one)
-               CALL cp_cfm_solve(gamma_00(ispin)%matrix, gamma_inv_00(ispin)%matrix)
-
-               CALL cp_cfm_to_fm(msource=gamma_inv_00(ispin)%matrix, &
-                                 mtargetr=gamma_real(ispin)%matrix, &
-                                 mtargeti=gamma_imag(ispin)%matrix)
-
-               ! dS_mos_occ is identical to dBerry_psi0 from qs_linres_op % polar_operators()
-               CALL cp_gemm("N", "N", nao, nmo_occ(ispin), nmo_occ(ispin), 1.0_dp, opvec(1, ispin)%matrix, &
-                            gamma_imag(ispin)%matrix, 0.0_dp, dS_mos_occ(ideriv, ispin)%matrix)
-               CALL cp_gemm("N", "N", nao, nmo_occ(ispin), nmo_occ(ispin), -1.0_dp, opvec(2, ispin)%matrix, &
-                            gamma_real(ispin)%matrix, 1.0_dp, dS_mos_occ(ideriv, ispin)%matrix)
-            END DO
-         END DO
-
-         DO ispin = nspins, 1, -1
-            DO ideriv = 2, 1, -1
-               CALL fm_pool_give_back_fm(fm_pool_ao_mo_occ(ispin)%pool, opvec(ideriv, ispin)%matrix)
-            END DO
-
-            CALL cp_fm_release(gamma_real(ispin)%matrix)
-            CALL cp_fm_release(gamma_imag(ispin)%matrix)
-            CALL cp_cfm_release(gamma_inv_00(ispin)%matrix)
-            CALL cp_cfm_release(gamma_00(ispin)%matrix)
-         END DO
-         DEALLOCATE (gamma_00, gamma_inv_00, gamma_imag, gamma_real, opvec)
-      END IF
-
-      IF (dipole_form == tddfpt_dipole_velocity) THEN
-         ALLOCATE (ediff_inv(nspins), ediff_inv_weights(nspins), scaled_evect(nspins))
-         DO ispin = 1, nspins
-            NULLIFY (ediff_inv(ispin)%matrix, ediff_inv_weights(ispin)%matrix, scaled_evect(ispin)%matrix)
-            CALL cp_fm_get_info(weights_fm(ispin)%matrix, matrix_struct=fm_struct)
-
-            CALL cp_fm_create(ediff_inv(ispin)%matrix, fm_struct)
-            CALL cp_fm_create(ediff_inv_weights(ispin)%matrix, fm_struct)
-
-            CALL fm_pool_create_fm(fm_pool_ao_mo_occ(ispin)%pool, scaled_evect(ispin)%matrix)
-         END DO
-
-         ! compute (E_virt_a - E_occ_i)^{-1}
-         DO ispin = 1, nspins
-            CALL cp_fm_get_info(ediff_inv(ispin)%matrix, nrow_local=nrows_local, ncol_local=ncols_local, &
-                                row_indices=row_indices, col_indices=col_indices, local_data=local_data)
-
-!$OMP PARALLEL DO DEFAULT(NONE), &
-!$OMP             PRIVATE(eval_occ, icol, irow), &
-!$OMP             SHARED(col_indices, gs_mos, ispin, local_data, ncols_local, nrows_local, row_indices)
-            DO icol = 1, ncols_local
-               ! E_occ_i ; imo_occ = col_indices(icol)
-               eval_occ = gs_mos(ispin)%evals_occ(col_indices(icol))
-
-               DO irow = 1, nrows_local
-                  ! ediff_inv_weights(a, i) = 1.0 / (E_virt_a - E_occ_i)
-                  ! imo_virt = row_indices(irow)
-                  local_data(irow, icol) = 1.0_dp/(gs_mos(ispin)%evals_virt(row_indices(irow))-eval_occ)
-               END DO
-            END DO
-!$OMP END PARALLEL DO
-         END DO
-      END IF
-
-      DO ispin = 1, nspins
-         CALL cp_dbcsr_sm_fm_multiply(matrix_s, gs_mos(ispin)%mos_virt, S_mos_virt(ispin)%matrix, &
-                                      ncol=nmo_virt(ispin), alpha=1.0_dp, beta=0.0_dp)
-
-         IF (dipole_form == tddfpt_dipole_length .OR. dipole_form == tddfpt_dipole_velocity) THEN
-            DO ideriv = 1, nderivs
-               CALL cp_dbcsr_sm_fm_multiply(dipole_op_xyz(ideriv)%matrix, gs_mos(ispin)%mos_occ, &
-                                            dS_mos_occ(ideriv, ispin)%matrix, ncol=nmo_occ(ispin), alpha=1.0_dp, beta=0.0_dp)
-            END DO
-         END IF
-      END DO
-
-      ! *** summary header ***
-      IF (log_unit > 0) THEN
-         CALL integer_to_string(mult, mult_str)
-         WRITE (log_unit, '(/,1X,A1,A,1X,A,/)') lsd_str, "-TDDFPT states of multiplicity", TRIM(mult_str)
-
-         WRITE (log_unit, '(T11,A,T21,A,T37,A,T69,A)') "State", "Excitation", "Transition dipole (a.u.)", "Oscillator"
-         WRITE (log_unit, '(T11,A,T21,A,T39,A,T49,A,T59,A,T67,A)') "number", "energy (eV)", "x", "y", "z", "strength (a.u.)"
-         WRITE (log_unit, '(T10,72("-"))')
-      END IF
-
-      DO istate = 1, nstates
-         trans_dipoles(:) = 0.0_dp
-
-         ! nspins == 1 .AND. mult == 3 : spin-flip transitions are forbidden due to symmetry reasons
-         IF (nspins > 1 .OR. mult == 1) THEN
-            DO ispin = 1, nspins
-               CALL cp_gemm('T', 'N', nmo_virt(ispin), nmo_occ(ispin), nao, 1.0_dp, S_mos_virt(ispin)%matrix, &
-                            evects(ispin, istate)%matrix, 0.0_dp, weights_fm(ispin)%matrix)
-
-               ! compute electric dipole moments
-               IF (dipole_form == tddfpt_dipole_velocity) THEN
-                  CALL cp_fm_schur_product(weights_fm(ispin)%matrix, ediff_inv(ispin)%matrix, ediff_inv_weights(ispin)%matrix)
-                  CALL cp_gemm('N', 'N', nao, nmo_occ(ispin), nmo_virt(ispin), 1.0_dp, gs_mos(ispin)%mos_virt, &
-                               ediff_inv_weights(ispin)%matrix, 0.0_dp, scaled_evect(ispin)%matrix)
-               END IF
-
-               DO ideriv = 1, nderivs
-                  SELECT CASE (dipole_form)
-                  CASE (tddfpt_dipole_berry)
-                     ! trans_dipole = 2|e|/|G_mu| * Tr Imag(evects^T * (gamma_real - i gamma_imag) * C_0 * gamma_inv_00) +
-                     !                2|e|/|G_mu| * Tr Imag(C_0^T * (gamma_real - i gamma_imag) * evects * gamma_inv_00) ,
-                     !
-                     ! Taking into account the symmetry of the matrices 'gamma_real' and 'gamma_imag' and the fact
-                     ! that the response wave-function is a real-valued function, the above expression can be simplified as
-                     ! trans_dipole = 4|e|/|G_mu| * Tr Imag(evects^T * (gamma_real - i gamma_imag) * C_0 * gamma_inv_00)
-                     CALL cp_fm_trace(dS_mos_occ(ideriv, ispin)%matrix, evects(ispin, istate)%matrix, trans_dipole)
-
-                     ! 1/|G_mu| = |lattice_vector_mu| / (2*pi) .
-                     ! In case of an isolated molecule in a large unit cell, the scale factor 1.0_dp/(3.0_dp*pi)
-                     ! gives the same oscillator strengths as the ones obtained using the length operator.
-                     trans_dipole = 1.0_dp/(3.0_dp*pi)*trans_dipole
-                     DO jderiv = 1, nderivs
-                        trans_dipoles(jderiv) = trans_dipoles(jderiv)+cell%hmat(jderiv, ideriv)*trans_dipole
-                     END DO
-
-                  CASE (tddfpt_dipole_length)
-                     CALL cp_fm_trace(dS_mos_occ(ideriv, ispin)%matrix, evects(ispin, istate)%matrix, trans_dipole)
-                     trans_dipoles(ideriv) = trans_dipoles(ideriv)+trans_dipole
-
-                  CASE (tddfpt_dipole_velocity)
-                     CALL cp_fm_trace(dS_mos_occ(ideriv, ispin)%matrix, scaled_evect(ispin)%matrix, trans_dipole)
-                     trans_dipoles(ideriv) = trans_dipoles(ideriv)+trans_dipole
-
-                  CASE DEFAULT
-                     CPABORT("Unimplemented form of the dipole operator")
-                  END SELECT
-               END DO
-            END DO
-         END IF
-
-         ! *** summary information ***
-         IF (log_unit > 0) THEN
-            IF (nspins == 1 .AND. dipole_form /= tddfpt_dipole_velocity) &
-               trans_dipoles(:) = SQRT(2.0_dp)*trans_dipoles(:)
-            osc_strength = 2.0_dp/3.0_dp*evals(istate)*accurate_dot_product(trans_dipoles, trans_dipoles)
-
-            WRITE (log_unit, '(1X,A,T9,I8,T21,F11.5,T34,3(1X,F9.4),T69,F10.5)') &
-               "TDDFPT|", istate, evals(istate)*evolt, trans_dipoles(1:nderivs), osc_strength
-         END IF
-      END DO
-
-      IF (dipole_form == tddfpt_dipole_velocity) THEN
-         DO ispin = nspins, 1, -1
-            CALL fm_pool_give_back_fm(fm_pool_ao_mo_occ(ispin)%pool, scaled_evect(ispin)%matrix)
-            CALL cp_fm_release(ediff_inv_weights(ispin)%matrix)
-            CALL cp_fm_release(ediff_inv(ispin)%matrix)
-         END DO
-         DEALLOCATE (ediff_inv, ediff_inv_weights, scaled_evect)
-      END IF
-
-      DO ispin = nspins, 1, -1
-         DO ideriv = nderivs, 1, -1
-            CALL fm_pool_give_back_fm(fm_pool_ao_mo_occ(ispin)%pool, dS_mos_occ(ideriv, ispin)%matrix)
-         END DO
-      END DO
-      DEALLOCATE (dS_mos_occ)
 
       ! *** excitation analysis ***
       IF (do_exc_analysis) THEN
@@ -3116,6 +3259,22 @@ CONTAINS
                spin_label = '     '
             END IF
          END IF
+
+         ALLOCATE (S_mos_virt(nspins), weights_fm(nspins))
+         DO ispin = 1, nspins
+            NULLIFY (S_mos_virt(ispin)%matrix)
+            CALL cp_fm_get_info(gs_mos(ispin)%mos_virt, matrix_struct=fm_struct)
+            CALL cp_fm_create(S_mos_virt(ispin)%matrix, fm_struct)
+            CALL cp_dbcsr_sm_fm_multiply(matrix_s, &
+                                         gs_mos(ispin)%mos_virt, &
+                                         S_mos_virt(ispin)%matrix, &
+                                         ncol=nmo_virt(ispin), alpha=1.0_dp, beta=0.0_dp)
+
+            NULLIFY (fm_struct, weights_fm(ispin)%matrix)
+            CALL cp_fm_struct_create(fm_struct, nrow_global=nmo_virt(ispin), ncol_global=nmo_occ(ispin), context=blacs_env)
+            CALL cp_fm_create(weights_fm(ispin)%matrix, fm_struct)
+            CALL cp_fm_struct_release(fm_struct)
+         END DO
 
          nexcs_max_local = 0
          DO ispin = 1, nspins
@@ -3274,7 +3433,7 @@ CONTAINS
       DEALLOCATE (S_mos_virt, weights_fm)
 
       CALL timestop(handle)
-   END SUBROUTINE tddfpt_print_summary
+   END SUBROUTINE tddfpt_print_excitation_analysis
 
 ! **************************************************************************************************
 !> \brief Write Ritz vectors to a binary restart file.

@@ -64,6 +64,7 @@ MODULE cp_fm_basic_linalg
 
    INTERFACE cp_fm_trace
       MODULE PROCEDURE cp_fm_trace_a0b0t0
+      MODULE PROCEDURE cp_fm_trace_a1b0t1
       MODULE PROCEDURE cp_fm_trace_a1b1t1
    END INTERFACE cp_fm_trace
 
@@ -754,6 +755,80 @@ CONTAINS
       CALL timestop(handle)
 
    END SUBROUTINE cp_fm_trace_a0b0t0
+
+! **************************************************************************************************
+!> \brief Compute trace(k) = Tr (matrix_a(k)^T matrix_b) for each pair of matrices A_k and B.
+!> \param matrix_a list of A matrices
+!> \param matrix_b B matrix
+!> \param trace    computed traces
+!> \par History
+!>    * 08.2018 forked from cp_fm_trace() [Sergey Chulkov]
+!> \note \parblock
+!>      Computing the trace requires collective communication between involved MPI processes
+!>      that implies a synchronisation point between them. The aim of this subroutine is to reduce
+!>      the amount of time wasted in such synchronisation by performing one large collective
+!>      operation which involves all the matrices in question.
+!>
+!>      The subroutine's suffix reflects dimensionality of dummy arrays; 'a1b0t1' means that
+!>      the dummy variables 'matrix_a' and 'trace' are 1-dimensional arrays, while the variable
+!>      'matrix_b' is a single matrix.
+!>      \endparblock
+! **************************************************************************************************
+   SUBROUTINE cp_fm_trace_a1b0t1(matrix_a, matrix_b, trace)
+      TYPE(cp_fm_p_type), DIMENSION(:), INTENT(in)       :: matrix_a
+      TYPE(cp_fm_type), POINTER                          :: matrix_b
+      REAL(kind=dp), DIMENSION(:), INTENT(out)           :: trace
+
+      CHARACTER(len=*), PARAMETER :: routineN = 'cp_fm_trace_a1b0t1', &
+         routineP = moduleN//':'//routineN
+
+      INTEGER                                            :: group, handle, imatrix, n_matrices, &
+                                                            ncols_local, nrows_local
+      LOGICAL                                            :: use_sp_a, use_sp_b
+      REAL(kind=dp), DIMENSION(:, :), POINTER            :: ldata_a, ldata_b
+      REAL(kind=sp), DIMENSION(:, :), POINTER            :: ldata_a_sp, ldata_b_sp
+
+      CALL timeset(routineN, handle)
+
+      n_matrices = SIZE(trace)
+      CPASSERT(SIZE(matrix_a) == n_matrices)
+
+      CALL cp_fm_get_info(matrix_b, nrow_local=nrows_local, ncol_local=ncols_local)
+      use_sp_b = matrix_b%use_sp
+
+      IF (use_sp_b) THEN
+         ldata_b_sp => matrix_b%local_data_sp(1:nrows_local, 1:ncols_local)
+      ELSE
+         ldata_b => matrix_b%local_data(1:nrows_local, 1:ncols_local)
+      END IF
+
+!$OMP PARALLEL DO DEFAULT(NONE), &
+!$OMP             PRIVATE(imatrix, ldata_a, ldata_a_sp, use_sp_a), &
+!$OMP             SHARED(ldata_b, ldata_b_sp, matrix_a, matrix_b), &
+!$OMP             SHARED(ncols_local, nrows_local, n_matrices, trace, use_sp_b)
+
+      DO imatrix = 1, n_matrices
+
+         use_sp_a = matrix_a(imatrix)%matrix%use_sp
+
+         ! assume that the matrices A(i) and B have identical shapes and distribution schemes
+         IF (use_sp_a .AND. use_sp_b) THEN
+            ldata_a_sp => matrix_a(imatrix)%matrix%local_data_sp(1:nrows_local, 1:ncols_local)
+            trace(imatrix) = accurate_dot_product(ldata_a_sp, ldata_b_sp)
+         ELSE IF (.NOT. use_sp_a .AND. .NOT. use_sp_b) THEN
+            ldata_a => matrix_a(imatrix)%matrix%local_data(1:nrows_local, 1:ncols_local)
+            trace(imatrix) = accurate_dot_product(ldata_a, ldata_b)
+         ELSE
+            CPABORT("Matrices A and B are of different types")
+         END IF
+      END DO
+!$OMP END PARALLEL DO
+
+      group = matrix_b%matrix_struct%para_env%group
+      CALL mp_sum(trace, group)
+
+      CALL timestop(handle)
+   END SUBROUTINE cp_fm_trace_a1b0t1
 
 ! **************************************************************************************************
 !> \brief Compute trace(k) = Tr (matrix_a(k)^T matrix_b(k)) for each pair of matrices A_k and B_k.
