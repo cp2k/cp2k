@@ -1093,7 +1093,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE helium_coord_init(helium_env, initkT, solute_radius)
       TYPE(helium_solvent_p_type), DIMENSION(:), &
-         INTENT(IN), POINTER                             :: helium_env
+         INTENT(INOUT), POINTER                          :: helium_env
       REAL(KIND=dp), INTENT(IN)                          :: initkT, solute_radius
 
       CHARACTER(len=*), PARAMETER :: routineN = 'helium_coord_init', &
