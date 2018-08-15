@@ -30,6 +30,7 @@ MODULE dbcsr_tensor_api
                                               dbcsr_t_distribution_new,&
                                               dbcsr_t_distribution_type,&
                                               dbcsr_t_nd_mp_comm,&
+                                              dbcsr_t_nd_mp_free,&
                                               dbcsr_t_type
 
    IMPLICIT NONE
@@ -49,6 +50,7 @@ MODULE dbcsr_tensor_api
    PUBLIC :: dbcsr_t_distribution_new
    PUBLIC :: dbcsr_t_distribution_type
    PUBLIC :: dbcsr_t_nd_mp_comm
+   PUBLIC :: dbcsr_t_nd_mp_free
    PUBLIC :: dbcsr_t_type
    PUBLIC :: dbcsr_t_iterator_next_block
    PUBLIC :: dbcsr_t_iterator_blocks_left

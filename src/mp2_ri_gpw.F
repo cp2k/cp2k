@@ -69,7 +69,8 @@ MODULE mp2_ri_gpw
         dbcsr_t_distribution_new, dbcsr_t_distribution_type, dbcsr_t_get_block, &
         dbcsr_t_get_stored_coordinates, dbcsr_t_iterator_blocks_left, dbcsr_t_iterator_next_block, &
         dbcsr_t_iterator_start, dbcsr_t_iterator_stop, dbcsr_t_iterator_type, dbcsr_t_nd_mp_comm, &
-        dbcsr_t_put_block, dbcsr_t_reserve_blocks, dbcsr_t_split_blocks, dbcsr_t_type
+        dbcsr_t_nd_mp_free, dbcsr_t_put_block, dbcsr_t_reserve_blocks, dbcsr_t_split_blocks, &
+        dbcsr_t_type
    USE gaussian_gridlevels,             ONLY: gaussian_gridlevel
    USE input_constants,                 ONLY: do_eri_gpw,&
                                               do_eri_mme,&
@@ -1151,8 +1152,8 @@ CONTAINS
       CALL dbcsr_t_distribution_destroy(dist_B)
       CALL dbcsr_t_distribution_destroy(dist_L)
 
-      CALL mp_comm_free(mp_comm_B)
-      CALL mp_comm_free(mp_comm_L)
+      CALL dbcsr_t_nd_mp_free(mp_comm_B)
+      CALL dbcsr_t_nd_mp_free(mp_comm_L)
 
    END SUBROUTINE
 

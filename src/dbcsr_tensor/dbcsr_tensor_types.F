@@ -54,6 +54,7 @@ MODULE dbcsr_tensor_types
       dbcsr_t_distribution_type, &
       dbcsr_t_get_data_type, &
       dbcsr_t_nd_mp_comm, &
+      dbcsr_t_nd_mp_free, &
       dbcsr_t_type, &
       dims_tensor, &
       ndims_tensor, &
@@ -128,6 +129,16 @@ CONTAINS
       CALL mp_cart_create(comm_2d, ndim1+ndim2, dims_nd_prv, pos, dbcsr_t_nd_mp_comm)
 
    END FUNCTION
+
+! **************************************************************************************************
+!> \brief Release the MPI communicator.
+!>
+! **************************************************************************************************
+   SUBROUTINE dbcsr_t_nd_mp_free(mp_comm)
+     INTEGER, INTENT(INOUT)                               :: mp_comm
+     
+     CALL mp_comm_free(mp_comm)
+   END SUBROUTINE dbcsr_t_nd_mp_free
 
 ! **************************************************************************************************
 !> \brief Create a tensor distribution.
