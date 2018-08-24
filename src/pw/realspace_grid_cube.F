@@ -811,9 +811,9 @@ CONTAINS
 !> \param pw ...
 !> \param unit_nr ...
 !> \param stride ...
-!> \author Vladimir Rybkin
 !> \par History
 !>      Created [Vladimir Rybkin] (08.2018)
+!> \author Vladimir Rybkin
 ! **************************************************************************************************
    SUBROUTINE pw_to_simple_volumetric(pw, unit_nr, stride)
       TYPE(pw_type), POINTER                             :: pw

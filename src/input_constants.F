@@ -1097,6 +1097,6 @@ MODULE input_constants
                                                embed_quasi_newton = 1, &
                                                embed_level_shift = 2
    INTEGER, PARAMETER, PUBLIC               :: embed_grid_bohr = 0, &
-                                               embed_grid_angstrom = 1 
+                                               embed_grid_angstrom = 1
 
 END MODULE input_constants

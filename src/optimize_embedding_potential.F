@@ -41,11 +41,11 @@ MODULE optimize_embedding_potential
    USE dbcsr_api,                       ONLY: dbcsr_p_type
    USE embed_types,                     ONLY: opt_embed_pot_type
    USE force_env_types,                 ONLY: force_env_type
-   USE input_constants,                 ONLY: embed_level_shift,&
-                                              embed_quasi_newton,&
-                                              embed_steep_desc,&
+   USE input_constants,                 ONLY: embed_grid_angstrom,&
                                               embed_grid_bohr,&
-                                              embed_grid_angstrom
+                                              embed_level_shift,&
+                                              embed_quasi_newton,&
+                                              embed_steep_desc
    USE input_section_types,             ONLY: section_get_ivals,&
                                               section_vals_get_subs_vals,&
                                               section_vals_type,&
@@ -2569,10 +2569,11 @@ CONTAINS
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(pw_p_type), POINTER                           :: embed_pot, embed_pot_spin
       INTEGER                                            :: i_iter
-      LOGICAL                                            :: open_shell_embed, final_one, angstrom, bohr
+      LOGICAL                                            :: open_shell_embed, final_one
 
       CHARACTER(LEN=default_path_length)                 :: filename
-      INTEGER                                            :: unit_nr, my_units
+      INTEGER                                            :: my_units, unit_nr
+      LOGICAL                                            :: angstrom, bohr
       TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(section_vals_type), POINTER                   :: dft_section, input
 
@@ -2610,8 +2611,8 @@ CONTAINS
          unit_nr = cp_print_key_unit_nr(logger, input, "DFT%QS%OPT_EMBED%WRITE_SIMPLE_GRID", extension=".dat", &
                                         middle_name=TRIM(filename), file_form="FORMATTED", file_position="REWIND")
 
-         CALL cp_pw_to_simple_volumetric(embed_pot%pw, unit_nr, &  
-              stride=section_get_ivals(dft_section, "QS%OPT_EMBED%WRITE_SIMPLE_GRID%STRIDE"))
+         CALL cp_pw_to_simple_volumetric(embed_pot%pw, unit_nr, &
+                                         stride=section_get_ivals(dft_section, "QS%OPT_EMBED%WRITE_SIMPLE_GRID%STRIDE"))
          IF (unit_nr > 0) THEN
             CALL close_file(unit_nr)
          ENDIF
@@ -2626,7 +2627,7 @@ CONTAINS
                                            middle_name=TRIM(filename), file_form="FORMATTED")
 
             CALL cp_pw_to_simple_volumetric(embed_pot_spin%pw, unit_nr, &
-                 stride=section_get_ivals(dft_section, "QS%OPT_EMBED%WRITE_SIMPLE_GRID%STRIDE"))
+                                            stride=section_get_ivals(dft_section, "QS%OPT_EMBED%WRITE_SIMPLE_GRID%STRIDE"))
             IF (unit_nr > 0) THEN
                CALL close_file(unit_nr)
             ENDIF
