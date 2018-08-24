@@ -92,7 +92,7 @@ MODULE input_cp2k_dft
         wfi_use_prev_wf_method_nr, xas_1s_type, xas_2p_type, xas_2s_type, xas_3d_type, &
         xas_3p_type, xas_3s_type, xas_4d_type, xas_4f_type, xas_4p_type, xas_4s_type, xas_dip_len, &
         xas_dip_vel, xas_dscf, xas_none, xas_tp_fh, xas_tp_flex, xas_tp_hh, xas_tp_xfh, &
-        xas_tp_xhh, xes_tp_val
+        xas_tp_xhh, xes_tp_val, embed_grid_bohr, embed_grid_angstrom
    USE input_cp2k_almo,                 ONLY: create_almo_scf_section
    USE input_cp2k_distribution,         ONLY: create_distribution_section
    USE input_cp2k_field,                ONLY: create_efield_section,&
@@ -5984,7 +5984,7 @@ CONTAINS
       CPASSERT(.NOT. ASSOCIATED(section))
       CALL section_create(section, name="OPT_EMBED", &
                           description="This section specifies optional parameters for DFT embedding potential optimization.", &
-                          n_keywords=15, n_subsections=3, repeats=.FALSE.)
+                          n_keywords=15, n_subsections=4, repeats=.FALSE.)
 
       NULLIFY (keyword)
 
@@ -6105,6 +6105,8 @@ CONTAINS
 
       CALL create_print_embed_restart_vec(section)
 
+      CALL create_print_simple_grid(section)
+
    END SUBROUTINE create_optimize_embed
 
 ! **************************************************************************************************
@@ -6190,6 +6192,48 @@ CONTAINS
       CALL section_release(print_key)
 
    END SUBROUTINE create_print_embed_restart_vec
+
+! **************************************************************************************************
+!> \brief ...
+!> \param section ...
+! **************************************************************************************************
+   SUBROUTINE create_print_simple_grid(section)
+      TYPE(section_type), POINTER                        :: section
+
+      CHARACTER(len=*), PARAMETER :: routineN = 'create_print_simple_grid', &
+         routineP = moduleN//':'//routineN
+
+      TYPE(keyword_type), POINTER                        :: keyword
+      TYPE(section_type), POINTER                        :: print_key
+
+      NULLIFY (print_key, keyword)
+      CALL cp_print_key_section_create(print_key, "WRITE_SIMPLE_GRID", &
+                                       description="Controls the printing of simple grid "// &
+                                       "files with embedding potential: X Y Z value", &
+                                       print_level=high_print_level, add_last=add_last_numeric, filename="")
+
+      CALL keyword_create(keyword, name="STRIDE", &
+                          description="The stride (X,Y,Z) used to write the cube file "// &
+                          "(larger values result in smaller cube files). You can provide 3 numbers (for X,Y,Z) or"// &
+                          " 1 number valid for all components.", &
+                          usage="STRIDE 1 1 1", n_var=-1, default_i_vals=(/2, 2, 2/), type_of_var=integer_t)
+      CALL section_add_keyword(print_key, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, name="UNITS", &
+                          description="Units of the volumetric file: Angstrom or Bohr.", &
+                          usage="UNITS BOHR", &
+                          default_i_val=embed_grid_bohr, &
+                          enum_c_vals=s2a("BOHR", "ANGSTROM"), &
+                          enum_desc=s2a("Atomic units: Bohr", "Metric units: Angstrom."), &
+                          enum_i_vals=(/embed_grid_bohr, embed_grid_angstrom/))
+      CALL section_add_keyword(print_key, keyword)
+      CALL keyword_release(keyword)
+
+      CALL section_add_subsection(section, print_key)
+      CALL section_release(print_key)
+
+   END SUBROUTINE create_print_simple_grid
 
 ! **************************************************************************************************
 !> \brief input section for optional parameters for RIGPW

@@ -12,14 +12,15 @@ MODULE cp_realspace_grid_cube
    USE kinds,                           ONLY: dp
    USE particle_list_types,             ONLY: particle_list_type
    USE pw_types,                        ONLY: pw_type
-   USE realspace_grid_cube,             ONLY: pw_to_cube
+   USE realspace_grid_cube,             ONLY: pw_to_cube,&
+                                              pw_to_simple_volumetric
 #include "./base/base_uses.f90"
 
    IMPLICIT NONE
 
    PRIVATE
 
-   PUBLIC :: cp_pw_to_cube
+   PUBLIC :: cp_pw_to_cube, cp_pw_to_simple_volumetric
 
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'cp_realspace_grid_cube'
 
@@ -72,5 +73,25 @@ CONTAINS
       END IF
 
    END SUBROUTINE cp_pw_to_cube
+
+! **************************************************************************************************
+!> \brief Prints grid in a simple format: X Y Z value
+!> \param pw ...
+!> \param unit_nr ...
+!> \param stride ...
+!> \par History
+!>      Created [Vladimir Rybkin] (08.2017)
+! **************************************************************************************************
+   SUBROUTINE cp_pw_to_simple_volumetric(pw, unit_nr, stride)
+      TYPE(pw_type), POINTER                             :: pw
+      INTEGER, INTENT(IN)                                :: unit_nr
+      INTEGER, DIMENSION(:), OPTIONAL, POINTER           :: stride
+
+      CHARACTER(len=*), PARAMETER :: routineN = 'cp_pw_to_simple_volumetric', &
+         routineP = moduleN//':'//routineN
+
+      CALL pw_to_simple_volumetric(pw, unit_nr, stride)
+
+   END SUBROUTINE cp_pw_to_simple_volumetric
 
 END MODULE cp_realspace_grid_cube

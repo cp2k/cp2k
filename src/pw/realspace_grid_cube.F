@@ -24,7 +24,7 @@ MODULE realspace_grid_cube
 
    PRIVATE
 
-   PUBLIC :: pw_to_cube, cube_to_pw
+   PUBLIC :: pw_to_cube, cube_to_pw, pw_to_simple_volumetric
 
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'realspace_grid_cube'
    LOGICAL, PARAMETER, PRIVATE          :: debug_this_module = .FALSE.
@@ -805,5 +805,140 @@ CONTAINS
       DEALLOCATE (blocklengths, displacements)
 
    END SUBROUTINE pw_to_cube_parallel
+
+! **************************************************************************************************
+!> \brief Prints a simple grid file: X Y Z value
+!> \param pw ...
+!> \param unit_nr ...
+!> \param stride ...
+!> \author Vladimir Rybkin
+!> \par History
+!>      Created [Vladimir Rybkin] (08.2018)
+! **************************************************************************************************
+   SUBROUTINE pw_to_simple_volumetric(pw, unit_nr, stride)
+      TYPE(pw_type), POINTER                             :: pw
+      INTEGER, INTENT(IN)                                :: unit_nr
+      INTEGER, DIMENSION(:), OPTIONAL, POINTER           :: stride
+
+      CHARACTER(len=*), PARAMETER :: routineN = 'pw_to_simple_volumetric', &
+         routineP = moduleN//':'//routineN
+      INTEGER, PARAMETER                                 :: entry_len = 13, num_entries_line = 6
+
+      INTEGER                                            :: checksum, dest, gid, handle, i, I1, I2, &
+                                                            I3, ip, L1, L2, L3, my_rank, &
+                                                            my_stride(3), num_pe, rank(2), source, &
+                                                            tag, U1, U2, U3
+      REAL(KIND=dp)                                      :: x, y, z
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: buf
+
+      CALL timeset(routineN, handle)
+
+      my_stride = 1
+      IF (PRESENT(stride)) THEN
+         IF (SIZE(stride) /= 1 .AND. SIZE(stride) /= 3) &
+            CALL cp_abort(__LOCATION__, "STRIDE keyword can accept only 1 "// &
+                          "(the same for X,Y,Z) or 3 values. Correct your input file.")
+         IF (SIZE(stride) == 1) THEN
+            DO i = 1, 3
+               my_stride(i) = stride(1)
+            END DO
+         ELSE
+            my_stride = stride(1:3)
+         END IF
+         CPASSERT(my_stride(1) > 0)
+         CPASSERT(my_stride(2) > 0)
+         CPASSERT(my_stride(3) > 0)
+      END IF
+
+      ! shortcut
+      L1 = pw%pw_grid%bounds(1, 1)
+      L2 = pw%pw_grid%bounds(1, 2)
+      L3 = pw%pw_grid%bounds(1, 3)
+      U1 = pw%pw_grid%bounds(2, 1)
+      U2 = pw%pw_grid%bounds(2, 2)
+      U3 = pw%pw_grid%bounds(2, 3)
+
+      ALLOCATE (buf(L3:U3))
+
+      my_rank = pw%pw_grid%para%my_pos
+      gid = pw%pw_grid%para%group
+      num_pe = pw%pw_grid%para%group_size
+      tag = 1
+
+      rank(1) = unit_nr
+      rank(2) = my_rank
+      checksum = 0
+      IF (unit_nr > 0) checksum = 1
+
+      CALL mp_sum(checksum, gid)
+      CPASSERT(checksum == 1)
+
+      CALL mp_maxloc(rank, gid)
+      CPASSERT(rank(1) > 0)
+
+      dest = rank(2)
+      DO I1 = L1, U1, my_stride(1)
+         DO I2 = L2, U2, my_stride(2)
+
+            ! cycling through the CPUs, check if the current ray (I1,I2) is local to that CPU
+            IF (pw%pw_grid%para%mode .NE. PW_MODE_LOCAL) THEN
+               DO ip = 0, num_pe-1
+                  IF (pw%pw_grid%para%bo(1, 1, ip, 1) <= I1-L1+1 .AND. pw%pw_grid%para%bo(2, 1, ip, 1) >= I1-L1+1 .AND. &
+                      pw%pw_grid%para%bo(1, 2, ip, 1) <= I2-L2+1 .AND. pw%pw_grid%para%bo(2, 2, ip, 1) >= I2-L2+1) THEN
+                     source = ip
+                  ENDIF
+               ENDDO
+            ELSE
+               source = dest
+            ENDIF
+
+            IF (source == dest) THEN
+               IF (my_rank == source) THEN
+                  buf(:) = pw%cr3d(I1, I2, :)
+               ENDIF
+            ELSE
+               IF (my_rank == source) THEN
+                  buf(:) = pw%cr3d(I1, I2, :)
+                  CALL mp_send(buf, dest, tag, gid)
+               ENDIF
+               IF (my_rank == dest) THEN
+                  CALL mp_recv(buf, source, tag, gid)
+               ENDIF
+            ENDIF
+
+            DO I3 = L3, U3, my_stride(3)
+               x = pw%pw_grid%dh(1, 1)*I1+ &
+                   pw%pw_grid%dh(2, 1)*I2+ &
+                   pw%pw_grid%dh(3, 1)*I3
+
+               y = pw%pw_grid%dh(1, 2)*I1+ &
+                   pw%pw_grid%dh(2, 2)*I2+ &
+                   pw%pw_grid%dh(3, 2)*I3
+
+               z = pw%pw_grid%dh(1, 3)*I1+ &
+                   pw%pw_grid%dh(2, 3)*I2+ &
+                   pw%pw_grid%dh(3, 3)*I3
+
+               IF (unit_nr > 0) THEN
+                  WRITE (unit_nr, '(6E13.5, 6E13.5, 6E13.5, 6E13.5)') x, y, z, buf(I3)
+               ENDIF
+            ENDDO
+
+            ! this double loop generates so many messages that it can overload
+            ! the message passing system, e.g. on XT3
+            ! we therefore put a barrier here that limits the amount of message
+            ! that flies around at any given time.
+            ! if ever this routine becomes a bottleneck, we should go for a
+            ! more complicated rewrite
+            CALL mp_sync(gid)
+
+         ENDDO
+      ENDDO
+
+      DEALLOCATE (buf)
+
+      CALL timestop(handle)
+
+   END SUBROUTINE pw_to_simple_volumetric
 
 END MODULE realspace_grid_cube

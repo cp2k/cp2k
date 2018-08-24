@@ -36,13 +36,16 @@ MODULE optimize_embedding_potential
                                               cp_print_key_should_output,&
                                               cp_print_key_unit_nr
    USE cp_para_types,                   ONLY: cp_para_env_type
-   USE cp_realspace_grid_cube,          ONLY: cp_pw_to_cube
+   USE cp_realspace_grid_cube,          ONLY: cp_pw_to_cube,&
+                                              cp_pw_to_simple_volumetric
    USE dbcsr_api,                       ONLY: dbcsr_p_type
    USE embed_types,                     ONLY: opt_embed_pot_type
    USE force_env_types,                 ONLY: force_env_type
    USE input_constants,                 ONLY: embed_level_shift,&
                                               embed_quasi_newton,&
-                                              embed_steep_desc
+                                              embed_steep_desc,&
+                                              embed_grid_bohr,&
+                                              embed_grid_angstrom
    USE input_section_types,             ONLY: section_get_ivals,&
                                               section_vals_get_subs_vals,&
                                               section_vals_type,&
@@ -102,7 +105,8 @@ MODULE optimize_embedding_potential
    PUBLIC :: prepare_embed_opt, init_embed_pot, release_opt_embed, calculate_embed_pot_grad, &
              opt_embed_step, print_rho_diff, step_control, max_dens_diff, print_emb_opt_info, &
              conv_check_embed, make_subsys_embed_pot, print_embed_restart, find_aux_dimen, &
-             read_embed_pot, understand_spin_states, given_embed_pot, print_rho_spin_diff
+             read_embed_pot, understand_spin_states, given_embed_pot, print_rho_spin_diff, &
+             print_pot_simple_grid
 
 CONTAINS
 
@@ -2496,7 +2500,7 @@ CONTAINS
                WRITE (filename, '(a10,I3.3)') "embed_pot"
             ENDIF
             unit_nr = cp_print_key_unit_nr(logger, input, "DFT%QS%OPT_EMBED%EMBED_POT_VECTOR", extension=".wfn", &
-                                           middle_name=TRIM(filename), file_form="UNFORMATTED")
+                                           file_form="UNFORMATTED", middle_name=TRIM(filename), file_position="REWIND")
             IF (unit_nr > 0) THEN
                WRITE (unit_nr) dimen_aux
             ENDIF
@@ -2551,6 +2555,86 @@ CONTAINS
       ENDIF
 
    END SUBROUTINE print_embed_restart
+
+! **************************************************************************************************
+!> \brief Prints a volumetric file: X Y Z value for interfacing with external programs.
+!> \param qs_env ...
+!> \param embed_pot ...
+!> \param embed_pot_spin ...
+!> \param i_iter ...
+!> \param open_shell_embed ...
+!> \param final_one ...
+! **************************************************************************************************
+   SUBROUTINE print_pot_simple_grid(qs_env, embed_pot, embed_pot_spin, i_iter, open_shell_embed, final_one)
+      TYPE(qs_environment_type), POINTER                 :: qs_env
+      TYPE(pw_p_type), POINTER                           :: embed_pot, embed_pot_spin
+      INTEGER                                            :: i_iter
+      LOGICAL                                            :: open_shell_embed, final_one, angstrom, bohr
+
+      CHARACTER(LEN=default_path_length)                 :: filename
+      INTEGER                                            :: unit_nr, my_units
+      TYPE(cp_logger_type), POINTER                      :: logger
+      TYPE(section_vals_type), POINTER                   :: dft_section, input
+
+      NULLIFY (input)
+      CALL get_qs_env(qs_env=qs_env, input=input)
+
+      ! Second, cube files
+      dft_section => section_vals_get_subs_vals(input, "DFT")
+
+      logger => cp_get_default_logger()
+      IF (BTEST(cp_print_key_should_output(logger%iter_info, input, &
+                                           "DFT%QS%OPT_EMBED%WRITE_SIMPLE_GRID"), cp_p_file)) THEN
+
+         ! Figure out the units
+         angstrom = .FALSE.
+         bohr = .TRUE.
+         CALL section_vals_val_get(dft_section, "QS%OPT_EMBED%WRITE_SIMPLE_GRID%UNITS", i_val=my_units)
+         SELECT CASE (my_units)
+         CASE (embed_grid_bohr)
+            bohr = .TRUE.
+            angstrom = .FALSE.
+         CASE (embed_grid_angstrom)
+            bohr = .FALSE.
+            angstrom = .TRUE.
+         CASE DEFAULT
+            bohr = .TRUE.
+            angstrom = .FALSE.
+         END SELECT
+
+         IF (.NOT. final_one) THEN
+            WRITE (filename, '(a10,I3.3)') "embed_pot_", i_iter
+         ELSE
+            WRITE (filename, '(a10,I3.3)') "embed_pot"
+         ENDIF
+         unit_nr = cp_print_key_unit_nr(logger, input, "DFT%QS%OPT_EMBED%WRITE_SIMPLE_GRID", extension=".dat", &
+                                        middle_name=TRIM(filename), file_form="FORMATTED", file_position="REWIND")
+
+         CALL cp_pw_to_simple_volumetric(embed_pot%pw, unit_nr, &  
+              stride=section_get_ivals(dft_section, "QS%OPT_EMBED%WRITE_SIMPLE_GRID%STRIDE"))
+         IF (unit_nr > 0) THEN
+            CALL close_file(unit_nr)
+         ENDIF
+
+         IF (open_shell_embed) THEN ! Print spin part of the embedding potential
+            IF (.NOT. final_one) THEN
+               WRITE (filename, '(a15,I3.3)') "spin_embed_pot_", i_iter
+            ELSE
+               WRITE (filename, '(a15,I3.3)') "spin_embed_pot"
+            ENDIF
+            unit_nr = cp_print_key_unit_nr(logger, input, "DFT%QS%OPT_EMBED%WRITE_SIMPLE_GRID", extension=".dat", &
+                                           middle_name=TRIM(filename), file_form="FORMATTED")
+
+            CALL cp_pw_to_simple_volumetric(embed_pot_spin%pw, unit_nr, &
+                 stride=section_get_ivals(dft_section, "QS%OPT_EMBED%WRITE_SIMPLE_GRID%STRIDE"))
+            IF (unit_nr > 0) THEN
+               CALL close_file(unit_nr)
+            ENDIF
+
+         ENDIF
+      ENDIF
+
+   END SUBROUTINE print_pot_simple_grid
 
 ! **************************************************************************************************
 !> \brief ...

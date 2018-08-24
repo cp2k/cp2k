@@ -110,8 +110,8 @@ MODULE force_env_methods
    USE optimize_embedding_potential,    ONLY: &
         calculate_embed_pot_grad, conv_check_embed, init_embed_pot, make_subsys_embed_pot, &
         opt_embed_step, prepare_embed_opt, print_emb_opt_info, print_embed_restart, &
-        print_rho_diff, print_rho_spin_diff, read_embed_pot, release_opt_embed, step_control, &
-        understand_spin_states
+        print_pot_simple_grid, print_rho_diff, print_rho_spin_diff, read_embed_pot, &
+        release_opt_embed, step_control, understand_spin_states
    USE particle_list_types,             ONLY: particle_list_p_type,&
                                               particle_list_type
    USE physcon,                         ONLY: debye
@@ -1769,6 +1769,8 @@ CONTAINS
          CALL print_embed_restart(force_env%sub_force_env(ref_subsys_number)%force_env%qs_env, &
                                   opt_embed%dimen_aux, opt_embed%embed_pot_coef, embed_pot, i_iter, &
                                   spin_embed_pot, opt_embed%open_shell_embed, opt_embed%grid_opt, .FALSE.)
+         CALL print_pot_simple_grid(force_env%sub_force_env(ref_subsys_number)%force_env%qs_env, &
+                                    embed_pot, spin_embed_pot, i_iter, opt_embed%open_shell_embed, .FALSE.)
 
          ! Integrate the potential over density differences and add to w functional; also add regularization contribution
          DO i_spin = 1, nspins ! Sum over nspins for the reference system, not subsystem!
@@ -1815,6 +1817,9 @@ CONTAINS
       CALL print_embed_restart(force_env%sub_force_env(ref_subsys_number)%force_env%qs_env, &
                                opt_embed%dimen_aux, opt_embed%embed_pot_coef, embed_pot, i_iter, &
                                spin_embed_pot, opt_embed%open_shell_embed, opt_embed%grid_opt, .TRUE.)
+      CALL print_pot_simple_grid(force_env%sub_force_env(ref_subsys_number)%force_env%qs_env, &
+                                 embed_pot, spin_embed_pot, i_iter, opt_embed%open_shell_embed, .TRUE.)
+
       ! Print final density difference
       CALL print_rho_diff(diff_rho_r, i_iter, force_env%sub_force_env(ref_subsys_number)%force_env%qs_env, .TRUE.)
       IF (opt_embed%open_shell_embed) THEN ! Spin part
