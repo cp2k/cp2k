@@ -822,7 +822,6 @@ CONTAINS
 
       CHARACTER(len=*), PARAMETER :: routineN = 'pw_to_simple_volumetric', &
          routineP = moduleN//':'//routineN
-      INTEGER, PARAMETER                                 :: entry_len = 13, num_entries_line = 6
 
       INTEGER                                            :: checksum, dest, gid, handle, i, I1, I2, &
                                                             I3, ip, L1, L2, L3, my_rank, &
