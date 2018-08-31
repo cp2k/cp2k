@@ -3039,7 +3039,8 @@ CONTAINS
       CALL keyword_create( &
          keyword, name="EXTRAPOLATION", &
          variants=s2a("INTERPOLATION", "WF_INTERPOLATION"), &
-         description="Extrapolation strategy for the wavefunction during e.g. MD."// &
+         description="Extrapolation strategy for the wavefunction during e.g. MD. "// &
+         "Not all options are available for all simulation methods. "// &
          "PS and ASPC are recommended, see also EXTRAPOLATION_ORDER.", &
          citations=(/Kolafa2004, VandeVondele2005a/), &
          usage="EXTRAPOLATION PS", &
@@ -3049,13 +3050,14 @@ CONTAINS
          "Use the method specified with SCF_GUESS, i.e. no extrapolation", &
          "Use the previous density matrix", &
          "Use the previous density in real space", &
-         "Linear extrapolation of the wavefunction", &
+         "Linear extrapolation of the wavefunction (not available for K-points)", &
          "Linear extrapolation of the density matrix", &
-         "Linear extrapolation of the density matrix times the overlap matrix", &
-         "Use the previous wavefunction", &
-         "Higher order extrapolation of the density matrix times the overlap matrix", &
+         "Linear extrapolation of the density matrix times the overlap matrix (not available for K-points)", &
+         "Use the previous wavefunction (not available for K-points)", &
+         "Higher order extrapolation of the density matrix times the overlap matrix (not available for K-points)", &
          "Frozen ...", &
-         "Always stable predictor corrector, similar to PS, but going for MD stability instead of intial guess accuracy."), &
+         "Always stable predictor corrector, similar to PS, but going for MD stability instead of intial guess accuracy. "// &
+         "(not available for K-points)"), &
          enum_i_vals=(/ &
          wfi_use_guess_method_nr, &
          wfi_use_prev_p_method_nr, &

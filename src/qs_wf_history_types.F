@@ -211,15 +211,15 @@ CONTAINS
 ! **************************************************************************************************
 !> \brief returns a snapshot, the first being the latest snapshot
 !> \param wf_history the plage where to get the snapshot
-!> \param index the index of the snapshot you want
+!> \param wf_index the index of the snapshot you want
 !> \return ...
 !> \par History
 !>      12.2002 created [fawzi]
 !> \author fawzi
 ! **************************************************************************************************
-   FUNCTION wfi_get_snapshot(wf_history, index) RESULT(res)
+   FUNCTION wfi_get_snapshot(wf_history, wf_index) RESULT(res)
       TYPE(qs_wf_history_type), POINTER                  :: wf_history
-      INTEGER, INTENT(in)                                :: index
+      INTEGER, INTENT(in)                                :: wf_index
       TYPE(qs_wf_snapshot_type), POINTER                 :: res
 
       CHARACTER(len=*), PARAMETER :: routineN = 'wfi_get_snapshot', &
@@ -229,11 +229,11 @@ CONTAINS
 
       CPASSERT(ASSOCIATED(wf_history))
       CPASSERT(ASSOCIATED(wf_history%past_states))
-      IF (index > wf_history%memory_depth .OR. index > wf_history%snapshot_count) THEN
+      IF (wf_index > wf_history%memory_depth .OR. wf_index > wf_history%snapshot_count) THEN
          CPABORT("")
       END IF
       res => wf_history%past_states( &
-             MODULO(wf_history%snapshot_count+1-index, &
+             MODULO(wf_history%snapshot_count+1-wf_index, &
                     wf_history%memory_depth)+1)%snapshot
    END FUNCTION wfi_get_snapshot
 

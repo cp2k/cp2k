@@ -484,8 +484,8 @@ CONTAINS
          routineP = moduleN//':'//routineN
 
       INTEGER                                            :: actual_extrapolation_method_nr, handle, &
-                                                            i, img, ispin, k, n, nmo, nvec, &
-                                                            output_unit, print_level
+                                                            i, img, io_unit, ispin, k, n, nmo, &
+                                                            nvec, print_level
       LOGICAL                                            :: do_kpoints, my_orthogonal_wf, use_overlap
       REAL(KIND=dp)                                      :: alpha, t0, t1, t2
       TYPE(cp_fm_pool_p_type), DIMENSION(:), POINTER     :: ao_mo_fm_pools
@@ -506,8 +506,8 @@ CONTAINS
       CALL timeset(routineN, handle)
       logger => cp_get_default_logger()
       print_level = logger%iter_info%print_level
-      output_unit = cp_print_key_unit_nr(logger, qs_env%input, "DFT%SCF%PRINT%PROGRAM_RUN_INFO", &
-                                         extension=".scfLog")
+      io_unit = cp_print_key_unit_nr(logger, qs_env%input, "DFT%SCF%PRINT%PROGRAM_RUN_INFO", &
+                                     extension=".scfLog")
 
       CPASSERT(ASSOCIATED(wf_history))
       CPASSERT(wf_history%ref_count > 0)
@@ -548,7 +548,7 @@ CONTAINS
       SELECT CASE (actual_extrapolation_method_nr)
       CASE (wfi_frozen_method_nr)
          CPASSERT(.NOT. do_kpoints)
-         t0_state => wfi_get_snapshot(wf_history, index=1)
+         t0_state => wfi_get_snapshot(wf_history, wf_index=1)
          CPASSERT(ASSOCIATED(t0_state%rho_frozen))
 
          nvec = MIN(wf_history%memory_depth, wf_history%snapshot_count)
@@ -568,7 +568,7 @@ CONTAINS
 
          my_orthogonal_wf = .FALSE.
       CASE (wfi_use_prev_rho_r_method_nr)
-         t0_state => wfi_get_snapshot(wf_history, index=1)
+         t0_state => wfi_get_snapshot(wf_history, wf_index=1)
          nvec = MIN(wf_history%memory_depth, wf_history%snapshot_count)
          CALL wfi_set_history_variables(qs_env=qs_env, nvec=nvec)
          IF (do_kpoints) THEN
@@ -576,9 +576,13 @@ CONTAINS
             CALL qs_rho_get(rho, rho_ao_kp=rho_ao_kp)
             DO ispin = 1, SIZE(t0_state%rho_ao_kp, 1)
                DO img = 1, SIZE(t0_state%rho_ao_kp, 2)
-                  CALL dbcsr_copy(rho_ao_kp(ispin, img)%matrix, &
-                                  t0_state%rho_ao_kp(ispin, img)%matrix, &
-                                  keep_sparsity=.TRUE.)
+                  IF (img > SIZE(rho_ao_kp, 2)) THEN
+                     CPWARN("Change in cell neighborlist: might affect quality of initial guess")
+                  ELSE
+                     CALL dbcsr_copy(rho_ao_kp(ispin, img)%matrix, &
+                                     t0_state%rho_ao_kp(ispin, img)%matrix, &
+                                     keep_sparsity=.TRUE.)
+                  END IF
                END DO
             END DO
          ELSE
@@ -613,8 +617,7 @@ CONTAINS
          CALL qs_ks_did_change(qs_env%ks_env, rho_changed=.TRUE.)
 
       CASE (wfi_use_prev_p_method_nr)
-         CPASSERT(.NOT. do_kpoints)
-         t0_state => wfi_get_snapshot(wf_history, index=1)
+         t0_state => wfi_get_snapshot(wf_history, wf_index=1)
          nvec = MIN(wf_history%memory_depth, wf_history%snapshot_count)
          CALL wfi_set_history_variables(qs_env=qs_env, nvec=nvec)
          IF (do_kpoints) THEN
@@ -622,9 +625,13 @@ CONTAINS
             CALL qs_rho_get(rho, rho_ao_kp=rho_ao_kp)
             DO ispin = 1, SIZE(t0_state%rho_ao_kp, 1)
                DO img = 1, SIZE(t0_state%rho_ao_kp, 2)
-                  CALL dbcsr_copy(rho_ao_kp(ispin, img)%matrix, &
-                                  t0_state%rho_ao_kp(ispin, img)%matrix, &
-                                  keep_sparsity=.TRUE.)
+                  IF (img > SIZE(rho_ao_kp, 2)) THEN
+                     CPWARN("Change in cell neighborlist: might affect quality of initial guess")
+                  ELSE
+                     CALL dbcsr_copy(rho_ao_kp(ispin, img)%matrix, &
+                                     t0_state%rho_ao_kp(ispin, img)%matrix, &
+                                     keep_sparsity=.TRUE.)
+                  END IF
                END DO
             END DO
          ELSE
@@ -651,8 +658,8 @@ CONTAINS
          CALL wfi_set_history_variables(qs_env=qs_env, nvec=nvec)
       CASE (wfi_linear_wf_method_nr)
          CPASSERT(.NOT. do_kpoints)
-         t0_state => wfi_get_snapshot(wf_history, index=2)
-         t1_state => wfi_get_snapshot(wf_history, index=1)
+         t0_state => wfi_get_snapshot(wf_history, wf_index=2)
+         t1_state => wfi_get_snapshot(wf_history, wf_index=1)
          CPASSERT(ASSOCIATED(t0_state))
          CPASSERT(ASSOCIATED(t1_state))
          CPASSERT(ASSOCIATED(t0_state%wf))
@@ -687,8 +694,8 @@ CONTAINS
          CALL qs_ks_did_change(qs_env%ks_env, &
                                rho_changed=.TRUE.)
       CASE (wfi_linear_p_method_nr)
-         t0_state => wfi_get_snapshot(wf_history, index=2)
-         t1_state => wfi_get_snapshot(wf_history, index=1)
+         t0_state => wfi_get_snapshot(wf_history, wf_index=2)
+         t1_state => wfi_get_snapshot(wf_history, wf_index=1)
          CPASSERT(ASSOCIATED(t0_state))
          CPASSERT(ASSOCIATED(t1_state))
          IF (do_kpoints) THEN
@@ -708,10 +715,15 @@ CONTAINS
             CALL qs_rho_get(rho, rho_ao_kp=rho_ao_kp)
             DO ispin = 1, SIZE(rho_ao_kp, 1)
                DO img = 1, SIZE(rho_ao_kp, 2)
-                  CALL dbcsr_add(rho_ao_kp(ispin, img)%matrix, t1_state%rho_ao_kp(ispin, img)%matrix, &
-                                 alpha_scalar=0.0_dp, beta_scalar=(t2-t0)/(t1-t0)) ! this copy should be unnecessary
-                  CALL dbcsr_add(rho_ao_kp(ispin, img)%matrix, t0_state%rho_ao_kp(ispin, img)%matrix, &
-                                 alpha_scalar=1.0_dp, beta_scalar=(t1-t2)/(t1-t0))
+                  IF (img > SIZE(t0_state%rho_ao_kp, 2) .OR. &
+                      img > SIZE(t1_state%rho_ao_kp, 2)) THEN
+                     CPWARN("Change in cell neighborlist: might affect quality of initial guess")
+                  ELSE
+                     CALL dbcsr_add(rho_ao_kp(ispin, img)%matrix, t1_state%rho_ao_kp(ispin, img)%matrix, &
+                                    alpha_scalar=0.0_dp, beta_scalar=(t2-t0)/(t1-t0)) ! this copy should be unnecessary
+                     CALL dbcsr_add(rho_ao_kp(ispin, img)%matrix, t0_state%rho_ao_kp(ispin, img)%matrix, &
+                                    alpha_scalar=1.0_dp, beta_scalar=(t1-t2)/(t1-t0))
+                  END IF
                END DO
             END DO
          ELSE
@@ -725,13 +737,12 @@ CONTAINS
          END IF
          CALL qs_rho_update_rho(rho, qs_env=qs_env)
          CALL qs_ks_did_change(qs_env%ks_env, rho_changed=.TRUE.)
-
+      CASE (wfi_linear_ps_method_nr)
          ! wf not calculated, extract with PSC renormalized?
          ! use wf_linear?
-      CASE (wfi_linear_ps_method_nr)
          CPASSERT(.NOT. do_kpoints)
-         t0_state => wfi_get_snapshot(wf_history, index=2)
-         t1_state => wfi_get_snapshot(wf_history, index=1)
+         t0_state => wfi_get_snapshot(wf_history, wf_index=2)
+         t1_state => wfi_get_snapshot(wf_history, wf_index=1)
          CPASSERT(ASSOCIATED(t0_state))
          CPASSERT(ASSOCIATED(t1_state))
          CPASSERT(ASSOCIATED(t0_state%wf))
@@ -817,13 +828,13 @@ CONTAINS
             CALL cp_fm_create(csc, matrix_struct_new)
             CALL cp_fm_struct_release(matrix_struct_new)
             ! first the most recent
-            t1_state => wfi_get_snapshot(wf_history, index=1)
+            t1_state => wfi_get_snapshot(wf_history, wf_index=1)
             CALL cp_fm_to_fm(t1_state%wf(ispin)%matrix, mo_coeff)
             alpha = nvec
             CALL cp_fm_scale(alpha, mo_coeff)
             CALL qs_rho_get(rho, rho_ao=rho_ao)
             DO i = 2, nvec
-               t0_state => wfi_get_snapshot(wf_history, index=i)
+               t0_state => wfi_get_snapshot(wf_history, wf_index=i)
                IF (use_overlap) THEN
                   CALL cp_dbcsr_sm_fm_multiply(t0_state%overlap, t1_state%wf(ispin)%matrix, fm_tmp, k)
                   CALL cp_gemm('T', 'N', k, k, n, 1.0_dp, t0_state%wf(ispin)%matrix, fm_tmp, 0.0_dp, csc)
@@ -885,11 +896,11 @@ CONTAINS
             CALL cp_fm_struct_release(matrix_struct_new)
             ! first the most recent
             t1_state => wfi_get_snapshot(wf_history, &
-                                         index=1)
+                                         wf_index=1)
             CALL cp_fm_to_fm(t1_state%wf(ispin)%matrix, mo_coeff)
             alpha = REAL(4*nvec-2, KIND=dp)/REAL(nvec+1, KIND=dp)
-            IF ((output_unit > 0) .AND. (print_level > low_print_level)) THEN
-               WRITE (UNIT=output_unit, FMT="(/,T2,A,/,/,T3,A,I0,/,/,T3,A2,I0,A4,F10.6)") &
+            IF ((io_unit > 0) .AND. (print_level > low_print_level)) THEN
+               WRITE (UNIT=io_unit, FMT="(/,T2,A,/,/,T3,A,I0,/,/,T3,A2,I0,A4,F10.6)") &
                   "Parameters for the always stable predictor-corrector (ASPC) method:", &
                   "ASPC order: ", MAX(nvec-2, 0), &
                   "B(", 1, ") = ", alpha
@@ -897,7 +908,7 @@ CONTAINS
             CALL cp_fm_scale(alpha, mo_coeff)
 
             DO i = 2, nvec
-               t0_state => wfi_get_snapshot(wf_history, index=i)
+               t0_state => wfi_get_snapshot(wf_history, wf_index=i)
                IF (use_overlap) THEN
                   CALL cp_dbcsr_sm_fm_multiply(t0_state%overlap, t1_state%wf(ispin)%matrix, fm_tmp, k)
                   CALL cp_gemm('T', 'N', k, k, n, 1.0_dp, t0_state%wf(ispin)%matrix, fm_tmp, 0.0_dp, csc)
@@ -908,8 +919,8 @@ CONTAINS
                CALL cp_gemm('N', 'N', n, k, k, 1.0_dp, t0_state%wf(ispin)%matrix, csc, 0.0_dp, fm_tmp)
                alpha = (-1.0_dp)**(i+1)*REAL(i, KIND=dp)* &
                        binomial(2*nvec, nvec-i)/binomial(2*nvec-2, nvec-1)
-               IF ((output_unit > 0) .AND. (print_level > low_print_level)) THEN
-                  WRITE (UNIT=output_unit, FMT="(T3,A2,I0,A4,F10.6)") &
+               IF ((io_unit > 0) .AND. (print_level > low_print_level)) THEN
+                  WRITE (UNIT=io_unit, FMT="(T3,A2,I0,A4,F10.6)") &
                      "B(", i, ") = ", alpha
                END IF
                CALL cp_fm_scale_and_add(1.0_dp, mo_coeff, alpha, fm_tmp)
@@ -931,7 +942,7 @@ CONTAINS
                        TRIM(ADJUSTL(cp_to_string(wf_history%interpolation_method_nr))))
       END SELECT
       IF (PRESENT(orthogonal_wf)) orthogonal_wf = my_orthogonal_wf
-      CALL cp_print_key_finished_output(output_unit, logger, qs_env%input, &
+      CALL cp_print_key_finished_output(io_unit, logger, qs_env%input, &
                                         "DFT%SCF%PRINT%PROGRAM_RUN_INFO")
       CALL timestop(handle)
    END SUBROUTINE wfi_extrapolate
@@ -1092,7 +1103,7 @@ CONTAINS
       CHARACTER(len=*), PARAMETER :: routineN = 'wfi_purge_history', &
          routineP = moduleN//':'//routineN
 
-      INTEGER                                            :: handle, output_unit, print_level
+      INTEGER                                            :: handle, io_unit, print_level
       TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(qs_wf_history_type), POINTER                  :: wf_history
@@ -1102,8 +1113,8 @@ CONTAINS
       CALL timeset(routineN, handle)
       logger => cp_get_default_logger()
       print_level = logger%iter_info%print_level
-      output_unit = cp_print_key_unit_nr(logger, qs_env%input, "DFT%SCF%PRINT%PROGRAM_RUN_INFO", &
-                                         extension=".scfLog")
+      io_unit = cp_print_key_unit_nr(logger, qs_env%input, "DFT%SCF%PRINT%PROGRAM_RUN_INFO", &
+                                     extension=".scfLog")
 
       CPASSERT(ASSOCIATED(qs_env))
       CPASSERT(qs_env%ref_count > 0)
@@ -1120,8 +1131,8 @@ CONTAINS
             wfi_linear_ps_method_nr, wfi_ps_method_nr, &
             wfi_aspc_nr)
          IF (qs_env%wf_history%snapshot_count .GE. 2) THEN
-            IF (debug_this_module .AND. output_unit > 0) &
-               WRITE (output_unit, FMT="(T2,A)") "QS| Purging WFN history"
+            IF (debug_this_module .AND. io_unit > 0) &
+               WRITE (io_unit, FMT="(T2,A)") "QS| Purging WFN history"
             CALL wfi_create(wf_history, interpolation_method_nr= &
                             dft_control%qs_control%wf_interpolation_method_nr, &
                             extrapolation_order=dft_control%qs_control%wf_extrapolation_order, &
