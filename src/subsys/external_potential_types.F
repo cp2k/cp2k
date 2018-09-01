@@ -120,7 +120,7 @@ MODULE external_potential_types
    TYPE gth_potential_type
       !PRIVATE
       CHARACTER(LEN=default_string_length)       :: name
-      CHARACTER(LEN=default_string_length)       :: aliases
+      CHARACTER(LEN=default_string_length)       :: aliases = ""
       CHARACTER(LEN=default_string_length), &
          DIMENSION(4)                          :: description
       REAL(KIND=dp)                            :: alpha_core_charge, &
@@ -163,7 +163,7 @@ MODULE external_potential_types
 ! **************************************************************************************************
    TYPE sgp_potential_type
       CHARACTER(LEN=default_string_length)       :: name
-      CHARACTER(LEN=default_string_length)       :: aliases
+      CHARACTER(LEN=default_string_length)       :: aliases = ""
       CHARACTER(LEN=default_string_length), &
          DIMENSION(4)                            :: description
       ! CHARGE

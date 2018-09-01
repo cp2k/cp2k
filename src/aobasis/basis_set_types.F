@@ -65,7 +65,7 @@ MODULE basis_set_types
    TYPE gto_basis_set_type
       !MK PRIVATE
       CHARACTER(LEN=default_string_length)       :: name
-      CHARACTER(LEN=default_string_length)       :: aliases
+      CHARACTER(LEN=default_string_length)       :: aliases = ""
       REAL(KIND=dp)                            :: kind_radius
       REAL(KIND=dp)                            :: short_kind_radius
       INTEGER                                    :: norm_type = -1
