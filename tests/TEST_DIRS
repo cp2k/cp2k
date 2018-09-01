@@ -59,7 +59,6 @@ QS/regtest-admm-4                                           libint
 ATOM/regtest-1
 QS/regtest-gw-ic-model
 QS/regtest-almo-md
-QS/regtest-almo-strong
 QS/regtest-pao-1
 QS/regtest-ri-mp2                                           libint
 QS/regtest-almo-2
