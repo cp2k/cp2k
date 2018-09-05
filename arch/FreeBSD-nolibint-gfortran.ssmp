@@ -14,5 +14,5 @@ CPPFLAGS =
 DFLAGS   = -D__FFTW3 -D__NO_STATM_ACCESS
 FCFLAGS  = -O2 -fopenmp -ffast-math -funroll-loops -ftree-vectorize -march=native -ffree-form $(DFLAGS)
 LDFLAGS  = $(FCFLAGS)
-LIBS     = -llapack -lblas -lfftw3
+LIBS     = -llapack -lblas -lfftw3 -lfftw3_omp
 
