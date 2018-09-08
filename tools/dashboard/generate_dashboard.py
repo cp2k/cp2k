@@ -19,10 +19,11 @@ from os import path
 from pprint import pformat
 from glob import glob
 import itertools
-from urllib.parse import urlencode
-from urllib.request import urlopen
 import configparser
 import pickle
+from pathlib import Path
+import requests
+import hashlib
 
 import matplotlib as mpl
 mpl.use('Agg')  # change backend, to run without X11
@@ -526,9 +527,29 @@ def commit_cell(git_sha, log):
     return(output)
 
 #===============================================================================
-def retrieve_report(report_url):
+def retrieve_report(url):
     try:
-        return urlopen(report_url, timeout=5).read().decode("utf-8", errors='replace')
+        # check cache
+        h = hashlib.md5(url.encode("utf8")).hexdigest()
+        base = "/tmp/dashboard_retrieval_cache_" + h
+        etag_file = Path(base+'.etag')
+        data_file = Path(base+'.data')
+        if etag_file.exists():
+            etag = etag_file.read_text()
+            r = requests.get(url, headers={"If-None-Match": etag}, timeout=5)
+            if r.status_code == 304:  # Not Modified
+                return data_file.read_text()
+
+        # cache miss - make full request
+        r = requests.get(url, timeout=5)
+        r.raise_for_status()
+
+        # store response in cache
+        if 'ETag' in r.headers:
+            data_file.write_text(r.text)
+            etag_file.write_text(r.headers['ETag'])
+        return r.text
+
     except:
         print(traceback.print_exc())
         return None
