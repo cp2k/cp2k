@@ -529,22 +529,19 @@ def commit_cell(git_sha, log):
 #===============================================================================
 def retrieve_report(url):
     try:
-        # check cache
+        # see if we have a cached entry
         h = hashlib.md5(url.encode("utf8")).hexdigest()
-        base = "/tmp/dashboard_retrieval_cache_" + h
-        etag_file = Path(base+'.etag')
-        data_file = Path(base+'.data')
-        if etag_file.exists():
-            etag = etag_file.read_text()
-            r = requests.get(url, headers={"If-None-Match": etag}, timeout=5)
-            if r.status_code == 304:  # Not Modified
-                return data_file.read_text()
+        etag_file = Path("/tmp/dashboard_retrieval_cache_" + h + '.etag')
+        data_file = Path("/tmp/dashboard_retrieval_cache_" + h + '.data')
+        etag = etag_file.read_text() if etag_file.exists() else ""
 
-        # cache miss - make full request
-        r = requests.get(url, timeout=5)
+        # make conditional http request
+        r = requests.get(url, headers={"If-None-Match": etag}, timeout=5)
         r.raise_for_status()
+        if r.status_code == 304:  # Not Modified - cache hit
+            return data_file.read_text()
 
-        # store response in cache
+        # cache miss - store response
         if 'ETag' in r.headers:
             data_file.write_text(r.text)
             etag_file.write_text(r.headers['ETag'])
