@@ -113,7 +113,6 @@ CONTAINS
 
       LOGICAL                                            :: parallel_read
 
-
       ! Determine whether to use MPI I/O for reading cube filename
       parallel_read = .TRUE.
       ! Parallel routine falls back to stream read in serial mode,
