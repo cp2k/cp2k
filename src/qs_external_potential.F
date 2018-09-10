@@ -14,6 +14,7 @@ MODULE qs_external_potential
                                               pbc
    USE cp_control_types,                ONLY: dft_control_type
    USE cp_log_handling,                 ONLY: cp_to_string
+   USE cp_realspace_grid_cube,          ONLY: cp_cube_to_pw
    USE force_fields_util,               ONLY: get_generic_info
    USE fparser,                         ONLY: evalf,&
                                               evalfd,&
@@ -37,7 +38,6 @@ MODULE qs_external_potential
    USE qs_force_types,                  ONLY: qs_force_type
    USE qs_kind_types,                   ONLY: get_qs_kind,&
                                               qs_kind_type
-   USE realspace_grid_cube,             ONLY: cube_to_pw
    USE string_utilities,                ONLY: compress
 #include "./base/base_uses.f90"
 
@@ -89,7 +89,7 @@ CONTAINS
          IF ((.NOT. static_potential) .OR. dft_control%eval_external_potential) THEN
             IF (read_from_cube) THEN
                CALL section_vals_val_get(ext_pot_section, "SCALING_FACTOR", r_val=scaling_factor)
-               CALL cube_to_pw(v_ee%pw, 'pot.cube', scaling_factor)
+               CALL cp_cube_to_pw(v_ee%pw, 'pot.cube', scaling_factor)
                dft_control%eval_external_potential = .FALSE.
             ELSE
                dr = v_ee%pw%pw_grid%dr

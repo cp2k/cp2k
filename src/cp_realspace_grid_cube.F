@@ -9,10 +9,12 @@
 ! **************************************************************************************************
 MODULE cp_realspace_grid_cube
    USE atomic_kind_types,               ONLY: get_atomic_kind
+   USE cp_output_handling,              ONLY: cp_mpi_io_get
    USE kinds,                           ONLY: dp
    USE particle_list_types,             ONLY: particle_list_type
    USE pw_types,                        ONLY: pw_type
-   USE realspace_grid_cube,             ONLY: pw_to_cube,&
+   USE realspace_grid_cube,             ONLY: cube_to_pw,&
+                                              pw_to_cube,&
                                               pw_to_simple_volumetric
 #include "./base/base_uses.f90"
 
@@ -20,7 +22,7 @@ MODULE cp_realspace_grid_cube
 
    PRIVATE
 
-   PUBLIC :: cp_pw_to_cube, cp_pw_to_simple_volumetric
+   PUBLIC :: cp_pw_to_cube, cp_pw_to_simple_volumetric, cp_cube_to_pw
 
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'cp_realspace_grid_cube'
 
@@ -93,5 +95,36 @@ CONTAINS
       CALL pw_to_simple_volumetric(pw, unit_nr, stride)
 
    END SUBROUTINE cp_pw_to_simple_volumetric
+
+! **************************************************************************************************
+!> \brief Thin wrapper around routine cube_to_pw
+!> \param grid     pw to read from cube file
+!> \param filename name of cube file
+!> \param scaling  scale values before storing
+!> \par History
+!>      Created [Nico Holmberg] (09.2018)
+! **************************************************************************************************
+   SUBROUTINE cp_cube_to_pw(grid, filename, scaling)
+      TYPE(pw_type), POINTER                             :: grid
+      CHARACTER(len=*), INTENT(in)                       :: filename
+      REAL(kind=dp), INTENT(in)                          :: scaling
+
+      CHARACTER(len=*), PARAMETER :: routineN = 'cp_cube_to_pw', routineP = moduleN//':'//routineN
+
+      LOGICAL                                            :: parallel_read
+
+
+      ! Determine whether to use MPI I/O for reading cube filename
+      parallel_read = .TRUE.
+      ! Parallel routine falls back to stream read in serial mode,
+      ! but it has slight overhead compared to sequential read
+      ! Therefore, we use sequential version in serial mode
+      IF (grid%pw_grid%para%group_size == 1) parallel_read = .FALSE.
+      ! Check if MPI I/O was disabled in GLOBAL section
+      IF (.NOT. cp_mpi_io_get()) parallel_read = .FALSE.
+
+      CALL cube_to_pw(grid, filename, scaling, parallel_read)
+
+   END SUBROUTINE cp_cube_to_pw
 
 END MODULE cp_realspace_grid_cube

@@ -108,6 +108,11 @@ MODULE cp_output_handling
                                  cp_out_store_each = IBSET(0, cp_p_store_each), &
                                  cp_out_default = cp_out_file_if
 
+! Flag determining if MPI I/O should be enabled for functions that support it
+   LOGICAL, PRIVATE, SAVE      :: enable_mpi_io = .FALSE.
+! Public functions to set/get the flags
+   PUBLIC :: cp_mpi_io_set, cp_mpi_io_get
+
 ! **************************************************************************************************
 !> \brief stores the flags_env controlling the output of properties
 !> \param ref_count reference count (see doc/ReferenceCounting.html)
@@ -875,7 +880,7 @@ CONTAINS
       IF (PRESENT(is_new_file)) is_new_file = .FALSE.
       IF (PRESENT(mpi_io)) THEN
 #if defined(__parallel)
-         IF (logger%para_env%num_pe > 1 .AND. mpi_io) THEN
+         IF (cp_mpi_io_get() .AND. logger%para_env%num_pe > 1 .AND. mpi_io) THEN
             my_mpi_io = .TRUE.
          ELSE
             my_mpi_io = .FALSE.
@@ -1082,6 +1087,36 @@ CONTAINS
       CPASSERT(unit_nr == -1)
       unit_nr = -1
    END SUBROUTINE cp_print_key_finished_output
+
+! **************************************************************************************************
+!> \brief Sets flag which determines whether or not to use MPI I/O for I/O routines that
+!>        have been parallized with MPI
+!> \param flag ...
+!> \par History
+!>      09.2018 created [Nico Holmberg]
+! **************************************************************************************************
+   SUBROUTINE cp_mpi_io_set(flag)
+      LOGICAL, INTENT(IN)                                :: flag
+
+      CHARACTER(len=*), PARAMETER :: routineN = 'cp_mpi_io_set', routineP = moduleN//':'//routineN
+
+      enable_mpi_io = flag
+   END SUBROUTINE cp_mpi_io_set
+
+! **************************************************************************************************
+!> \brief Gets flag which determines whether or not to use MPI I/O for I/O routines that
+!>        have been parallized with MPI
+!> \return ...
+!> \par History
+!>      09.2018 created [Nico Holmberg]
+! **************************************************************************************************
+   FUNCTION cp_mpi_io_get() RESULT(flag)
+      LOGICAL                                            :: flag
+
+      CHARACTER(len=*), PARAMETER :: routineN = 'cp_mpi_io_get', routineP = moduleN//':'//routineN
+
+      flag = enable_mpi_io
+   END FUNCTION cp_mpi_io_get
 
 END MODULE cp_output_handling
 

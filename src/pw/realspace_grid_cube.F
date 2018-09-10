@@ -220,15 +220,17 @@ CONTAINS
 !> \param grid     pw to read from cube file
 !> \param filename name of cube file
 !> \param scaling  scale values before storing
+!> \param parallel_read ...
 !> \par History
 !>      Created [M.Watkins] (01.2014)
 !>      Use blocking, collective MPI read for parallel simulations [Nico Holmberg] (05.2017)
 ! **************************************************************************************************
-   SUBROUTINE cube_to_pw(grid, filename, scaling)
+   SUBROUTINE cube_to_pw(grid, filename, scaling, parallel_read)
 
       TYPE(pw_type), POINTER                             :: grid
       CHARACTER(len=*), INTENT(in)                       :: filename
       REAL(kind=dp), INTENT(in)                          :: scaling
+      LOGICAL, INTENT(in)                                :: parallel_read
 
       CHARACTER(len=*), PARAMETER :: routineN = 'cube_to_pw', routineP = moduleN//':'//routineN
       INTEGER, PARAMETER                                 :: entry_len = 13, num_entries_line = 6
@@ -239,7 +241,6 @@ CONTAINS
                                                             size_of_z, tag
       INTEGER, DIMENSION(3)                              :: lbounds, lbounds_local, npoints, &
                                                             npoints_local, ubounds, ubounds_local
-      LOGICAL                                            :: parallel_read
       REAL(kind=dp), ALLOCATABLE, DIMENSION(:)           :: buffer
       REAL(kind=dp), DIMENSION(3)                        :: dr, rdum
 
@@ -247,18 +248,11 @@ CONTAINS
 
       CALL timeset(routineN, handle)
 
-      parallel_read = .TRUE.
-
       !get rs grids and parallel envnment
       gid = grid%pw_grid%para%group
       my_rank = grid%pw_grid%para%my_pos
       num_pe = grid%pw_grid%para%group_size
       tag = 1
-
-      ! Parallel routine falls back to stream read in serial mode,
-      ! but it has slight overhead compared to sequential read
-      ! Therefore, we use sequential version in serial mode
-      IF (num_pe == 1) parallel_read = .FALSE.
 
       lbounds_local = grid%pw_grid%bounds_local(1, :)
       ubounds_local = grid%pw_grid%bounds_local(2, :)

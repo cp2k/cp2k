@@ -21,7 +21,8 @@ MODULE qs_cdft_methods
    USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
                                               cp_print_key_unit_nr
    USE cp_para_types,                   ONLY: cp_para_env_type
-   USE cp_realspace_grid_cube,          ONLY: cp_pw_to_cube
+   USE cp_realspace_grid_cube,          ONLY: cp_cube_to_pw,&
+                                              cp_pw_to_cube
    USE cube_utils,                      ONLY: cube_info_type
    USE hirshfeld_methods,               ONLY: create_shape_function
    USE hirshfeld_types,                 ONLY: get_hirshfeld_info,&
@@ -76,7 +77,6 @@ MODULE qs_cdft_methods
                                               qs_rho_type
    USE qs_subsys_types,                 ONLY: qs_subsys_get,&
                                               qs_subsys_type
-   USE realspace_grid_cube,             ONLY: cube_to_pw
    USE realspace_grid_types,            ONLY: &
         pw2rs, realspace_grid_desc_type, realspace_grid_type, rs2pw, rs_grid_create, &
         rs_grid_release, rs_grid_retain, rs_grid_zero, rs_pw_transfer
@@ -923,22 +923,22 @@ CONTAINS
             ! Total density (rho_alpha + rho_beta)
             CALL pw_pool_create_pw(auxbas_pw_pool, becke_control%fragments(1, 1)%pw, &
                                    use_data=REALDATA3D, in_space=REALSPACE)
-            CALL cube_to_pw(becke_control%fragments(1, 1)%pw, &
-                            becke_control%fragment_a_fname, 1.0_dp)
+            CALL cp_cube_to_pw(becke_control%fragments(1, 1)%pw, &
+                               becke_control%fragment_a_fname, 1.0_dp)
             CALL pw_pool_create_pw(auxbas_pw_pool, becke_control%fragments(1, 2)%pw, &
                                    use_data=REALDATA3D, in_space=REALSPACE)
-            CALL cube_to_pw(becke_control%fragments(1, 2)%pw, &
-                            becke_control%fragment_b_fname, 1.0_dp)
+            CALL cp_cube_to_pw(becke_control%fragments(1, 2)%pw, &
+                               becke_control%fragment_b_fname, 1.0_dp)
             ! Spin difference density (rho_alpha - rho_beta) if needed
             IF (needs_spin_density) THEN
                CALL pw_pool_create_pw(auxbas_pw_pool, becke_control%fragments(2, 1)%pw, &
                                       use_data=REALDATA3D, in_space=REALSPACE)
-               CALL cube_to_pw(becke_control%fragments(2, 1)%pw, &
-                               becke_control%fragment_a_spin_fname, multiplier(1))
+               CALL cp_cube_to_pw(becke_control%fragments(2, 1)%pw, &
+                                  becke_control%fragment_a_spin_fname, multiplier(1))
                CALL pw_pool_create_pw(auxbas_pw_pool, becke_control%fragments(2, 2)%pw, &
                                       use_data=REALDATA3D, in_space=REALSPACE)
-               CALL cube_to_pw(becke_control%fragments(2, 2)%pw, &
-                               becke_control%fragment_b_spin_fname, multiplier(2))
+               CALL cp_cube_to_pw(becke_control%fragments(2, 2)%pw, &
+                                  becke_control%fragment_b_spin_fname, multiplier(2))
             END IF
             ! Sum up fragments
             DO i = 1, nfrag_spins

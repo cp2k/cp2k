@@ -351,6 +351,14 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
+      CALL keyword_create(keyword, name="ENABLE_MPI_IO", &
+                          description="Enable MPI parallelization for all supported I/O routines "// &
+                          "Currently, only cube file writer/reader routines use MPI I/O. Disabling "// &
+                          "this flag might speed up calculations dominated by I/O.", &
+                          usage="ENABLE_MPI_IO FALSE", default_l_val=.TRUE., lone_keyword_l_val=.TRUE.)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
       CALL keyword_create(keyword, name="TRACE", &
                           description="If a debug trace of the execution of the program should be written ", &
                           usage="TRACE", &

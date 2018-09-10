@@ -36,7 +36,8 @@ MODULE optimize_embedding_potential
                                               cp_print_key_should_output,&
                                               cp_print_key_unit_nr
    USE cp_para_types,                   ONLY: cp_para_env_type
-   USE cp_realspace_grid_cube,          ONLY: cp_pw_to_cube,&
+   USE cp_realspace_grid_cube,          ONLY: cp_cube_to_pw,&
+                                              cp_pw_to_cube,&
                                               cp_pw_to_simple_volumetric
    USE dbcsr_api,                       ONLY: dbcsr_p_type
    USE embed_types,                     ONLY: opt_embed_pot_type
@@ -93,7 +94,6 @@ MODULE optimize_embedding_potential
    USE qs_neighbor_list_types,          ONLY: neighbor_list_set_p_type
    USE qs_subsys_types,                 ONLY: qs_subsys_get,&
                                               qs_subsys_type
-   USE realspace_grid_cube,             ONLY: cube_to_pw
 #include "./base/base_uses.f90"
 
    IMPLICIT NONE
@@ -657,7 +657,7 @@ CONTAINS
          CPABORT("Embedding cube file not found. ")
 
       scaling_factor = 1.0_dp
-      CALL cube_to_pw(embed_pot%pw, filename, scaling_factor)
+      CALL cp_cube_to_pw(embed_pot%pw, filename, scaling_factor)
 
       ! Spin-dependent part of the potential
       IF (open_shell_embed) THEN
@@ -668,7 +668,7 @@ CONTAINS
             CPABORT("Embedding spin cube file not found. ")
 
          scaling_factor = 1.0_dp
-         CALL cube_to_pw(spin_embed_pot%pw, filename, scaling_factor)
+         CALL cp_cube_to_pw(spin_embed_pot%pw, filename, scaling_factor)
       ENDIF
 
    END SUBROUTINE read_embed_pot_cube

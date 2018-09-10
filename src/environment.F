@@ -31,7 +31,8 @@ MODULE environment
         cp_add_default_logger, cp_get_default_logger, cp_logger_create, &
         cp_logger_get_default_unit_nr, cp_logger_release, cp_logger_set, cp_logger_type, &
         cp_rm_default_logger, cp_to_string
-   USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
+   USE cp_output_handling,              ONLY: cp_mpi_io_set,&
+                                              cp_print_key_finished_output,&
                                               cp_print_key_unit_nr,&
                                               debug_print_level,&
                                               high_print_level,&
@@ -496,7 +497,8 @@ CONTAINS
          SReclaimable_avr, SReclaimable_max, SReclaimable_min
       INTEGER, DIMENSION(:), POINTER                     :: i_force_eval
       LOGICAL                                            :: ata, do_echo_all_hosts, efl, explicit, &
-                                                            report_maxloc, trace, trace_master
+                                                            flag, report_maxloc, trace, &
+                                                            trace_master
       TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(enumeration_type), POINTER                    :: enum1, enum2
       TYPE(keyword_type), POINTER                        :: keyword
@@ -512,6 +514,8 @@ CONTAINS
       CALL section_vals_val_get(global_section, "BLACS_GRID", i_val=globenv%blacs_grid_layout)
       CALL section_vals_val_get(global_section, "BLACS_REPEATABLE", l_val=globenv%blacs_repeatable)
       CALL section_vals_val_get(global_section, "PREFERRED_DIAG_LIBRARY", i_val=i_diag)
+      CALL section_vals_val_get(global_section, "ENABLE_MPI_IO", l_val=flag)
+      CALL cp_mpi_io_set(flag)
       CALL section_vals_val_get(global_section, "ELPA_KERNEL", i_val=globenv%k_elpa)
       CALL section_vals_val_get(global_section, "ELPA_QR", l_val=globenv%elpa_qr)
       CALL section_vals_val_get(global_section, "ELPA_QR_UNSAFE", l_val=globenv%elpa_qr_unsafe)
@@ -772,6 +776,8 @@ CONTAINS
 
          WRITE (UNIT=output_unit, FMT="(T2,A,T75,A6)") &
             start_section_label//"| Global print level", print_level_string
+         WRITE (UNIT=output_unit, FMT="(T2,A,T75,L6)") &
+            start_section_label//"| MPI I/O enabled", flag
          WRITE (UNIT=output_unit, FMT="(T2,A,T75,I6)") &
             start_section_label//"| Total number of message passing processes", &
             para_env%num_pe, &
