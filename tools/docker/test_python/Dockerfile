@@ -20,8 +20,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     wget                  \
 && rm -rf /var/lib/apt/lists/*
 
-RUN pip install numpy matplotlib
-RUN pip3 install numpy matplotlib
+RUN pip  install numpy matplotlib requests
+RUN pip3 install numpy matplotlib requests
 
 # install python2.6
 WORKDIR /opt/
