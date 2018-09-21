@@ -25,6 +25,6 @@ w512_pint_qtb_fp1-1.restart                            9      4e-10            1
 centroid_velocity_init.inp                             9    1.0E-14            0.32999751991202331
 he32_density.inp                                      40      2e-14        -6.8432379611995943E-005
 he32_only_worm.inp                                    40      1e-11        -7.4218580526706079E-005
-he32_only_worm_restart.inp                            40      1e-11        -7.4132839644739561E-005
+he32_only_worm_restart.inp                            40      1e-11        -7.4132839644739615E-005
 water-in-helium-worm.inp                               9      1e-11        -4.2331644539131863E-004
 #EOF

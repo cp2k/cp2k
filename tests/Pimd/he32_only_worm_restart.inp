@@ -8,7 +8,7 @@
 
 &MOTION
   &PINT
-    NUM_STEPS                3
+    NUM_STEPS                2
     &HELIUM
       HELIUM_ONLY
       POTENTIAL_FILE_NAME    lj-test-pot.dat
