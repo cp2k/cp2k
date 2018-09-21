@@ -5,6 +5,7 @@
 
 MODULE pao_input
    USE bibliography,                    ONLY: Berghold2011,&
+                                              Schuett2018,&
                                               Zhu2016
    USE cp_log_handling,                 ONLY: cp_get_default_logger,&
                                               cp_logger_type
@@ -268,7 +269,7 @@ CONTAINS
       CPASSERT(.NOT. ASSOCIATED(section))
       CALL section_create(section, "PAO", repeats=.FALSE., &
                           description="Polarized Atomic Orbital Method", &
-                          citations=(/Berghold2011/))
+                          citations=(/Schuett2018, Berghold2011/))
 
       ! Convergence Criteria *****************************************************
       CALL keyword_create(keyword, name="EPS_PAO", &

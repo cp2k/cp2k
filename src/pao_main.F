@@ -8,6 +8,8 @@
 !> \author Ole Schuett
 ! **************************************************************************************************
 MODULE pao_main
+   USE bibliography,                    ONLY: Schuett2018,&
+                                              cite_reference
    USE cp_external_control,             ONLY: external_control
    USE dbcsr_api,                       ONLY: dbcsr_add,&
                                               dbcsr_copy,&
@@ -81,6 +83,7 @@ CONTAINS
       IF (.NOT. ls_scf_env%do_pao) RETURN
 
       CALL timeset(routineN, handle)
+      CALL cite_reference(Schuett2018)
       pao => ls_scf_env%pao_env
       CALL get_qs_env(qs_env=qs_env, input=input, matrix_s=matrix_s)
 
