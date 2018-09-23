@@ -130,7 +130,7 @@ all: dirs makedep
 
 # foreground testing, compilation happens in do_regtest
 test: dirs
-	cd $(TSTDIR); $(TOOLSRC)/regtesting/do_regtest -nosvn -quick -arch $(ARCH) -version $(ONEVERSION) -cp2kdir ../../../  $(TESTOPTS)
+	cd $(TSTDIR); $(TOOLSRC)/regtesting/do_regtest -nosvn -nogit -quick -arch $(ARCH) -version $(ONEVERSION) -cp2kdir ../../../  $(TESTOPTS)
 
 # background testing, compilation happens here
 testbg: dirs makedep all
