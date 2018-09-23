@@ -1,5 +1,3 @@
-#CPQA DEPENDS c8_broy_gapw_all.inp
-
 &GLOBAL
   PROJECT  c8_broy_xashh_c
   PRINT_LEVEL MEDIUM
@@ -16,7 +14,6 @@
   &DFT
     BASIS_SET_FILE_NAME EMSL_BASIS_SETS
     POTENTIAL_FILE_NAME POTENTIAL
-    RESTART_FILE_NAME  c8_broy_gapw_all-RESTART.wfn
     LSD
     &MGRID
       NGRIDS 4
@@ -29,8 +26,8 @@
       EXTRAPOLATION_ORDER 2
     &END QS
     &SCF
-      SCF_GUESS RESTART
-      MAX_SCF   500
+      SCF_GUESS ATOMIC
+      MAX_SCF   50
       EPS_SCF 5.0e-3
       &SMEAR
         METHOD FERMI_DIRAC 
