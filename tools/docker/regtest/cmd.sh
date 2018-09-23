@@ -4,22 +4,26 @@
 set -e
 
 echo -e "\n========== Copying Changed Files =========="
-rsync --exclude="*~"          \
-      --exclude=".*/"         \
-      --exclude="*.pyc"       \
-      --exclude=/cp2k/obj/    \
-      --exclude=/cp2k/lib/    \
-      --exclude=/cp2k/exe/    \
-      --ignore-times          \
-      --update                \
-      --verbose               \
-      --recursive             \
-      --checksum              \
+rsync --exclude="*~"                      \
+      --exclude=".*/"                     \
+      --exclude="*.pyc"                   \
+      --exclude=/cp2k/obj/                \
+      --exclude=/cp2k/lib/                \
+      --exclude=/cp2k/exe/                \
+      --exclude=/cp2k/regtesting/         \
+      --exclude=/cp2k/tools/toolchain/    \
+      --ignore-times                      \
+      --update                            \
+      --verbose                           \
+      --recursive                         \
+      --checksum                          \
       /opt/cp2k-local/  /opt/cp2k-master/
 
 rsync --exclude="*~"                              \
       --exclude=".*/"                             \
       --exclude="*.pyc"                           \
+      --exclude=/build/                           \
+      --exclude=/install/                         \
       --ignore-times                              \
       --update                                    \
       --verbose                                   \
