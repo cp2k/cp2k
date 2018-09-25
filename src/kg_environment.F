@@ -24,6 +24,9 @@ MODULE kg_environment
    USE cp_control_types,                ONLY: dft_control_type
    USE cp_files,                        ONLY: close_file,&
                                               open_file
+   USE cp_log_handling,                 ONLY: cp_get_default_logger,&
+                                              cp_logger_get_default_io_unit,&
+                                              cp_logger_type
    USE cp_para_types,                   ONLY: cp_para_env_type
    USE distribution_1d_types,           ONLY: distribution_1d_type
    USE distribution_2d_types,           ONLY: distribution_2d_type
@@ -39,6 +42,8 @@ MODULE kg_environment
    USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                               section_vals_type,&
                                               section_vals_val_get
+   USE integration_grid_types,          ONLY: allocate_intgrid,&
+                                              integration_grid_type
    USE kg_environment_types,            ONLY: kg_environment_type
    USE kg_vertex_coloring_methods,      ONLY: kg_vertex_coloring
    USE kinds,                           ONLY: dp,&
@@ -58,6 +63,7 @@ MODULE kg_environment
    USE qs_dispersion_utils,             ONLY: qs_dispersion_env_set
    USE qs_environment_types,            ONLY: get_qs_env,&
                                               qs_environment_type
+   USE qs_grid_atom,                    ONLY: initialize_atomic_grid
    USE qs_interactions,                 ONLY: init_interaction_radii_orb_basis
    USE qs_kind_types,                   ONLY: get_qs_kind,&
                                               qs_kind_type
@@ -130,12 +136,17 @@ CONTAINS
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'init_kg_env', routineP = moduleN//':'//routineN
 
-      INTEGER                                            :: handle, ikind, nkind
-      REAL(KIND=dp)                                      :: eps_pgf_orb
+      CHARACTER(LEN=10)                                  :: intgrid
+      INTEGER                                            :: handle, i, iatom, ib, ikind, iunit, n, &
+                                                            na, natom, nbatch, nkind, np, nr
+      INTEGER, ALLOCATABLE, DIMENSION(:, :)              :: bid
+      REAL(KIND=dp)                                      :: eps_pgf_orb, load, radb, rmax
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
+      TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(gto_basis_set_type), POINTER                  :: basis_set, harris_basis, lri_aux_basis
+      TYPE(integration_grid_type), POINTER               :: ig_full, ig_mol
       TYPE(qs_dispersion_type), POINTER                  :: dispersion_env
       TYPE(qs_kind_type), POINTER                        :: qs_kind
       TYPE(section_vals_type), POINTER                   :: lri_section, nl_section, pp_section, &
@@ -152,6 +163,9 @@ CONTAINS
       NULLIFY (kg_env%subset)
       NULLIFY (kg_env%tnadd_mat)
       NULLIFY (kg_env%lri_env)
+      NULLIFY (kg_env%int_grid_atom)
+      NULLIFY (kg_env%int_grid_molecules)
+      NULLIFY (kg_env%int_grid_full)
       NULLIFY (kg_env%lri_density)
       NULLIFY (kg_env%ec_env%sab_orb, kg_env%ec_env%sac_ppl, kg_env%ec_env%sap_ppnl)
       NULLIFY (kg_env%ec_env%matrix_ks, kg_env%ec_env%matrix_h, kg_env%ec_env%matrix_s)
@@ -290,17 +304,106 @@ CONTAINS
 
       IF (kg_env%tnadd_method == kg_tnadd_embed_ri) THEN
          ! initialize the LRI environment
-         ! Check if LRI_AUX basis is available, auto-generate if needed
+         ! Check if LRI_AUX basis is available
+         rmax = 0.0_dp
          nkind = SIZE(qs_kind_set)
          DO ikind = 1, nkind
             qs_kind => qs_kind_set(ikind)
             NULLIFY (lri_aux_basis)
             CALL get_qs_kind(qs_kind, basis_set=lri_aux_basis, basis_type="LRI_AUX")
             CPASSERT(ASSOCIATED(lri_aux_basis))
+            CALL get_gto_basis_set(gto_basis_set=lri_aux_basis, kind_radius=radb)
+            rmax = MAX(rmax, radb)
          END DO
+         rmax = 1.25_dp*rmax
          lri_section => section_vals_get_subs_vals(input, "DFT%KG_METHOD%LRIGPW")
          CALL lri_env_init(kg_env%lri_env, lri_section)
          CALL lri_env_basis("LRI", qs_env, kg_env%lri_env, qs_kind_set)
+         !
+         ! integration grid
+         !
+         CALL section_vals_val_get(input, "DFT%KG_METHOD%INTEGRATION_GRID", c_val=intgrid)
+         CALL uppercase(intgrid)
+         SELECT CASE (intgrid)
+         CASE ("SMALL")
+            nr = 50
+            na = 38
+         CASE ("MEDIUM")
+            nr = 100
+            na = 110
+         CASE ("LARGE")
+            nr = 200
+            na = 302
+         CASE ("HUGE")
+            nr = 400
+            na = 590
+         CASE DEFAULT
+            CPABORT("KG:INTEGRATION_GRID")
+         END SELECT
+         NULLIFY (logger)
+         logger => cp_get_default_logger()
+         iunit = cp_logger_get_default_io_unit(logger)
+         CALL initialize_atomic_grid(kg_env%int_grid_atom, nr, na, rmax, iunit=iunit)
+         ! load balancing
+         CALL get_qs_env(qs_env=qs_env, natom=natom, para_env=para_env)
+         np = para_env%num_pe
+         load = REAL(natom, KIND=dp)*kg_env%int_grid_atom%ntot/REAL(np, KIND=dp)
+         !
+         CALL allocate_intgrid(kg_env%int_grid_full)
+         ig_full => kg_env%int_grid_full
+         CALL allocate_intgrid(kg_env%int_grid_molecules)
+         ig_mol => kg_env%int_grid_molecules
+         nbatch = (natom*kg_env%int_grid_atom%nbatch)/np
+         nbatch = NINT((nbatch+1)*1.2_dp)
+         ALLOCATE (bid(2, nbatch))
+         nbatch = 0
+         DO iatom = 1, natom
+            DO ib = 1, kg_env%int_grid_atom%nbatch
+               IF (para_env%mepos == MOD(iatom+ib, np)) THEN
+                  nbatch = nbatch+1
+                  CPASSERT(nbatch <= SIZE(bid, 2))
+                  bid(1, nbatch) = iatom
+                  bid(2, nbatch) = ib
+               END IF
+            END DO
+         END DO
+         !
+         ig_full%nbatch = nbatch
+         ALLOCATE (ig_full%grid_batch(nbatch))
+         !
+         ig_mol%nbatch = nbatch
+         ALLOCATE (ig_mol%grid_batch(nbatch))
+         !
+         DO i = 1, nbatch
+            iatom = bid(1, i)
+            ib = bid(2, i)
+            !
+            ig_full%grid_batch(i)%ref_atom = iatom
+            ig_full%grid_batch(i)%ibatch = ib
+            ig_full%grid_batch(i)%np = kg_env%int_grid_atom%batch(ib)%np
+            ig_full%grid_batch(i)%radius = kg_env%int_grid_atom%batch(ib)%rad
+            ig_full%grid_batch(i)%rcenter(1:3) = kg_env%int_grid_atom%batch(ib)%rcenter(1:3)
+            n = ig_full%grid_batch(i)%np
+            ALLOCATE (ig_full%grid_batch(i)%rco(3, n))
+            ALLOCATE (ig_full%grid_batch(i)%weight(n))
+            ALLOCATE (ig_full%grid_batch(i)%wref(n))
+            ALLOCATE (ig_full%grid_batch(i)%wsum(n))
+            ig_full%grid_batch(i)%weight(:) = kg_env%int_grid_atom%batch(ib)%weight(:)
+            !
+            ig_mol%grid_batch(i)%ref_atom = iatom
+            ig_mol%grid_batch(i)%ibatch = ib
+            ig_mol%grid_batch(i)%np = kg_env%int_grid_atom%batch(ib)%np
+            ig_mol%grid_batch(i)%radius = kg_env%int_grid_atom%batch(ib)%rad
+            ig_mol%grid_batch(i)%rcenter(1:3) = kg_env%int_grid_atom%batch(ib)%rcenter(1:3)
+            n = ig_mol%grid_batch(i)%np
+            ALLOCATE (ig_mol%grid_batch(i)%rco(3, n))
+            ALLOCATE (ig_mol%grid_batch(i)%weight(n))
+            ALLOCATE (ig_mol%grid_batch(i)%wref(n))
+            ALLOCATE (ig_mol%grid_batch(i)%wsum(n))
+            ig_mol%grid_batch(i)%weight(:) = kg_env%int_grid_atom%batch(ib)%weight(:)
+         END DO
+         !
+         DEALLOCATE (bid)
       END IF
 
       CALL timestop(handle)

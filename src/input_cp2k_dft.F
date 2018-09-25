@@ -5286,6 +5286,13 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
+      CALL keyword_create(keyword, name="INTEGRATION_GRID", &
+                          description="Grid [small,medium,large,huge]to be used for the TNADD integration.", &
+                          usage="INTEGRATION_GRID MEDIUM", &
+                          default_c_val="MEDIUM")
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
       CALL section_create(subsection, name="PRINT", &
                           description="Print section", &
                           n_keywords=0, n_subsections=1, repeats=.FALSE.)

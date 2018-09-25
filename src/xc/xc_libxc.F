@@ -1336,7 +1336,7 @@ CONTAINS
             DO ii = 1, npoints
                IF ((rho(ii) > epsilon_rho) .AND. (tau(ii) > epsilon_tau)) THEN
                   sigma = norm_drho(ii)**2
-                  my_tau = MAX(tau(ii), sigma(1)/(8.0_dp*rho(ii)))
+                  my_tau(1) = MAX(tau(ii), sigma(1)/(8.0_dp*rho(ii)))
                   CALL xc_f03_mgga_exc(xc_func, 1, rho(ii), sigma, &
                                        laplace_rho(ii), my_tau, exc)
                   e_0(ii) = e_0(ii)+sc*exc(1)*rho(ii)
@@ -1348,7 +1348,7 @@ CONTAINS
             DO ii = 1, npoints
                IF ((rho(ii) > epsilon_rho) .AND. (tau(ii) > epsilon_tau)) THEN
                   sigma = norm_drho(ii)**2
-                  my_tau = MAX(tau(ii), sigma(1)/(8.0_dp*rho(ii)))
+                  my_tau(1) = MAX(tau(ii), sigma(1)/(8.0_dp*rho(ii)))
                   CALL xc_f03_mgga_vxc(xc_func, 1, rho(ii), sigma, &
                                        laplace_rho(ii), my_tau, vrho, vsigma, vlapl, vtau)
                   e_rho(ii) = e_rho(ii)+sc*vrho(1)
@@ -1362,8 +1362,8 @@ CONTAINS
 !$OMP           DO
             DO ii = 1, npoints
                IF ((rho(ii) > epsilon_rho) .AND. (tau(ii) > epsilon_tau)) THEN
-                  sigma = norm_drho(ii)**2
-                  my_tau = MAX(tau(ii), sigma(1)/(8.0_dp*rho(ii)))
+                  sigma(1) = norm_drho(ii)**2
+                  my_tau(1) = MAX(tau(ii), sigma(1)/(8.0_dp*rho(ii)))
                   IF (no_exc) THEN
                      CALL xc_f03_mgga_vxc(xc_func, 1, rho(ii), sigma, &
                                           laplace_rho(ii), my_tau, vrho, vsigma, vlapl, vtau)
@@ -1385,7 +1385,7 @@ CONTAINS
             DO ii = 1, npoints
                IF ((rho(ii) > epsilon_rho) .AND. (tau(ii) > epsilon_tau)) THEN
                   sigma = norm_drho(ii)**2
-                  my_tau = MAX(tau(ii), sigma(1)/(8.0_dp*rho(ii)))
+                  my_tau(1) = MAX(tau(ii), sigma(1)/(8.0_dp*rho(ii)))
                   IF (no_exc) THEN
                      CALL xc_f03_mgga_vxc(xc_func, 1, rho(ii), sigma, &
                                           laplace_rho(ii), my_tau, vrho, vsigma, vlapl, vtau)
@@ -1419,7 +1419,7 @@ CONTAINS
             DO ii = 1, npoints
                IF ((rho(ii) > epsilon_rho) .AND. (tau(ii) > epsilon_tau)) THEN
                   sigma = norm_drho(ii)**2
-                  my_tau = MAX(tau(ii), sigma(1)/(8.0_dp*rho(ii)))
+                  my_tau(1) = MAX(tau(ii), sigma(1)/(8.0_dp*rho(ii)))
                   IF (no_exc) THEN
                      CALL xc_f03_mgga_vxc(xc_func, 1, rho(ii), sigma, &
                                           laplace_rho(ii), my_tau, vrho, vsigma, vlapl, vtau)

@@ -14,6 +14,8 @@ MODULE kg_environment_types
    USE cp_dbcsr_operations,             ONLY: dbcsr_deallocate_matrix_set
    USE dbcsr_api,                       ONLY: dbcsr_p_type
    USE input_section_types,             ONLY: section_vals_type
+   USE integration_grid_types,          ONLY: deallocate_intgrid,&
+                                              integration_grid_type
    USE kinds,                           ONLY: dp
    USE lri_environment_types,           ONLY: lri_density_release,&
                                               lri_density_type,&
@@ -22,6 +24,8 @@ MODULE kg_environment_types
    USE molecule_types,                  ONLY: molecule_type
    USE qs_dispersion_types,             ONLY: qs_dispersion_release,&
                                               qs_dispersion_type
+   USE qs_grid_atom,                    ONLY: atom_integration_grid_type,&
+                                              deallocate_atom_int_grid
    USE qs_neighbor_list_types,          ONLY: deallocate_neighbor_list_set,&
                                               neighbor_list_set_p_type
    USE task_list_types,                 ONLY: deallocate_task_list,&
@@ -100,20 +104,27 @@ MODULE kg_environment_types
       TYPE(section_vals_type), POINTER                :: xc_section_kg
       INTEGER, ALLOCATABLE, DIMENSION(:)              :: atom_to_molecule
       TYPE(molecule_type), DIMENSION(:), POINTER      :: molecule_set
-      TYPE(dbcsr_p_type), DIMENSION(:), POINTER       :: tnadd_mat
+      INTEGER                                         :: tnadd_method
       TYPE(neighbor_list_set_p_type), &
          DIMENSION(:), POINTER                        :: sab_orb_full, sac_kin
+      !
       INTEGER, DIMENSION(:), POINTER                  :: subset_of_mol
       TYPE(subset_type), DIMENSION(:), POINTER        :: subset
       INTEGER                                         :: nsubsets
       INTEGER                                         :: maxdegree
       INTEGER                                         :: coloring_method
-      INTEGER                                         :: tnadd_method
+      !
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER       :: tnadd_mat
+      !
       LOGICAL                                         :: energy_correction
       TYPE(energy_correction_type)                    :: ec_env
       ! LRI
       TYPE(lri_environment_type), POINTER             :: lri_env
       TYPE(lri_density_type), POINTER                 :: lri_density
+      ! atomic grid
+      TYPE(atom_integration_grid_type), POINTER       :: int_grid_atom
+      TYPE(integration_grid_type), POINTER            :: int_grid_molecules
+      TYPE(integration_grid_type), POINTER            :: int_grid_full
    END TYPE kg_environment_type
 
 CONTAINS
@@ -169,6 +180,16 @@ CONTAINS
       END IF
       IF (ASSOCIATED(kg_env%lri_density)) THEN
          CALL lri_density_release(kg_env%lri_density)
+      END IF
+      ! atom grids
+      IF (ASSOCIATED(kg_env%int_grid_atom)) THEN
+         CALL deallocate_atom_int_grid(kg_env%int_grid_atom)
+      END IF
+      IF (ASSOCIATED(kg_env%int_grid_molecules)) THEN
+         CALL deallocate_intgrid(kg_env%int_grid_molecules)
+      END IF
+      IF (ASSOCIATED(kg_env%int_grid_full)) THEN
+         CALL deallocate_intgrid(kg_env%int_grid_full)
       END IF
 
       ! energy correction

@@ -471,8 +471,8 @@ CONTAINS
          nelectron, nkind, output_unit, tnadd_method
       INTEGER, DIMENSION(2)                              :: n_mo, nelectron_spin
       LOGICAL                                            :: all_potential_present, be_silent, &
-                                                            do_kpoints, has_unit_metric, lribas, &
-                                                            was_present
+                                                            do_kpoints, e1terms, has_unit_metric, &
+                                                            lribas, was_present
       REAL(dp)                                           :: ewald_rcut, maxocc, verlet_skin
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       TYPE(cp_logger_type), POINTER                      :: logger
@@ -672,14 +672,19 @@ CONTAINS
       END IF
 
       lribas = .FALSE.
-      IF (dft_control%qs_control%method_id == do_method_lrigpw) lribas = .TRUE.
+      e1terms = .FALSE.
+      IF (dft_control%qs_control%method_id == do_method_lrigpw) THEN
+         lribas = .TRUE.
+         CALL get_qs_env(qs_env, lri_env=lri_env)
+         e1terms = lri_env%exact_1c_terms
+      END IF
       IF (dft_control%qs_control%do_kg) THEN
          CALL section_vals_val_get(dft_section, "KG_METHOD%TNADD_METHOD", i_val=tnadd_method)
          IF (tnadd_method == kg_tnadd_embed_ri) lribas = .TRUE.
       END IF
       IF (lribas) THEN
          ! Check if LRI_AUX basis is available, auto-generate if needed
-         CALL get_qs_env(qs_env, nkind=nkind, lri_env=lri_env)
+         CALL get_qs_env(qs_env, nkind=nkind)
          DO ikind = 1, nkind
             NULLIFY (lri_aux_basis)
             qs_kind => qs_kind_set(ikind)
@@ -689,8 +694,7 @@ CONTAINS
                CALL cp_warn(__LOCATION__, "Automatic Generation of LRI_AUX basis. "// &
                             "This is experimental code.")
                ! Generate a default basis
-               CALL create_lri_aux_basis_set(lri_aux_basis, qs_kind, &
-                                             dft_control%auto_basis_lri_aux, lri_env%exact_1c_terms)
+               CALL create_lri_aux_basis_set(lri_aux_basis, qs_kind, dft_control%auto_basis_lri_aux, e1terms)
                CALL add_basis_set_to_container(qs_kind%basis_sets, lri_aux_basis, "LRI_AUX")
             END IF
          END DO

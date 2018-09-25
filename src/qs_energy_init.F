@@ -185,7 +185,7 @@ CONTAINS
       END IF
 
       SELECT CASE (kg_env%tnadd_method)
-      CASE (kg_tnadd_embed, kg_tnadd_embed_ri)
+      CASE (kg_tnadd_embed)
          ! allocate the subset list
          IF (.NOT. ASSOCIATED(kg_env%subset_of_mol)) THEN
             ALLOCATE (kg_env%subset_of_mol(SIZE(molecule_set)))
@@ -198,6 +198,27 @@ CONTAINS
             CALL kg_build_neighborlist(qs_env, sab_orb=kg_env%subset(isubset)%sab_orb, molecular=.TRUE., &
                                        subset_of_mol=kg_env%subset_of_mol, current_subset=isubset)
          END DO
+      CASE (kg_tnadd_embed_ri)
+!deb should be deleted as soon as atomic grids work
+         ! allocate the subset list
+         IF (.NOT. ASSOCIATED(kg_env%subset_of_mol)) THEN
+            ALLOCATE (kg_env%subset_of_mol(SIZE(molecule_set)))
+         END IF
+         !
+         CALL kg_build_subsets(kg_env, para_env)
+         !
+         DO isubset = 1, kg_env%nsubsets
+            ! build the (new) molecular neighborlist of the current subset
+            CALL kg_build_neighborlist(qs_env, sab_orb=kg_env%subset(isubset)%sab_orb, molecular=.TRUE., &
+                                       subset_of_mol=kg_env%subset_of_mol, current_subset=isubset)
+         END DO
+!deb
+         ! LRI neighborlist
+         NULLIFY (soo_list)
+         CALL kg_build_neighborlist(qs_env, sab_orb=soo_list, molecular=.TRUE.)
+         kg_env%lri_env%soo_list => soo_list
+         CALL calculate_lri_integrals(kg_env%lri_env, qs_env)
+         ! Atomic grids
       CASE (kg_tnadd_atomic)
          ! build the A-C list for the nonadditive kinetic energy potential
          CALL kg_build_neighborlist(qs_env, sac_kin=kg_env%sac_kin)
@@ -206,14 +227,6 @@ CONTAINS
       CASE DEFAULT
          CPABORT("KG:TNADD METHOD")
       END SELECT
-
-      ! LRI neighborlist
-      IF (kg_env%tnadd_method == kg_tnadd_embed_ri) THEN
-         NULLIFY (soo_list)
-         CALL kg_build_neighborlist(qs_env, sab_orb=soo_list, molecular=.TRUE.)
-         kg_env%lri_env%soo_list => soo_list
-         CALL calculate_lri_integrals(kg_env%lri_env, qs_env)
-      END IF
 
       CALL timestop(handle)
 
