@@ -130,7 +130,7 @@ MODULE xas_methods
 
 ! *** Public subroutines ***
 
-   PUBLIC :: xas
+   PUBLIC :: xas, calc_stogto_overlap
 
 CONTAINS
 

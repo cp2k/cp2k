@@ -7,20 +7,24 @@
 !> \brief This module deals with all the integrals done on local atomic grids in xas_tdp. This is
 !>        mostly used to compute the xc kernel matrix elements wrt two RI basis elements (centered
 !>        on the same excited atom) <P|fxc(r)|Q>, where the kernel fxc is purely a function of the 
-!>        ground state density and r. 
+!>        ground state density and r. This is also used to compute the SOC matrix elements in the 
+!>        orbital basis
 ! **************************************************************************************************
 MODULE xas_tdp_atom
    USE ai_contraction_sphi,             ONLY: ab_contract
+   USE atom_operators,                  ONLY: calculate_model_potential
    USE atomic_kind_types,               ONLY: atomic_kind_type
    USE basis_set_types,                 ONLY: gto_basis_set_type, gto_basis_set_p_type, &
                                               get_gto_basis_set, set_gto_basis_set
    USE cell_types,                      ONLY: cell_type
-   USE cp_array_utils,                  ONLY: cp_2d_r_p_type, cp_1d_r_p_type
+   USE cp_array_utils,                  ONLY: cp_2d_r_p_type, cp_3d_r_p_type
    USE cp_control_types,                ONLY: qs_control_type, dft_control_type
    USE dbcsr_api,                       ONLY: dbcsr_p_type, dbcsr_distribution_type,&
                                               dbcsr_create, dbcsr_print, dbcsr_put_block, &
                                               dbcsr_finalize, dbcsr_release, dbcsr_get_block_p, &
-                                              dbcsr_release_p
+                                              dbcsr_release_p, dbcsr_iterator_type, &  
+                                              dbcsr_iterator_blocks_left, dbcsr_iterator_start, &
+                                              dbcsr_iterator_stop, dbcsr_iterator_next_block
    USE distribution_1d_types,           ONLY: distribution_1d_type
    USE distribution_2d_types,           ONLY: distribution_2d_type
    USE generic_os_integrals,            ONLY: int_overlap_ab_os
@@ -36,12 +40,13 @@ MODULE xas_tdp_atom
    USE orbital_transformation_matrices, ONLY: orbtramat
    USE particle_methods,                ONLY: get_particle_set
    USE particle_types,                  ONLY: particle_type
+   USE physcon,                         ONLY: a_fine
    USE qs_environment_types,            ONLY: qs_environment_type, get_qs_env
    USE qs_grid_atom,                    ONLY: grid_atom_type, allocate_grid_atom, &
-                                              deallocate_grid_atom, create_grid_atom
+                                              create_grid_atom
    USE qs_harmonics_atom,               ONLY: create_harmonics_atom, get_maxl_CG, &
                                               harmonics_atom_type, allocate_harmonics_atom, &
-                                              deallocate_harmonics_atom, get_none0_cg_list
+                                              get_none0_cg_list
    USE qs_integral_utils,               ONLY: basis_set_list_setup
    USE qs_kind_types,                   ONLY: qs_kind_type, get_qs_kind, get_qs_kind_set
    USE qs_neighbor_lists,               ONLY: build_neighbor_lists, local_atoms_type, &
@@ -57,6 +62,7 @@ MODULE xas_tdp_atom
    USE qs_rho_types,                    ONLY: qs_rho_type, qs_rho_get
    USE spherical_harmonics,             ONLY: clebsch_gordon, clebsch_gordon_deallocate, &
                                               clebsch_gordon_init
+   USE xas_tdp_types,                   ONLY: xas_atom_env_type
    USE xc_functionals_utilities,        ONLY: set_util, calc_rs_pw
 
 #include "./base/base_uses.f90"
@@ -67,41 +73,7 @@ MODULE xas_tdp_atom
    
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = "xas_tdp_atom"
 
-!  Some helper types
-   TYPE grid_atom_p_type
-      TYPE(grid_atom_type), POINTER                   :: grid_atom
-   END TYPE grid_atom_p_type
-
-   TYPE harmonics_atom_p_type
-      TYPE(harmonics_atom_type), POINTER              :: harmonics_atom
-   END TYPE harmonics_atom_p_type
-
-! **************************************************************************************************
-!> \brief a environment type that contains all the info needed for the RI atomic grid calculations 
-!> \param excited_atoms the atoms for whcih calculations must be done
-!> \param excited_kinds the kinds for which calculations must be done
-!> \param grid_atom_set the set of atomic grid for each kind
-!> \param blk_size the block sizes of the dbcsr_matrix that will hold the integrals
-!> \param dcoeff the expansion coefficients to express the density in the RI basis for each atom
-!> \param sphi_so contains the coefficient for direct contraction from so to sgf
-!> \note The grid_atom_set and harmonics_atom_set have the size of nkind, but only elements for
-!>       the excited kinds are allocated. Same with dcoeff (but with eexcited atoms)
-!>       Droped the "tdp" in the type name to make it shorter
-! **************************************************************************************************
-   TYPE xas_atom_env_type
-      INTEGER, DIMENSION(:), POINTER                  :: excited_atoms
-      INTEGER, DIMENSION(:), POINTER                  :: excited_kinds
-      TYPE(grid_atom_p_type), DIMENSION(:), POINTER   :: grid_atom_set
-      TYPE(harmonics_atom_p_type), DIMENSION(:), &
-                                            POINTER   :: harmonics_atom_set
-      INTEGER, DIMENSION(:), POINTER                  :: blk_size
-      TYPE(cp_1d_r_p_type), DIMENSION(:), POINTER     :: dcoeff
-      TYPE(cp_2d_r_p_type), DIMENSION(:), POINTER     :: sphi_so
-   END TYPE xas_atom_env_type
-
-   PUBLIC :: xas_atom_env_type
-
-   PUBLIC :: init_xas_atom_env, release_xas_atom_env, integrate_xas_atoms
+   PUBLIC :: init_xas_atom_env, integrate_fxc_atoms, integrate_soc_atoms
 
 CONTAINS
 
@@ -110,10 +82,11 @@ CONTAINS
 !> \param xas_atom_env the xas_atom_env to initialize
 !> \param excited_atoms the indices of the excited atoms
 !> \param excited_kinds the indices of the excited kinds
-!> \param grid_info the raw input giving the grid dimension for the excited kinds
+!> \param grid_info the raw input giving the grid dimensions
 !> \param qs_env ...
+!> \param do_fxc whether the xc-kernel will be computed on the grid
 ! **************************************************************************************************
-   SUBROUTINE init_xas_atom_env(xas_atom_env, excited_atoms, excited_kinds, grid_info, qs_env)
+   SUBROUTINE init_xas_atom_env(xas_atom_env, excited_atoms, excited_kinds, grid_info, qs_env, do_fxc)
 
       TYPE(xas_atom_env_type), POINTER                :: xas_atom_env
       TYPE(qs_environment_type), POINTER              :: qs_env
@@ -121,183 +94,79 @@ CONTAINS
       INTEGER, DIMENSION(:), POINTER                  :: excited_kinds
       CHARACTER(len=default_string_length), &
                      DIMENSION(:,:), POINTER          :: grid_info
+      LOGICAL, INTENT(IN)                             :: do_fxc
 
       CHARACTER(len=*), PARAMETER :: routineN = 'init_xas_atom_env', routineP = moduleN//":"//routineN
 
       INTEGER                                         :: nkind, natom, nex_kinds, handle, &
-                                                         nex_atoms, ikind, ipgf, iset, nset, maxso,&
-                                                         start_s, start_c, iso, ico, lx, ly, lz, l,&
-                                                         sgfi
+                                                         nex_atoms, ikind
       TYPE(qs_kind_type), DIMENSION(:), POINTER       :: qs_kind_set
-      TYPE(gto_basis_set_type), POINTER               :: ri_basis
       TYPE(gto_basis_set_p_type), DIMENSION(:), &
                                              POINTER  :: basis_set_ri 
       TYPE(particle_type), DIMENSION(:), POINTER      :: particle_set
-      TYPE(qs_control_type), POINTER                  :: qs_control
-      TYPE(dft_control_type), POINTER                 :: dft_control
-      INTEGER, DIMENSION(:), POINTER                  :: lmax, npgf, nsgf_set, lmin
-      INTEGER, DIMENSION(:,:), POINTER                :: first_sgf
-      REAL(dp), DIMENSION(:,:), POINTER               :: sphi_so, sphi
-      REAL(dp)                                        :: factor
-
-      NULLIFY(qs_kind_set, ri_basis, basis_set_ri, particle_set, qs_control, dft_control, lmax) 
-      NULLIFY(nsgf_set, npgf, sphi_so, sphi, first_sgf, lmin)
+   
+      NULLIFY(qs_kind_set, basis_set_ri, particle_set) 
 
       CALL timeset(routineN, handle)
 
 !  Initializing the type
-      CALL get_qs_env(qs_env, qs_kind_set=qs_kind_set, natom=natom, &
-                      particle_set=particle_set, dft_control=dft_control)
+      CALL get_qs_env(qs_env, qs_kind_set=qs_kind_set, natom=natom, particle_set=particle_set)
 
-      qs_control => dft_control%qs_control
       nkind = SIZE(qs_kind_set)   
       nex_kinds = SIZE(excited_kinds)
       nex_atoms = SIZE(excited_atoms)
 
-      ALLOCATE(xas_atom_env)
       ALLOCATE(xas_atom_env%excited_atoms(nex_atoms))
       ALLOCATE(xas_atom_env%excited_kinds(nex_kinds))
       ALLOCATE(xas_atom_env%grid_atom_set(nkind))
       ALLOCATE(xas_atom_env%harmonics_atom_set(nkind))
-      ALLOCATE(xas_atom_env%sphi_so(nkind))
-      ALLOCATE(xas_atom_env%blk_size(natom))
-      ALLOCATE(xas_atom_env%dcoeff(natom))
+      ALLOCATE(xas_atom_env%ri_sphi_so(nkind))
+      ALLOCATE(xas_atom_env%orb_sphi_so(nkind))
+      ALLOCATE(xas_atom_env%ri_blk_size(natom))
+      ALLOCATE(xas_atom_env%ri_dcoeff(natom))
 
       xas_atom_env%excited_atoms = excited_atoms
       xas_atom_env%excited_kinds = excited_kinds
 
 !  Allocate and initialize the atomic grids and harmonics
-      CALL init_xas_atom_grid_harmo(xas_atom_env, grid_info, qs_env)
+      CALL init_xas_atom_grid_harmo(xas_atom_env, grid_info, qs_env, do_fxc)
 
 !  Create the block size for the integral matrix based on the size of the RI_XAS basis.
       ALLOCATE(basis_set_ri(nkind))
       CALL basis_set_list_setup(basis_set_ri, "RI_XAS", qs_kind_set)
-      CALL get_particle_set(particle_set, qs_kind_set, nsgf=xas_atom_env%blk_size, basis=basis_set_ri)
+      CALL get_particle_set(particle_set, qs_kind_set, nsgf=xas_atom_env%ri_blk_size, basis=basis_set_ri)
       DEALLOCATE(basis_set_ri)
 
 !  Compute the contraction coefficients for spherical orbitals
       DO ikind = 1,nkind 
-         IF (.NOT. ANY(excited_kinds == ikind)) CYCLE
-         CALL get_qs_kind(qs_kind_set(ikind), basis_set=ri_basis, basis_type="RI_XAS")
-         CALL get_gto_basis_set(ri_basis, lmax=lmax, nset=nset, npgf=npgf, maxso=maxso, lmin=lmin, &
-                                nsgf_set=nsgf_set, sphi=sphi, first_sgf=first_sgf)
-
-         ALLOCATE(xas_atom_env%sphi_so(ikind)%array(maxso,SUM(nsgf_set)))
-         sphi_so => xas_atom_env%sphi_so(ikind)%array
-         sphi_so = 0.0_dp
-
-         DO iset = 1, nset
-            sgfi = first_sgf(1, iset)
-            DO ipgf = 1,npgf(iset)
-               start_s = (ipgf-1)*nsoset(lmax(iset))
-               start_c = (ipgf-1)*ncoset(lmax(iset))
-
-               DO l = lmin(iset), lmax(iset)
-                  DO iso = 1, nso(l)
-                     DO ico = 1, nco(l)
-
-                        lx = indco(1, ico+ncoset(l-1))
-                        ly = indco(2, ico+ncoset(l-1))
-                        lz = indco(3, ico+ncoset(l-1))
-
-                        factor = orbtramat(l)%c2s(iso,ico) &
-                               * SQRT(4.0_dp*pi/dfac(2*l+1)*dfac(2*lx-1)*dfac(2*ly-1)*dfac(2*lz-1))
-
-                        CALL daxpy(nsgf_set(iset), factor, &
-                                   sphi(start_c+ncoset(l-1)+ico,sgfi:sgfi+nsgf_set(iset)-1), 1, &
-                                   sphi_so(start_s+nsoset(l-1)+iso, sgfi:sgfi+nsgf_set(iset)-1), 1)
-
-                     END DO !ico
-                  END DO !iso
-               END DO !l
-            END DO !ipgf
-         END DO !iset
+         CALL compute_sphi_so(ikind, "ORB", xas_atom_env%orb_sphi_so(ikind)%array, qs_env)
+         IF (ANY(excited_kinds == ikind) .AND. do_fxc) THEN
+            CALL compute_sphi_so(ikind, "RI_XAS", xas_atom_env%ri_sphi_so(ikind)%array, qs_env)
+         END IF
       END DO !ikind
 
-!  Get the coefficients to expand the density in the RI_XAS basis set
-      CALL calculate_density_coeffs(xas_atom_env, qs_env)  
+!  Compute the coefficients to expand the density in the RI_XAS basis, if requested
+      IF (do_fxc) CALL calculate_density_coeffs(xas_atom_env, qs_env)
 
       CALL timestop(handle)
 
    END SUBROUTINE init_xas_atom_env
 
 ! **************************************************************************************************
-!> \brief Releases the xas_atom_env type
-!> \param xas_atom_env the type to release
-! **************************************************************************************************
-   SUBROUTINE release_xas_atom_env(xas_atom_env)
-
-      TYPE(xas_atom_env_type), POINTER                :: xas_atom_env              
-
-      CHARACTER(len=*), PARAMETER :: routineN = "release_xas_atom_env", &
-                                     routineP = moduleN//":"//routineN
-
-      INTEGER                                         :: i
-
-      IF (ASSOCIATED(xas_atom_env%grid_atom_set)) THEN
-         DO i = 1,SIZE(xas_atom_env%grid_atom_set) 
-            IF (ASSOCIATED(xas_atom_env%grid_atom_set(i)%grid_atom)) THEN
-               CALL deallocate_grid_atom(xas_atom_env%grid_atom_set(i)%grid_atom)
-            END IF
-         END DO
-         DEALLOCATE(xas_atom_env%grid_atom_set)
-      END IF
-
-      IF (ASSOCIATED(xas_atom_env%harmonics_atom_set)) THEN
-         DO i = 1,SIZE(xas_atom_env%harmonics_atom_set)
-            IF (ASSOCIATED(xas_atom_env%harmonics_atom_set(i)%harmonics_atom)) THEN
-               CALL deallocate_harmonics_atom(xas_atom_env%harmonics_atom_set(i)%harmonics_atom)
-            END IF
-         END DO
-         DEALLOCATE(xas_atom_env%harmonics_atom_set)
-      END IF
-
-      IF (ASSOCIATED(xas_atom_env%excited_kinds)) THEN
-         DEALLOCATE(xas_atom_env%excited_kinds)
-      END IF
-
-      IF (ASSOCIATED(xas_atom_env%excited_atoms)) THEN
-         DEALLOCATE(xas_atom_env%excited_atoms)
-      END IF
-
-      IF (ASSOCIATED(xas_atom_env%blk_size)) THEN
-         DEALLOCATE(xas_atom_env%blk_size)
-      END IF
-      
-      IF (ASSOCIATED(xas_atom_env%dcoeff)) THEN
-         DO i = 1,SIZE(xas_atom_env%dcoeff)
-            IF (ASSOCIATED(xas_atom_env%dcoeff(i)%array)) THEN
-               DEALLOCATE(xas_atom_env%dcoeff(i)%array)
-            END IF
-         END DO
-         DEALLOCATE(xas_atom_env%dcoeff)
-      END IF
-
-      IF (ASSOCIATED(xas_atom_env%sphi_so)) THEN
-         DO i = 1,SIZE(xas_atom_env%sphi_so)
-            IF (ASSOCIATED(xas_atom_env%sphi_so(i)%array)) THEN
-               DEALLOCATE(xas_atom_env%sphi_so(i)%array)
-            END IF
-         END DO
-         DEALLOCATE(xas_atom_env%sphi_so)
-      END IF
-
-      DEALLOCATE(xas_atom_env)
-
-   END SUBROUTINE release_xas_atom_env
-
-! **************************************************************************************************
 !> \brief Initializes the atomic grids and harmonics for the RI atomic calculations
 !> \param xas_atom_env ...
 !> \param qs_env ...
+!> \param do_fxc Whether the xc kernel will ne computed on the atomic grids. If not, the harmonics
+!>        are built for the orbital basis for all kinds.
 !> \note Largely inspired by init_rho_atom subroutine 
 ! **************************************************************************************************
-   SUBROUTINE init_xas_atom_grid_harmo(xas_atom_env, grid_info, qs_env)
+   SUBROUTINE init_xas_atom_grid_harmo(xas_atom_env, grid_info, qs_env, do_fxc)
 
       TYPE(xas_atom_env_type), POINTER                :: xas_atom_env
       CHARACTER(len=default_string_length), &
                            DIMENSION(:,:), POINTER    :: grid_info
       TYPE(qs_environment_type), POINTER              :: qs_env
+      LOGICAL, INTENT(IN)                             :: do_fxc
 
       CHARACTER(len=*), PARAMETER :: routineN = "init_xas_atom_grid_harmo", &
                                      routineP = moduleN//":"//routineN
@@ -307,7 +176,7 @@ CONTAINS
       INTEGER                                         :: llmax, maxlgto, max_s_harm, max_s_set, &
                                                          lcleb, lc1, iso1, l1, m1, lc2, iso2, &
                                                          l2, m2, l1l2, mp, mm, lp, il, iso, &
-                                                         ikind, quadrature, i, ll, na, la, nr, &
+                                                         ikind, quadrature, ll, na, la, nr, &
                                                          maxs, maxl, igrid, stat
       TYPE(qs_kind_type), DIMENSION(:), POINTER       :: qs_kind_set
       TYPE(gto_basis_set_type), POINTER               :: tmp_basis
@@ -316,13 +185,16 @@ CONTAINS
       TYPE(qs_control_type), POINTER                  :: qs_control
       TYPE(dft_control_type), POINTER                 :: dft_control
       CHARACTER(len=2)                                :: symbol
-      REAL(dp)                                        :: kind_radius
 
       NULLIFY(my_CG, qs_kind_set, tmp_basis, grid_atom, harmonics, qs_control, dft_control)
 
 !  Initialization of some integer for the CG coeff generation
       CALL get_qs_env(qs_env, qs_kind_set=qs_kind_set, dft_control=dft_control)
-      CALL get_qs_kind_set(qs_kind_set, maxlgto=maxlgto, basis_type="RI_XAS")
+      IF(do_fxc) THEN 
+         CALL get_qs_kind_set(qs_kind_set, maxlgto=maxlgto, basis_type="RI_XAS")
+      ELSE
+         CALL get_qs_kind_set(qs_kind_set, maxlgto=maxlgto, basis_type="ORB")
+      END IF
       qs_control => dft_control%qs_control
 
       !maximum expansion
@@ -389,8 +261,7 @@ CONTAINS
       CALL init_lebedev_grids()
       quadrature = qs_control%gapw_control%quadrature
       
-      DO i = 1,SIZE(xas_atom_env%excited_kinds)
-         ikind = xas_atom_env%excited_kinds(i)
+      DO ikind = 1,SIZE(xas_atom_env%grid_atom_set)
 
 !        Allocate the grid and the harmonics for this kind
          CALL allocate_grid_atom(xas_atom_env%grid_atom_set(ikind)%grid_atom)
@@ -429,11 +300,15 @@ CONTAINS
             CPWARN("To fix this (l too low), increase the value of 'na' inder the GRID keyword.")
          END IF
 
-         CALL get_qs_kind(qs_kind_set(ikind), basis_set=tmp_basis, basis_type="RI_XAS")
-         CALL get_gto_basis_set(gto_basis_set=tmp_basis, maxl=maxl, kind_radius=kind_radius)
+!        If this is an excited kind, create the harmonics with the RI_XAS basis, otherwise the ORB
+         IF (ANY(xas_atom_env%excited_atoms == ikind) .AND. do_fxc) THEN
+            CALL get_qs_kind(qs_kind_set(ikind), basis_set=tmp_basis, basis_type="RI_XAS")
+         ELSE
+            CALL get_qs_kind(qs_kind_set(ikind), basis_set=tmp_basis, basis_type="ORB")
+         END IF
+         CALL get_gto_basis_set(gto_basis_set=tmp_basis, maxl=maxl)
 
          CALL create_grid_atom(grid_atom, nr, na, llmax, ll, quadrature)
-         CALL truncate_radial_grid(grid_atom, kind_radius)
 
          maxs = nsoset(maxl)
          CALL create_harmonics_atom(harmonics, &
@@ -447,56 +322,72 @@ CONTAINS
       DEALLOCATE(my_CG)
 
    END SUBROUTINE init_xas_atom_grid_harmo
-
+   
 ! **************************************************************************************************
-!> \brief Reduces the radial extension of an atomic grid such that it only covers a given radius
-!> \param grid_atom the atomic grid from which we truncate the radial part
-!> \param max_radius the maximal radial extension of the resulting grid
-!> \note Since the RI density used for <P|fxc|Q> is only of quality close to the atom, and the
-!>       integrand only non-zero within the radius of the gaussian P,Q. One can reduce the grid
-!>       extansion to the largest radius of the RI basis set
+!> \brief Computes the contraction coefficients to go from spherical orbitals to sgf for a given 
+!>        atomic kind and a given basis type. 
+!> \param ikind the kind for which we compute the coefficients
+!> \param basis_type the type of basis for which we compute
+!> \param sphi_so where the new contraction coefficients are stored (not yet allocated)
+!> \param qs_env ...
 ! **************************************************************************************************
-   SUBROUTINE truncate_radial_grid(grid_atom, max_radius)
+   SUBROUTINE compute_sphi_so(ikind, basis_type, sphi_so, qs_env)
 
-      TYPE(grid_atom_type), POINTER                   :: grid_atom
-      REAL(dp), INTENT(IN)                            :: max_radius
+      INTEGER, INTENT(IN)                             :: ikind
+      CHARACTER(len=*), INTENT(IN)                    :: basis_type
+      REAL(dp), DIMENSION(:,:), POINTER               :: sphi_so
+      TYPE(qs_environment_type), POINTER              :: qs_env
 
-      CHARACTER(len=*), PARAMETER :: routineN = "truncate_radial_grid", &
-                                     routineP = moduleN//":"//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = "compute_sphi_so", routineP = moduleN//":"//routineN
 
-      INTEGER                                         :: first_ir, ir, nr, na, llmax_p1, new_nr
+      INTEGER                                         :: nset, maxso, iset, sgfi, ipgf, start_s, &
+                                                         start_c, l, iso, ico, lx, ly, lz
+      REAL(dp)                                        :: factor
+      TYPE(gto_basis_set_type), POINTER               :: basis 
+      INTEGER, DIMENSION(:), POINTER                  :: lmax, npgf, nsgf_set, lmin
+      INTEGER, DIMENSION(:,:), POINTER                :: first_sgf
+      TYPE(qs_kind_type), DIMENSION(:), POINTER       :: qs_kind_set
+      REAL(dp), DIMENSION(:,:), POINTER               :: sphi
 
-      nr = grid_atom%nr
-      na = grid_atom%ng_sphere
-      llmax_p1 = SIZE(grid_atom%rad2l,2) - 1
+      NULLIFY(basis, lmax, lmin, npgf, nsgf_set, qs_kind_set, first_sgf, sphi)
 
-!     Find the index corresponding to the limiting radius (small ir => large radius)
-      DO ir = 1, nr
-         IF(grid_atom%rad(ir) < max_radius) THEN
-            first_ir = ir
-            EXIT
-         END IF
-      END DO
-      new_nr = nr-first_ir+1
+      CALL get_qs_env(qs_env, qs_kind_set=qs_kind_set)
+      CALL get_qs_kind(qs_kind_set(ikind), basis_set=basis, basis_type=basis_type)
+      CALL get_gto_basis_set(basis, lmax=lmax, nset=nset, npgf=npgf, maxso=maxso, lmin=lmin, &
+                             nsgf_set=nsgf_set, sphi=sphi, first_sgf=first_sgf)
 
-!     Reallcoate everything that depends on r
-      grid_atom%nr = new_nr
+      ALLOCATE(sphi_so(maxso,SUM(nsgf_set)))
+      sphi_so = 0.0_dp
 
-      grid_atom%rad(1:new_nr) = grid_atom%rad(first_ir:nr)
-      grid_atom%rad2(1:new_nr) = grid_atom%rad2(first_ir:nr)
-      grid_atom%wr(1:new_nr) = grid_atom%wr(first_ir:nr)
-      grid_atom%weight(:,1:new_nr) = grid_atom%weight(:,first_ir:nr)
-      grid_atom%rad2l(1:new_nr,:) = grid_atom%rad2l(first_ir:nr,:)
-      grid_atom%oorad2l(1:new_nr,:) = grid_atom%oorad2l(first_ir:nr,:)
+      DO iset = 1, nset
+            sgfi = first_sgf(1, iset)
+            DO ipgf = 1,npgf(iset)
+               start_s = (ipgf-1)*nsoset(lmax(iset))
+               start_c = (ipgf-1)*ncoset(lmax(iset))
 
-      CALL reallocate(grid_atom%rad, 1, new_nr)
-      CALL reallocate(grid_atom%rad2, 1, new_nr)
-      CALL reallocate(grid_atom%wr, 1, new_nr)
-      CALL reallocate(grid_atom%weight, 1, na, 1, new_nr)
-      CALL reallocate(grid_atom%rad2l, 1, new_nr, 0, llmax_p1)
-      CALL reallocate(grid_atom%oorad2l, 1, new_nr, 0, llmax_p1)
-      
-   END SUBROUTINE truncate_radial_grid
+               DO l = lmin(iset), lmax(iset)
+                  DO iso = 1, nso(l)
+                     DO ico = 1, nco(l)
+
+                        lx = indco(1, ico+ncoset(l-1))
+                        ly = indco(2, ico+ncoset(l-1))
+                        lz = indco(3, ico+ncoset(l-1))
+
+                        factor = orbtramat(l)%s2c(iso,ico) &
+                               * SQRT(4.0_dp*pi/dfac(2*l+1)*dfac(2*lx-1)*dfac(2*ly-1)*dfac(2*lz-1))
+
+                        CALL daxpy(nsgf_set(iset), factor, &
+                                   sphi(start_c+ncoset(l-1)+ico,sgfi:sgfi+nsgf_set(iset)-1), 1, &
+                                   sphi_so(start_s+nsoset(l-1)+iso, sgfi:sgfi+nsgf_set(iset)-1), 1)
+
+                     END DO !ico
+                  END DO !iso
+               END DO !l
+            END DO !ipgf
+         END DO !iset
+
+   END SUBROUTINE compute_sphi_so
+
 
 ! **************************************************************************************************
 !> \brief Builds a neighbor lists set taylored for 3-center integral within XAS TDP, such that only
@@ -668,12 +559,12 @@ CONTAINS
       CALL contract12_o3c(o3c, rho_ao)
 
 !  Allocate space for the projected density coefficients. 
-      nsgf => xas_atom_env%blk_size
+      nsgf => xas_atom_env%ri_blk_size
       DO iat = 1,natom
          IF (.NOT. ANY(xas_atom_env%excited_atoms == iat)) CYCLE
          ikind = particle_set(iat)%atomic_kind%kind_number
-         ALLOCATE(xas_atom_env%dcoeff(iat)%array(nsgf(iat)))
-         xas_atom_env%dcoeff(iat)%array = 0.0_dp
+         ALLOCATE(xas_atom_env%ri_dcoeff(iat)%array(nsgf(iat)))
+         xas_atom_env%ri_dcoeff(iat)%array = 0.0_dp
       END DO
 
 !  Iterate over the o3c to access the contracted tvec = sum_ab P_ab*(abc). 
@@ -687,7 +578,7 @@ CONTAINS
          ALLOCATE(work(nsgf(katom),1))
          CALL dgemm('N', 'N', nsgf(katom), 1, nsgf(katom), 1.0_dp, sinv(kkind)%array, nsgf(katom), &
                     tvec, nsgf(katom), 0.0_dp, work, nsgf(katom))
-         xas_atom_env%dcoeff(katom)%array(:) = xas_atom_env%dcoeff(katom)%array(:) + work(:,1)
+         xas_atom_env%ri_dcoeff(katom)%array(:) = xas_atom_env%ri_dcoeff(katom)%array(:) + work(:,1)
          DEALLOCATE(work)
 
       END DO
@@ -732,21 +623,22 @@ CONTAINS
       TYPE(harmonics_atom_type), POINTER              :: harmonics
       TYPE(gto_basis_set_type), POINTER               :: ri_basis
       TYPE(qs_kind_type), DIMENSION(:), POINTER       :: qs_kind_set
-      INTEGER, DIMENSION(:), POINTER                  :: lmax, npgf, nsgf_set
-      REAL(dp), DIMENSION(:,:), POINTER               :: zet, sphi_so
+      INTEGER, DIMENSION(:), POINTER                  :: lmax, npgf, nsgf_set, lmin
+      REAL(dp), DIMENSION(:,:), POINTER               :: zet, ri_sphi_so
       REAL(dp), DIMENSION(:,:,:), ALLOCATABLE         :: so, sgf
       INTEGER, DIMENSION(:,:), POINTER                :: first_sgf
 
-      NULLIFY(grid_atom, ri_basis, qs_kind_set, harmonics, lmax, npgf, zet, nsgf_set, sphi_so, first_sgf)
+      NULLIFY(grid_atom, ri_basis, qs_kind_set, harmonics, lmax, npgf, zet, nsgf_set, ri_sphi_so)
+      NULLIFY(lmin, first_sgf)
 
 !  Strategy: it makes sense to evaluate the spherical orbital on the grid (because of symmetry)
-!            From there, one can directly contract into sgf using sphi_so and then take the weight
+!            From there, one can directly contract into sgf using ri_sphi_so and then take the weight
 
 !  Generalities
       CALL get_qs_env(qs_env, qs_kind_set=qs_kind_set)
       CALL get_qs_kind(qs_kind_set(atom_kind), basis_set=ri_basis, basis_type="RI_XAS")
       CALL get_gto_basis_set(ri_basis, lmax=lmax, npgf=npgf, zet=zet, nset=nset, nsgf_set=nsgf_set,&
-                             first_sgf=first_sgf)
+                             first_sgf=first_sgf, lmin=lmin)
 
 !  Get the grid, the harmonics and the info we need from it
       grid_atom => xas_atom_env%grid_atom_set(atom_kind)%grid_atom
@@ -768,7 +660,7 @@ CONTAINS
             start = (ipgf-1)*nsoset(lmax(iset))
 
             !loop over the spherical gaussian orbitals 
-            DO iso = 1,nsoset(lmax(iset))
+            DO iso = nsoset(lmin(iset)-1)+1, nsoset(lmax(iset))
                l = indso(1, iso)
                DO ia = 1,na
                   !compute: g = r**l * Y_lm * exp(-zet* r**2)
@@ -786,13 +678,13 @@ CONTAINS
 
          DO isgf = 1,nsgf_set(iset)
 
-            sphi_so => xas_atom_env%sphi_so(atom_kind)%array
+            ri_sphi_so => xas_atom_env%ri_sphi_so(atom_kind)%array
             DO iso = 1,npgf(iset)*nsoset(lmax(iset))
-               CALL daxpy(n, sphi_so(iso,sgfi+isgf), so(iso,:,:), 1, sgf(isgf,:,:), 1)
+               CALL daxpy(n, ri_sphi_so(iso,sgfi+isgf), so(iso,:,:), 1, sgf(isgf,:,:), 1)
             END DO !iso
 
             !put the sgf on the grid with the approriate coefficients and sum
-            CALL daxpy(n, xas_atom_env%dcoeff(atom_index)%array(sgfi+isgf), sgf(isgf,:,:), &
+            CALL daxpy(n, xas_atom_env%ri_dcoeff(atom_index)%array(sgfi+isgf), sgf(isgf,:,:), &
                        1, rho(:,:), 1)
 
          END DO !isgf
@@ -805,52 +697,58 @@ CONTAINS
 ! **************************************************************************************************
 !> \brief Integrate the xc kernel as a function of r on the atomic grids for the RI_XAS basis
 !> \param int_mat the dbcsr_matrix in the usual block format where the integrals are stored
-!> \param singlet whether we want singlet or triplet excitations
 !> \param xas_atom_env ...
 !> \param qs_env ...
+!> \param singlet whether we want singlet or triplet excitations
 ! **************************************************************************************************
-   SUBROUTINE integrate_xas_atoms(int_mat, singlet, xas_atom_env, qs_env)
+   SUBROUTINE integrate_fxc_atoms(int_mat, xas_atom_env, qs_env, singlet)
 
       TYPE(dbcsr_p_type)                              :: int_mat
-      LOGICAL, INTENT(IN)                             :: singlet
       TYPE(xas_atom_env_type), POINTER                :: xas_atom_env  
       TYPE(qs_environment_type), POINTER              :: qs_env   
+      LOGICAL, INTENT(IN)                             :: singlet
 
-      CHARACTER(len=*), PARAMETER :: routineN = "integrate_xas_atoms", &
+      CHARACTER(len=*), PARAMETER :: routineN = "integrate_fxc_atoms", &
                                      routineP = moduleN//":"//routineN
 
       TYPE(dbcsr_distribution_type), POINTER          :: dbcsr_dist
       REAL(dp), DIMENSION(:, :), ALLOCATABLE          :: fxc, int_so, int_sgf, rho
       INTEGER                                         :: natom, iat, ikind, na, nr, nsotot, nset, &
-                                                         maxso, iset, jset, nsgf, ia, ir, sgfi, &
+                                                         maxso, iset, jset, nsgf, sgfi, jat, blk, &
                                                          sgfj, n, nsoi, nsoj, starti, startj
       TYPE(particle_type), DIMENSION(:), POINTER      :: particle_set 
       TYPE(qs_kind_type), DIMENSION(:), POINTER       :: qs_kind_set
       TYPE(grid_atom_type), POINTER                   :: grid_atom 
       TYPE(harmonics_atom_type), POINTER              :: harmonics
       TYPE(gto_basis_set_type), POINTER               :: ri_basis 
-      REAL(dp), DIMENSION(:,:), POINTER               :: sphi_so
+      REAL(dp), DIMENSION(:,:), POINTER               :: ri_sphi_so
       INTEGER, DIMENSION(:), POINTER                  :: nsgf_set, npgf, lmax
       INTEGER, DIMENSION(:,:), POINTER                :: first_sgf
       REAL(dp), DIMENSION(:), ALLOCATABLE             :: rs
       TYPE(dft_control_type), POINTER                 :: dft_control
+      TYPE(dbcsr_iterator_type)                       :: iter
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER       :: matrix_s
 
       NULLIFY(dbcsr_dist, particle_set, qs_kind_set, grid_atom, harmonics, dft_control)
-      NULLIFY(ri_basis, nsgf_set, first_sgf, lmax, npgf, sphi_so)
+      NULLIFY(ri_basis, nsgf_set, first_sgf, lmax, npgf, ri_sphi_so, matrix_s)
 
 !  Create the integral matrices based on the usual dbcsr_dist and the custom xas_atom_env block sizes
-      CALL get_qs_env(qs_env, dbcsr_dist=dbcsr_dist)
+      CALL get_qs_env(qs_env, dbcsr_dist=dbcsr_dist, matrix_s=matrix_s)
       CALL dbcsr_create(matrix=int_mat%matrix, name="RI atomic Fxc integrals", matrix_type='S', &         
-                        dist=dbcsr_dist, row_blk_size=xas_atom_env%blk_size, &                        
-                        col_blk_size=xas_atom_env%blk_size)
+                        dist=dbcsr_dist, row_blk_size=xas_atom_env%ri_blk_size, &                        
+                        col_blk_size=xas_atom_env%ri_blk_size)
 
       CALL get_qs_env(qs_env, particle_set=particle_set, qs_kind_set=qs_kind_set, natom=natom, &
                       dft_control=dft_control)
 
-!  TODO: think carfully when parallelizing
-!  Loop over the atoms of interest. 
-      DO iat = 1, natom
+!  Loop over the atoms of interest. (iterate over diagonal of matrix_s cuz same distribution and
+!                                    filled diagonal blocks) 
+      CALL dbcsr_iterator_start(iter, matrix_s(1)%matrix) 
+      DO WHILE (dbcsr_iterator_blocks_left(iter))
 
+         CALL dbcsr_iterator_next_block(iter, row=iat, column=jat, blk=blk)
+
+         IF (.NOT. iat == jat) CYCLE
          IF (.NOT. ANY(xas_atom_env%excited_atoms == iat)) CYCLE
          ikind = particle_set(iat)%atomic_kind%kind_number
 
@@ -887,24 +785,20 @@ CONTAINS
          END IF
 
 !     Take the grid weights into account
-         DO ia = 1,na
-            DO ir = 1,nr
-               fxc(ia,ir) = fxc(ia,ir)*grid_atom%weight(ia,ir)
-            END DO
-         END DO
+         fxc(1:na,1:nr) = fxc(1:na,1:nr)*grid_atom%weight(1:na,1:nr)
 
 !     Integrate
-         CALL integrate_so_fxc_prod(int_so, fxc, ikind, xas_atom_env, qs_env) 
+         CALL integrate_so_prod(int_so, fxc, ikind, xas_atom_env, qs_env) 
 
          DEALLOCATE(rs, fxc, rho)
 
-!     Contract the integrals into sgf using the sphi_so arrays
+!     Contract the integrals into sgf using the ri_sphi_so arrays
          CALL get_gto_basis_set(ri_basis, nsgf=nsgf, nsgf_set=nsgf_set, first_sgf=first_sgf, &
                                 npgf=npgf, lmax=lmax)
 
          ALLOCATE(int_sgf(nsgf,nsgf))
          int_sgf = 0.0_dp
-         sphi_so => xas_atom_env%sphi_so(ikind)%array
+         ri_sphi_so => xas_atom_env%ri_sphi_so(ikind)%array
 
          DO iset = 1, nset
             starti = (iset-1)*maxso+1
@@ -918,24 +812,24 @@ CONTAINS
 
                CALL ab_contract(int_sgf(sgfi:sgfi+nsgf_set(iset)-1, sgfj:sgfj+nsgf_set(jset)-1), & 
                                 int_so(starti:starti+nsoi-1, startj:startj+nsoj-1), &
-                                sphi_so(:,sgfi:), sphi_so(:,sgfj:), nsoi, nsoj, &
+                                ri_sphi_so(:,sgfi:), ri_sphi_so(:,sgfj:), nsoi, nsoj, &
                                 nsgf_set(iset), nsgf_set(jset))
             END DO !jset
          END DO !iset
 
 !     Put the integrals for this atom as blocks in the dbcsr matrices
-!     TODO: be carful when parallelizing
          CALL dbcsr_put_block(int_mat%matrix, iat, iat, int_sgf)
 
 !     Clean-up 
          DEALLOCATE(int_sgf, int_so)
 
       END DO !iat
+      CALL dbcsr_iterator_stop(iter)
 
 !  Finalize the matrix
       CALL dbcsr_finalize(int_mat%matrix)
 
-   END SUBROUTINE integrate_xas_atoms
+   END SUBROUTINE integrate_fxc_atoms
 
 
 ! **************************************************************************************************
@@ -950,7 +844,7 @@ CONTAINS
 !>       it would have been messy. Also we do not need rho_atom (too big and fancy for us)
 !>       We also go over the whole range of angular momentum l
 ! **************************************************************************************************
-   SUBROUTINE integrate_so_fxc_prod(intso, fxc, ikind, xas_atom_env, qs_env)
+   SUBROUTINE integrate_so_prod(intso, fxc, ikind, xas_atom_env, qs_env)
 
       REAL(dp), DIMENSION(:,:), INTENT(INOUT)         :: intso
       REAL(dp), DIMENSION(:,:), INTENT(IN)            :: fxc
@@ -958,7 +852,7 @@ CONTAINS
       TYPE(xas_atom_env_type), POINTER                :: xas_atom_env
       TYPE(qs_environment_type), POINTER              :: qs_env
 
-      CHARACTER(len=*), PARAMETER :: routineN = "integrate_so_fxc_prod", &
+      CHARACTER(len=*), PARAMETER :: routineN = "integrate_so_prod", &
                                      routineP = moduleN//":"//routineN 
 
       INTEGER                                         :: handle, nset, maxso, maxl, nr, na, &
@@ -1079,7 +973,7 @@ CONTAINS
 
       CALL timestop(handle)
 
-   END SUBROUTINE integrate_so_fxc_prod
+   END SUBROUTINE integrate_so_prod
   
 ! **************************************************************************************************
 !> \brief The actual pade kernel evaluation in the singlet case. Inspired from xc_pade.F
@@ -1244,5 +1138,300 @@ CONTAINS
       END DO
 
    END SUBROUTINE pade_kernel_triplet
+
+! **************************************************************************************************
+!> \brief This routine computes the integral of a potential V wrt the derivitive of the spherical 
+!>        orbitals, that is <df/dx|V|dg/dy> on the atomic grid.
+!> \param intso the integral in terms of the spherical orbitals (well, their derivitive)
+!> \param V the potential (put on the grid and wieghted) to integrate
+!> \param ikind the atomic kind for which we integrate
+!> \param xas_atom_env ...
+!> \param qs_env ... 
+!> \note The atomic grids are taken fron xas_atom_env and the orbitals are the normal ones. Ok since
+!>       the grid and spherical harmonics for those grids are at least as good as the GAPW ones
+! **************************************************************************************************
+   SUBROUTINE integrate_so_dxdy_prod(intso, V, ikind, xas_atom_env, qs_env)
+      
+      REAL(dp), DIMENSION(:,:,:), INTENT(INOUT)       :: intso
+      REAL(dp), DIMENSION(:,:), INTENT(IN)            :: V
+      INTEGER, INTENT(IN)                             :: ikind
+      TYPE(xas_atom_env_type), POINTER                :: xas_atom_env
+      TYPE(qs_environment_type), POINTER              :: qs_env
+
+      CHARACTER(len=*), PARAMETER :: routineN = "integrate_so_dxdy_prod", &
+                                     routineP = moduleN//":"//routineN
+
+      INTEGER                                         :: na, nr, iso, jso, maxso, nset, iset,&
+                                                         jset, ipgf, jpgf, l, starti, startj, i, j,k
+      TYPE(grid_atom_type), POINTER                   :: grid_atom
+      TYPE(harmonics_atom_type), POINTER              :: harmonics
+      TYPE(gto_basis_set_type), POINTER               :: basis
+      TYPE(qs_kind_type), DIMENSION(:), POINTER       :: qs_kind_set
+      REAL(dp), DIMENSION(:, :), POINTER              :: slm
+      REAL(dp), DIMENSION(:,:,:), POINTER             :: dslm_dxyz
+      INTEGER, DIMENSION(:), POINTER                  :: lmax, lmin, npgf
+      REAL(dp), DIMENSION(:, :), POINTER              :: zet
+      REAL(dp), ALLOCATABLE, DIMENSION(:,:)           :: r1,  work, fga, fgr, r2
+      REAL(dp), ALLOCATABLE, DIMENSION(:,:,:)         :: a1, a2
+
+      NULLIFY(grid_atom, harmonics, basis, qs_kind_set, dslm_dxyz, slm, lmin, lmax, npgf, zet)
+
+!  Getting what we need from the atom_env
+      harmonics => xas_atom_env%harmonics_atom_set(ikind)%harmonics_atom      
+      grid_atom => xas_atom_env%grid_atom_set(ikind)%grid_atom
+
+      CALL get_qs_env(qs_env, qs_kind_set=qs_kind_set)
+      CALL get_qs_kind(qs_kind_set(ikind), basis_set=basis, basis_type="ORB")
+
+      na = grid_atom%ng_sphere
+      nr = grid_atom%nr
+
+      slm => harmonics%slm
+      dslm_dxyz => harmonics%dslm_dxyz
+
+!  Getting what we need from the orbital basis
+      CALL get_gto_basis_set(gto_basis_set=basis, lmax=lmax, lmin=lmin, &
+                             maxso=maxso, npgf=npgf, nset=nset, zet=zet )
+
+
+!  Separate the functions into purely r and purely angular parts, compute them all
+!  and use matrix mutliplication for the integral. We use f for x derivative ang g for y
+
+   ! Separating the functions. Note that the radial part is the same for x and y derivatives
+      ALLOCATE(a1(na,nset*maxso,3), a2(na,nset*maxso,3))
+      ALLOCATE(r1(nr,nset*maxso), r2(nr,nset*maxso))
+      a1 = 0.0_dp; a2 = 0.0_dp
+      r1 = 0.0_dp; r2 = 0.0_dp
+
+      DO iset = 1,nset
+         DO ipgf = 1,npgf(iset)
+            starti = (iset-1)*maxso + (ipgf-1)*nsoset(lmax(iset))
+            DO iso = nsoset(lmin(iset)-1)+1,nsoset(lmax(iset))
+               l = indso(1,iso)
+
+               ! The x derivitive of the spherical orbital, divided in angular and radial parts
+               ! Two of each are needed because d/dx(r^l Y_lm) * exp(-al*r^2) + r^l Y_lm * ! d/dx(exp-al*r^2)
+
+               ! the purely radial part of d/dx(r^l Y_lm) * exp(-al*r^2) (same for y)
+               r1(1:nr,starti+iso) = grid_atom%rad(1:nr)**(l-1)*EXP(-zet(ipgf,iset)*grid_atom%rad2(1:nr))
+
+               ! the purely radial part of r^l Y_lm * d/dx(exp-al*r^2) (same for y)
+               r2(1:nr,starti+iso) = -2.0_dp*zet(ipgf,iset)*grid_atom%rad(1:nr)**(l+1) &
+                                      *EXP(-zet(ipgf, iset)*grid_atom%rad2(1:nr))
+
+               DO i = 1,3
+                  ! the purely angular part of d/dx(r^l Y_lm) * exp(-al*r^2)
+                  a1(1:na,starti+iso,i) = dslm_dxyz(i,1:na, iso)
+
+                  ! the purely angular part of r^l Y_lm * d/dx(exp-al*r^2)
+                  a2(1:na,starti+iso,i) = harmonics%a(i,1:na)*slm(1:na, iso)
+               END DO
+
+            END DO !iso
+         END DO !ipgf
+      END DO !iset
+
+   ! Do the integration in terms of so using matrix products
+      intso = 0.0_dp
+      ALLOCATE(fga(na,1))
+      ALLOCATE(fgr(nr,1))
+      ALLOCATE(work(na,1))
+      fga = 0.0_dp; fgr = 0.0_dp; work = 0.0_dp
+
+      DO iset = 1,nset
+         DO jset = 1,nset
+            DO ipgf = 1,npgf(iset)
+               starti = (iset-1)*maxso + (ipgf-1)*nsoset(lmax(iset))
+               DO jpgf = 1,npgf(jset)
+                  startj = (jset-1)*maxso + (jpgf-1)*nsoset(lmax(jset))
+
+                  DO i = 1,3
+                     j = MOD(i,3)+1
+                     k = MOD(i+1,3)+1
+
+                     DO iso = nsoset(lmin(iset)-1)+1,nsoset(lmax(iset))
+                        DO jso = nsoset(lmin(jset)-1)+1,nsoset(lmax(jset))
+
+                           !Two component per function => 4 terms in total
+
+                           ! take r1*a1(j) * V * r1*a1(k)
+                           fgr(1:nr,1) = r1(1:nr,starti+iso)*r1(1:nr,startj+jso)
+                           fga(1:na,1) = a1(1:na,starti+iso,j)*a1(1:na,startj+jso,k)
+
+                           CALL dgemm('N', 'N', na, 1, nr, 1.0_dp, V, na, fgr, nr, 0.0_dp, work, na)
+                           CALL dgemm('T', 'N', 1, 1, na, 1.0_dp, work, na, fga, na, 0.0_dp, &
+                                      intso(starti+iso, startj+jso, i), 1)
+
+                           ! add r1*a1(j) * V * r2*a2(k)
+                           fgr(1:nr,1) = r1(1:nr,starti+iso)*r2(1:nr,startj+jso)
+                           fga(1:na,1) = a1(1:na,starti+iso,j)*a2(1:na,startj+jso,k)
+
+                           CALL dgemm('N', 'N', na, 1, nr, 1.0_dp, V, na, fgr, nr, 0.0_dp, work, na)
+                           CALL dgemm('T', 'N', 1, 1, na, 1.0_dp, work, na, fga, na, 1.0_dp, &
+                                      intso(starti+iso, startj+jso, i), 1)
+
+                           ! add r2*a2(j) * V * r1*a1(k)
+                           fgr(1:nr,1) = r2(1:nr,starti+iso)*r1(1:nr,startj+jso) 
+                           fga(1:na,1) = a2(1:na,starti+iso,j)*a1(1:na,startj+jso,k)
+
+                           CALL dgemm('N', 'N', na, 1, nr, 1.0_dp, V, na, fgr, nr, 0.0_dp, work, na)
+                           CALL dgemm('T', 'N', 1, 1, na, 1.0_dp, work, na, fga, na, 1.0_dp, &
+                                     intso(starti+iso, startj+jso, i), 1)
+
+                           ! add the last term: r2*a2(j) * V * r2*a2(k)
+                           fgr(1:nr,1) = r2(1:nr,starti+iso)*r2(1:nr,startj+jso)
+                           fga(1:na,1) = a2(1:na,starti+iso,j)*a2(1:na,startj+jso,k)
+
+                           CALL dgemm('N', 'N', na, 1, nr, 1.0_dp, V, na, fgr, nr, 0.0_dp, work, na)
+                           CALL dgemm('T', 'N', 1, 1, na, 1.0_dp, work, na, fga, na, 1.0_dp, &
+                                      intso(starti+iso, startj+jso, i), 1)
+
+                        END DO !jso
+                     END DO !iso
+
+                  END DO !i
+               END DO !jpgf
+            END DO !ipgf
+         END DO !jset
+      END DO !iset
+
+      DO i = 1,3
+         intso(:,:,i) = intso(:,:,i) - TRANSPOSE(intso(:,:,i))
+      END DO
+
+   END SUBROUTINE integrate_so_dxdy_prod
+
+! **************************************************************************************************
+!> \brief Computes the SOC matrix elements with respect to the ORB basis set for each atomic kind 
+!>        and put them as the block diagonal of dbcsr_matrix
+!> \param matrix_soc the matrix where the SOC is stored
+!> \param xas_atom_env ...
+!> \param qs_env ...
+!> \note We compute: <da_dx|V\(4c^2-2V)|db_dy> - <da_dy|V\(4c^2-2V)|db_dx>, where V is a model
+!>       potential on the atomic grid. What we get is purely imaginary
+! **************************************************************************************************
+   SUBROUTINE integrate_soc_atoms(matrix_soc, xas_atom_env, qs_env)
+
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER       :: matrix_soc
+      TYPE(xas_atom_env_type), POINTER                :: xas_atom_env
+      TYPE(qs_environment_type), POINTER              :: qs_env
+      
+      CHARACTER(len=*), PARAMETER :: routineN = "integrate_soc_atoms", &
+                                     routineP = moduleN//":"//routineN
+
+      INTEGER                                         :: ikind, nkind, nset, maxso, na, nr, ir,&
+                                                         iset, jset, nsoi, nsoj, sgfi, sgfj, nsgf, &
+                                                         starti, startj, iat, jat, blk, i
+      TYPE(cp_3d_r_p_type), DIMENSION(:), POINTER     :: int_soc
+      REAL(dp), DIMENSION(:,:,:), ALLOCATABLE         :: intso
+      TYPE(gto_basis_set_type), POINTER               :: basis
+      TYPE(qs_kind_type), DIMENSION(:), POINTER       :: qs_kind_set
+      INTEGER, DIMENSION(:), POINTER                  :: npgf, lmax, nsgf_set
+      INTEGER, DIMENSION(:,:), POINTER                :: first_sgf
+      REAL(dp), DIMENSION(:,:), POINTER               :: sphi_so
+      REAL(dp), DIMENSION(:,:,:), POINTER             :: intsgf
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER       :: matrix_s
+      TYPE(dbcsr_iterator_type)                       :: iter
+      TYPE(particle_type), DIMENSION(:), POINTER      :: particle_set
+      REAL(dp)                                        :: cspeed, zeff
+      REAL(dp), DIMENSION(:,:), ALLOCATABLE           :: V
+      REAL(dp), DIMENSION(:), ALLOCATABLE             :: Vr
+      TYPE(grid_atom_type), POINTER                   :: grid
+   
+      NULLIFY(int_soc, basis, qs_kind_set, npgf, lmax, nsgf_set, first_sgf, sphi_so, matrix_s)
+      NULLIFY(particle_set)
+
+!  Initialization
+      CALL get_qs_env(qs_env, nkind=nkind, qs_kind_set=qs_kind_set, matrix_s=matrix_s, &
+                      particle_set=particle_set)
+      ALLOCATE(int_soc(nkind))
+      cspeed = 1.0_dp/a_fine
+
+!  Loop over the kinds to compute the integrals
+      DO ikind = 1,nkind
+         
+         CALL get_qs_kind(qs_kind_set(ikind), basis_set=basis, basis_type="ORB", zeff=zeff)
+         CALL get_gto_basis_set(basis, nset=nset, maxso=maxso)
+         ALLOCATE(intso(nset*maxso, nset*maxso, 3))
+
+         ! compute the model potential on the grid
+         grid => xas_atom_env%grid_atom_set(ikind)%grid_atom
+         nr = grid%nr 
+         na = grid%ng_sphere
+         ALLOCATE(Vr(nr))
+         CALL calculate_model_potential(Vr, grid, zeff)
+
+         !Compute V/(4c^2-2V) and weight it
+         ALLOCATE(V(na,nr))
+         DO ir = 1,nr
+            V(1:na,ir) = Vr(ir)/(4.0_dp*cspeed**2-2.0_dp*Vr(ir)) *grid%weight(1:na,ir)
+         END DO
+         DEALLOCATE(Vr)
+
+         ! compute the integral <da_dx|...|db_dy> in terms of so
+         CALL integrate_so_dxdy_prod(intso, V, ikind, xas_atom_env, qs_env)
+         DEALLOCATE(V)
+
+         ! contract in terms of sgf
+         CALL get_gto_basis_set(basis, nsgf=nsgf, nsgf_set=nsgf_set, first_sgf=first_sgf, npgf=npgf, &
+                            lmax=lmax)
+         ALLOCATE(int_soc(ikind)%array(nsgf,nsgf,3)) 
+         intsgf => int_soc(ikind)%array
+         sphi_so => xas_atom_env%orb_sphi_so(ikind)%array
+         intsgf = 0.0_dp
+
+         DO iset = 1,nset
+            starti = (iset-1)*maxso+1
+            nsoi = npgf(iset)*nsoset(lmax(iset))
+            sgfi = first_sgf(1, iset)
+
+            DO jset= 1, nset
+               startj = (jset-1)*maxso+1
+               nsoj = npgf(jset)*nsoset(lmax(jset))
+               sgfj = first_sgf(1, jset)
+
+               DO i = 1,3
+                  CALL ab_contract(intsgf(sgfi:sgfi+nsgf_set(iset)-1, sgfj:sgfj+nsgf_set(jset)-1,i), &
+                                   intso(starti:starti+nsoi-1, startj:startj+nsoj-1,i), &
+                                   sphi_so(:,sgfi:), sphi_so(:,sgfj:), nsoi, nsoj, &
+                                   nsgf_set(iset), nsgf_set(jset))
+               END DO
+            END DO !jset
+         END DO !iset
+
+         DEALLOCATE(intso)
+      END DO !ikind
+
+!  Build the matrix_soc based on the matrix_s (but anti-symmetric)
+      DO i = 1,3
+         CALL dbcsr_create(matrix_soc(i)%matrix, name="SOC MATRIX", template=matrix_s(1)%matrix, &
+                           matrix_type="A")
+      END DO
+
+!  Iterate over its diagonal blocks and fill=it
+      CALL dbcsr_iterator_start(iter, matrix_s(1)%matrix)
+      DO WHILE (dbcsr_iterator_blocks_left(iter))
+
+         CALL dbcsr_iterator_next_block(iter, row=iat, column=jat, blk=blk)
+         IF (.NOT. iat == jat) CYCLE
+         ikind = particle_set(iat)%atomic_kind%kind_number
+
+         DO i = 1,3
+            CALL dbcsr_put_block(matrix_soc(i)%matrix, iat, iat, int_soc(ikind)%array(:,:,i))
+         END DO
+      
+      END DO !iat
+      CALL dbcsr_iterator_stop(iter)
+      DO i = 1,3
+         CALL dbcsr_finalize(matrix_soc(i)%matrix)
+      END DO
+
+! Clean-up
+      DO ikind = 1,nkind
+         DEALLOCATE(int_soc(ikind)%array)
+      END DO
+      DEALLOCATE(int_soc)
+
+   END SUBROUTINE integrate_soc_atoms
 
 END MODULE xas_tdp_atom

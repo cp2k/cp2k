@@ -96,7 +96,7 @@ MODULE input_cp2k_dft
         xas_2s_type, xas_3d_type, xas_3p_type, xas_3s_type, xas_4d_type, xas_4f_type, xas_4p_type, &
         xas_4s_type, xas_dip_len, xas_dip_vel, xas_dscf, xas_none, xas_tp_fh, xas_tp_flex, &
         xas_tp_hh, xas_tp_xfh, xas_tp_xhh, xes_tp_val, xas_not_excited, xas_tdp_by_kind, &
-        xas_tdp_by_index, xas_tdp_hfx, xas_tdp_pade
+        xas_tdp_by_index, xas_tdp_hfx, xas_tdp_pade, tddfpt_both
    USE input_cp2k_almo,                 ONLY: create_almo_scf_section
    USE input_cp2k_distribution,         ONLY: create_distribution_section
    USE input_cp2k_field,                ONLY: create_efield_section,&
@@ -416,6 +416,10 @@ CONTAINS
       CALL section_release(subsection)
 
       CALL create_xas_section(subsection)
+      CALL section_add_subsection(section, subsection)
+      CALL section_release(subsection)
+
+      CALL create_xas_tdp_section(subsection)
       CALL section_add_subsection(section, subsection)
       CALL section_release(subsection)
 
@@ -3257,12 +3261,8 @@ CONTAINS
       CALL section_add_subsection(section, subsection)
       CALL section_release(subsection)
 
-      ! Embedding subsections: DFET and DMFET
+      ! Embedding subsections
       CALL create_optimize_embed(subsection)
-      CALL section_add_subsection(section, subsection)
-      CALL section_release(subsection)
-
-      CALL create_optimize_dmfet(subsection)
       CALL section_add_subsection(section, subsection)
       CALL section_release(subsection)
 
@@ -6190,7 +6190,7 @@ CONTAINS
                           description="The stride (X,Y,Z) used to write the cube file "// &
                           "(larger values result in smaller cube files). You can provide 3 numbers (for X,Y,Z) or"// &
                           " 1 number valid for all components.", &
-                          usage="STRIDE 1 1 1", n_var=-1, default_i_vals=(/1, 1, 1/), type_of_var=integer_t)
+                          usage="STRIDE 2 2 2", n_var=-1, default_i_vals=(/2, 2, 2/), type_of_var=integer_t)
       CALL section_add_keyword(print_key, keyword)
       CALL keyword_release(keyword)
 
@@ -6244,7 +6244,7 @@ CONTAINS
                           description="The stride (X,Y,Z) used to write the cube file "// &
                           "(larger values result in smaller cube files). You can provide 3 numbers (for X,Y,Z) or"// &
                           " 1 number valid for all components.", &
-                          usage="STRIDE 1 1 1", n_var=-1, default_i_vals=(/1, 1, 1/), type_of_var=integer_t)
+                          usage="STRIDE 1 1 1", n_var=-1, default_i_vals=(/2, 2, 2/), type_of_var=integer_t)
       CALL section_add_keyword(print_key, keyword)
       CALL keyword_release(keyword)
 
@@ -7668,7 +7668,7 @@ CONTAINS
 
       CALL keyword_create(keyword, __LOCATION__, name="STATE_TYPE", &
                           variants=(/"TYPE"/), &
-                          description="Type of the orbitas that are excited for the xas spectra calculation", &
+                          description="Type of the orbitals that are excited for the xas spectra calculation", &
                           usage="STATE_TYPE 1S", &
                           default_i_val=xas_1s_type, &
                           enum_c_vals=s2a("1S", "2S", "2P", "3S", "3P", "3D", "4S", "4P", "4D", "4F"), &
@@ -7880,7 +7880,7 @@ CONTAINS
                           description="XAS simulations using TDDFPT. Excitation from specified "// &
                           "core orbitals are considered one at a time. In case of high symmetry "// &
                           "structures, donor core orbitals should be localized.", &
-                          n_keywords=11, n_subsections=4, repeats=.FALSE.)
+                          n_keywords=14, n_subsections=3, repeats=.FALSE.)
 
       NULLIFY (keyword, subsection, print_key)
 
@@ -7983,12 +7983,25 @@ CONTAINS
       CALL keyword_create(keyword, name="EXCITATIONS", &
                           variants=(/"EXCITATION"/), &
                           description="Whether singlet or triplet excitations should be "// &
-                                     "considered (starting from the spin-restricted ground state)",&
+                                     "considered (starting from the spin-restricted ground state)."//&
+                                     "BOTH is needed for spin-orbit coupling calculations.",&
                           usage="EXCITATIONS {string}", &
                           default_i_val=tddfpt_singlet, &
-                          enum_c_vals=s2a("SINGLET", "TRIPLET"), & 
-                          enum_i_vals=(/tddfpt_singlet, tddfpt_triplet/))
+                          enum_c_vals=s2a("SINGLET", "TRIPLET", "BOTH"), & 
+                          enum_i_vals=(/tddfpt_singlet, tddfpt_triplet, tddfpt_both/))
       CALL section_add_keyword(section, keyword)      
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, name="SPIN_ORBIT_COUPLING", &
+                          variants=(/"SOC"/), &
+                          description="The number of excited states to include in spin-orbit "// &
+                                      "coupling calculations. The N lowest energy excited states, "// &
+                                       "regardless of their spin multiplicity, are taken. "// &
+                                       "If zero, SOC is not treated. If -1, all available  "// &
+                                       "excited states are taken.", &
+                          usage="SOC {integer}", &
+                          default_i_val=0)
+      CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
       CALL keyword_create(keyword, name="TAMM_DANCOFF", &
@@ -8007,39 +8020,28 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      !*** XC_KERNEL subsection ***!
-      CALL section_create(subsection, "XC_KERNEL", &
-                          description="This subsection sets parameter for the xc kernel "//&
-                                      "evaluation such as the functional to use and the atomic "//&
-                                      "grids specification", &
-                                      n_keywords=2, n_subsections=0, repeats=.FALSE.)
-
-      CALL keyword_create(keyword, name="FUNCTIONAL", &
+      CALL keyword_create(keyword, name="XC_KERNEL", &
                           description="This keyword is used to chose the functional with which "//&
                                       "the XC kernel should be evaluated. Currently only exact "//&
-                                      "exchange and the PADE(LDA) are available.", &
-                          usage="FUNCTIONAL string", &
-                          default_i_val=xas_tdp_hfx, &
-                          enum_c_vals=s2a("HFX", "PADE"), &
-                          enum_i_vals=(/xas_tdp_hfx, xas_tdp_pade/))
-      CALL section_add_keyword(subsection, keyword)
-      CALL keyword_release(keyword)
+                                      "exchange (HFX) and the LDA (PADE) are available.", &
+                           usage="XC_KERNEL string", &
+                           default_i_val=xas_tdp_hfx, &
+                           enum_c_vals=s2a("HFX", "PADE"), &
+                           enum_i_vals=(/xas_tdp_hfx, xas_tdp_pade/))
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword) 
 
       CALL keyword_create(keyword, name="GRID", &
-                          description="Specification of the atomic grids for the excited kinds."//&
-                                      "This keyword can/should be repeated for each excited kind. "//&
+                          description="Specification of the atomic grids for a given atomic kind."//&
+                                      "This keyword can/should be repeated for each kind. "//&
                                       "The default grid dimensions are those set for the GAPW "// &
-                                      "ground state calculation.", &
+                                      "ground state calculation. These grids are used for PADE "// &
+                                      "xc-kernel calculations and/or for spin-orbit coupling.", &
                           usage="GRID kind na nr", &
                           n_var=3, type_of_var=char_t, repeats=.TRUE.)
-      CALL section_add_keyword(subsection, keyword)
+      CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL section_add_subsection(section, subsection)
-      CALL section_release(subsection)
-
-      !*** END of XC_KERNEL subsection ***!
-      
       CALL create_localize_section(subsection)
       CALL section_add_subsection(section, subsection)
       CALL section_release(subsection)
@@ -8066,8 +8068,8 @@ CONTAINS
       CALL section_add_subsection(section, subsection)
       CALL section_release(subsection)
 
-   END SUBROUTINE create_xas_tdp_section
-
+   END SUBROUTINE create_xas_tdp_section  
+ 
 ! **************************************************************************************************
 !> \brief      Create CP2K input section for the smearing of occupation numbers
 !> \param section ...
