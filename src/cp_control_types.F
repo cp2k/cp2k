@@ -463,6 +463,7 @@ MODULE cp_control_types
       TYPE(tddfpt_control_type), POINTER   :: tddfpt_control
       TYPE(tddfpt2_control_type), POINTER  :: tddfpt2_control
       TYPE(xas_control_type), POINTER      :: xas_control
+      TYPE(xas_tdp_control_type), POINTER  :: xas_tdp_control
       TYPE(efield_p_type), POINTER, &
          DIMENSION(:)                      :: efield_fields
       INTEGER                              :: nspins, &
@@ -485,6 +486,7 @@ MODULE cp_control_types
                                               sic_scaling_b
       LOGICAL                              :: do_tddfpt_calculation, &
                                               do_xas_calculation, &
+                                              do_xas_tdp_calculation, &
                                               drho_by_collocation, &
                                               use_kinetic_energy_density, &
                                               restricted, &
@@ -762,6 +764,7 @@ CONTAINS
       last_dft_control_id = last_dft_control_id+1
       dft_control%id_nr = last_dft_control_id
       NULLIFY (dft_control%xas_control)
+      NULLIFY (dft_control%xas_tdp_control)
       NULLIFY (dft_control%qs_control)
       NULLIFY (dft_control%tddfpt_control)
       NULLIFY (dft_control%tddfpt2_control)
@@ -816,6 +819,7 @@ CONTAINS
             CALL tddfpt_control_release(dft_control%tddfpt_control)
             CALL tddfpt2_control_release(dft_control%tddfpt2_control)
             CALL xas_control_release(dft_control%xas_control)
+            CALL xas_tdp_control_release(dft_control%xas_tdp_control)
             CALL admm_control_release(dft_control%admm_control)
             CALL efield_fields_release(dft_control%efield_fields)
             CALL sccs_control_release(dft_control%sccs_control)

@@ -18,16 +18,18 @@ MODULE xas_tdp_utils
    USE constants_operator,              ONLY: operator_coulomb
    USE cp_dbcsr_operations,             ONLY: copy_dbcsr_to_fm, cp_dbcsr_sm_fm_multiply, &
                                               copy_fm_to_dbcsr
+   USE cp_cfm_basic_linalg,             ONLY: cp_cfm_gemm
+   USE cp_cfm_diag,                     ONLY: cp_cfm_heevd
    USE cp_cfm_types,                    ONLY: cp_fm_to_cfm, cp_cfm_to_fm, cp_cfm_type, &
-                                              cp_cfm_create, cp_cfm_release
-   USE cp_fm_basic_linalg,              ONLY: cp_fm_scale_and_add, cp_fm_gemm, cp_fm_column_scale
+                                              cp_cfm_create, cp_cfm_release, cp_cfm_get_submatrix
+   USE cp_fm_basic_linalg,              ONLY: cp_fm_gemm, cp_fm_column_scale, cp_fm_trace
    USE cp_fm_diag,                      ONLY: cp_fm_geeig, cp_fm_power, cp_fm_syevd
    USE cp_fm_struct,                    ONLY: cp_fm_struct_create, cp_fm_struct_release, &     
                                               cp_fm_struct_type
    USE cp_fm_types,                     ONLY: cp_fm_create, cp_fm_release, cp_fm_type, &
                                               cp_fm_to_fm_submat, cp_fm_get_submatrix, &
-                                              cp_fm_get_info, cp_fm_set_submatrix, cp_fm_set_all, &
-                                              cp_fm_p_type, cp_fm_get_diag
+                                              cp_fm_get_info, cp_fm_set_submatrix, &
+                                              cp_fm_set_element, cp_fm_p_type, cp_fm_get_diag
    USE cp_blacs_env,                    ONLY: cp_blacs_env_type
    USE cp_para_types,                   ONLY: cp_para_env_type
    USE dbcsr_api,                       ONLY: dbcsr_type, dbcsr_p_type, dbcsr_distribution_type, &
@@ -72,7 +74,7 @@ MODULE xas_tdp_utils
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'xas_tdp_utils'
 
    PUBLIC :: setup_xas_tdp_full_prob, solve_xas_tdp_full_prob, compute_dipole_fosc, &
-             compute_ri_coulomb3_int, compute_ri_coulomb2_int
+             compute_ri_coulomb3_int, compute_ri_coulomb2_int, include_full_soc
 
 CONTAINS
 
@@ -115,7 +117,7 @@ CONTAINS
                                      routineP = moduleN//":"//routineN
       
       INTEGER                                         :: handle , fxc, nrow, n_dependent, nblk_sub
-      TYPE(dbcsr_type), POINTER                       :: matrix_tdp
+      TYPE(dbcsr_type), POINTER                       :: sg_matrix_tdp, tp_matrix_tdp
       TYPE(dbcsr_type), POINTER                       :: matrix_a, matrix_b, matrix_d, matrix_e, &
                                                          tmp_mat, matrix_c
       TYPE(dbcsr_distribution_type), POINTER          :: submat_dist
@@ -132,15 +134,21 @@ CONTAINS
       CALL timeset(routineN, handle)
 
       NULLIFY(matrix_a, submat_dist, submat_blk_size, col_dist_sub, row_dist_sub)
-      NULLIFY(pgrid, matrix_tdp, matrix_b, matrix_d, matrix_e, tmp_mat, matrix_c) 
+      NULLIFY(pgrid, sg_matrix_tdp, tp_matrix_tdp, matrix_b, matrix_d, matrix_e, tmp_mat, matrix_c) 
       NULLIFY(fm_struct, fm_tmp, para_env, blacs_env, work)
 
       CPASSERT(ASSOCIATED(donor_state))
       CPASSERT(ASSOCIATED(qs_env))
       CPASSERT(ASSOCIATED(xas_tdp_env))
       CPASSERT(ASSOCIATED(xas_tdp_control))
-      ALLOCATE(donor_state%matrix_tdp)
-      matrix_tdp => donor_state%matrix_tdp
+      IF (xas_tdp_control%do_singlet) THEN
+         ALLOCATE(donor_state%sg_matrix_tdp)
+         sg_matrix_tdp => donor_state%sg_matrix_tdp
+      END IF
+      IF (xas_tdp_control%do_triplet) THEN
+         ALLOCATE(donor_state%tp_matrix_tdp) 
+         tp_matrix_tdp => donor_state%tp_matrix_tdp
+      END IF
       fxc = xas_tdp_control%fxc_func
 
 !  Get the submatrices distribution and block sizes
@@ -159,19 +167,37 @@ CONTAINS
          ALLOCATE(donor_state%metric(1))
          CALL build_gs_contribution(matrix_a, submat_dist, submat_blk_size, donor_state, xas_tdp_env, qs_env)
          CALL build_kernel_coulomb(matrix_b, submat_dist, submat_blk_size, donor_state, xas_tdp_env, qs_env)
-         IF (fxc == xas_tdp_pade) CALL build_kernel_xc(matrix_c, submat_dist, &
-                                                       submat_blk_size, donor_state, xas_tdp_env, qs_env)
          IF (fxc == xas_tdp_hfx ) CALL build_kernel_exchange(ex_ker_diag=matrix_d, &
                                                             dist=submat_dist, blk_size=submat_blk_size, &
                                                             donor_state=donor_state, xas_tdp_env=xas_tdp_env, &
                                                             qs_env=qs_env)     
          CALL build_metric(donor_state%metric, submat_dist, submat_blk_size, donor_state, qs_env)
 
-!     Create the simplfied TDA matrix_tdp
-         CALL dbcsr_copy(matrix_tdp, matrix_a, name="MATRIX TDP")
-         IF (xas_tdp_control%do_singlet) CALL dbcsr_add(matrix_tdp, matrix_b, 1.0_dp, 2.0_dp) 
-         IF (fxc == xas_tdp_pade) CALL dbcsr_add(matrix_tdp, matrix_c, 1.0_dp, 1.0_dp) !pure pade
-         IF (fxc == xas_tdp_hfx) CALL dbcsr_add(matrix_tdp, matrix_d, 1.0_dp, -1.0_dp) !pure hfx
+!     Create the simplfied TDA matrix_tdp. The xc kernel changes with the excited state multiplicity
+         IF (xas_tdp_control%do_singlet) THEN
+            CALL dbcsr_copy(sg_matrix_tdp, matrix_a, name="SINGLET MATRIX TDP")
+            ! Coulomb kernel only needed for singlets
+            CALL build_kernel_coulomb(matrix_b, submat_dist, submat_blk_size, donor_state, xas_tdp_env, qs_env)
+
+            CALL dbcsr_add(sg_matrix_tdp, matrix_b, 1.0_dp, 2.0_dp) 
+            IF (fxc == xas_tdp_hfx) CALL dbcsr_add(sg_matrix_tdp, matrix_d, 1.0_dp, -1.0_dp) !pure hfx
+            IF (fxc == xas_tdp_pade) THEN
+               CALL build_kernel_xc(matrix_c, submat_dist, submat_blk_size, donor_state, &
+                                    xas_tdp_env, qs_env, singlet=.TRUE.)
+               CALL dbcsr_add(sg_matrix_tdp, matrix_c, 1.0_dp, 1.0_dp) !pure pade
+            END IF ! pade
+         END IF
+
+         IF (xas_tdp_control%do_triplet) THEN
+
+            CALL dbcsr_copy(tp_matrix_tdp, matrix_a, name="TRIPLET MATRIX TDP")
+            IF (fxc == xas_tdp_hfx) CALL dbcsr_add(tp_matrix_tdp, matrix_d, 1.0_dp, -1.0_dp) !pure hfx
+            IF (fxc == xas_tdp_pade) THEN
+               CALL build_kernel_xc(matrix_c, submat_dist, submat_blk_size, donor_state, &
+                                    xas_tdp_env, qs_env, singlet=.FALSE.)
+               CALL dbcsr_add(tp_matrix_tdp, matrix_c, 1.0_dp, 1.0_dp) !pure pade
+            END IF ! pade
+         END IF
 
 !     Some clean-up
          CALL dbcsr_release(matrix_a)   
@@ -191,9 +217,6 @@ CONTAINS
          ALLOCATE(matrix_e)
          ALLOCATE(donor_state%metric(2))
          CALL build_gs_contribution(matrix_a, submat_dist, submat_blk_size, donor_state, xas_tdp_env, qs_env)
-         CALL build_kernel_coulomb(matrix_b, submat_dist, submat_blk_size, donor_state, xas_tdp_env, qs_env)
-         IF (fxc == xas_tdp_pade )CALL build_kernel_xc(matrix_c, submat_dist, submat_blk_size, &
-                                                       donor_state, xas_tdp_env, qs_env)
          IF (fxc == xas_tdp_hfx) CALL build_kernel_exchange(matrix_d, matrix_e, submat_dist, &
                                                             submat_blk_size, donor_state, xas_tdp_env, qs_env)
          CALL build_metric(donor_state%metric, submat_dist, submat_blk_size, donor_state, qs_env, do_inv=.TRUE.)       
@@ -236,15 +259,44 @@ CONTAINS
 !     Create the main matrix_tdp as:
 !     M = (A-D+E)^0.5 * G^-1 * (A+4B+2C-E-D) * G^-1 * (A-D+E)^0.5
 !     Only pass the middle sum as matrix_tdp, the product is done in the solve routine
-         CALL dbcsr_create(matrix=matrix_tdp, name="XAS TDP MATRIX",matrix_type="S",dist=submat_dist,&
-                           row_blk_size=submat_blk_size, col_blk_size=submat_blk_size) 
 
-         !the central matrix
-         CALL dbcsr_copy(matrix_tdp, matrix_a)
-         CALL dbcsr_add(matrix_tdp, matrix_b, 1.0_dp, 4.0_dp)
-         IF (fxc == xas_tdp_pade) CALL dbcsr_add(matrix_tdp, matrix_c, 1.0_dp, 2.0_dp)
-         If (fxc == xas_tdp_hfx) CALL dbcsr_add(matrix_tdp, matrix_d, 1.0_dp, -1.0_dp)
-         If (fxc == xas_tdp_hfx) CALL dbcsr_add(matrix_tdp, matrix_e, 1.0_dp, -1.0_dp)
+         IF (xas_tdp_control%do_singlet) THEN
+            CALL dbcsr_create(matrix=sg_matrix_tdp, name="SINGLET XAS TDP MATRIX",matrix_type="S", &
+                              dist=submat_dist, row_blk_size=submat_blk_size, &
+                              col_blk_size=submat_blk_size) 
+            CALL build_kernel_coulomb(matrix_b, submat_dist, submat_blk_size, donor_state, &
+                                      xas_tdp_env, qs_env)
+
+            CALL dbcsr_copy(sg_matrix_tdp, matrix_a)
+            CALL dbcsr_add(sg_matrix_tdp, matrix_b, 1.0_dp, 4.0_dp)
+            IF (fxc == xas_tdp_hfx) THEN
+               CALL dbcsr_add(sg_matrix_tdp, matrix_d, 1.0_dp, -1.0_dp)
+               CALL dbcsr_add(sg_matrix_tdp, matrix_e, 1.0_dp, -1.0_dp)
+            END IF !HFX
+            IF (fxc == xas_tdp_pade) THEN
+               CALL build_kernel_xc(matrix_c, submat_dist, submat_blk_size, &
+                                    donor_state, xas_tdp_env, qs_env, singlet=.TRUE.)
+               CALL dbcsr_add(sg_matrix_tdp, matrix_c, 1.0_dp, 2.0_dp)
+            END IF
+         END IF ! singlet
+
+         IF (xas_tdp_control%do_triplet) THEN
+            CALL dbcsr_create(matrix=tp_matrix_tdp, name="TRIPLET XAS TDP MATRIX",matrix_type="S", & 
+                              dist=submat_dist, row_blk_size=submat_blk_size, &
+                              col_blk_size=submat_blk_size) 
+
+            CALL dbcsr_copy(tp_matrix_tdp, matrix_a)
+            IF (fxc == xas_tdp_hfx) THEN
+               CALL dbcsr_add(tp_matrix_tdp, matrix_d, 1.0_dp, -1.0_dp)
+               CALL dbcsr_add(tp_matrix_tdp, matrix_e, 1.0_dp, -1.0_dp)
+            END IF !HFX
+            IF (fxc == xas_tdp_pade) THEN
+               CALL build_kernel_xc(matrix_c, submat_dist, submat_blk_size, &
+                               donor_state, xas_tdp_env, qs_env, singlet=.FALSE.)
+               CALL dbcsr_add(tp_matrix_tdp, matrix_c, 1.0_dp, 2.0_dp)
+            END IF
+         END IF !triplet
+
 
 
 !     Some clean-up
@@ -259,7 +311,8 @@ CONTAINS
       END IF ! Tamm_Dancoff
 
 !  Finalize
-      CALL dbcsr_finalize(matrix_tdp)
+      IF (xas_tdp_control%do_singlet) CALL dbcsr_finalize(sg_matrix_tdp)
+      IF (xas_tdp_control%do_triplet) CALL dbcsr_finalize(tp_matrix_tdp)
 
 !  General Clean-up
       CALL dbcsr_distribution_release(submat_dist)
@@ -271,19 +324,26 @@ CONTAINS
 
 ! **************************************************************************************************
 !> \brief Solves the XAS TDP generalized eigenvalue problem omega*C = matrix_tdp*C using standard
-!>        full diagonalization methods (for non-hermitian matrices), for a given donor state
+!>        full diagonalization methods. The problem is Hermitian (made that way even if not TDA)
 !> \param donor_state ...
 !> \param xas_tdp_control ...
 !> \param qs_env ...
+!> \param singlet if the problem has to be solved for singlet (vs triplet)
 !> \note The computed eigenvalues and eigenvectors are stored in the donor_state
 !>       The eigenvectors are the LR-coefficients. In case of TDA, c^- is stored. In the general
-!>       case, the sum c^+ + c^- is stored
+!>       case, the sum c^+ + c^- is stored.
+!>       In case both singlets and triplets are considered, this routine must be called twice. This
+!>       is the choice that was made because the body of the routine is exactly the same in both cases
+!>       Note that for singlet we solve for u = 1/sqrt(2)*(c_alpha + c_beta) = sqrt(2)*c 
+!>       and that for triplets we solve for v = 1/sqrt(2)*(c_alpha - c_beta) = sqrt(2)*c
+!>       Hence we need to scale the resulting eigenvectros by 1/sqrt(2) to have the actual c coeffs
 ! **************************************************************************************************
-   SUBROUTINE solve_xas_tdp_full_prob(donor_state, xas_tdp_control, qs_env)  
+   SUBROUTINE solve_xas_tdp_full_prob(donor_state, xas_tdp_control, qs_env, singlet)  
 
       TYPE(donor_state_type), POINTER                 :: donor_state
       TYPE(xas_tdp_control_type), POINTER             :: xas_tdp_control
       TYPE(qs_environment_type), POINTER              :: qs_env
+      LOGICAL, INTENT(IN)                             :: singlet
 
       CHARACTER(len=*), PARAMETER :: routineN = "solve_xas_tdp_full_prob", &
                                      routineP = moduleN//":"//routineN
@@ -298,14 +358,19 @@ CONTAINS
       TYPE(cp_fm_type), POINTER                       :: rhs_matrix, lhs_matrix, work, c_diff, &
                                                          c_sum
       REAL(dp), DIMENSION(:), ALLOCATABLE             :: scaling
-      REAL(dp), DIMENSION(:), POINTER                 :: tmp_evals
+      REAL(dp), DIMENSION(:), POINTER                 :: tmp_evals, lr_evals
+      TYPE(cp_fm_p_type), DIMENSION(:), POINTER       :: lr_coeffs
 
       CALL timeset(routineN, handle)
 
       NULLIFY(para_env, blacs_env, fm_struct, rhs_matrix, matrix_tdp, lhs_matrix, work, tmp_mat)
-      NULLIFY(c_diff, c_sum, gs_struct, tmp_evals)
+      NULLIFY(c_diff, c_sum, gs_struct, tmp_evals, lr_evals, lr_coeffs)
 
-      matrix_tdp => donor_state%matrix_tdp
+      IF (singlet) THEN
+         matrix_tdp => donor_state%sg_matrix_tdp
+      ELSE
+         matrix_tdp => donor_state%tp_matrix_tdp
+      END IF
       CALL get_qs_env(qs_env=qs_env, para_env=para_env, blacs_env=blacs_env) 
 
 !     Initialization
@@ -317,7 +382,13 @@ CONTAINS
       CALL cp_fm_create(rhs_matrix, fm_struct)
          
 !     Allocating space for solutions
-      ALLOCATE(donor_state%lr_evals(nrow))
+      IF (singlet) THEN
+         ALLOCATE(donor_state%sg_evals(nrow))
+         lr_evals => donor_state%sg_evals
+      ELSE
+         ALLOCATE(donor_state%tp_evals(nrow))
+         lr_evals => donor_state%tp_evals
+      END IF
       CALL cp_fm_create(c_sum, fm_struct)
       CALL cp_fm_create(work, fm_struct)
 
@@ -335,7 +406,7 @@ CONTAINS
          CALL copy_dbcsr_to_fm(donor_state%metric(1)%matrix, lhs_matrix)
 
 !        Diagonalisation (Cholesky decomposition)
-         CALL cp_fm_geeig(rhs_matrix, lhs_matrix, c_sum, donor_state%lr_evals, work)
+         CALL cp_fm_geeig(rhs_matrix, lhs_matrix, c_sum, lr_evals, work)
 
 !        TDA specific clean-up
          CALL cp_fm_release(lhs_matrix)
@@ -364,13 +435,13 @@ CONTAINS
          CALL copy_dbcsr_to_fm(tmp_mat, rhs_matrix)
 
 !        The problemed has been turned Hermitian. Call stendard routine
-         CALL cp_fm_syevd(rhs_matrix, work, donor_state%lr_evals)
+         CALL cp_fm_syevd(rhs_matrix, work, lr_evals)
 
 !        Filter out residual negative (and tiny) eigenvalues
-         WHERE (donor_state%lr_evals < 1.0E-6_dp) donor_state%lr_evals = 0.0_dp
+         WHERE (lr_evals < 1.0E-6_dp) lr_evals = 0.0_dp
 
 !        Take the square root since we computed omega^2
-         donor_state%lr_evals = SQRT(donor_state%lr_evals)
+         lr_evals = SQRT(lr_evals)
 
 !        Need to normalize the eigenvectors. Need to retrieve the difference of the LR coeffs:
 !        (c^+ - c^-) = 1/omega^2 * G^-1 * (A+4B+2C-E-D) * G^-1 * (A-D+E)^0.5 * z
@@ -379,7 +450,7 @@ CONTAINS
          CALL cp_dbcsr_sm_fm_multiply(tmp_mat, work, c_diff, ncol=nrow)
 
          scaling = 0.0_dp
-         WHERE (donor_state%lr_evals > 0.0_dp) scaling = 1.0_dp/donor_state%lr_evals**2
+         WHERE (lr_evals > 0.0_dp) scaling = 1.0_dp/lr_evals**2
          CALL cp_fm_column_scale(c_diff, scaling)
 
 !        The normalization is c_diff * G * c_diff = +- 1
@@ -393,7 +464,7 @@ CONTAINS
          CALL dbcsr_multiply('N', 'N', 1.0_dp, donor_state%metric(2)%matrix, tmp_mat, 0.0_dp, tmp_mat)
          CALL cp_dbcsr_sm_fm_multiply(tmp_mat, c_diff, c_sum, ncol=nrow)
          scaling = 0.0_dp
-         WHERE (donor_state%lr_evals > 0.0_dp) scaling = -1.0_dp/donor_state%lr_evals
+         WHERE (lr_evals > 0.0_dp) scaling = -1.0_dp/lr_evals
          CALL cp_fm_column_scale(c_sum, scaling)
 
 !        Some clean-up
@@ -412,28 +483,47 @@ CONTAINS
       ALLOCATE(tmp_evals(nstates-to_remove))
 
       !evals are ordered
-      tmp_evals(:) = donor_state%lr_evals(to_remove+1:nstates)
-      DEALLOCATE(donor_state%lr_evals)
-      donor_state%lr_evals => tmp_evals
+      tmp_evals(:) = lr_evals(to_remove+1:nstates)
+      DEALLOCATE(lr_evals)
+      IF (singlet) THEN
+         donor_state%sg_evals => tmp_evals
+      ELSE
+         donor_state%tp_evals => tmp_evals
+      END IF
 
 !  Reorganize the eigenvectors in array of cp_fm_p_types so that each element corresponds to an 
 !  excited state. Makes later calls to those easier and more efficient
       CALL cp_fm_get_info(donor_state%gs_coeffs, matrix_struct=gs_struct, nrow_global=nao)      
-      ALLOCATE(donor_state%lr_coeffs(nstates-to_remove))
+      IF (singlet) THEN
+         ALLOCATE(donor_state%sg_coeffs(nstates-to_remove))
+         lr_coeffs => donor_state%sg_coeffs
+      ELSE
+         ALLOCATE(donor_state%tp_coeffs(nstates-to_remove)) 
+         lr_coeffs => donor_state%tp_coeffs
+      END IF
 
       DO i = 1,nstates-to_remove
          istate = to_remove + i
 
-         CALL cp_fm_create(donor_state%lr_coeffs(i)%matrix, gs_struct)
+         CALL cp_fm_create(lr_coeffs(i)%matrix, gs_struct)
 
          DO imo = 1, ndo_mo
             
-            CALL cp_fm_to_fm_submat(msource=c_sum, mtarget=donor_state%lr_coeffs(i)%matrix, &
+            CALL cp_fm_to_fm_submat(msource=c_sum, mtarget=lr_coeffs(i)%matrix, &
                                     nrow=nao, ncol=1, s_firstrow=(imo-1)*nao+1, s_firstcol=istate, &
                                     t_firstrow=1, t_firstcol=imo)
 
          END DO !imo
       END DO !istate
+
+!  Allocate the oscilaltor strength vectors
+      IF (singlet) THEN
+         ALLOCATE(donor_state%sg_osc_str(nstates-to_remove))
+         donor_state%sg_osc_str = 0.0_dp
+      ELSE
+         ALLOCATE(donor_state%tp_osc_str(nstates-to_remove))
+         donor_state%tp_osc_str = 0.0_dp
+      END IF
          
 !  Clean-up
       DEALLOCATE(scaling)
@@ -444,11 +534,6 @@ CONTAINS
 
 !  Perform a partial clean-up of the donor_state
       CALL dbcsr_release(matrix_tdp)
-      CALL dbcsr_release(donor_state%metric(1)%matrix)
-      IF (.NOT. xas_tdp_control%tamm_dancoff) THEN
-         CALL dbcsr_release(donor_state%matrix_aux)
-         CALL dbcsr_release(donor_state%metric(2)%matrix)
-      END IF
 
       CALL timestop(handle)
 
@@ -507,7 +592,8 @@ CONTAINS
 
 ! **************************************************************************************************
 !> \brief Computes the oscillator strength based on the dipole moment (velocity or length rep) for
-!>        all available excitation energies and store the results in the donor_state
+!>        all available excitation energies and store the results in the donor_state. There is no
+!>        triplet dipole in the spin-restricted ground state
 !> \param donor_state the donor state which is excited
 !> \param xas_tdp_control ...
 !> \param xas_tdp_env ... 
@@ -532,67 +618,65 @@ CONTAINS
       TYPE(cp_para_env_type), POINTER                 :: para_env
       TYPE(cp_blacs_env_type), POINTER                :: blacs_env
       REAL(dp)                                        :: dip_mom
-      REAL(dp), DIMENSION(:), POINTER                 :: osc_str
+      REAL(dp), DIMENSION(:), ALLOCATABLE             :: osc_str
 
-      NULLIFY(dipmat, col_work, mat_work, col_struct, mat_struct, para_env, blacs_env, lr_coeffs, osc_str)
+      NULLIFY(dipmat, col_work, mat_work, col_struct, mat_struct, para_env, blacs_env, lr_coeffs)
 
 !  Initialization
       ndo_mo = SIZE(donor_state%mo_indices)
-      nosc = SIZE(donor_state%lr_evals)
-      ALLOCATE(donor_state%osc_str(nosc))
-      osc_str => donor_state%osc_str
+      nosc = SIZE(donor_state%sg_evals)
+      ALLOCATE(osc_str(nosc))
       osc_str = 0.0_dp
 
-!     For spin-unpolarized ground state, only have transition density if singlet
-      IF (xas_tdp_control%do_singlet) THEN
+      dipmat => xas_tdp_env%dipmat
+      !compute the prefactor
+      IF (xas_tdp_control%dipole_form == xas_dip_len) THEN
+         osc_str(:) = 2.0_dp/3.0_dp*donor_state%sg_evals(:)
+      ELSE
+         osc_str(:) = 2.0_dp/3.0_dp/donor_state%sg_evals(:)
+      END IF
 
-         dipmat => xas_tdp_env%dipmat
-         !compute the prefactor
-         IF (xas_tdp_control%dipole_form == xas_dip_len) THEN
-            osc_str = 2.0_dp/3.0_dp*donor_state%lr_evals
-         ELSE
-            osc_str = 2.0_dp/3.0_dp/donor_state%lr_evals
-         END IF
-
-         ! do some work matrix initialization
-         CALL cp_fm_get_info(donor_state%gs_coeffs, matrix_struct=col_struct, para_env=para_env, &
-                             context=blacs_env, nrow_global=nao)
-         CALL cp_fm_struct_create(mat_struct, para_env=para_env, context=blacs_env, &
-                                  nrow_global=ndo_mo, ncol_global=ndo_mo)
-         CALL cp_fm_create(col_work, col_struct)
-         CALL cp_fm_create(mat_work, mat_struct)
-         ALLOCATE(diag(ndo_mo))
-
-         DO iosc = 1,nosc
+      ! do some work matrix initialization
+      CALL cp_fm_get_info(donor_state%gs_coeffs, matrix_struct=col_struct, para_env=para_env, &
+                          context=blacs_env, nrow_global=nao)
+      CALL cp_fm_struct_create(mat_struct, para_env=para_env, context=blacs_env, &
+                               nrow_global=ndo_mo, ncol_global=ndo_mo)
+      CALL cp_fm_create(col_work, col_struct)
+      CALL cp_fm_create(mat_work, mat_struct)
+      ALLOCATE(diag(ndo_mo))
+    
+!  Looping over the excited singlets
+      DO iosc = 1,nosc
             
-            dip_mom = 0.0_dp
-            !looping over the cartesian coordinates
-            DO j = 1,3
+         dip_mom = 0.0_dp
+         !looping over the cartesian coordinates
+         DO j = 1,3
 
-               lr_coeffs => donor_state%lr_coeffs(iosc)%matrix
-               !computing c^0 * dipmat(j) * c^i
-               CALL cp_dbcsr_sm_fm_multiply(dipmat(j)%matrix, lr_coeffs, col_work, ncol=ndo_mo)
-               CALL cp_fm_gemm('T', 'N', ndo_mo, ndo_mo, nao, 1.0_dp, donor_state%gs_coeffs, &
-                               col_work, 0.0_dp, mat_work)
+            lr_coeffs => donor_state%sg_coeffs(iosc)%matrix
+            !computing c^0 * dipmat(j) * c^i
+            CALL cp_dbcsr_sm_fm_multiply(dipmat(j)%matrix, lr_coeffs, col_work, ncol=ndo_mo)
+            CALL cp_fm_gemm('T', 'N', ndo_mo, ndo_mo, nao, 1.0_dp, donor_state%gs_coeffs, &
+                            col_work, 0.0_dp, mat_work)
 
-               !get the sum of the dipole moments
-               CALL cp_fm_get_diag(mat_work, diag)
-               dip_mom = dip_mom + SUM(diag)**2
+            !get the sum of the dipole moments. Factor 2 because of definition of singlet
+            CALL cp_fm_get_diag(mat_work, diag)
+            dip_mom = dip_mom + 2.0_dp*SUM(diag)**2
 
-            END DO !j
+         END DO !j
             
-            !factor 2 because of singlet definition u = 0.5*(c_alpha + c_beta)
-            osc_str(iosc) = 2*osc_str(iosc)*dip_mom
+         !Taking the excitation energy into account
+         osc_str(iosc) = osc_str(iosc)*dip_mom
 
-         END DO !iosc
+      END DO !iosc
 
-         !clean-up
-         CALL cp_fm_release(mat_work)
-         CALL cp_fm_release(col_work)
-         CALL cp_fm_struct_release(mat_struct)
-         DEALLOCATE(diag)
+!  Saving the results in the donor state
+      donor_state%sg_osc_str(:) = osc_str 
 
-      END IF !singlet
+      !clean-up
+      CALL cp_fm_release(mat_work)
+      CALL cp_fm_release(col_work)
+      CALL cp_fm_struct_release(mat_struct)
+      DEALLOCATE(diag)
 
    END SUBROUTINE compute_dipole_fosc
 
@@ -1593,10 +1677,11 @@ CONTAINS
 !> \param donor_state the donor_state for which we compute the kernel 
 !> \param xas_tdp_env ...
 !> \param qs_env ...
+!> \param singlet whether the kernel is built for singlet excitations (vs triplet)
 !> \note currently coded with arrays and such low level types. TODO: switch to dbcsr tensors         
 !>       Everythin is gonna change later on, so don't care about performance
 ! **************************************************************************************************
-   SUBROUTINE build_kernel_xc(xc_kernel, dist, blk_size, donor_state, xas_tdp_env, qs_env)
+   SUBROUTINE build_kernel_xc(xc_kernel, dist, blk_size, donor_state, xas_tdp_env, qs_env, singlet)
 
       TYPE(dbcsr_type), POINTER                       :: xc_kernel
       TYPE(dbcsr_distribution_type), POINTER          :: dist
@@ -1604,6 +1689,7 @@ CONTAINS
       TYPE(donor_state_type), POINTER                 :: donor_state
       TYPE(xas_tdp_env_type), POINTER                 :: xas_tdp_env
       TYPE(qs_environment_type), POINTER              :: qs_env
+      LOGICAL, INTENT(IN)                             :: singlet
 
       CHARACTER(len=*), PARAMETER :: routineN = "build_kernel_xc", &                            
                                      routineP = moduleN//":"//routineN
@@ -1654,8 +1740,13 @@ CONTAINS
 !     For now assume serial => don't check for which proc the block is on
 !     TODO: maybe that storing the atom integrals in a dbcsr matrix is not the best
       found_block = .FALSE.
-      CALL dbcsr_get_block_p(xas_tdp_env%ri_atom_int%matrix, donor_state%at_index, &
-                            donor_state%at_index, fxc, found_block)
+      IF (singlet) THEN
+         CALL dbcsr_get_block_p(xas_tdp_env%ri_fxc_sg%matrix, donor_state%at_index, &
+                                donor_state%at_index, fxc, found_block)
+      ELSE
+         CALL dbcsr_get_block_p(xas_tdp_env%ri_fxc_tp%matrix, donor_state%at_index, &
+                                donor_state%at_index, fxc, found_block)
+      END IF
       CPASSERT(found_block)
       CPASSERT(ALL(SHAPE(fxc)==nsgfp))
 
@@ -1734,6 +1825,326 @@ CONTAINS
       CALL timestop(handle)
 
    END SUBROUTINE build_kernel_xc
+
+! **************************************************************************************************
+!> \brief Includes the SOC effects on the precomputed singlet and triplet excitations
+!> \param donor_state ...
+!> \param xas_tdp_env ...
+!> \param xas_tdp_control ...
+!> \param qs_env ...
+!> \note Using AMEWs, build an hermitian matrix with all excited states SOC coupling + the
+!>       excitation energies on the diagonal. Then diagonalize it to get the new excitation 
+!>       energies and corresponding linear combinations of lr_coeffs.
+!>       The AMEWs are normalized
+! **************************************************************************************************
+   SUBROUTINE include_full_soc(donor_state, xas_tdp_env, xas_tdp_control, qs_env)
+
+      TYPE(donor_state_type), POINTER                 :: donor_state
+      TYPE(xas_tdp_env_type), POINTER                 :: xas_tdp_env
+      TYPE(xas_tdp_control_type), POINTER             :: xas_tdp_control
+      TYPE(qs_environment_type), POINTER              :: qs_env
+
+      CHARACTER(len=*), PARAMETER :: routineN = "include_full_soc", routineP = moduleN//":"//routineN
+
+      INTEGER                                         :: itp, ntp, isg, nsg, ntot, ndo_mo, nao, &
+                                                         i, jtp, nmo
+      REAL(dp), DIMENSION(:), POINTER                 :: sg_evals, tp_evals
+      TYPE(cp_fm_p_type), DIMENSION(:), POINTER       :: sg_coeffs, tp_coeffs
+      TYPE(cp_fm_type), POINTER                       :: real_fm, img_fm, gs_coeffs, vec_fm, &
+                                                         prod_fm, mo_coeff, gs_fm, work_fm, &
+                                                         s_st, s_tt, domo_soc_x, domo_soc_y, &
+                                                         domo_soc_z
+      TYPE(cp_fm_struct_type), POINTER                :: full_struct, prod_struct, vec_struct, &
+                                                         std_struct, gsgs_struct
+      TYPE(cp_para_env_type), POINTER                 :: para_env
+      TYPE(cp_blacs_env_type), POINTER                :: blacs_env
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER       :: matrix_s
+      TYPE(dbcsr_type), POINTER                       :: orb_soc_x, orb_soc_y, orb_soc_z
+      REAL(dp), DIMENSION(:), ALLOCATABLE             :: diag, gs_diag
+      REAL(dp)                                        :: soc_st, soc_tt, gs_sum_x, s_tt_sumdiag, &
+                                                         gs_sum_y, gs_sum_z, sqrt2, trace, soc_gst
+      TYPE(cp_cfm_type), POINTER                      :: hami_cfm, evecs_cfm
+      TYPE(mo_set_p_type), DIMENSION(:), POINTER      :: mos
+
+      NULLIFY(sg_coeffs, tp_coeffs, gs_coeffs, sg_evals, tp_evals, real_fm, img_fm, full_struct)
+      NULLIFY(para_env, blacs_env, vec_fm, prod_fm, prod_struct, vec_struct, domo_soc_z)
+      NULLIFY(matrix_s, orb_soc_x, hami_cfm, evecs_cfm, s_st, s_tt, domo_soc_x, domo_soc_y)
+      NULLIFY(orb_soc_y, orb_soc_z, mo_coeff, mos, std_struct, work_fm, gsgs_struct)
+
+!  Initialization
+      gs_coeffs => donor_state%gs_coeffs
+      sg_coeffs => donor_state%sg_coeffs
+      tp_coeffs => donor_state%tp_coeffs
+      sg_evals => donor_state%sg_evals
+      tp_evals => donor_state%tp_evals
+      nsg = SIZE(sg_evals)
+      ntp = SIZE(tp_evals)
+      ntot = 1 + nsg + 3*ntp
+      ndo_mo = SIZE(donor_state%mo_indices)
+      CALL get_qs_env(qs_env, matrix_s=matrix_s)
+      orb_soc_x => xas_tdp_env%orb_soc(1)%matrix
+      orb_soc_y => xas_tdp_env%orb_soc(2)%matrix
+      orb_soc_z => xas_tdp_env%orb_soc(3)%matrix
+
+!  Test on the number of excited states
+      IF (xas_tdp_control%n_soc > ntot) THEN
+         CPWARN("Requested number of SOC states higher than number of available states. Took them all.")
+      ELSE IF (xas_tdp_control%n_soc > 0 .AND. xas_tdp_control%n_soc < ntot) THEN
+         i = 0
+         isg = 1
+         itp = 1
+         DO WHILE (i < xas_tdp_control%n_soc)
+            IF (sg_evals(isg) .LE. tp_evals(itp)) THEN
+               isg = isg+1
+               i = i+1
+            ELSE
+               itp = itp+1
+               i = i+3
+            END IF
+         END DO
+         nsg = isg-1
+         ntp = itp-1
+         ntot = 1+nsg+3*ntp
+      END IF
+
+!  Creating the real part and imaginary part of the final SOC fm
+      CALL get_qs_env(qs_env, para_env=para_env, blacs_env=blacs_env, mos=mos)
+      CALL cp_fm_struct_create(full_struct, context=blacs_env, para_env=para_env, &
+                               nrow_global=ntot, ncol_global=ntot)
+      CALL cp_fm_create(real_fm, full_struct)
+      CALL cp_fm_create(img_fm, full_struct)
+      CALL get_mo_set(mos(1)%mo_set, mo_coeff=mo_coeff, nao=nao, nmo=nmo)
+
+!  Put the excitation energies on the diagonal of the real matrix
+      DO isg = 1,nsg
+         CALL cp_fm_set_element(real_fm, 1+isg, 1+isg, sg_evals(isg))
+      END DO
+      DO itp = 1,ntp
+         ! first T^-1, then T^0, then T^+1
+         CALL cp_fm_set_element(real_fm, 1+itp+nsg, 1+itp+nsg, tp_evals(itp))
+         CALL cp_fm_set_element(real_fm, 1+itp+ntp+nsg, 1+itp+ntp+nsg, tp_evals(itp))
+         CALL cp_fm_set_element(real_fm, 1+itp+2*ntp+nsg, 1+itp+2*ntp+nsg, tp_evals(itp))
+      END DO
+
+!  Create the work and helper fms
+      CALL cp_fm_get_info(gs_coeffs, matrix_struct=vec_struct)
+      CALL cp_fm_struct_create(prod_struct, context=blacs_env, para_env=para_env, &
+                               nrow_global=ndo_mo, ncol_global=ndo_mo)
+      CALL cp_fm_create(prod_fm, prod_struct)
+      CALL cp_fm_create(s_tt, prod_struct)
+      CALL cp_fm_create(s_st, prod_struct)
+      CALL cp_fm_create(vec_fm, vec_struct)
+
+!  Some other helper arrays
+      ALLOCATE(diag(ndo_mo))
+
+!  Precompute everything we can before looping over excited states
+      sqrt2 = SQRT(2.0_dp)   
+
+   ! The sum of the ground state KS orbital contributions: sum_i <phi_i^0|Hsoc|phi_i^0>
+      ALLOCATE(gs_diag(nmo))
+      CALL cp_fm_struct_create(gsgs_struct, context=blacs_env, para_env=para_env, &
+                               nrow_global=nmo, ncol_global=nmo)
+      CALL cp_fm_get_info(mo_coeff, matrix_struct=std_struct)
+      CALL cp_fm_create(gs_fm, gsgs_struct)
+      CALL cp_fm_create(work_fm, std_struct)
+
+      CALL cp_dbcsr_sm_fm_multiply(orb_soc_x, mo_coeff, work_fm, ncol=nmo)
+      CALL cp_fm_gemm('T', 'N', nmo, nmo, nao, 1.0_dp, mo_coeff, work_fm, 0.0_dp, gs_fm)
+      CALL cp_fm_get_diag(gs_fm, gs_diag)
+      gs_sum_x = SUM(gs_diag)
+
+      CALL cp_dbcsr_sm_fm_multiply(orb_soc_y, mo_coeff, work_fm, ncol=nmo)
+      CALL cp_fm_gemm('T', 'N', nmo, nmo, nao, 1.0_dp, mo_coeff, work_fm, 0.0_dp, gs_fm)
+      CALL cp_fm_get_diag(gs_fm, gs_diag)
+      gs_sum_y = SUM(gs_diag)
+
+      CALL cp_dbcsr_sm_fm_multiply(orb_soc_z, mo_coeff, work_fm, ncol=nmo)
+      CALL cp_fm_gemm('T', 'N', nmo, nmo, nao, 1.0_dp, mo_coeff, work_fm, 0.0_dp, gs_fm)
+      CALL cp_fm_get_diag(gs_fm, gs_diag)
+      gs_sum_z = SUM(gs_diag)
+
+      CALL cp_fm_release(gs_fm)
+      CALL cp_fm_release(work_fm)
+      CALL cp_fm_struct_release(gsgs_struct)
+      DEALLOCATE(gs_diag)
+
+   ! The subset of the donor MOs matrix elements: <phi_I^0|Hsoc|phi_J^0>
+      CALL cp_fm_create(domo_soc_x, prod_struct)
+      CALL cp_fm_create(domo_soc_y, prod_struct)
+      CALL cp_fm_create(domo_soc_z, prod_struct)
+
+      CALL cp_dbcsr_sm_fm_multiply(orb_soc_x, gs_coeffs, vec_fm, ncol=ndo_mo)
+      CALL cp_fm_gemm('T', 'N', ndo_mo, ndo_mo, nao, 1.0_dp, gs_coeffs, vec_fm, 0.0_dp, domo_soc_x)
+
+      CALL cp_dbcsr_sm_fm_multiply(orb_soc_y, gs_coeffs, vec_fm, ncol=ndo_mo)
+      CALL cp_fm_gemm('T', 'N', ndo_mo, ndo_mo, nao, 1.0_dp, gs_coeffs, vec_fm, 0.0_dp, domo_soc_y)
+
+      CALL cp_dbcsr_sm_fm_multiply(orb_soc_z, gs_coeffs, vec_fm, ncol=ndo_mo)
+      CALL cp_fm_gemm('T', 'N', ndo_mo, ndo_mo, nao, 1.0_dp, gs_coeffs, vec_fm, 0.0_dp, domo_soc_z)
+      
+!  Only have SOC between singlet-triplet and ground_state-triplet, the resulting matrix is Hermitian
+!  i.e. the real part is symmetric and the imaginary part is anti-symmetric. Can only fill upper half
+
+!  Loop over triplet states
+      DO jtp = 1,ntp
+      ! Compute ground-state-triplet Ms=+-1 SOC
+         ! imaginary part
+         CALL cp_dbcsr_sm_fm_multiply(orb_soc_x, tp_coeffs(jtp)%matrix, vec_fm, ncol=ndo_mo)
+         CALL cp_fm_gemm('T', 'N', ndo_mo, ndo_mo, nao, 1.0_dp, gs_coeffs, vec_fm, 0.0_dp, prod_fm)
+         CALL cp_fm_get_diag(prod_fm, diag)
+         soc_gst = SUM(diag)
+         CALL cp_fm_set_element(img_fm, 1, 1+nsg+jtp, soc_gst) ! <0|H_x|T^-1>
+         CALL cp_fm_set_element(img_fm, 1, 1+nsg+2*ntp+jtp, -1.0_dp*soc_gst) ! <0|H_x|T^+1>
+         
+         ! real part
+         CALL cp_dbcsr_sm_fm_multiply(orb_soc_y, tp_coeffs(jtp)%matrix, vec_fm, ncol=ndo_mo)
+         CALL cp_fm_gemm('T', 'N', ndo_mo, ndo_mo, nao, 1.0_dp, gs_coeffs, vec_fm, 0.0_dp, prod_fm)
+         CALL cp_fm_get_diag(prod_fm, diag)
+         soc_gst = SUM(diag)
+         CALL cp_fm_set_element(real_fm, 1, 1+nsg+jtp, soc_gst) ! <0|H_y|T^-1>
+         CALL cp_fm_set_element(real_fm, 1, 1+nsg+2*ntp+jtp, soc_gst) ! <0|H_y|T^+1>
+
+      ! Compute the groud_state-triplet SOC: 2* sum_I c^0_I * orb_soc_z * c^T_I
+         CALL cp_dbcsr_sm_fm_multiply(orb_soc_z, tp_coeffs(jtp)%matrix, vec_fm, ncol=ndo_mo)
+         CALL cp_fm_gemm('T', 'N', ndo_mo, ndo_mo, nao, 1.0_dp, gs_coeffs, vec_fm, 0.0_dp, prod_fm)
+         CALL cp_fm_get_diag(prod_fm, diag)
+         soc_gst = sqrt2*SUM(diag)
+         CALL cp_fm_set_element(img_fm, 1, 1+nsg+ntp+jtp, soc_gst)
+
+      ! Loop over the singlets for singlet-triplet SOC
+         DO isg = 1,nsg
+
+         ! compute the singlet-triplet overlap
+            CALL cp_dbcsr_sm_fm_multiply(matrix_s(1)%matrix, tp_coeffs(jtp)%matrix, vec_fm, ncol=ndo_mo)
+            CALL cp_fm_gemm('T', 'N', ndo_mo, ndo_mo, nao, 1.0_dp, sg_coeffs(isg)%matrix, vec_fm, &
+                             0.0_dp, s_st)
+
+         ! compute the singlet-triplet (Ms=+-1) SOC
+            ! imaginary part
+            CALL cp_dbcsr_sm_fm_multiply(orb_soc_x, tp_coeffs(jtp)%matrix, vec_fm, ncol=ndo_mo)
+            CALL cp_fm_gemm('T', 'N', ndo_mo, ndo_mo, nao, 1.0_dp, sg_coeffs(isg)%matrix, vec_fm, &
+                            0.0_dp, prod_fm)
+            CALL cp_fm_get_diag(prod_fm, diag)
+            CALL cp_fm_trace(domo_soc_x, s_st, trace)
+
+            soc_st = 0.5_dp*sqrt2*(SUM(diag) - trace)
+
+            CALL cp_fm_set_element(img_fm, 1+isg, 1+nsg+jtp, soc_st) ! <S|H_x|T^-1>
+            CALL cp_fm_set_element(img_fm, 1+isg, 1+nsg+2*ntp+jtp, -1.0_dp*soc_st) !<S|H_x|T^+1> 
+
+            ! real part
+            CALL cp_dbcsr_sm_fm_multiply(orb_soc_y, tp_coeffs(jtp)%matrix, vec_fm, ncol=ndo_mo)
+            CALL cp_fm_gemm('T', 'N', ndo_mo, ndo_mo, nao, 1.0_dp, sg_coeffs(isg)%matrix, vec_fm, &
+                            0.0_dp, prod_fm)
+            CALL cp_fm_get_diag(prod_fm, diag)
+            CALL cp_fm_trace(domo_soc_y, s_st, trace)
+
+            soc_st = 0.5_dp*sqrt2*(SUM(diag) - trace)
+
+            CALL cp_fm_set_element(real_fm, 1+isg, 1+nsg+jtp, soc_st) ! <S|H_x|T^-1> 
+            CALL cp_fm_set_element(real_fm, 1+isg, 1+nsg+2*ntp+jtp, soc_st) ! <S|H_x|T^+1> 
+
+         ! compute the singlet-triplet (Ms=0) SOC (purely imaginary)
+            CALL cp_dbcsr_sm_fm_multiply(orb_soc_z, tp_coeffs(jtp)%matrix, vec_fm, ncol=ndo_mo)
+            CALL cp_fm_gemm('T', 'N', ndo_mo, ndo_mo, nao, 1.0_dp, sg_coeffs(isg)%matrix, vec_fm, &
+                            0.0_dp, prod_fm)
+            CALL cp_fm_get_diag(prod_fm, diag)
+            CALL cp_fm_trace(domo_soc_z, s_st, trace)
+
+            soc_st = SUM(diag) - trace
+
+            CALL cp_fm_set_element(img_fm, 1+isg, 1+nsg+ntp+jtp, soc_st) ! <S|H_x|T^0> 
+
+         END DO !isg
+
+      ! Loop over the triplet to do the triplet-triplet SOC
+         DO itp = 1,ntp
+
+            ! compute the triplet-triplet overlap
+            CALL cp_dbcsr_sm_fm_multiply(matrix_s(1)%matrix, tp_coeffs(jtp)%matrix, vec_fm, ncol=ndo_mo)
+            CALL cp_fm_gemm('T', 'N', ndo_mo, ndo_mo, nao, 1.0_dp, tp_coeffs(itp)%matrix, vec_fm,&
+                               0.0_dp, s_tt)
+            CALL cp_fm_get_diag(s_tt, diag)
+            s_tt_sumdiag = SUM(diag)
+
+         ! The Ms=0 to Ms=+-1 triplet-triplet SOC
+            ! imaginary part
+            CALL cp_dbcsr_sm_fm_multiply(orb_soc_x, tp_coeffs(jtp)%matrix, vec_fm, ncol=ndo_mo)
+            CALL cp_fm_gemm('T', 'N', ndo_mo, ndo_mo, nao, 1.0_dp, tp_coeffs(itp)%matrix, vec_fm,& 
+                            0.0_dp, prod_fm)
+            CALL cp_fm_get_diag(prod_fm, diag)
+            CALL cp_fm_trace(domo_soc_x, s_tt, trace)
+
+            soc_tt = 0.5_dp*sqrt2*(SUM(diag) - trace + 2.0_dp*gs_sum_x*s_tt_sumdiag)
+
+            CALL cp_fm_set_element(img_fm, 1+nsg+jtp, 1+nsg+ntp+itp, -1.0_dp*soc_tt) ! <T^-1|H_x|T^0> 
+            CALL cp_fm_set_element(img_fm, 1+nsg+ntp+itp, 1+nsg+2*ntp+jtp, soc_tt) ! <T^0|H_x|T^+1> 
+
+            ! real part
+            CALL cp_dbcsr_sm_fm_multiply(orb_soc_y, tp_coeffs(jtp)%matrix, vec_fm, ncol=ndo_mo)
+            CALL cp_fm_gemm('T', 'N', ndo_mo, ndo_mo, nao, 1.0_dp, tp_coeffs(itp)%matrix, vec_fm,&
+                            0.0_dp, prod_fm)
+            CALL cp_fm_get_diag(prod_fm, diag)
+            CALL cp_fm_trace(domo_soc_y, s_tt, trace)
+
+            soc_tt = 0.5_dp*sqrt2*(SUM(diag) - trace + 2.0_dp*gs_sum_y*s_tt_sumdiag)
+
+            CALL cp_fm_set_element(real_fm, 1+nsg+jtp, 1+nsg+ntp+itp, soc_tt) ! <T^-1|H_x|T^0>
+            CALL cp_fm_set_element(real_fm, 1+nsg+ntp+itp, 1+nsg+2*ntp+jtp, -1.0_dp*soc_tt) ! <T^0|H_x|T^+1> 
+
+            ! Do the Ms=+1-Ms=+1 and Ms=-1-Ms=-1 coupling
+            IF (itp >= jtp) CYCLE ! SOC purely imaginary, must be zero on the diagonal
+
+            CALL cp_dbcsr_sm_fm_multiply(orb_soc_z, tp_coeffs(jtp)%matrix, vec_fm, ncol=ndo_mo)
+            CALL cp_fm_gemm('T', 'N', ndo_mo, ndo_mo, nao, 1.0_dp, tp_coeffs(itp)%matrix, vec_fm,&
+                            0.0_dp, prod_fm)
+            CALL cp_fm_get_diag(prod_fm, diag)
+            CALL cp_fm_trace(domo_soc_z, s_tt, trace)
+
+            soc_tt = SUM(diag) - trace + 2.0_dp*gs_sum_z*s_tt_sumdiag
+
+            CALL cp_fm_set_element(img_fm, 1+nsg+itp, 1+nsg+jtp, -1.0_dp*soc_tt) ! <T^-1|H_x|T^-1>
+            CALL cp_fm_set_element(img_fm, 1+nsg+2*ntp+itp, 1+nsg+2*ntp+jtp, soc_tt) !<T^+1|H_x|T^+1>
+
+         END DO !itp
+      END DO !jtp
+
+!  Intermediate clean-up
+      CALL cp_fm_struct_release(prod_struct)
+      CALL cp_fm_release(prod_fm)
+      CALL cp_fm_release(s_tt)
+      CALL cp_fm_release(s_st)
+      CALL cp_fm_release(domo_soc_x)
+      CALL cp_fm_release(domo_soc_y)
+      CALL cp_fm_release(domo_soc_z)
+      CALL cp_fm_release(vec_fm)
+      DEALLOCATE(diag)
+
+!  Set-up the complex hermitian matrix
+      CALL cp_cfm_create(hami_cfm, full_struct)
+      CALL cp_fm_to_cfm(real_fm, img_fm, hami_cfm)
+
+!  Diagonalize the Hamiltonian
+      ALLOCATE(donor_state%soc_evals(ntot))
+      CALL cp_cfm_create(evecs_cfm, full_struct)
+      CALL cp_cfm_heevd(hami_cfm, evecs_cfm, donor_state%soc_evals)
+
+!  Adjust the energies so the GS has zero
+      donor_state%soc_evals(:) = donor_state%soc_evals(:) - donor_state%soc_evals(1)
+
+!  Oscilaltor strengths are not computed
+      ALLOCATE(donor_state%soc_osc_str(ntot))
+      donor_state%soc_osc_str = -1000.0_dp
+
+!  Clean-up
+      CALL cp_fm_struct_release(full_struct)
+      CALL cp_fm_release(real_fm)
+      CALL cp_fm_release(img_fm)
+      CALL cp_cfm_release(hami_cfm)
+      CALL cp_cfm_release(evecs_cfm)
+      
+   END SUBROUTINE include_full_soc
 
 END MODULE xas_tdp_utils
 
