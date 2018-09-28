@@ -47,7 +47,7 @@ MODULE embed_types
 
    IMPLICIT NONE
    PRIVATE
-   PUBLIC :: opt_embed_pot_type, embed_env_type
+   PUBLIC :: opt_embed_pot_type, opt_dmfet_pot_type, embed_env_type
 
 ! *** Public subroutines ***
 
@@ -63,9 +63,6 @@ MODULE embed_types
 
 ! **************************************************************************************************
 !> \brief Type containing main data for embedding potential optimization
-!> \param qs_env ...
-!> \param opt_embed ...
-!> \param opt_embed_section ...
 !> \author Vladimir Rybkin
 ! **************************************************************************************************
 
@@ -89,6 +86,29 @@ MODULE embed_types
       TYPE(lri_kind_type), DIMENSION(:), POINTER :: lri ! Needed to store integrals
 
    END TYPE opt_embed_pot_type
+
+! **************************************************************************************************
+!> \brief Type containing main data for matrix embedding potential optimization
+!> \author Vladimir Rybkin
+! **************************************************************************************************
+
+   TYPE opt_dmfet_pot_type
+      TYPE(cp_fm_type), POINTER                 :: dmfet_pot, dm_1, dm_2, dm_total, dm_diff, &
+                                                   dmfet_pot_beta, dm_total_beta, &
+                                                   dm_diff_beta, dm_subsys, dm_subsys_beta
+      REAL(KIND=dp)                             :: trust_rad, conv_max, conv_int, conv_max_beta, &
+                                                   conv_int_beta
+      LOGICAL                                   :: accept_step, converged, read_dmfet_pot, &
+                                                   change_spin, open_shell_embed
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)  :: w_func, max_diff, int_diff
+      INTEGER                                   :: n_iter, i_iter, last_accepted
+
+   END TYPE opt_dmfet_pot_type
+
+! **************************************************************************************************
+!> \brief Embedding environment type
+!> \author Vladimir Rybkin
+! **************************************************************************************************
 
    TYPE embed_env_type
       INTEGER                                          :: id_nr, ref_count

@@ -13,6 +13,8 @@ MODULE input_cp2k_embed
    USE cp_output_handling,              ONLY: add_last_numeric,&
                                               cp_print_key_section_create,&
                                               low_print_level
+   USE input_constants,                 ONLY: dfet,&
+                                              dmfet
    USE input_keyword_types,             ONLY: keyword_create,&
                                               keyword_release,&
                                               keyword_type
@@ -21,8 +23,8 @@ MODULE input_cp2k_embed
                                               section_create,&
                                               section_release,&
                                               section_type
-   USE input_val_types,                 ONLY: integer_t,&
-                                              logical_t
+   USE input_val_types,                 ONLY: integer_t
+   USE string_utilities,                ONLY: s2a
 #include "./base/base_uses.f90"
 
    IMPLICIT NONE
@@ -57,10 +59,13 @@ CONTAINS
                           citations=(/Huang2011, Heaton_Burgess2007/))
       NULLIFY (keyword, subsection)
 
-      CALL keyword_create(keyword, name="DFET", &
-                          description="Density functional embedding", &
-                          usage="DFET <LOGICAL>", type_of_var=logical_t, &
-                          default_l_val=.TRUE., lone_keyword_l_val=.TRUE.)
+      CALL keyword_create(keyword, name="EMBED_METHOD", &
+                          description="Select DFET or DMFET.", &
+                          usage="EMBED_METHOD DFET", &
+                          default_i_val=dfet, &
+                          enum_c_vals=s2a("DFET", "DMFET"), &
+                          enum_desc=s2a("DFET", "DMFET"), &
+                          enum_i_vals=(/dfet, dmfet/))
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 

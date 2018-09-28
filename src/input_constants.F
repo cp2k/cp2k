@@ -1091,6 +1091,9 @@ MODULE input_constants
                                                negfint_method_simpson = 1
    INTEGER, PARAMETER, PUBLIC               :: negfrun_main = 0, &
                                                negfrun_fermilevel = 1
+   ! Type of embedding
+   INTEGER, PARAMETER, PUBLIC               :: dfet = 0, &
+                                               dmfet = 1
 
    ! DFT embedding: optimization of potential
    INTEGER, PARAMETER, PUBLIC               :: embed_steep_desc = 0, &

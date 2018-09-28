@@ -81,18 +81,24 @@ CONTAINS
 !> \param pw ...
 !> \param unit_nr ...
 !> \param stride ...
+!> \param pw2 ...
 !> \par History
 !>      Created [Vladimir Rybkin] (08.2017)
 ! **************************************************************************************************
-   SUBROUTINE cp_pw_to_simple_volumetric(pw, unit_nr, stride)
+   SUBROUTINE cp_pw_to_simple_volumetric(pw, unit_nr, stride, pw2)
       TYPE(pw_type), POINTER                             :: pw
       INTEGER, INTENT(IN)                                :: unit_nr
       INTEGER, DIMENSION(:), OPTIONAL, POINTER           :: stride
+      TYPE(pw_type), OPTIONAL, POINTER                   :: pw2
 
       CHARACTER(len=*), PARAMETER :: routineN = 'cp_pw_to_simple_volumetric', &
          routineP = moduleN//':'//routineN
 
-      CALL pw_to_simple_volumetric(pw, unit_nr, stride)
+      IF (.NOT. PRESENT(pw2)) THEN
+         CALL pw_to_simple_volumetric(pw, unit_nr, stride)
+      ELSE
+         CALL pw_to_simple_volumetric(pw, unit_nr, stride, pw2)
+      ENDIF
 
    END SUBROUTINE cp_pw_to_simple_volumetric
 

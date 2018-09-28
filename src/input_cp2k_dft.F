@@ -2961,6 +2961,13 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
+      CALL keyword_create(keyword, name="DMFET_EMBEDDED", &
+                          description="Calculation with DM embedding potential. ", &
+                          usage="DMFET_EMBEDDED FALSE", &
+                          default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
       ! Integers
       CALL keyword_create(keyword, name="STO_NG", &
                           description="Order of Gaussian type expansion of Slater orbital basis sets.", &
@@ -3185,8 +3192,12 @@ CONTAINS
       CALL section_add_subsection(section, subsection)
       CALL section_release(subsection)
 
-      ! Embedding subsections
+      ! Embedding subsections: DFET and DMFET
       CALL create_optimize_embed(subsection)
+      CALL section_add_subsection(section, subsection)
+      CALL section_release(subsection)
+
+      CALL create_optimize_dmfet(subsection)
       CALL section_add_subsection(section, subsection)
       CALL section_release(subsection)
 
@@ -6120,6 +6131,86 @@ CONTAINS
    END SUBROUTINE create_optimize_embed
 
 ! **************************************************************************************************
+!> \brief Input for density matrix functional embedding, DMFET
+!> \param section ...
+!> \author Vladimir Rybkin [08.2018]
+! **************************************************************************************************
+   SUBROUTINE create_optimize_dmfet(section)
+      TYPE(section_type), POINTER                        :: section
+
+      CHARACTER(len=*), PARAMETER :: routineN = 'create_optimize_dmfet', &
+         routineP = moduleN//':'//routineN
+
+      TYPE(keyword_type), POINTER                        :: keyword
+
+      CPASSERT(.NOT. ASSOCIATED(section))
+      CALL section_create(section, name="OPT_DMFET", &
+                          description="This section specifies optional parameters for DMFET matrix potential optimization.", &
+                          n_keywords=8, n_subsections=4, repeats=.FALSE.)
+
+      NULLIFY (keyword)
+
+      CALL keyword_create(keyword, name="N_ITER", &
+                          description="Maximum number of iterations "// &
+                          "in the optimization procedure.", &
+                          usage="N_ITER 75", default_i_val=50)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, name="TRUST_RAD", &
+                          description="Maximum number of iterations "// &
+                          "in the optimization procedure.", &
+                          usage="TRUST_RAD 0.5", default_r_val=0.5_dp)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, name="DM_CONV_MAX", &
+                          description="Convergence criterion for "// &
+                          "the maximum element of density matrix difference.", &
+                          usage="DM_CONV_MAX 0.01", default_r_val=0.01_dp)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, name="DM_CONV_INT", &
+                          description="Convergence criterion for "// &
+                          "the total density matrix difference.", &
+                          usage="DM_CONV_INT 0.1", default_r_val=0.1_dp)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, name="BETA_DM_CONV_MAX", &
+                          description="Convergence criterion for "// &
+                          "the maximum element of the beta-spin density "// &
+                          "matrix difference.", &
+                          usage="DM_CONV_MAX 0.01", default_r_val=0.01_dp)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, name="BETA_DM_CONV_INT", &
+                          description="Convergence criterion for "// &
+                          "the total beta-spin density matrix difference.", &
+                          usage="DM_CONV_INT 0.1", default_r_val=0.1_dp)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, name="READ_DMFET_POT", &
+                          description="Read the matrix embedding potential  "// &
+                          "(restart) from the cube file.", &
+                          usage="READ_DMFET_POT .FALSE.", default_l_val=.FALSE.)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, name="DMFET_RESTART_FILE_NAME", &
+                          description="Root of the file name where to read the matrix "// &
+                          "potential guess.", &
+                          usage="DMFET_RESTART_FILE_NAME <FILENAME>", &
+                          type_of_var=lchar_t)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+   END SUBROUTINE create_optimize_dmfet
+
+! **************************************************************************************************
 !> \brief ...
 !> \param section ...
 ! **************************************************************************************************
@@ -6172,7 +6263,7 @@ CONTAINS
                           description="The stride (X,Y,Z) used to write the cube file "// &
                           "(larger values result in smaller cube files). You can provide 3 numbers (for X,Y,Z) or"// &
                           " 1 number valid for all components.", &
-                          usage="STRIDE 2 2 2", n_var=-1, default_i_vals=(/2, 2, 2/), type_of_var=integer_t)
+                          usage="STRIDE 1 1 1", n_var=-1, default_i_vals=(/1, 1, 1/), type_of_var=integer_t)
       CALL section_add_keyword(print_key, keyword)
       CALL keyword_release(keyword)
 
@@ -6226,7 +6317,7 @@ CONTAINS
                           description="The stride (X,Y,Z) used to write the cube file "// &
                           "(larger values result in smaller cube files). You can provide 3 numbers (for X,Y,Z) or"// &
                           " 1 number valid for all components.", &
-                          usage="STRIDE 1 1 1", n_var=-1, default_i_vals=(/2, 2, 2/), type_of_var=integer_t)
+                          usage="STRIDE 1 1 1", n_var=-1, default_i_vals=(/1, 1, 1/), type_of_var=integer_t)
       CALL section_add_keyword(print_key, keyword)
       CALL keyword_release(keyword)
 

@@ -805,26 +805,33 @@ CONTAINS
 !> \param pw ...
 !> \param unit_nr ...
 !> \param stride ...
+!> \param pw2 ...
 !> \par History
 !>      Created [Vladimir Rybkin] (08.2018)
 !> \author Vladimir Rybkin
 ! **************************************************************************************************
-   SUBROUTINE pw_to_simple_volumetric(pw, unit_nr, stride)
+   SUBROUTINE pw_to_simple_volumetric(pw, unit_nr, stride, pw2)
       TYPE(pw_type), POINTER                             :: pw
       INTEGER, INTENT(IN)                                :: unit_nr
       INTEGER, DIMENSION(:), OPTIONAL, POINTER           :: stride
+      TYPE(pw_type), OPTIONAL, POINTER                   :: pw2
 
       CHARACTER(len=*), PARAMETER :: routineN = 'pw_to_simple_volumetric', &
          routineP = moduleN//':'//routineN
 
       INTEGER                                            :: checksum, dest, gid, handle, i, I1, I2, &
                                                             I3, ip, L1, L2, L3, my_rank, &
-                                                            my_stride(3), num_pe, rank(2), source, &
-                                                            tag, U1, U2, U3
+                                                            my_stride(3), ngrids, npoints, num_pe, &
+                                                            rank(2), source, tag, U1, U2, U3
+      LOGICAL                                            :: DOUBLE
       REAL(KIND=dp)                                      :: x, y, z
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: buf
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: buf, buf2
 
       CALL timeset(routineN, handle)
+
+      ! Check if we write two grids
+      DOUBLE = .FALSE.
+      IF (PRESENT(pw2)) DOUBLE = .TRUE.
 
       my_stride = 1
       IF (PRESENT(stride)) THEN
@@ -851,7 +858,16 @@ CONTAINS
       U2 = pw%pw_grid%bounds(2, 2)
       U3 = pw%pw_grid%bounds(2, 3)
 
+      ! Write the header: number of points and number of spins
+      ngrids = 1
+      IF (DOUBLE) ngrids = 2
+      npoints = ((pw%pw_grid%npts(1)+my_stride(1)-1)/my_stride(1))* &
+                ((pw%pw_grid%npts(2)+my_stride(2)-1)/my_stride(1))* &
+                ((pw%pw_grid%npts(3)+my_stride(3)-1)/my_stride(1))
+      IF (unit_nr > 1) WRITE (unit_nr, '(I7,I5)') npoints, ngrids
+
       ALLOCATE (buf(L3:U3))
+      IF (DOUBLE) ALLOCATE (buf2(L3:U3))
 
       my_rank = pw%pw_grid%para%my_pos
       gid = pw%pw_grid%para%group
@@ -888,34 +904,63 @@ CONTAINS
             IF (source == dest) THEN
                IF (my_rank == source) THEN
                   buf(:) = pw%cr3d(I1, I2, :)
+                  IF (DOUBLE) buf2(:) = pw2%cr3d(I1, I2, :)
                ENDIF
             ELSE
                IF (my_rank == source) THEN
                   buf(:) = pw%cr3d(I1, I2, :)
                   CALL mp_send(buf, dest, tag, gid)
+                  IF (DOUBLE) THEN
+                     buf2(:) = pw2%cr3d(I1, I2, :)
+                     CALL mp_send(buf2, dest, tag, gid)
+                  ENDIF
                ENDIF
                IF (my_rank == dest) THEN
                   CALL mp_recv(buf, source, tag, gid)
+                  IF (DOUBLE) CALL mp_recv(buf2, source, tag, gid)
                ENDIF
             ENDIF
 
-            DO I3 = L3, U3, my_stride(3)
-               x = pw%pw_grid%dh(1, 1)*I1+ &
-                   pw%pw_grid%dh(2, 1)*I2+ &
-                   pw%pw_grid%dh(3, 1)*I3
+            IF (.NOT. DOUBLE) THEN
+               DO I3 = L3, U3, my_stride(3)
+                  x = pw%pw_grid%dh(1, 1)*I1+ &
+                      pw%pw_grid%dh(2, 1)*I2+ &
+                      pw%pw_grid%dh(3, 1)*I3
 
-               y = pw%pw_grid%dh(1, 2)*I1+ &
-                   pw%pw_grid%dh(2, 2)*I2+ &
-                   pw%pw_grid%dh(3, 2)*I3
+                  y = pw%pw_grid%dh(1, 2)*I1+ &
+                      pw%pw_grid%dh(2, 2)*I2+ &
+                      pw%pw_grid%dh(3, 2)*I3
 
-               z = pw%pw_grid%dh(1, 3)*I1+ &
-                   pw%pw_grid%dh(2, 3)*I2+ &
-                   pw%pw_grid%dh(3, 3)*I3
+                  z = pw%pw_grid%dh(1, 3)*I1+ &
+                      pw%pw_grid%dh(2, 3)*I2+ &
+                      pw%pw_grid%dh(3, 3)*I3
 
-               IF (unit_nr > 0) THEN
-                  WRITE (unit_nr, '(6E13.5, 6E13.5, 6E13.5, 6E13.5)') x, y, z, buf(I3)
-               ENDIF
-            ENDDO
+                  IF (unit_nr > 0) THEN
+                     WRITE (unit_nr, '(6E13.5, 6E13.5, 6E13.5, 6E13.5)') x, y, z, buf(I3)
+                  ENDIF
+               ENDDO
+
+            ELSE
+
+               DO I3 = L3, U3, my_stride(3)
+                  x = pw%pw_grid%dh(1, 1)*I1+ &
+                      pw%pw_grid%dh(2, 1)*I2+ &
+                      pw%pw_grid%dh(3, 1)*I3
+
+                  y = pw%pw_grid%dh(1, 2)*I1+ &
+                      pw%pw_grid%dh(2, 2)*I2+ &
+                      pw%pw_grid%dh(3, 2)*I3
+
+                  z = pw%pw_grid%dh(1, 3)*I1+ &
+                      pw%pw_grid%dh(2, 3)*I2+ &
+                      pw%pw_grid%dh(3, 3)*I3
+
+                  IF (unit_nr > 0) THEN
+                     WRITE (unit_nr, '(6E13.5, 6E13.5, 6E13.5, 6E13.5)') x, y, z, buf(I3), buf2(I3)
+                  ENDIF
+               ENDDO
+
+            ENDIF ! Double
 
             ! this double loop generates so many messages that it can overload
             ! the message passing system, e.g. on XT3
@@ -929,6 +974,7 @@ CONTAINS
       ENDDO
 
       DEALLOCATE (buf)
+      IF (DOUBLE) DEALLOCATE (buf2)
 
       CALL timestop(handle)
 

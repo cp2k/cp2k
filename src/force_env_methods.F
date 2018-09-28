@@ -28,6 +28,8 @@ MODULE force_env_methods
    USE constraint_fxd,                  ONLY: fix_atom_control
    USE constraint_vsite,                ONLY: vsite_force_control
    USE cp_control_types,                ONLY: dft_control_type
+   USE cp_fm_basic_linalg,              ONLY: cp_fm_scale_and_add
+   USE cp_fm_types,                     ONLY: cp_fm_copy_general
    USE cp_iter_types,                   ONLY: cp_iteration_info_copy_iter
    USE cp_log_handling,                 ONLY: cp_add_default_logger,&
                                               cp_get_default_logger,&
@@ -58,6 +60,7 @@ MODULE force_env_methods
                                               eip_lenosky
    USE embed_types,                     ONLY: embed_env_retain,&
                                               embed_env_type,&
+                                              opt_dmfet_pot_type,&
                                               opt_embed_pot_type
    USE external_potential_methods,      ONLY: add_external_potential
    USE fist_environment_types,          ONLY: fist_env_retain,&
@@ -81,8 +84,8 @@ MODULE force_env_methods
    USE global_types,                    ONLY: global_environment_type,&
                                               globenv_retain
    USE input_constants,                 ONLY: &
-        debug_run, mix_cdft, mix_coupled, mix_generic, mix_linear_combination, mix_minimum, &
-        mix_restrained, use_bazant_eip, use_lenosky_eip
+        debug_run, dfet, dmfet, mix_cdft, mix_coupled, mix_generic, mix_linear_combination, &
+        mix_minimum, mix_restrained, use_bazant_eip, use_lenosky_eip
    USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                               section_vals_retain,&
                                               section_vals_type,&
@@ -107,6 +110,11 @@ MODULE force_env_methods
                                               mixed_environment_type
    USE mixed_environment_utils,         ONLY: get_subsys_map_index,&
                                               mixed_map_forces
+   USE optimize_dmfet_potential,        ONLY: build_full_dm,&
+                                              check_dmfet,&
+                                              prepare_dmfet_opt,&
+                                              release_dmfet_opt,&
+                                              subsys_spin
    USE optimize_embedding_potential,    ONLY: &
         calculate_embed_pot_grad, conv_check_embed, init_embed_pot, make_subsys_embed_pot, &
         opt_embed_step, prepare_embed_opt, print_emb_opt_info, print_embed_restart, &
@@ -1357,8 +1365,9 @@ CONTAINS
    END SUBROUTINE mixed_cdft_post_energy_forces
 
 ! **************************************************************************************************
-!> \brief ...
+!> \brief Computes the total energy for an embedded calculation
 !> \param force_env ...
+!> \author Vladimir Rybkin
 ! **************************************************************************************************
    SUBROUTINE embed_energy(force_env)
 
@@ -1535,12 +1544,11 @@ CONTAINS
    END SUBROUTINE embed_energy
 
 ! **************************************************************************************************
-!> \brief ... Main driver for DFT embedding
+!> \brief ...
 !> \param force_env ...
 !> \param ref_subsys_number ...
 !> \param energies ...
 !> \param converged_embed ...
-!> \author Vladimir Rybkin
 ! **************************************************************************************************
    SUBROUTINE dft_embedding(force_env, ref_subsys_number, energies, converged_embed)
       TYPE(force_env_type), POINTER                      :: force_env
@@ -1548,7 +1556,40 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:), POINTER               :: energies
       LOGICAL                                            :: converged_embed
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'dft_embedding', routineP = moduleN//':'//routineN
+      INTEGER                                            :: embed_method
+      TYPE(section_vals_type), POINTER                   :: embed_section, force_env_section
+
+      ! Find out which embedding scheme is used
+      CALL force_env_get(force_env=force_env, &
+                         force_env_section=force_env_section)
+      embed_section => section_vals_get_subs_vals(force_env_section, "EMBED")
+
+      CALL section_vals_val_get(embed_section, "EMBED_METHOD", i_val=embed_method)
+      SELECT CASE (embed_method)
+      CASE (dfet)
+         ! Density functional embedding
+         CALL dfet_embedding(force_env, ref_subsys_number, energies, converged_embed)
+      CASE (dmfet)
+         ! Density matrix embedding theory
+         CALL dmfet_embedding(force_env, ref_subsys_number, energies, converged_embed)
+      END SELECT
+
+   END SUBROUTINE dft_embedding
+! **************************************************************************************************
+!> \brief ... Main driver for DFT embedding
+!> \param force_env ...
+!> \param ref_subsys_number ...
+!> \param energies ...
+!> \param converged_embed ...
+!> \author Vladimir Rybkin
+! **************************************************************************************************
+   SUBROUTINE dfet_embedding(force_env, ref_subsys_number, energies, converged_embed)
+      TYPE(force_env_type), POINTER                      :: force_env
+      INTEGER                                            :: ref_subsys_number
+      REAL(KIND=dp), DIMENSION(:), POINTER               :: energies
+      LOGICAL                                            :: converged_embed
+
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'dfet_embedding', routineP = moduleN//':'//routineN
 
       INTEGER                                            :: cluster_subsys_num, handle, &
                                                             i_force_eval, i_iter, i_spin, nspins, &
@@ -1580,7 +1621,6 @@ CONTAINS
       output_unit = cp_print_key_unit_nr(logger, force_env%force_env_section, "PRINT%PROGRAM_RUN_INFO", &
                                          extension=".Log")
 
-      ! Make it a proper input parameter later
       NULLIFY (dft_section, input, opt_embed_section)
       NULLIFY (energy, dft_control)
 
@@ -1877,7 +1917,165 @@ CONTAINS
 
       CALL timestop(handle)
 
-   END SUBROUTINE dft_embedding
+   END SUBROUTINE dfet_embedding
+
+! **************************************************************************************************
+!> \brief Main driver for the DMFET embedding
+!> \param force_env ...
+!> \param ref_subsys_number ...
+!> \param energies ...
+!> \param converged_embed ...
+!> \author Vladimir Rybkin
+! **************************************************************************************************
+   SUBROUTINE dmfet_embedding(force_env, ref_subsys_number, energies, converged_embed)
+      TYPE(force_env_type), POINTER                      :: force_env
+      INTEGER                                            :: ref_subsys_number
+      REAL(KIND=dp), DIMENSION(:), POINTER               :: energies
+      LOGICAL                                            :: converged_embed
+
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'dmfet_embedding', &
+         routineP = moduleN//':'//routineN
+
+      INTEGER                                            :: cluster_subsys_num, handle, &
+                                                            i_force_eval, i_iter, output_unit
+      LOGICAL                                            :: subsys_open_shell
+      REAL(KIND=dp)                                      :: cluster_energy
+      TYPE(cp_logger_type), POINTER                      :: logger
+      TYPE(cp_para_env_type), POINTER                    :: para_env
+      TYPE(dft_control_type), POINTER                    :: dft_control
+      TYPE(opt_dmfet_pot_type)                           :: opt_dmfet
+      TYPE(qs_energy_type), POINTER                      :: energy
+      TYPE(section_vals_type), POINTER                   :: dft_section, input, opt_dmfet_section
+
+      CALL timeset(routineN, handle)
+
+      CALL get_qs_env(qs_env=force_env%sub_force_env(ref_subsys_number)%force_env%qs_env, &
+                      para_env=para_env)
+
+      ! Reveal input file
+      NULLIFY (logger)
+      logger => cp_get_default_logger()
+      output_unit = cp_print_key_unit_nr(logger, force_env%force_env_section, "PRINT%PROGRAM_RUN_INFO", &
+                                         extension=".Log")
+
+      NULLIFY (dft_section, input, opt_dmfet_section)
+      NULLIFY (energy)
+
+      CALL get_qs_env(qs_env=force_env%sub_force_env(ref_subsys_number)%force_env%qs_env, &
+                      energy=energy, input=input)
+
+      dft_section => section_vals_get_subs_vals(input, "DFT")
+      opt_dmfet_section => section_vals_get_subs_vals(input, &
+                                                      "DFT%QS%OPT_DMFET")
+
+      ! We need to understand how to treat spins states
+      CALL understand_spin_states(force_env, ref_subsys_number, opt_dmfet%change_spin, opt_dmfet%open_shell_embed)
+
+      ! Prepare for the potential optimization
+      CALL prepare_dmfet_opt(force_env%sub_force_env(ref_subsys_number)%force_env%qs_env, &
+                             opt_dmfet, opt_dmfet_section)
+
+      ! Get the reference density matrix/matrices
+      subsys_open_shell = subsys_spin(force_env%sub_force_env(ref_subsys_number)%force_env%qs_env)
+      CALL build_full_dm(force_env%sub_force_env(ref_subsys_number)%force_env%qs_env, &
+                         opt_dmfet%dm_total, subsys_open_shell, opt_dmfet%open_shell_embed, opt_dmfet%dm_total_beta)
+
+      ! Check the preliminary DM difference
+      CALL cp_fm_copy_general(opt_dmfet%dm_total, opt_dmfet%dm_diff, para_env)
+      IF (opt_dmfet%open_shell_embed) CALL cp_fm_copy_general(opt_dmfet%dm_total_beta, &
+                                                              opt_dmfet%dm_diff_beta, para_env)
+
+      DO i_force_eval = 1, ref_subsys_number-1
+
+         ! Get the subsystem density matrix/matrices
+         subsys_open_shell = subsys_spin(force_env%sub_force_env(i_force_eval)%force_env%qs_env)
+
+         CALL build_full_dm(force_env%sub_force_env(i_force_eval)%force_env%qs_env, &
+                            opt_dmfet%dm_subsys, subsys_open_shell, opt_dmfet%open_shell_embed, &
+                            opt_dmfet%dm_subsys_beta)
+
+         CALL cp_fm_scale_and_add(-1.0_dp, opt_dmfet%dm_diff, 1.0_dp, opt_dmfet%dm_subsys)
+
+         IF (opt_dmfet%open_shell_embed) CALL cp_fm_scale_and_add(-1.0_dp, opt_dmfet%dm_diff_beta, &
+                                                                  1.0_dp, opt_dmfet%dm_subsys_beta)
+
+      ENDDO
+
+      ! Main loop of iterative matrix potential optimization
+      DO i_iter = 1, opt_dmfet%n_iter
+
+         WRITE (*, *) 'step', i_iter
+
+         opt_dmfet%i_iter = i_iter
+
+         ! Set the dm difference as the reference one
+         CALL cp_fm_copy_general(opt_dmfet%dm_total, opt_dmfet%dm_diff, para_env)
+
+         IF (opt_dmfet%open_shell_embed) CALL cp_fm_copy_general(opt_dmfet%dm_total_beta, &
+                                                                 opt_dmfet%dm_diff_beta, para_env)
+
+         ! Loop over force evaluations
+         DO i_force_eval = 1, ref_subsys_number-1
+
+            ! Switch on external potential in the subsystems
+            NULLIFY (dft_control)
+            CALL get_qs_env(force_env%sub_force_env(i_force_eval)%force_env%qs_env, dft_control=dft_control)
+            dft_control%apply_dmfet_pot = .TRUE.
+
+            ! Calculate the new density
+            CALL force_env_calc_energy_force(force_env=force_env%sub_force_env(i_force_eval)%force_env, &
+                                             calc_force=.FALSE., &
+                                             skip_external_control=.TRUE.)
+
+            ! Extract subsystem density matrix and energy
+            NULLIFY (energy)
+
+            CALL get_qs_env(force_env%sub_force_env(i_force_eval)%force_env%qs_env, energy=energy)
+            opt_dmfet%w_func(i_iter) = opt_dmfet%w_func(i_iter)+energy%total
+
+            ! Find out which subsystem is the cluster
+            IF (dft_control%qs_control%cluster_embed_subsys) THEN
+               cluster_subsys_num = i_force_eval
+               cluster_energy = energy%total
+            ENDIF
+
+            ! Add subsystem density matrices
+            subsys_open_shell = subsys_spin(force_env%sub_force_env(i_force_eval)%force_env%qs_env)
+
+            CALL build_full_dm(force_env%sub_force_env(i_force_eval)%force_env%qs_env, &
+                               opt_dmfet%dm_subsys, subsys_open_shell, opt_dmfet%open_shell_embed, &
+                               opt_dmfet%dm_subsys_beta)
+
+            IF (opt_dmfet%open_shell_embed) THEN ! Open-shell embedding
+               ! We may need to change spin ONLY FOR THE SECOND SUBSYSTEM: that's the internal convention
+               IF ((i_force_eval .EQ. 2) .AND. (opt_dmfet%change_spin)) THEN
+                  CALL cp_fm_scale_and_add(-1.0_dp, opt_dmfet%dm_diff_beta, 1.0_dp, opt_dmfet%dm_subsys)
+                  CALL cp_fm_scale_and_add(-1.0_dp, opt_dmfet%dm_diff, 1.0_dp, opt_dmfet%dm_subsys_beta)
+               ELSE
+                  CALL cp_fm_scale_and_add(-1.0_dp, opt_dmfet%dm_diff, 1.0_dp, opt_dmfet%dm_subsys)
+                  CALL cp_fm_scale_and_add(-1.0_dp, opt_dmfet%dm_diff_beta, 1.0_dp, opt_dmfet%dm_subsys_beta)
+               ENDIF
+            ELSE ! Closed-shell embedding
+               CALL cp_fm_scale_and_add(-1.0_dp, opt_dmfet%dm_diff, 1.0_dp, opt_dmfet%dm_subsys)
+            ENDIF
+
+         ENDDO ! i_force_eval
+
+         CALL check_dmfet(opt_dmfet, force_env%sub_force_env(ref_subsys_number)%force_env%qs_env)
+
+      ENDDO ! i_iter
+
+      ! Substitute the correct energy in energies: only on rank 0
+      IF (force_env%sub_force_env(cluster_subsys_num)%force_env%para_env%mepos == &
+          force_env%sub_force_env(cluster_subsys_num)%force_env%para_env%source) THEN
+         energies(cluster_subsys_num) = cluster_energy
+      ENDIF
+
+      CALL release_dmfet_opt(opt_dmfet)
+
+      converged_embed = .FALSE.
+
+   END SUBROUTINE dmfet_embedding
 
 END MODULE force_env_methods
 

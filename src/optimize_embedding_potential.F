@@ -2575,10 +2575,13 @@ CONTAINS
       INTEGER                                            :: my_units, unit_nr
       LOGICAL                                            :: angstrom, bohr
       TYPE(cp_logger_type), POINTER                      :: logger
+      TYPE(pw_env_type), POINTER                         :: pw_env
+      TYPE(pw_p_type), POINTER                           :: pot_alpha, pot_beta
+      TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
       TYPE(section_vals_type), POINTER                   :: dft_section, input
 
       NULLIFY (input)
-      CALL get_qs_env(qs_env=qs_env, input=input)
+      CALL get_qs_env(qs_env=qs_env, input=input, pw_env=pw_env)
 
       ! Second, cube files
       dft_section => section_vals_get_subs_vals(input, "DFT")
@@ -2603,6 +2606,34 @@ CONTAINS
             angstrom = .FALSE.
          END SELECT
 
+         ! Get alpha and beta potentials
+         ! Prepare plane-waves pool
+         CALL pw_env_get(pw_env, auxbas_pw_pool=auxbas_pw_pool)
+
+         ! Create embedding potential and set to zero
+         NULLIFY (pot_alpha)
+         ALLOCATE (pot_alpha)
+         NULLIFY (pot_alpha%pw)
+         CALL pw_pool_create_pw(auxbas_pw_pool, pot_alpha%pw, &
+                                use_data=REALDATA3D, &
+                                in_space=REALSPACE)
+         CALL pw_zero(pot_alpha%pw)
+
+         CALL pw_copy(embed_pot%pw, pot_alpha%pw)
+
+         IF (open_shell_embed) THEN
+            NULLIFY (pot_beta)
+            ALLOCATE (pot_beta)
+            NULLIFY (pot_beta%pw)
+            CALL pw_pool_create_pw(auxbas_pw_pool, pot_beta%pw, &
+                                   use_data=REALDATA3D, &
+                                   in_space=REALSPACE)
+            CALL pw_copy(embed_pot%pw, pot_beta%pw)
+            ! Add spin potential to the alpha, and subtract from the beta part
+            CALL pw_axpy(embed_pot_spin%pw, pot_alpha%pw, 1.0_dp)
+            CALL pw_axpy(embed_pot_spin%pw, pot_beta%pw, -1.0_dp)
+         ENDIF
+
          IF (.NOT. final_one) THEN
             WRITE (filename, '(a10,I3.3)') "embed_pot_", i_iter
          ELSE
@@ -2611,28 +2642,26 @@ CONTAINS
          unit_nr = cp_print_key_unit_nr(logger, input, "DFT%QS%OPT_EMBED%WRITE_SIMPLE_GRID", extension=".dat", &
                                         middle_name=TRIM(filename), file_form="FORMATTED", file_position="REWIND")
 
-         CALL cp_pw_to_simple_volumetric(embed_pot%pw, unit_nr, &
-                                         stride=section_get_ivals(dft_section, "QS%OPT_EMBED%WRITE_SIMPLE_GRID%STRIDE"))
+         IF (open_shell_embed) THEN ! Print spin part of the embedding potential
+            CALL cp_pw_to_simple_volumetric(pw=pot_alpha%pw, unit_nr=unit_nr, &
+                                            stride=section_get_ivals(dft_section, "QS%OPT_EMBED%WRITE_SIMPLE_GRID%STRIDE"), &
+                                            pw2=pot_beta%pw)
+         ELSE
+            CALL cp_pw_to_simple_volumetric(pot_alpha%pw, unit_nr, &
+                                            stride=section_get_ivals(dft_section, "QS%OPT_EMBED%WRITE_SIMPLE_GRID%STRIDE"))
+         ENDIF
          IF (unit_nr > 0) THEN
             CALL close_file(unit_nr)
          ENDIF
 
-         IF (open_shell_embed) THEN ! Print spin part of the embedding potential
-            IF (.NOT. final_one) THEN
-               WRITE (filename, '(a15,I3.3)') "spin_embed_pot_", i_iter
-            ELSE
-               WRITE (filename, '(a15,I3.3)') "spin_embed_pot"
-            ENDIF
-            unit_nr = cp_print_key_unit_nr(logger, input, "DFT%QS%OPT_EMBED%WRITE_SIMPLE_GRID", extension=".dat", &
-                                           middle_name=TRIM(filename), file_form="FORMATTED")
-
-            CALL cp_pw_to_simple_volumetric(embed_pot_spin%pw, unit_nr, &
-                                            stride=section_get_ivals(dft_section, "QS%OPT_EMBED%WRITE_SIMPLE_GRID%STRIDE"))
-            IF (unit_nr > 0) THEN
-               CALL close_file(unit_nr)
-            ENDIF
-
+         ! Release structures
+         CALL pw_release(pot_alpha%pw)
+         DEALLOCATE (pot_alpha)
+         IF (open_shell_embed) THEN
+            CALL pw_release(pot_beta%pw)
+            DEALLOCATE (pot_beta)
          ENDIF
+
       ENDIF
 
    END SUBROUTINE print_pot_simple_grid
