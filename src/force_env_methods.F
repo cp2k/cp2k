@@ -2004,8 +2004,6 @@ CONTAINS
       ! Main loop of iterative matrix potential optimization
       DO i_iter = 1, opt_dmfet%n_iter
 
-         WRITE (*, *) 'step', i_iter
-
          opt_dmfet%i_iter = i_iter
 
          ! Set the dm difference as the reference one
