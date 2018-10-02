@@ -1071,7 +1071,7 @@ To use the installed tools and libraries and cp2k version
 compiled with it you will first need to execute at the prompt:
   source ${SETUPFILE}
 To build CP2K you should change directory:
-  cd cp2k/makefiles/
+  cd cp2k/
   make -j ${NPROCS} ARCH=local VERSION="${arch_vers}"
 
 arch files for GPU enabled CUDA versions are named "local_cuda.*"

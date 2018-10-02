@@ -65,8 +65,7 @@ rsync -axq \
    --exclude="*.mod" \
    ../tools/build_libsmm/  $OUTDIR/tools/build_libsmm/
 
-mkdir $OUTDIR/makefiles
-cp -a ../makefiles/Makefile  $OUTDIR/makefiles/
+cp -a ../Makefile  $OUTDIR/
 
 mkdir $OUTDIR/arch/
 rsync -axq --exclude=".*" ../arch/  $OUTDIR/arch/

@@ -776,7 +776,7 @@ if svn info ${repo_dir} &>/dev/null; then
          echo "Creating ChangeLog file for the first time. This may take a while ..."
          ${repo_dir}/tools/svn2cl/svn2cl.sh -i -o ${changelog}
       fi
-      for d in src data makefiles tests tools; do
+      for d in src data tests tools; do
          echo "Updating $d ..."
          if [ -z "$svnver" ]; then
             svn update -r {${svndate}} $d &>${svn_out}
@@ -876,7 +876,7 @@ fi
 
 # make realclean
 if [[ ${quick} != "quick" ]]; then
-   cd ${dir_base}/${cp2k_dir}/makefiles
+   cd ${dir_base}/${cp2k_dir}
    ${make} realclean ${ARCH_SPEC} VERSION=${cp2k_version} >>${make_out} 2>&1
    if (( $? )); then
       echo "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx" >>${error_description_file}
@@ -897,7 +897,7 @@ if [[ ${nobuild} != "nobuild" ]]; then
    echo "--------------------------- ARCH-file ------------------------------------"
    cat ${dir_base}/${cp2k_dir}/arch/${ARCH}.${cp2k_version}
    echo "-------------------------- Build-Tools -----------------------------------"
-   cd ${dir_base}/${cp2k_dir}/makefiles
+   cd ${dir_base}/${cp2k_dir}
    ${make} toolversions ${ARCH_SPEC} VERSION=${cp2k_version}
    echo "---------------------------- Modules -------------------------------------"
    if [ "`type -t module`" = 'function' ]; then

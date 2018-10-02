@@ -5,16 +5,12 @@
 #
 SHELL = /bin/sh
 #
-# the home dir is taken from the current directory: you must cd to the makefiles
-# directory before executing make.
-# adding a symbolic link from the src directory to the Makefile in makefiles/
-# also works fine
-#
-CP2KHOME     := $(abspath $(PWD)/..)
+# the home dir is taken from the current directory.
+CP2KHOME     := $(abspath $(PWD))
 ARCH         := local
 export VERSION=sopt
 
-MAKEFILE     := $(CP2KHOME)/makefiles/Makefile
+MAKEFILE     := $(CP2KHOME)/Makefile
 DOXYGENDIR   := $(CP2KHOME)/doc/doxygen
 DATA_DIR     := $(CP2KHOME)/data
 MAINEXEDIR   := $(CP2KHOME)/exe

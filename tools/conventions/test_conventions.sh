@@ -8,7 +8,7 @@ date --utc --rfc-3339=seconds
 
 (
   set -e # abort if error is encountered
-  cd ../../makefiles
+  cd ../../
   make -j ARCH=Linux-x86-64-gfortran VERSION="dumpast" > make_conventions1.out
   make -j ARCH=local_warn            VERSION="psmp"    > make_conventions2.out
 )
