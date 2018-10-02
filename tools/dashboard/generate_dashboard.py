@@ -44,14 +44,10 @@ class GitLog(list):
             commit['author-name'] = lines[2]
             commit['author-email'] = lines[3]
             commit['msg'] = lines[4]
-            m = re.match("git-svn-id: svn://svn.code.sf.net/p/cp2k/code/trunk@(\d+) .+", lines[-1])
-            if(m):
-                commit['svn-rev'] = int(m.group(1))
             self.append(commit)
 
         # git-log outputs entries from new to old.
         self.index = { c['git-sha']: i for i, c in enumerate(self) }
-        self.svn2git = { c['svn-rev']: c['git-sha'] for c in self if 'svn-rev' in c }
         print("done.")
 
 #===============================================================================
@@ -187,18 +183,17 @@ def gen_archive(config, log, outdir):
                 report['url'] = path.basename(fn)[:-3]
                 reports_cache[fn] = report
             sha = report['git-sha']
-            if sha is None:
-                continue # Skipping report, it's usually a svn commit from a different branch
             assert sha not in archive_reports
             archive_reports[sha] = report
 
         # write cache
-        pickle.dump(reports_cache, open(cache_fn, "wb"))
+        if reports_cache:
+            pickle.dump(reports_cache, open(cache_fn, "wb"))
 
         # loop over all relevant commits
         all_url_rows = []
         all_html_rows = []
-        max_age = 1 + max([log.index[sha] for sha in archive_reports.keys()])
+        max_age = 1 + max([-1] + [log.index[sha] for sha in archive_reports.keys()])
         for commit in log[:max_age]:
             sha = commit['git-sha']
             html_row  = '<tr>'
@@ -310,7 +305,7 @@ def gen_plots(archive_reports, log, outdir, full_archive):
     # create png images
     if (full_archive):
         fig_ext = "_full.png"
-        max_age = max([log.index[sha] for sha in archive_reports.keys()])
+        max_age = max([-1] + [log.index[sha] for sha in archive_reports.keys()])
     else:
         fig_ext = ".png"
         max_age = 100
@@ -355,6 +350,7 @@ def gen_plots(archive_reports, log, outdir, full_archive):
 #===============================================================================
 def send_notification(report, last_ok, log, name, s):
     idx_end = log.index[report['git-sha']] if(report['git-sha']) else 0
+    if not last_ok: return # we don't know when this started
     idx_last_ok = log.index[last_ok]
     if(idx_end == idx_last_ok): return # probably a flapping tester
     emails = set([log[i]['author-email'] for i in range(idx_end, idx_last_ok)])
@@ -471,8 +467,6 @@ def html_gitbox(log):
         delta = now - commit['date']
         age = delta.days*24.0 + delta.seconds/3600.0
         output += '<small>git:' + commit['git-sha'][:7]
-        if 'svn-rev' in commit:
-            output += ' / svn:%d'%commit['svn-rev']
         output += '<br>\n%s %.1fh ago.</small></p>\n'%(commit['author-name'], age)
     output += '</div>\n'
     return(output)
@@ -519,10 +513,6 @@ def commit_cell(git_sha, log):
     commit = log[idx]
     git_url = "https://github.com/cp2k/cp2k/commit/" + git_sha
     output = '<td align="left"><a href="%s">%s</a>'%(git_url, git_sha[:7])
-    if 'svn-rev' in commit:
-        svn_rev = commit['svn-rev']
-        svn_url = "https://sourceforge.net/p/cp2k/code/%d/"%svn_rev
-        output += ' / <a href="%s">%d</a>'%(svn_url, svn_rev)
     output += ' (%d)</td>'%(-idx)
     return(output)
 
@@ -553,10 +543,7 @@ def retrieve_report(url):
 
 #===============================================================================
 def store_report(report, report_txt, section, outdir):
-    if ('svn-rev' in report):
-        fn = outdir+"archive/%s/rev_%d.txt.gz"%(section, report['svn-rev'])
-    else:
-        fn = outdir+"archive/%s/commit_%s.txt.gz"%(section, report['git-sha'])
+    fn = outdir + "archive/%s/commit_%s.txt.gz"%(section, report['git-sha'])
     write_file(fn, report_txt, gz=True)
 
 #===============================================================================
@@ -571,12 +558,8 @@ def parse_report(report_txt, report_type, log):
         else:
             raise(Exception("Unknown report_type"))
 
-        if ('svn-rev' in report):
-            assert 'git-sha' not in report
-            rev = report['svn-rev']
-            if rev not in log.svn2git:
-                return( {'status':'UNKNOWN', 'summary':'Could not convert svn revision to git commit.', 'git-sha':None} )
-            report['git-sha'] = log.svn2git[rev]
+        if report['git-sha'] not in log.index:
+            return( {'status':'UNKNOWN', 'summary':'Unknown CommitSHA.', 'git-sha':None} )
 
         report.update(parse_plots(report_txt))
         return(report)
@@ -586,17 +569,8 @@ def parse_report(report_txt, report_type, log):
 
 #===============================================================================
 def parse_regtest_report(report_txt):
-    m = re.search("svn: .*(Can't connect .*):", report_txt)
-    if(m):
-        return({'status':'UNKNOWN', 'summary':m.group(1)})
-
     report = dict()
-    m = re.search("(^|\n)CommitSHA: (\w{40})\n", report_txt)
-    if (m):
-        report['git-sha'] = m.group(2)
-    else:
-        m = re.search("(revision|Revision:) (\d+)\.?\n", report_txt)
-        report['svn-rev'] = int(m.group(2))
+    report['git-sha'] = re.search("(^|\n)CommitSHA: (\w{40})\n", report_txt).group(2)
 
     if("LOCKFILE" in report_txt):
         report['status'] = "UNKNOWN"
@@ -638,18 +612,8 @@ def parse_regtest_report(report_txt):
 
 #===============================================================================
 def parse_generic_report(report_txt):
-    m = re.search("svn: .*(Can't connect .*):", report_txt)
-    if(m):
-        return({'status':'UNKNOWN', 'summary':m.group(1)})
     report = dict()
-
-    m = re.search("(^|\n)CommitSHA: (\w{40})\n", report_txt)
-    if (m):
-        report['git-sha'] = m.group(2)
-    else:
-        m = re.search("(^|\n)Revision: (\d+)\n", report_txt)
-        report['svn-rev'] = int(m.group(2))
-
+    report['git-sha'] = re.search("(^|\n)CommitSHA: (\w{40})\n", report_txt).group(2)
     report['summary'] = re.findall("(^|\n)Summary: (.+)\n", report_txt)[-1][1]
     report['status'] = re.findall("(^|\n)Status: (.+)\n", report_txt)[-1][1]
     return(report)
