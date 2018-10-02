@@ -14,11 +14,11 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /opt/
-RUN wget -O cp2k-master.zip https://github.com/cp2k/cp2k/archive/master.zip && \
-    unzip cp2k-master.zip  && \
+RUN wget -q -O cp2k-master.zip https://github.com/cp2k/cp2k/archive/master.zip && \
+    unzip -q cp2k-master.zip  && \
     rm cp2k-master.zip
 
-WORKDIR /opt/cp2k-master/cp2k
+WORKDIR /opt/cp2k-master
 RUN ./tools/formatting/test_formatting.sh
 
 WORKDIR /opt/cp2k_test_formatting

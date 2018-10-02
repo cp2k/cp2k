@@ -7,11 +7,11 @@ echo -e "\n========== Copying Changed Files =========="
 rsync --exclude="*~"                      \
       --exclude=".*/"                     \
       --exclude="*.pyc"                   \
-      --exclude=/cp2k/obj/                \
-      --exclude=/cp2k/lib/                \
-      --exclude=/cp2k/exe/                \
-      --exclude=/cp2k/regtesting/         \
-      --exclude=/cp2k/tools/toolchain/    \
+      --exclude=/obj/                     \
+      --exclude=/lib/                     \
+      --exclude=/exe/                     \
+      --exclude=/regtesting/              \
+      --exclude=/tools/toolchain/         \
       --ignore-times                      \
       --update                            \
       --verbose                           \
@@ -29,7 +29,7 @@ rsync --exclude="*~"                              \
       --verbose                                   \
       --recursive                                 \
       --checksum                                  \
-      /opt/cp2k-local/cp2k/tools/toolchain/  /opt/cp2k-toolchain/
+      /opt/cp2k-local/tools/toolchain/  /opt/cp2k-toolchain/
 
 echo -e "\n========== Updating Toolchain =========="
 cd /opt/cp2k-toolchain/
@@ -37,8 +37,8 @@ cd /opt/cp2k-toolchain/
 
 echo -e "\n========== Running Regtests =========="
 source /opt/cp2k-toolchain/install/setup
-cd /opt/cp2k-master/cp2k/makefiles
-rm -rf ../obj/${ARCH}/${VERSION}/*.gcda   # remove old gcov statistics
+cd /opt/cp2k-master
+rm -rf obj/${ARCH}/${VERSION}/*.gcda   # remove old gcov statistics
 
 if [[ "$TESTNAME" != "farming" ]]; then
    make ARCH=${ARCH} VERSION=${VERSION} test TESTOPTS="${TESTOPTS}"
@@ -50,18 +50,18 @@ if [[ "$TESTNAME" == coverage-* ]]; then
    # gcov gets stuck on some files...
    # Maybe related: https://bugs.launchpad.net/gcc-arm-embedded/+bug/1694644
    # As a workaround we'll simply remove the offending files for now.
-   rm -v /opt/cp2k-master/cp2k/obj/${ARCH}/${VERSION}/almo_scf_types.gcda
-   rm -v /opt/cp2k-master/cp2k/obj/${ARCH}/${VERSION}/dbcsr_tensor_types.gcda
-   rm -v /opt/cp2k-master/cp2k/obj/${ARCH}/${VERSION}/mp2_types.gcda
+   rm -v /opt/cp2k-master/obj/${ARCH}/${VERSION}/almo_scf_types.gcda
+   rm -v /opt/cp2k-master/obj/${ARCH}/${VERSION}/dbcsr_tensor_types.gcda
+   rm -v /opt/cp2k-master/obj/${ARCH}/${VERSION}/mp2_types.gcda
    #cd /tmp
-   #for i in /opt/cp2k-master/cp2k/obj/${ARCH}/${VERSION}/*.gcda; do
+   #for i in /opt/cp2k-master/obj/${ARCH}/${VERSION}/*.gcda; do
    #    timeout 30 gcov $i >/dev/null 2>&1 || rm -v $i
    #done
 
    # collect coverage stats
    mkdir -p /opt/cp2k_test_artifacts/coverage
    cd /opt/cp2k_test_artifacts/coverage
-   lcov --directory /opt/cp2k-master/cp2k/obj/${ARCH}/${VERSION} --capture --output-file coverage.info > lcov.log
+   lcov --directory /opt/cp2k-master/obj/${ARCH}/${VERSION} --capture --output-file coverage.info > lcov.log
    lcov --summary coverage.info
 
    # generate html report

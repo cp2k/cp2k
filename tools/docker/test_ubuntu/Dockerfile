@@ -29,7 +29,7 @@ RUN wget -q -O cp2k-master.zip https://github.com/cp2k/cp2k/archive/master.zip &
     rm cp2k-master.zip
 
 # build toolchain relying mostly on ubuntu packages
-WORKDIR /opt/cp2k-master/cp2k/tools/toolchain
+WORKDIR /opt/cp2k-master/tools/toolchain
 RUN ./install_cp2k_toolchain.sh \
     --mpi-mode=no \
     --with-gcc=system \
@@ -43,15 +43,15 @@ RUN ./install_cp2k_toolchain.sh \
     --with-libxsmm=install \
   && rm -rf ./build
 
-WORKDIR /opt/cp2k-master/cp2k/arch
+WORKDIR /opt/cp2k-master/arch
 RUN ln -vs ../tools/toolchain/install/arch/local* .
 
 # run regtests which lack fixed reference value
-WORKDIR /opt/cp2k-master/cp2k/makefiles
-RUN source ../tools/toolchain/install/setup && \
+WORKDIR /opt/cp2k-master
+RUN source ./tools/toolchain/install/setup && \
     make -j   VERSION=ssmp && \
     make test VERSION=ssmp TESTOPTS="-restrictdir QS/regtest-almo-md -restrictdir QS/regtest-almo-1 -restrictdir SE/regtest-3-4 -restrictdir QS/regtest-ot-1-vib -restrictdir Fist/regtest-5-vib -restrictdir QS/regtest-optbas -restrictdir TMC/regtest_ana_post_proc" && \
-    rm -rf ../lib/ ../exe/ ../regtesting/local/ssmp/TEST-*
+    rm -rf lib exe regtesting/local/ssmp/TEST-*
 
 WORKDIR /opt/cp2k_test_ubuntu
 COPY ./cmd.sh .

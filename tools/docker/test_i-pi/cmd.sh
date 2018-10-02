@@ -8,9 +8,9 @@ echo -e "\n========== Copying Changed Files =========="
 rsync --exclude="*~"          \
       --exclude=".*/"         \
       --exclude="*.pyc"       \
-      --exclude=/cp2k/obj/    \
-      --exclude=/cp2k/lib/    \
-      --exclude=/cp2k/exe/    \
+      --exclude=/obj/         \
+      --exclude=/lib/         \
+      --exclude=/exe/         \
       --ignore-times          \
       --update                \
       --verbose               \
@@ -26,7 +26,7 @@ rsync --exclude="*~"          \
       --verbose               \
       --recursive             \
       --checksum              \
-      /opt/cp2k-local/cp2k/tools/toolchain/  /opt/cp2k-toolchain/
+      /opt/cp2k-local/tools/toolchain/  /opt/cp2k-toolchain/
 
 echo -e "\n========== Updating Toolchain =========="
 cd /opt/cp2k-toolchain/
@@ -34,7 +34,7 @@ cd /opt/cp2k-toolchain/
 
 echo -e "\n========== Compiling CP2K =========="
 source /opt/cp2k-toolchain/install/setup
-cd /opt/cp2k-master/cp2k/makefiles
+cd /opt/cp2k-master
 make -j VERSION=pdbg cp2k
 
 echo -e "\n========== Installing i-Pi =========="
@@ -53,7 +53,7 @@ set +e # disable error trapping for remainder of script
   cd run_1
   echo 42 > cp2k_exit_code
   sleep 2 # give i-pi some time to startup
-  mpiexec -np 2 /opt/cp2k-master/cp2k/exe/local/cp2k.pdbg ../in.cp2k
+  mpiexec -np 2 /opt/cp2k-master/exe/local/cp2k.pdbg ../in.cp2k
   echo $? > cp2k_exit_code
 ) &
 

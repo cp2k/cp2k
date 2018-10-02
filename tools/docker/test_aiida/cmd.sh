@@ -8,9 +8,9 @@ echo -e "\n========== Copying Changed Files =========="
 rsync --exclude="*~"          \
       --exclude=".*/"         \
       --exclude="*.pyc"       \
-      --exclude=/cp2k/obj/    \
-      --exclude=/cp2k/lib/    \
-      --exclude=/cp2k/exe/    \
+      --exclude=/obj/         \
+      --exclude=/lib/         \
+      --exclude=/exe/         \
       --ignore-times          \
       --update                \
       --verbose               \
@@ -26,7 +26,7 @@ rsync --exclude="*~"          \
       --verbose               \
       --recursive             \
       --checksum              \
-      /opt/cp2k-local/cp2k/tools/toolchain/  /opt/cp2k-toolchain/
+      /opt/cp2k-local/tools/toolchain/  /opt/cp2k-toolchain/
 
 echo -e "\n========== Updating Toolchain =========="
 cd /opt/cp2k-toolchain/
@@ -34,14 +34,14 @@ cd /opt/cp2k-toolchain/
 
 echo -e "\n========== Compiling CP2K =========="
 source /opt/cp2k-toolchain/install/setup
-cd /opt/cp2k-master/cp2k/makefiles
+cd /opt/cp2k-master
 make -j VERSION=pdbg cp2k
 
 echo -e "\n========== Installing CP2K =========="
 cat > /usr/bin/cp2k << EndOfMessage
 #!/bin/bash -e
 source /opt/cp2k-toolchain/install/setup
-/opt/cp2k-master/cp2k/exe/local/cp2k.pdbg "\$@"
+/opt/cp2k-master/exe/local/cp2k.pdbg "\$@"
 EndOfMessage
 chmod +x /usr/bin/cp2k
 

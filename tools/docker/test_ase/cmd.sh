@@ -8,9 +8,9 @@ echo -e "\n========== Copying Changed Files =========="
 rsync --exclude="*~"          \
       --exclude=".*/"         \
       --exclude="*.pyc"       \
-      --exclude=/cp2k/obj/    \
-      --exclude=/cp2k/lib/    \
-      --exclude=/cp2k/exe/    \
+      --exclude=/obj/         \
+      --exclude=/lib/         \
+      --exclude=/exe/         \
       --ignore-times          \
       --update                \
       --verbose               \
@@ -26,7 +26,7 @@ rsync --exclude="*~"          \
       --verbose               \
       --recursive             \
       --checksum              \
-      /opt/cp2k-local/cp2k/tools/toolchain/  /opt/cp2k-toolchain/
+      /opt/cp2k-local/tools/toolchain/  /opt/cp2k-toolchain/
 
 echo -e "\n========== Updating Toolchain =========="
 cd /opt/cp2k-toolchain/
@@ -34,9 +34,8 @@ cd /opt/cp2k-toolchain/
 
 echo -e "\n========== Compiling CP2K =========="
 source /opt/cp2k-toolchain/install/setup
-cd /opt/cp2k-master/cp2k/makefiles
+cd /opt/cp2k-master
 make -j VERSION=pdbg cp2k_shell
-ln -s /opt/cp2k-master/cp2k/exe/local/cp2k.pdbg /usr/bin/cp2k
 
 echo -e "\n========== Installing ASE =========="
 cd /opt/ase/
@@ -45,7 +44,7 @@ pip3 install .
 
 echo -e "\n========== Running ASE Tests =========="
 cd /opt/ase/
-export ASE_CP2K_COMMAND="mpiexec -np 2 /opt/cp2k-master/cp2k/exe/local/cp2k_shell.pdbg"
+export ASE_CP2K_COMMAND="mpiexec -np 2 /opt/cp2k-master/exe/local/cp2k_shell.pdbg"
 
 set +e # disable error trapping for remainder of script
 (

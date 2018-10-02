@@ -7,9 +7,9 @@ echo -e "\n========== Copying Changed Files =========="
 rsync --exclude="*~"          \
       --exclude=".*/"         \
       --exclude="*.pyc"       \
-      --exclude=/cp2k/obj/    \
-      --exclude=/cp2k/lib/    \
-      --exclude=/cp2k/exe/    \
+      --exclude=/obj/         \
+      --exclude=/lib/         \
+      --exclude=/exe/         \
       --ignore-times          \
       --update                \
       --verbose               \
@@ -18,7 +18,7 @@ rsync --exclude="*~"          \
       /opt/cp2k-local/  /opt/cp2k-master/
 
 echo -e "\n========== Updating Toolchain =========="
-cd /opt/cp2k-master/cp2k/tools/toolchain
+cd /opt/cp2k-master/tools/toolchain
 ./install_cp2k_toolchain.sh \
     --mpi-mode=no \
     --with-gcc=system \
@@ -32,8 +32,8 @@ cd /opt/cp2k-master/cp2k/tools/toolchain
     --with-libxsmm=install
 
 echo -e "\n========== Running Regtests =========="
-source /opt/cp2k-master/cp2k/tools/toolchain/install/setup
-cd /opt/cp2k-master/cp2k/makefiles
+source /opt/cp2k-master/tools/toolchain/install/setup
+cd /opt/cp2k-master
 make VERSION=ssmp test TESTOPTS="${TESTOPTS}"
 
 #EOF

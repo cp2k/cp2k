@@ -8,9 +8,9 @@ echo -e "\n========== Copying Changed Files =========="
 rsync --exclude="*~"          \
       --exclude=".*/"         \
       --exclude="*.pyc"       \
-      --exclude=/cp2k/obj/    \
-      --exclude=/cp2k/lib/    \
-      --exclude=/cp2k/exe/    \
+      --exclude=/obj/         \
+      --exclude=/lib/         \
+      --exclude=/exe/         \
       --ignore-times          \
       --update                \
       --verbose               \
@@ -26,7 +26,7 @@ rsync --exclude="*~"          \
       --verbose               \
       --recursive             \
       --checksum              \
-      /opt/cp2k-local/cp2k/tools/toolchain/  /opt/cp2k-toolchain/
+      /opt/cp2k-local/tools/toolchain/  /opt/cp2k-toolchain/
 
 echo -e "\n========== Updating Toolchain =========="
 cd /opt/cp2k-toolchain/
@@ -34,9 +34,9 @@ cd /opt/cp2k-toolchain/
 source ./install/setup
 
 echo -e "\n========== Compiling CP2K =========="
-cd /opt/cp2k-master/cp2k/makefiles
+cd /opt/cp2k-master
 echo ${CP2K_REVISION} > ../REVISION
-touch ../src/cp2k_info.F  # ensure latest REVISION is picked up.
+touch src/cp2k_info.F  # ensure latest REVISION is picked up.
 make -j VERSION="sopt" cp2k
 
 echo -e "\n========== Generating Manual =========="
@@ -44,10 +44,10 @@ echo -e "\n========== Generating Manual =========="
 mkdir -p /opt/cp2k_test_artifacts/manual
 cd /opt/cp2k_test_artifacts/manual
 
-/opt/cp2k-master/cp2k/exe/local/cp2k.sopt --version
-/opt/cp2k-master/cp2k/exe/local/cp2k.sopt --xml
+/opt/cp2k-master/exe/local/cp2k.sopt --version
+/opt/cp2k-master/exe/local/cp2k.sopt --xml
 
-TOOLS=/opt/cp2k-master/cp2k/tools
+TOOLS=/opt/cp2k-master/tools
 cp ${TOOLS}/manual/favicon.png .
 cp ${TOOLS}/manual/toggle_folding.js .
 

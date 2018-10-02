@@ -8,9 +8,9 @@ echo -e "\n========== Copying Changed Files =========="
 rsync --exclude="*~"          \
       --exclude=".*/"         \
       --exclude="*.pyc"       \
-      --exclude=/cp2k/obj/    \
-      --exclude=/cp2k/lib/    \
-      --exclude=/cp2k/exe/    \
+      --exclude=/obj/         \
+      --exclude=/lib/         \
+      --exclude=/exe/         \
       --ignore-times          \
       --update                \
       --verbose               \
@@ -26,7 +26,7 @@ rsync --exclude="*~"          \
       --verbose               \
       --recursive             \
       --checksum              \
-      /opt/cp2k-local/cp2k/tools/toolchain/  /opt/cp2k-toolchain/
+      /opt/cp2k-local/tools/toolchain/  /opt/cp2k-toolchain/
 
 echo -e "\n========== Updating Toolchain =========="
 cd /opt/cp2k-toolchain/
@@ -34,11 +34,11 @@ cd /opt/cp2k-toolchain/
 
 echo -e "\n========== Compiling CP2K =========="
 source /opt/cp2k-toolchain/install/setup
-cd /opt/cp2k-master/cp2k/makefiles
+cd /opt/cp2k-master
 make -j VERSION="popt psmp ssmp" cp2k
 
 echo -e "\n========== Running Scaling Test =========="
-cd ../tests/QS/benchmark
+cd tests/QS/benchmark
 python3 ../../../tools/regtesting/test_scaling.py 30.0 ../../../exe/local/ H2O-32.inp -550.50556087853511
 
 #EOF

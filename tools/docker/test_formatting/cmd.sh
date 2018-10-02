@@ -8,9 +8,9 @@ echo -e "\n========== Copying Changed Files =========="
 rsync --exclude="*~"          \
       --exclude=".*/"         \
       --exclude="*.pyc"       \
-      --exclude=/cp2k/obj/    \
-      --exclude=/cp2k/lib/    \
-      --exclude=/cp2k/exe/    \
+      --exclude=/obj/         \
+      --exclude=/lib/         \
+      --exclude=/exe/         \
       --ignore-times          \
       --update                \
       --verbose               \
@@ -19,7 +19,7 @@ rsync --exclude="*~"          \
       /opt/cp2k-local/  /opt/cp2k-master/
 
 echo -e "\n========== Running Formatting Test =========="
-cd /opt/cp2k-master/cp2k
+cd /opt/cp2k-master
 ./tools/formatting/test_formatting.sh
 
 #EOF

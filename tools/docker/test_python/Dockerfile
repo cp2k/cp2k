@@ -25,13 +25,13 @@ RUN pip3 install numpy matplotlib requests
 
 # install python2.6
 WORKDIR /opt/
-RUN wget https://www.python.org/ftp/python/2.6.9/Python-2.6.9.tgz  && \
-    tar -xzf Python-2.6.9.tgz                                      && \
-    cd Python-2.6.9                                                && \
-    ./configure                                                    && \
-    make -j                                                        && \
-    make install                                                   && \
-    cd ..                                                          && \
+RUN wget -q https://www.python.org/ftp/python/2.6.9/Python-2.6.9.tgz  && \
+    tar -xzf Python-2.6.9.tgz                                         && \
+    cd Python-2.6.9                                                   && \
+    ./configure                                                       && \
+    make -j                                                           && \
+    make install                                                      && \
+    cd ..                                                             && \
     rm -rf Python-2.6.9*
 
 WORKDIR /opt/cp2k_test_python

@@ -21,7 +21,7 @@ if git rev-parse; then
   CP2K_REVISION="git:$(git log --pretty=format:'%h' -n 1)"
 fi
 
-CP2K_LOCAL=$(realpath ../../../)
+CP2K_LOCAL=$(realpath ../../)
 set -x
 # SYS_PTRACE needed by LeakSanitizer.
 docker run -i --init --rm --cap-add=SYS_PTRACE --env "CP2K_REVISION=$CP2K_REVISION" --volume ${CP2K_LOCAL}:/opt/cp2k-local/:ro "$@" img_cp2k_test_${TESTNAME}

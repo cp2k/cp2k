@@ -34,8 +34,8 @@ run_selftests() {
 #===============================================================================
 echo -e "\n========== Copying Changed Files =========="
 mkdir /opt/cp2k-local-rw/
-cp -r /opt/cp2k-local/cp2k/tools /opt/cp2k-local-rw/tools
-cp -r /opt/cp2k-local/cp2k/src /opt/cp2k-local-rw/src
+cp -r /opt/cp2k-local/tools /opt/cp2k-local-rw/tools
+cp -r /opt/cp2k-local/src /opt/cp2k-local-rw/src
 cd /opt/cp2k-local-rw/
 
 
