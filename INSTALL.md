@@ -1,34 +1,32 @@
-====== How to compile the CP2K code ======
+# How to compile the CP2K code
 
-This document is maintained in the svn-repository as cp2k/INSTALL .
-A nicely rendered version of it can be found at https://cp2k.org/howto:compile .
-
-=====  1. Acquire the code: =====
+##  1. Acquire the code:
 
 see  https://www.cp2k.org/download
 
 For users, the preferred method is to download a release.
-For developers, the preferred method is to download it from the SVN.
+For developers, the preferred method is to download it from Git.
 
-===== 2. Install Prerequisites =====
+## 2. Install Prerequisites
+
 Sub-points here discuss prerequisites needed to build CP2K.
 Some of these can be conveniently installed by a script see: cp2k/tools/toolchain
 Copies of the recommended versions of 3rd party software can be
 downloaded from https://www.cp2k.org/static/downloads/ .
 
-==== 2a. GNU make (required, build system) ====
+### 2a. GNU make (required, build system)
+
 GNU make should be on your system (gmake or make on linux) and used for
 the build, go to https://www.gnu.org/software/make/make.html
 download from https://ftp.gnu.org/pub/gnu/make/
 also python (2.X) is required for building.
 
-==== 2b. Python (required, build system) ====
+### 2b. Python (required, build system)
 python 2.x is needed to run the dependency generator.
 On most system python is already installed.
 For more information visit: https://www.python.org/
 
-
-==== 2c. Fortran and C Compiler (required, build system) ====
+### 2c. Fortran and C Compiler (required, build system)
 A Fortran 2003 compiler and matching C compiler should be installed on your system.
 We have good experience with gcc/gfortran (gcc >=4.6 works, later version recommended).
 Be aware that some compilers have bugs that might cause them to fail (internal compiler errors,
@@ -36,7 +34,7 @@ segfaults) or, worse, yield a mis-compiled CP2K. Report bugs to compiler
 vendors; they (and we) have an interest in fixing them.
 Always run a 'make -j test' (See point 5.) after compilation to identifiy these problems.
 
-==== 2d. BLAS and LAPACK (required, base functionality) ====
+### 2d. BLAS and LAPACK (required, base functionality)
 BLAS and LAPACK should be installed.  Using vendor-provided libraries
 can make a very significant difference (up to 100%, e.g., ACML, MKL,
 ESSL), not all optimized libraries are bug free. Use the latest versions available,
@@ -62,7 +60,7 @@ On the Mac, BLAS and LAPACK may be provided by Apple's Accelerate framework.
 If using this framework, -D__ACCELERATE must be defined to account for some
 interface incompatibilities between Accelerate and reference BLAS/LAPACK.
 
-==== 2e. MPI and SCALAPACK (optional, required for MPI parallel builds) ====
+## 2e. MPI and SCALAPACK (optional, required for MPI parallel builds)
 MPI (version 2) and SCALAPACK are needed for parallel code.
 (Use the latest versions available and download all patches!).
 Note that your MPI installation must match the used Fortran compiler.
@@ -82,7 +80,7 @@ CP2K assumes that the MPI library implements MPI version 3.
 If you have an older version of MPI (e.g. MPI 2.0) available
 you must define -D__MPI_VERSION=2 in the arch file.
 
-==== 2f. FFTW (optional, improved performance of FFTs) ====
+## 2f. FFTW (optional, improved performance of FFTs)
 FFTW can be used to improve FFT speed on a wide range of architectures.
 It is strongly recommended to install and use FFTW3. The current version
 of CP2K works with FFTW 3.X (use -D__FFTW3).
@@ -98,7 +96,7 @@ or otherwise set the define -D__FFTW3_UNALIGNED in the arch file.
 When building an OpenMP parallel version of CP2K (ssmp or psmp), the
 FFTW3 threading library libfftw3_threads (or libfftw3_omp) is required.
 
-==== 2g. LIBINT (optional, enables methods including HF exchange)  ====
+## 2g. LIBINT (optional, enables methods including HF exchange)
 Hartree-Fock exchange (optional, use -D__LIBINT) requires the libint
 package to be installed.
 Additional information can be found in
@@ -111,7 +109,7 @@ will take longer to compile.
 http://sourceforge.net/projects/libint/files/v1-releases/libint-1.1.4.tar.gz/download
 Note Do **NOT** use libinit-1.1.3, which was buggy.
 
-==== 2h. libsmm (optional, improved performance for matrix multiplication) ====
+### 2h. libsmm (optional, improved performance for matrix multiplication)
   * A library for small matrix multiplies can be built from the included
     source (see tools/build_libsmm/README).  Usually only the double
     precision real and perhaps complex is needed.  Link to the generated
@@ -123,12 +121,12 @@ Note Do **NOT** use libinit-1.1.3, which was buggy.
     double / single precision complex.
   * Add -D__HAS_smm_vec to enable the new vectorized interfaces of libsmm.
 
-==== 2i. libxsmm (optional, improved performance for matrix multiplication) ====
+### 2i. libxsmm (optional, improved performance for matrix multiplication)
   * A library for small matrix multiplications which is provided by Intel: https://github.com/hfp/libxsmm/
   * Add -D__LIBXSMM to enable it (with suitable include and library paths)
   * Tested with the released version 1.1.
 
-==== 2j. CUDA (optional, improved performance on GPU systems) ====
+### 2j. CUDA (optional, improved performance on GPU systems)
   * -D__ACC needed to switch on the accelerator support
   * Use the -D__DBCSR_ACC to compile with accelerator support
     support for matrix multiplication.  For linking add -lcudart and -lrt
@@ -141,7 +139,7 @@ Note Do **NOT** use libinit-1.1.3, which was buggy.
   * USE -D__CUDA_PROFILING to turn on Nvidia Tools Extensions.
   * Link to a blas/scalapack library that accelerates large DGEMMs (e.g. libsci_acc)
 
-==== 2k. libxc (optional, wider choice of xc functionals) ====
+### 2k. libxc (optional, wider choice of xc functionals)
   * The version 4.0.3 (or later) of libxc needs to be downloaded
     (http://www.tddft.org/programs/octopus/wiki/index.php/Libxc) and installed.
     During the installation, the directory $(LIBXC_DIR)/lib and
@@ -150,7 +148,7 @@ Note Do **NOT** use libinit-1.1.3, which was buggy.
   * Add -D__LIBXC to DFLAGS, -I$(LIBXC_DIR)/include to FCFLAGS and
     -L$(LIBXC_DIR)/lib -lxcf03 -lxc to LIBS.
 
-==== 2l. ELPA (optional, improved performance for diagonalization) ====
+### 2l. ELPA (optional, improved performance for diagonalization)
 Library ELPA for the solution of the eigenvalue problem
   * ELPA replaces the ScaLapack SYEVD to improve the performance of the diagonalization
   * A version of ELPA can to be downloaded (http://elpa.rzg.mpg.de/software or directly
@@ -166,7 +164,7 @@ Library ELPA for the solution of the eigenvalue problem
   * For specific architectures it can be better to install specifically
     optimized kernels (see BG) and/or employ a higher optimization level to compile it.
 
-==== 2m. PEXSI (optional, low scaling SCF method) ====
+### 2m. PEXSI (optional, low scaling SCF method)
 The Pole EXpansion and Selected Inversion (PEXSI) method requires the PEXSI library
 and two dependencies (ParMETIS or PT-Scotch and SuperLU_DIST).
   * Download PEXSI (www.pexsi.org) and install it and its dependencies by following
@@ -190,37 +188,37 @@ Below are some additional hints that may help in the compilation process:
       METISLIB = -lscotchmetis -lscotch -lscotcherr
       PARMETISLIB = -lptscotchparmetis -lptscotch -lptscotcherr
 
-==== 2n. QUIP (optional, wider range of interaction potentials) ====
+### 2n. QUIP (optional, wider range of interaction potentials)
 QUIP - QUantum mechanics and Interatomic Potentials
 Support for QUIP can be enabled via the flag -D__QUIP .
 For more information see http://www.libatoms.org/ .
 
-==== 2o. PLUMED (optional, enables various enhanced sampling methods) ====
+### 2o. PLUMED (optional, enables various enhanced sampling methods)
 CP2K can be compiled with PLUMED 2.x (-D__PLUMED2).
 Note that the code can only be built for one of these libraries at a time.
 
 See https://cp2k.org/howto:install_with_plumed for full instructions.
 
-==== 2p. spglib (optional, crystal symmetries tools) ====
+### 2p. spglib (optional, crystal symmetries tools)
 A library for finding and handling crystal symmetries
   * The spglib can be downloaded from https://github.com/atztogo/spglib
   * For building CP2K with the spglib add -D__SPGLIB to DFLAGS
 
-==== 2q. JSON-Fortran (optional, required for SIRIUS) ====
+### 2q. JSON-Fortran (optional, required for SIRIUS)
 JSON-Fortran is a Fortran 2008 JSON API.
   * The code is available at https://github.com/jacobwilliams/json-fortran
   * For building CP2K with JSON-Fortran add -D__JSON to DFLAGS.
 
-==== 2r. SIRIUS (optional, plane wave calculations) ====
+### 2r. SIRIUS (optional, plane wave calculations)
 SIRIUS is a domain specific library for electronic structure calculations.
   * The code is available at https://github.com/electronic-structure/SIRIUS
   * For building CP2K with SIRIUS add -D__SIRIUS to DFLAGS.
   * Furthermore, SIRIUS depends on JSON-Fortran.
   * See https://electronic-structure.github.io/SIRIUS/ for more information.
 
-===== 3. Compile =====
+## 3. Compile
 
-==== 3a. ARCH files ====
+### 3a. ARCH files
 The location of compiler and libraries needs to be specified. Examples
 for a number of common architectures examples can be found in cp2k/arch/*.*
 The names of these files match architecture.version (e.g., Linux-x86-64-gfortran.sopt).
@@ -256,7 +254,7 @@ ARCH/VERSION use, e.g.,
 to remove everything for a given ARCH/VERSION use, e.g.,
   > make ARCH=Linux-x86-64-gfortran VERSION=sopt realclean
 
-==== 3b. Compilation Flags ====
+### 3b. Compilation Flags
 
 The following flags should be present (or not) in the arch file, partially depending on installed libraries (see 2.)
   * -D__parallel -D__SCALAPACK parallel runs
@@ -303,10 +301,10 @@ Features useful to deal with legacy systems
     Linux-based architectures or using with the NAG, gfortran, compilers.
   * -D__F2008 Allow for conformity check with the Fortran 2008 standard when using the GFortran compiler flag -std=f2008
 
-===== 4. If it doesn't work? =====
+## 4. If it doesn't work?
 If things fail, take a break... have ago back to 2a (or skip to step 6).
 
-===== 5. Regtesting =====
+## 5. Regtesting
 
 If compilation works fine, it is recommended to test the generated binary,
 to exclude errors in libraries, or miscompilations, etc.
@@ -319,16 +317,15 @@ In the other case, you might need to configure the underlying testing script as 
 
 https://www.cp2k.org/dev:regtesting
 
-===== 6. Talk to us ====
+## 6. Talk to us
 In any case please tell us your comments, praise, criticism, thanks, ...
 see https://www.cp2k.org/
 
-===== 7. Manual =====
+## 7. Manual
 A reference manual of CP2K can be found on the web: https://manual.cp2k.org/
 or can be generated using the cp2k executable, see
 https://manual.cp2k.org/trunk/generate_manual_howto.html
 
-===== 8. Happy computing! =====
+## 8. Happy computing!
 
  The CP2K team.
-
