@@ -74,13 +74,13 @@ def main():
     #print("Found %d flags."%len(flags))
     #print(flags)
 
-    install_txt = open(path.join(cp2k_dir, "INSTALL")).read()
+    install_txt = open(path.join(cp2k_dir, "INSTALL.md")).read()
     cp2k_info = open(path.join(cp2k_dir, "src/cp2k_info.F")).read()
     flags_src = re.search(r"FUNCTION cp2k_flags\(\)(.*)END FUNCTION cp2k_flags", cp2k_info, re.DOTALL).group(1)
 
     for f in sorted(flags):
         if(f not in install_txt):
-            print("Flag %s not mentioned in INSTALL"%f)
+            print("Flag %s not mentioned in INSTALL.md"%f)
         if(f not in flags_src):
             print("Flag %s not mentioned in cp2k_flags()"%f)
 
