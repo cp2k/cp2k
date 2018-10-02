@@ -23,6 +23,7 @@ if (( $MAKE_EXIT_CODE )); then
    echo "Status: FAILED"
 else
    rm -f *.issues
+   set -e # abort if error is encountered
    ./analyze_gfortran_ast.py      ../../obj/Linux-x86-64-gfortran/dumpast/*.ast > ast.issues
    ./analyze_gfortran_warnings.py ../../obj/local_warn/psmp/*.warn              > warn.issues
    ./analyze_src.py               ../../                                        > src.issues
