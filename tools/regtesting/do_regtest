@@ -899,7 +899,7 @@ fi
 # from here failures are likely to be bugs in cp2k
 if [[ ${nobuild} != "nobuild" ]]; then
    echo "--------------------------- ARCH-file ------------------------------------"
-   cat ${dir_base}/${cp2k_dir}/arch/${ARCH}.${cp2k_version}
+   cat "${arch_dir:-${dir_base}/${cp2k_dir}/arch}/${ARCH}.${cp2k_version}"
    echo "-------------------------- Build-Tools -----------------------------------"
    cd ${dir_base}/${cp2k_dir}
    ${make} toolversions ${ARCH_SPEC} VERSION=${cp2k_version}
