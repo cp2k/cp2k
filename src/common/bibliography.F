@@ -83,7 +83,7 @@ MODULE bibliography
                             Becke1988b, Migliore2009, Mavros2015, Holmberg2017, Marek2014, &
                             Stoychev2016, Futera2017, Bailey2006, Papior2017, Lehtola2018, &
                             Brieuc2016, Barca2018, Scheiber2018, Huang2011, Heaton_Burgess2007, &
-                            Schuett2018
+                            Schuett2018, Holmberg2018
 
 CONTAINS
 
@@ -2713,7 +2713,7 @@ CONTAINS
                          "EP 666", &
                          "PD MAR 18", &
                          "PY 2002", &
-                         "UR http://dx.doi.org/10.1002/jcc.10069", &
+                         "UR https://dx.doi.org/10.1002/jcc.10069", &
                          "ER"), &
                          DOI="10.1002/jcc.10069")
 
@@ -2732,7 +2732,7 @@ CONTAINS
                          "AR 064102", &
                          "PD FEB 8", &
                          "PY 2012", &
-                         "UR http://dx.doi.org/10.1063/1.3676407", &
+                         "UR https://dx.doi.org/10.1063/1.3676407", &
                          "ER"), &
                          DOI="10.1063/1.3676407")
 
@@ -3644,7 +3644,7 @@ CONTAINS
                          "AU VandeVondele, Joost", &
                          "VL John Wiley & Sons, Ltd", &
                          "SN 9781118670712", &
-                         "UR http://dx.doi.org/10.1002/9781118670712.ch8", &
+                         "UR https://dx.doi.org/10.1002/9781118670712.ch8", &
                          "DO 10.1002/9781118670712.ch8", &
                          "BP 173", &
                          "EP 190", &
@@ -3894,6 +3894,23 @@ CONTAINS
                          "DI 10.1021/acs.jctc.8b00378", &
                          "ER"), &
                          DOI="10.1021/acs.jctc.8b00378")
+
+      CALL add_reference(key=Holmberg2018, ISI_record=s2a( &
+                         "AU Holmberg, Nico", &
+                         "   Laasonen, Kari", &
+                         "AF Holmberg, Nico", &
+                         "   Laasonen, Kari", &
+                         "TI Diabatic model for electrochemical hydrogen evolution based on constrained DFT", &
+                         "   configuration interaction", &
+                         "SO The Journal of Chemical Physics", &
+                         "SN 0021-9606", &
+                         "PY 2018", &
+                         "VL 149", &
+                         "IS 10", &
+                         "AR 104702", &
+                         "DI 10.1063/1.5038959", &
+                         "ER"), &
+                         DOI="10.1063/1.5038959")
 
    END SUBROUTINE add_all_references
 

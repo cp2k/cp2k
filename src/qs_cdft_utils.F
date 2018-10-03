@@ -14,6 +14,7 @@ MODULE qs_cdft_utils
                                               get_atomic_kind
    USE bibliography,                    ONLY: Becke1988b,&
                                               Holmberg2017,&
+                                              Holmberg2018,&
                                               cite_reference
    USE cell_types,                      ONLY: cell_type,&
                                               pbc
@@ -833,6 +834,7 @@ CONTAINS
             END SELECT
 
             CALL cite_reference(Holmberg2017)
+            CALL cite_reference(Holmberg2018)
          ELSE
             qs_control%cdft = .FALSE.
          END IF

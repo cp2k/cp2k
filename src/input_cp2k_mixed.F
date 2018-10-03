@@ -11,6 +11,7 @@
 ! **************************************************************************************************
 MODULE input_cp2k_mixed
    USE bibliography,                    ONLY: Holmberg2017,&
+                                              Holmberg2018,&
                                               Mavros2015,&
                                               Migliore2009
    USE cp_output_handling,              ONLY: add_last_numeric,&
@@ -135,7 +136,7 @@ CONTAINS
                           "only two states with identical constraint definitions), whereas when it is set "// &
                           "to 1, the states are solved in serial (supports any number of states and nonequal "// &
                           "constraint definitions but the number of constraints must be the same across states).", &
-                          n_keywords=11, n_subsections=2, repeats=.FALSE., citations=(/Holmberg2017/))
+                          n_keywords=11, n_subsections=2, repeats=.FALSE., citations=(/Holmberg2017, Holmberg2018/))
 
       CALL keyword_create(keyword, name="LAMBDA", &
                           description="Specify the mixing parameter lambda in the formula.", &
