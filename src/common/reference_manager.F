@@ -52,7 +52,7 @@ MODULE reference_manager
        PRIVATE
        ! the reference in a format as returned by the web of science
        CHARACTER(LEN=ISI_length), DIMENSION(:), POINTER :: ISI_record
-       ! the doi only, i.e. without "http://dx.doi.org/"
+       ! the doi only, i.e. without "https://dx.doi.org/"
        CHARACTER(LEN=doi_length)                        :: DOI
        ! has this reference been cited in the program run
        LOGICAL                                          :: is_cited
@@ -410,7 +410,7 @@ CONTAINS
 
     ! DOI
     IF (thebib(key)%ref%DOI .NE. "") THEN
-      WRITE(unit,'(T2,A)') "http://dx.doi.org/"//TRIM(thebib(key)%ref%DOI)
+      WRITE(unit,'(T2,A)') "https://dx.doi.org/"//TRIM(thebib(key)%ref%DOI)
     ENDIF
 
   END SUBROUTINE print_reference_journal
@@ -446,7 +446,7 @@ CONTAINS
 
     ! DOI
     IF (thebib(key)%ref%DOI .NE. "") THEN
-      WRITE(unit,'(T2,A)',ADVANCE="NO") '<A HREF="http://dx.doi.org/'//TRIM(thebib(key)%ref%DOI)//'">'
+      WRITE(unit,'(T2,A)',ADVANCE="NO") '<A HREF="https://dx.doi.org/'//TRIM(thebib(key)%ref%DOI)//'">'
     ENDIF
     ! Journal, volume (issue), pages (year).
     journal=TRIM(get_source(thebib(key)%ref%ISI_record))
