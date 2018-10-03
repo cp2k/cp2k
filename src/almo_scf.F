@@ -12,6 +12,7 @@
 ! **************************************************************************************************
 MODULE almo_scf
    USE almo_scf_methods,                ONLY: almo_scf_p_blk_to_t_blk,&
+                                              almo_scf_t_rescaling,&
                                               almo_scf_t_to_proj,&
                                               distribute_domains,&
                                               orthogonalize_mos
@@ -63,8 +64,8 @@ MODULE almo_scf
         almo_domain_layout_molecular, almo_mat_distr_atomic, almo_mat_distr_molecular, &
         almo_scf_diag, almo_scf_dm_sign, almo_scf_pcg, almo_scf_skip, atomic_guess, &
         molecular_guess, optimizer_diis, optimizer_lin_eq_pcg, optimizer_pcg, restart_guess, &
-        virt_full, virt_number, virt_occ_size, xalmo_case_block_diag, xalmo_case_fully_deloc, &
-        xalmo_case_normal, xalmo_trial_r0_out
+        smear_fermi_dirac, virt_full, virt_number, virt_occ_size, xalmo_case_block_diag, &
+        xalmo_case_fully_deloc, xalmo_case_normal, xalmo_trial_r0_out
    USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                               section_vals_type
    USE iterate_matrix,                  ONLY: invert_Hotelling,&
@@ -160,6 +161,7 @@ CONTAINS
 !> \param calc_forces ...
 !> \par History
 !>       2011.05 created [Rustam Z Khaliullin]
+!>       2018.09 smearing support [Ruben Staub]
 !> \author Rustam Z Khaliullin
 ! **************************************************************************************************
    SUBROUTINE almo_scf_init(qs_env, almo_scf_env, calc_forces)
@@ -217,6 +219,24 @@ CONTAINS
       CALL dbcsr_get_info(matrix_s(1)%matrix, nfullrows_total=naos)
       almo_scf_env%naos = naos
 
+      !! retrieve smearing parameters, and check compatibility of methods requested
+      almo_scf_env%smear = dft_control%smear
+      IF (almo_scf_env%smear) THEN
+         IF ((almo_scf_env%almo_update_algorithm .NE. almo_scf_diag) .OR. &
+             ((almo_scf_env%deloc_method .NE. almo_deloc_none) .AND. &
+              (almo_scf_env%xalmo_update_algorithm .NE. almo_scf_diag))) THEN
+            CPABORT("ALMO smearing is currently implemented for DIAG algorithm only")
+         END IF
+         IF (qs_env%scf_control%smear%method .NE. smear_fermi_dirac) THEN
+            CPABORT("Only Fermi-Dirac smearing is currently compatible with ALMO")
+         END IF
+         almo_scf_env%smear_e_temp = qs_env%scf_control%smear%electronic_temperature
+         IF ((almo_scf_env%mat_distr_aos .NE. almo_mat_distr_molecular) .OR. &
+             (almo_scf_env%domain_layout_mos .NE. almo_domain_layout_molecular)) THEN
+            CPABORT("ALMO smearing was designed to work with molecular fragments only")
+         END IF
+      END IF
+
       ! convenient local varibales
       nspins = almo_scf_env%nspins
       nmols = almo_scf_env%nmolecules
@@ -236,7 +256,8 @@ CONTAINS
       ALLOCATE (almo_scf_env%first_atom_of_domain(ndomains))
       ALLOCATE (almo_scf_env%last_atom_of_domain(ndomains))
       ALLOCATE (almo_scf_env%nbasis_of_domain(ndomains))
-      ALLOCATE (almo_scf_env%nocc_of_domain(ndomains, nspins))
+      ALLOCATE (almo_scf_env%nocc_of_domain(ndomains, nspins)) !! with smearing, nb of available orbitals for occupation
+      ALLOCATE (almo_scf_env%real_ne_of_domain(ndomains, nspins)) !! with smearing, nb of fully-occupied orbitals
       ALLOCATE (almo_scf_env%nvirt_full_of_domain(ndomains, nspins))
       ALLOCATE (almo_scf_env%nvirt_of_domain(ndomains, nspins))
       ALLOCATE (almo_scf_env%nvirt_disc_of_domain(ndomains, nspins))
@@ -276,6 +297,16 @@ CONTAINS
                ! Stop the program now
                CPABORT("Unrestricted ALMO methods are NYI")
             ENDIF
+            !! Initializing an occupation-rescaling trick if smearing is on
+            IF (almo_scf_env%smear) THEN
+               !! Save real number of electrons of each spin, as it is required for Fermi-dirac smearing
+               almo_scf_env%real_ne_of_domain(idomain, :) = REAL(almo_scf_env%nocc_of_domain(idomain, :), KIND=dp)
+               !! Add a number of added_mos equal to the number of atoms in domain
+               !! (since fragments were computed this way with smearing)
+               almo_scf_env%nocc_of_domain(idomain, :) = almo_scf_env%nocc_of_domain(idomain, :) &
+                                                         +(almo_scf_env%last_atom_of_domain(idomain) &
+                                                           -almo_scf_env%first_atom_of_domain(idomain)+1)
+            END IF
          ENDDO
          DO ispin = 1, nspins
             ! take care of the full virtual subspace
@@ -464,6 +495,7 @@ CONTAINS
 !> \param almo_scf_env ...
 !> \par History
 !>       2016.11 created [Rustam Z Khaliullin]
+!>       2018.09 smearing support [Ruben Staub]
 !> \author Rustam Z Khaliullin
 ! **************************************************************************************************
    SUBROUTINE almo_scf_initial_guess(qs_env, almo_scf_env)
@@ -643,6 +675,18 @@ CONTAINS
                                 eps_lanczos=almo_scf_env%eps_lanczos, &
                                 max_iter_lanczos=almo_scf_env%max_iter_lanczos)
 
+         !! Application of an occupation-rescaling trick for smearing, if requested
+         IF (almo_scf_env%smear) THEN
+            CALL almo_scf_t_rescaling(matrix_t=almo_scf_env%matrix_t_blk(ispin), &
+                                      mo_energies=almo_scf_env%mo_energies(:, ispin), &
+                                      mu_of_domain=almo_scf_env%mu_of_domain(:, ispin), &
+                                      real_ne_of_domain=almo_scf_env%real_ne_of_domain(:, ispin), &
+                                      spin_kTS=almo_scf_env%kTS(ispin), &
+                                      smear_e_temp=almo_scf_env%smear_e_temp, &
+                                      ndomains=almo_scf_env%ndomains, &
+                                      nocc_of_domain=almo_scf_env%nocc_of_domain(:, ispin))
+         END IF
+
          CALL almo_scf_t_to_proj(t=almo_scf_env%matrix_t_blk(ispin), &
                                  p=almo_scf_env%matrix_p(ispin), &
                                  eps_filter=almo_scf_env%eps_filter, &
@@ -652,6 +696,7 @@ CONTAINS
                                  sigma=almo_scf_env%matrix_sigma(ispin), &
                                  sigma_inv=almo_scf_env%matrix_sigma_inv(ispin), &
                                  use_guess=.FALSE., &
+                                 smear=almo_scf_env%smear, &
                                  algorithm=almo_scf_env%sigma_inv_algorithm, &
                                  eps_lanczos=almo_scf_env%eps_lanczos, &
                                  max_iter_lanczos=almo_scf_env%max_iter_lanczos, &
@@ -664,6 +709,10 @@ CONTAINS
       ! compute dm from the projector(s)
       IF (nspins == 1) THEN
          CALL dbcsr_scale(almo_scf_env%matrix_p(1), 2.0_dp)
+         !! Rescaling electronic entropy contribution by spin_factor
+         IF (almo_scf_env%smear) THEN
+            almo_scf_env%kTS(1) = almo_scf_env%kTS(1)*2.0_dp
+         END IF
       ENDIF
 
       CALL almo_dm_to_almo_ks(qs_env, &
@@ -671,7 +720,9 @@ CONTAINS
                               almo_scf_env%matrix_ks, &
                               energy, &
                               almo_scf_env%eps_filter, &
-                              almo_scf_env%mat_distr_aos)
+                              almo_scf_env%mat_distr_aos, &
+                              smear=almo_scf_env%smear, &
+                              kTS=almo_scf_env%kTS)
 
       IF (unit_nr > 0) THEN
          IF (almo_scf_env%almo_scf_guess .EQ. molecular_guess) THEN
@@ -1579,10 +1630,21 @@ CONTAINS
                                    eps_filter=almo_scf_env%eps_filter, &
                                    order_lanczos=almo_scf_env%order_lanczos, &
                                    eps_lanczos=almo_scf_env%eps_lanczos, &
-                                   max_iter_lanczos=almo_scf_env%max_iter_lanczos)
+                                   max_iter_lanczos=almo_scf_env%max_iter_lanczos, &
+                                   smear=almo_scf_env%smear)
          ENDIF
 
       ENDDO
+
+      !! RS-WARNING: If smearing ALMO is requested, rescaled fully-occupied orbitals are returned to QS
+      !! RS-WARNING: Beware that QS will not be informed about electronic entropy.
+      !!             If you want a quick and dirty transfer to QS energy, uncomment the following hack:
+      !! IF (almo_scf_env%smear) THEN
+      !!    qs_env%energy%kTS = 0.0_dp
+      !!    DO ispin = 1, almo_scf_env%nspins
+      !!       qs_env%energy%kTS = qs_env%energy%kTS + almo_scf_env%kTS(ispin)
+      !!    END DO
+      !! END IF
 
       ! return orbitals to QS
       NULLIFY (mos, mo_coeff, scf_env)
@@ -2088,6 +2150,7 @@ CONTAINS
 !> \param almo_scf_env ...
 !> \par History
 !>       2011.06 created [Rustam Z Khaliullin]
+!>       2018.09 smearing support [Ruben Staub]
 !> \author Rustam Z Khaliullin
 ! **************************************************************************************************
    SUBROUTINE almo_scf_clean_up(almo_scf_env)
@@ -2257,6 +2320,7 @@ CONTAINS
       DEALLOCATE (almo_scf_env%last_atom_of_domain)
       DEALLOCATE (almo_scf_env%nbasis_of_domain)
       DEALLOCATE (almo_scf_env%nocc_of_domain)
+      DEALLOCATE (almo_scf_env%real_ne_of_domain)
       DEALLOCATE (almo_scf_env%nvirt_full_of_domain)
       DEALLOCATE (almo_scf_env%nvirt_of_domain)
       DEALLOCATE (almo_scf_env%nvirt_disc_of_domain)
@@ -2264,6 +2328,10 @@ CONTAINS
       DEALLOCATE (almo_scf_env%cpu_of_domain)
       DEALLOCATE (almo_scf_env%charge_of_domain)
       DEALLOCATE (almo_scf_env%multiplicity_of_domain)
+      IF (almo_scf_env%smear) THEN
+         DEALLOCATE (almo_scf_env%mo_energies)
+         DEALLOCATE (almo_scf_env%kTS)
+      END IF
 
       DEALLOCATE (almo_scf_env%domain_index_of_ao_block)
       DEALLOCATE (almo_scf_env%domain_index_of_mo_block)
