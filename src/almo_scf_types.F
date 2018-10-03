@@ -7,6 +7,7 @@
 !> \brief Types for all ALMO-based methods
 !> \par History
 !>       2011.05 created [Rustam Z Khaliullin]
+!>       2018.09 smearing support [Ruben Staub]
 !> \author Rustam Z Khaliullin
 ! **************************************************************************************************
 MODULE almo_scf_types
@@ -214,6 +215,18 @@ MODULE almo_scf_types
       REAL(KIND=dp)        :: almo_scf_energy
       LOGICAL              :: orthogonal_basis, fixed_mu
       LOGICAL              :: return_orthogonalized_mos
+
+      !! Smearing control
+      !! smear flag allow to retrieve eigenvalues in almo_scf with diag algorithm and create occupation-scaled ALMO orbitals
+      LOGICAL               :: smear
+      !! store relevant smearing parameters
+      REAL(KIND=dp)         :: smear_e_temp !! electronic temperature, required for Fermi-Dirac
+      REAL(KIND=dp), DIMENSION(:), ALLOCATABLE    :: kTS !! electronic entropy contribution of each spin system
+      !! mo_energies(imo, ispin) stores the eigenvalue corresponding to the orbital imo with spin ispin
+      REAL(KIND=dp), DIMENSION(:, :), ALLOCATABLE :: mo_energies
+      !! since S-ALMO creates partially occupied orbitals, there is a need to store the real number of electron-pairs
+      !! of each spin and for each fragment
+      REAL(KIND=dp), DIMENSION(:, :), ALLOCATABLE :: real_ne_of_domain
 
       ! Controls for the SCF procedure
       REAL(KIND=dp)         :: eps_filter
