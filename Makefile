@@ -11,6 +11,7 @@ ARCH         := local
 export VERSION=sopt
 
 MAKEFILE     := $(CP2KHOME)/Makefile
+ARCHDIR      := $(CP2KHOME)/arch
 DOXYGENDIR   := $(CP2KHOME)/doc/doxygen
 DATA_DIR     := $(CP2KHOME)/data
 MAINEXEDIR   := $(CP2KHOME)/exe
@@ -35,7 +36,7 @@ EXE_NAMES := $(basename $(notdir $(ALL_EXE_FILES)))
 # this only happens on stage 3 and 4
 ifneq ($(ONEVERSION),)
 MODDEPS = "lower"
-include $(CP2KHOME)/arch/$(ARCH).$(ONEVERSION)
+include $(ARCHDIR)/$(ARCH).$(ONEVERSION)
 LIBDIR  := $(MAINLIBDIR)/$(ARCH)/$(ONEVERSION)
 OBJDIR  := $(MAINOBJDIR)/$(ARCH)/$(ONEVERSION)
 TSTDIR  := $(MAINTSTDIR)/$(ARCH)/$(ONEVERSION)
