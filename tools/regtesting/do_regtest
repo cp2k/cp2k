@@ -90,9 +90,6 @@ while [ $# -ge 1 ]; do
  # enable partial testing of only those directories that contain failed tests
  -retest)
   doretest="yes";;
- # Perform no git pull
- -nogit)
-  nogit="nogit";;
  # do not reset reference outputs
  -noreset)
   noreset="noreset";;
@@ -103,9 +100,6 @@ while [ $# -ge 1 ]; do
  -farming)
   farming="yes";;
  # do not check if code has changed
- -noemptycheck)
-  emptycheck="NO";;
- # do not build cp2k, turns on automatically quick option, so that do_regtest does not do realclean
  -nobuild)
   quick="quick"; nobuild="nobuild";;
  # do not test, actually.
@@ -124,10 +118,6 @@ while [ $# -ge 1 ]; do
   echo "  -dirout PATH              root path of output folder (default: current working directory)."
   echo "  -mpiexec EXE              name of the executable to run mpi-ranks. Default: mpiexec."
   echo ""
-  echo "Git:"
-  echo "  -nogit                    do not run git pull. Default: off."
-  echo "  -noemptycheck             run tests even when no changes in Git were made. Default: on."
-  echo ""
   echo "Build:"
   echo "  -version VERSION          VERSION passed to make. Default: sopt."
   echo "  -arch ARCH                ARCH passed to make. Default: Linux-x86-64-gfortran."
@@ -144,7 +134,7 @@ while [ $# -ge 1 ]; do
   echo ""
   echo "Testing:"
   echo "  -noreset                  do not reset the reference outputs. Default: off."
-  echo "  -skiptest                 do not run test, only Git update and build. Default: off."
+  echo "  -skiptest                 do not run test, only build. Default: off."
   echo "  -skipunittest             do not run unit tests. Default: off."
   echo "  -skipdir TESTDIR          do not run tests in TESTDIR. This switch can repeated."
   echo "  -restrictdir TESTDIR      run only tests in TESTDIR. This switch can repeated."
@@ -152,14 +142,12 @@ while [ $# -ge 1 ]; do
   echo ""
   echo "Exit codes:"
   echo "    0   clean exit with testing"
-  echo "    1   problem with Git update"
   echo "    3   problem with realclean"
   echo "    4   build errors"
   echo "    5   problem with retest option - no TEST directory with latest test results found"
   echo "    6   problem with retest option - no error summary exists in the last TEST directory"
   echo "    7   reference directory is locked"
   echo "    8   ctrl-C (SIGINT) and various other signals trapped"
-  echo "  100   no Git changes since last run - clean exit without testing"
   echo ""
   echo "For more information visit: <http://cp2k.org/dev:regtesting>"
   exit 0;;
@@ -183,10 +171,8 @@ done
 cp2k_version=${cp2k_version:-sopt}
 dir_out=${dir_out:-${dir_base}}
 dir_triplet=${dir_triplet:-Linux-x86-64-gfortran}
-emptycheck=${emptycheck:-"NO"}
 leakcheck=${leakcheck:-"NO"}
 doretest=${doretest:-"no"}
-nogit=${nogit:-"git"}
 nobuild=${nobuild:-"build"}
 cp2k_run_postfix=${cp2k_run_postfix:-""}
 make=${make:-make}
@@ -271,7 +257,6 @@ changelog_tests_new=${changelog_tests}.new
 changelog_tests_old=${changelog_tests}.old
 mkdir -p ${dir_out}
 mkdir -p ${dir_last}
-git_out=${dir_out}/git.out
 make_out=${dir_out}/make.out
 error_description_file=${dir_out}/error_summary
 >${error_description_file}
@@ -720,10 +705,8 @@ echo "cp2k_postfix     = ${cp2k_postfix}"
 echo "cp2k_version     = ${cp2k_version}"
 echo "dir_triplet      = ${dir_triplet}"
 echo "job_max_time     = ${job_max_time}"
-echo "emptycheck       = ${emptycheck}"
 echo "leakcheck        = ${leakcheck}"
 echo "doretest         = ${doretest}"
-echo "nogit            = ${nogit}"
 echo "nobuild          = ${nobuild}"
 echo "quick            = ${quick}"
 echo "noreset          = ${noreset}"
@@ -743,68 +726,7 @@ while [ $t -le ${ndirstorestrict} ]; do
  let t=t+1
 done
 
-echo "--------------------------- GIT ------------------------------------------"
-if git -C ${repo_dir} rev-parse &>/dev/null; then
-   if [[ ${nogit} != "nogit" ]]; then
-      sha1_old=$(git -C ${repo_dir} log -1 --pretty='%H')
-      git -C ${repo_dir} log --pretty="CommitSHA: %H%nCommitTime: %ci%nCommitAuthor: %an%nCommitAuthorEmail: %ae%nCommitSubject: %s%n#" >${changelog_old}
-      git -C ${repo_dir} pull &>${git_out}
-      if (( $? )); then
-         echo "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx" >>${error_description_file}
-         cat ${git_out} >>${error_description_file}
-         echo "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx" >>${error_description_file}
-         echo "ERROR: git -C ${repo_dir} pull failed ... bailing out" >>${error_description_file}
-         cat "${error_description_file}"
-         end_test 1 ${lockfile}
-      fi
-      sha1_new=$(git -C ${repo_dir} log -1 --pretty='%H')
-      git -C ${repo_dir} log --pretty="CommitSHA: %H%nCommitTime: %ci%nCommitAuthor: %an%nCommitAuthorEmail: %ae%nCommitSubject: %s%n#" >${changelog}
-      cat ${git_out}
-      echo "--------------------------- ChangeLog diff -------------------------------"
-      line1="$(head -n 1 ${changelog_old})"
-      nline=$(grep -n "${line1}" ${changelog} | head -n 1 | cut -f 1 -d:)
-      head -n $(( nline - 1 )) ${changelog} >${changelog_diff}
-      cat ${changelog_diff}
-      rm ${changelog_old}
-   else
-      echo "No git pull has been performed due to user request"
-   fi
-else
-   if [[ ${nogit} != "nogit" ]]; then
-      if git --version &>/dev/null; then
-         git_version=$(git --version | awk '{print $3}' | cut -d. -f1)
-         if (( git_version < 2 )); then
-            echo "$(git --version) is too old"
-            echo "No update of the git repository ${repo_dir} was performed"
-         else
-            echo "No git repository found in ${repo_dir}"
-         fi
-      else
-         echo "git is not installed"
-      fi
-   else
-      echo "No git pull has been performed due to user request"
-   fi
-fi
-
-
 echo "--------------------------- Preparations ---------------------------------"
-
-# Check if there is any update or difference that thus requires a rerun
-# one day, this requires improvement for speed.
-if [[ ${emptycheck} == "YES" ]]; then
-   isempty=`nl ${changelog_diff} | awk '{print $1}'`
-
-   if [[ ${isempty} == "1" ]]; then
-      echo "No changes since last run -- clean exit without testing"
-
-      # cleanup of empty directories
-      rm -rf ${dir_out}
-      end_test 100 ${lockfile}
-   else
-      echo "Code has changed since last run -- continue regtest"
-   fi
-fi
 
 # make realclean
 if [[ ${quick} != "quick" ]]; then
@@ -861,7 +783,7 @@ if [[ ${skiptest} != "skiptest" ]]; then
    
    ###################################################################################
    #
-   # parse the TEST_TYPES file to do different kinds of test (done after Git update)
+   # parse the TEST_TYPES file to do different kinds of test
    #
    # tests grep for the last line in the file where a string matches (test_grep)
    # and compares a numeric field at a given column (test_col)
