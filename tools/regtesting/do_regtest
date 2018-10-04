@@ -726,6 +726,36 @@ while [ $t -le ${ndirstorestrict} ]; do
  let t=t+1
 done
 
+echo "--------------------------- GIT ------------------------------------------"
+
+git_sha="<N/A>"
+
+if [[ -d "${dir_base}/${cp2k_dir}/.git" ]] ; then
+   head_ref=$(<"${dir_base}/${cp2k_dir}/.git/HEAD")
+
+   if [[ ${head_ref} =~ ^ref:\ (.*) ]] ; then
+      ref_file="${dir_base}/${cp2k_dir}/.git/${BASH_REMATCH[1]}"
+
+      if [[ -f "${ref_file}" ]] ; then
+         git_sha=$(<"${ref_file}")
+      fi
+   else
+      # this is a detached HEAD, no further deref needed
+      git_sha="${head_ref}"
+   fi
+fi
+
+echo "CommitSHA: ${git_sha}"
+
+# add some more information about that last commit if `git` is available
+if [[ "${git_sha}" != "<N/A>" ]] && command -v git >/dev/null 2>&1 ; then
+   GIT_WORK_TREE="${dir_base}/${cp2k_dir}" GIT_DIR="${dir_base}/${cp2k_dir}/.git" \
+      git \
+         log -n 1 \
+         --format="CommitTime: %ci%nCommitAuthor: %an%nCommitAuthorEmail: %ae%nCommitSubject: %s%n" \
+         "${git_sha}"
+fi
+
 echo "--------------------------- Preparations ---------------------------------"
 
 # make realclean
