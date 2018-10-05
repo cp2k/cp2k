@@ -6331,6 +6331,14 @@ CONTAINS
       CALL section_add_keyword(print_key, keyword)
       CALL keyword_release(keyword)
 
+      CALL keyword_create(keyword, name="FOLD_COORD", &
+                          description="Activates printing folded coordinates corresponding "// &
+                          "to the simple grid. Used as input for external programs.", &
+                          usage="FOLD_COORD .TRUE.", n_var=1, type_of_var=logical_t, &
+                          default_l_val=.TRUE., lone_keyword_l_val=.TRUE.)
+      CALL section_add_keyword(print_key, keyword)
+
+      CALL keyword_release(keyword)
       CALL section_add_subsection(section, print_key)
       CALL section_release(print_key)
 

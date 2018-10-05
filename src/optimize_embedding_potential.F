@@ -2564,12 +2564,15 @@ CONTAINS
 !> \param i_iter ...
 !> \param open_shell_embed ...
 !> \param final_one ...
+!> \param qs_env_cluster ...
 ! **************************************************************************************************
-   SUBROUTINE print_pot_simple_grid(qs_env, embed_pot, embed_pot_spin, i_iter, open_shell_embed, final_one)
+   SUBROUTINE print_pot_simple_grid(qs_env, embed_pot, embed_pot_spin, i_iter, open_shell_embed, &
+                                    final_one, qs_env_cluster)
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(pw_p_type), POINTER                           :: embed_pot, embed_pot_spin
       INTEGER                                            :: i_iter
       LOGICAL                                            :: open_shell_embed, final_one
+      TYPE(qs_environment_type), POINTER                 :: qs_env_cluster
 
       CHARACTER(LEN=default_path_length)                 :: filename
       INTEGER                                            :: my_units, unit_nr
@@ -2586,6 +2589,7 @@ CONTAINS
       ! Second, cube files
       dft_section => section_vals_get_subs_vals(input, "DFT")
 
+      NULLIFY (logger)
       logger => cp_get_default_logger()
       IF (BTEST(cp_print_key_should_output(logger%iter_info, input, &
                                            "DFT%QS%OPT_EMBED%WRITE_SIMPLE_GRID"), cp_p_file)) THEN
@@ -2650,10 +2654,9 @@ CONTAINS
             CALL cp_pw_to_simple_volumetric(pot_alpha%pw, unit_nr, &
                                             stride=section_get_ivals(dft_section, "QS%OPT_EMBED%WRITE_SIMPLE_GRID%STRIDE"))
          ENDIF
-         IF (unit_nr > 0) THEN
-            CALL close_file(unit_nr)
-         ENDIF
 
+         CALL cp_print_key_finished_output(unit_nr, logger, input, &
+                                           "DFT%QS%OPT_EMBED%WRITE_SIMPLE_GRID")
          ! Release structures
          CALL pw_release(pot_alpha%pw)
          DEALLOCATE (pot_alpha)
@@ -2664,7 +2667,74 @@ CONTAINS
 
       ENDIF
 
+      ! Fold the coordinates and write into separate file: needed to have the grid correspond to coordinates
+      ! Needed for external software.
+      CALL print_folded_coordinates(qs_env_cluster, input)
+
    END SUBROUTINE print_pot_simple_grid
+
+! **************************************************************************************************
+!> \brief ...
+!> \param qs_env ...
+!> \param input ...
+! **************************************************************************************************
+   SUBROUTINE print_folded_coordinates(qs_env, input)
+      TYPE(qs_environment_type), POINTER                 :: qs_env
+      TYPE(section_vals_type), POINTER                   :: input
+
+      CHARACTER(LEN=2), ALLOCATABLE, DIMENSION(:)        :: particles_el
+      CHARACTER(LEN=default_path_length)                 :: filename
+      INTEGER                                            :: iat, n, unit_nr
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: particles_r
+      REAL(KIND=dp), DIMENSION(3)                        :: center, r_pbc, s
+      TYPE(cell_type), POINTER                           :: cell
+      TYPE(cp_logger_type), POINTER                      :: logger
+      TYPE(particle_list_type), POINTER                  :: particles
+      TYPE(qs_subsys_type), POINTER                      :: subsys
+
+      NULLIFY (logger)
+      logger => cp_get_default_logger()
+      IF (BTEST(cp_print_key_should_output(logger%iter_info, input, &
+                                           "DFT%QS%OPT_EMBED%WRITE_SIMPLE_GRID/FOLD_COORD"), cp_p_file)) THEN
+         CALL get_qs_env(qs_env=qs_env, cell=cell, subsys=subsys)
+         CALL qs_subsys_get(subsys=subsys, particles=particles)
+
+         ! Prepare the file
+         WRITE (filename, '(a14)') "folded_cluster"
+         unit_nr = cp_print_key_unit_nr(logger, input, &
+                                        "DFT%QS%OPT_EMBED%WRITE_SIMPLE_GRID/FOLD_COORD", extension=".dat", &
+                                        middle_name=TRIM(filename), file_form="FORMATTED", file_position="REWIND")
+
+         n = particles%n_els
+         ALLOCATE (particles_el(n))
+         ALLOCATE (particles_r(3, n))
+         DO iat = 1, n
+            CALL get_atomic_kind(particles%els(iat)%atomic_kind, element_symbol=particles_el(iat))
+            particles_r(:, iat) = particles%els(iat)%r(:)
+         END DO
+
+         ! Fold the coordinates
+         center(:) = cell%hmat(:, 1)/2.0_dp+cell%hmat(:, 2)/2.0_dp+cell%hmat(:, 3)/2.0_dp
+
+         ! Print folded coordinates to file
+         DO iat = 1, SIZE(particles_el)
+            r_pbc(:) = particles_r(:, iat)-center
+            s = MATMUL(cell%h_inv, r_pbc)
+            s = s-ANINT(s)
+            r_pbc = MATMUL(cell%hmat, s)
+            r_pbc = r_pbc+center
+            WRITE (unit_nr, '(a4,4f12.6)') particles_el(iat), r_pbc(:)
+         END DO
+
+         CALL cp_print_key_finished_output(unit_nr, logger, input, &
+                                           "DFT%QS%OPT_EMBED%WRITE_SIMPLE_GRID/FOLD_COORD")
+
+         DEALLOCATE (particles_el)
+         DEALLOCATE (particles_r)
+
+      ENDIF ! Should output
+
+   END SUBROUTINE print_folded_coordinates
 
 ! **************************************************************************************************
 !> \brief ...
