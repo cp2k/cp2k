@@ -584,7 +584,8 @@ CONTAINS
 
          CASE (atomic_guess)
 
-            IF (dft_control%qs_control%dftb .OR. dft_control%qs_control%semi_empirical) THEN
+            IF (dft_control%qs_control%dftb .OR. dft_control%qs_control%semi_empirical .OR. &
+                dft_control%qs_control%xtb) THEN
                CALL calculate_mopac_dm(rho_ao, &
                                        matrix_s(1)%matrix, has_unit_metric, &
                                        dft_control, particle_set, atomic_kind_set, qs_kind_set, &

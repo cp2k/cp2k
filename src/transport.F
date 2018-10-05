@@ -700,6 +700,7 @@ CONTAINS
 
             ! calculate_jrho_resp uses sab_all which is not associated in DFTB environment
             IF (dft_control%qs_control%dftb) CPABORT("Current is not available for DFTB.")
+            IF (dft_control%qs_control%xtb) CPABORT("Current is not available for xTB.")
 
             ! now do the current
             IF (do_current_cube) THEN

@@ -145,6 +145,7 @@ MODULE qs_ks_methods
    USE se_fock_matrix,                  ONLY: build_se_fock_matrix
    USE surface_dipole,                  ONLY: calc_dipsurf_potential
    USE virial_types,                    ONLY: virial_type
+   USE xtb_matrices,                    ONLY: build_xtb_ks_matrix
 #include "./base/base_uses.f90"
 
    IMPLICIT NONE
@@ -1187,6 +1188,11 @@ CONTAINS
          CALL build_dftb_ks_matrix(qs_env, &
                                    calculate_forces=calculate_forces, &
                                    just_energy=just_energy)
+
+      ELSEIF (dft_control%qs_control%xtb) THEN
+         CALL build_xtb_ks_matrix(qs_env, &
+                                  calculate_forces=calculate_forces, &
+                                  just_energy=just_energy)
 
       ELSE
          CALL qs_ks_build_kohn_sham_matrix(qs_env, &

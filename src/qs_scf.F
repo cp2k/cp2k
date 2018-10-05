@@ -650,7 +650,9 @@ CONTAINS
          END IF
 
          ! disable DFTB and SE for now
-         IF (dft_control%qs_control%dftb .OR. dft_control%qs_control%semi_empirical) THEN
+         IF (dft_control%qs_control%dftb .OR. &
+             dft_control%qs_control%xtb .OR. &
+             dft_control%qs_control%semi_empirical) THEN
             CPABORT("DFTB and SE not available with OT/DIAG")
          END IF
 

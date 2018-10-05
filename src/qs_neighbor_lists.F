@@ -299,7 +299,7 @@ CONTAINS
                                                             numshells, zat
       LOGICAL :: all_potential_present, almo, dftb, do_hfx, dokp, explicit, gth_potential_present, &
          lri_optbas, lrigpw, mic, molecule_only, nddo, paw_atom, paw_atom_present, rigpw, &
-         sgp_potential_present
+         sgp_potential_present, xtb
       LOGICAL, ALLOCATABLE, DIMENSION(:) :: all_present, aux_fit_present, aux_present, &
          core_present, default_present, oce_present, orb_present, ppl_present, ppnl_present, &
          ri_present
@@ -405,6 +405,7 @@ CONTAINS
       dokp = (kpoints%nkp > 0)
       nddo = dft_control%qs_control%semi_empirical
       dftb = dft_control%qs_control%dftb
+      xtb = dft_control%qs_control%xtb
       almo = dft_control%qs_control%do_almo_scf
       lrigpw = (dft_control%qs_control%method_id == do_method_lrigpw)
       rigpw = (dft_control%qs_control%method_id == do_method_rigpw)
@@ -419,7 +420,7 @@ CONTAINS
          ! no MIC for kpoints
          mic = .FALSE.
       ELSEIF (nddo) THEN
-         ! enforce MIC for interaction lists in SE and DFTB
+         ! enforce MIC for interaction lists in SE
          mic = .TRUE.
       END IF
 
@@ -580,15 +581,15 @@ CONTAINS
 
       ! Build orbital-orbital list containing all the pairs, to be used with
       ! non-symmetric operators. Beware: the cutoff of the orbital-orbital overlap
-      ! might be not optimal. It should be verified for each operator.
-      IF (.NOT. (nddo .OR. dftb)) THEN
+      ! might not be optimal. It should be verified for each operator.
+      IF (.NOT. (nddo .OR. dftb .OR. xtb)) THEN
          CALL build_neighbor_lists(sab_all, particle_set, atom2d, cell, pair_radius, &
                                    mic=mic, symmetric=.FALSE., subcells=subcells, molecular=molecule_only, nlname="sab_all")
          CALL set_ks_env(ks_env=ks_env, sab_all=sab_all)
       ENDIF
 
       ! Build the core-core overlap neighbor lists
-      IF (.NOT. (nddo .OR. dftb)) THEN
+      IF (.NOT. (nddo .OR. dftb .OR. xtb)) THEN
          CALL pair_radius_setup(core_present, core_present, core_radius, core_radius, pair_radius)
          CALL build_neighbor_lists(sab_core, particle_set, atom2d, cell, pair_radius, subcells=subcells, &
                                    operator_type="PP", nlname="sab_core")
@@ -695,7 +696,7 @@ CONTAINS
       END IF
 
       ! Build orbital-ERFC potential list
-      IF (.NOT. (nddo .OR. dftb)) THEN
+      IF (.NOT. (nddo .OR. dftb .OR. xtb)) THEN
          IF (all_potential_present .OR. sgp_potential_present) THEN
             CALL pair_radius_setup(orb_present, all_present, orb_radius, all_pot_rad, pair_radius)
             CALL build_neighbor_lists(sac_ae, particle_set, atom2d, cell, pair_radius, &
@@ -764,6 +765,21 @@ CONTAINS
             END IF
          END IF
       END IF
+
+!qxtb
+      IF (xtb) THEN
+         ! Build the neighbor lists for the DFTB Ewald methods
+         IF (dft_control%qs_control%xtb_control%do_ewald) THEN
+            CALL get_qs_env(qs_env=qs_env, ewald_env=ewald_env)
+            CALL ewald_env_get(ewald_env, alpha=alpha)
+            c_radius = 0.5_dp*SQRT(-LOG(3.5_dp*alpha**3*1.e-12_dp))/alpha
+            CALL pair_radius_setup(orb_present, orb_present, c_radius, c_radius, pair_radius)
+            CALL build_neighbor_lists(sab_tbe, particle_set, atom2d, cell, pair_radius, mic=mic, &
+                                      subcells=subcells, nlname="sab_tbe")
+            CALL set_ks_env(ks_env=ks_env, sab_tbe=sab_tbe)
+         END IF
+      END IF
+!qxtb
 
       ! Build the neighbor lists for the vdW pair potential
       CALL get_qs_env(qs_env=qs_env, dispersion_env=dispersion_env)
