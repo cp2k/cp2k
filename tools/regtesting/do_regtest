@@ -874,6 +874,10 @@ if [[ ${skiptest} != "skiptest" ]]; then
      if [[ -f /.dockerenv ]]; then
        printf "Inside Docker, using normal copy ... "
        cp -a ${dir_base}/${cp2k_dir}/tests ${dir_out}
+     elif [[ ${source_device} == "/afs" || ${target_device} == "/afs" ]]; then
+       printf "cannot use hard links with AFS.\n"
+       printf "Using normal copy instead ... "
+       cp -a ${dir_base}/${cp2k_dir}/tests ${dir_out}
      elif [[ ${source_device} == ${target_device} ]]; then
         cp -al ${dir_base}/${cp2k_dir}/tests ${dir_out}/tests || \
         cp -rpl ${dir_base}/${cp2k_dir}/tests ${dir_out}/tests
