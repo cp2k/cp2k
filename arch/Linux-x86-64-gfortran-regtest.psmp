@@ -1,5 +1,5 @@
-# Tested with: GFortran 7.3.0, MPICH 3.2.1, LAPACK 3.5.0, ScaLAPACK 2.0.2, FFTW 3.3, Libxc 4.2.3, ELPA 2017.05.003, PLUMED 2.1.2
-# Author: Matthias Krack (matthias.krack@psi.ch, PSI, September 2018)
+# Tested with: GFortran 7.3.0, MPICH 3.2.1, LAPACK 3.5.0, ScaLAPACK 2.0.2, FFTW 3.3, Libint 1.1.4, Libxc 4.2.3, ELPA 2017.05.003, PLUMED 2.1.2
+# Author: Matthias Krack (matthias.krack@psi.ch, PSI, October 2018)
 CC         = gcc
 CPP        =
 FC         = mpif90
