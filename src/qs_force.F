@@ -76,6 +76,7 @@ MODULE qs_force
    USE se_core_core,                    ONLY: se_core_core_interaction
    USE se_core_matrix,                  ONLY: build_se_core_matrix
    USE virial_types,                    ONLY: virial_type
+   USE xtb_matrices,                    ONLY: build_xtb_matrices
 #include "./base/base_uses.f90"
 
    IMPLICIT NONE
@@ -284,6 +285,10 @@ CONTAINS
                                   calculate_forces=.TRUE.)
          CALL calculate_dftb_dispersion(qs_env=qs_env, para_env=para_env, &
                                         calculate_forces=.TRUE.)
+      ELSEIF (dft_control%qs_control%xtb) THEN
+         CALL build_xtb_matrices(qs_env=qs_env, para_env=para_env, &
+                                 calculate_forces=.TRUE.)
+         ! Dispersion energy and forces are calculated in qs_energy?
       ELSE
          CALL build_core_hamiltonian_matrix(qs_env=qs_env, calculate_forces=.TRUE.)
          CALL calculate_ecore_self(qs_env)
@@ -401,6 +406,7 @@ CONTAINS
          !  *** add the volume terms of the virial ***
          IF ((.NOT. virial%pv_numer) .AND. &
              (.NOT. (dft_control%qs_control%dftb .OR. &
+                     dft_control%qs_control%xtb .OR. &
                      dft_control%qs_control%semi_empirical))) THEN
             DO dir = 1, 3
                virial%pv_virial(dir, dir) = virial%pv_virial(dir, dir)-energy%exc &
@@ -422,6 +428,9 @@ CONTAINS
          CALL write_forces(force, atomic_kind_set, 2, output_unit=output_unit, &
                            print_section=print_section)
       ELSE IF (dft_control%qs_control%dftb) THEN
+         CALL write_forces(force, atomic_kind_set, 4, output_unit=output_unit, &
+                           print_section=print_section)
+      ELSE IF (dft_control%qs_control%xtb) THEN
          CALL write_forces(force, atomic_kind_set, 4, output_unit=output_unit, &
                            print_section=print_section)
       ELSE IF (dft_control%qs_control%gapw) THEN

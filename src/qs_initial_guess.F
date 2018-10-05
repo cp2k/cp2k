@@ -222,7 +222,9 @@ CONTAINS
       do_std_diag = .FALSE.
 
       safe_density_guess = atomic_guess
-      IF (dft_control%qs_control%semi_empirical .OR. dft_control%qs_control%dftb) THEN
+      IF (dft_control%qs_control%semi_empirical .OR. &
+          dft_control%qs_control%dftb .OR. &
+          dft_control%qs_control%xtb) THEN
          IF (density_guess == atomic_guess) density_guess = mopac_guess
          ! in case we need to bail to a safe restart type later on
          safe_density_guess = mopac_guess
@@ -1277,6 +1279,40 @@ CONTAINS
                         CPABORT("")
                      END SELECT
                   END DO
+               END DO
+            ELSEIF (dft_control%qs_control%xtb) THEN
+               DO iatom = 1, natom
+                  atom_a = atom_list(iatom)
+                  isgfa = first_sgf(atom_a)
+!qxtb
+!                 DO la = 0, maxll
+!                    SELECT CASE (la)
+!                    CASE (0)
+!                       pdiag(isgfa) = econf(0)
+!                    CASE (1)
+!                       pdiag(isgfa+1) = econf(1)/3._dp
+!                       pdiag(isgfa+2) = econf(1)/3._dp
+!                       pdiag(isgfa+3) = econf(1)/3._dp
+!                    CASE (2)
+!                       pdiag(isgfa+4) = econf(2)/5._dp
+!                       pdiag(isgfa+5) = econf(2)/5._dp
+!                       pdiag(isgfa+6) = econf(2)/5._dp
+!                       pdiag(isgfa+7) = econf(2)/5._dp
+!                       pdiag(isgfa+8) = econf(2)/5._dp
+!                    CASE (3)
+!                       pdiag(isgfa+9) = econf(3)/7._dp
+!                       pdiag(isgfa+10) = econf(3)/7._dp
+!                       pdiag(isgfa+11) = econf(3)/7._dp
+!                       pdiag(isgfa+12) = econf(3)/7._dp
+!                       pdiag(isgfa+13) = econf(3)/7._dp
+!                       pdiag(isgfa+14) = econf(3)/7._dp
+!                       pdiag(isgfa+15) = econf(3)/7._dp
+!                    CASE DEFAULT
+!                       CPABORT("")
+!                    END SELECT
+!                 END DO
+                  pdiag(:) = 1._dp
+!qxtb
                END DO
             ELSEIF (dft_control%qs_control%semi_empirical) THEN
                yy = REAL(dft_control%charge, KIND=dp)/REAL(nao, KIND=dp)

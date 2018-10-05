@@ -100,6 +100,8 @@ CONTAINS
          !??
       ELSE IF (dft_control%qs_control%dftb) THEN
          !??
+      ELSE IF (dft_control%qs_control%xtb) THEN
+         !??
       ELSE
          CPASSERT(ASSOCIATED(rho_core))
          CALL calculate_rho_core(rho_core, &
@@ -170,7 +172,9 @@ CONTAINS
       CALL get_qs_env(qs_env, ks_env=ks_env, dft_control=dft_control)
 
       skip_load_balance_distributed = dft_control%qs_control%skip_load_balance_distributed
-      IF (.NOT. (dft_control%qs_control%semi_empirical .OR. dft_control%qs_control%dftb)) THEN
+      IF (.NOT. (dft_control%qs_control%semi_empirical &
+                 .OR. dft_control%qs_control%xtb &
+                 .OR. dft_control%qs_control%dftb)) THEN
          ! generate task lists (non-soft)
          IF (.NOT. dft_control%qs_control%gapw) THEN
             CALL get_ks_env(ks_env, task_list=task_list)

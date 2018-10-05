@@ -19,6 +19,7 @@ MODULE qs_scf_post_scf
    USE qs_scf_post_dftb,                ONLY: scf_post_calculation_dftb
    USE qs_scf_post_gpw,                 ONLY: scf_post_calculation_gpw
    USE qs_scf_post_se,                  ONLY: scf_post_calculation_se
+   USE qs_scf_post_xtb,                 ONLY: scf_post_calculation_xtb
    USE qs_scf_types,                    ONLY: qs_scf_env_type
 #include "./base/base_uses.f90"
 
@@ -57,6 +58,8 @@ CONTAINS
          CALL scf_post_calculation_se(qs_env)
       ELSEIF (dft_control%qs_control%dftb) THEN
          CALL scf_post_calculation_dftb(dft_section, scf_env, qs_env)
+      ELSEIF (dft_control%qs_control%xtb) THEN
+         CALL scf_post_calculation_xtb(dft_section, scf_env, qs_env)
       ELSEIF (dft_control%qs_control%do_kg) THEN
          CPWARN("No properties from PRINT section available for KG methods")
       ELSEIF (dft_control%qs_control%ofgpw) THEN

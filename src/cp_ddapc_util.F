@@ -112,7 +112,8 @@ CONTAINS
                            qs_env%cp_ddapc_ewald%do_decoupling .OR. &
                            qs_env%cp_ddapc_ewald%do_restraint
       unimplemented = dft_control%qs_control%semi_empirical .OR. &
-                      dft_control%qs_control%dftb
+                      dft_control%qs_control%dftb .OR. &
+                      dft_control%qs_control%xtb
       IF (allocate_ddapc_env .AND. unimplemented) THEN
          CPABORT("DDAP charges work only with GPW/GAPW code.")
       END IF

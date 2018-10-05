@@ -258,7 +258,8 @@ MODULE input_constants
                                                do_method_pnnl = 16, &
                                                do_method_ofgpw = 17, &
                                                do_method_pm6fm = 18, &
-                                               do_method_pw = 19
+                                               do_method_pw = 19, &
+                                               do_method_xtb = 20
 
    INTEGER, PARAMETER, PUBLIC               :: do_multipole_section_on = 0, &
                                                do_multipole_section_off = 1

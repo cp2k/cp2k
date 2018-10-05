@@ -7,6 +7,7 @@
 !> \brief Utilities to set up the control types
 ! **************************************************************************************************
 MODULE cp_control_utils
+!qxtb  citation
    USE bibliography,                    ONLY: &
         Andreussi2012, Dewar1977, Dewar1985, Elstner1998, Fattebert2002, Hu2007, Krack2000, &
         Lippert1997, Lippert1999, Porezag1995, Repasky2002, Rocha2006, Schenter2008, Seifert1996, &
@@ -32,7 +33,7 @@ MODULE cp_control_utils
         do_ddapc_constraint, do_ddapc_restraint, do_method_am1, do_method_dftb, do_method_gapw, &
         do_method_gapw_xc, do_method_gpw, do_method_lrigpw, do_method_mndo, do_method_mndod, &
         do_method_ofgpw, do_method_pdg, do_method_pm3, do_method_pm6, do_method_pm6fm, &
-        do_method_pnnl, do_method_rigpw, do_method_rm1, do_pwgrid_ns_fullspace, &
+        do_method_pnnl, do_method_rigpw, do_method_rm1, do_method_xtb, do_pwgrid_ns_fullspace, &
         do_pwgrid_ns_halfspace, do_pwgrid_spherical, do_s2_constraint, do_s2_restraint, &
         do_se_is_kdso, do_se_is_kdso_d, do_se_is_slater, do_se_lr_ewald, do_se_lr_ewald_gks, &
         do_se_lr_ewald_r3, do_se_lr_none, gaussian_env, numerical, ramp_env, &
@@ -114,7 +115,7 @@ CONTAINS
       not_SE = .TRUE.
       CALL section_vals_val_get(dft_section, "QS%METHOD", i_val=method_id)
       SELECT CASE (method_id)
-      CASE (do_method_dftb, do_method_mndo, do_method_am1, do_method_pm3, do_method_pnnl, &
+      CASE (do_method_dftb, do_method_xtb, do_method_mndo, do_method_am1, do_method_pm3, do_method_pnnl, &
             do_method_pm6, do_method_pm6fm, do_method_pdg, do_method_rm1, do_method_mndod)
          not_SE = .FALSE.
       END SELECT
@@ -513,7 +514,7 @@ CONTAINS
                                 l_val=qs_control%skip_load_balance_distributed)
 
       ! For SE and DFTB possibly override with new defaults
-      IF (qs_control%semi_empirical .OR. qs_control%dftb) THEN
+      IF (qs_control%semi_empirical .OR. qs_control%dftb .OR. qs_control%xtb) THEN
          ngrid_level = 1
          multigrid_set = .FALSE.
          ! Override default cutoff value unless user specified an explicit argument..
@@ -583,7 +584,7 @@ CONTAINS
       CHARACTER(LEN=default_string_length), &
          DIMENSION(:), POINTER                           :: clist
       INTEGER                                            :: handle, itmp, j, jj, k, n_rep, n_var, &
-                                                            nrep
+                                                            ngauss, nrep
       INTEGER, DIMENSION(:), POINTER                     :: tmplist
       LOGICAL                                            :: explicit, was_present
       REAL(dp)                                           :: tmp, tmpsqrt, value
@@ -591,15 +592,15 @@ CONTAINS
       TYPE(enumeration_type), POINTER                    :: enum
       TYPE(keyword_type), POINTER                        :: keyword
       TYPE(section_type), POINTER                        :: section
-      TYPE(section_vals_type), POINTER :: cdft_control_section, ddapc_restraint_section, &
-         dftb_parameter, dftb_section, lri_optbas_section, mull_section, s2_restraint_section, &
-         se_section
+      TYPE(section_vals_type), POINTER :: cdft_control_section, &
+         ddapc_restraint_section, dftb_parameter, dftb_section, lri_optbas_section, mull_section, &
+         s2_restraint_section, se_section, xtb_parameter, xtb_section
 
       CALL timeset(routineN, handle)
 
       was_present = .FALSE.
       NULLIFY (mull_section, ddapc_restraint_section, s2_restraint_section, &
-               se_section, dftb_section, dftb_parameter, lri_optbas_section, &
+               se_section, dftb_section, xtb_section, dftb_parameter, xtb_parameter, lri_optbas_section, &
                cdft_control_section)
 
       mull_section => section_vals_get_subs_vals(qs_section, "MULLIKEN_RESTRAINT")
@@ -607,7 +608,9 @@ CONTAINS
       s2_restraint_section => section_vals_get_subs_vals(qs_section, "S2_RESTRAINT")
       se_section => section_vals_get_subs_vals(qs_section, "SE")
       dftb_section => section_vals_get_subs_vals(qs_section, "DFTB")
+      xtb_section => section_vals_get_subs_vals(qs_section, "xTB")
       dftb_parameter => section_vals_get_subs_vals(dftb_section, "PARAMETER")
+      xtb_parameter => section_vals_get_subs_vals(xtb_section, "PARAMETER")
       lri_optbas_section => section_vals_get_subs_vals(qs_section, "OPTIMIZE_LRI_BASIS")
       cdft_control_section => section_vals_get_subs_vals(qs_section, "CDFT")
 
@@ -749,6 +752,7 @@ CONTAINS
       qs_control%gpw = .FALSE.
       qs_control%pao = .FALSE.
       qs_control%dftb = .FALSE.
+      qs_control%xtb = .FALSE.
       qs_control%semi_empirical = .FALSE.
       qs_control%ofgpw = .FALSE.
       qs_control%lrigpw = .FALSE.
@@ -774,6 +778,9 @@ CONTAINS
          qs_control%dftb = .TRUE.
          CALL cite_reference(Porezag1995)
          CALL cite_reference(Seifert1996)
+      CASE (do_method_xtb)
+         qs_control%xtb = .TRUE.
+!qxtb    CALL cite_reference(Grimme2017)
       CASE (do_method_mndo)
          CALL cite_reference(Dewar1977)
          qs_control%semi_empirical = .TRUE.
@@ -909,7 +916,7 @@ CONTAINS
                                       r_val=qs_control%se_control%taper_exc)
          END IF
          CALL section_vals_val_get(se_section, "EXCHANGE%RC_RANGE", &
-                                   r_val=qs_control%se_control%range_exc)
+                                   r_val=qs_control%se_control%ra>>>>>>> Initial code for the xTB method (not yet working)nge_exc)
          ! Screening (only if the integral scheme is of dumped type)
          IF (qs_control%se_control%integral_screening == do_se_IS_kdso_d) THEN
             CALL section_vals_val_get(se_section, "SCREENING%RC_TAPER", &
@@ -965,7 +972,7 @@ CONTAINS
                                    c_val=qs_control%se_control%dispersion_parameter_file)
 
          ! Stop the execution for non-implemented features
-         IF (qs_control%se_control%periodic_type == do_se_lr_ewald_r3) THEN
+         IF (qs_control%se_control%periodic_type == do_se_lr_ewal>>>>>>> Initial code for the xTB method (not yet working)d_r3) THEN
             CPABORT("EWALD_R3 not implemented yet!")
          END IF
 
@@ -1031,6 +1038,61 @@ CONTAINS
          IF (qs_control%dftb_control%dispersion) CALL cite_reference(Zhechkov2005)
          IF (qs_control%dftb_control%self_consistent) CALL cite_reference(Elstner1998)
          IF (qs_control%dftb_control%hb_sr_damp) CALL cite_reference(Hu2007)
+      END IF
+
+      ! xTB code
+      IF (qs_control%xtb) THEN
+         CALL section_vals_val_get(xtb_section, "DO_EWALD", &
+                                   l_val=qs_control%xtb_control%do_ewald)
+         CALL section_vals_val_get(xtb_section, "STO_NG", i_val=ngauss)
+         qs_control%xtb_control%sto_ng = ngauss
+         CALL section_vals_val_get(xtb_parameter, "PARAM_FILE_PATH", &
+                                   c_val=qs_control%xtb_control%parameter_file_path)
+         CALL section_vals_val_get(xtb_parameter, "PARAM_FILE_NAME", &
+                                   c_val=qs_control%xtb_control%parameter_file_name)
+         ! D3 Dispersion
+         CALL section_vals_val_get(xtb_parameter, "DISPERSION_RADIUS", &
+                                   r_val=qs_control%xtb_control%rcdisp)
+         CALL section_vals_val_get(xtb_parameter, "COORDINATION_CUTOFF", &
+                                   r_val=qs_control%xtb_control%epscn)
+         CALL section_vals_val_get(xtb_parameter, "D3BJ_SCALING", r_vals=scal)
+         qs_control%xtb_control%s6 = scal(1)
+         qs_control%xtb_control%s8 = scal(2)
+         CALL section_vals_val_get(xtb_parameter, "D3BJ_PARAM", r_vals=scal)
+         qs_control%xtb_control%a1 = scal(1)
+         qs_control%xtb_control%a2 = scal(2)
+         CALL section_vals_val_get(xtb_parameter, "DISPERSION_PARAMETER_FILE", &
+                                   c_val=qs_control%xtb_control%dispersion_parameter_file)
+         ! global parameters
+         CALL section_vals_val_get(xtb_parameter, "HUCKEL_CONSTANTS", r_vals=scal)
+         qs_control%xtb_control%ks = scal(1)
+         qs_control%xtb_control%kp = scal(2)
+         qs_control%xtb_control%kd = scal(3)
+         qs_control%xtb_control%ksp = scal(4)
+         qs_control%xtb_control%k2sh = scal(5)
+         CALL section_vals_val_get(xtb_parameter, "COULOMB_CONSTANTS", r_vals=scal)
+         qs_control%xtb_control%kg = scal(1)
+         qs_control%xtb_control%kf = scal(2)
+         CALL section_vals_val_get(xtb_parameter, "CN_CONSTANTS", r_vals=scal)
+         qs_control%xtb_control%kcns = scal(1)
+         qs_control%xtb_control%kcnp = scal(2)
+         qs_control%xtb_control%kcnd = scal(3)
+         CALL section_vals_val_get(xtb_parameter, "EN_CONSTANT", r_vals=scal)
+         qs_control%xtb_control%ken = scal(1)
+         CALL section_vals_val_get(xtb_parameter, "HALOGEN_BINDING", r_vals=scal)
+         qs_control%xtb_control%kxr = scal(1)
+         qs_control%xtb_control%kx2 = scal(2)
+         ! Kab
+         CALL section_vals_val_get(xtb_parameter, "KAB_PARAM", n_rep_val=n_rep)
+         IF (n_rep > 0) THEN
+            ALLOCATE (qs_control%xtb_control%kab_param(3, n_rep))
+            DO j = 1, n_rep
+               CALL section_vals_val_get(xtb_parameter, "KAB_PARAM", i_rep_val=j, c_vals=clist)
+               qs_control%xtb_control%kab_param(1, j) = clist(1)
+               qs_control%xtb_control%kab_param(2, j) = clist(2)
+               qs_control%xtb_control%kab_param(3, j) = clist(3)
+            END DO
+         END IF
       END IF
 
       ! Optimize LRI basis set
@@ -1212,7 +1274,7 @@ CONTAINS
       CHARACTER(LEN=20)                                  :: tmpStr
       INTEGER                                            :: handle, output_unit
       REAL(kind=dp)                                      :: density_cut, density_smooth_cut_range, &
-                                                            gradient_cut, tau_cut
+                                                            gradi>>>>>>> Initial code for the xTB method (not yet working)ent_cut, tau_cut
       TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(enumeration_type), POINTER                    :: enum
       TYPE(keyword_type), POINTER                        :: keyword
@@ -1221,6 +1283,7 @@ CONTAINS
 
       IF (dft_control%qs_control%semi_empirical) RETURN
       IF (dft_control%qs_control%dftb) RETURN
+      IF (dft_control%qs_control%xtb) RETURN
       CALL timeset(routineN, handle)
 
       NULLIFY (logger)
@@ -1416,6 +1479,7 @@ CONTAINS
 
       IF (qs_control%semi_empirical) RETURN
       IF (qs_control%dftb) RETURN
+      IF (qs_control%xtb) RETURN
       CALL timeset(routineN, handle)
       NULLIFY (logger, enum, keyword, section)
       logger => cp_get_default_logger()

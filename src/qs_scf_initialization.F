@@ -781,13 +781,14 @@ CONTAINS
          routineP = moduleN//':'//routineN
 
       INTEGER                                            :: ispin, nao, nmo
-      LOGICAL                                            :: do_kpoints, need_coeff_b, not_se_or_dftb
+      LOGICAL                                            :: do_kpoints, need_coeff_b, not_se_or_tb
       TYPE(cp_fm_type), POINTER                          :: mo_coeff
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(mo_set_p_type), DIMENSION(:), POINTER         :: mos
 
       CALL get_qs_env(qs_env=qs_env, do_kpoints=do_kpoints, dft_control=dft_control, mos=mos)
-      not_se_or_dftb = .NOT. (dft_control%qs_control%dftb .OR. dft_control%qs_control%semi_empirical)
+      not_se_or_tb = .NOT. (dft_control%qs_control%dftb .OR. dft_control%qs_control%xtb .OR. &
+                            dft_control%qs_control%semi_empirical)
       need_coeff_b = .FALSE.
       scf_env%needs_ortho = .FALSE.
 
@@ -797,8 +798,8 @@ CONTAINS
             CPABORT("OT only for restricted (ROKS)")
          SELECT CASE (scf_control%diagonalization%method)
          CASE (diag_ot, diag_block_krylov, diag_block_davidson)
-            IF (.NOT. not_se_or_dftb) &
-               CPABORT("DFTB and SE not possible with OT diagonalization")
+            IF (.NOT. not_se_or_tb) &
+               CPABORT("TB and SE not possible with OT diagonalization")
          END SELECT
          SELECT CASE (scf_control%diagonalization%method)
             ! Diagonalization: additional check whether we are in an orthonormal basis

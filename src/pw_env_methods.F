@@ -808,7 +808,7 @@ CONTAINS
       radius = 0.0_dp
       DO igrid_level = 1, ngrid_level
 
-         IF (dft_control%qs_control%dftb) CYCLE
+         IF (dft_control%qs_control%dftb .OR. dft_control%qs_control%xtb) CYCLE
 
          maxradius = 0.0_dp
          ! Take into account the radius of the soft compensation charge rho0_soft1

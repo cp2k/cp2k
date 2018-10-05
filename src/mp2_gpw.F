@@ -2445,10 +2445,6 @@ CONTAINS
          ALLOCATE (pair_radius(nkind, nkind))
          ALLOCATE (atom2d(nkind))
 
-!        CALL atom2d_build(atom2d, orb_radius, orb_present, local_particles_sub, distribution_2d_sub, &
-!                          atomic_kind_set, qs_kind_set, molecule_set, molecule_only=.FALSE., dftb=.FALSE., &
-!                          particle_set=particle_set)
-
          CALL atom2d_build(atom2d, local_particles_sub, distribution_2d_sub, &
                            atomic_kind_set, molecule_set, molecule_only=.FALSE., &
                            particle_set=particle_set)
