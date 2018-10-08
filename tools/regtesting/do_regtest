@@ -45,6 +45,10 @@ while [ $# -ge 1 ]; do
  -cp2kdir)
   cp2k_dir=$2
   shift ;;
+ # location for the arch files
+ -archdir)
+  arch_dir=$2
+  shift ;;
  # root path of output folder (default is ${dir_base})
  -dirout)
   dir_out=$2
@@ -255,7 +259,7 @@ export OMP_NUM_THREADS=${numthreads}
 # these should not be needed
 #
 export ARCH=${dir_triplet}
-ARCH_SPEC="ARCH=${ARCH}"
+ARCH_SPEC="ARCH=${ARCH}${arch_dir:+ ARCHDIR=$arch_dir} "
 cp2k_prefix=${cp2k_prefix:-"${cp2k_run_prefix} ${dir_base}/${cp2k_dir}/exe/${dir_triplet}/cp2k.${cp2k_version}"}
 cp2k_postfix=${cp2k_postfix:-"${cp2k_run_postfix}"}
 

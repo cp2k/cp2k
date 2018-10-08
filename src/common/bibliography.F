@@ -3368,12 +3368,12 @@ CONTAINS
                          "TI Simple models for difficult electronic excitations", &
                          "SO JOURNAL OF CHEMICAL THEORY AND COMPUTATION", &
                          "PY 2018", &
-                         "VL XXXX", &
-                         "BP XXX", &
-                         "EP XXX", &
+                         "VL 14", &
+                         "BP 1501", &
+                         "EP 1509", &
                          "DI 10.1021/acs.jctc.7b00994", &
                          "ER"), &
-                         DOI="10.1021/jp801738f")
+                         DOI="10.1021/acs.jctc.7b00994")
 
       CALL add_reference(key=Schonherr2014, ISI_record=s2a( &
                          "PT J", &
