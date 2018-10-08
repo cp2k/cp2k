@@ -15,8 +15,7 @@ export LC_ALL=C
 # init
 dir_base=$PWD
 full_time_t1=`date +%s`
-datum_full=`date --iso-8601="seconds"`
-datum_short=`date '+%F_%H-%M-%S'`
+date_stamp=`date '+%F_%H-%M-%S'`
 ndirstoskip=0
 skip_dirs[1]=""
 ndirstorestrict=0
@@ -96,7 +95,10 @@ while [ $# -ge 1 ]; do
  # do not do a realclean before building
  -quick)
   quick="quick";;
- # specify the full string "-D 2005-02-01" to get a check-out of a specific date
+ # Overwrite internal date stamp
+ -date_stamp)
+  date_stamp=$2
+  shift;;
  -farming)
   farming="yes";;
  # do not check if code has changed
@@ -189,7 +191,6 @@ noreset=${noreset:-"reset"}
 skiptest=${skiptest:-"noskiptest"}
 do_unit_test=${do_unit_test:-"yes"}
 farming=${farming:-"no"}
-date="${datum_full}"
 #
 # guessing the number of tasks / threads / ranks
 #
@@ -253,7 +254,7 @@ repo_dir=${dir_base}/${cp2k_dir}
 test_types_file=${repo_dir}/tests/TEST_TYPES
 dir_last=${dir_base}/LAST-${dir_triplet}-${cp2k_version}
 dirout=${dirout:-${dir_base}}
-dir_out=${dir_out}/TEST-${dir_triplet}-${cp2k_version}-${datum_short}
+dir_out=${dir_out}/TEST-${dir_triplet}-${cp2k_version}-${date_stamp}
 changelog=${dir_last}/ChangeLog
 changelog_diff=${changelog}.diff
 changelog_new=${changelog}.new
@@ -270,7 +271,7 @@ error_description_file=${dir_out}/error_summary
 memory_description_file=${dir_out}/memory_summary
 >${memory_description_file}
 summary=${dir_out}/summary.txt
-printf "Summary of the regression tester run from ${datum_short} using ${dir_triplet} ${cp2k_version} \n" >${summary}
+printf "Summary of the regression tester run from ${date_stamp} using ${dir_triplet} ${cp2k_version} \n" >${summary}
 
 ###################################################################################
 #
