@@ -11,7 +11,7 @@
     POTENTIAL_FILE_NAME GTH_POTENTIALS
     CHARGE 0
     &MGRID
-      CUTOFF 200
+      CUTOFF 50
       NGRIDS 5
     &END MGRID
     &QS
@@ -26,7 +26,7 @@
 
       &ALMO_OPTIMIZER_DIIS
         MAX_ITER                 30
-        EPS_ERROR                5.0E-4
+        EPS_ERROR                5.0E-3
         N_DIIS                   5
       &END ALMO_OPTIMIZER_DIIS
 
@@ -35,16 +35,16 @@
 
     &SCF
       SCF_GUESS ATOMIC
-      EPS_SCF 5.0E-4
+      EPS_SCF 5.0E-3
       CHOLESKY INVERSE
-      ADDED_MOS 7 !! Must be same number as total number of atoms 
+      ADDED_MOS 6 !! Must be same number as total number of atoms 
       &DIAGONALIZATION
          ALGORITHM STANDARD
          EPS_ADAPT 0.01
       &END DIAGONALIZATION
       &SMEAR ON
         METHOD FERMI_DIRAC
-        ELECTRONIC_TEMPERATURE [K] 270
+        ELECTRONIC_TEMPERATURE [K] 300
       &END SMEAR
       &MIXING
           METHOD BROYDEN_MIXING
@@ -86,7 +86,7 @@
       Pt  4.21  2.43  0.00  Pt4
       Pt  1.40  2.43  0.00  Pt4
       Pt  0.00  0.00  0.00  Pt4
-      Pt  2.81  0.00  0.00  Pt4
+!      Pt  2.81  0.00  0.00  Pt4
       O   1.22  2.43  2.34  H2O
       H   1.22  3.24  2.90  H2O
       H   1.22  1.63  2.90  H2O

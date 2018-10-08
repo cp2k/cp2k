@@ -6,3 +6,5 @@ almo-fullx.inp
 almo-no-deloc.inp
 #  
 FH-chain.inp
+# Dramatically reduced the computational cost (and physical meaning) of the regtest
+s-almo-no-deloc.inp
