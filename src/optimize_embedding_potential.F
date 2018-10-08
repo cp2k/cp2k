@@ -2704,33 +2704,35 @@ CONTAINS
          unit_nr = cp_print_key_unit_nr(logger, input, &
                                         "DFT%QS%OPT_EMBED%WRITE_SIMPLE_GRID/FOLD_COORD", extension=".dat", &
                                         middle_name=TRIM(filename), file_form="FORMATTED", file_position="REWIND")
+         IF (unit_nr > 0) THEN
 
-         n = particles%n_els
-         ALLOCATE (particles_el(n))
-         ALLOCATE (particles_r(3, n))
-         DO iat = 1, n
-            CALL get_atomic_kind(particles%els(iat)%atomic_kind, element_symbol=particles_el(iat))
-            particles_r(:, iat) = particles%els(iat)%r(:)
-         END DO
+            n = particles%n_els
+            ALLOCATE (particles_el(n))
+            ALLOCATE (particles_r(3, n))
+            DO iat = 1, n
+               CALL get_atomic_kind(particles%els(iat)%atomic_kind, element_symbol=particles_el(iat))
+               particles_r(:, iat) = particles%els(iat)%r(:)
+            END DO
 
-         ! Fold the coordinates
-         center(:) = cell%hmat(:, 1)/2.0_dp+cell%hmat(:, 2)/2.0_dp+cell%hmat(:, 3)/2.0_dp
+            ! Fold the coordinates
+            center(:) = cell%hmat(:, 1)/2.0_dp+cell%hmat(:, 2)/2.0_dp+cell%hmat(:, 3)/2.0_dp
 
-         ! Print folded coordinates to file
-         DO iat = 1, SIZE(particles_el)
-            r_pbc(:) = particles_r(:, iat)-center
-            s = MATMUL(cell%h_inv, r_pbc)
-            s = s-ANINT(s)
-            r_pbc = MATMUL(cell%hmat, s)
-            r_pbc = r_pbc+center
-            WRITE (unit_nr, '(a4,4f12.6)') particles_el(iat), r_pbc(:)
-         END DO
+            ! Print folded coordinates to file
+            DO iat = 1, SIZE(particles_el)
+               r_pbc(:) = particles_r(:, iat)-center
+               s = MATMUL(cell%h_inv, r_pbc)
+               s = s-ANINT(s)
+               r_pbc = MATMUL(cell%hmat, s)
+               r_pbc = r_pbc+center
+               WRITE (unit_nr, '(a4,4f12.6)') particles_el(iat), r_pbc(:)
+            END DO
 
-         CALL cp_print_key_finished_output(unit_nr, logger, input, &
-                                           "DFT%QS%OPT_EMBED%WRITE_SIMPLE_GRID/FOLD_COORD")
+            CALL cp_print_key_finished_output(unit_nr, logger, input, &
+                                              "DFT%QS%OPT_EMBED%WRITE_SIMPLE_GRID/FOLD_COORD")
 
-         DEALLOCATE (particles_el)
-         DEALLOCATE (particles_r)
+            DEALLOCATE (particles_el)
+            DEALLOCATE (particles_r)
+         ENDIF
 
       ENDIF ! Should output
 
