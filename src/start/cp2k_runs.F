@@ -869,7 +869,7 @@ CONTAINS
          "This html manual can be generated automatically from a given cp2k executable "// &
          "using the --html-manual command line option. The manual describes exactly that version of the code. "// &
          "This version has been generated using a cp2k version compiled on "//TRIM(compile_date)//". "// &
-         "The SVN source code revision number is "//TRIM(compile_revision)//"."
+         "The source code revision number is "//TRIM(compile_revision)//"."
 
       WRITE (unit_nr, FMT='(A)') '<H2>Search the online input reference manual</H2>'
       WRITE (unit_nr, FMT='(A)') '<TABLE><TR><TD>'
