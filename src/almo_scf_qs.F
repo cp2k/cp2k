@@ -707,34 +707,40 @@ CONTAINS
 !> \param energy_total ...
 !> \param mat_distr_aos ...
 !> \param smear ...
-!> \param kTS ...
+!> \param kTS_sum ...
 !> \par History
 !>       2011.05 created [Rustam Z Khaliullin]
 !>       2018.09 smearing support [Ruben Staub]
 !> \author Rustam Z Khaliullin
 ! **************************************************************************************************
-   SUBROUTINE almo_dm_to_qs_ks(qs_env, matrix_p, energy_total, mat_distr_aos, smear, kTS)
+   SUBROUTINE almo_dm_to_qs_ks(qs_env, matrix_p, energy_total, mat_distr_aos, smear, kTS_sum)
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(dbcsr_type), DIMENSION(:)                     :: matrix_p
       REAL(KIND=dp)                                      :: energy_total
       INTEGER, INTENT(IN)                                :: mat_distr_aos
       LOGICAL, INTENT(IN), OPTIONAL                      :: smear
-      REAL(KIND=dp), DIMENSION(:), INTENT(IN), OPTIONAL  :: kTS
+      REAL(KIND=dp), INTENT(IN), OPTIONAL                :: kTS_sum
 
       CHARACTER(len=*), PARAMETER :: routineN = 'almo_dm_to_qs_ks', &
          routineP = moduleN//':'//routineN
 
       INTEGER                                            :: handle
       LOGICAL                                            :: smearing
+      REAL(KIND=dp)                                      :: entropic_term
       TYPE(qs_energy_type), POINTER                      :: energy
 
       CALL timeset(routineN, handle)
 
-      IF (.NOT. PRESENT(smear)) THEN
-         smearing = .FALSE.
-      ELSE
+      IF (PRESENT(smear)) THEN
          smearing = smear
-         CPASSERT(PRESENT(kTS))
+      ELSE
+         smearing = .FALSE.
+      ENDIF
+
+      IF (PRESENT(kTS_sum)) THEN
+         entropic_term = kTS_sum
+      ELSE
+         entropic_term = 0.0_dp
       ENDIF
 
       NULLIFY (energy)
@@ -746,7 +752,7 @@ CONTAINS
       !! Add electronic entropy contribution if smearing is requested
       !! Previous QS entropy is replaced by the sum of the entropy for each spin
       IF (smearing) THEN
-         energy%total = energy%total-energy%kTS+SUM(kTS)
+         energy%total = energy%total-energy%kTS+entropic_term
       END IF
 
       energy_total = energy%total
@@ -779,33 +785,34 @@ CONTAINS
       REAL(KIND=dp)                                      :: energy_total, eps_filter
       INTEGER, INTENT(IN)                                :: mat_distr_aos
       LOGICAL, INTENT(IN), OPTIONAL                      :: smear
-      REAL(KIND=dp), DIMENSION(:), INTENT(IN), &
-         OPTIONAL, TARGET                                :: kTS
+      REAL(KIND=dp), DIMENSION(:), INTENT(IN), OPTIONAL  :: kTS
 
       CHARACTER(len=*), PARAMETER :: routineN = 'almo_dm_to_almo_ks', &
          routineP = moduleN//':'//routineN
 
       INTEGER                                            :: handle, ispin, nspins
       LOGICAL                                            :: smearing
-      REAL(KIND=dp), DIMENSION(:), POINTER               :: smear_entropy
+      REAL(KIND=dp)                                      :: kTS_sum
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_qs_ks
 
       CALL timeset(routineN, handle)
 
-      NULLIFY (smear_entropy)
-
-      IF (.NOT. PRESENT(smear)) THEN
-         smearing = .FALSE.
-      ELSE
+      IF (PRESENT(smear)) THEN
          smearing = smear
-         CPASSERT(PRESENT(kTS) .OR. .NOT. smearing)
-         IF (PRESENT(kTS)) smear_entropy => kTS
+      ELSE
+         smearing = .FALSE.
+      ENDIF
+
+      IF (PRESENT(kTS) .AND. smearing) THEN
+         kTS_sum = SUM(kTS)
+      ELSE
+         kTS_sum = 0.0_dp
       ENDIF
 
       ! update KS matrix in the QS env
       CALL almo_dm_to_qs_ks(qs_env, matrix_p, energy_total, mat_distr_aos, &
                             smear=smearing, &
-                            kTS=smear_entropy)
+                            kTS_sum=kTS_sum)
 
       nspins = SIZE(matrix_ks)
 
