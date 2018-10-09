@@ -734,7 +734,7 @@ CONTAINS
          smearing = .FALSE.
       ELSE
          smearing = smear
-         CPASSERT(PRESENT(kTS))
+         CPASSERT(PRESENT(kTS) .OR. .NOT. smearing)
       ENDIF
 
       NULLIFY (energy)
