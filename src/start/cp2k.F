@@ -217,7 +217,7 @@ PROGRAM cp2k
                "--license         : prints the CP2K license", &
                "--mpi-mapping     : applies a given MPI reordering to CP2K", &
                "--run, -r         : forces a CP2K run regardless of other specified flags", &
-               "--version, -v     : prints the CP2K version and the SVN revision number", &
+               "--version, -v     : prints the CP2K version and the revision number", &
                "--xml             : dumps the whole CP2K input structure as a XML file", &
                "                    xml2htm generates a HTML manual from this XML file", &
                ""
@@ -233,7 +233,7 @@ PROGRAM cp2k
                IF (id_cp2k_version == id_development_version) dev_flag = " (Development Version)"
                WRITE (output_unit, "(T2,A)") &
                   cp2k_version//TRIM(dev_flag), &
-                  "SVN source code revision "//TRIM(compile_revision), &
+                  "Source code revision "//TRIM(compile_revision), &
                   TRIM(cp2k_flags())
             ENDIF
          ENDIF

@@ -35,7 +35,7 @@ source ./install/setup
 
 echo -e "\n========== Compiling CP2K =========="
 cd /opt/cp2k-master
-echo ${CP2K_REVISION} > ../REVISION
+echo ${CP2K_REVISION} > REVISION
 touch src/cp2k_info.F  # ensure latest REVISION is picked up.
 make -j VERSION="sopt" cp2k
 
