@@ -6,3 +6,5 @@ almo-fullx.inp
 almo-no-deloc.inp
 #  
 FH-chain.inp
+# Dramatically reduced complexity (and physical meaning) of S-ALMO regtest
+s-almo-no-deloc.inp
