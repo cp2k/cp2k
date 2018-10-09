@@ -2,7 +2,7 @@
 # the second field tells which test should be run in order to compare with the last available output
 # see regtest/TEST_FILES
 #
-HeH-noconstraint.inp                                   1      2e-13             -3.01067446615063
+HeH-noconstraint.inp                                   1      2e-13              -3.01067446615063
 # These tests use different optimizers for the CDFT constraint
 # Newton: test different finite different schemes
 HeH-cdft-newton-fd1.inp                               11      3e-07             -2.432124875819301
