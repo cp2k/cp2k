@@ -803,7 +803,7 @@ CONTAINS
          smearing = .FALSE.
       ENDIF
 
-      IF (PRESENT(kTS)) THEN
+      IF (PRESENT(kTS) .AND. smearing) THEN
          kTS_sum = SUM(kTS)
       ELSE
          kTS_sum = 0.0_dp
