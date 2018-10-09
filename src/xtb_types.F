@@ -50,8 +50,9 @@ MODULE xtb_types
       REAL(KIND=dp)                          :: zneff !effective core charge for repulsion potential
       ! shell specific parameters
       INTEGER                                :: nshell !number of orbital shells
-      INTEGER, DIMENSION(5)                  :: nval
-      INTEGER, DIMENSION(5)                  :: lval
+      INTEGER, DIMENSION(5)                  :: nval ! n-quantum number of shell i
+      INTEGER, DIMENSION(5)                  :: lval ! l-quantum number of shell i
+      INTEGER, DIMENSION(5)                  :: occupation ! occupation of shell i
       REAL(KIND=dp), DIMENSION(5)            :: kpoly
       REAL(KIND=dp), DIMENSION(5)            :: kappa
       REAL(KIND=dp), DIMENSION(5)            :: hen
@@ -101,6 +102,7 @@ CONTAINS
       xtb_parameter%nshell = 0
       xtb_parameter%nval = 0
       xtb_parameter%lval = 0
+      xtb_parameter%occupation = 0
       xtb_parameter%kpoly = 0.0_dp
       xtb_parameter%kappa = 0.0_dp
       xtb_parameter%hen = 0.0_dp
@@ -155,7 +157,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE get_xtb_atom_param(xtb_parameter, aname, typ, defined, z, zeff, natorb, lmax, nao, lao, &
                                  rcut, rcov, eta, xgamma, alpha, zneff, nshell, nval, lval, kpoly, kappa, &
-                                 hen, zeta, electronegativity)
+                                 hen, zeta, occupation, electronegativity)
 
       TYPE(xtb_atom_type), POINTER                       :: xtb_parameter
       CHARACTER(LEN=default_string_length), &
@@ -167,7 +169,7 @@ CONTAINS
       INTEGER, DIMENSION(25), INTENT(OUT), OPTIONAL      :: nao, lao
       REAL(KIND=dp), INTENT(OUT), OPTIONAL               :: rcut, rcov, eta, xgamma, alpha, zneff
       INTEGER, INTENT(OUT), OPTIONAL                     :: nshell
-      INTEGER, DIMENSION(5), INTENT(OUT), OPTIONAL       :: nval, lval
+      INTEGER, DIMENSION(5), INTENT(OUT), OPTIONAL       :: nval, lval, occupation
       REAL(KIND=dp), DIMENSION(5), INTENT(OUT), OPTIONAL :: kpoly, kappa, hen, zeta
       REAL(KIND=dp), INTENT(OUT), OPTIONAL               :: electronegativity
 
@@ -196,6 +198,7 @@ CONTAINS
       IF (PRESENT(nshell)) nshell = xtb_parameter%nshell
       IF (PRESENT(nval)) nval = xtb_parameter%nval
       IF (PRESENT(lval)) lval = xtb_parameter%lval
+      IF (PRESENT(occupation)) occupation = xtb_parameter%occupation
       IF (PRESENT(kpoly)) kpoly = xtb_parameter%kpoly
       IF (PRESENT(kappa)) kappa = xtb_parameter%kappa
       IF (PRESENT(hen)) hen = xtb_parameter%hen
@@ -232,7 +235,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE set_xtb_atom_param(xtb_parameter, aname, typ, defined, z, zeff, natorb, lmax, nao, lao, &
                                  rcut, rcov, eta, xgamma, alpha, zneff, nshell, nval, lval, kpoly, kappa, &
-                                 hen, zeta, electronegativity)
+                                 hen, zeta, electronegativity, occupation)
 
       TYPE(xtb_atom_type), POINTER                       :: xtb_parameter
       CHARACTER(LEN=default_string_length), INTENT(IN), &
@@ -244,7 +247,7 @@ CONTAINS
       INTEGER, DIMENSION(25), INTENT(IN), OPTIONAL       :: nao, lao
       REAL(KIND=dp), INTENT(IN), OPTIONAL                :: rcut, rcov, eta, xgamma, alpha, zneff
       INTEGER, INTENT(IN), OPTIONAL                      :: nshell
-      INTEGER, DIMENSION(5), INTENT(IN), OPTIONAL        :: nval, lval
+      INTEGER, DIMENSION(5), INTENT(IN), OPTIONAL        :: nval, lval, occupation
       REAL(KIND=dp), DIMENSION(5), INTENT(IN), OPTIONAL  :: kpoly, kappa, hen, zeta
       REAL(KIND=dp), INTENT(IN), OPTIONAL                :: electronegativity
 
@@ -273,6 +276,7 @@ CONTAINS
       IF (PRESENT(nshell)) xtb_parameter%nshell = nshell
       IF (PRESENT(nval)) xtb_parameter%nval = nval
       IF (PRESENT(lval)) xtb_parameter%lval = lval
+      IF (PRESENT(occupation)) xtb_parameter%occupation = occupation
       IF (PRESENT(kpoly)) xtb_parameter%kpoly = kpoly
       IF (PRESENT(kappa)) xtb_parameter%kappa = kappa
       IF (PRESENT(hen)) xtb_parameter%hen = hen
