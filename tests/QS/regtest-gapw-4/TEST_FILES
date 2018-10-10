@@ -9,7 +9,7 @@ CO.inp                                                 1      2e-14            -
 CO_xastpxfh.inp                                        1      4e-09            -92.340788080870666
 CO_xastpxfh_locall.inp                                 1      4e-12             -92.76703520816123
 CO_xastpxfh_150Ry.inp                                  1      2e-12             -92.84739365620344
-CO_xastpxfh_pdos.inp              1     6e-10            -92.340788080870666
+CO_xastpxfh_pdos.inp                                   1      6e-10            -92.340788080870666
 #bug fix gpw_type
 H2O_gpw.inp                                            1      2e-13             -17.10774257571033
 #bug fix perdew_zunger
@@ -19,7 +19,7 @@ H2O_gpw_full_gapw.inp                                  1      2e-13             
 H2O_Onopaw.inp                                         1      2e-13             -17.10774257571033
 H2O_allnopaw.inp                                       1      1e-11             -16.14000416613815
 H2O_Hnopaw_pp.inp                                      1      2e-12             -14.67461511723278
-H_hf_gapw_forcepaw.inp            1     4e-13           -0.42427650604842998
+H_hf_gapw_forcepaw.inp                                 1      4e-13           -0.42427650604842998
 H_hf_gapw_nopaw.inp                                    1      7e-13           -0.42419312869532999
 H_hf_gapw_nopaw_full.inp                               1      7e-13           -0.42419312869532999
 # mixed GPW/GAPW run forces
@@ -30,5 +30,5 @@ Fe.inp                                                 1      6e-14           -1
 H2O_constant_extpot_GAPW.inp                           1      2e-13            -17.156932432160339
 H2O_uniform_efield_GAPW.inp                            1      6e-14             -17.15696477358598
 #XAS with for beta channel
-O2_xas_beta_spin.inp                                  84      2e-14            -20.79715367779695
+O2_xas_beta_spin.inp                                  84      2e-14             -20.79715367779695
 #EOF

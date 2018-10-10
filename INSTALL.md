@@ -232,7 +232,7 @@ Features useful to deal with legacy systems
   * `-D__F2008` Allow for conformity check with the Fortran 2008 standard when using the GFortran compiler flag `-std=f2008`
 
 ## 4. If it doesn't work?
-If things fail, take a break... have ago back to 2a (or skip to step 6).
+If things fail, take a break... go back to 2a (or skip to step 6).
 
 ## 5. Regtesting
 
