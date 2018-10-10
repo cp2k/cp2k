@@ -86,6 +86,8 @@ MODULE qs_initial_guess
    USE qs_wf_history_methods,           ONLY: wfi_update
    USE scf_control_types,               ONLY: scf_control_type
    USE util,                            ONLY: sort
+   USE xtb_types,                       ONLY: get_xtb_atom_param,&
+                                              xtb_atom_type
 #include "./base/base_uses.f90"
 
    IMPLICIT NONE
@@ -164,6 +166,7 @@ CONTAINS
       TYPE(qs_rho_type), POINTER                         :: rho
       TYPE(scf_control_type), POINTER                    :: scf_control
       TYPE(section_vals_type), POINTER                   :: dft_section, input, subsys_section
+      TYPE(xtb_atom_type), POINTER                       :: xtb_kind
 
       logger => cp_get_default_logger()
       NULLIFY (atomic_kind, qs_kind, mo_coeff, sv, orb_basis_set, atomic_kind_set, &
@@ -1167,13 +1170,15 @@ CONTAINS
       INTEGER                                            :: atom_a, group, handle, iatom, ikind, &
                                                             iset, isgf, isgfa, ishell, ispin, la, &
                                                             maxl, maxll, nao, natom, ncount, nset, &
-                                                            nsgf, z
+                                                            nsgf, z, na
+      INTEGER, DIMENSION(5)                              :: occupation
+      INTEGER, DIMENSION(25)                             :: naox, laox
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: first_sgf
       INTEGER, DIMENSION(:), POINTER                     :: atom_list, elec_conf, nshell
       INTEGER, DIMENSION(:, :), POINTER                  :: first_sgfa, l, last_sgfa
       LOGICAL                                            :: has_pot
       REAL(KIND=dp)                                      :: maxocc, my_sum, nelec, paa, rscale, &
-                                                            trps1, trps2, yy, zeff
+                                                            trps1, trps2, yy, zeff, occ
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: econf, pdiag, sdiag
       REAL(KIND=dp), DIMENSION(0:3)                      :: edftb
       TYPE(all_potential_type), POINTER                  :: all_potential
@@ -1181,6 +1186,7 @@ CONTAINS
       TYPE(gth_potential_type), POINTER                  :: gth_potential
       TYPE(gto_basis_set_type), POINTER                  :: orb_basis_set
       TYPE(sgp_potential_type), POINTER                  :: sgp_potential
+      TYPE(xtb_atom_type), POINTER                       :: xtb_kind
 
       CALL timeset(routineN, handle)
 
@@ -1238,6 +1244,9 @@ CONTAINS
                                         lmax=maxll, occupation=edftb)
                maxll = MIN(maxll, maxl)
                econf(0:maxl) = edftb(0:maxl)
+            ELSEIF (dft_control%qs_control%xtb) THEN
+               CALL get_qs_kind(qs_kind_set(ikind), xtb_parameter=xtb_kind)
+               CALL get_xtb_atom_param(xtb_kind, natorb=nsgf, nao=naox, lao=laox, occupation=occupation)
             ELSEIF (has_pot) THEN
                CALL get_atomic_kind(atomic_kind_set(ikind), z=z)
                CALL get_qs_kind(qs_kind_set(ikind), nsgf=nsgf, elec_conf=elec_conf, zeff=zeff)
@@ -1284,35 +1293,12 @@ CONTAINS
                DO iatom = 1, natom
                   atom_a = atom_list(iatom)
                   isgfa = first_sgf(atom_a)
-!qxtb
-!                 DO la = 0, maxll
-!                    SELECT CASE (la)
-!                    CASE (0)
-!                       pdiag(isgfa) = econf(0)
-!                    CASE (1)
-!                       pdiag(isgfa+1) = econf(1)/3._dp
-!                       pdiag(isgfa+2) = econf(1)/3._dp
-!                       pdiag(isgfa+3) = econf(1)/3._dp
-!                    CASE (2)
-!                       pdiag(isgfa+4) = econf(2)/5._dp
-!                       pdiag(isgfa+5) = econf(2)/5._dp
-!                       pdiag(isgfa+6) = econf(2)/5._dp
-!                       pdiag(isgfa+7) = econf(2)/5._dp
-!                       pdiag(isgfa+8) = econf(2)/5._dp
-!                    CASE (3)
-!                       pdiag(isgfa+9) = econf(3)/7._dp
-!                       pdiag(isgfa+10) = econf(3)/7._dp
-!                       pdiag(isgfa+11) = econf(3)/7._dp
-!                       pdiag(isgfa+12) = econf(3)/7._dp
-!                       pdiag(isgfa+13) = econf(3)/7._dp
-!                       pdiag(isgfa+14) = econf(3)/7._dp
-!                       pdiag(isgfa+15) = econf(3)/7._dp
-!                    CASE DEFAULT
-!                       CPABORT("")
-!                    END SELECT
-!                 END DO
-                  pdiag(:) = 1._dp
-!qxtb
+                  DO isgf = 1, nsgf
+                     na = naox(isgf)
+                     la = laox(isgf)
+                     occ = REAL(occupation(na), dp)/REAL(2*la+1,dp)
+                     pdiag(isgfa+isgf-1) = occ
+                  END DO
                END DO
             ELSEIF (dft_control%qs_control%semi_empirical) THEN
                yy = REAL(dft_control%charge, KIND=dp)/REAL(nao, KIND=dp)
