@@ -65,10 +65,12 @@ CONTAINS
 !> \param rho ...
 !> \param mcharge ...
 !> \param energy ...
+!> \param xgamma ...
+!> \param zeff ...
 !> \param calculate_forces ...
 !> \param just_energy ...
 ! **************************************************************************************************
-   SUBROUTINE build_dftb3_diagonal(qs_env, ks_matrix, rho, mcharge, energy, &
+   SUBROUTINE build_dftb3_diagonal(qs_env, ks_matrix, rho, mcharge, energy, xgamma, zeff, &
                                    calculate_forces, just_energy)
 
       TYPE(qs_environment_type), POINTER                 :: qs_env
@@ -76,6 +78,7 @@ CONTAINS
       TYPE(qs_rho_type), POINTER                         :: rho
       REAL(dp), DIMENSION(:)                             :: mcharge
       TYPE(qs_energy_type), POINTER                      :: energy
+      REAL(dp), DIMENSION(:)                             :: xgamma, zeff
       LOGICAL, INTENT(in)                                :: calculate_forces, just_energy
 
       CHARACTER(len=*), PARAMETER :: routineN = 'build_dftb3_diagonal', &
@@ -88,7 +91,7 @@ CONTAINS
       INTEGER, DIMENSION(:), POINTER                     :: atom_of_kind, kind_of
       INTEGER, DIMENSION(:, :, :), POINTER               :: cell_to_index
       LOGICAL                                            :: found, use_virial
-      REAL(KIND=dp)                                      :: dr, eb3, eloc, fi, gmij, ua, ui, uj, zeff
+      REAL(KIND=dp)                                      :: dr, eb3, eloc, fi, gmij, ua, ui, uj
       REAL(KIND=dp), DIMENSION(3)                        :: fij, rij
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: dsblock, ksblock, pblock, sblock
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
@@ -104,7 +107,6 @@ CONTAINS
       TYPE(neighbor_list_set_p_type), DIMENSION(:), &
          POINTER                                         :: n_list
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
-      TYPE(qs_dftb_atom_type), POINTER                   :: dftb_kind
       TYPE(qs_force_type), DIMENSION(:), POINTER         :: force
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
       TYPE(virial_type), POINTER                         :: virial
@@ -119,15 +121,14 @@ CONTAINS
       eb3 = 0.0_dp
       CALL get_qs_env(qs_env=qs_env, local_particles=local_particles)
       DO ikind = 1, SIZE(local_particles%n_el)
-         CALL get_qs_kind(qs_kind_set(ikind), dftb_parameter=dftb_kind)
-         CALL get_dftb_atom_param(dftb_kind, dudq=ua, zeff=zeff)
+         ua = xgamma(ikind)
          DO ia = 1, local_particles%n_el(ikind)
             iatom = local_particles%list(ikind)%array(ia)
             eloc = -1.0_dp/6.0_dp*ua*mcharge(iatom)**3
             eb3 = eb3+eloc
             IF (atprop%energy) THEN
                ! we have to add the part not covered by 0.5*Tr(FP)
-               eloc = -0.5_dp*eloc-0.25_dp*ua*zeff*mcharge(iatom)**2
+               eloc = -0.5_dp*eloc-0.25_dp*ua*zeff(ikind)*mcharge(iatom)**2
                atprop%atecoul(iatom) = atprop%atecoul(iatom)+eloc
             END IF
          END DO
@@ -220,20 +221,24 @@ CONTAINS
                ic = cell_to_index(cellind(1), cellind(2), cellind(3))
                CPASSERT(ic > 0)
 
-               ikind = kind_of(iatom)
-               atom_i = atom_of_kind(iatom)
-               CALL get_qs_kind(qs_kind_set(ikind), dftb_parameter=dftb_kind)
-               CALL get_dftb_atom_param(dftb_kind, dudq=ui)
-               jkind = kind_of(jatom)
-               atom_j = atom_of_kind(jatom)
-               CALL get_qs_kind(qs_kind_set(jkind), dftb_parameter=dftb_kind)
-               CALL get_dftb_atom_param(dftb_kind, dudq=uj)
-               !
-               gmij = -0.5_dp*(ui*mcharge(iatom)**2+uj*mcharge(jatom)**2)
-               !
-               NULLIFY (pblock)
-               CALL dbcsr_get_block_p(matrix=matrix_p(1, ic)%matrix, &
-                                      row=irow, col=icol, block=pblock, found=found)
+
+            ikind = kind_of(iatom)
+            atom_i = atom_of_kind(iatom)
+            ui = xgamma(ikind)
+            jkind = kind_of(jatom)
+            atom_j = atom_of_kind(jatom)
+            uj = xgamma(jkind)
+            !
+            gmij = -0.5_dp*(ui*mcharge(iatom)**2+uj*mcharge(jatom)**2)
+            !
+            NULLIFY (pblock)
+            CALL dbcsr_get_block_p(matrix=matrix_p(1, ic)%matrix, &
+                                   row=irow, col=icol, block=pblock, found=found)
+            CPASSERT(found)
+            DO i = 1, 3
+               NULLIFY (dsblock)
+               CALL dbcsr_get_block_p(matrix=matrix_s(1+i, ic)%matrix, &
+                                      row=irow, col=icol, block=dsblock, found=found)
                CPASSERT(found)
                DO i = 1, 3
                   NULLIFY (dsblock)
@@ -320,17 +325,20 @@ CONTAINS
                ic = cell_to_index(cellind(1), cellind(2), cellind(3))
                CPASSERT(ic > 0)
 
-               ikind = kind_of(iatom)
-               CALL get_qs_kind(qs_kind_set(ikind), dftb_parameter=dftb_kind)
-               CALL get_dftb_atom_param(dftb_kind, dudq=ui)
-               jkind = kind_of(jatom)
-               CALL get_qs_kind(qs_kind_set(jkind), dftb_parameter=dftb_kind)
-               CALL get_dftb_atom_param(dftb_kind, dudq=uj)
-               gmij = -0.5_dp*(ui*mcharge(iatom)**2+uj*mcharge(jatom)**2)
-               !
-               NULLIFY (sblock)
-               CALL dbcsr_get_block_p(matrix=matrix_s(1, ic)%matrix, &
-                                      row=irow, col=icol, block=sblock, found=found)
+            ikind = kind_of(iatom)
+            ui = xgamma(ikind)
+            jkind = kind_of(jatom)
+            uj = xgamma(jkind)
+            gmij = -0.5_dp*(ui*mcharge(iatom)**2+uj*mcharge(jatom)**2)
+            !
+            NULLIFY (sblock)
+            CALL dbcsr_get_block_p(matrix=matrix_s(1, ic)%matrix, &
+                                   row=irow, col=icol, block=sblock, found=found)
+            CPASSERT(found)
+            DO is = 1, SIZE(ks_matrix, 1)
+               NULLIFY (ksblock)
+               CALL dbcsr_get_block_p(matrix=ks_matrix(is, ic)%matrix, &
+                                      row=irow, col=icol, block=ksblock, found=found)
                CPASSERT(found)
                DO is = 1, SIZE(ks_matrix, 1)
                   NULLIFY (ksblock)

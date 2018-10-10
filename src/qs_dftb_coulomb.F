@@ -104,6 +104,7 @@ CONTAINS
       CHARACTER(len=*), PARAMETER :: routineN = 'build_dftb_coulomb', &
          routineP = moduleN//':'//routineN
 
+<<<<<<< HEAD
       INTEGER :: atom_i, atom_j, blk, ewald_type, handle, i, ia, iatom, ic, icol, ikind, img, &
          irow, is, jatom, jkind, natom, natorb_a, natorb_b, nimg, nmat
       INTEGER, DIMENSION(3)                              :: cellind, periodic
@@ -114,6 +115,18 @@ CONTAINS
       REAL(KIND=dp)                                      :: alpha, ddr, deth, dgam, dr, drm, drp, &
                                                             fi, ga, gb, gmat, gmij, hb_para, zeff
       REAL(KIND=dp), DIMENSION(0:3)                      :: eta_a, eta_b
+=======
+      INTEGER                                            :: atom_i, atom_j, blk, ewald_type, handle, &
+                                                            i, ia, iatom, ic, icol, ikind, img, &
+                                                            irow, is, jatom, jkind, natom, nimg, &
+                                                            nkind, nmat
+      INTEGER, DIMENSION(3)                              :: cellind, periodic
+      INTEGER, DIMENSION(:), POINTER                     :: atom_of_kind, kind_of
+      INTEGER, DIMENSION(:, :, :), POINTER               :: cell_to_index
+      LOGICAL                                            :: do_ewald, found, use_virial
+      REAL(KIND=dp)                                      :: alpha, deth, dr, fi, gmij, zeff
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: xgamma, zeffk
+>>>>>>> xTB coulomb energies
       REAL(KIND=dp), DIMENSION(3)                        :: fij, rij
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: dsblock, gmcharge, ksblock, pblock, &
                                                             sblock
@@ -302,12 +315,10 @@ CONTAINS
          CALL get_qs_env(qs_env=qs_env, &
                          local_particles=local_particles)
          DO ikind = 1, SIZE(local_particles%n_el)
-            CALL get_qs_kind(qs_kind_set(ikind), dftb_parameter=dftb_kind)
-            CALL get_dftb_atom_param(dftb_kind, zeff=zeff)
             DO ia = 1, local_particles%n_el(ikind)
                iatom = local_particles%list(ikind)%array(ia)
                atprop%atecoul(iatom) = atprop%atecoul(iatom)+ &
-                                       0.5_dp*zeff*gmcharge(iatom, 1)
+                                       0.5_dp*mcharge(iatom)*gmcharge(iatom, 1)
             END DO
          END DO
       END IF
@@ -463,9 +474,16 @@ CONTAINS
       END IF
 
       IF (dft_control%qs_control%dftb_control%dftb3_diagonal) THEN
+         CALL get_qs_env(qs_env, nkind=nkind)
+         ALLOCATE (zeffk(nkind), xgamma(nkind))
+         DO ikind = 1, nkind
+            CALL get_qs_kind(qs_kind_set(ikind), dftb_parameter=dftb_kind)
+            CALL get_dftb_atom_param(dftb_kind, dudq=xgamma(ikind), zeff=zeffk(ikind))
+         END DO
          ! Diagonal 3rd order correction (DFTB3)
-         CALL build_dftb3_diagonal(qs_env, ks_matrix, rho, mcharge, energy, &
+         CALL build_dftb3_diagonal(qs_env, ks_matrix, rho, mcharge, energy, xgamma, zeffk, &
                                    calculate_forces, just_energy)
+         DEALLOCATE (zeffk, xgamma)
       END IF
 
       ! QMMM

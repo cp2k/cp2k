@@ -68,6 +68,8 @@ MODULE xtb_matrices
                                               qs_rho_type
    USE virial_methods,                  ONLY: virial_pair_force
    USE virial_types,                    ONLY: virial_type
+   USE xtb_coulomb,                     ONLY: build_xtb_coulomb
+   USE xtb_parameters,                  ONLY: xtb_set_kab
    USE xtb_types,                       ONLY: get_xtb_atom_param,&
                                               xtb_atom_type
 #include "./base/base_uses.f90"
@@ -116,7 +118,7 @@ CONTAINS
          k2sh, kab, kcnd, kcnp, kcns, kd, ken, kf, kg, kp, ks, ksp, kx2, kxr, rcova, rcovab, &
          rcovb, rcut, rcuta, rcutb, rrab, xgammaa, xgammab, zneffa, zneffb
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: cnumbers
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: huckel
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: huckel, kabset
       REAL(KIND=dp), DIMENSION(0:3)                      :: kcnl, kl
       REAL(KIND=dp), DIMENSION(3)                        :: force_ab, force_rr, rij
       REAL(KIND=dp), DIMENSION(5)                        :: hena, henb, kappaa, kappab, kpolya, &
@@ -149,9 +151,6 @@ CONTAINS
 
       CALL timeset(routineN, handle)
 
-!qxtb
-      WRITE (6, *) "START XTB MATRICES"
-!qxtb
       NULLIFY (logger, virial, atprop)
       logger => cp_get_default_logger()
 
@@ -204,7 +203,7 @@ CONTAINS
       ELSE
          nmat = 1
       END IF
-      CALL get_qs_env(qs_env=qs_env, gamma_matrix=gamma_matrix)
+      CALL get_qs_env(qs_env, gamma_matrix=gamma_matrix)
       CALL setup_gamma(qs_env, nmat, gamma_matrix, sab_orb)
 
       IF (calculate_forces) THEN
@@ -302,8 +301,19 @@ CONTAINS
             huckel(i, iatom) = hena(i)*(1._dp+kcnl(lval(i))*cnumbers(iatom))
          END DO
       END DO
-
       DEALLOCATE (kind_of)
+
+      ! Calculate KAB parameters
+      ALLOCATE(kabset(nkind,nkind))
+      kabset = 1.0_dp
+      DO ikind=1,nkind
+         CALL get_atomic_kind(atomic_kind_set(ikind), z=za)
+         DO jkind=ikind+1,nkind
+            CALL get_atomic_kind(atomic_kind_set(jkind), z=zb)
+            kabset(ikind,jkind) = xtb_set_kab(za,zb)
+            kabset(ikind,jkind) = kabset(jkind,ikind)
+         END DO
+      ENDDO
 
       erep = 0._dp
 
@@ -381,12 +391,13 @@ CONTAINS
                fblock(i, i) = fblock(i, i)+huckel(na, iatom)
             END DO
 !           IF (calculate_forces) THEN
+!qxtb forces from H0 diagonal block
 !              force_ab = 0._dp
 !           END IF
          ELSE
             ! off-diagonal block
             ! get KAB
-            kab = 1.0_dp
+            kab = kabset(ikind,jkind)
             ! get Fen
             fen = 1.0_dp+ken*(ena-enb)**2
             DO j = 1, natorb_b
@@ -404,6 +415,7 @@ CONTAINS
                END DO
             END DO
 !           IF (calculate_forces) THEN
+!qxtb forces from H0
 !              force_ab = 0._dp
 !                 n1 = SIZE(fblock, 1)
 !                 n2 = SIZE(fblock, 2)
@@ -433,6 +445,7 @@ CONTAINS
          rcut = rcuta+rcutb
          CALL gamma_rab_sr(gblock, dr, nsa, kappaa, etaa, nsb, kappab, etab, kg, rcut)
          IF (calculate_forces .AND. (iatom /= jatom .OR. dr > 0.001_dp)) THEN
+!qxtb calculate dgamma
 !              drp = dr+ddr
 !              drm = dr-ddr
 !              dgam = 0.5_dp*(gamma_rab_sr(drp, ga, gb, hb_para)-gamma_rab_sr(drm, ga, gb, hb_para))/ddr
@@ -473,6 +486,7 @@ CONTAINS
                   END IF
                END IF
             END IF
+!qxtb calculate halogen correction term
          END IF
 
       END DO
@@ -508,6 +522,8 @@ CONTAINS
 
       ! deallocate Huckel parameters
       DEALLOCATE (huckel)
+      ! deallocate KAB parameters
+      DEALLOCATE (kabset)
 
       CALL section_vals_val_get(qs_env%input, "DFT%PRINT%AO_MATRICES%OMIT_HEADERS", l_val=omit_headers)
       IF (BTEST(cp_print_key_should_output(logger%iter_info, &
@@ -557,9 +573,6 @@ CONTAINS
          DEALLOCATE (atom_of_kind)
       END IF
 
-!qxtb
-      WRITE (6, *) "END XTB MATRICES"
-!qxtb
       CALL timestop(handle)
 
    END SUBROUTINE build_xtb_matrices
@@ -577,11 +590,13 @@ CONTAINS
       CHARACTER(len=*), PARAMETER :: routineN = 'build_xtb_ks_matrix', &
          routineP = moduleN//':'//routineN
 
-      INTEGER :: handle, img, ispin, nspins, iounit, natorb, ikind, nkind, natom, is, ns, atom_a, iatom
-      INTEGER, DIMENSION(5)                              :: occ
+      INTEGER                                            :: atom_a, handle, iatom, ikind, img, &
+                                                            iounit, is, ispin, natom, natorb, &
+                                                            nkind, ns, nspins
       INTEGER, DIMENSION(25)                             :: nao
-      REAL(KIND=dp), DIMENSION(:), ALLOCATABLE           :: aocharge, mcharge
-      REAL(KIND=dp), DIMENSION(:,:), ALLOCATABLE         :: charges
+      INTEGER, DIMENSION(5)                              :: occ
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: aocharge, mcharge
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: charges
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(cp_para_env_type), POINTER                    :: para_env
@@ -595,12 +610,9 @@ CONTAINS
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
       TYPE(qs_ks_env_type), POINTER                      :: ks_env
       TYPE(qs_rho_type), POINTER                         :: rho
-      TYPE(xtb_atom_type), POINTER                       :: xtb_kind
       TYPE(section_vals_type), POINTER                   :: scf_section
+      TYPE(xtb_atom_type), POINTER                       :: xtb_kind
 
-!qxtb
-      WRITE (6, *) "BUILD XTB KS MATRIX"
-!qxtb
       CALL timeset(routineN, handle)
       NULLIFY (dft_control, logger, scf_section, matrix_p, particle_set, ks_env, &
                ks_matrix, rho, energy)
@@ -648,18 +660,18 @@ CONTAINS
          DO iatom = 1, natom
             atom_a = atomic_kind_set(ikind)%atom_list(iatom)
             CALL ao_charges(matrix_p, matrix_s, aocharge, atom_a, para_env)
-            charges(atom_a,:) = REAL(occ(:),KIND=dp)
-            DO is=1,natorb
+            charges(atom_a, :) = REAL(occ(:), KIND=dp)
+            DO is = 1, natorb
                ns = nao(is)
-               charges(atom_a,ns) = charges(atom_a,ns) - aocharge(is)
+               charges(atom_a, ns) = charges(atom_a, ns)-aocharge(is)
             END DO
-            mcharge(atom_a) = SUM(charges(atom_a,:))
+            mcharge(atom_a) = SUM(charges(atom_a, :))
          END DO
          DEALLOCATE (aocharge)
       END DO
 
-!        CALL build_xtb_coulomb(qs_env, ks_matrix, rho, mcharge, energy, &
-!                               calculate_forces, just_energy)
+      CALL build_xtb_coulomb(qs_env, ks_matrix, rho, charges, mcharge, energy, &
+                             calculate_forces, just_energy)
 
       DEALLOCATE (mcharge, charges)
 
@@ -671,7 +683,7 @@ CONTAINS
                      energy%repulsive+energy%dispersion+energy%dftb3
 
       iounit = cp_print_key_unit_nr(logger, scf_section, "PRINT%DETAILED_ENERGY", &
-                                         extension=".scfLog")
+                                    extension=".scfLog")
       IF (iounit > 0) THEN
          WRITE (UNIT=iounit, FMT="(/,(T9,A,T60,F20.10))") &
             "Repulsive pair potential energy:               ", energy%repulsive, &
@@ -683,7 +695,7 @@ CONTAINS
       END IF
       CALL cp_print_key_finished_output(iounit, logger, scf_section, &
                                         "PRINT%DETAILED_ENERGY")
-      ! here we compute dE/dC if needed. Assumes dE/dC is H_{ks}C 
+      ! here we compute dE/dC if needed. Assumes dE/dC is H_{ks}C
       IF (qs_env%requires_mo_derivs .AND. .NOT. just_energy) THEN
          CPASSERT(SIZE(ks_matrix, 2) == 1)
          CALL get_qs_env(qs_env, mo_derivs=mo_derivs, mos=mo_array)
@@ -697,9 +709,6 @@ CONTAINS
          ENDDO
       ENDIF
 
-!qxtb
-      WRITE (6, *) "END XTB KS MATRIX"
-!qxtb
       CALL timestop(handle)
 
    END SUBROUTINE build_xtb_ks_matrix

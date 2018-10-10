@@ -153,6 +153,7 @@ CONTAINS
 !> \param kappa ...
 !> \param hen ...
 !> \param zeta ...
+!> \param occupation ...
 !> \param electronegativity ...
 ! **************************************************************************************************
    SUBROUTINE get_xtb_atom_param(xtb_parameter, aname, typ, defined, z, zeff, natorb, lmax, nao, lao, &
@@ -169,8 +170,9 @@ CONTAINS
       INTEGER, DIMENSION(25), INTENT(OUT), OPTIONAL      :: nao, lao
       REAL(KIND=dp), INTENT(OUT), OPTIONAL               :: rcut, rcov, eta, xgamma, alpha, zneff
       INTEGER, INTENT(OUT), OPTIONAL                     :: nshell
-      INTEGER, DIMENSION(5), INTENT(OUT), OPTIONAL       :: nval, lval, occupation
+      INTEGER, DIMENSION(5), INTENT(OUT), OPTIONAL       :: nval, lval
       REAL(KIND=dp), DIMENSION(5), INTENT(OUT), OPTIONAL :: kpoly, kappa, hen, zeta
+      INTEGER, DIMENSION(5), INTENT(OUT), OPTIONAL       :: occupation
       REAL(KIND=dp), INTENT(OUT), OPTIONAL               :: electronegativity
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'get_xtb_atom_param', &
@@ -232,6 +234,7 @@ CONTAINS
 !> \param hen ...
 !> \param zeta ...
 !> \param electronegativity ...
+!> \param occupation ...
 ! **************************************************************************************************
    SUBROUTINE set_xtb_atom_param(xtb_parameter, aname, typ, defined, z, zeff, natorb, lmax, nao, lao, &
                                  rcut, rcov, eta, xgamma, alpha, zneff, nshell, nval, lval, kpoly, kappa, &
@@ -247,9 +250,10 @@ CONTAINS
       INTEGER, DIMENSION(25), INTENT(IN), OPTIONAL       :: nao, lao
       REAL(KIND=dp), INTENT(IN), OPTIONAL                :: rcut, rcov, eta, xgamma, alpha, zneff
       INTEGER, INTENT(IN), OPTIONAL                      :: nshell
-      INTEGER, DIMENSION(5), INTENT(IN), OPTIONAL        :: nval, lval, occupation
+      INTEGER, DIMENSION(5), INTENT(IN), OPTIONAL        :: nval, lval
       REAL(KIND=dp), DIMENSION(5), INTENT(IN), OPTIONAL  :: kpoly, kappa, hen, zeta
       REAL(KIND=dp), INTENT(IN), OPTIONAL                :: electronegativity
+      INTEGER, DIMENSION(5), INTENT(IN), OPTIONAL        :: occupation
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'set_xtb_atom_param', &
          routineP = moduleN//':'//routineN
