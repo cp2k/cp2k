@@ -510,7 +510,7 @@ CONTAINS
                                                             nspins, unit_nr
       INTEGER, DIMENSION(2)                              :: nelectron_spin
       LOGICAL                                            :: aspc_guess, has_unit_metric
-      REAL(KIND=dp)                                      :: alpha, cs_pos, kTS_sum, energy
+      REAL(KIND=dp)                                      :: alpha, cs_pos, energy, kTS_sum
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(cp_para_env_type), POINTER                    :: para_env
