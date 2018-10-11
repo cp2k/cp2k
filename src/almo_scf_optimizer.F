@@ -126,7 +126,7 @@ CONTAINS
       LOGICAL                                            :: converged, prepare_to_exit, should_stop, &
                                                             use_diis, use_prev_as_guess
       REAL(KIND=dp) :: density_rec, energy_diff, energy_new, energy_old, error_norm, &
-         error_norm_ispin, prev_error_norm, t1, t2, true_mixing_fraction
+         error_norm_ispin, kTS_sum, prev_error_norm, t1, t2, true_mixing_fraction
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: local_mu
       TYPE(almo_scf_diis_type), ALLOCATABLE, &
          DIMENSION(:)                                    :: almo_diis
@@ -357,6 +357,12 @@ CONTAINS
                END IF
             ENDIF
 
+            IF (almo_scf_env%smear) THEN
+               kTS_sum = SUM(almo_scf_env%kTS)
+            ELSE
+               kTS_sum = 0.0_dp
+            ENDIF
+
             ! compute the new KS matrix and new energy
             CALL almo_dm_to_almo_ks(qs_env, &
                                     almo_scf_env%matrix_p, &
@@ -365,7 +371,7 @@ CONTAINS
                                     almo_scf_env%eps_filter, &
                                     almo_scf_env%mat_distr_aos, &
                                     smear=almo_scf_env%smear, &
-                                    kTS=almo_scf_env%kTS)
+                                    kTS_sum=kTS_sum)
 
          ENDIF ! prepare_to_exit
 
@@ -436,9 +442,8 @@ CONTAINS
 
       INTEGER                                            :: handle, iscf, ispin, nspin, unit_nr
       LOGICAL                                            :: converged, prepare_to_exit, should_stop
-      REAL(KIND=dp)                                      :: denergy_tot, density_rec, energy_diff, &
-                                                            energy_new, energy_old, error_norm, &
-                                                            error_norm_0, spin_factor, t1, t2
+      REAL(KIND=dp) :: denergy_tot, density_rec, energy_diff, energy_new, energy_old, error_norm, &
+         error_norm_0, kTS_sum, spin_factor, t1, t2
       REAL(KIND=dp), DIMENSION(2)                        :: denergy_spin
       TYPE(almo_scf_diis_type), ALLOCATABLE, &
          DIMENSION(:)                                    :: almo_diis
@@ -754,6 +759,13 @@ CONTAINS
 
             ! compute the new KS matrix and new energy
             IF (.NOT. almo_scf_env%perturbative_delocalization) THEN
+
+               IF (almo_scf_env%smear) THEN
+                  kTS_sum = SUM(almo_scf_env%kTS)
+               ELSE
+                  kTS_sum = 0.0_dp
+               ENDIF
+
                CALL almo_dm_to_almo_ks(qs_env, &
                                        almo_scf_env%matrix_p, &
                                        almo_scf_env%matrix_ks, &
@@ -761,7 +773,7 @@ CONTAINS
                                        almo_scf_env%eps_filter, &
                                        almo_scf_env%mat_distr_aos, &
                                        smear=almo_scf_env%smear, &
-                                       kTS=almo_scf_env%kTS)
+                                       kTS_sum=kTS_sum)
             ENDIF
 
          ENDIF ! prepare_to_exit

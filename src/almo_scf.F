@@ -510,7 +510,7 @@ CONTAINS
                                                             nspins, unit_nr
       INTEGER, DIMENSION(2)                              :: nelectron_spin
       LOGICAL                                            :: aspc_guess, has_unit_metric
-      REAL(KIND=dp)                                      :: alpha, cs_pos, energy
+      REAL(KIND=dp)                                      :: alpha, cs_pos, energy, kTS_sum
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(cp_para_env_type), POINTER                    :: para_env
@@ -715,6 +715,12 @@ CONTAINS
          END IF
       ENDIF
 
+      IF (almo_scf_env%smear) THEN
+         kTS_sum = SUM(almo_scf_env%kTS)
+      ELSE
+         kTS_sum = 0.0_dp
+      ENDIF
+
       CALL almo_dm_to_almo_ks(qs_env, &
                               almo_scf_env%matrix_p, &
                               almo_scf_env%matrix_ks, &
@@ -722,7 +728,7 @@ CONTAINS
                               almo_scf_env%eps_filter, &
                               almo_scf_env%mat_distr_aos, &
                               smear=almo_scf_env%smear, &
-                              kTS=almo_scf_env%kTS)
+                              kTS_sum=kTS_sum)
 
       IF (unit_nr > 0) THEN
          IF (almo_scf_env%almo_scf_guess .EQ. molecular_guess) THEN

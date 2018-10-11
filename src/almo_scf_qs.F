@@ -771,28 +771,28 @@ CONTAINS
 !> \param eps_filter ...
 !> \param mat_distr_aos ...
 !> \param smear ...
-!> \param kTS ...
+!> \param kTS_sum ...
 !> \par History
 !>       2011.05 created [Rustam Z Khaliullin]
 !>       2018.09 smearing support [Ruben Staub]
 !> \author Rustam Z Khaliullin
 ! **************************************************************************************************
    SUBROUTINE almo_dm_to_almo_ks(qs_env, matrix_p, matrix_ks, energy_total, eps_filter, &
-                                 mat_distr_aos, smear, kTS)
+                                 mat_distr_aos, smear, kTS_sum)
 
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(dbcsr_type), DIMENSION(:)                     :: matrix_p, matrix_ks
       REAL(KIND=dp)                                      :: energy_total, eps_filter
       INTEGER, INTENT(IN)                                :: mat_distr_aos
       LOGICAL, INTENT(IN), OPTIONAL                      :: smear
-      REAL(KIND=dp), DIMENSION(:), INTENT(IN), OPTIONAL  :: kTS
+      REAL(KIND=dp), INTENT(IN), OPTIONAL                :: kTS_sum
 
       CHARACTER(len=*), PARAMETER :: routineN = 'almo_dm_to_almo_ks', &
          routineP = moduleN//':'//routineN
 
       INTEGER                                            :: handle, ispin, nspins
       LOGICAL                                            :: smearing
-      REAL(KIND=dp)                                      :: kTS_sum
+      REAL(KIND=dp)                                      :: entropic_term
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_qs_ks
 
       CALL timeset(routineN, handle)
@@ -803,16 +803,16 @@ CONTAINS
          smearing = .FALSE.
       ENDIF
 
-      IF (PRESENT(kTS) .AND. smearing) THEN
-         kTS_sum = SUM(kTS)
+      IF (PRESENT(kTS_sum)) THEN
+         entropic_term = kTS_sum
       ELSE
-         kTS_sum = 0.0_dp
+         entropic_term = 0.0_dp
       ENDIF
 
       ! update KS matrix in the QS env
       CALL almo_dm_to_qs_ks(qs_env, matrix_p, energy_total, mat_distr_aos, &
                             smear=smearing, &
-                            kTS_sum=kTS_sum)
+                            kTS_sum=entropic_term)
 
       nspins = SIZE(matrix_ks)
 
