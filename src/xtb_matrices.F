@@ -104,9 +104,9 @@ CONTAINS
       CHARACTER(LEN=*), PARAMETER :: routineN = 'build_xtb_matrices', &
          routineP = moduleN//':'//routineN
 
-      INTEGER :: after, atom_a, atom_b, handle, i, iatom, ic, icol, ikind, img, irow, iw, j, &
-         jatom, jkind, la, lb, na, natom, natorb_a, natorb_b, nb, nderivatives, nimg, nkind, nmat, &
-         nsa, nsb, nshell, za, zb
+      INTEGER :: after, atom_a, atom_b, handle, i, iatom, ic, icol, ikind, img, ir, irow, iw, j, &
+         jatom, jkind, la, lb, n1, n2, na, natom, natorb_a, natorb_b, nb, nderivatives, nimg, &
+         nkind, nmat, nsa, nsb, nshell, za, zb
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: atom_of_kind, atomnumber, kind_of
       INTEGER, DIMENSION(25)                             :: laoa, laob, lval, naoa, naob
       INTEGER, DIMENSION(3)                              :: cell
@@ -114,15 +114,15 @@ CONTAINS
       LOGICAL                                            :: defined, floating_a, found, ghost_a, &
                                                             omit_headers, use_virial
       LOGICAL, ALLOCATABLE, DIMENSION(:)                 :: floating, ghost
-      REAL(KIND=dp) :: alphaa, alphab, derepij, dr, ena, enb, erep, erepij, etaa, etab, fen, fij, &
-         k2sh, kab, kcnd, kcnp, kcns, kd, ken, kf, kg, kp, ks, ksp, kx2, kxr, rcova, rcovab, &
-         rcovb, rcut, rcuta, rcutb, rrab, xgammaa, xgammab, zneffa, zneffb
+      REAL(KIND=dp) :: alphaa, alphab, derepij, dfij, dr, ena, enb, erep, erepij, etaa, etab, f0, &
+         f1, fen, fij, foab, k2sh, kab, kcnd, kcnp, kcns, kd, ken, kf, kg, kp, ks, ksp, kx2, kxr, &
+         rcova, rcovab, rcovb, rcut, rcuta, rcutb, rrab, xgammaa, xgammab, zneffa, zneffb
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: cnumbers
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: huckel, kabset
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: dfblock, dgamma, huckel, kabset
       REAL(KIND=dp), DIMENSION(0:3)                      :: kcnl, kl
       REAL(KIND=dp), DIMENSION(3)                        :: force_ab, force_rr, rij
-      REAL(KIND=dp), DIMENSION(5)                        :: hena, henb, kappaa, kappab, kpolya, &
-                                                            kpolyb, pia, pib
+      REAL(KIND=dp), DIMENSION(5)                        :: dpia, dpib, hena, henb, kappaa, kappab, &
+                                                            kpolya, kpolyb, pia, pib
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: fblock, gblock, pblock, sblock
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       TYPE(atprop_type), POINTER                         :: atprop
@@ -304,14 +304,14 @@ CONTAINS
       DEALLOCATE (kind_of)
 
       ! Calculate KAB parameters
-      ALLOCATE(kabset(nkind,nkind))
+      ALLOCATE (kabset(nkind, nkind))
       kabset = 1.0_dp
-      DO ikind=1,nkind
+      DO ikind = 1, nkind
          CALL get_atomic_kind(atomic_kind_set(ikind), z=za)
-         DO jkind=ikind+1,nkind
+         DO jkind = ikind+1, nkind
             CALL get_atomic_kind(atomic_kind_set(jkind), z=zb)
-            kabset(ikind,jkind) = xtb_set_kab(za,zb)
-            kabset(ikind,jkind) = kabset(jkind,ikind)
+            kabset(ikind, jkind) = xtb_set_kab(za, zb)
+            kabset(ikind, jkind) = kabset(jkind, ikind)
          END DO
       ENDDO
 
@@ -379,9 +379,11 @@ CONTAINS
          rrab = SQRT(dr/rcovab)
          DO i = 1, nsa
             pia(i) = 1._dp+kpolya(i)*rrab
+            dpia(i) = 0.5_dp*kpolya(i)/rrab
          END DO
          DO i = 1, nsb
             pib(i) = 1._dp+kpolyb(i)*rrab
+            dpib(i) = 0.5_dp*kpolyb(i)/rrab
          END DO
 
          IF (iatom == jatom .AND. dr < 0.001_dp) THEN
@@ -390,14 +392,15 @@ CONTAINS
                na = naoa(i)
                fblock(i, i) = fblock(i, i)+huckel(na, iatom)
             END DO
-!           IF (calculate_forces) THEN
-!qxtb forces from H0 diagonal block
-!              force_ab = 0._dp
-!           END IF
+            IF (calculate_forces) THEN
+!qxtb
+! Derivative wrt coordination number is missing here
+!qxtb
+            END IF
          ELSE
             ! off-diagonal block
             ! get KAB
-            kab = kabset(ikind,jkind)
+            kab = kabset(ikind, jkind)
             ! get Fen
             fen = 1.0_dp+ken*(ena-enb)**2
             DO j = 1, natorb_b
@@ -414,21 +417,54 @@ CONTAINS
                   END IF
                END DO
             END DO
-!           IF (calculate_forces) THEN
-!qxtb forces from H0
-!              force_ab = 0._dp
-!                 n1 = SIZE(fblock, 1)
-!                 n2 = SIZE(fblock, 2)
-!              IF (use_virial) THEN
-!                 CALL virial_pair_force(virial%pv_virial, -f0, force_ab, rij)
-!                 IF (atprop%stress) THEN
-!                    f1 = 0.5_dp*f0
-!                    CALL virial_pair_force(atprop%atstress(:, :, iatom), -f1, force_ab, rij)
-!                    CALL virial_pair_force(atprop%atstress(:, :, jatom), -f1, force_ab, rij)
-!                 END IF
-!              END IF
-!              DEALLOCATE (dfblock, dsblock)
-!           END IF
+            IF (calculate_forces) THEN
+!qxtb
+! Derivative wrt coordination number is missing here
+!qxtb
+               force_ab = 0._dp
+               n1 = SIZE(fblock, 1)
+               n2 = SIZE(fblock, 2)
+               f0 = 1.0_dp
+               IF (irow == iatom) f0 = -1.0_dp
+               ALLOCATE (dfblock(n1, n2))
+               DO j = 1, natorb_b
+                  lb = laob(j)
+                  nb = naob(j)
+                  DO i = 1, natorb_a
+                     la = laoa(i)
+                     na = naoa(i)
+                     dfij = 0.5_dp*(kl(la)+kl(lb))*0.5_dp*(huckel(na, iatom)+huckel(nb, jatom))*dpia(na)*pib(nb)+ &
+                            0.5_dp*(kl(la)+kl(lb))*0.5_dp*(huckel(na, iatom)+huckel(nb, jatom))*pia(na)*dpib(nb)
+                     IF (iatom <= jatom) THEN
+                        dfblock(i, j) = fblock(i, j)+dfij*sblock(i, j)*kab*fen
+                     ELSE
+                        dfblock(j, i) = fblock(j, i)+dfij*sblock(j, i)*kab*fen
+                     END IF
+                  END DO
+               END DO
+               DO ir = 1, 3
+                  DO j = 1, natorb_b
+                     lb = laob(j)
+                     nb = naob(j)
+                     DO i = 1, natorb_a
+                        la = laoa(i)
+                        na = naoa(i)
+                        fij = 0.5_dp*(kl(la)+kl(lb))*0.5_dp*(huckel(na, iatom)+huckel(nb, jatom))*pia(na)*pib(nb)
+                        foab = foab+2.0_dp*f0*dfblock(j, i)*pblock(j, i)*rij(ir)/dr
+                        foab = foab+2.0_dp*f0*kab*fen*fij*dsblocks(i)%block(j, i)*pblock(j, i)
+                     END DO
+                  END DO
+               END DO
+               IF (use_virial) THEN
+                  CALL virial_pair_force(virial%pv_virial, -f0, force_ab, rij)
+                  IF (atprop%stress) THEN
+                     f1 = 0.5_dp*f0
+                     CALL virial_pair_force(atprop%atstress(:, :, iatom), -f1, force_ab, rij)
+                     CALL virial_pair_force(atprop%atstress(:, :, jatom), -f1, force_ab, rij)
+                  END IF
+               END IF
+               DEALLOCATE (dfblock)
+            END IF
          END IF
 
          IF (calculate_forces) THEN
@@ -445,18 +481,19 @@ CONTAINS
          rcut = rcuta+rcutb
          CALL gamma_rab_sr(gblock, dr, nsa, kappaa, etaa, nsb, kappab, etab, kg, rcut)
          IF (calculate_forces .AND. (iatom /= jatom .OR. dr > 0.001_dp)) THEN
-!qxtb calculate dgamma
-!              drp = dr+ddr
-!              drm = dr-ddr
-!              dgam = 0.5_dp*(gamma_rab_sr(drp, ga, gb, hb_para)-gamma_rab_sr(drm, ga, gb, hb_para))/ddr
-!              DO i = 1, 3
-!                 CPASSERT(ASSOCIATED(dgblocks(i+1)%block))
-!                 IF (irow == iatom) THEN
-!                    dgblocks(i+1)%block(1, 1) = dgblocks(i+1)%block(1, 1)+dgam*rij(i)/dr
-!                 ELSE
-!                    dgblocks(i+1)%block(1, 1) = dgblocks(i+1)%block(1, 1)-dgam*rij(i)/dr
-!                 END IF
-!              END DO
+            n1 = SIZE(gblock, 1)
+            n2 = SIZE(gblock, 2)
+            ALLOCATE (dgamma(n1, n2))
+            CALL dgamma_rab_sr(dgamma, dr, nsa, kappaa, etaa, nsb, kappab, etab, kg, rcut)
+            DO i = 1, 3
+               CPASSERT(ASSOCIATED(dgblocks(i+1)%block))
+               IF (irow == iatom) THEN
+                  dgblocks(i+1)%block(1:n1, 1:n2) = dgblocks(i+1)%block(1:n1, 1:n2)+dgamma(1:n1, 1:n2)*rij(i)/dr
+               ELSE
+                  dgblocks(i+1)%block(1:n1, 1:n2) = dgblocks(i+1)%block(1:n1, 1:n2)-dgamma(1:n1, 1:n2)*rij(i)/dr
+               END IF
+            END DO
+            DEALLOCATE (dgamma)
          END IF
 
          ! repulsive potential
@@ -486,7 +523,9 @@ CONTAINS
                   END IF
                END IF
             END IF
-!qxtb calculate halogen correction term
+!qxtb
+!   calculate halogen correction term here
+!qxtb
          END IF
 
       END DO
@@ -781,6 +820,78 @@ CONTAINS
 
    END SUBROUTINE gamma_rab_sr
 
+! **************************************************************************************************
+!> \brief  Computes the derivative of the short-range gamma parameter from
+!>         Nataga-Mishimoto-Ohno-Klopman formula for xTB
+!>         WARNING: The xTB function (gamma - 1/r) has still an l-dependent longrange (1/r^3)
+!>                  behaviour. We use a cutoff function to smoothly remove this part.
+!>                  However, this will change energies and effect final results.
+!>
+!> \param dgmat ...
+!> \param rab ...
+!> \param nsa ...
+!> \param kappaa ...
+!> \param etaa ...
+!> \param nsb ...
+!> \param kappab ...
+!> \param etab ...
+!> \param kg ...
+!> \param rcut ...
+!> \par History
+!>      10.2018 JGH
+!> \version 1.1
+! **************************************************************************************************
+   SUBROUTINE dgamma_rab_sr(dgmat, rab, nsa, kappaa, etaa, nsb, kappab, etab, kg, rcut)
+      REAL(dp), DIMENSION(:, :), INTENT(INOUT)           :: dgmat
+      REAL(dp), INTENT(IN)                               :: rab
+      INTEGER, INTENT(IN)                                :: nsa
+      REAL(dp), DIMENSION(:), INTENT(IN)                 :: kappaa
+      REAL(dp), INTENT(IN)                               :: etaa
+      INTEGER, INTENT(IN)                                :: nsb
+      REAL(dp), DIMENSION(:), INTENT(IN)                 :: kappab
+      REAL(dp), INTENT(IN)                               :: etab, kg, rcut
+
+      CHARACTER(len=*), PARAMETER :: routineN = 'dgamma_rab_sr', routineP = moduleN//':'//routineN
+      REAL(KIND=dp), PARAMETER                           :: rsmooth = 1.0_dp
+
+      INTEGER                                            :: i, j
+      REAL(KIND=dp)                                      :: dfcut, fcut, r, rk, x
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: eta
+
+      ALLOCATE (eta(nsa, nsb))
+
+      DO j = 1, nsb
+         DO i = 1, nsa
+            eta(i, j) = 1._dp/(etaa*(1._dp+kappaa(i)))+1._dp/(etab*(1._dp+kappab(j)))
+            eta(i, j) = 2._dp/eta(i, j)
+         END DO
+      END DO
+
+      IF (rab < 1.e-6) THEN
+         ! on site terms
+         dgmat(:, :) = 0.0_dp
+      ELSEIF (rab > rcut) THEN
+         ! do nothing
+      ELSE
+         rk = rab**kg
+         IF (rab < rcut-rsmooth) THEN
+            fcut = 1.0_dp
+            dfcut = 0.0_dp
+         ELSE
+            r = rab-(rcut-rsmooth)
+            x = r/rsmooth
+            fcut = -10._dp*x**5+15._dp*x**4-10._dp*x**3+1._dp
+            dfcut = -50._dp*x**4+60._dp*x**3-30._dp*x**2
+         END IF
+         dgmat(:, :) = dgmat(:, :)+dfcut*((1._dp/(rk+eta(:, :)**(-kg)))**(1._dp/kg)-1.0_dp/rab)
+         dgmat(:, :) = dgmat(:, :)-fcut*((1._dp/(rk+eta(:, :)**(-kg)))**(1._dp/kg-1.0_dp)* &
+                                         (1._dp/(rk+eta(:, :)**(-kg)))**2*rab/rk- &
+                                         1.0_dp/rab**2)
+      END IF
+
+      DEALLOCATE (eta)
+
+   END SUBROUTINE dgamma_rab_sr
 ! **************************************************************************************************
 !> \brief ...
 !> \param qs_env ...

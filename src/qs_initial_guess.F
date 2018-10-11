@@ -166,7 +166,6 @@ CONTAINS
       TYPE(qs_rho_type), POINTER                         :: rho
       TYPE(scf_control_type), POINTER                    :: scf_control
       TYPE(section_vals_type), POINTER                   :: dft_section, input, subsys_section
-      TYPE(xtb_atom_type), POINTER                       :: xtb_kind
 
       logger => cp_get_default_logger()
       NULLIFY (atomic_kind, qs_kind, mo_coeff, sv, orb_basis_set, atomic_kind_set, &
@@ -1169,16 +1168,16 @@ CONTAINS
 
       INTEGER                                            :: atom_a, group, handle, iatom, ikind, &
                                                             iset, isgf, isgfa, ishell, ispin, la, &
-                                                            maxl, maxll, nao, natom, ncount, nset, &
-                                                            nsgf, z, na
-      INTEGER, DIMENSION(5)                              :: occupation
-      INTEGER, DIMENSION(25)                             :: naox, laox
+                                                            maxl, maxll, na, nao, natom, ncount, &
+                                                            nset, nsgf, z
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: first_sgf
+      INTEGER, DIMENSION(25)                             :: laox, naox
+      INTEGER, DIMENSION(5)                              :: occupation
       INTEGER, DIMENSION(:), POINTER                     :: atom_list, elec_conf, nshell
       INTEGER, DIMENSION(:, :), POINTER                  :: first_sgfa, l, last_sgfa
       LOGICAL                                            :: has_pot
-      REAL(KIND=dp)                                      :: maxocc, my_sum, nelec, paa, rscale, &
-                                                            trps1, trps2, yy, zeff, occ
+      REAL(KIND=dp)                                      :: maxocc, my_sum, nelec, occ, paa, rscale, &
+                                                            trps1, trps2, yy, zeff
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: econf, pdiag, sdiag
       REAL(KIND=dp), DIMENSION(0:3)                      :: edftb
       TYPE(all_potential_type), POINTER                  :: all_potential
@@ -1296,7 +1295,7 @@ CONTAINS
                   DO isgf = 1, nsgf
                      na = naox(isgf)
                      la = laox(isgf)
-                     occ = REAL(occupation(na), dp)/REAL(2*la+1,dp)
+                     occ = REAL(occupation(na), dp)/REAL(2*la+1, dp)
                      pdiag(isgfa+isgf-1) = occ
                   END DO
                END DO
