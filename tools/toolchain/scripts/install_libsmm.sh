@@ -63,7 +63,7 @@ case "$with_libsmm" in
                 # install manually
                 ! [ -d "${pkg_install_dir}/lib" ] && mkdir -p "${pkg_install_dir}/lib"
                 cp $libsmm "${pkg_install_dir}/lib"
-                ln -s "${pkg_install_dir}/lib/$libsmm" "${pkg_install_dir}/lib/libsmm_dnn.a"
+                ln -sf "${pkg_install_dir}/lib/$libsmm" "${pkg_install_dir}/lib/libsmm_dnn.a"
             else
                 echo "No libsmm is available"
                 echo "Consider building an optimized libsmm on your system yourself"
