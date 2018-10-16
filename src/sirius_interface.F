@@ -11,7 +11,7 @@
 ! **************************************************************************************************
 MODULE sirius_interface
 #if defined(__JSON)
-   USE json_module
+   USE json_module, ONLY: json_file
 #endif
 #if defined(__SIRIUS)
    USE sirius, ONLY: &
@@ -107,7 +107,7 @@ CONTAINS
       CHARACTER(len=*), PARAMETER :: routineN = 'cp_sirius_finalize', &
          routineP = moduleN//':'//routineN
 
-      CALL sirius_finalize(bool(.FALSE.))
+      CALL sirius_finalize(bool(.FALSE.), bool(.FALSE.), bool(.FALSE.))
 
    END SUBROUTINE cp_sirius_finalize
 #else
@@ -198,7 +198,7 @@ CONTAINS
 #endif
       CPASSERT(npool >= 1)
       num_ranks_k = para_env%num_pe/npool
-      i = SQRT(REAL(num_ranks_k, KIND=dp)+1.0e-10_dp)
+      i = INT(SQRT(REAL(num_ranks_k, KIND=dp)+1.0e-10_dp))
       IF (i*i /= num_ranks_k) THEN
          dims(1) = 1
          dims(2) = num_ranks_k
@@ -447,7 +447,7 @@ CONTAINS
       DEALLOCATE (cforces)
       cstress = 0.0_C_DOUBLE
 !deb  what is the correct label?
-!deb  CALL sirius_get_stress_tensor(gs_handler,string('total'),cstress(1,1))
+      CALL sirius_get_stress_tensor(gs_handler, string('total'), cstress(1, 1))
       stress(1:3, 1:3) = cstress(1:3, 1:3)
       CALL pwdft_env_set(pwdft_env=pwdft_env, stress=stress)
 

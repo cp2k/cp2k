@@ -83,8 +83,9 @@ HOMO SCF Cycle:     4!9
 DEBUG| Sum of differences:!5
 1\[\ \ \ 1\]\ -\ 2\[\ \ \ 1\]!7
 Ionization potential of the excited atom:!7
+( SIRIUS ) !9
 #
-# these are the tests the can be selected for regtesting. 
+# these are the tests the can be selected for regtesting.
 # do regtest will grep for test_grep (first column) and look if the numeric value
 # at column test_col (second col) changes with respect to the reference.
 # the test number in TEST_FILES corresponds to the lines in this file.

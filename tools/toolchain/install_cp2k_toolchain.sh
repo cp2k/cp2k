@@ -204,6 +204,17 @@ The --with-PKG options follow the rules:
                           Default = no
   --with-quip             Enable interface to QUIP library
                           Default = no
+  --with-sirius           Enable interface to the plane wave SIRIUS library
+                          Default = no
+  --with-gsl              Enable the gnu scientific library library
+                          Default = no
+  --with-spglib           Enable the spg library (search of symmetry groups)
+                          Default = no
+  --with-hdf5             Enable the hdf5 library (use by sirius library)
+                          Default = no
+  --with-json-fortran     Enable the json fortran library (used by cp2k when sirius is activated)
+                          Default = no
+
 
 FURTHER INSTRUCTIONS
 
@@ -240,7 +251,7 @@ tool_list="binutils lcov valgrind make cmake gcc"
 mpi_list="mpich openmpi"
 math_list="mkl acml openblas reflapack"
 lib_list="fftw libint libxc libsmm libxsmm scalapack elpa \
-          ptscotch parmetis metis superlu pexsi quip"
+          ptscotch parmetis metis superlu pexsi quip gsl spglib hdf5 sirius json_fortran"
 package_list="$tool_list $mpi_list $math_list $lib_list"
 # ------------------------------------------------------------------------
 
@@ -526,6 +537,21 @@ while [ $# -ge 1 ] ; do
         --with-quip*)
             with_quip=$(read_with $1)
             ;;
+        --with-sirius*)
+            with_sirius=$(read_with $1)
+            ;;
+        --with-gsl*)
+            with_gsl=$(read_with $1)
+            ;;
+        --with-spglib*)
+            with_spglib=$(read_with $1)
+            ;;
+        --with-hdf5*)
+            with_hdf5=$(read_with $1)
+            ;;
+        --with-json*)
+            with_json_fortran=$(read_with $1)
+            ;;
         --help*)
             show_help
             exit 0
@@ -643,6 +669,59 @@ fi
 if [ "$with_parmetis" = "__INSTALL__" ] ; then
     [ "$with_cmake" = "__DONTUSE__" ] && with_cmake="__INSTALL__"
     with_metis="__INSTALL__"
+fi
+
+# SIRIUS dependencies. Remove the gsl library from the dependencies if SIRIUS is not activated
+if [ "$with_sirius" = "__INSTALL__" ] ; then
+    echo "====================== Warning =========================================="
+    echo "                                                                         "
+    echo " Sirius needs these libraries to work properly                           "
+    echo " gsl, elpa, libxc, scalapack fftw, spglib, hdf5, and json                "
+    echo " they will be activated by default unless the right options are given to "
+    echo " install_cp2k_toolchain.sh. Please look at the help                      "
+    echo "                                                                         "
+    echo "========================================================================="
+    [ "$with_gsl" = "__DONTUSE__" ] && with_gsl="__INSTALL__"
+    [ "$with_elpa" = "__DONTUSE__" ] && with_elpa="__INSTALL__"
+    [ "$with_libxc" = "__DONTUSE__" ] && with_libxc="__INSTALL__"
+    [ "$with_scalapack" = "__DONTUSE__" ] && with_scalapack="__INSTALL__"
+    [ "$with_fftw" = "__DONTUSE__" ] && with_fftw="__INSTALL__"
+    [ "$with_spglib" = "__DONTUSE__" ] && with_spglib="__INSTALL__"
+    [ "$with_hdf5" = "__DONTUSE__" ] && with_hdf5="__INSTALL__"
+    [ "$with_json_fortran" = "__DONTUSE__" ] && with_json_fortran="__INSTALL__"
+else
+    if [ "$with_gsl" = "__DONTUSE__" ] ; then
+        report_error "For SIRIUS to work you need a working gsl library use --with-gsl option to specify if you wish to install the library or specify its location."
+        exit 1
+    fi
+    if [ "$with_elpa" = "__DONTUSE__" ] ; then
+        report_error "For SIRIUS to work you need a working ELPA library use --with-elpa option to specify if you wish to install the library or specify its location."
+        exit 1
+    fi
+    if [ "$with_libxc" = "__DONTUSE__" ] ; then
+        report_error "For SIRIUS to work you need a working libxc library use --with-libxc option to specify if you wish to install the library or specify its location."
+        exit 1
+    fi
+    if [ "$with_scalpack" = "__DONTUSE__" ] ; then
+        report_error "For SIRIUS to work you need a working scalapack library use --with-scalapack option to specify if you wish to install the library or specify its location."
+        exit 1
+    fi
+    if [ "$with_fftw" = "__DONTUSE__" ] ; then
+        report_error "For SIRIUS to work you need a working fftw library use --with-fftw option to specify if you wish to install the library or specify its location."
+        exit 1
+    fi
+    if [ "$with_spglib" = "__DONTUSE__" ] ; then
+        report_error "For SIRIUS to work you need a working spglib library use --with-spglib option to specify if you wish to install the library or specify its location."
+        exit 1
+    fi
+    if [ "$with_hdf5" = "__DONTUSE__" ] ; then
+        report_error "For SIRIUS to work you need a working hdf5 library use --with-hdf5 option to specify if you wish to install the library or specify its location."
+        exit 1
+    fi
+    if [ "$with_json_fortran" = "__DONTUSE__"  ] ; then
+        report_error "For sirius intergration tro cp2k to work you need a working json-fortran library use --with-json option to specify if you wish to install it or specify its location."
+    exit 1
+    fi
 fi
 
 # ------------------------------------------------------------------------

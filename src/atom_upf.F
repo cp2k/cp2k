@@ -6,7 +6,7 @@
 ! **************************************************************************************************
 MODULE atom_upf
 #if defined(__JSON)
-   USE json_module
+   USE json_module, ONLY: json_file
 #endif
    USE cp_parser_methods, ONLY: parser_get_next_line, &
       parser_get_object, &
@@ -1014,7 +1014,6 @@ CONTAINS
       TYPE(json_file)                                    :: json
       LOGICAL                                            :: found
       CHARACTER(LEN=:), ALLOCATABLE                      :: symbol
-      CHARACTER(LEN=default_string_length)               :: nametag
       REAL(KIND=dp)                                      :: z_valence
 #endif
 
