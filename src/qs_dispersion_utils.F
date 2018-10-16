@@ -113,6 +113,8 @@ CONTAINS
             CALL section_vals_val_get(pp_section, "REFERENCE_C9_TERM", l_val=dispersion_env%c9cnst)
             CALL section_vals_val_get(pp_section, "LONG_RANGE_CORRECTION", l_val=dispersion_env%lrc)
             CALL section_vals_val_get(pp_section, "SHORT_RANGE_CORRECTION", l_val=dispersion_env%srb)
+            CALL section_vals_val_get(pp_section, "SHORT_RANGE_CORRECTION_PARAMETERS", r_vals=params)
+            dispersion_env%srb_params(1:4) = params(1:4)
             ! KG corrections
             CALL section_vals_val_get(pp_section, "MOLECULE_CORRECTION", l_val=dispersion_env%domol)
             CALL section_vals_val_get(pp_section, "MOLECULE_CORRECTION_C8", r_val=dispersion_env%kgc8)

@@ -961,9 +961,17 @@ CONTAINS
                           usage="SHORT_RANGE_CORRECTION", default_l_val=.FALSE., &
                           lone_keyword_l_val=.TRUE.)
       CALL section_add_keyword(subsection, keyword)
-      ! KG molecular corrections
       CALL keyword_release(keyword)
-      CALL keyword_create(keyword, __LOCATION__, name="MOLECULE_CORRECTION", &
+      CALL keyword_create(keyword, name="SHORT_RANGE_CORRECTION_PARAMETERS", &
+                          description="Parameters for the short-range bond correction to the DFT-D3 model. "// &
+                          " s*(za*zb)^t1*EXP(-g*dr*r0ab^t2), parameters: s, g, t1, t2 "// &
+                          " Defaults: s=0.08, g=10.0, t1=0.5, t2=-1.0 ", &
+                          usage="SHORT_RANGE_CORRECTION_PARAMETRS", default_r_vals=(/0.08_dp, 10.0_dp, 0.5_dp, -1.0_dp/), &
+                          n_var=4, type_of_var=real_t)
+      CALL section_add_keyword(subsection, keyword)
+      CALL keyword_release(keyword)
+      ! KG molecular corrections
+      CALL keyword_create(keyword, name="MOLECULE_CORRECTION", &
                           description="Calculate a intermolecular correction to the DFT-D3 model", &
                           usage="MOLECULE_CORRECTION", default_l_val=.FALSE., &
                           lone_keyword_l_val=.TRUE.)
