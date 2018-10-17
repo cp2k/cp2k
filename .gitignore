@@ -1,13 +1,13 @@
 # base directory structure
-exe/
-lib/
-obj/
-bin/
-regtesting/
-install/
+/exe/
+/lib/
+/obj/
+/bin/
+/regtesting/
+/install/
 
 # ignore local arch files not meant to be shared
-arch/local*
+/arch/local*
 
 # ensure people are not accidentally committing an old .svnignore when copying their stuff
 .svnignore
