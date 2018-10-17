@@ -1,0 +1,3 @@
+# Allow potential and PDB files here
+!*.pdb
+!*.pot
