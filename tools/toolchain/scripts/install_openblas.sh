@@ -64,7 +64,7 @@ case "$with_openblas" in
                  install > install.serial.log 2>&1
             if [ $ENABLE_OMP = "__TRUE__" ] ; then
                make clean > clean.log 2>&1
-               make -j $nprocs \
+               make -j $NPROCS \
                     USE_THREAD=1 \
                     USE_OPENMP=1 \
                     LIBNAMESUFFIX=omp \
@@ -72,7 +72,7 @@ case "$with_openblas" in
                     FC=$(basename $FC) \
                     PREFIX="${pkg_install_dir}" \
                     > make.omp.log 2>&1
-               make -j $nprocs \
+               make -j $NPROCS \
                     USE_THREAD=1 \
                     USE_OPENMP=1 \
                     LIBNAMESUFFIX=omp \
