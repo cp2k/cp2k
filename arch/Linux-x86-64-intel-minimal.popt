@@ -1,4 +1,5 @@
-# Tested with: Intel(R) Fortran Intel(R) 64 Compiler for applications running on Intel(R) 64, Version 17.0.4.196 Build 20170411
+# Tested with: Intel(R) Fortran Intel(R) 64 Compiler for applications running on Intel(R) 64, Version 17.0.4.196 Build 20170411 and
+#              Intel(R) Fortran Intel(R) 64 Compiler for applications running on Intel(R) 64, Version 18.0.3.222 Build 20180410
 #              Intel MPI, MKL
 # Author: Matthias Krack (matthias.krack@psi.ch, PSI, October 2018)
 
@@ -20,7 +21,7 @@ LDFLAGS_C   = $(FCFLAGS) -static-intel -nofor_main
 MKL_LIB     = ${MKLROOT}/lib/intel64
 LIBS        = $(MKL_LIB)/libmkl_scalapack_lp64.a \
               -Wl,--start-group \
-	           $(MKL_LIB)/libmkl_intel_lp64.a \
+              $(MKL_LIB)/libmkl_intel_lp64.a \
               ${MKL_LIB}/libmkl_sequential.a \
       	     $(MKL_LIB)/libmkl_core.a \
               ${MKL_LIB}/libmkl_blacs_intelmpi_lp64.a \
