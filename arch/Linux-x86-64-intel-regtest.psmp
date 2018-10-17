@@ -6,8 +6,8 @@
 include      $(MPI_PATH)/plumed/2.1.2/lib/plumed/src/lib/Plumed.inc.static
 
 ELPA_VER    = 2017.05.003
-ELPA_INC    = $(MPI_PATH)/elpa/$(ELPA_VER)/include/elpa-$(ELPA_VER)
-ELPA_LIB    = $(MPI_PATH)/elpa/$(ELPA_VER)/lib
+ELPA_INC    = $(MPI_PATH)/elpa/$(ELPA_VER)-openmp/include/elpa_openmp-$(ELPA_VER)
+ELPA_LIB    = $(MPI_PATH)/elpa/$(ELPA_VER)-openmp/lib
 
 LIBINT_INC  = $(INTEL_DIR)/libint/1.1.4-LARGE_L/include
 LIBINT_LIB  = $(INTEL_DIR)/libint/1.1.4-LARGE_L/lib
@@ -26,8 +26,8 @@ DFLAGS      = -D__ELPA=201705 -D__F2008 -D__FFTW3 -D__LIBINT -D__LIBXC -D__LIBXS
               -D__MKL -D__MPI_VERSION=3 -D__PLUMED2 \
               -D__LIBINT_MAX_AM=7 -D__LIBDERIV_MAX_AM1=6 -D__MAX_CONTR=4 \
               -D__parallel -D__SCALAPACK
-CFLAGS      = $(DFLAGS) -O2
-FCFLAGS     = $(DFLAGS) -O2
+CFLAGS      = $(DFLAGS) -O2 -fopenmp
+FCFLAGS     = $(DFLAGS) -O2 -fopenmp
 FCFLAGS    += -fpp -free -funroll-loops
 FCFLAGS    += -fp-model precise
 FCFLAGS    += -g -traceback
@@ -40,7 +40,7 @@ LDFLAGS     = $(FCFLAGS) -static-intel -static_mpi
 LDFLAGS_C   = $(FCFLAGS) -static-intel -nofor_main
 MKL_LIB     = ${MKLROOT}/lib/intel64
 LIBS        = $(PLUMED_DEPENDENCIES) -lz
-LIBS       += $(ELPA_LIB)/libelpa.a -lstdc++
+LIBS       += $(ELPA_LIB)/libelpa_openmp.a -lstdc++
 LIBS       += $(MKL_LIB)/libmkl_scalapack_lp64.a \
               -Wl,--start-group \
               $(MKL_LIB)/libmkl_intel_lp64.a \
