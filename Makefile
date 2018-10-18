@@ -127,7 +127,7 @@ all: dirs makedep
 
 # foreground testing, compilation happens in do_regtest
 test: dirs
-	cd $(TSTDIR); $(TOOLSRC)/regtesting/do_regtest -nosvn -nogit -quick -arch $(ARCH) -version $(ONEVERSION) -cp2kdir ../../../  $(TESTOPTS)
+	cd $(TSTDIR); $(TOOLSRC)/regtesting/do_regtest -quick -arch $(ARCH) -version $(ONEVERSION) -cp2kdir ../../../  $(TESTOPTS)
 
 # background testing, compilation happens here
 testbg: dirs makedep all
@@ -188,7 +188,7 @@ $(LIBDIR)/libcp2k$(ARCHIVE_EXT) : $(ALL_NONEXE_OBJECTS)
 
 testbg:
 	@echo "testing: $(ONEVERSION) : full log in $(TSTDIR)/regtest.log "
-	@$(TOOLSRC)/regtesting/do_regtest -nobuild -nosvn -arch $(ARCH) -version $(ONEVERSION) -cp2kdir ../../../  $(TESTOPTS) >& $(TSTDIR)/regtest.log
+	@$(TOOLSRC)/regtesting/do_regtest -nobuild $(ARCH) -version $(ONEVERSION) -cp2kdir ../../../  $(TESTOPTS) >& $(TSTDIR)/regtest.log
 	@cat `grep 'regtesting location error_summary file:' $(TSTDIR)/regtest.log | awk '{print $$NF}'`
 	@cat `grep 'regtesting location summary file:' $(TSTDIR)/regtest.log | awk '{print $$NF}'`
 	@grep "Number of FAILED  tests 0" $(TSTDIR)/regtest.log >& /dev/null
@@ -408,15 +408,10 @@ vpath %.cxx   $(ALL_SRC_DIRS)
 vpath %.cc    $(ALL_SRC_DIRS)
 
 #
-# Add additional dependency of cp2k_info.F to SVN-entry or git-HEAD.
+# Add additional dependency of cp2k_info.F to git-HEAD.
 # Ensuring that cp2k prints the correct source code revision number in its banner.
 #
-SVN_ENTRY    := $(wildcard $(SRCDIR)/.svn/entries*)
-ifneq ($(strip $(SVN_ENTRY)),)
-cp2k_info.o: $(SVN_ENTRY)
-endif
-
-GIT_HEAD     := $(wildcard $(CP2KHOME)/../.git/HEAD*)
+GIT_HEAD := $(wildcard $(CP2KHOME)/../.git/HEAD*)
 ifneq ($(strip $(GIT_HEAD)),)
 cp2k_info.o: $(GIT_HEAD)
 endif

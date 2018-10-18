@@ -16,7 +16,7 @@ C_tersoff.inp                                          2    1.0E-14            -
 SiH_tersoff.inp                                        2    1.0E-14            -0.343343965527E+01
 # New grouping colvar
 ethene_colv1_g.inp                                     2      8e-10          0.0064656266809200004
-ethene_colv2_g.inp                2     3e-10           0.017674386846599999
+ethene_colv2_g.inp                                     2      3e-10           0.017674386846599999
 nh3-meta-1_g.inp                                       2    1.0E-14             0.110355972496E+00
 water_3_ddist_g.inp                                    2    1.0E-14             0.124331490580E-01
 water_3_dist_g.inp                                     2    1.0E-14            -0.146090953012E-03
@@ -42,5 +42,5 @@ siepmann_sprik_top.inp                                 2    1.0E-14            -
 siepmann_sprik_fcc.inp                                 2    1.0E-14            -0.561022623398E-02
 siepmann_sprik_OH.inp                                  2    1.0E-14          -0.075739572366600005
 siepmann_sprik_H3O.inp                                 2    1.0E-14            -0.559829150856E-01
-siepmann_sprik_O.inp                                   2    1.0E-14            -0.576203680700E-01 
+siepmann_sprik_O.inp                                   2    1.0E-14            -0.576203680700E-01
 #EOF

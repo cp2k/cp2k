@@ -10,11 +10,14 @@
 !>        ALMO simulations, etc.
 !> \par History
 !>      10.2014 Rustam Z Khaliullin
+!>      09.2018 ALMO smearing support and ALMO diag+molecular_guess patch [Ruben Staub]
 !> \author Rustam Z Khaliullin
 ! **************************************************************************************************
 MODULE mscfg_methods
+   USE almo_scf_types,                  ONLY: almo_scf_env_type
    USE atomic_kind_types,               ONLY: get_atomic_kind
    USE cell_types,                      ONLY: cell_type
+   USE cp_dbcsr_operations,             ONLY: copy_fm_to_dbcsr
    USE cp_log_handling,                 ONLY: cp_get_default_logger,&
                                               cp_logger_get_default_unit_nr,&
                                               cp_logger_type
@@ -51,7 +54,8 @@ MODULE mscfg_methods
                                               qs_env_create,&
                                               qs_env_release,&
                                               qs_environment_type
-   USE qs_mo_types,                     ONLY: mo_set_p_type
+   USE qs_mo_types,                     ONLY: get_mo_set,&
+                                              mo_set_p_type
 #include "./base/base_uses.f90"
 
    IMPLICIT NONE
@@ -125,6 +129,7 @@ CONTAINS
 !> \param multip_of_frag ...
 !> \par   History
 !>        10.2014 created
+!>        09.2018 ALMO smearing support, and ALMO diag+molecular_guess patch [Ruben Staub]
 !> \author Rustam Z Khaliullin
 ! **************************************************************************************************
    SUBROUTINE calcs_on_isolated_molecules(force_env, globenv, nfrags, &
@@ -143,19 +148,21 @@ CONTAINS
       CHARACTER(LEN=default_string_length), &
          DIMENSION(:), POINTER                           :: atom_type
       INTEGER :: first_atom, force_method, global_charge, global_multpl, handle, i, ifrag, imo, &
-         isize, j, k, last_atom, my_targ, nmosets_of_frag
+         isize, j, k, last_atom, my_targ, nb_eigenval_stored, nmo, nmo_of_frag, nmosets_of_frag, &
+         tot_added_mos, tot_isize
       INTEGER, DIMENSION(:), POINTER                     :: atom_index, atom_list
-      LOGICAL                                            :: global_almo_scf_keyword
+      LOGICAL                                            :: global_almo_scf_keyword, smear_almo_scf
+      TYPE(almo_scf_env_type), POINTER                   :: almo_scf_env
       TYPE(cell_type), POINTER                           :: cell
       TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(cp_subsys_type), POINTER                      :: subsys, subsys_loc
-      TYPE(mo_set_p_type), DIMENSION(:), POINTER         :: mos_of_frag
+      TYPE(mo_set_p_type), DIMENSION(:), POINTER         :: mos, mos_of_frag
       TYPE(molecular_scf_guess_env_type), POINTER        :: mscfg_env
       TYPE(particle_list_type), POINTER                  :: particles
       TYPE(qs_energy_type), POINTER                      :: qs_energy
       TYPE(qs_environment_type), POINTER                 :: qs_env, qs_env_loc
       TYPE(section_vals_type), POINTER                   :: dft_section, force_env_section, &
-                                                            qs_section, root_section, &
+                                                            qs_section, root_section, scf_section, &
                                                             subsys_section
 
       CALL timeset(routineN, handle)
@@ -183,8 +190,32 @@ CONTAINS
       CALL force_env_get(force_env=force_env, subsys=subsys, para_env=para_env, &
                          cell=cell)
       CALL cp_subsys_get(subsys, particles=particles)
-      CALL get_qs_env(qs_env, mscfg_env=mscfg_env)
+      CALL get_qs_env(qs_env, mscfg_env=mscfg_env, almo_scf_env=almo_scf_env)
       CPASSERT(ASSOCIATED(mscfg_env))
+      IF (global_almo_scf_keyword) THEN !! Check if smearing is on, and retrieve smearing parameters accordingly
+         smear_almo_scf = qs_env%scf_control%smear%do_smear
+         IF (smear_almo_scf) THEN
+            scf_section => section_vals_get_subs_vals(dft_section, "SCF")
+            CALL section_vals_val_get(scf_section, "added_mos", i_val=tot_added_mos) !! Get total number of added MOs
+            tot_isize = last_atom_of_frag(nfrags)-first_atom_of_frag(1)+1 !! Get total number of atoms (assume consecutive atoms)
+            !! Check that number of added MOs matches the number of atoms
+            !! (to ensure compatibility, since each fragment will be computed with such parameters)
+            IF (tot_isize .NE. tot_added_mos) THEN
+               CPABORT("ALMO smearing currently requires ADDED_MOS == total number of atoms")
+            END IF
+            !! Get total number of MOs
+            CALL get_qs_env(qs_env, mos=mos)
+            IF (SIZE(mos) .GT. 1) CPABORT("Unrestricted ALMO methods are NYI") !! Unrestricted ALMO is not implemented yet
+            CALL get_mo_set(mo_set=mos(1)%mo_set, nmo=nmo)
+            !! Initialize storage of MO energies for ALMO smearing
+            CPASSERT(ASSOCIATED(almo_scf_env))
+            ALLOCATE (almo_scf_env%mo_energies(nmo, SIZE(mos)))
+            ALLOCATE (almo_scf_env%kTS(SIZE(mos)))
+            nb_eigenval_stored = 0 !! Keep track of how many eigenvalues were stored in mo_energies
+         END IF
+      ELSE
+         smear_almo_scf = .FALSE.
+      END IF
       !
       ! These flags determine the options of molecular runs (e.g. cell size)
       !
@@ -206,6 +237,7 @@ CONTAINS
       ! * Charge and multiplicity of a subsystem
       ! * ALMO SCF flag off (unless several levels of recursion is desired)
       ! * Smaller cell can be provided if a fast-and-dirty approach is ok
+      ! * Set ADDED_MOS to number of atoms in the fragment, if smearing requested (VASP default)
       ! * ... add your own and explain it here ...
       !
       !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
@@ -242,6 +274,12 @@ CONTAINS
             atom_type(j) = name
          END DO
          !
+         ! If smearing requested, setup ADDED_MOS correctly for each fragment (i.e. number of atoms in fragment)
+         !
+         IF (smear_almo_scf) THEN
+            CALL section_vals_val_set(scf_section, "added_mos", i_val=isize)
+         END IF
+         !
          ! Create the environment of a subsystem
          !
          CALL create_small_subsys(subsys_loc, big_subsys=subsys, &
@@ -276,6 +314,23 @@ CONTAINS
          CPASSERT(nmosets_of_frag .LE. mscfg_max_moset_size)
          mscfg_env%nmosets_of_frag(ifrag) = nmosets_of_frag
          DO imo = 1, nmosets_of_frag
+            !! Forcing compatibility for ALMO smearing
+            IF (global_almo_scf_keyword) THEN
+               !! Manually add compatibility between ALMO SCF and diag SCF (used for smearing compatibility)
+               !! MOs are required to compute ALMO orbitals, but not stored with diag SCF algorithm...
+               !! RS-WARNING: Should be properly fixed, this is just a raw fix.
+               CALL copy_fm_to_dbcsr(mos_of_frag(imo)%mo_set%mo_coeff, &
+                                     mos_of_frag(imo)%mo_set%mo_coeff_b)
+               IF (smear_almo_scf) THEN
+                  !! Store MOs energies for ALMO smearing purpose
+                  nmo_of_frag = SIZE(mos_of_frag(imo)%mo_set%eigenvalues)
+                  almo_scf_env%mo_energies(nb_eigenval_stored+1:nb_eigenval_stored+nmo_of_frag, imo) &
+                     = mos_of_frag(imo)%mo_set%eigenvalues(:)
+                  !! update stored energies offset. Assumes nmosets_of_frag == 1 (general smearing ALMO assumption)
+                  nb_eigenval_stored = nb_eigenval_stored+nmo_of_frag
+               END IF
+            END IF !! ALMO
+
             ! the matrices have been allocated already - copy the results there
             CALL dbcsr_create(mscfg_env%mos_of_frag(ifrag, imo), &
                               template=mos_of_frag(imo)%mo_set%mo_coeff_b, &

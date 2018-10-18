@@ -18,10 +18,11 @@ MODULE almo_scf_optimizer
                                               almo_scf_diis_type
    USE almo_scf_methods,                ONLY: &
         almo_scf_ks_blk_to_tv_blk, almo_scf_ks_to_ks_blk, almo_scf_ks_to_ks_xx, &
-        almo_scf_ks_xx_to_tv_xx, almo_scf_p_blk_to_t_blk, almo_scf_t_to_proj, &
-        apply_domain_operators, apply_projector, construct_domain_preconditioner, &
-        construct_domain_r_down, construct_domain_s_inv, construct_domain_s_sqrt, get_overlap, &
-        orthogonalize_mos, pseudo_invert_diagonal_blk, xalmo_initial_guess
+        almo_scf_ks_xx_to_tv_xx, almo_scf_p_blk_to_t_blk, almo_scf_t_rescaling, &
+        almo_scf_t_to_proj, apply_domain_operators, apply_projector, &
+        construct_domain_preconditioner, construct_domain_r_down, construct_domain_s_inv, &
+        construct_domain_s_sqrt, get_overlap, orthogonalize_mos, pseudo_invert_diagonal_blk, &
+        xalmo_initial_guess
    USE almo_scf_qs,                     ONLY: almo_dm_to_almo_ks,&
                                               almo_dm_to_qs_env,&
                                               almo_scf_update_ks_energy
@@ -109,6 +110,7 @@ CONTAINS
 !> \param optimizer ...
 !> \par History
 !>       2011.06 created [Rustam Z Khaliullin]
+!>       2018.09 smearing support [Ruben Staub]
 !> \author Rustam Z Khaliullin
 ! **************************************************************************************************
    SUBROUTINE almo_scf_block_diagonal(qs_env, almo_scf_env, optimizer)
@@ -123,10 +125,8 @@ CONTAINS
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: local_nocc_of_domain
       LOGICAL                                            :: converged, prepare_to_exit, should_stop, &
                                                             use_diis, use_prev_as_guess
-      REAL(KIND=dp)                                      :: energy_diff, energy_new, energy_old, &
-                                                            error_norm, error_norm_ispin, &
-                                                            prev_error_norm, t1, t2, &
-                                                            true_mixing_fraction
+      REAL(KIND=dp) :: density_rec, energy_diff, energy_new, energy_old, error_norm, &
+         error_norm_ispin, kTS_sum, prev_error_norm, t1, t2, true_mixing_fraction
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: local_mu
       TYPE(almo_scf_diis_type), ALLOCATABLE, &
          DIMENSION(:)                                    :: almo_diis
@@ -317,6 +317,18 @@ CONTAINS
             ! obtain density matrix from ALMOs
             DO ispin = 1, almo_scf_env%nspins
 
+               !! Application of an occupation-rescaling trick for smearing, if requested
+               IF (almo_scf_env%smear) THEN
+                  CALL almo_scf_t_rescaling(matrix_t=almo_scf_env%matrix_t_blk(ispin), &
+                                            mo_energies=almo_scf_env%mo_energies(:, ispin), &
+                                            mu_of_domain=almo_scf_env%mu_of_domain(:, ispin), &
+                                            real_ne_of_domain=almo_scf_env%real_ne_of_domain(:, ispin), &
+                                            spin_kTS=almo_scf_env%kTS(ispin), &
+                                            smear_e_temp=almo_scf_env%smear_e_temp, &
+                                            ndomains=almo_scf_env%ndomains, &
+                                            nocc_of_domain=almo_scf_env%nocc_of_domain(:, ispin))
+               END IF
+
                CALL almo_scf_t_to_proj(t=almo_scf_env%matrix_t_blk(ispin), &
                                        p=almo_scf_env%matrix_p(ispin), &
                                        eps_filter=almo_scf_env%eps_filter, &
@@ -326,6 +338,7 @@ CONTAINS
                                        sigma=almo_scf_env%matrix_sigma(ispin), &
                                        sigma_inv=almo_scf_env%matrix_sigma_inv(ispin), &
                                        use_guess=use_prev_as_guess, &
+                                       smear=almo_scf_env%smear, &
                                        algorithm=almo_scf_env%sigma_inv_algorithm, &
                                        inverse_accelerator=almo_scf_env%order_lanczos, &
                                        inv_eps_factor=almo_scf_env%matrix_iter_eps_error_factor, &
@@ -335,8 +348,19 @@ CONTAINS
                                        blacs_env=almo_scf_env%blacs_env)
 
             ENDDO
+
             IF (almo_scf_env%nspins == 1) THEN
                CALL dbcsr_scale(almo_scf_env%matrix_p(1), 2.0_dp)
+               !! Rescaling electronic entropy contribution by spin_factor
+               IF (almo_scf_env%smear) THEN
+                  almo_scf_env%kTS(1) = almo_scf_env%kTS(1)*2.0_dp
+               END IF
+            ENDIF
+
+            IF (almo_scf_env%smear) THEN
+               kTS_sum = SUM(almo_scf_env%kTS)
+            ELSE
+               kTS_sum = 0.0_dp
             ENDIF
 
             ! compute the new KS matrix and new energy
@@ -345,7 +369,9 @@ CONTAINS
                                     almo_scf_env%matrix_ks, &
                                     energy_new, &
                                     almo_scf_env%eps_filter, &
-                                    almo_scf_env%mat_distr_aos)
+                                    almo_scf_env%mat_distr_aos, &
+                                    smear=almo_scf_env%smear, &
+                                    kTS_sum=kTS_sum)
 
          ENDIF ! prepare_to_exit
 
@@ -365,6 +391,16 @@ CONTAINS
          IF (prepare_to_exit) EXIT
 
       ENDDO ! end scf cycle
+
+      !! Print number of electrons recovered if smearing was requested
+      IF (almo_scf_env%smear) THEN
+         DO ispin = 1, nspin
+            CALL dbcsr_trace(almo_scf_env%matrix_p(ispin), almo_scf_env%matrix_s(1), density_rec)
+            IF (unit_nr > 0) THEN
+               WRITE (unit_nr, '(T2,A20,F23.10)') "Electrons recovered:", density_rec
+            END IF
+         END DO
+      END IF
 
       IF (.NOT. converged .AND. (.NOT. optimizer%early_stopping_on)) THEN
          IF (unit_nr > 0) THEN
@@ -393,6 +429,7 @@ CONTAINS
 !> \param optimizer ...
 !> \par History
 !>       2013.03 created [Rustam Z Khaliullin]
+!>       2018.09 smearing support [Ruben Staub]
 !> \author Rustam Z Khaliullin
 ! **************************************************************************************************
    SUBROUTINE almo_scf_xalmo_eigensolver(qs_env, almo_scf_env, optimizer)
@@ -405,9 +442,8 @@ CONTAINS
 
       INTEGER                                            :: handle, iscf, ispin, nspin, unit_nr
       LOGICAL                                            :: converged, prepare_to_exit, should_stop
-      REAL(KIND=dp)                                      :: denergy_tot, energy_diff, energy_new, &
-                                                            energy_old, error_norm, error_norm_0, &
-                                                            spin_factor, t1, t2
+      REAL(KIND=dp) :: denergy_tot, density_rec, energy_diff, energy_new, energy_old, error_norm, &
+         error_norm_0, kTS_sum, spin_factor, t1, t2
       REAL(KIND=dp), DIMENSION(2)                        :: denergy_spin
       TYPE(almo_scf_diis_type), ALLOCATABLE, &
          DIMENSION(:)                                    :: almo_diis
@@ -589,6 +625,18 @@ CONTAINS
                                   almo_scf_env%matrix_p(ispin))
                ENDIF
 
+               !! Application of an occupation-rescaling trick for smearing, if requested
+               IF (almo_scf_env%smear) THEN
+                  CALL almo_scf_t_rescaling(matrix_t=almo_scf_env%matrix_t_blk(ispin), &
+                                            mo_energies=almo_scf_env%mo_energies(:, ispin), &
+                                            mu_of_domain=almo_scf_env%mu_of_domain(:, ispin), &
+                                            real_ne_of_domain=almo_scf_env%real_ne_of_domain(:, ispin), &
+                                            spin_kTS=almo_scf_env%kTS(ispin), &
+                                            smear_e_temp=almo_scf_env%smear_e_temp, &
+                                            ndomains=almo_scf_env%ndomains, &
+                                            nocc_of_domain=almo_scf_env%nocc_of_domain(:, ispin))
+               END IF
+
                ! update now
                CALL almo_scf_t_to_proj( &
                   t=almo_scf_env%matrix_t(ispin), &
@@ -600,6 +648,7 @@ CONTAINS
                   sigma=almo_scf_env%matrix_sigma(ispin), &
                   sigma_inv=almo_scf_env%matrix_sigma_inv(ispin), &
                   use_guess=.TRUE., &
+                  smear=almo_scf_env%smear, &
                   algorithm=almo_scf_env%sigma_inv_algorithm, &
                   inverse_accelerator=almo_scf_env%order_lanczos, &
                   inv_eps_factor=almo_scf_env%matrix_iter_eps_error_factor, &
@@ -608,6 +657,10 @@ CONTAINS
                   para_env=almo_scf_env%para_env, &
                   blacs_env=almo_scf_env%blacs_env)
                CALL dbcsr_scale(almo_scf_env%matrix_p(ispin), spin_factor)
+               !! Rescaling electronic entropy contribution by spin_factor
+               IF (almo_scf_env%smear) THEN
+                  almo_scf_env%kTS(ispin) = almo_scf_env%kTS(ispin)*spin_factor
+               END IF
 
                ! obtain perturbative estimate (at no additional cost)
                ! of the energy lowering relative to the block-diagonal ALMOs
@@ -620,6 +673,8 @@ CONTAINS
                                    denergy_spin(ispin))
 
                   CALL dbcsr_release(matrix_p_almo_scf_converged)
+
+                  !! RS-WARNING: If smearing ALMO is requested, electronic entropy contribution should probably be included here
 
                   denergy_tot = denergy_tot+denergy_spin(ispin)
 
@@ -704,12 +759,21 @@ CONTAINS
 
             ! compute the new KS matrix and new energy
             IF (.NOT. almo_scf_env%perturbative_delocalization) THEN
+
+               IF (almo_scf_env%smear) THEN
+                  kTS_sum = SUM(almo_scf_env%kTS)
+               ELSE
+                  kTS_sum = 0.0_dp
+               ENDIF
+
                CALL almo_dm_to_almo_ks(qs_env, &
                                        almo_scf_env%matrix_p, &
                                        almo_scf_env%matrix_ks, &
                                        energy_new, &
                                        almo_scf_env%eps_filter, &
-                                       almo_scf_env%mat_distr_aos)
+                                       almo_scf_env%mat_distr_aos, &
+                                       smear=almo_scf_env%smear, &
+                                       kTS_sum=kTS_sum)
             ENDIF
 
          ENDIF ! prepare_to_exit
@@ -741,6 +805,16 @@ CONTAINS
          IF (prepare_to_exit) EXIT
 
       ENDDO ! end scf cycle
+
+      !! Print number of electrons recovered if smearing was requested
+      IF (almo_scf_env%smear) THEN
+         DO ispin = 1, nspin
+            CALL dbcsr_trace(almo_scf_env%matrix_p(ispin), almo_scf_env%matrix_s(1), density_rec)
+            IF (unit_nr > 0) THEN
+               WRITE (unit_nr, '(T2,A20,F23.10)') "Electrons recovered:", density_rec
+            END IF
+         END DO
+      END IF
 
       IF (.NOT. converged .AND. .NOT. optimizer%early_stopping_on) THEN
          CPABORT("SCF for ALMOs on overlapping domains not converged! ")

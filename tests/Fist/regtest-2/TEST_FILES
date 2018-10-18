@@ -26,7 +26,7 @@ H2O-ST_debug.inp                                      42      4e-03         1.98
 H2O-32_SPME_fixed_clv.inp                              2      5e-12        -8.0220274432699995E-05
 H2O-32_SPME_fixed_cross_clv.inp                        2    1.0E-14            -0.452324222648E-02
 # Core-shell atoms plus intra-molecular forces
-H2O_cs_intra_debug.inp                                54    1.0E-14             0.0E+00
-H2O_cs_intra_debug.inp                                82    1.0E-14             0.00000157
-H2O_cs_intra_geo_opt.inp                              11    1.0E-14            -0.917699614533378
+H2O_cs_intra_debug.inp                                54    1.0E-14                        0.0E+00
+H2O_cs_intra_debug.inp                                82    1.0E-14                     0.00000157
+H2O_cs_intra_geo_opt.inp                              11    1.0E-14             -0.917699614533378
 #EOF

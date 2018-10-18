@@ -7,6 +7,7 @@
 !> \brief Subroutines for ALMO SCF
 !> \par History
 !>       2011.06 created [Rustam Z Khaliullin]
+!>       2018.09 smearing support [Ruben Staub]
 !> \author Rustam Z Khaliullin
 ! **************************************************************************************************
 MODULE almo_scf_methods
@@ -28,8 +29,8 @@ MODULE almo_scf_methods
         dbcsr_init_random, dbcsr_iterator_blocks_left, dbcsr_iterator_next_block, &
         dbcsr_iterator_start, dbcsr_iterator_stop, dbcsr_iterator_type, dbcsr_multiply, &
         dbcsr_nblkcols_total, dbcsr_nblkrows_total, dbcsr_print, dbcsr_release, &
-        dbcsr_reserve_block2d, dbcsr_set, dbcsr_set_diag, dbcsr_transposed, dbcsr_type, &
-        dbcsr_type_no_symmetry, dbcsr_type_symmetric, dbcsr_work_create
+        dbcsr_reserve_block2d, dbcsr_scale_by_vector, dbcsr_set, dbcsr_set_diag, dbcsr_transposed, &
+        dbcsr_type, dbcsr_type_no_symmetry, dbcsr_type_symmetric, dbcsr_work_create
    USE domain_submatrix_methods,        ONLY: &
         add_submatrices, construct_dbcsr_from_submatrices, construct_submatrices, &
         copy_submatrices, copy_submatrix_data, init_submatrices, multiply_submatrices, &
@@ -38,6 +39,8 @@ MODULE almo_scf_methods
                                               domain_submatrix_type,&
                                               select_row,&
                                               select_row_col
+   USE fermi_utils,                     ONLY: FermiFixed
+!! for smearing
    USE input_constants,                 ONLY: almo_domain_layout_molecular,&
                                               almo_mat_distr_atomic,&
                                               almo_scf_diag,&
@@ -60,7 +63,7 @@ MODULE almo_scf_methods
 
    PUBLIC almo_scf_ks_to_ks_blk, almo_scf_p_blk_to_t_blk, &
       almo_scf_t_to_proj, almo_scf_ks_blk_to_tv_blk, &
-      almo_scf_ks_xx_to_tv_xx, &
+      almo_scf_ks_xx_to_tv_xx, almo_scf_t_rescaling, &
       apply_projector, get_overlap, &
       generator_to_unitary, &
       orthogonalize_mos, &
@@ -713,6 +716,7 @@ CONTAINS
 !> \param almo_scf_env ...
 !> \par History
 !>       2013.03 created [Rustam Z Khaliullin]
+!>       2018.09 smearing support [Ruben Staub]
 !> \author Rustam Z Khaliullin
 ! **************************************************************************************************
    SUBROUTINE almo_scf_ks_xx_to_tv_xx(almo_scf_env)
@@ -809,6 +813,12 @@ CONTAINS
                                      subm_t(idomain), .FALSE.)
                CALL copy_submatrix_data(data_copy(:, 1:almo_scf_env%nocc_of_domain(idomain, ispin)), &
                                         subm_t(idomain))
+               !! Copy occupied eigenvalues if smearing requested
+               IF (almo_scf_env%smear) THEN
+                  almo_scf_env%mo_energies(1+SUM(almo_scf_env%nocc_of_domain(:idomain-1, ispin)) &
+                                           :SUM(almo_scf_env%nocc_of_domain(:idomain, ispin)), ispin) &
+                     = eigenvalues(1:almo_scf_env%nocc_of_domain(idomain, ispin))
+               END IF
 
                DEALLOCATE (WORK)
                DEALLOCATE (data_copy)
@@ -854,6 +864,7 @@ CONTAINS
 !> \param almo_scf_env ...
 !> \par History
 !>       2011.07 created [Rustam Z Khaliullin]
+!>       2018.09 smearing support [Ruben Staub]
 !> \author Rustam Z Khaliullin
 ! **************************************************************************************************
    SUBROUTINE almo_scf_ks_blk_to_tv_blk(almo_scf_env)
@@ -966,6 +977,19 @@ CONTAINS
                   DO orbital = 1, nocc_of_block
                      p_new_block(orbital, orbital) = eigenvalues(orbital)
                   ENDDO
+                  !! Retrieve occupied MOs energies for smearing purpose, if requested
+                  !! RS-WARNING: Hack to retrieve the occupied energies, since matrix_eoo seems to be ill-defined
+                  !!             for multiprocessing (any idea for fix?)
+                  !! RS-WARNING: This section is not suitable for parallel run !!!
+                  !!             (but usually fails less than retrieving the diagonal of matrix_eoo)
+                  !! RS-WARNING: This method will likely keep the energies of the initial guess if run in parallel
+                  !!             (which is still a reasonable smearing in most cases...)
+                  IF (almo_scf_env%smear) THEN
+                     DO orbital = 1, nocc_of_block
+                        almo_scf_env%mo_energies(SUM(almo_scf_env%nocc_of_domain(:iblock_row-1, ispin))+orbital, &
+                                                 ispin) = eigenvalues(orbital)
+                     END DO
+                  END IF
                ENDIF
 
                ! now virtuals
@@ -998,6 +1022,13 @@ CONTAINS
          CALL dbcsr_finalize(matrix_v_blk_orthog)
          CALL dbcsr_finalize(almo_scf_env%matrix_eoo(ispin))
          CALL dbcsr_finalize(almo_scf_env%matrix_evv_full(ispin))
+
+         !! RS-WARNING: When matrix_eoo will be well-defined with multiprocessing,
+         !!             the following should be the preferred way to retrieve the occupied energies:
+         !! Retrieve occupied MOs energies for smearing purpose, if requested
+         !! IF (almo_scf_env%smear) THEN
+         !!    CALL dbcsr_get_diag(almo_scf_env%matrix_eoo(ispin), almo_scf_env%mo_energies(:, ispin))
+         !! END IF
 
          CALL dbcsr_filter(matrix_t_blk_orthog, almo_scf_env%eps_filter)
          CALL dbcsr_filter(matrix_v_blk_orthog, almo_scf_env%eps_filter)
@@ -1237,6 +1268,103 @@ CONTAINS
    END SUBROUTINE almo_scf_p_blk_to_t_blk
 
 ! **************************************************************************************************
+!> \brief Apply an occupation-rescaling trick to ALMOs for smearing.
+!>        Partially occupied orbitals are considered full and rescaled by SQRT(occupation_number)
+!>        (this was designed to be used with smearing only)
+!> \param matrix_t ...
+!> \param mo_energies ...
+!> \param mu_of_domain ...
+!> \param real_ne_of_domain ...
+!> \param spin_kTS ...
+!> \param smear_e_temp ...
+!> \param ndomains ...
+!> \param nocc_of_domain ...
+!> \par History
+!>       2018.09 created [Ruben Staub]
+!> \author Ruben Staub
+! **************************************************************************************************
+   SUBROUTINE almo_scf_t_rescaling(matrix_t, mo_energies, mu_of_domain, real_ne_of_domain, &
+                                   spin_kTS, smear_e_temp, ndomains, nocc_of_domain)
+
+      TYPE(dbcsr_type), INTENT(INOUT)                    :: matrix_t
+      REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: mo_energies
+      REAL(KIND=dp), DIMENSION(:), INTENT(INOUT)         :: mu_of_domain, real_ne_of_domain
+      REAL(KIND=dp), INTENT(INOUT)                       :: spin_kTS
+      REAL(KIND=dp), INTENT(IN)                          :: smear_e_temp
+      INTEGER, INTENT(IN)                                :: ndomains
+      INTEGER, DIMENSION(:), INTENT(IN)                  :: nocc_of_domain
+
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'almo_scf_t_rescaling', &
+         routineP = moduleN//':'//routineN
+
+      INTEGER                                            :: handle, idomain, neigenval_used, nmo
+      REAL(KIND=dp)                                      :: kTS
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: occupation_numbers, rescaling_factors
+
+      CALL timeset(routineN, handle)
+
+      !!
+      !! Initialization
+      !!
+      nmo = SIZE(mo_energies)
+      ALLOCATE (occupation_numbers(nmo))
+      ALLOCATE (rescaling_factors(nmo))
+
+      !!
+      !! Set occupation numbers for smearing
+      !!
+      !! occupation numbers are obtained using Fermi-Dirac smearing with orbital energies stored in mo_energies
+      !! nocc_of_domain is the number of partially occupied orbitals, while real_ne_of_domain is the real number of electrons
+      neigenval_used = 0 !! this is used as an offset to copy sub-arrays
+
+      !! Reset electronic entropy term
+      spin_kTS = 0.0_dp
+
+      !! Apply Fermi-Dirac smearing for each domain and store associated occupations for the whole system
+      DO idomain = 1, ndomains
+         CALL FermiFixed(occupation_numbers(1+neigenval_used:nocc_of_domain(idomain)+neigenval_used), &
+                         mu_of_domain(idomain), &
+                         kTS, &
+                         mo_energies(1+neigenval_used:nocc_of_domain(idomain)+neigenval_used), &
+                         real_ne_of_domain(idomain), &
+                         smear_e_temp, &
+                         1.0_dp) !! Warning, maxocc is set to 1 since we don't want to interfere with the spin_factor rescaling
+         spin_kTS = spin_kTS+kTS !! Add up electronic entropy contributions
+         neigenval_used = neigenval_used+nocc_of_domain(idomain) !! Update eigenvalues index offset
+      END DO
+      rescaling_factors(:) = SQRT(occupation_numbers) !! scale = sqrt(occupation_number)
+
+      !!
+      !! Rescaling electronic entropy contribution by spin_factor (deprecated)
+      !! (currently, entropy is rescaled by spin_factor with the density matrix)
+      !!
+      !!IF (almo_scf_env%nspins == 1) THEN
+      !!   spin_kTS = spin_kTS*2.0_dp
+      !!END IF
+
+      !!
+      !! Rescaling of T (i.e. ALMOs)
+      !!
+      CALL dbcsr_scale_by_vector(matrix_t, rescaling_factors, side='right') !! Apply occupation-rescaling trick
+
+      !!
+      !! Debug tools (for debug purpose only)
+      !!
+      !! WRITE (*,*) "occupations", occupation_numbers(:) !! debug
+      !! WRITE (*,*) "eigenvalues", mo_energies(:) !! debug
+      !! WRITE (*,*) "kTS (spin_factor excluded) = ", spin_kTS !! debug
+
+      !!
+      !! Cleaning up before exit
+      !!
+      DEALLOCATE (occupation_numbers)
+      DEALLOCATE (rescaling_factors)
+
+      CALL timestop(handle)
+
+   END SUBROUTINE almo_scf_t_rescaling
+
+! **************************************************************************************************
 !> \brief Computes the overlap matrix of MO orbitals
 !> \param bra ...
 !> \param ket ...
@@ -1244,23 +1372,27 @@ CONTAINS
 !> \param metric ...
 !> \param retain_overlap_sparsity ...
 !> \param eps_filter ...
+!> \param smear ...
 !> \par History
 !>       2011.08 created [Rustam Z Khaliullin]
+!>       2018.09 smearing support [Ruben Staub]
 !> \author Rustam Z Khaliullin
 ! **************************************************************************************************
    SUBROUTINE get_overlap(bra, ket, overlap, metric, retain_overlap_sparsity, &
-                          eps_filter)
+                          eps_filter, smear)
 
       TYPE(dbcsr_type), INTENT(IN)                       :: bra, ket
       TYPE(dbcsr_type), INTENT(INOUT)                    :: overlap
       TYPE(dbcsr_type), INTENT(IN)                       :: metric
       LOGICAL, INTENT(IN), OPTIONAL                      :: retain_overlap_sparsity
       REAL(KIND=dp)                                      :: eps_filter
+      LOGICAL, INTENT(IN), OPTIONAL                      :: smear
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'get_overlap', routineP = moduleN//':'//routineN
 
-      INTEGER                                            :: handle
-      LOGICAL                                            :: local_retain_sparsity
+      INTEGER                                            :: dim0, handle
+      LOGICAL                                            :: local_retain_sparsity, smearing
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: diag_correction
       TYPE(dbcsr_type)                                   :: tmp
 
       CALL timeset(routineN, handle)
@@ -1269,6 +1401,12 @@ CONTAINS
          local_retain_sparsity = .FALSE.
       ELSE
          local_retain_sparsity = retain_overlap_sparsity
+      ENDIF
+
+      IF (.NOT. PRESENT(smear)) THEN
+         smearing = .FALSE.
+      ELSE
+         smearing = smear
       ENDIF
 
       CALL dbcsr_create(tmp, template=ket, &
@@ -1287,6 +1425,20 @@ CONTAINS
 
       CALL dbcsr_release(tmp)
 
+      !! If smearing ALMO is requested, apply correction of the occupation-rescaling trick
+      !! (i.e. converting rescaled orbitals into selfish orbitals)
+      !! (i.e. the diagonal blocks of the rescaled overlap must remain unscaled)
+      !! Since we have here orthonormal MOs within a fragment, diagonal blocks are identity matrices
+      !! Therefore, one only need to restore the diagonal to 1
+      !! RS-WARNING: Assume orthonormal MOs within a fragment
+      IF (smearing) THEN
+         CALL dbcsr_get_info(overlap, nfullrows_total=dim0)
+         ALLOCATE (diag_correction(dim0))
+         diag_correction = 1.0_dp
+         CALL dbcsr_set_diag(overlap, diag_correction)
+         DEALLOCATE (diag_correction)
+      END IF
+
       CALL timestop(handle)
 
    END SUBROUTINE get_overlap
@@ -1304,12 +1456,15 @@ CONTAINS
 !> \param eps_lanczos ...
 !> \param max_iter_lanczos ...
 !> \param overlap_sqrti ...
+!> \param smear ...
 !> \par History
 !>       2012.03 created [Rustam Z Khaliullin]
+!>       2018.09 smearing support [Ruben Staub]
 !> \author Rustam Z Khaliullin
 ! **************************************************************************************************
    SUBROUTINE orthogonalize_mos(ket, overlap, metric, retain_locality, only_normalize, &
-                                nocc_of_domain, eps_filter, order_lanczos, eps_lanczos, max_iter_lanczos, overlap_sqrti)
+                                nocc_of_domain, eps_filter, order_lanczos, eps_lanczos, &
+                                max_iter_lanczos, overlap_sqrti, smear)
 
       TYPE(dbcsr_type), INTENT(INOUT)                    :: ket, overlap
       TYPE(dbcsr_type), INTENT(IN)                       :: metric
@@ -1320,17 +1475,25 @@ CONTAINS
       REAL(KIND=dp), INTENT(IN)                          :: eps_lanczos
       INTEGER, INTENT(IN)                                :: max_iter_lanczos
       TYPE(dbcsr_type), INTENT(INOUT), OPTIONAL          :: overlap_sqrti
+      LOGICAL, INTENT(IN), OPTIONAL                      :: smear
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'orthogonalize_mos', &
          routineP = moduleN//':'//routineN
 
       INTEGER                                            :: dim0, handle
+      LOGICAL                                            :: smearing
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: diagonal
       TYPE(dbcsr_type)                                   :: matrix_sigma_blk_sqrt, &
                                                             matrix_sigma_blk_sqrt_inv, &
                                                             matrix_t_blk_tmp
 
       CALL timeset(routineN, handle)
+
+      IF (.NOT. PRESENT(smear)) THEN
+         smearing = .FALSE.
+      ELSE
+         smearing = smear
+      ENDIF
 
       ! create block-diagonal sparsity pattern for the overlap
       ! in case retain_locality is set to true
@@ -1340,7 +1503,7 @@ CONTAINS
       CALL dbcsr_filter(overlap, eps_filter)
 
       CALL get_overlap(ket, ket, overlap, metric, retain_locality, &
-                       eps_filter)
+                       eps_filter, smear=smearing)
 
       IF (only_normalize) THEN
 
@@ -1409,6 +1572,7 @@ CONTAINS
 !> \param sigma ...
 !> \param sigma_inv ...
 !> \param use_guess ...
+!> \param smear ...
 !> \param algorithm to inver sigma: 0 - Hotelling (linear), 1 - Cholesky (cubic, low prefactor)
 !> \param para_env ...
 !> \param blacs_env ...
@@ -1418,10 +1582,11 @@ CONTAINS
 !> \param inv_eps_factor ...
 !> \par History
 !>       2011.07 created [Rustam Z Khaliullin]
+!>       2018.09 smearing support [Ruben Staub]
 !> \author Rustam Z Khaliullin
 ! **************************************************************************************************
    SUBROUTINE almo_scf_t_to_proj(t, p, eps_filter, orthog_orbs, nocc_of_domain, s, sigma, sigma_inv, &
-                                 use_guess, algorithm, para_env, blacs_env, eps_lanczos, &
+                                 use_guess, smear, algorithm, para_env, blacs_env, eps_lanczos, &
                                  max_iter_lanczos, inverse_accelerator, inv_eps_factor)
 
       TYPE(dbcsr_type), INTENT(IN)                       :: t
@@ -1431,7 +1596,7 @@ CONTAINS
       INTEGER, DIMENSION(:), INTENT(IN), OPTIONAL        :: nocc_of_domain
       TYPE(dbcsr_type), INTENT(IN), OPTIONAL             :: s
       TYPE(dbcsr_type), INTENT(INOUT), OPTIONAL          :: sigma, sigma_inv
-      LOGICAL, INTENT(IN), OPTIONAL                      :: use_guess
+      LOGICAL, INTENT(IN), OPTIONAL                      :: use_guess, smear
       INTEGER, INTENT(IN), OPTIONAL                      :: algorithm
       TYPE(cp_para_env_type), OPTIONAL, POINTER          :: para_env
       TYPE(cp_blacs_env_type), OPTIONAL, POINTER         :: blacs_env
@@ -1442,9 +1607,11 @@ CONTAINS
       CHARACTER(LEN=*), PARAMETER :: routineN = 'almo_scf_t_to_proj', &
          routineP = moduleN//':'//routineN
 
-      INTEGER                                            :: handle, my_accelerator, my_algorithm
-      LOGICAL                                            :: use_sigma_inv_guess
+      INTEGER                                            :: dim0, handle, my_accelerator, &
+                                                            my_algorithm
+      LOGICAL                                            :: smearing, use_sigma_inv_guess
       REAL(KIND=dp)                                      :: my_inv_eps_factor
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: diag_correction
       TYPE(dbcsr_type)                                   :: t_tmp
 
       CALL timeset(routineN, handle)
@@ -1466,6 +1633,12 @@ CONTAINS
       use_sigma_inv_guess = .FALSE.
       IF (PRESENT(use_guess)) THEN
          use_sigma_inv_guess = use_guess
+      ENDIF
+
+      IF (.NOT. PRESENT(smear)) THEN
+         smearing = .FALSE.
+      ELSE
+         smearing = smear
       ENDIF
 
       my_accelerator = 1
@@ -1490,6 +1663,20 @@ CONTAINS
          ! Sig=tr(T).TMP - get MO overlap
          CALL dbcsr_multiply("T", "N", 1.0_dp, t, t_tmp, 0.0_dp, sigma, &
                              filter_eps=eps_filter)
+
+         !! If smearing ALMO is requested, apply correction of the occupation-rescaling trick
+         !! (i.e. converting rescaled orbitals into selfish orbitals)
+         !! (i.e. the diagonal blocks of the rescaled overlap must remain unscaled)
+         !! Since we have here orthonormal MOs within a fragment, diagonal blocks are identity matrices
+         !! Therefore, one only need to restore the diagonal to 1
+         !! RS-WARNING: Assume orthonormal MOs within a fragment
+         IF (smearing) THEN
+            CALL dbcsr_get_info(sigma, nfullrows_total=dim0)
+            ALLOCATE (diag_correction(dim0))
+            diag_correction = 1.0_dp
+            CALL dbcsr_set_diag(sigma, diag_correction)
+            DEALLOCATE (diag_correction)
+         END IF
 
          ! invert MO overlap
          CALL set_zero_electron_blocks_in_mo_mo_matrix(sigma, nocc_of_domain, 1.0_dp)
