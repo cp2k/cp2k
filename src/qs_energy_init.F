@@ -40,6 +40,8 @@ MODULE qs_energy_init
    USE qs_core_hamiltonian,             ONLY: build_core_hamiltonian_matrix
    USE qs_dftb_dispersion,              ONLY: calculate_dftb_dispersion
    USE qs_dftb_matrices,                ONLY: build_dftb_matrices
+   USE qs_gcp_method,                   ONLY: calculate_gcp_pairpot
+   USE qs_gcp_types,                    ONLY: qs_gcp_type
    USE qs_dispersion_pairpot,           ONLY: calculate_dispersion_pairpot
    USE qs_dispersion_types,             ONLY: qs_dispersion_type
    USE qs_energy_types,                 ONLY: qs_energy_type
@@ -260,6 +262,7 @@ CONTAINS
       TYPE(neighbor_list_set_p_type), DIMENSION(:), &
          POINTER                                         :: sab_nl
       TYPE(qs_dispersion_type), POINTER                  :: dispersion_env
+      TYPE(qs_gcp_type), POINTER                         :: gcp_env
       TYPE(qs_energy_type), POINTER                      :: energy
       TYPE(section_vals_type), POINTER                   :: input
 
@@ -339,6 +342,10 @@ CONTAINS
          ! energy info at the end of the SCF
          CALL get_qs_env(qs_env=qs_env, dispersion_env=dispersion_env, energy=energy)
          CALL calculate_dispersion_pairpot(qs_env, dispersion_env, energy%dispersion, calc_forces)
+         ! Add possible pair potential gCP energy - Evaluate first so we can print
+         ! energy info at the end of the SCF
+         CALL get_qs_env(qs_env=qs_env, gcp_env=gcp_env, energy=energy)
+         CALL calculate_gcp_pairpot(qs_env, gcp_env, energy%gcp, calc_forces)
 
       END IF
       ! Embedding potential

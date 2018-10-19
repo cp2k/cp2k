@@ -1246,7 +1246,6 @@ CONTAINS
                   CPABORT("Unknown DFT-D3 damping function:")
                END IF
                IF (dispersion_env%srb .AND. dr .LT. 30.0d0) THEN
-!deb              srbe = 0.08_dp*SQRT(REAL((za*zb), KIND=dp))*EXP(-10.0_dp*dr/dispersion_env%r0ab(za, zb))
                   srbe = ssrb*(REAL((za*zb), KIND=dp))**t1srb*EXP(-gsrb*dr*dispersion_env%r0ab(za, zb)**t2srb)
                   esrb = esrb+srbe
                   evdw = evdw-srbe
@@ -1275,7 +1274,6 @@ CONTAINS
                   END IF
                   fdij(:) = (de6+de8)*rij(:)/dr*fac
                   IF (dispersion_env%srb .AND. dr .LT. 30.0d0) THEN
-!deb                 fdij(:) = fdij(:)+10._dp*srbe*rij(:)/(dr*dispersion_env%r0ab(za, zb))
                      fdij(:) = fdij(:)+srbe*gsrb*dispersion_env%r0ab(za, zb)**t2srb*rij(:)/dr
                   END IF
                   atom_a = atom_of_kind(iatom)

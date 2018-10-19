@@ -34,6 +34,7 @@ MODULE atprop_types
       REAL(KIND=dp), DIMENSION(:), POINTER      :: atexc
       REAL(KIND=dp), DIMENSION(:), POINTER      :: ateself
       REAL(KIND=dp), DIMENSION(:), POINTER      :: atevdw
+      REAL(KIND=dp), DIMENSION(:), POINTER      :: ategcp
       REAL(KIND=dp), DIMENSION(:), POINTER      :: atecc
       REAL(KIND=dp), DIMENSION(:), POINTER      :: ate1c
       REAL(KIND=dp), DIMENSION(:), POINTER      :: atecoul
@@ -54,7 +55,7 @@ CONTAINS
       CALL atprop_release(atprop_env)
       ALLOCATE (atprop_env)
       NULLIFY (atprop_env%atener, atprop_env%atstress)
-      NULLIFY (atprop_env%ateb, atprop_env%atevdw, atprop_env%atecc, atprop_env%atecoul)
+      NULLIFY (atprop_env%ateb, atprop_env%atevdw, atprop_env%ategcp, atprop_env%atecc, atprop_env%atecoul)
       NULLIFY (atprop_env%ateself, atprop_env%atexc, atprop_env%ate1c)
       atprop_env%energy = .FALSE.
       atprop_env%stress = .FALSE.
@@ -78,6 +79,7 @@ CONTAINS
          CALL atprop_array_init(atprop_env%atener, natom)
          CALL atprop_array_release(atprop_env%ateb)
          CALL atprop_array_release(atprop_env%atevdw)
+         CALL atprop_array_release(atprop_env%ategcp)
          CALL atprop_array_release(atprop_env%atecc)
          CALL atprop_array_release(atprop_env%atecoul)
          CALL atprop_array_release(atprop_env%ateself)
@@ -168,6 +170,7 @@ CONTAINS
          CALL atprop_array_release(atprop_env%ateself)
          CALL atprop_array_release(atprop_env%atexc)
          CALL atprop_array_release(atprop_env%atevdw)
+         CALL atprop_array_release(atprop_env%ategcp)
          CALL atprop_array_release(atprop_env%atecc)
          CALL atprop_array_release(atprop_env%ate1c)
          CALL atprop_array_release(atprop_env%atecoul)

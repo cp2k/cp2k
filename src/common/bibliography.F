@@ -69,7 +69,7 @@ MODULE bibliography
                             Putrino2002, Sebastiani2001, Weber2009, Tran2013, Golze2013, &
                             Golze2015, Golze2017a, Golze2017b, Tuckerman1992, Zhao1994, &
                             Tozer1996, Goedecker2004, &
-                            Khaliullin2013, Hutter2014, Bengtsson1999, Kantorovich2008, &
+                            Khaliullin2013, Kruse2012, Hutter2014, Bengtsson1999, Kantorovich2008, &
                             Kantorovich2008a, Wellendorff2012, Niklasson2014, Borstnik2014, &
                             Rayson2009, Grimme2011, Fattebert2002, Andreussi2012, &
                             Khaliullin2007, Khaliullin2008, Merlot2014, Lin2009, Lin2013, &
@@ -3982,6 +3982,23 @@ CONTAINS
                          "EP 585", &
                          "ER"), &
                          DOI="10.4208/cicp.OA-2018-0053")
+
+      CALL add_reference(key=Kruse2012, ISI_record=s2a( &
+                         "AU Kruse,Holger", &
+                         "   Grimme,Stefan", &
+                         "AF Kruse,Holger", &
+                         "   Grimme,Stefan", &
+                         "TI A geometrical correction for the inter- and intra-molecular basis set superposition error", &
+                         "   in Hartree-Fock and density functional theory calculations for large systems", &
+                         "SO The Journal of Chemical Physics", &
+                         "SN 0021-9606", &
+                         "PY 2012", &
+                         "VL 136", &
+                         "IS 15", &
+                         "AR 154101", &
+                         "DI 10.1063/1.3700154", &
+                         "ER"), &
+                         DOI="10.1063/1.3700154")
 
    END SUBROUTINE add_all_references
 

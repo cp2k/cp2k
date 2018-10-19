@@ -142,6 +142,9 @@ MODULE qs_environment
                                               qs_environment_type,&
                                               set_qs_env
    USE qs_force_types,                  ONLY: qs_force_type
+   USE qs_gcp_types,                    ONLY: qs_gcp_type
+   USE qs_gcp_utils,                    ONLY: qs_gcp_env_set,&
+                                              qs_gcp_init
    USE qs_interactions,                 ONLY: init_interaction_radii,&
                                               init_se_nlradius,&
                                               write_core_charge_radii,&
@@ -516,6 +519,7 @@ CONTAINS
       TYPE(qs_dispersion_type), POINTER                  :: dispersion_env
       TYPE(qs_energy_type), POINTER                      :: energy
       TYPE(qs_force_type), DIMENSION(:), POINTER         :: force
+      TYPE(qs_gcp_type), POINTER                         :: gcp_env
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
       TYPE(qs_kind_type), POINTER                        :: qs_kind
       TYPE(qs_ks_env_type), POINTER                      :: ks_env
@@ -1139,6 +1143,21 @@ CONTAINS
             dispersion_env%type = xc_vdw_fun_none
          END IF
          CALL set_qs_env(qs_env, dispersion_env=dispersion_env)
+      END IF
+
+      ! Initialize possible geomertical counterpoise correction potential
+      IF (dft_control%qs_control%method_id == do_method_gpw .OR. &
+          dft_control%qs_control%method_id == do_method_gapw .OR. &
+          dft_control%qs_control%method_id == do_method_gapw_xc .OR. &
+          dft_control%qs_control%method_id == do_method_lrigpw .OR. &
+          dft_control%qs_control%method_id == do_method_rigpw .OR. &
+          dft_control%qs_control%method_id == do_method_ofgpw) THEN
+         ALLOCATE (gcp_env)
+         NULLIFY (xc_section)
+         xc_section => section_vals_get_subs_vals(dft_section, "XC")
+         CALL qs_gcp_env_set(gcp_env, xc_section)
+         CALL qs_gcp_init(qs_env, gcp_env)
+         CALL set_qs_env(qs_env, gcp_env=gcp_env)
       END IF
 
       !   *** Allocate the MO data types ***

@@ -71,6 +71,7 @@ MODULE qs_neighbor_lists
    USE qs_dftb_types,                   ONLY: qs_dftb_atom_type
    USE qs_dftb_utils,                   ONLY: get_dftb_atom_param
    USE qs_dispersion_types,             ONLY: qs_dispersion_type
+   USE qs_gcp_types,                    ONLY: qs_gcp_type
    USE qs_environment_types,            ONLY: get_qs_env,&
                                               qs_environment_type
    USE qs_kind_types,                   ONLY: get_qs_kind,&
@@ -323,13 +324,19 @@ CONTAINS
       TYPE(local_atoms_type), ALLOCATABLE, DIMENSION(:)  :: atom2d
       TYPE(molecule_type), DIMENSION(:), POINTER         :: molecule_set
       TYPE(neighbor_list_set_p_type), DIMENSION(:), POINTER :: saa_list, sab_all, sab_almo, &
+<<<<<<< HEAD
          sab_aux_fit, sab_aux_fit_asymm, sab_aux_fit_vs_orb, sab_cn, sab_core, sab_kp, sab_lrc, &
          sab_orb, sab_scp, sab_se, sab_tbe, sab_vdw, sab_xb, sac_ae, sac_lri, sac_ppl, sap_oce, &
+=======
+         sab_aux_fit, sab_aux_fit_asymm, sab_aux_fit_vs_orb, sab_cn, sab_core, sab_gcp, sab_kp, &
+         sab_lrc, sab_orb, sab_scp, sab_se, sab_tbe, sab_vdw, sac_ae, sac_lri, sac_ppl, sap_oce, &
+>>>>>>> gCP potentials input
          sap_ppnl, soa_list, soo_list
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
       TYPE(paw_proj_set_type), POINTER                   :: paw_proj
       TYPE(qs_dftb_atom_type), POINTER                   :: dftb_atom
       TYPE(qs_dispersion_type), POINTER                  :: dispersion_env
+      TYPE(qs_gcp_type), POINTER                         :: gcp_env
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
       TYPE(qs_ks_env_type), POINTER                      :: ks_env
       TYPE(section_vals_type), POINTER                   :: hfx_sections, neighbor_list_section
@@ -825,6 +832,19 @@ CONTAINS
                                       subcells=subcells, operator_type="PP", nlname="sab_cn")
             dispersion_env%sab_cn => sab_cn
          END IF
+      END IF
+
+      ! Build the neighbor lists for the gCP pair potential
+      CALL get_qs_env(qs_env=qs_env, gcp_env=gcp_env)
+      sab_gcp => gcp_env%sab_gcp
+      IF (gcp_env%do_gcp) THEN
+         DO ikind = 1, nkind
+            c_radius(ikind) = gcp_env%gcp_kind(ikind)%rcsto
+         END DO
+         CALL pair_radius_setup(orb_present, orb_present, c_radius, c_radius, pair_radius)
+         CALL build_neighbor_lists(sab_gcp, particle_set, atom2d, cell, pair_radius, &
+                                   subcells=subcells, operator_type="PP", nlname="sab_gcp")
+         gcp_env%sab_gcp => sab_gcp
       END IF
 
       IF (lrigpw .OR. lri_optbas) THEN

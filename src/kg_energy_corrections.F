@@ -78,6 +78,7 @@ MODULE kg_energy_corrections
                                               pw_p_type
    USE qs_core_energies,                ONLY: calculate_ecore_overlap,&
                                               calculate_ecore_self
+   USE qs_gcp_method,                   ONLY: calculate_gcp_pairpot
    USE qs_dispersion_pairpot,           ONLY: calculate_dispersion_pairpot
    USE qs_environment_types,            ONLY: get_qs_env,&
                                               qs_environment_type
@@ -776,6 +777,9 @@ CONTAINS
       ! dispersion through pairpotentials
       CALL calculate_dispersion_pairpot(qs_env, ec_env%dispersion_env, energy, .FALSE.)
       ec_env%edispersion = ec_env%edispersion+energy
+!deb  ! gCP pairpotentials
+!deb  CALL calculate_gcp_pairpot(qs_env, ec_env%gcp_env, energy, .FALSE.)
+!deb  ec_env%edispersion = ec_env%edispersion+energy
 
       SELECT CASE (ec_env%energy_functional)
       CASE (kg_ec_functional_harris)

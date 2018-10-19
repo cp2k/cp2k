@@ -12,7 +12,7 @@
 MODULE input_cp2k_xc
    USE bibliography,                    ONLY: &
         Becke1988, Becke1997, BeckeRoussel1989, Goedecker1996, Grimme2006, Grimme2010, Grimme2011, &
-        Heyd2004, Lee1988, Lehtola2018, Marques2012, Ortiz1994, Perdew1981, Perdew1996, &
+        Heyd2004, Kruse2012, Lee1988, Lehtola2018, Marques2012, Ortiz1994, Perdew1981, Perdew1996, &
         Perdew2008, Proynov2007, Tao2003, Tran2013, Vosko1980, Wellendorff2012, Zhang1998
    USE cp_output_handling,              ONLY: add_last_numeric,&
                                               cp_print_key_section_create,&
@@ -1084,6 +1084,58 @@ CONTAINS
    END SUBROUTINE create_vdw_potential_section
 
 ! **************************************************************************************************
+!> \brief creates the structure of the section needed for gCP potentials
+!> \param section the section that will be created
+!> \author jgh
+! **************************************************************************************************
+   SUBROUTINE create_gcp_potential_section(section)
+      TYPE(section_type), POINTER                        :: section
+
+      CHARACTER(len=*), PARAMETER :: routineN = 'create_gcp_potential_section', &
+         routineP = moduleN//':'//routineN
+
+      TYPE(keyword_type), POINTER                        :: keyword
+      TYPE(section_type), POINTER                        :: subsection
+
+      CPASSERT(.NOT. ASSOCIATED(section))
+      CALL section_create(section, name="gcp_potential", &
+                          description="This section combines geometrical counterpoise potentials."// &
+                          " This is a simple empirical pair potential to correct for BSSE. ", &
+                          citations=(/Kruse2012/), &
+                          n_keywords=1, n_subsections=1, repeats=.FALSE.)
+
+      CALL keyword_create(keyword, name="PARAMETER_FILE_NAME", &
+                          description="Name of the parameter file, may include a path", &
+                          usage="PARAMETER_FILE_NAME <FILENAME>", &
+                          default_lc_val="gCP_PARAMETERS")
+      CALL section_add_keyword(subsection, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, name="GLOBAL_PARAMETERS", &
+                          description="Global parameters of the gCP method."// &
+                          " Parameters are sigma, alpha, beta, eta from the original paper.", &
+                          usage="GLOBAL_PARAMETERS 1.0 1.0 1.0 1.0", n_var=4, &
+                          default_r_vals=(/0.0_dp, 0.0_dp, 0.0_dp, 0.0_dp/))
+      CALL section_add_keyword(subsection, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, name="DELTA_ENERGY", &
+                          description="Specify the delta energy [Hartree] term for an atom kind", &
+                          usage="DELTA_ENERGY  type value", &
+                          type_of_var=char_t, repeats=.TRUE., n_var=-1, default_c_vals=(/"XX ", "0.0"/))
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, name="VERBOSE", &
+                          description="Verbose output for gCP calculation", &
+                          usage="VERBOSE logical_value", &
+                          default_l_val=.TRUE., lone_keyword_l_val=.TRUE.)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+   END SUBROUTINE create_gcp_potential_section
+
+! **************************************************************************************************
 !> \brief creates the input section for the xc part
 !> \param section the section to create
 !> \author fawzi
@@ -1201,6 +1253,10 @@ CONTAINS
       CALL section_release(subsection)
 
       CALL create_vdw_potential_section(subsection)
+      CALL section_add_subsection(section, subsection)
+      CALL section_release(subsection)
+
+      CALL create_gcp_potential_section(subsection)
       CALL section_add_subsection(section, subsection)
       CALL section_release(subsection)
 
