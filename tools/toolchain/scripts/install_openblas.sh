@@ -2,7 +2,7 @@
 [ "${BASH_SOURCE[0]}" ] && SCRIPT_NAME="${BASH_SOURCE[0]}" || SCRIPT_NAME=$0
 SCRIPT_DIR="$(cd "$(dirname "$SCRIPT_NAME")" && pwd -P)"
 
-openblas_ver=${openblas_ver:-0.2.20}  # Keep in sync with get_openblas_arch.sh.
+openblas_ver=${openblas_ver:-0.3.3}  # Keep in sync with get_openblas_arch.sh.
 source "${SCRIPT_DIR}"/common_vars.sh
 source "${SCRIPT_DIR}"/tool_kit.sh
 source "${SCRIPT_DIR}"/signal_trap.sh
@@ -28,12 +28,22 @@ case "$with_openblas" in
                 echo "OpenBLAS-${openblas_ver}.tar.gz is found"
             else
                 download_pkg ${DOWNLOADER_FLAGS} \
-                             https://www.cp2k.org/static/downloads/OpenBLAS-${openblas_ver}.tar.gz
+                     https://github.com/xianyi/OpenBLAS/archive/v${openblas_ver}.tar.gz \
+                     -o OpenBLAS-${openblas_ver}.tar.gz
+
+            fi
+            if [ -f 79ea839b635d1fd84b6ce8a47e086f01d64198e6.patch ] ; then
+                echo "79ea839b635d1fd84b6ce8a47e086f01d64198e6.patch is found"
+            else
+                # parallel build patch
+                download_pkg ${DOWNLOADER_FLAGS} \
+                    "https://github.com/xianyi/OpenBLAS/commit/79ea839b635d1fd84b6ce8a47e086f01d64198e6.patch"
             fi
             echo "Installing from scratch into ${pkg_install_dir}"
             [ -d OpenBLAS-${openblas_ver} ] && rm -rf OpenBLAS-${openblas_ver}
             tar -zxf OpenBLAS-${openblas_ver}.tar.gz
             cd OpenBLAS-${openblas_ver}
+            patch -p1 < ../79ea839b635d1fd84b6ce8a47e086f01d64198e6.patch
             # First attempt to make openblas using auto detected
             # TARGET, if this fails, then make with forced
             # TARGET=NEHALEM
