@@ -14,6 +14,11 @@ with_openblas=${1:-__INSTALL__}
 OPENBLAS_CFLAGS=''
 OPENBLAS_LDFLAGS=''
 OPENBLAS_LIBS=''
+PATCHES=(
+    https://github.com/xianyi/OpenBLAS/commit/79ea839b635d1fd84b6ce8a47e086f01d64198e6.patch
+    https://github.com/xianyi/OpenBLAS/commit/288aeea8a285da8551c465681c7b9330a5486e7e.patch
+    )
+
 ! [ -d "${BUILDDIR}" ] && mkdir -p "${BUILDDIR}"
 cd "${BUILDDIR}"
 case "$with_openblas" in
@@ -32,18 +37,26 @@ case "$with_openblas" in
                      -o OpenBLAS-${openblas_ver}.tar.gz
 
             fi
-            if [ -f 79ea839b635d1fd84b6ce8a47e086f01d64198e6.patch ] ; then
-                echo "79ea839b635d1fd84b6ce8a47e086f01d64198e6.patch is found"
-            else
-                # parallel build patch
-                download_pkg ${DOWNLOADER_FLAGS} \
-                    "https://github.com/xianyi/OpenBLAS/commit/79ea839b635d1fd84b6ce8a47e086f01d64198e6.patch"
-            fi
+
+            for patch in "${PATCHES[@]}" ; do
+                fname="${patch##*/}"
+                if [ -f "${fname}" ] ; then
+                    echo "${fname} is found"
+                else
+                    # parallel build patch
+                    download_pkg ${DOWNLOADER_FLAGS} "${patch}"
+                fi
+            done
+
             echo "Installing from scratch into ${pkg_install_dir}"
             [ -d OpenBLAS-${openblas_ver} ] && rm -rf OpenBLAS-${openblas_ver}
             tar -zxf OpenBLAS-${openblas_ver}.tar.gz
             cd OpenBLAS-${openblas_ver}
-            patch -p1 < ../79ea839b635d1fd84b6ce8a47e086f01d64198e6.patch
+
+            for patch in "${PATCHES[@]}" ; do
+                patch -p1 < ../"${patch##*/}"
+            done
+
             # First attempt to make openblas using auto detected
             # TARGET, if this fails, then make with forced
             # TARGET=NEHALEM
