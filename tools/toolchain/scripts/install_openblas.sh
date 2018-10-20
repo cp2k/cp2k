@@ -75,8 +75,11 @@ case "$with_openblas" in
                  install > install.serial.log 2>&1
             if [ $ENABLE_OMP = "__TRUE__" ] ; then
                make clean > clean.log 2>&1
+               # wrt NUM_THREADS=64: this is what the most common Linux distros seem to choose atm
+               #                     for a good compromise between memory usage and scalability
                make -j $NPROCS \
                     MAKE_NB_JOBS=0 \
+                    NUM_THREADS=64 \
                     USE_THREAD=1 \
                     USE_OPENMP=1 \
                     LIBNAMESUFFIX=omp \
@@ -86,6 +89,7 @@ case "$with_openblas" in
                     > make.omp.log 2>&1
                make -j $NPROCS \
                     MAKE_NB_JOBS=0 \
+                    NUM_THREADS=64 \
                     USE_THREAD=1 \
                     USE_OPENMP=1 \
                     LIBNAMESUFFIX=omp \
