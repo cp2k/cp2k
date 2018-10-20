@@ -49,6 +49,7 @@ case "$with_openblas" in
             # TARGET=NEHALEM
             #
             ( make -j $NPROCS \
+                   MAKE_NB_JOBS=0 \
                    USE_THREAD=0 \
                    CC="${CC}" \
                    FC="${FC}" \
@@ -57,6 +58,7 @@ case "$with_openblas" in
             ) || ( \
                 make -j $NPROCS clean; \
                 make -j $NPROCS \
+                     MAKE_NB_JOBS=0 \
                      TARGET=NEHALEM \
                      USE_THREAD=0 \
                      CC="${CC}" \
@@ -65,6 +67,7 @@ case "$with_openblas" in
                      > make.serial.log 2>&1 \
             )
             make -j $NPROCS \
+                 MAKE_NB_JOBS=0 \
                  USE_THREAD=0 \
                  CC="${CC}" \
                  FC="${FC}" \
@@ -73,6 +76,7 @@ case "$with_openblas" in
             if [ $ENABLE_OMP = "__TRUE__" ] ; then
                make clean > clean.log 2>&1
                make -j $NPROCS \
+                    MAKE_NB_JOBS=0 \
                     USE_THREAD=1 \
                     USE_OPENMP=1 \
                     LIBNAMESUFFIX=omp \
@@ -81,6 +85,7 @@ case "$with_openblas" in
                     PREFIX="${pkg_install_dir}" \
                     > make.omp.log 2>&1
                make -j $NPROCS \
+                    MAKE_NB_JOBS=0 \
                     USE_THREAD=1 \
                     USE_OPENMP=1 \
                     LIBNAMESUFFIX=omp \
