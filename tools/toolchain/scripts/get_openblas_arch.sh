@@ -3,7 +3,7 @@
 SCRIPT_DIR="$(cd "$(dirname "$SCRIPT_NAME")" && pwd -P)"
 
 
-openblas_ver=${openblas_ver:-0.2.20}  #  Keep in sync with install_openblas.sh.
+openblas_ver=${openblas_ver:-0.3.3}  #  Keep in sync with install_openblas.sh.
 source "${SCRIPT_DIR}"/common_vars.sh
 source "${SCRIPT_DIR}"/tool_kit.sh
 source "${SCRIPT_DIR}"/signal_trap.sh
@@ -30,7 +30,8 @@ if ! [ "$openblas_dir" ] ; then
         echo "openblas-${openblas_ver}.tar.gz is found"
     else
         download_pkg ${DOWNLOADER_FLAGS} \
-                     https://www.cp2k.org/static/downloads/OpenBLAS-${openblas_ver}.tar.gz
+            https://github.com/xianyi/OpenBLAS/archive/v${openblas_ver}.tar.gz \
+            -o OpenBLAS-${openblas_ver}.tar.gz
     fi
     tar -xzf OpenBLAS-${openblas_ver}.tar.gz
     openblas_dir="$(find_openblas_dir)"
