@@ -6,7 +6,7 @@
 set -e
 rm -rf preprettify
 
-find ./src/ -type f -not -path "*/preprettify/*" -not -path "*/.svn/*" -print0 | xargs -0 md5sum > checksums.md5
+find ./src/ -type f -not -path "*/preprettify/*" -not -path "*/.git/*" -print0 | xargs -0 md5sum > checksums.md5
 md5sum ./data/POTENTIAL >> checksums.md5
 
 make --jobs=20 pretty
@@ -24,7 +24,7 @@ echo "Searching for doxify warnings ..."
 if grep -r -e "UNMATCHED_PROCEDURE_ARGUMENT" \
            -e "UNKNOWN_DOXYGEN_COMMENT" \
            -e "UNKNOWN_COMMENT" \
-           --exclude-dir=".svn" \
+           --exclude-dir=".git" \
            --exclude-dir="preprettify" \
            ./src/* ; then
   summary="Found doxify warnings"
