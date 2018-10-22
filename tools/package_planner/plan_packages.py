@@ -4,7 +4,7 @@
 # A tool to help planning CP2K packages, listing currently violated dependencies if any
 #
 
-
+from __future__ import print_function
 
 import re, sys, os
 from os import path
@@ -30,10 +30,8 @@ def main():
     abs_srcdir = abspath(srcdir)
 
     src_files = []
-    for root, dirs, files in os.walk(abs_srcdir):
-        if(root.endswith("/preprettify")):
-            continue
-        if("/.svn" in root):
+    for root, _, files in os.walk(abs_srcdir):
+        if root.endswith("/preprettify"):
             continue
         for fn in files:
             if(fn[-2:] in (".F", ".c", ".cu")):
