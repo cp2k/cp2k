@@ -71,9 +71,9 @@ MODULE qs_neighbor_lists
    USE qs_dftb_types,                   ONLY: qs_dftb_atom_type
    USE qs_dftb_utils,                   ONLY: get_dftb_atom_param
    USE qs_dispersion_types,             ONLY: qs_dispersion_type
-   USE qs_gcp_types,                    ONLY: qs_gcp_type
    USE qs_environment_types,            ONLY: get_qs_env,&
                                               qs_environment_type
+   USE qs_gcp_types,                    ONLY: qs_gcp_type
    USE qs_kind_types,                   ONLY: get_qs_kind,&
                                               get_qs_kind_set,&
                                               qs_kind_type

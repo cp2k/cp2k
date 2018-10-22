@@ -78,7 +78,6 @@ MODULE kg_energy_corrections
                                               pw_p_type
    USE qs_core_energies,                ONLY: calculate_ecore_overlap,&
                                               calculate_ecore_self
-   USE qs_gcp_method,                   ONLY: calculate_gcp_pairpot
    USE qs_dispersion_pairpot,           ONLY: calculate_dispersion_pairpot
    USE qs_environment_types,            ONLY: get_qs_env,&
                                               qs_environment_type

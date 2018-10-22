@@ -17,11 +17,12 @@ MODULE qs_gcp_utils
    USE cp_parser_types,                 ONLY: cp_parser_type,&
                                               parser_create,&
                                               parser_release
-   USE input_section_types,             ONLY: section_vals_get_subs_vals,&
+   USE input_section_types,             ONLY: section_vals_get,&
+                                              section_vals_get_subs_vals,&
                                               section_vals_type,&
-                                              section_vals_get,&
                                               section_vals_val_get
-   USE kinds,                           ONLY: dp, default_string_length
+   USE kinds,                           ONLY: default_string_length,&
+                                              dp
    USE periodic_table,                  ONLY: get_ptable_info
    USE qs_environment_types,            ONLY: get_qs_env,&
                                               qs_environment_type
@@ -55,7 +56,7 @@ MODULE qs_gcp_utils
    ! Empirically adjusted and consistent set of EHT valence orbital parameters for all elements of the periodic table
    ! Modelling and Simulation in Materials Science and Engineering, 12, 21-32 (2004)
    !
-   REAL(KIND=dp), DIMENSION(4, 106) :: sexp = RESHAPE ( (/ &
+   REAL(KIND=dp), DIMENSION(4, 106) :: sexp = RESHAPE((/ &
                            1.0000, 0.0000, 0.0000, 0.0000, 1.6469, 0.0000, 0.0000, 0.0000, 0.6534, 0.5305, 0.0000, 0.0000, & ! 1 2 3
                            1.0365, 0.8994, 0.0000, 0.0000, 1.3990, 1.2685, 0.0000, 0.0000, 1.7210, 1.6105, 0.0000, 0.0000, & ! 4 5 6
                            2.0348, 1.9398, 0.0000, 0.0000, 2.2399, 2.0477, 0.0000, 0.0000, 2.5644, 2.4022, 0.0000, 0.0000, & ! 7 8 9
@@ -91,8 +92,8 @@ MODULE qs_gcp_utils
                         1.8464, 1.4697, 2.5922, 5.4596, 1.8647, 1.4838, 2.6205, 5.6140, 1.8890, 1.5050, 2.6590, 5.7740, & ! 97 98 99
                      1.9070, 1.5190, 2.6850, 5.9220, 1.9240, 1.5320, 2.7090, 6.0690, 1.9400, 1.5440, 2.7300, 6.2130, & ! 100 101 102
                      2.1300, 1.7200, 2.9900, 0.0000, 1.9200, 1.4500, 2.9700, 0.0000, 0.0000, 0.0000, 0.0000, 0.0000, & ! 103 104 105
-                                       0.0000, 0.0000, 0.0000, 0.0000/) , &  ! 106
-                       (/4, 106/) ) 
+                                                      0.0000, 0.0000, 0.0000, 0.0000/), & ! 106
+                                                      (/4, 106/))
 
    PUBLIC :: qs_gcp_env_set, qs_gcp_init
 
@@ -158,7 +159,7 @@ CONTAINS
       TYPE(qs_gcp_type), POINTER                         :: gcp_env
 
       CHARACTER(len=*), PARAMETER :: routineN = 'qs_gcp_init', routineP = moduleN//':'//routineN
-      REAL(KIND=dp), PARAMETER                           :: epsc = 1.e-3_dp
+      REAL(KIND=dp), PARAMETER                           :: epsc = 1.e-6_dp
 
       CHARACTER(LEN=10)                                  :: aname
       CHARACTER(LEN=2)                                   :: element_symbol
@@ -180,7 +181,7 @@ CONTAINS
             CALL get_qs_kind(qs_kind, element_symbol=element_symbol)
             CALL get_ptable_info(element_symbol, number=za)
             gcp_env%gcp_kind(ikind)%za = za
-            gcp_env%gcp_kind(ikind)%asto = SUM(sexp(1:4,za))/REAL(nll(za), KIND=dp)
+            gcp_env%gcp_kind(ikind)%asto = gcp_env%eta*SUM(sexp(1:4, za))/REAL(nll(za), KIND=dp)
             gcp_env%gcp_kind(ikind)%nq = nshell(za)
             gcp_env%gcp_kind(ikind)%rcsto = ((nshell(za)-1)*2.5_dp-LOG(epsc))/gcp_env%gcp_kind(ikind)%asto
             ! basis
@@ -194,32 +195,35 @@ CONTAINS
                             gcp_env%gcp_kind(ikind)%al, gcp_env%gcp_kind(ikind)%cl)
          END DO
          ! eamiss from data file
-         CALL get_qs_env(qs_env, para_env=para_env)
-         DO ikind = 1, nkind
-            qs_kind => qs_kind_set(ikind)
-            CALL get_qs_kind(qs_kind, element_symbol=element_symbol)
-            CALL get_ptable_info(element_symbol, number=za)
-            !
-            NULLIFY (parser)
-            CALL parser_create(parser, gcp_env%parameter_file_name, para_env=para_env)
-            ea = 0.0_dp
-            DO
-               at_end = .FALSE.
-               CALL parser_get_next_line(parser, 1, at_end)
-               IF (at_end) EXIT
-               CALL parser_get_object(parser, aname)
-               IF (TRIM(aname) == element_symbol) THEN
-                  CALL parser_get_object(parser, ea)
-                  EXIT
-               END IF
+         IF (gcp_env%parameter_file_name /= "---") THEN
+            CALL get_qs_env(qs_env, para_env=para_env)
+            DO ikind = 1, nkind
+               qs_kind => qs_kind_set(ikind)
+               CALL get_qs_kind(qs_kind, element_symbol=element_symbol)
+               CALL get_ptable_info(element_symbol, number=za)
+               !
+               NULLIFY (parser)
+               CALL parser_create(parser, gcp_env%parameter_file_name, para_env=para_env)
+               ea = 0.0_dp
+               DO
+                  at_end = .FALSE.
+                  CALL parser_get_next_line(parser, 1, at_end)
+                  IF (at_end) EXIT
+                  CALL parser_get_object(parser, aname)
+                  IF (TRIM(aname) == element_symbol) THEN
+                     CALL parser_get_object(parser, ea)
+                     EXIT
+                  END IF
+               END DO
+               CALL parser_release(parser)
+               gcp_env%gcp_kind(ikind)%eamiss = ea
             END DO
-            CALL parser_release(parser)
-            gcp_env%gcp_kind(ikind)%eamiss = ea
-         END DO
+         END IF
          !
          ! eamiss from input
          IF (ASSOCIATED(gcp_env%kind_type)) THEN
             DO i = 1, SIZE(gcp_env%kind_type)
+               IF (TRIM(gcp_env%kind_type(i)) == "XX") CYCLE
                CALL get_ptable_info(TRIM(gcp_env%kind_type(i)), number=za)
                ea = gcp_env%ea(i)
                DO ikind = 1, nkind

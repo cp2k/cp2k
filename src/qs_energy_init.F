@@ -40,8 +40,6 @@ MODULE qs_energy_init
    USE qs_core_hamiltonian,             ONLY: build_core_hamiltonian_matrix
    USE qs_dftb_dispersion,              ONLY: calculate_dftb_dispersion
    USE qs_dftb_matrices,                ONLY: build_dftb_matrices
-   USE qs_gcp_method,                   ONLY: calculate_gcp_pairpot
-   USE qs_gcp_types,                    ONLY: qs_gcp_type
    USE qs_dispersion_pairpot,           ONLY: calculate_dispersion_pairpot
    USE qs_dispersion_types,             ONLY: qs_dispersion_type
    USE qs_energy_types,                 ONLY: qs_energy_type
@@ -50,6 +48,8 @@ MODULE qs_energy_init
    USE qs_external_density,             ONLY: external_read_density
    USE qs_external_potential,           ONLY: external_c_potential,&
                                               external_e_potential
+   USE qs_gcp_method,                   ONLY: calculate_gcp_pairpot
+   USE qs_gcp_types,                    ONLY: qs_gcp_type
    USE qs_ks_methods,                   ONLY: qs_ks_allocate_basics
    USE qs_ks_types,                     ONLY: qs_ks_env_type,&
                                               set_ks_env
@@ -262,8 +262,8 @@ CONTAINS
       TYPE(neighbor_list_set_p_type), DIMENSION(:), &
          POINTER                                         :: sab_nl
       TYPE(qs_dispersion_type), POINTER                  :: dispersion_env
-      TYPE(qs_gcp_type), POINTER                         :: gcp_env
       TYPE(qs_energy_type), POINTER                      :: energy
+      TYPE(qs_gcp_type), POINTER                         :: gcp_env
       TYPE(section_vals_type), POINTER                   :: input
 
       CALL timeset(routineN, handle)

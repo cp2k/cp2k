@@ -38,6 +38,7 @@ MODULE qs_force_types
                                                  g0s_Vh_elec, &
                                                  repulsive, &
                                                  dispersion, &
+                                                 gcp, &
                                                  other, &
                                                  ch_pulay, &
                                                  fock_4c, &
@@ -100,6 +101,7 @@ CONTAINS
          ALLOCATE (qs_force(ikind)%g0s_Vh_elec(3, n))
          ALLOCATE (qs_force(ikind)%repulsive(3, n))
          ALLOCATE (qs_force(ikind)%dispersion(3, n))
+         ALLOCATE (qs_force(ikind)%gcp(3, n))
          ALLOCATE (qs_force(ikind)%other(3, n))
          ALLOCATE (qs_force(ikind)%ch_pulay(3, n))
          ALLOCATE (qs_force(ikind)%ehrenfest(3, n))
@@ -196,6 +198,10 @@ CONTAINS
             DEALLOCATE (qs_force(ikind)%dispersion)
          END IF
 
+         IF (ASSOCIATED(qs_force(ikind)%gcp)) THEN
+            DEALLOCATE (qs_force(ikind)%gcp)
+         END IF
+
          IF (ASSOCIATED(qs_force(ikind)%other)) THEN
             DEALLOCATE (qs_force(ikind)%other)
          END IF
@@ -270,6 +276,7 @@ CONTAINS
          qs_force(ikind)%g0s_Vh_elec(:, :) = 0.0_dp
          qs_force(ikind)%repulsive(:, :) = 0.0_dp
          qs_force(ikind)%dispersion(:, :) = 0.0_dp
+         qs_force(ikind)%gcp(:, :) = 0.0_dp
          qs_force(ikind)%other(:, :) = 0.0_dp
          qs_force(ikind)%fock_4c(:, :) = 0.0_dp
          qs_force(ikind)%ehrenfest(:, :) = 0.0_dp
@@ -320,6 +327,7 @@ CONTAINS
          CALL mp_sum(qs_force(ikind)%mp2_sep, para_env%group)
          CALL mp_sum(qs_force(ikind)%repulsive, para_env%group)
          CALL mp_sum(qs_force(ikind)%dispersion, para_env%group)
+         CALL mp_sum(qs_force(ikind)%gcp, para_env%group)
          CALL mp_sum(qs_force(ikind)%ehrenfest, para_env%group)
 
          qs_force(ikind)%total(:, :) = qs_force(ikind)%total(:, :)+ &
@@ -341,6 +349,7 @@ CONTAINS
                                        qs_force(ikind)%mp2_sep(:, :)+ &
                                        qs_force(ikind)%repulsive(:, :)+ &
                                        qs_force(ikind)%dispersion(:, :)+ &
+                                       qs_force(ikind)%gcp(:, :)+ &
                                        qs_force(ikind)%ehrenfest(:, :)+ &
                                        qs_force(ikind)%efield(:, :)+ &
                                        qs_force(ikind)%eev(:, :)

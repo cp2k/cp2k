@@ -1095,7 +1095,6 @@ CONTAINS
          routineP = moduleN//':'//routineN
 
       TYPE(keyword_type), POINTER                        :: keyword
-      TYPE(section_type), POINTER                        :: subsection
 
       CPASSERT(.NOT. ASSOCIATED(section))
       CALL section_create(section, name="gcp_potential", &
@@ -1104,11 +1103,12 @@ CONTAINS
                           citations=(/Kruse2012/), &
                           n_keywords=1, n_subsections=1, repeats=.FALSE.)
 
+      NULLIFY (keyword)
       CALL keyword_create(keyword, name="PARAMETER_FILE_NAME", &
                           description="Name of the parameter file, may include a path", &
                           usage="PARAMETER_FILE_NAME <FILENAME>", &
-                          default_lc_val="gCP_PARAMETERS")
-      CALL section_add_keyword(subsection, keyword)
+                          default_lc_val="---")
+      CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
       CALL keyword_create(keyword, name="GLOBAL_PARAMETERS", &
@@ -1116,7 +1116,7 @@ CONTAINS
                           " Parameters are sigma, alpha, beta, eta from the original paper.", &
                           usage="GLOBAL_PARAMETERS 1.0 1.0 1.0 1.0", n_var=4, &
                           default_r_vals=(/0.0_dp, 0.0_dp, 0.0_dp, 0.0_dp/))
-      CALL section_add_keyword(subsection, keyword)
+      CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
       CALL keyword_create(keyword, name="DELTA_ENERGY", &

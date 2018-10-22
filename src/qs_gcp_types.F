@@ -59,13 +59,15 @@ MODULE qs_gcp_types
 CONTAINS
 ! **************************************************************************************************
 !> \brief ...
+!> \param gcp_env ...
 ! **************************************************************************************************
    SUBROUTINE qs_gcp_release(gcp_env)
+
+      TYPE(qs_gcp_type), POINTER                         :: gcp_env
 
       CHARACTER(len=*), PARAMETER :: routineN = 'qs_gcp_release', routineP = moduleN//':'//routineN
 
       INTEGER                                            :: iab
-      TYPE(qs_gcp_type), POINTER                         :: gcp_env
 
       IF (ASSOCIATED(gcp_env)) THEN
 
