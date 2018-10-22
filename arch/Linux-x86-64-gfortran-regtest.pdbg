@@ -1,42 +1,42 @@
-# Tested with: GFortran 7.3.0, MPICH 3.2.1, LAPACK 3.5.0, ScaLAPACK 2.0.2, FFTW 3.3, Libint 1.1.4, Libxc 4.2.3, ELPA 2017.05.003, PLUMED 2.1.2
+# Tested with: GFortran 6.4.0, MPICH 3.2.1, LAPACK 3.8.0, ScaLAPACK 2.0.2, FFTW 3.3, Libint 1.1.6, Libxc 4.2.3, ELPA 2017.05.003, PLUMED 2.4.1
 # Author: Matthias Krack (matthias.krack@psi.ch, PSI, October 2018)
 CC         = gcc
 CPP        =
 FC         = mpif90
 LD         = mpif90
 AR         = ar -r
-include      $(MPI_PATH)/plumed/2.1.2-regtest/lib/plumed/src/lib/Plumed.inc.static
+include      $(MPI_PATH)/plumed/2.4.1/lib/plumed/src/lib/Plumed.inc.static
 ELPA_VER   = 2017.05.003
-ELPA_INC   = $(MPI_PATH)/elpa/$(ELPA_VER)-regtest/include/elpa-$(ELPA_VER)
-ELPA_LIB   = $(MPI_PATH)/elpa/$(ELPA_VER)-regtest/lib
+ELPA_INC   = $(MPI_PATH)/elpa/$(ELPA_VER)/include/elpa-$(ELPA_VER)
+ELPA_LIB   = $(MPI_PATH)/elpa/$(ELPA_VER)/lib
 FFTW_INC   = $(GCC_DIR)/fftw/3.3-regtest/include
 FFTW_LIB   = $(GCC_DIR)/fftw/3.3-regtest/lib
-LIBINT_INC = $(GCC_DIR)/libint/1.1.4-default-regtest/include
-LIBINT_LIB = $(GCC_DIR)/libint/1.1.4-default-regtest/lib
+LIBINT_INC = $(GCC_DIR)/libint/1.1.6-default-regtest/include
+LIBINT_LIB = $(GCC_DIR)/libint/1.1.6-default-regtest/lib
 LIBXC_INC  = $(GCC_DIR)/libxc/4.2.3-regtest/include
 LIBXC_LIB  = $(GCC_DIR)/libxc/4.2.3-regtest/lib
-DFLAGS     = -D__ELPA=201705 -D__F2008 -D__FFTW3 -D__LIBINT -D__LIBXC\
-             -D__MPI_VERSION=3 -D__PLUMED2\
+DFLAGS     = -D__ELPA=201705 -D__F2008 -D__FFTW3 -D__LIBINT -D__LIBXC \
+             -D__MPI_VERSION=3 -D__PLUMED2 \
              -D__parallel -D__SCALAPACK
 CPPFLAGS   =
-WFLAGS     = -Waliasing -Wampersand -Wc-binding-type -Wconversion\
-             -Wintrinsic-shadow -Wintrinsics-std -Wline-truncation\
-             -Wno-tabs -Wrealloc-lhs-all -Wtarget-lifetime -Wunderflow\
-             -Wunused-but-set-variable -Wunused-dummy-argument -Wunused-variable\
+WFLAGS     = -Waliasing -Wampersand -Wc-binding-type -Wconversion \
+             -Wintrinsic-shadow -Wintrinsics-std -Wline-truncation \
+             -Wno-tabs -Wrealloc-lhs-all -Wtarget-lifetime -Wunderflow \
+             -Wunused-but-set-variable -Wunused-dummy-argument -Wunused-variable \
              -Werror
-FCFLAGS    = $(DFLAGS) -O1 -fcheck=bounds,do,recursion,pointer -ffree-form\
-             -ffree-line-length-none -fimplicit-none -fno-omit-frame-pointer\
-             -g -mtune=generic -std=f2008\
-             -I$(ELPA_INC)/elpa -I$(ELPA_INC)/modules\
+FCFLAGS    = $(DFLAGS) -O1 -fcheck=bounds,do,recursion,pointer -ffree-form \
+             -ffree-line-length-none -fimplicit-none -fno-omit-frame-pointer \
+             -g -mtune=generic -std=f2008 \
+             -I$(ELPA_INC)/elpa -I$(ELPA_INC)/modules \
              -I$(FFTW_INC) -I$(LIBINT_INC) -I$(LIBXC_INC) $(WFLAGS)
 LDFLAGS    = $(FCFLAGS) -fsanitize=leak
-LIBS       = $(MPI_LIBRARY_PATH)/libscalapack-gnu-regtest.a\
-             $(PLUMED_DEPENDENCIES) -ldl -lz\
-             $(ELPA_LIB)/libelpa.a -lstdc++\
-             $(LIBPATH)/liblapack-gnu-regtest.a\
-             $(LIBPATH)/libblas-gnu-regtest.a\
-             $(FFTW_LIB)/libfftw3.a\
-             $(LIBXC_LIB)/libxcf03.a\
-             $(LIBXC_LIB)/libxc.a\
-             $(LIBINT_LIB)/libderiv.a\
+LIBS       = $(MPI_LIBRARY_PATH)/libscalapack-regtest.a \
+             $(PLUMED_DEPENDENCIES) -ldl -lz \
+             $(ELPA_LIB)/libelpa.a -lstdc++ \
+             $(LIBPATH)/liblapack-regtest.a \
+             $(LIBPATH)/libblas-regtest.a \
+             $(FFTW_LIB)/libfftw3.a \
+             $(LIBXC_LIB)/libxcf03.a \
+             $(LIBXC_LIB)/libxc.a \
+             $(LIBINT_LIB)/libderiv.a \
              $(LIBINT_LIB)/libint.a
