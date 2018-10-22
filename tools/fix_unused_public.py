@@ -19,15 +19,13 @@ re_pub     = re.compile(r"\n\s*public\s*::\s*(.*)(?=\n)")
 def main():
     src_dir = "../src"
     parsed_files = {}
-    for root, dir, files in os.walk(src_dir):
-        if("preprettify" in root):
-            continue
-        if(".svn" in root):
+    for root, _, files in os.walk(src_dir):
+        if "preprettify" in root:
             continue
         for fn in files:
-            if(not fn.endswith(".F")):
+            if not fn.endswith(".F"):
                 continue
-            absfn = root+"/"+fn
+            absfn = path.join(root, fn)
 
             parsed_files[absfn] =  parse_file(absfn)
 
