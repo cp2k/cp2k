@@ -19,10 +19,10 @@ def main():
     sys.stderr.write("Discovering programs ...\n")
 
     programs = []
-    for root, dirs, files in os.walk(srcdir):
+    for root, _, files in os.walk(srcdir):
         if(root.endswith("/preprettify")):
             continue
-        if("/.svn" in root):
+        if("/.git" in root):
             continue
 
         for fn in files:
