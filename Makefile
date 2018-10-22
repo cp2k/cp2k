@@ -61,7 +61,7 @@ endif
 
 
 # Discover files and directories ============================================
-ALL_SRC_DIRS := $(shell find $(SRCDIR) -type d ! -name preprettify  ! -path "*/.svn*" | awk '{printf("%s:",$$1)}')
+ALL_SRC_DIRS := $(shell find $(SRCDIR) -type d ! -name preprettify | awk '{printf("%s:",$$1)}')
 LIBCUSMM_DIR := $(shell cd $(SRCDIR) ; find . -type d -name "libcusmm")
 LIBCUSMM_ABS_DIR := $(shell find $(SRCDIR) -type d -name "libcusmm")
 ALL_PREPRETTY_DIRS = $(shell find $(SRCDIR) -type d -name preprettify)
@@ -273,14 +273,6 @@ OTHER_HELP += "testrealclean : Remove all LAST-* and TEST-* files for given ARCH
 distclean: prettyclean doxifyclean testrealclean
 	rm -rf $(DOXYGENDIR) $(MAINEXEDIR) $(MAINOBJDIR) $(MAINLIBDIR) $(MAINTSTDIR) $(LIBCUSMM_ABS_DIR)/libcusmm.cu
 OTHER_HELP += "distclean : Remove all files from previous builds"
-
-#
-# Remove ALL files not in SVN
-# NOTE: This removes really everything not committed to SVN
-#
-mrproper:
-	cd $(CP2KHOME); ./tools/clean_cwd.sh
-OTHER_HELP += "mrproper : Remove ALL files not in SVN"
 
 # Prettyfier stuff ==========================================================
 vpath %.pretty $(PRETTYOBJDIR)
