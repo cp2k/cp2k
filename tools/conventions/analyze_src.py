@@ -41,8 +41,7 @@ def main():
 
     # check flags and banners
     flags = set()
-    for root, dirs, files in os.walk(path.join(cp2k_dir, "src")):
-        if(".svn" in root): continue
+    for root, _, files in os.walk(path.join(cp2k_dir, "src")):
         #print("Scanning %s ..."%root)
         for fn in files:
             fn_ext = fn.rsplit(".",1)[-1]
@@ -86,19 +85,17 @@ def main():
 
     # check for copies of data files
     data_files = set()
-    for root, dirs, files in os.walk(path.join(cp2k_dir, "data")):
-        if(".svn" in root): continue
+    for _, _, files in os.walk(path.join(cp2k_dir, "data")):
         data_files.update(files)
     data_files.remove("README")
-    for root, dirs, files in os.walk(path.join(cp2k_dir, "tests")):
-        if(".svn" in root): continue
+    for root, _, files in os.walk(path.join(cp2k_dir, "tests")):
         d = path.relpath(root, cp2k_dir)
         for c in data_files.intersection(files):
             print("Data file %s copied to %s"%(c, d))
 
     # check linebreaks and encoding
-    for root, dirs, files in os.walk(cp2k_dir):
-        if(any([x in root for x in (".svn", "obj", "lib", "exe", "regtesting",)])):
+    for root, _, files in os.walk(cp2k_dir):
+        if any(x in root for x in (".git", "obj", "lib", "exe", "regtesting")):
             continue
         for fn in files:
             absfn = path.join(root, fn)
