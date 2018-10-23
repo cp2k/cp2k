@@ -7994,13 +7994,9 @@ CONTAINS
 
       CALL keyword_create(keyword, name="SPIN_ORBIT_COUPLING", &
                           variants=(/"SOC"/), &
-                          description="The number of excited states to include in spin-orbit "// &
-                                      "coupling calculations. The N lowest energy excited states, "// &
-                                       "regardless of their spin multiplicity, are taken. "// &
-                                       "If zero, SOC is not treated. If -1, all available  "// &
-                                       "excited states are taken.", &
-                          usage="SOC {integer}", &
-                          default_i_val=0)
+                          description="Whether spin-orbit coupling should be added. ", &
+                          usage="SOC {logical}", &
+                          default_l_val=.FALSE.)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
@@ -8012,11 +8008,11 @@ CONTAINS
       CALL section_add_keyword(section, keyword)    
       CALL keyword_release(keyword)      
 
-      CALL keyword_create(keyword, name="FULL_DIAG", &
-                          description="Whether the linear response matrix should be fully "//&
-                                      "built and diagonalized using standard methods", &
-                          usage="FULL_DIAG {logical}", &
-                          default_l_val=.FALSE.)
+      CALL keyword_create(keyword, name="N_EXCITED", &
+                          description="The number of excited states (singlet/triplet) to compute."//&
+                                      "If N_EXCITED is set to -1, all excitations are considered.",& 
+                          usage="N_EXCITED {integer}", &
+                          default_i_val=-1)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
