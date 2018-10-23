@@ -165,11 +165,11 @@ CONTAINS
             clb(1:3) = gcp_env%gcp_kind(jkind)%cl(1:3)
             IF (calculate_forces) THEN
                CALL overlap_ab(0, 0, 3, rcut, zeta, 0, 0, 3, rcut, zetb, rij, sab, dab)
-            ELSE
-               CALL overlap_ab(0, 0, 3, rcut, zeta, 0, 0, 3, rcut, zetb, rij, sab)
                DO i = 1, 3
                   dsint(i) = SUM(cla(1:3)*MATMUL(dab(:, :, i), clb))
                END DO
+            ELSE
+               CALL overlap_ab(0, 0, 3, rcut, zeta, 0, 0, 3, rcut, zetb, rij, sab)
             END IF
             sint = SUM(cla(1:3)*MATMUL(sab, clb))
             sqa = SQRT(sint*nvirta)
@@ -186,8 +186,8 @@ CONTAINS
             END IF
             egcp = egcp+fac*(fda+fdb)
             IF (calculate_forces) THEN
-               fdij = fac*(fda+fdb)*(-gcp_env%alpha*gcp_env%beta*rcc**(gcp_env%beta-1.0_dp)*rij(1:3)/rcc &
-                                     +0.5_dp/sint*dsint(1:3))
+               fdij = -fac*(fda+fdb)*(gcp_env%alpha*gcp_env%beta*rcc**(gcp_env%beta-1.0_dp)*rij(1:3)/rcc) 
+               fdij = fdij + 0.25_dp*fac*(fda/(sqb*sqb)+fdb/(sqa*sqa))*dsint(1:3)
                atom_a = atom_of_kind(iatom)
                atom_b = atom_of_kind(jatom)
                force(ikind)%gcp(:, atom_a) = force(ikind)%gcp(:, atom_a)-fdij(:)

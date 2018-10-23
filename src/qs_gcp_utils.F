@@ -189,7 +189,7 @@ CONTAINS
             CALL get_qs_kind(qs_kind, basis_set=orb_basis, basis_type="ORB")
             CALL get_gto_basis_set(gto_basis_set=orb_basis, nsgf=nbas)
             nel = SUM(qs_kind%elec_conf)
-            gcp_env%gcp_kind(ikind)%nbvirt = REAL((nbas-(nel+1)/2), KIND=dp)
+            gcp_env%gcp_kind(ikind)%nbvirt = REAL(nbas,KIND=dp)-0.5_dp*REAL(nel,KIND=dp)
             ! STO-3G
             CALL get_sto_ng(gcp_env%gcp_kind(ikind)%asto, 3, nshell(za), 0, &
                             gcp_env%gcp_kind(ikind)%al, gcp_env%gcp_kind(ikind)%cl)
@@ -224,7 +224,8 @@ CONTAINS
          IF (ASSOCIATED(gcp_env%kind_type)) THEN
             DO i = 1, SIZE(gcp_env%kind_type)
                IF (TRIM(gcp_env%kind_type(i)) == "XX") CYCLE
-               CALL get_ptable_info(TRIM(gcp_env%kind_type(i)), number=za)
+               element_symbol = TRIM(gcp_env%kind_type(i))
+               CALL get_ptable_info(element_symbol, number=za)
                ea = gcp_env%ea(i)
                DO ikind = 1, nkind
                   IF (za == gcp_env%gcp_kind(ikind)%za) THEN
