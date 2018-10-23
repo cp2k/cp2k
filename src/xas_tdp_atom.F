@@ -24,7 +24,8 @@ MODULE xas_tdp_atom
                                               dbcsr_finalize, dbcsr_release, dbcsr_get_block_p, &
                                               dbcsr_release_p, dbcsr_iterator_type, &  
                                               dbcsr_iterator_blocks_left, dbcsr_iterator_start, &
-                                              dbcsr_iterator_stop, dbcsr_iterator_next_block
+                                              dbcsr_iterator_stop, dbcsr_iterator_next_block, &
+                                              dbcsr_type
    USE distribution_1d_types,           ONLY: distribution_1d_type
    USE distribution_2d_types,           ONLY: distribution_2d_type
    USE generic_os_integrals,            ONLY: int_overlap_ab_os
@@ -703,7 +704,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE integrate_fxc_atoms(int_mat, xas_atom_env, qs_env, singlet)
 
-      TYPE(dbcsr_p_type)                              :: int_mat
+      TYPE(dbcsr_type), POINTER                       :: int_mat
       TYPE(xas_atom_env_type), POINTER                :: xas_atom_env  
       TYPE(qs_environment_type), POINTER              :: qs_env   
       LOGICAL, INTENT(IN)                             :: singlet
@@ -734,7 +735,7 @@ CONTAINS
 
 !  Create the integral matrices based on the usual dbcsr_dist and the custom xas_atom_env block sizes
       CALL get_qs_env(qs_env, dbcsr_dist=dbcsr_dist, matrix_s=matrix_s)
-      CALL dbcsr_create(matrix=int_mat%matrix, name="RI atomic Fxc integrals", matrix_type='S', &         
+      CALL dbcsr_create(matrix=int_mat, name="RI atomic Fxc integrals", matrix_type='S', &         
                         dist=dbcsr_dist, row_blk_size=xas_atom_env%ri_blk_size, &                        
                         col_blk_size=xas_atom_env%ri_blk_size)
 
@@ -818,7 +819,7 @@ CONTAINS
          END DO !iset
 
 !     Put the integrals for this atom as blocks in the dbcsr matrices
-         CALL dbcsr_put_block(int_mat%matrix, iat, iat, int_sgf)
+         CALL dbcsr_put_block(int_mat, iat, iat, int_sgf)
 
 !     Clean-up 
          DEALLOCATE(int_sgf, int_so)
@@ -827,7 +828,7 @@ CONTAINS
       CALL dbcsr_iterator_stop(iter)
 
 !  Finalize the matrix
-      CALL dbcsr_finalize(int_mat%matrix)
+      CALL dbcsr_finalize(int_mat)
 
    END SUBROUTINE integrate_fxc_atoms
 

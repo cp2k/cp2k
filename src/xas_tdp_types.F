@@ -42,13 +42,12 @@ MODULE xas_tdp_types
 !> \param fxc_func which xc functional should be used for the xc kernel computation
 !> \param check_donor_states whether one only checks MO to donor state assignment
 !> \param tamm_dancoff whether the calculations should be done in the Tamm-Dancoff approximation
-!> \param full_diag whether the LR matrix should be fully built and diagonalized
 !> \param list_ex_atoms list of excited atom indices, kept empty if define_excited=by_kind
 !> \param list_ex_kinds list of excited atom kinds, kept empty if define_excited=by_index
 !> \param do_singlet whether singlet excitations should be computed
 !> \param do_triplet whether triplet excitations should be computed
 !> \param do_soc whether spin-orbit coupling should be included
-!> \param n_soc the number of excited states to include in SOC for each multiplicity
+!> \param n_excited the number of excited states to compute
 !> \param state_types columns correspond to the states to excite for each atom kind/index
 !>                    the number of rows is the number of times the keyword is repeated
 !> \param grid_info the information about the atomic grids used for the xc kernel integrals
@@ -58,10 +57,9 @@ MODULE xas_tdp_types
       INTEGER                                 :: dipole_form
       INTEGER                                 :: n_search
       INTEGER                                 :: fxc_func
-      INTEGER                                 :: n_soc
+      INTEGER                                 :: n_excited
       LOGICAL                                 :: check_donor_states
       LOGICAL                                 :: tamm_dancoff
-      LOGICAL                                 :: full_diag
       LOGICAL                                 :: do_soc
       LOGICAL                                 :: do_singlet
       LOGICAL                                 :: do_triplet
@@ -91,6 +89,7 @@ MODULE xas_tdp_types
 !>        excited kinds, based on basis functions of the RI auxiliary basis used for Coulomb and
 !>        exchange kernels. 
 !> \param q_projector the projector on the unperturbed, unoccupied ground state as a dbcsr matrix
+!> \param p_projector the projector on the unperturbed, occupied ground state 
 !> \param dipmat the dbcsr matrices containing the dipole in x,y,z directions evaluated on the 
 !>        contracted spherical gaussians. It can either be in the length or the velocity 
 !>        representation. For length representation, it has to be computed once with the origin on 
@@ -116,10 +115,11 @@ MODULE xas_tdp_types
       TYPE(cp_2d_r_p_type), DIMENSION(:), &
                                     POINTER   :: ri_inv_mats
       TYPE(dbcsr_type), POINTER               :: q_projector
+      TYPE(dbcsr_type), POINTER               :: p_projector
       TYPE(dbcsr_p_type), DIMENSION(:), &
                                     POINTER   :: dipmat
-      TYPE(dbcsr_p_type)                      :: ri_fxc_sg
-      TYPE(dbcsr_p_type)                      :: ri_fxc_tp
+      TYPE(dbcsr_type), POINTER               :: ri_fxc_sg
+      TYPE(dbcsr_type), POINTER               :: ri_fxc_tp
       TYPE(dbcsr_p_type), DIMENSION(:), &
                                     POINTER   :: orb_soc
    END TYPE xas_tdp_env_type
@@ -145,7 +145,7 @@ MODULE xas_tdp_types
 !> \param sg_matrix_tdp the dbcsr matrix to be diagonalized to solve the problem for singlets
 !> \param tp_matrix_tdp the dbcsr matrix to be diagonalized to solve the problem for triplets
 !> \param metric the metric of the linear response problem M*c = omega*S*c and its inverse
-!> \param matrix_aux the auxiliary matrix (A-D+E)^1/2 used to make the problem Hermitian
+!> \param matrix_aux the auxiliary matrix (A-D+E)^+-1/2 used to make the problem Hermitian
 !> *************************************************************************************************
    TYPE donor_state_type
       INTEGER                                 :: at_index
@@ -169,7 +169,9 @@ MODULE xas_tdp_types
       TYPE(dbcsr_type), POINTER               :: tp_matrix_tdp
       TYPE(dbcsr_p_type), DIMENSION(:), &
                                     POINTER   :: metric
-      TYPE(dbcsr_type), POINTER               :: matrix_aux
+      TYPE(dbcsr_p_type), DIMENSION(:), &
+                                    POINTER   :: matrix_aux
+
    END TYPE donor_state_type
 
 !  Some helper types
@@ -236,11 +238,10 @@ CONTAINS
       xas_tdp_control%fxc_func = xas_tdp_hfx
       xas_tdp_control%check_donor_states = .FALSE.
       xas_tdp_control%tamm_dancoff = .FALSE.
-      xas_tdp_control%full_diag = .FALSE.
       xas_tdp_control%do_soc = .FALSE.
       xas_tdp_control%do_singlet = .TRUE.
       xas_tdp_control%do_triplet = .FALSE.
-      xas_tdp_control%n_soc = 0
+      xas_tdp_control%n_excited = -1
       NULLIFY (xas_tdp_control%state_types)
       NULLIFY (xas_tdp_control%list_ex_atoms)
       NULLIFY (xas_tdp_control%list_ex_kinds)
@@ -308,9 +309,9 @@ CONTAINS
 
       CALL section_vals_val_get(xas_tdp_section, "TAMM_DANCOFF", &
                                 l_val=xas_tdp_control%tamm_dancoff)
-
-      CALL section_vals_val_get(xas_tdp_section, "FULL_DIAG", &
-                                l_val=xas_tdp_control%full_diag)
+                           
+      CALL section_vals_val_get(xas_tdp_section, "SPIN_ORBIT_COUPLING", &
+                                l_val=xas_tdp_control%do_soc)
 
       CALL section_vals_val_get(xas_tdp_section, "EXCITATIONS", i_val=excitation)
       IF (excitation == tddfpt_singlet) THEN
@@ -324,8 +325,7 @@ CONTAINS
          xas_tdp_control%do_triplet = .TRUE.
       END IF
 
-      CALL section_vals_val_get(xas_tdp_section, "SPIN_ORBIT_COUPLING", i_val=xas_tdp_control%n_soc)
-      IF (xas_tdp_control%n_soc .NE. 0) xas_tdp_control%do_soc = .TRUE.
+      CALL section_vals_val_get(xas_tdp_section, "N_EXCITED", i_val=xas_tdp_control%n_excited)
 
       IF (.NOT. ASSOCIATED(xas_tdp_control%list_ex_kinds)) THEN
          IF (xas_tdp_control%define_excited .EQ. xas_tdp_by_index) THEN
@@ -420,10 +420,11 @@ CONTAINS
       NULLIFY (xas_tdp_env%mos_of_ex_atoms)
       NULLIFY (xas_tdp_env%ri_inv_mats)
       NULLIFY (xas_tdp_env%q_projector)
+      NULLIFY (xas_tdp_env%p_projector)
       NULLIFY (xas_tdp_env%dipmat)
       NULLIFY (xas_tdp_env%ri_coul3)
-      NULLIFY (xas_tdp_env%ri_fxc_sg%matrix)
-      NULLIFY (xas_tdp_env%ri_fxc_tp%matrix)
+      NULLIFY (xas_tdp_env%ri_fxc_sg)
+      NULLIFY (xas_tdp_env%ri_fxc_tp)
       NULLIFY (xas_tdp_env%orb_soc)
 
 !     Putting the state types as char manually
@@ -476,6 +477,10 @@ CONTAINS
             CALL dbcsr_release(xas_tdp_env%q_projector)
             DEALLOCATE(xas_tdp_env%q_projector)
          END IF
+         IF (ASSOCIATED(xas_tdp_env%p_projector)) THEN
+            CALL dbcsr_release(xas_tdp_env%p_projector)
+            DEALLOCATE(xas_tdp_env%p_projector)
+         END IF
          IF (ASSOCIATED(xas_tdp_env%dipmat)) THEN
             DO i = 1,SIZE(xas_tdp_env%dipmat)
                CALL dbcsr_release_p(xas_tdp_env%dipmat(i)%matrix)
@@ -485,13 +490,13 @@ CONTAINS
          IF (ASSOCIATED(xas_tdp_env%ri_coul3)) THEN
             DEALLOCATE(xas_tdp_env%ri_coul3)
          END IF
-         IF (ASSOCIATED(xas_tdp_env%ri_fxc_sg%matrix)) THEN
-            CALL dbcsr_release(xas_tdp_env%ri_fxc_sg%matrix)
-            DEALLOCATE(xas_tdp_env%ri_fxc_sg%matrix)
+         IF (ASSOCIATED(xas_tdp_env%ri_fxc_sg)) THEN
+            CALL dbcsr_release(xas_tdp_env%ri_fxc_sg)
+            DEALLOCATE(xas_tdp_env%ri_fxc_sg)
          END IF
-         IF (ASSOCIATED(xas_tdp_env%ri_fxc_tp%matrix)) THEN
-            CALL dbcsr_release(xas_tdp_env%ri_fxc_tp%matrix)
-            DEALLOCATE(xas_tdp_env%ri_fxc_tp%matrix)
+         IF (ASSOCIATED(xas_tdp_env%ri_fxc_tp)) THEN
+            CALL dbcsr_release(xas_tdp_env%ri_fxc_tp)
+            DEALLOCATE(xas_tdp_env%ri_fxc_tp)
          END IF
          IF (ASSOCIATED(xas_tdp_env%orb_soc)) THEN
             DO i = 1,SIZE(xas_tdp_env%orb_soc)
@@ -640,7 +645,12 @@ CONTAINS
             END IF
 
             IF (ASSOCIATED(donor_state_set(i)%matrix_aux)) THEN
-               CALL dbcsr_release(donor_state_set(i)%matrix_aux)
+               DO j = 1,SIZE(donor_state_set(i)%matrix_aux)
+                  IF (ASSOCIATED(donor_state_set(i)%matrix_aux(j)%matrix)) THEN  
+                     CALL dbcsr_release(donor_state_set(i)%matrix_aux(j)%matrix)      
+                     DEALLOCATE(donor_state_set(i)%matrix_aux(j)%matrix)           
+                  END IF
+               END DO
                DEALLOCATE(donor_state_set(i)%matrix_aux)
             END IF
 
@@ -705,9 +715,14 @@ CONTAINS
       END IF
 
       IF (ASSOCIATED(donor_state%matrix_aux)) THEN
-         CALL dbcsr_release(donor_state%matrix_aux)
+         DO i = 1,SIZE(donor_state%matrix_aux)
+            IF (ASSOCIATED(donor_state%matrix_aux(i)%matrix)) THEN   
+               CALL dbcsr_release(donor_state%matrix_aux(i)%matrix) 
+               DEALLOCATE(donor_state%matrix_aux(i)%matrix)  
+            END IF
+         END DO
          DEALLOCATE(donor_state%matrix_aux)
-      END IF 
+      END IF
 
    END SUBROUTINE free_ds_memory
 

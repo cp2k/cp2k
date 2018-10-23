@@ -21,7 +21,6 @@ MODULE xas_tdp_methods
    USE cp_blacs_env,                    ONLY: cp_blacs_env_type
    USE cp_control_types,                ONLY: dft_control_type
    USE cp_dbcsr_operations,             ONLY: cp_dbcsr_sm_fm_multiply
-   USE cp_fm_basic_linalg,              ONLY: cp_fm_gemm
    USE cp_fm_struct,                    ONLY: cp_fm_struct_type, cp_fm_struct_create,&
                                               cp_fm_struct_release
    USE cp_fm_types,                     ONLY: cp_fm_type, cp_fm_get_submatrix, cp_fm_create,&
@@ -220,11 +219,11 @@ CONTAINS
                                do_fxc=(xas_tdp_control%fxc_func == xas_tdp_pade)) 
 
          IF (xas_tdp_control%do_singlet .AND. xas_tdp_control%fxc_func == xas_tdp_pade) THEN
-            ALLOCATE(xas_tdp_env%ri_fxc_sg%matrix)
+            ALLOCATE(xas_tdp_env%ri_fxc_sg)
             CALL integrate_fxc_atoms(xas_tdp_env%ri_fxc_sg, xas_atom_env, qs_env, singlet=.TRUE.)
          END IF
          IF (xas_tdp_control%do_triplet .AND. xas_tdp_control%fxc_func == xas_tdp_pade) THEN
-            ALLOCATE(xas_tdp_env%ri_fxc_tp%matrix)
+            ALLOCATE(xas_tdp_env%ri_fxc_tp)
             CALL integrate_fxc_atoms(xas_tdp_env%ri_fxc_tp, xas_atom_env, qs_env, singlet=.FALSE.)
          END IF
 
@@ -298,22 +297,17 @@ CONTAINS
                IF (xas_tdp_control%check_donor_states) CYCLE
 
 !              Do main calculations here
-               IF (xas_tdp_control%full_diag) THEN
-                  CALL setup_xas_tdp_full_prob(current_state, qs_env, xas_tdp_env, xas_tdp_control)
+               CALL setup_xas_tdp_full_prob(current_state, qs_env, xas_tdp_env, xas_tdp_control)
 
-                  IF (xas_tdp_control%do_singlet) THEN
-                     CALL solve_xas_tdp_full_prob(current_state, xas_tdp_control, qs_env, singlet=.TRUE.)
-                     CALL compute_dipole_fosc(current_state, xas_tdp_control, xas_tdp_env)
-                  END IF
-                  IF (xas_tdp_control%do_triplet) THEN
-                     CALL solve_xas_tdp_full_prob(current_state, xas_tdp_control, qs_env, singlet=.FALSE.)
-                  END IF
-
-               ELSE IF (.NOT. xas_tdp_control%full_diag) THEN
-                           
-                  CPABORT("Iterative solver not implemented yet")
-
-               END IF !full_diag
+               IF (xas_tdp_control%do_singlet) THEN
+                  CALL solve_xas_tdp_full_prob(current_state, xas_tdp_control, xas_tdp_env, qs_env, &
+                                               singlet=.TRUE.)
+                  CALL compute_dipole_fosc(current_state, xas_tdp_control, xas_tdp_env)
+               END IF
+               IF (xas_tdp_control%do_triplet) THEN
+                  CALL solve_xas_tdp_full_prob(current_state, xas_tdp_control, xas_tdp_env, qs_env, &
+                                               singlet=.FALSE.)
+               END IF
 
 !              Include the SOC if required
                IF (xas_tdp_control%do_soc) THEN
@@ -522,18 +516,26 @@ CONTAINS
       CALL compute_ri_coulomb2_int(xas_tdp_env, qs_env)
 
 !  Compute the projector on the unoccupied, unperturbed ground state: Q = 1 - SP
+!  and the projector on the occupied unperturbed ground state SPS
       CALL get_qs_env(qs_env, rho=rho, matrix_s=matrix_s)
       CALL qs_rho_get(rho, rho_ao=rho_ao)
 
       ALLOCATE(xas_tdp_env%q_projector)
       CALL dbcsr_create(xas_tdp_env%q_projector, name="Q PROJECTOR", template=matrix_s(1)%matrix, &
                         matrix_type="N") 
+      ALLOCATE(xas_tdp_env%p_projector)
+      CALL dbcsr_create(xas_tdp_env%p_projector, name="P PROJECTOR", template=matrix_s(1)%matrix)
+
 !     TODO: Add a filter_eps in the multiplication ? Cuz many almost zero blocks
 !     Spin-restricted ground state: occupation number 2 included in density matrix => hence factor 0.5
       CALL dbcsr_multiply('N', 'N', -0.5_dp, matrix_s(1)%matrix, rho_ao(1)%matrix, 0.0_dp, &
                           xas_tdp_env%q_projector)
+      CALL dbcsr_multiply('N', 'N', -1.0_dp, xas_tdp_env%q_projector, matrix_s(1)%matrix, 0.0_dp, &
+                          xas_tdp_env%p_projector)
       CALL dbcsr_add_on_diag(xas_tdp_env%q_projector, 1.0_dp)
       CALL dbcsr_finalize(xas_tdp_env%q_projector)
+
+      
 
 !  Create the structure for the dipole in the AO basis 
       ALLOCATE(xas_tdp_env%dipmat(3))
@@ -875,7 +877,7 @@ CONTAINS
 
 !           Compute gs_coeff^T * matrix_ks * gs_coeff to get the epsilon_ij matrix
             CALL cp_dbcsr_sm_fm_multiply(matrix_ks(1)%matrix, gs_coeffs, work_mat, ncol=n_states)
-            CALL cp_fm_gemm('T', 'N', n_states, n_states, nao, 1.0_dp, gs_coeffs, work_mat, 0.0_dp,&
+            CALL cp_gemm('T', 'N', n_states, n_states, nao, 1.0_dp, gs_coeffs, work_mat, 0.0_dp,&
                             eval_mat)
 
 !           Put the epsilon_ij into the donor_state
