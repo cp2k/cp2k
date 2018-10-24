@@ -1055,7 +1055,7 @@ CONTAINS
             d2rs = f49*rs(ip)/rho(ip)**2
 
             !the factor 2 comes from the sum of the 2 derivatives
-            fxc(ip) = -two*(d2f*drs**2 - df*d2rs)
+            fxc(ip) = -two*(d2f*drs**2 + df*d2rs)
 
          END IF
       END DO

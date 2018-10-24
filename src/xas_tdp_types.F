@@ -130,8 +130,7 @@ MODULE xas_tdp_types
 !> \param kind_index the index of the atomic kind to which the state belongs
 !> \param at_symbol the chemical symbol of the atom to which the state belongs
 !> \param state_type whether this is a 1s, 2s, etc state
-!> \param energy_evals the energy eigenvalue of the donor state (if canonical orbitals), or the set
-!>        of epsilon_ij (if  non-canonical MOs)
+!> \param energy_evals the energy eigenvalue of the donor state 
 !> \param mo_indices indices of associated MOs. Greater than 1 when not a s-type state.
 !> \param sg_coeffs solutions of the linear-response TDDFT singlet equations
 !> \param tp_coeffs solutions of the linear-response TDDFT triplet equations
@@ -152,7 +151,7 @@ MODULE xas_tdp_types
       INTEGER                                 :: kind_index
       CHARACTER(len=2)                        :: at_symbol
       INTEGER                                 :: state_type
-      REAL(dp), DIMENSION(:, :), POINTER       :: energy_evals
+      REAL(dp), DIMENSION(:), POINTER         :: energy_evals
       INTEGER, DIMENSION(:), POINTER          :: mo_indices
       TYPE(cp_fm_p_type), DIMENSION(:), &
                                     POINTER   :: sg_coeffs
