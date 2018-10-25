@@ -1,0 +1,72 @@
+{
+  "control" : {
+      "cyclic_block_size" : 16,
+      "processing_unit" : "cpu",
+      "std_evp_solver_type" : "lapack",
+      "gen_evp_solver_type" : "lapack",
+      "print_forces" : true,
+      "print_stress" : true
+  },
+
+  "parameters" : {
+
+    "electronic_structure_method" : "pseudopotential",
+
+    "xc_functionals" : ["XC_LDA_X", "XC_LDA_C_PZ"],
+
+    "smearing_width" : 0.02,
+
+    "use_symmetry" : true,
+
+    "num_mag_dims" : 1,
+
+    "gk_cutoff" : 6.0,
+    "pw_cutoff" : 25.00,
+
+    "energy_tol" : 1e-8,
+
+    "num_dft_iter" : 100,
+
+    "ngridk" : [4,4,4],
+
+    "reduce_gvec": 1
+  },
+
+  "iterative_solver" : {
+      "energy_tolerance" : 1e-2,
+      "residual_tolerance" : 1e-6,
+      "num_steps" : 20,
+      "subspace_size" : 4,
+      "type" : "davidson",
+      "converge_by_energy" : 1
+  },
+
+    "unit_cell" : {
+
+        "lattice_vectors" : [ [5.5415878223,         0.0000000000,         0.0000000000],
+                              [0.0000000000,         5.5415878223,         0.0000000000],
+                              [0.0000000000,         0.0000000000,         5.5415878223]
+                            ],
+        "lattice_vectors_scale" : 1.0,
+
+        "atom_types" : ["Fe"],
+
+        "atom_files" : {
+            "Fe" : "Fe.pz-spn-kjpaw_psl.0.2.1.UPF.json"
+        },
+
+        "atoms" : {
+            "Fe" : [
+                [0.0, 0.0, 0.0, 0.0, 0.0, 1.0],
+                [0.5, 0.5, 0.5, 0.0, 0.0, 1.0]
+            ]
+        }
+    },
+
+    "mixer" : {
+        "beta" : 0.7,
+        "type" : "broyden1",
+        "max_history" : 8
+    }
+
+}

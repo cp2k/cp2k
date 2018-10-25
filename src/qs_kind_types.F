@@ -1965,11 +1965,27 @@ CONTAINS
          ! Allocate and initialise the potential data set structure
          IF (potential_name /= '') THEN
             SELECT CASE (TRIM (potential_type))
-            CASE ("ALL", "GTH", "ECP")
+            CASE ("ALL", "ECP")
                CALL cp_abort(__LOCATION__, &
-                             "PW DFT calculations only with potential type UPF possible."// &
+                             "PW DFT calculations only with potential type UPF or GTH possible."// &
                              " <"//TRIM(potential_type)//"> was specified "// &
                              "for the atomic kind <"//TRIM(qs_kind%name))
+            CASE ("GTH")
+               IF (potential_fn_kind == "-") THEN
+                  CALL section_vals_val_get(dft_section, "POTENTIAL_FILE_NAME", c_val=potential_file_name)
+               ELSE
+                  potential_file_name = potential_fn_kind
+               END IF
+               CALL allocate_potential(qs_kind%gth_potential)
+               CALL read_potential(qs_kind%element_symbol, potential_name, &
+                                   qs_kind%gth_potential, zeff_correction, para_env, &
+                                   potential_file_name, potential_section, update_input)
+               CALL set_potential(qs_kind%gth_potential, z=z)
+               CALL get_qs_kind(qs_kind, elec_conf=elec_conf)
+               IF (.NOT. ASSOCIATED(elec_conf)) THEN
+                  CALL get_potential(potential=qs_kind%gth_potential, elec_conf=elec_conf)
+                  CALL set_qs_kind(qs_kind, elec_conf=elec_conf)
+               END IF
             CASE ("UPF")
                ALLOCATE (qs_kind%upf_potential)
                CALL atom_read_upf(qs_kind%upf_potential, potential_name, read_header=.TRUE.)

@@ -1,0 +1,64 @@
+&FORCE_EVAL
+  METHOD SIRIUS
+  &PW_DFT
+     &CONTROL
+           "cyclic_block_size" : 16,
+           "processing_unit" : "cpu",
+           "std_evp_solver_type" : "lapack",
+           "gen_evp_solver_type" : "lapack",
+           "verbosity" : 2,
+           "verification" : 0,
+           "! print_memory_usage" : false,
+           "print_checksum" : false,
+           "print_forces" : true,
+           "print_stress" : true
+     &END CONTROL
+     &PARAMETER
+        "electronic_structure_method" : "pseudopotential",
+        "! num_fv_states" : 40,
+        "xc_functionals" : ["XC_LDA_X", "XC_LDA_C_PZ"],
+        "! smearing_width" : 0.025,
+        "use_symmetry" : false,
+        "num_mag_dims" : 0,
+        "gk_cutoff" : 6.0,
+        "pw_cutoff" : 20.00,
+        "energy_tol" : 1e-8,
+        "potential_tol" : 1e-8,
+        "num_dft_iter" : 100,
+        "ngridk" : [1,1,1],
+        "gamma_point" : true
+     &END PARAMETER
+     &SOLVER 
+        "! energy_tolerance" : 1e-2,
+        "! residual_tolerance" : 1e-6,
+        "num_steps" : 20,
+        "subspace_size" : 4,
+        "type" : "davidson",
+        "converge_by_energy" : 1,
+        "! orthogonalize" : false,
+        "! init_subspace" : "lcao",
+        "init_eval_old" : false
+     &END SOLVER
+     &MIXER
+        "beta" : 0.95,
+        "type" : "broyden1",
+        "max_history" : 8
+     &END MIXER
+  &END PW_DFT
+  &SUBSYS
+    &CELL
+      ABC 6.0 6.0 6.0
+    &END CELL
+    &COORD
+    H      0.000000  0.000000  0.000000
+    H      0.720000  0.000000  0.000000
+    &END COORD
+    &KIND H
+      POTENTIAL UPF H.pbe-hgh.UPF.json
+    &END KIND
+  &END SUBSYS
+&END FORCE_EVAL
+&GLOBAL
+  PROJECT H 
+  PRINT_LEVEL LOW
+&END GLOBAL
