@@ -40,6 +40,7 @@ MODULE qs_grid_atom
    END TYPE atom_integration_grid_type
 
    TYPE grid_atom_type
+      INTEGER                         :: quadrature
       INTEGER                         :: nr, ng_sphere
       REAL(dp), DIMENSION(:), POINTER :: rad, rad2, &
                                          wr, wa, &
@@ -221,6 +222,7 @@ CONTAINS
          rad2 => grid_atom%rad2
          wr => grid_atom%wr
 
+         grid_atom%quadrature = quadrature
          CALL radial_grid(nr, rad, rad2, wr, quadrature)
 
          grid_atom%rad2l(:, 0) = 1._dp
