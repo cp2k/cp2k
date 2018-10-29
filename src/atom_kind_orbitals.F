@@ -189,6 +189,7 @@ CONTAINS
       ELSE IF (ASSOCIATED(sgp_potential)) THEN
          potential%ppot_type = sgp_pseudo
          CALL sgp_potential_conversion(sgp_potential, potential%sgp_pot)
+         potential%sgp_pot%symbol = ptable(z)%symbol
          CALL get_potential(sgp_potential, zeff=zeff)
          CALL set_atom(atom, zcore=NINT(zeff), potential=potential)
       ELSE
@@ -649,6 +650,7 @@ CONTAINS
       ELSE IF (ASSOCIATED(sgp_potential)) THEN
          potential%ppot_type = sgp_pseudo
          CALL sgp_potential_conversion(sgp_potential, potential%sgp_pot)
+         potential%sgp_pot%symbol = ptable(z)%symbol
          CALL get_potential(sgp_potential, zeff=zeff)
          CALL set_atom(atom, zcore=NINT(zeff), potential=potential)
       ELSE
@@ -1286,8 +1288,8 @@ CONTAINS
       CHARACTER(len=*), PARAMETER :: routineN = 'sgp_potential_conversion', &
          routineP = moduleN//':'//routineN
 
-      INTEGER                                            :: lm, n, z
-      INTEGER, DIMENSION(:), POINTER                     :: lmax, ppeconf
+      INTEGER                                            :: lm, n
+      INTEGER, DIMENSION(:), POINTER                     :: ppeconf
       LOGICAL                                            :: nlcc_present
       REAL(KIND=dp)                                      :: ac, zeff
       REAL(KIND=dp), DIMENSION(:), POINTER               :: ap, ce
@@ -1299,7 +1301,6 @@ CONTAINS
                          zeff=zeff, &
                          elec_conf=ppeconf, &
                          alpha_core_charge=ac)
-      sgp_atompot%symbol = ptable(z)%symbol
       sgp_atompot%zion = zeff
       sgp_atompot%ac_local = ac
       sgp_atompot%econf(0:3) = ppeconf(0:3)
