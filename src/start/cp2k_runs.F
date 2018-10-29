@@ -263,6 +263,7 @@ CONTAINS
          ! But, we don't want to change the public f77_interface.
          ! TODO: refactor cp2k's startup code
          CALL dbcsr_finalize_lib(group=mpi_comm, output_unit=0)
+         CALL cp_sirius_finalize()
          CALL pw_cuda_finalize()
          CALL farming_run(input_declaration, root_section, para_env)
          CALL dbcsr_init_lib()

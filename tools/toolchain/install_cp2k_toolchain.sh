@@ -290,6 +290,13 @@ with_mkl=__SYSTEM__
 with_openblas=__INSTALL__
 with_reflapack=__INSTALL__
 
+# sirius is not activated by default.
+with_sirius="__DONTUSE__"
+with_gsl="__DONTUSE__"
+with_spglib="__DONTUSE__"
+with_hdf5="__DONTUSE__"
+with_json_fortran="__DONTUSE__"
+
 # for MPI, we try to detect system MPI variant
 with_openmpi=__SYSTEM__
 with_mpich=__SYSTEM__
@@ -677,19 +684,10 @@ if [ "$with_sirius" = "__INSTALL__" ] ; then
     echo "                                                                         "
     echo " Sirius needs these libraries to work properly                           "
     echo " gsl, elpa, libxc, scalapack fftw, spglib, hdf5, and json                "
-    echo " they will be activated by default unless the right options are given to "
-    echo " install_cp2k_toolchain.sh. Please look at the help                      "
+    echo " they will not be activated by default unless the right options are      "
+    echo " given to install_cp2k_toolchain.sh. Please look at the help             "
     echo "                                                                         "
     echo "========================================================================="
-    [ "$with_gsl" = "__DONTUSE__" ] && with_gsl="__INSTALL__"
-    [ "$with_elpa" = "__DONTUSE__" ] && with_elpa="__INSTALL__"
-    [ "$with_libxc" = "__DONTUSE__" ] && with_libxc="__INSTALL__"
-    [ "$with_scalapack" = "__DONTUSE__" ] && with_scalapack="__INSTALL__"
-    [ "$with_fftw" = "__DONTUSE__" ] && with_fftw="__INSTALL__"
-    [ "$with_spglib" = "__DONTUSE__" ] && with_spglib="__INSTALL__"
-    [ "$with_hdf5" = "__DONTUSE__" ] && with_hdf5="__INSTALL__"
-    [ "$with_json_fortran" = "__DONTUSE__" ] && with_json_fortran="__INSTALL__"
-else
     if [ "$with_gsl" = "__DONTUSE__" ] ; then
         report_error "For SIRIUS to work you need a working gsl library use --with-gsl option to specify if you wish to install the library or specify its location."
         exit 1
@@ -719,7 +717,7 @@ else
         exit 1
     fi
     if [ "$with_json_fortran" = "__DONTUSE__"  ] ; then
-        report_error "For sirius intergration tro cp2k to work you need a working json-fortran library use --with-json option to specify if you wish to install it or specify its location."
+        report_error "For SIRIUS intergration tro cp2k to work you need a working json-fortran library use --with-json option to specify if you wish to install it or specify its location."
     exit 1
     fi
 fi
