@@ -94,8 +94,10 @@ CONTAINS
       tmp_str = ""
       flags = TRIM(flags)//TRIM(tmp_str)
 
+#if defined(__NDEBUG)
+      flags = TRIM(flags)//" ndebug"
+#endif
 !$    flags = TRIM(flags)//" omp"
-
 #if defined(__LIBINT)
       flags = TRIM(flags)//" libint"
 #endif
