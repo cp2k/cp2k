@@ -99,7 +99,7 @@ SUBROUTINE fftw3_do_init(wisdom_file)
 !$    BIND (c) :: /fftw3_mkl/
 !DEC$ ENDIF
 !DEC$ ENDIF
-#else defined (__MKL) && defined (__FFTW3)
+#elif defined (__MKL) && defined (__FFTW3)
 ! Preprocessing is enabled by default, and below header is not language specific
 #include <mkl_version.h>
 #endif
