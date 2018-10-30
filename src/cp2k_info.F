@@ -94,7 +94,7 @@ CONTAINS
       tmp_str = ""
       flags = TRIM(flags)//TRIM(tmp_str)
 
-#if defined(__NDEBUG)
+#if defined(NDEBUG)
       flags = TRIM(flags)//" ndebug"
 #endif
 !$    flags = TRIM(flags)//" omp"
