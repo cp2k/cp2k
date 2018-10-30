@@ -19,7 +19,13 @@
 #define __LOCATION__ cp__l(__SHORT_FILE__,__LINE__)
 #define CPWARN(msg) CALL cp__w(__SHORT_FILE__,__LINE__,msg)
 #define CPABORT(msg) CALL cp__b(__SHORT_FILE__,__LINE__,msg)
-#define CPASSERT(cond) IF(.NOT.(cond))CALL cp__a(__SHORT_FILE__,__LINE__)
+
+! CPASSERT can be elided if NDEBUG is defined.
+#if defined(NDEBUG)
+# define CPASSERT(cond)
+#else
+# define CPASSERT(cond) IF(.NOT.(cond))CALL cp__a(__SHORT_FILE__,__LINE__)
+#endif
 
 ! The MARK_USED macro can be used to mark an argument/variable as used.
 ! It is intended to make it possible to switch on -Werror=unused-dummy-argument,
@@ -27,3 +33,8 @@
 ! This code should be valid for any Fortran variable, is always standard conforming,
 ! and will be optimized away completely by the compiler
 #define MARK_USED(foo) IF(.FALSE.)THEN; DO ; IF(SIZE(SHAPE(foo))==-1) EXIT ;  END DO ; ENDIF
+
+! Calculate version number from 3-components.
+#define CP_VERSION3(MAJOR, MINOR, UPDATE) ((MAJOR) * 10000 + (MINOR) * 100 + (UPDATE))
+! Calculate version number from 4-components.
+#define CP_VERSION4(MAJOR, MINOR, UPDATE, PATCH) ((MAJOR) * 100000000 + (MINOR) * 1000000 + (UPDATE) * 10000 + (PATCH))
