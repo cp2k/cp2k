@@ -96,7 +96,7 @@ if [ "$with_mkl" != "__DONTUSE__" ] ; then
         enable_mkl_scalapack="__FALSE__"
     fi
     MKL_LIBS="${MKL_LIBS} -Wl,--end-group -lpthread -lm -ldl"
-    MKL_CFLAGS="${MKL_CFLAGS} -I${MKLROOT}/include"
+    MKL_CFLAGS="${MKL_CFLAGS} -I${MKLROOT}/include -I${MKLROOT}/include/fftw"
 
     # write setup files
     cat <<EOF > "${BUILDDIR}/setup_mkl"
