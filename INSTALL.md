@@ -19,7 +19,7 @@ GNU make should be on your system (gmake or make on linux) and used for the buil
 Python 2.x is needed to run the dependency generator. On most system Python is already installed. For more information visit: https://www.python.org/
 
 ### 2c. Fortran and C Compiler (required, build system)
-A Fortran 2003 compiler and matching C compiler should be installed on your system. We have good experience with gcc/gfortran (gcc >=4.6 works, later version recommended). Be aware that some compilers have bugs that might cause them to fail (internal compiler errors, segfaults) or, worse, yield a mis-compiled CP2K. Report bugs to compiler vendors; they (and we) have an interest in fixing them. Always run a `make -j test` (See point 5.) after compilation to identifiy these problems.
+A Fortran 2003 compiler and matching C compiler should be installed on your system. We have good experience with gcc/gfortran (gcc >=4.6 works, later version recommended). Be aware that some compilers have bugs that might cause them to fail (internal compiler errors, segfaults) or, worse, yield a mis-compiled CP2K. Report bugs to compiler vendors; they (and we) have an interest in fixing them. Always run a `make -j test` (See point 5.) after compilation to identify these problems.
 
 ### 2d. BLAS and LAPACK (required, base functionality)
 BLAS and LAPACK should be installed.  Using vendor-provided libraries can make a very significant difference (up to 100%, e.g., ACML, MKL, ESSL), not all optimized libraries are bug free. Use the latest versions available, use the interfaces matching your compiler, and download all patches!
@@ -69,14 +69,13 @@ Hartree-Fock exchange (optional, use `-D__LIBINT`) requires the libint package t
   * :warning: Do **NOT** use libinit-1.1.3, which was buggy.
 
 ### 2h. libsmm (optional, improved performance for matrix multiplication)
-  * A library for small matrix multiplies can be built from the included source (see tools/build_libsmm/README).  Usually only the double precision real and perhaps complex is needed.  Link to the generated libraries. For a couple of architectures prebuild libsmm are available at https://www.cp2k.org/static/downloads/libsmm/.
+  * A library for small matrix multiplies can be built from the included source (see tools/build_libsmm/README).  Usually only the double precision real and perhaps complex is needed.  Link to the generated libraries. For a couple of architectures prebuilt libsmm are available at https://www.cp2k.org/static/downloads/libsmm/.
   * Add `-D__HAS_smm_dnn` to the defines to make the code use the double precision real library.  Similarly use `-D__HAS_smm_snn` for single precision real and `-D__HAS_smm_znn` / `-D__HAS_smm_cnn` for double / single precision complex.
   * Add `-D__HAS_smm_vec` to enable the new vectorized interfaces of libsmm.
 
 ### 2i. libxsmm (optional, improved performance for matrix multiplication)
-  * A library for small matrix multiplications which is provided by Intel: https://github.com/hfp/libxsmm/
+  * A library for matrix operations and deep learning primitives: https://github.com/hfp/libxsmm/
   * Add `-D__LIBXSMM` to enable it (with suitable include and library paths)
-  * Tested with the released version 1.1.
 
 ### 2j. CUDA (optional, improved performance on GPU systems)
   * `-D__ACC` needed to enable accelerator support.
@@ -160,6 +159,8 @@ SIRIUS is a domain specific library for electronic structure calculations.
 
 ### 3a. ARCH files
 The location of compiler and libraries needs to be specified. Examples for a number of common architectures examples can be found in [arch folder](./arch/). The names of these files match `architecture.version` e.g., [Linux-x86-64-gfortran.sopt](./arch/Linux-x86-64-gfortran.sopt). Alternatively https://dashboard.cp2k.org/ provides sample arch files as part of the testing reports (click on the status field, search for 'ARCH-file').
+  * With -DNDEBUG assertions may be stripped ("compiled out").
+  * Regular release builds may carry assertions for safety.
 
 Conventionally, there are six versions:
 
