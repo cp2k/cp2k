@@ -160,6 +160,7 @@ SIRIUS is a domain specific library for electronic structure calculations.
 ### 3a. ARCH files
 The location of compiler and libraries needs to be specified. Examples for a number of common architectures examples can be found in [arch folder](./arch/). The names of these files match `architecture.version` e.g., [Linux-x86-64-gfortran.sopt](./arch/Linux-x86-64-gfortran.sopt). Alternatively https://dashboard.cp2k.org/ provides sample arch files as part of the testing reports (click on the status field, search for 'ARCH-file').
   * With -DNDEBUG assertions may be stripped ("compiled out").
+  * NDEBUG is the ANSI-conforming symbol name (not __NDEBUG).
   * Regular release builds may carry assertions for safety.
 
 Conventionally, there are six versions:
