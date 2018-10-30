@@ -742,7 +742,7 @@ CONTAINS
 
       CALL section_vals_val_get(print_key, "FILENAME", c_val=outPath)
       IF (outPath(1:1) == '=') THEN
-         CPASSERT(LEN(outPath) - 1 <= LEN(filename))
+         CPASSERT(LEN(outPath)-1 <= LEN(filename))
          filename = outPath(2:)
          RETURN
       END IF
