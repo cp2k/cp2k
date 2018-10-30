@@ -99,6 +99,9 @@ SUBROUTINE fftw3_do_init(wisdom_file)
 !$    BIND (c) :: /fftw3_mkl/
 !DEC$ ENDIF
 !DEC$ ENDIF
+#else defined (__MKL) && defined (__FFTW3)
+! Preprocessing is enabled by default, and below header is not language specific
+# include <mkl_version.h>
 #endif
 
     ! Read FFTW wisdom (if available)
@@ -122,9 +125,11 @@ SUBROUTINE fftw3_do_init(wisdom_file)
 ! If we are not using the Intel compiler, there is no way to tell which
 ! MKL version is in use, so fail safe...
 !$     mkl_is_safe = .FALSE.
+#if defined (__MKL) && defined (__FFTW3) && defined(INTEL_MKL_VERSION) && (110100 < INTEL_MKL_VERSION)
+!$     mkl_is_safe = .TRUE.
+#elif defined (__INTEL_COMPILER) && defined (__MKL) && defined (__FFTW3)
 ! If we have an Intel compiler (__INTEL_COMPILER is defined) then check the
 ! MKL version and make the appropriate action
-#if defined (__INTEL_COMPILER) && defined (__MKL) && defined (__FFTW3)
 !DEC$ IF DEFINED (INTEL_MKL_VERSION)
 !DEC$ IF INTEL_MKL_VERSION .EQ. 110100
 !$     mkl_dft_number_of_user_threads=omp_get_max_threads() 
