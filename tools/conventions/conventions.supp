@@ -4,6 +4,8 @@ Data file MM_POTENTIAL copied to tests/QMMM/QS
 Data file POTENTIAL copied to tests/QMMM/QS
 Flag FD_DEBUG not mentioned in INSTALL.md
 Flag FD_DEBUG not mentioned in cp2k_flags()
+Flag INTEL_MKL_VERSION not mentioned in INSTALL.md
+Flag INTEL_MKL_VERSION not mentioned in cp2k_flags()
 Flag LIBMICSMM_USE_LIBXSMM not mentioned in INSTALL.md
 Flag LIBMICSMM_USE_LIBXSMM not mentioned in cp2k_flags()
 Flag LIBMICSMM_USE_MKLSMM not mentioned in INSTALL.md
