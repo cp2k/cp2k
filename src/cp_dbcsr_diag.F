@@ -149,6 +149,8 @@ CONTAINS
                                ncol_global=n, para_env=para_env)
       CALL cp_fm_create(fm_matrix, fm_struct, name="fm_matrix")
 
+      CALL copy_dbcsr_to_fm(matrix, fm_matrix)
+
       IF (PRESENT(eigenvectors)) THEN
          CALL cp_fm_create(fm_eigenvectors, fm_struct, name="fm_eigenvectors")
          CALL cp_fm_syevx(fm_matrix, fm_eigenvectors, eigenvalues, neig, work_syevx)
