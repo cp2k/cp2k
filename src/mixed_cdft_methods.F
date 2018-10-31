@@ -54,13 +54,10 @@ MODULE mixed_cdft_methods
                                               use_qs_force
    USE hirshfeld_methods,               ONLY: create_shape_function
    USE hirshfeld_types,                 ONLY: hirshfeld_type
-   USE input_constants,                 ONLY: becke_cutoff_element,&
-                                              becke_cutoff_global,&
-                                              cdft_alpha_constraint,&
-                                              cdft_beta_constraint,&
-                                              cdft_charge_constraint,&
-                                              cdft_magnetization_constraint,&
-                                              mix_cdft
+   USE input_constants,                 ONLY: &
+        becke_cutoff_element, becke_cutoff_global, cdft_alpha_constraint, cdft_beta_constraint, &
+        cdft_charge_constraint, cdft_magnetization_constraint, mix_cdft, mixed_cdft_parallel, &
+        mixed_cdft_parallel_nobuild, mixed_cdft_serial, outer_scf_becke_constraint
    USE input_section_types,             ONLY: section_get_lval,&
                                               section_vals_get,&
                                               section_vals_get_subs_vals,&
@@ -103,6 +100,7 @@ MODULE mixed_cdft_methods
                                               pw_pool_type
    USE pw_types,                        ONLY: REALDATA3D,&
                                               REALSPACE
+   USE qs_cdft_types,                   ONLY: cdft_control_type
    USE qs_collocate_density,            ONLY: collocate_pgf_product_rspace
    USE qs_energy_types,                 ONLY: qs_energy_type
    USE qs_environment_types,            ONLY: get_qs_env,&
@@ -140,7 +138,7 @@ MODULE mixed_cdft_methods
 CONTAINS
 
 ! **************************************************************************************************
-!> \brief Initialize a mixed CDFT calculation (currently only relevant with Becke constraint)
+!> \brief Initialize a mixed CDFT calculation
 !> \param force_env the force_env that holds the CDFT states
 !> \param calculate_forces determines if forces should be calculated
 !> \par History
@@ -191,22 +189,10 @@ CONTAINS
       IF (mixing_type == mix_cdft .AND. .NOT. ASSOCIATED(mixed_env%cdft_control)) THEN
          mixed_env%do_mixed_cdft = .TRUE.
          IF (mixed_env%do_mixed_cdft) THEN
-            ! Enforce some limitations
+            ! Sanity check
             IF (nforce_eval .LT. 2) &
                CALL cp_abort(__LOCATION__, &
-                             "Mixed CDFT calculation requires at least 2 force_evals")
-            IF (mixed_env%ngroups == 2) THEN
-               is_parallel = .TRUE.
-               IF (.NOT. nforce_eval == 2) &
-                  CALL cp_abort(__LOCATION__, &
-                                "Parallel mode mixed CDFT calculation supports only 2 force_evals")
-            ELSE IF (mixed_env%ngroups == 1) THEN
-               is_parallel = .FALSE.
-            ELSE
-               CALL cp_abort(__LOCATION__, &
-                             "The number of processor groups (&NGROUPS)"// &
-                             " must be 1 or 2 for a mixed CDFT calculation.")
-            END IF
+                             "Mixed CDFT calculation requires at least 2 force_evals.")
             mapping_section => section_vals_get_subs_vals(mixed_section, "MAPPING")
             CALL section_vals_get(mapping_section, explicit=explicit)
             ! The sub_force_envs must share the same geometrical structure
@@ -257,13 +243,31 @@ CONTAINS
             ALLOCATE (mixed_cdft)
             CALL mixed_cdft_type_create(mixed_cdft)
             mixed_cdft%first_iteration = .TRUE.
-            mixed_cdft%is_parallel = is_parallel
+            ! Determine what run type to use
+            IF (mixed_env%ngroups == 1) THEN
+               ! States treated in serial, possibly copying CDFT weight function and gradients from state to state
+               mixed_cdft%run_type = mixed_cdft_serial
+            ELSE IF (mixed_env%ngroups == 2) THEN
+               CALL section_vals_val_get(mixed_section, "MIXED_CDFT%PARALLEL_BUILD", l_val=is_parallel)
+               IF (is_parallel) THEN
+                  ! Treat states in parallel, build weight function and gradients in parallel before SCF process
+                  mixed_cdft%run_type = mixed_cdft_parallel
+                  IF (.NOT. nforce_eval == 2) &
+                     CALL cp_abort(__LOCATION__, &
+                                   "Parallel mode mixed CDFT calculation supports only 2 force_evals.")
+               ELSE
+                  ! Treat states in parallel, but each states builds its own weight function and gradients
+                  mixed_cdft%run_type = mixed_cdft_parallel_nobuild
+               END IF
+            ELSE
+               mixed_cdft%run_type = mixed_cdft_parallel_nobuild
+            END IF
             ! Store QMMM flag
             mixed_env%do_mixed_qmmm_cdft = is_qmmm
             ! Setup dynamic load balancing
             CALL section_vals_val_get(mixed_section, "MIXED_CDFT%DLB", l_val=mixed_cdft%dlb)
             mixed_cdft%dlb = mixed_cdft%dlb .AND. calculate_forces ! disable if forces are not needed
-            mixed_cdft%dlb = mixed_cdft%dlb .AND. mixed_cdft%is_parallel ! disable if not parallel
+            mixed_cdft%dlb = mixed_cdft%dlb .AND. (mixed_cdft%run_type == mixed_cdft_parallel) ! disable if not parallel
             IF (mixed_cdft%dlb) THEN
                ALLOCATE (mixed_cdft%dlb_control)
                NULLIFY (mixed_cdft%dlb_control%weight, mixed_cdft%dlb_control%gradients, &
@@ -326,22 +330,34 @@ CONTAINS
                   "MIXED_CDFT| Activating mixed CDFT calculation"
                WRITE (iounit, FMT="(T2,A,T71,I10)") &
                   "MIXED_CDFT| Number of CDFT states:                                  ", nforce_eval
-               IF (mixed_cdft%is_parallel) THEN
+               SELECT CASE (mixed_cdft%run_type)
+               CASE (mixed_cdft_parallel)
                   WRITE (iounit, FMT="(T2,A,T71)") &
-                     "MIXED_CDFT| CDFT states calculation mode: parallel"
+                     "MIXED_CDFT| CDFT states calculation mode: parallel with build"
                   WRITE (iounit, FMT="(T2,A,T71)") &
                      "MIXED_CDFT| Becke constraint is first built using all available processors"
                   WRITE (iounit, FMT="(T2,A,T71)") &
                      "            and then copied to both states with their own processor groups"
-               ELSE
+               CASE (mixed_cdft_serial)
                   WRITE (iounit, FMT="(T2,A,T71)") &
                      "MIXED_CDFT| CDFT states calculation mode: serial"
+                  IF (mixed_cdft%identical_constraints) THEN
+                     WRITE (iounit, FMT="(T2,A,T71)") &
+                        "MIXED_CDFT| The constraints are built before the SCF procedure of the first"
+                     WRITE (iounit, FMT="(T2,A,T71)") &
+                        "            CDFT state and subsequently copied to the other states"
+                  ELSE
+                     WRITE (iounit, FMT="(T2,A,T71)") &
+                        "MIXED_CDFT| The constraints are seperately built for all CDFT states"
+                  END IF
+               CASE (mixed_cdft_parallel_nobuild)
                   WRITE (iounit, FMT="(T2,A,T71)") &
-                     "MIXED_CDFT| Becke constraint is built before the SCF procedure of the first"
+                     "MIXED_CDFT| CDFT states calculation mode: parallel without build"
                   WRITE (iounit, FMT="(T2,A,T71)") &
-                     "            CDFT state and subsequently copied to other states"
-
-               END IF
+                     "MIXED_CDFT| The constraints are seperately built for all CDFT states"
+               CASE DEFAULT
+                  CPABORT("Unknown mixed CDFT run type.")
+               END SELECT
                WRITE (iounit, FMT="(T2,A,T71,L10)") &
                   "MIXED_CDFT| Calculating electronic coupling between states:         ", mixed_env%do_mixed_et
                WRITE (iounit, FMT="(T2,A,T71,L10)") &
@@ -350,16 +366,18 @@ CONTAINS
                   "MIXED_CDFT| Configuration interaction (CDFT-CI) was requested:      ", mixed_cdft%do_ci
                WRITE (iounit, FMT="(T2,A,T71,L10)") &
                   "MIXED_CDFT| Block diagonalizing the mixed CDFT Hamiltonian:         ", mixed_cdft%block_diagonalize
-               WRITE (iounit, FMT="(T2,A,T71,L10)") &
-                  "MIXED_CDFT| Dynamic load balancing enabled:                         ", mixed_cdft%dlb
-               IF (mixed_cdft%dlb) THEN
-                  WRITE (iounit, FMT="(T2,A,T71)") "MIXED_CDFT| Dynamic load balancing parameters:                         "
-                  WRITE (iounit, FMT="(T2,A,T71,F10.2)") &
-                     "MIXED_CDFT| load_scale:", mixed_cdft%dlb_control%load_scale
-                  WRITE (iounit, FMT="(T2,A,T71,F10.2)") &
-                     "MIXED_CDFT| very_overloaded:", mixed_cdft%dlb_control%very_overloaded
-                  WRITE (iounit, FMT="(T2,A,T71,I10)") &
-                     "MIXED_CDFT| more_work:", mixed_cdft%dlb_control%more_work
+               IF (mixed_cdft%run_type == mixed_cdft_parallel) THEN
+                  WRITE (iounit, FMT="(T2,A,T71,L10)") &
+                     "MIXED_CDFT| Dynamic load balancing enabled:                         ", mixed_cdft%dlb
+                  IF (mixed_cdft%dlb) THEN
+                     WRITE (iounit, FMT="(T2,A,T71)") "MIXED_CDFT| Dynamic load balancing parameters:"
+                     WRITE (iounit, FMT="(T2,A,T71,F10.2)") &
+                        "MIXED_CDFT| load_scale:", mixed_cdft%dlb_control%load_scale
+                     WRITE (iounit, FMT="(T2,A,T71,F10.2)") &
+                        "MIXED_CDFT| very_overloaded:", mixed_cdft%dlb_control%very_overloaded
+                     WRITE (iounit, FMT="(T2,A,T71,I10)") &
+                        "MIXED_CDFT| more_work:", mixed_cdft%dlb_control%more_work
+                  END IF
                END IF
                IF (mixed_env%do_mixed_et) THEN
                   IF (mixed_cdft%eps_svd == 0.0_dp) THEN
@@ -402,11 +420,21 @@ CONTAINS
       CALL get_mixed_env(force_env%mixed_env, cdft_control=mixed_cdft)
       CPASSERT(ASSOCIATED(mixed_cdft))
       IF (.NOT. PRESENT(iforce_eval)) THEN
-         IF (mixed_cdft%is_parallel) &
+         SELECT CASE (mixed_cdft%run_type)
+         CASE (mixed_cdft_parallel)
             CALL mixed_cdft_build_weight_parallel(force_env, calculate_forces)
+         CASE (mixed_cdft_parallel_nobuild)
+            CALL mixed_cdft_set_flags(force_env)
+         CASE DEFAULT
+            ! Do nothing
+         END SELECT
       ELSE
-         IF (.NOT. mixed_cdft%is_parallel) &
+         SELECT CASE (mixed_cdft%run_type)
+         CASE (mixed_cdft_serial)
             CALL mixed_cdft_transfer_weight(force_env, calculate_forces, iforce_eval)
+         CASE DEFAULT
+            ! Do nothing
+         END SELECT
       END IF
 
    END SUBROUTINE mixed_cdft_build_weight
@@ -430,6 +458,7 @@ CONTAINS
       INTEGER, DIMENSION(2, 3)                           :: bo
       INTEGER, DIMENSION(:), POINTER                     :: lb, req_total, sendbuffer_i, ub
       REAL(KIND=dp)                                      :: t1, t2
+      TYPE(cdft_control_type), POINTER                   :: cdft_control, cdft_control_target
       TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(cp_subsys_type), POINTER                      :: subsys_mix
       TYPE(dft_control_type), POINTER                    :: dft_control
@@ -455,7 +484,8 @@ CONTAINS
 
       NULLIFY (subsys_mix, force_env_qs, particles_mix, force_env_section, print_section, &
                mixed_env, mixed_cdft, pw_env, auxbas_pw_pool, mixed_auxbas_pw_pool, &
-               qs_env, dft_control, sendbuffer_i, lb, ub, req_total, recvbuffer)
+               qs_env, dft_control, sendbuffer_i, lb, ub, req_total, recvbuffer, &
+               cdft_control, cdft_control_target)
 
       logger => cp_get_default_logger()
       CPASSERT(ASSOCIATED(force_env))
@@ -496,6 +526,8 @@ CONTAINS
       iounit = cp_print_key_unit_nr(logger, print_section, '', extension='.mixedLog')
       CALL get_mixed_env(mixed_env, cdft_control=mixed_cdft)
       CPASSERT(ASSOCIATED(mixed_cdft))
+      cdft_control => mixed_cdft%cdft_control
+      CPASSERT(ASSOCIATED(cdft_control))
       ! Calculate the Becke weight function and gradient on all np processors
       CALL pw_env_get(pw_env=mixed_cdft%pw_env, auxbas_pw_pool=mixed_auxbas_pw_pool)
       natom = SIZE(particles_mix%els)
@@ -503,7 +535,9 @@ CONTAINS
       ! Start replicating the working arrays on both np/2 processor groups
       mixed_cdft%sim_step = mixed_cdft%sim_step+1
       CALL get_qs_env(qs_env, pw_env=pw_env, dft_control=dft_control)
-      CPASSERT(dft_control%qs_control%becke_constraint)
+      cdft_control_target => dft_control%qs_control%cdft_control
+      CPASSERT(dft_control%qs_control%cdft)
+      CPASSERT(ASSOCIATED(cdft_control_target))
       CALL pw_env_get(pw_env, auxbas_pw_pool=auxbas_pw_pool)
       bo = auxbas_pw_pool%pw_grid%bounds_local
       ! First determine the size of the arrays along the confinement dir
@@ -515,10 +549,10 @@ CONTAINS
       ALLOCATE (recvbuffer(SIZE(mixed_cdft%source_list)))
       ALLOCATE (req_total(my_special_work*SIZE(mixed_cdft%dest_list)+SIZE(mixed_cdft%source_list)))
       ALLOCATE (lb(SIZE(mixed_cdft%source_list)), ub(SIZE(mixed_cdft%source_list)))
-      IF (mixed_cdft%becke_control%cavity_confine) THEN
+      IF (cdft_control%becke_control%cavity_confine) THEN
          ! Gaussian confinement => the bounds depend on the processor and need to be communicated
          ALLOCATE (sendbuffer_i(2))
-         sendbuffer_i = mixed_cdft%becke_control%confine_bounds
+         sendbuffer_i = cdft_control%becke_control%confine_bounds
          DO i = 1, SIZE(mixed_cdft%source_list)
             ALLOCATE (recvbuffer(i)%iv(2))
             CALL mp_irecv(msgout=recvbuffer(i)%iv, source=mixed_cdft%source_list(i), &
@@ -630,15 +664,14 @@ CONTAINS
       END IF
       ! In principle, we could reduce the memory footprint of becke_pot by only transfering the nonzero portion
       ! of the potential, but this would require a custom integrate_v_rspace
-      CALL pw_pool_create_pw(auxbas_pw_pool, dft_control%qs_control%becke_control%group(1)%weight%pw, &
+      CALL pw_pool_create_pw(auxbas_pw_pool, cdft_control_target%group(1)%weight%pw, &
                              use_data=REALDATA3D, in_space=REALSPACE)
-      dft_control%qs_control%becke_control%group(1)%weight%pw%cr3d = 0.0_dp
+      cdft_control_target%group(1)%weight%pw%cr3d = 0.0_dp
       ! Assemble the recved slices
       DO j = 1, SIZE(mixed_cdft%source_list)
-         dft_control%qs_control%becke_control%group(1)%weight%pw%cr3d(recvbuffer(j)%imap(1):recvbuffer(j)%imap(2), &
-                                                                      recvbuffer(j)%imap(3):recvbuffer(j)%imap(4), &
-                                                                      recvbuffer(j)%imap(5):recvbuffer(j)%imap(6)) = &
-            recvbuffer(j)%r3
+         cdft_control_target%group(1)%weight%pw%cr3d(recvbuffer(j)%imap(1):recvbuffer(j)%imap(2), &
+                                                     recvbuffer(j)%imap(3):recvbuffer(j)%imap(4), &
+                                                     recvbuffer(j)%imap(5):recvbuffer(j)%imap(6)) = recvbuffer(j)%r3
       END DO
       ! Do the same for slices sent during dlb
       IF (mixed_cdft%dlb) THEN
@@ -652,9 +685,9 @@ CONTAINS
                                UBOUND(mixed_cdft%dlb_control%recvbuff(j)%buffs(i)%weight, 2), &
                                LBOUND(mixed_cdft%dlb_control%recvbuff(j)%buffs(i)%weight, 3), &
                                UBOUND(mixed_cdft%dlb_control%recvbuff(j)%buffs(i)%weight, 3)/)
-                     dft_control%qs_control%becke_control%group(1)%weight%pw%cr3d(INDEX(1):INDEX(2), &
-                                                                                  INDEX(3):INDEX(4), &
-                                                                                  INDEX(5):INDEX(6)) = &
+                     cdft_control_target%group(1)%weight%pw%cr3d(INDEX(1):INDEX(2), &
+                                                                 INDEX(3):INDEX(4), &
+                                                                 INDEX(5):INDEX(6)) = &
                         mixed_cdft%dlb_control%recvbuff(j)%buffs(i)%weight
                      DEALLOCATE (mixed_cdft%dlb_control%recvbuff(j)%buffs(i)%weight)
                   END DO
@@ -663,7 +696,7 @@ CONTAINS
          END IF
       END IF
       ! Gaussian confinement cavity
-      IF (mixed_cdft%becke_control%cavity_confine) THEN
+      IF (cdft_control%becke_control%cavity_confine) THEN
          DO j = 1, SIZE(mixed_cdft%source_list)
             CALL mp_irecv(msgout=recvbuffer(j)%r3, source=mixed_cdft%source_list(j), &
                           request=req_total(j), comm=force_env%para_env%group)
@@ -691,15 +724,15 @@ CONTAINS
             DEALLOCATE (mixed_cdft%cavity)
          END IF
          ! We only need the nonzero part of the confinement cavity
-         ALLOCATE (dft_control%qs_control%becke_control%cavity_mat(bo(1, 1):bo(2, 1), &
-                                                                   bo(1, 2):bo(2, 2), &
-                                                                   lb_min:ub_max))
-         dft_control%qs_control%becke_control%cavity_mat = 0.0_dp
+         ALLOCATE (cdft_control_target%becke_control%cavity_mat(bo(1, 1):bo(2, 1), &
+                                                                bo(1, 2):bo(2, 2), &
+                                                                lb_min:ub_max))
+         cdft_control_target%becke_control%cavity_mat = 0.0_dp
 
          DO j = 1, SIZE(mixed_cdft%source_list)
-            dft_control%qs_control%becke_control%cavity_mat(recvbuffer(j)%imap(1):recvbuffer(j)%imap(2), &
-                                                            recvbuffer(j)%imap(3):recvbuffer(j)%imap(4), &
-                                                            recvbuffer(j)%imap(5):recvbuffer(j)%imap(6)) = recvbuffer(j)%r3
+            cdft_control_target%becke_control%cavity_mat(recvbuffer(j)%imap(1):recvbuffer(j)%imap(2), &
+                                                         recvbuffer(j)%imap(3):recvbuffer(j)%imap(4), &
+                                                         recvbuffer(j)%imap(5):recvbuffer(j)%imap(6)) = recvbuffer(j)%r3
          END DO
          IF (mixed_cdft%dlb) THEN
             IF (ANY(mixed_cdft%dlb_control%recv_work_repl)) THEN
@@ -712,9 +745,9 @@ CONTAINS
                                   UBOUND(mixed_cdft%dlb_control%recvbuff(j)%buffs(i)%cavity, 2), &
                                   LBOUND(mixed_cdft%dlb_control%recvbuff(j)%buffs(i)%cavity, 3), &
                                   UBOUND(mixed_cdft%dlb_control%recvbuff(j)%buffs(i)%cavity, 3)/)
-                        dft_control%qs_control%becke_control%cavity_mat(INDEX(1):INDEX(2), &
-                                                                        INDEX(3):INDEX(4), &
-                                                                        INDEX(5):INDEX(6)) = &
+                        cdft_control_target%becke_control%cavity_mat(INDEX(1):INDEX(2), &
+                                                                     INDEX(3):INDEX(4), &
+                                                                     INDEX(5):INDEX(6)) = &
                            mixed_cdft%dlb_control%recvbuff(j)%buffs(i)%cavity
                         DEALLOCATE (mixed_cdft%dlb_control%recvbuff(j)%buffs(i)%cavity)
                      END DO
@@ -744,7 +777,7 @@ CONTAINS
                                 request=req_total(ind), &
                                 comm=force_env%para_env%group)
                ELSE
-                  CALL mp_isend(msgin=mixed_cdft%becke_control%group(1)%gradients, dest=mixed_cdft%dest_list(j), &
+                  CALL mp_isend(msgin=cdft_control%group(1)%gradients, dest=mixed_cdft%dest_list(j), &
                                 request=req_total(ind), comm=force_env%para_env%group)
                END IF
             END DO
@@ -756,15 +789,14 @@ CONTAINS
             END DO
             DEALLOCATE (mixed_cdft%sendbuff)
          ELSE
-            DEALLOCATE (mixed_cdft%becke_control%group(1)%gradients)
+            DEALLOCATE (cdft_control%group(1)%gradients)
          END IF
-         ALLOCATE (dft_control%qs_control%becke_control%group(1)%gradients(3*natom, bo(1, 1):bo(2, 1), &
-                                                                           bo(1, 2):bo(2, 2), lb_min:ub_max))
+         ALLOCATE (cdft_control_target%group(1)%gradients(3*natom, bo(1, 1):bo(2, 1), &
+                                                          bo(1, 2):bo(2, 2), lb_min:ub_max))
          DO j = 1, SIZE(mixed_cdft%source_list)
-            dft_control%qs_control%becke_control%group(1)%gradients(:, recvbuffer(j)%imap(1):recvbuffer(j)%imap(2), &
-                                                                    recvbuffer(j)%imap(3):recvbuffer(j)%imap(4), &
-                                                                    recvbuffer(j)%imap(5):recvbuffer(j)%imap(6)) = &
-               recvbuffer(j)%r4
+            cdft_control_target%group(1)%gradients(:, recvbuffer(j)%imap(1):recvbuffer(j)%imap(2), &
+                                                   recvbuffer(j)%imap(3):recvbuffer(j)%imap(4), &
+                                                   recvbuffer(j)%imap(5):recvbuffer(j)%imap(6)) = recvbuffer(j)%r4
             DEALLOCATE (recvbuffer(j)%r4)
          END DO
          IF (mixed_cdft%dlb) THEN
@@ -778,9 +810,9 @@ CONTAINS
                                   UBOUND(mixed_cdft%dlb_control%recvbuff(j)%buffs(i)%gradients, 3), &
                                   LBOUND(mixed_cdft%dlb_control%recvbuff(j)%buffs(i)%gradients, 4), &
                                   UBOUND(mixed_cdft%dlb_control%recvbuff(j)%buffs(i)%gradients, 4)/)
-                        dft_control%qs_control%becke_control%group(1)%gradients(:, INDEX(1):INDEX(2), &
-                                                                                INDEX(3):INDEX(4), &
-                                                                                INDEX(5):INDEX(6)) = &
+                        cdft_control_target%group(1)%gradients(:, INDEX(1):INDEX(2), &
+                                                               INDEX(3):INDEX(4), &
+                                                               INDEX(5):INDEX(6)) = &
                            mixed_cdft%dlb_control%recvbuff(j)%buffs(i)%gradients
                         DEALLOCATE (mixed_cdft%dlb_control%recvbuff(j)%buffs(i)%gradients)
                      END DO
@@ -811,16 +843,16 @@ CONTAINS
       DEALLOCATE (ub)
       CALL timestop(handle2)
       ! Set some flags so the weight is not rebuilt during SCF
-      dft_control%qs_control%becke_control%external_control = .TRUE.
-      dft_control%qs_control%becke_control%need_pot = .FALSE.
-      dft_control%qs_control%becke_control%transfer_pot = .FALSE.
+      cdft_control_target%external_control = .TRUE.
+      cdft_control_target%need_pot = .FALSE.
+      cdft_control_target%transfer_pot = .FALSE.
       ! Store the bound indices for force calculation
       IF (calculate_forces) THEN
-         dft_control%qs_control%becke_control%confine_bounds(2) = ub_max
-         dft_control%qs_control%becke_control%confine_bounds(1) = lb_min
+         cdft_control_target%becke_control%confine_bounds(2) = ub_max
+         cdft_control_target%becke_control%confine_bounds(1) = lb_min
       END IF
-      CALL pw_scale(dft_control%qs_control%becke_control%group(1)%weight%pw, &
-                    dft_control%qs_control%becke_control%group(1)%weight%pw%pw_grid%dvol)
+      CALL pw_scale(cdft_control_target%group(1)%weight%pw, &
+                    cdft_control_target%group(1)%weight%pw%pw_grid%dvol)
       ! Set flags for ET coupling calculation
       IF (mixed_env%do_mixed_et) THEN
          IF (MODULO(mixed_cdft%sim_step, mixed_env%et_freq) == 0) THEN
@@ -845,7 +877,7 @@ CONTAINS
 
 ! **************************************************************************************************
 !> \brief Transfer CDFT weight/gradient between force_evals
-!> \param force_env the force_env that holds the two CDFT sub_force_envs
+!> \param force_env the force_env that holds the CDFT sub_force_envs
 !> \param calculate_forces if forces should be computed
 !> \param iforce_eval index of the currently active CDFT state
 !> \par History
@@ -862,6 +894,7 @@ CONTAINS
       INTEGER                                            :: bounds_of(8), handle, iatom, igroup, &
                                                             jforce_eval, nforce_eval
       LOGICAL, SAVE                                      :: first_call = .TRUE.
+      TYPE(cdft_control_type), POINTER                   :: cdft_control_source, cdft_control_target
       TYPE(dft_control_type), POINTER                    :: dft_control_source, dft_control_target
       TYPE(force_env_type), POINTER                      :: force_env_qs_source, force_env_qs_target
       TYPE(mixed_cdft_type), POINTER                     :: mixed_cdft
@@ -873,7 +906,8 @@ CONTAINS
 
       NULLIFY (mixed_cdft, dft_control_source, dft_control_target, force_env_qs_source, &
                force_env_qs_target, pw_env_source, pw_env_target, auxbas_pw_pool_source, &
-               auxbas_pw_pool_target, qs_env_source, qs_env_target, mixed_env)
+               auxbas_pw_pool_target, qs_env_source, qs_env_target, mixed_env, &
+               cdft_control_source, cdft_control_target)
       mixed_env => force_env%mixed_env
       CALL get_mixed_env(mixed_env, cdft_control=mixed_cdft)
       CALL timeset(routineN, handle)
@@ -900,15 +934,16 @@ CONTAINS
          qs_env_target => force_env_qs_target%qmmm_env%qs_env
       END IF
       IF (iforce_eval == 1) THEN
-         ! The first force_eval builds the weight function and gradients in et_coupling.F
+         ! The first force_eval builds the weight function and gradients in qs_cdft_methods.F
          ! Set some flags so the constraint is saved if the constraint definitions are identical in all CDFT states
          CALL get_qs_env(qs_env_source, dft_control=dft_control_source)
-         dft_control_source%qs_control%becke_control%external_control = .FALSE.
-         dft_control_source%qs_control%becke_control%need_pot = .TRUE.
+         cdft_control_source => dft_control_source%qs_control%cdft_control
+         cdft_control_source%external_control = .FALSE.
+         cdft_control_source%need_pot = .TRUE.
          IF (mixed_cdft%identical_constraints) THEN
-            dft_control_source%qs_control%becke_control%transfer_pot = .TRUE.
+            cdft_control_source%transfer_pot = .TRUE.
          ELSE
-            dft_control_source%qs_control%becke_control%transfer_pot = .FALSE.
+            cdft_control_source%transfer_pot = .FALSE.
          END IF
          mixed_cdft%sim_step = mixed_cdft%sim_step+1
       ELSE
@@ -916,83 +951,81 @@ CONTAINS
          CALL get_qs_env(qs_env_source, dft_control=dft_control_source, &
                          pw_env=pw_env_source)
          CALL pw_env_get(pw_env_source, auxbas_pw_pool=auxbas_pw_pool_source)
+         cdft_control_source => dft_control_source%qs_control%cdft_control
          CALL get_qs_env(qs_env_target, dft_control=dft_control_target, &
                          pw_env=pw_env_target)
          CALL pw_env_get(pw_env_target, auxbas_pw_pool=auxbas_pw_pool_target)
+         cdft_control_target => dft_control_target%qs_control%cdft_control
          ! The constraint can be transfered only when the constraint defitions are identical in all CDFT states
          IF (mixed_cdft%identical_constraints) THEN
             ! Weight function
-            DO igroup = 1, SIZE(dft_control_target%qs_control%becke_control%group)
+            DO igroup = 1, SIZE(cdft_control_target%group)
                CALL pw_pool_create_pw(auxbas_pw_pool_target, &
-                                      dft_control_target%qs_control%becke_control%group(igroup)%weight%pw, &
+                                      cdft_control_target%group(igroup)%weight%pw, &
                                       use_data=REALDATA3D, in_space=REALSPACE)
                ! We have ensured that the grids are consistent => no danger in using explicit copy
-               dft_control_target%qs_control%becke_control%group(igroup)%weight%pw%cr3d(:, :, :) = &
-                  dft_control_source%qs_control%becke_control%group(igroup)%weight%pw%cr3d
-               CALL pw_pool_give_back_pw(auxbas_pw_pool_source, &
-                                         dft_control_source%qs_control%becke_control%group(igroup)%weight%pw)
+               cdft_control_target%group(igroup)%weight%pw%cr3d = cdft_control_source%group(igroup)%weight%pw%cr3d
+               CALL pw_pool_give_back_pw(auxbas_pw_pool_source, cdft_control_source%group(igroup)%weight%pw)
             END DO
             ! Cavity
-            IF (dft_control_source%qs_control%becke_control%cavity_confine) THEN
-               CALL pw_pool_create_pw(auxbas_pw_pool_target, dft_control_target%qs_control%becke_control%cavity%pw, &
-                                      use_data=REALDATA3D, in_space=REALSPACE)
-               dft_control_target%qs_control%becke_control%cavity%pw%cr3d(:, :, :) = &
-                  dft_control_source%qs_control%becke_control%cavity%pw%cr3d
-               CALL pw_pool_give_back_pw(auxbas_pw_pool_source, dft_control_source%qs_control%becke_control%cavity%pw)
+            IF (cdft_control_source%type == outer_scf_becke_constraint) THEN
+               IF (cdft_control_source%becke_control%cavity_confine) THEN
+                  CALL pw_pool_create_pw(auxbas_pw_pool_target, cdft_control_target%becke_control%cavity%pw, &
+                                         use_data=REALDATA3D, in_space=REALSPACE)
+                  cdft_control_target%becke_control%cavity%pw%cr3d(:, :, :) = &
+                     cdft_control_source%becke_control%cavity%pw%cr3d
+                  CALL pw_pool_give_back_pw(auxbas_pw_pool_source, cdft_control_source%becke_control%cavity%pw)
+               END IF
             END IF
             ! Gradients
             IF (calculate_forces) THEN
-               DO igroup = 1, SIZE(dft_control_source%qs_control%becke_control%group)
-                  bounds_of = (/LBOUND(dft_control_source%qs_control%becke_control%group(igroup)%gradients, 1), &
-                                UBOUND(dft_control_source%qs_control%becke_control%group(igroup)%gradients, 1), &
-                                LBOUND(dft_control_source%qs_control%becke_control%group(igroup)%gradients, 2), &
-                                UBOUND(dft_control_source%qs_control%becke_control%group(igroup)%gradients, 2), &
-                                LBOUND(dft_control_source%qs_control%becke_control%group(igroup)%gradients, 3), &
-                                UBOUND(dft_control_source%qs_control%becke_control%group(igroup)%gradients, 3), &
-                                LBOUND(dft_control_source%qs_control%becke_control%group(igroup)%gradients, 4), &
-                                UBOUND(dft_control_source%qs_control%becke_control%group(igroup)%gradients, 4)/)
-                  ALLOCATE (dft_control_target%qs_control%becke_control%group(igroup)% &
+               DO igroup = 1, SIZE(cdft_control_source%group)
+                  bounds_of = (/LBOUND(cdft_control_source%group(igroup)%gradients, 1), &
+                                UBOUND(cdft_control_source%group(igroup)%gradients, 1), &
+                                LBOUND(cdft_control_source%group(igroup)%gradients, 2), &
+                                UBOUND(cdft_control_source%group(igroup)%gradients, 2), &
+                                LBOUND(cdft_control_source%group(igroup)%gradients, 3), &
+                                UBOUND(cdft_control_source%group(igroup)%gradients, 3), &
+                                LBOUND(cdft_control_source%group(igroup)%gradients, 4), &
+                                UBOUND(cdft_control_source%group(igroup)%gradients, 4)/)
+                  ALLOCATE (cdft_control_target%group(igroup)% &
                             gradients(bounds_of(1):bounds_of(2), bounds_of(3):bounds_of(4), &
                                       bounds_of(5):bounds_of(6), bounds_of(7):bounds_of(8)))
-                  dft_control_target%qs_control%becke_control%group(igroup)%gradients = &
-                     dft_control_source%qs_control%becke_control%group(igroup)%gradients
-                  DEALLOCATE (dft_control_source%qs_control%becke_control%group(igroup)%gradients)
+                  cdft_control_target%group(igroup)%gradients = cdft_control_source%group(igroup)%gradients
+                  DEALLOCATE (cdft_control_source%group(igroup)%gradients)
                END DO
             END IF
-            ! Atomic weight functions needed for Becke charges
-            IF (dft_control_source%qs_control%becke_control%atomic_charges) THEN
-               IF (.NOT. ASSOCIATED(dft_control_target%qs_control%becke_control%charge)) &
-                  ALLOCATE (dft_control_target%qs_control%becke_control% &
-                            charge(dft_control_target%qs_control%becke_control%natoms))
-               DO iatom = 1, dft_control_target%qs_control%becke_control%natoms
+            ! Atomic weight functions needed for CDFT charges
+            IF (cdft_control_source%atomic_charges) THEN
+               IF (.NOT. ASSOCIATED(cdft_control_target%charge)) &
+                  ALLOCATE (cdft_control_target%charge(cdft_control_target%natoms))
+               DO iatom = 1, cdft_control_target%natoms
                   CALL pw_pool_create_pw(auxbas_pw_pool_target, &
-                                         dft_control_target%qs_control%becke_control%charge(iatom)%pw, &
+                                         cdft_control_target%charge(iatom)%pw, &
                                          use_data=REALDATA3D, in_space=REALSPACE)
-                  dft_control_target%qs_control%becke_control%charge(iatom)%pw%cr3d = &
-                     dft_control_source%qs_control%becke_control%charge(iatom)%pw%cr3d
-                  CALL pw_pool_give_back_pw(auxbas_pw_pool_source, &
-                                            dft_control_source%qs_control%becke_control%charge(iatom)%pw)
+                  cdft_control_target%charge(iatom)%pw%cr3d = cdft_control_source%charge(iatom)%pw%cr3d
+                  CALL pw_pool_give_back_pw(auxbas_pw_pool_source, cdft_control_source%charge(iatom)%pw)
                END DO
             END IF
             ! Set some flags so the weight is not rebuilt during SCF
-            dft_control_target%qs_control%becke_control%external_control = .FALSE.
-            dft_control_target%qs_control%becke_control%need_pot = .FALSE.
+            cdft_control_target%external_control = .FALSE.
+            cdft_control_target%need_pot = .FALSE.
             ! For states i+1 < nforce_eval, prevent deallocation of constraint
             IF (iforce_eval == nforce_eval) THEN
-               dft_control_target%qs_control%becke_control%transfer_pot = .FALSE.
+               cdft_control_target%transfer_pot = .FALSE.
             ELSE
-               dft_control_target%qs_control%becke_control%transfer_pot = .TRUE.
+               cdft_control_target%transfer_pot = .TRUE.
             END IF
-            dft_control_target%qs_control%becke_control%first_iteration = .FALSE.
+            cdft_control_target%first_iteration = .FALSE.
          ELSE
             ! Force rebuild of constraint and dont save it
-            dft_control_target%qs_control%becke_control%external_control = .FALSE.
-            dft_control_target%qs_control%becke_control%need_pot = .TRUE.
-            dft_control_target%qs_control%becke_control%transfer_pot = .FALSE.
+            cdft_control_target%external_control = .FALSE.
+            cdft_control_target%need_pot = .TRUE.
+            cdft_control_target%transfer_pot = .FALSE.
             IF (first_call) THEN
-               dft_control_target%qs_control%becke_control%first_iteration = .TRUE.
+               cdft_control_target%first_iteration = .TRUE.
             ELSE
-               dft_control_target%qs_control%becke_control%first_iteration = .FALSE.
+               cdft_control_target%first_iteration = .FALSE.
             END IF
          END IF
       END IF
@@ -1000,19 +1033,19 @@ CONTAINS
       IF (mixed_env%do_mixed_et) THEN
          IF (MODULO(mixed_cdft%sim_step, mixed_env%et_freq) == 0) THEN
             IF (iforce_eval == 1) THEN
-               dft_control_source%qs_control%cdft_control%do_et = .TRUE.
-               dft_control_source%qs_control%cdft_control%calculate_metric = mixed_cdft%calculate_metric
+               cdft_control_source%do_et = .TRUE.
+               cdft_control_source%calculate_metric = mixed_cdft%calculate_metric
             ELSE
-               dft_control_target%qs_control%cdft_control%do_et = .TRUE.
-               dft_control_target%qs_control%cdft_control%calculate_metric = mixed_cdft%calculate_metric
+               cdft_control_target%do_et = .TRUE.
+               cdft_control_target%calculate_metric = mixed_cdft%calculate_metric
             END IF
          ELSE
             IF (iforce_eval == 1) THEN
-               dft_control_source%qs_control%cdft_control%do_et = .FALSE.
-               dft_control_source%qs_control%cdft_control%calculate_metric = .FALSE.
+               cdft_control_source%do_et = .FALSE.
+               cdft_control_source%calculate_metric = .FALSE.
             ELSE
-               dft_control_target%qs_control%cdft_control%do_et = .FALSE.
-               dft_control_target%qs_control%cdft_control%calculate_metric = .FALSE.
+               cdft_control_target%do_et = .FALSE.
+               cdft_control_target%calculate_metric = .FALSE.
             END IF
          END IF
       END IF
@@ -1020,6 +1053,75 @@ CONTAINS
       CALL timestop(handle)
 
    END SUBROUTINE mixed_cdft_transfer_weight
+
+! **************************************************************************************************
+!> \brief In case CDFT states are treated in paralle, sets flags so that each CDFT state
+!>        builds their own weight functions and gradients
+!> \param force_env the force_env that holds the CDFT sub_force_envs
+!> \par History
+!>       09.2018  created [Nico Holmberg]
+! **************************************************************************************************
+   SUBROUTINE mixed_cdft_set_flags(force_env)
+      TYPE(force_env_type), POINTER                      :: force_env
+
+      CHARACTER(len=*), PARAMETER :: routineN = 'mixed_cdft_set_flags', &
+         routineP = moduleN//':'//routineN
+
+      INTEGER                                            :: handle, iforce_eval, nforce_eval
+      LOGICAL, SAVE                                      :: first_call = .TRUE.
+      TYPE(cdft_control_type), POINTER                   :: cdft_control
+      TYPE(dft_control_type), POINTER                    :: dft_control
+      TYPE(force_env_type), POINTER                      :: force_env_qs
+      TYPE(mixed_cdft_type), POINTER                     :: mixed_cdft
+      TYPE(mixed_environment_type), POINTER              :: mixed_env
+      TYPE(qs_environment_type), POINTER                 :: qs_env
+
+      NULLIFY (mixed_cdft, dft_control, force_env_qs, qs_env, mixed_env, cdft_control)
+      mixed_env => force_env%mixed_env
+      CALL get_mixed_env(mixed_env, cdft_control=mixed_cdft)
+      CALL timeset(routineN, handle)
+      nforce_eval = SIZE(force_env%sub_force_env)
+      DO iforce_eval = 1, nforce_eval
+         IF (.NOT. ASSOCIATED(force_env%sub_force_env(iforce_eval)%force_env)) CYCLE
+         SELECT CASE (force_env%sub_force_env (iforce_eval)%force_env%in_use)
+         CASE (use_qs_force, use_qmmm)
+            force_env_qs => force_env%sub_force_env(iforce_eval)%force_env
+         CASE DEFAULT
+            CPASSERT(.FALSE.)
+         END SELECT
+         IF (.NOT. force_env%mixed_env%do_mixed_qmmm_cdft) THEN
+            CALL force_env_get(force_env=force_env_qs, qs_env=qs_env)
+         ELSE
+            qs_env => force_env_qs%qmmm_env%qs_env
+         END IF
+         ! All force_evals build the weight function and gradients in qs_cdft_methods.F
+         ! Update flags to match run type
+         CALL get_qs_env(qs_env, dft_control=dft_control)
+         cdft_control => dft_control%qs_control%cdft_control
+         cdft_control%external_control = .FALSE.
+         cdft_control%need_pot = .TRUE.
+         cdft_control%transfer_pot = .FALSE.
+         IF (first_call) THEN
+            cdft_control%first_iteration = .TRUE.
+         ELSE
+            cdft_control%first_iteration = .FALSE.
+         END IF
+         ! Set flags for ET coupling calculation
+         IF (mixed_env%do_mixed_et) THEN
+            IF (MODULO(mixed_cdft%sim_step, mixed_env%et_freq) == 0) THEN
+               cdft_control%do_et = .TRUE.
+               cdft_control%calculate_metric = mixed_cdft%calculate_metric
+            ELSE
+               cdft_control%do_et = .FALSE.
+               cdft_control%calculate_metric = .FALSE.
+            END IF
+         END IF
+      END DO
+      mixed_cdft%sim_step = mixed_cdft%sim_step+1
+      IF (first_call) first_call = .FALSE.
+      CALL timestop(handle)
+
+   END SUBROUTINE mixed_cdft_set_flags
 
 ! **************************************************************************************************
 !> \brief Driver routine to calculate the electronic coupling(s) between CDFT states.
@@ -2229,6 +2331,7 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:), POINTER               :: radii_list
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: pab
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
+      TYPE(cdft_control_type), POINTER                   :: cdft_control
       TYPE(cell_type), POINTER                           :: cell
       TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(cp_subsys_type), POINTER                      :: subsys_mix
@@ -2243,7 +2346,7 @@ CONTAINS
 
       NULLIFY (pab, cell, force_env_qs, particle_set, force_env_section, print_section, &
                qs_kind_set, particles, subsys_mix, rs_cavity, cavity_env, auxbas_pw_pool, &
-               atomic_kind_set, radii_list)
+               atomic_kind_set, radii_list, cdft_control)
       logger => cp_get_default_logger()
       nforce_eval = SIZE(force_env%sub_force_env)
       CALL timeset(routineN, handle)
@@ -2269,14 +2372,16 @@ CONTAINS
       END IF
       natom = SIZE(particles%els)
       print_section => section_vals_get_subs_vals(force_env_section, "MIXED%MIXED_CDFT%PRINT%PROGRAM_RUN_INFO")
-      IF (.NOT. ASSOCIATED(mixed_cdft%becke_control%cutoffs)) THEN
+      cdft_control => mixed_cdft%cdft_control
+      CPASSERT(ASSOCIATED(cdft_control))
+      IF (.NOT. ASSOCIATED(cdft_control%becke_control%cutoffs)) THEN
          CALL cp_subsys_get(subsys_mix, atomic_kind_set=atomic_kind_set)
-         ALLOCATE (mixed_cdft%becke_control%cutoffs(natom))
-         SELECT CASE (mixed_cdft%becke_control%cutoff_type)
+         ALLOCATE (cdft_control%becke_control%cutoffs(natom))
+         SELECT CASE (cdft_control%becke_control%cutoff_type)
          CASE (becke_cutoff_global)
-            mixed_cdft%becke_control%cutoffs(:) = mixed_cdft%becke_control%rglobal
+            cdft_control%becke_control%cutoffs(:) = cdft_control%becke_control%rglobal
          CASE (becke_cutoff_element)
-            IF (.NOT. SIZE(atomic_kind_set) == SIZE(mixed_cdft%becke_control%cutoffs_tmp)) &
+            IF (.NOT. SIZE(atomic_kind_set) == SIZE(cdft_control%becke_control%cutoffs_tmp)) &
                CALL cp_abort(__LOCATION__, &
                              "Size of keyword BECKE_CONSTRAINT\ELEMENT_CUTOFFS does"// &
                              "not match number of atomic kinds in the input coordinate file.")
@@ -2284,41 +2389,41 @@ CONTAINS
                CALL get_atomic_kind(atomic_kind_set(ikind), natom=katom, atom_list=atom_list)
                DO iatom = 1, katom
                   atom_a = atom_list(iatom)
-                  mixed_cdft%becke_control%cutoffs(atom_a) = mixed_cdft%becke_control%cutoffs_tmp(ikind)
+                  cdft_control%becke_control%cutoffs(atom_a) = cdft_control%becke_control%cutoffs_tmp(ikind)
                END DO
             END DO
-            DEALLOCATE (mixed_cdft%becke_control%cutoffs_tmp)
+            DEALLOCATE (cdft_control%becke_control%cutoffs_tmp)
          END SELECT
       END IF
       build = .FALSE.
-      IF (mixed_cdft%becke_control%adjust .AND. &
-          .NOT. ASSOCIATED(mixed_cdft%becke_control%aij)) THEN
-         ALLOCATE (mixed_cdft%becke_control%aij(natom, natom))
+      IF (cdft_control%becke_control%adjust .AND. &
+          .NOT. ASSOCIATED(cdft_control%becke_control%aij)) THEN
+         ALLOCATE (cdft_control%becke_control%aij(natom, natom))
          build = .TRUE.
       END IF
-      ALLOCATE (catom(mixed_cdft%becke_control%natoms))
-      IF (mixed_cdft%becke_control%save_pot .OR. &
-          mixed_cdft%becke_control%cavity_confine .OR. &
-          mixed_cdft%becke_control%should_skip .OR. &
+      ALLOCATE (catom(cdft_control%natoms))
+      IF (cdft_control%save_pot .OR. &
+          cdft_control%becke_control%cavity_confine .OR. &
+          cdft_control%becke_control%should_skip .OR. &
           mixed_cdft%first_iteration) THEN
          ALLOCATE (is_constraint(natom))
          is_constraint = .FALSE.
       END IF
-      in_memory = calculate_forces .AND. mixed_cdft%becke_control%in_memory
+      in_memory = calculate_forces .AND. cdft_control%becke_control%in_memory
       IF (in_memory .NEQV. calculate_forces) &
          CALL cp_abort(__LOCATION__, &
                        "The flag BECKE_CONSTRAINT\IN_MEMORY must be activated "// &
                        "for the calculation of mixed CDFT forces")
       IF (in_memory .OR. mixed_cdft%first_iteration) ALLOCATE (coefficients(natom))
-      DO i = 1, mixed_cdft%becke_control%natoms
-         catom(i) = mixed_cdft%becke_control%atoms(i)
-         IF (mixed_cdft%becke_control%save_pot .OR. &
-             mixed_cdft%becke_control%cavity_confine .OR. &
-             mixed_cdft%becke_control%should_skip .OR. &
+      DO i = 1, cdft_control%natoms
+         catom(i) = cdft_control%atoms(i)
+         IF (cdft_control%save_pot .OR. &
+             cdft_control%becke_control%cavity_confine .OR. &
+             cdft_control%becke_control%should_skip .OR. &
              mixed_cdft%first_iteration) &
             is_constraint(catom(i)) = .TRUE.
          IF (in_memory .OR. mixed_cdft%first_iteration) &
-            coefficients(catom(i)) = mixed_cdft%becke_control%group(1)%coeff(i)
+            coefficients(catom(i)) = cdft_control%group(1)%coeff(i)
       ENDDO
       CALL pw_env_get(pw_env=mixed_cdft%pw_env, auxbas_pw_pool=auxbas_pw_pool)
       bo = auxbas_pw_pool%pw_grid%bounds_local
@@ -2355,26 +2460,26 @@ CONTAINS
             IF (build) THEN
                CALL get_atomic_kind(atomic_kind=particle_set(iatom)%atomic_kind, &
                                     kind_number=ikind)
-               ircov = mixed_cdft%becke_control%radii(ikind)
+               ircov = cdft_control%becke_control%radii(ikind)
                CALL get_atomic_kind(atomic_kind=particle_set(jatom)%atomic_kind, &
                                     kind_number=ikind)
-               jrcov = mixed_cdft%becke_control%radii(ikind)
+               jrcov = cdft_control%becke_control%radii(ikind)
                IF (ircov .NE. jrcov) THEN
                   chi = ircov/jrcov
                   uij = (chi-1.0_dp)/(chi+1.0_dp)
-                  mixed_cdft%becke_control%aij(iatom, jatom) = uij/(uij**2-1.0_dp)
-                  IF (mixed_cdft%becke_control%aij(iatom, jatom) &
+                  cdft_control%becke_control%aij(iatom, jatom) = uij/(uij**2-1.0_dp)
+                  IF (cdft_control%becke_control%aij(iatom, jatom) &
                       .GT. 0.5_dp) THEN
-                     mixed_cdft%becke_control%aij(iatom, jatom) = 0.5_dp
-                  ELSE IF (mixed_cdft%becke_control%aij(iatom, jatom) &
+                     cdft_control%becke_control%aij(iatom, jatom) = 0.5_dp
+                  ELSE IF (cdft_control%becke_control%aij(iatom, jatom) &
                            .LT. -0.5_dp) THEN
-                     mixed_cdft%becke_control%aij(iatom, jatom) = -0.5_dp
+                     cdft_control%becke_control%aij(iatom, jatom) = -0.5_dp
                   END IF
                ELSE
-                  mixed_cdft%becke_control%aij(iatom, jatom) = 0.0_dp
+                  cdft_control%becke_control%aij(iatom, jatom) = 0.0_dp
                END IF
-               mixed_cdft%becke_control%aij(jatom, iatom) = &
-                  -mixed_cdft%becke_control%aij(iatom, jatom)
+               cdft_control%becke_control%aij(jatom, iatom) = &
+                  -cdft_control%becke_control%aij(iatom, jatom)
             END IF
          END DO
       END DO
@@ -2385,14 +2490,14 @@ CONTAINS
          IF (iounit > 0) THEN
             WRITE (iounit, '(/,T3,A,T66)') &
                '-------------------------- Becke atomic parameters ---------------------------'
-            IF (mixed_cdft%becke_control%adjust) THEN
+            IF (cdft_control%becke_control%adjust) THEN
                WRITE (iounit, '(T3,A,A)') &
                   'Atom   Element  Coefficient', '     Cutoff (angstrom)       CDFT Radius (angstrom)'
                DO iatom = 1, natom
                   CALL get_atomic_kind(atomic_kind=particle_set(iatom)%atomic_kind, &
                                        element_symbol=element_symbol, &
                                        kind_number=ikind)
-                  ircov = cp_unit_from_cp2k(mixed_cdft%becke_control%radii(ikind), "angstrom")
+                  ircov = cp_unit_from_cp2k(cdft_control%becke_control%radii(ikind), "angstrom")
                   IF (is_constraint(iatom)) THEN
                      coef = coefficients(iatom)
                   ELSE
@@ -2400,7 +2505,7 @@ CONTAINS
                   END IF
                   WRITE (iounit, "(i6,T14,A2,T22,F8.3,T44,F8.3,T73,F8.3)") &
                      iatom, ADJUSTR(element_symbol), coef, &
-                     cp_unit_from_cp2k(mixed_cdft%becke_control%cutoffs(iatom), "angstrom"), &
+                     cp_unit_from_cp2k(cdft_control%becke_control%cutoffs(iatom), "angstrom"), &
                      ircov
                END DO
             ELSE
@@ -2416,7 +2521,7 @@ CONTAINS
                   END IF
                   WRITE (iounit, "(i6,T14,A2,T22,F8.3,T44,F8.3)") &
                      iatom, ADJUSTR(element_symbol), coef, &
-                     cp_unit_from_cp2k(mixed_cdft%becke_control%cutoffs(iatom), "angstrom")
+                     cp_unit_from_cp2k(cdft_control%becke_control%cutoffs(iatom), "angstrom")
                END DO
             END IF
             WRITE (iounit, '(T3,A)') &
@@ -2427,25 +2532,25 @@ CONTAINS
          mixed_cdft%first_iteration = .FALSE.
       END IF
 
-      IF (mixed_cdft%becke_control%cavity_confine) THEN
+      IF (cdft_control%becke_control%cavity_confine) THEN
          CPASSERT(ASSOCIATED(mixed_cdft%qs_kind_set))
-         cavity_env => mixed_cdft%becke_control%cavity_env
+         cavity_env => cdft_control%becke_control%cavity_env
          qs_kind_set => mixed_cdft%qs_kind_set
          CALL cp_subsys_get(subsys_mix, atomic_kind_set=atomic_kind_set)
          nkind = SIZE(qs_kind_set)
          IF (.NOT. ASSOCIATED(cavity_env%kind_shape_fn)) THEN
-            IF (ASSOCIATED(mixed_cdft%becke_control%radii)) THEN
-               ALLOCATE (radii_list(SIZE(mixed_cdft%becke_control%radii)))
-               DO ikind = 1, SIZE(mixed_cdft%becke_control%radii)
+            IF (ASSOCIATED(cdft_control%becke_control%radii)) THEN
+               ALLOCATE (radii_list(SIZE(cdft_control%becke_control%radii)))
+               DO ikind = 1, SIZE(cdft_control%becke_control%radii)
                   IF (cavity_env%use_bohr) THEN
-                     radii_list(ikind) = mixed_cdft%becke_control%radii(ikind)
+                     radii_list(ikind) = cdft_control%becke_control%radii(ikind)
                   ELSE
-                     radii_list(ikind) = cp_unit_from_cp2k(mixed_cdft%becke_control%radii(ikind), "angstrom")
+                     radii_list(ikind) = cp_unit_from_cp2k(cdft_control%becke_control%radii(ikind), "angstrom")
                   END IF
                END DO
             END IF
             CALL create_shape_function(cavity_env, qs_kind_set, atomic_kind_set, &
-                                       radius=mixed_cdft%becke_control%rcavity, &
+                                       radius=cdft_control%becke_control%rcavity, &
                                        radii_list=radii_list)
             IF (ASSOCIATED(radii_list)) &
                DEALLOCATE (radii_list)
@@ -2502,12 +2607,12 @@ CONTAINS
             DEALLOCATE (cores)
          END DO
          DEALLOCATE (pab)
-         CALL pw_pool_create_pw(auxbas_pw_pool, mixed_cdft%becke_control%cavity%pw, &
+         CALL pw_pool_create_pw(auxbas_pw_pool, cdft_control%becke_control%cavity%pw, &
                                 use_data=REALDATA3D, in_space=REALSPACE)
-         CALL rs_pw_transfer(rs_cavity, mixed_cdft%becke_control%cavity%pw, rs2pw)
+         CALL rs_pw_transfer(rs_cavity, cdft_control%becke_control%cavity%pw, rs2pw)
          CALL rs_grid_release(rs_cavity)
-         CALL hfun_zero(mixed_cdft%becke_control%cavity%pw%cr3d, &
-                        mixed_cdft%becke_control%eps_cavity, &
+         CALL hfun_zero(cdft_control%becke_control%cavity%pw%cr3d, &
+                        cdft_control%becke_control%eps_cavity, &
                         just_zero=.FALSE., bounds=bounds, work=my_work)
          IF (bounds(2) .LT. bo(2, 3)) THEN
             bounds(2) = bounds(2)-1
@@ -2532,10 +2637,10 @@ CONTAINS
                my_work_size = my_work_size*(bo(2, 1)-bo(1, 1)+1)
             END IF
          END IF
-         mixed_cdft%becke_control%confine_bounds = bounds
-         IF (mixed_cdft%becke_control%print_cavity) THEN
-            CALL hfun_zero(mixed_cdft%becke_control%cavity%pw%cr3d, &
-                           mixed_cdft%becke_control%eps_cavity, just_zero=.TRUE.)
+         cdft_control%becke_control%confine_bounds = bounds
+         IF (cdft_control%becke_control%print_cavity) THEN
+            CALL hfun_zero(cdft_control%becke_control%cavity%pw%cr3d, &
+                           cdft_control%becke_control%eps_cavity, just_zero=.TRUE.)
             NULLIFY (stride)
             ALLOCATE (stride(3))
             stride = (/2, 2, 2/)
@@ -2547,7 +2652,7 @@ CONTAINS
             IF (force_env%para_env%mepos == force_env%para_env%source .AND. unit_nr .LT. 1) &
                CALL cp_abort(__LOCATION__, &
                              "Please turn on PROGRAM_RUN_INFO to print cavity")
-            CALL cp_pw_to_cube(mixed_cdft%becke_control%cavity%pw, &
+            CALL cp_pw_to_cube(cdft_control%becke_control%cavity%pw, &
                                unit_nr, "CAVITY", particles=particles, &
                                stride=stride, mpi_io=mpi_io)
             CALL cp_print_key_finished_output(unit_nr, logger, print_section, '', mpi_io=mpi_io)
@@ -2555,8 +2660,8 @@ CONTAINS
          END IF
       END IF
       bo_conf = bo
-      IF (mixed_cdft%becke_control%cavity_confine) &
-         bo_conf(:, 3) = mixed_cdft%becke_control%confine_bounds
+      IF (cdft_control%becke_control%cavity_confine) &
+         bo_conf(:, 3) = cdft_control%becke_control%confine_bounds
       ! Load balance
       IF (mixed_cdft%dlb) &
          CALL mixed_becke_constraint_dlb(force_env, mixed_cdft, my_work, &
@@ -2567,30 +2672,30 @@ CONTAINS
          IF (mixed_cdft%dlb_control%send_work .AND. .NOT. mixed_cdft%is_special) &
             offset_dlb = SUM(mixed_cdft%dlb_control%target_list(2, :))
       END IF
-      IF (mixed_cdft%becke_control%cavity_confine) THEN
+      IF (cdft_control%becke_control%cavity_confine) THEN
          ! Get rid of the zero part of the confinement cavity (cr3d -> real(:,:,:))
          IF (mixed_cdft%is_special) THEN
             ALLOCATE (mixed_cdft%sendbuff(SIZE(mixed_cdft%dest_list)))
             DO i = 1, SIZE(mixed_cdft%dest_list)
                ALLOCATE (mixed_cdft%sendbuff(i)%cavity(mixed_cdft%dest_list_bo(1, i):mixed_cdft%dest_list_bo(2, i), &
                                                        bo(1, 2):bo(2, 2), bo_conf(1, 3):bo_conf(2, 3)))
-               mixed_cdft%sendbuff(i)%cavity = mixed_cdft%becke_control%cavity%pw%cr3d(mixed_cdft%dest_list_bo(1, i): &
-                                                                                       mixed_cdft%dest_list_bo(2, i), &
-                                                                                       bo(1, 2):bo(2, 2), &
-                                                                                       bo_conf(1, 3):bo_conf(2, 3))
+               mixed_cdft%sendbuff(i)%cavity = cdft_control%becke_control%cavity%pw%cr3d(mixed_cdft%dest_list_bo(1, i): &
+                                                                                         mixed_cdft%dest_list_bo(2, i), &
+                                                                                         bo(1, 2):bo(2, 2), &
+                                                                                         bo_conf(1, 3):bo_conf(2, 3))
             END DO
          ELSE IF (mixed_cdft%is_pencil) THEN
             ALLOCATE (mixed_cdft%cavity(bo(1, 1)+offset_dlb:bo(2, 1), bo(1, 2):bo(2, 2), bo_conf(1, 3):bo_conf(2, 3)))
-            mixed_cdft%cavity = mixed_cdft%becke_control%cavity%pw%cr3d(bo(1, 1)+offset_dlb:bo(2, 1), &
-                                                                        bo(1, 2):bo(2, 2), &
-                                                                        bo_conf(1, 3):bo_conf(2, 3))
+            mixed_cdft%cavity = cdft_control%becke_control%cavity%pw%cr3d(bo(1, 1)+offset_dlb:bo(2, 1), &
+                                                                          bo(1, 2):bo(2, 2), &
+                                                                          bo_conf(1, 3):bo_conf(2, 3))
          ELSE
             ALLOCATE (mixed_cdft%cavity(bo(1, 1):bo(2, 1), bo(1, 2)+offset_dlb:bo(2, 2), bo_conf(1, 3):bo_conf(2, 3)))
-            mixed_cdft%cavity = mixed_cdft%becke_control%cavity%pw%cr3d(bo(1, 1):bo(2, 1), &
-                                                                        bo(1, 2)+offset_dlb:bo(2, 2), &
-                                                                        bo_conf(1, 3):bo_conf(2, 3))
+            mixed_cdft%cavity = cdft_control%becke_control%cavity%pw%cr3d(bo(1, 1):bo(2, 1), &
+                                                                          bo(1, 2)+offset_dlb:bo(2, 2), &
+                                                                          bo_conf(1, 3):bo_conf(2, 3))
          END IF
-         CALL pw_pool_give_back_pw(auxbas_pw_pool, mixed_cdft%becke_control%cavity%pw)
+         CALL pw_pool_give_back_pw(auxbas_pw_pool, cdft_control%becke_control%cavity%pw)
       END IF
       IF (mixed_cdft%is_special) THEN
          DO i = 1, SIZE(mixed_cdft%dest_list)
@@ -2615,15 +2720,15 @@ CONTAINS
                mixed_cdft%sendbuff(i)%gradients = 0.0_dp
             END DO
          ELSE IF (mixed_cdft%is_pencil) THEN
-            ALLOCATE (mixed_cdft%becke_control%group(1)%gradients(3*natom, bo(1, 1)+offset_dlb:bo(2, 1), &
-                                                                  bo(1, 2):bo(2, 2), &
-                                                                  bo_conf(1, 3):bo_conf(2, 3)))
-            mixed_cdft%becke_control%group(1)%gradients = 0.0_dp
+            ALLOCATE (cdft_control%group(1)%gradients(3*natom, bo(1, 1)+offset_dlb:bo(2, 1), &
+                                                      bo(1, 2):bo(2, 2), &
+                                                      bo_conf(1, 3):bo_conf(2, 3)))
+            cdft_control%group(1)%gradients = 0.0_dp
          ELSE
-            ALLOCATE (mixed_cdft%becke_control%group(1)%gradients(3*natom, bo(1, 1):bo(2, 1), &
-                                                                  bo(1, 2)+offset_dlb:bo(2, 2), &
-                                                                  bo_conf(1, 3):bo_conf(2, 3)))
-            mixed_cdft%becke_control%group(1)%gradients = 0.0_dp
+            ALLOCATE (cdft_control%group(1)%gradients(3*natom, bo(1, 1):bo(2, 1), &
+                                                      bo(1, 2)+offset_dlb:bo(2, 2), &
+                                                      bo_conf(1, 3):bo_conf(2, 3)))
+            cdft_control%group(1)%gradients = 0.0_dp
          END IF
       END IF
 
@@ -2668,6 +2773,7 @@ CONTAINS
       REAL(kind=dp)                                      :: average_work, load_scale, &
                                                             very_overloaded, work_factor
       REAL(KIND=dp), DIMENSION(:, :, :), POINTER         :: cavity
+      TYPE(cdft_control_type), POINTER                   :: cdft_control
       TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(section_vals_type), POINTER                   :: force_env_section, print_section
 
@@ -2686,10 +2792,11 @@ CONTAINS
                cumulative_work, sendbuffer, buffsize, req_recv, req_total, &
                tmp, nrecv, nsend_proc, targets, tmp_bo, touched, &
                mask_recv, mask_send, cavity, recvbuffer, sbuff, force_env_section, &
-               print_section)
+               print_section, cdft_control)
       CALL force_env_get(force_env=force_env, force_env_section=force_env_section)
       print_section => section_vals_get_subs_vals(force_env_section, "MIXED%MIXED_CDFT%PRINT%PROGRAM_RUN_INFO")
       iounit = cp_print_key_unit_nr(logger, print_section, '', extension='.mixedLog')
+      cdft_control => mixed_cdft%cdft_control
       ! These numerical values control data redistribution and are system sensitive
       ! Currently they are not refined during run time which may cause crashes
       ! However, using too many processors or a confinement cavity that is too large relative to the
@@ -3054,21 +3161,21 @@ CONTAINS
                   ALLOCATE (cavity(bo_conf(1, 1)+offset: &
                                    bo_conf(1, 1)+offset+(mixed_cdft%dlb_control%target_list(2, i)-1), &
                                    bo_conf(1, 2):bo_conf(2, 2), bo_conf(1, 3):bo_conf(2, 3)))
-                  cavity = mixed_cdft%becke_control%cavity%pw%cr3d(bo_conf(1, 1)+offset: &
-                                                                   bo_conf(1, 1)+offset+ &
-                                                                   (mixed_cdft%dlb_control%target_list(2, i)-1), &
-                                                                   bo_conf(1, 2):bo_conf(2, 2), &
-                                                                   bo_conf(1, 3):bo_conf(2, 3))
+                  cavity = cdft_control%becke_control%cavity%pw%cr3d(bo_conf(1, 1)+offset: &
+                                                                     bo_conf(1, 1)+offset+ &
+                                                                     (mixed_cdft%dlb_control%target_list(2, i)-1), &
+                                                                     bo_conf(1, 2):bo_conf(2, 2), &
+                                                                     bo_conf(1, 3):bo_conf(2, 3))
                ELSE
                   ALLOCATE (cavity(bo_conf(1, 1):bo_conf(2, 1), &
                                    bo_conf(1, 2)+offset: &
                                    bo_conf(1, 2)+offset+(mixed_cdft%dlb_control%target_list(2, i)-1), &
                                    bo_conf(1, 3):bo_conf(2, 3)))
-                  cavity = mixed_cdft%becke_control%cavity%pw%cr3d(bo_conf(1, 1):bo_conf(2, 1), &
-                                                                   bo_conf(1, 2)+offset: &
-                                                                   bo_conf(1, 2)+offset+ &
-                                                                   (mixed_cdft%dlb_control%target_list(2, i)-1), &
-                                                                   bo_conf(1, 3):bo_conf(2, 3))
+                  cavity = cdft_control%becke_control%cavity%pw%cr3d(bo_conf(1, 1):bo_conf(2, 1), &
+                                                                     bo_conf(1, 2)+offset: &
+                                                                     bo_conf(1, 2)+offset+ &
+                                                                     (mixed_cdft%dlb_control%target_list(2, i)-1), &
+                                                                     bo_conf(1, 3):bo_conf(2, 3))
                END IF
                CALL mp_isend(msgin=cavity, &
                              dest=mixed_cdft%dlb_control%target_list(1, i), &
@@ -3119,9 +3226,9 @@ CONTAINS
                   ALLOCATE (cavity(mixed_cdft%dlb_control%target_list(offset_special+2*(j-1), i): &
                                    mixed_cdft%dlb_control%target_list(offset_special+2*j-1, i), &
                                    bo_conf(1, 2):bo_conf(2, 2), bo_conf(1, 3):bo_conf(2, 3)))
-                  cavity = mixed_cdft%becke_control%cavity%pw%cr3d(LBOUND(cavity, 1):UBOUND(cavity, 1), &
-                                                                   bo_conf(1, 2):bo_conf(2, 2), &
-                                                                   bo_conf(1, 3):bo_conf(2, 3))
+                  cavity = cdft_control%becke_control%cavity%pw%cr3d(LBOUND(cavity, 1):UBOUND(cavity, 1), &
+                                                                     bo_conf(1, 2):bo_conf(2, 2), &
+                                                                     bo_conf(1, 3):bo_conf(2, 3))
                   CALL mp_isend(msgin=cavity, &
                                 dest=mixed_cdft%dlb_control%target_list(1, i), &
                                 request=req(1), comm=force_env%para_env%group)
@@ -3455,6 +3562,7 @@ CONTAINS
       REAL(kind=dp), DIMENSION(:), POINTER               :: cutoffs
       REAL(KIND=dp), DIMENSION(:, :, :), POINTER         :: cavity, weight
       REAL(KIND=dp), DIMENSION(:, :, :, :), POINTER      :: gradients
+      TYPE(cdft_control_type), POINTER                   :: cdft_control
       TYPE(cell_type), POINTER                           :: cell
       TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(cp_subsys_type), POINTER                      :: subsys_mix
@@ -3468,7 +3576,7 @@ CONTAINS
       NULLIFY (work, req_recv, req_send, work_dlb, nsent, cutoffs, cavity, &
                weight, gradients, cell, subsys_mix, force_env_qs, &
                particle_set, particles, auxbas_pw_pool, force_env_section, &
-               print_section)
+               print_section, cdft_control)
       CALL timeset(routineN, handle)
       nforce_eval = SIZE(force_env%sub_force_env)
       CALL force_env_get(force_env=force_env, force_env_section=force_env_section)
@@ -3494,6 +3602,7 @@ CONTAINS
                             particle_set=particle_set)
       END IF
       natom = SIZE(particles%els)
+      cdft_control => mixed_cdft%cdft_control
       CALL pw_env_get(pw_env=mixed_cdft%pw_env, auxbas_pw_pool=auxbas_pw_pool)
       np = auxbas_pw_pool%pw_grid%npts
       dr = auxbas_pw_pool%pw_grid%dr
@@ -3677,7 +3786,7 @@ CONTAINS
             END DO
          END IF
       END IF
-      cutoffs => mixed_cdft%becke_control%cutoffs
+      cutoffs => cdft_control%becke_control%cutoffs
       should_communicate = .FALSE.
       DO i = 1, 3
          cell_v(i) = cell%hmat(i, i)
@@ -3699,7 +3808,7 @@ CONTAINS
             IF (.NOT. mixed_cdft%is_special) THEN
                weight => mixed_cdft%weight
                cavity => mixed_cdft%cavity
-               gradients => mixed_cdft%becke_control%group(1)%gradients
+               gradients => cdft_control%group(1)%gradients
             ELSE
                my_special_work = SIZE(mixed_cdft%dest_list)
             END IF
@@ -3775,8 +3884,8 @@ CONTAINS
                      completed_recv = mp_testall(req_recv)
                   !
                   DO i = LBOUND(weight, 3), UBOUND(weight, 3)
-                     IF (mixed_cdft%becke_control%cavity_confine) THEN
-                        IF (cavity(k, j, i) < mixed_cdft%becke_control%eps_cavity) CYCLE
+                     IF (cdft_control%becke_control%cavity_confine) THEN
+                        IF (cavity(k, j, i) < cdft_control%becke_control%eps_cavity) CYCLE
                      END IF
                      grid_p(1) = k*dr(1)+shift(1)
                      grid_p(2) = j*dr(2)+shift(2)
@@ -3793,11 +3902,11 @@ CONTAINS
                      DO iatom = 1, natom
                         IF (skip_me(iatom)) THEN
                            cell_functions(iatom) = 0.0_dp
-                           IF (mixed_cdft%becke_control%should_skip) THEN
+                           IF (cdft_control%becke_control%should_skip) THEN
                               IF (is_constraint(iatom)) nskipped = nskipped+1
-                              IF (nskipped == mixed_cdft%becke_control%natoms) THEN
+                              IF (nskipped == cdft_control%natoms) THEN
                                  IF (in_memory) THEN
-                                    IF (mixed_cdft%becke_control%cavity_confine) THEN
+                                    IF (cdft_control%becke_control%cavity_confine) THEN
                                        cavity(k, j, i) = 0.0_dp
                                     END IF
                                  END IF
@@ -3870,10 +3979,10 @@ CONTAINS
                                     dmy_dR_i(:) = dr_i_dR(:)/R12(iatom, jatom)-(dist1-dist2)*dr_ij_dR(:)
                                  END IF
                                  my1 = (dist1-dist2)/R12(iatom, jatom)
-                                 IF (mixed_cdft%becke_control%adjust) THEN
+                                 IF (cdft_control%becke_control%adjust) THEN
                                     my1_homo = my1
                                     my1 = my1+ &
-                                          mixed_cdft%becke_control%aij(iatom, jatom)*(1.0_dp-my1**2)
+                                          cdft_control%becke_control%aij(iatom, jatom)*(1.0_dp-my1**2)
                                  END IF
                                  myexp = 1.5_dp*my1-0.5_dp*my1**3
                                  IF (in_memory) THEN
@@ -3883,8 +3992,8 @@ CONTAINS
 
                                     ds_dR_i(:) = -0.5_dp*tmp_const*dmy_dR_i(:)
                                     ds_dR_j(:) = -0.5_dp*tmp_const*dmy_dR_j(:)
-                                    IF (mixed_cdft%becke_control%adjust) THEN
-                                       tmp_const = 1.0_dp-2.0_dp*my1_homo*mixed_cdft%becke_control%aij(iatom, jatom)
+                                    IF (cdft_control%becke_control%adjust) THEN
+                                       tmp_const = 1.0_dp-2.0_dp*my1_homo*cdft_control%becke_control%aij(iatom, jatom)
                                        ds_dR_i(:) = ds_dR_i(:)*tmp_const
                                        ds_dR_j(:) = ds_dR_j(:)*tmp_const
                                     END IF
@@ -3942,11 +4051,11 @@ CONTAINS
                         ELSE
                            cell_functions(iatom) = 0.0_dp
                            skip_me(iatom) = .TRUE.
-                           IF (mixed_cdft%becke_control%should_skip) THEN
+                           IF (cdft_control%becke_control%should_skip) THEN
                               IF (is_constraint(iatom)) nskipped = nskipped+1
-                              IF (nskipped == mixed_cdft%becke_control%natoms) THEN
+                              IF (nskipped == cdft_control%natoms) THEN
                                  IF (in_memory) THEN
-                                    IF (mixed_cdft%becke_control%cavity_confine) THEN
+                                    IF (cdft_control%becke_control%cavity_confine) THEN
                                        cavity(k, j, i) = 0.0_dp
                                     END IF
                                  END IF
@@ -3955,11 +4064,11 @@ CONTAINS
                            END IF
                         END IF
                      END DO
-                     IF (nskipped == mixed_cdft%becke_control%natoms) CYCLE
+                     IF (nskipped == cdft_control%natoms) CYCLE
                      sum_cell_f_constr = 0.0_dp
-                     DO ip = 1, mixed_cdft%becke_control%natoms
+                     DO ip = 1, cdft_control%natoms
                         sum_cell_f_constr = sum_cell_f_constr+cell_functions(catom(ip))* &
-                                            mixed_cdft%becke_control%group(1)%coeff(ip)
+                                            cdft_control%group(1)%coeff(ip)
                      END DO
                      sum_cell_f_all = 0.0_dp
                      nwork = nwork+1

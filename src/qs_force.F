@@ -31,8 +31,7 @@ MODULE qs_force
                                               dbcsr_set
    USE dft_plus_u,                      ONLY: plus_u
    USE efield_utils,                    ONLY: calculate_ecore_efield
-   USE input_constants,                 ONLY: do_admm_purify_none,&
-                                              outer_scf_hirshfeld_constraint
+   USE input_constants,                 ONLY: do_admm_purify_none
    USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                               section_vals_type,&
                                               section_vals_val_get
@@ -196,13 +195,9 @@ CONTAINS
       END IF
       CALL zero_qs_force(force)
 
-      ! Check if Becke potential is needed and save it until forces have been calculated
-      IF (dft_control%qs_control%becke_constraint) &
-         dft_control%qs_control%becke_control%save_pot = .TRUE.
-
+      ! Check if CDFT potential is needed and save it until forces have been calculated
       IF (dft_control%qs_control%cdft) THEN
-         IF (dft_control%qs_control%cdft_control%type == outer_scf_hirshfeld_constraint) &
-            dft_control%qs_control%cdft_control%save_pot = .TRUE.
+         dft_control%qs_control%cdft_control%save_pot = .TRUE.
       END IF
 
       ! Set parameter for P screening with MP2

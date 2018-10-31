@@ -82,7 +82,7 @@ MODULE qs_environment
                                               se_header
    USE hfx_types,                       ONLY: hfx_create
    USE input_constants,                 ONLY: &
-        dispersion_d3, do_et_becke, do_et_ddapc, do_method_am1, do_method_dftb, do_method_gapw, &
+        dispersion_d3, do_et_ddapc, do_method_am1, do_method_dftb, do_method_gapw, &
         do_method_gapw_xc, do_method_gpw, do_method_lrigpw, do_method_mndo, do_method_mndod, &
         do_method_ofgpw, do_method_pdg, do_method_pm3, do_method_pm6, do_method_pm6fm, &
         do_method_pnnl, do_method_rigpw, do_method_rm1, do_qmmm_gauss, do_qmmm_swave, &
@@ -119,7 +119,6 @@ MODULE qs_environment
                                               write_structure_data
    USE particle_types,                  ONLY: particle_type
    USE qmmm_types_low,                  ONLY: qmmm_env_qm_type
-   USE qs_cdft_utils,                   ONLY: read_becke_section
    USE qs_dftb_parameters,              ONLY: qs_dftb_param_init
    USE qs_dftb_types,                   ONLY: qs_dftb_pairpot_type
    USE qs_dispersion_nonloc,            ONLY: qs_dispersion_nonloc_init
@@ -505,9 +504,9 @@ CONTAINS
       TYPE(rho0_mpole_type), POINTER                     :: rho0_mpole
       TYPE(scf_control_type), POINTER                    :: scf_control
       TYPE(se_taper_type), POINTER                       :: se_taper
-      TYPE(section_vals_type), POINTER :: dft_section, et_becke_section, et_coupling_section, &
-         et_ddapc_section, ewald_section, lri_section, nl_section, poisson_section, pp_section, &
-         print_section, qs_section, se_section, tddfpt_section, xc_section
+      TYPE(section_vals_type), POINTER :: dft_section, et_coupling_section, et_ddapc_section, &
+         ewald_section, lri_section, nl_section, poisson_section, pp_section, print_section, &
+         qs_section, se_section, tddfpt_section, xc_section
       TYPE(semi_empirical_control_type), POINTER         :: se_control
       TYPE(semi_empirical_si_type), POINTER              :: se_store_int_env
 
@@ -589,12 +588,6 @@ CONTAINS
          CALL read_ddapc_section(dft_control%qs_control, ddapc_restraint_section=et_ddapc_section)
       ENDIF
 
-      IF (my_ival == do_et_becke) THEN
-         dft_control%qs_control%becke_constraint = .TRUE.
-         dft_control%qs_control%et_coupling_calc = .TRUE.
-         et_becke_section => section_vals_get_subs_vals(et_coupling_section, "BECKE_CONSTRAINT_A")
-         CALL read_becke_section(dft_control%qs_control, et_becke_section)
-      END IF
       CALL read_mgrid_section(dft_control%qs_control, dft_section)
 
       ! reimplemented TDDFPT

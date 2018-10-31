@@ -65,6 +65,7 @@ MODULE qs_ks_methods
    USE hfx_admm_utils,                  ONLY: hfx_admm_init,&
                                               hfx_ks_matrix
    USE input_constants,                 ONLY: do_ppl_grid,&
+                                              outer_scf_becke_constraint,&
                                               outer_scf_hirshfeld_constraint
    USE input_section_types,             ONLY: section_vals_get,&
                                               section_vals_get_subs_vals,&
@@ -104,8 +105,7 @@ MODULE qs_ks_methods
    USE qmmm_image_charge,               ONLY: add_image_pot_to_hartree_pot,&
                                               calculate_image_pot,&
                                               integrate_potential_devga_rspace
-   USE qs_cdft_types,                   ONLY: becke_constraint_type,&
-                                              cdft_control_type
+   USE qs_cdft_types,                   ONLY: cdft_control_type
    USE qs_charges_types,                ONLY: qs_charges_type
    USE qs_core_energies,                ONLY: calculate_ptrace
    USE qs_dftb_matrices,                ONLY: build_dftb_ks_matrix
@@ -118,8 +118,7 @@ MODULE qs_ks_methods
    USE qs_integrate_potential,          ONLY: integrate_ppl_rspace,&
                                               integrate_rho_nlcc,&
                                               integrate_v_core_rspace
-   USE qs_ks_apply_restraints,          ONLY: qs_ks_becke_constraint,&
-                                              qs_ks_cdft_constraint,&
+   USE qs_ks_apply_restraints,          ONLY: qs_ks_cdft_constraint,&
                                               qs_ks_mulliken_restraint,&
                                               qs_ks_s2_restraint
    USE qs_ks_atom,                      ONLY: update_ks_atom
@@ -220,7 +219,6 @@ CONTAINS
                                                             mulliken_order_p
       REAL(KIND=dp), DIMENSION(3, 3)                     :: h_stress
       TYPE(admm_type), POINTER                           :: admm_env
-      TYPE(becke_constraint_type), POINTER               :: becke
       TYPE(cdft_control_type), POINTER                   :: cdft_control
       TYPE(cell_type), POINTER                           :: cell
       TYPE(cp_logger_type), POINTER                      :: logger
@@ -252,7 +250,7 @@ CONTAINS
       TYPE(virial_type), POINTER                         :: virial
 
       CALL timeset(routineN, handle)
-      NULLIFY (admm_env, becke, cell, dft_control, logger, &
+      NULLIFY (admm_env, cell, dft_control, logger, &
                mo_derivs, my_rho, rho_struct, para_env, pw_env, virial, &
                vppl_rspace, v_hartree_rspace%pw, adiabatic_rescaling_section, &
                hfx_sections, input, scf_section, xc_section, matrix_h, matrix_s, &
@@ -472,9 +470,6 @@ CONTAINS
 
       IF (gapw) CALL Vh_1c_gg_integrals(qs_env, energy%hartree_1c)
 
-      ! Check if becke potential is needed to constrain charges
-      CALL qs_ks_becke_constraint(qs_env, auxbas_pw_pool, calculate_forces, matrix_s, becke)
-
       ! Check if CDFT constraint is needed
       CALL qs_ks_cdft_constraint(qs_env, auxbas_pw_pool, calculate_forces, cdft_control)
 
@@ -681,7 +676,7 @@ CONTAINS
          CALL sum_up_and_integrate(qs_env, ks_matrix, rho, my_rho, vppl_rspace, &
                                    v_rspace_new, v_rspace_new_aux_fit, v_tau_rspace, v_tau_rspace_aux_fit, &
                                    v_efield_rspace, v_sic_rspace, v_spin_ddapc_rest_r, v_sccs_rspace, v_rspace_embed, &
-                                   becke, cdft_control, calculate_forces)
+                                   cdft_control, calculate_forces)
 
          IF (dft_control%qs_control%do_kg) THEN
             CPASSERT(.NOT. (gapw .OR. gapw_xc))
@@ -707,39 +702,32 @@ CONTAINS
          CALL pw_pool_give_back_pw(auxbas_pw_pool, v_efield_rspace%pw)
       END IF
 
-      IF (calculate_forces .AND. dft_control%qs_control%becke_constraint) THEN
-         IF (.NOT. becke%transfer_pot) THEN
-            DO iatom = 1, SIZE(dft_control%qs_control%becke_control%group)
-               CALL pw_pool_give_back_pw(auxbas_pw_pool, &
-                                         dft_control%qs_control%becke_control%group(iatom)%weight%pw)
-            END DO
-            IF (dft_control%qs_control%becke_control%atomic_charges) THEN
-               DO iatom = 1, dft_control%qs_control%becke_control%natoms
-                  CALL pw_pool_give_back_pw(auxbas_pw_pool, &
-                                            dft_control%qs_control%becke_control%charge(iatom)%pw)
-               END DO
-               DEALLOCATE (dft_control%qs_control%becke_control%charge)
-            END IF
-            IF (dft_control%qs_control%becke_control%cavity_confine) THEN
-               IF (.NOT. ASSOCIATED(becke%cavity_mat)) THEN
-                  CALL pw_pool_give_back_pw(auxbas_pw_pool, becke%cavity%pw)
-               ELSE
-                  DEALLOCATE (becke%cavity_mat)
-               END IF
-            END IF
-            IF (ASSOCIATED(dft_control%qs_control%becke_control%charges_fragment)) &
-               DEALLOCATE (dft_control%qs_control%becke_control%charges_fragment)
-            dft_control%qs_control%becke_control%save_pot = .FALSE.
-            dft_control%qs_control%becke_control%need_pot = .TRUE.
-            dft_control%qs_control%becke_control%external_control = .FALSE.
-         END IF
-      END IF
-
       IF (calculate_forces .AND. dft_control%qs_control%cdft) THEN
-         IF (cdft_control%type == outer_scf_hirshfeld_constraint) THEN
-            CALL pw_pool_give_back_pw(auxbas_pw_pool, cdft_control%weight%pw)
+         IF (.NOT. cdft_control%transfer_pot) THEN
+            DO iatom = 1, SIZE(cdft_control%group)
+               CALL pw_pool_give_back_pw(auxbas_pw_pool, cdft_control%group(iatom)%weight%pw)
+            END DO
+            IF (cdft_control%atomic_charges) THEN
+               DO iatom = 1, cdft_control%natoms
+                  CALL pw_pool_give_back_pw(auxbas_pw_pool, cdft_control%charge(iatom)%pw)
+               END DO
+               DEALLOCATE (cdft_control%charge)
+            END IF
+            IF (cdft_control%type == outer_scf_becke_constraint .AND. &
+                cdft_control%becke_control%cavity_confine) THEN
+               IF (.NOT. ASSOCIATED(cdft_control%becke_control%cavity_mat)) THEN
+                  CALL pw_pool_give_back_pw(auxbas_pw_pool, cdft_control%becke_control%cavity%pw)
+               ELSE
+                  DEALLOCATE (cdft_control%becke_control%cavity_mat)
+               END IF
+            ELSE IF (cdft_control%type == outer_scf_hirshfeld_constraint) THEN
+               IF (ASSOCIATED(cdft_control%hirshfeld_control%hirshfeld_env%fnorm)) &
+                  CALL pw_pool_give_back_pw(auxbas_pw_pool, cdft_control%hirshfeld_control%hirshfeld_env%fnorm%pw)
+            END IF
+            IF (ASSOCIATED(cdft_control%charges_fragment)) DEALLOCATE (cdft_control%charges_fragment)
             cdft_control%save_pot = .FALSE.
             cdft_control%need_pot = .TRUE.
+            cdft_control%external_control = .FALSE.
          END IF
       END IF
 
@@ -855,7 +843,7 @@ CONTAINS
                      energy%hartree_1c+energy%exc+energy%exc1+energy%ex+ &
                      energy%dispersion+energy%qmmm_el+energy%mulliken+ &
                      SUM(energy%ddapc_restraint)+energy%s2_restraint+ &
-                     energy%becke+energy%dft_plus_u+energy%kTS+ &
+                     energy%dft_plus_u+energy%kTS+ &
                      energy%efield+energy%efield_core+energy%ee+ &
                      energy%ee_core+energy%exc_aux_fit+energy%image_charge+ &
                      energy%sccs_pol+energy%sccs_mpc+energy%cdft

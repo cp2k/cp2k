@@ -40,8 +40,7 @@ MODULE input_constants
                                                do_spin_density = 1
 
    INTEGER, PARAMETER, PUBLIC               :: do_no_et = 0, &
-                                               do_et_ddapc = 1, &
-                                               do_et_becke = 2
+                                               do_et_ddapc = 1
    ! Method Names
    INTEGER, PARAMETER, PUBLIC               :: do_qs = 1, &
                                                do_fist = 2, &
@@ -699,6 +698,11 @@ MODULE input_constants
                                                cdft_magnetization_constraint = 821, &
                                                cdft_alpha_constraint = 822, &
                                                cdft_beta_constraint = 823
+
+   ! Mixed CDFT calculation run types
+   INTEGER, PARAMETER, PUBLIC               :: mixed_cdft_serial = 90, &
+                                               mixed_cdft_parallel_nobuild = 91, &
+                                               mixed_cdft_parallel = 92
 
    ! ROKS schemes
    INTEGER, PARAMETER, PUBLIC               :: general_roks = 1, &

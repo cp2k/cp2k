@@ -58,6 +58,7 @@
       LAMBDA 1.0
       COUPLING 1
       LOWDIN TRUE
+      PARALLEL_BUILD TRUE
       @IF ( ${USE_DLB} == TRUE )
         ! Defaults to FALSE
         DLB TRUE
