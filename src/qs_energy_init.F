@@ -21,8 +21,7 @@ MODULE qs_energy_init
    USE input_constants,                 ONLY: kg_tnadd_atomic,&
                                               kg_tnadd_embed,&
                                               kg_tnadd_embed_ri,&
-                                              kg_tnadd_none,&
-                                              outer_scf_hirshfeld_constraint
+                                              kg_tnadd_none
    USE input_section_types,             ONLY: section_vals_type
    USE kg_environment,                  ONLY: kg_build_neighborlist,&
                                               kg_build_subsets
@@ -281,15 +280,14 @@ CONTAINS
          CALL get_qs_env(qs_env, sab_kp=sab_nl)
          CALL kpoint_init_cell_index(kpoints, sab_nl, para_env, dft_control)
       ENDIF
-      IF (.NOT. (dft_control%qs_control%becke_control%external_control)) &
-         dft_control%qs_control%becke_control%need_pot = .TRUE.
-      IF (ASSOCIATED(dft_control%qs_control%becke_control%group)) THEN
-         IF (ASSOCIATED(dft_control%qs_control%becke_control%group(1)%weight%pw)) &
-            dft_control%qs_control%becke_control%need_pot = .FALSE.
-      END IF
       IF (dft_control%qs_control%cdft) THEN
-         IF (dft_control%qs_control%cdft_control%type == outer_scf_hirshfeld_constraint) &
+         IF (.NOT. (dft_control%qs_control%cdft_control%external_control)) &
             dft_control%qs_control%cdft_control%need_pot = .TRUE.
+         IF (ASSOCIATED(dft_control%qs_control%cdft_control%group)) THEN
+            ! In case CDFT weight function was built beforehand (in mixed force_eval)
+            IF (ASSOCIATED(dft_control%qs_control%cdft_control%group(1)%weight%pw)) &
+               dft_control%qs_control%cdft_control%need_pot = .FALSE.
+         END IF
       END IF
 
       ! Calculate the overlap and the core Hamiltonian integral matrix

@@ -69,6 +69,7 @@
     &MIXED_CDFT
       LAMBDA 1.0
       COUPLING 1
+      PARALLEL_BUILD TRUE
       @IF ( ${USE_DLB} == TRUE )
         ! Defaults to FALSE
         DLB TRUE

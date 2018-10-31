@@ -26,14 +26,13 @@ MODULE input_cp2k_properties_dft
    USE input_constants,                 ONLY: &
         current_gauge_atom, current_gauge_r, current_gauge_r_and_step_func, &
         current_orb_center_atom, current_orb_center_box, current_orb_center_common, &
-        current_orb_center_wannier, do_et_becke, do_et_ddapc, do_full_density, do_no_et, &
-        do_spin_density, ot_precond_full_all, ot_precond_full_kinetic, ot_precond_full_single, &
+        current_orb_center_wannier, do_et_ddapc, do_full_density, do_no_et, do_spin_density, &
+        ot_precond_full_all, ot_precond_full_kinetic, ot_precond_full_single, &
         ot_precond_full_single_inverse, ot_precond_none, ot_precond_s_inverse, &
         tddfpt_dipole_berry, tddfpt_dipole_length, tddfpt_dipole_velocity, use_mom_ref_coac, &
         use_mom_ref_com, use_mom_ref_user, use_mom_ref_zero
    USE input_cp2k_atprop,               ONLY: create_atprop_section
-   USE input_cp2k_dft,                  ONLY: create_becke_constraint_section,&
-                                              create_ddapc_restraint_section,&
+   USE input_cp2k_dft,                  ONLY: create_ddapc_restraint_section,&
                                               create_interp_section,&
                                               create_localize_section,&
                                               create_mgrid_section
@@ -942,16 +941,6 @@ CONTAINS
       CALL section_release(subsection)
 
       NULLIFY (subsection)
-      CALL create_becke_constraint_section(subsection, "BECKE_CONSTRAINT_A")
-      CALL section_add_subsection(section, subsection)
-      CALL section_release(subsection)
-
-      NULLIFY (subsection)
-      CALL create_becke_constraint_section(subsection, "BECKE_CONSTRAINT_B")
-      CALL section_add_subsection(section, subsection)
-      CALL section_release(subsection)
-
-      NULLIFY (subsection)
       CALL create_projection(subsection, "PROJECTION")
       CALL section_add_subsection(section, subsection)
       CALL section_release(subsection)
@@ -959,9 +948,9 @@ CONTAINS
       CALL keyword_create(keyword, name="TYPE_OF_CONSTRAINT", &
                           description="Specifies the type of constraint", &
                           usage="TYPE_OF_CONSTRAINT DDAPC", &
-                          enum_c_vals=s2a("NONE", "DDAPC", "BECKE"), &
-                          enum_i_vals=(/do_no_et, do_et_ddapc, do_et_becke/), &
-                          enum_desc=s2a("NONE", "DDAPC Constraint", "Becke constraint"), &
+                          enum_c_vals=s2a("NONE", "DDAPC"), &
+                          enum_i_vals=(/do_no_et, do_et_ddapc/), &
+                          enum_desc=s2a("NONE", "DDAPC Constraint"), &
                           default_i_val=do_no_et)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)

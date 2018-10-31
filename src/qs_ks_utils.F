@@ -52,8 +52,8 @@ MODULE qs_ks_utils
         dbcsr_set, dbcsr_trace, dbcsr_type
    USE input_constants,                 ONLY: &
         cdft_alpha_constraint, cdft_beta_constraint, cdft_charge_constraint, &
-        cdft_magnetization_constraint, do_ppl_grid, outer_scf_hirshfeld_constraint, sic_ad, &
-        sic_eo, sic_list_all, sic_list_unpaired, sic_mauri_spz, sic_mauri_us, sic_none
+        cdft_magnetization_constraint, do_ppl_grid, sic_ad, sic_eo, sic_list_all, &
+        sic_list_unpaired, sic_mauri_spz, sic_mauri_us, sic_none
    USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                               section_vals_type,&
                                               section_vals_val_get
@@ -94,8 +94,7 @@ MODULE qs_ks_utils
                                               REALSPACE,&
                                               RECIPROCALSPACE,&
                                               pw_p_type
-   USE qs_cdft_types,                   ONLY: becke_constraint_type,&
-                                              cdft_control_type
+   USE qs_cdft_types,                   ONLY: cdft_control_type
    USE qs_charges_types,                ONLY: qs_charges_type
    USE qs_collocate_density,            ONLY: calculate_rho_elec
    USE qs_energy_types,                 ONLY: qs_energy_type
@@ -1181,7 +1180,6 @@ CONTAINS
 !> \param v_spin_ddapc_rest_r ...
 !> \param v_sccs_rspace ...
 !> \param v_rspace_embed ...
-!> \param becke ...
 !> \param cdft_control ...
 !> \param calculate_forces ...
 !> \par History
@@ -1194,7 +1192,7 @@ CONTAINS
                                    v_rspace_new_aux_fit, v_tau_rspace, &
                                    v_tau_rspace_aux_fit, v_efield_rspace, &
                                    v_sic_rspace, v_spin_ddapc_rest_r, &
-                                   v_sccs_rspace, v_rspace_embed, becke, cdft_control, &
+                                   v_sccs_rspace, v_rspace_embed, cdft_control, &
                                    calculate_forces)
 
       TYPE(qs_environment_type), POINTER                 :: qs_env
@@ -1207,7 +1205,6 @@ CONTAINS
       TYPE(pw_p_type)                                    :: v_efield_rspace, v_sic_rspace, &
                                                             v_spin_ddapc_rest_r, v_sccs_rspace
       TYPE(pw_p_type), DIMENSION(:), POINTER             :: v_rspace_embed
-      TYPE(becke_constraint_type), POINTER               :: becke
       TYPE(cdft_control_type), POINTER                   :: cdft_control
       LOGICAL, INTENT(in)                                :: calculate_forces
 
@@ -1314,9 +1311,10 @@ CONTAINS
                                                 +v_spin_ddapc_rest_r%pw%cr3d
                END IF
             END IF
-            IF (dft_control%qs_control%becke_constraint) THEN
-               DO igroup = 1, SIZE(becke%group)
-                  SELECT CASE (becke%group (igroup)%constraint_type)
+            ! CDFT constraint contribution
+            IF (dft_control%qs_control%cdft) THEN
+               DO igroup = 1, SIZE(cdft_control%group)
+                  SELECT CASE (cdft_control%group (igroup)%constraint_type)
                   CASE (cdft_charge_constraint)
                      sign = 1.0_dp
                   CASE (cdft_magnetization_constraint)
@@ -1335,13 +1333,9 @@ CONTAINS
                      CPABORT("Unknown constraint type.")
                   END SELECT
                   v_rspace_new(ispin)%pw%cr3d = v_rspace_new(ispin)%pw%cr3d &
-                                                +sign*becke%group(igroup)%weight%pw%cr3d*becke%strength(igroup)
+                                                +sign*cdft_control%group(igroup)%weight%pw%cr3d* &
+                                                cdft_control%strength(igroup)
                END DO
-            END IF
-            IF (dft_control%qs_control%cdft) THEN
-               IF (cdft_control%type == outer_scf_hirshfeld_constraint) &
-                  v_rspace_new(ispin)%pw%cr3d = v_rspace_new(ispin)%pw%cr3d &
-                                                +cdft_control%weight%pw%cr3d*cdft_control%strength(1)
             END IF
             ! The efield contribution
             IF (dft_control%apply_efield_field) THEN

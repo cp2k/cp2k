@@ -1,0 +1,22 @@
+@SET RESTART_WFN          FALSE
+@SET WFN_FILE             HeH-noconstraint-1_0.wfn
+@SET PROJECT_NAME         H-noconstraint
+@SET WRITE_WFN            0
+@SET CHARGE               0
+@SET WRITE_CUBE           TRUE
+@SET CENTER_SYS               OFF
+@SET XYZFILE              H.xyz
+
+@SET HIRSHFELD_ACTIVE         FALSE
+
+&GLOBAL
+  PROJECT ${PROJECT_NAME}
+  RUN_TYPE ENERGY
+  PRINT_LEVEL MEDIUM
+&END GLOBAL
+
+&FORCE_EVAL
+  METHOD QS
+  @include dft-common-params.inc
+  @include subsys.inc
+&END FORCE_EVAL

@@ -35,15 +35,17 @@ MODULE qs_cdft_utils
    USE input_constants,                 ONLY: &
         becke_cutoff_element, becke_cutoff_global, cdft_charge_constraint, &
         outer_scf_becke_constraint, outer_scf_cdft_constraint, outer_scf_hirshfeld_constraint, &
-        outer_scf_none, outer_scf_optimizer_broyden, outer_scf_optimizer_newton, &
-        outer_scf_optimizer_newton_ls, radius_covalent, radius_user, shape_function_gaussian
-   USE input_section_types,             ONLY: section_vals_get,&
+        outer_scf_none, radius_user, shape_function_gaussian
+   USE input_section_types,             ONLY: section_get_ivals,&
+                                              section_vals_get,&
                                               section_vals_get_subs_vals,&
                                               section_vals_type,&
                                               section_vals_val_get
-   USE kinds,                           ONLY: dp,&
+   USE kinds,                           ONLY: default_path_length,&
+                                              dp,&
                                               int_8
    USE memory_utilities,                ONLY: reallocate
+   USE outer_scf_control_types,         ONLY: outer_scf_read_parameters
    USE particle_list_types,             ONLY: particle_list_type
    USE particle_types,                  ONLY: particle_type
    USE pw_env_types,                    ONLY: pw_env_get,&
@@ -52,15 +54,17 @@ MODULE qs_cdft_utils
                                               pw_pool_type
    USE pw_types,                        ONLY: REALDATA3D,&
                                               REALSPACE
-   USE qs_cdft_opt_types,               ONLY: cdft_opt_type_create,&
-                                              cdft_opt_type_read
    USE qs_cdft_types,                   ONLY: becke_constraint_type,&
-                                              becke_group_type
+                                              cdft_control_type,&
+                                              cdft_group_type,&
+                                              hirshfeld_constraint_type
    USE qs_collocate_density,            ONLY: collocate_pgf_product_rspace
    USE qs_environment_types,            ONLY: get_qs_env,&
                                               qs_environment_type
-   USE qs_kind_types,                   ONLY: qs_kind_type
+   USE qs_kind_types,                   ONLY: get_qs_kind,&
+                                              qs_kind_type
    USE qs_modify_pab_block,             ONLY: FUNC_AB
+   USE qs_scf_output,                   ONLY: qs_scf_cdft_constraint_info
    USE qs_subsys_types,                 ONLY: qs_subsys_get,&
                                               qs_subsys_type
    USE realspace_grid_types,            ONLY: realspace_grid_type,&
@@ -80,7 +84,7 @@ MODULE qs_cdft_utils
 
 ! *** Public subroutines ***
    PUBLIC :: becke_constraint_init, read_becke_section, read_cdft_control_section
-   PUBLIC :: hfun_scale
+   PUBLIC :: hfun_scale, hirshfeld_constraint_init, cdft_constraint_print
 
 CONTAINS
 
@@ -111,7 +115,8 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: pab
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       TYPE(becke_constraint_type), POINTER               :: becke_control
-      TYPE(becke_group_type), DIMENSION(:), POINTER      :: group
+      TYPE(cdft_control_type), POINTER                   :: cdft_control
+      TYPE(cdft_group_type), DIMENSION(:), POINTER       :: group
       TYPE(cell_type), POINTER                           :: cell
       TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(cp_para_env_type), POINTER                    :: para_env
@@ -124,12 +129,12 @@ CONTAINS
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
       TYPE(qs_subsys_type), POINTER                      :: subsys
       TYPE(realspace_grid_type), POINTER                 :: rs_cavity
-      TYPE(section_vals_type), POINTER                   :: becke_constraint_section
+      TYPE(section_vals_type), POINTER                   :: cdft_constraint_section
 
       NULLIFY (cores, stride, atom_list, cell, para_env, dft_control, &
-               particle_set, logger, becke_constraint_section, qs_kind_set, &
+               particle_set, logger, cdft_constraint_section, qs_kind_set, &
                particles, subsys, pab, pw_env, rs_cavity, cavity_env, &
-               auxbas_pw_pool, atomic_kind_set, group, radii_list)
+               auxbas_pw_pool, atomic_kind_set, group, radii_list, cdft_control)
       logger => cp_get_default_logger()
       CALL timeset(routineN, handle)
       CALL get_qs_env(qs_env, &
@@ -138,37 +143,24 @@ CONTAINS
                       natom=natom, &
                       dft_control=dft_control, &
                       para_env=para_env)
-      becke_constraint_section => section_vals_get_subs_vals(qs_env%input, "DFT%QS%BECKE_CONSTRAINT")
-      iw = cp_print_key_unit_nr(logger, becke_constraint_section, "PROGRAM_RUN_INFO", extension=".cdftLog")
-      becke_control => dft_control%qs_control%becke_control
-      group => becke_control%group
-      ! Sanity checks
-      DO igroup = 1, SIZE(group)
-         IF (group(igroup)%constraint_type /= cdft_charge_constraint .AND. dft_control%nspins == 1) &
-            CALL cp_abort(__LOCATION__, &
-                          "Becke magnetization density constraint requires UKS calculation.")
-      END DO
-      IF (natom < becke_control%natoms) &
-         CALL cp_abort(__LOCATION__, &
-                       "The number of constraint atoms exceeds the total number of atoms.")
+      cdft_constraint_section => section_vals_get_subs_vals(qs_env%input, "DFT%QS%CDFT")
+      iw = cp_print_key_unit_nr(logger, cdft_constraint_section, "PROGRAM_RUN_INFO", extension=".cdftLog")
+      cdft_control => dft_control%qs_control%cdft_control
+      becke_control => cdft_control%becke_control
+      group => cdft_control%group
       in_memory = .FALSE.
-      IF (becke_control%save_pot) THEN
+      IF (cdft_control%save_pot) THEN
          in_memory = becke_control%in_memory
       END IF
-      IF (becke_control%save_pot .OR. &
-          becke_control%cavity_confine .OR. &
-          becke_control%should_skip) THEN
+      IF (becke_control%cavity_confine) THEN
          ALLOCATE (is_constraint(natom))
          is_constraint = .FALSE.
+         DO i = 1, cdft_control%natoms
+            ! Notice that here is_constraint=.TRUE. also for dummy atoms to properly compute their Becke charges
+            ! A subsequent check (atom_in_group) ensures that the gradients of these dummy atoms are correct
+            is_constraint(cdft_control%atoms(i)) = .TRUE.
+         END DO
       END IF
-      DO i = 1, becke_control%natoms
-         ! Notice that here is_constraint=.TRUE. also for dummy atoms to properly compute their Becke charges
-         ! A subsequent check (atom_in_group) ensures that the gradients of these dummy atoms are correct
-         IF (becke_control%save_pot .OR. &
-             becke_control%cavity_confine .OR. &
-             becke_control%should_skip) &
-            is_constraint(becke_control%atoms(i)) = .TRUE.
-      END DO
       eps_cavity = becke_control%eps_cavity
       ! Setup atomic radii for adjusting cell boundaries
       IF (becke_control%adjust) THEN
@@ -209,9 +201,9 @@ CONTAINS
       DO igroup = 1, SIZE(group)
          group(igroup)%weight%pw%cr3d = 0.0_dp
       END DO
-      IF (becke_control%atomic_charges) THEN
-         DO iatom = 1, becke_control%natoms
-            becke_control%charge(iatom)%pw%cr3d = 0.0_dp
+      IF (cdft_control%atomic_charges) THEN
+         DO iatom = 1, cdft_control%natoms
+            cdft_control%charge(iatom)%pw%cr3d = 0.0_dp
          END DO
       END IF
       ! Allocate storage for cell adjustment coefficients and needed distance vectors
@@ -275,7 +267,7 @@ CONTAINS
          END DO
       END DO
       ! Dump some additional information about the calculation
-      IF (becke_control%first_iteration) THEN
+      IF (cdft_control%first_iteration) THEN
          IF (iw > 0) THEN
             WRITE (iw, '(/,T3,A)') &
                '----------------------- Becke atomic parameters ------------------------'
@@ -317,7 +309,7 @@ CONTAINS
             WRITE (iw, '(T3,A)') &
                '------------------------------------------------------------------------'
          END IF
-         becke_control%first_iteration = .FALSE.
+         cdft_control%first_iteration = .FALSE.
       END IF
       ! Setup cavity confinement using spherical Gaussians
       IF (becke_control%cavity_confine) THEN
@@ -404,7 +396,7 @@ CONTAINS
          ! which the cavity is zero at every point (x, y)
          ! If gradients are needed storage needs to be allocated only for grid points within
          ! these bounds
-         IF (in_memory .OR. becke_control%save_pot) THEN
+         IF (in_memory .OR. cdft_control%save_pot) THEN
             CALL hfun_zero(becke_control%cavity%pw%cr3d, eps_cavity, just_bounds=.TRUE., bounds=bounds)
             ! Save bounds (first nonzero grid point indices)
             bo = group(1)%weight%pw%pw_grid%bounds_local
@@ -430,7 +422,7 @@ CONTAINS
             stride = (/2, 2, 2/)
             mpi_io = .TRUE.
             ! Note PROGRAM_RUN_INFO section neeeds to be active!
-            unit_nr = cp_print_key_unit_nr(logger, becke_constraint_section, "PROGRAM_RUN_INFO", &
+            unit_nr = cp_print_key_unit_nr(logger, cdft_constraint_section, "PROGRAM_RUN_INFO", &
                                            middle_name="BECKE_CAVITY", &
                                            extension=".cube", file_position="REWIND", &
                                            log_filename=.FALSE., mpi_io=mpi_io)
@@ -440,7 +432,7 @@ CONTAINS
             CALL get_qs_env(qs_env, subsys=subsys)
             CALL qs_subsys_get(subsys, particles=particles)
             CALL cp_pw_to_cube(becke_control%cavity%pw, unit_nr, "CAVITY", particles=particles, stride=stride, mpi_io=mpi_io)
-            CALL cp_print_key_finished_output(unit_nr, logger, becke_constraint_section, "PROGRAM_RUN_INFO", mpi_io=mpi_io)
+            CALL cp_print_key_finished_output(unit_nr, logger, cdft_constraint_section, "PROGRAM_RUN_INFO", mpi_io=mpi_io)
             DEALLOCATE (stride)
          END IF
       END IF
@@ -451,43 +443,112 @@ CONTAINS
    END SUBROUTINE becke_constraint_init
 
 ! **************************************************************************************************
-!> \brief reads the input parameters needed for evaluating a becke weight population constraint
-!> \param qs_control the qs_control which holds the Becke control type
+!> \brief reads the input parameters specific to Becke-based CDFT constraints
+!> \param cdft_control the cdft_control which holds the Becke control type
 !> \param becke_section the input section containing Becke constraint information
-!> \author fschiff
+!> \par   History
+!>        Created 01.2007 [fschiff]
+!>        Merged Becke into CDFT 09.2018 [Nico Holmberg]
+!> \author Nico Holmberg [09.2018]
 ! **************************************************************************************************
-   SUBROUTINE read_becke_section(qs_control, becke_section)
+   SUBROUTINE read_becke_section(cdft_control, becke_section)
 
-      TYPE(qs_control_type), INTENT(INOUT)               :: qs_control
+      TYPE(cdft_control_type), INTENT(INOUT)             :: cdft_control
       TYPE(section_vals_type), POINTER                   :: becke_section
 
       CHARACTER(len=*), PARAMETER :: routineN = 'read_becke_section', &
          routineP = moduleN//':'//routineN
 
+      INTEGER                                            :: j
+      LOGICAL                                            :: exists
+      REAL(KIND=dp), DIMENSION(:), POINTER               :: rtmplist
+      TYPE(becke_constraint_type), POINTER               :: becke_control
+
+      NULLIFY (rtmplist)
+      becke_control => cdft_control%becke_control
+      CPASSERT(ASSOCIATED(becke_control))
+
+      ! Atomic size corrections
+      CALL section_vals_val_get(becke_section, "ADJUST_SIZE", l_val=becke_control%adjust)
+      IF (becke_control%adjust) THEN
+         CALL section_vals_val_get(becke_section, "ATOMIC_RADII", explicit=exists)
+         IF (.NOT. exists) CPABORT("Keyword ATOMIC_RADII is missing.")
+         CALL section_vals_val_get(becke_section, "ATOMIC_RADII", r_vals=rtmplist)
+         CPASSERT(SIZE(rtmplist) > 0)
+         ALLOCATE (becke_control%radii_tmp(SIZE(rtmplist)))
+         DO j = 1, SIZE(rtmplist)
+            becke_control%radii_tmp(j) = rtmplist(j)
+         END DO
+      END IF
+
+      ! Cutoff scheme
+      CALL section_vals_val_get(becke_section, "CUTOFF_TYPE", i_val=becke_control%cutoff_type)
+      SELECT CASE (becke_control%cutoff_type)
+      CASE (becke_cutoff_global)
+         CALL section_vals_val_get(becke_section, "GLOBAL_CUTOFF", r_val=becke_control%rglobal)
+      CASE (becke_cutoff_element)
+         CALL section_vals_val_get(becke_section, "ELEMENT_CUTOFF", r_vals=rtmplist)
+         CPASSERT(SIZE(rtmplist) > 0)
+         ALLOCATE (becke_control%cutoffs_tmp(SIZE(rtmplist)))
+         DO j = 1, SIZE(rtmplist)
+            becke_control%cutoffs_tmp(j) = rtmplist(j)
+         END DO
+      END SELECT
+
+      ! Gaussian cavity confinement
+      CALL section_vals_val_get(becke_section, "CAVITY_CONFINE", l_val=becke_control%cavity_confine)
+      CALL section_vals_val_get(becke_section, "SHOULD_SKIP", l_val=becke_control%should_skip)
+      CALL section_vals_val_get(becke_section, "IN_MEMORY", l_val=becke_control%in_memory)
+      IF (cdft_control%becke_control%cavity_confine) THEN
+         CALL section_vals_val_get(becke_section, "CAVITY_SHAPE", i_val=becke_control%cavity_shape)
+         IF (becke_control%cavity_shape == radius_user .AND. .NOT. becke_control%adjust) &
+            CALL cp_abort(__LOCATION__, &
+                          "Activate keyword ADJUST_SIZE to use cavity shape USER.")
+         CALL section_vals_val_get(becke_section, "CAVITY_RADIUS", r_val=becke_control%rcavity)
+         CALL section_vals_val_get(becke_section, "EPS_CAVITY", r_val=becke_control%eps_cavity)
+         CALL section_vals_val_get(becke_section, "CAVITY_PRINT", l_val=becke_control%print_cavity)
+         CALL section_vals_val_get(becke_section, "CAVITY_USE_BOHR", l_val=becke_control%use_bohr)
+         IF (.NOT. cdft_control%becke_control%use_bohr) THEN
+            becke_control%rcavity = cp_unit_from_cp2k(becke_control%rcavity, "angstrom")
+         END IF
+         CALL create_hirshfeld_type(becke_control%cavity_env)
+         CALL set_hirshfeld_info(becke_control%cavity_env, &
+                                 shape_function_type=shape_function_gaussian, iterative=.FALSE., &
+                                 radius_type=becke_control%cavity_shape, &
+                                 use_bohr=becke_control%use_bohr)
+      END IF
+
+      CALL cite_reference(Becke1988b)
+
+   END SUBROUTINE read_becke_section
+
+! **************************************************************************************************
+!> \brief reads the input parameters needed to define CDFT constraints
+!> \param cdft_control the object which holds the CDFT control type
+!> \param cdft_control_section the input section containing CDFT constraint information
+!> \author Nico Holmberg [09.2018]
+! **************************************************************************************************
+   SUBROUTINE read_constraint_definitions(cdft_control, cdft_control_section)
+
+      TYPE(cdft_control_type), INTENT(INOUT)             :: cdft_control
+      TYPE(section_vals_type), INTENT(INOUT), POINTER    :: cdft_control_section
+
+      CHARACTER(len=*), PARAMETER :: routineN = 'read_constraint_definitions', &
+         routineP = moduleN//':'//routineN
+
       INTEGER                                            :: i, j, jj, k, n_rep, natoms, nvar, &
                                                             tot_natoms
       INTEGER, DIMENSION(:), POINTER                     :: atomlist, dummylist, tmplist
-      LOGICAL                                            :: exists, is_duplicate, is_et_coupling
+      LOGICAL                                            :: exists, is_duplicate
       REAL(KIND=dp), DIMENSION(:), POINTER               :: rtmplist
       TYPE(section_vals_type), POINTER                   :: group_section
 
       NULLIFY (tmplist, rtmplist, atomlist, dummylist, group_section)
 
-      group_section => section_vals_get_subs_vals(becke_section, "ATOM_GROUP")
+      group_section => section_vals_get_subs_vals(cdft_control_section, "ATOM_GROUP")
       CALL section_vals_get(group_section, n_repetition=nvar, explicit=exists)
       IF (.NOT. exists) CPABORT("Section ATOM_GROUP is missing.")
-      ! Special considerations in case ET_COUPLING calculation (in qs_energy_utils)
-      is_et_coupling = .FALSE.
-      IF (ASSOCIATED(qs_control%becke_control%group)) &
-         is_et_coupling = .TRUE.
-      IF (is_et_coupling) THEN
-         DO i = 1, SIZE(qs_control%becke_control%group)
-            DEALLOCATE (qs_control%becke_control%group(i)%atoms)
-            DEALLOCATE (qs_control%becke_control%group(i)%coeff)
-         END DO
-      END IF
-      IF (.NOT. is_et_coupling) &
-         ALLOCATE (qs_control%becke_control%group(nvar))
+      ALLOCATE (cdft_control%group(nvar))
       tot_natoms = 0
       ! Parse all ATOM_GROUP sections
       DO k = 1, nvar
@@ -500,13 +561,11 @@ CONTAINS
                CPABORT("Each ATOM_GROUP must contain at least 1 atom.")
             natoms = natoms+SIZE(tmplist)
          END DO
-         ALLOCATE (qs_control%becke_control%group(k)%atoms(natoms))
-         ALLOCATE (qs_control%becke_control%group(k)%coeff(natoms))
-         IF (.NOT. is_et_coupling) THEN
-            NULLIFY (qs_control%becke_control%group(k)%weight%pw)
-            NULLIFY (qs_control%becke_control%group(k)%gradients)
-            NULLIFY (qs_control%becke_control%group(k)%integrated)
-         END IF
+         ALLOCATE (cdft_control%group(k)%atoms(natoms))
+         ALLOCATE (cdft_control%group(k)%coeff(natoms))
+         NULLIFY (cdft_control%group(k)%weight%pw)
+         NULLIFY (cdft_control%group(k)%gradients)
+         NULLIFY (cdft_control%group(k)%integrated)
          tot_natoms = tot_natoms+natoms
          ! Now parse
          jj = 0
@@ -514,7 +573,7 @@ CONTAINS
             CALL section_vals_val_get(group_section, "ATOMS", i_rep_section=k, i_rep_val=j, i_vals=tmplist)
             DO i = 1, SIZE(tmplist)
                jj = jj+1
-               qs_control%becke_control%group(k)%atoms(jj) = tmplist(i)
+               cdft_control%group(k)%atoms(jj) = tmplist(i)
             END DO
          END DO
          CALL section_vals_val_get(group_section, "COEFF", i_rep_section=k, n_rep_val=n_rep)
@@ -523,47 +582,43 @@ CONTAINS
             CALL section_vals_val_get(group_section, "COEFF", i_rep_section=k, i_rep_val=j, r_vals=rtmplist)
             DO i = 1, SIZE(rtmplist)
                jj = jj+1
-               IF (jj > natoms) &
-                  CPABORT("Length of keywords ATOMS and COEFF must match.")
-               IF (ABS(rtmplist(i)) /= 1.0_dp) &
-                  CPABORT("Keyword COEFF accepts only values +/-1.0")
-               qs_control%becke_control%group(k)%coeff(jj) = rtmplist(i)
+               IF (jj > natoms) CPABORT("Length of keywords ATOMS and COEFF must match.")
+               IF (ABS(rtmplist(i)) /= 1.0_dp) CPABORT("Keyword COEFF accepts only values +/-1.0")
+               cdft_control%group(k)%coeff(jj) = rtmplist(i)
             END DO
          END DO
-         IF (jj < natoms) &
-            CPABORT("Length of keywords ATOMS and COEFF must match.")
+         IF (jj < natoms) CPABORT("Length of keywords ATOMS and COEFF must match.")
          CALL section_vals_val_get(group_section, "CONSTRAINT_TYPE", i_rep_section=k, &
-                                   i_val=qs_control%becke_control%group(k)%constraint_type)
+                                   i_val=cdft_control%group(k)%constraint_type)
          CALL section_vals_val_get(group_section, "FRAGMENT_CONSTRAINT", i_rep_section=k, &
-                                   l_val=qs_control%becke_control%group(k)%is_fragment_constraint)
-         IF (qs_control%becke_control%group(k)%is_fragment_constraint) &
-            qs_control%becke_control%fragment_density = .TRUE.
+                                   l_val=cdft_control%group(k)%is_fragment_constraint)
+         IF (cdft_control%group(k)%is_fragment_constraint) cdft_control%fragment_density = .TRUE.
       END DO
       ! Create a list containing all constraint atoms
       ALLOCATE (atomlist(tot_natoms))
       atomlist = -1
       jj = 0
       DO k = 1, nvar
-         DO j = 1, SIZE(qs_control%becke_control%group(k)%atoms)
+         DO j = 1, SIZE(cdft_control%group(k)%atoms)
             is_duplicate = .FALSE.
             DO i = 1, jj+1
-               IF (qs_control%becke_control%group(k)%atoms(j) == atomlist(i)) THEN
+               IF (cdft_control%group(k)%atoms(j) == atomlist(i)) THEN
                   is_duplicate = .TRUE.
                   EXIT
                END IF
             END DO
             IF (.NOT. is_duplicate) THEN
                jj = jj+1
-               atomlist(jj) = qs_control%becke_control%group(k)%atoms(j)
+               atomlist(jj) = cdft_control%group(k)%atoms(j)
             END IF
          END DO
       END DO
       CALL reallocate(atomlist, 1, jj)
-      CALL section_vals_val_get(becke_section, "ATOMIC_CHARGES", &
-                                l_val=qs_control%becke_control%atomic_charges)
+      CALL section_vals_val_get(cdft_control_section, "ATOMIC_CHARGES", &
+                                l_val=cdft_control%atomic_charges)
       ! Parse any dummy atoms (no constraint, just charges)
-      IF (qs_control%becke_control%atomic_charges) THEN
-         group_section => section_vals_get_subs_vals(becke_section, "DUMMY_ATOMS")
+      IF (cdft_control%atomic_charges) THEN
+         group_section => section_vals_get_subs_vals(cdft_control_section, "DUMMY_ATOMS")
          CALL section_vals_get(group_section, explicit=exists)
          IF (exists) THEN
             ! First determine how many atoms there are
@@ -603,37 +658,27 @@ CONTAINS
          END IF
       END IF
       ! Join dummy atoms and constraint atoms into one list
-      IF (ASSOCIATED(qs_control%becke_control%atoms)) &
-         DEALLOCATE (qs_control%becke_control%atoms)
-      IF (ASSOCIATED(qs_control%becke_control%is_constraint)) &
-         DEALLOCATE (qs_control%becke_control%is_constraint)
       IF (ASSOCIATED(dummylist)) THEN
-         qs_control%becke_control%natoms = SIZE(atomlist)+SIZE(dummylist)
+         cdft_control%natoms = SIZE(atomlist)+SIZE(dummylist)
       ELSE
-         qs_control%becke_control%natoms = SIZE(atomlist)
+         cdft_control%natoms = SIZE(atomlist)
       END IF
-      ALLOCATE (qs_control%becke_control%atoms(qs_control%becke_control%natoms))
-      ALLOCATE (qs_control%becke_control%is_constraint(qs_control%becke_control%natoms))
-      qs_control%becke_control%atoms(1:SIZE(atomlist)) = atomlist
+      ALLOCATE (cdft_control%atoms(cdft_control%natoms))
+      ALLOCATE (cdft_control%is_constraint(cdft_control%natoms))
+      IF (cdft_control%atomic_charges) ALLOCATE (cdft_control%charge(cdft_control%natoms))
+      cdft_control%atoms(1:SIZE(atomlist)) = atomlist
       IF (ASSOCIATED(dummylist)) THEN
-         qs_control%becke_control%atoms(1+SIZE(atomlist):) = dummylist
+         cdft_control%atoms(1+SIZE(atomlist):) = dummylist
          DEALLOCATE (dummylist)
       END IF
-      qs_control%becke_control%is_constraint = .FALSE.
-      qs_control%becke_control%is_constraint(1:SIZE(atomlist)) = .TRUE.
+      cdft_control%is_constraint = .FALSE.
+      cdft_control%is_constraint(1:SIZE(atomlist)) = .TRUE.
       DEALLOCATE (atomlist)
-      ! Need to deallocate first in case ET_COUPLING calculation (in qs_energy_utils)
-      IF (ASSOCIATED(qs_control%becke_control%strength)) &
-         DEALLOCATE (qs_control%becke_control%strength)
-      IF (ASSOCIATED(qs_control%becke_control%becke_order_p)) &
-         DEALLOCATE (qs_control%becke_control%becke_order_p)
-      IF (ASSOCIATED(qs_control%becke_control%target)) &
-         DEALLOCATE (qs_control%becke_control%target)
-      !
-      ALLOCATE (qs_control%becke_control%strength(nvar))
-      ALLOCATE (qs_control%becke_control%becke_order_p(nvar))
-      ALLOCATE (qs_control%becke_control%target(nvar))
-      CALL section_vals_val_get(becke_section, "STRENGTH", r_vals=rtmplist)
+      ! Get constraint potential definitions from input
+      ALLOCATE (cdft_control%strength(nvar))
+      ALLOCATE (cdft_control%value(nvar))
+      ALLOCATE (cdft_control%target(nvar))
+      CALL section_vals_val_get(cdft_control_section, "STRENGTH", r_vals=rtmplist)
       IF (SIZE(rtmplist) /= nvar) &
          CALL cp_abort(__LOCATION__, &
                        "The length of keyword STRENGTH is incorrect. "// &
@@ -641,9 +686,9 @@ CONTAINS
                        " value(s), got "// &
                        TRIM(ADJUSTL(cp_to_string(SIZE(rtmplist))))//" value(s).")
       DO j = 1, nvar
-         qs_control%becke_control%strength(j) = rtmplist(j)
+         cdft_control%strength(j) = rtmplist(j)
       END DO
-      CALL section_vals_val_get(becke_section, "TARGET", r_vals=rtmplist)
+      CALL section_vals_val_get(cdft_control_section, "TARGET", r_vals=rtmplist)
       IF (SIZE(rtmplist) /= nvar) &
          CALL cp_abort(__LOCATION__, &
                        "The length of keyword TARGET is incorrect. "// &
@@ -651,90 +696,25 @@ CONTAINS
                        " value(s), got "// &
                        TRIM(ADJUSTL(cp_to_string(SIZE(rtmplist))))//" value(s).")
       DO j = 1, nvar
-         qs_control%becke_control%target(j) = rtmplist(j)
+         cdft_control%target(j) = rtmplist(j)
       END DO
-      IF (qs_control%becke_control%atomic_charges) THEN
-         IF (ASSOCIATED(qs_control%becke_control%charge)) &
-            DEALLOCATE (qs_control%becke_control%charge)
-         ALLOCATE (qs_control%becke_control%charge(qs_control%becke_control%natoms))
+      ! Read fragment constraint definitions
+      IF (cdft_control%fragment_density) THEN
+         CALL section_vals_val_get(cdft_control_section, "FRAGMENT_A_FILE_NAME", &
+                                   c_val=cdft_control%fragment_a_fname)
+         CALL section_vals_val_get(cdft_control_section, "FRAGMENT_B_FILE_NAME", &
+                                   c_val=cdft_control%fragment_b_fname)
+         CALL section_vals_val_get(cdft_control_section, "FRAGMENT_A_SPIN_FILE", &
+                                   c_val=cdft_control%fragment_a_spin_fname)
+         CALL section_vals_val_get(cdft_control_section, "FRAGMENT_B_SPIN_FILE", &
+                                   c_val=cdft_control%fragment_b_spin_fname)
+         CALL section_vals_val_get(cdft_control_section, "FLIP_FRAGMENT_A", &
+                                   l_val=cdft_control%flip_fragment(1))
+         CALL section_vals_val_get(cdft_control_section, "FLIP_FRAGMENT_B", &
+                                   l_val=cdft_control%flip_fragment(2))
       END IF
 
-      CALL section_vals_val_get(becke_section, "ADJUST_SIZE", &
-                                l_val=qs_control%becke_control%adjust)
-      IF (qs_control%becke_control%adjust) THEN
-         CALL section_vals_val_get(becke_section, "ATOMIC_RADII", explicit=exists)
-         IF (.NOT. exists) CPABORT("Keyword ATOMIC_RADII is missing.")
-         CALL section_vals_val_get(becke_section, "ATOMIC_RADII", r_vals=rtmplist)
-         CPASSERT(SIZE(rtmplist) > 0)
-         ALLOCATE (qs_control%becke_control%radii_tmp(SIZE(rtmplist)))
-         DO j = 1, SIZE(rtmplist)
-            qs_control%becke_control%radii_tmp(j) = rtmplist(j)
-         END DO
-      END IF
-
-      CALL section_vals_val_get(becke_section, "CUTOFF_TYPE", &
-                                i_val=qs_control%becke_control%cutoff_type)
-      SELECT CASE (qs_control%becke_control%cutoff_type)
-      CASE (becke_cutoff_global)
-         CALL section_vals_val_get(becke_section, "GLOBAL_CUTOFF", &
-                                   r_val=qs_control%becke_control%rglobal)
-      CASE (becke_cutoff_element)
-         CALL section_vals_val_get(becke_section, "ELEMENT_CUTOFF", r_vals=rtmplist)
-         CPASSERT(SIZE(rtmplist) > 0)
-         ALLOCATE (qs_control%becke_control%cutoffs_tmp(SIZE(rtmplist)))
-         DO j = 1, SIZE(rtmplist)
-            qs_control%becke_control%cutoffs_tmp(j) = rtmplist(j)
-         END DO
-      END SELECT
-      CALL section_vals_val_get(becke_section, "CAVITY_CONFINE", &
-                                l_val=qs_control%becke_control%cavity_confine)
-      CALL section_vals_val_get(becke_section, "SHOULD_SKIP", &
-                                l_val=qs_control%becke_control%should_skip)
-      CALL section_vals_val_get(becke_section, "IN_MEMORY", &
-                                l_val=qs_control%becke_control%in_memory)
-      IF (qs_control%becke_control%cavity_confine) THEN
-         CALL section_vals_val_get(becke_section, "CAVITY_SHAPE", &
-                                   i_val=qs_control%becke_control%cavity_shape)
-         IF (qs_control%becke_control%cavity_shape == radius_user .AND. &
-             .NOT. qs_control%becke_control%adjust) &
-            CALL cp_abort(__LOCATION__, &
-                          "Activate keyword ADJUST_SIZE to use cavity shape USER.")
-         CALL section_vals_val_get(becke_section, "CAVITY_RADIUS", &
-                                   r_val=qs_control%becke_control%rcavity)
-         CALL section_vals_val_get(becke_section, "EPS_CAVITY", &
-                                   r_val=qs_control%becke_control%eps_cavity)
-         CALL section_vals_val_get(becke_section, "CAVITY_PRINT", &
-                                   l_val=qs_control%becke_control%print_cavity)
-         CALL section_vals_val_get(becke_section, "CAVITY_USE_BOHR", &
-                                   l_val=qs_control%becke_control%use_bohr)
-         IF (.NOT. qs_control%becke_control%use_bohr) THEN
-            qs_control%becke_control%rcavity = cp_unit_from_cp2k(qs_control%becke_control%rcavity, "angstrom")
-         END IF
-         CALL create_hirshfeld_type(qs_control%becke_control%cavity_env)
-         CALL set_hirshfeld_info(qs_control%becke_control%cavity_env, &
-                                 shape_function_type=shape_function_gaussian, iterative=.FALSE., &
-                                 radius_type=qs_control%becke_control%cavity_shape, &
-                                 use_bohr=qs_control%becke_control%use_bohr)
-      END IF
-
-      IF (qs_control%becke_control%fragment_density) THEN
-         CALL section_vals_val_get(becke_section, "FRAGMENT_A_FILE_NAME", &
-                                   c_val=qs_control%becke_control%fragment_a_fname)
-         CALL section_vals_val_get(becke_section, "FRAGMENT_B_FILE_NAME", &
-                                   c_val=qs_control%becke_control%fragment_b_fname)
-         CALL section_vals_val_get(becke_section, "FRAGMENT_A_SPIN_FILE", &
-                                   c_val=qs_control%becke_control%fragment_a_spin_fname)
-         CALL section_vals_val_get(becke_section, "FRAGMENT_B_SPIN_FILE", &
-                                   c_val=qs_control%becke_control%fragment_b_spin_fname)
-         CALL section_vals_val_get(becke_section, "FLIP_FRAGMENT_A", &
-                                   l_val=qs_control%becke_control%flip_fragment(1))
-         CALL section_vals_val_get(becke_section, "FLIP_FRAGMENT_B", &
-                                   l_val=qs_control%becke_control%flip_fragment(2))
-      END IF
-
-      CALL cite_reference(Becke1988b)
-
-   END SUBROUTINE read_becke_section
+   END SUBROUTINE read_constraint_definitions
 
 ! **************************************************************************************************
 !> \brief reads the input parameters needed for CDFT with OT
@@ -750,87 +730,58 @@ CONTAINS
          routineP = moduleN//':'//routineN
 
       LOGICAL                                            :: exists
-      TYPE(section_vals_type), POINTER                   :: hirshfeld_constraint_section, &
-                                                            outer_scf_section
+      TYPE(cdft_control_type), POINTER                   :: cdft_control
+      TYPE(section_vals_type), POINTER                   :: becke_constraint_section, &
+                                                            hirshfeld_constraint_section, &
+                                                            outer_scf_section, print_section
 
-      NULLIFY (outer_scf_section, hirshfeld_constraint_section)
+      NULLIFY (outer_scf_section, hirshfeld_constraint_section, becke_constraint_section, &
+               print_section)
+      cdft_control => qs_control%cdft_control
+      CPASSERT(ASSOCIATED(cdft_control))
+
       CALL section_vals_val_get(cdft_control_section, "TYPE_OF_CONSTRAINT", &
                                 i_val=qs_control%cdft_control%type)
-      IF (qs_control%cdft_control%type /= outer_scf_none) THEN
+
+      IF (cdft_control%type /= outer_scf_none) THEN
          CALL section_vals_val_get(cdft_control_section, "REUSE_PRECOND", &
-                                   l_val=qs_control%cdft_control%reuse_precond)
+                                   l_val=cdft_control%reuse_precond)
          CALL section_vals_val_get(cdft_control_section, "PRECOND_FREQ", &
-                                   i_val=qs_control%cdft_control%precond_freq)
+                                   i_val=cdft_control%precond_freq)
          CALL section_vals_val_get(cdft_control_section, "MAX_REUSE", &
-                                   i_val=qs_control%cdft_control%max_reuse)
+                                   i_val=cdft_control%max_reuse)
          CALL section_vals_val_get(cdft_control_section, "PURGE_HISTORY", &
-                                   l_val=qs_control%cdft_control%purge_history)
+                                   l_val=cdft_control%purge_history)
          CALL section_vals_val_get(cdft_control_section, "PURGE_FREQ", &
-                                   i_val=qs_control%cdft_control%purge_freq)
+                                   i_val=cdft_control%purge_freq)
          CALL section_vals_val_get(cdft_control_section, "PURGE_OFFSET", &
-                                   i_val=qs_control%cdft_control%purge_offset)
+                                   i_val=cdft_control%purge_offset)
          CALL section_vals_val_get(cdft_control_section, "COUNTER", &
-                                   i_val=qs_control%cdft_control%ienergy)
+                                   i_val=cdft_control%ienergy)
+         print_section => section_vals_get_subs_vals(cdft_control_section, "PROGRAM_RUN_INFO%WEIGHT_FUNCTION")
+         CALL section_vals_get(print_section, explicit=cdft_control%print_weight)
+
          outer_scf_section => section_vals_get_subs_vals(cdft_control_section, "OUTER_SCF")
-         CALL section_vals_val_get(outer_scf_section, "_SECTION_PARAMETERS_", &
-                                   l_val=qs_control%cdft_control%constraint_control%have_scf)
-         IF (qs_control%cdft_control%constraint_control%have_scf) THEN
-            CALL section_vals_val_get(outer_scf_section, "TYPE", &
-                                      i_val=qs_control%cdft_control%constraint_control%type)
-
-            IF (qs_control%cdft_control%constraint_control%type /= outer_scf_becke_constraint .AND. &
-                qs_control%cdft_control%constraint_control%type /= outer_scf_cdft_constraint) &
+         CALL outer_scf_read_parameters(cdft_control%constraint_control, outer_scf_section)
+         IF (cdft_control%constraint_control%have_scf) THEN
+            IF (cdft_control%constraint_control%type /= outer_scf_cdft_constraint) &
                CPABORT("Unsupported CDFT constraint.")
-
-            CALL section_vals_val_get(outer_scf_section, "EPS_SCF", &
-                                      r_val=qs_control%cdft_control%constraint_control%eps_scf)
-            CALL section_vals_val_get(outer_scf_section, "STEP_SIZE", &
-                                      r_val=qs_control%cdft_control%constraint_control%step_size, explicit=exists)
-            CALL section_vals_val_get(outer_scf_section, "DIIS_BUFFER_LENGTH", &
-                                      i_val=qs_control%cdft_control%constraint_control%diis_buffer_length)
-            CALL section_vals_val_get(outer_scf_section, "EXTRAPOLATION_ORDER", &
-                                      i_val=qs_control%cdft_control%constraint_control%extrapolation_order)
-            CALL section_vals_val_get(outer_scf_section, "BISECT_TRUST_COUNT", &
-                                      i_val=qs_control%cdft_control%constraint_control%bisect_trust_count)
-            CALL section_vals_val_get(outer_scf_section, "OPTIMIZER", &
-                                      i_val=qs_control%cdft_control%constraint_control%optimizer)
-            CALL section_vals_val_get(outer_scf_section, "MAX_SCF", &
-                                      i_val=qs_control%cdft_control%constraint_control%max_scf)
-            ! Optimizer specific initializations
-            SELECT CASE (qs_control%cdft_control%constraint_control%optimizer)
-            CASE DEFAULT
-               ! Do nothing
-            CASE (outer_scf_optimizer_broyden, outer_scf_optimizer_newton, &
-                  outer_scf_optimizer_newton_ls)
-               ! CDFT optimizer -> read CDFT_OPT section
-               CALL cdft_opt_type_create(qs_control%cdft_control%constraint_control%cdft_opt_control)
-               CALL cdft_opt_type_read(qs_control%cdft_control%constraint_control%cdft_opt_control, &
-                                       outer_scf_section)
-               IF (exists) THEN
-                  qs_control%cdft_control%constraint_control%cdft_opt_control%newton_step = &
-                     ABS(qs_control%cdft_control%constraint_control%step_size)
-                  ! Permanent copy needed in case line search is performed
-                  qs_control%cdft_control%constraint_control%cdft_opt_control%newton_step_save = &
-                     qs_control%cdft_control%constraint_control%cdft_opt_control%newton_step
-               END IF
-            END SELECT
-            SELECT CASE (qs_control%cdft_control%type)
-            CASE (outer_scf_hirshfeld_constraint)
-               IF (qs_control%cdft_control%constraint_control%type == outer_scf_cdft_constraint) THEN
-                  hirshfeld_constraint_section => section_vals_get_subs_vals(cdft_control_section, "HIRSHFELD_CONSTRAINT")
-                  CALL section_vals_get(hirshfeld_constraint_section, explicit=exists)
-                  IF (exists) THEN
-                     CALL read_hirshfeld_constraint_section(qs_control, hirshfeld_constraint_section)
-                     ALLOCATE (qs_control%cdft_control%constraint_type(1))
-                     qs_control%cdft_control%constraint_type(1) = cdft_charge_constraint
-                  ELSE
-                     CPABORT("HIRSHFELD_CONSTRAINT section is missing.")
-                  END IF
-               ELSE
-                  CPABORT("Mismatch in defining constraint.")
-               END IF
+            ! Constraint definitions
+            CALL read_constraint_definitions(cdft_control, cdft_control_section)
+            ! Constraint-specific initializations
+            SELECT CASE (cdft_control%type)
             CASE (outer_scf_becke_constraint)
-               ! Do nothing, yet. For now, constraint is defined QS%BECKE_CONSTRAINT
+               becke_constraint_section => section_vals_get_subs_vals(cdft_control_section, "BECKE_CONSTRAINT")
+               CALL section_vals_get(becke_constraint_section, explicit=exists)
+               IF (.NOT. exists) CPABORT("BECKE_CONSTRAINT section is missing.")
+               CALL read_becke_section(cdft_control, becke_constraint_section)
+            CASE (outer_scf_hirshfeld_constraint)
+               hirshfeld_constraint_section => section_vals_get_subs_vals(cdft_control_section, "HIRSHFELD_CONSTRAINT")
+               CALL section_vals_get(hirshfeld_constraint_section, explicit=exists)
+               IF (.NOT. exists) CPABORT("HIRSHFELD_CONSTRAINT section is missing.")
+               CALL read_hirshfeld_constraint_section(cdft_control, hirshfeld_constraint_section)
+            CASE DEFAULT
+               CPABORT("Unknown constraint type.")
             END SELECT
 
             CALL cite_reference(Holmberg2017)
@@ -846,93 +797,49 @@ CONTAINS
 
 ! **************************************************************************************************
 !> \brief reads the input parameters needed for Hirshfeld constraint
-!> \param qs_control the qs_control which holds the Hirshfeld constraint
-!> \param hirshfeld_constraint_section the input section for a Hirshfeld constraint
-!> \author Nico Holmberg [12.2015]
+!> \param cdft_control the cdft_control which holds the Hirshfeld constraint
+!> \param hirshfeld_section the input section for a Hirshfeld constraint
+!> \author Nico Holmberg [09.2018]
 ! **************************************************************************************************
-   SUBROUTINE read_hirshfeld_constraint_section(qs_control, hirshfeld_constraint_section)
-      TYPE(qs_control_type), INTENT(INOUT)               :: qs_control
-      TYPE(section_vals_type), POINTER                   :: hirshfeld_constraint_section
+   SUBROUTINE read_hirshfeld_constraint_section(cdft_control, hirshfeld_section)
+      TYPE(cdft_control_type), INTENT(INOUT)             :: cdft_control
+      TYPE(section_vals_type), POINTER                   :: hirshfeld_section
 
       CHARACTER(len=*), PARAMETER :: routineN = 'read_hirshfeld_constraint_section', &
          routineP = moduleN//':'//routineN
 
-      INTEGER                                            :: j, jj, k, n_rep, nvar, radius_type, &
-                                                            refc, shapef
-      INTEGER, DIMENSION(:), POINTER                     :: tmplist
-      LOGICAL                                            :: do_radius, do_sc
+      LOGICAL                                            :: exists
       REAL(KIND=dp), DIMENSION(:), POINTER               :: rtmplist
+      TYPE(hirshfeld_constraint_type), POINTER           :: hirshfeld_control
 
-      NULLIFY (tmplist, rtmplist)
-      CPASSERT(.NOT. ASSOCIATED(qs_control%cdft_control%hirshfeld_control))
-      ALLOCATE (qs_control%cdft_control%hirshfeld_control)
+      NULLIFY (rtmplist)
+      hirshfeld_control => cdft_control%hirshfeld_control
+      CPASSERT(ASSOCIATED(hirshfeld_control))
 
-      CALL section_vals_val_get(hirshfeld_constraint_section, "ATOMS", n_rep_val=n_rep)
-      jj = 0
-      DO k = 1, n_rep
-         CALL section_vals_val_get(hirshfeld_constraint_section, "ATOMS", i_rep_val=k, i_vals=tmplist)
-         DO j = 1, SIZE(tmplist)
-            jj = jj+1
-         END DO
-      END DO
-      IF (jj < 1) CPABORT("Need at least 1 atom to use Hirshfeld constraints.")
-      qs_control%cdft_control%hirshfeld_control%natoms = jj
-      ALLOCATE (qs_control%cdft_control%hirshfeld_control%atoms( &
-                qs_control%cdft_control%hirshfeld_control%natoms))
-      jj = 0
-      DO k = 1, n_rep
-         CALL section_vals_val_get(hirshfeld_constraint_section, "ATOMS", i_rep_val=k, i_vals=tmplist)
-         DO j = 1, SIZE(tmplist)
-            jj = jj+1
-            qs_control%cdft_control%hirshfeld_control%atoms(jj) = tmplist(j)
-         END DO
-      END DO
-
-      ALLOCATE (qs_control%cdft_control%hirshfeld_control%coeff(qs_control%cdft_control%hirshfeld_control%natoms))
-      qs_control%cdft_control%hirshfeld_control%coeff = 1.0_dp
-
-      CALL section_vals_val_get(hirshfeld_constraint_section, "COEFF", n_rep_val=n_rep)
-      jj = 0
-      DO k = 1, n_rep
-         CALL section_vals_val_get(hirshfeld_constraint_section, "COEFF", i_rep_val=k, r_vals=rtmplist)
-         DO j = 1, SIZE(rtmplist)
-            jj = jj+1
-            IF (jj > qs_control%cdft_control%hirshfeld_control%natoms) &
-               CPABORT("Need the same number of coeff as there are atoms.")
-            qs_control%cdft_control%hirshfeld_control%coeff(jj) = rtmplist(j)
-            IF (ABS(rtmplist(j)) /= 1.0_dp) &
-               CPABORT("Illegal coefficient. Only -1.0 or 1.0 allowed.")
-         END DO
-      END DO
-      IF (jj < qs_control%cdft_control%hirshfeld_control%natoms .AND. jj .NE. 0) &
-         CPABORT("Need no or the same number of coeff as there are atoms.")
-
-      nvar = 1
-      ALLOCATE (qs_control%cdft_control%target(nvar))
-      ALLOCATE (qs_control%cdft_control%strength(nvar))
-      ALLOCATE (qs_control%cdft_control%value(nvar))
-      CALL section_vals_val_get(hirshfeld_constraint_section, "STRENGTH", r_vals=rtmplist)
-      DO j = 1, nvar
-         qs_control%cdft_control%strength(j) = rtmplist(j)
-      END DO
-      CALL section_vals_val_get(hirshfeld_constraint_section, "TARGET", r_vals=rtmplist)
-      DO j = 1, nvar
-         qs_control%cdft_control%target(j) = rtmplist(j)
-      END DO
-
-      NULLIFY (qs_control%cdft_control%hirshfeld_control%hirshfeld_env)
-      CALL create_hirshfeld_type(qs_control%cdft_control%hirshfeld_control%hirshfeld_env)
-      CALL section_vals_val_get(hirshfeld_constraint_section, "SELF_CONSISTENT", l_val=do_sc)
-      CALL section_vals_val_get(hirshfeld_constraint_section, "USER_RADIUS", l_val=do_radius)
-      CALL section_vals_val_get(hirshfeld_constraint_section, "SHAPE_FUNCTION", i_val=shapef)
-      CALL section_vals_val_get(hirshfeld_constraint_section, "REFERENCE_CHARGE", i_val=refc)
-      IF (do_radius) THEN
-         radius_type = radius_user
-      ELSE
-         radius_type = radius_covalent
+      CALL section_vals_val_get(hirshfeld_section, "SHAPE_FUNCTION", i_val=hirshfeld_control%shape_function)
+      CALL section_vals_val_get(hirshfeld_section, "GAUSSIAN_SHAPE", i_val=hirshfeld_control%gaussian_shape)
+      CALL section_vals_val_get(hirshfeld_section, "GAUSSIAN_RADIUS", r_val=hirshfeld_control%radius)
+      CALL section_vals_val_get(hirshfeld_section, "USE_BOHR", l_val=hirshfeld_control%use_bohr)
+      IF (.NOT. hirshfeld_control%use_bohr) THEN
+         hirshfeld_control%radius = cp_unit_from_cp2k(hirshfeld_control%radius, "angstrom")
       END IF
-      CALL set_hirshfeld_info(qs_control%cdft_control%hirshfeld_control%hirshfeld_env, &
-                              shape_function_type=shapef, iterative=do_sc, ref_charge=refc, radius_type=radius_type)
+
+      IF (hirshfeld_control%shape_function == shape_function_gaussian .AND. &
+          hirshfeld_control%gaussian_shape == radius_user) THEN
+         CALL section_vals_val_get(hirshfeld_section, "ATOMIC_RADII", explicit=exists)
+         IF (.NOT. exists) CPABORT("Keyword ATOMIC_RADII is missing.")
+         CALL section_vals_val_get(hirshfeld_section, "ATOMIC_RADII", r_vals=rtmplist)
+         CPASSERT(SIZE(rtmplist) > 0)
+         ALLOCATE (hirshfeld_control%radii(SIZE(rtmplist)))
+         hirshfeld_control%radii(:) = rtmplist
+      END IF
+
+      CALL create_hirshfeld_type(hirshfeld_control%hirshfeld_env)
+      CALL set_hirshfeld_info(hirshfeld_control%hirshfeld_env, &
+                              shape_function_type=hirshfeld_control%shape_function, &
+                              iterative=.FALSE., &
+                              radius_type=hirshfeld_control%gaussian_shape, &
+                              use_bohr=hirshfeld_control%use_bohr)
 
    END SUBROUTINE read_hirshfeld_constraint_section
 
@@ -1059,5 +966,354 @@ CONTAINS
       END IF
 
    END SUBROUTINE hfun_zero
+
+! **************************************************************************************************
+!> \brief Initializes Gaussian Hirshfeld constraints
+!> \param qs_env the qs_env where to build the constraint
+!> \author  Nico Holmberg (09.2018)
+! **************************************************************************************************
+   SUBROUTINE hirshfeld_constraint_init(qs_env)
+      TYPE(qs_environment_type), POINTER                 :: qs_env
+
+      CHARACTER(len=*), PARAMETER :: routineN = 'hirshfeld_constraint_init', &
+         routineP = moduleN//':'//routineN
+
+      CHARACTER(len=2)                                   :: element_symbol
+      INTEGER                                            :: handle, iat, iatom, igroup, ikind, ip, &
+                                                            iw, natom, nkind
+      INTEGER, DIMENSION(:), POINTER                     :: atom_list
+      REAL(KIND=dp)                                      :: zeff
+      REAL(KIND=dp), DIMENSION(:), POINTER               :: radii_list
+      TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
+      TYPE(atomic_kind_type), POINTER                    :: atomic_kind
+      TYPE(cdft_control_type), POINTER                   :: cdft_control
+      TYPE(cdft_group_type), DIMENSION(:), POINTER       :: group
+      TYPE(cp_logger_type), POINTER                      :: logger
+      TYPE(dft_control_type), POINTER                    :: dft_control
+      TYPE(hirshfeld_constraint_type), POINTER           :: hirshfeld_control
+      TYPE(hirshfeld_type), POINTER                      :: hirshfeld_env
+      TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
+      TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
+      TYPE(section_vals_type), POINTER                   :: print_section
+
+      NULLIFY (cdft_control, hirshfeld_control, hirshfeld_env, qs_kind_set, atomic_kind_set, &
+               radii_list, dft_control, group, atomic_kind, atom_list)
+      CALL timeset(routineN, handle)
+
+      logger => cp_get_default_logger()
+      print_section => section_vals_get_subs_vals(qs_env%input, "DFT%QS%CDFT")
+      iw = cp_print_key_unit_nr(logger, print_section, "PROGRAM_RUN_INFO", extension=".cdftLog")
+
+      CALL get_qs_env(qs_env, dft_control=dft_control)
+      cdft_control => dft_control%qs_control%cdft_control
+      hirshfeld_control => cdft_control%hirshfeld_control
+      hirshfeld_env => hirshfeld_control%hirshfeld_env
+
+      ! Setup the Hirshfeld shape function
+      IF (.NOT. ASSOCIATED(hirshfeld_env%kind_shape_fn)) THEN
+         hirshfeld_env => hirshfeld_control%hirshfeld_env
+         CALL get_qs_env(qs_env, atomic_kind_set=atomic_kind_set, qs_kind_set=qs_kind_set)
+         CPASSERT(ASSOCIATED(qs_kind_set))
+         nkind = SIZE(qs_kind_set)
+         ! Parse atomic radii for setting up Gaussian shape function
+         IF (ASSOCIATED(hirshfeld_control%radii)) THEN
+            IF (.NOT. SIZE(atomic_kind_set) == SIZE(hirshfeld_control%radii)) &
+               CALL cp_abort(__LOCATION__, &
+                             "Length of keyword HIRSHFELD_CONSTRAINT\ATOMIC_RADII does not "// &
+                             "match number of atomic kinds in the input coordinate file.")
+
+            ALLOCATE (radii_list(SIZE(hirshfeld_control%radii)))
+            DO ikind = 1, SIZE(hirshfeld_control%radii)
+               IF (hirshfeld_control%use_bohr) THEN
+                  radii_list(ikind) = hirshfeld_control%radii(ikind)
+               ELSE
+                  radii_list(ikind) = cp_unit_from_cp2k(hirshfeld_control%radii(ikind), "angstrom")
+               END IF
+            END DO
+         END IF
+         ! radius/radii_list parameters are optional for shape_function_density
+         CALL create_shape_function(hirshfeld_env, qs_kind_set, atomic_kind_set, &
+                                    radius=hirshfeld_control%radius, &
+                                    radii_list=radii_list)
+         IF (ASSOCIATED(radii_list)) DEALLOCATE (radii_list)
+      END IF
+
+      ! Atomic reference charges (Mulliken not supported)
+      IF (.NOT. ASSOCIATED(hirshfeld_env%charges)) THEN
+         CALL get_qs_env(qs_env, qs_kind_set=qs_kind_set, atomic_kind_set=atomic_kind_set, &
+                         nkind=nkind, natom=natom)
+         ALLOCATE (hirshfeld_env%charges(natom))
+         DO ikind = 1, nkind
+            CALL get_qs_kind(qs_kind_set(ikind), zeff=zeff)
+            atomic_kind => atomic_kind_set(ikind)
+            CALL get_atomic_kind(atomic_kind, atom_list=atom_list)
+            DO iat = 1, SIZE(atom_list)
+               iatom = atom_list(iat)
+               hirshfeld_env%charges(iatom) = zeff
+            END DO
+         END DO
+      END IF
+
+      ! Print some additional information about the calculation on the first iteration
+      IF (cdft_control%first_iteration) THEN
+         IF (iw > 0) THEN
+            group => cdft_control%group
+            CALL get_qs_env(qs_env, particle_set=particle_set)
+            IF (ASSOCIATED(hirshfeld_control%radii)) THEN
+               WRITE (iw, '(T3,A)') &
+                  'Atom   Element  Gaussian radius (angstrom)'
+               DO iatom = 1, natom
+                  CALL get_atomic_kind(atomic_kind=particle_set(iatom)%atomic_kind, element_symbol=element_symbol)
+                  WRITE (iw, "(i7,T15,A2,T37,F8.3)") &
+                     iatom, ADJUSTR(element_symbol), cp_unit_from_cp2k(hirshfeld_control%radii(iatom), "angstrom")
+               END DO
+               WRITE (iw, '(T3,A)') &
+                  '------------------------------------------------------------------------'
+            END IF
+            WRITE (iw, '(/,T3,A,T60)') &
+               '----------------------- CDFT group definitions -------------------------'
+            DO igroup = 1, SIZE(group)
+               IF (igroup > 1) WRITE (iw, '(T3,A)') ' '
+               WRITE (iw, '(T5,A,I5,A,I5)') &
+                  'Atomic group', igroup, ' of ', SIZE(group)
+               WRITE (iw, '(T5,A)') 'Atom  Element  Coefficient'
+               DO ip = 1, SIZE(group(igroup)%atoms)
+                  iatom = group(igroup)%atoms(ip)
+                  CALL get_atomic_kind(atomic_kind=particle_set(iatom)%atomic_kind, element_symbol=element_symbol)
+                  WRITE (iw, '(i8,T16,A2,T23,F8.3)') iatom, ADJUSTR(element_symbol), group(igroup)%coeff(ip)
+               END DO
+            END DO
+            WRITE (iw, '(T3,A)') &
+               '------------------------------------------------------------------------'
+         END IF
+         cdft_control%first_iteration = .FALSE.
+      END IF
+
+      ! Radii no longer needed
+      IF (ASSOCIATED(hirshfeld_control%radii)) DEALLOCATE (hirshfeld_control%radii)
+      CALL timestop(handle)
+
+   END SUBROUTINE hirshfeld_constraint_init
+
+! **************************************************************************************************
+!> \brief Prints information about CDFT constraints
+!> \param qs_env the qs_env where to build the constraint
+!> \param electronic_charge the CDFT charges
+!> \par   History
+!>        Created 9.2018 [Nico Holmberg]
+! **************************************************************************************************
+   SUBROUTINE cdft_constraint_print(qs_env, electronic_charge)
+      TYPE(qs_environment_type), POINTER                 :: qs_env
+      REAL(kind=dp), ALLOCATABLE, DIMENSION(:, :)        :: electronic_charge
+
+      CHARACTER(len=*), PARAMETER :: routineN = 'cdft_constraint_print', &
+         routineP = moduleN//':'//routineN
+
+      CHARACTER(len=2)                                   :: element_symbol
+      INTEGER                                            :: iatom, ikind, iw, jatom
+      REAL(kind=dp)                                      :: tc(2), zeff
+      TYPE(cdft_control_type), POINTER                   :: cdft_control
+      TYPE(cp_logger_type), POINTER                      :: logger
+      TYPE(dft_control_type), POINTER                    :: dft_control
+      TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
+      TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
+      TYPE(section_vals_type), POINTER                   :: cdft_constraint_section
+
+      NULLIFY (cdft_constraint_section, logger, particle_set, dft_control, qs_kind_set)
+      logger => cp_get_default_logger()
+
+      CALL get_qs_env(qs_env, &
+                      particle_set=particle_set, &
+                      dft_control=dft_control, &
+                      qs_kind_set=qs_kind_set)
+      CPASSERT(ASSOCIATED(qs_kind_set))
+
+      cdft_constraint_section => section_vals_get_subs_vals(qs_env%input, "DFT%QS%CDFT")
+      iw = cp_print_key_unit_nr(logger, cdft_constraint_section, "PROGRAM_RUN_INFO", extension=".cdftLog")
+      cdft_control => dft_control%qs_control%cdft_control
+
+      ! Print constraint information
+      CALL qs_scf_cdft_constraint_info(iw, cdft_control)
+
+      ! Print weight function(s) to cube file(s) whenever weight is (re)built
+      IF (cdft_control%print_weight .AND. cdft_control%need_pot) &
+         CALL cdft_print_weight_function(qs_env)
+
+      ! Print atomic CDFT charges
+      IF (iw > 0 .AND. cdft_control%atomic_charges) THEN
+         IF (.NOT. cdft_control%fragment_density) THEN
+            IF (dft_control%nspins == 1) THEN
+               WRITE (iw, '(/,T3,A)') &
+                  '-------------------------------- CDFT atomic charges --------------------------------'
+               WRITE (iw, '(T3,A,A)') &
+                  '#Atom  Element   Is_constraint', '   Core charge    Population (total)'// &
+                  '          Net charge'
+               tc = 0.0_dp
+               DO iatom = 1, cdft_control%natoms
+                  jatom = cdft_control%atoms(iatom)
+                  CALL get_atomic_kind(atomic_kind=particle_set(jatom)%atomic_kind, &
+                                       element_symbol=element_symbol, &
+                                       kind_number=ikind)
+                  CALL get_qs_kind(qs_kind_set(ikind), zeff=zeff)
+                  WRITE (iw, "(i7,T15,A2,T23,L10,T39,F8.3,T61,F8.3,T81,F8.3)") &
+                     jatom, ADJUSTR(element_symbol), cdft_control%is_constraint(iatom), zeff, electronic_charge(iatom, 1), &
+                     (zeff-electronic_charge(iatom, 1))
+                  tc(1) = tc(1)+(zeff-electronic_charge(iatom, 1))
+               END DO
+               WRITE (iw, '(/,T3,A,T81,F8.3,/)') "Total Charge: ", tc(1)
+            ELSE
+               WRITE (iw, '(/,T3,A)') &
+                  '------------------------------------------ CDFT atomic charges -------------------------------------------'
+               WRITE (iw, '(T3,A,A)') &
+                  '#Atom  Element   Is_constraint', '   Core charge    Population (alpha, beta)'// &
+                  '    Net charge      Spin population'
+               tc = 0.0_dp
+               DO iatom = 1, cdft_control%natoms
+                  jatom = cdft_control%atoms(iatom)
+                  CALL get_atomic_kind(atomic_kind=particle_set(jatom)%atomic_kind, &
+                                       element_symbol=element_symbol, &
+                                       kind_number=ikind)
+                  CALL get_qs_kind(qs_kind_set(ikind), zeff=zeff)
+                  WRITE (iw, "(i7,T15,A2,T23,L10,T39,F8.3,T53,F8.3,T67,F8.3,T81,F8.3,T102,F8.3)") &
+                     jatom, ADJUSTR(element_symbol), &
+                     cdft_control%is_constraint(iatom), &
+                     zeff, electronic_charge(iatom, 1), electronic_charge(iatom, 2), &
+                     (zeff-electronic_charge(iatom, 1)-electronic_charge(iatom, 2)), &
+                     electronic_charge(iatom, 1)-electronic_charge(iatom, 2)
+                  tc(1) = tc(1)+(zeff-electronic_charge(iatom, 1)-electronic_charge(iatom, 2))
+                  tc(2) = tc(2)+(electronic_charge(iatom, 1)-electronic_charge(iatom, 2))
+               END DO
+               WRITE (iw, '(/,T3,A,T81,F8.3,T102,F8.3/)') "Total Charge and Spin Moment: ", tc(1), tc(2)
+            END IF
+         ELSE
+            IF (ALL(cdft_control%group(:)%constraint_type == cdft_charge_constraint)) THEN
+               WRITE (iw, '(/,T3,A)') &
+                  '-------------------------------- CDFT atomic charges --------------------------------'
+               IF (dft_control%nspins == 1) THEN
+                  WRITE (iw, '(T3,A,A)') &
+                     '#Atom  Element   Is_constraint', '   Fragment charge    Population (total)'// &
+                     '      Net charge'
+               ELSE
+                  WRITE (iw, '(T3,A,A)') &
+                     '#Atom  Element   Is_constraint', '   Fragment charge  Population (alpha, beta)'// &
+                     '  Net charge'
+               END IF
+               tc = 0.0_dp
+               DO iatom = 1, cdft_control%natoms
+                  jatom = cdft_control%atoms(iatom)
+                  CALL get_atomic_kind(atomic_kind=particle_set(jatom)%atomic_kind, &
+                                       element_symbol=element_symbol, &
+                                       kind_number=ikind)
+                  IF (dft_control%nspins == 1) THEN
+                     WRITE (iw, "(i7,T15,A2,T23,L10,T43,F8.3,T65,F8.3,T81,F8.3)") &
+                        jatom, ADJUSTR(element_symbol), &
+                        cdft_control%is_constraint(iatom), &
+                        cdft_control%charges_fragment(iatom, 1), &
+                        electronic_charge(iatom, 1), &
+                        (electronic_charge(iatom, 1)- &
+                         cdft_control%charges_fragment(iatom, 1))
+                     tc(1) = tc(1)+(electronic_charge(iatom, 1)- &
+                                    cdft_control%charges_fragment(iatom, 1))
+                  ELSE
+                     WRITE (iw, "(i7,T15,A2,T23,L10,T43,F8.3,T57,F8.3,T69,F8.3,T81,F8.3)") &
+                        jatom, ADJUSTR(element_symbol), &
+                        cdft_control%is_constraint(iatom), &
+                        cdft_control%charges_fragment(iatom, 1), &
+                        electronic_charge(iatom, 1), electronic_charge(iatom, 2), &
+                        (electronic_charge(iatom, 1)+electronic_charge(iatom, 2)- &
+                         cdft_control%charges_fragment(iatom, 1))
+                     tc(1) = tc(1)+(electronic_charge(iatom, 1)+electronic_charge(iatom, 2)- &
+                                    cdft_control%charges_fragment(iatom, 1))
+                  END IF
+               END DO
+               WRITE (iw, '(/,T3,A,T81,F8.3,/)') "Total Charge: ", tc(1)
+            ELSE
+               WRITE (iw, '(/,T3,A)') &
+                  '------------------------------------------ CDFT atomic charges -------------------------------------------'
+               WRITE (iw, '(T3,A,A)') &
+                  '#Atom  Element  Is_constraint', ' Fragment charge/spin moment'// &
+                  '  Population (alpha, beta)  Net charge/spin moment'
+               tc = 0.0_dp
+               DO iatom = 1, cdft_control%natoms
+                  jatom = cdft_control%atoms(iatom)
+                  CALL get_atomic_kind(atomic_kind=particle_set(jatom)%atomic_kind, &
+                                       element_symbol=element_symbol, &
+                                       kind_number=ikind)
+                  WRITE (iw, "(i7,T15,A2,T22,L10,T40,F8.3,T52,F8.3,T66,F8.3,T78,F8.3,T90,F8.3,T102,F8.3)") &
+                     jatom, ADJUSTR(element_symbol), &
+                     cdft_control%is_constraint(iatom), &
+                     cdft_control%charges_fragment(iatom, 1), &
+                     cdft_control%charges_fragment(iatom, 2), &
+                     electronic_charge(iatom, 1), electronic_charge(iatom, 2), &
+                     (electronic_charge(iatom, 1)+electronic_charge(iatom, 2)- &
+                      cdft_control%charges_fragment(iatom, 1)), &
+                     (electronic_charge(iatom, 1)-electronic_charge(iatom, 2)- &
+                      cdft_control%charges_fragment(iatom, 2))
+                  tc(1) = tc(1)+(electronic_charge(iatom, 1)+electronic_charge(iatom, 2)- &
+                                 cdft_control%charges_fragment(iatom, 1))
+                  tc(2) = tc(2)+(electronic_charge(iatom, 1)-electronic_charge(iatom, 2)- &
+                                 cdft_control%charges_fragment(iatom, 2))
+               END DO
+               WRITE (iw, '(/,T3,A,T90,F8.3,T102,F8.3/)') "Total Charge and Spin Moment: ", tc(1), tc(2)
+            END IF
+         END IF
+      END IF
+
+   END SUBROUTINE cdft_constraint_print
+
+! **************************************************************************************************
+!> \brief Prints CDFT weight functions to cube files
+!> \param qs_env the qs_env where to build the constraint
+!> \par   History
+!>        Created 9.2018 [Nico Holmberg]
+! **************************************************************************************************
+   SUBROUTINE cdft_print_weight_function(qs_env)
+      TYPE(qs_environment_type), POINTER                 :: qs_env
+
+      CHARACTER(len=*), PARAMETER :: routineN = 'cdft_print_weight_function', &
+         routineP = moduleN//':'//routineN
+
+      CHARACTER(LEN=default_path_length)                 :: middle_name
+      INTEGER                                            :: igroup, unit_nr
+      LOGICAL                                            :: mpi_io
+      TYPE(cdft_control_type), POINTER                   :: cdft_control
+      TYPE(cp_logger_type), POINTER                      :: logger
+      TYPE(cp_para_env_type), POINTER                    :: para_env
+      TYPE(dft_control_type), POINTER                    :: dft_control
+      TYPE(particle_list_type), POINTER                  :: particles
+      TYPE(qs_subsys_type), POINTER                      :: subsys
+      TYPE(section_vals_type), POINTER                   :: cdft_constraint_section
+
+      NULLIFY (cdft_constraint_section, logger, particles, dft_control, &
+               para_env, subsys, cdft_control)
+      logger => cp_get_default_logger()
+
+      CALL get_qs_env(qs_env, subsys=subsys, para_env=para_env, dft_control=dft_control)
+      CALL qs_subsys_get(subsys, particles=particles)
+      cdft_control => dft_control%qs_control%cdft_control
+      cdft_constraint_section => section_vals_get_subs_vals(qs_env%input, "DFT%QS%CDFT")
+
+      DO igroup = 1, SIZE(cdft_control%group)
+         mpi_io = .TRUE.
+         middle_name = "cdft_weight_"//TRIM(ADJUSTL(cp_to_string(igroup)))
+         unit_nr = cp_print_key_unit_nr(logger, cdft_constraint_section, "PROGRAM_RUN_INFO", &
+                                        middle_name=middle_name, &
+                                        extension=".cube", file_position="REWIND", &
+                                        log_filename=.FALSE., mpi_io=mpi_io)
+         ! Note PROGRAM_RUN_INFO section neeeds to be active!
+         IF (para_env%mepos == para_env%source .AND. unit_nr .LT. 1) &
+            CALL cp_abort(__LOCATION__, &
+                          "Please turn on PROGRAM_RUN_INFO to print CDFT weight function.")
+
+         CALL cp_pw_to_cube(cdft_control%group(igroup)%weight%pw, &
+                            unit_nr, &
+                            "CDFT Weight Function", &
+                            particles=particles, &
+                            stride=section_get_ivals(cdft_constraint_section, "PROGRAM_RUN_INFO%WEIGHT_FUNCTION%STRIDE"), &
+                            mpi_io=mpi_io)
+         CALL cp_print_key_finished_output(unit_nr, logger, cdft_constraint_section, "PROGRAM_RUN_INFO", mpi_io=mpi_io)
+      END DO
+
+   END SUBROUTINE cdft_print_weight_function
 
 END MODULE qs_cdft_utils

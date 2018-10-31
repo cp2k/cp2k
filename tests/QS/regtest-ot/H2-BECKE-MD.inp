@@ -9,34 +9,41 @@
     &END MGRID
     &QS
       MAP_CONSISTENT
-      EXTRAPOLATION PS        
+      EXTRAPOLATION PS
       EXTRAPOLATION_ORDER 1
       EPS_DEFAULT 1.0E-12
-      &BECKE_CONSTRAINT
+      &CDFT
+        TYPE_OF_CONSTRAINT BECKE
         STRENGTH  -0.000000000000000000
         TARGET     0.2000
         &ATOM_GROUP
           ATOMS      1 2
           COEFF      1 -1
         &END ATOM_GROUP
-        CUTOFF_TYPE     GLOBAL
-        ! 6.0 bohr
-        GLOBAL_CUTOFF   3.1750632515399997
+        &BECKE_CONSTRAINT
+          CUTOFF_TYPE     GLOBAL
+          ! 6.0 bohr
+          GLOBAL_CUTOFF   3.1750632515399997
+        &END BECKE_CONSTRAINT
+        &OUTER_SCF
+          OPTIMIZER DIIS
+          TYPE CDFT_CONSTRAINT
+          EPS_SCF 5.0E-3
+          MAX_SCF 35
+        &END
       &END
     &END QS
     &SCF
       EPS_SCF 5.0E-5
-      SCF_GUESS ATOMIC 
+      SCF_GUESS ATOMIC
       MAX_SCF 70
     &OT
-      PRECONDITIONER FULL_SINGLE_INVERSE 
+      PRECONDITIONER FULL_SINGLE_INVERSE
     &END OT
-     &OUTER_SCF
-      OPTIMIZER DIIS             
-      TYPE BECKE_CONSTRAINT
-        EPS_SCF 5.0E-3
-        MAX_SCF 35
-      &END
+    &OUTER_SCF ON
+      EPS_SCF 5.0E-5
+      MAX_SCF 2
+    &END
     &END SCF
     &XC
       &XC_FUNCTIONAL PADE
@@ -49,7 +56,7 @@
     &END CELL
     &COORD
   H        -3.0000065198  0.0  0.0
-  H         -4.03001433862  0.0 0.0      
+  H         -4.03001433862  0.0 0.0
     &END COORD
     &KIND C
       BASIS_SET DZVP-GTH-BLYP
@@ -67,13 +74,13 @@
 &END FORCE_EVAL
 &GLOBAL
   PROJECT H2-BECKE-MD
-  RUN_TYPE MD  
+  RUN_TYPE MD
   PRINT_LEVEL MEDIUM
 &END GLOBAL
 &MOTION
   &MD
     ENSEMBLE NVE
-    STEPS 2 
+    STEPS 2
     TIMESTEP 0.2
     TEMPERATURE 300.0
   &END MD

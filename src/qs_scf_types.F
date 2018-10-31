@@ -22,6 +22,7 @@ MODULE qs_scf_types
                                               section_vals_type,&
                                               section_vals_val_get
    USE kinds,                           ONLY: dp
+   USE outer_scf_control_types,         ONLY: qs_outer_scf_type
    USE preconditioner_types,            ONLY: destroy_preconditioner,&
                                               preconditioner_p_type
    USE qs_block_davidson_types,         ONLY: block_davidson_release,&
@@ -68,21 +69,6 @@ MODULE qs_scf_types
 !>      02.2003 created [fawzi]
 !> \author fawzi
 ! **************************************************************************************************
-   TYPE qs_outer_scf_type
-      INTEGER :: iter_count
-      LOGICAL :: deallocate_jacobian
-      ! these are the variable of outer loop.
-      ! right now, we assume that they can be easily written as
-      ! small arrays, but we might want to go the cp_fm_types
-      ! at a later stage
-      ! also, we just store the full iteration history
-      REAL(KIND=dp), DIMENSION(:), POINTER :: energy
-      REAL(KIND=dp), DIMENSION(:, :), POINTER :: variables
-      REAL(KIND=dp), DIMENSION(:, :), POINTER :: gradient
-      REAL(KIND=dp), DIMENSION(:, :), POINTER :: inv_jacobian
-      INTEGER, DIMENSION(:), POINTER :: count
-   END TYPE qs_outer_scf_type
-
    TYPE krylov_space_type
       INTEGER :: nkrylov, nblock, nmo_conv, nmo_nc, max_iter
       LOGICAL :: always_check_conv

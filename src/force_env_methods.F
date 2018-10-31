@@ -85,7 +85,7 @@ MODULE force_env_methods
                                               globenv_retain
    USE input_constants,                 ONLY: &
         debug_run, dfet, dmfet, mix_cdft, mix_coupled, mix_generic, mix_linear_combination, &
-        mix_minimum, mix_restrained, use_bazant_eip, use_lenosky_eip
+        mix_minimum, mix_restrained, mixed_cdft_serial, use_bazant_eip, use_lenosky_eip
    USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                               section_vals_retain,&
                                               section_vals_type,&
@@ -1278,7 +1278,7 @@ CONTAINS
       DO iforce_eval = 1, nforce_eval
          IF (.NOT. ASSOCIATED(force_env%sub_force_env(iforce_eval)%force_env)) CYCLE
          ! From this point on the error is the sub_error
-         IF (.NOT. force_env%mixed_env%cdft_control%is_parallel .AND. iforce_eval .GE. 2) THEN
+         IF (force_env%mixed_env%cdft_control%run_type == mixed_cdft_serial .AND. iforce_eval .GE. 2) THEN
             my_logger => force_env%mixed_env%cdft_control%sub_logger(iforce_eval-1)%p
          ELSE
             my_group = force_env%mixed_env%group_distribution(force_env%para_env%mepos)

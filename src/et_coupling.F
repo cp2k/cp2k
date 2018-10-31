@@ -30,10 +30,6 @@ MODULE et_coupling
                                               cp_print_key_unit_nr
    USE cp_para_types,                   ONLY: cp_para_env_type
    USE dbcsr_api,                       ONLY: dbcsr_p_type
-   USE input_constants,                 ONLY: cdft_alpha_constraint,&
-                                              cdft_beta_constraint,&
-                                              cdft_charge_constraint,&
-                                              cdft_magnetization_constraint
    USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                               section_vals_type
    USE kinds,                           ONLY: dp
@@ -51,7 +47,6 @@ MODULE et_coupling
    PRIVATE
 
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'et_coupling'
-   INTEGER, PARAMETER, PRIVATE          :: divide = 1, multiply = 2
    LOGICAL, PARAMETER, PRIVATE          :: debug_this_module = .FALSE.
 
 ! *** Public subroutines ***
@@ -103,19 +98,6 @@ CONTAINS
                                 extension=".log")
 
       is_spin_constraint = .FALSE.
-      IF (dft_control%qs_control%becke_constraint) THEN
-         SELECT CASE (dft_control%qs_control%becke_control%group (1)%constraint_type)
-         CASE (cdft_charge_constraint)
-            is_spin_constraint = .FALSE.
-         CASE (cdft_magnetization_constraint)
-            is_spin_constraint = .TRUE.
-         CASE (cdft_alpha_constraint, cdft_beta_constraint)
-            CALL cp_abort(__LOCATION__, &
-                          "Unsupported constraint type for ET_COUPLING, switch to MIXED_CDFT.")
-         CASE DEFAULT
-            CPABORT("Unknown constraint type.")
-         END SELECT
-      END IF
       ALLOCATE (rest_MO(2))
       ALLOCATE (a(dft_control%nspins))
       ALLOCATE (b(dft_control%nspins))
@@ -228,11 +210,6 @@ CONTAINS
          Waa = qs_env%et_coupling%order_p
          Wbb = dft_control%qs_control%ddapc_restraint_control(1)%ddapc_restraint_control%ddapc_order_p
          strength = dft_control%qs_control%ddapc_restraint_control(1)%ddapc_restraint_control%strength
-      END IF
-      IF (dft_control%qs_control%becke_constraint) THEN
-         Waa = qs_env%et_coupling%order_p
-         Wbb = dft_control%qs_control%becke_control%becke_order_p(1)
-         strength = dft_control%qs_control%becke_control%strength(1)
       END IF
 
 !!   construct S and W   !!!

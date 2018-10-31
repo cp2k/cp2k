@@ -21,7 +21,7 @@ MODULE scf_control_types
    USE cp_units,                        ONLY: cp_unit_from_cp2k
    USE input_constants,                 ONLY: &
         atomic_guess, core_guess, diag_ot, direct_p_mix, general_roks, high_spin_roks, &
-        ot_algo_taylor_or_diag, outer_scf_basis_center_opt, outer_scf_becke_constraint, &
+        ot_algo_taylor_or_diag, outer_scf_basis_center_opt, outer_scf_cdft_constraint, &
         outer_scf_ddapc_constraint, outer_scf_none, outer_scf_optimizer_bisect, &
         outer_scf_optimizer_broyden, outer_scf_optimizer_diis, outer_scf_optimizer_newton, &
         outer_scf_optimizer_newton_ls, outer_scf_optimizer_none, outer_scf_optimizer_sd, &
@@ -40,11 +40,9 @@ MODULE scf_control_types
                                               section_vals_type,&
                                               section_vals_val_get
    USE kinds,                           ONLY: dp
-   USE qs_cdft_opt_types,               ONLY: cdft_opt_type,&
-                                              cdft_opt_type_create,&
-                                              cdft_opt_type_read,&
-                                              cdft_opt_type_release,&
-                                              cdft_opt_type_write
+   USE outer_scf_control_types,         ONLY: outer_scf_control_type,&
+                                              outer_scf_read_parameters
+   USE qs_cdft_opt_types,               ONLY: cdft_opt_type_release
    USE qs_ot_types,                     ONLY: ot_readwrite_input,&
                                               qs_ot_settings_init,&
                                               qs_ot_settings_type
@@ -93,19 +91,6 @@ MODULE scf_control_types
 !>      09.2002 created [fawzi]
 !> \author Fawzi Mohamed
 ! **************************************************************************************************
-
-   TYPE outer_scf_control_type
-      LOGICAL       :: have_scf
-      INTEGER       :: max_scf
-      REAL(KIND=dp) :: eps_scf, step_size
-      INTEGER       :: TYPE
-      INTEGER       :: optimizer
-      INTEGER       :: diis_buffer_length
-      INTEGER       :: extrapolation_order
-      INTEGER       :: bisect_trust_count
-      TYPE(cdft_opt_type), POINTER :: cdft_opt_control
-   END TYPE outer_scf_control_type
-
    TYPE smear_type
       LOGICAL       :: do_smear
       LOGICAL       :: common_mu
@@ -361,7 +346,7 @@ CONTAINS
 
       INTEGER                                            :: cholesky_flag, handle, ialgo
       INTEGER, DIMENSION(:), POINTER                     :: added_mos
-      LOGICAL                                            :: do_mixing, exists
+      LOGICAL                                            :: do_mixing
       REAL(KIND=dp), DIMENSION(:), POINTER               :: roks_parameter
       TYPE(section_vals_type), POINTER                   :: mixing_section, outer_scf_section, &
                                                             scf_section, smear_section
@@ -492,44 +477,9 @@ CONTAINS
          CPABORT("SCF_GUESS CORE is not supported for OT")
       END IF
 
+      ! Outer SCF subsection
       outer_scf_section => section_vals_get_subs_vals(scf_section, "OUTER_SCF")
-      CALL section_vals_val_get(outer_scf_section, "_SECTION_PARAMETERS_", &
-                                l_val=scf_control%outer_scf%have_scf)
-      IF (scf_control%outer_scf%have_scf) THEN
-         CALL section_vals_val_get(outer_scf_section, "EPS_SCF", &
-                                   r_val=scf_control%outer_scf%eps_scf)
-         CALL section_vals_val_get(outer_scf_section, "STEP_SIZE", &
-                                   r_val=scf_control%outer_scf%step_size, explicit=exists)
-         CALL section_vals_val_get(outer_scf_section, "DIIS_BUFFER_LENGTH", &
-                                   i_val=scf_control%outer_scf%diis_buffer_length)
-         CALL section_vals_val_get(outer_scf_section, "BISECT_TRUST_COUNT", &
-                                   i_val=scf_control%outer_scf%bisect_trust_count)
-         CALL section_vals_val_get(outer_scf_section, "TYPE", &
-                                   i_val=scf_control%outer_scf%type)
-         CALL section_vals_val_get(outer_scf_section, "MAX_SCF", &
-                                   i_val=scf_control%outer_scf%max_scf)
-         CALL section_vals_val_get(outer_scf_section, "EXTRAPOLATION_ORDER", &
-                                   i_val=scf_control%outer_scf%extrapolation_order)
-         CALL section_vals_val_get(outer_scf_section, "OPTIMIZER", &
-                                   i_val=scf_control%outer_scf%optimizer)
-         ! Optimizer specific initializations
-         SELECT CASE (scf_control%outer_scf%optimizer)
-         CASE DEFAULT
-            ! Do nothing
-         CASE (outer_scf_optimizer_broyden, outer_scf_optimizer_newton, &
-               outer_scf_optimizer_newton_ls)
-            ! CDFT optimizer -> read CDFT_OPT section
-            CALL cdft_opt_type_create(scf_control%outer_scf%cdft_opt_control)
-            CALL cdft_opt_type_read(scf_control%outer_scf%cdft_opt_control, &
-                                    outer_scf_section)
-            IF (exists) THEN
-               scf_control%outer_scf%cdft_opt_control%newton_step = ABS(scf_control%outer_scf%step_size)
-               ! Permanent copy needed in case line search is performed
-               scf_control%outer_scf%cdft_opt_control%newton_step_save = &
-                  scf_control%outer_scf%cdft_opt_control%newton_step
-            END IF
-         END SELECT
-      END IF
+      CALL outer_scf_read_parameters(scf_control%outer_scf, outer_scf_section)
 
       smear_section => section_vals_get_subs_vals(scf_section, "SMEAR")
       CALL init_smear(scf_control%smear)
@@ -752,10 +702,10 @@ CONTAINS
                   WRITE (output_unit, '(T25,A)') "DDAPC constraint enforced"
                CASE (outer_scf_s2_constraint)
                   WRITE (output_unit, '(T25,A)') "S2 constraint enforced"
-               CASE (outer_scf_becke_constraint)
-                  WRITE (output_unit, '(T25,A)') "Becke weight population constraint enforced"
                CASE (outer_scf_basis_center_opt)
                   WRITE (output_unit, '(T25,A)') "Floating basis function optimization enforced"
+               CASE (outer_scf_cdft_constraint)
+                  CPABORT("CDFT constraints must be defined in QS&CDFT")
                CASE DEFAULT
                   CPABORT("")
                END SELECT
@@ -775,8 +725,7 @@ CONTAINS
                      scf_control%outer_scf%diis_buffer_length
                CASE (outer_scf_optimizer_broyden, outer_scf_optimizer_newton, &
                      outer_scf_optimizer_newton_ls)
-                  CALL cdft_opt_type_write(scf_control%outer_scf%cdft_opt_control, &
-                                           scf_control%outer_scf%optimizer, output_unit)
+                  CPABORT("Selected optimizer only compatible with CDFT")
                CASE (outer_scf_optimizer_secant)
                   WRITE (output_unit, '(T25,A)') "Optimization with the secant method"
                CASE DEFAULT

@@ -18,11 +18,10 @@ MODULE qs_outer_scf
         broyden_type_1, broyden_type_1_explicit, broyden_type_1_explicit_ls, broyden_type_1_ls, &
         broyden_type_2, broyden_type_2_explicit, broyden_type_2_explicit_ls, broyden_type_2_ls, &
         cdft2ot, do_ddapc_constraint, do_s2_constraint, ot2cdft, outer_scf_basis_center_opt, &
-        outer_scf_becke_constraint, outer_scf_cdft_constraint, outer_scf_ddapc_constraint, &
-        outer_scf_none, outer_scf_optimizer_bisect, outer_scf_optimizer_broyden, &
-        outer_scf_optimizer_diis, outer_scf_optimizer_newton, outer_scf_optimizer_newton_ls, &
-        outer_scf_optimizer_none, outer_scf_optimizer_sd, outer_scf_optimizer_secant, &
-        outer_scf_s2_constraint
+        outer_scf_cdft_constraint, outer_scf_ddapc_constraint, outer_scf_none, &
+        outer_scf_optimizer_bisect, outer_scf_optimizer_broyden, outer_scf_optimizer_diis, &
+        outer_scf_optimizer_newton, outer_scf_optimizer_newton_ls, outer_scf_optimizer_none, &
+        outer_scf_optimizer_sd, outer_scf_optimizer_secant, outer_scf_s2_constraint
    USE kinds,                           ONLY: dp
    USE mathlib,                         ONLY: diamat_all
    USE qs_basis_gradient,               ONLY: qs_basis_center_gradient,&
@@ -30,8 +29,7 @@ MODULE qs_outer_scf
                                               return_basis_center_gradient_norm
    USE qs_cdft_opt_types,               ONLY: cdft_opt_type_copy,&
                                               cdft_opt_type_release
-   USE qs_cdft_types,                   ONLY: becke_constraint_type,&
-                                              cdft_control_type
+   USE qs_cdft_types,                   ONLY: cdft_control_type
    USE qs_energy_types,                 ONLY: qs_energy_type
    USE qs_environment_types,            ONLY: get_qs_env,&
                                               qs_environment_type,&
@@ -76,7 +74,7 @@ CONTAINS
          res = 1
       CASE (outer_scf_s2_constraint)
          res = 1
-      CASE (outer_scf_becke_constraint, outer_scf_cdft_constraint)
+      CASE (outer_scf_cdft_constraint)
          IF (PRESENT(cdft_control)) THEN
             res = SIZE(cdft_control%target)
          ELSE
@@ -108,7 +106,6 @@ CONTAINS
 
       INTEGER                                            :: handle, ihistory, ivar, n
       LOGICAL                                            :: is_constraint
-      TYPE(becke_constraint_type), POINTER               :: becke_control
       TYPE(cdft_control_type), POINTER                   :: cdft_control
       TYPE(ddapc_restraint_type), POINTER                :: ddapc_restraint_control
       TYPE(dft_control_type), POINTER                    :: dft_control
@@ -154,14 +151,6 @@ CONTAINS
          scf_env%outer_scf%variables(:, ihistory) = s2_restraint_control%strength
          scf_env%outer_scf%gradient(:, ihistory) = s2_restraint_control%s2_order_p- &
                                                    s2_restraint_control%target
-      CASE (outer_scf_becke_constraint)
-         CPASSERT(dft_control%qs_control%becke_constraint)
-         becke_control => dft_control%qs_control%becke_control
-         DO ivar = 1, SIZE(scf_env%outer_scf%gradient, 1)
-            scf_env%outer_scf%variables(ivar, ihistory) = becke_control%strength(ivar)
-            scf_env%outer_scf%gradient(ivar, ihistory) = becke_control%becke_order_p(ivar)- &
-                                                         becke_control%target(ivar)
-         END DO
       CASE (outer_scf_cdft_constraint)
          CPASSERT(dft_control%qs_control%cdft)
          cdft_control => dft_control%qs_control%cdft_control
@@ -403,7 +392,6 @@ CONTAINS
 
       INTEGER                                            :: handle, ihistory, n
       LOGICAL                                            :: is_constraint
-      TYPE(becke_constraint_type), POINTER               :: becke_control
       TYPE(cdft_control_type), POINTER                   :: cdft_control
       TYPE(ddapc_restraint_type), POINTER                :: ddapc_restraint_control
       TYPE(dft_control_type), POINTER                    :: dft_control
@@ -429,11 +417,6 @@ CONTAINS
       CASE (outer_scf_s2_constraint)
          s2_restraint_control => dft_control%qs_control%s2_restraint_control
          s2_restraint_control%strength = scf_env%outer_scf%variables(1, ihistory+1)
-      CASE (outer_scf_becke_constraint)
-         becke_control => dft_control%qs_control%becke_control
-         becke_control%strength(:) = scf_env%outer_scf%variables(:, ihistory+1)
-         IF (dft_control%qs_control%cdft) &
-            dft_control%qs_control%cdft_control%strength(:) = becke_control%strength(:)
       CASE (outer_scf_cdft_constraint)
          cdft_control => dft_control%qs_control%cdft_control
          cdft_control%strength(:) = scf_env%outer_scf%variables(:, ihistory+1)
@@ -502,9 +485,6 @@ CONTAINS
       CASE (outer_scf_s2_constraint)
          outer_scf_history(1, ivec) = &
             dft_control%qs_control%s2_restraint_control%strength
-      CASE (outer_scf_becke_constraint)
-         outer_scf_history(:, ivec) = &
-            dft_control%qs_control%becke_control%strength(:)
       CASE (outer_scf_cdft_constraint)
          outer_scf_history(:, ivec) = &
             dft_control%qs_control%cdft_control%strength(:)
@@ -533,10 +513,6 @@ CONTAINS
          ddapc_restraint_control%strength = extrapolation(1)
       CASE (outer_scf_s2_constraint)
          dft_control%qs_control%s2_restraint_control%strength = extrapolation(1)
-      CASE (outer_scf_becke_constraint)
-         dft_control%qs_control%becke_control%strength(:) = extrapolation(:)
-         IF (dft_control%qs_control%cdft) &
-            dft_control%qs_control%cdft_control%strength(:) = dft_control%qs_control%becke_control%strength(:)
       CASE (outer_scf_cdft_constraint)
          dft_control%qs_control%cdft_control%strength(:) = extrapolation(:)
       CASE (outer_scf_basis_center_opt)

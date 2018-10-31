@@ -39,7 +39,6 @@ MODULE qs_energy_types
                        qmmm_el, &
                        qmmm_nu, &
                        mulliken, &
-                       becke, &
                        cdft, &
                        ee, &
                        ee_core, &
@@ -166,7 +165,6 @@ CONTAINS
          qs_energy%hartree_1c = 0.0_dp
          qs_energy%image_charge = 0.0_dp
          qs_energy%mulliken = 0.0_dp
-         qs_energy%becke = 0.0_dp
          qs_energy%cdft = 0.0_dp
          qs_energy%efield = 0.0_dp
          qs_energy%efield_core = 0.0_dp
