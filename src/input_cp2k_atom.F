@@ -934,13 +934,13 @@ CONTAINS
                                         "BARRIER                  "/), &
                           enum_i_vals=(/no_conf, poly_conf, barrier_conf/), &
                           enum_desc=s2a("Do not use confinement potential", &
-                                        "Use polynomial confinement potential: a*R^b", &
-                                        "Use a smooth barrier potential: a*F[r-ron)/w]"))
+                                        "Use polynomial confinement potential: a*(R/b)^c", &
+                                        "Use a smooth barrier potential: a*F[R-c)/b]"))
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
       CALL keyword_create(keyword, name="CONFINEMENT", &
-                          description="Definition of parameters for confinement potential", &
+                          description="Definition of parameters for confinement potential (a,b,c)", &
                           usage="CONFINEMENT prefactor range exponent (POLYNOM)"// &
                           "CONFINEMENT prefactor range r_onset (BARRIER)", &
                           default_r_vals=(/0._dp, 0._dp, 0._dp/), &
