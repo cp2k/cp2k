@@ -3,8 +3,10 @@
 #
 # author: Ole Schuett
 
-import os
+from __future__ import print_function
+
 import sys
+import subprocess
 from os import path
 from pprint import pformat
 from datetime import datetime
@@ -15,8 +17,10 @@ def main():
         print("Usage test_coverage.py <reference-file> <lcov-file>")
         sys.exit(1)
 
-    print("Date: %s"%datetime.utcnow().replace(microsecond=0))
-    os.system("svn info | grep Revision")
+    print("Date: {:%Y-%m-%d %H:%M:%S}".format(datetime.utcnow()))
+
+    git_rev = subprocess.check_output(["git", "rev-parse", "--short", "HEAD"])
+    print("Git Commit: {}".format(git_rev))
 
     ref_fn, lcov_fn = sys.argv[1:]
     content = open(lcov_fn).read()

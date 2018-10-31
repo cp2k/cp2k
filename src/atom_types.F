@@ -303,7 +303,7 @@ MODULE atom_types
    PUBLIC :: lmat
    PUBLIC :: atom_p_type, atom_type, atom_basis_type, atom_state, atom_integrals
    PUBLIC :: atom_orbitals, eri, atom_potential_type
-   PUBLIC :: atom_gthpot_type, atom_ecppot_type
+   PUBLIC :: atom_gthpot_type, atom_ecppot_type, atom_sgppot_type
    PUBLIC :: atom_optimization_type
    PUBLIC :: atom_compare_grids
    PUBLIC :: create_atom_type, release_atom_type, set_atom

@@ -6,7 +6,7 @@
 ! **************************************************************************************************
 MODULE atom_upf
 #if defined(__JSON)
-   USE json_module
+   USE json_module, ONLY: json_file
 #endif
    USE cp_parser_methods, ONLY: parser_get_next_line, &
       parser_get_object, &
@@ -343,17 +343,18 @@ CONTAINS
             CALL parser_get_object(parser, pot%comment)
          CASE ("ELEMENT")
             CALL parser_get_object(parser, line)
+            CPASSERT(2 <= LEN(pot%symbol))
             pot%symbol = line(2:3)
          CASE ("PSEUDO_TYPE")
             CALL parser_get_object(parser, line)
             line = ADJUSTL(line)
             il = LEN_TRIM(line)
-            pot%pseudo_type = line(2:il-1)
+            READ (line(2:il-1), *) pot%pseudo_type
          CASE ("RELATIVISTIC")
             CALL parser_get_object(parser, line)
             line = ADJUSTL(line)
             il = LEN_TRIM(line)
-            pot%relativistic = line(2:il-1)
+            READ (line(2:il-1), *) pot%relativistic
          CASE ("IS_ULTRASOFT")
             CALL parser_get_object(parser, line)
             line = ADJUSTL(line)
@@ -1014,7 +1015,6 @@ CONTAINS
       TYPE(json_file)                                    :: json
       LOGICAL                                            :: found
       CHARACTER(LEN=:), ALLOCATABLE                      :: symbol
-      CHARACTER(LEN=default_string_length)               :: nametag
       REAL(KIND=dp)                                      :: z_valence
 #endif
 

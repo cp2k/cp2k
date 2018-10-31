@@ -3,5 +3,4 @@ lib
 obj
 regtesting
 tools/toolchain
-.git
-.svn*
+.git*

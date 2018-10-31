@@ -17,10 +17,12 @@ MODULE atom_kind_orbitals
                                               atom_relint_release,&
                                               atom_relint_setup
    USE atom_types,                      ONLY: &
-        CGTO_BASIS, Clementi_geobas, GTO_BASIS, atom_basis_type, atom_integrals, atom_orbitals, &
-        atom_potential_type, atom_type, create_atom_orbs, create_atom_type, lmat, &
-        release_atom_basis, release_atom_potential, release_atom_type, set_atom
-   USE atom_utils,                      ONLY: get_maxl_occ,&
+        CGTO_BASIS, Clementi_geobas, GTO_BASIS, atom_basis_type, atom_gthpot_type, atom_integrals, &
+        atom_orbitals, atom_potential_type, atom_sgppot_type, atom_type, create_atom_orbs, &
+        create_atom_type, lmat, release_atom_basis, release_atom_potential, release_atom_type, &
+        set_atom
+   USE atom_utils,                      ONLY: atom_density,&
+                                              get_maxl_occ,&
                                               get_maxn_occ
    USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                               get_atomic_kind
@@ -57,8 +59,19 @@ MODULE atom_kind_orbitals
 
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'atom_kind_orbitals'
 
+   INTEGER, PARAMETER                                 :: nua = 40, nup = 20
+   REAL(KIND=dp), DIMENSION(nua), PARAMETER :: ugbs = (/0.007299_dp, 0.013705_dp, 0.025733_dp, &
+                                        0.048316_dp, 0.090718_dp, 0.170333_dp, 0.319819_dp, 0.600496_dp, 1.127497_dp, 2.117000_dp, &
+                                                 3.974902_dp, 7.463317_dp, 14.013204_dp, 26.311339_dp, 49.402449_dp, 92.758561_dp, &
+                                                      174.164456_dp, 327.013024_dp, 614.003114_dp, 1152.858743_dp, 2164.619772_dp, &
+                                                4064.312984_dp, 7631.197056_dp, 14328.416324_dp, 26903.186074_dp, 50513.706789_dp, &
+                                         94845.070265_dp, 178082.107320_dp, 334368.848683_dp, 627814.487663_dp, 1178791.123851_dp, &
+                                                      2213310.684886_dp, 4155735.557141_dp, 7802853.046713_dp, 14650719.428954_dp, &
+                                                  27508345.793637_dp, 51649961.080194_dp, 96978513.342764_dp, 182087882.613702_dp, &
+                                                        341890134.751331_dp/)
+
    PUBLIC :: calculate_atomic_orbitals, calculate_atomic_density, &
-             calculate_atomic_relkin
+             calculate_atomic_relkin, gth_potential_conversion
 
 ! **************************************************************************************************
 
@@ -68,20 +81,27 @@ CONTAINS
 !> \brief ...
 !> \param atomic_kind ...
 !> \param qs_kind ...
+!> \param agrid ...
 !> \param iunit ...
 !> \param pmat ...
 !> \param fmat ...
+!> \param density ...
+!> \param wavefunction ...
+!> \param wfninfo ...
 !> \param confine ...
 !> \param xc_section ...
 !> \param nocc ...
 ! **************************************************************************************************
-   SUBROUTINE calculate_atomic_orbitals(atomic_kind, qs_kind, iunit, pmat, fmat, &
-                                        confine, xc_section, nocc)
+   SUBROUTINE calculate_atomic_orbitals(atomic_kind, qs_kind, agrid, iunit, pmat, fmat, &
+                                        density, wavefunction, wfninfo, confine, xc_section, nocc)
       TYPE(atomic_kind_type), INTENT(IN)                 :: atomic_kind
       TYPE(qs_kind_type), INTENT(IN)                     :: qs_kind
+      TYPE(grid_atom_type), OPTIONAL                     :: agrid
       INTEGER, INTENT(IN), OPTIONAL                      :: iunit
       REAL(KIND=dp), DIMENSION(:, :, :), OPTIONAL, &
          POINTER                                         :: pmat, fmat
+      REAL(KIND=dp), DIMENSION(:), OPTIONAL, POINTER     :: density
+      REAL(KIND=dp), DIMENSION(:, :), OPTIONAL, POINTER  :: wavefunction, wfninfo
       LOGICAL, INTENT(IN), OPTIONAL                      :: confine
       TYPE(section_vals_type), OPTIONAL, POINTER         :: xc_section
       INTEGER, DIMENSION(:), OPTIONAL                    :: nocc
@@ -89,22 +109,18 @@ CONTAINS
       CHARACTER(len=*), PARAMETER :: routineN = 'calculate_atomic_orbitals', &
          routineP = moduleN//':'//routineN
 
-      INTEGER                                            :: i, ii, ipgf, j, k, k1, k2, l, ll, lm, m, &
-                                                            mb, mo, n, ne, nexp_lpot, nexp_lsd, &
-                                                            nexp_nlcc, ngp, nj, nr, ns, nset, &
-                                                            nsgf, quadtype, z
+      INTEGER                                            :: i, ii, ipgf, j, k, k1, k2, l, ll, m, mb, &
+                                                            mo, ngp, nj, nr, ns, nset, nsgf, nu, &
+                                                            quadtype, z
       INTEGER, DIMENSION(0:lmat, 10)                     :: ncalc, ncore, nelem
       INTEGER, DIMENSION(0:lmat, 100)                    :: set_index, shell_index
-      INTEGER, DIMENSION(:), POINTER                     :: lmax, lmin, nct_lpot, nct_lsd, nct_nlcc, &
-                                                            npgf, nppnl, nshell, ppeconf
+      INTEGER, DIMENSION(:), POINTER                     :: lmax, lmin, npgf, nshell
       INTEGER, DIMENSION(:, :), POINTER                  :: first_sgf, last_sgf, ls
-      LOGICAL                                            :: lpot_present, lsd_present, nlcc_present, &
-                                                            uks
-      REAL(KIND=dp)                                      :: ac, al, ear, ok, rk, scal, zeff
+      LOGICAL                                            :: has_basis, uks
+      REAL(KIND=dp)                                      :: al, ear, ok, rk, scal, zeff
       REAL(KIND=dp), DIMENSION(0:lmat, 10, 2)            :: edelta
-      REAL(KIND=dp), DIMENSION(:), POINTER               :: alpha_lpot, alpha_lsd, alpha_nlcc, ap, ce
-      REAL(KIND=dp), DIMENSION(:, :), POINTER            :: cval_lpot, cval_lsd, cval_nlcc, hhp, zet
-      REAL(KIND=dp), DIMENSION(:, :, :), POINTER         :: ccp, gcc, hp
+      REAL(KIND=dp), DIMENSION(:, :), POINTER            :: zet
+      REAL(KIND=dp), DIMENSION(:, :, :), POINTER         :: gcc
       TYPE(all_potential_type), POINTER                  :: all_potential
       TYPE(atom_basis_type), POINTER                     :: basis
       TYPE(atom_integrals), POINTER                      :: integrals
@@ -133,7 +149,11 @@ CONTAINS
                        gth_potential=gth_potential, &
                        sgp_potential=sgp_potential)
 
-      CPASSERT(ASSOCIATED(orb_basis_set))
+      IF (ASSOCIATED(orb_basis_set)) THEN
+         has_basis = .TRUE.
+      ELSE
+         has_basis = .FALSE.
+      END IF
 
       atom%z = z
       CALL set_atom(atom, &
@@ -147,235 +167,126 @@ CONTAINS
 
       ALLOCATE (potential, basis, integrals)
 
-      IF (ASSOCIATED(gth_potential)) THEN
-         potential%ppot_type = gth_pseudo
-         IF (PRESENT(confine)) THEN
-            potential%confinement = confine
-         ELSE
-            potential%confinement = .TRUE.
-         END IF
-         potential%conf_type = poly_conf
-         potential%acon = 0.1_dp
-         potential%rcon = 2.0_dp*ptable(z)%vdw_radius*bohr
-         potential%scon = 2.0_dp
-
-         CALL get_potential(gth_potential, &
-                            zeff=zeff, &
-                            elec_conf=ppeconf, &
-                            alpha_core_charge=ac, &
-                            nexp_ppl=ne, &
-                            cexp_ppl=ce, &
-                            lppnl=lm, &
-                            nprj_ppnl=nppnl, &
-                            alpha_ppnl=ap, &
-                            hprj_ppnl=hp)
-
-         potential%gth_pot%zion = zeff
-         potential%gth_pot%rc = SQRT(0.5_dp/ac)
-         potential%gth_pot%ncl = ne
-         potential%gth_pot%cl(:) = 0._dp
-         IF (ac > 0._dp) THEN
-            DO i = 1, ne
-               potential%gth_pot%cl(i) = ce(i)/(2._dp*ac)**(i-1)
-            END DO
-         END IF
-         !extended type
-         potential%gth_pot%lpotextended = .FALSE.
-         potential%gth_pot%lsdpot = .FALSE.
-         potential%gth_pot%nlcc = .FALSE.
-         potential%gth_pot%nexp_lpot = 0
-         potential%gth_pot%nexp_lsd = 0
-         potential%gth_pot%nexp_nlcc = 0
-         CALL get_potential(gth_potential, &
-                            lpot_present=lpot_present, &
-                            lsd_present=lsd_present, &
-                            nlcc_present=nlcc_present)
-         IF (lpot_present) THEN
-            CALL get_potential(gth_potential, &
-                               nexp_lpot=nexp_lpot, &
-                               alpha_lpot=alpha_lpot, &
-                               nct_lpot=nct_lpot, &
-                               cval_lpot=cval_lpot)
-            potential%gth_pot%lpotextended = .TRUE.
-            potential%gth_pot%nexp_lpot = nexp_lpot
-            potential%gth_pot%alpha_lpot(1:nexp_lpot) = SQRT(0.5_dp/alpha_lpot(1:nexp_lpot))
-            potential%gth_pot%nct_lpot(1:nexp_lpot) = nct_lpot(1:nexp_lpot)
-            DO j = 1, nexp_lpot
-               ac = alpha_lpot(j)
-               DO i = 1, 4
-                  potential%gth_pot%cval_lpot(i, j) = cval_lpot(i, j)/(2._dp*ac)**(i-1)
-               END DO
-            END DO
-         END IF
-         IF (lsd_present) THEN
-            CALL get_potential(gth_potential, &
-                               nexp_lsd=nexp_lsd, &
-                               alpha_lsd=alpha_lsd, &
-                               nct_lsd=nct_lsd, &
-                               cval_lsd=cval_lsd)
-            potential%gth_pot%lsdpot = .TRUE.
-            potential%gth_pot%nexp_lsd = nexp_lsd
-            potential%gth_pot%alpha_lsd(1:nexp_lsd) = SQRT(0.5_dp/alpha_lsd(1:nexp_lsd))
-            potential%gth_pot%nct_lsd(1:nexp_lsd) = nct_lsd(1:nexp_lsd)
-            DO j = 1, nexp_lpot
-               ac = alpha_lsd(j)
-               DO i = 1, 4
-                  potential%gth_pot%cval_lsd(i, j) = cval_lsd(i, j)/(2._dp*ac)**(i-1)
-               END DO
-            END DO
-         END IF
-
-         ! nonlocal part
-         potential%gth_pot%nl(:) = 0
-         potential%gth_pot%rcnl(:) = 0._dp
-         potential%gth_pot%hnl(:, :, :) = 0._dp
-         DO l = 0, lm
-            n = nppnl(l)
-            potential%gth_pot%nl(l) = n
-            potential%gth_pot%rcnl(l) = SQRT(0.5_dp/ap(l))
-            potential%gth_pot%hnl(1:n, 1:n, l) = hp(1:n, 1:n, l)
-         END DO
-
-         IF (nlcc_present) THEN
-            CALL get_potential(gth_potential, &
-                               nexp_nlcc=nexp_nlcc, &
-                               alpha_nlcc=alpha_nlcc, &
-                               nct_nlcc=nct_nlcc, &
-                               cval_nlcc=cval_nlcc)
-            potential%gth_pot%nlcc = .TRUE.
-            potential%gth_pot%nexp_nlcc = nexp_nlcc
-            potential%gth_pot%alpha_nlcc(1:nexp_nlcc) = alpha_nlcc(1:nexp_nlcc)
-            potential%gth_pot%nct_nlcc(1:nexp_nlcc) = nct_nlcc(1:nexp_nlcc)
-            potential%gth_pot%cval_nlcc(1:4, 1:nexp_nlcc) = cval_nlcc(1:4, 1:nexp_nlcc)
-         END IF
-
-         CALL set_atom(atom, zcore=NINT(zeff), potential=potential)
-      ELSE IF (ASSOCIATED(sgp_potential)) THEN
-         potential%ppot_type = sgp_pseudo
-         IF (PRESENT(confine)) THEN
-            potential%confinement = confine
-         ELSE
-            potential%confinement = .TRUE.
-         END IF
-         potential%conf_type = poly_conf
-         potential%acon = 0.1_dp
-         potential%rcon = 2.0_dp*ptable(z)%vdw_radius*bohr
-         potential%scon = 2.0_dp
-         CALL get_potential(sgp_potential, &
-                            name=potential%sgp_pot%pname, &
-                            zeff=zeff, &
-                            elec_conf=ppeconf, &
-                            alpha_core_charge=ac)
-         potential%sgp_pot%symbol = ptable(z)%symbol
-         potential%sgp_pot%zion = zeff
-         potential%sgp_pot%ac_local = ac
-         potential%sgp_pot%econf(0:3) = ppeconf(0:3)
-         CALL get_potential(sgp_potential, lmax=lm, &
-                            is_nonlocal=potential%sgp_pot%is_nonlocal, &
-                            n_nonlocal=n, a_nonlocal=ap, h_nonlocal=hhp, c_nonlocal=ccp)
-         ! nonlocal
-         potential%sgp_pot%lmax = lm
-         CPASSERT(n <= SIZE(potential%sgp_pot%a_nonlocal))
-         potential%sgp_pot%n_nonlocal = n
-         potential%sgp_pot%a_nonlocal(1:n) = ap(1:n)
-         potential%sgp_pot%h_nonlocal(1:n, 0:lm) = hhp(1:n, 0:lm)
-         potential%sgp_pot%c_nonlocal(1:n, 1:n, 0:lm) = ccp(1:n, 1:n, 0:lm)
-         ! local
-         CALL get_potential(sgp_potential, n_local=n, a_local=ap, c_local=ce)
-         CPASSERT(n <= SIZE(potential%sgp_pot%a_local))
-         potential%sgp_pot%n_local = n
-         potential%sgp_pot%a_local(1:n) = ap(1:n)
-         potential%sgp_pot%c_local(1:n) = ce(1:n)
-         ! NLCC
-         CALL get_potential(sgp_potential, has_nlcc=nlcc_present, &
-                            n_nlcc=n, a_nlcc=ap, c_nlcc=ce)
-         IF (nlcc_present) THEN
-            potential%sgp_pot%has_nlcc = .TRUE.
-            CPASSERT(n <= SIZE(potential%sgp_pot%a_nlcc))
-            potential%sgp_pot%n_nlcc = n
-            potential%sgp_pot%a_nlcc(1:n) = ap(1:n)
-            potential%sgp_pot%c_nlcc(1:n) = ce(1:n)
-         ELSE
-            potential%sgp_pot%has_nlcc = .FALSE.
-         END IF
-         CALL set_atom(atom, zcore=NINT(zeff), potential=potential)
+      IF (PRESENT(confine)) THEN
+         potential%confinement = confine
       ELSE
-         potential%ppot_type = no_pseudo
-         IF (PRESENT(confine)) THEN
-            potential%confinement = confine
+         IF (ASSOCIATED(gth_potential) .OR. ASSOCIATED(sgp_potential)) THEN
+            potential%confinement = .TRUE.
          ELSE
             potential%confinement = .FALSE.
          END IF
-         potential%acon = 0.1_dp
-         potential%rcon = 2.0_dp*ptable(z)%vdw_radius*bohr
-         potential%scon = 2.0_dp
+      END IF
+      potential%conf_type = poly_conf
+      potential%acon = 0.1_dp
+      potential%rcon = 2.0_dp*ptable(z)%vdw_radius*bohr
+      potential%scon = 2.0_dp
+
+      IF (ASSOCIATED(gth_potential)) THEN
+         potential%ppot_type = gth_pseudo
+         CALL get_potential(gth_potential, zeff=zeff)
+         CALL gth_potential_conversion(gth_potential, potential%gth_pot)
+         CALL set_atom(atom, zcore=NINT(zeff), potential=potential)
+      ELSE IF (ASSOCIATED(sgp_potential)) THEN
+         potential%ppot_type = sgp_pseudo
+         CALL sgp_potential_conversion(sgp_potential, potential%sgp_pot)
+         potential%sgp_pot%symbol = ptable(z)%symbol
+         CALL get_potential(sgp_potential, zeff=zeff)
+         CALL set_atom(atom, zcore=NINT(zeff), potential=potential)
+      ELSE
+         potential%ppot_type = no_pseudo
          CALL set_atom(atom, zcore=z, potential=potential)
       END IF
 
-      CALL get_gto_basis_set(orb_basis_set, &
-                             nset=nset, nshell=nshell, npgf=npgf, lmin=lmin, lmax=lmax, &
-                             l=ls, nsgf=nsgf, zet=zet, gcc=gcc, &
-                             first_sgf=first_sgf, last_sgf=last_sgf)
-
       NULLIFY (grid)
-      ngp = 400
-      quadtype = do_gapw_log
+      IF (PRESENT(agrid)) THEN
+         ngp = agrid%nr
+         quadtype = agrid%quadrature
+      ELSE
+         ngp = 400
+         quadtype = do_gapw_log
+      END IF
       CALL allocate_grid_atom(grid)
       CALL create_grid_atom(grid, ngp, 1, 1, 0, quadtype)
       grid%nr = ngp
       basis%grid => grid
 
       NULLIFY (basis%am, basis%cm, basis%as, basis%ns, basis%bf, basis%dbf, basis%ddbf)
-      basis%basis_type = CGTO_BASIS
-      basis%eps_eig = 1.e-12_dp
 
-      ! fill in the basis data structures
-      set_index = 0
-      shell_index = 0
-      basis%nprim = 0
-      basis%nbas = 0
-      DO i = 1, nset
-         DO j = lmin(i), MIN(lmax(i), lmat)
-            basis%nprim(j) = basis%nprim(j)+npgf(i)
-         END DO
-         DO j = 1, nshell(i)
-            l = ls(j, i)
-            IF (l <= lmat) THEN
-               basis%nbas(l) = basis%nbas(l)+1
-               k = basis%nbas(l)
-               CPASSERT(k <= 100)
-               set_index(l, k) = i
-               shell_index(l, k) = j
-            END IF
-         END DO
-      END DO
-
-      nj = MAXVAL(basis%nprim)
-      ns = MAXVAL(basis%nbas)
-      ALLOCATE (basis%am(nj, 0:lmat))
-      basis%am = 0._dp
-      ALLOCATE (basis%cm(nj, ns, 0:lmat))
-      basis%cm = 0._dp
-      DO j = 0, lmat
-         nj = 0
-         ns = 0
+      IF (has_basis) THEN
+         ! fill in the basis data structures
+         basis%basis_type = CGTO_BASIS
+         basis%eps_eig = 1.e-12_dp
+         CALL get_gto_basis_set(orb_basis_set, &
+                                nset=nset, nshell=nshell, npgf=npgf, lmin=lmin, lmax=lmax, &
+                                l=ls, nsgf=nsgf, zet=zet, gcc=gcc, &
+                                first_sgf=first_sgf, last_sgf=last_sgf)
+         set_index = 0
+         shell_index = 0
+         basis%nprim = 0
+         basis%nbas = 0
          DO i = 1, nset
-            IF (j >= lmin(i) .AND. j <= lmax(i)) THEN
-               DO ipgf = 1, npgf(i)
-                  basis%am(nj+ipgf, j) = zet(ipgf, i)
-               END DO
-               DO ii = 1, nshell(i)
-                  IF (ls(ii, i) == j) THEN
-                     ns = ns+1
-                     DO ipgf = 1, npgf(i)
-                        basis%cm(nj+ipgf, ns, j) = gcc(ipgf, ii, i)
-                     END DO
-                  END IF
-               END DO
-               nj = nj+npgf(i)
-            END IF
+            DO j = lmin(i), MIN(lmax(i), lmat)
+               basis%nprim(j) = basis%nprim(j)+npgf(i)
+            END DO
+            DO j = 1, nshell(i)
+               l = ls(j, i)
+               IF (l <= lmat) THEN
+                  basis%nbas(l) = basis%nbas(l)+1
+                  k = basis%nbas(l)
+                  CPASSERT(k <= 100)
+                  set_index(l, k) = i
+                  shell_index(l, k) = j
+               END IF
+            END DO
          END DO
-      END DO
+
+         nj = MAXVAL(basis%nprim)
+         ns = MAXVAL(basis%nbas)
+         ALLOCATE (basis%am(nj, 0:lmat))
+         basis%am = 0._dp
+         ALLOCATE (basis%cm(nj, ns, 0:lmat))
+         basis%cm = 0._dp
+         DO j = 0, lmat
+            nj = 0
+            ns = 0
+            DO i = 1, nset
+               IF (j >= lmin(i) .AND. j <= lmax(i)) THEN
+                  DO ipgf = 1, npgf(i)
+                     basis%am(nj+ipgf, j) = zet(ipgf, i)
+                  END DO
+                  DO ii = 1, nshell(i)
+                     IF (ls(ii, i) == j) THEN
+                        ns = ns+1
+                        DO ipgf = 1, npgf(i)
+                           basis%cm(nj+ipgf, ns, j) = gcc(ipgf, ii, i)
+                        END DO
+                     END IF
+                  END DO
+                  nj = nj+npgf(i)
+               END IF
+            END DO
+         END DO
+      ELSE
+         ! use default basis
+         IF (ASSOCIATED(gth_potential) .OR. ASSOCIATED(sgp_potential)) THEN
+            nu = nup
+         ELSE
+            nu = nua
+         END IF
+         basis%geometrical = .FALSE.
+         basis%aval = 0._dp
+         basis%cval = 0._dp
+         basis%start = 0
+         basis%eps_eig = 1.e-12_dp
+
+         basis%basis_type = GTO_BASIS
+         basis%nbas = nu
+         basis%nprim = nu
+         ALLOCATE (basis%am(nu, 0:lmat))
+         DO i = 0, lmat
+            basis%am(1:nu, i) = ugbs(1:nu)
+         END DO
+      END IF
 
       ! initialize basis function on a radial grid
       nr = basis%grid%nr
@@ -390,18 +301,31 @@ CONTAINS
       DO l = 0, lmat
          DO i = 1, basis%nprim(l)
             al = basis%am(i, l)
-            DO k = 1, nr
-               rk = basis%grid%rad(k)
-               ear = EXP(-al*basis%grid%rad(k)**2)
-               DO j = 1, basis%nbas(l)
-                  basis%bf(k, j, l) = basis%bf(k, j, l)+rk**l*ear*basis%cm(i, j, l)
-                  basis%dbf(k, j, l) = basis%dbf(k, j, l) &
-                                       +(REAL(l, dp)*rk**(l-1)-2._dp*al*rk**(l+1))*ear*basis%cm(i, j, l)
-                  basis%ddbf(k, j, l) = basis%ddbf(k, j, l)+ &
-                                        (REAL(l*(l-1), dp)*rk**(l-2)-2._dp*al*REAL(2*l+1, dp)*rk**(l)+4._dp*al*rk**(l+2))* &
-                                        ear*basis%cm(i, j, l)
+            IF (basis%basis_type == GTO_BASIS) THEN
+               DO k = 1, nr
+                  rk = basis%grid%rad(k)
+                  ear = EXP(-al*basis%grid%rad(k)**2)
+                  basis%bf(k, i, l) = rk**l*ear
+                  basis%dbf(k, i, l) = (REAL(l, dp)*rk**(l-1)-2._dp*al*rk**(l+1))*ear
+                  basis%ddbf(k, i, l) = (REAL(l*(l-1), dp)*rk**(l-2)- &
+                                         2._dp*al*REAL(2*l+1, dp)*rk**(l)+4._dp*al*rk**(l+2))*ear
                END DO
-            END DO
+            ELSEIF (basis%basis_type == CGTO_BASIS) THEN
+               DO k = 1, nr
+                  rk = basis%grid%rad(k)
+                  ear = EXP(-al*basis%grid%rad(k)**2)
+                  DO j = 1, basis%nbas(l)
+                     basis%bf(k, j, l) = basis%bf(k, j, l)+rk**l*ear*basis%cm(i, j, l)
+                     basis%dbf(k, j, l) = basis%dbf(k, j, l) &
+                                          +(REAL(l, dp)*rk**(l-1)-2._dp*al*rk**(l+1))*ear*basis%cm(i, j, l)
+                     basis%ddbf(k, j, l) = basis%ddbf(k, j, l)+ &
+                                           (REAL(l*(l-1), dp)*rk**(l-2)-2._dp*al*REAL(2*l+1, dp)*rk**(l)+ &
+                                            4._dp*al*rk**(l+2))*ear*basis%cm(i, j, l)
+                  END DO
+               END DO
+            ELSE
+               CPABORT('Atom basis type?')
+            END IF
          END DO
       END DO
 
@@ -586,6 +510,36 @@ CONTAINS
          ENDDO
       END IF
 
+      IF (PRESENT(density)) THEN
+         IF (ASSOCIATED(density)) DEALLOCATE (density)
+         ALLOCATE (density(nr))
+         CALL atom_density(density, atom%orbitals%pmat, atom%basis, atom%state%maxl_occ)
+      END IF
+
+      IF (PRESENT(wavefunction)) THEN
+         CPASSERT(PRESENT(wfninfo))
+         IF (ASSOCIATED(wavefunction)) DEALLOCATE (wavefunction)
+         IF (ASSOCIATED(wfninfo)) DEALLOCATE (wfninfo)
+         mo = SUM(atom%state%maxn_occ)
+         ALLOCATE (wavefunction(nr, mo), wfninfo(2, mo))
+         wavefunction = 0.0_dp
+         ii = 0
+         DO l = 0, lmat
+            DO i = 1, atom%state%maxn_occ(l)
+               IF (atom%state%occupation(l, i) > 0.0_dp) THEN
+                  ii = ii+1
+                  wfninfo(1, ii) = atom%state%occupation(l, i)
+                  wfninfo(2, ii) = REAL(l, dp)
+                  DO j = 1, atom%basis%nbas(l)
+                     wavefunction(:, ii) = wavefunction(:, ii)+ &
+                                           atom%orbitals%wfn(j, i, l)*basis%bf(:, j, l)
+                  END DO
+               END IF
+            END DO
+         END DO
+         CPASSERT(mo == ii)
+      END IF
+
       ! clean up
       CALL atom_int_release(integrals)
       CALL atom_ppint_release(integrals)
@@ -620,18 +574,12 @@ CONTAINS
          routineP = moduleN//':'//routineN
       INTEGER, PARAMETER                                 :: num_gto = 40
 
-      INTEGER                                            :: i, ii, j, k, l, ll, lm, m, mb, mo, n, &
-                                                            ne, nexp_lpot, nexp_lsd, nexp_nlcc, &
-                                                            ngp, nn, nr, quadtype, relativistic, z
+      INTEGER                                            :: i, ii, k, l, ll, m, mb, mo, ngp, nn, nr, &
+                                                            quadtype, relativistic, z
       INTEGER, DIMENSION(0:lmat)                         :: starti
       INTEGER, DIMENSION(0:lmat, 10)                     :: ncalc, ncore, nelem
-      INTEGER, DIMENSION(:), POINTER                     :: econf, nct_lpot, nct_lsd, nct_nlcc, &
-                                                            nppnl, ppeconf
-      LOGICAL                                            :: lpot_present, lsd_present, nlcc_present
-      REAL(KIND=dp)                                      :: ac, al, aval, cc, cval, ear, rk, xx, zeff
-      REAL(KIND=dp), DIMENSION(:), POINTER               :: alpha_lpot, alpha_lsd, alpha_nlcc, ap, ce
-      REAL(KIND=dp), DIMENSION(:, :), POINTER            :: cval_lpot, cval_lsd, cval_nlcc
-      REAL(KIND=dp), DIMENSION(:, :, :), POINTER         :: hp
+      INTEGER, DIMENSION(:), POINTER                     :: econf
+      REAL(KIND=dp)                                      :: al, aval, cc, cval, ear, rk, xx, zeff
       REAL(KIND=dp), DIMENSION(num_gto+2)                :: results
       TYPE(all_potential_type), POINTER                  :: all_potential
       TYPE(atom_basis_type), POINTER                     :: basis
@@ -680,123 +628,33 @@ CONTAINS
 
       ALLOCATE (potential, basis, integrals)
 
-      IF (ASSOCIATED(gth_potential)) THEN
-         potential%ppot_type = gth_pseudo
-         IF (PRESENT(confine)) THEN
-            potential%confinement = confine
-         ELSE
-            potential%confinement = .TRUE.
-         END IF
-         potential%conf_type = barrier_conf
-         potential%acon = 200._dp
-         potential%rcon = 4.0_dp
-         potential%scon = 8.0_dp
-
-         CALL get_potential(gth_potential, &
-                            zeff=zeff, &
-                            elec_conf=ppeconf, &
-                            alpha_core_charge=ac, &
-                            nexp_ppl=ne, &
-                            cexp_ppl=ce, &
-                            lppnl=lm, &
-                            nprj_ppnl=nppnl, &
-                            alpha_ppnl=ap, &
-                            hprj_ppnl=hp)
-
-         potential%gth_pot%zion = zeff
-         potential%gth_pot%rc = SQRT(0.5_dp/ac)
-         potential%gth_pot%ncl = ne
-         potential%gth_pot%cl(:) = 0._dp
-         IF (ac > 0._dp) THEN
-            DO i = 1, ne
-               potential%gth_pot%cl(i) = ce(i)/(2._dp*ac)**(i-1)
-            END DO
-         END IF
-         !extended type
-         potential%gth_pot%lpotextended = .FALSE.
-         potential%gth_pot%lsdpot = .FALSE.
-         potential%gth_pot%nlcc = .FALSE.
-         potential%gth_pot%nexp_lpot = 0
-         potential%gth_pot%nexp_lsd = 0
-         potential%gth_pot%nexp_nlcc = 0
-         CALL get_potential(gth_potential, &
-                            lpot_present=lpot_present, &
-                            lsd_present=lsd_present, &
-                            nlcc_present=nlcc_present)
-         IF (lpot_present) THEN
-            CALL get_potential(gth_potential, &
-                               nexp_lpot=nexp_lpot, &
-                               alpha_lpot=alpha_lpot, &
-                               nct_lpot=nct_lpot, &
-                               cval_lpot=cval_lpot)
-            potential%gth_pot%lpotextended = .TRUE.
-            potential%gth_pot%nexp_lpot = nexp_lpot
-            potential%gth_pot%alpha_lpot(1:nexp_lpot) = SQRT(0.5_dp/alpha_lpot(1:nexp_lpot))
-            potential%gth_pot%nct_lpot(1:nexp_lpot) = nct_lpot(1:nexp_lpot)
-            DO j = 1, nexp_lpot
-               ac = alpha_lpot(j)
-               DO i = 1, 4
-                  potential%gth_pot%cval_lpot(i, j) = cval_lpot(i, j)/(2._dp*ac)**(i-1)
-               END DO
-            END DO
-         END IF
-         IF (lsd_present) THEN
-            CALL get_potential(gth_potential, &
-                               nexp_lsd=nexp_lsd, &
-                               alpha_lsd=alpha_lsd, &
-                               nct_lsd=nct_lsd, &
-                               cval_lsd=cval_lsd)
-            potential%gth_pot%lsdpot = .TRUE.
-            potential%gth_pot%nexp_lsd = nexp_lsd
-            potential%gth_pot%alpha_lsd(1:nexp_lsd) = SQRT(0.5_dp/alpha_lsd(1:nexp_lsd))
-            potential%gth_pot%nct_lsd(1:nexp_lsd) = nct_lsd(1:nexp_lsd)
-            DO j = 1, nexp_lpot
-               ac = alpha_lsd(j)
-               DO i = 1, 4
-                  potential%gth_pot%cval_lsd(i, j) = cval_lsd(i, j)/(2._dp*ac)**(i-1)
-               END DO
-            END DO
-         END IF
-
-         ! nonlocal part
-         potential%gth_pot%nl(:) = 0
-         potential%gth_pot%rcnl(:) = 0._dp
-         potential%gth_pot%hnl(:, :, :) = 0._dp
-         DO l = 0, lm
-            n = nppnl(l)
-            potential%gth_pot%nl(l) = n
-            potential%gth_pot%rcnl(l) = SQRT(0.5_dp/ap(l))
-            potential%gth_pot%hnl(1:n, 1:n, l) = hp(1:n, 1:n, l)
-         END DO
-
-         IF (nlcc_present) THEN
-            CALL get_potential(gth_potential, &
-                               nexp_nlcc=nexp_nlcc, &
-                               alpha_nlcc=alpha_nlcc, &
-                               nct_nlcc=nct_nlcc, &
-                               cval_nlcc=cval_nlcc)
-            potential%gth_pot%nlcc = .TRUE.
-            potential%gth_pot%nexp_nlcc = nexp_nlcc
-            potential%gth_pot%alpha_nlcc(1:nexp_nlcc) = alpha_nlcc(1:nexp_nlcc)
-            potential%gth_pot%nct_nlcc(1:nexp_nlcc) = nct_nlcc(1:nexp_nlcc)
-            potential%gth_pot%cval_nlcc(1:4, 1:nexp_nlcc) = cval_nlcc(1:4, 1:nexp_nlcc)
-         END IF
-
-         CALL set_atom(atom, zcore=NINT(zeff), potential=potential)
-      ELSE IF (ASSOCIATED(sgp_potential)) THEN
-         CPABORT("")
+      IF (PRESENT(confine)) THEN
+         potential%confinement = confine
       ELSE
-         potential%ppot_type = no_pseudo
-         IF (PRESENT(confine)) THEN
-            potential%confinement = confine
+         IF (ASSOCIATED(gth_potential) .OR. ASSOCIATED(sgp_potential)) THEN
+            potential%confinement = .TRUE.
          ELSE
             potential%confinement = .FALSE.
          END IF
-         potential%conf_type = barrier_conf
-         potential%acon = 200._dp
-         potential%rcon = 4.0_dp
-         potential%scon = 8.0_dp
-         CALL set_atom(atom, zcore=z, potential=potential)
+      END IF
+      potential%conf_type = barrier_conf
+      potential%acon = 200._dp
+      potential%rcon = 4.0_dp
+      potential%scon = 8.0_dp
+
+      IF (ASSOCIATED(gth_potential)) THEN
+         potential%ppot_type = gth_pseudo
+         CALL get_potential(gth_potential, zeff=zeff)
+         CALL gth_potential_conversion(gth_potential, potential%gth_pot)
+         CALL set_atom(atom, zcore=NINT(zeff), potential=potential)
+      ELSE IF (ASSOCIATED(sgp_potential)) THEN
+         potential%ppot_type = sgp_pseudo
+         CALL sgp_potential_conversion(sgp_potential, potential%sgp_pot)
+         potential%sgp_pot%symbol = ptable(z)%symbol
+         CALL get_potential(sgp_potential, zeff=zeff)
+         CALL set_atom(atom, zcore=NINT(zeff), potential=potential)
+      ELSE
+         potential%ppot_type = no_pseudo
          CALL set_atom(atom, zcore=z, potential=potential)
       END IF
 
@@ -1157,8 +1015,8 @@ CONTAINS
                      basis%dbf(k, j, l) = basis%dbf(k, j, l) &
                                           +(REAL(l, dp)*rk**(l-1)-2._dp*al*rk**(l+1))*ear*basis%cm(i, j, l)
                      basis%ddbf(k, j, l) = basis%ddbf(k, j, l)+ &
-                                           (REAL(l*(l-1), dp)*rk**(l-2)-2._dp*al*REAL(2*l+1, dp)*rk**(l)+4._dp*al*rk**(l+2))* &
-                                           ear*basis%cm(i, j, l)
+                                           (REAL(l*(l-1), dp)*rk**(l-2)-2._dp*al*REAL(2*l+1, dp)* &
+                                            rk**(l)+4._dp*al*rk**(l+2))*ear*basis%cm(i, j, l)
                   END DO
                END DO
             END DO
@@ -1269,7 +1127,8 @@ CONTAINS
                      END DO
                   CASE (do_dkh0_atom, do_dkh1_atom, do_dkh2_atom, do_dkh3_atom)
                      DO m = 0, ll
-                        rtmat(i+m, j+m) = integrals%hdkh(k1, k2, l)-integrals%kin(k1, k2, l)+atom%zcore*integrals%core(k1, k2, l)
+                        rtmat(i+m, j+m) = integrals%hdkh(k1, k2, l)-integrals%kin(k1, k2, l)+ &
+                                          atom%zcore*integrals%core(k1, k2, l)
                      END DO
                   END SELECT
                END DO
@@ -1303,6 +1162,178 @@ CONTAINS
 
    END SUBROUTINE calculate_atomic_relkin
 
+! **************************************************************************************************
+!> \brief ...
+!> \param gth_potential ...
+!> \param gth_atompot ...
+! **************************************************************************************************
+   SUBROUTINE gth_potential_conversion(gth_potential, gth_atompot)
+      TYPE(gth_potential_type), POINTER                  :: gth_potential
+      TYPE(atom_gthpot_type)                             :: gth_atompot
+
+      CHARACTER(len=*), PARAMETER :: routineN = 'gth_potential_conversion', &
+         routineP = moduleN//':'//routineN
+
+      INTEGER                                            :: i, j, l, lm, n, ne, nexp_lpot, nexp_lsd, &
+                                                            nexp_nlcc
+      INTEGER, DIMENSION(:), POINTER                     :: nct_lpot, nct_lsd, nct_nlcc, nppnl, &
+                                                            ppeconf
+      LOGICAL                                            :: lpot_present, lsd_present, nlcc_present
+      REAL(KIND=dp)                                      :: ac, zeff
+      REAL(KIND=dp), DIMENSION(:), POINTER               :: alpha_lpot, alpha_lsd, alpha_nlcc, ap, ce
+      REAL(KIND=dp), DIMENSION(:, :), POINTER            :: cval_lpot, cval_lsd, cval_nlcc
+      REAL(KIND=dp), DIMENSION(:, :, :), POINTER         :: hp
+
+      CALL get_potential(gth_potential, &
+                         zeff=zeff, &
+                         elec_conf=ppeconf, &
+                         alpha_core_charge=ac, &
+                         nexp_ppl=ne, &
+                         cexp_ppl=ce, &
+                         lppnl=lm, &
+                         nprj_ppnl=nppnl, &
+                         alpha_ppnl=ap, &
+                         hprj_ppnl=hp)
+
+      gth_atompot%zion = zeff
+      gth_atompot%rc = SQRT(0.5_dp/ac)
+      gth_atompot%ncl = ne
+      gth_atompot%cl(:) = 0._dp
+      IF (ac > 0._dp) THEN
+         DO i = 1, ne
+            gth_atompot%cl(i) = ce(i)/(2._dp*ac)**(i-1)
+         END DO
+      END IF
+      !extended type
+      gth_atompot%lpotextended = .FALSE.
+      gth_atompot%lsdpot = .FALSE.
+      gth_atompot%nlcc = .FALSE.
+      gth_atompot%nexp_lpot = 0
+      gth_atompot%nexp_lsd = 0
+      gth_atompot%nexp_nlcc = 0
+      CALL get_potential(gth_potential, &
+                         lpot_present=lpot_present, &
+                         lsd_present=lsd_present, &
+                         nlcc_present=nlcc_present)
+      IF (lpot_present) THEN
+         CALL get_potential(gth_potential, &
+                            nexp_lpot=nexp_lpot, &
+                            alpha_lpot=alpha_lpot, &
+                            nct_lpot=nct_lpot, &
+                            cval_lpot=cval_lpot)
+         gth_atompot%lpotextended = .TRUE.
+         gth_atompot%nexp_lpot = nexp_lpot
+         gth_atompot%alpha_lpot(1:nexp_lpot) = SQRT(0.5_dp/alpha_lpot(1:nexp_lpot))
+         gth_atompot%nct_lpot(1:nexp_lpot) = nct_lpot(1:nexp_lpot)
+         DO j = 1, nexp_lpot
+            ac = alpha_lpot(j)
+            DO i = 1, 4
+               gth_atompot%cval_lpot(i, j) = cval_lpot(i, j)/(2._dp*ac)**(i-1)
+            END DO
+         END DO
+      END IF
+      IF (lsd_present) THEN
+         CALL get_potential(gth_potential, &
+                            nexp_lsd=nexp_lsd, &
+                            alpha_lsd=alpha_lsd, &
+                            nct_lsd=nct_lsd, &
+                            cval_lsd=cval_lsd)
+         gth_atompot%lsdpot = .TRUE.
+         gth_atompot%nexp_lsd = nexp_lsd
+         gth_atompot%alpha_lsd(1:nexp_lsd) = SQRT(0.5_dp/alpha_lsd(1:nexp_lsd))
+         gth_atompot%nct_lsd(1:nexp_lsd) = nct_lsd(1:nexp_lsd)
+         DO j = 1, nexp_lpot
+            ac = alpha_lsd(j)
+            DO i = 1, 4
+               gth_atompot%cval_lsd(i, j) = cval_lsd(i, j)/(2._dp*ac)**(i-1)
+            END DO
+         END DO
+      END IF
+
+      ! nonlocal part
+      gth_atompot%nl(:) = 0
+      gth_atompot%rcnl(:) = 0._dp
+      gth_atompot%hnl(:, :, :) = 0._dp
+      DO l = 0, lm
+         n = nppnl(l)
+         gth_atompot%nl(l) = n
+         gth_atompot%rcnl(l) = SQRT(0.5_dp/ap(l))
+         gth_atompot%hnl(1:n, 1:n, l) = hp(1:n, 1:n, l)
+      END DO
+
+      IF (nlcc_present) THEN
+         CALL get_potential(gth_potential, &
+                            nexp_nlcc=nexp_nlcc, &
+                            alpha_nlcc=alpha_nlcc, &
+                            nct_nlcc=nct_nlcc, &
+                            cval_nlcc=cval_nlcc)
+         gth_atompot%nlcc = .TRUE.
+         gth_atompot%nexp_nlcc = nexp_nlcc
+         gth_atompot%alpha_nlcc(1:nexp_nlcc) = alpha_nlcc(1:nexp_nlcc)
+         gth_atompot%nct_nlcc(1:nexp_nlcc) = nct_nlcc(1:nexp_nlcc)
+         gth_atompot%cval_nlcc(1:4, 1:nexp_nlcc) = cval_nlcc(1:4, 1:nexp_nlcc)
+      END IF
+
+   END SUBROUTINE gth_potential_conversion
+
+! **************************************************************************************************
+!> \brief ...
+!> \param sgp_potential ...
+!> \param sgp_atompot ...
+! **************************************************************************************************
+   SUBROUTINE sgp_potential_conversion(sgp_potential, sgp_atompot)
+      TYPE(sgp_potential_type), POINTER                  :: sgp_potential
+      TYPE(atom_sgppot_type)                             :: sgp_atompot
+
+      CHARACTER(len=*), PARAMETER :: routineN = 'sgp_potential_conversion', &
+         routineP = moduleN//':'//routineN
+
+      INTEGER                                            :: lm, n
+      INTEGER, DIMENSION(:), POINTER                     :: ppeconf
+      LOGICAL                                            :: nlcc_present
+      REAL(KIND=dp)                                      :: ac, zeff
+      REAL(KIND=dp), DIMENSION(:), POINTER               :: ap, ce
+      REAL(KIND=dp), DIMENSION(:, :), POINTER            :: hhp
+      REAL(KIND=dp), DIMENSION(:, :, :), POINTER         :: ccp
+
+      CALL get_potential(sgp_potential, &
+                         name=sgp_atompot%pname, &
+                         zeff=zeff, &
+                         elec_conf=ppeconf, &
+                         alpha_core_charge=ac)
+      sgp_atompot%zion = zeff
+      sgp_atompot%ac_local = ac
+      sgp_atompot%econf(0:3) = ppeconf(0:3)
+      CALL get_potential(sgp_potential, lmax=lm, &
+                         is_nonlocal=sgp_atompot%is_nonlocal, &
+                         n_nonlocal=n, a_nonlocal=ap, h_nonlocal=hhp, c_nonlocal=ccp)
+      ! nonlocal
+      sgp_atompot%lmax = lm
+      CPASSERT(n <= SIZE(sgp_atompot%a_nonlocal))
+      sgp_atompot%n_nonlocal = n
+      sgp_atompot%a_nonlocal(1:n) = ap(1:n)
+      sgp_atompot%h_nonlocal(1:n, 0:lm) = hhp(1:n, 0:lm)
+      sgp_atompot%c_nonlocal(1:n, 1:n, 0:lm) = ccp(1:n, 1:n, 0:lm)
+      ! local
+      CALL get_potential(sgp_potential, n_local=n, a_local=ap, c_local=ce)
+      CPASSERT(n <= SIZE(sgp_atompot%a_local))
+      sgp_atompot%n_local = n
+      sgp_atompot%a_local(1:n) = ap(1:n)
+      sgp_atompot%c_local(1:n) = ce(1:n)
+      ! NLCC
+      CALL get_potential(sgp_potential, has_nlcc=nlcc_present, &
+                         n_nlcc=n, a_nlcc=ap, c_nlcc=ce)
+      IF (nlcc_present) THEN
+         sgp_atompot%has_nlcc = .TRUE.
+         CPASSERT(n <= SIZE(sgp_atompot%a_nlcc))
+         sgp_atompot%n_nlcc = n
+         sgp_atompot%a_nlcc(1:n) = ap(1:n)
+         sgp_atompot%c_nlcc(1:n) = ce(1:n)
+      ELSE
+         sgp_atompot%has_nlcc = .FALSE.
+      END IF
+
+   END SUBROUTINE sgp_potential_conversion
 ! **************************************************************************************************
 
 END MODULE atom_kind_orbitals
