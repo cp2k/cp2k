@@ -90,7 +90,7 @@ export CP_LDFLAGS="\${CP_LDFLAGS} ${SPGLIB_LDFLAGS}"
 #
 ###################################################################
 
-export CP_LIBS="IF_MPI(${SPGLIB_LIBS}|) \${CP_LIBS}"
+export CP_LIBS="${SPGLIB_LIBS} \${CP_LIBS}"
 EOF
         cat "${BUILDDIR}/setup_spglib" >> $SETUPFILE
 fi
