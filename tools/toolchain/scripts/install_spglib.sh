@@ -17,7 +17,7 @@ case "$with_spglib" in
     __INSTALL__)
         echo "==================== Installing spglib ===================="
         echo "                                                           "
-        echo " note that this package depends on cmake to be activated.  "
+        echo " note that this package depends on cmake to be available.  "
         echo "                                                           "
         echo "==========================================================="
 

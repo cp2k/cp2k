@@ -17,7 +17,7 @@ case "$with_json_fortran" in
     __INSTALL__)
         echo "==================== Installing json_fortran ===================="
         echo "                                                                 "
-        echo " note that this package depends on cmake to be activated.        "
+        echo " note that this package depends on cmake to be available.        "
         echo "                                                                 "
         echo "================================================================="
 
