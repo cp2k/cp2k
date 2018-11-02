@@ -38,7 +38,7 @@ MODULE hfx_derivatives
                                               hfx_get_single_cache_element,&
                                               hfx_reset_cache_and_container
    USE hfx_libint_interface,            ONLY: evaluate_deriv_eri
-   USE hfx_libint_wrapper_types,        ONLY: lib_deriv
+   USE hfx_libint_wrapper_types,        ONLY: libint_t
    USE hfx_load_balance_methods,        ONLY: collect_load_balance_info,&
                                               hfx_load_balance,&
                                               hfx_update_load_balance
@@ -208,7 +208,7 @@ CONTAINS
       TYPE(hfx_screening_type)                           :: screening_parameter
       TYPE(hfx_task_list_type), DIMENSION(:), POINTER    :: shm_task_list, tmp_task_list
       TYPE(hfx_type), POINTER                            :: actual_x_data
-      TYPE(lib_deriv)                                    :: private_deriv
+      TYPE(libint_t), DIMENSION(1)                       :: private_deriv
       TYPE(pair_list_type)                               :: list_ij, list_kl
       TYPE(pair_set_list_type), ALLOCATABLE, &
          DIMENSION(:)                                    :: set_list_ij, set_list_kl
@@ -1836,7 +1836,7 @@ CONTAINS
                       ede_work2_virial, ede_primitives_tmp_virial, primitive_integrals_virial, &
                       cart_estimate_virial)
 
-      TYPE(lib_deriv)                                    :: deriv
+      TYPE(libint_t), DIMENSION(1)                       :: deriv
       REAL(dp), INTENT(IN)                               :: ra(3), rb(3), rc(3), rd(3)
       INTEGER, INTENT(IN) :: npgfa, npgfb, npgfc, npgfd, la_min, la_max, lb_min, lb_max, lc_min, &
          lc_max, ld_min, ld_max, nsgfa, nsgfb, nsgfc, nsgfd, sphi_a_u1, sphi_a_u2, sphi_a_u3, &

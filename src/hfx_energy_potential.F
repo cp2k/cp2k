@@ -45,7 +45,7 @@ MODULE hfx_energy_potential
                                               hfx_reset_cache_and_container
    USE hfx_contract_block,              ONLY: contract_block
    USE hfx_libint_interface,            ONLY: evaluate_eri
-   USE hfx_libint_wrapper_types,        ONLY: lib_int
+   USE hfx_libint_wrapper_types,        ONLY: libint_t
    USE hfx_load_balance_methods,        ONLY: collect_load_balance_info,&
                                               hfx_load_balance,&
                                               hfx_update_load_balance
@@ -243,7 +243,7 @@ CONTAINS
       TYPE(hfx_type), DIMENSION(:, :), POINTER           :: x_data
       TYPE(hfx_type), POINTER                            :: actual_x_data, shm_master_x_data
       TYPE(kpoint_type), POINTER                         :: kpoints
-      TYPE(lib_int)                                      :: private_lib
+      TYPE(libint_t), DIMENSION(1)                       :: private_lib
       TYPE(pair_list_type)                               :: list_ij, list_kl
       TYPE(pair_set_list_type), ALLOCATABLE, &
          DIMENSION(:)                                    :: set_list_ij, set_list_kl
@@ -2281,7 +2281,7 @@ CONTAINS
                        ee_work, ee_work2, ee_buffer1, ee_buffer2, ee_primitives_tmp, &
                        nimages, do_periodic, p_work)
 
-      TYPE(lib_int)                                      :: lib
+      TYPE(libint_t), DIMENSION(1)                       :: lib
       REAL(dp), INTENT(IN)                               :: ra(3), rb(3), rc(3), rd(3)
       INTEGER, INTENT(IN) :: npgfa, npgfb, npgfc, npgfd, la_min, la_max, lb_min, lb_max, lc_min, &
          lc_max, ld_min, ld_max, nsgfa, nsgfb, nsgfc, nsgfd, sphi_a_u1, sphi_a_u2, sphi_a_u3, &

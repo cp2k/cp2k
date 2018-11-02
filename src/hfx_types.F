@@ -10,6 +10,7 @@
 !> \author Manuel Guidon
 ! **************************************************************************************************
 MODULE hfx_types
+   USE ISO_C_BINDING,                   ONLY: C_NULL_PTR
    USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                               get_atomic_kind,&
                                               get_atomic_kind_set
@@ -34,12 +35,13 @@ MODULE hfx_types
    USE cp_units,                        ONLY: cp_unit_from_cp2k
    USE hfx_helpers,                     ONLY: count_cells_perd,&
                                               next_image_cell_perd
-   USE hfx_libint_wrapper,              ONLY: initialize_libderiv,&
-                                              initialize_libint,&
-                                              terminate_libderiv,&
-                                              terminate_libint
-   USE hfx_libint_wrapper_types,        ONLY: lib_deriv,&
-                                              lib_int,&
+   USE hfx_libint_wrapper,              ONLY: libint2_cleanup_eri,&
+                                              libint2_cleanup_eri1,&
+                                              libint2_init_eri,&
+                                              libint2_init_eri1,&
+                                              libint2_static_cleanup,&
+                                              libint2_static_init
+   USE hfx_libint_wrapper_types,        ONLY: libint_t,&
                                               prim_data_f_size
    USE input_constants,                 ONLY: &
         do_hfx_auto_shells, do_hfx_potential_coulomb, do_hfx_potential_gaussian, &
@@ -413,7 +415,7 @@ MODULE hfx_types
                                                   b_first_load_balance_forces
       REAL(dp), DIMENSION(:, :), POINTER        :: full_ks_alpha
       REAL(dp), DIMENSION(:, :), POINTER        :: full_ks_beta
-      TYPE(lib_int)                            :: lib
+      TYPE(libint_t), DIMENSION(1)                            :: lib
       TYPE(hfx_basis_info_type)                :: basis_info
       TYPE(hfx_screen_coeff_type), &
          DIMENSION(:, :, :, :, :, :), POINTER     :: screen_funct_coeffs_pgf, &
@@ -435,8 +437,7 @@ MODULE hfx_types
       TYPE(hfx_task_list_type), DIMENSION(:), &
          POINTER        :: task_list
       REAL(dp), DIMENSION(:, :), POINTER        :: pmax_atom, pmax_atom_forces
-      TYPE(lib_int)                            :: lib_int
-      TYPE(lib_deriv)                          :: lib_deriv
+      TYPE(libint_t), DIMENSION(1)                            :: lib_deriv
       REAL(dp), DIMENSION(:, :), POINTER        :: pmax_block
       LOGICAL, DIMENSION(:, :), POINTER         :: atomic_pair_list
       LOGICAL, DIMENSION(:, :), POINTER         :: atomic_pair_list_forces
@@ -792,8 +793,11 @@ CONTAINS
             END IF
 
             ! ** Initialize libint type
-            CALL initialize_libint(actual_x_data%lib, actual_x_data%basis_info%max_am)
-            CALL initialize_libderiv(actual_x_data%lib_deriv, actual_x_data%basis_info%max_am)
+            CALL libint2_static_init()
+            CALL libint2_init_eri(actual_x_data%lib, actual_x_data%basis_info%max_am, C_NULL_PTR)
+            CALL libint2_init_eri1(actual_x_data%lib_deriv, actual_x_data%basis_info%max_am, C_NULL_PTR)
+            actual_x_data%lib(1)%contrdepth = 1
+            actual_x_data%lib_deriv(1)%contrdepth = 1
 
             CALL alloc_containers(actual_x_data, 1, hfx_do_eval_energy)
             CALL alloc_containers(actual_x_data, 1, hfx_do_eval_forces)
@@ -1240,8 +1244,9 @@ CONTAINS
             CALL hfx_release_basis_types(actual_x_data%basis_parameter)
 
             !MK Release libint and libderiv data structure
-            CALL terminate_libint(actual_x_data%lib)
-            CALL terminate_libderiv(actual_x_data%lib_deriv)
+            CALL libint2_cleanup_eri(actual_x_data%lib)
+            CALL libint2_cleanup_eri1(actual_x_data%lib_deriv)
+            CALL libint2_static_cleanup()
 
             !! Deallocate containers
             CALL dealloc_containers(actual_x_data, hfx_do_eval_energy)
