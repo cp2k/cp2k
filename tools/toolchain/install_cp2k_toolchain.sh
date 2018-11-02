@@ -1084,7 +1084,7 @@ EOF
     local __TMPL=$(cat $__filename)
     eval "printf \"${__TMPL}\n\"" > $__filename
     # pass this to parsers to replace all of the IF_XYZ statements
-    python ${SCRIPTDIR}/parse_if.py $__filename $__flags
+    "${SCRIPTDIR}/parse_if.py" -i -f "${__filename}" $__flags
     echo "Wrote ${INSTALLDIR}/arch/$__filename"
 }
 
