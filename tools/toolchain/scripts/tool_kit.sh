@@ -123,7 +123,7 @@ reverse() (
     echo "$__result"
 )
 
-# get the number of processes avaliable for compilation
+# get the number of processes available for compilation
 get_nprocs() {
     if $(command -v nproc >&- 2>&-) ; then
         echo $(nproc --all)
@@ -169,8 +169,8 @@ paths_to_ld() {
 }
 
 # Find a file from directories given in a list of paths, each has the
-# same format as env variable PATH. If the file is found, then echos
-# the full path of the file. If the file is not found, then echos
+# same format as env variable PATH. If the file is found, then echoes
+# the full path of the file. If the file is not found, then echoes
 # __FALSE__. The file name can also contain wildcards that are
 # acceptable for bash, and in that case the full path of the first
 # matching file will be echoed.
@@ -213,7 +213,7 @@ find_in_paths() {
 # directory, to the -I include list for CFLAGS and append to a user
 # specified variable (__cflags_name). If not found, then nothing is
 # done. If the option -p is present, then if the search target is a
-# directory, then the parent directory of the direcotry is used for -I
+# directory, then the parent directory of the directory is used for -I
 # instead.  The search target accepts bash wildcards, and in this case
 # the first match will be used.
 add_include_from_paths() {
@@ -242,7 +242,7 @@ add_include_from_paths() {
         __cflags="$(unique $__cflags)"
         # must escape all quotes again before the last eval, as
         # otherwise all quotes gets interpreted by the shell when
-        # assiging to variable because eval will reduce one escape
+        # assigning to variable because eval will reduce one escape
         # level
         __cflags="${__cflags//'/\\'}"
         eval $__cflags_name=\"$__cflags\"
@@ -255,7 +255,7 @@ add_include_from_paths() {
 # and append to a user specified variable (__ldflags_name). If not
 # found, then nothing is done. If the option -p is present, then if
 # the search target is a directory, then the parent directory of the
-# direcotry is used for -L instead.  The search target accepts bash
+# directory is used for -L instead.  The search target accepts bash
 # wildcards, and in this case the first match will be used.
 add_lib_from_paths() {
     local __parent_dir_only=false
@@ -283,7 +283,7 @@ add_lib_from_paths() {
         __ldflags="$(unique $__ldflags)"
         # must escape all quotes again before the last eval, as
         # otherwise all quotes gets interpreted by the shell when
-        # assiging to variable because eval will reduce one escape
+        # assigning to variable because eval will reduce one escape
         # level
         __ldflags="${__ldflags//'/\\'}"
         eval $__ldflags_name=\"$__ldflags\"
@@ -340,7 +340,7 @@ check_lib() {
     fi
     # Note that LD_LIBRARY_PATH is NOT used by ld during linking
     # stage, and is only used for searching to the shared libraries
-    # requred by the executable AFTER it has already been compiled, to
+    # required by the executable AFTER it has already been compiled, to
     # override its internal search paths built into the binary when it
     # was compiled. Here, we explicitly include the commonly defined
     # library search paths---including LD_LIBRARY_PATH---in the -L

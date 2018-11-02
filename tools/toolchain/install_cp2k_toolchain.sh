@@ -313,7 +313,7 @@ if (command -v mpirun >&- 2>&-) ; then
         export MPI_MODE=mpich
     fi
 else
-    report_warning $LINENO "No MPI installation detected on you system. Ignore this message if you are using Cray Linux Environment"
+    report_warning $LINENO "No MPI installation detected on your system. Ignore this message if you are using Cray Linux Environment"
     MPI_MODE=no
 fi
 
@@ -877,7 +877,7 @@ time_stop=`date +%s`
 printf "Step took %0.2f seconds.\n" $((time_stop-time_start))
 
 # math core libraries, need to use reflapack for valgrind builds, as
-# many fast libraries are not necesarily valgrind clean
+# many fast libraries are not necessarily valgrind clean
 export REF_MATH_CFLAGS=''
 export REF_MATH_LDFLAGS=''
 export REF_MATH_LIBS=''
@@ -983,7 +983,7 @@ WFLAGS_WARNALL="-pedantic -Wall -Wextra -Wsurprising -Wunused-parameter -Warray-
 # IEEE_EXCEPTIONS dependency
 IEEE_EXCEPTIONS_DFLAGS="-D__HAS_IEEE_EXCEPTIONS"
 
-# check all of the above flags, filter out incompatable flags for the
+# check all of the above flags, filter out incompatible flags for the
 # current version of gcc in use
 BASEFLAGS=$(allowed_gfortran_flags         $BASEFLAGS)
 OPT_FLAGS=$(allowed_gfortran_flags         $OPT_FLAGS)
@@ -995,13 +995,13 @@ WFLAGS_ERROR=$(allowed_gfortran_flags      $WFLAGS_ERROR)
 WFLAGS_WARN=$(allowed_gfortran_flags       $WFLAGS_WARN)
 WFLAGS_WARNALL=$(allowed_gfortran_flags    $WFLAGS_WARNALL)
 
-# check if ieee_exeptions module is avaliable for the current version
+# check if ieee_exeptions module is available for the current version
 # of gfortran being used
 if ! (check_gfortran_module ieee_exceptions) ; then
     IEEE_EXCEPTIONS_DFLAGS=""
 fi
 
-# contagnate the above flags into WFLAGS, FCDEBFLAGS, DFLAGS and
+# concatenate the above flags into WFLAGS, FCDEBFLAGS, DFLAGS and
 # finally into FCFLAGS and CFLAGS
 WFLAGS="$WFLAGS_ERROR $WFLAGS_WARN IF_WARNALL(${WFLAGS_WARNALL}|)"
 FCDEBFLAGS="$FCDEB_FLAGS IF_DEBUG($FCDEB_FLAGS_DEBUG|)"
@@ -1014,7 +1014,7 @@ G_CFLAGS="$G_CFLAGS IF_DEBUG(|$PROFOPT_FLAGS)"
 G_CFLAGS="$G_CFLAGS $CP_CFLAGS"
 # FCFLAGS, for gfortran
 FCFLAGS="$G_CFLAGS \$(FCDEBFLAGS) \$(WFLAGS) \$(DFLAGS)"
-# CFLAGS, spcial flags for gcc (currently none)
+# CFLAGS, special flags for gcc (currently none)
 CFLAGS="$G_CFLAGS \$(DFLAGS)"
 
 # Linker flags
