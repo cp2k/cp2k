@@ -301,6 +301,14 @@ require_env() {
     fi
 }
 
+resolve_string() {
+    local __to_resolve=$1
+    shift
+    local __flags=$@
+
+    echo $("${SCRIPTDIR}/parse_if.py" $__flags <<< "${__to_resolve}")
+}
+
 # check if a command is available
 check_command() {
     local __command=$1
