@@ -16,6 +16,11 @@ cd "${BUILDDIR}"
 case "$with_json_fortran" in
     __INSTALL__)
         echo "==================== Installing json_fortran ===================="
+        echo "                                                                 "
+        echo " note that this package depends on cmake to be available.        "
+        echo "                                                                 "
+        echo "================================================================="
+
         pkg_install_dir="${INSTALLDIR}/json_fortran-${json_fortran_ver}"
         install_lock_file="$pkg_install_dir/install_successful"
         if [ -f "${install_lock_file}" ] ; then

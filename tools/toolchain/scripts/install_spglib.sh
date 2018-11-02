@@ -17,7 +17,7 @@ case "$with_spglib" in
     __INSTALL__)
         echo "==================== Installing spglib ===================="
         echo "                                                           "
-        echo " note that this package depends on cmake to be activated.  "
+        echo " note that this package depends on cmake to be available.  "
         echo "                                                           "
         echo "==========================================================="
 
@@ -82,14 +82,6 @@ export SPGLIB_LDFLAGS="${SPGLIB_LDFLAGS}"
 export CP_DFLAGS="\${CP_DFLAGS} -D__SPGLIB"
 export CP_CFLAGS="\${CP_CFLAGS} ${SPGLIB_CFLAGS}"
 export CP_LDFLAGS="\${CP_LDFLAGS} ${SPGLIB_LDFLAGS}"
-
-###################################################################
-#
-# NB : spglib is only used and compiled when sirius is activated.
-#      Right now the library is only included if MPI is detected.
-#
-###################################################################
-
 export CP_LIBS="${SPGLIB_LIBS} \${CP_LIBS}"
 EOF
         cat "${BUILDDIR}/setup_spglib" >> $SETUPFILE
