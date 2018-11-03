@@ -29,8 +29,8 @@ case "$with_spglib" in
             if [ -f spglib-${spglib_ver}.tar.gz ] ; then
                 echo "spglib-${spglib_ver}.tar.gz is found"
             else
-                download_pkg -o spglib-1.10.4.tar.gz \
-                https://github.com/atztogo/spglib/archive/v1.10.4.tar.gz
+                download_pkg ${DOWNLOADER_FLAGS} \
+                             https://www.cp2k.org/static/downloads/spglib-${spglib_ver}.tar.gz
             fi
             echo "Installing from scratch into ${pkg_install_dir}"
             [ -d spglib-${spglib_ver} ] && rm -rf spglib-${spglib_ver}

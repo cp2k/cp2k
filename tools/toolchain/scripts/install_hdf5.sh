@@ -25,8 +25,8 @@ case "$with_hdf5" in
             if [ -f hdf5-${hdf5_ver}.tar.bz2 ] ; then
                 echo "hdf5-${hdf5_ver}.tar.bz2 is found"
             else
-                download_pkg -o hdf5-1.10.4.tar.bz2 \
-                             "https://www.hdfgroup.org/package/source-bzip-2/?wpdmdl=13047&refresh=5bc5a5e3a0aed1539679715"
+                download_pkg ${DOWNLOADER_FLAGS} \
+                             https://www.cp2k.org/static/downloads/hdf5-${hdf5_ver}.tar.bz2
             fi
             echo "Installing from scratch into ${pkg_install_dir}"
             [ -d hdf5-${hdf5_ver} ] && rm -rf hdf5-${hdf5_ver}
