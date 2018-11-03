@@ -1,9 +1,8 @@
-FROM ubuntu:latest
+FROM ubuntu:18.04
 USER root
 
 # install Ubuntu packages
-RUN apt-get update && apt-get install -y \
-    --no-install-recommends \
+RUN apt-get update && apt-get install -y --no-install-recommends \
     build-essential \
     ca-certificates \
     gfortran \
@@ -33,3 +32,5 @@ RUN ln -sf bash /bin/sh && \
     echo "source /opt/cp2k-toolchain/install/setup" >> /etc/bash.bashrc
 
 WORKDIR /opt/cp2k-toolchain
+
+#EOF
