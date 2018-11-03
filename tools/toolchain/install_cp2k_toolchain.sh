@@ -27,6 +27,11 @@ export SHA256_CHECKSUM="${SCRIPTDIR}/checksums.sha256"
 export ARCH_FILE_TEMPLATE="${SCRIPTDIR}/arch_base.tmpl"
 
 # ------------------------------------------------------------------------
+# Make a copy of all options for $SETUPFILE
+# ------------------------------------------------------------------------
+TOOLCHAIN_OPTIONS="$@"
+
+# ------------------------------------------------------------------------
 # Load common variables and tools
 # ------------------------------------------------------------------------
 source "${SCRIPTDIR}"/common_vars.sh
@@ -349,6 +354,7 @@ if [ "$CRAY_LD_LIBRARY_PATH" ] ; then
 else
     enable_cray=__FALSE__
 fi
+
 
 # ------------------------------------------------------------------------
 # parse user options
@@ -740,6 +746,7 @@ export CP_LDFLAGS="-Wl,--enable-new-dtags"
 cat <<EOF > "$SETUPFILE"
 #!/bin/bash
 source "${SCRIPTDIR}/tool_kit.sh"
+export CP2K_TOOLCHAIN_OPTIONS="${TOOLCHAIN_OPTIONS}"
 EOF
 
 # ------------------------------------------------------------------------
