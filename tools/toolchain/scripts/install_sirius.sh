@@ -71,8 +71,8 @@ case "$with_sirius" in
             if [ -f SIRIUS-${sirius_ver}.tar.gz ] ; then
                 echo "sirius_v${sirius_ver}.tar.gz is found"
             else
-                download_pkg -o SIRIUS-${sirius_ver}.tar.gz \
-                             https://github.com/electronic-structure/SIRIUS/archive/v${sirius_ver}.tar.gz
+                download_pkg ${DOWNLOADER_FLAGS} \
+                             https://www.cp2k.org/static/downloads/SIRIUS-${sirius_ver}.tar.gz
             fi
             echo "Installing from scratch into ${pkg_install_dir}"
             [ -d sirius-${sirius_ver} ] && rm -rf sirius-${sirius_ver}

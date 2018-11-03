@@ -29,8 +29,8 @@ case "$with_json_fortran" in
             if [ -f json-fortran-${json_fortran_ver}.tar.gz ] ; then
                 echo "json-fortran-${json_fortran_ver}.tar.gz is found"
             else
-                wget -O json-fortran-${json_fortran_ver}.tar.gz \
-                    https://github.com/jacobwilliams/json-fortran/archive/6.9.0.tar.gz
+                download_pkg ${DOWNLOADER_FLAGS} \
+                             https://www.cp2k.org/static/downloads/json-fortran-${json_fortran_ver}.tar.gz
             fi
             echo "Installing from scratch into ${pkg_install_dir}"
             [ -d json-fortran-${json_fortran_ver} ] && rm -rf josn-fortran-${json_fortran_ver}
