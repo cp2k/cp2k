@@ -12,6 +12,7 @@ rsync --exclude="*~"                      \
       --exclude=/exe/                     \
       --exclude=/regtesting/              \
       --exclude=/tools/toolchain/         \
+      --executability                     \
       --ignore-times                      \
       --update                            \
       --verbose                           \
@@ -24,6 +25,7 @@ rsync --exclude="*~"                              \
       --exclude="*.pyc"                           \
       --exclude=/build/                           \
       --exclude=/install/                         \
+      --executability                             \
       --ignore-times                              \
       --update                                    \
       --verbose                                   \
