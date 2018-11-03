@@ -209,15 +209,18 @@ The --with-PKG options follow the rules:
                           Default = no
   --with-quip             Enable interface to QUIP library
                           Default = no
-  --with-sirius           Enable interface to the plane wave SIRIUS library
+  --with-sirius           Enable interface to the plane wave SIRIUS library.
+                          This package requires: gsl, libspg, elpa, scalapack, json-fortran, hdf5 and libxc.
                           Default = no
   --with-gsl              Enable the gnu scientific library library
                           Default = no
   --with-spglib           Enable the spg library (search of symmetry groups)
+                          This package depends on cmake.
                           Default = no
   --with-hdf5             Enable the hdf5 library (use by sirius library)
                           Default = no
   --with-json-fortran     Enable the json fortran library (used by cp2k when sirius is activated)
+                          This package depends on cmake.
                           Default = no
 
 
@@ -686,14 +689,6 @@ fi
 
 # SIRIUS dependencies. Remove the gsl library from the dependencies if SIRIUS is not activated
 if [ "$with_sirius" = "__INSTALL__" ] ; then
-    echo "====================== Warning =========================================="
-    echo "                                                                         "
-    echo " Sirius needs these libraries to work properly                           "
-    echo " gsl, elpa, libxc, scalapack fftw, spglib, hdf5, and json                "
-    echo " they will not be activated by default unless the right options are      "
-    echo " given to install_cp2k_toolchain.sh. Please look at the help             "
-    echo "                                                                         "
-    echo "========================================================================="
     if [ "$with_gsl" = "__DONTUSE__" ] ; then
         report_error "For SIRIUS to work you need a working gsl library use --with-gsl option to specify if you wish to install the library or specify its location."
         exit 1

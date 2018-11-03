@@ -29,15 +29,7 @@ SIRIUS_LIBS=''
 cd "${BUILDDIR}"
 case "$with_sirius" in
     __INSTALL__)
-        echo "==================== Installing SIRIUS ========================================="
-        echo "                                                                                "
-        echo " note that this package depends on gsl, libspg, elpa, scalapack, json-fortran   "
-        echo " hdf5 and libxc. this package can not work without these libraries dependencies "
-        echo " activated.                                                                     "
-        echo "                                                                                "
-        echo "================================================================================"
-
-
+        echo "==================== Installing SIRIUS ===================="
         require_env FFTW_LDFLAGS
         require_env FFTW_LIBS
         require_env FFTW_CFLAGS
@@ -113,15 +105,15 @@ EOF
             sed -i -e "s/mpi_fin = call_mpi_fin/mpi_fin = *call_mpi_fin/g" src/sirius_api.cpp
             sed -i -e "s/device_reset = call_device_reset/device_reset = *call_device_reset/g" src/sirius_api.cpp
             sed -i -e "s/fftw_fin = call_fftw_fin/fftw_fin = *call_fftw_fin/g" src/sirius_api.cpp
-            make -C src
-            install -v -d ${pkg_install_dir}/include
-            install -v -d ${pkg_install_dir}/lib
-            cp -Rv src/* ${pkg_install_dir}/include
+            make -C src >> make.log 2>&1
+            install -d ${pkg_install_dir}/include >> install.log 2>&1
+            install -d ${pkg_install_dir}/lib >> install.log 2>&1
+            cp -R src/* ${pkg_install_dir}/include
             rm -f ${pkg_install_dir}/include/*.f90
             #rm -f ${pkg_install_dir}/include/*.mod
             rm -f ${pkg_install_dir}/include/*.o
-            install -v -m 644 src/*.a ${pkg_install_dir}/lib
-            install -v -m 644 src/*.mod ${pkg_install_dir}/lib
+            install -m 644 src/*.a ${pkg_install_dir}/lib >> install.log 2>&1
+            install -m 644 src/*.mod ${pkg_install_dir}/lib >> install.log 2>&1
 
             # now do we have cuda as well
 
@@ -160,11 +152,11 @@ LIBS := ${LIBXC_LDFLAGS} ${FFTW_LDFLAGS} ${ELPA_LDFLAGS} ${SCALAPACK_LDFLAGS} ${
 LIBS := \$(LIBS) ${SPGLIB_LIBS} ${FFTW_LIBS} ${GSL_LIBS} ${SCALAPACK_LIBS} ${ELPA_LIBS}
 EOF
                 #
-                make -C src clean
-                make -C src
-                install -v -d ${pkg_install_dir}/lib/cuda
-                install -v -m 644 src/*.a ${pkg_install_dir}/lib/cuda
-                install -v -m 644 src/*.mod ${pkg_install_dir}/lib/cuda
+                make -C src clean >> make.log 2>&1
+                make -C src >> make.log 2>&1
+                install -d ${pkg_install_dir}/lib/cuda  >> install.log 2>&1
+                install -m 644 src/*.a ${pkg_install_dir}/lib/cuda >> install.log 2>&1
+                install -m 644 src/*.mod ${pkg_install_dir}/lib/cuda >> install.log 2>&1
                 SIRIUS_CUDA_LDFLAGS="-L'${pkg_install_dir}/lib/cuda' -Wl,-rpath='${pkg_install_dir}/lib/cuda'"
             fi
             SIRIUS_CFLAGS="-I'${pkg_install_dir}/include'"
@@ -173,15 +165,6 @@ EOF
         fi
         ;;
     __SYSTEM__)
-        echo "==================== Finding SIRIUS_DIST from system paths ===================="
-        echo "Warning very unlickely you have this package installed by default              "
-        echo "                                                                               "
-        echo " note that this package depends on gsl, libspg, elpa, scalapack, json-fortran  "
-        echo " hdf5 and libxc. this package can not work without these libraries dependencies     "
-        echo " activated.                                                                    "
-        echo "                                                                               "
-        echo "==============================================================================="
-
         require_env FFTW_LDFLAGS
         require_env FFTW_LIBS
         require_env FFTW_CFLAGS

@@ -16,11 +16,6 @@ cd "${BUILDDIR}"
 case "$with_spglib" in
     __INSTALL__)
         echo "==================== Installing spglib ===================="
-        echo "                                                           "
-        echo " note that this package depends on cmake to be available.  "
-        echo "                                                           "
-        echo "==========================================================="
-
         pkg_install_dir="${INSTALLDIR}/spglib-${spglib_ver}"
         install_lock_file="$pkg_install_dir/install_successful"
         if [ -f "${install_lock_file}" ] ; then
