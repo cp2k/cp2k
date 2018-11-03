@@ -11,6 +11,7 @@ rsync --exclude="*~"          \
       --exclude=/obj/         \
       --exclude=/lib/         \
       --exclude=/exe/         \
+      --executability         \
       --ignore-times          \
       --update                \
       --verbose               \
@@ -21,6 +22,7 @@ rsync --exclude="*~"          \
 rsync --exclude="*~"          \
       --exclude=".*/"         \
       --exclude="*.pyc"       \
+      --executability         \
       --ignore-times          \
       --update                \
       --verbose               \

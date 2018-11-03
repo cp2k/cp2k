@@ -11,6 +11,7 @@ rsync --exclude="*~"          \
       --exclude=/obj/         \
       --exclude=/lib/         \
       --exclude=/exe/         \
+      --executability         \
       --ignore-times          \
       --update                \
       --verbose               \
