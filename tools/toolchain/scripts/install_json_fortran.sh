@@ -16,11 +16,6 @@ cd "${BUILDDIR}"
 case "$with_json_fortran" in
     __INSTALL__)
         echo "==================== Installing json_fortran ===================="
-        echo "                                                                 "
-        echo " note that this package depends on cmake to be available.        "
-        echo "                                                                 "
-        echo "================================================================="
-
         pkg_install_dir="${INSTALLDIR}/json_fortran-${json_fortran_ver}"
         install_lock_file="$pkg_install_dir/install_successful"
         if [ -f "${install_lock_file}" ] ; then
@@ -38,8 +33,8 @@ case "$with_json_fortran" in
             cd json-fortran-${json_fortran_ver}
             mkdir build
             cd build
-            cmake -DCMAKE_INSTALL_PREFIX="${pkg_install_dir}" -DUSE_GNU_INSTALL_CONVENTION=on -DSKIP_DOC_GEN=true -DCMAKE_INSTALL_LIBDIR=lib ..
-            make -j $NPROCS > make.log 2>&1
+            cmake -DCMAKE_INSTALL_PREFIX="${pkg_install_dir}" -DUSE_GNU_INSTALL_CONVENTION=on -DSKIP_DOC_GEN=true -DCMAKE_INSTALL_LIBDIR=lib .. > make.log 2>&1
+            make -j $NPROCS >> make.log 2>&1
             make -j $NPROCS install > install.log 2>&1
             cd ../..
             touch "${install_lock_file}"
