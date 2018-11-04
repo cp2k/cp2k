@@ -266,6 +266,7 @@ CONTAINS
          CALL cp_sirius_finalize()
          CALL pw_cuda_finalize()
          CALL farming_run(input_declaration, root_section, para_env)
+         CALL cp_sirius_init()
          CALL dbcsr_init_lib()
          CALL pw_cuda_init()
       CASE (do_opt_basis)
