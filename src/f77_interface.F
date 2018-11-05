@@ -16,8 +16,12 @@
 !> \author fawzi & Johanna
 ! **************************************************************************************************
 MODULE f77_interface
-   USE acc_device,                      ONLY: acc_get_ndevices,&
+   USE dbcsr_acc_device,                ONLY: acc_get_ndevices,&
                                               acc_set_active_device
+   USE base_hooks,                      ONLY: cp_abort_hook,&
+                                              cp_warn_hook,&
+                                              timeset_hook,&
+                                              timestop_hook
    USE bibliography,                    ONLY: add_all_references
    USE cell_types,                      ONLY: cell_type,&
                                               init_cell
@@ -42,7 +46,8 @@ MODULE f77_interface
                                               cp_subsys_type,&
                                               unpack_subsys_particles
    USE dbcsr_api,                       ONLY: dbcsr_finalize_lib,&
-                                              dbcsr_init_lib
+                                              dbcsr_init_lib,&
+                                              dbcsr_set_hooks
    USE eip_environment,                 ONLY: eip_init
    USE eip_environment_types,           ONLY: eip_env_create,&
                                               eip_env_release,&
@@ -270,7 +275,9 @@ CONTAINS
 
          ! Initialize the DBCSR configuration
          CALL dbcsr_init_lib()
-
+         ! Attach the time handler hooks to DBCSR
+         CALL dbcsr_set_hooks(timeset_hook, timestop_hook, &
+                              cp_abort_hook, cp_warn_hook)
       ELSE
          ierr = cp_failure_level
       END IF

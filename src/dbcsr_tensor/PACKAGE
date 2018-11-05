@@ -1,4 +1,0 @@
-{
-"description": "block-sparse tensor framework on top of DBCSR",
-"requires": ["../base","../mpiwrap", "../dbcsr", "../common"]
-}
