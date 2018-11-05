@@ -71,8 +71,9 @@ case "$with_elpa" in
             # ELPA-2017xxxx enables AVX2 by default, switch off if machine doesn't support it.
             # In addition, --disable-option-checking is needed for older versions, which don't know
             # about this option.
-            has_AVX2=`grep 'avx2' /proc/cpuinfo 1>/dev/null && echo 'yes' || echo 'no'`
-            has_AVX512=`grep 'avx512' /proc/cpuinfo 1>/dev/null && echo 'yes' || echo 'no'`
+            has_AVX=`grep '\bavx\b' /proc/cpuinfo 1>/dev/null && echo 'yes' || echo 'no'`
+            has_AVX2=`grep '\bavx2\b' /proc/cpuinfo 1>/dev/null && echo 'yes' || echo 'no'`
+            has_AVX512=`grep '\bavx512\b' /proc/cpuinfo 1>/dev/null && echo 'yes' || echo 'no'`
             # non-threaded version
             mkdir -p obj_no_thread; cd obj_no_thread
             ../configure  --prefix=${pkg_install_dir} \
@@ -81,6 +82,7 @@ case "$with_elpa" in
                           --enable-shared=$shared_flag \
                           --enable-static=yes \
                           --disable-option-checking \
+                          --enable-avx=${has_AVX} \
                           --enable-avx2=${has_AVX2} \
                           --enable-avx512=${has_AVX512} \
                           FC=${MPIFC} \
@@ -103,6 +105,7 @@ case "$with_elpa" in
                               --enable-shared=$shared_flag \
                               --enable-static=yes \
                               --disable-option-checking \
+                              --enable-avx=${has_AVX} \
                               --enable-avx2=${has_AVX2} \
                               --enable-avx512=${has_AVX512} \
                               FC=${MPIFC} \
