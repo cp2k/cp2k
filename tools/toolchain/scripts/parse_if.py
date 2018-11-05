@@ -102,6 +102,7 @@ if __name__ == '__main__':
     argparser = argparse.ArgumentParser(description="Resolve IF_*() macros based on given tags")
     argparser.add_argument('-f', '--file', metavar="FILENAME", type=str, help="read from  given file instead of stdin")
     argparser.add_argument('-i', '--inplace', action="store_true", help="do in-place replacement for the given file instead of echo to stdout")
+    argparser.add_argument('--selftest', action="store_true", help="run self test")
     argparser.add_argument('flags', metavar="FLAG", type=str, nargs='*', help="specified flags are set to true")
 
     args = argparser.parse_args()
@@ -122,6 +123,9 @@ if __name__ == '__main__':
     # set the list of switches given on the command line to True
     for flag in args.flags:
         parser.SetSwitch(flag, True)
+
+    if args.selftest:
+        sys.exit(0) #TODO implement selftest
 
     # do parsing
 
