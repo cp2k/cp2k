@@ -82,7 +82,7 @@ CONTAINS
 
       CHARACTER(len=*), PARAMETER :: routineN = 'cp_sirius_init', routineP = moduleN//':'//routineN
 
-      CALL sirius_initialize(bool(.TRUE.))
+      CALL sirius_initialize(bool(.FALSE.))
 
    END SUBROUTINE cp_sirius_init
 #else
