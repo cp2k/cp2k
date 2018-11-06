@@ -17,8 +17,7 @@ MODULE xas_tdp_types
                                               xas_tdp_by_index,&
                                               xas_tdp_by_kind, &
                                               tddfpt_singlet, &
-                                              tddfpt_triplet, &
-                                              xas_tdp_hfx
+                                              tddfpt_triplet
    USE input_section_types,             ONLY: section_vals_type,&
                                               section_vals_val_get,&
                                               section_vals_get_subs_vals
@@ -39,8 +38,10 @@ MODULE xas_tdp_types
 !> \param define_excited whether excited atoms are chosen by kind or index
 !> \param dipole_form whether the dipole moment is computed in the length or velocity representation
 !> \param n_search # of lowest energy MOs to search for donor orbitals
-!> \param fxc_func which xc functional should be used for the xc kernel computation
 !> \param check_donor_states whether one only checks MO to donor state assignment
+!> \param do_hfx whether exact exchange is included
+!> \param do_xc wheter xc functional(s) is(are) included
+!> \param sx the scaling applied to exact exchange
 !> \param tamm_dancoff whether the calculations should be done in the Tamm-Dancoff approximation
 !> \param list_ex_atoms list of excited atom indices, kept empty if define_excited=by_kind
 !> \param list_ex_kinds list of excited atom kinds, kept empty if define_excited=by_index
@@ -56,8 +57,10 @@ MODULE xas_tdp_types
       INTEGER                                 :: define_excited   
       INTEGER                                 :: dipole_form
       INTEGER                                 :: n_search
-      INTEGER                                 :: fxc_func
       INTEGER                                 :: n_excited
+      REAL(dp)                                :: sx
+      LOGICAL                                 :: do_hfx
+      LOGICAL                                 :: do_xc
       LOGICAL                                 :: check_donor_states
       LOGICAL                                 :: tamm_dancoff
       LOGICAL                                 :: do_soc
@@ -234,7 +237,9 @@ CONTAINS
       xas_tdp_control%dipole_form = xas_dip_vel
       xas_tdp_control%define_excited = xas_tdp_by_index
       xas_tdp_control%n_search = -1
-      xas_tdp_control%fxc_func = xas_tdp_hfx
+      xas_tdp_control%do_hfx = .TRUE.
+      xas_tdp_control%do_xc = .FALSE.
+      xas_tdp_control%sx = 1.0_dp
       xas_tdp_control%check_donor_states = .FALSE.
       xas_tdp_control%tamm_dancoff = .FALSE.
       xas_tdp_control%do_soc = .FALSE.
@@ -377,7 +382,6 @@ CONTAINS
       
       CALL section_vals_val_get(xas_tdp_section, "STATE_SEARCH", i_val=xas_tdp_control%n_search)
 
-      CALL section_vals_val_get(xas_tdp_section, "XC_KERNEL", i_val=xas_tdp_control%fxc_func)
       CALL section_vals_val_get(xas_tdp_section, "GRID", n_rep_val=nrep)
 
       IF (.NOT. ASSOCIATED(xas_tdp_control%grid_info)) THEN
@@ -392,6 +396,21 @@ CONTAINS
       xas_tdp_control%loc_subsection => section_vals_get_subs_vals(xas_tdp_section, "LOCALIZE")       
       xas_tdp_control%print_loc_subsection => section_vals_get_subs_vals(&
                                                          xas_tdp_control%loc_subsection, "PRINT")                      
+
+      !Kernel analysis
+      CALL section_vals_val_get(xas_tdp_section, "KERNEL%XC_FUNCTIONAL%_SECTION_PARAMETERS_", &
+                                l_val=xas_tdp_control%do_xc) 
+      CALL section_vals_val_get(xas_tdp_section, "KERNEL%EXACT_EXCHANGE%_SECTION_PARAMETERS_", &
+                                l_val=xas_tdp_control%do_hfx)
+
+      IF (xas_tdp_control%do_hfx) THEN
+         CALL section_vals_val_get(xas_tdp_section, "KERNEL%EXACT_EXCHANGE%SCALE", &
+                                   r_val=xas_tdp_control%sx)
+      END IF
+
+      IF ((.NOT. xas_tdp_control%do_xc) .AND. (.NOT. xas_tdp_control%do_hfx)) THEN
+         CPABORT("You must at least define a XC functional OR exact exchange.")
+      END IF
       
    END SUBROUTINE read_xas_tdp_control
 

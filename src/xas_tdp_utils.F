@@ -54,11 +54,8 @@ MODULE xas_tdp_utils
         dbcsr_iterator_next_block, dbcsr_iterator_start, dbcsr_iterator_stop, dbcsr_iterator_type, &
         dbcsr_multiply, dbcsr_p_type, dbcsr_put_block, dbcsr_release, dbcsr_type
    USE generic_os_integrals,            ONLY: int_operators_r12_ab_os
-   USE input_constants,                 ONLY: xas_dip_len,&
-                                              xas_tdp_hfx,&
-                                              xas_tdp_pade
-   USE iterate_matrix,                  ONLY: invert_Hotelling,&
-                                              matrix_sqrt_Newton_Schulz
+   USE input_constants,                 ONLY: xas_dip_len, xas_dip_vel
+   USE iterate_matrix,                  ONLY: invert_Hotelling, matrix_sqrt_Newton_Schulz
    USE kinds,                           ONLY: dp
    USE mathlib,                         ONLY: invmat_symm
    USE orbital_pointers,                ONLY: ncoset
@@ -116,8 +113,7 @@ CONTAINS
 !>       - D: the on-digonal exact exchange kernel ~(ab|IJ)
 !>       - E: the off-diagonal exact exchange kernel ~(aJ|Ib)
 !>       - G: the metric  S_ab*delta_IJ
-!>       For the PADE xc functional, C_aa + C_ab is the same as 2*C (with d2fxc_d2n)
-!>                               and C_aa - C_ab simplifies a lot
+!>       For the xc functionals, C_aa + C_ab or C_aa - C_ab are stored in the same matrix
 !>       In the above definitions, I,J label the donnor MOs and a,b the sgfs of the basis
 !>       In the case of non-TDA, one turns the problem Hermitian
 ! **************************************************************************************************
@@ -129,18 +125,20 @@ CONTAINS
       TYPE(xas_tdp_control_type), POINTER                :: xas_tdp_control
 
       CHARACTER(len=*), PARAMETER :: routineN = 'setup_xas_tdp_full_prob', &
-         routineP = moduleN//':'//routineN
-
-      INTEGER                                            :: fxc, handle, nblk_sub
-      INTEGER, DIMENSION(:), POINTER                     :: submat_blk_size
-      LOGICAL                                            :: conv
-      REAL(dp)                                           :: min_ev, threshold
-      TYPE(arnoldi_data_type)                            :: my_arnoldi
-      TYPE(dbcsr_distribution_type), POINTER             :: submat_dist
-      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrices
-      TYPE(dbcsr_type), POINTER                          :: matrix_a, matrix_b, matrix_c, matrix_d, &
-                                                            matrix_e, proj_Q, sg_matrix_tdp, &
-                                                            tmp_mat, tp_matrix_tdp, work
+                                     routineP = moduleN//":"//routineN
+      
+      INTEGER                                         :: handle, nblk_sub
+      TYPE(dbcsr_type), POINTER                       :: sg_matrix_tdp, tp_matrix_tdp
+      TYPE(dbcsr_type), POINTER                       :: matrix_a, matrix_b, matrix_d, matrix_e, &
+                                                         tmp_mat, matrix_c, proj_Q, work
+      TYPE(dbcsr_distribution_type), POINTER          :: submat_dist
+      INTEGER, DIMENSION(:), POINTER                  :: submat_blk_size, col_dist_sub, &
+                                                         row_dist_sub
+      INTEGER, DIMENSION(:,:), POINTER                :: pgrid
+      REAL(dp)                                        :: min_ev, threshold, sx
+      TYPE(arnoldi_data_type)                         :: my_arnoldi
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER       :: matrices
+      LOGICAL                                         :: conv, do_xc, do_hfx
 
       CALL timeset(routineN, handle)
 
@@ -160,7 +158,10 @@ CONTAINS
          ALLOCATE (donor_state%tp_matrix_tdp)
          tp_matrix_tdp => donor_state%tp_matrix_tdp
       END IF
-      fxc = xas_tdp_control%fxc_func
+
+      do_xc = xas_tdp_control%do_xc
+      do_hfx = xas_tdp_control%do_hfx
+      sx = xas_tdp_control%sx
 
 !  Get the submatrices distribution and block sizes
       CALL compute_submat_dist_and_blk_size(submat_dist, submat_blk_size, donor_state, qs_env)
@@ -184,7 +185,7 @@ CONTAINS
          ALLOCATE (donor_state%metric(1))
 
          CALL build_gs_contribution(matrix_a, submat_dist, submat_blk_size, donor_state, qs_env)
-         IF (fxc == xas_tdp_hfx) THEN
+         IF (do_hfx) THEN
             CALL build_kernel_exchange(ex_ker_diag=matrix_d, dist=submat_dist, blk_size=submat_blk_size, &
                                        donor_state=donor_state, xas_tdp_env=xas_tdp_env, qs_env=qs_env)
          END IF
@@ -197,13 +198,13 @@ CONTAINS
             ! Coulomb kernel only needed for singlets
             CALL build_kernel_coulomb(matrix_b, submat_dist, submat_blk_size, donor_state, xas_tdp_env, qs_env)
 
-            CALL dbcsr_add(sg_matrix_tdp, matrix_b, 1.0_dp, 2.0_dp)
-            IF (fxc == xas_tdp_hfx) CALL dbcsr_add(sg_matrix_tdp, matrix_d, 1.0_dp, -1.0_dp) !pure hfx
-            IF (fxc == xas_tdp_pade) THEN
+            CALL dbcsr_add(sg_matrix_tdp, matrix_b, 1.0_dp, 2.0_dp) 
+            IF (do_hfx) CALL dbcsr_add(sg_matrix_tdp, matrix_d, 1.0_dp, -1.0_dp*sx) !scaled hfx
+            IF (do_xc) THEN
                CALL build_kernel_xc(matrix_c, submat_dist, submat_blk_size, donor_state, &
                                     xas_tdp_env, qs_env, singlet=.TRUE.)
-               CALL dbcsr_add(sg_matrix_tdp, matrix_c, 1.0_dp, 1.0_dp) !pure pade
-            END IF ! pade
+               CALL dbcsr_add(sg_matrix_tdp, matrix_c, 1.0_dp, 1.0_dp) ! xc kernel
+            END IF ! do_xc
 
             ! Take the product with the Q projector:
             CALL dbcsr_multiply('N', 'N', 1.0_dp, proj_Q, sg_matrix_tdp, 0.0_dp, work)
@@ -214,12 +215,12 @@ CONTAINS
          IF (xas_tdp_control%do_triplet) THEN
 
             CALL dbcsr_copy(tp_matrix_tdp, matrix_a, name="TRIPLET MATRIX TDP")
-            IF (fxc == xas_tdp_hfx) CALL dbcsr_add(tp_matrix_tdp, matrix_d, 1.0_dp, -1.0_dp) !pure hfx
-            IF (fxc == xas_tdp_pade) THEN
+            IF (do_hfx) CALL dbcsr_add(tp_matrix_tdp, matrix_d, 1.0_dp, -1.0_dp*sx) !scaled hfx
+            IF (do_xc) THEN
                CALL build_kernel_xc(matrix_c, submat_dist, submat_blk_size, donor_state, &
                                     xas_tdp_env, qs_env, singlet=.FALSE.)
-               CALL dbcsr_add(tp_matrix_tdp, matrix_c, 1.0_dp, 1.0_dp) !pure pade
-            END IF ! pade
+               CALL dbcsr_add(tp_matrix_tdp, matrix_c, 1.0_dp, 1.0_dp) ! xc_kernel
+            END IF ! do_xc
 
             ! Take the product with the Q projector:
             CALL dbcsr_multiply('N', 'N', 1.0_dp, proj_Q, tp_matrix_tdp, 0.0_dp, work)
@@ -245,7 +246,7 @@ CONTAINS
          ALLOCATE (matrix_e)
          ALLOCATE (donor_state%metric(2))
          CALL build_gs_contribution(matrix_a, submat_dist, submat_blk_size, donor_state, qs_env)
-         IF (fxc == xas_tdp_hfx) THEN
+         IF (do_hfx) THEN
             CALL build_kernel_exchange(matrix_d, matrix_e, submat_dist, submat_blk_size, &
                                        donor_state, xas_tdp_env, qs_env)
          END IF
@@ -253,9 +254,9 @@ CONTAINS
 
 !     Build the auxiliary matrix (A-D+E)^0.5
          CALL dbcsr_copy(tmp_mat, matrix_a)
-         IF (fxc == xas_tdp_hfx) THEN
-            CALL dbcsr_add(tmp_mat, matrix_d, 1.0_dp, -1.0_dp)
-            CALL dbcsr_add(tmp_mat, matrix_e, 1.0_dp, 1.0_dp)
+         IF (do_hfx) THEN
+            CALL dbcsr_add(tmp_mat, matrix_d, 1.0_dp, -1.0_dp*sx) !scaled hfx
+            CALL dbcsr_add(tmp_mat, matrix_e, 1.0_dp, 1.0_dp*sx)
          END IF
 
 !     Take the product with the Q projector
@@ -305,11 +306,11 @@ CONTAINS
 
             CALL dbcsr_copy(sg_matrix_tdp, matrix_a)
             CALL dbcsr_add(sg_matrix_tdp, matrix_b, 1.0_dp, 4.0_dp)
-            IF (fxc == xas_tdp_hfx) THEN
-               CALL dbcsr_add(sg_matrix_tdp, matrix_d, 1.0_dp, -1.0_dp)
-               CALL dbcsr_add(sg_matrix_tdp, matrix_e, 1.0_dp, -1.0_dp)
+            IF (do_hfx) THEN
+               CALL dbcsr_add(sg_matrix_tdp, matrix_d, 1.0_dp, -1.0_dp*sx) !scaled hfx
+               CALL dbcsr_add(sg_matrix_tdp, matrix_e, 1.0_dp, -1.0_dp*sx)
             END IF !HFX
-            IF (fxc == xas_tdp_pade) THEN
+            IF (do_xc) THEN
                CALL build_kernel_xc(matrix_c, submat_dist, submat_blk_size, &
                                     donor_state, xas_tdp_env, qs_env, singlet=.TRUE.)
                CALL dbcsr_add(sg_matrix_tdp, matrix_c, 1.0_dp, 2.0_dp)
@@ -327,11 +328,11 @@ CONTAINS
                               col_blk_size=submat_blk_size)
 
             CALL dbcsr_copy(tp_matrix_tdp, matrix_a)
-            IF (fxc == xas_tdp_hfx) THEN
-               CALL dbcsr_add(tp_matrix_tdp, matrix_d, 1.0_dp, -1.0_dp)
-               CALL dbcsr_add(tp_matrix_tdp, matrix_e, 1.0_dp, -1.0_dp)
+            IF (do_hfx) THEN
+               CALL dbcsr_add(tp_matrix_tdp, matrix_d, 1.0_dp, -1.0_dp*sx) !scaled hfx
+               CALL dbcsr_add(tp_matrix_tdp, matrix_e, 1.0_dp, -1.0_dp*sx)
             END IF !HFX
-            IF (fxc == xas_tdp_pade) THEN
+            IF (do_xc) THEN
                CALL build_kernel_xc(matrix_c, submat_dist, submat_blk_size, &
                                     donor_state, xas_tdp_env, qs_env, singlet=.FALSE.)
                CALL dbcsr_add(tp_matrix_tdp, matrix_c, 1.0_dp, 2.0_dp)
