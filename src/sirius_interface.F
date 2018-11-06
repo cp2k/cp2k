@@ -51,7 +51,7 @@ MODULE sirius_interface
       set_default_all_potential, set_potential, sgp_potential_type, write_potential
    USE mathconstants, ONLY: dfac, &
       gamma1, &
-      pi
+      pi, fourpi
    USE pwdft_environment_types, ONLY: pwdft_environment_type, pwdft_energy_type, pwdft_env_set, pwdft_env_get
    USE ISO_C_BINDING, ONLY: &
       C_ASSOCIATED, C_BOOL, C_DOUBLE, C_FUNPTR, C_F_POINTER, C_INT, C_NULL_FUNPTR, C_NULL_PTR, &
@@ -151,7 +151,7 @@ CONTAINS
       REAL(KIND=C_DOUBLE), DIMENSION(:), ALLOCATABLE     :: fun
       REAL(KIND=C_DOUBLE), DIMENSION(:, :), ALLOCATABLE  :: dion
       REAL(KIND=dp)                                      :: angle1, angle2, magnetization, mass, zeff, pf, al, rl, &
-                                                            al2, cval, focc
+                                                            cval, focc
       REAL(KIND=dp), DIMENSION(3)                        :: vr, vs
       REAL(KIND=dp), DIMENSION(:), ALLOCATABLE           :: rp, ef, beta, corden, fe, rc, locpot
       REAL(KIND=dp), DIMENSION(:), POINTER               :: density
@@ -363,10 +363,10 @@ CONTAINS
 
             ! set total charge density of a free atom (to compute initial rho(r))
             IF (up) THEN
-               fun(1:nmesh) = density(1:nmesh)
+               fun(1:nmesh) = fourpi*density(1:nmesh)*atom_grid%rad(1:nmesh)**2
             ELSE
                DO i = 1, nmesh
-                  fun(i) = density(nmesh-i+1)
+                  fun(i) = fourpi*density(nmesh-i+1)*atom_grid%rad(nmesh-i+1)**2
                END DO
             END IF
             CALL sirius_add_atom_type_radial_function(sctx, string(label), string("ps_rho_total"), &
@@ -601,7 +601,6 @@ CONTAINS
       forces(1:n1, 1:n2) = cforces(1:n1, 1:n2)
       DEALLOCATE (cforces)
       cstress = 0.0_C_DOUBLE
-!deb  what is the correct label?
       CALL sirius_get_stress_tensor(gs_handler, string('total'), cstress(1, 1))
       stress(1:3, 1:3) = cstress(1:3, 1:3)
       CALL pwdft_env_set(pwdft_env=pwdft_env, stress=stress)
