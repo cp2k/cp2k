@@ -16,8 +16,6 @@
 !> \author fawzi & Johanna
 ! **************************************************************************************************
 MODULE f77_interface
-   USE dbcsr_acc_device,                ONLY: acc_get_ndevices,&
-                                              acc_set_active_device
    USE base_hooks,                      ONLY: cp_abort_hook,&
                                               cp_warn_hook,&
                                               timeset_hook,&
@@ -45,6 +43,8 @@ MODULE f77_interface
                                               cp_subsys_set,&
                                               cp_subsys_type,&
                                               unpack_subsys_particles
+   USE dbcsr_acc_device,                ONLY: acc_get_ndevices,&
+                                              acc_set_active_device
    USE dbcsr_api,                       ONLY: dbcsr_finalize_lib,&
                                               dbcsr_init_lib,&
                                               dbcsr_set_hooks
