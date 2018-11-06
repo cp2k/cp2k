@@ -96,7 +96,7 @@ MODULE input_cp2k_dft
         xas_2s_type, xas_3d_type, xas_3p_type, xas_3s_type, xas_4d_type, xas_4f_type, xas_4p_type, &
         xas_4s_type, xas_dip_len, xas_dip_vel, xas_dscf, xas_none, xas_tp_fh, xas_tp_flex, &
         xas_tp_hh, xas_tp_xfh, xas_tp_xhh, xes_tp_val, xas_not_excited, xas_tdp_by_kind, &
-        xas_tdp_by_index, xas_tdp_hfx, xas_tdp_pade, tddfpt_both
+        xas_tdp_by_index, tddfpt_both
    USE input_cp2k_almo,                 ONLY: create_almo_scf_section
    USE input_cp2k_distribution,         ONLY: create_distribution_section
    USE input_cp2k_field,                ONLY: create_efield_section,&
@@ -111,7 +111,8 @@ MODULE input_cp2k_dft
    USE input_cp2k_tb,                   ONLY: create_dftb_control_section,&
                                               create_xtb_control_section
    USE input_cp2k_transport,            ONLY: create_transport_section
-   USE input_cp2k_xc,                   ONLY: create_xc_section
+   USE input_cp2k_xc,                   ONLY: create_xc_section, &
+                                              create_libxc_section
    USE input_keyword_types,             ONLY: keyword_create,&
                                               keyword_release,&
                                               keyword_type
@@ -7873,14 +7874,17 @@ CONTAINS
          routineP = moduleN//':'//routineN
 
       TYPE(keyword_type), POINTER                        :: keyword
-      TYPE(section_type), POINTER                        :: print_key, subsection
+      TYPE(section_type), POINTER                        :: print_key, subsection, subsubsection, &
+                                                            subsubsubsection
+
+      NULLIFY(keyword, print_key, subsection, subsubsection, subsubsubsection)
 
       CPASSERT(.NOT. ASSOCIATED(section))
       CALL section_create(section, "xas_tdp", &
                           description="XAS simulations using TDDFPT. Excitation from specified "// &
                           "core orbitals are considered one at a time. In case of high symmetry "// &
                           "structures, donor core orbitals should be localized.", &
-                          n_keywords=14, n_subsections=3, repeats=.FALSE.)
+                          n_keywords=13, n_subsections=4, repeats=.FALSE.)
 
       NULLIFY (keyword, subsection, print_key)
 
@@ -7948,13 +7952,13 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="STATE_SEARCH", &
-                          variants=(/"NSEARCH"/), &
-                          description="Number of MOs to search to find specified donor core "// &
-                          "orbitals, starting from the lowest in energy and upward. By default, "// &
-                          "all HOMOs are searched. If the LOCALIZED subsection is used, then "// &
-                          "all searched states are first localized.", &
-                          usage="STATE_SEARCH {integer}", &
+      CALL keyword_create(keyword, name="STATE_SEARCH", & 
+                          variants=(/"N_SEARCH"/),&
+                          description="Number of MOs to search to find specified donor core "//&
+                          "orbitals, starting from the lowest in energy and upward. By default, "//&
+                          "all HOMOs are searched. If the LOCALIZED subsection is used, then "//&
+                          "all searched states are first localized.",&
+                          usage="STATE_SEARCH {integer}",&
                           default_i_val=-1)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
@@ -8016,36 +8020,82 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="XC_KERNEL", &
-                          description="This keyword is used to chose the functional with which "//&
-                                      "the XC kernel should be evaluated. Currently only exact "//&
-                                      "exchange (HFX) and the LDA (PADE) are available.", &
-                           usage="XC_KERNEL string", &
-                           default_i_val=xas_tdp_hfx, &
-                           enum_c_vals=s2a("HFX", "PADE"), &
-                           enum_i_vals=(/xas_tdp_hfx, xas_tdp_pade/))
-      CALL section_add_keyword(section, keyword)
-      CALL keyword_release(keyword) 
-
       CALL keyword_create(keyword, name="GRID", &
                           description="Specification of the atomic grids for a given atomic kind."//&
                                       "This keyword can/should be repeated for each kind. "//&
                                       "The default grid dimensions are those set for the GAPW "// &
-                                      "ground state calculation. These grids are used for PADE "// &
+                                      "ground state calculation. These grids are used for the "// &
                                       "xc-kernel calculations and/or for spin-orbit coupling.", &
                           usage="GRID kind na nr", &
                           n_var=3, type_of_var=char_t, repeats=.TRUE.)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
+!  The KERNEL subsection
+      CALL section_create(subsection, name="KERNEL", &
+                          description="Defines how the kernel is built in terms of functionals.", &
+                          n_keywords=0, &
+                          n_subsections=1, &
+                          repeats=.FALSE.)
+
+!  The XC_FUNCTIONAL subsubsection
+      CALL section_create(subsubsection, name="XC_FUNCTIONAL", &
+                          description="The exchange correlation functional(s) to use for the xc " //&
+                                     "part of the kernel. Built from any combination of LDA "// &
+                                     "functional from LIBXC. ", &
+                          n_keywords=0, &
+                          n_subsections=1, &
+                          repeats=.FALSE.)
+
+      CALL keyword_create(keyword, name="_SECTION_PARAMETERS_", &
+                          description="Enables the addition of xc functionals to the kernel.", &
+                          usage="&XC_FUNCTIONAL {logical}", &
+                          default_l_val=.FALSE., &
+                          lone_keyword_l_val=.TRUE.)
+      CALL section_add_keyword(subsubsection, keyword)
+      CALL keyword_release(keyword)
+
+   ! LIBXC functional
+      CALL create_libxc_section(subsubsubsection, "LIBXC", "Uses functionals from LIBXC", &
+                                "FUNCTIONAL {name}")
+      CALL section_add_subsection(subsubsection, subsubsubsection)
+      CALL section_release(subsubsubsection)
+
+      CALL section_add_subsection(subsection, subsubsection)
+      CALL section_release(subsubsection)
+
+!  The EXACT_EXCHANGE subsubsection (TBI)
+      CALL section_create(subsubsection, name="EXACT_EXCHANGE", &
+                          description="Whther exact-exchange should be added to the kernel and " //&
+                                      "if so, with which scaling.", &
+                          n_keywords=1, &
+                          n_subsections=0, &
+                          repeats=.FALSE.)
+
+      CALL keyword_create(keyword, name="_SECTION_PARAMETERS_", &
+                          description="Enables the addition of exact exchange to the kernel.", &
+                          usage="&EXACT_EXCHANGE {logical}", &
+                          default_l_val=.FALSE., &
+                          lone_keyword_l_val=.TRUE.)
+      CALL section_add_keyword(subsubsection, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, name="SCALE", &
+                          description="Scaling of the exact exchange contribution.", &
+                          default_r_val=1.0_dp)
+      CALL section_add_keyword(subsubsection, keyword)
+      CALL keyword_release(keyword)
+
+      CALL section_add_subsection(subsection, subsubsection)
+      CALL section_release(subsubsection)
+
+      CALL section_add_subsection(section, subsection)
+      CALL section_release(subsection)
+
       CALL create_localize_section(subsection)
       CALL section_add_subsection(section, subsection)
       CALL section_release(subsection)
 
-      CALL create_eri_mme_section(subsection)
-      CALL section_add_subsection(section, subsection)
-      CALL section_release(subsection) 
-      
       CALL section_create(subsection, "PRINT", "Controls the printing of information during "//&
                           "XAS TDP calculations", repeats=.FALSE.)
       CALL cp_print_key_section_create(print_key, "PROGRAM_RUN_INFO",&

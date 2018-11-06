@@ -29,7 +29,8 @@ MODULE xas_tdp_atom
    USE distribution_1d_types,           ONLY: distribution_1d_type
    USE distribution_2d_types,           ONLY: distribution_2d_type
    USE generic_os_integrals,            ONLY: int_overlap_ab_os
-   USE input_section_types,             ONLY: section_vals_val_get
+   USE input_section_types,             ONLY: section_vals_val_get, section_vals_type, &
+                                              section_vals_get_subs_vals
    USE kinds,                           ONLY: dp, default_string_length
    USE lebedev,                         ONLY: deallocate_lebedev_grids, get_number_of_lebedev_grid,&
                                               init_lebedev_grids, lebedev_grid
@@ -64,7 +65,14 @@ MODULE xas_tdp_atom
    USE spherical_harmonics,             ONLY: clebsch_gordon, clebsch_gordon_deallocate, &
                                               clebsch_gordon_init
    USE xas_tdp_types,                   ONLY: xas_atom_env_type
-   USE xc_functionals_utilities,        ONLY: set_util, calc_rs_pw
+   USE xc_atom,                         ONLY: xc_rho_set_atom_update
+   USE xc_derivative_set_types,         ONLY: xc_dset_create, xc_dset_release, &
+                                              xc_derivative_set_type, xc_dset_get_derivative
+   USE xc_derivative_types,             ONLY: xc_derivative_get, xc_derivative_type
+   USE xc_derivatives,                  ONLY: xc_functionals_get_needs, xc_functionals_eval
+   USE xc_rho_cflags_types,             ONLY: xc_rho_cflags_type
+   USE xc_rho_set_types,                ONLY: xc_rho_set_create, xc_rho_set_release, &
+                                              xc_rho_set_type
 
 #include "./base/base_uses.f90"
 
@@ -85,9 +93,9 @@ CONTAINS
 !> \param excited_kinds the indices of the excited kinds
 !> \param grid_info the raw input giving the grid dimensions
 !> \param qs_env ...
-!> \param do_fxc whether the xc-kernel will be computed on the grid
+!> \param do_xc whether the xc-kernel will be computed on the grid
 ! **************************************************************************************************
-   SUBROUTINE init_xas_atom_env(xas_atom_env, excited_atoms, excited_kinds, grid_info, qs_env, do_fxc)
+   SUBROUTINE init_xas_atom_env(xas_atom_env, excited_atoms, excited_kinds, grid_info, qs_env, do_xc)
 
       TYPE(xas_atom_env_type), POINTER                :: xas_atom_env
       TYPE(qs_environment_type), POINTER              :: qs_env
@@ -95,7 +103,7 @@ CONTAINS
       INTEGER, DIMENSION(:), POINTER                  :: excited_kinds
       CHARACTER(len=default_string_length), &
                      DIMENSION(:,:), POINTER          :: grid_info
-      LOGICAL, INTENT(IN)                             :: do_fxc
+      LOGICAL, INTENT(IN)                             :: do_xc
 
       CHARACTER(len=*), PARAMETER :: routineN = 'init_xas_atom_env', routineP = moduleN//":"//routineN
 
@@ -130,7 +138,7 @@ CONTAINS
       xas_atom_env%excited_kinds = excited_kinds
 
 !  Allocate and initialize the atomic grids and harmonics
-      CALL init_xas_atom_grid_harmo(xas_atom_env, grid_info, qs_env, do_fxc)
+      CALL init_xas_atom_grid_harmo(xas_atom_env, grid_info, qs_env, do_xc)
 
 !  Create the block size for the integral matrix based on the size of the RI_XAS basis.
       ALLOCATE(basis_set_ri(nkind))
@@ -141,13 +149,13 @@ CONTAINS
 !  Compute the contraction coefficients for spherical orbitals
       DO ikind = 1,nkind 
          CALL compute_sphi_so(ikind, "ORB", xas_atom_env%orb_sphi_so(ikind)%array, qs_env)
-         IF (ANY(excited_kinds == ikind) .AND. do_fxc) THEN
+         IF (ANY(excited_kinds == ikind) .AND. do_xc) THEN
             CALL compute_sphi_so(ikind, "RI_XAS", xas_atom_env%ri_sphi_so(ikind)%array, qs_env)
          END IF
       END DO !ikind
 
 !  Compute the coefficients to expand the density in the RI_XAS basis, if requested
-      IF (do_fxc) CALL calculate_density_coeffs(xas_atom_env, qs_env)
+      IF (do_xc) CALL calculate_density_coeffs(xas_atom_env, qs_env)
 
       CALL timestop(handle)
 
@@ -157,17 +165,17 @@ CONTAINS
 !> \brief Initializes the atomic grids and harmonics for the RI atomic calculations
 !> \param xas_atom_env ...
 !> \param qs_env ...
-!> \param do_fxc Whether the xc kernel will ne computed on the atomic grids. If not, the harmonics
+!> \param do_xc Whether the xc kernel will ne computed on the atomic grids. If not, the harmonics
 !>        are built for the orbital basis for all kinds.
 !> \note Largely inspired by init_rho_atom subroutine 
 ! **************************************************************************************************
-   SUBROUTINE init_xas_atom_grid_harmo(xas_atom_env, grid_info, qs_env, do_fxc)
+   SUBROUTINE init_xas_atom_grid_harmo(xas_atom_env, grid_info, qs_env, do_xc)
 
       TYPE(xas_atom_env_type), POINTER                :: xas_atom_env
       CHARACTER(len=default_string_length), &
                            DIMENSION(:,:), POINTER    :: grid_info
       TYPE(qs_environment_type), POINTER              :: qs_env
-      LOGICAL, INTENT(IN)                             :: do_fxc
+      LOGICAL, INTENT(IN)                             :: do_xc
 
       CHARACTER(len=*), PARAMETER :: routineN = "init_xas_atom_grid_harmo", &
                                      routineP = moduleN//":"//routineN
@@ -191,7 +199,7 @@ CONTAINS
 
 !  Initialization of some integer for the CG coeff generation
       CALL get_qs_env(qs_env, qs_kind_set=qs_kind_set, dft_control=dft_control)
-      IF(do_fxc) THEN 
+      IF(do_xc) THEN 
          CALL get_qs_kind_set(qs_kind_set, maxlgto=maxlgto, basis_type="RI_XAS")
       ELSE
          CALL get_qs_kind_set(qs_kind_set, maxlgto=maxlgto, basis_type="ORB")
@@ -302,7 +310,7 @@ CONTAINS
          END IF
 
 !        If this is an excited kind, create the harmonics with the RI_XAS basis, otherwise the ORB
-         IF (ANY(xas_atom_env%excited_atoms == ikind) .AND. do_fxc) THEN
+         IF (ANY(xas_atom_env%excited_atoms == ikind) .AND. do_xc) THEN
             CALL get_qs_kind(qs_kind_set(ikind), basis_set=tmp_basis, basis_type="RI_XAS")
          ELSE
             CALL get_qs_kind(qs_kind_set(ikind), basis_set=tmp_basis, basis_type="ORB")
@@ -579,7 +587,7 @@ CONTAINS
          ALLOCATE(work(nsgf(katom),1))
          CALL dgemm('N', 'N', nsgf(katom), 1, nsgf(katom), 1.0_dp, sinv(kkind)%array, nsgf(katom), &
                     tvec, nsgf(katom), 0.0_dp, work, nsgf(katom))
-         xas_atom_env%ri_dcoeff(katom)%array(:) = xas_atom_env%ri_dcoeff(katom)%array(:) + work(:,1)
+         CALL daxpy(nsgf(katom), 1.0_dp, work(:,1), 1, xas_atom_env%ri_dcoeff(katom)%array(:), 1)
          DEALLOCATE(work)
 
       END DO
@@ -600,7 +608,7 @@ CONTAINS
 
 ! **************************************************************************************************
 !> \brief Evaluates the density on a given atomic grid
-!> \param rho the array containing the projectd density at each grid point
+!> \param rho_set where the densities are stored
 !> \param atom_index the index of the atom in question
 !> \param atom_kind the kind of the atom in question
 !> \param xas_atom_env ...
@@ -608,9 +616,9 @@ CONTAINS
 !> \note The density is expressed as n = sum_d coeff_d*xi_d. Knowing the coordinate of each grid
 !>       grid point, one can simply evaluate xi_d(r) 
 ! **************************************************************************************************
-   SUBROUTINE put_density_on_atomic_grid(rho, atom_index, atom_kind, xas_atom_env, qs_env)
+   SUBROUTINE put_density_on_atomic_grid(rho_set, atom_index, atom_kind, xas_atom_env, qs_env)
 
-      REAL(dp), DIMENSION(:,:), ALLOCATABLE           :: rho
+      TYPE(xc_rho_set_type), POINTER                  :: rho_set
       INTEGER, INTENT(IN)                             :: atom_index, atom_kind
       TYPE(xas_atom_env_type), POINTER                :: xas_atom_env
       TYPE(qs_environment_type), POINTER              :: qs_env
@@ -618,8 +626,8 @@ CONTAINS
       CHARACTER(len=*), PARAMETER :: routineN = "put_density_on_atomic_grid", &
                                      routineP = moduleN//":"//routineN
 
-      INTEGER                                         :: na, nr, iset, ipgf, l, iso, ia, nset, &
-                                                         isgf, start, sgfi, n
+      INTEGER                                         :: na, nr, iset, ipgf, l, iso, ir, nset, &
+                                                         isgf, start, sgfi, n, handle
       TYPE(grid_atom_type), POINTER                   :: grid_atom
       TYPE(harmonics_atom_type), POINTER              :: harmonics
       TYPE(gto_basis_set_type), POINTER               :: ri_basis
@@ -628,9 +636,12 @@ CONTAINS
       REAL(dp), DIMENSION(:,:), POINTER               :: zet, ri_sphi_so
       REAL(dp), DIMENSION(:,:,:), ALLOCATABLE         :: so, sgf
       INTEGER, DIMENSION(:,:), POINTER                :: first_sgf
+      REAL(dp), DIMENSION(:,:,:), POINTER             :: rhoa, rhob
 
       NULLIFY(grid_atom, ri_basis, qs_kind_set, harmonics, lmax, npgf, zet, nsgf_set, ri_sphi_so)
-      NULLIFY(lmin, first_sgf)
+      NULLIFY(lmin, first_sgf, rhoa, rhob)
+
+      CALL timeset(routineN, handle)
 
 !  Strategy: it makes sense to evaluate the spherical orbital on the grid (because of symmetry)
 !            From there, one can directly contract into sgf using ri_sphi_so and then take the weight
@@ -650,6 +661,11 @@ CONTAINS
       na = grid_atom%ng_sphere
       n = na*nr
 
+!  Point to the rho_set densities
+      rhoa => rho_set%rhoa
+      rhob => rho_set%rhob
+      rhoa = 0.0_dp; rhob = 0.0_dp;
+
 !  Loop over the sets and pgfs of the basis set
       DO iset = 1,nset
 
@@ -663,11 +679,11 @@ CONTAINS
             !loop over the spherical gaussian orbitals 
             DO iso = nsoset(lmin(iset)-1)+1, nsoset(lmax(iset))
                l = indso(1, iso)
-               DO ia = 1,na
+               DO ir = 1,nr
                   !compute: g = r**l * Y_lm * exp(-zet* r**2)
-                  so(start+iso,ia,1:nr) = EXP(-zet(ipgf, iset)*grid_atom%rad2(1:nr)) & 
-                                            *grid_atom%rad(1:nr)**l *harmonics%slm(ia,iso)
-               END DO !ia
+                  CALL daxpy(na, EXP(-zet(ipgf, iset)*grid_atom%rad2(ir))*grid_atom%rad(ir)**l,&
+                             harmonics%slm(1:na,iso), 1, so(start+iso,1:na,ir), 1)
+               END DO
             END DO !iso
 
          END DO !ipgf
@@ -680,70 +696,94 @@ CONTAINS
          DO isgf = 1,nsgf_set(iset)
 
             ri_sphi_so => xas_atom_env%ri_sphi_so(atom_kind)%array
-            DO iso = 1,npgf(iset)*nsoset(lmax(iset))
-               CALL daxpy(n, ri_sphi_so(iso,sgfi+isgf), so(iso,:,:), 1, sgf(isgf,:,:), 1)
-            END DO !iso
+            DO ipgf = 1,npgf(iset)
+               start = (ipgf-1)*nsoset(lmax(iset))
+               DO iso = nsoset(lmin(iset)-1)+1, nsoset(lmax(iset))
+                  CALL daxpy(n, ri_sphi_so(start+iso,sgfi+isgf), so(start+iso,:,:), 1, sgf(isgf,:,:), 1)
+               END DO !iso
+            END DO !ipgf
 
             !put the sgf on the grid with the approriate coefficients and sum
             CALL daxpy(n, xas_atom_env%ri_dcoeff(atom_index)%array(sgfi+isgf), sgf(isgf,:,:), &
-                       1, rho(:,:), 1)
+                       1, rhoa(:,:,1), 1)
 
          END DO !isgf
 
          DEALLOCATE(so, sgf)
       END DO !iset
 
+!  The spin densities are the same
+      CALL dcopy(n, rhoa(:,:,1), 1, rhob(:,:,1), 1)
+
+      CALL timestop(handle)
+
    END SUBROUTINE put_density_on_atomic_grid
 
 ! **************************************************************************************************
 !> \brief Integrate the xc kernel as a function of r on the atomic grids for the RI_XAS basis
-!> \param int_mat the dbcsr_matrix in the usual block format where the integrals are stored
+!> \param int_mat_sg the dbcsr_matrix in the usual block format where the singlet integrals are stored
+!> \param int_mat_tp the dbcsr_matrix in the usual block format where the triplet integrals are stored
 !> \param xas_atom_env ...
 !> \param qs_env ...
-!> \param singlet whether we want singlet or triplet excitations
+!> \param do_singlet if the integration for the singlet kernel should be done
+!> \param do_triplet if the integration for the triplet kernel should be done
+!> \note Allowing for both singlet and triplet excitation at the same times allows savings on the
+!>       common stuff such as putting the density on the grid
 ! **************************************************************************************************
-   SUBROUTINE integrate_fxc_atoms(int_mat, xas_atom_env, qs_env, singlet)
+   SUBROUTINE integrate_fxc_atoms(int_mat_sg, int_mat_tp, xas_atom_env, qs_env, do_singlet, do_triplet)
 
-      TYPE(dbcsr_type), POINTER                       :: int_mat
+      TYPE(dbcsr_type), POINTER                       :: int_mat_sg
+      TYPE(dbcsr_type), POINTER                       :: int_mat_tp
       TYPE(xas_atom_env_type), POINTER                :: xas_atom_env  
       TYPE(qs_environment_type), POINTER              :: qs_env   
-      LOGICAL, INTENT(IN)                             :: singlet
+      LOGICAL, INTENT(IN)                             :: do_singlet
+      LOGICAL, INTENT(IN)                             :: do_triplet
 
       CHARACTER(len=*), PARAMETER :: routineN = "integrate_fxc_atoms", &
                                      routineP = moduleN//":"//routineN
 
       TYPE(dbcsr_distribution_type), POINTER          :: dbcsr_dist
-      REAL(dp), DIMENSION(:, :), ALLOCATABLE          :: fxc, int_so, int_sgf, rho
+      REAL(dp), DIMENSION(:, :), ALLOCATABLE          :: fxc, int_so, int_sgf
       INTEGER                                         :: natom, iat, ikind, na, nr, nsotot, nset, &
-                                                         maxso, iset, jset, nsgf, sgfi, jat, blk, &
-                                                         sgfj, n, nsoi, nsoj, starti, startj
+                                                         maxso, nsgf, jat, blk, n, handle
+      INTEGER, DIMENSION(2,3)                         :: bounds
       TYPE(particle_type), DIMENSION(:), POINTER      :: particle_set 
       TYPE(qs_kind_type), DIMENSION(:), POINTER       :: qs_kind_set
       TYPE(grid_atom_type), POINTER                   :: grid_atom 
       TYPE(harmonics_atom_type), POINTER              :: harmonics
       TYPE(gto_basis_set_type), POINTER               :: ri_basis 
       REAL(dp), DIMENSION(:,:), POINTER               :: ri_sphi_so
-      INTEGER, DIMENSION(:), POINTER                  :: nsgf_set, npgf, lmax
-      INTEGER, DIMENSION(:,:), POINTER                :: first_sgf
-      REAL(dp), DIMENSION(:), ALLOCATABLE             :: rs
       TYPE(dft_control_type), POINTER                 :: dft_control
       TYPE(dbcsr_iterator_type)                       :: iter
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER       :: matrix_s
+      TYPE(xc_rho_set_type), POINTER                  :: rho_set
+      TYPE(xc_derivative_set_type), POINTER           :: deriv_set
+      TYPE(xc_rho_cflags_type)                        :: needs
+      TYPE(section_vals_type), POINTER                :: input, xc_functionals
+      TYPE(xc_derivative_type), POINTER               :: deriv
+      REAL(dp), DIMENSION(:,:,:), POINTER             :: d2e_dada, d2e_dadb
 
-      NULLIFY(dbcsr_dist, particle_set, qs_kind_set, grid_atom, harmonics, dft_control)
-      NULLIFY(ri_basis, nsgf_set, first_sgf, lmax, npgf, ri_sphi_so, matrix_s)
+      NULLIFY(dbcsr_dist, particle_set, qs_kind_set, grid_atom, harmonics, dft_control, deriv_set)
+      NULLIFY(ri_basis, ri_sphi_so, matrix_s, rho_set)
+      NULLIFY(input, xc_functionals, deriv, d2e_dada, d2e_dadb)
+
+      CALL timeset(routineN, handle)
 
 !  Create the integral matrices based on the usual dbcsr_dist and the custom xas_atom_env block sizes
       CALL get_qs_env(qs_env, dbcsr_dist=dbcsr_dist, matrix_s=matrix_s)
-      CALL dbcsr_create(matrix=int_mat, name="RI atomic Fxc integrals", matrix_type='S', &         
+      CALL dbcsr_create(matrix=int_mat_sg, name="RI singlet Fxc integrals", matrix_type='S', &         
+                        dist=dbcsr_dist, row_blk_size=xas_atom_env%ri_blk_size, &                        
+                        col_blk_size=xas_atom_env%ri_blk_size)
+      CALL dbcsr_create(matrix=int_mat_tp, name="RI singlet Fxc integrals", matrix_type='S', &         
                         dist=dbcsr_dist, row_blk_size=xas_atom_env%ri_blk_size, &                        
                         col_blk_size=xas_atom_env%ri_blk_size)
 
       CALL get_qs_env(qs_env, particle_set=particle_set, qs_kind_set=qs_kind_set, natom=natom, &
-                      dft_control=dft_control)
+                      dft_control=dft_control, input=input)
 
 !  Loop over the atoms of interest. (iterate over diagonal of matrix_s cuz same distribution and
 !                                    filled diagonal blocks) 
+!  TODO: check that diagonal blocks are well distributed
       CALL dbcsr_iterator_start(iter, matrix_s(1)%matrix) 
       DO WHILE (dbcsr_iterator_blocks_left(iter))
 
@@ -760,78 +800,150 @@ CONTAINS
 !     Allocate the density, kernel and integral arrays
          na = grid_atom%ng_sphere
          nr = grid_atom%nr
+         n = na*nr
          CALL get_gto_basis_set(ri_basis, nset=nset, maxso=maxso)
          nsotot = nset*maxso 
 
-         ALLOCATE(rho(na, nr)) 
-         ALLOCATE(fxc(na, nr))
-         ALLOCATE(int_so(nsotot, nsotot))
-         int_so = 0.0_dp
+!     Get the xc functional subsection
+         xc_functionals => section_vals_get_subs_vals(input, "DFT%XAS_TDP%KERNEL%XC_FUNCTIONAL")
+
+!     Creating a xc_rho_set to store the density and dset for the kernel
+         bounds(1:2,1:3) = 1
+         bounds(2,1) = na
+         bounds(2,2) = nr
+         CALL xc_rho_set_create(rho_set=rho_set, local_bounds=bounds,&
+                                rho_cutoff=dft_control%qs_control%eps_rho_rspace)
+         CALL xc_dset_create(deriv_set, local_bounds=bounds)
+         ! ask for lsd because need both spins for kernel (eventhough densities are the same)
+         needs = xc_functionals_get_needs(xc_functionals, lsd=.TRUE., add_basic_components=.TRUE.)
+
+         ! allocate internals of the rho_set
+         CALL xc_rho_set_atom_update(rho_set, needs, nspins=2, bo=bounds)
 
 !     Put the density on the grid
-         CALL put_density_on_atomic_grid(rho, iat, ikind, xas_atom_env, qs_env)
+         CALL put_density_on_atomic_grid(rho_set, iat, ikind, xas_atom_env, qs_env)
 
-!     Compute the fxc kernel on the atomic grids. Use calc_rs_pw because it takes 3d arrays as arg
-         CALL set_util(dft_control%qs_control%eps_rho_rspace)
-         n = na*nr
-         ALLOCATE(rs(n))
+!     Compute the fxc kernel on the atomic grids
+         CALL xc_functionals_eval(xc_functionals, lsd=.TRUE., rho_set=rho_set, deriv_set=deriv_set, &
+                                  deriv_order=-2) ! only interested in the second deriv
 
-         CALL calc_rs_pw(rho, rs, n)
-         fxc = 0.0_dp
+!     Get fxc = e_rhoa_rhoa + r_rhoa_rhob for singlet or fxc = e_rhoa_rhoa - e_rhoa_rhob for triplets
 
-         IF (singlet) THEN
-            CALL pade_kernel_singlet(n, rho, rs, fxc, dft_control%qs_control%eps_rho_rspace)
-         ELSE
-            CALL pade_kernel_triplet(n, rho, rs, fxc, dft_control%qs_control%eps_rho_rspace)
+         deriv => xc_dset_get_derivative(deriv_set, "(rhoa)(rhoa)")
+         CALL xc_derivative_get(deriv, deriv_data=d2e_dada)
+
+         deriv => xc_dset_get_derivative(deriv_set, "(rhoa)(rhob)")
+         CALL xc_derivative_get(deriv, deriv_data=d2e_dadb)
+
+!     Allocating work arrays used for singlets and triplets
+         CALL get_gto_basis_set(ri_basis, nsgf=nsgf)
+         ALLOCATE(fxc(na,nr))
+         ALLOCATE(int_so(nsotot,nsotot))
+         ALLOCATE(int_sgf(nsgf,nsgf))
+
+         IF (do_singlet) THEN
+            
+            ! build the kernel and take grid weights into account
+            CALL dcopy(n, d2e_dada(:,:,1), 1, fxc(:,:), 1)
+            CALL daxpy(n, 1.0_dp, d2e_dadb(:,:,1), 1, fxc(:,:), 1)
+            fxc(:,:) = fxc(:,:)*grid_atom%weight(:,:)
+
+            ! Integrate in terms of so
+            int_so = 0.0_dp
+            CALL integrate_so_prod(int_so, fxc, ikind, xas_atom_env, qs_env)
+
+            ! Contract into sgf
+            int_sgf = 0.0_dp
+            ri_sphi_so => xas_atom_env%ri_sphi_so(ikind)%array
+            CALL contract_so2sgf(int_sgf, int_so, ri_basis, ri_sphi_so)
+
+            ! Put as a block in the singlet matrix
+            CALL dbcsr_put_block(int_mat_sg, iat, iat, int_sgf)
+
          END IF
 
-!     Take the grid weights into account
-         fxc(1:na,1:nr) = fxc(1:na,1:nr)*grid_atom%weight(1:na,1:nr)
+         IF (do_triplet) THEN
 
-!     Integrate
-         CALL integrate_so_prod(int_so, fxc, ikind, xas_atom_env, qs_env) 
+            ! build the kernel and take grid weights into account
+            CALL dcopy(n, d2e_dada(:,:,1), 1, fxc(:,:), 1)
+            CALL daxpy(n, -1.0_dp, d2e_dadb(:,:,1), 1, fxc(:,:), 1)
+            fxc(:,:) = fxc(:,:)*grid_atom%weight(:,:)
 
-         DEALLOCATE(rs, fxc, rho)
+            ! Integrate in terms of so
+            int_so = 0.0_dp
+            CALL integrate_so_prod(int_so, fxc, ikind, xas_atom_env, qs_env)
 
-!     Contract the integrals into sgf using the ri_sphi_so arrays
-         CALL get_gto_basis_set(ri_basis, nsgf=nsgf, nsgf_set=nsgf_set, first_sgf=first_sgf, &
-                                npgf=npgf, lmax=lmax)
+            ! Contract into sgf
+            int_sgf = 0.0_dp
+            ri_sphi_so => xas_atom_env%ri_sphi_so(ikind)%array
+            CALL contract_so2sgf(int_sgf, int_so, ri_basis, ri_sphi_so)
 
-         ALLOCATE(int_sgf(nsgf,nsgf))
-         int_sgf = 0.0_dp
-         ri_sphi_so => xas_atom_env%ri_sphi_so(ikind)%array
+            ! Put as a block in the triplet matrix
+            CALL dbcsr_put_block(int_mat_tp, iat, iat, int_sgf)
 
-         DO iset = 1, nset
-            starti = (iset-1)*maxso+1
-            nsoi = npgf(iset)*nsoset(lmax(iset))
-            sgfi = first_sgf(1, iset)
-
-            DO jset= 1, nset
-               startj = (jset-1)*maxso+1
-               nsoj = npgf(jset)*nsoset(lmax(jset))
-               sgfj = first_sgf(1, jset)
-
-               CALL ab_contract(int_sgf(sgfi:sgfi+nsgf_set(iset)-1, sgfj:sgfj+nsgf_set(jset)-1), & 
-                                int_so(starti:starti+nsoi-1, startj:startj+nsoj-1), &
-                                ri_sphi_so(:,sgfi:), ri_sphi_so(:,sgfj:), nsoi, nsoj, &
-                                nsgf_set(iset), nsgf_set(jset))
-            END DO !jset
-         END DO !iset
-
-!     Put the integrals for this atom as blocks in the dbcsr matrices
-         CALL dbcsr_put_block(int_mat, iat, iat, int_sgf)
+         END IF
 
 !     Clean-up 
          DEALLOCATE(int_sgf, int_so)
+         CALL xc_dset_release(deriv_set)
+         CALL xc_rho_set_release(rho_set)
 
       END DO !iat
       CALL dbcsr_iterator_stop(iter)
 
-!  Finalize the matrix
-      CALL dbcsr_finalize(int_mat)
+!  Finalize the matrices
+      CALL dbcsr_finalize(int_mat_sg)
+      CALL dbcsr_finalize(int_mat_tp)
+
+      CALL timestop(handle)
 
    END SUBROUTINE integrate_fxc_atoms
 
+! **************************************************************************************************
+!> \brief Contract spherical orbitals to spherical Gaussians (so to sgf)
+!> \param int_sgf the arary with the sgf integrals
+!> \param int_so the array with the so integrals (to contract)
+!> \param basis the corresponding gto basis set
+!> \param sphi_so the contraction coefficients for the s:
+! **************************************************************************************************
+   SUBROUTINE contract_so2sgf(int_sgf, int_so, basis, sphi_so)
+      
+      REAL(dp), DIMENSION(:,:)                        :: int_sgf
+      REAL(dp), DIMENSION(:,:)                        :: int_so
+      TYPE(gto_basis_set_type), POINTER               :: basis
+      REAL(dp), DIMENSION(:,:)                        :: sphi_so
+
+      CHARACTER(len=*), PARAMETER :: routineN = "contract_so2sgf", routineP = moduleN//":"//routineN
+
+      INTEGER                                         :: iset, jset, starti, startj, nsoi, nsoj, &
+                                                         sgfi, sgfj, nset, maxso
+      INTEGER, DIMENSION(:), POINTER                  :: nsgf_set, npgf, lmax
+      INTEGER, DIMENSION(:,:), POINTER                :: first_sgf
+
+      NULLIFY(nsgf_set, npgf, lmax, first_sgf)
+
+      CALL get_gto_basis_set(basis, nset=nset, maxso=maxso, nsgf_set=nsgf_set, first_sgf=first_sgf, &
+                             npgf=npgf, lmax=lmax)
+
+      DO iset = 1, nset
+         starti = (iset-1)*maxso+1
+         nsoi = npgf(iset)*nsoset(lmax(iset))
+         sgfi = first_sgf(1, iset)
+
+         DO jset= 1, nset
+            startj = (jset-1)*maxso+1
+            nsoj = npgf(jset)*nsoset(lmax(jset))
+            sgfj = first_sgf(1, jset)
+
+            CALL ab_contract(int_sgf(sgfi:sgfi+nsgf_set(iset)-1, sgfj:sgfj+nsgf_set(jset)-1), &
+                             int_so(starti:starti+nsoi-1, startj:startj+nsoj-1), &
+                             sphi_so(:,sgfi:), sphi_so(:,sgfj:), nsoi, nsoj, &
+                             nsgf_set(iset), nsgf_set(jset))
+         END DO !jset
+      END DO !iset
+
+
+   END SUBROUTINE contract_so2sgf
 
 ! **************************************************************************************************
 !> \brief Integrate the product of spherical gaussian orbitals with the xc kernel on the atomic grid
@@ -877,6 +989,7 @@ CONTAINS
 
       NULLIFY(grid_atom, harmonics, ri_basis, qs_kind_set, lmax, lmin, npgf, zet, my_CG)
 
+!  TODO: check timings and see if need to introduce max l expansion
 !  Initialization
       CALL get_qs_env(qs_env, qs_kind_set=qs_kind_set)
       CALL get_qs_kind(qs_kind_set(ikind), basis_set=ri_basis, basis_type="RI_XAS")
@@ -929,7 +1042,7 @@ CONTAINS
                   !get the gaussian product
                   gg = 0.0_dp
                   IF (lmin12 == 0) THEN
-                     gg(1:nr, lmin12) = g1(1:nr)*g2(1:nr)  
+                     gg(1:nr, lmin12) = g1(1:nr)*g2(1:nr)
                   ELSE  
                      gg(1:nr, lmin12) = grid_atom%rad2l(1:nr, lmin12)*g1(1:nr)*g2(1:nr)
                   END IF
@@ -976,170 +1089,6 @@ CONTAINS
 
    END SUBROUTINE integrate_so_prod
   
-! **************************************************************************************************
-!> \brief The actual pade kernel evaluation in the singlet case. Inspired from xc_pade.F
-!> \param n the number of grid points
-!> \param rho the array of the values of the density on the grid
-!> \param rs the array of the values of rs on the grid
-!> \param fxc the array of the values of fxc on the grid
-!> \param eps_rho the density cutoff
-!> \note TODO: OMP parallelize as in xc_pade.F
-!>             In the singlet case, take d2exc_d2na + d2exc_dnadnb, can be shown to be the formula
-!>             below, only dependent on n (spin-unpolarized)
-! **************************************************************************************************
-   SUBROUTINE pade_kernel_singlet(n, rho, rs, fxc, eps_rho)
-
-      REAL(dp), DIMENSION(*), INTENT(IN)              :: rho, rs
-      REAL(dp), DIMENSION(*), INTENT(INOUT)           :: fxc
-      REAL(dp), INTENT(IN)                            :: eps_rho
-      INTEGER                                         :: n
-
-      CHARACTER(len=*), PARAMETER :: routineN = "pade_kernel_singlet", routineP=moduleN//":"//routineN 
-
-      REAL(dp), PARAMETER  :: f13 = 1.0_dp/3.0_dp, &
-                              f49 = 4.0_dp/9.0_dp, &
-                              two = 2.0_dp, &
-                              three = 3.0_dp, &
-                              four = 4.0_dp, &
-                              six = 6.0_dp, &
-                              twelve = 12.0_dp
-
-      REAL(dp), PARAMETER  :: a0 = 0.4581652932831429E+0_dp, &                                      
-                              a1 = 0.2217058676663745E+1_dp, &
-                              a2 = 0.7405551735357053E+0_dp, & 
-                              a3 = 0.1968227878617998E-1_dp, &
-                              b1 = 1.0000000000000000E+0_dp, &
-                              b2 = 0.4504130959426697E+1_dp, &
-                              b3 = 0.1110667363742916E+1_dp, & 
-                              b4 = 0.2359291751427506E-1_dp 
-
-      REAL(dp)                                        :: drs, d2rs, p, dp, d2p, q, dq, d2q, df, d2f
-      INTEGER                                         :: ip
-
-!     the functional has the form:               e = -f(rs) = -p(rs)/q(rs)
-!     the first derivative wrt to rho (n):       de_dn = -df_drs*drs_dn
-!     the seconde derivative wrt rho :           d2e_d2n = -d2f_d2rs*drs_dn**2 - df_drs*d2rs_d2n
-
-!     rs has the form:                           rs = (3/4*pi)**1/3 * n**(-1/3)
-!     the first derivative wrt n:                drs = -1/3 * rs * n**(-1)
-!     the second derivative wrt n:               d2rs = 4/9 * rs * n**(-2)
-
-!     We need p,q and the derivatives:           p = a0 + a1*rs + a2*rs**2 + a3*rs**3  
-!                                                dp = a1 + 2*a2*rs + 3*a3*rs**2                     
-!                                                d2p = 2*a2 + 6*a3*rs
-
-!                                                q = b1*rs + b2*rs**2 + b3*rs**3 + b4*rs**4
-!                                                dq = b1 + 2*b2*rs + 3*b3*rs**2 + 4*b4*rs**3
-!                                                d2q = 2*b2 + 6*b3*rs + 12*b4*rs**2
-
-!     Finally the derivatives of f wrt rs:       df = (dp*q - p*dq)/q**2
-!                                                d2f = -2*dp*dq/q**2 + d2p/q 
-!                                                      + p*( 2*dq**2/q**3 - d2q/q**2)
-
-      DO ip = 1,n
-         IF (rho(ip) > eps_rho) THEN
-
-            p = a0+(a1+(a2+a3*rs(ip))*rs(ip))*rs(ip)
-            q = (b1+(b2+(b3+b4*rs(ip))*rs(ip))*rs(ip))*rs(ip)  
-
-            dp = a1 + two*a2*rs(ip) + three*a3*rs(ip)**2
-            dq = b1 + two*b2*rs(ip) + three*b3*rs(ip)**2 + four*b4*rs(ip)**3
-
-            d2p = two*a2 + six*a3*rs(ip)
-            d2q = two*b2 + six*b3*rs(ip) + twelve*b4*rs(ip)**2
-
-            df = (dp*q - p*dq)/q**2
-            d2f = -two*dp*dq/q**2 + d2p/q + p*( two*dq**2/q**3 - d2q/q**2)
-
-            drs = -f13*rs(ip)/rho(ip)
-            d2rs = f49*rs(ip)/rho(ip)**2
-
-            !the factor 2 comes from the sum of the 2 derivatives
-            fxc(ip) = -two*(d2f*drs**2 + df*d2rs)
-
-         END IF
-      END DO
-
-   END SUBROUTINE pade_kernel_singlet
-
-! **************************************************************************************************
-!> \brief The actual pade kernel evaluation in the triplet case. Inspired from xc_pade.F
-!> \param n the number of grid points
-!> \param rho the array of the values of the density on the grid                                           
-!> \param rs the array of the values of rs on the grid                                                     
-!> \param fxc the array of the values of fxc on the grid                                                   
-!> \param eps_rho the density cutoff                                                                       
-!> \note TODO: OMP parallelize as in xc_pade.F                                                       
-!>             In the triplet case, take d2exc_d2na - d2exc_dnadnb, can be shown to be the formula   
-!>             below, only dependent on n (spin-unpolarized) 
-! **************************************************************************************************
-   SUBROUTINE pade_kernel_triplet(n, rho, rs, fxc, eps_rho)
-      
-      REAL(dp), DIMENSION(*), INTENT(IN)              :: rho, rs  
-      REAL(dp), DIMENSION(*), INTENT(INOUT)           :: fxc  
-      REAL(dp), INTENT(IN)                            :: eps_rho
-      INTEGER                                         :: n
-
-      CHARACTER(len=*), PARAMETER :: routineN = "pade_kernel_triplet", routineP=moduleN//":"//routineN
-
-      REAL(dp), PARAMETER  :: a0 = 0.4581652932831429E+0_dp, &
-                              a1 = 0.2217058676663745E+1_dp, & 
-                              a2 = 0.7405551735357053E+0_dp, &
-                              a3 = 0.1968227878617998E-1_dp, &
-                              b1 = 1.0000000000000000E+0_dp, &
-                              b2 = 0.4504130959426697E+1_dp, &
-                              b3 = 0.1110667363742916E+1_dp, &
-                              b4 = 0.2359291751427506E-1_dp
-
-      REAL(dp), PARAMETER  :: da0 = 0.119086804055547E+0_dp, &
-                              da1 = 0.6157402568883345E+0_dp, &
-                              da2 = 0.1574201515892867E+0_dp, & 
-                              da3 = 0.3532336663397157E-2_dp, &
-                              db1 = 0.0000000000000000E+0_dp, &
-                              db2 = 0.2673612973836267E+0_dp, &
-                              db3 = 0.2052004607777787E+0_dp, &
-                              db4 = 0.4200005045691381E-2_dp 
-
-      REAL(dp), PARAMETER  :: d2f_d2xi = 4.0_dp/9.0_dp * 1.0_dp/(2.0_dp**(1.0_dp/3.0_dp)-1.0_dp), &
-                              two = 2.0_dp
-
-      REAL(dp)                                        :: p, dp, q, dq, de_df
-      INTEGER                                         :: ip
-
-!     We can express the functional as a function of fx =>        e = e(f) = -p(f)/q(f)
-!     In spin polarized cases, one can show that we only need:    de_df
-!                                                         and:    d2f_d2xi
-
-!     The first derivitive of the functional has the form:        de_df = - (dp*q - p*dq)/q^2
-
-!     We need p,q and their derivative wrt to f (at xi=0):        p = a0 + a1*rs + a2*rs^2 +a3*rs^3
-!                                                                 dp = da0 +da1*rs +da2*rs^2 +da3*rs^3 
-
-!                                                                 q = b1*rs + b2*rs^2 + b3*rs^3 +b4*rs^4
-!                                                                 dq = db1*rs +db2*rs^2 +db3*rs^3 +db4*rs^4
-
-!     The double derivative of f wrt xi (at xi=0):                d2f_d2xi = 4/9 * 1/(2^1/3 - 1)
-
-!     In the end, we compute:                                     2/n^2 * de_df * d2f_d2xi
-
-      DO ip = 1,n
-         IF (rho(ip) > eps_rho) THEN 
-
-            p = a0+(a1+(a2+a3*rs(ip))*rs(ip))*rs(ip)
-            q = (b1+(b2+(b3+b4*rs(ip))*rs(ip))*rs(ip))*rs(ip)   
-
-            dp = da0+(da1+(da2+da3*rs(ip))*rs(ip))*rs(ip)
-            dq = (db1+(db2+(db3+db4*rs(ip))*rs(ip))*rs(ip))*rs(ip)
-
-            de_df = -(dp*q - p*dq)/q**2
-
-            fxc(ip) = two/(rho(ip))**2 * de_df *d2f_d2xi
-
-         END IF
-      END DO
-
-   END SUBROUTINE pade_kernel_triplet
-
 ! **************************************************************************************************
 !> \brief This routine computes the integral of a potential V wrt the derivitive of the spherical 
 !>        orbitals, that is <df/dx|V|dg/dy> on the atomic grid.
@@ -1321,14 +1270,11 @@ CONTAINS
                                      routineP = moduleN//":"//routineN
 
       INTEGER                                         :: ikind, nkind, nset, maxso, na, nr, ir,&
-                                                         iset, jset, nsoi, nsoj, sgfi, sgfj, nsgf, &
-                                                         starti, startj, iat, jat, blk, i
+                                                         nsgf, iat, jat, blk, i
       TYPE(cp_3d_r_p_type), DIMENSION(:), POINTER     :: int_soc
       REAL(dp), DIMENSION(:,:,:), ALLOCATABLE         :: intso
       TYPE(gto_basis_set_type), POINTER               :: basis
       TYPE(qs_kind_type), DIMENSION(:), POINTER       :: qs_kind_set
-      INTEGER, DIMENSION(:), POINTER                  :: npgf, lmax, nsgf_set
-      INTEGER, DIMENSION(:,:), POINTER                :: first_sgf
       REAL(dp), DIMENSION(:,:), POINTER               :: sphi_so
       REAL(dp), DIMENSION(:,:,:), POINTER             :: intsgf
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER       :: matrix_s
@@ -1339,7 +1285,7 @@ CONTAINS
       REAL(dp), DIMENSION(:), ALLOCATABLE             :: Vr
       TYPE(grid_atom_type), POINTER                   :: grid
    
-      NULLIFY(int_soc, basis, qs_kind_set, npgf, lmax, nsgf_set, first_sgf, sphi_so, matrix_s)
+      NULLIFY(int_soc, basis, qs_kind_set, sphi_so, matrix_s)
       NULLIFY(particle_set)
 
 !  Initialization
@@ -1364,8 +1310,10 @@ CONTAINS
 
          !Compute V/(4c^2-2V) and weight it
          ALLOCATE(V(na,nr))
+         V = 0.0_dp
          DO ir = 1,nr
-            V(1:na,ir) = Vr(ir)/(4.0_dp*cspeed**2-2.0_dp*Vr(ir)) *grid%weight(1:na,ir)
+            CALL daxpy(na, Vr(ir)/(4.0_dp*cspeed**2-2.0_dp*Vr(ir)), grid%weight(1:na,ir), 1, &
+                       V(1:na,ir), 1)
          END DO
          DEALLOCATE(Vr)
 
@@ -1374,31 +1322,15 @@ CONTAINS
          DEALLOCATE(V)
 
          ! contract in terms of sgf
-         CALL get_gto_basis_set(basis, nsgf=nsgf, nsgf_set=nsgf_set, first_sgf=first_sgf, npgf=npgf, &
-                            lmax=lmax)
+         CALL get_gto_basis_set(basis, nsgf=nsgf)
          ALLOCATE(int_soc(ikind)%array(nsgf,nsgf,3)) 
          intsgf => int_soc(ikind)%array
          sphi_so => xas_atom_env%orb_sphi_so(ikind)%array
          intsgf = 0.0_dp
 
-         DO iset = 1,nset
-            starti = (iset-1)*maxso+1
-            nsoi = npgf(iset)*nsoset(lmax(iset))
-            sgfi = first_sgf(1, iset)
-
-            DO jset= 1, nset
-               startj = (jset-1)*maxso+1
-               nsoj = npgf(jset)*nsoset(lmax(jset))
-               sgfj = first_sgf(1, jset)
-
-               DO i = 1,3
-                  CALL ab_contract(intsgf(sgfi:sgfi+nsgf_set(iset)-1, sgfj:sgfj+nsgf_set(jset)-1,i), &
-                                   intso(starti:starti+nsoi-1, startj:startj+nsoj-1,i), &
-                                   sphi_so(:,sgfi:), sphi_so(:,sgfj:), nsoi, nsoj, &
-                                   nsgf_set(iset), nsgf_set(jset))
-               END DO
-            END DO !jset
-         END DO !iset
+         DO i = 1,3
+            CALL contract_so2sgf(intsgf(:,:,i), intso(:,:,i), basis, sphi_so)
+         END DO
 
          DEALLOCATE(intso)
       END DO !ikind

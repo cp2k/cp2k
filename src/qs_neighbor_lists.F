@@ -1211,10 +1211,10 @@ CONTAINS
 
             DO jatom_local = 1, nlistb(jkind)
                jatom = listb(jkind)%list(jatom_local)
-               IF (my_sort_atomb) THEN
-                  IF (.NOT. ANY(atomb_to_keep == jatom)) CYCLE
-               END IF
                atom_b = atom(jkind)%list(jatom)
+               IF (my_sort_atomb) THEN
+                  IF (.NOT. ANY(atomb_to_keep == atom_b)) CYCLE
+               END IF
                IF (my_molecular) THEN
                   mol_b = atom(jkind)%list_b_mol(jatom_local)
                   IF (PRESENT(subset_of_mol)) THEN

@@ -41,8 +41,7 @@ MODULE xas_tdp_methods
                                               dbcsr_finalize, dbcsr_copy, dbcsr_set, dbcsr_add
    USE input_constants,                 ONLY: xas_tdp_by_index, xas_tdp_by_kind, xas_not_excited,&
                                               do_loc_none, xas_1s_type, xas_2s_type, xas_2p_type,&
-                                              op_loc_berry, xas_dip_len, xas_dip_vel, xas_tdp_hfx,&
-                                              xas_tdp_pade
+                                              op_loc_berry, xas_dip_len, xas_dip_vel
    USE input_section_types,             ONLY: section_vals_type,&
                                               section_vals_get_subs_vals,&
                                               section_vals_val_set
@@ -223,22 +222,18 @@ CONTAINS
       CALL write_mos_to_ex_atoms_association(xas_tdp_env, qs_env, output_unit)
 
 !  If not simply exact exchange, setup a xas_atom_env and compute the xc integrals on the atomic grids
-!  Also needed if SOC is included
-!  Done before looping on atoms as it's all done at once
-      IF (xas_tdp_control%fxc_func == xas_tdp_pade .OR. xas_tdp_control%do_soc) THEN
+!  Also needed if SOC is included. Done before looping on atoms as it's all done at once
+      IF (xas_tdp_control%do_xc .OR. xas_tdp_control%do_soc) THEN
 
          CALL xas_atom_env_create(xas_atom_env)
          CALL init_xas_atom_env(xas_atom_env, xas_tdp_env%ex_atom_indices, &
                                xas_tdp_env%ex_kind_indices, xas_tdp_control%grid_info, qs_env, &
-                               do_fxc=(xas_tdp_control%fxc_func == xas_tdp_pade)) 
+                               do_xc=xas_tdp_control%do_xc) 
 
-         IF (xas_tdp_control%do_singlet .AND. xas_tdp_control%fxc_func == xas_tdp_pade) THEN
-            ALLOCATE(xas_tdp_env%ri_fxc_sg)
-            CALL integrate_fxc_atoms(xas_tdp_env%ri_fxc_sg, xas_atom_env, qs_env, singlet=.TRUE.)
-         END IF
-         IF (xas_tdp_control%do_triplet .AND. xas_tdp_control%fxc_func == xas_tdp_pade) THEN
-            ALLOCATE(xas_tdp_env%ri_fxc_tp)
-            CALL integrate_fxc_atoms(xas_tdp_env%ri_fxc_tp, xas_atom_env, qs_env, singlet=.FALSE.)
+         IF (xas_tdp_control%do_xc) THEN
+            ALLOCATE(xas_tdp_env%ri_fxc_sg, xas_tdp_env%ri_fxc_tp)
+            CALL integrate_fxc_atoms(xas_tdp_env%ri_fxc_sg, xas_tdp_env%ri_fxc_tp, xas_atom_env, &
+                                     qs_env, xas_tdp_control%do_singlet, xas_tdp_control%do_triplet)
          END IF
 
          IF (xas_tdp_control%do_soc) THEN
