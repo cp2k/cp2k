@@ -76,7 +76,7 @@ case "$with_elpa" in
             has_AVX512=`grep '\bavx512\b' /proc/cpuinfo 1>/dev/null && echo 'yes' || echo 'no'`
             # non-threaded version
             mkdir -p obj_no_thread; cd obj_no_thread
-            ../configure  --prefix=${pkg_install_dir} \
+            ../configure  --prefix="${pkg_install_dir}" \
                           --libdir="${pkg_install_dir}/lib" \
                           --enable-openmp=no \
                           --enable-shared=$shared_flag \
@@ -100,7 +100,8 @@ case "$with_elpa" in
             # threaded version
             if [ "$ENABLE_OMP" = "__TRUE__" ] ; then
                 mkdir -p obj_thread; cd obj_thread
-                ../configure  --prefix=${pkg_install_dir} \
+                ../configure  --prefix="${pkg_install_dir}" \
+                              --libdir="${pkg_install_dir}/lib" \
                               --enable-openmp=yes \
                               --enable-shared=$shared_flag \
                               --enable-static=yes \

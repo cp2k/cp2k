@@ -32,7 +32,11 @@ case "$with_hdf5" in
             [ -d hdf5-${hdf5_ver} ] && rm -rf hdf5-${hdf5_ver}
             tar xf hdf5-${hdf5_ver}.tar.bz2
             cd hdf5-${hdf5_ver}
-            ./configure --prefix="${pkg_install_dir}" --enable-shared > configure.log 2>&1
+            ./configure \
+                --prefix="${pkg_install_dir}" \
+                --libdir="${pkg_install_dir}/lib" \
+                --enable-shared \
+                > configure.log 2>&1
             make -j $NPROCS > make.log 2>&1
             make -j $NPROCS install > install.log 2>&1
             cd ..
