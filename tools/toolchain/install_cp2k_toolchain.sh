@@ -299,11 +299,11 @@ with_openblas=__INSTALL__
 with_reflapack=__INSTALL__
 
 # sirius is not activated by default.
-with_sirius="__DONTUSE__"
-with_gsl="__DONTUSE__"
-with_spglib="__DONTUSE__"
-with_hdf5="__DONTUSE__"
-with_json_fortran="__DONTUSE__"
+with_sirius="__INSTALL__"
+with_gsl="__INSTALL__"
+with_spglib="__INSTALL__"
+with_hdf5="__INSTALL__"
+with_json_fortran="__INSTALL__"
 
 # for MPI, we try to detect system MPI variant
 with_openmpi=__SYSTEM__
@@ -631,6 +631,10 @@ if [ $MPI_MODE = no ] ; then
         echo "Not using MPI, so PEXSI is disabled."
         with_pexsi="__DONTUSE__"
     fi
+    if [ "$with_sirius" != "__DONTUSE__" ] ; then
+        echo "Not using MPI, so sirius is disabled"
+        with_sirius="__DONTUSE__"
+    fi
 else
     # if gcc is installed, then mpi needs to be installed too
     if [ "$with_gcc" = "__INSTALL__" ] ; then
@@ -718,7 +722,7 @@ if [ "$with_sirius" = "__INSTALL__" ] ; then
         exit 1
     fi
     if [ "$with_json_fortran" = "__DONTUSE__"  ] ; then
-        report_error "For SIRIUS intergration tro cp2k to work you need a working json-fortran library use --with-json option to specify if you wish to install it or specify its location."
+        report_error "For SIRIUS to work you need a working json-fortran library use --with-json option to specify if you wish to install it or specify its location."
     exit 1
     fi
 fi
