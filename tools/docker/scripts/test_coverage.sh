@@ -2,6 +2,11 @@
 
 # author: Ole Schuett
 
+if (( $# != 1 )) ; then
+    echo "Usage: test_coverage.sh <VERSION>"
+    exit 1
+fi
+
 ARCH=local_coverage
 VERSION=$1
 

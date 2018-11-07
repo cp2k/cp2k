@@ -2,6 +2,11 @@
 
 # author: Ole Schuett
 
+if (( $# != 2 )) ; then
+    echo "Usage: install_regtest.sh <ARCH> <VERSION>"
+    exit 1
+fi
+
 ARCH=$1
 VERSION=$2
 

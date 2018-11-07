@@ -6,6 +6,22 @@ REPORT=/workspace/report.txt
 echo -n "StartDate: " > $REPORT
 date --utc --rfc-3339=seconds >> $REPORT
 
+# Rsync with common args.
+function rsync_changes {
+    rsync --update                 \
+          --delete                 \
+          --executability          \
+          --ignore-times           \
+          --verbose                \
+          --recursive              \
+          --checksum               \
+          --exclude="*~"           \
+          --exclude=".*/"          \
+          --exclude="*.py[cod]"    \
+          --exclude="__pycache__"  \
+          "$@"
+}
+
 # Get cp2k sources.
 if [ -n "${GIT_REF}" ]; then
     echo -e "\n========== Fetching Git Commit =========="
@@ -17,24 +33,15 @@ if [ -n "${GIT_REF}" ]; then
 
 elif [ -d  /mnt/cp2k ]; then
     echo -e "\n========== Copying Changed Files =========="
-    #TODO: Exclusion rules could also come from .gitigore
-    rsync --exclude="*~"                      \
-          --exclude=".*/"                     \
-          --exclude="*.pyc"                   \
-          --exclude=/obj/                     \
-          --exclude=/lib/                     \
-          --exclude=/exe/                     \
-          --exclude=/regtesting/              \
-          --exclude=/tools/toolchain/         \
-          --executability                     \
-          --ignore-times                      \
-          --update                            \
-          --verbose                           \
-          --recursive                         \
-          --checksum                          \
-          /mnt/cp2k/  /workspace/cp2k/
+    rsync_changes --exclude=/obj/                      \
+                  --exclude=/lib/                      \
+                  --exclude=/exe/                      \
+                  --exclude=/regtesting/               \
+                  --exclude=/tools/toolchain/build/    \
+                  --exclude=/tools/toolchain/install/  \
+                  /mnt/cp2k/  /workspace/cp2k/
 else
-    echo "Neighter GIT_REF nor /mnt/cp2k found - aborting."
+    echo "Neither GIT_REF nor /mnt/cp2k found - aborting."
     exit 255
 fi
 
@@ -43,18 +50,9 @@ fi
 if [ -d /opt/cp2k-toolchain ]; then
     echo -e "\n========== Updating Toolchain =========="
     cd /opt/cp2k-toolchain
-    rsync --exclude="*~"          \
-          --exclude=".*/"         \
-          --exclude="*.pyc"       \
-          --exclude="/build"      \
-          --exclude="/install"    \
-          --executability         \
-          --ignore-times          \
-          --update                \
-          --verbose               \
-          --recursive             \
-          --checksum              \
-          /workspace/cp2k/tools/toolchain/  /opt/cp2k-toolchain/
+    rsync_changes --exclude=/build/    \
+                  --exclude=/install/  \
+                  /workspace/cp2k/tools/toolchain/  /opt/cp2k-toolchain/
 
     # shellcheck disable=SC1091
     source /opt/cp2k-toolchain/install/setup
