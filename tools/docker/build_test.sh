@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/bin/bash -e
 
 # author: Ole Schuett
 
@@ -13,12 +13,7 @@ TESTNAME=$1
 shift
 echo "Building ${TESTNAME} ..."
 
-BUILDARGS=""
-if [ -f ./test_${TESTNAME}/buildargs.sh ]; then
-  source ./test_${TESTNAME}/buildargs.sh
-fi
-
 set -x
-docker build -t img_cp2k_test_${TESTNAME} ${BUILDARGS} "$@" ./test_${TESTNAME}/
+docker build -t "img_cp2k_test_${TESTNAME}" "$@" -f "Dockerfile.test_${TESTNAME}" .
 
 #EOF
