@@ -32,6 +32,9 @@ EXTSDIR      := exts
 EXTSHOME     := $(CP2KHOME)/$(EXTSDIR)
 EXTSPACKAGES := $(shell cd $(EXTSHOME) ; find * -maxdepth 0 -type d )
 
+# Common Targets ============================================================
+default_target: all
+
 # Discover programs =========================================================
 ifeq ($(ALL_EXE_FILES),)
 export ALL_EXE_FILES := $(sort $(shell $(TOOLSRC)/build_utils/discover_programs.py $(SRCDIR)))
@@ -97,9 +100,6 @@ ALL_SRC_FILES += $(shell find $(SRCDIR) ! -path "*/preprettify/*" -name "*.hcc")
 ALL_OBJECTS        = $(addsuffix .o, $(basename $(notdir $(OBJ_SRC_FILES))))
 ALL_EXE_OBJECTS    = $(addsuffix .o, $(EXE_NAMES))
 ALL_NONEXE_OBJECTS = $(filter-out $(ALL_EXE_OBJECTS), $(ALL_OBJECTS))
-
-# Common Targets ============================================================
-default_target: all
 
 # stage 1: Call make recursively with each element in $(VERSION) as a target,
 #          The actual target is stored in ORIG_TARGET.
