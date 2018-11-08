@@ -2,7 +2,7 @@
 
 # author: Ole Schuett
 
-run_selftests() {
+function run_selftests {
     PYTHON=$1
     SCRIPTS=$2
     BASEDIR=$(pwd)
