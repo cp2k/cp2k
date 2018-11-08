@@ -18,6 +18,14 @@ function rsync_changes {
           "$@"
 }
 
+# Upload to cloud storage.
+function upload_file {
+    URL=$1
+    FILE=$2
+    CONTENT_TYPE=$3
+    wget -O- --method=PUT --header="content-type: ${CONTENT_TYPE}" --header="cache-control: no-cache" --body-file="${FILE}" "${URL}"
+}
+
 # Get cp2k sources.
 if [ -n "${GIT_REF}" ]; then
     echo -e "\n========== Fetching Git Commit =========="
@@ -67,7 +75,7 @@ while jobs %1 &> /dev/null ; do
     sleep 1
     count=$(( (count + 1) % 30 ))
     if (( count == 1 )) && [ -n "${REPORT_UPLOAD_URL}" ]; then
-        wget -O- --method=PUT --header="content-type: text/plain;charset=utf-8" --header="cache-control: no-cache" --body-file="${REPORT}" "${REPORT_UPLOAD_URL}"
+        upload_file "${REPORT_UPLOAD_URL}" "${REPORT}" "text/plain;charset=utf-8"
     fi
 done
 
@@ -78,7 +86,7 @@ date --utc --rfc-3339=seconds  >> $REPORT
 # Upload final report.
 if [ -n "${REPORT_UPLOAD_URL}" ]; then
     echo "Uploading report..."
-    wget -O- --method=PUT --header="content-type: text/plain;charset=utf-8" --header="cache-control: no-cache" --body-file="${REPORT}" "${REPORT_UPLOAD_URL}"
+    upload_file "${REPORT_UPLOAD_URL}" "${REPORT}" "text/plain;charset=utf-8"
 fi
 
 # Upload artifacts.
@@ -86,7 +94,7 @@ if [ -n "${ARTIFACTS_UPLOAD_URL}" ] &&  [ -d /workspace/artifacts ]; then
     echo "Uploading artifacts..."
     ARTIFACTS_TGZ="/tmp/test_${TESTNAME}_artifacts.tgz"
     tar -czf "${ARTIFACTS_TGZ}" -C /workspace/artifacts .
-    wget -O- --method=PUT --header="content-type: application/gzip" --header="cache-control: no-cache" --body-file="${ARTIFACTS_TGZ}" "${ARTIFACTS_UPLOAD_URL}"
+    upload_file "${ARTIFACTS_UPLOAD_URL}" "${ARTIFACTS_TGZ}" "application/gzip"
 fi
 
 echo "Done :-)"
