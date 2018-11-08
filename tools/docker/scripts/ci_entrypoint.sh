@@ -63,11 +63,9 @@ fi
 echo -e "\n========== Running Test =========="
 cd /workspace
 "$@" 2>&1 | tee -a $REPORT &  # Launch in the background.
-TEST_PID=$!
-trap '[ -z $TEST_PID] || kill $TEST_PID' SIGHUP SIGINT SIGQUIT SIGTERM
 
 # Upload preliminary report every 30s while test is running.
-while [ -e /proc/${TEST_PID} ]; do
+while jobs %1 &> /dev/null ; do
     sleep 1
     count=$(( (count + 1) % 30 ))
     if (( count == 1 )) && [ -n "${REPORT_UPLOAD_URL}" ]; then
