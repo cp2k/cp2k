@@ -47,7 +47,7 @@ elif [ -d  /mnt/cp2k ]; then
                   --exclude=/regtesting/               \
                   --exclude=/tools/toolchain/build/    \
                   --exclude=/tools/toolchain/install/  \
-                  /mnt/cp2k/ /workspace/cp2k/
+                  /mnt/cp2k/  /workspace/cp2k/
 else
     echo "Neither GIT_REF nor /mnt/cp2k found - aborting."
     exit 255
@@ -58,7 +58,9 @@ fi
 if [ -d /opt/cp2k-toolchain ]; then
     echo -e "\n========== Updating Toolchain =========="
     cd /opt/cp2k-toolchain
-    rsync_changes /workspace/cp2k/tools/toolchain/ /opt/cp2k-toolchain/
+    rsync_changes --exclude=/build/    \
+                  --exclude=/install/  \
+                  /workspace/cp2k/tools/toolchain/  /opt/cp2k-toolchain/
 
     # shellcheck disable=SC1091
     source /opt/cp2k-toolchain/install/setup
