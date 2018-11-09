@@ -3,8 +3,8 @@
 # author: Ole Schuett
 
 REPORT=/workspace/report.txt
-echo -n "StartDate: " > $REPORT
-date --utc --rfc-3339=seconds >> $REPORT
+echo -n "StartDate: " | tee -a $REPORT
+date --utc --rfc-3339=seconds | tee -a $REPORT
 
 # Rsync with common args.
 function rsync_changes {
@@ -15,7 +15,7 @@ function rsync_changes {
           --verbose                \
           --recursive              \
           --checksum               \
-          "$@"
+          "$@" |& tee -a $REPORT
 }
 
 # Upload to cloud storage.
@@ -23,20 +23,20 @@ function upload_file {
     URL=$1
     FILE=$2
     CONTENT_TYPE=$3
-    wget -O- --method=PUT --header="content-type: ${CONTENT_TYPE}" --header="cache-control: no-cache" --body-file="${FILE}" "${URL}"
+    wget --quiet --method=PUT --header="content-type: ${CONTENT_TYPE}" --header="cache-control: no-cache" --body-file="${FILE}" "${URL}"
 }
 
 # Get cp2k sources.
 if [ -n "${GIT_REF}" ]; then
-    echo -e "\n========== Fetching Git Commit =========="
+    echo -e "\n========== Fetching Git Commit ==========" | tee -a $REPORT
     cd /workspace/cp2k
-    git fetch origin "${GIT_BRANCH}"
-    git checkout "${GIT_REF}"
-    git submodule update --init --recursive
-    git --no-pager log -1 --pretty='%nCommitSHA: %H%nCommitTime: %ci%nCommitAuthor: %an%nCommitSubject: %s%n' | tee -a $REPORT
+    git fetch origin "${GIT_BRANCH}"         |& tee -a $REPORT
+    git checkout "${GIT_REF}"                |& tee -a $REPORT
+    git submodule update --init --recursive  |& tee -a $REPORT
+    git --no-pager log -1 --pretty='%nCommitSHA: %H%nCommitTime: %ci%nCommitAuthor: %an%nCommitSubject: %s%n' |& tee -a $REPORT
 
 elif [ -d  /mnt/cp2k ]; then
-    echo -e "\n========== Copying Changed Files =========="
+    echo -e "\n========== Copying Changed Files ==========" | tee -a $REPORT
     rsync_changes --exclude="*~"                         \
                   --exclude=".*/"                        \
                   --exclude="*.py[cod]"                  \
@@ -57,7 +57,7 @@ fi
 
 # Update toolchain.
 if [ -d /opt/cp2k-toolchain ]; then
-    echo -e "\n========== Updating Toolchain =========="
+    echo -e "\n========== Updating Toolchain ==========" | tee -a $REPORT
     cd /opt/cp2k-toolchain
     rsync_changes --exclude="/build/"    \
                   --exclude="/install/"  \
@@ -66,12 +66,12 @@ if [ -d /opt/cp2k-toolchain ]; then
     # shellcheck disable=SC1091
     source /opt/cp2k-toolchain/install/setup
     # shellcheck disable=SC2086
-    ./install_cp2k_toolchain.sh ${CP2K_TOOLCHAIN_OPTIONS}
+    ./install_cp2k_toolchain.sh ${CP2K_TOOLCHAIN_OPTIONS} |& tee -a $REPORT
 fi
 
-echo -e "\n========== Running Test =========="
+echo -e "\n========== Running Test ==========" | tee -a $REPORT
 cd /workspace
-"$@" 2>&1 | tee -a $REPORT &  # Launch in the background.
+"$@" |& tee -a $REPORT &  # Launch in the background.
 
 # Upload preliminary report every 30s while test is running.
 while jobs %1 &> /dev/null ; do
@@ -83,8 +83,8 @@ while jobs %1 &> /dev/null ; do
 done
 
 # Test has finished.
-echo -n "EndDate: "  >> $REPORT
-date --utc --rfc-3339=seconds  >> $REPORT
+echo -n "EndDate: " | tee -a $REPORT
+date --utc --rfc-3339=seconds | tee -a $REPORT
 
 # Upload final report.
 if [ -n "${REPORT_UPLOAD_URL}" ]; then
