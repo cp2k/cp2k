@@ -20,6 +20,7 @@ def main():
     src_dir = sys.argv[2]
     lib_dir = sys.argv[3]
 
+    known_archives = set()
     for root, dirs, files in os.walk(src_dir):
         if "PACKAGE" in files:
             content = open(path.join(root,"PACKAGE")).read()
@@ -30,6 +31,7 @@ def main():
                 archive = package["archive"]
 
             archive_fn = path.join(lib_dir, archive+".a")
+            known_archives.add(archive_fn)
             if(not path.exists(archive_fn)):
                 continue
 
@@ -44,6 +46,11 @@ def main():
                     print("Could not find source for object %s in archive %s , removing archive."%(line, archive_fn))
                     os.remove(archive_fn)
                     break
+
+    rogue_archives = set(glob(path.join(lib_dir, "*.a"))) - known_archives
+    for archive_fn in rogue_archives:
+        print("Found rogue archive %s , removing archive."%(archive_fn))
+        os.remove(archive_fn)
 
 #=============================================================================
 def check_output(*popenargs, **kwargs):
