@@ -5,6 +5,9 @@
 
 ! **************************************************************************************************
 !> \brief Calculation of Overlap and Hamiltonian matrices in xTB
+!>        Reference: Stefan Grimme, Christoph Bannwarth, Philip Shushkov
+!>                   JCTC 13, 1989-2009, (2017)
+!>                   DOI: 10.1021/acs.jctc.7b00118
 !> \author JGH
 ! **************************************************************************************************
 MODULE xtb_matrices
@@ -178,7 +181,7 @@ CONTAINS
       CALL set_ks_env(ks_env, matrix_s_kp=matrix_s)
       CALL set_ks_env(ks_env, matrix_h_kp=matrix_h)
 
-      ! global parameters
+      ! global parameters (Table 2 from Ref.)
       ks = xtb_control%ks
       kp = xtb_control%kp
       kd = xtb_control%kd
@@ -256,6 +259,8 @@ CONTAINS
       END IF
 
       ! Calculate coordination numbers
+      ! needed for effective atomic energy levels (Eq. 12)
+      ! code taken from D3 dispersion energy
       ALLOCATE (cnumbers(natom))
       cnumbers = 0._dp
       IF (calculate_forces) THEN
@@ -282,6 +287,8 @@ CONTAINS
       DEALLOCATE (ghost, floating, atomnumber)
 
       ! Calculate Huckel parameters
+      ! Eq 12
+      ! huckel(nshell,natom)
       kcnl(0) = kcns
       kcnl(1) = kcnp
       kcnl(2) = kcnd
@@ -304,6 +311,7 @@ CONTAINS
       DEALLOCATE (kind_of)
 
       ! Calculate KAB parameters
+      ! precalculate the KAB for all kind pairs (Table 2)
       ALLOCATE (kabset(nkind, nkind))
       kabset = 1.0_dp
       DO ikind = 1, nkind
@@ -317,6 +325,7 @@ CONTAINS
 
       erep = 0._dp
 
+      ! loop over all atom pairs with a non-zero overlap (sab_orb)
       CALL neighbor_list_iterator_create(nl_iterator, sab_orb)
       DO WHILE (neighbor_list_iterate(nl_iterator) == 0)
          CALL get_iterator_info(nl_iterator, ikind=ikind, jkind=jkind, &
@@ -375,6 +384,7 @@ CONTAINS
             END DO
          END IF
 
+         ! Calculate Pi = Pia * Pib (Eq. 11)
          rcovab = rcova+rcovb
          rrab = SQRT(dr/rcovab)
          DO i = 1, nsa
@@ -388,7 +398,9 @@ CONTAINS
 
          IF (iatom == jatom .AND. dr < 0.001_dp) THEN
             ! diagonal block
+            ! we use <a|H0|a> = Hla
             DO i = 1, natorb_a
+               la = laoa(i)
                na = naoa(i)
                fblock(i, i) = fblock(i, i)+huckel(na, iatom)
             END DO
@@ -399,9 +411,11 @@ CONTAINS
             END IF
          ELSE
             ! off-diagonal block
+            ! Eq. 10
+            !
             ! get KAB
             kab = kabset(ikind, jkind)
-            ! get Fen
+            ! get Fen = (1+ken*deltaEN^2)
             fen = 1.0_dp+ken*(ena-enb)**2
             DO j = 1, natorb_b
                lb = laob(j)

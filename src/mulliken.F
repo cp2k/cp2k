@@ -731,9 +731,9 @@ CONTAINS
 
             IF (iblock_row == iatom) THEN
                IF (iblock_row == iblock_col) THEN
-                  mult = 0.5_dp ! avoid double counting of diagonal blocks
+                  mult = 1.0_dp ! avoid double counting of diagonal blocks
                ELSE
-                  mult = 1.0_dp
+                  mult = 2.0_dp
                ENDIF
                DO j = 1, SIZE(p_block, 2)
                   DO i = 1, SIZE(p_block, 1)
@@ -741,6 +741,7 @@ CONTAINS
                   END DO
                END DO
             ELSEIF (iblock_col == iatom) THEN
+               mult = 2.0_dp
                DO i = 1, SIZE(p_block, 1)
                   DO j = 1, SIZE(p_block, 2)
                      charges(j) = charges(j)+p_block(i, j)*s_block(i, j)

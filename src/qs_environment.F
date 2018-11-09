@@ -516,9 +516,9 @@ CONTAINS
       TYPE(rho0_mpole_type), POINTER                     :: rho0_mpole
       TYPE(scf_control_type), POINTER                    :: scf_control
       TYPE(se_taper_type), POINTER                       :: se_taper
-      TYPE(section_vals_type), POINTER :: dft_section, et_coupling_section, &
-         et_ddapc_section, ewald_section, lri_section, nl_section, poisson_section, pp_section, &
-         print_section, qs_section, se_section, tddfpt_section, xc_section, xtb_section
+      TYPE(section_vals_type), POINTER :: dft_section, et_coupling_section, et_ddapc_section, &
+         ewald_section, lri_section, nl_section, poisson_section, pp_section, print_section, &
+         qs_section, se_section, tddfpt_section, xc_section, xtb_section
       TYPE(semi_empirical_control_type), POINTER         :: se_control
       TYPE(semi_empirical_si_type), POINTER              :: se_store_int_env
       TYPE(xtb_control_type), POINTER                    :: xtb_control
