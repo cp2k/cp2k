@@ -33,7 +33,8 @@ MODULE xtb_parameters
                                               dp
    USE periodic_table,                  ONLY: get_ptable_info,&
                                               ptable
-   USE physcon,                         ONLY: evolt
+   USE physcon,                         ONLY: bohr,&
+                                              evolt
    USE string_utilities,                ONLY: remove_word
    USE xtb_types,                       ONLY: xtb_atom_type
 #include "./base/base_uses.f90"
@@ -188,6 +189,7 @@ CONTAINS
          param%symbol = element_symbol
          param%defined = .TRUE.
          CALL get_ptable_info(element_symbol, number=ia, covalent_radius=param%rcov)
+         param%rcov = param%rcov*bohr
          param%z = ia
          param%aname = ptable(ia)%name
          param%lmax = MAXVAL(param%lval(1:param%nshell))
@@ -326,6 +328,7 @@ CONTAINS
             param%symbol = element_symbol
             param%defined = .TRUE.
             CALL get_ptable_info(element_symbol, number=ia, covalent_radius=param%rcov)
+            param%rcov = param%rcov*bohr
             param%z = ia
             param%aname = ptable(ia)%name
             param%lmax = MAXVAL(param%lval(1:param%nshell))

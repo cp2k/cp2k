@@ -592,9 +592,9 @@ CONTAINS
       TYPE(enumeration_type), POINTER                    :: enum
       TYPE(keyword_type), POINTER                        :: keyword
       TYPE(section_type), POINTER                        :: section
-      TYPE(section_vals_type), POINTER :: cdft_control_section, &
-         ddapc_restraint_section, dftb_parameter, dftb_section, lri_optbas_section, mull_section, &
-         s2_restraint_section, se_section, xtb_parameter, xtb_section
+      TYPE(section_vals_type), POINTER :: cdft_control_section, ddapc_restraint_section, &
+         dftb_parameter, dftb_section, lri_optbas_section, mull_section, s2_restraint_section, &
+         se_section, xtb_parameter, xtb_section
 
       CALL timeset(routineN, handle)
 
@@ -916,7 +916,7 @@ CONTAINS
                                       r_val=qs_control%se_control%taper_exc)
          END IF
          CALL section_vals_val_get(se_section, "EXCHANGE%RC_RANGE", &
-                                   r_val=qs_control%se_control%ra>>>>>>> Initial code for the xTB method (not yet working)nge_exc)
+                                   r_val=qs_control%se_control%range_exc)
          ! Screening (only if the integral scheme is of dumped type)
          IF (qs_control%se_control%integral_screening == do_se_IS_kdso_d) THEN
             CALL section_vals_val_get(se_section, "SCREENING%RC_TAPER", &
@@ -972,7 +972,7 @@ CONTAINS
                                    c_val=qs_control%se_control%dispersion_parameter_file)
 
          ! Stop the execution for non-implemented features
-         IF (qs_control%se_control%periodic_type == do_se_lr_ewal>>>>>>> Initial code for the xTB method (not yet working)d_r3) THEN
+         IF (qs_control%se_control%periodic_type == do_se_lr_ewald_r3) THEN
             CPABORT("EWALD_R3 not implemented yet!")
          END IF
 
@@ -1274,7 +1274,7 @@ CONTAINS
       CHARACTER(LEN=20)                                  :: tmpStr
       INTEGER                                            :: handle, output_unit
       REAL(kind=dp)                                      :: density_cut, density_smooth_cut_range, &
-                                                            gradi>>>>>>> Initial code for the xTB method (not yet working)ent_cut, tau_cut
+                                                            gradient_cut, tau_cut
       TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(enumeration_type), POINTER                    :: enum
       TYPE(keyword_type), POINTER                        :: keyword
