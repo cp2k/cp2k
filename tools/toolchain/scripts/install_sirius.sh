@@ -9,14 +9,10 @@ source "${SCRIPT_DIR}"/signal_trap.sh
 
 with_sirius=${1:-__INSTALL__}
 
-if [ $MPI_MODE = no ] ; then
-    if [ "$ENABLE_OMP" = "__FALSE__"] ; then
-        report_warning $LINENO "MPI is disabled, skipping sirius installation"
-        cat <<EOF > "${BUILDDIR}/setup_sirius"
-with_sirius="__FALSE__"
-EOF
-        exit 0
-    fi
+if [ "$MPI_MODE" = "no" ] && [ "$ENABLE_OMP" = "__FALSE__" ] ; then
+    report_warning $LINENO "MPI and OpenMP are disabled, skipping sirius installation"
+    echo 'with_sirius="__FALSE__"' >> ${BUILDDIR}/setup_sirius
+    exit 0
 fi
 
 [ -f "${BUILDDIR}/setup_sirius" ] && rm "${BUILDDIR}/setup_sirius"

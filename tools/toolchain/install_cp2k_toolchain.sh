@@ -211,17 +211,17 @@ The --with-PKG options follow the rules:
                           Default = no
   --with-sirius           Enable interface to the plane wave SIRIUS library.
                           This package requires: gsl, libspg, elpa, scalapack, json-fortran, hdf5 and libxc.
-                          Default = no
+                          Default = install
   --with-gsl              Enable the gnu scientific library library
-                          Default = no
+                          Default = install
   --with-spglib           Enable the spg library (search of symmetry groups)
                           This package depends on cmake.
-                          Default = no
+                          Default = install
   --with-hdf5             Enable the hdf5 library (use by sirius library)
-                          Default = no
+                          Default = install
   --with-json-fortran     Enable the json fortran library (used by cp2k when sirius is activated)
                           This package depends on cmake.
-                          Default = no
+                          Default = install
 
 
 FURTHER INSTRUCTIONS
