@@ -26,7 +26,12 @@ cd /opt/cp2k-toolchain/
     --with-reflapack=system  \
     --with-libint=system     \
     --with-libxc=install     \
-    --with-libxsmm=install
+    --with-libxsmm=install   \
+    --with-sirius=no         \
+    --with-gsl=no            \
+    --with-spglib=no         \
+    --with-hdf5=no           \
+    --with-json-fortran=no
 rm -rf ./build
 
 #EOF
