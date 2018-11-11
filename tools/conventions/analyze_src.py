@@ -95,7 +95,7 @@ def main():
 
     # check linebreaks and encoding
     for root, _, files in os.walk(cp2k_dir):
-        if any(x in root for x in (".git", "obj", "lib", "exe", "regtesting")):
+        if any(x in root for x in (".git", "obj", "lib", "exe", "regtesting", "exts")):
             continue
         for fn in files:
             absfn = path.join(root, fn)

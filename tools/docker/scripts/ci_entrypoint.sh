@@ -30,9 +30,9 @@ function upload_file {
 if [ -n "${GIT_REF}" ]; then
     echo -e "\n========== Fetching Git Commit ==========" | tee -a $REPORT
     cd /workspace/cp2k
-    git fetch origin "${GIT_BRANCH}"         |& tee -a $REPORT
-    git checkout "${GIT_REF}"                |& tee -a $REPORT
-    git submodule update --init --recursive  |& tee -a $REPORT
+    git fetch origin "${GIT_BRANCH}"                       |& tee -a $REPORT
+    git -c advice.detachedHead=false checkout "${GIT_REF}" |& tee -a $REPORT
+    git submodule update --init --recursive                |& tee -a $REPORT
     git --no-pager log -1 --pretty='%nCommitSHA: %H%nCommitTime: %ci%nCommitAuthor: %an%nCommitSubject: %s%n' |& tee -a $REPORT
 
 elif [ -d  /mnt/cp2k ]; then
