@@ -23,7 +23,7 @@ function upload_file {
     URL=$1
     FILE=$2
     CONTENT_TYPE=$3
-    wget --quiet --method=PUT --header="content-type: ${CONTENT_TYPE}" --header="cache-control: no-cache" --body-file="${FILE}" "${URL}"
+    wget --quiet --output-document=- --method=PUT --header="content-type: ${CONTENT_TYPE}" --header="cache-control: no-cache" --body-file="${FILE}" "${URL}" > /dev/null
 }
 
 # Get cp2k sources.
