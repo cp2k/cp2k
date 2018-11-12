@@ -36,7 +36,6 @@ cd /workspace/cp2k
 # find executable python scripts
 ALL_SCRIPTS=$(find ./src/ ./tools/ -name "*.py"  -executable)
 ESSENTIAL_SCRIPTS=$(find ./tools/build_utils -name "*.py"  -executable)
-ESSENTIAL_SCRIPTS="$ESSENTIAL_SCRIPTS ./src/dbcsr/libsmm_acc/libcusmm/generate.py"
 
 # python 2.6
 run_selftests python2.6 "${ESSENTIAL_SCRIPTS}"
