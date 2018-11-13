@@ -1235,9 +1235,10 @@ CONTAINS
 
       CHARACTER(len=*), PARAMETER :: routineN = 'basis_fit', routineP = moduleN//':'//routineN
 
-      INTEGER                                            :: do_eric, do_erie, im, in, nm, nn, &
+      INTEGER                                            :: do_eric, do_erie, i, im, in, l, nm, nn, &
                                                             reltyp, zval
       LOGICAL                                            :: eri_c, eri_e
+      REAL(KIND=dp)                                      :: amin
       TYPE(atom_integrals), POINTER                      :: atint
       TYPE(atom_potential_type), POINTER                 :: pot
       TYPE(atom_type), POINTER                           :: atom
@@ -1292,6 +1293,15 @@ CONTAINS
                   afun = afun+atom%energy%etot*atom%weight
                END IF
             END IF
+         END DO
+      END DO
+
+      ! penalty
+      DO l = 0, 3
+         DO i = 1, basis%nbas(l)-1
+            amin = MINVAL(ABS(basis%am(i, l)-basis%am(i+1:basis%nbas(l), l)))
+            amin = amin/basis%am(i, l)
+            afun = afun+10._dp*EXP(-(20._dp*amin)**4)
          END DO
       END DO
 
