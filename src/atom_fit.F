@@ -177,13 +177,14 @@ CONTAINS
 
       INTEGER                                            :: i, j, k, l, ll, m, n, n10, nl, nr, zval
       INTEGER, ALLOCATABLE, DIMENSION(:, :)              :: xtob
-      LOGICAL                                            :: explicit, mult
+      LOGICAL                                            :: explicit, mult, penalty
       REAL(KIND=dp)                                      :: al, crad, ear, fopt, pf, rk
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: x
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: wem
       REAL(KIND=dp), DIMENSION(:), POINTER               :: w
       TYPE(opt_state_type)                               :: ostate
 
+      penalty = .FALSE.
       SELECT CASE (basis%basis_type)
       CASE DEFAULT
          CPABORT("")
@@ -221,6 +222,7 @@ CONTAINS
             DO i = 1, ostate%nvar
                x(i) = SQRT(LOG(1._dp+x(i)))
             END DO
+            penalty = .TRUE.
          END IF
       CASE (STO_BASIS)
          ll = MAXVAL(basis%nbas(:))
@@ -355,7 +357,7 @@ CONTAINS
                   END DO
                END DO
             END SELECT
-            CALL basis_fit(atom_info, basis, pptype, ostate%f, 0)
+            CALL basis_fit(atom_info, basis, pptype, ostate%f, 0, penalty)
             fopt = MIN(fopt, ostate%f)
          END IF
 
@@ -1225,13 +1227,15 @@ CONTAINS
 !> \param pptype ...
 !> \param afun ...
 !> \param iw ...
+!> \param penalty ...
 ! **************************************************************************************************
-   SUBROUTINE basis_fit(atom_info, basis, pptype, afun, iw)
+   SUBROUTINE basis_fit(atom_info, basis, pptype, afun, iw, penalty)
       TYPE(atom_p_type), DIMENSION(:, :), POINTER        :: atom_info
       TYPE(atom_basis_type), POINTER                     :: basis
       LOGICAL, INTENT(IN)                                :: pptype
       REAL(dp), INTENT(OUT)                              :: afun
       INTEGER, INTENT(IN)                                :: iw
+      LOGICAL, INTENT(IN)                                :: penalty
 
       CHARACTER(len=*), PARAMETER :: routineN = 'basis_fit', routineP = moduleN//':'//routineN
 
@@ -1297,13 +1301,15 @@ CONTAINS
       END DO
 
       ! penalty
-      DO l = 0, 3
-         DO i = 1, basis%nbas(l)-1
-            amin = MINVAL(ABS(basis%am(i, l)-basis%am(i+1:basis%nbas(l), l)))
-            amin = amin/basis%am(i, l)
-            afun = afun+10._dp*EXP(-(20._dp*amin)**4)
+      IF (penalty) THEN
+         DO l = 0, 3
+            DO i = 1, basis%nbas(l)-1
+               amin = MINVAL(ABS(basis%am(i, l)-basis%am(i+1:basis%nbas(l), l)))
+               amin = amin/basis%am(i, l)
+               afun = afun+10._dp*EXP(-(20._dp*amin)**4)
+            END DO
          END DO
-      END DO
+      END IF
 
       CALL atom_int_release(atint)
       CALL atom_ppint_release(atint)
