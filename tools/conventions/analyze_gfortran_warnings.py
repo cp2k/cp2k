@@ -59,7 +59,7 @@ def check_warnings(fn):
 
         # fypp line directives that leaked through as part of warning messages
         if(line.startswith(' # 1 "')):
-            loc = line[6:-1]
+            loc = line.split()[2].strip('"')
             loc_short = path.basename(loc)
             if not path.exists(loc):
                 return # source file gone - skipping
