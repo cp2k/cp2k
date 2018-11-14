@@ -22,61 +22,65 @@ MODULE xas_tdp_methods
    USE cp_control_types,                ONLY: dft_control_type
    USE cp_dbcsr_operations,             ONLY: cp_dbcsr_sm_fm_multiply
    USE cp_fm_diag,                      ONLY: choose_eigv_solver
-   USE cp_fm_struct,                    ONLY: cp_fm_struct_type, cp_fm_struct_create,&
-                                              cp_fm_struct_release
-   USE cp_fm_types,                     ONLY: cp_fm_type, cp_fm_get_submatrix, cp_fm_create,&
-                                              cp_fm_release, cp_fm_set_all, cp_fm_p_type,&
-                                              cp_fm_get_info, cp_fm_to_fm_submat, & 
-                                              cp_fm_set_submatrix, cp_fm_get_diag
+   USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
+                                              cp_fm_struct_release,&
+                                              cp_fm_struct_type
+   USE cp_fm_types,                     ONLY: &
+        cp_fm_create, cp_fm_get_diag, cp_fm_get_info, cp_fm_get_submatrix, cp_fm_p_type, &
+        cp_fm_release, cp_fm_set_all, cp_fm_to_fm_submat, cp_fm_type
    USE cp_gemm_interface,               ONLY: cp_gemm
    USE cp_log_handling,                 ONLY: cp_get_default_logger,&
                                               cp_logger_type
-   USE cp_output_handling,              ONLY: cp_print_key_unit_nr,&
+   USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
+                                              cp_print_key_unit_nr,&
                                               debug_print_level
    USE cp_para_types,                   ONLY: cp_para_env_type
-   USE cp_output_handling,              ONLY: cp_print_key_unit_nr, debug_print_level, &
-                                              cp_print_key_finished_output
-   USE dbcsr_api,                       ONLY: dbcsr_p_type, dbcsr_type, dbcsr_release, dbcsr_print, &
-                                              dbcsr_create, dbcsr_multiply, dbcsr_add_on_diag, &
-                                              dbcsr_finalize, dbcsr_copy, dbcsr_set, dbcsr_add
-   USE input_constants,                 ONLY: xas_tdp_by_index, xas_tdp_by_kind, xas_not_excited,&
-                                              do_loc_none, xas_1s_type, xas_2s_type, xas_2p_type,&
-                                              op_loc_berry, xas_dip_len, xas_dip_vel
-   USE input_section_types,             ONLY: section_vals_type,&
-                                              section_vals_get_subs_vals,&
+   USE dbcsr_api,                       ONLY: dbcsr_add_on_diag,&
+                                              dbcsr_copy,&
+                                              dbcsr_create,&
+                                              dbcsr_finalize,&
+                                              dbcsr_multiply,&
+                                              dbcsr_p_type,&
+                                              dbcsr_set
+   USE input_constants,                 ONLY: &
+        do_loc_none, op_loc_berry, xas_1s_type, xas_2p_type, xas_2s_type, xas_dip_len, &
+        xas_dip_vel, xas_not_excited, xas_tdp_by_index, xas_tdp_by_kind
+   USE input_section_types,             ONLY: section_vals_get_subs_vals,&
+                                              section_vals_type,&
                                               section_vals_val_set
    USE kinds,                           ONLY: dp
    USE memory_utilities,                ONLY: reallocate
    USE particle_methods,                ONLY: get_particle_set
    USE particle_types,                  ONLY: particle_type
    USE periodic_table,                  ONLY: ptable
-   USE physcon,                         ONLY: angstrom, evolt
-   USE pw_types,                        ONLY: pw_p_type, pw_release
-   USE qs_environment_types,            ONLY: qs_environment_type,&
-                                              get_qs_env
-   USE qs_kind_types,                   ONLY: get_qs_kind,&   
-                                              qs_kind_type,&
-                                              get_qs_kind_set
-   USE qs_loc_methods,                  ONLY: qs_loc_driver,&
-                                              centers_spreads_berry
-   USE qs_loc_types,                    ONLY: localized_wfn_control_type,&
+   USE physcon,                         ONLY: angstrom,&
+                                              evolt
+   USE qs_environment_types,            ONLY: get_qs_env,&
+                                              qs_environment_type
+   USE qs_kind_types,                   ONLY: get_qs_kind,&
+                                              qs_kind_type
+   USE qs_loc_methods,                  ONLY: centers_spreads_berry,&
+                                              qs_loc_driver
+   USE qs_loc_types,                    ONLY: get_qs_loc_env,&
+                                              localized_wfn_control_create,&
+                                              localized_wfn_control_type,&
                                               qs_loc_env_create,&
                                               qs_loc_env_new_type,&
-                                              get_qs_loc_env, &
-                                              qs_loc_env_release, &
-                                              localized_wfn_control_create
+                                              qs_loc_env_release
    USE qs_loc_utils,                    ONLY: qs_loc_control_init,&
                                               qs_loc_env_init,&
                                               set_loc_centers,&
                                               set_loc_wfn_lists
    USE qs_mo_types,                     ONLY: get_mo_set,&
                                               mo_set_p_type
-   USE qs_operators_ao,                 ONLY: p_xyz_ao, rRc_xyz_ao       
-   USE qs_rho_types,                    ONLY: qs_rho_get, qs_rho_type
+   USE qs_operators_ao,                 ONLY: p_xyz_ao,&
+                                              rRc_xyz_ao
+   USE qs_rho_types,                    ONLY: qs_rho_get,&
+                                              qs_rho_type
    USE util,                            ONLY: locate
    USE xas_methods,                     ONLY: calc_stogto_overlap
-   USE xas_tdp_atom,                    ONLY: init_xas_atom_env, &
-                                              integrate_fxc_atoms, &
+   USE xas_tdp_atom,                    ONLY: init_xas_atom_env,&
+                                              integrate_fxc_atoms,&
                                               integrate_soc_atoms
    USE xas_tdp_types,                   ONLY: xas_tdp_env_type,&
                                               xas_tdp_env_create,&
@@ -90,13 +94,14 @@ MODULE xas_tdp_methods
                                               free_ds_memory, &
                                               xas_atom_env_type, &
                                               xas_atom_env_create, &
-                                              xas_atom_env_release
-   USE xas_tdp_utils,                   ONLY: setup_xas_tdp_full_prob, &
-                                              solve_xas_tdp_full_prob, &
-                                              compute_dipole_fosc, &
-                                              compute_ri_coulomb3_int, &
+                                              xas_atom_env_release, &
+                                              donor_state_create
+   USE xas_tdp_utils,                   ONLY: setup_xas_tdp_prob, &
+                                              solve_xas_tdp_prob, &
                                               compute_ri_coulomb2_int, &
-                                              include_full_soc
+                                              include_full_soc, &
+                                              compute_ri_o3c_coulomb, &
+                                              compute_ri_o3c_exchange
 #include "./base/base_uses.f90"
 
    IMPLICIT NONE
@@ -120,31 +125,25 @@ CONTAINS
 
       CHARACTER(len=*), PARAMETER :: routineN = 'xas_tdp', routineP = moduleN//':'//routineN
 
-      INTEGER                                            :: handle, ikind, iat, istate, tmp_index,&
-                                                            current_state_index, output_unit, &
-                                                            iatom
-      TYPE(xas_tdp_env_type), POINTER                    :: xas_tdp_env
-      TYPE(xas_tdp_control_type), POINTER                :: xas_tdp_control
-      TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
-      TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set       
       CHARACTER(len=2)                                   :: symbol_of_kind
-      CHARACTER(len=2), DIMENSION(3)                     :: state_type_char
-      INTEGER                                            :: current_state_index, handle, iat, ikind, &
-                                                            istate, output_unit, tmp_index
+      INTEGER :: current_state_index, current_state_index, handle, handle, iat, iat, iatom, ikind, &
+         ikind, istate, istate, output_unit, output_unit, tmp_index, tmp_index
       INTEGER, DIMENSION(:), POINTER                     :: atoms_of_kind
-      TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
-      TYPE(cp_logger_type), POINTER                      :: logger
-      TYPE(dbcsr_type), POINTER                          :: matrix_lhs, matrix_tdp
-      TYPE(donor_state_type), POINTER                    :: current_state
-      TYPE(section_vals_type), POINTER                   :: dft_section, xas_tdp_section
-      TYPE(cp_para_env_type), POINTER                    :: para_env
       REAL(dp), DIMENSION(3)                             :: rc
+      TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set, atomic_kind_set
       TYPE(cell_type), POINTER                           :: cell
-      TYPE(xas_atom_env_type), POINTER                   :: xas_atom_env
+      TYPE(cp_logger_type), POINTER                      :: logger
+      TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(dft_control_type), POINTER                    :: dft_control
+      TYPE(donor_state_type), POINTER                    :: current_state
+      TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
+      TYPE(section_vals_type), POINTER                   :: dft_section, xas_tdp_section
+      TYPE(xas_atom_env_type), POINTER                   :: xas_atom_env
+      TYPE(xas_tdp_control_type), POINTER                :: xas_tdp_control
+      TYPE(xas_tdp_env_type), POINTER                    :: xas_tdp_env
 
-      NULLIFY(xas_tdp_env, xas_tdp_control, atomic_kind_set, atoms_of_kind, current_state, para_env)
-      NULLIFY(particle_set, cell, xas_atom_env, dft_control)
+      NULLIFY (xas_tdp_env, xas_tdp_control, atomic_kind_set, atoms_of_kind, current_state, para_env)
+      NULLIFY (particle_set, cell, xas_atom_env, dft_control)
 
       CALL timeset(routineN, handle)
 
@@ -168,7 +167,7 @@ CONTAINS
       IF (output_unit > 0) THEN
          WRITE (UNIT=output_unit, FMT="(/,T3,A)") &
             "# Create and initialize the XAS_TDP environment"
-      END IF 
+      END IF
       CALL get_qs_env(qs_env, dft_control=dft_control)
       CALL xas_tdp_init(xas_tdp_env, xas_tdp_control, qs_env)
 
@@ -179,7 +178,7 @@ CONTAINS
 !     Check on periodicity: only deal with non-periodic systems for now
       CALL get_qs_env(qs_env, cell=cell)
       IF (.NOT. ALL(cell%perd .EQ. 0)) THEN
-         CPABORT("XAS TDP calculation only supports non-periodic BCs (for now)")
+         !CPABORT("XAS TDP calculation only supports non-periodic BCs (for now)")
       END IF
       IF (xas_tdp_env%qs_loc_env%do_localize .AND. &
           xas_tdp_env%qs_loc_env%localized_wfn_control%operator_type /= op_loc_berry) THEN
@@ -193,8 +192,8 @@ CONTAINS
                "# Localizing core orbitals for better identification"
          END IF
 !        closed shell => myspin=1
-         CALL qs_loc_driver(qs_env, xas_tdp_env%qs_loc_env, xas_tdp_control%print_loc_subsection,&
-                           myspin=1)
+         CALL qs_loc_driver(qs_env, xas_tdp_env%qs_loc_env, xas_tdp_control%print_loc_subsection, &
+                            myspin=1)
       END IF
 
 !  Find the MO centers
@@ -206,14 +205,14 @@ CONTAINS
 !  Once assigned, diagonalize the MOs wrt the KS matrix in the subspace associated to each atom
       IF (xas_tdp_env%qs_loc_env%do_localize) THEN
          IF (output_unit > 0) THEN
-            WRITE(UNIT=output_unit, FMT="(/,T3,A,/)") &
+            WRITE (UNIT=output_unit, FMT="(/,T3,A,/)") &
                "# Diagonalize localized MOs wrt the KS matrix in the subspace of each excited atom"
          END IF
          CALL diagonalize_assigned_mo_subset(xas_tdp_env, xas_tdp_control, qs_env)
          ! update MO centers
          CALL find_mo_centers(xas_tdp_env, xas_tdp_control, qs_env)
       END IF
-      
+
       IF (output_unit > 0) THEN
          WRITE (UNIT=output_unit, FMT="(/,T3,A,I4,A,/)") &
             "# Assign the relevant subset of the ", xas_tdp_control%n_search, &
@@ -226,12 +225,9 @@ CONTAINS
       IF (xas_tdp_control%do_xc .OR. xas_tdp_control%do_soc) THEN
 
          CALL xas_atom_env_create(xas_atom_env)
-         CALL init_xas_atom_env(xas_atom_env, xas_tdp_env%ex_atom_indices, &
-                               xas_tdp_env%ex_kind_indices, xas_tdp_control%grid_info, qs_env, &
-                               do_xc=xas_tdp_control%do_xc) 
+         CALL init_xas_atom_env(xas_atom_env, xas_tdp_env, xas_tdp_control, qs_env)
 
          IF (xas_tdp_control%do_xc) THEN
-            ALLOCATE(xas_tdp_env%ri_fxc_sg, xas_tdp_env%ri_fxc_tp)
             CALL integrate_fxc_atoms(xas_tdp_env%ri_fxc_sg, xas_tdp_env%ri_fxc_tp, xas_atom_env, &
                                      qs_env, xas_tdp_control%do_singlet, xas_tdp_control%do_triplet)
          END IF
@@ -244,11 +240,7 @@ CONTAINS
       END IF
 
 !  Loop over donor states for calculation
-!  TODO: I suspect that for parallel run with mpirun, all the processors do not go at the same speed
-!        causing some pointer to be dealloacted before they are called by the other processors
-!        Get bad pointer memory leak
-
-      CALL get_qs_env(qs_env=qs_env, atomic_kind_set=atomic_kind_set, para_env=para_env)      
+      CALL get_qs_env(qs_env=qs_env, atomic_kind_set=atomic_kind_set, para_env=para_env)
       current_state_index = 1
 
 !     Loop over atomic kinds
@@ -257,8 +249,12 @@ CONTAINS
          CALL get_atomic_kind(atomic_kind=atomic_kind_set(ikind), element_symbol=symbol_of_kind, &
                               atom_list=atoms_of_kind)
 
+         IF (.NOT. ANY(xas_tdp_env%ex_kind_indices == ikind)) CYCLE
+         ! compute the RI coulomb2 inverse for this kind
+         CALL compute_ri_coulomb2_int(ikind, xas_tdp_env, qs_env)
+
 !        Loop over atoms of kind
-         DO iat = 1,SIZE(atoms_of_kind)
+         DO iat = 1, SIZE(atoms_of_kind)
             iatom = atoms_of_kind(iat)
 
             IF (.NOT. ANY(xas_tdp_env%ex_atom_indices == iatom)) CYCLE
@@ -267,7 +263,7 @@ CONTAINS
 !           If length representation for the dipole, compute it here in the AO basis, for this atom
             IF (xas_tdp_control%dipole_form == xas_dip_len) THEN
                CALL get_qs_env(qs_env, particle_set=particle_set)
-               rc = particle_set(iatom)%r    
+               rc = particle_set(iatom)%r
                CALL dbcsr_set(xas_tdp_env%dipmat(1)%matrix, 0.0_dp)
                CALL dbcsr_set(xas_tdp_env%dipmat(2)%matrix, 0.0_dp)
                CALL dbcsr_set(xas_tdp_env%dipmat(3)%matrix, 0.0_dp)
@@ -275,46 +271,51 @@ CONTAINS
             END IF
 
 !           For this excited atom, also compute the RI coulomb integrals
-            CALL compute_ri_coulomb3_int(iatom, ikind, xas_tdp_env, qs_env)
+            CALL compute_ri_o3c_coulomb(iatom, ikind, xas_tdp_env, qs_env)
+
+!           If exact exchange is riquired, compute the 3-center integrals for this atom
+            IF (xas_tdp_control%do_hfx) THEN
+               CALL compute_ri_o3c_exchange(iatom, ikind, xas_tdp_env, qs_env)
+            END IF
 
 !           Loop over states of excited atom of kind
-            DO istate = 1,SIZE(xas_tdp_env%state_types,1)
+            DO istate = 1, SIZE(xas_tdp_env%state_types, 1)
 
                IF (xas_tdp_env%state_types(istate, tmp_index) == xas_not_excited) CYCLE
-                    
+
                current_state => xas_tdp_env%donor_states(current_state_index)
-               CALL set_donor_state(current_state, at_index=iatom,&
-                                    at_symbol=symbol_of_kind, kind_index=ikind,&
-                                    state_type=xas_tdp_env%state_types(istate,tmp_index))
+               CALL set_donor_state(current_state, at_index=iatom, &
+                                    at_symbol=symbol_of_kind, kind_index=ikind, &
+                                    state_type=xas_tdp_env%state_types(istate, tmp_index))
 
 !              Initial write for the donor state of interest
                IF (output_unit > 0) THEN
-                  WRITE(UNIT=output_unit, FMT="(/,T3,A,A2,A,I4,A,A2,/)") &
+                  WRITE (UNIT=output_unit, FMT="(/,T3,A,A2,A,I4,A,A2,/)") &
                      "# Start of calculations for donor state(s) of type ", &
-                     xas_tdp_env%state_type_char(current_state%state_type), " for atom",&
+                     xas_tdp_env%state_type_char(current_state%state_type), " for atom", &
                      current_state%at_index, " of kind ", current_state%at_symbol
-                           
+
                END IF
 
 !              Assign best fitting MO(s) to current core donnor state
-               CALL assign_mos_to_donor_state(current_state, xas_tdp_env, xas_tdp_control,&
-                                             qs_env, output_unit)
+               CALL assign_mos_to_donor_state(current_state, xas_tdp_env, xas_tdp_control, &
+                                              qs_env, output_unit)
 
 !              Perform MO restricted Mulliken pop analysis for verification
-               CALL perform_mulliken_on_donor_state(current_state,qs_env,output_unit)
+               CALL perform_mulliken_on_donor_state(current_state, qs_env, output_unit)
 
                IF (xas_tdp_control%check_donor_states) CYCLE
 
 !              Do main calculations here
-               CALL setup_xas_tdp_full_prob(current_state, qs_env, xas_tdp_env, xas_tdp_control)
+               CALL setup_xas_tdp_prob(current_state, qs_env, xas_tdp_env, xas_tdp_control)
 
                IF (xas_tdp_control%do_singlet) THEN
-                  CALL solve_xas_tdp_full_prob(current_state, xas_tdp_control, xas_tdp_env, qs_env, &
+                  CALL solve_xas_tdp_prob(current_state, xas_tdp_control, xas_tdp_env, qs_env, &
                                                singlet=.TRUE.)
                   CALL compute_dipole_fosc(current_state, xas_tdp_control, xas_tdp_env)
                END IF
                IF (xas_tdp_control%do_triplet) THEN
-                  CALL solve_xas_tdp_full_prob(current_state, xas_tdp_control, xas_tdp_env, qs_env, &
+                  CALL solve_xas_tdp_prob(current_state, xas_tdp_control, xas_tdp_env, qs_env, &
                                                singlet=.FALSE.)
                END IF
 
@@ -328,11 +329,11 @@ CONTAINS
 !              Free some unneeded attributes of current_state
                CALL free_ds_memory(current_state)
 
-               current_state_index = current_state_index + 1
-               NULLIFY(current_state)
+               current_state_index = current_state_index+1
+               NULLIFY (current_state)
 
             END DO ! state type
-         END DO ! atom of kind 
+         END DO ! atom of kind
       END DO ! kind
 
 !  Clean-up
@@ -358,33 +359,32 @@ CONTAINS
 !> \param qs_env the inherited qs environement type
 ! **************************************************************************************************
    SUBROUTINE xas_tdp_init(xas_tdp_env, xas_tdp_control, qs_env)
-      
+
       TYPE(xas_tdp_env_type), POINTER                    :: xas_tdp_env
       TYPE(xas_tdp_control_type), POINTER                :: xas_tdp_control
       TYPE(qs_environment_type), POINTER                 :: qs_env
 
       CHARACTER(len=*), PARAMETER :: routineN = 'xas_tdp_init', routineP = moduleN//':'//routineN
 
-      TYPE(section_vals_type), POINTER                   :: dft_section, xas_tdp_section,&
-                                                            loc_section
-      TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: at_kind_set
-      INTEGER                                            :: nex_atoms, n_kinds, i, nat_of_kind,&
-                                                            j, nex_kinds, k, n_donor_states,&
-                                                            nspins, homo, natom, nmatch, kind_ind, &
-                                                            at_ind
+      CHARACTER(len=2)                                   :: symbol
+      INTEGER                                            :: at_ind, homo, i, j, k, kind_ind, &
+                                                            n_donor_states, n_kinds, nat_of_kind, &
+                                                            natom, nex_atoms, nex_kinds, nmatch, &
+                                                            nspins
       INTEGER, DIMENSION(2)                              :: n_mo, n_moloc
       INTEGER, DIMENSION(:), POINTER                     :: ind_of_kind
-      CHARACTER(len=2)                                   :: symbol
-      TYPE(qs_loc_env_new_type), POINTER                 :: qs_loc_env
+      TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: at_kind_set
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_s, rho_ao
+      TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(mo_set_p_type), DIMENSION(:), POINTER         :: mos
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
-      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_s, rho_ao
+      TYPE(qs_loc_env_new_type), POINTER                 :: qs_loc_env
       TYPE(qs_rho_type), POINTER                         :: rho
-      TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
-      TYPE(dft_control_type), POINTER                    :: dft_control
+      TYPE(section_vals_type), POINTER                   :: dft_section, loc_section, xas_tdp_section
 
-      NULLIFY(dft_section, xas_tdp_section, at_kind_set, ind_of_kind, qs_kind_set, dft_control)
-      NULLIFY(qs_loc_env, loc_section, mos, particle_set, rho, rho_ao)
+      NULLIFY (dft_section, xas_tdp_section, at_kind_set, ind_of_kind, &
+               dft_control)
+      NULLIFY (qs_loc_env, loc_section, mos, particle_set, rho, rho_ao)
 
 !  XAS TDP control type initialization
       dft_section => section_vals_get_subs_vals(qs_env%input, "DFT")
@@ -417,22 +417,21 @@ CONTAINS
          END IF
 
 !        Check atom kinds and fill corresponding array
-         ALLOCATE(xas_tdp_env%ex_kind_indices(nex_atoms))
+         ALLOCATE (xas_tdp_env%ex_kind_indices(nex_atoms))
          xas_tdp_env%ex_kind_indices = 0
          k = 0
          CALL get_qs_env(qs_env, particle_set=particle_set)
-         DO i =1,nex_atoms
+         DO i = 1, nex_atoms
             at_ind = xas_tdp_env%ex_atom_indices(i)
             CALL get_atomic_kind(particle_set(at_ind)%atomic_kind, kind_number=j)
             IF (ALL(ABS(xas_tdp_env%ex_kind_indices-j) .NE. 0)) THEN
-               k = k +1
+               k = k+1
                xas_tdp_env%ex_kind_indices(k) = j
             END IF
          END DO
          nex_kinds = k
          CALL set_xas_tdp_env(xas_tdp_env, nex_kinds=nex_kinds)
-         CALL reallocate(xas_tdp_env%ex_kind_indices, 1 , nex_kinds)
-         
+         CALL reallocate(xas_tdp_env%ex_kind_indices, 1, nex_kinds)
 
       ELSE IF (xas_tdp_control%define_excited == xas_tdp_by_kind) THEN
 
@@ -442,21 +441,21 @@ CONTAINS
          nex_atoms = 0
 
          nex_kinds = SIZE(xas_tdp_control%list_ex_kinds)
-         ALLOCATE(xas_tdp_env%ex_kind_indices(nex_kinds))
+         ALLOCATE (xas_tdp_env%ex_kind_indices(nex_kinds))
          k = 0
 
-         DO i = 1,n_kinds
-            CALL get_atomic_kind(atomic_kind=at_kind_set(i), element_symbol=symbol,&
+         DO i = 1, n_kinds
+            CALL get_atomic_kind(atomic_kind=at_kind_set(i), element_symbol=symbol, &
                                  natom=nat_of_kind, kind_number=kind_ind)
             IF (ANY(xas_tdp_control%list_ex_kinds == symbol)) THEN
-               nex_atoms = nex_atoms + nat_of_kind
-               k=k+1
+               nex_atoms = nex_atoms+nat_of_kind
+               k = k+1
                xas_tdp_env%ex_kind_indices(k) = kind_ind
             END IF
          END DO
 
-         ALLOCATE(xas_tdp_env%ex_atom_indices(nex_atoms))
-         ALLOCATE(xas_tdp_env%state_types(SIZE(xas_tdp_control%state_types,1),nex_atoms))
+         ALLOCATE (xas_tdp_env%ex_atom_indices(nex_atoms))
+         ALLOCATE (xas_tdp_env%state_types(SIZE(xas_tdp_control%state_types, 1), nex_atoms))
          nex_atoms = 0
          nmatch = 0
 
@@ -476,7 +475,7 @@ CONTAINS
             END DO
          END DO
 
-         CALL set_xas_tdp_env(xas_tdp_env, nex_atoms=nex_atoms, nex_kinds=nex_kinds)         
+         CALL set_xas_tdp_env(xas_tdp_env, nex_atoms=nex_atoms, nex_kinds=nex_kinds)
 
 !        Verifying that the input was valid
          IF (nmatch .NE. SIZE(xas_tdp_control%list_ex_kinds)) THEN
@@ -488,6 +487,9 @@ CONTAINS
 !  Allocating memory for the array of donor states
       n_donor_states = COUNT(xas_tdp_env%state_types /= xas_not_excited)
       ALLOCATE (xas_tdp_env%donor_states(n_donor_states))
+      DO i = 1, n_donor_states
+         CALL donor_state_create(xas_tdp_env%donor_states(i))
+      END DO
 
 !  Initializing the qs_loc_env from the LOCALIZE subsection of XAS_TDP (largely inpired by MI's XAS)
 !  Closed shell ground state calculation is assumed (spin-unpolarized)
@@ -508,8 +510,8 @@ CONTAINS
          qs_loc_env%localized_wfn_control%localization_method = do_loc_none
       ELSE IF (qs_loc_env%do_localize) THEN
          n_moloc = qs_loc_env%localized_wfn_control%nloc_states
-         CALL set_loc_wfn_lists(qs_loc_env%localized_wfn_control, n_moloc, n_mo, nspins, my_spin=1)  
-         CALL set_loc_centers(qs_loc_env%localized_wfn_control, n_moloc, nspins)  
+         CALL set_loc_wfn_lists(qs_loc_env%localized_wfn_control, n_moloc, n_mo, nspins, my_spin=1)
+         CALL set_loc_centers(qs_loc_env%localized_wfn_control, n_moloc, nspins)
 !        closed shell => myspin=1
          CALL qs_loc_env_init(qs_loc_env, qs_loc_env%localized_wfn_control, &
                               qs_env, myspin=1, do_localize=qs_loc_env%do_localize)
@@ -517,22 +519,17 @@ CONTAINS
 
 !  Allocating memory for the array of excited atoms MOs. Worst case senario, all searched MOs are
 !  associated to the same atom
-      ALLOCATE(xas_tdp_env%mos_of_ex_atoms(xas_tdp_control%n_search, nex_atoms))
-
-!  Precomputing for RI => compute and invert the two-center two-electron repulsion matrix for the RI
-!  aux basis, for each excited kind
-
-      CALL compute_ri_coulomb2_int(xas_tdp_env, qs_env)
+      ALLOCATE (xas_tdp_env%mos_of_ex_atoms(xas_tdp_control%n_search, nex_atoms))
 
 !  Compute the projector on the unoccupied, unperturbed ground state: Q = 1 - SP
 !  and the projector on the occupied unperturbed ground state SPS
       CALL get_qs_env(qs_env, rho=rho, matrix_s=matrix_s)
       CALL qs_rho_get(rho, rho_ao=rho_ao)
 
-      ALLOCATE(xas_tdp_env%q_projector)
+      ALLOCATE (xas_tdp_env%q_projector)
       CALL dbcsr_create(xas_tdp_env%q_projector, name="Q PROJECTOR", template=matrix_s(1)%matrix, &
-                        matrix_type="N") 
-      ALLOCATE(xas_tdp_env%p_projector)
+                        matrix_type="N")
+      ALLOCATE (xas_tdp_env%p_projector)
       CALL dbcsr_create(xas_tdp_env%p_projector, name="P PROJECTOR", template=matrix_s(1)%matrix)
 
 !     TODO: Add a filter_eps in the multiplication ? Cuz many almost zero blocks
@@ -544,24 +541,22 @@ CONTAINS
       CALL dbcsr_add_on_diag(xas_tdp_env%q_projector, 1.0_dp)
       CALL dbcsr_finalize(xas_tdp_env%q_projector)
 
-      
-
-!  Create the structure for the dipole in the AO basis 
-      ALLOCATE(xas_tdp_env%dipmat(3))
-      DO i =1,3
-         ALLOCATE(xas_tdp_env%dipmat(i)%matrix)          
+!  Create the structure for the dipole in the AO basis
+      ALLOCATE (xas_tdp_env%dipmat(3))
+      DO i = 1, 3
+         ALLOCATE (xas_tdp_env%dipmat(i)%matrix)
          CALL dbcsr_copy(xas_tdp_env%dipmat(i)%matrix, matrix_s(1)%matrix, name="XAS TDP dipole matrix")
          CALL dbcsr_set(xas_tdp_env%dipmat(i)%matrix, 0.0_dp)
       END DO
 
-!     Precompute it if velocity represnetation. If length, need to do it for each excited atom 
+!     Precompute it if velocity represnetation. If length, need to do it for each excited atom
       IF (xas_tdp_control%dipole_form == xas_dip_vel) CALL p_xyz_ao(xas_tdp_env%dipmat, qs_env)
 
 !  Allocate SOC in AO basis matrices
       IF (xas_tdp_control%do_soc) THEN
-         ALLOCATE(xas_tdp_env%orb_soc(3))
-         DO i = 1,3
-            ALLOCATE(xas_tdp_env%orb_soc(i)%matrix)
+         ALLOCATE (xas_tdp_env%orb_soc(3))
+         DO i = 1, 3
+            ALLOCATE (xas_tdp_env%orb_soc(i)%matrix)
          END DO
       END IF
 
@@ -603,7 +598,7 @@ CONTAINS
 
 !  Initialization. mos_of_ex_atoms filled with -1, meaning no assigned state
       mos_of_ex_atoms => xas_tdp_env%mos_of_ex_atoms
-      mos_of_ex_atoms(:,:) = -1
+      mos_of_ex_atoms(:, :) = -1
       n_search = xas_tdp_control%n_search
       nex_atoms = xas_tdp_env%nex_atoms
       localized_wfn_control => xas_tdp_env%qs_loc_env%localized_wfn_control
@@ -647,10 +642,10 @@ CONTAINS
    END SUBROUTINE assign_mos_to_ex_atoms
 
 !> *************************************************************************************************
-!> \brief Re-initialize the qs_loc_env to the current MOs. 
+!> \brief Re-initialize the qs_loc_env to the current MOs.
 !> \param qs_loc_env the env to re-initialize
 !> \param n_loc_states the number of states to include
-!> \param current_do_loc the current state of do_localize before re-initialization 
+!> \param current_do_loc the current state of do_localize before re-initialization
 !> \param qs_env ...
 !> \note  Useful when one needs to make use of qs_loc features and it is either with canonical MOs
 !>        or the localized MOs have been modified. Need to reassign the do_localize value
@@ -658,22 +653,23 @@ CONTAINS
 !> *************************************************************************************************
    SUBROUTINE reinit_qs_loc_env(qs_loc_env, n_loc_states, current_do_loc, qs_env)
 
-      TYPE(qs_loc_env_new_type), POINTER              :: qs_loc_env
-      INTEGER, INTENT(IN)                             :: n_loc_states
-      LOGICAL, INTENT(OUT)                            :: current_do_loc
-      TYPE(qs_environment_type), POINTER              :: qs_env
+      TYPE(qs_loc_env_new_type), POINTER                 :: qs_loc_env
+      INTEGER, INTENT(IN)                                :: n_loc_states
+      LOGICAL, INTENT(OUT)                               :: current_do_loc
+      TYPE(qs_environment_type), POINTER                 :: qs_env
 
-      CHARACTER(len=*), PARAMETER :: routineN ="reinit_qs_loc_env", routineP = moduleN//":"//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'reinit_qs_loc_env', &
+         routineP = moduleN//':'//routineN
 
-      INTEGER                                         :: i
-      TYPE(localized_wfn_control_type), POINTER       :: loc_wfn_control
+      INTEGER                                            :: i
+      TYPE(localized_wfn_control_type), POINTER          :: loc_wfn_control
 
 !  Save the dp_loc
       current_do_loc = qs_loc_env%do_localize
 
 !  First, release the old env
       CALL qs_loc_env_release(qs_loc_env)
-      
+
 !  Re-create it
       CALL qs_loc_env_create(qs_loc_env)
       CALL localized_wfn_control_create(qs_loc_env%localized_wfn_control)
@@ -684,10 +680,10 @@ CONTAINS
       loc_wfn_control%operator_type = 0 !op_loc_berry
       loc_wfn_control%nloc_states(:) = n_loc_states
       loc_wfn_control%eps_occ = 0.0_dp
-      loc_wfn_control%lu_bound_states(1,:) = 1
-      loc_wfn_control%lu_bound_states(2,:) = n_loc_states
+      loc_wfn_control%lu_bound_states(1, :) = 1
+      loc_wfn_control%lu_bound_states(2, :) = n_loc_states
       loc_wfn_control%set_of_states = 2 !state_loc_list
-      loc_wfn_control%do_homo = .FALSE.
+      loc_wfn_control%do_homo = .TRUE.
       ALLOCATE(loc_wfn_control%loc_states(n_loc_states,2))
       DO i = 1,n_loc_states
          loc_wfn_control%loc_states(i,:) = i
@@ -695,7 +691,7 @@ CONTAINS
       CALL set_loc_centers(loc_wfn_control, loc_wfn_control%nloc_states, nspins=1)
       ! need to set do_localize=.TRUE. because otherwise no routine works
       CALL qs_loc_env_init(qs_loc_env, loc_wfn_control, qs_env, myspin=1, do_localize=.TRUE.)
-      
+
    END SUBROUTINE reinit_qs_loc_env
 
 !> *************************************************************************************************
@@ -708,35 +704,34 @@ CONTAINS
 !> *************************************************************************************************
    SUBROUTINE diagonalize_assigned_mo_subset(xas_tdp_env, xas_tdp_control, qs_env)
 
-      TYPE(xas_tdp_env_type), POINTER                 :: xas_tdp_env
-      TYPE(xas_tdp_control_type), POINTER             :: xas_tdp_control
-      TYPE(qs_environment_type), POINTER              :: qs_env 
+      TYPE(xas_tdp_env_type), POINTER                    :: xas_tdp_env
+      TYPE(xas_tdp_control_type), POINTER                :: xas_tdp_control
+      TYPE(qs_environment_type), POINTER                 :: qs_env
 
-      CHARACTER(len=*), PARAMETER :: routineN = "diagonalize_assigned_mo_subset", &
-                                     routineP = moduleN//":"//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'diagonalize_assigned_mo_subset', &
+         routineP = moduleN//':'//routineN
 
-      INTEGER                                         :: iat, nlmo, nao, ilmo, i
-      TYPE(mo_set_p_type), DIMENSION(:), POINTER      :: mos
-      TYPE(cp_fm_type), POINTER                       :: mo_coeff
-      TYPE(dbcsr_p_type), DIMENSION(:), POINTER       :: matrix_ks
-      TYPE(cp_para_env_type), POINTER                 :: para_env
-      TYPE(cp_blacs_env_type), POINTER                :: blacs_env
-      TYPE(cp_fm_struct_type), POINTER                :: lmo_struct, ks_struct
-      TYPE(cp_fm_type), POINTER                       :: lmo_fm, ks_fm, work, evecs
-      REAL(dp), DIMENSION(:), ALLOCATABLE             :: evals
+      INTEGER                                            :: i, iat, ilmo, nao, nlmo
+      REAL(dp), ALLOCATABLE, DIMENSION(:)                :: evals
+      TYPE(cp_blacs_env_type), POINTER                   :: blacs_env
+      TYPE(cp_fm_struct_type), POINTER                   :: ks_struct, lmo_struct
+      TYPE(cp_fm_type), POINTER                          :: evecs, ks_fm, lmo_fm, mo_coeff, work
+      TYPE(cp_para_env_type), POINTER                    :: para_env
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_ks
+      TYPE(mo_set_p_type), DIMENSION(:), POINTER         :: mos
 
-      NULLIFY(mos, mo_coeff, matrix_ks, para_env, blacs_env, lmo_struct, lmo_fm, ks_struct, ks_fm)
-      NULLIFY(evecs, work)
+      NULLIFY (mos, mo_coeff, matrix_ks, para_env, blacs_env, lmo_struct, lmo_fm, ks_struct, ks_fm)
+      NULLIFY (evecs, work)
 
-   ! Get what we need from qs_env
+      ! Get what we need from qs_env
       CALL get_qs_env(qs_env, mos=mos, matrix_ks=matrix_ks, para_env=para_env, blacs_env=blacs_env)
       CALL get_mo_set(mos(1)%mo_set, mo_coeff=mo_coeff, nao=nao)
 
-   ! Loop over the excited atoms
+      ! Loop over the excited atoms
       DO iat = 1, xas_tdp_env%nex_atoms
 
-      ! count how many MOs are associated to this atom and create a fm/struct
-         nlmo = COUNT(xas_tdp_env%mos_of_ex_atoms(:,iat) == 1) 
+         ! count how many MOs are associated to this atom and create a fm/struct
+         nlmo = COUNT(xas_tdp_env%mos_of_ex_atoms(:, iat) == 1)
          CALL cp_fm_struct_create(lmo_struct, nrow_global=nao, ncol_global=nlmo, &
                                   para_env=para_env, context=blacs_env)
          CALL cp_fm_create(lmo_fm, lmo_struct)
@@ -747,11 +742,11 @@ CONTAINS
          CALL cp_fm_create(ks_fm, ks_struct)
          CALL cp_fm_create(evecs, ks_struct)
 
-      ! Loop over the localized MOs associated to this atom
+         ! Loop over the localized MOs associated to this atom
          i = 0
-         DO ilmo = 1,xas_tdp_control%n_search
-            IF (xas_tdp_env%mos_of_ex_atoms(ilmo,iat) == -1) CYCLE 
-            
+         DO ilmo = 1, xas_tdp_control%n_search
+            IF (xas_tdp_env%mos_of_ex_atoms(ilmo, iat) == -1) CYCLE
+
             i = i+1
             ! put the coeff in our atom-restricted lmo_fm
             CALL cp_fm_to_fm_submat(mo_coeff, lmo_fm, nrow=nao, ncol=1, s_firstrow=1, &
@@ -759,22 +754,22 @@ CONTAINS
 
          END DO !ilmo
 
-      ! Computing the KS matrix in the subset of MOs
+         ! Computing the KS matrix in the subset of MOs
          CALL cp_dbcsr_sm_fm_multiply(matrix_ks(1)%matrix, lmo_fm, work, ncol=nlmo)
          CALL cp_gemm('T', 'N', nlmo, nlmo, nao, 1.0_dp, lmo_fm, work, 0.0_dp, ks_fm)
-         
-      ! Diagonalizing the KS matrix in the subset of MOs
-         ALLOCATE(evals(nlmo))
-         CALL choose_eigv_solver(ks_fm, evecs, evals)
-         DEALLOCATE(evals)
 
-      ! Express the MOs in the basis that diagonalizes KS
+         ! Diagonalizing the KS matrix in the subset of MOs
+         ALLOCATE (evals(nlmo))
+         CALL choose_eigv_solver(ks_fm, evecs, evals)
+         DEALLOCATE (evals)
+
+         ! Express the MOs in the basis that diagonalizes KS
          CALL cp_gemm('N', 'N', nao, nlmo, nlmo, 1.0_dp, lmo_fm, evecs, 0.0_dp, work)
 
-      ! Replacing the new MOs back in the MO coeffs
+         ! Replacing the new MOs back in the MO coeffs
          i = 0
-         DO ilmo = 1,xas_tdp_control%n_search
-            IF (xas_tdp_env%mos_of_ex_atoms(ilmo,iat) == -1) CYCLE
+         DO ilmo = 1, xas_tdp_control%n_search
+            IF (xas_tdp_env%mos_of_ex_atoms(ilmo, iat) == -1) CYCLE
 
             i = i+1
             CALL cp_fm_to_fm_submat(work, mo_coeff, nrow=nao, ncol=1, s_firstrow=1, &
@@ -782,7 +777,7 @@ CONTAINS
 
          END DO
 
-      ! Excited atom clean-up
+         ! Excited atom clean-up
          CALL cp_fm_release(lmo_fm)
          CALL cp_fm_release(work)
          CALL cp_fm_struct_release(lmo_struct)
@@ -792,7 +787,7 @@ CONTAINS
       END DO !iat
 
    END SUBROUTINE diagonalize_assigned_mo_subset
-   
+
 !> *************************************************************************************************
 !> \brief Assign core MO(s) to a given donor_state, taking the type (1S, 2S, etc) into account.
 !>        The projection on a representative Slater-type orbital basis is used as a indicator.
@@ -804,46 +799,46 @@ CONTAINS
 !> \param output_unit ...
 !> *************************************************************************************************
    SUBROUTINE assign_mos_to_donor_state(donor_state, xas_tdp_env, xas_tdp_control, qs_env, &
-                                       output_unit)
+                                        output_unit)
 
-      TYPE(donor_state_type), POINTER                 :: donor_state
-      TYPE(xas_tdp_env_type), POINTER                 :: xas_tdp_env        
-      TYPE(xas_tdp_control_type), POINTER             :: xas_tdp_control
-      TYPE(qs_environment_type), POINTER              :: qs_env
-      INTEGER, INTENT(IN)                             :: output_unit
+      TYPE(donor_state_type), POINTER                    :: donor_state
+      TYPE(xas_tdp_env_type), POINTER                    :: xas_tdp_env
+      TYPE(xas_tdp_control_type), POINTER                :: xas_tdp_control
+      TYPE(qs_environment_type), POINTER                 :: qs_env
+      INTEGER, INTENT(IN)                                :: output_unit
 
-      CHARACTER(len=*), PARAMETER :: routineN ='assign_mos_to_donor_state', &
-                                                      routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'assign_mos_to_donor_state', &
+         routineP = moduleN//':'//routineN
 
-      REAL(dp), DIMENSION(:), POINTER                 :: zeta
-      INTEGER, DIMENSION(:), POINTER                  :: lq, nq, first_sgf
-      TYPE(sto_basis_set_type), POINTER               :: sto_basis_set
-      TYPE(gto_basis_set_type), POINTER               :: sto_to_gto_basis_set, kind_basis_set
-      INTEGER, DIMENSION(4,7)                         :: ne
-      INTEGER                                         :: zval, i, l, nj, nsgf_sto, nsgf_kind, j,&
-                                                         n_search, imo, iat, nao, at_index, my_mo,&
-                                                         n_states, next_best_overlap_ind
-      INTEGER, DIMENSION(:), ALLOCATABLE              :: my_mos
-      REAL(dp)                                        :: zeff, next_best_overlap
-      TYPE(qs_kind_type), DIMENSION(:), POINTER       :: qs_kind_set
-      TYPE(mo_set_p_type), DIMENSION(:), POINTER      :: mos
-      TYPE(cp_fm_type), POINTER                       :: mo_coeff, work_mat, eval_mat, gs_coeffs
-      INTEGER, DIMENSION(:,:), POINTER                :: mos_of_ex_atoms
-      REAL(dp), DIMENSION(:,:), POINTER               :: tmp_coeff, overlap_matrix
-      TYPE(particle_type), DIMENSION(:), POINTER      :: particle_set
-      REAL(dp), DIMENSION(:), POINTER                 :: mo_evals
-      REAL(dp), DIMENSION(:), ALLOCATABLE             :: max_overlap, overlap, sto_overlap
-      TYPE(dbcsr_p_type), DIMENSION(:), POINTER       :: matrix_ks
-      TYPE(cp_fm_struct_type), POINTER                :: eval_mat_struct, gs_struct 
-      TYPE(cp_para_env_type), POINTER                 :: para_env                                    
-      TYPE(cp_blacs_env_type), POINTER                :: blacs_env 
-      
-      NULLIFY(sto_basis_set, sto_to_gto_basis_set, qs_kind_set, kind_basis_set, lq, nq, zeta)
-      NULLIFY(overlap_matrix, mos, mo_coeff, mos_of_ex_atoms, tmp_coeff, first_sgf, particle_set)
-      NULLIFY(mo_evals, matrix_ks, para_env, blacs_env, work_mat)
-      NULLIFY(eval_mat_struct, eval_mat, gs_struct, gs_coeffs)
-      
-      CALL get_qs_env(qs_env=qs_env, qs_kind_set=qs_kind_set, mos=mos, particle_set=particle_set,&
+      INTEGER                                            :: at_index, i, iat, imo, j, l, my_mo, &
+                                                            n_search, n_states, nao, &
+                                                            next_best_overlap_ind, nj, nsgf_kind, &
+                                                            nsgf_sto, zval
+      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: my_mos
+      INTEGER, DIMENSION(4, 7)                           :: ne
+      INTEGER, DIMENSION(:), POINTER                     :: first_sgf, lq, nq
+      INTEGER, DIMENSION(:, :), POINTER                  :: mos_of_ex_atoms
+      REAL(dp)                                           :: next_best_overlap, zeff
+      REAL(dp), ALLOCATABLE, DIMENSION(:)                :: max_overlap, overlap, sto_overlap
+      REAL(dp), DIMENSION(:), POINTER                    :: mo_evals, zeta
+      REAL(dp), DIMENSION(:, :), POINTER                 :: overlap_matrix, tmp_coeff
+      TYPE(cp_blacs_env_type), POINTER                   :: blacs_env
+      TYPE(cp_fm_struct_type), POINTER                   :: eval_mat_struct, gs_struct
+      TYPE(cp_fm_type), POINTER                          :: eval_mat, gs_coeffs, mo_coeff, work_mat
+      TYPE(cp_para_env_type), POINTER                    :: para_env
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_ks
+      TYPE(gto_basis_set_type), POINTER                  :: kind_basis_set, sto_to_gto_basis_set
+      TYPE(mo_set_p_type), DIMENSION(:), POINTER         :: mos
+      TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
+      TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
+      TYPE(sto_basis_set_type), POINTER                  :: sto_basis_set
+
+      NULLIFY (sto_basis_set, sto_to_gto_basis_set, qs_kind_set, kind_basis_set, lq, nq, zeta)
+      NULLIFY (overlap_matrix, mos, mo_coeff, mos_of_ex_atoms, tmp_coeff, first_sgf, particle_set)
+      NULLIFY (mo_evals, matrix_ks, para_env, blacs_env, work_mat)
+      NULLIFY (eval_mat_struct, eval_mat, gs_struct, gs_coeffs)
+
+      CALL get_qs_env(qs_env=qs_env, qs_kind_set=qs_kind_set, mos=mos, particle_set=particle_set, &
                       matrix_ks=matrix_ks, para_env=para_env, blacs_env=blacs_env)
 
 !  Contruction of a STO that fits the type of orbital we look for
@@ -895,8 +890,8 @@ CONTAINS
       DEALLOCATE (nq, lq, zeta)
 
 !  Expanding the STO into (normalized) GTOs for later calculations, use standard 3 gaussians
-      CALL create_gto_from_sto_basis(sto_basis_set=sto_basis_set,&
-                                     gto_basis_set=sto_to_gto_basis_set,&
+      CALL create_gto_from_sto_basis(sto_basis_set=sto_basis_set, &
+                                     gto_basis_set=sto_to_gto_basis_set, &
                                      ngauss=3)
       sto_to_gto_basis_set%norm_type = 2
       CALL init_orb_basis_set(sto_to_gto_basis_set)
@@ -924,29 +919,29 @@ CONTAINS
       CALL get_mo_set(mos(1)%mo_set, mo_coeff=mo_coeff, nao=nao, eigenvalues=mo_evals)
       ALLOCATE (first_sgf(SIZE(particle_set)))
       CALL get_particle_set(particle_set=particle_set, qs_kind_set=qs_kind_set, first_sgf=first_sgf)
-      ALLOCATE(tmp_coeff(nsgf_kind,1))
-      ALLOCATE(sto_overlap(nsgf_kind))
+      ALLOCATE (tmp_coeff(nsgf_kind, 1))
+      ALLOCATE (sto_overlap(nsgf_kind))
 
       next_best_overlap = 0.0_dp
       max_overlap(:) = 0.0_dp
       ALLOCATE (overlap(n_search))
       overlap(:) = 0.0_dp
       my_mo = 0
-      DO imo = 1,n_search
-         IF(mos_of_ex_atoms(imo,iat) > 0) THEN
-            
+      DO imo = 1, n_search
+         IF (mos_of_ex_atoms(imo, iat) > 0) THEN
+
             sto_overlap = 0.0_dp
             tmp_coeff = 0.0_dp
 
 !           Getting the relevant coefficients for the candidate state
-            CALL cp_fm_get_submatrix(fm=mo_coeff, target_m=tmp_coeff, start_row=first_sgf(at_index),&
+            CALL cp_fm_get_submatrix(fm=mo_coeff, target_m=tmp_coeff, start_row=first_sgf(at_index), &
                                      start_col=imo, n_rows=nsgf_kind, n_cols=1, transpose=.FALSE.)
-                                  
+
 !           Computing the product overlap_matrix*coeffs
             CALL dgemm('N', 'N', nsgf_sto, 1, nsgf_kind, 1.0_dp, overlap_matrix, nsgf_sto, &
                        tmp_coeff, nsgf_kind, 0.0_dp, sto_overlap, nsgf_sto)
 
-!           Each element of column vector sto_overlap is the overlap of a basis element of the 
+!           Each element of column vector sto_overlap is the overlap of a basis element of the
 !           generated STO basis with the kind specific orbital basis. Take the sum of the absolute
 !           values so that rotation (of the px, py, pz for example) does not hinder our search
             overlap(imo) = SUM(ABS(sto_overlap))
@@ -966,7 +961,7 @@ CONTAINS
       next_best_overlap_ind = MAXLOC(overlap, 1)
 
 !     Some clean-up
-      DEALLOCATE(first_sgf, overlap_matrix, tmp_coeff) 
+      DEALLOCATE (first_sgf, overlap_matrix, tmp_coeff)
 
 !  Dealing with the result
       IF (ALL(my_mos > 0) .AND. ALL(my_mos <= n_search)) THEN
@@ -976,18 +971,18 @@ CONTAINS
 
 !        Storing the MOs in the donor_state, as vectors column
          CALL cp_fm_struct_create(gs_struct, nrow_global=nao, ncol_global=n_states, &
-                                  para_env=para_env, context=blacs_env) 
+                                  para_env=para_env, context=blacs_env)
          CALL cp_fm_create(donor_state%gs_coeffs, gs_struct)
 
          DO i = 1, n_states
             CALL cp_fm_to_fm_submat(msource=mo_coeff, mtarget=donor_state%gs_coeffs, nrow=nao, &
-                                    ncol=1, s_firstrow=1, s_firstcol=my_mos(i), t_firstrow=1, &           
+                                    ncol=1, s_firstrow=1, s_firstcol=my_mos(i), t_firstrow=1, &
                                     t_firstcol=i)
          END DO
          gs_coeffs => donor_state%gs_coeffs
 
 !        Assigning corresponding energy eigenvalues and writing some info in standard input file
-         ALLOCATE(donor_state%energy_evals(n_states)) 
+         ALLOCATE (donor_state%energy_evals(n_states))
          donor_state%energy_evals = 0.0_dp
          IF (.NOT. xas_tdp_env%qs_loc_env%do_localize) THEN
             IF (output_unit > 0) THEN
@@ -998,10 +993,10 @@ CONTAINS
             END IF
 
 !           Canonical MO, no change in eigenvalues, only diagonal elements
-            DO i = 1,n_states 
+            DO i = 1, n_states
                donor_state%energy_evals(i) = mo_evals(my_mos(i))
-               
-               IF (output_unit > 0 ) THEN
+
+               IF (output_unit > 0) THEN
                   WRITE (UNIT=output_unit, FMT="(T53,I8,F18.5)") &
                      my_mos(i), max_overlap(i)
                END IF
@@ -1022,20 +1017,20 @@ CONTAINS
             CALL cp_fm_create(eval_mat, eval_mat_struct)
 
 !           Loop over the donor states  and print
-            DO j = 1,n_states
+            DO j = 1, n_states
 
 !              Print info
-               IF (output_unit > 0 ) THEN
+               IF (output_unit > 0) THEN
                   WRITE (UNIT=output_unit, FMT="(T53,I8,F18.5)") &
-                     my_mos(j), max_overlap(j) 
+                     my_mos(j), max_overlap(j)
                END IF
 
             END DO
 
 !           Compute gs_coeff^T * matrix_ks * gs_coeff to get the epsilon_ij matrix
             CALL cp_dbcsr_sm_fm_multiply(matrix_ks(1)%matrix, gs_coeffs, work_mat, ncol=n_states)
-            CALL cp_gemm('T', 'N', n_states, n_states, nao, 1.0_dp, gs_coeffs, work_mat, 0.0_dp,&
-                            eval_mat)
+            CALL cp_gemm('T', 'N', n_states, n_states, nao, 1.0_dp, gs_coeffs, work_mat, 0.0_dp, &
+                         eval_mat)
 
 !           Put the epsilon_ii into the donor_state. No off-diagonal element because of subset diag
             CALL cp_fm_get_diag(eval_mat, donor_state%energy_evals)
@@ -1048,8 +1043,8 @@ CONTAINS
          END IF ! do_localize
 
 !        Clean-up
-         CALL cp_fm_struct_release(gs_struct) 
-         
+         CALL cp_fm_struct_release(gs_struct)
+
          IF (output_unit > 0) THEN
             WRITE (UNIT=output_unit, FMT="(T5,A,F7.5,A,I4/)") &
                "The next best overlap is ", next_best_overlap, " for MO with index ", &
@@ -1078,23 +1073,23 @@ CONTAINS
       TYPE(xas_tdp_control_type), POINTER                :: xas_tdp_control
       TYPE(qs_environment_type), POINTER                 :: qs_env
 
-      TYPE(qs_loc_env_new_type), POINTER              :: qs_loc_env
-      TYPE(cp_fm_p_type), DIMENSION(:, :), POINTER    :: zij_fm_set 
-      INTEGER                                         :: n_centers, nao, i, j, dim_op
-      TYPE(cell_type), POINTER                        :: cell 
-      REAL(dp), DIMENSION(6)                          :: weights 
-      TYPE(section_vals_type), POINTER                :: print_loc_section, prog_run_info
-      TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER    :: op_sm_set 
-      TYPE(cp_fm_p_type), DIMENSION(:), POINTER       :: moloc_coeff
-      TYPE(cp_fm_type), POINTER                       :: vectors, opvec
-      TYPE(cp_fm_struct_type), POINTER                :: tmp_fm_struct  
-      TYPE(cp_para_env_type), POINTER                 :: para_env                                    
-      TYPE(cp_blacs_env_type), POINTER                :: blacs_env
-      LOGICAL                                         :: my_do_loc
+      INTEGER                                            :: dim_op, i, j, n_centers, nao
+      LOGICAL                                            :: my_do_loc
+      REAL(dp), DIMENSION(6)                             :: weights
+      TYPE(cell_type), POINTER                           :: cell
+      TYPE(cp_blacs_env_type), POINTER                   :: blacs_env
+      TYPE(cp_fm_p_type), DIMENSION(:), POINTER          :: moloc_coeff
+      TYPE(cp_fm_p_type), DIMENSION(:, :), POINTER       :: zij_fm_set
+      TYPE(cp_fm_struct_type), POINTER                   :: tmp_fm_struct
+      TYPE(cp_fm_type), POINTER                          :: opvec, vectors
+      TYPE(cp_para_env_type), POINTER                    :: para_env
+      TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: op_sm_set
+      TYPE(qs_loc_env_new_type), POINTER                 :: qs_loc_env
+      TYPE(section_vals_type), POINTER                   :: print_loc_section, prog_run_info
 
-      NULLIFY(qs_loc_env, zij_fm_set, cell, print_loc_section, op_sm_set, moloc_coeff, vectors)
-      NULLIFY(opvec, tmp_fm_struct, para_env, blacs_env, prog_run_info)
-      
+      NULLIFY (qs_loc_env, zij_fm_set, cell, print_loc_section, op_sm_set, moloc_coeff, vectors)
+      NULLIFY (opvec, tmp_fm_struct, para_env, blacs_env, prog_run_info)
+
 !  Initialization
       print_loc_section => xas_tdp_control%print_loc_subsection
       n_centers = xas_tdp_control%n_search
@@ -1102,15 +1097,15 @@ CONTAINS
 
 !  Set print option to debug to keep clean output file
       prog_run_info => section_vals_get_subs_vals(print_loc_section, "PROGRAM_RUN_INFO")
-      CALL section_vals_val_set(prog_run_info, keyword_name="_SECTION_PARAMETERS_",&
-                           i_val=debug_print_level)
+      CALL section_vals_val_set(prog_run_info, keyword_name="_SECTION_PARAMETERS_", &
+                                i_val=debug_print_level)
 
 !  Re-initialize the qs_loc_env to get the current MOs
       CALL reinit_qs_loc_env(xas_tdp_env%qs_loc_env, n_centers, my_do_loc, qs_env)
       qs_loc_env => xas_tdp_env%qs_loc_env
 
 !  Get what we need from the qs_lovc_env
-      CALL get_qs_loc_env(qs_loc_env=qs_loc_env, weights=weights, op_sm_set=op_sm_set,&
+      CALL get_qs_loc_env(qs_loc_env=qs_loc_env, weights=weights, op_sm_set=op_sm_set, &
                           moloc_coeff=moloc_coeff)
 
 !  Prepare for zij
@@ -1152,11 +1147,101 @@ CONTAINS
             CALL cp_fm_release(zij_fm_set(j, i)%matrix)
          END DO
       END DO
-      DEALLOCATE(zij_fm_set)
+      DEALLOCATE (zij_fm_set)
 !  Make sure we leave with the correct do_loc value
       qs_loc_env%do_localize = my_do_loc
 
    END SUBROUTINE find_mo_centers
+
+! **************************************************************************************************
+!> \brief Computes the oscillator strength based on the dipole moment (velocity or length rep) for
+!>        all available excitation energies and store the results in the donor_state. There is no
+!>        triplet dipole in the spin-restricted ground state
+!> \param donor_state the donor state which is excited
+!> \param xas_tdp_control ...
+!> \param xas_tdp_env ...
+!> \note The oscillator strength is a scalar: osc_str = 2/3*omega*(dipole_r)^2 = 2/(3*omega)*(dipole_v)^2
+!>       The formulae for the dipoles come from the trace of the dipole operator with the transition
+!>       densities, i.e. what we get from solving the xas_tdp problem. Same procedure with or wo TDA
+! **************************************************************************************************
+   SUBROUTINE compute_dipole_fosc(donor_state, xas_tdp_control, xas_tdp_env)
+
+      TYPE(donor_state_type), POINTER                    :: donor_state
+      TYPE(xas_tdp_control_type), POINTER                :: xas_tdp_control
+      TYPE(xas_tdp_env_type), POINTER                    :: xas_tdp_env
+
+      CHARACTER(len=*), PARAMETER :: routineN = 'compute_dipole_fosc', &
+         routineP = moduleN//':'//routineN
+
+      INTEGER                                            :: iosc, j, nao, ndo_mo, nosc
+      REAL(dp)                                           :: dip_mom
+      REAL(dp), ALLOCATABLE, DIMENSION(:)                :: diag, osc_str
+      TYPE(cp_blacs_env_type), POINTER                   :: blacs_env
+      TYPE(cp_fm_struct_type), POINTER                   :: col_struct, mat_struct
+      TYPE(cp_fm_type), POINTER                          :: col_work, lr_coeffs, mat_work
+      TYPE(cp_para_env_type), POINTER                    :: para_env
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: dipmat
+
+      NULLIFY (dipmat, col_work, mat_work, col_struct, mat_struct, para_env, blacs_env, lr_coeffs)
+
+!  Initialization
+      ndo_mo = SIZE(donor_state%mo_indices)
+      nosc = SIZE(donor_state%sg_evals)
+      ALLOCATE (osc_str(nosc))
+      osc_str = 0.0_dp
+
+      dipmat => xas_tdp_env%dipmat
+      !compute the prefactor
+      IF (xas_tdp_control%dipole_form == xas_dip_len) THEN
+         osc_str(:) = 2.0_dp/3.0_dp*donor_state%sg_evals(:)
+      ELSE
+         osc_str(:) = 2.0_dp/3.0_dp/donor_state%sg_evals(:)
+      END IF
+
+      ! do some work matrix initialization
+      CALL cp_fm_get_info(donor_state%gs_coeffs, matrix_struct=col_struct, para_env=para_env, &
+                          context=blacs_env, nrow_global=nao)
+      CALL cp_fm_struct_create(mat_struct, para_env=para_env, context=blacs_env, &
+                               nrow_global=ndo_mo, ncol_global=ndo_mo)
+      CALL cp_fm_create(col_work, col_struct)
+      CALL cp_fm_create(mat_work, mat_struct)
+      ALLOCATE (diag(ndo_mo))
+
+!  Looping over the excited singlets
+      DO iosc = 1, nosc
+
+         dip_mom = 0.0_dp
+         lr_coeffs => donor_state%sg_coeffs(iosc)%matrix
+
+         !looping over the cartesian coordinates
+         DO j = 1, 3
+
+            !computing c^0 * dipmat(j) * c^i
+            CALL cp_dbcsr_sm_fm_multiply(dipmat(j)%matrix, lr_coeffs, col_work, ncol=ndo_mo)
+            CALL cp_gemm('T', 'N', ndo_mo, ndo_mo, nao, 1.0_dp, donor_state%gs_coeffs, &
+                         col_work, 0.0_dp, mat_work)
+
+            !get the sum of the dipole moments. Factor 2 because of definition of singlet
+            CALL cp_fm_get_diag(mat_work, diag)
+            dip_mom = dip_mom+2.0_dp*SUM(diag)**2
+
+         END DO !j
+
+         !Taking the excitation energy into account
+         osc_str(iosc) = osc_str(iosc)*dip_mom
+
+      END DO !iosc
+
+!  Saving the results in the donor state
+      donor_state%sg_osc_str(:) = osc_str
+
+      !clean-up
+      CALL cp_fm_release(mat_work)
+      CALL cp_fm_release(col_work)
+      CALL cp_fm_struct_release(mat_struct)
+      DEALLOCATE (diag)
+
+   END SUBROUTINE compute_dipole_fosc
 
 !> *************************************************************************************************
 !> \brief Writes the core MOs to excited atoms associations in the main output file
@@ -1257,28 +1342,28 @@ CONTAINS
       CHARACTER(len=*), PARAMETER :: routineN = 'perform_mulliken_on_donor_state', &
          routineP = moduleN//':'//routineN
 
-      INTEGER                                         :: at_index, i, nao, natom, ndo_mo, nsgf
-      INTEGER, DIMENSION(:), POINTER                  :: mo_indices, first_sgf, last_sgf
-      TYPE(mo_set_p_type), DIMENSION(:), POINTER      :: mos
-      TYPE(qs_kind_type), DIMENSION(:), POINTER       :: qs_kind_set
-      TYPE(particle_type), DIMENSION(:), POINTER      :: particle_set
-      TYPE(cp_fm_type), POINTER                       :: work_vect, gs_coeffs
-      REAL(dp), DIMENSION(:,:), POINTER               :: tmp_coeff, work_array
-      REAL(dp), DIMENSION(:), ALLOCATABLE             :: mul_pop
-      REAL(dp), DIMENSION(:,:), ALLOCATABLE           :: pop_mat
-      TYPE(dbcsr_p_type), DIMENSION(:), POINTER       :: matrix_s
-      TYPE(cp_para_env_type), POINTER                 :: para_env
-      TYPE(cp_blacs_env_type), POINTER                :: blacs_env
-      TYPE(cp_fm_struct_type), POINTER                :: col_vect_struct
+      INTEGER                                            :: at_index, i, nao, natom, ndo_mo, nsgf
+      INTEGER, DIMENSION(:), POINTER                     :: first_sgf, last_sgf, mo_indices
+      REAL(dp), ALLOCATABLE, DIMENSION(:)                :: mul_pop
+      REAL(dp), ALLOCATABLE, DIMENSION(:, :)             :: pop_mat
+      REAL(dp), DIMENSION(:, :), POINTER                 :: tmp_coeff, work_array
+      TYPE(cp_blacs_env_type), POINTER                   :: blacs_env
+      TYPE(cp_fm_struct_type), POINTER                   :: col_vect_struct
+      TYPE(cp_fm_type), POINTER                          :: gs_coeffs, work_vect
+      TYPE(cp_para_env_type), POINTER                    :: para_env
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_s
+      TYPE(mo_set_p_type), DIMENSION(:), POINTER         :: mos
+      TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
+      TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
 
-      NULLIFY(mos, mo_indices, qs_kind_set, particle_set, tmp_coeff, first_sgf,work_array)
-      NULLIFY(matrix_s, para_env, blacs_env, col_vect_struct, work_vect, last_sgf)
+      NULLIFY (mos, mo_indices, qs_kind_set, particle_set, tmp_coeff, first_sgf, work_array)
+      NULLIFY (matrix_s, para_env, blacs_env, col_vect_struct, work_vect, last_sgf)
 
 !  Initialization
       at_index = donor_state%at_index
       mo_indices => donor_state%mo_indices
-      ndo_mo = SIZE(donor_state%mo_indices,1)
-      ALLOCATE(mul_pop(ndo_mo))
+      ndo_mo = SIZE(donor_state%mo_indices, 1)
+      ALLOCATE (mul_pop(ndo_mo))
       mul_pop = 0.0_dp
       gs_coeffs => donor_state%gs_coeffs
 
@@ -1296,12 +1381,12 @@ CONTAINS
       CALL cp_fm_create(work_vect, col_vect_struct)
 
 !  Take the product of S*coeffs
-      CALL cp_dbcsr_sm_fm_multiply(matrix_s(1)%matrix, gs_coeffs, work_vect, ncol=ndo_mo) 
+      CALL cp_dbcsr_sm_fm_multiply(matrix_s(1)%matrix, gs_coeffs, work_vect, ncol=ndo_mo)
 
 !  Only consider the product coeffs^T * S * coeffs on the atom of interest
-      ALLOCATE(tmp_coeff(ndo_mo,nsgf))
-      ALLOCATE(work_array(nsgf,ndo_mo))
-      ALLOCATE(pop_mat(ndo_mo,ndo_mo))
+      ALLOCATE (tmp_coeff(ndo_mo, nsgf))
+      ALLOCATE (work_array(nsgf, ndo_mo))
+      ALLOCATE (pop_mat(ndo_mo, ndo_mo))
 
       CALL cp_fm_get_submatrix(fm=gs_coeffs, target_m=tmp_coeff, start_row=first_sgf(at_index), &
                                start_col=1, n_rows=nsgf, n_cols=ndo_mo, transpose=.TRUE.)
@@ -1313,8 +1398,8 @@ CONTAINS
                  pop_mat, ndo_mo)
 
 !  The Mullikan population for the MOs in on the diagonal. Factor of 2 because doubly occupied
-      DO i = 1,ndo_mo
-         mul_pop(i) = 2*pop_mat(i,i)
+      DO i = 1, ndo_mo
+         mul_pop(i) = 2*pop_mat(i, i)
       END DO
 
 !  Printing in main output file
@@ -1329,104 +1414,104 @@ CONTAINS
       END IF
 
 !  Clean-up
-      DEALLOCATE(first_sgf, last_sgf, tmp_coeff, work_array)
+      DEALLOCATE (first_sgf, last_sgf, tmp_coeff, work_array)
       CALL cp_fm_release(work_vect)
 
    END SUBROUTINE perform_mulliken_on_donor_state
 
 ! **************************************************************************************************
-!> \brief Prints the excitation energies and the oscillator strengths for a given donor_state in a file 
+!> \brief Prints the excitation energies and the oscillator strengths for a given donor_state in a file
 !> \param donor_state the donor_state to print
 ! **************************************************************************************************
    SUBROUTINE print_xas_tdp_to_file(donor_state, xas_tdp_env, xas_tdp_control, xas_tdp_section)
 
-      TYPE(donor_state_type), POINTER                 :: donor_state
-      TYPE(xas_tdp_env_type), POINTER                 :: xas_tdp_env
-      TYPE(xas_tdp_control_type), POINTER             :: xas_tdp_control
-      TYPE(section_vals_type), POINTER                :: xas_tdp_section   
+      TYPE(donor_state_type), POINTER                    :: donor_state
+      TYPE(xas_tdp_env_type), POINTER                    :: xas_tdp_env
+      TYPE(xas_tdp_control_type), POINTER                :: xas_tdp_control
+      TYPE(section_vals_type), POINTER                   :: xas_tdp_section
 
-      CHARACTER(len=*), PARAMETER :: routineN = "print_xas_tdp_to_file", &
-                                     routineP = moduleN//":"//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'print_xas_tdp_to_file', &
+         routineP = moduleN//':'//routineN
 
-      TYPE(cp_logger_type), POINTER                   :: logger
-      INTEGER                                         :: xas_tdp_unit, i
+      INTEGER                                            :: i, xas_tdp_unit
+      TYPE(cp_logger_type), POINTER                      :: logger
 
-      NULLIFY(logger)
+      NULLIFY (logger)
       logger => cp_get_default_logger()
 
       xas_tdp_unit = cp_print_key_unit_nr(logger, xas_tdp_section, "PRINT%SPECTRUM", &
-                                      extension=".spectrum", file_position="APPEND", &
-                                      file_action="WRITE", file_form="FORMATTED")
+                                          extension=".spectrum", file_position="APPEND", &
+                                          file_action="WRITE", file_form="FORMATTED")
 
       IF (xas_tdp_unit > 0) THEN
 
          IF (xas_tdp_control%do_singlet) THEN
 
 !           Printing the general donor state information
-            WRITE(xas_tdp_unit, FMT="(A,/,A,A,A/,A,I5,A,I5,A,A,/,A)") &
+            WRITE (xas_tdp_unit, FMT="(A,/,A,A,A/,A,I5,A,I5,A,A,/,A)") &
                "====================================================================", &
                "XAS TDP singlet excitations (no SOC) for DONOR STATE: ", &
-                xas_tdp_env%state_type_char(donor_state%state_type), ",",&
+               xas_tdp_env%state_type_char(donor_state%state_type), ",", &
                "from EXCITED ATOM: ", donor_state%at_index, ", of KIND (index/symbol): ", &
-               donor_state%kind_index, "/", donor_state%at_symbol,&
+               donor_state%kind_index, "/", donor_state%at_symbol, &
                "===================================================================="
 
 !           Simply dump the excitation energies/ oscillator strength as they come
-            WRITE(xas_tdp_unit, FMT="(T3,A)") &
+            WRITE (xas_tdp_unit, FMT="(T3,A)") &
                "Excitation energy (eV)            Oscillator strength (a.u.)"
 
-            DO i =1,SIZE(donor_state%sg_evals)
-               WRITE(xas_tdp_unit, FMT="(T3,F22.6,F38.6)") &
+            DO i = 1, SIZE(donor_state%sg_evals)
+               WRITE (xas_tdp_unit, FMT="(T3,F22.6,F38.6)") &
                   donor_state%sg_evals(i)*evolt, donor_state%sg_osc_str(i)
             END DO
 
-            WRITE(xas_tdp_unit, FMT="(A,/)") " "
+            WRITE (xas_tdp_unit, FMT="(A,/)") " "
          END IF ! do_singlet
 
          IF (xas_tdp_control%do_triplet) THEN
 
 !           Printing the general donor state information
-            WRITE(xas_tdp_unit, FMT="(A,/,A,A,A/,A,I5,A,I5,A,A,/,A)") &
+            WRITE (xas_tdp_unit, FMT="(A,/,A,A,A/,A,I5,A,I5,A,A,/,A)") &
                "====================================================================", &
                "XAS TDP triplet excitations (no SOC) for DONOR STATE: ", &
-                xas_tdp_env%state_type_char(donor_state%state_type), ",",&
+               xas_tdp_env%state_type_char(donor_state%state_type), ",", &
                "from EXCITED ATOM: ", donor_state%at_index, ", of KIND (index/symbol): ", &
-               donor_state%kind_index, "/", donor_state%at_symbol,&
+               donor_state%kind_index, "/", donor_state%at_symbol, &
                "===================================================================="
 
 !           Simply dump the excitation energies/ oscillator strength as they come
-            WRITE(xas_tdp_unit, FMT="(T3,A)") &
+            WRITE (xas_tdp_unit, FMT="(T3,A)") &
                "Excitation energy (eV)            Oscillator strength (a.u.)"
 
-            DO i =1,SIZE(donor_state%tp_evals)
-               WRITE(xas_tdp_unit, FMT="(T3,F22.6,F38.6)") &
+            DO i = 1, SIZE(donor_state%tp_evals)
+               WRITE (xas_tdp_unit, FMT="(T3,F22.6,F38.6)") &
                   donor_state%tp_evals(i)*evolt, donor_state%tp_osc_str(i)
             END DO
 
-            WRITE(xas_tdp_unit, FMT="(A,/)") " "
+            WRITE (xas_tdp_unit, FMT="(A,/)") " "
          END IF ! do_triplet
 
          IF (xas_tdp_control%do_soc) THEN
-            
+
 !           Printing the general donor state information
-            WRITE(xas_tdp_unit, FMT="(A,/,A,A,A/,A,I5,A,I5,A,A,/,A)") &
+            WRITE (xas_tdp_unit, FMT="(A,/,A,A,A/,A,I5,A,I5,A,A,/,A)") &
                "====================================================================", &
                "XAS TDP  excitations after spin-orbit coupling for DONOR STATE: ", &
-                xas_tdp_env%state_type_char(donor_state%state_type), ",",&
+               xas_tdp_env%state_type_char(donor_state%state_type), ",", &
                "from EXCITED ATOM: ", donor_state%at_index, ", of KIND (index/symbol): ", &
-               donor_state%kind_index, "/", donor_state%at_symbol,&
+               donor_state%kind_index, "/", donor_state%at_symbol, &
                "===================================================================="
 
 !           Simply dump the excitation energies/ oscillator strength as they come
-            WRITE(xas_tdp_unit, FMT="(T3,A)") &
+            WRITE (xas_tdp_unit, FMT="(T3,A)") &
                "Excitation energy (eV)            Oscillator strength (a.u.)"
 
-            DO i =1,SIZE(donor_state%soc_evals)
-               WRITE(xas_tdp_unit, FMT="(T3,F22.6,F38.6)") &
+            DO i = 1, SIZE(donor_state%soc_evals)
+               WRITE (xas_tdp_unit, FMT="(T3,F22.6,F38.6)") &
                   donor_state%soc_evals(i)*evolt, donor_state%soc_osc_str(i)
             END DO
 
-            WRITE(xas_tdp_unit, FMT="(A,/)") " "
+            WRITE (xas_tdp_unit, FMT="(A,/)") " "
 
          END IF !do_soc
 
