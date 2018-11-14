@@ -255,9 +255,8 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE int_overlap_ab_os(sab, dsab, rab, fba, fbb, calculate_forces, debug, dmax)
 
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :), &
-         INTENT(INOUT)                                   :: sab
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :), &
+      REAL(KIND=dp), DIMENSION(:, :), INTENT(INOUT)      :: sab
+      REAL(KIND=dp), DIMENSION(:, :, :), &
          INTENT(INOUT), OPTIONAL                         :: dsab
       REAL(KIND=dp), DIMENSION(3), INTENT(IN)            :: rab
       TYPE(gto_basis_set_type), POINTER                  :: fba, fbb
