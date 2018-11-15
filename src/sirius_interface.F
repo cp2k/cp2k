@@ -282,6 +282,7 @@ CONTAINS
             DO l = 0, 3
                IF (gth_atompot%nl(l) == 0) CYCLE
                rl = gth_atompot%rcnl(l)
+               ! we need to multiply by r so that data transfered to sirius are r \beta(r) not beta(r)
                ef(1:nmesh) = EXP(-0.5_dp*rp(1:nmesh)*rp(1:nmesh)/(rl*rl))
                DO i = 1, gth_atompot%nl(l)
                   pf = rl**(l+0.5_dp*(4._dp*i-1._dp))
@@ -289,8 +290,7 @@ CONTAINS
                   pf = SQRT(2._dp)/(pf*SQRT(gamma1(j)))
                   beta(:) = pf*rp**(l+2*i-2)*ef
                   ibeta = ibeta+1
-                  fun(1:nmesh) = 2._dp*beta(1:nmesh)
-                  ! is kbeta number of grid points to be used? (=nmesh)
+                  fun(1:nmesh) = beta(1:nmesh)*rp(1:nmesh)
                   CALL sirius_add_atom_type_radial_function(sctx, string(label), &
                                                             string("beta"), fun(1), nmesh, l=l)
                END DO
@@ -307,7 +307,6 @@ CONTAINS
                i = ibeta+gth_atompot%nl(l)-1
                dion(ibeta:i, ibeta:i) = gth_atompot%hnl(1:gth_atompot%nl(l), 1:gth_atompot%nl(l), l)
             END DO
-            dion = 0.5_dp*dion
             CALL sirius_set_atom_type_dion(sctx, string(label), nbeta, dion(1, 1))
             DEALLOCATE (dion)
 
@@ -325,7 +324,7 @@ CONTAINS
                      corden(:) = corden(:)+fe(:)*rc(:)**(2*j-2)*cval
                   END DO
                END DO
-               fun(1:nmesh) = corden(1:nmesh)
+               fun(1:nmesh) = corden(1:nmesh)*rp(1:nmesh)
                CALL sirius_add_atom_type_radial_function(sctx, string(label), string("ps_rho_core"), &
                                                          fun(1), nmesh)
                DEALLOCATE (corden, fe, rc)
@@ -350,10 +349,10 @@ CONTAINS
                focc = wfninfo(1, iwf)
                l = NINT(wfninfo(2, iwf))
                IF (up) THEN
-                  fun(1:nmesh) = wavefunction(1:nmesh, iwf)
+                  fun(1:nmesh) = wavefunction(1:nmesh, iwf)*rp(i)
                ELSE
                   DO i = 1, nmesh
-                     fun(i) = wavefunction(nmesh-i+1, iwf)
+                     fun(i) = wavefunction(nmesh-i+1, iwf)*rp(i)
                   END DO
                END IF
                CALL sirius_add_atom_type_radial_function(sctx, &
@@ -390,10 +389,10 @@ CONTAINS
       CALL json%initialize(compact_reals=.TRUE.)
       CALL json%load_from_string(parameter_json)
       CALL json%get('$.parameters.num_mag_dims', num_mag_dims, found)
-      IF (.NOT. found) num_mag_dims = 1
+      IF (.NOT. found) num_mag_dims = 0
       CALL json%destroy()
 #else
-      num_mag_dims = 1
+      num_mag_dims = 0
 #endif
       IF (num_mag_dims == 3) THEN
          noncolin = .TRUE.
