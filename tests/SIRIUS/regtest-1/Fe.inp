@@ -7,7 +7,7 @@
       "std_evp_solver_type" : "lapack",
       "gen_evp_solver_type" : "lapack",
       "verbosity" : 1,
-      "verification" : 1,
+      "verification" : 0,
       "print_forces" : true,
       "print_stress" : true
      &END CONTROL
@@ -54,6 +54,5 @@
 &END FORCE_EVAL
 &GLOBAL
   PROJECT Fe
-  RUN_TYPE GEO_OPT
   PRINT_LEVEL MEDIUM
 &END GLOBAL
