@@ -19,35 +19,39 @@ MODULE sirius_interface
       sirius_create_ground_state, sirius_initialize_context, sirius_set_mpi_grid_dims, &
       sirius_set_lattice_vectors, sirius_add_atom_type, sirius_add_atom, sirius_create_kset, &
       sirius_get_energy, sirius_get_forces, sirius_get_stress_tensor, sirius_create_kset_from_grid, &
-      sirius_find_ground_state, sirius_update_context, sirius_set_atom_position, sirius_update_ground_state
+      sirius_find_ground_state, sirius_update_context, sirius_set_atom_position, sirius_update_ground_state, &
+      sirius_set_atom_type_radial_grid, sirius_add_atom_type_radial_function, sirius_set_atom_type_dion
 #endif
+   USE input_constants, ONLY: do_gapw_log
+   USE atom_kind_orbitals, ONLY: gth_potential_conversion, calculate_atomic_orbitals
    USE atomic_kind_types, ONLY: atomic_kind_type, get_atomic_kind
+   USE atom_types, ONLY: atom_gthpot_type, release_atom_potential
+   USE atom_utils, ONLY: atom_local_potential
    USE atom_upf, ONLY: atom_read_upf, &
       atom_release_upf, &
       atom_upfpot_type
-   USE cell_methods, ONLY: read_cell, &
-      write_cell
-   USE cell_types, ONLY: real_to_scaled, cell_clone, &
-      cell_create, &
-      cell_release, &
-      cell_type
+   USE cell_methods, ONLY: read_cell, write_cell
+   USE cell_types, ONLY: real_to_scaled, cell_clone, cell_create, &
+      cell_release, cell_type
+   USE qs_grid_atom, ONLY: grid_atom_type, allocate_grid_atom, &
+      deallocate_grid_atom, create_grid_atom
    USE qs_kind_types, ONLY: &
       check_qs_kind_set, get_qs_kind, get_qs_kind_set, init_gapw_basis_set, init_gapw_nlcc, &
       init_qs_kind_set, qs_kind_type, set_qs_kind, write_gto_basis_sets, write_qs_kind_set
-   USE qs_subsys_types, ONLY: qs_subsys_get, &
-      qs_subsys_retain, &
-      qs_subsys_release, &
-      qs_subsys_set, &
-      qs_subsys_type
+   USE qs_subsys_types, ONLY: qs_subsys_get, qs_subsys_retain, &
+      qs_subsys_release, qs_subsys_set, qs_subsys_type
    USE cp_para_types, ONLY: cp_para_env_type
    USE cp_subsys_methods, ONLY: cp_subsys_create
-   USE cp_subsys_types, ONLY: cp_subsys_release, &
-      cp_subsys_set, &
-      cp_subsys_type
-   USE input_section_types, ONLY: section_vals_get_subs_vals, &
-      section_vals_type, &
-      section_vals_val_get
+   USE cp_subsys_types, ONLY: cp_subsys_release, cp_subsys_set, cp_subsys_type
+   USE input_section_types, ONLY: section_vals_get_subs_vals, section_vals_type, section_vals_val_get
    USE particle_types, ONLY: particle_type
+   USE external_potential_types, ONLY: &
+      all_potential_type, allocate_potential, deallocate_potential, get_potential, &
+      gth_potential_type, init_potential, local_potential_type, read_potential, &
+      set_default_all_potential, set_potential, sgp_potential_type, write_potential
+   USE mathconstants, ONLY: dfac, &
+      gamma1, &
+      pi, fourpi
    USE pwdft_environment_types, ONLY: pwdft_environment_type, pwdft_energy_type, pwdft_env_set, pwdft_env_get
    USE ISO_C_BINDING, ONLY: &
       C_ASSOCIATED, C_BOOL, C_DOUBLE, C_FUNPTR, C_F_POINTER, C_INT, C_NULL_FUNPTR, C_NULL_PTR, &
@@ -137,14 +141,21 @@ CONTAINS
       CHARACTER(len=100*default_string_length)           :: parameter_json, control_json, solver_json, mixer_json
       CHARACTER(len=2)                                   :: element_symbol
       CHARACTER(len=default_string_length)               :: label
-      INTEGER                                            :: iatom, ikind, natom, nkind, &
-                                                            sirius_mpi_comm, npool, num_ranks_k, i, num_mag_dims
+      INTEGER                                            :: iatom, ikind, natom, nkind, nmesh, &
+                                                            sirius_mpi_comm, npool, num_ranks_k, i, num_mag_dims, &
+                                                            ibeta, l, j, nbeta, n, iwf
       INTEGER, DIMENSION(3)                              :: k1, k2
       INTEGER(KIND=C_INT), DIMENSION(3)                  :: dims, k_grid, k_shift
-      LOGICAL                                            :: noncolin, use_ref_cell, found
+      LOGICAL                                            :: noncolin, use_ref_cell, found, up
       REAL(KIND=C_DOUBLE), DIMENSION(3)                  :: a1, a2, a3, v1, v2
-      REAL(KIND=dp)                                      :: angle1, angle2, magnetization, mass, zeff
+      REAL(KIND=C_DOUBLE), DIMENSION(:), ALLOCATABLE     :: fun
+      REAL(KIND=C_DOUBLE), DIMENSION(:, :), ALLOCATABLE  :: dion
+      REAL(KIND=dp)                                      :: angle1, angle2, magnetization, mass, zeff, pf, al, rl, &
+                                                            cval, focc
       REAL(KIND=dp), DIMENSION(3)                        :: vr, vs
+      REAL(KIND=dp), DIMENSION(:), ALLOCATABLE           :: rp, ef, beta, corden, fe, rc, locpot
+      REAL(KIND=dp), DIMENSION(:), POINTER               :: density
+      REAL(KIND=dp), DIMENSION(:, :), POINTER             :: wavefunction, wfninfo
       TYPE(atom_upfpot_type), POINTER                    :: upf_pot
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       TYPE(atomic_kind_type), POINTER                    :: atomic_kind
@@ -156,7 +167,10 @@ CONTAINS
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
       TYPE(qs_subsys_type), POINTER                      :: qs_subsys
+      TYPE(gth_potential_type), POINTER                  :: gth_potential
+      TYPE(grid_atom_type), POINTER                      :: atom_grid
       TYPE(section_vals_type), POINTER                   :: json_section, pwdft_section
+      TYPE(atom_gthpot_type), POINTER                    :: gth_atompot
 #if defined(__JSON)
       TYPE(json_file)                                    :: json
       INTEGER, DIMENSION(:), ALLOCATABLE                 :: jk1, jk2
@@ -224,21 +238,161 @@ CONTAINS
       nkind = SIZE(atomic_kind_set)
       DO ikind = 1, nkind
          CALL get_atomic_kind(atomic_kind_set(ikind), &
-                              name=label, element_symbol=element_symbol, mass=mass, qeff=zeff)
-         NULLIFY (upf_pot)
-         CALL get_qs_kind(qs_kind_set(ikind), upf_potential=upf_pot)
-         CPASSERT(ASSOCIATED(upf_pot))
-         CALL sirius_add_atom_type(sctx, string(label), fname=string(upf_pot%filename), mass=REAL(mass, KIND=C_DOUBLE))
+                              name=label, element_symbol=element_symbol, mass=mass)
+         CALL get_qs_kind(qs_kind_set(ikind), zeff=zeff)
+         NULLIFY (upf_pot, gth_potential)
+         CALL get_qs_kind(qs_kind_set(ikind), upf_potential=upf_pot, gth_potential=gth_potential)
+         IF (ASSOCIATED(upf_pot)) THEN
+            CALL sirius_add_atom_type(sctx, string(label), fname=string(upf_pot%filename), &
+                                      mass=REAL(mass, KIND=C_DOUBLE))
+         ELSEIF (ASSOCIATED(gth_potential)) THEN
+            !
+            NULLIFY (atom_grid)
+            CALL allocate_grid_atom(atom_grid)
+            nmesh = 929
+            atom_grid%nr = nmesh
+            CALL create_grid_atom(atom_grid, nmesh, 1, 1, 0, do_gapw_log)
+            ALLOCATE (rp(nmesh), fun(nmesh))
+            IF (atom_grid%rad(1) < atom_grid%rad(nmesh)) THEN
+               up = .TRUE.
+            ELSE
+               up = .FALSE.
+            END IF
+            IF (up) THEN
+               rp(1:nmesh) = atom_grid%rad(1:nmesh)
+            ELSE
+               DO i = 1, nmesh
+                  rp(i) = atom_grid%rad(nmesh-i+1)
+               END DO
+            END IF
+            ! add new atom type
+            CALL sirius_add_atom_type(sctx, string(label), &
+                                      zn=NINT(zeff+0.001d0), &
+                                      mass=REAL(mass, KIND=C_DOUBLE), &
+                                      spin_orbit=bool(.FALSE.))
+            !
+            ALLOCATE (gth_atompot)
+            CALL gth_potential_conversion(gth_potential, gth_atompot)
+            ! set radial grid
+            fun(1:nmesh) = rp(1:nmesh)
+            CALL sirius_set_atom_type_radial_grid(sctx, string(label), nmesh, fun(1))
+            ! set beta-projectors
+            ALLOCATE (ef(nmesh), beta(nmesh))
+            ibeta = 0
+            DO l = 0, 3
+               IF (gth_atompot%nl(l) == 0) CYCLE
+               rl = gth_atompot%rcnl(l)
+               ! we need to multiply by r so that data transfered to sirius are r \beta(r) not beta(r)
+               ef(1:nmesh) = EXP(-0.5_dp*rp(1:nmesh)*rp(1:nmesh)/(rl*rl))
+               DO i = 1, gth_atompot%nl(l)
+                  pf = rl**(l+0.5_dp*(4._dp*i-1._dp))
+                  j = l+2*i-1
+                  pf = SQRT(2._dp)/(pf*SQRT(gamma1(j)))
+                  beta(:) = pf*rp**(l+2*i-2)*ef
+                  ibeta = ibeta+1
+                  fun(1:nmesh) = beta(1:nmesh)*rp(1:nmesh)
+                  CALL sirius_add_atom_type_radial_function(sctx, string(label), &
+                                                            string("beta"), fun(1), nmesh, l=l)
+               END DO
+            END DO
+            DEALLOCATE (ef, beta)
+            nbeta = ibeta
+
+            ! nonlocal PP matrix elements
+            ALLOCATE (dion(nbeta, nbeta))
+            dion = 0.0_dp
+            DO l = 0, 3
+               IF (gth_atompot%nl(l) == 0) CYCLE
+               ibeta = SUM(gth_atompot%nl(0:l-1))+1
+               i = ibeta+gth_atompot%nl(l)-1
+               dion(ibeta:i, ibeta:i) = gth_atompot%hnl(1:gth_atompot%nl(l), 1:gth_atompot%nl(l), l)
+            END DO
+            CALL sirius_set_atom_type_dion(sctx, string(label), nbeta, dion(1, 1))
+            DEALLOCATE (dion)
+
+            ! set non-linear core correction
+            IF (gth_atompot%nlcc) THEN
+               ALLOCATE (corden(nmesh), fe(nmesh), rc(nmesh))
+               corden(:) = 0.0_dp
+               n = gth_atompot%nexp_nlcc
+               DO i = 1, n
+                  al = gth_atompot%alpha_nlcc(i)
+                  rc(:) = rp(:)/al
+                  fe(:) = EXP(-0.5_dp*rc(:)*rc(:))
+                  DO j = 1, gth_atompot%nct_nlcc(i)
+                     cval = gth_atompot%cval_nlcc(j, i)
+                     corden(:) = corden(:)+fe(:)*rc(:)**(2*j-2)*cval
+                  END DO
+               END DO
+               fun(1:nmesh) = corden(1:nmesh)*rp(1:nmesh)
+               CALL sirius_add_atom_type_radial_function(sctx, string(label), string("ps_rho_core"), &
+                                                         fun(1), nmesh)
+               DEALLOCATE (corden, fe, rc)
+            END IF
+
+            ! local potential
+            ALLOCATE (locpot(nmesh))
+            locpot(:) = 0.0_dp
+            CALL atom_local_potential(locpot, gth_atompot, rp)
+            fun(1:nmesh) = locpot(1:nmesh)
+            CALL sirius_add_atom_type_radial_function(sctx, string(label), string("vloc"), &
+                                                      fun(1), nmesh)
+            DEALLOCATE (locpot)
+            !
+            NULLIFY (density, wavefunction, wfninfo)
+            CALL calculate_atomic_orbitals(atomic_kind_set(ikind), qs_kind_set(ikind), &
+                                           density=density, wavefunction=wavefunction, &
+                                           wfninfo=wfninfo, agrid=atom_grid)
+
+            ! set the atomic radial functions
+            DO iwf = 1, SIZE(wavefunction, 2)
+               focc = wfninfo(1, iwf)
+               l = NINT(wfninfo(2, iwf))
+               IF (up) THEN
+                  fun(1:nmesh) = wavefunction(1:nmesh, iwf)*rp(i)
+               ELSE
+                  DO i = 1, nmesh
+                     fun(i) = wavefunction(nmesh-i+1, iwf)*rp(i)
+                  END DO
+               END IF
+               CALL sirius_add_atom_type_radial_function(sctx, &
+                                                         string(label), string("ps_atomic_wf"), &
+                                                         fun(1), nmesh, l=l, occ=REAL(focc, KIND=C_DOUBLE), n=-1)
+            END DO
+
+            ! set total charge density of a free atom (to compute initial rho(r))
+            IF (up) THEN
+               fun(1:nmesh) = fourpi*density(1:nmesh)*atom_grid%rad(1:nmesh)**2
+            ELSE
+               DO i = 1, nmesh
+                  fun(i) = fourpi*density(nmesh-i+1)*atom_grid%rad(nmesh-i+1)**2
+               END DO
+            END IF
+            CALL sirius_add_atom_type_radial_function(sctx, string(label), string("ps_rho_total"), &
+                                                      fun(1), nmesh)
+
+            IF (ASSOCIATED(density)) DEALLOCATE (density)
+            IF (ASSOCIATED(wavefunction)) DEALLOCATE (wavefunction)
+            IF (ASSOCIATED(wfninfo)) DEALLOCATE (wfninfo)
+
+            CALL deallocate_grid_atom(atom_grid)
+            DEALLOCATE (rp, fun)
+            DEALLOCATE (gth_atompot)
+            !
+         ELSE
+            CALL cp_abort(__LOCATION__, &
+                          'CP2K/SIRIUS: atomic kind needs UPF or GTH potential definition')
+         END IF
       END DO
 
 #if defined(__JSON)
       CALL json%initialize(compact_reals=.TRUE.)
       CALL json%load_from_string(parameter_json)
       CALL json%get('$.parameters.num_mag_dims', num_mag_dims, found)
-      IF (.NOT. found) num_mag_dims = 1
+      IF (.NOT. found) num_mag_dims = 0
       CALL json%destroy()
 #else
-      num_mag_dims = 1
+      num_mag_dims = 0
 #endif
       IF (num_mag_dims == 3) THEN
          noncolin = .TRUE.
@@ -253,8 +407,8 @@ CONTAINS
          CALL real_to_scaled(vs, vr, my_cell)
          atomic_kind => particle_set(iatom)%atomic_kind
          ikind = atomic_kind%kind_number
-         CALL get_atomic_kind(atomic_kind, name=label, qeff=zeff)
-         CALL get_qs_kind(qs_kind_set(ikind), magnetization=magnetization)
+         CALL get_atomic_kind(atomic_kind, name=label)
+         CALL get_qs_kind(qs_kind_set(ikind), zeff=zeff, magnetization=magnetization)
          ! angle of magnetization might come from input Atom x y z mx my mz
          ! or as an angle?
          ! Answer : SIRIUS only accept the magnetization as mx, my, mz
@@ -446,7 +600,6 @@ CONTAINS
       forces(1:n1, 1:n2) = cforces(1:n1, 1:n2)
       DEALLOCATE (cforces)
       cstress = 0.0_C_DOUBLE
-!deb  what is the correct label?
       CALL sirius_get_stress_tensor(gs_handler, string('total'), cstress(1, 1))
       stress(1:3, 1:3) = cstress(1:3, 1:3)
       CALL pwdft_env_set(pwdft_env=pwdft_env, stress=stress)

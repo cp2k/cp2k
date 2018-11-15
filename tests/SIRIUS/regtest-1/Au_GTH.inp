@@ -1,0 +1,58 @@
+&FORCE_EVAL
+  METHOD SIRIUS
+  &PW_DFT
+     &CONTROL
+      "processing_unit" : "cpu",
+      "std_evp_solver_type" : "lapack",
+      "gen_evp_solver_type" : "lapack",
+      "verbosity" : 1,
+      "cyclic_block_size" : 2,
+      "print_forces" : true,
+      "print_stress" : true,
+        "cyclic block size" : 32
+     &END CONTROL
+     &PARAMETER
+      "electronic_structure_method" : "pseudopotential",
+      "xc_functionals" : ["XC_LDA_X", "XC_LDA_C_PZ"],
+      "smearing_width" : 0.01,
+      "use_symmetry" : true,
+      "num_mag_dims" : 1,
+      "spin_orbit" : false,
+      "gk_cutoff" : 6.0,
+      "pw_cutoff" : 20.00,
+      "energy_tol" : 1e-10,
+      "potential_tol" : 1e-8,
+      "num_dft_iter" : 100,
+      "ngridk" : [2,2,2]
+      &END PARAMETER
+     &SOLVER
+     "tolerance" : 1e-5,
+     "num_steps" : 20,
+      "subspace_size" : 4,
+      "type" : "davidson",
+      "converge_by_energy" : 1
+     &END SOLVER
+     &MIXER
+      "type" : "broyden1",
+      "max_history" : 8
+     &END MIXER
+  &END PW_DFT
+  &SUBSYS
+    &CELL
+      A -3.85500000000000000000 0.0 3.85500000000000000000
+      B 0.0 3.85500000000000000000 3.85500000000000000000
+      C -3.85500000000000000000 3.85500000000000000000 0.0
+    &END CELL
+    &COORD
+      SCALED
+      Au 0.0  0.0  0.0
+    &END COORD
+    &KIND Au
+      POTENTIAL GTH-LDA-q11
+    &END KIND
+  &END SUBSYS
+&END FORCE_EVAL
+&GLOBAL
+  PROJECT Gold
+  PRINT_LEVEL MEDIUM
+&END GLOBAL
