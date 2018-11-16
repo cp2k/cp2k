@@ -1,5 +1,5 @@
 &GLOBAL
-  PROJECT  si7c_broy_gapw
+  PROJECT si7c_broy_gapw_restart
   PRINT_LEVEL MEDIUM
   RUN_TYPE ENERGY
   FLUSH_SHOULD_FLUSH
@@ -14,6 +14,7 @@
   &DFT
     BASIS_SET_FILE_NAME GTH_BASIS_SETS
     POTENTIAL_FILE_NAME GTH_POTENTIALS
+    WFN_RESTART_FILE_NAME si7c_broy_gapw-RESTART.wfn
     &MGRID
       NGRIDS 4
       CUTOFF 100
@@ -27,7 +28,7 @@
     &END QS
     &SCF
       SCF_GUESS RESTART
-      MAX_SCF   10
+      MAX_SCF   1
       EPS_SCF 1.0e-7
       EPS_DIIS 1.0e-7
       &OUTER_SCF OFF
