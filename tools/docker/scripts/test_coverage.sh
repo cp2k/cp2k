@@ -15,6 +15,7 @@ source /opt/cp2k-toolchain/install/setup
 
 echo -e "\n========== Running Regtests =========="
 cd /workspace/cp2k
+CP2K_REVISION=$(./tools/build_utils/get_revision_number)
 rm -rf "obj/${ARCH}/${VERSION}"/*.gcda   # remove old gcov statistics
 
 make ARCH="${ARCH}" VERSION="${VERSION}" TESTOPTS="${TESTOPTS}" test
