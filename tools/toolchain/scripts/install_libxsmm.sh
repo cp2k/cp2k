@@ -2,7 +2,7 @@
 [ "${BASH_SOURCE[0]}" ] && SCRIPT_NAME="${BASH_SOURCE[0]}" || SCRIPT_NAME=$0
 SCRIPT_DIR="$(cd "$(dirname "$SCRIPT_NAME")" && pwd -P)"
 
-libxsmm_ver=${libxsmm_ver:-1.9.0}
+libxsmm_ver=${libxsmm_ver:-1.10.0}
 source "${SCRIPT_DIR}"/common_vars.sh
 source "${SCRIPT_DIR}"/tool_kit.sh
 source "${SCRIPT_DIR}"/signal_trap.sh
@@ -20,7 +20,7 @@ case "$with_libxsmm" in
     __INSTALL__)
         echo "==================== Installing Libxsmm ===================="
         if [ "$OPENBLAS_ARCH" != "x86_64" ] ; then
-            report_warning $LINENO "libxsmm not suported on arch ${OPENBLAS_ARCH}"
+            report_warning $LINENO "libxsmm is not supported on arch ${OPENBLAS_ARCH}"
             cat <<EOF > "${BUILDDIR}/setup_libxsmm"
 with_libxsmm="__DONTUSE__"
 EOF
