@@ -4,4 +4,5 @@ He_pao_initguess_exp.inp                              11       5e-4             
 He_pao_initguess_fock.inp                             11       5e-4             -2.889334869153459
 He_pao_initguess_rotinv.inp                           11       5e-4             -2.889334869153459
 He_pao_initguess_gth.inp                              11       5e-4             -2.889334869153459
+He_pao_initguess_equi.inp                             11       5e-4             -2.889334869153459
 #EOF

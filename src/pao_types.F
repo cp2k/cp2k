@@ -100,14 +100,14 @@ MODULE pao_types
 !> \var constants_ready           set when stuff, which does not depend of atomic positions is ready
 !> \var need_initial_scf          set when the initial density matrix is not self-consistend
 !> \var matrix_X                  parameters of pao basis, which eventually determine matrix_U. Uses diag_distribution.
-!> \var matrix_U                  roation matrix derived from matrix_X. Uses diag_distribution.
 !> \var matrix_U0                 constant pre-rotation which serves as initial guess for exp-parametrization. Uses diag_distribution.
 !> \var matrix_H0                 Diagonal blocks of core hamiltonian, uses diag_distribution
 !> \var matrix_Y                  selector matrix which translates between primary and pao basis.
 !>                                basically a block diagonal "rectangular identity matrix". Uses s_matrix-distribution.
 !> \var matrix_N                  diagonal matrix filled with 1/sqrt(S) from primary overlap matrix. Uses s_matrix-distribution.
-!> \var matrix_N_inv              diagonal matrix filled with sqrt(S) from primary overlap matrix. Uses s_matrix-distribution.
 !> \var matrix_N_diag             copy of matrix_N using diag_distribution
+!> \var matrix_N_inv              diagonal matrix filled with sqrt(S) from primary overlap matrix. Uses s_matrix-distribution.
+!> \var matrix_N_inv_diag         copy of matrix_N_inv using diag_distribution
 !> \var matrix_X_orig             copy made of matrix_X at beginning of optimization cylce, used for mixing. Uses diag_distribution.
 !> \var matrix_G                  derivative of pao-energy wrt to matrix_X, ie. the pao-gradient. Uses diag_distribution.
 !> \var matrix_G_prev             copy of gradient from previous step, used for conjugate gradient method. Uses diag_distribution.
@@ -180,13 +180,13 @@ MODULE pao_types
 
       ! matrices
       TYPE(dbcsr_type)              :: matrix_X
-      TYPE(dbcsr_type)              :: matrix_U
       TYPE(dbcsr_type)              :: matrix_U0
       TYPE(dbcsr_type)              :: matrix_H0
       TYPE(dbcsr_type)              :: matrix_Y
       TYPE(dbcsr_type)              :: matrix_N
-      TYPE(dbcsr_type)              :: matrix_N_inv
       TYPE(dbcsr_type)              :: matrix_N_diag
+      TYPE(dbcsr_type)              :: matrix_N_inv
+      TYPE(dbcsr_type)              :: matrix_N_inv_diag
       TYPE(dbcsr_type)              :: matrix_X_orig
       TYPE(dbcsr_type)              :: matrix_G
       TYPE(dbcsr_type)              :: matrix_G_prev
@@ -222,8 +222,9 @@ CONTAINS
       CALL dbcsr_release(pao%matrix_X)
       CALL dbcsr_release(pao%matrix_Y)
       CALL dbcsr_release(pao%matrix_N)
-      CALL dbcsr_release(pao%matrix_N_inv)
       CALL dbcsr_release(pao%matrix_N_diag)
+      CALL dbcsr_release(pao%matrix_N_inv)
+      CALL dbcsr_release(pao%matrix_N_inv_diag)
       CALL dbcsr_release(pao%matrix_H0)
 
       DEALLOCATE (pao%ml_training_set)

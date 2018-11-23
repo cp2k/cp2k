@@ -15,8 +15,11 @@ MODULE pao_param_exp
         dbcsr_create, dbcsr_get_block_p, dbcsr_get_info, dbcsr_iterator_blocks_left, &
         dbcsr_iterator_next_block, dbcsr_iterator_start, dbcsr_iterator_stop, dbcsr_iterator_type, &
         dbcsr_p_type, dbcsr_release, dbcsr_reserve_diag_blocks, dbcsr_set, dbcsr_type
+   USE dm_ls_scf_types,                 ONLY: ls_scf_env_type
    USE kinds,                           ONLY: dp
    USE mathlib,                         ONLY: diamat_all
+   USE pao_param_methods,               ONLY: pao_calc_AB_from_U,&
+                                              pao_calc_grad_lnv_wrt_U
    USE pao_potentials,                  ONLY: pao_guess_initial_potential
    USE pao_types,                       ONLY: pao_env_type
    USE qs_environment_types,            ONLY: get_qs_env,&
@@ -31,7 +34,7 @@ MODULE pao_param_exp
 
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'pao_param_exp'
 
-   PUBLIC :: pao_param_init_exp, pao_param_finalize_exp, pao_calc_U_exp
+   PUBLIC :: pao_param_init_exp, pao_param_finalize_exp, pao_calc_AB_exp
    PUBLIC :: pao_param_count_exp, pao_param_initguess_exp
 
 CONTAINS
@@ -157,13 +160,53 @@ CONTAINS
    END SUBROUTINE pao_param_initguess_exp
 
 ! **************************************************************************************************
+!> \brief Takes current matrix_X and calculates the matrices A and B.
+!> \param pao ...
+!> \param qs_env ...
+!> \param ls_scf_env ...
+!> \param gradient ...
+! **************************************************************************************************
+   SUBROUTINE pao_calc_AB_exp(pao, qs_env, ls_scf_env, gradient)
+      TYPE(pao_env_type), POINTER                        :: pao
+      TYPE(qs_environment_type), POINTER                 :: qs_env
+      TYPE(ls_scf_env_type), TARGET                      :: ls_scf_env
+      LOGICAL, INTENT(IN)                                :: gradient
+
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'pao_calc_AB_exp'
+
+      INTEGER                                            :: handle
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_s
+      TYPE(dbcsr_type)                                   :: matrix_M, matrix_U
+
+      CALL timeset(routineN, handle)
+      CALL get_qs_env(qs_env, matrix_s=matrix_s)
+      CALL dbcsr_create(matrix_U, matrix_type="N", dist=pao%diag_distribution, template=matrix_s(1)%matrix)
+      CALL dbcsr_reserve_diag_blocks(matrix_U)
+
+      !TODO: move this condition into pao_calc_U, use matrix_N as template
+      IF (gradient) THEN
+         CALL pao_calc_grad_lnv_wrt_U(qs_env, ls_scf_env, matrix_M)
+         CALL pao_calc_U_exp(pao, matrix_U, matrix_M, pao%matrix_G)
+         CALL dbcsr_release(matrix_M)
+      ELSE
+         CALL pao_calc_U_exp(pao, matrix_U)
+      END IF
+
+      CALL pao_calc_AB_from_U(pao, qs_env, ls_scf_env, matrix_U)
+      CALL dbcsr_release(matrix_U)
+      CALL timestop(handle)
+   END SUBROUTINE pao_calc_AB_exp
+
+! **************************************************************************************************
 !> \brief Calculate new matrix U and optionally its gradient G
 !> \param pao ...
+!> \param matrix_U ...
 !> \param matrix_M ...
 !> \param matrix_G ...
 ! **************************************************************************************************
-   SUBROUTINE pao_calc_U_exp(pao, matrix_M, matrix_G)
+   SUBROUTINE pao_calc_U_exp(pao, matrix_U, matrix_M, matrix_G)
       TYPE(pao_env_type), POINTER                        :: pao
+      TYPE(dbcsr_type)                                   :: matrix_U
       TYPE(dbcsr_type), OPTIONAL                         :: matrix_M, matrix_G
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'pao_calc_U_exp'
@@ -184,7 +227,7 @@ CONTAINS
 
       CALL dbcsr_get_info(pao%matrix_Y, row_blk_size=blk_sizes_pri, col_blk_size=blk_sizes_pao)
 
-!$OMP PARALLEL DEFAULT(NONE) SHARED(pao,matrix_M,matrix_G,blk_sizes_pri,blk_sizes_pao) &
+!$OMP PARALLEL DEFAULT(NONE) SHARED(pao,matrix_U,matrix_M,matrix_G,blk_sizes_pri,blk_sizes_pao) &
 !$OMP PRIVATE(iter,arow,acol,iatom,N,M,nparams,i,j,k,found) &
 !$OMP PRIVATE(block_X,block_U,block_U0,block_X_full,evals,evecs) &
 !$OMP PRIVATE(block_M,block_G,block_D,block_tmp,block_G_full,denom)
@@ -192,7 +235,7 @@ CONTAINS
       DO WHILE (dbcsr_iterator_blocks_left(iter))
          CALL dbcsr_iterator_next_block(iter, arow, acol, block_X)
          iatom = arow; CPASSERT(arow == acol)
-         CALL dbcsr_get_block_p(matrix=pao%matrix_U, row=iatom, col=iatom, block=block_U, found=found)
+         CALL dbcsr_get_block_p(matrix=matrix_U, row=iatom, col=iatom, block=block_U, found=found)
          CPASSERT(ASSOCIATED(block_U))
          CALL dbcsr_get_block_p(matrix=pao%matrix_U0, row=iatom, col=iatom, block=block_U0, found=found)
          CPASSERT(ASSOCIATED(block_U0))

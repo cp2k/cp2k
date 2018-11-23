@@ -512,7 +512,7 @@ CONTAINS
       WRITE (unit_nr, "(A,5X,I0)") "Version", file_format_version
       WRITE (unit_nr, "(A,5X,F20.10)") "Energy", energy
       WRITE (unit_nr, "(A,5X,I0)") "Step", pao%istep
-      WRITE (unit_nr, "(A,5X,A10)") "Parametrization", id2str(pao%parameterization)
+      WRITE (unit_nr, "(A,5X,A)") "Parametrization", id2str(pao%parameterization)
 
       ! write kinds
       WRITE (unit_nr, "(A,5X,I0)") "Nkinds", SIZE(atomic_kind_set)
