@@ -27,13 +27,12 @@ MODULE pao_methods
         dbcsr_copy_into_existing, dbcsr_create, dbcsr_desymmetrize, dbcsr_distribution_get, &
         dbcsr_distribution_new, dbcsr_distribution_type, dbcsr_dot, dbcsr_filter, &
         dbcsr_get_block_p, dbcsr_get_info, dbcsr_iterator_blocks_left, dbcsr_iterator_next_block, &
-        dbcsr_iterator_start, dbcsr_iterator_stop, dbcsr_iterator_type, dbcsr_multiply, &
-        dbcsr_p_type, dbcsr_release, dbcsr_reserve_diag_blocks, dbcsr_scale, dbcsr_set, dbcsr_type
+        dbcsr_iterator_start, dbcsr_iterator_stop, dbcsr_iterator_type, dbcsr_p_type, &
+        dbcsr_release, dbcsr_reserve_diag_blocks, dbcsr_scale, dbcsr_set, dbcsr_type
    USE dm_ls_scf_methods,               ONLY: density_matrix_trs4,&
                                               ls_scf_init_matrix_S
    USE dm_ls_scf_qs,                    ONLY: ls_scf_dm_to_ks,&
                                               ls_scf_qs_atomic_guess,&
-                                              matrix_decluster,&
                                               matrix_ls_to_qs,&
                                               matrix_qs_to_ls
    USE dm_ls_scf_types,                 ONLY: ls_mstruct_type,&
@@ -47,9 +46,8 @@ MODULE pao_methods
    USE message_passing,                 ONLY: mp_max,&
                                               mp_sum
    USE pao_ml,                          ONLY: pao_ml_forces
-   USE pao_param,                       ONLY: pao_calc_U,&
-                                              pao_param_count,&
-                                              pao_update_AB
+   USE pao_param,                       ONLY: pao_calc_AB,&
+                                              pao_param_count
    USE pao_types,                       ONLY: pao_env_type
    USE particle_types,                  ONLY: particle_type
    USE qs_energy_types,                 ONLY: qs_energy_type
@@ -83,7 +81,6 @@ MODULE pao_methods
    PUBLIC :: pao_test_convergence
    PUBLIC :: pao_calc_energy, pao_check_trace_ps
    PUBLIC :: pao_store_P, pao_add_forces, pao_guess_initial_P
-   PUBLIC :: pao_calc_outer_grad_lnv
    PUBLIC :: pao_check_grad
 
 CONTAINS
@@ -228,13 +225,19 @@ CONTAINS
       CALL dbcsr_iterator_stop(iter)
 !$OMP END PARALLEL
 
-      ! store a copy that is distributed according to pao%diag_distribution
+      ! store a copies of N and N_inv that are distributed according to pao%diag_distribution
       CALL dbcsr_create(pao%matrix_N_diag, &
                         name="PAO matrix_N_diag", &
                         dist=pao%diag_distribution, &
                         template=matrix_s(1)%matrix)
       CALL dbcsr_reserve_diag_blocks(pao%matrix_N_diag)
       CALL dbcsr_complete_redistribute(pao%matrix_N, pao%matrix_N_diag)
+      CALL dbcsr_create(pao%matrix_N_inv_diag, &
+                        name="PAO matrix_N_inv_diag", &
+                        dist=pao%diag_distribution, &
+                        template=matrix_s(1)%matrix)
+      CALL dbcsr_reserve_diag_blocks(pao%matrix_N_inv_diag)
+      CALL dbcsr_complete_redistribute(pao%matrix_N_inv, pao%matrix_N_inv_diag)
 
       CALL timestop(handle)
    END SUBROUTINE pao_build_orthogonalizer
@@ -491,7 +494,7 @@ CONTAINS
       CALL timeset(routineN, handle)
 
       ! calculate matrix U, which determines the pao basis
-      CALL pao_update_AB(pao, qs_env, ls_scf_env%ls_mstruct, penalty=penalty)
+      CALL pao_calc_AB(pao, qs_env, ls_scf_env, gradient=.FALSE., penalty=penalty)
 
       ! calculat S, S_inv, S_sqrt, and S_sqrt_inv in the new pao basis
       CALL pao_rebuild_S(qs_env, ls_scf_env)
@@ -670,234 +673,6 @@ CONTAINS
 
       CALL timestop(handle)
    END SUBROUTINE pao_dm_trs4
-
-! **************************************************************************************************
-!> \brief Helper routine, calculates partial derivative dE/dU
-!> \param qs_env ...
-!> \param ls_scf_env ...
-!> \param matrix_M_diag the derivate, matrix uses pao%diag_distribution
-! **************************************************************************************************
-   SUBROUTINE pao_calc_outer_grad_lnv(qs_env, ls_scf_env, matrix_M_diag)
-      TYPE(qs_environment_type), POINTER                 :: qs_env
-      TYPE(ls_scf_env_type), TARGET                      :: ls_scf_env
-      TYPE(dbcsr_type)                                   :: matrix_M_diag
-
-      CHARACTER(len=*), PARAMETER :: routineN = 'pao_calc_outer_grad_lnv'
-
-      INTEGER                                            :: handle, nspin
-      INTEGER, DIMENSION(:), POINTER                     :: pao_blk_sizes
-      REAL(KIND=dp)                                      :: filter_eps
-      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_ks, matrix_s, rho_ao
-      TYPE(dbcsr_type) :: matrix_HB, matrix_HPS, matrix_M, matrix_M1, matrix_M1_dc, matrix_M2, &
-         matrix_M2_dc, matrix_M3, matrix_M3_dc, matrix_NHB, matrix_NHBM2, matrix_NPA, &
-         matrix_NPAM1, matrix_NSB, matrix_NSBM3, matrix_PA, matrix_PH, matrix_PHP, matrix_PSP, &
-         matrix_SB, matrix_SP
-      TYPE(dft_control_type), POINTER                    :: dft_control
-      TYPE(ls_mstruct_type), POINTER                     :: ls_mstruct
-      TYPE(pao_env_type), POINTER                        :: pao
-      TYPE(qs_rho_type), POINTER                         :: rho
-
-      CALL timeset(routineN, handle)
-
-      ls_mstruct => ls_scf_env%ls_mstruct
-      pao => ls_scf_env%pao_env
-
-      CALL get_qs_env(qs_env, &
-                      rho=rho, &
-                      matrix_ks=matrix_ks, &
-                      matrix_s=matrix_s, &
-                      dft_control=dft_control)
-      CALL qs_rho_get(rho, rho_ao=rho_ao)
-      nspin = dft_control%nspins
-      filter_eps = ls_scf_env%eps_filter
-
-      CALL dbcsr_get_info(ls_mstruct%matrix_A, col_blk_size=pao_blk_sizes)
-
-      IF (nspin /= 1) CPABORT("open shell not yet implemented")
-      !TODO: handle openshell case properly
-
-      ! notation according to pao_math_lnv.pdf
-
-      ! calculation uses distribution of matrix_s, after we redistribute using pao%diag_distribution
-      CALL dbcsr_create(matrix_M, template=matrix_s(1)%matrix, matrix_type="N")
-      CALL dbcsr_reserve_diag_blocks(matrix_M)
-
-      !---------------------------------------------------------------------------
-      ! calculate need products in pao basis
-      CALL dbcsr_create(matrix_PH, template=ls_scf_env%matrix_s, matrix_type="N")
-      CALL dbcsr_multiply("N", "N", 1.0_dp, ls_scf_env%matrix_p(1), ls_scf_env%matrix_ks(1), &
-                          0.0_dp, matrix_PH, filter_eps=filter_eps)
-
-      CALL dbcsr_create(matrix_PHP, template=ls_scf_env%matrix_s, matrix_type="N")
-      CALL dbcsr_multiply("N", "N", 1.0_dp, matrix_PH, ls_scf_env%matrix_p(1), &
-                          0.0_dp, matrix_PHP, filter_eps=filter_eps)
-
-      CALL dbcsr_create(matrix_SP, template=ls_scf_env%matrix_s, matrix_type="N")
-      CALL dbcsr_multiply("N", "N", 1.0_dp, ls_scf_env%matrix_s, ls_scf_env%matrix_p(1), &
-                          0.0_dp, matrix_SP, filter_eps=filter_eps)
-
-      IF (SIZE(ls_scf_env%matrix_p) == 1) CALL dbcsr_scale(matrix_SP, 0.5_dp)
-
-      CALL dbcsr_create(matrix_HPS, template=ls_scf_env%matrix_s, matrix_type="N")
-      CALL dbcsr_multiply("N", "T", 1.0_dp, ls_scf_env%matrix_ks(1), matrix_SP, &
-                          0.0_dp, matrix_HPS, filter_eps=filter_eps)
-
-      CALL dbcsr_create(matrix_PSP, template=ls_scf_env%matrix_s, matrix_type="N")
-      CALL dbcsr_multiply("N", "N", 1.0_dp, ls_scf_env%matrix_p(1), matrix_SP, &
-                          0.0_dp, matrix_PSP, filter_eps=filter_eps)
-
-      !---------------------------------------------------------------------------
-      ! M1 = dE_lnv / dP_pao
-      CALL dbcsr_create(matrix_M1, template=ls_scf_env%matrix_s, matrix_type="N")
-
-      CALL dbcsr_multiply("N", "T", 3.0_dp, ls_scf_env%matrix_ks(1), matrix_SP, &
-                          1.0_dp, matrix_M1, filter_eps=filter_eps)
-
-      CALL dbcsr_multiply("N", "N", 3.0_dp, matrix_SP, ls_scf_env%matrix_ks(1), &
-                          1.0_dp, matrix_M1, filter_eps=filter_eps)
-
-      CALL dbcsr_multiply("N", "T", -2.0_dp, matrix_HPS, matrix_SP, &
-                          1.0_dp, matrix_M1, filter_eps=filter_eps)
-
-      CALL dbcsr_multiply("N", "N", -2.0_dp, matrix_SP, matrix_HPS, &
-                          1.0_dp, matrix_M1, filter_eps=filter_eps)
-
-      CALL dbcsr_multiply("N", "T", -2.0_dp, matrix_SP, matrix_HPS, &
-                          1.0_dp, matrix_M1, filter_eps=filter_eps)
-
-      ! reverse possible molecular clustering
-      CALL dbcsr_create(matrix_M1_dc, &
-                        template=matrix_s(1)%matrix, &
-                        row_blk_size=pao_blk_sizes, &
-                        col_blk_size=pao_blk_sizes)
-      CALL matrix_decluster(matrix_M1_dc, matrix_M1, ls_mstruct)
-
-      !---------------------------------------------------------------------------
-      ! M2 = dE_lnv / dH
-      CALL dbcsr_create(matrix_M2, template=ls_scf_env%matrix_s, matrix_type="N")
-
-      CALL dbcsr_add(matrix_M2, matrix_PSP, 1.0_dp, 3.0_dp)
-
-      CALL dbcsr_multiply("N", "N", -2.0_dp, matrix_PSP, matrix_SP, &
-                          1.0_dp, matrix_M2, filter_eps=filter_eps)
-
-      ! reverse possible molecular clustering
-      CALL dbcsr_create(matrix_M2_dc, &
-                        template=matrix_s(1)%matrix, &
-                        row_blk_size=pao_blk_sizes, &
-                        col_blk_size=pao_blk_sizes)
-      CALL matrix_decluster(matrix_M2_dc, matrix_M2, ls_mstruct)
-
-      !---------------------------------------------------------------------------
-      ! M3 = dE_lnv / dS
-      CALL dbcsr_create(matrix_M3, template=ls_scf_env%matrix_s, matrix_type="N")
-
-      CALL dbcsr_add(matrix_M3, matrix_PHP, 1.0_dp, 3.0_dp)
-
-      CALL dbcsr_multiply("N", "N", -2.0_dp, matrix_PHP, matrix_SP, &
-                          1.0_dp, matrix_M3, filter_eps=filter_eps)
-
-      CALL dbcsr_multiply("N", "T", -2.0_dp, matrix_PSP, matrix_PH, &
-                          1.0_dp, matrix_M3, filter_eps=filter_eps)
-
-      ! reverse possible molecular clustering
-      CALL dbcsr_create(matrix_M3_dc, &
-                        template=matrix_s(1)%matrix, &
-                        row_blk_size=pao_blk_sizes, &
-                        col_blk_size=pao_blk_sizes)
-      CALL matrix_decluster(matrix_M3_dc, matrix_M3, ls_mstruct)
-
-      !---------------------------------------------------------------------------
-      ! combine M1 with matrices from primary basis
-      CALL dbcsr_create(matrix_PA, template=ls_mstruct%matrix_A, matrix_type="N")
-      CALL dbcsr_multiply("N", "N", 1.0_dp, rho_ao(1)%matrix, ls_mstruct%matrix_A, &
-                          0.0_dp, matrix_PA, filter_eps=filter_eps)
-
-      CALL dbcsr_create(matrix_NPA, template=ls_mstruct%matrix_A, matrix_type="N")
-      CALL dbcsr_multiply("N", "N", 1.0_dp, pao%matrix_N_inv, matrix_PA, &
-                          0.0_dp, matrix_NPA, filter_eps=filter_eps)
-
-      CALL dbcsr_create(matrix_NPAM1, template=ls_mstruct%matrix_A, matrix_type="N")
-      CALL dbcsr_multiply("N", "N", 1.0_dp, matrix_NPA, matrix_M1_dc, &
-                          0.0_dp, matrix_NPAM1, filter_eps=filter_eps)
-
-      CALL dbcsr_multiply("N", "T", 1.0_dp, matrix_NPAM1, pao%matrix_Y, &
-                          1.0_dp, matrix_M, filter_eps=filter_eps)
-
-      !---------------------------------------------------------------------------
-      ! combine M2 with matrices from primary basis
-      CALL dbcsr_create(matrix_HB, template=ls_mstruct%matrix_B, matrix_type="N")
-      CALL dbcsr_multiply("N", "N", 1.0_dp, matrix_ks(1)%matrix, ls_mstruct%matrix_B, &
-                          0.0_dp, matrix_HB, filter_eps=filter_eps)
-
-      CALL dbcsr_create(matrix_NHB, template=ls_mstruct%matrix_B, matrix_type="N")
-      CALL dbcsr_multiply("N", "N", 1.0_dp, pao%matrix_N, matrix_HB, &
-                          0.0_dp, matrix_NHB, filter_eps=filter_eps)
-
-      CALL dbcsr_create(matrix_NHBM2, template=ls_mstruct%matrix_B, matrix_type="N")
-      CALL dbcsr_multiply("N", "N", 1.0_dp, matrix_NHB, matrix_M2_dc, &
-                          0.0_dp, matrix_NHBM2, filter_eps=filter_eps)
-
-      CALL dbcsr_multiply("N", "T", 1.0_dp, matrix_NHBM2, pao%matrix_Y, &
-                          1.0_dp, matrix_M, filter_eps=filter_eps)
-
-      !---------------------------------------------------------------------------
-      ! combine M3 with matrices from primary basis
-      CALL dbcsr_create(matrix_SB, template=ls_mstruct%matrix_B, matrix_type="N")
-      CALL dbcsr_multiply("N", "N", 1.0_dp, matrix_s(1)%matrix, ls_mstruct%matrix_B, &
-                          0.0_dp, matrix_SB, filter_eps=filter_eps)
-
-      IF (SIZE(ls_scf_env%matrix_p) == 1) CALL dbcsr_scale(matrix_SB, 0.5_dp)
-
-      CALL dbcsr_create(matrix_NSB, template=ls_mstruct%matrix_B, matrix_type="N")
-      CALL dbcsr_multiply("N", "N", 1.0_dp, pao%matrix_N, matrix_SB, &
-                          0.0_dp, matrix_NSB, filter_eps=filter_eps)
-
-      CALL dbcsr_create(matrix_NSBM3, template=ls_mstruct%matrix_B, matrix_type="N")
-      CALL dbcsr_multiply("N", "N", 1.0_dp, matrix_NSB, matrix_M3_dc, &
-                          0.0_dp, matrix_NSBM3, filter_eps=filter_eps)
-
-      CALL dbcsr_multiply("N", "T", 1.0_dp, matrix_NSBM3, pao%matrix_Y, &
-                          1.0_dp, matrix_M, filter_eps=filter_eps)
-
-      IF (SIZE(ls_scf_env%matrix_p) == 1) CALL dbcsr_scale(matrix_M, 2.0_dp)
-
-      !---------------------------------------------------------------------------
-      ! redistribute using pao%diag_distribution
-      CALL dbcsr_create(matrix_M_diag, &
-                        name="PAO matrix_M", &
-                        matrix_type="N", &
-                        dist=pao%diag_distribution, &
-                        template=matrix_s(1)%matrix)
-      CALL dbcsr_reserve_diag_blocks(matrix_M_diag)
-      CALL dbcsr_complete_redistribute(matrix_M, matrix_M_diag)
-
-      !---------------------------------------------------------------------------
-      ! cleanup: TODO release matrices as early as possible
-      CALL dbcsr_release(matrix_PH)
-      CALL dbcsr_release(matrix_PHP)
-      CALL dbcsr_release(matrix_SP)
-      CALL dbcsr_release(matrix_HPS)
-      CALL dbcsr_release(matrix_PSP)
-      CALL dbcsr_release(matrix_M)
-      CALL dbcsr_release(matrix_M1)
-      CALL dbcsr_release(matrix_M2)
-      CALL dbcsr_release(matrix_M3)
-      CALL dbcsr_release(matrix_M1_dc)
-      CALL dbcsr_release(matrix_M2_dc)
-      CALL dbcsr_release(matrix_M3_dc)
-      CALL dbcsr_release(matrix_PA)
-      CALL dbcsr_release(matrix_NPA)
-      CALL dbcsr_release(matrix_NPAM1)
-      CALL dbcsr_release(matrix_HB)
-      CALL dbcsr_release(matrix_NHB)
-      CALL dbcsr_release(matrix_NHBM2)
-      CALL dbcsr_release(matrix_SB)
-      CALL dbcsr_release(matrix_NSB)
-      CALL dbcsr_release(matrix_NSBM3)
-
-      CALL timestop(handle)
-   END SUBROUTINE pao_calc_outer_grad_lnv
 
 ! **************************************************************************************************
 !> \brief Debugging routine for checking the analytic gradient.
@@ -1189,7 +964,6 @@ CONTAINS
       INTEGER                                            :: handle, iatom, natoms
       REAL(dp), ALLOCATABLE, DIMENSION(:, :)             :: forces
       TYPE(cp_para_env_type), POINTER                    :: para_env
-      TYPE(dbcsr_type)                                   :: matrix_M
       TYPE(pao_env_type), POINTER                        :: pao
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
 
@@ -1213,10 +987,7 @@ CONTAINS
                       natom=natoms)
 
       ALLOCATE (forces(natoms, 3))
-      forces(:, :) = 0.0_dp
-      CALL pao_calc_outer_grad_lnv(qs_env, ls_scf_env, matrix_M)
-      CALL pao_calc_U(pao, qs_env, matrix_M, pao%matrix_G, forces=forces) ! without penalty terms
-      CALL dbcsr_release(matrix_M)
+      CALL pao_calc_AB(pao, qs_env, ls_scf_env, gradient=.TRUE., forces=forces) ! without penalty terms
 
       IF (SIZE(pao%ml_training_set) > 0) &
          CALL pao_ml_forces(pao, qs_env, pao%matrix_G, forces)

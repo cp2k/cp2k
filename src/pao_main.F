@@ -39,18 +39,17 @@ MODULE pao_main
    USE pao_methods,                     ONLY: &
         pao_add_forces, pao_build_core_hamiltonian, pao_build_diag_distribution, &
         pao_build_matrix_X, pao_build_orthogonalizer, pao_build_selector, pao_calc_energy, &
-        pao_calc_outer_grad_lnv, pao_check_grad, pao_check_trace_ps, pao_guess_initial_P, &
-        pao_init_kinds, pao_print_atom_info, pao_store_P, pao_test_convergence
+        pao_check_grad, pao_check_trace_ps, pao_guess_initial_P, pao_init_kinds, &
+        pao_print_atom_info, pao_store_P, pao_test_convergence
    USE pao_ml,                          ONLY: pao_ml_init,&
                                               pao_ml_predict
    USE pao_optimizer,                   ONLY: pao_opt_finalize,&
                                               pao_opt_init,&
                                               pao_opt_new_dir
-   USE pao_param,                       ONLY: pao_calc_U,&
+   USE pao_param,                       ONLY: pao_calc_AB,&
                                               pao_param_finalize,&
                                               pao_param_init,&
-                                              pao_param_initial_guess,&
-                                              pao_update_AB
+                                              pao_param_initial_guess
    USE pao_types,                       ONLY: pao_env_type
    USE qs_environment_types,            ONLY: get_qs_env,&
                                               qs_environment_type
@@ -112,7 +111,6 @@ CONTAINS
       CHARACTER(len=*), PARAMETER :: routineN = 'pao_optimization_start'
 
       INTEGER                                            :: handle
-      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_s
       TYPE(ls_mstruct_type), POINTER                     :: ls_mstruct
       TYPE(pao_env_type), POINTER                        :: pao
       TYPE(section_vals_type), POINTER                   :: input, section
@@ -120,10 +118,7 @@ CONTAINS
       IF (.NOT. ls_scf_env%do_pao) RETURN
 
       CALL timeset(routineN, handle)
-      CALL get_qs_env(qs_env=qs_env, &
-                      matrix_s=matrix_s, &
-                      input=input)
-
+      CALL get_qs_env(qs_env, input=input)
       pao => ls_scf_env%pao_env
       ls_mstruct => ls_scf_env%ls_mstruct
 
@@ -169,20 +164,13 @@ CONTAINS
       CALL dbcsr_copy(pao%matrix_G, pao%matrix_X)
       CALL dbcsr_set(pao%matrix_G, 0.0_dp)
 
-      CALL dbcsr_create(pao%matrix_U, &
-                        name="PAO matrix_U", &
-                        matrix_type="N", &
-                        dist=pao%diag_distribution, &
-                        template=matrix_s(1)%matrix)
-      CALL dbcsr_reserve_diag_blocks(pao%matrix_U)
-
       CALL dbcsr_create(ls_mstruct%matrix_A, template=pao%matrix_Y)
       CALL dbcsr_reserve_diag_blocks(ls_mstruct%matrix_A)
       CALL dbcsr_create(ls_mstruct%matrix_B, template=pao%matrix_Y)
       CALL dbcsr_reserve_diag_blocks(ls_mstruct%matrix_B)
 
       ! fill PAO transformation matrices
-      CALL pao_update_AB(pao, qs_env, ls_mstruct)
+      CALL pao_calc_AB(pao, qs_env, ls_scf_env, gradient=.FALSE.)
 
       CALL timestop(handle)
    END SUBROUTINE pao_optimization_start
@@ -203,7 +191,7 @@ CONTAINS
       INTEGER                                            :: handle, icycle
       LOGICAL                                            :: cycle_converged, do_mixing, should_stop
       REAL(KIND=dp)                                      :: energy, penalty
-      TYPE(dbcsr_type)                                   :: matrix_M, matrix_X_mixing
+      TYPE(dbcsr_type)                                   :: matrix_X_mixing
       TYPE(ls_mstruct_type), POINTER                     :: ls_mstruct
       TYPE(pao_env_type), POINTER                        :: pao
 
@@ -258,9 +246,7 @@ CONTAINS
          IF (pao%linesearch%starts) THEN
             icycle = icycle + 1
             ! calc new gradient including penalty terms
-            CALL pao_calc_outer_grad_lnv(qs_env, ls_scf_env, matrix_M)
-            CALL pao_calc_U(pao, qs_env, matrix_M=matrix_M, matrix_G=pao%matrix_G, penalty=penalty)
-            CALL dbcsr_release(matrix_M)
+            CALL pao_calc_AB(pao, qs_env, ls_scf_env, gradient=.TRUE., penalty=penalty)
             CALL pao_check_grad(pao, qs_env, ls_scf_env)
 
             ! calculate new direction for line-search
@@ -376,7 +362,6 @@ CONTAINS
       ! We keep pao%matrix_X for next scf-run, e.g. during MD or GEO-OPT
       CALL dbcsr_release(pao%matrix_X_orig)
       CALL dbcsr_release(pao%matrix_G)
-      CALL dbcsr_release(pao%matrix_U)
       CALL dbcsr_release(ls_mstruct%matrix_A)
       CALL dbcsr_release(ls_mstruct%matrix_B)
 
