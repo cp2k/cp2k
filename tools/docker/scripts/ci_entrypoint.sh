@@ -2,6 +2,8 @@
 
 # author: Ole Schuett
 
+set -eo pipefail
+
 REPORT=/workspace/report.txt
 echo -n "StartDate: " | tee -a $REPORT
 date --utc --rfc-3339=seconds | tee -a $REPORT
@@ -25,6 +27,7 @@ function upload_file {
     CONTENT_TYPE=$3
     wget --quiet --output-document=- --method=PUT --header="content-type: ${CONTENT_TYPE}" --header="cache-control: no-cache" --body-file="${FILE}" "${URL}" > /dev/null
 }
+
 
 # Get cp2k sources.
 if [ -n "${GIT_REF}" ]; then
@@ -54,8 +57,8 @@ else
     exit 255
 fi
 
-
-# Update toolchain.
+# Update toolchain, if present.
+TOOLCHAIN_OK=true
 if [ -d /opt/cp2k-toolchain ]; then
     echo -e "\n========== Updating Toolchain ==========" | tee -a $REPORT
     cd /opt/cp2k-toolchain
@@ -66,23 +69,30 @@ if [ -d /opt/cp2k-toolchain ]; then
     # shellcheck disable=SC1091
     source /opt/cp2k-toolchain/install/setup
     # shellcheck disable=SC2086
-    ./install_cp2k_toolchain.sh ${CP2K_TOOLCHAIN_OPTIONS} |& tee -a $REPORT
+    if ! ./install_cp2k_toolchain.sh ${CP2K_TOOLCHAIN_OPTIONS} |& tee -a $REPORT ; then
+        echo -e "\nSummary: Toolchain update failed." | tee -a $REPORT
+        echo -e "Status: FAILED\n" | tee -a $REPORT
+        TOOLCHAIN_OK=false
+    fi
 fi
 
-echo -e "\n========== Running Test ==========" | tee -a $REPORT
-cd /workspace
-"$@" |& tee -a $REPORT &  # Launch in the background.
+# Run actual test.
+if $TOOLCHAIN_OK ; then
+    echo -e "\n========== Running Test ==========" | tee -a $REPORT
+    cd /workspace
+    "$@" |& tee -a $REPORT &  # Launch in the background.
 
-# Upload preliminary report every 30s while test is running.
-while jobs %1 &> /dev/null ; do
-    sleep 1
-    count=$(( (count + 1) % 30 ))
-    if (( count == 1 )) && [ -n "${REPORT_UPLOAD_URL}" ]; then
-        upload_file "${REPORT_UPLOAD_URL}" "${REPORT}" "text/plain;charset=utf-8"
-    fi
-done
+    # Upload preliminary report every 30s while test is running.
+    while jobs %1 &> /dev/null ; do
+        sleep 1
+        count=$(( (count + 1) % 30 ))
+        if (( count == 1 )) && [ -n "${REPORT_UPLOAD_URL}" ]; then
+            upload_file "${REPORT_UPLOAD_URL}" "${REPORT}" "text/plain;charset=utf-8"
+        fi
+    done
+fi
 
-# Test has finished.
+# Wrap up.
 echo -n "EndDate: " | tee -a $REPORT
 date --utc --rfc-3339=seconds | tee -a $REPORT
 
