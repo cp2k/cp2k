@@ -49,15 +49,22 @@
         &END
         RI OVERLAP
         ERI_METHOD OS
+        IM_TIME
+        &IM_TIME
+          GW
+          GROUP_SIZE_3c 1
+          GROUP_SIZE_P 1
+        &END
         &RI_RPA
+          &HF
+            FRACTION 1.0000000
+            &SCREENING
+              EPS_SCHWARZ 1.0E-8
+              SCREEN_ON_INITIAL_P FALSE
+            &END SCREENING
+          &END HF
           MINIMAX
           RPA_NUM_QUAD_POINTS     10
-          IM_TIME
-          &IM_TIME
-            GW
-            GROUP_SIZE_3c 1
-            GROUP_SIZE_P 1
-          &END
           &RI_G0W0
             CORR_MOS_OCC          10
             CORR_MOS_VIRT         10
@@ -67,13 +74,6 @@
               NUM_OMEGA_POINTS   100
             &END
           &END RI_G0W0 
-          &HF
-            FRACTION 1.0000000
-            &SCREENING
-              EPS_SCHWARZ 1.0E-8
-              SCREEN_ON_INITIAL_P FALSE
-            &END SCREENING
-          &END HF
         &END RI_RPA
         MEMORY  200.
         NUMBER_PROC  1

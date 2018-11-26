@@ -54,7 +54,6 @@
           REL_CUTOFF 20
         &END
         &RI_RPA
-          RPA_NUM_QUAD_POINTS 40
           &HF
             FRACTION 1.0000000
             &SCREENING
@@ -62,6 +61,7 @@
               SCREEN_ON_INITIAL_P FALSE
             &END SCREENING
           &END HF
+          RPA_NUM_QUAD_POINTS 40
           GW
           &RI_G0W0
             CORR_MOS_OCC          10

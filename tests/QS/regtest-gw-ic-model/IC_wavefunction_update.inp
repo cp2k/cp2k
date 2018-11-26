@@ -53,12 +53,12 @@
         &END
         ERI_METHOD OS
         RI OVERLAP
+        IM_TIME
+        &IM_TIME
+          GW
+        &END
         &RI_RPA
           RPA_NUM_QUAD_POINTS  20
-          IM_TIME
-          &IM_TIME
-            GW
-          &END
           MINIMAX
           &RI_G0W0
             CORR_MOS_OCC 4

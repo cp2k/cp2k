@@ -46,13 +46,11 @@
         METHOD  RI_RPA_GPW
         ERI_METHOD OS
         RI OVERLAP
+        IM_TIME
+        &IM_TIME
+          GW
+        &END IM_TIME
         &RI_RPA
-          MINIMAX
-          RPA_NUM_QUAD_POINTS 20
-          IM_TIME
-          &IM_TIME
-            GW
-          &END IM_TIME
           &HF
             FRACTION 1.0000000
             &SCREENING
@@ -60,6 +58,8 @@
               SCREEN_ON_INITIAL_P FALSE
             &END SCREENING
           &END HF
+          MINIMAX
+          RPA_NUM_QUAD_POINTS 20
           &RI_G0W0
             RI OVERLAP
             CORR_MOS_OCC          10
