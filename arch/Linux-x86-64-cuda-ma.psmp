@@ -10,17 +10,21 @@ NVCC     = nvcc
 HWTOPO   = yes
 
 CC       = gcc
+CXX      = CC
 CPP      =
 FC       = mpif90
 LD       = $(FC)
 AR       = ar -r
+GPUVER   = K20X
+
 CPPFLAGS =
+CXXFLAGS = -O3 -I${CUDA_PATH}/include -std=c++11
 DFLAGS   = -D__GFORTRAN  -D__parallel -D__SCALAPACK -D__BLACS -D__FFTSG -D__LIBINT -D__ACC -D__DBCSR_ACC -D__HAS_smm_dnn -D__HWLOC
 GFLAGS   = -g -fopenmp -O3 -ffast-math $(DFLAGS)
 FCFLAGS  = -ffree-form -fcray-pointer $(GFLAGS)
 CFLAGS   = $(GFLAGS) -I$(HWLOC_BASE)/include
 LDFLAGS  = $(FCFLAGS) -mkl=sequential
-NVFLAGS  = $(DFLAGS) -g -O3 -arch sm_20
+NVFLAGS  = $(DFLAGS) -g -O3 -arch sm_20 -Xcompiler='-fopenmp' --std=c++11
 LIBS     = -L$(SCALAPACK_LIB) $(SCALAPACK_LIBS) \
 	   -L$(BLACS_LIB) $(BLACS_LIBS) \
            -L$(SMM_LIB) $(SMM_LIBS) \
@@ -29,4 +33,4 @@ LIBS     = -L$(SCALAPACK_LIB) $(SCALAPACK_LIBS) \
            -L$(DERIV_LIB) $(DERIV_LIBS) -L$(INT_LIB) $(INT_LIBS)\
            -L$(HWLOC_LIB) $(HWLOC_LIBS) \
            -lpthread
-
+LIBS    += -lstdc++ -lcudart -lnvrtc -lcuda

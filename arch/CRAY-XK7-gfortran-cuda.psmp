@@ -4,18 +4,22 @@
 
 NVCC     = nvcc
 CC       = cc
-CPP      = 
+CXX      = CC
+CPP      =
 FC       = ftn
 LD       = ftn
 AR       = ar -r
 HWTOPO   = yes
+GPUVER   = K20X
+
 CPPFLAGS =
+CXXFLAGS = -O3 -I${CUDA_PATH}/include -std=c++11
 DFLAGS   = -D__GEMINI -D__FFTW3 -D__parallel -D__SCALAPACK -D__HAS_smm_dnn -D__ACC -D__DBCSR_ACC
 CFLAGS   = $(DFLAGS)
 FCFLAGS  = $(DFLAGS) -O3 -fopenmp -march=bdver1 -funroll-loops -ffast-math -ftree-vectorize \
 	   -ffree-form -ffree-line-length-512
 LDFLAGS  = $(FCFLAGS)
-NVFLAGS  = $(DFLAGS) -O3 -arch sm_35 
+NVFLAGS  = $(DFLAGS) -O3 -arch sm_35 -Xcompiler='-fopenmp' --std=c++11
 LIBS     = /project/cray/alazzaro/libsmm/gfortran_xk7/libsmm_dnn.a -lfftw3 -lfftw3_threads \
-	   -lcudart -lrt
+	  -lstdc++ -lcudart -lrt -lnvrtc -lcuda
 
