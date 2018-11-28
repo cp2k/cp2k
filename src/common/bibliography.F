@@ -83,7 +83,7 @@ MODULE bibliography
                             Becke1988b, Migliore2009, Mavros2015, Holmberg2017, Marek2014, &
                             Stoychev2016, Futera2017, Bailey2006, Papior2017, Lehtola2018, &
                             Brieuc2016, Barca2018, Scheiber2018, Huang2011, Heaton_Burgess2007, &
-                            Schuett2018, Holmberg2018
+                            Schuett2018, Holmberg2018, Togo2018
 
 CONTAINS
 
@@ -3911,6 +3911,18 @@ CONTAINS
                          "DI 10.1063/1.5038959", &
                          "ER"), &
                          DOI="10.1063/1.5038959")
+
+      CALL add_reference(key=Togo2018, ISI_record=s2a( &
+                         "AU Togo, Atsushi", &
+                         "   Tanaka, Isao", &
+                         "AF Togo, Atsushi", &
+                         "   Tanaka, Isao", &
+                         "TI Spglib : a software library for crystal symmetry search", &
+                         "SO arXiv", &
+                         "PY 2018", &
+                         "AR 1808.01590 ", &
+                         "ER"), &
+                         DOI="xxx")
 
    END SUBROUTINE add_all_references
 
