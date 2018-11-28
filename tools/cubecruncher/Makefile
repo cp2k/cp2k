@@ -3,22 +3,22 @@
 # files should be standard f90 + getarg / iargc
 #
 
-FC=xlf90
-FCFLAGS=-O2 -qsuffix=f=f90 -qmaxmem=128000 -bmaxdata:1000000000 -bmaxstack:128000000 
+##FC=xlf90
+##FCFLAGS=-O2 -qsuffix=f=f90 -qmaxmem=128000 -bmaxdata:1000000000 -bmaxstack:128000000 
 
-FC=ifc
-FCFLAGS=-O2 -Vaxlib 
+##FC=ifc
+##FCFLAGS=-O2 -Vaxlib 
 
-FC=ifort
-FCFLAGS=-O2 
+##FC=ifort
+##FCFLAGS=-O2 
 
-FC=pgf90
-FCFLAGS=-O2 
+##FC=pgf90
+##FCFLAGS=-O2 
 
-FC=g95
-FCFLAGS=-O2 
+##FC=g95
+##FCFLAGS=-O2 
 
-FC=gfortran
+FC=gfortran-mp-5
 FCFLAGS=-O2 
 
 EXE=-o cubecruncher.x
