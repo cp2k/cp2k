@@ -150,7 +150,7 @@ CONTAINS
 !> \param cell_to_index_3c ...
 !> \param needed_cutRI_mem_R1vec_R2vec_for_kp ...
 !> \param has_mat_P_blocks ...
-!> \param do_ri_sos_laplace_mp2 wether we perform ri-laplace-sos mp2
+!> \param do_ri_sos_laplace_mp2 whether we perform ri-laplace-sos mp2
 ! **************************************************************************************************
    SUBROUTINE compute_mat_P_omega(mat_P_omega, mat_P_omega_im_part, fm_scaled_dm_occ_tau, &
                                   fm_scaled_dm_virt_tau, fm_mo_coeff_occ, fm_mo_coeff_virt, &
@@ -218,13 +218,14 @@ CONTAINS
       INTEGER, ALLOCATABLE, DIMENSION(:, :, :)           :: non_zero_blocks_3c
       INTEGER, ALLOCATABLE, DIMENSION(:, :, :, :)        :: non_zero_blocks_3c_cut_col
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: buffer_mat_M
-      LOGICAL                                            :: do_mao, do_ri_sos_laplace_mp2
+      LOGICAL                                            :: do_mao
       REAL(KIND=dp)                                      :: stabilize_exp
       TYPE(qs_environment_type), POINTER                 :: qs_env
       INTEGER, ALLOCATABLE, DIMENSION(:, :)              :: index_to_cell_3c
       INTEGER, ALLOCATABLE, DIMENSION(:, :, :)           :: cell_to_index_3c
       LOGICAL, ALLOCATABLE, DIMENSION(:, :, :, :) :: needed_cutRI_mem_R1vec_R2vec_for_kp
       LOGICAL, ALLOCATABLE, DIMENSION(:, :, :, :, :)     :: has_mat_P_blocks
+      LOGICAL                                            :: do_ri_sos_laplace_mp2
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'compute_mat_P_omega', &
          routineP = moduleN//':'//routineN
@@ -496,8 +497,8 @@ CONTAINS
                            first_cycle_im_time = .FALSE.
 
                            CALL check_if_mat_P_T_tau_has_blocks(does_mat_P_T_tau_have_blocks, mat_P_global, i_cell_T, &
-                                                             jquad, i_mem, j_mem, i_cell_R_1, i_cell_R_2, &
-                                                             para_env, has_mat_P_blocks, num_flops_mat_P)
+                                                                jquad, i_mem, j_mem, i_cell_R_1, i_cell_R_2, &
+                                                                para_env, has_mat_P_blocks, num_flops_mat_P)
                         END IF ! do_ri_sos_laplace_mp2
 
                      END DO ! i_cell_R2

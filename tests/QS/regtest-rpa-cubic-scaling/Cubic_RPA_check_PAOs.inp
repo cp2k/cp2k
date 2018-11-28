@@ -46,26 +46,26 @@
         &END
 !        ERI_METHOD MME
         ERI_METHOD OS
+        IM_TIME
+        &IM_TIME
+          ! normally, increase MEMORY_CUT for large systems
+          ! not to run out of memory
+          MEMORY_CUT 2
+          ! should be increased with N^2 (N: group size) not
+          ! to run OOM
+          GROUP_SIZE_3c 2
+          ! normally, GROUP_SIZE_P 1 is fine
+          GROUP_SIZE_P 2
+          MAO TRUE
+          &MAO
+            MAO_OCC  6 2
+            EPS_GRAD_OCC 1.0E-6
+            MAX_ITER_OCC 10
+          &END MAO
+        &END IM_TIME
         &RI_RPA
           RPA_NUM_QUAD_POINTS  6
           MINIMAX
-          IM_TIME
-          &IM_TIME
-            ! normally, increase MEMORY_CUT for large systems 
-            ! not to run out of memory
-            MEMORY_CUT 2
-            ! should be increased with N^2 (N: group size) not
-            ! to run OOM
-            GROUP_SIZE_3c 2
-            ! normally, GROUP_SIZE_P 1 is fine
-            GROUP_SIZE_P 2
-            MAO TRUE
-            &MAO
-              MAO_OCC  6 2
-              EPS_GRAD_OCC 1.0E-6
-              MAX_ITER_OCC 10
-            &END MAO
-          &END IM_TIME
           &HF
             FRACTION 1.0000000
             &SCREENING

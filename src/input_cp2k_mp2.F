@@ -236,7 +236,7 @@ CONTAINS
          default_l_val=.FALSE., &
          lone_keyword_l_val=.TRUE.)
       CALL section_add_keyword(section, keyword)
-      CALL keyword_release(keyword)   
+      CALL keyword_release(keyword)
 
       CALL create_mp2_direct(subsection)
       CALL section_add_subsection(section, subsection)
@@ -1377,7 +1377,6 @@ CONTAINS
       CALL section_release(subsection)
 
    END SUBROUTINE
-
 
 ! **************************************************************************************************
 !> \brief ...

@@ -40,10 +40,10 @@
         METHOD  RI_RPA_GPW
         RI OVERLAP
         ERI_METHOD OS
+        IM_TIME
         &RI_RPA
           RPA_NUM_QUAD_POINTS  6
           MINIMAX
-          IM_TIME
           &HF
             FRACTION 1.0000000
             &SCREENING
