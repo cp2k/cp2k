@@ -196,9 +196,17 @@ CONTAINS
     integer :: i
     REAL(KIND=dp) :: uvol, vol
 
+
+  write(*,*) cube%h(1,1), cube%h(2,1), cube%h(3,1)
+  write(*,*) cube%h(1,2), cube%h(2,2), cube%h(3,2)
+  write(*,*) cube%h(1,3), cube%h(2,3), cube%h(3,3)
+
     vol=cube%h(1,1)*(cube%h(2,2)*cube%h(3,3)-cube%h(2,3)*cube%h(3,2)) &
        -cube%h(2,1)*(cube%h(1,2)*cube%h(3,3)-cube%h(3,2)*cube%h(1,3)) &
        +cube%h(3,1)*(cube%h(1,2)*cube%h(2,3)-cube%h(2,2)*cube%h(1,3))
+
+    vol = ABS(vol)
+  write(*,*) vol
     IF(vol < 1.0E-10) stop
     uvol=1.d0/vol
     cube%hinv(1,1)= (cube%h(2,2)*cube%h(3,3)-cube%h(3,2)*cube%h(2,3))*uvol
