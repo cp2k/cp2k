@@ -9,6 +9,8 @@
 ! **************************************************************************************************
 MODULE cryssym
 
+   USE bibliography,                    ONLY: Togo2018,&
+                                              cite_reference
    USE kinds,                           ONLY: dp
    USE spglib_f08,                      ONLY: &
         spg_get_international, spg_get_ir_reciprocal_mesh, spg_get_major_version, &
@@ -167,6 +169,7 @@ CONTAINS
             CALL cp_warn(__LOCATION__, "Version of Symmetry Library SPGLIB not tested")
          END IF
          spglib = .TRUE.
+         CALL cite_reference(Togo2018)
          ierr = spg_get_international(csym%international_symbol, TRANSPOSE(hmat), scoor, types, nat, delta)
          IF (ierr == 0) THEN
             CALL cp_warn(__LOCATION__, "Symmetry Library SPGLIB failed")
