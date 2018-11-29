@@ -5092,6 +5092,12 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
+      CALL keyword_create(keyword, name="NOTCONV_STOPALL", &
+                          description="If true, it stops higher level of iteration when SCF does not converge", &
+                          usage="NOTCONV_STOPALL logical_value", default_l_val=.false.,lone_keyword_l_val=.TRUE.)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
       CALL section_create(subsection, "PRINT", "Printing of information during the SCF.", &
                           repeats=.FALSE.)
 

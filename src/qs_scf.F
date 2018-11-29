@@ -541,6 +541,11 @@ CONTAINS
 
       IF (.NOT. converged) CPWARN("SCF run NOT converged")
 
+      IF (.NOT. converged .AND. scf_control%stop_higher_iter_level) THEN
+        logger%iter_info%last_iter(logger%iter_info%n_rlevel-1) = .TRUE.
+        CPWARN("MD iteration also stops")
+      END IF
+
       ! if needed copy mo_coeff dbcsr->fm for later use in post_scf!fm->dbcsr
       DO ispin = 1, SIZE(mos) !fm -> dbcsr
          IF (mos(ispin)%mo_set%use_mo_coeff_b) THEN !fm->dbcsr
