@@ -92,7 +92,7 @@ CONTAINS
       CHARACTER(len=default_path_length)                 :: basis_set_file_name, potential_file_name
       CHARACTER(LEN=default_string_length), &
          DIMENSION(:), POINTER                           :: tmpstringlist
-      INTEGER                                            :: excitations, i, irep, isize, method_id, &
+      INTEGER                                            :: excitations, irep, isize, method_id, &
                                                             nrep, xc_deriv_method_id
       LOGICAL                                            :: do_ot, do_rtp, explicit, is_present, &
                                                             l_param, not_SE, was_present
