@@ -1621,7 +1621,7 @@ CONTAINS
     ! Task to perform on the reference trajectory
     ! Compute energy and forces
     ![NB] let reftraj work with force mixing which does not have consistent energies and forces
-    CALL force_env_calc_energy_force(force_env,eval_energy_forces=reftraj_env%info%eval_EF,&
+    CALL force_env_calc_energy_force(force_env,calc_force=reftraj_env%info%eval_forces,eval_energy_forces=reftraj_env%info%eval_EF,&
          require_consistent_energy_force=.FALSE.)
 
     ! Metadynamics
