@@ -273,25 +273,6 @@ memory_description_file=${dir_out}/memory_summary
 summary=${dir_out}/summary.txt
 printf "Summary of the regression tester run from ${date_stamp} using ${dir_triplet} ${cp2k_version} \n" >${summary}
 
-###################################################################################
-#
-# simple function to end the tests all in the same way
-#
-###################################################################################
-function end_test() {
-full_time_t2=`date +%s`
-full_timing_all=$((1+full_time_t2-full_time_t1))
-# Remove lockfile
-if [[ -n $2 ]]; then
-   [[ -f $2 ]] && rm $2
-fi
-echo "--------------------------------------------------------------------------"
-printf "Regtest took %0.2f seconds.\n" ${full_timing_all}
-echo "--------------------------------------------------------------------------"
-date
-echo "*************************** testing ended ********************************"
-exit $1
-}
 
 ###################################################################################
 #
@@ -659,7 +640,9 @@ if [[ -f ${lockfile} ]]; then
       echo "       remove the lockfile ${lockfile}"
       echo "       first and retry"
       rm -rf ${dir_out}
-      end_test 7
+      echo "Summary: Test directory is locked."
+      echo "Status: UNKNOWN"
+      exit 7
     else
       echo "WARNING: stale lockfile in directory ${dir_last} "
       echo "         continuing regtest"
@@ -674,8 +657,8 @@ if (( maxtasks < numprocs*OMP_NUM_THREADS )); then
    echo "       maxtasks        = ${maxtasks}"
    echo "       numprocs        = ${numprocs}"
    echo "       OMP_NUM_THREADS = ${OMP_NUM_THREADS}"
-   rm -rf ${dir_out}
-   end_test 8 ${lockfile}
+   rm -rf ${dir_out} ${lockfile}
+   exit 8
 fi
 
 if [[ ${leakcheck} == "YES" ]]; then
@@ -776,7 +759,8 @@ if [[ ${quick} != "quick" ]]; then
       echo "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx" >>${error_description_file}
       echo "ERROR: ${make} realclean ${ARCH_SPEC} VERSION=${cp2k_version} failed ... bailing out" >>${error_description_file}
       cat "${error_description_file}"
-      end_test 3 ${lockfile}
+      rm ${lockfile}
+      exit 3
    else
       echo "${make} realclean ${ARCH_SPEC} VERSION=${cp2k_version} went fine"
    fi
@@ -807,7 +791,10 @@ if [[ ${nobuild} != "nobuild" ]]; then
       echo "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx" >>${error_description_file}
       echo "ERROR: ${make} -j $((maxbuildtasks)) ${ARCH_SPEC} VERSION=${cp2k_version} failed" >>${error_description_file}
       cat "${error_description_file}"
-      end_test 4 ${lockfile}
+      echo "Summary: Compilation failed."
+      echo "Status: FAILED"
+      rm ${lockfile}
+      exit 4
    else
       compile_warnings=`grep "Warning" ${make_out} | wc -l`
       echo "${make} -j $((maxbuildtasks)) ${ARCH_SPEC} VERSION=${cp2k_version} went fine (${compile_warnings} warnings)"
@@ -907,11 +894,13 @@ if [[ ${skiptest} != "skiptest" ]]; then
      if [[ "${dir_out}" == "${dir_base}/${last_test_dir}" ]]
      then
        echo "No TEST directory with latest test results found. Nothing to test!"
-       end_test 5 ${lockfile}
+       rm ${lockfile}
+       exit 5
      elif [[ ! -f "${dir_base}/${last_test_dir}/error_summary" ]]
      then
        echo "No error summary exists in the last TEST directory. Nothing to test!"
-       end_test 6 ${lockfile}
+       rm ${lockfile}
+       exit 6
      else
        retest_dirs=`grep .inp.out ${dir_base}/${last_test_dir}/error_summary | awk -F/ '{ test = 0; for (i = 1; i < NF; i++) { if (test == 1) { printf "%s/", $i } if ($i ~ /TEST/) test = 1; } printf "\n" }' | sort | sed 's/\/$//' | awk '!x[$0]++'`
        for t in $retest_dirs
@@ -921,7 +910,8 @@ if [[ ${skiptest} != "skiptest" ]]; then
        done
        if (( ndirstorestrict == 0 )); then
           echo "No error occurred during the last run. Nothing to retest!"
-          end_test 0 ${lockfile}
+          rm ${lockfile}
+          exit 0
        fi
      fi
    fi
@@ -1126,7 +1116,7 @@ EOF
    printf "Number of CORRECT tests %d\n" ${n_correct}        | tee -a ${summary}
    printf "Number of NEW     tests %d\n" ${n_new}            | tee -a ${summary}
    printf "Total number of   tests %d\n" ${n_tests}          | tee -a ${summary}
-   
+
    if [[ ${leakcheck} == "YES" ]]; then
       echo "--------------------------------------------------------------------------" | tee -a ${summary}
       case ${FORT_C_NAME} in
@@ -1150,6 +1140,37 @@ EOF
       echo "GREPME ${n_runtime_error} ${n_wrong_results} ${n_correct} ${n_new} ${n_tests} X"
    fi
 
+   full_time_t2=`date +%s`
+   full_timing_all=$((1+full_time_t2-full_time_t1))
+
+   REPORT_SUMMARY=$(printf "correct: %d / %d" ${n_correct} ${n_tests})
+   if (( n_new > 0 )); then
+       REPORT_SUMMARY+=$(printf "; new: %d" ${n_new})
+   fi
+   if (( n_wrong_results > 0 )); then
+       REPORT_SUMMARY+=$(printf "; wrong: %d" ${n_wrong_results})
+   fi
+   if (( n_runtime_error > 0 )); then
+       REPORT_SUMMARY+=$(printf "; failed: %d" ${n_runtime_error})
+   fi
+   if (( n_leaks > 0 )); then
+       REPORT_SUMMARY+=$(printf "; memleaks: %d" ${n_leaks})
+   fi
+   REPORT_SUMMARY+=$(python -c "print('; %.0fmin'%(${full_timing_all}/60.0))")
+   echo "Summary: ${REPORT_SUMMARY}"
+
+   if ((n_wrong_results > 0)) || ((n_runtime_error > 0)) || ((n_leaks > 0)); then
+       echo "Status: FAILED"
+   else
+       echo "Status: OK"
+   fi
+
+   echo "--------------------------------------------------------------------------"
+   printf "Regtest took %0.2f seconds.\n" ${full_timing_all}
+   echo "--------------------------------------------------------------------------"
+   date
+   echo "*************************** testing ended ********************************"
 fi
 
-end_test 0 ${lockfile}
+rm ${lockfile}
+exit 0
