@@ -296,9 +296,9 @@ CONTAINS
          CALL put_results(results, description, dipole)
       END IF
       IF (unit_nr > 0) THEN
-         WRITE (unit_nr, '(1X,A,T48,3F11.6)') "MM DIPOLE "//TRIM(dipole_type)//"(A.U.)|", dipole
-         WRITE (unit_nr, '(1X,A,T48,3F11.6)') "MM DIPOLE "//TRIM(dipole_type)//"(Debye)|", dipole*debye
-         WRITE (unit_nr, '(1X,A,T48,3F11.6)') "MM DIPOLE "//TRIM(dipole_type)//" DERIVATIVE(A.U.)|", dipole_deriv
+         WRITE (unit_nr, '(1X,A,T48,3F16.6)') "MM DIPOLE "//TRIM(dipole_type)//"(A.U.)|", dipole
+         WRITE (unit_nr, '(1X,A,T48,3F16.6)') "MM DIPOLE "//TRIM(dipole_type)//"(Debye)|", dipole*debye
+         WRITE (unit_nr, '(1X,A,T48,3F16.6)') "MM DIPOLE "//TRIM(dipole_type)//" DERIVATIVE(A.U.)|", dipole_deriv
       END IF
 
    END SUBROUTINE fist_dipole
