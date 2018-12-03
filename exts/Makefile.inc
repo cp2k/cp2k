@@ -1,3 +1,6 @@
+ifeq ("","$(wildcard $(EXTSHOME)/dbcsr/Makefile)")
+$(error "No DBCSR submodule available, please run 'git submodule update --init --recursive'")
+endif
 
 LIBS     := -L$(LIBEXTSDIR)/dbcsr -ldbcsr $(LIBS)
 EXTSDEPS_LIB  = $(LIBEXTSDIR)/dbcsr/libdbcsr.a
