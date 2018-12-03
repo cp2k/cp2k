@@ -50,6 +50,7 @@ LIBDIR  := $(MAINLIBDIR)/$(ARCH)/$(ONEVERSION)
 LIBEXTSDIR := $(LIBDIR)/$(EXTSDIR)
 OBJDIR  := $(MAINOBJDIR)/$(ARCH)/$(ONEVERSION)
 OBJEXTSDIR := $(OBJDIR)/$(EXTSDIR)
+OBJEXTSINCL := $(foreach dir,$(EXTSPACKAGES),-I'$(OBJEXTSDIR)/$(dir)')
 TSTDIR     := $(MAINTSTDIR)/$(ARCH)/$(ONEVERSION)
 ifeq ($(NVCC),)
 EXE_NAMES := $(basename $(notdir $(filter-out %.cu, $(ALL_EXE_FILES))))
@@ -190,7 +191,8 @@ endif
 else
 
 # Force CP2K recompilations if exts are updated
-$(ALL_OBJECTS): $(EXTSDEPS)
+$(ALL_OBJECTS): $(EXTSDEPS_MOD)
+$(ALL_EXE_OBJECTS): $(EXTSDEPS_LIB)
 
 # stage 4: Include $(OBJDIR)/all.dep, expand target all and libcp2k, and perform actual build.
 all: $(foreach e, $(EXE_NAMES), $(EXEDIR)/$(e).$(ONEVERSION))
@@ -440,10 +442,10 @@ FYPPFLAGS ?= -n
 ifneq ($(CPP),)
 	$(TOOLSRC)/build_utils/fypp $(FYPPFLAGS) $< $*.fypped
 	$(CPP) $(CPPFLAGS) -D__SHORT_FILE__="\"$(subst $(SRCDIR)/,,$<)\"" -I'$(dir $<)' $*.fypped > $*.f90
-	$(FC) -c $(FCFLAGS) $*.f90 $(FCLOGPIPE)
+	$(FC) -c $(FCFLAGS) $(OBJEXTSINCL) $*.f90 $(FCLOGPIPE)
 else
 	$(TOOLSRC)/build_utils/fypp $(FYPPFLAGS) $< $*.F90
-	$(FC) -c $(FCFLAGS) -D__SHORT_FILE__="\"$(subst $(SRCDIR)/,,$<)\"" -I'$(dir $<)' $*.F90 $(FCLOGPIPE)
+	$(FC) -c $(FCFLAGS) -D__SHORT_FILE__="\"$(subst $(SRCDIR)/,,$<)\"" -I'$(dir $<)' $(OBJEXTSINCL) $*.F90 $(FCLOGPIPE)
 endif
 
 %.o: %.c
