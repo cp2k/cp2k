@@ -182,7 +182,7 @@ CONTAINS
       DEALLOCATE (vxc_rho)
       ekin_mol = -ekin_imol
       xcvirial(1:3, 1:3) = 0.0_dp
-      IF (use_virial) xcvirial(1:3, 1:3) = xcvirial(1:3, 1:3)+virial%pv_xc(1:3, 1:3)
+      IF (use_virial) xcvirial(1:3, 1:3) = xcvirial(1:3, 1:3)-virial%pv_xc(1:3, 1:3)
 
       ! loop over all subsets
       DO isub = 1, kg_env%nsubsets
@@ -330,7 +330,7 @@ CONTAINS
       DEALLOCATE (vxc_rho)
       ekin_mol = -ekin_imol
       xcvirial(1:3, 1:3) = 0.0_dp
-      IF (use_virial) xcvirial(1:3, 1:3) = xcvirial(1:3, 1:3)+virial%pv_xc(1:3, 1:3)
+      IF (use_virial) xcvirial(1:3, 1:3) = xcvirial(1:3, 1:3)-virial%pv_xc(1:3, 1:3)
 
       ! loop over all subsets
       DO isub = 1, kg_env%nsubsets
@@ -485,7 +485,7 @@ CONTAINS
       DEALLOCATE (vxc_rho)
       ekin_mol = -ekin_imol
       xcvirial(1:3, 1:3) = 0.0_dp
-      IF (use_virial) xcvirial(1:3, 1:3) = xcvirial(1:3, 1:3)+virial%pv_xc(1:3, 1:3)
+      IF (use_virial) xcvirial(1:3, 1:3) = xcvirial(1:3, 1:3)-virial%pv_xc(1:3, 1:3)
 !deb
 !     WRITE(6,*) " E KIN (full)       ",-ekin_mol
 !deb
