@@ -28,6 +28,12 @@ function upload_file {
     wget --quiet --output-document=- --method=PUT --header="content-type: ${CONTENT_TYPE}" --header="cache-control: no-cache" --body-file="${FILE}" "${URL}" > /dev/null
 }
 
+# Calculate checksums of critical files.
+CHECKSUMS=/workspace/checksums.md5
+md5sum /workspace/cp2k/Makefile \
+       /workspace/cp2k/tools/build_utils/* \
+       /workspace/cp2k/arch/local* \
+       > $CHECKSUMS
 
 # Get cp2k sources.
 if [ -n "${GIT_REF}" ]; then
@@ -74,6 +80,13 @@ if [ -d /opt/cp2k-toolchain ]; then
         echo -e "Status: FAILED\n" | tee -a $REPORT
         TOOLCHAIN_OK=false
     fi
+fi
+
+if ! md5sum --status --check ${CHECKSUMS}; then
+    echo -e "\n========== Cleaning Build Cache ==========" | tee -a $REPORT
+    (md5sum --quiet --check ${CHECKSUMS} || true) |& tee -a $REPORT
+    cd /workspace/cp2k
+    make distclean |& tee -a $REPORT
 fi
 
 # Run actual test.
