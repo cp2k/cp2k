@@ -30,10 +30,12 @@ function upload_file {
 
 # Calculate checksums of critical files.
 CHECKSUMS=/workspace/checksums.md5
+shopt -s nullglob  # ignore missing files
 md5sum /workspace/cp2k/Makefile \
        /workspace/cp2k/tools/build_utils/* \
        /workspace/cp2k/arch/local* \
        > $CHECKSUMS
+shopt -u nullglob
 
 # Get cp2k sources.
 if [ -n "${GIT_REF}" ]; then
