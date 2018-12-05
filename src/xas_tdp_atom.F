@@ -86,6 +86,10 @@ MODULE xas_tdp_atom
 
 CONTAINS
 
+!TODO: Try to put the density on the grid as precisely as possible => do the RI projection on each
+!      atom and actually evaluate everything => do it naively for a test. Current problem:
+!      weird values in O2 triplet
+
 ! **************************************************************************************************
 !> \brief Initializes a xas_atom_env type given the qs_env
 !> \param xas_atom_env the xas_atom_env to initialize
@@ -103,7 +107,7 @@ CONTAINS
       CHARACTER(len=*), PARAMETER :: routineN = 'init_xas_atom_env', routineP = moduleN//":"//routineN
 
       INTEGER                                         :: nkind, natom, nex_kinds, handle, &
-                                                         nex_atoms, ikind
+                                                         nex_atoms, ikind, nspins
       TYPE(qs_kind_type), DIMENSION(:), POINTER       :: qs_kind_set
       TYPE(gto_basis_set_p_type), DIMENSION(:), &
                                              POINTER  :: basis_set_ri 
@@ -122,26 +126,19 @@ CONTAINS
       nex_atoms = xas_tdp_env%nex_atoms
       do_xc = xas_tdp_control%do_xc
       do_soc = xas_tdp_control%do_soc
+      nspins = 1; IF (xas_tdp_control%do_lsd .OR. xas_tdp_control%do_roks) nspins = 2
 
       ALLOCATE(xas_atom_env%grid_atom_set(nkind))
       ALLOCATE(xas_atom_env%harmonics_atom_set(nkind))
       ALLOCATE(xas_atom_env%ri_sphi_so(nkind))
       ALLOCATE(xas_atom_env%orb_sphi_so(nkind))
-      ALLOCATE(xas_atom_env%ri_blk_size(natom))
-      ALLOCATE(xas_atom_env%ri_dcoeff(natom))
+      ALLOCATE(xas_atom_env%ri_dcoeff(natom,nspins))
 
       xas_atom_env%excited_atoms => xas_tdp_env%ex_atom_indices
       xas_atom_env%excited_kinds => xas_tdp_env%ex_kind_indices
 
 !  Allocate and initialize the atomic grids and harmonics
       CALL init_xas_atom_grid_harmo(xas_atom_env, xas_tdp_control%grid_info, do_xc, qs_env)
-
-!  Create the block size for the integral matrix based on the size of the RI_XAS basis.
-!  TODO: this is not needed anymore...
-      ALLOCATE(basis_set_ri(nkind))
-      CALL basis_set_list_setup(basis_set_ri, "RI_XAS", qs_kind_set)
-      CALL get_particle_set(particle_set, qs_kind_set, nsgf=xas_atom_env%ri_blk_size, basis=basis_set_ri)
-      DEALLOCATE(basis_set_ri)
 
 !  Compute the contraction coefficients for spherical orbitals
       DO ikind = 1,nkind 
@@ -418,8 +415,9 @@ CONTAINS
                                      routineP = moduleN//":"//routineN
 
       INTEGER                                         :: nkind, ilist, katom, kkind, ikind, natom, &
-                                                         iat, nsgf_kind, mepos, nthread, handle
-      REAL(dp)                                        :: dmax
+                                                         iat, nsgf_kind, mepos, nthread, handle, &
+                                                         nspins, ispin
+      REAL(dp)                                        :: dmax, factor
       TYPE(qs_kind_type), DIMENSION(:), POINTER       :: qs_kind_set
       TYPE(gto_basis_set_p_type), DIMENSION(:), &
                                              POINTER  :: basis_set_ri, basis_set_orb
@@ -433,17 +431,18 @@ CONTAINS
       REAL(dp), DIMENSION(:,:), POINTER               :: tvec
       TYPE(cp_2d_r_p_type), DIMENSION(:), POINTER     :: sinv
       TYPE(particle_type), DIMENSION(:), POINTER      :: particle_set 
-      INTEGER, DIMENSION(:), POINTER                  :: nsgf
+      INTEGER, DIMENSION(:), ALLOCATABLE              :: nsgf
       REAL(dp), DIMENSION(:,:), ALLOCATABLE           :: work
       TYPE(cp_para_env_type), POINTER                 :: para_env
 
       NULLIFY(qs_kind_set, basis_set_ri, basis_set_orb, ac_list, rho, rho_ao, sinv, ri_basis)
-      NULLIFY(o3c, tvec, particle_set, nsgf, para_env)
+      NULLIFY(o3c, tvec, particle_set, para_env)
 
       CALL timeset(routineN, handle)
 
       CALL get_qs_env(qs_env, nkind=nkind, sab_orb=sab_orb, qs_kind_set=qs_kind_set, rho=rho, &
                       natom=natom, particle_set=particle_set)
+      nspins = SIZE(xas_atom_env%ri_dcoeff, 2)
 
 !  Create the needed neighbor list and basis set lists.
       ALLOCATE(basis_set_ri(nkind))
@@ -468,21 +467,27 @@ CONTAINS
 
 !  Create the 3-center overlap integrals for the RI basis
       ALLOCATE(o3c)
-      CALL init_o3c_container(o3c, 1, basis_set_orb, basis_set_orb, basis_set_ri, sab_orb, ac_list)
+      CALL init_o3c_container(o3c, nspins, basis_set_orb, basis_set_orb, basis_set_ri, sab_orb, ac_list)
       CALL calculate_o3c_integrals(o3c)
 
 !  Contract the 3-center tensor with the density matrix
       CALL qs_rho_get(rho, rho_ao=rho_ao)
       CALL contract12_o3c(o3c, rho_ao)
 
+      !keep in mind that double occupation is included in rho_ao in case of closed-shell
+      factor = 0.5_dp; IF (nspins == 2) factor = 1.0_dp
+
 !  Allocate space for the projected density coefficients. 
-      nsgf => xas_atom_env%ri_blk_size
-      DO iat = 1,natom
-         NULLIFY(xas_atom_env%ri_dcoeff(iat)%array)
-         IF (.NOT. ANY(xas_atom_env%excited_atoms == iat)) CYCLE
-         ikind = particle_set(iat)%atomic_kind%kind_number
-         ALLOCATE(xas_atom_env%ri_dcoeff(iat)%array(nsgf(iat)))
-         xas_atom_env%ri_dcoeff(iat)%array = 0.0_dp
+      ALLOCATE(nsgf(natom))
+      CALL get_particle_set(particle_set, qs_kind_set, nsgf=nsgf, basis=basis_set_ri)
+      DO ispin = 1,nspins
+         DO iat = 1,natom
+            NULLIFY(xas_atom_env%ri_dcoeff(iat,ispin)%array)
+            IF (.NOT. ANY(xas_atom_env%excited_atoms == iat)) CYCLE
+            ikind = particle_set(iat)%atomic_kind%kind_number
+            ALLOCATE(xas_atom_env%ri_dcoeff(iat,ispin)%array(nsgf(iat)))
+            xas_atom_env%ri_dcoeff(iat,ispin)%array = 0.0_dp
+         END DO
       END DO
 
 !  Iterate over the o3c to access the contracted tvec = sum_ab P_ab*(abc). 
@@ -491,7 +496,7 @@ CONTAINS
       CALL o3c_iterator_create(o3c, o3c_iterator, nthread=nthread) 
 
 !$OMP PARALLEL DEFAULT(NONE)&
-!$OMP SHARED (o3c_iterator,xas_atom_env,nsgf,sinv)&
+!$OMP SHARED (o3c_iterator,xas_atom_env,nsgf,sinv,nspins,factor)&
 !$OMP PRIVATE (mepos,katom,kkind,tvec,work)
 
       mepos = 0
@@ -502,12 +507,18 @@ CONTAINS
          IF (.NOT. ANY(xas_atom_env%excited_atoms == katom)) CYCLE
 
 !        The coefficient for atom katom of kkind are tvec*S^-1
-         ALLOCATE(work(nsgf(katom),1))
-         CALL dgemm('N', 'N', nsgf(katom), 1, nsgf(katom), 1.0_dp, sinv(kkind)%array, nsgf(katom), &
+         ALLOCATE(work(nsgf(katom),nspins))
+         CALL dgemm('N', 'N', nsgf(katom), nspins, nsgf(katom), 1.0_dp, sinv(kkind)%array, nsgf(katom), &
                     tvec, nsgf(katom), 0.0_dp, work, nsgf(katom))
-!$OMP CRITICAL
-         CALL daxpy(nsgf(katom), 1.0_dp, work(:,1), 1, xas_atom_env%ri_dcoeff(katom)%array(:), 1)
-!$OMP END CRITICAL
+!$OMP CRITICAL(spin1)
+         CALL daxpy(nsgf(katom), factor, work(:,1), 1, xas_atom_env%ri_dcoeff(katom,1)%array(:), 1)
+!$OMP END CRITICAL(spin1)
+
+         IF (nspins == 2) THEN
+!$OMP CRITICAL(spin2)
+            CALL daxpy(nsgf(katom), 1.0_dp, work(:,2), 1, xas_atom_env%ri_dcoeff(katom,2)%array(:), 1)
+!$OMP END CRITICAL(spin2)
+         END IF
 
          DEALLOCATE(work)
       END DO
@@ -515,10 +526,12 @@ CONTAINS
       CALL o3c_iterator_release(o3c_iterator)
 
       CALL get_qs_env(qs_env, para_env=para_env)
-      DO iat = 1,natom
-         IF (.NOT. ANY(xas_atom_env%excited_atoms == iat)) CYCLE
-         CALL mp_sum(xas_atom_env%ri_dcoeff(iat)%array, para_env%group)
-      END DO !iat
+      DO ispin = 1,nspins
+         DO iat = 1,natom
+            IF (.NOT. ANY(xas_atom_env%excited_atoms == iat)) CYCLE
+            CALL mp_sum(xas_atom_env%ri_dcoeff(iat, ispin)%array, para_env%group)
+         END DO !iat
+      END DO !ispin
 
 !  some clean-up
       DO ilist = 1,SIZE(ac_list)
@@ -556,7 +569,7 @@ CONTAINS
                                      routineP = moduleN//":"//routineN
 
       INTEGER                                         :: na, nr, iset, ipgf, l, iso, ir, nset, &
-                                                         isgf, start, sgfi, n, handle
+                                                         isgf, start, sgfi, n, handle, nspins
       TYPE(grid_atom_type), POINTER                   :: grid_atom
       TYPE(harmonics_atom_type), POINTER              :: harmonics
       TYPE(gto_basis_set_type), POINTER               :: ri_basis
@@ -574,6 +587,7 @@ CONTAINS
 
 !  Strategy: it makes sense to evaluate the spherical orbital on the grid (because of symmetry)
 !            From there, one can directly contract into sgf using ri_sphi_so and then take the weight
+!  TODO: OMP parallelize if slow
 
 !  Generalities
       CALL get_qs_env(qs_env, qs_kind_set=qs_kind_set)
@@ -589,6 +603,7 @@ CONTAINS
       nr = grid_atom%nr
       na = grid_atom%ng_sphere
       n = na*nr
+      nspins = SIZE(xas_atom_env%ri_dcoeff,2)
 
 !  Point to the rho_set densities
       rhoa => rho_set%rhoa
@@ -618,7 +633,6 @@ CONTAINS
          END DO !ipgf
 
          !contract the so to get the sgf
-         !TODO: maybe change ordering of indices so that one strarts iterating on last one
          ALLOCATE(sgf(na,nr,nsgf_set(iset)))
          sgf = 0.0_dp
          sgfi = first_sgf(1,iset) - 1
@@ -634,16 +648,23 @@ CONTAINS
             END DO !ipgf
 
             !put the sgf on the grid with the approriate coefficients and sum
-            CALL daxpy(n, xas_atom_env%ri_dcoeff(atom_index)%array(sgfi+isgf), sgf(:,:,isgf), &
+            CALL daxpy(n, xas_atom_env%ri_dcoeff(atom_index,1)%array(sgfi+isgf), sgf(:,:,isgf), &
                        1, rhoa(:,:,1), 1)
+
+            IF (nspins == 2) THEN
+               CALL daxpy(n, xas_atom_env%ri_dcoeff(atom_index,2)%array(sgfi+isgf), sgf(:,:,isgf), &
+                          1, rhob(:,:,1), 1)
+            END IF
 
          END DO !isgf
 
          DEALLOCATE(so, sgf)
       END DO !iset
 
-!  The spin densities are the same
-      CALL dcopy(n, rhoa(:,:,1), 1, rhob(:,:,1), 1)
+      ! Treat spin restricted case
+      IF (nspins == 1) THEN
+         CALL dcopy(n, rhoa(:,:,1), 1, rhob(:,:,1), 1)
+      END IF
 
       CALL timestop(handle)
 
@@ -651,24 +672,18 @@ CONTAINS
 
 ! **************************************************************************************************
 !> \brief Integrate the xc kernel as a function of r on the atomic grids for the RI_XAS basis
-!> \param int_fxc_sg the global array containing the (P|fxc|Q) integrals for singlets
-!> \param int_fxc_tp the global array containing the (P|fxc|Q) integrals for triplets
+!> \param int_fxc the global array containing the (P|fxc|Q) integrals, for all spin configurations
 !> \param xas_atom_env ...
 !> \param qs_env ...
-!> \param do_singlet if the integration for the singlet kernel should be done
-!> \param do_triplet if the integration for the triplet kernel should be done
-!> \note Allowing for both singlet and triplet excitation at the same times allows savings on the
-!>       common stuff such as putting the density on the grid
+!> \note Note that if closed-shell, alpha-alpha term and beta-beta terms are the same
 !>       Store the (P|fxc|Q) integrals on the processor they were computed on
+!>       int_fxc(1)%matrix is alpha-alpha, 2: alpha-beta, 3: beta-beta
 ! **************************************************************************************************
-   SUBROUTINE integrate_fxc_atoms(int_fxc_sg, int_fxc_tp, xas_atom_env, qs_env, do_singlet, do_triplet)
+   SUBROUTINE integrate_fxc_atoms(int_fxc, xas_atom_env, qs_env)
 
-      TYPE(cp_2d_r_p_type), DIMENSION(:), POINTER     :: int_fxc_sg
-      TYPE(cp_2d_r_p_type), DIMENSION(:), POINTER     :: int_fxc_tp
+      TYPE(cp_2d_r_p_type), DIMENSION(:,:), POINTER   :: int_fxc
       TYPE(xas_atom_env_type), POINTER                :: xas_atom_env  
-      TYPE(qs_environment_type), POINTER              :: qs_env   
-      LOGICAL, INTENT(IN)                             :: do_singlet
-      LOGICAL, INTENT(IN)                             :: do_triplet
+      TYPE(qs_environment_type), POINTER              :: qs_env
 
       CHARACTER(len=*), PARAMETER :: routineN = "integrate_fxc_atoms", &
                                      routineP = moduleN//":"//routineN
@@ -676,7 +691,7 @@ CONTAINS
       REAL(dp), DIMENSION(:, :), ALLOCATABLE          :: fxc, int_so
       INTEGER                                         :: natom, iatom, ikind, na, nr, nsotot, nset, &
                                                          maxso, nsgf, n, handle, num_pe, mepos, &
-                                                         bo(2), nex_atom, iex
+                                                         bo(2), nex_atom, iex, i, ub
       INTEGER, DIMENSION(2,3)                         :: bounds
       TYPE(particle_type), DIMENSION(:), POINTER      :: particle_set 
       TYPE(qs_kind_type), DIMENSION(:), POINTER       :: qs_kind_set
@@ -690,25 +705,26 @@ CONTAINS
       TYPE(xc_rho_cflags_type)                        :: needs
       TYPE(section_vals_type), POINTER                :: input, xc_functionals
       TYPE(xc_derivative_type), POINTER               :: deriv
-      REAL(dp), DIMENSION(:,:,:), POINTER             :: d2e_dada, d2e_dadb
+      TYPE(cp_3d_r_p_type), DIMENSION(:), POINTER     :: d2e
       TYPE(cp_para_env_type), POINTER                 :: para_env
+      LOGICAL                                         :: do_os
 
       NULLIFY(particle_set, qs_kind_set, grid_atom, harmonics, dft_control, deriv_set, para_env)
-      NULLIFY(ri_basis, ri_sphi_so, rho_set, input, xc_functionals, deriv, d2e_dada, d2e_dadb)
+      NULLIFY(ri_basis, ri_sphi_so, rho_set, input, xc_functionals, deriv, d2e, int_fxc)
 
       CALL timeset(routineN, handle)
 
 !  Initialize
       CALL get_qs_env(qs_env, particle_set=particle_set, qs_kind_set=qs_kind_set, natom=natom, &
                       dft_control=dft_control, input=input, para_env=para_env)
-      NULLIFY (int_fxc_sg, int_fxc_tp)
-      IF (do_singlet) ALLOCATE(int_fxc_sg(natom))
-      IF (do_triplet) ALLOCATE(int_fxc_tp(natom))
+      ALLOCATE(int_fxc(natom, 3)) 
       DO iatom = 1, natom
-         IF (do_singlet) NULLIFY(int_fxc_sg(iatom)%array)
-         IF (do_triplet) NULLIFY(int_fxc_tp(iatom)%array)
+         DO i = 1,3
+            NULLIFY(int_fxc(iatom,i)%array)
+         END DO
       END DO
       nex_atom = SIZE(xas_atom_env%excited_atoms)
+      do_os = .FALSE.; IF (SIZE(xas_atom_env%ri_dcoeff,2) == 2) do_os = .TRUE.
 
 !  Distribute the excited atoms over the processors
       num_pe = para_env%num_pe
@@ -742,7 +758,7 @@ CONTAINS
          CALL xc_rho_set_create(rho_set=rho_set, local_bounds=bounds,&
                                 rho_cutoff=dft_control%qs_control%eps_rho_rspace)
          CALL xc_dset_create(deriv_set, local_bounds=bounds)
-         ! ask for lsd because need both spins for kernel (eventhough densities are the same)
+         ! ask for lsd in any case 
          needs = xc_functionals_get_needs(xc_functionals, lsd=.TRUE., add_basic_components=.TRUE.)
 
          ! allocate internals of the rho_set
@@ -755,55 +771,38 @@ CONTAINS
          CALL xc_functionals_eval(xc_functionals, lsd=.TRUE., rho_set=rho_set, deriv_set=deriv_set, &
                                   deriv_order=-2) ! only interested in the second deriv
 
-!     Get fxc = e_rhoa_rhoa + r_rhoa_rhob for singlet or fxc = e_rhoa_rhoa - e_rhoa_rhob for triplets
+!     Get the second derivatives
+         ALLOCATE(d2e(3))
          deriv => xc_dset_get_derivative(deriv_set, "(rhoa)(rhoa)")
-         CALL xc_derivative_get(deriv, deriv_data=d2e_dada)
+         CALL xc_derivative_get(deriv, deriv_data=d2e(1)%array)
          deriv => xc_dset_get_derivative(deriv_set, "(rhoa)(rhob)")
-         CALL xc_derivative_get(deriv, deriv_data=d2e_dadb)
+         CALL xc_derivative_get(deriv, deriv_data=d2e(2)%array)
+         deriv => xc_dset_get_derivative(deriv_set, "(rhob)(rhob)")
+         CALL xc_derivative_get(deriv, deriv_data=d2e(3)%array)
 
-!     Allocating work arrays used for singlets and triplets
+!     Allocating work arrays
          CALL get_gto_basis_set(ri_basis, nsgf=nsgf)
          ALLOCATE(fxc(na,nr))
          ALLOCATE(int_so(nsotot,nsotot))
+         ri_sphi_so => xas_atom_env%ri_sphi_so(ikind)%array
 
-         IF (do_singlet) THEN
+!     Integrate for all three derivatives, taking the grid weight into account
+!     If closed shell, do not need to integrate beta-beta as it is the same as alpha-alpha
+         ub = 2; IF (do_os) ub = 3
+         DO i = 1,ub
 
-            ! build the kernel and take grid weights into account
-            CALL dcopy(n, d2e_dada(:,:,1), 1, fxc(:,:), 1)
-            CALL daxpy(n, 1.0_dp, d2e_dadb(:,:,1), 1, fxc(:,:), 1)
-            fxc(:,:) = fxc(:,:)*grid_atom%weight(:,:)
-
-            ! Integrate in terms of so
             int_so = 0.0_dp
+            fxc(:,:) = d2e(i)%array(:,:,1)*grid_atom%weight(:,:)
             CALL integrate_so_prod(int_so, fxc, ikind, xas_atom_env, qs_env)
 
-            ! Allocate the singlet sgf integral and contract
-            ALLOCATE(int_fxc_sg(iatom)%array(nsgf,nsgf))
-            ri_sphi_so => xas_atom_env%ri_sphi_so(ikind)%array
-            CALL contract_so2sgf(int_fxc_sg(iatom)%array, int_so, ri_basis, ri_sphi_so)
+            !contract into sgf. Array allocate on current processor only
+            ALLOCATE(int_fxc(iatom,i)%array(nsgf,nsgf))
+            CALL contract_so2sgf(int_fxc(iatom,i)%array, int_so, ri_basis, ri_sphi_so)
 
-         END IF
-
-         IF (do_triplet) THEN
-               
-            ! build the kernel and take grid weights into account
-            CALL dcopy(n, d2e_dada(:,:,1), 1, fxc(:,:), 1)
-            CALL daxpy(n, -1.0_dp, d2e_dadb(:,:,1), 1, fxc(:,:), 1)
-            fxc(:,:) = fxc(:,:)*grid_atom%weight(:,:)
-
-            ! Integrate in terms of so
-            int_so = 0.0_dp
-            CALL integrate_so_prod(int_so, fxc, ikind, xas_atom_env, qs_env)
-
-            ! Allocate the singlet sgf integral and contract
-            ALLOCATE(int_fxc_tp(iatom)%array(nsgf,nsgf))
-            ri_sphi_so => xas_atom_env%ri_sphi_so(ikind)%array
-            CALL contract_so2sgf(int_fxc_tp(iatom)%array, int_so, ri_basis, ri_sphi_so)
-
-         END IF
+         END DO
 
 !     Clean-up
-         DEALLOCATE(int_so, fxc)
+         DEALLOCATE(int_so, fxc, d2e)
          CALL xc_dset_release(deriv_set)
          CALL xc_rho_set_release(rho_set)
 

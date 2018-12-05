@@ -740,8 +740,9 @@ CONTAINS
 !> \param unoccupied_evals ...
 !> \param nlumo ...
 !> \param nlumos ...
+!> \param silent ...
 ! **************************************************************************************************
-   SUBROUTINE make_lumo(qs_env, scf_env, unoccupied_orbs, unoccupied_evals, nlumo, nlumos)
+   SUBROUTINE make_lumo(qs_env, scf_env, unoccupied_orbs, unoccupied_evals, nlumo, nlumos, silent)
 
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(qs_scf_env_type), POINTER                     :: scf_env
@@ -749,6 +750,7 @@ CONTAINS
       TYPE(cp_1d_r_p_type), DIMENSION(:), POINTER        :: unoccupied_evals
       INTEGER, INTENT(IN)                                :: nlumo
       INTEGER, INTENT(OUT)                               :: nlumos
+      LOGICAL, INTENT(IN), OPTIONAL                      :: silent
 
       CHARACTER(len=*), PARAMETER :: routineN = 'make_lumo', routineP = moduleN//':'//routineN
 
@@ -765,8 +767,12 @@ CONTAINS
       TYPE(mo_set_p_type), DIMENSION(:), POINTER         :: mos
       TYPE(preconditioner_type), POINTER                 :: local_preconditioner
       TYPE(scf_control_type), POINTER                    :: scf_control
+      LOGICAL                                            :: my_silent
 
       CALL timeset(routineN, handle)
+
+      my_silent = .FALSE.
+      IF (PRESENT(silent)) my_silent=silent
 
       NULLIFY (mos, ks_rmpv, scf_control, dft_control, admm_env, para_env, blacs_env)
       CALL get_qs_env(qs_env, &
@@ -781,6 +787,7 @@ CONTAINS
 
       logger => cp_get_default_logger()
       output_unit = cp_logger_get_default_io_unit(logger)
+      IF (my_silent) output_unit = 0
 
       DO ispin = 1, dft_control%nspins
          NULLIFY (unoccupied_orbs(ispin)%matrix)
@@ -821,7 +828,7 @@ CONTAINS
                              eps_gradient=scf_control%eps_lumos, &
                              preconditioner=local_preconditioner, &
                              iter_max=scf_control%max_iter_lumos, &
-                             size_ortho_space=nmo)
+                             size_ortho_space=nmo, silent=my_silent)
 
          CALL calculate_subspace_eigenvalues(unoccupied_orbs(ispin)%matrix, ks_rmpv(ispin)%matrix, &
                                              unoccupied_evals(ispin)%array, scr=output_unit, &
