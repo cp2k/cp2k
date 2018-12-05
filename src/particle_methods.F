@@ -87,7 +87,6 @@ CONTAINS
 !> \par History
 !>      - particle type cleaned (13.10.2003,MK)
 !>      - refactoring and add basis set option (17.08.2010,jhu)
-!>      - if basis option present but not associated, return nsgf=1 for this basis (06.08.2018 AB)
 !> \author  MK
 !> \version 1.0
 ! **************************************************************************************************
@@ -126,11 +125,7 @@ CONTAINS
          DO iparticle = 1, nparticle
             CALL get_atomic_kind(particle_set(iparticle)%atomic_kind, kind_number=ikind)
             IF (PRESENT(basis)) THEN
-               IF (ASSOCIATED(basis(ikind)%gto_basis_set)) THEN
-                  CALL get_gto_basis_set(gto_basis_set=basis(ikind)%gto_basis_set, nsgf=ns)
-               ELSE 
-                  ns = 1
-               END IF
+               CALL get_gto_basis_set(gto_basis_set=basis(ikind)%gto_basis_set, nsgf=ns)
             ELSE
                CALL get_qs_kind(qs_kind_set(ikind), nsgf=ns)
             END IF

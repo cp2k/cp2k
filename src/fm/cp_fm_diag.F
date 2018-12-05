@@ -84,6 +84,7 @@ MODULE cp_fm_diag
              cp_fm_block_jacobi, &
              cp_fm_power, &
              cp_fm_syevd, &
+             cp_fm_syevr, &
              cp_fm_syevx, &
              cp_fm_geeig, &
              cp_fm_geeig_canon, &

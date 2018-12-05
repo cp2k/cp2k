@@ -7880,9 +7880,9 @@ CONTAINS
       NULLIFY(keyword, print_key, subsection, subsubsection, subsubsubsection)
 
       CPASSERT(.NOT. ASSOCIATED(section))
-      CALL section_create(section, "xas_tdp", &
-                          description="XAS simulations using TDDFPT. Excitation from specified "// &
-                          "core orbitals are considered one at a time. In case of high symmetry "// &
+      CALL section_create(section, "XAS_TDP", &
+                          description="XAS simulations using TDDFPT. Excitation from specified "//&
+                          "core orbitals are considered one at a time. In case of high symmetry "//&
                           "structures, donor core orbitals should be localized.", &
                           n_keywords=13, n_subsections=4, repeats=.FALSE.)
 
@@ -7897,11 +7897,14 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="ONLY_CHECK_DONOR_STATES", &
-                          description="This keyword defines whether the full calculation should "// &
-                          "be done or not. If set to .TRUE., only the determination "// &
-                          "of donor MOs is conducted for verfification purposes.", &
-                          usage="ONLY_CHECK_DONOR_STATES logical", &
+      CALL keyword_create(keyword, name="CHECK_ONLY", &
+                          description="This keyword defines whether the full calculation should "//&
+                                      "be done or not. If set to .TRUE., only the determination "//&
+                                      "of donor MOs is conducted. In the case of iterative OT "// &
+                                      "diagonalization, the LUMOs eigenvalues are also screened for "//&
+                                      "gaps and values for N_EXCITED are suggested. This run "// &
+                                      "option allows for cheap verification of the input parameters", &
+                          usage="CHECK_ONLY {logical}", &
                           default_l_val=.FALSE., &
                           repeats=.FALSE.)
       CALL section_add_keyword(section, keyword)
@@ -7937,12 +7940,12 @@ CONTAINS
 
       CALL keyword_create(keyword, name="STATE_TYPES", &
                           variants=(/"TYPES"/), &
-                          description="Types of orbitals that are excited, for each atom/kind, "// &
-                          "in order to do  tdp  xas spectra calculation."// &
-                          "This keyword MUST have the same number of entries as the relevant "// &
-                          "KIND_LIST or ATOM_LIST. The order of the specified state types must "// &
-                          "correspond to the order of the relevant kinds/indices."// &
-                          "This keyword can be repeated, usefull when  multiple orbital types "// &
+                          description="Types of orbitals that are excited, for each atom/kind, "//&
+                          "in order to do  TDDFPT driven  xas spectra calculation."//&
+                          "This keyword MUST have the same number of entries as the relevant "//&
+                          "KIND_LIST or ATOM_LIST. The order of the specified state types must "//&
+                          "correspond to the order of the relevant kinds/indices."//&
+                          "This keyword can be repeated, usefull when  multiple orbital types "//&
                           "should be excited for specific kinds/atoms.", &
                           n_var=-1, default_i_val=xas_not_excited, repeats=.TRUE., &
                           usage="STATE_TYPES {string}  {string} .. {string}", &
@@ -7952,13 +7955,12 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="STATE_SEARCH", & 
-                          variants=(/"N_SEARCH"/),&
-                          description="Number of MOs to search to find specified donor core "//&
+      CALL keyword_create(keyword, name="N_SEARCH", & 
+                          description="Number of MOs (per spin) to search to find specified donor core "//&
                           "orbitals, starting from the lowest in energy and upward. By default, "//&
-                          "all HOMOs are searched. If the LOCALIZED subsection is used, then "//&
-                          "all searched states are first localized.",&
-                          usage="STATE_SEARCH {integer}",&
+                          "all HOMOs are searched. If the LOCALIZE subsection is used, "//&
+                          "then all searched states are first localized.",&
+                          usage="N_SEARCH {integer}",&
                           default_i_val=-1)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
@@ -7988,7 +7990,8 @@ CONTAINS
                           variants=(/"EXCITATION"/), &
                           description="Whether singlet or triplet excitations should be "// &
                                      "considered (starting from the spin-restricted ground state)."//&
-                                     "BOTH is needed for spin-orbit coupling calculations.",&
+                                     "BOTH is needed for spin-orbit coupling calculations." //&
+                                     "Note: only applies for spin-restricted calculations",&
                           usage="EXCITATIONS {string}", &
                           default_i_val=tddfpt_singlet, &
                           enum_c_vals=s2a("SINGLET", "TRIPLET", "BOTH"), & 
@@ -7998,7 +8001,9 @@ CONTAINS
 
       CALL keyword_create(keyword, name="SPIN_ORBIT_COUPLING", &
                           variants=(/"SOC"/), &
-                          description="Whether spin-orbit coupling should be added. ", &
+                          description="Whether spin-orbit coupling should be added. " // &
+                                      "Note: only applies for spin-restricted calculations with "//&
+                                      "BOTH singlet and triplet excitations.", &
                           usage="SOC {logical}", &
                           default_l_val=.FALSE.)
       CALL section_add_keyword(section, keyword)
@@ -8012,17 +8017,9 @@ CONTAINS
       CALL section_add_keyword(section, keyword)    
       CALL keyword_release(keyword)      
 
-      CALL keyword_create(keyword, name="N_EXCITED", &
-                          description="The number of excited states (singlet/triplet) to compute."//&
-                                      "If N_EXCITED is set to -1, all excitations are considered.",& 
-                          usage="N_EXCITED {integer}", &
-                          default_i_val=-1)
-      CALL section_add_keyword(section, keyword)
-      CALL keyword_release(keyword)
-
       CALL keyword_create(keyword, name="GRID", &
                           description="Specification of the atomic grids for a given atomic kind."//&
-                                      "This keyword can/should be repeated for each kind. "//&
+                                      "This keyword can/should be repeated for each excited kind. "//&
                                       "The default grid dimensions are those set for the GAPW "// &
                                       "ground state calculation. These grids are used for the "// &
                                       "xc-kernel calculations and/or for spin-orbit coupling.", &
@@ -8030,6 +8027,80 @@ CONTAINS
                           n_var=3, type_of_var=char_t, repeats=.TRUE.)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
+
+!  The diagonalization subsection
+      CALL section_create(subsection, name="DIAGONALIZATION", &
+                          description="Set the choice of method and parameters for solving the "//&
+                                      "XAS TDP eigenvalue problem.", &
+                          n_keywords=2, &
+                          n_subsections=1, &
+                          repeats=.FALSE.)
+
+      CALL keyword_create(keyword, name="N_EXCITED", &
+                          variants=(/"N_ROOTS"/), &
+                          description="The number of excited states to compute per donor " //&
+                                      "molecular orbital. (e.g. if 2p excitations, "// &
+                                      "3*N_EXCITED excited states are considered)."// & 
+                                      "If N_EXCITED is set to -1, all excitations are considered", &
+                          usage="N_EXCITED {integer}", &
+                          default_i_val=-1)
+      CALL section_add_keyword(subsection, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, name="FULL_DIAG", &
+                          description="Whether the eigenvalue problem should be solved using standard"// &
+                                      "direct diagonalization routines for full matrices. Non-TDA"// &
+                                      "(full-TDDFT) XAS TDP can only be solved this way. Note: "// &
+                                      "all eigenvalues are computed and only N_EXCITED lowest are kept.", &
+                          usage="FULL_DIAG {logical}", &
+                          default_l_val=.TRUE.)
+      CALL section_add_keyword(subsection, keyword)
+      CALL keyword_release(keyword)
+
+      !TODO: update keywrod description
+      CALL section_create(subsubsection, name="OT_DIAG", &
+                          description="Defines a set of parameters in case the OT (orbital " // &
+                                      "transformation) iterative eigensolver should be used. " // &
+                                      "The parameters that are not defined here are set to defaults"// &
+                                      "according to SCF%DIAGONALIZATION%OT. Better convergence "// &
+                                      "is reached if there is an energy gap between the N_EXCITED"//& 
+                                      "and the N_EXCITED+1 LUMOs. A XAS TDP specific inverse-"//&
+                                      "and diagonalization-free preconditioner is used."//&
+                                      "Run a CHECK_ONLY calculation for optimal values of N_EXCITEED", &
+                                      n_keywords=3, &
+                                      n_subsections=0, &
+                                      repeats=.FALSE.)
+
+      CALL keyword_create(keyword, name="MAX_ITER", &
+                          description="The maximum number of iterative steps allowed.", &
+                          usage="MAX_ITER {integer}", &
+                          default_i_val=1000)
+      CALL section_add_keyword(subsubsection, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, name="EPS_ITER", &
+                          description="Required accuracy in iterative OT diagonalization.", &
+                          usage="EPS_ITER {real}", &
+                          default_r_val=1.0E-6_dp)
+      CALL section_add_keyword(subsubsection, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, name="MINIMIZER", &
+                          description="The minimizer to be used in the OT diagonalization.", &
+                          usage="MINIMIZER {string}", &
+                          default_i_val=ot_mini_cg, &
+                          enum_c_vals=s2a("CG", "DIIS"), &
+                          enum_desc=s2a("CG: safer", "DIIS: faster"), &
+                          enum_i_vals=(/ot_mini_cg, ot_mini_diis/))
+      CALL section_add_keyword(subsubsection, keyword)
+      CALL keyword_release(keyword)
+
+      CALL section_add_subsection(subsection, subsubsection)
+      CALL section_release(subsubsection)
+
+      CALL section_add_subsection(section, subsection)
+      CALL section_release(subsection)
+!  End of the diagonalization subsection
 
 !  The KERNEL subsection
       CALL section_create(subsection, name="KERNEL", &
@@ -8091,6 +8162,7 @@ CONTAINS
 
       CALL section_add_subsection(section, subsection)
       CALL section_release(subsection)
+! End of Kernel subsection
 
       CALL create_localize_section(subsection)
       CALL section_add_subsection(section, subsection)
