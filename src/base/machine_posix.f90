@@ -15,7 +15,7 @@
   PRIVATE
 
   PUBLIC :: m_flush, m_memory, &
-            m_hostnm, m_getcwd, m_getlog, m_getuid, m_getpid, m_getarg, &
+            m_hostnm, m_getcwd, m_getlog, m_getpid, m_getarg, &
             m_iargc, m_abort, m_chdir, m_mov, &
             m_memory_details, m_procrun
 
@@ -385,25 +385,6 @@ CONTAINS
        user="root ;-)"
 
   END SUBROUTINE m_getlog
-
-
-! *****************************************************************************
-! **************************************************************************************************
-!> \brief ...
-!> \param uid ...
-! **************************************************************************************************
-  SUBROUTINE m_getuid(uid)
-   INTEGER, INTENT(OUT)                     :: uid
-
-   INTERFACE
-     FUNCTION getuid() BIND(C,name="getuid") RESULT(uid)
-       IMPORT
-       INTEGER(KIND=C_INT)              :: uid
-     END FUNCTION
-   END INTERFACE
-
-   uid = getuid()
-  END SUBROUTINE m_getuid
 
 
 ! *****************************************************************************
