@@ -118,7 +118,7 @@ CONTAINS
       CALL section_vals_val_get(reftraj_section, "STRIDE", i_val=reftraj%info%stride)
       CALL section_vals_val_get(reftraj_section, "EVAL_ENERGY_FORCES", l_val=reftraj%info%eval_ef)
       CALL section_vals_val_get(reftraj_section, "EVAL_FORCES", l_val=reftraj%info%eval_forces)
-      IF(reftraj%info%eval_forces) reftraj%info%eval_ef = .TRUE. 
+      IF (reftraj%info%eval_forces) reftraj%info%eval_ef = .TRUE.
 
       CALL section_vals_val_get(reftraj_section, "MSD%_SECTION_PARAMETERS_", &
                                 l_val=reftraj%info%msd)

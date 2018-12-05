@@ -368,9 +368,7 @@ CONTAINS
       CALL section_vals_get(tmp_section, n_repetition=nrep, explicit=is_present)
       IF (is_present) THEN
          ALLOCATE (dft_control%efield_fields(nrep))
-!         DO i = 1, nrep
-            CALL read_efield_sections(dft_control, tmp_section)
-!         END DO
+         CALL read_efield_sections(dft_control, tmp_section)
          IF (do_rtp) THEN
             dft_control%apply_efield_field = .TRUE.
          ELSE
