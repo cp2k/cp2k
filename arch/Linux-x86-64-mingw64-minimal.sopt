@@ -1,0 +1,20 @@
+# This configuration was tested on a Centos 7 with the EPEL repository configured
+# and the following packages installed:
+#   mingw64-gcc-gfortran mingw64-gcc-c++ mingw64-winpthreads-static
+# OpenBLAS was built with the following command:
+#   make BINARY=64 CC=x86_64-w64-mingw32-gcc FC=x86_64-w64-mingw32-gfortran HOSTCC=gcc TARGET=CORE2
+# The result is a minimal standalone binary running on Windows when built with
+#   make OPENBLAS_LIBPATH=<path to OpenBLAS> ARCH=Linux-x86-64-mingw64-minimal VERSION=sopt
+CC          = x86_64-w64-mingw32-gcc
+CXX         = x86_64-w64-mingw32-g++
+CPP         = x86_64-w64-mingw32-cpp 
+FC          = x86_64-w64-mingw32-gfortran
+LD          = x86_64-w64-mingw32-gfortran
+AR          = x86_64-w64-mingw32-ar -r
+DFLAGS      = -D__F2008 -D__NO_STATM_ACCESS -D__NO_IPI_DRIVER -D__MINGW
+CPPFLAGS    = -P -traditional $(DFLAGS)
+CFLAGS      = $(DFLAGS) -O2 -ffast-math 
+FCFLAGS     = $(DFLAGS) -O2 -ffast-math -ffree-form -ffree-line-length-none \
+              -ftree-vectorize -funroll-loops -std=f2008
+LDFLAGS     = $(FCFLAGS) -static
+LIBS	    = $(OPENBLAS_LIBPATH)/libopenblas.a
