@@ -380,17 +380,20 @@ CONTAINS
 !> \param user ...
 ! **************************************************************************************************
   SUBROUTINE m_getlog(user)
-    CHARACTER(len=*), INTENT(OUT)            :: user
-    INTEGER :: status
+    CHARACTER(len=*), INTENT(OUT) :: user
+    INTEGER                       :: status
 
     ! on a posix system LOGNAME should be defined
     CALL get_environment_variable("LOGNAME", value=user, status=status)
     ! nope, check alternative
     IF (status/=0) &
        CALL get_environment_variable("USER", value=user, status=status)
+    ! nope, check alternative
+    IF (status/=0) &
+       CALL get_environment_variable("USERNAME", value=user, status=status)
     ! fall back
     IF (status/=0) &
-       user="root ;-)"
+       user="<unknown>"
 
   END SUBROUTINE m_getlog
 
