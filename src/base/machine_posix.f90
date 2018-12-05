@@ -67,6 +67,9 @@ CONTAINS
   FUNCTION m_procrun(pid) RESULT (run_on)
     INTEGER, INTENT(IN)       ::   pid
     INTEGER                   ::   run_on
+#if defined(__MINGW)
+    run_on = 0
+#else
     INTEGER                   ::   istat
 
     INTERFACE
@@ -87,7 +90,7 @@ CONTAINS
     ELSE
        run_on = 0 ! error, process probably does not exist
     ENDIF
-
+#endif
   END FUNCTION m_procrun
 
 
@@ -291,7 +294,11 @@ CONTAINS
 ! **************************************************************************************************
   SUBROUTINE m_hostnm(hname)
     CHARACTER(len=*), INTENT(OUT)            :: hname
-
+#if defined(__MINGW)
+    ! While there is a gethostname in the Windows (POSIX) API, it requires that winsocks is
+    ! initialised prior to using it via WSAStartup(..), respectively cleaned up at the end via WSACleanup().
+    hname = "<unknown>"
+#else
     INTEGER                                  :: istat, i
     CHARACTER(len=default_path_length)       :: buf
 
@@ -311,6 +318,7 @@ CONTAINS
     ENDIF
     i = INDEX(buf, c_null_char) -1
     hname = buf(1:i)
+#endif
   END SUBROUTINE m_hostnm
 
 

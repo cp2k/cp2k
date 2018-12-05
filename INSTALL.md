@@ -37,6 +37,8 @@ If compiling with OpenMP support then it is recommended to use a non-threaded ve
 
 On the Mac, BLAS and LAPACK may be provided by Apple's Accelerate framework. If using this framework, `-D__ACCELERATE` must be defined to account for some interface incompatibilities between Accelerate and reference BLAS/LAPACK.
 
+When building on/for Windows using the Minimalist GNU for Windows (MinGW) environment, you must set `-D__MINGW`,  `-D__NO_STATM_ACCESS` and `-D__NO_IPI_DRIVER` to avoid undefined references during linking, respectively errors while printing the statistics.
+
 ## 2e. MPI and SCALAPACK (optional, required for MPI parallel builds)
 MPI (version 2) and SCALAPACK are needed for parallel code. (Use the latest versions available and download all patches!).
 
