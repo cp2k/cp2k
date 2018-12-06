@@ -6,7 +6,10 @@
 SHELL = /bin/sh
 #
 # the home dir is taken from the current directory.
-CP2KHOME     := $(abspath $(PWD))
+ifeq ($(CP2KHOME),)
+CP2KHOME     := $(abspath $(shell pwd))
+export CP2KHOME
+endif
 ARCH         := local
 export VERSION=sopt
 
