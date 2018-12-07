@@ -150,6 +150,7 @@ CONTAINS
 !> \param cell_to_index_3c ...
 !> \param needed_cutRI_mem_R1vec_R2vec_for_kp ...
 !> \param has_mat_P_blocks ...
+!> \param do_ri_sos_laplace_mp2 whether we perform ri-laplace-sos mp2
 ! **************************************************************************************************
    SUBROUTINE compute_mat_P_omega(mat_P_omega, mat_P_omega_im_part, fm_scaled_dm_occ_tau, &
                                   fm_scaled_dm_virt_tau, fm_mo_coeff_occ, fm_mo_coeff_virt, &
@@ -175,7 +176,7 @@ CONTAINS
                                   non_zero_blocks_3c, non_zero_blocks_3c_cut_col, buffer_mat_M, do_mao, &
                                   stabilize_exp, qs_env, index_to_cell_3c, cell_to_index_3c, &
                                   needed_cutRI_mem_R1vec_R2vec_for_kp, &
-                                  has_mat_P_blocks)
+                                  has_mat_P_blocks, do_ri_sos_laplace_mp2)
 
       TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: mat_P_omega, mat_P_omega_im_part
       TYPE(cp_fm_type), POINTER :: fm_scaled_dm_occ_tau, fm_scaled_dm_virt_tau, fm_mo_coeff_occ, &
@@ -224,6 +225,7 @@ CONTAINS
       INTEGER, ALLOCATABLE, DIMENSION(:, :, :)           :: cell_to_index_3c
       LOGICAL, ALLOCATABLE, DIMENSION(:, :, :, :) :: needed_cutRI_mem_R1vec_R2vec_for_kp
       LOGICAL, ALLOCATABLE, DIMENSION(:, :, :, :, :)     :: has_mat_P_blocks
+      LOGICAL                                            :: do_ri_sos_laplace_mp2
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'compute_mat_P_omega', &
          routineP = moduleN//':'//routineN
@@ -455,42 +457,49 @@ CONTAINS
                         CALL fill_mat_P_global_from_mat_P_local(mat_P_global, mat_P_global_copy, mat_P_local, para_env, &
                                                                 eps_filter_im_time)
 
-                        CALL timeset(routineN//"_Fourier_transform", handle5)
+                        IF (do_ri_sos_laplace_mp2) THEN
+                           ! For RI-SOS-Laplace-MP2 we do not perform a cosine transform,
+                           ! but we have to copy P_local to the output matrix
 
-                        ! Fourier transform of P(it) to P(iw)
-                        first_cycle_omega_loop = .TRUE.
+                           CALL dbcsr_add(mat_P_omega(jquad, i_cell_T)%matrix, mat_P_global%matrix, 1.0_dp, 1.0_dp)
+                        ELSE
+                           CALL timeset(routineN//"_Fourier_transform", handle5)
 
-                        tau = tau_tj(jquad)
+                           ! Fourier transform of P(it) to P(iw)
+                           first_cycle_omega_loop = .TRUE.
 
-                        DO iquad = 1, num_integ_points
+                           tau = tau_tj(jquad)
 
-                           omega = tj(iquad)
-                           weight = weights_cos_tf_t_to_w(iquad, jquad)
+                           DO iquad = 1, num_integ_points
 
-                           IF (first_cycle_omega_loop) THEN
-                              ! no multiplication with 2.0 as in Kresses paper (Kaltak, JCTC 10, 2498 (2014), Eq. 12)
-                              ! because this factor is already absorbed in the weight w_j
-                              CALL dbcsr_scale(mat_P_global%matrix, COS(omega*tau)*weight)
-                           ELSE
-                              CALL dbcsr_scale(mat_P_global%matrix, COS(omega*tau)/COS(omega_old*tau)*weight/weight_old)
-                           END IF
+                              omega = tj(iquad)
+                              weight = weights_cos_tf_t_to_w(iquad, jquad)
 
-                           CALL dbcsr_add(mat_P_omega(iquad, i_cell_T)%matrix, mat_P_global%matrix, 1.0_dp, 1.0_dp)
+                              IF (first_cycle_omega_loop) THEN
+                                 ! no multiplication with 2.0 as in Kresses paper (Kaltak, JCTC 10, 2498 (2014), Eq. 12)
+                                 ! because this factor is already absorbed in the weight w_j
+                                 CALL dbcsr_scale(mat_P_global%matrix, COS(omega*tau)*weight)
+                              ELSE
+                                 CALL dbcsr_scale(mat_P_global%matrix, COS(omega*tau)/COS(omega_old*tau)*weight/weight_old)
+                              END IF
 
-                           first_cycle_omega_loop = .FALSE.
+                              CALL dbcsr_add(mat_P_omega(iquad, i_cell_T)%matrix, mat_P_global%matrix, 1.0_dp, 1.0_dp)
 
-                           omega_old = omega
-                           weight_old = weight
+                              first_cycle_omega_loop = .FALSE.
 
-                        END DO
+                              omega_old = omega
+                              weight_old = weight
 
-                        CALL timestop(handle5)
+                           END DO
 
-                        first_cycle_im_time = .FALSE.
+                           CALL timestop(handle5)
 
-                        CALL check_if_mat_P_T_tau_has_blocks(does_mat_P_T_tau_have_blocks, mat_P_global, i_cell_T, &
-                                                             jquad, i_mem, j_mem, i_cell_R_1, i_cell_R_2, &
-                                                             para_env, has_mat_P_blocks, num_flops_mat_P)
+                           first_cycle_im_time = .FALSE.
+
+                           CALL check_if_mat_P_T_tau_has_blocks(does_mat_P_T_tau_have_blocks, mat_P_global, i_cell_T, &
+                                                                jquad, i_mem, j_mem, i_cell_R_1, i_cell_R_2, &
+                                                                para_env, has_mat_P_blocks, num_flops_mat_P)
+                        END IF ! do_ri_sos_laplace_mp2
 
                      END DO ! i_cell_R2
 

@@ -56,19 +56,13 @@
           EPS_FILTER  1.0E-6
         &END
         ERI_METHOD OS
+        IM_TIME
+        &IM_TIME
+          GW
+          GROUP_SIZE_3c 1
+          GROUP_SIZE_P 1
+        &END
         &RI_RPA
-          RPA_NUM_QUAD_POINTS 10
-          MINIMAX 
-          IM_TIME
-          &IM_TIME
-            GW
-            GROUP_SIZE_3c 1
-            GROUP_SIZE_P 1
-          &END
-          &RI_G0W0
-            CORR_MOS_OCC          10
-            CORR_MOS_VIRT         10
-          &END RI_G0W0 
           &HF
             FRACTION 1.0000000
             &SCREENING
@@ -76,6 +70,12 @@
               SCREEN_ON_INITIAL_P FALSE
             &END SCREENING
           &END HF
+          RPA_NUM_QUAD_POINTS 10
+          MINIMAX 
+          &RI_G0W0
+            CORR_MOS_OCC          10
+            CORR_MOS_VIRT         10
+          &END RI_G0W0 
         &END RI_RPA
         MEMORY  200.
         NUMBER_PROC  1

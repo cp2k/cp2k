@@ -271,7 +271,7 @@ CONTAINS
          ENDIF
       ENDIF
 
-      IF (mp2_env%ri_rpa%do_im_time .AND. mp2_env%eri_method .NE. do_eri_gpw) THEN
+      IF (mp2_env%do_im_time .AND. mp2_env%eri_method .NE. do_eri_gpw) THEN
          mp2_env%mp2_num_proc = 1
       END IF
 
@@ -306,11 +306,11 @@ CONTAINS
 
       ! 2. cubic-scaling GW can only be used if cubic-scaling RPA is switched on
       IF (mp2_env%ri_rpa_im_time%do_gw_im_time) THEN
-         CPASSERT(mp2_env%ri_rpa%do_im_time)
+         CPASSERT(mp2_env%do_im_time)
       END IF
 
       ! 3. N^4 GW cannot be used together with cubic-scaling RPA
-      CPASSERT(.NOT. (mp2_env%ri_rpa%do_ri_g0w0 .AND. mp2_env%ri_rpa%do_im_time))
+      CPASSERT(.NOT. (mp2_env%ri_rpa%do_ri_g0w0 .AND. mp2_env%do_im_time))
 
       IF (unit_nr > 0) CALL m_flush(unit_nr)
 

@@ -99,7 +99,6 @@ MODULE mp2_types
       LOGICAL                  :: minimax_quad
       LOGICAL                  :: do_ri_g0w0
       LOGICAL                  :: do_admm
-      LOGICAL                  :: do_im_time
       LOGICAL                  :: do_RI_overlap
       LOGICAL                  :: do_ri_axk
       TYPE(dbcsr_type), POINTER             :: mo_coeff_o, &
@@ -250,6 +249,7 @@ MODULE mp2_types
       LOGICAL  :: hf_fail
       LOGICAL  :: p_screen
       LOGICAL  :: not_last_hfx
+      LOGICAL  :: do_im_time
       INTEGER  :: eri_method
       TYPE(cp_eri_mme_param), POINTER  :: eri_mme_param
       INTEGER, DIMENSION(:), POINTER  :: eri_blksize => NULL()

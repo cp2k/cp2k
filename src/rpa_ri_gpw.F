@@ -4,11 +4,12 @@
 !--------------------------------------------------------------------------------------------------!
 
 ! **************************************************************************************************
-!> \brief Rountines to calculate RI-RPA energy
+!> \brief Routines to calculate RI-RPA energy
 !> \par History
 !>      06.2012 created [Mauro Del Ben]
 !>      04.2015 GW routines added [Jan Wilhelm]
 !>      10.2015 Cubic-scaling RPA routines added [Jan Wilhelm]
+!>      10.2018 Cubic-scaling SOS-MP2 added [Frederick Stein]
 ! **************************************************************************************************
 MODULE rpa_ri_gpw
    USE basis_set_types,                 ONLY: gto_basis_set_p_type,&
@@ -417,7 +418,7 @@ CONTAINS
 
          needed_mem = mem_for_iaK*2.0_dp+mem_for_QK*3.0_dp
 
-         ! here we try to find the best rpa/lapleca group size
+         ! here we try to find the best rpa/laplace group size
          skip_integ_group_opt = .FALSE.
 
          IF (input_integ_group_size > 0) THEN
@@ -672,18 +673,34 @@ CONTAINS
 
       ! now create the matrices needed for the calculation, Q, S and G
       ! Q and G will have omega dependence
-      CALL create_integ_mat(BIb_C_2D, para_env, para_env_sub, color_sub, ngroup, integ_group_size, &
-                            dimen_RI, dimen_ia, dimen_ia, color_rpa_group, &
-                            mp2_env%block_size_row, mp2_env%block_size_col, unit_nr, &
-                            my_ia_size, my_ia_start, my_ia_end, &
-                            my_group_L_size, my_group_L_start, my_group_L_end, &
-                            para_env_RPA, fm_mat_S, fm_mat_Q_gemm, fm_mat_Q, &
-                            nrow_block_mat, ncol_block_mat, &
-                            do_im_time=do_im_time, fm_scaled_dm_occ_tau=fm_scaled_dm_occ_tau, &
-                            fm_scaled_dm_virt_tau=fm_scaled_dm_virt_tau, mo_coeff=mo_coeff, &
-                            fm_mo_coeff_occ=fm_mo_coeff_occ, fm_mo_coeff_virt=fm_mo_coeff_virt, &
-                            nmo=nmo, homo=homo, do_mao=do_mao, mao_coeff_occ_A=mao_coeff_occ_A, &
-                            mao_coeff_virt_A=mao_coeff_virt_A, matrix_s=matrix_s)
+
+      IF (my_open_shell .AND. do_im_time .AND. do_ri_sos_laplace_mp2) THEN
+         CALL create_integ_mat(BIb_C_2D, para_env, para_env_sub, color_sub, ngroup, integ_group_size, &
+                               dimen_RI, dimen_ia, dimen_ia, color_rpa_group, &
+                               mp2_env%block_size_row, mp2_env%block_size_col, unit_nr, &
+                               my_ia_size, my_ia_start, my_ia_end, &
+                               my_group_L_size, my_group_L_start, my_group_L_end, &
+                               para_env_RPA, fm_mat_S, fm_mat_Q_gemm, fm_mat_Q, &
+                               nrow_block_mat, ncol_block_mat, &
+                               do_im_time=do_im_time, fm_scaled_dm_occ_tau=fm_scaled_dm_occ_tau, &
+                               fm_scaled_dm_virt_tau=fm_scaled_dm_virt_tau, mo_coeff=mo_coeff, &
+                               fm_mo_coeff_occ=fm_mo_coeff_occ, fm_mo_coeff_virt=fm_mo_coeff_virt, &
+                               nmo=nmo, homo=homo, do_mao=do_mao, mao_coeff_occ_A=mao_coeff_occ_A, &
+                               mao_coeff_virt_A=mao_coeff_virt_A, matrix_s=matrix_s, fm_mat_Q_beta=fm_mat_Q_beta)
+      ELSE
+         CALL create_integ_mat(BIb_C_2D, para_env, para_env_sub, color_sub, ngroup, integ_group_size, &
+                               dimen_RI, dimen_ia, dimen_ia, color_rpa_group, &
+                               mp2_env%block_size_row, mp2_env%block_size_col, unit_nr, &
+                               my_ia_size, my_ia_start, my_ia_end, &
+                               my_group_L_size, my_group_L_start, my_group_L_end, &
+                               para_env_RPA, fm_mat_S, fm_mat_Q_gemm, fm_mat_Q, &
+                               nrow_block_mat, ncol_block_mat, &
+                               do_im_time=do_im_time, fm_scaled_dm_occ_tau=fm_scaled_dm_occ_tau, &
+                               fm_scaled_dm_virt_tau=fm_scaled_dm_virt_tau, mo_coeff=mo_coeff, &
+                               fm_mo_coeff_occ=fm_mo_coeff_occ, fm_mo_coeff_virt=fm_mo_coeff_virt, &
+                               nmo=nmo, homo=homo, do_mao=do_mao, mao_coeff_occ_A=mao_coeff_occ_A, &
+                               mao_coeff_virt_A=mao_coeff_virt_A, matrix_s=matrix_s)
+      END IF
 
       IF (my_open_shell) THEN
 
@@ -771,7 +788,7 @@ CONTAINS
 
       IF (my_open_shell) THEN
 
-         IF (do_ri_sos_laplace_mp2) THEN
+         IF (do_ri_sos_laplace_mp2 .AND. .NOT. do_im_time) THEN
             ! go with laplace MINIMAX MP2
             CALL laplace_minimax_approx(Erpa, para_env, para_env_RPA, unit_nr, homo, virtual, dimen_RI, dimen_ia, Eigenval, &
                                         num_integ_points, num_integ_group, color_rpa_group, &
@@ -800,10 +817,11 @@ CONTAINS
                              dimen_ia_beta=dimen_ia_beta, Eigenval_beta=Eigenval_beta, fm_mat_S_beta=fm_mat_S_beta, &
                              fm_mat_Q_gemm_beta=fm_mat_Q_gemm_beta, fm_mat_Q_beta=fm_mat_Q_beta, &
                              fm_mat_S_gw_beta=fm_mat_S_gw_beta, gw_corr_lev_occ_beta=gw_corr_lev_occ_beta, &
-                             gw_corr_lev_virt_beta=gw_corr_lev_virt_beta, mo_coeff_beta=mo_coeff_beta)
+                             gw_corr_lev_virt_beta=gw_corr_lev_virt_beta, mo_coeff_beta=mo_coeff_beta, &
+                             do_ri_sos_laplace_mp2=do_ri_sos_laplace_mp2)
          END IF
       ELSE
-         IF (do_ri_sos_laplace_mp2) THEN
+         IF (do_ri_sos_laplace_mp2 .AND. .NOT. do_im_time) THEN
             ! go with laplace MINIMAX MP2
             CALL laplace_minimax_approx(Erpa, para_env, para_env_RPA, unit_nr, homo, virtual, dimen_RI, dimen_ia, Eigenval, &
                                         num_integ_points, num_integ_group, color_rpa_group, &
@@ -824,7 +842,8 @@ CONTAINS
                              mat_munu, mat_dm_occ_local, mat_dm_virt_local, mat_P_local, mat_P_global, mat_M, &
                              mat_3c_overl_int, mat_3c_overl_int_mao_for_occ, mat_3c_overl_int_mao_for_virt, matrix_s, &
                              mao_coeff_occ, mao_coeff_virt, &
-                             eps_filter, starts_array, ends_array, sizes_array, color_sub)
+                             eps_filter, starts_array, ends_array, sizes_array, color_sub, &
+                             do_ri_sos_laplace_mp2=do_ri_sos_laplace_mp2)
          END IF
       END IF
 
@@ -849,12 +868,15 @@ CONTAINS
          CALL cp_fm_release(fm_mat_Q_gemm)
       END IF
       CALL cp_fm_release(fm_mat_Q)
-      IF (my_open_shell .AND. (.NOT. do_im_time)) THEN
+      IF (my_open_shell .AND. .NOT. do_im_time) THEN
          DEALLOCATE (sizes_ia_beta)
          DEALLOCATE (starts_ia_beta)
          DEALLOCATE (ends_ia_beta)
          CALL cp_fm_release(fm_mat_S_beta)
          CALL cp_fm_release(fm_mat_Q_gemm_beta)
+         CALL cp_fm_release(fm_mat_Q_beta)
+      END IF
+      IF (my_open_shell .AND. do_ri_sos_laplace_mp2 .AND. do_im_time) THEN
          CALL cp_fm_release(fm_mat_Q_beta)
       END IF
 
@@ -1049,6 +1071,7 @@ CONTAINS
 !> \param mao_coeff_occ_A ...
 !> \param mao_coeff_virt_A ...
 !> \param matrix_s ...
+!> \param fm_mat_Q_beta ...
 ! **************************************************************************************************
    SUBROUTINE create_integ_mat(BIb_C_2D, para_env, para_env_sub, color_sub, ngroup, integ_group_size, &
                                dimen_RI, dimen_ia, dimen_ia_for_block_size, color_rpa_group, &
@@ -1061,7 +1084,7 @@ CONTAINS
                                do_im_time, fm_scaled_dm_occ_tau, fm_scaled_dm_virt_tau, mo_coeff, &
                                fm_mo_coeff_occ, fm_mo_coeff_virt, nmo, homo, &
                                do_mao, mao_coeff_occ_A, mao_coeff_virt_A, &
-                               matrix_s)
+                               matrix_s, fm_mat_Q_beta)
 
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: BIb_C_2D
       TYPE(cp_para_env_type), POINTER                    :: para_env, para_env_sub
@@ -1082,6 +1105,7 @@ CONTAINS
       TYPE(dbcsr_p_type), DIMENSION(:), OPTIONAL, &
          POINTER                                         :: mao_coeff_occ_A, mao_coeff_virt_A, &
                                                             matrix_s
+      TYPE(cp_fm_type), OPTIONAL, POINTER                :: fm_mat_Q_beta
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'create_integ_mat', &
          routineP = moduleN//':'//routineN
@@ -1750,6 +1774,18 @@ CONTAINS
          CALL cp_fm_struct_release(fm_struct)
 
          CALL cp_fm_set_all(matrix=fm_mat_Q, alpha=0.0_dp)
+
+         IF (PRESENT(fm_mat_Q_beta)) THEN
+            NULLIFY (fm_mat_Q_beta)
+            NULLIFY (fm_struct)
+            CALL cp_fm_struct_create(fm_struct, context=blacs_env_Q, nrow_global=dimen_RI, &
+                                     ncol_global=dimen_RI, para_env=para_env_RPA)
+            CALL cp_fm_create(fm_mat_Q_beta, fm_struct, name="fm_mat_Q_beta")
+
+            CALL cp_fm_struct_release(fm_struct)
+
+            CALL cp_fm_set_all(matrix=fm_mat_Q_beta, alpha=0.0_dp)
+         END IF
       END IF
 
       ! in case we do imaginary time, we allocate fm_scaled_dm_occ and fm_scaled_dm_virt
@@ -1918,7 +1954,7 @@ CONTAINS
       CALL dbcsr_release_p(mo_coeff_mao_basis)
       CALL dbcsr_release_p(mat_mo_coeff)
 
-   END SUBROUTINE
+   END SUBROUTINE transform_MO_coeff_to_MAO_basis
 
 ! **************************************************************************************************
 !> \brief ...
@@ -1997,6 +2033,7 @@ CONTAINS
 !> \param gw_corr_lev_occ_beta ...
 !> \param gw_corr_lev_virt_beta ...
 !> \param mo_coeff_beta ...
+!> \param do_ri_sos_laplace_mp2 ...
 ! **************************************************************************************************
    SUBROUTINE rpa_num_int(qs_env, Erpa, mp2_env, para_env, para_env_RPA, para_env_sub, unit_nr, &
                           homo, virtual, dimen_RI, dimen_ia, dimen_nm_gw, &
@@ -2015,7 +2052,7 @@ CONTAINS
                           fm_mo_coeff_occ_beta, fm_mo_coeff_virt_beta, &
                           homo_beta, virtual_beta, dimen_ia_beta, Eigenval_beta, fm_mat_S_beta, &
                           fm_mat_Q_gemm_beta, fm_mat_Q_beta, fm_mat_S_gw_beta, &
-                          gw_corr_lev_occ_beta, gw_corr_lev_virt_beta, mo_coeff_beta)
+                          gw_corr_lev_occ_beta, gw_corr_lev_virt_beta, mo_coeff_beta, do_ri_sos_laplace_mp2)
 
       TYPE(qs_environment_type), POINTER                 :: qs_env
       REAL(KIND=dp)                                      :: Erpa
@@ -2061,6 +2098,7 @@ CONTAINS
       INTEGER, OPTIONAL                                  :: gw_corr_lev_occ_beta, &
                                                             gw_corr_lev_virt_beta
       TYPE(cp_fm_type), OPTIONAL, POINTER                :: mo_coeff_beta
+      LOGICAL                                            :: do_ri_sos_laplace_mp2
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'rpa_num_int', routineP = moduleN//':'//routineN
 
@@ -2108,8 +2146,8 @@ CONTAINS
       REAL(KIND=dp) :: a_scaling, actual_flop_rate, alpha, contour_def_offset, delta_corr_nn, &
          delta_corr_nn_beta, e_axk, e_axk_corr, e_fermi, e_fermi_beta, E_Range, eigen_diff, Emax, &
          Emax_beta, Emin, Emin_beta, eps_charge, eps_filter_im_time, eps_min_trans, FComega, &
-         frac_rix, max_error_min, my_flop_rate, omega, omega_i, omega_old, sign_occ_virt, &
-         stabilize_exp, t_end, t_start, tau, tau_old, weight
+         frac_rix, max_error_min, my_flop_rate, omega, omega_i, omega_old, scaling, sign_occ_virt, &
+         stabilize_exp, t_end, t_start, tau, tau_old, trace_XX, weight
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: delta_corr, Eigenval_last, Eigenval_last_beta, &
          Eigenval_scf, Eigenval_scf_beta, Lambda_Im, Lambda_Re, m_value, m_value_beta, &
          Mulliken_charges, Q_log, real_freq, tau_tj, tau_wj, tj, trace_Qomega, vec_gw_energ, &
@@ -2138,7 +2176,8 @@ CONTAINS
          mat_3c_overl_nnP_ic_reflected_beta, mat_greens_fct_occ, mat_greens_fct_occ_beta, &
          mat_greens_fct_virt, mat_greens_fct_virt_beta, mat_M_mu_Pnu_occ, mat_M_mu_Pnu_virt, &
          mat_W, matrix_berry_im_mo_mo, matrix_berry_re_mo_mo
-      TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: mat_P_omega, mat_P_omega_im_part
+      TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: mat_P_omega, mat_P_omega_beta, &
+                                                            mat_P_omega_im_part
       TYPE(dbcsr_p_type), DIMENSION(:, :, :), POINTER    :: mat_dm_loc_occ_cut, mat_dm_loc_virt_cut
       TYPE(dbcsr_p_type), DIMENSION(:, :, :, :), POINTER :: mat_3c_overl_int_cut, &
          mat_3c_overl_int_mao_for_occ_cut, mat_3c_overl_int_mao_for_virt_cut
@@ -2179,6 +2218,10 @@ CONTAINS
       ic_corr_list_beta => mp2_env%ri_g0w0%ic_corr_list_beta
       do_kpoints_cubic_RPA = mp2_env%ri_rpa_im_time%do_im_time_kpoints
 
+      IF (do_kpoints_cubic_RPA .AND. do_ri_sos_laplace_mp2) THEN
+         CPABORT("RI-SOS-Laplace-MP2 with k-point-sampling is not implemented.")
+      END IF
+
       do_apply_ic_corr_to_gw = .FALSE.
       IF (ic_corr_list(1) > 0.0_dp) do_apply_ic_corr_to_gw = .TRUE.
 
@@ -2194,7 +2237,7 @@ CONTAINS
 
       IF (do_im_time) THEN
          ! imag. time RPA only with Minimax
-         CPASSERT(do_minimax_quad)
+         CPASSERT(do_minimax_quad .OR. do_ri_sos_laplace_mp2)
       END IF
 
       IF (do_ic_model) THEN
@@ -2236,12 +2279,12 @@ CONTAINS
             my_group_L_size_im_time = my_group_L_sizes_im_time(i_cut_RI)
 
             DO i_cell = 1, num_3c_repl
-            DO j_cell = 1, num_3c_repl
+               DO j_cell = 1, num_3c_repl
 
-               CALL dbcsr_filter(mat_3c_overl_int(i_cut_RI, i_cell, j_cell)%matrix, &
-                                 eps_filter*SQRT(REAL(my_group_L_size_im_time, KIND=dp)))
+                  CALL dbcsr_filter(mat_3c_overl_int(i_cut_RI, i_cell, j_cell)%matrix, &
+                                    eps_filter*SQRT(REAL(my_group_L_size_im_time, KIND=dp)))
 
-            END DO
+               END DO
             END DO
 
          END DO
@@ -2282,6 +2325,12 @@ CONTAINS
             NULLIFY (cfm_mat_Q)
             CALL cp_cfm_create(cfm_mat_Q, fm_mat_Q%matrix_struct)
             CALL cp_cfm_set_all(cfm_mat_Q, z_zero)
+
+!            IF (my_open_shell .AND. do_ri_sos_laplace_mp2) THEN
+!               NULLIFY (cfm_mat_Q_beta)
+!               CALL cp_cfm_create(cfm_mat_Q_beta, fm_mat_Q_beta%matrix_struct)
+!               CALL cp_cfm_set_all(cfm_mat_Q_beta, z_zero)
+!            END IF
 
          ELSE
             ALLOCATE (index_to_cell_3c(3, 1))
@@ -2407,6 +2456,19 @@ CONTAINS
             END DO
          END DO
 
+         IF (my_open_shell .AND. do_im_time .AND. do_ri_sos_laplace_mp2) THEN
+            NULLIFY (mat_P_omega_beta)
+            CALL dbcsr_allocate_matrix_set(mat_P_omega_beta, num_integ_points, size_P)
+            DO jquad = 1, num_integ_points
+               DO i_kp = 1, size_P
+                  ALLOCATE (mat_P_omega_beta(jquad, i_kp)%matrix)
+                  CALL dbcsr_create(matrix=mat_P_omega_beta(jquad, i_kp)%matrix, &
+                                    template=mat_P_global%matrix)
+                  CALL dbcsr_set(mat_P_omega_beta(jquad, i_kp)%matrix, 0.0_dp)
+               END DO
+            END DO
+         END IF
+
          IF (do_kpoints_cubic_RPA) THEN
 
             NULLIFY (mat_P_omega_im_part)
@@ -2419,6 +2481,19 @@ CONTAINS
                   CALL dbcsr_set(mat_P_omega_im_part(jquad, i_kp)%matrix, 0.0_dp)
                END DO
             END DO
+
+!            IF (my_open_shell .AND. do_im_time .AND. do_ri_sos_laplace_mp2) THEN
+!               NULLIFY (mat_P_omega_im_part_beta)
+!               CALL dbcsr_allocate_matrix_set(mat_P_omega_im_part_beta, num_integ_points, size_P)
+!               DO jquad = 1, num_integ_points
+!                  DO i_kp = 1, size_P
+!                     ALLOCATE (mat_P_omega_im_part_beta(jquad, i_kp)%matrix)
+!                     CALL dbcsr_create(matrix=mat_P_omega_im_part_beta(jquad, i_kp)%matrix, &
+!                                    template=mat_P_global%matrix)
+!                     CALL dbcsr_set(mat_P_omega_im_part_beta(jquad, i_kp)%matrix, 0.0_dp)
+!                  END DO
+!               END DO
+!            END IF
 
          END IF
 
@@ -2843,7 +2918,13 @@ CONTAINS
          END IF
 
          CALL timestop(handle4)
-         CALL timeset(routineN//"_im_t_alloc_mat_27", handle4)
+         CALL timeset(routineN//"_im_t_alloc_mat_laplace_beta", handle4)
+
+!         IF (do_ri_sos_laplace_mp2 .AND. do_im_time .AND. my_open_shell) THEN
+!            CALL cp_fm_create(fm_mat_Q_beta, fm_mat_Q%matrix_struct)
+!            CALL cp_fm_to_fm(fm_mat_Q, fm_mat_Q_beta)
+!            CALL cp_fm_set_all(fm_mat_Q_beta, 0.0_dp)
+!         END IF
 
          CALL timestop(handle4)
 
@@ -2869,10 +2950,8 @@ CONTAINS
 
       END IF
 
-      IF (do_minimax_quad) THEN
+      IF (do_minimax_quad .OR. do_ri_sos_laplace_mp2) THEN
          ! MINIMAX quadrature
-         ALLOCATE (x_tw(2*num_integ_points))
-         x_tw = 0.0_dp
 
          IF (do_kpoints_cubic_RPA) THEN
 
@@ -2896,29 +2975,38 @@ CONTAINS
 
          END IF
 
-         ierr = 0
-         CALL get_rpa_minimax_coeff(num_integ_points, E_Range, x_tw, ierr)
+         IF (.NOT. do_ri_sos_laplace_mp2) THEN
+            ALLOCATE (x_tw(2*num_integ_points))
+            x_tw = 0.0_dp
+            ierr = 0
+            CALL get_rpa_minimax_coeff(num_integ_points, E_Range, x_tw, ierr)
 
-         DO jquad = 1, num_integ_points
-            tj(jquad) = x_tw(jquad)
-            wj(jquad) = x_tw(jquad+num_integ_points)
-         END DO
-
-         DEALLOCATE (x_tw)
-
-         IF (unit_nr > 0 .AND. .NOT. do_ic_model) THEN
-            WRITE (UNIT=unit_nr, FMT="(T3,A,T66,F15.4)") &
-               "INTEG_INFO| Range for the minimax approximation:", E_Range
-            WRITE (UNIT=unit_nr, FMT="(T3,A,T54,A,T72,A)") "INTEG_INFO| Minimax parameters:", "Weights", "Abscissas"
             DO jquad = 1, num_integ_points
-               WRITE (UNIT=unit_nr, FMT="(T41,F20.10,F20.10)") wj(jquad), tj(jquad)
+               tj(jquad) = x_tw(jquad)
+               wj(jquad) = x_tw(jquad+num_integ_points)
             END DO
-            CALL m_flush(unit_nr)
-         END IF
 
-         ! scale the minimax parameters
-         tj(:) = tj(:)*Emin
-         wj(:) = wj(:)*Emin
+            DEALLOCATE (x_tw)
+
+            IF (unit_nr > 0 .AND. .NOT. do_ic_model) THEN
+               WRITE (UNIT=unit_nr, FMT="(T3,A,T66,F15.4)") &
+                  "INTEG_INFO| Range for the minimax approximation:", E_Range
+               WRITE (UNIT=unit_nr, FMT="(T3,A,T54,A,T72,A)") "INTEG_INFO| Minimax parameters:", "Weights", "Abscissas"
+               DO jquad = 1, num_integ_points
+                  WRITE (UNIT=unit_nr, FMT="(T41,F20.10,F20.10)") wj(jquad), tj(jquad)
+               END DO
+               CALL m_flush(unit_nr)
+            END IF
+
+            ! scale the minimax parameters
+            tj(:) = tj(:)*Emin
+            wj(:) = wj(:)*Emin
+         ELSE
+            ! When we perform SOS-MP2, we need an additional factor of 2 for the energies (compare with mp2_laplace.F)
+            ! We do not need weights etc. for the cosine transform
+            ! We do not scale Emax because it is not needed for SOS-MP2
+            Emin = Emin*2.0_dp
+         END IF
 
          ! set up the minimax time grid
          IF (do_im_time) THEN
@@ -2928,9 +3016,13 @@ CONTAINS
 
             CALL get_exp_minimax_coeff(num_integ_points, E_Range, x_tw)
 
+            ! For RPA we include already a factor of two (see later steps)
+            scaling = 2.0_dp
+            IF (do_ri_sos_laplace_mp2) scaling = 1.0_dp
+
             DO jquad = 1, num_integ_points
-               tau_tj(jquad) = x_tw(jquad)/2.0_dp
-               tau_wj(jquad) = x_tw(jquad+num_integ_points)/2.0_dp
+               tau_tj(jquad) = x_tw(jquad)/scaling
+               tau_wj(jquad) = x_tw(jquad+num_integ_points)/scaling
             END DO
 
             DEALLOCATE (x_tw)
@@ -2938,6 +3030,9 @@ CONTAINS
             IF (unit_nr > 0 .AND. .NOT. do_ic_model) THEN
                WRITE (UNIT=unit_nr, FMT="(T3,A,T66,F15.4)") &
                   "INTEG_INFO| Range for the minimax approximation:", E_Range
+               ! For testing the gap
+               WRITE (UNIT=unit_nr, FMT="(T3,A,T66,F15.4)") &
+                  "INTEG_INFO| Gap:", Emin
                WRITE (UNIT=unit_nr, FMT="(T3,A,T54,A,T72,A)") &
                   "INTEG_INFO| Minimax parameters of the time grid:", "Weights", "Abscissas"
                DO jquad = 1, num_integ_points
@@ -2950,36 +3045,31 @@ CONTAINS
             tau_tj(:) = tau_tj(:)/Emin
             tau_wj(:) = tau_wj(:)/Emin
 
-            num_points_per_magnitude = mp2_env%ri_rpa_im_time%num_points_per_magnitude
-            CALL get_l_sq_wghts_cos_tf_t_to_w(num_integ_points, tau_tj, weights_cos_tf_t_to_w, tj, &
-                                              Emin, Emax, max_error_min, num_points_per_magnitude)
-
-            IF (do_gw_im_time) THEN
-
-               ! get the weights for the cosine transform W^c(iw) -> W^c(it)
-               ALLOCATE (weights_cos_tf_w_to_t(num_integ_points, num_integ_points))
-               weights_cos_tf_w_to_t = 0.0_dp
-
-               CALL get_l_sq_wghts_cos_tf_w_to_t(num_integ_points, tau_tj, weights_cos_tf_w_to_t, tj, &
+            IF (.NOT. do_ri_sos_laplace_mp2) THEN
+               num_points_per_magnitude = mp2_env%ri_rpa_im_time%num_points_per_magnitude
+               CALL get_l_sq_wghts_cos_tf_t_to_w(num_integ_points, tau_tj, weights_cos_tf_t_to_w, tj, &
                                                  Emin, Emax, max_error_min, num_points_per_magnitude)
 
-               ! get the weights for the sine transform Sigma^sin(it) -> Sigma^sin(iw) (PRB 94, 165109 (2016), Eq. 71)
-               ALLOCATE (weights_sin_tf_t_to_w(num_integ_points, num_integ_points))
-               weights_sin_tf_t_to_w = 0.0_dp
+               IF (do_gw_im_time) THEN
 
-               CALL get_l_sq_wghts_sin_tf_t_to_w(num_integ_points, tau_tj, weights_sin_tf_t_to_w, tj, &
-                                                 Emin, Emax, max_error_min, num_points_per_magnitude)
+                  ! get the weights for the cosine transform W^c(iw) -> W^c(it)
+                  ALLOCATE (weights_cos_tf_w_to_t(num_integ_points, num_integ_points))
+                  weights_cos_tf_w_to_t = 0.0_dp
 
-               IF (unit_nr > 0) THEN
-                  WRITE (UNIT=unit_nr, FMT="(T3,A,T66,ES15.2)") &
-                     "INTEG_INFO| Maximum deviation of the imag. time fit:", max_error_min
-               END IF
+                  CALL get_l_sq_wghts_cos_tf_w_to_t(num_integ_points, tau_tj, weights_cos_tf_w_to_t, tj, &
+                                                    Emin, Emax, max_error_min, num_points_per_magnitude)
 
-            ELSE
+                  ! get the weights for the sine transform Sigma^sin(it) -> Sigma^sin(iw) (PRB 94, 165109 (2016), Eq. 71)
+                  ALLOCATE (weights_sin_tf_t_to_w(num_integ_points, num_integ_points))
+                  weights_sin_tf_t_to_w = 0.0_dp
 
-               IF (unit_nr > 0) THEN
-                  WRITE (UNIT=unit_nr, FMT="(T3,A,T66,ES15.2)") &
-                     "INTEG_INFO| Maximum deviation of the imag. time fit:", max_error_min
+                  CALL get_l_sq_wghts_sin_tf_t_to_w(num_integ_points, tau_tj, weights_sin_tf_t_to_w, tj, &
+                                                    Emin, Emax, max_error_min, num_points_per_magnitude)
+
+                  IF (unit_nr > 0) THEN
+                     WRITE (UNIT=unit_nr, FMT="(T3,A,T66,ES15.2)") &
+                        "INTEG_INFO| Maximum deviation of the imag. time fit:", max_error_min
+                  END IF
                END IF
 
             END IF
@@ -3038,7 +3128,7 @@ CONTAINS
 
       END IF
 
-      IF (my_open_shell) THEN
+      IF (my_open_shell .OR. do_ri_sos_laplace_mp2) THEN
          alpha = 2.0_dp
       ELSE
          alpha = 4.0_dp
@@ -3489,39 +3579,70 @@ CONTAINS
                                      non_zero_blocks_3c, non_zero_blocks_3c_cut_col, buffer_mat_M, &
                                      do_mao, stabilize_exp, qs_env, index_to_cell_3c, cell_to_index_3c, &
                                      needed_cutRI_mem_R1vec_R2vec_for_kp, &
-                                     has_mat_P_blocks)
+                                     has_mat_P_blocks, do_ri_sos_laplace_mp2)
 
             ! the same for open shell, use fm_mo_coeff_occ_beta and fm_mo_coeff_virt_beta
             IF (my_open_shell) THEN
+               ! For SOS-MP2 we need the same calculation for alpha and beta spin independently, for RPA the sum of both
+               IF (do_ri_sos_laplace_mp2) THEN
+                  CALL zero_mat_P_omega(mat_P_omega_beta, num_integ_points, size_P)
 
-               CALL compute_mat_P_omega(mat_P_omega, mat_P_omega_im_part, fm_scaled_dm_occ_tau, &
-                                        fm_scaled_dm_virt_tau, fm_mo_coeff_occ_beta, fm_mo_coeff_virt_beta, &
-                                        fm_mo_coeff_occ_scaled, fm_mo_coeff_virt_scaled, &
-                                        mat_P_local, mat_P_global, mat_P_global_copy, &
-                                        mat_M_mu_Pnu_occ, mat_M_mu_Pnu_virt, matrix_s, &
-                                        mao_coeff_occ, mao_coeff_virt, 2, &
-                                        mat_M_P_munu_occ, mat_M_P_munu_virt, mat_3c_overl_int_cut, &
-                                        mat_3c_overl_int_mao_for_occ_cut, mat_3c_overl_int_mao_for_virt_cut, &
-                                        mat_dm_loc_occ_cut, mat_dm_loc_virt_cut, &
-                                        weights_cos_tf_t_to_w, tj, tau_tj, e_fermi_beta, eps_filter, alpha, &
-                                        eps_filter_im_time, Eigenval_beta, nmo, n_group_col, &
-                                        group_size_P, num_integ_points, jquad, cut_memory, cut_RI, &
-                                        unit_nr, mp2_env, para_env, para_env_sub, &
-                                        starts_array_prim_col, ends_array_prim_col, &
-                                        starts_array_prim_row, ends_array_prim_row, &
-                                        starts_array_prim_fullcol, ends_array_prim_fullcol, &
-                                        starts_array_prim_fullrow, ends_array_prim_fullrow, &
-                                        my_group_L_starts_im_time, my_group_L_sizes_im_time, &
-                                        offset_combi_block, starts_array_cm_mao_occ, starts_array_cm_mao_virt, &
-                                        ends_array_cm_mao_occ, ends_array_cm_mao_virt, &
-                                        mepos_P_from_RI_row, row_from_LLL, cycle_due_to_sparse_dm, &
-                                        multiply_needed_occ, multiply_needed_virt, &
-                                        non_zero_blocks_3c, non_zero_blocks_3c_cut_col, buffer_mat_M, &
-                                        do_mao, stabilize_exp, qs_env, index_to_cell_3c, cell_to_index_3c, &
-                                        needed_cutRI_mem_R1vec_R2vec_for_kp, &
-                                        has_mat_P_blocks)
+                  CALL compute_mat_P_omega(mat_P_omega_beta, mat_P_omega_im_part, fm_scaled_dm_occ_tau, &
+                                           fm_scaled_dm_virt_tau, fm_mo_coeff_occ_beta, fm_mo_coeff_virt_beta, &
+                                           fm_mo_coeff_occ_scaled, fm_mo_coeff_virt_scaled, &
+                                           mat_P_local, mat_P_global, mat_P_global_copy, &
+                                           mat_M_mu_Pnu_occ, mat_M_mu_Pnu_virt, matrix_s, &
+                                           mao_coeff_occ, mao_coeff_virt, 2, &
+                                           mat_M_P_munu_occ, mat_M_P_munu_virt, mat_3c_overl_int_cut, &
+                                           mat_3c_overl_int_mao_for_occ_cut, mat_3c_overl_int_mao_for_virt_cut, &
+                                           mat_dm_loc_occ_cut, mat_dm_loc_virt_cut, &
+                                           weights_cos_tf_t_to_w, tj, tau_tj, e_fermi_beta, eps_filter, alpha, &
+                                           eps_filter_im_time, Eigenval_beta, nmo, n_group_col, &
+                                           group_size_P, num_integ_points, jquad, cut_memory, cut_RI, &
+                                           unit_nr, mp2_env, para_env, para_env_sub, &
+                                           starts_array_prim_col, ends_array_prim_col, &
+                                           starts_array_prim_row, ends_array_prim_row, &
+                                           starts_array_prim_fullcol, ends_array_prim_fullcol, &
+                                           starts_array_prim_fullrow, ends_array_prim_fullrow, &
+                                           my_group_L_starts_im_time, my_group_L_sizes_im_time, &
+                                           offset_combi_block, starts_array_cm_mao_occ, starts_array_cm_mao_virt, &
+                                           ends_array_cm_mao_occ, ends_array_cm_mao_virt, &
+                                           mepos_P_from_RI_row, row_from_LLL, cycle_due_to_sparse_dm, &
+                                           multiply_needed_occ, multiply_needed_virt, &
+                                           non_zero_blocks_3c, non_zero_blocks_3c_cut_col, buffer_mat_M, &
+                                           do_mao, stabilize_exp, qs_env, index_to_cell_3c, cell_to_index_3c, &
+                                           needed_cutRI_mem_R1vec_R2vec_for_kp, &
+                                           has_mat_P_blocks, do_ri_sos_laplace_mp2)
+               ELSE
+                  CALL compute_mat_P_omega(mat_P_omega, mat_P_omega_im_part, fm_scaled_dm_occ_tau, &
+                                           fm_scaled_dm_virt_tau, fm_mo_coeff_occ_beta, fm_mo_coeff_virt_beta, &
+                                           fm_mo_coeff_occ_scaled, fm_mo_coeff_virt_scaled, &
+                                           mat_P_local, mat_P_global, mat_P_global_copy, &
+                                           mat_M_mu_Pnu_occ, mat_M_mu_Pnu_virt, matrix_s, &
+                                           mao_coeff_occ, mao_coeff_virt, 2, &
+                                           mat_M_P_munu_occ, mat_M_P_munu_virt, mat_3c_overl_int_cut, &
+                                           mat_3c_overl_int_mao_for_occ_cut, mat_3c_overl_int_mao_for_virt_cut, &
+                                           mat_dm_loc_occ_cut, mat_dm_loc_virt_cut, &
+                                           weights_cos_tf_t_to_w, tj, tau_tj, e_fermi_beta, eps_filter, alpha, &
+                                           eps_filter_im_time, Eigenval_beta, nmo, n_group_col, &
+                                           group_size_P, num_integ_points, jquad, cut_memory, cut_RI, &
+                                           unit_nr, mp2_env, para_env, para_env_sub, &
+                                           starts_array_prim_col, ends_array_prim_col, &
+                                           starts_array_prim_row, ends_array_prim_row, &
+                                           starts_array_prim_fullcol, ends_array_prim_fullcol, &
+                                           starts_array_prim_fullrow, ends_array_prim_fullrow, &
+                                           my_group_L_starts_im_time, my_group_L_sizes_im_time, &
+                                           offset_combi_block, starts_array_cm_mao_occ, starts_array_cm_mao_virt, &
+                                           ends_array_cm_mao_occ, ends_array_cm_mao_virt, &
+                                           mepos_P_from_RI_row, row_from_LLL, cycle_due_to_sparse_dm, &
+                                           multiply_needed_occ, multiply_needed_virt, &
+                                           non_zero_blocks_3c, non_zero_blocks_3c_cut_col, buffer_mat_M, &
+                                           do_mao, stabilize_exp, qs_env, index_to_cell_3c, cell_to_index_3c, &
+                                           needed_cutRI_mem_R1vec_R2vec_for_kp, &
+                                           has_mat_P_blocks, do_ri_sos_laplace_mp2)
+               END IF ! do_ri_sos_laplace_mp2
 
-            END IF
+            END IF ! my_open_shell
 
          END IF ! do im time
 
@@ -3645,22 +3766,23 @@ CONTAINS
 
             CALL timeset(routineN//"_RPA_matrix_operations", handle3)
 
-            IF (jquad <= num_integ_points) THEN
+            IF (.NOT. do_ri_sos_laplace_mp2) THEN
+               IF (jquad <= num_integ_points) THEN
 
-               IF (do_minimax_quad) THEN
-                  omega = tj(jquad)
+                  IF (do_minimax_quad) THEN
+                     omega = tj(jquad)
+                  ELSE
+                     omega = a_scaling/TAN(tj(jquad))
+                  END IF
+
                ELSE
-                  omega = a_scaling/TAN(tj(jquad))
+                  ! we do contour deformation for GW, where we have a real frequency
+                  omega = real_freq(jquad-num_integ_points)
+
                END IF
-
-            ELSE
-               ! we do contour deformation for GW, where we have a real frequency
-               omega = real_freq(jquad-num_integ_points)
-
-            END IF
+            END IF ! do_ri_sos_laplace_mp2
 
             IF (do_im_time) THEN
-
                ! in case we do imag time, we already calculated fm_mat_Q by a Fourier transform from im. time
 
                IF (.NOT. do_kpoints_cubic_RPA) THEN
@@ -3674,6 +3796,19 @@ CONTAINS
                   CALL cp_gemm('N', 'N', dimen_RI, dimen_RI, dimen_RI, 1.0_dp, fm_mat_L(1, 1)%matrix, fm_mat_work, &
                                0.0_dp, fm_mat_Q)
 
+                  ! For open-shell SOS-MP2 we have two different matrices we have to deal with
+                  IF (my_open_shell .AND. do_ri_sos_laplace_mp2) THEN
+                     CALL cp_fm_set_all(matrix=fm_mat_work, alpha=0.0_dp)
+
+                     ! multiplication with RI metric/Coulomb operator
+                     CALL dbcsr_multiply("N", "T", 1.0_dp, mat_P_omega_beta(jquad, 1)%matrix, mat_L%matrix, &
+                                         0.0_dp, mat_P_global%matrix, filter_eps=eps_filter_im_time)
+
+                     CALL copy_dbcsr_to_fm(mat_P_global%matrix, fm_mat_work)
+
+                     CALL cp_gemm('N', 'N', dimen_RI, dimen_RI, dimen_RI, 1.0_dp, fm_mat_L(1, 1)%matrix, fm_mat_work, &
+                                  0.0_dp, fm_mat_Q_beta)
+                  END IF
                END IF
 
             ELSE
@@ -3979,84 +4114,102 @@ CONTAINS
                                 row_indices=row_indices, &
                                 col_indices=col_indices)
 
-            ! calcualte the trace of Q and add 1 on the diagonal
-            trace_Qomega = 0.0_dp
+            IF (do_ri_sos_laplace_mp2) THEN
+               ! calculate the trace of the product Q*Q
+
+               trace_XX = 0.0_dp
+               DO jjB = 1, ncol_local
+                  DO iiB = 1, nrow_local
+                     IF (my_open_shell) THEN
+                        trace_XX = trace_XX+fm_mat_Q%local_data(iiB, jjB)*fm_mat_Q_beta%local_data(iiB, jjB)
+                     ELSE
+                        trace_XX = trace_XX+fm_mat_Q%local_data(iiB, jjB)*fm_mat_Q%local_data(iiB, jjB)
+                     END IF
+                  END DO
+               END DO
+
+               Erpa = Erpa-trace_XX*tau_wj(jquad)
+
+            ELSE
+               ! calculate the trace of Q and add 1 on the diagonal
+               trace_Qomega = 0.0_dp
 !$OMP           PARALLEL DO DEFAULT(NONE) PRIVATE(jjB,iiB,i_global,j_global) &
 !$OMP                       SHARED(ncol_local,nrow_local,col_indices,row_indices,trace_Qomega,fm_mat_Q,dimen_RI)
-            DO jjB = 1, ncol_local
-               j_global = col_indices(jjB)
-               DO iiB = 1, nrow_local
-                  i_global = row_indices(iiB)
-                  IF (j_global == i_global .AND. i_global <= dimen_RI) THEN
-                     trace_Qomega(i_global) = fm_mat_Q%local_data(iiB, jjB)
-                     fm_mat_Q%local_data(iiB, jjB) = fm_mat_Q%local_data(iiB, jjB)+1.0_dp
-                  END IF
-               END DO
-            END DO
-            CALL mp_sum(trace_Qomega, para_env_RPA%group)
-
-            IF (jquad <= num_integ_points .AND. .NOT. do_kpoints_cubic_RPA) THEN
-
-               ! calculate Trace(Log(Matrix)) as Log(DET(Matrix)) via cholesky decomposition
-               CALL cp_fm_cholesky_decompose(matrix=fm_mat_Q, n=dimen_RI, info_out=info_chol)
-               CPASSERT(info_chol == 0)
-
-               ! get info of cholesky_decomposed(fm_mat_Q)
-               CALL cp_fm_get_info(matrix=fm_mat_Q, &
-                                   nrow_local=nrow_local, &
-                                   ncol_local=ncol_local, &
-                                   row_indices=row_indices, &
-                                   col_indices=col_indices)
-
-               Q_log = 0.0_dp
-!$OMP             PARALLEL DO DEFAULT(NONE) PRIVATE(jjB,iiB,i_global,j_global) &
-!$OMP                         SHARED(ncol_local,nrow_local,col_indices,row_indices,Q_log,fm_mat_Q,dimen_RI)
                DO jjB = 1, ncol_local
                   j_global = col_indices(jjB)
                   DO iiB = 1, nrow_local
                      i_global = row_indices(iiB)
                      IF (j_global == i_global .AND. i_global <= dimen_RI) THEN
-                        Q_log(i_global) = 2.0_dp*LOG(fm_mat_Q%local_data(iiB, jjB))
+                        trace_Qomega(i_global) = fm_mat_Q%local_data(iiB, jjB)
+                        fm_mat_Q%local_data(iiB, jjB) = fm_mat_Q%local_data(iiB, jjB)+1.0_dp
                      END IF
                   END DO
                END DO
-               CALL mp_sum(Q_log, para_env_RPA%group)
+               CALL mp_sum(trace_Qomega, para_env_RPA%group)
 
-               FComega = 0.0_dp
-               DO iiB = 1, dimen_RI
-                  IF (MODULO(iiB, para_env_RPA%num_pe) /= para_env_RPA%mepos) CYCLE
-                  ! FComega=FComega+(LOG(Q_log(iiB))-trace_Qomega(iiB))/2.0_dp
-                  FComega = FComega+(Q_log(iiB)-trace_Qomega(iiB))/2.0_dp
-               END DO
+               IF (jquad <= num_integ_points .AND. .NOT. do_kpoints_cubic_RPA) THEN
 
-               Erpa = Erpa+FComega*wj(jquad)
+                  ! calculate Trace(Log(Matrix)) as Log(DET(Matrix)) via cholesky decomposition
+                  CALL cp_fm_cholesky_decompose(matrix=fm_mat_Q, n=dimen_RI, info_out=info_chol)
+                  CPASSERT(info_chol == 0)
 
-            END IF
+                  ! get info of cholesky_decomposed(fm_mat_Q)
+                  CALL cp_fm_get_info(matrix=fm_mat_Q, &
+                                      nrow_local=nrow_local, &
+                                      ncol_local=ncol_local, &
+                                      row_indices=row_indices, &
+                                      col_indices=col_indices)
 
-            IF (do_kpoints_cubic_RPA) THEN
+                  Q_log = 0.0_dp
+!$OMP             PARALLEL DO DEFAULT(NONE) PRIVATE(jjB,iiB,i_global,j_global) &
+!$OMP                         SHARED(ncol_local,nrow_local,col_indices,row_indices,Q_log,fm_mat_Q,dimen_RI)
+                  DO jjB = 1, ncol_local
+                     j_global = col_indices(jjB)
+                     DO iiB = 1, nrow_local
+                        i_global = row_indices(iiB)
+                        IF (j_global == i_global .AND. i_global <= dimen_RI) THEN
+                           Q_log(i_global) = 2.0_dp*LOG(fm_mat_Q%local_data(iiB, jjB))
+                        END IF
+                     END DO
+                  END DO
+                  CALL mp_sum(Q_log, para_env_RPA%group)
 
-               CALL get_kpoint_info(kpoints, nkp=nkp)
+                  FComega = 0.0_dp
+                  DO iiB = 1, dimen_RI
+                     IF (MODULO(iiB, para_env_RPA%num_pe) /= para_env_RPA%mepos) CYCLE
+                     ! FComega=FComega+(LOG(Q_log(iiB))-trace_Qomega(iiB))/2.0_dp
+                     FComega = FComega+(Q_log(iiB)-trace_Qomega(iiB))/2.0_dp
+                  END DO
 
-               DO ikp = 1, nkp
+                  Erpa = Erpa+FComega*wj(jquad)
 
-                  ! 1. multiplication Q(iw,k) = K^T(k)P(iw,k)K(k)
-                  CALL compute_Q(cfm_mat_Q, &
-                                 mat_P_omega(jquad, ikp)%matrix, &
-                                 mat_P_omega_im_part(jquad, ikp)%matrix, &
-                                 fm_mat_L(ikp, 1)%matrix, &
-                                 fm_mat_L(ikp, 2)%matrix, &
-                                 dimen_RI)
+               END IF
 
-                  ! 2. Cholesky decomposition of Id + Q(iw,k)
-                  CALL cholesky_decomp_Q(cfm_mat_Q, para_env_RPA, trace_Qomega, dimen_RI)
+               IF (do_kpoints_cubic_RPA) THEN
 
-                  ! 3. Computing E_c^RPA = E_c^RPA + a_w/N_k*sum_k ln[det(1+Q(iw,k))-Tr(Q(iw,k))]
-                  CALL frequency_and_kpoint_integration(Erpa, cfm_mat_Q, para_env_RPA, trace_Qomega, &
-                                                        dimen_RI, wj(jquad), kpoints%wkp(ikp))
+                  CALL get_kpoint_info(kpoints, nkp=nkp)
 
-               END DO
+                  DO ikp = 1, nkp
 
-            END IF
+                     ! 1. multiplication Q(iw,k) = K^T(k)P(iw,k)K(k)
+                     CALL compute_Q(cfm_mat_Q, &
+                                    mat_P_omega(jquad, ikp)%matrix, &
+                                    mat_P_omega_im_part(jquad, ikp)%matrix, &
+                                    fm_mat_L(ikp, 1)%matrix, &
+                                    fm_mat_L(ikp, 2)%matrix, &
+                                    dimen_RI)
+
+                     ! 2. Cholesky decomposition of Id + Q(iw,k)
+                     CALL cholesky_decomp_Q(cfm_mat_Q, para_env_RPA, trace_Qomega, dimen_RI)
+
+                     ! 3. Computing E_c^RPA = E_c^RPA + a_w/N_k*sum_k ln[det(1+Q(iw,k))-Tr(Q(iw,k))]
+                     CALL frequency_and_kpoint_integration(Erpa, cfm_mat_Q, para_env_RPA, trace_Qomega, &
+                                                           dimen_RI, wj(jquad), kpoints%wkp(ikp))
+
+                  END DO
+
+               END IF
+            END IF ! do_ri_sos_laplace_mp2
 
             ! save omega and reset the first_cycle flag
             first_cycle = .FALSE.
@@ -4353,8 +4506,13 @@ CONTAINS
          END DO ! jquad
 
          CALL mp_sum(Erpa, para_env%group)
-         Erpa = Erpa/(pi*2.0_dp)
-         IF (do_minimax_quad) Erpa = Erpa/2.0_dp
+
+         IF (.NOT. do_ri_sos_laplace_mp2) THEN
+            Erpa = Erpa/(pi*2.0_dp)
+            IF (do_minimax_quad) Erpa = Erpa/2.0_dp
+!         ELSE
+!            IF (my_open_shell) Erpa = Erpa/4.0_dp
+         END IF
 
          IF (mp2_env%ri_rpa%do_ri_axk) THEN
             CALL mp_sum(E_axk, para_env%group)
@@ -4672,7 +4830,7 @@ CONTAINS
 
       END IF
 
-      ! postprecessing after GW for Bethe-Salpeter
+      ! postprocessing after GW for Bethe-Salpeter
       IF (do_bse) THEN
          CALL mult_B_with_W_and_fill_local_3c_arrays(fm_mat_S_ij_bse, fm_mat_S_ab_bse, fm_mat_S, fm_mat_Q_static_bse, &
                                                      fm_mat_Q_static_bse_gemm, &
@@ -4779,9 +4937,9 @@ CONTAINS
          END IF
 
          DO i_size = 1, SIZE(fm_mat_L, 1)
-         DO j_size = 1, SIZE(fm_mat_L, 2)
-            CALL cp_fm_release(fm_mat_L(i_size, j_size)%matrix)
-         END DO
+            DO j_size = 1, SIZE(fm_mat_L, 2)
+               CALL cp_fm_release(fm_mat_L(i_size, j_size)%matrix)
+            END DO
          END DO
          DEALLOCATE (fm_mat_L)
          CALL cp_fm_release(fm_mat_work)
@@ -4815,6 +4973,7 @@ CONTAINS
          CALL dbcsr_deallocate_matrix_set(mat_M_mu_Pnu_virt)
 
          CALL dbcsr_deallocate_matrix_set(mat_P_omega)
+         IF (my_open_shell .AND. do_im_time .AND. do_ri_sos_laplace_mp2) CALL dbcsr_deallocate_matrix_set(mat_P_omega_beta)
 
          CALL dbcsr_deallocate_matrix_set(mat_3c_overl_int_cut)
          IF (do_mao) THEN
@@ -4958,7 +5117,7 @@ CONTAINS
 
       CALL timestop(handle)
 
-   END SUBROUTINE
+   END SUBROUTINE compute_Q
 
 ! **************************************************************************************************
 !> \brief ...
@@ -4990,7 +5149,7 @@ CONTAINS
                            row_indices=row_indices, &
                            col_indices=col_indices)
 
-      ! calcualte the trace of Q and add 1 on the diagonal
+      ! calculate the trace of Q and add 1 on the diagonal
       trace_Qomega = 0.0_dp
 !$OMP     PARALLEL DO DEFAULT(NONE) PRIVATE(jjB,iiB,i_global,j_global) &
 !$OMP                 SHARED(ncol_local,nrow_local,col_indices,row_indices,trace_Qomega,cfm_mat_Q,dimen_RI)
@@ -5011,7 +5170,7 @@ CONTAINS
 
       CALL timestop(handle)
 
-   END SUBROUTINE
+   END SUBROUTINE cholesky_decomp_Q
 
 ! **************************************************************************************************
 !> \brief ...
@@ -5079,7 +5238,7 @@ CONTAINS
 
       CALL timestop(handle)
 
-   END SUBROUTINE
+   END SUBROUTINE frequency_and_kpoint_integration
 
 ! **************************************************************************************************
 !> \brief ...
@@ -5666,7 +5825,7 @@ CONTAINS
 
       CALL timestop(handle)
 
-   END SUBROUTINE
+   END SUBROUTINE calculate_ic_correction
 
 ! **************************************************************************************************
 !> \brief ...
@@ -5728,7 +5887,7 @@ CONTAINS
 
       CALL timestop(handle)
 
-   END SUBROUTINE
+   END SUBROUTINE print_Neaton_value
 
 ! **************************************************************************************************
 !> \brief ...
@@ -5824,7 +5983,7 @@ CONTAINS
 
       CALL timestop(handle)
 
-   END SUBROUTINE
+   END SUBROUTINE update_coeff_homo
 
 ! **************************************************************************************************
 !> \brief ...
@@ -6067,7 +6226,7 @@ CONTAINS
 
       CALL timestop(handle)
 
-   END SUBROUTINE
+   END SUBROUTINE fill_fm_mat_M_virt
 
 ! **************************************************************************************************
 !> \brief ...
@@ -6337,7 +6496,7 @@ CONTAINS
 
       CALL timestop(handle)
 
-   END SUBROUTINE
+   END SUBROUTINE fill_fm_mat_M_occ
 
 ! **************************************************************************************************
 !> \brief ...
@@ -6384,7 +6543,7 @@ CONTAINS
 
       CALL timestop(handle)
 
-   END SUBROUTINE
+   END SUBROUTINE fill_coeff_dbcsr_occ
 
 ! **************************************************************************************************
 !> \brief ...
@@ -6431,7 +6590,7 @@ CONTAINS
 
       CALL timestop(handle)
 
-   END SUBROUTINE
+   END SUBROUTINE fill_coeff_dbcsr_virt
 
 ! **************************************************************************************************
 !> \brief ...
@@ -6880,7 +7039,7 @@ CONTAINS
 
       CALL timestop(handle)
 
-   END SUBROUTINE
+   END SUBROUTINE compute_self_energy_im_time_gw
 
 ! **************************************************************************************************
 !> \brief ...
@@ -6992,7 +7151,7 @@ CONTAINS
 
       CALL timestop(handle)
 
-   END SUBROUTINE
+   END SUBROUTINE compute_Mulliken_MO_analysis
 
 ! **************************************************************************************************
 !> \brief ...
@@ -7310,7 +7469,7 @@ CONTAINS
 
       CALL timestop(handle)
 
-   END SUBROUTINE
+   END SUBROUTINE calc_scaling_factor
 
 ! **************************************************************************************************
 !> \brief ...
@@ -7890,7 +8049,7 @@ CONTAINS
 
       CALL timestop(handle)
 
-   END SUBROUTINE
+   END SUBROUTINE calc_chi2_fit_tau_grid_with_cosine
 
 ! **************************************************************************************************
 !> \brief ...
@@ -7941,7 +8100,7 @@ CONTAINS
 
       CALL timestop(handle)
 
-   END SUBROUTINE
+   END SUBROUTINE calc_max_error_fit_tau_grid_with_cosine
 
 ! **************************************************************************************************
 !> \brief ...
@@ -7992,7 +8151,7 @@ CONTAINS
 
       CALL timestop(handle)
 
-   END SUBROUTINE
+   END SUBROUTINE calc_max_error_fit_tau_grid_with_sine
 
 ! **************************************************************************************************
 !> \brief Calculate the maximum deviation between the fit and the computed self-ener
@@ -8564,7 +8723,7 @@ CONTAINS
       DEALLOCATE (Lambda_Re)
       DEALLOCATE (Lambda_Im)
 
-   END SUBROUTINE
+   END SUBROUTINE fit_and_continuation_2pole
 
 ! **************************************************************************************************
 !> \brief perform analytic continuation with pade approximation
@@ -9151,7 +9310,7 @@ CONTAINS
          END IF
       END DO
 
-   END SUBROUTINE
+   END SUBROUTINE eval_fit_func_im_time
 
 ! **************************************************************************************************
 !> \brief Evaluate fit function when calculating tau grid
@@ -9182,7 +9341,7 @@ CONTAINS
 
       END DO
 
-   END SUBROUTINE
+   END SUBROUTINE eval_fit_func_tau_grid
 
 ! **************************************************************************************************
 !> \brief Evaluate fit function when calculating tau grid for cosine transform
@@ -9214,7 +9373,7 @@ CONTAINS
 
       END DO
 
-   END SUBROUTINE
+   END SUBROUTINE eval_fit_func_tau_grid_cosine
 
 ! **************************************************************************************************
 !> \brief Evaluate fit function when calculating tau grid for sine transform
@@ -9246,7 +9405,7 @@ CONTAINS
 
       END DO
 
-   END SUBROUTINE
+   END SUBROUTINE eval_fit_func_tau_grid_sine
 
 ! **************************************************************************************************
 !> \brief Prints the GW stuff to the output and optinally to an external file.
@@ -9695,7 +9854,7 @@ CONTAINS
 
       CALL timestop(handle)
 
-   END SUBROUTINE
+   END SUBROUTINE contour_def_integrate_and_residues
 
 ! **************************************************************************************************
 !> \brief ...
@@ -9790,7 +9949,7 @@ CONTAINS
 
       CALL timestop(handle)
 
-   END SUBROUTINE
+   END SUBROUTINE get_non_zero_blocks_3c
 
 ! **************************************************************************************************
 !> \brief ...
@@ -9939,7 +10098,7 @@ CONTAINS
 
       CALL timestop(handle)
 
-   END SUBROUTINE
+   END SUBROUTINE get_non_zero_blocks_3c_cut_col
 
 ! **************************************************************************************************
 !> \brief ...
@@ -10010,7 +10169,7 @@ CONTAINS
 
       CALL timestop(handle)
 
-   END SUBROUTINE
+   END SUBROUTINE check_sparsity_arrays_for_kp
 
 ! **************************************************************************************************
 !> \brief ...
@@ -10045,7 +10204,7 @@ CONTAINS
 
       CALL timestop(handle)
 
-   END SUBROUTINE
+   END SUBROUTINE numerical_integrate_contour_def
 
 ! **************************************************************************************************
 !> \brief Main driver for RPA-AXK energies
@@ -10390,7 +10549,7 @@ CONTAINS
       DEALLOCATE (starts_array)
       DEALLOCATE (ends_array)
 
-   END SUBROUTINE
+   END SUBROUTINE get_aux_sizes
 
 ! **************************************************************************************************
 !> \brief Contract RPA-AXK density matrix with HF exchange integrals and evaluate the correction
@@ -10496,7 +10655,7 @@ CONTAINS
 
       CALL timestop(handle)
 
-   END SUBROUTINE
+   END SUBROUTINE integrate_exchange
 
 ! **************************************************************************************************
 !> \brief test the singular value decomposition for the computation of integration weights for the
@@ -10565,7 +10724,7 @@ CONTAINS
 
       END DO
 
-   END SUBROUTINE
+   END SUBROUTINE test_least_square_ft
 
 ! **************************************************************************************************
 !> \brief ...
@@ -10653,7 +10812,7 @@ CONTAINS
 
       CALL timestop(handle)
 
-   END SUBROUTINE
+   END SUBROUTINE calc_periodic_correction
 
 ! **************************************************************************************************
 !> \brief ...
@@ -10809,7 +10968,7 @@ CONTAINS
 
       CALL timestop(handle)
 
-   END SUBROUTINE
+   END SUBROUTINE compute_eps_head_Berry
 
 ! **************************************************************************************************
 !> \brief ...
@@ -11340,7 +11499,7 @@ CONTAINS
 
       CALL timestop(handle)
 
-   END SUBROUTINE
+   END SUBROUTINE get_berry_phase
 
 ! **************************************************************************************************
 !> \brief ...
@@ -11376,7 +11535,7 @@ CONTAINS
 
       CALL dbcsr_filter(mat_mo_coeff_Gamma_occ_and_GW, 1.0E-15_dp)
 
-   END SUBROUTINE
+   END SUBROUTINE remove_unnecessary_blocks
 
 ! **************************************************************************************************
 !> \brief ...
@@ -11432,7 +11591,7 @@ CONTAINS
 
       CALL timestop(handle)
 
-   END SUBROUTINE
+   END SUBROUTINE replicate_Berry_nn
 
 ! **************************************************************************************************
 !> \brief ...
@@ -11650,7 +11809,7 @@ CONTAINS
 
       CALL timestop(handle)
 
-   END SUBROUTINE
+   END SUBROUTINE replicate_Berry_ia
 
 ! **************************************************************************************************
 ! ...
@@ -11846,7 +12005,7 @@ CONTAINS
 
       END IF
 
-   END SUBROUTINE
+   END SUBROUTINE kpoint_sum_for_eps_inv_head_Berry
 
 ! **************************************************************************************************
 ! ...
@@ -11879,7 +12038,7 @@ CONTAINS
 
       CALL timestop(handle)
 
-   END SUBROUTINE
+   END SUBROUTINE compute_eps_inv_head
 
 ! **************************************************************************************************
 ! ...
@@ -12089,7 +12248,7 @@ CONTAINS
 
       END IF
 
-   END SUBROUTINE
+   END SUBROUTINE get_kpoints
 
 ! **************************************************************************************************
 !> \brief ...
@@ -12167,7 +12326,7 @@ CONTAINS
 
       END DO
 
-   END SUBROUTINE
+   END SUBROUTINE average_degenerate_levels
 
 ! **************************************************************************************************
 !> \brief ...
@@ -12218,7 +12377,7 @@ CONTAINS
 
       CALL timestop(handle)
 
-   END SUBROUTINE
+   END SUBROUTINE add_periodic_correction_im_time
 
 ! **************************************************************************************************
 !> \brief ...
@@ -12591,7 +12750,6 @@ CONTAINS
 
       CALL timestop(handle)
 
-   END SUBROUTINE
+   END SUBROUTINE compute_Greens_function
 
 END MODULE rpa_ri_gpw
-

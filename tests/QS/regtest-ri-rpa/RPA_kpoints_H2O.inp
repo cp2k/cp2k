@@ -54,16 +54,16 @@
         &END
         MEMORY  200.
         NUMBER_PROC  1
+        IM_TIME
+        &IM_TIME
+          MEMORY_CUT 1
+          MEMORY_INFO
+          GROUP_SIZE_P  1
+          DO_KPOINTS
+        &END IM_TIME
         &RI_RPA
           RPA_NUM_QUAD_POINTS  6
           MINIMAX
-          IM_TIME
-          &IM_TIME
-            MEMORY_CUT 1
-            MEMORY_INFO
-            GROUP_SIZE_P  1
-            DO_KPOINTS
-          &END IM_TIME
         &END RI_RPA
       &END
     &END XC

@@ -227,6 +227,17 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
+      CALL keyword_create( &
+         keyword=keyword, &
+         name="IM_TIME", &
+         variants=(/"IMAG_TIME"/), &
+         description="Turns on cubic scaling RI-RPA and Laplace-SOS-MP2 method using the imaginary time formalism.", &
+         usage="IM_TIME", &
+         default_l_val=.FALSE., &
+         lone_keyword_l_val=.TRUE.)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
       CALL create_mp2_direct(subsection)
       CALL section_add_subsection(section, subsection)
       CALL section_release(subsection)
@@ -248,6 +259,11 @@ CONTAINS
       CALL section_release(subsection)
 
       CALL create_ri_laplace(subsection)
+      CALL section_add_subsection(section, subsection)
+      CALL section_release(subsection)
+
+      ! here we generate an imag. time subsection to use with RPA or Laplace-SOS-MP2
+      CALL create_ri_im_time(subsection)
       CALL section_add_subsection(section, subsection)
       CALL section_release(subsection)
 
@@ -572,17 +588,6 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create( &
-         keyword=keyword, &
-         name="IM_TIME", &
-         variants=(/"IMAG_TIME"/), &
-         description="Decide whether to calculate Q-matrix for imaginary time.", &
-         usage="IM_TIME", &
-         default_l_val=.FALSE., &
-         lone_keyword_l_val=.TRUE.)
-      CALL section_add_keyword(section, keyword)
-      CALL keyword_release(keyword)
-
       ! here we generate a hfx subsection to use in the case EXX has to be computed after RPA
       CALL create_hfx_section(subsection)
       CALL section_add_subsection(section, subsection)
@@ -590,11 +595,6 @@ CONTAINS
 
       ! here we generate a G0W0 subsection to use if G0W0 is desired
       CALL create_ri_g0w0(subsection)
-      CALL section_add_subsection(section, subsection)
-      CALL section_release(subsection)
-
-      ! here we generate a RPA imag. time subsection to use
-      CALL create_ri_im_time(subsection)
       CALL section_add_subsection(section, subsection)
       CALL section_release(subsection)
 
@@ -1269,8 +1269,8 @@ CONTAINS
 
       CPASSERT(.NOT. ASSOCIATED(section))
       CALL section_create(section, "IM_TIME", &
-                          description="Parameters influencing the cubic-scaling RPA method.", &
-                          n_keywords=12, n_subsections=1, repeats=.FALSE.)
+                          description="Parameters influencing the cubic-scaling RPA or Laplace-SOS-MP2 method.", &
+                          n_keywords=12, n_subsections=2, repeats=.FALSE.)
 
       NULLIFY (keyword, subsection)
 
