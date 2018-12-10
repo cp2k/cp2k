@@ -82,7 +82,9 @@ Hartree-Fock exchange (optional, use `-D__LIBINT`) requires the libint package t
 ### 2j. CUDA (optional, improved performance on GPU systems)
   * `-D__ACC` needed to enable accelerator support.
   * Use the `-D__DBCSR_ACC` to enable accelerator support for matrix multiplications.
-  * Add `-lcudart -lrt` to LIBS.
+  * Add `-lcudart -lrt -lnvrtc` to LIBS.
+  * Specify the GPU type (e.g. `GPUVER   = P100`)
+  * Specify the C++ compiler (e.g. `CXX = g++`). Rember to set the flags to support C++11 standard.
   * Use `-D__PW_CUDA` for CUDA support for PW (gather/scatter/fft) calculations.
   * CUFFT 7.0 has a known bug and is therefore disabled by default. NVidia's webpage list a patch (an upgraded version cufft i.e. >= 7.0.35) - use this together with `-D__HAS_PATCHED_CUFFT_70`.
   * Use `-D__CUDA_PROFILING` to turn on Nvidia Tools Extensions.
