@@ -666,9 +666,6 @@ CONTAINS
             CALL init_potential(qs_kind%all_potential, itype="BARE", &
                                 zeff=qs_kind%xtb_parameter%zeff, zeff_correction=zeff_correction)
             qs_kind%xtb_parameter%zeff = qs_kind%xtb_parameter%zeff-zeff_correction
-!qxtb
-! set econf ?
-!qxtb
          END DO
          ! check for Ewald
          IF (xtb_control%do_ewald) THEN

@@ -151,6 +151,9 @@ CONTAINS
             found = .TRUE.
             CALL parser_get_object(parser, param%eta)
             CALL parser_get_object(parser, param%xgamma)
+!xtb
+            param%xgamma = param%xgamma/evolt
+!xtb
             CALL parser_get_object(parser, param%alpha)
             CALL parser_get_object(parser, param%zneff)
             DO i = 1, 5

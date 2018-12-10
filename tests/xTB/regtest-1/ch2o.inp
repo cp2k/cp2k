@@ -20,6 +20,12 @@
       SCF_GUESS MOPAC
       MAX_SCF  20
     &END SCF
+    &POISSON
+      &EWALD
+       EWALD_TYPE SPME
+       GMAX 25
+      &END EWALD
+    &END POISSON
   &END DFT
   &SUBSYS
     &CELL

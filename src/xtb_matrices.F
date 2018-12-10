@@ -385,15 +385,16 @@ CONTAINS
          END IF
 
          ! Calculate Pi = Pia * Pib (Eq. 11)
+         ! factor 0.01 from original Grimme code, not in paper?
          rcovab = rcova+rcovb
          rrab = SQRT(dr/rcovab)
          DO i = 1, nsa
-            pia(i) = 1._dp+kpolya(i)*rrab
-            dpia(i) = 0.5_dp*kpolya(i)/rrab
+            pia(i) = 1._dp+0.01_dp*kpolya(i)*rrab
+            dpia(i) = 0.5_dp*0.01_dp*kpolya(i)/rrab
          END DO
          DO i = 1, nsb
-            pib(i) = 1._dp+kpolyb(i)*rrab
-            dpib(i) = 0.5_dp*kpolyb(i)/rrab
+            pib(i) = 1._dp+0.01_dp*kpolyb(i)*rrab
+            dpib(i) = 0.5_dp*0.01_dp*kpolyb(i)/rrab
          END DO
 
          IF (iatom == jatom .AND. dr < 0.001_dp) THEN
@@ -416,7 +417,9 @@ CONTAINS
             ! get KAB
             kab = kabset(ikind, jkind)
             ! get Fen = (1+ken*deltaEN^2)
-            fen = 1.0_dp+ken*(ena-enb)**2
+            ! original code reads: (1-0.01*ken*den^2)
+            ! fen = 1.0_dp+ken*(ena-enb)**2
+            fen = 1.0_dp - 0.01_dp*ken*(ena-enb)**2
             DO j = 1, natorb_b
                lb = laob(j)
                nb = naob(j)
