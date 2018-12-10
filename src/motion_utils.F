@@ -219,7 +219,7 @@ CONTAINS
       dof = dof+COUNT(lrot == 1)
       iw = cp_print_key_unit_nr(logger, print_section, "ROTATIONAL_INFO", extension=".vibLog")
       IF (iw > 0) THEN
-         WRITE (iw, '(T2,A,I6)') "ROT| Numer of Rotovibrational vectors:", dof
+         WRITE (iw, '(T2,A,I6)') "ROT| Number of Rotovibrational vectors:", dof
          IF (dof == 5) WRITE (iw, '(T2,A)') "ROT| Linear Molecule detected.."
          IF (dof == 3 .AND. (.NOT. keep_rotations)) WRITE (iw, '(T2,A)') "ROT| Single Atom detected.."
       END IF

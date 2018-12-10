@@ -975,7 +975,7 @@ CONTAINS
       END IF
 
       !! Since the I/O routines are no thread-safe, i.e. the procedure to get the unit number, put a lock here
-!$OMP CRITICAL
+!$OMP CRITICAL(hfxenergy_io_critical)
       !! If we do disk storage, we have to initialize the containers/caches
       IF (do_disk_storage) THEN
          !! IF new md step -> reinitialize containers
@@ -995,13 +995,13 @@ CONTAINS
             END DO
          END IF
       END IF
-!$OMP END CRITICAL
+!$OMP END CRITICAL(hfxenergy_io_critical)
 
 !$OMP BARRIER
 !$OMP MASTER
 
       IF (do_dynamic_load_balancing) THEN
-         ! ** Lets contstruct the task list
+         ! ** Lets construct the task list
          shm_total_bins = 0
          DO i = 1, n_threads
             shm_total_bins = shm_total_bins+SIZE(x_data(irep, i)%distribution_energy)
@@ -1113,7 +1113,7 @@ CONTAINS
                distribution_energy => actual_x_data%distribution_energy(bin)
             END IF
          ELSE
-!$OMP CRITICAL
+!$OMP CRITICAL(hfxenergy_critical)
             shm_task_counter = shm_task_counter+1
             IF (shm_task_counter <= shm_total_bins) THEN
                my_thread_id = shm_task_list(shm_task_counter)%thread_id
@@ -1135,7 +1135,7 @@ CONTAINS
                do_it = .FALSE.
                bins_left = .FALSE.
             END IF
-!$OMP END CRITICAL
+!$OMP END CRITICAL(hfxenergy_critical)
          END IF
 
          IF (.NOT. do_it) CYCLE
@@ -2121,7 +2121,7 @@ CONTAINS
       END IF
 
       !! Since the I/O routines are no thread-safe, i.e. the procedure to get the unit number, put a lock here
-!$OMP CRITICAL
+!$OMP CRITICAL(hfxenergy_out_critical)
       IF (do_disk_storage) THEN
          !! flush caches if the geometry changed
          IF (my_geo_change) THEN
@@ -2140,7 +2140,7 @@ CONTAINS
                                                memory_parameter%actual_memory_usage_disk, do_disk_storage)
          END DO
       END IF
-!$OMP END CRITICAL
+!$OMP END CRITICAL(hfxenergy_out_critical)
 !$OMP BARRIER
       !! Clean up
       DEALLOCATE (last_sgf_global)

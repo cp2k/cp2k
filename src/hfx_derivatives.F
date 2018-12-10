@@ -773,7 +773,7 @@ CONTAINS
 !$OMP BARRIER
 !$OMP MASTER
       IF (do_dynamic_load_balancing) THEN
-         ! ** Lets contstruct the task list
+         ! ** Lets construct the task list
          shm_total_bins = 0
          DO i = 1, n_threads
             shm_total_bins = shm_total_bins+SIZE(qs_env%x_data(irep, i)%distribution_forces)
@@ -866,7 +866,7 @@ CONTAINS
                distribution_forces => actual_x_data%distribution_forces(bin)
             END IF
          ELSE
-!$OMP CRITICAL
+!$OMP CRITICAL(hfxderivatives_critical)
             shm_task_counter = shm_task_counter+1
             IF (shm_task_counter <= shm_total_bins) THEN
                my_thread_id = shm_task_list(shm_task_counter)%thread_id
@@ -888,7 +888,7 @@ CONTAINS
                do_it = .FALSE.
                bins_left = .FALSE.
             END IF
-!$OMP END CRITICAL
+!$OMP END CRITICAL(hfxderivatives_critical)
          END IF
 
          IF (.NOT. do_it) CYCLE
