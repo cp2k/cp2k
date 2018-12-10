@@ -463,8 +463,8 @@ CONTAINS
          CALL get_xtb_atom_param(xtb_kind, xgamma=xgamma(ikind), zeff=zeffk(ikind))
       END DO
       ! Diagonal 3rd order correction (DFTB3)
-      CALL build_dftb3_diagonal(qs_env, ks_matrix, rho, mcharge, energy, xgamma, zeffk, &
-                                calculate_forces, just_energy)
+!deb  CALL build_dftb3_diagonal(qs_env, ks_matrix, rho, mcharge, energy, xgamma, zeffk, &
+!deb                            calculate_forces, just_energy)
       DEALLOCATE (zeffk, xgamma)
 
       DEALLOCATE (gmcharge, gchrg, atom_of_kind, kind_of)
