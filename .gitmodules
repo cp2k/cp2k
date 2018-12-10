@@ -1,0 +1,4 @@
+[submodule "exts/dbcsr"]
+	path = exts/dbcsr
+	url = https://github.com/cp2k/dbcsr
+	branch = master

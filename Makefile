@@ -28,6 +28,12 @@ SRCDIR       := $(CP2KHOME)/src
 EXEDIR       := $(MAINEXEDIR)/$(ARCH)
 REVISION     := $(shell $(CP2KHOME)/tools/build_utils/get_revision_number $(SRCDIR))
 
+EXTSDIR      := exts
+EXTSHOME     := $(CP2KHOME)/$(EXTSDIR)
+EXTSPACKAGES := $(shell cd $(EXTSHOME) ; find * -maxdepth 0 -type d )
+
+# Common Targets ============================================================
+default_target: all
 
 # Discover programs =========================================================
 ifeq ($(ALL_EXE_FILES),)
@@ -41,8 +47,11 @@ ifneq ($(ONEVERSION),)
 MODDEPS = "lower"
 include $(ARCHDIR)/$(ARCH).$(ONEVERSION)
 LIBDIR  := $(MAINLIBDIR)/$(ARCH)/$(ONEVERSION)
+LIBEXTSDIR := $(LIBDIR)/$(EXTSDIR)
 OBJDIR  := $(MAINOBJDIR)/$(ARCH)/$(ONEVERSION)
-TSTDIR  := $(MAINTSTDIR)/$(ARCH)/$(ONEVERSION)
+OBJEXTSDIR := $(OBJDIR)/$(EXTSDIR)
+OBJEXTSINCL := $(foreach dir,$(EXTSPACKAGES),-I'$(OBJEXTSDIR)/$(dir)')
+TSTDIR     := $(MAINTSTDIR)/$(ARCH)/$(ONEVERSION)
 ifeq ($(NVCC),)
 EXE_NAMES := $(basename $(notdir $(filter-out %.cu, $(ALL_EXE_FILES))))
 endif
@@ -51,22 +60,21 @@ ifneq ($(LD_SHARED),)
 else
  ARCHIVE_EXT := .a
 endif
+include $(EXTSHOME)/Makefile.inc
 endif
 
 # Declare PHONY targets =====================================================
 .PHONY : $(VERSION) $(EXE_NAMES) \
          dirs makedep default_target all \
-         toolversions libcp2k \
+         toolversions libcp2k exts \
          doxify doxifyclean \
          pretty prettyclean doxygen/clean doxygen \
          install clean realclean distclean mrproper help \
-         test testbg testclean testrealclean
-
+         test testbg testclean testrealclean \
+	 $(EXTSPACKAGES)
 
 # Discover files and directories ============================================
 ALL_SRC_DIRS := $(shell find $(SRCDIR) -type d ! -name preprettify | awk '{printf("%s:",$$1)}')
-LIBCUSMM_DIR := $(shell cd $(SRCDIR) ; find . -type d -name "libcusmm")
-LIBCUSMM_ABS_DIR := $(shell find $(SRCDIR) -type d -name "libcusmm")
 ALL_PREPRETTY_DIRS = $(shell find $(SRCDIR) -type d -name preprettify)
 
 ALL_PKG_FILES  = $(shell find $(SRCDIR) ! -path "*/preprettify/*" -name "PACKAGE")
@@ -75,11 +83,8 @@ OBJ_SRC_FILES += $(shell cd $(SRCDIR); find . ! -path "*/preprettify/*" -name "*
 OBJ_SRC_FILES += $(shell cd $(SRCDIR); find . ! -path "*/preprettify/*" -name "*.cpp")
 OBJ_SRC_FILES += $(shell cd $(SRCDIR); find . ! -path "*/preprettify/*" -name "*.cxx")
 OBJ_SRC_FILES += $(shell cd $(SRCDIR); find . ! -path "*/preprettify/*" -name "*.cc")
-
-
 ifneq ($(NVCC),)
-OBJ_SRC_FILES += $(shell cd $(SRCDIR);  find . ! -path "*/preprettify/*" ! -name "libcusmm.cu" -name "*.cu")
-OBJ_SRC_FILES += $(LIBCUSMM_DIR)/libcusmm.cu
+OBJ_SRC_FILES += $(shell cd $(SRCDIR); find . ! -path "*/preprettify/*" -name "*.cu")
 endif
 
 # Included files used by Fypp preprocessor and standard includes
@@ -97,9 +102,6 @@ ALL_OBJECTS        = $(addsuffix .o, $(basename $(notdir $(OBJ_SRC_FILES))))
 ALL_EXE_OBJECTS    = $(addsuffix .o, $(EXE_NAMES))
 ALL_NONEXE_OBJECTS = $(filter-out $(ALL_EXE_OBJECTS), $(ALL_OBJECTS))
 
-# Common Targets ============================================================
-default_target: all
-
 # stage 1: Call make recursively with each element in $(VERSION) as a target,
 #          The actual target is stored in ORIG_TARGET.
 #          Make can then parallelize over multiple versions targets.
@@ -109,7 +111,7 @@ ORIG_TARGET = default_target
 fes :
 	@+$(MAKE) --no-print-directory -f $(MAKEFILE) $(VERSION) ORIG_TARGET=graph
 
-$(EXE_NAMES) all toolversions libcp2k test testbg:
+$(EXE_NAMES) all toolversions libcp2k exts $(EXTSPACKAGES) test testbg:
 	@+$(MAKE) --no-print-directory -f $(MAKEFILE) $(VERSION) ORIG_TARGET=$@
 
 # stage 2: Store the version target in $(ONEVERSION),
@@ -122,10 +124,10 @@ else
 # stage 3: Include arch-file, create dirs, and run makedep.py for given $(ONEVERSION).
 #          Afterwards, call make recursively again with -C $(OBJDIR) and INCLUDE_DEPS=true
 ifeq ($(INCLUDE_DEPS),)
-$(EXE_NAMES): dirs makedep
+$(EXE_NAMES): makedep | dirs exts
 	@+$(MAKE) --no-print-directory -C $(OBJDIR) -f $(MAKEFILE) $(EXEDIR)/$@.$(ONEVERSION) INCLUDE_DEPS=true
 
-all: dirs makedep
+all: makedep | dirs exts
 	@+$(MAKE) --no-print-directory -C $(OBJDIR) -f $(MAKEFILE) all INCLUDE_DEPS=true
 
 # foreground testing, compilation happens in do_regtest
@@ -136,13 +138,16 @@ test: dirs
 testbg: dirs makedep all
 	@+$(MAKE) --no-print-directory -C $(TSTDIR) -f $(MAKEFILE) testbg INCLUDE_DEPS=true
 
-libcp2k: dirs makedep
+libcp2k: makedep | dirs exts
 	@+$(MAKE) --no-print-directory -C $(OBJDIR) -f $(MAKEFILE) $(LIBDIR)/libcp2k$(ARCHIVE_EXT) INCLUDE_DEPS=true
 
+exts: $(EXTSPACKAGES)
 
 dirs:
 	@mkdir -p $(OBJDIR)
+	@mkdir -p $(OBJEXTSDIR)
 	@mkdir -p $(LIBDIR)
+	@mkdir -p $(LIBEXTSDIR)
 	@mkdir -p $(EXEDIR)
 	@mkdir -p $(TSTDIR)
 
@@ -184,6 +189,10 @@ endif
 	/usr/bin/env python --version
 
 else
+
+# Force CP2K recompilations if exts are updated
+$(ALL_OBJECTS): $(EXTSDEPS_MOD)
+$(ALL_EXE_OBJECTS): $(EXTSDEPS_LIB)
 
 # stage 4: Include $(OBJDIR)/all.dep, expand target all and libcp2k, and perform actual build.
 all: $(foreach e, $(EXE_NAMES), $(EXEDIR)/$(e).$(ONEVERSION))
@@ -243,7 +252,6 @@ define get_extensions
 	$(shell test -d $(1) && find $(1) -type f -name "*.*" ! -name "*.gcda" | sed 's|.*\.||' | sort -u)
 endef
 clean:
-	rm -rf  $(LIBCUSMM_ABS_DIR)/libcusmm.cu $(LIBCUSMM_ABS_DIR)/libcusmm_part*.cu
 	@echo rm -rf $(foreach v, $(VERSION), $(MAINOBJDIR)/$(ARCH)/$(v))
 	@$(foreach v, $(VERSION), $(foreach ext, $(call get_extensions, $(MAINOBJDIR)/$(ARCH)/$(v)/), $(shell rm -rf $(MAINOBJDIR)/$(ARCH)/$(v)/*.$(ext))))
 	rm -rf $(foreach v, $(VERSION), $(MAINLIBDIR)/$(ARCH)/$(v))
@@ -274,7 +282,7 @@ OTHER_HELP += "testrealclean : Remove all LAST-* and TEST-* files for given ARCH
 # Remove all files from previous builds
 #
 distclean: prettyclean doxifyclean testrealclean
-	rm -rf $(DOXYGENDIR) $(MAINEXEDIR) $(MAINOBJDIR) $(MAINLIBDIR) $(MAINTSTDIR) $(LIBCUSMM_ABS_DIR)/libcusmm.cu
+	rm -rf $(DOXYGENDIR) $(MAINEXEDIR) $(MAINOBJDIR) $(MAINLIBDIR) $(MAINTSTDIR)
 OTHER_HELP += "distclean : Remove all files from previous builds"
 
 # Prettyfier stuff ==========================================================
@@ -356,12 +364,6 @@ doxygen: doxygen/clean
 	cd $(DOXYGENDIR); doxygen ./Doxyfile 2>&1 | tee ./html/doxygen.out
 TOOL_HELP += "doxygen : Generate the doxygen documentation"
 
-
-# Libcusmm stuff ============================================================
-$(LIBCUSMM_ABS_DIR)/libcusmm.cu: $(LIBCUSMM_ABS_DIR)/generate.py $(LIBCUSMM_ABS_DIR)/parameters_P100.txt $(wildcard $(LIBCUSMM_ABS_DIR)/kernels/*.py)
-	cd $(LIBCUSMM_ABS_DIR); ./generate.py $(LIBCUSMM_FLAGS)
-
-
 # automatic dependency generation ===========================================
 MAKEDEPMODE = "normal"
 ifeq ($(HACKDEP),yes)
@@ -440,10 +442,10 @@ FYPPFLAGS ?= -n
 ifneq ($(CPP),)
 	$(TOOLSRC)/build_utils/fypp $(FYPPFLAGS) $< $*.fypped
 	$(CPP) $(CPPFLAGS) -D__SHORT_FILE__="\"$(subst $(SRCDIR)/,,$<)\"" -I'$(dir $<)' $*.fypped > $*.f90
-	$(FC) -c $(FCFLAGS) $*.f90 $(FCLOGPIPE)
+	$(FC) -c $(FCFLAGS) $(OBJEXTSINCL) $*.f90 $(FCLOGPIPE)
 else
 	$(TOOLSRC)/build_utils/fypp $(FYPPFLAGS) $< $*.F90
-	$(FC) -c $(FCFLAGS) -D__SHORT_FILE__="\"$(subst $(SRCDIR)/,,$<)\"" -I'$(dir $<)' $*.F90 $(FCLOGPIPE)
+	$(FC) -c $(FCFLAGS) -D__SHORT_FILE__="\"$(subst $(SRCDIR)/,,$<)\"" -I'$(dir $<)' $(OBJEXTSINCL) $*.F90 $(FCLOGPIPE)
 endif
 
 %.o: %.c

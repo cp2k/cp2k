@@ -1,6 +1,0 @@
-
-# Author: Alfio Lazzaro, alfio.lazzaro@mat.ethz.ch  (2015)
-
-batch_cmd() {
-$@
-}

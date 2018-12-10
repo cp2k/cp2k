@@ -2,14 +2,19 @@ NVCC     = nvcc
 NVFLAGS  = $(DFLAGS) -g -arch sm_20
 
 CC       = cc
+CXX      = CC
 CPP      =
 FC       = mpif90
 LD       = $(FC)
 AR       = ar -r
+GPUVER   = K20X
+
 CPPFLAGS =
+CXXFLAGS = -O3 -I${CUDA_PATH}/include -std=c++11
 DFLAGS   = -D__parallel -D__SCALAPACK -D__ACC -D__DBCSR_ACC
 FCFLAGS  = -g -O3 -ffast-math -ffree-form $(DFLAGS) -I$(GFORTRAN_INC)
 LDFLAGS  = $(FCFLAGS)
+NVFLAGS  = $(DFLAGS) -g -O3 -arch sm_35 -Xcompiler='-fopenmp' --std=c++11
 
 CUDAPATH = /usr/local/cuda/lib/
 
@@ -21,5 +26,5 @@ LIBS     = -L/apps/eiger/Cuda-3.2/cuda/lib64\
 	   /apps/eiger/ATLAS/3.9.24/gnu_4.3.2/lib/libcblas.a\
 	   /apps/eiger/ATLAS/3.9.24/gnu_4.3.2/lib/libf77blas.a\
 	   /apps/eiger/ATLAS/3.9.24/gnu_4.3.2/lib/libatlas.a\
-           -lcudart -lrt
+          -lstdc++ -lcudart -lrt -lnvrtc -lcuda
 

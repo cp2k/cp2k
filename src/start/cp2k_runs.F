@@ -5,7 +5,7 @@
 
 ! **************************************************************************************************
 MODULE cp2k_runs
-   USE acc_device,                      ONLY: acc_get_ndevices,&
+   USE dbcsr_acc_device,                ONLY: acc_get_ndevices,&
                                               acc_set_active_device
    USE atom,                            ONLY: atom_code
    USE bibliography,                    ONLY: Hutter2014,&

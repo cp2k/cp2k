@@ -4,6 +4,22 @@ CP2K is a quantum chemistry and solid state physics software package that can pe
 
 CP2K is written in Fortran 2003 and can be run efficiently in parallel using a combination of multi-threading, MPI, and CUDA.
 
+## Downloading CP2K source code
+
+To clone the current master (development version):
+```console
+$ git clone --recursive https://github.com/cp2k/cp2k.git cp2k
+```
+Note the ``--recursive`` flag that is needed because CP2K uses git submodules.
+
+To clone a release version v*x.y*:
+```console
+$ git clone -b support/vx.y https://github.com/cp2k/cp2k.git cp2k
+```
+
+For more information on downloading CP2K, see [Downloading CP2K](https://www.cp2k.org/download).
+For help on git, see [Git Tips & Tricks](https://github.com/cp2k/cp2k/wiki/Git-Tips-&-Tricks).
+
 ## Links
 
 * [CP2K.org](https://www.cp2k.org) for showcases of scientific work, tutorials, exercises, presentation slides, etc.

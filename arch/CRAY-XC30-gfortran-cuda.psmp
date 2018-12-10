@@ -4,17 +4,22 @@
 
 NVCC     = nvcc -D__GNUC_MINOR__=8
 CC       = cc
-CPP      = 
+CXX      = CC
+CPP      =
 FC       = ftn
 LD       = ftn
 AR       = ar -r
+GPUVER   = K20X
+
 CPPFLAGS =
+CXXFLAGS = -O3 -I${CUDA_PATH}/include -std=c++11
 DFLAGS   = -D__FFTW3 -D__parallel -D__SCALAPACK -D__HAS_smm_dnn -D__ACC -D__DBCSR_ACC
 CFLAGS   = $(DFLAGS)
 FCFLAGS  = $(DFLAGS) -O3 -fopenmp -mavx -funroll-loops -ffast-math -ftree-vectorize \
            -ffree-form -ffree-line-length-512
 LDFLAGS  = $(FCFLAGS)
-NVFLAGS  = $(DFLAGS) -O3 -arch sm_35
+NVFLAGS  = $(DFLAGS) -O3 -arch sm_35 -Xcompiler='-fopenmp' --std=c++11
 LIBS   	 = -lfftw3 -lfftw3_threads
 LIBS    += /project/ch5/alazzaro/libsmm/libxsmm/sandybridge/lib/libsmm_dnn_cray.gnu.a
+LIBS    += -lstdc++ -lcudart -lnvrtc -lcuda
 
