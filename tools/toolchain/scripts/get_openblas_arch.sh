@@ -30,8 +30,7 @@ if ! [ "$openblas_dir" ] ; then
         echo "openblas-${openblas_ver}.tar.gz is found"
     else
         download_pkg ${DOWNLOADER_FLAGS} \
-            https://github.com/xianyi/OpenBLAS/archive/v${openblas_ver}.tar.gz \
-            -o OpenBLAS-${openblas_ver}.tar.gz
+            https://www.cp2k.org/static/downloads/OpenBLAS-${openblas_ver}.tar.gz
     fi
     tar -xzf OpenBLAS-${openblas_ver}.tar.gz
     openblas_dir="$(find_openblas_dir)"
