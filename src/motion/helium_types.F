@@ -114,7 +114,7 @@ MODULE helium_types
       LOGICAL                        :: periodic !< true if bulk liquid helium in periodic box
       INTEGER                        :: cell_shape !< unit cell shape for PBC calculations
       REAL(KIND=dp)                  :: cell_size !< size of the periodic box (helium only)
-      REAL(KIND=dp)                  :: cell_size_inv !< 1/cell_size (inverse)
+      REAL(KIND=dp)                   :: cell_size_inv !< 1/cell_size (inverse)
       REAL(KIND=dp), DIMENSION(3, 3)  :: cell_m !< the unit cell vectors' matrix
       REAL(KIND=dp), DIMENSION(3, 3)  :: cell_m_inv !< invrse  of the unit cell vectors' matrix
       REAL(KIND=dp), DIMENSION(3)    :: origin !< origin of the cell (first voxel position)
@@ -122,18 +122,20 @@ MODULE helium_types
 
       REAL(KIND=dp), DIMENSION(3)    :: center !< COM of solute (if present) or center of periodic cell (if periodic) or COM of helium
 
-      ! sampling parameters
       INTEGER :: sampling_method
-      REAL(KIND=dp) :: worm_centroid_move_drmax
-      INTEGER :: worm_centroid_move_freq
-      INTEGER :: worm_staging_move_l, worm_staging_move_rep
-      REAL(KIND=dp) :: worm_open_close_move_C
-      INTEGER :: worm_open_close_move_lmax
-      INTEGER :: worm_head_tail_move_lmax
-      INTEGER :: worm_swap_move_lmax
-      INTEGER :: worm_gsector_move_rep
-      LOGICAL :: worm_gsector_move, worm_write
-      INTEGER :: iw, it, isector
+      ! worm sampling parameters
+      REAL(KIND=dp) :: worm_centroid_drmax
+      INTEGER :: worm_staging_l
+      REAL(KIND=dp) :: worm_open_close_scale
+      REAL(KIND=dp) :: worm_ln_openclose_scale
+      LOGICAL :: worm_allow_open, worm_show_statistics
+
+      ! worm specific variables
+      REAL(KIND=dp), DIMENSION(3) :: worm_xtra_bead, worm_xtra_bead_work
+      INTEGER :: worm_atom_idx, worm_bead_idx
+      INTEGER :: worm_atom_idx_work, worm_bead_idx_work
+      INTEGER ::  iw, it
+      LOGICAL :: worm_is_closed !before isector=1 -> open; isector=0 -> closed
 
       INTEGER :: iter_norot !< number of iterations to try for a given imaginary time slice rotation (num inner MC loop iters)
       INTEGER :: iter_rot !< number of rotations to try (total number of iterations is iter_norot*iter_rot) (num outer MC loop iters)
@@ -160,6 +162,9 @@ MODULE helium_types
       ! helium variables
       !
       REAL(KIND=dp), DIMENSION(:, :, :), POINTER :: pos !< position of the helium atoms DIM(3,atoms,beads)
+#ifdef __FU_DEBUGWORM
+      REAL(KIND=dp), DIMENSION(:, :, :), POINTER :: TMPpos !< position of the helium atoms DIM(3,atoms,beads)
+#endif
       REAL(KIND=dp), DIMENSION(:, :, :), POINTER :: work !< same dimensions as pos
       !
       INTEGER, DIMENSION(:), POINTER :: permutation !< current permutation state DIM(atoms)

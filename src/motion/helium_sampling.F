@@ -216,23 +216,14 @@ CONTAINS
 
          CASE (helium_sampling_worm)
 
-            CALL helium_sample_worm(helium_env(k)%helium, pint_env, helium_env(k)%helium%iter_rot, ires)
+            CALL helium_sample_worm(helium_env(k)%helium, pint_env)
 
-            IF (ires > 0) THEN
-               inv_xn = 1.0_dp/REAL(ires, dp)
-               IF (helium_env(k)%helium%solute_present .AND. helium_env(k)%helium%get_helium_forces == helium_forces_last) THEN
-                  DO i = 1, 10
-                     IF (helium_env(k)%helium%isector == 0) EXIT
-                     CALL helium_sample_worm(helium_env(k)%helium, pint_env, INT(helium_env(k)%helium%iter_rot*0.1d0), ires)
-                     inv_xn = 1.0_dp/REAL(ires, dp)
-                  END DO
-                  IF (helium_env(k)%helium%isector == 1) THEN
-                     CPABORT("No closed configuration after 10 attempts.Stopping.")
-                  END IF
-               END IF
-            ELSE
-               CPABORT("No statistics could be extracted. Stopping.")
-            END IF
+            CALL helium_calc_energy(helium_env(k)%helium, pint_env)
+            helium_env(k)%helium%energy_avrg(:) = helium_env(k)%helium%energy_avrg(:)+helium_env(k)%helium%energy_inst(:)
+            CALL helium_calc_plength(helium_env(k)%helium)
+            helium_env(k)%helium%plength_avrg(:) = helium_env(k)%helium%plength_avrg(:)+helium_env(k)%helium%plength_inst(:)
+
+            inv_xn = 1.0_dp
 
          CASE (helium_sampling_ceperley)
             ! helium sampling (outer MC loop)

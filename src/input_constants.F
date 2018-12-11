@@ -312,7 +312,12 @@ MODULE input_constants
 
    ! helium-solute interaction potentials
    INTEGER, PARAMETER, PUBLIC               :: helium_solute_intpot_none = 0, &
-                                               helium_solute_intpot_mwater = 1
+                                               helium_solute_intpot_mwater = 1, &
+                                               helium_solute_intpot_ch5 = 2, &
+                                               helium_solute_intpot_runner_io = 3, &
+                                               helium_solute_intpot_nnp = 4, &
+                                               helium_solute_intpot_seltable = 5, &
+                                               helium_solute_intpot_cubetable = 6
 
    ! helium force selection
    INTEGER, PARAMETER, PUBLIC               :: helium_forces_average = 0, &

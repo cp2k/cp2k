@@ -308,60 +308,29 @@ CONTAINS
             stmp1 = ""
             stmp2 = ""
             CALL helium_write_line(stmp1)
-            WRITE (stmp1, *) helium%worm_centroid_move_drmax
+            WRITE (stmp1, *) helium%worm_centroid_drmax
             WRITE (stmp2, *) "WORM| Centroid move max. displacement: "// &
                TRIM(ADJUSTL(stmp1))
             CALL helium_write_line(stmp2)
             stmp1 = ""
             stmp2 = ""
-            WRITE (stmp1, *) helium%worm_centroid_move_freq
-            WRITE (stmp2, *) "WORM| Centroid move frequency: "//TRIM(ADJUSTL(stmp1))
+            WRITE (stmp1, *) helium%worm_staging_l
+            WRITE (stmp2, *) "WORM| Staging length: "//TRIM(ADJUSTL(stmp1))
             CALL helium_write_line(stmp2)
             stmp1 = ""
             stmp2 = ""
-            WRITE (stmp1, *) helium%worm_staging_move_l
-            WRITE (stmp2, *) "WORM| Staging move l: "//TRIM(ADJUSTL(stmp1))
+            WRITE (stmp1, *) helium%worm_open_close_scale
+            WRITE (stmp2, *) "WORM| Open/Close scaling: "//TRIM(ADJUSTL(stmp1))
             CALL helium_write_line(stmp2)
             stmp1 = ""
             stmp2 = ""
-            WRITE (stmp1, *) helium%worm_staging_move_rep
-            WRITE (stmp2, *) "WORM| Staging move repetitions: "//TRIM(ADJUSTL(stmp1))
+            WRITE (stmp1, *) helium%worm_allow_open
+            WRITE (stmp2, *) "WORM| Open worm sector: "//TRIM(ADJUSTL(stmp1))
             CALL helium_write_line(stmp2)
             stmp1 = ""
             stmp2 = ""
-            WRITE (stmp1, *) helium%worm_open_close_move_C
-            WRITE (stmp2, *) "WORM| Open/Close move C: "//TRIM(ADJUSTL(stmp1))
-            CALL helium_write_line(stmp2)
-            stmp1 = ""
-            stmp2 = ""
-            WRITE (stmp1, *) helium%worm_open_close_move_lmax
-            WRITE (stmp2, *) "WORM| Open/Close move lmax: "//TRIM(ADJUSTL(stmp1))
-            CALL helium_write_line(stmp2)
-            stmp1 = ""
-            stmp2 = ""
-            WRITE (stmp1, *) helium%worm_head_tail_move_lmax
-            WRITE (stmp2, *) "WORM| Head/Tail move lmax: "//TRIM(ADJUSTL(stmp1))
-            CALL helium_write_line(stmp2)
-            stmp1 = ""
-            stmp2 = ""
-            WRITE (stmp1, *) helium%worm_swap_move_lmax
-            WRITE (stmp2, *) "WORM| Swap move lmax: "//TRIM(ADJUSTL(stmp1))
-            CALL helium_write_line(stmp2)
-            stmp1 = ""
-            stmp2 = ""
-            WRITE (stmp1, *) helium%worm_gsector_move_rep
-            WRITE (stmp2, *) "WORM| G-sector moves repetitions: "// &
-               TRIM(ADJUSTL(stmp1))
-            CALL helium_write_line(stmp2)
-            stmp1 = ""
-            stmp2 = ""
-            WRITE (stmp1, *) helium%worm_gsector_move
-            WRITE (stmp2, *) "WORM| G-sector moves: "//TRIM(ADJUSTL(stmp1))
-            CALL helium_write_line(stmp2)
-            stmp1 = ""
-            stmp2 = ""
-            WRITE (stmp1, *) helium%worm_write
-            WRITE (stmp2, *) "WORM| Print: "//TRIM(ADJUSTL(stmp1))
+            WRITE (stmp1, *) helium%worm_show_statistics
+            WRITE (stmp2, *) "WORM| Print statistics: "//TRIM(ADJUSTL(stmp1))
             CALL helium_write_line(stmp2)
             stmp1 = ""
             CALL helium_write_line(stmp1)
@@ -508,6 +477,8 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:), POINTER               :: my_energy
       TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(section_vals_type), POINTER                   :: print_key
+      LOGICAL :: cepsample
+      INTEGER :: ntot
 
       CALL timeset(routineN, handle)
 
@@ -520,19 +491,31 @@ CONTAINS
          should_output = BTEST(cp_print_key_should_output( &
                                iteration_info=logger%iter_info, &
                                basis_section=print_key), cp_p_file)
+         cepsample = helium_env(1)%helium%sampling_method == helium_sampling_ceperley
       END IF
       CALL mp_bcast(should_output, logger%para_env%source, helium_env(1)%comm)
+      CALL mp_bcast(cepsample, logger%para_env%source, helium_env(1)%comm)
 
       IF (should_output) THEN
 
          naccptd = 0.0_dp
-         DO k = 1, SIZE(helium_env)
-            DO m = 1, helium_env(k)%helium%maxcycle
-               naccptd = naccptd+helium_env(k)%helium%num_accepted(helium_env(k)%helium%bisctlog2+2, m)
+         IF (cepsample) THEN
+            ntot = 0
+            DO k = 1, SIZE(helium_env)
+               ntot = ntot + helium_env(1)%helium%iter_norot * helium_env(1)%helium%iter_rot
+               DO m = 1, helium_env(k)%helium%maxcycle
+                  naccptd = naccptd+helium_env(k)%helium%num_accepted(helium_env(k)%helium%bisctlog2+2, m)
+               END DO
             END DO
-         END DO
+         ELSE !(wormsample)
+            ntot = 0
+            DO k = 1, SIZE(helium_env)
+               naccptd = naccptd + helium_env(k)%helium%num_accepted(1, 1)
+               ntot = ntot + helium_env(k)%helium%num_accepted(2, 1)
+            END DO
+         END IF
          CALL mp_sum(naccptd, helium_env(1)%comm)
-         naccptd = naccptd/REAL(helium_env(1)%helium%num_env, dp)
+         CALL mp_sum(ntot, helium_env(1)%comm)
 
          IF (logger%para_env%ionode) THEN
             my_energy => helium_env(1)%helium%energy_avrg
@@ -546,9 +529,9 @@ CONTAINS
                       is_new_file=file_is_new)
 
             IF (file_is_new) THEN
-               WRITE (unit_nr, '(A9,1X,A12,6(1X,A20))') &
+               WRITE (unit_nr, '(A9,7(1X,A20))') &
                   "#    Step", &
-                  "     Naccptd", &
+                  "            AccRatio", &
                   "               E_pot", &
                   "               E_kin", &
                   "            E_thermo", &
@@ -557,9 +540,9 @@ CONTAINS
                   "               E_tot"
             END IF
 
-            WRITE (unit_nr, "(I9,1X,F12.1,6(1X,F20.9))") &
+            WRITE (unit_nr, "(I9,7(1X,F20.9))") &
                iteration, &
-               naccptd, &
+               REAL(naccptd,dp)/REAL(ntot,dp), &
                my_energy(e_id_potential), &
                my_energy(e_id_kinetic), &
                my_energy(e_id_thermo), &

@@ -33,10 +33,10 @@ MODULE input_cp2k_motion
         helium_cell_shape_octahedron, helium_forces_average, helium_forces_last, &
         helium_mdist_exponential, helium_mdist_gaussian, helium_mdist_linear, &
         helium_mdist_quadratic, helium_mdist_singlev, helium_mdist_uniform, &
-        helium_sampling_ceperley, helium_sampling_worm, helium_solute_intpot_mwater, &
-        helium_solute_intpot_none, integrate_exact, integrate_numeric, ls_2pnt, ls_3pnt, ls_fit, &
-        ls_gold, ls_none, matrix_init_cholesky, matrix_init_diagonal, numerical, perm_cycle, &
-        perm_plain, propagator_pimd, propagator_rpmd, transformation_normal, transformation_stage
+        helium_sampling_ceperley, helium_sampling_worm, helium_solute_intpot_mwater, helium_solute_intpot_ch5, helium_solute_intpot_cubetable, helium_solute_intpot_seltable, helium_solute_intpot_none, &
+        integrate_exact, integrate_numeric, ls_2pnt, ls_3pnt, ls_fit, ls_gold, ls_none, &
+        matrix_init_cholesky, matrix_init_diagonal, numerical, perm_cycle, perm_plain, &
+        propagator_pimd, propagator_rpmd, transformation_normal, transformation_stage
    USE input_cp2k_constraints,          ONLY: create_constraint_section
    USE input_cp2k_free_energy,          ONLY: create_fe_section
    USE input_cp2k_md,                   ONLY: create_md_section
@@ -2135,15 +2135,21 @@ CONTAINS
 
       CALL keyword_create(keyword, __LOCATION__, name="SOLUTE_INTERACTION", &
                           description="Interaction potential between helium and the solute", &
-                          usage="SOLUTE_INTERACTION (NONE | MWATER)", &
+                          usage="SOLUTE_INTERACTION (NONE | MWATER | CH5 | SELTABLE | CUBETABLE)", &
                           default_i_val=helium_solute_intpot_none, &
-                          enum_c_vals=s2a("NONE", "MWATER"), &
+                          enum_c_vals=s2a("NONE", "MWATER", "CH5", "SELTABLE", "CUBETABLE"), &
                           enum_i_vals=(/ &
                           helium_solute_intpot_none, &
-                          helium_solute_intpot_mwater/), &
+                          helium_solute_intpot_mwater, &
+                          helium_solute_intpot_ch5, &
+                          helium_solute_intpot_seltable,&
+                          helium_solute_intpot_cubetable/), &
                           enum_desc=s2a( &
                           "No interaction with solute", &
-                          "Test interaction with wrong Water"))
+                          "Test interaction with wrong Water", &
+                          "Interaction with CH5_plus molecule(s)", &
+                          "Selecttable",&
+                          "Cubetable"))
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
@@ -2272,90 +2278,35 @@ CONTAINS
       NULLIFY (subsection)
       CALL section_create(subsection, __LOCATION__, name="WORM", &
                           description="Enables sampling with the worm algorithm by Bonisegni", &
-                          n_keywords=13, n_subsections=0, repeats=.FALSE.)
+                          n_keywords=5, n_subsections=0, repeats=.FALSE.)
 
-      CALL keyword_create(keyword, __LOCATION__, name="CENTROID_MOVE_DRMAX", &
+      CALL keyword_create(keyword, __LOCATION__, name="CENTROID_DRMAX", &
                           description="Maximum displacement allowed for the centroid moves", &
                           repeats=.FALSE., default_r_val=0.5_dp)
       CALL section_add_keyword(subsection, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, __LOCATION__, name="CENTROID_MOVE_FREQ", &
-                          description="Moves are performed each CENTROID_MOVE_FREQ steps", &
-                          repeats=.FALSE., default_i_val=20)
-      CALL section_add_keyword(subsection, keyword)
-      CALL keyword_release(keyword)
-
-      CALL keyword_create(keyword, __LOCATION__, name="STAGING_MOVE_L", &
+      CALL keyword_create(keyword, __LOCATION__, name="STAGING_L", &
                           description="L-1 beads will be moved", &
                           repeats=.FALSE., default_i_val=5)
       CALL section_add_keyword(subsection, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, __LOCATION__, name="STAGING_MOVE_REP", &
-                          description="Number of repetitions for staging moves", &
-                          repeats=.FALSE., default_i_val=10)
-      CALL section_add_keyword(subsection, keyword)
-      CALL keyword_release(keyword)
-
-      CALL keyword_create(keyword, __LOCATION__, name="OPEN_CLOSE_MOVE_C", &
+      CALL keyword_create(keyword, __LOCATION__, name="OPEN_CLOSE_SCALE", &
                           description="Open/Close acceptance adjustment parameter", &
                           repeats=.FALSE., default_r_val=0.01_dp)
       CALL section_add_keyword(subsection, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, __LOCATION__, name="OPEN_CLOSE_MOVE_LMAX", &
-                          description="1 to OPEN_CLOSE_MOVE_LMAX-1 beads"// &
-                          "will be moved in Open/Close moves", &
-                          repeats=.FALSE., default_i_val=5)
-      CALL section_add_keyword(subsection, keyword)
-      CALL keyword_release(keyword)
-
-      CALL keyword_create(keyword, __LOCATION__, name="HEAD_TAIL_MOVE_LMAX", &
-                          description="1 to HEAD_TAIL_MOVE_LMAX-1 beads"// &
-                          "will be moved in head/tail moves", &
-                          repeats=.FALSE., default_i_val=5)
-      CALL section_add_keyword(subsection, keyword)
-      CALL keyword_release(keyword)
-
-      CALL keyword_create(keyword, __LOCATION__, name="SWAP_MOVE_LMAX", &
-                          description="1 to SWAP_MOVE_LMAX-1 beads"// &
-                          "will be moved in Swap moves", &
-                          repeats=.FALSE., default_i_val=5)
-      CALL section_add_keyword(subsection, keyword)
-      CALL keyword_release(keyword)
-
-      CALL keyword_create(keyword, __LOCATION__, name="G-SECTOR_MOVE_REP", &
-                          description="Repetitions of G-sector moves", &
-                          repeats=.FALSE., default_i_val=20)
-      CALL section_add_keyword(subsection, keyword)
-      CALL keyword_release(keyword)
-
-      CALL keyword_create(keyword, __LOCATION__, name="G-SECTOR_MOVE", &
-                          description="Switch on/off G-sector moves, i.e.,"// &
-                          "switch on/off bosonic symmetry", &
+      CALL keyword_create(keyword, __LOCATION__, name="ALLOW_OPEN", &
+                          description="Enable boltzmanonic sampling", &
                           repeats=.FALSE., default_l_val=.TRUE.)
       CALL section_add_keyword(subsection, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, __LOCATION__, name="WRITE", &
-                          description="Switch on/off writing"// &
-                          "statistics of the different moves", &
+      CALL keyword_create(keyword, __LOCATION__, name="SHOW_STATISTICS", &
+                          description="Show sampling statistics in output", &
                           repeats=.FALSE., default_l_val=.TRUE.)
-      CALL section_add_keyword(subsection, keyword)
-      CALL keyword_release(keyword)
-
-      CALL keyword_create(keyword, __LOCATION__, name="ATOM", &
-                          description="WORM ATOM", &
-                          repeats=.TRUE., usage="<INT> <INT> .. <INT>", &
-                          type_of_var=integer_t, n_var=-1)
-      CALL section_add_keyword(subsection, keyword)
-      CALL keyword_release(keyword)
-
-      CALL keyword_create(keyword, __LOCATION__, name="COORD", &
-                          description="WORM ATOM COORDINATES", &
-                          repeats=.TRUE., usage="<REAL> <REAL> .. <REAL>", &
-                          type_of_var=real_t, n_var=-1)
       CALL section_add_keyword(subsection, keyword)
       CALL keyword_release(keyword)
 
