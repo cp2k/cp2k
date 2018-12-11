@@ -9,7 +9,7 @@ $(EXTSDEPS_MOD) : ; # override builtin .mod rule to prevent circular dependency
 
 dbcsr:
 	$(MAKE) -C $(EXTSHOME)/$@ \
-	   INCLUDEMAKE=$(CP2KHOME)/arch/$(ARCH).$(ONEVERSION) \
+	   INCLUDEMAKE=$(ARCHDIR)/$(ARCH).$(ONEVERSION) \
 	   LIBDIR=$(LIBEXTSDIR)/$@ \
 	   OBJDIR=$(OBJEXTSDIR)/$@ \
 	   FYPPEXE=$(TOOLSRC)/build_utils/fypp
