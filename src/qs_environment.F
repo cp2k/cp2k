@@ -471,7 +471,7 @@ CONTAINS
       INTEGER, DIMENSION(2)                              :: n_mo, nelectron_spin
       LOGICAL                                            :: all_potential_present, be_silent, &
                                                             do_kpoints, e1terms, has_unit_metric, &
-                                                            lribas, was_present, orb_gradient
+                                                            lribas, orb_gradient, was_present
       REAL(dp)                                           :: ewald_rcut, maxocc, verlet_skin
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       TYPE(cp_logger_type), POINTER                      :: logger
@@ -843,13 +843,13 @@ CONTAINS
       ! Periodic efield needs equal occupation and orbital gradients
       IF (dft_control%apply_period_efield) THEN
          CALL get_qs_env(qs_env=qs_env, requires_mo_derivs=orb_gradient)
-         IF(.NOT. orb_gradient) THEN
-             CALL cp_abort(__LOCATION__,"Periodic Efield needs orbital gradient and direct optimization."//&
-                 " Use the OT optimization method.") 
+         IF (.NOT. orb_gradient) THEN
+            CALL cp_abort(__LOCATION__, "Periodic Efield needs orbital gradient and direct optimization."// &
+                          " Use the OT optimization method.")
          END IF
-         IF(dft_control%smear) THEN
-             CALL cp_abort(__LOCATION__,"Periodic Efield needs equal occupation numbers."//&
-                 " Smearing option is not possible.") 
+         IF (dft_control%smear) THEN
+            CALL cp_abort(__LOCATION__, "Periodic Efield needs equal occupation numbers."// &
+                          " Smearing option is not possible.")
          END IF
       END IF
 
