@@ -62,7 +62,7 @@ OPTIONS:
                           from wget or ones saying that "common name doesn't
                           match requested host name" while at tarball downloading
                           stage, then the recommended solution is to install
-                          the newest wget release.  Alternatively, you can use
+                          the newest wget release. Alternatively, you can use
                           this option to bypass the verification and proceed with
                           the download. Security wise this should still be okay
                           as the installation script will check file checksums
@@ -74,10 +74,10 @@ OPTIONS:
                           --with-PKG option placed AFTER this option on the
                           command line.
 --mpi-mode                Selects which MPI flavour to use. Available options
-                          are: mpich, openmpi and no.  By selecting no, you will
-                          be disabling MPI support.  By default the script
+                          are: mpich, openmpi and no. By selecting no, you will
+                          be disabling MPI support. By default the script
                           will try to determine the flavour based on the MPI library
-                          currently avaliable in your system path. For CRAY (CLE)
+                          currently available in your system path. For CRAY (CLE)
                           systems, the default flavour is mpich. Note that explicitly
                           setting --with-mpich or --with-openmpi options to values
                           other than no will also switch --mpi-mode to the respective
@@ -174,7 +174,7 @@ The --with-PKG options follow the rules:
                           the one specified by --with-scalapack option.
                           Default = system
   --with-openblas         OpenBLAS is a free high performance LAPACK and BLAS library,
-                          the sucessor to GotoBLAS.
+                          the successor to GotoBLAS.
                           Default = install
   --with-scalapack        Parallel linear algebra library, needed for parallel
                           calculations.
@@ -184,7 +184,7 @@ The --with-PKG options follow the rules:
                           --with-libsmm=install, then instead of actually compiling
                           the library (which may take a long time), the script will
                           try to download a preexisting version from the CP2K website
-                          that is compatable with your system.
+                          that is compatible with your system.
                           Default = no
   --with-libxsmm          Small matrix multiplication library for x86_64 systems. If
                           your system arch is x86_64, then you can use libxsmm
@@ -198,7 +198,7 @@ The --with-PKG options follow the rules:
   --with-parmetis         ParMETIS, and if --with-parmetis=install will also install
                           METIS, only used if PEXSI is used
                           Default = no
-  --with-metis            METIS, --with-metis=install actuall does nothing, because
+  --with-metis            METIS, --with-metis=install actually does nothing, because
                           METIS is installed together with ParMETIS.  This option
                           is used to specify the METIS library if it is pre-installed
                           else-where. Only used if PEXSI is used
@@ -212,12 +212,12 @@ The --with-PKG options follow the rules:
   --with-sirius           Enable interface to the plane wave SIRIUS library.
                           This package requires: gsl, libspg, elpa, scalapack, json-fortran, hdf5 and libxc.
                           Default = install
-  --with-gsl              Enable the gnu scientific library library
+  --with-gsl              Enable the gnu scientific library
                           Default = install
   --with-spglib           Enable the spg library (search of symmetry groups)
                           This package depends on cmake.
                           Default = install
-  --with-hdf5             Enable the hdf5 library (use by sirius library)
+  --with-hdf5             Enable the hdf5 library (used by the sirius library)
                           Default = install
   --with-json-fortran     Enable the json fortran library (used by cp2k when sirius is activated)
                           This package depends on cmake.
@@ -226,7 +226,7 @@ The --with-PKG options follow the rules:
 
 FURTHER INSTRUCTIONS
 
-All packages to be installed locally will be downloaded and build inside
+All packages to be installed locally will be downloaded and built inside
 ./build, and then installed into package specific directories inside
 ./install.
 
@@ -238,7 +238,7 @@ the same location as it was first created, as it contains tools and libraries
 your version of CP2K binary will depend on.
 
 It should be safe to terminate running of this script in the middle of a
-build process.  The script will know if a package has been successfully
+build process. The script will know if a package has been successfully
 installed, and will just carry on and recompile and install the last
 package it is working on. This is true even if you lose the content of
 the entire ./build directory.
@@ -601,7 +601,7 @@ export ENABLE_CRAY=$enable_cray
 # GCC thread sanitizer conflicts
 if [ $ENABLE_TSAN = "__TRUE__" ] ; then
     if [ "$with_openblas" != "__DONTUSE__" ] ; then
-        echo "TSAN is enabled, canoot use openblas, we will use reflapack instead"
+        echo "TSAN is enabled, cannot use openblas, we will use reflapack instead"
         [ "$with_reflapack" = "__DONTUSE__" ] && with_reflapack="__INSTALL__"
         export FAST_MATH_MODE=reflapack
     fi
