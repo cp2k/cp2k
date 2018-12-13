@@ -46,14 +46,23 @@
   all of `${VARIABLE}` items in `arch_base.tmpl` to give the cp2k arch
   files.
 
-## The with_PKG and PKG_MODE variables:
+## `enable-FEATURE` options
+
+The `enable-FEATURE` options control whether a FEATURE is enabled or disabled.
+Possible values are:
+- `yes` (equivalent to using the option-keyword alone)
+- `no`
+
+## `with_PKG` and `PKG_MODE` variables:
 
 The `with_PKG` options controls how a package is going to be
-installed: either compiled and installed from source downloaded
-(`install`), or linked to locations provided by system search
-paths (`system`), or linked to locations provided by the user
-(path to some directory), or that the installer won't be used
-(`dontuse`).
+installed:
+- either compiled and installed from source downloaded
+(`install`, or the option-keyword alone),
+- or linked to locations provided by system search paths (`system`),
+- or linked to locations provided by the user
+(`<path>`, path to some directory),
+- or that the installer won't be used (`no`).
 
 For most packages the `with_pkg` variables will act like a switch for
 turning on or off the support for this package. However, for
