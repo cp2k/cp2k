@@ -10,7 +10,19 @@ For more details, see  https://www.cp2k.org/download
 
 ## 2. Install Prerequisites
 
-Sub-points here discuss prerequisites needed to build CP2K. Most of these can be conveniently installed via the [toolchain script](./tools/toolchain). Copies of the recommended versions of 3rd party software can be downloaded from https://www.cp2k.org/static/downloads/.
+The most convenient way to install pre-requisites is by using the [toolchain script](./tools/toolchain): 
+```console
+$ cd tools/toolchain/
+$ # read toolchain installation options: 
+$ ./install_cp2k_toolchain.sh --help 
+$ # launch toolchain script (example option choice)
+$ ./install_cp2k_toolchain.sh ./install_cp2k_toolchain.sh --with-libxsmm=install --with-openblas=system --with-fftw=system --with-reflapack=no \
+  --enable-cuda --enable-omp 
+```
+
+Once the script has completed successfully, follow the instructions given at the end of its ouptput. 
+
+Sub-points here discuss prerequisites needed to build CP2K. Copies of the recommended versions of 3rd party software can be downloaded from https://www.cp2k.org/static/downloads/.
 
 ### 2a. GNU make (required, build system)
 
