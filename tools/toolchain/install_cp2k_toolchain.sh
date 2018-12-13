@@ -1037,6 +1037,28 @@ if [ "$ENABLE_CUDA" = __TRUE__ ] ; then
     LIBS="${LIBS} IF_CUDA(${CUDA_LIBS}|)"
     DFLAGS="IF_CUDA(${CUDA_DFLAGS}|) ${DFLAGS}"
     NVFLAGS="-arch sm_35 -Xcompiler='-fopenmp' --std=c++11 \$(DFLAGS)"
+    check_command nvcc "cuda"
+    check_lib -lcudart "cuda"
+    check_lib -lnvrtc "cuda"
+    check_lib -lcuda "cuda"
+    check_lib -lcufft "cuda"
+    check_lib -lcublas "cuda"
+    
+    # Set include flags 
+    CUDA_CFLAGS=''
+    add_include_from_paths CUDA_CFLAGS "cuda.h" $INCLUDE_PATHS
+    export CUDA_CFLAGS="${CUDA_CFLAGS}"
+    CFLAGS+=" ${CUDA_CFLAGS}"
+
+    # Set LD-flags
+    CUDA_LDFLAGS=''
+    add_lib_from_paths CUDA_LDFLAGS "libcudart.*" $LIB_PATHS
+    add_lib_from_paths CUDA_LDFLAGS "libnvrtc.*" $LIB_PATHS
+    add_lib_from_paths CUDA_LDFLAGS "libcuda.*" $LIB_PATHS
+    add_lib_from_paths CUDA_LDFLAGS "libcufft.*" $LIB_PATHS
+    add_lib_from_paths CUDA_LDFLAGS "libcublas.*" $LIB_PATHS
+    export CUDA_LDFLAGS="${CUDA_LDFLAGS}"
+    LDFLAGS+=" ${CUDA_LDFLAGS}"
 fi
 
 # -------------------------
