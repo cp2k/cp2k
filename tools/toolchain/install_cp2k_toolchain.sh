@@ -1070,7 +1070,7 @@ gen_arch_file() {
 CXX         = CC
 CXXFLAGS    = \${CXXFLAGS} -I\\\${CUDA_PATH}/include -std=c++11
 GPUVER      = K20X
-NVCC        = \${NVCC} -D__GNUC__=4 -D__GNUC_MINOR__=9 -Xcompiler=--std=gnu++98
+NVCC        = \${NVCC} -D__GNUC__=4 -D__GNUC_MINOR__=9
 NVFLAGS     = \${NVFLAGS}
 EOF
     fi
