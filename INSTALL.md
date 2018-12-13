@@ -1,26 +1,34 @@
 # How to compile the CP2K code
 
-##  1. Acquire the code:
+##  1. Acquire the code
 
 
 For users, the preferred method is to [download a release](https://github.com/cp2k/cp2k/releases/).
-For developers, the preferred method is to [download from Git](./README.md).
+For developers, the preferred method is to [download from Git](./README.md#downloading-cp2k-source-code).
 
-For more details, see  https://www.cp2k.org/download
+For more details on downloading CP2K, see  https://www.cp2k.org/download.
 
-## 2. Install Prerequisites
+## 2. Install prerequisites
 
-The most convenient way to install pre-requisites is by using the [toolchain script](./tools/toolchain): 
+The most convenient way to install pre-requisites is by using the [toolchain script](./tools/toolchain/install_cp2k_toolchain.sh).
+
+For a complete introduction to the toolchain script, see the [README for users](./tools/toolchain/README_FOR_USERS.md) or the [README for developers](./tools/toolchain/README_FOR_DEVELOPERS.md).
+
+The basic steps are:
+
+- Read toolchain installation options:
 ```console
-$ cd tools/toolchain/
-$ # read toolchain installation options: 
-$ ./install_cp2k_toolchain.sh --help 
-$ # launch toolchain script (example option choice)
-$ ./install_cp2k_toolchain.sh ./install_cp2k_toolchain.sh --with-libxsmm=install --with-openblas=system --with-fftw=system --with-reflapack=no \
-  --enable-cuda --enable-omp 
+> cd tools/toolchain/
+> ./install_cp2k_toolchain.sh --help
 ```
 
-Once the script has completed successfully, follow the instructions given at the end of its ouptput. 
+- Launch toolchain script (example option choice)
+```console
+> ./install_cp2k_toolchain.sh --with-libxsmm=install --with-openblas=system --with-fftw=system --with-reflapack=no \
+  --enable-cuda --enable-omp
+```
+
+- Once the script has completed successfully, follow the instructions given at the end of its output.
 
 Sub-points here discuss prerequisites needed to build CP2K. Copies of the recommended versions of 3rd party software can be downloaded from https://www.cp2k.org/static/downloads/.
 
@@ -187,7 +195,7 @@ Conventionally, there are six versions:
 | sdbg    | serial                  | single core testing and debugging  |
 | sopt    | serial                  | general single core usage          |
 | ssmp    | parallel (only OpenMP)  | optimized, single node, multi core |
-| pdbg    | parallel (only MPI)     | multinode testing and debugging    |
+| pdbg    | parallel (only MPI)     | multi-node testing and debugging   |
 | popt    | parallel (only MPI)     | general usage, no threads          |
 | psmp    | parallel (MPI + OpenMP) | general usage, threading might improve scalability and memory usage |
 

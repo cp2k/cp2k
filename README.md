@@ -20,6 +20,10 @@ $ git clone -b support/vx.y https://github.com/cp2k/cp2k.git cp2k
 For more information on downloading CP2K, see [Downloading CP2K](https://www.cp2k.org/download).
 For help on git, see [Git Tips & Tricks](https://github.com/cp2k/cp2k/wiki/Git-Tips-&-Tricks).
 
+## Install CP2K
+
+See [installation instructions](./INSTALL.md)
+
 ## Links
 
 * [CP2K.org](https://www.cp2k.org) for showcases of scientific work, tutorials, exercises, presentation slides, etc.
@@ -29,15 +33,15 @@ For help on git, see [Git Tips & Tricks](https://github.com/cp2k/cp2k/wiki/Git-T
 
 ## Directory organization
 
-* `INSTALL.md`: How to build and setup CP2K
-* `arch`: Collection of definitions for different architectures and compilers
-* `src`: The source code
-* `tests`: Inputs for regression tests
-* `tools`: Mixed collection of useful scripts related to cp2k
-* `data`: Simulation parameters e.g. basis sets and pseudopotentials
+* [`INSTALL.md`](./INSTALL.md): How to build and setup CP2K
+* [`arch`](./arch): Collection of definitions for different architectures and compilers
+* [`src`](./src): The source code
+* [`tests`](./tests): Inputs for regression tests
+* [`tools`](./tools): Mixed collection of useful scripts related to cp2k
+* [`data`](./data): Simulation parameters e.g. basis sets and pseudopotentials
 
 Additional directories created during build process:
 
-* `lib`: Libraries built during compilation
-* `obj`: Objects and other intermediate compilation-time files
-* `exe`: Where the executables will be located
+* [`lib`](./data): Libraries built during compilation
+* [`obj`](./obj): Objects and other intermediate compilation-time files
+* [`exe`](./exe): Where the executables will be located

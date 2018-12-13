@@ -124,10 +124,10 @@ libxstream_fn_signature(&args);    /*do not call libxstream_fn_destroy_signature
 libxstream_fn_nargs(args, &nargs); /*nargs==LIBXSTREAM_MAX_NARGS*/
 ```
 
-**void fc(const double* scale, const float* in, float* out, const size_t* n, size_t* nzeros)**  
+**void fc(const double* scale, const float* in, float* out, const size_t* n, size_t* nzeros)**
 For the C language, a first observation is that all arguments of the function's signature are passed "by pointer"; even a value that needs to be returned (which also allows multiple results to be delivered). Please note that non-elemental ("array") arguments are handled "by pointer" rather than by pointer-to-pointer. The mechanism to pass an argument is called "by-pointer" (or by-address) to distinct from the C++ reference type mechanism. Although all arguments are received by pointer, any elemental ("scalar") input is present by value (which is important for the argument's life-time). In contrast, an elemental output is only present by-address, and therefore care must be taken on the call-side to ensure the destination is still valid when the function is executed. The latter is because the execution is asynchronous by default.
 
-**void fpp(const double& scale, const float* in, float* out, const size_t& n, size_t& nzeros)**  
+**void fpp(const double& scale, const float* in, float* out, const size_t& n, size_t& nzeros)**
 For the C++ language, the reference mechanism can be used to conveniently receive an elemental argument "by-value" including elemental output arguments as "non-const reference" ("return value").
 
 ```C++
@@ -141,7 +141,7 @@ libxstream_fn_output(args, 4, &nzeros, sizetype, 0, NULL);
 
 Beside of showing some C++ syntax in the above code snippet, the resulting signature is perfectly valid for both the "fc" and the "fpp" function.
 
-**Weak type information**  
+**Weak type information**
 To construct a signature with only weak type information, one may (1) not distinct between inout and output arguments; even non-elemental inputs can be treated as an inout argument, and (2) use LIBXSTREAM_TYPE_VOID as an elemental type or any other type with a type-size of one (BYTE, I8, U8, CHAR). The latter implies that all extents are counted in Byte rather than in number of elements. Moreover, scalar arguments now need to supply a "shape" indicating the actual size of the element in Byte.
 
 ```C
@@ -155,7 +155,7 @@ libxstream_fn_inout(args, 1, data, LIBXSTREAM_TYPE_BYTE, 1, &numbytes);
 ### Query Interface
 This "device-side API" allows to query information about function arguments when inside of a user function (which is called by the library). This can be used to introspect the function's arguments in terms of type, dimensionality, shape, and other properties. In order to query a property, the position of the argument within the signature needs to be known. However, the position within the signature can be also queried (when inside of a library-initiated call context) by using the actual function argument (given by address). To refer a function's signature when inside of a function, a NULL-pointer is passed to designate the function signature of the current call context.
 
-**Revised function "fc" querying argument properties**  
+**Revised function "fc" querying argument properties**
 As one can see, the signature of a function can often be trimmed to omit arguments which certainly describe the shape of an argument (below function signature omits the "n" argument shown in one of the previous examples).
 
 ```C
@@ -193,7 +193,7 @@ Additional scalability can be unlocked when running an application which is para
 
 ## Implementation
 ### Background
-The library's implementation allows enqueuing work from multiple host threads in a thread-safe manner and without oversubscribing the device. The actual implementation vehicle can be configured using a [configuration header](https://github.com/hfp/libxstream/blob/master/include/libxstream_config.h). Currently Intel's Language Extensions for Offload (LEO) are used to perform asynchronous execution and data transfers using signal/wait clauses. Other mechanisms can be implemented e.g., hStreams or COI (both are part of the Intel Manycore Platform Software Stack), or offload directives as specified by OpenMP.  
+The library's implementation allows enqueuing work from multiple host threads in a thread-safe manner and without oversubscribing the device. The actual implementation vehicle can be configured using a [configuration header](https://github.com/hfp/libxstream/blob/master/include/libxstream_config.h). Currently Intel's Language Extensions for Offload (LEO) are used to perform asynchronous execution and data transfers using signal/wait clauses. Other mechanisms can be implemented e.g., hStreams or COI (both are part of the Intel Manycore Platform Software Stack), or offload directives as specified by OpenMP.
 The current implementation is falling back to host execution in cases where no coprocessor is present, or when the executable was not built using the Intel Compiler. However, there is no attempt (yet) to exploit the parallelism available on the host system.
 
 ### Limitations
