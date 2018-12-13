@@ -33,15 +33,15 @@ See [installation instructions](./INSTALL.md)
 
 ## Directory organization
 
-* [`INSTALL.md`](./INSTALL.md): How to build and setup CP2K
 * [`arch`](./arch): Collection of definitions for different architectures and compilers
+* [`data`](./data): Simulation parameters e.g. basis sets and pseudopotentials
+* [`exts`](./exts): Access to external libraries via GIT submodules
 * [`src`](./src): The source code
 * [`tests`](./tests): Inputs for regression tests
 * [`tools`](./tools): Mixed collection of useful scripts related to cp2k
-* [`data`](./data): Simulation parameters e.g. basis sets and pseudopotentials
 
 Additional directories created during build process:
 
-* [`lib`](./data): Libraries built during compilation
-* [`obj`](./obj): Objects and other intermediate compilation-time files
-* [`exe`](./exe): Where the executables will be located
+* `lib`: Libraries built during compilation
+* `obj`: Objects and other intermediate compilation-time files
+* `exe`: Where the executables will be located
