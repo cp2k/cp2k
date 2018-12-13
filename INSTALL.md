@@ -2,10 +2,11 @@
 
 ##  1. Acquire the code:
 
-See  https://www.cp2k.org/download
 
-For users, the preferred method is to download a release.
-For developers, the preferred method is to download it from Git.
+For users, the preferred method is to [download a release](https://github.com/cp2k/cp2k/releases/).
+For developers, the preferred method is to [download from Git](./README.md).
+
+For more details, see  https://www.cp2k.org/download
 
 ## 2. Install Prerequisites
 
