@@ -93,6 +93,10 @@ OPTIONS:
                           --with-acml, --with-mkl or --with-openblas options will
                           switch --math-mode to the respective modes, BUT
                           --with-reflapack option do not have this effect.
+--gpu-ver                 Selects the GPU architecture for which to compile. Available
+                          options are: K20X, K40, K80, P100, no. Default: no.
+                          The script will determine the correct corresponding value for
+                          nvcc's '-arch' flag.
 
 The --enable-FEATURE options follow the rules:
   --enable-FEATURE=yes    Enable this particular feature
@@ -336,9 +340,11 @@ enable_omp=__TRUE__
 if (command -v nvcc >&- 2>&-) ; then
    echo "nvcc found, enabling CUDA by default"
    enable_cuda=__TRUE__
+   export GPUVER=no
 else
    echo "nvcc not found, disabling CUDA by default"
    enable_cuda=__FALSE__
+   export GPUVER=no
 fi
 
 # defaults for CRAY Linux Environment
@@ -419,6 +425,31 @@ while [ $# -ge 1 ] ; do
                 *)
                     report_error ${LINENO} \
                     "--math-mode currently only supports mkl, acml, openblas and reflapack as options"
+            esac
+            ;;
+        --gpu-ver=*)
+            user_input="${1#*=}"
+            case "$user_input" in
+                K20X)
+                    export GPUVER=K20X
+                    ;;
+                K40)
+                    export GPUVER=K40
+                    ;;
+                K80)
+                    export GPUVER=K80
+                    ;;
+                P100)
+                    export GPUVER=P100
+                    ;;
+                no)
+                    export GPUVER=no
+                    ;;
+                *)
+                    export GPUVER=no
+                    report_error ${LINENO} \
+                    "--gpu-ver currently only supports K20X, K40, K80, P100 and no as options"
+		    exit 1
             esac
             ;;
         --enable-tsan*)
@@ -644,6 +675,14 @@ else
     fi
 fi
 
+# If CUDA is enabled, make sure the GPU version has been defined
+if [ $ENABLE_CUDA = __TRUE__ ] ; then
+    if [ "$GPUVER" = no ] ; then
+        report_error "CUDA enabled, please choose GPU architecture to compile for with --gpu-ver"
+        exit 1
+    fi
+fi
+
 # PESXI and its dependencies
 if [ "$with_pexsi" = "__DONTUSE__" ] ; then
     if [ "$with_ptscotch" != "__DONTUSE__" ] ; then
@@ -829,6 +868,25 @@ export FCLAGS=${FCLAGS:-"-O2 -g -Wno-error"}
 export F90FLAGS=${F90FLAGS:-"-O2 -g -Wno-error"}
 export F77FLAGS=${F77FLAGS:-"-O2 -g -Wno-error"}
 export CXXFLAGS=${CXXFLAGS:-"-O2 -g -Wno-error"}
+
+# Select the correct compute number based on the GPU architecture
+case $GPUVER in
+    K20X)
+        export ARCH_NUM=35
+        ;;
+    K40)
+        export ARCH_NUM=35
+        ;;
+    K80)
+        export ARCH_NUM=37
+        ;;
+    P100)
+        export ARCH_NUM=60
+        ;;
+    *)
+        report_error ${LINENO} \
+        "--gpu-ver currently only supports K20X, K40, K80, P100 as options"
+esac
 
 # need to setup tools after all of the tools are built. We should use
 # consistent pairs of gcc and binutils etc for make. So we use system
@@ -1030,13 +1088,13 @@ LDFLAGS="\$(FCFLAGS) ${CP_LDFLAGS}"
 # add standard libs
 LIBS="${CP_LIBS} -lstdc++"
 
-# CUDA stuff
+# CUDA handling
 CUDA_LIBS="-lcudart -lnvrtc -lcuda -lcufft -lcublas -lrt IF_DEBUG(-lnvToolsExt|)"
 CUDA_DFLAGS="-D__ACC -D__DBCSR_ACC -D__PW_CUDA IF_DEBUG(-D__CUDA_PROFILING|)"
 if [ "$ENABLE_CUDA" = __TRUE__ ] ; then
     LIBS="${LIBS} IF_CUDA(${CUDA_LIBS}|)"
     DFLAGS="IF_CUDA(${CUDA_DFLAGS}|) ${DFLAGS}"
-    NVFLAGS="-arch sm_35 -Xcompiler='-fopenmp' --std=c++11 \$(DFLAGS)"
+    NVFLAGS="-arch sm_${ARCH_NUM} -Xcompiler='-fopenmp' --std=c++11 \$(DFLAGS)"
     check_command nvcc "cuda"
     check_lib -lcudart "cuda"
     check_lib -lnvrtc "cuda"
@@ -1091,7 +1149,7 @@ gen_arch_file() {
 #
 CXX         = CC
 CXXFLAGS    = \${CXXFLAGS} -I\\\${CUDA_PATH}/include -std=c++11
-GPUVER      = K20X
+GPUVER      = \${GPUVER}
 NVCC        = \${NVCC} -D__GNUC__=4 -D__GNUC_MINOR__=9
 NVFLAGS     = \${NVFLAGS}
 EOF
