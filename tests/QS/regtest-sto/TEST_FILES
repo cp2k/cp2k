@@ -4,5 +4,5 @@
 #      1 compares the last total energy in the file
 #      for details see cp2k/tools/do_regtest
 # tests GAPW STO
-H2O_t1.inp                                             1      4e-13            -75.659689099442119
+H2O_t1.inp                                             1      8e-13            -75.659689099442119
 #EOF
