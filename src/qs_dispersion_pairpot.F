@@ -1069,6 +1069,8 @@ CONTAINS
             DO iatom = 1, natom
                ALLOCATE (dcnum(iatom)%nlist(10), dcnum(iatom)%dvals(10), dcnum(iatom)%rik(3, 10))
             END DO
+         ELSE
+            ALLOCATE (dcnum(1))
          END IF
 
          CALL d3_cnumber(qs_env, dispersion_env, cnumbers, dcnum, ghost, floating, atomnumber, &
@@ -1656,6 +1658,8 @@ CONTAINS
             DO iatom = 1, natom
                DEALLOCATE (dcnum(iatom)%nlist, dcnum(iatom)%dvals, dcnum(iatom)%rik)
             END DO
+            DEALLOCATE (dcnum)
+         ELSE
             DEALLOCATE (dcnum)
          END IF
       END IF

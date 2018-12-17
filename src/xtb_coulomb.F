@@ -127,10 +127,9 @@ CONTAINS
       CHARACTER(len=*), PARAMETER :: routineN = 'build_xtb_coulomb', &
          routineP = moduleN//':'//routineN
 
-      INTEGER                                            :: atom_i, atom_j, blk, ewald_type, handle, &
-                                                            i, ia, iatom, ic, icol, ikind, img, &
-                                                            irow, is, j, jatom, jkind, natom, ni, &
-                                                            nimg, nj, nkind, nmat
+      INTEGER :: atom_i, atom_j, blk, ewald_type, handle, i, ia, iatom, ic, icol, ikind, img, &
+         irow, is, j, jatom, jkind, la, lb, natom, ni, nimg, nj, nkind, nmat, za, zb
+      INTEGER, DIMENSION(25)                             :: laoa, laob
       INTEGER, DIMENSION(3)                              :: cellind, periodic
       INTEGER, DIMENSION(:), POINTER                     :: atom_of_kind, kind_of
       INTEGER, DIMENSION(:, :, :), POINTER               :: cell_to_index
@@ -162,13 +161,14 @@ CONTAINS
       TYPE(qs_force_type), DIMENSION(:), POINTER         :: force
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
       TYPE(virial_type), POINTER                         :: virial
-      TYPE(xtb_atom_type), POINTER                       :: xtb_kind
+      TYPE(xtb_atom_type), POINTER                       :: xtb_atom_a, xtb_atom_b, xtb_kind
 
       CALL timeset(routineN, handle)
 
       NULLIFY (gamma_matrix, matrix_p, matrix_s, virial, atprop, dft_control)
 
       CALL get_qs_env(qs_env, &
+                      qs_kind_set=qs_kind_set, &
                       gamma_matrix=gamma_matrix, &
                       particle_set=particle_set, &
                       cell=cell, &
@@ -208,6 +208,10 @@ CONTAINS
          nj = SIZE(gblock, 2)
          gcint(1:ni) = MATMUL(gblock, charges(jatom, 1:nj))
          gchrg(iatom, 1:ni, 1) = gchrg(iatom, 1:ni, 1)+gcint(1:ni)
+         IF (iatom /= jatom) THEN
+            gcint(1:nj) = MATMUL(charges(iatom, 1:ni), gblock)
+            gchrg(jatom, 1:nj, 1) = gchrg(jatom, 1:nj, 1)+gcint(1:nj)
+         END IF
          IF (calculate_forces) THEN
             DO i = 2, 4
                NULLIFY (gblock)
@@ -217,12 +221,14 @@ CONTAINS
                nj = SIZE(gblock, 2)
                gcint(1:ni) = MATMUL(gblock, charges(jatom, 1:nj))
                gchrg(iatom, 1:ni, i) = gchrg(iatom, 1:ni, i)+gcint(1:ni)
+               IF (iatom /= jatom) THEN
+                  gcint(1:nj) = MATMUL(charges(iatom, 1:ni), gblock)
+                  gchrg(jatom, 1:nj, i) = gchrg(jatom, 1:nj, i)-gcint(1:nj)
+               END IF
             END DO
          END IF
       ENDDO
       CALL dbcsr_iterator_stop(iter)
-
-      energy%hartree = energy%hartree+ecsr
 
       IF (calculate_forces .AND. use_virial) THEN
          CALL dbcsr_iterator_start(iter, gamma_matrix(1)%matrix)
@@ -285,12 +291,14 @@ CONTAINS
                   rij = particle_set(iatom)%r-particle_set(jatom)%r
                   rij = pbc(rij, cell)
                   dr = SQRT(SUM(rij(:)**2))
-                  gmcharge(iatom, 1) = gmcharge(iatom, 1)+mcharge(jatom)/dr
-                  gmcharge(jatom, 1) = gmcharge(jatom, 1)+mcharge(iatom)/dr
-                  DO i = 2, nmat
-                     gmcharge(iatom, i) = gmcharge(iatom, i)+rij(i-1)*mcharge(jatom)/dr**3
-                     gmcharge(jatom, i) = gmcharge(jatom, i)-rij(i-1)*mcharge(iatom)/dr**3
-                  END DO
+                  IF (dr > 1.e-6_dp) THEN
+                     gmcharge(iatom, 1) = gmcharge(iatom, 1)+mcharge(jatom)/dr
+                     gmcharge(jatom, 1) = gmcharge(jatom, 1)+mcharge(iatom)/dr
+                     DO i = 2, nmat
+                        gmcharge(iatom, i) = gmcharge(iatom, i)+rij(i-1)*mcharge(jatom)/dr**3
+                        gmcharge(jatom, i) = gmcharge(jatom, i)-rij(i-1)*mcharge(iatom)/dr**3
+                     END DO
+                  END IF
                END DO
             END DO
          END DO
@@ -300,7 +308,6 @@ CONTAINS
       ! global sum of gamma*p arrays
       CALL get_qs_env(qs_env=qs_env, &
                       atomic_kind_set=atomic_kind_set, &
-                      qs_kind_set=qs_kind_set, &
                       force=force, para_env=para_env)
       CALL mp_sum(gmcharge(:, 1), para_env%group)
       CALL mp_sum(gchrg(:, :, 1), para_env%group)
@@ -322,7 +329,8 @@ CONTAINS
       DO iatom = 1, natom
          ikind = kind_of(iatom)
          CALL get_qs_kind(qs_kind_set(ikind), xtb_parameter=xtb_kind)
-         CALL get_xtb_atom_param(xtb_kind, nshell=ni)
+         CALL get_xtb_atom_param(xtb_kind, lmax=ni)
+         ni = ni+1
          ecsr = ecsr+SUM(charges(iatom, 1:ni)*gchrg(iatom, 1:ni, 1))
       END DO
       energy%hartree = energy%hartree+0.5_dp*ecsr
@@ -331,7 +339,8 @@ CONTAINS
          CALL get_qs_env(qs_env=qs_env, local_particles=local_particles)
          DO ikind = 1, SIZE(local_particles%n_el)
             CALL get_qs_kind(qs_kind_set(ikind), xtb_parameter=xtb_kind)
-            CALL get_xtb_atom_param(xtb_kind, nshell=ni)
+            CALL get_xtb_atom_param(xtb_kind, lmax=ni)
+            ni = ni+1
             DO ia = 1, local_particles%n_el(ikind)
                iatom = local_particles%list(ikind)%array(ia)
                atprop%atecoul(iatom) = atprop%atecoul(iatom)+ &
@@ -347,10 +356,18 @@ CONTAINS
             ikind = kind_of(iatom)
             atom_i = atom_of_kind(iatom)
             CALL get_qs_kind(qs_kind_set(ikind), xtb_parameter=xtb_kind)
-            CALL get_xtb_atom_param(xtb_kind, nshell=ni)
+            CALL get_xtb_atom_param(xtb_kind, lmax=ni)
+            ! short range
+            ni = ni+1
             DO i = 1, 3
-               fij(i) = SUM(charges(iatom, 1:ni)*gchrg(iatom, 1:ni, i+1))+ &
-                        gmcharge(iatom, i+1)*mcharge(iatom)
+               fij(i) = SUM(charges(iatom, 1:ni)*gchrg(iatom, 1:ni, i+1))
+            END DO
+            force(ikind)%rho_elec(1, atom_i) = force(ikind)%rho_elec(1, atom_i)-fij(1)
+            force(ikind)%rho_elec(2, atom_i) = force(ikind)%rho_elec(2, atom_i)-fij(2)
+            force(ikind)%rho_elec(3, atom_i) = force(ikind)%rho_elec(3, atom_i)-fij(3)
+            ! long range
+            DO i = 1, 3
+               fij(i) = gmcharge(iatom, i+1)*mcharge(iatom)
             END DO
             force(ikind)%rho_elec(1, atom_i) = force(ikind)%rho_elec(1, atom_i)-fij(1)
             force(ikind)%rho_elec(2, atom_i) = force(ikind)%rho_elec(2, atom_i)-fij(2)
@@ -398,12 +415,27 @@ CONTAINS
             CALL dbcsr_get_block_p(matrix=matrix_s(1, ic)%matrix, &
                                    row=irow, col=icol, block=sblock, found=found)
             CPASSERT(found)
+
+            ! atomic parameters
+            CALL get_qs_kind(qs_kind_set(ikind), xtb_parameter=xtb_atom_a)
+            CALL get_qs_kind(qs_kind_set(jkind), xtb_parameter=xtb_atom_b)
+            CALL get_xtb_atom_param(xtb_atom_a, z=za, lao=laoa)
+            CALL get_xtb_atom_param(xtb_atom_b, z=zb, lao=laob)
+
             ni = SIZE(sblock, 1)
             nj = SIZE(sblock, 2)
             ALLOCATE (gcij(ni, nj))
             DO i = 1, ni
                DO j = 1, nj
-                  gcij(i, j) = 0.5_dp*(gchrg(iatom, i, 1)+gchrg(jatom, j, 1))
+                  IF (irow == iatom) THEN
+                     la = laoa(i)+1
+                     lb = laob(j)+1
+                     gcij(i, j) = 0.5_dp*(gchrg(iatom, la, 1)+gchrg(jatom, lb, 1))
+                  ELSE
+                     la = laoa(j)+1
+                     lb = laob(i)+1
+                     gcij(i, j) = 0.5_dp*(gchrg(iatom, la, 1)+gchrg(jatom, lb, 1))
+                  END IF
                END DO
             END DO
             gmij = 0.5_dp*(gmcharge(iatom, 1)+gmcharge(jatom, 1))
@@ -412,7 +444,8 @@ CONTAINS
                CALL dbcsr_get_block_p(matrix=ks_matrix(is, ic)%matrix, &
                                       row=irow, col=icol, block=ksblock, found=found)
                CPASSERT(found)
-               ksblock = ksblock-gcij*sblock-gmij*sblock
+               ksblock = ksblock-gcij*sblock
+               ksblock = ksblock-gmij*sblock
             END DO
 
             IF (calculate_forces) THEN
@@ -420,7 +453,10 @@ CONTAINS
                atom_i = atom_of_kind(iatom)
                jkind = kind_of(jatom)
                atom_j = atom_of_kind(jatom)
-               IF (irow == jatom) gmij = -gmij
+               IF (irow == jatom) THEN
+                  gmij = -gmij
+                  gcij = -gcij
+               END IF
                NULLIFY (pblock)
                CALL dbcsr_get_block_p(matrix=matrix_p(1, ic)%matrix, &
                                       row=irow, col=icol, block=pblock, found=found)
@@ -430,10 +466,17 @@ CONTAINS
                   CALL dbcsr_get_block_p(matrix=matrix_s(1+i, ic)%matrix, &
                                          row=irow, col=icol, block=dsblock, found=found)
                   CPASSERT(found)
-                  fi = -2.0_dp*(SUM(pblock*dsblock*gcij)+gmij*SUM(pblock*dsblock))
+                  fij(i) = 0.0_dp
+                  ! short range
+                  fi = -2.0_dp*SUM(pblock*dsblock*gcij)
                   force(ikind)%rho_elec(i, atom_i) = force(ikind)%rho_elec(i, atom_i)+fi
                   force(jkind)%rho_elec(i, atom_j) = force(jkind)%rho_elec(i, atom_j)-fi
-                  fij(i) = fi
+                  fij(i) = fij(i)+fi
+                  ! long range
+                  fi = -2.0_dp*gmij*SUM(pblock*dsblock)
+                  force(ikind)%rho_elec(i, atom_i) = force(ikind)%rho_elec(i, atom_i)+fi
+                  force(jkind)%rho_elec(i, atom_j) = force(jkind)%rho_elec(i, atom_j)-fi
+                  fij(i) = fij(i)+fi
                END DO
                IF (use_virial) THEN
                   CALL virial_pair_force(virial%pv_virial, 1._dp, fij, rij)
@@ -463,8 +506,8 @@ CONTAINS
          CALL get_xtb_atom_param(xtb_kind, xgamma=xgamma(ikind), zeff=zeffk(ikind))
       END DO
       ! Diagonal 3rd order correction (DFTB3)
-!deb  CALL build_dftb3_diagonal(qs_env, ks_matrix, rho, mcharge, energy, xgamma, zeffk, &
-!deb                            calculate_forces, just_energy)
+      CALL build_dftb3_diagonal(qs_env, ks_matrix, rho, mcharge, energy, xgamma, zeffk, &
+                                calculate_forces, just_energy)
       DEALLOCATE (zeffk, xgamma)
 
       DEALLOCATE (gmcharge, gchrg, atom_of_kind, kind_of)

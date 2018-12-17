@@ -709,7 +709,6 @@ CONTAINS
       INTEGER                                            :: blk, handle, i, iblock_col, iblock_row, &
                                                             ispin, j, nspin
       LOGICAL                                            :: found
-      REAL(kind=dp)                                      :: mult
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: p_block, s_block
       TYPE(dbcsr_iterator_type)                          :: iter
 
@@ -730,18 +729,12 @@ CONTAINS
             IF (.NOT. (ASSOCIATED(s_block) .AND. ASSOCIATED(p_block))) CYCLE
 
             IF (iblock_row == iatom) THEN
-               IF (iblock_row == iblock_col) THEN
-                  mult = 1.0_dp ! avoid double counting of diagonal blocks
-               ELSE
-                  mult = 2.0_dp
-               ENDIF
                DO j = 1, SIZE(p_block, 2)
                   DO i = 1, SIZE(p_block, 1)
-                     charges(i) = charges(i)+mult*p_block(i, j)*s_block(i, j)
+                     charges(i) = charges(i)+p_block(i, j)*s_block(i, j)
                   END DO
                END DO
             ELSEIF (iblock_col == iatom) THEN
-               mult = 2.0_dp
                DO i = 1, SIZE(p_block, 1)
                   DO j = 1, SIZE(p_block, 2)
                      charges(j) = charges(j)+p_block(i, j)*s_block(i, j)

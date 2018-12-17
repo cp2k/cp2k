@@ -394,6 +394,7 @@ CONTAINS
 
       ! Diagonalize the matrix a
 
+      info = 0
       IF (divide_and_conquer) THEN
          CALL dsyevd("V", "U", n, a, n, eigval, work, lwork, iwork, liwork, info)
       ELSE

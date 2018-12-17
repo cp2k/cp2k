@@ -441,6 +441,7 @@ CONTAINS
 
          ! Solve the linear DIIS equation system
 
+         ev(1:nb1) = 0.0_dp
          CALL diamat_all(b(1:nb1, 1:nb1), ev(1:nb1))
 
          a(1:nb1, 1:nb1) = b(1:nb1, 1:nb1)
