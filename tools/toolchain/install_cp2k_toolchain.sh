@@ -1147,7 +1147,7 @@ gen_arch_file() {
     if [ "$__CUDA" = "on" ] ; then
       cat <<EOF >> $__filename
 #
-CXX         = CC
+CXX         = \${CC}
 CXXFLAGS    = \${CXXFLAGS} -I\\\${CUDA_PATH}/include -std=c++11
 GPUVER      = \${GPUVER}
 NVCC        = \${NVCC} -D__GNUC__=4 -D__GNUC_MINOR__=9
