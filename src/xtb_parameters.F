@@ -151,9 +151,6 @@ CONTAINS
             found = .TRUE.
             CALL parser_get_object(parser, param%eta)
             CALL parser_get_object(parser, param%xgamma)
-!xtb
-            param%xgamma = param%xgamma/evolt
-!xtb
             CALL parser_get_object(parser, param%alpha)
             CALL parser_get_object(parser, param%zneff)
             DO i = 1, 5
@@ -257,16 +254,16 @@ CONTAINS
                IF (ia >= 49 .AND. ia <= 57) THEN
                   nshell = nshell+1
                   k = nshell
-                  param%nval(i) = ia-48
+                  param%nval(k) = ia-48
                   SELECT CASE (label (2:2))
                   CASE ("s", "S")
-                     param%lval(i) = 0
+                     param%lval(k) = 0
                   CASE ("p", "P")
-                     param%lval(i) = 1
+                     param%lval(k) = 1
                   CASE ("d", "D")
-                     param%lval(i) = 2
+                     param%lval(k) = 2
                   CASE ("f", "F")
-                     param%lval(i) = 3
+                     param%lval(k) = 3
                   CASE DEFAULT
                      CPABORT("xTB PARAMETER ERROR")
                   END SELECT
@@ -359,6 +356,7 @@ CONTAINS
          routineP = moduleN//':'//routineN
 
       INTEGER                                            :: i, is, l, na
+      REAL(KIND=dp), DIMENSION(5)                        :: kp
 
       IF (param%defined) THEN
          ! AO to shell pointer
@@ -384,6 +382,22 @@ CONTAINS
          END IF
          ! orbital energies [evolt] -> [a.u.]
          param%hen = param%hen/evolt
+         ! some forgotten scaling parameters (not in orig. paper)
+         param%xgamma = 0.1_dp*param%xgamma
+         param%kpoly(:) = 0.01*param%kpoly(:)
+         ! we have 1/6 g * q**3 (not 1/3)
+         param%xgamma = 2.0_dp*param%xgamma
+         ! kappa is read for each shell, but depends on l, reindex here
+         kp(:) = param%kappa(:)
+         param%kappa = 0._dp
+         DO is = 1, param%nshell
+            l = param%lval(is)
+            IF (param%kappa(l+1) /= 0._dp) THEN
+               ! test that we don't have ambigous kappa values
+               CPASSERT(ABS(param%kappa(l+1)-kp(is)) < 1.e-12_dp)
+            ENDIF
+            param%kappa(l+1) = kp(is)
+         END DO
       END IF
 
    END SUBROUTINE xtb_parameters_set

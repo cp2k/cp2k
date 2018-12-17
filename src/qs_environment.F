@@ -660,9 +660,8 @@ CONTAINS
             NULLIFY (tmp_basis_set)
             CALL init_xtb_basis(qs_kind%xtb_parameter, tmp_basis_set, ngauss)
             CALL add_basis_set_to_container(qs_kind%basis_sets, tmp_basis_set, "ORB")
-            ! cutoff radius
-            CALL get_gto_basis_set(tmp_basis_set, kind_radius=qs_kind%xtb_parameter%rcut)
             ! potential
+            zeff_correction = 0.0_dp
             CALL init_potential(qs_kind%all_potential, itype="BARE", &
                                 zeff=qs_kind%xtb_parameter%zeff, zeff_correction=zeff_correction)
             qs_kind%xtb_parameter%zeff = qs_kind%xtb_parameter%zeff-zeff_correction
@@ -813,6 +812,15 @@ CONTAINS
 
       !   *** Initialize the atomic interaction radii ***
       CALL init_interaction_radii(dft_control%qs_control, atomic_kind_set, qs_kind_set)
+      !
+      IF (dft_control%qs_control%method_id == do_method_xtb) THEN
+         ! cutoff radius
+         DO ikind = 1, nkind
+            qs_kind => qs_kind_set(ikind)
+            CALL get_qs_kind(qs_kind, basis_set=tmp_basis_set)
+            CALL get_gto_basis_set(tmp_basis_set, kind_radius=qs_kind%xtb_parameter%rcut)
+         END DO
+      END IF
 
       IF (.NOT. be_silent) THEN
          CALL write_pgf_orb_radii("orb", atomic_kind_set, qs_kind_set, subsys_section)
