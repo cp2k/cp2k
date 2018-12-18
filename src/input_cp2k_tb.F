@@ -367,6 +367,13 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
+      CALL keyword_create(keyword, name="XB_RADIUS", &
+                          description="Specifies the radius [Bohr] of the XB pair interaction in xTB.", &
+                          usage="XB_RADIUS 20.0 ", repeats=.FALSE., &
+                          n_var=1, default_r_val=20.0_dp)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
    END SUBROUTINE create_xtb_parameter_section
 
 ! **************************************************************************************************

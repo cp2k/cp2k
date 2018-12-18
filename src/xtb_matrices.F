@@ -79,6 +79,11 @@ MODULE xtb_matrices
    REAL(dp), PARAMETER                    :: tol_gamma = 1.e-4_dp
    ! small real number
    REAL(dp), PARAMETER                    :: rtiny = 1.e-10_dp
+   !
+   TYPE neighbor_atoms_type
+      REAL(KIND=dp), DIMENSION(:, :), POINTER     :: coord
+      REAL(KIND=dp), DIMENSION(:), POINTER       :: rab
+   END TYPE neighbor_atoms_type
 
    PRIVATE
 
@@ -105,7 +110,7 @@ CONTAINS
 
       INTEGER :: after, atom_a, atom_b, atom_c, handle, i, iatom, ic, icol, ikind, img, ir, irow, &
          iw, j, jatom, jkind, katom, kkind, la, lb, lmaxa, lmaxb, n1, n2, na, natom, natorb_a, &
-         natorb_b, nb, nderivatives, nimg, nkind, nmat, nsa, nsb, nshell, za, zb
+         natorb_b, nb, nderivatives, nimg, nkind, nmat, nsa, nsb, nshell, za, zat, zb
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: atom_of_kind, atomnumber, kind_of
       INTEGER, DIMENSION(25)                             :: laoa, laob, lval, naoa, naob
       INTEGER, DIMENSION(3)                              :: cell
@@ -115,9 +120,9 @@ CONTAINS
                                                             use_virial
       LOGICAL, ALLOCATABLE, DIMENSION(:)                 :: floating, ghost
       REAL(KIND=dp) :: alphaa, alphab, derepij, dfij, dfp, dhij, dr, drk, drx, ena, enb, erep, &
-         erepij, etaa, etab, f0, f1, fen, fhua, fhub, fij, foab, hij, k2sh, kab, kcnd, kcnp, kcns, &
-         kd, ken, kf, kg, kia, kjb, kp, ks, ksp, kx2, kxr, rcova, rcovab, rcovb, rcut, rcuta, &
-         rcutb, rrab, xgammaa, xgammab, zneffa, zneffb
+         erepij, etaa, etab, exb, f0, f1, fen, fhua, fhub, fhud, fij, foab, hij, k2sh, kab, kcnd, &
+         kcnp, kcns, kd, ken, kf, kg, kia, kjb, kp, ks, ksp, kx2, kxr, rcova, rcovab, rcovb, rcut, &
+         rcuta, rcutb, rrab, xgammaa, xgammab, zneffa, zneffb
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: cnumbers
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: dfblock, dgamma, huckel, kabset
       REAL(KIND=dp), DIMENSION(0:3)                      :: kcnl, kl
@@ -134,6 +139,8 @@ CONTAINS
       TYPE(dcnum_type), ALLOCATABLE, DIMENSION(:)        :: dcnum
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(kpoint_type), POINTER                         :: kpoints
+      TYPE(neighbor_atoms_type), ALLOCATABLE, &
+         DIMENSION(:)                                    :: neighbor_atoms
       TYPE(neighbor_list_iterator_p_type), &
          DIMENSION(:), POINTER                           :: nl_iterator
       TYPE(neighbor_list_set_p_type), DIMENSION(:), &
@@ -192,6 +199,8 @@ CONTAINS
       NULLIFY (particle_set)
       CALL get_qs_env(qs_env=qs_env, particle_set=particle_set)
       natom = SIZE(particle_set)
+      ALLOCATE (atom_of_kind(natom))
+      CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set, atom_of_kind=atom_of_kind)
 
       ! gamma matrix allocation
       IF (calculate_forces) THEN
@@ -217,9 +226,6 @@ CONTAINS
                               alpha_scalar=1.0_dp, beta_scalar=1.0_dp)
             END DO
          END IF
-         ALLOCATE (atom_of_kind(natom))
-         CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set, &
-                                  atom_of_kind=atom_of_kind)
          use_virial = virial%pv_availability .AND. (.NOT. virial%pv_numer)
       END IF
       ! atomic energy decomposition
@@ -300,9 +306,6 @@ CONTAINS
       kl(1) = kp
       kl(2) = kd
       kl(3) = 0.0_dp
-!deb
-      kcnl = 0.0_dp
-!deb
       ALLOCATE (huckel(5, natom), kind_of(natom))
       CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set, kind_of=kind_of)
       DO iatom = 1, natom
@@ -328,6 +331,21 @@ CONTAINS
          END DO
       ENDDO
 
+      ! list of neighbor atoms for XB term
+      ALLOCATE (neighbor_atoms(nkind))
+      DO ikind = 1, nkind
+         NULLIFY (neighbor_atoms(ikind)%coord)
+         NULLIFY (neighbor_atoms(ikind)%rab)
+         CALL get_atomic_kind(atomic_kind_set(ikind), z=zat, natom=na)
+         IF (zat == 17 .OR. zat == 35 .OR. zat == 53 .OR. zat == 85) THEN
+            ALLOCATE (neighbor_atoms(ikind)%coord(3, na))
+            neighbor_atoms(ikind)%coord(1:3, 1:na) = 0.0_dp
+            ALLOCATE (neighbor_atoms(ikind)%rab(na))
+            neighbor_atoms(ikind)%rab(1:na) = HUGE(0.0_dp)
+         END IF
+      END DO
+
+      ! initialize repulsion energy
       erep = 0._dp
 
       ! loop over all atom pairs with a non-zero overlap (sab_orb)
@@ -343,6 +361,22 @@ CONTAINS
          IF (.NOT. defined .OR. natorb_b < 1) CYCLE
 
          dr = SQRT(SUM(rij(:)**2))
+
+         ! neighbor atom for XB term
+         IF (ASSOCIATED(neighbor_atoms(ikind)%rab)) THEN
+            atom_a = atom_of_kind(iatom)
+            IF (dr < neighbor_atoms(ikind)%rab(atom_a)) THEN
+               neighbor_atoms(ikind)%rab(atom_a) = dr
+               neighbor_atoms(ikind)%coord(1:3, atom_a) = rij(1:3)
+            END IF
+         END IF
+         IF (ASSOCIATED(neighbor_atoms(jkind)%rab)) THEN
+            atom_b = atom_of_kind(jatom)
+            IF (dr < neighbor_atoms(jkind)%rab(atom_b)) THEN
+               neighbor_atoms(jkind)%rab(atom_b) = dr
+               neighbor_atoms(jkind)%coord(1:3, atom_b) = -rij(1:3)
+            END IF
+         END IF
 
          ! atomic parameters
          CALL get_xtb_atom_param(xtb_atom_a, z=za, nao=naoa, lao=laoa, rcov=rcova, eta=etaa, xgamma=xgammaa, &
@@ -463,6 +497,7 @@ CONTAINS
             ! Derivative wrt coordination number
             fhua = 0.0_dp
             fhub = 0.0_dp
+            fhud = 0.0_dp
             DO j = 1, natorb_b
                lb = laob(j)
                nb = naob(j)
@@ -470,8 +505,7 @@ CONTAINS
                   la = laoa(i)
                   na = naoa(i)
                   IF (diagblock .AND. i == j) THEN
-                     fhua = fhua+pblock(i, i)*kcnl(la)*0.5_dp
-                     fhub = fhub+pblock(i, i)*kcnl(lb)*0.5_dp
+                     fhud = fhud+pblock(i, i)*kcnl(la)*hena(na)
                   ELSE
                      kia = kl(la)
                      kjb = kl(lb)
@@ -495,30 +529,31 @@ CONTAINS
                         END IF
                      END IF
                      IF (iatom <= jatom) THEN
-                        fhua = fhua+2.0_dp*fij*sblock(i, j)*pblock(i, j)*kcnl(la)
-                        fhub = fhub+2.0_dp*fij*sblock(i, j)*pblock(i, j)*kcnl(lb)
+                        fhua = fhua+fij*sblock(i, j)*pblock(i, j)*kcnl(la)*hena(na)
+                        fhub = fhub+fij*sblock(i, j)*pblock(i, j)*kcnl(lb)*henb(nb)
                      ELSE
-                        fhua = fhua+2.0_dp*fij*sblock(j, i)*pblock(j, i)*kcnl(la)
-                        fhub = fhub+2.0_dp*fij*sblock(j, i)*pblock(j, i)*kcnl(lb)
+                        fhua = fhua+fij*sblock(j, i)*pblock(j, i)*kcnl(la)*hena(na)
+                        fhub = fhub+fij*sblock(j, i)*pblock(j, i)*kcnl(lb)*henb(nb)
                      END IF
                   END IF
                END DO
             END DO
-            IF (diagblock) THEN
-               fhua = 0.5_dp*fhua
-               fhub = 0.5_dp*fhub
+            IF (.NOT. diagblock) THEN
+               fhua = 2.0_dp*fhua
+               fhub = 2.0_dp*fhub
             END IF
-            fhua = -1.0_dp*fhua
-            fhub = -1.0_dp*fhub
             ! iatom
             atom_a = atom_of_kind(iatom)
             DO i = 1, dcnum(iatom)%neighbors
                katom = dcnum(iatom)%nlist(i)
                kkind = kind_of(katom)
+               atom_c = atom_of_kind(katom)
                rik = dcnum(iatom)%rik(:, i)
                drk = SQRT(SUM(rik(:)**2))
                fdik(:) = fhua*dcnum(iatom)%dvals(i)*rik(:)/drk
-               atom_c = atom_of_kind(katom)
+               force(ikind)%all_potential(:, atom_a) = force(ikind)%all_potential(:, atom_a)-fdik(:)
+               force(kkind)%all_potential(:, atom_c) = force(kkind)%all_potential(:, atom_c)+fdik(:)
+               fdik(:) = fhud*dcnum(iatom)%dvals(i)*rik(:)/drk
                force(ikind)%all_potential(:, atom_a) = force(ikind)%all_potential(:, atom_a)-fdik(:)
                force(kkind)%all_potential(:, atom_c) = force(kkind)%all_potential(:, atom_c)+fdik(:)
                IF (use_virial) THEN
@@ -534,10 +569,10 @@ CONTAINS
             DO i = 1, dcnum(jatom)%neighbors
                katom = dcnum(jatom)%nlist(i)
                kkind = kind_of(katom)
+               atom_c = atom_of_kind(katom)
                rik = dcnum(jatom)%rik(:, i)
                drk = SQRT(SUM(rik(:)**2))
                fdik(:) = fhub*dcnum(jatom)%dvals(i)*rik(:)/drk
-               atom_c = atom_of_kind(katom)
                force(jkind)%all_potential(:, atom_b) = force(jkind)%all_potential(:, atom_b)-fdik(:)
                force(kkind)%all_potential(:, atom_c) = force(kkind)%all_potential(:, atom_c)+fdik(:)
                IF (use_virial) THEN
@@ -722,7 +757,10 @@ CONTAINS
       ENDDO
 
 !qxtb
+      exb = 0.0_dp
 !   calculate halogen correction term here
+!     CALL xb_interaction(exb,neighbor_atoms,sab_xb,kx,kx2,kxr)
+      erep = erep+exb
 !qxtb
       ! set repulsive energy
       CALL mp_sum(erep, para_env%group)
@@ -783,6 +821,7 @@ CONTAINS
       END IF
 
       DEALLOCATE (kind_of)
+      DEALLOCATE (atom_of_kind)
       IF (calculate_forces) THEN
          IF (SIZE(matrix_p, 1) == 2) THEN
             DO img = 1, nimg
@@ -790,8 +829,17 @@ CONTAINS
                               beta_scalar=-1.0_dp)
             END DO
          END IF
-         DEALLOCATE (atom_of_kind)
       END IF
+
+      DO ikind = 1, nkind
+         IF (ASSOCIATED(neighbor_atoms(ikind)%coord)) THEN
+            DEALLOCATE (neighbor_atoms(ikind)%coord)
+         END IF
+         IF (ASSOCIATED(neighbor_atoms(ikind)%rab)) THEN
+            DEALLOCATE (neighbor_atoms(ikind)%rab)
+         END IF
+      END DO
+      DEALLOCATE (neighbor_atoms)
 
       CALL timestop(handle)
 

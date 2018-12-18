@@ -302,7 +302,7 @@ CONTAINS
          sgp_potential_present, xtb
       LOGICAL, ALLOCATABLE, DIMENSION(:) :: all_present, aux_fit_present, aux_present, &
          core_present, default_present, oce_present, orb_present, ppl_present, ppnl_present, &
-         ri_present
+         ri_present, xb1_atom, xb2_atom
       REAL(dp)                                           :: almo_rcov, almo_rvdw, alpha, roperator, &
                                                             subcells
       REAL(dp), ALLOCATABLE, DIMENSION(:) :: all_pot_rad, aux_fit_radius, c_radius, calpha, &
@@ -324,8 +324,8 @@ CONTAINS
       TYPE(molecule_type), DIMENSION(:), POINTER         :: molecule_set
       TYPE(neighbor_list_set_p_type), DIMENSION(:), POINTER :: saa_list, sab_all, sab_almo, &
          sab_aux_fit, sab_aux_fit_asymm, sab_aux_fit_vs_orb, sab_cn, sab_core, sab_kp, sab_lrc, &
-         sab_orb, sab_scp, sab_se, sab_tbe, sab_vdw, sac_ae, sac_lri, sac_ppl, sap_oce, sap_ppnl, &
-         soa_list, soo_list
+         sab_orb, sab_scp, sab_se, sab_tbe, sab_vdw, sab_xb, sac_ae, sac_lri, sac_ppl, sap_oce, &
+         sap_ppnl, soa_list, soo_list
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
       TYPE(paw_proj_set_type), POINTER                   :: paw_proj
       TYPE(qs_dftb_atom_type), POINTER                   :: dftb_atom
@@ -353,6 +353,7 @@ CONTAINS
       NULLIFY (sab_lrc)
       NULLIFY (sab_tbe)
       NULLIFY (sab_core)
+      NULLIFY (sab_xb)
       NULLIFY (sab_all)
       NULLIFY (sab_vdw)
       NULLIFY (sab_cn)
@@ -397,6 +398,7 @@ CONTAINS
                       sab_lrc=sab_lrc, &
                       sab_tbe=sab_tbe, &
                       sab_core=sab_core, &
+                      sab_xb=sab_xb, &
                       sab_scp=sab_scp, &
                       sab_all=sab_all, &
                       sab_almo=sab_almo, &
@@ -766,7 +768,6 @@ CONTAINS
          END IF
       END IF
 
-!qxtb
       IF (xtb) THEN
          ! Build the neighbor lists for the DFTB Ewald methods
          IF (dft_control%qs_control%xtb_control%do_ewald) THEN
@@ -778,8 +779,27 @@ CONTAINS
                                       subcells=subcells, nlname="sab_tbe")
             CALL set_ks_env(ks_env=ks_env, sab_tbe=sab_tbe)
          END IF
+         ! XB list
+         ALLOCATE (xb1_atom(nkind), xb2_atom(nkind))
+         c_radius = 0.5_dp*dft_control%qs_control%xtb_control%xb_radius
+         DO ikind = 1, nkind
+            CALL get_atomic_kind(atomic_kind_set(ikind), z=zat)
+            IF (zat == 17 .OR. zat == 35 .OR. zat == 53 .OR. zat == 85) THEN
+               xb1_atom(ikind) = .TRUE.
+            ELSE
+               xb1_atom(ikind) = .FALSE.
+            END IF
+            IF (zat == 7 .OR. zat == 8 .OR. zat == 15 .OR. zat == 16) THEN
+               xb2_atom(ikind) = .TRUE.
+            ELSE
+               xb2_atom(ikind) = .FALSE.
+            END IF
+         END DO
+         CALL pair_radius_setup(xb1_atom, xb2_atom, c_radius, c_radius, pair_radius)
+         CALL build_neighbor_lists(sab_xb, particle_set, atom2d, cell, pair_radius, &
+                                   subcells=subcells, operator_type="PP", nlname="sab_xb")
+         CALL set_ks_env(ks_env=ks_env, sab_xb=sab_xb)
       END IF
-!qxtb
 
       ! Build the neighbor lists for the vdW pair potential
       CALL get_qs_env(qs_env=qs_env, dispersion_env=dispersion_env)
