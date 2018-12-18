@@ -1084,6 +1084,8 @@ CONTAINS
          qs_control%xtb_control%kx2 = scal(2)
          ! Kab
          CALL section_vals_val_get(xtb_parameter, "KAB_PARAM", n_rep_val=n_rep)
+         ! XB_radius
+         CALL section_vals_val_get(xtb_parameter, "XB_RADIUS", r_val=qs_control%xtb_control%xb_radius)
          IF (n_rep > 0) THEN
             ALLOCATE (qs_control%xtb_control%kab_param(3, n_rep))
             DO j = 1, n_rep

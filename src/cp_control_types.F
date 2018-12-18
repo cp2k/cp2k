@@ -109,6 +109,8 @@ MODULE cp_control_types
       REAL(KIND=dp)                        :: ken
       REAL(KIND=dp)                        :: kxr, kx2
       !
+      REAL(KIND=dp)                        :: xb_radius
+      !
       CHARACTER(LEN=default_string_length), &
          DIMENSION(:, :), POINTER          :: kab_param
    END TYPE xtb_control_type
