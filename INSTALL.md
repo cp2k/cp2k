@@ -17,15 +17,17 @@ For a complete introduction to the toolchain script, see the [README for users](
 The basic steps are:
 
 - Read toolchain installation options:
-```console
+
+```
 > cd tools/toolchain/
 > ./install_cp2k_toolchain.sh --help
 ```
 
 - Launch toolchain script (example option choice)
-```console
-> ./install_cp2k_toolchain.sh --with-libxsmm=install --with-openblas=system --with-fftw=system --with-reflapack=no \
-  --enable-cuda --enable-omp
+
+```
+> ./install_cp2k_toolchain.sh --with-libxsmm=install --with-openblas=system \
+     --with-fftw=system --with-reflapack=no  --enable-cuda --enable-omp
 ```
 
 - Once the script has completed successfully, follow the instructions given at the end of its output.
