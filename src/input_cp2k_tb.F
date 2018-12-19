@@ -13,6 +13,7 @@ MODULE input_cp2k_tb
 !qxtb citation
    USE bibliography,                    ONLY: Elstner1998,&
                                               Hu2007,&
+                                              Grimme2017,&
                                               Porezag1995,&
                                               Seifert1996,&
                                               Zhechkov2005
@@ -133,9 +134,8 @@ CONTAINS
       CPASSERT(.NOT. ASSOCIATED(section))
       CALL section_create(section, "xTB", &
                           description="Parameters needed to set up the xTB methods", &
-                          n_keywords=1, n_subsections=1, repeats=.FALSE.)
-!qxtb                     n_keywords=1, n_subsections=1, repeats=.FALSE., &
-!qxtb                     citations=(/GRIMME2017/))
+                          n_keywords=1, n_subsections=1, repeats=.FALSE., &
+                          citations=(/GRIMME2017/))
 
       NULLIFY (subsection)
       CALL create_xtb_parameter_section(subsection)
@@ -156,6 +156,12 @@ CONTAINS
       CALL keyword_create(keyword, name="STO_NG", &
                           description="Provides the order of the Slater orbital expansion in GTOs.", &
                           usage="STO_NG", default_i_val=6)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, name="USE_HALOGEN_CORRECTION", &
+                          description="Use XB interaction term", &
+                          usage="USE_HALOGEN_CORRECTION", default_l_val=.TRUE.)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 

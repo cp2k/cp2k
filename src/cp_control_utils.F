@@ -1079,13 +1079,16 @@ CONTAINS
          qs_control%xtb_control%kcnd = scal(3)
          CALL section_vals_val_get(xtb_parameter, "EN_CONSTANT", r_vals=scal)
          qs_control%xtb_control%ken = scal(1)
+         ! XB
+         CALL section_vals_val_get(xtb_section, "USE_HALOGEN_CORRECTION", &
+              l_val=qs_control%xtb_control%xb_interaction)
          CALL section_vals_val_get(xtb_parameter, "HALOGEN_BINDING", r_vals=scal)
          qs_control%xtb_control%kxr = scal(1)
          qs_control%xtb_control%kx2 = scal(2)
-         ! Kab
-         CALL section_vals_val_get(xtb_parameter, "KAB_PARAM", n_rep_val=n_rep)
          ! XB_radius
          CALL section_vals_val_get(xtb_parameter, "XB_RADIUS", r_val=qs_control%xtb_control%xb_radius)
+         ! Kab
+         CALL section_vals_val_get(xtb_parameter, "KAB_PARAM", n_rep_val=n_rep)
          IF (n_rep > 0) THEN
             ALLOCATE (qs_control%xtb_control%kab_param(3, n_rep))
             DO j = 1, n_rep

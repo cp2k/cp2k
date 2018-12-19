@@ -109,6 +109,7 @@ MODULE cp_control_types
       REAL(KIND=dp)                        :: ken
       REAL(KIND=dp)                        :: kxr, kx2
       !
+      LOGICAL                              :: xb_interaction
       REAL(KIND=dp)                        :: xb_radius
       !
       CHARACTER(LEN=default_string_length), &

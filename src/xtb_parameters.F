@@ -400,6 +400,20 @@ CONTAINS
             ENDIF
             param%kappa(l+1) = kp(is)
          END DO
+         ! kx
+         IF(param%kx < -10._dp) THEN
+            ! use defaults
+            SELECT CASE (param%z)
+            CASE DEFAULT
+               param%kx = 0.0_dp
+            CASE (35) ! Br
+               param%kx = 0.1_dp * 0.381742_dp
+            CASE (53) ! I 
+               param%kx = 0.1_dp * 0.321944_dp
+            CASE (85) ! At
+               param%kx = 0.1_dp * 0.220000_dp
+            END SELECT
+         END IF
       END IF
 
    END SUBROUTINE xtb_parameters_set

@@ -797,7 +797,7 @@ CONTAINS
          END DO
          CALL pair_radius_setup(xb1_atom, xb2_atom, c_radius, c_radius, pair_radius)
          CALL build_neighbor_lists(sab_xb, particle_set, atom2d, cell, pair_radius, &
-                                   subcells=subcells, operator_type="PP", nlname="sab_xb")
+                                   symmetric=.FALSE., subcells=subcells, operator_type="PP", nlname="sab_xb")
          CALL set_ks_env(ks_env=ks_env, sab_xb=sab_xb)
       END IF
 
