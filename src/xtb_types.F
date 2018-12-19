@@ -44,6 +44,8 @@ MODULE xtb_types
       REAL(KIND=dp)                          :: rcov !covalent radius
       REAL(KIND=dp)                          :: electronegativity !electronegativity
       !
+      REAL(KIND=dp)                          :: kx !scaling for halogen term
+      !
       REAL(KIND=dp)                          :: eta !Atomic Hubbard parameter
       REAL(KIND=dp)                          :: xgamma !charge derivative of eta
       REAL(KIND=dp)                          :: alpha !exponential scaling parameter for repulsion potential
@@ -95,6 +97,7 @@ CONTAINS
       xtb_parameter%rcut = 0.0_dp
       xtb_parameter%rcov = 0.0_dp
       xtb_parameter%electronegativity = 0.0_dp
+      xtb_parameter%kx = -100.0_dp
       xtb_parameter%eta = 0.0_dp
       xtb_parameter%xgamma = 0.0_dp
       xtb_parameter%alpha = 0.0_dp
@@ -142,6 +145,7 @@ CONTAINS
 !> \param lao ...
 !> \param rcut ...
 !> \param rcov ...
+!> \param kx ...
 !> \param eta ...
 !> \param xgamma ...
 !> \param alpha ...
@@ -157,7 +161,7 @@ CONTAINS
 !> \param electronegativity ...
 ! **************************************************************************************************
    SUBROUTINE get_xtb_atom_param(xtb_parameter, aname, typ, defined, z, zeff, natorb, lmax, nao, lao, &
-                                 rcut, rcov, eta, xgamma, alpha, zneff, nshell, nval, lval, kpoly, kappa, &
+                                 rcut, rcov, kx, eta, xgamma, alpha, zneff, nshell, nval, lval, kpoly, kappa, &
                                  hen, zeta, occupation, electronegativity)
 
       TYPE(xtb_atom_type), POINTER                       :: xtb_parameter
@@ -168,7 +172,7 @@ CONTAINS
       REAL(KIND=dp), INTENT(OUT), OPTIONAL               :: zeff
       INTEGER, INTENT(OUT), OPTIONAL                     :: natorb, lmax
       INTEGER, DIMENSION(25), INTENT(OUT), OPTIONAL      :: nao, lao
-      REAL(KIND=dp), INTENT(OUT), OPTIONAL               :: rcut, rcov, eta, xgamma, alpha, zneff
+      REAL(KIND=dp), INTENT(OUT), OPTIONAL               :: rcut, rcov, kx, eta, xgamma, alpha, zneff
       INTEGER, INTENT(OUT), OPTIONAL                     :: nshell
       INTEGER, DIMENSION(5), INTENT(OUT), OPTIONAL       :: nval, lval
       REAL(KIND=dp), DIMENSION(5), INTENT(OUT), OPTIONAL :: kpoly, kappa, hen, zeta
@@ -192,6 +196,7 @@ CONTAINS
       !
       IF (PRESENT(rcut)) rcut = xtb_parameter%rcut
       IF (PRESENT(rcov)) rcov = xtb_parameter%rcov
+      IF (PRESENT(kx)) kx = xtb_parameter%kx
       IF (PRESENT(electronegativity)) electronegativity = xtb_parameter%electronegativity
       IF (PRESENT(eta)) eta = xtb_parameter%eta
       IF (PRESENT(xgamma)) xgamma = xtb_parameter%xgamma
@@ -222,6 +227,7 @@ CONTAINS
 !> \param lao ...
 !> \param rcut ...
 !> \param rcov ...
+!> \param kx ...
 !> \param eta ...
 !> \param xgamma ...
 !> \param alpha ...
@@ -237,7 +243,7 @@ CONTAINS
 !> \param occupation ...
 ! **************************************************************************************************
    SUBROUTINE set_xtb_atom_param(xtb_parameter, aname, typ, defined, z, zeff, natorb, lmax, nao, lao, &
-                                 rcut, rcov, eta, xgamma, alpha, zneff, nshell, nval, lval, kpoly, kappa, &
+                                 rcut, rcov, kx, eta, xgamma, alpha, zneff, nshell, nval, lval, kpoly, kappa, &
                                  hen, zeta, electronegativity, occupation)
 
       TYPE(xtb_atom_type), POINTER                       :: xtb_parameter
@@ -248,7 +254,7 @@ CONTAINS
       REAL(KIND=dp), INTENT(IN), OPTIONAL                :: zeff
       INTEGER, INTENT(IN), OPTIONAL                      :: natorb, lmax
       INTEGER, DIMENSION(25), INTENT(IN), OPTIONAL       :: nao, lao
-      REAL(KIND=dp), INTENT(IN), OPTIONAL                :: rcut, rcov, eta, xgamma, alpha, zneff
+      REAL(KIND=dp), INTENT(IN), OPTIONAL                :: rcut, rcov, kx, eta, xgamma, alpha, zneff
       INTEGER, INTENT(IN), OPTIONAL                      :: nshell
       INTEGER, DIMENSION(5), INTENT(IN), OPTIONAL        :: nval, lval
       REAL(KIND=dp), DIMENSION(5), INTENT(IN), OPTIONAL  :: kpoly, kappa, hen, zeta
@@ -272,6 +278,7 @@ CONTAINS
       !
       IF (PRESENT(rcut)) xtb_parameter%rcut = rcut
       IF (PRESENT(rcov)) xtb_parameter%rcov = rcov
+      IF (PRESENT(kx)) xtb_parameter%kx = kx
       IF (PRESENT(electronegativity)) xtb_parameter%electronegativity = electronegativity
       IF (PRESENT(eta)) xtb_parameter%eta = eta
       IF (PRESENT(xgamma)) xtb_parameter%xgamma = xgamma
