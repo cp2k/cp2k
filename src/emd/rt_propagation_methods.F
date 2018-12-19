@@ -49,7 +49,7 @@ MODULE rt_propagation_methods
                                               do_em,&
                                               do_pade,&
                                               do_taylor
-   USE iterate_matrix,                  ONLY: matrix_sqrt_Newton_Schulz
+   USE dbcsr_iterate_matrix,                  ONLY: matrix_sqrt_Newton_Schulz
    USE kinds,                           ONLY: dp
    USE ls_matrix_exp,                   ONLY: cp_complex_dbcsr_gemm_3
    USE mathlib,                         ONLY: binomial

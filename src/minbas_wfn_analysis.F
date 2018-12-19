@@ -50,7 +50,7 @@ MODULE minbas_wfn_analysis
                                               section_vals_get_subs_vals,&
                                               section_vals_type,&
                                               section_vals_val_get
-   USE iterate_matrix,                  ONLY: invert_Hotelling
+   USE dbcsr_iterate_matrix,                  ONLY: invert_Hotelling
    USE kinds,                           ONLY: default_path_length,&
                                               dp
    USE message_passing,                 ONLY: mp_sum

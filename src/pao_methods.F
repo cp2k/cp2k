@@ -35,7 +35,7 @@ MODULE pao_methods
                                               matrix_qs_to_ls
    USE dm_ls_scf_types,                 ONLY: ls_mstruct_type,&
                                               ls_scf_env_type
-   USE iterate_matrix,                  ONLY: purify_mcweeny
+   USE dbcsr_iterate_matrix,                  ONLY: purify_mcweeny
    USE kinds,                           ONLY: default_path_length,&
                                               dp
    USE machine,                         ONLY: m_walltime

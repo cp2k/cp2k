@@ -47,7 +47,7 @@ MODULE almo_scf_methods
                                               spd_inversion_dense_cholesky,&
                                               spd_inversion_ls_hotelling,&
                                               spd_inversion_ls_taylor
-   USE iterate_matrix,                  ONLY: invert_Hotelling,&
+   USE dbcsr_iterate_matrix,                  ONLY: invert_Hotelling,&
                                               invert_Taylor,&
                                               matrix_sqrt_Newton_Schulz
    USE kinds,                           ONLY: dp

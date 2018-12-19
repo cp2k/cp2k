@@ -40,7 +40,7 @@ MODULE mao_methods
    USE input_constants,                 ONLY: mao_basis_ext,&
                                               mao_basis_orb,&
                                               mao_basis_prim
-   USE iterate_matrix,                  ONLY: invert_Hotelling
+   USE dbcsr_iterate_matrix,                  ONLY: invert_Hotelling
    USE kinds,                           ONLY: dp
    USE kpoint_methods,                  ONLY: rskp_transform
    USE kpoint_types,                    ONLY: get_kpoint_info,&

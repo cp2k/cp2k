@@ -10,7 +10,7 @@
 !> \author Jinwoong Cha
 ! **************************************************************************************************
 MODULE dm_ls_chebyshev
-   USE arnoldi_api,                     ONLY: arnoldi_extremal
+   USE dbcsr_arnoldi_api,                     ONLY: arnoldi_extremal
    USE cp_log_handling,                 ONLY: cp_get_default_logger,&
                                               cp_logger_get_default_unit_nr,&
                                               cp_logger_type

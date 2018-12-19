@@ -30,7 +30,7 @@ MODULE ct_methods
    USE input_constants,                 ONLY: &
         cg_dai_yuan, cg_fletcher, cg_fletcher_reeves, cg_hager_zhang, cg_hestenes_stiefel, &
         cg_liu_storey, cg_polak_ribiere, cg_zero, tensor_orthogonal, tensor_up_down
-   USE iterate_matrix,                  ONLY: matrix_sqrt_Newton_Schulz
+   USE dbcsr_iterate_matrix,                  ONLY: matrix_sqrt_Newton_Schulz
    USE kinds,                           ONLY: dp
    USE machine,                         ONLY: m_walltime
 #include "./base/base_uses.f90"

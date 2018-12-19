@@ -67,8 +67,9 @@ MODULE almo_scf
         molecular_guess, optimizer_diis, optimizer_lin_eq_pcg, optimizer_pcg, restart_guess, &
         smear_fermi_dirac, virt_full, virt_number, virt_occ_size, xalmo_case_block_diag, &
         xalmo_case_fully_deloc, xalmo_case_normal, xalmo_trial_r0_out
-   USE input_section_types,             ONLY: section_vals_type
-   USE iterate_matrix,                  ONLY: invert_Hotelling,&
+   
+   USE input_section_types,             ONLY: section_vals_type 
+   USE dbcsr_iterate_matrix,                  ONLY: invert_Hotelling,&
                                               matrix_sqrt_Newton_Schulz
    USE kinds,                           ONLY: default_path_length,&
                                               dp

@@ -22,7 +22,7 @@ MODULE admm_dm_methods
         dbcsr_scale, dbcsr_set, dbcsr_type
    USE input_constants,                 ONLY: do_admm_basis_projection,&
                                               do_admm_blocked_projection
-   USE iterate_matrix,                  ONLY: invert_Hotelling
+   USE dbcsr_iterate_matrix,                  ONLY: invert_Hotelling
    USE kinds,                           ONLY: dp
    USE pw_types,                        ONLY: pw_p_type
    USE qs_collocate_density,            ONLY: calculate_rho_elec

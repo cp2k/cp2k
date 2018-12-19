@@ -10,7 +10,7 @@
 !> \author Joost VandeVondele
 ! **************************************************************************************************
 MODULE dm_ls_scf_methods
-   USE arnoldi_api,                     ONLY: arnoldi_extremal
+   USE dbcsr_arnoldi_api,                     ONLY: arnoldi_extremal
    USE cp_log_handling,                 ONLY: cp_get_default_logger,&
                                               cp_logger_get_default_unit_nr,&
                                               cp_logger_type
@@ -33,7 +33,7 @@ MODULE dm_ls_scf_methods
                                               ls_s_sqrt_proot,&
                                               ls_scf_sign_ns,&
                                               ls_scf_sign_proot
-   USE iterate_matrix,                  ONLY: invert_Hotelling,&
+   USE dbcsr_iterate_matrix,                  ONLY: invert_Hotelling,&
                                               matrix_sign_Newton_Schulz,&
                                               matrix_sign_proot,&
                                               matrix_sqrt_Newton_Schulz,&

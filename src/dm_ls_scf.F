@@ -11,7 +11,7 @@
 !> \author Joost VandeVondele
 ! **************************************************************************************************
 MODULE dm_ls_scf
-   USE arnoldi_api,                     ONLY: arnoldi_extremal
+   USE dbcsr_arnoldi_api,                     ONLY: arnoldi_extremal
    USE bibliography,                    ONLY: Kolafa2004,&
                                               cite_reference
    USE cp_control_types,                ONLY: dft_control_type
@@ -49,7 +49,7 @@ MODULE dm_ls_scf
                                               ls_scf_trs4,&
                                               transport_transmission
    USE input_section_types,             ONLY: section_vals_type
-   USE iterate_matrix,                  ONLY: purify_mcweeny
+   USE dbcsr_iterate_matrix,                  ONLY: purify_mcweeny
    USE kinds,                           ONLY: default_path_length,&
                                               default_string_length,&
                                               dp

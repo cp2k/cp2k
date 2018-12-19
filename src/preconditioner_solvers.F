@@ -11,7 +11,7 @@
 !> \author Joost VandeVondele (09.2002)
 ! **************************************************************************************************
 MODULE preconditioner_solvers
-   USE arnoldi_api,                     ONLY: arnoldi_data_type,&
+   USE dbcsr_arnoldi_api,                     ONLY: arnoldi_data_type,&
                                               arnoldi_ev,&
                                               deallocate_arnoldi_data,&
                                               get_selected_ritz_val,&
@@ -39,7 +39,7 @@ MODULE preconditioner_solvers
                                               ot_precond_solver_direct,&
                                               ot_precond_solver_inv_chol,&
                                               ot_precond_solver_update
-   USE iterate_matrix,                  ONLY: invert_Hotelling
+   USE dbcsr_iterate_matrix,                  ONLY: invert_Hotelling
    USE kinds,                           ONLY: dp
    USE preconditioner_types,            ONLY: preconditioner_type
 #include "./base/base_uses.f90"

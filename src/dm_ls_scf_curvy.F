@@ -24,7 +24,7 @@ MODULE dm_ls_scf_curvy
                                               ls_scf_env_type
    USE input_constants,                 ONLY: ls_scf_line_search_3point,&
                                               ls_scf_line_search_3point_2d
-   USE iterate_matrix,                  ONLY: purify_mcweeny
+   USE dbcsr_iterate_matrix,                  ONLY: purify_mcweeny
    USE kinds,                           ONLY: dp
    USE machine,                         ONLY: m_flush
    USE mathconstants,                   ONLY: ifac

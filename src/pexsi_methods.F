@@ -13,7 +13,7 @@
 ! **************************************************************************************************
 
 MODULE pexsi_methods
-   USE arnoldi_api,                     ONLY: arnoldi_data_type,&
+   USE dbcsr_arnoldi_api,                     ONLY: arnoldi_data_type,&
                                               arnoldi_ev,&
                                               deallocate_arnoldi_data,&
                                               get_selected_ritz_val,&

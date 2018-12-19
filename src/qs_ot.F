@@ -11,7 +11,7 @@
 !> \author Joost VandeVondele (06.2002)
 ! **************************************************************************************************
 MODULE qs_ot
-   USE arnoldi_api,                     ONLY: arnoldi_extremal
+   USE dbcsr_arnoldi_api,                     ONLY: arnoldi_extremal
    USE cp_dbcsr_cholesky,               ONLY: cp_dbcsr_cholesky_decompose,&
                                               cp_dbcsr_cholesky_invert,&
                                               cp_dbcsr_cholesky_restore

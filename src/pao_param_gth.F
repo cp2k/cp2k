@@ -8,7 +8,7 @@
 !> \author Ole Schuett
 ! **************************************************************************************************
 MODULE pao_param_gth
-   USE arnoldi_api,                     ONLY: arnoldi_extremal
+   USE dbcsr_arnoldi_api,                     ONLY: arnoldi_extremal
    USE atomic_kind_types,               ONLY: get_atomic_kind
    USE basis_set_types,                 ONLY: gto_basis_set_type
    USE cell_types,                      ONLY: cell_type,&
@@ -19,7 +19,7 @@ MODULE pao_param_gth
         dbcsr_p_type, dbcsr_release, dbcsr_reserve_all_blocks, dbcsr_reserve_diag_blocks, &
         dbcsr_set, dbcsr_type
    USE dm_ls_scf_types,                 ONLY: ls_scf_env_type
-   USE iterate_matrix,                  ONLY: matrix_sqrt_Newton_Schulz
+   USE dbcsr_iterate_matrix,                  ONLY: matrix_sqrt_Newton_Schulz
    USE kinds,                           ONLY: dp
    USE machine,                         ONLY: m_flush
    USE message_passing,                 ONLY: mp_min,&

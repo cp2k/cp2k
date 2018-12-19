@@ -9,7 +9,7 @@
 !> \author JGH (14.11.2016)
 ! **************************************************************************************************
 MODULE qs_condnum
-   USE arnoldi_api,                     ONLY: arnoldi_conjugate_gradient,&
+   USE dbcsr_arnoldi_api,                     ONLY: arnoldi_conjugate_gradient,&
                                               arnoldi_extremal
    USE cp_blacs_env,                    ONLY: cp_blacs_env_type
    USE cp_dbcsr_operations,             ONLY: copy_dbcsr_to_fm

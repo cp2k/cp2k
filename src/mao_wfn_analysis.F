@@ -33,7 +33,7 @@ MODULE mao_wfn_analysis
    USE input_section_types,             ONLY: section_vals_get,&
                                               section_vals_type,&
                                               section_vals_val_get
-   USE iterate_matrix,                  ONLY: invert_Hotelling
+   USE dbcsr_iterate_matrix,                  ONLY: invert_Hotelling
    USE kinds,                           ONLY: dp
    USE kpoint_types,                    ONLY: kpoint_type
    USE mao_methods,                     ONLY: mao_basis_analysis,&

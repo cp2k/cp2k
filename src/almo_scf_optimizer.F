@@ -76,7 +76,7 @@ MODULE almo_scf_optimizer
         xalmo_prec_domain, xalmo_prec_full, xalmo_prec_zero
    USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                               section_vals_type
-   USE iterate_matrix,                  ONLY: determinant,&
+   USE dbcsr_iterate_matrix,                  ONLY: determinant,&
                                               invert_Hotelling,&
                                               matrix_sqrt_Newton_Schulz
    USE kinds,                           ONLY: dp
