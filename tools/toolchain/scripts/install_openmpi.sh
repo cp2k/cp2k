@@ -38,9 +38,9 @@ case "$with_openmpi" in
             # we need to add the -fgnu89-inline to CFLAGS. We can check
             # the version of glibc using ldd --version, as ldd is part of
             # glibc package
-            glibc_version=$(ldd --version | awk '(NR == 1){print $4}')
-            glibc_major_ver=$(echo $glibc_version | cut -d . -f 1)
-            glibc_minor_ver=$(echo $glibc_version | cut -d . -f 2)
+            glibc_version=$(ldd --version | awk '/ldd/{print $NF}')
+            glibc_major_ver=${glibc_version%%.*}
+            glibc_minor_ver=${glibc_version##*.}
             if [ $glibc_major_ver -lt 2 ] || \
                [ $glibc_major_ver -eq 2 -a $glibc_minor_ver -lt 12 ] ; then
                 CFLAGS="${CFLAGS} -fgnu89-inline"
