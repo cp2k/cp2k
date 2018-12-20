@@ -723,11 +723,16 @@ else
         exit 1
     fi
 fi
+
 # ParMETIS requires cmake, it also installs METIS if it is chosen
-# __INSTALL__ option
 if [ "$with_parmetis" = "__INSTALL__" ] ; then
     [ "$with_cmake" = "__DONTUSE__" ] && with_cmake="__INSTALL__"
     with_metis="__INSTALL__"
+fi
+
+# spg library requires cmake.
+if [ "$with_spglib" = "__INSTALL__" ] ; then
+    [ "$with_cmake" = "__DONTUSE__" ] && with_cmake="__INSTALL__"
 fi
 
 # SIRIUS dependencies. Remove the gsl library from the dependencies if SIRIUS is not activated
