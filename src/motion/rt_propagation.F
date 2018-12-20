@@ -106,7 +106,8 @@ CONTAINS
       TYPE(rt_prop_type), POINTER                        :: rtp
       TYPE(rtp_control_type), POINTER                    :: rtp_control
       TYPE(section_vals_type), POINTER                   :: hfx_sections, input, ls_scf_section, &
-                                                            md_section, motion_section, print_moments_section
+                                                            md_section, motion_section, &
+                                                            print_moments_section
 
       NULLIFY (qs_env, rtp_control, dft_control)
 

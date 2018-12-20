@@ -47,9 +47,9 @@ MODULE qs_moments
                                               put_results
    USE cp_result_types,                 ONLY: cp_result_type
    USE dbcsr_api,                       ONLY: &
-        dbcsr_copy, dbcsr_create, dbcsr_deallocate_matrix, dbcsr_distribution_type, &
-        dbcsr_get_block_p, dbcsr_p_type, dbcsr_set, dbcsr_trace, dbcsr_type, dbcsr_type_symmetric,&
-        dbcsr_desymmetrize, dbcsr_multiply
+        dbcsr_copy, dbcsr_create, dbcsr_deallocate_matrix, dbcsr_desymmetrize, &
+        dbcsr_distribution_type, dbcsr_get_block_p, dbcsr_multiply, dbcsr_p_type, dbcsr_set, &
+        dbcsr_trace, dbcsr_type, dbcsr_type_symmetric
    USE distribution_1d_types,           ONLY: distribution_1d_type
    USE kinds,                           ONLY: default_string_length,&
                                               dp
@@ -345,7 +345,7 @@ CONTAINS
       CHARACTER(LEN=*), PARAMETER :: routineN = 'build_local_magmom_matrix', &
          routineP = moduleN//':'//routineN
 
-      INTEGER :: handle, i, iatom, icol, ikind, inode, irow, iset, jatom, jkind, jset, last_jatom,& 
+      INTEGER :: handle, i, iatom, icol, ikind, inode, irow, iset, jatom, jkind, jset, last_jatom, &
          maxco, maxsgf, natom, ncoa, ncob, nkind, nm, nseta, nsetb, sgfa, sgfb
       INTEGER, DIMENSION(:), POINTER                     :: la_max, la_min, lb_max, npgfa, npgfb, &
                                                             nsgfa, nsgfb
@@ -520,10 +520,10 @@ CONTAINS
                              0.0_dp, work(1, 1), SIZE(work, 1))
 
                   CALL dgemm("T", "N", nsgfa(iset), nsgfb(jset), ncoa, &
-                            1.0_dp, sphi_a(1, sgfa), SIZE(sphi_a, 1), &
-                            work(1, 1), SIZE(work, 1), &
-                            1.0_dp, mint(i)%block(sgfa, sgfb), &
-                            SIZE(mint(i)%block, 1))
+                             1.0_dp, sphi_a(1, sgfa), SIZE(sphi_a, 1), &
+                             work(1, 1), SIZE(work, 1), &
+                             1.0_dp, mint(i)%block(sgfa, sgfb), &
+                             SIZE(mint(i)%block, 1))
 
                END DO
 
@@ -1519,7 +1519,7 @@ CONTAINS
                       qs_kind_set=qs_kind_set, &
                       para_env=para_env, &
                       matrix_s=matrix_s)
-                      
+
       CALL qs_rho_get(rho, rho_ao=rho_ao)
 
       nm = SIZE(moments)
@@ -1584,34 +1584,33 @@ CONTAINS
 
          ! Allocate matrices to store the matrix product to be traced (dbcsr_trace only works for products of
          ! symmetric matrices)
-         NULLIFY(rho_magmom_ao)
+         NULLIFY (rho_magmom_ao)
          ALLOCATE (rho_magmom_ao)
-         CALL dbcsr_desymmetrize(matrix_s(1)%matrix, rho_magmom_ao)         
-         
-         IF (qs_env%run_rtp) THEN          
+         CALL dbcsr_desymmetrize(matrix_s(1)%matrix, rho_magmom_ao)
+
+         IF (qs_env%run_rtp) THEN
             ! get imaginary part of the density in rho_ao (the real part is not needed since the trace of the product
             ! of a symmetric (REAL(rho_ao)) and an anti-symmetric (L_AO) matrix is zero)
             ! There may be other cases, where the imaginary part of the density is relevant
-            NULLIFY(rho_ao)
+            NULLIFY (rho_ao)
             CALL qs_rho_get(rho, rho_ao_im=rho_ao)
          ENDIF
          ! if the density is purely real this is an expensive way to calculate zero
          DO i = 1, SIZE(magmom)
-           strace = 0._dp
-           DO ispin = 1, dft_control%nspins
-              CALL dbcsr_set(rho_magmom_ao, 0.0_dp)
-              CALL dbcsr_multiply("T", "N", 1.0_dp, rho_ao(ispin)%matrix, magmom(i)%matrix, &
-                               0.0_dp, rho_magmom_ao)
-              CALL dbcsr_trace(rho_magmom_ao, trace)
-              strace = strace+trace
-           END DO
-           mmom(i) = strace
+            strace = 0._dp
+            DO ispin = 1, dft_control%nspins
+               CALL dbcsr_set(rho_magmom_ao, 0.0_dp)
+               CALL dbcsr_multiply("T", "N", 1.0_dp, rho_ao(ispin)%matrix, magmom(i)%matrix, &
+                                   0.0_dp, rho_magmom_ao)
+               CALL dbcsr_trace(rho_magmom_ao, trace)
+               strace = strace+trace
+            END DO
+            mmom(i) = strace
          END DO
 
          CALL dbcsr_deallocate_matrix_set(magmom)
          CALL dbcsr_deallocate_matrix(rho_magmom_ao)
       END IF
-
 
       description = "[DIPOLE]"
       CALL cp_results_erase(results=results, description=description)
