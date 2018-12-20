@@ -519,13 +519,11 @@ CONTAINS
                              sphi_b(1, sgfb), SIZE(sphi_b, 1), &
                              0.0_dp, work(1, 1), SIZE(work, 1))
 
-                  ! IF (iatom <= jatom) THEN
-
-                     CALL dgemm("T", "N", nsgfa(iset), nsgfb(jset), ncoa, &
-                                1.0_dp, sphi_a(1, sgfa), SIZE(sphi_a, 1), &
-                                work(1, 1), SIZE(work, 1), &
-                                1.0_dp, mint(i)%block(sgfa, sgfb), &
-                                SIZE(mint(i)%block, 1))
+                  CALL dgemm("T", "N", nsgfa(iset), nsgfb(jset), ncoa, &
+                            1.0_dp, sphi_a(1, sgfa), SIZE(sphi_a, 1), &
+                            work(1, 1), SIZE(work, 1), &
+                            1.0_dp, mint(i)%block(sgfa, sgfb), &
+                            SIZE(mint(i)%block, 1))
 
                END DO
 
@@ -1488,8 +1486,6 @@ CONTAINS
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
       TYPE(qs_rho_type), POINTER                         :: rho
-      ! TYPE(rt_prop_type), POINTER                        :: rtp
-      ! LOGICAL                                            :: imag_density = .FALSE.
 
       CPASSERT(ASSOCIATED(qs_env))
 
