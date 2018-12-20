@@ -1742,7 +1742,7 @@ CONTAINS
          IF (PRESENT(mmom)) THEN
             IF (nmom >= 1) THEN
                dd = SQRT(SUM(mmom(1:3)**2))
-               WRITE (unit_number, "(T3,A)") "Magnetic Dipole Moment [WRONG]"
+               WRITE (unit_number, "(T3,A)") "Magnetic Dipole Moment (only orbital contrib.) [a.u.]"
                WRITE (unit_number, "(T5,3(A,A,F14.8,1X),T60,A,T68,F14.8)") &
                   (TRIM(rlab(i+1)), "=", mmom(i), i=1, 3), "Total=", dd
             END IF
