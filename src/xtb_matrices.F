@@ -125,8 +125,9 @@ CONTAINS
          kcnp, kcns, kd, ken, kf, kg, kia, kjb, kp, ks, ksp, kx2, kxr, rcova, rcovab, rcovb, rcut, &
          rcuta, rcutb, rrab, xgammaa, xgammab, zneffa, zneffb
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: cnumbers, kx
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: dfblock, dgamma, huckel, kabset, rcab
-      REAL(KIND=dp), DIMENSION(0:3)                      :: kcnl, kl
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: dfblock, dgamma, huckel, kabset, kcnlk, &
+                                                            rcab
+      REAL(KIND=dp), DIMENSION(0:3)                      :: kl
       REAL(KIND=dp), DIMENSION(3)                        :: fdik, force_ab, force_rr, rij, rik
       REAL(KIND=dp), DIMENSION(5)                        :: dpia, dpib, hena, henb, kappaa, kappab, &
                                                             kpolya, kpolyb, pia, pib
@@ -174,6 +175,7 @@ CONTAINS
                       atprop=atprop, &
                       dft_control=dft_control, &
                       ks_env=ks_env)
+      nkind = SIZE(atomic_kind_set)
 
       xtb_control => dft_control%qs_control%xtb_control
       xb_inter = xtb_control%xb_interaction
@@ -283,7 +285,6 @@ CONTAINS
          ALLOCATE (dcnum(1))
       END IF
 
-      nkind = SIZE(atomic_kind_set)
       ALLOCATE (ghost(nkind), floating(nkind), atomnumber(nkind))
       DO ikind = 1, nkind
          CALL get_atomic_kind(atomic_kind_set(ikind), z=za)
@@ -300,10 +301,23 @@ CONTAINS
       ! Calculate Huckel parameters
       ! Eq 12
       ! huckel(nshell,natom)
-      kcnl(0) = kcns
-      kcnl(1) = kcnp
-      kcnl(2) = kcnd
-      kcnl(3) = 0.0_dp
+      ALLOCATE (kcnlk(0:3, nkind))
+      DO ikind = 1, nkind
+         CALL get_atomic_kind(atomic_kind_set(ikind), z=za)
+         IF (metal(za)) THEN
+            kcnlk(0:3, ikind) = 0.0_dp
+         ELSEIF (early3d(za)) THEN
+            kcnlk(0, ikind) = kcns
+            kcnlk(1, ikind) = kcnp
+            kcnlk(2, ikind) = 0.005_dp
+            kcnlk(3, ikind) = 0.0_dp
+         ELSE
+            kcnlk(0, ikind) = kcns
+            kcnlk(1, ikind) = kcnp
+            kcnlk(2, ikind) = kcnd
+            kcnlk(3, ikind) = 0.0_dp
+         END IF
+      END DO
       kl(0) = ks
       kl(1) = kp
       kl(2) = kd
@@ -313,10 +327,10 @@ CONTAINS
       DO iatom = 1, natom
          ikind = kind_of(iatom)
          CALL get_qs_kind(qs_kind_set(ikind), xtb_parameter=xtb_atom_a)
-         CALL get_xtb_atom_param(xtb_atom_a, nshell=nshell, lval=lval, hen=hena)
+         CALL get_xtb_atom_param(xtb_atom_a, nshell=nshell, lval=lval, hen=hena, z=za)
          huckel(:, iatom) = 0.0_dp
          DO i = 1, nshell
-            huckel(i, iatom) = hena(i)*(1._dp+kcnl(lval(i))*cnumbers(iatom))
+            huckel(i, iatom) = hena(i)*(1._dp+kcnlk(lval(i), ikind)*cnumbers(iatom))
          END DO
       END DO
 
@@ -333,7 +347,7 @@ CONTAINS
          END DO
       ENDDO
 
-      IF(xb_inter) THEN
+      IF (xb_inter) THEN
          ! list of neighbor atoms for XB term
          ALLOCATE (neighbor_atoms(nkind))
          DO ikind = 1, nkind
@@ -357,14 +371,14 @@ CONTAINS
             CALL get_xtb_atom_param(xtb_atom_a, kx=kx(ikind))
          END DO
          !
-         ALLOCATE (rcab(nkind,nkind))
-         DO ikind=1,nkind
+         ALLOCATE (rcab(nkind, nkind))
+         DO ikind = 1, nkind
             CALL get_qs_kind(qs_kind_set(ikind), xtb_parameter=xtb_atom_a)
             CALL get_xtb_atom_param(xtb_atom_a, rcov=rcova)
-            DO jkind=1,nkind
+            DO jkind = 1, nkind
                CALL get_qs_kind(qs_kind_set(jkind), xtb_parameter=xtb_atom_b)
                CALL get_xtb_atom_param(xtb_atom_b, rcov=rcovb)
-               rcab(ikind,jkind) = kxr*(rcova+rcovb)
+               rcab(ikind, jkind) = kxr*(rcova+rcovb)
             END DO
          END DO
          !
@@ -389,7 +403,7 @@ CONTAINS
          dr = SQRT(SUM(rij(:)**2))
 
          ! neighbor atom for XB term
-         IF(xb_inter .AND. (dr > 1.e-3_dp)) THEN
+         IF (xb_inter .AND. (dr > 1.e-3_dp)) THEN
             IF (ASSOCIATED(neighbor_atoms(ikind)%rab)) THEN
                atom_a = atom_of_kind(iatom)
                IF (dr < neighbor_atoms(ikind)%rab(atom_a)) THEN
@@ -535,7 +549,7 @@ CONTAINS
                   la = laoa(i)
                   na = naoa(i)
                   IF (diagblock .AND. i == j) THEN
-                     fhud = fhud+pblock(i, i)*kcnl(la)*hena(na)
+                     fhud = fhud+pblock(i, i)*kcnlk(la, ikind)*hena(na)
                   ELSE
                      kia = kl(la)
                      kjb = kl(lb)
@@ -559,11 +573,11 @@ CONTAINS
                         END IF
                      END IF
                      IF (iatom <= jatom) THEN
-                        fhua = fhua+fij*sblock(i, j)*pblock(i, j)*kcnl(la)*hena(na)
-                        fhub = fhub+fij*sblock(i, j)*pblock(i, j)*kcnl(lb)*henb(nb)
+                        fhua = fhua+fij*sblock(i, j)*pblock(i, j)*kcnlk(la, ikind)*hena(na)
+                        fhub = fhub+fij*sblock(i, j)*pblock(i, j)*kcnlk(lb, ikind)*henb(nb)
                      ELSE
-                        fhua = fhua+fij*sblock(j, i)*pblock(j, i)*kcnl(la)*hena(na)
-                        fhub = fhub+fij*sblock(j, i)*pblock(j, i)*kcnl(lb)*henb(nb)
+                        fhua = fhua+fij*sblock(j, i)*pblock(j, i)*kcnlk(la, jkind)*hena(na)
+                        fhub = fhub+fij*sblock(j, i)*pblock(j, i)*kcnlk(lb, ikind)*henb(nb)
                      END IF
                   END IF
                END DO
@@ -718,7 +732,7 @@ CONTAINS
          ! gamma matrix
          CALL get_xtb_atom_param(xtb_atom_a, rcut=rcuta)
          CALL get_xtb_atom_param(xtb_atom_b, rcut=rcutb)
-         rcut = rcuta+rcutb
+         rcut = 1.0_dp*(rcuta+rcutb)
          IF (irow == iatom) THEN
             CALL gamma_rab_sr(gblock, dr, lmaxa+1, kappaa, etaa, lmaxb+1, kappab, etab, kg, rcut)
          ELSE
@@ -787,9 +801,9 @@ CONTAINS
       ENDDO
 
       exb = 0.0_dp
-      IF(xb_inter) THEN
-         CALL xb_interaction(exb,neighbor_atoms,atom_of_kind,kind_of,sab_xb,kx,kx2,rcab,&
-                             calculate_forces,use_virial,force,virial,atprop)
+      IF (xb_inter) THEN
+         CALL xb_interaction(exb, neighbor_atoms, atom_of_kind, kind_of, sab_xb, kx, kx2, rcab, &
+                             calculate_forces, use_virial, force, virial, atprop)
       END IF
       erep = erep+exb
 
@@ -862,7 +876,7 @@ CONTAINS
          END IF
       END IF
 
-      IF(xb_inter) THEN
+      IF (xb_inter) THEN
          DO ikind = 1, nkind
             IF (ASSOCIATED(neighbor_atoms(ikind)%coord)) THEN
                DEALLOCATE (neighbor_atoms(ikind)%coord)
@@ -875,7 +889,7 @@ CONTAINS
             END IF
          END DO
          DEALLOCATE (neighbor_atoms)
-         DEALLOCATE (kx,rcab)
+         DEALLOCATE (kx, rcab)
       END IF
 
       CALL timestop(handle)
@@ -1057,6 +1071,7 @@ CONTAINS
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: eta
 
       ALLOCATE (eta(nla, nlb))
+      eta = 0.0_dp
 
       DO j = 1, nlb
          DO i = 1, nla
@@ -1065,7 +1080,7 @@ CONTAINS
          END DO
       END DO
 
-      IF (rab < 1.e-6) THEN
+      IF (rab < 1.e-6_dp) THEN
          ! on site terms
          gmat(:, :) = gmat(:, :)+eta(:, :)
       ELSEIF (rab > rcut) THEN
@@ -1242,78 +1257,91 @@ CONTAINS
 !>                  behaviour. We use a cutoff function to smoothly remove this part.
 !>                  However, this will change energies and effect final results.
 !>
+!> \param exb ...
+!> \param neighbor_atoms ...
+!> \param atom_of_kind ...
+!> \param kind_of ...
+!> \param sab_xb ...
+!> \param kx ...
+!> \param kx2 ...
+!> \param rcab ...
+!> \param calculate_forces ...
+!> \param use_virial ...
+!> \param force ...
+!> \param virial ...
+!> \param atprop ...
 !> \par History
 !>      12.2018 JGH
 !> \version 1.1
 ! **************************************************************************************************
-   SUBROUTINE xb_interaction(exb,neighbor_atoms,atom_of_kind,kind_of,sab_xb,kx,kx2,rcab,&
-                             calculate_forces,use_virial,force,virial,atprop)
+   SUBROUTINE xb_interaction(exb, neighbor_atoms, atom_of_kind, kind_of, sab_xb, kx, kx2, rcab, &
+                             calculate_forces, use_virial, force, virial, atprop)
       REAL(dp), INTENT(INOUT)                            :: exb
-      TYPE(neighbor_atoms_type), DIMENSION(:), INTENT(IN):: neighbor_atoms
+      TYPE(neighbor_atoms_type), DIMENSION(:), &
+         INTENT(IN)                                      :: neighbor_atoms
       INTEGER, DIMENSION(:), INTENT(IN)                  :: atom_of_kind, kind_of
       TYPE(neighbor_list_set_p_type), DIMENSION(:), &
          POINTER                                         :: sab_xb
       REAL(dp), DIMENSION(:), INTENT(IN)                 :: kx
       REAL(dp), INTENT(IN)                               :: kx2
-      REAL(dp), DIMENSION(:,:), INTENT(IN)               :: rcab
-      LOGICAL, INTENT(IN)                                :: calculate_forces,use_virial
+      REAL(dp), DIMENSION(:, :), INTENT(IN)              :: rcab
+      LOGICAL, INTENT(IN)                                :: calculate_forces, use_virial
       TYPE(qs_force_type), DIMENSION(:), POINTER         :: force
       TYPE(virial_type), POINTER                         :: virial
       TYPE(atprop_type), POINTER                         :: atprop
 
       CHARACTER(len=*), PARAMETER :: routineN = 'xb_interaction', routineP = moduleN//':'//routineN
 
-      INTEGER                                            :: ikind, jkind, kkind, iatom, jatom, katom, atom_a, atom_b, atom_c
+      INTEGER                                            :: atom_a, atom_b, atom_c, iatom, ikind, &
+                                                            jatom, jkind, katom, kkind
       INTEGER, DIMENSION(3)                              :: cell
-      REAL(KIND=dp)                                      :: alp, dr, drax, drab, drbx, ddr, ddr6, ddr12, eval, xy,&
-                                                            deval, aterm, cosa, daterm, ddab, ddax, ddbx
-      REAL(KIND=dp), DIMENSION(3)                        :: rij, ria, rja, fij, fia, fja
+      REAL(KIND=dp)                                      :: alp, aterm, cosa, daterm, ddab, ddax, &
+                                                            ddbx, ddr, ddr12, ddr6, deval, dr, &
+                                                            drab, drax, drbx, eval, xy
+      REAL(KIND=dp), DIMENSION(3)                        :: fia, fij, fja, ria, rij, rja
       TYPE(neighbor_list_iterator_p_type), &
          DIMENSION(:), POINTER                           :: nl_iterator
 
       ! exonent in angular term
       alp = 6.0_dp
-      ! loop over all atom pairs 
+      ! loop over all atom pairs
       CALL neighbor_list_iterator_create(nl_iterator, sab_xb)
       DO WHILE (neighbor_list_iterate(nl_iterator) == 0)
          CALL get_iterator_info(nl_iterator, ikind=ikind, jkind=jkind, &
                                 iatom=iatom, jatom=jatom, r=rij, cell=cell)
-!deb
-write(6,*) "XB LIST   ",iatom,jatom
-!deb
          ! ikind, iatom : Halogen
          ! jkind, jatom : Donor
          atom_a = atom_of_kind(iatom)
-         dr = SQRT(rij(1)**2 + rij(2)**2 + rij(3)**2)
-         ddr = rcab(ikind,jkind)/dr
+         dr = SQRT(rij(1)**2+rij(2)**2+rij(3)**2)
+         ddr = rcab(ikind, jkind)/dr
          ddr6 = ddr**6
          ddr12 = ddr6*ddr6
-         eval = kx(ikind)*(ddr12 - kx2*ddr6)/(1.0_dp+ddr12)
+         eval = kx(ikind)*(ddr12-kx2*ddr6)/(1.0_dp+ddr12)
          ! angle
-         ria(1:3) = neighbor_atoms(ikind)%coord(1:3,atom_a)
-         rja(1:3) = rij(1:3) - ria(1:3)
-         drax = ria(1)**2 + ria(2)**2 + ria(3)**2
+         ria(1:3) = neighbor_atoms(ikind)%coord(1:3, atom_a)
+         rja(1:3) = rij(1:3)-ria(1:3)
+         drax = ria(1)**2+ria(2)**2+ria(3)**2
          drbx = dr*dr
-         drab = rja(1)**2 + rja(2)**2 + rja(3)**2
+         drab = rja(1)**2+rja(2)**2+rja(3)**2
          xy = SQRT(drbx*drax)
          ! cos angle B-X-A
-         cosa = (drbx+drax-drab) / xy
+         cosa = (drbx+drax-drab)/xy
          aterm = (0.5_dp-0.25_dp*cosa)**alp
          !
-         exb = exb + aterm*eval
+         exb = exb+aterm*eval
          IF (atprop%energy) THEN
             atprop%atecc(iatom) = atprop%atecc(iatom)+0.5_dp*aterm*eval
             atprop%atecc(jatom) = atprop%atecc(jatom)+0.5_dp*aterm*eval
          END IF
          !
-         IF(calculate_forces) THEN
+         IF (calculate_forces) THEN
             katom = neighbor_atoms(ikind)%katom(atom_a)
             kkind = kind_of(katom)
             atom_b = atom_of_kind(jatom)
             atom_c = atom_of_kind(katom)
             !
             deval = 6.0_dp*kx(ikind)*ddr6*(kx2*ddr12+2.0_dp*ddr6-kx2)/(1.0_dp+ddr12)**2
-            deval = -rcab(ikind,jkind)*deval/(dr*dr)/ddr
+            deval = -rcab(ikind, jkind)*deval/(dr*dr)/ddr
             fij(1:3) = aterm*deval*rij(1:3)/dr
             force(ikind)%repulsive(:, atom_a) = force(ikind)%repulsive(:, atom_a)-fij(:)
             force(jkind)%repulsive(:, atom_b) = force(jkind)%repulsive(:, atom_b)+fij(:)
@@ -1329,8 +1357,8 @@ write(6,*) "XB LIST   ",iatom,jatom
             fia(1:3) = 0.0_dp
             fja(1:3) = 0.0_dp
             daterm = -0.25_dp*alp*(0.5_dp-0.25_dp*cosa)**(alp-1.0_dp)
-            ddbx =  0.5_dp*(drab-drax+drbx) / xy / drbx
-            ddax =  0.5_dp*(drab+drax-drbx) / xy / drax
+            ddbx = 0.5_dp*(drab-drax+drbx)/xy/drbx
+            ddax = 0.5_dp*(drab+drax-drbx)/xy/drax
             ddab = -1._dp/xy
             fij(1:3) = 2.0_dp*daterm*ddbx*rij(1:3)*eval
             fia(1:3) = 2.0_dp*daterm*ddax*ria(1:3)*eval
@@ -1356,6 +1384,38 @@ write(6,*) "XB LIST   ",iatom,jatom
       CALL neighbor_list_iterator_release(nl_iterator)
 
    END SUBROUTINE xb_interaction
+
+! **************************************************************************************************
+!> \brief ...
+!> \param z ...
+!> \return ...
+! **************************************************************************************************
+   FUNCTION metal(z) RESULT(ismetal)
+      INTEGER                                            :: z
+      LOGICAL                                            :: ismetal
+
+      SELECT CASE (z)
+      CASE DEFAULT
+         ismetal = .TRUE.
+      CASE (1:2, 6:10, 14:18, 32:36, 50:54, 82:86)
+         ismetal = .FALSE.
+      END SELECT
+
+   END FUNCTION metal
+
+! **************************************************************************************************
+!> \brief ...
+!> \param z ...
+!> \return ...
+! **************************************************************************************************
+   FUNCTION early3d(z) RESULT(isearly3d)
+      INTEGER                                            :: z
+      LOGICAL                                            :: isearly3d
+
+      isearly3d = .FALSE.
+      IF (z >= 21 .AND. z <= 24) isearly3d = .TRUE.
+
+   END FUNCTION early3d
 
 END MODULE xtb_matrices
 

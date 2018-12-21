@@ -12,8 +12,8 @@
 MODULE input_cp2k_tb
 !qxtb citation
    USE bibliography,                    ONLY: Elstner1998,&
-                                              Hu2007,&
                                               Grimme2017,&
+                                              Hu2007,&
                                               Porezag1995,&
                                               Seifert1996,&
                                               Zhechkov2005
