@@ -97,6 +97,7 @@ MODULE rt_propagation_types
       REAL(KIND=dp)                               :: mixing_factor
       LOGICAL                                     :: mixing
       LOGICAL                                     :: do_hfx
+      LOGICAL                                     :: magnetic
       INTEGER, DIMENSION(:, :), ALLOCATABLE          :: orders
       INTEGER                                     :: nsteps, istep, i_start, max_steps
       INTEGER                                     :: iter
@@ -282,6 +283,7 @@ CONTAINS
       rtp%istep = 0
       rtp%iter = 0
       rtp%do_hfx = .FALSE.
+      rtp%magnetic = .FALSE.
 
    END SUBROUTINE rt_prop_create
 
