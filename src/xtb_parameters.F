@@ -52,36 +52,41 @@ MODULE xtb_parameters
    !   Cs Ba La Ce-Lu          Hf Ta W  Re Os Ir Pt Au Hg    Tl Pb Bi Po At   Rn
    !   Fr Ra Ac Th Pa U        Np Pu Am Cm Bk Cf Es Fm Md    No Lr Rf Ha 106
 
+!&<
    ! Element Valence
-   INTEGER, DIMENSION(0:nelem), PARAMETER, PRIVATE :: zval = (/-1, & !    0
-                                                               1, 2, & !    2
-                                                               1, 2, 3, 4, 5, 6, 7, 8, & !   10
-                                                               1, 2, 3, 4, 5, 6, 7, 8, & !   18
-                                                               1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 2, 3, 4, 5, 6, 7, 8, & !   36
-                                                               1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 2, 3, 4, 5, 6, 7, 8, & !   54
-                                                               1, 2, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, &
-                                                               4, 5, 6, 7, 8, 9, 10, 11, 2, 3, 4, 5, 6, 7, 8, & !   86
-                                                      -1, -1, -1, 4, -1, 6, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1/)
+   INTEGER, DIMENSION(0:nelem), &
+     PARAMETER, PRIVATE :: zval = (/-1, & !    0
+                                     1, 2, & !    2
+                                     1, 2, 3, 4, 5, 6, 7, 8, & !   10
+                                     1, 2, 3, 4, 5, 6, 7, 8, & !   18
+                                     1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 2, 3, 4, 5, 6, 7, 8, & !   36
+                                     1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 2, 3, 4, 5, 6, 7, 8, & !   54
+                                     1, 2, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, &
+                                     4, 5, 6, 7, 8, 9, 10, 11, 2, 3, 4, 5, 6, 7, 8, & !   86
+                                    -1, -1, -1, 4, -1, 6, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1/)
+!&>
 
+!&<
    ! Element Pauling Electronegativity
    REAL(KIND=dp), DIMENSION(0:nelem), &
       PARAMETER, PRIVATE :: eneg = (/0.00_dp, & ! 0
-                                     2.10_dp, 0.00_dp, & ! 2
-                                     0.98_dp, 1.57_dp, 2.04_dp, 2.55_dp, 3.04_dp, 3.44_dp, 3.98_dp, 0.00_dp, & ! 10
-                                     0.93_dp, 1.31_dp, 1.61_dp, 1.90_dp, 2.19_dp, 2.58_dp, 3.16_dp, 0.00_dp, & ! 18
+                                     2.20_dp, 3.00_dp, & ! 2
+                                     0.98_dp, 1.57_dp, 2.04_dp, 2.55_dp, 3.04_dp, 3.44_dp, 3.98_dp, 4.50_dp, & ! 10
+                                     0.93_dp, 1.31_dp, 1.61_dp, 1.90_dp, 2.19_dp, 2.58_dp, 3.16_dp, 3.50_dp, & ! 18
                                      0.82_dp, 1.00_dp, 1.36_dp, 1.54_dp, 1.63_dp, 1.66_dp, 1.55_dp, 1.83_dp, &
-                                     1.88_dp, 1.91_dp, 1.90_dp, 1.65_dp, 1.81_dp, 2.01_dp, 2.18_dp, 2.55_dp, 2.96_dp, 0.00_dp, & ! 36
+                                     1.88_dp, 1.91_dp, 1.90_dp, 1.65_dp, 1.81_dp, 2.01_dp, 2.18_dp, 2.55_dp, 2.96_dp, 3.00_dp, & ! 36
                                      0.82_dp, 0.95_dp, 1.22_dp, 1.33_dp, 1.60_dp, 2.16_dp, 1.90_dp, 2.20_dp, &
                                      2.28_dp, 2.20_dp, 1.93_dp, 1.69_dp, 1.78_dp, 1.96_dp, 2.05_dp, 2.10_dp, 2.66_dp, 2.60_dp, & ! 54
                                      0.79_dp, 0.89_dp, 1.10_dp, &
-                                     1.12_dp, 1.13_dp, 1.14_dp, 1.13_dp, 1.17_dp, 1.20_dp, 1.20_dp, 1.10_dp, &
-                                     1.22_dp, 1.23_dp, 1.24_dp, 1.25_dp, 1.10_dp, 1.27_dp, & ! Lanthanides
+                                     1.12_dp, 1.13_dp, 1.14_dp, 1.15_dp, 1.17_dp, 1.18_dp, 1.20_dp, 1.21_dp, &
+                                     1.22_dp, 1.23_dp, 1.24_dp, 1.25_dp, 1.26_dp, 1.27_dp, & ! Lanthanides
                                      1.30_dp, 1.50_dp, 2.36_dp, 1.90_dp, 2.20_dp, 2.20_dp, 2.28_dp, 2.54_dp, &
-                                     2.00_dp, 2.04_dp, 2.33_dp, 2.02_dp, 2.00_dp, 2.20_dp, 0.00_dp, & ! 86
+                                     2.00_dp, 2.04_dp, 2.33_dp, 2.02_dp, 2.00_dp, 2.20_dp, 2.20_dp, & ! 86
                                      0.70_dp, 0.89_dp, 1.10_dp, &
                                      1.30_dp, 1.50_dp, 1.38_dp, 1.36_dp, 1.28_dp, 1.30_dp, 1.30_dp, 1.30_dp, &
-                                     1.30_dp, 1.30_dp, 1.30_dp, 1.30_dp, 1.30_dp, 0.00_dp, & !  Actinides
-                                     0.00_dp, 0.00_dp, 0.00_dp/)
+                                     1.30_dp, 1.30_dp, 1.30_dp, 1.30_dp, 1.30_dp, 1.50_dp, & !  Actinides
+                                     1.50_dp, 1.50_dp, 1.50_dp/)
+!&>
 
 !&<
    ! Shell occupation
@@ -97,12 +102,37 @@ MODULE xtb_parameters
       2,0,1,0,0,  2,0,1,0,0,  2,0,1,0,0,  2,0,1,0,0,  2,0,1,0,0,  2,0,1,0,0,  2,0,1,0,0,  2,0,1,0,0, &
       2,0,1,0,0,  2,0,1,0,0,  2,0,1,0,0,  2,0,1,0,0,  2,0,1,0,0,  2,0,1,0,0, & ! Lanthanides
       2,0,2,0,0,  2,0,3,0,0,  2,0,4,0,0,  2,0,5,0,0,  2,0,6,0,0,  2,0,7,0,0,  2,0,8,0,0,  2,0,9,0,0, &
-      2,0,10,0,0, 2,1,0,0,0,  2,2,0,0,0,  2,3,0,0,0,  2,4,0,0,0,  2,5,0,0,0,  2,6,0,0,0, & ! 86
-                                                              !!!!!!!!!!! up to here
+      2,0,10,0,0, 2,1,0,0,0,  2,2,0,0,0,  2,3,0,0,0,  2,4,0,0,0,  2,5,0,0,0,  2,6,0,0,0, & ! 86 (last element defined)
       0,0,0,0,0,  0,0,0,0,0,  0,0,0,0,0, & !
       0,0,0,0,0,  0,0,0,0,0,  0,0,0,0,0,  0,0,0,0,0,  0,0,0,0,0,  0,0,0,0,0,  0,0,0,0,0,  0,0,0,0,0, &
       0,0,0,0,0,  0,0,0,0,0,  0,0,0,0,0,  0,0,0,0,0,  0,0,0,0,0,  0,0,0,0,0, & ! Actinides
       0,0,0,0,0,  0,0,0,0,0,  0,0,0,0,0/), (/5, nelem+1/))
+!&>
+
+!&<
+   ! COVALENT RADII
+   ! based on "Atomic Radii of the Elements," M. Mantina, R. Valero, C. J. Cramer, and D. G. Truhlar,
+   ! in CRC Handbook of Chemistry and Physics, 91st Edition (2010-2011),
+   ! edited by W. M. Haynes (CRC Press, Boca Raton, FL, 2010), pages 9-49-9-50;
+   ! corrected Nov. 17, 2010 for the 92nd edition.
+   REAL(KIND=dp), DIMENSION(0:nelem), &
+      PARAMETER, PRIVATE :: crad = (/0.00_dp, & ! 0
+                                     0.32_dp, 0.37_dp, & ! 2
+                                     1.30_dp, 0.99_dp, 0.84_dp, 0.75_dp, 0.71_dp, 0.64_dp, 0.60_dp, 0.62_dp, & ! 10
+1.60_dp, 1.40_dp, 1.24_dp, 1.14_dp, 1.09_dp, 1.04_dp, 1.00_dp, 1.01_dp, & ! 18
+                                     2.00_dp, 1.74_dp, 1.59_dp, 1.48_dp, 1.44_dp, 1.30_dp, 1.29_dp, 1.24_dp, &
+1.18_dp, 1.17_dp, 1.22_dp, 1.20_dp, 1.23_dp, 1.20_dp, 1.20_dp, 1.18_dp, 1.17_dp, 1.16_dp, & ! 36
+                                     2.15_dp, 1.90_dp, 1.76_dp, 1.64_dp, 1.56_dp, 1.46_dp, 1.38_dp, 1.36_dp, &
+                                     1.34_dp, 1.30_dp, 1.36_dp, 1.40_dp, 1.42_dp, 1.40_dp, 1.40_dp, 1.37_dp, 1.36_dp, 1.36_dp, & ! 54
+2.38_dp, 2.06_dp, 1.94_dp, &
+                                     1.84_dp, 1.90_dp, 1.88_dp, 1.86_dp, 1.85_dp, 1.83_dp, 1.82_dp, 1.81_dp, &
+                                     1.80_dp, 1.79_dp, 1.77_dp, 1.77_dp, 1.78_dp, 1.74_dp, & ! Lanthanides
+1.64_dp, 1.58_dp, 1.50_dp, 1.41_dp, 1.36_dp, 1.32_dp, 1.30_dp, 1.30_dp, &
+                                     1.32_dp, 1.44_dp, 1.45_dp, 1.50_dp, 1.42_dp, 1.48_dp, 1.46_dp, & ! 86
+                                     2.42_dp, 2.11_dp, 2.01_dp, &
+                                     1.90_dp, 1.84_dp, 1.83_dp, 1.80_dp, 1.80_dp, 1.51_dp, 0.96_dp, 1.54_dp, &
+1.83_dp, 1.50_dp, 1.50_dp, 1.50_dp, 1.50_dp, 1.50_dp, & !  Actinides
+                                     1.50_dp, 1.50_dp,10.50_dp/)
 !&>
 
 ! *** Global parameters ***
@@ -190,8 +220,8 @@ CONTAINS
          param%typ = "STANDARD"
          param%symbol = element_symbol
          param%defined = .TRUE.
-         CALL get_ptable_info(element_symbol, number=ia, covalent_radius=param%rcov)
-         param%rcov = param%rcov*bohr
+         CALL get_ptable_info(element_symbol, number=ia)
+         param%rcov = crad(ia)*bohr
          param%z = ia
          param%aname = ptable(ia)%name
          param%lmax = MAXVAL(param%lval(1:param%nshell))
@@ -387,8 +417,9 @@ CONTAINS
          ! some forgotten scaling parameters (not in orig. paper)
          param%xgamma = 0.1_dp*param%xgamma
          param%kpoly(:) = 0.01*param%kpoly(:)
+         param%kappa(:) = 0.1_dp*param%kappa(:)
          ! we have 1/6 g * q**3 (not 1/3)
-         param%xgamma = 2.0_dp*param%xgamma
+         param%xgamma = -2.0_dp*param%xgamma
          ! kappa is read for each shell, but depends on l, reindex here
          kp(:) = param%kappa(:)
          param%kappa = 0._dp
@@ -401,17 +432,17 @@ CONTAINS
             param%kappa(l+1) = kp(is)
          END DO
          ! kx
-         IF(param%kx < -10._dp) THEN
+         IF (param%kx < -10._dp) THEN
             ! use defaults
             SELECT CASE (param%z)
             CASE DEFAULT
                param%kx = 0.0_dp
             CASE (35) ! Br
-               param%kx = 0.1_dp * 0.381742_dp
-            CASE (53) ! I 
-               param%kx = 0.1_dp * 0.321944_dp
+               param%kx = 0.1_dp*0.381742_dp
+            CASE (53) ! I
+               param%kx = 0.1_dp*0.321944_dp
             CASE (85) ! At
-               param%kx = 0.1_dp * 0.220000_dp
+               param%kx = 0.1_dp*0.220000_dp
             END SELECT
          END IF
       END IF

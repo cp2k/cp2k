@@ -1081,7 +1081,7 @@ CONTAINS
          qs_control%xtb_control%ken = scal(1)
          ! XB
          CALL section_vals_val_get(xtb_section, "USE_HALOGEN_CORRECTION", &
-              l_val=qs_control%xtb_control%xb_interaction)
+                                   l_val=qs_control%xtb_control%xb_interaction)
          CALL section_vals_val_get(xtb_parameter, "HALOGEN_BINDING", r_vals=scal)
          qs_control%xtb_control%kxr = scal(1)
          qs_control%xtb_control%kx2 = scal(2)
