@@ -1159,7 +1159,7 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: n
       REAL(dp), INTENT(IN)                               :: aval, cval
       REAL(dp), DIMENSION(:), INTENT(INOUT)              :: co
-      REAL(dp), INTENT(OUT)                              :: aerr
+      REAL(dp)                                           :: aerr
 
       CHARACTER(len=*), PARAMETER :: routineN = 'density_fit', routineP = moduleN//':'//routineN
 
@@ -1233,7 +1233,7 @@ CONTAINS
       TYPE(atom_p_type), DIMENSION(:, :), POINTER        :: atom_info
       TYPE(atom_basis_type), POINTER                     :: basis
       LOGICAL, INTENT(IN)                                :: pptype
-      REAL(dp), INTENT(OUT)                              :: afun
+      REAL(dp)                                           :: afun
       INTEGER, INTENT(IN)                                :: iw
       LOGICAL, INTENT(IN)                                :: penalty
 
@@ -1335,7 +1335,7 @@ CONTAINS
       TYPE(atom_p_type), DIMENSION(:, :), POINTER        :: atom_info
       TYPE(wfn_init), DIMENSION(:, :), POINTER           :: wfn_guess
       TYPE(atom_potential_type), POINTER                 :: ppot
-      REAL(dp), INTENT(OUT)                              :: afun
+      REAL(dp)                                           :: afun
       REAL(dp), INTENT(IN)                               :: wtot
       REAL(dp), DIMENSION(:, :, 0:, :, :), INTENT(INOUT) :: pval
       REAL(dp), DIMENSION(:, :, :, :, :), INTENT(INOUT)  :: dener
@@ -1549,8 +1549,8 @@ CONTAINS
 !> \param gthpot ...
 ! **************************************************************************************************
    SUBROUTINE get_pseudo_param(pvec, nval, gthpot)
-      REAL(KIND=dp), DIMENSION(:), INTENT(out)           :: pvec
-      INTEGER, INTENT(out)                               :: nval
+      REAL(KIND=dp), DIMENSION(:)                        :: pvec
+      INTEGER                                            :: nval
       TYPE(atom_gthpot_type), INTENT(in)                 :: gthpot
 
       CHARACTER(len=*), PARAMETER :: routineN = 'get_pseudo_param', &
@@ -1852,7 +1852,7 @@ CONTAINS
       TYPE(opgrid_type), POINTER                         :: kgpot
       INTEGER, INTENT(IN)                                :: ng, np
       REAL(dp), DIMENSION(:, :), INTENT(INOUT)           :: cval
-      REAL(dp), INTENT(OUT)                              :: aerr
+      REAL(dp)                                           :: aerr
 
       CHARACTER(len=*), PARAMETER :: routineN = 'kgpot_fit', routineP = moduleN//':'//routineN
 

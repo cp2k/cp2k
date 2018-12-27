@@ -135,11 +135,11 @@ CONTAINS
       REAL(KIND=dp), OPTIONAL                            :: alpha, eps_pol, epsilon
       INTEGER, OPTIONAL                                  :: gmax(3), ns_max, o_spline, group
       TYPE(cp_para_env_type), OPTIONAL, POINTER          :: para_env
-      INTEGER, INTENT(OUT), OPTIONAL                     :: id_nr
+      INTEGER, OPTIONAL                                  :: id_nr
       TYPE(section_vals_type), OPTIONAL, POINTER         :: poisson_section
       REAL(KIND=dp), OPTIONAL                            :: precs, rcut
-      LOGICAL, INTENT(OUT), OPTIONAL                     :: do_multipoles
-      INTEGER, INTENT(OUT), OPTIONAL                     :: max_multipole, do_ipol, max_ipol_iter
+      LOGICAL, OPTIONAL                                  :: do_multipoles
+      INTEGER, OPTIONAL                                  :: max_multipole, do_ipol, max_ipol_iter
       REAL(KIND=dp), DIMENSION(:, :, :), OPTIONAL, &
          POINTER                                         :: interaction_cutoffs
       REAL(KIND=dp), DIMENSION(3, 3), OPTIONAL           :: cell_hmat

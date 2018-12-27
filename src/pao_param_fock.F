@@ -42,8 +42,8 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: iatom
       REAL(dp), DIMENSION(:, :), POINTER                 :: V, U
       REAL(dp), INTENT(INOUT), OPTIONAL                  :: penalty
-      REAL(dp), INTENT(OUT)                              :: gap
-      REAL(dp), DIMENSION(:), INTENT(OUT), OPTIONAL      :: evals
+      REAL(dp)                                           :: gap
+      REAL(dp), DIMENSION(:), OPTIONAL                   :: evals
       REAL(dp), DIMENSION(:, :), OPTIONAL, POINTER       :: M1, G
 
       CHARACTER(len=*), PARAMETER :: routineN = 'pao_calc_U_block_fock', &

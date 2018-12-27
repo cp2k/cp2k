@@ -254,7 +254,7 @@ CONTAINS
       TYPE(qs_p_env_type), POINTER                       :: p_env
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(cp_fm_p_type), DIMENSION(:), POINTER          :: psi1, h1_psi0, psi0_order
-      LOGICAL, INTENT(OUT)                               :: should_stop
+      LOGICAL                                            :: should_stop
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'linres_solver', routineP = moduleN//':'//routineN
 

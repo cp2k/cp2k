@@ -289,7 +289,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE rep_env_init_low(rep_env_id, ierr)
       INTEGER, INTENT(in)                                :: rep_env_id
-      INTEGER, INTENT(out)                               :: ierr
+      INTEGER                                            :: ierr
 
       CHARACTER(len=*), PARAMETER :: routineN = 'rep_env_init_low', &
          routineP = moduleN//':'//routineN
@@ -406,7 +406,7 @@ CONTAINS
 ! **************************************************************************************************
    RECURSIVE SUBROUTINE rep_env_calc_e_f_low(rep_env_id, calc_f, ierr)
       INTEGER, INTENT(in)                                :: rep_env_id, calc_f
-      INTEGER, INTENT(out)                               :: ierr
+      INTEGER                                            :: ierr
 
       CHARACTER(len=*), PARAMETER :: routineN = 'rep_env_calc_e_f_low', &
          routineP = moduleN//':'//routineN

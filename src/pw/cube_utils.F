@@ -65,7 +65,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE compute_cube_center(cube_center, rs_desc, zeta, zetb, ra, rab)
 
-      INTEGER, DIMENSION(3), INTENT(OUT)                 :: cube_center
+      INTEGER, DIMENSION(3)                              :: cube_center
       TYPE(realspace_grid_desc_type), POINTER            :: rs_desc
       REAL(KIND=dp), INTENT(IN)                          :: zeta, zetb, ra(3), rab(3)
 
@@ -216,7 +216,7 @@ CONTAINS
 !> \param max_radius ...
 ! **************************************************************************************************
    SUBROUTINE init_cube_info(info, dr, dh, dh_inv, ortho, max_radius)
-      TYPE(cube_info_type), INTENT(OUT)                  :: info
+      TYPE(cube_info_type)                               :: info
       REAL(KIND=dp), INTENT(IN)                          :: dr(3), dh(3, 3), dh_inv(3, 3)
       LOGICAL, INTENT(IN)                                :: ortho
       REAL(KIND=dp), INTENT(IN)                          :: max_radius

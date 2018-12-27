@@ -121,7 +121,7 @@ CONTAINS
          POINTER                                         :: cube_info
       TYPE(gridlevel_info_type), OPTIONAL, POINTER       :: gridlevel_info
       TYPE(pw_pool_type), OPTIONAL, POINTER              :: auxbas_pw_pool
-      INTEGER, INTENT(out), OPTIONAL                     :: auxbas_grid
+      INTEGER, OPTIONAL                                  :: auxbas_grid
       TYPE(realspace_grid_desc_type), OPTIONAL, POINTER  :: auxbas_rs_desc
       TYPE(realspace_grid_type), OPTIONAL, POINTER       :: auxbas_rs_grid
       TYPE(realspace_grid_desc_p_type), DIMENSION(:), &

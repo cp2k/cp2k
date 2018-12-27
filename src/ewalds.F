@@ -81,9 +81,9 @@ CONTAINS
       TYPE(atomic_kind_type), POINTER                    :: atomic_kind_set(:)
       TYPE(particle_type), POINTER                       :: particle_set(:)
       TYPE(distribution_1d_type), POINTER                :: local_particles
-      REAL(KIND=dp), DIMENSION(:, :), INTENT(OUT)        :: fg_coulomb
-      REAL(KIND=dp), INTENT(OUT)                         :: vg_coulomb
-      REAL(KIND=dp), DIMENSION(:, :), INTENT(OUT)        :: pv_g
+      REAL(KIND=dp), DIMENSION(:, :)                     :: fg_coulomb
+      REAL(KIND=dp)                                      :: vg_coulomb
+      REAL(KIND=dp), DIMENSION(:, :)                     :: pv_g
       LOGICAL, INTENT(IN)                                :: use_virial
       REAL(KIND=dp), DIMENSION(:), OPTIONAL, POINTER     :: charges, e_coulomb
       REAL(KIND=dp), DIMENSION(:, :, :), OPTIONAL, &
@@ -304,7 +304,7 @@ CONTAINS
       TYPE(cell_type), POINTER                           :: cell
       TYPE(atomic_kind_type), POINTER                    :: atomic_kind_set(:)
       TYPE(distribution_1d_type), POINTER                :: local_particles
-      REAL(KIND=dp), INTENT(OUT)                         :: e_self, e_neut
+      REAL(KIND=dp)                                      :: e_self, e_neut
       REAL(KIND=dp), DIMENSION(:), POINTER               :: charges
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'ewald_self', routineP = moduleN//':'//routineN

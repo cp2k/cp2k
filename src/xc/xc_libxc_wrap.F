@@ -133,7 +133,7 @@ CONTAINS
       TYPE(xc_f03_func_info_t), INTENT(IN)               :: xc_info
       INTEGER, INTENT(IN)                                :: polarized
       REAL(KIND=dp), INTENT(IN)                          :: sc
-      CHARACTER(LEN=*), INTENT(OUT)                      :: reference
+      CHARACTER(LEN=*)                      :: reference
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'xc_libxc_wrap_info_refs', &
          routineP = moduleN//':'//routineN
@@ -211,7 +211,7 @@ CONTAINS
 !>
 ! **************************************************************************************************
    SUBROUTINE xc_libxc_wrap_version(version)
-      CHARACTER(LEN=*), INTENT(OUT)                      :: version
+      CHARACTER(LEN=*)                      :: version
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'xc_libxc_wrap_version', &
          routineP = moduleN//':'//routineN

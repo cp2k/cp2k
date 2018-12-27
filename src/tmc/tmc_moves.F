@@ -370,7 +370,7 @@ CONTAINS
       TYPE(tmc_param_type), POINTER                      :: tmc_params
       INTEGER, DIMENSION(:), INTENT(IN), POINTER         :: mol_arr
       INTEGER, INTENT(IN)                                :: mol
-      INTEGER, INTENT(OUT)                               :: start_ind, end_ind
+      INTEGER                                            :: start_ind, end_ind
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'get_mol_indeces', &
          routineP = moduleN//':'//routineN
@@ -474,7 +474,7 @@ CONTAINS
       TYPE(tmc_param_type), POINTER                      :: tmc_params
       TYPE(rng_stream_type), POINTER                     :: rng_stream
       TYPE(tree_type), POINTER                           :: elem
-      INTEGER, INTENT(OUT)                               :: nr_of_sub_box_elements
+      INTEGER                                            :: nr_of_sub_box_elements
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'elements_in_new_subbox', &
          routineP = moduleN//':'//routineN

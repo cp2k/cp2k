@@ -1663,7 +1663,7 @@ CONTAINS
       REAL(KIND=dp), INTENT(IN)                          :: r
       TYPE(rotmat_type), POINTER                         :: ij_matrix
       LOGICAL, INTENT(IN)                                :: do_derivatives
-      LOGICAL, INTENT(OUT), OPTIONAL                     :: do_invert
+      LOGICAL, OPTIONAL                                  :: do_invert
       LOGICAL, INTENT(IN), OPTIONAL                      :: debug_invert
 
       CHARACTER(len=*), PARAMETER :: routineN = 'rotmat', routineP = moduleN//':'//routineN
@@ -2079,15 +2079,14 @@ CONTAINS
       LOGICAL, INTENT(IN)                                :: invert
       INTEGER, INTENT(IN)                                :: ii, kk
       REAL(KIND=dp), DIMENSION(491), INTENT(IN)          :: rep
-      LOGICAL, DIMENSION(45, 45), INTENT(OUT)            :: logv
+      LOGICAL, DIMENSION(45, 45)                         :: logv
       TYPE(rotmat_type), POINTER                         :: ij_matrix
-      REAL(KIND=dp), DIMENSION(45, 45), INTENT(OUT)      :: v
+      REAL(KIND=dp), DIMENSION(45, 45)                   :: v
       LOGICAL, INTENT(IN)                                :: lgrad
       REAL(KIND=dp), DIMENSION(491), INTENT(IN), &
          OPTIONAL                                        :: rep_d
-      REAL(KIND=dp), DIMENSION(3, 45, 45), INTENT(OUT), &
-         OPTIONAL                                        :: v_d
-      LOGICAL, DIMENSION(45, 45), INTENT(OUT), OPTIONAL  :: logv_d
+      REAL(KIND=dp), DIMENSION(3, 45, 45), OPTIONAL      :: v_d
+      LOGICAL, DIMENSION(45, 45), OPTIONAL               :: logv_d
       REAL(KIND=dp), DIMENSION(3), INTENT(IN), OPTIONAL  :: drij
 
       CHARACTER(len=*), PARAMETER :: routineN = 'rot_2el_2c_first', &

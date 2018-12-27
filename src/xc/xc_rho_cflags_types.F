@@ -59,7 +59,7 @@ CONTAINS
 !> \param value the value to set
 ! **************************************************************************************************
    SUBROUTINE xc_rho_cflags_setall(cflags, value)
-      TYPE(xc_rho_cflags_type), INTENT(out)              :: cflags
+      TYPE(xc_rho_cflags_type)                           :: cflags
       LOGICAL, INTENT(in)                                :: value
 
       CHARACTER(len=*), PARAMETER :: routineN = 'xc_rho_cflags_setall', &

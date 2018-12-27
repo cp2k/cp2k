@@ -210,7 +210,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE init_cp2k(init_mpi, ierr)
       LOGICAL, INTENT(in)                                :: init_mpi
-      INTEGER, INTENT(out)                               :: ierr
+      INTEGER                                            :: ierr
 
       CHARACTER(len=*), PARAMETER :: routineN = 'init_cp2k', routineP = moduleN//':'//routineN
 
@@ -295,7 +295,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE finalize_cp2k(finalize_mpi, ierr)
       LOGICAL, INTENT(in)                                :: finalize_mpi
-      INTEGER, INTENT(out)                               :: ierr
+      INTEGER                                            :: ierr
 
       CHARACTER(len=*), PARAMETER :: routineN = 'finalize_cp2k', routineP = moduleN//':'//routineN
 
@@ -432,7 +432,7 @@ CONTAINS
    SUBROUTINE f_env_add_defaults(f_env_id, f_env, handle)
       INTEGER, INTENT(in)                                :: f_env_id
       TYPE(f_env_type), POINTER                          :: f_env
-      INTEGER, INTENT(out), OPTIONAL                     :: handle
+      INTEGER, OPTIONAL                                  :: handle
 
       CHARACTER(len=*), PARAMETER :: routineN = 'f_env_add_defaults', &
          routineP = moduleN//':'//routineN
@@ -478,7 +478,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE f_env_rm_defaults(f_env, ierr, handle)
       TYPE(f_env_type), POINTER                          :: f_env
-      INTEGER, INTENT(out), OPTIONAL                     :: ierr
+      INTEGER, OPTIONAL                                  :: ierr
       INTEGER, INTENT(in), OPTIONAL                      :: handle
 
       CHARACTER(len=*), PARAMETER :: routineN = 'f_env_rm_defaults', &
@@ -552,14 +552,14 @@ CONTAINS
    RECURSIVE SUBROUTINE create_force_env(new_env_id, input_declaration, input_path, &
                                          output_path, mpi_comm, output_unit, owns_out_unit, &
                                          input, ierr, work_dir, initial_variables)
-      INTEGER, INTENT(out)                               :: new_env_id
+      INTEGER                                            :: new_env_id
       TYPE(section_type), POINTER                        :: input_declaration
       CHARACTER(len=*), INTENT(in)                       :: input_path
       CHARACTER(len=*), INTENT(in), OPTIONAL             :: output_path
       INTEGER, INTENT(in), OPTIONAL                      :: mpi_comm, output_unit
       LOGICAL, INTENT(in), OPTIONAL                      :: owns_out_unit
       TYPE(section_vals_type), OPTIONAL, POINTER         :: input
-      INTEGER, INTENT(out), OPTIONAL                     :: ierr
+      INTEGER, OPTIONAL                                  :: ierr
       CHARACTER(len=*), INTENT(in), OPTIONAL             :: work_dir
       CHARACTER(len=*), DIMENSION(:, :), OPTIONAL        :: initial_variables
 
@@ -930,7 +930,7 @@ CONTAINS
 ! **************************************************************************************************
    RECURSIVE SUBROUTINE destroy_force_env(env_id, ierr, q_finalize)
       INTEGER, INTENT(in)                                :: env_id
-      INTEGER, INTENT(out)                               :: ierr
+      INTEGER                                            :: ierr
       LOGICAL, INTENT(IN), OPTIONAL                      :: q_finalize
 
       CHARACTER(len=*), PARAMETER :: routineN = 'destroy_force_env', &
@@ -979,7 +979,7 @@ CONTAINS
    SUBROUTINE get_natom(env_id, n_atom, ierr)
 
       INTEGER, INTENT(IN)                                :: env_id
-      INTEGER, INTENT(OUT)                               :: n_atom, ierr
+      INTEGER                                            :: n_atom, ierr
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'get_natom', routineP = moduleN//':'//routineN
 
@@ -1004,7 +1004,7 @@ CONTAINS
    SUBROUTINE get_nparticle(env_id, n_particle, ierr)
 
       INTEGER, INTENT(IN)                                :: env_id
-      INTEGER, INTENT(OUT)                               :: n_particle, ierr
+      INTEGER                                            :: n_particle, ierr
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'get_nparticle', routineP = moduleN//':'//routineN
 
@@ -1031,7 +1031,7 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: env_id
       REAL(KIND=DP), DIMENSION(3, 3)                     :: cell
       INTEGER, DIMENSION(3), OPTIONAL                    :: per
-      INTEGER, INTENT(OUT)                               :: ierr
+      INTEGER                                            :: ierr
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'get_cell', routineP = moduleN//':'//routineN
 
@@ -1108,7 +1108,7 @@ CONTAINS
 
       INTEGER, INTENT(IN)                                :: env_id, n_el
       REAL(KIND=dp), DIMENSION(1:n_el)                   :: frc
-      INTEGER, INTENT(OUT)                               :: ierr
+      INTEGER                                            :: ierr
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'get_force', routineP = moduleN//':'//routineN
 
@@ -1131,8 +1131,8 @@ CONTAINS
    SUBROUTINE get_stress_tensor(env_id, stress_tensor, ierr)
 
       INTEGER, INTENT(IN)                                :: env_id
-      REAL(KIND=dp), DIMENSION(3, 3), INTENT(OUT)        :: stress_tensor
-      INTEGER, INTENT(OUT)                               :: ierr
+      REAL(KIND=dp), DIMENSION(3, 3)                     :: stress_tensor
+      INTEGER                                            :: ierr
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'get_stress_tensor', &
          routineP = moduleN//':'//routineN
@@ -1168,7 +1168,7 @@ CONTAINS
 
       INTEGER, INTENT(IN)                                :: env_id, n_el
       REAL(KIND=DP), DIMENSION(1:n_el)                   :: pos
-      INTEGER, INTENT(OUT)                               :: ierr
+      INTEGER                                            :: ierr
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'get_pos', routineP = moduleN//':'//routineN
 
@@ -1194,7 +1194,7 @@ CONTAINS
 
       INTEGER, INTENT(IN)                                :: env_id, n_el
       REAL(KIND=DP), DIMENSION(1:n_el)                   :: vel
-      INTEGER, INTENT(OUT)                               :: ierr
+      INTEGER                                            :: ierr
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'get_vel', routineP = moduleN//':'//routineN
 
@@ -1218,7 +1218,7 @@ CONTAINS
 
       INTEGER, INTENT(IN)                                :: env_id
       REAL(KIND=DP), DIMENSION(3, 3)                     :: new_cell
-      INTEGER, INTENT(OUT)                               :: ierr
+      INTEGER                                            :: ierr
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'set_cell', routineP = moduleN//':'//routineN
 
@@ -1252,7 +1252,7 @@ CONTAINS
 
       INTEGER, INTENT(IN)                                :: env_id, n_el
       REAL(KIND=dp), DIMENSION(1:n_el)                   :: new_pos
-      INTEGER, INTENT(OUT)                               :: ierr
+      INTEGER                                            :: ierr
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'set_pos', routineP = moduleN//':'//routineN
 
@@ -1281,7 +1281,7 @@ CONTAINS
 
       INTEGER, INTENT(IN)                                :: env_id, n_el
       REAL(kind=dp), DIMENSION(1:n_el)                   :: new_vel
-      INTEGER, INTENT(OUT)                               :: ierr
+      INTEGER                                            :: ierr
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'set_vel', routineP = moduleN//':'//routineN
 
@@ -1309,7 +1309,7 @@ CONTAINS
 
       INTEGER, INTENT(in)                                :: env_id
       LOGICAL, INTENT(in)                                :: calc_force
-      INTEGER, INTENT(out)                               :: ierr
+      INTEGER                                            :: ierr
 
       CHARACTER(len=*), PARAMETER :: routineN = 'calc_energy_force', &
          routineP = moduleN//':'//routineN
@@ -1336,8 +1336,8 @@ CONTAINS
    SUBROUTINE get_energy(env_id, e_pot, ierr)
 
       INTEGER, INTENT(in)                                :: env_id
-      REAL(kind=dp), INTENT(out)                         :: e_pot
-      INTEGER, INTENT(out)                               :: ierr
+      REAL(kind=dp)                                      :: e_pot
+      INTEGER                                            :: ierr
 
       CHARACTER(len=*), PARAMETER :: routineN = 'get_energy', routineP = moduleN//':'//routineN
 
@@ -1366,8 +1366,8 @@ CONTAINS
 
       INTEGER, INTENT(IN)                                :: env_id, n_el
       REAL(KIND=dp), DIMENSION(1:n_el), INTENT(IN)       :: pos
-      REAL(KIND=dp), INTENT(OUT)                         :: e_pot
-      INTEGER, INTENT(OUT)                               :: ierr
+      REAL(KIND=dp)                                      :: e_pot
+      INTEGER                                            :: ierr
 
       REAL(KIND=dp), DIMENSION(1)                        :: dummy_f
 
@@ -1396,11 +1396,11 @@ CONTAINS
 
       INTEGER, INTENT(in)                                :: env_id, n_el_pos
       REAL(kind=dp), DIMENSION(1:n_el_pos), INTENT(in)   :: pos
-      REAL(kind=dp), INTENT(out)                         :: e_pot
+      REAL(kind=dp)                                      :: e_pot
       INTEGER, INTENT(in)                                :: n_el_force
       REAL(kind=dp), DIMENSION(1:n_el_force), &
          INTENT(inout)                                   :: force
-      INTEGER, INTENT(out)                               :: ierr
+      INTEGER                                            :: ierr
 
       LOGICAL                                            :: calc_f
 
@@ -1431,7 +1431,7 @@ CONTAINS
       CHARACTER(len=*), INTENT(in)                       :: input_file_path, output_file_path
       LOGICAL, INTENT(in), OPTIONAL                      :: echo_input
       INTEGER, INTENT(in), OPTIONAL                      :: mpi_comm
-      INTEGER, INTENT(out)                               :: ierr
+      INTEGER                                            :: ierr
 
       CHARACTER(len=*), PARAMETER :: routineN = 'check_input', routineP = moduleN//':'//routineN
 

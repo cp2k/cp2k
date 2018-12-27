@@ -1261,8 +1261,8 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE Clementi_geobas(zval, cval, aval, ngto, ival)
       INTEGER, INTENT(IN)                                :: zval
-      REAL(dp), INTENT(OUT)                              :: cval, aval
-      INTEGER, DIMENSION(0:lmat), INTENT(OUT)            :: ngto, ival
+      REAL(dp)                                           :: cval, aval
+      INTEGER, DIMENSION(0:lmat)                         :: ngto, ival
 
       CHARACTER(len=*), PARAMETER :: routineN = 'Clementi_geobas', &
          routineP = moduleN//':'//routineN

@@ -100,7 +100,7 @@ CONTAINS
 ! **************************************************************************************************
   SUBROUTINE m_memory(mem)
 
-      INTEGER(KIND=int_8), OPTIONAL, INTENT(OUT)         :: mem
+      INTEGER(KIND=int_8), OPTIONAL         :: mem
       INTEGER(KIND=int_8)                      :: mem_local
 
       !
@@ -293,7 +293,7 @@ CONTAINS
 !> \param hname ...
 ! **************************************************************************************************
   SUBROUTINE m_hostnm(hname)
-    CHARACTER(len=*), INTENT(OUT)            :: hname
+    CHARACTER(len=*)            :: hname
 #if defined(__MINGW)
     ! While there is a gethostname in the Windows (POSIX) API, it requires that winsocks is
     ! initialised prior to using it via WSAStartup(..), respectively cleaned up at the end via WSACleanup().
@@ -328,7 +328,7 @@ CONTAINS
 !> \param curdir ...
 ! **************************************************************************************************
   SUBROUTINE m_getcwd(curdir)
-    CHARACTER(len=*), INTENT(OUT)            :: curdir
+    CHARACTER(len=*)            :: curdir
     TYPE(C_PTR)                              :: stat
     INTEGER                                  :: i
     CHARACTER(len=default_path_length), TARGET  :: tmp
@@ -360,7 +360,7 @@ CONTAINS
 ! **************************************************************************************************
   SUBROUTINE m_chdir(dir,ierror)
     CHARACTER(len=*), INTENT(IN)             :: dir
-    INTEGER, INTENT(OUT)                     :: ierror
+    INTEGER                     :: ierror
 
     INTERFACE
       FUNCTION chdir(path) BIND(C,name="chdir") RESULT(errno)
@@ -380,7 +380,7 @@ CONTAINS
 !> \param user ...
 ! **************************************************************************************************
   SUBROUTINE m_getlog(user)
-    CHARACTER(len=*), INTENT(OUT) :: user
+    CHARACTER(len=*) :: user
     INTEGER                       :: status
 
     ! on a posix system LOGNAME should be defined
@@ -404,7 +404,7 @@ CONTAINS
 !> \param pid ...
 ! **************************************************************************************************
   SUBROUTINE m_getpid(pid)
-   INTEGER, INTENT(OUT)                     :: pid
+   INTEGER                     :: pid
 
    INTERFACE
      FUNCTION getpid() BIND(C,name="getpid") RESULT(pid)
@@ -425,7 +425,7 @@ CONTAINS
 ! **************************************************************************************************
   SUBROUTINE m_getarg(i,arg)
     INTEGER, INTENT(IN)                      :: i
-    CHARACTER(len=*), INTENT(OUT)            :: arg
+    CHARACTER(len=*)            :: arg
     CHARACTER(len=1024)                      :: tmp
     INTEGER                                  :: istat
 

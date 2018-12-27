@@ -55,7 +55,7 @@ CONTAINS
       TYPE(cell_type), POINTER                           :: cell
       TYPE(simpar_type), INTENT(IN)                      :: simpar
       TYPE(npt_info_type), DIMENSION(:, :), INTENT(IN)   :: npt
-      REAL(KIND=dp), INTENT(OUT)                         :: baro_kin, baro_pot
+      REAL(KIND=dp)                                      :: baro_kin, baro_pot
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'get_baro_energies', &
          routineP = moduleN//':'//routineN

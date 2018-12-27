@@ -177,7 +177,7 @@ CONTAINS
       TYPE(particle_list_type), OPTIONAL, POINTER        :: shell_particles, core_particles
       TYPE(global_constraint_type), OPTIONAL, POINTER    :: gci
       TYPE(multipole_type), OPTIONAL, POINTER            :: multipoles
-      INTEGER, INTENT(out), OPTIONAL                     :: natom, nparticle, ncore, nshell, nkind
+      INTEGER, OPTIONAL                                  :: natom, nparticle, ncore, nshell, nkind
       TYPE(atprop_type), OPTIONAL, POINTER               :: atprop
       TYPE(virial_type), OPTIONAL, POINTER               :: virial
       TYPE(cp_result_type), OPTIONAL, POINTER            :: results

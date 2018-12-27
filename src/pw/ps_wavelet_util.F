@@ -234,7 +234,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE P_FFT_dimensions(n01, n02, n03, m1, m2, m3, n1, n2, n3, md1, md2, md3, nd1, nd2, nd3, nproc)
       INTEGER, INTENT(in)                                :: n01, n02, n03
-      INTEGER, INTENT(out)                               :: m1, m2, m3, n1, n2, n3, md1, md2, md3, &
+      INTEGER                                            :: m1, m2, m3, n1, n2, n3, md1, md2, md3, &
                                                             nd1, nd2, nd3
       INTEGER, INTENT(in)                                :: nproc
 
@@ -330,7 +330,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE S_FFT_dimensions(n01, n02, n03, m1, m2, m3, n1, n2, n3, md1, md2, md3, nd1, nd2, nd3, nproc)
       INTEGER, INTENT(in)                                :: n01, n02, n03
-      INTEGER, INTENT(out)                               :: m1, m2, m3, n1, n2, n3, md1, md2, md3, &
+      INTEGER                                            :: m1, m2, m3, n1, n2, n3, md1, md2, md3, &
                                                             nd1, nd2, nd3
       INTEGER, INTENT(in)                                :: nproc
 
@@ -438,7 +438,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE F_FFT_dimensions(n01, n02, n03, m1, m2, m3, n1, n2, n3, md1, md2, md3, nd1, nd2, nd3, nproc)
       INTEGER, INTENT(in)                                :: n01, n02, n03
-      INTEGER, INTENT(out)                               :: m1, m2, m3, n1, n2, n3, md1, md2, md3, &
+      INTEGER                                            :: m1, m2, m3, n1, n2, n3, md1, md2, md3, &
                                                             nd1, nd2, nd3
       INTEGER, INTENT(in)                                :: nproc
 

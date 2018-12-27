@@ -287,7 +287,7 @@ CONTAINS
 
       TYPE(helium_solvent_type), POINTER                 :: helium
       REAL(KIND=dp), DIMENSION(3), INTENT(IN)            :: a, b
-      REAL(KIND=dp), DIMENSION(3), INTENT(OUT)           :: c
+      REAL(KIND=dp), DIMENSION(3)                        :: c
 
       c(:) = b(:)-a(:)
       CALL helium_pbc(helium, c)

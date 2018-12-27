@@ -706,8 +706,7 @@ CONTAINS
    SUBROUTINE spme_coeff_calculate(n, coeff)
 
       INTEGER, INTENT(IN)                                :: n
-      REAL(KIND=dp), DIMENSION(-(n-1):n-1, 0:n-1), &
-         INTENT(OUT)                                     :: coeff
+      REAL(KIND=dp), DIMENSION(-(n-1):n-1, 0:n-1)        :: coeff
 
       INTEGER                                            :: i, j, l, m
       REAL(KIND=dp)                                      :: b

@@ -380,7 +380,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE cp_cfm_lu_decompose(matrix_a, determinant)
       TYPE(cp_cfm_type), POINTER                         :: matrix_a
-      COMPLEX(kind=dp), INTENT(out)                      :: determinant
+      COMPLEX(kind=dp)                      :: determinant
 
       CHARACTER(len=*), PARAMETER :: routineN = 'cp_cfm_lu_decompose', &
                                      routineP = moduleN//':'//routineN
@@ -766,7 +766,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE cp_cfm_lu_invert(matrix, info_out)
       TYPE(cp_cfm_type), POINTER                         :: matrix
-      INTEGER, INTENT(out), OPTIONAL                     :: info_out
+      INTEGER, OPTIONAL                     :: info_out
 
       CHARACTER(len=*), PARAMETER :: routineN = 'cp_cfm_lu_invert', &
                                      routineP = moduleN//':'//routineN
@@ -853,7 +853,7 @@ CONTAINS
    SUBROUTINE cp_cfm_cholesky_decompose(matrix, n, info_out)
       TYPE(cp_cfm_type), POINTER                         :: matrix
       INTEGER, INTENT(in), OPTIONAL                      :: n
-      INTEGER, INTENT(out), OPTIONAL                     :: info_out
+      INTEGER, OPTIONAL                     :: info_out
 
       CHARACTER(len=*), PARAMETER :: routineN = 'cp_cfm_cholesky_decompose', &
                                      routineP = moduleN//':'//routineN
@@ -911,7 +911,7 @@ CONTAINS
    SUBROUTINE cp_cfm_cholesky_invert(matrix, n, info_out)
       TYPE(cp_cfm_type), POINTER                 :: matrix
       INTEGER, INTENT(in), OPTIONAL              :: n
-      INTEGER, INTENT(out), OPTIONAL             :: info_out
+      INTEGER, OPTIONAL             :: info_out
 
       CHARACTER(len=*), PARAMETER :: routineN = 'cp_cfm_cholesky_invert', &
                                      routineP = moduleN//':'//routineN
@@ -966,7 +966,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE cp_cfm_trace(matrix_a, matrix_b, trace)
       TYPE(cp_cfm_type), POINTER                         :: matrix_a, matrix_b
-      COMPLEX(kind=dp), INTENT(out)                      :: trace
+      COMPLEX(kind=dp)                                   :: trace
 
       CHARACTER(len=*), PARAMETER :: routineN = 'cp_cfm_trace', routineP = moduleN//':'//routineN
 
@@ -1119,7 +1119,7 @@ CONTAINS
    SUBROUTINE cp_cfm_triangular_invert(matrix_a, uplo, info_out)
       TYPE(cp_cfm_type), POINTER               :: matrix_a
       CHARACTER, INTENT(in), OPTIONAL          :: uplo
-      INTEGER, INTENT(out), OPTIONAL           :: info_out
+      INTEGER, OPTIONAL           :: info_out
 
       CHARACTER(len=*), PARAMETER :: routineN = 'cp_cfm_triangular_invert', &
                                      routineP = moduleN//':'//routineN

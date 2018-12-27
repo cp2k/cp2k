@@ -1238,7 +1238,7 @@ CONTAINS
                                var_values, size_variables, i_rep_sec, input_variables)
       TYPE(section_vals_type), POINTER                   :: gen_section
       CHARACTER(LEN=*), INTENT(IN)                       :: func_name
-      CHARACTER(LEN=default_path_length), INTENT(OUT)    :: xfunction
+      CHARACTER(LEN=default_path_length)                 :: xfunction
       CHARACTER(LEN=default_string_length), &
          DIMENSION(:), POINTER                           :: parameters
       REAL(KIND=dp), DIMENSION(:), POINTER               :: values

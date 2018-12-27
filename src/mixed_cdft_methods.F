@@ -2304,16 +2304,13 @@ CONTAINS
       TYPE(force_env_type), POINTER                      :: force_env
       TYPE(mixed_cdft_type), POINTER                     :: mixed_cdft
       LOGICAL, INTENT(IN)                                :: calculate_forces
-      LOGICAL, ALLOCATABLE, DIMENSION(:), INTENT(OUT)    :: is_constraint
-      LOGICAL, INTENT(OUT)                               :: in_memory
+      LOGICAL, ALLOCATABLE, DIMENSION(:)                 :: is_constraint
+      LOGICAL                                            :: in_memory
       LOGICAL, INTENT(IN)                                :: store_vectors
-      REAL(kind=dp), ALLOCATABLE, DIMENSION(:, :), &
-         INTENT(out)                                     :: R12, position_vecs
-      REAL(kind=dp), ALLOCATABLE, DIMENSION(:, :, :), &
-         INTENT(out)                                     :: pair_dist_vecs
-      REAL(kind=dp), ALLOCATABLE, DIMENSION(:), &
-         INTENT(OUT)                                     :: coefficients
-      INTEGER, ALLOCATABLE, DIMENSION(:), INTENT(out)    :: catom
+      REAL(kind=dp), ALLOCATABLE, DIMENSION(:, :)        :: R12, position_vecs
+      REAL(kind=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: pair_dist_vecs
+      REAL(kind=dp), ALLOCATABLE, DIMENSION(:)           :: coefficients
+      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: catom
 
       CHARACTER(len=*), PARAMETER :: routineN = 'mixed_becke_constraint_init', &
          routineP = moduleN//':'//routineN

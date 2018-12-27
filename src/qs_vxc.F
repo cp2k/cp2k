@@ -103,9 +103,9 @@ CONTAINS
       TYPE(qs_rho_type), POINTER                         :: rho_struct
       TYPE(section_vals_type), POINTER                   :: xc_section
       TYPE(pw_p_type), DIMENSION(:), POINTER             :: vxc_rho, vxc_tau
-      REAL(KIND=dp), INTENT(out)                         :: exc
+      REAL(KIND=dp)                                      :: exc
       LOGICAL, INTENT(in), OPTIONAL                      :: just_energy
-      REAL(KIND=dp), INTENT(out), OPTIONAL               :: edisp
+      REAL(KIND=dp), OPTIONAL                            :: edisp
       TYPE(qs_dispersion_type), OPTIONAL, POINTER        :: dispersion_env
       REAL(KIND=dp), INTENT(in), OPTIONAL                :: adiabatic_rescale_factor
       TYPE(pw_env_type), OPTIONAL, POINTER               :: pw_env_external

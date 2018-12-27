@@ -136,7 +136,7 @@ CONTAINS
       LOGICAL, INTENT(IN)                                :: trans
       INTEGER, INTENT(IN)                                :: n, m
       COMPLEX(KIND=dp), DIMENSION(*), INTENT(INOUT)      :: zin
-      COMPLEX(KIND=dp), DIMENSION(*), INTENT(OUT)        :: zout
+      COMPLEX(KIND=dp), DIMENSION(*)                     :: zout
       REAL(KIND=dp), INTENT(IN)                          :: scale
 
 !------------------------------------------------------------------------------

@@ -477,8 +477,8 @@ CONTAINS
       TYPE(qs_wf_history_type), POINTER                  :: wf_history
       TYPE(qs_environment_type), POINTER                 :: qs_env
       REAL(KIND=dp), INTENT(IN)                          :: dt
-      INTEGER, INTENT(OUT), OPTIONAL                     :: extrapolation_method_nr
-      LOGICAL, INTENT(OUT), OPTIONAL                     :: orthogonal_wf
+      INTEGER, OPTIONAL                                  :: extrapolation_method_nr
+      LOGICAL, OPTIONAL                                  :: orthogonal_wf
 
       CHARACTER(len=*), PARAMETER :: routineN = 'wfi_extrapolate', &
          routineP = moduleN//':'//routineN

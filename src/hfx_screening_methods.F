@@ -815,7 +815,7 @@ CONTAINS
    SUBROUTINE optimize_it(DATA, x, fmin)
 
       REAL(KIND=dp), INTENT(IN)                          :: DATA(2, 0:100)
-      REAL(KIND=dp), INTENT(OUT)                         :: x(2)
+      REAL(KIND=dp)                                      :: x(2)
       REAL(KIND=dp), INTENT(IN)                          :: fmin
 
       INTEGER                                            :: i, k

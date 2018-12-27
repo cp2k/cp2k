@@ -239,7 +239,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE init_fist_env(fist_env, para_env)
 
-      TYPE(fist_environment_type), INTENT(OUT)           :: fist_env
+      TYPE(fist_environment_type)                        :: fist_env
       TYPE(cp_para_env_type), POINTER                    :: para_env
 
       NULLIFY (fist_env%input)

@@ -71,7 +71,7 @@ CONTAINS
       TYPE(section_vals_type), POINTER                   :: root_section
       TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(section_vals_type), POINTER                   :: subsys_section
-      LOGICAL, INTENT(OUT)                               :: binary_file_read
+      LOGICAL                                            :: binary_file_read
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'read_binary_coordinates', &
          routineP = moduleN//':'//routineN
@@ -298,7 +298,7 @@ CONTAINS
       CHARACTER(LEN=*), INTENT(IN)                       :: prefix
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
       TYPE(section_vals_type), POINTER                   :: root_section, subsys_section
-      LOGICAL, INTENT(OUT)                               :: binary_file_read
+      LOGICAL                                            :: binary_file_read
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'read_binary_cs_coordinates', &
          routineP = moduleN//':'//routineN
@@ -497,7 +497,7 @@ CONTAINS
       TYPE(section_vals_type), POINTER                   :: root_section
       TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(section_vals_type), POINTER                   :: subsys_section
-      LOGICAL, INTENT(OUT)                               :: binary_file_read
+      LOGICAL                                            :: binary_file_read
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'read_binary_velocities', &
          routineP = moduleN//':'//routineN
@@ -680,7 +680,7 @@ CONTAINS
       CHARACTER(LEN=*), INTENT(IN)                       :: prefix
       TYPE(lnhc_parameters_type), POINTER                :: nhc
       CHARACTER(LEN=*), INTENT(IN)                       :: binary_restart_file_name
-      LOGICAL, INTENT(OUT)                               :: restart
+      LOGICAL                                            :: restart
       TYPE(cp_para_env_type), POINTER                    :: para_env
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'read_binary_thermostats_nose', &

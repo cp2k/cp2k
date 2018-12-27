@@ -53,9 +53,9 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:), INTENT(INOUT)         :: r, r0
       INTEGER, INTENT(IN)                                :: output_unit
       REAL(KIND=dp), DIMENSION(:), INTENT(IN), OPTIONAL  :: weights
-      REAL(KIND=dp), INTENT(OUT), OPTIONAL               :: my_val
+      REAL(KIND=dp), OPTIONAL                            :: my_val
       LOGICAL, INTENT(IN), OPTIONAL                      :: rotate
-      REAL(KIND=dp), DIMENSION(:), INTENT(OUT), OPTIONAL :: transl
+      REAL(KIND=dp), DIMENSION(:), OPTIONAL              :: transl
       REAL(KIND=dp), DIMENSION(:, :), INTENT(INOUT), &
          OPTIONAL                                        :: rot, drmsd3
 

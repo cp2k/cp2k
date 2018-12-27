@@ -57,8 +57,8 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE get_reference_point(rpoint, drpoint, qs_env, fist_env, reference, ref_point, &
                                   ifirst, ilast)
-      REAL(dp), DIMENSION(3), INTENT(OUT)                :: rpoint
-      REAL(dp), DIMENSION(3), INTENT(OUT), OPTIONAL      :: drpoint
+      REAL(dp), DIMENSION(3)                             :: rpoint
+      REAL(dp), DIMENSION(3), OPTIONAL                   :: drpoint
       TYPE(qs_environment_type), OPTIONAL, POINTER       :: qs_env
       TYPE(fist_environment_type), OPTIONAL, POINTER     :: fist_env
       INTEGER, INTENT(IN)                                :: reference

@@ -92,7 +92,7 @@ CONTAINS
                              number_of_process_columns, number_of_processes, &
                              para_env, blacs2mpi, mpi2blacs)
       TYPE(cp_blacs_env_type), POINTER                   :: blacs_env
-      INTEGER, INTENT(OUT), OPTIONAL :: my_process_row, my_process_column, my_process_number, &
+      INTEGER, OPTIONAL :: my_process_row, my_process_column, my_process_number, &
          number_of_process_rows, number_of_process_columns, number_of_processes
       TYPE(cp_para_env_type), OPTIONAL, POINTER          :: para_env
       INTEGER, DIMENSION(:, :), OPTIONAL, POINTER        :: blacs2mpi, mpi2blacs

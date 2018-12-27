@@ -348,7 +348,7 @@ CONTAINS
       TYPE(section_vals_type), POINTER                   :: basis_section
       CHARACTER(len=*), INTENT(IN), OPTIONAL             :: print_key_path
       TYPE(section_vals_type), OPTIONAL, POINTER         :: used_print_key
-      LOGICAL, INTENT(OUT), OPTIONAL                     :: first_time
+      LOGICAL, OPTIONAL                                  :: first_time
       INTEGER                                            :: res
 
       CHARACTER(len=*), PARAMETER :: routineN = 'cp_print_key_should_output', &
@@ -470,7 +470,7 @@ CONTAINS
       RESULT(res)
       TYPE(cp_iteration_info_type), POINTER              :: iteration_info
       TYPE(section_vals_type), POINTER                   :: print_key
-      LOGICAL, INTENT(OUT), OPTIONAL                     :: first_time
+      LOGICAL, OPTIONAL                                  :: first_time
       LOGICAL                                            :: res
 
       CHARACTER(len=*), PARAMETER :: routineN = 'cp_printkey_is_iter', &
@@ -593,7 +593,7 @@ CONTAINS
       TYPE(cp_iteration_info_type), POINTER              :: iteration_info
       LOGICAL, INTENT(IN), OPTIONAL                      :: last
       INTEGER, INTENT(IN), OPTIONAL                      :: iter_nr, increment
-      INTEGER, INTENT(OUT), OPTIONAL                     :: iter_nr_out
+      INTEGER, OPTIONAL                                  :: iter_nr_out
 
       CHARACTER(len=*), PARAMETER :: routineN = 'cp_iterate', routineP = moduleN//':'//routineN
 
@@ -632,7 +632,7 @@ CONTAINS
    SUBROUTINE cp_add_iter_level(iteration_info, level_name, n_rlevel_new)
       TYPE(cp_iteration_info_type), POINTER              :: iteration_info
       CHARACTER(LEN=*), INTENT(IN)                       :: level_name
-      INTEGER, INTENT(OUT), OPTIONAL                     :: n_rlevel_new
+      INTEGER, OPTIONAL                                  :: n_rlevel_new
 
       CHARACTER(len=*), PARAMETER :: routineN = 'cp_add_iter_level', &
          routineP = moduleN//':'//routineN
@@ -836,10 +836,9 @@ CONTAINS
       CHARACTER(len=*), INTENT(IN), OPTIONAL             :: file_form, file_position, file_action, &
                                                             file_status
       LOGICAL, INTENT(IN), OPTIONAL                      :: do_backup, on_file
-      LOGICAL, INTENT(OUT), OPTIONAL                     :: is_new_file
+      LOGICAL, OPTIONAL                                  :: is_new_file
       LOGICAL, INTENT(INOUT), OPTIONAL                   :: mpi_io
-      CHARACTER(len=default_path_length), INTENT(OUT), &
-         OPTIONAL                                        :: fout
+      CHARACTER(len=default_path_length), OPTIONAL       :: fout
       INTEGER                                            :: res
 
       CHARACTER(len=*), PARAMETER :: routineN = 'cp_print_key_unit_nr', &

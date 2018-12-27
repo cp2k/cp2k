@@ -237,7 +237,7 @@ CONTAINS
       INTEGER, INTENT(in)                                :: n
       REAL(dp), INTENT(in)                               :: M(n, n)
       INTEGER, INTENT(in)                                :: j, k
-      REAL(dp), INTENT(out)                              :: EM(n, n)
+      REAL(dp)                                           :: EM(n, n)
 
       INTEGER                                            :: i, p
       REAL(dp)                                           :: SM(n, n), tc(j+1)
@@ -281,7 +281,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE gle_cholesky_stab(SST, S, n)
       INTEGER, INTENT(in)                                :: n
-      REAL(dp), INTENT(out)                              :: S(n, n)
+      REAL(dp)                                           :: S(n, n)
       REAL(dp), INTENT(in)                               :: SST(n, n)
 
       INTEGER                                            :: i, j, k
@@ -426,7 +426,7 @@ CONTAINS
       TYPE(gle_type), POINTER                            :: gle
       TYPE(section_vals_type), POINTER                   :: gle_section
       LOGICAL, INTENT(IN)                                :: save_mem
-      LOGICAL, INTENT(OUT)                               :: restart
+      LOGICAL                                            :: restart
 
       CHARACTER(len=*), PARAMETER :: routineN = 'restart_gle', routineP = moduleN//':'//routineN
 

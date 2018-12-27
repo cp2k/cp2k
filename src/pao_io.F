@@ -184,13 +184,13 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE pao_read_raw(filename, param, hmat, kinds, atom2kind, positions, xblocks, ml_range)
       CHARACTER(LEN=default_path_length), INTENT(IN)     :: filename
-      CHARACTER(LEN=default_string_length), INTENT(OUT)  :: param
+      CHARACTER(LEN=default_string_length)               :: param
       REAL(dp), ALLOCATABLE, DIMENSION(:, :)             :: hmat
       TYPE(pao_iokind_type), ALLOCATABLE, DIMENSION(:)   :: kinds
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: atom2kind
       REAL(dp), ALLOCATABLE, DIMENSION(:, :)             :: positions
       TYPE(pao_ioblock_type), ALLOCATABLE, DIMENSION(:)  :: xblocks
-      INTEGER, DIMENSION(2), INTENT(OUT), OPTIONAL       :: ml_range
+      INTEGER, DIMENSION(2), OPTIONAL                    :: ml_range
 
       CHARACTER(len=*), PARAMETER :: routineN = 'pao_read_raw', routineP = moduleN//':'//routineN
 

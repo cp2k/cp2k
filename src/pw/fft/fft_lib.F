@@ -173,7 +173,7 @@ CONTAINS
       TYPE(fft_plan_type), INTENT(IN)                    :: plan
       REAL(KIND=dp), INTENT(IN)                          :: scale
       COMPLEX(KIND=dp), DIMENSION(*), INTENT(INOUT)      :: zin, zout
-      INTEGER, INTENT(OUT)                               :: stat
+      INTEGER                                            :: stat
 
       stat = plan%fsign
       IF (plan%n_3d(1)*plan%n_3d(2)*plan%n_3d(3) > 0) THEN
@@ -262,7 +262,7 @@ CONTAINS
       TYPE(fft_plan_type), INTENT(IN)                    :: plan
       COMPLEX(KIND=dp), DIMENSION(*), INTENT(INOUT)      :: zin, zout
       REAL(KIND=dp), INTENT(IN)                          :: scale
-      INTEGER, INTENT(OUT)                               :: stat
+      INTEGER                                            :: stat
 
       stat = plan%fsign
       IF (plan%n*plan%m > 0) THEN

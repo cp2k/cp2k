@@ -211,7 +211,7 @@ CONTAINS
 !> \author Lianheng Tong (LT) lianheng.tong@kcl.ac.uk
 ! **************************************************************************************************
    SUBROUTINE fb_buffer_i_associate(a, b)
-      TYPE(fb_buffer_i_obj), INTENT(OUT)                 :: a
+      TYPE(fb_buffer_i_obj)                              :: a
       TYPE(fb_buffer_i_obj), INTENT(IN)                  :: b
 
       CHARACTER(len=*), PARAMETER :: routineN = 'fb_buffer_i_associate', &
@@ -379,7 +379,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE fb_buffer_i_calc_sizes(buffer, sizes)
       TYPE(fb_buffer_i_obj), INTENT(IN)                  :: buffer
-      INTEGER, DIMENSION(:), INTENT(OUT)                 :: sizes
+      INTEGER, DIMENSION(:)                              :: sizes
 
       CHARACTER(len=*), PARAMETER :: routineN = 'fb_buffer_i_calc_sizes', &
          routineP = moduleN//':'//routineN
@@ -421,8 +421,8 @@ CONTAINS
                               data_2d_ld)
       TYPE(fb_buffer_i_obj), INTENT(IN)                  :: buffer
       INTEGER, INTENT(IN), OPTIONAL                      :: i_slice
-      INTEGER, INTENT(OUT), OPTIONAL                     :: n, data_size
-      INTEGER, DIMENSION(:), INTENT(OUT), OPTIONAL       :: sizes, disps
+      INTEGER, OPTIONAL                                  :: n, data_size
+      INTEGER, DIMENSION(:), OPTIONAL                    :: sizes, disps
       INTEGER, DIMENSION(:), OPTIONAL, POINTER           :: data_1d
       INTEGER, DIMENSION(:, :), OPTIONAL, POINTER        :: data_2d
       INTEGER, INTENT(IN), OPTIONAL                      :: data_2d_ld
@@ -559,7 +559,7 @@ CONTAINS
 !> \author Lianheng Tong (LT) lianheng.tong@kcl.ac.uk
 ! **************************************************************************************************
    SUBROUTINE fb_buffer_d_associate(a, b)
-      TYPE(fb_buffer_d_obj), INTENT(OUT)                 :: a
+      TYPE(fb_buffer_d_obj)                              :: a
       TYPE(fb_buffer_d_obj), INTENT(IN)                  :: b
 
       CHARACTER(len=*), PARAMETER :: routineN = 'fb_buffer_d_associate', &
@@ -729,7 +729,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE fb_buffer_d_calc_sizes(buffer, sizes)
       TYPE(fb_buffer_d_obj), INTENT(IN)                  :: buffer
-      INTEGER, DIMENSION(:), INTENT(OUT)                 :: sizes
+      INTEGER, DIMENSION(:)                              :: sizes
 
       CHARACTER(len=*), PARAMETER :: routineN = 'fb_buffer_d_calc_sizes', &
          routineP = moduleN//':'//routineN
@@ -771,8 +771,8 @@ CONTAINS
                               data_2d_ld)
       TYPE(fb_buffer_d_obj), INTENT(IN)                  :: buffer
       INTEGER, INTENT(IN), OPTIONAL                      :: i_slice
-      INTEGER, INTENT(OUT), OPTIONAL                     :: n, data_size
-      INTEGER, DIMENSION(:), INTENT(OUT), OPTIONAL       :: sizes, disps
+      INTEGER, OPTIONAL                                  :: n, data_size
+      INTEGER, DIMENSION(:), OPTIONAL                    :: sizes, disps
       REAL(KIND=dp), DIMENSION(:), OPTIONAL, POINTER     :: data_1d
       REAL(KIND=dp), DIMENSION(:, :), OPTIONAL, POINTER  :: data_2d
       INTEGER, INTENT(IN), OPTIONAL                      :: data_2d_ld

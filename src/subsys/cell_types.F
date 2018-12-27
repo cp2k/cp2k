@@ -150,10 +150,10 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE parse_cell_line(input_line, cell_itimes, cell_time, h, vol)
       CHARACTER(LEN=*), INTENT(IN)                       :: input_line
-      INTEGER, INTENT(OUT)                               :: cell_itimes
-      REAL(KIND=dp), INTENT(OUT)                         :: cell_time
-      REAL(KIND=dp), DIMENSION(3, 3), INTENT(OUT)        :: h
-      REAL(KIND=dp), INTENT(OUT)                         :: vol
+      INTEGER                                            :: cell_itimes
+      REAL(KIND=dp)                                      :: cell_time
+      REAL(KIND=dp), DIMENSION(3, 3)                     :: h
+      REAL(KIND=dp)                                      :: vol
 
       CHARACTER(len=*), PARAMETER :: routineN = 'parse_cell_line', &
          routineP = moduleN//':'//routineN
@@ -192,13 +192,12 @@ CONTAINS
                        h, h_inv, id_nr, symmetry_id)
 
       TYPE(cell_type), POINTER                           :: cell
-      REAL(KIND=dp), INTENT(OUT), OPTIONAL               :: alpha, beta, gamma, deth
-      LOGICAL, INTENT(OUT), OPTIONAL                     :: orthorhombic
-      REAL(KIND=dp), DIMENSION(3), INTENT(OUT), OPTIONAL :: abc
-      INTEGER, DIMENSION(3), INTENT(OUT), OPTIONAL       :: periodic
-      REAL(KIND=dp), DIMENSION(3, 3), INTENT(OUT), &
-         OPTIONAL                                        :: h, h_inv
-      INTEGER, INTENT(out), OPTIONAL                     :: id_nr, symmetry_id
+      REAL(KIND=dp), OPTIONAL                            :: alpha, beta, gamma, deth
+      LOGICAL, OPTIONAL                                  :: orthorhombic
+      REAL(KIND=dp), DIMENSION(3), OPTIONAL              :: abc
+      INTEGER, DIMENSION(3), OPTIONAL                    :: periodic
+      REAL(KIND=dp), DIMENSION(3, 3), OPTIONAL           :: h, h_inv
+      INTEGER, OPTIONAL                                  :: id_nr, symmetry_id
 
       IF (PRESENT(deth)) deth = cell%deth ! the volume
       IF (PRESENT(orthorhombic)) orthorhombic = cell%orthorhombic
@@ -245,10 +244,10 @@ CONTAINS
    SUBROUTINE get_cell_param(cell, cell_length, cell_angle, units_angle, periodic)
 
       TYPE(cell_type), POINTER                           :: cell
-      REAL(KIND=dp), DIMENSION(3), INTENT(OUT)           :: cell_length
-      REAL(KIND=dp), DIMENSION(3), INTENT(OUT), OPTIONAL :: cell_angle
+      REAL(KIND=dp), DIMENSION(3)                        :: cell_length
+      REAL(KIND=dp), DIMENSION(3), OPTIONAL              :: cell_angle
       INTEGER, INTENT(IN), OPTIONAL                      :: units_angle
-      INTEGER, DIMENSION(3), INTENT(OUT), OPTIONAL       :: periodic
+      INTEGER, DIMENSION(3), OPTIONAL                    :: periodic
 
       CHARACTER(len=*), PARAMETER :: routineN = 'get_cell_param', routineP = moduleN//':'//routineN
 
@@ -713,7 +712,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE real_to_scaled(s, r, cell)
 
-      REAL(KIND=dp), DIMENSION(3), INTENT(OUT)           :: s
+      REAL(KIND=dp), DIMENSION(3)                        :: s
       REAL(KIND=dp), DIMENSION(3), INTENT(IN)            :: r
       TYPE(cell_type), POINTER                           :: cell
 
@@ -741,7 +740,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE scaled_to_real(r, s, cell)
 
-      REAL(KIND=dp), DIMENSION(3), INTENT(OUT)           :: r
+      REAL(KIND=dp), DIMENSION(3)                        :: r
       REAL(KIND=dp), DIMENSION(3), INTENT(IN)            :: s
       TYPE(cell_type), POINTER                           :: cell
 

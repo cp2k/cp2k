@@ -825,7 +825,7 @@ CONTAINS
 !> \return ...
 ! **************************************************************************************************
    FUNCTION poly_random(p, maxSize, minSize) RESULT(res)
-      REAL(dp), DIMENSION(:), INTENT(out)                :: p
+      REAL(dp), DIMENSION(:)                             :: p
       INTEGER, INTENT(in)                                :: maxSize
       INTEGER, INTENT(in), OPTIONAL                      :: minSize
       INTEGER                                            :: res
@@ -864,7 +864,7 @@ CONTAINS
       REAL(dp), DIMENSION(:), INTENT(in)                 :: p
       REAL(dp), DIMENSION(3, 3), INTENT(in)              :: m
       REAL(dp), DIMENSION(3), INTENT(in)                 :: b
-      REAL(dp), DIMENSION(:), INTENT(out)                :: pRes
+      REAL(dp), DIMENSION(:)                             :: pRes
       INTEGER, INTENT(in), OPTIONAL                      :: npoly
 
       CHARACTER(len=*), PARAMETER :: routineN = 'poly_affine_t3t', &
@@ -1027,7 +1027,7 @@ CONTAINS
       REAL(dp), DIMENSION(:), INTENT(in)                 :: p
       REAL(dp), DIMENSION(3, 3), INTENT(in)              :: m
       REAL(dp), DIMENSION(3), INTENT(in)                 :: b
-      REAL(dp), DIMENSION(:), INTENT(out)                :: pRes
+      REAL(dp), DIMENSION(:)                             :: pRes
       INTEGER, INTENT(in), OPTIONAL                      :: npoly
 
       CHARACTER(len=*), PARAMETER :: routineN = 'poly_affine_t3', routineP = moduleN//':'//routineN
@@ -1875,7 +1875,7 @@ CONTAINS
    SUBROUTINE poly_cp2k2d3(poly_cp2k, grad, poly_d3)
       REAL(dp), DIMENSION(:), INTENT(in)                 :: poly_cp2k
       INTEGER, INTENT(in)                                :: grad
-      REAL(dp), DIMENSION(:), INTENT(out)                :: poly_d3
+      REAL(dp), DIMENSION(:)                             :: poly_d3
 
       CHARACTER(len=*), PARAMETER :: routineN = 'poly_cp2k2d3', routineP = moduleN//':'//routineN
 
@@ -1924,7 +1924,7 @@ CONTAINS
 !> \param poly_d3 ...
 ! **************************************************************************************************
    SUBROUTINE poly_d32cp2k(poly_cp2k, grad, poly_d3)
-      REAL(dp), DIMENSION(:), INTENT(out)                :: poly_cp2k
+      REAL(dp), DIMENSION(:)                             :: poly_cp2k
       INTEGER, INTENT(in)                                :: grad
       REAL(dp), DIMENSION(:), INTENT(in)                 :: poly_d3
 

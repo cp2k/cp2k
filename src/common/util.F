@@ -91,7 +91,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE sort_unique1(arr, unique)
       INTEGER, DIMENSION(:), INTENT(INOUT)               :: arr
-      LOGICAL, INTENT(OUT)                               :: unique
+      LOGICAL                                            :: unique
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'sort_unique1', routineP = moduleN//':'//routineN
 
@@ -121,7 +121,7 @@ CONTAINS
    SUBROUTINE sort_cv(arr, n, index)
       INTEGER, INTENT(IN)                                :: n
       CHARACTER(LEN=*), INTENT(INOUT)                    :: arr(1:n)
-      INTEGER, INTENT(OUT)                               :: INDEX(1:n)
+      INTEGER                                            :: INDEX(1:n)
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'sort_cv', routineP = moduleN//':'//routineN
 

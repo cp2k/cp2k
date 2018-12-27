@@ -748,7 +748,7 @@ CONTAINS
 !> \author Joost VandeVondele
 ! **************************************************************************************************
    SUBROUTINE compute_max_radius(radius, pw_env, qs_env)
-      REAL(KIND=dp), DIMENSION(:), INTENT(OUT)           :: radius
+      REAL(KIND=dp), DIMENSION(:)                        :: radius
       TYPE(pw_env_type), POINTER                         :: pw_env
       TYPE(qs_environment_type), POINTER                 :: qs_env
 

@@ -49,7 +49,7 @@ CONTAINS
    SUBROUTINE cp_cfm_heevd(matrix, eigenvectors, eigenvalues)
 
       TYPE(cp_cfm_type), POINTER               :: matrix, eigenvectors
-      REAL(KIND=dp), DIMENSION(:), INTENT(OUT) :: eigenvalues
+      REAL(KIND=dp), DIMENSION(:) :: eigenvalues
 
       CHARACTER(len=*), PARAMETER :: routineN = 'cp_cfm_heevd', &
                                      routineP = moduleN//':'//routineN

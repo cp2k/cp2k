@@ -707,7 +707,7 @@ CONTAINS
                                       map_loc_thermo_gen, local_molecules, molecule_kind_set, molecules, particles, &
                                       qmmm_env)
       TYPE(section_vals_type), POINTER                   :: region_sections
-      INTEGER, INTENT(OUT), OPTIONAL                     :: number
+      INTEGER, OPTIONAL                                  :: number
       INTEGER, INTENT(INOUT), OPTIONAL                   :: sum_of_thermostats
       INTEGER, DIMENSION(:), POINTER                     :: map_loc_thermo_gen
       TYPE(distribution_1d_type), POINTER                :: local_molecules
@@ -1417,7 +1417,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE get_nhc_energies(nhc, nhc_pot, nhc_kin, para_env, array_kin, array_pot)
       TYPE(lnhc_parameters_type), POINTER                :: nhc
-      REAL(KIND=dp), INTENT(OUT)                         :: nhc_pot, nhc_kin
+      REAL(KIND=dp)                                      :: nhc_pot, nhc_kin
       TYPE(cp_para_env_type), POINTER                    :: para_env
       REAL(KIND=dp), DIMENSION(:), OPTIONAL, POINTER     :: array_kin, array_pot
 
@@ -1492,7 +1492,7 @@ CONTAINS
       TYPE(map_info_type), POINTER                       :: map_info
       INTEGER, INTENT(IN)                                :: loc_num, glob_num
       REAL(dp), DIMENSION(:), INTENT(IN)                 :: thermo_energy
-      REAL(KIND=dp), INTENT(OUT)                         :: thermostat_kin
+      REAL(KIND=dp)                                      :: thermostat_kin
       TYPE(cp_para_env_type), POINTER                    :: para_env
       REAL(KIND=dp), DIMENSION(:), OPTIONAL, POINTER     :: array_pot, array_kin
 
@@ -1558,7 +1558,7 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: loc_num, glob_num
       REAL(dp), DIMENSION(:), INTENT(IN)                 :: nkt, dof
       TYPE(cp_para_env_type), POINTER                    :: para_env
-      REAL(KIND=dp), INTENT(OUT)                         :: temp_tot
+      REAL(KIND=dp)                                      :: temp_tot
       REAL(KIND=dp), DIMENSION(:), OPTIONAL, POINTER     :: array_temp
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'get_temperatures', &
@@ -1623,7 +1623,7 @@ CONTAINS
    SUBROUTINE get_thermostat_energies(thermostat, thermostat_pot, thermostat_kin, para_env, &
                                       array_pot, array_kin)
       TYPE(thermostat_type), POINTER                     :: thermostat
-      REAL(KIND=dp), INTENT(OUT)                         :: thermostat_pot, thermostat_kin
+      REAL(KIND=dp)                                      :: thermostat_pot, thermostat_kin
       TYPE(cp_para_env_type), POINTER                    :: para_env
       REAL(KIND=dp), DIMENSION(:), OPTIONAL, POINTER     :: array_pot, array_kin
 
@@ -1682,7 +1682,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE get_region_temperatures(thermostat, tot_temperature, para_env, array_temp)
       TYPE(thermostat_type), POINTER                     :: thermostat
-      REAL(KIND=dp), INTENT(OUT)                         :: tot_temperature
+      REAL(KIND=dp)                                      :: tot_temperature
       TYPE(cp_para_env_type), POINTER                    :: para_env
       REAL(KIND=dp), DIMENSION(:), OPTIONAL, POINTER     :: array_temp
 

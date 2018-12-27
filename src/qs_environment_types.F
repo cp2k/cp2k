@@ -567,7 +567,7 @@ CONTAINS
       TYPE(qs_ks_qmmm_env_type), OPTIONAL, POINTER       :: ks_qmmm_env
       TYPE(qs_wf_history_type), OPTIONAL, POINTER        :: wf_history
       TYPE(qs_scf_env_type), OPTIONAL, POINTER           :: scf_env
-      INTEGER, INTENT(out), OPTIONAL                     :: id_nr
+      INTEGER, OPTIONAL                                  :: id_nr
       TYPE(distribution_1d_type), OPTIONAL, POINTER      :: local_particles, local_molecules
       TYPE(distribution_2d_type), OPTIONAL, POINTER      :: distribution_2d
       TYPE(dbcsr_distribution_type), OPTIONAL, POINTER   :: dbcsr_dist
@@ -605,7 +605,7 @@ CONTAINS
       TYPE(cp_ddapc_type), OPTIONAL, POINTER             :: cp_ddapc_env
       TYPE(cp_ddapc_ewald_type), OPTIONAL, POINTER       :: cp_ddapc_ewald
       REAL(KIND=dp), DIMENSION(:, :), OPTIONAL, POINTER  :: outer_scf_history
-      INTEGER, INTENT(out), OPTIONAL                     :: outer_scf_ihistory
+      INTEGER, OPTIONAL                                  :: outer_scf_ihistory
       TYPE(hfx_type), DIMENSION(:, :), OPTIONAL, POINTER :: x_data
       TYPE(et_coupling_type), OPTIONAL, POINTER          :: et_coupling
       TYPE(qs_dftb_pairpot_type), DIMENSION(:, :), &

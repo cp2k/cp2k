@@ -70,10 +70,10 @@ CONTAINS
                               vdw_radius, found)
 
       CHARACTER(LEN=2), INTENT(IN)                       :: symbol
-      INTEGER, INTENT(OUT), OPTIONAL                     :: number
-      REAL(KIND=dp), INTENT(OUT), OPTIONAL               :: amass
-      INTEGER, INTENT(OUT), OPTIONAL                     :: ielement
-      REAL(KIND=dp), INTENT(OUT), OPTIONAL               :: covalent_radius, vdw_radius
+      INTEGER, OPTIONAL                                  :: number
+      REAL(KIND=dp), OPTIONAL                            :: amass
+      INTEGER, OPTIONAL                                  :: ielement
+      REAL(KIND=dp), OPTIONAL                            :: covalent_radius, vdw_radius
       LOGICAL, OPTIONAL                                  :: found
 
       CHARACTER(len=*), PARAMETER :: routineN = 'get_ptable_info', &

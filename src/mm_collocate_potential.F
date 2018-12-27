@@ -185,7 +185,7 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(2, bo(1, 3):bo(2, 3))     :: zdat
       REAL(KIND=dp), DIMENSION(2, bo(1, 2):bo(2, 2))     :: ydat
       REAL(KIND=dp), DIMENSION(2, bo(1, 1):bo(2, 1))     :: xdat
-      REAL(KIND=dp), DIMENSION(3), INTENT(OUT)           :: force
+      REAL(KIND=dp), DIMENSION(3)                        :: force
       INTEGER, DIMENSION(3), INTENT(IN)                  :: n_rep_real
       TYPE(cell_type), POINTER                           :: mm_cell
 

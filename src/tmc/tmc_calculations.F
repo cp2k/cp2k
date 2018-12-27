@@ -160,8 +160,7 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(3, 3), OPTIONAL           :: scaled_hmat
       TYPE(cell_type), OPTIONAL, POINTER                 :: scaled_cell
       REAL(KIND=dp), OPTIONAL                            :: vol
-      REAL(KIND=dp), DIMENSION(3), INTENT(OUT), OPTIONAL :: abc
-      REAL(KIND=dp), DIMENSION(3), OPTIONAL              :: vec
+      REAL(KIND=dp), DIMENSION(3), OPTIONAL              :: abc, vec
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'get_scaled_cell', &
          routineP = moduleN//':'//routineN
@@ -208,7 +207,7 @@ CONTAINS
    SUBROUTINE get_cell_scaling(cell, scaled_hmat, box_scale)
       TYPE(cell_type), INTENT(IN), POINTER               :: cell
       REAL(KIND=dp), DIMENSION(3, 3), INTENT(IN)         :: scaled_hmat
-      REAL(KIND=dp), DIMENSION(:), INTENT(OUT)           :: box_scale
+      REAL(KIND=dp), DIMENSION(:)                        :: box_scale
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'get_cell_scaling', &
          routineP = moduleN//':'//routineN
@@ -431,7 +430,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE three_point_extrapolate(v1, v2, v3, extrapolate, res_err)
       REAL(KIND=dp)                            :: v1, v2, v3
-      REAL(KIND=dp), INTENT(OUT)               :: extrapolate, res_err
+      REAL(KIND=dp)               :: extrapolate, res_err
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'three_point_extrapolate', &
                                      routineP = moduleN//':'//routineN

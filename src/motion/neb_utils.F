@@ -102,7 +102,7 @@ CONTAINS
          POINTER                                         :: particle_set
       TYPE(neb_var_type), POINTER                        :: coords
       INTEGER, INTENT(IN)                                :: i0, i
-      REAL(KIND=dp), INTENT(OUT)                         :: distance
+      REAL(KIND=dp)                                      :: distance
       INTEGER, INTENT(IN)                                :: iw
       LOGICAL, INTENT(IN), OPTIONAL                      :: rotate
 
@@ -368,7 +368,7 @@ CONTAINS
       TYPE(replica_env_type), POINTER                    :: rep_env
       TYPE(neb_type), OPTIONAL, POINTER                  :: neb_env
       TYPE(neb_var_type), POINTER                        :: coords
-      REAL(KIND=dp), DIMENSION(:), INTENT(OUT)           :: energies
+      REAL(KIND=dp), DIMENSION(:)                        :: energies
       TYPE(neb_var_type), POINTER                        :: forces
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
       INTEGER, INTENT(IN)                                :: output_unit
@@ -511,7 +511,7 @@ CONTAINS
       TYPE(replica_env_type), POINTER                    :: rep_env
       TYPE(neb_var_type), POINTER                        :: coords
       INTEGER, INTENT(IN)                                :: irep, n_rep_neb
-      REAL(KIND=dp), DIMENSION(:, :), INTENT(OUT)        :: cvalues, Mmatrix
+      REAL(KIND=dp), DIMENSION(:, :)                     :: cvalues, Mmatrix
 
       CHARACTER(len=*), PARAMETER :: routineN = 'perform_replica_md', &
          routineP = moduleN//':'//routineN
@@ -587,7 +587,7 @@ CONTAINS
       TYPE(replica_env_type), POINTER                    :: rep_env
       TYPE(neb_var_type), POINTER                        :: coords
       INTEGER, INTENT(IN)                                :: irep, n_rep_neb
-      REAL(KIND=dp), DIMENSION(:, :), INTENT(OUT)        :: cvalues, Mmatrix
+      REAL(KIND=dp), DIMENSION(:, :)                     :: cvalues, Mmatrix
 
       CHARACTER(len=*), PARAMETER :: routineN = 'perform_replica_geo', &
          routineP = moduleN//':'//routineN
@@ -666,7 +666,7 @@ CONTAINS
       TYPE(neb_type), POINTER                            :: neb_env
       TYPE(neb_var_type), POINTER                        :: coords
       INTEGER, INTENT(IN)                                :: i
-      REAL(KIND=dp), DIMENSION(:), INTENT(OUT)           :: tangent
+      REAL(KIND=dp), DIMENSION(:)                        :: tangent
       REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: energies
       INTEGER, INTENT(IN)                                :: iw
 

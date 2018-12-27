@@ -50,6 +50,7 @@ def process_log_file(fn, public_symbols, used_symbols):
     loc = path.basename(fn)[:-4]
     lines = ast.split("\n")
     module_name = None
+    pure_subroutines = set()
 
     curr_symbol = curr_procedure = stat_var = stat_stm = None
     skip_until_DT_END = False
@@ -101,6 +102,10 @@ def process_log_file(fn, public_symbols, used_symbols):
                 print(loc+': Symbol "'+curr_symbol+'" in procedure "'+curr_procedure+'" is THREADPRIVATE')
             if("PUBLIC" in line):
                 public_symbols.add(module_name+"::"+curr_symbol)
+            if("SUBROUTINE PURE" in line or "SUBROUTINE ELEMENTAL PURE" in line):
+                pure_subroutines.add(curr_symbol)
+            if("DUMMY(OUT)" in line and curr_procedure not in pure_subroutines):
+                print(loc+': Symbol "'+curr_symbol+'" in procedure "'+curr_procedure+'" is INTENT(OUT)')
 
         elif(line.startswith("!$OMP PARALLEL")):
             if("DEFAULT(NONE)" not in line):
@@ -142,7 +147,6 @@ def process_log_file(fn, public_symbols, used_symbols):
 
     # check for run-away DT_END search
     assert(skip_until_DT_END==False)
-
 
 #===============================================================================
 def parse_args(line):

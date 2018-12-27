@@ -45,7 +45,7 @@ CONTAINS
    SUBROUTINE linpot_rotinv_count_terms(qs_env, ikind, nterms)
       TYPE(qs_environment_type), POINTER                 :: qs_env
       INTEGER, INTENT(IN)                                :: ikind
-      INTEGER, INTENT(OUT)                               :: nterms
+      INTEGER                                            :: nterms
 
       CHARACTER(len=*), PARAMETER :: routineN = 'linpot_rotinv_count_terms'
 
@@ -118,7 +118,7 @@ CONTAINS
    SUBROUTINE linpot_rotinv_calc_terms(qs_env, iatom, V_blocks)
       TYPE(qs_environment_type), POINTER                 :: qs_env
       INTEGER, INTENT(IN)                                :: iatom
-      REAL(dp), DIMENSION(:, :, :), INTENT(OUT), TARGET  :: V_blocks
+      REAL(dp), DIMENSION(:, :, :), TARGET               :: V_blocks
 
       CHARACTER(len=*), PARAMETER :: routineN = 'linpot_rotinv_calc_terms'
 

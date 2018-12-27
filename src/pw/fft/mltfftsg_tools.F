@@ -3479,10 +3479,10 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE ctrig(n, trig, after, before, now, isign, ic)
       INTEGER, INTENT(IN)                                :: n
-      REAL(dp), DIMENSION(2, ctrig_length), INTENT(OUT)  :: trig
-      INTEGER, DIMENSION(7), INTENT(OUT)                 :: after, before, now
+      REAL(dp), DIMENSION(2, ctrig_length)               :: trig
+      INTEGER, DIMENSION(7)                              :: after, before, now
       INTEGER, INTENT(IN)                                :: isign
-      INTEGER, INTENT(OUT)                               :: ic
+      INTEGER                                            :: ic
 
       INTEGER, PARAMETER                                 :: nt = 82
       INTEGER, DIMENSION(7, nt), PARAMETER :: idata = RESHAPE((/3, 3, 1, 1, 1, 1, 1, 4, 4, 1, 1, 1,&

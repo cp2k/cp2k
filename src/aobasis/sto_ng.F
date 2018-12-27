@@ -52,7 +52,7 @@ CONTAINS
 
       REAL(KIND=dp), INTENT(IN)                          :: zeta
       INTEGER, INTENT(IN)                                :: n, nq, lq
-      REAL(KIND=dp), DIMENSION(:), INTENT(OUT)           :: alpha, coef
+      REAL(KIND=dp), DIMENSION(:)                        :: alpha, coef
 
       CHARACTER(len=*), PARAMETER :: routineN = 'get_sto_ng', routineP = moduleN//':'//routineN
 

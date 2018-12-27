@@ -501,7 +501,7 @@ CONTAINS
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
       TYPE(pw_p_type), INTENT(INOUT)                     :: rhotot_elec_gspace
       REAL(KIND=dp), INTENT(IN)                          :: q_max
-      REAL(KIND=dp), INTENT(OUT)                         :: rho_hard, rho_soft
+      REAL(KIND=dp)                                      :: rho_hard, rho_soft
       REAL(KIND=dp), INTENT(IN), OPTIONAL                :: fsign
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'calculate_rhotot_elec_gspace', &

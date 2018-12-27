@@ -57,7 +57,7 @@ CONTAINS
    SUBROUTINE rotnuc_gks(sepi, sepj, rij, e1b, e2a, se_int_control)
       TYPE(semi_empirical_type), POINTER                 :: sepi, sepj
       REAL(dp), DIMENSION(3), INTENT(IN)                 :: rij
-      REAL(dp), DIMENSION(45), INTENT(OUT), OPTIONAL     :: e1b, e2a
+      REAL(dp), DIMENSION(45), OPTIONAL                  :: e1b, e2a
       TYPE(se_int_control_type), INTENT(IN)              :: se_int_control
 
       CHARACTER(len=*), PARAMETER :: routineN = 'rotnuc_gks', routineP = moduleN//':'//routineN
@@ -107,7 +107,7 @@ CONTAINS
    SUBROUTINE rotint_gks(sepi, sepj, rij, w, se_int_control)
       TYPE(semi_empirical_type), POINTER                 :: sepi, sepj
       REAL(dp), DIMENSION(3), INTENT(IN)                 :: rij
-      REAL(dp), DIMENSION(2025), INTENT(OUT), OPTIONAL   :: w
+      REAL(dp), DIMENSION(2025), OPTIONAL                :: w
       TYPE(se_int_control_type), INTENT(IN)              :: se_int_control
 
       CHARACTER(len=*), PARAMETER :: routineN = 'rotint_gks', routineP = moduleN//':'//routineN
@@ -158,7 +158,7 @@ CONTAINS
    SUBROUTINE drotnuc_gks(sepi, sepj, rij, de1b, de2a, se_int_control)
       TYPE(semi_empirical_type), POINTER                 :: sepi, sepj
       REAL(dp), DIMENSION(3), INTENT(IN)                 :: rij
-      REAL(dp), DIMENSION(3, 45), INTENT(OUT), OPTIONAL  :: de1b, de2a
+      REAL(dp), DIMENSION(3, 45), OPTIONAL               :: de1b, de2a
       TYPE(se_int_control_type), INTENT(IN)              :: se_int_control
 
       CHARACTER(len=*), PARAMETER :: routineN = 'drotnuc_gks', routineP = moduleN//':'//routineN
@@ -208,7 +208,7 @@ CONTAINS
    SUBROUTINE drotint_gks(sepi, sepj, rij, dw, se_int_control)
       TYPE(semi_empirical_type), POINTER                 :: sepi, sepj
       REAL(dp), DIMENSION(3), INTENT(IN)                 :: rij
-      REAL(dp), DIMENSION(3, 2025), INTENT(OUT)          :: dw
+      REAL(dp), DIMENSION(3, 2025)                       :: dw
       TYPE(se_int_control_type), INTENT(IN)              :: se_int_control
 
       CHARACTER(len=*), PARAMETER :: routineN = 'drotint_gks', routineP = moduleN//':'//routineN
@@ -256,7 +256,7 @@ CONTAINS
    SUBROUTINE makeCoul(RAB, sepi, sepj, Coul, se_int_control)
       REAL(kind=dp), DIMENSION(3)                        :: RAB
       TYPE(semi_empirical_type), POINTER                 :: sepi, sepj
-      REAL(kind=dp), DIMENSION(45, 45), INTENT(OUT)      :: Coul
+      REAL(kind=dp), DIMENSION(45, 45)                   :: Coul
       TYPE(se_int_control_type), INTENT(IN)              :: se_int_control
 
       CHARACTER(len=*), PARAMETER :: routineN = 'makeCoul', routineP = moduleN//':'//routineN
@@ -363,7 +363,7 @@ CONTAINS
    SUBROUTINE makedCoul(RAB, sepi, sepj, dCoul, se_int_control)
       REAL(kind=dp), DIMENSION(3)                        :: RAB
       TYPE(semi_empirical_type), POINTER                 :: sepi, sepj
-      REAL(kind=dp), DIMENSION(3, 45, 45), INTENT(OUT)   :: dCoul
+      REAL(kind=dp), DIMENSION(3, 45, 45)                :: dCoul
       TYPE(se_int_control_type), INTENT(IN)              :: se_int_control
 
       CHARACTER(len=*), PARAMETER :: routineN = 'makedCoul', routineP = moduleN//':'//routineN
@@ -488,8 +488,8 @@ CONTAINS
    SUBROUTINE corecore_gks(sepi, sepj, rijv, enuc, denuc, se_int_control)
       TYPE(semi_empirical_type), POINTER                 :: sepi, sepj
       REAL(dp), DIMENSION(3), INTENT(IN)                 :: rijv
-      REAL(dp), INTENT(OUT), OPTIONAL                    :: enuc
-      REAL(dp), DIMENSION(3), INTENT(OUT), OPTIONAL      :: denuc
+      REAL(dp), OPTIONAL                                 :: enuc
+      REAL(dp), DIMENSION(3), OPTIONAL                   :: denuc
       TYPE(se_int_control_type), INTENT(IN)              :: se_int_control
 
       CHARACTER(len=*), PARAMETER :: routineN = 'corecore_gks', routineP = moduleN//':'//routineN
@@ -571,7 +571,7 @@ CONTAINS
    SUBROUTINE makeCoulE(RAB, sepi, sepj, Coul, se_int_control)
       REAL(KIND=dp), DIMENSION(3)                        :: RAB
       TYPE(semi_empirical_type), POINTER                 :: sepi, sepj
-      REAL(KIND=dp), DIMENSION(45, 45), INTENT(OUT)      :: Coul
+      REAL(KIND=dp), DIMENSION(45, 45)                   :: Coul
       TYPE(se_int_control_type), INTENT(IN)              :: se_int_control
 
       CHARACTER(len=*), PARAMETER :: routineN = 'makeCoulE', routineP = moduleN//':'//routineN
@@ -789,7 +789,7 @@ CONTAINS
    SUBROUTINE makedCoulE(RAB, sepi, sepj, dCoul, se_int_control)
       REAL(KIND=dp), DIMENSION(3)                        :: RAB
       TYPE(semi_empirical_type), POINTER                 :: sepi, sepj
-      REAL(KIND=dp), DIMENSION(3, 45, 45), INTENT(OUT)   :: dCoul
+      REAL(KIND=dp), DIMENSION(3, 45, 45)                :: dCoul
       TYPE(se_int_control_type), INTENT(IN)              :: se_int_control
 
       CHARACTER(len=*), PARAMETER :: routineN = 'makedCoulE', routineP = moduleN//':'//routineN
@@ -1053,12 +1053,11 @@ CONTAINS
 !> \param d5 ...
 ! **************************************************************************************************
    SUBROUTINE build_d_tensor_gks(d1f, d2f, d3f, d4f, d5f, v, d1, d2, d3, d4, d5)
-      REAL(KIND=dp), DIMENSION(3), INTENT(OUT)           :: d1f
-      REAL(KIND=dp), DIMENSION(3, 3), INTENT(OUT)        :: d2f
-      REAL(KIND=dp), DIMENSION(3, 3, 3), INTENT(OUT)     :: d3f
-      REAL(KIND=dp), DIMENSION(3, 3, 3, 3), INTENT(OUT)  :: d4f
-      REAL(KIND=dp), DIMENSION(3, 3, 3, 3, 3), &
-         INTENT(OUT), OPTIONAL                           :: d5f
+      REAL(KIND=dp), DIMENSION(3)                        :: d1f
+      REAL(KIND=dp), DIMENSION(3, 3)                     :: d2f
+      REAL(KIND=dp), DIMENSION(3, 3, 3)                  :: d3f
+      REAL(KIND=dp), DIMENSION(3, 3, 3, 3)               :: d4f
+      REAL(KIND=dp), DIMENSION(3, 3, 3, 3, 3), OPTIONAL  :: d5f
       REAL(KIND=dp), DIMENSION(3), INTENT(IN)            :: v
       REAL(KIND=dp), INTENT(IN)                          :: d1, d2, d3, d4
       REAL(KIND=dp), INTENT(IN), OPTIONAL                :: d5
@@ -1161,7 +1160,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE makeCoulE0(sepi, Coul, se_int_control)
       TYPE(semi_empirical_type), POINTER                 :: sepi
-      REAL(KIND=dp), DIMENSION(45, 45), INTENT(OUT)      :: Coul
+      REAL(KIND=dp), DIMENSION(45, 45)                   :: Coul
       TYPE(se_int_control_type), INTENT(IN)              :: se_int_control
 
       CHARACTER(len=*), PARAMETER :: routineN = 'makeCoulE0', routineP = moduleN//':'//routineN
@@ -1293,10 +1292,10 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE get_se_slater_multipole(sepi, M0, M1, M2, ACOUL)
       TYPE(semi_empirical_type), POINTER                 :: sepi
-      REAL(kind=dp), DIMENSION(45), INTENT(OUT)          :: M0
-      REAL(kind=dp), DIMENSION(3, 45), INTENT(OUT)       :: M1
-      REAL(kind=dp), DIMENSION(3, 3, 45), INTENT(OUT)    :: M2
-      REAL(KIND=dp), INTENT(OUT), OPTIONAL               :: ACOUL
+      REAL(kind=dp), DIMENSION(45)                       :: M0
+      REAL(kind=dp), DIMENSION(3, 45)                    :: M1
+      REAL(kind=dp), DIMENSION(3, 3, 45)                 :: M2
+      REAL(KIND=dp), OPTIONAL                            :: ACOUL
 
       INTEGER                                            :: i, j, jint, size_1c_int
       TYPE(semi_empirical_mpole_type), POINTER           :: mpole

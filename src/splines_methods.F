@@ -163,7 +163,7 @@ CONTAINS
    FUNCTION potential_s(spl_p, xxi, y1, spl_f, logger)
       TYPE(spline_data_p_type), DIMENSION(:), POINTER    :: spl_p
       REAL(KIND=dp), INTENT(IN)                          :: xxi
-      REAL(KIND=dp), INTENT(OUT)                         :: y1
+      REAL(KIND=dp)                                      :: y1
       TYPE(spline_factor_type), POINTER                  :: spl_f
       TYPE(cp_logger_type), POINTER                      :: logger
       REAL(KIND=dp)                                      :: potential_s
@@ -220,7 +220,7 @@ CONTAINS
       ! Return value
       TYPE(spline_data_type), POINTER                    :: spl
       REAL(KIND=dp), INTENT(IN)                          :: xx
-      REAL(KIND=dp), INTENT(OUT), OPTIONAL               :: y1
+      REAL(KIND=dp), OPTIONAL                            :: y1
       REAL(KIND=dp)                                      :: spline_value
 
       REAL(KIND=dp), PARAMETER                           :: f13 = 1.0_dp/3.0_dp

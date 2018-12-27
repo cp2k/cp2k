@@ -69,8 +69,8 @@ CONTAINS
                                     blk_col_start)
       TYPE(dbcsr_type), POINTER                          :: dbcsr_mat
       TYPE(fb_atomic_halo_obj), INTENT(IN)               :: atomic_halo
-      INTEGER, INTENT(OUT)                               :: nrows, ncols
-      INTEGER, DIMENSION(:), INTENT(OUT)                 :: blk_row_start, blk_col_start
+      INTEGER                                            :: nrows, ncols
+      INTEGER, DIMENSION(:)                              :: blk_row_start, blk_col_start
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'fb_atmatrix_calc_size', &
          routineP = moduleN//':'//routineN
@@ -133,7 +133,7 @@ CONTAINS
       TYPE(dbcsr_type), POINTER                          :: dbcsr_mat
       TYPE(fb_atomic_halo_obj), INTENT(IN)               :: atomic_halo
       TYPE(cp_para_env_type), POINTER                    :: para_env
-      REAL(KIND=dp), DIMENSION(:, :), INTENT(OUT)        :: atomic_matrix
+      REAL(KIND=dp), DIMENSION(:, :)                     :: atomic_matrix
       INTEGER, DIMENSION(:), INTENT(IN)                  :: blk_row_start, blk_col_start
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'fb_atmatrix_construct', &
@@ -344,7 +344,7 @@ CONTAINS
                                       blk_col_start)
       TYPE(fb_matrix_data_obj), INTENT(IN)               :: matrix_storage
       TYPE(fb_atomic_halo_obj), INTENT(IN)               :: atomic_halo
-      REAL(KIND=dp), DIMENSION(:, :), INTENT(OUT)        :: atomic_matrix
+      REAL(KIND=dp), DIMENSION(:, :)                     :: atomic_matrix
       INTEGER, DIMENSION(:), INTENT(IN)                  :: blk_row_start, blk_col_start
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'fb_atmatrix_construct_2', &

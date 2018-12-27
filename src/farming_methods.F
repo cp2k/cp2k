@@ -49,7 +49,7 @@ CONTAINS
       TYPE(farming_env_type), POINTER                    :: farming_env
       INTEGER, INTENT(IN)                                :: start, END
       INTEGER, INTENT(INOUT)                             :: current
-      INTEGER, INTENT(OUT)                               :: todo
+      INTEGER                                            :: todo
 
       INTEGER                                            :: icheck, idep, itry, ndep
       LOGICAL                                            :: dep_ok

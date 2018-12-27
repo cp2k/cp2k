@@ -67,7 +67,7 @@ CONTAINS
       ! needs more workspace in the worst case, but much better distributed
 
       TYPE(dbcsr_type)                                   :: matrix, eigenvectors
-      REAL(KIND=dp), DIMENSION(:), INTENT(OUT)           :: eigenvalues
+      REAL(KIND=dp), DIMENSION(:)                        :: eigenvalues
       TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(cp_blacs_env_type), POINTER                   :: blacs_env
 
@@ -124,7 +124,7 @@ CONTAINS
 
       TYPE(dbcsr_type), POINTER                          :: matrix
       TYPE(dbcsr_type), OPTIONAL, POINTER                :: eigenvectors
-      REAL(KIND=dp), DIMENSION(:), INTENT(OUT)           :: eigenvalues
+      REAL(KIND=dp), DIMENSION(:)                        :: eigenvalues
       INTEGER, INTENT(IN), OPTIONAL                      :: neig
       REAL(KIND=dp), INTENT(IN), OPTIONAL                :: work_syevx
       TYPE(cp_para_env_type), POINTER                    :: para_env
@@ -179,7 +179,7 @@ CONTAINS
 
       TYPE(dbcsr_type)                                   :: matrix
       TYPE(dbcsr_type), OPTIONAL, POINTER                :: eigenvectors
-      REAL(KIND=dp), DIMENSION(:), INTENT(OUT)           :: eigenvalues
+      REAL(KIND=dp), DIMENSION(:)                        :: eigenvalues
       TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(cp_blacs_env_type), POINTER                   :: blacs_env
 

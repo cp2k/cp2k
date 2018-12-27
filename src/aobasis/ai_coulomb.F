@@ -810,7 +810,7 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(3), INTENT(IN)            :: rac
       REAL(KIND=dp), INTENT(IN)                          :: rac2, rbc2
       REAL(KIND=dp), DIMENSION(:, :), INTENT(INOUT)      :: vabc
-      REAL(KIND=dp), DIMENSION(:, :, :), INTENT(OUT)     :: int_abc
+      REAL(KIND=dp), DIMENSION(:, :, :)                  :: int_abc
       REAL(KIND=dp), DIMENSION(:, :, :, :)               :: v
       REAL(KIND=dp), DIMENSION(0:)                       :: f
       INTEGER, INTENT(IN), OPTIONAL                      :: maxder

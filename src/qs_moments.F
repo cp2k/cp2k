@@ -1640,7 +1640,7 @@ CONTAINS
 !> \param iz ...
 ! **************************************************************************************************
    SUBROUTINE set_label(label, ix, iy, iz)
-      CHARACTER(LEN=*), INTENT(OUT)                      :: label
+      CHARACTER(LEN=*)                                   :: label
       INTEGER, INTENT(IN)                                :: ix, iy, iz
 
       INTEGER                                            :: i

@@ -417,11 +417,11 @@ CONTAINS
       TYPE(cp_fm_struct_type), POINTER :: fmstruct
       TYPE(cp_para_env_type), POINTER, OPTIONAL :: para_env
       TYPE(cp_blacs_env_type), POINTER, OPTIONAL :: context
-      INTEGER, DIMENSION(9), INTENT(OUT), OPTIONAL :: descriptor
-      INTEGER, INTENT(out), OPTIONAL :: ncol_block, nrow_block, nrow_global, &
-                                        ncol_global, id_nr, ref_count, nrow_local, ncol_local, &
-                                        local_leading_dimension
-      INTEGER, DIMENSION(2), INTENT(out), OPTIONAL :: first_p_pos
+      INTEGER, DIMENSION(9), OPTIONAL :: descriptor
+      INTEGER, OPTIONAL :: ncol_block, nrow_block, nrow_global, &
+                           ncol_global, id_nr, ref_count, nrow_local, ncol_local, &
+                           local_leading_dimension
+      INTEGER, DIMENSION(2), OPTIONAL :: first_p_pos
       INTEGER, DIMENSION(:), POINTER, OPTIONAL :: row_indices, col_indices, &
                                                   nrow_locals, ncol_locals
 

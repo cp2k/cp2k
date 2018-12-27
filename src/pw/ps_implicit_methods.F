@@ -191,7 +191,7 @@ CONTAINS
       TYPE(pw_poisson_type), POINTER                     :: poisson_env
       TYPE(pw_type), INTENT(IN), POINTER                 :: density
       TYPE(pw_type), INTENT(INOUT), POINTER              :: v_new
-      REAL(dp), INTENT(OUT), OPTIONAL                    :: ehartree
+      REAL(dp), OPTIONAL                                 :: ehartree
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'implicit_poisson_solver_periodic', &
          routineP = moduleN//':'//routineN
@@ -325,7 +325,7 @@ CONTAINS
       TYPE(pw_poisson_type), POINTER                     :: poisson_env
       TYPE(pw_type), INTENT(IN), POINTER                 :: density
       TYPE(pw_type), INTENT(INOUT), POINTER              :: v_new
-      REAL(dp), INTENT(OUT), OPTIONAL                    :: ehartree
+      REAL(dp), OPTIONAL                                 :: ehartree
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'implicit_poisson_solver_neumann', &
          routineP = moduleN//':'//routineN
@@ -494,7 +494,7 @@ CONTAINS
       TYPE(pw_poisson_type), POINTER                     :: poisson_env
       TYPE(pw_type), INTENT(IN), POINTER                 :: density
       TYPE(pw_type), INTENT(INOUT), POINTER              :: v_new
-      REAL(dp), INTENT(OUT), OPTIONAL                    :: electric_enthalpy
+      REAL(dp), OPTIONAL                                 :: electric_enthalpy
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'implicit_poisson_solver_mixed_periodic', &
          routineP = moduleN//':'//routineN
@@ -754,7 +754,7 @@ CONTAINS
       TYPE(pw_poisson_type), POINTER                     :: poisson_env
       TYPE(pw_type), INTENT(IN), POINTER                 :: density
       TYPE(pw_type), INTENT(INOUT), POINTER              :: v_new
-      REAL(dp), INTENT(OUT), OPTIONAL                    :: electric_enthalpy
+      REAL(dp), OPTIONAL                                 :: electric_enthalpy
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'implicit_poisson_solver_mixed', &
          routineP = moduleN//':'//routineN
@@ -1815,7 +1815,7 @@ CONTAINS
    SUBROUTINE compute_ehartree_periodic_bc(density, v, ehartree)
 
       TYPE(pw_type), INTENT(IN), POINTER                 :: density, v
-      REAL(dp), INTENT(OUT)                              :: ehartree
+      REAL(dp)                                           :: ehartree
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'compute_ehartree_periodic_bc', &
          routineP = moduleN//':'//routineN
@@ -1851,7 +1851,7 @@ CONTAINS
       REAL(dp), ALLOCATABLE, DIMENSION(:, :, :), &
          INTENT(IN)                                      :: Btxlambda
       TYPE(pw_type), INTENT(IN), POINTER                 :: v
-      REAL(dp), INTENT(OUT)                              :: ehartree, electric_enthalpy
+      REAL(dp)                                           :: ehartree, electric_enthalpy
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'compute_ehartree_mixed_bc', &
          routineP = moduleN//':'//routineN
@@ -1906,7 +1906,7 @@ CONTAINS
       TYPE(greens_fn_type), INTENT(IN), POINTER          :: green
       TYPE(pw_type), INTENT(IN), POINTER                 :: res_new, v_old, v_new
       TYPE(pw_type), INTENT(INOUT), POINTER              :: QAinvxres_new
-      REAL(dp), INTENT(OUT)                              :: pres_error, nabs_error
+      REAL(dp)                                           :: pres_error, nabs_error
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'ps_implicit_compute_error_fft', &
          routineP = moduleN//':'//routineN
@@ -1958,7 +1958,7 @@ CONTAINS
       TYPE(greens_fn_type), INTENT(IN), POINTER          :: green
       TYPE(pw_type), INTENT(IN), POINTER                 :: res_new, v_old, v_new
       TYPE(pw_type), INTENT(INOUT), POINTER              :: QAinvxres_new
-      REAL(dp), INTENT(OUT)                              :: pres_error, nabs_error
+      REAL(dp)                                           :: pres_error, nabs_error
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'ps_implicit_compute_error_dct', &
          routineP = moduleN//':'//routineN
@@ -2001,7 +2001,7 @@ CONTAINS
 
       INTEGER, INTENT(IN)                                :: iter
       REAL(dp), INTENT(IN)                               :: pres_error, nabs_error
-      INTEGER, INTENT(OUT)                               :: outp_unit
+      INTEGER                                            :: outp_unit
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'ps_implicit_output', &
          routineP = moduleN//':'//routineN
@@ -2204,7 +2204,7 @@ CONTAINS
 
       REAL(dp), INTENT(IN)                               :: time
       REAL(dp), DIMENSION(:), INTENT(IN)                 :: v_D, osc_frac, frequency, phase
-      REAL(dp), ALLOCATABLE, DIMENSION(:), INTENT(OUT)   :: v_D_new
+      REAL(dp), ALLOCATABLE, DIMENSION(:)                :: v_D_new
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'get_voltage', routineP = moduleN//':'//routineN
 

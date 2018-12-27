@@ -46,7 +46,7 @@ CONTAINS
    SUBROUTINE pao_guess_initial_potential(qs_env, iatom, block_V)
       TYPE(qs_environment_type), POINTER                 :: qs_env
       INTEGER, INTENT(IN)                                :: iatom
-      REAL(dp), DIMENSION(:, :), INTENT(OUT)             :: block_V
+      REAL(dp), DIMENSION(:, :)                          :: block_V
 
       CHARACTER(len=*), PARAMETER :: routineN = 'pao_guess_initial_potential'
 
@@ -98,9 +98,8 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE pao_calc_gaussian(basis_set, block_V, block_D, Rab, lpot, beta, weight, min_shell, max_shell, min_l, max_l)
       TYPE(gto_basis_set_type), POINTER                  :: basis_set
-      REAL(dp), DIMENSION(:, :), INTENT(OUT), OPTIONAL   :: block_V
-      REAL(dp), DIMENSION(:, :, :), INTENT(OUT), &
-         OPTIONAL                                        :: block_D
+      REAL(dp), DIMENSION(:, :), OPTIONAL                :: block_V
+      REAL(dp), DIMENSION(:, :, :), OPTIONAL             :: block_D
       REAL(dp), DIMENSION(3)                             :: Rab
       INTEGER, INTENT(IN)                                :: lpot
       REAL(dp), INTENT(IN)                               :: beta, weight
@@ -268,7 +267,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE my_contract(sab, block, basis_set, iset, ishell, jset, jshell)
       REAL(dp), DIMENSION(:, :), INTENT(IN), TARGET      :: sab
-      REAL(dp), DIMENSION(:, :), INTENT(OUT), TARGET     :: block
+      REAL(dp), DIMENSION(:, :), TARGET                  :: block
       TYPE(gto_basis_set_type), POINTER                  :: basis_set
       INTEGER, INTENT(IN)                                :: iset, ishell, jset, jshell
 

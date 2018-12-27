@@ -223,10 +223,10 @@ CONTAINS
                           virial)
 
       TYPE(eip_environment_type), POINTER                :: eip_env
-      INTEGER, INTENT(OUT), OPTIONAL                     :: id_nr, eip_model
-      REAL(KIND=dp), INTENT(OUT), OPTIONAL               :: eip_energy, eip_energy_var
+      INTEGER, OPTIONAL                                  :: id_nr, eip_model
+      REAL(KIND=dp), OPTIONAL                            :: eip_energy, eip_energy_var
       REAL(KIND=dp), DIMENSION(:, :), OPTIONAL, POINTER  :: eip_forces
-      REAL(KIND=dp), INTENT(OUT), OPTIONAL               :: coord_avg, coord_var, count
+      REAL(KIND=dp), OPTIONAL                            :: coord_avg, coord_var, count
       TYPE(cp_subsys_type), OPTIONAL, POINTER            :: subsys
       TYPE(atomic_kind_type), DIMENSION(:), OPTIONAL, &
          POINTER                                         :: atomic_kind_set
@@ -240,8 +240,8 @@ CONTAINS
       TYPE(distribution_1d_type), OPTIONAL, POINTER      :: local_molecules
       TYPE(section_vals_type), OPTIONAL, POINTER         :: eip_input, force_env_input
       TYPE(cell_type), OPTIONAL, POINTER                 :: cell, cell_ref
-      LOGICAL, INTENT(OUT), OPTIONAL                     :: use_ref_cell
-      REAL(KIND=dp), INTENT(OUT), OPTIONAL               :: eip_kinetic_energy, eip_potential_energy
+      LOGICAL, OPTIONAL                                  :: use_ref_cell
+      REAL(KIND=dp), OPTIONAL                            :: eip_kinetic_energy, eip_potential_energy
       TYPE(virial_type), OPTIONAL, POINTER               :: virial
 
       CHARACTER(len=*), PARAMETER :: routineN = 'eip_env_get', routineP = moduleN//':'//routineN

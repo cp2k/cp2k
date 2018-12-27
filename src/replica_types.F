@@ -198,7 +198,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE rep_env_destroy_low(rep_env_id, ierr)
       INTEGER, INTENT(in)                                :: rep_env_id
-      INTEGER, INTENT(out)                               :: ierr
+      INTEGER                                            :: ierr
 
       CHARACTER(len=*), PARAMETER :: routineN = 'rep_env_destroy_low', &
          routineP = moduleN//':'//routineN
@@ -290,7 +290,7 @@ CONTAINS
 ! **************************************************************************************************
    FUNCTION rep_envs_get_rep_env(id_nr, ierr) RESULT(res)
       INTEGER, INTENT(in)                                :: id_nr
-      INTEGER, INTENT(OUT)                               :: ierr
+      INTEGER                                            :: ierr
       TYPE(replica_env_type), POINTER                    :: res
 
       CHARACTER(len=*), PARAMETER :: routineN = 'rep_envs_get_rep_env', &

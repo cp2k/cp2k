@@ -198,7 +198,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE estimate_norm_invmat(amat, anorm)
       TYPE(dbcsr_type), POINTER                          :: amat
-      REAL(KIND=dp), INTENT(OUT)                         :: anorm
+      REAL(KIND=dp)                                      :: anorm
 
       INTEGER                                            :: i, k, nbas
       INTEGER, DIMENSION(1)                              :: r

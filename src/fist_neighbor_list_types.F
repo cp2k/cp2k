@@ -231,7 +231,7 @@ CONTAINS
       TYPE(neighbor_kind_pairs_type), POINTER            :: neighbor_kind_pair
       INTEGER, INTENT(IN)                                :: atom_a, atom_b
       REAL(KIND=dp), DIMENSION(3)                        :: rab
-      LOGICAL, INTENT(OUT)                               :: check_spline
+      LOGICAL                                            :: check_spline
       INTEGER, INTENT(IN)                                :: id_kind
       LOGICAL, INTENT(IN)                                :: skip
       TYPE(cell_type), POINTER                           :: cell

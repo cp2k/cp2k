@@ -811,9 +811,9 @@ CONTAINS
       REAL(dp), DIMENSION(:, :), OPTIONAL, POINTER       :: cprj, cprj_s, csprj
       INTEGER, DIMENSION(:), OPTIONAL, POINTER           :: first_prj, first_prjs, last_prj
       REAL(dp), DIMENSION(:, :), OPTIONAL, POINTER       :: local_oce_sphi_h, local_oce_sphi_s
-      INTEGER, INTENT(OUT), OPTIONAL                     :: maxl, ncgauprj, nsgauprj, nsatbas, nsotot
+      INTEGER, OPTIONAL                                  :: maxl, ncgauprj, nsgauprj, nsatbas, nsotot
       INTEGER, DIMENSION(:), OPTIONAL, POINTER           :: nprj, o2nindex, n2oindex
-      REAL(dp), INTENT(OUT), OPTIONAL                    :: rcprj
+      REAL(dp), OPTIONAL                                 :: rcprj
       REAL(dp), DIMENSION(:, :), OPTIONAL, POINTER       :: rzetprj
       REAL(dp), DIMENSION(:), OPTIONAL, POINTER          :: zisomin
       REAL(dp), DIMENSION(:, :), OPTIONAL, POINTER       :: zetprj

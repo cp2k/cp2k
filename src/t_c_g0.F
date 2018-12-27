@@ -70,8 +70,8 @@ CONTAINS
 !> \param NDERIV ...
 ! **************************************************************************************************
    SUBROUTINE t_c_g0_n(RES, use_gamma, R, T, NDERIV)
-      REAL(KIND=dp), INTENT(OUT)                         :: RES(*)
-      LOGICAL, INTENT(OUT)                               :: use_gamma
+      REAL(KIND=dp)                                      :: RES(*)
+      LOGICAL                                            :: use_gamma
       REAL(KIND=dp), INTENT(IN)                          :: R, T
       INTEGER, INTENT(IN)                                :: NDERIV
 
@@ -1384,7 +1384,7 @@ CONTAINS
 !> \param C0 ...
 ! **************************************************************************************************
    SUBROUTINE PD2VAL(RES, NDERIV, TG1, TG2, C0)
-      REAL(KIND=dp), INTENT(OUT)                         :: res(*)
+      REAL(KIND=dp)                                      :: res(*)
       INTEGER, INTENT(IN)                                :: NDERIV
       REAL(KIND=dp), INTENT(IN)                          :: TG1, TG2, C0(105, *)
 

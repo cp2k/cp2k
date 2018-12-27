@@ -88,9 +88,9 @@ CONTAINS
    SUBROUTINE ke_gga_info(functional, lsd, reference, shortform, needs, max_deriv)
       INTEGER, INTENT(in)                                :: functional
       LOGICAL, INTENT(in)                                :: lsd
-      CHARACTER(LEN=*), INTENT(OUT), OPTIONAL            :: reference, shortform
+      CHARACTER(LEN=*), OPTIONAL                         :: reference, shortform
       TYPE(xc_rho_cflags_type), INTENT(inout), OPTIONAL  :: needs
-      INTEGER, INTENT(out), OPTIONAL                     :: max_deriv
+      INTEGER, OPTIONAL                                  :: max_deriv
 
       CHARACTER(len=*), PARAMETER :: routineN = 'ke_gga_info', routineP = moduleN//':'//routineN
 
@@ -666,7 +666,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE efactor_ol1(s, fs, m)
       REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: s
-      REAL(KIND=dp), DIMENSION(:, :), INTENT(OUT)        :: fs
+      REAL(KIND=dp), DIMENSION(:, :)                     :: fs
       INTEGER, INTENT(IN)                                :: m
 
       CHARACTER(len=*), PARAMETER :: routineN = 'efactor_ol1', routineP = moduleN//':'//routineN
@@ -710,7 +710,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE efactor_ol2(s, fs, m)
       REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: s
-      REAL(KIND=dp), DIMENSION(:, :), INTENT(OUT)        :: fs
+      REAL(KIND=dp), DIMENSION(:, :)                     :: fs
       INTEGER, INTENT(IN)                                :: m
 
       CHARACTER(len=*), PARAMETER :: routineN = 'efactor_ol2', routineP = moduleN//':'//routineN
@@ -759,7 +759,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE efactor_llp(s, fs, m)
       REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: s
-      REAL(KIND=dp), DIMENSION(:, :), INTENT(OUT)        :: fs
+      REAL(KIND=dp), DIMENSION(:, :)                     :: fs
       INTEGER, INTENT(IN)                                :: m
 
       CHARACTER(len=*), PARAMETER :: routineN = 'efactor_llp', routineP = moduleN//':'//routineN
@@ -928,7 +928,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE efactor_pw86(s, fs, m, f2_lsd)
       REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: s
-      REAL(KIND=dp), DIMENSION(:, :), INTENT(OUT)        :: fs
+      REAL(KIND=dp), DIMENSION(:, :)                     :: fs
       INTEGER, INTENT(IN)                                :: m
       REAL(dp), OPTIONAL                                 :: f2_lsd
 
@@ -999,7 +999,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE efactor_t92(s, fs, m)
       REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: s
-      REAL(KIND=dp), DIMENSION(:, :), INTENT(OUT)        :: fs
+      REAL(KIND=dp), DIMENSION(:, :)                     :: fs
       INTEGER, INTENT(IN)                                :: m
 
       CHARACTER(len=*), PARAMETER :: routineN = 'efactor_t92', routineP = moduleN//':'//routineN
@@ -1094,7 +1094,7 @@ CONTAINS
    SUBROUTINE efactor_pbex(s, fs, m, pset, f2_lsd)
 
       REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: s
-      REAL(KIND=dp), DIMENSION(:, :), INTENT(OUT)        :: fs
+      REAL(KIND=dp), DIMENSION(:, :)                     :: fs
       INTEGER, INTENT(IN)                                :: m, pset
       REAL(dp), OPTIONAL                                 :: f2_lsd
 
@@ -1153,7 +1153,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE efactor_pw91(s, fs, m, pset, f2_lsd)
       REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: s
-      REAL(KIND=dp), DIMENSION(:, :), INTENT(OUT)        :: fs
+      REAL(KIND=dp), DIMENSION(:, :)                     :: fs
       INTEGER, INTENT(IN)                                :: m, pset
       REAL(dp), OPTIONAL                                 :: f2_lsd
 

@@ -111,7 +111,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE zero_virial(virial, reset)
 
-      TYPE(virial_type), INTENT(OUT)                     :: virial
+      TYPE(virial_type)                                  :: virial
       LOGICAL, INTENT(IN), OPTIONAL                      :: reset
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'zero_virial', routineP = moduleN//':'//routineN

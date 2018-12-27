@@ -418,7 +418,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE cp_dbcsr_dist2d_to_dist(dist2d, dist)
       TYPE(distribution_2d_type), INTENT(IN), TARGET     :: dist2d
-      TYPE(dbcsr_distribution_type), INTENT(OUT)          :: dist
+      TYPE(dbcsr_distribution_type)          :: dist
 
       INTEGER, DIMENSION(:, :), POINTER                  :: pgrid, col_dist_data, row_dist_data
       TYPE(cp_blacs_env_type), POINTER                   :: blacs_env
@@ -988,7 +988,7 @@ CONTAINS
 ! **************************************************************************************************
   SUBROUTINE create_bl_distribution (block_distribution,&
        block_size, nelements, nbins)
-      INTEGER, DIMENSION(:), INTENT(OUT), POINTER        :: block_distribution, block_size
+      INTEGER, DIMENSION(:), POINTER        :: block_distribution, block_size
       INTEGER, INTENT(IN)                                :: nelements, nbins
 
       CHARACTER(len=*), PARAMETER :: routineN = 'create_bl_distribution', &
@@ -1088,10 +1088,10 @@ CONTAINS
 ! **************************************************************************************************
   SUBROUTINE dbcsr_create_dist_r_unrot(dist_right, dist_left, ncolumns,&
        right_col_blk_sizes)
-      TYPE(dbcsr_distribution_type), INTENT(OUT)          :: dist_right
+      TYPE(dbcsr_distribution_type)          :: dist_right
       TYPE(dbcsr_distribution_type), INTENT(IN)           :: dist_left
       INTEGER, INTENT(IN)                                :: ncolumns
-      INTEGER, DIMENSION(:), INTENT(OUT), POINTER        :: right_col_blk_sizes
+      INTEGER, DIMENSION(:), POINTER        :: right_col_blk_sizes
 
       CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_create_dist_r_unrot', &
          routineP = moduleN//':'//routineN
@@ -1160,7 +1160,7 @@ CONTAINS
 ! **************************************************************************************************
   SUBROUTINE rebin_distribution (new_bins, images, source_bins,&
        nbins, multiplicity, nimages)
-      INTEGER, DIMENSION(:), INTENT(OUT)                 :: new_bins, images
+      INTEGER, DIMENSION(:)                 :: new_bins, images
       INTEGER, DIMENSION(:), INTENT(IN)                  :: source_bins
       INTEGER, INTENT(IN)                                :: nbins, multiplicity, nimages
 
@@ -1210,11 +1210,11 @@ CONTAINS
 ! **************************************************************************************************
   SUBROUTINE dbcsr_create_dist_block_cyclic (dist, nrows, ncolumns,&
        nrow_block, ncol_block, group, pgrid, row_blk_sizes, col_blk_sizes)
-      TYPE(dbcsr_distribution_type), INTENT(OUT)          :: dist
+      TYPE(dbcsr_distribution_type)          :: dist
       INTEGER, INTENT(IN)                                :: nrows, ncolumns, nrow_block, ncol_block
       INTEGER, INTENT(IN)                                :: group
       INTEGER, DIMENSION(:, :), POINTER                  :: pgrid
-      INTEGER, DIMENSION(:), INTENT(OUT), POINTER        :: row_blk_sizes, col_blk_sizes
+      INTEGER, DIMENSION(:), POINTER        :: row_blk_sizes, col_blk_sizes
 
       CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_create_dist_block_cyclic', &
          routineP = moduleN//':'//routineN

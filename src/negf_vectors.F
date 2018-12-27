@@ -39,7 +39,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE contact_direction_vector(origin, direction_vector, origin_bias, direction_vector_bias, &
                                        atomlist_screening, atomlist_bulk, subsys)
-      REAL(kind=dp), DIMENSION(3), INTENT(out)           :: origin, direction_vector, origin_bias, &
+      REAL(kind=dp), DIMENSION(3)                        :: origin, direction_vector, origin_bias, &
                                                             direction_vector_bias
       INTEGER, DIMENSION(:), INTENT(in)                  :: atomlist_screening, atomlist_bulk
       TYPE(qs_subsys_type), POINTER                      :: subsys

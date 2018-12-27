@@ -228,7 +228,7 @@ CONTAINS
    SUBROUTINE swarm_master_steer(master, report, cmd)
       TYPE(swarm_master_type), INTENT(INOUT)             :: master
       TYPE(swarm_message_type), INTENT(IN)               :: report
-      TYPE(swarm_message_type), INTENT(OUT)              :: cmd
+      TYPE(swarm_message_type)                           :: cmd
 
       CHARACTER(len=*), PARAMETER :: routineN = 'swarm_master_steer', &
          routineP = moduleN//':'//routineN

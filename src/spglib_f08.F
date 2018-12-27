@@ -45,7 +45,7 @@
 
          FUNCTION spg_get_international(symbol, lattice, position, types, num_atom, symprec) bind(c)
             import c_char, c_int, c_double
-            CHARACTER(kind=c_char), INTENT(out) :: symbol(11)
+            CHARACTER(kind=c_char) :: symbol(11)
             REAL(c_double), INTENT(in) :: lattice(3, 3), position(3, *)
             INTEGER(c_int), INTENT(in) :: types(*)
             INTEGER(c_int), INTENT(in), value :: num_atom
@@ -55,7 +55,7 @@
 
          FUNCTION spg_get_schoenflies(symbol, lattice, position, types, num_atom, symprec) bind(c)
             import c_char, c_int, c_double
-            CHARACTER(kind=c_char), INTENT(out) :: symbol(7)
+            CHARACTER(kind=c_char) :: symbol(7)
             REAL(c_double), INTENT(in) :: lattice(3, 3), position(3, *)
             INTEGER(c_int), INTENT(in) :: types(*)
             INTEGER(c_int), INTENT(in), value :: num_atom
@@ -76,7 +76,7 @@
                                              is_shift, is_time_reversal, lattice, position, types, num_atom, symprec) bind(c)
             import c_int, c_double
 !   Beware the map refers to positions starting at 0
-            INTEGER(c_int), INTENT(out) :: grid_point(3, *), map(*) ! size is product(mesh)
+            INTEGER(c_int) :: grid_point(3, *), map(*) ! size is product(mesh)
             INTEGER(c_int), INTENT(in) :: mesh(3), is_shift(3)
             INTEGER(c_int), INTENT(in), value :: is_time_reversal
             REAL(c_double), INTENT(in) :: lattice(3, 3), position(3, *)
@@ -197,7 +197,7 @@
 !> \return ...
 ! **************************************************************************************************
       FUNCTION spg_get_international(symbol, lattice, position, types, num_atom, symprec)
-      CHARACTER, INTENT(out)                             :: symbol(11)
+      CHARACTER                                          :: symbol(11)
       REAL(KIND=dp), INTENT(in)                          :: lattice(:, :), position(:, :)
       INTEGER, INTENT(in)                                :: types(:), num_atom
       REAL(KIND=dp), INTENT(in)                          :: symprec
@@ -225,7 +225,7 @@
 !> \return ...
 ! **************************************************************************************************
       FUNCTION spg_get_schoenflies(symbol, lattice, position, types, num_atom, symprec)
-      CHARACTER, INTENT(out)                             :: symbol(7)
+      CHARACTER                                          :: symbol(7)
       REAL(KIND=dp), INTENT(in)                          :: lattice(:, :), position(:, :)
       INTEGER, INTENT(in)                                :: types(:), num_atom
       REAL(KIND=dp), INTENT(in)                          :: symprec
@@ -280,7 +280,7 @@
 ! **************************************************************************************************
       FUNCTION spg_get_ir_reciprocal_mesh(grid_point, map, mesh, &
                                           is_shift, is_time_reversal, lattice, position, types, num_atom, symprec)
-      INTEGER, INTENT(out)                               :: grid_point(:, :), map(:)
+      INTEGER                                            :: grid_point(:, :), map(:)
       INTEGER, INTENT(in)                                :: mesh(:), is_shift(:), is_time_reversal
       REAL(KIND=dp), INTENT(in)                          :: lattice(:, :), position(:, :)
       INTEGER, INTENT(in)                                :: types(:), num_atom

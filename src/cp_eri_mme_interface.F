@@ -442,10 +442,9 @@ CONTAINS
          POINTER                                         :: qs_kind_set
       CHARACTER(len=*), INTENT(IN)                       :: basis_type_1
       CHARACTER(len=*), INTENT(IN), OPTIONAL             :: basis_type_2
-      REAL(KIND=dp), INTENT(OUT)                         :: zet_mm
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:), &
-         INTENT(OUT)                                     :: zet_c
-      INTEGER, ALLOCATABLE, DIMENSION(:), INTENT(OUT)    :: l_c
+      REAL(KIND=dp)                                      :: zet_mm
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: zet_c
+      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: l_c
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'error_est_pgf_params_from_basis', &
          routineP = moduleN//':'//routineN

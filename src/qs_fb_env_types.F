@@ -162,7 +162,7 @@ CONTAINS
 !> \author Lianheng Tong (LT) lianheng.tong@kcl.ac.uk
 ! **************************************************************************************************
    SUBROUTINE fb_env_associate(a, b)
-      TYPE(fb_env_obj), INTENT(OUT)                      :: a
+      TYPE(fb_env_obj)                                   :: a
       TYPE(fb_env_obj), INTENT(IN)                       :: b
 
       CHARACTER(len=*), PARAMETER :: routineN = 'fb_env_associate', &
@@ -275,14 +275,13 @@ CONTAINS
                          nlocal_atoms)
       TYPE(fb_env_obj), INTENT(IN)                       :: fb_env
       REAL(KIND=dp), DIMENSION(:), OPTIONAL, POINTER     :: rcut
-      REAL(KIND=dp), INTENT(OUT), OPTIONAL               :: filter_temperature, auto_cutoff_scale, &
+      REAL(KIND=dp), OPTIONAL                            :: filter_temperature, auto_cutoff_scale, &
                                                             eps_default
-      TYPE(fb_atomic_halo_list_obj), INTENT(OUT), &
-         OPTIONAL                                        :: atomic_halos
-      TYPE(fb_trial_fns_obj), INTENT(OUT), OPTIONAL      :: trial_fns
-      LOGICAL, INTENT(OUT), OPTIONAL                     :: collective_com
+      TYPE(fb_atomic_halo_list_obj), OPTIONAL            :: atomic_halos
+      TYPE(fb_trial_fns_obj), OPTIONAL                   :: trial_fns
+      LOGICAL, OPTIONAL                                  :: collective_com
       INTEGER, DIMENSION(:), OPTIONAL, POINTER           :: local_atoms
-      INTEGER, INTENT(OUT), OPTIONAL                     :: nlocal_atoms
+      INTEGER, OPTIONAL                                  :: nlocal_atoms
 
       CHARACTER(len=*), PARAMETER :: routineN = 'fb_env_get', routineP = moduleN//':'//routineN
 

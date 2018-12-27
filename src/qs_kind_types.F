@@ -423,7 +423,7 @@ CONTAINS
       TYPE(qs_kind_type)                                 :: qs_kind
       TYPE(gto_basis_set_type), OPTIONAL, POINTER        :: basis_set
       CHARACTER(len=*), OPTIONAL                         :: basis_type
-      INTEGER, INTENT(OUT), OPTIONAL                     :: ncgf, nsgf
+      INTEGER, OPTIONAL                                  :: ncgf, nsgf
       TYPE(all_potential_type), OPTIONAL, POINTER        :: all_potential
       TYPE(local_potential_type), OPTIONAL, POINTER      :: tnadd_potential
       TYPE(gth_potential_type), OPTIONAL, POINTER        :: gth_potential
@@ -431,42 +431,41 @@ CONTAINS
       TYPE(atom_upfpot_type), OPTIONAL, POINTER          :: upf_potential
       TYPE(semi_empirical_type), OPTIONAL, POINTER       :: se_parameter
       TYPE(qs_dftb_atom_type), OPTIONAL, POINTER         :: dftb_parameter
-      REAL(KIND=dp), INTENT(OUT), OPTIONAL               :: dftb3_param, zeff
+      REAL(KIND=dp), OPTIONAL                            :: dftb3_param, zeff
       INTEGER, DIMENSION(:), OPTIONAL, POINTER           :: elec_conf
-      INTEGER, INTENT(OUT), OPTIONAL                     :: mao, lmax_dftb
-      REAL(KIND=dp), INTENT(OUT), OPTIONAL               :: alpha_core_charge, ccore_charge, &
+      INTEGER, OPTIONAL                                  :: mao, lmax_dftb
+      REAL(KIND=dp), OPTIONAL                            :: alpha_core_charge, ccore_charge, &
                                                             core_charge, core_charge_radius
       TYPE(gto_basis_set_type), OPTIONAL, POINTER        :: soft_basis_set, hard_basis_set
       TYPE(paw_proj_set_type), OPTIONAL, POINTER         :: paw_proj_set
       LOGICAL, INTENT(IN), OPTIONAL                      :: softb
-      LOGICAL, INTENT(OUT), OPTIONAL                     :: paw_atom
-      REAL(dp), INTENT(OUT), OPTIONAL                    :: hard_radius, hard0_radius, max_rad_local
-      LOGICAL, INTENT(OUT), OPTIONAL                     :: gpw_type_forced
+      LOGICAL, OPTIONAL                                  :: paw_atom
+      REAL(dp), OPTIONAL                                 :: hard_radius, hard0_radius, max_rad_local
+      LOGICAL, OPTIONAL                                  :: gpw_type_forced
       TYPE(harmonics_atom_type), OPTIONAL, POINTER       :: harmonics
-      INTEGER, INTENT(OUT), OPTIONAL                     :: max_iso_not0, max_s_harm
+      INTEGER, OPTIONAL                                  :: max_iso_not0, max_s_harm
       TYPE(grid_atom_type), OPTIONAL, POINTER            :: grid_atom
-      INTEGER, INTENT(OUT), OPTIONAL                     :: ngrid_ang, ngrid_rad, lmax_rho0
-      LOGICAL, INTENT(OUT), OPTIONAL                     :: dft_plus_u_atom
-      INTEGER, INTENT(OUT), OPTIONAL                     :: l_of_dft_plus_u
-      REAL(KIND=dp), INTENT(OUT), OPTIONAL               :: u_minus_j
+      INTEGER, OPTIONAL                                  :: ngrid_ang, ngrid_rad, lmax_rho0
+      LOGICAL, OPTIONAL                                  :: dft_plus_u_atom
+      INTEGER, OPTIONAL                                  :: l_of_dft_plus_u
+      REAL(KIND=dp), OPTIONAL                            :: u_minus_j
       TYPE(qs_atom_dispersion_type), OPTIONAL, POINTER   :: dispersion
-      LOGICAL, INTENT(OUT), OPTIONAL                     :: bs_occupation
-      REAL(KIND=dp), INTENT(OUT), OPTIONAL               :: magnetization
-      LOGICAL, INTENT(OUT), OPTIONAL                     :: no_optimize
+      LOGICAL, OPTIONAL                                  :: bs_occupation
+      REAL(KIND=dp), OPTIONAL                            :: magnetization
+      LOGICAL, OPTIONAL                                  :: no_optimize
       INTEGER, DIMENSION(:, :), OPTIONAL, POINTER        :: addel, laddel, naddel
       INTEGER, DIMENSION(:), OPTIONAL, POINTER           :: orbitals
       INTEGER, OPTIONAL                                  :: max_scf
       REAL(KIND=dp), OPTIONAL                            :: eps_scf
       LOGICAL, OPTIONAL                                  :: smear
-      REAL(KIND=dp), INTENT(OUT), OPTIONAL               :: u_ramping, u_minus_j_target, &
+      REAL(KIND=dp), OPTIONAL                            :: u_ramping, u_minus_j_target, &
                                                             eps_u_ramping
       LOGICAL, OPTIONAL                                  :: init_u_ramping_each_scf
       REAL(KIND=dp), DIMENSION(:, :), OPTIONAL, POINTER  :: reltmat
       LOGICAL, OPTIONAL                                  :: ghost, floating
-      CHARACTER(LEN=default_string_length), &
-         INTENT(OUT), OPTIONAL                           :: name
-      CHARACTER(LEN=2), INTENT(OUT), OPTIONAL            :: element_symbol
-      INTEGER, INTENT(OUT), OPTIONAL                     :: pao_basis_size
+      CHARACTER(LEN=default_string_length), OPTIONAL     :: name
+      CHARACTER(LEN=2), OPTIONAL                         :: element_symbol
+      INTEGER, OPTIONAL                                  :: pao_basis_size
       TYPE(pao_potential_type), DIMENSION(:), OPTIONAL, &
          POINTER                                         :: pao_potentials
       TYPE(pao_descriptor_type), DIMENSION(:), &
@@ -789,13 +788,12 @@ CONTAINS
                               basis_type)
 
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
-      LOGICAL, INTENT(OUT), OPTIONAL :: all_potential_present, tnadd_potential_present, &
-         gth_potential_present, sgp_potential_present, paw_atom_present, dft_plus_u_atom_present
-      INTEGER, INTENT(OUT), OPTIONAL :: maxcgf, maxsgf, maxco, maxco_proj, maxgtops, maxlgto, &
-         maxlprj, maxnset, maxsgf_set, ncgf, npgf, nset, nsgf, nshell, maxpol, maxlppl, maxlppnl, &
-         maxppnl, nelectron
+      LOGICAL, OPTIONAL :: all_potential_present, tnadd_potential_present, gth_potential_present, &
+         sgp_potential_present, paw_atom_present, dft_plus_u_atom_present
+      INTEGER, OPTIONAL :: maxcgf, maxsgf, maxco, maxco_proj, maxgtops, maxlgto, maxlprj, maxnset, &
+         maxsgf_set, ncgf, npgf, nset, nsgf, nshell, maxpol, maxlppl, maxlppnl, maxppnl, nelectron
       INTEGER, INTENT(IN), OPTIONAL                      :: maxder
-      INTEGER, INTENT(OUT), OPTIONAL                     :: max_ngrid_rad, max_sph_harm, &
+      INTEGER, OPTIONAL                                  :: max_ngrid_rad, max_sph_harm, &
                                                             maxg_iso_not0, lmax_rho0
       CHARACTER(len=*), OPTIONAL                         :: basis_type
 
@@ -2807,9 +2805,8 @@ CONTAINS
 
       TYPE(atomic_kind_type), INTENT(IN)                 :: atomic_kind
       TYPE(qs_kind_type), INTENT(IN)                     :: qs_kind
-      INTEGER, DIMENSION(0:lmat, 10), INTENT(OUT)        :: ncalc, ncore, nelem
-      REAL(KIND=dp), DIMENSION(0:lmat, 10, 2), &
-         INTENT(OUT)                                     :: edelta
+      INTEGER, DIMENSION(0:lmat, 10)                     :: ncalc, ncore, nelem
+      REAL(KIND=dp), DIMENSION(0:lmat, 10, 2)            :: edelta
 
       CHARACTER(len=*), PARAMETER :: routineN = 'init_atom_electronic_state', &
          routineP = moduleN//':'//routineN
@@ -2942,7 +2939,7 @@ CONTAINS
    SUBROUTINE set_pseudo_state(econf, z, ncalc, ncore, nelem)
       INTEGER, DIMENSION(:), POINTER                     :: econf
       INTEGER, INTENT(IN)                                :: z
-      INTEGER, DIMENSION(0:lmat, 10), INTENT(OUT)        :: ncalc, ncore, nelem
+      INTEGER, DIMENSION(0:lmat, 10)                     :: ncalc, ncore, nelem
 
       CHARACTER(len=*), PARAMETER :: routineN = 'set_pseudo_state', &
          routineP = moduleN//':'//routineN

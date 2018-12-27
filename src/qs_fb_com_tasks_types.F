@@ -281,7 +281,7 @@ CONTAINS
 !> \author Lianheng Tong (LT) lianheng.tong@kcl.ac.uk
 ! **************************************************************************************************
    SUBROUTINE fb_com_tasks_associate(a, b)
-      TYPE(fb_com_tasks_obj), INTENT(OUT)                :: a
+      TYPE(fb_com_tasks_obj)                             :: a
       TYPE(fb_com_tasks_obj), INTENT(IN)                 :: b
 
       CHARACTER(len=*), PARAMETER :: routineN = 'fb_com_tasks_associate', &
@@ -297,7 +297,7 @@ CONTAINS
 !> \author Lianheng Tong (LT) lianheng.tong@kcl.ac.uk
 ! **************************************************************************************************
    SUBROUTINE fb_com_atom_pairs_associate(a, b)
-      TYPE(fb_com_atom_pairs_obj), INTENT(OUT)           :: a
+      TYPE(fb_com_atom_pairs_obj)                        :: a
       TYPE(fb_com_atom_pairs_obj), INTENT(IN)            :: b
 
       CHARACTER(len=*), PARAMETER :: routineN = 'fb_com_atom_pairs_associate', &
@@ -444,7 +444,7 @@ CONTAINS
                                nencode, &
                                tasks)
       TYPE(fb_com_tasks_obj), INTENT(IN)                 :: com_tasks
-      INTEGER, INTENT(OUT), OPTIONAL                     :: task_dim, ntasks, nencode
+      INTEGER, OPTIONAL                                  :: task_dim, ntasks, nencode
       INTEGER(KIND=int_8), DIMENSION(:, :), OPTIONAL, &
          POINTER                                         :: tasks
 
@@ -474,7 +474,7 @@ CONTAINS
                                     natoms_encode, &
                                     pairs)
       TYPE(fb_com_atom_pairs_obj), INTENT(IN)            :: atom_pairs
-      INTEGER, INTENT(OUT), OPTIONAL                     :: npairs, natoms_encode
+      INTEGER, OPTIONAL                                  :: npairs, natoms_encode
       INTEGER(KIND=int_8), DIMENSION(:), OPTIONAL, &
          POINTER                                         :: pairs
 
@@ -840,7 +840,7 @@ CONTAINS
 !> \author Lianheng Tong (LT) lianheng.tong@kcl.ac.uk
 ! **************************************************************************************************
    SUBROUTINE fb_com_tasks_encode_pair(ind, iatom, jatom, natoms)
-      INTEGER(KIND=int_8), INTENT(OUT)                   :: ind
+      INTEGER(KIND=int_8)                                :: ind
       INTEGER, INTENT(IN)                                :: iatom, jatom, natoms
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'fb_com_tasks_encode_pair', &
@@ -866,7 +866,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE fb_com_tasks_decode_pair(ind, iatom, jatom, natoms)
       INTEGER(KIND=int_8), INTENT(IN)                    :: ind
-      INTEGER, INTENT(OUT)                               :: iatom, jatom
+      INTEGER                                            :: iatom, jatom
       INTEGER, INTENT(IN)                                :: natoms
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'fb_com_tasks_decode_pair', &
@@ -893,7 +893,7 @@ CONTAINS
 !> \author Lianheng Tong (LT) lianheng.tong@kcl.ac.uk
 ! **************************************************************************************************
    SUBROUTINE fb_com_atom_pairs_encode(ind, pe, iatom, jatom, natoms)
-      INTEGER(KIND=int_8), INTENT(OUT)                   :: ind
+      INTEGER(KIND=int_8)                                :: ind
       INTEGER, INTENT(IN)                                :: pe, iatom, jatom, natoms
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'fb_com_atom_pairs_encode', &
@@ -922,7 +922,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE fb_com_atom_pairs_decode(ind, pe, iatom, jatom, natoms)
       INTEGER(KIND=int_8), INTENT(IN)                    :: ind
-      INTEGER, INTENT(OUT)                               :: pe, iatom, jatom
+      INTEGER                                            :: pe, iatom, jatom
       INTEGER, INTENT(IN)                                :: natoms
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'fb_com_atom_pairs_decode', &
@@ -981,7 +981,7 @@ CONTAINS
       TYPE(fb_com_atom_pairs_obj), INTENT(IN)            :: atom_pairs
       INTEGER, INTENT(IN)                                :: nprocs
       INTEGER, DIMENSION(:), INTENT(IN)                  :: row_blk_sizes, col_blk_sizes
-      INTEGER, DIMENSION(:), INTENT(OUT)                 :: sendrecv_sizes, sendrecv_disps, &
+      INTEGER, DIMENSION(:)                              :: sendrecv_sizes, sendrecv_disps, &
                                                             sendrecv_pair_counts, &
                                                             sendrecv_pair_disps
       INTEGER, DIMENSION(:), INTENT(IN), OPTIONAL        :: row_map, col_map

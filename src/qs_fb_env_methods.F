@@ -616,7 +616,7 @@ CONTAINS
       TYPE(mo_set_type), POINTER                         :: mo_set
       TYPE(cp_fm_type), POINTER                          :: fm_ortho, fm_work
       REAL(KIND=dp), INTENT(IN)                          :: eps_eigval
-      INTEGER, INTENT(OUT)                               :: ndep
+      INTEGER                                            :: ndep
       INTEGER, INTENT(IN)                                :: method
 
       CHARACTER(len=*), PARAMETER :: routineN = 'fb_env_eigensolver', &

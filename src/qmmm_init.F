@@ -649,9 +649,9 @@ CONTAINS
          DIMENSION(:), POINTER                           :: qm_atom_type
       INTEGER, DIMENSION(:), POINTER                     :: qm_atom_index, mm_atom_index
       TYPE(cell_type), POINTER                           :: qm_cell_small
-      INTEGER, INTENT(OUT)                               :: qmmm_coupl_type
-      REAL(KIND=dp), INTENT(OUT)                         :: eps_mm_rspace
-      LOGICAL, INTENT(OUT)                               :: qmmm_link
+      INTEGER                                            :: qmmm_coupl_type
+      REAL(KIND=dp)                                      :: eps_mm_rspace
+      LOGICAL                                            :: qmmm_link
       TYPE(cp_para_env_type), POINTER                    :: para_env
 
       CHARACTER(len=*), PARAMETER :: routineN = 'setup_qmmm_vars_qm', &
@@ -873,8 +873,8 @@ CONTAINS
       INTEGER, DIMENSION(:), POINTER                     :: qm_atom_index, mm_link_atoms
       REAL(KIND=dp), DIMENSION(:), POINTER               :: mm_link_scale_factor, &
                                                             fist_scale_charge_link
-      INTEGER, INTENT(OUT)                               :: qmmm_coupl_type
-      LOGICAL, INTENT(OUT)                               :: qmmm_link
+      INTEGER                                            :: qmmm_coupl_type
+      LOGICAL                                            :: qmmm_link
 
       CHARACTER(len=*), PARAMETER :: routineN = 'setup_qmmm_vars_mm', &
          routineP = moduleN//':'//routineN
@@ -1010,7 +1010,7 @@ CONTAINS
          DIMENSION(:), OPTIONAL, POINTER                 :: qm_atom_type
       INTEGER, DIMENSION(:), OPTIONAL, POINTER           :: mm_link_atoms
       REAL(KIND=dp), DIMENSION(:), OPTIONAL, POINTER     :: mm_link_scale_factor
-      LOGICAL, INTENT(OUT), OPTIONAL                     :: qmmm_link
+      LOGICAL, OPTIONAL                                  :: qmmm_link
       REAL(KIND=dp), DIMENSION(:), OPTIONAL, POINTER     :: fist_scale_charge_link
 
       CHARACTER(len=*), PARAMETER :: routineN = 'setup_qm_atom_list', &
@@ -1264,7 +1264,7 @@ CONTAINS
                                 mm_atom_chrg, mm_el_pot_radius, mm_el_pot_radius_corr, &
                                 added_charges, mm_atom_index)
       TYPE(section_vals_type), POINTER                   :: qmmm_section
-      LOGICAL, INTENT(OUT)                               :: move_mm_charges, add_mm_charges
+      LOGICAL                                            :: move_mm_charges, add_mm_charges
       REAL(KIND=dp), DIMENSION(:), POINTER               :: mm_atom_chrg, mm_el_pot_radius, &
                                                             mm_el_pot_radius_corr
       TYPE(add_set_type), POINTER                        :: added_charges
@@ -1398,7 +1398,7 @@ CONTAINS
                                                             mm_el_pot_radius_corr
       INTEGER, DIMENSION(:), POINTER                     :: mm_atom_index
       INTEGER, INTENT(in), OPTIONAL                      :: move
-      INTEGER, INTENT(OUT), OPTIONAL                     :: ind1
+      INTEGER, OPTIONAL                                  :: ind1
 
       CHARACTER(len=*), PARAMETER :: routineN = 'set_add_set_type', &
          routineP = moduleN//':'//routineN

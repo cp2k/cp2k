@@ -267,7 +267,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE csr_idx_from_combined(ij, n, i, j)
       INTEGER, INTENT(IN)                                :: ij, n
-      INTEGER, INTENT(OUT)                               :: i, j
+      INTEGER                                            :: i, j
 
       INTEGER                                            :: m, m0
 

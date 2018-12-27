@@ -254,8 +254,8 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE arnoldi_extremal(matrix_a, max_ev, min_ev, converged, threshold, max_iter)
       TYPE(dbcsr_type), INTENT(INOUT), TARGET            :: matrix_a
-      REAL(KIND=dp), INTENT(OUT)                         :: max_ev, min_ev
-      LOGICAL, INTENT(OUT)                               :: converged
+      REAL(KIND=dp)                                      :: max_ev, min_ev
+      LOGICAL                                            :: converged
       REAL(KIND=dp), INTENT(IN)                          :: threshold
       INTEGER, INTENT(IN)                                :: max_iter
 
@@ -306,7 +306,7 @@ CONTAINS
       TYPE(dbcsr_type), INTENT(IN), TARGET               :: matrix_a
       REAL(KIND=dp), DIMENSION(:), INTENT(INOUT)         :: vec_x
       TYPE(dbcsr_type), INTENT(IN), OPTIONAL, TARGET     :: matrix_p
-      LOGICAL, INTENT(OUT)                               :: converged
+      LOGICAL                                            :: converged
       REAL(KIND=dp), INTENT(IN)                          :: threshold
       INTEGER, INTENT(IN)                                :: max_iter
 

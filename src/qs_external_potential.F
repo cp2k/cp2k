@@ -224,7 +224,7 @@ CONTAINS
    SUBROUTINE get_external_potential(r, ext_pot_section, func, dfunc, calc_derivatives)
       REAL(KIND=dp), DIMENSION(3), INTENT(IN)            :: r
       TYPE(section_vals_type), POINTER                   :: ext_pot_section
-      REAL(KIND=dp), INTENT(OUT), OPTIONAL               :: func, dfunc(3)
+      REAL(KIND=dp), OPTIONAL                            :: func, dfunc(3)
       LOGICAL, INTENT(IN), OPTIONAL                      :: calc_derivatives
 
       CHARACTER(len=*), PARAMETER :: routineN = 'get_external_potential', &
@@ -291,7 +291,7 @@ CONTAINS
    SUBROUTINE interpolate_external_potential(r, grid, func, dfunc, calc_derivatives)
       REAL(KIND=dp), DIMENSION(3), INTENT(IN)            :: r
       TYPE(pw_type), POINTER                             :: grid
-      REAL(KIND=dp), INTENT(OUT), OPTIONAL               :: func, dfunc(3)
+      REAL(KIND=dp), OPTIONAL                            :: func, dfunc(3)
       LOGICAL, INTENT(IN), OPTIONAL                      :: calc_derivatives
 
       CHARACTER(len=*), PARAMETER :: routineN = 'interpolate_external_potential', &
@@ -414,8 +414,7 @@ CONTAINS
    SUBROUTINE d_finite_difference(grid, dr, dgrid)
       REAL(KIND=dp), DIMENSION(0:, 0:, 0:), INTENT(IN)   :: grid
       REAL(KIND=dp), DIMENSION(3), INTENT(IN)            :: dr
-      REAL(KIND=dp), DIMENSION(1:, 1:, 1:, :), &
-         INTENT(OUT)                                     :: dgrid
+      REAL(KIND=dp), DIMENSION(1:, 1:, 1:, :)            :: dgrid
 
       INTEGER                                            :: i, j, k
 

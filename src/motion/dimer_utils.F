@@ -120,7 +120,7 @@ CONTAINS
    SUBROUTINE get_theta(gradient, dimer_env, norm)
       REAL(KIND=dp), DIMENSION(:)                        :: gradient
       TYPE(dimer_env_type), POINTER                      :: dimer_env
-      REAL(KIND=dp), INTENT(OUT)                         :: norm
+      REAL(KIND=dp)                                      :: norm
 
       CHARACTER(len=*), PARAMETER :: routineN = 'get_theta', routineP = moduleN//':'//routineN
 

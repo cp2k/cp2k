@@ -87,8 +87,8 @@ CONTAINS
    SUBROUTINE get_minimax_coeff_v_gspace(n_minimax, cutoff, G_min, minimax_aw, err_minimax)
       INTEGER, INTENT(IN)                                :: n_minimax
       REAL(KIND=dp), INTENT(IN)                          :: cutoff, G_min
-      REAL(KIND=dp), DIMENSION(:), INTENT(OUT)           :: minimax_aw
-      REAL(KIND=dp), INTENT(OUT), OPTIONAL               :: err_minimax
+      REAL(KIND=dp), DIMENSION(:)                        :: minimax_aw
+      REAL(KIND=dp), OPTIONAL                            :: err_minimax
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'get_minimax_coeff_v_gspace', &
          routineP = moduleN//':'//routineN

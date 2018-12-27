@@ -1523,7 +1523,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE map_permutation_to_states(n, ipermutation, i, j)
       INTEGER, INTENT(IN)                                :: n, ipermutation
-      INTEGER, INTENT(OUT)                               :: i, j
+      INTEGER                                            :: i, j
 
       CHARACTER(len=*), PARAMETER :: routineN = 'map_permutation_to_states', &
          routineP = moduleN//':'//routineN
@@ -1631,10 +1631,9 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE mixed_cdft_read_block_diag(force_env, blocks, ignore_excited, nrecursion)
       TYPE(force_env_type), POINTER                      :: force_env
-      TYPE(cp_1d_i_p_type), ALLOCATABLE, DIMENSION(:), &
-         INTENT(OUT)                                     :: blocks
-      LOGICAL, INTENT(OUT)                               :: ignore_excited
-      INTEGER, INTENT(OUT)                               :: nrecursion
+      TYPE(cp_1d_i_p_type), ALLOCATABLE, DIMENSION(:)    :: blocks
+      LOGICAL                                            :: ignore_excited
+      INTEGER                                            :: nrecursion
 
       CHARACTER(len=*), PARAMETER :: routineN = 'mixed_cdft_read_block_diag', &
          routineP = moduleN//':'//routineN
@@ -1727,8 +1726,7 @@ CONTAINS
    SUBROUTINE mixed_cdft_get_blocks(mixed_cdft, blocks, H_block, S_block)
       TYPE(mixed_cdft_type), POINTER                     :: mixed_cdft
       TYPE(cp_1d_i_p_type), ALLOCATABLE, DIMENSION(:)    :: blocks
-      TYPE(cp_2d_r_p_type), ALLOCATABLE, DIMENSION(:), &
-         INTENT(OUT)                                     :: H_block, S_block
+      TYPE(cp_2d_r_p_type), ALLOCATABLE, DIMENSION(:)    :: H_block, S_block
 
       CHARACTER(len=*), PARAMETER :: routineN = 'mixed_cdft_get_blocks', &
          routineP = moduleN//':'//routineN
@@ -1777,8 +1775,7 @@ CONTAINS
    SUBROUTINE mixed_cdft_diagonalize_blocks(blocks, H_block, S_block, eigenvalues)
       TYPE(cp_1d_i_p_type), ALLOCATABLE, DIMENSION(:)    :: blocks
       TYPE(cp_2d_r_p_type), ALLOCATABLE, DIMENSION(:)    :: H_block, S_block
-      TYPE(cp_1d_r_p_type), ALLOCATABLE, DIMENSION(:), &
-         INTENT(OUT)                                     :: eigenvalues
+      TYPE(cp_1d_r_p_type), ALLOCATABLE, DIMENSION(:)    :: eigenvalues
 
       CHARACTER(len=*), PARAMETER :: routineN = 'mixed_cdft_diagonalize_blocks', &
          routineP = moduleN//':'//routineN

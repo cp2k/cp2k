@@ -1153,7 +1153,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE check_subsys_element(element_in, atom_name_in, element_out, subsys_section, use_mm_map_first)
       CHARACTER(len=*), INTENT(IN)                       :: element_in, atom_name_in
-      CHARACTER(len=default_string_length), INTENT(OUT)  :: element_out
+      CHARACTER(len=default_string_length)               :: element_out
       TYPE(section_vals_type), POINTER                   :: subsys_section
       LOGICAL                                            :: use_mm_map_first
 

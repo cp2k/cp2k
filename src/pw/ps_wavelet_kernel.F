@@ -224,8 +224,7 @@ SUBROUTINE Surfaces_Kernel(n1,n2,n3,m3,nker1,nker2,nker3,h1,h2,h3,&
       REAL(KIND=dp), INTENT(in)                          :: h1, h2, h3
       INTEGER, INTENT(in)                                :: itype_scf, nproc, iproc
       REAL(KIND=dp), &
-         DIMENSION(nker1, nker2, nker3/nproc), &
-         INTENT(out)                                     :: karray
+         DIMENSION(nker1, nker2, nker3/nproc)            :: karray
       INTEGER, INTENT(in)                                :: mpi_group
 
       CHARACTER(len=*), PARAMETER :: routineN = 'Surfaces_Kernel', &
@@ -557,7 +556,7 @@ SUBROUTINE calculates_green_opt(n,n_scf,itype_scf,intorder,xval,yval,c,mu,hres,g
       REAL(KIND=dp), DIMENSION(0:n_scf), INTENT(in)      :: xval, yval
       REAL(KIND=dp), DIMENSION(intorder+1), INTENT(in)   :: c
       REAL(KIND=dp), INTENT(in)                          :: mu, hres
-      REAL(KIND=dp), DIMENSION(n), INTENT(out)           :: g_mu
+      REAL(KIND=dp), DIMENSION(n)                        :: g_mu
 
       CHARACTER(len=*), PARAMETER :: routineN = 'calculates_green_opt', &
          routineP = moduleN//':'//routineN
@@ -700,7 +699,7 @@ SUBROUTINE calculates_green_opt_muzero(n,n_scf,intorder,xval,yval,c,hres,green)
       REAL(KIND=dp), DIMENSION(0:n_scf), INTENT(in)      :: xval, yval
       REAL(KIND=dp), DIMENSION(intorder+1), INTENT(in)   :: c
       REAL(KIND=dp), INTENT(in)                          :: hres
-      REAL(KIND=dp), DIMENSION(n), INTENT(out)           :: green
+      REAL(KIND=dp), DIMENSION(n)                        :: green
 
       INTEGER                                            :: i, iend, ikern, ivalue, izero
       REAL(KIND=dp)                                      :: c0, c1, filter, gl0, gl1, gr0, gr1, x, y
@@ -791,9 +790,9 @@ END SUBROUTINE calculates_green_opt_muzero
 ! **************************************************************************************************
 SUBROUTINE indices(var_realimag,nelem,intrn,extrn,index)
 
-      INTEGER, INTENT(out)                               :: var_realimag
+      INTEGER                                            :: var_realimag
       INTEGER, INTENT(in)                                :: nelem, intrn, extrn
-      INTEGER, INTENT(out)                               :: index
+      INTEGER                                            :: index
 
       INTEGER                                            :: i
 
@@ -846,8 +845,7 @@ SUBROUTINE Free_Kernel(n01,n02,n03,nfft1,nfft2,nfft3,n1k,n2k,n3k,&
                                                             n2k, n3k
       REAL(KIND=dp), INTENT(in)                          :: hgrid
       INTEGER, INTENT(in)                                :: itype_scf, iproc, nproc
-      REAL(KIND=dp), DIMENSION(n1k, n2k, n3k/nproc), &
-         INTENT(out)                                     :: karray
+      REAL(KIND=dp), DIMENSION(n1k, n2k, n3k/nproc)      :: karray
       INTEGER, INTENT(in)                                :: mpi_group
 
       CHARACTER(len=*), PARAMETER :: routineN = 'Free_Kernel', routineP = moduleN//':'//routineN
@@ -1048,8 +1046,7 @@ SUBROUTINE inserthalf(n1,n3,lot,nfft,i1,zf,zw)
       INTEGER, INTENT(in)                                :: n1, n3, lot, nfft, i1
       REAL(KIND=dp), DIMENSION(n1/2+1, n3/2+1), &
          INTENT(in)                                      :: zf
-      REAL(KIND=dp), DIMENSION(2, lot, n3/2), &
-         INTENT(out)                                     :: zw
+      REAL(KIND=dp), DIMENSION(2, lot, n3/2)             :: zw
 
       INTEGER                                            :: i01, i03i, i03r, i3, l1, l3
 

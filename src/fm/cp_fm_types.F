@@ -410,7 +410,7 @@ CONTAINS
 
       ! arguments
       TYPE(cp_fm_type), POINTER                  :: matrix
-      REAL(KIND=dp), DIMENSION(:), INTENT(OUT) :: diag
+      REAL(KIND=dp), DIMENSION(:) :: diag
 
       CHARACTER(len=*), PARAMETER :: routineN = 'cp_fm_get_diag', &
                                      routineP = moduleN//':'//routineN
@@ -488,10 +488,10 @@ CONTAINS
 
       ! arguments
       TYPE(cp_fm_type), POINTER          :: matrix
-      REAL(KIND=dp), INTENT(OUT)                     :: alpha
+      REAL(KIND=dp)                     :: alpha
       INTEGER, INTENT(IN)                       :: icol_global, &
                                                    irow_global
-      LOGICAL, INTENT(OUT), OPTIONAL            :: local
+      LOGICAL, OPTIONAL            :: local
 
       ! locals
 #if defined(__SCALAPACK)
@@ -753,7 +753,7 @@ CONTAINS
    SUBROUTINE cp_fm_get_submatrix(fm, target_m, start_row, &
                                   start_col, n_rows, n_cols, transpose)
       TYPE(cp_fm_type), POINTER                          :: fm
-      REAL(KIND=dp), DIMENSION(:, :), INTENT(out)        :: target_m
+      REAL(KIND=dp), DIMENSION(:, :)                     :: target_m
       INTEGER, INTENT(in), OPTIONAL                      :: start_row, start_col, n_rows, n_cols
       LOGICAL, INTENT(in), OPTIONAL                      :: transpose
 
@@ -873,10 +873,10 @@ CONTAINS
                              nrow_locals, ncol_locals, matrix_struct, para_env)
 
       TYPE(cp_fm_type), POINTER                  :: matrix
-      CHARACTER(LEN=*), OPTIONAL, INTENT(OUT)    :: name
-      INTEGER, OPTIONAL, INTENT(OUT)             :: ncol_block, ncol_global, &
-                                                    nrow_block, nrow_global, &
-                                                    nrow_local, ncol_local
+      CHARACTER(LEN=*), OPTIONAL    :: name
+      INTEGER, OPTIONAL             :: ncol_block, ncol_global, &
+                                       nrow_block, nrow_global, &
+                                       nrow_local, ncol_local
       INTEGER, OPTIONAL, DIMENSION(:), POINTER   :: row_indices, col_indices, &
                                                     nrow_locals, ncol_locals
       TYPE(cp_para_env_type), POINTER, OPTIONAL  :: para_env
@@ -926,8 +926,8 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE cp_fm_maxabsval(matrix, a_max, ir_max, ic_max)
       TYPE(cp_fm_type), POINTER                          :: matrix
-      REAL(KIND=dp), INTENT(OUT)                         :: a_max
-      INTEGER, INTENT(OUT), OPTIONAL                     :: ir_max, ic_max
+      REAL(KIND=dp)                                      :: a_max
+      INTEGER, OPTIONAL                                  :: ir_max, ic_max
 
       CHARACTER(len=*), PARAMETER :: routineN = 'cp_fm_maxabsval', &
          routineP = moduleN//':'//routineN
@@ -1029,7 +1029,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE cp_fm_maxabsrownorm(matrix, a_max)
       TYPE(cp_fm_type), POINTER                          :: matrix
-      REAL(KIND=dp), INTENT(OUT)                         :: a_max
+      REAL(KIND=dp)                                      :: a_max
 
       CHARACTER(len=*), PARAMETER :: routineN = 'cp_fm_maxabsrownorm', &
          routineP = moduleN//':'//routineN
@@ -1071,7 +1071,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE cp_fm_vectorsnorm(matrix, norm_array)
       TYPE(cp_fm_type), POINTER                          :: matrix
-      REAL(KIND=dp), DIMENSION(:), INTENT(OUT)           :: norm_array
+      REAL(KIND=dp), DIMENSION(:)                        :: norm_array
 
       CHARACTER(len=*), PARAMETER :: routineN = 'cp_fm_vectorsnorm', &
          routineP = moduleN//':'//routineN
@@ -1113,7 +1113,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE cp_fm_vectorssum(matrix, sum_array)
       TYPE(cp_fm_type), POINTER                          :: matrix
-      REAL(KIND=dp), DIMENSION(:), INTENT(OUT)           :: sum_array
+      REAL(KIND=dp), DIMENSION(:)                        :: sum_array
 
       CHARACTER(len=*), PARAMETER :: routineN = 'cp_fm_vectorssum', &
          routineP = moduleN//':'//routineN
@@ -1415,7 +1415,7 @@ CONTAINS
    SUBROUTINE cp_fm_start_copy_general(source, destination, para_env, info)
       TYPE(cp_fm_type), POINTER                          :: source, destination
       TYPE(cp_para_env_type), POINTER                    :: para_env
-      TYPE(copy_info_type), INTENT(OUT)                  :: info
+      TYPE(copy_info_type)                               :: info
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'cp_fm_start_copy_general', &
          routineP = moduleN//':'//routineN

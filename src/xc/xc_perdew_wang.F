@@ -62,9 +62,9 @@ CONTAINS
                                max_deriv, scale)
       INTEGER, INTENT(in)                                :: method
       LOGICAL, INTENT(in)                                :: lsd
-      CHARACTER(LEN=*), INTENT(OUT), OPTIONAL            :: reference, shortform
+      CHARACTER(LEN=*), OPTIONAL                         :: reference, shortform
       TYPE(xc_rho_cflags_type), INTENT(inout), OPTIONAL  :: needs
-      INTEGER, INTENT(out), OPTIONAL                     :: max_deriv
+      INTEGER, OPTIONAL                                  :: max_deriv
       REAL(kind=dp), INTENT(in)                          :: scale
 
       CHARACTER(len=*), PARAMETER :: routineN = 'perdew_wang_info', &
@@ -517,7 +517,7 @@ CONTAINS
 
       REAL(KIND=dp), INTENT(IN)                          :: r
       INTEGER, INTENT(IN)                                :: z
-      REAL(KIND=dp), DIMENSION(0:), INTENT(OUT)          :: g
+      REAL(KIND=dp), DIMENSION(0:)                       :: g
       INTEGER, INTENT(IN)                                :: order
 
       REAL(KIND=dp)                                      :: a1_, A_, b1_, b2_, b3_, b4_, rr, rsr, &
@@ -614,7 +614,7 @@ CONTAINS
    SUBROUTINE pw_lda_ed_loc(rho, ed, order)
 
       REAL(KIND=dp), INTENT(IN)                          :: rho
-      REAL(KIND=dp), DIMENSION(0:), INTENT(OUT)          :: ed
+      REAL(KIND=dp), DIMENSION(0:)                       :: ed
       INTEGER, INTENT(IN)                                :: order
 
       INTEGER                                            :: m, order_
@@ -668,7 +668,7 @@ CONTAINS
    SUBROUTINE pw_lsd_ed_loc(a, b, ed, order)
 
       REAL(KIND=dp), INTENT(IN)                          :: a, b
-      REAL(KIND=dp), DIMENSION(0:), INTENT(OUT)          :: ed
+      REAL(KIND=dp), DIMENSION(0:)                       :: ed
       INTEGER, INTENT(IN)                                :: order
 
       INTEGER                                            :: m, order_

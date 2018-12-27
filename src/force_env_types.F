@@ -305,14 +305,14 @@ CONTAINS
                                       qmmm_env, qmmmx_env, eip_env, pwdft_env, globenv, input, force_env_section, &
                                       method_name_id, root_section, mixed_env, embed_env)
       TYPE(force_env_type), POINTER                      :: force_env
-      INTEGER, INTENT(out), OPTIONAL                     :: in_use
+      INTEGER, OPTIONAL                                  :: in_use
       TYPE(fist_environment_type), OPTIONAL, POINTER     :: fist_env
       TYPE(qs_environment_type), OPTIONAL, POINTER       :: qs_env
       TYPE(meta_env_type), OPTIONAL, POINTER             :: meta_env
       TYPE(fp_type), OPTIONAL, POINTER                   :: fp_env
       TYPE(cp_subsys_type), OPTIONAL, POINTER            :: subsys
       TYPE(cp_para_env_type), OPTIONAL, POINTER          :: para_env
-      REAL(KIND=dp), INTENT(OUT), OPTIONAL               :: potential_energy, additional_potential, &
+      REAL(KIND=dp), OPTIONAL                            :: potential_energy, additional_potential, &
                                                             kinetic_energy, harmonic_shell, &
                                                             kinetic_shell
       TYPE(cell_type), OPTIONAL, POINTER                 :: cell
@@ -324,7 +324,7 @@ CONTAINS
       TYPE(pwdft_environment_type), OPTIONAL, POINTER    :: pwdft_env
       TYPE(global_environment_type), OPTIONAL, POINTER   :: globenv
       TYPE(section_vals_type), OPTIONAL, POINTER         :: input, force_env_section
-      INTEGER, INTENT(out), OPTIONAL                     :: method_name_id
+      INTEGER, OPTIONAL                                  :: method_name_id
       TYPE(section_vals_type), OPTIONAL, POINTER         :: root_section
       TYPE(mixed_environment_type), OPTIONAL, POINTER    :: mixed_env
       TYPE(embed_env_type), OPTIONAL, POINTER            :: embed_env
@@ -530,7 +530,7 @@ CONTAINS
    SUBROUTINE force_env_get_frc(force_env, frc, n)
 
       TYPE(force_env_type), POINTER                      :: force_env
-      REAL(KIND=dp), DIMENSION(*), INTENT(OUT)           :: frc
+      REAL(KIND=dp), DIMENSION(*)                        :: frc
       INTEGER, INTENT(IN)                                :: n
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'force_env_get_frc', &
@@ -559,7 +559,7 @@ CONTAINS
    SUBROUTINE force_env_get_pos(force_env, pos, n)
 
       TYPE(force_env_type), POINTER                      :: force_env
-      REAL(kind=dp), DIMENSION(*), INTENT(OUT)           :: pos
+      REAL(kind=dp), DIMENSION(*)                        :: pos
       INTEGER, INTENT(IN)                                :: n
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'force_env_get_pos', &
@@ -588,7 +588,7 @@ CONTAINS
    SUBROUTINE force_env_get_vel(force_env, vel, n)
 
       TYPE(force_env_type), POINTER                      :: force_env
-      REAL(KIND=dp), DIMENSION(*), INTENT(OUT)           :: vel
+      REAL(KIND=dp), DIMENSION(*)                        :: vel
       INTEGER, INTENT(IN)                                :: n
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'force_env_get_vel', &

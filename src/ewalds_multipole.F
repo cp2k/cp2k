@@ -131,7 +131,7 @@ CONTAINS
       TYPE(particle_type), POINTER                       :: particle_set(:)
       TYPE(distribution_1d_type), POINTER                :: local_particles
       REAL(KIND=dp), INTENT(INOUT)                       :: energy_local, energy_glob
-      REAL(KIND=dp), INTENT(OUT)                         :: e_neut, e_self
+      REAL(KIND=dp)                         :: e_neut, e_self
       LOGICAL, DIMENSION(3), INTENT(IN)                  :: task
       LOGICAL, INTENT(IN)                                :: do_correction_bonded, do_forces, &
                                                             do_stress, do_efield
@@ -142,8 +142,8 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:, :), INTENT(INOUT), &
          OPTIONAL                                        :: forces_local, forces_glob, pv_local, &
                                                             pv_glob
-      REAL(KIND=dp), DIMENSION(:), INTENT(OUT), OPTIONAL :: efield0
-      REAL(KIND=dp), DIMENSION(:, :), INTENT(OUT), &
+      REAL(KIND=dp), DIMENSION(:), OPTIONAL :: efield0
+      REAL(KIND=dp), DIMENSION(:, :), &
          OPTIONAL                                        :: efield1, efield2
       INTEGER, INTENT(IN)                                :: iw
       LOGICAL, INTENT(IN)                                :: do_debug
@@ -976,7 +976,7 @@ $: ewalds_multipole_sr_macro(mode="SCREENED_COULOMB_ERF", store_energy=True, sto
 ! **************************************************************************************************
    SUBROUTINE get_atom_factor(atm_factor, pw_grid, gpt, iparticle, task, charges, &
                               dipoles, quadrupoles)
-      COMPLEX(KIND=dp), INTENT(OUT)                      :: atm_factor
+      COMPLEX(KIND=dp)                      :: atm_factor
       TYPE(pw_grid_type), POINTER                        :: pw_grid
       INTEGER, INTENT(IN)                                :: gpt
       INTEGER                                            :: iparticle
@@ -1033,7 +1033,7 @@ $: ewalds_multipole_sr_macro(mode="SCREENED_COULOMB_ERF", store_energy=True, sto
 ! **************************************************************************************************
    SUBROUTINE get_atom_factor_stress(atm_factor, pw_grid, gpt, iparticle, task, &
                                      dipoles, quadrupoles)
-      COMPLEX(KIND=dp), INTENT(OUT)                      :: atm_factor(3)
+      COMPLEX(KIND=dp)                      :: atm_factor(3)
       TYPE(pw_grid_type), POINTER                        :: pw_grid
       INTEGER, INTENT(IN)                                :: gpt
       INTEGER                                            :: iparticle
@@ -1094,7 +1094,7 @@ $: ewalds_multipole_sr_macro(mode="SCREENED_COULOMB_ERF", store_energy=True, sto
       TYPE(ewald_environment_type), POINTER              :: ewald_env
       TYPE(cell_type), INTENT(IN)                        :: cell
       TYPE(distribution_1d_type), POINTER                :: local_particles
-      REAL(KIND=dp), INTENT(OUT)                         :: e_self, e_neut
+      REAL(KIND=dp)                         :: e_self, e_neut
       LOGICAL, DIMENSION(3, 3), INTENT(IN)               :: task
       LOGICAL, INTENT(IN)                                :: do_efield
       REAL(KIND=dp), DIMENSION(:), OPTIONAL, POINTER     :: radii, charges
@@ -1575,7 +1575,7 @@ $: ewalds_multipole_sr_macro(mode="SCREENED_COULOMB_ERF", store_energy=True, sto
       TYPE(cell_type), POINTER                           :: cell
       TYPE(fist_nonbond_env_type), POINTER               :: nonbond_env
       TYPE(multi_charge_type), DIMENSION(:), POINTER     :: multipoles
-      REAL(KIND=dp), INTENT(OUT)                         :: energy
+      REAL(KIND=dp)                         :: energy
       LOGICAL, INTENT(IN)                                :: debug_r_space
 
       CHARACTER(len=*), PARAMETER :: routineN = 'debug_ewald_multipole_low', &

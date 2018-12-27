@@ -311,7 +311,7 @@ CONTAINS
       TYPE(pao_env_type), POINTER                        :: pao
       TYPE(qs_environment_type), POINTER                 :: qs_env
       INTEGER, INTENT(IN)                                :: ikind
-      INTEGER, INTENT(OUT)                               :: nparams
+      INTEGER                                            :: nparams
 
       INTEGER                                            :: pao_basis_size
       TYPE(gto_basis_set_type), POINTER                  :: basis_set
@@ -496,7 +496,7 @@ CONTAINS
       TYPE(pao_env_type), POINTER                        :: pao
       TYPE(qs_environment_type), POINTER                 :: qs_env
       INTEGER, INTENT(IN)                                :: iatom
-      REAL(dp), DIMENSION(:, :, :), INTENT(OUT)          :: V_blocks
+      REAL(dp), DIMENSION(:, :, :)                       :: V_blocks
 
       SELECT CASE (pao%parameterization)
       CASE (pao_fock_param)

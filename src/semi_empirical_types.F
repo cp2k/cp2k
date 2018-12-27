@@ -368,21 +368,20 @@ CONTAINS
                            acoul, nr, de, ass, asp, app, hsp, gsd, gpd, gdd, ppddg, dpddg, ngauss)
 
       TYPE(semi_empirical_type), POINTER                 :: sep
-      CHARACTER(LEN=default_string_length), &
-         INTENT(OUT), OPTIONAL                           :: name
-      INTEGER, INTENT(OUT), OPTIONAL                     :: typ
-      LOGICAL, INTENT(OUT), OPTIONAL                     :: defined
-      INTEGER, INTENT(OUT), OPTIONAL                     :: z
-      REAL(KIND=dp), INTENT(OUT), OPTIONAL               :: zeff
-      INTEGER, INTENT(OUT), OPTIONAL                     :: natorb
+      CHARACTER(LEN=default_string_length), OPTIONAL     :: name
+      INTEGER, OPTIONAL                                  :: typ
+      LOGICAL, OPTIONAL                                  :: defined
+      INTEGER, OPTIONAL                                  :: z
+      REAL(KIND=dp), OPTIONAL                            :: zeff
+      INTEGER, OPTIONAL                                  :: natorb
       REAL(KIND=dp), OPTIONAL                            :: eheat
       REAL(KIND=dp), DIMENSION(:), OPTIONAL, POINTER     :: beta, sto_exponents
       REAL(KIND=dp), OPTIONAL                            :: uss, upp, udd, uff, alp, eisol, gss, &
                                                             gsp, gpp, gp2, acoul
-      INTEGER, INTENT(OUT), OPTIONAL                     :: nr
+      INTEGER, OPTIONAL                                  :: nr
       REAL(KIND=dp), OPTIONAL                            :: de, ass, asp, app, hsp, gsd, gpd, gdd
       REAL(KIND=dp), DIMENSION(2), OPTIONAL              :: ppddg, dpddg
-      INTEGER, INTENT(OUT), OPTIONAL                     :: ngauss
+      INTEGER, OPTIONAL                                  :: ngauss
 
       CHARACTER(len=*), PARAMETER :: routineN = 'get_se_param', routineP = moduleN//':'//routineN
 

@@ -491,7 +491,7 @@ CONTAINS
    SUBROUTINE get_angle(mii, mjj, mij, weights, theta)
       COMPLEX(KIND=dp), POINTER                          :: mii(:), mjj(:), mij(:)
       REAL(KIND=dp), INTENT(IN)                          :: weights(:)
-      REAL(KIND=dp), INTENT(OUT)                         :: theta
+      REAL(KIND=dp)                                      :: theta
 
       COMPLEX(KIND=dp)                                   :: z11, z12, z22
       INTEGER                                            :: dim_m, idim
@@ -536,7 +536,7 @@ CONTAINS
    SUBROUTINE check_tolerance(zij, weights, tolerance)
       TYPE(cp_cfm_p_type)                                :: zij(:)
       REAL(KIND=dp), INTENT(IN)                          :: weights(:)
-      REAL(KIND=dp), INTENT(OUT)                         :: tolerance
+      REAL(KIND=dp)                                      :: tolerance
 
       CHARACTER(len=*), PARAMETER :: routineN = 'check_tolerance', &
          routineP = moduleN//':'//routineN
@@ -742,7 +742,7 @@ CONTAINS
       LOGICAL                                            :: crazy_use_diag
       REAL(KIND=dp), INTENT(IN)                          :: eps_localization
       INTEGER                                            :: iterations
-      LOGICAL, INTENT(out), OPTIONAL                     :: converged
+      LOGICAL, OPTIONAL                                  :: converged
 
       CHARACTER(len=*), PARAMETER :: routineN = 'crazy_rotations', &
          routineP = moduleN//':'//routineN

@@ -314,7 +314,7 @@ CONTAINS
       TYPE(qs_scf_env_type), POINTER                     :: scf_env
       TYPE(scf_control_type), POINTER                    :: scf_control
       TYPE(qs_environment_type), POINTER                 :: qs_env
-      LOGICAL, INTENT(OUT)                               :: converged, should_stop
+      LOGICAL                                            :: converged, should_stop
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'scf_env_do_scf', routineP = moduleN//':'//routineN
 
@@ -898,7 +898,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE cdft_scf(qs_env, should_stop)
       TYPE(qs_environment_type), POINTER                 :: qs_env
-      LOGICAL, INTENT(OUT)                               :: should_stop
+      LOGICAL                                            :: should_stop
 
       CHARACTER(len=*), PARAMETER :: routineN = 'cdft_scf', routineP = moduleN//':'//routineN
 

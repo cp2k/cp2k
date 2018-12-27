@@ -812,7 +812,7 @@ CONTAINS
 
       REAL(KIND=dp), DIMENSION(:, :), INTENT(IN)         :: vab_shg, vab_os
       REAL(KIND=dp), DIMENSION(:, :, :), INTENT(IN)      :: dvab_shg, dvab_os
-      REAL(KIND=dp), INTENT(OUT)                         :: dmax, ddmax
+      REAL(KIND=dp)                                      :: dmax, ddmax
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'calculate_deviation_ab', &
          routineP = moduleN//':'//routineN
@@ -856,7 +856,7 @@ CONTAINS
 
       REAL(KIND=dp), DIMENSION(:, :, :), INTENT(IN)      :: vab_shg, vab_os
       REAL(KIND=dp), DIMENSION(:, :, :, :), INTENT(IN)   :: dvab_shg, dvab_os
-      REAL(KIND=dp), INTENT(OUT)                         :: dmax, ddmax
+      REAL(KIND=dp)                                      :: dmax, ddmax
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'calculate_deviation_abx', &
          routineP = moduleN//':'//routineN

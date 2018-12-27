@@ -270,7 +270,7 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: neumann_directions
       INTEGER, DIMENSION(:), INTENT(INOUT), POINTER      :: dests_expand, srcs_expand, flipg_stat, &
                                                             dests_shrink
-      INTEGER, INTENT(OUT)                               :: srcs_shrink
+      INTEGER                                            :: srcs_shrink
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'set_dests_srcs_pid', &
          routineP = moduleN//':'//routineN
@@ -832,7 +832,7 @@ CONTAINS
    SUBROUTINE flipud(cr3d_in, cr3d_out, bounds)
 
       REAL(dp), DIMENSION(:, :, :), INTENT(IN), POINTER  :: cr3d_in
-      REAL(dp), DIMENSION(:, :, :), INTENT(OUT), POINTER :: cr3d_out
+      REAL(dp), DIMENSION(:, :, :), POINTER              :: cr3d_out
       INTEGER, DIMENSION(2, 3), INTENT(IN)               :: bounds
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'flipud', routineP = moduleN//':'//routineN
@@ -886,7 +886,7 @@ CONTAINS
    SUBROUTINE fliplr(cr3d_in, cr3d_out, bounds)
 
       REAL(dp), DIMENSION(:, :, :), INTENT(IN), POINTER  :: cr3d_in
-      REAL(dp), DIMENSION(:, :, :), INTENT(OUT), POINTER :: cr3d_out
+      REAL(dp), DIMENSION(:, :, :), POINTER              :: cr3d_out
       INTEGER, DIMENSION(2, 3), INTENT(IN)               :: bounds
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'fliplr', routineP = moduleN//':'//routineN
@@ -940,7 +940,7 @@ CONTAINS
    SUBROUTINE flipbf(cr3d_in, cr3d_out, bounds)
 
       REAL(dp), DIMENSION(:, :, :), INTENT(IN), POINTER  :: cr3d_in
-      REAL(dp), DIMENSION(:, :, :), INTENT(OUT), POINTER :: cr3d_out
+      REAL(dp), DIMENSION(:, :, :), POINTER              :: cr3d_out
       INTEGER, DIMENSION(2, 3), INTENT(IN)               :: bounds
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'flipbf', routineP = moduleN//':'//routineN
@@ -994,7 +994,7 @@ CONTAINS
    SUBROUTINE rot180(cr3d_in, cr3d_out, bounds)
 
       REAL(dp), DIMENSION(:, :, :), INTENT(IN), POINTER  :: cr3d_in
-      REAL(dp), DIMENSION(:, :, :), INTENT(OUT), POINTER :: cr3d_out
+      REAL(dp), DIMENSION(:, :, :), POINTER              :: cr3d_out
       INTEGER, DIMENSION(2, 3), INTENT(IN)               :: bounds
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'rot180', routineP = moduleN//':'//routineN
@@ -1059,10 +1059,10 @@ CONTAINS
       TYPE(pw_grid_type), INTENT(IN), POINTER            :: pw_grid
       INTEGER, INTENT(IN)                                :: neumann_directions
       INTEGER, DIMENSION(:), INTENT(IN), POINTER         :: srcs_expand, flipg_stat
-      INTEGER, DIMENSION(2, 3), INTENT(OUT)              :: bounds_shftd, bounds_local_shftd
+      INTEGER, DIMENSION(2, 3)                           :: bounds_shftd, bounds_local_shftd
       INTEGER, DIMENSION(:, :, :), INTENT(INOUT), &
          POINTER                                         :: recv_msgs_bnds
-      INTEGER, DIMENSION(2, 3), INTENT(OUT)              :: bounds_new, bounds_local_new
+      INTEGER, DIMENSION(2, 3)                           :: bounds_new, bounds_local_new
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'expansion_bounds', &
          routineP = moduleN//':'//routineN

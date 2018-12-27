@@ -364,10 +364,8 @@ CONTAINS
 
       INTEGER, INTENT(IN)                                :: la_max, lb_max
       REAL(KIND=dp), DIMENSION(3), INTENT(IN)            :: rab
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :), &
-         INTENT(OUT)                                     :: Waux_mat
-      REAL(KIND=dp), ALLOCATABLE, &
-         DIMENSION(:, :, :, :), INTENT(OUT)              :: dWaux_mat
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: Waux_mat
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :, :)  :: dWaux_mat
       LOGICAL, INTENT(IN)                                :: calculate_forces
 
       CHARACTER(len=*), PARAMETER :: routineN = 'precalc_angular_shg_part', &
@@ -1274,10 +1272,8 @@ CONTAINS
 
       TYPE(gto_basis_set_type), POINTER                  :: oba, obb, fba, fbb
       REAL(KIND=dp), DIMENSION(3), INTENT(IN)            :: rab
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :), &
-         INTENT(OUT)                                     :: Waux_mat
-      REAL(KIND=dp), ALLOCATABLE, &
-         DIMENSION(:, :, :, :), INTENT(OUT)              :: dWaux_mat
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: Waux_mat
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :, :)  :: dWaux_mat
       LOGICAL, INTENT(IN)                                :: calculate_forces
 
       CHARACTER(len=*), PARAMETER :: routineN = 'lri_precalc_angular_shg_part', &

@@ -588,7 +588,7 @@ CONTAINS
 !>    * 02.2017 created [Sergey Chulkov]
 ! **************************************************************************************************
    SUBROUTINE tddfpt_create_work_matrices(work_matrices, gs_mos, nstates, do_hfx, qs_env, sub_env)
-      TYPE(tddfpt_work_matrices), INTENT(out)            :: work_matrices
+      TYPE(tddfpt_work_matrices)                         :: work_matrices
       TYPE(tddfpt_ground_state_mos), DIMENSION(:), &
          INTENT(in)                                      :: gs_mos
       INTEGER, INTENT(in)                                :: nstates
@@ -909,7 +909,7 @@ CONTAINS
 !>    * 06.2018 the charge density needs to be provided via a dummy argument [Sergey Chulkov]
 ! **************************************************************************************************
    SUBROUTINE tddfpt_create_kernel_env(kernel_env, rho_struct_sub, xc_section, is_rks_triplets, sub_env)
-      TYPE(tddfpt_kernel_env_type), INTENT(out)          :: kernel_env
+      TYPE(tddfpt_kernel_env_type)                       :: kernel_env
       TYPE(qs_rho_type), POINTER                         :: rho_struct_sub
       TYPE(section_vals_type), POINTER                   :: xc_section
       LOGICAL, INTENT(in)                                :: is_rks_triplets
@@ -1035,7 +1035,7 @@ CONTAINS
 !>    * 06.2016 renamed, altered prototype [Sergey Chulkov]
 ! **************************************************************************************************
    SUBROUTINE tddfpt_init_ground_state_mos(gs_mos, mo_set, blacs_env, cholesky_method, matrix_ks, matrix_s)
-      TYPE(tddfpt_ground_state_mos), INTENT(out)         :: gs_mos
+      TYPE(tddfpt_ground_state_mos)                      :: gs_mos
       TYPE(mo_set_type), POINTER                         :: mo_set
       TYPE(cp_blacs_env_type), POINTER                   :: blacs_env
       INTEGER, INTENT(in)                                :: cholesky_method
@@ -2319,7 +2319,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE tddfpt_compute_ritz_vects(ritz_vects, Aop_ritz, evals, krylov_vects, Aop_krylov)
       TYPE(cp_fm_p_type), DIMENSION(:, :), INTENT(in)    :: ritz_vects, Aop_ritz
-      REAL(kind=dp), DIMENSION(:), INTENT(out)           :: evals
+      REAL(kind=dp), DIMENSION(:)                        :: evals
       TYPE(cp_fm_p_type), DIMENSION(:, :), INTENT(in)    :: krylov_vects, Aop_krylov
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'tddfpt_compute_ritz_vects', &
@@ -3533,7 +3533,7 @@ CONTAINS
    FUNCTION tddfpt_read_restart(evects, evals, gs_mos, logger, tddfpt_section, tddfpt_print_section, &
                                 fm_pool_ao_mo_occ, blacs_env_global) RESULT(nstates_read)
       TYPE(cp_fm_p_type), DIMENSION(:, :), INTENT(in)    :: evects
-      REAL(kind=dp), DIMENSION(:), INTENT(out)           :: evals
+      REAL(kind=dp), DIMENSION(:)                        :: evals
       TYPE(tddfpt_ground_state_mos), DIMENSION(:), &
          INTENT(in)                                      :: gs_mos
       TYPE(cp_logger_type), POINTER                      :: logger

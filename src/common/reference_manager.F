@@ -127,7 +127,7 @@ CONTAINS
 !>      - DOI: provide the DOI without a link. The link will be automatically created as needed.
 ! **************************************************************************************************
   SUBROUTINE add_reference(key,ISI_record,DOI)
-      INTEGER, INTENT(OUT)                               :: key
+      INTEGER                                            :: key
       CHARACTER(LEN=*), DIMENSION(:)                     :: ISI_record
       CHARACTER(LEN=*)                                   :: DOI
 

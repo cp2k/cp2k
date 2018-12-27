@@ -77,7 +77,7 @@ RECURSIVE SUBROUTINE cp_eval_at(gopt_env, x, f, gradient, master, &
    IMPLICIT NONE
    TYPE(gopt_f_type), POINTER               :: gopt_env
    REAL(KIND=dp), DIMENSION(:), POINTER     :: x
-   REAL(KIND=dp), INTENT(OUT), OPTIONAL     :: f
+   REAL(KIND=dp), OPTIONAL     :: f
    REAL(KIND=dp), DIMENSION(:), OPTIONAL, &
       POINTER                                :: gradient
    INTEGER, INTENT(IN)                      :: master

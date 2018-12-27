@@ -43,9 +43,9 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE hcth_lda_info(iparset, reference, shortform, needs, max_deriv)
       INTEGER, INTENT(in)                                :: iparset
-      CHARACTER(LEN=*), INTENT(OUT), OPTIONAL            :: reference, shortform
+      CHARACTER(LEN=*), OPTIONAL                         :: reference, shortform
       TYPE(xc_rho_cflags_type), INTENT(inout), OPTIONAL  :: needs
-      INTEGER, INTENT(out), OPTIONAL                     :: max_deriv
+      INTEGER, OPTIONAL                                  :: max_deriv
 
       CHARACTER(len=*), PARAMETER :: routineN = 'hcth_lda_info', routineP = moduleN//':'//routineN
 

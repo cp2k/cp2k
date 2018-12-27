@@ -161,7 +161,7 @@ CONTAINS
 
       TYPE(cp_parser_type), POINTER                      :: parser
       INTEGER, INTENT(IN)                                :: nline
-      LOGICAL, INTENT(out), OPTIONAL                     :: at_end
+      LOGICAL, OPTIONAL                                  :: at_end
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'parser_read_line', &
          routineP = moduleN//':'//routineN
@@ -216,7 +216,7 @@ CONTAINS
    SUBROUTINE parser_get_line_from_buffer(parser, istat)
 
       TYPE(cp_parser_type), POINTER                      :: parser
-      INTEGER, INTENT(OUT)                               :: istat
+      INTEGER                                            :: istat
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'parser_get_line_from_buffer', &
          routineP = moduleN//':'//routineN
@@ -451,7 +451,7 @@ CONTAINS
 
       TYPE(cp_parser_type), POINTER                      :: parser
       INTEGER, INTENT(IN)                                :: nline
-      LOGICAL, INTENT(out), OPTIONAL                     :: at_end
+      LOGICAL, OPTIONAL                                  :: at_end
 
       CHARACTER(len=*), PARAMETER :: routineN = 'parser_get_next_line', &
          routineP = moduleN//':'//routineN
@@ -810,8 +810,8 @@ CONTAINS
       TYPE(cp_parser_type), POINTER                      :: parser
       CHARACTER(LEN=*), INTENT(IN)                       :: string
       LOGICAL, INTENT(IN)                                :: ignore_case
-      LOGICAL, INTENT(OUT)                               :: found
-      CHARACTER(LEN=*), INTENT(OUT), OPTIONAL            :: line
+      LOGICAL                                            :: found
+      CHARACTER(LEN=*), OPTIONAL                         :: line
       LOGICAL, INTENT(IN), OPTIONAL                      :: begin_line, search_from_begin_of_file
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'parser_search_string', &
@@ -980,10 +980,10 @@ CONTAINS
                                  string_length, at_end)
 
       TYPE(cp_parser_type), POINTER                      :: parser
-      INTEGER, INTENT(OUT)                               :: object
+      INTEGER                                            :: object
       LOGICAL, INTENT(IN), OPTIONAL                      :: newline
       INTEGER, INTENT(IN), OPTIONAL                      :: skip_lines, string_length
-      LOGICAL, INTENT(out), OPTIONAL                     :: at_end
+      LOGICAL, OPTIONAL                                  :: at_end
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'parser_get_integer', &
          routineP = moduleN//':'//routineN
@@ -1066,10 +1066,10 @@ CONTAINS
                                  string_length, at_end)
 
       TYPE(cp_parser_type), POINTER                      :: parser
-      LOGICAL, INTENT(OUT)                               :: object
+      LOGICAL                                            :: object
       LOGICAL, INTENT(IN), OPTIONAL                      :: newline
       INTEGER, INTENT(IN), OPTIONAL                      :: skip_lines, string_length
-      LOGICAL, INTENT(out), OPTIONAL                     :: at_end
+      LOGICAL, OPTIONAL                                  :: at_end
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'parser_get_logical', &
          routineP = moduleN//':'//routineN
@@ -1144,10 +1144,10 @@ CONTAINS
                               at_end)
 
       TYPE(cp_parser_type), POINTER                      :: parser
-      REAL(KIND=dp), INTENT(OUT)                         :: object
+      REAL(KIND=dp)                                      :: object
       LOGICAL, INTENT(IN), OPTIONAL                      :: newline
       INTEGER, INTENT(IN), OPTIONAL                      :: skip_lines, string_length
-      LOGICAL, INTENT(out), OPTIONAL                     :: at_end
+      LOGICAL, OPTIONAL                                  :: at_end
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'parser_get_real', &
          routineP = moduleN//':'//routineN
@@ -1213,10 +1213,10 @@ CONTAINS
                                 string_length, at_end)
 
       TYPE(cp_parser_type), POINTER                      :: parser
-      CHARACTER(LEN=*), INTENT(OUT)                      :: object
+      CHARACTER(LEN=*)                                   :: object
       LOGICAL, INTENT(IN), OPTIONAL                      :: lower_to_upper, newline
       INTEGER, INTENT(IN), OPTIONAL                      :: skip_lines, string_length
-      LOGICAL, INTENT(out), OPTIONAL                     :: at_end
+      LOGICAL, OPTIONAL                                  :: at_end
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'parser_get_string', &
          routineP = moduleN//':'//routineN
@@ -1287,8 +1287,8 @@ CONTAINS
    SUBROUTINE read_float_object(string, object, error_message)
 
       CHARACTER(LEN=*), INTENT(IN)                       :: string
-      REAL(KIND=dp), INTENT(OUT)                         :: object
-      CHARACTER(LEN=*), INTENT(OUT)                      :: error_message
+      REAL(KIND=dp)                                      :: object
+      CHARACTER(LEN=*)                                   :: error_message
 
       INTEGER                                            :: i, iop, islash, istar, istat, n
       LOGICAL                                            :: parsing_done
@@ -1354,8 +1354,8 @@ CONTAINS
    SUBROUTINE read_integer_object(string, object, error_message)
 
       CHARACTER(LEN=*), INTENT(IN)                       :: string
-      INTEGER, INTENT(OUT)                               :: object
-      CHARACTER(LEN=*), INTENT(OUT)                      :: error_message
+      INTEGER                                            :: object
+      CHARACTER(LEN=*)                                   :: error_message
 
       CHARACTER(LEN=20)                                  :: fmtstr
       INTEGER                                            :: i, iop, istat, n

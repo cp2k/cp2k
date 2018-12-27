@@ -41,7 +41,7 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: id_type
       REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: rij
       REAL(KIND=dp), INTENT(IN)                          :: r0, k(3), cs
-      REAL(KIND=dp), INTENT(OUT)                         :: energy, fscalar
+      REAL(KIND=dp)                                      :: energy, fscalar
 
       CHARACTER(len=*), PARAMETER :: routineN = 'force_bonds', routineP = moduleN//':'//routineN
       REAL(KIND=dp), PARAMETER                           :: f12 = 1.0_dp/2.0_dp, &
@@ -142,8 +142,8 @@ CONTAINS
                                                             theta0, k, cb, r012, r032, kbs12, &
                                                             kbs32, kss
       TYPE(legendre_data_type), INTENT(IN)               :: legendre
-      REAL(KIND=dp), DIMENSION(:), INTENT(OUT)           :: g1, g2, g3
-      REAL(KIND=dp), INTENT(OUT)                         :: energy, fscalar
+      REAL(KIND=dp), DIMENSION(:)                        :: g1, g2, g3
+      REAL(KIND=dp)                                      :: energy, fscalar
 
       CHARACTER(len=*), PARAMETER :: routineN = 'force_bends', routineP = moduleN//':'//routineN
       REAL(KIND=dp), PARAMETER                           :: f12 = 1.0_dp/2.0_dp
@@ -353,8 +353,8 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: tm, tn, t12
       REAL(KIND=dp), INTENT(IN)                          :: k, phi0
       INTEGER, INTENT(IN)                                :: m
-      REAL(KIND=dp), DIMENSION(:), INTENT(OUT)           :: gt1, gt2, gt3, gt4
-      REAL(KIND=dp), INTENT(OUT)                         :: energy, fscalar
+      REAL(KIND=dp), DIMENSION(:)                        :: gt1, gt2, gt3, gt4
+      REAL(KIND=dp)                                      :: energy, fscalar
 
       CHARACTER(len=*), PARAMETER :: routineN = 'force_torsions', routineP = moduleN//':'//routineN
 
@@ -414,8 +414,8 @@ CONTAINS
       REAL(KIND=dp), INTENT(IN)                          :: s32, is32, ism, isn, dist1, dist2
       REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: tm, tn, t12
       REAL(KIND=dp), INTENT(IN)                          :: k, phi0
-      REAL(KIND=dp), DIMENSION(:), INTENT(OUT)           :: gt1, gt2, gt3, gt4
-      REAL(KIND=dp), INTENT(OUT)                         :: energy, fscalar
+      REAL(KIND=dp), DIMENSION(:)                        :: gt1, gt2, gt3, gt4
+      REAL(KIND=dp)                                      :: energy, fscalar
 
       CHARACTER(len=*), PARAMETER :: routineN = 'force_imp_torsions', &
          routineP = moduleN//':'//routineN
@@ -483,8 +483,8 @@ CONTAINS
       REAL(KIND=dp), INTENT(IN)                          :: s32
       REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: tm, t41, t42, t43
       REAL(KIND=dp), INTENT(IN)                          :: k, phi0
-      REAL(KIND=dp), DIMENSION(:), INTENT(OUT)           :: gt1, gt2, gt3, gt4
-      REAL(KIND=dp), INTENT(OUT)                         :: energy, fscalar
+      REAL(KIND=dp), DIMENSION(:)                        :: gt1, gt2, gt3, gt4
+      REAL(KIND=dp)                                      :: energy, fscalar
 
       CHARACTER(len=*), PARAMETER :: routineN = 'force_opbends', routineP = moduleN//':'//routineN
       REAL(KIND=dp), PARAMETER                           :: f12 = 1.0_dp/2.0_dp

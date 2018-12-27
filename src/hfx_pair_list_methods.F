@@ -68,7 +68,7 @@ CONTAINS
       TYPE(hfx_pgf_list)                                 :: list1, list2
       TYPE(hfx_pgf_product_list), ALLOCATABLE, &
          DIMENSION(:), INTENT(INOUT)                     :: product_list
-      INTEGER, INTENT(OUT)                               :: nproducts
+      INTEGER                                            :: nproducts
       REAL(dp), INTENT(IN)                               :: log10_pmax, log10_eps_schwarz
       TYPE(hfx_cell_type), DIMENSION(:), POINTER         :: neighbor_cells
       TYPE(cell_type), POINTER                           :: cell
@@ -336,7 +336,7 @@ CONTAINS
          POINTER                                         :: pgf, R_pgf
       REAL(dp), INTENT(IN)                               :: log10_pmax, log10_eps_schwarz, ra(3), &
                                                             rb(3)
-      INTEGER, INTENT(OUT)                               :: nelements
+      INTEGER                                            :: nelements
       TYPE(hfx_cell_type), DIMENSION(:), POINTER         :: neighbor_cells
       INTEGER                                            :: nimages(npgfa*npgfb)
       LOGICAL, INTENT(IN)                                :: do_periodic
@@ -448,9 +448,8 @@ CONTAINS
                               pmax_blocks, atomic_pair_list)
 
       INTEGER, INTENT(IN)                                :: natom
-      TYPE(pair_list_type), INTENT(OUT)                  :: list
-      TYPE(pair_set_list_type), DIMENSION(*), &
-         INTENT(OUT)                                     :: set_list
+      TYPE(pair_list_type)                               :: list
+      TYPE(pair_set_list_type), DIMENSION(*)             :: set_list
       INTEGER, INTENT(IN)                                :: i_start, i_end, j_start, j_end
       INTEGER                                            :: kind_of(*)
       TYPE(hfx_basis_type), DIMENSION(:), POINTER        :: basis_parameter
@@ -626,8 +625,7 @@ CONTAINS
 
       INTEGER, INTENT(IN)                                :: natom
       TYPE(pair_list_type_mp2)                           :: list
-      TYPE(pair_set_list_type), DIMENSION(*), &
-         INTENT(OUT)                                     :: set_list
+      TYPE(pair_set_list_type), DIMENSION(*)             :: set_list
       INTEGER, INTENT(IN)                                :: i_start, i_end, j_start, j_end
       INTEGER                                            :: kind_of(*)
       TYPE(hfx_basis_type), DIMENSION(:), POINTER        :: basis_parameter

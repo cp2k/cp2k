@@ -38,7 +38,7 @@ CONTAINS
          INTENT(INOUT)                                   :: id1
       CHARACTER(LEN=default_string_length), &
          INTENT(INOUT), OPTIONAL                         :: id2, id3, id4
-      LOGICAL, INTENT(OUT), OPTIONAL                     :: is_link
+      LOGICAL, OPTIONAL                                  :: is_link
       LOGICAL                                            :: only_qm
 
       CHARACTER(LEN=default_string_length)               :: tmp

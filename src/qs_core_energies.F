@@ -78,7 +78,7 @@ CONTAINS
    SUBROUTINE calculate_ptrace_gamma(hmat, pmat, ecore, nspin)
 
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: hmat, pmat
-      REAL(KIND=dp), INTENT(OUT)                         :: ecore
+      REAL(KIND=dp)                                      :: ecore
       INTEGER, INTENT(IN)                                :: nspin
 
       CHARACTER(len=*), PARAMETER :: routineN = 'calculate_ptrace_gamma', &
@@ -115,7 +115,7 @@ CONTAINS
    SUBROUTINE calculate_ptrace_kp(hmat, pmat, ecore, nspin)
 
       TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: hmat, pmat
-      REAL(KIND=dp), INTENT(OUT)                         :: ecore
+      REAL(KIND=dp)                                      :: ecore
       INTEGER, INTENT(IN)                                :: nspin
 
       CHARACTER(len=*), PARAMETER :: routineN = 'calculate_ptrace_kp', &
@@ -161,7 +161,7 @@ CONTAINS
    SUBROUTINE calculate_ptrace_1(h, p, ecore)
 
       TYPE(dbcsr_type), POINTER                          :: h, p
-      REAL(KIND=dp), INTENT(OUT)                         :: ecore
+      REAL(KIND=dp)                                      :: ecore
 
       CHARACTER(len=*), PARAMETER :: routineN = 'calculate_ptrace_1', &
          routineP = moduleN//':'//routineN
@@ -199,7 +199,7 @@ CONTAINS
       TYPE(cp_para_env_type), POINTER                    :: para_env
       LOGICAL, INTENT(IN)                                :: calculate_forces
       LOGICAL, INTENT(IN), OPTIONAL                      :: molecular
-      REAL(KIND=dp), INTENT(OUT), OPTIONAL               :: E_overlap_core
+      REAL(KIND=dp), OPTIONAL                            :: E_overlap_core
 
       CHARACTER(len=*), PARAMETER :: routineN = 'calculate_ecore_overlap', &
          routineP = moduleN//':'//routineN
@@ -343,7 +343,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE calculate_ecore_self(qs_env, E_self_core)
       TYPE(qs_environment_type), POINTER                 :: qs_env
-      REAL(KIND=dp), INTENT(OUT), OPTIONAL               :: E_self_core
+      REAL(KIND=dp), OPTIONAL                            :: E_self_core
 
       CHARACTER(len=*), PARAMETER :: routineN = 'calculate_ecore_self', &
          routineP = moduleN//':'//routineN

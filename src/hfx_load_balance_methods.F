@@ -1121,7 +1121,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE hfx_calculate_PQ(p, q, nBins, N)
 
-      INTEGER, INTENT(OUT)                               :: p, q, nBins
+      INTEGER                                            :: p, q, nBins
       INTEGER, INTENT(IN)                                :: N
 
       INTEGER                                            :: a, b, k
@@ -1419,8 +1419,8 @@ CONTAINS
 
       INTEGER, INTENT(IN)                                :: nBins, maxbinsize
       REAL(dp), DIMENSION(maxbinsize), INTENT(IN)        :: costvector
-      INTEGER, DIMENSION(maxbinsize), INTENT(OUT)        :: perm
-      INTEGER, DIMENSION(nBins), INTENT(OUT)             :: block_count
+      INTEGER, DIMENSION(maxbinsize)                     :: perm
+      INTEGER, DIMENSION(nBins)                          :: block_count
 
       INTEGER                                            :: i, j, mod_idx, offset
       INTEGER, DIMENSION(nBins, maxbinsize)              :: bin

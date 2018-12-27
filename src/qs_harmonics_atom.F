@@ -492,9 +492,9 @@ CONTAINS
       REAL(dp), DIMENSION(:, :, :, :), INTENT(IN)        :: cgc
       INTEGER, INTENT(IN)                                :: lmin1, lmax1, lmin2, lmax2, max_s_harm, &
                                                             llmax
-      INTEGER, DIMENSION(:, :, :), INTENT(OUT), OPTIONAL :: list
-      INTEGER, DIMENSION(:), INTENT(OUT), OPTIONAL       :: n_list
-      INTEGER, INTENT(OUT)                               :: max_iso_not0
+      INTEGER, DIMENSION(:, :, :), OPTIONAL              :: list
+      INTEGER, DIMENSION(:), OPTIONAL                    :: n_list
+      INTEGER                                            :: max_iso_not0
 
       CHARACTER(len=*), PARAMETER :: routineN = 'get_none0_cg_list4', &
          routineP = moduleN//':'//routineN
@@ -553,9 +553,9 @@ CONTAINS
       REAL(dp), DIMENSION(:, :, :), INTENT(IN)           :: cgc
       INTEGER, INTENT(IN)                                :: lmin1, lmax1, lmin2, lmax2, max_s_harm, &
                                                             llmax
-      INTEGER, DIMENSION(:, :, :), INTENT(OUT), OPTIONAL :: list
-      INTEGER, DIMENSION(:), INTENT(OUT), OPTIONAL       :: n_list
-      INTEGER, INTENT(OUT)                               :: max_iso_not0
+      INTEGER, DIMENSION(:, :, :), OPTIONAL              :: list
+      INTEGER, DIMENSION(:), OPTIONAL                    :: n_list
+      INTEGER                                            :: max_iso_not0
 
       CHARACTER(len=*), PARAMETER :: routineN = 'get_none0_cg_list3', &
          routineP = moduleN//':'//routineN

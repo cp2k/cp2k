@@ -75,7 +75,7 @@ CONTAINS
    SUBROUTINE rotint_num(sepi, sepj, rijv, w, se_int_control, se_taper)
       TYPE(semi_empirical_type), POINTER                 :: sepi, sepj
       REAL(dp), DIMENSION(3), INTENT(IN)                 :: rijv
-      REAL(dp), DIMENSION(2025), INTENT(OUT)             :: w
+      REAL(dp), DIMENSION(2025)                          :: w
       TYPE(se_int_control_type), INTENT(IN)              :: se_int_control
       TYPE(se_taper_type), POINTER                       :: se_taper
 
@@ -226,7 +226,7 @@ CONTAINS
    SUBROUTINE terep_num(sepi, sepj, rij, rep, se_taper, se_int_control)
       TYPE(semi_empirical_type), POINTER                 :: sepi, sepj
       REAL(dp), INTENT(IN)                               :: rij
-      REAL(dp), DIMENSION(491), INTENT(OUT)              :: rep
+      REAL(dp), DIMENSION(491)                           :: rep
       TYPE(se_taper_type), POINTER                       :: se_taper
       TYPE(se_int_control_type), INTENT(IN)              :: se_int_control
 
@@ -271,7 +271,7 @@ CONTAINS
                            ft)
       TYPE(semi_empirical_type), POINTER                 :: sepi, sepj
       REAL(dp), INTENT(IN)                               :: rij
-      REAL(dp), DIMENSION(491), INTENT(OUT)              :: rep
+      REAL(dp), DIMENSION(491)                           :: rep
       TYPE(se_int_control_type), INTENT(IN)              :: se_int_control
       TYPE(se_int_screen_type), INTENT(IN)               :: se_int_screen
       REAL(dp), INTENT(IN)                               :: ft
@@ -400,7 +400,7 @@ CONTAINS
    SUBROUTINE rotnuc_num(sepi, sepj, rijv, e1b, e2a, itype, se_int_control, se_taper)
       TYPE(semi_empirical_type), POINTER                 :: sepi, sepj
       REAL(dp), DIMENSION(3), INTENT(IN)                 :: rijv
-      REAL(dp), DIMENSION(45), INTENT(OUT), OPTIONAL     :: e1b, e2a
+      REAL(dp), DIMENSION(45), OPTIONAL                  :: e1b, e2a
       INTEGER, INTENT(IN)                                :: itype
       TYPE(se_int_control_type), INTENT(IN)              :: se_int_control
       TYPE(se_taper_type), POINTER                       :: se_taper
@@ -508,7 +508,7 @@ CONTAINS
    SUBROUTINE corecore_num(sepi, sepj, rijv, enuc, itype, se_int_control, se_taper)
       TYPE(semi_empirical_type), POINTER                 :: sepi, sepj
       REAL(dp), DIMENSION(3), INTENT(IN)                 :: rijv
-      REAL(dp), INTENT(OUT)                              :: enuc
+      REAL(dp)                                           :: enuc
       INTEGER, INTENT(IN)                                :: itype
       TYPE(se_int_control_type), INTENT(IN)              :: se_int_control
       TYPE(se_taper_type), POINTER                       :: se_taper
@@ -684,7 +684,7 @@ CONTAINS
    SUBROUTINE corecore_el_num(sepi, sepj, rijv, enuc, itype, se_int_control, se_taper)
       TYPE(semi_empirical_type), POINTER                 :: sepi, sepj
       REAL(dp), DIMENSION(3), INTENT(IN)                 :: rijv
-      REAL(dp), INTENT(OUT)                              :: enuc
+      REAL(dp)                                           :: enuc
       INTEGER, INTENT(IN)                                :: itype
       TYPE(se_int_control_type), INTENT(IN)              :: se_int_control
       TYPE(se_taper_type), POINTER                       :: se_taper
@@ -736,7 +736,7 @@ CONTAINS
    SUBROUTINE ssss_nucint_num(sepi, sepj, rij, ssss, itype, se_taper, se_int_control)
       TYPE(semi_empirical_type), POINTER                 :: sepi, sepj
       REAL(dp), INTENT(IN)                               :: rij
-      REAL(dp), INTENT(OUT)                              :: ssss
+      REAL(dp)                                           :: ssss
       INTEGER, INTENT(IN)                                :: itype
       TYPE(se_taper_type), POINTER                       :: se_taper
       TYPE(se_int_control_type), INTENT(IN)              :: se_int_control
@@ -790,7 +790,7 @@ CONTAINS
    SUBROUTINE core_nucint_num(sepi, sepj, rij, core, itype, se_taper, se_int_control)
       TYPE(semi_empirical_type), POINTER                 :: sepi, sepj
       REAL(dp), INTENT(IN)                               :: rij
-      REAL(dp), DIMENSION(10, 2), INTENT(OUT)            :: core
+      REAL(dp), DIMENSION(10, 2)                         :: core
       INTEGER, INTENT(IN)                                :: itype
       TYPE(se_taper_type), POINTER                       :: se_taper
       TYPE(se_int_control_type), INTENT(IN)              :: se_int_control
@@ -1011,7 +1011,7 @@ CONTAINS
    SUBROUTINE drotint_num(sepi, sepj, r, dw, delta, se_int_control, se_taper)
       TYPE(semi_empirical_type), POINTER                 :: sepi, sepj
       REAL(dp), DIMENSION(3), INTENT(IN)                 :: r
-      REAL(dp), DIMENSION(3, 2025), INTENT(OUT)          :: dw
+      REAL(dp), DIMENSION(3, 2025)                       :: dw
       REAL(dp), INTENT(IN)                               :: delta
       TYPE(se_int_control_type), INTENT(IN)              :: se_int_control
       TYPE(se_taper_type), POINTER                       :: se_taper
@@ -1053,7 +1053,7 @@ CONTAINS
    SUBROUTINE drotnuc_num(sepi, sepj, r, de1b, de2a, itype, delta, se_int_control, se_taper)
       TYPE(semi_empirical_type), POINTER                 :: sepi, sepj
       REAL(dp), DIMENSION(3), INTENT(IN)                 :: r
-      REAL(dp), DIMENSION(3, 45), INTENT(OUT), OPTIONAL  :: de1b, de2a
+      REAL(dp), DIMENSION(3, 45), OPTIONAL               :: de1b, de2a
       INTEGER, INTENT(IN)                                :: itype
       REAL(dp), INTENT(IN)                               :: delta
       TYPE(se_int_control_type), INTENT(IN)              :: se_int_control
@@ -1104,7 +1104,7 @@ CONTAINS
    SUBROUTINE dcorecore_num(sepi, sepj, r, denuc, itype, delta, se_int_control, se_taper)
       TYPE(semi_empirical_type), POINTER                 :: sepi, sepj
       REAL(dp), DIMENSION(3), INTENT(IN)                 :: r
-      REAL(dp), DIMENSION(3), INTENT(OUT)                :: denuc
+      REAL(dp), DIMENSION(3)                             :: denuc
       INTEGER, INTENT(IN)                                :: itype
       REAL(dp), INTENT(IN)                               :: delta
       TYPE(se_int_control_type), INTENT(IN)              :: se_int_control
@@ -1141,7 +1141,7 @@ CONTAINS
    SUBROUTINE dcorecore_el_num(sepi, sepj, r, denuc, itype, delta, se_int_control, se_taper)
       TYPE(semi_empirical_type), POINTER                 :: sepi, sepj
       REAL(dp), DIMENSION(3), INTENT(IN)                 :: r
-      REAL(dp), DIMENSION(3), INTENT(OUT)                :: denuc
+      REAL(dp), DIMENSION(3)                             :: denuc
       INTEGER, INTENT(IN)                                :: itype
       REAL(dp), INTENT(IN)                               :: delta
       TYPE(se_int_control_type), INTENT(IN)              :: se_int_control

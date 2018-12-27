@@ -88,7 +88,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE external_control(should_stop, flag, globenv, target_time, start_time)
 
-      LOGICAL, INTENT(OUT)                               :: should_stop
+      LOGICAL                                            :: should_stop
       CHARACTER(LEN=*), INTENT(IN)                       :: flag
       TYPE(global_environment_type), OPTIONAL, POINTER   :: globenv
       REAL(dp), OPTIONAL                                 :: target_time, start_time

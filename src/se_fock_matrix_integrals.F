@@ -1074,12 +1074,12 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:), POINTER               :: charges
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: dipoles
       REAL(KIND=dp), DIMENSION(:, :, :), POINTER         :: quadrupoles
-      REAL(KIND=dp), DIMENSION(3), INTENT(OUT)           :: force_ab
+      REAL(KIND=dp), DIMENSION(3)           :: force_ab
       REAL(KIND=dp), DIMENSION(:), POINTER               :: efield0
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: efield1, efield2
       REAL(KIND=dp), INTENT(IN)                          :: rab2
       REAL(KIND=dp), DIMENSION(3), INTENT(IN)            :: rab
-      REAL(KIND=dp), INTENT(OUT), OPTIONAL               :: integral_value
+      REAL(KIND=dp), OPTIONAL               :: integral_value
       REAL(KIND=dp), INTENT(INOUT)                       :: ptens11, ptens12, ptens13, ptens21, &
                                                             ptens22, ptens23, ptens31, ptens32, &
                                                             ptens33

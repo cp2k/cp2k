@@ -76,7 +76,7 @@ CONTAINS
       TYPE(cp_para_env_type), POINTER                    :: world_para_env
       TYPE(section_vals_type), POINTER                   :: root_section
       INTEGER, INTENT(IN)                                :: n_workers
-      INTEGER, INTENT(OUT)                               :: worker_id
+      INTEGER                                            :: worker_id
       INTEGER, INTENT(IN)                                :: iw
 
       CHARACTER(len=*), PARAMETER :: routineN = 'swarm_mpi_init', routineP = moduleN//':'//routineN
@@ -356,7 +356,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE swarm_mpi_recv_report(swarm_mpi, report)
       TYPE(swarm_mpi_type)                               :: swarm_mpi
-      TYPE(swarm_message_type), INTENT(OUT)              :: report
+      TYPE(swarm_message_type)                           :: report
 
       INTEGER                                            :: src, tag
 
@@ -395,7 +395,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE swarm_mpi_recv_command(swarm_mpi, cmd)
       TYPE(swarm_mpi_type)                               :: swarm_mpi
-      TYPE(swarm_message_type), INTENT(OUT)              :: cmd
+      TYPE(swarm_message_type)                           :: cmd
 
       INTEGER                                            :: src, tag
 

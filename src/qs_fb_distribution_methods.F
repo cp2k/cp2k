@@ -453,8 +453,8 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: natoms
       TYPE(fb_preferred_procs_list), DIMENSION(:), &
          INTENT(INOUT)                                   :: preferred_procs_set
-      INTEGER, DIMENSION(:), INTENT(OUT)                 :: common_set_ids
-      INTEGER, INTENT(OUT)                               :: n_common_sets
+      INTEGER, DIMENSION(:)                              :: common_set_ids
+      INTEGER                                            :: n_common_sets
 
       CHARACTER(len=*), PARAMETER :: routineN = 'fb_build_preferred_procs', &
          routineP = moduleN//':'//routineN
@@ -527,7 +527,7 @@ CONTAINS
                                              local_atoms_sizes)
       TYPE(fb_distribution_list), DIMENSION(:), &
          INTENT(IN)                                      :: dist_set
-      INTEGER, DIMENSION(:), INTENT(OUT)                 :: local_atoms, local_atoms_starts, &
+      INTEGER, DIMENSION(:)                              :: local_atoms, local_atoms_starts, &
                                                             local_atoms_sizes
 
       CHARACTER(len=*), PARAMETER :: routineN = 'fb_distribution_to_local_atoms', &

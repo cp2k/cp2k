@@ -2067,7 +2067,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE pint_calc_uf_h(pint_env, e_h)
       TYPE(pint_env_type), POINTER                       :: pint_env
-      REAL(KIND=dp), INTENT(OUT)                         :: e_h
+      REAL(KIND=dp)                                      :: e_h
 
       CHARACTER(len=*), PARAMETER :: routineN = 'pint_calc_uf_h', routineP = moduleN//':'//routineN
 
@@ -2105,10 +2105,8 @@ CONTAINS
       TYPE(pint_env_type), POINTER                       :: pint_env
       REAL(kind=dp), DIMENSION(:, :), INTENT(in), &
          OPTIONAL, TARGET                                :: x
-      REAL(kind=dp), DIMENSION(:, :), INTENT(out), &
-         OPTIONAL, TARGET                                :: f
-      REAL(kind=dp), DIMENSION(:), INTENT(out), &
-         OPTIONAL, TARGET                                :: e
+      REAL(kind=dp), DIMENSION(:, :), OPTIONAL, TARGET   :: f
+      REAL(kind=dp), DIMENSION(:), OPTIONAL, TARGET      :: e
 
       CHARACTER(len=*), PARAMETER :: routineN = 'pint_calc_f', routineP = moduleN//':'//routineN
 
@@ -2154,7 +2152,7 @@ CONTAINS
       TYPE(pint_env_type), POINTER                       :: pint_env
       REAL(kind=dp), DIMENSION(:, :), INTENT(in), &
          OPTIONAL, TARGET                                :: uv
-      REAL(kind=dp), INTENT(out), OPTIONAL               :: e_k
+      REAL(kind=dp), OPTIONAL                            :: e_k
 
       CHARACTER(len=*), PARAMETER :: routineN = 'pint_calc_e_kin_beads_u', &
          routineP = moduleN//':'//routineN
@@ -2190,7 +2188,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE pint_calc_e_vir(pint_env, e_vir)
       TYPE(pint_env_type), POINTER                       :: pint_env
-      REAL(kind=dp), INTENT(out), OPTIONAL               :: e_vir
+      REAL(kind=dp), OPTIONAL                            :: e_vir
 
       CHARACTER(len=*), PARAMETER :: routineN = 'pint_calc_e_vir', &
          routineP = moduleN//':'//routineN

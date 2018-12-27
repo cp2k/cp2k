@@ -241,8 +241,8 @@ CONTAINS
    SUBROUTINE history_lookup(history, fingerprint, found, id)
       TYPE(history_type), INTENT(IN)                     :: history
       TYPE(history_fingerprint_type), INTENT(IN)         :: fingerprint
-      LOGICAL, INTENT(OUT)                               :: found
-      INTEGER, INTENT(OUT), OPTIONAL                     :: id
+      LOGICAL                                            :: found
+      INTEGER, OPTIONAL                                  :: id
 
       INTEGER                                            :: found_i, handle, i, k, k_max, k_min
       REAL(KIND=dp)                                      :: best_match, dist, Epot

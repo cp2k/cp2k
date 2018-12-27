@@ -141,11 +141,9 @@ CONTAINS
       REAL(kind=dp), DIMENSION(3, 3), INTENT(in)         :: real_lattice_loc, recip_lattice_loc
       REAL(kind=dp), DIMENSION(3, num_kpts_loc), &
          INTENT(in)                                      :: kpt_latt_loc
-      INTEGER, INTENT(out)                               :: nntot_loc
-      INTEGER, DIMENSION(num_kpts_loc, num_nnmax), &
-         INTENT(out)                                     :: nnlist_loc
-      INTEGER, DIMENSION(3, num_kpts_loc, num_nnmax), &
-         INTENT(out)                                     :: nncell_loc
+      INTEGER                                            :: nntot_loc
+      INTEGER, DIMENSION(num_kpts_loc, num_nnmax)        :: nnlist_loc
+      INTEGER, DIMENSION(3, num_kpts_loc, num_nnmax)     :: nncell_loc
       INTEGER, INTENT(in)                                :: iounit
 
       INTEGER                                            :: nkp
@@ -742,7 +740,7 @@ CONTAINS
 
       INTEGER, INTENT(in)                                :: multi(search_shells)
       REAL(kind=dp), INTENT(in)                          :: dnn(search_shells)
-      REAL(kind=dp), INTENT(out)                         :: bweight(max_shells)
+      REAL(kind=dp)                                      :: bweight(max_shells)
 
       INTEGER, PARAMETER                                 :: lwork = max_shells*10
       REAL(kind=dp), PARAMETER :: TARGET(6) = (/1.0_dp, 1.0_dp, 1.0_dp, 0.0_dp, 0.0_dp, 0.0_dp/)
@@ -912,7 +910,7 @@ CONTAINS
 
       INTEGER, INTENT(in)                                :: multi, kpt
       REAL(kind=dp), INTENT(in)                          :: shell_dist
-      REAL(kind=dp), INTENT(out)                         :: bvector(3, multi)
+      REAL(kind=dp)                                      :: bvector(3, multi)
 
       INTEGER                                            :: loop, nkp2, num_bvec
       REAL(kind=dp)                                      :: dist, vkpp(3), vkpp2(3)

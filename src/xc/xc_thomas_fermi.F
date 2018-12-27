@@ -74,9 +74,9 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE thomas_fermi_info(lsd, reference, shortform, needs, max_deriv)
       LOGICAL, INTENT(in)                                :: lsd
-      CHARACTER(LEN=*), INTENT(OUT), OPTIONAL            :: reference, shortform
+      CHARACTER(LEN=*), OPTIONAL                         :: reference, shortform
       TYPE(xc_rho_cflags_type), INTENT(inout), OPTIONAL  :: needs
-      INTEGER, INTENT(out), OPTIONAL                     :: max_deriv
+      INTEGER, OPTIONAL                                  :: max_deriv
 
       IF (PRESENT(reference)) THEN
          reference = "Thomas-Fermi kinetic energy functional: see Parr and Yang"

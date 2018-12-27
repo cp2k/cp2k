@@ -78,12 +78,12 @@ CONTAINS
                       natoms, rot_dof, inertia)
       TYPE(particle_type), DIMENSION(:), POINTER         :: particles
       REAL(KIND=dp), DIMENSION(:, :), OPTIONAL, POINTER  :: mat
-      INTEGER, INTENT(OUT)                               :: dof
+      INTEGER                                            :: dof
       TYPE(section_vals_type), POINTER                   :: print_section
       LOGICAL, INTENT(IN)                                :: keep_rotations, mass_weighted
       INTEGER, INTENT(IN)                                :: natoms
-      INTEGER, INTENT(OUT), OPTIONAL                     :: rot_dof
-      REAL(KIND=dp), INTENT(OUT), OPTIONAL               :: inertia(3)
+      INTEGER, OPTIONAL                                  :: rot_dof
+      REAL(KIND=dp), OPTIONAL                            :: inertia(3)
 
       CHARACTER(len=*), PARAMETER :: routineN = 'rot_ana', routineP = moduleN//':'//routineN
 
@@ -466,7 +466,7 @@ CONTAINS
 
       TYPE(section_vals_type), POINTER                   :: section
       CHARACTER(LEN=*), INTENT(IN), OPTIONAL             :: path
-      CHARACTER(LEN=*), INTENT(OUT)                      :: my_form, my_ext
+      CHARACTER(LEN=*)                                   :: my_form, my_ext
 
       CHARACTER(len=*), PARAMETER :: routineN = 'get_output_format', &
          routineP = moduleN//':'//routineN

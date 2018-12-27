@@ -53,8 +53,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE standardize_derivative_desc(deriv_desc, res)
       CHARACTER(len=*), INTENT(in)                       :: deriv_desc
-      CHARACTER(LEN=MAX_DERIVATIVE_DESC_LENGTH), &
-         INTENT(OUT)                                     :: res
+      CHARACTER(LEN=MAX_DERIVATIVE_DESC_LENGTH)          :: res
 
       CHARACTER(len=*), PARAMETER :: routineN = 'standardize_derivative_desc', &
          routineP = moduleN//':'//routineN

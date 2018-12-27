@@ -54,7 +54,7 @@ CONTAINS
 !> \author Jinwoong Cha
 ! **************************************************************************************************
    SUBROUTINE chebyshev_poly(value, x, n)
-      REAL(KIND=dp), INTENT(OUT)                         :: value
+      REAL(KIND=dp)                                      :: value
       REAL(KIND=dp), INTENT(IN)                          :: x
       INTEGER, INTENT(IN)                                :: n
 
@@ -75,7 +75,7 @@ CONTAINS
 !> \author Jinwoong Cha
 ! **************************************************************************************************
    SUBROUTINE kernel(value, n, nc)
-      REAL(KIND=dp), INTENT(OUT)                         :: value
+      REAL(KIND=dp)                                      :: value
       INTEGER, INTENT(IN)                                :: n, nc
 
 !kernel at n

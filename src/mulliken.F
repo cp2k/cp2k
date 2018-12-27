@@ -176,7 +176,7 @@ CONTAINS
                                    charges_deriv, energy, order_p)
       TYPE(mulliken_restraint_type), INTENT(IN)          :: mulliken_restraint_control
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: charges, charges_deriv
-      REAL(KIND=dp), INTENT(OUT)                         :: energy, order_p
+      REAL(KIND=dp)                                      :: energy, order_p
 
       INTEGER                                            :: I
       REAL(KIND=dp)                                      :: dum

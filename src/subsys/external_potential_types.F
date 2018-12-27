@@ -671,12 +671,11 @@ CONTAINS
                                 ccore_charge, core_charge_radius, z, zeff, &
                                 zeff_correction, elec_conf)
       TYPE(all_potential_type), POINTER                  :: potential
-      CHARACTER(LEN=default_string_length), &
-         INTENT(OUT), OPTIONAL                           :: name
-      REAL(KIND=dp), INTENT(OUT), OPTIONAL               :: alpha_core_charge, ccore_charge, &
+      CHARACTER(LEN=default_string_length), OPTIONAL     :: name
+      REAL(KIND=dp), OPTIONAL                            :: alpha_core_charge, ccore_charge, &
                                                             core_charge_radius
-      INTEGER, INTENT(OUT), OPTIONAL                     :: z
-      REAL(KIND=dp), INTENT(OUT), OPTIONAL               :: zeff, zeff_correction
+      INTEGER, OPTIONAL                                  :: z
+      REAL(KIND=dp), OPTIONAL                            :: zeff, zeff_correction
       INTEGER, DIMENSION(:), OPTIONAL, POINTER           :: elec_conf
 
       CHARACTER(len=*), PARAMETER :: routineN = 'get_all_potential', &
@@ -720,9 +719,8 @@ CONTAINS
    SUBROUTINE get_fist_potential(potential, name, apol, cpol, mm_radius, qeff, &
                                  qmmm_corr_radius, qmmm_radius)
       TYPE(fist_potential_type), POINTER                 :: potential
-      CHARACTER(LEN=default_string_length), &
-         INTENT(OUT), OPTIONAL                           :: name
-      REAL(KIND=dp), INTENT(OUT), OPTIONAL               :: apol, cpol, mm_radius, qeff, &
+      CHARACTER(LEN=default_string_length), OPTIONAL     :: name
+      REAL(KIND=dp), OPTIONAL                            :: apol, cpol, mm_radius, qeff, &
                                                             qmmm_corr_radius, qmmm_radius
 
       CHARACTER(len=*), PARAMETER :: routineN = 'get_fist_potential', &
@@ -761,12 +759,11 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE get_local_potential(potential, name, ngau, npol, alpha, cval, radius)
       TYPE(local_potential_type), POINTER                :: potential
-      CHARACTER(LEN=default_string_length), &
-         INTENT(OUT), OPTIONAL                           :: name
-      INTEGER, INTENT(OUT), OPTIONAL                     :: ngau, npol
+      CHARACTER(LEN=default_string_length), OPTIONAL     :: name
+      INTEGER, OPTIONAL                                  :: ngau, npol
       REAL(KIND=dp), DIMENSION(:), OPTIONAL, POINTER     :: alpha
       REAL(KIND=dp), DIMENSION(:, :), OPTIONAL, POINTER  :: cval
-      REAL(KIND=dp), INTENT(OUT), OPTIONAL               :: radius
+      REAL(KIND=dp), OPTIONAL                            :: radius
 
       CHARACTER(len=*), PARAMETER :: routineN = 'get_local_potential', &
          routineP = moduleN//':'//routineN
@@ -850,33 +847,32 @@ CONTAINS
                                 nlcc_present, nexp_nlcc, alpha_nlcc, nct_nlcc, cval_nlcc)
 
       TYPE(gth_potential_type), POINTER                  :: potential
-      CHARACTER(LEN=default_string_length), &
-         INTENT(OUT), OPTIONAL                           :: name, aliases
-      REAL(KIND=dp), INTENT(OUT), OPTIONAL               :: alpha_core_charge, alpha_ppl, &
+      CHARACTER(LEN=default_string_length), OPTIONAL     :: name, aliases
+      REAL(KIND=dp), OPTIONAL                            :: alpha_core_charge, alpha_ppl, &
                                                             ccore_charge, cerf_ppl, &
                                                             core_charge_radius, ppl_radius, &
                                                             ppnl_radius
-      INTEGER, INTENT(OUT), OPTIONAL                     :: lppnl, lprj_ppnl_max, nexp_ppl, nppnl, &
+      INTEGER, OPTIONAL                                  :: lppnl, lprj_ppnl_max, nexp_ppl, nppnl, &
                                                             nprj_ppnl_max, z
-      REAL(KIND=dp), INTENT(OUT), OPTIONAL               :: zeff, zeff_correction
-      LOGICAL, INTENT(OUT), OPTIONAL                     :: ppl_present, ppnl_present
+      REAL(KIND=dp), OPTIONAL                            :: zeff, zeff_correction
+      LOGICAL, OPTIONAL                                  :: ppl_present, ppnl_present
       REAL(KIND=dp), DIMENSION(:), OPTIONAL, POINTER     :: alpha_ppnl, cexp_ppl
       INTEGER, DIMENSION(:), OPTIONAL, POINTER           :: elec_conf, nprj_ppnl
       REAL(KIND=dp), DIMENSION(:, :), OPTIONAL, POINTER  :: cprj, cprj_ppnl, vprj_ppnl
       REAL(KIND=dp), DIMENSION(:, :, :), OPTIONAL, &
          POINTER                                         :: hprj_ppnl
-      LOGICAL, INTENT(OUT), OPTIONAL                     :: lpot_present
-      INTEGER, INTENT(OUT), OPTIONAL                     :: nexp_lpot
+      LOGICAL, OPTIONAL                                  :: lpot_present
+      INTEGER, OPTIONAL                                  :: nexp_lpot
       REAL(KIND=dp), DIMENSION(:), OPTIONAL, POINTER     :: alpha_lpot
       INTEGER, DIMENSION(:), OPTIONAL, POINTER           :: nct_lpot
       REAL(KIND=dp), DIMENSION(:, :), OPTIONAL, POINTER  :: cval_lpot
-      LOGICAL, INTENT(OUT), OPTIONAL                     :: lsd_present
-      INTEGER, INTENT(OUT), OPTIONAL                     :: nexp_lsd
+      LOGICAL, OPTIONAL                                  :: lsd_present
+      INTEGER, OPTIONAL                                  :: nexp_lsd
       REAL(KIND=dp), DIMENSION(:), OPTIONAL, POINTER     :: alpha_lsd
       INTEGER, DIMENSION(:), OPTIONAL, POINTER           :: nct_lsd
       REAL(KIND=dp), DIMENSION(:, :), OPTIONAL, POINTER  :: cval_lsd
-      LOGICAL, INTENT(OUT), OPTIONAL                     :: nlcc_present
-      INTEGER, INTENT(OUT), OPTIONAL                     :: nexp_nlcc
+      LOGICAL, OPTIONAL                                  :: nlcc_present
+      INTEGER, OPTIONAL                                  :: nexp_nlcc
       REAL(KIND=dp), DIMENSION(:), OPTIONAL, POINTER     :: alpha_nlcc
       INTEGER, DIMENSION(:), OPTIONAL, POINTER           :: nct_nlcc
       REAL(KIND=dp), DIMENSION(:, :), OPTIONAL, POINTER  :: cval_nlcc
@@ -991,25 +987,23 @@ CONTAINS
                                 cprj_ppnl, vprj_ppnl, has_nlcc, n_nlcc, a_nlcc, c_nlcc)
 
       TYPE(sgp_potential_type), POINTER                  :: potential
+      CHARACTER(LEN=default_string_length), OPTIONAL     :: name
       CHARACTER(LEN=default_string_length), &
-         INTENT(OUT), OPTIONAL                           :: name
-      CHARACTER(LEN=default_string_length), &
-         DIMENSION(4), INTENT(OUT), OPTIONAL             :: description
-      CHARACTER(LEN=default_string_length), &
-         INTENT(OUT), OPTIONAL                           :: aliases
+         DIMENSION(4), OPTIONAL                          :: description
+      CHARACTER(LEN=default_string_length), OPTIONAL     :: aliases
       INTEGER, DIMENSION(:), OPTIONAL, POINTER           :: elec_conf
-      INTEGER, INTENT(OUT), OPTIONAL                     :: z
-      REAL(KIND=dp), INTENT(OUT), OPTIONAL               :: zeff, zeff_correction, &
+      INTEGER, OPTIONAL                                  :: z
+      REAL(KIND=dp), OPTIONAL                            :: zeff, zeff_correction, &
                                                             alpha_core_charge, ccore_charge, &
                                                             core_charge_radius, ppl_radius, &
                                                             ppnl_radius
-      LOGICAL, INTENT(OUT), OPTIONAL                     :: ppl_present, ppnl_present, ecp_local
-      INTEGER, INTENT(OUT), OPTIONAL                     :: n_local
+      LOGICAL, OPTIONAL                                  :: ppl_present, ppnl_present, ecp_local
+      INTEGER, OPTIONAL                                  :: n_local
       REAL(KIND=dp), DIMENSION(:), OPTIONAL, POINTER     :: a_local, c_local
-      INTEGER, INTENT(OUT), OPTIONAL                     :: nloc
-      INTEGER, DIMENSION(1:10), INTENT(OUT), OPTIONAL    :: nrloc
-      REAL(dp), DIMENSION(1:10), INTENT(OUT), OPTIONAL   :: aloc, bloc
-      INTEGER, INTENT(OUT), OPTIONAL                     :: n_nonlocal, nppnl, lmax
+      INTEGER, OPTIONAL                                  :: nloc
+      INTEGER, DIMENSION(1:10), OPTIONAL                 :: nrloc
+      REAL(dp), DIMENSION(1:10), OPTIONAL                :: aloc, bloc
+      INTEGER, OPTIONAL                                  :: n_nonlocal, nppnl, lmax
       LOGICAL, DIMENSION(0:5), OPTIONAL                  :: is_nonlocal
       REAL(KIND=dp), DIMENSION(:), OPTIONAL, POINTER     :: a_nonlocal
       REAL(KIND=dp), DIMENSION(:, :), OPTIONAL, POINTER  :: h_nonlocal
@@ -1017,8 +1011,8 @@ CONTAINS
          POINTER                                         :: c_nonlocal
       REAL(KIND=dp), DIMENSION(:, :), OPTIONAL, POINTER  :: cprj_ppnl
       REAL(KIND=dp), DIMENSION(:), OPTIONAL, POINTER     :: vprj_ppnl
-      LOGICAL, INTENT(OUT), OPTIONAL                     :: has_nlcc
-      INTEGER, INTENT(OUT), OPTIONAL                     :: n_nlcc
+      LOGICAL, OPTIONAL                                  :: has_nlcc
+      INTEGER, OPTIONAL                                  :: n_nlcc
       REAL(KIND=dp), DIMENSION(:), OPTIONAL, POINTER     :: a_nlcc, c_nlcc
 
       CHARACTER(len=*), PARAMETER :: routineN = 'get_sgp_potential', &

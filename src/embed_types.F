@@ -206,7 +206,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE init_embed_env(embed_env, para_env)
 
-      TYPE(embed_env_type), INTENT(OUT)                  :: embed_env
+      TYPE(embed_env_type)                               :: embed_env
       TYPE(cp_para_env_type), POINTER                    :: para_env
 
       NULLIFY (embed_env%input)

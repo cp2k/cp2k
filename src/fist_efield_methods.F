@@ -56,9 +56,9 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE fist_efield_energy_force(qenergy, qforce, qpv, atomic_kind_set, particle_set, cell, &
                                        efield, use_virial, iunit, charges)
-      REAL(KIND=dp), INTENT(OUT)                         :: qenergy
-      REAL(KIND=dp), DIMENSION(:, :), INTENT(OUT)        :: qforce
-      REAL(KIND=dp), DIMENSION(3, 3), INTENT(OUT)        :: qpv
+      REAL(KIND=dp)                                      :: qenergy
+      REAL(KIND=dp), DIMENSION(:, :)                     :: qforce
+      REAL(KIND=dp), DIMENSION(3, 3)                     :: qpv
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
       TYPE(cell_type), POINTER                           :: cell

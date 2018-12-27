@@ -181,8 +181,7 @@ CONTAINS
    SUBROUTINE nl_hash_table_get_from_index(hash_table, idx, val)
       TYPE(nl_hash_table_obj), INTENT(IN)                :: hash_table
       INTEGER, INTENT(IN)                                :: idx
-      TYPE(neighbor_list_task_type), INTENT(OUT), &
-         POINTER                                         :: val
+      TYPE(neighbor_list_task_type), POINTER             :: val
 
       CHARACTER(len=*), PARAMETER :: routineN = 'nl_hash_table_get_from_index', &
          routineP = moduleN//':'//routineN
@@ -266,7 +265,7 @@ CONTAINS
    SUBROUTINE nl_hash_table_is_null(hash_table, key, is_null)
       TYPE(nl_hash_table_obj), INTENT(IN)                :: hash_table
       INTEGER, INTENT(IN)                                :: key
-      LOGICAL, INTENT(OUT)                               :: is_null
+      LOGICAL                                            :: is_null
 
       CHARACTER(len=*), PARAMETER :: routineN = 'nl_hash_table_is_null', &
          routineP = moduleN//':'//routineN
@@ -364,7 +363,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE nl_hash_table_status(hash_table, nelements, nmax, prime)
       TYPE(nl_hash_table_obj), INTENT(INOUT)             :: hash_table
-      INTEGER, INTENT(OUT), OPTIONAL                     :: nelements, nmax, prime
+      INTEGER, OPTIONAL                                  :: nelements, nmax, prime
 
       CHARACTER(len=*), PARAMETER :: routineN = 'nl_hash_table_status', &
          routineP = moduleN//':'//routineN

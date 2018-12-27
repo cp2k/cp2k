@@ -234,7 +234,7 @@ CONTAINS
 !> \author Teodoro Laino [tlaino] - University of Zurich
 ! **************************************************************************************************
    SUBROUTINE quadrupole_sph_to_cart(qcart, qsph)
-      REAL(KIND=dp), DIMENSION(3, 3), INTENT(OUT)        :: qcart
+      REAL(KIND=dp), DIMENSION(3, 3)                     :: qcart
       REAL(KIND=dp), DIMENSION(5), INTENT(IN)            :: qsph
 
       CHARACTER(len=*), PARAMETER :: routineN = 'quadrupole_sph_to_cart', &

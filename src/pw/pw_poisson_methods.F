@@ -244,11 +244,10 @@ CONTAINS
 
       TYPE(pw_poisson_type), POINTER                     :: poisson_env
       TYPE(pw_type), POINTER                             :: density
-      REAL(kind=dp), INTENT(out), OPTIONAL               :: ehartree
+      REAL(kind=dp), OPTIONAL                            :: ehartree
       TYPE(pw_type), OPTIONAL, POINTER                   :: vhartree
       TYPE(pw_p_type), DIMENSION(3), OPTIONAL            :: dvhartree
-      REAL(KIND=dp), DIMENSION(3, 3), INTENT(OUT), &
-         OPTIONAL                                        :: h_stress
+      REAL(KIND=dp), DIMENSION(3, 3), OPTIONAL           :: h_stress
       TYPE(pw_p_type), OPTIONAL, POINTER                 :: rho_core
 
       CHARACTER(len=*), PARAMETER :: routineN = 'pw_poisson_solve', &

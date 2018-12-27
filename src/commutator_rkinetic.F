@@ -292,7 +292,7 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: lb_min
       REAL(KIND=dp), INTENT(IN)                          :: dab
       REAL(KIND=dp), DIMENSION(:, :), INTENT(IN)         :: ab
-      REAL(KIND=dp), DIMENSION(:, :, :), INTENT(OUT)     :: comabr
+      REAL(KIND=dp), DIMENSION(:, :, :)                  :: comabr
 
       INTEGER                                            :: ax, ay, az, bx, by, bz, coa, coap, &
                                                             coapx, coapy, coapz, cob, cobp, cobpx, &

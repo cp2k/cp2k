@@ -69,7 +69,7 @@ CONTAINS
                         mass_shell, k2_spring, k4_spring, max_dist, shell_cutoff)
 
       TYPE(shell_kind_type), POINTER                     :: shell
-      REAL(KIND=dp), INTENT(OUT), OPTIONAL               :: charge, charge_core, charge_shell, &
+      REAL(KIND=dp), OPTIONAL                            :: charge, charge_core, charge_shell, &
                                                             mass_core, mass_shell, k2_spring, &
                                                             k4_spring, max_dist, shell_cutoff
 

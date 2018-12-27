@@ -526,7 +526,7 @@ CONTAINS
 
       TYPE(dbcsr_type), INTENT(IN)                       :: ks, p, t, v, q_index_down, p_index_up, &
                                                             q_index_up
-      TYPE(dbcsr_type), INTENT(OUT)                      :: pp, qq, qp, pq
+      TYPE(dbcsr_type)                                   :: pp, qq, qp, pq
       INTEGER, INTENT(IN)                                :: tensor_type
       LOGICAL, INTENT(IN)                                :: use_virt_orbs
       REAL(KIND=dp), INTENT(IN)                          :: eps_filter
@@ -724,11 +724,11 @@ CONTAINS
       TYPE(dbcsr_type), INTENT(IN)                       :: pq
       TYPE(dbcsr_type), INTENT(IN), OPTIONAL             :: oo, vv
       TYPE(dbcsr_type), INTENT(INOUT)                    :: x
-      TYPE(dbcsr_type), INTENT(OUT)                      :: res
+      TYPE(dbcsr_type)                                   :: res
       LOGICAL, INTENT(IN)                                :: neglect_quadratic_term
       INTEGER, INTENT(IN)                                :: conjugator, max_iter
       REAL(KIND=dp), INTENT(IN)                          :: eps_convergence, eps_filter
-      LOGICAL, INTENT(OUT)                               :: converged
+      LOGICAL                                            :: converged
 
       CHARACTER(len=*), PARAMETER :: routineN = 'solve_riccati_equation', &
          routineP = moduleN//':'//routineN
@@ -1192,7 +1192,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE create_preconditioner(prec, pp, qq, eps_filter)
 
-      TYPE(dbcsr_type), INTENT(OUT)                      :: prec
+      TYPE(dbcsr_type)                                   :: prec
       TYPE(dbcsr_type), INTENT(IN)                       :: pp, qq
       REAL(KIND=dp), INTENT(IN)                          :: eps_filter
 
@@ -1366,8 +1366,8 @@ CONTAINS
    SUBROUTINE analytic_line_search(a, b, c, d, minima, nmins)
 
       REAL(KIND=dp), INTENT(IN)                          :: a, b, c, d
-      REAL(KIND=dp), DIMENSION(3), INTENT(OUT)           :: minima
-      INTEGER, INTENT(OUT)                               :: nmins
+      REAL(KIND=dp), DIMENSION(3)                        :: minima
+      INTEGER                                            :: nmins
 
       CHARACTER(len=*), PARAMETER :: routineN = 'analytic_line_search', &
          routineP = moduleN//':'//routineN
@@ -1492,8 +1492,8 @@ CONTAINS
    SUBROUTINE diagonalize_diagonal_blocks(matrix, c, e)
 
       TYPE(dbcsr_type), INTENT(IN)                       :: matrix
-      TYPE(dbcsr_type), INTENT(OUT)                      :: c
-      TYPE(dbcsr_type), INTENT(OUT), OPTIONAL            :: e
+      TYPE(dbcsr_type)                                   :: c
+      TYPE(dbcsr_type), OPTIONAL                         :: e
 
       CHARACTER(len=*), PARAMETER :: routineN = 'diagonalize_diagonal_blocks', &
          routineP = moduleN//':'//routineN

@@ -193,7 +193,7 @@ CONTAINS
 
       TYPE(force_env_type), POINTER                      :: force_env
       REAL(KIND=dp), DIMENSION(:), INTENT(IN), OPTIONAL  :: coords
-      REAL(KIND=dp), DIMENSION(:), INTENT(OUT)           :: cvalues
+      REAL(KIND=dp), DIMENSION(:)                        :: cvalues
       REAL(KIND=dp), DIMENSION(:, :), OPTIONAL, POINTER  :: Bmatrix
       REAL(KIND=dp), DIMENSION(:), OPTIONAL, POINTER     :: MassI
       REAL(KIND=dp), DIMENSION(:, :), OPTIONAL, POINTER  :: Amatrix
@@ -520,7 +520,7 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:), INTENT(INOUT), &
          OPTIONAL                                        :: forces, coords
       INTEGER, INTENT(IN)                                :: nsize_xyz, nsize_int
-      REAL(KIND=dp), DIMENSION(:), INTENT(OUT)           :: cvalues, Mmatrix
+      REAL(KIND=dp), DIMENSION(:)                        :: cvalues, Mmatrix
 
       CHARACTER(len=*), PARAMETER :: routineN = 'get_clv_force', routineP = moduleN//':'//routineN
 

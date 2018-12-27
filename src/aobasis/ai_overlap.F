@@ -84,7 +84,7 @@ CONTAINS
          OPTIONAL                                        :: sdab
       REAL(KIND=dp), DIMENSION(:, :), INTENT(IN), &
          OPTIONAL                                        :: pab
-      REAL(KIND=dp), DIMENSION(3), INTENT(OUT), OPTIONAL :: force_a
+      REAL(KIND=dp), DIMENSION(3), OPTIONAL              :: force_a
 
       CHARACTER(len=*), PARAMETER :: routineN = 'overlap', routineP = moduleN//':'//routineN
 

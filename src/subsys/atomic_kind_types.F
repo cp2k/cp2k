@@ -143,17 +143,16 @@ CONTAINS
 
       TYPE(atomic_kind_type)                             :: atomic_kind
       TYPE(fist_potential_type), OPTIONAL, POINTER       :: fist_potential
-      CHARACTER(LEN=2), INTENT(OUT), OPTIONAL            :: element_symbol
-      CHARACTER(LEN=default_string_length), &
-         INTENT(OUT), OPTIONAL                           :: name
-      REAL(KIND=dp), INTENT(OUT), OPTIONAL               :: mass
-      INTEGER, INTENT(OUT), OPTIONAL                     :: kind_number, natom
+      CHARACTER(LEN=2), OPTIONAL                         :: element_symbol
+      CHARACTER(LEN=default_string_length), OPTIONAL     :: name
+      REAL(KIND=dp), OPTIONAL                            :: mass
+      INTEGER, OPTIONAL                                  :: kind_number, natom
       INTEGER, DIMENSION(:), OPTIONAL, POINTER           :: atom_list
-      REAL(KIND=dp), INTENT(OUT), OPTIONAL               :: rcov, rvdw
-      INTEGER, INTENT(OUT), OPTIONAL                     :: z
-      REAL(KIND=dp), INTENT(OUT), OPTIONAL               :: qeff, apol, cpol, mm_radius
+      REAL(KIND=dp), OPTIONAL                            :: rcov, rvdw
+      INTEGER, OPTIONAL                                  :: z
+      REAL(KIND=dp), OPTIONAL                            :: qeff, apol, cpol, mm_radius
       TYPE(shell_kind_type), OPTIONAL, POINTER           :: shell
-      LOGICAL, INTENT(OUT), OPTIONAL                     :: shell_active
+      LOGICAL, OPTIONAL                                  :: shell_active
       TYPE(damping_p_type), OPTIONAL, POINTER            :: damping
 
       CHARACTER(len=*), PARAMETER :: routineN = 'get_atomic_kind', &
@@ -236,9 +235,9 @@ CONTAINS
                                   damping_present)
 
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
-      INTEGER, DIMENSION(:), INTENT(OUT), OPTIONAL       :: atom_of_kind, kind_of, natom_of_kind
-      INTEGER, INTENT(OUT), OPTIONAL                     :: maxatom, natom, nshell
-      LOGICAL, INTENT(OUT), OPTIONAL                     :: fist_potential_present, shell_present, &
+      INTEGER, DIMENSION(:), OPTIONAL                    :: atom_of_kind, kind_of, natom_of_kind
+      INTEGER, OPTIONAL                                  :: maxatom, natom, nshell
+      LOGICAL, OPTIONAL                                  :: fist_potential_present, shell_present, &
                                                             shell_adiabatic, shell_check_distance, &
                                                             damping_present
 

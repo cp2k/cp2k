@@ -481,7 +481,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE check_tol(roll_tol, iroll, char, matrix, veps)
 
-      REAL(KIND=dp), INTENT(OUT)                         :: roll_tol
+      REAL(KIND=dp)                                      :: roll_tol
       INTEGER, INTENT(INOUT)                             :: iroll
       CHARACTER(LEN=*), INTENT(IN)                       :: char
       REAL(KIND=dp), DIMENSION(:, :), INTENT(IN), &
@@ -537,8 +537,7 @@ CONTAINS
    SUBROUTINE get_roll_matrix(char, r_shake, v_shake, vector_r, vector_v, u)
 
       CHARACTER(len=*), INTENT(IN)                       :: char
-      REAL(KIND=dp), DIMENSION(:, :), INTENT(OUT), &
-         OPTIONAL                                        :: r_shake, v_shake
+      REAL(KIND=dp), DIMENSION(:, :), OPTIONAL           :: r_shake, v_shake
       REAL(KIND=dp), DIMENSION(:), INTENT(IN), OPTIONAL  :: vector_r, vector_v
       REAL(KIND=dp), DIMENSION(:, :), INTENT(IN), &
          OPTIONAL                                        :: u

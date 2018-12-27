@@ -166,7 +166,7 @@ CONTAINS
    SUBROUTINE color_graph_greedy(graph, maxdegree, ncolors)
       TYPE(vertex_p_type), DIMENSION(:), POINTER         :: graph
       INTEGER, INTENT(in)                                :: maxdegree
-      INTEGER, INTENT(out)                               :: ncolors
+      INTEGER                                            :: ncolors
 
       CHARACTER(len=*), PARAMETER :: routineN = 'color_graph_greedy', &
          routineP = moduleN//':'//routineN
@@ -345,7 +345,7 @@ CONTAINS
    SUBROUTINE kg_dsatur(kg_env, graph, ncolors)
       TYPE(kg_environment_type), POINTER                 :: kg_env
       TYPE(vertex_p_type), DIMENSION(:), POINTER         :: graph
-      INTEGER(KIND=int_4), INTENT(OUT)                   :: ncolors
+      INTEGER(KIND=int_4)                                :: ncolors
 
       CHARACTER(len=*), PARAMETER :: routineN = 'kg_dsatur', routineP = moduleN//':'//routineN
 
@@ -460,7 +460,7 @@ CONTAINS
    SUBROUTINE kg_check_switch(this, neighbor, low_col, switchable, ncolors, color_present)
 
       TYPE(vertex), POINTER                              :: this, neighbor
-      INTEGER, INTENT(OUT)                               :: low_col
+      INTEGER                                            :: low_col
       LOGICAL                                            :: switchable
       INTEGER                                            :: ncolors
       LOGICAL, ALLOCATABLE, DIMENSION(:)                 :: color_present
@@ -574,7 +574,7 @@ CONTAINS
    SUBROUTINE check_coloring(graph, valid)
       TYPE(vertex_p_type), DIMENSION(:), INTENT(in), &
          POINTER                                         :: graph
-      LOGICAL, INTENT(out)                               :: valid
+      LOGICAL                                            :: valid
 
       CHARACTER(len=*), PARAMETER :: routineN = 'check_coloring', routineP = moduleN//':'//routineN
 
@@ -634,9 +634,8 @@ CONTAINS
       TYPE(kg_environment_type), POINTER                 :: kg_env
       INTEGER(KIND=int_4), ALLOCATABLE, &
          DIMENSION(:, :), INTENT(IN)                     :: pairs
-      INTEGER(KIND=int_4), INTENT(OUT)                   :: ncolors
-      INTEGER(KIND=int_4), ALLOCATABLE, DIMENSION(:), &
-         INTENT(out)                                     :: color_of_node
+      INTEGER(KIND=int_4)                                :: ncolors
+      INTEGER(KIND=int_4), ALLOCATABLE, DIMENSION(:)     :: color_of_node
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'kg_vertex_coloring', &
          routineP = moduleN//':'//routineN

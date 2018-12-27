@@ -296,7 +296,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE compare_pot(pot1, pot2, compare)
       TYPE(pair_potential_single_type), POINTER          :: pot1, pot2
-      LOGICAL, INTENT(OUT)                               :: compare
+      LOGICAL                                            :: compare
 
       CHARACTER(len=*), PARAMETER :: routineN = 'compare_pot', routineP = moduleN//':'//routineN
 

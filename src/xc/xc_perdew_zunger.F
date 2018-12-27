@@ -54,8 +54,8 @@ CONTAINS
 !> \brief Return some info on the functionals.
 !> \param method ...
 !> \param lsd ...
-!> \param reference CHARACTER(*), INTENT(OUT), OPTIONAL - full reference
-!> \param shortform CHARACTER(*), INTENT(OUT), OPTIONAL - short reference
+!> \param reference CHARACTER(*), OPTIONAL - full reference
+!> \param shortform CHARACTER(*), OPTIONAL - short reference
 !> \param needs ...
 !> \param max_deriv ...
 !> \par History
@@ -64,9 +64,9 @@ CONTAINS
    SUBROUTINE pz_info(method, lsd, reference, shortform, needs, max_deriv)
       INTEGER, INTENT(in)                                :: method
       LOGICAL, INTENT(in)                                :: lsd
-      CHARACTER(LEN=*), INTENT(OUT), OPTIONAL            :: reference, shortform
+      CHARACTER(LEN=*), OPTIONAL                         :: reference, shortform
       TYPE(xc_rho_cflags_type), INTENT(inout), OPTIONAL  :: needs
-      INTEGER, INTENT(out), OPTIONAL                     :: max_deriv
+      INTEGER, OPTIONAL                                  :: max_deriv
 
       CHARACTER(len=*), PARAMETER :: routineN = 'pz_info', routineP = moduleN//':'//routineN
 
@@ -493,7 +493,7 @@ CONTAINS
 
       REAL(KIND=dp), INTENT(IN)                          :: r
       INTEGER, INTENT(IN)                                :: z
-      REAL(KIND=dp), DIMENSION(0:), INTENT(OUT)          :: g
+      REAL(KIND=dp), DIMENSION(0:)                       :: g
       INTEGER, INTENT(IN)                                :: order
 
       REAL(KIND=dp)                                      :: rr, rsr, sr
@@ -554,7 +554,7 @@ CONTAINS
    SUBROUTINE pz_lda_ed_loc(rho, ed, order, sc)
 
       REAL(KIND=dp), INTENT(IN)                          :: rho
-      REAL(KIND=dp), DIMENSION(0:), INTENT(OUT)          :: ed
+      REAL(KIND=dp), DIMENSION(0:)                       :: ed
       INTEGER, INTENT(IN)                                :: order
       REAL(dp), INTENT(IN)                               :: sc
 
@@ -609,7 +609,7 @@ CONTAINS
    SUBROUTINE pz_lsd_ed_loc(a, b, ed, order, sc)
 
       REAL(KIND=dp), INTENT(IN)                          :: a, b
-      REAL(KIND=dp), DIMENSION(0:), INTENT(OUT)          :: ed
+      REAL(KIND=dp), DIMENSION(0:)                       :: ed
       INTEGER, INTENT(IN), OPTIONAL                      :: order
       REAL(KIND=dp), INTENT(IN)                          :: sc
 

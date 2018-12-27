@@ -154,10 +154,10 @@ CONTAINS
                                 order, deriv_data, accept_null_data)
       TYPE(xc_derivative_type), POINTER                  :: deriv
       CHARACTER(len=MAX_DERIVATIVE_DESC_LENGTH), &
-         INTENT(out), OPTIONAL                           :: desc
+         OPTIONAL                                        :: desc
       CHARACTER(len=MAX_LABEL_LENGTH), DIMENSION(:), &
          OPTIONAL, POINTER                               :: split_desc
-      INTEGER, INTENT(out), OPTIONAL                     :: order
+      INTEGER, OPTIONAL                                  :: order
       REAL(kind=dp), DIMENSION(:, :, :), OPTIONAL, &
          POINTER                                         :: deriv_data
       LOGICAL, INTENT(in), OPTIONAL                      :: accept_null_data

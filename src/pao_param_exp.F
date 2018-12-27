@@ -124,7 +124,7 @@ CONTAINS
    SUBROUTINE pao_param_count_exp(qs_env, ikind, nparams)
       TYPE(qs_environment_type), POINTER                 :: qs_env
       INTEGER, INTENT(IN)                                :: ikind
-      INTEGER, INTENT(OUT)                               :: nparams
+      INTEGER                                            :: nparams
 
       CHARACTER(len=*), PARAMETER :: routineN = 'pao_param_count_exp', &
          routineP = moduleN//':'//routineN

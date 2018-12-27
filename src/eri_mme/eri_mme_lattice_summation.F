@@ -67,7 +67,7 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: la_max, lb_max
       REAL(KIND=dp), INTENT(IN)                          :: zeta, zetb, a_mm, G_min, R_min, &
                                                             sum_precision
-      REAL(KIND=dp), INTENT(OUT)                         :: G_rad, R_rad
+      REAL(KIND=dp)                                      :: G_rad, R_rad
 
       INTEGER                                            :: l_max
       REAL(KIND=dp)                                      :: alpha_G, alpha_R, G_res, R_res
@@ -106,8 +106,8 @@ CONTAINS
       REAL(KIND=dp), INTENT(IN)                          :: zeta, zetb, zetc, a_mm
       REAL(KIND=dp), INTENT(IN), OPTIONAL                :: G_min, R_min
       REAL(KIND=dp), INTENT(IN)                          :: sum_precision
-      REAL(KIND=dp), DIMENSION(3), INTENT(OUT), OPTIONAL :: G_rads_1, R_rads_2
-      REAL(KIND=dp), DIMENSION(2), INTENT(OUT), OPTIONAL :: R_rads_3
+      REAL(KIND=dp), DIMENSION(3), OPTIONAL              :: G_rads_1, R_rads_2
+      REAL(KIND=dp), DIMENSION(2), OPTIONAL              :: R_rads_3
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'eri_mme_3c_get_rads', &
          routineP = moduleN//':'//routineN
@@ -177,12 +177,12 @@ CONTAINS
       REAL(KIND=dp), INTENT(IN)                          :: G_min, R_min
       INTEGER, INTENT(IN)                                :: la_max, lb_max
       REAL(KIND=dp), INTENT(IN)                          :: zeta, zetb, a_mm, sum_precision
-      INTEGER(KIND=int_8), DIMENSION(2, 3), INTENT(OUT)  :: n_sum_1d
-      INTEGER(KIND=int_8), DIMENSION(2), INTENT(OUT)     :: n_sum_3d
-      REAL(KIND=dp), DIMENSION(3), INTENT(OUT)           :: G_bounds
-      REAL(KIND=dp), INTENT(OUT)                         :: G_rad
-      REAL(KIND=dp), DIMENSION(3), INTENT(OUT)           :: R_bounds
-      REAL(KIND=dp), INTENT(OUT)                         :: R_rad
+      INTEGER(KIND=int_8), DIMENSION(2, 3)               :: n_sum_1d
+      INTEGER(KIND=int_8), DIMENSION(2)                  :: n_sum_3d
+      REAL(KIND=dp), DIMENSION(3)                        :: G_bounds
+      REAL(KIND=dp)                                      :: G_rad
+      REAL(KIND=dp), DIMENSION(3)                        :: R_bounds
+      REAL(KIND=dp)                                      :: R_rad
 
       INTEGER                                            :: i_xyz
       REAL(KIND=dp)                                      :: ns_G, ns_R, vol_G
@@ -244,14 +244,14 @@ CONTAINS
       REAL(KIND=dp), INTENT(IN)                          :: G_min, R_min
       INTEGER, INTENT(IN)                                :: la_max, lb_max, lc_max
       REAL(KIND=dp), INTENT(IN)                          :: zeta, zetb, zetc, a_mm, sum_precision
-      INTEGER(KIND=int_8), DIMENSION(3, 3), INTENT(OUT)  :: n_sum_1d
-      INTEGER(KIND=int_8), DIMENSION(3), INTENT(OUT)     :: n_sum_3d
+      INTEGER(KIND=int_8), DIMENSION(3, 3)               :: n_sum_1d
+      INTEGER(KIND=int_8), DIMENSION(3)                  :: n_sum_3d
       REAL(KIND=dp), DIMENSION(3, 3)                     :: G_bounds_1
-      REAL(KIND=dp), DIMENSION(3), INTENT(OUT)           :: G_rads_1
+      REAL(KIND=dp), DIMENSION(3)                        :: G_rads_1
       REAL(KIND=dp), DIMENSION(3, 3)                     :: R_bounds_2
-      REAL(KIND=dp), DIMENSION(3), INTENT(OUT)           :: R_rads_2
+      REAL(KIND=dp), DIMENSION(3)                        :: R_rads_2
       REAL(KIND=dp), DIMENSION(2, 3)                     :: R_bounds_3
-      REAL(KIND=dp), DIMENSION(2), INTENT(OUT)           :: R_rads_3
+      REAL(KIND=dp), DIMENSION(2)                        :: R_rads_3
 
       INTEGER                                            :: i, i_xyz, order_1, order_2
       REAL(KIND=dp)                                      :: ns1_G1, ns1_G2, ns2_G, ns2_R, ns3_R1, &
@@ -747,12 +747,12 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE pgf_sum_3c_1d(S_G, RA, RB, RC, zeta, zetb, zetc, a_mm, lgth, &
                             G_bounds_1, R_bounds_2, R_bounds_3, method, method_out, order)
-      REAL(KIND=dp), DIMENSION(0:, 0:, 0:), INTENT(OUT)  :: S_G
+      REAL(KIND=dp), DIMENSION(0:, 0:, 0:)               :: S_G
       REAL(KIND=dp), INTENT(IN)                          :: RA, RB, RC, zeta, zetb, zetc, a_mm, lgth
       REAL(KIND=dp), DIMENSION(3), INTENT(IN)            :: G_bounds_1, R_bounds_2
       REAL(KIND=dp), DIMENSION(2), INTENT(IN)            :: R_bounds_3
       INTEGER, INTENT(IN)                                :: method
-      INTEGER, INTENT(OUT), OPTIONAL                     :: method_out
+      INTEGER, OPTIONAL                                  :: method_out
       INTEGER, INTENT(IN), OPTIONAL                      :: order
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'pgf_sum_3c_1d', routineP = moduleN//':'//routineN
@@ -1258,7 +1258,7 @@ CONTAINS
                             G_bounds_1, R_bounds_2, R_bounds_3, &
                             G_rads_1, R_rads_2, R_rads_3, &
                             method, method_out, order)
-      REAL(KIND=dp), DIMENSION(:, :, :), INTENT(OUT)     :: S_G
+      REAL(KIND=dp), DIMENSION(:, :, :)                  :: S_G
       INTEGER, INTENT(IN)                                :: la_max, lb_max, lc_max
       REAL(KIND=dp), DIMENSION(3), INTENT(IN)            :: RA, RB, RC
       REAL(KIND=dp), INTENT(IN)                          :: zeta, zetb, zetc, a_mm
@@ -1269,7 +1269,7 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(3), INTENT(IN)            :: G_rads_1, R_rads_2
       REAL(KIND=dp), DIMENSION(2), INTENT(IN)            :: R_rads_3
       INTEGER, INTENT(IN)                                :: method
-      INTEGER, INTENT(OUT), OPTIONAL                     :: method_out
+      INTEGER, OPTIONAL                                  :: method_out
       INTEGER, INTENT(IN), OPTIONAL                      :: order
 
       INTEGER                                            :: l_max, m_max, n_max, sum_method, &
@@ -1892,7 +1892,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE pgf_sum_3c_rspace_3d(S_R, l_max, m_max, n_max, RA, RB, RC, zeta, zetb, zetc, a_mm, &
                                    hmat, h_inv, R_c, R_rad)
-      REAL(KIND=dp), DIMENSION(:, :, :), INTENT(OUT)     :: S_R
+      REAL(KIND=dp), DIMENSION(:, :, :)                  :: S_R
       INTEGER, INTENT(IN)                                :: l_max, m_max, n_max
       REAL(KIND=dp), DIMENSION(3), INTENT(IN)            :: RA, RB, RC
       REAL(KIND=dp), INTENT(IN)                          :: zeta, zetb, zetc, a_mm

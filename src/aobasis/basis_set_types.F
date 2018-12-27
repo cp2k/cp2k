@@ -671,11 +671,10 @@ CONTAINS
       ! - Creation (10.01.2002,MK)
 
       TYPE(gto_basis_set_type), POINTER                  :: gto_basis_set
-      CHARACTER(LEN=default_string_length), &
-         INTENT(OUT), OPTIONAL                           :: name, aliases
-      INTEGER, INTENT(OUT), OPTIONAL                     :: norm_type
-      REAL(KIND=dp), INTENT(OUT), OPTIONAL               :: kind_radius
-      INTEGER, INTENT(OUT), OPTIONAL                     :: ncgf, nset, nsgf
+      CHARACTER(LEN=default_string_length), OPTIONAL     :: name, aliases
+      INTEGER, OPTIONAL                                  :: norm_type
+      REAL(KIND=dp), OPTIONAL                            :: kind_radius
+      INTEGER, OPTIONAL                                  :: ncgf, nset, nsgf
       CHARACTER(LEN=12), DIMENSION(:), OPTIONAL, POINTER :: cgf_symbol
       CHARACTER(LEN=6), DIMENSION(:), OPTIONAL, POINTER  :: sgf_symbol
       REAL(KIND=dp), DIMENSION(:), OPTIONAL, POINTER     :: norm_cgf, set_radius
@@ -686,11 +685,11 @@ CONTAINS
                                                             last_sgf, n
       REAL(KIND=dp), DIMENSION(:, :, :), OPTIONAL, &
          POINTER                                         :: gcc
-      INTEGER, INTENT(OUT), OPTIONAL                     :: maxco, maxl, maxpgf, maxsgf_set, &
+      INTEGER, OPTIONAL                                  :: maxco, maxl, maxpgf, maxsgf_set, &
                                                             maxshell, maxso, nco_sum, npgf_sum, &
                                                             nshell_sum
       INTEGER, INTENT(IN), OPTIONAL                      :: maxder
-      REAL(KIND=dp), INTENT(OUT), OPTIONAL               :: short_kind_radius
+      REAL(KIND=dp), OPTIONAL                            :: short_kind_radius
 
       CHARACTER(len=*), PARAMETER :: routineN = 'get_gto_basis_set', &
          routineP = moduleN//':'//routineN
@@ -2130,13 +2129,12 @@ CONTAINS
    SUBROUTINE get_sto_basis_set(sto_basis_set, name, nshell, symbol, nq, lq, zet, maxlq, numsto)
 
       TYPE(sto_basis_set_type), POINTER                  :: sto_basis_set
-      CHARACTER(LEN=default_string_length), &
-         INTENT(OUT), OPTIONAL                           :: name
-      INTEGER, INTENT(OUT), OPTIONAL                     :: nshell
+      CHARACTER(LEN=default_string_length), OPTIONAL     :: name
+      INTEGER, OPTIONAL                                  :: nshell
       CHARACTER(LEN=6), DIMENSION(:), OPTIONAL, POINTER  :: symbol
       INTEGER, DIMENSION(:), OPTIONAL, POINTER           :: nq, lq
       REAL(KIND=dp), DIMENSION(:), OPTIONAL, POINTER     :: zet
-      INTEGER, INTENT(OUT), OPTIONAL                     :: maxlq, numsto
+      INTEGER, OPTIONAL                                  :: maxlq, numsto
 
       CHARACTER(len=*), PARAMETER :: routineN = 'get_sto_basis_set', &
          routineP = moduleN//':'//routineN

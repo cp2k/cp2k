@@ -653,7 +653,7 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:, :, :), INTENT(IN)      :: pmat
       INTEGER, INTENT(IN)                                :: maxl
       TYPE(section_vals_type), POINTER                   :: xc_section
-      REAL(KIND=dp), INTENT(OUT)                         :: fexc
+      REAL(KIND=dp)                                      :: fexc
       REAL(KIND=dp), DIMENSION(:, :, :), INTENT(INOUT)   :: xcmat
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'atom_vxc_lda', routineP = moduleN//':'//routineN
@@ -806,7 +806,7 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:, :, :), INTENT(IN)      :: pmata, pmatb
       INTEGER, INTENT(IN)                                :: maxl
       TYPE(section_vals_type), POINTER                   :: xc_section
-      REAL(KIND=dp), INTENT(OUT)                         :: fexc
+      REAL(KIND=dp)                                      :: fexc
       REAL(KIND=dp), DIMENSION(:, :, :), INTENT(INOUT)   :: xcmata, xcmatb
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'atom_vxc_lsd', routineP = moduleN//':'//routineN
@@ -989,7 +989,7 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:, :, :), INTENT(IN)      :: pmat1
       INTEGER, INTENT(IN)                                :: maxl
       CHARACTER(LEN=*), INTENT(IN)                       :: functional
-      REAL(KIND=dp), INTENT(OUT)                         :: dfexc
+      REAL(KIND=dp)                                      :: dfexc
       REAL(KIND=dp), DIMENSION(:), INTENT(IN), OPTIONAL  :: linxpar
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'atom_dpot_lda', routineP = moduleN//':'//routineN

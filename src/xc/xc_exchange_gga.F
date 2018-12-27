@@ -69,9 +69,9 @@ CONTAINS
    SUBROUTINE xgga_info(functional, lsd, reference, shortform, needs, max_deriv)
       INTEGER, INTENT(in)                                :: functional
       LOGICAL, INTENT(in)                                :: lsd
-      CHARACTER(LEN=*), INTENT(OUT), OPTIONAL            :: reference, shortform
+      CHARACTER(LEN=*), OPTIONAL                         :: reference, shortform
       TYPE(xc_rho_cflags_type), INTENT(inout), OPTIONAL  :: needs
-      INTEGER, INTENT(out), OPTIONAL                     :: max_deriv
+      INTEGER, OPTIONAL                                  :: max_deriv
 
       CHARACTER(len=*), PARAMETER :: routineN = 'xgga_info', routineP = moduleN//':'//routineN
 
@@ -808,7 +808,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE efactor_optx(s, fs, m)
       REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: s
-      REAL(KIND=dp), DIMENSION(:, :), INTENT(OUT)        :: fs
+      REAL(KIND=dp), DIMENSION(:, :)                     :: fs
       INTEGER, INTENT(IN)                                :: m
 
       CHARACTER(len=*), PARAMETER :: routineN = 'efactor_optx', routineP = moduleN//':'//routineN
@@ -862,7 +862,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE efactor_pw91(s, fs, m)
       REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: s
-      REAL(KIND=dp), DIMENSION(:, :), INTENT(OUT)        :: fs
+      REAL(KIND=dp), DIMENSION(:, :)                     :: fs
       INTEGER, INTENT(IN)                                :: m
 
       INTEGER                                            :: ip
@@ -1052,7 +1052,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE efactor_pbex(s, fs, m, pset)
       REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: s
-      REAL(KIND=dp), DIMENSION(:, :), INTENT(OUT)        :: fs
+      REAL(KIND=dp), DIMENSION(:, :)                     :: fs
       INTEGER, INTENT(IN)                                :: m, pset
 
       CHARACTER(len=*), PARAMETER :: routineN = 'efactor_pbex', routineP = moduleN//':'//routineN

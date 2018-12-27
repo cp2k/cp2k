@@ -38,7 +38,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE lri_comp(aval, amax, cont)
       REAL(KIND=dp), DIMENSION(:, :, :), INTENT(IN)      :: aval
-      REAL(KIND=dp), DIMENSION(:), INTENT(OUT)           :: amax
+      REAL(KIND=dp), DIMENSION(:)                        :: amax
       TYPE(int_container), INTENT(INOUT)                 :: cont
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'lri_comp', routineP = moduleN//':'//routineN

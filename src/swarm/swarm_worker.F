@@ -102,7 +102,7 @@ CONTAINS
    SUBROUTINE swarm_worker_execute(worker, cmd, report, should_stop)
       TYPE(swarm_worker_type), INTENT(INOUT)             :: worker
       TYPE(swarm_message_type), INTENT(IN)               :: cmd
-      TYPE(swarm_message_type), INTENT(OUT)              :: report
+      TYPE(swarm_message_type)                           :: report
       LOGICAL, INTENT(INOUT)                             :: should_stop
 
       CHARACTER(len=*), PARAMETER :: routineN = 'swarm_worker_execute', &

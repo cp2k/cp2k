@@ -140,7 +140,7 @@ CONTAINS
 !> \author Lianheng Tong (LT) lianheng.tong@kcl.ac.uk
 ! **************************************************************************************************
    SUBROUTINE fb_matrix_data_associate(a, b)
-      TYPE(fb_matrix_data_obj), INTENT(OUT)              :: a
+      TYPE(fb_matrix_data_obj)                           :: a
       TYPE(fb_matrix_data_obj), INTENT(IN)               :: b
 
       a%obj => b%obj
@@ -195,7 +195,7 @@ CONTAINS
       TYPE(fb_matrix_data_obj), INTENT(IN)               :: matrix_data
       INTEGER, INTENT(IN)                                :: row, col
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: blk_p
-      LOGICAL, INTENT(OUT)                               :: found
+      LOGICAL                                            :: found
 
       CHARACTER(len=*), PARAMETER :: routineN = 'fb_matrix_data_get', &
          routineP = moduleN//':'//routineN
@@ -351,8 +351,8 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE fb_matrix_data_status(matrix_data, nmax, nblks, nencode, blk_sizes)
       TYPE(fb_matrix_data_obj), INTENT(INOUT)            :: matrix_data
-      INTEGER, INTENT(OUT), OPTIONAL                     :: nmax, nblks, nencode
-      INTEGER, DIMENSION(:, :), INTENT(OUT), OPTIONAL    :: blk_sizes
+      INTEGER, OPTIONAL                                  :: nmax, nblks, nencode
+      INTEGER, DIMENSION(:, :), OPTIONAL                 :: blk_sizes
 
       CHARACTER(len=*), PARAMETER :: routineN = 'fb_matrix_data_status', &
          routineP = moduleN//':'//routineN

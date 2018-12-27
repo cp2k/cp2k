@@ -87,10 +87,9 @@ CONTAINS
       TYPE(ewald_environment_type), POINTER              :: ewald_env
       TYPE(particle_type), DIMENSION(:), INTENT(IN)      :: particle_set
       TYPE(cell_type), POINTER                           :: cell
-      REAL(KIND=dp), INTENT(OUT)                         :: pot_nonbond
+      REAL(KIND=dp)                                      :: pot_nonbond
       REAL(KIND=dp), DIMENSION(:, :), INTENT(INOUT)      :: f_nonbond, pv_nonbond
-      REAL(KIND=dp), DIMENSION(:, :), INTENT(OUT), &
-         OPTIONAL                                        :: fshell_nonbond, fcore_nonbond
+      REAL(KIND=dp), DIMENSION(:, :), OPTIONAL           :: fshell_nonbond, fcore_nonbond
       TYPE(atprop_type), POINTER                         :: atprop_env
       TYPE(atomic_kind_type), POINTER                    :: atomic_kind_set(:)
       LOGICAL, INTENT(IN)                                :: use_virial
@@ -649,8 +648,8 @@ CONTAINS
       TYPE(distribution_1d_type), POINTER                :: local_particles
       TYPE(particle_type), POINTER                       :: particle_set(:)
       TYPE(ewald_environment_type), POINTER              :: ewald_env
-      REAL(KIND=dp), INTENT(OUT)                         :: v_bonded_corr
-      REAL(KIND=dp), DIMENSION(:, :), INTENT(OUT)        :: pv_bc
+      REAL(KIND=dp)                                      :: v_bonded_corr
+      REAL(KIND=dp), DIMENSION(:, :)                     :: pv_bc
       TYPE(particle_type), OPTIONAL, POINTER             :: shell_particle_set(:), &
                                                             core_particle_set(:)
       TYPE(atprop_type), POINTER                         :: atprop_env

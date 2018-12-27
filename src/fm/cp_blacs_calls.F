@@ -75,7 +75,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE cp_blacs_gridinfo(context, nprow, npcol, myprow, mypcol)
       INTEGER, INTENT(IN)  :: context
-      INTEGER, INTENT(OUT) :: nprow, npcol, myprow, mypcol
+      INTEGER :: nprow, npcol, myprow, mypcol
 #if defined(__SCALAPACK)
       CALL blacs_gridinfo(context, nprow, npcol, myprow, mypcol)
 #else

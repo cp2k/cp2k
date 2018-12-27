@@ -98,10 +98,10 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE pade_info(reference, shortform, lsd, needs, max_deriv)
 
-      CHARACTER(LEN=*), INTENT(OUT), OPTIONAL            :: reference, shortform
+      CHARACTER(LEN=*), OPTIONAL                         :: reference, shortform
       LOGICAL, INTENT(IN), OPTIONAL                      :: lsd
       TYPE(xc_rho_cflags_type), INTENT(inout), OPTIONAL  :: needs
-      INTEGER, INTENT(out), OPTIONAL                     :: max_deriv
+      INTEGER, OPTIONAL                                  :: max_deriv
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'pade_info', routineP = moduleN//':'//routineN
 

@@ -970,7 +970,7 @@ CONTAINS
       TYPE(g3x3_constraint_type), DIMENSION(:), POINTER  :: g3x3_list
       INTEGER, DIMENSION(:), POINTER                     :: ilist
       TYPE(constraint_info_type), POINTER                :: cons_info
-      INTEGER, INTENT(OUT)                               :: ng3x3_restraint
+      INTEGER                                            :: ng3x3_restraint
 
       CHARACTER(len=*), PARAMETER :: routineN = 'setup_g3x3_list', &
          routineP = moduleN//':'//routineN
@@ -1008,7 +1008,7 @@ CONTAINS
       TYPE(g4x6_constraint_type), DIMENSION(:), POINTER  :: g4x6_list
       INTEGER, DIMENSION(:), POINTER                     :: ilist
       TYPE(constraint_info_type), POINTER                :: cons_info
-      INTEGER, INTENT(OUT)                               :: ng4x6_restraint
+      INTEGER                                            :: ng4x6_restraint
 
       CHARACTER(len=*), PARAMETER :: routineN = 'setup_g4x6_list', &
          routineP = moduleN//':'//routineN
@@ -1050,7 +1050,7 @@ CONTAINS
       TYPE(vsite_constraint_type), DIMENSION(:), POINTER :: vsite_list
       INTEGER, DIMENSION(:), POINTER                     :: ilist
       TYPE(constraint_info_type), POINTER                :: cons_info
-      INTEGER, INTENT(OUT)                               :: nvsite_restraint
+      INTEGER                                            :: nvsite_restraint
 
       CHARACTER(len=*), PARAMETER :: routineN = 'setup_vsite_list', &
          routineP = moduleN//':'//routineN

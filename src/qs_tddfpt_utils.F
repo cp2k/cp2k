@@ -76,7 +76,7 @@ CONTAINS
    SUBROUTINE tddfpt_init(p_env, t_env, qs_env)
 
       TYPE(qs_p_env_type), POINTER                       :: p_env
-      TYPE(tddfpt_env_type), INTENT(out)                 :: t_env
+      TYPE(tddfpt_env_type)                              :: t_env
       TYPE(qs_environment_type), POINTER                 :: qs_env
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'tddfpt_init', routineP = moduleN//':'//routineN
@@ -154,7 +154,7 @@ CONTAINS
    SUBROUTINE co_initial_guess(matrices, energies, n_v, qs_env)
 
       TYPE(cp_fm_p_type), DIMENSION(:, :), POINTER       :: matrices
-      REAL(kind=DP), DIMENSION(:), INTENT(OUT)           :: energies
+      REAL(kind=DP), DIMENSION(:)                        :: energies
       INTEGER, INTENT(IN)                                :: n_v
       TYPE(qs_environment_type), POINTER                 :: qs_env
 

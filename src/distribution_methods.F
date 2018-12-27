@@ -847,9 +847,9 @@ CONTAINS
                                       nprows, row_distribution, npcols, col_distribution)
       INTEGER, DIMENSION(:), INTENT(INOUT)               :: cluster_list, cluster_prices
       INTEGER, INTENT(IN)                                :: nprows
-      INTEGER, DIMENSION(:), INTENT(OUT)                 :: row_distribution
+      INTEGER, DIMENSION(:)                              :: row_distribution
       INTEGER, INTENT(IN)                                :: npcols
-      INTEGER, DIMENSION(:), INTENT(OUT)                 :: col_distribution
+      INTEGER, DIMENSION(:)                              :: col_distribution
 
       CHARACTER(len=*), PARAMETER :: routineN = 'make_basic_distribution', &
          routineP = moduleN//':'//routineN
@@ -913,9 +913,9 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:, :), INTENT(IN)         :: pbc_scaled_coords
       INTEGER, DIMENSION(:), INTENT(IN)                  :: costs
       INTEGER, INTENT(IN)                                :: nprows
-      INTEGER, DIMENSION(:), INTENT(OUT)                 :: row_distribution
+      INTEGER, DIMENSION(:)                              :: row_distribution
       INTEGER, INTENT(IN)                                :: npcols
-      INTEGER, DIMENSION(:), INTENT(OUT)                 :: col_distribution
+      INTEGER, DIMENSION(:)                              :: col_distribution
 
       CHARACTER(len=*), PARAMETER :: routineN = 'make_basic_spatial_distribution', &
          routineP = moduleN//':'//routineN
@@ -1024,9 +1024,9 @@ CONTAINS
       TYPE(cell_type), POINTER                           :: cell
       INTEGER, DIMENSION(:), INTENT(IN)                  :: costs
       INTEGER, INTENT(IN)                                :: nprows
-      INTEGER, DIMENSION(:, :), INTENT(OUT)              :: row_distribution
+      INTEGER, DIMENSION(:, :)                           :: row_distribution
       INTEGER, INTENT(IN)                                :: npcols
-      INTEGER, DIMENSION(:, :), INTENT(OUT)              :: col_distribution
+      INTEGER, DIMENSION(:, :)                           :: col_distribution
 
       CHARACTER(len=*), PARAMETER :: routineN = 'make_cluster_distribution', &
          routineP = moduleN//':'//routineN

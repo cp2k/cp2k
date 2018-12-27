@@ -183,16 +183,16 @@ CONTAINS
                                    matrixType, isSymbolicFactorize, ordering, rowOrdering, &
                                    npSymbFact, verbosity)
       TYPE(cp_pexsi_options), INTENT(IN)       :: pexsi_options
-      REAL(KIND=real_8), INTENT(OUT), OPTIONAL :: temperature, gap, deltaE
-      INTEGER, INTENT(OUT), OPTIONAL           :: numPole, isInertiaCount, &
-                                                  maxPEXSIIter
-      REAL(KIND=real_8), INTENT(OUT), OPTIONAL :: muMin0, muMax0, mu0, &
-                                                  muInertiaTolerance, muInertiaExpansion, muPEXSISafeGuard, &
-                                                  numElectronPEXSITolerance
-      INTEGER, INTENT(OUT), OPTIONAL           :: matrixType, &
-                                                  isSymbolicFactorize, &
-                                                  ordering, rowOrdering, npSymbFact, &
-                                                  verbosity
+      REAL(KIND=real_8), OPTIONAL :: temperature, gap, deltaE
+      INTEGER, OPTIONAL           :: numPole, isInertiaCount, &
+                                     maxPEXSIIter
+      REAL(KIND=real_8), OPTIONAL :: muMin0, muMax0, mu0, &
+                                     muInertiaTolerance, muInertiaExpansion, muPEXSISafeGuard, &
+                                     numElectronPEXSITolerance
+      INTEGER, OPTIONAL           :: matrixType, &
+                                     isSymbolicFactorize, &
+                                     ordering, rowOrdering, npSymbFact, &
+                                     verbosity
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'cp_pexsi_get_options', &
                                      routineP = moduleN//':'//routineN
@@ -253,7 +253,7 @@ CONTAINS
 !> \param pexsi_options ...
 ! **************************************************************************************************
    SUBROUTINE cp_pexsi_set_default_options(pexsi_options)
-      TYPE(cp_pexsi_options), INTENT(OUT)      :: pexsi_options
+      TYPE(cp_pexsi_options)      :: pexsi_options
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'cp_pexsi_set_default_options', &
                                      routineP = moduleN//':'//routineN
@@ -261,6 +261,7 @@ CONTAINS
 #ifdef  __LIBPEXSI
       CALL f_ppexsi_set_default_options(pexsi_options%options)
 #else
+      MARK_USED(pexsi_options)
       CPABORT("Requires linking to the PEXSI library.")
 #endif
    END SUBROUTINE cp_pexsi_set_default_options
@@ -375,10 +376,10 @@ CONTAINS
       INTEGER(KIND=int_8), INTENT(IN)          :: plan
       TYPE(cp_pexsi_options), INTENT(IN)       :: pexsi_options
       REAL(KIND=real_8), INTENT(IN)            :: numElectronExact
-      REAL(KIND=real_8), INTENT(out)           :: muPEXSI, numElectronPEXSI, &
-                                                  muMinInertia, muMaxInertia
-      INTEGER, INTENT(out)                     :: numTotalInertiaIter, &
-                                                  numTotalPEXSIIter
+      REAL(KIND=real_8)           :: muPEXSI, numElectronPEXSI, &
+                                     muMinInertia, muMaxInertia
+      INTEGER                     :: numTotalInertiaIter, &
+                                     numTotalPEXSIIter
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'cp_pexsi_dft_driver', &
                                      routineP = moduleN//':'//routineN
@@ -438,8 +439,8 @@ CONTAINS
                                                 FDMnzvalLocal, totalEnergyH, &
                                                 totalEnergyS, totalFreeEnergy)
       INTEGER(KIND=int_8), INTENT(IN)          :: plan
-      REAL(KIND=real_8), INTENT(out) :: DMnzvalLocal(*), EDMnzvalLocal(*), &
-                                        FDMnzvalLocal(*), totalEnergyH, totalEnergyS, totalFreeEnergy
+      REAL(KIND=real_8) :: DMnzvalLocal(*), EDMnzvalLocal(*), &
+                           FDMnzvalLocal(*), totalEnergyH, totalEnergyS, totalFreeEnergy
 
       CHARACTER(LEN=*), PARAMETER :: &
          routineN = 'cp_pexsi_retrieve_real_symmetric_dft_matrix', &

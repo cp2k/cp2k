@@ -598,7 +598,7 @@ CONTAINS
       TYPE(tree_type), POINTER                           :: conf
       INTEGER, INTENT(IN)                                :: env_id
       TYPE(tmc_env_type), POINTER                        :: tmc_env
-      INTEGER, INTENT(OUT)                               :: calc_status
+      INTEGER                                            :: calc_status
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'nested_markov_chain_MC', &
          routineP = moduleN//':'//routineN

@@ -193,7 +193,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE give_ijk_subcell(r, i, j, k, cell, nsubcell)
       REAL(KIND=dp)                                      :: r(3)
-      INTEGER, INTENT(OUT)                               :: i, j, k
+      INTEGER                                            :: i, j, k
       TYPE(cell_type), POINTER                           :: cell
       INTEGER, DIMENSION(3), INTENT(IN)                  :: nsubcell
 

@@ -425,7 +425,7 @@ CONTAINS
    SUBROUTINE verfc_force(habd, pab, fa, fb, nder, la_max, la_min, npgfa, zeta, lb_max, lb_min, npgfb, zetb, rab)
 
       REAL(KIND=dp), DIMENSION(:, :), INTENT(IN)         :: habd, pab
-      REAL(KIND=dp), DIMENSION(3), INTENT(OUT)           :: fa, fb
+      REAL(KIND=dp), DIMENSION(3)                        :: fa, fb
       INTEGER, INTENT(IN)                                :: nder, la_max, la_min, npgfa
       REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: zeta
       INTEGER, INTENT(IN)                                :: lb_max, lb_min, npgfb

@@ -192,8 +192,8 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: unit
       CHARACTER(len=*)                                   :: section
       CHARACTER(len=*), OPTIONAL                         :: keyword, subsection
-      INTEGER, INTENT(OUT), OPTIONAL                     :: i_val
-      REAL(KIND=dp), INTENT(OUT), OPTIONAL               :: r_val
+      INTEGER, OPTIONAL                                  :: i_val
+      REAL(KIND=dp), OPTIONAL                            :: r_val
 
       CHARACTER(len=512)                                 :: line
       INTEGER                                            :: my_ind, stat
@@ -237,8 +237,8 @@ CONTAINS
   SUBROUTINE search(unit, key, line, stat)
       INTEGER, INTENT(in)                                :: unit
       CHARACTER(LEN=*), INTENT(IN)                       :: key
-      CHARACTER(LEN=512), INTENT(OUT)                    :: line
-      INTEGER, INTENT(out)                               :: stat
+      CHARACTER(LEN=512)                                 :: line
+      INTEGER                                            :: stat
 
     stat = 99
     DO WHILE (.TRUE.)

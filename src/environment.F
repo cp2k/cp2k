@@ -1043,7 +1043,7 @@ CONTAINS
    SUBROUTINE cp2k_get_walltime(section, keyword_name, walltime)
       TYPE(section_vals_type), POINTER                   :: section
       CHARACTER(len=*), INTENT(in)                       :: keyword_name
-      REAL(KIND=dp), INTENT(out)                         :: walltime
+      REAL(KIND=dp)                                      :: walltime
 
       CHARACTER(len=*), PARAMETER :: routineN = 'cp2k_get_walltime', &
          routineP = moduleN//':'//routineN

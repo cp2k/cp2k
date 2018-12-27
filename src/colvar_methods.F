@@ -1398,7 +1398,7 @@ CONTAINS
       TYPE(section_vals_type), POINTER                   :: section
       TYPE(colvar_type), POINTER                         :: colvar
       INTEGER, INTENT(IN)                                :: colvar_id
-      INTEGER, INTENT(OUT)                               :: n_oxygens, n_hydrogens
+      INTEGER                                            :: n_oxygens, n_hydrogens
       INTEGER, DIMENSION(:), POINTER                     :: i_oxygens, i_hydrogens
 
       CHARACTER(len=*), PARAMETER :: routineN = 'read_hydronium_colvars', &
@@ -1476,7 +1476,7 @@ CONTAINS
       TYPE(section_vals_type), POINTER                   :: section
       TYPE(colvar_type), POINTER                         :: colvar
       INTEGER, INTENT(IN)                                :: colvar_id
-      INTEGER, INTENT(OUT)                               :: n_oxygens_water, n_oxygens_acid, &
+      INTEGER                                            :: n_oxygens_water, n_oxygens_acid, &
                                                             n_hydrogens
       INTEGER, DIMENSION(:), POINTER                     :: i_oxygens_water, i_oxygens_acid, &
                                                             i_hydrogens
@@ -1898,7 +1898,7 @@ CONTAINS
    SUBROUTINE get_coordinates(colvar, i, ri, my_particles)
       TYPE(colvar_type), POINTER                         :: colvar
       INTEGER, INTENT(IN)                                :: i
-      REAL(KIND=dp), DIMENSION(3), INTENT(OUT)           :: ri
+      REAL(KIND=dp), DIMENSION(3)                        :: ri
       TYPE(particle_type), DIMENSION(:), POINTER         :: my_particles
 
       IF (colvar%use_points) THEN
@@ -1920,7 +1920,7 @@ CONTAINS
    SUBROUTINE get_mass(colvar, i, mi, my_particles)
       TYPE(colvar_type), POINTER                         :: colvar
       INTEGER, INTENT(IN)                                :: i
-      REAL(KIND=dp), INTENT(OUT)                         :: mi
+      REAL(KIND=dp)                                      :: mi
       TYPE(particle_type), DIMENSION(:), POINTER         :: my_particles
 
       IF (colvar%use_points) THEN
@@ -5877,7 +5877,7 @@ CONTAINS
       TYPE(cp_para_env_type), POINTER                    :: para_env
       INTEGER, INTENT(IN)                                :: nr_frames
       REAL(dp), DIMENSION(:, :), POINTER                 :: r_ref
-      INTEGER, INTENT(OUT)                               :: n_atoms
+      INTEGER                                            :: n_atoms
 
       CHARACTER(len=*), PARAMETER :: routineN = 'read_frames', routineP = moduleN//':'//routineN
 

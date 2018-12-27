@@ -483,7 +483,7 @@ CONTAINS
       !----- -------- --------- --------- --------- --------- --------- --------- -------
       CHARACTER(LEN=*), INTENT(in)                       :: str
       CHARACTER(LEN=*), DIMENSION(:), INTENT(in)         :: Var
-      INTEGER, INTENT(out), OPTIONAL                     :: ibegin, inext
+      INTEGER, OPTIONAL                                  :: ibegin, inext
       INTEGER(is)                                        :: n
 
       INTEGER                                            :: ib, in, j, lstr
@@ -873,8 +873,8 @@ CONTAINS
       ! Get real number from string - Format: [blanks][+|-][nnn][.nnn][e|E|d|D[+|-]nnn]
       !----- -------- --------- --------- --------- --------- --------- --------- -------
       CHARACTER(LEN=*), INTENT(in)                       :: str
-      INTEGER, INTENT(out), OPTIONAL                     :: ibegin, inext
-      LOGICAL, INTENT(out), OPTIONAL                     :: error
+      INTEGER, OPTIONAL                                  :: ibegin, inext
+      LOGICAL, OPTIONAL                                  :: error
       REAL(rn)                                           :: res
 
       INTEGER                                            :: ib, in, istat
@@ -963,7 +963,7 @@ CONTAINS
       ! Transform upper case letters in str1 into lower case letters, result is str2
       !----- -------- --------- --------- --------- --------- --------- --------- -------
       CHARACTER(LEN=*), INTENT(in)                       :: str1
-      CHARACTER(LEN=*), INTENT(out)                      :: str2
+      CHARACTER(LEN=*)                                   :: str2
 
       CHARACTER(LEN=*), PARAMETER :: lc = 'abcdefghijklmnopqrstuvwxyz', &
          uc = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'
@@ -994,8 +994,7 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: id_fun, ipar
       REAL(KIND=rn), DIMENSION(:), INTENT(INOUT)         :: vals
       REAL(KIND=rn), INTENT(IN)                          :: h
-      REAL(KIND=rn), INTENT(OUT)                         :: err
-      REAL(KIND=rn)                                      :: derivative
+      REAL(KIND=rn)                                      :: err, derivative
 
       CHARACTER(len=*), PARAMETER :: routineN = 'evalfd', routineP = moduleN//':'//routineN
       INTEGER, PARAMETER                                 :: ntab = 10

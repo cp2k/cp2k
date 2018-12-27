@@ -109,12 +109,11 @@ CONTAINS
                                   lmax, skself, occupation, eta, energy, cutoff, xi, di, rcdisp, dudq)
 
       TYPE(qs_dftb_atom_type), POINTER                   :: dftb_parameter
-      CHARACTER(LEN=default_string_length), &
-         INTENT(OUT), OPTIONAL                           :: name, typ
-      LOGICAL, INTENT(OUT), OPTIONAL                     :: defined
-      INTEGER, INTENT(OUT), OPTIONAL                     :: z
-      REAL(KIND=dp), INTENT(OUT), OPTIONAL               :: zeff
-      INTEGER, INTENT(OUT), OPTIONAL                     :: natorb, lmax
+      CHARACTER(LEN=default_string_length), OPTIONAL     :: name, typ
+      LOGICAL, OPTIONAL                                  :: defined
+      INTEGER, OPTIONAL                                  :: z
+      REAL(KIND=dp), OPTIONAL                            :: zeff
+      INTEGER, OPTIONAL                                  :: natorb, lmax
       REAL(KIND=dp), DIMENSION(0:3), OPTIONAL            :: skself, occupation, eta
       REAL(KIND=dp), OPTIONAL                            :: energy, cutoff, xi, di, rcdisp, dudq
 

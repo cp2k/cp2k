@@ -107,9 +107,9 @@ CONTAINS
 !>       Fermi function), so we do not actually need a fine grid spacing on this tail.
 ! **************************************************************************************************
    SUBROUTINE ccquad_init(cc_env, xnodes, nnodes, a, b, interval_id, shape_id, weights, tnodes_restart)
-      TYPE(ccquad_type), INTENT(out)                     :: cc_env
+      TYPE(ccquad_type)                                  :: cc_env
       INTEGER, INTENT(inout)                             :: nnodes
-      COMPLEX(kind=dp), DIMENSION(nnodes), INTENT(out)   :: xnodes
+      COMPLEX(kind=dp), DIMENSION(nnodes)                :: xnodes
       COMPLEX(kind=dp), INTENT(in)                       :: a, b
       INTEGER, INTENT(in)                                :: interval_id, shape_id
       TYPE(cp_fm_type), POINTER                          :: weights

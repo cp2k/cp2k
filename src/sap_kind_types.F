@@ -110,7 +110,7 @@ CONTAINS
    SUBROUTINE get_alist(sap_int, alist, atom)
 
       TYPE(sap_int_type), INTENT(IN)                     :: sap_int
-      TYPE(alist_type), INTENT(OUT), POINTER             :: alist
+      TYPE(alist_type), POINTER                          :: alist
       INTEGER, INTENT(IN)                                :: atom
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'get_alist', routineP = moduleN//':'//routineN

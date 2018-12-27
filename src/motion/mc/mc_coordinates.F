@@ -68,7 +68,7 @@ CONTAINS
 
       TYPE(force_env_type), POINTER                      :: force_env
       INTEGER, DIMENSION(:), INTENT(IN)                  :: nchains, nunits
-      LOGICAL, INTENT(OUT)                               :: loverlap
+      LOGICAL                                            :: loverlap
       INTEGER, DIMENSION(:), INTENT(IN)                  :: mol_type
       REAL(KIND=dp), DIMENSION(1:3), INTENT(IN), &
          OPTIONAL                                        :: cell_length
@@ -190,7 +190,7 @@ CONTAINS
 
       REAL(KIND=dp), DIMENSION(:, :), INTENT(IN)         :: coordinates
       INTEGER, INTENT(IN)                                :: natom
-      REAL(KIND=dp), DIMENSION(1:3), INTENT(OUT)         :: center_of_mass
+      REAL(KIND=dp), DIMENSION(1:3)                      :: center_of_mass
       REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: mass
 
       CHARACTER(len=*), PARAMETER :: routineN = 'get_center_of_mass', &
@@ -334,13 +334,13 @@ CONTAINS
       REAL(KIND=dp), INTENT(IN)                          :: BETA, max_val, min_val, exp_max_val, &
                                                             exp_min_val
       INTEGER, INTENT(IN)                                :: nswapmoves
-      REAL(KIND=dp), INTENT(OUT)                         :: rosenbluth_weight
+      REAL(KIND=dp)                                      :: rosenbluth_weight
       INTEGER, INTENT(IN)                                :: start_atom, natoms_tot
       INTEGER, DIMENSION(:), INTENT(IN)                  :: nunits
       INTEGER, INTENT(IN)                                :: nunits_mol
       REAL(dp), DIMENSION(1:nunits_mol), INTENT(IN)      :: mass
-      LOGICAL, INTENT(OUT)                               :: loverlap
-      REAL(KIND=dp), INTENT(OUT)                         :: choosen_energy
+      LOGICAL                                            :: loverlap
+      REAL(KIND=dp)                                      :: choosen_energy
       REAL(KIND=dp), INTENT(IN)                          :: old_energy
       LOGICAL, INTENT(IN)                                :: ionode, lremove
       INTEGER, DIMENSION(:), INTENT(IN)                  :: mol_type, nchains
@@ -718,7 +718,7 @@ CONTAINS
                                     box_number, molecule_type, rng_stream, box, molecule_type_old)
 
       TYPE(mc_molecule_info_type), POINTER               :: mc_molecule_info
-      INTEGER, INTENT(OUT)                               :: start_atom, box_number, molecule_type
+      INTEGER                                            :: start_atom, box_number, molecule_type
       TYPE(rng_stream_type), POINTER                     :: rng_stream
       INTEGER, INTENT(IN), OPTIONAL                      :: box, molecule_type_old
 
@@ -873,7 +873,7 @@ CONTAINS
 ! 1 is for "yes, we can do the move", 0 is for no
 
       REAL(dp), DIMENSION(1:3), INTENT(IN)               :: cell
-      INTEGER, DIMENSION(1:3, 1:2), INTENT(OUT)          :: discrete_array
+      INTEGER, DIMENSION(1:3, 1:2)                       :: discrete_array
       REAL(dp), INTENT(IN)                               :: step_size
 
       INTEGER                                            :: iside
@@ -937,7 +937,7 @@ CONTAINS
       REAL(KIND=dp), INTENT(IN)                          :: rmin, rmax
       REAL(KIND=dp), DIMENSION(1:3), INTENT(IN)          :: r_target
       CHARACTER(LEN=*), INTENT(IN)                       :: move_type
-      REAL(KIND=dp), DIMENSION(1:3), INTENT(OUT)         :: r_insert
+      REAL(KIND=dp), DIMENSION(1:3)                      :: r_insert
       REAL(KIND=dp), DIMENSION(1:3), INTENT(IN)          :: abc
       TYPE(rng_stream_type), POINTER                     :: rng_stream
 

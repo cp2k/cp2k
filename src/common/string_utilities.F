@@ -1585,7 +1585,7 @@ CONTAINS
    SUBROUTINE ascii_to_string(nascii, string)
 
       INTEGER, DIMENSION(:), INTENT(IN)                  :: nascii
-      CHARACTER(LEN=*), INTENT(OUT)                      :: string
+      CHARACTER(LEN=*)                                   :: string
 
       INTEGER                                            :: i
 
@@ -1661,7 +1661,7 @@ CONTAINS
    SUBROUTINE integer_to_string(inumber, string)
 
       INTEGER, INTENT(IN)                                :: inumber
-      CHARACTER(LEN=*), INTENT(OUT)                      :: string
+      CHARACTER(LEN=*)                                   :: string
 
       WRITE (UNIT=string, FMT='(I0)') inumber
    END SUBROUTINE integer_to_string
@@ -1677,7 +1677,7 @@ CONTAINS
    SUBROUTINE string_to_ascii(string, nascii)
 
       CHARACTER(LEN=*), INTENT(IN)                       :: string
-      INTEGER, DIMENSION(:), INTENT(OUT)                 :: nascii
+      INTEGER, DIMENSION(:)                              :: nascii
 
       INTEGER                                            :: i
 
@@ -1899,7 +1899,7 @@ CONTAINS
    SUBROUTINE xstring(string, ia, ib)
 
       CHARACTER(LEN=*), INTENT(IN)                       :: string
-      INTEGER, INTENT(OUT)                               :: ia, ib
+      INTEGER                                            :: ia, ib
 
       ia = 1
       ib = LEN_TRIM(string)

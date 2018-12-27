@@ -252,7 +252,7 @@ CONTAINS
    SUBROUTINE fft_radix_operations(radix_in, radix_out, operation)
 
       INTEGER, INTENT(IN)                                :: radix_in
-      INTEGER, INTENT(OUT)                               :: radix_out
+      INTEGER                                            :: radix_out
       INTEGER, INTENT(IN)                                :: operation
 
       CHARACTER(len=*), PARAMETER :: routineN = 'fft_radix_operations', &
@@ -348,7 +348,7 @@ CONTAINS
       LOGICAL, INTENT(in)                                :: trans
       COMPLEX(kind=dp), DIMENSION(*), INTENT(inout)      :: zin, zout
       REAL(kind=dp), INTENT(in)                          :: scale
-      INTEGER, INTENT(out)                               :: stat
+      INTEGER                                            :: stat
 
       CHARACTER(len=*), PARAMETER :: routineN = 'fft_fw1d', routineP = moduleN//':'//routineN
 
@@ -392,7 +392,7 @@ CONTAINS
       COMPLEX(KIND=dp), DIMENSION(:, :, :), &
          INTENT(INOUT), OPTIONAL, TARGET                 :: zout
       REAL(KIND=dp), INTENT(IN), OPTIONAL                :: scale
-      INTEGER, INTENT(OUT), OPTIONAL                     :: status
+      INTEGER, OPTIONAL                                  :: status
       LOGICAL, INTENT(IN), OPTIONAL                      :: debug
 
       CHARACTER(len=*), PARAMETER :: routineN = 'fft3d_s', routineP = moduleN//':'//routineN
@@ -522,7 +522,7 @@ CONTAINS
       INTEGER, DIMENSION(0:), INTENT(IN)                 :: nyzray
       INTEGER, DIMENSION(:, :, 0:, :), INTENT(IN)        :: bo
       REAL(KIND=dp), INTENT(IN), OPTIONAL                :: scale
-      INTEGER, INTENT(OUT), OPTIONAL                     :: status
+      INTEGER, OPTIONAL                                  :: status
       LOGICAL, INTENT(IN), OPTIONAL                      :: debug
 
       CHARACTER(len=*), PARAMETER :: routineN = 'fft3d_ps', routineP = moduleN//':'//routineN
@@ -967,7 +967,7 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: group
       INTEGER, DIMENSION(:, :, 0:, :), INTENT(IN)        :: bo
       REAL(KIND=dp), INTENT(IN), OPTIONAL                :: scale
-      INTEGER, INTENT(OUT), OPTIONAL                     :: status
+      INTEGER, OPTIONAL                                  :: status
       LOGICAL, INTENT(IN), OPTIONAL                      :: debug
 
       CHARACTER(len=*), PARAMETER :: routineN = 'fft3d_pb', routineP = moduleN//':'//routineN
@@ -2008,7 +2008,7 @@ CONTAINS
 
       COMPLEX(KIND=dp), DIMENSION(:, :), INTENT(IN)      :: cin
       INTEGER, DIMENSION(:, :, 0:), INTENT(IN)           :: boin, boout
-      COMPLEX(KIND=dp), DIMENSION(:, :), INTENT(OUT)     :: sout
+      COMPLEX(KIND=dp), DIMENSION(:, :)                  :: sout
       TYPE(fft_scratch_type), POINTER                    :: fft_scratch
 
       CHARACTER(len=*), PARAMETER :: routineN = 'cube_transpose_1', &
@@ -2096,7 +2096,7 @@ CONTAINS
 
       COMPLEX(KIND=dp), DIMENSION(:, :), INTENT(IN)      :: cin
       INTEGER, DIMENSION(:, :, 0:), INTENT(IN)           :: boin, boout
-      COMPLEX(KIND=dp), DIMENSION(:, :), INTENT(OUT)     :: sout
+      COMPLEX(KIND=dp), DIMENSION(:, :)                  :: sout
       TYPE(fft_scratch_type), POINTER                    :: fft_scratch
 
       CHARACTER(len=*), PARAMETER :: routineN = 'cube_transpose_2', &
@@ -2182,7 +2182,7 @@ CONTAINS
 
       COMPLEX(KIND=dp), DIMENSION(:, :), INTENT(IN)      :: cin
       INTEGER, DIMENSION(:, :, 0:), INTENT(IN)           :: boin, boout
-      COMPLEX(KIND=dp), DIMENSION(:, :), INTENT(OUT)     :: sout
+      COMPLEX(KIND=dp), DIMENSION(:, :)                  :: sout
       TYPE(fft_scratch_type), POINTER                    :: fft_scratch
 
       CHARACTER(len=*), PARAMETER :: routineN = 'cube_transpose_3', &
@@ -2283,7 +2283,7 @@ CONTAINS
 
       COMPLEX(KIND=dp), DIMENSION(:, :), INTENT(IN)      :: cin
       INTEGER, DIMENSION(:, :, 0:), INTENT(IN)           :: boin, boout
-      COMPLEX(KIND=dp), DIMENSION(:, :), INTENT(OUT)     :: sout
+      COMPLEX(KIND=dp), DIMENSION(:, :)                  :: sout
       TYPE(fft_scratch_type), POINTER                    :: fft_scratch
 
       CHARACTER(len=*), PARAMETER :: routineN = 'cube_transpose_4', &
@@ -2382,7 +2382,7 @@ CONTAINS
       COMPLEX(KIND=dp), DIMENSION(:, :), INTENT(IN)      :: cin
       INTEGER, INTENT(IN)                                :: group
       INTEGER, DIMENSION(:, :, 0:), INTENT(IN)           :: boin, boout
-      COMPLEX(KIND=dp), DIMENSION(:, :), INTENT(OUT)     :: sout
+      COMPLEX(KIND=dp), DIMENSION(:, :)                  :: sout
       TYPE(fft_scratch_type), POINTER                    :: fft_scratch
 
       CHARACTER(len=*), PARAMETER :: routineN = 'cube_transpose_5', &
@@ -2476,7 +2476,7 @@ CONTAINS
       COMPLEX(KIND=dp), DIMENSION(:, :), INTENT(IN)      :: cin
       INTEGER, INTENT(IN)                                :: group
       INTEGER, DIMENSION(:, :, 0:), INTENT(IN)           :: boin, boout
-      COMPLEX(KIND=dp), DIMENSION(:, :), INTENT(OUT)     :: sout
+      COMPLEX(KIND=dp), DIMENSION(:, :)                  :: sout
       TYPE(fft_scratch_type), POINTER                    :: fft_scratch
 
       CHARACTER(len=*), PARAMETER :: routineN = 'cube_transpose_6', &

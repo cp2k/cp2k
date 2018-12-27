@@ -851,10 +851,10 @@ CONTAINS
    SUBROUTINE section_vals_get(section_vals, ref_count, id_nr, n_repetition, &
                                n_subs_vals_rep, section, explicit)
       TYPE(section_vals_type), POINTER                   :: section_vals
-      INTEGER, INTENT(out), OPTIONAL                     :: ref_count, id_nr, n_repetition, &
+      INTEGER, OPTIONAL                                  :: ref_count, id_nr, n_repetition, &
                                                             n_subs_vals_rep
       TYPE(section_type), OPTIONAL, POINTER              :: section
-      LOGICAL, INTENT(out), OPTIONAL                     :: explicit
+      LOGICAL, OPTIONAL                                  :: explicit
 
       CHARACTER(len=*), PARAMETER :: routineN = 'section_vals_get', &
          routineP = moduleN//':'//routineN
@@ -1215,18 +1215,18 @@ CONTAINS
       TYPE(section_vals_type), POINTER                   :: section_vals
       CHARACTER(len=*), INTENT(in)                       :: keyword_name
       INTEGER, INTENT(in), OPTIONAL                      :: i_rep_section, i_rep_val
-      INTEGER, INTENT(out), OPTIONAL                     :: n_rep_val
+      INTEGER, OPTIONAL                                  :: n_rep_val
       TYPE(val_type), OPTIONAL, POINTER                  :: val
-      LOGICAL, INTENT(out), OPTIONAL                     :: l_val
-      INTEGER, INTENT(out), OPTIONAL                     :: i_val
-      REAL(KIND=DP), INTENT(out), OPTIONAL               :: r_val
-      CHARACTER(LEN=*), INTENT(out), OPTIONAL            :: c_val
+      LOGICAL, OPTIONAL                                  :: l_val
+      INTEGER, OPTIONAL                                  :: i_val
+      REAL(KIND=DP), OPTIONAL                            :: r_val
+      CHARACTER(LEN=*), OPTIONAL                         :: c_val
       LOGICAL, DIMENSION(:), OPTIONAL, POINTER           :: l_vals
       INTEGER, DIMENSION(:), OPTIONAL, POINTER           :: i_vals
       REAL(KIND=DP), DIMENSION(:), OPTIONAL, POINTER     :: r_vals
       CHARACTER(LEN=default_string_length), &
          DIMENSION(:), OPTIONAL, POINTER                 :: c_vals
-      LOGICAL, INTENT(out), OPTIONAL                     :: explicit
+      LOGICAL, OPTIONAL                                  :: explicit
 
       CHARACTER(len=*), PARAMETER :: routineN = 'section_vals_val_get', &
          routineP = moduleN//':'//routineN

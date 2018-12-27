@@ -84,7 +84,7 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: lb_min
       REAL(KIND=dp), INTENT(IN)                          :: dab
       REAL(KIND=dp), DIMENSION(:, :), INTENT(IN)         :: ab
-      REAL(KIND=dp), DIMENSION(:, :), INTENT(OUT)        :: dabdx, dabdy, dabdz
+      REAL(KIND=dp), DIMENSION(:, :)                     :: dabdx, dabdy, dabdz
 
       INTEGER                                            :: ax, ay, az, bx, by, bz, coa, coamx, &
                                                             coamy, coamz, coapx, coapy, coapz, &
@@ -233,7 +233,7 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: lb_min
       REAL(KIND=dp), INTENT(IN)                          :: dab
       REAL(KIND=dp), DIMENSION(:, :), INTENT(IN)         :: ab
-      REAL(KIND=dp), DIMENSION(:, :), INTENT(OUT)        :: adbdx, adbdy, adbdz
+      REAL(KIND=dp), DIMENSION(:, :)                     :: adbdx, adbdy, adbdz
 
       INTEGER                                            :: ax, ay, az, bx, by, bz, coa, cob, cobmx, &
                                                             cobmy, cobmz, cobpx, cobpy, cobpz, &
@@ -365,7 +365,7 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: zeta
       INTEGER, INTENT(IN)                                :: lb_max, npgfb
       REAL(KIND=dp), DIMENSION(:, :), INTENT(IN)         :: ab
-      REAL(KIND=dp), DIMENSION(:, :), INTENT(OUT)        :: dabdx, dabdy, dabdz
+      REAL(KIND=dp), DIMENSION(:, :)                     :: dabdx, dabdy, dabdz
 
       INTEGER                                            :: ax, ay, az, bx, by, bz, coa, coamx, &
                                                             coamy, coamz, coapx, coapy, coapz, &

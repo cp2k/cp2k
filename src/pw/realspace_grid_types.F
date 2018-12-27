@@ -2156,7 +2156,7 @@ CONTAINS
 
       TYPE(realspace_grid_type), POINTER                 :: rs_grid
       INTEGER, INTENT(IN)                                :: dir, disp
-      INTEGER, INTENT(OUT)                               :: source, dest
+      INTEGER                                            :: source, dest
 
       CHARACTER(len=*), PARAMETER :: routineN = 'cart_shift', routineP = moduleN//':'//routineN
 

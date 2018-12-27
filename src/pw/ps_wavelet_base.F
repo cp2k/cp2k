@@ -2106,7 +2106,7 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(2, lot, n3/2), INTENT(in) :: zw
       REAL(KIND=dp), DIMENSION(md1, md3), INTENT(inout)  :: zf
       REAL(KIND=dp), INTENT(in)                          :: scal
-      REAL(KIND=dp), INTENT(out)                         :: ehartreetmp
+      REAL(KIND=dp)                                      :: ehartreetmp
 
       INTEGER                                            :: i1, i3
       REAL(KIND=dp)                                      :: pot1

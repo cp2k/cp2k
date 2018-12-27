@@ -93,7 +93,7 @@ CONTAINS
 
       INTEGER, DIMENSION(:, :), INTENT(IN)               :: bds
       INTEGER, INTENT(IN)                                :: nparts
-      TYPE(structure_factor_type), INTENT(OUT)           :: exp_igr
+      TYPE(structure_factor_type)                        :: exp_igr
       LOGICAL, INTENT(IN), OPTIONAL                      :: allocate_centre, allocate_shell_e, &
                                                             allocate_shell_centre
       INTEGER, INTENT(IN), OPTIONAL                      :: nshell
@@ -155,9 +155,9 @@ CONTAINS
 
       REAL(KIND=dp), DIMENSION(:), INTENT(in)            :: delta
       INTEGER, DIMENSION(3), INTENT(IN)                  :: lb
-      COMPLEX(KIND=dp), DIMENSION(lb(1):), INTENT(out)   :: ex
-      COMPLEX(KIND=dp), DIMENSION(lb(2):), INTENT(out)   :: ey
-      COMPLEX(KIND=dp), DIMENSION(lb(3):), INTENT(out)   :: ez
+      COMPLEX(KIND=dp), DIMENSION(lb(1):)                :: ex
+      COMPLEX(KIND=dp), DIMENSION(lb(2):)                :: ey
+      COMPLEX(KIND=dp), DIMENSION(lb(3):)                :: ez
 
       COMPLEX(KIND=dp)                                   :: fm, fp
       INTEGER                                            :: j, l0, l1, m0, m1, n0, n1

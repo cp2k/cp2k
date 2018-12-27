@@ -87,9 +87,9 @@ CONTAINS
 !> \param max_deriv ...
 ! **************************************************************************************************
    SUBROUTINE p86_lda_info(reference, shortform, needs, max_deriv)
-      CHARACTER(LEN=*), INTENT(OUT), OPTIONAL            :: reference, shortform
+      CHARACTER(LEN=*), OPTIONAL                         :: reference, shortform
       TYPE(xc_rho_cflags_type), INTENT(inout), OPTIONAL  :: needs
-      INTEGER, INTENT(out), OPTIONAL                     :: max_deriv
+      INTEGER, OPTIONAL                                  :: max_deriv
 
       IF (PRESENT(reference)) THEN
          reference = "J. P. Perdew, Phys. Rev. B, 33, 8822 (1986) {LDA version}"

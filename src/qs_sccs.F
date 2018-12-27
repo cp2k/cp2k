@@ -125,8 +125,7 @@ CONTAINS
 
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(pw_type), POINTER                             :: rho_tot_gspace, v_hartree_gspace, v_sccs
-      REAL(KIND=dp), DIMENSION(3, 3), INTENT(OUT), &
-         OPTIONAL                                        :: h_stress
+      REAL(KIND=dp), DIMENSION(3, 3), OPTIONAL           :: h_stress
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'sccs', routineP = moduleN//':'//routineN
       REAL(KIND=dp), PARAMETER                           :: tol = 1.0E-12_dp

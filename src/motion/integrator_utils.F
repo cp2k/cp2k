@@ -742,7 +742,7 @@ CONTAINS
       TYPE(simpar_type), INTENT(IN)                      :: simpar
       TYPE(virial_type), POINTER                         :: virial
       REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: vector_v
-      REAL(KIND=dp), INTENT(OUT)                         :: roll_tol
+      REAL(KIND=dp)                                      :: roll_tol
       INTEGER, INTENT(INOUT)                             :: iroll
       REAL(KIND=dp), INTENT(IN)                          :: infree
       LOGICAL, INTENT(INOUT)                             :: first
@@ -815,8 +815,8 @@ CONTAINS
       TYPE(molecule_type), POINTER                       :: molecule_set(:)
       TYPE(molecule_kind_type), POINTER                  :: molecule_kind_set(:)
       TYPE(distribution_1d_type), POINTER                :: local_particles
-      REAL(KIND=dp), INTENT(OUT)                         :: kin
-      REAL(KIND=dp), DIMENSION(3, 3), INTENT(OUT)        :: pv_kin
+      REAL(KIND=dp)                                      :: kin
+      REAL(KIND=dp), DIMENSION(3, 3)                     :: pv_kin
       TYPE(virial_type), INTENT(INOUT)                   :: virial
       INTEGER, INTENT(IN)                                :: int_group
 
@@ -889,8 +889,8 @@ CONTAINS
       TYPE(molecule_type), POINTER                       :: molecule_set(:)
       TYPE(molecule_kind_type), POINTER                  :: molecule_kind_set(:)
       TYPE(distribution_1d_type), POINTER                :: local_particles
-      REAL(KIND=dp), INTENT(OUT)                         :: kin
-      REAL(KIND=dp), DIMENSION(:, :), INTENT(OUT)        :: pv_kin
+      REAL(KIND=dp)                                      :: kin
+      REAL(KIND=dp), DIMENSION(:, :)                     :: pv_kin
       TYPE(virial_type), INTENT(INOUT)                   :: virial
       INTEGER, INTENT(IN)                                :: int_group
 

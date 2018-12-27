@@ -346,8 +346,8 @@ CONTAINS
    SUBROUTINE linesearch_2pnt(this, energy, slope, step_size, is_done, unit_nr, label)
       TYPE(linesearch_2pnt_type), INTENT(INOUT)          :: this
       REAL(KIND=dp), INTENT(IN)                          :: energy, slope
-      REAL(KIND=dp), INTENT(OUT)                         :: step_size
-      LOGICAL, INTENT(OUT)                               :: is_done
+      REAL(KIND=dp)                                      :: step_size
+      LOGICAL                                            :: is_done
       INTEGER, INTENT(IN)                                :: unit_nr
       CHARACTER(len=*), INTENT(IN)                       :: label
 
@@ -412,8 +412,8 @@ CONTAINS
    SUBROUTINE linesearch_3pnt(this, energy, step_size, is_done, unit_nr, label)
       TYPE(linesearch_3pnt_type), INTENT(INOUT)          :: this
       REAL(KIND=dp), INTENT(IN)                          :: energy
-      REAL(KIND=dp), INTENT(OUT)                         :: step_size
-      LOGICAL, INTENT(OUT)                               :: is_done
+      REAL(KIND=dp)                                      :: step_size
+      LOGICAL                                            :: is_done
       INTEGER, INTENT(IN)                                :: unit_nr
       CHARACTER(len=*), INTENT(IN)                       :: label
 
@@ -497,8 +497,8 @@ CONTAINS
    SUBROUTINE linesearch_adapt(this, energy, step_size, is_done, unit_nr, label)
       TYPE(linesearch_adapt_type), INTENT(INOUT)         :: this
       REAL(KIND=dp), INTENT(IN)                          :: energy
-      REAL(KIND=dp), INTENT(OUT)                         :: step_size
-      LOGICAL, INTENT(OUT)                               :: is_done
+      REAL(KIND=dp)                                      :: step_size
+      LOGICAL                                            :: is_done
       INTEGER, INTENT(IN)                                :: unit_nr
       CHARACTER(len=*), INTENT(IN)                       :: label
 
@@ -614,8 +614,8 @@ CONTAINS
    SUBROUTINE linesearch_gold(this, energy, step_size, is_done, unit_nr, label)
       TYPE(linesearch_gold_type), INTENT(INOUT)          :: this
       REAL(KIND=dp), INTENT(IN)                          :: energy
-      REAL(KIND=dp), INTENT(OUT)                         :: step_size
-      LOGICAL, INTENT(OUT)                               :: is_done
+      REAL(KIND=dp)                                      :: step_size
+      LOGICAL                                            :: is_done
       INTEGER, INTENT(IN)                                :: unit_nr
       CHARACTER(len=*), INTENT(IN)                       :: label
 

@@ -1931,7 +1931,7 @@ CONTAINS
    SUBROUTINE eval_point_pos(point, particles, r)
       TYPE(point_type)                                   :: point
       TYPE(particle_type), DIMENSION(:), POINTER         :: particles
-      REAL(KIND=dp), DIMENSION(3), INTENT(OUT)           :: r
+      REAL(KIND=dp), DIMENSION(3)                        :: r
 
       INTEGER                                            :: i
 
@@ -1956,7 +1956,7 @@ CONTAINS
    SUBROUTINE eval_point_mass(point, particles, m)
       TYPE(point_type)                                   :: point
       TYPE(particle_type), DIMENSION(:), POINTER         :: particles
-      REAL(KIND=dp), INTENT(OUT)                         :: m
+      REAL(KIND=dp)                                      :: m
 
       INTEGER                                            :: i
 

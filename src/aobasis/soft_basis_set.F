@@ -57,7 +57,7 @@ CONTAINS
 
       TYPE(gto_basis_set_type), POINTER                  :: orb_basis, soft_basis
       REAL(dp), INTENT(IN)                               :: eps_fit, rc
-      LOGICAL, INTENT(OUT)                               :: paw_atom
+      LOGICAL                                            :: paw_atom
       LOGICAL, INTENT(IN)                                :: paw_type_forced, gpw_type_forced
 
       CHARACTER(len=*), PARAMETER :: routineN = 'create_soft_basis', &

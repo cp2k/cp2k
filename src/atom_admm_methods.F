@@ -439,7 +439,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE lowdin_matrix(wfn, lamat, ovlp)
       REAL(KIND=dp), DIMENSION(:, :), INTENT(IN)         :: wfn
-      REAL(KIND=dp), DIMENSION(:, :), INTENT(OUT)        :: lamat
+      REAL(KIND=dp), DIMENSION(:, :)                     :: lamat
       REAL(KIND=dp), DIMENSION(:, :), INTENT(IN)         :: ovlp
 
       INTEGER                                            :: i, j, k, n

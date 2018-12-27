@@ -1331,9 +1331,8 @@ CONTAINS
          OPTIONAL                                        :: g_ret_scale
       TYPE(cp_cfm_p_type), DIMENSION(:, :), INTENT(in), &
          OPTIONAL                                        :: gamma_contacts, gret_gamma_gadv
-      REAL(kind=dp), DIMENSION(:), INTENT(out), OPTIONAL :: dos
-      COMPLEX(kind=dp), DIMENSION(:), INTENT(out), &
-         OPTIONAL                                        :: transm_coeff
+      REAL(kind=dp), DIMENSION(:), OPTIONAL              :: dos
+      COMPLEX(kind=dp), DIMENSION(:), OPTIONAL           :: transm_coeff
       INTEGER, INTENT(in), OPTIONAL                      :: transm_contact1, transm_contact2, &
                                                             just_contact
 
@@ -2506,7 +2505,7 @@ CONTAINS
 !> \author Sergey Chulkov
 ! **************************************************************************************************
    SUBROUTINE integration_status_reset(stats)
-      TYPE(integration_status_type), INTENT(out)         :: stats
+      TYPE(integration_status_type)                      :: stats
 
       stats%npoints = 0
       stats%error = 0.0_dp

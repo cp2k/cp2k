@@ -892,8 +892,7 @@ CONTAINS
       TYPE(qs_scf_env_type), POINTER                     :: scf_env
       TYPE(cp_fm_p_type), DIMENSION(:), POINTER          :: unoccupied_orbs
       TYPE(cp_1d_r_p_type), DIMENSION(:), POINTER        :: unoccupied_evals
-      INTEGER                                            :: nlumo
-      INTEGER, INTENT(OUT)                               :: nlumos
+      INTEGER                                            :: nlumo, nlumos
 
       CHARACTER(len=*), PARAMETER :: routineN = 'make_lumo', routineP = moduleN//':'//routineN
 
@@ -3057,7 +3056,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE project_function_a(ca, a, cb, b, l)
       ! project function cb on ca
-      REAL(KIND=dp), DIMENSION(:), INTENT(OUT)           :: ca
+      REAL(KIND=dp), DIMENSION(:)                        :: ca
       REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: a, cb, b
       INTEGER, INTENT(IN)                                :: l
 
@@ -3092,7 +3091,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE project_function_b(ca, a, bfun, grid_atom, l)
       ! project function f on ca
-      REAL(KIND=dp), DIMENSION(:), INTENT(OUT)           :: ca
+      REAL(KIND=dp), DIMENSION(:)                        :: ca
       REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: a, bfun
       TYPE(grid_atom_type), POINTER                      :: grid_atom
       INTEGER, INTENT(IN)                                :: l

@@ -551,7 +551,7 @@ CONTAINS
    SUBROUTINE ddapc_eval_AmI(GAmI, c0, gfunc, w, particle_set, gcut, &
                              rho_tot_g, radii, iw, Vol)
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: GAmI
-      REAL(KIND=dp), INTENT(OUT)                         :: c0
+      REAL(KIND=dp)                                      :: c0
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: gfunc
       REAL(KIND=dp), DIMENSION(:), POINTER               :: w
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set

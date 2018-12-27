@@ -208,7 +208,7 @@ END FUNCTION read_energy
 !>      10.2009 created [Joost VandeVondele]
 ! **************************************************************************************************
 SUBROUTINE m_datum(cal_date)
-      CHARACTER(len=*), INTENT(OUT)                      :: cal_date
+      CHARACTER(len=*)                                   :: cal_date
 
       CHARACTER(len=10)                                  :: time
       CHARACTER(len=8)                                   :: date

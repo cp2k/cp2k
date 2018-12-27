@@ -491,8 +491,8 @@ CONTAINS
    SUBROUTINE create_new_gt_tree_node(tmc_env, stat, new_elem, &
                                       reactivation_cc_count)
       TYPE(tmc_env_type), POINTER                        :: tmc_env
-      INTEGER, INTENT(OUT)                               :: stat
-      TYPE(global_tree_type), INTENT(OUT), POINTER       :: new_elem
+      INTEGER                                            :: stat
+      TYPE(global_tree_type), POINTER                    :: new_elem
       INTEGER                                            :: reactivation_cc_count
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'create_new_gt_tree_node', &

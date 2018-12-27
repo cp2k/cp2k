@@ -202,7 +202,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE mao_function(mao_coef, fval, qmat, smat, binv, reuse)
       TYPE(dbcsr_type)                                   :: mao_coef
-      REAL(KIND=dp), INTENT(OUT)                         :: fval
+      REAL(KIND=dp)                                      :: fval
       TYPE(dbcsr_type)                                   :: qmat, smat, binv
       LOGICAL, INTENT(IN)                                :: reuse
 
@@ -247,7 +247,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE mao_function_gradient(mao_coef, fval, mao_grad, qmat, smat, binv, reuse)
       TYPE(dbcsr_type)                                   :: mao_coef
-      REAL(KIND=dp), INTENT(OUT)                         :: fval
+      REAL(KIND=dp)                                      :: fval
       TYPE(dbcsr_type)                                   :: mao_grad, qmat, smat, binv
       LOGICAL, INTENT(IN)                                :: reuse
 
@@ -715,7 +715,7 @@ CONTAINS
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_smm, matrix_smo
       TYPE(neighbor_list_set_p_type), DIMENSION(:), &
          POINTER                                         :: smm_list
-      REAL(KIND=dp), DIMENSION(2), INTENT(OUT)           :: electra
+      REAL(KIND=dp), DIMENSION(2)                        :: electra
       REAL(KIND=dp), INTENT(IN)                          :: eps_filter
       INTEGER, INTENT(IN), OPTIONAL                      :: nimages
       TYPE(kpoint_type), OPTIONAL, POINTER               :: kpoints

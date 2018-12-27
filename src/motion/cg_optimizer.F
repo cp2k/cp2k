@@ -68,7 +68,7 @@ CONTAINS
       TYPE(section_vals_type), POINTER                   :: geo_section
       TYPE(gopt_f_type), POINTER                         :: gopt_env
       REAL(KIND=dp), DIMENSION(:), POINTER               :: x0
-      LOGICAL, INTENT(OUT), OPTIONAL                     :: do_update
+      LOGICAL, OPTIONAL                                  :: do_update
 
       CHARACTER(len=*), PARAMETER :: routineN = 'geoopt_cg', routineP = moduleN//':'//routineN
 
@@ -114,7 +114,7 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: output_unit
       TYPE(global_environment_type), POINTER             :: globenv
       TYPE(gopt_f_type), POINTER                         :: gopt_env
-      LOGICAL, INTENT(OUT), OPTIONAL                     :: do_update
+      LOGICAL, OPTIONAL                                  :: do_update
 
       CHARACTER(len=*), PARAMETER :: routineN = 'cp_cg_main', routineP = moduleN//':'//routineN
 

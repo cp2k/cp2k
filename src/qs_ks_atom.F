@@ -578,7 +578,7 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: nconta
       INTEGER, DIMENSION(:), INTENT(IN)                  :: listb
       INTEGER, INTENT(IN)                                :: ncontb
-      REAL(KIND=dp), DIMENSION(:), INTENT(OUT)           :: C_int_h, C_int_s
+      REAL(KIND=dp), DIMENSION(:)                        :: C_int_h, C_int_s
       REAL(dp), DIMENSION(:, :)                          :: a_matrix
       LOGICAL, INTENT(IN)                                :: dista, distb
       REAL(dp), DIMENSION(:)                             :: coc

@@ -598,17 +598,16 @@ CONTAINS
       TYPE(torsion_type), DIMENSION(:), OPTIONAL, &
          POINTER                                         :: torsion_list
       TYPE(shell_type), DIMENSION(:), OPTIONAL, POINTER  :: shell_list
-      CHARACTER(LEN=default_string_length), &
-         INTENT(OUT), OPTIONAL                           :: name
+      CHARACTER(LEN=default_string_length), OPTIONAL     :: name
       REAL(KIND=dp), OPTIONAL                            :: mass, charge
-      INTEGER, INTENT(OUT), OPTIONAL                     :: kind_number, natom, nbend, nbond, nub, &
+      INTEGER, OPTIONAL                                  :: kind_number, natom, nbend, nbond, nub, &
                                                             nimpr, nopbend, nconstraint, &
                                                             nconstraint_fixd, nfixd
-      TYPE(colvar_counters), INTENT(out), OPTIONAL       :: ncolv
-      INTEGER, INTENT(OUT), OPTIONAL :: ng3x3, ng4x6, nvsite, nfixd_restraint, ng3x3_restraint, &
+      TYPE(colvar_counters), OPTIONAL                    :: ncolv
+      INTEGER, OPTIONAL :: ng3x3, ng4x6, nvsite, nfixd_restraint, ng3x3_restraint, &
          ng4x6_restraint, nvsite_restraint, nrestraints, nmolecule, nsgf, nshell, ntorsion
       INTEGER, DIMENSION(:), OPTIONAL, POINTER           :: molecule_list
-      INTEGER, INTENT(OUT), OPTIONAL                     :: nelectron, nelectron_alpha, &
+      INTEGER, OPTIONAL                                  :: nelectron, nelectron_alpha, &
                                                             nelectron_beta
       TYPE(bond_kind_type), DIMENSION(:), OPTIONAL, &
          POINTER                                         :: bond_kind_set
@@ -622,7 +621,7 @@ CONTAINS
          POINTER                                         :: opbend_kind_set
       TYPE(torsion_kind_type), DIMENSION(:), OPTIONAL, &
          POINTER                                         :: torsion_kind_set
-      LOGICAL, INTENT(OUT), OPTIONAL                     :: molname_generated
+      LOGICAL, OPTIONAL                                  :: molname_generated
 
       CHARACTER(len=*), PARAMETER :: routineN = 'get_molecule_kind', &
          routineP = moduleN//':'//routineN
@@ -738,7 +737,7 @@ CONTAINS
                                     nrestraints)
 
       TYPE(molecule_kind_type), DIMENSION(:), POINTER    :: molecule_kind_set
-      INTEGER, INTENT(OUT), OPTIONAL                     :: maxatom, natom, nbond, nbend, nub, &
+      INTEGER, OPTIONAL                                  :: maxatom, natom, nbond, nbend, nub, &
                                                             ntorsion, nimpr, nopbend, nconstraint, &
                                                             nconstraint_fixd, nmolecule, &
                                                             nrestraints

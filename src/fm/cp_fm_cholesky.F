@@ -44,7 +44,7 @@ CONTAINS
    SUBROUTINE cp_fm_cholesky_decompose(matrix, n, info_out)
       TYPE(cp_fm_type), POINTER                :: matrix
       INTEGER, INTENT(in), OPTIONAL            :: n
-      INTEGER, INTENT(out), OPTIONAL           :: info_out
+      INTEGER, OPTIONAL           :: info_out
 
       CHARACTER(len=*), PARAMETER :: routineN = 'cp_fm_cholesky_decompose', &
                                      routineP = moduleN//':'//routineN
@@ -111,7 +111,7 @@ CONTAINS
    SUBROUTINE cp_fm_cholesky_invert(matrix, n, info_out)
       TYPE(cp_fm_type), POINTER                 :: matrix
       INTEGER, INTENT(in), OPTIONAL             :: n
-      INTEGER, INTENT(OUT), OPTIONAL            :: info_out
+      INTEGER, OPTIONAL            :: info_out
 
       CHARACTER(len=*), PARAMETER :: routineN = 'cp_fm_cholesky_invert', &
                                      routineP = moduleN//':'//routineN

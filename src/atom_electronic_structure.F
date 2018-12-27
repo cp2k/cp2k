@@ -59,7 +59,7 @@ CONTAINS
       TYPE(atom_type), POINTER                           :: atom
       INTEGER, INTENT(IN)                                :: iw
       LOGICAL, INTENT(IN), OPTIONAL                      :: noguess
-      LOGICAL, INTENT(OUT), OPTIONAL                     :: converged
+      LOGICAL, OPTIONAL                                  :: converged
 
       CHARACTER(len=*), PARAMETER :: routineN = 'calculate_atom', routineP = moduleN//':'//routineN
 
@@ -117,7 +117,7 @@ CONTAINS
       TYPE(atom_type), POINTER                           :: atom
       INTEGER, INTENT(IN)                                :: iw
       LOGICAL, INTENT(IN), OPTIONAL                      :: noguess
-      LOGICAL, INTENT(OUT), OPTIONAL                     :: converged
+      LOGICAL, OPTIONAL                                  :: converged
 
       CHARACTER(len=*), PARAMETER :: routineN = 'calculate_atom_restricted', &
          routineP = moduleN//':'//routineN
@@ -444,7 +444,7 @@ CONTAINS
       TYPE(atom_type), POINTER                           :: atom
       INTEGER, INTENT(IN)                                :: iw
       LOGICAL, INTENT(IN), OPTIONAL                      :: noguess
-      LOGICAL, INTENT(OUT), OPTIONAL                     :: converged
+      LOGICAL, OPTIONAL                                  :: converged
 
       CHARACTER(len=*), PARAMETER :: routineN = 'calculate_atom_unrestricted', &
          routineP = moduleN//':'//routineN

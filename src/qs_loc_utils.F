@@ -383,7 +383,7 @@ CONTAINS
    SUBROUTINE check_tolerance_real(zij_fm_set, tolerance)
 
       TYPE(cp_fm_p_type), DIMENSION(:, :)                :: zij_fm_set
-      REAL(dp), INTENT(OUT)                              :: tolerance
+      REAL(dp)                                           :: tolerance
 
       CHARACTER(len=*), PARAMETER :: routineN = 'check_tolerance_real', &
          routineP = moduleN//':'//routineN
@@ -1409,7 +1409,7 @@ CONTAINS
 
       TYPE(localized_wfn_control_type), POINTER          :: localized_wfn_control
       TYPE(section_vals_type), POINTER                   :: loc_section
-      LOGICAL, INTENT(OUT)                               :: localize
+      LOGICAL                                            :: localize
       LOGICAL, INTENT(IN), OPTIONAL                      :: do_xas
       INTEGER, INTENT(IN), OPTIONAL                      :: nloc_xas, spin_channel_xas
 

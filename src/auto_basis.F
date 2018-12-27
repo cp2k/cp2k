@@ -565,8 +565,8 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE get_basis_keyfigures(basis_set, lmax, zmin, zmax, zeff)
       TYPE(gto_basis_set_type), POINTER                  :: basis_set
-      INTEGER, INTENT(OUT)                               :: lmax
-      REAL(KIND=dp), DIMENSION(0:9), INTENT(OUT)         :: zmin, zmax, zeff
+      INTEGER                                            :: lmax
+      REAL(KIND=dp), DIMENSION(0:9)                      :: zmin, zmax, zeff
 
       CHARACTER(len=*), PARAMETER :: routineN = 'get_basis_keyfigures', &
          routineP = moduleN//':'//routineN
@@ -643,7 +643,7 @@ CONTAINS
    SUBROUTINE get_basis_products(lmax, zmin, zmax, zeff, pmin, pmax, peff)
       INTEGER, INTENT(IN)                                :: lmax
       REAL(KIND=dp), DIMENSION(0:9), INTENT(IN)          :: zmin, zmax, zeff
-      REAL(KIND=dp), DIMENSION(0:18), INTENT(OUT)        :: pmin, pmax, peff
+      REAL(KIND=dp), DIMENSION(0:18)                     :: pmin, pmax, peff
 
       CHARACTER(len=*), PARAMETER :: routineN = 'get_basis_products', &
          routineP = moduleN//':'//routineN
@@ -684,7 +684,7 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: nfit
       REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: afit
       REAL(KIND=dp), INTENT(IN)                          :: amet
-      REAL(KIND=dp), INTENT(OUT)                         :: eval
+      REAL(KIND=dp)                                      :: eval
 
       CHARACTER(len=*), PARAMETER :: routineN = 'overlap_maximum', &
          routineP = moduleN//':'//routineN
@@ -786,7 +786,7 @@ CONTAINS
    SUBROUTINE get_basis_functions(basis_set, lin, np, nf, zval, gcval)
       TYPE(gto_basis_set_type), POINTER                  :: basis_set
       INTEGER, INTENT(IN)                                :: lin
-      INTEGER, INTENT(OUT)                               :: np, nf
+      INTEGER                                            :: np, nf
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: zval
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: gcval
 

@@ -49,7 +49,7 @@ USE kinds, ONLY: ${uselist(usekinds)}$
 subroutine cp_1d_${nametype1}$_sort(arr, n, indices)
    integer, intent(in)                  :: n
    ${type1}$, dimension(1:n), intent(inout) :: arr
-   integer, dimension(1:n), intent(out)   :: indices
+   integer, dimension(1:n)                  :: indices
 
    integer :: i
    ${type1}$, pointer                   :: tmp_arr(:)

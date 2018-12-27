@@ -14,7 +14,7 @@
   SUBROUTINE integrate_core_default(grid, coef_xyz, pol_x, pol_y, pol_z, map, sphere_bounds, lp, cmax, gridbounds)
      USE kinds, ONLY: dp
      INTEGER, INTENT(IN)                      :: sphere_bounds(*), lp
-     REAL(dp), INTENT(OUT) :: coef_xyz(((lp+1)*(lp+2)*(lp+3))/6)
+     REAL(dp) :: coef_xyz(((lp+1)*(lp+2)*(lp+3))/6)
      INTEGER, INTENT(IN)                      :: cmax
      REAL(dp), INTENT(IN)                     :: pol_x(0:lp, -cmax:cmax), &
                                                  pol_y(1:2, 0:lp, -cmax:0), &
@@ -123,7 +123,7 @@
      REAL(dp), INTENT(IN)                     :: pol_x(0:lp, -cmax:cmax), &
                                                  pol_y(1:2, 0:lp, -cmax:0), &
                                                  pol_z(1:2, 0:lp, -cmax:0)
-     REAL(dp), INTENT(OUT) :: coef_xyz(((lp+1)*(lp+2)*(lp+3))/6)
+     REAL(dp) :: coef_xyz(((lp+1)*(lp+2)*(lp+3))/6)
 
      INTEGER                                  :: i, ig, igmax, igmin, j, j2, &
                                                  jg, jg2, jgmin, k, k2, kg, &
@@ -213,7 +213,7 @@
      REAL(dp), INTENT(IN)                     :: pol_x(0:lp, -cmax:cmax), &
                                                  pol_y(1:2, 0:lp, -cmax:0), &
                                                  pol_z(1:2, 0:lp, -cmax:0)
-     REAL(dp), INTENT(OUT) :: coef_xyz(((lp+1)*(lp+2)*(lp+3))/6)
+     REAL(dp) :: coef_xyz(((lp+1)*(lp+2)*(lp+3))/6)
 
      INTEGER                                  :: i, ig, igmax, igmin, j, j2, &
                                                  jg, jg2, jgmin, k, k2, kg, &
@@ -296,7 +296,7 @@
      REAL(dp), INTENT(IN)                     :: pol_x(0:lp, -cmax:cmax), &
                                                  pol_y(1:2, 0:lp, -cmax:0), &
                                                  pol_z(1:2, 0:lp, -cmax:0)
-     REAL(dp), INTENT(OUT) :: coef_xyz(((lp+1)*(lp+2)*(lp+3))/6)
+     REAL(dp) :: coef_xyz(((lp+1)*(lp+2)*(lp+3))/6)
 
      INTEGER                                  :: i, ig, igmax, igmin, j, j2, &
                                                  jg, jg2, jgmin, k, k2, kg, &
@@ -403,7 +403,7 @@
      REAL(dp), INTENT(IN)                     :: pol_x(0:lp, -cmax:cmax), &
                                                  pol_y(1:2, 0:lp, -cmax:0), &
                                                  pol_z(1:2, 0:lp, -cmax:0)
-     REAL(dp), INTENT(OUT) :: coef_xyz(((lp+1)*(lp+2)*(lp+3))/6)
+     REAL(dp) :: coef_xyz(((lp+1)*(lp+2)*(lp+3))/6)
 
      INTEGER                                  :: i, ig, igmax, igmin, j, j2, &
                                                  jg, jg2, jgmin, k, k2, kg, &
@@ -536,7 +536,7 @@
      REAL(dp), INTENT(IN)                     :: pol_x(0:lp, -cmax:cmax), &
                                                  pol_y(1:2, 0:lp, -cmax:0), &
                                                  pol_z(1:2, 0:lp, -cmax:0)
-     REAL(dp), INTENT(OUT) :: coef_xyz(((lp+1)*(lp+2)*(lp+3))/6)
+     REAL(dp) :: coef_xyz(((lp+1)*(lp+2)*(lp+3))/6)
 
      INTEGER                                  :: i, ig, igmax, igmin, j, j2, &
                                                  jg, jg2, jgmin, k, k2, kg, &
@@ -739,7 +739,7 @@
      REAL(dp), INTENT(IN)                     :: pol_x(0:lp, -cmax:cmax), &
                                                  pol_y(1:2, 0:lp, -cmax:0), &
                                                  pol_z(1:2, 0:lp, -cmax:0)
-     REAL(dp), INTENT(OUT) :: coef_xyz(((lp+1)*(lp+2)*(lp+3))/6)
+     REAL(dp) :: coef_xyz(((lp+1)*(lp+2)*(lp+3))/6)
 
      INTEGER                                  :: i, ig, igmax, igmin, j, j2, &
                                                  jg, jg2, jgmin, k, k2, kg, &
@@ -928,7 +928,7 @@
      REAL(dp), INTENT(IN)                     :: pol_x(0:lp, -cmax:cmax), &
                                                  pol_y(1:2, 0:lp, -cmax:0), &
                                                  pol_z(1:2, 0:lp, -cmax:0)
-     REAL(dp), INTENT(OUT) :: coef_xyz(((lp+1)*(lp+2)*(lp+3))/6)
+     REAL(dp) :: coef_xyz(((lp+1)*(lp+2)*(lp+3))/6)
 
      INTEGER                                  :: i, ig, igmax, igmin, j, j2, &
                                                  jg, jg2, jgmin, k, k2, kg, &
@@ -1197,7 +1197,7 @@
      REAL(dp), INTENT(IN)                     :: pol_x(0:lp, -cmax:cmax), &
                                                  pol_y(1:2, 0:lp, -cmax:0), &
                                                  pol_z(1:2, 0:lp, -cmax:0)
-     REAL(dp), INTENT(OUT) :: coef_xyz(((lp+1)*(lp+2)*(lp+3))/6)
+     REAL(dp) :: coef_xyz(((lp+1)*(lp+2)*(lp+3))/6)
 
      INTEGER                                  :: i, ig, igmax, igmin, j, j2, &
                                                  jg, jg2, jgmin, k, k2, kg, &
@@ -1656,7 +1656,7 @@
      REAL(dp), INTENT(IN)                     :: pol_x(0:lp, -cmax:cmax), &
                                                  pol_y(1:2, 0:lp, -cmax:0), &
                                                  pol_z(1:2, 0:lp, -cmax:0)
-     REAL(dp), INTENT(OUT) :: coef_xyz(((lp+1)*(lp+2)*(lp+3))/6)
+     REAL(dp) :: coef_xyz(((lp+1)*(lp+2)*(lp+3))/6)
 
      INTEGER                                  :: i, ig, igmax, igmin, j, j2, &
                                                  jg, jg2, jgmin, k, k2, kg, &
@@ -2242,7 +2242,7 @@
      REAL(dp), INTENT(IN)                     :: pol_x(0:lp, -cmax:cmax), &
                                                  pol_y(1:2, 0:lp, -cmax:0), &
                                                  pol_z(1:2, 0:lp, -cmax:0)
-     REAL(dp), INTENT(OUT) :: coef_xyz(((lp+1)*(lp+2)*(lp+3))/6)
+     REAL(dp) :: coef_xyz(((lp+1)*(lp+2)*(lp+3))/6)
 
      INTEGER                                  :: i, ig, igmax, igmin, j, j2, &
                                                  jg, jg2, jgmin, k, k2, kg, &

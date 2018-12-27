@@ -1081,7 +1081,7 @@ CONTAINS
    SUBROUTINE run_input(input_declaration, input_file_path, output_file_path, ierr, mpi_comm)
       TYPE(section_type), POINTER                        :: input_declaration
       CHARACTER(len=*), INTENT(in)                       :: input_file_path, output_file_path
-      INTEGER, INTENT(out)                               :: ierr
+      INTEGER                               :: ierr
       INTEGER, INTENT(in), OPTIONAL                      :: mpi_comm
 
       CHARACTER(len=*), PARAMETER :: routineN = 'run_input', routineP = moduleN//':'//routineN

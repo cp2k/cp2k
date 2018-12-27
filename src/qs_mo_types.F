@@ -356,15 +356,15 @@ CONTAINS
                          uniform_occupation, kTS, mu, flexible_electron_count)
 
       TYPE(mo_set_type), POINTER                         :: mo_set
-      REAL(KIND=dp), INTENT(OUT), OPTIONAL               :: maxocc
-      INTEGER, INTENT(OUT), OPTIONAL                     :: homo, lfomo, nao, nelectron
-      REAL(KIND=dp), INTENT(OUT), OPTIONAL               :: n_el_f
-      INTEGER, INTENT(OUT), OPTIONAL                     :: nmo
+      REAL(KIND=dp), OPTIONAL                            :: maxocc
+      INTEGER, OPTIONAL                                  :: homo, lfomo, nao, nelectron
+      REAL(KIND=dp), OPTIONAL                            :: n_el_f
+      INTEGER, OPTIONAL                                  :: nmo
       REAL(KIND=dp), DIMENSION(:), OPTIONAL, POINTER     :: eigenvalues, occupation_numbers
       TYPE(cp_fm_type), OPTIONAL, POINTER                :: mo_coeff
       TYPE(dbcsr_type), OPTIONAL, POINTER                :: mo_coeff_b
-      LOGICAL, INTENT(OUT), OPTIONAL                     :: uniform_occupation
-      REAL(KIND=dp), INTENT(OUT), OPTIONAL               :: kTS, mu, flexible_electron_count
+      LOGICAL, OPTIONAL                                  :: uniform_occupation
+      REAL(KIND=dp), OPTIONAL                            :: kTS, mu, flexible_electron_count
 
       IF (PRESENT(maxocc)) maxocc = mo_set%maxocc
       IF (PRESENT(homo)) homo = mo_set%homo

@@ -279,7 +279,7 @@ CONTAINS
    SUBROUTINE setup_grid_axes(pw_grid, x_glbl, y_glbl, z_glbl, x_locl, y_locl, z_locl)
 
       TYPE(pw_grid_type), INTENT(IN), POINTER            :: pw_grid
-      REAL(dp), ALLOCATABLE, DIMENSION(:), INTENT(OUT)   :: x_glbl, y_glbl, z_glbl, x_locl, y_locl, &
+      REAL(dp), ALLOCATABLE, DIMENSION(:)                :: x_glbl, y_glbl, z_glbl, x_locl, y_locl, &
                                                             z_locl
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'setup_grid_axes', &

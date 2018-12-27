@@ -44,7 +44,7 @@ CONTAINS
 !>      if rs_grid_section is not present we setup for an replicated setup
 ! **************************************************************************************************
    SUBROUTINE init_input_type(input_settings, nsmax, rs_grid_section, ilevel, higher_grid_layout)
-      TYPE(realspace_grid_input_type), INTENT(OUT)       :: input_settings
+      TYPE(realspace_grid_input_type)                    :: input_settings
       INTEGER, INTENT(IN)                                :: nsmax
       TYPE(section_vals_type), OPTIONAL, POINTER         :: rs_grid_section
       INTEGER, INTENT(IN)                                :: ilevel

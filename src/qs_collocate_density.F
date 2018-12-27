@@ -546,7 +546,7 @@ CONTAINS
       TYPE(pw_p_type), INTENT(INOUT)                     :: lri_rho_g, lri_rho_r
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(lri_kind_type), DIMENSION(:), POINTER         :: lri_coef
-      REAL(KIND=dp), INTENT(OUT)                         :: total_rho
+      REAL(KIND=dp)                                      :: total_rho
       CHARACTER(len=*), INTENT(IN)                       :: basis_type
       LOGICAL, INTENT(IN)                                :: exact_1c_terms
       TYPE(dbcsr_type), OPTIONAL                         :: pmat
@@ -893,7 +893,7 @@ CONTAINS
    SUBROUTINE calculate_rho_core(rho_core, total_rho, qs_env, only_nopaw)
 
       TYPE(pw_p_type), INTENT(INOUT)                     :: rho_core
-      REAL(KIND=dp), INTENT(OUT)                         :: total_rho
+      REAL(KIND=dp)                                      :: total_rho
       TYPE(qs_environment_type), POINTER                 :: qs_env
       LOGICAL, INTENT(IN), OPTIONAL                      :: only_nopaw
 
@@ -1112,7 +1112,7 @@ CONTAINS
 
       TYPE(pw_p_type), INTENT(INOUT)                     :: rho_metal
       REAL(KIND=dp), DIMENSION(:), POINTER               :: coeff
-      REAL(KIND=dp), INTENT(OUT), OPTIONAL               :: total_rho_metal
+      REAL(KIND=dp), OPTIONAL                            :: total_rho_metal
       TYPE(qs_environment_type), POINTER                 :: qs_env
 
       CHARACTER(len=*), PARAMETER :: routineN = 'calculate_rho_metal', &
@@ -1424,7 +1424,7 @@ CONTAINS
       TYPE(dbcsr_p_type), DIMENSION(:), OPTIONAL, &
          POINTER                                         :: matrix_p_kp
       TYPE(pw_p_type), INTENT(INOUT)                     :: rho, rho_gspace
-      REAL(KIND=dp), INTENT(OUT)                         :: total_rho
+      REAL(KIND=dp)                                      :: total_rho
       TYPE(qs_ks_env_type), POINTER                      :: ks_env
       LOGICAL, INTENT(IN), OPTIONAL                      :: soft_valid, compute_tau, compute_grad
       CHARACTER(LEN=*), INTENT(IN), OPTIONAL             :: basis_type

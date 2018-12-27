@@ -113,7 +113,7 @@ CONTAINS
       TYPE(fist_neighbor_type), OPTIONAL, POINTER        :: nonbonded
       REAL(KIND=dp), DIMENSION(:, :), OPTIONAL, POINTER  :: rlist_cut, rlist_lowsq
       REAL(KIND=dp), OPTIONAL                            :: aup, lup, ei_scale14, vdw_scale14
-      LOGICAL, INTENT(OUT), OPTIONAL                     :: shift_cutoff
+      LOGICAL, OPTIONAL                                  :: shift_cutoff
       TYPE(pos_type), DIMENSION(:), OPTIONAL, POINTER    :: r_last_update, r_last_update_pbc, &
                                                             rshell_last_update_pbc, &
                                                             rcore_last_update_pbc

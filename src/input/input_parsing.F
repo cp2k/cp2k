@@ -597,7 +597,7 @@ CONTAINS
 !> \author Teodoro Laino - 11.2007 [tlaino] - University of Zurich
 ! **************************************************************************************************
    SUBROUTINE get_r_val(r_val, parser, unit, default_units, c_val)
-      REAL(kind=dp), INTENT(OUT)                         :: r_val
+      REAL(kind=dp)                                      :: r_val
       TYPE(cp_parser_type), POINTER                      :: parser
       TYPE(cp_unit_type), POINTER                        :: unit
       TYPE(cp_unit_set_type), POINTER                    :: default_units

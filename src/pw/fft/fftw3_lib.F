@@ -258,7 +258,7 @@ SUBROUTINE sortint ( iarr, n, index )
 
       INTEGER, INTENT(IN)                                :: n
       INTEGER, INTENT(INOUT)                             :: iarr(1:n)
-      INTEGER, INTENT(OUT)                               :: INDEX(1:n)
+      INTEGER                                            :: INDEX(1:n)
 
       INTEGER, PARAMETER                                 :: m = 7, nstack = 50
 
@@ -399,7 +399,7 @@ SUBROUTINE fftw3_create_guru_plan(plan, fft_rank, dim_n, &
   INTEGER, INTENT(IN) :: dim_n(2), dim_istride(2), dim_ostride(2), &
              hm_n(2), hm_istride(2), hm_ostride(2), fft_rank, &
              fft_direction, fftw_plan_type, hm_rank
-  LOGICAL, INTENT(OUT)                               :: valid
+  LOGICAL                               :: valid
 
 #if defined (__FFTW3)
 
@@ -501,7 +501,7 @@ SUBROUTINE fftw3_compute_rows_per_th(nrows,nt,rows_per_thread,rows_per_thread_r,
                                      th_planA, th_planB)
 
       INTEGER, INTENT(IN)                                :: nrows, nt
-      INTEGER, INTENT(OUT)                               :: rows_per_thread, rows_per_thread_r, &
+      INTEGER                                            :: rows_per_thread, rows_per_thread_r, &
                                                             th_planA, th_planB
 
          IF (MOD(nrows,nt) .EQ. 0) THEN
@@ -853,7 +853,7 @@ SUBROUTINE fftw33d ( plan, scale, zin, zout, stat )
   REAL(KIND=dp), INTENT(IN)                            :: scale
   COMPLEX(KIND=dp), DIMENSION(*), INTENT(INOUT), TARGET:: zin
   COMPLEX(KIND=dp), DIMENSION(*), INTENT(INOUT), TARGET:: zout
-  INTEGER, INTENT(OUT)                                 :: stat
+  INTEGER                                 :: stat
 #if defined ( __FFTW3 )
   COMPLEX(KIND=dp), POINTER                            :: xout(:)
   COMPLEX(KIND=dp), ALLOCATABLE                        :: tmp1(:)
@@ -1083,7 +1083,7 @@ SUBROUTINE fftw31dm ( plan, zin, zout, scale, stat )
       COMPLEX(KIND=dp), DIMENSION(*), INTENT(INOUT), &
          TARGET                                          :: zout
       REAL(KIND=dp), INTENT(IN)                          :: scale
-      INTEGER, INTENT(OUT)                               :: stat
+      INTEGER                                            :: stat
 
       COMPLEX(KIND=dp), POINTER                          :: zin_ptr, zout_ptr, zscal_ptr
       INTEGER                                            :: in_offset, my_id, num_rows, out_offset, &

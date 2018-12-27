@@ -60,7 +60,7 @@ CONTAINS
 !> \param str_length ...
 ! **************************************************************************************************
    SUBROUTINE cp2k_get_version(version_str, str_length) BIND(C)
-      CHARACTER(LEN=1, KIND=C_CHAR), INTENT(OUT)         :: version_str(*)
+      CHARACTER(LEN=1, KIND=C_CHAR)                      :: version_str(*)
       INTEGER(C_INT), VALUE                              :: str_length
 
       INTEGER                                            :: i, n
@@ -122,7 +122,7 @@ CONTAINS
 !> \param output_file_path ...
 ! **************************************************************************************************
    SUBROUTINE cp2k_create_force_env(new_env_id, input_file_path, output_file_path) BIND(C)
-      INTEGER(C_INT), INTENT(OUT)                        :: new_env_id
+      INTEGER(C_INT)                                     :: new_env_id
       CHARACTER(LEN=1, KIND=C_CHAR), INTENT(IN)          :: input_file_path(*), output_file_path(*)
 
       CHARACTER(LEN=default_path_length)                 :: ifp, ofp
@@ -148,7 +148,7 @@ CONTAINS
 !> \param mpi_comm ...
 ! **************************************************************************************************
    SUBROUTINE cp2k_create_force_env_comm(new_env_id, input_file_path, output_file_path, mpi_comm) BIND(C)
-      INTEGER(C_INT), INTENT(OUT)                        :: new_env_id
+      INTEGER(C_INT)                                     :: new_env_id
       CHARACTER(LEN=1, KIND=C_CHAR), INTENT(IN)          :: input_file_path(*), output_file_path(*)
       INTEGER(C_INT), VALUE                              :: mpi_comm
 
@@ -223,7 +223,7 @@ CONTAINS
       INTEGER(C_INT), VALUE                              :: env_id
       CHARACTER(LEN=1, KIND=C_CHAR), INTENT(IN)          :: description(*)
       INTEGER(C_INT), VALUE                              :: n_el
-      REAL(C_DOUBLE), DIMENSION(1:n_el), INTENT(OUT)     :: RESULT
+      REAL(C_DOUBLE), DIMENSION(1:n_el)                  :: RESULT
 
       CHARACTER(LEN=default_string_length)               :: desc_low
       INTEGER                                            :: ierr
@@ -242,7 +242,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE cp2k_get_natom(env_id, natom) BIND(C)
       INTEGER(C_INT), VALUE                              :: env_id
-      INTEGER(C_INT), INTENT(OUT)                        :: natom
+      INTEGER(C_INT)                                     :: natom
 
       INTEGER                                            :: ierr
 
@@ -257,7 +257,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE cp2k_get_nparticle(env_id, nparticle) BIND(C)
       INTEGER(C_INT), VALUE                              :: env_id
-      INTEGER(C_INT), INTENT(OUT)                        :: nparticle
+      INTEGER(C_INT)                                     :: nparticle
 
       INTEGER                                            :: ierr
 
@@ -273,7 +273,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE cp2k_get_positions(env_id, pos, n_el) BIND(C)
       INTEGER(C_INT), VALUE                              :: env_id, n_el
-      REAL(C_DOUBLE), DIMENSION(1:n_el), INTENT(OUT)     :: pos
+      REAL(C_DOUBLE), DIMENSION(1:n_el)                  :: pos
 
       INTEGER                                            :: ierr
 
@@ -289,7 +289,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE cp2k_get_forces(env_id, force, n_el) BIND(C)
       INTEGER(C_INT), VALUE                              :: env_id, n_el
-      REAL(C_DOUBLE), DIMENSION(1:n_el), INTENT(OUT)     :: force
+      REAL(C_DOUBLE), DIMENSION(1:n_el)                  :: force
 
       INTEGER                                            :: ierr
 
@@ -304,7 +304,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE cp2k_get_potential_energy(env_id, e_pot) BIND(C)
       INTEGER(C_INT), VALUE                              :: env_id
-      REAL(C_DOUBLE), INTENT(OUT)                        :: e_pot
+      REAL(C_DOUBLE)                                     :: e_pot
 
       INTEGER                                            :: ierr
 
@@ -457,8 +457,7 @@ CONTAINS
       USE qs_environment_types, ONLY: get_qs_env
       INTEGER(C_INT), VALUE                              :: f_env_id
       INTEGER(C_LONG), VALUE                             :: buf_len
-      REAL(C_DOUBLE), DIMENSION(0:buf_len-1), &
-         INTENT(OUT)                                     :: buf
+      REAL(C_DOUBLE), DIMENSION(0:buf_len-1)             :: buf
 
       INTEGER                                            :: i, ierr, j, norb
       REAL(C_DOUBLE)                                     :: mval
@@ -545,9 +544,9 @@ CONTAINS
       USE qs_environment_types, ONLY: get_qs_env
       INTEGER(C_INT), INTENT(IN), VALUE                  :: f_env_id
       INTEGER(C_LONG), INTENT(IN), VALUE                 :: buf_coords_len
-      INTEGER(C_INT), INTENT(OUT), TARGET                :: buf_coords(1:buf_coords_len)
+      INTEGER(C_INT), TARGET                             :: buf_coords(1:buf_coords_len)
       INTEGER(C_LONG), INTENT(IN), VALUE                 :: buf_values_len
-      REAL(C_DOUBLE), INTENT(OUT), TARGET                :: buf_values(1:buf_values_len)
+      REAL(C_DOUBLE), TARGET                             :: buf_values(1:buf_values_len)
 
       INTEGER                                            :: ierr
       TYPE(active_space_type), POINTER                   :: active_space_env
@@ -587,7 +586,7 @@ CONTAINS
 !> \author Tiziano Mueller
 ! **************************************************************************************************
    SUBROUTINE strncpy_c2f(fstring, cstring)
-      CHARACTER(LEN=*), INTENT(OUT)                      :: fstring
+      CHARACTER(LEN=*)                                   :: fstring
       CHARACTER(LEN=1, KIND=C_CHAR), INTENT(IN)          :: cstring(*)
 
       INTEGER                                            :: i

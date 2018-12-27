@@ -799,7 +799,7 @@ CONTAINS
 !> \param section ...
 ! **************************************************************************************************
    SUBROUTINE embed_restart_file_name(filename, section)
-      CHARACTER(LEN=default_path_length), INTENT(OUT)    :: filename
+      CHARACTER(LEN=default_path_length)                 :: filename
       TYPE(section_vals_type), POINTER                   :: section
 
       LOGICAL                                            :: exist

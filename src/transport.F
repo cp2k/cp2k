@@ -529,7 +529,7 @@ CONTAINS
 ! **************************************************************************************************
       SUBROUTINE cumsum_i(arr, cumsum)
       INTEGER, DIMENSION(:), INTENT(IN)                  :: arr
-      INTEGER, DIMENSION(SIZE(arr)), INTENT(OUT)         :: cumsum
+      INTEGER, DIMENSION(SIZE(arr))                      :: cumsum
 
       INTEGER                                            :: i
 

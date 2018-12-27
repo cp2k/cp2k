@@ -349,7 +349,7 @@ CONTAINS
       REAL(KIND=dp), INTENT(INOUT)                       :: pos(:, :), vel(:, :)
       REAL(KIND=dp), INTENT(IN)                          :: dt
       TYPE(simpar_type), INTENT(IN)                      :: simpar
-      REAL(KIND=dp), INTENT(OUT)                         :: roll_tol
+      REAL(KIND=dp)                                      :: roll_tol
       INTEGER, INTENT(INOUT)                             :: iroll
       REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: vector_r, vector_v
       INTEGER, INTENT(IN)                                :: group
@@ -496,7 +496,7 @@ CONTAINS
       TYPE(simpar_type), INTENT(IN)                      :: simpar
       REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: vector
       REAL(KIND=dp), DIMENSION(:, :), INTENT(INOUT)      :: veps
-      REAL(KIND=dp), INTENT(OUT)                         :: roll_tol
+      REAL(KIND=dp)                                      :: roll_tol
       INTEGER, INTENT(INOUT)                             :: iroll
       TYPE(cp_para_env_type), INTENT(IN)                 :: para_env
       REAL(KIND=dp), DIMENSION(:, :), INTENT(IN), &

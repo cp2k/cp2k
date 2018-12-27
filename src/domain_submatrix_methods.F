@@ -730,7 +730,7 @@ CONTAINS
 
       TYPE(domain_submatrix_type), DIMENSION(:), &
          INTENT(IN)                                      :: submatrices
-      REAL(KIND=dp), INTENT(OUT)                         :: norm
+      REAL(KIND=dp)                                      :: norm
 
       CHARACTER(len=*), PARAMETER :: routineN = 'maxnorm_submatrices', &
          routineP = moduleN//':'//routineN
@@ -780,7 +780,7 @@ CONTAINS
 
       TYPE(domain_submatrix_type), DIMENSION(:), &
          INTENT(IN)                                      :: A, B
-      REAL(KIND=dp), INTENT(OUT)                         :: trace
+      REAL(KIND=dp)                                      :: trace
 
       CHARACTER(len=*), PARAMETER :: routineN = 'trace_submatrices', &
          routineP = moduleN//':'//routineN

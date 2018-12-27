@@ -100,7 +100,7 @@ CONTAINS
       TYPE(cp_logger_type), POINTER                      :: new_logger
       TYPE(section_vals_type), POINTER                   :: root_section
       TYPE(cp_para_env_type), POINTER                    :: para_env
-      CHARACTER(len=default_string_length), INTENT(OUT)  :: project_name
+      CHARACTER(len=default_string_length)               :: project_name
       INTEGER, INTENT(IN)                                :: id_run
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'gopt_new_logger_create', &
@@ -196,8 +196,8 @@ CONTAINS
    SUBROUTINE read_external_press_tensor(geo_section, cell, pres_ext, mtrx, rot)
       TYPE(section_vals_type), POINTER                   :: geo_section
       TYPE(cell_type), POINTER                           :: cell
-      REAL(KIND=dp), INTENT(OUT)                         :: pres_ext
-      REAL(KIND=dp), DIMENSION(3, 3), INTENT(OUT)        :: mtrx
+      REAL(KIND=dp)                                      :: pres_ext
+      REAL(KIND=dp), DIMENSION(3, 3)                     :: mtrx
       REAL(KIND=dp), DIMENSION(3, 3), INTENT(IN)         :: rot
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'read_external_press_tensor', &
@@ -267,7 +267,7 @@ CONTAINS
       TYPE(cell_type), POINTER                           :: cell
       REAL(KIND=dp), DIMENSION(3, 3), INTENT(IN)         :: mtrx
       LOGICAL, INTENT(IN), OPTIONAL                      :: keep_angles, keep_symmetry
-      REAL(KIND=dp), INTENT(OUT)                         :: pres_int
+      REAL(KIND=dp)                                      :: pres_int
       INTEGER, INTENT(IN), OPTIONAL                      :: constraint_id
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'get_dg_dh', routineP = moduleN//':'//routineN

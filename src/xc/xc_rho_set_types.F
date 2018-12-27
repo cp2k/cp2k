@@ -330,7 +330,7 @@ CONTAINS
          laplace_rhob
       TYPE(cp_3d_r_p_type), DIMENSION(:), OPTIONAL, &
          POINTER                                         :: drhoa, drhob
-      REAL(kind=dp), INTENT(out), OPTIONAL               :: rho_cutoff, drho_cutoff, tau_cutoff
+      REAL(kind=dp), OPTIONAL                            :: rho_cutoff, drho_cutoff, tau_cutoff
       REAL(KIND=dp), DIMENSION(:, :, :), OPTIONAL, &
          POINTER                                         :: tau, tau_a, tau_b
       INTEGER, DIMENSION(:, :), OPTIONAL, POINTER        :: local_bounds

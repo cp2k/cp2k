@@ -46,7 +46,7 @@ CONTAINS
 !> \param NDERIV ...
 ! **************************************************************************************************
    SUBROUTINE trunc_CS_poly_n20(RES, R, T, NDERIV)
-      REAL(KIND=dp), INTENT(OUT)                         :: RES(*)
+      REAL(KIND=dp)                                      :: RES(*)
       REAL(KIND=dp), INTENT(IN)                          :: R, T
       INTEGER, INTENT(IN)                                :: NDERIV
 
@@ -1135,7 +1135,7 @@ CONTAINS
 !> \param C0 ...
 ! **************************************************************************************************
    SUBROUTINE PD2VAL(RES, NDERIV, TG1, TG2, C0)
-      REAL(KIND=dp), INTENT(OUT)                         :: res(*)
+      REAL(KIND=dp)                                      :: res(*)
       INTEGER, INTENT(IN)                                :: NDERIV
       REAL(KIND=dp), INTENT(IN)                          :: TG1, TG2, C0(136, *)
 

@@ -225,7 +225,7 @@ CONTAINS
       TYPE(eam_pot_type), POINTER                        :: eam_a, eam_b
       TYPE(eam_type), INTENT(IN)                         :: eam_data(:)
       INTEGER, INTENT(IN)                                :: atom_a, atom_b
-      REAL(dp), INTENT(OUT)                              :: f_eam
+      REAL(dp)                                           :: f_eam
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'get_force_eam', routineP = moduleN//':'//routineN
 

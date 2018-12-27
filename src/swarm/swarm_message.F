@@ -305,7 +305,7 @@ CONTAINS
 !> \author Ole Schuett
 ! **************************************************************************************************
    SUBROUTINE swarm_message_file_read(msg, parser, at_end)
-      TYPE(swarm_message_type), INTENT(OUT)              :: msg
+      TYPE(swarm_message_type)              :: msg
       TYPE(cp_parser_type), POINTER                      :: parser
       LOGICAL, INTENT(INOUT)                             :: at_end
 
@@ -324,7 +324,7 @@ CONTAINS
 !> \author Ole Schuett
 ! **************************************************************************************************
    SUBROUTINE swarm_message_file_read_low(msg, parser, at_end)
-      TYPE(swarm_message_type), INTENT(OUT)              :: msg
+      TYPE(swarm_message_type)              :: msg
       TYPE(cp_parser_type), POINTER                      :: parser
       LOGICAL, INTENT(INOUT)                             :: at_end
 
@@ -935,7 +935,7 @@ CONTAINS
 #:elif label.startswith("1d_")
    ${type}$, POINTER                     :: value
 #:else
-   ${type}$, INTENT(OUT)                 :: value
+   ${type}$                 :: value
 #:endif
 
    TYPE(message_entry_type), POINTER :: curr_entry

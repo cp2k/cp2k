@@ -73,7 +73,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE clebsch_gordon_complex(l1, m1, l2, m2, clm)
       INTEGER, INTENT(IN)                                :: l1, m1, l2, m2
-      REAL(KIND=dp), DIMENSION(:), INTENT(OUT)           :: clm
+      REAL(KIND=dp), DIMENSION(:)                        :: clm
 
       CHARACTER(len=*), PARAMETER :: routineN = 'clebsch_gordon_complex', &
          routineP = moduleN//':'//routineN
@@ -109,7 +109,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE clebsch_gordon_real(l1, m1, l2, m2, rlm)
       INTEGER, INTENT(IN)                                :: l1, m1, l2, m2
-      REAL(KIND=dp), DIMENSION(:, :), INTENT(OUT)        :: rlm
+      REAL(KIND=dp), DIMENSION(:, :)                     :: rlm
 
       CHARACTER(len=*), PARAMETER :: routineN = 'clebsch_gordon_real', &
          routineP = moduleN//':'//routineN
@@ -420,7 +420,7 @@ CONTAINS
 ! Input: r == (x,y,z) : normalised    x^2 + y^2 + z^2 = 1
 !
       REAL(KIND=dp), DIMENSION(:, :), INTENT(IN)         :: r
-      REAL(KIND=dp), DIMENSION(:), INTENT(OUT)           :: y
+      REAL(KIND=dp), DIMENSION(:)                        :: y
       INTEGER, INTENT(IN)                                :: l, m
 
       CHARACTER(len=*), PARAMETER :: routineN = 'rvy_lm', routineP = moduleN//':'//routineN
@@ -553,7 +553,7 @@ CONTAINS
 ! Input: r == (x,y,z) : normalised    x^2 + y^2 + z^2 = 1
 !
       REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: r
-      REAL(KIND=dp), INTENT(OUT)                         :: y
+      REAL(KIND=dp)                                      :: y
       INTEGER, INTENT(IN)                                :: l, m
 
       CHARACTER(len=*), PARAMETER :: routineN = 'rry_lm', routineP = moduleN//':'//routineN
@@ -682,7 +682,7 @@ CONTAINS
 ! Input: r == (x,y,z) : normalised    x^2 + y^2 + z^2 = 1
 !
       REAL(KIND=dp), DIMENSION(:, :), INTENT(IN)         :: r
-      COMPLEX(KIND=dp), DIMENSION(:), INTENT(OUT)        :: y
+      COMPLEX(KIND=dp), DIMENSION(:)                     :: y
       INTEGER, INTENT(IN)                                :: l, m
 
       CHARACTER(len=*), PARAMETER :: routineN = 'cvy_lm', routineP = moduleN//':'//routineN
@@ -864,7 +864,7 @@ CONTAINS
 ! Input: r == (x,y,z) : normalised    x^2 + y^2 + z^2 = 1
 !
       REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: r
-      COMPLEX(KIND=dp), INTENT(OUT)                      :: y
+      COMPLEX(KIND=dp)                                   :: y
       INTEGER, INTENT(IN)                                :: l, m
 
       CHARACTER(len=*), PARAMETER :: routineN = 'ccy_lm', routineP = moduleN//':'//routineN
@@ -1026,7 +1026,7 @@ CONTAINS
 !
 
       REAL(KIND=dp), DIMENSION(2), INTENT(IN)            :: c
-      REAL(KIND=dp), DIMENSION(2), INTENT(OUT)           :: dy
+      REAL(KIND=dp), DIMENSION(2)                        :: dy
       INTEGER, INTENT(IN)                                :: l, m
 
       CHARACTER(len=*), PARAMETER :: routineN = 'dry_lm', routineP = moduleN//':'//routineN
@@ -1181,7 +1181,7 @@ CONTAINS
 !
 
       REAL(KIND=dp), DIMENSION(2), INTENT(IN)            :: c
-      COMPLEX(KIND=dp), DIMENSION(2), INTENT(OUT)        :: dy
+      COMPLEX(KIND=dp), DIMENSION(2)                     :: dy
       INTEGER, INTENT(IN)                                :: l, m
 
       CHARACTER(len=*), PARAMETER :: routineN = 'dcy_lm', routineP = moduleN//':'//routineN

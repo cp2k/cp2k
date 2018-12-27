@@ -107,7 +107,7 @@ CONTAINS
   SUBROUTINE compute_rcom(part,is_fixed,rcom)
       TYPE(particle_type), DIMENSION(:), POINTER         :: part
       INTEGER, DIMENSION(:), INTENT(IN)                  :: is_fixed
-      REAL(KIND=dp), DIMENSION(3), INTENT(OUT)           :: rcom
+      REAL(KIND=dp), DIMENSION(3)                        :: rcom
 
       CHARACTER(len=*), PARAMETER :: routineN = 'compute_rcom', routineP = moduleN//':'//routineN
 
@@ -146,8 +146,8 @@ CONTAINS
   SUBROUTINE compute_vcom(part,is_fixed,vcom,ecom)
       TYPE(particle_type), DIMENSION(:), POINTER         :: part
       INTEGER, DIMENSION(:), INTENT(IN)                  :: is_fixed
-      REAL(KIND=dp), DIMENSION(3), INTENT(OUT)           :: vcom
-      REAL(KIND=dp), INTENT(OUT), OPTIONAL               :: ecom
+      REAL(KIND=dp), DIMENSION(3)                        :: vcom
+      REAL(KIND=dp), OPTIONAL                            :: ecom
 
       CHARACTER(len=*), PARAMETER :: routineN = 'compute_vcom', routineP = moduleN//':'//routineN
 
@@ -423,7 +423,7 @@ CONTAINS
       TYPE(particle_type), DIMENSION(:), POINTER         :: part
       INTEGER, DIMENSION(:), INTENT(IN)                  :: is_fixed
       REAL(KIND=dp), DIMENSION(3), INTENT(IN)            :: rcom
-      REAL(KIND=dp), DIMENSION(3), INTENT(OUT)           :: vang
+      REAL(KIND=dp), DIMENSION(3)                        :: vang
 
       CHARACTER(len=*), PARAMETER :: routineN = 'compute_vang', routineP = moduleN//':'//routineN
 
@@ -725,7 +725,7 @@ CONTAINS
       LOGICAL, INTENT(IN)                                :: force_rescaling
       TYPE(cp_para_env_type), POINTER                    :: para_env
       INTEGER, DIMENSION(:), INTENT(INOUT)               :: is_fixed
-      LOGICAL, INTENT(OUT)                               :: success
+      LOGICAL                                            :: success
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'read_input_velocities', &
          routineP = moduleN//':'//routineN
@@ -1624,7 +1624,7 @@ CONTAINS
       TYPE(cp_subsys_type), POINTER                      :: subsys
       REAL(KIND=dp), INTENT(IN)                          :: fscale
       INTEGER, INTENT(IN)                                :: ireg
-      REAL(KIND=dp), INTENT(OUT)                         :: ekin, vcom(3)
+      REAL(KIND=dp)                                      :: ekin, vcom(3)
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'scale_velocity_low', &
          routineP = moduleN//':'//routineN

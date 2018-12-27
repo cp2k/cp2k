@@ -50,7 +50,7 @@ CONTAINS
    SUBROUTINE tersoff_energy(pot_loc, tersoff, r_last_update_pbc, atom_a, atom_b, nloc_size, &
                              full_loc_list, loc_cell_v, cell_v, drij)
 
-      REAL(KIND=dp), INTENT(OUT)                         :: pot_loc
+      REAL(KIND=dp)                                      :: pot_loc
       TYPE(tersoff_pot_type), POINTER                    :: tersoff
       TYPE(pos_type), DIMENSION(:), POINTER              :: r_last_update_pbc
       INTEGER, INTENT(IN)                                :: atom_a, atom_b, nloc_size

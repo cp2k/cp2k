@@ -64,7 +64,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE free_energy_evaluate(md_env, converged, fe_section)
       TYPE(md_environment_type), POINTER                 :: md_env
-      LOGICAL, INTENT(OUT)                               :: converged
+      LOGICAL                                            :: converged
       TYPE(section_vals_type), POINTER                   :: fe_section
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'free_energy_evaluate', &
@@ -204,7 +204,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE ui_check_trend(fe_env, trend_free, nr_points, output_unit)
       TYPE(free_energy_type), POINTER                    :: fe_env
-      LOGICAL, INTENT(OUT)                               :: trend_free
+      LOGICAL                                            :: trend_free
       INTEGER, INTENT(IN)                                :: nr_points, output_unit
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'ui_check_trend', routineP = moduleN//':'//routineN
@@ -391,7 +391,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE ui_check_norm_sc(fe_env, test_passed, nr_points, output_unit)
       TYPE(free_energy_type), POINTER                    :: fe_env
-      LOGICAL, INTENT(OUT)                               :: test_passed
+      LOGICAL                                            :: test_passed
       INTEGER, INTENT(IN)                                :: nr_points, output_unit
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'ui_check_norm_sc', &
@@ -523,7 +523,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE ui_check_convergence(fe_env, converged, nr_points, output_unit)
       TYPE(free_energy_type), POINTER                    :: fe_env
-      LOGICAL, INTENT(OUT)                               :: converged
+      LOGICAL                                            :: converged
       INTEGER, INTENT(IN)                                :: nr_points, output_unit
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'ui_check_convergence', &

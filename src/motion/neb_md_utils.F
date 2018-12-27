@@ -281,8 +281,8 @@ CONTAINS
 
       TYPE(neb_var_type), POINTER                        :: vels
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
-      REAL(KIND=dp), DIMENSION(:), INTENT(OUT)           :: temperatures
-      REAL(KIND=dp), DIMENSION(:), INTENT(OUT), OPTIONAL :: ekin
+      REAL(KIND=dp), DIMENSION(:)                        :: temperatures
+      REAL(KIND=dp), DIMENSION(:), OPTIONAL              :: ekin
       REAL(KIND=dp), INTENT(IN), OPTIONAL                :: factor
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'get_temperatures', &

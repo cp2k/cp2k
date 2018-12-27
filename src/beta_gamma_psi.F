@@ -598,7 +598,7 @@ SUBROUTINE bgrat (a, b, x, y, w, eps, ierr)
       REAL(dp), INTENT(IN)                               :: a, b, x, y
       REAL(dp), INTENT(INOUT)                            :: w
       REAL(dp), INTENT(IN)                               :: eps
-      INTEGER, INTENT(OUT)                               :: ierr
+      INTEGER                                            :: ierr
 
       REAL(dp), PARAMETER                                :: half = 0.5e0_dp, one = 1.e0_dp, &
                                                             quarter = 0.25e0_dp, zero = 0.e0_dp
@@ -693,7 +693,7 @@ SUBROUTINE grat1 (a, x, r, p, q, eps)
 !        THE INPUT ARGUMENT R HAS THE VALUE E**(-X)*X**A/GAMMA(A)
 !-----------------------------------------------------------------------
       REAL(dp), INTENT(IN)                               :: a, x, r
-      REAL(dp), INTENT(OUT), OPTIONAL                    :: p, q
+      REAL(dp), OPTIONAL                                 :: p, q
       REAL(dp), INTENT(IN)                               :: eps
 
       REAL(dp), PARAMETER                                :: half = 0.5e0_dp, one = 1.e0_dp, &
@@ -1382,8 +1382,8 @@ SUBROUTINE bratio (a, b, x, y, w, w1, ierr)
 !     REVISED ... APRIL 1993
 !-----------------------------------------------------------------------
       REAL(dp), INTENT(IN)                               :: a, b, x, y
-      REAL(dp), INTENT(OUT)                              :: w, w1
-      INTEGER, INTENT(OUT)                               :: ierr
+      REAL(dp)                                           :: w, w1
+      INTEGER                                            :: ierr
 
       INTEGER                                            :: ierr1, ind, n
       REAL(dp)                                           :: a0, b0, eps, lambda, t, x0, y0, z

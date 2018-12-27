@@ -1264,7 +1264,7 @@ CONTAINS
                                               tolerance)
       REAL(KIND=dp), DIMENSION(:, :), INTENT(IN)         :: atomic_H, atomic_S
       REAL(KIND=dp), INTENT(IN)                          :: fermi_level, filter_temp
-      REAL(KIND=dp), DIMENSION(:, :), INTENT(OUT)        :: atomic_filter_mat
+      REAL(KIND=dp), DIMENSION(:, :)                     :: atomic_filter_mat
       REAL(KIND=dp), INTENT(IN)                          :: tolerance
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'fb_fltrmat_build_atomic_fltrmat', &
@@ -1415,7 +1415,7 @@ CONTAINS
 !> \author Lianheng Tong (LT) lianheng.tong@kcl.ac.uk
 ! **************************************************************************************************
    SUBROUTINE fb_fltrmat_fermi_dirac_mu(f, eigenvals, T, mu)
-      REAL(KIND=dp), DIMENSION(:), INTENT(OUT)           :: f
+      REAL(KIND=dp), DIMENSION(:)                        :: f
       REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: eigenvals
       REAL(KIND=dp), INTENT(IN)                          :: T, mu
 
@@ -1440,7 +1440,7 @@ CONTAINS
 !> \author Lianheng Tong (LT) lianheng.tong@kcl.ac.uk
 ! **************************************************************************************************
    SUBROUTINE fb_fltrmat_fermi_dirac_ne(f, eigenvals, T, ne, maxocc)
-      REAL(KIND=dp), DIMENSION(:), INTENT(OUT)           :: f
+      REAL(KIND=dp), DIMENSION(:)                        :: f
       REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: eigenvals
       REAL(KIND=dp), INTENT(IN)                          :: T, ne, maxocc
 

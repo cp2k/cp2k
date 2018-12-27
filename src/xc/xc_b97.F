@@ -72,7 +72,7 @@ CONTAINS
       INTEGER                                            :: param
       LOGICAL                                            :: lda
       REAL(dp), INTENT(in)                               :: sx, sc
-      CHARACTER(LEN=*), INTENT(OUT), OPTIONAL            :: reference, shortform
+      CHARACTER(LEN=*), OPTIONAL                         :: reference, shortform
 
       CHARACTER(len=*), PARAMETER :: routineN = 'b97_ref', routineP = moduleN//':'//routineN
 
@@ -179,9 +179,9 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE b97_lda_info(b97_params, reference, shortform, needs, max_deriv)
       TYPE(section_vals_type), POINTER                   :: b97_params
-      CHARACTER(LEN=*), INTENT(OUT), OPTIONAL            :: reference, shortform
+      CHARACTER(LEN=*), OPTIONAL                         :: reference, shortform
       TYPE(xc_rho_cflags_type), INTENT(inout), OPTIONAL  :: needs
-      INTEGER, INTENT(out), OPTIONAL                     :: max_deriv
+      INTEGER, OPTIONAL                                  :: max_deriv
 
       CHARACTER(len=*), PARAMETER :: routineN = 'b97_lda_info', routineP = moduleN//':'//routineN
 
@@ -213,9 +213,9 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE b97_lsd_info(b97_params, reference, shortform, needs, max_deriv)
       TYPE(section_vals_type), POINTER                   :: b97_params
-      CHARACTER(LEN=*), INTENT(OUT), OPTIONAL            :: reference, shortform
+      CHARACTER(LEN=*), OPTIONAL                         :: reference, shortform
       TYPE(xc_rho_cflags_type), INTENT(inout), OPTIONAL  :: needs
-      INTEGER, INTENT(out), OPTIONAL                     :: max_deriv
+      INTEGER, OPTIONAL                                  :: max_deriv
 
       CHARACTER(len=*), PARAMETER :: routineN = 'b97_lsd_info', routineP = moduleN//':'//routineN
 

@@ -47,8 +47,7 @@ CONTAINS
    SUBROUTINE get_real_scaled_solid_harmonic(Rlm_c, Rlm_s, l, r, r2)
 
       INTEGER, INTENT(IN)                                :: l
-      REAL(KIND=dp), DIMENSION(0:l, -2*l:2*l), &
-         INTENT(OUT)                                     :: Rlm_s, Rlm_c
+      REAL(KIND=dp), DIMENSION(0:l, -2*l:2*l)            :: Rlm_s, Rlm_c
       REAL(KIND=dp), DIMENSION(3)                        :: r
       REAL(KIND=dp)                                      :: r2
 

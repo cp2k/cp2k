@@ -47,7 +47,7 @@ CONTAINS
    SUBROUTINE equidistant_${nametype1}$nodes_a_b(a, b, nnodes, xnodes)
       ${type1}$, INTENT(in)                              :: a, b
       INTEGER, INTENT(in)                                :: nnodes
-      ${type1}$, DIMENSION(nnodes), INTENT(out)          :: xnodes
+      ${type1}$, DIMENSION(nnodes)          :: xnodes
 
       CHARACTER(len=*), PARAMETER :: routineN = 'equidistant_${nametype1}$nodes_a_b', &
          routineP = moduleN//':'//routineN
@@ -69,7 +69,7 @@ CONTAINS
       REAL(kind=dp), DIMENSION(nnodes), INTENT(in)       :: tnodes
       COMPLEX(kind=dp), INTENT(in)                       :: a, b
       INTEGER, INTENT(in)                                :: shape_id
-      COMPLEX(kind=dp), DIMENSION(nnodes), INTENT(out), &
+      COMPLEX(kind=dp), DIMENSION(nnodes), &
          OPTIONAL                                        :: xnodes, weights
 
       CHARACTER(len=*), PARAMETER :: routineN = 'rescale_normalised_nodes', &
@@ -211,7 +211,7 @@ CONTAINS
       INTEGER, INTENT(in)                                :: nnodes
       REAL(kind=dp), DIMENSION(:), INTENT(in)            :: tnodes_angle
       COMPLEX(kind=dp), INTENT(in)                       :: a, b
-      COMPLEX(kind=dp), DIMENSION(:), INTENT(out)        :: xnodes
+      COMPLEX(kind=dp), DIMENSION(:)        :: xnodes
 
       CHARACTER(len=*), PARAMETER :: routineN = 'rescale_nodes_arc', &
          routineP = moduleN//':'//routineN
@@ -259,7 +259,7 @@ CONTAINS
       INTEGER, INTENT(in)                                :: nnodes
       REAL(kind=dp), DIMENSION(nnodes), INTENT(in)       :: tnodes
       COMPLEX(kind=dp), INTENT(in)                       :: a, b
-      COMPLEX(kind=dp), DIMENSION(nnodes), INTENT(out)   :: xnodes
+      COMPLEX(kind=dp), DIMENSION(nnodes)   :: xnodes
 
       CHARACTER(len=*), PARAMETER :: routineN = 'rescale_nodes_linear', &
          routineP = moduleN//':'//routineN

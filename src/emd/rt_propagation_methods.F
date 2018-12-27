@@ -495,7 +495,7 @@ CONTAINS
 
    SUBROUTINE complex_frobenius_norm(frob_norm, mat_re, mat_im)
 
-      REAL(KIND=dp), INTENT(out)                         :: frob_norm
+      REAL(KIND=dp)                                      :: frob_norm
       TYPE(dbcsr_type), POINTER                          :: mat_re, mat_im
 
       CHARACTER(len=*), PARAMETER :: routineN = 'complex_frobenius_norm', &

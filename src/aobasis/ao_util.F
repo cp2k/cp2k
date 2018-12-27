@@ -475,7 +475,7 @@ CONTAINS
    SUBROUTINE transform_c2s(CPC_co, CPC_so, maxl, lm1, lm2)
 
       REAL(dp), DIMENSION(:, :), INTENT(IN)              :: CPC_co
-      REAL(dp), DIMENSION(:, :), INTENT(OUT)             :: CPC_so
+      REAL(dp), DIMENSION(:, :)                          :: CPC_so
       INTEGER                                            :: maxl, lm1, lm2
 
       CHARACTER(len=*), PARAMETER :: routineN = 'transform_c2s', routineP = moduleN//':'//routineN
@@ -572,7 +572,7 @@ CONTAINS
    SUBROUTINE transform_c2s_new(CPC_co, CPC_so, maxl)
 
       REAL(dp), DIMENSION(:, :), INTENT(IN)              :: CPC_co
-      REAL(dp), DIMENSION(:, :), INTENT(OUT)             :: CPC_so
+      REAL(dp), DIMENSION(:, :)                          :: CPC_so
       INTEGER                                            :: maxl
 
       CHARACTER(len=*), PARAMETER :: routineN = 'transform_c2s_new', &
@@ -610,7 +610,7 @@ CONTAINS
    SUBROUTINE transform_s2c(matso, matco, maxl, lm1, lm2)
 
       REAL(dp), DIMENSION(:, :), INTENT(IN)              :: matso
-      REAL(dp), DIMENSION(:, :), INTENT(OUT)             :: matco
+      REAL(dp), DIMENSION(:, :)                          :: matco
       INTEGER, INTENT(IN)                                :: maxl, lm1, lm2
 
       CHARACTER(len=*), PARAMETER :: routineN = 'transform_s2c', routineP = moduleN//':'//routineN

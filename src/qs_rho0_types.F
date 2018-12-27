@@ -451,16 +451,16 @@ CONTAINS
       TYPE(rho0_mpole_type), POINTER                     :: rho0_mpole
       REAL(dp), DIMENSION(:, :), OPTIONAL, POINTER       :: g0_h, vg0_h
       INTEGER, INTENT(IN), OPTIONAL                      :: iat, ikind
-      INTEGER, INTENT(OUT), OPTIONAL                     :: lmax_0, l0_ikind
+      INTEGER, OPTIONAL                                  :: lmax_0, l0_ikind
       TYPE(mpole_gau_overlap), OPTIONAL, POINTER         :: mp_gau_ikind
       TYPE(mpole_rho_atom), DIMENSION(:), OPTIONAL, &
          POINTER                                         :: mp_rho
       REAL(dp), DIMENSION(:), OPTIONAL, POINTER          :: norm_g0l_h
       REAL(dp), DIMENSION(:, :, :), OPTIONAL, POINTER    :: Qlm_gg
       REAL(dp), DIMENSION(:), OPTIONAL, POINTER          :: Qlm_car, Qlm_tot
-      REAL(dp), INTENT(OUT), OPTIONAL                    :: zet0_h
-      INTEGER, INTENT(OUT), OPTIONAL                     :: igrid_zet0_s
-      REAL(dp), INTENT(OUT), OPTIONAL                    :: rpgf0_h, rpgf0_s, max_rpgf0_s
+      REAL(dp), OPTIONAL                                 :: zet0_h
+      INTEGER, OPTIONAL                                  :: igrid_zet0_s
+      REAL(dp), OPTIONAL                                 :: rpgf0_h, rpgf0_s, max_rpgf0_s
       TYPE(pw_p_type), OPTIONAL, POINTER                 :: rho0_s_rs, rho0_s_gs
 
       CHARACTER(len=*), PARAMETER :: routineN = 'get_rho0_mpole', routineP = moduleN//':'//routineN

@@ -402,7 +402,7 @@ CONTAINS
 !> \return that indicates whether of not the subsection has been given explicitly
 ! **************************************************************************************************
    FUNCTION read_negf_atomlist(atomlist, negf_section, i_rep_section, subsection_name, subsys) RESULT(is_explicit)
-      INTEGER, ALLOCATABLE, DIMENSION(:), INTENT(out)    :: atomlist
+      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: atomlist
       TYPE(section_vals_type), POINTER                   :: negf_section
       INTEGER, INTENT(in)                                :: i_rep_section
       CHARACTER(len=*), INTENT(in)                       :: subsection_name

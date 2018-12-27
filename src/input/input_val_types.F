@@ -347,16 +347,16 @@ CONTAINS
    SUBROUTINE val_get(val, has_l, has_i, has_r, has_lc, has_c, l_val, l_vals, i_val, &
                       i_vals, r_val, r_vals, c_val, c_vals, len_c, type_of_var, enum)
       TYPE(val_type), POINTER                            :: val
-      LOGICAL, INTENT(out), OPTIONAL                     :: has_l, has_i, has_r, has_lc, has_c, l_val
+      LOGICAL, OPTIONAL                                  :: has_l, has_i, has_r, has_lc, has_c, l_val
       LOGICAL, DIMENSION(:), OPTIONAL, POINTER           :: l_vals
-      INTEGER, INTENT(out), OPTIONAL                     :: i_val
+      INTEGER, OPTIONAL                                  :: i_val
       INTEGER, DIMENSION(:), OPTIONAL, POINTER           :: i_vals
-      REAL(KIND=DP), INTENT(out), OPTIONAL               :: r_val
+      REAL(KIND=DP), OPTIONAL                            :: r_val
       REAL(KIND=DP), DIMENSION(:), OPTIONAL, POINTER     :: r_vals
-      CHARACTER(LEN=*), INTENT(out), OPTIONAL            :: c_val
+      CHARACTER(LEN=*), OPTIONAL                         :: c_val
       CHARACTER(LEN=default_string_length), &
          DIMENSION(:), OPTIONAL, POINTER                 :: c_vals
-      INTEGER, INTENT(out), OPTIONAL                     :: len_c, type_of_var
+      INTEGER, OPTIONAL                                  :: len_c, type_of_var
       TYPE(enumeration_type), OPTIONAL, POINTER          :: enum
 
       CHARACTER(len=*), PARAMETER :: routineN = 'val_get', routineP = moduleN//':'//routineN
@@ -652,7 +652,7 @@ CONTAINS
    SUBROUTINE val_write_internal(val, string, unit)
 
       TYPE(val_type), POINTER                            :: val
-      CHARACTER(LEN=*), INTENT(OUT)                      :: string
+      CHARACTER(LEN=*)                                   :: string
       TYPE(cp_unit_type), OPTIONAL, POINTER              :: unit
 
       CHARACTER(len=*), PARAMETER :: routineN = 'val_write_internal', &

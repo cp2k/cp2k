@@ -70,7 +70,7 @@ CONTAINS
    RECURSIVE SUBROUTINE read_cell(cell, cell_ref, use_ref_cell, cell_section, &
                                   check_for_ref, para_env)
       TYPE(cell_type), POINTER                           :: cell, cell_ref
-      LOGICAL, INTENT(OUT), OPTIONAL                     :: use_ref_cell
+      LOGICAL, OPTIONAL                                  :: use_ref_cell
       TYPE(section_vals_type), OPTIONAL, POINTER         :: cell_section
       LOGICAL, INTENT(IN), OPTIONAL                      :: check_for_ref
       TYPE(cp_para_env_type), POINTER                    :: para_env

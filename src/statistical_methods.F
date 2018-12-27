@@ -46,7 +46,7 @@ CONTAINS
    SUBROUTINE sw_test(ix, n, w, pw)
       REAL(KIND=dp), DIMENSION(:), POINTER               :: ix
       INTEGER, INTENT(IN)                                :: n
-      REAL(KIND=dp), INTENT(OUT)                         :: w, pw
+      REAL(KIND=dp)                                      :: w, pw
 
       CHARACTER(len=*), PARAMETER :: routineN = 'sw_test', routineP = moduleN//':'//routineN
       REAL(KIND=dp), PARAMETER :: c1(6) = (/0.000000_dp, 0.221157_dp, -0.147981_dp, -2.071190_dp, &
@@ -208,7 +208,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE ppnd7(p, normal_dev)
       REAL(KIND=dp), INTENT(IN)                          :: p
-      REAL(KIND=dp), INTENT(OUT)                         :: normal_dev
+      REAL(KIND=dp)                                      :: normal_dev
 
       REAL(KIND=dp), PARAMETER :: a0 = 3.3871327179E+00_dp, a1 = 5.0434271938E+01_dp, &
          a2 = 1.5929113202E+02_dp, a3 = 5.9109374720E+01_dp, b1 = 1.7895169469E+01_dp, &

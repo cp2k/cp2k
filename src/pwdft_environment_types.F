@@ -171,7 +171,7 @@ CONTAINS
                             sctx, gs_handler, ks_handler)
 
       TYPE(pwdft_environment_type), POINTER              :: pwdft_env
-      INTEGER, INTENT(OUT), OPTIONAL                     :: id_nr
+      INTEGER, OPTIONAL                                  :: id_nr
       TYPE(section_vals_type), OPTIONAL, POINTER         :: pwdft_input, force_env_input
       INTEGER, DIMENSION(3), OPTIONAL                    :: kgrid, kshift
       TYPE(cp_subsys_type), OPTIONAL, POINTER            :: cp_subsys

@@ -418,7 +418,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE cif_get_real(parser, r)
       TYPE(cp_parser_type), POINTER                      :: parser
-      REAL(KIND=dp), INTENT(OUT)                         :: r
+      REAL(KIND=dp)                                      :: r
 
       CHARACTER(len=*), PARAMETER :: routineN = 'cif_get_real', routineP = moduleN//':'//routineN
 

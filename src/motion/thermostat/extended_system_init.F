@@ -585,7 +585,7 @@ CONTAINS
       TYPE(lnhc_parameters_type), POINTER                :: nhc
       TYPE(section_vals_type), POINTER                   :: nose_section
       LOGICAL, INTENT(IN)                                :: save_mem
-      LOGICAL, INTENT(OUT)                               :: restart
+      LOGICAL                                            :: restart
       CHARACTER(LEN=*), INTENT(IN)                       :: binary_restart_file_name, thermostat_name
       TYPE(cp_para_env_type), POINTER                    :: para_env
 

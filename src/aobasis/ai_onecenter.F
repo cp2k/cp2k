@@ -61,7 +61,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE sg_overlap(smat, l, pa, pb)
 
-      REAL(KIND=dp), DIMENSION(:, :), INTENT(OUT)        :: smat
+      REAL(KIND=dp), DIMENSION(:, :)                     :: smat
       INTEGER, INTENT(IN)                                :: l
       REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: pa, pb
 
@@ -100,7 +100,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE sg_kinetic(kmat, l, pa, pb)
 
-      REAL(KIND=dp), DIMENSION(:, :), INTENT(OUT)        :: kmat
+      REAL(KIND=dp), DIMENSION(:, :)                     :: kmat
       INTEGER, INTENT(IN)                                :: l
       REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: pa, pb
 
@@ -137,7 +137,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE sg_nuclear(umat, l, pa, pb)
 
-      REAL(KIND=dp), DIMENSION(:, :), INTENT(OUT)        :: umat
+      REAL(KIND=dp), DIMENSION(:, :)                     :: umat
       INTEGER, INTENT(IN)                                :: l
       REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: pa, pb
 
@@ -174,7 +174,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE sg_kinnuc(umat, l, pa, pb)
 
-      REAL(KIND=dp), DIMENSION(:, :), INTENT(OUT)        :: umat
+      REAL(KIND=dp), DIMENSION(:, :)                     :: umat
       INTEGER, INTENT(IN)                                :: l
       REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: pa, pb
 
@@ -235,7 +235,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE sg_erf(upmat, l, a, pa, pb)
 
-      REAL(KIND=dp), DIMENSION(:, :), INTENT(OUT)        :: upmat
+      REAL(KIND=dp), DIMENSION(:, :)                     :: upmat
       INTEGER, INTENT(IN)                                :: l
       REAL(KIND=dp), INTENT(IN)                          :: a
       REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: pa, pb
@@ -343,7 +343,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE sg_proj_ol(spmat, l, p, k, rc)
 
-      REAL(KIND=dp), DIMENSION(:), INTENT(OUT)           :: spmat
+      REAL(KIND=dp), DIMENSION(:)                        :: spmat
       INTEGER, INTENT(IN)                                :: l
       REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: p
       INTEGER, INTENT(IN)                                :: k
@@ -381,7 +381,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE sg_gpot(vpmat, k, rc, l, pa, pb)
 
-      REAL(KIND=dp), DIMENSION(:, :), INTENT(OUT)        :: vpmat
+      REAL(KIND=dp), DIMENSION(:, :)                     :: vpmat
       INTEGER, INTENT(IN)                                :: k
       REAL(KIND=dp), INTENT(IN)                          :: rc
       INTEGER, INTENT(IN)                                :: l
@@ -424,7 +424,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE sg_conf(gmat, rc, k, l, pa, pb)
 
-      REAL(KIND=dp), DIMENSION(:, :), INTENT(OUT)        :: gmat
+      REAL(KIND=dp), DIMENSION(:, :)                     :: gmat
       REAL(KIND=dp), INTENT(IN)                          :: rc
       INTEGER, INTENT(IN)                                :: k, l
       REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: pa, pb
@@ -464,7 +464,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE sg_coulomb(eri, nu, pa, lab, pc, lcd)
 
-      REAL(KIND=dp), DIMENSION(:, :), INTENT(OUT)        :: eri
+      REAL(KIND=dp), DIMENSION(:, :)                     :: eri
       INTEGER, INTENT(IN)                                :: nu
       REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: pa
       INTEGER, INTENT(IN)                                :: lab
@@ -535,7 +535,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE sg_exchange(eri, nu, pa, lac, pb, lbd)
 
-      REAL(KIND=dp), DIMENSION(:, :), INTENT(OUT)        :: eri
+      REAL(KIND=dp), DIMENSION(:, :)                     :: eri
       INTEGER, INTENT(IN)                                :: nu
       REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: pa
       INTEGER, INTENT(IN)                                :: lac
@@ -621,7 +621,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE sg_erfc(umat, l, a, pa, pb)
 
-      REAL(KIND=dp), DIMENSION(:, :), INTENT(OUT)        :: umat
+      REAL(KIND=dp), DIMENSION(:, :)                     :: umat
       INTEGER, INTENT(IN)                                :: l
       REAL(KIND=dp), INTENT(IN)                          :: a
       REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: pa, pb
@@ -701,7 +701,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE sto_overlap(smat, na, pa, nb, pb)
 
-      REAL(KIND=dp), DIMENSION(:, :), INTENT(OUT)        :: smat
+      REAL(KIND=dp), DIMENSION(:, :)                     :: smat
       INTEGER, DIMENSION(:), INTENT(IN)                  :: na
       REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: pa
       INTEGER, DIMENSION(:), INTENT(IN)                  :: nb
@@ -746,7 +746,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE sto_kinetic(kmat, l, na, pa, nb, pb)
 
-      REAL(KIND=dp), DIMENSION(:, :), INTENT(OUT)        :: kmat
+      REAL(KIND=dp), DIMENSION(:, :)                     :: kmat
       INTEGER, INTENT(IN)                                :: l
       INTEGER, DIMENSION(:), INTENT(IN)                  :: na
       REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: pa
@@ -794,7 +794,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE sto_nuclear(umat, na, pa, nb, pb)
 
-      REAL(KIND=dp), DIMENSION(:, :), INTENT(OUT)        :: umat
+      REAL(KIND=dp), DIMENSION(:, :)                     :: umat
       INTEGER, DIMENSION(:), INTENT(IN)                  :: na
       REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: pa
       INTEGER, DIMENSION(:), INTENT(IN)                  :: nb
@@ -839,7 +839,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE sto_conf(gmat, rc, k, na, pa, nb, pb)
 
-      REAL(KIND=dp), DIMENSION(:, :), INTENT(OUT)        :: gmat
+      REAL(KIND=dp), DIMENSION(:, :)                     :: gmat
       REAL(KIND=dp), INTENT(IN)                          :: rc
       INTEGER, INTENT(IN)                                :: k
       INTEGER, DIMENSION(:), INTENT(IN)                  :: na
@@ -913,7 +913,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE num_overlap(smat, ra, rb, wr)
 
-      REAL(KIND=dp), DIMENSION(:, :), INTENT(OUT)        :: smat
+      REAL(KIND=dp), DIMENSION(:, :)                     :: smat
       REAL(KIND=dp), DIMENSION(:, :), INTENT(IN)         :: ra, rb
       REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: wr
 
@@ -952,7 +952,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE num_kinetic(kmat, l, ra, dra, rb, drb, r, wr)
 
-      REAL(KIND=dp), DIMENSION(:, :), INTENT(OUT)        :: kmat
+      REAL(KIND=dp), DIMENSION(:, :)                     :: kmat
       INTEGER, INTENT(IN)                                :: l
       REAL(KIND=dp), DIMENSION(:, :), INTENT(IN)         :: ra, dra, rb, drb
       REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: r, wr
@@ -990,7 +990,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE num_nuclear(umat, ra, rb, r, wr)
 
-      REAL(KIND=dp), DIMENSION(:, :), INTENT(OUT)        :: umat
+      REAL(KIND=dp), DIMENSION(:, :)                     :: umat
       REAL(KIND=dp), DIMENSION(:, :), INTENT(IN)         :: ra, rb
       REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: r, wr
 
@@ -1029,7 +1029,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE num_kinnuc(umat, l, ra, dra, rb, drb, r, wr)
 
-      REAL(KIND=dp), DIMENSION(:, :), INTENT(OUT)        :: umat
+      REAL(KIND=dp), DIMENSION(:, :)                     :: umat
       INTEGER, INTENT(IN)                                :: l
       REAL(KIND=dp), DIMENSION(:, :), INTENT(IN)         :: ra, dra, rb, drb
       REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: r, wr
@@ -1068,7 +1068,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE num_erf(upmat, a, ra, rb, r, wr)
 
-      REAL(KIND=dp), DIMENSION(:, :), INTENT(OUT)        :: upmat
+      REAL(KIND=dp), DIMENSION(:, :)                     :: upmat
       REAL(KIND=dp), INTENT(IN)                          :: a
       REAL(KIND=dp), DIMENSION(:, :), INTENT(IN)         :: ra, rb
       REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: r, wr
@@ -1115,7 +1115,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE num_proj_ol(spmat, l, ra, k, rc, r, wr)
 
-      REAL(KIND=dp), DIMENSION(:), INTENT(OUT)           :: spmat
+      REAL(KIND=dp), DIMENSION(:)                        :: spmat
       INTEGER, INTENT(IN)                                :: l
       REAL(KIND=dp), DIMENSION(:, :), INTENT(IN)         :: ra
       INTEGER, INTENT(IN)                                :: k
@@ -1165,7 +1165,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE num_gpot(vpmat, k, rc, ra, rb, r, wr)
 
-      REAL(KIND=dp), DIMENSION(:, :), INTENT(OUT)        :: vpmat
+      REAL(KIND=dp), DIMENSION(:, :)                     :: vpmat
       INTEGER, INTENT(IN)                                :: k
       REAL(KIND=dp), INTENT(IN)                          :: rc
       REAL(KIND=dp), DIMENSION(:, :), INTENT(IN)         :: ra, rb
@@ -1213,7 +1213,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE num_conf(gmat, rc, k, ra, rb, r, wr)
 
-      REAL(KIND=dp), DIMENSION(:, :), INTENT(OUT)        :: gmat
+      REAL(KIND=dp), DIMENSION(:, :)                     :: gmat
       REAL(KIND=dp), INTENT(IN)                          :: rc
       INTEGER, INTENT(IN)                                :: k
       REAL(KIND=dp), DIMENSION(:, :), INTENT(IN)         :: ra, rb

@@ -45,8 +45,8 @@ CONTAINS
       TYPE(pao_env_type), POINTER                        :: pao
       INTEGER, INTENT(IN)                                :: ikind
       REAL(dp), DIMENSION(:), INTENT(IN)                 :: descriptor
-      REAL(dp), DIMENSION(:), INTENT(OUT)                :: output
-      REAL(dp), INTENT(OUT)                              :: variance
+      REAL(dp), DIMENSION(:)                             :: output
+      REAL(dp)                                           :: variance
 
       TYPE(training_matrix_type), POINTER                :: training_matrix
 
@@ -70,7 +70,7 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: ikind
       REAL(dp), DIMENSION(:), INTENT(IN), TARGET         :: descriptor
       REAL(dp), DIMENSION(:), INTENT(IN)                 :: outer_deriv
-      REAL(dp), DIMENSION(:), INTENT(OUT)                :: gradient
+      REAL(dp), DIMENSION(:)                             :: gradient
 
       INTEGER                                            :: i, ilayer, j, nlayers, width, width_in, &
                                                             width_out
@@ -248,7 +248,7 @@ CONTAINS
    SUBROUTINE nn_eval(A, input, prediction)
       REAL(dp), DIMENSION(:, :, :), INTENT(IN)           :: A
       REAL(dp), DIMENSION(:), INTENT(IN)                 :: input
-      REAL(dp), DIMENSION(:), INTENT(OUT)                :: prediction
+      REAL(dp), DIMENSION(:)                             :: prediction
 
       INTEGER                                            :: i, ilayer, j, nlayers, width, width_in, &
                                                             width_out

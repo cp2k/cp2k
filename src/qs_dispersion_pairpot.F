@@ -851,7 +851,7 @@ CONTAINS
 
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(qs_dispersion_type), POINTER                  :: dispersion_env
-      REAL(KIND=dp), INTENT(OUT)                         :: energy
+      REAL(KIND=dp)                                      :: energy
       LOGICAL, INTENT(IN)                                :: calculate_forces
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'calculate_dispersion_pairpot', &
@@ -2872,7 +2872,7 @@ CONTAINS
    SUBROUTINE cnparam_d3(rab, rcova, rcovb, k1, cnab, dcnab)
 
       REAL(KIND=dp), INTENT(IN)                          :: rab, rcova, rcovb, k1
-      REAL(KIND=dp), INTENT(OUT)                         :: cnab, dcnab
+      REAL(KIND=dp)                                      :: cnab, dcnab
 
       REAL(KIND=dp)                                      :: dfz, ee, fz, rco, rr
 
@@ -2905,7 +2905,7 @@ CONTAINS
    SUBROUTINE damping_d3(rab, rcutab, srn, alpn, rcut, fdab, dfdab)
 
       REAL(KIND=dp), INTENT(IN)                          :: rab, rcutab, srn, alpn, rcut
-      REAL(KIND=dp), INTENT(OUT)                         :: fdab, dfdab
+      REAL(KIND=dp)                                      :: fdab, dfdab
 
       REAL(KIND=dp)                                      :: a, b, c, d, dd, dfab, dfcc, dz, fab, &
                                                             fcc, rl, rr, ru, z, zz
@@ -2960,7 +2960,7 @@ CONTAINS
       REAL(KIND=dp), INTENT(IN) :: c6ab(max_elem, max_elem, maxc, maxc, 3)
       INTEGER, INTENT(IN)                                :: mxc(max_elem), iat, jat
       REAL(KIND=dp), INTENT(IN)                          :: nci, ncj, k3
-      REAL(KIND=dp), INTENT(OUT)                         :: c6, dc6a, dc6b
+      REAL(KIND=dp)                                      :: c6, dc6a, dc6b
 
       INTEGER                                            :: i, j
       REAL(KIND=dp)                                      :: c6mem, cn1, cn2, csum, dtmpa, dtmpb, &

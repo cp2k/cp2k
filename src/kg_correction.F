@@ -75,7 +75,7 @@ CONTAINS
    SUBROUTINE kg_ekin_subset(qs_env, ks_matrix, ekin_mol, calc_force)
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: ks_matrix
-      REAL(KIND=dp), INTENT(out)                         :: ekin_mol
+      REAL(KIND=dp)                                      :: ekin_mol
       LOGICAL                                            :: calc_force
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'kg_ekin_subset', routineP = moduleN//':'//routineN
@@ -117,7 +117,7 @@ CONTAINS
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(kg_environment_type), POINTER                 :: kg_env
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: ks_matrix
-      REAL(KIND=dp), INTENT(out)                         :: ekin_mol
+      REAL(KIND=dp)                                      :: ekin_mol
       LOGICAL                                            :: calc_force
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'kg_ekin_embed', routineP = moduleN//':'//routineN
@@ -239,7 +239,7 @@ CONTAINS
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(kg_environment_type), POINTER                 :: kg_env
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: ks_matrix
-      REAL(KIND=dp), INTENT(out)                         :: ekin_mol
+      REAL(KIND=dp)                                      :: ekin_mol
       LOGICAL                                            :: calc_force
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'kg_ekin_embed_lri', &
@@ -405,7 +405,7 @@ CONTAINS
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(kg_environment_type), POINTER                 :: kg_env
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: ks_matrix
-      REAL(KIND=dp), INTENT(out)                         :: ekin_mol
+      REAL(KIND=dp)                                      :: ekin_mol
       LOGICAL                                            :: calc_force
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'kg_ekin_ri_embed', &
@@ -564,7 +564,7 @@ CONTAINS
    SUBROUTINE kg_ekin_atomic(qs_env, ks_matrix, ekin_mol)
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: ks_matrix
-      REAL(KIND=dp), INTENT(out)                         :: ekin_mol
+      REAL(KIND=dp)                                      :: ekin_mol
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'kg_ekin_atomic', routineP = moduleN//':'//routineN
 

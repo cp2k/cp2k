@@ -205,7 +205,7 @@ CONTAINS
 !> \author Lianheng Tong (LT) lianheng.tong@kcl.ac.uk
 ! **************************************************************************************************
    SUBROUTINE fb_atomic_halo_associate(a, b)
-      TYPE(fb_atomic_halo_obj), INTENT(OUT)              :: a
+      TYPE(fb_atomic_halo_obj)                           :: a
       TYPE(fb_atomic_halo_obj), INTENT(IN)               :: b
 
       CHARACTER(len=*), PARAMETER :: routineN = 'fb_atomic_halo_associate', &
@@ -307,11 +307,11 @@ CONTAINS
                                  sorted, &
                                  cost)
       TYPE(fb_atomic_halo_obj), INTENT(IN)               :: atomic_halo
-      INTEGER, INTENT(OUT), OPTIONAL                     :: owner_atom, owner_id_in_halo, natoms, &
+      INTEGER, OPTIONAL                                  :: owner_atom, owner_id_in_halo, natoms, &
                                                             nelectrons
       INTEGER, DIMENSION(:), OPTIONAL, POINTER           :: halo_atoms
-      LOGICAL, INTENT(OUT), OPTIONAL                     :: sorted
-      REAL(KIND=dp), INTENT(OUT), OPTIONAL               :: cost
+      LOGICAL, OPTIONAL                                  :: sorted
+      REAL(KIND=dp), OPTIONAL                            :: cost
 
       CHARACTER(len=*), PARAMETER :: routineN = 'fb_atomic_halo_get', &
          routineP = moduleN//':'//routineN
@@ -416,8 +416,8 @@ CONTAINS
                                               found)
       TYPE(fb_atomic_halo_obj), INTENT(IN)               :: atomic_halo
       INTEGER, INTENT(IN)                                :: iatom_global
-      INTEGER, INTENT(OUT)                               :: iatom_halo
-      LOGICAL, INTENT(OUT)                               :: found
+      INTEGER                                            :: iatom_halo
+      LOGICAL                                            :: found
 
       CHARACTER(len=*), PARAMETER :: routineN = 'fb_atomic_halo_atom_global2halo', &
          routineP = moduleN//':'//routineN
@@ -540,7 +540,7 @@ CONTAINS
       TYPE(cell_type), POINTER                           :: cell
       REAL(KIND=dp), DIMENSION(:, :), INTENT(IN)         :: pair_radii
       INTEGER, DIMENSION(:), POINTER                     :: halo_atoms
-      INTEGER, INTENT(OUT)                               :: nhalo_atoms, owner_id_in_halo
+      INTEGER                                            :: nhalo_atoms, owner_id_in_halo
 
       CHARACTER(len=*), PARAMETER :: routineN = 'fb_atomic_halo_build_halo_atoms', &
          routineP = moduleN//':'//routineN
@@ -679,7 +679,7 @@ CONTAINS
 !> \author Lianheng Tong (LT) lianheng.tong@kcl.ac.uk
 ! **************************************************************************************************
    SUBROUTINE fb_atomic_halo_list_associate(a, b)
-      TYPE(fb_atomic_halo_list_obj), INTENT(OUT)         :: a
+      TYPE(fb_atomic_halo_list_obj)                      :: a
       TYPE(fb_atomic_halo_list_obj), INTENT(IN)          :: b
 
       CHARACTER(len=*), PARAMETER :: routineN = 'fb_atomic_halo_list_associate', &
@@ -749,7 +749,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE fb_atomic_halo_list_get(atomic_halos, nhalos, max_nhalos, halos)
       TYPE(fb_atomic_halo_list_obj), INTENT(IN)          :: atomic_halos
-      INTEGER, INTENT(OUT), OPTIONAL                     :: nhalos, max_nhalos
+      INTEGER, OPTIONAL                                  :: nhalos, max_nhalos
       TYPE(fb_atomic_halo_obj), DIMENSION(:), OPTIONAL, &
          POINTER                                         :: halos
 

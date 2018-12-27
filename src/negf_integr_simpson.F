@@ -118,9 +118,9 @@ CONTAINS
 !>       ('conv') becomes the maximum error in the total number of electrons multiplied by pi.
 ! **************************************************************************************************
    SUBROUTINE simpsonrule_init(sr_env, xnodes, nnodes, a, b, shape_id, conv, weights, tnodes_restart)
-      TYPE(simpsonrule_type), INTENT(out)                :: sr_env
+      TYPE(simpsonrule_type)                             :: sr_env
       INTEGER, INTENT(inout)                             :: nnodes
-      COMPLEX(kind=dp), DIMENSION(nnodes), INTENT(out)   :: xnodes
+      COMPLEX(kind=dp), DIMENSION(nnodes)                :: xnodes
       COMPLEX(kind=dp), INTENT(in)                       :: a, b
       INTEGER, INTENT(in)                                :: shape_id
       REAL(kind=dp), INTENT(in)                          :: conv
@@ -232,7 +232,7 @@ CONTAINS
    SUBROUTINE simpsonrule_get_next_nodes(sr_env, xnodes_next, nnodes)
       TYPE(simpsonrule_type), INTENT(inout)              :: sr_env
       INTEGER, INTENT(inout)                             :: nnodes
-      COMPLEX(kind=dp), DIMENSION(nnodes), INTENT(out)   :: xnodes_next
+      COMPLEX(kind=dp), DIMENSION(nnodes)                :: xnodes_next
 
       CHARACTER(len=*), PARAMETER :: routineN = 'simpsonrule_get_next_nodes', &
          routineP = moduleN//':'//routineN
@@ -270,8 +270,8 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE simpsonrule_get_next_nodes_real(sr_env, xnodes_unity, nnodes)
       TYPE(simpsonrule_type), INTENT(in)                 :: sr_env
-      REAL(kind=dp), DIMENSION(:), INTENT(out)           :: xnodes_unity
-      INTEGER, INTENT(out)                               :: nnodes
+      REAL(kind=dp), DIMENSION(:)                        :: xnodes_unity
+      INTEGER                                            :: nnodes
 
       CHARACTER(len=*), PARAMETER :: routineN = 'simpsonrule_get_next_nodes_real', &
          routineP = moduleN//':'//routineN

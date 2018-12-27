@@ -822,7 +822,7 @@ CONTAINS
    SUBROUTINE grb_fit(atom, basis, afun, iw)
       TYPE(atom_type), POINTER                           :: atom
       TYPE(atom_basis_type), POINTER                     :: basis
-      REAL(dp), INTENT(OUT)                              :: afun
+      REAL(dp)                                           :: afun
       INTEGER, INTENT(IN)                                :: iw
 
       CHARACTER(len=*), PARAMETER :: routineN = 'grb_fit', routineP = moduleN//':'//routineN
@@ -1184,8 +1184,8 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: lval
       REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: am
       INTEGER, INTENT(IN)                                :: nbas
-      REAL(KIND=dp), DIMENSION(:), INTENT(OUT)           :: ener
-      REAL(KIND=dp), DIMENSION(:, :), INTENT(OUT)        :: orb
+      REAL(KIND=dp), DIMENSION(:)                        :: ener
+      REAL(KIND=dp), DIMENSION(:, :)                     :: orb
 
       CHARACTER(len=*), PARAMETER :: routineN = 'hydrogenic', routineP = moduleN//':'//routineN
 

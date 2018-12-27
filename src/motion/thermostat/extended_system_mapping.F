@@ -243,9 +243,9 @@ CONTAINS
       TYPE(distribution_1d_type), POINTER                :: local_molecules
       TYPE(molecule_type), POINTER                       :: molecule_set(:)
       TYPE(cp_para_env_type), POINTER                    :: para_env
-      INTEGER, INTENT(OUT)                               :: natoms_local
+      INTEGER                                            :: natoms_local
       TYPE(simpar_type), POINTER                         :: simpar
-      INTEGER, INTENT(OUT)                               :: sum_of_thermostats
+      INTEGER                                            :: sum_of_thermostats
       TYPE(global_constraint_type), POINTER              :: gci
       LOGICAL, INTENT(IN), OPTIONAL                      :: shell
 
@@ -504,9 +504,9 @@ CONTAINS
       TYPE(distribution_1d_type), POINTER                :: local_molecules
       TYPE(molecule_type), POINTER                       :: molecule_set(:)
       TYPE(cp_para_env_type), POINTER                    :: para_env
-      INTEGER, INTENT(OUT)                               :: natoms_local
+      INTEGER                                            :: natoms_local
       TYPE(simpar_type), POINTER                         :: simpar
-      INTEGER, INTENT(OUT)                               :: sum_of_thermostats
+      INTEGER                                            :: sum_of_thermostats
       TYPE(global_constraint_type), POINTER              :: gci
       LOGICAL, INTENT(IN), OPTIONAL                      :: shell
 

@@ -1337,7 +1337,7 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: zetb, rpgfb
       INTEGER, INTENT(IN)                                :: lb_min
       REAL(KIND=dp), DIMENSION(3), INTENT(IN)            :: rab
-      REAL(KIND=dp), DIMENSION(:, :, :), INTENT(OUT)     :: difab
+      REAL(KIND=dp), DIMENSION(:, :, :)                  :: difab
 
       INTEGER                                            :: lda_min, ldb_min, lds, lmax
       REAL(KIND=dp)                                      :: dab, rab2
@@ -1402,7 +1402,7 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: zetb, rpgfb
       INTEGER, INTENT(IN)                                :: lb_min, order
       REAL(KIND=dp), DIMENSION(3), INTENT(IN)            :: rac, rbc
-      REAL(KIND=dp), DIMENSION(:, :, :, :), INTENT(OUT)  :: difmab
+      REAL(KIND=dp), DIMENSION(:, :, :, :)               :: difmab
       REAL(KIND=dp), DIMENSION(:, :, :), OPTIONAL, &
          POINTER                                         :: mab_ext
 

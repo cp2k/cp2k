@@ -851,7 +851,7 @@ CONTAINS
 !> \param divide logical that decides whether to divide or multiply the input potentials
 ! **************************************************************************************************
    SUBROUTINE hfun_scale(fout, fun1, fun2, divide)
-      REAL(KIND=dp), DIMENSION(:, :, :), INTENT(OUT)     :: fout
+      REAL(KIND=dp), DIMENSION(:, :, :)                  :: fout
       REAL(KIND=dp), DIMENSION(:, :, :), INTENT(IN)      :: fun1, fun2
       LOGICAL, INTENT(IN)                                :: divide
 

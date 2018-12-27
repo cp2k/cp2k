@@ -807,7 +807,7 @@ CONTAINS
 !>   * 01.2017 created [Sergey Chulkov]
 ! **************************************************************************************************
    SUBROUTINE negf_homo_energy_estimate(homo_energy, qs_env)
-      REAL(kind=dp), INTENT(out)                         :: homo_energy
+      REAL(kind=dp)                                      :: homo_energy
       TYPE(qs_environment_type), POINTER                 :: qs_env
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'negf_homo_energy_estimate', &

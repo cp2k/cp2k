@@ -1415,7 +1415,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE combine_lists(list, n, ikind, atom)
       INTEGER, DIMENSION(:), POINTER                     :: list
-      INTEGER, INTENT(OUT)                               :: n
+      INTEGER                                            :: n
       INTEGER, INTENT(IN)                                :: ikind
       TYPE(local_atoms_type), DIMENSION(:), INTENT(IN)   :: atom
 
@@ -1469,7 +1469,7 @@ CONTAINS
    SUBROUTINE pair_radius_setup(present_a, present_b, radius_a, radius_b, pair_radius)
       LOGICAL, DIMENSION(:), INTENT(IN)                  :: present_a, present_b
       REAL(dp), DIMENSION(:), INTENT(IN)                 :: radius_a, radius_b
-      REAL(dp), DIMENSION(:, :), INTENT(OUT)             :: pair_radius
+      REAL(dp), DIMENSION(:, :)                          :: pair_radius
 
       CHARACTER(len=*), PARAMETER :: routineN = 'pair_radius_setup', &
          routineP = moduleN//':'//routineN

@@ -498,14 +498,14 @@ CONTAINS
                                   blacs_env, id_nr)
       TYPE(distribution_2d_type), POINTER                :: distribution_2d
       INTEGER, DIMENSION(:, :), OPTIONAL, POINTER        :: row_distribution, col_distribution
-      INTEGER, INTENT(out), OPTIONAL                     :: n_row_distribution, n_col_distribution
+      INTEGER, OPTIONAL                                  :: n_row_distribution, n_col_distribution
       INTEGER, DIMENSION(:), OPTIONAL, POINTER           :: n_local_rows, n_local_cols
       TYPE(cp_1d_i_p_type), DIMENSION(:), OPTIONAL, &
          POINTER                                         :: local_rows, local_cols
       INTEGER, DIMENSION(:), OPTIONAL, POINTER           :: flat_local_rows, flat_local_cols
-      INTEGER, INTENT(out), OPTIONAL                     :: n_flat_local_rows, n_flat_local_cols
+      INTEGER, OPTIONAL                                  :: n_flat_local_rows, n_flat_local_cols
       TYPE(cp_blacs_env_type), OPTIONAL, POINTER         :: blacs_env
-      INTEGER, INTENT(out), OPTIONAL                     :: id_nr
+      INTEGER, OPTIONAL                                  :: id_nr
 
       CHARACTER(len=*), PARAMETER :: routineN = 'distribution_2d_get', &
          routineP = moduleN//':'//routineN

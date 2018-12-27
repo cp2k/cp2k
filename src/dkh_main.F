@@ -333,9 +333,9 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE kintegral(n, ev0t, tt, e, velit)
       INTEGER, INTENT(IN)                                :: n
-      REAL(KIND=dp), DIMENSION(:), INTENT(OUT)           :: ev0t
+      REAL(KIND=dp), DIMENSION(:)                        :: ev0t
       REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: tt
-      REAL(KIND=dp), DIMENSION(:), INTENT(OUT)           :: e
+      REAL(KIND=dp), DIMENSION(:)                        :: e
       REAL(KIND=dp), INTENT(IN)                          :: velit
 
       INTEGER                                            :: i
@@ -801,7 +801,7 @@ CONTAINS
       !***********************************************************************
 
       INTEGER, INTENT(IN)                                :: n
-      REAL(KIND=dp), DIMENSION(:, :), INTENT(OUT)        :: ev4
+      REAL(KIND=dp), DIMENSION(:, :)                     :: ev4
       REAL(KIND=dp), DIMENSION(:, :), INTENT(IN)         :: e1, pe1p, vv, gg
 
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: o1w1, pvp, pvph, scr_1, scr_2, scr_3, &
@@ -1553,9 +1553,9 @@ CONTAINS
       !-----------------------------------------------------------------------
 
       INTEGER, INTENT(IN)                                :: n
-      REAL(KIND=dp), DIMENSION(:), INTENT(OUT)           :: ev0t
+      REAL(KIND=dp), DIMENSION(:)                        :: ev0t
       REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: tt
-      REAL(KIND=dp), DIMENSION(:), INTENT(OUT)           :: e
+      REAL(KIND=dp), DIMENSION(:)                        :: e
       REAL(KIND=dp), INTENT(IN)                          :: velit
 
       INTEGER                                            :: i
@@ -1622,7 +1622,7 @@ CONTAINS
       !-----------------------------------------------------------------------
 
       INTEGER, INTENT(IN)                                :: n
-      REAL(KIND=dp), DIMENSION(:, :), INTENT(OUT)        :: ev1t
+      REAL(KIND=dp), DIMENSION(:, :)                     :: ev1t
       REAL(KIND=dp), DIMENSION(:, :), INTENT(IN)         :: vt, pvpt
       REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: aa, rr
 
@@ -1668,7 +1668,7 @@ CONTAINS
       !-----------------------------------------------------------------------
 
       INTEGER, INTENT(IN)                                :: n
-      REAL(KIND=dp), DIMENSION(:, :), INTENT(OUT)        :: pev1tp
+      REAL(KIND=dp), DIMENSION(:, :)                     :: pev1tp
       REAL(KIND=dp), DIMENSION(:, :), INTENT(IN)         :: vt, pvpt
       REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: aa, rr, tt
 
@@ -1737,7 +1737,7 @@ CONTAINS
       !***********************************************************************
 
       INTEGER, INTENT(IN)                                :: n
-      REAL(KIND=dp), DIMENSION(:, :), INTENT(OUT)        :: ev2
+      REAL(KIND=dp), DIMENSION(:, :)                     :: ev2
       REAL(KIND=dp), DIMENSION(:, :), INTENT(IN)         :: vv, gg
       REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: aa, rr, tt, e
 
@@ -1869,7 +1869,7 @@ CONTAINS
       !***********************************************************************
 
       INTEGER, INTENT(IN)                                :: n
-      REAL(KIND=dp), DIMENSION(:, :), INTENT(OUT)        :: ev3
+      REAL(KIND=dp), DIMENSION(:, :)                     :: ev3
       REAL(KIND=dp), DIMENSION(:, :), INTENT(IN)         :: e1, pe1p, vv, gg
       REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: aa, rr, tt, e
 
@@ -2005,7 +2005,7 @@ CONTAINS
       !***********************************************************************
 
       INTEGER, INTENT(IN)                                :: n
-      REAL(KIND=dp), DIMENSION(:, :), INTENT(OUT)        :: ev4
+      REAL(KIND=dp), DIMENSION(:, :)                     :: ev4
       REAL(KIND=dp), DIMENSION(:, :), INTENT(IN)         :: e1, pe1p, vv, gg
       REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: aa, rr, tt, e
 
@@ -2506,7 +2506,7 @@ CONTAINS
       !C                                                                      *
       !C***********************************************************************
 
-      REAL(KIND=dp), DIMENSION(:, :), INTENT(OUT)        :: p
+      REAL(KIND=dp), DIMENSION(:, :)                     :: p
       REAL(KIND=dp), INTENT(IN)                          :: alpha
       REAL(KIND=dp), DIMENSION(:, :), INTENT(IN)         :: q
       REAL(KIND=dp), INTENT(IN)                          :: beta
@@ -2634,8 +2634,8 @@ CONTAINS
    SUBROUTINE JACOB2(sogt, eigv, eigw, n, ic)
 
       INTEGER, INTENT(IN)                                :: n
-      REAL(KIND=dp), DIMENSION(n), INTENT(OUT)           :: eigw
-      REAL(KIND=dp), DIMENSION(n, n), INTENT(OUT)        :: eigv
+      REAL(KIND=dp), DIMENSION(n)                        :: eigw
+      REAL(KIND=dp), DIMENSION(n, n)                     :: eigv
       REAL(KIND=dp), DIMENSION(n, n), INTENT(INOUT)      :: sogt
       INTEGER, INTENT(IN)                                :: ic
 

@@ -71,8 +71,7 @@ CONTAINS
 !>   * 08.2017 created [Sergey Chulkov]
 ! **************************************************************************************************
    SUBROUTINE negf_map_atomic_indices(atom_map, atom_list, subsys_device, subsys_contact, eps_geometry)
-      TYPE(negf_atom_map_type), DIMENSION(:), &
-         INTENT(out)                                     :: atom_map
+      TYPE(negf_atom_map_type), DIMENSION(:)             :: atom_map
       INTEGER, DIMENSION(:), INTENT(in)                  :: atom_list
       TYPE(qs_subsys_type), POINTER                      :: subsys_device, subsys_contact
       REAL(kind=dp), INTENT(in)                          :: eps_geometry

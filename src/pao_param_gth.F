@@ -365,7 +365,7 @@ CONTAINS
    SUBROUTINE pao_param_count_gth(qs_env, ikind, nparams)
       TYPE(qs_environment_type), POINTER                 :: qs_env
       INTEGER, INTENT(IN)                                :: ikind
-      INTEGER, INTENT(OUT)                               :: nparams
+      INTEGER                                            :: nparams
 
       INTEGER                                            :: max_projector, maxl, ncombis
       TYPE(pao_potential_type), DIMENSION(:), POINTER    :: pao_potentials
@@ -404,7 +404,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE gth_calc_term(qs_env, block_V, iatom, jatom, kterm)
       TYPE(qs_environment_type), POINTER                 :: qs_env
-      REAL(dp), DIMENSION(:, :), INTENT(OUT)             :: block_V
+      REAL(dp), DIMENSION(:, :)                          :: block_V
       INTEGER, INTENT(IN)                                :: iatom, jatom, kterm
 
       INTEGER                                            :: c, ikind, jkind, lpot, max_l, min_l, &

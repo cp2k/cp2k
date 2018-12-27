@@ -114,7 +114,7 @@ CONTAINS
 !> \param n ...
 ! **************************************************************************************************
    SUBROUTINE cp_heap_new(heap, n)
-      TYPE(cp_heap_type), INTENT(OUT)                    :: heap
+      TYPE(cp_heap_type)                                 :: heap
       INTEGER, INTENT(IN)                                :: n
 
       heap%n = n
@@ -170,9 +170,9 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE cp_heap_get_first(heap, key, value, found)
       TYPE(cp_heap_type), INTENT(INOUT)                  :: heap
-      INTEGER(KIND=keyt), INTENT(OUT)                    :: key
-      INTEGER(KIND=valt), INTENT(OUT)                    :: value
-      LOGICAL, INTENT(OUT)                               :: found
+      INTEGER(KIND=keyt)                                 :: key
+      INTEGER(KIND=valt)                                 :: value
+      LOGICAL                                            :: found
 
       IF (heap%n .LT. 1) THEN
          found = .FALSE.
@@ -193,9 +193,9 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE cp_heap_pop(heap, key, value, found)
       TYPE(cp_heap_type), INTENT(INOUT)                  :: heap
-      INTEGER(KIND=keyt), INTENT(OUT)                    :: key
-      INTEGER(KIND=valt), INTENT(OUT)                    :: value
-      LOGICAL, INTENT(OUT)                               :: found
+      INTEGER(KIND=keyt)                                 :: key
+      INTEGER(KIND=valt)                                 :: value
+      LOGICAL                                            :: found
 
 !
 
@@ -354,7 +354,7 @@ CONTAINS
    SUBROUTINE bubble_up(heap, first, new_pos)
       TYPE(cp_heap_type), INTENT(INOUT)                  :: heap
       INTEGER, INTENT(IN)                                :: first
-      INTEGER, INTENT(OUT)                               :: new_pos
+      INTEGER                                            :: new_pos
 
       INTEGER                                            :: e, parent
       INTEGER(kind=valt)                                 :: my_value, parent_value

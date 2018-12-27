@@ -214,13 +214,13 @@ CONTAINS
                                ngpts_cut, dr, cutoff, orthorhombic, gvectors, gsquare)
 
       TYPE(pw_grid_type), POINTER                        :: pw_grid
-      INTEGER, INTENT(OUT), OPTIONAL                     :: id_nr, mode
-      REAL(dp), INTENT(OUT), OPTIONAL                    :: vol, dvol
-      INTEGER, DIMENSION(3), INTENT(OUT), OPTIONAL       :: npts
-      INTEGER(int_8), INTENT(OUT), OPTIONAL              :: ngpts, ngpts_cut
-      REAL(dp), DIMENSION(3), INTENT(OUT), OPTIONAL      :: dr
-      REAL(dp), INTENT(OUT), OPTIONAL                    :: cutoff
-      LOGICAL, INTENT(OUT), OPTIONAL                     :: orthorhombic
+      INTEGER, OPTIONAL                                  :: id_nr, mode
+      REAL(dp), OPTIONAL                                 :: vol, dvol
+      INTEGER, DIMENSION(3), OPTIONAL                    :: npts
+      INTEGER(int_8), OPTIONAL                           :: ngpts, ngpts_cut
+      REAL(dp), DIMENSION(3), OPTIONAL                   :: dr
+      REAL(dp), OPTIONAL                                 :: cutoff
+      LOGICAL, OPTIONAL                                  :: orthorhombic
       REAL(dp), DIMENSION(:, :), OPTIONAL, POINTER       :: gvectors
       REAL(dp), DIMENSION(:), OPTIONAL, POINTER          :: gsquare
 
@@ -1268,7 +1268,7 @@ CONTAINS
    SUBROUTINE order_mask(yz_mask, yz_index)
 
       INTEGER, DIMENSION(:, :), INTENT(IN)               :: yz_mask
-      INTEGER, DIMENSION(:, :), INTENT(OUT)              :: yz_index
+      INTEGER, DIMENSION(:, :)                           :: yz_index
 
       CHARACTER(len=*), PARAMETER :: routineN = 'order_mask', routineP = moduleN//':'//routineN
 
@@ -1354,7 +1354,7 @@ CONTAINS
    SUBROUTINE pw_vec_length(h_inv, length_x, length_y, length_z, length, l, m, n)
 
       REAL(KIND=dp), DIMENSION(3, 3), INTENT(IN)         :: h_inv
-      REAL(KIND=dp), INTENT(OUT)                         :: length_x, length_y, length_z, length
+      REAL(KIND=dp)                                      :: length_x, length_y, length_z, length
       INTEGER, INTENT(IN)                                :: l, m, n
 
       length_x &
@@ -1401,7 +1401,7 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(3, 3)                     :: h_inv
       TYPE(pw_grid_type), POINTER                        :: pw_grid
       REAL(KIND=dp), INTENT(IN)                          :: cutoff
-      INTEGER, DIMENSION(:, :), INTENT(OUT)              :: yz_mask
+      INTEGER, DIMENSION(:, :)                           :: yz_mask
 
       CHARACTER(len=*), PARAMETER :: routineN = 'pw_grid_count', routineP = moduleN//':'//routineN
 
@@ -2062,7 +2062,7 @@ CONTAINS
 
       ! Argument
       TYPE(pw_grid_type), POINTER                        :: pw_grid
-      INTEGER, DIMENSION(:, :), INTENT(OUT)              :: yz
+      INTEGER, DIMENSION(:, :)                           :: yz
 
       CHARACTER(len=*), PARAMETER :: routineN = 'pw_grid_remap', routineP = moduleN//':'//routineN
 

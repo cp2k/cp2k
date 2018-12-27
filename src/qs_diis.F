@@ -229,8 +229,8 @@ CONTAINS
       TYPE(cp_fm_p_type), DIMENSION(:), POINTER          :: kc
       TYPE(cp_fm_type), POINTER                          :: sc
       REAL(KIND=dp), INTENT(IN)                          :: delta
-      REAL(KIND=dp), INTENT(OUT)                         :: error_max
-      LOGICAL, INTENT(OUT)                               :: diis_step
+      REAL(KIND=dp)                                      :: error_max
+      LOGICAL                                            :: diis_step
       REAL(KIND=dp), INTENT(IN)                          :: eps_diis
       INTEGER, INTENT(IN), OPTIONAL                      :: nmixing
       TYPE(dbcsr_p_type), DIMENSION(:), OPTIONAL, &
@@ -560,7 +560,7 @@ CONTAINS
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(ls_scf_env_type)                              :: ls_scf_env
       INTEGER, INTENT(IN)                                :: unit_nr, iscf
-      LOGICAL, INTENT(OUT)                               :: diis_step
+      LOGICAL                                            :: diis_step
       REAL(KIND=dp), INTENT(IN)                          :: eps_diis
       INTEGER, INTENT(IN), OPTIONAL                      :: nmixing
       TYPE(dbcsr_type), OPTIONAL                         :: s_matrix

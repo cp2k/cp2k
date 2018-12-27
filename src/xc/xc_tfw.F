@@ -70,9 +70,9 @@ CONTAINS
 !> \param max_deriv ...
 ! **************************************************************************************************
    SUBROUTINE tfw_lda_info(reference, shortform, needs, max_deriv)
-      CHARACTER(LEN=*), INTENT(OUT), OPTIONAL            :: reference, shortform
+      CHARACTER(LEN=*), OPTIONAL                         :: reference, shortform
       TYPE(xc_rho_cflags_type), INTENT(inout), OPTIONAL  :: needs
-      INTEGER, INTENT(out), OPTIONAL                     :: max_deriv
+      INTEGER, OPTIONAL                                  :: max_deriv
 
       IF (PRESENT(reference)) THEN
          reference = "Thomas-Fermi-Weizsaecker kinetic energy functional {LDA version}"
@@ -97,9 +97,9 @@ CONTAINS
 !> \param max_deriv ...
 ! **************************************************************************************************
    SUBROUTINE tfw_lsd_info(reference, shortform, needs, max_deriv)
-      CHARACTER(LEN=*), INTENT(OUT), OPTIONAL            :: reference, shortform
+      CHARACTER(LEN=*), OPTIONAL                         :: reference, shortform
       TYPE(xc_rho_cflags_type), INTENT(inout), OPTIONAL  :: needs
-      INTEGER, INTENT(out), OPTIONAL                     :: max_deriv
+      INTEGER, OPTIONAL                                  :: max_deriv
 
       IF (PRESENT(reference)) THEN
          reference = "Thomas-Fermi-Weizsaecker kinetic energy functional"
@@ -214,7 +214,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE calc_s(rho, grho, s, npoints)
       REAL(KIND=dp), DIMENSION(*), INTENT(in)            :: rho, grho
-      REAL(KIND=dp), DIMENSION(*), INTENT(out)           :: s
+      REAL(KIND=dp), DIMENSION(*)                        :: s
       INTEGER, INTENT(in)                                :: npoints
 
       INTEGER                                            :: ip

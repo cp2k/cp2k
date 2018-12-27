@@ -84,9 +84,9 @@ CONTAINS
    SUBROUTINE xalpha_info(lsd, reference, shortform, needs, max_deriv, &
                           xa_parameter, scaling)
       LOGICAL, INTENT(in)                                :: lsd
-      CHARACTER(LEN=*), INTENT(OUT), OPTIONAL            :: reference, shortform
+      CHARACTER(LEN=*), OPTIONAL                         :: reference, shortform
       TYPE(xc_rho_cflags_type), INTENT(inout), OPTIONAL  :: needs
-      INTEGER, INTENT(out), OPTIONAL                     :: max_deriv
+      INTEGER, OPTIONAL                                  :: max_deriv
       REAL(KIND=dp), INTENT(in), OPTIONAL                :: xa_parameter, scaling
 
       REAL(KIND=dp)                                      :: my_scaling, my_xparam

@@ -324,7 +324,7 @@ CONTAINS
       TYPE(pint_env_type), POINTER                       :: pint_env
       TYPE(helium_solvent_type), INTENT(in), POINTER     :: helium
       INTEGER, INTENT(in)                                :: ip, ibi, l
-      INTEGER, INTENT(out)                               :: ac
+      INTEGER                                            :: ac
 
       INTEGER                                            :: ib, ibb, ibf, ipp, nbeads
       INTEGER, DIMENSION(:), POINTER                     :: perm
@@ -486,7 +486,7 @@ CONTAINS
       TYPE(helium_solvent_type), INTENT(in), POINTER     :: helium
       REAL(KIND=dp), INTENT(in)                          :: r0(3), rl(3)
       INTEGER, INTENT(in)                                :: l
-      REAL(KIND=dp), INTENT(out)                         :: r(0:l, 3)
+      REAL(KIND=dp)                                      :: r(0:l, 3)
 
       INTEGER                                            :: id, k
       REAL(KIND=dp)                                      :: dr(3), mass, mk, ri(3), rp(3), xlk, &
@@ -532,7 +532,7 @@ CONTAINS
       TYPE(helium_solvent_type), INTENT(in), POINTER     :: helium
       INTEGER, INTENT(in)                                :: ip, l
       REAL(KIND=dp), INTENT(in)                          :: C
-      INTEGER, INTENT(out)                               :: ac
+      INTEGER                                            :: ac
 
       INTEGER                                            :: ib, id, nbeads
       INTEGER, DIMENSION(:), POINTER                     :: perm
@@ -625,7 +625,7 @@ CONTAINS
       TYPE(helium_solvent_type), INTENT(in), POINTER     :: helium
       INTEGER, INTENT(in)                                :: l
       REAL(KIND=dp), INTENT(in)                          :: C
-      INTEGER, INTENT(out)                               :: ac
+      INTEGER                                            :: ac
 
       INTEGER                                            :: ib, nbeads
       INTEGER, DIMENSION(:), POINTER                     :: perm
@@ -708,7 +708,7 @@ CONTAINS
       TYPE(pint_env_type), POINTER                       :: pint_env
       TYPE(helium_solvent_type), INTENT(in), POINTER     :: helium
       INTEGER, INTENT(in)                                :: l
-      INTEGER, INTENT(out)                               :: ac
+      INTEGER                                            :: ac
 
       INTEGER                                            :: ib, id, nbeads
       INTEGER, DIMENSION(:), POINTER                     :: perm
@@ -785,7 +785,7 @@ CONTAINS
       TYPE(pint_env_type), POINTER                       :: pint_env
       TYPE(helium_solvent_type), INTENT(in), POINTER     :: helium
       INTEGER, INTENT(in)                                :: l
-      INTEGER, INTENT(out)                               :: ac
+      INTEGER                                            :: ac
 
       INTEGER                                            :: ib, id, nbeads
       INTEGER, DIMENSION(:), POINTER                     :: perm
@@ -864,7 +864,7 @@ CONTAINS
       TYPE(pint_env_type), POINTER                       :: pint_env
       TYPE(helium_solvent_type), INTENT(in), POINTER     :: helium
       INTEGER, INTENT(in)                                :: l
-      INTEGER, INTENT(out)                               :: ac
+      INTEGER                                            :: ac
 
       INTEGER                                            :: ia, ib, ik, ip, natoms, nbeads
       INTEGER, DIMENSION(:), POINTER                     :: perm
@@ -997,7 +997,7 @@ CONTAINS
       TYPE(helium_solvent_type), INTENT(in), POINTER     :: helium
       INTEGER, INTENT(in)                                :: iatom
       REAL(KIND=dp), INTENT(in)                          :: drmax
-      INTEGER, INTENT(out)                               :: ac
+      INTEGER                                            :: ac
 
       INTEGER                                            :: ib, icycle, id, ip, nbeads
       REAL(KIND=dp)                                      :: dr(3), dU, expdU, U, U1, U2, xl, xr
@@ -1089,7 +1089,7 @@ CONTAINS
       TYPE(pint_env_type), POINTER                       :: pint_env
       TYPE(helium_solvent_type), INTENT(in), POINTER     :: helium
       INTEGER, INTENT(in)                                :: iparticle, ibead
-      REAL(kind=dp), INTENT(out)                         :: U
+      REAL(kind=dp)                                      :: U
 
       INTEGER                                            :: ip
       REAL(kind=dp)                                      :: V1, V2
@@ -1197,7 +1197,7 @@ CONTAINS
    SUBROUTINE centroid(helium, iatom, rc)
       TYPE(helium_solvent_type), INTENT(in), POINTER     :: helium
       INTEGER, INTENT(in)                                :: iatom
-      REAL(KIND=dp), INTENT(out)                         :: rc(3)
+      REAL(KIND=dp)                                      :: rc(3)
 
       INTEGER                                            :: ib, id
       REAL(KIND=dp)                                      :: x

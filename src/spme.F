@@ -95,13 +95,12 @@ CONTAINS
       TYPE(ewald_pw_type), POINTER                       :: ewald_pw
       TYPE(cell_type), POINTER                           :: box
       TYPE(particle_type), DIMENSION(:), INTENT(IN)      :: particle_set
-      REAL(KIND=dp), DIMENSION(:, :), INTENT(OUT)        :: fg_coulomb
-      REAL(KIND=dp), INTENT(OUT)                         :: vg_coulomb
-      REAL(KIND=dp), DIMENSION(:, :), INTENT(OUT)        :: pv_g
+      REAL(KIND=dp), DIMENSION(:, :)                     :: fg_coulomb
+      REAL(KIND=dp)                                      :: vg_coulomb
+      REAL(KIND=dp), DIMENSION(:, :)                     :: pv_g
       TYPE(particle_type), DIMENSION(:), OPTIONAL, &
          POINTER                                         :: shell_particle_set, core_particle_set
-      REAL(KIND=dp), DIMENSION(:, :), INTENT(OUT), &
-         OPTIONAL                                        :: fgshell_coulomb, fgcore_coulomb
+      REAL(KIND=dp), DIMENSION(:, :), OPTIONAL           :: fgshell_coulomb, fgcore_coulomb
       LOGICAL, INTENT(IN)                                :: use_virial
       REAL(KIND=dp), DIMENSION(:), OPTIONAL, POINTER     :: charges
       TYPE(atprop_type), POINTER                         :: atprop
@@ -758,7 +757,7 @@ CONTAINS
       TYPE(greens_fn_type), POINTER                      :: green
       INTEGER, DIMENSION(3), INTENT(IN)                  :: npts
       INTEGER, INTENT(IN)                                :: p
-      REAL(KIND=dp), DIMENSION(:, :, :), INTENT(OUT)     :: rhos
+      REAL(KIND=dp), DIMENSION(:, :, :)                  :: rhos
       LOGICAL, INTENT(IN)                                :: is_core, is_shell, unit_charge
       REAL(KIND=dp), DIMENSION(:), OPTIONAL, POINTER     :: charges
 
@@ -817,7 +816,7 @@ CONTAINS
       TYPE(greens_fn_type), POINTER                      :: green
       INTEGER, DIMENSION(3), INTENT(IN)                  :: npts
       INTEGER, INTENT(IN)                                :: p
-      REAL(KIND=dp), DIMENSION(:, :, :), INTENT(OUT)     :: rhos
+      REAL(KIND=dp), DIMENSION(:, :, :)                  :: rhos
       REAL(KIND=dp), DIMENSION(:), POINTER               :: charges
 
       CHARACTER(len=*), PARAMETER :: routineN = 'get_patch_b', routineP = moduleN//':'//routineN
@@ -847,7 +846,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE spme_get_patch(rhos, n, delta, q, coeff)
 
-      REAL(KIND=dp), DIMENSION(:, :, :), INTENT(OUT)     :: rhos
+      REAL(KIND=dp), DIMENSION(:, :, :)                  :: rhos
       INTEGER, INTENT(IN)                                :: n
       REAL(KIND=dp), DIMENSION(3), INTENT(IN)            :: delta
       REAL(KIND=dp), INTENT(IN)                          :: q
@@ -918,7 +917,7 @@ CONTAINS
       TYPE(cell_type), POINTER                           :: box
       REAL(KIND=dp), DIMENSION(3), INTENT(IN)            :: r
       INTEGER, DIMENSION(3), INTENT(IN)                  :: npts
-      REAL(KIND=dp), DIMENSION(3), INTENT(OUT)           :: delta
+      REAL(KIND=dp), DIMENSION(3)                        :: delta
       INTEGER, INTENT(IN)                                :: n
 
       CHARACTER(len=*), PARAMETER :: routineN = 'get_delta', routineP = moduleN//':'//routineN

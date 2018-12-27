@@ -8980,7 +8980,7 @@ CONTAINS
       REAL(KIND=dp), INTENT(IN)                          :: x_val
       INTEGER, INTENT(IN)                                :: nparam
       COMPLEX(KIND=dp), DIMENSION(:), INTENT(IN)         :: xpoints, coeff
-      COMPLEX(KIND=dp), INTENT(OUT)                      :: func_val
+      COMPLEX(KIND=dp)                                   :: func_val
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'evaluate_pade_function', &
          routineP = moduleN//':'//routineN
@@ -9018,7 +9018,7 @@ CONTAINS
       REAL(KIND=dp), INTENT(IN)                          :: x_val
       INTEGER, INTENT(IN)                                :: nparam
       COMPLEX(KIND=dp), DIMENSION(:), INTENT(IN)         :: xpoints, coeff
-      REAL(KIND=dp), INTENT(OUT), OPTIONAL               :: z_value, m_value
+      REAL(KIND=dp), OPTIONAL                            :: z_value, m_value
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'get_z_and_m_value_pade', &
          routineP = moduleN//':'//routineN
@@ -9067,7 +9067,7 @@ CONTAINS
    SUBROUTINE get_sigma_c_bisection_pade(gw_energ, Eigenval_scf, Sigma_x_minus_vxc_gw, e_fermi, &
                                          nparam_pade, omega_points_pade, coeff_pade, start_val)
 
-      REAL(KIND=dp), INTENT(OUT)                         :: gw_energ
+      REAL(KIND=dp)                                      :: gw_energ
       REAL(KIND=dp), INTENT(IN)                          :: Eigenval_scf, Sigma_x_minus_vxc_gw, &
                                                             e_fermi
       INTEGER, INTENT(IN)                                :: nparam_pade
@@ -9132,7 +9132,7 @@ CONTAINS
    SUBROUTINE get_sigma_c_newton_pade(gw_energ, Eigenval_scf, Sigma_x_minus_vxc_gw, e_fermi, &
                                       nparam_pade, omega_points_pade, coeff_pade, start_val)
 
-      REAL(KIND=dp), INTENT(OUT)                         :: gw_energ
+      REAL(KIND=dp)                                      :: gw_energ
       REAL(KIND=dp), INTENT(IN)                          :: Eigenval_scf, Sigma_x_minus_vxc_gw, &
                                                             e_fermi
       INTEGER, INTENT(IN)                                :: nparam_pade

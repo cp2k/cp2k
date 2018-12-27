@@ -1039,7 +1039,7 @@ CONTAINS
 !> \param basis_b ...
 ! **************************************************************************************************
    SUBROUTINE atom_basis_projection_overlap(ovlap, basis_a, basis_b)
-      REAL(KIND=dp), DIMENSION(:, :, 0:), INTENT(OUT)    :: ovlap
+      REAL(KIND=dp), DIMENSION(:, :, 0:)                 :: ovlap
       TYPE(atom_basis_type), INTENT(IN)                  :: basis_a, basis_b
 
       INTEGER                                            :: i, j, l, ma, mb, na, nb

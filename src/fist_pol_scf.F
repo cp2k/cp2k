@@ -680,7 +680,7 @@ CONTAINS
       TYPE(cell_type), POINTER                           :: cell
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
       TYPE(distribution_1d_type), POINTER                :: local_particles
-      REAL(KIND=dp), INTENT(OUT)                         :: vg_coulomb, pot_nonbond
+      REAL(KIND=dp)                                      :: vg_coulomb, pot_nonbond
       TYPE(fist_energy_type), POINTER                    :: thermo
       TYPE(multipole_type), POINTER                      :: multipoles
       LOGICAL, INTENT(IN)                                :: do_correction_bonded, do_forces, &

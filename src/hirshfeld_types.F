@@ -140,12 +140,12 @@ CONTAINS
    SUBROUTINE get_hirshfeld_info(hirshfeld_env, shape_function_type, iterative, &
                                  ref_charge, fnorm, radius_type, use_bohr)
       TYPE(hirshfeld_type), POINTER                      :: hirshfeld_env
-      INTEGER, INTENT(OUT), OPTIONAL                     :: shape_function_type
-      LOGICAL, INTENT(OUT), OPTIONAL                     :: iterative
-      INTEGER, INTENT(OUT), OPTIONAL                     :: ref_charge
+      INTEGER, OPTIONAL                                  :: shape_function_type
+      LOGICAL, OPTIONAL                                  :: iterative
+      INTEGER, OPTIONAL                                  :: ref_charge
       TYPE(pw_p_type), OPTIONAL, POINTER                 :: fnorm
-      INTEGER, INTENT(OUT), OPTIONAL                     :: radius_type
-      LOGICAL, INTENT(OUT), OPTIONAL                     :: use_bohr
+      INTEGER, OPTIONAL                                  :: radius_type
+      LOGICAL, OPTIONAL                                  :: use_bohr
 
       CHARACTER(len=*), PARAMETER :: routineN = 'get_hirshfeld_info', &
          routineP = moduleN//':'//routineN

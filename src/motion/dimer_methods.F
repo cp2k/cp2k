@@ -62,7 +62,7 @@ CONTAINS
    RECURSIVE SUBROUTINE cp_eval_at_ts(gopt_env, x, f, gradient, calc_force)
       TYPE(gopt_f_type), POINTER                         :: gopt_env
       REAL(KIND=dp), DIMENSION(:), POINTER               :: x
-      REAL(KIND=dp), INTENT(OUT)                         :: f
+      REAL(KIND=dp)                                      :: f
       REAL(KIND=dp), DIMENSION(:), POINTER               :: gradient
       LOGICAL, INTENT(IN)                                :: calc_force
 
@@ -285,7 +285,7 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: dimer_index
       TYPE(dimer_env_type), POINTER                      :: dimer_env
       LOGICAL, INTENT(IN)                                :: calc_force
-      REAL(KIND=dp), INTENT(OUT), OPTIONAL               :: f
+      REAL(KIND=dp), OPTIONAL                            :: f
       REAL(KIND=dp), DIMENSION(:), OPTIONAL              :: gradient
 
       CHARACTER(len=*), PARAMETER :: routineN = 'cp_eval_at_ts_low', &

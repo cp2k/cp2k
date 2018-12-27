@@ -181,8 +181,8 @@ CONTAINS
    SUBROUTINE fb_hash_table_get(hash_table, key, val, found)
       TYPE(fb_hash_table_obj), INTENT(IN)                :: hash_table
       INTEGER(KIND=int_8), INTENT(IN)                    :: key
-      INTEGER, INTENT(OUT)                               :: val
-      LOGICAL, INTENT(OUT)                               :: found
+      INTEGER                                            :: val
+      LOGICAL                                            :: found
 
       CHARACTER(len=*), PARAMETER :: routineN = 'fb_hash_table_get', &
          routineP = moduleN//':'//routineN
@@ -413,7 +413,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE fb_hash_table_status(hash_table, nelements, nmax, prime)
       TYPE(fb_hash_table_obj), INTENT(INOUT)             :: hash_table
-      INTEGER, INTENT(OUT), OPTIONAL                     :: nelements, nmax, prime
+      INTEGER, OPTIONAL                                  :: nelements, nmax, prime
 
       CHARACTER(len=*), PARAMETER :: routineN = 'fb_hash_table_status', &
          routineP = moduleN//':'//routineN

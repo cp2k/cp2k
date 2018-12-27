@@ -478,7 +478,7 @@ CONTAINS
          POINTER                                         :: jrho1_atom_set
       TYPE(qs_rho_p_type), DIMENSION(:), OPTIONAL, &
          POINTER                                         :: jrho1_set
-      REAL(dp), INTENT(OUT), OPTIONAL                    :: chi_tensor(3, 3, 2), &
+      REAL(dp), OPTIONAL                                 :: chi_tensor(3, 3, 2), &
                                                             chi_tensor_loc(3, 3, 2), &
                                                             gauge_atom_radius
       TYPE(realspaces_grid_p_type), DIMENSION(:), &
@@ -547,14 +547,14 @@ CONTAINS
                           shift_gapw_radius, do_nics, interpolate_shift)
 
       TYPE(nmr_env_type)                                 :: nmr_env
-      INTEGER, INTENT(OUT), OPTIONAL                     :: n_nics
+      INTEGER, OPTIONAL                                  :: n_nics
       INTEGER, DIMENSION(:), OPTIONAL, POINTER           :: cs_atom_list, do_calc_cs_atom
       REAL(dp), DIMENSION(:, :), OPTIONAL, POINTER       :: r_nics
       REAL(dp), DIMENSION(:, :, :), OPTIONAL, POINTER    :: chemical_shift, chemical_shift_loc, &
                                                             chemical_shift_nics_loc, &
                                                             chemical_shift_nics
-      REAL(dp), INTENT(OUT), OPTIONAL                    :: shift_gapw_radius
-      LOGICAL, INTENT(OUT), OPTIONAL                     :: do_nics, interpolate_shift
+      REAL(dp), OPTIONAL                                 :: shift_gapw_radius
+      LOGICAL, OPTIONAL                                  :: do_nics, interpolate_shift
 
       CHARACTER(len=*), PARAMETER :: routineN = 'get_nmr_env', routineP = moduleN//':'//routineN
 

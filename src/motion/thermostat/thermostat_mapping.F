@@ -82,7 +82,7 @@ CONTAINS
       TYPE(distribution_1d_type), POINTER                :: local_molecules
       TYPE(molecule_type), POINTER                       :: molecule_set(:)
       TYPE(cp_para_env_type), POINTER                    :: para_env
-      INTEGER, INTENT(OUT)                               :: natoms_local
+      INTEGER                                            :: natoms_local
       TYPE(simpar_type), POINTER                         :: simpar
       INTEGER, INTENT(INOUT)                             :: number
       INTEGER, INTENT(IN)                                :: region
@@ -179,7 +179,7 @@ CONTAINS
       TYPE(distribution_1d_type), POINTER                :: local_molecules
       INTEGER, DIMENSION(:), POINTER                     :: const_mol, massive_atom_list, tot_const
       TYPE(molecule_type), POINTER                       :: molecule_set(:)
-      INTEGER, INTENT(OUT)                               :: ntherm
+      INTEGER                                            :: ntherm
       LOGICAL, INTENT(IN)                                :: shell
       TYPE(global_constraint_type), POINTER              :: gci
       INTEGER, DIMENSION(:), POINTER                     :: map_loc_thermo_gen
@@ -387,7 +387,7 @@ CONTAINS
    SUBROUTINE adiabatic_region_evaluate(dis_type, natoms_local, nmol_local, const_mol, &
                                         tot_const, point, local_molecules, molecule_kind_set, molecule_set, simpar, shell)
       INTEGER, INTENT(IN)                                :: dis_type
-      INTEGER, INTENT(OUT)                               :: natoms_local, nmol_local
+      INTEGER                                            :: natoms_local, nmol_local
       INTEGER, DIMENSION(:), POINTER                     :: const_mol, tot_const
       INTEGER, DIMENSION(:, :), POINTER                  :: point
       TYPE(distribution_1d_type), POINTER                :: local_molecules
@@ -540,7 +540,7 @@ CONTAINS
       TYPE(distribution_1d_type), POINTER                :: local_molecules
       TYPE(molecule_type), POINTER                       :: molecule_set(:)
       TYPE(cp_para_env_type), POINTER                    :: para_env
-      INTEGER, INTENT(OUT)                               :: natoms_local
+      INTEGER                                            :: natoms_local
       TYPE(simpar_type), POINTER                         :: simpar
       INTEGER, INTENT(IN)                                :: number, region
       TYPE(global_constraint_type), POINTER              :: gci
@@ -632,7 +632,7 @@ CONTAINS
       TYPE(distribution_1d_type), POINTER                :: local_molecules
       INTEGER, DIMENSION(:), POINTER                     :: const_mol, massive_atom_list, tot_const
       TYPE(molecule_type), POINTER                       :: molecule_set(:)
-      INTEGER, INTENT(OUT)                               :: number
+      INTEGER                                            :: number
       LOGICAL, INTENT(IN)                                :: shell
       TYPE(global_constraint_type), POINTER              :: gci
       INTEGER, DIMENSION(:), POINTER                     :: map_loc_thermo_gen
@@ -815,7 +815,7 @@ CONTAINS
                                       tot_const, point, local_molecules, molecule_kind_set, molecule_set, region, &
                                       simpar, shell, map_loc_thermo_gen, sum_of_thermostats, para_env)
       INTEGER, INTENT(IN)                                :: dis_type
-      INTEGER, INTENT(OUT)                               :: natoms_local, nmol_local
+      INTEGER                                            :: natoms_local, nmol_local
       INTEGER, DIMENSION(:), POINTER                     :: const_mol, tot_const
       INTEGER, DIMENSION(:, :), POINTER                  :: point
       TYPE(distribution_1d_type), POINTER                :: local_molecules

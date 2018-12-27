@@ -660,7 +660,7 @@ CONTAINS
       TYPE(lri_opt_type), POINTER                        :: lri_opt
       TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: pmatrix
       TYPE(cp_para_env_type), POINTER                    :: para_env
-      REAL(KIND=dp), INTENT(OUT)                         :: fobj
+      REAL(KIND=dp)                                      :: fobj
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'calculate_objective', &
          routineP = moduleN//':'//routineN

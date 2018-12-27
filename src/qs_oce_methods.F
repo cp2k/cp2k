@@ -77,9 +77,9 @@ CONTAINS
       TYPE(qs_kind_type), POINTER                        :: atom_ka, atom_kb
       REAL(dp), DIMENSION(3)                             :: rab
       INTEGER, INTENT(IN)                                :: nder
-      INTEGER, DIMENSION(:), INTENT(OUT)                 :: sgf_list
-      INTEGER, INTENT(OUT)                               :: nsgf_cnt
-      LOGICAL, INTENT(OUT)                               :: sgf_soft_only
+      INTEGER, DIMENSION(:)                              :: sgf_list
+      INTEGER                                            :: nsgf_cnt
+      LOGICAL                                            :: sgf_soft_only
       REAL(dp), INTENT(IN)                               :: eps_fit
 
       CHARACTER(len=*), PARAMETER :: routineN = 'build_oce_block', &
@@ -270,8 +270,8 @@ CONTAINS
 
       TYPE(block_p_type), DIMENSION(:), POINTER          :: oceh, oces
       TYPE(qs_kind_type), POINTER                        :: atom_ka
-      INTEGER, DIMENSION(:), INTENT(OUT)                 :: sgf_list
-      INTEGER, INTENT(OUT)                               :: nsgf_cnt
+      INTEGER, DIMENSION(:)                              :: sgf_list
+      INTEGER                                            :: nsgf_cnt
 
       CHARACTER(len=*), PARAMETER :: routineN = 'build_oce_block_local', &
          routineP = moduleN//':'//routineN

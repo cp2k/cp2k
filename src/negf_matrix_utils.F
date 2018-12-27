@@ -744,7 +744,7 @@ CONTAINS
    SUBROUTINE invert_cell_to_index(cell_to_index, nimages, index_to_cell)
       INTEGER, DIMENSION(:, :, :), POINTER               :: cell_to_index
       INTEGER, INTENT(in)                                :: nimages
-      INTEGER, DIMENSION(3, nimages), INTENT(out)        :: index_to_cell
+      INTEGER, DIMENSION(3, nimages)                     :: index_to_cell
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'invert_cell_to_index', &
          routineP = moduleN//':'//routineN

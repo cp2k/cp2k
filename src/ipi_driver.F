@@ -206,7 +206,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE readbuffer_d(psockfd, fdata)
       INTEGER, INTENT(IN)                                :: psockfd
-      REAL(KIND=dp), INTENT(OUT)                         :: fdata
+      REAL(KIND=dp)                                      :: fdata
 
       CHARACTER(len=*), PARAMETER :: routineN = 'readbuffer_d', routineP = moduleN//':'//routineN
 
@@ -228,7 +228,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE readbuffer_i(psockfd, fdata)
       INTEGER, INTENT(IN)                                :: psockfd
-      INTEGER, INTENT(OUT)                               :: fdata
+      INTEGER                                            :: fdata
 
       CHARACTER(len=*), PARAMETER :: routineN = 'readbuffer_i', routineP = moduleN//':'//routineN
 
@@ -251,7 +251,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE readbuffer_s(psockfd, fstring, plen)
       INTEGER, INTENT(IN)                                :: psockfd
-      CHARACTER(LEN=*), INTENT(OUT)                      :: fstring
+      CHARACTER(LEN=*)                                   :: fstring
       INTEGER, INTENT(IN)                                :: plen
 
       CHARACTER(len=*), PARAMETER :: routineN = 'readbuffer_s', routineP = moduleN//':'//routineN
@@ -279,7 +279,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE readbuffer_dv(psockfd, fdata, plen)
       INTEGER, INTENT(IN)                                :: psockfd, plen
-      REAL(KIND=dp), INTENT(OUT), TARGET                 :: fdata(plen)
+      REAL(KIND=dp), TARGET                              :: fdata(plen)
 
       CHARACTER(len=*), PARAMETER :: routineN = 'readbuffer_dv', routineP = moduleN//':'//routineN
 

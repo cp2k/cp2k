@@ -104,10 +104,10 @@ CONTAINS
    SUBROUTINE libxc_lda_info(libxc_params, reference, shortform, needs, max_deriv)
 
       TYPE(section_vals_type), POINTER         :: libxc_params
-      CHARACTER(LEN=*), INTENT(OUT), OPTIONAL  :: reference, shortform
+      CHARACTER(LEN=*), OPTIONAL  :: reference, shortform
       TYPE(xc_rho_cflags_type), &
          INTENT(inout), OPTIONAL               :: needs
-      INTEGER, INTENT(out), OPTIONAL           :: max_deriv
+      INTEGER, OPTIONAL           :: max_deriv
 
       CHARACTER(len=*), PARAMETER :: routineN = 'libxc_lda_info', &
                                      routineP = moduleN//':'//routineN
@@ -204,10 +204,10 @@ CONTAINS
    SUBROUTINE libxc_lsd_info(libxc_params, reference, shortform, needs, max_deriv)
 
       TYPE(section_vals_type), POINTER         :: libxc_params
-      CHARACTER(LEN=*), INTENT(OUT), OPTIONAL  :: reference, shortform
+      CHARACTER(LEN=*), OPTIONAL  :: reference, shortform
       TYPE(xc_rho_cflags_type), &
          INTENT(inout), OPTIONAL               :: needs
-      INTEGER, INTENT(out), OPTIONAL           :: max_deriv
+      INTEGER, OPTIONAL           :: max_deriv
 
       CHARACTER(len=*), PARAMETER :: routineN = 'libxc_lsd_info', &
                                      routineP = moduleN//':'//routineN
@@ -299,7 +299,7 @@ CONTAINS
 !> \author A. Gloess (agloess)
 ! **************************************************************************************************
    SUBROUTINE libxc_version_info(version)
-      CHARACTER(LEN=*), INTENT(OUT)      :: version ! the string that is output
+      CHARACTER(LEN=*)      :: version ! the string that is output
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'libxc_version_info', &
                                      routineP = moduleN//':'//routineN

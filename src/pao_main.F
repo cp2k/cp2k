@@ -194,7 +194,7 @@ CONTAINS
    SUBROUTINE pao_update(qs_env, ls_scf_env, pao_is_done)
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(ls_scf_env_type), TARGET                      :: ls_scf_env
-      LOGICAL, INTENT(OUT)                               :: pao_is_done
+      LOGICAL                                            :: pao_is_done
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'pao_update'
 

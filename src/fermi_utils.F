@@ -44,7 +44,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE Fermi(f, N, kTS, e, mu, T, maxocc, estate, festate)
 
-      REAL(KIND=dp), INTENT(out)                         :: f(:), N, kTS
+      REAL(KIND=dp)                                      :: f(:), N, kTS
       REAL(KIND=dp), INTENT(IN)                          :: e(:), mu, T, maxocc
       INTEGER, INTENT(IN), OPTIONAL                      :: estate
       REAL(KIND=dp), INTENT(IN), OPTIONAL                :: festate
@@ -115,8 +115,8 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE Fermi2(f, nel, kTS, e, mu, wk, t, maxocc)
 
-      REAL(KIND=dp), DIMENSION(:, :), INTENT(OUT)        :: f
-      REAL(KIND=dp), INTENT(OUT)                         :: nel, kTS
+      REAL(KIND=dp), DIMENSION(:, :)                     :: f
+      REAL(KIND=dp)                                      :: nel, kTS
       REAL(KIND=dp), DIMENSION(:, :), INTENT(IN)         :: e
       REAL(KIND=dp), INTENT(IN)                          :: mu
       REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: wk
@@ -201,7 +201,7 @@ CONTAINS
 !> \author  Joost VandeVondele
 ! **************************************************************************************************
    SUBROUTINE FermiFixed(f, mu, kTS, e, N, T, maxocc, estate, festate)
-      REAL(KIND=dp), INTENT(OUT)                         :: f(:), mu, kTS
+      REAL(KIND=dp)                                      :: f(:), mu, kTS
       REAL(KIND=dp), INTENT(IN)                          :: e(:), N, T, maxocc
       INTEGER, INTENT(IN), OPTIONAL                      :: estate
       REAL(KIND=dp), INTENT(IN), OPTIONAL                :: festate
@@ -284,8 +284,8 @@ CONTAINS
 !> \param maxocc Maximum occupation
 ! **************************************************************************************************
    SUBROUTINE Fermikp(f, mu, kTS, e, nel, wk, t, maxocc)
-      REAL(KIND=dp), DIMENSION(:, :), INTENT(OUT)        :: f
-      REAL(KIND=dp), INTENT(OUT)                         :: mu, kTS
+      REAL(KIND=dp), DIMENSION(:, :)                     :: f
+      REAL(KIND=dp)                                      :: mu, kTS
       REAL(KIND=dp), DIMENSION(:, :), INTENT(IN)         :: e
       REAL(KIND=dp), INTENT(IN)                          :: nel
       REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: wk
@@ -338,8 +338,8 @@ CONTAINS
 !> \param t   Temperature
 ! **************************************************************************************************
    SUBROUTINE Fermikp2(f, mu, kTS, e, nel, wk, t)
-      REAL(KIND=dp), DIMENSION(:, :, :), INTENT(OUT)     :: f
-      REAL(KIND=dp), INTENT(OUT)                         :: mu, kTS
+      REAL(KIND=dp), DIMENSION(:, :, :)                  :: f
+      REAL(KIND=dp)                                      :: mu, kTS
       REAL(KIND=dp), DIMENSION(:, :, :), INTENT(IN)      :: e
       REAL(KIND=dp), INTENT(IN)                          :: nel
       REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: wk
@@ -416,7 +416,7 @@ CONTAINS
 !> \author  Joost VandeVondele
 ! **************************************************************************************************
    SUBROUTINE FermiFixedDeriv(dfde, f, mu, kTS, e, N, T, maxocc, l, estate, festate)
-      REAL(KIND=dp), INTENT(OUT)                         :: dfde(:, :), f(:), mu, kTS
+      REAL(KIND=dp)                                      :: dfde(:, :), f(:), mu, kTS
       REAL(KIND=dp), INTENT(IN)                          :: e(:), N, T, maxocc, l
       INTEGER, INTENT(IN), OPTIONAL                      :: estate
       REAL(KIND=dp), INTENT(IN), OPTIONAL                :: festate

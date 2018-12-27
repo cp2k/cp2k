@@ -55,7 +55,7 @@ CONTAINS
       REAL(KIND=dp), INTENT(IN)                          :: matrix(:, :)
       INTEGER, INTENT(IN)                                :: mysize
       CHARACTER(LEN=*), INTENT(IN)                       :: storageform
-      REAL(KIND=dp), INTENT(OUT)                         :: eigenvalues(:), eigenvectors(:, :)
+      REAL(KIND=dp)                                      :: eigenvalues(:), eigenvectors(:, :)
 
       CHARACTER(len=*), PARAMETER :: routineN = 'diagonalise_ssyev', &
          routineP = moduleN//':'//routineN
@@ -104,8 +104,8 @@ CONTAINS
       COMPLEX(KIND=dp), INTENT(INOUT)                    :: matrix(:)
       INTEGER, INTENT(IN)                                :: mysize
       CHARACTER(LEN=*), INTENT(IN)                       :: storageform
-      REAL(KIND=dp), INTENT(OUT)                         :: eigenvalues(:)
-      COMPLEX(KIND=dp), INTENT(OUT)                      :: eigenvectors(:, :)
+      REAL(KIND=dp)                                      :: eigenvalues(:)
+      COMPLEX(KIND=dp)                                   :: eigenvectors(:, :)
 
       CHARACTER(len=*), PARAMETER :: routineN = 'diagonalise_chpev', &
          routineP = moduleN//':'//routineN
@@ -148,9 +148,9 @@ CONTAINS
    SUBROUTINE cp2k_sgesvd(matrix, svalues, mrow, ncol, uvec, vtvec)
 
       REAL(KIND=dp), INTENT(IN)                          :: matrix(:, :)
-      REAL(KIND=dp), INTENT(OUT)                         :: svalues(:)
+      REAL(KIND=dp)                                      :: svalues(:)
       INTEGER, INTENT(IN)                                :: mrow, ncol
-      REAL(KIND=dp), INTENT(OUT)                         :: uvec(:, :), vtvec(:, :)
+      REAL(KIND=dp)                                      :: uvec(:, :), vtvec(:, :)
 
       CHARACTER(len=*), PARAMETER :: routineN = 'cp2k_sgesvd', routineP = moduleN//':'//routineN
       CHARACTER, PARAMETER                               :: jobu = "A", jobvt = "A"
@@ -183,9 +183,9 @@ CONTAINS
    SUBROUTINE cp2k_cgesvd(matrix, svalues, mrow, ncol, uvec, vtvec)
 
       COMPLEX(KIND=dp), INTENT(IN)                       :: matrix(:, :)
-      REAL(KIND=dp), INTENT(OUT)                         :: svalues(:)
+      REAL(KIND=dp)                                      :: svalues(:)
       INTEGER, INTENT(IN)                                :: mrow, ncol
-      COMPLEX(KIND=dp), INTENT(OUT)                      :: uvec(:, :), vtvec(:, :)
+      COMPLEX(KIND=dp)                                   :: uvec(:, :), vtvec(:, :)
 
       CHARACTER(len=*), PARAMETER :: routineN = 'cp2k_cgesvd', routineP = moduleN//':'//routineN
       CHARACTER, PARAMETER                               :: jobu = "A", jobvt = "A"

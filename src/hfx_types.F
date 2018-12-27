@@ -858,7 +858,7 @@ CONTAINS
       IMPLICIT NONE
 
       REAL(dp), INTENT(in)  :: eps, omg
-      REAL(dp), INTENT(out) :: r_cutoff
+      REAL(dp) :: r_cutoff
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'erfc_cutoff', &
                                      routineP = moduleN//':'//routineN
@@ -895,7 +895,7 @@ CONTAINS
 ! **************************************************************************************************
       SUBROUTINE eval_transc_func(r, eps, omega, fn, df)
       REAL(dp), INTENT(in)                               :: r, eps, omega
-      REAL(dp), INTENT(out)                              :: fn, df
+      REAL(dp)                                           :: fn, df
 
          fn = erfc(omega*r)-r*eps
          df = -omega*2*EXP(-omega**2*r**2)/SQRT(pi)-eps
@@ -1082,7 +1082,7 @@ CONTAINS
                                    i_thread, n_threads, para_env, irep, skip_disk, skip_in_core_forces)
       TYPE(hfx_memory_type)                              :: memory_parameter
       TYPE(section_vals_type), POINTER                   :: hf_sub_section
-      INTEGER, INTENT(OUT), OPTIONAL                     :: storage_id
+      INTEGER, OPTIONAL                                  :: storage_id
       INTEGER, INTENT(IN), OPTIONAL                      :: i_thread, n_threads
       TYPE(cp_para_env_type), OPTIONAL                   :: para_env
       INTEGER, INTENT(IN), OPTIONAL                      :: irep

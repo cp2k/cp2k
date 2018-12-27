@@ -436,7 +436,7 @@ CONTAINS
    SUBROUTINE density_matrix_sign_fixed_mu(matrix_p, trace, mu, matrix_ks, matrix_s, matrix_s_inv, threshold)
 
       TYPE(dbcsr_type), INTENT(INOUT)                    :: matrix_p
-      REAL(KIND=dp), INTENT(OUT)                         :: trace
+      REAL(KIND=dp)                                      :: trace
       REAL(KIND=dp), INTENT(INOUT)                       :: mu
       TYPE(dbcsr_type), INTENT(INOUT)                    :: matrix_ks, matrix_s, matrix_s_inv
       REAL(KIND=dp), INTENT(IN)                          :: threshold
@@ -531,7 +531,7 @@ CONTAINS
       TYPE(dbcsr_type), INTENT(INOUT), OPTIONAL          :: matrix_ks_deviation
       INTEGER, INTENT(IN)                                :: max_iter_lanczos
       REAL(KIND=dp), INTENT(IN)                          :: eps_lanczos
-      LOGICAL, INTENT(OUT), OPTIONAL                     :: converged
+      LOGICAL, OPTIONAL                                  :: converged
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'density_matrix_trs4', &
          routineP = moduleN//':'//routineN

@@ -66,8 +66,8 @@ CONTAINS
    SUBROUTINE setup_calculation(order, m, calc, tag)
 
       INTEGER, INTENT(IN)                                :: order
-      INTEGER, INTENT(OUT)                               :: m(0:, :)
-      LOGICAL, INTENT(OUT)                               :: calc(0:)
+      INTEGER                                            :: m(0:, :)
+      LOGICAL                                            :: calc(0:)
       INTEGER, INTENT(IN)                                :: tag
 
       CHARACTER(len=*), PARAMETER :: routineN = 'setup_calculation', &
@@ -156,7 +156,7 @@ CONTAINS
 !   rs parameter : f*rho**(-1/3)
 
       REAL(KIND=dp), INTENT(IN)                          :: rho
-      REAL(KIND=dp), INTENT(OUT)                         :: rs
+      REAL(KIND=dp)                                      :: rs
 
       IF (rho < eps_rho) THEN
          rs = 0.0_dp
@@ -176,7 +176,7 @@ CONTAINS
 !   rs parameter : f*rho**(-1/3)
 
       REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: rho
-      REAL(KIND=dp), DIMENSION(:), INTENT(OUT)           :: rs
+      REAL(KIND=dp), DIMENSION(:)                        :: rs
 
       CHARACTER(len=*), PARAMETER :: routineN = 'calc_rs_array', routineP = moduleN//':'//routineN
 
@@ -208,7 +208,7 @@ CONTAINS
 !   rs parameter : f*rho**(-1/3)
 
       REAL(KIND=dp), DIMENSION(*), INTENT(IN)            :: rho
-      REAL(KIND=dp), DIMENSION(*), INTENT(OUT)           :: rs
+      REAL(KIND=dp), DIMENSION(*)                        :: rs
       INTEGER, INTENT(IN)                                :: n
 
       INTEGER                                            :: k
@@ -236,7 +236,7 @@ CONTAINS
 !   x = sqrt(rs)
 
       REAL(KIND=dp), DIMENSION(*), INTENT(IN)            :: rho
-      REAL(KIND=dp), DIMENSION(*), INTENT(OUT)           :: x
+      REAL(KIND=dp), DIMENSION(*)                        :: x
       INTEGER, INTENT(in)                                :: n
 
       INTEGER                                            :: ip
@@ -263,7 +263,7 @@ CONTAINS
 
       CHARACTER(len=*), INTENT(IN)                       :: tag
       REAL(KIND=dp), DIMENSION(*), INTENT(IN)            :: rho, grho
-      REAL(KIND=dp), DIMENSION(:), INTENT(OUT)           :: s
+      REAL(KIND=dp), DIMENSION(:)                        :: s
 
       CHARACTER(len=*), PARAMETER :: routineN = 'calc_wave_vector', &
          routineP = moduleN//':'//routineN
@@ -315,7 +315,7 @@ CONTAINS
 
       INTEGER, INTENT(IN)                                :: n
       REAL(KIND=dp), DIMENSION(*), INTENT(IN)            :: rhoa, rhob
-      REAL(KIND=dp), DIMENSION(:, :), INTENT(OUT)        :: fx
+      REAL(KIND=dp), DIMENSION(:, :)                     :: fx
       INTEGER, INTENT(IN)                                :: m
 
       CHARACTER(len=*), PARAMETER :: routineN = 'calc_fx_array', routineP = moduleN//':'//routineN
@@ -388,7 +388,7 @@ CONTAINS
 !
 
       REAL(KIND=dp), INTENT(IN)                          :: rhoa, rhob
-      REAL(KIND=dp), DIMENSION(:), INTENT(OUT)           :: fx
+      REAL(KIND=dp), DIMENSION(:)                        :: fx
       INTEGER, INTENT(IN)                                :: m
 
       REAL(KIND=dp)                                      :: rhoab, x
@@ -434,7 +434,7 @@ CONTAINS
    SUBROUTINE calc_z(a, b, z, order)
 
       REAL(KIND=dp), INTENT(IN)                          :: a, b
-      REAL(KIND=dp), DIMENSION(0:, 0:), INTENT(OUT)      :: z
+      REAL(KIND=dp), DIMENSION(0:, 0:)                   :: z
       INTEGER, INTENT(IN)                                :: order
 
       REAL(KIND=dp)                                      :: c, d

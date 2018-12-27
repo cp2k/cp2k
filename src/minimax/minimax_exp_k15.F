@@ -130,8 +130,8 @@ CONTAINS
    SUBROUTINE get_minimax_coeff_k15(k, Rc, aw, mm_error)
       INTEGER, INTENT(IN)                                :: k
       REAL(KIND=dp), INTENT(IN)                          :: Rc
-      REAL(KIND=dp), DIMENSION(2*k), INTENT(OUT)         :: aw
-      REAL(KIND=dp), INTENT(OUT), OPTIONAL               :: mm_error
+      REAL(KIND=dp), DIMENSION(2*k)                      :: aw
+      REAL(KIND=dp), OPTIONAL                            :: mm_error
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'get_minimax_coeff_k15', &
          routineP = moduleN//':'//routineN

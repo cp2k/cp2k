@@ -160,11 +160,11 @@ CONTAINS
    SUBROUTINE eval_bsse_energy(conf, Em, force_env, n_frags, root_section, &
                                globenv, should_stop)
       INTEGER, DIMENSION(:), INTENT(IN)                  :: conf
-      REAL(KIND=dp), INTENT(OUT)                         :: Em
+      REAL(KIND=dp)                                      :: Em
       TYPE(force_env_type), POINTER                      :: force_env
       TYPE(section_vals_type), POINTER                   :: n_frags, root_section
       TYPE(global_environment_type), POINTER             :: globenv
-      LOGICAL, INTENT(OUT)                               :: should_stop
+      LOGICAL                                            :: should_stop
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'eval_bsse_energy', &
          routineP = moduleN//':'//routineN
@@ -231,7 +231,7 @@ CONTAINS
       INTEGER, DIMENSION(:), INTENT(IN)                  :: conf, conf_loc
       TYPE(section_vals_type), POINTER                   :: n_frags, root_section
       TYPE(global_environment_type), POINTER             :: globenv
-      REAL(KIND=dp), INTENT(OUT)                         :: energy
+      REAL(KIND=dp)                                      :: energy
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'eval_bsse_energy_low', &
          routineP = moduleN//':'//routineN
@@ -417,7 +417,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE conf_info_setup(present_charge, present_multpl, conf, conf_loc, &
                               bsse_section, dft_section)
-      INTEGER, INTENT(OUT)                               :: present_charge, present_multpl
+      INTEGER                                            :: present_charge, present_multpl
       INTEGER, DIMENSION(:), INTENT(IN)                  :: conf, conf_loc
       TYPE(section_vals_type), POINTER                   :: bsse_section, dft_section
 

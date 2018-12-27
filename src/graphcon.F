@@ -76,8 +76,8 @@ CONTAINS
 ! **************************************************************************************************
     SUBROUTINE hash_molecule(reference,kind_ref,hash)
       TYPE(vertex), DIMENSION(:), INTENT(IN)             :: reference
-      INTEGER, DIMENSION(:), INTENT(OUT)                 :: kind_ref
-      INTEGER, INTENT(OUT)                               :: hash
+      INTEGER, DIMENSION(:)                              :: kind_ref
+      INTEGER                                            :: hash
 
       INTEGER                                            :: I, Ihash, N, Nclasses, Nclasses_old, &
                                                             old_class
@@ -130,8 +130,8 @@ CONTAINS
 ! **************************************************************************************************
     SUBROUTINE reorder_graph(reference, unordered, order, matches)
       TYPE(vertex), DIMENSION(:), INTENT(IN)             :: reference, unordered
-      INTEGER, DIMENSION(:), INTENT(OUT)                 :: order
-      LOGICAL, INTENT(OUT)                               :: matches
+      INTEGER, DIMENSION(:)                              :: order
+      LOGICAL                                            :: matches
 
       INTEGER, PARAMETER                                 :: max_tries = 1000000
 

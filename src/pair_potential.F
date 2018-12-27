@@ -280,7 +280,7 @@ CONTAINS
 
       REAL(KIND=dp), INTENT(IN)                          :: hicut
       REAL(KIND=dp), INTENT(INOUT)                       :: locut
-      LOGICAL, INTENT(OUT)                               :: found_locut
+      LOGICAL                                            :: found_locut
       TYPE(pair_potential_single_type), OPTIONAL, &
          POINTER                                         :: pot
       LOGICAL, INTENT(IN)                                :: do_zbl
@@ -918,7 +918,7 @@ CONTAINS
 
       TYPE(pair_potential_pp_type), POINTER              :: potparm
       INTEGER, INTENT(IN)                                :: my_index(:), pot_target, ntype
-      INTEGER, INTENT(OUT)                               :: tmpij_out(2)
+      INTEGER                                            :: tmpij_out(2)
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       LOGICAL, INTENT(IN)                                :: shift_cutoff, do_zbl
 
@@ -1068,7 +1068,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE get_indexes(Inind, ndim, ij)
       INTEGER, INTENT(IN)                                :: Inind, ndim
-      INTEGER, DIMENSION(2), INTENT(OUT)                 :: ij
+      INTEGER, DIMENSION(2)                              :: ij
 
       INTEGER                                            :: i, tmp
 

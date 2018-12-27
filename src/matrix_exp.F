@@ -247,7 +247,7 @@ CONTAINS
    SUBROUTINE get_nsquare_norder(norm, nsquare, norder, eps_exp, method, do_emd)
 
       REAL(dp), INTENT(in)                               :: norm
-      INTEGER, INTENT(out)                               :: nsquare, norder
+      INTEGER                                            :: nsquare, norder
       REAL(dp), INTENT(in)                               :: eps_exp
       INTEGER, INTENT(in)                                :: method
       LOGICAL, INTENT(in)                                :: do_emd

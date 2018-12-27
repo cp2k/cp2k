@@ -97,7 +97,7 @@ CONTAINS
       CHARACTER(LEN=default_string_length), &
          DIMENSION(:), POINTER                           :: ostring
       REAL(Kind=dp), DIMENSION(0:lmat, 10)               :: occupation, wfnocc
-      INTEGER, INTENT(OUT), OPTIONAL                     :: multiplicity
+      INTEGER, OPTIONAL                                  :: multiplicity
 
       CHARACTER(len=*), PARAMETER :: routineN = 'atom_set_occupation', &
          routineP = moduleN//':'//routineN
@@ -349,7 +349,7 @@ CONTAINS
 !> \param rr ...
 ! **************************************************************************************************
    SUBROUTINE atom_density(density, pmat, basis, maxl, typ, rr)
-      REAL(KIND=dp), DIMENSION(:), INTENT(OUT)           :: density
+      REAL(KIND=dp), DIMENSION(:)                        :: density
       REAL(KIND=dp), DIMENSION(:, :, 0:), INTENT(IN)     :: pmat
       TYPE(atom_basis_type), INTENT(IN)                  :: basis
       INTEGER, INTENT(IN)                                :: maxl
@@ -507,7 +507,7 @@ CONTAINS
 !> \version 1.0
 ! **************************************************************************************************
    SUBROUTINE atom_read_external_density(density, atom, iw)
-      REAL(KIND=dp), DIMENSION(:), INTENT(OUT)           :: density
+      REAL(KIND=dp), DIMENSION(:)                        :: density
       TYPE(atom_type), INTENT(INOUT)                     :: atom
       INTEGER, INTENT(IN)                                :: iw
 
@@ -602,7 +602,7 @@ CONTAINS
 !> \author D. Varsano [daniele.varsano@nano.cnr.it]
 ! **************************************************************************************************
    SUBROUTINE atom_read_external_vxc(vxc, atom, iw)
-      REAL(KIND=dp), DIMENSION(:), INTENT(OUT)           :: vxc
+      REAL(KIND=dp), DIMENSION(:)                        :: vxc
       TYPE(atom_type), INTENT(INOUT)                     :: atom
       INTEGER, INTENT(IN)                                :: iw
 
@@ -651,7 +651,7 @@ CONTAINS
 !> \param basis ...
 ! **************************************************************************************************
    SUBROUTINE atom_orbital_charge(charge, wfn, rcov, l, basis)
-      REAL(KIND=dp), INTENT(OUT)                         :: charge
+      REAL(KIND=dp)                                      :: charge
       REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: wfn
       REAL(KIND=dp), INTENT(IN)                          :: rcov
       INTEGER, INTENT(IN)                                :: l
@@ -843,7 +843,7 @@ CONTAINS
 !> \param basis ...
 ! **************************************************************************************************
    SUBROUTINE atom_orbital_max(rmax, wfn, rcov, l, basis)
-      REAL(KIND=dp), INTENT(OUT)                         :: rmax
+      REAL(KIND=dp)                                      :: rmax
       REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: wfn
       REAL(KIND=dp), INTENT(IN)                          :: rcov
       INTEGER, INTENT(IN)                                :: l
@@ -884,7 +884,7 @@ CONTAINS
 !> \param basis ...
 ! **************************************************************************************************
    SUBROUTINE atom_orbital_nodes(node, wfn, rcov, l, basis)
-      INTEGER, INTENT(OUT)                               :: node
+      INTEGER                                            :: node
       REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: wfn
       REAL(KIND=dp), INTENT(IN)                          :: rcov
       INTEGER, INTENT(IN)                                :: l
@@ -921,7 +921,7 @@ CONTAINS
 !> \param basis ...
 ! **************************************************************************************************
    SUBROUTINE atom_wfnr0(value, wfn, basis)
-      REAL(KIND=dp), INTENT(OUT)                         :: value
+      REAL(KIND=dp)                                      :: value
       REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: wfn
       TYPE(atom_basis_type), INTENT(IN)                  :: basis
 
@@ -1833,8 +1833,8 @@ CONTAINS
 !> \param nbs ...
 ! **************************************************************************************************
    SUBROUTINE err_matrix(emat, demax, kmat, pmat, umat, upmat, nval, nbs)
-      REAL(KIND=dp), DIMENSION(:, :, 0:), INTENT(OUT)    :: emat
-      REAL(KIND=dp), INTENT(OUT)                         :: demax
+      REAL(KIND=dp), DIMENSION(:, :, 0:)                 :: emat
+      REAL(KIND=dp)                                      :: demax
       REAL(KIND=dp), DIMENSION(:, :, 0:), INTENT(IN)     :: kmat, pmat, umat, upmat
       INTEGER, DIMENSION(0:), INTENT(IN)                 :: nval, nbs
 
@@ -1872,7 +1872,7 @@ CONTAINS
 !> \param grid ...
 ! **************************************************************************************************
    SUBROUTINE slater_density(density1, density2, zcore, state, grid)
-      REAL(KIND=dp), DIMENSION(:), INTENT(OUT)           :: density1, density2
+      REAL(KIND=dp), DIMENSION(:)                        :: density1, density2
       INTEGER, INTENT(IN)                                :: zcore
       TYPE(atom_state), INTENT(IN)                       :: state
       TYPE(grid_atom_type), INTENT(IN)                   :: grid
@@ -1935,7 +1935,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE wigner_slater_functional(rho, vxc)
       REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: rho
-      REAL(KIND=dp), DIMENSION(:), INTENT(OUT)           :: vxc
+      REAL(KIND=dp), DIMENSION(:)                        :: vxc
 
       CHARACTER(len=*), PARAMETER :: routineN = 'wigner_slater_functional', &
          routineP = moduleN//':'//routineN
@@ -1990,7 +1990,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE get_rho0(atom, rho0)
       TYPE(atom_type), INTENT(IN)                        :: atom
-      REAL(KIND=dp), INTENT(OUT)                         :: rho0
+      REAL(KIND=dp)                                      :: rho0
 
       INTEGER                                            :: m0, m1, m2, method, nr
       LOGICAL                                            :: nlcc, spinpol
@@ -2249,7 +2249,7 @@ CONTAINS
    SUBROUTINE atom_basis_condnum(basis, rad, cnum)
       TYPE(atom_basis_type)                              :: basis
       REAL(KIND=dp), INTENT(IN)                          :: rad
-      REAL(KIND=dp), INTENT(OUT)                         :: cnum
+      REAL(KIND=dp)                                      :: cnum
 
       CHARACTER(len=*), PARAMETER :: routineN = 'atom_basis_condnum', &
          routineP = moduleN//':'//routineN

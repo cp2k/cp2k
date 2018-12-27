@@ -92,7 +92,7 @@ CONTAINS
 
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(rho0_mpole_type), POINTER                     :: rho0
-      REAL(dp), INTENT(OUT)                              :: tot_rs_int
+      REAL(dp)                                           :: tot_rs_int
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'put_rho0_on_grid', &
          routineP = moduleN//':'//routineN

@@ -58,7 +58,7 @@ CONTAINS
       LOGICAL, INTENT(IN)                                :: test_accuracy
       TYPE(cp_para_env_type), INTENT(IN), POINTER        :: para_env
       INTEGER, INTENT(IN)                                :: iw
-      INTEGER, INTENT(OUT), OPTIONAL                     :: G_count, R_count
+      INTEGER, OPTIONAL                                  :: G_count, R_count
 
       CHARACTER(len=*), PARAMETER :: routineN = 'eri_mme_2c_perf_acc_test', &
          routineP = moduleN//':'//routineN
@@ -180,7 +180,7 @@ CONTAINS
       INTEGER, INTENT(IN), OPTIONAL                      :: nsample
       TYPE(cp_para_env_type), INTENT(IN), POINTER        :: para_env
       INTEGER, INTENT(IN)                                :: iw
-      INTEGER, INTENT(OUT), OPTIONAL                     :: GG_count, GR_count, RR_count
+      INTEGER, OPTIONAL                                  :: GG_count, GR_count, RR_count
 
       CHARACTER(len=*), PARAMETER :: routineN = 'eri_mme_3c_perf_acc_test', &
          routineP = moduleN//':'//routineN

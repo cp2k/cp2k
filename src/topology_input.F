@@ -579,8 +579,8 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE check_restraint(cons_section, is_restraint, k0, i_rep_section, label)
       TYPE(section_vals_type), POINTER                   :: cons_section
-      LOGICAL, INTENT(OUT)                               :: is_restraint
-      REAL(KIND=dp), INTENT(OUT)                         :: k0
+      LOGICAL                                            :: is_restraint
+      REAL(KIND=dp)                                      :: k0
       INTEGER, INTENT(IN), OPTIONAL                      :: i_rep_section
       CHARACTER(LEN=*), INTENT(IN)                       :: label
 

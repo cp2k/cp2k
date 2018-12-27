@@ -35,7 +35,7 @@ CONTAINS
    SUBROUTINE linpot_full_count_terms(qs_env, ikind, nterms)
       TYPE(qs_environment_type), POINTER                 :: qs_env
       INTEGER, INTENT(IN)                                :: ikind
-      INTEGER, INTENT(OUT)                               :: nterms
+      INTEGER                                            :: nterms
 
       INTEGER                                            :: n
       TYPE(gto_basis_set_type), POINTER                  :: basis_set
@@ -53,7 +53,7 @@ CONTAINS
 !> \param V_blocks ...
 ! **************************************************************************************************
    SUBROUTINE linpot_full_calc_terms(V_blocks)
-      REAL(dp), DIMENSION(:, :, :), INTENT(OUT)          :: V_blocks
+      REAL(dp), DIMENSION(:, :, :)                       :: V_blocks
 
       INTEGER                                            :: i, j, kterm, n, nterms
 

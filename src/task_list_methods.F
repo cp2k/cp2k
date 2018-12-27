@@ -587,8 +587,8 @@ CONTAINS
    SUBROUTINE compute_pgf_properties(cube_center, lb_cube, ub_cube, radius, &
                                      rs_desc, cube_info, la_max, zeta, la_min, lb_max, zetb, lb_min, ra, rab, rab2, eps)
 
-      INTEGER, DIMENSION(3), INTENT(OUT)                 :: cube_center, lb_cube, ub_cube
-      REAL(KIND=dp), INTENT(OUT)                         :: radius
+      INTEGER, DIMENSION(3)                              :: cube_center, lb_cube, ub_cube
+      REAL(KIND=dp)                                      :: radius
       TYPE(realspace_grid_desc_type), POINTER            :: rs_desc
       TYPE(cube_info_type), INTENT(IN)                   :: cube_info
       INTEGER, INTENT(IN)                                :: la_max
@@ -810,7 +810,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE pair2int(res, ilevel, image, iatom, jatom, iset, jset, ipgf, jpgf, &
                        nimages, natom, maxset, maxpgf)
-      INTEGER(KIND=int_8), INTENT(OUT)                   :: res
+      INTEGER(KIND=int_8)                                :: res
       INTEGER, INTENT(IN)                                :: ilevel, image, iatom, jatom, iset, jset, &
                                                             ipgf, jpgf, nimages, natom, maxset, &
                                                             maxpgf
@@ -858,7 +858,7 @@ CONTAINS
    SUBROUTINE int2pair(res, ilevel, image, iatom, jatom, iset, jset, ipgf, jpgf, &
                        nimages, natom, maxset, maxpgf)
       INTEGER(KIND=int_8), INTENT(IN)                    :: res
-      INTEGER, INTENT(OUT)                               :: ilevel, image, iatom, jatom, iset, jset, &
+      INTEGER                                            :: ilevel, image, iatom, jatom, iset, jset, &
                                                             ipgf, jpgf
       INTEGER, INTENT(IN)                                :: nimages, natom, maxset, maxpgf
 
@@ -2547,7 +2547,7 @@ CONTAINS
       INTEGER, INTENT(INOUT)                             :: ntasks
       INTEGER(KIND=int_8), DIMENSION(:, :), POINTER      :: tasks
       INTEGER, DIMENSION(3), INTENT(IN)                  :: lb_cube, ub_cube
-      INTEGER, INTENT(OUT)                               :: added_tasks
+      INTEGER                                            :: added_tasks
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'rs_find_node', routineP = moduleN//':'//routineN
       INTEGER, PARAMETER                                 :: add_tasks = 1000

@@ -551,7 +551,7 @@ CONTAINS
    SUBROUTINE get_iterator_task(iterator_set, task, mepos)
       TYPE(neighbor_list_iterator_p_type), &
          DIMENSION(:), POINTER                           :: iterator_set
-      TYPE(neighbor_list_task_type), INTENT(OUT)         :: task
+      TYPE(neighbor_list_task_type)                      :: task
       INTEGER, OPTIONAL                                  :: mepos
 
       IF (PRESENT(mepos)) THEN
@@ -910,7 +910,7 @@ CONTAINS
    SUBROUTINE get_neighbor_list(neighbor_list, atom, nnode)
 
       TYPE(neighbor_list_type), POINTER                  :: neighbor_list
-      INTEGER, INTENT(OUT), OPTIONAL                     :: atom, nnode
+      INTEGER, OPTIONAL                                  :: atom, nnode
 
       CHARACTER(len=*), PARAMETER :: routineN = 'get_neighbor_list', &
          routineP = moduleN//':'//routineN
@@ -940,8 +940,8 @@ CONTAINS
    SUBROUTINE get_neighbor_list_set(neighbor_list_set, nlist, symmetric)
 
       TYPE(neighbor_list_set_type), POINTER              :: neighbor_list_set
-      INTEGER, INTENT(OUT), OPTIONAL                     :: nlist
-      LOGICAL, INTENT(OUT), OPTIONAL                     :: symmetric
+      INTEGER, OPTIONAL                                  :: nlist
+      LOGICAL, OPTIONAL                                  :: symmetric
 
       CHARACTER(len=*), PARAMETER :: routineN = 'get_neighbor_list_set', &
          routineP = moduleN//':'//routineN
@@ -972,8 +972,8 @@ CONTAINS
 
       TYPE(neighbor_list_set_p_type), DIMENSION(:), &
          POINTER                                         :: neighbor_list_sets
-      INTEGER, INTENT(OUT), OPTIONAL                     :: nlist
-      LOGICAL, INTENT(OUT), OPTIONAL                     :: symmetric
+      INTEGER, OPTIONAL                                  :: nlist
+      LOGICAL, OPTIONAL                                  :: symmetric
 
       CHARACTER(len=*), PARAMETER :: routineN = 'get_neighbor_list_set_p', &
          routineP = moduleN//':'//routineN
@@ -1018,9 +1018,9 @@ CONTAINS
    SUBROUTINE get_neighbor_node(neighbor_node, neighbor, cell, r)
 
       TYPE(neighbor_node_type), POINTER                  :: neighbor_node
-      INTEGER, INTENT(OUT), OPTIONAL                     :: neighbor
-      INTEGER, DIMENSION(3), INTENT(OUT), OPTIONAL       :: cell
-      REAL(dp), DIMENSION(3), INTENT(OUT), OPTIONAL      :: r
+      INTEGER, OPTIONAL                                  :: neighbor
+      INTEGER, DIMENSION(3), OPTIONAL                    :: cell
+      REAL(dp), DIMENSION(3), OPTIONAL                   :: r
 
       CHARACTER(len=*), PARAMETER :: routineN = 'get_neighbor_node', &
          routineP = moduleN//':'//routineN

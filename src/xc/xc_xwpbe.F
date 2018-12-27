@@ -103,9 +103,9 @@ CONTAINS
 !> \author Manuel Guidon
 ! **************************************************************************************************
    SUBROUTINE xwpbe_lda_info(reference, shortform, needs, max_deriv)
-      CHARACTER(LEN=*), INTENT(OUT), OPTIONAL            :: reference, shortform
+      CHARACTER(LEN=*), OPTIONAL                         :: reference, shortform
       TYPE(xc_rho_cflags_type), INTENT(inout), OPTIONAL  :: needs
-      INTEGER, INTENT(out), OPTIONAL                     :: max_deriv
+      INTEGER, OPTIONAL                                  :: max_deriv
 
       IF (PRESENT(reference)) THEN
          reference = "Jochen Heyd and Gustavo E. Scuseria, J. Chem. Phys., 120, 7274 {LDA version}"
@@ -5211,9 +5211,9 @@ CONTAINS
 !> \author Manuel Guidon
 ! **************************************************************************************************
    SUBROUTINE xwpbe_lsd_info(reference, shortform, needs, max_deriv)
-      CHARACTER(LEN=*), INTENT(OUT), OPTIONAL            :: reference, shortform
+      CHARACTER(LEN=*), OPTIONAL                         :: reference, shortform
       TYPE(xc_rho_cflags_type), INTENT(inout), OPTIONAL  :: needs
-      INTEGER, INTENT(out), OPTIONAL                     :: max_deriv
+      INTEGER, OPTIONAL                                  :: max_deriv
 
       IF (PRESENT(reference)) THEN
          reference = "Jochen Heyd and Gustavo E. Scuseria, J. Chem. Phys., 120, 7274 {LSD version}"

@@ -272,7 +272,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE cp_fm_lu_decompose(matrix_a, almost_determinant, correct_sign)
       TYPE(cp_fm_type), POINTER                :: matrix_a
-      REAL(KIND=dp), INTENT(OUT)               :: almost_determinant
+      REAL(KIND=dp)               :: almost_determinant
       LOGICAL, INTENT(IN), OPTIONAL            :: correct_sign
 
       CHARACTER(len=*), PARAMETER :: routineN = 'cp_fm_lu_decompose', &
@@ -705,7 +705,7 @@ CONTAINS
    SUBROUTINE cp_fm_trace_a0b0t0(matrix_a, matrix_b, trace)
 
       TYPE(cp_fm_type), POINTER                          :: matrix_a, matrix_b
-      REAL(KIND=dp), INTENT(OUT)                         :: trace
+      REAL(KIND=dp)                                      :: trace
 
       CHARACTER(len=*), PARAMETER :: routineN = 'cp_fm_trace_a0b0t0', &
          routineP = moduleN//':'//routineN
@@ -777,7 +777,7 @@ CONTAINS
    SUBROUTINE cp_fm_trace_a1b0t1(matrix_a, matrix_b, trace)
       TYPE(cp_fm_p_type), DIMENSION(:), INTENT(in)       :: matrix_a
       TYPE(cp_fm_type), POINTER                          :: matrix_b
-      REAL(kind=dp), DIMENSION(:), INTENT(out)           :: trace
+      REAL(kind=dp), DIMENSION(:)                        :: trace
 
       CHARACTER(len=*), PARAMETER :: routineN = 'cp_fm_trace_a1b0t1', &
          routineP = moduleN//':'//routineN
@@ -849,7 +849,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE cp_fm_trace_a1b1t1(matrix_a, matrix_b, trace)
       TYPE(cp_fm_p_type), DIMENSION(:), INTENT(in)       :: matrix_a, matrix_b
-      REAL(kind=dp), DIMENSION(:), INTENT(out)           :: trace
+      REAL(kind=dp), DIMENSION(:)                        :: trace
 
       CHARACTER(len=*), PARAMETER :: routineN = 'cp_fm_trace_a1b1t1', &
          routineP = moduleN//':'//routineN
@@ -905,7 +905,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE cp_fm_contracted_trace_a2b2t2(matrix_a, matrix_b, trace)
       TYPE(cp_fm_p_type), DIMENSION(:, :), INTENT(in)    :: matrix_a, matrix_b
-      REAL(kind=dp), DIMENSION(:, :), INTENT(out)        :: trace
+      REAL(kind=dp), DIMENSION(:, :)                     :: trace
 
       CHARACTER(len=*), PARAMETER :: routineN = 'cp_fm_contracted_trace_a2b2t2', &
          routineP = moduleN//':'//routineN
@@ -1375,7 +1375,7 @@ CONTAINS
    SUBROUTINE cp_fm_invert(matrix_a, matrix_inverse, det_a, eps_svd, eigval)
 
       TYPE(cp_fm_type), POINTER                :: matrix_a, matrix_inverse
-      REAL(KIND=dp), INTENT(OUT), OPTIONAL     :: det_a
+      REAL(KIND=dp), OPTIONAL     :: det_a
       REAL(KIND=dp), INTENT(IN), OPTIONAL      :: eps_svd
       REAL(KIND=dp), DIMENSION(:), POINTER, &
          INTENT(INOUT), OPTIONAL               :: eigval
@@ -1818,7 +1818,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE cp_fm_lu_invert(matrix, info_out)
       TYPE(cp_fm_type), POINTER                :: matrix
-      INTEGER, INTENT(OUT), OPTIONAL           :: info_out
+      INTEGER, OPTIONAL           :: info_out
 
       CHARACTER(len=*), PARAMETER :: routineN = 'cp_fm_lu_invert', &
                                      routineP = moduleN//':'//routineN

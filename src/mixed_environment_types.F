@@ -198,7 +198,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE init_mixed_env(mixed_env, para_env)
 
-      TYPE(mixed_environment_type), INTENT(OUT)          :: mixed_env
+      TYPE(mixed_environment_type)                       :: mixed_env
       TYPE(cp_para_env_type), POINTER                    :: para_env
 
       NULLIFY (mixed_env%input)

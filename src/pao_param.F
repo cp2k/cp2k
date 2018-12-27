@@ -63,7 +63,7 @@ CONTAINS
       TYPE(pao_env_type), POINTER                        :: pao
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(ls_mstruct_type)                              :: ls_mstruct
-      REAL(dp), INTENT(OUT), OPTIONAL                    :: penalty
+      REAL(dp), OPTIONAL                                 :: penalty
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'pao_update_AB'
 
@@ -186,7 +186,7 @@ CONTAINS
       TYPE(pao_env_type), POINTER                        :: pao
       TYPE(qs_environment_type), POINTER                 :: qs_env
       INTEGER, INTENT(IN)                                :: ikind
-      INTEGER, INTENT(OUT)                               :: nparams
+      INTEGER                                            :: nparams
 
       CHARACTER(len=*), PARAMETER :: routineN = 'pao_param_count', &
          routineP = moduleN//':'//routineN
@@ -267,7 +267,7 @@ CONTAINS
       TYPE(pao_env_type), POINTER                        :: pao
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(dbcsr_type), OPTIONAL                         :: matrix_M, matrix_G
-      REAL(dp), INTENT(OUT), OPTIONAL                    :: penalty
+      REAL(dp), OPTIONAL                                 :: penalty
       REAL(dp), DIMENSION(:, :), INTENT(INOUT), OPTIONAL :: forces
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'pao_calc_U'

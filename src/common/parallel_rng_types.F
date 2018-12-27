@@ -607,7 +607,7 @@ CONTAINS
       ! Dump a RNG stream as a record given as an internal file (string).
 
       TYPE(rng_stream_type), POINTER                     :: rng_stream
-      CHARACTER(LEN=rng_record_length), INTENT(OUT)      :: rng_record
+      CHARACTER(LEN=rng_record_length)                   :: rng_record
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'dump_rng_stream', &
          routineP = moduleN//':'//routineN
@@ -656,13 +656,12 @@ CONTAINS
       ! Get the components of a RNG stream.
 
       TYPE(rng_stream_type), POINTER                     :: rng_stream
-      CHARACTER(LEN=*), INTENT(OUT), OPTIONAL            :: name
-      INTEGER, INTENT(OUT), OPTIONAL                     :: distribution_type
-      REAL(KIND=dp), DIMENSION(3, 2), INTENT(OUT), &
-         OPTIONAL                                        :: bg, cg, ig
-      LOGICAL, INTENT(OUT), OPTIONAL                     :: antithetic, extended_precision
-      REAL(KIND=dp), INTENT(OUT), OPTIONAL               :: buffer
-      LOGICAL, INTENT(OUT), OPTIONAL                     :: buffer_filled
+      CHARACTER(LEN=*), OPTIONAL                         :: name
+      INTEGER, OPTIONAL                                  :: distribution_type
+      REAL(KIND=dp), DIMENSION(3, 2), OPTIONAL           :: bg, cg, ig
+      LOGICAL, OPTIONAL                                  :: antithetic, extended_precision
+      REAL(KIND=dp), OPTIONAL                            :: buffer
+      LOGICAL, OPTIONAL                                  :: buffer_filled
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'get_rng_stream', routineP = moduleN//':'//routineN
 
@@ -811,7 +810,7 @@ CONTAINS
       ! Returns c = MODULO(a*b,m).
 
       REAL(KIND=dp), DIMENSION(3, 3), INTENT(IN)         :: a, b
-      REAL(KIND=dp), DIMENSION(3, 3), INTENT(OUT)        :: c
+      REAL(KIND=dp), DIMENSION(3, 3)                     :: c
       REAL(KIND=dp), INTENT(IN)                          :: m
 
       INTEGER                                            :: i
@@ -836,7 +835,7 @@ CONTAINS
       ! Compute matrix b = MODULO(a**n,m)
 
       REAL(KIND=dp), DIMENSION(3, 3), INTENT(IN)         :: a
-      REAL(KIND=dp), DIMENSION(3, 3), INTENT(OUT)        :: b
+      REAL(KIND=dp), DIMENSION(3, 3)                     :: b
       REAL(KIND=dp), INTENT(IN)                          :: m
       INTEGER, INTENT(IN)                                :: n
 
@@ -889,7 +888,7 @@ CONTAINS
       ! Compute matrix b = MODULO(a**(2**e),m)
 
       REAL(KIND=dp), DIMENSION(3, 3), INTENT(IN)         :: a
-      REAL(KIND=dp), DIMENSION(3, 3), INTENT(OUT)        :: b
+      REAL(KIND=dp), DIMENSION(3, 3)                     :: b
       REAL(KIND=dp), INTENT(IN)                          :: m
       INTEGER, INTENT(IN)                                :: e
 
@@ -923,7 +922,7 @@ CONTAINS
 
       REAL(KIND=dp), DIMENSION(3, 3), INTENT(IN)         :: a
       REAL(KIND=dp), DIMENSION(3), INTENT(IN)            :: s
-      REAL(KIND=dp), DIMENSION(3), INTENT(OUT)           :: v
+      REAL(KIND=dp), DIMENSION(3)                        :: v
       REAL(KIND=dp), INTENT(IN)                          :: m
 
       INTEGER                                            :: i, j

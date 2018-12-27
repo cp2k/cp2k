@@ -53,7 +53,7 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: la_min, lb_max, npgfb
       REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: zetb, rpgfb
       REAL(KIND=dp), DIMENSION(3), INTENT(IN)            :: rac, rbc
-      REAL(KIND=dp), DIMENSION(:, :, :), INTENT(OUT)     :: angab
+      REAL(KIND=dp), DIMENSION(:, :, :)                  :: angab
 
       INTEGER                                            :: ax, ay, az, bx, by, bz, i, ipgf, j, &
                                                             jpgf, la, la_start, lb, na, nb

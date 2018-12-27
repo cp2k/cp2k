@@ -69,7 +69,7 @@ CONTAINS
    SUBROUTINE rotint(sepi, sepj, rij, w, anag, se_int_control, se_taper, store_int_env)
       TYPE(semi_empirical_type), POINTER                 :: sepi, sepj
       REAL(dp), DIMENSION(3), INTENT(IN)                 :: rij
-      REAL(dp), DIMENSION(2025), INTENT(OUT)             :: w
+      REAL(dp), DIMENSION(2025)                          :: w
       LOGICAL                                            :: anag
       TYPE(se_int_control_type), INTENT(IN)              :: se_int_control
       TYPE(se_taper_type), POINTER                       :: se_taper
@@ -221,7 +221,7 @@ CONTAINS
    SUBROUTINE rotnuc(sepi, sepj, rij, e1b, e2a, itype, anag, se_int_control, se_taper, store_int_env)
       TYPE(semi_empirical_type), POINTER                 :: sepi, sepj
       REAL(dp), DIMENSION(3), INTENT(IN)                 :: rij
-      REAL(dp), DIMENSION(45), INTENT(OUT), OPTIONAL     :: e1b, e2a
+      REAL(dp), DIMENSION(45), OPTIONAL                  :: e1b, e2a
       INTEGER, INTENT(IN)                                :: itype
       LOGICAL, INTENT(IN)                                :: anag
       TYPE(se_int_control_type), INTENT(IN)              :: se_int_control
@@ -399,7 +399,7 @@ CONTAINS
    SUBROUTINE corecore(sepi, sepj, rij, enuc, itype, anag, se_int_control, se_taper)
       TYPE(semi_empirical_type), POINTER                 :: sepi, sepj
       REAL(dp), DIMENSION(3), INTENT(IN)                 :: rij
-      REAL(dp), INTENT(OUT)                              :: enuc
+      REAL(dp)                                           :: enuc
       INTEGER, INTENT(IN)                                :: itype
       LOGICAL, INTENT(IN)                                :: anag
       TYPE(se_int_control_type), INTENT(IN)              :: se_int_control
@@ -440,7 +440,7 @@ CONTAINS
    SUBROUTINE corecore_el(sepi, sepj, rij, enuc, itype, anag, se_int_control, se_taper)
       TYPE(semi_empirical_type), POINTER                 :: sepi, sepj
       REAL(dp), DIMENSION(3), INTENT(IN)                 :: rij
-      REAL(dp), INTENT(OUT)                              :: enuc
+      REAL(dp)                                           :: enuc
       INTEGER, INTENT(IN)                                :: itype
       LOGICAL, INTENT(IN)                                :: anag
       TYPE(se_int_control_type), INTENT(IN)              :: se_int_control
@@ -475,7 +475,7 @@ CONTAINS
    SUBROUTINE drotint(sepi, sepj, rij, dw, delta, anag, se_int_control, se_taper)
       TYPE(semi_empirical_type), POINTER                 :: sepi, sepj
       REAL(dp), DIMENSION(3), INTENT(IN)                 :: rij
-      REAL(dp), DIMENSION(3, 2025), INTENT(OUT)          :: dw
+      REAL(dp), DIMENSION(3, 2025)                       :: dw
       REAL(dp), INTENT(IN)                               :: delta
       LOGICAL, INTENT(IN)                                :: anag
       TYPE(se_int_control_type), INTENT(IN)              :: se_int_control
@@ -514,7 +514,7 @@ CONTAINS
    SUBROUTINE drotnuc(sepi, sepj, rij, de1b, de2a, itype, delta, anag, se_int_control, se_taper)
       TYPE(semi_empirical_type), POINTER                 :: sepi, sepj
       REAL(dp), DIMENSION(3), INTENT(IN)                 :: rij
-      REAL(dp), DIMENSION(3, 45), INTENT(OUT), OPTIONAL  :: de1b, de2a
+      REAL(dp), DIMENSION(3, 45), OPTIONAL               :: de1b, de2a
       INTEGER, INTENT(IN)                                :: itype
       REAL(dp), INTENT(IN)                               :: delta
       LOGICAL, INTENT(IN)                                :: anag
@@ -557,7 +557,7 @@ CONTAINS
    SUBROUTINE dcorecore(sepi, sepj, rij, denuc, itype, delta, anag, se_int_control, se_taper)
       TYPE(semi_empirical_type), POINTER                 :: sepi, sepj
       REAL(dp), DIMENSION(3), INTENT(IN)                 :: rij
-      REAL(dp), DIMENSION(3), INTENT(OUT)                :: denuc
+      REAL(dp), DIMENSION(3)                             :: denuc
       INTEGER, INTENT(IN)                                :: itype
       REAL(dp), INTENT(IN)                               :: delta
       LOGICAL, INTENT(IN)                                :: anag
@@ -600,7 +600,7 @@ CONTAINS
    SUBROUTINE dcorecore_el(sepi, sepj, rij, denuc, itype, delta, anag, se_int_control, se_taper)
       TYPE(semi_empirical_type), POINTER                 :: sepi, sepj
       REAL(dp), DIMENSION(3), INTENT(IN)                 :: rij
-      REAL(dp), DIMENSION(3), INTENT(OUT)                :: denuc
+      REAL(dp), DIMENSION(3)                             :: denuc
       INTEGER, INTENT(IN)                                :: itype
       REAL(dp), INTENT(IN)                               :: delta
       LOGICAL, INTENT(IN)                                :: anag

@@ -285,7 +285,7 @@ CONTAINS
 !> \param fun2 ...
 ! **************************************************************************************************
    SUBROUTINE hfun_scale(fout, fun1, fun2)
-      REAL(KIND=dp), DIMENSION(:, :, :), INTENT(OUT)     :: fout
+      REAL(KIND=dp), DIMENSION(:, :, :)                  :: fout
       REAL(KIND=dp), DIMENSION(:, :, :), INTENT(IN)      :: fun1, fun2
 
       CHARACTER(len=*), PARAMETER :: routineN = 'hfun_scale', routineP = moduleN//':'//routineN

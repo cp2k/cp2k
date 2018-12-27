@@ -347,7 +347,7 @@ CONTAINS
                             natom, nparticle, ncore, nshell, nkind, atprop, virial, &
                             results, cell)
       TYPE(cp_subsys_type), POINTER                      :: subsys
-      INTEGER, INTENT(out), OPTIONAL                     :: ref_count
+      INTEGER, OPTIONAL                                  :: ref_count
       TYPE(atomic_kind_list_type), OPTIONAL, POINTER     :: atomic_kinds
       TYPE(atomic_kind_type), DIMENSION(:), OPTIONAL, &
          POINTER                                         :: atomic_kind_set
@@ -368,7 +368,7 @@ CONTAINS
       TYPE(particle_list_type), OPTIONAL, POINTER        :: shell_particles, core_particles
       TYPE(global_constraint_type), OPTIONAL, POINTER    :: gci
       TYPE(multipole_type), OPTIONAL, POINTER            :: multipoles
-      INTEGER, INTENT(out), OPTIONAL                     :: natom, nparticle, ncore, nshell, nkind
+      INTEGER, OPTIONAL                                  :: natom, nparticle, ncore, nshell, nkind
       TYPE(atprop_type), OPTIONAL, POINTER               :: atprop
       TYPE(virial_type), OPTIONAL, POINTER               :: virial
       TYPE(cp_result_type), OPTIONAL, POINTER            :: results
@@ -451,7 +451,7 @@ CONTAINS
    SUBROUTINE pack_subsys_particles(subsys, f, r, s, v, fscale, cell)
 
       TYPE(cp_subsys_type), POINTER                      :: subsys
-      REAL(KIND=dp), DIMENSION(:), INTENT(OUT), OPTIONAL :: f, r, s, v
+      REAL(KIND=dp), DIMENSION(:), OPTIONAL              :: f, r, s, v
       REAL(KIND=dp), INTENT(IN), OPTIONAL                :: fscale
       TYPE(cell_type), OPTIONAL, POINTER                 :: cell
 

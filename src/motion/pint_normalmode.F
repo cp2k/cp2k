@@ -219,9 +219,8 @@ CONTAINS
 
       TYPE(normalmode_env_type), POINTER                 :: normalmode_env
       REAL(kind=dp), DIMENSION(:), INTENT(in)            :: mass
-      REAL(kind=dp), DIMENSION(:, :), INTENT(out), &
-         OPTIONAL                                        :: mass_beads, mass_fict
-      REAL(kind=dp), DIMENSION(:), INTENT(out), OPTIONAL :: Q
+      REAL(kind=dp), DIMENSION(:, :), OPTIONAL           :: mass_beads, mass_fict
+      REAL(kind=dp), DIMENSION(:), OPTIONAL              :: Q
 
       CHARACTER(len=*), PARAMETER :: routineN = 'normalmode_init_masses', &
          routineP = moduleN//':'//routineN
@@ -263,7 +262,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE normalmode_x2u(normalmode_env, ux, x)
       TYPE(normalmode_env_type), POINTER                 :: normalmode_env
-      REAL(kind=dp), DIMENSION(:, :), INTENT(out)        :: ux
+      REAL(kind=dp), DIMENSION(:, :)                     :: ux
       REAL(kind=dp), DIMENSION(:, :), INTENT(in)         :: x
 
       CHARACTER(len=*), PARAMETER :: routineN = 'normalmode_x2u', routineP = moduleN//':'//routineN
@@ -287,7 +286,7 @@ CONTAINS
    SUBROUTINE normalmode_u2x(normalmode_env, ux, x)
       TYPE(normalmode_env_type), POINTER                 :: normalmode_env
       REAL(kind=dp), DIMENSION(:, :), INTENT(in)         :: ux
-      REAL(kind=dp), DIMENSION(:, :), INTENT(out)        :: x
+      REAL(kind=dp), DIMENSION(:, :)                     :: x
 
       CHARACTER(len=*), PARAMETER :: routineN = 'normalmode_u2x', routineP = moduleN//':'//routineN
 
@@ -308,7 +307,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE normalmode_f2uf(normalmode_env, uf, f)
       TYPE(normalmode_env_type), POINTER                 :: normalmode_env
-      REAL(kind=dp), DIMENSION(:, :), INTENT(out)        :: uf
+      REAL(kind=dp), DIMENSION(:, :)                     :: uf
       REAL(kind=dp), DIMENSION(:, :), INTENT(in)         :: f
 
       CHARACTER(len=*), PARAMETER :: routineN = 'normalmode_f2uf', &
@@ -334,13 +333,13 @@ CONTAINS
    SUBROUTINE normalmode_calc_uf_h(normalmode_env, mass_beads, ux, uf_h, e_h)
       TYPE(normalmode_env_type), POINTER                 :: normalmode_env
       REAL(kind=dp), DIMENSION(:, :), POINTER            :: mass_beads, ux, uf_h
-      REAL(KIND=dp), INTENT(OUT)                         :: e_h
+      REAL(KIND=dp)                                      :: e_h
 
       CHARACTER(len=*), PARAMETER :: routineN = 'normalmode_calc_uf_h', &
          routineP = moduleN//':'//routineN
 
       INTEGER                                            :: ibead, idim
-      REAL(kind=dp)                                      :: f
+      REAL(KIND=dp)                                      :: f
 
       e_h = 0.0_dp
       DO idim = 1, SIZE(mass_beads, 2)

@@ -166,8 +166,8 @@ CONTAINS
    SUBROUTINE choose_eigv_solver(matrix, eigenvectors, eigenvalues, info)
 
       TYPE(cp_fm_type), POINTER                          :: matrix, eigenvectors
-      REAL(KIND=dp), DIMENSION(:), INTENT(OUT)           :: eigenvalues
-      INTEGER, INTENT(OUT), OPTIONAL                     :: info
+      REAL(KIND=dp), DIMENSION(:)                        :: eigenvalues
+      INTEGER, OPTIONAL                                  :: info
 
       CHARACTER(len=*), PARAMETER :: routineN = 'choose_eigv_solver', &
          routineP = moduleN//':'//routineN
@@ -211,8 +211,8 @@ CONTAINS
    SUBROUTINE cp_fm_syevd(matrix, eigenvectors, eigenvalues, info)
 
       TYPE(cp_fm_type), POINTER                :: matrix, eigenvectors
-      REAL(KIND=dp), DIMENSION(:), INTENT(OUT) :: eigenvalues
-      INTEGER, INTENT(OUT), OPTIONAL           :: info
+      REAL(KIND=dp), DIMENSION(:) :: eigenvalues
+      INTEGER, OPTIONAL           :: info
 
       CHARACTER(len=*), PARAMETER :: routineN = 'cp_fm_syevd', &
                                      routineP = moduleN//':'//routineN
@@ -316,7 +316,7 @@ CONTAINS
 
       TYPE(cp_fm_type), POINTER                :: matrix, eigenvectors
       REAL(KIND=dp), DIMENSION(:)              :: eig
-      INTEGER, INTENT(OUT)                     :: info
+      INTEGER                     :: info
 
       CHARACTER(len=*), PARAMETER :: routineN = 'cp_fm_syevd_base', &
                                      routineP = moduleN//':'//routineN
@@ -423,7 +423,7 @@ CONTAINS
       TYPE(cp_fm_type), POINTER, OPTIONAL          :: eigenvectors
       REAL(KIND=dp), OPTIONAL, INTENT(IN)        :: work_syevx
       INTEGER, INTENT(IN), OPTIONAL                :: neig
-      REAL(KIND=dp), DIMENSION(:), INTENT(OUT)   :: eigenvalues
+      REAL(KIND=dp), DIMENSION(:)   :: eigenvalues
 
       CHARACTER(LEN=*), PARAMETER :: routineN = "cp_fm_syevx", &
                                      routineP = moduleN//":"//routineN
@@ -658,7 +658,7 @@ CONTAINS
 
       TYPE(cp_fm_type), POINTER                    :: matrix
       TYPE(cp_fm_type), POINTER, OPTIONAL          :: eigenvectors
-      REAL(KIND=dp), DIMENSION(:), INTENT(OUT)   :: eigenvalues
+      REAL(KIND=dp), DIMENSION(:)   :: eigenvalues
       INTEGER, INTENT(IN), OPTIONAL                :: ilow, iup
 
       CHARACTER(LEN=*), PARAMETER :: routineN = "cp_fm_syevr", &
@@ -852,9 +852,9 @@ CONTAINS
 
       TYPE(cp_fm_type), POINTER                 :: matrix, work
       REAL(KIND=dp), INTENT(IN)                 :: exponent, threshold
-      INTEGER, INTENT(OUT)                      :: n_dependent
+      INTEGER                      :: n_dependent
       LOGICAL, INTENT(IN), OPTIONAL             :: verbose
-      REAL(KIND=dp), DIMENSION(2), INTENT(OUT), &
+      REAL(KIND=dp), DIMENSION(2), &
          OPTIONAL                               :: eigvals
 
       CHARACTER(len=*), PARAMETER :: routineN = 'cp_fm_power', &

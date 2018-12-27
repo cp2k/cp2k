@@ -79,8 +79,8 @@ CONTAINS
       TYPE(pao_env_type), POINTER                        :: pao
       INTEGER, INTENT(IN)                                :: ikind
       REAL(dp), DIMENSION(:), INTENT(IN)                 :: descriptor
-      REAL(dp), DIMENSION(:), INTENT(OUT)                :: output
-      REAL(dp), INTENT(OUT)                              :: variance
+      REAL(dp), DIMENSION(:)                             :: output
+      REAL(dp)                                           :: variance
 
       INTEGER                                            :: i, info, npoints
       REAL(dp), ALLOCATABLE, DIMENSION(:)                :: cov, weights
@@ -129,7 +129,7 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: ikind
       REAL(dp), DIMENSION(:), INTENT(IN), TARGET         :: descriptor
       REAL(dp), DIMENSION(:), INTENT(IN)                 :: outer_deriv
-      REAL(dp), DIMENSION(:), INTENT(OUT)                :: gradient
+      REAL(dp), DIMENSION(:)                             :: gradient
 
       INTEGER                                            :: i, info, npoints
       REAL(dp), ALLOCATABLE, DIMENSION(:)                :: cov_deriv, weights_deriv

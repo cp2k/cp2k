@@ -497,7 +497,7 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: output_unit
       CHARACTER(LEN=*), INTENT(IN)                       :: label
       INTEGER, INTENT(IN)                                :: ndigits
-      REAL(KIND=dp), DIMENSION(3), INTENT(OUT)           :: total_force
+      REAL(KIND=dp), DIMENSION(3)                        :: total_force
       REAL(KIND=dp), DIMENSION(3), INTENT(INOUT), &
          OPTIONAL                                        :: grand_total_force
       LOGICAL, INTENT(IN), OPTIONAL                      :: zero_force_core_shell_atom

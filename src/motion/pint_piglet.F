@@ -580,7 +580,7 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:, :, :), POINTER         :: a_mat
       INTEGER, INTENT(IN)                                :: p, nsp1
       CHARACTER(LEN=20), INTENT(IN)                      :: myunit
-      CHARACTER(default_string_length), INTENT(OUT)      :: msg
+      CHARACTER(default_string_length)                   :: msg
 
       CHARACTER(len=*), PARAMETER :: routineN = 'a_mat_to_cp2k', routineP = moduleN//':'//routineN
 
@@ -628,7 +628,7 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:, :, :), POINTER         :: c_mat
       INTEGER, INTENT(IN)                                :: p, nsp1
       CHARACTER(LEN=20), INTENT(IN)                      :: myunit
-      CHARACTER(default_string_length), INTENT(OUT)      :: msg
+      CHARACTER(default_string_length)                   :: msg
 
       CHARACTER(len=*), PARAMETER :: routineN = 'c_mat_to_cp2k', routineP = moduleN//':'//routineN
 
@@ -766,7 +766,7 @@ CONTAINS
 
       INTEGER, INTENT(IN)                                :: n
       REAL(KIND=dp), DIMENSION(n, n), INTENT(IN)         :: SST
-      REAL(KIND=dp), DIMENSION(n, n), INTENT(OUT)        :: S
+      REAL(KIND=dp), DIMENSION(n, n)                     :: S
 
       CHARACTER(len=*), PARAMETER :: routineN = 'sqrt_pos_def_mat', &
          routineP = moduleN//':'//routineN

@@ -882,7 +882,7 @@ CONTAINS
    SUBROUTINE set_vecp(i1, i2, i3)
 
       INTEGER, INTENT(IN)                                :: i1
-      INTEGER, INTENT(OUT)                               :: i2, i3
+      INTEGER                                            :: i2, i3
 
       IF (i1 == 1) THEN
          i2 = 2
@@ -906,7 +906,7 @@ CONTAINS
    SUBROUTINE set_vecp_rev(i1, i2, i3)
 
       INTEGER, INTENT(IN)                                :: i1, i2
-      INTEGER, INTENT(OUT)                               :: i3
+      INTEGER                                            :: i3
 
       IF ((i1+i2) == 3) THEN
          i3 = 3

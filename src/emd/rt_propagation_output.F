@@ -260,7 +260,7 @@ CONTAINS
 !> \author Florian Schiffmann (02.09)
 ! **************************************************************************************************
    SUBROUTINE rt_calculate_orthonormality(orthonormality, mos_new, matrix_s)
-      REAL(KIND=dp), INTENT(out)                         :: orthonormality
+      REAL(KIND=dp)                                      :: orthonormality
       TYPE(cp_fm_p_type), DIMENSION(:), POINTER          :: mos_new
       TYPE(dbcsr_type), OPTIONAL, POINTER                :: matrix_s
 
@@ -343,7 +343,7 @@ CONTAINS
       TYPE(rt_prop_type), POINTER                        :: rtp
       TYPE(dbcsr_type), POINTER                          :: matrix_s
       TYPE(cp_fm_p_type), DIMENSION(:), POINTER          :: delta_mos
-      REAL(dp), INTENT(out)                              :: delta_eps
+      REAL(dp)                                           :: delta_eps
 
       CHARACTER(len=*), PARAMETER :: routineN = 'rt_convergence', routineP = moduleN//':'//routineN
       REAL(KIND=dp), PARAMETER                           :: one = 1.0_dp, zero = 0.0_dp
@@ -454,7 +454,7 @@ CONTAINS
 
       TYPE(rt_prop_type), POINTER                        :: rtp
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: delta_P
-      REAL(dp), INTENT(out)                              :: delta_eps
+      REAL(dp)                                           :: delta_eps
 
       CHARACTER(len=*), PARAMETER :: routineN = 'rt_convergence_density', &
          routineP = moduleN//':'//routineN

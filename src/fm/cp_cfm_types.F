@@ -271,7 +271,7 @@ CONTAINS
    SUBROUTINE cp_cfm_get_element(matrix, irow_global, icol_global, alpha)
       TYPE(cp_cfm_type), POINTER                         :: matrix
       INTEGER, INTENT(in)                                :: irow_global, icol_global
-      COMPLEX(kind=dp), INTENT(out)                      :: alpha
+      COMPLEX(kind=dp)                      :: alpha
 
       CHARACTER(len=*), PARAMETER :: routineN = 'cp_cfm_get_element', &
                                      routineP = moduleN//':'//routineN
@@ -377,7 +377,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE cp_cfm_get_submatrix(fm, target_m, start_row, start_col, n_rows, n_cols, transpose)
       TYPE(cp_cfm_type), POINTER                         :: fm
-      COMPLEX(kind=dp), DIMENSION(:, :), INTENT(out)     :: target_m
+      COMPLEX(kind=dp), DIMENSION(:, :)                  :: target_m
       INTEGER, INTENT(in), OPTIONAL                      :: start_row, start_col, n_rows, n_cols
       LOGICAL, INTENT(in), OPTIONAL                      :: transpose
 
@@ -659,10 +659,10 @@ CONTAINS
                               row_indices, col_indices, local_data, context, &
                               matrix_struct, para_env)
       TYPE(cp_cfm_type), POINTER        :: matrix
-      CHARACTER(len=*), OPTIONAL, INTENT(OUT) :: name
-      INTEGER, OPTIONAL, INTENT(OUT)          :: ncol_block, ncol_global, &
-                                                 nrow_block, nrow_global, &
-                                                 nrow_local, ncol_local
+      CHARACTER(len=*), OPTIONAL :: name
+      INTEGER, OPTIONAL          :: ncol_block, ncol_global, &
+                                    nrow_block, nrow_global, &
+                                    nrow_local, ncol_local
       INTEGER, OPTIONAL, DIMENSION(:), POINTER   :: row_indices, col_indices
       TYPE(cp_para_env_type), POINTER, OPTIONAL :: para_env
       TYPE(cp_blacs_env_type), POINTER, OPTIONAL :: context
@@ -1000,7 +1000,7 @@ CONTAINS
    SUBROUTINE cp_cfm_start_copy_general(source, destination, para_env, info)
       TYPE(cp_cfm_type), POINTER                         :: source, destination
       TYPE(cp_para_env_type), POINTER                    :: para_env
-      TYPE(copy_cfm_info_type), INTENT(out)              :: info
+      TYPE(copy_cfm_info_type)                           :: info
 
       CHARACTER(len=*), PARAMETER :: routineN = 'cp_cfm_start_copy_general', &
          routineP = moduleN//':'//routineN

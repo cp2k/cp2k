@@ -14,7 +14,7 @@ USE input_val_types,   only: val_type, val_p_type
 #:set nametype1 = ['int', 'real', 'logical', 'char', 'val']
 #:set type1 = ['integer', 'REAL(kind=dp)','logical', 'character(len=default_string_length)', 'type(val_type),pointer']
 #:set type1in = [_ + ', intent(in)' for _ in type1]
-#:set type1out = [_ + ', intent(out)' for _ in type1]
+#:set type1out = type1
 
 #:set eq = ['=', '=', '=', '=', '=>']
 #:set arrayeq = eq

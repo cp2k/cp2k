@@ -305,10 +305,10 @@ CONTAINS
       TYPE(lib_pexsi_env), INTENT(INOUT)                 :: pexsi_env
       TYPE(dbcsr_type), INTENT(INOUT)                    :: matrix_p
       TYPE(dbcsr_p_type), INTENT(INOUT)                  :: matrix_w
-      REAL(KIND=dp), INTENT(OUT)                         :: kTS
+      REAL(KIND=dp)                                      :: kTS
       TYPE(dbcsr_type), INTENT(IN), TARGET               :: matrix_ks, matrix_s
       INTEGER, INTENT(IN)                                :: nelectron_exact
-      REAL(KIND=dp), INTENT(OUT)                         :: mu
+      REAL(KIND=dp)                                      :: mu
       INTEGER, INTENT(IN)                                :: iscf, ispin
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'density_matrix_pexsi', &
@@ -540,7 +540,7 @@ CONTAINS
       TYPE(lib_pexsi_env), INTENT(INOUT)                 :: pexsi_env
       REAL(KIND=dp), INTENT(IN)                          :: delta_scf, eps_scf
       LOGICAL, INTENT(IN)                                :: initialize
-      LOGICAL, INTENT(OUT)                               :: check_convergence
+      LOGICAL                                            :: check_convergence
 
       CHARACTER(len=*), PARAMETER :: routineN = 'pexsi_set_convergence_tolerance', &
          routineP = moduleN//':'//routineN

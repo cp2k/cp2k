@@ -373,8 +373,8 @@ CONTAINS
    SUBROUTINE create_tmp_logger(para_env, project_name, suffix, output_unit, tmp_logger)
       TYPE(cp_para_env_type), POINTER                    :: para_env
       CHARACTER(len=*)                                   :: project_name, suffix
-      INTEGER, INTENT(OUT)                               :: output_unit
-      TYPE(cp_logger_type), INTENT(OUT), POINTER         :: tmp_logger
+      INTEGER                                            :: output_unit
+      TYPE(cp_logger_type), POINTER                      :: tmp_logger
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'create_tmp_logger', &
          routineP = moduleN//':'//routineN

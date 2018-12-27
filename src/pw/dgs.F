@@ -164,7 +164,7 @@ CONTAINS
       INTEGER, DIMENSION(:), INTENT(IN)                  :: npts_s
       REAL(KIND=dp), INTENT(IN)                          :: cutoff_radius
       TYPE(pw_grid_type), POINTER                        :: grid_s, grid_b
-      REAL(KIND=dp), INTENT(OUT)                         :: cutoff
+      REAL(KIND=dp)                                      :: cutoff
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'dg_find_cutoff', routineP = moduleN//':'//routineN
 
@@ -230,7 +230,7 @@ CONTAINS
 
       INTEGER, DIMENSION(:), INTENT(IN)                  :: npts
       REAL(KIND=dp), INTENT(IN)                          :: cutoff_radius
-      REAL(KIND=dp), DIMENSION(:), INTENT(OUT)           :: dr
+      REAL(KIND=dp), DIMENSION(:)                        :: dr
 
       dr(:) = cutoff_radius/(REAL(npts(:), KIND=dp)/2.0_dp)
 
@@ -263,7 +263,7 @@ CONTAINS
 
       REAL(KIND=dp), INTENT(INOUT)                       :: dr(3)
       REAL(KIND=dp), INTENT(IN)                          :: cell_lengths(3)
-      INTEGER, DIMENSION(:), INTENT(OUT)                 :: npts
+      INTEGER, DIMENSION(:)                              :: npts
 
       INTEGER, DIMENSION(3)                              :: nin
 
@@ -287,7 +287,7 @@ CONTAINS
    SUBROUTINE dg_find_basis(npts, cell_hmat, unit_cell_hmat)
       INTEGER, DIMENSION(:), INTENT(IN)                  :: npts
       REAL(KIND=dp), DIMENSION(3, 3), INTENT(IN)         :: cell_hmat
-      REAL(KIND=dp), DIMENSION(3, 3), INTENT(OUT)        :: unit_cell_hmat
+      REAL(KIND=dp), DIMENSION(3, 3)                     :: unit_cell_hmat
 
       INTEGER                                            :: i
 
@@ -308,7 +308,7 @@ CONTAINS
    SUBROUTINE dg_set_cell(npts, unit_cell_hmat, cell_hmat)
       INTEGER, DIMENSION(:), INTENT(IN)                  :: npts
       REAL(KIND=dp), DIMENSION(3, 3), INTENT(IN)         :: unit_cell_hmat
-      REAL(KIND=dp), DIMENSION(3, 3), INTENT(OUT)        :: cell_hmat
+      REAL(KIND=dp), DIMENSION(3, 3)                     :: cell_hmat
 
 ! computing the unit vector along a, b, c and scaling it to length dr:
 
@@ -334,11 +334,11 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(3, 3), INTENT(IN)         :: cell_hmat
       REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: r
       INTEGER, DIMENSION(:), INTENT(IN)                  :: npts_s, npts_b
-      INTEGER, INTENT(OUT)                               :: centre(3)
+      INTEGER                                            :: centre(3)
       INTEGER, INTENT(IN)                                :: lb(3)
-      COMPLEX(KIND=dp), DIMENSION(lb(1):), INTENT(OUT)   :: ex
-      COMPLEX(KIND=dp), DIMENSION(lb(2):), INTENT(OUT)   :: ey
-      COMPLEX(KIND=dp), DIMENSION(lb(3):), INTENT(OUT)   :: ez
+      COMPLEX(KIND=dp), DIMENSION(lb(1):)                :: ex
+      COMPLEX(KIND=dp), DIMENSION(lb(2):)                :: ey
+      COMPLEX(KIND=dp), DIMENSION(lb(3):)                :: ez
 
       REAL(KIND=dp)                                      :: delta(3)
 
@@ -361,8 +361,8 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(3, 3), INTENT(IN)         :: cell_hmat
       REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: r
       INTEGER, DIMENSION(:), INTENT(IN)                  :: npts_s, npts_b
-      INTEGER, DIMENSION(:), INTENT(OUT)                 :: centre
-      REAL(KIND=dp), DIMENSION(:), INTENT(OUT)           :: delta
+      INTEGER, DIMENSION(:)                              :: centre
+      REAL(KIND=dp), DIMENSION(:)                        :: delta
 
       CHARACTER(len=*), PARAMETER :: routineN = 'dg_get_delta', routineP = moduleN//':'//routineN
 
@@ -554,7 +554,7 @@ CONTAINS
       TYPE(realspace_grid_p_type), DIMENSION(:), POINTER :: drpot
       REAL(KIND=dp), DIMENSION(:, :, :), INTENT(IN)      :: rhos
       INTEGER, DIMENSION(3), INTENT(IN)                  :: center
-      REAL(KIND=dp), DIMENSION(3), INTENT(OUT)           :: force
+      REAL(KIND=dp), DIMENSION(3)                        :: force
 
       INTEGER                                            :: i, ia, ii
       INTEGER, DIMENSION(3)                              :: lb, nc, ns, ub
@@ -633,7 +633,7 @@ CONTAINS
       TYPE(realspace_grid_type), POINTER                 :: drpot
       REAL(KIND=dp), DIMENSION(:, :, :), INTENT(IN)      :: rhos
       INTEGER, DIMENSION(3), INTENT(IN)                  :: center
-      REAL(KIND=dp), INTENT(OUT)                         :: force
+      REAL(KIND=dp)                                      :: force
 
       INTEGER                                            :: i, ia, ii
       INTEGER, DIMENSION(3)                              :: lb, nc, ns, ub
@@ -710,7 +710,7 @@ CONTAINS
       TYPE(realspace_grid_p_type), DIMENSION(:), POINTER :: drpot
       TYPE(pw_p_type), INTENT(IN)                        :: rhos
       INTEGER, DIMENSION(3), INTENT(IN)                  :: center
-      REAL(KIND=dp), DIMENSION(3), INTENT(OUT)           :: force
+      REAL(KIND=dp), DIMENSION(3)                        :: force
 
       INTEGER                                            :: i, ia, ii
       INTEGER, DIMENSION(3)                              :: nc
@@ -784,7 +784,7 @@ CONTAINS
       TYPE(realspace_grid_type), POINTER                 :: drpot
       TYPE(pw_p_type), INTENT(IN)                        :: rhos
       INTEGER, DIMENSION(3), INTENT(IN)                  :: center
-      REAL(KIND=dp), INTENT(OUT)                         :: force
+      REAL(KIND=dp)                                      :: force
 
       INTEGER                                            :: i, ia, ii
       INTEGER, DIMENSION(3)                              :: nc
@@ -1017,7 +1017,7 @@ CONTAINS
    SUBROUTINE dg_int_patch_simple_3d(rbx, rby, rbz, rs, f, ns, nc)
 
       REAL(KIND=dp), DIMENSION(:, :, :), INTENT(IN)      :: rbx, rby, rbz, rs
-      REAL(KIND=dp), DIMENSION(3), INTENT(OUT)           :: f
+      REAL(KIND=dp), DIMENSION(3)                        :: f
       INTEGER, INTENT(IN)                                :: ns(3), nc(3)
 
       INTEGER                                            :: i, ii, j, jj, k, kk
@@ -1051,7 +1051,7 @@ CONTAINS
    SUBROUTINE dg_int_patch_simple_1d(rb, rs, f, ns, nc)
 
       REAL(KIND=dp), DIMENSION(:, :, :), INTENT(IN)      :: rb, rs
-      REAL(KIND=dp), INTENT(OUT)                         :: f
+      REAL(KIND=dp)                                      :: f
       INTEGER, INTENT(IN)                                :: ns(3), nc(3)
 
       INTEGER                                            :: i, ii, j, jj, k, kk

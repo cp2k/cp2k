@@ -48,7 +48,7 @@ CONTAINS
    SUBROUTINE qmmm_env_get(qmmm_env, subsys, potential_energy, kinetic_energy)
       TYPE(qmmm_env_type), POINTER                       :: qmmm_env
       TYPE(cp_subsys_type), OPTIONAL, POINTER            :: subsys
-      REAL(KIND=dp), INTENT(OUT), OPTIONAL               :: potential_energy, kinetic_energy
+      REAL(KIND=dp), OPTIONAL                            :: potential_energy, kinetic_energy
 
       CHARACTER(len=*), PARAMETER :: routineN = 'qmmm_env_get', routineP = moduleN//':'//routineN
 

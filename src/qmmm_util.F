@@ -633,7 +633,7 @@ CONTAINS
    SUBROUTINE spherical_cutoff_factor(spherical_cutoff, rij, factor)
       REAL(KIND=dp), DIMENSION(2), INTENT(IN)            :: spherical_cutoff
       REAL(KIND=dp), DIMENSION(3), INTENT(IN)            :: rij
-      REAL(KIND=dp), INTENT(OUT)                         :: factor
+      REAL(KIND=dp)                                      :: factor
 
       CHARACTER(len=*), PARAMETER :: routineN = 'spherical_cutoff_factor', &
          routineP = moduleN//':'//routineN

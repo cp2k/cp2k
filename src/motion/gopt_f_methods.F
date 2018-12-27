@@ -504,7 +504,7 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: ndf
       REAL(KIND=dp), INTENT(IN)                          :: dr(ndf), g(ndf)
       INTEGER, INTENT(IN)                                :: output_unit
-      LOGICAL, INTENT(OUT)                               :: conv
+      LOGICAL                                            :: conv
       TYPE(gopt_param_type), POINTER                     :: gopt_param
       REAL(KIND=dp), INTENT(IN), OPTIONAL                :: pres_diff, pres_tol
 
@@ -651,7 +651,7 @@ CONTAINS
 
       TYPE(dimer_env_type), POINTER                      :: dimer_env
       INTEGER, INTENT(IN)                                :: output_unit
-      LOGICAL, INTENT(OUT)                               :: conv
+      LOGICAL                                            :: conv
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'check_rot_conv', routineP = moduleN//':'//routineN
 

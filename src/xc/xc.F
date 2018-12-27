@@ -112,11 +112,11 @@ CONTAINS
    SUBROUTINE xc_vxc_pw_create1(vxc_rho, vxc_tau, rho_r, rho_g, tau, exc, xc_section, &
                                 pw_pool, compute_virial, virial_xc)
       TYPE(pw_p_type), DIMENSION(:), POINTER             :: vxc_rho, vxc_tau, rho_r, rho_g, tau
-      REAL(KIND=dp), INTENT(out)                         :: exc
+      REAL(KIND=dp)                                      :: exc
       TYPE(section_vals_type), POINTER                   :: xc_section
       TYPE(pw_pool_type), POINTER                        :: pw_pool
       LOGICAL                                            :: compute_virial
-      REAL(KIND=dp), DIMENSION(3, 3), INTENT(OUT)        :: virial_xc
+      REAL(KIND=dp), DIMENSION(3, 3)                     :: virial_xc
 
       CHARACTER(len=*), PARAMETER :: routineN = 'xc_vxc_pw_create1', &
          routineP = moduleN//':'//routineN
@@ -172,7 +172,7 @@ CONTAINS
    SUBROUTINE xc_vxc_pw_create_test_lsd(vxc_rho, vxc_tau, rho_r, rho_g, tau, &
                                         exc, xc_section, pw_pool)
       TYPE(pw_p_type), DIMENSION(:), POINTER             :: vxc_rho, vxc_tau, rho_r, rho_g, tau
-      REAL(KIND=dp), INTENT(out)                         :: exc
+      REAL(KIND=dp)                                      :: exc
       TYPE(section_vals_type), POINTER                   :: xc_section
       TYPE(pw_pool_type), POINTER                        :: pw_pool
 
@@ -185,7 +185,7 @@ CONTAINS
          POINTER                                         :: split_desc
       INTEGER                                            :: i, ii, ispin, j, k
       INTEGER, DIMENSION(2, 3)                           :: bo
-      REAL(kind=dp)                                      :: diff, exc2, maxdiff, tmp
+      REAL(KIND=dp)                                      :: diff, exc2, maxdiff, tmp
       REAL(KIND=dp), DIMENSION(3, 3)                     :: virial_xc
       REAL(kind=dp), DIMENSION(:, :, :), POINTER         :: pot, pot2, pot3
       TYPE(cp_sll_xc_deriv_type), POINTER                :: deriv_iter
@@ -512,7 +512,7 @@ CONTAINS
    SUBROUTINE xc_vxc_pw_create_debug(vxc_rho, vxc_tau, rho_r, rho_g, tau, exc, &
                                      xc_section, pw_pool)
       TYPE(pw_p_type), DIMENSION(:), POINTER             :: vxc_rho, vxc_tau, rho_r, rho_g, tau
-      REAL(KIND=dp), INTENT(out)                         :: exc
+      REAL(KIND=dp)                                      :: exc
       TYPE(section_vals_type), POINTER                   :: xc_section
       TYPE(pw_pool_type), POINTER                        :: pw_pool
 
@@ -1060,12 +1060,12 @@ CONTAINS
    SUBROUTINE xc_vxc_pw_create(vxc_rho, vxc_tau, exc, rho_r, rho_g, tau, xc_section, &
                                pw_pool, compute_virial, virial_xc)
       TYPE(pw_p_type), DIMENSION(:), POINTER             :: vxc_rho, vxc_tau
-      REAL(KIND=dp), INTENT(out)                         :: exc
+      REAL(KIND=dp)                                      :: exc
       TYPE(pw_p_type), DIMENSION(:), POINTER             :: rho_r, rho_g, tau
       TYPE(section_vals_type), POINTER                   :: xc_section
       TYPE(pw_pool_type), POINTER                        :: pw_pool
       LOGICAL                                            :: compute_virial
-      REAL(KIND=dp), DIMENSION(3, 3), INTENT(OUT)        :: virial_xc
+      REAL(KIND=dp), DIMENSION(3, 3)                     :: virial_xc
 
       CHARACTER(len=*), PARAMETER :: routineN = 'xc_vxc_pw_create', &
          routineP = moduleN//':'//routineN

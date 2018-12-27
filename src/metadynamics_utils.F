@@ -864,7 +864,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE get_meta_iter_level(meta_env, iter_nr)
       TYPE(meta_env_type), POINTER                       :: meta_env
-      INTEGER, INTENT(OUT)                               :: iter_nr
+      INTEGER                                            :: iter_nr
 
       CHARACTER(len=*), PARAMETER :: routineN = 'get_meta_iter_level', &
          routineP = moduleN//':'//routineN

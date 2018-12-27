@@ -248,7 +248,7 @@ CONTAINS
                                        caller_is_elpa)
 
       TYPE(cp_fm_type), POINTER                :: matrix, eigenvectors
-      TYPE(cp_fm_type), POINTER, INTENT(OUT)   :: matrix_new, eigenvectors_new
+      TYPE(cp_fm_type), POINTER   :: matrix_new, eigenvectors_new
       LOGICAL, OPTIONAL, INTENT(IN)            :: caller_is_elpa
 
       CHARACTER(len=*), PARAMETER :: routineN = 'cp_fm_redistribute_start', &
@@ -413,7 +413,7 @@ CONTAINS
 
       TYPE(cp_fm_type), POINTER                :: matrix, eigenvectors
       REAL(KIND=dp), DIMENSION(:)              :: eig
-      TYPE(cp_fm_type), POINTER, INTENT(OUT)   :: matrix_new, eigenvectors_new
+      TYPE(cp_fm_type), POINTER   :: matrix_new, eigenvectors_new
 
       CHARACTER(len=*), PARAMETER :: routineN = 'cp_fm_redistribute_end', &
                                      routineP = moduleN//':'//routineN

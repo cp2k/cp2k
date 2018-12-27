@@ -169,7 +169,7 @@ CONTAINS
    SUBROUTINE calculate_dispersion_nonloc(vxc_rho, rho_r, rho_g, edispersion, &
                                           dispersion_env, energy_only, pw_pool, xc_pw_pool, para_env, virial)
       TYPE(pw_p_type), DIMENSION(:), POINTER             :: vxc_rho, rho_r, rho_g
-      REAL(KIND=dp), INTENT(OUT)                         :: edispersion
+      REAL(KIND=dp)                                      :: edispersion
       TYPE(qs_dispersion_type), POINTER                  :: dispersion_env
       LOGICAL, INTENT(IN)                                :: energy_only
       TYPE(pw_pool_type), POINTER                        :: pw_pool, xc_pw_pool
@@ -582,7 +582,7 @@ CONTAINS
    SUBROUTINE vdW_energy(thetas_g, dispersion_env, vdW_xc_energy, energy_only, virial)
       TYPE(pw_p_type), ALLOCATABLE, DIMENSION(:)         :: thetas_g
       TYPE(qs_dispersion_type), POINTER                  :: dispersion_env
-      REAL(KIND=dp), INTENT(OUT)                         :: vdW_xc_energy
+      REAL(KIND=dp)                                      :: vdW_xc_energy
       LOGICAL, INTENT(IN)                                :: energy_only
       TYPE(virial_type), OPTIONAL, POINTER               :: virial
 
@@ -748,7 +748,7 @@ CONTAINS
 
       REAL(dp), DIMENSION(:), INTENT(in)                 :: q0, dq0_drho, dq0_dgradrho, total_rho
       REAL(dp), DIMENSION(:, :), INTENT(in)              :: u_vdW
-      REAL(dp), DIMENSION(:), INTENT(out)                :: potential, h_prefactor
+      REAL(dp), DIMENSION(:)                             :: potential, h_prefactor
       TYPE(qs_dispersion_type), POINTER                  :: dispersion_env
       REAL(dp), DIMENSION(:, :), INTENT(in), OPTIONAL    :: drho
       REAL(dp), INTENT(IN), OPTIONAL                     :: dvol
@@ -905,7 +905,7 @@ CONTAINS
    SUBROUTINE calculate_exponent(hi, alpha, exponent)
       INTEGER, INTENT(in)                                :: hi
       REAL(dp), INTENT(in)                               :: alpha
-      REAL(dp), INTENT(out)                              :: exponent
+      REAL(dp)                                           :: exponent
 
       INTEGER                                            :: i
       REAL(dp)                                           :: multiplier
@@ -932,7 +932,7 @@ CONTAINS
    SUBROUTINE calculate_exponent_derivative(hi, alpha, exponent, derivative)
       INTEGER, INTENT(in)                                :: hi
       REAL(dp), INTENT(in)                               :: alpha
-      REAL(dp), INTENT(out)                              :: exponent, derivative
+      REAL(dp)                                           :: exponent, derivative
 
       INTEGER                                            :: i
       REAL(dp)                                           :: multiplier
@@ -969,7 +969,7 @@ CONTAINS
       !!     dq0_dgradrho = total_rho / |gradient_rho| * d q0 / d |gradient_rho|
       !!
       REAL(dp), INTENT(IN)                               :: total_rho(:), gradient_rho(:, :)
-      REAL(dp), INTENT(OUT)                              :: q0(:), dq0_drho(:), dq0_dgradrho(:)
+      REAL(dp)                                           :: q0(:), dq0_drho(:), dq0_dgradrho(:)
       TYPE(qs_dispersion_type), POINTER                  :: dispersion_env
 
       CHARACTER(len=*), PARAMETER :: routineN = 'get_q0_on_grid_vdw', &
@@ -1081,7 +1081,7 @@ CONTAINS
       !!     dq0_dgradrho = total_rho / |gradient_rho| * d q0 / d |gradient_rho|
       !!
       REAL(dp), INTENT(IN)                               :: total_rho(:), gradient_rho(:, :)
-      REAL(dp), INTENT(OUT)                              :: q0(:), dq0_drho(:), dq0_dgradrho(:)
+      REAL(dp)                                           :: q0(:), dq0_drho(:), dq0_dgradrho(:)
       TYPE(qs_dispersion_type), POINTER                  :: dispersion_env
 
       INTEGER, PARAMETER                                 :: m_cut = 12
@@ -1154,7 +1154,7 @@ CONTAINS
    SUBROUTINE get_q0_on_grid_eo_vdw(total_rho, gradient_rho, q0, dispersion_env)
 
       REAL(dp), INTENT(IN)                               :: total_rho(:), gradient_rho(:, :)
-      REAL(dp), INTENT(OUT)                              :: q0(:)
+      REAL(dp)                                           :: q0(:)
       TYPE(qs_dispersion_type), POINTER                  :: dispersion_env
 
       CHARACTER(len=*), PARAMETER :: routineN = 'get_q0_on_grid_eo_vdw', &
@@ -1235,7 +1235,7 @@ CONTAINS
    SUBROUTINE get_q0_on_grid_eo_rvv10(total_rho, gradient_rho, q0, dispersion_env)
 
       REAL(dp), INTENT(IN)                               :: total_rho(:), gradient_rho(:, :)
-      REAL(dp), INTENT(OUT)                              :: q0(:)
+      REAL(dp)                                           :: q0(:)
       TYPE(qs_dispersion_type), POINTER                  :: dispersion_env
 
       INTEGER, PARAMETER                                 :: m_cut = 12
@@ -1299,7 +1299,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE spline_interpolation(x, d2y_dx2, evaluation_points, values)
       REAL(dp), INTENT(in)                               :: x(:), d2y_dx2(:, :), evaluation_points(:)
-      REAL(dp), INTENT(out)                              :: values(:, :)
+      REAL(dp)                                           :: values(:, :)
 
       INTEGER                                            :: i_grid, index, lower_bound, &
                                                             Ngrid_points, Nx, P_i, upper_bound
@@ -1427,7 +1427,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE interpolate_kernel(k, kernel_of_k, dispersion_env)
       REAL(dp), INTENT(in)                               :: k
-      REAL(dp), INTENT(out)                              :: kernel_of_k(:, :)
+      REAL(dp)                                           :: kernel_of_k(:, :)
       TYPE(qs_dispersion_type), POINTER                  :: dispersion_env
 
       CHARACTER(len=*), PARAMETER :: routineN = 'interpolate_kernel', &
@@ -1496,7 +1496,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE interpolate_dkernel_dk(k, dkernel_of_dk, dispersion_env)
       REAL(dp), INTENT(in)                               :: k
-      REAL(dp), INTENT(out)                              :: dkernel_of_dk(:, :)
+      REAL(dp)                                           :: dkernel_of_dk(:, :)
       TYPE(qs_dispersion_type), POINTER                  :: dispersion_env
 
       CHARACTER(len=*), PARAMETER :: routineN = 'interpolate_dkernel_dk', &

@@ -109,9 +109,9 @@ CONTAINS
 !> \param max_deriv ...
 ! **************************************************************************************************
    SUBROUTINE vwn_lda_info(reference, shortform, needs, max_deriv)
-      CHARACTER(LEN=*), INTENT(OUT), OPTIONAL            :: reference, shortform
+      CHARACTER(LEN=*), OPTIONAL                         :: reference, shortform
       TYPE(xc_rho_cflags_type), INTENT(inout), OPTIONAL  :: needs
-      INTEGER, INTENT(out), OPTIONAL                     :: max_deriv
+      INTEGER, OPTIONAL                                  :: max_deriv
 
       IF (PRESENT(reference)) THEN
          reference = "S. H. Vosko, L. Wilk and M. Nusair,"// &

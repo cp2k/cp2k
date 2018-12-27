@@ -441,7 +441,7 @@ CONTAINS
       TYPE(pao_env_type), POINTER                        :: pao
       TYPE(ls_scf_env_type)                              :: ls_scf_env
       REAL(KIND=dp), INTENT(IN)                          :: new_energy
-      LOGICAL, INTENT(OUT)                               :: is_converged
+      LOGICAL                                            :: is_converged
 
       REAL(KIND=dp)                                      :: energy_diff, loop_eps, now, time_diff
 
@@ -482,7 +482,7 @@ CONTAINS
       TYPE(pao_env_type), POINTER                        :: pao
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(ls_scf_env_type), TARGET                      :: ls_scf_env
-      REAL(KIND=dp), INTENT(OUT)                         :: energy
+      REAL(KIND=dp)                                      :: energy
 
       CHARACTER(len=*), PARAMETER :: routineN = 'pao_calc_energy', &
          routineP = moduleN//':'//routineN

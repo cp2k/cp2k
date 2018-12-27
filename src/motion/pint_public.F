@@ -124,7 +124,7 @@ CONTAINS
       REAL(kind=dp), INTENT(IN)                          :: t
       TYPE(rng_stream_type), POINTER                     :: rng_gaussian
       REAL(kind=dp), DIMENSION(:), POINTER               :: x
-      INTEGER, INTENT(OUT)                               :: nout
+      INTEGER                                            :: nout
 
       CHARACTER(len=*), PARAMETER :: routineN = 'pint_free_part_bead_x', &
          routineP = moduleN//':'//routineN

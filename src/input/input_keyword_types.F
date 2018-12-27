@@ -450,10 +450,10 @@ CONTAINS
       TYPE(keyword_type), POINTER                        :: keyword
       CHARACTER(len=default_string_length), &
          DIMENSION(:), OPTIONAL, POINTER                 :: names
-      CHARACTER(len=*), INTENT(out), OPTIONAL            :: usage, description
-      INTEGER, INTENT(out), OPTIONAL                     :: type_of_var, n_var
+      CHARACTER(len=*), OPTIONAL                         :: usage, description
+      INTEGER, OPTIONAL                                  :: type_of_var, n_var
       TYPE(val_type), OPTIONAL, POINTER                  :: default_value, lone_keyword_value
-      LOGICAL, INTENT(out), OPTIONAL                     :: repeats
+      LOGICAL, OPTIONAL                                  :: repeats
       TYPE(enumeration_type), OPTIONAL, POINTER          :: enum
       INTEGER, DIMENSION(:), OPTIONAL, POINTER           :: citations
 

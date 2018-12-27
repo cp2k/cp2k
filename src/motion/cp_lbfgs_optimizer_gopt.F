@@ -408,16 +408,16 @@ CONTAINS
       TYPE(cp_lbfgs_opt_gopt_type), POINTER              :: optimizer
       TYPE(cp_para_env_type), OPTIONAL, POINTER          :: para_env
       TYPE(gopt_f_type), OPTIONAL, POINTER               :: obj_funct
-      INTEGER, INTENT(out), OPTIONAL                     :: m, print_every, id_nr
-      REAL(kind=dp), INTENT(out), OPTIONAL               :: wanted_relative_f_delta, &
+      INTEGER, OPTIONAL                                  :: m, print_every, id_nr
+      REAL(kind=dp), OPTIONAL                            :: wanted_relative_f_delta, &
                                                             wanted_projected_gradient
       REAL(kind=dp), DIMENSION(:), OPTIONAL, POINTER     :: x, lower_bound, upper_bound
       INTEGER, DIMENSION(:), OPTIONAL, POINTER           :: kind_of_bound
-      INTEGER, INTENT(out), OPTIONAL                     :: master
-      REAL(kind=dp), INTENT(out), OPTIONAL               :: actual_projected_gradient
-      INTEGER, INTENT(out), OPTIONAL                     :: n_var, n_iter, status, max_f_per_iter
-      LOGICAL, INTENT(out), OPTIONAL                     :: at_end, is_master
-      REAL(kind=dp), INTENT(out), OPTIONAL               :: last_f, f
+      INTEGER, OPTIONAL                                  :: master
+      REAL(kind=dp), OPTIONAL                            :: actual_projected_gradient
+      INTEGER, OPTIONAL                                  :: n_var, n_iter, status, max_f_per_iter
+      LOGICAL, OPTIONAL                                  :: at_end, is_master
+      REAL(kind=dp), OPTIONAL                            :: last_f, f
 
       CHARACTER(len=*), PARAMETER :: routineN = 'cp_opt_gopt_get', &
          routineP = moduleN//':'//routineN
@@ -492,9 +492,9 @@ CONTAINS
                                          projected_gradient, converged, geo_section, force_env, &
                                          gopt_param)
       TYPE(cp_lbfgs_opt_gopt_type), POINTER              :: optimizer
-      INTEGER, INTENT(out), OPTIONAL                     :: n_iter
-      REAL(kind=dp), INTENT(out), OPTIONAL               :: f, last_f, projected_gradient
-      LOGICAL, INTENT(out), OPTIONAL                     :: converged
+      INTEGER, OPTIONAL                                  :: n_iter
+      REAL(kind=dp), OPTIONAL                            :: f, last_f, projected_gradient
+      LOGICAL, OPTIONAL                                  :: converged
       TYPE(section_vals_type), POINTER                   :: geo_section
       TYPE(force_env_type), POINTER                      :: force_env
       TYPE(gopt_param_type), POINTER                     :: gopt_param
@@ -722,7 +722,7 @@ CONTAINS
    SUBROUTINE cp_opt_gopt_bcast_res(optimizer, n_iter, f, last_f, &
                                     projected_gradient)
       TYPE(cp_lbfgs_opt_gopt_type), POINTER              :: optimizer
-      INTEGER, INTENT(out), OPTIONAL                     :: n_iter
+      INTEGER, OPTIONAL                                  :: n_iter
       REAL(kind=dp), INTENT(inout), OPTIONAL             :: f, last_f, projected_gradient
 
       CHARACTER(len=*), PARAMETER :: routineN = 'cp_opt_gopt_bcast_res', &
@@ -774,9 +774,9 @@ CONTAINS
                                        projected_gradient, converged, geo_section, force_env, &
                                        gopt_param) RESULT(res)
       TYPE(cp_lbfgs_opt_gopt_type), POINTER              :: optimizer
-      INTEGER, INTENT(out), OPTIONAL                     :: n_iter
-      REAL(kind=dp), INTENT(out), OPTIONAL               :: f, last_f, projected_gradient
-      LOGICAL, INTENT(out)                               :: converged
+      INTEGER, OPTIONAL                                  :: n_iter
+      REAL(kind=dp), OPTIONAL                            :: f, last_f, projected_gradient
+      LOGICAL                                            :: converged
       TYPE(section_vals_type), POINTER                   :: geo_section
       TYPE(force_env_type), POINTER                      :: force_env
       TYPE(gopt_param_type), POINTER                     :: gopt_param

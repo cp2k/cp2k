@@ -264,7 +264,7 @@ CONTAINS
 !> \param mustread ...
 ! **************************************************************************************************
    SUBROUTINE xml_open(info, fname, mustread)
-      TYPE(XML_PARSE), INTENT(out)                       :: info
+      TYPE(XML_PARSE)                                    :: info
       CHARACTER(len=*), INTENT(in)                       :: fname
       LOGICAL, INTENT(in)                                :: mustread
 
@@ -369,12 +369,12 @@ CONTAINS
    SUBROUTINE xml_get(info, tag, endtag, attribs, no_attribs, &
                       DATA, no_data)
       TYPE(XML_PARSE), INTENT(inout)                     :: info
-      CHARACTER(len=*), INTENT(out)                      :: tag
-      LOGICAL, INTENT(out)                               :: endtag
-      CHARACTER(len=*), DIMENSION(:, :), INTENT(out)     :: attribs
-      INTEGER, INTENT(out)                               :: no_attribs
-      CHARACTER(len=*), DIMENSION(:), INTENT(out)        :: DATA
-      INTEGER, INTENT(out)                               :: no_data
+      CHARACTER(len=*)                                   :: tag
+      LOGICAL                                            :: endtag
+      CHARACTER(len=*), DIMENSION(:, :)                  :: attribs
+      INTEGER                                            :: no_attribs
+      CHARACTER(len=*), DIMENSION(:)                     :: DATA
+      INTEGER                                            :: no_data
 
       CHARACTER(len=XML_BUFFER_LENGTH)                   :: nextline
       INTEGER                                            :: idxat, idxdat, ierr, kend, keq, kfirst, &

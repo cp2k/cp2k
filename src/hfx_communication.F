@@ -439,8 +439,8 @@ CONTAINS
       TYPE(dbcsr_type), POINTER                          :: matrix
       TYPE(hfx_basis_type), DIMENSION(:)                 :: basis_parameter
       INTEGER, DIMENSION(:)                              :: kind_of
-      INTEGER, DIMENSION(:, :), INTENT(OUT)              :: is_assoc_atomic_block
-      INTEGER, INTENT(OUT)                               :: number_of_p_entries
+      INTEGER, DIMENSION(:, :)                           :: is_assoc_atomic_block
+      INTEGER                                            :: number_of_p_entries
       TYPE(cp_para_env_type), POINTER                    :: para_env
       INTEGER, DIMENSION(:, :), POINTER                  :: atomic_block_offset
       INTEGER, DIMENSION(:, :, :, :), POINTER            :: set_offset

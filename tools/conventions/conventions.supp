@@ -381,3 +381,5 @@ libcp2k.F: Found GOTO statement in procedure "cp2k_active_space_get_eri"
 libcp2k.F: Found GOTO statement in procedure "cp2k_active_space_get_eri_nze_count"
 libcp2k.F: Found GOTO statement in procedure "cp2k_active_space_get_fock_sub"
 libcp2k.F: Found GOTO statement in procedure "cp2k_active_space_get_mo_count"
+base_hooks.F: Symbol "handle" in procedure "timeset" is INTENT(OUT)
+timings.F: Symbol "handle" in procedure "timeset_handler" is INTENT(OUT)

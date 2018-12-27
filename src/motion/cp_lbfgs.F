@@ -958,8 +958,7 @@ CONTAINS
       REAL(KIND=dp), INTENT(in)                          :: lower_bound(n), upper_bound(n)
       INTEGER                                            :: nbd(n)
       REAL(KIND=dp)                                      :: x(n)
-      INTEGER, INTENT(out)                               :: iwhere(n)
-      INTEGER                                            :: iprint
+      INTEGER                                            :: iwhere(n), iprint
       LOGICAL                                            :: x_projected, constrained, boxed
 
       REAL(KIND=dp), PARAMETER                           :: zero = 0.0_dp
@@ -1057,8 +1056,8 @@ CONTAINS
       REAL(KIND=dp)                                      :: sy(m, m), wt(m, m)
       INTEGER                                            :: col
       REAL(KIND=dp), INTENT(in)                          :: v(2*col)
-      REAL(KIND=dp), INTENT(out)                         :: p(2*col)
-      INTEGER, INTENT(out)                               :: info
+      REAL(KIND=dp)                                      :: p(2*col)
+      INTEGER                                            :: info
 
       INTEGER                                            :: i, i2, k
       REAL(KIND=dp)                                      :: sum
@@ -1595,7 +1594,7 @@ CONTAINS
       INTEGER, INTENT(in)                                :: n, m
       REAL(KIND=dp), INTENT(in)                          :: x(n), g(n), ws(n, m), wy(n, m), &
                                                             sy(m, m), wt(m, m), z(n)
-      REAL(KIND=dp), INTENT(out)                         :: r(n), wa(4*m)
+      REAL(KIND=dp)                                      :: r(n), wa(4*m)
       INTEGER, INTENT(in)                                :: INDEX(n)
       REAL(KIND=dp), INTENT(in)                          :: theta
       INTEGER, INTENT(in)                                :: col, head, nfree
@@ -1749,11 +1748,10 @@ CONTAINS
                                                             indx2(n), iupdat
       LOGICAL                                            :: updatd
       INTEGER, INTENT(in)                                :: m
-      REAL(KIND=dp)                                      :: wn1(2*m, 2*m)
-      REAL(KIND=dp), INTENT(out)                         :: wn(2*m, 2*m)
+      REAL(KIND=dp)                                      :: wn1(2*m, 2*m), wn(2*m, 2*m)
       REAL(KIND=dp), INTENT(in)                          :: ws(n, m), wy(n, m), sy(m, m), theta
       INTEGER, INTENT(in)                                :: col, head
-      INTEGER, INTENT(out)                               :: info
+      INTEGER                                            :: info
 
       REAL(KIND=dp), PARAMETER                           :: zero = 0.0_dp
 
@@ -2057,9 +2055,7 @@ CONTAINS
 
       INTEGER                                            :: n, nfree
       INTEGER, INTENT(inout)                             :: INDEX(n)
-      INTEGER                                            :: nenter, ileave
-      INTEGER, INTENT(out)                               :: indx2(n)
-      INTEGER                                            :: iwhere(n)
+      INTEGER                                            :: nenter, ileave, indx2(n), iwhere(n)
       LOGICAL                                            :: wrk, updatd, constrained
       INTEGER                                            :: iprint, iter
 
@@ -2905,11 +2901,10 @@ CONTAINS
       REAL(KIND=dp)                                      :: xp(n)
       REAL(KIND=dp), INTENT(in)                          :: ws(n, m), wy(n, m), theta, xx(n), gg(n)
       INTEGER, INTENT(in)                                :: col, head
-      INTEGER, INTENT(out)                               :: iword
+      INTEGER                                            :: iword
       REAL(KIND=dp)                                      :: wv(2*m)
       REAL(KIND=dp), INTENT(in)                          :: wn(2*m, 2*m)
-      INTEGER                                            :: iprint
-      INTEGER, INTENT(out)                               :: info
+      INTEGER                                            :: iprint, info
 
       REAL(KIND=dp), PARAMETER                           :: one = 1.0_dp, zero = 0.0_dp
 
@@ -3713,7 +3708,7 @@ CONTAINS
       INTEGER, INTENT(in)                                :: n
       REAL(KIND=dp), INTENT(inout)                       :: b(*)
       INTEGER, INTENT(in)                                :: job
-      INTEGER, INTENT(out)                               :: info
+      INTEGER                                            :: info
 
       CHARACTER(len=*), PARAMETER :: routineN = 'dtrsl', routineP = moduleN//':'//routineN
 
@@ -3916,9 +3911,9 @@ CONTAINS
       SUBROUTINE save_local(lsave,isave,dsave,x_projected,constrained,boxed,updatd,nintol,itfile,iback,nskip,head,col,itail,&
                             iter,iupdat,nseg,nfgv,info,ifun,iword,nfree,nact,ileave,nenter,theta,fold,tol,dnorm,epsmch,cpu1,&
                             cachyt,sbtime,lnscht,time1,gd,step_max,g_inf_norm,stp,gdold,dtd)
-      LOGICAL, INTENT(out)                               :: lsave(4)
-      INTEGER, INTENT(out)                               :: isave(23)
-      REAL(KIND=dp), INTENT(out)                         :: dsave(29)
+      LOGICAL                                            :: lsave(4)
+      INTEGER                                            :: isave(23)
+      REAL(KIND=dp)                                      :: dsave(29)
       LOGICAL, INTENT(in)                                :: x_projected, constrained, boxed, updatd
       INTEGER, INTENT(in)                                :: nintol, itfile, iback, nskip, head, col, &
                                                             itail, iter, iupdat, nseg, nfgv, info, &

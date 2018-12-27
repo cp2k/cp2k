@@ -222,7 +222,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE smooth_count(r, r1, width, c, dcdr)
       REAL(KIND=dp), INTENT(IN)                          :: r, r1, width
-      REAL(KIND=dp), INTENT(OUT)                         :: c, dcdr
+      REAL(KIND=dp)                                      :: c, dcdr
 
       REAL(KIND=dp)                                      :: arg
 

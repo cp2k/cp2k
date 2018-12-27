@@ -1114,9 +1114,9 @@ CONTAINS
    SUBROUTINE rotate_translate_cuboid(cuboid_vtx, Rmat, Tpnt, cuboid_transfd_vtx)
 
       REAL(dp), DIMENSION(3, 8), INTENT(IN)              :: cuboid_vtx
-      REAL(dp), DIMENSION(3, 3), INTENT(OUT)             :: Rmat
-      REAL(dp), DIMENSION(3), INTENT(OUT)                :: Tpnt
-      REAL(dp), DIMENSION(3, 8), INTENT(OUT)             :: cuboid_transfd_vtx
+      REAL(dp), DIMENSION(3, 3)                          :: Rmat
+      REAL(dp), DIMENSION(3)                             :: Tpnt
+      REAL(dp), DIMENSION(3, 8)                          :: cuboid_transfd_vtx
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'rotate_translate_cuboid', &
          routineP = moduleN//':'//routineN
@@ -1214,8 +1214,7 @@ CONTAINS
 
       REAL(dp), DIMENSION(3, 8), INTENT(IN)              :: dbc_vertices
       INTEGER, DIMENSION(3), INTENT(IN)                  :: n_prtn
-      TYPE(tile_p_type), DIMENSION(:), INTENT(OUT), &
-         POINTER                                         :: tiles
+      TYPE(tile_p_type), DIMENSION(:), POINTER           :: tiles
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'aa_dbc_partition', &
          routineP = moduleN//':'//routineN
@@ -1298,8 +1297,7 @@ CONTAINS
 
       REAL(dp), DIMENSION(3, 8), INTENT(IN)              :: dbc_vertices
       INTEGER, DIMENSION(2), INTENT(IN)                  :: n_prtn
-      TYPE(tile_p_type), DIMENSION(:), INTENT(OUT), &
-         POINTER                                         :: tiles
+      TYPE(tile_p_type), DIMENSION(:), POINTER           :: tiles
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'arbitrary_dbc_partition', &
          routineP = moduleN//':'//routineN

@@ -330,11 +330,11 @@ CONTAINS
       TYPE(dbcsr_p_type), DIMENSION(:), OPTIONAL, &
          POINTER                                         :: C_mat, propagator_matrix
       LOGICAL, OPTIONAL                                  :: mixing
-      REAL(dp), INTENT(out), OPTIONAL                    :: mixing_factor
+      REAL(dp), OPTIONAL                                 :: mixing_factor
       TYPE(dbcsr_p_type), DIMENSION(:), OPTIONAL, &
          POINTER                                         :: S_der
-      REAL(dp), INTENT(out), OPTIONAL                    :: dt
-      INTEGER, INTENT(out), OPTIONAL                     :: nsteps
+      REAL(dp), OPTIONAL                                 :: dt
+      INTEGER, OPTIONAL                                  :: nsteps
       TYPE(dbcsr_p_type), DIMENSION(:), OPTIONAL, &
          POINTER                                         :: SinvH, SinvB
       TYPE(cp_fm_p_type), DIMENSION(:), OPTIONAL, &

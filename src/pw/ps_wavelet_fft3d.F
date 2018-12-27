@@ -31,7 +31,7 @@ CONTAINS
 ! **************************************************************************************************
   SUBROUTINE fourier_dim(n,n_next)
       INTEGER, INTENT(in)                                :: n
-      INTEGER, INTENT(out)                               :: n_next
+      INTEGER                                            :: n_next
 
       INTEGER, PARAMETER                                 :: ndata = 149, ndata1024 = 149
       INTEGER, DIMENSION(ndata), PARAMETER :: idata = (/   3,    4,   5,     6, 8,    9,   12,   15&

@@ -480,7 +480,7 @@ CONTAINS
 
       TYPE(dbcsr_type), POINTER                          :: m1, m2
       REAL(KIND=dp), INTENT(IN)                          :: p_mix
-      REAL(KIND=dp), INTENT(OUT)                         :: delta
+      REAL(KIND=dp)                                      :: delta
       TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(dbcsr_type), OPTIONAL, POINTER                :: m3
 

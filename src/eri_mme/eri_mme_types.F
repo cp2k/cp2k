@@ -84,7 +84,7 @@ CONTAINS
    SUBROUTINE eri_mme_init(param, n_minimax, cutoff, do_calib_cutoff, &
                            cutoff_min, cutoff_max, cutoff_eps, cutoff_delta, sum_precision, &
                            debug, debug_delta, debug_nsum, unit_nr, print_calib)
-      TYPE(eri_mme_param), INTENT(OUT)                   :: param
+      TYPE(eri_mme_param)                                :: param
       INTEGER, INTENT(IN)                                :: n_minimax
       REAL(KIND=dp), INTENT(IN)                          :: cutoff
       LOGICAL, INTENT(IN)                                :: do_calib_cutoff

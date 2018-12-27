@@ -98,9 +98,9 @@ CONTAINS
                                         eigenvectors)
       TYPE(section_vals_type), POINTER                   :: md_section, vib_section
       TYPE(cp_para_env_type), POINTER                    :: para_env
-      INTEGER, INTENT(OUT)                               :: dof
-      REAL(KIND=dp), DIMENSION(:), INTENT(OUT)           :: eigenvalues
-      REAL(KIND=dp), DIMENSION(:, :), INTENT(OUT)        :: eigenvectors
+      INTEGER                                            :: dof
+      REAL(KIND=dp), DIMENSION(:)                        :: eigenvalues
+      REAL(KIND=dp), DIMENSION(:, :)                     :: eigenvectors
 
       CHARACTER(len=*), PARAMETER :: routineN = 'read_vib_eigs_unformatted', &
          routineP = moduleN//':'//routineN

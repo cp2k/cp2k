@@ -599,8 +599,8 @@ CONTAINS
       TYPE(pao_env_type), POINTER                        :: pao
       INTEGER, INTENT(IN)                                :: ikind
       REAL(dp), DIMENSION(:), INTENT(IN)                 :: descriptor
-      REAL(dp), DIMENSION(:), INTENT(OUT)                :: output
-      REAL(dp), INTENT(OUT)                              :: variance
+      REAL(dp), DIMENSION(:)                             :: output
+      REAL(dp)                                           :: variance
 
       SELECT CASE (pao%ml_method)
       CASE (pao_ml_gp)

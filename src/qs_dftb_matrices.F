@@ -2389,7 +2389,7 @@ CONTAINS
       INTEGER, INTENT(in)                                :: ngrd, ngrdcut
       REAL(dp), INTENT(in)                               :: dgrd
       INTEGER, INTENT(in)                                :: llm
-      REAL(dp), INTENT(out)                              :: skpar(llm)
+      REAL(dp)                                           :: skpar(llm)
 
       INTEGER                                            :: clgp
 
@@ -2435,7 +2435,7 @@ CONTAINS
       INTEGER, INTENT(in)                                :: ngrd
       REAL(dp), INTENT(in)                               :: dgrd
       INTEGER, INTENT(in)                                :: llm
-      REAL(dp), INTENT(out)                              :: skpar(llm)
+      REAL(dp)                                           :: skpar(llm)
       INTEGER, INTENT(in)                                :: clgp
 
       INTEGER                                            :: fgpm, k, l, lgpm
@@ -2472,7 +2472,7 @@ CONTAINS
       INTEGER, INTENT(in)                                :: ngrd
       REAL(dp), INTENT(in)                               :: dgrd
       INTEGER, INTENT(in)                                :: llm
-      REAL(dp), INTENT(out)                              :: skpar(llm)
+      REAL(dp)                                           :: skpar(llm)
 
       INTEGER                                            :: fgp, k, l, lgp, ntable, nzero
       REAL(dp)                                           :: error, xa(max_extra), ya(max_extra)
@@ -2922,7 +2922,7 @@ CONTAINS
    SUBROUTINE polint(xa, ya, n, x, y, dy)
       INTEGER, INTENT(in)                                :: n
       REAL(dp), INTENT(in)                               :: ya(n), xa(n), x
-      REAL(dp), INTENT(out)                              :: y, dy
+      REAL(dp)                              :: y, dy
 
       CHARACTER(len=*), PARAMETER :: routineN = 'polint', routineP = moduleN//':'//routineN
 

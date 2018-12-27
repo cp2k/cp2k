@@ -69,7 +69,7 @@ CONTAINS
                               nloc_size, full_loc_list, cell_v, cell, drij, particle_set, &
                               nr_oh, nr_h3o, nr_o)
 
-      REAL(KIND=dp), INTENT(OUT)                         :: pot_loc
+      REAL(KIND=dp)                                      :: pot_loc
       TYPE(siepmann_pot_type), POINTER                   :: siepmann
       TYPE(pos_type), DIMENSION(:), POINTER              :: r_last_update_pbc
       INTEGER, INTENT(IN)                                :: atom_a, atom_b, nloc_size

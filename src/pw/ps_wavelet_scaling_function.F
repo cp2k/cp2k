@@ -33,8 +33,8 @@ CONTAINS
 
       !Type of interpolating functions
       INTEGER, INTENT(in)                                :: itype, nd
-      INTEGER, INTENT(out)                               :: nrange
-      REAL(KIND=dp), DIMENSION(0:nd), INTENT(out)        :: a, x
+      INTEGER                                            :: nrange
+      REAL(KIND=dp), DIMENSION(0:nd)                     :: a, x
 
       INTEGER                                            :: i, i_all, m, ni, nt
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: y
@@ -91,7 +91,7 @@ CONTAINS
 
       !Type of the interpolating scaling function
       INTEGER, INTENT(in)                                :: itype, nd
-      REAL(KIND=dp), DIMENSION(0:nd), INTENT(out)        :: a, x
+      REAL(KIND=dp), DIMENSION(0:nd)                     :: a, x
 
       INTEGER                                            :: i, i_all, m, ni, nt
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: y
@@ -148,7 +148,7 @@ CONTAINS
    SUBROUTINE scf_recursion(itype, n_iter, n_range, kernel_scf, kern_1_scf)
       INTEGER, INTENT(in)                                :: itype, n_iter, n_range
       REAL(KIND=dp), INTENT(inout)                       :: kernel_scf(-n_range:n_range)
-      REAL(KIND=dp), INTENT(out)                         :: kern_1_scf(-n_range:n_range)
+      REAL(KIND=dp)                                      :: kern_1_scf(-n_range:n_range)
 
       INTEGER                                            :: m
       REAL(KIND=dp), DIMENSION(:), POINTER               :: cg, cgt, ch, cht
@@ -168,7 +168,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE zero(n, x)
       INTEGER, INTENT(in)                                :: n
-      REAL(KIND=dp), INTENT(out)                         :: x(n)
+      REAL(KIND=dp)                                      :: x(n)
 
       INTEGER                                            :: i
 
@@ -194,7 +194,7 @@ CONTAINS
    SUBROUTINE for_trans(nd, nt, x, y, m, cgt, cht)
       INTEGER, INTENT(in)                                :: nd, nt
       REAL(KIND=dp), INTENT(in)                          :: x(0:nd-1)
-      REAL(KIND=dp), INTENT(out)                         :: y(0:nd-1)
+      REAL(KIND=dp)                                      :: y(0:nd-1)
       INTEGER                                            :: m
       REAL(KIND=dp), DIMENSION(:), POINTER               :: cgt, cht
 
@@ -247,7 +247,7 @@ CONTAINS
       ! x input data, y output data
       INTEGER, INTENT(in)                                :: nd, nt
       REAL(KIND=dp), INTENT(in)                          :: x(0:nd-1)
-      REAL(KIND=dp), INTENT(out)                         :: y(0:nd-1)
+      REAL(KIND=dp)                                      :: y(0:nd-1)
       INTEGER                                            :: m
       REAL(KIND=dp), DIMENSION(:), POINTER               :: ch, cg
 
@@ -351,7 +351,7 @@ CONTAINS
    SUBROUTINE scf_recurs(n_iter, n_range, kernel_scf, kern_1_scf, m, ch)
       INTEGER, INTENT(in)                                :: n_iter, n_range
       REAL(KIND=dp), INTENT(inout)                       :: kernel_scf(-n_range:n_range)
-      REAL(KIND=dp), INTENT(out)                         :: kern_1_scf(-n_range:n_range)
+      REAL(KIND=dp)                                      :: kern_1_scf(-n_range:n_range)
       INTEGER                                            :: m
       REAL(KIND=dp), DIMENSION(:), POINTER               :: ch
 

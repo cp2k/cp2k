@@ -59,9 +59,9 @@ CONTAINS
 !> \author mguidon
 ! **************************************************************************************************
    SUBROUTINE xlda_hole_t_c_lr_lda_info(reference, shortform, needs, max_deriv)
-      CHARACTER(LEN=*), INTENT(OUT), OPTIONAL            :: reference, shortform
+      CHARACTER(LEN=*), OPTIONAL                         :: reference, shortform
       TYPE(xc_rho_cflags_type), INTENT(inout), OPTIONAL  :: needs
-      INTEGER, INTENT(out), OPTIONAL                     :: max_deriv
+      INTEGER, OPTIONAL                                  :: max_deriv
 
       IF (PRESENT(reference)) THEN
          reference = "{LDA version}"
@@ -88,9 +88,9 @@ CONTAINS
 !> \author mguidon
 ! **************************************************************************************************
    SUBROUTINE xlda_hole_t_c_lr_lsd_info(reference, shortform, needs, max_deriv)
-      CHARACTER(LEN=*), INTENT(OUT), OPTIONAL            :: reference, shortform
+      CHARACTER(LEN=*), OPTIONAL                         :: reference, shortform
       TYPE(xc_rho_cflags_type), INTENT(inout), OPTIONAL  :: needs
-      INTEGER, INTENT(out), OPTIONAL                     :: max_deriv
+      INTEGER, OPTIONAL                                  :: max_deriv
 
       IF (PRESENT(reference)) THEN
          reference = "{LSD version}"

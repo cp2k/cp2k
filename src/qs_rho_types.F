@@ -265,12 +265,12 @@ CONTAINS
          POINTER                                         :: rho_ao_kp
       TYPE(pw_p_type), DIMENSION(:), OPTIONAL, POINTER   :: rho_r, drho_r, rho_g, drho_g, tau_r, &
                                                             tau_g
-      LOGICAL, INTENT(out), OPTIONAL                     :: rho_r_valid, drho_r_valid, rho_g_valid, &
+      LOGICAL, OPTIONAL                                  :: rho_r_valid, drho_r_valid, rho_g_valid, &
                                                             drho_g_valid, tau_r_valid, tau_g_valid
-      INTEGER, INTENT(out), OPTIONAL                     :: rebuild_each
+      INTEGER, OPTIONAL                                  :: rebuild_each
       REAL(KIND=dp), DIMENSION(:), OPTIONAL, POINTER     :: tot_rho_r, tot_rho_g
       TYPE(pw_p_type), OPTIONAL, POINTER                 :: rho_r_sccs
-      LOGICAL, INTENT(out), OPTIONAL                     :: soft_valid
+      LOGICAL, OPTIONAL                                  :: soft_valid
 
       CHARACTER(len=*), PARAMETER :: routineN = 'qs_rho_get', routineP = moduleN//':'//routineN
 

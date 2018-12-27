@@ -79,7 +79,7 @@ CONTAINS
    SUBROUTINE spline3ders(x, y, xnew, ynew, dynew, d2ynew)
       ! Just like 'spline', but also calculate 1st and 2nd derivatives
       REAL(dp), INTENT(in)                               :: x(:), y(:), xnew(:)
-      REAL(dp), INTENT(out), OPTIONAL                    :: ynew(:), dynew(:), d2ynew(:)
+      REAL(dp), OPTIONAL                                 :: ynew(:), dynew(:), d2ynew(:)
 
       INTEGER                                            :: i, ip
       REAL(dp)                                           :: c(0:4, SIZE(x)-1)
@@ -109,12 +109,12 @@ CONTAINS
       REAL(dp), INTENT(in)                               :: xi(:), yi(:)
       INTEGER, INTENT(in)                                :: bctype(2)
       REAL(dp), INTENT(in)                               :: bcval(2)
-      REAL(dp), INTENT(out)                              :: c(0:, :)
+      REAL(dp)                                           :: c(0:, :)
 
       INTEGER                                            :: i, i2, info, ipiv(4), j, n
-      REAL(dp) :: Ae(4, 4), be(4), bemat(4, 1), c1, c2, c3, c4, ce(4), d2p1, d2pn, x0, xe(4), &
-         ye(4), hi(SIZE(c, 2)), cs(2*SIZE(c, 2)), bs(2*SIZE(c, 2)), bmat(2*SIZE(c, 2), 1), &
-         As(5, 2*SIZE(c, 2))
+      REAL(dp) :: Ae(4, 4), be(4), bemat(4, 1), bs(2*SIZE(c, 2)), bmat(2*SIZE(c, 2), 1), &
+         As(5, 2*SIZE(c, 2)), c1, c2, c3, c4, ce(4), cs(2*SIZE(c, 2)), d2p1, d2pn, hi(SIZE(c, 2)), &
+         x0, xe(4), ye(4)
       INTEGER                                            :: ipiv2(2*SIZE(c, 2))
 
       ! x values of data
@@ -260,7 +260,7 @@ CONTAINS
       ! Returns value and 1st derivative of spline defined by knots xi and parameters c
       ! returned by spline3pars
       REAL(dp), INTENT(in)                               :: x, xi(:), c(0:, :)
-      REAL(dp), INTENT(out)                              :: val, der
+      REAL(dp)                                           :: val, der
 
       INTEGER                                            :: i1, n
 

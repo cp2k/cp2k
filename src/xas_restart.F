@@ -101,7 +101,7 @@ CONTAINS
       TYPE(section_vals_type), POINTER                   :: xas_section
       TYPE(qs_environment_type), POINTER                 :: qs_env
       INTEGER, INTENT(IN)                                :: xas_method, iatom
-      INTEGER, INTENT(OUT)                               :: estate
+      INTEGER                                            :: estate
       INTEGER, INTENT(IN)                                :: istate
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'xas_read_restart', &

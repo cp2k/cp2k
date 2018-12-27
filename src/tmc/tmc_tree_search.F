@@ -64,7 +64,7 @@ CONTAINS
    RECURSIVE SUBROUTINE most_prob_end(global_tree_elem, prob, n_acc, &
                                       search_energy_node)
       TYPE(global_tree_type), POINTER                    :: global_tree_elem
-      REAL(KIND=dp), INTENT(OUT)                         :: prob
+      REAL(KIND=dp)                                      :: prob
       LOGICAL, INTENT(INOUT)                             :: n_acc
       LOGICAL, OPTIONAL                                  :: search_energy_node
 
@@ -366,7 +366,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE get_subtree_elements_to_check(gt_act_elem, elem1, elem2)
       TYPE(global_tree_type), POINTER                    :: gt_act_elem
-      TYPE(tree_type), INTENT(OUT), POINTER              :: elem1, elem2
+      TYPE(tree_type), POINTER                           :: elem1, elem2
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'get_subtree_elements_to_check', &
          routineP = moduleN//':'//routineN

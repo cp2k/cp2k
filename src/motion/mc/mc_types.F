@@ -268,16 +268,16 @@ CONTAINS
                                 nunits_empty, coordinates_empty, motion_row_end, motion_row_start)
 
       TYPE(mc_input_file_type), POINTER                  :: mc_input_file
-      INTEGER, INTENT(OUT), OPTIONAL                     :: run_type_row, run_type_column, &
+      INTEGER, OPTIONAL                                  :: run_type_row, run_type_column, &
                                                             coord_row_start, coord_row_end, &
                                                             cell_row, cell_column, global_row_end
       INTEGER, DIMENSION(:), OPTIONAL, POINTER           :: mol_set_nmol_row, mol_set_nmol_column
-      INTEGER, INTENT(OUT), OPTIONAL                     :: in_use
+      INTEGER, OPTIONAL                                  :: in_use
       CHARACTER(LEN=default_string_length), &
          DIMENSION(:), OPTIONAL, POINTER                 :: text, atom_names_empty
-      INTEGER, INTENT(OUT), OPTIONAL                     :: nunits_empty
+      INTEGER, OPTIONAL                                  :: nunits_empty
       REAL(dp), DIMENSION(:, :), OPTIONAL, POINTER       :: coordinates_empty
-      INTEGER, INTENT(OUT), OPTIONAL                     :: motion_row_end, motion_row_start
+      INTEGER, OPTIONAL                                  :: motion_row_end, motion_row_start
 
       IF (PRESENT(in_use)) in_use = mc_input_file%in_use
       IF (PRESENT(run_type_row)) run_type_row = mc_input_file%run_type_row
@@ -397,22 +397,22 @@ CONTAINS
 !>    Suitable for parallel.
 !> \author MJM
       TYPE(mc_simpar_type), POINTER                      :: mc_par
-      INTEGER, INTENT(OUT), OPTIONAL                     :: nstep, nvirial, iuptrans, iupcltrans, &
+      INTEGER, OPTIONAL                                  :: nstep, nvirial, iuptrans, iupcltrans, &
                                                             iupvolume, nmoves, nswapmoves, rm, cl, &
                                                             diff, nstart, source, group
-      LOGICAL, INTENT(OUT), OPTIONAL                     :: lbias, ionode, lrestart, lstop
-      REAL(KIND=dp), INTENT(OUT), OPTIONAL               :: rmvolume, rmcltrans
+      LOGICAL, OPTIONAL                                  :: lbias, ionode, lrestart, lstop
+      REAL(KIND=dp), OPTIONAL                            :: rmvolume, rmcltrans
       REAL(KIND=dp), DIMENSION(:), OPTIONAL, POINTER     :: rmbond, rmangle, rmrot, rmtrans
-      REAL(KIND=dp), INTENT(OUT), OPTIONAL               :: temperature, pressure, rclus, BETA, &
+      REAL(KIND=dp), OPTIONAL                            :: temperature, pressure, rclus, BETA, &
                                                             pmswap, pmvolume, pmtraion, pmtrans, &
                                                             pmcltrans
-      CHARACTER(LEN=*), INTENT(OUT), OPTIONAL :: ensemble, PROGRAM, restart_file_name, &
-         molecules_file, moves_file, coords_file, energy_file, displacement_file, cell_file, &
-         dat_file, data_file, box2_file, fft_lib
-      INTEGER, INTENT(OUT), OPTIONAL                     :: iprint
-      REAL(KIND=dp), INTENT(OUT), OPTIONAL               :: rcut
-      LOGICAL, INTENT(OUT), OPTIONAL                     :: ldiscrete
-      REAL(KIND=dp), INTENT(OUT), OPTIONAL               :: discrete_step, pmavbmc
+      CHARACTER(LEN=*), OPTIONAL :: ensemble, PROGRAM, restart_file_name, molecules_file, &
+         moves_file, coords_file, energy_file, displacement_file, cell_file, dat_file, data_file, &
+         box2_file, fft_lib
+      INTEGER, OPTIONAL                                  :: iprint
+      REAL(KIND=dp), OPTIONAL                            :: rcut
+      LOGICAL, OPTIONAL                                  :: ldiscrete
+      REAL(KIND=dp), OPTIONAL                            :: discrete_step, pmavbmc
       REAL(KIND=dp), DIMENSION(:), OPTIONAL, POINTER     :: pbias
       INTEGER, DIMENSION(:), OPTIONAL, POINTER           :: avbmc_atom
       REAL(KIND=dp), DIMENSION(:), OPTIONAL, POINTER     :: avbmc_rmin, avbmc_rmax, rmdihedral
@@ -422,14 +422,14 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:), OPTIONAL, POINTER     :: pmavbmc_mol, pmtrans_mol, pmrot_mol, &
                                                             pmtraion_mol
       TYPE(mc_input_file_type), OPTIONAL, POINTER        :: mc_input_file, mc_bias_file
-      REAL(KIND=dp), INTENT(OUT), OPTIONAL               :: pmvol_box, pmclus_box
+      REAL(KIND=dp), OPTIONAL                            :: pmvol_box, pmclus_box
       REAL(KIND=dp), DIMENSION(:), OPTIONAL, POINTER     :: virial_temps
-      REAL(KIND=dp), INTENT(OUT), OPTIONAL               :: exp_min_val, exp_max_val, min_val, &
+      REAL(KIND=dp), OPTIONAL                            :: exp_min_val, exp_max_val, min_val, &
                                                             max_val
       REAL(KIND=dp), DIMENSION(:), OPTIONAL, POINTER     :: eta
-      REAL(KIND=dp), INTENT(OUT), OPTIONAL               :: pmhmc, pmhmc_box
-      LOGICAL, INTENT(OUT), OPTIONAL                     :: lhmc
-      INTEGER, INTENT(OUT), OPTIONAL                     :: rand2skip
+      REAL(KIND=dp), OPTIONAL                            :: pmhmc, pmhmc_box
+      LOGICAL, OPTIONAL                                  :: lhmc
+      INTEGER, OPTIONAL                                  :: rand2skip
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'get_mc_par', routineP = moduleN//':'//routineN
 
@@ -547,7 +547,7 @@ CONTAINS
 !>    Suitable for parallel.
 !> \author MJM
       TYPE(mc_molecule_info_type), POINTER               :: mc_molecule_info
-      INTEGER, INTENT(OUT), OPTIONAL                     :: nmol_types, nchain_total, nboxes
+      INTEGER, OPTIONAL                                  :: nmol_types, nchain_total, nboxes
       CHARACTER(LEN=default_string_length), &
          DIMENSION(:), OPTIONAL, POINTER                 :: names
       REAL(dp), DIMENSION(:, :), OPTIONAL, POINTER       :: conf_prob
@@ -1156,8 +1156,8 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: nstart, nend
       CHARACTER(LEN=*), INTENT(IN)                       :: string_search
       LOGICAL, INTENT(IN)                                :: lend
-      INTEGER, INTENT(OUT)                               :: row_number, column_number
-      INTEGER, INTENT(OUT), OPTIONAL                     :: start_row_number
+      INTEGER                                            :: row_number, column_number
+      INTEGER, OPTIONAL                                  :: start_row_number
 
       CHARACTER(default_string_length)                   :: text_temp
       INTEGER                                            :: iline, index_string, jline, string_size
@@ -1731,7 +1731,7 @@ CONTAINS
 
       TYPE(mc_simpar_type), INTENT(INOUT)                :: mc_par
       TYPE(force_env_type), POINTER                      :: force_env
-      LOGICAL, INTENT(OUT)                               :: lterminate
+      LOGICAL                                            :: lterminate
 
       CHARACTER(len=*), PARAMETER :: routineN = 'find_mc_rcut', routineP = moduleN//':'//routineN
 

@@ -305,7 +305,7 @@ CONTAINS
       TYPE(helium_solvent_type), POINTER                 :: helium
       INTEGER, INTENT(IN)                                :: helium_part_index, helium_slice_index
       REAL(KIND=dp), DIMENSION(3), INTENT(IN), OPTIONAL  :: helium_r_opt
-      REAL(KIND=dp), INTENT(OUT)                         :: energy
+      REAL(KIND=dp)                                      :: energy
       REAL(KIND=dp), DIMENSION(:, :), INTENT(INOUT), &
          OPTIONAL, POINTER                               :: force
 
@@ -375,7 +375,7 @@ CONTAINS
 
       TYPE(pint_env_type), POINTER                       :: pint_env
       TYPE(helium_solvent_type), POINTER                 :: helium
-      REAL(KIND=dp), INTENT(OUT)                         :: energy
+      REAL(KIND=dp)                                      :: energy
 
       CHARACTER(len=*), PARAMETER :: routineN = 'helium_solute_e_f', &
          routineP = moduleN//':'//routineN
@@ -419,7 +419,7 @@ CONTAINS
 
       TYPE(pint_env_type), POINTER                       :: pint_env
       TYPE(helium_solvent_type), POINTER                 :: helium
-      REAL(KIND=dp), INTENT(OUT)                         :: energy
+      REAL(KIND=dp)                                      :: energy
 
       INTEGER                                            :: ia, ib
       REAL(KIND=dp)                                      :: my_energy
@@ -555,7 +555,7 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: solute_x
       TYPE(helium_solvent_type), POINTER                 :: helium
       REAL(KIND=dp), DIMENSION(3), INTENT(IN)            :: helium_x
-      REAL(KIND=dp), INTENT(OUT)                         :: energy
+      REAL(KIND=dp)                                      :: energy
       REAL(KIND=dp), DIMENSION(:), INTENT(INOUT), &
          OPTIONAL, POINTER                               :: force
 
@@ -854,7 +854,7 @@ CONTAINS
 
       TYPE(helium_solvent_type), POINTER                 :: helium
       INTEGER, INTENT(IN)                                :: part, ref_bead, delta_bead
-      REAL(KIND=dp), DIMENSION(3), INTENT(OUT)           :: d
+      REAL(KIND=dp), DIMENSION(3)                        :: d
 
       INTEGER                                            :: b, bead, db, nbead, np, p
       REAL(KIND=dp), DIMENSION(3)                        :: r

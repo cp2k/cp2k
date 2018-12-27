@@ -253,7 +253,7 @@ CONTAINS
    SUBROUTINE build_rotmat(phi, a, rotmat)
       REAL(KIND=dp), INTENT(IN)                          :: phi
       REAL(KIND=dp), DIMENSION(3), INTENT(IN)            :: a
-      REAL(KIND=dp), DIMENSION(3, 3), INTENT(OUT)        :: rotmat
+      REAL(KIND=dp), DIMENSION(3, 3)                     :: rotmat
 
       REAL(KIND=dp)                                      :: cosp, cost, length_of_a, sinp
       REAL(KIND=dp), DIMENSION(3)                        :: d
@@ -339,7 +339,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE diamat_all(a, eigval, dac)
       REAL(KIND=dp), DIMENSION(:, :), INTENT(INOUT)      :: a
-      REAL(KIND=dp), DIMENSION(:), INTENT(OUT)           :: eigval
+      REAL(KIND=dp), DIMENSION(:)                        :: eigval
       LOGICAL, INTENT(IN), OPTIONAL                      :: dac
 
       CHARACTER(len=*), PARAMETER :: routineN = 'diamat_all', routineP = moduleN//':'//routineN
@@ -510,7 +510,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE invmat(a, info)
       REAL(KIND=dp), INTENT(INOUT)                       :: a(:, :)
-      INTEGER, INTENT(OUT)                               :: info
+      INTEGER                                            :: info
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'invmat', routineP = moduleN//':'//routineN
 
@@ -613,8 +613,8 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE invert_matrix_d(a, a_inverse, eval_error, option, improve)
       REAL(KIND=dp), DIMENSION(:, :), INTENT(IN)         :: a
-      REAL(KIND=dp), DIMENSION(:, :), INTENT(OUT)        :: a_inverse
-      REAL(KIND=dp), INTENT(OUT)                         :: eval_error
+      REAL(KIND=dp), DIMENSION(:, :)                     :: a_inverse
+      REAL(KIND=dp)                                      :: eval_error
       CHARACTER(LEN=1), INTENT(IN), OPTIONAL             :: option
       LOGICAL, INTENT(IN), OPTIONAL                      :: improve
 
@@ -778,8 +778,8 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE invert_matrix_z(a, a_inverse, eval_error, option)
       COMPLEX(KIND=dp), DIMENSION(:, :), INTENT(IN)      :: a
-      COMPLEX(KIND=dp), DIMENSION(:, :), INTENT(OUT)     :: a_inverse
-      REAL(KIND=dp), INTENT(OUT)                         :: eval_error
+      COMPLEX(KIND=dp), DIMENSION(:, :)                  :: a_inverse
+      REAL(KIND=dp)                                      :: eval_error
       CHARACTER(LEN=1), INTENT(IN), OPTIONAL             :: option
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'invert_matrix_z', &
@@ -926,7 +926,7 @@ CONTAINS
 
       REAL(KIND=dp), DIMENSION(:, :)                     :: a, a_pinverse
       REAL(KIND=dp), INTENT(IN)                          :: rskip
-      REAL(KIND=dp), INTENT(OUT), OPTIONAL               :: determinant
+      REAL(KIND=dp), OPTIONAL                            :: determinant
       REAL(KIND=dp), DIMENSION(:), INTENT(INOUT), &
          OPTIONAL, POINTER                               :: sval
 
@@ -1403,7 +1403,7 @@ CONTAINS
 !> \param vec ...
 ! **************************************************************************************************
    SUBROUTINE matvec_3x3(res, mat, vec)
-      REAL(KIND=dp), DIMENSION(3), INTENT(OUT)           :: res
+      REAL(KIND=dp), DIMENSION(3)                        :: res
       REAL(KIND=dp), DIMENSION(3, 3), INTENT(IN)         :: mat
       REAL(KIND=dp), DIMENSION(3), INTENT(IN)            :: vec
 
@@ -1534,8 +1534,8 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE jacobi(a, d, v)
       REAL(KIND=dp), DIMENSION(:, :), INTENT(INOUT)      :: a
-      REAL(KIND=dp), DIMENSION(:), INTENT(OUT)           :: d
-      REAL(KIND=dp), DIMENSION(:, :), INTENT(OUT)        :: v
+      REAL(KIND=dp), DIMENSION(:)                        :: d
+      REAL(KIND=dp), DIMENSION(:, :)                     :: v
 
       INTEGER                                            :: n
 
@@ -1564,8 +1564,8 @@ CONTAINS
 
       INTEGER, INTENT(IN)                                :: n
       REAL(KIND=dp), DIMENSION(n, n), INTENT(INOUT)      :: a
-      REAL(KIND=dp), DIMENSION(n), INTENT(OUT)           :: d
-      REAL(KIND=dp), DIMENSION(n, n), INTENT(OUT)        :: v
+      REAL(KIND=dp), DIMENSION(n)                        :: d
+      REAL(KIND=dp), DIMENSION(n, n)                     :: v
 
       INTEGER                                            :: i, ip, iq
       REAL(KIND=dp)                                      :: a_max, c, d_min, g, h, s, t, tau, theta, &

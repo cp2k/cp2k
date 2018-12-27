@@ -158,7 +158,7 @@ CONTAINS
 
       INTEGER, INTENT(IN)                                :: nmax
       REAL(KIND=dp), INTENT(IN)                          :: t
-      REAL(KIND=dp), DIMENSION(0:nmax), INTENT(OUT)      :: f
+      REAL(KIND=dp), DIMENSION(0:nmax)                   :: f
 
       INTEGER                                            :: itab, k, n
       REAL(KIND=dp)                                      :: expt, g, tdelta, tmp, ttab
@@ -285,8 +285,7 @@ CONTAINS
 
       INTEGER, INTENT(IN)                                :: nmax
       REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: t
-      REAL(KIND=dp), DIMENSION(SIZE(t, 1), 0:nmax), &
-         INTENT(OUT)                                     :: f
+      REAL(KIND=dp), DIMENSION(SIZE(t, 1), 0:nmax)       :: f
 
       INTEGER                                            :: i, itab, k, n
       REAL(KIND=dp)                                      :: expt, g, tdelta, tmp, ttab

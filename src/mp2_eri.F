@@ -120,7 +120,7 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:, :), INTENT(IN), &
          OPTIONAL                                        :: pab
       TYPE(mp2_eri_force), ALLOCATABLE, &
-         DIMENSION(:), INTENT(OUT), OPTIONAL             :: force_a, force_b
+         DIMENSION(:), OPTIONAL             :: force_a, force_b
       REAL(KIND=dp), DIMENSION(:, :, :), INTENT(INOUT), &
          OPTIONAL                                        :: hdab, hadb
       REAL(KIND=dp), INTENT(IN), OPTIONAL                :: reflection_z_a, reflection_z_b
@@ -366,7 +366,7 @@ $:                         'force_b=force_b(jkind)%forces(:, atom_b), &'*doforce
       INTEGER, INTENT(IN)                                :: npgfb
       REAL(KIND=dp), DIMENSION(npgfb), INTENT(IN)        :: zetb
       REAL(KIND=dp), DIMENSION(3), INTENT(IN)            :: ra, rb
-      REAL(KIND=dp), DIMENSION(:, :), INTENT(OUT)        :: hab
+      REAL(KIND=dp), DIMENSION(:, :)        :: hab
       INTEGER, INTENT(IN)                                :: n_hab_a, n_hab_b, offset_hab_a, &
                                                             offset_hab_b, offset_set_a, &
                                                             offset_set_b
@@ -378,7 +378,7 @@ $:                         'force_b=force_b(jkind)%forces(:, atom_b), &'*doforce
          OPTIONAL                                        :: pab
       REAL(KIND=dp), DIMENSION(3), INTENT(INOUT), &
          OPTIONAL                                        :: force_a, force_b
-      REAL(KIND=dp), DIMENSION(:, :, :), INTENT(OUT), &
+      REAL(KIND=dp), DIMENSION(:, :, :), &
          OPTIONAL                                        :: hdab, hadb
       INTEGER, INTENT(INOUT), OPTIONAL                   :: G_count, R_count
       LOGICAL, INTENT(IN), OPTIONAL                      :: do_reflection_a, do_reflection_b
@@ -627,7 +627,7 @@ $:                         'force_b=force_b(jkind)%forces(:, atom_b), &'*doforce
       TYPE(dbcsr_p_type), DIMENSION(last_c-first_c+1), &
          INTENT(INOUT), OPTIONAL                         :: pabc
       TYPE(mp2_eri_force), ALLOCATABLE, &
-         DIMENSION(:), INTENT(OUT), OPTIONAL             :: force_a, force_b, force_c
+         DIMENSION(:), OPTIONAL             :: force_a, force_b, force_c
       TYPE(dbcsr_p_type), &
          DIMENSION(3, last_c-first_c+1), INTENT(INOUT), &
          OPTIONAL                                        :: mat_dabc, mat_adbc, mat_abdc
@@ -1094,7 +1094,7 @@ $:                         'habdc=habdc, &'*abdc
       LOGICAL, INTENT(IN)                                :: do_symmetric
       LOGICAL, INTENT(IN), OPTIONAL                      :: on_diagonal
       REAL(KIND=dp), DIMENSION(:, :, :, :), &
-         INTENT(OUT), OPTIONAL                           :: hdabc, hadbc, habdc
+          OPTIONAL                           :: hdabc, hadbc, habdc
       INTEGER, INTENT(INOUT), OPTIONAL                   :: GG_count, GR_count, RR_count
       LOGICAL, INTENT(IN), OPTIONAL                      :: transp
 
@@ -1407,7 +1407,7 @@ $:                         'habdc=habdc, &'*abdc
    SUBROUTINE get_eri_offsets(qs_env, basis_type, eri_offsets)
       TYPE(qs_environment_type), INTENT(IN), POINTER     :: qs_env
       CHARACTER(len=*), INTENT(IN), OPTIONAL             :: basis_type
-      INTEGER, ALLOCATABLE, DIMENSION(:, :), INTENT(OUT) :: eri_offsets
+      INTEGER, ALLOCATABLE, DIMENSION(:, :) :: eri_offsets
 
       INTEGER                                            :: dimen_basis, iatom, ikind, iset, isgf, &
                                                             natom, nkind, nset, nsgf, offset, &
@@ -1459,7 +1459,7 @@ $:                         'habdc=habdc, &'*abdc
 ! **************************************************************************************************
    SUBROUTINE mp2_eri_allocate_forces(force, natom_of_kind)
       TYPE(mp2_eri_force), ALLOCATABLE, &
-         DIMENSION(:), INTENT(OUT)                       :: force
+         DIMENSION(:)                       :: force
       INTEGER, DIMENSION(:), INTENT(IN)                  :: natom_of_kind
 
       INTEGER                                            :: ikind, n, nkind

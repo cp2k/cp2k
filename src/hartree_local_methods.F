@@ -210,7 +210,7 @@ CONTAINS
    SUBROUTINE Vh_1c_gg_integrals(qs_env, energy_hartree_1c, tddft, do_triplet, p_env)
 
       TYPE(qs_environment_type), POINTER                 :: qs_env
-      REAL(kind=dp), INTENT(out)                         :: energy_hartree_1c
+      REAL(kind=dp)                                      :: energy_hartree_1c
       LOGICAL, INTENT(IN), OPTIONAL                      :: tddft, do_triplet
       TYPE(qs_p_env_type), OPTIONAL, POINTER             :: p_env
 

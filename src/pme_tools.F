@@ -45,7 +45,7 @@ CONTAINS
       TYPE(particle_type), DIMENSION(:), INTENT(IN)      :: part
       INTEGER, INTENT(IN)                                :: npart
       INTEGER, DIMENSION(:, :), INTENT(IN)               :: center
-      INTEGER, INTENT(OUT)                               :: p1
+      INTEGER                                            :: p1
       TYPE(realspace_grid_type), POINTER                 :: rs
       INTEGER, INTENT(INOUT)                             :: ipart
       INTEGER, DIMENSION(:, :), OPTIONAL, POINTER        :: core_center
@@ -128,7 +128,7 @@ CONTAINS
 
       TYPE(particle_type), DIMENSION(:), INTENT(IN)      :: part
       TYPE(cell_type), POINTER                           :: box
-      INTEGER, DIMENSION(:, :), INTENT(OUT)              :: center
+      INTEGER, DIMENSION(:, :)                           :: center
       INTEGER, DIMENSION(:), INTENT(IN)                  :: npts
       INTEGER, INTENT(IN)                                :: n
 

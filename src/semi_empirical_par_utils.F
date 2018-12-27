@@ -541,7 +541,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE amn_l1(sep, amn)
       TYPE(semi_empirical_type), POINTER                 :: sep
-      REAL(KIND=dp), DIMENSION(6), INTENT(OUT)           :: amn
+      REAL(KIND=dp), DIMENSION(6)                        :: amn
 
       CHARACTER(len=*), PARAMETER :: routineN = 'amn_l1', routineP = moduleN//':'//routineN
 
@@ -590,7 +590,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE amn_l2(sep, amn)
       TYPE(semi_empirical_type), POINTER                 :: sep
-      REAL(KIND=dp), DIMENSION(6, 0:2), INTENT(OUT)      :: amn
+      REAL(KIND=dp), DIMENSION(6, 0:2)                   :: amn
 
       CHARACTER(len=*), PARAMETER :: routineN = 'amn_l2', routineP = moduleN//':'//routineN
 
@@ -820,7 +820,7 @@ CONTAINS
    SUBROUTINE sc_param(sep, r066, r266, r466, r016, r244, r036, r236, r155, r355, &
                        r125, r234, r246)
       TYPE(semi_empirical_type), POINTER                 :: sep
-      REAL(KIND=dp), INTENT(out)                         :: r066, r266, r466, r016, r244, r036, &
+      REAL(KIND=dp)                                      :: r066, r266, r466, r016, r244, r036, &
                                                             r236, r155, r355, r125, r234, r246
 
       CHARACTER(len=*), PARAMETER :: routineN = 'sc_param', routineP = moduleN//':'//routineN

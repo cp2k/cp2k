@@ -143,7 +143,7 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: start_atom, molecule_type, box_number
       REAL(KIND=dp), INTENT(INOUT)                       :: bias_energy
       CHARACTER(LEN=*), INTENT(IN)                       :: move_type
-      LOGICAL, INTENT(OUT)                               :: lreject
+      LOGICAL                                            :: lreject
       TYPE(rng_stream_type), POINTER                     :: rng_stream
 
       CHARACTER(len=*), PARAMETER :: routineN = 'mc_conformation_change', &
@@ -439,7 +439,7 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: start_atom, box_number
       REAL(KIND=dp), INTENT(INOUT)                       :: bias_energy
       INTEGER, INTENT(IN)                                :: molecule_type
-      LOGICAL, INTENT(OUT)                               :: lreject
+      LOGICAL                                            :: lreject
       TYPE(rng_stream_type), POINTER                     :: rng_stream
 
       CHARACTER(len=*), PARAMETER :: routineN = 'mc_molecule_translation', &
@@ -662,7 +662,7 @@ CONTAINS
       TYPE(mc_moves_type), POINTER                       :: moves, move_updates
       INTEGER, INTENT(IN)                                :: box_number, start_atom, molecule_type
       REAL(KIND=dp), INTENT(INOUT)                       :: bias_energy
-      LOGICAL, INTENT(OUT)                               :: lreject
+      LOGICAL                                            :: lreject
       TYPE(rng_stream_type), POINTER                     :: rng_stream
 
       CHARACTER(len=*), PARAMETER :: routineN = 'mc_molecule_rotation', &
@@ -1305,11 +1305,11 @@ CONTAINS
                                  dis_length, particles, rng_stream)
 
       REAL(KIND=dp), DIMENSION(:, :), INTENT(IN)         :: r_old
-      REAL(KIND=dp), DIMENSION(:, :), INTENT(OUT)        :: r_new
+      REAL(KIND=dp), DIMENSION(:, :)                     :: r_new
       TYPE(mc_simpar_type), POINTER                      :: mc_par
       INTEGER, INTENT(IN)                                :: molecule_type
       TYPE(molecule_kind_type), POINTER                  :: molecule_kind
-      REAL(KIND=dp), INTENT(OUT)                         :: dis_length
+      REAL(KIND=dp)                                      :: dis_length
       TYPE(particle_list_type), POINTER                  :: particles
       TYPE(rng_stream_type), POINTER                     :: rng_stream
 
@@ -1473,7 +1473,7 @@ CONTAINS
                                 particles, rng_stream)
 
       REAL(KIND=dp), DIMENSION(:, :), INTENT(IN)         :: r_old
-      REAL(KIND=dp), DIMENSION(:, :), INTENT(OUT)        :: r_new
+      REAL(KIND=dp), DIMENSION(:, :)                     :: r_new
       TYPE(mc_simpar_type), POINTER                      :: mc_par
       INTEGER, INTENT(IN)                                :: molecule_type
       TYPE(molecule_kind_type), POINTER                  :: molecule_kind
@@ -1733,7 +1733,7 @@ CONTAINS
                               particles, rng_stream)
 
       REAL(KIND=dp), DIMENSION(:, :), INTENT(IN)         :: r_old
-      REAL(KIND=dp), DIMENSION(:, :), INTENT(OUT)        :: r_new
+      REAL(KIND=dp), DIMENSION(:, :)                     :: r_new
       TYPE(mc_simpar_type), POINTER                      :: mc_par
       INTEGER, INTENT(IN)                                :: molecule_type
       TYPE(molecule_kind_type), POINTER                  :: molecule_kind
@@ -2489,7 +2489,7 @@ CONTAINS
       TYPE(mc_moves_type), POINTER                       :: moves, move_updates
       INTEGER, INTENT(IN)                                :: box_number
       REAL(KIND=dp), INTENT(INOUT)                       :: bias_energy
-      LOGICAL, INTENT(OUT)                               :: lreject
+      LOGICAL                                            :: lreject
       TYPE(rng_stream_type), POINTER                     :: rng_stream
 
       CHARACTER(len=*), PARAMETER :: routineN = 'mc_cluster_translation', &

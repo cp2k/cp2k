@@ -221,13 +221,11 @@ CONTAINS
                                           first_row, rowptr_local, colind_local, nzerow_local, nzvals_local)
 
       TYPE(cp2k_csr_interop_type), INTENT(IN)            :: csr_interop_mat
-      INTEGER, INTENT(OUT), OPTIONAL                     :: nrows_total, ncols_total, nze_local, &
+      INTEGER, OPTIONAL                                  :: nrows_total, ncols_total, nze_local, &
                                                             nze_total, nrows_local, data_type, &
                                                             first_row
-      INTEGER, DIMENSION(:), INTENT(OUT), OPTIONAL, &
-         POINTER                                         :: rowptr_local, colind_local, nzerow_local
-      REAL(dp), DIMENSION(:), INTENT(OUT), OPTIONAL, &
-         POINTER                                         :: nzvals_local
+      INTEGER, DIMENSION(:), OPTIONAL, POINTER           :: rowptr_local, colind_local, nzerow_local
+      REAL(dp), DIMENSION(:), OPTIONAL, POINTER          :: nzvals_local
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'csr_interop_matrix_get_info', &
          routineP = moduleN//':'//routineN

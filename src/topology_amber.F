@@ -1289,7 +1289,7 @@ CONTAINS
 ! **************************************************************************************************
   FUNCTION  get_section_parmtop(parser, section, input_format) RESULT(another_section)
       TYPE(cp_parser_type), POINTER                      :: parser
-      CHARACTER(LEN=default_string_length), INTENT(OUT)  :: section, input_format
+      CHARACTER(LEN=default_string_length)               :: section, input_format
       LOGICAL                                            :: another_section
 
       CHARACTER(len=*), PARAMETER :: routineN = 'get_section_parmtop', &

@@ -433,8 +433,8 @@ CONTAINS
 !> \param rtp ...
 ! **************************************************************************************************
    SUBROUTINE wfn_restart_file_name(filename, exist, section, logger, kp, xas, rtp)
-      CHARACTER(LEN=default_path_length), INTENT(OUT)    :: filename
-      LOGICAL, INTENT(OUT)                               :: exist
+      CHARACTER(LEN=default_path_length)                 :: filename
+      LOGICAL                                            :: exist
       TYPE(section_vals_type), POINTER                   :: section
       TYPE(cp_logger_type), POINTER                      :: logger
       LOGICAL, INTENT(IN), OPTIONAL                      :: kp, xas, rtp
@@ -507,7 +507,7 @@ CONTAINS
       TYPE(cp_para_env_type), POINTER                    :: para_env
       INTEGER, INTENT(IN)                                :: id_nr, multiplicity
       TYPE(section_vals_type), POINTER                   :: dft_section
-      LOGICAL, INTENT(OUT), OPTIONAL                     :: natom_mismatch
+      LOGICAL, OPTIONAL                                  :: natom_mismatch
       LOGICAL, INTENT(IN), OPTIONAL                      :: cdft
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'read_mo_set_from_restart', &
@@ -675,7 +675,7 @@ CONTAINS
       INTEGER, INTENT(in), OPTIONAL                      :: multiplicity
       TYPE(cp_fm_p_type), DIMENSION(:), OPTIONAL, &
          POINTER                                         :: rt_mos
-      LOGICAL, INTENT(OUT), OPTIONAL                     :: natom_mismatch
+      LOGICAL, OPTIONAL                                  :: natom_mismatch
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'read_mos_restart_low', &
          routineP = moduleN//':'//routineN

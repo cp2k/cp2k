@@ -1309,7 +1309,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE check_element_list(do_it, do_action, atlist, Ilist1, Ilist2, Ilist3, Ilist4, &
                                  is_impr)
-      INTEGER, INTENT(OUT)                               :: do_it
+      INTEGER                                            :: do_it
       INTEGER, INTENT(IN)                                :: do_action
       INTEGER, DIMENSION(:), POINTER                     :: atlist, Ilist1, Ilist2
       INTEGER, DIMENSION(:), OPTIONAL, POINTER           :: Ilist3, Ilist4

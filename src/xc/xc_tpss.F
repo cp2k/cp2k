@@ -53,9 +53,9 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE tpss_lda_info(tpss_params, reference, shortform, needs, max_deriv)
       TYPE(section_vals_type), POINTER                   :: tpss_params
-      CHARACTER(LEN=*), INTENT(OUT), OPTIONAL            :: reference, shortform
+      CHARACTER(LEN=*), OPTIONAL                         :: reference, shortform
       TYPE(xc_rho_cflags_type), INTENT(inout), OPTIONAL  :: needs
-      INTEGER, INTENT(out), OPTIONAL                     :: max_deriv
+      INTEGER, OPTIONAL                                  :: max_deriv
 
       CHARACTER(len=*), PARAMETER :: routineN = 'tpss_lda_info', routineP = moduleN//':'//routineN
 
@@ -103,9 +103,9 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE tpss_lsd_info(tpss_params, reference, shortform, needs, max_deriv)
       TYPE(section_vals_type), POINTER                   :: tpss_params
-      CHARACTER(LEN=*), INTENT(OUT), OPTIONAL            :: reference, shortform
+      CHARACTER(LEN=*), OPTIONAL                         :: reference, shortform
       TYPE(xc_rho_cflags_type), INTENT(inout), OPTIONAL  :: needs
-      INTEGER, INTENT(out), OPTIONAL                     :: max_deriv
+      INTEGER, OPTIONAL                                  :: max_deriv
 
       CHARACTER(len=*), PARAMETER :: routineN = 'tpss_lsd_info', routineP = moduleN//':'//routineN
 

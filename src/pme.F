@@ -97,13 +97,11 @@ CONTAINS
       TYPE(ewald_pw_type), POINTER                       :: ewald_pw
       TYPE(cell_type), POINTER                           :: box
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
-      REAL(KIND=dp), INTENT(OUT)                         :: vg_coulomb
-      REAL(KIND=dp), DIMENSION(:, :), INTENT(OUT), &
-         OPTIONAL                                        :: fg_coulomb, pv_g
+      REAL(KIND=dp)                                      :: vg_coulomb
+      REAL(KIND=dp), DIMENSION(:, :), OPTIONAL           :: fg_coulomb, pv_g
       TYPE(particle_type), DIMENSION(:), OPTIONAL, &
          POINTER                                         :: shell_particle_set, core_particle_set
-      REAL(KIND=dp), DIMENSION(:, :), INTENT(OUT), &
-         OPTIONAL                                        :: fgshell_coulomb, fgcore_coulomb
+      REAL(KIND=dp), DIMENSION(:, :), OPTIONAL           :: fgshell_coulomb, fgcore_coulomb
       LOGICAL, INTENT(IN)                                :: use_virial
       REAL(KIND=dp), DIMENSION(:), OPTIONAL, POINTER     :: charges
       TYPE(atprop_type), POINTER                         :: atprop

@@ -291,7 +291,7 @@ CONTAINS
 
       TYPE(dbcsr_type)                                   :: mat
       REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: vecr
-      REAL(KIND=dp), DIMENSION(:), INTENT(OUT)           :: vecx
+      REAL(KIND=dp), DIMENSION(:)                        :: vecx
       TYPE(dbcsr_type)                                   :: matp
       CHARACTER(LEN=*), INTENT(IN)                       :: solver
       INTEGER, DIMENSION(:, :), INTENT(IN)               :: ptr
@@ -590,7 +590,7 @@ CONTAINS
 
       TYPE(dbcsr_type)                                   :: mat
       REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: vi
-      REAL(KIND=dp), DIMENSION(:), INTENT(OUT)           :: vo
+      REAL(KIND=dp), DIMENSION(:)                        :: vo
       INTEGER, DIMENSION(:, :), INTENT(IN)               :: ptr
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'ri_matvec', routineP = moduleN//':'//routineN

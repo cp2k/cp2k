@@ -944,7 +944,7 @@ CONTAINS
 !> \param z ...
 ! **************************************************************************************************
    SUBROUTINE erffit(ac, vlocal, r, z)
-      REAL(KIND=dp), INTENT(OUT)                         :: ac
+      REAL(KIND=dp)                                      :: ac
       REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: vlocal, r
       REAL(KIND=dp), INTENT(IN)                          :: z
 

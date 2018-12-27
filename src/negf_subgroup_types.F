@@ -70,7 +70,7 @@ CONTAINS
 !>    * 06.2017 created [Sergey Chulkov]
 ! **************************************************************************************************
    SUBROUTINE negf_sub_env_create(sub_env, negf_control, blacs_env_global, blacs_grid_layout, blacs_repeatable)
-      TYPE(negf_subgroup_env_type), INTENT(out)          :: sub_env
+      TYPE(negf_subgroup_env_type)                       :: sub_env
       TYPE(negf_control_type), POINTER                   :: negf_control
       TYPE(cp_blacs_env_type), POINTER                   :: blacs_env_global
       INTEGER, INTENT(in)                                :: blacs_grid_layout

@@ -469,7 +469,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE molecule_of_atom(molecule_set, atom_to_mol)
       TYPE(molecule_type), DIMENSION(:), POINTER         :: molecule_set
-      INTEGER, DIMENSION(:), INTENT(OUT)                 :: atom_to_mol
+      INTEGER, DIMENSION(:)                              :: atom_to_mol
 
       CHARACTER(len=*), PARAMETER :: routineN = 'molecule_of_atom', &
          routineP = moduleN//':'//routineN
@@ -506,8 +506,8 @@ CONTAINS
                                     mol_to_multiplicity)
 
       TYPE(molecule_type), DIMENSION(:), POINTER         :: molecule_set
-      INTEGER, DIMENSION(:), INTENT(OUT), OPTIONAL :: atom_to_mol, mol_to_first_atom, &
-         mol_to_last_atom, mol_to_nelectrons, mol_to_nbasis, mol_to_charge, mol_to_multiplicity
+      INTEGER, DIMENSION(:), OPTIONAL :: atom_to_mol, mol_to_first_atom, mol_to_last_atom, &
+         mol_to_nelectrons, mol_to_nbasis, mol_to_charge, mol_to_multiplicity
 
       CHARACTER(len=*), PARAMETER :: routineN = 'get_molecule_set_info', &
          routineP = moduleN//':'//routineN

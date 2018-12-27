@@ -98,7 +98,7 @@ CONTAINS
    SUBROUTINE check_exp_minimax_range(k, Rc, ierr)
       INTEGER, INTENT(IN)                                :: k
       REAL(KIND=dp), INTENT(IN)                          :: Rc
-      INTEGER, INTENT(OUT)                               :: ierr
+      INTEGER                                            :: ierr
 
       ierr = 0
       IF (k .LE. 15) THEN
@@ -124,9 +124,9 @@ CONTAINS
    SUBROUTINE get_exp_minimax_coeff(k, Rc, aw, mm_error, which_coeffs)
       INTEGER, INTENT(IN)                                :: k
       REAL(KIND=dp), INTENT(IN)                          :: Rc
-      REAL(KIND=dp), DIMENSION(2*k), INTENT(OUT)         :: aw
-      REAL(KIND=dp), INTENT(OUT), OPTIONAL               :: mm_error
-      INTEGER, INTENT(OUT), OPTIONAL                     :: which_coeffs
+      REAL(KIND=dp), DIMENSION(2*k)                      :: aw
+      REAL(KIND=dp), OPTIONAL                            :: mm_error
+      INTEGER, OPTIONAL                                  :: which_coeffs
 
       INTEGER                                            :: ierr
 
@@ -160,8 +160,8 @@ CONTAINS
    SUBROUTINE get_minimax_coeff_k53(k, Rc, aw, mm_error)
       INTEGER, INTENT(IN)                                :: k
       REAL(KIND=dp), INTENT(IN)                          :: Rc
-      REAL(KIND=dp), DIMENSION(2*k), INTENT(OUT)         :: aw
-      REAL(KIND=dp), INTENT(OUT), OPTIONAL               :: mm_error
+      REAL(KIND=dp), DIMENSION(2*k)                      :: aw
+      REAL(KIND=dp), OPTIONAL                            :: mm_error
 
       INTEGER                                            :: i_mm
 
@@ -182,7 +182,7 @@ CONTAINS
    SUBROUTINE get_best_minimax_approx_k53(k, Rc, i_mm, ge_Rc)
       INTEGER, INTENT(IN)                                :: k
       REAL(KIND=dp), INTENT(IN)                          :: Rc
-      INTEGER, INTENT(OUT)                               :: i_mm
+      INTEGER                                            :: i_mm
       LOGICAL, INTENT(IN), OPTIONAL                      :: ge_Rc
 
       INTEGER                                            :: i, i_k, i_l, i_r

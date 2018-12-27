@@ -39,8 +39,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE pint_x2u(pint_env, ux, x)
       TYPE(pint_env_type), POINTER                       :: pint_env
-      REAL(kind=dp), DIMENSION(:, :), INTENT(out), &
-         OPTIONAL, TARGET                                :: ux
+      REAL(kind=dp), DIMENSION(:, :), OPTIONAL, TARGET   :: ux
       REAL(kind=dp), DIMENSION(:, :), INTENT(in), &
          OPTIONAL, TARGET                                :: x
 
@@ -78,8 +77,7 @@ CONTAINS
       TYPE(pint_env_type), POINTER                       :: pint_env
       REAL(kind=dp), DIMENSION(:, :), INTENT(in), &
          OPTIONAL, TARGET                                :: ux
-      REAL(kind=dp), DIMENSION(:, :), INTENT(out), &
-         OPTIONAL, TARGET                                :: x
+      REAL(kind=dp), DIMENSION(:, :), OPTIONAL, TARGET   :: x
 
       CHARACTER(len=*), PARAMETER :: routineN = 'pint_u2x', routineP = moduleN//':'//routineN
 
@@ -116,8 +114,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE pint_f2uf(pint_env, uf, f)
       TYPE(pint_env_type), POINTER                       :: pint_env
-      REAL(kind=dp), DIMENSION(:, :), INTENT(out), &
-         OPTIONAL, TARGET                                :: uf
+      REAL(kind=dp), DIMENSION(:, :), OPTIONAL, TARGET   :: uf
       REAL(kind=dp), DIMENSION(:, :), INTENT(in), &
          OPTIONAL, TARGET                                :: f
 

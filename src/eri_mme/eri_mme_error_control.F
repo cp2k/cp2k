@@ -71,7 +71,7 @@ CONTAINS
       INTEGER, DIMENSION(:), INTENT(IN)                  :: l_c
       INTEGER, INTENT(IN)                                :: n_minimax
       REAL(KIND=dp), INTENT(IN)                          :: cutoff_l, cutoff_r, tol, delta
-      REAL(KIND=dp), INTENT(OUT)                         :: cutoff, err_mm, err_c, C_mm
+      REAL(KIND=dp)                                      :: cutoff, err_mm, err_c, C_mm
       TYPE(cp_para_env_type), INTENT(IN), POINTER        :: para_env
       LOGICAL, INTENT(IN)                                :: print_calib
       INTEGER, INTENT(IN)                                :: unit_nr
@@ -215,8 +215,8 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: zet_ctff
       INTEGER, DIMENSION(:), INTENT(IN)                  :: l_ctff
       INTEGER, INTENT(IN)                                :: n_minimax
-      REAL(KIND=dp), DIMENSION(:), INTENT(OUT)           :: minimax_aw
-      REAL(KIND=dp), INTENT(OUT)                         :: err_mm, err_ctff, C_mm
+      REAL(KIND=dp), DIMENSION(:)                        :: minimax_aw
+      REAL(KIND=dp)                                      :: err_mm, err_ctff, C_mm
       TYPE(cp_para_env_type), INTENT(IN), POINTER        :: para_env
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'cutoff_minimax_error', &
@@ -349,7 +349,7 @@ CONTAINS
       REAL(KIND=dp), INTENT(IN)                          :: G_min
       INTEGER, INTENT(IN)                                :: l_c
       REAL(KIND=dp), INTENT(IN)                          :: zet_c, C_mm
-      REAL(KIND=dp), INTENT(OUT)                         :: err_c
+      REAL(KIND=dp)                                      :: err_c
       TYPE(cp_para_env_type), INTENT(IN), POINTER        :: para_env
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'cutoff_error_fixed_exp', &

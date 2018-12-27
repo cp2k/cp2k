@@ -4293,7 +4293,7 @@ CONTAINS
    SUBROUTINE opt_k_apply_preconditioner_blk(almo_scf_env, step, grad, ispin)
 
       TYPE(almo_scf_env_type), INTENT(INOUT)             :: almo_scf_env
-      TYPE(dbcsr_type), INTENT(OUT)                      :: step
+      TYPE(dbcsr_type)                                   :: step
       TYPE(dbcsr_type), INTENT(IN)                       :: grad
       INTEGER, INTENT(IN)                                :: ispin
 

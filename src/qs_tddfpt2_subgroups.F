@@ -162,7 +162,7 @@ CONTAINS
 !>              [Sergey Chulkov]
 ! **************************************************************************************************
    SUBROUTINE tddfpt_sub_env_init(sub_env, qs_env, mos_occ)
-      TYPE(tddfpt_subgroup_env_type), INTENT(out)        :: sub_env
+      TYPE(tddfpt_subgroup_env_type)                     :: sub_env
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(cp_fm_p_type), DIMENSION(:), INTENT(in)       :: mos_occ
 
@@ -388,7 +388,7 @@ CONTAINS
    SUBROUTINE init_tddfpt_mgrid(qs_control, tddfpt_control, mgrid_saved)
       TYPE(qs_control_type), POINTER                     :: qs_control
       TYPE(tddfpt2_control_type), POINTER                :: tddfpt_control
-      TYPE(mgrid_saved_parameters), INTENT(out)          :: mgrid_saved
+      TYPE(mgrid_saved_parameters)                       :: mgrid_saved
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'init_tddfpt_mgrid', &
          routineP = moduleN//':'//routineN

@@ -139,7 +139,7 @@ CONTAINS
       TYPE(qs_scf_env_type), POINTER                     :: scf_env
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(section_vals_type), POINTER                   :: xas_section, scf_section
-      LOGICAL, INTENT(OUT)                               :: converged, should_stop
+      LOGICAL                                            :: converged, should_stop
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'xas_do_tp_scf', routineP = moduleN//':'//routineN
 
@@ -640,7 +640,7 @@ CONTAINS
 
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(xas_environment_type), POINTER                :: xas_env
-      LOGICAL, INTENT(OUT)                               :: converged, should_stop
+      LOGICAL                                            :: converged, should_stop
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'xes_scf_once', routineP = moduleN//':'//routineN
 

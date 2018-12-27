@@ -121,7 +121,7 @@ CONTAINS
 !> \param total ...
 ! **************************************************************************************************
    SUBROUTINE cuda_mem_info(free, total)
-      INTEGER(KIND=int_8), INTENT(OUT)         :: free, total
+      INTEGER(KIND=int_8)         :: free, total
 #if defined( __CUDA_PROFILING )
       INTEGER(KIND=C_INT)                      :: istat
       INTEGER(KIND=C_SIZE_T)                   :: free_c, total_c

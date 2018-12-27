@@ -160,7 +160,7 @@ CONTAINS
                           scf_env, scf_control)
 
       TYPE(xas_environment_type), POINTER                :: xas_env
-      INTEGER, INTENT(OUT), OPTIONAL                     :: iter_count, exc_state, nao, nvirtual, &
+      INTEGER, OPTIONAL                                  :: iter_count, exc_state, nao, nvirtual, &
                                                             nvirtual2
       REAL(dp), DIMENSION(:, :), OPTIONAL, POINTER       :: centers_wfn
       INTEGER, DIMENSION(:), OPTIONAL, POINTER           :: atom_of_state, exc_atoms, nexc_states, &
@@ -177,7 +177,7 @@ CONTAINS
       TYPE(cp_fm_type), OPTIONAL, POINTER                :: excvec_coeff, excvec_overlap, &
                                                             unoccupied_orbs
       REAL(dp), DIMENSION(:), OPTIONAL, POINTER          :: unoccupied_evals
-      INTEGER, INTENT(OUT), OPTIONAL                     :: unoccupied_max_iter
+      INTEGER, OPTIONAL                                  :: unoccupied_max_iter
       REAL(dp), OPTIONAL                                 :: unoccupied_eps
       TYPE(cp_fm_type), OPTIONAL, POINTER                :: all_vectors
       REAL(dp), DIMENSION(:), OPTIONAL, POINTER          :: all_evals
@@ -186,8 +186,8 @@ CONTAINS
       TYPE(qs_loc_env_new_type), OPTIONAL, POINTER       :: qs_loc_env
       TYPE(cp_2d_r_p_type), DIMENSION(:), OPTIONAL, &
          POINTER                                         :: stogto_overlap
-      REAL(dp), INTENT(OUT), OPTIONAL                    :: occ_estate, xas_nelectron
-      INTEGER, INTENT(OUT), OPTIONAL                     :: xas_estate, nexc_atoms, nexc_search, &
+      REAL(dp), OPTIONAL                                 :: occ_estate, xas_nelectron
+      INTEGER, OPTIONAL                                  :: xas_estate, nexc_atoms, nexc_search, &
                                                             spin_channel
       TYPE(qs_scf_env_type), OPTIONAL, POINTER           :: scf_env
       TYPE(scf_control_type), OPTIONAL, POINTER          :: scf_control

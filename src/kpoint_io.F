@@ -304,7 +304,7 @@ CONTAINS
       TYPE(cp_para_env_type), POINTER                    :: para_env
       INTEGER, INTENT(IN)                                :: id_nr
       TYPE(section_vals_type), POINTER                   :: dft_section
-      LOGICAL, INTENT(OUT)                               :: natom_mismatch
+      LOGICAL                                            :: natom_mismatch
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'read_kpoints_restart', &
          routineP = moduleN//':'//routineN
@@ -375,7 +375,7 @@ CONTAINS
       TYPE(cp_fm_type), POINTER                          :: fmat
       TYPE(cp_para_env_type), POINTER                    :: para_env
       INTEGER, INTENT(IN)                                :: natom, rst_unit
-      LOGICAL, INTENT(OUT)                               :: natom_mismatch
+      LOGICAL                                            :: natom_mismatch
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'read_kpoints_restart_low', &
          routineP = moduleN//':'//routineN
