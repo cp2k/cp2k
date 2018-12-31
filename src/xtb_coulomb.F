@@ -19,11 +19,6 @@ MODULE xtb_coulomb
    USE cp_para_types,                   ONLY: cp_para_env_type
    USE dbcsr_api,                       ONLY: dbcsr_add,&
                                               dbcsr_get_block_p,&
-                                              dbcsr_iterator_blocks_left,&
-                                              dbcsr_iterator_next_block,&
-                                              dbcsr_iterator_start,&
-                                              dbcsr_iterator_stop,&
-                                              dbcsr_iterator_type,&
                                               dbcsr_p_type
    USE dgs,                             ONLY: dg_sum_patch,&
                                               dg_sum_patch_force_1d,&
@@ -127,26 +122,27 @@ CONTAINS
       CHARACTER(len=*), PARAMETER :: routineN = 'build_xtb_coulomb', &
          routineP = moduleN//':'//routineN
 
-      INTEGER :: atom_i, atom_j, blk, ewald_type, handle, i, ia, iatom, ic, icol, ikind, img, &
-         irow, is, j, jatom, jkind, la, lb, natom, ni, nimg, nj, nkind, nmat, za, zb
+      INTEGER :: atom_i, atom_j, ewald_type, handle, i, ia, iatom, ic, icol, ikind, img, irow, is, &
+         j, jatom, jkind, la, lb, lmaxa, lmaxb, natom, natorb_a, natorb_b, ni, nimg, nj, nkind, &
+         nmat, za, zb
       INTEGER, DIMENSION(25)                             :: laoa, laob
       INTEGER, DIMENSION(3)                              :: cellind, periodic
       INTEGER, DIMENSION(:), POINTER                     :: atom_of_kind, kind_of
       INTEGER, DIMENSION(:, :, :), POINTER               :: cell_to_index
-      LOGICAL                                            :: do_ewald, found, use_virial
-      REAL(KIND=dp)                                      :: alpha, deth, dr, ecsr, fi, gmij, zeff
+      LOGICAL                                            :: defined, do_ewald, found, use_virial
+      REAL(KIND=dp)                                      :: alpha, deth, dr, ecsr, etaa, etab, fi, &
+                                                            gmij, kg, rcut, rcuta, rcutb, zeff, ksb1
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: xgamma, zeffk
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: gcij, gmcharge
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: gammab, gcij, gmcharge
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: gchrg
       REAL(KIND=dp), DIMENSION(25)                       :: gcint
       REAL(KIND=dp), DIMENSION(3)                        :: fij, rij
-      REAL(KIND=dp), DIMENSION(:, :), POINTER            :: dsblock, gblock, ksblock, pblock, sblock
+      REAL(KIND=dp), DIMENSION(5)                        :: kappaa, kappab
+      REAL(KIND=dp), DIMENSION(:, :), POINTER            :: dsblock, ksblock, pblock, sblock
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       TYPE(atprop_type), POINTER                         :: atprop
       TYPE(cell_type), POINTER                           :: cell
       TYPE(cp_para_env_type), POINTER                    :: para_env
-      TYPE(dbcsr_iterator_type)                          :: iter
-      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: gamma_matrix
       TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: matrix_p, matrix_s
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(distribution_1d_type), POINTER                :: local_particles
@@ -165,11 +161,10 @@ CONTAINS
 
       CALL timeset(routineN, handle)
 
-      NULLIFY (gamma_matrix, matrix_p, matrix_s, virial, atprop, dft_control)
+      NULLIFY (matrix_p, matrix_s, virial, atprop, dft_control)
 
       CALL get_qs_env(qs_env, &
                       qs_kind_set=qs_kind_set, &
-                      gamma_matrix=gamma_matrix, &
                       particle_set=particle_set, &
                       cell=cell, &
                       virial=virial, &
@@ -200,60 +195,61 @@ CONTAINS
       gmcharge = 0._dp
 
       ! short range contribution (gamma)
-      CALL dbcsr_iterator_start(iter, gamma_matrix(1)%matrix)
-      DO WHILE (dbcsr_iterator_blocks_left(iter))
-         NULLIFY (gblock)
-         CALL dbcsr_iterator_next_block(iter, iatom, jatom, gblock, blk)
-         ni = SIZE(gblock, 1)
-         nj = SIZE(gblock, 2)
-         gcint(1:ni) = MATMUL(gblock, charges(jatom, 1:nj))
-         gchrg(iatom, 1:ni, 1) = gchrg(iatom, 1:ni, 1)+gcint(1:ni)
+      ! loop over all atom pairs with a non-zero overlap (sab_orb)
+      kg = dft_control%qs_control%xtb_control%kg
+      NULLIFY (n_list)
+      CALL get_qs_env(qs_env=qs_env, sab_orb=n_list)
+      CALL neighbor_list_iterator_create(nl_iterator, n_list)
+      DO WHILE (neighbor_list_iterate(nl_iterator) == 0)
+         CALL get_iterator_info(nl_iterator, ikind=ikind, jkind=jkind, &
+                                iatom=iatom, jatom=jatom, r=rij, cell=cellind)
+         CALL get_qs_kind(qs_kind_set(ikind), xtb_parameter=xtb_atom_a)
+         CALL get_xtb_atom_param(xtb_atom_a, defined=defined, natorb=natorb_a)
+         IF (.NOT. defined .OR. natorb_a < 1) CYCLE
+         CALL get_qs_kind(qs_kind_set(jkind), xtb_parameter=xtb_atom_b)
+         CALL get_xtb_atom_param(xtb_atom_b, defined=defined, natorb=natorb_b)
+         IF (.NOT. defined .OR. natorb_b < 1) CYCLE
+         ! atomic parameters
+         CALL get_xtb_atom_param(xtb_atom_a, eta=etaa, lmax=lmaxa, kappa=kappaa, rcut=rcuta)
+         CALL get_xtb_atom_param(xtb_atom_b, eta=etab, lmax=lmaxb, kappa=kappab, rcut=rcutb)
+         ! gamma matrix
+         ni = lmaxa+1
+         nj = lmaxb+1
+         ALLOCATE (gammab(ni, nj))
+         rcut = rcuta+rcutb
+         dr = SQRT(SUM(rij(:)**2))
+         CALL gamma_rab_sr(gammab, dr, ni, kappaa, etaa, nj, kappab, etab, kg, rcut)
+         gchrg(iatom, 1:ni, 1) = gchrg(iatom, 1:ni, 1)+MATMUL(gammab, charges(jatom, 1:nj))
          IF (iatom /= jatom) THEN
-            gcint(1:nj) = MATMUL(charges(iatom, 1:ni), gblock)
-            gchrg(jatom, 1:nj, 1) = gchrg(jatom, 1:nj, 1)+gcint(1:nj)
+            gchrg(jatom, 1:nj, 1) = gchrg(jatom, 1:nj, 1)+MATMUL(charges(iatom, 1:ni), gammab)
          END IF
          IF (calculate_forces) THEN
-            DO i = 2, 4
-               NULLIFY (gblock)
-               CALL dbcsr_get_block_p(matrix=gamma_matrix(i)%matrix, &
-                                      row=iatom, col=jatom, block=gblock, found=found)
-               ni = SIZE(gblock, 1)
-               nj = SIZE(gblock, 2)
-               gcint(1:ni) = MATMUL(gblock, charges(jatom, 1:nj))
-               gchrg(iatom, 1:ni, i) = gchrg(iatom, 1:ni, i)+gcint(1:ni)
-               IF (iatom /= jatom) THEN
-                  gcint(1:nj) = MATMUL(charges(iatom, 1:ni), gblock)
-                  gchrg(jatom, 1:nj, i) = gchrg(jatom, 1:nj, i)-gcint(1:nj)
+            IF (dr > 1.e-6_dp) THEN
+               CALL dgamma_rab_sr(gammab, dr, ni, kappaa, etaa, nj, kappab, etab, kg, rcut)
+               DO i = 1, 3
+                  gchrg(iatom, 1:ni, i+1) = gchrg(iatom, 1:ni, i+1) &
+                                            +MATMUL(gammab, charges(jatom, 1:nj))*rij(i)/dr
+                  IF (iatom /= jatom) THEN
+                     gchrg(jatom, 1:nj, i+1) = gchrg(jatom, 1:nj, i+1) &
+                                               -MATMUL(charges(iatom, 1:ni), gammab)*rij(i)/dr
+                  END IF
+               END DO
+               IF (use_virial) THEN
+                  gcint(1:ni) = MATMUL(gammab, charges(jatom, 1:nj))
+                  DO i = 1, 3
+                     fij(i) = SUM(charges(iatom, 1:ni)*gcint(1:ni))*rij(i)/dr
+                  END DO
+                  CALL virial_pair_force(virial%pv_virial, 1._dp, fij, rij)
+                  IF (atprop%stress) THEN
+                     CALL virial_pair_force(atprop%atstress(:, :, iatom), 0.5_dp, fij, rij)
+                     CALL virial_pair_force(atprop%atstress(:, :, jatom), 0.5_dp, fij, rij)
+                  END IF
                END IF
-            END DO
-         END IF
-      ENDDO
-      CALL dbcsr_iterator_stop(iter)
-
-      IF (calculate_forces .AND. use_virial) THEN
-         CALL dbcsr_iterator_start(iter, gamma_matrix(1)%matrix)
-         DO WHILE (dbcsr_iterator_blocks_left(iter))
-            NULLIFY (gblock)
-            CALL dbcsr_iterator_next_block(iter, iatom, jatom, gblock, blk)
-            DO i = 1, 3
-               NULLIFY (gblock)
-               CALL dbcsr_get_block_p(matrix=gamma_matrix(i+1)%matrix, &
-                                      row=iatom, col=jatom, block=gblock, found=found)
-               ni = SIZE(gblock, 1)
-               nj = SIZE(gblock, 2)
-               gcint(1:ni) = MATMUL(gblock, charges(jatom, 1:nj))
-               fij(i) = SUM(charges(iatom, 1:ni)*gcint(1:ni))
-            END DO
-            rij = particle_set(iatom)%r-particle_set(jatom)%r
-            rij = pbc(rij, cell)
-            CALL virial_pair_force(virial%pv_virial, 1._dp, fij, rij)
-            IF (atprop%stress) THEN
-               CALL virial_pair_force(atprop%atstress(:, :, iatom), 0.5_dp, fij, rij)
-               CALL virial_pair_force(atprop%atstress(:, :, jatom), 0.5_dp, fij, rij)
             END IF
-         ENDDO
-         CALL dbcsr_iterator_stop(iter)
-      END IF
+         END IF
+         DEALLOCATE (gammab)
+      END DO
+      CALL neighbor_list_iterator_release(nl_iterator)
 
       ! 1/R contribution
 
@@ -333,8 +329,10 @@ CONTAINS
          ni = ni+1
          ecsr = ecsr+SUM(charges(iatom, 1:ni)*gchrg(iatom, 1:ni, 1))
       END DO
+
       energy%hartree = energy%hartree+0.5_dp*ecsr
       energy%hartree = energy%hartree+0.5_dp*SUM(mcharge(:)*gmcharge(:, 1))
+
       IF (atprop%energy) THEN
          CALL get_qs_env(qs_env=qs_env, local_particles=local_particles)
          DO ikind = 1, SIZE(local_particles%n_el)
@@ -405,6 +403,8 @@ CONTAINS
             irow = MIN(iatom, jatom)
 
             IF (nimg == 1) THEN
+               ! for case without k-points we only need MIC pairs
+               IF(SUM(ABS(cellind)) /= 0) CYCLE
                ic = 1
             ELSE
                ic = cell_to_index(cellind(1), cellind(2), cellind(3))
@@ -846,6 +846,151 @@ CONTAINS
       CALL timestop(handle)
 
    END SUBROUTINE ewald_overlap
+
+! **************************************************************************************************
+!> \brief  Computes the short-range gamma parameter from
+!>         Nataga-Mishimoto-Ohno-Klopman formula for xTB
+!>         WARNING: The xTB function (gamma - 1/r) has still an l-dependent longrange (1/r^3)
+!>                  behaviour. We use a cutoff function to smoothly remove this part.
+!>                  However, this will change energies and effect final results.
+!>
+!> \param gmat ...
+!> \param rab ...
+!> \param nla ...
+!> \param kappaa ...
+!> \param etaa ...
+!> \param nlb ...
+!> \param kappab ...
+!> \param etab ...
+!> \param kg ...
+!> \param rcut ...
+!> \par History
+!>      10.2018 JGH
+!> \version 1.1
+! **************************************************************************************************
+   SUBROUTINE gamma_rab_sr(gmat, rab, nla, kappaa, etaa, nlb, kappab, etab, kg, rcut)
+      REAL(dp), DIMENSION(:, :), INTENT(INOUT)           :: gmat
+      REAL(dp), INTENT(IN)                               :: rab
+      INTEGER, INTENT(IN)                                :: nla
+      REAL(dp), DIMENSION(:), INTENT(IN)                 :: kappaa
+      REAL(dp), INTENT(IN)                               :: etaa
+      INTEGER, INTENT(IN)                                :: nlb
+      REAL(dp), DIMENSION(:), INTENT(IN)                 :: kappab
+      REAL(dp), INTENT(IN)                               :: etab, kg, rcut
+
+      CHARACTER(len=*), PARAMETER :: routineN = 'gamma_rab_sr', routineP = moduleN//':'//routineN
+      REAL(KIND=dp), PARAMETER                           :: rsmooth = 1.0_dp
+
+      INTEGER                                            :: i, j
+      REAL(KIND=dp)                                      :: fcut, r, rk, x
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: eta
+
+      ALLOCATE (eta(nla, nlb))
+      eta = 0.0_dp
+
+      DO j = 1, nlb
+         DO i = 1, nla
+            eta(i, j) = 1._dp/(etaa*(1._dp+kappaa(i)))+1._dp/(etab*(1._dp+kappab(j)))
+            eta(i, j) = 2._dp/eta(i, j)
+         END DO
+      END DO
+
+      gmat = 0.0_dp
+      IF (rab < 1.e-6_dp) THEN
+         ! on site terms
+         gmat(:, :) = eta(:, :)
+      ELSEIF (rab > rcut) THEN
+         ! do nothing
+      ELSE
+         rk = rab**kg
+         eta = eta**(-kg)
+         IF (rab < rcut-rsmooth) THEN
+            fcut = 1.0_dp
+         ELSE
+            r = rab-(rcut-rsmooth)
+            x = r/rsmooth
+            fcut = -10._dp*x**5+15._dp*x**4-10._dp*x**3+1._dp
+         END IF
+         gmat(:, :) = fcut*(1._dp/(rk+eta(:, :)))**(1._dp/kg)-fcut/rab
+      END IF
+
+      DEALLOCATE (eta)
+
+   END SUBROUTINE gamma_rab_sr
+
+! **************************************************************************************************
+!> \brief  Computes the derivative of the short-range gamma parameter from
+!>         Nataga-Mishimoto-Ohno-Klopman formula for xTB
+!>         WARNING: The xTB function (gamma - 1/r) has still an l-dependent longrange (1/r^3)
+!>                  behaviour. We use a cutoff function to smoothly remove this part.
+!>                  However, this will change energies and effect final results.
+!>
+!> \param dgmat ...
+!> \param rab ...
+!> \param nla ...
+!> \param kappaa ...
+!> \param etaa ...
+!> \param nlb ...
+!> \param kappab ...
+!> \param etab ...
+!> \param kg ...
+!> \param rcut ...
+!> \par History
+!>      10.2018 JGH
+!> \version 1.1
+! **************************************************************************************************
+   SUBROUTINE dgamma_rab_sr(dgmat, rab, nla, kappaa, etaa, nlb, kappab, etab, kg, rcut)
+      REAL(dp), DIMENSION(:, :), INTENT(INOUT)           :: dgmat
+      REAL(dp), INTENT(IN)                               :: rab
+      INTEGER, INTENT(IN)                                :: nla
+      REAL(dp), DIMENSION(:), INTENT(IN)                 :: kappaa
+      REAL(dp), INTENT(IN)                               :: etaa
+      INTEGER, INTENT(IN)                                :: nlb
+      REAL(dp), DIMENSION(:), INTENT(IN)                 :: kappab
+      REAL(dp), INTENT(IN)                               :: etab, kg, rcut
+
+      CHARACTER(len=*), PARAMETER :: routineN = 'dgamma_rab_sr', routineP = moduleN//':'//routineN
+      REAL(KIND=dp), PARAMETER                           :: rsmooth = 1.0_dp
+
+      INTEGER                                            :: i, j
+      REAL(KIND=dp)                                      :: dfcut, fcut, r, rk, x
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: eta
+
+      ALLOCATE (eta(nla, nlb))
+
+      DO j = 1, nlb
+         DO i = 1, nla
+            eta(i, j) = 1._dp/(etaa*(1._dp+kappaa(i)))+1._dp/(etab*(1._dp+kappab(j)))
+            eta(i, j) = 2._dp/eta(i, j)
+         END DO
+      END DO
+
+      IF (rab < 1.e-6) THEN
+         ! on site terms
+         dgmat(:, :) = 0.0_dp
+      ELSEIF (rab > rcut) THEN
+         dgmat(:, :) = 0.0_dp
+      ELSE
+         eta = eta**(-kg)
+         rk = rab**kg
+         IF (rab < rcut-rsmooth) THEN
+            fcut = 1.0_dp
+            dfcut = 0.0_dp
+         ELSE
+            r = rab-(rcut-rsmooth)
+            x = r/rsmooth
+            fcut = -10._dp*x**5+15._dp*x**4-10._dp*x**3+1._dp
+            dfcut = -50._dp*x**4+60._dp*x**3-30._dp*x**2
+            dfcut = dfcut/rsmooth
+         END IF
+         dgmat(:, :) = dfcut*(1._dp/(rk+eta(:, :)))**(1._dp/kg)
+         dgmat(:, :) = dgmat(:, :)-dfcut/rab+fcut/rab**2
+         dgmat(:, :) = dgmat(:, :)-fcut/(rk+eta(:, :))*(1._dp/(rk+eta(:, :)))**(1._dp/kg)*rk/rab
+      END IF
+
+      DEALLOCATE (eta)
+
+   END SUBROUTINE dgamma_rab_sr
 
 END MODULE xtb_coulomb
 

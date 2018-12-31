@@ -153,7 +153,7 @@ CONTAINS
                DO ikind = 1, nkind
                   CALL get_atomic_kind(atomic_kind_set(ikind), natom=nat)
                   CALL get_qs_kind(qs_kind_set(ikind), xtb_parameter=xtb_kind)
-                  CALL get_xtb_atom_param(xtb_kind, aname=aname)
+                  CALL get_xtb_atom_param(xtb_kind, symbol=aname)
                   ana = ADJUSTR(TRIM(ADJUSTL(aname)))
                   DO iatom = 1, nat
                      iat = atomic_kind_set(ikind)%atom_list(iatom)

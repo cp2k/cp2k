@@ -147,7 +147,7 @@ CONTAINS
       CALL section_release(subsection)
 
       NULLIFY (keyword)
-      CALL keyword_create(keyword, name="do_ewald", &
+      CALL keyword_create(keyword, name="DO_EWALD", &
                           description="Use Ewald type method instead of direct sum for Coulomb interaction", &
                           usage="DO_EWALD", default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
       CALL section_add_keyword(section, keyword)
@@ -156,6 +156,12 @@ CONTAINS
       CALL keyword_create(keyword, name="STO_NG", &
                           description="Provides the order of the Slater orbital expansion in GTOs.", &
                           usage="STO_NG", default_i_val=6)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, name="HYDROGEN_STO_NG", &
+                          description="Number of GTOs for Hydrogen basis expansion.", &
+                          usage="HYDROGEN_STO_NG", default_i_val=4)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
