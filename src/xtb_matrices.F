@@ -11,11 +11,16 @@
 !> \author JGH
 ! **************************************************************************************************
 MODULE xtb_matrices
+   USE ai_contraction,                  ONLY: block_add,&
+                                              contraction
+   USE ai_overlap,                      ONLY: overlap_ab
    USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                               get_atomic_kind,&
                                               get_atomic_kind_set
    USE atprop_types,                    ONLY: atprop_array_init,&
                                               atprop_type
+   USE basis_set_types,                 ONLY: gto_basis_set_p_type,&
+                                              gto_basis_set_type
    USE block_p_types,                   ONLY: block_p_type
    USE cp_control_types,                ONLY: dft_control_type,&
                                               xtb_control_type
@@ -29,10 +34,14 @@ MODULE xtb_matrices
                                               cp_print_key_should_output,&
                                               cp_print_key_unit_nr
    USE cp_para_types,                   ONLY: cp_para_env_type
-   USE dbcsr_api,                       ONLY: &
-        dbcsr_add, dbcsr_copy, dbcsr_create, dbcsr_distribution_type, dbcsr_finalize, &
-        dbcsr_get_block_p, dbcsr_multiply, dbcsr_p_type, dbcsr_type, dbcsr_type_antisymmetric, &
-        dbcsr_type_symmetric
+   USE dbcsr_api,                       ONLY: dbcsr_add,&
+                                              dbcsr_copy,&
+                                              dbcsr_create,&
+                                              dbcsr_finalize,&
+                                              dbcsr_get_block_p,&
+                                              dbcsr_multiply,&
+                                              dbcsr_p_type,&
+                                              dbcsr_type
    USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                               section_vals_type,&
                                               section_vals_val_get
@@ -41,6 +50,7 @@ MODULE xtb_matrices
                                               kpoint_type
    USE message_passing,                 ONLY: mp_sum
    USE mulliken,                        ONLY: ao_charges
+   USE orbital_pointers,                ONLY: ncoset
    USE particle_types,                  ONLY: particle_type
    USE qs_dispersion_pairpot,           ONLY: d3_cnumber,&
                                               dcnum_type
@@ -49,7 +59,10 @@ MODULE xtb_matrices
    USE qs_environment_types,            ONLY: get_qs_env,&
                                               qs_environment_type
    USE qs_force_types,                  ONLY: qs_force_type
+   USE qs_integral_utils,               ONLY: basis_set_list_setup,&
+                                              get_memory_usage
    USE qs_kind_types,                   ONLY: get_qs_kind,&
+                                              get_qs_kind_set,&
                                               qs_kind_type
    USE qs_ks_types,                     ONLY: get_ks_env,&
                                               qs_ks_env_type,&
@@ -62,7 +75,7 @@ MODULE xtb_matrices
                                               neighbor_list_iterator_p_type,&
                                               neighbor_list_iterator_release,&
                                               neighbor_list_set_p_type
-   USE qs_overlap,                      ONLY: build_overlap_matrix
+   USE qs_overlap,                      ONLY: create_sab_matrix
    USE qs_rho_types,                    ONLY: qs_rho_get,&
                                               qs_rho_type
    USE virial_methods,                  ONLY: virial_pair_force
@@ -75,11 +88,6 @@ MODULE xtb_matrices
 
    IMPLICIT NONE
 
-   ! screening for gamma function
-   REAL(dp), PARAMETER                    :: tol_gamma = 1.e-4_dp
-   ! small real number
-   REAL(dp), PARAMETER                    :: rtiny = 1.e-10_dp
-   !
    TYPE neighbor_atoms_type
       REAL(KIND=dp), DIMENSION(:, :), POINTER     :: coord
       REAL(KIND=dp), DIMENSION(:), POINTER        :: rab
@@ -110,36 +118,44 @@ CONTAINS
          routineP = moduleN//':'//routineN
 
       INTEGER :: after, atom_a, atom_b, atom_c, handle, i, iatom, ic, icol, ikind, img, ir, irow, &
-         iw, j, jatom, jkind, katom, kkind, la, lb, lmaxa, lmaxb, n1, n2, na, natom, natorb_a, &
-         natorb_b, nb, nderivatives, nimg, nkind, nmat, nsa, nsb, nshell, za, zat, zb
+         iset, iw, j, jatom, jkind, jset, katom, kkind, la, lb, ldsab, lmaxa, lmaxb, maxder, maxs, &
+         n1, n2, na, natom, natorb_a, natorb_b, nb, ncoa, ncob, nderivatives, nimg, nkind, nsa, &
+         nsb, nseta, nsetb, nshell, sgfa, sgfb, za, zat, zb
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: atom_of_kind, atomnumber, kind_of
       INTEGER, DIMENSION(25)                             :: laoa, laob, lval, naoa, naob
       INTEGER, DIMENSION(3)                              :: cell
+      INTEGER, DIMENSION(:), POINTER                     :: la_max, la_min, lb_max, lb_min, npgfa, &
+                                                            npgfb, nsgfa, nsgfb
+      INTEGER, DIMENSION(:, :), POINTER                  :: first_sgfa, first_sgfb
       INTEGER, DIMENSION(:, :, :), POINTER               :: cell_to_index
       LOGICAL                                            :: defined, diagblock, floating_a, found, &
-                                                            ghost_a, h2scase, omit_headers, &
-                                                            use_virial, xb_inter
+                                                            ghost_a, omit_headers, use_virial, &
+                                                            xb_inter
       LOGICAL, ALLOCATABLE, DIMENSION(:)                 :: floating, ghost
-      REAL(KIND=dp) :: alphaa, alphab, derepij, dfij, dfp, dhij, dr, drk, drx, ena, enb, erep, &
-         erepij, etaa, etab, exb, f0, f1, fen, fhua, fhub, fhud, fij, foab, hij, k2sh, kab, kcnd, &
-         kcnp, kcns, kd, ken, kf, kg, kia, kjb, kp, ks, ksp, kx2, kxr, rcova, rcovab, rcovb, rcut, &
-         rcuta, rcutb, rrab, xgammaa, xgammab, zneffa, zneffb
+      REAL(KIND=dp) :: alphaa, alphab, derepij, dfp, dhij, dr, drk, drx, ena, enb, erep, erepij, &
+         etaa, etab, exb, f0, f1, fen, fhua, fhub, fhud, foab, hij, k2sh, kab, kcnd, kcnp, kcns, &
+         kd, ken, kf, kg, kia, kjb, kp, ks, ksp, kx2, kxr, rcova, rcovab, rcovb, rrab, zneffa, &
+         zneffb
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: cnumbers, kx
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: dfblock, dgamma, huckel, kabset, kcnlk, &
-                                                            rcab
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: dfblock, huckel, kcnlk, owork, rcab
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: oint, sint
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :, :)  :: kijab
       REAL(KIND=dp), DIMENSION(0:3)                      :: kl
       REAL(KIND=dp), DIMENSION(3)                        :: fdik, force_ab, force_rr, rij, rik
       REAL(KIND=dp), DIMENSION(5)                        :: dpia, dpib, hena, henb, kappaa, kappab, &
                                                             kpolya, kpolyb, pia, pib
-      REAL(KIND=dp), DIMENSION(:, :), POINTER            :: fblock, gblock, pblock, sblock
+      REAL(KIND=dp), DIMENSION(:), POINTER               :: set_radius_a, set_radius_b
+      REAL(KIND=dp), DIMENSION(:, :), POINTER            :: fblock, pblock, rpgfa, rpgfb, sblock, &
+                                                            scon_a, scon_b, wblock, zeta, zetb
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       TYPE(atprop_type), POINTER                         :: atprop
-      TYPE(block_p_type), DIMENSION(2:4)                 :: dgblocks, dsblocks
+      TYPE(block_p_type), DIMENSION(2:4)                 :: dsblocks
       TYPE(cp_logger_type), POINTER                      :: logger
-      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: gamma_matrix
       TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: matrix_h, matrix_p, matrix_s, matrix_w
       TYPE(dcnum_type), ALLOCATABLE, DIMENSION(:)        :: dcnum
       TYPE(dft_control_type), POINTER                    :: dft_control
+      TYPE(gto_basis_set_p_type), DIMENSION(:), POINTER  :: basis_set_list
+      TYPE(gto_basis_set_type), POINTER                  :: basis_set_a, basis_set_b
       TYPE(kpoint_type), POINTER                         :: kpoints
       TYPE(neighbor_atoms_type), ALLOCATABLE, &
          DIMENSION(:)                                    :: neighbor_atoms
@@ -163,10 +179,11 @@ CONTAINS
       NULLIFY (logger, virial, atprop)
       logger => cp_get_default_logger()
 
-      NULLIFY (matrix_h, matrix_s, matrix_p, matrix_w, gamma_matrix, atomic_kind_set, &
+      NULLIFY (matrix_h, matrix_s, matrix_p, matrix_w, atomic_kind_set, &
                qs_kind_set, sab_orb, ks_env)
 
       CALL get_qs_env(qs_env=qs_env, &
+                      ks_env=ks_env, &
                       energy=energy, &
                       atomic_kind_set=atomic_kind_set, &
                       qs_kind_set=qs_kind_set, &
@@ -174,16 +191,15 @@ CONTAINS
                       matrix_s_kp=matrix_s, &
                       atprop=atprop, &
                       dft_control=dft_control, &
-                      ks_env=ks_env)
-      nkind = SIZE(atomic_kind_set)
+                      sab_orb=sab_orb)
 
+      nkind = SIZE(atomic_kind_set)
       xtb_control => dft_control%qs_control%xtb_control
       xb_inter = xtb_control%xb_interaction
       nimg = dft_control%nimages
-      ! Allocate the overlap and Hamiltonian matrix
-      CALL get_qs_env(qs_env=qs_env, sab_orb=sab_orb)
       nderivatives = 0
       IF (calculate_forces) nderivatives = 1
+      maxder = ncoset(nderivatives)
 
       ! global parameters (Table 2 from Ref.)
       ks = xtb_control%ks
@@ -205,15 +221,7 @@ CONTAINS
       natom = SIZE(particle_set)
       ALLOCATE (atom_of_kind(natom))
       CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set, atom_of_kind=atom_of_kind)
-
-      ! gamma matrix allocation
-      IF (calculate_forces) THEN
-         nmat = 4
-      ELSE
-         nmat = 1
-      END IF
-      CALL get_qs_env(qs_env, gamma_matrix=gamma_matrix)
-      CALL setup_gamma(qs_env, nmat, gamma_matrix, sab_orb)
+      CALL get_qs_kind_set(qs_kind_set=qs_kind_set, maxsgf=maxs, basis_type="ORB")
 
       IF (calculate_forces) THEN
          NULLIFY (rho, force, matrix_w)
@@ -243,21 +251,14 @@ CONTAINS
          CALL get_kpoint_info(kpoint=kpoints, cell_to_index=cell_to_index)
       END IF
 
-      ! overlap matrix
-      IF (calculate_forces) THEN
-         CALL build_overlap_matrix(ks_env, nderivative=nderivatives, matrixkp_s=matrix_s, &
-                                   matrix_name="xTB OVERLAP MATRIX", &
-                                   basis_type_a="ORB", &
-                                   basis_type_b="ORB", &
-                                   sab_nl=sab_orb, calculate_forces=.TRUE., &
-                                   matrixkp_p=matrix_w)
-      ELSE
-         CALL build_overlap_matrix(ks_env, nderivative=nderivatives, matrixkp_s=matrix_s, &
-                                   matrix_name="xTB OVERLAP MATRIX", &
-                                   basis_type_a="ORB", &
-                                   basis_type_b="ORB", &
-                                   sab_nl=sab_orb)
-      END IF
+      ! set up basis set lists
+      ALLOCATE (basis_set_list(nkind))
+      CALL basis_set_list_setup(basis_set_list, "ORB", qs_kind_set)
+
+      ! allocate overlap matrix
+      CALL dbcsr_allocate_matrix_set(matrix_s, maxder, nimg)
+      CALL create_sab_matrix(ks_env, matrix_s, "xTB OVERLAP MATRIX", basis_set_list, basis_set_list, &
+                             sab_orb, .TRUE.)
       CALL set_ks_env(ks_env, matrix_s_kp=matrix_s)
 
       ! initialize H matrix
@@ -318,34 +319,62 @@ CONTAINS
             kcnlk(3, ikind) = 0.0_dp
          END IF
       END DO
-      kl(0) = ks
-      kl(1) = kp
-      kl(2) = kd
-      kl(3) = 0.0_dp
       ALLOCATE (huckel(5, natom), kind_of(natom))
       CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set, kind_of=kind_of)
       DO iatom = 1, natom
          ikind = kind_of(iatom)
          CALL get_qs_kind(qs_kind_set(ikind), xtb_parameter=xtb_atom_a)
-         CALL get_xtb_atom_param(xtb_atom_a, nshell=nshell, lval=lval, hen=hena, z=za)
+         CALL get_xtb_atom_param(xtb_atom_a, nshell=nshell, lval=lval, hen=hena)
          huckel(:, iatom) = 0.0_dp
          DO i = 1, nshell
             huckel(i, iatom) = hena(i)*(1._dp+kcnlk(lval(i), ikind)*cnumbers(iatom))
          END DO
       END DO
 
-      ! Calculate KAB parameters
-      ! precalculate the KAB for all kind pairs (Table 2)
-      ALLOCATE (kabset(nkind, nkind))
-      kabset = 1.0_dp
+      ! Calculate KAB parameters and Huckel parameters and electronegativity correction
+      kl(0) = ks
+      kl(1) = kp
+      kl(2) = kd
+      kl(3) = 0.0_dp
+      ALLOCATE (kijab(maxs, maxs, nkind, nkind))
+      kijab = 0.0_dp
       DO ikind = 1, nkind
-         CALL get_atomic_kind(atomic_kind_set(ikind), z=za)
-         DO jkind = ikind+1, nkind
-            CALL get_atomic_kind(atomic_kind_set(jkind), z=zb)
-            kabset(ikind, jkind) = xtb_set_kab(za, zb)
-            kabset(ikind, jkind) = kabset(jkind, ikind)
+         CALL get_qs_kind(qs_kind_set(ikind), xtb_parameter=xtb_atom_a)
+         CALL get_xtb_atom_param(xtb_atom_a, defined=defined, natorb=natorb_a)
+         IF (.NOT. defined .OR. natorb_a < 1) CYCLE
+         CALL get_xtb_atom_param(xtb_atom_a, z=za, nao=naoa, lao=laoa, electronegativity=ena)
+         DO jkind = 1, nkind
+            CALL get_qs_kind(qs_kind_set(jkind), xtb_parameter=xtb_atom_b)
+            CALL get_xtb_atom_param(xtb_atom_b, defined=defined, natorb=natorb_b)
+            IF (.NOT. defined .OR. natorb_b < 1) CYCLE
+            CALL get_xtb_atom_param(xtb_atom_b, z=zb, nao=naob, lao=laob, electronegativity=enb)
+            ! get Fen = (1+ken*deltaEN^2)
+            fen = 1.0_dp+ken*(ena-enb)**2
+            ! Kab
+            kab = xtb_set_kab(za, zb)
+            DO j = 1, natorb_b
+               lb = laob(j)
+               nb = naob(j)
+               DO i = 1, natorb_a
+                  la = laoa(i)
+                  na = naoa(i)
+                  kia = kl(la)
+                  kjb = kl(lb)
+                  IF (zb == 1 .AND. nb == 2) kjb = k2sh
+                  IF (za == 1 .AND. na == 2) kia = k2sh
+                  IF ((zb == 1 .AND. nb == 2) .OR. (za == 1 .AND. na == 2)) THEN
+                     kijab(i, j, ikind, jkind) = 0.5_dp*(kia+kjb)
+                  ELSE
+                     IF ((la == 0 .AND. lb == 1) .OR. (la == 1 .AND. lb == 0)) THEN
+                        kijab(i, j, ikind, jkind) = ksp*kab*fen
+                     ELSE
+                        kijab(i, j, ikind, jkind) = 0.5_dp*(kia+kjb)*kab*fen
+                     END IF
+                  END IF
+               END DO
+            END DO
          END DO
-      ENDDO
+      END DO
 
       IF (xb_inter) THEN
          ! list of neighbor atoms for XB term
@@ -423,12 +452,12 @@ CONTAINS
          END IF
 
          ! atomic parameters
-         CALL get_xtb_atom_param(xtb_atom_a, z=za, nao=naoa, lao=laoa, rcov=rcova, eta=etaa, xgamma=xgammaa, &
+         CALL get_xtb_atom_param(xtb_atom_a, z=za, nao=naoa, lao=laoa, rcov=rcova, eta=etaa, &
                                  lmax=lmaxa, nshell=nsa, alpha=alphaa, zneff=zneffa, kpoly=kpolya, &
-                                 kappa=kappaa, hen=hena, electronegativity=ena)
-         CALL get_xtb_atom_param(xtb_atom_b, z=zb, nao=naob, lao=laob, rcov=rcovb, eta=etab, xgamma=xgammab, &
+                                 kappa=kappaa, hen=hena)
+         CALL get_xtb_atom_param(xtb_atom_b, z=zb, nao=naob, lao=laob, rcov=rcovb, eta=etab, &
                                  lmax=lmaxb, nshell=nsb, alpha=alphab, zneff=zneffb, kpoly=kpolyb, &
-                                 kappa=kappab, hen=henb, electronegativity=enb)
+                                 kappa=kappab, hen=henb)
 
          IF (nimg == 1) THEN
             ic = 1
@@ -439,15 +468,12 @@ CONTAINS
 
          icol = MAX(iatom, jatom)
          irow = MIN(iatom, jatom)
-         NULLIFY (sblock, fblock, gblock)
+         NULLIFY (sblock, fblock)
          CALL dbcsr_get_block_p(matrix=matrix_s(1, ic)%matrix, &
                                 row=irow, col=icol, BLOCK=sblock, found=found)
          CPASSERT(found)
          CALL dbcsr_get_block_p(matrix=matrix_h(1, ic)%matrix, &
                                 row=irow, col=icol, BLOCK=fblock, found=found)
-         CPASSERT(found)
-         CALL dbcsr_get_block_p(matrix=gamma_matrix(1)%matrix, &
-                                row=irow, col=icol, BLOCK=gblock, found=found)
          CPASSERT(found)
 
          IF (calculate_forces) THEN
@@ -455,15 +481,112 @@ CONTAINS
             CALL dbcsr_get_block_p(matrix=matrix_p(1, ic)%matrix, &
                                    row=irow, col=icol, block=pblock, found=found)
             CPASSERT(ASSOCIATED(pblock))
+            NULLIFY (wblock)
+            CALL dbcsr_get_block_p(matrix=matrix_w(1, ic)%matrix, &
+                                   row=irow, col=icol, block=wblock, found=found)
+            CPASSERT(ASSOCIATED(wblock))
             DO i = 2, 4
                NULLIFY (dsblocks(i)%block)
                CALL dbcsr_get_block_p(matrix=matrix_s(i, ic)%matrix, &
                                       row=irow, col=icol, BLOCK=dsblocks(i)%block, found=found)
                CPASSERT(found)
-               NULLIFY (dgblocks(i)%block)
-               CALL dbcsr_get_block_p(matrix=gamma_matrix(i)%matrix, &
-                                      row=irow, col=icol, BLOCK=dgblocks(i)%block, found=found)
-               CPASSERT(found)
+            END DO
+         END IF
+
+         ! overlap
+         basis_set_a => basis_set_list(ikind)%gto_basis_set
+         IF (.NOT. ASSOCIATED(basis_set_a)) CYCLE
+         basis_set_b => basis_set_list(jkind)%gto_basis_set
+         IF (.NOT. ASSOCIATED(basis_set_b)) CYCLE
+         atom_a = atom_of_kind(iatom)
+         atom_b = atom_of_kind(jatom)
+         ! basis ikind
+         first_sgfa => basis_set_a%first_sgf
+         la_max => basis_set_a%lmax
+         la_min => basis_set_a%lmin
+         npgfa => basis_set_a%npgf
+         nseta = basis_set_a%nset
+         nsgfa => basis_set_a%nsgf_set
+         rpgfa => basis_set_a%pgf_radius
+         set_radius_a => basis_set_a%set_radius
+         scon_a => basis_set_a%scon
+         zeta => basis_set_a%zet
+         ! basis jkind
+         first_sgfb => basis_set_b%first_sgf
+         lb_max => basis_set_b%lmax
+         lb_min => basis_set_b%lmin
+         npgfb => basis_set_b%npgf
+         nsetb = basis_set_b%nset
+         nsgfb => basis_set_b%nsgf_set
+         rpgfb => basis_set_b%pgf_radius
+         set_radius_b => basis_set_b%set_radius
+         scon_b => basis_set_b%scon
+         zetb => basis_set_b%zet
+
+         ldsab = get_memory_usage(qs_kind_set, "ORB", "ORB")
+         ALLOCATE (oint(ldsab, ldsab, maxder), owork(ldsab, ldsab))
+         ALLOCATE (sint(natorb_a, natorb_b, maxder))
+         sint = 0.0_dp
+
+         DO iset = 1, nseta
+            ncoa = npgfa(iset)*ncoset(la_max(iset))
+            n1 = npgfa(iset)*(ncoset(la_max(iset))-ncoset(la_min(iset)-1))
+            sgfa = first_sgfa(1, iset)
+            DO jset = 1, nsetb
+               IF (set_radius_a(iset)+set_radius_b(jset) < dr) CYCLE
+               ncob = npgfb(jset)*ncoset(lb_max(jset))
+               n2 = npgfb(jset)*(ncoset(lb_max(jset))-ncoset(lb_min(jset)-1))
+               sgfb = first_sgfb(1, jset)
+               IF (calculate_forces) THEN
+                  CALL overlap_ab(la_max(iset), la_min(iset), npgfa(iset), rpgfa(:, iset), zeta(:, iset), &
+                                  lb_max(jset), lb_min(jset), npgfb(jset), rpgfb(:, jset), zetb(:, jset), &
+                                  rij, sab=oint(:, :, 1), dab=oint(:, :, 2:4))
+               ELSE
+                  CALL overlap_ab(la_max(iset), la_min(iset), npgfa(iset), rpgfa(:, iset), zeta(:, iset), &
+                                  lb_max(jset), lb_min(jset), npgfb(jset), rpgfb(:, jset), zetb(:, jset), &
+                                  rij, sab=oint(:, :, 1))
+               END IF
+               ! Contraction
+               CALL contraction(oint(:, :, 1), owork, ca=scon_a(:, sgfa:), na=n1, ma=nsgfa(iset), &
+                                cb=scon_b(:, sgfb:), nb=n2, mb=nsgfb(jset), fscale=1.0_dp, trans=.FALSE.)
+               CALL block_add("IN", owork, nsgfa(iset), nsgfb(jset), sint(:, :, 1), sgfa, sgfb, trans=.FALSE.)
+               IF (calculate_forces) THEN
+               DO i = 2, 4
+                  CALL contraction(oint(:, :, i), owork, ca=scon_a(:, sgfa:), na=n1, ma=nsgfa(iset), &
+                                   cb=scon_b(:, sgfb:), nb=n2, mb=nsgfb(jset), fscale=1.0_dp, trans=.FALSE.)
+                  CALL block_add("IN", owork, nsgfa(iset), nsgfb(jset), sint(:, :, i), sgfa, sgfb, trans=.FALSE.)
+               END DO
+               END IF
+            END DO
+         END DO
+         ! forces W matrix
+         IF (calculate_forces) THEN
+            DO i = 1, 3
+               IF (iatom <= jatom) THEN
+                  force_ab(i) = SUM(sint(:, :, i+1)*wblock(:, :))
+               ELSE
+                  force_ab(i) = SUM(sint(:, :, i+1)*TRANSPOSE(wblock(:, :)))
+               END IF
+            END DO
+            force(ikind)%overlap(:, atom_a) = force(ikind)%overlap(:, atom_a)-2.0_dp*force_ab(:)
+            force(jkind)%overlap(:, atom_b) = force(jkind)%overlap(:, atom_b)+2.0_dp*force_ab(:)
+            IF (use_virial) THEN
+               CALL virial_pair_force(virial%pv_virial, -2.0_dp, force_ab, rij)
+            END IF
+         END IF
+         ! update S matrix
+         IF (iatom <= jatom) THEN
+            sblock(:, :) = sblock(:, :)+sint(:, :, 1)
+         ELSE
+            sblock(:, :) = sblock(:, :)+TRANSPOSE(sint(:, :, 1))
+         END IF
+         IF (calculate_forces) THEN
+            DO i = 2, 4
+               IF (iatom <= jatom) THEN
+                  dsblocks(i)%block(:, :) = dsblocks(i)%block(:, :)+sint(:, :, i)
+               ELSE
+                  dsblocks(i)%block(:, :) = dsblocks(i)%block(:, :)-TRANSPOSE(sint(:, :, i))
+               END IF
             END DO
          END IF
 
@@ -492,49 +615,25 @@ CONTAINS
          !
          ! Eq. 10
          !
-         ! get KAB
-         kab = kabset(ikind, jkind)
-         ! get Fen = (1+ken*deltaEN^2)
-         fen = 1.0_dp+ken*(ena-enb)**2
-         !
-         DO j = 1, natorb_b
-            lb = laob(j)
-            nb = naob(j)
+         IF (diagblock) THEN
             DO i = 1, natorb_a
-               la = laoa(i)
                na = naoa(i)
-               IF (diagblock .AND. i == j) THEN
-                  fblock(i, i) = fblock(i, i)+huckel(na, iatom)
-               ELSE
-                  kia = kl(la)
-                  kjb = kl(lb)
-                  h2scase = .FALSE.
-                  IF (zb == 1 .AND. nb == 2) THEN
-                     kjb = k2sh
-                     h2scase = .TRUE.
-                  END IF
-                  IF (za == 1 .AND. na == 2) THEN
-                     kia = k2sh
-                     h2scase = .TRUE.
-                  END IF
-                  hij = 0.5_dp*(huckel(na, iatom)+huckel(nb, jatom))*pia(na)*pib(nb)
-                  IF (h2scase) THEN
-                     fij = 0.5_dp*(kia+kjb)*hij
-                  ELSE
-                     IF ((la == 0 .AND. lb == 1) .OR. (la == 1 .AND. lb == 0)) THEN
-                        fij = ksp*hij*kab*fen
-                     ELSE
-                        fij = 0.5_dp*(kia+kjb)*hij*kab*fen
-                     END IF
-                  END IF
-                  IF (iatom <= jatom) THEN
-                     fblock(i, j) = fblock(i, j)+fij*sblock(i, j)
-                  ELSE
-                     fblock(j, i) = fblock(j, i)+fij*sblock(j, i)
-                  END IF
-               END IF
+               fblock(i, i) = fblock(i, i)+huckel(na, iatom)
             END DO
-         END DO
+         ELSE
+            DO j = 1, natorb_b
+               nb = naob(j)
+               DO i = 1, natorb_a
+                  na = naoa(i)
+                  hij = 0.5_dp*(huckel(na, iatom)+huckel(nb, jatom))*pia(na)*pib(nb)
+                  IF (iatom <= jatom) THEN
+                     fblock(i, j) = fblock(i, j)+hij*sint(i, j, 1)*kijab(i, j, ikind, jkind)
+                  ELSE
+                     fblock(j, i) = fblock(j, i)+hij*sint(i, j, 1)*kijab(i, j, ikind, jkind)
+                  END IF
+               END DO
+            END DO
+         END IF
          IF (calculate_forces) THEN
             f0 = 1.0_dp
             IF (irow == iatom) f0 = -1.0_dp
@@ -542,47 +641,29 @@ CONTAINS
             fhua = 0.0_dp
             fhub = 0.0_dp
             fhud = 0.0_dp
-            DO j = 1, natorb_b
-               lb = laob(j)
-               nb = naob(j)
+            IF (diagblock) THEN
                DO i = 1, natorb_a
                   la = laoa(i)
                   na = naoa(i)
-                  IF (diagblock .AND. i == j) THEN
-                     fhud = fhud+pblock(i, i)*kcnlk(la, ikind)*hena(na)
-                  ELSE
-                     kia = kl(la)
-                     kjb = kl(lb)
-                     h2scase = .FALSE.
-                     IF (zb == 1 .AND. nb == 2) THEN
-                        kjb = k2sh
-                        h2scase = .TRUE.
-                     END IF
-                     IF (za == 1 .AND. na == 2) THEN
-                        kia = k2sh
-                        h2scase = .TRUE.
-                     END IF
-                     hij = 0.5_dp*pia(na)*pib(nb)
-                     IF (h2scase) THEN
-                        fij = 0.5_dp*(kia+kjb)*hij
-                     ELSE
-                        IF ((la == 0 .AND. lb == 1) .OR. (la == 1 .AND. lb == 0)) THEN
-                           fij = ksp*hij*kab*fen
-                        ELSE
-                           fij = 0.5_dp*(kia+kjb)*hij*kab*fen
-                        END IF
-                     END IF
-                     IF (iatom <= jatom) THEN
-                        fhua = fhua+fij*sblock(i, j)*pblock(i, j)*kcnlk(la, ikind)*hena(na)
-                        fhub = fhub+fij*sblock(i, j)*pblock(i, j)*kcnlk(lb, ikind)*henb(nb)
-                     ELSE
-                        fhua = fhua+fij*sblock(j, i)*pblock(j, i)*kcnlk(la, jkind)*hena(na)
-                        fhub = fhub+fij*sblock(j, i)*pblock(j, i)*kcnlk(lb, ikind)*henb(nb)
-                     END IF
-                  END IF
+                  fhud = fhud+pblock(i, i)*kcnlk(la, ikind)*hena(na)
                END DO
-            END DO
-            IF (.NOT. diagblock) THEN
+            ELSE
+               DO j = 1, natorb_b
+                  lb = laob(j)
+                  nb = naob(j)
+                  DO i = 1, natorb_a
+                     la = laoa(i)
+                     na = naoa(i)
+                     hij = 0.5_dp*pia(na)*pib(nb)
+                     IF (iatom <= jatom) THEN
+                        fhua = fhua+hij*kijab(i, j, ikind, jkind)*sint(i, j, 1)*pblock(i, j)*kcnlk(la, ikind)*hena(na)
+                        fhub = fhub+hij*kijab(i, j, ikind, jkind)*sint(i, j, 1)*pblock(i, j)*kcnlk(lb, ikind)*henb(nb)
+                     ELSE
+                        fhua = fhua+hij*kijab(i, j, ikind, jkind)*sint(i, j, 1)*pblock(j, i)*kcnlk(la, jkind)*hena(na)
+                        fhub = fhub+hij*kijab(i, j, ikind, jkind)*sint(i, j, 1)*pblock(j, i)*kcnlk(lb, ikind)*henb(nb)
+                     END IF
+                  END DO
+               END DO
                fhua = 2.0_dp*fhua
                fhub = 2.0_dp*fhub
             END IF
@@ -608,7 +689,7 @@ CONTAINS
                   CALL virial_pair_force(atprop%atstress(:, :, katom), -0.5_dp, fdik, rik)
                END IF
             END DO
-            ! iatom
+            ! jatom
             atom_b = atom_of_kind(jatom)
             DO i = 1, dcnum(jatom)%neighbors
                katom = dcnum(jatom)%nlist(i)
@@ -641,31 +722,11 @@ CONTAINS
                   DO i = 1, natorb_a
                      la = laoa(i)
                      na = naoa(i)
-                     kia = kl(la)
-                     kjb = kl(lb)
-                     h2scase = .FALSE.
-                     IF (zb == 1 .AND. nb == 2) THEN
-                        kjb = k2sh
-                        h2scase = .TRUE.
-                     END IF
-                     IF (za == 1 .AND. na == 2) THEN
-                        kia = k2sh
-                        h2scase = .TRUE.
-                     END IF
                      dhij = 0.5_dp*(huckel(na, iatom)+huckel(nb, jatom))*(dpia(na)*pib(nb)+pia(na)*dpib(nb))
-                     IF (h2scase) THEN
-                        dfij = 0.5_dp*(kia+kjb)*dhij
-                     ELSE
-                        IF ((la == 0 .AND. lb == 1) .OR. (la == 1 .AND. lb == 0)) THEN
-                           dfij = ksp*dhij*kab*fen
-                        ELSE
-                           dfij = 0.5_dp*(kia+kjb)*dhij*kab*fen
-                        END IF
-                     END IF
                      IF (iatom <= jatom) THEN
-                        dfblock(i, j) = dfblock(i, j)+dfij*sblock(i, j)
+                        dfblock(i, j) = dfblock(i, j)+dhij*sint(i, j, 1)*kijab(i, j, ikind, jkind)
                      ELSE
-                        dfblock(j, i) = dfblock(j, i)+dfij*sblock(j, i)
+                        dfblock(j, i) = dfblock(j, i)+dhij*sint(i, j, 1)*kijab(i, j, ikind, jkind)
                      END IF
                   END DO
                END DO
@@ -679,31 +740,11 @@ CONTAINS
                      DO i = 1, natorb_a
                         la = laoa(i)
                         na = naoa(i)
-                        kia = kl(la)
-                        kjb = kl(lb)
-                        h2scase = .FALSE.
-                        IF (zb == 1 .AND. nb == 2) THEN
-                           kjb = k2sh
-                           h2scase = .TRUE.
-                        END IF
-                        IF (za == 1 .AND. na == 2) THEN
-                           kia = k2sh
-                           h2scase = .TRUE.
-                        END IF
                         hij = 0.5_dp*(huckel(na, iatom)+huckel(nb, jatom))*pia(na)*pib(nb)
-                        IF (h2scase) THEN
-                           fij = 0.5_dp*(kia+kjb)*hij
-                        ELSE
-                           IF ((la == 0 .AND. lb == 1) .OR. (la == 1 .AND. lb == 0)) THEN
-                              fij = ksp*hij*kab*fen
-                           ELSE
-                              fij = 0.5_dp*(kia+kjb)*hij*kab*fen
-                           END IF
-                        END IF
                         IF (iatom <= jatom) THEN
-                           foab = foab+2.0_dp*fij*dsblocks(ir+1)%block(i, j)*pblock(i, j)
+                           foab = foab+2.0_dp*hij*sint(i, j, ir+1)*pblock(i, j)*kijab(i, j, ikind, jkind)
                         ELSE
-                           foab = foab+2.0_dp*fij*dsblocks(ir+1)%block(j, i)*pblock(j, i)
+                           foab = foab-2.0_dp*hij*sint(i, j, ir+1)*pblock(j, i)*kijab(i, j, ikind, jkind)
                         END IF
                      END DO
                   END DO
@@ -729,34 +770,7 @@ CONTAINS
             force(jkind)%all_potential(:, atom_b) = force(jkind)%all_potential(:, atom_b)+force_ab(:)
          END IF
 
-         ! gamma matrix
-         CALL get_xtb_atom_param(xtb_atom_a, rcut=rcuta)
-         CALL get_xtb_atom_param(xtb_atom_b, rcut=rcutb)
-         rcut = 1.0_dp*(rcuta+rcutb)
-         IF (irow == iatom) THEN
-            CALL gamma_rab_sr(gblock, dr, lmaxa+1, kappaa, etaa, lmaxb+1, kappab, etab, kg, rcut)
-         ELSE
-            CALL gamma_rab_sr(gblock, dr, lmaxb+1, kappab, etab, lmaxa+1, kappaa, etaa, kg, rcut)
-         END IF
-         IF (calculate_forces .AND. (iatom /= jatom .OR. dr > 0.001_dp)) THEN
-            n1 = SIZE(gblock, 1)
-            n2 = SIZE(gblock, 2)
-            ALLOCATE (dgamma(n1, n2))
-            IF (irow == iatom) THEN
-               CALL dgamma_rab_sr(dgamma, dr, lmaxa+1, kappaa, etaa, lmaxb+1, kappab, etab, kg, rcut)
-            ELSE
-               CALL dgamma_rab_sr(dgamma, dr, lmaxb+1, kappab, etab, lmaxa+1, kappaa, etaa, kg, rcut)
-            END IF
-            DO i = 1, 3
-               CPASSERT(ASSOCIATED(dgblocks(i+1)%block))
-               IF (irow == iatom) THEN
-                  dgblocks(i+1)%block(1:n1, 1:n2) = dgblocks(i+1)%block(1:n1, 1:n2)+dgamma(1:n1, 1:n2)*rij(i)/dr
-               ELSE
-                  dgblocks(i+1)%block(1:n1, 1:n2) = dgblocks(i+1)%block(1:n1, 1:n2)-dgamma(1:n1, 1:n2)*rij(i)/dr
-               END IF
-            END DO
-            DEALLOCATE (dgamma)
-         END IF
+         DEALLOCATE (oint, owork, sint)
 
          ! repulsive potential
          IF (dr > 0.001_dp) THEN
@@ -790,13 +804,10 @@ CONTAINS
       END DO
       CALL neighbor_list_iterator_release(nl_iterator)
 
-      DO i = 1, SIZE(gamma_matrix)
-         CALL dbcsr_finalize(gamma_matrix(i)%matrix)
-      ENDDO
-      CALL set_ks_env(ks_env, gamma_matrix=gamma_matrix)
       DO i = 1, SIZE(matrix_h, 1)
          DO img = 1, nimg
             CALL dbcsr_finalize(matrix_h(i, img)%matrix)
+            CALL dbcsr_finalize(matrix_s(i, img)%matrix)
          END DO
       ENDDO
 
@@ -805,9 +816,8 @@ CONTAINS
          CALL xb_interaction(exb, neighbor_atoms, atom_of_kind, kind_of, sab_xb, kx, kx2, rcab, &
                              calculate_forces, use_virial, force, virial, atprop)
       END IF
-      erep = erep+exb
-
       ! set repulsive energy
+      erep = erep+exb
       CALL mp_sum(erep, para_env%group)
       energy%repulsive = erep
 
@@ -817,15 +827,13 @@ CONTAINS
          DO iatom = 1, natom
             DEALLOCATE (dcnum(iatom)%nlist, dcnum(iatom)%dvals, dcnum(iatom)%rik)
          END DO
-         DEALLOCATE (dcnum)
-      ELSE
-         DEALLOCATE (dcnum)
       END IF
+      DEALLOCATE (dcnum)
 
       ! deallocate Huckel parameters
       DEALLOCATE (huckel)
       ! deallocate KAB parameters
-      DEALLOCATE (kabset)
+      DEALLOCATE (kijab)
 
       CALL section_vals_val_get(qs_env%input, "DFT%PRINT%AO_MATRICES%OMIT_HEADERS", l_val=omit_headers)
       IF (BTEST(cp_print_key_should_output(logger%iter_info, &
@@ -838,9 +846,7 @@ CONTAINS
             CALL cp_dbcsr_write_sparse_matrix(matrix_h(1, img)%matrix, 4, after, qs_env, para_env, &
                                               output_unit=iw, omit_headers=omit_headers)
          END DO
-
-         CALL cp_print_key_finished_output(iw, logger, qs_env%input, &
-                                           "DFT%PRINT%AO_MATRICES/CORE_HAMILTONIAN")
+         CALL cp_print_key_finished_output(iw, logger, qs_env%input, "DFT%PRINT%AO_MATRICES/CORE_HAMILTONIAN")
       END IF
 
       IF (BTEST(cp_print_key_should_output(logger%iter_info, &
@@ -860,11 +866,10 @@ CONTAINS
                END DO
             END IF
          END DO
-
-         CALL cp_print_key_finished_output(iw, logger, qs_env%input, &
-                                           "DFT%PRINT%AO_MATRICES/OVERLAP")
+         CALL cp_print_key_finished_output(iw, logger, qs_env%input, "DFT%PRINT%AO_MATRICES/OVERLAP")
       END IF
 
+      DEALLOCATE (basis_set_list)
       DEALLOCATE (kind_of)
       DEALLOCATE (atom_of_kind)
       IF (calculate_forces) THEN
@@ -911,7 +916,7 @@ CONTAINS
 
       INTEGER                                            :: atom_a, handle, iatom, ikind, img, &
                                                             iounit, is, ispin, natom, natorb, &
-                                                            nkind, ns, nspins
+                                                            nkind, ns, nspins, nimg
       INTEGER, DIMENSION(25)                             :: lao
       INTEGER, DIMENSION(5)                              :: occ
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: aocharge, mcharge
@@ -919,7 +924,7 @@ CONTAINS
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(cp_para_env_type), POINTER                    :: para_env
-      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: mo_derivs
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: mo_derivs, matrix_p1
       TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: ks_matrix, matrix_h, matrix_p, matrix_s
       TYPE(dbcsr_type), POINTER                          :: mo_coeff
       TYPE(dft_control_type), POINTER                    :: dft_control
@@ -953,12 +958,13 @@ CONTAINS
 
       scf_section => section_vals_get_subs_vals(qs_env%input, "DFT%SCF")
       nspins = dft_control%nspins
+      nimg = dft_control%nimages
       CPASSERT(ASSOCIATED(matrix_h))
       CPASSERT(ASSOCIATED(rho))
       CPASSERT(SIZE(ks_matrix) > 0)
 
       DO ispin = 1, nspins
-         DO img = 1, SIZE(ks_matrix, 2)
+         DO img = 1, nimg
             ! copy the core matrix into the fock matrix
             CALL dbcsr_copy(ks_matrix(ispin, img)%matrix, matrix_h(1, img)%matrix)
          END DO
@@ -1033,229 +1039,7 @@ CONTAINS
    END SUBROUTINE build_xtb_ks_matrix
 
 ! **************************************************************************************************
-!> \brief  Computes the short-range gamma parameter from
-!>         Nataga-Mishimoto-Ohno-Klopman formula for xTB
-!>         WARNING: The xTB function (gamma - 1/r) has still an l-dependent longrange (1/r^3)
-!>                  behaviour. We use a cutoff function to smoothly remove this part.
-!>                  However, this will change energies and effect final results.
-!>
-!> \param gmat ...
-!> \param rab ...
-!> \param nla ...
-!> \param kappaa ...
-!> \param etaa ...
-!> \param nlb ...
-!> \param kappab ...
-!> \param etab ...
-!> \param kg ...
-!> \param rcut ...
-!> \par History
-!>      10.2018 JGH
-!> \version 1.1
-! **************************************************************************************************
-   SUBROUTINE gamma_rab_sr(gmat, rab, nla, kappaa, etaa, nlb, kappab, etab, kg, rcut)
-      REAL(dp), DIMENSION(:, :), INTENT(INOUT)           :: gmat
-      REAL(dp), INTENT(IN)                               :: rab
-      INTEGER, INTENT(IN)                                :: nla
-      REAL(dp), DIMENSION(:), INTENT(IN)                 :: kappaa
-      REAL(dp), INTENT(IN)                               :: etaa
-      INTEGER, INTENT(IN)                                :: nlb
-      REAL(dp), DIMENSION(:), INTENT(IN)                 :: kappab
-      REAL(dp), INTENT(IN)                               :: etab, kg, rcut
-
-      CHARACTER(len=*), PARAMETER :: routineN = 'gamma_rab_sr', routineP = moduleN//':'//routineN
-      REAL(KIND=dp), PARAMETER                           :: rsmooth = 1.0_dp
-
-      INTEGER                                            :: i, j
-      REAL(KIND=dp)                                      :: fcut, r, rk, x
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: eta
-
-      ALLOCATE (eta(nla, nlb))
-      eta = 0.0_dp
-
-      DO j = 1, nlb
-         DO i = 1, nla
-            eta(i, j) = 1._dp/(etaa*(1._dp+kappaa(i)))+1._dp/(etab*(1._dp+kappab(j)))
-            eta(i, j) = 2._dp/eta(i, j)
-         END DO
-      END DO
-
-      IF (rab < 1.e-6_dp) THEN
-         ! on site terms
-         gmat(:, :) = gmat(:, :)+eta(:, :)
-      ELSEIF (rab > rcut) THEN
-         ! do nothing
-      ELSE
-         rk = rab**kg
-         eta = eta**(-kg)
-         IF (rab < rcut-rsmooth) THEN
-            fcut = 1.0_dp
-         ELSE
-            r = rab-(rcut-rsmooth)
-            x = r/rsmooth
-            fcut = -10._dp*x**5+15._dp*x**4-10._dp*x**3+1._dp
-         END IF
-         gmat(:, :) = gmat(:, :)+fcut*(1._dp/(rk+eta(:, :)))**(1._dp/kg)
-         gmat(:, :) = gmat(:, :)-fcut*1.0_dp/rab
-      END IF
-
-      DEALLOCATE (eta)
-
-   END SUBROUTINE gamma_rab_sr
-
-! **************************************************************************************************
-!> \brief  Computes the derivative of the short-range gamma parameter from
-!>         Nataga-Mishimoto-Ohno-Klopman formula for xTB
-!>         WARNING: The xTB function (gamma - 1/r) has still an l-dependent longrange (1/r^3)
-!>                  behaviour. We use a cutoff function to smoothly remove this part.
-!>                  However, this will change energies and effect final results.
-!>
-!> \param dgmat ...
-!> \param rab ...
-!> \param nla ...
-!> \param kappaa ...
-!> \param etaa ...
-!> \param nlb ...
-!> \param kappab ...
-!> \param etab ...
-!> \param kg ...
-!> \param rcut ...
-!> \par History
-!>      10.2018 JGH
-!> \version 1.1
-! **************************************************************************************************
-   SUBROUTINE dgamma_rab_sr(dgmat, rab, nla, kappaa, etaa, nlb, kappab, etab, kg, rcut)
-      REAL(dp), DIMENSION(:, :), INTENT(INOUT)           :: dgmat
-      REAL(dp), INTENT(IN)                               :: rab
-      INTEGER, INTENT(IN)                                :: nla
-      REAL(dp), DIMENSION(:), INTENT(IN)                 :: kappaa
-      REAL(dp), INTENT(IN)                               :: etaa
-      INTEGER, INTENT(IN)                                :: nlb
-      REAL(dp), DIMENSION(:), INTENT(IN)                 :: kappab
-      REAL(dp), INTENT(IN)                               :: etab, kg, rcut
-
-      CHARACTER(len=*), PARAMETER :: routineN = 'dgamma_rab_sr', routineP = moduleN//':'//routineN
-      REAL(KIND=dp), PARAMETER                           :: rsmooth = 1.0_dp
-
-      INTEGER                                            :: i, j
-      REAL(KIND=dp)                                      :: dfcut, fcut, r, rk, x
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: eta
-
-      ALLOCATE (eta(nla, nlb))
-
-      DO j = 1, nlb
-         DO i = 1, nla
-            eta(i, j) = 1._dp/(etaa*(1._dp+kappaa(i)))+1._dp/(etab*(1._dp+kappab(j)))
-            eta(i, j) = 2._dp/eta(i, j)
-         END DO
-      END DO
-
-      IF (rab < 1.e-6) THEN
-         ! on site terms
-         dgmat(:, :) = 0.0_dp
-      ELSEIF (rab > rcut) THEN
-         dgmat(:, :) = 0.0_dp
-      ELSE
-         eta = eta**(-kg)
-         rk = rab**kg
-         IF (rab < rcut-rsmooth) THEN
-            fcut = 1.0_dp
-            dfcut = 0.0_dp
-         ELSE
-            r = rab-(rcut-rsmooth)
-            x = r/rsmooth
-            fcut = -10._dp*x**5+15._dp*x**4-10._dp*x**3+1._dp
-            dfcut = -50._dp*x**4+60._dp*x**3-30._dp*x**2
-            dfcut = dfcut/rsmooth
-         END IF
-         dgmat(:, :) = dfcut*(1._dp/(rk+eta(:, :)))**(1._dp/kg)
-         dgmat(:, :) = dgmat(:, :)-dfcut/rab+fcut/rab**2
-         dgmat(:, :) = dgmat(:, :)-fcut/(rk+eta(:, :))*(1._dp/(rk+eta(:, :)))**(1._dp/kg)*rk/rab
-      END IF
-
-      DEALLOCATE (eta)
-
-   END SUBROUTINE dgamma_rab_sr
-
-! **************************************************************************************************
-!> \brief ...
-!> \param qs_env ...
-!> \param nmat ...
-!> \param gammat ...
-!> \param sab_nl ...
-! **************************************************************************************************
-   SUBROUTINE setup_gamma(qs_env, nmat, gammat, sab_nl)
-
-      TYPE(qs_environment_type), POINTER                 :: qs_env
-      INTEGER, INTENT(IN)                                :: nmat
-      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: gammat
-      TYPE(neighbor_list_set_p_type), DIMENSION(:), &
-         POINTER                                         :: sab_nl
-
-      CHARACTER(len=*), PARAMETER :: routineN = 'setup_gamma', routineP = moduleN//':'//routineN
-
-      INTEGER                                            :: i, iatom, ikind, natom, &
-                                                            neighbor_list_id, ns
-      INTEGER, DIMENSION(:), POINTER                     :: kind_of, row_blk_sizes
-      TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
-      TYPE(dbcsr_distribution_type), POINTER             :: dbcsr_dist
-      TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
-      TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
-      TYPE(qs_kind_type), POINTER                        :: qs_kind
-      TYPE(xtb_atom_type), POINTER                       :: xtb_parameter
-
-      CALL get_qs_env(qs_env=qs_env, &
-                      particle_set=particle_set, &
-                      qs_kind_set=qs_kind_set, &
-                      atomic_kind_set=atomic_kind_set, &
-                      neighbor_list_id=neighbor_list_id, &
-                      dbcsr_dist=dbcsr_dist)
-
-      natom = SIZE(particle_set)
-      ALLOCATE (row_blk_sizes(natom))
-      ALLOCATE (kind_of(natom))
-      CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set, kind_of=kind_of)
-
-      DO iatom = 1, natom
-         ikind = kind_of(iatom)
-         qs_kind => qs_kind_set(ikind)
-         CALL get_qs_kind(qs_kind, xtb_parameter=xtb_parameter)
-         CALL get_xtb_atom_param(xtb_parameter, lmax=ns)
-         row_blk_sizes(iatom) = ns+1
-      ENDDO
-
-      CALL dbcsr_allocate_matrix_set(gammat, nmat)
-      ALLOCATE (gammat(1)%matrix)
-      CALL dbcsr_create(matrix=gammat(1)%matrix, &
-                        name="GAMMA MATRIX", &
-                        dist=dbcsr_dist, matrix_type=dbcsr_type_symmetric, &
-                        row_blk_size=row_blk_sizes, col_blk_size=row_blk_sizes, &
-                        nze=0, mutable_work=.TRUE.)
-
-      DO i = 2, nmat
-         ALLOCATE (gammat(i)%matrix)
-         CALL dbcsr_create(matrix=gammat(i)%matrix, &
-                           name="DERIVATIVE GAMMA MATRIX", &
-                           dist=dbcsr_dist, matrix_type=dbcsr_type_antisymmetric, &
-                           row_blk_size=row_blk_sizes, col_blk_size=row_blk_sizes, &
-                           nze=0, mutable_work=.TRUE.)
-      END DO
-
-      DEALLOCATE (row_blk_sizes, kind_of)
-
-      ! setup the matrices using the neighbor list
-      DO i = 1, nmat
-         CALL cp_dbcsr_alloc_block_from_nbl(gammat(i)%matrix, sab_nl)
-      END DO
-
-   END SUBROUTINE setup_gamma
-
-! **************************************************************************************************
-!> \brief  Computes the derivative of the short-range gamma parameter from
-!>         Nataga-Mishimoto-Ohno-Klopman formula for xTB
-!>         WARNING: The xTB function (gamma - 1/r) has still an l-dependent longrange (1/r^3)
-!>                  behaviour. We use a cutoff function to smoothly remove this part.
-!>                  However, this will change energies and effect final results.
+!> \brief  Computes the interaction term between Br/I/At and donor atoms
 !>
 !> \param exb ...
 !> \param neighbor_atoms ...

@@ -1046,6 +1046,8 @@ CONTAINS
                                    l_val=qs_control%xtb_control%do_ewald)
          CALL section_vals_val_get(xtb_section, "STO_NG", i_val=ngauss)
          qs_control%xtb_control%sto_ng = ngauss
+         CALL section_vals_val_get(xtb_section, "HYDROGEN_STO_NG", i_val=ngauss)
+         qs_control%xtb_control%h_sto_ng = ngauss
          CALL section_vals_val_get(xtb_parameter, "PARAM_FILE_PATH", &
                                    c_val=qs_control%xtb_control%parameter_file_path)
          CALL section_vals_val_get(xtb_parameter, "PARAM_FILE_NAME", &

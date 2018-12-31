@@ -167,14 +167,12 @@ CONTAINS
             CALL dbcsr_iterator_start(iter, matrix_s(1, 1)%matrix)
             DO WHILE (dbcsr_iterator_blocks_left(iter))
                CALL dbcsr_iterator_next_block(iter, irow, icol, sblock, blk)
-               ikind = kind_of(irow)
-               atom_i = atom_of_kind(irow)
-               CALL get_qs_kind(qs_kind_set(ikind), dftb_parameter=dftb_kind)
-               CALL get_dftb_atom_param(dftb_kind, dudq=ui)
-               jkind = kind_of(icol)
-               atom_j = atom_of_kind(icol)
-               CALL get_qs_kind(qs_kind_set(jkind), dftb_parameter=dftb_kind)
-               CALL get_dftb_atom_param(dftb_kind, dudq=uj)
+               ikind = kind_of(iatom)
+               atom_i = atom_of_kind(iatom)
+               ui = xgamma(ikind)
+               jkind = kind_of(jatom)
+               atom_j = atom_of_kind(jatom)
+               uj = xgamma(jkind)
                !
                gmij = -0.5_dp*(ui*mcharge(irow)**2+uj*mcharge(icol)**2)
                !
@@ -220,7 +218,6 @@ CONTAINS
 
                ic = cell_to_index(cellind(1), cellind(2), cellind(3))
                CPASSERT(ic > 0)
-
 
             ikind = kind_of(iatom)
             atom_i = atom_of_kind(iatom)

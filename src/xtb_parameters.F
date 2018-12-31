@@ -119,19 +119,19 @@ MODULE xtb_parameters
       PARAMETER, PRIVATE :: crad = (/0.00_dp, & ! 0
                                      0.32_dp, 0.37_dp, & ! 2
                                      1.30_dp, 0.99_dp, 0.84_dp, 0.75_dp, 0.71_dp, 0.64_dp, 0.60_dp, 0.62_dp, & ! 10
-1.60_dp, 1.40_dp, 1.24_dp, 1.14_dp, 1.09_dp, 1.04_dp, 1.00_dp, 1.01_dp, & ! 18
+                                     1.60_dp, 1.40_dp, 1.24_dp, 1.14_dp, 1.09_dp, 1.04_dp, 1.00_dp, 1.01_dp, & ! 18
                                      2.00_dp, 1.74_dp, 1.59_dp, 1.48_dp, 1.44_dp, 1.30_dp, 1.29_dp, 1.24_dp, &
-1.18_dp, 1.17_dp, 1.22_dp, 1.20_dp, 1.23_dp, 1.20_dp, 1.20_dp, 1.18_dp, 1.17_dp, 1.16_dp, & ! 36
+                                     1.18_dp, 1.17_dp, 1.22_dp, 1.20_dp, 1.23_dp, 1.20_dp, 1.20_dp, 1.18_dp, 1.17_dp, 1.16_dp, & ! 36
                                      2.15_dp, 1.90_dp, 1.76_dp, 1.64_dp, 1.56_dp, 1.46_dp, 1.38_dp, 1.36_dp, &
                                      1.34_dp, 1.30_dp, 1.36_dp, 1.40_dp, 1.42_dp, 1.40_dp, 1.40_dp, 1.37_dp, 1.36_dp, 1.36_dp, & ! 54
-2.38_dp, 2.06_dp, 1.94_dp, &
+                                     2.38_dp, 2.06_dp, 1.94_dp, &
                                      1.84_dp, 1.90_dp, 1.88_dp, 1.86_dp, 1.85_dp, 1.83_dp, 1.82_dp, 1.81_dp, &
                                      1.80_dp, 1.79_dp, 1.77_dp, 1.77_dp, 1.78_dp, 1.74_dp, & ! Lanthanides
-1.64_dp, 1.58_dp, 1.50_dp, 1.41_dp, 1.36_dp, 1.32_dp, 1.30_dp, 1.30_dp, &
+                                     1.64_dp, 1.58_dp, 1.50_dp, 1.41_dp, 1.36_dp, 1.32_dp, 1.30_dp, 1.30_dp, &
                                      1.32_dp, 1.44_dp, 1.45_dp, 1.50_dp, 1.42_dp, 1.48_dp, 1.46_dp, & ! 86
                                      2.42_dp, 2.11_dp, 2.01_dp, &
                                      1.90_dp, 1.84_dp, 1.83_dp, 1.80_dp, 1.80_dp, 1.51_dp, 0.96_dp, 1.54_dp, &
-1.83_dp, 1.50_dp, 1.50_dp, 1.50_dp, 1.50_dp, 1.50_dp, & !  Actinides
+                                     1.83_dp, 1.50_dp, 1.50_dp, 1.50_dp, 1.50_dp, 1.50_dp, & !  Actinides
                                      1.50_dp, 1.50_dp,10.50_dp/)
 !&>
 
@@ -221,7 +221,6 @@ CONTAINS
          param%symbol = element_symbol
          param%defined = .TRUE.
          CALL get_ptable_info(element_symbol, number=ia)
-         param%rcov = crad(ia)*bohr
          param%z = ia
          param%aname = ptable(ia)%name
          param%lmax = MAXVAL(param%lval(1:param%nshell))
@@ -359,8 +358,7 @@ CONTAINS
             param%typ = "STANDARD"
             param%symbol = element_symbol
             param%defined = .TRUE.
-            CALL get_ptable_info(element_symbol, number=ia, covalent_radius=param%rcov)
-            param%rcov = param%rcov*bohr
+            CALL get_ptable_info(element_symbol, number=ia)
             param%z = ia
             param%aname = ptable(ia)%name
             param%lmax = MAXVAL(param%lval(1:param%nshell))
@@ -406,6 +404,8 @@ CONTAINS
          i = param%z
          ! Electronegativity
          param%electronegativity = eneg(i)
+         ! covalent radius
+         param%rcov = crad(i)*bohr
          ! shell occupances
          param%occupation(:) = occupation(:, i)
          ! check for consistency
@@ -416,20 +416,20 @@ CONTAINS
          param%hen = param%hen/evolt
          ! some forgotten scaling parameters (not in orig. paper)
          param%xgamma = 0.1_dp*param%xgamma
-         param%kpoly(:) = 0.01*param%kpoly(:)
+         param%kpoly(:) = 0.01_dp*param%kpoly(:)
          param%kappa(:) = 0.1_dp*param%kappa(:)
          ! we have 1/6 g * q**3 (not 1/3)
          param%xgamma = -2.0_dp*param%xgamma
-         ! kappa is read for each shell, but depends on l, reindex here
+         ! we need kappa l-indexed
          kp(:) = param%kappa(:)
-         param%kappa = 0._dp
+         param%kappa(:) = 0.0_dp
          DO is = 1, param%nshell
             l = param%lval(is)
-            IF (param%kappa(l+1) /= 0._dp) THEN
-               ! test that we don't have ambigous kappa values
-               CPASSERT(ABS(param%kappa(l+1)-kp(is)) < 1.e-12_dp)
-            ENDIF
-            param%kappa(l+1) = kp(is)
+            IF (param%kappa(l+1) == 0.0_dp) THEN
+               param%kappa(l+1) = kp(is)
+            ELSE
+               CPASSERT(ABS(param%kappa(l+1)-kp(is)) < 1.e-10_dp)
+            END IF
          END DO
          ! kx
          IF (param%kx < -10._dp) THEN
@@ -496,10 +496,9 @@ CONTAINS
             nq(1:nshell) = param%nval(1:nshell)
             lq(1:nshell) = param%lval(1:nshell)
             zet(1:nshell) = param%zeta(1:nshell)
-
             CALL set_sto_basis_set(sto_basis_set, name=param%aname, nshell=nshell, symbol=symbol, &
                                    nq=nq, lq=lq, zet=zet)
-            CALL create_gto_from_sto_basis(sto_basis_set, gto_basis_set, ngauss)
+            CALL create_gto_from_sto_basis(sto_basis_set, gto_basis_set, ngauss=ngauss, ortho=.TRUE.)
          END IF
 
          ! this will remove the allocated arrays
@@ -549,23 +548,33 @@ CONTAINS
          ! Boron
          z = za+zb-5
          SELECT CASE (z)
-         CASE (14)
-            kab = 1.01_dp
          CASE (15)
             kab = 0.97_dp
          END SELECT
-      ELSEIF (za >= 21 .AND. za <= 30) THEN
+      ELSEIF (za == 7 .OR. zb == 7) THEN
+         ! Nitrogen
+         z = za+zb-7
+         SELECT CASE (z)
+         CASE (14)
+            !xtb orig code parameter file
+            ! in the paper this is Kab for B-Si
+            kab = 1.01_dp
+         END SELECT
+      ELSEIF (za > 20 .AND. za < 30) THEN
          ! 3d
-         IF (zb >= 21 .AND. zb <= 30) THEN
+         IF (zb > 20 .AND. zb < 30) THEN
             ! 3d
             kab = 1.10_dp
-         ELSEIF ((zb >= 39 .AND. zb <= 48) .OR. (zb >= 57 .AND. zb <= 80)) THEN
+         ELSEIF ((zb > 38 .AND. zb < 48) .OR. (zb > 56 .AND. zb < 80)) THEN
             ! 4d/5d/4f
             kab = 0.50_dp*(1.20_dp+1.10_dp)
          END IF
-      ELSEIF ((za >= 39 .AND. za <= 48) .OR. (za >= 57 .AND. za <= 80)) THEN
+      ELSEIF ((za > 38 .AND. za < 48) .OR. (za > 56 .AND. za < 80)) THEN
          ! 4d/5d/4f
-         IF ((zb >= 39 .AND. zb <= 48) .OR. (zb >= 57 .AND. zb <= 80)) THEN
+         IF (zb > 20 .AND. zb < 30) THEN
+            ! 3d
+            kab = 0.50_dp*(1.20_dp+1.10_dp)
+         ELSEIF ((zb > 38 .AND. zb < 48) .OR. (zb > 56 .AND. zb < 80)) THEN
             ! 4d/5d/4f
             kab = 1.20_dp
          END IF

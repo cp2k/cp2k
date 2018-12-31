@@ -134,6 +134,7 @@ CONTAINS
 ! **************************************************************************************************
 !> \brief ...
 !> \param xtb_parameter ...
+!> \param symbol ...
 !> \param aname ...
 !> \param typ ...
 !> \param defined ...
@@ -160,11 +161,12 @@ CONTAINS
 !> \param occupation ...
 !> \param electronegativity ...
 ! **************************************************************************************************
-   SUBROUTINE get_xtb_atom_param(xtb_parameter, aname, typ, defined, z, zeff, natorb, lmax, nao, lao, &
+   SUBROUTINE get_xtb_atom_param(xtb_parameter, symbol, aname, typ, defined, z, zeff, natorb, lmax, nao, lao, &
                                  rcut, rcov, kx, eta, xgamma, alpha, zneff, nshell, nval, lval, kpoly, kappa, &
                                  hen, zeta, occupation, electronegativity)
 
       TYPE(xtb_atom_type), POINTER                       :: xtb_parameter
+      CHARACTER(LEN=2), INTENT(OUT), OPTIONAL            :: symbol
       CHARACTER(LEN=default_string_length), &
          INTENT(OUT), OPTIONAL                           :: aname, typ
       LOGICAL, INTENT(OUT), OPTIONAL                     :: defined
@@ -184,6 +186,7 @@ CONTAINS
 
       CPASSERT(ASSOCIATED(xtb_parameter))
 
+      IF (PRESENT(symbol)) symbol = xtb_parameter%symbol
       IF (PRESENT(aname)) aname = xtb_parameter%aname
       IF (PRESENT(typ)) typ = xtb_parameter%typ
       IF (PRESENT(defined)) defined = xtb_parameter%defined

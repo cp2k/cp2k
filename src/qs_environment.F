@@ -656,8 +656,13 @@ CONTAINS
             ! set dependent parameters
             CALL xtb_parameters_set(qs_kind%xtb_parameter)
             ! Generate basis set
-            ngauss = xtb_control%sto_ng
             NULLIFY (tmp_basis_set)
+            IF (qs_kind%xtb_parameter%z == 1) THEN
+               ! special case hydrogen
+               ngauss = xtb_control%h_sto_ng
+            ELSE
+               ngauss = xtb_control%sto_ng
+            END IF
             CALL init_xtb_basis(qs_kind%xtb_parameter, tmp_basis_set, ngauss)
             CALL add_basis_set_to_container(qs_kind%basis_sets, tmp_basis_set, "ORB")
             ! potential

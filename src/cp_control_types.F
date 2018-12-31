@@ -93,6 +93,7 @@ MODULE cp_control_types
       LOGICAL                              :: do_ewald
       !
       INTEGER                              :: sto_ng
+      INTEGER                              :: h_sto_ng
       !
       CHARACTER(LEN=default_path_length)   :: parameter_file_path
       CHARACTER(LEN=default_path_length)   :: parameter_file_name
