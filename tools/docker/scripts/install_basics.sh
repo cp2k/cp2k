@@ -13,6 +13,7 @@ apt-get install -y --no-install-recommends \
     unzip                                  \
     less                                   \
     make                                   \
+    cmake                                  \
     rsync
 rm -rf /var/lib/apt/lists/*
 
