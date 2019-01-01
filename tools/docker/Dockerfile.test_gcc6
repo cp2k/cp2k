@@ -8,7 +8,7 @@ COPY ./scripts/install_basics.sh .
 RUN ./install_basics.sh
 
 COPY ./scripts/install_ubuntu_toolchain.sh .
-RUN ./install_ubuntu_toolchain.sh 8
+RUN ./install_ubuntu_toolchain.sh 6
 
 COPY ./scripts/install_regtest.sh .
 RUN ./install_regtest.sh local ssmp
