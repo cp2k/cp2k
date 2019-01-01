@@ -1140,7 +1140,9 @@ CONTAINS
          DEALLOCATE (xtob)
       END IF
 
-      CALL close_file(unit_number=iw)
+      IF (debug) THEN
+         CALL close_file(unit_number=iw)
+      END IF
 
    END SUBROUTINE atom_fit_pseudo
 ! **************************************************************************************************
