@@ -155,7 +155,8 @@ CONTAINS
       INTEGER                                            :: handle, icontact, ispin, log_unit, &
                                                             ncontacts, npoints, nspins, print_unit
       LOGICAL                                            :: should_output
-      REAL(kind=dp)                                      :: current, energy_max, energy_min
+      REAL(kind=dp)                                      :: energy_max, energy_min
+      REAL(kind=dp), DIMENSION(2)                        :: current
       TYPE(cp_blacs_env_type), POINTER                   :: blacs_env
       TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(cp_subsys_type), POINTER                      :: cp_subsys
@@ -211,7 +212,9 @@ CONTAINS
 
             CALL integer_to_string(icontact, contact_id_str)
             print_unit = cp_print_key_unit_nr(logger, print_section, "DOS", &
-                                              middle_name=TRIM(ADJUSTL(contact_id_str)), extension=".dos")
+                                              extension=".dos", &
+                                              middle_name=TRIM(ADJUSTL(contact_id_str)), &
+                                              file_status="REPLACE")
 
             CALL negf_print_dos(print_unit, energy_min, energy_max, npoints, &
                                 v_shift=0.0_dp, negf_env=negf_env, negf_control=negf_control, &
@@ -232,18 +235,29 @@ CONTAINS
          CALL get_qs_env(qs_env, dft_control=dft_control)
 
          nspins = dft_control%nspins
-         current = 0.0_dp
 
+         CPASSERT(nspins <= 2)
          DO ispin = 1, nspins
-            current = current+ &
-                      negf_compute_current(1, 2, v_shift=negf_control%v_shift, negf_env=negf_env, negf_control=negf_control, &
-                                           sub_env=sub_env, ispin=ispin, blacs_env_global=blacs_env)
+            ! compute the electric current flown through a pair of electrodes
+            ! contact_id1 -> extended molecule -> contact_id2.
+            ! Only extended systems with two electrodes are supported at the moment,
+            ! so for the time being the contacts' indices are hardcoded.
+            current(ispin) = negf_compute_current(contact_id1=1, contact_id2=2, &
+                                                  v_shift=negf_control%v_shift, &
+                                                  negf_env=negf_env, &
+                                                  negf_control=negf_control, &
+                                                  sub_env=sub_env, &
+                                                  ispin=ispin, &
+                                                  blacs_env_global=blacs_env)
          END DO
 
-         IF (nspins == 1) current = 2.0_dp*current
-
          IF (log_unit > 0) THEN
-            WRITE (log_unit, '(/,T2,A,T60,ES20.7E2)') "NEGF| Electric current (A)", current
+            IF (nspins > 1) THEN
+               WRITE (log_unit, '(/,T2,A,T60,ES20.7E2)') "NEGF| Alpha-spin electric current (A)", current(1)
+               WRITE (log_unit, '(T2,A,T60,ES20.7E2)') "NEGF|  Beta-spin electric current (A)", current(2)
+            ELSE
+               WRITE (log_unit, '(/,T2,A,T60,ES20.7E2)') "NEGF|  Electric current (A)", 2.0_dp*current(1)
+            END IF
          END IF
 
          ! density of states
@@ -257,7 +271,9 @@ CONTAINS
 
             CALL integer_to_string(0, contact_id_str)
             print_unit = cp_print_key_unit_nr(logger, print_section, "DOS", &
-                                              middle_name=TRIM(ADJUSTL(contact_id_str)), extension=".dos")
+                                              extension=".dos", &
+                                              middle_name=TRIM(ADJUSTL(contact_id_str)), &
+                                              file_status="REPLACE")
 
             CALL negf_print_dos(print_unit, energy_min, energy_max, npoints, negf_control%v_shift, &
                                 negf_env=negf_env, negf_control=negf_control, &
@@ -276,7 +292,9 @@ CONTAINS
 
             CALL integer_to_string(0, contact_id_str)
             print_unit = cp_print_key_unit_nr(logger, print_section, "TRANSMISSION", &
-                                              middle_name=TRIM(ADJUSTL(contact_id_str)), extension=".transm")
+                                              extension=".transm", &
+                                              middle_name=TRIM(ADJUSTL(contact_id_str)), &
+                                              file_status="REPLACE")
 
             CALL negf_print_transmission(print_unit, energy_min, energy_max, npoints, negf_control%v_shift, &
                                          negf_env=negf_env, negf_control=negf_control, &
@@ -775,7 +793,7 @@ CONTAINS
          END DO
 
          IF (nspins > 1) THEN
-            DO ispin = 1, nspins
+            DO ispin = 2, nspins
                CALL cp_fm_scale_and_add(1.0_dp, rho_ao_fm(1)%matrix, 1.0_dp, rho_ao_fm(ispin)%matrix)
             END DO
          ELSE
@@ -1463,7 +1481,9 @@ CONTAINS
             DO ipoint = 1, npoints
                DO icontact = 1, ncontacts
                   gret_gamma_gadv_group(icontact, ipoint)%matrix => gret_gamma_gadv(icontact, ipoint)%matrix
-                  CALL cp_cfm_retain(gret_gamma_gadv_group(icontact, ipoint)%matrix)
+
+                  IF (ASSOCIATED(gret_gamma_gadv_group(icontact, ipoint)%matrix)) &
+                     CALL cp_cfm_retain(gret_gamma_gadv_group(icontact, ipoint)%matrix)
                END DO
             END DO
          END IF
@@ -2729,11 +2749,12 @@ CONTAINS
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'negf_print_dos', routineP = moduleN//':'//routineN
 
+      CHARACTER                                          :: uks_str
+      CHARACTER(len=15)                                  :: units_str
       COMPLEX(kind=dp), ALLOCATABLE, DIMENSION(:)        :: xnodes
       INTEGER                                            :: handle, icontact, ipoint, ispin, &
                                                             ncontacts, npoints_bundle, &
                                                             npoints_remain, nspins
-      REAL(kind=dp)                                      :: rscale
       REAL(kind=dp), ALLOCATABLE, DIMENSION(:, :)        :: dos
       TYPE(green_functions_cache_type)                   :: g_surf_cache
 
@@ -2746,17 +2767,27 @@ CONTAINS
       END IF
 
       IF (log_unit > 0) THEN
-         IF (PRESENT(just_contact)) THEN
-            WRITE (log_unit, '(A,T70,I11)') "# Density of states for the contact No. ", just_contact
+         IF (PRESENT(volume)) THEN
+            units_str = ' (angstroms^-3)'
          ELSE
-            WRITE (log_unit, '(A)') "# Density of states for the scattering region"
+            units_str = ''
          END IF
 
-         IF (PRESENT(volume)) THEN
-            WRITE (log_unit, '(A,T10,A,T40,A)') "#", "Energy (a.u.)", "Number of states (angstroms^-3)"
+         IF (nspins > 1) THEN
+            ! [alpha , beta]
+            uks_str = ','
          ELSE
-            WRITE (log_unit, '(A,T10,A,T49,A)') "#", "Energy (a.u.)", "Number of states"
+            ! [alpha + beta]
+            uks_str = '+'
          END IF
+
+         IF (PRESENT(just_contact)) THEN
+            WRITE (log_unit, '(3A,T70,I11)') "# Density of states", TRIM(units_str), " for the contact No. ", just_contact
+         ELSE
+            WRITE (log_unit, '(3A)') "# Density of states", TRIM(units_str), " for the scattering region"
+         END IF
+
+         WRITE (log_unit, '(A,T10,A,T43,3A)') "#", "Energy (a.u.)", "Number of states [alpha ", uks_str, " beta]"
 
          WRITE (log_unit, '("#", T3,78("-"))')
       END IF
@@ -2766,12 +2797,6 @@ CONTAINS
       IF (PRESENT(just_contact)) THEN
          ncontacts = 2
          CPASSERT(just_contact == base_contact)
-      END IF
-
-      IF (nspins == 1) THEN
-         rscale = 2.0_dp
-      ELSE
-         rscale = 1.0_dp
       END IF
 
       npoints_bundle = 4*sub_env%ngroups
@@ -2834,17 +2859,17 @@ CONTAINS
             CALL green_functions_cache_release(g_surf_cache)
          END DO
 
-         DO ipoint = 1, npoints_bundle
-            DO ispin = 2, nspins
-               dos(ipoint, 1) = dos(ipoint, 1)+dos(ipoint, ispin)
+         IF (log_unit > 0) THEN
+            DO ipoint = 1, npoints_bundle
+               IF (nspins > 1) THEN
+                  ! spin-polarised calculations: print alpha- and beta-spin components separately
+                  WRITE (log_unit, '(T2,F20.8,T30,2ES25.11E3)') REAL(xnodes(ipoint), kind=dp), dos(ipoint, 1), dos(ipoint, 2)
+               ELSE
+                  ! spin-restricted calculations: print alpha- and beta-spin components together
+                  WRITE (log_unit, '(T2,F20.8,T43,ES25.11E3)') REAL(xnodes(ipoint), kind=dp), 2.0_dp*dos(ipoint, 1)
+               END IF
             END DO
-
-            dos(ipoint, 1) = rscale*dos(ipoint, 1)
-
-            IF (log_unit > 0) THEN
-               WRITE (log_unit, '(T2,F20.8,T40,ES25.10E3)') REAL(xnodes(ipoint), kind=dp), dos(ipoint, 1)
-            END IF
-         END DO
+         END IF
 
          npoints_remain = npoints_remain-npoints_bundle
       END DO
@@ -2881,6 +2906,7 @@ CONTAINS
       CHARACTER(LEN=*), PARAMETER :: routineN = 'negf_print_transmission', &
          routineP = moduleN//':'//routineN
 
+      CHARACTER                                          :: uks_str
       COMPLEX(kind=dp), ALLOCATABLE, DIMENSION(:)        :: xnodes
       COMPLEX(kind=dp), ALLOCATABLE, DIMENSION(:, :)     :: transm_coeff
       INTEGER                                            :: handle, icontact, ipoint, ispin, &
@@ -2893,10 +2919,18 @@ CONTAINS
 
       nspins = SIZE(negf_env%h_s)
 
-      IF (log_unit > 0) THEN
-         WRITE (log_unit, '(A)') "# Transmission coefficient for the scattering region"
-         WRITE (log_unit, '(A,T10,A,T40,A)') "#", "Energy (a.u.)", "Transmission coefficient (G0 = 2 e^2/h)"
+      IF (nspins > 1) THEN
+         ! [alpha , beta]
+         uks_str = ','
+      ELSE
+         ! [alpha + beta]
+         uks_str = '+'
+      END IF
 
+      IF (log_unit > 0) THEN
+         WRITE (log_unit, '(A)') "# Transmission coefficient (G0 = 2 e^2/h) for the scattering region"
+
+         WRITE (log_unit, '(A,T10,A,T39,3A)') "#", "Energy (a.u.)", "Transmission coefficient [alpha ", uks_str, " beta]"
          WRITE (log_unit, '("#", T3,78("-"))')
       END IF
 
@@ -2962,18 +2996,19 @@ CONTAINS
             CALL green_functions_cache_release(g_surf_cache)
          END DO
 
-         DO ipoint = 1, npoints_bundle
-            DO ispin = 2, nspins
-               transm_coeff(ipoint, 1) = transm_coeff(ipoint, 1)+transm_coeff(ipoint, ispin)
+         IF (log_unit > 0) THEN
+            DO ipoint = 1, npoints_bundle
+               IF (nspins > 1) THEN
+                  ! spin-polarised calculations: print alpha- and beta-spin components separately
+                  WRITE (log_unit, '(T2,F20.8,T30,2ES25.11E3)') &
+                     REAL(xnodes(ipoint), kind=dp), rscale*REAL(transm_coeff(ipoint, 1:2), kind=dp)
+               ELSE
+                  ! spin-restricted calculations: print alpha- and beta-spin components together
+                  WRITE (log_unit, '(T2,F20.8,T43,ES25.11E3)') &
+                     REAL(xnodes(ipoint), kind=dp), rscale*REAL(transm_coeff(ipoint, 1), kind=dp)
+               END IF
             END DO
-
-            transm_coeff(ipoint, 1) = rscale*transm_coeff(ipoint, 1)
-
-            IF (log_unit > 0) THEN
-               WRITE (log_unit, '(T2,F20.8,T40,ES25.10E3)') REAL(xnodes(ipoint), kind=dp), &
-                  REAL(transm_coeff(ipoint, 1), kind=dp)
-            END IF
-         END DO
+         END IF
 
          npoints_remain = npoints_remain-npoints_bundle
       END DO
