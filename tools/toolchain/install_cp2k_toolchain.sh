@@ -1214,9 +1214,9 @@ if [ "$ENABLE_CUDA" = __TRUE__ ] ; then
 fi
 # valgrind enabled arch files
 if [ "$ENABLE_VALGRIND" = __TRUE__ ] ; then
-      gen_arch_file "local_valgrind.sdbg"      VALGRIND
+      gen_arch_file "local_valgrind.sopt"      VALGRIND
     [ "$MPI_MODE" != no ] && \
-      gen_arch_file "local_valgrind.pdbg"      VALGRIND MPI
+      gen_arch_file "local_valgrind.popt"      VALGRIND MPI
 fi
 # coverage enabled arch files
 if [ "$ENABLE_COVERAGE" = __TRUE__ ]; then
