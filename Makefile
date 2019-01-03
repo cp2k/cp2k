@@ -66,7 +66,7 @@ endif
 # Declare PHONY targets =====================================================
 .PHONY : $(VERSION) $(EXE_NAMES) \
          dirs makedep default_target all \
-         toolversions libcp2k exts \
+         toolversions extversions libcp2k exts \
          doxify doxifyclean \
          pretty prettyclean doxygen/clean doxygen \
          install clean realclean distclean mrproper help \
@@ -111,7 +111,7 @@ ORIG_TARGET = default_target
 fes :
 	@+$(MAKE) --no-print-directory -f $(MAKEFILE) $(VERSION) ORIG_TARGET=graph
 
-$(EXE_NAMES) all toolversions libcp2k exts $(EXTSPACKAGES) test testbg:
+$(EXE_NAMES) all toolversions extversions libcp2k exts $(EXTSPACKAGES) test testbg:
 	@+$(MAKE) --no-print-directory -f $(MAKEFILE) $(VERSION) ORIG_TARGET=$@
 
 # stage 2: Store the version target in $(ONEVERSION),
@@ -213,6 +213,8 @@ OTHER_HELP += "test : run the regression tests"
 OTHER_HELP += "testbg : run the regression tests in background"
 
 OTHER_HELP += "toolversions : Print versions of build tools"
+
+OTHER_HELP += "extversions : Print versions of external modules"
 
 #   extract help text from doxygen "\brief"-tag
 help:

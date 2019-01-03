@@ -7,9 +7,14 @@ EXTSDEPS_LIB  = $(LIBEXTSDIR)/dbcsr/libdbcsr.a
 EXTSDEPS_MOD = $(OBJEXTSDIR)/dbcsr/dbcsr_api.mod $(OBJEXTSDIR)/dbcsr/dbcsr_tensor_api.mod
 $(EXTSDEPS_MOD) : ; # override builtin .mod rule to prevent circular dependency
 
+extversions: dbcsrversion
+
 dbcsr:
 	$(MAKE) -C $(EXTSHOME)/$@ \
 	   INCLUDEMAKE=$(ARCHDIR)/$(ARCH).$(ONEVERSION) \
 	   LIBDIR=$(LIBEXTSDIR)/$@ \
 	   OBJDIR=$(OBJEXTSDIR)/$@ \
 	   FYPPEXE=$(TOOLSRC)/build_utils/fypp
+
+dbcsrversion:
+	@$(MAKE) -C $(EXTSHOME)/dbcsr version
