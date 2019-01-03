@@ -22,6 +22,8 @@ ndirstorestrict=0
 restrict_dirs[1]=""
 default_err_tolerance="1.0E-14"
 mpiexec="mpiexec --bind-to none"
+ishard=1
+nshards=1
 
 # parse options
 while [ $# -ge 1 ]; do
@@ -74,6 +76,14 @@ while [ $# -ge 1 ]; do
  -jobmaxtime)
   job_max_time=$2
   shift;;
+ # sharding
+ -shard)
+  let ishard=$2
+  let nshards=$3
+  (( ishard < 1 )) && { echo "ERROR: Shard number too low."; exit 1; }
+  (( nshards < 1 )) && { echo "ERROR: Number of shards too low."; exit 1; }
+  (( ishard > nshards )) && { echo "ERROR: Shard number too high."; exit 1; }
+  shift 2;;
  # build a list of directories to skip
  -skipdir)
   let ndirstoskip=ndirstoskip+1
@@ -136,6 +146,7 @@ while [ $# -ge 1 ]; do
   echo ""
   echo "Testing:"
   echo "  -noreset                  do not reset the reference outputs. Default: off."
+  echo "  -shard ISHARD NSHARDS     do sharding: Divide the test dirs into NSHARD subsets and only run the ISHARD-th set."
   echo "  -skiptest                 do not run test, only build. Default: off."
   echo "  -skipunittest             do not run unit tests. Default: off."
   echo "  -skipdir TESTDIR          do not run tests in TESTDIR. This switch can repeated."
@@ -701,6 +712,7 @@ echo "doretest         = ${doretest}"
 echo "nobuild          = ${nobuild}"
 echo "quick            = ${quick}"
 echo "noreset          = ${noreset}"
+echo "shard            = ${ishard} / ${nshards}"
 echo "skiptest         = ${skiptest}"
 echo "do_unit_test     = ${do_unit_test}"
 echo "farming          = ${farming}"
@@ -952,8 +964,19 @@ if [[ ${skiptest} != "skiptest" ]]; then
       done
    fi
 
+   # sharding
+   new_dirs=""
+   t=1
+   for dir in ${dirs} ; do
+     if ((t % nshards + 1 == ishard )) ; then
+       new_dirs="$new_dirs $dir"
+     fi
+     let t=t+1
+   done
+   dirs=$new_dirs
+
    # filter out test-dir that should be skipped
-   newdirs=""
+   new_dirs=""
    for dir in ${dirs}
    do
      dir=${dir%/}
