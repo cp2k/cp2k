@@ -53,15 +53,15 @@ while [ $# -ge 1 ]; do
   shift ;;
  # MPI executable
  -mpiexec)
-  mpiexec=$2 
+  mpiexec=$2
   shift;;
  # MPI ranks
  -mpiranks)
-  numprocs=$2 
+  numprocs=$2
   shift;;
  # OMP threads
  -ompthreads)
-  numthreads=$2 
+  numthreads=$2
   shift;;
  # maximum total number of tasks (processes)
  -maxtasks)
@@ -205,7 +205,7 @@ if [[ $dir_triplet == *valgrind* ]] ; then
 else
    valgrindstring=""
 #1800 for testing on slower hardware (e.g. older ARM) or hyperthreaded systems, normally regtests should be faster
-   job_max_time=${job_max_time:-1800} 
+   job_max_time=${job_max_time:-1800}
 fi
 
 if [[ $cp2k_version == p* ]] ; then
@@ -397,7 +397,7 @@ function run_regtest_dir() {
 
 
      #
-     # look here for the actual place where cp2k runs.... 
+     # look here for the actual place where cp2k runs....
      #
      if [[ "$farming" == "yes" ]]; then
        if [ -f ${output_file} ]; then
@@ -405,7 +405,7 @@ function run_regtest_dir() {
        else
           cp2k_exit_status=43
        fi
-     else 
+     else
        ( ulimit -t ${job_max_time} ; ${cp2k_prefix} ${input_file} ${cp2k_postfix} &> ${output_file} ) >& /dev/null
        (( cp2k_exit_status = $? ))
      fi
@@ -429,8 +429,8 @@ function run_regtest_dir() {
              this_test="FAILED START"
            else
              this_test="RUNTIME FAIL"
-           fi 
-        fi 
+           fi
+        fi
         # failed starts (farming) are not interesting
         if (( cp2k_exit_status != 43 )); then
           echo "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx" >>${error_description_file}
@@ -775,6 +775,9 @@ if [[ ${nobuild} != "nobuild" ]]; then
    echo "-------------------------- Build-Tools -----------------------------------"
    cd ${dir_base}/${cp2k_dir}
    ${make} toolversions ${ARCH_SPEC} VERSION=${cp2k_version}
+   echo "----------------------- External Modules ---------------------------------"
+   cd ${dir_base}/${cp2k_dir}
+   ${make} extversions ${ARCH_SPEC} VERSION=${cp2k_version}
    echo "---------------------------- Modules -------------------------------------"
    if [ "`type -t module`" = 'function' ]; then
       module list 2>&1
@@ -805,7 +808,7 @@ fi
 
 if [[ ${skiptest} != "skiptest" ]]; then
    echo "------------------------ regtesting cp2k ---------------------------------"
-   
+
    ###################################################################################
    #
    # parse the TEST_TYPES file to do different kinds of test
@@ -832,7 +835,7 @@ if [[ ${skiptest} != "skiptest" ]]; then
    test_col[t]=`${awk} -v l=$t -v c=2 'BEGIN{FS="!"}{lr=lr+1;if (lr==l+1) print $c}' ${test_types_file}`
    let t=t+1
    done
-   
+
    ###################################################################################
    #
    # *** now start testing
@@ -915,16 +918,16 @@ if [[ ${skiptest} != "skiptest" ]]; then
        fi
      fi
    fi
-   
+
    #
    # get the cp2k flags for supported features
    #
    cp2kflags=`${cp2k_prefix} --version ${cp2k_postfix} < /dev/null 2>&1 | grep cp2kflags `
    echo "CP2K supports: $cp2kflags"
-   
+
    # get a list of regtest directories
    dirs=`cat ${dir_out}/tests/TEST_DIRS | grep -v "#" | awk '{print $1}'`
-   
+
    # prepend list of unit-tests to dirs, use a special "UNIT/" prefix
    if [[ "$do_unit_test" == "yes" ]]; then
       for unittest in ${dir_base}/${cp2k_dir}/exe/${dir_triplet}/*_unittest.${cp2k_version}
@@ -933,7 +936,7 @@ if [[ ${skiptest} != "skiptest" ]]; then
        dirs="UNIT/${t%.*} $dirs "
       done
    fi
-   
+
    # filter out test-dir that should be skipped
    newdirs=""
    for dir in ${dirs}
@@ -961,7 +964,7 @@ if [[ ${skiptest} != "skiptest" ]]; then
      else
        restrictmatch="yes"
      fi
-   
+
      # does this dir require features we do not have ?
      featurematch="yes"
      features_required=`cat ${dir_out}/tests/TEST_DIRS | grep -v "#" | awk -v dir="$dir" '{if ($1==dir) for(i=2;i<=NF;i++) printf("%s ",$i)}'`
@@ -970,24 +973,24 @@ if [[ ${skiptest} != "skiptest" ]]; then
         # allow a specification on the mpiranks needed e.g. fr="mpiranks>2&&mpiranks<6"
         echo $fr | grep mpiranks >& /dev/null
         if [[ "$?" == "1" ]]; then
-          echo $cp2kflags | grep $fr >& /dev/null 
+          echo $cp2kflags | grep $fr >& /dev/null
           res=$?
         else
           res=`echo "" | awk -v mpiranks=$numprocs "{print !($fr)}"`
         fi
         if [[ "$res" == "1" ]]; then
            featurematch="no"
-           echo "Skipping $dir : missing required feature : $fr" 
+           echo "Skipping $dir : missing required feature : $fr"
         fi
      done
-   
+
      # If not excluded add to list of dirs
      if [[ "${match}" == "no" && "${restrictmatch}" == "yes" && "${featurematch}" == "yes" ]]; then
         new_dirs="$new_dirs $dir"
      fi
    done
    dirs=$new_dirs
-   
+
    # Just to be sure, clean possible existing status files.
    cd ${dir_out}
    mkdir ${dir_out}/status
@@ -1042,7 +1045,7 @@ EOF
    ${cp2k_prefix} ${dir_base}/${cp2k_dir}/exe/${dir_triplet}/cp2k.${cp2k_version} farming.inp ${cp2k_postfix} < /dev/null >& farming.out
    if (( $? )); then # on failed farming, provide info
       echo "==================== Farming terminated with an error, dumping output  ========================"
-      cat farming.out    
+      cat farming.out
       echo "==============================================================================================="
    else
       echo "farming went fine"
@@ -1064,8 +1067,8 @@ EOF
          run_regtest_dir $dir
      fi
     )&
-    
-   
+
+
     #
     # Here we allow only a given maximum of tasks
     #
@@ -1074,9 +1077,9 @@ EOF
        sleep 0.1
        runningtasks=`ls -1 ${dir_out}/status/REGTEST_RUNNING-* 2>/dev/null | wc -l`
     done
-   
+
    done
-   
+
    #
    # wait for all tasks to finish
    #
@@ -1102,11 +1105,11 @@ EOF
      n_tests=$((n_tests+tmp))
      rm -f $file
    done
-   
+
    echo "--------------------------------------------------------------------------"
    cat "${error_description_file}"
    echo "--------------------------------------------------------------------------"
-   file_info 
+   file_info
    echo "--------------------------------- Summary --------------------------------"
    if [[ ${quick} != "quick" ]]; then
       printf "Number of COMPILE warns %d\n" ${compile_warnings} | tee -a ${summary}
