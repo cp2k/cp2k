@@ -720,6 +720,7 @@ done
 echo "--------------------------- GIT ------------------------------------------"
 
 git_sha="<N/A>"
+submodule_sha=()
 
 if [[ -d "${dir_base}/${cp2k_dir}/.git" ]] ; then
    head_ref=$(<"${dir_base}/${cp2k_dir}/.git/HEAD")
@@ -734,9 +735,23 @@ if [[ -d "${dir_base}/${cp2k_dir}/.git" ]] ; then
       # this is a detached HEAD, no further deref needed
       git_sha="${head_ref}"
    fi
+
+   modules_git_dir="${dir_base}/${cp2k_dir}/.git/modules/"
+
+   # find submodule indexes, if any
+   while IFS=  read -r -d $'\0'; do
+       submodule_basedir="${REPLY%/*}"
+       submodule_hash=$(<"${submodule_basedir}/HEAD")
+       submodule_dir="${submodule_basedir#${modules_git_dir}}"
+       submodule_sha+=("${submodule_dir}:${submodule_hash}")
+   done < <(find "${modules_git_dir}" -name index -print0)
 fi
 
 echo "CommitSHA: ${git_sha}"
+
+for submodule in "${submodule_sha[@]}" ; do
+   echo "Commmit SHA of submodule in ${submodule%%:*}: ${submodule##*:}"
+done
 
 # add some more information about that last commit if `git` is available
 if [[ "${git_sha}" != "<N/A>" ]] && command -v git >/dev/null 2>&1 ; then
