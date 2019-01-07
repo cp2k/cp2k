@@ -17,4 +17,6 @@ dbcsr:
 	   FYPPEXE=$(TOOLSRC)/build_utils/fypp
 
 dbcsrversion:
-	@$(MAKE) -C $(EXTSHOME)/dbcsr version
+	@$(MAKE) -C $(EXTSHOME)/dbcsr \
+	   FYPPEXE=$(TOOLSRC)/build_utils/fypp \
+	   version
