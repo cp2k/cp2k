@@ -10,10 +10,13 @@ RUN ./install_basics.sh
 COPY ./scripts/install_ubuntu_toolchain.sh .
 RUN ./install_ubuntu_toolchain.sh 4.8
 
+# GCC 4.8.5 suffers from some issue with OpenMP and ALLOCATABLEs.
+# Possibly this one: https://gcc.gnu.org/bugzilla/show_bug.cgi?id=38724
+# Hence, we are running the serial version.
 COPY ./scripts/install_regtest.sh .
-RUN ./install_regtest.sh local ssmp
+RUN ./install_regtest.sh local sopt
 
 COPY ./scripts/ci_entrypoint.sh ./scripts/test_regtest.sh ./
-CMD ["./ci_entrypoint.sh", "./test_regtest.sh", "local", "ssmp"]
+CMD ["./ci_entrypoint.sh", "./test_regtest.sh", "local", "sopt"]
 
 #EOF
