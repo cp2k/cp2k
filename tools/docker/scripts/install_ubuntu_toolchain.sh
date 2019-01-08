@@ -42,6 +42,7 @@ cd /opt/cp2k-toolchain/
     --with-gcc=system        \
     --with-binutils=system   \
     --with-make=system       \
+    --with-cmake=system      \
     --with-fftw=system       \
     --with-openblas=system   \
     --with-reflapack=system  \
