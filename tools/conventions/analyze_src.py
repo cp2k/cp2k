@@ -100,6 +100,8 @@ def main():
         for fn in files:
             absfn = path.join(root, fn)
             shortfn = absfn[len(cp2k_dir):]
+            if(not path.exists(absfn)):
+                continue # skip broken symlinks
             content = open(absfn).read()
             if('\0' in content):
                 continue # skip binary files
