@@ -69,16 +69,18 @@ CONTAINS
 
       INTEGER                                            :: atom_a, atom_b, handle, i, iatom, ikind, &
                                                             jatom, jkind, mepos, natom, nkind, &
-                                                            unit_nr
-      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: atom_of_kind, kind_of
+                                                            nsto, unit_nr
+      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: atom_of_kind, kind_of, ngcpat
       LOGICAL                                            :: atenergy, atstress, use_virial, verbose
       REAL(KIND=dp)                                      :: eama, eamb, egcp, expab, fac, fda, fdb, &
                                                             gnorm, nvirta, nvirtb, rcc, sint, sqa, &
                                                             sqb
-      REAL(KIND=dp), DIMENSION(3)                        :: cla, clb, dsint, fdij, rcut, rij, zeta, &
-                                                            zetb
-      REAL(KIND=dp), DIMENSION(3, 3)                     :: dvirial, sab
-      REAL(KIND=dp), DIMENSION(3, 3, 3)                  :: dab
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: egcpat
+      REAL(KIND=dp), DIMENSION(3)                        :: dsint, fdij, rij
+      REAL(KIND=dp), DIMENSION(3, 3)                     :: dvirial
+      REAL(KIND=dp), DIMENSION(6)                        :: cla, clb, rcut, zeta, zetb
+      REAL(KIND=dp), DIMENSION(6, 6)                     :: sab
+      REAL(KIND=dp), DIMENSION(6, 6, 3)                  :: dab
       REAL(KIND=dp), DIMENSION(:), POINTER               :: atener
       REAL(KIND=dp), DIMENSION(:, :, :), POINTER         :: atstr
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
@@ -95,6 +97,7 @@ CONTAINS
       TYPE(virial_type), POINTER                         :: virial
 
       energy = 0._dp
+      IF (.NOT. gcp_env%do_gcp) RETURN
 
       CALL timeset(routineN, handle)
 
@@ -113,7 +116,6 @@ CONTAINS
       ELSE
          unit_nr = -1
       END IF
-
       ! atomic energy and stress arrays
       atenergy = atprop%energy
       IF (atenergy) THEN
@@ -128,6 +130,18 @@ CONTAINS
       IF (unit_nr > 0) THEN
          WRITE (unit_nr, *)
          WRITE (unit_nr, *) " Pair potential geometrical counterpoise (gCP) calculation"
+         WRITE (unit_nr, *)
+         WRITE (unit_nr, "(T15,A,T74,F7.4)") " Gloabal Parameters:     sigma = ", gcp_env%sigma, &
+            "                         alpha = ", gcp_env%alpha, &
+            "                         beta  = ", gcp_env%beta, &
+            "                         eta   = ", gcp_env%eta
+         WRITE (unit_nr, *)
+         WRITE (unit_nr, "(T31,4(A5,10X))") " kind", "nvirt", "Emiss", " asto"
+         DO ikind = 1, nkind
+            WRITE (unit_nr, "(T31,i5,F15.1,F15.4,F15.4)") ikind, gcp_env%gcp_kind(ikind)%nbvirt, &
+               gcp_env%gcp_kind(ikind)%eamiss, gcp_env%gcp_kind(ikind)%asto
+         END DO
+         WRITE (unit_nr, *)
       END IF
 
       IF (calculate_forces) THEN
@@ -143,6 +157,16 @@ CONTAINS
       rcut = 1.e6_dp
 
       egcp = 0.0_dp
+      IF (verbose) THEN
+         ALLOCATE (egcpat(natom), ngcpat(natom))
+         egcpat = 0.0_dp
+         ngcpat = 0
+      END IF
+
+      nsto = 6
+      DO ikind = 1, nkind
+         CPASSERT(nsto == SIZE(gcp_env%gcp_kind(jkind)%al))
+      END DO
 
       sab_gcp => gcp_env%sab_gcp
       CALL neighbor_list_iterator_create(nl_iterator, sab_gcp)
@@ -159,19 +183,20 @@ CONTAINS
             eama = gcp_env%gcp_kind(ikind)%eamiss
             eamb = gcp_env%gcp_kind(jkind)%eamiss
             expab = EXP(-gcp_env%alpha*rcc**gcp_env%beta)
-            zeta(1:3) = gcp_env%gcp_kind(ikind)%al(1:3)
-            zetb(1:3) = gcp_env%gcp_kind(jkind)%al(1:3)
-            cla(1:3) = gcp_env%gcp_kind(ikind)%cl(1:3)
-            clb(1:3) = gcp_env%gcp_kind(jkind)%cl(1:3)
+            zeta(1:nsto) = gcp_env%gcp_kind(ikind)%al(1:nsto)
+            zetb(1:nsto) = gcp_env%gcp_kind(jkind)%al(1:nsto)
+            cla(1:nsto) = gcp_env%gcp_kind(ikind)%cl(1:nsto)
+            clb(1:nsto) = gcp_env%gcp_kind(jkind)%cl(1:nsto)
             IF (calculate_forces) THEN
-               CALL overlap_ab(0, 0, 3, rcut, zeta, 0, 0, 3, rcut, zetb, rij, sab, dab)
+               CALL overlap_ab(0, 0, nsto, rcut, zeta, 0, 0, nsto, rcut, zetb, rij, sab, dab)
                DO i = 1, 3
-                  dsint(i) = SUM(cla(1:3)*MATMUL(dab(:, :, i), clb))
+                  dsint(i) = SUM(cla*MATMUL(dab(:, :, i), clb))
                END DO
             ELSE
-               CALL overlap_ab(0, 0, 3, rcut, zeta, 0, 0, 3, rcut, zetb, rij, sab)
+               CALL overlap_ab(0, 0, nsto, rcut, zeta, 0, 0, nsto, rcut, zetb, rij, sab)
             END IF
-            sint = SUM(cla(1:3)*MATMUL(sab, clb))
+            sint = SUM(cla*MATMUL(sab, clb))
+            IF (sint < 1.e-16_dp) CYCLE
             sqa = SQRT(sint*nvirta)
             sqb = SQRT(sint*nvirtb)
             IF (sqb > 1.e-12_dp) THEN
@@ -185,9 +210,20 @@ CONTAINS
                fdb = 0.0_dp
             END IF
             egcp = egcp+fac*(fda+fdb)
+            IF (verbose) THEN
+               egcpat(iatom) = egcpat(iatom)+fac*fda
+               egcpat(jatom) = egcpat(jatom)+fac*fdb
+               ngcpat(iatom) = ngcpat(iatom)+1
+               ngcpat(jatom) = ngcpat(jatom)+1
+            END IF
             IF (calculate_forces) THEN
-               fdij = -fac*(fda+fdb)*(gcp_env%alpha*gcp_env%beta*rcc**(gcp_env%beta-1.0_dp)*rij(1:3)/rcc) 
-               fdij = fdij + 0.25_dp*fac*(fda/(sqb*sqb)+fdb/(sqa*sqa))*dsint(1:3)
+               fdij = -fac*(fda+fdb)*(gcp_env%alpha*gcp_env%beta*rcc**(gcp_env%beta-1.0_dp)*rij(1:3)/rcc)
+               IF (sqa > 1.e-12_dp) THEN
+                  fdij = fdij+0.25_dp*fac*fdb/(sqa*sqa)*dsint(1:3)
+               END IF
+               IF (sqb > 1.e-12_dp) THEN
+                  fdij = fdij+0.25_dp*fac*fda/(sqb*sqb)*dsint(1:3)
+               END IF
                atom_a = atom_of_kind(iatom)
                atom_b = atom_of_kind(jatom)
                force(ikind)%gcp(:, atom_a) = force(ikind)%gcp(:, atom_a)-fdij(:)
@@ -212,11 +248,20 @@ CONTAINS
       ! set gCP energy
       CALL mp_sum(egcp, para_env%group)
       energy = egcp
+      IF (verbose) THEN
+         CALL mp_sum(egcpat, para_env%group)
+         CALL mp_sum(ngcpat, para_env%group)
+      END IF
 
       IF (unit_nr > 0) THEN
-         WRITE (unit_nr, *) " Total gCP energy [au]     :", egcp
-         WRITE (unit_nr, *) " Total gCP energy [kcal]   :", egcp*kcalmol
+         WRITE (unit_nr, "(T15,A,T61,F20.10)") " Total gCP energy [au]     :", egcp
+         WRITE (unit_nr, "(T15,A,T61,F20.10)") " Total gCP energy [kcal]   :", egcp*kcalmol
          WRITE (unit_nr, *)
+         WRITE (unit_nr, "(T19,A)") " gCP atomic energy contributions"
+         WRITE (unit_nr, "(T19,A,T60,A20)") " #             sites", "      BSSE [kcal/mol]"
+         DO i = 1, natom
+            WRITE (unit_nr, "(12X,I8,10X,I8,T61,F20.10)") i, ngcpat(i), egcpat(i)*kcalmol
+         END DO
       END IF
       IF (calculate_forces) THEN
          IF (unit_nr > 0) THEN
@@ -247,6 +292,9 @@ CONTAINS
                WRITE (unit_nr, *)
             END IF
          END IF
+      END IF
+      IF (verbose) THEN
+         DEALLOCATE (egcpat, ngcpat)
       END IF
 
       CALL timestop(handle)

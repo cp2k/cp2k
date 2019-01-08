@@ -835,16 +835,21 @@ CONTAINS
       END IF
 
       ! Build the neighbor lists for the gCP pair potential
+      NULLIFY (gcp_env)
       CALL get_qs_env(qs_env=qs_env, gcp_env=gcp_env)
-      sab_gcp => gcp_env%sab_gcp
-      IF (gcp_env%do_gcp) THEN
-         DO ikind = 1, nkind
-            c_radius(ikind) = gcp_env%gcp_kind(ikind)%rcsto
-         END DO
-         CALL pair_radius_setup(orb_present, orb_present, c_radius, c_radius, pair_radius)
-         CALL build_neighbor_lists(sab_gcp, particle_set, atom2d, cell, pair_radius, &
-                                   subcells=subcells, operator_type="PP", nlname="sab_gcp")
-         gcp_env%sab_gcp => sab_gcp
+      IF (ASSOCIATED(gcp_env)) THEN
+         IF (gcp_env%do_gcp) THEN
+            sab_gcp => gcp_env%sab_gcp
+            DO ikind = 1, nkind
+               c_radius(ikind) = gcp_env%gcp_kind(ikind)%rcsto
+            END DO
+            CALL pair_radius_setup(orb_present, orb_present, c_radius, c_radius, pair_radius)
+            CALL build_neighbor_lists(sab_gcp, particle_set, atom2d, cell, pair_radius, &
+                                      subcells=subcells, operator_type="PP", nlname="sab_gcp")
+            gcp_env%sab_gcp => sab_gcp
+         ELSE
+            NULLIFY (gcp_env%sab_gcp)
+         END IF
       END IF
 
       IF (lrigpw .OR. lri_optbas) THEN

@@ -1,0 +1,62 @@
+    &XC
+      &XC_FUNCTIONAL NONE
+      &END XC_FUNCTIONAL
+      &HF
+        &SCREENING
+          EPS_SCHWARZ 1.0E-12
+        &END
+      &END
+      &vdW_POTENTIAL
+         DISPERSION_FUNCTIONAL PAIR_POTENTIAL
+         &PAIR_POTENTIAL
+            TYPE DFTD3(BJ)
+            D3BJ_SCALING 1.0000 0.4171 0.8777 2.9149 
+            PARAMETER_FILE_NAME dftd3.dat
+            SHORT_RANGE_CORRECTION TRUE
+            SHORT_RANGE_CORRECTION_PARAMETERS 0.03 0.70 1.50 0.75
+         &END PAIR_POTENTIAL
+      &END vdW_POTENTIAL
+      &gcp_potential
+         GLOBAL_PARAMETERS  0.1290 1.1549 1.1763 1.1526
+
+         DELTA_ENERGY   H    0.04240
+         DELTA_ENERGY   He   0.02832
+
+         DELTA_ENERGY   Li   0.17787
+         DELTA_ENERGY   Be   0.17160
+         DELTA_ENERGY   B    0.22424
+         DELTA_ENERGY   C    0.27995
+         DELTA_ENERGY   N    0.35791
+         DELTA_ENERGY   O    0.47901
+         DELTA_ENERGY   F    0.63852
+         DELTA_ENERGY   Ne   0.83235
+
+         DELTA_ENERGY   Na   1.11411
+         DELTA_ENERGY   Mg   1.27115
+         DELTA_ENERGY   Al   1.44695
+         DELTA_ENERGY   Si   1.61098
+         DELTA_ENERGY   P    1.76661
+         DELTA_ENERGY   S    1.98823
+         DELTA_ENERGY   Cl   2.22845
+         DELTA_ENERGY   Ar   2.48796
+
+         DELTA_ENERGY   K    0.37425
+         DELTA_ENERGY   Ca   0.46097
+         DELTA_ENERGY   Sc   0.44489
+         DELTA_ENERGY   Ti   0.40499
+         DELTA_ENERGY   V    0.37841
+         DELTA_ENERGY   Cr   0.37344
+         DELTA_ENERGY   Mn   0.36125
+         DELTA_ENERGY   Fe   0.36001
+         DELTA_ENERGY   Co   0.36293
+         DELTA_ENERGY   Ni   0.24380
+         DELTA_ENERGY   Cu   0.40530
+         DELTA_ENERGY   Zn   0.39651
+         DELTA_ENERGY   Ga   0.35002
+         DELTA_ENERGY   Ge   0.34578
+         DELTA_ENERGY   As   0.34953
+         DELTA_ENERGY   Se   0.36731
+         DELTA_ENERGY   Br   0.38201
+         DELTA_ENERGY   Kr   0.39971
+      &END GCP_POTENTIAL
+    &END XC

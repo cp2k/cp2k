@@ -345,7 +345,9 @@ CONTAINS
          ! Add possible pair potential gCP energy - Evaluate first so we can print
          ! energy info at the end of the SCF
          CALL get_qs_env(qs_env=qs_env, gcp_env=gcp_env, energy=energy)
-         CALL calculate_gcp_pairpot(qs_env, gcp_env, energy%gcp, calc_forces)
+         IF (ASSOCIATED(gcp_env)) THEN
+            CALL calculate_gcp_pairpot(qs_env, gcp_env, energy%gcp, calc_forces)
+         END IF
 
       END IF
       ! Embedding potential

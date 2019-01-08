@@ -1521,7 +1521,9 @@ CONTAINS
             ! dispersion
             CALL qs_dispersion_release(qs_env%dispersion_env)
             ! gCP
-            CALL qs_gcp_release(qs_env%gcp_env)
+            IF (ASSOCIATED(qs_env%gcp_env)) THEN
+               CALL qs_gcp_release(qs_env%gcp_env)
+            END IF
 
             IF (ASSOCIATED(qs_env%WannierCentres)) THEN
                DO i = 1, SIZE(qs_env%WannierCentres)

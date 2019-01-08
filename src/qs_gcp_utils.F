@@ -23,6 +23,7 @@ MODULE qs_gcp_utils
                                               section_vals_val_get
    USE kinds,                           ONLY: default_string_length,&
                                               dp
+   USE mathconstants,                   ONLY: pi
    USE periodic_table,                  ONLY: get_ptable_info
    USE qs_environment_types,            ONLY: get_qs_env,&
                                               qs_environment_type
@@ -56,8 +57,10 @@ MODULE qs_gcp_utils
    ! Empirically adjusted and consistent set of EHT valence orbital parameters for all elements of the periodic table
    ! Modelling and Simulation in Materials Science and Engineering, 12, 21-32 (2004)
    !
+   ! Hydrogen uses 1.2000, not the original 1.0000
+   !
    REAL(KIND=dp), DIMENSION(4, 106) :: sexp = RESHAPE((/ &
-                           1.0000, 0.0000, 0.0000, 0.0000, 1.6469, 0.0000, 0.0000, 0.0000, 0.6534, 0.5305, 0.0000, 0.0000, & ! 1 2 3
+                           1.2000, 0.0000, 0.0000, 0.0000, 1.6469, 0.0000, 0.0000, 0.0000, 0.6534, 0.5305, 0.0000, 0.0000, & ! 1 2 3
                            1.0365, 0.8994, 0.0000, 0.0000, 1.3990, 1.2685, 0.0000, 0.0000, 1.7210, 1.6105, 0.0000, 0.0000, & ! 4 5 6
                            2.0348, 1.9398, 0.0000, 0.0000, 2.2399, 2.0477, 0.0000, 0.0000, 2.5644, 2.4022, 0.0000, 0.0000, & ! 7 8 9
                         2.8812, 2.7421, 0.0000, 0.0000, 0.8675, 0.6148, 0.0000, 0.0000, 1.1935, 0.8809, 0.0000, 0.0000, & ! 10 11 12
@@ -127,9 +130,9 @@ CONTAINS
          CALL section_vals_val_get(gcp_section, "PARAMETER_FILE_NAME", &
                                    c_val=gcp_env%parameter_file_name)
          CALL section_vals_val_get(gcp_section, "GLOBAL_PARAMETERS", r_vals=params)
-         gcp_env%alpha = params(1)
-         gcp_env%beta = params(2)
-         gcp_env%sigma = params(3)
+         gcp_env%sigma = params(1)
+         gcp_env%alpha = params(2)
+         gcp_env%beta = params(3)
          gcp_env%eta = params(4)
          ! eamiss definitions
          CALL section_vals_val_get(gcp_section, "DELTA_ENERGY", n_rep_val=n_rep)
@@ -163,9 +166,10 @@ CONTAINS
 
       CHARACTER(LEN=10)                                  :: aname
       CHARACTER(LEN=2)                                   :: element_symbol
-      INTEGER                                            :: i, ikind, nbas, nel, nkind, za
+      INTEGER                                            :: i, ikind, nbas, nel, nkind, nsto, za
       LOGICAL                                            :: at_end
       REAL(KIND=dp)                                      :: ea
+      REAL(KIND=dp), DIMENSION(10)                       :: al, cl
       TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(cp_parser_type), POINTER                      :: parser
       TYPE(gto_basis_set_type), POINTER                  :: orb_basis
@@ -189,10 +193,14 @@ CONTAINS
             CALL get_qs_kind(qs_kind, basis_set=orb_basis, basis_type="ORB")
             CALL get_gto_basis_set(gto_basis_set=orb_basis, nsgf=nbas)
             nel = SUM(qs_kind%elec_conf)
-            gcp_env%gcp_kind(ikind)%nbvirt = REAL(nbas,KIND=dp)-0.5_dp*REAL(nel,KIND=dp)
-            ! STO-3G
-            CALL get_sto_ng(gcp_env%gcp_kind(ikind)%asto, 3, nshell(za), 0, &
-                            gcp_env%gcp_kind(ikind)%al, gcp_env%gcp_kind(ikind)%cl)
+            gcp_env%gcp_kind(ikind)%nbvirt = REAL(nbas, KIND=dp)-0.5_dp*REAL(nel, KIND=dp)
+            ! STO-nG
+            nsto = SIZE(gcp_env%gcp_kind(ikind)%al)
+            CALL get_sto_ng(gcp_env%gcp_kind(ikind)%asto, nsto, nshell(za), 0, al, cl)
+            DO i = 1, nsto
+               gcp_env%gcp_kind(ikind)%al(i) = al(i)
+               gcp_env%gcp_kind(ikind)%cl(i) = cl(i)*(2._dp*al(i)/pi)**0.75_dp
+            END DO
          END DO
          ! eamiss from data file
          IF (gcp_env%parameter_file_name /= "---") THEN

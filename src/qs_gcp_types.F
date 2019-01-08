@@ -29,8 +29,8 @@ MODULE qs_gcp_types
       INTEGER                                :: nq
       REAL(KIND=dp)                          :: nbvirt
       REAL(KIND=dp)                          :: eamiss
-      REAL(KIND=dp), DIMENSION(3)            :: al
-      REAL(KIND=dp), DIMENSION(3)            :: cl
+      REAL(KIND=dp), DIMENSION(6)            :: al
+      REAL(KIND=dp), DIMENSION(6)            :: cl
    END TYPE qs_gcp_kind_type
 ! **************************************************************************************************
    TYPE qs_gcp_type
