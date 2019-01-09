@@ -867,12 +867,12 @@ echo "Compiling with $NPROCS processes."
 
 # set environment for compiling compilers and tools required for CP2K
 # and libraries it depends on
-export CFLAGS=${CFLAGS:-"-O2 -g -Wno-error"}
-export FFLAGS=${FFLAGS:-"-O2 -g -Wno-error"}
-export FCLAGS=${FCLAGS:-"-O2 -g -Wno-error"}
-export F90FLAGS=${F90FLAGS:-"-O2 -g -Wno-error"}
-export F77FLAGS=${F77FLAGS:-"-O2 -g -Wno-error"}
-export CXXFLAGS=${CXXFLAGS:-"-O2 -g -Wno-error"}
+export CFLAGS=${CFLAGS:-"-O2 -fPIC -g -Wno-error"}
+export FFLAGS=${FFLAGS:-"-O2 -fPIC -g -Wno-error"}
+export FCLAGS=${FCLAGS:-"-O2 -fPIC -g -Wno-error"}
+export F90FLAGS=${F90FLAGS:-"-O2 -fPIC -g -Wno-error"}
+export F77FLAGS=${F77FLAGS:-"-O2 -fPIC -g -Wno-error"}
+export CXXFLAGS=${CXXFLAGS:-"-O2 -fPIC -g -Wno-error"}
 
 # Select the correct compute number based on the GPU architecture
 case $GPUVER in
@@ -887,6 +887,9 @@ case $GPUVER in
         ;;
     P100)
         export ARCH_NUM=60
+        ;;
+    no)
+        export ARCH_NUM=no
         ;;
     *)
         report_error ${LINENO} \
@@ -913,12 +916,12 @@ done
 
 # setup compiler flags, leading to nice stack traces on crashes but
 # still optimised
-CFLAGS="-O2 -ftree-vectorize -g -fno-omit-frame-pointer -march=native -ffast-math $TSANFLAGS"
-FFLAGS="-O2 -ftree-vectorize -g -fno-omit-frame-pointer -march=native -ffast-math $TSANFLAGS"
-F77FLAGS="-O2 -ftree-vectorize -g -fno-omit-frame-pointer -march=native -ffast-math $TSANFLAGS"
-F90FLAGS="-O2 -ftree-vectorize -g -fno-omit-frame-pointer -march=native -ffast-math $TSANFLAGS"
-FCFLAGS="-O2 -ftree-vectorize -g -fno-omit-frame-pointer -march=native -ffast-math $TSANFLAGS"
-CXXFLAGS="-O2 -ftree-vectorize -g -fno-omit-frame-pointer -march=native -ffast-math $TSANFLAGS"
+CFLAGS="-O2 -fPIC -ftree-vectorize -g -fno-omit-frame-pointer -march=native -ffast-math $TSANFLAGS"
+FFLAGS="-O2 -fPIC -ftree-vectorize -g -fno-omit-frame-pointer -march=native -ffast-math $TSANFLAGS"
+F77FLAGS="-O2 -fPIC -ftree-vectorize -g -fno-omit-frame-pointer -march=native -ffast-math $TSANFLAGS"
+F90FLAGS="-O2 -fPIC -ftree-vectorize -g -fno-omit-frame-pointer -march=native -ffast-math $TSANFLAGS"
+FCFLAGS="-O2 -fPIC -ftree-vectorize -g -fno-omit-frame-pointer -march=native -ffast-math $TSANFLAGS"
+CXXFLAGS="-O2 -fPIC -ftree-vectorize -g -fno-omit-frame-pointer -march=native -ffast-math $TSANFLAGS"
 
 export CFLAGS=$(allowed_gcc_flags $CFLAGS)
 export FFLAGS=$(allowed_gfortran_flags $FFLAGS)
@@ -1096,7 +1099,7 @@ LIBS="${CP_LIBS} -lstdc++"
 # CUDA handling
 CUDA_LIBS="-lcudart -lnvrtc -lcuda -lcufft -lcublas -lrt IF_DEBUG(-lnvToolsExt|)"
 CUDA_DFLAGS="-D__ACC -D__DBCSR_ACC -D__PW_CUDA IF_DEBUG(-D__CUDA_PROFILING|)"
-if [ "$ENABLE_CUDA" = __TRUE__ ] ; then
+if [ "${ENABLE_CUDA}" = __TRUE__ ] && [ "${GPUVER}" != no ] ; then
     LIBS="${LIBS} IF_CUDA(${CUDA_LIBS}|)"
     DFLAGS="IF_CUDA(${CUDA_DFLAGS}|) ${DFLAGS}"
     NVFLAGS="-arch sm_${ARCH_NUM} -Xcompiler='-fopenmp' --std=c++11 \$(DFLAGS)"
