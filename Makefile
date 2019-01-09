@@ -442,8 +442,8 @@ FYPPFLAGS ?= -n
 
 %.o: %.F
 ifneq ($(CPP),)
-	$(TOOLSRC)/build_utils/fypp $(FYPPFLAGS) $< $*.fypped
-	$(CPP) $(CPPFLAGS) -D__SHORT_FILE__="\"$(subst $(SRCDIR)/,,$<)\"" -I'$(dir $<)' $*.fypped > $*.f90
+	$(TOOLSRC)/build_utils/fypp $(FYPPFLAGS) $< $*.F90
+	$(CPP) $(CPPFLAGS) -D__SHORT_FILE__="\"$(subst $(SRCDIR)/,,$<)\"" -I'$(dir $<)' $*.F90 > $*.f90
 	$(FC) -c $(FCFLAGS) $(OBJEXTSINCL) $*.f90 $(FCLOGPIPE)
 else
 	$(TOOLSRC)/build_utils/fypp $(FYPPFLAGS) $< $*.F90
