@@ -28,7 +28,7 @@ FCFLAGS     = $(DFLAGS) -O2 -ffast-math -ffree-form -ffree-line-length-none \
               -I$(FFTW_INC) -I$(LIBINT_INC) -I$(LIBXC_INC) -I$(LIBXSMM_INC)
 LDFLAGS     = $(FCFLAGS) -static-libgfortran
 LIBS        = $(MPI_LIBRARY_PATH)/libscalapack.a \
-              $(PLUMED_DEPENDENCIES) -ldl -lgsl -lz \
+              $(PLUMED_DEPENDENCIES) -ldl -lgsl -lgslcblas -lz \
               $(ELPA_LIB)/libelpa.a -lstdc++ \
               $(LIBPATH)/liblapack.a \
               $(LIBPATH)/libblas.a \
