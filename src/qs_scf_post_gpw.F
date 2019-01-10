@@ -1308,7 +1308,7 @@ CONTAINS
       CHARACTER(LEN=default_path_length)                 :: filename, mpi_filename, my_pos_cube, &
                                                             title
       INTEGER                                            :: handle, ispin, output_unit, unit_nr
-      LOGICAL                                            :: append_cube, do_elf, gapw, mpi_io
+      LOGICAL                                            :: append_cube, gapw, mpi_io
       REAL(dp)                                           :: rho_cutoff
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(particle_list_type), POINTER                  :: particles
@@ -1322,10 +1322,10 @@ CONTAINS
       CALL timeset(routineN, handle)
       output_unit = cp_logger_get_default_io_unit(logger)
 
-      do_elf = .FALSE.
       elf_section => section_vals_get_subs_vals(input, "DFT%PRINT%ELF_CUBE")
-      CALL section_vals_get(elf_section, explicit=do_elf)
-      IF (do_elf) THEN
+      IF (BTEST(cp_print_key_should_output(logger%iter_info, input, &
+                                           "DFT%PRINT%ELF_CUBE"), cp_p_file)) THEN
+
          NULLIFY (dft_control, pw_env, auxbas_pw_pool, pw_pools, particles, subsys, elf_r)
          CALL get_qs_env(qs_env, dft_control=dft_control, pw_env=pw_env, subsys=subsys)
          CALL qs_subsys_get(subsys, particles=particles)
@@ -1391,7 +1391,7 @@ CONTAINS
 
          END IF
 
-      END IF
+      END IF ! print key
 
       CALL timestop(handle)
 
