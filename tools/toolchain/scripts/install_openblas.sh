@@ -67,15 +67,15 @@ case "$with_openblas" in
                    PREFIX="${pkg_install_dir}" \
                    > make.serial.log 2>&1 \
             ) || ( \
-                make -j $NPROCS clean; \
-                make -j $NPROCS \
-                     MAKE_NB_JOBS=0 \
-                     TARGET=NEHALEM \
-                     USE_THREAD=0 \
-                     CC="${CC}" \
-                     FC="${FC}" \
-                     PREFIX="${pkg_install_dir}" \
-                     > make.serial.log 2>&1 \
+              make clean > clean.serial_nehalem.log 2>&1; \
+              make -j $NPROCS \
+                   MAKE_NB_JOBS=0 \
+                   TARGET=NEHALEM \
+                   USE_THREAD=0 \
+                   CC="${CC}" \
+                   FC="${FC}" \
+                   PREFIX="${pkg_install_dir}" \
+                   > make.serial_nehalem.log 2>&1 \
             )
             make -j $NPROCS \
                  MAKE_NB_JOBS=0 \
@@ -85,19 +85,33 @@ case "$with_openblas" in
                  PREFIX="${pkg_install_dir}" \
                  install > install.serial.log 2>&1
             if [ $ENABLE_OMP = "__TRUE__" ] ; then
-               make clean > clean.log 2>&1
+               make clean > clean.omp.log 2>&1
                # wrt NUM_THREADS=64: this is what the most common Linux distros seem to choose atm
                #                     for a good compromise between memory usage and scalability
-               make -j $NPROCS \
-                    MAKE_NB_JOBS=0 \
-                    NUM_THREADS=64 \
-                    USE_THREAD=1 \
-                    USE_OPENMP=1 \
-                    LIBNAMESUFFIX=omp \
-                    CC="${CC}" \
-                    FC="${FC}" \
-                    PREFIX="${pkg_install_dir}" \
-                    > make.omp.log 2>&1
+               ( make -j $NPROCS \
+                      MAKE_NB_JOBS=0 \
+                      NUM_THREADS=64 \
+                      USE_THREAD=1 \
+                      USE_OPENMP=1 \
+                      LIBNAMESUFFIX=omp \
+                      CC="${CC}" \
+                      FC="${FC}" \
+                      PREFIX="${pkg_install_dir}" \
+                      > make.omp.log 2>&1 \
+               ) || ( \
+                 make clean > clean.omp_nehalem.log 2>&1; \
+                 make -j $NPROCS \
+                      MAKE_NB_JOBS=0 \
+                      TARGET=NEHALEM \
+                      NUM_THREADS=64 \
+                      USE_THREAD=1 \
+                      USE_OPENMP=1 \
+                      LIBNAMESUFFIX=omp \
+                      CC="${CC}" \
+                      FC="${FC}" \
+                      PREFIX="${pkg_install_dir}" \
+                      > make.omp_nehalem.log 2>&1 \
+               )
                make -j $NPROCS \
                     MAKE_NB_JOBS=0 \
                     NUM_THREADS=64 \
