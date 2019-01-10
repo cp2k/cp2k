@@ -50,7 +50,10 @@ case "$with_gcc" in
                                  --enable-lto \
                                  --enable-plugins \
                                  > configure.log 2>&1
-            make -j $NPROCS > make.log 2>&1
+            make -j $NPROCS \
+                 CFLAGS="-fPIC $CFLAGS"\
+                 CXXFLAGS="-fPIC $CXXFLAGS"\
+                 > make.log 2>&1
             make -j $NPROCS install > install.log 2>&1
             # thread sanitizer
             if [ $ENABLE_TSAN = "__TRUE__" ] ; then

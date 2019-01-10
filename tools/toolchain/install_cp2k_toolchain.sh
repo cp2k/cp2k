@@ -867,12 +867,12 @@ echo "Compiling with $NPROCS processes."
 
 # set environment for compiling compilers and tools required for CP2K
 # and libraries it depends on
-export CFLAGS=${CFLAGS:-"-O2 -fPIC -g -Wno-error"}
-export FFLAGS=${FFLAGS:-"-O2 -fPIC -g -Wno-error"}
-export FCLAGS=${FCLAGS:-"-O2 -fPIC -g -Wno-error"}
-export F90FLAGS=${F90FLAGS:-"-O2 -fPIC -g -Wno-error"}
-export F77FLAGS=${F77FLAGS:-"-O2 -fPIC -g -Wno-error"}
-export CXXFLAGS=${CXXFLAGS:-"-O2 -fPIC -g -Wno-error"}
+export CFLAGS=${CFLAGS:-"-O2 -g -Wno-error"}
+export FFLAGS=${FFLAGS:-"-O2 -g -Wno-error"}
+export FCLAGS=${FCLAGS:-"-O2 -g -Wno-error"}
+export F90FLAGS=${F90FLAGS:-"-O2 -g -Wno-error"}
+export F77FLAGS=${F77FLAGS:-"-O2 -g -Wno-error"}
+export CXXFLAGS=${CXXFLAGS:-"-O2 -g -Wno-error"}
 
 # Select the correct compute number based on the GPU architecture
 case $GPUVER in
@@ -916,12 +916,12 @@ done
 
 # setup compiler flags, leading to nice stack traces on crashes but
 # still optimised
-CFLAGS="-O2 -fPIC -ftree-vectorize -g -fno-omit-frame-pointer -march=native -ffast-math $TSANFLAGS"
-FFLAGS="-O2 -fPIC -ftree-vectorize -g -fno-omit-frame-pointer -march=native -ffast-math $TSANFLAGS"
-F77FLAGS="-O2 -fPIC -ftree-vectorize -g -fno-omit-frame-pointer -march=native -ffast-math $TSANFLAGS"
-F90FLAGS="-O2 -fPIC -ftree-vectorize -g -fno-omit-frame-pointer -march=native -ffast-math $TSANFLAGS"
-FCFLAGS="-O2 -fPIC -ftree-vectorize -g -fno-omit-frame-pointer -march=native -ffast-math $TSANFLAGS"
-CXXFLAGS="-O2 -fPIC -ftree-vectorize -g -fno-omit-frame-pointer -march=native -ffast-math $TSANFLAGS"
+CFLAGS="-O2 -ftree-vectorize -g -fno-omit-frame-pointer -march=native -ffast-math $TSANFLAGS"
+FFLAGS="-O2 -ftree-vectorize -g -fno-omit-frame-pointer -march=native -ffast-math $TSANFLAGS"
+F77FLAGS="-O2 -ftree-vectorize -g -fno-omit-frame-pointer -march=native -ffast-math $TSANFLAGS"
+F90FLAGS="-O2 -ftree-vectorize -g -fno-omit-frame-pointer -march=native -ffast-math $TSANFLAGS"
+FCFLAGS="-O2 -ftree-vectorize -g -fno-omit-frame-pointer -march=native -ffast-math $TSANFLAGS"
+CXXFLAGS="-O2 -ftree-vectorize -g -fno-omit-frame-pointer -march=native -ffast-math $TSANFLAGS"
 
 export CFLAGS=$(allowed_gcc_flags $CFLAGS)
 export FFLAGS=$(allowed_gfortran_flags $FFLAGS)
