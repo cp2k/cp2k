@@ -11,7 +11,8 @@ MODULE qs_dftb3_methods
    USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                               get_atomic_kind_set
    USE atprop_types,                    ONLY: atprop_type
-   USE cell_types,                      ONLY: cell_type
+   USE cell_types,                      ONLY: cell_type,&
+                                              pbc
    USE cp_para_types,                   ONLY: cp_para_env_type
    USE dbcsr_api,                       ONLY: dbcsr_add,&
                                               dbcsr_get_block_p,&
@@ -188,14 +189,18 @@ CONTAINS
                   fi = -gmij*SUM(pblock*dsblock)
                   force(ikind)%rho_elec(i, atom_i) = force(ikind)%rho_elec(i, atom_i)+fi
                   force(jkind)%rho_elec(i, atom_j) = force(jkind)%rho_elec(i, atom_j)-fi
+                  fij(i) = fi
                END DO
-!              IF (use_virial) THEN
-!                 CALL virial_pair_force(virial%pv_virial, 1._dp, fij, rij)
-!                 IF (atprop%stress) THEN
-!                    CALL virial_pair_force(atprop%atstress(:, :, iatom), 0.5_dp, fij, rij)
-!                    CALL virial_pair_force(atprop%atstress(:, :, jatom), 0.5_dp, fij, rij)
-!                 END IF
-!              END IF
+               ! probably only correct for MIC cases (large enough unit cells)
+               IF (use_virial) THEN
+                  rij = particle_set(irow)%r-particle_set(icol)%r
+                  rij = pbc(rij, cell)
+                  CALL virial_pair_force(virial%pv_virial, -1._dp, fij, rij)
+                  IF (atprop%stress) THEN
+                     CALL virial_pair_force(atprop%atstress(:, :, iatom), -0.5_dp, fij, rij)
+                     CALL virial_pair_force(atprop%atstress(:, :, jatom), -0.5_dp, fij, rij)
+                  END IF
+               END IF
             ENDDO
             CALL dbcsr_iterator_stop(iter)
          ELSE
