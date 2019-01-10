@@ -324,6 +324,7 @@ CONTAINS
 
       CALL keyword_create(keyword, name="RCUT", &
                           description="Explicitly provide the real-space cutoff of the ewald summation (EWALD|PME|SPME). "// &
+                          "This value is ignored in Tight-binding applications (rcut from basis overlap is used). "// &
                           "If present, overwrites the estimate of EWALD_ACCURACY and may affect the "// &
                           "construction of the neighbor lists for non-bonded terms (in FIST), if the value "// &
                           "specified is larger than the cutoff for non-bonded interactions.", &
@@ -333,7 +334,8 @@ CONTAINS
 
       CALL keyword_create(keyword, name="alpha", &
                           description="alpha parameter associated with Ewald (EWALD|PME|SPME). "// &
-                          "Recommended for small systems is is alpha = 3.5 / r_cut. "// &
+                          "Recommended for small systems is alpha = 3.5 / r_cut. "// &
+                          "For Tight-binding application a recommended value is alpha = 1.5. "// &
                           "Tuning alpha, r_cut and gmax is needed to obtain O(N**1.5) scaling for ewald.", &
                           usage="alpha .30", &
                           default_r_val=cp_unit_to_cp2k(value=0.35_dp, unit_str="angstrom^-1"), &
