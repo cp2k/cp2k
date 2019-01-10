@@ -418,7 +418,6 @@ CONTAINS
       IF (dokp) THEN
          ! no MIC for kpoints
          mic = .FALSE.
-!deb  ELSEIF (nddo .OR. dftb) THEN
       ELSEIF (nddo) THEN
          ! enforce MIC for interaction lists in SE and DFTB
          mic = .TRUE.
@@ -1101,7 +1100,8 @@ CONTAINS
             ! It makes sense to have fewer subcells for larger systems
             subcell_scale = ((125.0_dp**3)/deth)**(1.0_dp/6.0_dp)
 
-            ! guess the number of subcells for optimal performance, guard against crazy stuff triggered by very small rabm
+            ! guess the number of subcells for optimal performance,
+            ! guard against crazy stuff triggered by very small rabm
             nsubcell(:) = INT(MAX(1.0_dp, MIN(0.5_dp*subcells*subcell_scale/sab_max(:), &
                                               0.5_dp*subcells*subcell_scale/sab_max_guard(:))))
 
