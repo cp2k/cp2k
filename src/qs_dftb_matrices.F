@@ -10,8 +10,7 @@
 MODULE qs_dftb_matrices
    USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                               get_atomic_kind,&
-                                              get_atomic_kind_set,&
-                                              is_hydrogen
+                                              get_atomic_kind_set
    USE atprop_types,                    ONLY: atprop_array_init,&
                                               atprop_type
    USE block_p_types,                   ONLY: block_p_type
@@ -68,7 +67,8 @@ MODULE qs_dftb_matrices
                                               qmmm_pot_p_type,&
                                               qmmm_pot_type
    USE qmmm_util,                       ONLY: spherical_cutoff_factor
-   USE qs_dftb_coulomb,                 ONLY: build_dftb_coulomb
+   USE qs_dftb_coulomb,                 ONLY: build_dftb_coulomb,&
+                                              gamma_rab_sr
    USE qs_dftb_types,                   ONLY: qs_dftb_atom_type,&
                                               qs_dftb_pairpot_type
    USE qs_dftb_utils,                   ONLY: get_dftb_atom_param
@@ -113,8 +113,6 @@ MODULE qs_dftb_matrices
    REAL(dp), PARAMETER                    :: slako_d0 = 1._dp
    ! pointer to skab
    INTEGER, DIMENSION(0:3, 0:3, 0:3, 0:3, 0:3):: iptr
-   ! screening for gamma function
-   REAL(dp), PARAMETER                    :: tol_gamma = 1.e-4_dp
    ! small real number
    REAL(dp), PARAMETER                    :: rtiny = 1.e-10_dp
    ! eta(0) for mm atoms and non-scc qm atoms
@@ -150,28 +148,25 @@ CONTAINS
 
       INTEGER :: after, atom_a, atom_b, handle, i, iatom, ic, icol, ikind, img, irow, iw, jatom, &
          jkind, l1, l2, la, lb, llm, lmaxi, lmaxj, m, n1, n2, n_urpoly, natom, natorb_a, natorb_b, &
-         nderivatives, ngrd, ngrdcut, nimg, nkind, nmat, spdim
+         nderivatives, ngrd, ngrdcut, nimg, nkind, spdim
       INTEGER, DIMENSION(3)                              :: cell
       INTEGER, DIMENSION(:), POINTER                     :: atom_of_kind
       INTEGER, DIMENSION(:, :, :), POINTER               :: cell_to_index
-      LOGICAL                                            :: defined, found, hb_sr_damp, &
-                                                            omit_headers, use_virial
-      REAL(KIND=dp)                                      :: ddr, dgam, dgrd, dr, drm, drp, erep, &
-                                                            erepij, f0, f1, foab, fow, ga, gb, &
-                                                            hb_para, s_cut, urep_cut
+      LOGICAL                                            :: defined, found, omit_headers, use_virial
+      REAL(KIND=dp)                                      :: ddr, dgrd, dr, erep, erepij, f0, f1, &
+                                                            foab, fow, s_cut, urep_cut
       REAL(KIND=dp), DIMENSION(0:3)                      :: eta_a, eta_b, skself
       REAL(KIND=dp), DIMENSION(10)                       :: urep
       REAL(KIND=dp), DIMENSION(2)                        :: surr
       REAL(KIND=dp), DIMENSION(3)                        :: drij, force_ab, force_rr, force_w, rij, &
                                                             srep
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: dfblock, dsblock, fblock, fmatij, &
-                                                            fmatji, gblock, pblock, sblock, &
-                                                            scoeff, smatij, smatji, spxr, wblock
+                                                            fmatji, pblock, sblock, scoeff, &
+                                                            smatij, smatji, spxr, wblock
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       TYPE(atprop_type), POINTER                         :: atprop
-      TYPE(block_p_type), DIMENSION(2:4)                 :: dgblocks, dsblocks
+      TYPE(block_p_type), DIMENSION(2:4)                 :: dsblocks
       TYPE(cp_logger_type), POINTER                      :: logger
-      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: gamma_matrix
       TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: matrix_h, matrix_p, matrix_s, matrix_w
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(dftb_control_type), POINTER                   :: dftb_control
@@ -213,7 +208,7 @@ CONTAINS
       NULLIFY (logger, virial, atprop)
       logger => cp_get_default_logger()
 
-      NULLIFY (matrix_h, matrix_s, matrix_p, matrix_w, gamma_matrix, atomic_kind_set, &
+      NULLIFY (matrix_h, matrix_s, matrix_p, matrix_w, atomic_kind_set, &
                qs_kind_set, sab_orb, ks_env)
 
       CALL get_qs_env(qs_env=qs_env, &
@@ -241,18 +236,6 @@ CONTAINS
       CALL get_qs_env(qs_env=qs_env, dftb_potential=dftb_potential)
       NULLIFY (particle_set)
       CALL get_qs_env(qs_env=qs_env, particle_set=particle_set)
-
-      ! gamma matrix allocation
-      IF (dftb_control%self_consistent) THEN
-         IF (calculate_forces) THEN
-            nmat = 4
-         ELSE
-            nmat = 1
-         END IF
-         CALL get_qs_env(qs_env=qs_env, &
-                         gamma_matrix=gamma_matrix)
-         CALL setup_gamma(qs_env, nmat, gamma_matrix, sab_orb)
-      END IF
 
       IF (calculate_forces) THEN
          NULLIFY (rho, force, matrix_w)
@@ -346,18 +329,13 @@ CONTAINS
 
             icol = MAX(iatom, jatom)
             irow = MIN(iatom, jatom)
-            NULLIFY (sblock, fblock, gblock)
+            NULLIFY (sblock, fblock)
             CALL dbcsr_get_block_p(matrix=matrix_s(1, ic)%matrix, &
                                    row=irow, col=icol, BLOCK=sblock, found=found)
             CPASSERT(found)
             CALL dbcsr_get_block_p(matrix=matrix_h(1, ic)%matrix, &
                                    row=irow, col=icol, BLOCK=fblock, found=found)
             CPASSERT(found)
-            IF (dftb_control%self_consistent) THEN
-               CALL dbcsr_get_block_p(matrix=gamma_matrix(1)%matrix, &
-                                      row=irow, col=icol, BLOCK=gblock, found=found)
-               CPASSERT(found)
-            END IF
 
             IF (calculate_forces) THEN
                NULLIFY (pblock)
@@ -374,10 +352,6 @@ CONTAINS
                      CALL dbcsr_get_block_p(matrix=matrix_s(i, ic)%matrix, &
                                             row=irow, col=icol, BLOCK=dsblocks(i)%block, found=found)
                      CPASSERT(found)
-                     NULLIFY (dgblocks(i)%block)
-                     CALL dbcsr_get_block_p(matrix=gamma_matrix(i)%matrix, &
-                                            row=irow, col=icol, BLOCK=dgblocks(i)%block, found=found)
-                     CPASSERT(found)
                   END DO
                END IF
             END IF
@@ -390,8 +364,10 @@ CONTAINS
                END DO
             ELSE
                ! off-diagonal block
-               CALL compute_block_sk(sblock, smatij, smatji, rij, ngrd, ngrdcut, dgrd, llm, lmaxi, lmaxj, irow, iatom)
-               CALL compute_block_sk(fblock, fmatij, fmatji, rij, ngrd, ngrdcut, dgrd, llm, lmaxi, lmaxj, irow, iatom)
+               CALL compute_block_sk(sblock, smatij, smatji, rij, ngrd, ngrdcut, dgrd, &
+                                     llm, lmaxi, lmaxj, irow, iatom)
+               CALL compute_block_sk(fblock, fmatij, fmatji, rij, ngrd, ngrdcut, dgrd, &
+                                     llm, lmaxi, lmaxj, irow, iatom)
                IF (calculate_forces) THEN
                   force_ab = 0._dp
                   force_w = 0._dp
@@ -409,15 +385,19 @@ CONTAINS
                      dfblock = 0._dp; dsblock = 0._dp
 
                      drij(i) = rij(i)-ddr*f0
-                     CALL compute_block_sk(dsblock, smatij, smatji, drij, ngrd, ngrdcut, dgrd, llm, lmaxi, lmaxj, irow, iatom)
-                     CALL compute_block_sk(dfblock, fmatij, fmatji, drij, ngrd, ngrdcut, dgrd, llm, lmaxi, lmaxj, irow, iatom)
+                     CALL compute_block_sk(dsblock, smatij, smatji, drij, ngrd, ngrdcut, dgrd, &
+                                           llm, lmaxi, lmaxj, irow, iatom)
+                     CALL compute_block_sk(dfblock, fmatij, fmatji, drij, ngrd, ngrdcut, dgrd, &
+                                           llm, lmaxi, lmaxj, irow, iatom)
 
                      dsblock = -dsblock
                      dfblock = -dfblock
 
                      drij(i) = rij(i)+ddr*f0
-                     CALL compute_block_sk(dsblock, smatij, smatji, drij, ngrd, ngrdcut, dgrd, llm, lmaxi, lmaxj, irow, iatom)
-                     CALL compute_block_sk(dfblock, fmatij, fmatji, drij, ngrd, ngrdcut, dgrd, llm, lmaxi, lmaxj, irow, iatom)
+                     CALL compute_block_sk(dsblock, smatij, smatji, drij, ngrd, ngrdcut, dgrd, &
+                                           llm, lmaxi, lmaxj, irow, iatom)
+                     CALL compute_block_sk(dfblock, fmatij, fmatji, drij, ngrd, ngrdcut, dgrd, &
+                                           llm, lmaxi, lmaxj, irow, iatom)
 
                      dfblock = dfblock/(2.0_dp*ddr)
                      dsblock = dsblock/(2.0_dp*ddr)
@@ -458,37 +438,6 @@ CONTAINS
                force(jkind)%overlap(:, atom_b) = force(jkind)%overlap(:, atom_b)+force_w(:)
             END IF
 
-            ! gamma matrix
-            IF (dftb_control%self_consistent) THEN
-               hb_sr_damp = dftb_control%hb_sr_damp
-               IF (hb_sr_damp) THEN
-                  ! short range correction enabled only when iatom XOR jatom are hydrogens
-                  hb_sr_damp = is_hydrogen(particle_set(iatom)%atomic_kind) .NEQV. &
-                               is_hydrogen(particle_set(jatom)%atomic_kind)
-               END IF
-               IF (hb_sr_damp) THEN
-                  hb_para = dftb_control%hb_sr_para
-               ELSE
-                  hb_para = 0.0_dp
-               END IF
-               ga = eta_a(0)
-               gb = eta_b(0)
-               gblock(1, 1) = gblock(1, 1)+gamma_rab_sr(dr, ga, gb, hb_para)
-               IF (calculate_forces .AND. (iatom /= jatom .OR. dr > 0.001_dp)) THEN
-                  drp = dr+ddr
-                  drm = dr-ddr
-                  dgam = 0.5_dp*(gamma_rab_sr(drp, ga, gb, hb_para)-gamma_rab_sr(drm, ga, gb, hb_para))/ddr
-                  DO i = 1, 3
-                     CPASSERT(ASSOCIATED(dgblocks(i+1)%block))
-                     IF (irow == iatom) THEN
-                        dgblocks(i+1)%block(1, 1) = dgblocks(i+1)%block(1, 1)+dgam*rij(i)/dr
-                     ELSE
-                        dgblocks(i+1)%block(1, 1) = dgblocks(i+1)%block(1, 1)-dgam*rij(i)/dr
-                     END IF
-                  END DO
-               END IF
-            END IF
-
          END IF
 
          ! repulsive potential
@@ -521,12 +470,6 @@ CONTAINS
       END DO
       CALL neighbor_list_iterator_release(nl_iterator)
 
-      IF (dftb_control%self_consistent) THEN
-         DO i = 1, SIZE(gamma_matrix)
-            CALL dbcsr_finalize(gamma_matrix(i)%matrix)
-         ENDDO
-         CALL set_ks_env(ks_env, gamma_matrix=gamma_matrix)
-      ENDIF
       DO i = 1, SIZE(matrix_s, 1)
          DO img = 1, nimg
             CALL dbcsr_finalize(matrix_s(i, img)%matrix)
@@ -1035,8 +978,10 @@ CONTAINS
             ! Possibly added charges
             IF (qmmm_env%move_mm_charges .OR. qmmm_env%add_mm_charges) THEN
                CALL build_mm_pot(qpot(iatom), 0, eta_a(0), qmmm_env%added_charges%potentials, &
-                                 qmmm_env%added_charges%added_particles, qmmm_env%added_charges%mm_atom_chrg, &
-                                 qmmm_env%added_charges%mm_atom_index, mm_cell, iatom, qmmm_env%spherical_cutoff, &
+                                 qmmm_env%added_charges%added_particles, &
+                                 qmmm_env%added_charges%mm_atom_chrg, &
+                                 qmmm_env%added_charges%mm_atom_index, mm_cell, iatom, &
+                                 qmmm_env%spherical_cutoff, &
                                  particles_qm)
             END IF
             pc_ener = pc_ener+qpot(iatom)*zeff
@@ -1273,11 +1218,15 @@ CONTAINS
                ! Possibly added charges
                IF (qmmm_env%move_mm_charges .OR. qmmm_env%add_mm_charges) THEN
                   CALL build_mm_pot(qpot(iatom), 1, eta_a(0), qmmm_env%added_charges%potentials, &
-                                    qmmm_env%added_charges%added_particles, qmmm_env%added_charges%mm_atom_chrg, &
-                                    qmmm_env%added_charges%mm_atom_index, mm_cell, iatom, rcutoff, particles_qm)
+                                    qmmm_env%added_charges%added_particles, &
+                                    qmmm_env%added_charges%mm_atom_chrg, &
+                                    qmmm_env%added_charges%mm_atom_index, mm_cell, iatom, rcutoff, &
+                                    particles_qm)
                   CALL build_mm_pot(qpot(iatom), 2, alpha, qmmm_env%added_charges%potentials, &
-                                    qmmm_env%added_charges%added_particles, qmmm_env%added_charges%mm_atom_chrg, &
-                                    qmmm_env%added_charges%mm_atom_index, mm_cell, iatom, rcutoff, particles_qm)
+                                    qmmm_env%added_charges%added_particles, &
+                                    qmmm_env%added_charges%mm_atom_chrg, &
+                                    qmmm_env%added_charges%mm_atom_index, mm_cell, iatom, rcutoff, &
+                                    particles_qm)
                END IF
                pc_ener = pc_ener+qpot(iatom)*zeff
             END DO
@@ -1302,8 +1251,10 @@ CONTAINS
                ! Possibly added charges
                IF (qmmm_env%move_mm_charges .OR. qmmm_env%add_mm_charges) THEN
                   CALL build_mm_pot(qpot(iatom), 0, eta_a(0), qmmm_env%added_charges%potentials, &
-                                    qmmm_env%added_charges%added_particles, qmmm_env%added_charges%mm_atom_chrg, &
-                                    qmmm_env%added_charges%mm_atom_index, mm_cell, iatom, qmmm_env%spherical_cutoff, &
+                                    qmmm_env%added_charges%added_particles, &
+                                    qmmm_env%added_charges%mm_atom_chrg, &
+                                    qmmm_env%added_charges%mm_atom_index, mm_cell, iatom, &
+                                    qmmm_env%spherical_cutoff, &
                                     particles_qm)
                END IF
                pc_ener = pc_ener+qpot(iatom)*zeff
@@ -1454,17 +1405,22 @@ CONTAINS
                                  qmmm_env%mm_atom_chrg, qmmm_env%mm_atom_index, mm_cell, iatom, &
                                  qmmm_env%spherical_cutoff, particles_qm)
                CALL build_mm_dpot(mcharge(iatom), 0, eta_a(0), qmmm_env%Potentials, particles_mm, &
-                                  qmmm_env%mm_atom_chrg, qmmm_env%mm_atom_index, mm_cell, iatom, Forces, Forces_QM(:, iqm), &
+                                  qmmm_env%mm_atom_chrg, qmmm_env%mm_atom_index, &
+                                  mm_cell, iatom, Forces, Forces_QM(:, iqm), &
                                   qmmm_env%spherical_cutoff, particles_qm)
                ! Possibly added charges
                IF (qmmm_env%move_mm_charges .OR. qmmm_env%add_mm_charges) THEN
                   CALL build_mm_pot(qpot(iatom), 0, eta_a(0), qmmm_env%added_charges%potentials, &
-                                    qmmm_env%added_charges%added_particles, qmmm_env%added_charges%mm_atom_chrg, &
-                                    qmmm_env%added_charges%mm_atom_index, mm_cell, iatom, qmmm_env%spherical_cutoff, &
+                                    qmmm_env%added_charges%added_particles, &
+                                    qmmm_env%added_charges%mm_atom_chrg, &
+                                    qmmm_env%added_charges%mm_atom_index, mm_cell, iatom, &
+                                    qmmm_env%spherical_cutoff, &
                                     particles_qm)
                   CALL build_mm_dpot(mcharge(iatom), 0, eta_a(0), qmmm_env%added_charges%potentials, &
-                                     qmmm_env%added_charges%added_particles, qmmm_env%added_charges%mm_atom_chrg, &
-                                     qmmm_env%added_charges%mm_atom_index, mm_cell, iatom, Forces_added_charges, &
+                                     qmmm_env%added_charges%added_particles, &
+                                     qmmm_env%added_charges%mm_atom_chrg, &
+                                     qmmm_env%added_charges%mm_atom_index, mm_cell, iatom, &
+                                     Forces_added_charges, &
                                      Forces_QM(:, iqm), qmmm_env%spherical_cutoff, particles_qm)
                END IF
             END DO
@@ -1760,32 +1716,42 @@ CONTAINS
                   iatom = list(i)
                   iqm = iqm+1
                   CALL build_mm_pot(qpot(iatom), 1, eta_a(0), qmmm_env%Potentials, particles_mm, &
-                                    qmmm_env%mm_atom_chrg, qmmm_env%mm_atom_index, mm_cell, iatom, rcutoff, particles_qm)
+                                    qmmm_env%mm_atom_chrg, qmmm_env%mm_atom_index, &
+                                    mm_cell, iatom, rcutoff, particles_qm)
                   CALL build_mm_dpot(mcharge(iatom), 1, eta_a(0), qmmm_env%Potentials, particles_mm, &
-                                     qmmm_env%mm_atom_chrg, qmmm_env%mm_atom_index, mm_cell, iatom, Forces, Forces_QM(:, iqm), &
+                                     qmmm_env%mm_atom_chrg, qmmm_env%mm_atom_index, &
+                                     mm_cell, iatom, Forces, Forces_QM(:, iqm), &
                                      rcutoff, particles_qm)
                   CALL build_mm_pot(qpot(iatom), 2, alpha, qmmm_env%Potentials, particles_mm, &
-                                    qmmm_env%mm_atom_chrg, qmmm_env%mm_atom_index, mm_cell, iatom, rcutoff, particles_qm)
+                                    qmmm_env%mm_atom_chrg, qmmm_env%mm_atom_index, &
+                                    mm_cell, iatom, rcutoff, particles_qm)
                   CALL build_mm_dpot(mcharge(iatom), 2, alpha, qmmm_env%Potentials, particles_mm, &
-                                     qmmm_env%mm_atom_chrg, qmmm_env%mm_atom_index, mm_cell, iatom, Forces, Forces_QM(:, iqm), &
+                                     qmmm_env%mm_atom_chrg, qmmm_env%mm_atom_index, &
+                                     mm_cell, iatom, Forces, Forces_QM(:, iqm), &
                                      rcutoff, particles_qm)
                   ! Possibly added charges
                   IF (qmmm_env%move_mm_charges .OR. qmmm_env%add_mm_charges) THEN
                      CALL build_mm_pot(qpot(iatom), 1, eta_a(0), qmmm_env%added_charges%potentials, &
-                                       qmmm_env%added_charges%added_particles, qmmm_env%added_charges%mm_atom_chrg, &
-                                       qmmm_env%added_charges%mm_atom_index, mm_cell, iatom, rcutoff, particles_qm)
+                                       qmmm_env%added_charges%added_particles, &
+                                       qmmm_env%added_charges%mm_atom_chrg, &
+                                       qmmm_env%added_charges%mm_atom_index, mm_cell, iatom, rcutoff, &
+                                       particles_qm)
                      CALL build_mm_dpot( &
                         mcharge(iatom), 1, eta_a(0), qmmm_env%added_charges%potentials, &
                         qmmm_env%added_charges%added_particles, qmmm_env%added_charges%mm_atom_chrg, &
-                        qmmm_env%added_charges%mm_atom_index, mm_cell, iatom, Forces_added_charges, Forces_QM(:, iqm), &
+                        qmmm_env%added_charges%mm_atom_index, mm_cell, iatom, &
+                        Forces_added_charges, Forces_QM(:, iqm), &
                         rcutoff, particles_qm)
                      CALL build_mm_pot(qpot(iatom), 2, alpha, qmmm_env%added_charges%potentials, &
-                                       qmmm_env%added_charges%added_particles, qmmm_env%added_charges%mm_atom_chrg, &
-                                       qmmm_env%added_charges%mm_atom_index, mm_cell, iatom, rcutoff, particles_qm)
+                                       qmmm_env%added_charges%added_particles, &
+                                       qmmm_env%added_charges%mm_atom_chrg, &
+                                       qmmm_env%added_charges%mm_atom_index, mm_cell, iatom, rcutoff, &
+                                       particles_qm)
                      CALL build_mm_dpot( &
                         mcharge(iatom), 2, alpha, qmmm_env%added_charges%potentials, &
                         qmmm_env%added_charges%added_particles, qmmm_env%added_charges%mm_atom_chrg, &
-                        qmmm_env%added_charges%mm_atom_index, mm_cell, iatom, Forces_added_charges, Forces_QM(:, iqm), &
+                        qmmm_env%added_charges%mm_atom_index, mm_cell, iatom, &
+                        Forces_added_charges, Forces_QM(:, iqm), &
                         rcutoff, particles_qm)
                   END IF
                END DO
@@ -1811,17 +1777,22 @@ CONTAINS
                                     qmmm_env%mm_atom_chrg, qmmm_env%mm_atom_index, mm_cell, iatom, &
                                     qmmm_env%spherical_cutoff, particles_qm)
                   CALL build_mm_dpot(mcharge(iatom), 0, eta_a(0), qmmm_env%Potentials, particles_mm, &
-                                     qmmm_env%mm_atom_chrg, qmmm_env%mm_atom_index, mm_cell, iatom, Forces, Forces_QM(:, iqm), &
+                                     qmmm_env%mm_atom_chrg, qmmm_env%mm_atom_index, &
+                                     mm_cell, iatom, Forces, Forces_QM(:, iqm), &
                                      qmmm_env%spherical_cutoff, particles_qm)
                   ! Possibly added charges
                   IF (qmmm_env%move_mm_charges .OR. qmmm_env%add_mm_charges) THEN
                      CALL build_mm_pot(qpot(iatom), 0, eta_a(0), qmmm_env%added_charges%potentials, &
-                                       qmmm_env%added_charges%added_particles, qmmm_env%added_charges%mm_atom_chrg, &
-                                       qmmm_env%added_charges%mm_atom_index, mm_cell, iatom, qmmm_env%spherical_cutoff, &
+                                       qmmm_env%added_charges%added_particles, &
+                                       qmmm_env%added_charges%mm_atom_chrg, &
+                                       qmmm_env%added_charges%mm_atom_index, &
+                                       mm_cell, iatom, qmmm_env%spherical_cutoff, &
                                        particles_qm)
                      CALL build_mm_dpot(mcharge(iatom), 0, eta_a(0), qmmm_env%added_charges%potentials, &
-                                        qmmm_env%added_charges%added_particles, qmmm_env%added_charges%mm_atom_chrg, &
-                                        qmmm_env%added_charges%mm_atom_index, mm_cell, iatom, Forces_added_charges, &
+                                        qmmm_env%added_charges%added_particles, &
+                                        qmmm_env%added_charges%mm_atom_chrg, &
+                                        qmmm_env%added_charges%mm_atom_index, mm_cell, iatom, &
+                                        Forces_added_charges, &
                                         Forces_QM(:, iqm), qmmm_env%spherical_cutoff, particles_qm)
                   END IF
                END DO
@@ -2101,7 +2072,8 @@ CONTAINS
 !> \param irow ...
 !> \param iatom ...
 ! **************************************************************************************************
-   SUBROUTINE compute_block_sk(block, smatij, smatji, rij, ngrd, ngrdcut, dgrd, llm, lmaxi, lmaxj, irow, iatom)
+   SUBROUTINE compute_block_sk(block, smatij, smatji, rij, ngrd, ngrdcut, dgrd, &
+                               llm, lmaxi, lmaxj, irow, iatom)
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: block, smatij, smatji
       REAL(KIND=dp), DIMENSION(3)                        :: rij
       INTEGER                                            :: ngrd, ngrdcut
@@ -2305,73 +2277,6 @@ CONTAINS
       DEALLOCATE (row_blk_sizes)
 
    END SUBROUTINE setup_matrices2
-
-! **************************************************************************************************
-!> \brief ...
-!> \param qs_env ...
-!> \param nmat ...
-!> \param gammat ...
-!> \param sab_nl ...
-! **************************************************************************************************
-   SUBROUTINE setup_gamma(qs_env, nmat, gammat, sab_nl)
-
-      TYPE(qs_environment_type), POINTER                 :: qs_env
-      INTEGER, INTENT(IN)                                :: nmat
-      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: gammat
-      TYPE(neighbor_list_set_p_type), DIMENSION(:), &
-         POINTER                                         :: sab_nl
-
-      CHARACTER(len=*), PARAMETER :: routineN = 'setup_gamma', routineP = moduleN//':'//routineN
-
-      INTEGER                                            :: i, iatom, natom, ncol, neighbor_list_id, &
-                                                            nrow
-      INTEGER, DIMENSION(:), POINTER                     :: felem, lelem, row_blk_sizes
-      TYPE(dbcsr_distribution_type), POINTER             :: dbcsr_dist
-      TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
-
-      CALL get_qs_env(qs_env=qs_env, &
-                      particle_set=particle_set, &
-                      neighbor_list_id=neighbor_list_id, &
-                      dbcsr_dist=dbcsr_dist)
-      natom = SIZE(particle_set)
-      nrow = natom
-      ncol = natom
-      ALLOCATE (felem(natom), lelem(natom))
-      DO iatom = 1, natom
-         felem(iatom) = iatom
-         lelem(iatom) = iatom
-      ENDDO
-
-      ALLOCATE (row_blk_sizes(natom))
-      CALL convert_offsets_to_sizes(felem, row_blk_sizes, lelem)
-
-      CALL dbcsr_allocate_matrix_set(gammat, nmat)
-      ALLOCATE (gammat(1)%matrix)
-
-      CALL dbcsr_create(matrix=gammat(1)%matrix, &
-                        name="GAMMA MATRIX", &
-                        dist=dbcsr_dist, matrix_type=dbcsr_type_symmetric, &
-                        row_blk_size=row_blk_sizes, col_blk_size=row_blk_sizes, &
-                        nze=0, mutable_work=.TRUE.)
-
-      DO i = 2, nmat
-         ALLOCATE (gammat(i)%matrix)
-
-         CALL dbcsr_create(matrix=gammat(i)%matrix, &
-                           name="DERIVATIVE GAMMA MATRIX", &
-                           dist=dbcsr_dist, matrix_type=dbcsr_type_antisymmetric, &
-                           row_blk_size=row_blk_sizes, col_blk_size=row_blk_sizes, &
-                           nze=0, mutable_work=.TRUE.)
-      END DO
-
-      DEALLOCATE (row_blk_sizes, felem, lelem)
-
-      ! setup the matrices using the neighbor list
-      DO i = 1, nmat
-         CALL cp_dbcsr_alloc_block_from_nbl(gammat(i)%matrix, sab_nl)
-      END DO
-
-   END SUBROUTINE setup_gamma
 
 ! **************************************************************************************************
 !> \brief Gets matrix elements on z axis, as they are stored in the tables
@@ -3085,60 +2990,6 @@ CONTAINS
       END IF
 
    END SUBROUTINE urep_egr
-
-! **************************************************************************************************
-!> \brief  Computes the short-range gamma parameter from exact Coulomb
-!>         interaction of normalized exp(-a*r) charge distribution - 1/r
-!> \param r ...
-!> \param ga ...
-!> \param gb ...
-!> \param hb_para ...
-!> \return ...
-!> \par Literature
-!>         Elstner et al, PRB 58 (1998) 7260
-!> \par History
-!>      10.2008 Axel Kohlmeyer - adding sr_damp
-!>      08.2014 JGH - adding flexible exponent for damping
-!> \version 1.1
-! **************************************************************************************************
-   FUNCTION gamma_rab_sr(r, ga, gb, hb_para) RESULT(gamma)
-      REAL(dp), INTENT(in)                               :: r, ga, gb, hb_para
-      REAL(dp)                                           :: gamma
-
-      REAL(dp)                                           :: a, b, fac, g_sum
-
-      gamma = 0.0_dp
-      a = 3.2_dp*ga ! 3.2 = 16/5 in Eq. 18 and ff.
-      b = 3.2_dp*gb
-      g_sum = a+b
-      IF (g_sum < tol_gamma) RETURN ! hardness screening
-      IF (r < rtiny) THEN ! This is for short distances but non-onsite terms
-         ! This gives also correct diagonal elements (a=b, r=0)
-         gamma = 0.5_dp*(a*b/g_sum+(a*b)**2/g_sum**3)
-         RETURN
-      END IF
-      !
-      ! distinguish two cases: Gamma's are very close, e.g. for the same atom type,
-      !                        and Gamma's are different
-      !
-      IF (ABS(a-b) < rtiny) THEN
-         fac = 1.6_dp*r*a*b/g_sum*(1.0_dp+a*b/g_sum**2)
-         gamma = -(48.0_dp+33._dp*fac+(9.0_dp+fac)*fac**2)*EXP(-fac)/(48._dp*r)
-      ELSE
-         gamma = -EXP(-a*r)*(0.5_dp*a*b**4/(a**2-b**2)**2- &
-                             (b**6-3._dp*a**2*b**4)/(r*(a**2-b**2)**3))- & ! a-> b
-                 EXP(-b*r)*(0.5_dp*b*a**4/(b**2-a**2)**2- &
-                            (a**6-3._dp*b**2*a**4)/(r*(b**2-a**2)**3)) ! b-> a
-      END IF
-      !
-      ! damping function for better short range hydrogen bonds.
-      ! functional form from Hu H. et al., J. Phys. Chem. A 2007, 111, 5685-5691
-      ! according to Elstner M, Theor. Chem. Acc. 2006, 116, 316-325,
-      ! this should only be applied to a-b pairs involving hydrogen.
-      IF (hb_para > 0.0_dp) THEN
-         gamma = gamma*EXP(-(0.5_dp*(ga+gb))**hb_para*r*r)
-      END IF
-   END FUNCTION gamma_rab_sr
 
 END MODULE qs_dftb_matrices
 

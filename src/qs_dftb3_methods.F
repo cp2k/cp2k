@@ -15,6 +15,11 @@ MODULE qs_dftb3_methods
    USE cp_para_types,                   ONLY: cp_para_env_type
    USE dbcsr_api,                       ONLY: dbcsr_add,&
                                               dbcsr_get_block_p,&
+                                              dbcsr_iterator_blocks_left,&
+                                              dbcsr_iterator_next_block,&
+                                              dbcsr_iterator_start,&
+                                              dbcsr_iterator_stop,&
+                                              dbcsr_iterator_type,&
                                               dbcsr_p_type
    USE distribution_1d_types,           ONLY: distribution_1d_type
    USE kinds,                           ONLY: dp
@@ -75,9 +80,9 @@ CONTAINS
       CHARACTER(len=*), PARAMETER :: routineN = 'build_dftb3_diagonal', &
          routineP = moduleN//':'//routineN
 
-      INTEGER                                            :: atom_i, atom_j, handle, i, ia, iatom, &
-                                                            ic, icol, ikind, irow, is, jatom, &
-                                                            jkind, natom, nimg
+      INTEGER                                            :: atom_i, atom_j, blk, handle, i, ia, &
+                                                            iatom, ic, icol, ikind, irow, is, &
+                                                            jatom, jkind, natom, nimg
       INTEGER, DIMENSION(3)                              :: cellind
       INTEGER, DIMENSION(:), POINTER                     :: atom_of_kind, kind_of
       INTEGER, DIMENSION(:, :, :), POINTER               :: cell_to_index
@@ -89,6 +94,7 @@ CONTAINS
       TYPE(atprop_type), POINTER                         :: atprop
       TYPE(cell_type), POINTER                           :: cell
       TYPE(cp_para_env_type), POINTER                    :: para_env
+      TYPE(dbcsr_iterator_type)                          :: iter
       TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: matrix_p, matrix_s
       TYPE(distribution_1d_type), POINTER                :: local_particles
       TYPE(kpoint_type), POINTER                         :: kpoints
@@ -154,66 +160,103 @@ CONTAINS
             CALL get_qs_env(qs_env=qs_env, kpoints=kpoints)
             CALL get_kpoint_info(kpoint=kpoints, cell_to_index=cell_to_index)
          END IF
-         NULLIFY (n_list)
-         CALL get_qs_env(qs_env=qs_env, sab_orb=n_list)
-         CALL neighbor_list_iterator_create(nl_iterator, n_list)
-         DO WHILE (neighbor_list_iterate(nl_iterator) == 0)
-            CALL get_iterator_info(nl_iterator, ikind=ikind, jkind=jkind, &
-                                   iatom=iatom, jatom=jatom, r=rij, cell=cellind)
+         IF (nimg == 1) THEN
+            ! no k-points; all matrices have been transformed to periodic bsf
+            CALL dbcsr_iterator_start(iter, matrix_s(1, 1)%matrix)
+            DO WHILE (dbcsr_iterator_blocks_left(iter))
+               CALL dbcsr_iterator_next_block(iter, irow, icol, sblock, blk)
+               ikind = kind_of(irow)
+               atom_i = atom_of_kind(irow)
+               CALL get_qs_kind(qs_kind_set(ikind), dftb_parameter=dftb_kind)
+               CALL get_dftb_atom_param(dftb_kind, dudq=ui)
+               jkind = kind_of(icol)
+               atom_j = atom_of_kind(icol)
+               CALL get_qs_kind(qs_kind_set(jkind), dftb_parameter=dftb_kind)
+               CALL get_dftb_atom_param(dftb_kind, dudq=uj)
+               !
+               gmij = -0.5_dp*(ui*mcharge(irow)**2+uj*mcharge(icol)**2)
+               !
+               NULLIFY (pblock)
+               CALL dbcsr_get_block_p(matrix=matrix_p(1, 1)%matrix, &
+                                      row=irow, col=icol, block=pblock, found=found)
+               CPASSERT(found)
+               DO i = 1, 3
+                  NULLIFY (dsblock)
+                  CALL dbcsr_get_block_p(matrix=matrix_s(1+i, 1)%matrix, &
+                                         row=irow, col=icol, block=dsblock, found=found)
+                  CPASSERT(found)
+                  fi = -gmij*SUM(pblock*dsblock)
+                  force(ikind)%rho_elec(i, atom_i) = force(ikind)%rho_elec(i, atom_i)+fi
+                  force(jkind)%rho_elec(i, atom_j) = force(jkind)%rho_elec(i, atom_j)-fi
+               END DO
+!              IF (use_virial) THEN
+!                 CALL virial_pair_force(virial%pv_virial, 1._dp, fij, rij)
+!                 IF (atprop%stress) THEN
+!                    CALL virial_pair_force(atprop%atstress(:, :, iatom), 0.5_dp, fij, rij)
+!                    CALL virial_pair_force(atprop%atstress(:, :, jatom), 0.5_dp, fij, rij)
+!                 END IF
+!              END IF
+            ENDDO
+            CALL dbcsr_iterator_stop(iter)
+         ELSE
+            NULLIFY (n_list)
+            CALL get_qs_env(qs_env=qs_env, sab_orb=n_list)
+            CALL neighbor_list_iterator_create(nl_iterator, n_list)
+            DO WHILE (neighbor_list_iterate(nl_iterator) == 0)
+               CALL get_iterator_info(nl_iterator, ikind=ikind, jkind=jkind, &
+                                      iatom=iatom, jatom=jatom, r=rij, cell=cellind)
 
-            dr = SQRT(SUM(rij**2))
-            IF (iatom == jatom .AND. dr < 1.0e-6_dp) CYCLE
+               dr = SQRT(SUM(rij**2))
+               IF (iatom == jatom .AND. dr < 1.0e-6_dp) CYCLE
 
-            icol = MAX(iatom, jatom)
-            irow = MIN(iatom, jatom)
+               icol = MAX(iatom, jatom)
+               irow = MIN(iatom, jatom)
 
-            IF (nimg == 1) THEN
-               ic = 1
-            ELSE
                ic = cell_to_index(cellind(1), cellind(2), cellind(3))
                CPASSERT(ic > 0)
-            END IF
 
-            ikind = kind_of(iatom)
-            atom_i = atom_of_kind(iatom)
-            CALL get_qs_kind(qs_kind_set(ikind), dftb_parameter=dftb_kind)
-            CALL get_dftb_atom_param(dftb_kind, dudq=ui)
-            jkind = kind_of(jatom)
-            atom_j = atom_of_kind(jatom)
-            CALL get_qs_kind(qs_kind_set(jkind), dftb_parameter=dftb_kind)
-            CALL get_dftb_atom_param(dftb_kind, dudq=uj)
-            !
-            gmij = -0.5_dp*(ui*mcharge(iatom)**2+uj*mcharge(jatom)**2)
-            !
-            NULLIFY (pblock)
-            CALL dbcsr_get_block_p(matrix=matrix_p(1, ic)%matrix, &
-                                   row=irow, col=icol, block=pblock, found=found)
-            CPASSERT(found)
-            DO i = 1, 3
-               NULLIFY (dsblock)
-               CALL dbcsr_get_block_p(matrix=matrix_s(1+i, ic)%matrix, &
-                                      row=irow, col=icol, block=dsblock, found=found)
+               ikind = kind_of(iatom)
+               atom_i = atom_of_kind(iatom)
+               CALL get_qs_kind(qs_kind_set(ikind), dftb_parameter=dftb_kind)
+               CALL get_dftb_atom_param(dftb_kind, dudq=ui)
+               jkind = kind_of(jatom)
+               atom_j = atom_of_kind(jatom)
+               CALL get_qs_kind(qs_kind_set(jkind), dftb_parameter=dftb_kind)
+               CALL get_dftb_atom_param(dftb_kind, dudq=uj)
+               !
+               gmij = -0.5_dp*(ui*mcharge(iatom)**2+uj*mcharge(jatom)**2)
+               !
+               NULLIFY (pblock)
+               CALL dbcsr_get_block_p(matrix=matrix_p(1, ic)%matrix, &
+                                      row=irow, col=icol, block=pblock, found=found)
                CPASSERT(found)
-               IF (irow == iatom) THEN
-                  fi = -gmij*SUM(pblock*dsblock)
-               ELSE
-                  fi = gmij*SUM(pblock*dsblock)
+               DO i = 1, 3
+                  NULLIFY (dsblock)
+                  CALL dbcsr_get_block_p(matrix=matrix_s(1+i, ic)%matrix, &
+                                         row=irow, col=icol, block=dsblock, found=found)
+                  CPASSERT(found)
+                  IF (irow == iatom) THEN
+                     fi = -gmij*SUM(pblock*dsblock)
+                  ELSE
+                     fi = gmij*SUM(pblock*dsblock)
+                  END IF
+                  force(ikind)%rho_elec(i, atom_i) = force(ikind)%rho_elec(i, atom_i)+fi
+                  force(jkind)%rho_elec(i, atom_j) = force(jkind)%rho_elec(i, atom_j)-fi
+                  fij(i) = fi
+               END DO
+               IF (use_virial) THEN
+                  CALL virial_pair_force(virial%pv_virial, 1._dp, fij, rij)
+                  IF (atprop%stress) THEN
+                     CALL virial_pair_force(atprop%atstress(:, :, iatom), 0.5_dp, fij, rij)
+                     CALL virial_pair_force(atprop%atstress(:, :, jatom), 0.5_dp, fij, rij)
+                  END IF
                END IF
-               force(ikind)%rho_elec(i, atom_i) = force(ikind)%rho_elec(i, atom_i)+fi
-               force(jkind)%rho_elec(i, atom_j) = force(jkind)%rho_elec(i, atom_j)-fi
-               fij(i) = fi
-            END DO
-            IF (use_virial) THEN
-               CALL virial_pair_force(virial%pv_virial, 1._dp, fij, rij)
-               IF (atprop%stress) THEN
-                  CALL virial_pair_force(atprop%atstress(:, :, iatom), 0.5_dp, fij, rij)
-                  CALL virial_pair_force(atprop%atstress(:, :, jatom), 0.5_dp, fij, rij)
-               END IF
-            END IF
 
-         END DO
-         CALL neighbor_list_iterator_release(nl_iterator)
-         !
+            END DO
+            CALL neighbor_list_iterator_release(nl_iterator)
+            !
+         END IF
+
          DEALLOCATE (atom_of_kind, kind_of)
          IF (SIZE(matrix_p, 1) == 2) THEN
             DO ic = 1, SIZE(matrix_p, 2)
@@ -237,46 +280,65 @@ CONTAINS
             CALL get_kpoint_info(kpoint=kpoints, cell_to_index=cell_to_index)
          END IF
 
-         NULLIFY (n_list)
-         CALL get_qs_env(qs_env=qs_env, sab_orb=n_list)
-         CALL neighbor_list_iterator_create(nl_iterator, n_list)
-         DO WHILE (neighbor_list_iterate(nl_iterator) == 0)
-            CALL get_iterator_info(nl_iterator, ikind=ikind, jkind=jkind, &
-                                   iatom=iatom, jatom=jatom, r=rij, cell=cellind)
+         IF (nimg == 1) THEN
+            ! no k-points; all matrices have been transformed to periodic bsf
+            CALL dbcsr_iterator_start(iter, matrix_s(1, 1)%matrix)
+            DO WHILE (dbcsr_iterator_blocks_left(iter))
+               CALL dbcsr_iterator_next_block(iter, irow, icol, sblock, blk)
+               ikind = kind_of(irow)
+               CALL get_qs_kind(qs_kind_set(ikind), dftb_parameter=dftb_kind)
+               CALL get_dftb_atom_param(dftb_kind, dudq=ui)
+               jkind = kind_of(icol)
+               CALL get_qs_kind(qs_kind_set(jkind), dftb_parameter=dftb_kind)
+               CALL get_dftb_atom_param(dftb_kind, dudq=uj)
+               gmij = -0.5_dp*(ui*mcharge(irow)**2+uj*mcharge(icol)**2)
+               DO is = 1, SIZE(ks_matrix, 1)
+                  NULLIFY (ksblock)
+                  CALL dbcsr_get_block_p(matrix=ks_matrix(is, 1)%matrix, &
+                                         row=irow, col=icol, block=ksblock, found=found)
+                  CPASSERT(found)
+                  ksblock = ksblock-0.5_dp*gmij*sblock
+               END DO
+            ENDDO
+            CALL dbcsr_iterator_stop(iter)
+         ELSE
+            NULLIFY (n_list)
+            CALL get_qs_env(qs_env=qs_env, sab_orb=n_list)
+            CALL neighbor_list_iterator_create(nl_iterator, n_list)
+            DO WHILE (neighbor_list_iterate(nl_iterator) == 0)
+               CALL get_iterator_info(nl_iterator, ikind=ikind, jkind=jkind, &
+                                      iatom=iatom, jatom=jatom, r=rij, cell=cellind)
 
-            icol = MAX(iatom, jatom)
-            irow = MIN(iatom, jatom)
+               icol = MAX(iatom, jatom)
+               irow = MIN(iatom, jatom)
 
-            IF (nimg == 1) THEN
-               ic = 1
-            ELSE
                ic = cell_to_index(cellind(1), cellind(2), cellind(3))
                CPASSERT(ic > 0)
-            END IF
 
-            ikind = kind_of(iatom)
-            CALL get_qs_kind(qs_kind_set(ikind), dftb_parameter=dftb_kind)
-            CALL get_dftb_atom_param(dftb_kind, dudq=ui)
-            jkind = kind_of(jatom)
-            CALL get_qs_kind(qs_kind_set(jkind), dftb_parameter=dftb_kind)
-            CALL get_dftb_atom_param(dftb_kind, dudq=uj)
-            gmij = -0.5_dp*(ui*mcharge(iatom)**2+uj*mcharge(jatom)**2)
-            !
-            NULLIFY (sblock)
-            CALL dbcsr_get_block_p(matrix=matrix_s(1, ic)%matrix, &
-                                   row=irow, col=icol, block=sblock, found=found)
-            CPASSERT(found)
-            DO is = 1, SIZE(ks_matrix, 1)
-               NULLIFY (ksblock)
-               CALL dbcsr_get_block_p(matrix=ks_matrix(is, ic)%matrix, &
-                                      row=irow, col=icol, block=ksblock, found=found)
+               ikind = kind_of(iatom)
+               CALL get_qs_kind(qs_kind_set(ikind), dftb_parameter=dftb_kind)
+               CALL get_dftb_atom_param(dftb_kind, dudq=ui)
+               jkind = kind_of(jatom)
+               CALL get_qs_kind(qs_kind_set(jkind), dftb_parameter=dftb_kind)
+               CALL get_dftb_atom_param(dftb_kind, dudq=uj)
+               gmij = -0.5_dp*(ui*mcharge(iatom)**2+uj*mcharge(jatom)**2)
+               !
+               NULLIFY (sblock)
+               CALL dbcsr_get_block_p(matrix=matrix_s(1, ic)%matrix, &
+                                      row=irow, col=icol, block=sblock, found=found)
                CPASSERT(found)
-               ksblock = ksblock-0.5_dp*gmij*sblock
-            END DO
+               DO is = 1, SIZE(ks_matrix, 1)
+                  NULLIFY (ksblock)
+                  CALL dbcsr_get_block_p(matrix=ks_matrix(is, ic)%matrix, &
+                                         row=irow, col=icol, block=ksblock, found=found)
+                  CPASSERT(found)
+                  ksblock = ksblock-0.5_dp*gmij*sblock
+               END DO
 
-         END DO
-         CALL neighbor_list_iterator_release(nl_iterator)
-         !
+            END DO
+            CALL neighbor_list_iterator_release(nl_iterator)
+            !
+         END IF
          DEALLOCATE (kind_of)
       END IF
 
