@@ -197,8 +197,8 @@ CONTAINS
                   rij = pbc(rij, cell)
                   CALL virial_pair_force(virial%pv_virial, -1._dp, fij, rij)
                   IF (atprop%stress) THEN
-                     CALL virial_pair_force(atprop%atstress(:, :, iatom), -0.5_dp, fij, rij)
-                     CALL virial_pair_force(atprop%atstress(:, :, jatom), -0.5_dp, fij, rij)
+                     CALL virial_pair_force(atprop%atstress(:, :, irow), -0.5_dp, fij, rij)
+                     CALL virial_pair_force(atprop%atstress(:, :, icol), -0.5_dp, fij, rij)
                   END IF
                END IF
             ENDDO
