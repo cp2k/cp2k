@@ -28,6 +28,17 @@ function upload_file {
     wget --quiet --output-document=- --method=PUT --header="content-type: ${CONTENT_TYPE}" --header="cache-control: no-cache" --body-file="${FILE}" "${URL}" > /dev/null
 }
 
+# Upload preliminary report every 30s in the background.
+(
+while true ; do
+    sleep 1
+    count=$(( (count + 1) % 30 ))
+    if (( count == 1 )) && [ -n "${REPORT_UPLOAD_URL}" ]; then
+        upload_file "${REPORT_UPLOAD_URL}" "${REPORT}" "text/plain;charset=utf-8"
+    fi
+done
+)&
+
 # Calculate checksums of critical files.
 CHECKSUMS=/workspace/checksums.md5
 shopt -s nullglob  # ignore missing files
@@ -86,7 +97,6 @@ fi
 
 if ! md5sum --status --check ${CHECKSUMS}; then
     echo -e "\n========== Cleaning Build Cache ==========" | tee -a $REPORT
-    (md5sum --quiet --check ${CHECKSUMS} || true) |& tee -a $REPORT
     cd /workspace/cp2k
     make distclean |& tee -a $REPORT
 fi
@@ -95,16 +105,7 @@ fi
 if $TOOLCHAIN_OK ; then
     echo -e "\n========== Running Test ==========" | tee -a $REPORT
     cd /workspace
-    "$@" |& tee -a $REPORT &  # Launch in the background.
-
-    # Upload preliminary report every 30s while test is running.
-    while jobs %1 &> /dev/null ; do
-        sleep 1
-        count=$(( (count + 1) % 30 ))
-        if (( count == 1 )) && [ -n "${REPORT_UPLOAD_URL}" ]; then
-            upload_file "${REPORT_UPLOAD_URL}" "${REPORT}" "text/plain;charset=utf-8"
-        fi
-    done
+    "$@" |& tee -a $REPORT
 fi
 
 # Wrap up.
