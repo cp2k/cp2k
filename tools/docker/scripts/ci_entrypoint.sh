@@ -105,7 +105,10 @@ fi
 if $TOOLCHAIN_OK ; then
     echo -e "\n========== Running Test ==========" | tee -a $REPORT
     cd /workspace
-    "$@" |& tee -a $REPORT
+    if ! "$@" |& tee -a $REPORT ; then
+       echo -e "\nSummary: Test had non-zero exit status." | tee -a $REPORT
+       echo -e "Status: FAILED\n" | tee -a $REPORT
+    fi
 fi
 
 # Wrap up.

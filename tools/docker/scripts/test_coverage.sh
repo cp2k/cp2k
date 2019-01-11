@@ -23,9 +23,8 @@ make ARCH="${ARCH}" VERSION="${VERSION}" TESTOPTS="${TESTOPTS}" test
 # gcov gets stuck on some files...
 # Maybe related: https://bugs.launchpad.net/gcc-arm-embedded/+bug/1694644
 # As a workaround we'll simply remove the offending files for now.
-rm -v "/workspace/cp2k/obj/${ARCH}/${VERSION}"/almo_scf_types.gcda
-rm -v "/workspace/cp2k/obj/${ARCH}/${VERSION}"/dbcsr_tensor_types.gcda
-rm -v "/workspace/cp2k/obj/${ARCH}/${VERSION}"/mp2_types.gcda
+rm -fv "/workspace/cp2k/obj/${ARCH}/${VERSION}"/almo_scf_types.gcda
+rm -fv "/workspace/cp2k/obj/${ARCH}/${VERSION}"/mp2_types.gcda
 #cd /tmp
 #for i in /workspace/cp2k/obj/${ARCH}/${VERSION}/*.gcda; do
 #    timeout 30 gcov $i >/dev/null 2>&1 || rm -v $i
