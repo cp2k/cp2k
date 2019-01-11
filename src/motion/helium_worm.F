@@ -8,6 +8,7 @@ MODULE helium_worm
                                               helium_com,&
                                               helium_cycle_number,&
                                               helium_eval_expansion,&
+                                              helium_update_coord_system,&
                                               helium_pbc,&
                                               helium_total_moment_of_inertia,&
                                               helium_total_projected_area,&
@@ -73,7 +74,7 @@ CONTAINS
 !REAL(KIND=dp), DIMENSION(3) :: r
       REAL(KIND=dp) :: rtmp
 
-      helium%center(:) = helium_com(helium)
+      CALL helium_update_coord_system(helium, pint_env)
 
       ncentratt = 0
       ncentracc = 0
@@ -3661,6 +3662,62 @@ CONTAINS
       RETURN
 
    END FUNCTION worm_path_inter_action_tail
+
+   !FUNCTION worm_droplet_reject(helium,) RESULT(should_reject)
+   !   IMPLICIT NONE
+
+   !   TYPE(helium_solvent_type), POINTER, INTENT(IN)   :: helium
+   !   LOGICAL, INTENT(OUT)                             :: should, reject
+
+   !   INTEGER                     :: ia, ib
+   !   REAL(KIND=dp)               :: rtmp, rtmpo
+   !   REAL(KIND=dp), DIMENSION(3) :: dr, dro, new_com, old_com
+
+   !   IF (helium%solute_present) THEN
+   !      new_com(:) = helium%center(:)
+   !      old_com(:) = new_com(:)
+   !   ELSE
+   !      new_com(:) = 0.0_dp
+   !      DO ia = 1, helium%atoms
+   !         DO ib = 1, helium%beads
+   !            new_com(:) = new_com(:)+helium%work(:, ia, ib)
+   !         END DO
+   !      END DO
+   !      new_com(:) = new_com(:)/(REAL(helium%atoms*helium%beads, dp))
+   !      ! also compute the old center of mass (optimization potential)
+   !      old_com(:) = 0.0_dp
+   !      DO ia = 1, helium%atoms
+   !         DO ib = 1, helium%beads
+   !            old_com(:) = old_com(:)+helium%pos(:, ia, ib)
+   !         END DO
+   !      END DO
+   !      old_com(:) = old_com(:)/(REAL(helium%atoms*helium%beads, dp))
+   !   END IF
+   !   should_reject = .FALSE.
+   !   atom: DO ia = 1, helium%atoms
+   !      dr(:) = 0.0_dp
+   !      DO ib = 1, helium%beads
+   !         dr(:) = dr(:) + helium%work(:,ia,ib) - new_com(:)
+   !      END DO
+   !      dr(:) = dr(:) / REAL(helium%beads, dp)
+   !      rtmp = DOT_PRODUCT(dr,dr)
+   !      IF (rtmp >= helium%droplet_radius**2) THEN
+   !         dro(:) = 0.0_dp
+   !         DO ib = 1, helium%beads
+   !            dro(:) = dro(:) + helium%pos(:,ia,ib) - old_com(:)
+   !         END DO
+   !         dro(:) = dro(:) / REAL(helium%beads, dp)
+   !         rtmpo = DOT_PRODUCT(dro,dro)
+   !         ! only reject if it moves away from COM outside the droplet radius
+   !         IF (rtmpo < rtmp) THEN
+   !            ! found - this one does not fit within R from the center
+   !            should_reject = .TRUE.
+   !            EXIT atom
+   !         END IF
+   !      END IF
+   !   END DO atom
+
+   !END FUNCTION worm_droplet_reject
 
 #ifdef __FU_DEBUGWORM
    SUBROUTINE worm_write_open_state_pdb(helium, working)
