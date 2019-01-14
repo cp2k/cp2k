@@ -37,6 +37,7 @@ QS/regtest-kp-3
 QS/regtest-slab
 ATOM/regtest-pseudo
 DFTB/regtest-scc
+DFTB/regtest-scc-2
 QS/regtest-gpw-3
 QS/regtest-ot
 QS/regtest-gpw-1                                            libint

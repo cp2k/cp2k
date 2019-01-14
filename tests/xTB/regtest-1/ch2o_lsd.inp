@@ -1,5 +1,7 @@
 &FORCE_EVAL
   &DFT
+    CHARGE 1
+    LSD
     &QS
       METHOD xTB
       &xTB
