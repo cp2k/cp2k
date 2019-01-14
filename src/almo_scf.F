@@ -57,6 +57,8 @@ MODULE almo_scf
         dbcsr_get_info, dbcsr_get_stored_coordinates, dbcsr_multiply, dbcsr_nblkcols_total, &
         dbcsr_nblkrows_total, dbcsr_p_type, dbcsr_release, dbcsr_reserve_block2d, dbcsr_scale, &
         dbcsr_set, dbcsr_type, dbcsr_type_no_symmetry, dbcsr_type_symmetric, dbcsr_work_create
+   USE dbcsr_iterate_matrix,            ONLY: invert_Hotelling,&
+                                              matrix_sqrt_Newton_Schulz
    USE domain_submatrix_methods,        ONLY: init_submatrices,&
                                               release_submatrices
    USE input_constants,                 ONLY: &
@@ -67,10 +69,8 @@ MODULE almo_scf
         molecular_guess, optimizer_diis, optimizer_lin_eq_pcg, optimizer_pcg, restart_guess, &
         smear_fermi_dirac, virt_full, virt_number, virt_occ_size, xalmo_case_block_diag, &
         xalmo_case_fully_deloc, xalmo_case_normal, xalmo_trial_r0_out
-   
-   USE input_section_types,             ONLY: section_vals_type 
-   USE dbcsr_iterate_matrix,                  ONLY: invert_Hotelling,&
-                                              matrix_sqrt_Newton_Schulz
+   USE input_section_types,             ONLY: section_vals_get_subs_vals,&
+                                              section_vals_type
    USE kinds,                           ONLY: default_path_length,&
                                               dp
    USE mathlib,                         ONLY: binomial

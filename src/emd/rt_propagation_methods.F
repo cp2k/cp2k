@@ -44,12 +44,12 @@ MODULE rt_propagation_methods
         dbcsr_iterator_blocks_left, dbcsr_iterator_next_block, dbcsr_iterator_start, &
         dbcsr_iterator_stop, dbcsr_iterator_type, dbcsr_multiply, dbcsr_p_type, dbcsr_release, &
         dbcsr_scale, dbcsr_set, dbcsr_transposed, dbcsr_type
+   USE dbcsr_iterate_matrix,            ONLY: matrix_sqrt_Newton_Schulz
    USE input_constants,                 ONLY: do_arnoldi,&
                                               do_bch,&
                                               do_em,&
                                               do_pade,&
                                               do_taylor
-   USE dbcsr_iterate_matrix,                  ONLY: matrix_sqrt_Newton_Schulz
    USE kinds,                           ONLY: dp
    USE ls_matrix_exp,                   ONLY: cp_complex_dbcsr_gemm_3
    USE mathlib,                         ONLY: binomial

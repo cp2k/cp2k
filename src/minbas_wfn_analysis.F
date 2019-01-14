@@ -45,12 +45,12 @@ MODULE minbas_wfn_analysis
         dbcsr_iterator_start, dbcsr_iterator_stop, dbcsr_iterator_type, dbcsr_multiply, &
         dbcsr_p_type, dbcsr_release, dbcsr_set, dbcsr_type, dbcsr_type_no_symmetry, &
         dbcsr_type_symmetric
+   USE dbcsr_iterate_matrix,            ONLY: invert_Hotelling
    USE input_section_types,             ONLY: section_get_ivals,&
                                               section_vals_get,&
                                               section_vals_get_subs_vals,&
                                               section_vals_type,&
                                               section_vals_val_get
-   USE dbcsr_iterate_matrix,                  ONLY: invert_Hotelling
    USE kinds,                           ONLY: default_path_length,&
                                               dp
    USE message_passing,                 ONLY: mp_sum

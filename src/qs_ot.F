@@ -11,7 +11,6 @@
 !> \author Joost VandeVondele (06.2002)
 ! **************************************************************************************************
 MODULE qs_ot
-   USE dbcsr_arnoldi_api,                     ONLY: arnoldi_extremal
    USE cp_dbcsr_cholesky,               ONLY: cp_dbcsr_cholesky_decompose,&
                                               cp_dbcsr_cholesky_invert,&
                                               cp_dbcsr_cholesky_restore
@@ -24,6 +23,7 @@ MODULE qs_ot
         dbcsr_iterator_next_block, dbcsr_iterator_start, dbcsr_iterator_stop, dbcsr_iterator_type, &
         dbcsr_multiply, dbcsr_release, dbcsr_release_p, dbcsr_scale, dbcsr_scale_by_vector, &
         dbcsr_set, dbcsr_transposed, dbcsr_type
+   USE dbcsr_arnoldi_api,               ONLY: arnoldi_extremal
    USE kinds,                           ONLY: dp
    USE message_passing,                 ONLY: mp_sum
    USE preconditioner,                  ONLY: apply_preconditioner

@@ -9,7 +9,6 @@
 ! **************************************************************************************************
 MODULE rt_propagator_init
 
-   USE dbcsr_arnoldi_api,                     ONLY: arnoldi_extremal
    USE cp_control_types,                ONLY: dft_control_type,&
                                               rtp_control_type
    USE cp_dbcsr_operations,             ONLY: copy_dbcsr_to_fm,&
@@ -33,6 +32,8 @@ MODULE rt_propagator_init
    USE dbcsr_api,                       ONLY: &
         dbcsr_copy, dbcsr_create, dbcsr_deallocate_matrix, dbcsr_filter, dbcsr_multiply, &
         dbcsr_p_type, dbcsr_scale, dbcsr_set, dbcsr_type
+   USE dbcsr_arnoldi_api,               ONLY: arnoldi_extremal
+   USE dbcsr_iterate_matrix,            ONLY: matrix_sqrt_Newton_Schulz
    USE input_constants,                 ONLY: do_arnoldi,&
                                               do_bch,&
                                               do_cn,&
@@ -40,7 +41,6 @@ MODULE rt_propagator_init
                                               do_etrs,&
                                               do_pade,&
                                               do_taylor
-   USE dbcsr_iterate_matrix,                  ONLY: matrix_sqrt_Newton_Schulz
    USE kinds,                           ONLY: dp
    USE matrix_exp,                      ONLY: get_nsquare_norder
    USE qs_environment_types,            ONLY: get_qs_env,&

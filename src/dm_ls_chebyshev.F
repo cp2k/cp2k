@@ -10,7 +10,6 @@
 !> \author Jinwoong Cha
 ! **************************************************************************************************
 MODULE dm_ls_chebyshev
-   USE dbcsr_arnoldi_api,                     ONLY: arnoldi_extremal
    USE cp_log_handling,                 ONLY: cp_get_default_logger,&
                                               cp_logger_get_default_unit_nr,&
                                               cp_logger_type
@@ -22,6 +21,7 @@ MODULE dm_ls_chebyshev
         dbcsr_add, dbcsr_add_on_diag, dbcsr_copy, dbcsr_create, dbcsr_frobenius_norm, &
         dbcsr_get_info, dbcsr_get_occupation, dbcsr_multiply, dbcsr_release, dbcsr_scale, &
         dbcsr_set, dbcsr_trace, dbcsr_type, dbcsr_type_no_symmetry
+   USE dbcsr_arnoldi_api,               ONLY: arnoldi_extremal
    USE dm_ls_scf_qs,                    ONLY: write_matrix_to_cube
    USE dm_ls_scf_types,                 ONLY: ls_scf_env_type
    USE input_section_types,             ONLY: section_get_ivals,&

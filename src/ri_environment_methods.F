@@ -14,7 +14,6 @@
 !>          Dorothea Golze
 ! **************************************************************************************************
 MODULE ri_environment_methods
-   USE dbcsr_arnoldi_api,                     ONLY: arnoldi_conjugate_gradient
    USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                               get_atomic_kind_set
    USE cp_blacs_env,                    ONLY: cp_blacs_env_type
@@ -29,7 +28,8 @@ MODULE ri_environment_methods
         dbcsr_multiply, dbcsr_p_type, dbcsr_release, dbcsr_scale_by_vector, dbcsr_set, &
         dbcsr_type, dbcsr_type_antisymmetric, dbcsr_type_no_symmetry, &
         dbcsr_type_symmetric
-   USE dbcsr_iterate_matrix,                  ONLY: invert_Hotelling
+   USE dbcsr_arnoldi_api,               ONLY: arnoldi_conjugate_gradient
+   USE dbcsr_iterate_matrix,            ONLY: invert_Hotelling
    USE kinds,                           ONLY: dp
    USE lri_environment_types,           ONLY: allocate_lri_coefs,&
                                               lri_density_create,&

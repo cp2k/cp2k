@@ -11,7 +11,6 @@
 !> \author Joost VandeVondele
 ! **************************************************************************************************
 MODULE dm_ls_scf
-   USE dbcsr_arnoldi_api,                     ONLY: arnoldi_extremal
    USE bibliography,                    ONLY: Kolafa2004,&
                                               cite_reference
    USE cp_control_types,                ONLY: dft_control_type
@@ -24,6 +23,8 @@ MODULE dm_ls_scf
         dbcsr_create, dbcsr_distribution_type, dbcsr_filter, dbcsr_get_info, dbcsr_get_occupation, &
         dbcsr_multiply, dbcsr_p_type, dbcsr_release, dbcsr_scale, dbcsr_set, dbcsr_type, &
         dbcsr_type_no_symmetry
+   USE dbcsr_arnoldi_api,               ONLY: arnoldi_extremal
+   USE dbcsr_iterate_matrix,            ONLY: purify_mcweeny
    USE dm_ls_chebyshev,                 ONLY: compute_chebyshev
    USE dm_ls_scf_curvy,                 ONLY: deallocate_curvy_data,&
                                               dm_ls_curvy_optimization
@@ -49,7 +50,6 @@ MODULE dm_ls_scf
                                               ls_scf_trs4,&
                                               transport_transmission
    USE input_section_types,             ONLY: section_vals_type
-   USE dbcsr_iterate_matrix,                  ONLY: purify_mcweeny
    USE kinds,                           ONLY: default_path_length,&
                                               default_string_length,&
                                               dp

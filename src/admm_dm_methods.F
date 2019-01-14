@@ -20,9 +20,9 @@ MODULE admm_dm_methods
         dbcsr_iterator_blocks_left, dbcsr_iterator_next_block, dbcsr_iterator_start, &
         dbcsr_iterator_stop, dbcsr_iterator_type, dbcsr_multiply, dbcsr_p_type, dbcsr_release, &
         dbcsr_scale, dbcsr_set, dbcsr_type
+   USE dbcsr_iterate_matrix,            ONLY: invert_Hotelling
    USE input_constants,                 ONLY: do_admm_basis_projection,&
                                               do_admm_blocked_projection
-   USE dbcsr_iterate_matrix,                  ONLY: invert_Hotelling
    USE kinds,                           ONLY: dp
    USE pw_types,                        ONLY: pw_p_type
    USE qs_collocate_density,            ONLY: calculate_rho_elec

@@ -60,6 +60,9 @@ MODULE almo_scf_optimizer
         dbcsr_p_type, dbcsr_print_block_sum, dbcsr_release, dbcsr_reserve_block2d, dbcsr_scale, &
         dbcsr_set, dbcsr_set_diag, dbcsr_triu, dbcsr_type, dbcsr_type_no_symmetry, &
         dbcsr_work_create
+   USE dbcsr_iterate_matrix,            ONLY: determinant,&
+                                              invert_Hotelling,&
+                                              matrix_sqrt_Newton_Schulz
    USE domain_submatrix_methods,        ONLY: add_submatrices,&
                                               construct_submatrices,&
                                               copy_submatrices,&
@@ -76,9 +79,6 @@ MODULE almo_scf_optimizer
         xalmo_prec_domain, xalmo_prec_full, xalmo_prec_zero
    USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                               section_vals_type
-   USE dbcsr_iterate_matrix,                  ONLY: determinant,&
-                                              invert_Hotelling,&
-                                              matrix_sqrt_Newton_Schulz
    USE kinds,                           ONLY: dp
    USE machine,                         ONLY: m_flush,&
                                               m_walltime

@@ -25,12 +25,12 @@ MODULE ct_methods
         dbcsr_iterator_blocks_left, dbcsr_iterator_next_block, dbcsr_iterator_start, &
         dbcsr_iterator_stop, dbcsr_iterator_type, dbcsr_multiply, dbcsr_nblkcols_total, &
         dbcsr_nblkrows_total, dbcsr_norm, dbcsr_norm_maxabsnorm, dbcsr_release, &
-        dbcsr_reserve_block2d, dbcsr_scale, dbcsr_set, dbcsr_set_diag, dbcsr_transposed, &
-        dbcsr_type, dbcsr_type_no_symmetry, dbcsr_work_create
+        dbcsr_reserve_block2d, dbcsr_scale, dbcsr_set, dbcsr_set_diag,  &
+        dbcsr_transposed, dbcsr_type, dbcsr_type_no_symmetry, dbcsr_work_create
+   USE dbcsr_iterate_matrix,            ONLY: matrix_sqrt_Newton_Schulz
    USE input_constants,                 ONLY: &
         cg_dai_yuan, cg_fletcher, cg_fletcher_reeves, cg_hager_zhang, cg_hestenes_stiefel, &
         cg_liu_storey, cg_polak_ribiere, cg_zero, tensor_orthogonal, tensor_up_down
-   USE dbcsr_iterate_matrix,                  ONLY: matrix_sqrt_Newton_Schulz
    USE kinds,                           ONLY: dp
    USE machine,                         ONLY: m_walltime
 #include "./base/base_uses.f90"

@@ -31,6 +31,9 @@ MODULE almo_scf_methods
         dbcsr_nblkcols_total, dbcsr_nblkrows_total, dbcsr_print, dbcsr_release, &
         dbcsr_reserve_block2d, dbcsr_scale_by_vector, dbcsr_set, dbcsr_set_diag, dbcsr_transposed, &
         dbcsr_type, dbcsr_type_no_symmetry, dbcsr_type_symmetric, dbcsr_work_create
+   USE dbcsr_iterate_matrix,            ONLY: invert_Hotelling,&
+                                              invert_Taylor,&
+                                              matrix_sqrt_Newton_Schulz
    USE domain_submatrix_methods,        ONLY: &
         add_submatrices, construct_dbcsr_from_submatrices, construct_submatrices, &
         copy_submatrices, copy_submatrix_data, init_submatrices, multiply_submatrices, &
@@ -47,9 +50,6 @@ MODULE almo_scf_methods
                                               spd_inversion_dense_cholesky,&
                                               spd_inversion_ls_hotelling,&
                                               spd_inversion_ls_taylor
-   USE dbcsr_iterate_matrix,                  ONLY: invert_Hotelling,&
-                                              invert_Taylor,&
-                                              matrix_sqrt_Newton_Schulz
    USE kinds,                           ONLY: dp
    USE mathlib,                         ONLY: binomial
    USE util,                            ONLY: sort
