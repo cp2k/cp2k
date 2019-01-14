@@ -813,6 +813,7 @@ CONTAINS
 
       exb = 0.0_dp
       IF (xb_inter) THEN
+         CALL xb_neighbors(neighbor_atoms, para_env)
          CALL xb_interaction(exb, neighbor_atoms, atom_of_kind, kind_of, sab_xb, kx, kx2, rcab, &
                              calculate_forces, use_virial, force, virial, atprop)
       END IF
@@ -916,7 +917,7 @@ CONTAINS
 
       INTEGER                                            :: atom_a, handle, iatom, ikind, img, &
                                                             iounit, is, ispin, natom, natorb, &
-                                                            nkind, ns, nspins, nimg
+                                                            nimg, nkind, ns, nspins
       INTEGER, DIMENSION(25)                             :: lao
       INTEGER, DIMENSION(5)                              :: occ
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: aocharge, mcharge
@@ -924,7 +925,7 @@ CONTAINS
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(cp_para_env_type), POINTER                    :: para_env
-      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: mo_derivs, matrix_p1
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: mo_derivs
       TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: ks_matrix, matrix_h, matrix_p, matrix_s
       TYPE(dbcsr_type), POINTER                          :: mo_coeff
       TYPE(dft_control_type), POINTER                    :: dft_control
@@ -970,35 +971,37 @@ CONTAINS
          END DO
       END DO
 
-      ! Mulliken charges
-      CALL get_qs_env(qs_env=qs_env, particle_set=particle_set, matrix_s_kp=matrix_s)
-      CALL qs_rho_get(rho, rho_ao_kp=matrix_p)
-      natom = SIZE(particle_set)
-      ALLOCATE (mcharge(natom), charges(natom, 5))
-      charges = 0.0_dp
-      nkind = SIZE(atomic_kind_set)
-      DO ikind = 1, nkind
-         CALL get_atomic_kind(atomic_kind_set(ikind), natom=natom)
-         CALL get_qs_kind(qs_kind_set(ikind), xtb_parameter=xtb_kind)
-         CALL get_xtb_atom_param(xtb_kind, natorb=natorb, lao=lao, occupation=occ)
-         ALLOCATE (aocharge(natorb))
-         DO iatom = 1, natom
-            atom_a = atomic_kind_set(ikind)%atom_list(iatom)
-            CALL ao_charges(matrix_p, matrix_s, aocharge, atom_a, para_env)
-            charges(atom_a, :) = REAL(occ(:), KIND=dp)
-            DO is = 1, natorb
-               ns = lao(is)+1
-               charges(atom_a, ns) = charges(atom_a, ns)-aocharge(is)
+      IF (dft_control%qs_control%xtb_control%coulomb_interaction) THEN
+         ! Mulliken charges
+         CALL get_qs_env(qs_env=qs_env, particle_set=particle_set, matrix_s_kp=matrix_s)
+         CALL qs_rho_get(rho, rho_ao_kp=matrix_p)
+         natom = SIZE(particle_set)
+         ALLOCATE (mcharge(natom), charges(natom, 5))
+         charges = 0.0_dp
+         nkind = SIZE(atomic_kind_set)
+         DO ikind = 1, nkind
+            CALL get_atomic_kind(atomic_kind_set(ikind), natom=natom)
+            CALL get_qs_kind(qs_kind_set(ikind), xtb_parameter=xtb_kind)
+            CALL get_xtb_atom_param(xtb_kind, natorb=natorb, lao=lao, occupation=occ)
+            ALLOCATE (aocharge(natorb))
+            DO iatom = 1, natom
+               atom_a = atomic_kind_set(ikind)%atom_list(iatom)
+               CALL ao_charges(matrix_p, matrix_s, aocharge, atom_a, para_env)
+               charges(atom_a, :) = REAL(occ(:), KIND=dp)
+               DO is = 1, natorb
+                  ns = lao(is)+1
+                  charges(atom_a, ns) = charges(atom_a, ns)-aocharge(is)
+               END DO
+               mcharge(atom_a) = SUM(charges(atom_a, :))
             END DO
-            mcharge(atom_a) = SUM(charges(atom_a, :))
+            DEALLOCATE (aocharge)
          END DO
-         DEALLOCATE (aocharge)
-      END DO
 
-      CALL build_xtb_coulomb(qs_env, ks_matrix, rho, charges, mcharge, energy, &
-                             calculate_forces, just_energy)
+         CALL build_xtb_coulomb(qs_env, ks_matrix, rho, charges, mcharge, energy, &
+                                calculate_forces, just_energy)
 
-      DEALLOCATE (mcharge, charges)
+         DEALLOCATE (mcharge, charges)
+      END IF
 
       IF (qs_env%qmmm) THEN
          CPABORT("QMMM with xTB not implemented")
@@ -1038,6 +1041,32 @@ CONTAINS
 
    END SUBROUTINE build_xtb_ks_matrix
 
+! **************************************************************************************************
+!> \brief  Distributes the neighbor atom information to all processors
+!>
+!> \param neighbor_atoms ...
+!> \param para_env ...
+!> \par History
+!>       1.2019 JGH
+!> \version 1.1
+! **************************************************************************************************
+   SUBROUTINE  xb_neighbors(neighbor_atoms, para_env)
+      TYPE(neighbor_atoms_type), DIMENSION(:), &
+         INTENT(INOUT)                                   :: neighbor_atoms
+      TYPE(cp_para_env_type), POINTER                    :: para_env
+
+      CHARACTER(len=*), PARAMETER :: routineN = 'xb_neighbors', routineP = moduleN//':'//routineN
+
+      INTEGER                                            :: nkind, ikind, iatom, natom
+
+      nkind = SIZE(neighbor_atoms)
+      DO ikind = 1,nkind
+         IF(ASSOCIATED(neighbor_atoms(ikind)%rab)) THEN
+            natom = SIZE(neighbor_atoms(ikind)%rab)
+         END IF
+      END DO
+
+   END SUBROUTINE  xb_neighbors
 ! **************************************************************************************************
 !> \brief  Computes the interaction term between Br/I/At and donor atoms
 !>
@@ -1096,6 +1125,8 @@ CONTAINS
          ! ikind, iatom : Halogen
          ! jkind, jatom : Donor
          atom_a = atom_of_kind(iatom)
+         katom = neighbor_atoms(ikind)%katom(atom_a)
+         IF(katom == 0) CYCLE
          dr = SQRT(rij(1)**2+rij(2)**2+rij(3)**2)
          ddr = rcab(ikind, jkind)/dr
          ddr6 = ddr**6
@@ -1119,7 +1150,6 @@ CONTAINS
          END IF
          !
          IF (calculate_forces) THEN
-            katom = neighbor_atoms(ikind)%katom(atom_a)
             kkind = kind_of(katom)
             atom_b = atom_of_kind(jatom)
             atom_c = atom_of_kind(katom)

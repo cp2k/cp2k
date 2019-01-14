@@ -167,7 +167,19 @@ CONTAINS
 
       CALL keyword_create(keyword, name="USE_HALOGEN_CORRECTION", &
                           description="Use XB interaction term", &
-                          usage="USE_HALOGEN_CORRECTION", default_l_val=.TRUE.)
+                          usage="USE_HALOGEN_CORRECTION T", default_l_val=.TRUE., lone_keyword_l_val=.TRUE.)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, name="COULOMB_INTERACTION", &
+                          description="Use Coulomb interaction terms (electrostatics + TB3); for debug only", &
+                          usage="COULOMB_INTERACTION T", default_l_val=.TRUE., lone_keyword_l_val=.TRUE.)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, name="TB3_INTERACTION", &
+                          description="Use TB3 interaction terms; for debug only", &
+                          usage="TB3_INTERACTION T", default_l_val=.TRUE., lone_keyword_l_val=.TRUE.)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 

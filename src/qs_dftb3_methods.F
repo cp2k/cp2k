@@ -28,14 +28,11 @@ MODULE qs_dftb3_methods
                                               kpoint_type
    USE message_passing,                 ONLY: mp_sum
    USE particle_types,                  ONLY: particle_type
-   USE qs_dftb_types,                   ONLY: qs_dftb_atom_type
-   USE qs_dftb_utils,                   ONLY: get_dftb_atom_param
    USE qs_energy_types,                 ONLY: qs_energy_type
    USE qs_environment_types,            ONLY: get_qs_env,&
                                               qs_environment_type
    USE qs_force_types,                  ONLY: qs_force_type
-   USE qs_kind_types,                   ONLY: get_qs_kind,&
-                                              qs_kind_type
+   USE qs_kind_types,                   ONLY: qs_kind_type
    USE qs_neighbor_list_types,          ONLY: get_iterator_info,&
                                               neighbor_list_iterate,&
                                               neighbor_list_iterator_create,&
@@ -167,11 +164,11 @@ CONTAINS
             CALL dbcsr_iterator_start(iter, matrix_s(1, 1)%matrix)
             DO WHILE (dbcsr_iterator_blocks_left(iter))
                CALL dbcsr_iterator_next_block(iter, irow, icol, sblock, blk)
-               ikind = kind_of(iatom)
-               atom_i = atom_of_kind(iatom)
+               ikind = kind_of(irow)
+               atom_i = atom_of_kind(irow)
                ui = xgamma(ikind)
-               jkind = kind_of(jatom)
-               atom_j = atom_of_kind(jatom)
+               jkind = kind_of(icol)
+               atom_j = atom_of_kind(icol)
                uj = xgamma(jkind)
                !
                gmij = -0.5_dp*(ui*mcharge(irow)**2+uj*mcharge(icol)**2)
@@ -219,23 +216,18 @@ CONTAINS
                ic = cell_to_index(cellind(1), cellind(2), cellind(3))
                CPASSERT(ic > 0)
 
-            ikind = kind_of(iatom)
-            atom_i = atom_of_kind(iatom)
-            ui = xgamma(ikind)
-            jkind = kind_of(jatom)
-            atom_j = atom_of_kind(jatom)
-            uj = xgamma(jkind)
-            !
-            gmij = -0.5_dp*(ui*mcharge(iatom)**2+uj*mcharge(jatom)**2)
-            !
-            NULLIFY (pblock)
-            CALL dbcsr_get_block_p(matrix=matrix_p(1, ic)%matrix, &
-                                   row=irow, col=icol, block=pblock, found=found)
-            CPASSERT(found)
-            DO i = 1, 3
-               NULLIFY (dsblock)
-               CALL dbcsr_get_block_p(matrix=matrix_s(1+i, ic)%matrix, &
-                                      row=irow, col=icol, block=dsblock, found=found)
+               ikind = kind_of(iatom)
+               atom_i = atom_of_kind(iatom)
+               ui = xgamma(ikind)
+               jkind = kind_of(jatom)
+               atom_j = atom_of_kind(jatom)
+               uj = xgamma(jkind)
+               !
+               gmij = -0.5_dp*(ui*mcharge(iatom)**2+uj*mcharge(jatom)**2)
+               !
+               NULLIFY (pblock)
+               CALL dbcsr_get_block_p(matrix=matrix_p(1, ic)%matrix, &
+                                      row=irow, col=icol, block=pblock, found=found)
                CPASSERT(found)
                DO i = 1, 3
                   NULLIFY (dsblock)
@@ -293,11 +285,9 @@ CONTAINS
             DO WHILE (dbcsr_iterator_blocks_left(iter))
                CALL dbcsr_iterator_next_block(iter, irow, icol, sblock, blk)
                ikind = kind_of(irow)
-               CALL get_qs_kind(qs_kind_set(ikind), dftb_parameter=dftb_kind)
-               CALL get_dftb_atom_param(dftb_kind, dudq=ui)
+               ui = xgamma(ikind)
                jkind = kind_of(icol)
-               CALL get_qs_kind(qs_kind_set(jkind), dftb_parameter=dftb_kind)
-               CALL get_dftb_atom_param(dftb_kind, dudq=uj)
+               uj = xgamma(jkind)
                gmij = -0.5_dp*(ui*mcharge(irow)**2+uj*mcharge(icol)**2)
                DO is = 1, SIZE(ks_matrix, 1)
                   NULLIFY (ksblock)
@@ -322,20 +312,15 @@ CONTAINS
                ic = cell_to_index(cellind(1), cellind(2), cellind(3))
                CPASSERT(ic > 0)
 
-            ikind = kind_of(iatom)
-            ui = xgamma(ikind)
-            jkind = kind_of(jatom)
-            uj = xgamma(jkind)
-            gmij = -0.5_dp*(ui*mcharge(iatom)**2+uj*mcharge(jatom)**2)
-            !
-            NULLIFY (sblock)
-            CALL dbcsr_get_block_p(matrix=matrix_s(1, ic)%matrix, &
-                                   row=irow, col=icol, block=sblock, found=found)
-            CPASSERT(found)
-            DO is = 1, SIZE(ks_matrix, 1)
-               NULLIFY (ksblock)
-               CALL dbcsr_get_block_p(matrix=ks_matrix(is, ic)%matrix, &
-                                      row=irow, col=icol, block=ksblock, found=found)
+               ikind = kind_of(iatom)
+               ui = xgamma(ikind)
+               jkind = kind_of(jatom)
+               uj = xgamma(jkind)
+               gmij = -0.5_dp*(ui*mcharge(iatom)**2+uj*mcharge(jatom)**2)
+               !
+               NULLIFY (sblock)
+               CALL dbcsr_get_block_p(matrix=matrix_s(1, ic)%matrix, &
+                                      row=irow, col=icol, block=sblock, found=found)
                CPASSERT(found)
                DO is = 1, SIZE(ks_matrix, 1)
                   NULLIFY (ksblock)
