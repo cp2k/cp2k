@@ -48,11 +48,12 @@ MODULE xtb_matrices
    USE kinds,                           ONLY: dp
    USE kpoint_types,                    ONLY: get_kpoint_info,&
                                               kpoint_type
-   USE message_passing,                 ONLY: mp_sum
+   USE message_passing,                 ONLY: mp_sum, mp_minloc, mp_wait
    USE mulliken,                        ONLY: ao_charges
    USE orbital_pointers,                ONLY: ncoset
    USE particle_types,                  ONLY: particle_type
    USE qs_dispersion_pairpot,           ONLY: d3_cnumber,&
+                                              d3_cnumber_bcast,&
                                               dcnum_type
    USE qs_dispersion_types,             ONLY: qs_dispersion_type
    USE qs_energy_types,                 ONLY: qs_energy_type
@@ -298,6 +299,10 @@ CONTAINS
       CALL d3_cnumber(qs_env, dispersion_env, cnumbers, dcnum, ghost, floating, atomnumber, &
                       calculate_forces, .FALSE.)
       DEALLOCATE (ghost, floating, atomnumber)
+      CALL mp_sum(cnumbers, para_env%group)
+      IF (calculate_forces) THEN
+         CALL d3_cnumber_bcast(dcnum, para_env)
+      END IF
 
       ! Calculate Huckel parameters
       ! Eq 12
@@ -1058,11 +1063,35 @@ CONTAINS
       CHARACTER(len=*), PARAMETER :: routineN = 'xb_neighbors', routineP = moduleN//':'//routineN
 
       INTEGER                                            :: nkind, ikind, iatom, natom
+      INTEGER, DIMENSION(:), ALLOCATABLE                 :: matom
+      REAL(KIND=dp), DIMENSION(:), ALLOCATABLE           :: dmloc, rab
+      REAL(KIND=dp), DIMENSION(:,:), ALLOCATABLE         :: coord
 
       nkind = SIZE(neighbor_atoms)
       DO ikind = 1,nkind
          IF(ASSOCIATED(neighbor_atoms(ikind)%rab)) THEN
             natom = SIZE(neighbor_atoms(ikind)%rab)
+            ALLOCATE(dmloc(2*natom),matom(natom),coord(3,natom))
+            dmloc = 0.0_dp
+            DO iatom=1,natom
+               dmloc(2*iatom-1) = neighbor_atoms(ikind)%rab(iatom)
+               dmloc(2*iatom) = REAL(para_env%mepos,KIND=dp)
+            END DO
+            CALL mp_minloc(dmloc,para_env%group)
+            coord = 0.0_dp
+            matom = 0
+            DO iatom=1,natom
+               neighbor_atoms(ikind)%rab(iatom) = dmloc(2*iatom-1)
+               IF(NINT(dmloc(2*iatom)) == para_env%mepos) THEN
+                  coord(1:3,iatom) = neighbor_atoms(ikind)%coord(1:3,iatom)
+                  matom(iatom) = neighbor_atoms(ikind)%katom(iatom)
+               END IF
+            END DO
+            CALL mp_sum(coord,para_env%group)
+            neighbor_atoms(ikind)%coord(1:3,:) = coord(1:3,:)
+            CALL mp_sum(matom,para_env%group)
+            neighbor_atoms(ikind)%katom(:) = matom(:)
+            DEALLOCATE(dmloc,matom,coord)
          END IF
       END DO
 

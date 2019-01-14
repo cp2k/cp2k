@@ -3,6 +3,7 @@
     &QS
       METHOD xTB
       &xTB
+         COULOMB_INTERACTION T
          &PARAMETER
              DISPERSION_PARAMETER_FILE dftd3.dat
          &END PARAMETER
