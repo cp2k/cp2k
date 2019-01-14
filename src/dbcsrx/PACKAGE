@@ -1,5 +1,0 @@
-{
-"description": "DBCSR eXtra functionalities",
-"archive": "libdbcsrx",
-"requires": ["../mpiwrap", "../base"],
-}
