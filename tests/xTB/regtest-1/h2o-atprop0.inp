@@ -11,6 +11,7 @@
       METHOD xTB 
       &xTB
         DO_EWALD           T
+        COULOMB_INTERACTION F
         &PARAMETER
           DISPERSION_PARAMETER_FILE   dftd3.dat
         &END PARAMETER
