@@ -239,6 +239,7 @@ CONTAINS
       IF (atprop%energy) THEN
          CALL qs_energies_mulliken(qs_env)
          IF (.NOT. dft_control%qs_control%semi_empirical .AND. &
+             .NOT. dft_control%qs_control%xtb .AND. &
              .NOT. dft_control%qs_control%dftb) THEN
             ! Nuclear charge correction
             CALL integrate_v_core_rspace(v_hartree_rspace, qs_env)

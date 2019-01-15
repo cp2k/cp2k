@@ -216,10 +216,12 @@ CONTAINS
                   DO i = 1, 3
                      fij(i) = -SUM(charges(iatom, 1:ni)*gcint(1:ni))*rij(i)/dr
                   END DO
-                  CALL virial_pair_force(virial%pv_virial, 1._dp, fij, rij)
+                  fi = 1.0_dp
+                  IF (iatom == jatom) fi = 0.5_dp
+                  CALL virial_pair_force(virial%pv_virial, fi, fij, rij)
                   IF (atprop%stress) THEN
-                     CALL virial_pair_force(atprop%atstress(:, :, iatom), 0.5_dp, fij, rij)
-                     CALL virial_pair_force(atprop%atstress(:, :, jatom), 0.5_dp, fij, rij)
+                     CALL virial_pair_force(atprop%atstress(:, :, iatom), fi*0.5_dp, fij, rij)
+                     CALL virial_pair_force(atprop%atstress(:, :, jatom), fi*0.5_dp, fij, rij)
                   END IF
                END IF
             END IF
@@ -430,10 +432,14 @@ CONTAINS
                   IF (use_virial) THEN
                      rij = particle_set(irow)%r-particle_set(icol)%r
                      rij = pbc(rij, cell)
-                     CALL virial_pair_force(virial%pv_virial, -1._dp, fij, rij)
-                     IF (atprop%stress) THEN
-                        CALL virial_pair_force(atprop%atstress(:, :, irow), -0.5_dp, fij, rij)
-                        CALL virial_pair_force(atprop%atstress(:, :, icol), -0.5_dp, fij, rij)
+                     dr = SQRT(SUM(rij(:)**2))
+                     IF (dr > 1.e-6_dp) THEN
+                        fi = -1.0_dp
+                        CALL virial_pair_force(virial%pv_virial, fi, fij, rij)
+                        IF (atprop%stress) THEN
+                           CALL virial_pair_force(atprop%atstress(:, :, irow), fi*0.5_dp, fij, rij)
+                           CALL virial_pair_force(atprop%atstress(:, :, icol), fi*0.5_dp, fij, rij)
+                        END IF
                      END IF
                   END IF
                END IF
@@ -520,10 +526,15 @@ CONTAINS
                      fij(i) = fij(i)+fi
                   END DO
                   IF (use_virial) THEN
-                     CALL virial_pair_force(virial%pv_virial, 1._dp, fij, rij)
-                     IF (atprop%stress) THEN
-                        CALL virial_pair_force(atprop%atstress(:, :, iatom), 0.5_dp, fij, rij)
-                        CALL virial_pair_force(atprop%atstress(:, :, jatom), 0.5_dp, fij, rij)
+                     dr = SQRT(SUM(rij(:)**2))
+                     IF (dr > 1.e-6_dp) THEN
+                        fi = 1.0_dp
+                        IF (iatom == jatom) fi = 0.5_dp
+                        CALL virial_pair_force(virial%pv_virial, fi, fij, rij)
+                        IF (atprop%stress) THEN
+                           CALL virial_pair_force(atprop%atstress(:, :, iatom), fi*0.5_dp, fij, rij)
+                           CALL virial_pair_force(atprop%atstress(:, :, jatom), fi*0.5_dp, fij, rij)
+                        END IF
                      END IF
                   END IF
                END IF
