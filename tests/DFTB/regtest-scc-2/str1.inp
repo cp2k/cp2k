@@ -1,4 +1,4 @@
-@SET NREP 3
+@SET NREP 2
 &FORCE_EVAL
   STRESS_TENSOR ANALYTICAL
   &DFT
@@ -38,6 +38,7 @@
     &END SCF
     &POISSON
       &EWALD
+       ALPHA 5.0
        EWALD_TYPE SPME
        GMAX 50
        O_SPLINE 5

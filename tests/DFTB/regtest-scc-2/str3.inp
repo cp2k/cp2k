@@ -38,6 +38,7 @@
     &END SCF
     &POISSON
       &EWALD
+       ALPHA 5.0
        EWALD_TYPE SPME
        GMAX 50
        O_SPLINE 5
