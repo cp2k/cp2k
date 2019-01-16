@@ -11,9 +11,8 @@
       METHOD xTB 
       &xTB
         DO_EWALD           T
-        &PARAMETER
-          DISPERSION_PARAMETER_FILE   dftd3.dat
-        &END PARAMETER
+        COULOMB_INTERACTION T
+        TB3_INTERACTION T
       &END 
     &END QS
     &SCF

@@ -103,6 +103,7 @@ CONTAINS
          nkind, nmat, za, zb
       INTEGER, DIMENSION(25)                             :: laoa, laob
       INTEGER, DIMENSION(3)                              :: cellind, periodic
+      INTEGER, DIMENSION(5)                              :: occ
       INTEGER, DIMENSION(:), POINTER                     :: atom_of_kind, kind_of
       INTEGER, DIMENSION(:, :, :), POINTER               :: cell_to_index
       LOGICAL                                            :: defined, do_ewald, found, use_virial
@@ -316,14 +317,15 @@ CONTAINS
          CALL get_qs_env(qs_env=qs_env, local_particles=local_particles)
          DO ikind = 1, SIZE(local_particles%n_el)
             CALL get_qs_kind(qs_kind_set(ikind), xtb_parameter=xtb_kind)
-            CALL get_xtb_atom_param(xtb_kind, lmax=ni)
+            CALL get_xtb_atom_param(xtb_kind, lmax=ni, occupation=occ)
             ni = ni+1
+            zeff = SUM(REAL(occ, KIND=dp))
             DO ia = 1, local_particles%n_el(ikind)
                iatom = local_particles%list(ikind)%array(ia)
                atprop%atecoul(iatom) = atprop%atecoul(iatom)+ &
-                                       0.5_dp*SUM(charges(iatom, 1:ni)*gchrg(iatom, 1:ni, 1))
+                                       0.5_dp*SUM(REAL(occ(1:ni), KIND=dp)*gchrg(iatom, 1:ni, 1))
                atprop%atecoul(iatom) = atprop%atecoul(iatom)+ &
-                                       0.5_dp*mcharge(iatom)*gmcharge(iatom, 1)
+                                       0.5_dp*zeff*gmcharge(iatom, 1)
             END DO
          END DO
       END IF

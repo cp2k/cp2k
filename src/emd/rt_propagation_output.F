@@ -74,10 +74,10 @@ MODULE rt_propagation_output
    USE qs_mo_io,                        ONLY: write_rt_mos_to_restart
    USE qs_rho_types,                    ONLY: qs_rho_get,&
                                               qs_rho_type
-   USE qs_scf_post_dftb,                ONLY: scf_post_calculation_dftb
    USE qs_scf_post_gpw,                 ONLY: qs_scf_post_moments,&
                                               write_available_results,&
                                               write_mo_free_results
+   USE qs_scf_post_tb,                  ONLY: scf_post_calculation_tb
    USE qs_subsys_types,                 ONLY: qs_subsys_get,&
                                               qs_subsys_type
    USE rt_propagation_types,            ONLY: get_rtp,&
@@ -537,7 +537,7 @@ CONTAINS
       CALL get_qs_env(qs_env, input=input, dft_control=dft_control)
       dft_section => section_vals_get_subs_vals(qs_env%input, "DFT")
       IF (dft_control%qs_control%dftb) THEN
-         CALL scf_post_calculation_dftb(dft_section, qs_env=qs_env)
+         CALL scf_post_calculation_tb(qs_env, dft_section=dft_section, tb_type="DFTB")
       ELSE
          CALL qs_scf_post_moments(input, logger, qs_env, output_unit)
       END IF

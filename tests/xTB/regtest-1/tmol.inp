@@ -2,15 +2,6 @@
   &DFT
     &QS
       METHOD xTB
-      &xTB
-         USE_HALOGEN_CORRECTION T
-         STO_NG    6
-         HYDROGEN_STO_NG  4
-         COULOMB_INTERACTION T
-         &PARAMETER
-             DISPERSION_PARAMETER_FILE dftd3.dat
-         &END PARAMETER
-      &END XTB
       EPS_DEFAULT 1.e-20
     &END QS
     &SCF
