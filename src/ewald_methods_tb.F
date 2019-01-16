@@ -202,9 +202,9 @@ CONTAINS
             CALL get_patch(particle_set, box, green, npts, p1, rhos, is_core=.FALSE., &
                            is_shell=.FALSE., unit_charge=.TRUE.)
             CALL dg_sum_patch_force_1d(rpot, rhos, center(:, p1), fint)
-            atprop%atstress(1, 1, p1) = atprop%atstress(1, 1, p1)-0.5_dp*mcharge(p1)*fint*dvols
-            atprop%atstress(2, 2, p1) = atprop%atstress(2, 2, p1)-0.5_dp*mcharge(p1)*fint*dvols
-            atprop%atstress(3, 3, p1) = atprop%atstress(3, 3, p1)-0.5_dp*mcharge(p1)*fint*dvols
+            atprop%atstress(1, 1, p1) = atprop%atstress(1, 1, p1)+0.5_dp*mcharge(p1)*fint*dvols
+            atprop%atstress(2, 2, p1) = atprop%atstress(2, 2, p1)+0.5_dp*mcharge(p1)*fint*dvols
+            atprop%atstress(3, 3, p1) = atprop%atstress(3, 3, p1)+0.5_dp*mcharge(p1)*fint*dvols
          END DO
 
          CALL pw_pool_create_pw(pw_pool, phib_g, &
@@ -213,7 +213,7 @@ CONTAINS
          ffb = 1.0_dp/fourpi
          DO i = 1, 3
             DO ig = grid_spme%first_gne0, grid_spme%ngpts_cut_local
-               phib_g%cc(ig) = ffb*dphi_g(i)%pw%cc(ig)*(1.0_dp-ffa*grid_spme%gsq(ig))
+               phib_g%cc(ig) = ffb*dphi_g(i)%pw%cc(ig)*(1.0_dp+ffa*grid_spme%gsq(ig))
                phib_g%cc(ig) = phib_g%cc(ig)*green%influence_fn%cc(ig)
             END DO
             IF (grid_spme%have_g0) phib_g%cc(1) = 0.0_dp
@@ -235,8 +235,8 @@ CONTAINS
                                  is_core=.FALSE., is_shell=.FALSE., unit_charge=.TRUE.)
                   ! integrate box and potential
                   CALL dg_sum_patch_force_1d(rpot, rhos, center(:, p1), fint)
-                  atprop%atstress(i, j, p1) = atprop%atstress(i, j, p1)-fint*dvols*mcharge(p1)
-                  IF (i /= j) atprop%atstress(j, i, p1) = atprop%atstress(j, i, p1)-fint*dvols*mcharge(p1)
+                  atprop%atstress(i, j, p1) = atprop%atstress(i, j, p1)+fint*dvols*mcharge(p1)
+                  IF (i /= j) atprop%atstress(j, i, p1) = atprop%atstress(j, i, p1)+fint*dvols*mcharge(p1)
                END DO
 
             END DO
@@ -265,7 +265,7 @@ CONTAINS
             END DO
          END DO
          ffa = (1.0_dp/fourpi)*(0.5_dp/alpha)**2
-         virial%pv_virial = virial%pv_virial-(ffa*f_stress+h_stress)/REAL(para_env%num_pe, dp)
+         virial%pv_virial = virial%pv_virial-(ffa*f_stress-h_stress)/REAL(para_env%num_pe, dp)
       END IF
 
       !--------END OF STRESS TENSOR CALCULATION -----------
@@ -385,7 +385,11 @@ CONTAINS
                END DO
             END IF
             IF (use_virial) THEN
-               pfr = -dfr*mcharge(iatom)*mcharge(jatom)
+               IF (iatom == jatom) THEN
+                  pfr = -0.5_dp*dfr*mcharge(iatom)*mcharge(jatom)
+               ELSE
+                  pfr = -dfr*mcharge(iatom)*mcharge(jatom)
+               END IF
                CALL virial_pair_force(virial%pv_virial, -pfr, rij, rij)
                IF (atprop%stress) THEN
                   CALL virial_pair_force(atprop%atstress(:, :, iatom), -0.5_dp*pfr, rij, rij)
