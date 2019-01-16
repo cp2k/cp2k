@@ -1,12 +1,10 @@
-@SET NREP 1
+@SET NREP 2
 &FORCE_EVAL
   &DFT
     &QS
       METHOD xTB
       &xTB
          DO_EWALD T
-         COULOMB_INTERACTION T
-         TB3_INTERACTION F
          &PARAMETER
              DISPERSION_PARAMETER_FILE dftd3.dat
          &END PARAMETER
@@ -16,18 +14,13 @@
       &EWALD
        ALPHA 1.0
        EWALD_TYPE SPME
-       GMAX 50
+       GMAX 25
       &END EWALD
     &END POISSON
-    &KPOINTS
-       #SCHEME  NONE
-       SCHEME  GAMMA
-       #SCHEME  MONKHORST-PACK  1 1 1
-    &END KPOINTS
     &SCF
       SCF_GUESS MOPAC
       MAX_SCF  100
-      EPS_SCF 1.e-7
+      EPS_SCF 1.e-5
       &MIXING
           METHOD DIRECT_P_MIXING
           ALPHA   0.40

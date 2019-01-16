@@ -1,15 +1,15 @@
 !--------------------------------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations                              !
-!   Copyright (C) 2000 - 2018  CP2K developers group                                               !
+!   Copyright (C) 2000 - 2019  CP2K developers group                                               !
 !--------------------------------------------------------------------------------------------------!
 
 ! **************************************************************************************************
-!> \brief Does all kind of post scf calculations for xTB
+!> \brief Does all kind of post scf calculations for DFTB
 !> \par History
-!>      Started as a copy from the DFTB file
-!> \author JHU (10.2018)
+!>      Started as a copy from the GPW file
+!> \author JHU (03.2013)
 ! **************************************************************************************************
-MODULE qs_scf_post_xtb
+MODULE qs_scf_post_tb
    USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                               get_atomic_kind
    USE cell_types,                      ONLY: cell_type,&
@@ -50,6 +50,8 @@ MODULE qs_scf_post_xtb
    USE mulliken,                        ONLY: mulliken_charges
    USE particle_types,                  ONLY: particle_type
    USE physcon,                         ONLY: debye
+   USE qs_dftb_types,                   ONLY: qs_dftb_atom_type
+   USE qs_dftb_utils,                   ONLY: get_dftb_atom_param
    USE qs_environment_types,            ONLY: get_qs_env,&
                                               qs_environment_type
    USE qs_kind_types,                   ONLY: get_qs_kind,&
@@ -68,29 +70,30 @@ MODULE qs_scf_post_xtb
    PRIVATE
 
    ! Global parameters
-   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_scf_post_xtb'
-
-   PUBLIC :: scf_post_calculation_xtb
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_scf_post_tb'
+   PUBLIC :: scf_post_calculation_tb
 
 CONTAINS
 
 ! **************************************************************************************************
 !> \brief collects possible post - scf calculations and prints info / computes properties.
-!> \param dft_section ...
-!> \param scf_env ...
 !> \param qs_env ...
+!> \param scf_env ...
+!> \param dft_section ...
+!> \param tb_type ...
 !> \par History
 !>      03.2013 copy of scf_post_gpw
 !> \author JHU
 !> \note
 ! **************************************************************************************************
-   SUBROUTINE scf_post_calculation_xtb(dft_section, scf_env, qs_env)
+   SUBROUTINE scf_post_calculation_tb(qs_env, scf_env, dft_section, tb_type)
 
-      TYPE(section_vals_type), POINTER                   :: dft_section
-      TYPE(qs_scf_env_type), OPTIONAL, POINTER           :: scf_env
       TYPE(qs_environment_type), POINTER                 :: qs_env
+      TYPE(qs_scf_env_type), OPTIONAL, POINTER           :: scf_env
+      TYPE(section_vals_type), POINTER                   :: dft_section
+      CHARACTER(LEN=*)                                   :: tb_type
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'scf_post_calculation_xtb', &
+      CHARACTER(len=*), PARAMETER :: routineN = 'scf_post_calculation_tb', &
          routineP = moduleN//':'//routineN
 
       CHARACTER(LEN=2)                                   :: ana
@@ -106,6 +109,7 @@ CONTAINS
       TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: matrix_p, matrix_s
       TYPE(dft_control_type), POINTER                    :: dft_control
+      TYPE(qs_dftb_atom_type), POINTER                   :: dftb_kind
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
       TYPE(qs_rho_type), POINTER                         :: rho
       TYPE(section_vals_type), POINTER                   :: moments_section, print_key, &
@@ -131,8 +135,16 @@ CONTAINS
       nkind = SIZE(atomic_kind_set)
       DO ikind = 1, nkind
          CALL get_atomic_kind(atomic_kind_set(ikind), natom=nat)
-         CALL get_qs_kind(qs_kind_set(ikind), xtb_parameter=xtb_kind)
-         CALL get_xtb_atom_param(xtb_kind, zeff=zeff)
+         SELECT CASE (TRIM (tb_type))
+         CASE ("DFTB")
+            CALL get_qs_kind(qs_kind_set(ikind), dftb_parameter=dftb_kind)
+            CALL get_dftb_atom_param(dftb_kind, zeff=zeff)
+         CASE ("xTB")
+            CALL get_qs_kind(qs_kind_set(ikind), xtb_parameter=xtb_kind)
+            CALL get_xtb_atom_param(xtb_kind, zeff=zeff)
+         CASE DEFAULT
+            CPABORT("unknown TB type")
+         END SELECT
          DO iatom = 1, nat
             iat = atomic_kind_set(ikind)%atom_list(iatom)
             mcharge(iat) = zeff-SUM(charges(iat, 1:nspins))
@@ -152,8 +164,16 @@ CONTAINS
                   " # Atom   Element   Kind        Atomic population", " Net charge"
                DO ikind = 1, nkind
                   CALL get_atomic_kind(atomic_kind_set(ikind), natom=nat)
-                  CALL get_qs_kind(qs_kind_set(ikind), xtb_parameter=xtb_kind)
-                  CALL get_xtb_atom_param(xtb_kind, symbol=aname)
+                  SELECT CASE (tb_type)
+                  CASE ("DFTB")
+                     CALL get_qs_kind(qs_kind_set(ikind), dftb_parameter=dftb_kind)
+                     CALL get_dftb_atom_param(dftb_kind, name=aname)
+                  CASE ("xTB")
+                     CALL get_qs_kind(qs_kind_set(ikind), xtb_parameter=xtb_kind)
+                     CALL get_xtb_atom_param(xtb_kind, symbol=aname)
+                  CASE DEFAULT
+                     CPABORT("unknown TB type")
+                  END SELECT
                   ana = ADJUSTR(TRIM(ADJUSTL(aname)))
                   DO iatom = 1, nat
                      iat = atomic_kind_set(ikind)%atom_list(iatom)
@@ -170,8 +190,16 @@ CONTAINS
                   "# Atom  Element  Kind  Atomic population (alpha,beta)   Net charge  Spin moment"
                DO ikind = 1, nkind
                   CALL get_atomic_kind(atomic_kind_set(ikind), natom=nat)
-                  CALL get_qs_kind(qs_kind_set(ikind), xtb_parameter=xtb_kind)
-                  CALL get_xtb_atom_param(xtb_kind, aname=aname)
+                  SELECT CASE (tb_type)
+                  CASE ("DFTB")
+                     CALL get_qs_kind(qs_kind_set(ikind), dftb_parameter=dftb_kind)
+                     CALL get_dftb_atom_param(dftb_kind, name=aname)
+                  CASE ("xTB")
+                     CALL get_qs_kind(qs_kind_set(ikind), xtb_parameter=xtb_kind)
+                     CALL get_xtb_atom_param(xtb_kind, symbol=aname)
+                  CASE DEFAULT
+                     CPABORT("unknown TB type")
+                  END SELECT
                   ana = ADJUSTR(TRIM(ADJUSTL(aname)))
                   DO iatom = 1, nat
                      iat = atomic_kind_set(ikind)%atom_list(iatom)
@@ -192,28 +220,28 @@ CONTAINS
       ! Lowdin
       print_key => section_vals_get_subs_vals(print_section, "LOWDIN")
       IF (BTEST(cp_print_key_should_output(logger%iter_info, print_key), cp_p_file)) THEN
-         CPWARN("Lowdin population analysis not implemented for xTB method.")
+         CPWARN("Lowdin population analysis not implemented for TB methods.")
       END IF
 
       ! Hirshfeld
       print_key => section_vals_get_subs_vals(print_section, "HIRSHFELD")
       IF (BTEST(cp_print_key_should_output(logger%iter_info, print_key), cp_p_file)) THEN
-         CPWARN("Hirshfeld charges not available for xTB method.")
+         CPWARN("Hirshfeld charges not available for TB methods.")
       END IF
 
       ! MAO
       print_key => section_vals_get_subs_vals(print_section, "MAO_ANALYSIS")
       IF (BTEST(cp_print_key_should_output(logger%iter_info, print_key), cp_p_file)) THEN
-         CPWARN("MAO analysis not available for xTB method.")
+         CPWARN("MAO analysis not available for TB methods.")
       END IF
 
       ! Dipole Moments
       print_key => section_vals_get_subs_vals(print_section, "MOMENTS")
       IF (BTEST(cp_print_key_should_output(logger%iter_info, print_key), cp_p_file)) THEN
          unit_nr = cp_print_key_unit_nr(logger, print_section, "MOMENTS", &
-                                        extension=".data", middle_name="xtb_dipole", log_filename=.FALSE.)
+                                        extension=".data", middle_name="tb_dipole", log_filename=.FALSE.)
          moments_section => section_vals_get_subs_vals(print_section, "MOMENTS")
-         CALL xtb_dipole(qs_env, moments_section, unit_nr, mcharge)
+         CALL tb_dipole(qs_env, moments_section, unit_nr, mcharge)
          CALL cp_print_key_finished_output(unit_nr, logger, print_key)
       END IF
 
@@ -222,101 +250,101 @@ CONTAINS
       ! EPR Hyperfine Coupling
       print_key => section_vals_get_subs_vals(print_section, "HYPERFINE_COUPLING_TENSOR")
       IF (BTEST(cp_print_key_should_output(logger%iter_info, print_key), cp_p_file)) THEN
-         CPWARN("Hyperfine Coupling not implemented for xTB method.")
+         CPWARN("Hyperfine Coupling not implemented for TB methods.")
       END IF
 
       ! EFIELD CUBE FILE
       print_key => section_vals_get_subs_vals(print_section, "EFIELD_CUBE")
       IF (BTEST(cp_print_key_should_output(logger%iter_info, print_key), cp_p_file)) THEN
-         CPWARN("Efield cube file not implemented for xTB method.")
+         CPWARN("Efield cube file not implemented for TB methods.")
       END IF
 
       ! DENSITY CUBE FILE
       print_key => section_vals_get_subs_vals(print_section, "E_DENSITY_CUBE")
       IF (BTEST(cp_print_key_should_output(logger%iter_info, print_key), cp_p_file)) THEN
-         CPWARN("Electronic density cube file not implemented for xTB method.")
+         CPWARN("Electronic density cube file not implemented for TB methods.")
       END IF
 
       ! TOTAL DENSITY CUBE FILE
       print_key => section_vals_get_subs_vals(print_section, "TOT_DENSITY_CUBE")
       IF (BTEST(cp_print_key_should_output(logger%iter_info, print_key), cp_p_file)) THEN
-         CPWARN("Total density cube file not implemented for xTB method.")
+         CPWARN("Total density cube file not implemented for TB methods.")
       END IF
 
       ! V_Hartree CUBE FILE
       print_key => section_vals_get_subs_vals(print_section, "V_HARTREE_CUBE")
       IF (BTEST(cp_print_key_should_output(logger%iter_info, print_key), cp_p_file)) THEN
-         CPWARN("Hartree potential cube file not implemented for xTB method.")
+         CPWARN("Hartree potential cube file not implemented for TB methods.")
       END IF
 
       ! V_XC CUBE FILE
       print_key => section_vals_get_subs_vals(print_section, "V_XC_CUBE")
       IF (BTEST(cp_print_key_should_output(logger%iter_info, print_key), cp_p_file)) THEN
-         CPWARN("XC potential cube file not available for xTB method.")
+         CPWARN("XC potential cube file not available for TB methods.")
       END IF
 
       ! ELF
       print_key => section_vals_get_subs_vals(print_section, "ELF_CUBE")
       IF (BTEST(cp_print_key_should_output(logger%iter_info, print_key), cp_p_file)) THEN
-         CPWARN("ELF not implemented for xTB method.")
+         CPWARN("ELF not implemented for TB methods.")
       END IF
 
       ! KINETIC ENERGY
       print_key => section_vals_get_subs_vals(print_section, "KINETIC_ENERGY")
       IF (BTEST(cp_print_key_should_output(logger%iter_info, print_key), cp_p_file)) THEN
-         CPWARN("Kinetic energy not available for xTB method.")
+         CPWARN("Kinetic energy not available for TB methods.")
       END IF
 
       ! Xray diffraction spectrum
       print_key => section_vals_get_subs_vals(print_section, "XRAY_DIFFRACTION_SPECTRUM")
       IF (BTEST(cp_print_key_should_output(logger%iter_info, print_key), cp_p_file)) THEN
-         CPWARN("Xray diffraction spectrum not implemented for xTB method.")
+         CPWARN("Xray diffraction spectrum not implemented for TB methods.")
       END IF
 
       ! Electric field gradients
       print_key => section_vals_get_subs_vals(print_section, "ELECTRIC_FIELD_GRADIENT")
       IF (BTEST(cp_print_key_should_output(logger%iter_info, print_key), cp_p_file)) THEN
-         CPWARN("Electric field gradient not implemented for xTB method.")
+         CPWARN("Electric field gradient not implemented for TB methods.")
       END IF
 
       ! STM
       print_key => section_vals_get_subs_vals(print_section, "STM")
       IF (BTEST(cp_print_key_should_output(logger%iter_info, print_key), cp_p_file)) THEN
-         CPWARN("STM not implemented for xTB method.")
+         CPWARN("STM not implemented for TB methods.")
       END IF
 
       ! MO
       print_key => section_vals_get_subs_vals(print_section, "MO")
       IF (BTEST(cp_print_key_should_output(logger%iter_info, print_key), cp_p_file)) THEN
-         CPWARN("Printing of MO properties not implemented for xTB method.")
+         CPWARN("Printing of MO properties not implemented for TB methods.")
       END IF
 
       ! MO CUBES
       print_key => section_vals_get_subs_vals(print_section, "MO_CUBES")
       IF (BTEST(cp_print_key_should_output(logger%iter_info, print_key), cp_p_file)) THEN
-         CPWARN("Printing of MO cube files not implemented for xTB method.")
+         CPWARN("Printing of MO cube files not implemented for TB methods.")
       END IF
 
       ! Wavefunction mixing
       wfn_mix_section => section_vals_get_subs_vals(dft_section, "PRINT%WFN_MIX")
       CALL section_vals_get(wfn_mix_section, explicit=explicit)
-      IF (explicit .AND. .NOT. qs_env%run_rtp) CALL wfn_mix_xtb(qs_env, dft_section, scf_env)
+      IF (explicit .AND. .NOT. qs_env%run_rtp) CALL wfn_mix_tb(qs_env, dft_section, scf_env)
 
       ! PLUS_U
       print_key => section_vals_get_subs_vals(print_section, "PLUS_U")
       IF (BTEST(cp_print_key_should_output(logger%iter_info, print_key), cp_p_file)) THEN
-         CPWARN("DFT+U method not implemented for xTB method.")
+         CPWARN("DFT+U method not implemented for TB methods.")
       END IF
 
       ! PDOS
       print_key => section_vals_get_subs_vals(print_section, "PDOS")
       IF (BTEST(cp_print_key_should_output(logger%iter_info, print_key), cp_p_file)) THEN
-         CPWARN("Projected DOS not implemented for xTB method.")
+         CPWARN("Projected DOS not implemented for TB methods.")
       END IF
 
       CALL timestop(handle)
 
-   END SUBROUTINE scf_post_calculation_xtb
+   END SUBROUTINE scf_post_calculation_tb
 
 ! **************************************************************************************************
 !> \brief ...
@@ -325,14 +353,14 @@ CONTAINS
 !> \param unit_nr ...
 !> \param charges ...
 ! **************************************************************************************************
-   SUBROUTINE xtb_dipole(qs_env, input, unit_nr, charges)
+   SUBROUTINE tb_dipole(qs_env, input, unit_nr, charges)
 
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(section_vals_type), POINTER                   :: input
       INTEGER, INTENT(in)                                :: unit_nr
       REAL(KIND=dp), DIMENSION(:), INTENT(in)            :: charges
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'xtb_dipole', routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'tb_dipole', routineP = moduleN//':'//routineN
 
       CHARACTER(LEN=default_string_length)               :: description, dipole_type
       COMPLEX(KIND=dp)                                   :: dzeta, dzphase(3), zeta, zphase(3)
@@ -420,7 +448,7 @@ CONTAINS
          WRITE (unit_nr, '(1X,A,T48,3F11.6)') "DIPOLE "//TRIM(dipole_type)//" DERIVATIVE(A.U.)|", dipole_deriv
       END IF
 
-   END SUBROUTINE xtb_dipole
+   END SUBROUTINE tb_dipole
 
 ! **************************************************************************************************
 !> \brief computes the MOs and calls the wavefunction mixing routine.
@@ -431,13 +459,13 @@ CONTAINS
 !> \note
 ! **************************************************************************************************
 
-   SUBROUTINE wfn_mix_xtb(qs_env, dft_section, scf_env)
+   SUBROUTINE wfn_mix_tb(qs_env, dft_section, scf_env)
 
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(section_vals_type), POINTER                   :: dft_section
       TYPE(qs_scf_env_type), POINTER                     :: scf_env
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'wfn_mix_xtb', routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'wfn_mix_tb', routineP = moduleN//':'//routineN
 
       INTEGER                                            :: ispin, nao, nmo, output_unit
       REAL(dp), DIMENSION(:), POINTER                    :: mo_eigenvalues
@@ -502,8 +530,8 @@ CONTAINS
       CALL cp_fm_release(work)
       CALL cp_fm_struct_release(ao_ao_fmstruct)
 
-   END SUBROUTINE wfn_mix_xtb
+   END SUBROUTINE wfn_mix_tb
 
 ! **************************************************************************************************
 
-END MODULE qs_scf_post_xtb
+END MODULE qs_scf_post_tb

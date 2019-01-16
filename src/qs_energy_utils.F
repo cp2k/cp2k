@@ -335,7 +335,6 @@ CONTAINS
             CALL atom_trace(matrix_ks(ispin)%matrix, rho_ao(ispin)%matrix, &
                             0.5_dp, atprop%atener)
          END DO
-
       END IF
 
    END SUBROUTINE qs_energies_mulliken
