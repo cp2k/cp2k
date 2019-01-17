@@ -47,7 +47,6 @@ MODULE qs_scf_loop_utils
                                               do_block_krylov_diag,&
                                               do_general_diag,&
                                               do_general_diag_kp,&
-                                              do_ot_diag,&
                                               do_roks_diag,&
                                               do_scf_diag_subspace,&
                                               do_special_diag
@@ -201,10 +200,8 @@ CONTAINS
                                  scf_control, scf_section, &
                                  diis_step)
          END IF
-         ! OT diagonlization
+         ! OT diagonalization, ignored since this is part of the OO-model now
       CASE (ot_diag_method_nr)
-         CALL do_ot_diag(scf_env, mos, matrix_ks, matrix_s, &
-                         scf_control, scf_section, diis_step)
          ! Block Krylov diagonlization
       CASE (block_krylov_diag_method_nr)
          IF ((scf_env%krylov_space%eps_std_diag > 0.0_dp) .AND. &

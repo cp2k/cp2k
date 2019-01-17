@@ -164,6 +164,8 @@ MODULE qs_scf
    USE qs_wf_history_methods,           ONLY: wfi_purge_history,&
                                               wfi_update
    USE scf_control_types,               ONLY: scf_control_type
+   USE qs_scf_abstract_mo_calc,         ONLY: AbstractMOCalc
+   USE qs_scf_mo_calc_ot_diag,          ONLY: MOCalcOTDiag
 #include "./base/base_uses.f90"
 
    IMPLICIT NONE
@@ -341,13 +343,15 @@ CONTAINS
       TYPE(qs_ks_env_type), POINTER                      :: ks_env
       TYPE(qs_rho_type), POINTER                         :: rho
       TYPE(section_vals_type), POINTER                   :: dft_section, input, scf_section
+      CLASS(AbstractMOCalc), POINTER                     :: mo_calc
 
       CALL timeset(routineN, handle)
 
       NULLIFY (dft_control, rho, energy, &
                logger, qs_charges, ks_env, mos, atomic_kind_set, qs_kind_set, &
                particle_set, dft_section, input, &
-               scf_section, para_env, results, kpoints, pw_env, rho_ao_kp)
+               scf_section, para_env, results, kpoints, pw_env, rho_ao_kp, &
+               mo_calc)
 
       CPASSERT(ASSOCIATED(scf_env))
       CPASSERT(scf_env%ref_count > 0)
@@ -416,10 +420,21 @@ CONTAINS
       total_steps = 0
       energy%tot_old = 0.0_dp
 
+      SELECT CASE (scf_env%method)
+         CASE DEFAULT
+            ! ignore
+         CASE (ot_diag_method_nr)
+            ALLOCATE(MOCalcOTDiag :: mo_calc)
+            call mo_calc%init(qs_env, scf_env, scf_section)
+      END SELECT
+
       scf_outer_loop: DO
 
          CALL init_scf_loop(scf_env=scf_env, qs_env=qs_env, &
                             scf_section=scf_section)
+
+         ! if new OO model, call the preconditioner
+         IF (ASSOCIATED(mo_calc)) call mo_calc%pre()
 
          CALL qs_scf_set_loop_flags(scf_env, diis_step, &
                                     energy_only, just_energy, exit_inner_loop)
@@ -442,6 +457,9 @@ CONTAINS
 
             ! print 'heavy weight' or relatively expensive quantities
             CALL qs_scf_loop_print(qs_env, scf_env, para_env)
+
+            ! if new OO model, call the MO calculation routine
+            IF (ASSOCIATED(mo_calc)) call mo_calc%run(diis_step)
 
             IF (do_kpoints) THEN
                ! kpoints
@@ -534,6 +552,9 @@ CONTAINS
       END DO scf_outer_loop
 
       converged = inner_loop_converged .AND. outer_loop_converged
+
+      ! if new OO model is used, deallocate the object
+      IF (ASSOCIATED(mo_calc)) DEALLOCATE(mo_calc)
 
       IF (dft_control%qs_control%cdft) &
          dft_control%qs_control%cdft_control%total_steps = &
@@ -640,33 +661,7 @@ CONTAINS
          END IF
 
       CASE (ot_diag_method_nr)
-         CALL get_qs_env(qs_env, matrix_ks=matrix_ks, matrix_s=matrix_s)
-
-         IF (.NOT. scf_env%skip_diis) THEN
-            IF (.NOT. ASSOCIATED(scf_env%scf_diis_buffer)) THEN
-               CALL qs_diis_b_create(scf_env%scf_diis_buffer, nbuffer=scf_control%max_diis)
-            END IF
-            CALL qs_diis_b_clear(scf_env%scf_diis_buffer)
-         END IF
-
-         ! disable DFTB and SE for now
-         IF (dft_control%qs_control%dftb .OR. &
-             dft_control%qs_control%xtb .OR. &
-             dft_control%qs_control%semi_empirical) THEN
-            CPABORT("DFTB and SE not available with OT/DIAG")
-         END IF
-
-         ! if an old preconditioner is still around (i.e. outer SCF is active),
-         ! remove it if this could be worthwhile
-         CALL restart_preconditioner(qs_env, scf_env%ot_preconditioner, &
-                                     scf_control%diagonalization%ot_settings%preconditioner_type, &
-                                     dft_control%nspins)
-
-         CALL prepare_preconditioner(qs_env, mos, matrix_ks, matrix_s, scf_env%ot_preconditioner, &
-                                     scf_control%diagonalization%ot_settings%preconditioner_type, &
-                                     scf_control%diagonalization%ot_settings%precond_solver_type, &
-                                     scf_control%diagonalization%ot_settings%energy_gap, dft_control%nspins)
-
+         ! Initialization is part of the new OO model
       CASE (block_davidson_diag_method_nr)
          ! Preconditioner initialized within the loop, when required
       CASE (ot_method_nr)

@@ -22,7 +22,6 @@ MODULE qs_scf_diagonalization
    USE cp_control_types,                ONLY: dft_control_type
    USE cp_dbcsr_cp2k_link,              ONLY: cp_dbcsr_alloc_block_from_nbl
    USE cp_dbcsr_operations,             ONLY: copy_dbcsr_to_fm,&
-                                              copy_fm_to_dbcsr,&
                                               cp_dbcsr_sm_fm_multiply,&
                                               dbcsr_allocate_matrix_set
    USE cp_fm_basic_linalg,              ONLY: cp_fm_symm,&
@@ -84,13 +83,11 @@ MODULE qs_scf_diagonalization
                                               mixing_allocate,&
                                               mixing_init,&
                                               self_consistency_check
-   USE qs_mo_methods,                   ONLY: calculate_density_matrix,&
-                                              calculate_subspace_eigenvalues
+   USE qs_mo_methods,                   ONLY: calculate_density_matrix
    USE qs_mo_occupation,                ONLY: set_mo_occupation
    USE qs_mo_types,                     ONLY: get_mo_set,&
                                               mo_set_p_type
    USE qs_neighbor_list_types,          ONLY: neighbor_list_set_p_type
-   USE qs_ot_eigensolver,               ONLY: ot_eigensolver
    USE qs_rho_atom_types,               ONLY: rho_atom_type
    USE qs_rho_methods,                  ONLY: qs_rho_update_rho
    USE qs_rho_types,                    ONLY: qs_rho_get,&
@@ -117,7 +114,7 @@ MODULE qs_scf_diagonalization
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_scf_diagonalization'
 
    PUBLIC :: do_general_diag, do_general_diag_kp, do_roks_diag, &
-             do_special_diag, do_ot_diag, do_block_davidson_diag, &
+             do_special_diag, do_block_davidson_diag, &
              do_block_krylov_diag, do_scf_diag_subspace, diag_subspace_allocate, general_eigenproblem
 
 CONTAINS
@@ -965,110 +962,6 @@ CONTAINS
       END DO
 
    END SUBROUTINE do_special_diag
-
-! **************************************************************************************************
-!> \brief the inner loop of scf, specific to iterative diagonalization using OT
-!>        with S matrix; basically, in goes the ks matrix out goes a new p matrix
-!> \param scf_env ...
-!> \param mos ...
-!> \param matrix_ks ...
-!> \param matrix_s ...
-!> \param scf_control ...
-!> \param scf_section ...
-!> \param diis_step ...
-!> \par History
-!>      10.2008 created [JGH]
-! **************************************************************************************************
-   SUBROUTINE do_ot_diag(scf_env, mos, matrix_ks, matrix_s, &
-                         scf_control, scf_section, diis_step)
-
-      TYPE(qs_scf_env_type), POINTER                     :: scf_env
-      TYPE(mo_set_p_type), DIMENSION(:), POINTER         :: mos
-      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_ks, matrix_s
-      TYPE(scf_control_type), POINTER                    :: scf_control
-      TYPE(section_vals_type), POINTER                   :: scf_section
-      LOGICAL, INTENT(INOUT)                             :: diis_step
-
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'do_ot_diag', routineP = moduleN//':'//routineN
-
-      INTEGER                                            :: homo, ispin, nmo, nspin
-      REAL(KIND=dp)                                      :: diis_error, eps_iter
-      REAL(KIND=dp), DIMENSION(:), POINTER               :: eigenvalues
-      TYPE(cp_fm_type), POINTER                          :: mo_coeff
-
-      NULLIFY (eigenvalues)
-
-      nspin = SIZE(matrix_ks)
-
-      DO ispin = 1, nspin
-         CALL copy_dbcsr_to_fm(matrix_ks(ispin)%matrix, &
-                               scf_env%scf_work1(ispin)%matrix)
-      END DO
-
-      IF ((scf_env%iter_count > 1) .AND. (.NOT. scf_env%skip_diis)) THEN
-         CALL qs_diis_b_step(scf_env%scf_diis_buffer, mos, scf_env%scf_work1, &
-                             scf_env%scf_work2, scf_env%iter_delta, diis_error, diis_step, &
-                             scf_control%eps_diis, scf_control%nmixing, &
-                             s_matrix=matrix_s, &
-                             scf_section=scf_section)
-      ELSE
-         diis_step = .FALSE.
-      END IF
-
-      eps_iter = scf_control%diagonalization%eps_iter
-      IF (diis_step) THEN
-         scf_env%iter_param = diis_error
-         scf_env%iter_method = "DIIS/OTdiag"
-         DO ispin = 1, nspin
-            CALL copy_fm_to_dbcsr(scf_env%scf_work1(ispin)%matrix, &
-                                  matrix_ks(ispin)%matrix, keep_sparsity=.TRUE.)
-         END DO
-         eps_iter = MAX(eps_iter, scf_control%diagonalization%eps_adapt*diis_error)
-      ELSE
-         IF (scf_env%mixing_method == 1) THEN
-            scf_env%iter_param = scf_env%p_mix_alpha
-            scf_env%iter_method = "P_Mix/OTdiag."
-         ELSEIF (scf_env%mixing_method > 1) THEN
-            scf_env%iter_param = scf_env%mixing_store%alpha
-            scf_env%iter_method = TRIM(scf_env%mixing_store%iter_method)//"/OTdiag."
-         END IF
-      END IF
-
-      scf_env%iter_delta = 0.0_dp
-
-      DO ispin = 1, nspin
-         CALL get_mo_set(mos(ispin)%mo_set, &
-                         mo_coeff=mo_coeff, &
-                         eigenvalues=eigenvalues, &
-                         nmo=nmo, &
-                         homo=homo)
-         CALL ot_eigensolver(matrix_h=matrix_ks(ispin)%matrix, &
-                             matrix_s=matrix_s(1)%matrix, &
-                             matrix_c_fm=mo_coeff, &
-                             preconditioner=scf_env%ot_preconditioner(1)%preconditioner, &
-                             eps_gradient=eps_iter, &
-                             iter_max=scf_control%diagonalization%max_iter, &
-                             silent=.TRUE., &
-                             ot_settings=scf_control%diagonalization%ot_settings)
-         CALL calculate_subspace_eigenvalues(mo_coeff, matrix_ks(ispin)%matrix, &
-                                             evals_arg=eigenvalues, &
-                                             do_rotation=.TRUE.)
-         !MK WRITE(*,*) routinen//' copy_dbcsr_to_fm'
-         CALL copy_fm_to_dbcsr(mos(ispin)%mo_set%mo_coeff, &
-                               mos(ispin)%mo_set%mo_coeff_b)
-         !fm->dbcsr
-      END DO
-
-      CALL set_mo_occupation(mo_array=mos, &
-                             smear=scf_control%smear)
-
-      DO ispin = 1, nspin
-         ! does not yet handle k-points
-         CALL calculate_density_matrix(mos(ispin)%mo_set, &
-                                       scf_env%p_mix_new(ispin, 1)%matrix)
-      END DO
-
-   END SUBROUTINE do_ot_diag
 
 ! **************************************************************************************************
 !> \brief Solve a set restricted open Kohn-Sham (ROKS) equations based on the
