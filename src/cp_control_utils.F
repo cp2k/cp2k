@@ -7,16 +7,15 @@
 !> \brief Utilities to set up the control types
 ! **************************************************************************************************
 MODULE cp_control_utils
-!qxtb  citation
    USE bibliography,                    ONLY: &
-        Andreussi2012, Dewar1977, Dewar1985, Elstner1998, Fattebert2002, Hu2007, Krack2000, &
-        Lippert1997, Lippert1999, Porezag1995, Repasky2002, Rocha2006, Schenter2008, Seifert1996, &
-        Souza2002, Stengel2009, Stewart1989, Stewart2007, Thiel1992, Umari2002, VanVoorhis2015, &
-        VandeVondele2005a, VandeVondele2005b, Zhechkov2005, cite_reference
+        Andreussi2012, Dewar1977, Dewar1985, Elstner1998, Fattebert2002, Grimme2017, Hu2007, &
+        Krack2000, Lippert1997, Lippert1999, Porezag1995, Repasky2002, Rocha2006, Schenter2008, &
+        Seifert1996, Souza2002, Stengel2009, Stewart1989, Stewart2007, Thiel1992, Umari2002, &
+        VanVoorhis2015, VandeVondele2005a, VandeVondele2005b, Zhechkov2005, cite_reference
    USE cp_control_types,                ONLY: &
         admm_control_create, admm_control_type, ddapc_control_create, ddapc_restraint_type, &
         dft_control_create, dft_control_type, efield_type, qs_control_type, sccs_control_create, &
-        tddfpt2_control_type, tddfpt_control_create, tddfpt_control_type
+        tddfpt2_control_type, tddfpt_control_create, tddfpt_control_type, xtb_control_type
    USE cp_files,                        ONLY: close_file,&
                                               open_file
    USE cp_log_handling,                 ONLY: cp_get_default_logger,&
@@ -780,7 +779,7 @@ CONTAINS
          CALL cite_reference(Seifert1996)
       CASE (do_method_xtb)
          qs_control%xtb = .TRUE.
-!qxtb    CALL cite_reference(Grimme2017)
+         CALL cite_reference(Grimme2017)
       CASE (do_method_mndo)
          CALL cite_reference(Dewar1977)
          qs_control%semi_empirical = .TRUE.
@@ -1295,7 +1294,10 @@ CONTAINS
 
       IF (dft_control%qs_control%semi_empirical) RETURN
       IF (dft_control%qs_control%dftb) RETURN
-      IF (dft_control%qs_control%xtb) RETURN
+      IF (dft_control%qs_control%xtb) THEN
+         CALL write_xtb_control(dft_control%qs_control%xtb_control, dft_section)
+         RETURN
+      END IF
       CALL timeset(routineN, handle)
 
       NULLIFY (logger)
@@ -1468,6 +1470,68 @@ CONTAINS
       CALL timestop(handle)
 
    END SUBROUTINE write_dft_control
+
+! **************************************************************************************************
+!> \brief Write the xTB control parameters to the output unit.
+!> \param xtb_control ...
+!> \param dft_section ...
+! **************************************************************************************************
+   SUBROUTINE write_xtb_control(xtb_control, dft_section)
+      TYPE(xtb_control_type), POINTER                    :: xtb_control
+      TYPE(section_vals_type), POINTER                   :: dft_section
+
+      CHARACTER(len=*), PARAMETER :: routineN = 'write_xtb_control', &
+         routineP = moduleN//':'//routineN
+
+      INTEGER                                            :: handle, output_unit
+      TYPE(cp_logger_type), POINTER                      :: logger
+
+      CALL timeset(routineN, handle)
+      NULLIFY (logger)
+      logger => cp_get_default_logger()
+
+      output_unit = cp_print_key_unit_nr(logger, dft_section, &
+                                         "PRINT%DFT_CONTROL_PARAMETERS", extension=".Log")
+
+      IF (output_unit > 0) THEN
+
+         WRITE (UNIT=output_unit, FMT="(/,T2,A,T31,A50)") &
+            "xTB| Parameter file", ADJUSTR(TRIM(xtb_control%parameter_file_name))
+         WRITE (UNIT=output_unit, FMT="(T2,A,T71,I10)") &
+            "xTB| Basis expansion STO-NG", xtb_control%sto_ng
+         WRITE (UNIT=output_unit, FMT="(T2,A,T71,I10)") &
+            "xTB| Basis expansion STO-NG for Hydrogen", xtb_control%h_sto_ng
+         WRITE (UNIT=output_unit, FMT="(T2,A,T71,L10)") &
+            "xTB| Halogen interaction potential", xtb_control%xb_interaction
+         WRITE (UNIT=output_unit, FMT="(T2,A,T71,F10.3)") &
+            "xTB| Halogen interaction potential cutoff radius", xtb_control%xb_radius
+         WRITE (UNIT=output_unit, FMT="(T2,A,T31,A50)") &
+            "xTB| D3 Dispersion: Parameter file", ADJUSTR(TRIM(xtb_control%dispersion_parameter_file))
+         WRITE (UNIT=output_unit, FMT="(T2,A,T51,3F10.3)") &
+            "xTB| Huckel constants ks kp kd", xtb_control%ks, xtb_control%kp, xtb_control%kd
+         WRITE (UNIT=output_unit, FMT="(T2,A,T61,2F10.3)") &
+            "xTB| Huckel constants ksp k2sh", xtb_control%ksp, xtb_control%k2sh
+         WRITE (UNIT=output_unit, FMT="(T2,A,T71,F10.3)") &
+            "xTB| Mataga-Nishimoto exponent", xtb_control%kg
+         WRITE (UNIT=output_unit, FMT="(T2,A,T71,F10.3)") &
+            "xTB| Repulsion potential exponent", xtb_control%kf
+         WRITE (UNIT=output_unit, FMT="(T2,A,T51,3F10.3)") &
+            "xTB| Coordination number scaling kcn(s) kcn(p) kcn(d)", &
+            xtb_control%kcns, xtb_control%kcnp, xtb_control%kcnd
+         WRITE (UNIT=output_unit, FMT="(T2,A,T71,F10.3)") &
+            "xTB| Electronegativity scaling", xtb_control%ken
+         WRITE (UNIT=output_unit, FMT="(T2,A,T61,2F10.3)") &
+            "xTB| Halogen potential scaling kxr kx2", xtb_control%kxr, xtb_control%kx2
+         WRITE (UNIT=output_unit, FMT="(/)")
+
+      END IF
+
+      CALL cp_print_key_finished_output(output_unit, logger, dft_section, &
+                                        "PRINT%DFT_CONTROL_PARAMETERS")
+
+      CALL timestop(handle)
+
+   END SUBROUTINE write_xtb_control
 
 ! **************************************************************************************************
 !> \brief Purpose: Write the QS control parameters to the output unit.

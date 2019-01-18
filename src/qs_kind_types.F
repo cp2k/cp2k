@@ -44,7 +44,9 @@ MODULE qs_kind_types
                                               qs_control_type
    USE cp_log_handling,                 ONLY: cp_get_default_logger,&
                                               cp_logger_type
-   USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
+   USE cp_output_handling,              ONLY: cp_p_file,&
+                                              cp_print_key_finished_output,&
+                                              cp_print_key_should_output,&
                                               cp_print_key_unit_nr
    USE cp_para_types,                   ONLY: cp_para_env_type
    USE external_potential_types,        ONLY: &
@@ -95,6 +97,7 @@ MODULE qs_kind_types
                                               se_param_set_default
    USE soft_basis_set,                  ONLY: create_soft_basis
    USE string_utilities,                ONLY: uppercase
+   USE xtb_parameters,                  ONLY: xtb_set_kab
    USE xtb_types,                       ONLY: deallocate_xtb_atom_param,&
                                               get_xtb_atom_param,&
                                               write_xtb_atom_param,&
@@ -2483,11 +2486,64 @@ CONTAINS
             qs_kind => qs_kind_set(ikind)
             CALL check_qs_kind(qs_kind, dft_control, subsys_section)
          END DO
+         IF (dft_control%qs_control%xtb) THEN
+            CALL write_xtb_kab_param(qs_kind_set, subsys_section)
+         END IF
       ELSE
          CPABORT("The pointer qs_kind_set is not associated")
       END IF
       CALL timestop(handle)
    END SUBROUTINE check_qs_kind_set
+
+! **************************************************************************************************
+!> \brief ...
+!> \param qs_kind_set ...
+!> \param subsys_section ...
+! **************************************************************************************************
+   SUBROUTINE write_xtb_kab_param(qs_kind_set, subsys_section)
+
+      TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
+      TYPE(section_vals_type), POINTER                   :: subsys_section
+
+      CHARACTER(len=*), PARAMETER :: routineN = 'write_xtb_kab_param', &
+         routineP = moduleN//':'//routineN
+
+      CHARACTER(LEN=default_string_length)               :: aname, bname
+      INTEGER                                            :: ikind, io_unit, jkind, nkind, za, zb
+      TYPE(cp_logger_type), POINTER                      :: logger
+      TYPE(qs_kind_type), POINTER                        :: qs_kinda, qs_kindb
+      TYPE(xtb_atom_type), POINTER                       :: xtb_parameter_a, xtb_parameter_b
+
+      NULLIFY (logger)
+      logger => cp_get_default_logger()
+      IF (BTEST(cp_print_key_should_output(logger%iter_info, subsys_section, &
+                                           "PRINT%KINDS/POTENTIAL"), cp_p_file)) THEN
+
+         io_unit = cp_print_key_unit_nr(logger, subsys_section, "PRINT%KINDS", extension=".Log")
+         IF (io_unit > 0) THEN
+
+            WRITE (io_unit, "(/,T2,A)") "xTB| Kab parameters"
+            nkind = SIZE(qs_kind_set)
+            DO ikind = 1, nkind
+               qs_kinda => qs_kind_set(ikind)
+               CALL get_qs_kind(qs_kinda, xtb_parameter=xtb_parameter_a)
+               CALL get_xtb_atom_param(xtb_parameter_a, aname=aname, z=za)
+               DO jkind = ikind, nkind
+                  qs_kindb => qs_kind_set(jkind)
+                  CALL get_qs_kind(qs_kindb, xtb_parameter=xtb_parameter_b)
+                  CALL get_xtb_atom_param(xtb_parameter_b, aname=bname, z=zb)
+                  WRITE (io_unit, "(A,T10,A15,T25,A15,T71,F10.3)") &
+                     "    Kab:", TRIM(aname), TRIM(bname), xtb_set_kab(za, zb)
+               END DO
+            END DO
+            WRITE (io_unit, *)
+
+         END IF
+
+         CALL cp_print_key_finished_output(io_unit, logger, subsys_section, "PRINT%KINDS")
+      END IF
+
+   END SUBROUTINE write_xtb_kab_param
 
 ! **************************************************************************************************
 !> \brief Set the components of an atomic kind data set.
