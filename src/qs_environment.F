@@ -671,6 +671,7 @@ CONTAINS
                                 zeff=qs_kind%xtb_parameter%zeff, zeff_correction=zeff_correction)
             qs_kind%xtb_parameter%zeff = qs_kind%xtb_parameter%zeff-zeff_correction
          END DO
+         !
          ! check for Ewald
          IF (xtb_control%do_ewald) THEN
             CALL ewald_env_create(ewald_env, para_env)

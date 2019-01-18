@@ -311,10 +311,13 @@ CONTAINS
       CHARACTER(LEN=*), PARAMETER :: routineN = 'write_xtb_atom_param', &
          routineP = moduleN//':'//routineN
 
-      CHARACTER(LEN=default_string_length)               :: aname, typ
-      INTEGER                                            :: io_unit, lmax, natorb, z
+      CHARACTER(LEN=default_string_length)               :: aname, bb
+      INTEGER                                            :: i, io_unit, m, natorb, nshell
+      INTEGER, DIMENSION(5)                              :: lval, nval, occupation
       LOGICAL                                            :: defined
       REAL(dp)                                           :: zeff
+      REAL(KIND=dp)                                      :: alpha, en, eta, xgamma, zneff
+      REAL(KIND=dp), DIMENSION(5)                        :: hen, kappa, kpoly, zeta
       TYPE(cp_logger_type), POINTER                      :: logger
 
       NULLIFY (logger)
@@ -327,19 +330,33 @@ CONTAINS
                                         extension=".Log")
 
          IF (io_unit > 0) THEN
-            CALL get_xtb_atom_param(xtb_parameter, aname=aname, typ=typ, defined=defined, &
-                                    z=z, zeff=zeff, natorb=natorb, lmax=lmax)
+            CALL get_xtb_atom_param(xtb_parameter, aname=aname, defined=defined, zeff=zeff, natorb=natorb)
+            CALL get_xtb_atom_param(xtb_parameter, nshell=nshell, lval=lval, nval=nval, occupation=occupation)
+            CALL get_xtb_atom_param(xtb_parameter, kpoly=kpoly, kappa=kappa, hen=hen, zeta=zeta)
+            CALL get_xtb_atom_param(xtb_parameter, electronegativity=en, xgamma=xgamma, eta=eta, alpha=alpha, zneff=zneff)
 
+            bb = "                                                "
             WRITE (UNIT=io_unit, FMT="(/,A,T67,A14)") " xTB  parameters: ", TRIM(aname)
             IF (defined) THEN
+               m = 5-nshell
                WRITE (UNIT=io_unit, FMT="(T16,A,T71,F10.2)") "Effective core charge:", zeff
                WRITE (UNIT=io_unit, FMT="(T16,A,T71,I10)") "Number of orbitals:", natorb
+               WRITE (UNIT=io_unit, FMT="(T16,A,T41,A,5(A4,I1,I2,A1))") "Basis set [nl]", bb(1:8*m), &
+                  ("   [", nval(i), lval(i), "]", i=1, nshell)
+               WRITE (UNIT=io_unit, FMT="(T16,A,T41,A,5F8.3)") "Slater Exponent", bb(1:8*m), (zeta(i), i=1, nshell)
+               WRITE (UNIT=io_unit, FMT="(T16,A,T41,A,5I8)") "Ref. occupation", bb(1:8*m), (occupation(i), i=1, nshell)
+               WRITE (UNIT=io_unit, FMT="(T16,A,T41,A,5F8.3)") "Energy levels [au]", bb(1:8*m), (hen(i), i=1, nshell)
+               WRITE (UNIT=io_unit, FMT="(T16,A,T41,A,5F8.3)") "Kpoly", bb(1:8*m), (kpoly(i), i=1, nshell)
+               WRITE (UNIT=io_unit, FMT="(T16,A,T71,F10.3)") "Electronegativity", en
+               WRITE (UNIT=io_unit, FMT="(T16,A,T71,F10.3)") "Mataga-Nishimoto constant (eta)", eta
+               WRITE (UNIT=io_unit, FMT="(T16,A,T41,A,5F8.3)") "Mataga-Nishimoto scaling kappa", bb(1:8*m), (kappa(i), i=1, nshell)
+               WRITE (UNIT=io_unit, FMT="(T16,A,T71,F10.3)") "3rd Order constant", xgamma
+               WRITE (UNIT=io_unit, FMT="(T16,A,T61,2F10.3)") "Repulsion potential [Z,alpha]", zneff, alpha
             ELSE
                WRITE (UNIT=io_unit, FMT="(T55,A)") "Parameters are not defined"
             END IF
          END IF
-         CALL cp_print_key_finished_output(io_unit, logger, subsys_section, &
-                                           "PRINT%KINDS")
+         CALL cp_print_key_finished_output(io_unit, logger, subsys_section, "PRINT%KINDS")
       END IF
 
    END SUBROUTINE write_xtb_atom_param
