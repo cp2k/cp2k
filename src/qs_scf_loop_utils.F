@@ -12,8 +12,7 @@ MODULE qs_scf_loop_utils
    USE cp_para_types,                   ONLY: cp_para_env_type
    USE dbcsr_api,                       ONLY: dbcsr_copy,&
                                               dbcsr_get_info,&
-                                              dbcsr_p_type,&
-                                              dbcsr_type
+                                              dbcsr_p_type
    USE input_section_types,             ONLY: section_vals_type
    USE kinds,                           ONLY: default_string_length,&
                                               dp
@@ -33,12 +32,8 @@ MODULE qs_scf_loop_utils
    USE qs_ks_types,                     ONLY: qs_ks_did_change,&
                                               qs_ks_env_type
    USE qs_mixing_utils,                 ONLY: self_consistency_check
-   USE qs_mo_methods,                   ONLY: calculate_density_matrix
-   USE qs_mo_occupation,                ONLY: set_mo_occupation
    USE qs_mo_types,                     ONLY: mo_set_p_type
    USE qs_mom_methods,                  ONLY: do_mom_diag
-   USE qs_ot_scf,                       ONLY: ot_scf_destroy,&
-                                              ot_scf_mini
    USE qs_outer_scf,                    ONLY: outer_loop_gradient
    USE qs_rho_methods,                  ONLY: qs_rho_update_rho
    USE qs_rho_types,                    ONLY: qs_rho_get,&
@@ -60,8 +55,7 @@ MODULE qs_scf_loop_utils
                                               ot_method_nr,&
                                               qs_scf_env_type,&
                                               special_diag_method_nr
-   USE scf_control_types,               ONLY: scf_control_type,&
-                                              smear_type
+   USE scf_control_types,               ONLY: scf_control_type
 #include "./base/base_uses.f90"
 
    IMPLICIT NONE
@@ -117,15 +111,13 @@ CONTAINS
 !> \param scf_control ...
 !> \param scf_section ...
 !> \param diis_step ...
-!> \param energy_only ...
 ! **************************************************************************************************
-   SUBROUTINE qs_scf_new_mos(qs_env, scf_env, scf_control, scf_section, diis_step, &
-                             energy_only)
+   SUBROUTINE qs_scf_new_mos(qs_env, scf_env, scf_control, scf_section, diis_step)
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(qs_scf_env_type), POINTER                     :: scf_env
       TYPE(scf_control_type), POINTER                    :: scf_control
       TYPE(section_vals_type), POINTER                   :: scf_section
-      LOGICAL                                            :: diis_step, energy_only
+      LOGICAL                                            :: diis_step
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'qs_scf_new_mos', routineP = moduleN//':'//routineN
 
@@ -200,8 +192,6 @@ CONTAINS
                                  scf_control, scf_section, &
                                  diis_step)
          END IF
-         ! OT diagonalization, ignored since this is part of the OO-model now
-      CASE (ot_diag_method_nr)
          ! Block Krylov diagonlization
       CASE (block_krylov_diag_method_nr)
          IF ((scf_env%krylov_space%eps_std_diag > 0.0_dp) .AND. &
@@ -228,11 +218,6 @@ CONTAINS
       CASE (block_davidson_diag_method_nr)
          CALL do_block_davidson_diag(qs_env, scf_env, mos, matrix_ks, matrix_s, scf_control, &
                                      scf_section, .FALSE.)
-         ! OT without diagonlization. Needs special treatment for SCP runs
-      CASE (ot_method_nr)
-         CALL qs_scf_loop_do_ot(qs_env, scf_env, scf_control%smear, mos, rho, &
-                                qs_env%mo_derivs, energy%total, &
-                                matrix_s, energy_only=energy_only, has_unit_metric=has_unit_metric)
       END SELECT
 
       energy%kTS = 0.0_dp
@@ -331,81 +316,6 @@ CONTAINS
       CALL timestop(handle)
 
    END SUBROUTINE qs_scf_new_mos_kp
-
-! **************************************************************************************************
-!> \brief the inner loop of scf, specific to using to the orbital transformation method
-!>       basically, in goes the ks matrix out goes a new p matrix
-!> \param qs_env ...
-!> \param scf_env ...
-!> \param smear ...
-!> \param mos ...
-!> \param rho ...
-!> \param mo_derivs ...
-!> \param total_energy ...
-!> \param matrix_s ...
-!> \param energy_only ...
-!> \param has_unit_metric ...
-!> \par History
-!>      03.2006 created [Joost VandeVondele]
-!>      2013    moved from qs_scf [Florian Schiffmann]
-! **************************************************************************************************
-   SUBROUTINE qs_scf_loop_do_ot(qs_env, scf_env, smear, mos, rho, mo_derivs, total_energy, &
-                                matrix_s, energy_only, has_unit_metric)
-
-      TYPE(qs_environment_type), POINTER                 :: qs_env
-      TYPE(qs_scf_env_type), POINTER                     :: scf_env
-      TYPE(smear_type), POINTER                          :: smear
-      TYPE(mo_set_p_type), DIMENSION(:), POINTER         :: mos
-      TYPE(qs_rho_type), POINTER                         :: rho
-      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: mo_derivs
-      REAL(KIND=dp), INTENT(IN)                          :: total_energy
-      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_s
-      LOGICAL, INTENT(INOUT)                             :: energy_only
-      LOGICAL, INTENT(IN)                                :: has_unit_metric
-
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'qs_scf_loop_do_ot', &
-         routineP = moduleN//':'//routineN
-
-      INTEGER                                            :: handle, ispin
-      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: rho_ao
-      TYPE(dbcsr_type), POINTER                          :: orthogonality_metric
-
-      CALL timeset(routineN, handle)
-      NULLIFY (rho_ao)
-
-      CALL qs_rho_get(rho, rho_ao=rho_ao)
-
-      IF (has_unit_metric) THEN
-         NULLIFY (orthogonality_metric)
-      ELSE
-         orthogonality_metric => matrix_s(1)%matrix
-      END IF
-
-      ! in case of LSD the first spin qs_ot_env will drive the minimization
-      ! in the case of a restricted calculation, it will make sure the spin orbitals are equal
-
-      CALL ot_scf_mini(mos, mo_derivs, smear, orthogonality_metric, &
-                       total_energy, energy_only, scf_env%iter_delta, &
-                       scf_env%qs_ot_env, qs_env%input)
-
-      DO ispin = 1, SIZE(mos)
-         CALL set_mo_occupation(mo_set=mos(ispin)%mo_set, &
-                                smear=smear)
-      ENDDO
-
-      DO ispin = 1, SIZE(mos)
-         CALL calculate_density_matrix(mos(ispin)%mo_set, &
-                                       rho_ao(ispin)%matrix, &
-                                       use_dbcsr=.TRUE.)
-      END DO
-
-      scf_env%iter_method = scf_env%qs_ot_env(1)%OT_METHOD_FULL
-      scf_env%iter_param = scf_env%qs_ot_env(1)%ds_min
-      qs_env%broyden_adaptive_sigma = scf_env%qs_ot_env(1)%broyden_adaptive_sigma
-
-      CALL timestop(handle)
-
-   END SUBROUTINE qs_scf_loop_do_ot
 
 ! **************************************************************************************************
 !> \brief Performs the requested density mixing if any needed
@@ -634,20 +544,18 @@ CONTAINS
       CHARACTER(LEN=*), PARAMETER :: routineN = 'qs_scf_inner_finalize', &
          routineP = moduleN//':'//routineN
 
-      LOGICAL                                            :: do_kpoints
       TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(dft_control_type), POINTER                    :: dft_control
-      TYPE(qs_energy_type), POINTER                      :: energy
       TYPE(qs_ks_env_type), POINTER                      :: ks_env
       TYPE(qs_rho_type), POINTER                         :: rho
 
-      NULLIFY (energy, rho, dft_control, ks_env)
+      NULLIFY (rho, dft_control, ks_env)
 
-      CALL get_qs_env(qs_env=qs_env, energy=energy, ks_env=ks_env, &
-                      rho=rho, dft_control=dft_control, para_env=para_env, &
-                      do_kpoints=do_kpoints)
+      CALL get_qs_env(qs_env=qs_env, ks_env=ks_env, &
+                      rho=rho, dft_control=dft_control, para_env=para_env)
 
-      CALL cleanup_scf_loop(scf_env)
+      CPASSERT(ASSOCIATED(scf_env))
+      CPASSERT(scf_env%ref_count > 0)
 
       ! now, print out energies and charges corresponding to the obtained wfn
       ! (this actually is not 100% consistent at this point)!
@@ -661,50 +569,5 @@ CONTAINS
       CALL qs_scf_rho_update(rho, qs_env, scf_env, ks_env, mix_rho=.FALSE.)
 
    END SUBROUTINE qs_scf_inner_finalize
-
-! **************************************************************************************************
-!> \brief perform cleanup operations at the end of an scf loop
-!> \param scf_env ...
-!> \par History
-!>      03.2006 created [Joost VandeVondele]
-! **************************************************************************************************
-   SUBROUTINE cleanup_scf_loop(scf_env)
-      TYPE(qs_scf_env_type), POINTER                     :: scf_env
-
-      CHARACTER(len=*), PARAMETER :: routineN = 'cleanup_scf_loop', &
-         routineP = moduleN//':'//routineN
-
-      INTEGER                                            :: handle, ispin
-
-      CALL timeset(routineN, handle)
-
-      CPASSERT(ASSOCIATED(scf_env))
-      CPASSERT(scf_env%ref_count > 0)
-! *** method dependent cleanup
-      SELECT CASE (scf_env%method)
-      CASE (ot_method_nr)
-         DO ispin = 1, SIZE(scf_env%qs_ot_env)
-            CALL ot_scf_destroy(scf_env%qs_ot_env(ispin))
-         ENDDO
-         DEALLOCATE (scf_env%qs_ot_env)
-      CASE (ot_diag_method_nr)
-         !
-      CASE (general_diag_method_nr)
-         !
-      CASE (special_diag_method_nr)
-         !
-      CASE (block_krylov_diag_method_nr, block_davidson_diag_method_nr)
-         !
-      CASE (filter_matrix_diag_method_nr)
-         !
-      CASE DEFAULT
-         CALL cp_abort(__LOCATION__, &
-                       "unknown scf method method:"// &
-                       cp_to_string(scf_env%method))
-      END SELECT
-
-      CALL timestop(handle)
-
-   END SUBROUTINE cleanup_scf_loop
 
 END MODULE qs_scf_loop_utils

@@ -50,8 +50,7 @@ MODULE qs_scf
    USE cp_files,                        ONLY: close_file
    USE cp_fm_types,                     ONLY: cp_fm_create,&
                                               cp_fm_release,&
-                                              cp_fm_to_fm,&
-                                              cp_fm_type
+                                              cp_fm_to_fm
    USE cp_log_handling,                 ONLY: cp_add_default_logger,&
                                               cp_get_default_logger,&
                                               cp_logger_release,&
@@ -73,15 +72,12 @@ MODULE qs_scf
                                               dbcsr_get_info,&
                                               dbcsr_init_p,&
                                               dbcsr_p_type,&
-                                              dbcsr_set,&
-                                              dbcsr_type
+                                              dbcsr_set
    USE input_constants,                 ONLY: &
         broyden_type_1, broyden_type_1_explicit, broyden_type_1_explicit_ls, broyden_type_1_ls, &
         broyden_type_2, broyden_type_2_explicit, broyden_type_2_explicit_ls, broyden_type_2_ls, &
-        cdft2ot, history_guess, ot2cdft, ot_precond_full_all, ot_precond_full_single, &
-        ot_precond_full_single_inverse, ot_precond_none, ot_precond_s_inverse, &
-        outer_scf_becke_constraint, outer_scf_hirshfeld_constraint, outer_scf_optimizer_broyden, &
-        outer_scf_optimizer_newton_ls
+        cdft2ot, history_guess, ot2cdft, outer_scf_becke_constraint, &
+        outer_scf_hirshfeld_constraint, outer_scf_optimizer_broyden, outer_scf_optimizer_newton_ls
    USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                               section_vals_type
    USE kinds,                           ONLY: default_path_length,&
@@ -94,8 +90,6 @@ MODULE qs_scf
    USE mathlib,                         ONLY: invert_matrix
    USE message_passing,                 ONLY: mp_send
    USE particle_types,                  ONLY: particle_type
-   USE preconditioner,                  ONLY: prepare_preconditioner,&
-                                              restart_preconditioner
    USE pw_env_types,                    ONLY: pw_env_get,&
                                               pw_env_type
    USE pw_pool_types,                   ONLY: pw_pool_give_back_pw,&
@@ -122,17 +116,12 @@ MODULE qs_scf
    USE qs_ks_types,                     ONLY: qs_ks_did_change,&
                                               qs_ks_env_type
    USE qs_mo_io,                        ONLY: write_mo_set
-   USE qs_mo_methods,                   ONLY: calculate_density_matrix,&
-                                              make_basis_simple,&
-                                              make_basis_sm
+   USE qs_mo_methods,                   ONLY: calculate_density_matrix
    USE qs_mo_occupation,                ONLY: set_mo_occupation
    USE qs_mo_types,                     ONLY: deallocate_mo_set,&
                                               duplicate_mo_set,&
                                               get_mo_set,&
                                               mo_set_p_type
-   USE qs_ot,                           ONLY: qs_ot_new_preconditioner
-   USE qs_ot_scf,                       ONLY: ot_scf_init,&
-                                              ot_scf_read_input
    USE qs_outer_scf,                    ONLY: outer_loop_gradient,&
                                               outer_loop_optimize,&
                                               outer_loop_purge_history,&
@@ -141,15 +130,16 @@ MODULE qs_scf
    USE qs_rho_methods,                  ONLY: qs_rho_update_rho
    USE qs_rho_types,                    ONLY: qs_rho_get,&
                                               qs_rho_type
+   USE qs_scf_abstract_mo_calc,         ONLY: AbstractMOCalc
    USE qs_scf_initialization,           ONLY: qs_scf_env_initialize
    USE qs_scf_loop_utils,               ONLY: qs_scf_check_inner_exit,&
                                               qs_scf_check_outer_exit,&
                                               qs_scf_density_mixing,&
                                               qs_scf_inner_finalize,&
-                                              qs_scf_new_mos,&
-                                              qs_scf_new_mos_kp,&
                                               qs_scf_rho_update,&
                                               qs_scf_set_loop_flags
+   USE qs_scf_mo_calc_ot,               ONLY: MOCalcOT
+   USE qs_scf_mo_calc_ot_diag,          ONLY: MOCalcOTDiag
    USE qs_scf_output,                   ONLY: qs_scf_cdft_info,&
                                               qs_scf_cdft_initial_info,&
                                               qs_scf_loop_info,&
@@ -164,8 +154,6 @@ MODULE qs_scf
    USE qs_wf_history_methods,           ONLY: wfi_purge_history,&
                                               wfi_update
    USE scf_control_types,               ONLY: scf_control_type
-   USE qs_scf_abstract_mo_calc,         ONLY: AbstractMOCalc
-   USE qs_scf_mo_calc_ot_diag,          ONLY: MOCalcOTDiag
 #include "./base/base_uses.f90"
 
    IMPLICIT NONE
@@ -343,6 +331,7 @@ CONTAINS
       TYPE(qs_ks_env_type), POINTER                      :: ks_env
       TYPE(qs_rho_type), POINTER                         :: rho
       TYPE(section_vals_type), POINTER                   :: dft_section, input, scf_section
+
       CLASS(AbstractMOCalc), POINTER                     :: mo_calc
 
       CALL timeset(routineN, handle)
@@ -421,20 +410,21 @@ CONTAINS
       energy%tot_old = 0.0_dp
 
       SELECT CASE (scf_env%method)
-         CASE DEFAULT
-            ! ignore
-         CASE (ot_diag_method_nr)
-            ALLOCATE(MOCalcOTDiag :: mo_calc)
-            call mo_calc%init(qs_env, scf_env, scf_section)
+      CASE DEFAULT
+         CPABORT("specified MO calc method not implemented")
+      CASE (ot_diag_method_nr)
+         ALLOCATE (MOCalcOTDiag :: mo_calc)
+         CALL mo_calc%init(qs_env, scf_env, scf_section)
+      CASE (ot_method_nr)
+         ALLOCATE (MOCalcOT :: mo_calc)
+         CALL mo_calc%init(qs_env, scf_env, scf_section)
       END SELECT
 
       scf_outer_loop: DO
 
-         CALL init_scf_loop(scf_env=scf_env, qs_env=qs_env, &
-                            scf_section=scf_section)
+         CALL init_scf_loop(scf_env=scf_env, qs_env=qs_env)
 
-         ! if new OO model, call the preconditioner
-         IF (ASSOCIATED(mo_calc)) call mo_calc%pre()
+         CALL mo_calc%pre()
 
          CALL qs_scf_set_loop_flags(scf_env, diis_step, &
                                     energy_only, just_energy, exit_inner_loop)
@@ -458,16 +448,16 @@ CONTAINS
             ! print 'heavy weight' or relatively expensive quantities
             CALL qs_scf_loop_print(qs_env, scf_env, para_env)
 
-            ! if new OO model, call the MO calculation routine
-            IF (ASSOCIATED(mo_calc)) call mo_calc%run(diis_step)
+            ! call the MO calculation routine
+            CALL mo_calc%run(diis_step, energy_only)
 
-            IF (do_kpoints) THEN
-               ! kpoints
-               CALL qs_scf_new_mos_kp(qs_env, scf_env, scf_control, diis_step)
-            ELSE
-               ! Gamma points only
-               CALL qs_scf_new_mos(qs_env, scf_env, scf_control, scf_section, diis_step, energy_only)
-            END IF
+            ! IF (do_kpoints) THEN
+            !    ! kpoints
+            !    CALL qs_scf_new_mos_kp(qs_env, scf_env, scf_control, diis_step)
+            ! ELSE
+            !    ! Gamma points only
+            !    CALL qs_scf_new_mos(qs_env, scf_env, scf_control, scf_section, diis_step)
+            ! END IF
 
             ! another heavy weight print object, print controlled by dft_section
             CALL qs_scf_write_mos(mos, atomic_kind_set, qs_kind_set, particle_set, dft_section)
@@ -554,7 +544,7 @@ CONTAINS
       converged = inner_loop_converged .AND. outer_loop_converged
 
       ! if new OO model is used, deallocate the object
-      IF (ASSOCIATED(mo_calc)) DEALLOCATE(mo_calc)
+      DEALLOCATE (mo_calc)
 
       IF (dft_control%qs_control%cdft) &
          dft_control%qs_control%cdft_control%total_steps = &
@@ -592,26 +582,21 @@ CONTAINS
 !> \par History
 !>      03.2006 created [Joost VandeVondele]
 ! **************************************************************************************************
-   SUBROUTINE init_scf_loop(scf_env, qs_env, scf_section)
+   SUBROUTINE init_scf_loop(scf_env, qs_env)
 
       TYPE(qs_scf_env_type), POINTER                     :: scf_env
       TYPE(qs_environment_type), POINTER                 :: qs_env
-      TYPE(section_vals_type), POINTER                   :: scf_section
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'init_scf_loop', routineP = moduleN//':'//routineN
 
-      INTEGER                                            :: handle, ispin, nmo, number_of_OT_envs
-      LOGICAL                                            :: do_rotation, has_unit_metric, is_full_all
-      TYPE(cp_fm_type), POINTER                          :: mo_coeff
-      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_ks, matrix_s
-      TYPE(dbcsr_type), POINTER                          :: orthogonality_metric
+      INTEGER                                            :: handle, ispin
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(mo_set_p_type), DIMENSION(:), POINTER         :: mos
       TYPE(scf_control_type), POINTER                    :: scf_control
 
       CALL timeset(routineN, handle)
 
-      NULLIFY (scf_control, matrix_s, matrix_ks, dft_control, mos, mo_coeff)
+      NULLIFY (scf_control, dft_control, mos)
 
       CPASSERT(ASSOCIATED(scf_env))
       CPASSERT(scf_env%ref_count > 0)
@@ -665,129 +650,12 @@ CONTAINS
       CASE (block_davidson_diag_method_nr)
          ! Preconditioner initialized within the loop, when required
       CASE (ot_method_nr)
-         CALL get_qs_env(qs_env, &
-                         has_unit_metric=has_unit_metric, &
-                         matrix_s=matrix_s, &
-                         matrix_ks=matrix_ks)
-
-         ! reortho the wavefunctions if we are having an outer scf and
-         ! this is not the first iteration
-         ! this is useful to avoid the build-up of numerical noise
-         ! however, we can not play this trick if restricted (don't mix non-equivalent orbs)
-         IF (scf_control%do_outer_scf_reortho) THEN
-            IF (scf_control%outer_scf%have_scf .AND. .NOT. dft_control%restricted) THEN
-               IF (scf_env%outer_scf%iter_count > 0) THEN
-                  DO ispin = 1, dft_control%nspins
-                     CALL get_mo_set(mo_set=mos(ispin)%mo_set, mo_coeff=mo_coeff, nmo=nmo)
-                     IF (has_unit_metric) THEN
-                        CALL make_basis_simple(mo_coeff, nmo)
-                     ELSE
-                        CALL make_basis_sm(mo_coeff, nmo, matrix_s(1)%matrix)
-                     ENDIF
-                  ENDDO
-               ENDIF
-            ENDIF
-         ELSE
-            ! dont need any dirty trick for the numerically stable irac algorithm.
-         ENDIF
-
-         IF (.NOT. ASSOCIATED(scf_env%qs_ot_env)) THEN
-
-            ! restricted calculations require just one set of OT orbitals
-            number_of_OT_envs = dft_control%nspins
-            IF (dft_control%restricted) number_of_OT_envs = 1
-
-            ALLOCATE (scf_env%qs_ot_env(number_of_OT_envs))
-
-            ! XXX Joost XXX should disentangle reading input from this part
-            CALL ot_scf_read_input(scf_env%qs_ot_env, scf_section)
-
-            ! keep a note that we are restricted
-            IF (dft_control%restricted) THEN
-               scf_env%qs_ot_env(1)%restricted = .TRUE.
-               ! requires rotation
-               IF (.NOT. scf_env%qs_ot_env(1)%settings%do_rotation) &
-                  CALL cp_abort(__LOCATION__, &
-                                "Restricted calculation with OT requires orbital rotation. Please "// &
-                                "activate the OT%ROTATION keyword!")
-            ELSE
-               scf_env%qs_ot_env(:)%restricted = .FALSE.
-            ENDIF
-
-            ! might need the KS matrix to init properly
-            CALL qs_ks_update_qs_env(qs_env, just_energy=.FALSE., &
-                                     calculate_forces=.FALSE.)
-
-            ! if an old preconditioner is still around (i.e. outer SCF is active),
-            ! remove it if this could be worthwhile
-            IF (.NOT. reuse_precond) &
-               CALL restart_preconditioner(qs_env, scf_env%ot_preconditioner, &
-                                           scf_env%qs_ot_env(1)%settings%preconditioner_type, &
-                                           dft_control%nspins)
-
-            !
-            ! preconditioning still needs to be done correctly with has_unit_metric
-            ! notice that a big part of the preconditioning (S^-1) is fine anyhow
-            !
-            IF (has_unit_metric) THEN
-               NULLIFY (orthogonality_metric)
-            ELSE
-               orthogonality_metric => matrix_s(1)%matrix
-            ENDIF
-
-            IF (.NOT. reuse_precond) &
-               CALL prepare_preconditioner(qs_env, mos, matrix_ks, matrix_s, scf_env%ot_preconditioner, &
-                                           scf_env%qs_ot_env(1)%settings%preconditioner_type, &
-                                           scf_env%qs_ot_env(1)%settings%precond_solver_type, &
-                                           scf_env%qs_ot_env(1)%settings%energy_gap, dft_control%nspins, &
-                                           has_unit_metric=has_unit_metric, &
-                                           chol_type=scf_env%qs_ot_env(1)%settings%cholesky_type)
-            IF (reuse_precond) reuse_precond = .FALSE.
-
-            CALL ot_scf_init(mo_array=mos, matrix_s=orthogonality_metric, &
-                             broyden_adaptive_sigma=qs_env%broyden_adaptive_sigma, &
-                             qs_ot_env=scf_env%qs_ot_env, matrix_ks=matrix_ks(1)%matrix)
-
-            SELECT CASE (scf_env%qs_ot_env (1)%settings%preconditioner_type)
-            CASE (ot_precond_none)
-            CASE (ot_precond_full_all, ot_precond_full_single_inverse)
-               ! this will rotate the MOs to be eigen states, which is not compatible with rotation
-               ! e.g. mo_derivs here do not yet include potentially different occupations numbers
-               do_rotation = scf_env%qs_ot_env(1)%settings%do_rotation
-               ! only full all needs rotation
-               is_full_all = scf_env%qs_ot_env(1)%settings%preconditioner_type == ot_precond_full_all
-               CPASSERT(.NOT. (do_rotation .AND. is_full_all))
-               DO ispin = 1, SIZE(scf_env%qs_ot_env)
-                  CALL qs_ot_new_preconditioner(scf_env%qs_ot_env(ispin), &
-                                                scf_env%ot_preconditioner(ispin)%preconditioner)
-               ENDDO
-            CASE (ot_precond_s_inverse, ot_precond_full_single)
-               DO ispin = 1, SIZE(scf_env%qs_ot_env)
-                  CALL qs_ot_new_preconditioner(scf_env%qs_ot_env(ispin), &
-                                                scf_env%ot_preconditioner(1)%preconditioner)
-               ENDDO
-            CASE DEFAULT
-               DO ispin = 1, SIZE(scf_env%qs_ot_env)
-                  CALL qs_ot_new_preconditioner(scf_env%qs_ot_env(ispin), &
-                                                scf_env%ot_preconditioner(1)%preconditioner)
-               ENDDO
-            END SELECT
-         ENDIF
-
-         ! if we have non-uniform occupations we should be using rotation
-         do_rotation = scf_env%qs_ot_env(1)%settings%do_rotation
-         DO ispin = 1, SIZE(mos)
-            IF (.NOT. mos(ispin)%mo_set%uniform_occupation) THEN
-               CPASSERT(do_rotation)
-            ENDIF
-         ENDDO
+         ! Initialization is part of the new OO model
       END SELECT
 
       ! another safety check
       IF (dft_control%low_spin_roks) THEN
          CPASSERT(scf_env%method == ot_method_nr)
-         do_rotation = scf_env%qs_ot_env(1)%settings%do_rotation
-         CPASSERT(do_rotation)
       ENDIF
 
       CALL timestop(handle)
