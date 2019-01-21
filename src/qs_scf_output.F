@@ -367,6 +367,9 @@ CONTAINS
             IF (energy%dftb3 /= 0.0_dp) &
                WRITE (UNIT=output_unit, FMT="(T3,A,T56,F25.14)") &
                "DFTB3 3rd order energy:                     ", energy%dftb3
+            IF (energy%efield /= 0.0_dp) &
+               WRITE (UNIT=output_unit, FMT="(T3,A,T56,F25.14)") &
+               "Electric field interaction energy:          ", energy%efield
          ELSEIF (dft_control%qs_control%xtb) THEN
             WRITE (UNIT=output_unit, FMT="(/,(T3,A,T56,F25.14))") &
                "Core Hamiltonian energy:                       ", energy%core, &
@@ -374,6 +377,9 @@ CONTAINS
                "Electronic energy:                             ", energy%hartree, &
                "DFTB3 3rd order energy:                        ", energy%dftb3, &
                "Dispersion energy:                             ", energy%dispersion
+            IF (energy%efield /= 0.0_dp) &
+               WRITE (UNIT=output_unit, FMT="(T3,A,T56,F25.14)") &
+               "Electric field interaction energy:          ", energy%efield
          ELSE
             IF (dft_control%do_admm) THEN
                exc_energy = energy%exc+energy%exc_aux_fit

@@ -42,6 +42,7 @@ MODULE xtb_matrices
                                               dbcsr_multiply,&
                                               dbcsr_p_type,&
                                               dbcsr_type
+   USE efield_tb_methods,               ONLY: efield_tb_matrix
    USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                               section_vals_type,&
                                               section_vals_val_get
@@ -1017,6 +1018,8 @@ CONTAINS
          CALL build_xtb_coulomb(qs_env, ks_matrix, rho, charges, mcharge, energy, &
                                 calculate_forces, just_energy)
 
+         CALL efield_tb_matrix(qs_env, ks_matrix, rho, mcharge, energy, calculate_forces, just_energy)
+
          DEALLOCATE (mcharge, charges)
       END IF
 
@@ -1024,7 +1027,7 @@ CONTAINS
          CPABORT("QMMM with xTB not implemented")
       END IF
 
-      energy%total = energy%core+energy%hartree+ &
+      energy%total = energy%core+energy%hartree+energy%efield+ &
                      energy%repulsive+energy%dispersion+energy%dftb3
 
       iounit = cp_print_key_unit_nr(logger, scf_section, "PRINT%DETAILED_ENERGY", &
@@ -1035,6 +1038,10 @@ CONTAINS
             "Zeroth order Hamiltonian energy:               ", energy%core, &
             "Charge fluctuation energy:                     ", energy%hartree, &
             "London dispersion energy:                      ", energy%dispersion
+         IF (ABS(energy%efield) > 1.e-12_dp) THEN
+            WRITE (UNIT=iounit, FMT="(T9,A,T60,F20.10)") &
+               "Electric field interaction energy:             ", energy%efield
+         END IF
          WRITE (UNIT=iounit, FMT="(T9,A,T60,F20.10)") &
             "DFTB3 3rd Order Energy Correction              ", energy%dftb3
       END IF
