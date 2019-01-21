@@ -191,10 +191,7 @@ CONTAINS
 
       CALL timeset(routineN, handle)
 
-      NULLIFY (dft_control, cell, particle_set)
-      CALL get_qs_env(qs_env, dft_control=dft_control, cell=cell, &
-                      particle_set=particle_set)
-      NULLIFY (qs_kind_set, efield, para_env, sab_orb)
+      CALL get_qs_env(qs_env, dft_control=dft_control, cell=cell, particle_set=particle_set)
       CALL get_qs_env(qs_env=qs_env, qs_kind_set=qs_kind_set, &
                       efield=efield, energy=energy, para_env=para_env, sab_orb=sab_orb)
 
