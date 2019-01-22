@@ -205,7 +205,6 @@ You'll need to modify one of these files to match your system's settings.
 
 You can now build CP2K using these settings (where -j N allows for a parallel build using N processes):
 ```
-> cd cp2k/makefiles
 > make -j N ARCH=architecture VERSION=version
 ```
 e.g.
