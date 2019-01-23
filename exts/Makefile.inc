@@ -9,6 +9,9 @@ $(EXTSDEPS_MOD) : ; # override builtin .mod rule to prevent circular dependency
 
 extversions: dbcsrversion
 
+extclean: dbcsrclean
+	@echo "Clean EXT"
+
 dbcsr:
 	$(MAKE) -C $(EXTSHOME)/$@ \
 	   INCLUDEMAKE=$(ARCHDIR)/$(ARCH).$(ONEVERSION) \
@@ -20,3 +23,7 @@ dbcsrversion:
 	@$(MAKE) -C $(EXTSHOME)/dbcsr \
 	   FYPPEXE=$(TOOLSRC)/build_utils/fypp \
 	   version
+
+dbcsrclean:
+	@echo "Clean DBCSR"
+	@$(MAKE) -C $(EXTSHOME)/dbcsr clean
