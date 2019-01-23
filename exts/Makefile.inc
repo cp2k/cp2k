@@ -26,4 +26,6 @@ dbcsrversion:
 
 dbcsrclean:
 	@echo "Clean DBCSR"
-	@$(MAKE) -C $(EXTSHOME)/dbcsr clean
+	@$(MAKE) -C $(EXTSHOME)/dbcsr \
+	   FYPPEXE=$(TOOLSRC)/build_utils/fypp \
+	   clean
