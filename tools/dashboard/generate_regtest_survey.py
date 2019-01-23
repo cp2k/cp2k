@@ -138,9 +138,16 @@ def main():
         ttype_re = test_types[int(test_defs[inp]["type"])].split("!")[0].strip()
         tbody += '<td title="%s" >%s</td>\n'%(ttype_re, ttype_num)
         tbody += '<td>%.1e</td>\n'%test_defs[inp]["tolerance"]
+        tbody += '<td>%.1e</td>\n'%mad
+        tol_mad = test_defs[inp]["tolerance"] / max(1e-14, mad)
+        if tol_mad < 1.0:
+            tbody += '<td bgcolor="#FF9900">%.1e</td>\n'%tol_mad
+        elif tol_mad > 10.0:
+            tbody += '<td bgcolor="#99FF00">%.1e</td>\n'%tol_mad
+        else:
+            tbody += '<td>%.1e</td>\n'%tol_mad
         tbody += '<td>%s</td>\n'%test_defs[inp].get("ref-value", "")
         tbody += '<td>%.17g</td>\n'%median
-        tbody += '<td>%g</td>\n'%mad
         tbody += '<td>%i</td>\n'%np.sum(outlier)
         for tname in tester_names:
             val = tester_values[tname].get(inp, None)
@@ -156,8 +163,10 @@ def main():
         tbody += '</tr>\n'
 
     # table-header
-    theader  ='<tr align="center"><th>Name</th><th>Type</th><th>Tolerance</th>'
-    theader += '<th>Reference</th><th>Median</th><th>MAD</th><th>#failed</th>\n'
+    theader  = '<tr align="center"><th>Name</th><th>Type</th><th>Tolerance</th>'
+    theader += '<th><abbr title="Maximum Absolute Deviation">MAD</abbr></th>'
+    theader += '<th>Tol. / MAD</th><th>Reference</th><th>Median</th>'
+    theader += '<th><abbr title="Failures if reference were at median.">#failed</abbr></th>'
     for tname in tester_names:
         theader += '<th><span class="nowrap">%s</span>'%config.get(tname, "name")
         theader += '<br>#failed: %d'%tester_nfailed[tname]
