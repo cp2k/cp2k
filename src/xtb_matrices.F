@@ -930,18 +930,18 @@ CONTAINS
 
       INTEGER                                            :: atom_a, handle, iatom, ikind, img, &
                                                             iounit, is, ispin, natom, natorb, &
-                                                            nimg, nkind, ns, nspins
+                                                            nimg, nkind, ns, nsgf, nspins
       INTEGER, DIMENSION(25)                             :: lao
       INTEGER, DIMENSION(5)                              :: occ
       REAL(KIND=dp)                                      :: pc_ener, qmmm_el
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: aocharge, mcharge
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: charges
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: mcharge
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: aocg, charges
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(cp_para_env_type), POINTER                    :: para_env
-      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_p1, mo_derivs
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_p1, mo_derivs, p_matrix
       TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: ks_matrix, matrix_h, matrix_p, matrix_s
-      TYPE(dbcsr_type), POINTER                          :: mo_coeff
+      TYPE(dbcsr_type), POINTER                          :: mo_coeff, s_matrix
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(mo_set_p_type), DIMENSION(:), POINTER         :: mo_array
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
@@ -993,23 +993,33 @@ CONTAINS
          ALLOCATE (mcharge(natom), charges(natom, 5))
          charges = 0.0_dp
          nkind = SIZE(atomic_kind_set)
+         CALL get_qs_kind_set(qs_kind_set, nsgf=nsgf)
+         natom = SIZE(particle_set)
+         ALLOCATE (aocg(nsgf, natom))
+         aocg = 0.0_dp
+         IF (nimg > 1) THEN
+            CALL ao_charges(matrix_p, matrix_s, aocg, para_env)
+         ELSE
+            p_matrix => matrix_p(:, 1)
+            s_matrix => matrix_s(1, 1)%matrix
+            CALL ao_charges(matrix_p, matrix_s, aocg, para_env)
+         END IF
          DO ikind = 1, nkind
             CALL get_atomic_kind(atomic_kind_set(ikind), natom=natom)
             CALL get_qs_kind(qs_kind_set(ikind), xtb_parameter=xtb_kind)
             CALL get_xtb_atom_param(xtb_kind, natorb=natorb, lao=lao, occupation=occ)
-            ALLOCATE (aocharge(natorb))
             DO iatom = 1, natom
                atom_a = atomic_kind_set(ikind)%atom_list(iatom)
-               CALL ao_charges(matrix_p, matrix_s, aocharge, atom_a, para_env)
                charges(atom_a, :) = REAL(occ(:), KIND=dp)
                DO is = 1, natorb
                   ns = lao(is)+1
-                  charges(atom_a, ns) = charges(atom_a, ns)-aocharge(is)
+                  charges(atom_a, ns) = charges(atom_a, ns)-aocg(is, atom_a)
                END DO
                mcharge(atom_a) = SUM(charges(atom_a, :))
             END DO
-            DEALLOCATE (aocharge)
          END DO
+         DEALLOCATE (aocg)
+!deb
 
          CALL build_xtb_coulomb(qs_env, ks_matrix, rho, charges, mcharge, energy, &
                                 calculate_forces, just_energy)
