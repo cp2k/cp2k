@@ -13,7 +13,8 @@ MODULE qmmm_tb_methods
    USE cell_types,                      ONLY: cell_type,&
                                               pbc
    USE cp_control_types,                ONLY: dft_control_type,&
-                                              dftb_control_type
+                                              dftb_control_type,&
+                                              xtb_control_type
    USE cp_dbcsr_operations,             ONLY: dbcsr_allocate_matrix_set,&
                                               dbcsr_deallocate_matrix_set
    USE cp_para_types,                   ONLY: cp_para_env_type
@@ -114,7 +115,7 @@ CONTAINS
       INTEGER                                            :: blk, handle, i, iatom, ikind, jatom, &
                                                             natom, natorb, nkind
       INTEGER, DIMENSION(:), POINTER                     :: list
-      LOGICAL                                            :: defined, found
+      LOGICAL                                            :: defined, do_dftb, do_xtb, found
       REAL(KIND=dp)                                      :: pc_ener, zeff
       REAL(KIND=dp), DIMENSION(0:3)                      :: eta_a
       REAL(KIND=dp), DIMENSION(:), POINTER               :: qpot
@@ -129,6 +130,7 @@ CONTAINS
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
       TYPE(qs_ks_qmmm_env_type), POINTER                 :: ks_qmmm_env_loc
       TYPE(qs_rho_type), POINTER                         :: rho
+      TYPE(xtb_control_type), POINTER                    :: xtb_control
 
       CALL timeset(routineN, handle)
 
@@ -140,10 +142,26 @@ CONTAINS
                       rho=rho, &
                       natom=natom)
       dftb_control => dft_control%qs_control%dftb_control
+      xtb_control => dft_control%qs_control%xtb_control
+
+      IF (dft_control%qs_control%dftb) THEN
+         do_dftb = .TRUE.
+         do_xtb = .FALSE.
+      ELSEIF (dft_control%qs_control%xtb) THEN
+         do_dftb = .FALSE.
+         do_xtb = .TRUE.
+      ELSE
+         CPABORT("TB method unknown")
+      END IF
 
       CALL build_qs_neighbor_lists(qs_env, para_env, force_env_section=qs_env%input)
-      NULLIFY (matrix_s)
-      CALL build_dftb_overlap(qs_env, 0, matrix_s)
+
+      IF (do_dftb) THEN
+         NULLIFY (matrix_s)
+         CALL build_dftb_overlap(qs_env, 0, matrix_s)
+      ELSEIF (do_xtb) THEN
+         STOP "xTB"
+      END IF
 
       ALLOCATE (qpot(natom))
       qpot = 0.0_dp
@@ -152,29 +170,33 @@ CONTAINS
       nkind = SIZE(atomic_kind_set)
       DO ikind = 1, nkind
          CALL get_atomic_kind(atomic_kind_set(ikind), atom_list=list)
-         NULLIFY (dftb_kind)
-         CALL get_qs_kind(qs_kind_set(ikind), dftb_parameter=dftb_kind)
-         CALL get_dftb_atom_param(dftb_kind, zeff=zeff, &
-                                  defined=defined, eta=eta_a, natorb=natorb)
-         ! use mm charge smearing for non-scc cases
-         IF (.NOT. dftb_control%self_consistent) eta_a(0) = eta_mm
-         IF (.NOT. defined .OR. natorb < 1) CYCLE
-         DO i = 1, SIZE(list)
-            iatom = list(i)
-            CALL build_mm_pot(qpot(iatom), 0, eta_a(0), qmmm_env%Potentials, particles_mm, &
-                              qmmm_env%mm_atom_chrg, qmmm_env%mm_atom_index, mm_cell, iatom, &
-                              qmmm_env%spherical_cutoff, particles_qm)
-            ! Possibly added charges
-            IF (qmmm_env%move_mm_charges .OR. qmmm_env%add_mm_charges) THEN
-               CALL build_mm_pot(qpot(iatom), 0, eta_a(0), qmmm_env%added_charges%potentials, &
-                                 qmmm_env%added_charges%added_particles, &
-                                 qmmm_env%added_charges%mm_atom_chrg, &
-                                 qmmm_env%added_charges%mm_atom_index, mm_cell, iatom, &
-                                 qmmm_env%spherical_cutoff, &
-                                 particles_qm)
-            END IF
-            pc_ener = pc_ener+qpot(iatom)*zeff
-         END DO
+         IF (do_dftb) THEN
+            NULLIFY (dftb_kind)
+            CALL get_qs_kind(qs_kind_set(ikind), dftb_parameter=dftb_kind)
+            CALL get_dftb_atom_param(dftb_kind, zeff=zeff, &
+                                     defined=defined, eta=eta_a, natorb=natorb)
+            ! use mm charge smearing for non-scc cases
+            IF (.NOT. dftb_control%self_consistent) eta_a(0) = eta_mm
+            IF (.NOT. defined .OR. natorb < 1) CYCLE
+            DO i = 1, SIZE(list)
+               iatom = list(i)
+               CALL build_mm_pot(qpot(iatom), 0, eta_a(0), qmmm_env%Potentials, particles_mm, &
+                                 qmmm_env%mm_atom_chrg, qmmm_env%mm_atom_index, mm_cell, iatom, &
+                                 qmmm_env%spherical_cutoff, particles_qm)
+               ! Possibly added charges
+               IF (qmmm_env%move_mm_charges .OR. qmmm_env%add_mm_charges) THEN
+                  CALL build_mm_pot(qpot(iatom), 0, eta_a(0), qmmm_env%added_charges%potentials, &
+                                    qmmm_env%added_charges%added_particles, &
+                                    qmmm_env%added_charges%mm_atom_chrg, &
+                                    qmmm_env%added_charges%mm_atom_index, mm_cell, iatom, &
+                                    qmmm_env%spherical_cutoff, &
+                                    particles_qm)
+               END IF
+               pc_ener = pc_ener+qpot(iatom)*zeff
+            END DO
+         ELSEIF (do_xtb) THEN
+            STOP "xTB"
+         END IF
       END DO
 
       ! Allocate the core Hamiltonian matrix
@@ -223,14 +245,33 @@ CONTAINS
          routineP = moduleN//':'//routineN
 
       INTEGER                                            :: handle
+      LOGICAL                                            :: do_dftb, do_xtb
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_h, matrix_s
+      TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(qs_ks_qmmm_env_type), POINTER                 :: ks_qmmm_env_loc
 
       CALL timeset(routineN, handle)
 
+      CALL get_qs_env(qs_env=qs_env, dft_control=dft_control)
+
+      IF (dft_control%qs_control%dftb) THEN
+         do_dftb = .TRUE.
+         do_xtb = .FALSE.
+      ELSEIF (dft_control%qs_control%xtb) THEN
+         do_dftb = .FALSE.
+         do_xtb = .TRUE.
+      ELSE
+         CPABORT("TB method unknown")
+      END IF
+
       CALL build_qs_neighbor_lists(qs_env, para_env, force_env_section=qs_env%input)
-      NULLIFY (matrix_s)
-      CALL build_dftb_overlap(qs_env, 0, matrix_s)
+
+      IF (do_dftb) THEN
+         NULLIFY (matrix_s)
+         CALL build_dftb_overlap(qs_env, 0, matrix_s)
+      ELSEIF (do_xtb) THEN
+         STOP "xTB"
+      END IF
 
       ! Allocate the core Hamiltonian matrix
       CALL get_qs_env(qs_env=qs_env, ks_qmmm_env=ks_qmmm_env_loc)
@@ -273,7 +314,8 @@ CONTAINS
                                                             iatom, ikind, imm, imp, indmm, ipot, &
                                                             jatom, natom, natorb, nkind, nmm
       INTEGER, DIMENSION(:), POINTER                     :: list
-      LOGICAL                                            :: defined, do_multipoles, found
+      LOGICAL                                            :: defined, do_dftb, do_multipoles, do_xtb, &
+                                                            found
       REAL(KIND=dp)                                      :: alpha, pc_ener, zeff
       REAL(KIND=dp), DIMENSION(0:3)                      :: eta_a
       REAL(KIND=dp), DIMENSION(2)                        :: rcutoff
@@ -294,6 +336,7 @@ CONTAINS
       TYPE(qs_rho_type), POINTER                         :: rho
       TYPE(section_vals_type), POINTER                   :: ewald_section, poisson_section, &
                                                             print_section
+      TYPE(xtb_control_type), POINTER                    :: xtb_control
 
       CALL timeset(routineN, handle)
 
@@ -305,6 +348,17 @@ CONTAINS
                       rho=rho, &
                       natom=natom)
       dftb_control => dft_control%qs_control%dftb_control
+      xtb_control => dft_control%qs_control%xtb_control
+
+      IF (dft_control%qs_control%dftb) THEN
+         do_dftb = .TRUE.
+         do_xtb = .FALSE.
+      ELSEIF (dft_control%qs_control%xtb) THEN
+         do_dftb = .FALSE.
+         do_xtb = .TRUE.
+      ELSE
+         CPABORT("TB method unknown")
+      END IF
 
       CALL build_qs_neighbor_lists(qs_env, para_env, force_env_section=qs_env%input)
       NULLIFY (matrix_s)
@@ -324,12 +378,12 @@ CONTAINS
       CALL ewald_pw_create(ewald_pw, ewald_env, mm_cell, mm_cell, print_section=print_section)
 
       CALL ewald_env_get(ewald_env, ewald_type=ewald_type, do_multipoles=do_multipoles, do_ipol=do_ipol)
-      IF (do_multipoles) CPABORT("No multipole force fields allowed in DFTB QM/MM")
-      IF (do_ipol /= do_fist_pol_none) CPABORT("No polarizable force fields allowed in DFTB QM/MM")
+      IF (do_multipoles) CPABORT("No multipole force fields allowed in TB QM/MM")
+      IF (do_ipol /= do_fist_pol_none) CPABORT("No polarizable force fields allowed in TB QM/MM")
 
       SELECT CASE (ewald_type)
       CASE (do_ewald_pme)
-         CPABORT("PME Ewald type not implemented for DFTB/QMMM")
+         CPABORT("PME Ewald type not implemented for TB/QMMM")
       CASE (do_ewald_ewald, do_ewald_spme)
          DO ipot = 1, SIZE(qmmm_env%Potentials)
             Pot => qmmm_env%Potentials(ipot)%Pot
@@ -346,7 +400,7 @@ CONTAINS
                charges_mm(Imp) = qmmm_env%mm_atom_chrg(Imm)
             END DO
             IF (ewald_type == do_ewald_ewald) THEN
-               CPABORT("Ewald not implemented for DFTB/QMMM")
+               CPABORT("Ewald not implemented for TB/QMMM")
             ELSE IF (ewald_type == do_ewald_spme) THEN
                ! spme electrostatic potential
                CALL spme_potential(ewald_env, ewald_pw, mm_cell, atoms_mm, charges_mm, particles_qm, qpot)
@@ -370,7 +424,7 @@ CONTAINS
                   charges_mm(Imp) = qmmm_env%added_charges%mm_atom_chrg(Imm)
                END DO
                IF (ewald_type == do_ewald_ewald) THEN
-                  CPABORT("Ewald not implemented for DFTB/QMMM")
+                  CPABORT("Ewald not implemented for TB/QMMM")
                ELSE IF (ewald_type == do_ewald_spme) THEN
                   ! spme electrostatic potential
                   CALL spme_potential(ewald_env, ewald_pw, mm_cell, atoms_mm, charges_mm, particles_qm, qpot)
@@ -380,7 +434,7 @@ CONTAINS
             END DO
          END IF
          CALL mp_sum(qpot, para_env%group)
-         ! Add Ewald and DFTB short range corrections
+         ! Add Ewald and TB short range corrections
          ! This is effectively using a minimum image convention!
          ! Set rcutoff to values compatible with alpha Ewald
          CALL ewald_env_get(ewald_env, rcut=rcutoff(1), alpha=alpha)
@@ -389,65 +443,73 @@ CONTAINS
          nkind = SIZE(atomic_kind_set)
          DO ikind = 1, nkind
             CALL get_atomic_kind(atomic_kind_set(ikind), atom_list=list)
-            NULLIFY (dftb_kind)
-            CALL get_qs_kind(qs_kind_set(ikind), dftb_parameter=dftb_kind)
-            CALL get_dftb_atom_param(dftb_kind, zeff=zeff, &
-                                     defined=defined, eta=eta_a, natorb=natorb)
-            ! use mm charge smearing for non-scc cases
-            IF (.NOT. dftb_control%self_consistent) eta_a(0) = eta_mm
-            IF (.NOT. defined .OR. natorb < 1) CYCLE
-            DO i = 1, SIZE(list)
-               iatom = list(i)
-               CALL build_mm_pot(qpot(iatom), 1, eta_a(0), qmmm_env%Potentials, particles_mm, &
-                                 qmmm_env%mm_atom_chrg, qmmm_env%mm_atom_index, mm_cell, iatom, rcutoff, &
-                                 particles_qm)
-               CALL build_mm_pot(qpot(iatom), 2, alpha, qmmm_env%Potentials, particles_mm, &
-                                 qmmm_env%mm_atom_chrg, qmmm_env%mm_atom_index, mm_cell, iatom, rcutoff, &
-                                 particles_qm)
-               ! Possibly added charges
-               IF (qmmm_env%move_mm_charges .OR. qmmm_env%add_mm_charges) THEN
-                  CALL build_mm_pot(qpot(iatom), 1, eta_a(0), qmmm_env%added_charges%potentials, &
-                                    qmmm_env%added_charges%added_particles, &
-                                    qmmm_env%added_charges%mm_atom_chrg, &
-                                    qmmm_env%added_charges%mm_atom_index, mm_cell, iatom, rcutoff, &
+            IF (do_dftb) THEN
+               NULLIFY (dftb_kind)
+               CALL get_qs_kind(qs_kind_set(ikind), dftb_parameter=dftb_kind)
+               CALL get_dftb_atom_param(dftb_kind, zeff=zeff, &
+                                        defined=defined, eta=eta_a, natorb=natorb)
+               ! use mm charge smearing for non-scc cases
+               IF (.NOT. dftb_control%self_consistent) eta_a(0) = eta_mm
+               IF (.NOT. defined .OR. natorb < 1) CYCLE
+               DO i = 1, SIZE(list)
+                  iatom = list(i)
+                  CALL build_mm_pot(qpot(iatom), 1, eta_a(0), qmmm_env%Potentials, particles_mm, &
+                                    qmmm_env%mm_atom_chrg, qmmm_env%mm_atom_index, mm_cell, iatom, rcutoff, &
                                     particles_qm)
-                  CALL build_mm_pot(qpot(iatom), 2, alpha, qmmm_env%added_charges%potentials, &
-                                    qmmm_env%added_charges%added_particles, &
-                                    qmmm_env%added_charges%mm_atom_chrg, &
-                                    qmmm_env%added_charges%mm_atom_index, mm_cell, iatom, rcutoff, &
+                  CALL build_mm_pot(qpot(iatom), 2, alpha, qmmm_env%Potentials, particles_mm, &
+                                    qmmm_env%mm_atom_chrg, qmmm_env%mm_atom_index, mm_cell, iatom, rcutoff, &
                                     particles_qm)
-               END IF
-               pc_ener = pc_ener+qpot(iatom)*zeff
-            END DO
+                  ! Possibly added charges
+                  IF (qmmm_env%move_mm_charges .OR. qmmm_env%add_mm_charges) THEN
+                     CALL build_mm_pot(qpot(iatom), 1, eta_a(0), qmmm_env%added_charges%potentials, &
+                                       qmmm_env%added_charges%added_particles, &
+                                       qmmm_env%added_charges%mm_atom_chrg, &
+                                       qmmm_env%added_charges%mm_atom_index, mm_cell, iatom, rcutoff, &
+                                       particles_qm)
+                     CALL build_mm_pot(qpot(iatom), 2, alpha, qmmm_env%added_charges%potentials, &
+                                       qmmm_env%added_charges%added_particles, &
+                                       qmmm_env%added_charges%mm_atom_chrg, &
+                                       qmmm_env%added_charges%mm_atom_index, mm_cell, iatom, rcutoff, &
+                                       particles_qm)
+                  END IF
+                  pc_ener = pc_ener+qpot(iatom)*zeff
+               END DO
+            ELSEIF (do_xtb) THEN
+               STOP "xTB"
+            END IF
          END DO
       CASE (do_ewald_none)
          ! Simply summing up charges with 1/R (DFTB corrected)
          nkind = SIZE(atomic_kind_set)
          DO ikind = 1, nkind
             CALL get_atomic_kind(atomic_kind_set(ikind), atom_list=list)
-            NULLIFY (dftb_kind)
-            CALL get_qs_kind(qs_kind_set(ikind), dftb_parameter=dftb_kind)
-            CALL get_dftb_atom_param(dftb_kind, zeff=zeff, &
-                                     defined=defined, eta=eta_a, natorb=natorb)
-            ! use mm charge smearing for non-scc cases
-            IF (.NOT. dftb_control%self_consistent) eta_a(0) = eta_mm
-            IF (.NOT. defined .OR. natorb < 1) CYCLE
-            DO i = 1, SIZE(list)
-               iatom = list(i)
-               CALL build_mm_pot(qpot(iatom), 0, eta_a(0), qmmm_env%Potentials, particles_mm, &
-                                 qmmm_env%mm_atom_chrg, qmmm_env%mm_atom_index, mm_cell, iatom, &
-                                 qmmm_env%spherical_cutoff, particles_qm)
-               ! Possibly added charges
-               IF (qmmm_env%move_mm_charges .OR. qmmm_env%add_mm_charges) THEN
-                  CALL build_mm_pot(qpot(iatom), 0, eta_a(0), qmmm_env%added_charges%potentials, &
-                                    qmmm_env%added_charges%added_particles, &
-                                    qmmm_env%added_charges%mm_atom_chrg, &
-                                    qmmm_env%added_charges%mm_atom_index, mm_cell, iatom, &
-                                    qmmm_env%spherical_cutoff, &
-                                    particles_qm)
-               END IF
-               pc_ener = pc_ener+qpot(iatom)*zeff
-            END DO
+            IF (do_dftb) THEN
+               NULLIFY (dftb_kind)
+               CALL get_qs_kind(qs_kind_set(ikind), dftb_parameter=dftb_kind)
+               CALL get_dftb_atom_param(dftb_kind, zeff=zeff, &
+                                        defined=defined, eta=eta_a, natorb=natorb)
+               ! use mm charge smearing for non-scc cases
+               IF (.NOT. dftb_control%self_consistent) eta_a(0) = eta_mm
+               IF (.NOT. defined .OR. natorb < 1) CYCLE
+               DO i = 1, SIZE(list)
+                  iatom = list(i)
+                  CALL build_mm_pot(qpot(iatom), 0, eta_a(0), qmmm_env%Potentials, particles_mm, &
+                                    qmmm_env%mm_atom_chrg, qmmm_env%mm_atom_index, mm_cell, iatom, &
+                                    qmmm_env%spherical_cutoff, particles_qm)
+                  ! Possibly added charges
+                  IF (qmmm_env%move_mm_charges .OR. qmmm_env%add_mm_charges) THEN
+                     CALL build_mm_pot(qpot(iatom), 0, eta_a(0), qmmm_env%added_charges%potentials, &
+                                       qmmm_env%added_charges%added_particles, &
+                                       qmmm_env%added_charges%mm_atom_chrg, &
+                                       qmmm_env%added_charges%mm_atom_index, mm_cell, iatom, &
+                                       qmmm_env%spherical_cutoff, &
+                                       particles_qm)
+                  END IF
+                  pc_ener = pc_ener+qpot(iatom)*zeff
+               END DO
+            ELSEIF (do_xtb) THEN
+               STOP "xTB"
+            END IF
          END DO
       CASE DEFAULT
          CPABORT("Unknown Ewald type!")
@@ -518,7 +580,7 @@ CONTAINS
                                                             iqm, jatom, natom, natorb, nkind, &
                                                             nspins, number_qm_atoms
       INTEGER, DIMENSION(:), POINTER                     :: list
-      LOGICAL                                            :: defined, found
+      LOGICAL                                            :: defined, do_dftb, do_xtb, found
       REAL(KIND=dp)                                      :: fi, gmij, zeff
       REAL(KIND=dp), DIMENSION(0:3)                      :: eta_a
       REAL(KIND=dp), DIMENSION(:), POINTER               :: mcharge, qpot
@@ -534,6 +596,7 @@ CONTAINS
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
       TYPE(qs_ks_qmmm_env_type), POINTER                 :: ks_qmmm_env_loc
       TYPE(qs_rho_type), POINTER                         :: rho
+      TYPE(xtb_control_type), POINTER                    :: xtb_control
 
       CALL timeset(routineN, handle)
       IF (calc_force) THEN
@@ -547,9 +610,25 @@ CONTAINS
                          particle_set=particles_qm, &
                          natom=number_qm_atoms)
          dftb_control => dft_control%qs_control%dftb_control
+         xtb_control => dft_control%qs_control%xtb_control
 
-         NULLIFY (matrix_s)
-         CALL build_dftb_overlap(qs_env, 1, matrix_s)
+         IF (dft_control%qs_control%dftb) THEN
+            do_dftb = .TRUE.
+            do_xtb = .FALSE.
+         ELSEIF (dft_control%qs_control%xtb) THEN
+            do_dftb = .FALSE.
+            do_xtb = .TRUE.
+         ELSE
+            CPABORT("TB method unknown")
+         END IF
+
+         IF (do_dftb) THEN
+            NULLIFY (matrix_s)
+            CALL build_dftb_overlap(qs_env, 1, matrix_s)
+         ELSEIF (do_xtb) THEN
+            STOP "xTB"
+         END IF
+
          CALL qs_rho_get(rho, rho_ao=matrix_p)
 
          nspins = dft_control%nspins
@@ -719,7 +798,8 @@ CONTAINS
       INTEGER :: atom_a, blk, do_ipol, ewald_type, handle, i, iatom, ikind, imm, imp, indmm, ipot, &
          iqm, jatom, natom, natorb, nkind, nmm, nspins, number_qm_atoms
       INTEGER, DIMENSION(:), POINTER                     :: list
-      LOGICAL                                            :: defined, do_multipoles, found
+      LOGICAL                                            :: defined, do_dftb, do_multipoles, do_xtb, &
+                                                            found
       REAL(KIND=dp)                                      :: alpha, fi, gmij, zeff
       REAL(KIND=dp), DIMENSION(0:3)                      :: eta_a
       REAL(KIND=dp), DIMENSION(2)                        :: rcutoff
@@ -741,6 +821,7 @@ CONTAINS
       TYPE(qs_rho_type), POINTER                         :: rho
       TYPE(section_vals_type), POINTER                   :: ewald_section, poisson_section, &
                                                             print_section
+      TYPE(xtb_control_type), POINTER                    :: xtb_control
 
       CALL timeset(routineN, handle)
       IF (calc_force) THEN
@@ -754,6 +835,17 @@ CONTAINS
                          particle_set=particles_qm, &
                          natom=number_qm_atoms)
          dftb_control => dft_control%qs_control%dftb_control
+         xtb_control => dft_control%qs_control%xtb_control
+
+         IF (dft_control%qs_control%dftb) THEN
+            do_dftb = .TRUE.
+            do_xtb = .FALSE.
+         ELSEIF (dft_control%qs_control%xtb) THEN
+            do_dftb = .FALSE.
+            do_xtb = .TRUE.
+         ELSE
+            CPABORT("TB method unknown")
+         END IF
 
          NULLIFY (matrix_s)
          CALL build_dftb_overlap(qs_env, 1, matrix_s)

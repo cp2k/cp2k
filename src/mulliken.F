@@ -735,8 +735,8 @@ CONTAINS
                   END DO
                END DO
             ELSEIF (iblock_col == iatom) THEN
-               DO i = 1, SIZE(p_block, 1)
-                  DO j = 1, SIZE(p_block, 2)
+               DO j = 1, SIZE(p_block, 2)
+                  DO i = 1, SIZE(p_block, 1)
                      charges(j) = charges(j)+p_block(i, j)*s_block(i, j)
                   END DO
                END DO

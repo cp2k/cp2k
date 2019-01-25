@@ -153,7 +153,7 @@ CONTAINS
             IF (iw > 0) WRITE (iw, '(T2,"QMMM|",1X,A)') "Unknown Coupling..."
             CPABORT("")
          END SELECT
-      ELSEIF (dft_control%qs_control%dftb) THEN
+      ELSEIF (dft_control%qs_control%dftb .OR. dft_control%qs_control%xtb) THEN
          ! DFTB
          SELECT CASE (qmmm_env%qmmm_coupl_type)
          CASE (do_qmmm_none)

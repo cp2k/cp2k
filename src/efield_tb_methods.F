@@ -24,24 +24,20 @@ MODULE efield_tb_methods
    USE kinds,                           ONLY: dp
    USE kpoint_types,                    ONLY: get_kpoint_info,&
                                               kpoint_type
-   USE mathconstants,                   ONLY: twopi, pi
+   USE mathconstants,                   ONLY: twopi
    USE message_passing,                 ONLY: mp_sum
+   USE particle_types,                  ONLY: particle_type
+   USE qs_energy_types,                 ONLY: qs_energy_type
+   USE qs_environment_types,            ONLY: get_qs_env,&
+                                              qs_environment_type
+   USE qs_force_types,                  ONLY: qs_force_type
+   USE qs_kind_types,                   ONLY: qs_kind_type
    USE qs_neighbor_list_types,          ONLY: get_iterator_info,&
                                               neighbor_list_iterate,&
                                               neighbor_list_iterator_create,&
                                               neighbor_list_iterator_p_type,&
                                               neighbor_list_iterator_release,&
                                               neighbor_list_set_p_type
-   USE particle_types,                  ONLY: particle_type
-   USE qs_energy_types,                 ONLY: qs_energy_type
-   USE qs_environment_types,            ONLY: get_qs_env,&
-                                              qs_environment_type
-   USE qs_force_types,                  ONLY: qs_force_type
-   USE qs_period_efield_types,          ONLY: efield_berry_type,&
-                                              init_efield_matrices,&
-                                              set_efield_matrices
-   USE qs_kind_types,                   ONLY: qs_kind_type
-   USE qs_neighbor_list_types,          ONLY: neighbor_list_set_p_type
    USE qs_rho_types,                    ONLY: qs_rho_get,&
                                               qs_rho_type
    USE virial_methods,                  ONLY: virial_pair_force
@@ -124,9 +120,9 @@ CONTAINS
       CHARACTER(LEN=*), PARAMETER :: routineN = 'efield_tb_local', &
          routineP = moduleN//':'//routineN
 
-      INTEGER                                            :: atom_a, atom_b, blk, handle, i, ia, &
-                                                            iatom, icol, idir, ikind, irow, ispin, &
-                                                            jatom, jkind, natom, nspin
+      INTEGER                                            :: atom_a, atom_b, blk, handle, ia, icol, &
+                                                            idir, ikind, irow, ispin, jkind, &
+                                                            natom, nspin
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: atom_of_kind, kind_of
       LOGICAL                                            :: do_kpoints, found, use_virial
       REAL(dp)                                           :: charge, fdir
@@ -221,7 +217,7 @@ CONTAINS
                      CALL dbcsr_get_block_p(matrix=matrix_s(idir+1)%matrix, &
                                             row=irow, col=icol, BLOCK=ds_block, found=found)
                      CPASSERT(found)
-                     fij(idir) = fij(idir) + SUM(p_block*ds_block)
+                     fij(idir) = fij(idir)+SUM(p_block*ds_block)
                   END DO
                END DO
                fdir = SUM(ria(1:3)*fieldpol(1:3))
@@ -268,35 +264,33 @@ CONTAINS
       CHARACTER(LEN=*), PARAMETER :: routineN = 'efield_tb_berry', &
          routineP = moduleN//':'//routineN
 
-      INTEGER                                            :: atom_a, atom_b, blk, handle, i, ia, &
-                                                            iatom, icol, idir, ikind, irow, ispin, &
-                                                            jatom, jkind, natom, nspin, nimg, ic, is
-      INTEGER, DIMENSION(3)                              :: cellind
-      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: atom_of_kind, kind_of
-      INTEGER, DIMENSION(:, :, :), POINTER               :: cell_to_index
-      LOGICAL                                            :: do_kpoints, found, use_virial
-      COMPLEX(KIND=dp)                                   :: zdet, zdeta
+      COMPLEX(KIND=dp)                                   :: zdeta
       COMPLEX(KIND=dp), DIMENSION(3)                     :: zi(3)
-      REAL(KIND=dp)                                      :: q, theta, fdir, charge, dab, dd, &
-                                                            ener_field, f0, fab, &
-                                                            focc, occ, pds
-      REAL(KIND=dp), DIMENSION(3)                        :: ci, fieldpol, fij, ria, rib, rij, kvec, gvec, tmp, forcea, rab, qi, ti, cqi, fpolvec
-      REAL(KIND=dp), DIMENSION(3,3)                      :: hmat
+      INTEGER                                            :: atom_a, atom_b, handle, ia, iatom, ic, &
+                                                            icol, idir, ikind, irow, is, ispin, &
+                                                            jatom, jkind, natom, nimg, nspin
+      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: atom_of_kind, kind_of
+      INTEGER, DIMENSION(3)                              :: cellind
+      INTEGER, DIMENSION(:, :, :), POINTER               :: cell_to_index
+      LOGICAL                                            :: found, use_virial
+      REAL(KIND=dp)                                      :: charge, dd, fdir
+      REAL(KIND=dp), DIMENSION(3)                        :: fieldpol, fij, forcea, fpolvec, kvec, &
+                                                            qi, rab, ria, rib
+      REAL(KIND=dp), DIMENSION(3, 3)                     :: hmat
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: ds_block, ks_block, p_block, s_block
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       TYPE(cell_type), POINTER                           :: cell
       TYPE(cp_para_env_type), POINTER                    :: para_env
-      TYPE(dbcsr_iterator_type)                          :: iter
-      TYPE(dbcsr_p_type), DIMENSION(:,:), POINTER        :: matrix_p, matrix_s
+      TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: matrix_p, matrix_s
       TYPE(dft_control_type), POINTER                    :: dft_control
-      TYPE(neighbor_list_set_p_type), DIMENSION(:), &
-         POINTER                                         :: sab_orb
+      TYPE(kpoint_type), POINTER                         :: kpoints
       TYPE(neighbor_list_iterator_p_type), &
          DIMENSION(:), POINTER                           :: nl_iterator
+      TYPE(neighbor_list_set_p_type), DIMENSION(:), &
+         POINTER                                         :: sab_orb
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
       TYPE(qs_force_type), DIMENSION(:), POINTER         :: force
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
-      TYPE(kpoint_type), POINTER                         :: kpoints
       TYPE(virial_type), POINTER                         :: virial
 
       CALL timeset(routineN, handle)
@@ -325,7 +319,7 @@ CONTAINS
       END DO
 
       natom = SIZE(particle_set)
-      nspin = SIZE(ks_matrix,1)
+      nspin = SIZE(ks_matrix, 1)
 
       zi(:) = CMPLX(1._dp, 0._dp, dp)
       DO ia = 1, natom
@@ -342,7 +336,7 @@ CONTAINS
       qi = AIMAG(LOG(zi))
       energy%efield = -SUM(fpolvec(:)*qi(:))
 
-      IF(.NOT. just_energy) THEN
+      IF (.NOT. just_energy) THEN
          CALL get_qs_env(qs_env=qs_env, matrix_s_kp=matrix_s)
          CALL qs_rho_get(rho, rho_ao_kp=matrix_p)
 
@@ -382,7 +376,7 @@ CONTAINS
             icol = MAX(iatom, jatom)
             irow = MIN(iatom, jatom)
 
-            IF(nimg > 1 ) THEN
+            IF (nimg > 1) THEN
                ic = cell_to_index(cellind(1), cellind(2), cellind(3))
                CPASSERT(ic > 0)
             ELSE
@@ -404,21 +398,21 @@ CONTAINS
                CALL dbcsr_get_block_p(matrix=ks_matrix(is, ic)%matrix, &
                                       row=irow, col=icol, block=ks_block, found=found)
                CPASSERT(found)
-               ks_block = ks_block + fdir*s_block
+               ks_block = ks_block+fdir*s_block
             END DO
             IF (calculate_forces) THEN
                atom_a = atom_of_kind(iatom)
                atom_b = atom_of_kind(jatom)
                fij = 0.0_dp
                DO ispin = 1, nspin
-                  CALL dbcsr_get_block_p(matrix=matrix_p(ispin,ic)%matrix, &
+                  CALL dbcsr_get_block_p(matrix=matrix_p(ispin, ic)%matrix, &
                                          row=irow, col=icol, BLOCK=p_block, found=found)
                   CPASSERT(found)
                   DO idir = 1, 3
-                     CALL dbcsr_get_block_p(matrix=matrix_s(idir+1,ic)%matrix, &
+                     CALL dbcsr_get_block_p(matrix=matrix_s(idir+1, ic)%matrix, &
                                             row=irow, col=icol, BLOCK=ds_block, found=found)
                      CPASSERT(found)
-                     fij(idir) = fij(idir) + SUM(p_block*ds_block)
+                     fij(idir) = fij(idir)+SUM(p_block*ds_block)
                   END DO
                END DO
                fdir = SUM(ria(1:3)*fieldpol(1:3))

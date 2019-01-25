@@ -180,7 +180,7 @@ CONTAINS
           IF (iw>0) WRITE(iw,'(T2,"QMMM|",1X,A)')"Unknown Coupling..."
           CPABORT("")
        END SELECT
-    ELSEIF (dft_control%qs_control%dftb) THEN
+    ELSEIF (dft_control%qs_control%dftb .OR. dft_control%qs_control%xtb) THEN
        ! DFTB
        SELECT CASE(qmmm_env%qmmm_coupl_type)
        CASE(do_qmmm_none)
@@ -286,8 +286,8 @@ CONTAINS
        IF(qmmm_env%added_shells%num_mm_atoms/=0) CALL mp_sum(Forces_added_shells,para_env%group)
        ! Debug Forces
        IF (debug_this_module) THEN
-          IF ( (dft_control%qs_control%semi_empirical).OR.&
-               (dft_control%qs_control%dftb))THEN
+          IF ( dft_control%qs_control%semi_empirical.OR.&
+               dft_control%qs_control%dftb .OR. dft_control%qs_control%xtb)THEN
              WRITE(iw,*)"NO DEBUG AVAILABLE in module"//TRIM(routineN)
           ELSE
              ! Print Out Forces
@@ -312,7 +312,7 @@ CONTAINS
     END IF
     ! Give back rho_tot_t to auxbas_pool only for GPW/GAPW
     IF  ((.NOT.dft_control%qs_control%semi_empirical).AND.&
-         (.NOT.dft_control%qs_control%dftb)) THEN
+         (.NOT.dft_control%qs_control%dftb).AND.(.NOT.dft_control%qs_control%xtb)) THEN
        CALL pw_pool_give_back_pw(auxbas_pool,rho_tot_r,&
             accept_non_compatible=.TRUE.)
     END IF

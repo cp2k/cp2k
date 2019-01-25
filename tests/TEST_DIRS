@@ -172,6 +172,7 @@ QS/regtest-ot-refine-2
 QS/regtest-gpw-2-1
 QS/regtest-dft-vdw-corr-1
 QMMM/DFTB/regtest
+QMMM/xTB/regtest
 QS/regtest-gpw-9                                            libxc
 QMMM/QS/regtest-gapw                                        libint
 QS/regtest-cdft-4-1
