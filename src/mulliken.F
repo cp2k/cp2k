@@ -38,7 +38,7 @@ MODULE mulliken
    END INTERFACE
 
    INTERFACE ao_charges
-      MODULE PROCEDURE ao_charges_1, ao_charges_kp
+      MODULE PROCEDURE ao_charges_1, ao_charges_2, ao_charges_kp, ao_charges_kp_2
    END INTERFACE
 
 CONTAINS
@@ -751,6 +751,69 @@ CONTAINS
    END SUBROUTINE ao_charges_1
 
 ! **************************************************************************************************
+!> \brief compute the mulliken charges (AO resolved)
+!> \param p_matrix , s_matrix, para_env ...
+!> \param s_matrix ...
+!> \param charges ...
+!> \param para_env ...
+!> \par History
+!>      06.2004 created [Joost VandeVondele]
+!>      10.2018 adapted [JGH]
+!> \note
+! **************************************************************************************************
+   SUBROUTINE ao_charges_2(p_matrix, s_matrix, charges, para_env)
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: p_matrix
+      TYPE(dbcsr_type), POINTER                          :: s_matrix
+      REAL(KIND=dp), DIMENSION(:, :), INTENT(INOUT)      :: charges
+      TYPE(cp_para_env_type), POINTER                    :: para_env
+
+      CHARACTER(len=*), PARAMETER :: routineN = 'ao_charges_2', routineP = moduleN//':'//routineN
+
+      INTEGER                                            :: blk, handle, i, iblock_col, iblock_row, &
+                                                            ispin, j, nspin
+      LOGICAL                                            :: found
+      REAL(KIND=dp), DIMENSION(:, :), POINTER            :: p_block, s_block
+      TYPE(dbcsr_iterator_type)                          :: iter
+
+      CALL timeset(routineN, handle)
+
+      nspin = SIZE(p_matrix)
+      charges = 0.0_dp
+      DO ispin = 1, nspin
+         CALL dbcsr_iterator_start(iter, s_matrix)
+         DO WHILE (dbcsr_iterator_blocks_left(iter))
+            NULLIFY (s_block, p_block)
+            CALL dbcsr_iterator_next_block(iter, iblock_row, iblock_col, s_block, blk)
+            CALL dbcsr_get_block_p(matrix=p_matrix(ispin)%matrix, &
+                                   row=iblock_row, col=iblock_col, BLOCK=p_block, found=found)
+
+            ! we can cycle if a block is not present
+            IF (.NOT. found) CYCLE
+            IF (.NOT. (ASSOCIATED(s_block) .AND. ASSOCIATED(p_block))) CYCLE
+
+            DO j = 1, SIZE(p_block, 2)
+               DO i = 1, SIZE(p_block, 1)
+                  charges(i, iblock_row) = charges(i, iblock_row)+p_block(i, j)*s_block(i, j)
+               END DO
+            END DO
+            IF (iblock_col /= iblock_row) THEN
+               DO j = 1, SIZE(p_block, 2)
+                  DO i = 1, SIZE(p_block, 1)
+                     charges(j, iblock_col) = charges(j, iblock_col)+p_block(i, j)*s_block(i, j)
+                  END DO
+               END DO
+            END IF
+
+         ENDDO
+         CALL dbcsr_iterator_stop(iter)
+      ENDDO
+      CALL mp_sum(charges, para_env%group)
+
+      CALL timestop(handle)
+
+   END SUBROUTINE ao_charges_2
+
+! **************************************************************************************************
 !> \brief ...
 !> \param p_matrix_kp ...
 !> \param s_matrix_kp ...
@@ -797,6 +860,54 @@ CONTAINS
       CALL timestop(handle)
 
    END SUBROUTINE ao_charges_kp
+
+! **************************************************************************************************
+!> \brief ...
+!> \param p_matrix_kp ...
+!> \param s_matrix_kp ...
+!> \param charges ...
+!> \param para_env ...
+! **************************************************************************************************
+   SUBROUTINE ao_charges_kp_2(p_matrix_kp, s_matrix_kp, charges, para_env)
+
+      TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: p_matrix_kp, s_matrix_kp
+      REAL(KIND=dp), DIMENSION(:, :), INTENT(INOUT)      :: charges
+      TYPE(cp_para_env_type), POINTER                    :: para_env
+
+      CHARACTER(len=*), PARAMETER :: routineN = 'ao_charges_kp_2', &
+         routineP = moduleN//':'//routineN
+
+      INTEGER                                            :: handle, ic, na, nb
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: charge_im
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: p_matrix
+      TYPE(dbcsr_type), POINTER                          :: s_matrix
+
+      CALL timeset(routineN, handle)
+
+      IF (ASSOCIATED(p_matrix_kp) .AND. ASSOCIATED(s_matrix_kp)) THEN
+
+         charges = 0.0_dp
+         na = SIZE(charges, 1)
+         nb = SIZE(charges, 2)
+         ALLOCATE (charge_im(na, nb))
+
+         DO ic = 1, SIZE(s_matrix_kp, 2)
+            NULLIFY (p_matrix, s_matrix)
+            p_matrix => p_matrix_kp(:, ic)
+            s_matrix => s_matrix_kp(1, ic)%matrix
+            IF (ASSOCIATED(p_matrix) .AND. ASSOCIATED(s_matrix)) THEN
+               CALL ao_charges_2(p_matrix, s_matrix, charge_im, para_env)
+               charges(:, :) = charges(:, :)+charge_im(:, :)
+            END IF
+         END DO
+
+         DEALLOCATE (charge_im)
+
+      END IF
+
+      CALL timestop(handle)
+
+   END SUBROUTINE ao_charges_kp_2
 
 ! **************************************************************************************************
 
