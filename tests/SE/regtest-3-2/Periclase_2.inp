@@ -14,28 +14,29 @@
       METHOD PM6
       &SE
         &COULOMB
-          CUTOFF [angstrom] 4.175
+          CUTOFF [angstrom] 4.1000
         &END
       &END
     &END QS
     &SCF
-      MAX_SCF 50
-      EPS_SCF 1.0E-6
+      MAX_SCF 30
+      EPS_SCF 1.0E-5
       SCF_GUESS mopac
       &OT 
-        MINIMIZER DIIS
+        MINIMIZER CG
+        LINESEARCH 3PNT
         PRECONDITIONER FULL_SINGLE_INVERSE
       &END
       &OUTER_SCF
-        EPS_SCF 1.0E-6
-        MAX_SCF 5
+        EPS_SCF 1.0E-5
+        MAX_SCF 20
       &END
     &END SCF
   &END DFT
   &SUBSYS
     &CELL
-      # this is the wrong cell but it's just to test the parse of the CIF
-      ABC 4.175  4.175  4.175 
+      CELL_FILE_NAME  ../sample_cif/Periclase.cif
+      CELL_FILE_FORMAT CIF
     &END CELL
     &TOPOLOGY
       COORDINATE CIF

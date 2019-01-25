@@ -27,11 +27,11 @@ MODULE input_cp2k_subsys
                                               medium_print_level
    USE cp_units,                        ONLY: cp_unit_to_cp2k
    USE input_constants,                 ONLY: &
-        do_add, do_bondparm_covalent, do_bondparm_vdw, do_cell_cp2k, do_cell_xsc, do_conn_amb7, &
-        do_conn_g87, do_conn_g96, do_conn_generate, do_conn_mol_set, do_conn_off, do_conn_psf, &
-        do_conn_psf_u, do_conn_user, do_coord_cif, do_coord_cp2k, do_coord_crd, do_coord_g96, &
-        do_coord_off, do_coord_pdb, do_coord_xtl, do_coord_xyz, do_remove, do_skip_11, do_skip_12, &
-        do_skip_13, do_skip_14, dump_pdb, gaussian
+        do_add, do_bondparm_covalent, do_bondparm_vdw, do_cell_cif, do_cell_cp2k, do_cell_xsc, &
+        do_conn_amb7, do_conn_g87, do_conn_g96, do_conn_generate, do_conn_mol_set, do_conn_off, &
+        do_conn_psf, do_conn_psf_u, do_conn_user, do_coord_cif, do_coord_cp2k, do_coord_crd, &
+        do_coord_g96, do_coord_off, do_coord_pdb, do_coord_xtl, do_coord_xyz, do_remove, &
+        do_skip_11, do_skip_12, do_skip_13, do_skip_14, dump_pdb, gaussian
    USE input_cp2k_colvar,               ONLY: create_colvar_section
    USE input_cp2k_mm,                   ONLY: create_neighbor_lists_section
    USE input_keyword_types,             ONLY: keyword_create,&
@@ -155,10 +155,11 @@ CONTAINS
 
       CALL keyword_create(keyword, name="CELL_FILE_FORMAT", &
                           description="Specify the format of the cell file (if used)", &
-                          usage="CELL_FILE_FORMAT (CP2K|XSC)", &
-                          enum_c_vals=s2a("CP2K", "XSC"), &
-                          enum_i_vals=(/do_cell_cp2k, do_cell_xsc/), &
+                          usage="CELL_FILE_FORMAT (CP2K|CIF|XSC)", &
+                          enum_c_vals=s2a("CP2K", "CIF", "XSC"), &
+                          enum_i_vals=(/do_cell_cp2k, do_cell_cif, do_cell_xsc/), &
                           enum_desc=s2a("Cell info in the CP2K native format.", &
+                                        "Cell info from CIF file.", &
                                         "Cell info in the XSC format (NAMD)"), &
                           default_i_val=do_cell_cp2k)
       CALL section_add_keyword(section, keyword)
