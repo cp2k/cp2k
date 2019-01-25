@@ -77,7 +77,8 @@ MODULE input_constants
                                                do_constr_molec = 3
 
    INTEGER, PARAMETER, PUBLIC               :: do_cell_cp2k = 1, &
-                                               do_cell_xsc = 2
+                                               do_cell_cif = 2, &
+                                               do_cell_xsc = 3
 
    INTEGER, PARAMETER, PUBLIC               :: rmsd_all = 0, &
                                                rmsd_list = 1, &
