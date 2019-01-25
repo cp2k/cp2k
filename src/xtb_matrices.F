@@ -34,14 +34,9 @@ MODULE xtb_matrices
                                               cp_print_key_should_output,&
                                               cp_print_key_unit_nr
    USE cp_para_types,                   ONLY: cp_para_env_type
-   USE dbcsr_api,                       ONLY: dbcsr_add,&
-                                              dbcsr_copy,&
-                                              dbcsr_create,&
-                                              dbcsr_finalize,&
-                                              dbcsr_get_block_p,&
-                                              dbcsr_multiply,&
-                                              dbcsr_p_type,&
-                                              dbcsr_type
+   USE dbcsr_api,                       ONLY: &
+        dbcsr_add, dbcsr_copy, dbcsr_create, dbcsr_finalize, dbcsr_get_block_p, dbcsr_multiply, &
+        dbcsr_p_type, dbcsr_trace, dbcsr_type
    USE efield_tb_methods,               ONLY: efield_tb_matrix
    USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                               section_vals_type,&
@@ -938,12 +933,13 @@ CONTAINS
                                                             nimg, nkind, ns, nspins
       INTEGER, DIMENSION(25)                             :: lao
       INTEGER, DIMENSION(5)                              :: occ
+      REAL(KIND=dp)                                      :: pc_ener, qmmm_el
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: aocharge, mcharge
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: charges
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(cp_para_env_type), POINTER                    :: para_env
-      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: mo_derivs
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_p1, mo_derivs
       TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: ks_matrix, matrix_h, matrix_p, matrix_s
       TYPE(dbcsr_type), POINTER                          :: mo_coeff
       TYPE(dft_control_type), POINTER                    :: dft_control
@@ -1024,7 +1020,19 @@ CONTAINS
       END IF
 
       IF (qs_env%qmmm) THEN
-         CPABORT("QMMM with xTB not implemented")
+         CPASSERT(SIZE(ks_matrix, 2) == 1)
+         DO ispin = 1, nspins
+            ! If QM/MM sumup the 1el Hamiltonian
+            CALL dbcsr_add(ks_matrix(ispin, 1)%matrix, qs_env%ks_qmmm_env%matrix_h(1)%matrix, &
+                           1.0_dp, 1.0_dp)
+            CALL qs_rho_get(rho, rho_ao=matrix_p1)
+            ! Compute QM/MM Energy
+            CALL dbcsr_trace(qs_env%ks_qmmm_env%matrix_h(1)%matrix, &
+                             matrix_p1(ispin)%matrix, trace=qmmm_el)
+            energy%qmmm_el = energy%qmmm_el+qmmm_el
+         END DO
+         pc_ener = qs_env%ks_qmmm_env%pc_ener
+         energy%qmmm_el = energy%qmmm_el+pc_ener
       END IF
 
       energy%total = energy%core+energy%hartree+energy%efield+ &
