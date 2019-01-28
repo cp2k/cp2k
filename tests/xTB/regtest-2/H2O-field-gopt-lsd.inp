@@ -25,6 +25,8 @@
       SCF_GUESS ATOMIC
       MAX_SCF 5
       &OT
+         PRECONDITIONER FULL_SINGLE_INVERSE
+         MINIMIZER DIIS
       &END
     &END SCF
     &POISSON
