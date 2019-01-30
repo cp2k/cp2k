@@ -1,7 +1,7 @@
 #!/bin/bash -e
 [ "${BASH_SOURCE[0]}" ] && SCRIPT_NAME="${BASH_SOURCE[0]}" || SCRIPT_NAME=$0
 SCRIPT_DIR="$(cd "$(dirname "$SCRIPT_NAME")" && pwd -P)"
-spglib_ver=${spglib_ver:-1.10.4}
+spglib_ver=${spglib_ver:-1.12.1}
 
 source "${SCRIPT_DIR}"/common_vars.sh
 source "${SCRIPT_DIR}"/tool_kit.sh
@@ -25,7 +25,8 @@ case "$with_spglib" in
                 echo "spglib-${spglib_ver}.tar.gz is found"
             else
                 download_pkg ${DOWNLOADER_FLAGS} \
-                             https://www.cp2k.org/static/downloads/spglib-${spglib_ver}.tar.gz
+                             https://github.com/atztogo/spglib/archive/v${spglib_ver}.tar.gz \
+                             -o spglib-${spglib_ver}.tar.gz
             fi
             echo "Installing from scratch into ${pkg_install_dir}"
             [ -d spglib-${spglib_ver} ] && rm -rf spglib-${spglib_ver}
