@@ -736,6 +736,11 @@ if [ "$with_spglib" = "__INSTALL__" ] ; then
     [ "$with_cmake" = "__DONTUSE__" ] && with_cmake="__INSTALL__"
 fi
 
+# json-fortran requires cmake.
+if [ "$with_json_fortran" = "__INSTALL__" ] ; then
+    [ "$with_cmake" = "__DONTUSE__" ] && with_cmake="__INSTALL__"
+fi
+
 # SIRIUS dependencies. Remove the gsl library from the dependencies if SIRIUS is not activated
 if [ "$with_sirius" = "__INSTALL__" ] ; then
     if [ "$with_gsl" = "__DONTUSE__" ] ; then
