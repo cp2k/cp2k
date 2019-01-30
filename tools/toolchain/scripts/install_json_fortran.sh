@@ -2,7 +2,7 @@
 [ "${BASH_SOURCE[0]}" ] && SCRIPT_NAME="${BASH_SOURCE[0]}" || SCRIPT_NAME=$0
 SCRIPT_DIR="$(cd "$(dirname "$SCRIPT_NAME")" && pwd -P)"
 
-json_fortran_ver=${json_fortran_ver:-6.9.0}
+json_fortran_ver=${json_fortran_ver:-7.0.0}
 source "${SCRIPT_DIR}"/common_vars.sh
 source "${SCRIPT_DIR}"/tool_kit.sh
 source "${SCRIPT_DIR}"/signal_trap.sh
@@ -25,7 +25,8 @@ case "$with_json_fortran" in
                 echo "json-fortran-${json_fortran_ver}.tar.gz is found"
             else
                 download_pkg ${DOWNLOADER_FLAGS} \
-                             https://www.cp2k.org/static/downloads/json-fortran-${json_fortran_ver}.tar.gz
+                             https://github.com/jacobwilliams/json-fortran/archive/${json_fortran_ver}.tar.gz \
+                             -o json-fortran-${json_fortran_ver}.tar.gz
             fi
             echo "Installing from scratch into ${pkg_install_dir}"
             [ -d json-fortran-${json_fortran_ver} ] && rm -rf josn-fortran-${json_fortran_ver}
