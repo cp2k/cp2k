@@ -266,9 +266,9 @@ CONTAINS
 
       COMPLEX(KIND=dp)                                   :: zdeta
       COMPLEX(KIND=dp), DIMENSION(3)                     :: zi(3)
-      INTEGER                                            :: atom_a, atom_b, handle, ia, iatom, ic, &
-                                                            icol, idir, ikind, irow, is, ispin, &
-                                                            jatom, jkind, natom, nimg, nspin
+      INTEGER                                            :: atom_a, atom_b, blk, handle, ia, iatom, &
+                                                            ic, icol, idir, ikind, irow, is, &
+                                                            ispin, jatom, jkind, natom, nimg, nspin
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: atom_of_kind, kind_of
       INTEGER, DIMENSION(3)                              :: cellind
       INTEGER, DIMENSION(:, :, :), POINTER               :: cell_to_index
@@ -281,6 +281,7 @@ CONTAINS
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       TYPE(cell_type), POINTER                           :: cell
       TYPE(cp_para_env_type), POINTER                    :: para_env
+      TYPE(dbcsr_iterator_type)                          :: iter
       TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: matrix_p, matrix_s
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(kpoint_type), POINTER                         :: kpoints
@@ -323,9 +324,8 @@ CONTAINS
 
       zi(:) = CMPLX(1._dp, 0._dp, dp)
       DO ia = 1, natom
-         charge = -mcharge(ia)
+         charge = mcharge(ia)
          ria = particle_set(ia)%r
-         ria = pbc(ria, cell)
          DO idir = 1, 3
             kvec(:) = twopi*cell%h_inv(idir, :)
             dd = SUM(kvec(:)*ria(:))
@@ -368,63 +368,121 @@ CONTAINS
             END IF
          END IF
 
-         CALL neighbor_list_iterator_create(nl_iterator, sab_orb)
-         DO WHILE (neighbor_list_iterate(nl_iterator) == 0)
-            CALL get_iterator_info(nl_iterator, ikind=ikind, jkind=jkind, &
-                                   iatom=iatom, jatom=jatom, r=rab, cell=cellind)
+         IF (nimg == 1) THEN
+            ! no k-points; all matrices have been transformed to periodic bsf
+            CALL dbcsr_iterator_start(iter, matrix_s(1, 1)%matrix)
+            DO WHILE (dbcsr_iterator_blocks_left(iter))
+               CALL dbcsr_iterator_next_block(iter, irow, icol, s_block, blk)
 
-            icol = MAX(iatom, jatom)
-            irow = MIN(iatom, jatom)
+               fdir = 0.0_dp
+               ria = particle_set(irow)%r
+               rib = particle_set(icol)%r
+               DO idir = 1, 3
+                  kvec(:) = twopi*cell%h_inv(idir, :)
+                  dd = SUM(kvec(:)*ria(:))
+                  zdeta = CMPLX(COS(dd), SIN(dd), KIND=dp)
+                  fdir = fdir+fpolvec(idir)*AIMAG(LOG(zdeta))
+                  dd = SUM(kvec(:)*rib(:))
+                  zdeta = CMPLX(COS(dd), SIN(dd), KIND=dp)
+                  fdir = fdir+fpolvec(idir)*AIMAG(LOG(zdeta))
+               END DO
 
-            IF (nimg > 1) THEN
+               DO is = 1, nspin
+                  NULLIFY (ks_block)
+                  CALL dbcsr_get_block_p(matrix=ks_matrix(is, 1)%matrix, &
+                                         row=irow, col=icol, block=ks_block, found=found)
+                  CPASSERT(found)
+                  ks_block = ks_block+0.5_dp*fdir*s_block
+               END DO
+               IF (calculate_forces) THEN
+                  ikind = kind_of(irow)
+                  jkind = kind_of(icol)
+                  atom_a = atom_of_kind(irow)
+                  atom_b = atom_of_kind(icol)
+                  fij = 0.0_dp
+                  DO ispin = 1, nspin
+                     CALL dbcsr_get_block_p(matrix=matrix_p(ispin, 1)%matrix, &
+                                            row=irow, col=icol, BLOCK=p_block, found=found)
+                     CPASSERT(found)
+                     DO idir = 1, 3
+                        CALL dbcsr_get_block_p(matrix=matrix_s(idir+1, 1)%matrix, &
+                                               row=irow, col=icol, BLOCK=ds_block, found=found)
+                        CPASSERT(found)
+                        fij(idir) = fij(idir)+SUM(p_block*ds_block)
+                     END DO
+                  END DO
+                  fdir = SUM(ria(1:3)*fieldpol(1:3))
+                  force(ikind)%efield(1:3, atom_a) = force(ikind)%efield(1:3, atom_a)+fdir*fij(1:3)
+                  force(jkind)%efield(1:3, atom_b) = force(jkind)%efield(1:3, atom_b)-fdir*fij(1:3)
+                  fdir = SUM(rib(1:3)*fieldpol(1:3))
+                  force(ikind)%efield(1:3, atom_a) = force(ikind)%efield(1:3, atom_a)+fdir*fij(1:3)
+                  force(jkind)%efield(1:3, atom_b) = force(jkind)%efield(1:3, atom_b)-fdir*fij(1:3)
+               END IF
+
+            ENDDO
+            CALL dbcsr_iterator_stop(iter)
+         ELSE
+            CALL neighbor_list_iterator_create(nl_iterator, sab_orb)
+            DO WHILE (neighbor_list_iterate(nl_iterator) == 0)
+               CALL get_iterator_info(nl_iterator, ikind=ikind, jkind=jkind, &
+                                      iatom=iatom, jatom=jatom, r=rab, cell=cellind)
+
+               icol = MAX(iatom, jatom)
+               irow = MIN(iatom, jatom)
+
                ic = cell_to_index(cellind(1), cellind(2), cellind(3))
                CPASSERT(ic > 0)
-            ELSE
-               ic = 1
-            END IF
 
-            ria = particle_set(irow)%r
-            ria = pbc(ria, cell)
-            rib = particle_set(icol)%r
-            rib = pbc(rib, cell)
-            fdir = 0.5_dp*SUM(fieldpol(1:3)*(ria(1:3)+rib(1:3)))
-
-            NULLIFY (s_block)
-            CALL dbcsr_get_block_p(matrix=matrix_s(1, ic)%matrix, &
-                                   row=irow, col=icol, block=s_block, found=found)
-            CPASSERT(found)
-            DO is = 1, nspin
-               NULLIFY (ks_block)
-               CALL dbcsr_get_block_p(matrix=ks_matrix(is, ic)%matrix, &
-                                      row=irow, col=icol, block=ks_block, found=found)
-               CPASSERT(found)
-               ks_block = ks_block+fdir*s_block
-            END DO
-            IF (calculate_forces) THEN
-               atom_a = atom_of_kind(iatom)
-               atom_b = atom_of_kind(jatom)
-               fij = 0.0_dp
-               DO ispin = 1, nspin
-                  CALL dbcsr_get_block_p(matrix=matrix_p(ispin, ic)%matrix, &
-                                         row=irow, col=icol, BLOCK=p_block, found=found)
-                  CPASSERT(found)
-                  DO idir = 1, 3
-                     CALL dbcsr_get_block_p(matrix=matrix_s(idir+1, ic)%matrix, &
-                                            row=irow, col=icol, BLOCK=ds_block, found=found)
-                     CPASSERT(found)
-                     fij(idir) = fij(idir)+SUM(p_block*ds_block)
-                  END DO
+               fdir = 0.0_dp
+               ria = particle_set(irow)%r
+               rib = particle_set(icol)%r
+               DO idir = 1, 3
+                  kvec(:) = twopi*cell%h_inv(idir, :)
+                  dd = SUM(kvec(:)*ria(:))
+                  zdeta = CMPLX(COS(dd), SIN(dd), KIND=dp)
+                  fdir = fdir+fpolvec(idir)*AIMAG(LOG(zdeta))
+                  dd = SUM(kvec(:)*rib(:))
+                  zdeta = CMPLX(COS(dd), SIN(dd), KIND=dp)
+                  fdir = fdir+fpolvec(idir)*AIMAG(LOG(zdeta))
                END DO
-               fdir = SUM(ria(1:3)*fieldpol(1:3))
-               force(ikind)%efield(1:3, atom_a) = force(ikind)%efield(1:3, atom_a)+fdir*fij(1:3)
-               force(jkind)%efield(1:3, atom_b) = force(jkind)%efield(1:3, atom_b)-fdir*fij(1:3)
-               fdir = SUM(rib(1:3)*fieldpol(1:3))
-               force(ikind)%efield(1:3, atom_a) = force(ikind)%efield(1:3, atom_a)+fdir*fij(1:3)
-               force(jkind)%efield(1:3, atom_b) = force(jkind)%efield(1:3, atom_b)-fdir*fij(1:3)
-            END IF
 
-         END DO
-         CALL neighbor_list_iterator_release(nl_iterator)
+               NULLIFY (s_block)
+               CALL dbcsr_get_block_p(matrix=matrix_s(1, ic)%matrix, &
+                                      row=irow, col=icol, block=s_block, found=found)
+               CPASSERT(found)
+               DO is = 1, nspin
+                  NULLIFY (ks_block)
+                  CALL dbcsr_get_block_p(matrix=ks_matrix(is, ic)%matrix, &
+                                         row=irow, col=icol, block=ks_block, found=found)
+                  CPASSERT(found)
+                  ks_block = ks_block+0.5_dp*fdir*s_block
+               END DO
+               IF (calculate_forces) THEN
+                  atom_a = atom_of_kind(iatom)
+                  atom_b = atom_of_kind(jatom)
+                  fij = 0.0_dp
+                  DO ispin = 1, nspin
+                     CALL dbcsr_get_block_p(matrix=matrix_p(ispin, ic)%matrix, &
+                                            row=irow, col=icol, BLOCK=p_block, found=found)
+                     CPASSERT(found)
+                     DO idir = 1, 3
+                        CALL dbcsr_get_block_p(matrix=matrix_s(idir+1, ic)%matrix, &
+                                               row=irow, col=icol, BLOCK=ds_block, found=found)
+                        CPASSERT(found)
+                        fij(idir) = fij(idir)+SUM(p_block*ds_block)
+                     END DO
+                  END DO
+                  IF (irow == iatom) fij = -fij
+                  force(ikind)%efield(1:3, atom_a) = force(ikind)%efield(1:3, atom_a)+0.5_dp*fdir*fij(1:3)
+                  force(jkind)%efield(1:3, atom_b) = force(jkind)%efield(1:3, atom_b)-0.5_dp*fdir*fij(1:3)
+                  fdir = SUM(rib(1:3)*fieldpol(1:3))
+                  force(ikind)%efield(1:3, atom_a) = force(ikind)%efield(1:3, atom_a)+0.5_dp*fdir*fij(1:3)
+                  force(jkind)%efield(1:3, atom_b) = force(jkind)%efield(1:3, atom_b)-0.5_dp*fdir*fij(1:3)
+               END IF
+
+            END DO
+            CALL neighbor_list_iterator_release(nl_iterator)
+         END IF
 
          IF (calculate_forces) THEN
             DEALLOCATE (atom_of_kind, kind_of)
