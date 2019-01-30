@@ -196,7 +196,7 @@ The --with-PKG options follow the rules:
                           Default = install
   --with-elpa             Eigenvalue SoLvers for Petaflop-Applications library.
                           Fast library for large parallel jobs.
-                          Default = no
+                          Default = install
   --with-ptscotch         PT-SCOTCH, only used if PEXSI is used
                           Default = no
   --with-parmetis         ParMETIS, and if --with-parmetis=install will also install
@@ -302,12 +302,13 @@ with_mkl=__SYSTEM__
 with_openblas=__INSTALL__
 with_reflapack=__INSTALL__
 
-# sirius is not activated by default.
+# sirius is activated by default
 with_sirius="__INSTALL__"
 with_gsl="__INSTALL__"
 with_spglib="__INSTALL__"
 with_hdf5="__INSTALL__"
 with_json_fortran="__INSTALL__"
+with_elpa="__INSTALL__"
 
 # for MPI, we try to detect system MPI variant
 with_openmpi=__SYSTEM__
