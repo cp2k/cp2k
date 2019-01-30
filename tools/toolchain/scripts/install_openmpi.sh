@@ -2,7 +2,7 @@
 [ "${BASH_SOURCE[0]}" ] && SCRIPT_NAME="${BASH_SOURCE[0]}" || SCRIPT_NAME=$0
 SCRIPT_DIR="$(cd "$(dirname "$SCRIPT_NAME")" && pwd -P)"
 
-openmpi_ver=${openmpi_ver:-3.1.0}
+openmpi_ver=${openmpi_ver:-3.1.3}
 source "${SCRIPT_DIR}"/common_vars.sh
 source "${SCRIPT_DIR}"/tool_kit.sh
 source "${SCRIPT_DIR}"/signal_trap.sh
@@ -28,7 +28,7 @@ case "$with_openmpi" in
                 echo "openmpi-${openmpi_ver}.tar.gz is found"
             else
                 download_pkg ${DOWNLOADER_FLAGS} \
-                             https://www.cp2k.org/static/downloads/openmpi-${openmpi_ver}.tar.gz
+                             https://download.open-mpi.org/release/open-mpi/v${openmpi_ver%.*}/openmpi-${openmpi_ver}.tar.gz
             fi
             echo "Installing from scratch into ${pkg_install_dir}"
             [ -d openmpi-${openmpi_ver} ] && rm -rf openmpi-${openmpi_ver}
