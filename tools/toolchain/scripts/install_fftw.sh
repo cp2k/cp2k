@@ -2,7 +2,7 @@
 [ "${BASH_SOURCE[0]}" ] && SCRIPT_NAME="${BASH_SOURCE[0]}" || SCRIPT_NAME=$0
 SCRIPT_DIR="$(cd "$(dirname "$SCRIPT_NAME")" && pwd -P)"
 
-fftw_ver=${fftw_ver:-3.3.7}
+fftw_ver=${fftw_ver:-3.3.8}
 source "${SCRIPT_DIR}"/common_vars.sh
 source "${SCRIPT_DIR}"/tool_kit.sh
 source "${SCRIPT_DIR}"/signal_trap.sh
@@ -29,7 +29,7 @@ case "$with_fftw" in
                 echo "fftw-${fftw_ver}.tar.gz is found"
             else
                 download_pkg ${DOWNLOADER_FLAGS} \
-                             https://www.cp2k.org/static/downloads/fftw-${fftw_ver}.tar.gz
+                             http://www.fftw.org/fftw-${fftw_ver}.tar.gz
             fi
             echo "Installing from scratch into ${pkg_install_dir}"
             [ -d fftw-${fftw_ver} ] && rm -rf fftw-${fftw_ver}
