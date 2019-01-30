@@ -916,15 +916,17 @@ CONTAINS
       dft_control%smear = scf_control%smear%do_smear
 
       ! Periodic efield needs equal occupation and orbital gradients
-      IF (dft_control%apply_period_efield) THEN
-         CALL get_qs_env(qs_env=qs_env, requires_mo_derivs=orb_gradient)
-         IF (.NOT. orb_gradient) THEN
-            CALL cp_abort(__LOCATION__, "Periodic Efield needs orbital gradient and direct optimization."// &
-                          " Use the OT optimization method.")
-         END IF
-         IF (dft_control%smear) THEN
-            CALL cp_abort(__LOCATION__, "Periodic Efield needs equal occupation numbers."// &
-                          " Smearing option is not possible.")
+      IF (.NOT. (dft_control%qs_control%dftb .OR. dft_control%qs_control%xtb)) THEN
+         IF (dft_control%apply_period_efield) THEN
+            CALL get_qs_env(qs_env=qs_env, requires_mo_derivs=orb_gradient)
+            IF (.NOT. orb_gradient) THEN
+               CALL cp_abort(__LOCATION__, "Periodic Efield needs orbital gradient and direct optimization."// &
+                             " Use the OT optimization method.")
+            END IF
+            IF (dft_control%smear) THEN
+               CALL cp_abort(__LOCATION__, "Periodic Efield needs equal occupation numbers."// &
+                             " Smearing option is not possible.")
+            END IF
          END IF
       END IF
 

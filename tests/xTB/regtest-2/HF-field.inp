@@ -3,61 +3,65 @@
   &DFT
     &PRINT
       &MOMENTS
-        PERIODIC T
+      &END
+      &DERIVATIVES
       &END
     &END
-    BASIS_SET_FILE_NAME GTH_BASIS_SETS
-    POTENTIAL_FILE_NAME POTENTIAL
-    &MGRID
-      CUTOFF 300
-      NGRIDS 1
-    &END MGRID
-    &PERIODIC_EFIELD
-       POLARISATION 1 2 5 
-       INTENSITY 0.01
-    &END    
     &QS
-      EPS_DEFAULT 1.0E-14
-      MAP_CONSISTENT
+      METHOD xTB
+      &xTB
+         DO_EWALD T
+      &END XTB
     &END QS
+#    &KPOINTS
+#       #SCHEME  GAMMA
+#       SCHEME  NONE
+#    &END
     &SCF
-      EPS_SCF 1.0E-8
-      SCF_GUESS ATOMIC 
-      MAX_SCF 100
-      &OT
-         MINIMIZER DIIS
-      &END
-      &OUTER_SCF
-        MAX_SCF 50
-      &END
+      EPS_SCF 1.e-8
+      MAX_SCF 90
+      &OT ON
+         MINIMIZER        CG
+         LINESEARCH       3PNT
+         PRECONDITIONER   FULL_S_INVERSE
+      &END OT
     &END SCF
-    &XC
-      &XC_FUNCTIONAL PADE
-      &END XC_FUNCTIONAL
-    &END XC
+    &POISSON
+      &EWALD
+       ALPHA  10.0
+       EWALD_TYPE SPME
+       GMAX 75
+      &END EWALD
+    &END POISSON
+    &PERIODIC_EFIELD
+       POLARISATION 0 0 1
+       INTENSITY 0.05
+    &END    
+    #&EFIELD
+    #   POLARISATION 0 0.5 1
+    #   INTENSITY 0.05
+    #&END    
   &END DFT
   &SUBSYS
     &CELL
-      A  6.0  0.0  0.0
-      B  0.0  6.0  0.0
-      C  0.0  0.0  6.0
+      ABC 10.0 10.0 10.0
     &END CELL
     &COORD
-    H   0.000000    0.000000    0.000000 
-    F   0.940000    0.000000    0.000000 
+    F   0.000000    0.000000    0.000000 
+    H   0.000000    0.000000    0.970000
     &END COORD
-    &KIND H
-      BASIS_SET DZVP-GTH
-      POTENTIAL GTH-BLYP-q1
-    &END KIND
-    &KIND F
-      BASIS_SET DZVP-GTH
-      POTENTIAL GTH-BLYP-q7
-    &END KIND
   &END SUBSYS
 &END FORCE_EVAL
 &GLOBAL
-  PROJECT HF
+  PROJECT HF-field
   PRINT_LEVEL LOW
-  RUN_TYPE ENERGY
+  RUN_TYPE DEBUG 
+  #RUN_TYPE ENERGY_FORCE
 &END GLOBAL
+&DEBUG
+   DEBUG_FORCES T
+   DEBUG_STRESS_TENSOR F
+   STOP_ON_MISMATCH F
+   DX 0.005
+&END DEBUG
+

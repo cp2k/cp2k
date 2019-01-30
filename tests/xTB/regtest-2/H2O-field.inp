@@ -10,14 +10,18 @@
     &QS
       METHOD xTB
       &xTB
-         DO_EWALD F
+         DO_EWALD T
       &END XTB
     &END QS
+    &KPOINTS
+       SCHEME  GAMMA
+    &END
     &SCF
-      EPS_SCF 1.e-7
-      MAX_SCF 30
-      &OT
-         MINIMIZER        DIIS
+      EPS_SCF 1.e-8
+      MAX_SCF 90
+      &OT OFF
+         MINIMIZER        CG
+         LINESEARCH       3PNT
          PRECONDITIONER   FULL_S_INVERSE
       &END OT
     &END SCF
@@ -28,18 +32,18 @@
        GMAX 75
       &END EWALD
     &END POISSON
-    #&PERIODIC_EFIELD
-    #   POLARISATION -1 -1 -1
-    #   INTENSITY 0.001
-    #&END    
-    &EFIELD
-       POLARISATION 0 0.5 1
+    &PERIODIC_EFIELD
+       POLARISATION 0 0 1
        INTENSITY 0.05
     &END    
+    #&EFIELD
+    #   POLARISATION 0 0.5 1
+    #   INTENSITY 0.05
+    #&END    
   &END DFT
   &SUBSYS
     &CELL
-      ABC 30.0 30.0 30.0
+      ABC 6.0 6.0 6.0
     &END CELL
     &COORD
     O   0.000000    0.000000   -0.065587 H2O
