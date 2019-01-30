@@ -2,7 +2,7 @@
 [ "${BASH_SOURCE[0]}" ] && SCRIPT_NAME="${BASH_SOURCE[0]}" || SCRIPT_NAME=$0
 SCRIPT_DIR="$(cd "$(dirname "$SCRIPT_NAME")" && pwd -P)"
 
-libxc_ver=${libxc_ver:-4.2.3}
+libxc_ver=${libxc_ver:-4.3.0}
 source "${SCRIPT_DIR}"/common_vars.sh
 source "${SCRIPT_DIR}"/tool_kit.sh
 source "${SCRIPT_DIR}"/signal_trap.sh
@@ -28,7 +28,7 @@ case "$with_libxc" in
                 echo "libxc-${libxc_ver}.tar.gz is found"
             else
                 download_pkg ${DOWNLOADER_FLAGS} \
-                             https://www.cp2k.org/static/downloads/libxc-${libxc_ver}.tar.gz
+                             https://tddft.org/programs/octopus/download/libxc/${libxc_ver}/libxc-${libxc_ver}.tar.gz
             fi
             echo "Installing from scratch into ${pkg_install_dir}"
             [ -d libxc-${libxc_ver} ] && rm -rf libxc-${libxc_ver}
