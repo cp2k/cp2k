@@ -2,7 +2,7 @@
 [ "${BASH_SOURCE[0]}" ] && SCRIPT_NAME="${BASH_SOURCE[0]}" || SCRIPT_NAME=$0
 SCRIPT_DIR="$(cd "$(dirname "$SCRIPT_NAME")" && pwd -P)"
 
-cmake_ver=${cmake_ver:-3.11.2}
+cmake_ver=${cmake_ver:-3.13.3}
 source "${SCRIPT_DIR}"/common_vars.sh
 source "${SCRIPT_DIR}"/tool_kit.sh
 source "${SCRIPT_DIR}"/signal_trap.sh
@@ -25,7 +25,7 @@ case "$with_cmake" in
                 echo "cmake-${cmake_ver}.tar.gz is found"
             else
                 download_pkg ${DOWNLOADER_FLAGS} \
-                             https://www.cp2k.org/static/downloads/cmake-${cmake_ver}.tar.gz
+                             https://github.com/Kitware/CMake/releases/download/v${cmake_ver}/cmake-${cmake_ver}.tar.gz
             fi
             echo "Installing from scratch into ${pkg_install_dir}"
             [ -d cmake-${cmake_ver} ] && rm -rf cmake-${cmake_ver}
