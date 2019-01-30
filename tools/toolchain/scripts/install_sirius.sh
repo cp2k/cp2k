@@ -2,7 +2,7 @@
 [ "${BASH_SOURCE[0]}" ] && SCRIPT_NAME="${BASH_SOURCE[0]}" || SCRIPT_NAME=$0
 SCRIPT_DIR="$(cd "$(dirname "$SCRIPT_NAME")" && pwd -P)"
 
-sirius_ver=${sirius_ver:-5.8.3}
+sirius_ver=${sirius_ver:-6.0.0}
 source "${SCRIPT_DIR}"/common_vars.sh
 source "${SCRIPT_DIR}"/tool_kit.sh
 source "${SCRIPT_DIR}"/signal_trap.sh
@@ -60,7 +60,8 @@ case "$with_sirius" in
                 echo "sirius_v${sirius_ver}.tar.gz is found"
             else
                 download_pkg ${DOWNLOADER_FLAGS} \
-                             https://www.cp2k.org/static/downloads/SIRIUS-${sirius_ver}.tar.gz
+                             https://github.com/electronic-structure/SIRIUS/archive/v${sirius_ver}.tar.gz \
+                             -o SIRIUS-${sirius_ver}.tar.gz
             fi
             echo "Installing from scratch into ${pkg_install_dir}"
             [ -d sirius-${sirius_ver} ] && rm -rf sirius-${sirius_ver}
