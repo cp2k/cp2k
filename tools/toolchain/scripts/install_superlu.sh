@@ -40,10 +40,11 @@ case "$with_superlu" in
             tar -xzf superlu_dist_${superlu_ver}.tar.gz
             cd SuperLU_DIST_${superlu_ver}
             mv make.inc make.inc.orig
+            # using the OMP-based math libraries here (if available) for the executables since PARMETS/METIS also use OMP if available
             cat <<EOF >> make.inc
 PLAT=_${OPENBLAS_ARCH}
 DSUPERLULIB= ${PWD}/lib/libsuperlu_dist.a
-LIBS=\$(DSUPERLULIB) ${PARMETIS_LDFLAGS} ${METIS_LDFLAGS} ${MATH_LDFLAGS} ${PARMETIS_LIBS} ${METIS_LIBS} ${MATH_LIBS} -lgfortran
+LIBS=\$(DSUPERLULIB) ${PARMETIS_LDFLAGS} ${METIS_LDFLAGS} ${MATH_LDFLAGS} ${PARMETIS_LIBS} ${METIS_LIBS} $(resolve_string "${MATH_LIBS}" OMP) -lgfortran
 ARCH=ar
 ARCHFLAGS=cr
 RANLIB=ranlib
