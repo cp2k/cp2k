@@ -56,13 +56,6 @@ case "$with_elpa" in
             # elpa expect FC to be an mpi fortran compiler that is happy
             # with long lines, and that a bunch of libs can be found
             cd elpa-${elpa_ver}
-            # shared libraries cannot be built if linked with
-            # reflapack (the case when valgrind is enabled)
-            if [ "$ENABLE_VALGRIND" = "__TRUE__" ] ; then
-                shared_flag=no
-            else
-                shared_flag=yes
-            fi
             # specific settings needed on CRAY Linux Environment
             if [ "$ENABLE_CRAY" = "__TRUE__" ] ; then
                 # extra LDFLAGS needed
@@ -79,7 +72,7 @@ case "$with_elpa" in
             ../configure  --prefix="${pkg_install_dir}" \
                           --libdir="${pkg_install_dir}/lib" \
                           --enable-openmp=no \
-                          --enable-shared=$shared_flag \
+                          --enable-shared=no \
                           --enable-static=yes \
                           --disable-option-checking \
                           --enable-avx=${has_AVX} \
@@ -103,7 +96,7 @@ case "$with_elpa" in
                 ../configure  --prefix="${pkg_install_dir}" \
                               --libdir="${pkg_install_dir}/lib" \
                               --enable-openmp=yes \
-                              --enable-shared=$shared_flag \
+                              --enable-shared=no \
                               --enable-static=yes \
                               --disable-option-checking \
                               --enable-avx=${has_AVX} \
