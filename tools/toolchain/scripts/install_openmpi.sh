@@ -60,9 +60,10 @@ case "$with_openmpi" in
         check_command mpicc "openmpi"
         check_command mpif90 "openmpi"
         check_command mpic++ "openmpi"
-        check_lib -lmpi "openmpi"
-        add_include_from_paths OPENMPI_CFLAGS "mpi.h" $INCLUDE_PATHS
-        add_lib_from_paths OPENMPI_LDFLAGS "libmpi.*" $LIB_PATHS
+        # Fortran code in CP2K is built via the mpifort wrapper, but we may need additional
+        # libraries and linker flags for C/C++-based MPI codepaths, pull them in at this point.
+        OPENMPI_CFLAGS="$(mpicxx --showme:compile)"
+        OPENMPI_LDFLAGS="$(mpicxx --showme:link)"
         ;;
     __DONTUSE__)
         ;;
@@ -87,15 +88,23 @@ prepend_path CPATH "$pkg_install_dir/include"
 EOF
         cat "${BUILDDIR}/setup_openmpi" >> $SETUPFILE
         mpi_bin="$pkg_install_dir/bin/mpirun"
+        mpicxx_bin="$pkg_install_dir/bin/mpicxx"
     else
         mpi_bin=mpirun
+        mpicxx_bin=mpicxx
     fi
     # check openmpi version as reported by mpirun
     raw_version=$($mpi_bin --version 2>&1 | \
                       grep "(Open MPI)" | awk '{print $4}')
     major_version=$(echo $raw_version | cut -d '.' -f 1)
     minor_version=$(echo $raw_version | cut -d '.' -f 2)
-    OPENMPI_LIBS="-lmpi -lmpi_cxx"
+    OPENMPI_LIBS=""
+    # grab additional runtime libs (for C/C++) from the mpicxx wrapper,
+    # and remove them from the LDFLAGS if present
+    for lib in $("${mpicxx_bin}" --showme:libs) ; do
+        OPENMPI_LIBS+=" -l${lib}"
+        OPENMPI_LDFLAGS="${OPENMPI_LDFLAGS//-l${lib}}"
+    done
     # old versions didn't support MPI 3, so adjust __MPI_VERSION accordingly (needed e.g. for pexsi)
     if [ $major_version -lt 1 ] || \
        [ $major_version -eq 1 -a $minor_version -lt 7 ] ; then
