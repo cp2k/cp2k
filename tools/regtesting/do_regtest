@@ -768,7 +768,7 @@ done
 # add some more information about that last commit if `git` is available
 if [[ "${git_sha}" != "<N/A>" ]] && command -v git >/dev/null 2>&1 ; then
    GIT_WORK_TREE="${dir_base}/${cp2k_dir}" GIT_DIR="${dir_base}/${cp2k_dir}/.git" \
-      git \
+      git --no-pager \
          log -n 1 \
          --format="CommitTime: %ci%nCommitAuthor: %an%nCommitAuthorEmail: %ae%nCommitSubject: %s%n" \
          "${git_sha}"
