@@ -39,6 +39,10 @@ case "$with_libxc" in
                 configure
             # patch for libxc 3.0.0 + gcc 6.4.0 (undefined behavior in lda_x.c)
             CFLAGS=`echo ${CFLAGS} |sed 's|-fno-omit-frame-pointer ||g'`
+
+            # patch for libxc 4.3.0 (undefined symbols due to function removal)
+            patch -p1 < "${SCRIPT_DIR}/files/libxc-4.3.0-fix-fortran-iface.patch"
+
             ./configure  --prefix="${pkg_install_dir}" --libdir="${pkg_install_dir}/lib" > configure.log 2>&1
             make -j $NPROCS > make.log 2>&1
             make install > install.log 2>&1
