@@ -4,8 +4,6 @@
 !--------------------------------------------------------------------------------------------------!
 ! **************************************************************************************************
 !> \brief 3-center overlap type integrals containers
-!> \par History
-!>      - 11.2018 Added lbij/ubij to keep track of lower and upper bounds of i,j indices(A.BUSSY)
 ! **************************************************************************************************
 MODULE qs_o3c_types
 
@@ -56,8 +54,6 @@ MODULE qs_o3c_types
       LOGICAL                                    :: ijsymmetric
       INTEGER                                    :: nijpairs
       INTEGER                                    :: nspin
-      INTEGER                                    :: lbij
-      INTEGER                                    :: ubij
       TYPE(o3c_pair_type), DIMENSION(:), POINTER :: ijpair
       ! basis sets and neighbor lists are pointing to other resources
       ! we don't keep track if the data is available and correct
@@ -155,10 +151,6 @@ CONTAINS
       NULLIFY (o3c%ijpair)
       ALLOCATE (o3c%ijpair(nij))
 
-      ! Initialize bounds at extreme values
-      o3c%lbij = nij
-      o3c%ubij = 1
-
       ! for each pair set up the ijk lists
       nij = 0
       CALL neighbor_list_iterator_create(nl_iterator, sab_nl)
@@ -179,11 +171,6 @@ CONTAINS
          END DO
          ! ijk lists
          ijpair%nklist = nk
-         ! update ij lower and upper bounds
-         IF (nk > 0) THEN
-            o3c%lbij = MIN(o3c%lbij, MIN(ijpair%iatom, ijpair%jatom))
-            o3c%ubij = MAX(o3c%ubij, MAX(ijpair%iatom, ijpair%jatom))
-         END IF
          ALLOCATE (ijpair%ijk(nk))
          ! fill the ijk lists
          nk = 0
@@ -318,12 +305,12 @@ CONTAINS
 !> \param sac_nl ...
 ! **************************************************************************************************
 
-   SUBROUTINE get_o3c_container(o3c, ijsymmetric, nspin, nijpairs, lbij, ubij, ijpair, &
+   SUBROUTINE get_o3c_container(o3c, ijsymmetric, nspin, nijpairs, ijpair, &
                                 basis_set_list_a, basis_set_list_b, basis_set_list_c, &
                                 sab_nl, sac_nl)
       TYPE(o3c_container_type)                           :: o3c
       LOGICAL, OPTIONAL                                  :: ijsymmetric
-      INTEGER, OPTIONAL                                  :: nspin, nijpairs, lbij, ubij
+      INTEGER, OPTIONAL                                  :: nspin, nijpairs
       TYPE(o3c_pair_type), DIMENSION(:), OPTIONAL, &
          POINTER                                         :: ijpair
       TYPE(gto_basis_set_p_type), DIMENSION(:), &
@@ -338,8 +325,6 @@ CONTAINS
       IF (PRESENT(ijsymmetric)) ijsymmetric = o3c%ijsymmetric
       IF (PRESENT(nspin)) nspin = o3c%nspin
       IF (PRESENT(nijpairs)) nijpairs = o3c%nijpairs
-      IF (PRESENT(lbij)) lbij = o3c%lbij
-      IF (PRESENT(ubij)) ubij = o3c%ubij
       IF (PRESENT(ijpair)) ijpair => o3c%ijpair
       IF (PRESENT(basis_set_list_a)) basis_set_list_a => o3c%basis_set_list_a
       IF (PRESENT(basis_set_list_b)) basis_set_list_b => o3c%basis_set_list_b

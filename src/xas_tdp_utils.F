@@ -14,14 +14,17 @@ MODULE xas_tdp_utils
                                               gto_basis_set_p_type
    USE cell_types,                      ONLY: cell_type
    USE constants_operator,              ONLY: operator_coulomb
+   USE cp_array_utils,                  ONLY: cp_2d_r_p_type
    USE cp_dbcsr_cholesky,               ONLY: cp_dbcsr_cholesky_decompose, cp_dbcsr_cholesky_invert
    USE cp_dbcsr_operations,             ONLY: copy_dbcsr_to_fm, cp_dbcsr_sm_fm_multiply, &
                                               copy_fm_to_dbcsr, cp_fm_to_dbcsr_row_template
    USE cp_cfm_basic_linalg,             ONLY: cp_cfm_gemm
    USE cp_cfm_diag,                     ONLY: cp_cfm_heevd
    USE cp_cfm_types,                    ONLY: cp_fm_to_cfm, cp_cfm_to_fm, cp_cfm_type, &
-                                              cp_cfm_create, cp_cfm_release, cp_cfm_get_submatrix
-   USE cp_fm_basic_linalg,              ONLY: cp_fm_column_scale, cp_fm_trace, cp_fm_upper_to_full
+                                              cp_cfm_create, cp_cfm_release, cp_cfm_get_submatrix, &
+                                              cp_cfm_get_element
+   USE cp_fm_basic_linalg,              ONLY: cp_fm_column_scale, cp_fm_trace, cp_fm_upper_to_full,&
+                                              cp_fm_scale
    USE cp_fm_diag,                      ONLY: choose_eigv_solver, cp_fm_geeig, cp_fm_power
    USE cp_fm_struct,                    ONLY: cp_fm_struct_create, cp_fm_struct_release, &     
                                               cp_fm_struct_type
@@ -44,7 +47,8 @@ MODULE xas_tdp_utils
                                               dbcsr_iterator_stop, dbcsr_iterator_next_block, &
                                               dbcsr_add, dbcsr_add_on_diag, dbcsr_reserve_block2d, &
                                               dbcsr_transposed, dbcsr_get_diag, dbcsr_set_diag, &
-                                              dbcsr_copy_into_existing, dbcsr_type_symmetric
+                                              dbcsr_copy_into_existing, dbcsr_type_symmetric, &
+                                              dbcsr_get_stored_coordinates
    USE distribution_1d_types,           ONLY: distribution_1d_type
    USE distribution_2d_types,           ONLY: distribution_2d_type
    USE generic_os_integrals,            ONLY: int_operators_r12_ab_os
@@ -54,9 +58,8 @@ MODULE xas_tdp_utils
    USE input_section_types,             ONLY: section_vals_val_get
    USE kinds,                           ONLY: dp
    USE mathlib,                         ONLY: invmat_symm
-   USE message_passing,                 ONLY: mp_bcast,&
-                                              mp_max,&
-                                              mp_min
+   USE message_passing,                 ONLY: mp_min, mp_max, mp_bcast, mp_isend, mp_irecv, &
+                                              mp_wait, mp_waitall
    USE molecule_types,                  ONLY: molecule_type
    USE particle_types,                  ONLY: particle_type
    USE preconditioner_types,            ONLY: preconditioner_type, init_preconditioner, &
@@ -91,7 +94,7 @@ MODULE xas_tdp_utils
 
    PUBLIC :: setup_xas_tdp_prob, solve_xas_tdp_prob, &
              compute_ri_coulomb2_int, include_full_soc, build_xas_tdp_3c_nl, &
-             compute_ri_o3c_coulomb, compute_ri_o3c_exchange
+             compute_ri_o3c_coulomb, compute_ri_o3c_exchange, get_ri_o3c_coul_bonds
 
 CONTAINS
 
@@ -122,8 +125,6 @@ CONTAINS
 !>        - G: the metric  S_pq*delta_IJ
 !>        For the xc functionals, C_aa + C_ab or C_aa - C_ab are stored in the same matrix
 !>        In the above definitions, I,J label the donnor MOs and p,q the sgfs of the basis
-!>        Under TDA, only the on-diagonal elements of M are computed
-!>        In the case of non-TDA, one turns the problem Hermitian 
 !>
 !>       -In the SPIN-UNRESTRICTED case:
 !>        the on- and off-diagonal elements of M are:
@@ -137,10 +138,13 @@ CONTAINS
 !>        - E: the off-diagonal exact-exchange kernel: (pJ_b|I_a q) delta_ab
 !>        - G: the metric S_pq*delta_IJ*delta_ab
 !>        p,q label the sgfs, I,J the donro MOs and a,b the spins
+!>
 !>       -In both cases, the matrix M is always  projected onto the unperturbed unoccupied  
 !>        ground state: M <= Q * M * Q^T = (1 - SP) * M * (1 - PS)
 !>        All possibilities: TDA or full-TDDFT, singlet or triplet, xc or hybrid, etc are treated
 !>        in the same routine to avoid recomputing stuff
+!>        Under TDA, only the on-diagonal elements of M are computed
+!>        In the case of non-TDA, one turns the problem Hermitian 
 ! **************************************************************************************************
    SUBROUTINE setup_xas_tdp_prob(donor_state, qs_env, xas_tdp_env, xas_tdp_control)
 
@@ -459,9 +463,6 @@ CONTAINS
                                para_env=para_env, ncol_global=nrow)
       CALL cp_fm_create(c_sum, fm_struct)
 
-      !:TODO: think about what to change to accomodate a possible syevr, such that not all eigv
-      !       are computed
-      
 !     Allocating space for solutions and oscilaltor strengths
       IF (do_os) THEN
          ALLOCATE(donor_state%os_evals(nevals))
@@ -717,7 +718,7 @@ CONTAINS
       ! Put the unoccupied LUMOs next
       DO imo = 1, neig/ndo_mo
          DO ispin = 1, nspins
-            ilumo = imo; IF (ispin == minel) ilumo = imo+offset
+            ilumo = imo; IF (ispin == minel .OR. do_roks) ilumo = imo+offset
             DO ido_mo = 1, ndo_mo
                iex = iex + 1
                IF (iex > neig) EXIT
@@ -1380,18 +1381,16 @@ CONTAINS
 
 ! **************************************************************************************************
 !> \brief Computes the RI Coulomb 3-center integrals (ab|c), where c is from the RI_XAS basis and
-!>        centered on the given excited atom
-!> \param ex_atom the excited atom on which the third center is
-!> \param ex_kind the kind of the excited atom
+!>        centered on the excited atoms of xas_tdp_env
 !> \param xas_tdp_env ...
 !> \param qs_env ...
-!> \note  The ri_o3c_coul member of xas_tdp_env is defined and allocated here
+!> \note  The ri_o3c_coul member of xas_tdp_env is defined and allocated here. Only computed once
+!>        for the whole system (for optimized load balance). Ok because not too much memory needed
 ! **************************************************************************************************
-   SUBROUTINE compute_ri_o3c_coulomb(ex_atom, ex_kind, xas_tdp_env, qs_env)
+   SUBROUTINE compute_ri_o3c_coulomb(xas_tdp_env, qs_env)
 
-      INTEGER, INTENT(IN)                                :: ex_atom, ex_kind
-      TYPE(xas_tdp_env_type), POINTER                    :: xas_tdp_env
-      TYPE(qs_environment_type), POINTER                 :: qs_env
+      TYPE(xas_tdp_env_type), POINTER                 :: xas_tdp_env
+      TYPE(qs_environment_type), POINTER              :: qs_env
 
       CHARACTER(len=*), PARAMETER :: routineN = 'compute_ri_o3c_coulomb', &
          routineP = moduleN//':'//routineN
@@ -1401,18 +1400,13 @@ CONTAINS
       TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(gto_basis_set_p_type), DIMENSION(:), POINTER  :: basis_set_orb, basis_set_ri
       TYPE(neighbor_list_set_p_type), DIMENSION(:), &
-         POINTER                                         :: ac_list, sab_orb
-      TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
+                                             POINTER  :: ac_list, sab_orb
+      TYPE(qs_kind_type), DIMENSION(:), POINTER       :: qs_kind_set
+      TYPE(cp_para_env_type), POINTER                 :: para_env
 
       NULLIFY (basis_set_ri, basis_set_orb, ac_list, sab_orb, qs_kind_set, para_env)
 
       CALL timeset(routineN, handle)
-
-!  Release the previous o3c centered on another atom
-      IF (ASSOCIATED(xas_tdp_env%ri_o3c_coul)) THEN
-         CALL release_o3c_container(xas_tdp_env%ri_o3c_coul)
-         DEALLOCATE (xas_tdp_env%ri_o3c_coul)
-      END IF
 
 !  Take what we need from the qs_env
       CALL get_qs_env(qs_env, nkind=nkind, sab_orb=sab_orb, qs_kind_set=qs_kind_set, para_env=para_env)
@@ -1426,22 +1420,15 @@ CONTAINS
 !  Build a neighbor list for the ac centers. Since we later contract as (aI|c) and we assume I is
 !  very localized on the same atom as c, we take a,c as neighbors if they overlap => the effective
 !  range is then second nearest neightbors (relatively weak assumption)
-      ALLOCATE (exat(1), exki(1))
-      exat(1) = ex_atom; exki(1) = ex_kind; 
       CALL build_xas_tdp_3c_nl(ac_list, basis_set_orb, basis_set_ri, "OVERLAP", &
-                               exat, exki, qs_env)
+                               xas_tdp_env%ex_atom_indices, xas_tdp_env%ex_kind_indices, qs_env)
 
 !  Allocate, init and compute the integrals
-      ALLOCATE (xas_tdp_env%ri_o3c_coul)
+      ALLOCATE(xas_tdp_env%ri_o3c_coul)
+      !only one spin needed for copulomb integrals
       CALL init_o3c_container(xas_tdp_env%ri_o3c_coul, 1, basis_set_orb, basis_set_orb, &
                               basis_set_ri, sab_orb, ac_list)
       CALL calculate_o3c_coulomb_integrals(xas_tdp_env%ri_o3c_coul)
-
-!  Get th lower and upper bonds of a,b in (ab|P) integrals and sotre in xas_tdp_env
-      CALL get_o3c_container(xas_tdp_env%ri_o3c_coul, lbij=xas_tdp_env%lb_o3c_coul, &
-                             ubij=xas_tdp_env%ub_o3c_coul)
-      CALL mp_min(xas_tdp_env%lb_o3c_coul, para_env%group)
-      CALL mp_max(xas_tdp_env%ub_o3c_coul, para_env%group)
 
 ! Clean-up
       DO ilist = 1, SIZE(ac_list)
@@ -1460,7 +1447,9 @@ CONTAINS
 !> \param ex_kind the kind of the excited atom
 !> \param xas_tdp_env ...
 !> \param qs_env ...
-!> \note  The ri_o3c_ex member of xas_tdp_env is defined and allocated here
+!> \note  The ri_o3c_ex member of xas_tdp_env is defined and allocated here. Recompute for each 
+!>        excited atom because of the many integrals involved (=> ok load balance and a lot of
+!>        memory used)
 ! **************************************************************************************************
    SUBROUTINE compute_ri_o3c_exchange(ex_atom, ex_kind, xas_tdp_env, qs_env)
 
@@ -1481,12 +1470,6 @@ CONTAINS
       NULLIFY (basis_set_ri, basis_set_orb, ac_list, sab_orb, qs_kind_set)
 
       CALL timeset(routineN, handle)
-
-!  Release the previous o3c centered on another atom
-      IF (ASSOCIATED(xas_tdp_env%ri_o3c_ex)) THEN
-         CALL release_o3c_container(xas_tdp_env%ri_o3c_ex)
-         DEALLOCATE (xas_tdp_env%ri_o3c_ex)
-      END IF
 
 !  Take what we need from the qs_env
       CALL get_qs_env(qs_env, nkind=nkind, sab_orb=sab_orb, qs_kind_set=qs_kind_set)
@@ -1560,6 +1543,7 @@ CONTAINS
       TYPE(o3c_container_type), POINTER               :: o3c_coul, o3c_ex
       INTEGER, DIMENSION(:), ALLOCATABLE              :: nsgf_orb
       LOGICAL                                         :: do_lsd
+      TYPE(cp_para_env_type), POINTER                 :: para_env
 
       NULLIFY(matrix_s, std_blk_size, ri_blk_size, dbcsr_dist, qs_kind_set, ri_basis, o3c_vec)
       NULLIFY(aI_bP, PI_ab, work1, work2, matrices)
@@ -1568,7 +1552,7 @@ CONTAINS
 
 !  Initialization
       CALL get_qs_env(qs_env, natom=natom, matrix_s=matrix_s, qs_kind_set=qs_kind_set, &
-                      dbcsr_dist=dbcsr_dist)
+                      dbcsr_dist=dbcsr_dist, para_env=para_env)
       ndo_mo = donor_state%ndo_mo
       kkind = donor_state%kind_index
       katom = donor_state%at_index
@@ -1616,8 +1600,8 @@ CONTAINS
       CALL reserve_contraction_blocks(matrices, lb, ub, qs_env)
 
       matrices(1)%matrix => work1; matrices(2)%matrix => work2
-      CALL reserve_contraction_blocks(matrices, lb, ub, qs_env, matrix_type="N")
-      DEALLOCATE (matrices)
+      CALL reserve_contraction_blocks(matrices, lb, ub, qs_env , matrix_type="N")
+      DEALLOCATE(matrices)
 
    !  Create the contracted integral matrices
       ALLOCATE(contr_int(ndo_so))
@@ -1660,11 +1644,11 @@ CONTAINS
             END IF
          
             ! Get the full "normal" (aI_b|P) contracted integrals
-            CALL dbcsr_copy_into_existing(work2, PI_ab)
+            CALL change_dist(PI_ab, work2, para_env)
             CALL dbcsr_transposed(contr_int((ispin-1)*ndo_mo+imo)%matrix, work2)
-            CALL dbcsr_copy_into_existing(work1, aI_bP)
+            CALL change_dist(aI_bP, work1, para_env)
             CALL dbcsr_add(contr_int((ispin-1)*ndo_mo+imo)%matrix, work1, 1.0_dp, 1.0_dp)
-
+            
          END DO !imo
       END DO !ispin
       
@@ -1681,6 +1665,108 @@ CONTAINS
    END SUBROUTINE contract_o3c_int
 
 ! **************************************************************************************************
+!> \brief Home made utility to transfer a matrix from a given proc distribution to another
+!> \param mat_in ...
+!> \param mat_out ...
+!> \param para_env ...
+!> \note It is assumed both matrices have the same block sizes and structure, and that all blocks
+!>       are at least reserved
+! **************************************************************************************************
+   SUBROUTINE change_dist(mat_in, mat_out, para_env)
+
+      TYPE(dbcsr_type), POINTER                       :: mat_in, mat_out
+      TYPE(cp_para_env_type), POINTER                 :: para_env
+
+      CHARACTER(len=*), PARAMETER :: routineN = "change_dist", routineP = moduleN//":"//routineN
+
+      INTEGER                                         :: handle, iblk, jblk, blk, s1, s2, dest, &
+                                                         tag, nblk, group, source, num_pe, &
+                                                         is, ir
+      TYPE(dbcsr_iterator_type)                       :: iter
+      REAL(dp), DIMENSION(:,:), POINTER               :: pbin, pbout
+      LOGICAL                                         :: found_in, found_out
+      TYPE(cp_2d_r_p_type), DIMENSION(:), ALLOCATABLE :: send_buff, recv_buff
+      INTEGER, DIMENSION(:), ALLOCATABLE              :: send_req, recv_req
+
+      NULLIFY(pbin, pbout)
+
+      CALL timeset(routineN, handle)
+
+      CALL dbcsr_get_info(mat_in, nblkrows_total=nblk)
+      group = para_env%group
+      num_pe = para_env%num_pe
+
+      !Allocate a pointer array which will point on the block => we won't need to send more than
+      !nblk**2/(2*num_pe) message per processor (only look at upper diagonal, blocks well distributed)
+      ALLOCATE(send_buff(nblk**2/(2*num_pe)+1), recv_buff(nblk**2/(2*num_pe)+1))
+      ALLOCATE(send_req(nblk**2/(2*num_pe)+1), recv_req(nblk**2/(2*num_pe)+1))
+      is = 0; ir = 0
+
+      !Iterate over input matrix
+      CALL dbcsr_iterator_start(iter, mat_in)
+      DO WHILE (dbcsr_iterator_blocks_left(iter))
+         
+         CALL dbcsr_iterator_next_block(iter, row=iblk, column=jblk, blk=blk)
+         CALL dbcsr_get_block_p(mat_in, iblk, jblk, pbin, found_in)
+
+         IF (found_in) THEN
+
+            !Check if the block is on the same proc on mat_out
+            CALL dbcsr_get_block_p(mat_out, iblk, jblk, pbout, found_out)
+            IF (found_out) THEN
+               !Simply copy the block from mat_in to mat_out
+               s1 = SIZE(pbout,1); s2 = SIZE(pbout,2)
+               CALL dcopy(s1*s2, pbin, 1, pbout, 1)
+            ELSE
+               !If block not on the same processor, need to send it
+               CALL dbcsr_get_stored_coordinates(mat_out, iblk, jblk, dest) 
+               !unique tag
+               tag = nblk*iblk + jblk
+               !point on the block such that the buffer is not changed after isend
+               is = is + 1
+               send_buff(is)%array => pbin
+               CALL mp_isend(msgin=send_buff(is)%array, dest=dest, comm=group, request=send_req(is), &
+                             tag=tag)
+            END IF
+
+         END IF !found_in
+
+      END DO !iterator
+      CALL dbcsr_iterator_stop(iter)
+
+      !Iterate over the output matrix
+      CALL dbcsr_iterator_start(iter, mat_out)
+      DO WHILE (dbcsr_iterator_blocks_left(iter))
+
+         CALL dbcsr_iterator_next_block(iter, row=iblk, column=jblk, blk=blk)
+         CALL dbcsr_get_block_p(mat_out, iblk, jblk, pbout, found_out)
+
+         IF (found_out) THEN
+            !Check if the block is on the same proc on mat_in
+            CALL dbcsr_get_block_p(mat_in, iblk, jblk, pbin, found_in)
+            !If not, need to receiv it
+            IF (.NOT. found_in) THEN
+               CALL dbcsr_get_stored_coordinates(mat_in, iblk, jblk, source)
+               tag = nblk*iblk + jblk
+               ir = ir + 1
+               recv_buff(ir)%array => pbout
+               CALL mp_irecv(msgout=recv_buff(ir)%array, source=source, request=recv_req(ir), &
+                             tag=tag, comm=group)
+            END IF
+         END IF
+
+      END DO !iterator
+      CALL dbcsr_iterator_stop(iter)
+
+      !Make sure all communication is over. is, ir are 0 is no communication
+      CALL mp_waitall(send_req(1:is))
+      CALL mp_waitall(recv_req(1:ir))
+
+      CALL timestop(handle)
+
+   END SUBROUTINE change_dist
+
+! **************************************************************************************************
 !> \brief Reserves the blocks in of a dbcsr matrix as needed for RI 3-center contraction (aI_b|P)
 !> \param matrices the matrices for which blocks are reserved
 !> \param lb the lower bond of atoms a,b interaction with basis P
@@ -1689,6 +1775,7 @@ CONTAINS
 !> \param matrix_type whether the matrices are symmetric or not
 !> \param block_content in the case where all the blocks have the same dimension, can fill them
 !>        with the values taken from this array
+!> \note Even if the matrix_type is set to "normal", only reserve blocks on the upper-diagonal
 ! **************************************************************************************************
    SUBROUTINE reserve_contraction_blocks(matrices, lb, ub, qs_env, matrix_type, block_content)
 
@@ -1737,8 +1824,9 @@ CONTAINS
          CALL dbcsr_iterator_next_block(iter, row=iblk, column=jblk, blk=blk)
          IF (iblk < lb .OR. jblk < lb) CYCLE
          IF (iblk > ub .OR. jblk > ub) CYCLE
-
-         CALL dbcsr_get_block_p(template, iblk, jblk, pblock_s, found)
+         IF (jblk < iblk) CYCLE 
+         
+         CALL dbcsr_get_block_p(template, iblk, jblk, pblock_s, found) 
 
          IF (found) THEN
             DO i = 1, n
@@ -1766,6 +1854,69 @@ CONTAINS
 
    END SUBROUTINE reserve_contraction_blocks
 
+! **************************************************************************************************
+!> \brief Iterates over the ri_o3c_coulomb integrals of xas_tdp_env and look for the upper and lower
+!>        bonds of i,j in the (ij|k) integrals for atom k
+!> \param xas_tdp_env ...
+!> \param qs_env ...
+! **************************************************************************************************
+   SUBROUTINE get_ri_o3c_coul_bonds(atom_k, xas_tdp_env, qs_env)
+
+      INTEGER, INTENT(IN)                             :: atom_k
+      TYPE(xas_tdp_env_type), POINTER                 :: xas_tdp_env
+      TYPE(qs_environment_type), POINTER              :: qs_env
+
+      CHARACTER(len=*), PARAMETER :: routineN = "get_ri_o3c_coul_bonds", &
+                                     routineP = moduleN//":"//routineN
+
+      INTEGER                                         :: iatom, jatom, katom, lbij, ubij, nthread, &
+                                                         mepos
+      TYPE(o3c_iterator_type)                         :: o3c_iterator
+      TYPE(o3c_container_type), POINTER               :: ri_o3c_coul
+      TYPE(cp_para_env_type), POINTER                 :: para_env
+
+      NULLIFY(ri_o3c_coul, para_env)
+
+      ri_o3c_coul => xas_tdp_env%ri_o3c_coul
+      ubij = 0
+      lbij = 10000000
+
+      nthread = 1
+!$    nthread = omp_get_max_threads()
+      CALL o3c_iterator_create(ri_o3c_coul, o3c_iterator, nthread=nthread)
+
+!$OMP PARALLEL DEFAULT(NONE) &
+!$OMP SHARED (nthread,o3c_iterator,atom_k)&
+!$OMP PRIVATE (mepos,iatom,jatom,katom)&
+!$OMP REDUCTION(min: lbij)&
+!$OMP REDUCTION(max: ubij)
+
+      mepos = 0
+!$    mepos = omp_get_thread_num()
+
+      DO WHILE (o3c_iterate(o3c_iterator, mepos=mepos) == 0)
+
+         CALL get_o3c_iterator_info(o3c_iterator, mepos=mepos, iatom=iatom, jatom=jatom, katom=katom)
+
+         IF (katom == atom_k) THEN
+            IF (iatom < lbij .OR. jatom < lbij) lbij = MIN(iatom, jatom)
+            IF (iatom > ubij .OR. jatom > ubij) ubij = MAX(iatom, jatom)
+         END IF
+
+      END DO
+!$OMP END PARALLEL
+      CALL o3c_iterator_release(o3c_iterator)
+
+      ! Still need to get the max/min out of the MPI procs
+      CALL get_qs_env(qs_env, para_env=para_env)
+      CALL mp_min(lbij, para_env%group)
+      CALL mp_max(ubij, para_env%group)
+
+      xas_tdp_env%lb_o3c_coul = lbij
+      xas_tdp_env%ub_o3c_coul = ubij
+
+   END SUBROUTINE get_ri_o3c_coul_bonds
+   
 ! **************************************************************************************************
 !> \brief Contraction of the 3-center integrals over index 1 and 2, for a given atom_k. The results
 !>        are stored in two matrices, such that (a,b are block indices):
@@ -1957,7 +2108,7 @@ CONTAINS
       do_tp = xas_tdp_control%do_triplet
       IF (do_lsd) ndo_so = 2*ndo_mo
       ri_atom = donor_state%at_index
-      CALL get_qs_env(qs_env, natom=natom, dbcsr_dist=dbcsr_dist)
+      CALL get_qs_env(qs_env, natom=natom, dbcsr_dist=dbcsr_dist, para_env=para_env)
       !we always need the coulomb kernel, except for triplets
       do_coulomb = .TRUE.; IF (do_tp .AND. .NOT. do_sg) do_coulomb = .FALSE.
 
@@ -2058,8 +2209,6 @@ CONTAINS
             END IF
             CALL mp_bcast(xas_tdp_env%ri_fxc(ri_atom,i)%array, source, para_env%group)
          END DO
-
-      !TODO: carfully check with 2p donor state
 
       ! Case study on the calculation type
          IF (do_lsd) THEN
@@ -2210,9 +2359,6 @@ CONTAINS
             DEALLOCATE(lhs_work(i)%matrix)
          END DO
          DEALLOCATE(lhs_work)
-         DO i = 1,ub
-            DEALLOCATE(xas_tdp_env%ri_fxc(ri_atom,i)%array)
-         END DO
 
       END IF ! do_xc
 
