@@ -467,13 +467,16 @@ CONTAINS
                      ! Because coulomb3 only takes one pgf at a time, need to loop over pgf of c
                      endc = 0
                      DO ipgfc = 1, npgfc(kset)
-                        startc = endc+ncoset(lc_min(kset)-1)+1
-                        endc = endc+ncoset(lc_max(kset))
-                        CALL coulomb3(la_max(iset), npgfa(iset), zeta(:, iset), rpgfa, la_min(iset), &
-                                      lb_max(jset), npgfb(jset), zetb(:, jset), rpgfb, lb_min(jset), &
-                                      lc_max(kset), zetc(ipgfc, kset), rpgfc, lc_min(kset), gccc, &
+                        startc = endc + ncoset(lc_min(kset)-1) + 1
+                        endc = endc + ncoset(lc_max(kset))
+                        !TODO: be careful, not thread safe, need LIBINT asap
+!$OMP CRITICAL
+                        CALL coulomb3(la_max(iset), npgfa(iset), zeta(:,iset), rpgfa, la_min(iset), &
+                                      lb_max(jset), npgfb(jset), zetb(:,jset), rpgfb, lb_min(jset), &
+                                      lc_max(kset), zetc(ipgfc,kset), rpgfc, lc_min(kset), gccc, &
                                       rij, dij2, rik, dik2, djk2, vabc, &
-                                      sabc(:, :, startc:endc), v, f)
+                                      sabc(:,:,startc:endc), v, f)
+!$OMP END CRITICAL
 
                      END DO
 

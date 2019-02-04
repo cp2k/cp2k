@@ -11,7 +11,7 @@
 !>
 !> <b>Modification history:</b>
 !> - Created 2009-05-12
-!> - Generalized sm_fm_mulitply for matrices w/ different row/block size (A. Bussy, 11.2018)
+!> - Generalized sm_fm_mulitply for matrices w/ different row/col block size (A. Bussy, 11.2018)
 ! **************************************************************************************************
 MODULE cp_dbcsr_operations
    USE mathlib,                         ONLY: lcm, gcd
