@@ -170,9 +170,22 @@ CONTAINS
       INTEGER, INTENT(OUT), OPTIONAL                     :: info
 
       CHARACTER(len=*), PARAMETER :: routineN = 'choose_eigv_solver', &
-         routineP = moduleN//':'//routineN
+                                     routineP = moduleN//':'//routineN
 
       INTEGER                                            :: myinfo, nmo
+#if defined(__CHECK_DIAG)
+      CHARACTER(LEN=5), DIMENSION(3), PARAMETER          :: diag_driver = (/"SYEVD", &
+                                                                            "SYEVR", &
+                                                                            "ELPA "/)
+      REAL(KIND=dp), PARAMETER                           :: eps = 1.0E-12_dp
+      INTEGER                                            :: i, j, n
+#if (defined(__SCALAPACK) || defined(__SCALAPACK2))
+      TYPE(cp_blacs_env_type), POINTER                   :: context
+      INTEGER                                            :: il, jl, ipcol, iprow, &
+                                                            mypcol, myprow, npcol, nprow
+      INTEGER, DIMENSION(9)                              :: desca
+#endif
+#endif
 
       myinfo = 0
 
@@ -186,12 +199,80 @@ CONTAINS
       ELSE IF (diag_type == 2) THEN
          CALL cp_fm_syevr(matrix, eigenvectors, eigenvalues, 1, nmo)
       ELSE IF (diag_type == 1) THEN
-         CALL cp_fm_syevd(matrix, eigenvectors, eigenvalues, info=myinfo)
+         IF (PRESENT(info)) THEN
+            CALL cp_fm_syevd(matrix, eigenvectors, eigenvalues, info=myinfo)
+         ELSE
+            CALL cp_fm_syevd(matrix, eigenvectors, eigenvalues)
+         END IF
       ELSE
          CPABORT("Unknown DIAG type")
       END IF
 
       IF (PRESENT(info)) info = myinfo
+
+#if defined(__CHECK_DIAG)
+#if (defined(__SCALAPACK) || defined(__SCALAPACK2))
+      n = eigenvectors%matrix_struct%nrow_global
+      CALL cp_fm_gemm("T", "N", nmo, nmo, n, 1.0_dp, eigenvectors, eigenvectors, 0.0_dp, matrix)
+      context => matrix%matrix_struct%context
+      myprow = context%mepos(1)
+      mypcol = context%mepos(2)
+      nprow = context%num_pe(1)
+      npcol = context%num_pe(2)
+      desca(:) = matrix%matrix_struct%descriptor(:)
+      DO i = 1, nmo
+         DO j = 1, nmo
+            CALL infog2l(i, j, desca, nprow, npcol, myprow, mypcol, il, jl, iprow, ipcol)
+            IF ((iprow == myprow) .AND. (ipcol == mypcol)) THEN
+               IF (i == j) THEN
+                  IF (ABS(matrix%local_data(il, jl)-1.0_dp) > eps) THEN
+                     WRITE (UNIT=*, FMT="(/,T2,A,/,T2,A,I0,A,I0,A,F0.12,/,T2,A)") &
+                        "The eigenvectors returned by "//TRIM(diag_driver(diag_type))//" are not orthonormal", &
+                        "Matrix element (", i, ", ", j, ") = ", matrix%local_data(il, jl), &
+                        "The expected value is 1"
+                     CPABORT("Matrix diagonalization failed")
+                  END IF
+               ELSE
+                  IF (ABS(matrix%local_data(il, jl)) > eps) THEN
+                     WRITE (UNIT=*, FMT="(/,T2,A,/,T2,A,I0,A,I0,A,F0.12,/,T2,A)") &
+                        "The eigenvectors returned by "//TRIM(diag_driver(diag_type))//" are not orthonormal", &
+                        "Matrix element (", i, ", ", j, ") = ", matrix%local_data(il, jl), &
+                        "The expected value is 0"
+                     CPABORT("Matrix diagonalization failed")
+                  END IF
+               END IF
+            END IF
+         END DO
+      END DO
+#else
+      n = SIZE(eigenvectors%local_data, 1)
+      CALL dgemm("T", "N", nmo, nmo, n, 1.0_dp, &
+                 eigenvectors%local_data(1, 1), n, &
+                 eigenvectors%local_data(1, 1), n, &
+                 0.0_dp, matrix%local_data(1, 1), n)
+      DO i = 1, nmo
+         DO j = 1, nmo
+            IF (i == j) THEN
+               IF (ABS(matrix%local_data(i, j)-1.0_dp) > eps) THEN
+                  WRITE (UNIT=*, FMT="(/,T2,A,/,T2,A,I0,A,I0,A,F0.12,/,T2,A)") &
+                     "The eigenvectors returned by "//TRIM(diag_driver(diag_type))//" are not orthonormal", &
+                     "Matrix element (", i, ", ", j, ") = ", matrix%local_data(i, j), &
+                     "The expected value is 1"
+                  CPABORT("Matrix diagonalization failed")
+               END IF
+            ELSE
+               IF (ABS(matrix%local_data(i, j)) > eps) THEN
+                  WRITE (UNIT=*, FMT="(/,T2,A,/,T2,A,I0,A,I0,A,F0.12,/,T2,A)") &
+                     "The eigenvectors returned by "//TRIM(diag_driver(diag_type))//" are not orthonormal", &
+                     "Matrix element (", i, ", ", j, ") = ", matrix%local_data(i, j), &
+                     "The expected value is 0"
+                  CPABORT("Matrix diagonalization failed")
+               END IF
+            END IF
+         END DO
+      END DO
+#endif
+#endif
 
    END SUBROUTINE choose_eigv_solver
 
@@ -252,7 +333,6 @@ CONTAINS
 #else
 
       !MK Retrieve the optimal work array sizes first
-      myinfo = 0
       lwork = -1
       liwork = -1
       m => matrix%local_data
@@ -273,6 +353,7 @@ CONTAINS
       lwork = INT(work(1))
       DEALLOCATE (work)
       ALLOCATE (work(lwork))
+      work(:) = 0.0_dp
 
       liwork = iwork(1)
       DEALLOCATE (iwork)
@@ -291,7 +372,7 @@ CONTAINS
       DEALLOCATE (work)
 #endif
 
-      IF (PRESENT(info)) myinfo = 0
+      IF (PRESENT(info)) info = myinfo
 
       nmo = SIZE(eigenvalues, 1)
       IF (nmo > n) THEN
