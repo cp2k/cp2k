@@ -1039,7 +1039,7 @@ OPT_FLAGS="-O3 -funroll-loops -ffast-math"
 NOOPT_FLAGS="-O1"
 
 # those flags that do not influence code generation are used always, the others if debug
-FCDEB_FLAGS="-ffree-form -std=f2003 -fimplicit-none"
+FCDEB_FLAGS="-ffree-form -std=f2008 -fimplicit-none"
 FCDEB_FLAGS_DEBUG="-fsanitize=leak -fcheck=all -ffpe-trap=invalid,zero,overflow -finit-derived -finit-real=snan -finit-integer=-42 -fno-fast-math -Werror=realloc-lhs-all -finline-matmul-limit=0"
 
 # code coverage generation flags
