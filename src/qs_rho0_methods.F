@@ -223,13 +223,14 @@ CONTAINS
 
       nr = g_atom%nr
 
-! Set density coefficient to zero befor the calculation
+! Set density coefficient to zero before the calculation
       DO iat = 1, natom
          iatom = a_list(iat)
          rho0_atom_set(iatom)%rho0_rad_h%r_coef = 0.0_dp
          rho0_mp%mp_rho(iatom)%Qlm_tot = 0.0_dp
          rho0_mp%mp_rho(iatom)%Qlm_tot(1) = rho0_mp%mp_rho(iatom)%Qlm_z
          rho0_mp%mp_rho(iatom)%Q0 = 0.0_dp
+         rho0_mp%mp_rho(iatom)%Qlm_car = 0.0_dp
       ENDDO
 
       IF (.NOT. (.NOT. paw_atom .AND. gapw_control%nopaw_as_gpw)) THEN
