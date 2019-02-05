@@ -780,7 +780,7 @@ CONTAINS
       !   *** Allocate the data structure for Quickstep energies ***
       CALL allocate_qs_energy(energy)
 
-      ! check for orthogoanl basis
+      ! check for orthogonal basis
       has_unit_metric = .FALSE.
       IF (dft_control%qs_control%semi_empirical) THEN
          IF (dft_control%qs_control%se_control%orthogonal_basis) has_unit_metric = .TRUE.
