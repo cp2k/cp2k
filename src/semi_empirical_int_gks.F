@@ -20,7 +20,6 @@ MODULE semi_empirical_int_gks
    USE dg_rho0_types,                   ONLY: dg_rho0_type
    USE dg_types,                        ONLY: dg_get,&
                                               dg_type
-   USE erf_fn,                          ONLY: erfc
    USE kinds,                           ONLY: dp
    USE mathconstants,                   ONLY: fourpi,&
                                               oorootpi

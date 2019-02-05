@@ -24,7 +24,6 @@ MODULE atom_utils
    USE cp_files,                        ONLY: close_file,&
                                               get_unit_number,&
                                               open_file
-   USE erf_fn,                          ONLY: erf
    USE input_constants,                 ONLY: do_rhf_atom,&
                                               do_rks_atom,&
                                               do_rohf_atom,&

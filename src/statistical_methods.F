@@ -13,7 +13,6 @@
 ! **************************************************************************************************
 MODULE statistical_methods
    USE cp_log_handling,                 ONLY: cp_logger_get_default_io_unit
-   USE erf_fn,                          ONLY: erf
    USE global_types,                    ONLY: global_environment_type
    USE kinds,                           ONLY: dp
    USE parallel_rng_types,              ONLY: next_random_number

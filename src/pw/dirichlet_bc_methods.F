@@ -19,7 +19,6 @@ MODULE dirichlet_bc_methods
         AA_CUBOIDAL, AA_PLANAR, CIRCUMSCRIBED, CYLINDRICAL, INSCRIBED, PLANAR, &
         dbc_parameters_dealloc, dirichlet_bc_p_type, dirichlet_bc_type, tile_p_type, x_axis, &
         xy_plane, xz_plane, y_axis, yz_plane, z_axis
-   USE erf_fn,                          ONLY: erf
    USE kinds,                           ONLY: dp
    USE mathconstants,                   ONLY: pi,&
                                               twopi

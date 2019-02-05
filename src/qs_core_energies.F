@@ -20,7 +20,6 @@ MODULE qs_core_energies
                                               dbcsr_trace,&
                                               dbcsr_type
    USE distribution_1d_types,           ONLY: distribution_1d_type
-   USE erf_fn,                          ONLY: erfc
    USE kinds,                           ONLY: dp
    USE mathconstants,                   ONLY: oorootpi,&
                                               twopi

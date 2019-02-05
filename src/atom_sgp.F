@@ -12,7 +12,6 @@ MODULE atom_sgp
    USE atom_upf,                        ONLY: atom_upfpot_type
    USE atom_utils,                      ONLY: integrate_grid,&
                                               numpot_matrix
-   USE erf_fn,                          ONLY: erf
    USE input_constants,                 ONLY: ecp_pseudo,&
                                               gaussian,&
                                               gth_pseudo,&

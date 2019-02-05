@@ -27,7 +27,6 @@ MODULE qs_dftb_coulomb
                                               dbcsr_iterator_type,&
                                               dbcsr_p_type
    USE distribution_1d_types,           ONLY: distribution_1d_type
-   USE erf_fn,                          ONLY: erfc
    USE ewald_environment_types,         ONLY: ewald_env_get,&
                                               ewald_environment_type
    USE ewald_methods_tb,                ONLY: tb_ewald_overlap,&

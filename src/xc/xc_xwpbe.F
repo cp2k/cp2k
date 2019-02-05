@@ -13,7 +13,6 @@
 MODULE xc_xwpbe
    USE bibliography,                    ONLY: Heyd2004,&
                                               cite_reference
-   USE erf_fn,                          ONLY: erfc
    USE input_section_types,             ONLY: section_vals_type,&
                                               section_vals_val_get
    USE kinds,                           ONLY: dp

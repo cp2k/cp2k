@@ -5,7 +5,6 @@
 ! **************************************************************************************************
 MODULE qs_local_rho_types
 
-   USE erf_fn,                          ONLY: erf
    USE kinds,                           ONLY: dp
    USE mathconstants,                   ONLY: fourpi,&
                                               pi

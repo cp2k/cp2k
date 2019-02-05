@@ -25,7 +25,6 @@
 !-----------------------------------------------------------------------------!
 MODULE ai_onecenter
 
-   USE erf_fn,                          ONLY: erf
    USE kinds,                           ONLY: dp
    USE mathconstants,                   ONLY: dfac,&
                                               fac,&

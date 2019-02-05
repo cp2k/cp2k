@@ -32,7 +32,6 @@ MODULE hfx_types
                                               cp_print_key_unit_nr
    USE cp_para_types,                   ONLY: cp_para_env_type
    USE cp_units,                        ONLY: cp_unit_from_cp2k
-   USE erf_fn,                          ONLY: erfc
    USE hfx_helpers,                     ONLY: count_cells_perd,&
                                               next_image_cell_perd
    USE hfx_libint_wrapper,              ONLY: initialize_libderiv,&

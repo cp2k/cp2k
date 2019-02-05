@@ -17,7 +17,6 @@ MODULE tmc_calculations
                                               init_cell,&
                                               pbc
    USE cp_log_handling,                 ONLY: cp_to_string
-   USE erf_fn,                          ONLY: erfc
    USE f77_interface,                   ONLY: calc_energy,&
                                               calc_force,&
                                               set_cell

@@ -17,7 +17,6 @@ MODULE cp_ddapc_forces
    USE cell_types,                      ONLY: cell_type
    USE cp_control_types,                ONLY: ddapc_restraint_type
    USE cp_para_types,                   ONLY: cp_para_env_type
-   USE erf_fn,                          ONLY: erfc
    USE input_constants,                 ONLY: do_ddapc_constraint,&
                                               do_ddapc_restraint,&
                                               weight_type_mass,&

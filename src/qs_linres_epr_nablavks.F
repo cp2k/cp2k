@@ -23,8 +23,6 @@ MODULE qs_linres_epr_nablavks
    USE cp_para_types,                   ONLY: cp_para_env_type
    USE cp_realspace_grid_cube,          ONLY: cp_pw_to_cube
    USE dbcsr_api,                       ONLY: dbcsr_p_type
-   USE erf_fn,                          ONLY: erf,&
-                                              erfc
    USE external_potential_types,        ONLY: all_potential_type,&
                                               get_potential,&
                                               gth_potential_type,&

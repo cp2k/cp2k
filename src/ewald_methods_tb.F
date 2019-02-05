@@ -14,7 +14,6 @@ MODULE ewald_methods_tb
    USE dgs,                             ONLY: dg_sum_patch,&
                                               dg_sum_patch_force_1d,&
                                               dg_sum_patch_force_3d
-   USE erf_fn,                          ONLY: erfc
    USE ewald_environment_types,         ONLY: ewald_env_get,&
                                               ewald_environment_type
    USE ewald_pw_types,                  ONLY: ewald_pw_get,&

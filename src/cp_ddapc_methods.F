@@ -11,7 +11,6 @@ MODULE cp_ddapc_methods
    USE cell_types,                      ONLY: cell_type
    USE cp_log_handling,                 ONLY: cp_logger_get_default_io_unit
    USE cp_para_types,                   ONLY: cp_para_env_type
-   USE erf_fn,                          ONLY: erfc
    USE input_constants,                 ONLY: weight_type_mass,&
                                               weight_type_unit
    USE input_section_types,             ONLY: section_vals_type,&
