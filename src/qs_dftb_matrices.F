@@ -35,7 +35,6 @@ MODULE qs_dftb_matrices
         dbcsr_iterator_start, dbcsr_iterator_stop, dbcsr_iterator_type, dbcsr_multiply, &
         dbcsr_p_type, dbcsr_set, dbcsr_trace, dbcsr_type, dbcsr_type_antisymmetric, &
         dbcsr_type_symmetric
-   USE erf_fn,                          ONLY: erfc
    USE ewald_environment_types,         ONLY: ewald_env_create,&
                                               ewald_env_get,&
                                               ewald_env_release,&

@@ -5,8 +5,6 @@
 
 MODULE pair_potential_coulomb
 
-   USE erf_fn,                          ONLY: erf,&
-                                              erfc
    USE kinds,                           ONLY: dp
    USE mathconstants,                   ONLY: oorootpi
    USE pw_poisson_types,                ONLY: do_ewald_none

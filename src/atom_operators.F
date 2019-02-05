@@ -22,8 +22,6 @@ MODULE atom_operators
         atom_solve, contract2, contract2add, contract4, coulomb_potential_numeric, integrate_grid, &
         numpot_matrix, slater_density, wigner_slater_functional
    USE dkh_main,                        ONLY: dkh_atom_transformation
-   USE erf_fn,                          ONLY: erf,&
-                                              erfc
    USE input_constants,                 ONLY: &
         barrier_conf, do_dkh0_atom, do_dkh1_atom, do_dkh2_atom, do_dkh3_atom, do_nonrel_atom, &
         do_sczoramp_atom, do_zoramp_atom, poly_conf
