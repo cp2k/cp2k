@@ -65,8 +65,12 @@ case "$with_elpa" in
             # In addition, --disable-option-checking is needed for older versions, which don't know
             # about this option.
             has_AVX=`grep '\bavx\b' /proc/cpuinfo 1>/dev/null && echo 'yes' || echo 'no'`
+            [ "${has_AVX}" == "yes" ] && AVX_flag="-mavx" || AVX_flag=""
             has_AVX2=`grep '\bavx2\b' /proc/cpuinfo 1>/dev/null && echo 'yes' || echo 'no'`
+            [ "${has_AVX2}" == "yes" ] && AVX_flag="-mavx2"
             has_AVX512=`grep '\bavx512\b' /proc/cpuinfo 1>/dev/null && echo 'yes' || echo 'no'`
+            FMA_flag=`grep '\bfma\b' /proc/cpuinfo 1>/dev/null && echo '-mfma' || echo '-mno-fma'`
+            SSE4_flag=`grep '\bsse4_1\b' /proc/cpuinfo 1>/dev/null && echo '-msse4' || echo '-mno-sse4'`
             # non-threaded version
             mkdir -p obj_no_thread; cd obj_no_thread
             ../configure  --prefix="${pkg_install_dir}" \
@@ -81,9 +85,9 @@ case "$with_elpa" in
                           FC=${MPIFC} \
                           CC=${MPICC} \
                           CXX=${MPICXX} \
-                          FCFLAGS="${FCFLAGS} ${MATH_CFLAGS} ${SCALAPACK_CFLAGS} -ffree-line-length-none" \
-                          CFLAGS="${CFLAGS} ${MATH_CFLAGS} ${SCALAPACK_CFLAGS}" \
-                          CXXFLAGS="${CXXFLAGS} ${MATH_CFLAGS} ${SCALAPACK_CFLAGS}" \
+                          FCFLAGS="${FCFLAGS} ${MATH_CFLAGS} ${SCALAPACK_CFLAGS} -ffree-line-length-none ${AVX_flag} ${FMA_flag} ${SSE4_flag}" \
+                          CFLAGS="${CFLAGS} ${MATH_CFLAGS} ${SCALAPACK_CFLAGS} ${AVX_flag} ${FMA_flag} ${SSE4_flag}" \
+                          CXXFLAGS="${CXXFLAGS} ${MATH_CFLAGS} ${SCALAPACK_CFLAGS} ${AVX_flag} ${FMA_flag} ${SSE4_flag}" \
                           LDFLAGS="-Wl,--enable-new-dtags ${MATH_LDFLAGS} ${SCALAPACK_LDFLAGS} ${cray_ldflags}" \
                           LIBS="${SCALAPACK_LIBS} $(resolve_string "${MATH_LIBS}")" \
                           > configure.log 2>&1
@@ -105,9 +109,9 @@ case "$with_elpa" in
                               FC=${MPIFC} \
                               CC=${MPICC} \
                               CXX=${MPICXX} \
-                              FCFLAGS="${FCFLAGS} ${MATH_CFLAGS} ${SCALAPACK_CFLAGS} -ffree-line-length-none" \
-                              CFLAGS="${CFLAGS} ${MATH_CFLAGS} ${SCALAPACK_CFLAGS}" \
-                              CXXFLAGS="${CXXFLAGS} ${MATH_CFLAGS} ${SCALAPACK_CFLAGS}" \
+                              FCFLAGS="${FCFLAGS} ${MATH_CFLAGS} ${SCALAPACK_CFLAGS} -ffree-line-length-none ${AVX_flag} ${FMA_flag} ${SSE4_flag}" \
+                              CFLAGS="${CFLAGS} ${MATH_CFLAGS} ${SCALAPACK_CFLAGS} ${AVX_flag} ${FMA_flag} ${SSE4_flag}" \
+                              CXXFLAGS="${CXXFLAGS} ${MATH_CFLAGS} ${SCALAPACK_CFLAGS} ${AVX_flag} ${FMA_flag} ${SSE4_flag}" \
                               LDFLAGS="-Wl,--enable-new-dtags ${MATH_LDFLAGS} ${SCALAPACK_LDFLAGS} ${cray_ldflags}" \
                               LIBS="${SCALAPACK_LIBS} $(resolve_string "${MATH_LIBS}" OMP)" \
                               > configure.log 2>&1
