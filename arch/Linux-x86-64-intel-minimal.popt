@@ -10,7 +10,7 @@ FC          = mpiifort
 LD          = mpiifort
 AR          = ar -r
 CPPFLAGS    =
-DFLAGS      = -D__F2008 -D__FFTW3 -D__MKL -D__MPI_VERSION=3 \
+DFLAGS      = -D__FFTW3 -D__MKL -D__MPI_VERSION=3 \
               -D__parallel -D__SCALAPACK
 CFLAGS      = $(DFLAGS) -O2
 FCFLAGS     = $(DFLAGS) -O2 -fpp -free -funroll-loops
