@@ -286,6 +286,9 @@ CONTAINS
 #if defined __SIRIUS
       flags = TRIM(flags)//" sirius"
 #endif
+#if defined __CHECK_DIAG
+      flags = TRIM(flags)//" check_diag"
+#endif
 
    END FUNCTION cp2k_flags
 
