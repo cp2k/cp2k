@@ -11,7 +11,7 @@ LIBINT_INC  = $(GCC_DIR)/libint/1.1.6-default-regtest/include
 LIBINT_LIB  = $(GCC_DIR)/libint/1.1.6-default-regtest/lib
 LIBXC_INC   = $(GCC_DIR)/libxc/4.2.3-regtest/include
 LIBXC_LIB   = $(GCC_DIR)/libxc/4.2.3-regtest/lib
-DFLAGS      = -D__F2008 -D__FFTW3 -D__LIBINT -D__LIBXC
+DFLAGS      = -D__FFTW3 -D__LIBINT -D__LIBXC
 CPPFLAGS    =
 WFLAGS      = -Waliasing -Wampersand -Wc-binding-type -Wconversion\
               -Wintrinsic-shadow -Wintrinsics-std -Wline-truncation\
