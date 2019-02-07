@@ -1,4 +1,4 @@
-# Tested with: GFortran 6.4.0, LAPACK 3.8.0, FFTW 3.3, Libint 1.1.6, Libxc 4.3.0, libxsmm 1.10
+# Tested with: GFortran 6.4.0, LAPACK 3.8.0, FFTW 3.3, Libint 1.1.6, Libxc 4.3.1, libxsmm 1.10
 # Author: Matthias Krack (matthias.krack@psi.ch, PSI, February 2019)
 CC          = gcc
 CPP         =
@@ -9,8 +9,8 @@ FFTW_INC    = $(GCC_DIR)/fftw/3.3-regtest/include
 FFTW_LIB    = $(GCC_DIR)/fftw/3.3-regtest/lib
 LIBINT_INC  = $(GCC_DIR)/libint/1.1.6-default-regtest/include
 LIBINT_LIB  = $(GCC_DIR)/libint/1.1.6-default-regtest/lib
-LIBXC_INC   = $(GCC_DIR)/libxc/4.3.0-regtest/include
-LIBXC_LIB   = $(GCC_DIR)/libxc/4.3.0-regtest/lib
+LIBXC_INC   = $(GCC_DIR)/libxc/4.3.1-regtest/include
+LIBXC_LIB   = $(GCC_DIR)/libxc/4.3.1-regtest/lib
 LIBXSMM_INC = $(GCC_DIR)/libxsmm/1.10/include
 LIBXSMM_LIB = $(GCC_DIR)/libxsmm/1.10/lib
 DFLAGS      = -D__FFTW3 -D__LIBINT -D__LIBXC -D__LIBXSMM -D__CHECK_DIAG
