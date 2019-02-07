@@ -1,5 +1,5 @@
-# Tested with: GFortran 6.4.0, MPICH 3.2.1, LAPACK 3.8.0, ScaLAPACK 2.0.2, FFTW 3.3, Libint 1.1.6, Libxc 4.2.3, ELPA 2017.05.003, PLUMED 2.4.1
-# Author: Matthias Krack (matthias.krack@psi.ch, PSI, October 2018)
+# Tested with: GFortran 6.4.0, MPICH 3.2.1, LAPACK 3.8.0, ScaLAPACK 2.0.2, FFTW 3.3, Libint 1.1.6, Libxc 4.3.0, ELPA 2017.05.003, PLUMED 2.4.1
+# Author: Matthias Krack (matthias.krack@psi.ch, PSI, February 2019)
 CC         = gcc
 CPP        =
 FC         = mpif90
@@ -13,11 +13,11 @@ FFTW_INC   = $(GCC_DIR)/fftw/3.3-regtest/include
 FFTW_LIB   = $(GCC_DIR)/fftw/3.3-regtest/lib
 LIBINT_INC = $(GCC_DIR)/libint/1.1.6-default-regtest/include
 LIBINT_LIB = $(GCC_DIR)/libint/1.1.6-default-regtest/lib
-LIBXC_INC  = $(GCC_DIR)/libxc/4.2.3-regtest/include
-LIBXC_LIB  = $(GCC_DIR)/libxc/4.2.3-regtest/lib
+LIBXC_INC  = $(GCC_DIR)/libxc/4.3.0-regtest/include
+LIBXC_LIB  = $(GCC_DIR)/libxc/4.3.0-regtest/lib
 DFLAGS     = -D__ELPA=201705 -D__FFTW3 -D__LIBINT -D__LIBXC \
              -D__MPI_VERSION=3 -D__PLUMED2 \
-             -D__parallel -D__SCALAPACK
+             -D__parallel -D__SCALAPACK -D__CHECK_DIAG
 CPPFLAGS   =
 WFLAGS     = -Waliasing -Wampersand -Wc-binding-type -Wconversion \
              -Wintrinsic-shadow -Wintrinsics-std -Wline-truncation \
