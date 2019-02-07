@@ -37,14 +37,14 @@ case "$with_reflapack" in
             cat <<EOF > make.inc
 SHELL    = /bin/sh
 FORTRAN  = $FC
-OPTS     = $FFLAGS -frecursive -fno-fast-math
-DRVOPTS  = $FFLAGS -frecursive -fno-fast-math
-NOOPT    = $FFLAGS -O0 -frecursive -fno-fast-math
+OPTS     = $FFLAGS -frecursive
+DRVOPTS  = $FFLAGS -frecursive
+NOOPT    = $FFLAGS -O0 -frecursive
 LOADER   = $FC
-LOADOPTS = $FFLAGS -Wl,--enable-new-dtags -fno-fast-math
+LOADOPTS = $FFLAGS -Wl,--enable-new-dtags
 TIMER    = INT_ETIME
 CC       = $CC
-CFLAGS   = $CFLAGS -fno-fast-math
+CFLAGS   = $CFLAGS
 ARCH     = ar
 ARCHFLAGS= cr
 RANLIB   = ranlib

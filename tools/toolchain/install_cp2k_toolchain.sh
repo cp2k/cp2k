@@ -922,12 +922,12 @@ done
 
 # setup compiler flags, leading to nice stack traces on crashes but
 # still optimised
-CFLAGS="-O2 -ftree-vectorize -g -fno-omit-frame-pointer -march=native -ffast-math $TSANFLAGS"
-FFLAGS="-O2 -ftree-vectorize -g -fno-omit-frame-pointer -march=native -ffast-math $TSANFLAGS"
-F77FLAGS="-O2 -ftree-vectorize -g -fno-omit-frame-pointer -march=native -ffast-math $TSANFLAGS"
-F90FLAGS="-O2 -ftree-vectorize -g -fno-omit-frame-pointer -march=native -ffast-math $TSANFLAGS"
-FCFLAGS="-O2 -ftree-vectorize -g -fno-omit-frame-pointer -march=native -ffast-math $TSANFLAGS"
-CXXFLAGS="-O2 -ftree-vectorize -g -fno-omit-frame-pointer -march=native -ffast-math $TSANFLAGS"
+CFLAGS="-O2 -ftree-vectorize -g -fno-omit-frame-pointer -march=native $TSANFLAGS"
+FFLAGS="-O2 -ftree-vectorize -g -fno-omit-frame-pointer -march=native $TSANFLAGS"
+F77FLAGS="-O2 -ftree-vectorize -g -fno-omit-frame-pointer -march=native $TSANFLAGS"
+F90FLAGS="-O2 -ftree-vectorize -g -fno-omit-frame-pointer -march=native $TSANFLAGS"
+FCFLAGS="-O2 -ftree-vectorize -g -fno-omit-frame-pointer -march=native $TSANFLAGS"
+CXXFLAGS="-O2 -ftree-vectorize -g -fno-omit-frame-pointer -march=native $TSANFLAGS"
 
 export CFLAGS=$(allowed_gcc_flags $CFLAGS)
 export FFLAGS=$(allowed_gfortran_flags $FFLAGS)
@@ -1035,12 +1035,12 @@ LD_arch="IF_MPI(${MPIFC}|${FC})"
 
 # we always want good line information and backtraces
 BASEFLAGS="-march=native -fno-omit-frame-pointer -g ${TSANFLAGS}"
-OPT_FLAGS="-O3 -funroll-loops -ffast-math"
+OPT_FLAGS="-O3 -funroll-loops"
 NOOPT_FLAGS="-O1"
 
 # those flags that do not influence code generation are used always, the others if debug
 FCDEB_FLAGS="-ffree-form -std=f2008 -fimplicit-none"
-FCDEB_FLAGS_DEBUG="-fsanitize=leak -fcheck=all -ffpe-trap=invalid,zero,overflow -finit-derived -finit-real=snan -finit-integer=-42 -fno-fast-math -Werror=realloc-lhs-all -finline-matmul-limit=0"
+FCDEB_FLAGS_DEBUG="-fsanitize=leak -fcheck=all -ffpe-trap=invalid,zero,overflow -finit-derived -finit-real=snan -finit-integer=-42 -Werror=realloc-lhs-all -finline-matmul-limit=0"
 
 # code coverage generation flags
 COVERAGE_FLAGS="-O1 -coverage -fkeep-static-functions"

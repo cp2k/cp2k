@@ -12,7 +12,7 @@ AR       = ar -r
 CPPFLAGS =
 DFLAGS   = -D__MKL -D__FFTW3 -D__parallel -D__SCALAPACK -D__HAS_smm_dnn
 CFLAGS   = $(DFLAGS)
-FCFLAGS  = $(DFLAGS) -O3 -fopenmp -mavx -funroll-loops -ffast-math -ftree-vectorize \
+FCFLAGS  = $(DFLAGS) -O3 -fopenmp -mavx -funroll-loops -ftree-vectorize \
            -ffree-form -ffree-line-length-512 \
 	   -I${MKLROOT}/include -I${MKLROOT}/include/fftw
 LDFLAGS  = $(FCFLAGS)

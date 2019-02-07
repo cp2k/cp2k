@@ -39,7 +39,7 @@ case "$with_scalapack" in
 CDEFS         = -DAdd_
 FC            = ${MPIFC}
 CC            = ${MPICC}
-NOOPT         = ${FFLAGS} -O0 -fno-fast-math
+NOOPT         = ${FFLAGS} -O0
 FCFLAGS       = ${FFLAGS} ${MATH_CFLAGS}
 CCFLAGS       = ${CFLAGS} ${MATH_CFLAGS}
 FCLOADER      = \$(FC)
