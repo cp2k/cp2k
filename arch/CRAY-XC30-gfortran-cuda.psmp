@@ -15,7 +15,7 @@ CPPFLAGS =
 CXXFLAGS = -O3 -I${CUDA_PATH}/include -std=c++11
 DFLAGS   = -D__FFTW3 -D__parallel -D__SCALAPACK -D__HAS_smm_dnn -D__ACC -D__DBCSR_ACC
 CFLAGS   = $(DFLAGS)
-FCFLAGS  = $(DFLAGS) -O3 -fopenmp -mavx -funroll-loops -ffast-math -ftree-vectorize \
+FCFLAGS  = $(DFLAGS) -O3 -fopenmp -mavx -funroll-loops -ftree-vectorize \
            -ffree-form -ffree-line-length-512
 LDFLAGS  = $(FCFLAGS)
 NVFLAGS  = $(DFLAGS) -O3 -arch sm_35 -Xcompiler='-fopenmp' --std=c++11

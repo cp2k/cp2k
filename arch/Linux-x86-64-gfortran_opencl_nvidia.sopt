@@ -42,7 +42,7 @@ DFLAGS   = -D__FFTW3 \
            -D__HAS_ISO_C_BINDING
 
 
-AFLAGS   = $(DFLAGS) -O3 -mtune=native -ffast-math -funroll-loops -ftree-vectorize
+AFLAGS   = $(DFLAGS) -O3 -mtune=native -funroll-loops -ftree-vectorize
 CPPFLAGS = $(DFLAGS) -traditional -C
 CFLAGS   = $(AFLAGS)
 FCFLAGS  = $(AFLAGS) -ffree-form -ffree-line-length-none

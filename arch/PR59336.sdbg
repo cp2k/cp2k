@@ -9,7 +9,7 @@ AR       = gcc-ar -r
 
 CPPFLAGS = 
 DFLAGS   = -D__FFTW3 
-FCFLAGS  = -fno-prefetch-loop-arrays -O3 -march=native -funroll-loops -ffast-math -ffree-form $(DFLAGS) 
+FCFLAGS  = -fno-prefetch-loop-arrays -O3 -march=native -funroll-loops -ffree-form $(DFLAGS)
 LDFLAGS  = $(FCFLAGS) 
 LIBS     = -llapack -lblas
 

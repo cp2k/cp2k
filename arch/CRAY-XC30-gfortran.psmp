@@ -10,7 +10,7 @@ AR       = ar -r
 CPPFLAGS =
 DFLAGS   = -D__FFTW3 -D__parallel -D__SCALAPACK -D__HAS_smm_dnn
 CFLAGS   = $(DFLAGS)
-FCFLAGS  = $(DFLAGS) -O3 -fopenmp -mavx -funroll-loops -ffast-math -ftree-vectorize \
+FCFLAGS  = $(DFLAGS) -O3 -fopenmp -mavx -funroll-loops -ftree-vectorize \
 	   -ffree-form -ffree-line-length-512 
 LDFLAGS  = $(FCFLAGS)
 LIBS     = -lfftw3 -lfftw3_threads 

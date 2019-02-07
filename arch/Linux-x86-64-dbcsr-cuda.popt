@@ -12,7 +12,7 @@ GPUVER   = K20X
 CPPFLAGS =
 CXXFLAGS = -O3 -I${CUDA_PATH}/include -std=c++11
 DFLAGS   = -D__parallel -D__SCALAPACK -D__ACC -D__DBCSR_ACC
-FCFLAGS  = -g -O3 -ffast-math -ffree-form $(DFLAGS) -I$(GFORTRAN_INC)
+FCFLAGS  = -g -O3 -ffree-form $(DFLAGS) -I$(GFORTRAN_INC)
 LDFLAGS  = $(FCFLAGS)
 NVFLAGS  = $(DFLAGS) -g -O3 -arch sm_35 -Xcompiler='-fopenmp' --std=c++11
 
