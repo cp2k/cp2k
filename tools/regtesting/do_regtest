@@ -774,6 +774,9 @@ if [[ "${git_sha}" != "<N/A>" ]] && command -v git >/dev/null 2>&1 ; then
          "${git_sha}"
 fi
 
+echo "--------------------------- Resource limits ------------------------------"
+prlimit
+
 echo "--------------------------- Preparations ---------------------------------"
 
 # make realclean
