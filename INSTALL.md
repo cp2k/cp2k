@@ -56,7 +56,7 @@ BLAS and LAPACK should be installed.  Using vendor-provided libraries can make a
     * http://math-atlas.sourceforge.net/
     * https://www.tacc.utexas.edu/research-development/tacc-software/gotoblas2
 
-If compiling with OpenMP support then it is recommended to use a non-threaded version of BLAS. In particular if compiling with MKL and using OpenMP you must define `-D__MKL` to ensure the code is thread-safe. MKL with multiple OpenMP threads in CP2K requires that CP2K was compiled with the Intel compiler (and `-D__INTEL_COMPILER` is defined if explicit pre-processing is performed using cpp instead of the compiler).
+If compiling with OpenMP support then it is recommended to use a non-threaded version of BLAS. In particular if compiling with MKL and using OpenMP you must define `-D__MKL` to ensure the code is thread-safe. MKL with multiple OpenMP threads in CP2K requires that CP2K was compiled with the Intel compiler. If the `cpp` precompiler is used in a separate precompilation step in combination with the Intel Fortran compiler, `-D__INTEL_COMPILER` must be added explicitly (the Intel compiler sets `__INTEL_COMPILER` otherwise automatically).
 
 On the Mac, BLAS and LAPACK may be provided by Apple's Accelerate framework. If using this framework, `-D__ACCELERATE` must be defined to account for some interface incompatibilities between Accelerate and reference BLAS/LAPACK.
 
