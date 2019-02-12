@@ -213,6 +213,16 @@ CONTAINS
          CALL m_flush_internal(my_output_unit)
       END IF
 
+#if defined(__FAST_MATH__)
+      CALL cp_warn(__LOCATION__, &
+                   "During compilation GCC's `-ffast-math` option was used."// &
+                   " This can lead to wrong results and numerical instabilities"// &
+                   " and is therefore no longer supported.")
+
+#if !defined(__FORCE_USE_FAST_MATH)
+#error -ffast-math can lead to wrong results and numerical instabilities and is therefore no longer supported
+#endif
+#endif
    END SUBROUTINE cp2k_init
 
 ! **************************************************************************************************
