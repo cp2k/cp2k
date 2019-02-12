@@ -22,7 +22,7 @@ LD       = /opt/intel/fce/10.0.025/bin/ifort -i-static -openmp
 AR       = ar -r
 GPUVER   = K20X
 
-DFLAGSBASE   = -D__INTEL -D__CUDAPW -D__FFTSG -D__CUBLASDP
+DFLAGSBASE   = -D__CUDAPW -D__FFTSG -D__CUBLASDP
 DFLAGS   = $(DFLAGSBASE) -DDGEMM=cuda_d_gemm -Ddgemm=cuda_d_gemm -DDSYMM=gpu_d_symm -Ddsymm=gpu_d_symm
 DFLAGSCU  = $(DFLAGSBASE) -Dcpu_d_gemm=dgemm -Dcpu_d_symm=dsymm
 
