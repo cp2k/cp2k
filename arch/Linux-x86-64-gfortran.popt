@@ -1,4 +1,4 @@
-# Tested with: GFortran 6.4.0, MPICH 3.2.1, LAPACK 3.8.0, ScaLAPACK 2.0.2, FFTW 3.3, Libint 1.1.6, Libxc 4.3.0, libxsmm 1.10, ELPA 2017.05.003, PLUMED 2.4.1
+# Tested with: GFortran 6.4.0, MPICH 3.2.1, LAPACK 3.8.0, ScaLAPACK 2.0.2, FFTW 3.3, Libint 1.1.6, Libxc 4.2.3, libxsmm 1.9, ELPA 2017.05.003, PLUMED 2.4.1
 # Author: Matthias Krack (matthias.krack@psi.ch, PSI, February 2019)
 CC          = gcc
 CPP         =
@@ -13,16 +13,16 @@ FFTW_INC    = $(GCC_DIR)/fftw/3.3/include
 FFTW_LIB    = $(GCC_DIR)/fftw/3.3/lib
 LIBINT_INC  = $(GCC_DIR)/libint/1.1.6-LARGE_L/include
 LIBINT_LIB  = $(GCC_DIR)/libint/1.1.6-LARGE_L/lib
-LIBXC_INC   = $(GCC_DIR)/libxc/4.3.0/include
-LIBXC_LIB   = $(GCC_DIR)/libxc/4.3.0/lib
-LIBXSMM_INC = $(GCC_DIR)/libxsmm/1.10/include
-LIBXSMM_LIB = $(GCC_DIR)/libxsmm/1.10/lib
+LIBXC_INC   = $(GCC_DIR)/libxc/4.2.3/include
+LIBXC_LIB   = $(GCC_DIR)/libxc/4.2.3/lib
+LIBXSMM_INC = $(GCC_DIR)/libxsmm/1.9/include
+LIBXSMM_LIB = $(GCC_DIR)/libxsmm/1.9/lib
 DFLAGS      = -D__ELPA=201705 -D__FFTW3 -D__LIBINT -D__LIBXC -D__LIBXSMM \
               -D__MPI_VERSION=3 -D__PLUMED2 \
               -D__LIBINT_MAX_AM=7 -D__LIBDERIV_MAX_AM1=6 -D__MAX_CONTR=4 \
               -D__parallel -D__SCALAPACK
 CPPFLAGS    =
-FCFLAGS     = $(DFLAGS) -O2 -ffast-math -ffree-form -ffree-line-length-none \
+FCFLAGS     = $(DFLAGS) -O2 -ffree-form -ffree-line-length-none \
               -ftree-vectorize -funroll-loops -mtune=native -std=f2008 \
               -I$(ELPA_INC)/elpa -I$(ELPA_INC)/modules \
               -I$(FFTW_INC) -I$(LIBINT_INC) -I$(LIBXC_INC) -I$(LIBXSMM_INC)
