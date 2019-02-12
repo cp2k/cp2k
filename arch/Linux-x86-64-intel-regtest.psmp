@@ -26,7 +26,7 @@ CPPFLAGS    =
 DFLAGS      = -D__ELPA=201705 -D__FFTW3 -D__LIBINT -D__LIBXC -D__LIBXSMM \
               -D__MKL -D__MPI_VERSION=3 -D__PLUMED2 \
               -D__LIBINT_MAX_AM=7 -D__LIBDERIV_MAX_AM1=6 -D__MAX_CONTR=4 \
-              -D__parallel -D__SCALAPACK
+              -D__parallel -D__SCALAPACK -D__CHECK_DIAG
 CFLAGS      = $(DFLAGS) -O2 -fopenmp
 FCFLAGS     = $(DFLAGS) -O2 -fopenmp
 FCFLAGS    += -fpp -free -funroll-loops
