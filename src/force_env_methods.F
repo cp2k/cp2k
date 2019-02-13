@@ -119,7 +119,8 @@ MODULE force_env_methods
         calculate_embed_pot_grad, conv_check_embed, init_embed_pot, make_subsys_embed_pot, &
         opt_embed_step, prepare_embed_opt, print_emb_opt_info, print_embed_restart, &
         print_pot_simple_grid, print_rho_diff, print_rho_spin_diff, read_embed_pot, &
-        release_opt_embed, step_control, understand_spin_states
+        release_opt_embed, step_control, understand_spin_states, get_prev_density, &
+        get_max_subsys_diff
    USE particle_list_types,             ONLY: particle_list_p_type,&
                                               particle_list_type
    USE physcon,                         ONLY: debye
@@ -1636,7 +1637,8 @@ CONTAINS
       CALL qs_rho_get(rho_struct=rho, rho_r=rho_r_ref)
 
       ! We need to understand how to treat spins states
-      CALL understand_spin_states(force_env, ref_subsys_number, opt_embed%change_spin, opt_embed%open_shell_embed)
+      CALL understand_spin_states(force_env, ref_subsys_number, opt_embed%change_spin, opt_embed%open_shell_embed,&
+                                  opt_embed%all_nspins)
 
       ! Prepare everything for the potential maximization
       CALL prepare_embed_opt(force_env%sub_force_env(ref_subsys_number)%force_env%qs_env, opt_embed, &
@@ -1758,10 +1760,15 @@ CONTAINS
                                spin_embed_pot=spin_embed_pot_subsys)
             ENDIF
 
+            ! Get the previous subsystem densities
+            CALL get_prev_density(opt_embed, force_env%sub_force_env(i_force_eval)%force_env, i_force_eval)
+
             ! Calculate the new density
             CALL force_env_calc_energy_force(force_env=force_env%sub_force_env(i_force_eval)%force_env, &
                                              calc_force=.FALSE., &
                                              skip_external_control=.TRUE.)
+
+            CALL get_max_subsys_diff(opt_embed, force_env%sub_force_env(i_force_eval)%force_env, i_force_eval)
 
             ! Extract subsystem density and energy
             NULLIFY (rho_r_subsys, energy)
@@ -1971,7 +1978,8 @@ CONTAINS
                                                       "DFT%QS%OPT_DMFET")
 
       ! We need to understand how to treat spins states
-      CALL understand_spin_states(force_env, ref_subsys_number, opt_dmfet%change_spin, opt_dmfet%open_shell_embed)
+      CALL understand_spin_states(force_env, ref_subsys_number, opt_dmfet%change_spin, opt_dmfet%open_shell_embed,&
+                                  opt_dmfet%all_nspins)
 
       ! Prepare for the potential optimization
       CALL prepare_dmfet_opt(force_env%sub_force_env(ref_subsys_number)%force_env%qs_env, &

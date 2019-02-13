@@ -195,6 +195,7 @@ CONTAINS
       DEALLOCATE (opt_dmfet%w_func)
       DEALLOCATE (opt_dmfet%max_diff)
       DEALLOCATE (opt_dmfet%int_diff)
+      DEALLOCATE (opt_dmfet%all_nspins)
 
    END SUBROUTINE release_dmfet_opt
 

@@ -71,18 +71,20 @@ MODULE embed_types
                                                    prev_step, step, embed_pot_hess, &
                                                    prev_embed_pot_coef, prev_embed_pot_grad, &
                                                    prev_embed_pot_hess, kinetic_mat
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)  :: w_func, max_diff, int_diff
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)  :: w_func, max_diff, int_diff, int_diff_square,&
+                                                   max_grid_step, max_subsys_dens_diff
       INTEGER                                   :: n_iter, i_iter, dimen_aux, last_accepted, dimen_var_aux
       REAL(KIND=dp)                             :: lambda, allowed_decrease, max_trad, min_trad, &
                                                    grad_norm
       TYPE(pw_p_type), POINTER                  :: const_pot
-      TYPE(pw_p_type), DIMENSION(:), POINTER    :: prev_grid_grad, prev_grid_pot
+      TYPE(pw_p_type), DIMENSION(:), POINTER    :: prev_grid_grad, prev_grid_pot, prev_subsys_dens
       REAL(KIND=dp)                             :: reg_term, trust_rad, conv_max, conv_int, &
                                                    conv_max_spin, conv_int_spin, step_len
       LOGICAL                                   :: accept_step, newton_step, level_shift, steep_desc, &
                                                    add_const_pot, converged, read_embed_pot, &
                                                    read_embed_pot_cube, change_spin, open_shell_embed, &
                                                    grid_opt
+      INTEGER, ALLOCATABLE, DIMENSION(:)        :: all_nspins
       TYPE(lri_kind_type), DIMENSION(:), POINTER :: lri ! Needed to store integrals
 
    END TYPE opt_embed_pot_type
@@ -102,6 +104,7 @@ MODULE embed_types
                                                    change_spin, open_shell_embed
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)  :: w_func, max_diff, int_diff
       INTEGER                                   :: n_iter, i_iter, last_accepted
+      INTEGER, ALLOCATABLE, DIMENSION(:)        :: all_nspins
 
    END TYPE opt_dmfet_pot_type
 
