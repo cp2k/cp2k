@@ -777,6 +777,13 @@ fi
 echo "--------------------------- Resource limits ------------------------------"
 prlimit
 
+echo "--------------------------- SELinux --------------------------------------"
+if [[ -f /usr/sbin/getenforce ]]; then
+   echo "SELinux is installed and is $(/usr/sbin/getenforce)"
+else
+   echo "No SELinux installation found"
+fi
+
 echo "--------------------------- Preparations ---------------------------------"
 
 # make realclean
