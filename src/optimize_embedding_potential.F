@@ -68,7 +68,8 @@ MODULE optimize_embedding_potential
                                               pw_integrate_function,&
                                               pw_scale,&
                                               pw_transfer,&
-                                              pw_zero
+                                              pw_zero,&
+                                              pw_integral_ab
    USE pw_pool_types,                   ONLY: pw_pool_create_pw,&
                                               pw_pool_give_back_pw,&
                                               pw_pool_type
@@ -94,6 +95,8 @@ MODULE optimize_embedding_potential
    USE qs_neighbor_list_types,          ONLY: neighbor_list_set_p_type
    USE qs_subsys_types,                 ONLY: qs_subsys_get,&
                                               qs_subsys_type
+   USE qs_rho_types,                    ONLY: qs_rho_get,&
+                                              qs_rho_type
 #include "./base/base_uses.f90"
 
    IMPLICIT NONE
@@ -106,7 +109,7 @@ MODULE optimize_embedding_potential
              opt_embed_step, print_rho_diff, step_control, max_dens_diff, print_emb_opt_info, &
              conv_check_embed, make_subsys_embed_pot, print_embed_restart, find_aux_dimen, &
              read_embed_pot, understand_spin_states, given_embed_pot, print_rho_spin_diff, &
-             print_pot_simple_grid
+             print_pot_simple_grid, get_prev_density, get_max_subsys_diff
 
 CONTAINS
 
@@ -123,7 +126,7 @@ CONTAINS
 !> \return ...
 !> \author Vladimir Rybkin
 ! **************************************************************************************************
-   SUBROUTINE understand_spin_states(force_env, ref_subsys_number, change_spin, open_shell_embed)
+   SUBROUTINE understand_spin_states(force_env, ref_subsys_number, change_spin, open_shell_embed, all_nspins)
       TYPE(force_env_type), POINTER                      :: force_env
       INTEGER                                            :: ref_subsys_number
       LOGICAL                                            :: change_spin, open_shell_embed
@@ -132,11 +135,12 @@ CONTAINS
                                                             sub_spin_2, total_spin
       INTEGER, DIMENSION(2)                              :: nelectron_spin
       INTEGER, DIMENSION(2, 3)                           :: all_spins
-      INTEGER, DIMENSION(3)                              :: all_nspins
       TYPE(dft_control_type), POINTER                    :: dft_control
+      INTEGER, ALLOCATABLE, DIMENSION(:)        :: all_nspins
 
       change_spin = .FALSE.
       open_shell_embed = .FALSE.
+      ALLOCATE (all_nspins(ref_subsys_number))
       IF (ref_subsys_number .EQ. 3) THEN
          all_spins = 0
          DO i_force_eval = 1, ref_subsys_number
@@ -291,10 +295,12 @@ CONTAINS
       TYPE(opt_embed_pot_type)                           :: opt_embed
       TYPE(section_vals_type), POINTER                   :: opt_embed_section
 
-      INTEGER                                            :: diff_size
+      INTEGER                                            :: diff_size, size_prev_dens, i_dens
       TYPE(cp_blacs_env_type), POINTER                   :: blacs_env
       TYPE(cp_fm_struct_type), POINTER                   :: fm_struct
       TYPE(cp_para_env_type), POINTER                    :: para_env
+      TYPE(pw_env_type), POINTER                         :: pw_env
+      TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
 
       !TYPE(pw_env_type), POINTER                         :: pw_env
       !TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
@@ -371,7 +377,7 @@ CONTAINS
          ! Release blacs environment
          CALL cp_blacs_env_release(blacs_env)
 
-         !ELSE ! Grid-based optimization
+         ! ELSE ! Grid-based optimization
          !my_spins = 1
          !IF (opt_embed%open_shell_embed) my_spins = 2
          !CALL get_qs_env(qs_env=qs_env, pw_env=pw_env)
@@ -391,8 +397,20 @@ CONTAINS
          !                          in_space=REALSPACE)
          !   CALL pw_zero(opt_embed%prev_grid_pot(i_spin)%pw)
          !ENDDO
-
       ENDIF
+
+      CALL get_qs_env(qs_env=qs_env, pw_env=pw_env)
+      CALL pw_env_get(pw_env, auxbas_pw_pool=auxbas_pw_pool)
+      NULLIFY (opt_embed%prev_subsys_dens)
+      size_prev_dens = SUM(opt_embed%all_nspins(1:(size(opt_embed%all_nspins)-1) ))
+      ALLOCATE (opt_embed%prev_subsys_dens(size_prev_dens))
+      DO i_dens = 1, size_prev_dens
+         CALL pw_pool_create_pw(auxbas_pw_pool, opt_embed%prev_subsys_dens(i_dens)%pw, &
+                                use_data=REALDATA3D, &
+                                in_space=REALSPACE)
+         CALL pw_zero(opt_embed%prev_subsys_dens(i_dens)%pw)
+      ENDDO
+      ALLOCATE (opt_embed%max_subsys_dens_diff(size_prev_dens))
 
       ! Array to store functional values
       ALLOCATE (opt_embed%w_func(opt_embed%n_iter))
@@ -403,6 +421,7 @@ CONTAINS
       IF (opt_embed%open_shell_embed) diff_size = 2
       ALLOCATE (opt_embed%max_diff(diff_size))
       ALLOCATE (opt_embed%int_diff(diff_size))
+      ALLOCATE (opt_embed%int_diff_square(diff_size))
 
       ! Set allowed energy decrease parameter
       opt_embed%allowed_decrease = 0.0001_dp
@@ -819,7 +838,7 @@ CONTAINS
    SUBROUTINE release_opt_embed(opt_embed)
       TYPE(opt_embed_pot_type)                           :: opt_embed
 
-      INTEGER                                            :: ikind
+      INTEGER                                            :: ikind, i_dens
 
       IF (.NOT. opt_embed%grid_opt) THEN
          CALL cp_fm_release(opt_embed%embed_pot_grad)
@@ -840,20 +859,22 @@ CONTAINS
          ENDIF
          DEALLOCATE (opt_embed%max_diff)
          DEALLOCATE (opt_embed%int_diff)
+         DEALLOCATE (opt_embed%max_grid_step)
 
          DO ikind = 1, SIZE(opt_embed%lri)
             DEALLOCATE (opt_embed%lri(ikind)%v_int)
             DEALLOCATE (opt_embed%lri(ikind)%acoef)
          ENDDO
          DEALLOCATE (opt_embed%lri)
-         !ELSE
-         !DO ispin = 1, SIZE(opt_embed%prev_grid_pot)
-         !   CALL pw_release(opt_embed%prev_grid_pot(ispin)%pw)
-         !   CALL pw_release(opt_embed%prev_grid_grad(ispin)%pw)
-         !ENDDO
-         !DEALLOCATE (opt_embed%prev_grid_pot)
-         !DEALLOCATE (opt_embed%prev_grid_grad)
       ENDIF
+
+      DO i_dens = 1, SIZE(opt_embed%prev_subsys_dens)
+         CALL pw_release(opt_embed%prev_subsys_dens(i_dens)%pw)
+      ENDDO
+      DEALLOCATE (opt_embed%prev_subsys_dens)
+      DEALLOCATE (opt_embed%max_subsys_dens_diff)
+
+      DEALLOCATE (opt_embed%all_nspins)
 
    END SUBROUTINE release_opt_embed
 
@@ -2771,6 +2792,55 @@ CONTAINS
 
    END SUBROUTINE print_emb_opt_info
 
+
+   SUBROUTINE get_prev_density(opt_embed, force_env, subsys_num)
+      TYPE(opt_embed_pot_type)                           :: opt_embed
+      TYPE(force_env_type), POINTER                      :: force_env
+      INTEGER                                            :: nspins, i_spin, subsys_num, i_dens_start
+      TYPE(qs_rho_type), POINTER                         :: rho
+      TYPE(pw_p_type), DIMENSION(:), POINTER             :: rho_r
+
+      NULLIFY (rho_r, rho)
+      CALL get_qs_env(force_env%qs_env, rho=rho)
+      CALL qs_rho_get(rho_struct=rho, rho_r=rho_r)
+
+      nspins = opt_embed%all_nspins(subsys_num)
+
+      i_dens_start = sum(opt_embed%all_nspins(1:subsys_num)) - nspins + 1
+  
+      DO i_spin = 1, nspins
+         opt_embed%prev_subsys_dens(i_dens_start+i_spin-1)%pw%cr3d(:, :, :) = &
+         rho_r(i_spin)%pw%cr3d(:, :, :)
+      ENDDO
+
+   END SUBROUTINE get_prev_density
+
+
+
+   SUBROUTINE get_max_subsys_diff(opt_embed, force_env, subsys_num)
+      TYPE(opt_embed_pot_type)                           :: opt_embed
+      TYPE(force_env_type), POINTER                      :: force_env
+      INTEGER                                            :: i_spin, subsys_num, i_dens_start, nspins
+      TYPE(qs_rho_type), POINTER                         :: rho
+      TYPE(pw_p_type), DIMENSION(:), POINTER             :: rho_r
+      NULLIFY (rho_r, rho)
+      CALL get_qs_env(force_env%qs_env, rho=rho)
+      CALL qs_rho_get(rho_struct=rho, rho_r=rho_r)
+  
+      nspins = opt_embed%all_nspins(subsys_num)
+
+      i_dens_start = sum(opt_embed%all_nspins(1:subsys_num)) - nspins + 1
+  
+      DO i_spin = 1, nspins
+         opt_embed%prev_subsys_dens(i_dens_start+i_spin-1)%pw%cr3d(:, :, :) = &
+         rho_r(i_spin)%pw%cr3d(:, :, :) - opt_embed%prev_subsys_dens(i_dens_start+i_spin-1)%pw%cr3d(:, :, :)
+         opt_embed%max_subsys_dens_diff(i_dens_start+i_spin-1) = &
+         max_dens_diff(opt_embed%prev_subsys_dens(i_dens_start+i_spin-1))
+      ENDDO
+
+   END SUBROUTINE get_max_subsys_diff
+
+
 ! **************************************************************************************************
 !> \brief ...
 !> \param opt_embed ...
@@ -2785,19 +2855,24 @@ CONTAINS
 
       LOGICAL                                            :: conv_int_diff, conv_max_diff
       REAL(KIND=dp)                                      :: int_diff, int_diff_spin, max_diff, &
-                                                            max_diff_spin
+                                                            max_diff_spin, &
+                                                            int_diff_square, int_diff_square_spin
+      INTEGER                                            :: i_dens, i_dens_start, i_spin
 
       ! Calculate the convergence target values
       opt_embed%max_diff(1) = max_dens_diff(diff_rho_r)
       opt_embed%int_diff(1) = pw_integrate_function(fun=diff_rho_r%pw, oprt='ABS')
+      opt_embed%int_diff_square(1) = pw_integral_ab(diff_rho_r%pw, diff_rho_r%pw)
       IF (opt_embed%open_shell_embed) THEN
          opt_embed%max_diff(2) = max_dens_diff(diff_rho_spin)
          opt_embed%int_diff(2) = pw_integrate_function(fun=diff_rho_spin%pw, oprt='ABS')
+         opt_embed%int_diff_square(2) = pw_integral_ab(diff_rho_spin%pw, diff_rho_spin%pw)
       ENDIF
 
       ! Find out the convergence
       max_diff = opt_embed%max_diff(1)
 
+      ! Maximum value criterium
       ! Open shell
       IF (opt_embed%open_shell_embed) THEN
          max_diff_spin = opt_embed%max_diff(2)
@@ -2815,6 +2890,7 @@ CONTAINS
          ENDIF
       ENDIF
 
+      ! Integrated value criterium
       int_diff = opt_embed%int_diff(1)
       ! Open shell
       IF (opt_embed%open_shell_embed) THEN
@@ -2832,6 +2908,12 @@ CONTAINS
             conv_int_diff = .FALSE.
          ENDIF
       ENDIF
+
+      ! Integrated squared value criterium
+      int_diff_square = opt_embed%int_diff_square(1)
+      ! Open shell
+      IF (opt_embed%open_shell_embed) int_diff_square_spin = opt_embed%int_diff_square(2)
+
 
       IF ((conv_max_diff) .AND. (conv_int_diff)) THEN
          opt_embed%converged = .TRUE.
@@ -2890,6 +2972,27 @@ CONTAINS
                " Convergence in integrated density diff.    =     ", &
                "              NO"
          END IF
+
+         ! Integrated squared value of density
+         WRITE (UNIT=output_unit, FMT="(T2,A,F20.10)") &
+            " Integrated squared density difference     = ", int_diff_square
+         IF (opt_embed%open_shell_embed) THEN
+            WRITE (UNIT=output_unit, FMT="(T2,A,F20.10)") &
+               " Integrated squared spin density difference= ", int_diff_square_spin
+         ENDIF
+
+         ! Maximum subsystem density change
+         WRITE (UNIT=output_unit, FMT="(/,T2,A)") &
+            " Maximum density change in:"
+         DO i_dens = 1, (size(opt_embed%all_nspins)-1)
+            i_dens_start = sum(opt_embed%all_nspins(1:i_dens)) - opt_embed%all_nspins(i_dens) + 1
+            DO i_spin = 1, opt_embed%all_nspins(i_dens)
+               WRITE (UNIT=output_unit, FMT="(T4,A10,I3,A6,I3,A1,F20.10)") &
+                  " subsystem ", i_dens, ', spin', i_spin, ":", &
+                  opt_embed%max_subsys_dens_diff(i_dens_start+i_spin-1)
+            ENDDO
+         ENDDO
+
       ENDIF
 
       IF ((opt_embed%converged) .AND. (output_unit > 0)) THEN
@@ -2898,6 +3001,8 @@ CONTAINS
             "***", "EMBEDDING POTENTIAL OPTIMIZATION COMPLETED", "***"
          WRITE (UNIT=output_unit, FMT="(T2,A)") REPEAT("*", 79)
       END IF
+
+      write(*,*) 'max_subsys_diff', opt_embed%max_subsys_dens_diff
 
    END SUBROUTINE conv_check_embed
 
