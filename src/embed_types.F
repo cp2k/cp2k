@@ -71,7 +71,7 @@ MODULE embed_types
                                                    prev_step, step, embed_pot_hess, &
                                                    prev_embed_pot_coef, prev_embed_pot_grad, &
                                                    prev_embed_pot_hess, kinetic_mat
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)  :: w_func, max_diff, int_diff, int_diff_square,&
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)  :: w_func, max_diff, int_diff, int_diff_square, &
                                                    max_grid_step, max_subsys_dens_diff
       INTEGER                                   :: n_iter, i_iter, dimen_aux, last_accepted, dimen_var_aux
       REAL(KIND=dp)                             :: lambda, allowed_decrease, max_trad, min_trad, &
