@@ -38,7 +38,7 @@ case "$with_json_fortran" in
             make -j $NPROCS >> make.log 2>&1
             make -j $NPROCS install > install.log 2>&1
             cd ../..
-            touch "${install_lock_file}"
+            write_checksums "${install_lock_file}" "${SCRIPT_DIR}/$(basename ${SCRIPT_NAME})"
         fi
 
         JSON_CFLAGS="-I'${pkg_install_dir}/include'"

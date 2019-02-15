@@ -21,7 +21,7 @@ case "$with_gcc" in
         echo "==================== Installing GCC ===================="
         pkg_install_dir="${INSTALLDIR}/gcc-${gcc_ver}"
         install_lock_file="$pkg_install_dir/install_successful"
-        if [[ $install_lock_file -nt $SCRIPT_NAME ]]; then
+        if verify_checksums "${install_lock_file}" ; then
             echo "gcc-${gcc_ver} is already installed, skipping it."
         else
             if [ "${gcc_ver}" == "master" ]; then
@@ -85,7 +85,7 @@ case "$with_gcc" in
                 cd $GCCROOT/obj/
             fi
             cd ../..
-            touch "${install_lock_file}"
+            write_checksums "${install_lock_file}" "${SCRIPT_DIR}/$(basename ${SCRIPT_NAME})"
         fi
         GCC_CFLAGS="-I'${pkg_install_dir}/include'"
         GCC_LDFLAGS="-L'${pkg_install_dir}/lib64' -L'${pkg_install_dir}/lib' -Wl,-rpath='${pkg_install_dir}/lib64' -Wl,-rpath='${pkg_install_dir}/lib64'"

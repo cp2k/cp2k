@@ -33,7 +33,7 @@ case "$with_elpa" in
         echo "==================== Installing ELPA ===================="
         pkg_install_dir="${INSTALLDIR}/elpa-${elpa_ver}"
         install_lock_file="$pkg_install_dir/install_successful"
-        if [[ $install_lock_file -nt $SCRIPT_NAME ]]; then
+        if verify_checksums "${install_lock_file}" ; then
             echo "elpa-${elpa_ver} is already installed, skipping it."
         else
             require_env MATH_LIBS
@@ -120,7 +120,7 @@ case "$with_elpa" in
                 cd ..
             fi
             cd ..
-            touch "${install_lock_file}"
+            write_checksums "${install_lock_file}" "${SCRIPT_DIR}/$(basename ${SCRIPT_NAME})"
         fi
         ELPA_CFLAGS="-I'${pkg_install_dir}/include/elpa-${elpa_ver}/modules' -I'${pkg_install_dir}/include/elpa-${elpa_ver}/elpa'"
         ELPA_CFLAGS_OMP="-I'${pkg_install_dir}/include/elpa_openmp-${elpa_ver}/modules' -I'${pkg_install_dir}/include/elpa_openmp-${elpa_ver}/elpa'"

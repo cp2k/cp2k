@@ -30,7 +30,7 @@ case "$with_libsmm" in
         echo "==================== Installing libsmm ===================="
         pkg_install_dir="${INSTALLDIR}/libsmm"
         install_lock_file="$pkg_install_dir/install_successful"
-        if [[ $install_lock_file -nt $SCRIPT_NAME ]]; then
+        if verify_checksums "${install_lock_file}" ; then
             echo "libsmm is already installed, skipping it."
         else
             echo "Searching for an optimised libsmm binary from CP2K website"
@@ -73,7 +73,7 @@ with_libsmm="__DONTUSE__"
 EOF
                 exit 0
             fi
-            touch "${install_lock_file}"
+            write_checksums "${install_lock_file}" "${SCRIPT_DIR}/$(basename ${SCRIPT_NAME})"
         fi
         LIBSMM_LDFLAGS="-L'${pkg_install_dir}/lib' -Wl,-rpath='${pkg_install_dir}/lib'"
         ;;

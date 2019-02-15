@@ -18,7 +18,7 @@ case "$with_cmake" in
         echo "==================== Installing CMake ===================="
         pkg_install_dir="${INSTALLDIR}/cmake-${cmake_ver}"
         install_lock_file="$pkg_install_dir/install_successful"
-        if [[ $install_lock_file -nt $SCRIPT_NAME ]]; then
+        if verify_checksums "${install_lock_file}" ; then
             echo "cmake-${cmake_ver} is already installed, skipping it."
         else
             if [ -f cmake-${cmake_ver}.tar.gz ] ; then
@@ -43,7 +43,7 @@ case "$with_cmake" in
             make -j $NPROCS >  make.log 2>&1
             make install > install.log 2>&1
             cd ..
-            touch "${install_lock_file}"
+            write_checksums "${install_lock_file}" "${SCRIPT_DIR}/$(basename ${SCRIPT_NAME})"
         fi
         ;;
     __SYSTEM__)

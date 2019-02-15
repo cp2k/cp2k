@@ -30,7 +30,7 @@ EOF
         fi
         pkg_install_dir="${INSTALLDIR}/libxsmm-${libxsmm_ver}"
         install_lock_file="$pkg_install_dir/install_successful"
-        if [[ $install_lock_file -nt $SCRIPT_NAME ]]; then
+        if verify_checksums "${install_lock_file}" ; then
             echo "libxsmm-${libxsmm_ver} is already installed, skipping it."
         else
             if [ "$libxsmm_ver" = "master" ] ; then
@@ -70,7 +70,7 @@ EOF
                  PREFIX=${pkg_install_dir} \
                  install > install.log 2>&1
             cd ..
-            touch "${install_lock_file}"
+            write_checksums "${install_lock_file}" "${SCRIPT_DIR}/$(basename ${SCRIPT_NAME})"
         fi
         LIBXSMM_CFLAGS="-I'${pkg_install_dir}/include'"
         LIBXSMM_LDFLAGS="-L'${pkg_install_dir}/lib' -Wl,-rpath='${pkg_install_dir}/lib'"

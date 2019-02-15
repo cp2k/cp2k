@@ -53,7 +53,7 @@ case "$with_sirius" in
 
         pkg_install_dir="${INSTALLDIR}/sirius-${sirius_ver}"
         install_lock_file="${pkg_install_dir}/install_successful"
-        if [ -f "${install_lock_file}" ] ; then
+        if verify_checksums "${install_lock_file}" ; then
             echo "sirius_dist-${sirius_ver} is already installed, skipping it."
         else
             if [ -f SIRIUS-${sirius_ver}.tar.gz ] ; then
@@ -158,7 +158,7 @@ EOF
             fi
             SIRIUS_CFLAGS="-I'${pkg_install_dir}/include'"
             SIRIUS_LDFLAGS="-L'${pkg_install_dir}/lib' -Wl,-rpath='${pkg_install_dir}/lib'"
-            touch "${install_lock_file}"
+            write_checksums "${install_lock_file}" "${SCRIPT_DIR}/$(basename ${SCRIPT_NAME})"
         fi
         ;;
     __SYSTEM__)
