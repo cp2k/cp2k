@@ -640,3 +640,30 @@ download_pkg() {
     # checksum
     checksum "$__filename" "$SHA256_CHECKSUMS"
 }
+
+# verify the checksums inside the given checksum file
+verify_checksums() {
+   local __checksum_file=$1
+   local __shasum_command='sha256sum'
+
+   # check if we have sha256sum command, Mac OS X does not have
+   # sha256sum, but has an equivalent with shasum -a 256
+   command -v "$__shasum_command" >&- 2>&- || \
+       __shasum_command="shasum -a 256"
+
+   ${__shasum_command} --check "${__checksum_file}" >/dev/null 2>&1
+}
+
+# write a checksum file $1 containing checksums for each given file $2, $3, ... (plus the $VERSION_FILE)
+write_checksums() {
+   local __checksum_file=$1
+   shift # remove output file from arguments to be able to pass them along properly quoted
+   local __shasum_command='sha256sum'
+
+   # check if we have sha256sum command, Mac OS X does not have
+   # sha256sum, but has an equivalent with shasum -a 256
+   command -v "$__shasum_command" >&- 2>&- || \
+       __shasum_command="shasum -a 256"
+
+   ${__shasum_command} "${VERSION_FILE}" "$@" >"${__checksum_file}"
+}

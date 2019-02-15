@@ -8,6 +8,7 @@ BUILDDIR=${BUILDDIR:-"${ROOTDIR}/build"}
 SETUPFILE=${SETUPFILE:-"${INSTALLDIR}/setup"}
 SHA256_CHECKSUMS=${SHA256_CHECKSUMS:-"${SCRIPTDIR}/checksums.sha256"}
 ARCH_FILE_TEMPLATE=${ARCH_FILE_TEMPLATE:-"${SCRIPTDIR}/arch_base.tmpl"}
+VERSION_FILE=${VERSION_FILE:-"${SCRIPTDIR}/VERSION"}
 
 # downloader flags, used for downloading tarballs, see download_pkg macro in tool_kit.sh
 DOWNLOADER_FLAGS="${DOWNLOADER_FLAGS:-}"
