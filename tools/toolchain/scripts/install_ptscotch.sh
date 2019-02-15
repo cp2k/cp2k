@@ -21,7 +21,7 @@ case "$with_scotch" in
         echo "==================== Installing PT-Scotch ===================="
         pkg_install_dir="${INSTALLDIR}/scotch-${scotch_ver}"
         install_lock_file="$pkg_install_dir/install_successful"
-        if [[ $install_lock_file -nt $SCRIPT_NAME ]]; then
+        if verify_checksums "${install_lock_file}" ; then
             echo "scotch-${scotch_ver} is already installed, skipping it."
         else
             if [ -f scotch_${scotch_ver}.tar.gz ] ; then
@@ -47,7 +47,7 @@ case "$with_scotch" in
             ! [ -d "${pkg_install_dir}" ] && mkdir -p "${pkg_install_dir}"
             make install prefix=${pkg_install_dir} > install.log 2>&1
             cd ../..
-            touch "${install_lock_file}"
+            write_checksums "${install_lock_file}" "${SCRIPT_DIR}/$(basename ${SCRIPT_NAME})"
         fi
         SCOTCH_CFLAGS="-I'${pkg_install_dir}/include'"
         SCOTCH_LDFLAGS="-L'${pkg_install_dir}/lib' -Wl,-rpath='${pkg_install_dir}/lib'"

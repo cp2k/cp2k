@@ -21,7 +21,7 @@ case "$with_scalapack" in
         echo "==================== Installing ScaLAPACK ===================="
         pkg_install_dir="${INSTALLDIR}/scalapack-${scalapack_ver}"
         install_lock_file="$pkg_install_dir/install_successful"
-        if [[ $install_lock_file -nt $SCRIPT_NAME ]]; then
+        if verify_checksums "${install_lock_file}" ; then
             echo "scalapack-${scalapack_ver} is already installed, skipping it."
         else
             require_env MATH_LIBS
@@ -63,7 +63,7 @@ EOF
             ! [ -d "${pkg_install_dir}/lib" ] && mkdir -p "${pkg_install_dir}/lib"
             cp libscalapack.a "${pkg_install_dir}/lib"
             cd ..
-            touch "${install_lock_file}"
+            write_checksums "${install_lock_file}" "${SCRIPT_DIR}/$(basename ${SCRIPT_NAME})"
         fi
         SCALAPACK_LDFLAGS="-L'${pkg_install_dir}/lib' -Wl,-rpath='${pkg_install_dir}/lib'"
         ;;

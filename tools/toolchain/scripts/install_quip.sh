@@ -30,7 +30,7 @@ case "$with_quip" in
         require_env MATH_LIBS
         pkg_install_dir="${INSTALLDIR}/quip-${quip_ver}"
         install_lock_file="$pkg_install_dir/install_successful"
-        if [[ $install_lock_file -nt $SCRIPT_NAME ]]; then
+        if verify_checksums "${install_lock_file}" ; then
             echo "quip_dist-${quip_ver} is already installed, skipping it."
         else
             if [ -f QUIP-${quip_ver}.zip ] ; then
@@ -96,7 +96,7 @@ case "$with_quip" in
             cp src/FoX-4.0.3/objs.linux_${quip_arch}_gfortran/lib/*.a \
                "${pkg_install_dir}/lib/"
             cd ..
-            touch "${install_lock_file}"
+            write_checksums "${install_lock_file}" "${SCRIPT_DIR}/$(basename ${SCRIPT_NAME})"
         fi
         QUIP_CFLAGS="-I'${pkg_install_dir}/include'"
         QUIP_LDFLAGS="-L'${pkg_install_dir}/lib' -Wl,-rpath='${pkg_install_dir}/lib'"

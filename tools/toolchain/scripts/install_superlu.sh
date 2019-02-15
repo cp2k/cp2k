@@ -26,7 +26,7 @@ case "$with_superlu" in
         require_env MATH_LIBS
         pkg_install_dir="${INSTALLDIR}/superlu_dist-${superlu_ver}"
         install_lock_file="$pkg_install_dir/install_successful"
-        if [[ $install_lock_file -nt $SCRIPT_NAME ]]; then
+        if verify_checksums "${install_lock_file}" ; then
             echo "superlu_dist-${superlu_ver} is already installed, skipping it."
         else
             if [ -f superlu_dist_${superlu_ver}.tar.gz ] ; then
@@ -65,7 +65,7 @@ EOF
             ! [ -d "${pkg_install_dir}/include" ] && mkdir -p "${pkg_install_dir}/include"
             cp SRC/*.h "${pkg_install_dir}/include"
             cd ..
-            touch "${install_lock_file}"
+            write_checksums "${install_lock_file}" "${SCRIPT_DIR}/$(basename ${SCRIPT_NAME})"
         fi
         SUPERLU_CFLAGS="-I'${pkg_install_dir}/include'"
         SUPERLU_LDFLAGS="-L'${pkg_install_dir}/lib' -Wl,-rpath='${pkg_install_dir}/lib'"

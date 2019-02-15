@@ -21,7 +21,7 @@ case "$with_reflapack" in
         echo "==================== Installing LAPACK ===================="
         pkg_install_dir="${INSTALLDIR}/lapack-${reflapack_ver}"
         install_lock_file="$pkg_install_dir/install_successful"
-        if [[ $install_lock_file -nt $SCRIPT_NAME ]]; then
+        if verify_checksums "${install_lock_file}" ; then
             echo "lapack-${reflapack_ver} is already installed, skipping it."
         else
             if [ -f lapack-${reflapack_ver}.tgz ] ; then
@@ -63,7 +63,7 @@ EOF
             ! [ -d "${pkg_install_dir}/lib" ] && mkdir -p "${pkg_install_dir}/lib"
             cp libblas.a liblapack.a "${pkg_install_dir}/lib"
             cd ..
-            touch "${install_lock_file}"
+            write_checksums "${install_lock_file}" "${SCRIPT_DIR}/$(basename ${SCRIPT_NAME})"
         fi
         REFLAPACK_LDFLAGS="-L'${pkg_install_dir}/lib' -Wl,-rpath='${pkg_install_dir}/lib'"
         ;;

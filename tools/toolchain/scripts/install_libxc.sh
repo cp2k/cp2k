@@ -21,7 +21,7 @@ case "$with_libxc" in
         echo "==================== Installing LIBXC ===================="
         pkg_install_dir="${INSTALLDIR}/libxc-${libxc_ver}"
         install_lock_file="$pkg_install_dir/install_successful"
-        if [[ $install_lock_file -nt $SCRIPT_NAME ]]; then
+        if verify_checksums "${install_lock_file}" ; then
             echo "libxc-${libxc_ver} is already installed, skipping it."
         else
             if [ -f libxc-${libxc_ver}.tar.gz ] ; then
@@ -47,7 +47,7 @@ case "$with_libxc" in
             make -j $NPROCS > make.log 2>&1
             make install > install.log 2>&1
             cd ..
-            touch "${install_lock_file}"
+            write_checksums "${install_lock_file}" "${SCRIPT_DIR}/$(basename ${SCRIPT_NAME})"
         fi
         LIBXC_CFLAGS="-I'${pkg_install_dir}/include'"
         LIBXC_LDFLAGS="-L'${pkg_install_dir}/lib' -Wl,-rpath='${pkg_install_dir}/lib'"

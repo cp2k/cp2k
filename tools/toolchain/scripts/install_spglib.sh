@@ -21,7 +21,7 @@ case "$with_spglib" in
         echo "==================== Installing spglib ===================="
         pkg_install_dir="${INSTALLDIR}/spglib-${spglib_ver}"
         install_lock_file="$pkg_install_dir/install_successful"
-        if [ -f "${install_lock_file}" ] ; then
+        if verify_checksums "${install_lock_file}" ; then
             echo "spglib-${spglib_ver} is already installed, skipping it."
         else
             if [ -f spglib-${spglib_ver}.tar.gz ] ; then
@@ -57,7 +57,7 @@ case "$with_spglib" in
             make > make.log 2>&1
             make install >> make.log 2>&1
             cd ..
-            touch "${install_lock_file}"
+            write_checksums "${install_lock_file}" "${SCRIPT_DIR}/$(basename ${SCRIPT_NAME})"
         fi
 
         SPGLIB_CFLAGS="-I${pkg_install_dir}/include"

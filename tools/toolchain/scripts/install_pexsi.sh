@@ -30,7 +30,7 @@ case "$with_pexsi" in
         require_env MPI_LIBS
         pkg_install_dir="${INSTALLDIR}/pexsi-${pexsi_ver}"
         install_lock_file="$pkg_install_dir/install_successful"
-        if [[ $install_lock_file -nt $SCRIPT_NAME ]]; then
+        if verify_checksums "${install_lock_file}" ; then
             echo "pexsi_dist-${pexsi_ver} is already installed, skipping it."
         else
             if [ -f pexsi_v${pexsi_ver}.tar.gz ] ; then
@@ -79,7 +79,7 @@ case "$with_pexsi" in
 
             cp -r ./include/* ${pkg_install_dir}/include/  # bug: make install neglects most header files
 
-            touch "${install_lock_file}"
+            write_checksums "${install_lock_file}" "${SCRIPT_DIR}/$(basename ${SCRIPT_NAME})"
         fi
         PEXSI_CFLAGS="-I'${pkg_install_dir}/include'"
 
