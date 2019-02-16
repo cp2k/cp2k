@@ -57,7 +57,10 @@ Flag __PW_CUDA_NO_HOSTALLOC not mentioned in INSTALL.md
 Flag __RELEASE_VERSION not mentioned in INSTALL.md
 Flag __RELEASE_VERSION not mentioned in cp2k_flags()
 Flag __SCALAPACK2 not mentioned in INSTALL.md
-Flag __F2008 not mentioned in cp2k_flags()
+Flag __FAST_MATH__ not mentioned in INSTALL.md
+Flag __FAST_MATH__ not mentioned in cp2k_flags()
+Flag __FORCE_USE_FAST_MATH not mentioned in INSTALL.md
+Flag __FORCE_USE_FAST_MATH not mentioned in cp2k_flags()
 al_system_dynamics.F: Found WRITE statement with hardcoded unit in "dump_vel"
 almo_scf.F: Found WRITE statement with hardcoded unit in "almo_scf_init"
 almo_scf_optimizer.F: Found CLOSE statement in procedure "print_mathematica_matrix"
