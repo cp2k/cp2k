@@ -3,6 +3,9 @@
   &DFT
     &QS
       METHOD xTB
+      &XTB
+         COULOMB_INTERACTION F
+      &END
     &END QS
     &SCF
       SCF_GUESS MOPAC

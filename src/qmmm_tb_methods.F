@@ -22,7 +22,6 @@ MODULE qmmm_tb_methods
         dbcsr_add, dbcsr_copy, dbcsr_get_block_p, dbcsr_iterator_blocks_left, &
         dbcsr_iterator_next_block, dbcsr_iterator_start, dbcsr_iterator_stop, dbcsr_iterator_type, &
         dbcsr_p_type, dbcsr_set
-   USE erf_fn,                          ONLY: erfc
    USE ewald_environment_types,         ONLY: ewald_env_create,&
                                               ewald_env_get,&
                                               ewald_env_release,&

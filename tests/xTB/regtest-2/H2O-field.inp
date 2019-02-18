@@ -3,6 +3,7 @@
   &DFT
     &PRINT
       &MOMENTS
+         PERIODIC T
       &END
       &DERIVATIVES
       &END
@@ -19,31 +20,22 @@
     &SCF
       EPS_SCF 1.e-8
       MAX_SCF 90
-      &OT OFF
-         MINIMIZER        CG
-         LINESEARCH       3PNT
-         PRECONDITIONER   FULL_S_INVERSE
-      &END OT
     &END SCF
     &POISSON
       &EWALD
-       ALPHA  10.0
+       ALPHA  1.0
        EWALD_TYPE SPME
        GMAX 75
       &END EWALD
     &END POISSON
     &PERIODIC_EFIELD
        POLARISATION 0 0 1
-       INTENSITY 0.05
+       INTENSITY 0.005
     &END    
-    #&EFIELD
-    #   POLARISATION 0 0.5 1
-    #   INTENSITY 0.05
-    #&END    
   &END DFT
   &SUBSYS
     &CELL
-      ABC 6.0 6.0 6.0
+      ABC 4.0 4.0 4.0
     &END CELL
     &COORD
     O   0.000000    0.000000   -0.065587 H2O
@@ -61,7 +53,7 @@
 &DEBUG
    DEBUG_FORCES T
    DEBUG_STRESS_TENSOR F
-   STOP_ON_MISMATCH F
-   DX 0.0001
+   STOP_ON_MISMATCH T
+   DX 0.001
 &END DEBUG
 

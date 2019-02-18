@@ -4,6 +4,7 @@
     LSD
     &PRINT
       &MOMENTS
+         PERIODIC T
       &END
     &END
     &PERIODIC_EFIELD
@@ -16,9 +17,6 @@
          DO_EWALD T
       &END
       EPS_DEFAULT 1.0E-12
-      EXTRAPOLATION PS 
-      EXTRAPOLATION_ORDER 2
-      MAP_CONSISTENT
     &END QS
     &SCF
       EPS_SCF 1.0E-6
@@ -31,7 +29,7 @@
     &END SCF
     &POISSON
       &EWALD
-       ALPHA  10.0
+       ALPHA  1.0
        EWALD_TYPE SPME
        GMAX 75
       &END EWALD
