@@ -215,12 +215,14 @@ CONTAINS
 
 #if defined(__FAST_MATH__)
       CALL cp_warn(__LOCATION__, &
-                   "During compilation GCC's `-ffast-math` option was used."// &
+                   "During compilation one of the following flags was active:"// &
+                   "   `-ffast-math` (GCC)"// &
+                   "   `-hfpN` (Cray, N > 0, default N=2)"// &
                    " This can lead to wrong results and numerical instabilities"// &
                    " and is therefore no longer supported.")
 
 #if !defined(__FORCE_USE_FAST_MATH)
-#error -ffast-math can lead to wrong results and numerical instabilities and is therefore no longer supported
+#error -ffast-math (GCC) or -hfpN (N>0, Cray) can lead to wrong results and numerical instabilities and are therefore no longer supported
 #endif
 #endif
    END SUBROUTINE cp2k_init
