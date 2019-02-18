@@ -7,7 +7,7 @@
      # FUNCTION exp(-((X-1)**2+(Y-1)**2))
      # FUNCTION 1./((X-1)**2+(Y-1)**2+10.)
      # FUNCTION -((X-1)**2+5.0*(Y-1)**2)
-     DX 1.0E-5
+     DX 1.0E-6
      ERROR_LIMIT 1.0E-12
   &END
   METHOD FIST
