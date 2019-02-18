@@ -7,6 +7,14 @@
 !> \brief Definition of the xTB parameter types.
 !> \author JGH (10.2018)
 ! **************************************************************************************************
+! To be done:
+! 1) Ewald defaults options for GMAX, ALPHA, RCUT
+! 2) QM/MM debugging of forces
+! 3) Periodic displacement field (debugging)
+! 4) Check for RTP and EMD
+! 5) Wannier localization
+! 6) Charge Mixing methods: Broyden/Pulay
+! **************************************************************************************************
 MODULE xtb_types
 
    USE cp_log_handling,                 ONLY: cp_get_default_logger,&

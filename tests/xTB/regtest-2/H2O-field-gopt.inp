@@ -3,6 +3,7 @@
   &DFT
     &PRINT
       &MOMENTS
+        PERIODIC T
       &END
     &END
     &PERIODIC_EFIELD
@@ -12,21 +13,18 @@
     &QS
       METHOD xTB
       EPS_DEFAULT 1.0E-12
-      EXTRAPOLATION PS 
-      EXTRAPOLATION_ORDER 2
     &END QS
+    &KPOINTS
+       SCHEME GAMMA
+    &END
     &SCF
       EPS_SCF 1.0E-6
       SCF_GUESS ATOMIC
-      MAX_SCF 6
-      &OT
-         PRECONDITIONER  FULL_SINGLE_INVERSE
-         MINIMIZER DIIS
-      &END
+      MAX_SCF 60
     &END SCF
     &POISSON
       &EWALD
-       ALPHA  10.0
+       ALPHA  1.0
        EWALD_TYPE SPME
        GMAX 75
       &END EWALD

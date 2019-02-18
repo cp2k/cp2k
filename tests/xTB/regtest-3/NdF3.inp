@@ -1,0 +1,33 @@
+&FORCE_EVAL
+  &DFT
+    &QS
+      METHOD xTB
+    &END QS
+    &SCF
+      SCF_GUESS MOPAC
+      MAX_SCF  100
+      EPS_SCF 1.e-8
+      &MIXING
+          METHOD DIRECT_P_MIXING
+          ALPHA   0.2
+      &END
+    &END SCF
+  &END DFT
+  &SUBSYS
+    &CELL
+      ABC 20.0 20.0 20.0
+      PERIODIC NONE
+    &END CELL
+    &COORD
+    Nd         0.1750022025       -0.0000000000       -0.0000000000
+     F         2.0341944718        0.0000000000       -0.0000000000
+     F        -0.7545983371        1.6101062386        0.0000000000
+     F        -0.7545983371       -1.6101062386        0.0000000000
+    &END COORD
+  &END SUBSYS
+&END FORCE_EVAL
+&GLOBAL
+  PROJECT NdF3
+  RUN_TYPE ENERGY 
+  PRINT_LEVEL LOW
+&END GLOBAL
