@@ -2,7 +2,7 @@
 [ "${BASH_SOURCE[0]}" ] && SCRIPT_NAME="${BASH_SOURCE[0]}" || SCRIPT_NAME=$0
 SCRIPT_DIR="$(cd "$(dirname "$SCRIPT_NAME")" && pwd -P)"
 
-cmake_ver=${cmake_ver:-3.13.3}
+cmake_ver=${cmake_ver:-3.13.4}
 source "${SCRIPT_DIR}"/common_vars.sh
 source "${SCRIPT_DIR}"/tool_kit.sh
 source "${SCRIPT_DIR}"/signal_trap.sh
