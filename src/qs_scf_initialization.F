@@ -72,14 +72,14 @@ MODULE qs_scf_initialization
                                               fb_env_write_info
    USE qs_fb_env_types,                 ONLY: fb_env_create,&
                                               fb_env_has_data
-   USE qs_gspace_mixing,                ONLY: mixing_allocate,&
-                                              mixing_init
    USE qs_initial_guess,                ONLY: calculate_first_density_matrix
    USE qs_kind_types,                   ONLY: get_qs_kind,&
                                               qs_kind_type,&
                                               set_qs_kind
    USE qs_ks_types,                     ONLY: qs_ks_did_change
    USE qs_matrix_pools,                 ONLY: mpools_get
+   USE qs_mixing_utils,                 ONLY: mixing_allocate,&
+                                              mixing_init
    USE qs_mo_occupation,                ONLY: set_mo_occupation
    USE qs_mo_types,                     ONLY: get_mo_set,&
                                               init_mo_set,&

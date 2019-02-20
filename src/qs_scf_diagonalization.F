@@ -74,15 +74,15 @@ MODULE qs_scf_diagonalization
    USE qs_energy_types,                 ONLY: qs_energy_type
    USE qs_environment_types,            ONLY: get_qs_env,&
                                               qs_environment_type
-   USE qs_gspace_mixing,                ONLY: gspace_mixing,&
-                                              mixing_allocate,&
-                                              mixing_init,&
-                                              self_consistency_check
+   USE qs_gspace_mixing,                ONLY: gspace_mixing
    USE qs_ks_methods,                   ONLY: qs_ks_update_qs_env
    USE qs_ks_types,                     ONLY: qs_ks_did_change,&
                                               qs_ks_env_type
    USE qs_matrix_pools,                 ONLY: mpools_get,&
                                               qs_matrix_pools_type
+   USE qs_mixing_utils,                 ONLY: mixing_allocate,&
+                                              mixing_init,&
+                                              self_consistency_check
    USE qs_mo_methods,                   ONLY: calculate_density_matrix,&
                                               calculate_subspace_eigenvalues
    USE qs_mo_occupation,                ONLY: set_mo_occupation
