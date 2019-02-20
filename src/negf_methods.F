@@ -108,10 +108,10 @@ MODULE negf_methods
                                               gspace_mixing_nr
    USE qs_environment_types,            ONLY: get_qs_env,&
                                               qs_environment_type
-   USE qs_gspace_mixing,                ONLY: gspace_mixing,&
-                                              mixing_allocate,&
-                                              mixing_init
+   USE qs_gspace_mixing,                ONLY: gspace_mixing
    USE qs_ks_methods,                   ONLY: qs_ks_build_kohn_sham_matrix
+   USE qs_mixing_utils,                 ONLY: mixing_allocate,&
+                                              mixing_init
    USE qs_rho_methods,                  ONLY: qs_rho_update_rho
    USE qs_rho_types,                    ONLY: qs_rho_get,&
                                               qs_rho_type

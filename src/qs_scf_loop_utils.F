@@ -29,10 +29,10 @@ MODULE qs_scf_loop_utils
    USE qs_environment_types,            ONLY: get_qs_env,&
                                               qs_environment_type
    USE qs_fb_env_methods,               ONLY: fb_env_do_diag
-   USE qs_gspace_mixing,                ONLY: gspace_mixing,&
-                                              self_consistency_check
+   USE qs_gspace_mixing,                ONLY: gspace_mixing
    USE qs_ks_types,                     ONLY: qs_ks_did_change,&
                                               qs_ks_env_type
+   USE qs_mixing_utils,                 ONLY: self_consistency_check
    USE qs_mo_methods,                   ONLY: calculate_density_matrix
    USE qs_mo_occupation,                ONLY: set_mo_occupation
    USE qs_mo_types,                     ONLY: mo_set_p_type
