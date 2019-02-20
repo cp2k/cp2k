@@ -487,6 +487,7 @@ CONTAINS
          routineP = moduleN//':'//routineN
 
       INTEGER                                            :: i
+      LOGICAL                                            :: at_end
 
       CPASSERT(ASSOCIATED(parser))
       CPASSERT(parser%ref_count > 0)
@@ -500,7 +501,8 @@ CONTAINS
       END IF
 
       ! Search for the beginning of the next input string
-      DO
+      outer_loop: DO
+
          ! Increment the column counter
          parser%icol = parser%icol+1
 
@@ -512,37 +514,39 @@ CONTAINS
             RETURN
          END IF
 
-         ! Check for input line continuation
-         ! Ignore all white space and accept only one
-         ! separator token or a string in quotation marks
+         ! Ignore all white space
          IF (.NOT. is_whitespace(parser%input_line(parser%icol:parser%icol))) THEN
-
+            ! Check for input line continuation
             IF (parser%input_line(parser%icol:parser%icol) == parser%continuation_character) THEN
-               DO i = LEN(parser%input_line), 1, -1
-                  IF (.NOT. is_whitespace(parser%input_line(i:i))) EXIT
-               END DO
-               IF (parser%icol == i .OR. &
-                   is_comment(parser, parser%input_line(i:i))) THEN
-                  CALL parser_get_next_line(parser, 1)
-                  ! does not pass at_end, it is an error to continue to EOF, change this behavoiur?
-                  CYCLE
-               ELSE
-                  parser%icol1 = i
-                  parser%icol2 = i
+               inner_loop: DO i = parser%icol+1, LEN_TRIM(parser%input_line)
+                  IF (is_whitespace(parser%input_line(i:i))) CYCLE inner_loop
+                  IF (is_comment(parser, parser%input_line(i:i))) THEN
+                     EXIT inner_loop
+                  ELSE
+                     parser%icol1 = i
+                     parser%icol2 = LEN_TRIM(parser%input_line)
+                     CALL cp_abort(__LOCATION__, &
+                                   "Found a non-blank token which is not a comment after the line continuation character '"// &
+                                   parser%continuation_character//"'"//TRIM(parser_location(parser)))
+                  END IF
+               END DO inner_loop
+               CALL parser_get_next_line(parser, 1, at_end=at_end)
+               IF (at_end) THEN
                   CALL cp_abort(__LOCATION__, &
-                                "Found non-blank tokens after the line continuation character '"// &
-                                parser%continuation_character//"' "// &
+                                "Unexpected end of file (EOF) found after line continuation"// &
                                 TRIM(parser_location(parser)))
-                  EXIT
                END IF
+               parser%icol = 0
+               CYCLE outer_loop
             ELSE
                parser%icol = parser%icol-1
                parser%icol1 = parser%icol
                parser%icol2 = parser%icol
-               EXIT
+               RETURN
             END IF
          END IF
-      END DO
+
+      END DO outer_loop
 
    END SUBROUTINE parser_skip_space
 
@@ -563,29 +567,44 @@ CONTAINS
       CHARACTER(LEN=*), PARAMETER :: routineN = 'parser_next_token', &
          routineP = moduleN//':'//routineN
 
-      INTEGER                                            :: i, len_inputline, len_trim_inputline, &
-                                                            length
+      CHARACTER(LEN=1)                                   :: token
+      INTEGER                                            :: i, len_trim_inputline, length
+      LOGICAL                                            :: at_end
 
       CPASSERT(ASSOCIATED(parser))
       CPASSERT(parser%ref_count > 0)
       IF (PRESENT(string_length)) THEN
-         length = MIN(string_length, max_line_length)
+         IF (string_length > max_line_length) THEN
+            CPABORT("string length > max_line_length")
+         ELSE
+            length = string_length
+         END IF
       ELSE
          length = 0
       END IF
 
+      ! Precompute trimmed line length
+      len_trim_inputline = LEN_TRIM(parser%input_line)
+
       IF (length > 0) THEN
-         ! Fixed input string length
+
+         ! Read input string of fixed length (single line)
+
+         ! Check for EOF
          IF (parser%icol == -1) &
             CPABORT("Unexpectetly reached EOF"//TRIM(parser_location(parser)))
 
-         length = MIN(LEN_TRIM(parser%input_line)-parser%icol1+1, length)
+         length = MIN(len_trim_inputline-parser%icol1+1, length)
          parser%icol1 = parser%icol+1
          parser%icol2 = parser%icol+length
+         i = INDEX(parser%input_line(parser%icol1:parser%icol2), '"')
+         IF (i > 0) parser%icol2 = parser%icol+i
          parser%icol = parser%icol2
+
       ELSE
 
-         ! Variable input string length (automatic search)
+         ! Variable input string length (automatic multi-line search)
+
          ! Check for EOF
          IF (parser%icol == -1) THEN
             parser%icol1 = 1
@@ -594,95 +613,97 @@ CONTAINS
          END IF
 
          ! Search for the beginning of the next input string
-         ! we precompute those, they are expensive to get
-         len_inputline = LEN(parser%input_line)
-         len_trim_inputline = LEN_TRIM(parser%input_line)
-
-         DO
+         outer_loop1: DO
 
             ! Increment the column counter
             parser%icol = parser%icol+1
 
             ! Quick return, if the end of line is found
-            IF ((parser%icol > len_trim_inputline) .OR. &
-                is_comment(parser, parser%input_line(parser%icol:parser%icol))) THEN
+            IF (parser%icol > len_trim_inputline) THEN
                parser%icol1 = 1
                parser%icol2 = -1
                RETURN
             END IF
 
-            ! Check for input line continuation
-            IF (parser%input_line(parser%icol:parser%icol) == &
-                parser%continuation_character) THEN
-               DO i = LEN(parser%input_line), 1, -1
-                  IF (.NOT. is_whitespace(parser%input_line(i:i))) EXIT
-               END DO
-               IF (parser%icol == i .OR. &
-                   is_comment(parser, parser%input_line(i:i))) THEN
-                  CALL parser_get_next_line(parser, 1)
-                  ! does not pass at_end, it is an error to continue to EOF, change this behavoiur?
-                  CYCLE
-               ELSE
-                  parser%icol1 = i
-                  parser%icol2 = i
-                  CALL cp_abort(__LOCATION__, &
-                                "Found non-blank tokens after the line continuation character '"// &
-                                parser%continuation_character//"' "//TRIM(parser_location(parser)))
-                  EXIT
-               END IF
-            END IF
-            ! Ignore all white space and accept only one
-            ! separator token or a string in quotation marks
-            IF (is_whitespace(parser%input_line(parser%icol:parser%icol))) THEN
-               CYCLE
-            ELSE IF (INDEX(parser%separators, parser%input_line(parser%icol:parser%icol)) > 0) THEN
-               IF (parser%first_separator) THEN
-                  parser%first_separator = .FALSE.
-                  CYCLE
-               ELSE
-                  parser%icol1 = parser%icol
-                  parser%icol2 = parser%icol
-                  CALL cp_abort(__LOCATION__, &
-                                "Unexpected separator token <"//parser%input_line(parser%icol:parser%icol)// &
-                                "> found"//TRIM(parser_location(parser)))
-                  EXIT
-               END IF
-            ELSE IF (parser%input_line(parser%icol:parser%icol) == '"') THEN
-               ! identify quotes and preserve them through-out the execution..
+            token = parser%input_line(parser%icol:parser%icol)
+
+            IF (is_whitespace(token)) THEN
+               ! Ignore white space
+               CYCLE outer_loop1
+            ELSE IF (is_comment(parser, token)) THEN
+               parser%icol1 = 1
+               parser%icol2 = -1
                parser%first_separator = .TRUE.
+               RETURN
+            ELSE IF (token == '"') THEN
+               ! Read quoted string
                parser%icol1 = parser%icol+1
                parser%icol2 = parser%icol+INDEX(parser%input_line(parser%icol1:), '"')
                IF (parser%icol2 == parser%icol) THEN
                   parser%icol1 = parser%icol
                   parser%icol2 = parser%icol
-                  CPABORT("Unmatched quotation mark found"//TRIM(parser_location(parser)))
+                  CALL cp_abort(__LOCATION__, &
+                                "Unmatched quotation mark found"//TRIM(parser_location(parser)))
                ELSE
-                  parser%icol1 = parser%icol1-1
                   parser%icol = parser%icol2
+                  parser%icol2 = parser%icol2-1
+                  parser%first_separator = .TRUE.
                   RETURN
                END IF
+            ELSE IF (token == parser%continuation_character) THEN
+               ! Check for input line continuation
+               inner_loop1: DO i = parser%icol+1, len_trim_inputline
+                  IF (is_whitespace(parser%input_line(i:i))) THEN
+                     CYCLE inner_loop1
+                  ELSE IF (is_comment(parser, parser%input_line(i:i))) THEN
+                     EXIT inner_loop1
+                  ELSE
+                     parser%icol1 = i
+                     parser%icol2 = len_trim_inputline
+                     CALL cp_abort(__LOCATION__, &
+                                   "Found a non-blank token which is not a comment after the line continuation character '"// &
+                                   parser%continuation_character//"'"//TRIM(parser_location(parser)))
+                  END IF
+               END DO inner_loop1
+               CALL parser_get_next_line(parser, 1, at_end=at_end)
+               IF (at_end) THEN
+                  CALL cp_abort(__LOCATION__, &
+                                "Unexpected end of file (EOF) found after line continuation"//TRIM(parser_location(parser)))
+               END IF
+               len_trim_inputline = LEN_TRIM(parser%input_line)
+               CYCLE outer_loop1
+            ELSE IF (INDEX(parser%separators, token) > 0) THEN
+               IF (parser%first_separator) THEN
+                  parser%first_separator = .FALSE.
+                  CYCLE outer_loop1
+               ELSE
+                  parser%icol1 = parser%icol
+                  parser%icol2 = parser%icol
+                  CALL cp_abort(__LOCATION__, &
+                                "Unexpected separator token '"//token// &
+                                "' found"//TRIM(parser_location(parser)))
+               END IF
             ELSE
-               parser%first_separator = .TRUE.
                parser%icol1 = parser%icol
-               EXIT
+               parser%first_separator = .TRUE.
+               EXIT outer_loop1
             END IF
 
-         END DO
+         END DO outer_loop1
 
          ! Search for the end of the next input string
-         DO
-            IF (parser%icol > len_trim_inputline .OR. parser%icol == len_inputline) EXIT
+         outer_loop2: DO
             parser%icol = parser%icol+1
-            IF ((parser%icol > len_trim_inputline) .OR. &
-                is_whitespace(parser%input_line(parser%icol:parser%icol)) .OR. &
-                is_comment(parser, parser%input_line(parser%icol:parser%icol)) .OR. &
-                (parser%input_line(parser%icol:parser%icol) == parser%continuation_character)) THEN
-               EXIT
-            ELSE IF (INDEX(parser%separators, parser%input_line(parser%icol:parser%icol)) > 0) THEN
+            IF (parser%icol > len_trim_inputline) EXIT outer_loop2
+            token = parser%input_line(parser%icol:parser%icol)
+            IF (is_whitespace(token) .OR. is_comment(parser, token) .OR. &
+                (token == parser%continuation_character)) THEN
+               EXIT outer_loop2
+            ELSE IF (INDEX(parser%separators, token) > 0) THEN
                parser%first_separator = .FALSE.
-               EXIT
+               EXIT outer_loop2
             END IF
-         END DO
+         END DO outer_loop2
 
          parser%icol2 = parser%icol-1
 
@@ -739,7 +760,11 @@ CONTAINS
       END IF
 
       ! Otherwise continue normally
-      CALL parser_next_token(parser, string_length=string_length)
+      IF (PRESENT(string_length)) THEN
+         CALL parser_next_token(parser, string_length=string_length)
+      ELSE
+         CALL parser_next_token(parser)
+      END IF
 
       ! End of line
       IF (parser%icol1 > parser%icol2) THEN
@@ -1015,7 +1040,11 @@ CONTAINS
       IF (parser%ilist%in_use) THEN
          CALL ilist_update(parser%ilist)
       ELSE
-         CALL parser_next_token(parser, string_length=string_length)
+         IF (PRESENT(string_length)) THEN
+            CALL parser_next_token(parser, string_length=string_length)
+         ELSE
+            CALL parser_next_token(parser)
+         END IF
          IF (parser%icol1 > parser%icol2) THEN
             parser%icol1 = parser%icol
             parser%icol2 = parser%icol
@@ -1099,7 +1128,11 @@ CONTAINS
          CPABORT("Unexpected EOF"//TRIM(parser_location(parser)))
       END IF
 
-      CALL parser_next_token(parser, string_length=string_length)
+      IF (PRESENT(string_length)) THEN
+         CALL parser_next_token(parser, string_length=string_length)
+      ELSE
+         CALL parser_next_token(parser)
+      END IF
 
       input_string_length = parser%icol2-parser%icol1+1
 
@@ -1178,7 +1211,11 @@ CONTAINS
          CPABORT("Unexpected EOF"//TRIM(parser_location(parser)))
       END IF
 
-      CALL parser_next_token(parser, string_length=string_length)
+      IF (PRESENT(string_length)) THEN
+         CALL parser_next_token(parser, string_length=string_length)
+      ELSE
+         CALL parser_next_token(parser)
+      END IF
 
       IF (parser%icol1 > parser%icol2) THEN
          parser%icol1 = parser%icol
@@ -1243,10 +1280,15 @@ CONTAINS
          at_end = my_at_end
          IF (my_at_end) RETURN
       ELSE IF (my_at_end) THEN
-         CPABORT("Unexpected EOF"//TRIM(parser_location(parser)))
+         CALL cp_abort(__LOCATION__, &
+                       "Unexpected EOF"//TRIM(parser_location(parser)))
       END IF
 
-      CALL parser_next_token(parser, string_length)
+      IF (PRESENT(string_length)) THEN
+         CALL parser_next_token(parser, string_length=string_length)
+      ELSE
+         CALL parser_next_token(parser)
+      END IF
 
       input_string_length = parser%icol2-parser%icol1+1
 
@@ -1255,11 +1297,11 @@ CONTAINS
                        "A string type object was expected, found end of line"// &
                        TRIM(parser_location(parser)))
       ELSE IF (input_string_length > LEN(object)) THEN
-         CALL cp_warn(__LOCATION__, &
-                      "The input string <"//parser%input_line(parser%icol1:parser%icol2)// &
-                      "> has more than "//cp_to_string(LEN(object))// &
-                      " characters and is therefore too long to fit in the "// &
-                      "specified variable"//TRIM(parser_location(parser)))
+         CALL cp_abort(__LOCATION__, &
+                       "The input string <"//parser%input_line(parser%icol1:parser%icol2)// &
+                       "> has more than "//cp_to_string(LEN(object))// &
+                       " characters and is therefore too long to fit in the "// &
+                       "specified variable"//TRIM(parser_location(parser)))
          object = parser%input_line(parser%icol1:parser%icol1+LEN(object)-1)
       ELSE
          object(:input_string_length) = parser%input_line(parser%icol1:parser%icol2)
