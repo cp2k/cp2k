@@ -527,7 +527,7 @@ CONTAINS
       LOGICAL                                            :: found, use_virial
       REAL(KIND=dp)                                      :: charge, dd, ener_field, fdir, omega
       REAL(KIND=dp), DIMENSION(3)                        :: ci, cqi, dfilter, di, fieldpol, fij, &
-                                                            forcea, hdi, kvec, qi, rab, ria, rib, mcc
+                                                            forcea, hdi, kvec, qi, rab, ria, rib
       REAL(KIND=dp), DIMENSION(3, 3)                     :: hmat
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: ds_block, ks_block, p_block, s_block
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set

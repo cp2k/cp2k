@@ -42,6 +42,7 @@ MODULE xtb_coulomb
                                               do_ewald_none,&
                                               do_ewald_pme,&
                                               do_ewald_spme
+   USE qmmm_tb_coulomb,                 ONLY: build_tb_coulomb_qmqm
    USE qs_dftb3_methods,                ONLY: build_dftb3_diagonal
    USE qs_energy_types,                 ONLY: qs_energy_type
    USE qs_environment_types,            ONLY: get_qs_env,&
@@ -565,6 +566,12 @@ CONTAINS
          CALL build_dftb3_diagonal(qs_env, ks_matrix, rho, mcharge, energy, xgamma, zeffk, &
                                    calculate_forces, just_energy)
          DEALLOCATE (zeffk, xgamma)
+      END IF
+
+      ! QMMM
+      IF (qs_env%qmmm .AND. qs_env%qmmm_periodic) THEN
+         CALL build_tb_coulomb_qmqm(qs_env, ks_matrix, rho, mcharge, energy, &
+                                    calculate_forces, just_energy)
       END IF
 
       DEALLOCATE (gmcharge, gchrg, atom_of_kind, kind_of)

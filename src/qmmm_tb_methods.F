@@ -751,6 +751,7 @@ CONTAINS
                CALL get_dftb_atom_param(dftb_kind, defined=defined, natorb=natorb)
                IF (.NOT. defined .OR. natorb < 1) CYCLE
             ELSEIF (do_xtb) THEN
+               ! use all kinds
             END IF
             DO i = 1, SIZE(list)
                iqm = iqm+1

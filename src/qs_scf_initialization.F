@@ -793,7 +793,7 @@ CONTAINS
       scf_env%needs_ortho = .FALSE.
 
       IF (scf_control%use_diag) THEN
-! sanity check whether combinations are allowed
+         ! sanity check whether combinations are allowed
          IF (dft_control%restricted) &
             CPABORT("OT only for restricted (ROKS)")
          SELECT CASE (scf_control%diagonalization%method)
@@ -924,7 +924,7 @@ CONTAINS
       CALL timeset(routineN, handle)
 
       NULLIFY (qs_kind_set, matrix_s, dft_control, mos, qs_kind, rho, xas_env)
-!
+
       logger => cp_get_default_logger()
 
       CPASSERT(ASSOCIATED(scf_env))
