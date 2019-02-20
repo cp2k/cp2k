@@ -970,6 +970,7 @@ CONTAINS
                       energy=energy)
 
       energy%hartree = 0.0_dp
+      energy%qmmm_el = 0.0_dp
 
       scf_section => section_vals_get_subs_vals(qs_env%input, "DFT%SCF")
       nspins = dft_control%nspins
@@ -1019,7 +1020,6 @@ CONTAINS
             END DO
          END DO
          DEALLOCATE (aocg)
-!deb
 
          CALL build_xtb_coulomb(qs_env, ks_matrix, rho, charges, mcharge, energy, &
                                 calculate_forces, just_energy)
@@ -1045,7 +1045,7 @@ CONTAINS
          energy%qmmm_el = energy%qmmm_el+pc_ener
       END IF
 
-      energy%total = energy%core+energy%hartree+energy%efield+ &
+      energy%total = energy%core+energy%hartree+energy%efield+energy%qmmm_el+ &
                      energy%repulsive+energy%dispersion+energy%dftb3
 
       iounit = cp_print_key_unit_nr(logger, scf_section, "PRINT%DETAILED_ENERGY", &
@@ -1062,6 +1062,10 @@ CONTAINS
          END IF
          WRITE (UNIT=iounit, FMT="(T9,A,T60,F20.10)") &
             "DFTB3 3rd Order Energy Correction              ", energy%dftb3
+         IF (qs_env%qmmm) THEN
+            WRITE (UNIT=iounit, FMT="(T9,A,T60,F20.10)") &
+               "QM/MM Electrostatic energy:                    ", energy%qmmm_el
+         END IF
       END IF
       CALL cp_print_key_finished_output(iounit, logger, scf_section, &
                                         "PRINT%DETAILED_ENERGY")

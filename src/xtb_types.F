@@ -9,7 +9,7 @@
 ! **************************************************************************************************
 ! To be done:
 ! 1) Ewald defaults options for GMAX, ALPHA, RCUT
-! 2) QM/MM debugging of forces
+! 2) QM/MM debugging of forces -- done
 ! 3) Periodic displacement field (debugging)
 ! 4) Check for RTP and EMD
 ! 5) Wannier localization
