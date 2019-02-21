@@ -17,6 +17,7 @@
 ! **************************************************************************************************
 MODULE xas_restart
 
+   USE cp_control_types,                ONLY: dft_control_type
    USE cp_dbcsr_operations,             ONLY: cp_dbcsr_sm_fm_multiply
    USE cp_files,                        ONLY: close_file,&
                                               open_file
@@ -377,6 +378,7 @@ CONTAINS
       INTEGER                                            :: handle, ispin, my_spin, nelectron
       TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: rho_ao
+      TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(mo_set_p_type), DIMENSION(:), POINTER         :: mos
       TYPE(qs_rho_type), POINTER                         :: rho
       TYPE(rho_atom_type), DIMENSION(:), POINTER         :: rho_atom
@@ -414,9 +416,16 @@ CONTAINS
       CALL qs_ks_did_change(qs_env%ks_env, rho_changed=.TRUE.)
 
       IF (scf_env%mixing_method > 1) THEN
-         CALL get_qs_env(qs_env=qs_env, rho_atom_set=rho_atom)
-         CALL mixing_init(scf_env%mixing_method, rho, scf_env%mixing_store, &
-                          para_env, rho_atom=rho_atom)
+         CALL get_qs_env(qs_env=qs_env, dft_control=dft_control)
+         IF (dft_control%qs_control%dftb .OR. dft_control%qs_control%xtb) THEN
+            CPABORT('TB Code not available')
+         ELSE IF (dft_control%qs_control%semi_empirical) THEN
+            CPABORT('SE Code not possible')
+         ELSE
+            CALL get_qs_env(qs_env=qs_env, rho_atom_set=rho_atom)
+            CALL mixing_init(scf_env%mixing_method, rho, scf_env%mixing_store, &
+                             para_env, rho_atom=rho_atom)
+         END IF
       END IF
 
       CALL timestop(handle)

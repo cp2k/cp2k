@@ -16,6 +16,7 @@ MODULE qs_mixing_utils
                                               dbcsr_set,&
                                               dbcsr_type,&
                                               dbcsr_type_symmetric
+   USE distribution_1d_types,           ONLY: distribution_1d_type
    USE kinds,                           ONLY: dp
    USE message_passing,                 ONLY: mp_bcast,&
                                               mp_max,&
@@ -42,7 +43,8 @@ MODULE qs_mixing_utils
 
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_mixing_utils'
 
-   PUBLIC :: mixing_allocate, mixing_init, self_consistency_check
+   PUBLIC :: mixing_allocate, mixing_init, charge_mixing_init, &
+             self_consistency_check
 
 CONTAINS
 
@@ -104,8 +106,8 @@ CONTAINS
 !> \par History
 !>      05.2009 created [MI]
 !>      08.2014 kpoints [JGH]
-!>      02.2015 changed input to make g-space mixing available in linear scaling
-!>              SCF [Patrick Seewald]
+!>      02.2015 changed input to make g-space mixing available in linear scaling SCF [Patrick Seewald]
+!>      02.2019 charge mixing [JGH]
 !> \author fawzi
 ! **************************************************************************************************
    SUBROUTINE mixing_allocate(qs_env, mixing_method, p_mix_new, p_delta, nspins, mixing_store)
@@ -119,11 +121,14 @@ CONTAINS
       CHARACTER(LEN=*), PARAMETER :: routineN = 'mixing_allocate', &
          routineP = moduleN//':'//routineN
 
-      INTEGER                                            :: handle, i, iat, ic, ispin, natom, &
-                                                            nbuffer, nimg
+      INTEGER                                            :: handle, i, ia, iat, ic, ikind, ispin, &
+                                                            max_shell, na, natom, nbuffer, nel, &
+                                                            nimg, nkind
+      LOGICAL                                            :: charge_mixing
       TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: matrix_s
       TYPE(dbcsr_type), POINTER                          :: refmatrix
       TYPE(dft_control_type), POINTER                    :: dft_control
+      TYPE(distribution_1d_type), POINTER                :: distribution_1d
       TYPE(neighbor_list_set_p_type), DIMENSION(:), &
          POINTER                                         :: sab_orb
       TYPE(rho_atom_type), DIMENSION(:), POINTER         :: rho_atom
@@ -136,6 +141,8 @@ CONTAINS
                       matrix_s_kp=matrix_s, &
                       dft_control=dft_control)
 
+      charge_mixing = dft_control%qs_control%dftb .OR. dft_control%qs_control%xtb &
+                      .OR. dft_control%qs_control%semi_empirical
       refmatrix => matrix_s(1, 1)%matrix
       nimg = dft_control%nimages
 
@@ -174,258 +181,300 @@ CONTAINS
          END IF
       END IF
 
-      !   *** allocate  buffer for gspace mixing ***
-      IF (mixing_method >= gspace_mixing_nr) THEN
-         nbuffer = mixing_store%nbuffer
-         mixing_store%ncall = 0
-         IF (.NOT. ASSOCIATED(mixing_store%rhoin)) THEN
-            ALLOCATE (mixing_store%rhoin(nspins))
-            DO ispin = 1, nspins
-               NULLIFY (mixing_store%rhoin(ispin)%cc)
-            END DO
-         END IF
-         IF (mixing_store%gmix_p) THEN
-            IF (.NOT. ASSOCIATED(mixing_store%rho_ao_in)) THEN
-               CALL dbcsr_allocate_matrix_set(mixing_store%rho_ao_in, nspins, nimg)
-               DO i = 1, nspins
-                  DO ic = 1, nimg
-                     ALLOCATE (mixing_store%rho_ao_in(i, ic)%matrix)
-                     CALL dbcsr_create(matrix=mixing_store%rho_ao_in(i, ic)%matrix, template=refmatrix, &
-                                       name="SCF DENSITY", matrix_type=dbcsr_type_symmetric, nze=0)
-                     CALL cp_dbcsr_alloc_block_from_nbl(mixing_store%rho_ao_in(i, ic)%matrix, sab_orb)
-                     CALL dbcsr_set(mixing_store%rho_ao_in(i, ic)%matrix, 0.0_dp)
-                  ENDDO
-               END DO
+      IF (charge_mixing) THEN
+         !   *** allocate buffer for charge mixing ***
+         IF (mixing_method >= gspace_mixing_nr) THEN
+            CPASSERT(.NOT. mixing_store%gmix_p)
+            IF (dft_control%qs_control%dftb) THEN
+               max_shell = 1
+            ELSEIF (dft_control%qs_control%xtb) THEN
+               max_shell = 5
+            ELSE
+               CPABORT('UNKNOWN METHOD')
             END IF
-            IF (.NOT. ASSOCIATED(mixing_store%rho_ao_mix)) THEN
-               ALLOCATE (mixing_store%rho_ao_mix)
-               CALL dbcsr_create(matrix=mixing_store%rho_ao_mix, template=refmatrix, &
-                                 name="DENSITY MIX", matrix_type=dbcsr_type_symmetric, nze=0)
-               CALL cp_dbcsr_alloc_block_from_nbl(mixing_store%rho_ao_mix, sab_orb)
-               CALL dbcsr_set(mixing_store%rho_ao_mix, 0.0_dp)
-            END IF
-         END IF
-         IF (mixing_store%gmix_p .AND. dft_control%qs_control%gapw) THEN
-            CALL get_qs_env(qs_env=qs_env, &
-                            rho_atom_set=rho_atom)
-            natom = SIZE(rho_atom)
-            IF (.NOT. ASSOCIATED(mixing_store%paw)) THEN
-               ALLOCATE (mixing_store%paw(natom))
-               mixing_store%paw = .FALSE.
-               ALLOCATE (mixing_store%cpc_h_in(natom, nspins))
-               ALLOCATE (mixing_store%cpc_s_in(natom, nspins))
-               DO ispin = 1, nspins
-                  DO iat = 1, natom
-                     NULLIFY (mixing_store%cpc_h_in(iat, ispin)%r_coef)
-                     NULLIFY (mixing_store%cpc_s_in(iat, ispin)%r_coef)
-                  END DO
-               END DO
-            END IF
-         END IF
-      END IF
-
-      !   *** allocare res_buffer if needed
-      IF (mixing_method >= pulay_mixing_nr) THEN
-         IF (.NOT. ASSOCIATED(mixing_store%res_buffer)) THEN
-            ALLOCATE (mixing_store%res_buffer(nbuffer, nspins))
-            DO ispin = 1, nspins
-               DO i = 1, nbuffer
-                  NULLIFY (mixing_store%res_buffer(i, ispin)%cc)
+            nbuffer = mixing_store%nbuffer
+            mixing_store%ncall = 0
+            CALL get_qs_env(qs_env, local_particles=distribution_1d)
+            nkind = SIZE(distribution_1d%n_el)
+            na = SUM(distribution_1d%n_el(:))
+            ALLOCATE (mixing_store%atlist(na))
+            mixing_store%nat_local = na
+            mixing_store%max_shell = max_shell
+            ia = 0
+            DO ikind = 1, nkind
+               nel = distribution_1d%n_el(ikind)
+               DO iat = 1, nel
+                  ia = ia+1
+                  mixing_store%atlist(ia) = distribution_1d%list(ikind)%array(iat)
                END DO
             END DO
+            IF (ASSOCIATED(mixing_store%acharge)) DEALLOCATE (mixing_store%acharge)
+            ALLOCATE (mixing_store%acharge(na, max_shell, nbuffer, nspins))
          END IF
-      END IF
-
-      !   *** allocate pulay
-      IF (mixing_method == pulay_mixing_nr) THEN
-         IF (.NOT. ASSOCIATED(mixing_store%pulay_matrix)) THEN
+         IF (mixing_method == pulay_mixing_nr) THEN
+            IF (ASSOCIATED(mixing_store%pulay_matrix)) DEALLOCATE (mixing_store%pulay_matrix)
             ALLOCATE (mixing_store%pulay_matrix(nbuffer, nbuffer))
+         ELSEIF (mixing_method == broyden_mixing_nr) THEN
+            !
+         ELSEIF (mixing_method == broyden_mixing_new_nr) THEN
+            !
+         ELSEIF (mixing_method == multisecant_mixing_nr) THEN
+            !
          END IF
-
-         IF (.NOT. ASSOCIATED(mixing_store%rhoin_buffer)) THEN
-            ALLOCATE (mixing_store%rhoin_buffer(nbuffer, nspins))
-            DO ispin = 1, nspins
-               DO i = 1, nbuffer
-                  NULLIFY (mixing_store%rhoin_buffer(i, ispin)%cc)
-               END DO
-            END DO
-         END IF
-         IF (mixing_store%gmix_p) THEN
-            IF (.NOT. ASSOCIATED(mixing_store%rho_ao_in_buffer)) THEN
-               CALL dbcsr_allocate_matrix_set(mixing_store%rho_ao_in_buffer, nspins, nimg, nbuffer)
+      ELSE
+         !   *** allocate buffer for gspace mixing ***
+         IF (mixing_method >= gspace_mixing_nr) THEN
+            nbuffer = mixing_store%nbuffer
+            mixing_store%ncall = 0
+            IF (.NOT. ASSOCIATED(mixing_store%rhoin)) THEN
+               ALLOCATE (mixing_store%rhoin(nspins))
                DO ispin = 1, nspins
-                  DO ic = 1, nimg
-                     DO i = 1, nbuffer
-                        ALLOCATE (mixing_store%rho_ao_in_buffer(ispin, ic, i)%matrix)
-                        CALL dbcsr_create(matrix=mixing_store%rho_ao_in_buffer(ispin, ic, i)%matrix, &
-                                          template=refmatrix, name="SCF DENSITY", &
-                                          matrix_type=dbcsr_type_symmetric, nze=0)
-                        CALL cp_dbcsr_alloc_block_from_nbl(mixing_store%rho_ao_in_buffer(ispin, ic, i)%matrix, sab_orb)
-                        CALL dbcsr_set(mixing_store%rho_ao_in_buffer(ispin, ic, i)%matrix, 0.0_dp)
-                     END DO
-                  ENDDO
+                  NULLIFY (mixing_store%rhoin(ispin)%cc)
                END DO
             END IF
-            IF (dft_control%qs_control%gapw) THEN
-               IF (.NOT. ASSOCIATED(mixing_store%cpc_h_in_buffer)) THEN
-                  ALLOCATE (mixing_store%cpc_h_in_buffer(nbuffer, natom, nspins))
-                  ALLOCATE (mixing_store%cpc_s_in_buffer(nbuffer, natom, nspins))
-                  ALLOCATE (mixing_store%cpc_h_res_buffer(nbuffer, natom, nspins))
-                  ALLOCATE (mixing_store%cpc_s_res_buffer(nbuffer, natom, nspins))
+            IF (mixing_store%gmix_p) THEN
+               IF (.NOT. ASSOCIATED(mixing_store%rho_ao_in)) THEN
+                  CALL dbcsr_allocate_matrix_set(mixing_store%rho_ao_in, nspins, nimg)
+                  DO i = 1, nspins
+                     DO ic = 1, nimg
+                        ALLOCATE (mixing_store%rho_ao_in(i, ic)%matrix)
+                        CALL dbcsr_create(matrix=mixing_store%rho_ao_in(i, ic)%matrix, template=refmatrix, &
+                                          name="SCF DENSITY", matrix_type=dbcsr_type_symmetric, nze=0)
+                        CALL cp_dbcsr_alloc_block_from_nbl(mixing_store%rho_ao_in(i, ic)%matrix, sab_orb)
+                        CALL dbcsr_set(mixing_store%rho_ao_in(i, ic)%matrix, 0.0_dp)
+                     ENDDO
+                  END DO
+               END IF
+               IF (.NOT. ASSOCIATED(mixing_store%rho_ao_mix)) THEN
+                  ALLOCATE (mixing_store%rho_ao_mix)
+                  CALL dbcsr_create(matrix=mixing_store%rho_ao_mix, template=refmatrix, &
+                                    name="DENSITY MIX", matrix_type=dbcsr_type_symmetric, nze=0)
+                  CALL cp_dbcsr_alloc_block_from_nbl(mixing_store%rho_ao_mix, sab_orb)
+                  CALL dbcsr_set(mixing_store%rho_ao_mix, 0.0_dp)
+               END IF
+            END IF
+            IF (mixing_store%gmix_p .AND. dft_control%qs_control%gapw) THEN
+               CALL get_qs_env(qs_env=qs_env, rho_atom_set=rho_atom)
+               natom = SIZE(rho_atom)
+               IF (.NOT. ASSOCIATED(mixing_store%paw)) THEN
+                  ALLOCATE (mixing_store%paw(natom))
+                  mixing_store%paw = .FALSE.
+                  ALLOCATE (mixing_store%cpc_h_in(natom, nspins))
+                  ALLOCATE (mixing_store%cpc_s_in(natom, nspins))
                   DO ispin = 1, nspins
                      DO iat = 1, natom
+                        NULLIFY (mixing_store%cpc_h_in(iat, ispin)%r_coef)
+                        NULLIFY (mixing_store%cpc_s_in(iat, ispin)%r_coef)
+                     END DO
+                  END DO
+               END IF
+            END IF
+         END IF
+
+         !   *** allocare res_buffer if needed
+         IF (mixing_method >= pulay_mixing_nr) THEN
+            IF (.NOT. ASSOCIATED(mixing_store%res_buffer)) THEN
+               ALLOCATE (mixing_store%res_buffer(nbuffer, nspins))
+               DO ispin = 1, nspins
+                  DO i = 1, nbuffer
+                     NULLIFY (mixing_store%res_buffer(i, ispin)%cc)
+                  END DO
+               END DO
+            END IF
+         END IF
+
+         !   *** allocate pulay
+         IF (mixing_method == pulay_mixing_nr) THEN
+            IF (.NOT. ASSOCIATED(mixing_store%pulay_matrix)) THEN
+               ALLOCATE (mixing_store%pulay_matrix(nbuffer, nbuffer))
+            END IF
+
+            IF (.NOT. ASSOCIATED(mixing_store%rhoin_buffer)) THEN
+               ALLOCATE (mixing_store%rhoin_buffer(nbuffer, nspins))
+               DO ispin = 1, nspins
+                  DO i = 1, nbuffer
+                     NULLIFY (mixing_store%rhoin_buffer(i, ispin)%cc)
+                  END DO
+               END DO
+            END IF
+            IF (mixing_store%gmix_p) THEN
+               IF (.NOT. ASSOCIATED(mixing_store%rho_ao_in_buffer)) THEN
+                  CALL dbcsr_allocate_matrix_set(mixing_store%rho_ao_in_buffer, nspins, nimg, nbuffer)
+                  DO ispin = 1, nspins
+                     DO ic = 1, nimg
                         DO i = 1, nbuffer
-                           NULLIFY (mixing_store%cpc_h_in_buffer(i, iat, ispin)%r_coef)
-                           NULLIFY (mixing_store%cpc_s_in_buffer(i, iat, ispin)%r_coef)
-                           NULLIFY (mixing_store%cpc_h_res_buffer(i, iat, ispin)%r_coef)
-                           NULLIFY (mixing_store%cpc_s_res_buffer(i, iat, ispin)%r_coef)
+                           ALLOCATE (mixing_store%rho_ao_in_buffer(ispin, ic, i)%matrix)
+                           CALL dbcsr_create(matrix=mixing_store%rho_ao_in_buffer(ispin, ic, i)%matrix, &
+                                             template=refmatrix, name="SCF DENSITY", &
+                                             matrix_type=dbcsr_type_symmetric, nze=0)
+                           CALL cp_dbcsr_alloc_block_from_nbl(mixing_store%rho_ao_in_buffer(ispin, ic, i)%matrix, sab_orb)
+                           CALL dbcsr_set(mixing_store%rho_ao_in_buffer(ispin, ic, i)%matrix, 0.0_dp)
+                        END DO
+                     ENDDO
+                  END DO
+               END IF
+               IF (dft_control%qs_control%gapw) THEN
+                  IF (.NOT. ASSOCIATED(mixing_store%cpc_h_in_buffer)) THEN
+                     ALLOCATE (mixing_store%cpc_h_in_buffer(nbuffer, natom, nspins))
+                     ALLOCATE (mixing_store%cpc_s_in_buffer(nbuffer, natom, nspins))
+                     ALLOCATE (mixing_store%cpc_h_res_buffer(nbuffer, natom, nspins))
+                     ALLOCATE (mixing_store%cpc_s_res_buffer(nbuffer, natom, nspins))
+                     DO ispin = 1, nspins
+                        DO iat = 1, natom
+                           DO i = 1, nbuffer
+                              NULLIFY (mixing_store%cpc_h_in_buffer(i, iat, ispin)%r_coef)
+                              NULLIFY (mixing_store%cpc_s_in_buffer(i, iat, ispin)%r_coef)
+                              NULLIFY (mixing_store%cpc_h_res_buffer(i, iat, ispin)%r_coef)
+                              NULLIFY (mixing_store%cpc_s_res_buffer(i, iat, ispin)%r_coef)
+                           END DO
                         END DO
                      END DO
-                  END DO
+                  END IF
                END IF
             END IF
+
          END IF
-
-      END IF
-      !   *** allocate broyden buffer ***
-      IF (mixing_method == broyden_mixing_nr) THEN
-         IF (.NOT. ASSOCIATED(mixing_store%rhoin_old)) THEN
-            ALLOCATE (mixing_store%rhoin_old(nspins))
-            DO ispin = 1, nspins
-               NULLIFY (mixing_store%rhoin_old(ispin)%cc)
-            END DO
-         END IF
-         IF (.NOT. ASSOCIATED(mixing_store%drho_buffer)) THEN
-            ALLOCATE (mixing_store%drho_buffer(nbuffer, nspins))
-            ALLOCATE (mixing_store%last_res(nspins))
-            DO ispin = 1, nspins
-               DO i = 1, nbuffer
-                  NULLIFY (mixing_store%drho_buffer(i, ispin)%cc)
-               END DO
-               NULLIFY (mixing_store%last_res(ispin)%cc)
-            END DO
-         END IF
-         IF (mixing_store%gmix_p) THEN
-            IF (.NOT. ASSOCIATED(mixing_store%rho_ao_res)) THEN
-               ALLOCATE (mixing_store%rho_ao_res)
-               CALL dbcsr_create(matrix=mixing_store%rho_ao_res, template=refmatrix, &
-                                 name="DENSITY MIX", matrix_type=dbcsr_type_symmetric, nze=0)
-               CALL cp_dbcsr_alloc_block_from_nbl(mixing_store%rho_ao_res, sab_orb)
-               CALL dbcsr_set(mixing_store%rho_ao_res, 0.0_dp)
-            END IF
-
-            IF (.NOT. ASSOCIATED(mixing_store%rho_ao_in_old)) THEN
-               CALL dbcsr_allocate_matrix_set(mixing_store%rho_ao_in_old, nspins, nimg)
-               DO i = 1, nspins
-                  DO ic = 1, nimg
-                     ALLOCATE (mixing_store%rho_ao_in_old(i, ic)%matrix)
-                     CALL dbcsr_create(matrix=mixing_store%rho_ao_in_old(i, ic)%matrix, template=refmatrix, &
-                                       name="SCF DENSITY", matrix_type=dbcsr_type_symmetric, nze=0)
-                     CALL cp_dbcsr_alloc_block_from_nbl(mixing_store%rho_ao_in_old(i, ic)%matrix, sab_orb)
-                     CALL dbcsr_set(mixing_store%rho_ao_in_old(i, ic)%matrix, 0.0_dp)
-                  ENDDO
-               END DO
-            END IF
-
-            IF (.NOT. ASSOCIATED(mixing_store%rho_ao_lastres)) THEN
-               CALL dbcsr_allocate_matrix_set(mixing_store%rho_ao_lastres, nspins, nimg)
-               DO i = 1, nspins
-                  DO ic = 1, nimg
-                     ALLOCATE (mixing_store%rho_ao_lastres(i, ic)%matrix)
-                     CALL dbcsr_create(matrix=mixing_store%rho_ao_lastres(i, ic)%matrix, template=refmatrix, &
-                                       name="SCF DENSITY", matrix_type=dbcsr_type_symmetric, nze=0)
-                     CALL cp_dbcsr_alloc_block_from_nbl(mixing_store%rho_ao_lastres(i, ic)%matrix, sab_orb)
-                     CALL dbcsr_set(mixing_store%rho_ao_lastres(i, ic)%matrix, 0.0_dp)
-                  ENDDO
-               END DO
-            END IF
-
-            IF (dft_control%qs_control%gapw) THEN
-               IF (.NOT. ASSOCIATED(mixing_store%cpc_h_old)) THEN
-                  ALLOCATE (mixing_store%cpc_h_old(natom, nspins))
-                  ALLOCATE (mixing_store%cpc_s_old(natom, nspins))
-                  DO ispin = 1, nspins
-                     DO iat = 1, natom
-                        NULLIFY (mixing_store%cpc_h_old(iat, ispin)%r_coef)
-                        NULLIFY (mixing_store%cpc_s_old(iat, ispin)%r_coef)
-                     END DO
-                  END DO
-               END IF
-               IF (.NOT. ASSOCIATED(mixing_store%dcpc_h_in)) THEN
-                  ALLOCATE (mixing_store%dcpc_h_in(nbuffer, natom, nspins))
-                  ALLOCATE (mixing_store%dcpc_s_in(nbuffer, natom, nspins))
-                  ALLOCATE (mixing_store%cpc_h_lastres(natom, nspins))
-                  ALLOCATE (mixing_store%cpc_s_lastres(natom, nspins))
-                  DO ispin = 1, nspins
-                     DO iat = 1, natom
-                        DO i = 1, nbuffer
-                           NULLIFY (mixing_store%dcpc_h_in(i, iat, ispin)%r_coef)
-                           NULLIFY (mixing_store%dcpc_s_in(i, iat, ispin)%r_coef)
-                        END DO
-                        NULLIFY (mixing_store%cpc_h_lastres(iat, ispin)%r_coef)
-                        NULLIFY (mixing_store%cpc_s_lastres(iat, ispin)%r_coef)
-                     END DO
-                  END DO
-               END IF
-            END IF
-         END IF
-      END IF
-
-      IF (mixing_method == pulay_mixing_nr .OR. mixing_method == broyden_mixing_nr) THEN
-         IF (mixing_store%gmix_p) THEN
-            IF (.NOT. ASSOCIATED(mixing_store%rho_ao_res_buffer)) THEN
-               CALL dbcsr_allocate_matrix_set(mixing_store%rho_ao_res_buffer, nspins, nimg, nbuffer)
+         !   *** allocate broyden buffer ***
+         IF (mixing_method == broyden_mixing_nr) THEN
+            IF (.NOT. ASSOCIATED(mixing_store%rhoin_old)) THEN
+               ALLOCATE (mixing_store%rhoin_old(nspins))
                DO ispin = 1, nspins
-                  DO ic = 1, nimg
-                     DO i = 1, nbuffer
-                        ALLOCATE (mixing_store%rho_ao_res_buffer(ispin, ic, i)%matrix)
-                        CALL dbcsr_create(matrix=mixing_store%rho_ao_res_buffer(ispin, ic, i)%matrix, &
-                                          template=refmatrix, name="SCF DENSITY", &
-                                          matrix_type=dbcsr_type_symmetric, nze=0)
-                        CALL cp_dbcsr_alloc_block_from_nbl(mixing_store%rho_ao_res_buffer(ispin, ic, i)%matrix, sab_orb)
-                        CALL dbcsr_set(mixing_store%rho_ao_res_buffer(ispin, ic, i)%matrix, 0.0_dp)
+                  NULLIFY (mixing_store%rhoin_old(ispin)%cc)
+               END DO
+            END IF
+            IF (.NOT. ASSOCIATED(mixing_store%drho_buffer)) THEN
+               ALLOCATE (mixing_store%drho_buffer(nbuffer, nspins))
+               ALLOCATE (mixing_store%last_res(nspins))
+               DO ispin = 1, nspins
+                  DO i = 1, nbuffer
+                     NULLIFY (mixing_store%drho_buffer(i, ispin)%cc)
+                  END DO
+                  NULLIFY (mixing_store%last_res(ispin)%cc)
+               END DO
+            END IF
+            IF (mixing_store%gmix_p) THEN
+               IF (.NOT. ASSOCIATED(mixing_store%rho_ao_res)) THEN
+                  ALLOCATE (mixing_store%rho_ao_res)
+                  CALL dbcsr_create(matrix=mixing_store%rho_ao_res, template=refmatrix, &
+                                    name="DENSITY MIX", matrix_type=dbcsr_type_symmetric, nze=0)
+                  CALL cp_dbcsr_alloc_block_from_nbl(mixing_store%rho_ao_res, sab_orb)
+                  CALL dbcsr_set(mixing_store%rho_ao_res, 0.0_dp)
+               END IF
+
+               IF (.NOT. ASSOCIATED(mixing_store%rho_ao_in_old)) THEN
+                  CALL dbcsr_allocate_matrix_set(mixing_store%rho_ao_in_old, nspins, nimg)
+                  DO i = 1, nspins
+                     DO ic = 1, nimg
+                        ALLOCATE (mixing_store%rho_ao_in_old(i, ic)%matrix)
+                        CALL dbcsr_create(matrix=mixing_store%rho_ao_in_old(i, ic)%matrix, template=refmatrix, &
+                                          name="SCF DENSITY", matrix_type=dbcsr_type_symmetric, nze=0)
+                        CALL cp_dbcsr_alloc_block_from_nbl(mixing_store%rho_ao_in_old(i, ic)%matrix, sab_orb)
+                        CALL dbcsr_set(mixing_store%rho_ao_in_old(i, ic)%matrix, 0.0_dp)
+                     ENDDO
+                  END DO
+               END IF
+
+               IF (.NOT. ASSOCIATED(mixing_store%rho_ao_lastres)) THEN
+                  CALL dbcsr_allocate_matrix_set(mixing_store%rho_ao_lastres, nspins, nimg)
+                  DO i = 1, nspins
+                     DO ic = 1, nimg
+                        ALLOCATE (mixing_store%rho_ao_lastres(i, ic)%matrix)
+                        CALL dbcsr_create(matrix=mixing_store%rho_ao_lastres(i, ic)%matrix, template=refmatrix, &
+                                          name="SCF DENSITY", matrix_type=dbcsr_type_symmetric, nze=0)
+                        CALL cp_dbcsr_alloc_block_from_nbl(mixing_store%rho_ao_lastres(i, ic)%matrix, sab_orb)
+                        CALL dbcsr_set(mixing_store%rho_ao_lastres(i, ic)%matrix, 0.0_dp)
+                     ENDDO
+                  END DO
+               END IF
+
+               IF (dft_control%qs_control%gapw) THEN
+                  IF (.NOT. ASSOCIATED(mixing_store%cpc_h_old)) THEN
+                     ALLOCATE (mixing_store%cpc_h_old(natom, nspins))
+                     ALLOCATE (mixing_store%cpc_s_old(natom, nspins))
+                     DO ispin = 1, nspins
+                        DO iat = 1, natom
+                           NULLIFY (mixing_store%cpc_h_old(iat, ispin)%r_coef)
+                           NULLIFY (mixing_store%cpc_s_old(iat, ispin)%r_coef)
+                        END DO
                      END DO
-                  ENDDO
+                  END IF
+                  IF (.NOT. ASSOCIATED(mixing_store%dcpc_h_in)) THEN
+                     ALLOCATE (mixing_store%dcpc_h_in(nbuffer, natom, nspins))
+                     ALLOCATE (mixing_store%dcpc_s_in(nbuffer, natom, nspins))
+                     ALLOCATE (mixing_store%cpc_h_lastres(natom, nspins))
+                     ALLOCATE (mixing_store%cpc_s_lastres(natom, nspins))
+                     DO ispin = 1, nspins
+                        DO iat = 1, natom
+                           DO i = 1, nbuffer
+                              NULLIFY (mixing_store%dcpc_h_in(i, iat, ispin)%r_coef)
+                              NULLIFY (mixing_store%dcpc_s_in(i, iat, ispin)%r_coef)
+                           END DO
+                           NULLIFY (mixing_store%cpc_h_lastres(iat, ispin)%r_coef)
+                           NULLIFY (mixing_store%cpc_s_lastres(iat, ispin)%r_coef)
+                        END DO
+                     END DO
+                  END IF
+               END IF
+            END IF
+         END IF
+
+         IF (mixing_method == pulay_mixing_nr .OR. mixing_method == broyden_mixing_nr) THEN
+            IF (mixing_store%gmix_p) THEN
+               IF (.NOT. ASSOCIATED(mixing_store%rho_ao_res_buffer)) THEN
+                  CALL dbcsr_allocate_matrix_set(mixing_store%rho_ao_res_buffer, nspins, nimg, nbuffer)
+                  DO ispin = 1, nspins
+                     DO ic = 1, nimg
+                        DO i = 1, nbuffer
+                           ALLOCATE (mixing_store%rho_ao_res_buffer(ispin, ic, i)%matrix)
+                           CALL dbcsr_create(matrix=mixing_store%rho_ao_res_buffer(ispin, ic, i)%matrix, &
+                                             template=refmatrix, name="SCF DENSITY", &
+                                             matrix_type=dbcsr_type_symmetric, nze=0)
+                           CALL cp_dbcsr_alloc_block_from_nbl(mixing_store%rho_ao_res_buffer(ispin, ic, i)%matrix, sab_orb)
+                           CALL dbcsr_set(mixing_store%rho_ao_res_buffer(ispin, ic, i)%matrix, 0.0_dp)
+                        END DO
+                     ENDDO
+                  END DO
+               END IF
+            END IF
+         END IF
+         !   *** allocate broyden buffer ***
+         IF (mixing_method == broyden_mixing_new_nr) THEN
+            IF (.NOT. ASSOCIATED(mixing_store%u_vec)) THEN
+               ALLOCATE (mixing_store%last_res(nspins))
+               ALLOCATE (mixing_store%delta_res(nbuffer-1, nspins))
+               ALLOCATE (mixing_store%u_vec(nbuffer-1, nspins))
+               ALLOCATE (mixing_store%z_vec(nbuffer-1, nspins))
+               ALLOCATE (mixing_store%weight(nbuffer, nspins))
+               ALLOCATE (mixing_store%fmat(nbuffer-1, nbuffer-1, nspins))
+               DO ispin = 1, nspins
+                  DO i = 1, nbuffer-1
+                     NULLIFY (mixing_store%delta_res(i, ispin)%cc)
+                     NULLIFY (mixing_store%u_vec(i, ispin)%cc)
+                     NULLIFY (mixing_store%z_vec(i, ispin)%cc)
+                  END DO
+                  NULLIFY (mixing_store%last_res(ispin)%cc)
                END DO
             END IF
          END IF
-      END IF
-      !   *** allocate broyden buffer ***
-      IF (mixing_method == broyden_mixing_new_nr) THEN
-         IF (.NOT. ASSOCIATED(mixing_store%u_vec)) THEN
-            ALLOCATE (mixing_store%last_res(nspins))
-            ALLOCATE (mixing_store%delta_res(nbuffer-1, nspins))
-            ALLOCATE (mixing_store%u_vec(nbuffer-1, nspins))
-            ALLOCATE (mixing_store%z_vec(nbuffer-1, nspins))
-            ALLOCATE (mixing_store%weight(nbuffer, nspins))
-            ALLOCATE (mixing_store%fmat(nbuffer-1, nbuffer-1, nspins))
-            DO ispin = 1, nspins
-            DO i = 1, nbuffer-1
-               NULLIFY (mixing_store%delta_res(i, ispin)%cc)
-               NULLIFY (mixing_store%u_vec(i, ispin)%cc)
-               NULLIFY (mixing_store%z_vec(i, ispin)%cc)
-            END DO
-            NULLIFY (mixing_store%last_res(ispin)%cc)
-            END DO
-         END IF
-      END IF
 
-      !   *** allocate multisecant buffer ***
-      IF (mixing_method == multisecant_mixing_nr) THEN
-         IF (.NOT. ASSOCIATED(mixing_store%norm_res_buffer)) THEN
-            ALLOCATE (mixing_store%norm_res_buffer(nbuffer, nspins))
+         !   *** allocate multisecant buffer ***
+         IF (mixing_method == multisecant_mixing_nr) THEN
+            IF (.NOT. ASSOCIATED(mixing_store%norm_res_buffer)) THEN
+               ALLOCATE (mixing_store%norm_res_buffer(nbuffer, nspins))
+            END IF
          END IF
-      END IF
 
-      IF (mixing_method == broyden_mixing_new_nr .OR. mixing_method == multisecant_mixing_nr) THEN
-         IF (.NOT. ASSOCIATED(mixing_store%rhoin_buffer)) THEN
-            ALLOCATE (mixing_store%rhoin_buffer(nbuffer, nspins))
-            DO ispin = 1, nspins
-               DO i = 1, nbuffer
-                  NULLIFY (mixing_store%rhoin_buffer(i, ispin)%cc)
+         IF (mixing_method == broyden_mixing_new_nr .OR. mixing_method == multisecant_mixing_nr) THEN
+            IF (.NOT. ASSOCIATED(mixing_store%rhoin_buffer)) THEN
+               ALLOCATE (mixing_store%rhoin_buffer(nbuffer, nspins))
+               DO ispin = 1, nspins
+                  DO i = 1, nbuffer
+                     NULLIFY (mixing_store%rhoin_buffer(i, ispin)%cc)
+                  END DO
                END DO
-            END DO
+            END IF
          END IF
+
       END IF
 
       CALL timestop(handle)
@@ -714,5 +763,32 @@ CONTAINS
       CALL timestop(handle)
 
    END SUBROUTINE mixing_init
+
+! **************************************************************************************************
+!> \brief initialiation needed when charge mixing is used
+!> \param mixing_method ...
+!> \param mixing_store ...
+!> \param para_env ...
+!> \par History
+!>      02.2019 created [JGH]
+!> \author JGH
+! **************************************************************************************************
+   SUBROUTINE charge_mixing_init(mixing_method, mixing_store, para_env)
+      INTEGER, INTENT(IN)                                :: mixing_method
+      TYPE(mixing_storage_type), POINTER                 :: mixing_store
+      TYPE(cp_para_env_type), POINTER                    :: para_env
+
+      CHARACTER(len=*), PARAMETER :: routineN = 'charge_mixing_init', &
+         routineP = moduleN//':'//routineN
+
+      INTEGER                                            :: handle
+
+      CALL timeset(routineN, handle)
+
+      mixing_store%acharge = 0.0_dp
+
+      CALL timestop(handle)
+
+   END SUBROUTINE charge_mixing_init
 
 END MODULE qs_mixing_utils

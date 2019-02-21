@@ -78,7 +78,8 @@ MODULE qs_scf_initialization
                                               set_qs_kind
    USE qs_ks_types,                     ONLY: qs_ks_did_change
    USE qs_matrix_pools,                 ONLY: mpools_get
-   USE qs_mixing_utils,                 ONLY: mixing_allocate,&
+   USE qs_mixing_utils,                 ONLY: charge_mixing_init,&
+                                              mixing_allocate,&
                                               mixing_init
    USE qs_mo_occupation,                ONLY: set_mo_occupation
    USE qs_mo_types,                     ONLY: get_mo_set,&
@@ -1153,10 +1154,13 @@ CONTAINS
       ! Some preparation for the mixing
       IF (scf_env%mixing_method > 1) THEN
          IF (dft_control%qs_control%gapw) THEN
-            CALL get_qs_env(qs_env=qs_env, &
-                            rho_atom_set=rho_atom)
+            CALL get_qs_env(qs_env=qs_env, rho_atom_set=rho_atom)
             CALL mixing_init(scf_env%mixing_method, rho, scf_env%mixing_store, &
                              para_env, rho_atom=rho_atom)
+         ELSEIF (dft_control%qs_control%dftb .OR. dft_control%qs_control%xtb) THEN
+            CALL charge_mixing_init(scf_env%mixing_method, scf_env%mixing_store, para_env)
+         ELSEIF (dft_control%qs_control%semi_empirical) THEN
+            CPABORT('SE Code not possible')
          ELSE
             CALL mixing_init(scf_env%mixing_method, rho, scf_env%mixing_store, &
                              para_env)
