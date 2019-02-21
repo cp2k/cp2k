@@ -58,15 +58,15 @@
       &NONBONDED
         &GENPOT
           atoms O O
-          FUNCTION qO^2 / x - kappaOO / ( 1 + tauOO *  ( x / rhoOO )^3 + ( x / rhoOO )^6 )
-          PARAMETERS qO kappaOO tauOO rhoOO
-          VALUES    ${QO} ${KAPPAOO} ${TAUOO} ${RHOOO}
-          VARIABLES x
-          RCUT    [angstrom] ${RCUTOFF}
+          FUNCTION  "qO^2 / x - kappaOO / ( 1 + tauOO *  ( x / rhoOO )^3 + ( x / rhoOO )^6 )"  # Function O O
+          PARAMETERS qO  kappaOO tauOO rhoOO
+          VALUES    "${QO}" ${KAPPAOO} ${TAUOO} "${RHOOO}" # Quotation test
+          VARIABLES "x"
+          "RCUT"    [angstrom] ${RCUTOFF}
         &END GENPOT
         &GENPOT
           atoms O H
-          FUNCTION qO*qH / x - kappaOH / ( 1 + tauOH *  ( x / rhoOH )^3 + ( x / rhoOH )^6 )
+          FUNCTION " qO*qH / x - kappaOH / ( 1 + tauOH *  ( x / rhoOH )^3 + ( x / rhoOH )^6 ) " # Function O H
           PARAMETERS qO qH kappaOH tauOH rhoOH
           VALUES   ${QO} ${QH} ${KAPPAOH} ${TAUOH} ${RHOOH}
           VARIABLES x
@@ -82,7 +82,7 @@
         &END GENPOT
         &GENPOT
           atoms E E
-          FUNCTION qV^2 / ( ( x^8 + rhoVV1^4 * x^4 + rhoVV2^8 )^(1./8.) ) + kappaVV / ( 1 + ( x / rhoVV3 )^6 )
+          FUNCTION   "        qV^2 / ( ( x^8 + rhoVV1^4 * x^4 + rhoVV2^8 )^(1./8.) ) + kappaVV / ( 1 + ( x / rhoVV3 )^6 )             " # Quotation test
           PARAMETERS qV rhoVV1 rhoVV2 kappaVV rhoVV3
           VALUES ${QV} ${RHOVV1} ${RHOVV2} ${KAPPAVV} ${RHOVV3}
           VARIABLES x
