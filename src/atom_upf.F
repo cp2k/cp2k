@@ -210,7 +210,7 @@ CONTAINS
                ! read UPF file version
                CALL parser_get_object(parser, nametag, lower_to_upper=.TRUE.)
                pot%version = TRIM(nametag)
-               CPASSERT(nametag(2:6) == "2.0.1")
+               CPASSERT(nametag(1:5) == "2.0.1")
                CALL parser_get_object(parser, nametag, lower_to_upper=.TRUE.)
                CPASSERT(nametag(1:1) == ">")
                ntag = 1
@@ -321,8 +321,7 @@ CONTAINS
       TYPE(cp_parser_type), POINTER                      :: parser
       TYPE(atom_upfpot_type)                             :: pot
 
-      CHARACTER(LEN=default_string_length)               :: line, string
-      INTEGER                                            :: il
+      CHARACTER(LEN=default_string_length)               :: string
       LOGICAL                                            :: at_end
 
       DO
@@ -342,114 +341,50 @@ CONTAINS
          CASE ("COMMENT")
             CALL parser_get_object(parser, pot%comment)
          CASE ("ELEMENT")
-            CALL parser_get_object(parser, line)
+            CALL parser_get_object(parser, pot%symbol)
             CPASSERT(2 <= LEN(pot%symbol))
-            pot%symbol = line(2:3)
          CASE ("PSEUDO_TYPE")
-            CALL parser_get_object(parser, line)
-            line = ADJUSTL(line)
-            il = LEN_TRIM(line)
-            READ (line(2:il-1), *) pot%pseudo_type
+            CALL parser_get_object(parser, pot%pseudo_type)
          CASE ("RELATIVISTIC")
-            CALL parser_get_object(parser, line)
-            line = ADJUSTL(line)
-            il = LEN_TRIM(line)
-            READ (line(2:il-1), *) pot%relativistic
+            CALL parser_get_object(parser, pot%relativistic)
          CASE ("IS_ULTRASOFT")
-            CALL parser_get_object(parser, line)
-            line = ADJUSTL(line)
-            il = LEN_TRIM(line)
-            READ (line(2:il-1), *) pot%is_ultrasoft
+            CALL parser_get_object(parser, pot%is_ultrasoft)
          CASE ("IS_PAW")
-            CALL parser_get_object(parser, line)
-            line = ADJUSTL(line)
-            il = LEN_TRIM(line)
-            READ (line(2:il-1), *) pot%is_paw
+            CALL parser_get_object(parser, pot%is_paw)
          CASE ("IS_COULOMB")
-            CALL parser_get_object(parser, line)
-            line = ADJUSTL(line)
-            il = LEN_TRIM(line)
-            READ (line(2:il-1), *) pot%is_coulomb
+            CALL parser_get_object(parser, pot%is_coulomb)
          CASE ("HAS_SO")
-            CALL parser_get_object(parser, line)
-            line = ADJUSTL(line)
-            il = LEN_TRIM(line)
-            READ (line(2:il-1), *) pot%has_so
+            CALL parser_get_object(parser, pot%has_so)
          CASE ("HAS_WFC")
-            CALL parser_get_object(parser, line)
-            line = ADJUSTL(line)
-            il = LEN_TRIM(line)
-            READ (line(2:il-1), *) pot%has_wfc
+            CALL parser_get_object(parser, pot%has_wfc)
          CASE ("HAS_GIPAW")
-            CALL parser_get_object(parser, line)
-            line = ADJUSTL(line)
-            il = LEN_TRIM(line)
-            READ (line(2:il-1), *) pot%has_gipaw
+            CALL parser_get_object(parser, pot%has_gipaw)
          CASE ("PAW_AS_GIPAW")
-            CALL parser_get_object(parser, line)
-            line = ADJUSTL(line)
-            il = LEN_TRIM(line)
-            READ (line(2:il-1), *) pot%paw_as_gipaw
+            CALL parser_get_object(parser, pot%paw_as_gipaw)
          CASE ("CORE_CORRECTION")
-            CALL parser_get_object(parser, line)
-            line = ADJUSTL(line)
-            il = LEN_TRIM(line)
-            READ (line(2:il-1), *) pot%core_correction
+            CALL parser_get_object(parser, pot%core_correction)
          CASE ("FUNCTIONAL")
-            CALL parser_get_object(parser, line)
-            line = ADJUSTL(line)
-            il = LEN_TRIM(line)
-            READ (line(2:il-1), *) pot%functional
+            CALL parser_get_object(parser, pot%functional)
          CASE ("Z_VALENCE")
-            CALL parser_get_object(parser, line)
-            line = ADJUSTL(line)
-            il = LEN_TRIM(line)
-            READ (line(2:il-1), *) pot%zion
+            CALL parser_get_object(parser, pot%zion)
          CASE ("TOTAL_PSENERGY")
-            CALL parser_get_object(parser, line)
-            line = ADJUSTL(line)
-            il = LEN_TRIM(line)
-            READ (line(2:il-1), *) pot%total_psenergy
+            CALL parser_get_object(parser, pot%total_psenergy)
          CASE ("WFC_CUTOFF")
-            CALL parser_get_object(parser, line)
-            line = ADJUSTL(line)
-            il = LEN_TRIM(line)
-            READ (line(2:il-1), *) pot%wfc_cutoff
+            CALL parser_get_object(parser, pot%wfc_cutoff)
          CASE ("RHO_CUTOFF")
-            CALL parser_get_object(parser, line)
-            line = ADJUSTL(line)
-            il = LEN_TRIM(line)
-            READ (line(2:il-1), *) pot%rho_cutoff
+            CALL parser_get_object(parser, pot%rho_cutoff)
          CASE ("L_MAX")
-            CALL parser_get_object(parser, line)
-            line = ADJUSTL(line)
-            il = LEN_TRIM(line)
-            READ (line(2:il-1), *) pot%l_max
+            CALL parser_get_object(parser, pot%l_max)
          CASE ("L_MAX_RHO")
-            CALL parser_get_object(parser, line)
-            line = ADJUSTL(line)
-            il = LEN_TRIM(line)
-            READ (line(2:il-1), *) pot%l_max_rho
+            CALL parser_get_object(parser, pot%l_max_rho)
          CASE ("L_LOCAL")
-            CALL parser_get_object(parser, line)
-            line = ADJUSTL(line)
-            il = LEN_TRIM(line)
-            READ (line(2:il-1), *) pot%l_local
+            CALL parser_get_object(parser, pot%l_local)
          CASE ("MESH_SIZE")
-            CALL parser_get_object(parser, line)
-            line = ADJUSTL(line)
-            il = LEN_TRIM(line)
-            READ (line(2:il-1), *) pot%mesh_size
+            CALL parser_get_object(parser, pot%mesh_size)
          CASE ("NUMBER_OF_WFC")
-            CALL parser_get_object(parser, line)
-            line = ADJUSTL(line)
-            il = LEN_TRIM(line)
-            READ (line(2:il-1), *) pot%number_of_wfc
+            CALL parser_get_object(parser, pot%number_of_wfc)
          CASE ("NUMBER_OF_PROJ")
-            CALL parser_get_object(parser, line)
-            line = ADJUSTL(line)
-            il = LEN_TRIM(line)
-            READ (line(2:il-1), *) pot%number_of_proj
+            CALL parser_get_object(parser, pot%number_of_proj)
          CASE DEFAULT
             CPWARN(string)
             CALL cp_abort(__LOCATION__, "Error while parsing UPF header: "// &
@@ -468,8 +403,8 @@ CONTAINS
       TYPE(cp_parser_type), POINTER                      :: parser
       TYPE(atom_upfpot_type)                             :: pot
 
-      CHARACTER(LEN=default_string_length)               :: line, string
-      INTEGER                                            :: il, jj
+      CHARACTER(LEN=default_string_length)               :: string
+      INTEGER                                            :: jj
       LOGICAL                                            :: at_end
 
       DO
@@ -481,33 +416,18 @@ CONTAINS
          IF (string == ">") EXIT
          SELECT CASE (string)
          CASE ("DX")
-            CALL parser_get_object(parser, line)
-            line = ADJUSTL(line)
-            il = LEN_TRIM(line)
-            READ (line(2:il-1), *) pot%dx
+            CALL parser_get_object(parser, pot%dx)
          CASE ("XMIN")
-            CALL parser_get_object(parser, line)
-            line = ADJUSTL(line)
-            il = LEN_TRIM(line)
-            READ (line(2:il-1), *) pot%xmin
+            CALL parser_get_object(parser, pot%xmin)
          CASE ("RMAX")
-            CALL parser_get_object(parser, line)
-            line = ADJUSTL(line)
-            il = LEN_TRIM(line)
-            READ (line(2:il-1), *) pot%rmax
+            CALL parser_get_object(parser, pot%rmax)
          CASE ("MESH")
-            CALL parser_get_object(parser, line)
-            line = ADJUSTL(line)
-            il = LEN_TRIM(line)
-            READ (line(2:il-1), *) jj
+            CALL parser_get_object(parser, jj)
             CPASSERT(pot%mesh_size == jj)
          CASE ("ZMESH")
-            CALL parser_get_object(parser, line)
-            line = ADJUSTL(line)
-            il = LEN_TRIM(line)
-            READ (line(2:il-1), *) pot%zmesh
+            CALL parser_get_object(parser, pot%zmesh)
          CASE DEFAULT
-            CPASSERT(.FALSE.)
+            CPABORT("Unknown UPF PP_MESH option <"//TRIM(string)//"> found")
          END SELECT
 
       END DO
@@ -524,7 +444,7 @@ CONTAINS
       TYPE(atom_upfpot_type)                             :: pot
 
       CHARACTER(LEN=default_string_length)               :: line, string, string2
-      INTEGER                                            :: icount, il, m, mc, ms
+      INTEGER                                            :: icount, m, mc, ms
       LOGICAL                                            :: at_end
 
       DO
@@ -548,20 +468,14 @@ CONTAINS
                   SELECT CASE (string2)
                   CASE ("TYPE")
                      CALL parser_get_object(parser, line, lower_to_upper=.TRUE.)
-                     CPASSERT(line == '"REAL"')
+                     CPASSERT(line == "REAL")
                   CASE ("SIZE")
-                     CALL parser_get_object(parser, line)
-                     line = ADJUSTL(line)
-                     il = LEN_TRIM(line)
-                     READ (line(2:il-1), *) ms
+                     CALL parser_get_object(parser, ms)
                      CPASSERT(ms <= m)
                   CASE ("COLUMNS")
-                     CALL parser_get_object(parser, line)
-                     line = ADJUSTL(line)
-                     il = LEN_TRIM(line)
-                     READ (line(2:il-1), *) mc
+                     CALL parser_get_object(parser, mc)
                   CASE DEFAULT
-                     CPASSERT(.FALSE.)
+                     CPABORT("Unknown UPF PP_R option <"//TRIM(string2)//"> found")
                   END SELECT
                END DO
             END IF
@@ -591,20 +505,14 @@ CONTAINS
                   SELECT CASE (string2)
                   CASE ("TYPE")
                      CALL parser_get_object(parser, line, lower_to_upper=.TRUE.)
-                     CPASSERT(line == '"REAL"')
+                     CPASSERT(line == "REAL")
                   CASE ("SIZE")
-                     CALL parser_get_object(parser, line)
-                     line = ADJUSTL(line)
-                     il = LEN_TRIM(line)
-                     READ (line(2:il-1), *) ms
+                     CALL parser_get_object(parser, ms)
                      CPASSERT(ms <= m)
                   CASE ("COLUMNS")
-                     CALL parser_get_object(parser, line)
-                     line = ADJUSTL(line)
-                     il = LEN_TRIM(line)
-                     READ (line(2:il-1), *) mc
+                     CALL parser_get_object(parser, mc)
                   CASE DEFAULT
-                     CPASSERT(.FALSE.)
+                     CPABORT("Unknown UPF PP_RAB option <"//TRIM(string2)//"> found")
                   END SELECT
                END DO
             END IF
@@ -642,7 +550,7 @@ CONTAINS
       LOGICAL, INTENT(IN)                                :: options
 
       CHARACTER(LEN=default_string_length)               :: line, string
-      INTEGER                                            :: icount, il, m, mc, ms
+      INTEGER                                            :: icount, m, mc, ms
       LOGICAL                                            :: at_end
 
       m = pot%mesh_size
@@ -659,20 +567,14 @@ CONTAINS
             SELECT CASE (string)
             CASE ("TYPE")
                CALL parser_get_object(parser, line, lower_to_upper=.TRUE.)
-               CPASSERT(line == '"REAL"')
+               CPASSERT(line == "REAL")
             CASE ("SIZE")
-               CALL parser_get_object(parser, line)
-               line = ADJUSTL(line)
-               il = LEN_TRIM(line)
-               READ (line(2:il-1), *) ms
+               CALL parser_get_object(parser, ms)
                CPASSERT(ms <= m)
             CASE ("COLUMNS")
-               CALL parser_get_object(parser, line)
-               line = ADJUSTL(line)
-               il = LEN_TRIM(line)
-               READ (line(2:il-1), *) mc
+               CALL parser_get_object(parser, mc)
             CASE DEFAULT
-               CPASSERT(.FALSE.)
+               CPABORT("Unknown UPF PP_NLCC option <"//TRIM(string)//"> found")
             END SELECT
          END DO
       END IF
@@ -710,7 +612,7 @@ CONTAINS
       LOGICAL, INTENT(IN)                                :: options
 
       CHARACTER(LEN=default_string_length)               :: line, string
-      INTEGER                                            :: icount, il, m, mc, ms
+      INTEGER                                            :: icount, m, mc, ms
       LOGICAL                                            :: at_end
 
       m = pot%mesh_size
@@ -727,20 +629,14 @@ CONTAINS
             SELECT CASE (string)
             CASE ("TYPE")
                CALL parser_get_object(parser, line, lower_to_upper=.TRUE.)
-               CPASSERT(line == '"REAL"')
+               CPASSERT(line == "REAL")
             CASE ("SIZE")
-               CALL parser_get_object(parser, line)
-               line = ADJUSTL(line)
-               il = LEN_TRIM(line)
-               READ (line(2:il-1), *) ms
+               CALL parser_get_object(parser, ms)
                CPASSERT(ms <= m)
             CASE ("COLUMNS")
-               CALL parser_get_object(parser, line)
-               line = ADJUSTL(line)
-               il = LEN_TRIM(line)
-               READ (line(2:il-1), *) mc
+               CALL parser_get_object(parser, mc)
             CASE DEFAULT
-               CPASSERT(.FALSE.)
+               CPABORT("Unknown UPF PP_LOCAL option <"//TRIM(string)//"> found")
             END SELECT
          END DO
       END IF
@@ -779,7 +675,7 @@ CONTAINS
       TYPE(atom_upfpot_type)                             :: pot
 
       CHARACTER(LEN=default_string_length)               :: line, string
-      INTEGER                                            :: i1, i2, ibeta, icount, il, la, m, mc, &
+      INTEGER                                            :: i1, i2, ibeta, icount, la, m, mc, &
                                                             ms, nbeta
       LOGICAL                                            :: at_end
 
@@ -811,29 +707,17 @@ CONTAINS
                SELECT CASE (string)
                CASE ("TYPE")
                   CALL parser_get_object(parser, line, lower_to_upper=.TRUE.)
-                  CPASSERT(line == '"REAL"')
+                  CPASSERT(line == "REAL")
                CASE ("SIZE")
-                  CALL parser_get_object(parser, line)
-                  line = ADJUSTL(line)
-                  il = LEN_TRIM(line)
-                  READ (line(2:il-1), *) ms
+                  CALL parser_get_object(parser, ms)
                   CPASSERT(ms <= m)
                CASE ("COLUMNS")
-                  CALL parser_get_object(parser, line)
-                  line = ADJUSTL(line)
-                  il = LEN_TRIM(line)
-                  READ (line(2:il-1), *) mc
+                  CALL parser_get_object(parser, mc)
                CASE ("INDEX")
-                  CALL parser_get_object(parser, line)
-                  line = ADJUSTL(line)
-                  il = LEN_TRIM(line)
-                  READ (line(2:il-1), *) i1
+                  CALL parser_get_object(parser, i1)
                   CPASSERT(i1 <= nbeta)
                CASE ("ANGULAR_MOMENTUM")
-                  CALL parser_get_object(parser, line)
-                  line = ADJUSTL(line)
-                  il = LEN_TRIM(line)
-                  READ (line(2:il-1), *) la
+                  CALL parser_get_object(parser, la)
                CASE ("LABEL")
                   CALL parser_get_object(parser, line)
                   ! not used currently
@@ -847,7 +731,7 @@ CONTAINS
                   CALL parser_get_object(parser, line)
                   ! not used currently
                CASE DEFAULT
-                  CPASSERT(.FALSE.)
+                  CPABORT("Unknown UPF PP_BETA option <"//TRIM(string)//"> found")
                END SELECT
             END DO
             pot%lbeta(i1) = la
@@ -874,20 +758,14 @@ CONTAINS
                SELECT CASE (string)
                CASE ("TYPE")
                   CALL parser_get_object(parser, line, lower_to_upper=.TRUE.)
-                  CPASSERT(line == '"REAL"')
+                  CPASSERT(line == "REAL")
                CASE ("SIZE")
-                  CALL parser_get_object(parser, line)
-                  line = ADJUSTL(line)
-                  il = LEN_TRIM(line)
-                  READ (line(2:il-1), *) ms
+                  CALL parser_get_object(parser, ms)
                   CPASSERT(ms <= m)
                CASE ("COLUMNS")
-                  CALL parser_get_object(parser, line)
-                  line = ADJUSTL(line)
-                  il = LEN_TRIM(line)
-                  READ (line(2:il-1), *) mc
+                  CALL parser_get_object(parser, mc)
                CASE DEFAULT
-                  CPASSERT(.FALSE.)
+                  CPABORT("Unknown UPF PP_DIJ option <"//TRIM(string)//"> found")
                END SELECT
             END DO
             icount = 1
@@ -926,7 +804,7 @@ CONTAINS
       TYPE(atom_upfpot_type)                             :: pot
 
       CHARACTER(LEN=default_string_length)               :: line, string
-      INTEGER                                            :: i1, ib, icount, il, la, lmax, m, mc, ms
+      INTEGER                                            :: i1, ib, icount, la, lmax, m, mc, ms
       LOGICAL                                            :: at_end
 
       m = pot%mesh_size
@@ -955,25 +833,16 @@ CONTAINS
                SELECT CASE (string)
                CASE ("TYPE")
                   CALL parser_get_object(parser, line, lower_to_upper=.TRUE.)
-                  CPASSERT(line == '"REAL"')
+                  CPASSERT(line == "REAL")
                CASE ("SIZE")
-                  CALL parser_get_object(parser, line)
-                  line = ADJUSTL(line)
-                  il = LEN_TRIM(line)
-                  READ (line(2:il-1), *) ms
+                  CALL parser_get_object(parser, ms)
                   CPASSERT(ms <= m)
                CASE ("COLUMNS")
-                  CALL parser_get_object(parser, line)
-                  line = ADJUSTL(line)
-                  il = LEN_TRIM(line)
-                  READ (line(2:il-1), *) mc
+                  CALL parser_get_object(parser, mc)
                CASE ("L")
-                  CALL parser_get_object(parser, line)
-                  line = ADJUSTL(line)
-                  il = LEN_TRIM(line)
-                  READ (line(2:il-1), *) la
+                  CALL parser_get_object(parser, la)
                CASE DEFAULT
-                  CPASSERT(.FALSE.)
+                  CPABORT("Unknown UPF PP_VNL option <"//TRIM(string)//"> found")
                END SELECT
             END DO
             i1 = la+1
