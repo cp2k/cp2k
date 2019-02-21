@@ -675,8 +675,8 @@ CONTAINS
       TYPE(atom_upfpot_type)                             :: pot
 
       CHARACTER(LEN=default_string_length)               :: line, string
-      INTEGER                                            :: i1, i2, ibeta, icount, la, m, mc, &
-                                                            ms, nbeta
+      INTEGER                                            :: i1, i2, ibeta, icount, la, m, mc, ms, &
+                                                            nbeta
       LOGICAL                                            :: at_end
 
       m = pot%mesh_size
