@@ -929,7 +929,7 @@ CONTAINS
          routineP = moduleN//':'//routineN
 
       INTEGER                                            :: atom_a, handle, iatom, ikind, img, &
-                                                            iounit, is, ispin, natom, natorb, &
+                                                            iounit, is, ispin, na, natom, natorb, &
                                                             nimg, nkind, ns, nsgf, nspins
       INTEGER, DIMENSION(25)                             :: lao
       INTEGER, DIMENSION(5)                              :: occ
@@ -995,7 +995,6 @@ CONTAINS
          charges = 0.0_dp
          nkind = SIZE(atomic_kind_set)
          CALL get_qs_kind_set(qs_kind_set, nsgf=nsgf)
-         natom = SIZE(particle_set)
          ALLOCATE (aocg(nsgf, natom))
          aocg = 0.0_dp
          IF (nimg > 1) THEN
@@ -1006,20 +1005,23 @@ CONTAINS
             CALL ao_charges(matrix_p, matrix_s, aocg, para_env)
          END IF
          DO ikind = 1, nkind
-            CALL get_atomic_kind(atomic_kind_set(ikind), natom=natom)
+            CALL get_atomic_kind(atomic_kind_set(ikind), natom=na)
             CALL get_qs_kind(qs_kind_set(ikind), xtb_parameter=xtb_kind)
             CALL get_xtb_atom_param(xtb_kind, natorb=natorb, lao=lao, occupation=occ)
-            DO iatom = 1, natom
+            DO iatom = 1, na
                atom_a = atomic_kind_set(ikind)%atom_list(iatom)
                charges(atom_a, :) = REAL(occ(:), KIND=dp)
                DO is = 1, natorb
                   ns = lao(is)+1
                   charges(atom_a, ns) = charges(atom_a, ns)-aocg(is, atom_a)
                END DO
-               mcharge(atom_a) = SUM(charges(atom_a, :))
             END DO
          END DO
          DEALLOCATE (aocg)
+
+         DO iatom = 1, natom
+            mcharge(iatom) = SUM(charges(iatom, :))
+         END DO
 
          CALL build_xtb_coulomb(qs_env, ks_matrix, rho, charges, mcharge, energy, &
                                 calculate_forces, just_energy)

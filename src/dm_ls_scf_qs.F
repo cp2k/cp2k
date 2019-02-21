@@ -62,7 +62,8 @@ MODULE dm_ls_scf_qs
    USE qs_ks_types,                     ONLY: qs_ks_did_change,&
                                               qs_ks_env_type,&
                                               set_ks_env
-   USE qs_mixing_utils,                 ONLY: mixing_allocate,&
+   USE qs_mixing_utils,                 ONLY: charge_mixing_init,&
+                                              mixing_allocate,&
                                               mixing_init
    USE qs_neighbor_list_types,          ONLY: neighbor_list_set_p_type
    USE qs_rho_atom_types,               ONLY: rho_atom_type
@@ -761,8 +762,7 @@ CONTAINS
 
       CALL timeset(routineN, handle)
 
-      CALL get_qs_env(qs_env, dft_control=dft_control, &
-                      rho=rho)
+      CALL get_qs_env(qs_env, dft_control=dft_control, rho=rho)
 
       CALL mixing_allocate(qs_env, ls_scf_env%density_mixing_method, nspins=ls_scf_env%nspins, &
                            mixing_store=ls_scf_env%mixing_store)
@@ -771,6 +771,11 @@ CONTAINS
             CALL get_qs_env(qs_env, rho_atom_set=rho_atom)
             CALL mixing_init(ls_scf_env%density_mixing_method, rho, ls_scf_env%mixing_store, &
                              ls_scf_env%para_env, rho_atom=rho_atom)
+         ELSEIF (dft_control%qs_control%dftb .OR. dft_control%qs_control%xtb) THEN
+            CALL charge_mixing_init(ls_scf_env%density_mixing_method, ls_scf_env%mixing_store, &
+                                    ls_scf_env%para_env)
+         ELSEIF (dft_control%qs_control%semi_empirical) THEN
+            CPABORT('SE Code not possible')
          ELSE
             CALL mixing_init(ls_scf_env%density_mixing_method, rho, ls_scf_env%mixing_store, &
                              ls_scf_env%para_env)

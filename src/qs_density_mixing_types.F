@@ -57,30 +57,39 @@ MODULE qs_density_mixing_types
    END TYPE cp_1d_z_p_type
 
    TYPE mixing_storage_type
-      INTEGER :: ref_count, ig_max, ncall, nbuffer, n_simple_mix, nskip_mixing, p_metric_method
-      INTEGER, POINTER, DIMENSION(:) :: ig_global_index
-      LOGICAL :: gmix_p
-      LOGICAL, POINTER, DIMENSION(:) :: paw
-      CHARACTER(len=15) :: iter_method
-      REAL(dp) :: alpha, bconst, beta, broy_w0, max_g2, max_gvec_exp, pulay_alpha, pulay_beta, r_step, &
-                  reg_par, sigma_max, wc, wmax
-      REAL(dp), DIMENSION(:), POINTER :: p_metric
-      REAL(KIND=dp), DIMENSION(:), POINTER :: kerker_factor
-      REAL(KIND=dp), DIMENSION(:), POINTER :: special_metric
-      REAL(dp), DIMENSION(:, :), POINTER :: weight
-      REAL(KIND=dp), DIMENSION(:, :), POINTER :: norm_res_buffer, pulay_matrix
-      REAL(dp), DIMENSION(:, :, :), POINTER :: fmat, gmat, smat
-      TYPE(cp_1d_z_p_type), DIMENSION(:), POINTER :: last_res, rhoin, rhoin_old
-      TYPE(cp_1d_z_p_type), DIMENSION(:, :), POINTER :: delta_res, u_vec, z_vec
-      TYPE(cp_1d_z_p_type), DIMENSION(:, :), POINTER ::drho_buffer, rhoin_buffer, &
-                                                        res_buffer
-      TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER :: rho_ao_in, rho_ao_in_old, rho_ao_lastres
-      TYPE(dbcsr_p_type), DIMENSION(:, :, :), POINTER :: rho_ao_in_buffer
-      TYPE(dbcsr_p_type), DIMENSION(:, :, :), POINTER :: rho_ao_res_buffer
-      TYPE(dbcsr_type), POINTER :: rho_ao_mix, rho_ao_res
-      TYPE(rho_atom_coeff), DIMENSION(:, :), POINTER :: cpc_h_lastres, cpc_s_lastres
-      TYPE(rho_atom_coeff), DIMENSION(:, :), POINTER :: cpc_h_in, cpc_s_in
-      TYPE(rho_atom_coeff), DIMENSION(:, :), POINTER :: cpc_h_old, cpc_s_old
+      INTEGER                                           :: ref_count
+      INTEGER                                           :: ig_max, ncall, nbuffer, n_simple_mix, &
+                                                           nskip_mixing, p_metric_method
+      INTEGER, POINTER, DIMENSION(:)                    :: ig_global_index
+      LOGICAL                                           :: gmix_p
+      LOGICAL, POINTER, DIMENSION(:)                    :: paw
+      CHARACTER(len=15)                                 :: iter_method
+      REAL(KIND=dp)                                     :: alpha, bconst, beta, broy_w0, &
+                                                           max_g2, max_gvec_exp, pulay_alpha, &
+                                                           pulay_beta, r_step, reg_par, &
+                                                           sigma_max, wc, wmax
+      REAL(KIND=dp), DIMENSION(:), POINTER              :: p_metric
+      REAL(KIND=dp), DIMENSION(:), POINTER              :: kerker_factor
+      REAL(KIND=dp), DIMENSION(:), POINTER              :: special_metric
+      REAL(KIND=dp), DIMENSION(:, :), POINTER           :: weight
+      REAL(KIND=dp), DIMENSION(:, :), POINTER           :: norm_res_buffer, pulay_matrix
+      REAL(KIND=dp), DIMENSION(:, :, :), POINTER        :: fmat, gmat, smat
+      !
+      REAL(KIND=dp)                                     :: nat_local, max_shell
+      REAL(KIND=dp), DIMENSION(:, :, :, :), POINTER     :: acharge
+      REAL(KIND=dp), DIMENSION(:), POINTER              :: atlist
+      !
+      TYPE(cp_1d_z_p_type), DIMENSION(:), POINTER       :: last_res, rhoin, rhoin_old
+      TYPE(cp_1d_z_p_type), DIMENSION(:, :), POINTER    :: delta_res, u_vec, z_vec
+      TYPE(cp_1d_z_p_type), DIMENSION(:, :), POINTER    :: drho_buffer, rhoin_buffer, res_buffer
+      TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER      :: rho_ao_in, rho_ao_in_old, rho_ao_lastres
+      TYPE(dbcsr_p_type), DIMENSION(:, :, :), POINTER   :: rho_ao_in_buffer
+      TYPE(dbcsr_p_type), DIMENSION(:, :, :), POINTER   :: rho_ao_res_buffer
+      TYPE(dbcsr_type), POINTER                         :: rho_ao_mix, rho_ao_res
+      !
+      TYPE(rho_atom_coeff), DIMENSION(:, :), POINTER    :: cpc_h_lastres, cpc_s_lastres
+      TYPE(rho_atom_coeff), DIMENSION(:, :), POINTER    :: cpc_h_in, cpc_s_in
+      TYPE(rho_atom_coeff), DIMENSION(:, :), POINTER    :: cpc_h_old, cpc_s_old
       TYPE(rho_atom_coeff), DIMENSION(:, :, :), POINTER :: cpc_h_in_buffer, cpc_s_in_buffer
       TYPE(rho_atom_coeff), DIMENSION(:, :, :), POINTER :: cpc_h_res_buffer, cpc_s_res_buffer
       TYPE(rho_atom_coeff), DIMENSION(:, :, :), POINTER :: dcpc_h_in, dcpc_s_in
@@ -131,6 +140,8 @@ CONTAINS
       NULLIFY (mixing_store%fmat)
       NULLIFY (mixing_store%gmat)
       NULLIFY (mixing_store%smat)
+      NULLIFY (mixing_store%acharge)
+      NULLIFY (mixing_store%atlist)
       NULLIFY (mixing_store%last_res)
       NULLIFY (mixing_store%rhoin)
       NULLIFY (mixing_store%rhoin_old)
@@ -381,6 +392,13 @@ CONTAINS
 
             IF (ASSOCIATED(mixing_store%fmat)) THEN
                DEALLOCATE (mixing_store%fmat)
+            END IF
+
+            IF (ASSOCIATED(mixing_store%acharge)) THEN
+               DEALLOCATE (mixing_store%acharge)
+            END IF
+            IF (ASSOCIATED(mixing_store%atlist)) THEN
+               DEALLOCATE (mixing_store%atlist)
             END IF
 
             IF (ASSOCIATED(mixing_store%delta_res)) THEN
@@ -706,4 +724,5 @@ CONTAINS
       CALL keyword_release(keyword)
 
    END SUBROUTINE create_mixing_section
+
 END MODULE qs_density_mixing_types

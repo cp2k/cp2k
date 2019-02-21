@@ -80,7 +80,8 @@ MODULE qs_scf_diagonalization
                                               qs_ks_env_type
    USE qs_matrix_pools,                 ONLY: mpools_get,&
                                               qs_matrix_pools_type
-   USE qs_mixing_utils,                 ONLY: mixing_allocate,&
+   USE qs_mixing_utils,                 ONLY: charge_mixing_init,&
+                                              mixing_allocate,&
                                               mixing_init,&
                                               self_consistency_check
    USE qs_mo_methods,                   ONLY: calculate_density_matrix,&
@@ -681,13 +682,15 @@ CONTAINS
          CALL mixing_allocate(qs_env, subspace_env%mixing_method, scf_env%p_mix_new, &
                               scf_env%p_delta, nspin, subspace_env%mixing_store)
          IF (dft_control%qs_control%gapw) THEN
-            CALL get_qs_env(qs_env=qs_env, &
-                            rho_atom_set=rho_atom)
+            CALL get_qs_env(qs_env=qs_env, rho_atom_set=rho_atom)
             CALL mixing_init(subspace_env%mixing_method, rho, subspace_env%mixing_store, &
                              para_env, rho_atom=rho_atom)
+         ELSEIF (dft_control%qs_control%dftb .OR. dft_control%qs_control%xtb) THEN
+            CALL charge_mixing_init(subspace_env%mixing_method, subspace_env%mixing_store, para_env)
+         ELSEIF (dft_control%qs_control%semi_empirical) THEN
+            CPABORT('SE Code not possible')
          ELSE
-            CALL mixing_init(subspace_env%mixing_method, rho, subspace_env%mixing_store, &
-                             para_env)
+            CALL mixing_init(subspace_env%mixing_method, rho, subspace_env%mixing_store, para_env)
          END IF
       END IF
 
