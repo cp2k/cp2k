@@ -551,13 +551,18 @@ CONTAINS
       CHARACTER(len=80), DIMENSION(:), POINTER           :: tmp
       INTEGER                                            :: i, n_rep
 
-      str = '{"'//ADJUSTL(TRIM(keyword))//'" : {'
+      str = "{'"//ADJUSTL(TRIM(keyword))//"' : {"
       CALL section_vals_val_get(section, "_DEFAULT_KEYWORD_", n_rep_val=n_rep)
       DO i = 1, n_rep
          CALL section_vals_val_get(section, "_DEFAULT_KEYWORD_", i_rep_val=i, c_vals=tmp)
          str = TRIM(str)//ADJUSTL(TRIM(tmp(1)))
       END DO
-      str = TRIM(str)//'}}'
+      str = TRIM(str)//"}}"
+
+      ! Workround: switch quotation marks for JSON
+      DO i = 1, LEN_TRIM(str)
+         IF (str(i:i) == "'") str(i:i) = '"'
+      END DO
 
    END SUBROUTINE set_input_string
 
