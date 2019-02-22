@@ -431,9 +431,7 @@ CONTAINS
 
       resval = .FALSE.
       ! We are in a private function, and parser has been tested before...
-      IF (ANY(parser%comment_character .EQ. testchar)) THEN
-         resval = .TRUE.
-      END IF
+      IF (ANY(parser%comment_character == testchar)) resval = .TRUE.
 
    END FUNCTION is_comment
 
@@ -597,7 +595,7 @@ CONTAINS
          length = MIN(len_trim_inputline-parser%icol1+1, length)
          parser%icol1 = parser%icol+1
          parser%icol2 = parser%icol+length
-         i = INDEX(parser%input_line(parser%icol1:parser%icol2), '"')
+         i = INDEX(parser%input_line(parser%icol1:parser%icol2), parser%quote_character)
          IF (i > 0) parser%icol2 = parser%icol+i
          parser%icol = parser%icol2
 
@@ -635,10 +633,10 @@ CONTAINS
                parser%icol2 = -1
                parser%first_separator = .TRUE.
                RETURN
-            ELSE IF (token == '"') THEN
+            ELSE IF (token == parser%quote_character) THEN
                ! Read quoted string
                parser%icol1 = parser%icol+1
-               parser%icol2 = parser%icol+INDEX(parser%input_line(parser%icol1:), '"')
+               parser%icol2 = parser%icol+INDEX(parser%input_line(parser%icol1:), parser%quote_character)
                IF (parser%icol2 == parser%icol) THEN
                   parser%icol1 = parser%icol
                   parser%icol2 = parser%icol
