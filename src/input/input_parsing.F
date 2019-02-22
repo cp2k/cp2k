@@ -517,10 +517,10 @@ CONTAINS
          ELSE
             NULLIFY (c_last, c_first)
             CALL parser_get_object(parser, c_val, string_length=LEN(c_val))
-            IF (c_val(1:1) == '"') THEN
+            IF (c_val(1:1) == parser%quote_character) THEN
                quoted = .TRUE.
                c_val(1:) = c_val(2:) ! Drop first quotation mark
-               i = INDEX(c_val, '"') ! Check for second quotation mark
+               i = INDEX(c_val, parser%quote_character) ! Check for second quotation mark
                IF (i > 0) THEN
                   c_val(i:) = "" ! Discard stuff after second quotation mark
                   eol = .TRUE. ! Enforce end of line
@@ -535,7 +535,7 @@ CONTAINS
             c_last => c_first
             DO WHILE ((.NOT. eol) .AND. (parser_test_next_token(parser) /= "EOL"))
                CALL parser_get_object(parser, c_val, string_length=LEN(c_val))
-               i = INDEX(c_val, '"') ! Check for quotation mark
+               i = INDEX(c_val, parser%quote_character) ! Check for quotation mark
                IF (i > 0) THEN
                   IF (quoted) THEN
                      c_val(i:) = "" ! Discard stuff after second quotation mark

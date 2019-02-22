@@ -52,16 +52,17 @@ MODULE cp_parser_types
    ! this is a zero sized array by choice, and convenience
    CHARACTER(LEN=default_path_length), DIMENSION(2, 1:0) :: empty_initial_variables
 
-! *** Private parameters ***
+   ! Private parameters
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'cp_parser_types'
    INTEGER, SAVE, PRIVATE               :: last_parser_id = 0
 
-! *** Global variables ***
+   ! Global variables
    CHARACTER(LEN=1), PARAMETER, PUBLIC   :: default_continuation_character = CHAR(92) ! backslash
    CHARACTER(LEN=4), PARAMETER, PUBLIC   :: default_separators = ",:;="
    CHARACTER(LEN=3), PARAMETER, PUBLIC   :: default_end_section_label = "END"
    CHARACTER(LEN=1), PARAMETER, PUBLIC   :: default_comment_character(2) = (/"#", "!"/), &
-                                            default_section_character = "&"
+                                            default_section_character = "&", &
+                                            default_quote_character = '"'
    INTEGER, PARAMETER, PUBLIC            :: max_unit_number = 999
 
 ! **************************************************************************************************
@@ -80,6 +81,7 @@ MODULE cp_parser_types
       CHARACTER(LEN=10)                              :: separators
       CHARACTER(LEN=1)                               :: comment_character(2), &
                                                         continuation_character, &
+                                                        quote_character, &
                                                         section_character
       CHARACTER(LEN=default_path_length)             :: input_file_name
       CHARACTER(LEN=max_line_length)                 :: input_line
@@ -155,6 +157,7 @@ CONTAINS
 !> \param separator_chars ...
 !> \param comment_char ...
 !> \param continuation_char ...
+!> \param quote_char ...
 !> \param section_char ...
 !> \param parse_white_lines ...
 !> \param initial_variables ...
@@ -164,15 +167,15 @@ CONTAINS
 !> \version 1.0
 ! **************************************************************************************************
    SUBROUTINE parser_create(parser, file_name, unit_nr, para_env, end_section_label, &
-                            separator_chars, comment_char, continuation_char, section_char, parse_white_lines, &
-                            initial_variables, apply_preprocessing)
+                            separator_chars, comment_char, continuation_char, quote_char, &
+                            section_char, parse_white_lines, initial_variables, apply_preprocessing)
       TYPE(cp_parser_type), POINTER                      :: parser
       CHARACTER(LEN=*), INTENT(IN), OPTIONAL             :: file_name
       INTEGER, INTENT(in), OPTIONAL                      :: unit_nr
       TYPE(cp_para_env_type), OPTIONAL, POINTER          :: para_env
       CHARACTER(LEN=*), INTENT(IN), OPTIONAL             :: end_section_label, separator_chars
       CHARACTER(LEN=1), INTENT(IN), OPTIONAL             :: comment_char, continuation_char, &
-                                                            section_char
+                                                            quote_char, section_char
       LOGICAL, INTENT(IN), OPTIONAL                      :: parse_white_lines
       CHARACTER(len=*), DIMENSION(:, :), OPTIONAL        :: initial_variables
       LOGICAL, INTENT(IN), OPTIONAL                      :: apply_preprocessing
@@ -189,13 +192,15 @@ CONTAINS
       parser%input_file_name = ""
       NULLIFY (parser%initial_variables)
 
-      !   *** Load the default values and overwrite them, if requested ***
+      ! Load the default values and overwrite them, if requested
       parser%separators = default_separators
       IF (PRESENT(separator_chars)) parser%separators = separator_chars
       parser%comment_character = default_comment_character
       IF (PRESENT(comment_char)) parser%comment_character = comment_char
       parser%continuation_character = default_continuation_character
       IF (PRESENT(continuation_char)) parser%continuation_character = continuation_char
+      parser%quote_character = default_quote_character
+      IF (PRESENT(quote_char)) parser%quote_character = quote_char
       parser%section_character = default_section_character
       IF (PRESENT(section_char)) parser%section_character = section_char
       parser%end_section = parser%section_character//default_end_section_label
