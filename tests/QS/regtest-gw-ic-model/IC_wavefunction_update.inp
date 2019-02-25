@@ -12,7 +12,7 @@
     BASIS_SET_FILE_NAME  HFX_BASIS
     POTENTIAL_FILE_NAME  GTH_POTENTIALS
     &MGRID
-      CUTOFF  300
+      CUTOFF  200
       REL_CUTOFF  30
     &END MGRID
     &POISSON
@@ -26,7 +26,7 @@
     &END QS
     &SCF
       SCF_GUESS ATOMIC
-      EPS_SCF 1.0E-6
+      EPS_SCF 1.0E-5
       MAX_SCF 100
       &PRINT
         &RESTART OFF
@@ -37,7 +37,7 @@
         PRECONDITIONER  FULL_SINGLE_INVERSE
       &END
       &OUTER_SCF
-        EPS_SCF  1.0E-6
+        EPS_SCF  1.0E-5
         MAX_SCF  50
       &END
     &END SCF
