@@ -209,17 +209,26 @@ CONTAINS
                END DO
             END DO
             IF (ASSOCIATED(mixing_store%acharge)) DEALLOCATE (mixing_store%acharge)
-            ALLOCATE (mixing_store%acharge(na, max_shell, nbuffer, nspins))
+            ALLOCATE (mixing_store%acharge(na, max_shell, nbuffer))
+            IF (ASSOCIATED(mixing_store%dacharge)) DEALLOCATE (mixing_store%dacharge)
+            ALLOCATE (mixing_store%dacharge(na, max_shell, nbuffer))
          END IF
          IF (mixing_method == pulay_mixing_nr) THEN
             IF (ASSOCIATED(mixing_store%pulay_matrix)) DEALLOCATE (mixing_store%pulay_matrix)
             ALLOCATE (mixing_store%pulay_matrix(nbuffer, nbuffer))
          ELSEIF (mixing_method == broyden_mixing_nr) THEN
-            !
+            IF (ASSOCIATED(mixing_store%abroy)) DEALLOCATE (mixing_store%abroy)
+            ALLOCATE (mixing_store%abroy(nbuffer, nbuffer))
+            IF (ASSOCIATED(mixing_store%wbroy)) DEALLOCATE (mixing_store%wbroy)
+            ALLOCATE (mixing_store%wbroy(nbuffer))
+            IF (ASSOCIATED(mixing_store%dfbroy)) DEALLOCATE (mixing_store%dfbroy)
+            ALLOCATE (mixing_store%dfbroy(na, max_shell, nbuffer))
+            IF (ASSOCIATED(mixing_store%ubroy)) DEALLOCATE (mixing_store%ubroy)
+            ALLOCATE (mixing_store%ubroy(na, max_shell, nbuffer))
          ELSEIF (mixing_method == broyden_mixing_new_nr) THEN
-            !
+            CPABORT("broyden_mixing_new not available")
          ELSEIF (mixing_method == multisecant_mixing_nr) THEN
-            !
+            CPABORT("multisecant_mixing not available")
          END IF
       ELSE
          !   *** allocate buffer for gspace mixing ***
