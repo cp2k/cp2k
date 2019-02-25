@@ -8,6 +8,6 @@ RI_RPA_H2O_im_time_minimax.inp                        11      1e-08            -
 RI_RPA_H2O_PBE0.inp                                   11      1e-08            -17.137291323423945
 RI_RPA_H2O_PBE0_ADMM1.inp                             11      1e-08            -17.139647828522083
 RI_RPA_H2O_Obara_Saika.inp                            11      1e-08            -17.160204463746162
-RPA_kpoints_H2O.inp                                   11      1e-08            -17.366007782956057
-RPA_kpoints_H2O_non_zero_group_sizes.inp              11      1e-08            -17.366007782955769
+RPA_kpoints_H2O.inp                                   11      1e-08            -30.889070458537574
+RPA_kpoints_H2O_non_zero_group_sizes.inp              11      1e-08            -30.889070458537631
 #EOF

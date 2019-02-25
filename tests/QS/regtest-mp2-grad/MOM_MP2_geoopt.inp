@@ -97,7 +97,7 @@
       H  0.000000    0.757136    0.520545  
     &END
     &CELL
-        ABC 8.000 8.000 8.000    
+        ABC 6.000 6.000 6.000    
     &END
     &KIND H
       BASIS_SET          DZVP-GTH

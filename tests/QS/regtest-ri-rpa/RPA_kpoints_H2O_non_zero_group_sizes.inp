@@ -16,13 +16,13 @@
       REL_CUTOFF  20
     &END MGRID
     &QS
-      METHOD GAPW
+      METHOD GPW
       EPS_DEFAULT 1.0E-15
       EPS_PGF_ORB 1.0E-15
     &END QS
     &SCF
       SCF_GUESS ATOMIC
-      EPS_SCF 1.0E-7
+      EPS_SCF 1.0E-5
       MAX_SCF 100
       &PRINT
         &RESTART OFF
@@ -48,8 +48,8 @@
         &WFC_GPW
           CUTOFF  100
           REL_CUTOFF 20
-          EPS_GRID 1.0E-10
-          EPS_FILTER 1.0E-10
+          EPS_GRID 1.0E-6
+          EPS_FILTER 1.0E-6
           SIZE_LATTICE_SUM 3
         &END
         MEMORY  200.
@@ -61,6 +61,7 @@
           MEMORY_INFO
           GROUP_SIZE_P 2
           DO_KPOINTS
+          EPS_FILTER_IM_TIME 1.0E-6
         &END IM_TIME
         &RI_RPA
           RPA_NUM_QUAD_POINTS  6
@@ -71,7 +72,7 @@
   &END DFT
   &SUBSYS
     &CELL
-      ABC [angstrom]  12.000   12.000  12.000
+      ABC [angstrom]  10.000   10.000  10.000
       MULTIPLE_UNIT_CELL  1 1 1
       PERIODIC XYZ
     &END CELL
