@@ -231,7 +231,8 @@ CONTAINS
          keyword=keyword, &
          name="IM_TIME", &
          variants=(/"IMAG_TIME"/), &
-         description="Turns on cubic scaling RI-RPA and Laplace-SOS-MP2 method using the imaginary time formalism.", &
+         description="Turns on cubic scaling RI-RPA and Laplace-SOS-MP2 method using the imaginary time formalism. "//&
+         "If no IM_TIME section is present, the default parameters are used.", &
          usage="IM_TIME", &
          default_l_val=.FALSE., &
          lone_keyword_l_val=.TRUE.)
@@ -456,11 +457,12 @@ CONTAINS
          routineP = moduleN//':'//routineN
 
       TYPE(keyword_type), POINTER                        :: keyword
+      TYPE(section_type), POINTER                        :: subsection
 
       CPASSERT(.NOT. ASSOCIATED(section))
       CALL section_create(section, "RI_LAPLACE", &
                           description="Parameters influencing the RI-SOS-MP2-Laplace method", &
-                          n_keywords=2, n_subsections=0, repeats=.FALSE., &
+                          n_keywords=3, n_subsections=1, repeats=.FALSE., &
                           citations=(/DelBen2013/))
 
       NULLIFY (keyword)
@@ -486,6 +488,22 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
+      CALL keyword_create( &
+         keyword=keyword, &
+         name="IM_TIME", &
+         variants=(/"IMAG_TIME"/), &
+         description="Turns on cubic scaling RI-RPA and Laplace-SOS-MP2 method using the imaginary time formalism. "// &
+         "If no IM_TIME section is present, default parameters are used.", &
+         usage="IM_TIME", &
+         default_l_val=.FALSE., &
+         lone_keyword_l_val=.TRUE.)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL create_ri_im_time(subsection)
+      CALL section_add_subsection(section, subsection)
+      CALL section_release(subsection)
+
    END SUBROUTINE create_ri_laplace
 
 ! **************************************************************************************************
@@ -503,7 +521,7 @@ CONTAINS
       CPASSERT(.NOT. ASSOCIATED(section))
       CALL section_create(section, "RI_RPA", &
                           description="Parameters influencing the RI RPA method", &
-                          n_keywords=2, n_subsections=1, repeats=.FALSE., &
+                          n_keywords=8, n_subsections=4, repeats=.FALSE., &
                           citations=(/DelBen2013, DelBen2015/))
 
       NULLIFY (keyword, subsection)
@@ -588,6 +606,18 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
+      CALL keyword_create( &
+         keyword=keyword, &
+         name="IM_TIME", &
+         variants=(/"IMAG_TIME"/), &
+         description="Turns on cubic scaling RI-RPA and Laplace-SOS-MP2 method using the imaginary time formalism. "// &
+         "If no IM_TIME section is present, the default parameters are used.", &
+         usage="IM_TIME", &
+         default_l_val=.FALSE., &
+         lone_keyword_l_val=.TRUE.)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
       ! here we generate a hfx subsection to use in the case EXX has to be computed after RPA
       CALL create_hfx_section(subsection)
       CALL section_add_subsection(section, subsection)
@@ -600,6 +630,11 @@ CONTAINS
 
       ! here we generate a RI_AXK subsection
       CALL create_ri_axk(subsection)
+      CALL section_add_subsection(section, subsection)
+      CALL section_release(subsection)
+
+      ! here we generate an IM_TIME subsection
+      CALL create_ri_im_time(subsection)
       CALL section_add_subsection(section, subsection)
       CALL section_release(subsection)
 
@@ -1269,10 +1304,18 @@ CONTAINS
 
       CPASSERT(.NOT. ASSOCIATED(section))
       CALL section_create(section, "IM_TIME", &
-                          description="Parameters influencing the cubic-scaling RPA or Laplace-SOS-MP2 method.", &
+                          description="Parameters influencing the cubic-scaling RPA or Laplace-SOS-MP2 method."// &
+                          "Use either IM_TIME, RI_RPA%IM_TIME or RI_LAPLACE%IM_TIME.", &
                           n_keywords=12, n_subsections=2, repeats=.FALSE.)
 
       NULLIFY (keyword, subsection)
+
+      CALL keyword_create(keyword, name="_SECTION_PARAMETERS_", &
+                          description="Activates cubic-scaling RPA and Laplace-SOS-MP2 calculations.", &
+                          usage="&im_time .TRUE.", &
+                          default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
 
       CALL keyword_create(keyword, name="MEMORY_CUT", &
                           description="Cuts the memory of the M_munu_P^occ/virt matrix by the factor given. "// &
