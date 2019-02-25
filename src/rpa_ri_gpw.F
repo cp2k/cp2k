@@ -40,10 +40,12 @@ MODULE rpa_ri_gpw
                                               dbcsr_allocate_matrix_set,&
                                               dbcsr_deallocate_matrix_set
    USE cp_fm_basic_linalg,              ONLY: cp_fm_column_scale,&
+                                              cp_fm_frobenius_norm,&
                                               cp_fm_invert,&
                                               cp_fm_scale,&
                                               cp_fm_scale_and_add,&
                                               cp_fm_syrk,&
+                                              cp_fm_trace,&
                                               cp_fm_transpose,&
                                               cp_fm_upper_to_full
    USE cp_fm_cholesky,                  ONLY: cp_fm_cholesky_decompose,&
@@ -4116,17 +4118,12 @@ CONTAINS
 
             IF (do_ri_sos_laplace_mp2) THEN
                ! calculate the trace of the product Q*Q
-
-               trace_XX = 0.0_dp
-               DO jjB = 1, ncol_local
-                  DO iiB = 1, nrow_local
-                     IF (my_open_shell) THEN
-                        trace_XX = trace_XX+fm_mat_Q%local_data(iiB, jjB)*fm_mat_Q_beta%local_data(iiB, jjB)
-                     ELSE
-                        trace_XX = trace_XX+fm_mat_Q%local_data(iiB, jjB)*fm_mat_Q%local_data(iiB, jjB)
-                     END IF
-                  END DO
-               END DO
+               IF (my_open_shell) THEN
+                  CALL cp_fm_trace(fm_mat_Q, fm_mat_Q_beta, trace_XX)
+               ELSE
+                  CALL cp_fm_frobenius_norm(fm_mat_Q, trace_XX)
+                  trace_XX = trace_XX*trace_XX
+               END IF
 
                Erpa = Erpa-trace_XX*tau_wj(jquad)
 
