@@ -75,9 +75,14 @@ MODULE qs_density_mixing_types
       REAL(KIND=dp), DIMENSION(:, :), POINTER           :: norm_res_buffer, pulay_matrix
       REAL(KIND=dp), DIMENSION(:, :, :), POINTER        :: fmat, gmat, smat
       !
-      REAL(KIND=dp)                                     :: nat_local, max_shell
-      REAL(KIND=dp), DIMENSION(:, :, :, :), POINTER     :: acharge
-      REAL(KIND=dp), DIMENSION(:), POINTER              :: atlist
+      INTEGER                                           :: nat_local, max_shell
+      REAL(KIND=dp), DIMENSION(:, :, :), POINTER        :: acharge
+      REAL(KIND=dp), DIMENSION(:, :, :), POINTER        :: dacharge
+      REAL(KIND=dp), DIMENSION(:, :, :), POINTER        :: dfbroy
+      REAL(KIND=dp), DIMENSION(:, :, :), POINTER        :: ubroy
+      REAL(KIND=dp), DIMENSION(:, :), POINTER           :: abroy
+      REAL(KIND=dp), DIMENSION(:), POINTER              :: wbroy
+      INTEGER, DIMENSION(:), POINTER                    :: atlist
       !
       TYPE(cp_1d_z_p_type), DIMENSION(:), POINTER       :: last_res, rhoin, rhoin_old
       TYPE(cp_1d_z_p_type), DIMENSION(:, :), POINTER    :: delta_res, u_vec, z_vec
@@ -141,6 +146,11 @@ CONTAINS
       NULLIFY (mixing_store%gmat)
       NULLIFY (mixing_store%smat)
       NULLIFY (mixing_store%acharge)
+      NULLIFY (mixing_store%dacharge)
+      NULLIFY (mixing_store%dfbroy)
+      NULLIFY (mixing_store%ubroy)
+      NULLIFY (mixing_store%abroy)
+      NULLIFY (mixing_store%wbroy)
       NULLIFY (mixing_store%atlist)
       NULLIFY (mixing_store%last_res)
       NULLIFY (mixing_store%rhoin)
@@ -396,6 +406,21 @@ CONTAINS
 
             IF (ASSOCIATED(mixing_store%acharge)) THEN
                DEALLOCATE (mixing_store%acharge)
+            END IF
+            IF (ASSOCIATED(mixing_store%dacharge)) THEN
+               DEALLOCATE (mixing_store%dacharge)
+            END IF
+            IF (ASSOCIATED(mixing_store%dfbroy)) THEN
+               DEALLOCATE (mixing_store%dfbroy)
+            END IF
+            IF (ASSOCIATED(mixing_store%ubroy)) THEN
+               DEALLOCATE (mixing_store%ubroy)
+            END IF
+            IF (ASSOCIATED(mixing_store%abroy)) THEN
+               DEALLOCATE (mixing_store%abroy)
+            END IF
+            IF (ASSOCIATED(mixing_store%wbroy)) THEN
+               DEALLOCATE (mixing_store%wbroy)
             END IF
             IF (ASSOCIATED(mixing_store%atlist)) THEN
                DEALLOCATE (mixing_store%atlist)

@@ -49,6 +49,7 @@ MODULE xtb_matrices
    USE mulliken,                        ONLY: ao_charges
    USE orbital_pointers,                ONLY: ncoset
    USE particle_types,                  ONLY: particle_type
+   USE qs_charge_mixing,                ONLY: charge_mixing
    USE qs_dispersion_pairpot,           ONLY: d3_cnumber,&
                                               d3_cnumber_bcast,&
                                               dcnum_type
@@ -76,6 +77,7 @@ MODULE xtb_matrices
    USE qs_overlap,                      ONLY: create_sab_matrix
    USE qs_rho_types,                    ONLY: qs_rho_get,&
                                               qs_rho_type
+   USE qs_scf_types,                    ONLY: qs_scf_env_type
    USE virial_methods,                  ONLY: virial_pair_force
    USE virial_types,                    ONLY: virial_type
    USE xtb_coulomb,                     ONLY: build_xtb_coulomb
@@ -949,6 +951,7 @@ CONTAINS
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
       TYPE(qs_ks_env_type), POINTER                      :: ks_env
       TYPE(qs_rho_type), POINTER                         :: rho
+      TYPE(qs_scf_env_type), POINTER                     :: scf_env
       TYPE(section_vals_type), POINTER                   :: scf_section
       TYPE(xtb_atom_type), POINTER                       :: xtb_kind
 
@@ -1018,6 +1021,11 @@ CONTAINS
             END DO
          END DO
          DEALLOCATE (aocg)
+
+         ! charge mixing
+         CALL get_qs_env(qs_env=qs_env, scf_env=scf_env)
+         CALL charge_mixing(qs_env, scf_env%mixing_method, scf_env%mixing_store, &
+                            charges, para_env, scf_env%iter_count)
 
          DO iatom = 1, natom
             mcharge(iatom) = SUM(charges(iatom, :))

@@ -13,7 +13,7 @@
 ! 3) Periodic displacement field (debugging)
 ! 4) Check for RTP and EMD
 ! 5) Wannier localization
-! 6) Charge Mixing methods: Broyden/Pulay
+! 6) Charge Mixing methods: Broyden/Pulay (more debugging needed, also add to DFTB)
 ! **************************************************************************************************
 MODULE xtb_types
 
