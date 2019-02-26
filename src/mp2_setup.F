@@ -55,7 +55,8 @@ CONTAINS
       INTEGER, DIMENSION(:), POINTER                     :: tmplist
       TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(section_vals_type), POINTER                   :: eri_mme_section, im_time_section, mp2_section
-      LOGICAL                                            :: do_explicit
+      LOGICAL                                            :: explicit_k_laplace, explicit_k_rpa, &
+         explicit_k_wfc, explicit_laplace, explicit_rpa, explicit_wfc
 
       CALL timeset(routineN, handle)
       logger => cp_get_default_logger()
@@ -230,39 +231,47 @@ CONTAINS
       CALL section_vals_val_get(mp2_section, "RI_RPA%RI_G0W0%PERIODIC%NUM_OMEGA_POINTS", &
                                 i_val=mp2_env%ri_g0w0%num_omega_points)
 
-      CALL section_vals_get(mp2_section, "IM_TIME", explicit=do_explicit_wfc)
-      CALL section_vals_get(mp2_section, "RI_LAPLACE%IM_TIME", explicit=do_explicit_laplace)
-      CALL section_vals_get(mp2_section, "RI_RPA%IM_TIME", explicit=do_explicit_rpa)
+      CALL section_vals_get(mp2_section, "IM_TIME", explicit=explicit_wfc)
+      CALL section_vals_get(mp2_section, "RI_LAPLACE%IM_TIME", explicit=explicit_laplace)
+      CALL section_vals_get(mp2_section, "RI_RPA%IM_TIME", explicit=explicit_rpa)
 
       ! Ensure that at most one IM_TIME section is called
-      IF (do_explicit_wfc .AND. do_explicit_laplace) CPABORT("Use only one IM_TIME section!")
-      IF (do_explicit_wfc .AND. do_explicit_rpa) CPABORT("Use only one IM_TIME section!")
-      IF (do_explicit_rpa .AND. do_explicit_laplace) CPABORT("Use only one IM_TIME section!")
+      IF (explicit_wfc .AND. explicit_laplace) CPABORT("Use only one IM_TIME section!")
+      IF (explicit_wfc .AND. explicit_rpa) CPABORT("Use only one IM_TIME section!")
+      IF (explicit_rpa .AND. explicit_laplace) CPABORT("Use only one IM_TIME section!")
 
-      ! Set the im_time_pointer
+      CALL section_vals_val_get(mp2_section, "IM_TIME", explicit=explicit_k_wfc)
+      CALL section_vals_val_get(mp2_section, "RI_LAPLACE%IM_TIME", explicit=explicit_k_laplace)
+      CALL section_vals_val_get(mp2_section, "RI_RPA%IM_TIME", explicit=explicit_k_rpa)
+
+      ! Ensure that at most one IM_TIME keyword is used
+      IF (explicit_k_wfc .AND. explicit_k_laplace) CPABORT("Use only one IM_TIME keyword!")
+      IF (explicit_k_wfc .AND. explicit_k_rpa) CPABORT("Use only one IM_TIME keyword!")
+      IF (explicit_k_rpa .AND. explicit_k_laplace) CPABORT("Use only one IM_TIME keyword!")
+
+      ! Find what keyword/ section pair is used, set up the section pointer and do_im_time
       NULLIFY (im_time_section)
-      IF (do_explicit_rpa) THEN
-         im_time_section => section_get_subsection(mp2_section, "RI_RPA%IM_TIME")
-      ELSE IF (do_explicit_laplace) THEN
+      IF (explicit_laplace .OR. explicit_k_laplace) THEN
          im_time_section => section_get_subsection(mp2_section, "RI_LAPLACE%IM_TIME")
+         IF (explicit_k_laplace) THEN
+            CALL section_vals_val_get(mp2_section, "RI_LAPLACE%IM_TIME", &
+                                l_val=mp2_env%do_im_time)
+         END IF
+      ELSE IF (explicit_rpa .OR. explicit_k_rpa) THEN
+         im_time_section => section_get_subsection(mp2_section, "RI_RPA%IM_TIME")
+         IF (explicit_k_rpa) THEN
+            CALL section_vals_val_get(mp2_section, "RI_RPA%IM_TIME", &
+                                l_val=mp2_env%do_im_time)
+         END IF
       ELSE
          im_time_section => section_get_subsection(mp2_section, "IM_TIME")
+         IF (explicit_k_wfc) THEN
+            CALL section_vals_val_get(mp2_section, "IM_TIME", &
+                                l_val=mp2_env%do_im_time, explicit=do_explicit_wfc)
+         END IF
       END IF
-
-      ! Determine wether to actually use the cubic scaling algorithm
-      ! Allows to directly activate cubic scaling by simply activating the keyword.
-      ! The keyword overrides the section. If the keyword is not set, use the section.
-      IF (do_explicit_laplace) THEN
-         CALL section_vals_val_get(mp2_section, "RI_LAPLACE%IM_TIME", &
-                                l_val=mp2_env%do_im_time, explicit=do_explicit_wfc)
-      ELSE IF (do_explicit_rpa) THEN
-         CALL section_vals_val_get(mp2_section, "RI_RPA%IM_TIME", &
-                                l_val=mp2_env%do_im_time, explicit=do_explicit_wfc)
-      ELSE
-         CALL section_vals_val_get(mp2_section, "IM_TIME", &
-                                l_val=mp2_env%do_im_time, explicit=do_explicit_wfc)
-      END IF
-      IF (.NOT. do_explicit_wfc) THEN
+      ! If no keyword was used, take the info from the IM_TIME section.
+      IF (.NOT. (explicit_k_laplace .OR. explicit_k_rpa .OR. explicit_k_wfc)) THEN
          CALL section_vals_val_get(im_time_section, "_SECTION_PARAMETERS_", &
                                 l_val=mp2_env%do_im_time)
       END IF
