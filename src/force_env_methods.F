@@ -120,7 +120,7 @@ MODULE force_env_methods
         init_embed_pot, make_subsys_embed_pot, opt_embed_step, prepare_embed_opt, &
         print_emb_opt_info, print_embed_restart, print_pot_simple_grid, print_rho_diff, &
         print_rho_spin_diff, read_embed_pot, release_opt_embed, step_control, &
-        understand_spin_states
+        understand_spin_states, Leeuwen_Baerends_potential_update
    USE particle_list_types,             ONLY: particle_list_p_type,&
                                               particle_list_type
    USE physcon,                         ONLY: debye
@@ -1856,8 +1856,11 @@ CONTAINS
             CALL calculate_embed_pot_grad(force_env%sub_force_env(ref_subsys_number)%force_env%qs_env, &
                                           diff_rho_r, diff_rho_spin, opt_embed)
          ! Take the embedding step
-         CALL opt_embed_step(diff_rho_r, diff_rho_spin, opt_embed, embed_pot, spin_embed_pot, &
-                             force_env%sub_force_env(ref_subsys_number)%force_env%qs_env)
+       !  CALL opt_embed_step(diff_rho_r, diff_rho_spin, opt_embed, embed_pot, spin_embed_pot, &
+       !                      force_env%sub_force_env(ref_subsys_number)%force_env%qs_env)
+
+         CALL Leeuwen_Baerends_potential_update(pw_env, embed_pot, spin_embed_pot,  diff_rho_r, diff_rho_spin, &
+                                                rho_r_ref, opt_embed%open_shell_embed)
 
       ENDDO ! i_iter
 
