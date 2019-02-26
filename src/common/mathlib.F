@@ -56,7 +56,8 @@ MODULE mathlib
              reflect_vector, &
              dotprod_3d, &
              transpose_3d, &
-             expint, abnormal_value
+             expint, abnormal_value, &
+             get_diag
 
    INTERFACE det_3x3
       MODULE PROCEDURE det_3x3_1, det_3x3_2

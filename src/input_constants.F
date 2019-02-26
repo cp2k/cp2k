@@ -544,9 +544,8 @@ MODULE input_constants
                                                sic_list_unpaired = 2
    INTEGER, PARAMETER, PUBLIC               :: tddfpt_singlet = 0, &
                                                tddfpt_triplet = 1, &
-                                               tddfpt_both = 2, &
-                                               tddfpt_lsd = 3, &
-                                               tddfpt_roks = 4
+                                               tddfpt_spin_cons = 2, &
+                                               tddfpt_spin_flip = 3
    INTEGER, PARAMETER, PUBLIC               :: tddfpt_lanczos = 0, &
                                                tddfpt_davidson = 1
    INTEGER, PARAMETER, PUBLIC               :: oe_none = 0, &
@@ -632,7 +631,9 @@ MODULE input_constants
 
    ! Time-dependent XAS
    INTEGER, PARAMETER, PUBLIC               :: xas_tdp_by_index = 1, &
-                                               xas_tdp_by_kind = 2
+                                               xas_tdp_by_kind = 2, &
+                                               xas_tdp_roks = 3, &
+                                               xas_tdp_uks = 4
 
    ! Form of dipole operator for TDDFPT oscillator strength calculation
    INTEGER, PARAMETER, PUBLIC               :: tddfpt_dipole_berry = 1, &

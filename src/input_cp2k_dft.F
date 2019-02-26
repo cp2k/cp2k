@@ -96,7 +96,7 @@ MODULE input_cp2k_dft
         xas_2s_type, xas_3d_type, xas_3p_type, xas_3s_type, xas_4d_type, xas_4f_type, xas_4p_type, &
         xas_4s_type, xas_dip_len, xas_dip_vel, xas_dscf, xas_none, xas_tp_fh, xas_tp_flex, &
         xas_tp_hh, xas_tp_xfh, xas_tp_xhh, xes_tp_val, xas_not_excited, xas_tdp_by_kind, &
-        xas_tdp_by_index, tddfpt_both
+        xas_tdp_by_index, tddfpt_spin_cons, tddfpt_spin_flip
    USE input_cp2k_almo,                 ONLY: create_almo_scf_section
    USE input_cp2k_distribution,         ONLY: create_distribution_section
    USE input_cp2k_field,                ONLY: create_efield_section,&
@@ -7884,7 +7884,7 @@ CONTAINS
                           description="XAS simulations using TDDFPT. Excitation from specified "//&
                           "core orbitals are considered one at a time. In case of high symmetry "//&
                           "structures, donor core orbitals should be localized.", &
-                          n_keywords=13, n_subsections=4, repeats=.FALSE.)
+                          n_keywords=7, n_subsections=5, repeats=.FALSE.)
 
       NULLIFY (keyword, subsection, print_key)
 
@@ -7910,6 +7910,32 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
+      CALL keyword_create(keyword, name="EXCITATIONS", &
+                          variants=(/"EXCITATION"/), &
+                          description="Specify the type of excitation to consider. In case of a "//&
+                                      "resctricted closed-shell ground state calculation, "//&
+                                      "RCS_SINGLET or/and RCS_TRIPLET can be chosen. In case of a "//&
+                                      "open-shell ground state calculation (either UKS or ROKS), "//&
+                                      "standard spin conserving excitation (OS_SPIN_CONS) or/and "//&
+                                      "spin-flip excitation (OS_SPIN_FLIP) can be chosen.",&
+                          usage="EXCITATIONS {string}", &
+                          repeats=.TRUE., &
+                          default_i_val=tddfpt_singlet, &
+                          enum_c_vals=s2a("RCS_SINGLET", "RCS_TRIPLET", "OS_SPIN_CONS", "OS_SPIN_FLIP"), & 
+                          enum_i_vals=(/tddfpt_singlet, tddfpt_triplet, tddfpt_spin_cons, tddfpt_spin_flip/))
+      CALL section_add_keyword(section, keyword)      
+      CALL keyword_release(keyword)
+
+
+!  The donor state subsection
+      
+      CALL section_create(subsection, name="DONOR_STATES", &
+                          description="Specifications for the donor states from which core "// &
+                                      "electrons are excited", &
+                          n_keywords=5, &
+                          n_subsections=0, &
+                          repeats=.FALSE.)
+
       CALL keyword_create(keyword, name="DEFINE_EXCITED", &
                           description="Whether the atoms to be excited should be defined by "// &
                           "a list of atom indices or by a list of atom kinds.", &
@@ -7917,7 +7943,7 @@ CONTAINS
                           default_i_val=xas_tdp_by_index, &
                           enum_c_vals=s2a("BY_INDEX", "BY_KIND"), &
                           enum_i_vals=(/xas_tdp_by_index, xas_tdp_by_kind/))
-      CALL section_add_keyword(section, keyword)
+      CALL section_add_keyword(subsection, keyword)
       CALL keyword_release(keyword)
 
       CALL keyword_create(keyword, name="ATOM_LIST", &
@@ -7926,7 +7952,7 @@ CONTAINS
                           "Keyword only taken into account if DEFINE_EXCITED = BY_INDEX", &
                           usage="ATOM_LIST {integer}  {integer} ..  {integer} ", &
                           n_var=-1, type_of_var=integer_t, repeats=.FALSE.)
-      CALL section_add_keyword(section, keyword)
+      CALL section_add_keyword(subsection, keyword)
       CALL keyword_release(keyword)
 
       CALL keyword_create(keyword, name="KIND_LIST", &
@@ -7935,7 +7961,7 @@ CONTAINS
                           "Keyword only taken into account if DEFINE_EXCITED = BY_KIND", &
                           usage="KIND_LIST {string}  {string} ..  {string} ", &
                           n_var=-1, type_of_var=char_t, repeats=.FALSE.)
-      CALL section_add_keyword(section, keyword)
+      CALL section_add_keyword(subsection, keyword)
       CALL keyword_release(keyword)
 
       CALL keyword_create(keyword, name="STATE_TYPES", &
@@ -7952,7 +7978,7 @@ CONTAINS
                           enum_c_vals=s2a("1S", "2S", "2P", "NE"), &
                           enum_desc=s2a("1s orbital", "2s orbital", "2p orbitals", "not excited"), &
                           enum_i_vals=(/xas_1s_type, xas_2s_type, xas_2p_type, xas_not_excited/))
-      CALL section_add_keyword(section, keyword)
+      CALL section_add_keyword(subsection, keyword)
       CALL keyword_release(keyword)
 
       CALL keyword_create(keyword, name="N_SEARCH", & 
@@ -7962,43 +7988,13 @@ CONTAINS
                           "then all searched states are first localized.",&
                           usage="N_SEARCH {integer}",&
                           default_i_val=-1)
-      CALL section_add_keyword(section, keyword)
-      CALL keyword_release(keyword)
+      CALL section_add_keyword(subsection, keyword)         
+      CALL keyword_release(keyword)        
 
-      CALL keyword_create(keyword, name="NGAUSS", &
-                          description="Number of GTOs used when expanding STOs for core donor  "// &
-                          "states identification.", &
-                          usage="NGAUSS {integer}", &
-                          default_i_val=3)
-      CALL section_add_keyword(section, keyword)
-      CALL keyword_release(keyword)
-
-      CALL keyword_create(keyword, name="DIPOLE_FORM", &
-                          variants=(/"DIP_FORM"/), &
-                          description="Type of integral to get the oscillator strengths "// &
-                          "in the dipole approximation", &
-                          usage="DIPOLE_FORM {string}", &
-                          default_i_val=xas_dip_vel, &
-                          enum_c_vals=s2a("LENGTH", "VELOCITY"), &
-                          enum_desc=s2a("Length form &lang; 0 | e r | n &rang;", &
-                                        "Velocity form &lang; 0 | d/dr | n &rang;"), &
-                          enum_i_vals=(/xas_dip_len, xas_dip_vel/))
-      CALL section_add_keyword(section, keyword)
-      CALL keyword_release(keyword)
-
-      CALL keyword_create(keyword, name="EXCITATIONS", &
-                          variants=(/"EXCITATION"/), &
-                          description="Whether singlet or triplet excitations should be "// &
-                                     "considered (starting from the spin-restricted ground state)."//&
-                                     "BOTH is needed for spin-orbit coupling calculations." //&
-                                     "Note: only applies for spin-restricted calculations",&
-                          usage="EXCITATIONS {string}", &
-                          default_i_val=tddfpt_singlet, &
-                          enum_c_vals=s2a("SINGLET", "TRIPLET", "BOTH"), & 
-                          enum_i_vals=(/tddfpt_singlet, tddfpt_triplet, tddfpt_both/))
-      CALL section_add_keyword(section, keyword)      
-      CALL keyword_release(keyword)
-
+      CALL section_add_subsection(section, subsection)
+      CALL section_release(subsection)
+! End of the donor states subsection
+      
       CALL keyword_create(keyword, name="SPIN_ORBIT_COUPLING", &
                           variants=(/"SOC"/), &
                           description="Whether spin-orbit coupling should be added. " // &
@@ -8018,6 +8014,7 @@ CONTAINS
       CALL keyword_release(keyword)      
 
       CALL keyword_create(keyword, name="GRID", &
+                          variants=(/"ATOMIC_GRID"/), &
                           description="Specification of the atomic grids for a given atomic kind."//&
                                       "This keyword can/should be repeated for each excited kind. "//&
                                       "The default grid dimensions are those set for the GAPW "// &
@@ -8057,7 +8054,6 @@ CONTAINS
       CALL section_add_keyword(subsection, keyword)
       CALL keyword_release(keyword)
 
-      !TODO: update keywrod description
       CALL section_create(subsubsection, name="OT_DIAG", &
                           description="Defines a set of parameters in case the OT (orbital " // &
                                       "transformation) iterative eigensolver should be used. " // &
