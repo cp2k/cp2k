@@ -9,4 +9,5 @@ H2O_H2_pbe_grid.inp                                   11       1e-9             
 H_H_pbe_pbe0_triplet_grid.inp                         11       1e-9                 -0.94028826539
 H_H_pbe_pbe0_triplet_grid_restart_cube.inp            11       1e-9                 -0.94028826537
 H_H_given_embed.inp                                   11       1e-9                 -0.49080678947
+H2O_H2_pbe_baerends_uks.inp                           11       1e-9                 -18.3246545283
 #EOF

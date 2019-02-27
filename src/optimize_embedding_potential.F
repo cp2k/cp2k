@@ -103,7 +103,7 @@ MODULE optimize_embedding_potential
              opt_embed_step, print_rho_diff, step_control, max_dens_diff, print_emb_opt_info, &
              conv_check_embed, make_subsys_embed_pot, print_embed_restart, find_aux_dimen, &
              read_embed_pot, understand_spin_states, given_embed_pot, print_rho_spin_diff, &
-             print_pot_simple_grid, get_prev_density, get_max_subsys_diff, Leeuwen_Baerends_potential_update
+             print_pot_simple_grid, get_prev_density, get_max_subsys_diff
 
 CONTAINS
 
@@ -480,6 +480,9 @@ CONTAINS
       CALL section_vals_val_get(opt_embed_section, "GRID_OPT", &
                                 l_val=opt_embed%grid_opt)
 
+      CALL section_vals_val_get(opt_embed_section, "LEEUWEN-BAERENDS", &
+                                l_val=opt_embed%leeuwen)
+
       CALL section_vals_val_get(opt_embed_section, "OPTIMIZER", i_val=embed_optimizer)
       SELECT CASE (embed_optimizer)
       CASE (embed_steep_desc)
@@ -848,10 +851,6 @@ CONTAINS
          CALL cp_fm_release(opt_embed%prev_embed_pot_hess)
          CALL cp_fm_release(opt_embed%kinetic_mat)
          DEALLOCATE (opt_embed%w_func)
-         IF (opt_embed%add_const_pot) THEN
-            CALL pw_release(opt_embed%const_pot%pw)
-            DEALLOCATE (opt_embed%const_pot)
-         ENDIF
          DEALLOCATE (opt_embed%max_diff)
          DEALLOCATE (opt_embed%int_diff)
 
@@ -869,6 +868,11 @@ CONTAINS
       DEALLOCATE (opt_embed%max_subsys_dens_diff)
 
       DEALLOCATE (opt_embed%all_nspins)
+
+      IF (opt_embed%add_const_pot) THEN
+         CALL pw_release(opt_embed%const_pot%pw)
+         DEALLOCATE (opt_embed%const_pot)
+      ENDIF
 
    END SUBROUTINE release_opt_embed
 
@@ -1351,13 +1355,15 @@ CONTAINS
 !> \param opt_embed ...
 !> \param embed_pot ...
 !> \param spin_embed_pot ...
+!> \param rho_r_ref ...
 !> \param qs_env ...
 !> \author Vladimir Rybkin
 ! **************************************************************************************************
-   SUBROUTINE opt_embed_step(diff_rho_r, diff_rho_spin, opt_embed, embed_pot, spin_embed_pot, qs_env)
+   SUBROUTINE opt_embed_step(diff_rho_r, diff_rho_spin, opt_embed, embed_pot, spin_embed_pot, rho_r_ref, qs_env)
       TYPE(pw_p_type), POINTER                           :: diff_rho_r, diff_rho_spin
       TYPE(opt_embed_pot_type)                           :: opt_embed
       TYPE(pw_p_type), POINTER                           :: embed_pot, spin_embed_pot
+      TYPE(pw_p_type), DIMENSION(:), POINTER             :: rho_r_ref
       TYPE(qs_environment_type), POINTER                 :: qs_env
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'opt_embed_step', routineP = moduleN//':'//routineN
@@ -1373,8 +1379,14 @@ CONTAINS
       CALL timeset(routineN, handle)
 
       IF (opt_embed%grid_opt) THEN ! Grid based optimization
+
          CALL get_qs_env(qs_env=qs_env, pw_env=pw_env)
-         CALL grid_based_step(diff_rho_r, diff_rho_spin, pw_env, opt_embed, embed_pot, spin_embed_pot)
+         IF (opt_embed%leeuwen) THEN
+            CALL Leeuwen_Baerends_potential_update(pw_env, embed_pot, spin_embed_pot, diff_rho_r, diff_rho_spin, &
+                                                   rho_r_ref, opt_embed%open_shell_embed, opt_embed%trust_rad)
+         ELSE
+            CALL grid_based_step(diff_rho_r, diff_rho_spin, pw_env, opt_embed, embed_pot, spin_embed_pot)
+         ENDIF
 
       ELSE ! Finite basis optimization
          ! If the previous step has been rejected, we go back to the previous expansion coefficients
@@ -2334,68 +2346,75 @@ CONTAINS
 
    END FUNCTION Barzilai_Borwein
 
-
-
-
-
-
+! **************************************************************************************************
+!> \brief ...
+!> \param pw_env ...
+!> \param embed_pot ...
+!> \param spin_embed_pot ...
+!> \param diff_rho_r ...
+!> \param diff_rho_spin ...
+!> \param rho_r_ref ...
+!> \param open_shell_embed ...
+!> \param step_len ...
+! **************************************************************************************************
    SUBROUTINE Leeuwen_Baerends_potential_update(pw_env, embed_pot, spin_embed_pot, diff_rho_r, diff_rho_spin, &
-                                                        rho_r_ref, open_shell_embed)
-      LOGICAL :: open_shell_embed
-      TYPE(pw_p_type), POINTER                           :: embed_pot, spin_embed_pot
-      TYPE(pw_p_type), DIMENSION(:), POINTER             :: rho_r_ref, rho_n_1, new_embed_pot, temp_embed_pot 
-      TYPE(pw_p_type), POINTER                           :: diff_rho_r, diff_rho_spin
-      INTEGER                                            :: i, j, k, nspins, i_spin
-      INTEGER, DIMENSION(3)                              :: lb, ub
-      TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
+                                                rho_r_ref, open_shell_embed, step_len)
       TYPE(pw_env_type), POINTER                         :: pw_env
-      REAL(KIND=dp)                                      :: rho_cutoff, my_rho, damp
+      TYPE(pw_p_type), POINTER                           :: embed_pot, spin_embed_pot, diff_rho_r, &
+                                                            diff_rho_spin
+      TYPE(pw_p_type), DIMENSION(:), POINTER             :: rho_r_ref
+      LOGICAL                                            :: open_shell_embed
+      REAL(KIND=dp)                                      :: step_len
 
-      damp = 0.1_dp
+      INTEGER                                            :: i, i_spin, j, k, nspins
+      INTEGER, DIMENSION(3)                              :: lb, ub
+      REAL(KIND=dp)                                      :: my_rho, rho_cutoff
+      TYPE(pw_p_type), DIMENSION(:), POINTER             :: new_embed_pot, rho_n_1, temp_embed_pot
+      TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
 
       rho_cutoff = EPSILON(0.0_dp)
 
       ! Prepare plane-waves pool
       CALL pw_env_get(pw_env, auxbas_pw_pool=auxbas_pw_pool)
       NULLIFY (new_embed_pot)
- 
+
       nspins = 1
-      If (open_shell_embed) nspins = 2
+      IF (open_shell_embed) nspins = 2
       NULLIFY (new_embed_pot)
       ALLOCATE (new_embed_pot(nspins))
       DO i_spin = 1, nspins
          NULLIFY (new_embed_pot(i_spin)%pw)
          CALL pw_pool_create_pw(auxbas_pw_pool, new_embed_pot(i_spin)%pw, &
-                             use_data=REALDATA3D, &
-                             in_space=REALSPACE)
+                                use_data=REALDATA3D, &
+                                in_space=REALSPACE)
          CALL pw_zero(new_embed_pot(i_spin)%pw)
-      Enddo
+      ENDDO
 
       lb(1:3) = embed_pot%pw%pw_grid%bounds_local(1, 1:3)
       ub(1:3) = embed_pot%pw%pw_grid%bounds_local(2, 1:3)
 
-      If (.NOT. open_shell_embed) then
+      IF (.NOT. open_shell_embed) THEN
 !$OMP    PARALLEL DO DEFAULT(NONE) &
 !$OMP                PRIVATE(i,j,k, my_rho) &
-!$OMP                SHARED(new_embed_pot, embed_pot, diff_rho_r, rho_r_ref, lb, ub, rho_cutoff, damp)
+!$OMP                SHARED(new_embed_pot, embed_pot, diff_rho_r, rho_r_ref, lb, ub, rho_cutoff, step_len)
          DO k = lb(3), ub(3)
             DO j = lb(2), ub(2)
                DO i = lb(1), ub(1)
-                  If (rho_r_ref(1)%pw%cr3d(i, j, k) .GT. rho_cutoff) then 
+                  IF (rho_r_ref(1)%pw%cr3d(i, j, k) .GT. rho_cutoff) THEN
                      my_rho = rho_r_ref(1)%pw%cr3d(i, j, k)
-                  Else
+                  ELSE
                      my_rho = rho_cutoff
-                  Endif
-                  new_embed_pot(1)%pw%cr3d(i, j, k) = damp*embed_pot%pw%cr3d(i, j, k)*&
-                  (diff_rho_r%pw%cr3d(i, j, k) + rho_r_ref(1)%pw%cr3d(i, j, k))/my_rho
+                  ENDIF
+                  new_embed_pot(1)%pw%cr3d(i, j, k) = step_len*embed_pot%pw%cr3d(i, j, k)* &
+                                                      (diff_rho_r%pw%cr3d(i, j, k)+rho_r_ref(1)%pw%cr3d(i, j, k))/my_rho
                END DO
             END DO
          END DO
 !$OMP    END PARALLEL DO
          CALL pw_copy(new_embed_pot(1)%pw, embed_pot%pw)
 
-      Else
-      ! One has to work with spin components rather than with total and spin density
+      ELSE
+         ! One has to work with spin components rather than with total and spin density
          NULLIFY (rho_n_1)
          ALLOCATE (rho_n_1(nspins))
          NULLIFY (temp_embed_pot)
@@ -2403,15 +2422,15 @@ CONTAINS
          DO i_spin = 1, nspins
             NULLIFY (rho_n_1(i_spin)%pw)
             CALL pw_pool_create_pw(auxbas_pw_pool, rho_n_1(i_spin)%pw, &
-                                use_data=REALDATA3D, &
-                                in_space=REALSPACE)
+                                   use_data=REALDATA3D, &
+                                   in_space=REALSPACE)
             CALL pw_zero(rho_n_1(i_spin)%pw)
             NULLIFY (temp_embed_pot(i_spin)%pw)
             CALL pw_pool_create_pw(auxbas_pw_pool, temp_embed_pot(i_spin)%pw, &
-                                use_data=REALDATA3D, &
-                                in_space=REALSPACE)
+                                   use_data=REALDATA3D, &
+                                   in_space=REALSPACE)
             CALL pw_zero(temp_embed_pot(i_spin)%pw)
-         Enddo
+         ENDDO
          CALL pw_copy(diff_rho_r%pw, rho_n_1(1)%pw)
          CALL pw_copy(diff_rho_r%pw, rho_n_1(2)%pw)
          CALL pw_axpy(diff_rho_spin%pw, rho_n_1(1)%pw, 1.0_dp)
@@ -2424,59 +2443,59 @@ CONTAINS
          CALL pw_axpy(spin_embed_pot%pw, temp_embed_pot(1)%pw, 1.0_dp)
          CALL pw_axpy(spin_embed_pot%pw, temp_embed_pot(2)%pw, -1.0_dp)
 
-         If (size(rho_r_ref) .EQ. 2) then
+         IF (SIZE(rho_r_ref) .EQ. 2) THEN
             CALL pw_axpy(rho_r_ref(1)%pw, rho_n_1(1)%pw, 1.0_dp)
             CALL pw_axpy(rho_r_ref(2)%pw, rho_n_1(2)%pw, 1.0_dp)
-            
+
 !$OMP    PARALLEL DO DEFAULT(NONE) &
 !$OMP                PRIVATE(i,j,k, my_rho) &
-!$OMP                SHARED(new_embed_pot, temp_embed_pot, rho_r_ref, rho_n_1, lb, ub, rho_cutoff, damp)
+!$OMP                SHARED(new_embed_pot, temp_embed_pot, rho_r_ref, rho_n_1, lb, ub, rho_cutoff, step_len)
             DO k = lb(3), ub(3)
                DO j = lb(2), ub(2)
                   DO i = lb(1), ub(1)
-                     If (rho_r_ref(1)%pw%cr3d(i, j, k) .GT. rho_cutoff) then 
+                     IF (rho_r_ref(1)%pw%cr3d(i, j, k) .GT. rho_cutoff) THEN
                         my_rho = rho_r_ref(1)%pw%cr3d(i, j, k)
-                     Else
+                     ELSE
                         my_rho = rho_cutoff
-                     Endif
-                     new_embed_pot(1)%pw%cr3d(i, j, k) = damp*temp_embed_pot(1)%pw%cr3d(i, j, k)*&
-                     (rho_n_1(1)%pw%cr3d(i, j, k))/my_rho
-                     If (rho_r_ref(2)%pw%cr3d(i, j, k) .GT. rho_cutoff) then 
+                     ENDIF
+                     new_embed_pot(1)%pw%cr3d(i, j, k) = step_len*temp_embed_pot(1)%pw%cr3d(i, j, k)* &
+                                                         (rho_n_1(1)%pw%cr3d(i, j, k))/my_rho
+                     IF (rho_r_ref(2)%pw%cr3d(i, j, k) .GT. rho_cutoff) THEN
                         my_rho = rho_r_ref(2)%pw%cr3d(i, j, k)
-                     Else
+                     ELSE
                         my_rho = rho_cutoff
-                     Endif
-                     new_embed_pot(2)%pw%cr3d(i, j, k) = damp*temp_embed_pot(2)%pw%cr3d(i, j, k)*&
-                     (rho_n_1(2)%pw%cr3d(i, j, k))/my_rho
+                     ENDIF
+                     new_embed_pot(2)%pw%cr3d(i, j, k) = step_len*temp_embed_pot(2)%pw%cr3d(i, j, k)* &
+                                                         (rho_n_1(2)%pw%cr3d(i, j, k))/my_rho
                   END DO
                END DO
             END DO
 !$OMP    END PARALLEL DO
 
-         Else  ! Reference system is closed-shell
+         ELSE ! Reference system is closed-shell
             CALL pw_axpy(rho_r_ref(1)%pw, rho_n_1(1)%pw, 1.0_dp)
             ! The beta spin component is here equal to the difference: nothing to do
 
 !$OMP    PARALLEL DO DEFAULT(NONE) &
 !$OMP                PRIVATE(i,j,k, my_rho) &
-!$OMP                SHARED(new_embed_pot, rho_r_ref, temp_embed_pot, rho_n_1, lb, ub, rho_cutoff, damp)
+!$OMP                SHARED(new_embed_pot, rho_r_ref, temp_embed_pot, rho_n_1, lb, ub, rho_cutoff, step_len)
             DO k = lb(3), ub(3)
                DO j = lb(2), ub(2)
                   DO i = lb(1), ub(1)
-                     If (rho_r_ref(1)%pw%cr3d(i, j, k) .GT. rho_cutoff) then 
+                     IF (rho_r_ref(1)%pw%cr3d(i, j, k) .GT. rho_cutoff) THEN
                         my_rho = 0.5_dp*rho_r_ref(1)%pw%cr3d(i, j, k)
-                     Else
+                     ELSE
                         my_rho = rho_cutoff
-                     Endif
-                     new_embed_pot(1)%pw%cr3d(i, j, k) = damp*temp_embed_pot(1)%pw%cr3d(i, j, k)*&
-                     (rho_n_1(1)%pw%cr3d(i, j, k))/my_rho
-                     new_embed_pot(2)%pw%cr3d(i, j, k) = damp*temp_embed_pot(2)%pw%cr3d(i, j, k)*&
-                     (rho_n_1(2)%pw%cr3d(i, j, k))/my_rho
+                     ENDIF
+                     new_embed_pot(1)%pw%cr3d(i, j, k) = step_len*temp_embed_pot(1)%pw%cr3d(i, j, k)* &
+                                                         (rho_n_1(1)%pw%cr3d(i, j, k))/my_rho
+                     new_embed_pot(2)%pw%cr3d(i, j, k) = step_len*temp_embed_pot(2)%pw%cr3d(i, j, k)* &
+                                                         (rho_n_1(2)%pw%cr3d(i, j, k))/my_rho
                   END DO
                END DO
             END DO
 !$OMP    END PARALLEL DO
-         Endif
+         ENDIF
 
          CALL pw_copy(new_embed_pot(1)%pw, embed_pot%pw)
          CALL pw_axpy(new_embed_pot(2)%pw, embed_pot%pw, 1.0_dp)
@@ -2485,14 +2504,13 @@ CONTAINS
          CALL pw_axpy(new_embed_pot(2)%pw, spin_embed_pot%pw, -1.0_dp)
          CALL pw_scale(spin_embed_pot%pw, a=0.5_dp)
 
-
          DO i_spin = 1, nspins
             CALL pw_release(rho_n_1(i_spin)%pw)
             CALL pw_release(temp_embed_pot(i_spin)%pw)
          ENDDO
          DEALLOCATE (rho_n_1)
          DEALLOCATE (temp_embed_pot)
-      Endif
+      ENDIF
 
       DO i_spin = 1, nspins
          CALL pw_release(new_embed_pot(i_spin)%pw)
