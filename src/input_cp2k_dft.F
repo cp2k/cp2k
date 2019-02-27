@@ -5990,7 +5990,7 @@ CONTAINS
       CPASSERT(.NOT. ASSOCIATED(section))
       CALL section_create(section, name="OPT_EMBED", &
                           description="This section specifies optional parameters for DFT embedding potential optimization.", &
-                          n_keywords=15, n_subsections=4, repeats=.FALSE.)
+                          n_keywords=16, n_subsections=4, repeats=.FALSE.)
 
       NULLIFY (keyword)
 
@@ -6060,6 +6060,14 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
+      CALL keyword_create(keyword, name="LEEUWEN-BAERENDS", &
+                          description="Van Leeuwen-Baerends iterative update. Alternative to Wu-Yang "// &
+                          "optimizer. Use only with ADD_CONTST_POT.", &
+                          usage="LEEUWEN-BAERENDS .TRUE.", &
+                          default_l_val=.FALSE.)
+      CALL section_add_keyword(section, keyword)
+
+      CALL keyword_release(keyword)
       CALL keyword_create(keyword, name="ADD_CONST_POT", &
                           description="Apply level shift in the  "// &
                           "optimization of the embedding potential.", &
