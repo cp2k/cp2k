@@ -265,7 +265,7 @@ You can build CP2K for use as a library by adding `libcp2k` as an option to your
 ```
 > make -j N ARCH=Linux-x86-64-gfortran VERSION=sopt libcp2k
 ```
-This will create `libcp2k.a` in the relevant subdirectory of `./lib/`. You will need to add this subdirectory to the library search path of your compiler when linking to the library (typically via the `LD_LIBRARY_PATH` environment variable or the `-L` option to your compiler) 
+This will create `libcp2k.a` in the relevant subdirectory of `./lib/`. You will need to add this subdirectory to the library search path of your compiler (typically via the `LD_LIBRARY_PATH` environment variable or the `-L` option to your compiler) and link to the library itself with `-lcp2k`.
 
 In order to use the functions in the library you will also require the `libcp2k.h` header file. This can be found in `./src/start/` directory. You should add this directory to the header search path of your compiler (typically via the `CPATH` environment variable or the `-I` option to your compiler).
 
