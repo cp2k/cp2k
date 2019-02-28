@@ -226,8 +226,7 @@ CONTAINS
       END DO
 
       ! broyden matrices
-      ALLOCATE (beta(nv, nv), cvec(nv), gammab(nv))
-      ALLOCATE (amat(nv, nv))
+      ALLOCATE (amat(nv, nv), beta(nv, nv), cvec(nv), gammab(nv))
       DO i = 1, nv
          wfac = SUM(mixing_store%dfbroy(:, :, i)*dq_now(:, :))
          CALL mp_sum(wfac, para_env%group)
@@ -243,7 +242,7 @@ CONTAINS
 
       rskip = 1.e-12_dp
       CALL get_pseudo_inverse_svd(beta, amat, rskip)
-      gammab = MATMUL(cvec, amat)
+      gammab(1:nv) = MATMUL(cvec(1:nv), amat(1:nv, 1:nv))
 
       ! build ubroy
       mixing_store%ubroy(:, :, nv) = alpha*mixing_store%dfbroy(:, :, nv)+wdf*(q_now(:, :)-q_last(:, :))
@@ -261,8 +260,7 @@ CONTAINS
       END DO
       CALL mp_sum(charges, para_env%group)
 
-      DEALLOCATE (beta, cvec, gammab)
-      DEALLOCATE (amat)
+      DEALLOCATE (amat, beta, cvec, gammab)
 
    END SUBROUTINE broyden_mixing
 
