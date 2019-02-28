@@ -1380,6 +1380,7 @@ CONTAINS
 
       IF (opt_embed%grid_opt) THEN ! Grid based optimization
 
+         opt_embed%step_len = opt_embed%trust_rad
          CALL get_qs_env(qs_env=qs_env, pw_env=pw_env)
          IF (opt_embed%leeuwen) THEN
             CALL Leeuwen_Baerends_potential_update(pw_env, embed_pot, spin_embed_pot, diff_rho_r, diff_rho_spin, &
@@ -1556,7 +1557,6 @@ CONTAINS
 
       CALL timeset(routineN, handle)
 
-      opt_embed%step_len = opt_embed%trust_rad
       ! Take the step for spin-free part
       CALL pw_axpy(diff_rho_r%pw, embed_pot%pw, opt_embed%step_len)
       ! Regularize
