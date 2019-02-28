@@ -19,7 +19,7 @@ case "$with_hdf5" in
         echo "==================== Installing hdf5 ===================="
         pkg_install_dir="${INSTALLDIR}/hdf5-${hdf5_ver}"
         install_lock_file="$pkg_install_dir/install_successful"
-        if [ -f "${install_lock_file}" ] ; then
+        if verify_checksums "${install_lock_file}" ; then
             echo "hdf5-${hdf5_ver} is already installed, skipping it."
         else
             if [ -f hdf5-${hdf5_ver}.tar.bz2 ] ; then
