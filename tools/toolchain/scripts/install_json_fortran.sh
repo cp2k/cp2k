@@ -18,7 +18,7 @@ case "$with_json_fortran" in
         echo "==================== Installing json_fortran ===================="
         pkg_install_dir="${INSTALLDIR}/json_fortran-${json_fortran_ver}"
         install_lock_file="$pkg_install_dir/install_successful"
-        if [ -f "${install_lock_file}" ] ; then
+        if verify_checksums "${install_lock_file}" ; then
             echo "json-fortran-${json_fortran_ver} is already installed, skipping it."
         else
             if [ -f json-fortran-${json_fortran_ver}.tar.gz ] ; then
