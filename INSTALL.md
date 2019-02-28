@@ -269,7 +269,7 @@ This will create `libcp2k.a` in the relevant subdirectory of `./lib/`. You will 
 
 In order to use the functions in the library you will also require the `libcp2k.h` header file. This can be found in `./src/start/` directory. You should add this directory to the header search path of your compiler (typically via the `CPATH` environment variable or the `-I` option to your compiler).
 
-For Fortran users, you will also require the module interface file (`.mod` file) for every MODULE encountered in the source. These are compiler specific and are to be found in the subdirectory of `./obj/` that corresponds to your build, e.g.,
+For Fortran users, you will require the module interface file (`.mod` file) for every MODULE encountered in the source. These are compiler specific and are to be found in the subdirectory of `./obj/` that corresponds to your build, e.g.,
 ```
 ./obj/Linux-x86-64-gfortran/sopt/
 ```
