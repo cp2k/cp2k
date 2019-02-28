@@ -62,7 +62,7 @@ On the Mac, BLAS and LAPACK may be provided by Apple's Accelerate framework. If 
 
 When building on/for Windows using the Minimalist GNU for Windows (MinGW) environment, you must set `-D__MINGW`,  `-D__NO_STATM_ACCESS` and `-D__NO_IPI_DRIVER` to avoid undefined references during linking, respectively errors while printing the statistics.
 
-## 2e. MPI and SCALAPACK (optional, required for MPI parallel builds)
+### 2e. MPI and SCALAPACK (optional, required for MPI parallel builds)
 MPI (version 2) and SCALAPACK are needed for parallel code. (Use the latest versions available and download all patches!).
 
 :warning: Note that your MPI installation must match the used Fortran compiler. If your computing platform does not provide MPI, there are several freely available alternatives:
@@ -77,14 +77,14 @@ MPI (version 2) and SCALAPACK are needed for parallel code. (Use the latest vers
 
 CP2K assumes that the MPI library implements MPI version 3. If you have an older version of MPI (e.g. MPI 2.0) available you must define `-D__MPI_VERSION=2` in the arch file.
 
-## 2f. FFTW (optional, improved performance of FFTs)
+### 2f. FFTW (optional, improved performance of FFTs)
 FFTW can be used to improve FFT speed on a wide range of architectures. It is strongly recommended to install and use FFTW3. The current version of CP2K works with FFTW 3.X (use `-D__FFTW3`). It can be downloaded from http://www.fftw.org/
 
 :warning: Note that FFTW must know the Fortran compiler you will use in order to install properly (e.g., `export F77=gfortran` before configure if you intend to use gfortran).
 
 :warning: Note that on machines and compilers which support SSE you can configure FFTW3 with `--enable-sse2`. Compilers/systems that do not align memory (NAG f95, Intel IA32/gfortran) should either not use `--enable-sse2` or otherwise set the define `-D__FFTW3_UNALIGNED` in the arch file. When building an OpenMP parallel version of CP2K (ssmp or psmp), the FFTW3 threading library libfftw3_threads (or libfftw3_omp) is required.
 
-## 2g. LIBINT (optional, enables methods including HF exchange)
+### 2g. LIBINT (optional, enables methods including HF exchange)
 Hartree-Fock exchange (optional, use `-D__LIBINT`) requires the libint package to be installed.
   * Download from http://sourceforge.net/projects/libint/files/v1-releases/libint-1.1.4.tar.gz/download.
   * Additional information can be found in [README_LIBINT](./tools/hfx_tools/libint_tools/README_LIBINT).
@@ -258,6 +258,22 @@ Features useful to deal with legacy systems
   * `-D__HAS_NO_CUDA_STREAM_PRIORITIES` - Needed for CUDA sdk version < 5.5
   * `-D__NO_STATM_ACCESS` - Do not try to read from /proc/self/statm to get memory usage information. This is otherwise attempted on several. Linux-based architectures or using with the NAG, gfortran, compilers.
   * `-D__CHECK_DIAG` Debug option which activates an orthonormality check of the eigenvectors calculated by the selected eigensolver
+
+### 3c. Building CP2K as a library
+
+You can build CP2K for use as a library by adding `libcp2k` as an option to your `make` command, e.g.
+```
+> make -j N ARCH=Linux-x86-64-gfortran VERSION=sopt libcp2k
+```
+This will create `libcp2k.a` in the relevant subdirectory of `./lib/`. You will need to add this subdirectory to the library search path of your compiler (typically via the `LD_LIBRARY_PATH` environment variable or the `-L` option to your compiler) and link to the library itself with `-lcp2k`.
+
+In order to use the functions in the library you will also require the `libcp2k.h` header file. This can be found in `./src/start/` directory. You should add this directory to the header search path of your compiler (typically via the `CPATH` environment variable or the `-I` option to your compiler).
+
+For Fortran users, you will require the module interface file (`.mod` file) for every MODULE encountered in the source. These are compiler specific and are to be found in the subdirectory of `./obj/` that corresponds to your build, e.g.,
+```
+./obj/Linux-x86-64-gfortran/sopt/
+```
+In order for your compiler to find these, you will need to indicate their location to the compiler as is done for header files  (typically via the `CPATH` environment variable or the `-I` option to your compiler).
 
 ## 4. If it doesn't work?
 If things fail, take a break... go back to 2a (or skip to step 6).
