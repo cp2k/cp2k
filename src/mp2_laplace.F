@@ -84,14 +84,14 @@ CONTAINS
       CHARACTER(LEN=*), PARAMETER :: routineN = 'laplace_minimax_approx', &
          routineP = moduleN//':'//routineN
 
-      INTEGER :: avirt, handle, i_global, iiB, iocc, j_global, jjB, jquad, my_num_dgemm_call, &
+      INTEGER :: avirt, handle, i_global, iiB, iocc, jjB, jquad, my_num_dgemm_call, &
          ncol_local, nrow_local, number_of_rec, number_of_rec_beta, number_of_send, &
          number_of_send_beta
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: map_rec_size, map_rec_size_beta, &
                                                             map_send_size, map_send_size_beta, &
                                                             RPA_proc_map
       INTEGER, ALLOCATABLE, DIMENSION(:, :)              :: local_size_source, local_size_source_beta
-      INTEGER, DIMENSION(:), POINTER                     :: col_indices, row_indices
+      INTEGER, DIMENSION(:), POINTER                     :: row_indices
       LOGICAL                                            :: first_cycle, my_open_shell
       REAL(KIND=dp) :: actual_flop_rate, alpha_old, E_Range, Emax, Emax_beta, Emin, Emin_beta, &
          laplace_transf, my_flop_rate, t_end, t_start, trace_XX, w_old
@@ -182,21 +182,18 @@ CONTAINS
          !XXX CALL cp_fm_get_info(matrix=fm_mat_G,&
          !XXX                     nrow_local=nrow_local,&
          !XXX                     ncol_local=ncol_local,&
-         !XXX                     row_indices=row_indices,&
-         !XXX                     col_indices=col_indices)
+         !XXX                     row_indices=row_indices)
          !XXX
 
          ! get info of fm_mat_S
          CALL cp_fm_get_info(matrix=fm_mat_S, &
                              nrow_local=nrow_local, &
                              ncol_local=ncol_local, &
-                             row_indices=row_indices, &
-                             col_indices=col_indices)
+                             row_indices=row_indices)
 
          ! update G matrix with the new value of w and a
          IF (first_cycle) THEN
             DO jjB = 1, ncol_local
-               j_global = col_indices(jjB)
                DO iiB = 1, nrow_local
                   i_global = row_indices(iiB)
 
@@ -212,7 +209,6 @@ CONTAINS
             END DO
          ELSE
             DO jjB = 1, ncol_local
-               j_global = col_indices(jjB)
                DO iiB = 1, nrow_local
                   i_global = row_indices(iiB)
 
@@ -252,20 +248,17 @@ CONTAINS
             !XXX CALL cp_fm_get_info(matrix=fm_mat_G_beta,&
             !XXX                     nrow_local=nrow_local,&
             !XXX                     ncol_local=ncol_local,&
-            !XXX                     row_indices=row_indices,&
-            !XXX                     col_indices=col_indices)
+            !XXX                     row_indices=row_indices)
             !XXX
 
             ! the same for the beta spin
             CALL cp_fm_get_info(matrix=fm_mat_S_beta, &
                                 nrow_local=nrow_local, &
                                 ncol_local=ncol_local, &
-                                row_indices=row_indices, &
-                                col_indices=col_indices)
+                                row_indices=row_indices)
             ! update G matrix with the new value of w and a
             IF (first_cycle) THEN
                DO jjB = 1, ncol_local
-                  j_global = col_indices(jjB)
                   DO iiB = 1, nrow_local
                      i_global = row_indices(iiB)
 
@@ -282,7 +275,6 @@ CONTAINS
                END DO
             ELSE
                DO jjB = 1, ncol_local
-                  j_global = col_indices(jjB)
                   DO iiB = 1, nrow_local
                      i_global = row_indices(iiB)
 
@@ -319,9 +311,13 @@ CONTAINS
 
          ! calculate the trace of the product Q*Q
          IF (my_open_shell) THEN
-            CALL cp_fm_trace(fm_mat_Q, fm_mat_Q_beta, trace_XX)
+            DO jjB = 1, ncol_local
+               DO iiB = 1, nrow_local
+                  trace_XX = trace_XX + fm_mat_Q%local_data(iiB, jjB)*fm_mat_Q_beta%local_data(iiB, jjB)
+               END DO
+            END DO
          ELSE
-            CALL cp_fm_frobenius_norm(fm_mat_Q, trace_XX)
+            trace_XX = NORM2(fm_mat_Q%local_data)
             trace_XX = trace_XX*trace_XX
          END IF
 

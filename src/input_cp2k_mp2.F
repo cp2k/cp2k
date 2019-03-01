@@ -465,7 +465,7 @@ CONTAINS
                           n_keywords=3, n_subsections=1, repeats=.FALSE., &
                           citations=(/DelBen2013/))
 
-      NULLIFY (keyword)
+      NULLIFY (keyword, subsection)
 
       CALL keyword_create( &
          keyword, name="QUADRATURE_POINTS", &

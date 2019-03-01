@@ -2328,12 +2328,6 @@ CONTAINS
             CALL cp_cfm_create(cfm_mat_Q, fm_mat_Q%matrix_struct)
             CALL cp_cfm_set_all(cfm_mat_Q, z_zero)
 
-!            IF (my_open_shell .AND. do_ri_sos_laplace_mp2) THEN
-!               NULLIFY (cfm_mat_Q_beta)
-!               CALL cp_cfm_create(cfm_mat_Q_beta, fm_mat_Q_beta%matrix_struct)
-!               CALL cp_cfm_set_all(cfm_mat_Q_beta, z_zero)
-!            END IF
-
          ELSE
             ALLOCATE (index_to_cell_3c(3, 1))
             index_to_cell_3c(:, 1) = 0
@@ -2483,19 +2477,6 @@ CONTAINS
                   CALL dbcsr_set(mat_P_omega_im_part(jquad, i_kp)%matrix, 0.0_dp)
                END DO
             END DO
-
-!            IF (my_open_shell .AND. do_im_time .AND. do_ri_sos_laplace_mp2) THEN
-!               NULLIFY (mat_P_omega_im_part_beta)
-!               CALL dbcsr_allocate_matrix_set(mat_P_omega_im_part_beta, num_integ_points, size_P)
-!               DO jquad = 1, num_integ_points
-!                  DO i_kp = 1, size_P
-!                     ALLOCATE (mat_P_omega_im_part_beta(jquad, i_kp)%matrix)
-!                     CALL dbcsr_create(matrix=mat_P_omega_im_part_beta(jquad, i_kp)%matrix, &
-!                                    template=mat_P_global%matrix)
-!                     CALL dbcsr_set(mat_P_omega_im_part_beta(jquad, i_kp)%matrix, 0.0_dp)
-!                  END DO
-!               END DO
-!            END IF
 
          END IF
 
@@ -2918,15 +2899,6 @@ CONTAINS
          IF (.NOT. do_kpoints_cubic_RPA) THEN
             CALL copy_fm_to_dbcsr(fm_mat_L(1, 1)%matrix, mat_L%matrix)
          END IF
-
-         CALL timestop(handle4)
-         CALL timeset(routineN//"_im_t_alloc_mat_laplace_beta", handle4)
-
-!         IF (do_ri_sos_laplace_mp2 .AND. do_im_time .AND. my_open_shell) THEN
-!            CALL cp_fm_create(fm_mat_Q_beta, fm_mat_Q%matrix_struct)
-!            CALL cp_fm_to_fm(fm_mat_Q, fm_mat_Q_beta)
-!            CALL cp_fm_set_all(fm_mat_Q_beta, 0.0_dp)
-!         END IF
 
          CALL timestop(handle4)
 
@@ -4119,9 +4091,13 @@ CONTAINS
             IF (do_ri_sos_laplace_mp2) THEN
                ! calculate the trace of the product Q*Q
                IF (my_open_shell) THEN
-                  CALL cp_fm_trace(fm_mat_Q, fm_mat_Q_beta, trace_XX)
+                  DO jjB = 1, ncol_local
+                     DO iiB = 1, nrow_local
+                        trace_XX = trace_XX + fm_mat_Q%local_data(iiB, jjB)*fm_mat_Q_beta%local_data(iiB, jjB)
+                     END DO
+                  END DO
                ELSE
-                  CALL cp_fm_frobenius_norm(fm_mat_Q, trace_XX)
+                  trace_XX = NORM2(fm_mat_Q%local_data)
                   trace_XX = trace_XX*trace_XX
                END IF
 
@@ -4507,8 +4483,6 @@ CONTAINS
          IF (.NOT. do_ri_sos_laplace_mp2) THEN
             Erpa = Erpa/(pi*2.0_dp)
             IF (do_minimax_quad) Erpa = Erpa/2.0_dp
-!         ELSE
-!            IF (my_open_shell) Erpa = Erpa/4.0_dp
          END IF
 
          IF (mp2_env%ri_rpa%do_ri_axk) THEN

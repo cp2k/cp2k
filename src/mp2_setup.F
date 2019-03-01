@@ -16,7 +16,8 @@ MODULE mp2_setup
    USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
                                               cp_print_key_unit_nr
    USE input_constants,                 ONLY: do_eri_mme
-   USE input_section_types,             ONLY: section_vals_get_subs_vals,&
+   USE input_section_types,             ONLY: section_vals_get,&
+                                              section_vals_get_subs_vals,&
                                               section_vals_type,&
                                               section_vals_val_get
    USE mp2_types,                       ONLY: mp2_method_direct,&
@@ -231,15 +232,6 @@ CONTAINS
       CALL section_vals_val_get(mp2_section, "RI_RPA%RI_G0W0%PERIODIC%NUM_OMEGA_POINTS", &
                                 i_val=mp2_env%ri_g0w0%num_omega_points)
 
-      CALL section_vals_get(mp2_section, "IM_TIME", explicit=explicit_wfc)
-      CALL section_vals_get(mp2_section, "RI_LAPLACE%IM_TIME", explicit=explicit_laplace)
-      CALL section_vals_get(mp2_section, "RI_RPA%IM_TIME", explicit=explicit_rpa)
-
-      ! Ensure that at most one IM_TIME section is called
-      IF (explicit_wfc .AND. explicit_laplace) CPABORT("Use only one IM_TIME section!")
-      IF (explicit_wfc .AND. explicit_rpa) CPABORT("Use only one IM_TIME section!")
-      IF (explicit_rpa .AND. explicit_laplace) CPABORT("Use only one IM_TIME section!")
-
       CALL section_vals_val_get(mp2_section, "IM_TIME", explicit=explicit_k_wfc)
       CALL section_vals_val_get(mp2_section, "RI_LAPLACE%IM_TIME", explicit=explicit_k_laplace)
       CALL section_vals_val_get(mp2_section, "RI_RPA%IM_TIME", explicit=explicit_k_rpa)
@@ -249,25 +241,44 @@ CONTAINS
       IF (explicit_k_wfc .AND. explicit_k_rpa) CPABORT("Use only one IM_TIME keyword!")
       IF (explicit_k_rpa .AND. explicit_k_laplace) CPABORT("Use only one IM_TIME keyword!")
 
-      ! Find what keyword/ section pair is used, set up the section pointer and do_im_time
+      ! Determine the explicitly called IM_TIME sections
       NULLIFY (im_time_section)
-      IF (explicit_laplace .OR. explicit_k_laplace) THEN
-         im_time_section => section_get_subsection(mp2_section, "RI_LAPLACE%IM_TIME")
+      im_time_section => section_vals_get_subs_vals(mp2_section, "IM_TIME")
+      CALL section_vals_get(im_time_section, explicit=explicit_wfc)
+      im_time_section => section_vals_get_subs_vals(mp2_section, "RI_LAPLACE%IM_TIME")
+      CALL section_vals_get(im_time_section, explicit=explicit_laplace)
+      im_time_section => section_vals_get_subs_vals(mp2_section, "RI_RPA%IM_TIME")
+      CALL section_vals_get(im_time_section, explicit=explicit_rpa)
+
+      ! Ensure that the IM_TIME section matches the keyword
+      IF (explicit_k_wfc) explicit_wfc = .TRUE.
+      IF (explicit_k_rpa) explicit_rpa = .TRUE.
+      IF (explicit_k_laplace) explicit_laplace = .TRUE.
+
+      ! Ensure that at most one IM_TIME section is called
+      IF (explicit_wfc .AND. explicit_laplace) CPABORT("Use only one IM_TIME section or the IM_TIME section to the keyword!")
+      IF (explicit_wfc .AND. explicit_rpa) CPABORT("Use only one IM_TIME section or the IM_TIME section to the keyword!")
+      IF (explicit_rpa .AND. explicit_laplace) CPABORT("Use only one IM_TIME section or the IM_TIME section to the keyword!")
+
+      ! Find what keyword/ section pair is used, set up the section pointer and do_im_time. If none is used, copy from wfc.
+      NULLIFY (im_time_section)
+      IF (explicit_laplace) THEN
+         im_time_section => section_vals_get_subs_vals(mp2_section, "RI_LAPLACE%IM_TIME")
          IF (explicit_k_laplace) THEN
             CALL section_vals_val_get(mp2_section, "RI_LAPLACE%IM_TIME", &
                                 l_val=mp2_env%do_im_time)
          END IF
-      ELSE IF (explicit_rpa .OR. explicit_k_rpa) THEN
-         im_time_section => section_get_subsection(mp2_section, "RI_RPA%IM_TIME")
+      ELSE IF (explicit_rpa) THEN
+         im_time_section => section_vals_get_subs_vals(mp2_section, "RI_RPA%IM_TIME")
          IF (explicit_k_rpa) THEN
             CALL section_vals_val_get(mp2_section, "RI_RPA%IM_TIME", &
                                 l_val=mp2_env%do_im_time)
          END IF
       ELSE
-         im_time_section => section_get_subsection(mp2_section, "IM_TIME")
+         im_time_section => section_vals_get_subs_vals(mp2_section, "IM_TIME")
          IF (explicit_k_wfc) THEN
             CALL section_vals_val_get(mp2_section, "IM_TIME", &
-                                l_val=mp2_env%do_im_time, explicit=do_explicit_wfc)
+                                l_val=mp2_env%do_im_time, explicit=explicit_wfc)
          END IF
       END IF
       ! If no keyword was used, take the info from the IM_TIME section.
