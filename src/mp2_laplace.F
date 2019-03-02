@@ -91,7 +91,7 @@ CONTAINS
                                                             map_send_size, map_send_size_beta, &
                                                             RPA_proc_map
       INTEGER, ALLOCATABLE, DIMENSION(:, :)              :: local_size_source, local_size_source_beta
-      INTEGER, DIMENSION(:), POINTER                     :: row_indices
+      INTEGER, DIMENSION(:), POINTER                     :: col_indices, row_indices
       LOGICAL                                            :: first_cycle, my_open_shell
       REAL(KIND=dp) :: actual_flop_rate, alpha_old, E_Range, Emax, Emax_beta, Emin, Emin_beta, &
          laplace_transf, my_flop_rate, t_end, t_start, trace_XX, w_old
@@ -309,7 +309,14 @@ CONTAINS
 
          END IF
 
+         CALL cp_fm_get_info(matrix=fm_mat_Q, &
+                             nrow_local=nrow_local, &
+                             ncol_local=ncol_local, &
+                             row_indices=row_indices, &
+                             col_indices=col_indices)
+
          ! calculate the trace of the product Q*Q
+         trace_XX = 0.0_dp
          IF (my_open_shell) THEN
             DO jjB = 1, ncol_local
                DO iiB = 1, nrow_local
