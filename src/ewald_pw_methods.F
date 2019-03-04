@@ -131,6 +131,9 @@ CONTAINS
          ALLOCATE (pw_pools(1))
          pw_pools(1)%pool => pw_big_pool
          CALL pw_poisson_read_parameters(poisson_section, poisson_params)
+         poisson_params%ewald_type = ewald_type
+         poisson_params%ewald_o_spline = o_spline
+         poisson_params%ewald_alpha = alpha
          CALL pw_poisson_set(poisson_env, cell_hmat=cell_hmat, parameters=poisson_params, &
                              use_level=1, pw_pools=pw_pools)
          DEALLOCATE (pw_pools)

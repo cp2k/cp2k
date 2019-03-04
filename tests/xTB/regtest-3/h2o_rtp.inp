@@ -14,13 +14,6 @@
       &END
       MAX_SCF  20
     &END SCF
-    &POISSON
-      &EWALD
-       EWALD_TYPE SPME
-       GMAX 25
-       O_SPLINE 5
-      &END EWALD
-    &END POISSON
     &PRINT
        &MULLIKEN
        &END MULLIKEN
