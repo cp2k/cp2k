@@ -32,6 +32,7 @@ MODULE ewald_environment_types
                                               section_vals_type,&
                                               section_vals_val_get
    USE kinds,                           ONLY: dp
+   USE mathconstants,                   ONLY: twopi
    USE pw_poisson_types,                ONLY: do_ewald_ewald,&
                                               do_ewald_none,&
                                               do_ewald_pme,&
@@ -93,7 +94,8 @@ MODULE ewald_environment_types
              ewald_env_create, &
              ewald_env_retain, &
              ewald_env_release, &
-             read_ewald_section
+             read_ewald_section, &
+             read_ewald_section_tb
 
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'ewald_environment_types'
    INTEGER, PRIVATE, SAVE :: last_ewald_env_id_nr = 0
@@ -434,6 +436,105 @@ CONTAINS
                                         "PRINT%PROGRAM_RUN_INFO")
 
    END SUBROUTINE read_ewald_section
+
+! **************************************************************************************************
+!> \brief Purpose: read the EWALD section for TB methods
+!> \param ewald_env the pointer to the ewald_env
+!> \param ewald_section ...
+!> \param hmat ...
+!> \author JGH
+! **************************************************************************************************
+   SUBROUTINE read_ewald_section_tb(ewald_env, ewald_section, hmat)
+      TYPE(ewald_environment_type), POINTER              :: ewald_env
+      TYPE(section_vals_type), POINTER                   :: ewald_section
+      REAL(KIND=dp), DIMENSION(3, 3), INTENT(IN)         :: hmat
+
+      CHARACTER(len=*), PARAMETER :: routineN = 'read_ewald_section_tb', &
+         routineP = moduleN//':'//routineN
+
+      INTEGER                                            :: i, iw
+      INTEGER, DIMENSION(:), POINTER                     :: gmax_read
+      LOGICAL                                            :: explicit
+      REAL(KIND=dp)                                      :: alat, cutoff, dummy
+      TYPE(cp_logger_type), POINTER                      :: logger
+
+      logger => cp_get_default_logger()
+
+      ewald_env%do_multipoles = .FALSE.
+      ewald_env%do_ipol = 0
+      ewald_env%eps_pol = 1.e-12_dp
+      ewald_env%max_multipole = 0
+      ewald_env%max_ipol_iter = 0
+      ewald_env%epsilon = 1.e-12_dp
+      ewald_env%ns_max = HUGE(0)
+
+      CALL section_vals_val_get(ewald_section, "EWALD_TYPE", explicit=explicit)
+      IF (explicit) THEN
+         CALL section_vals_val_get(ewald_section, "EWALD_TYPE", i_val=ewald_env%ewald_type)
+         IF (ewald_env%ewald_type /= do_ewald_spme) THEN
+            CPABORT("TB needs EWALD_TYPE SPME")
+         END IF
+      ELSE
+         ewald_env%ewald_type = do_ewald_spme
+      ENDIF
+
+      CALL section_vals_val_get(ewald_section, "ALPHA", explicit=explicit)
+      IF (explicit) THEN
+         CALL section_vals_val_get(ewald_section, "ALPHA", r_val=ewald_env%alpha)
+      ELSE
+         ewald_env%alpha = 1.0_dp
+      ENDIF
+
+      CALL section_vals_val_get(ewald_section, "EWALD_ACCURACY", r_val=ewald_env%precs)
+      CALL section_vals_val_get(ewald_section, "O_SPLINE", i_val=ewald_env%o_spline)
+
+      CALL section_vals_val_get(ewald_section, "RCUT", explicit=explicit)
+      IF (explicit) THEN
+         CALL section_vals_val_get(ewald_section, "RCUT", r_val=ewald_env%rcut)
+      ELSE
+         ewald_env%rcut = find_ewald_optimal_value(ewald_env%precs)/ewald_env%alpha
+      ENDIF
+
+      CALL section_vals_val_get(ewald_section, "GMAX", explicit=explicit)
+      IF (explicit) THEN
+         CALL section_vals_val_get(ewald_section, "GMAX", i_vals=gmax_read)
+         SELECT CASE (SIZE (gmax_read, 1))
+         CASE (1)
+            ewald_env%gmax = gmax_read(1)
+         CASE (3)
+            ewald_env%gmax = gmax_read
+         CASE DEFAULT
+            CPABORT("")
+         END SELECT
+      ELSE
+         ! set GMAX using ECUT=alpha*45 Ry
+         cutoff = 45._dp*ewald_env%alpha
+         DO i = 1, 3
+            alat = SUM(hmat(:, i)**2)
+            CPASSERT(alat /= 0._dp)
+            ewald_env%gmax(i) = 2*FLOOR(SQRT(2.0_dp*cutoff*alat)/twopi)+1
+         ENDDO
+      ENDIF
+
+      iw = cp_print_key_unit_nr(logger, ewald_section, "PRINT%PROGRAM_RUN_INFO", &
+                                extension=".log")
+      IF (iw > 0) THEN
+         WRITE (iw, '(/,T2,"EWALD| ",A,T67,A14 )') 'Summation is done by:', ADJUSTR("SPME")
+         dummy = cp_unit_from_cp2k(ewald_env%alpha, "angstrom^-1")
+         WRITE (iw, '( T2,"EWALD| ",A,A18,A,T71,F10.4 )') &
+            'Alpha parameter [', 'ANGSTROM^-1', ']', dummy
+         dummy = cp_unit_from_cp2k(ewald_env%rcut, "angstrom")
+         WRITE (iw, '( T2,"EWALD| ",A,A18,A,T71,F10.4 )') &
+            'Real Space Cutoff [', 'ANGSTROM', ']', dummy
+         WRITE (iw, '( T2,"EWALD| ",A,T51,3I10 )') &
+            'G-space max. Miller index', ewald_env%gmax
+         WRITE (iw, '( T2,"EWALD| ",A,T71,I10 )') &
+            'Spline interpolation order ', ewald_env%o_spline
+      END IF
+      CALL cp_print_key_finished_output(iw, logger, ewald_section, &
+                                        "PRINT%PROGRAM_RUN_INFO")
+
+   END SUBROUTINE read_ewald_section_tb
 
 ! **************************************************************************************************
 !> \brief triggers (by bisection) the optimal value for EWALD parameter x

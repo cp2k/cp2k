@@ -18,19 +18,8 @@
       &OUTER_SCF
          MAX_SCF  10
       &END
-      #&MIXING
-      #    METHOD DIRECT_P_MIXING
-      #    ALPHA   0.75
-      #&END
       MAX_SCF  10
     &END SCF
-    &POISSON
-      &EWALD
-       EWALD_TYPE SPME
-       GMAX 45
-       O_SPLINE 8
-      &END EWALD
-    &END POISSON
   &END DFT
   &SUBSYS
     &CELL

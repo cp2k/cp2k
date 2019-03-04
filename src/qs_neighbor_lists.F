@@ -303,7 +303,7 @@ CONTAINS
       LOGICAL, ALLOCATABLE, DIMENSION(:) :: all_present, aux_fit_present, aux_present, &
          core_present, default_present, oce_present, orb_present, ppl_present, ppnl_present, &
          ri_present, xb1_atom, xb2_atom
-      REAL(dp)                                           :: almo_rcov, almo_rvdw, alpha, roperator, &
+      REAL(dp)                                           :: almo_rcov, almo_rvdw, rcut, roperator, &
                                                             subcells
       REAL(dp), ALLOCATABLE, DIMENSION(:) :: all_pot_rad, aux_fit_radius, c_radius, calpha, &
          core_radius, oce_radius, orb_radius, ppl_radius, ppnl_radius, ri_radius, zeff
@@ -744,8 +744,8 @@ CONTAINS
          ! Build the neighbor lists for the DFTB Ewald methods
          IF (dft_control%qs_control%dftb_control%do_ewald) THEN
             CALL get_qs_env(qs_env=qs_env, ewald_env=ewald_env)
-            CALL ewald_env_get(ewald_env, alpha=alpha)
-            c_radius = 0.5_dp*SQRT(-LOG(3.5_dp*alpha**3*1.e-12_dp))/alpha
+            CALL ewald_env_get(ewald_env, rcut=rcut)
+            c_radius = rcut
             CALL pair_radius_setup(orb_present, orb_present, c_radius, c_radius, pair_radius)
             CALL build_neighbor_lists(sab_tbe, particle_set, atom2d, cell, pair_radius, mic=mic, &
                                       subcells=subcells, nlname="sab_tbe")
@@ -769,11 +769,11 @@ CONTAINS
       END IF
 
       IF (xtb) THEN
-         ! Build the neighbor lists for the DFTB Ewald methods
+         ! Build the neighbor lists for the xTB Ewald method
          IF (dft_control%qs_control%xtb_control%do_ewald) THEN
             CALL get_qs_env(qs_env=qs_env, ewald_env=ewald_env)
-            CALL ewald_env_get(ewald_env, alpha=alpha)
-            c_radius = 0.5_dp*SQRT(-LOG(3.5_dp*alpha**3*1.e-12_dp))/alpha
+            CALL ewald_env_get(ewald_env, rcut=rcut)
+            c_radius = rcut
             CALL pair_radius_setup(orb_present, orb_present, c_radius, c_radius, pair_radius)
             CALL build_neighbor_lists(sab_tbe, particle_set, atom2d, cell, pair_radius, mic=mic, &
                                       subcells=subcells, nlname="sab_tbe")
