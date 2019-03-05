@@ -14,6 +14,8 @@ MODULE qs_scf_post_tb
                                               get_atomic_kind
    USE cell_types,                      ONLY: cell_type,&
                                               pbc
+   USE cp_array_utils,                  ONLY: cp_1d_r_p_type
+   USE cp_blacs_env,                    ONLY: cp_blacs_env_type
    USE cp_control_types,                ONLY: dft_control_type
    USE cp_dbcsr_operations,             ONLY: copy_dbcsr_to_fm
    USE cp_fm_cholesky,                  ONLY: cp_fm_cholesky_decompose,&
@@ -24,6 +26,8 @@ MODULE qs_scf_post_tb
                                               cp_fm_struct_release,&
                                               cp_fm_struct_type
    USE cp_fm_types,                     ONLY: cp_fm_create,&
+                                              cp_fm_get_info,&
+                                              cp_fm_init_random,&
                                               cp_fm_p_type,&
                                               cp_fm_release,&
                                               cp_fm_to_fm_submat,&
@@ -36,7 +40,9 @@ MODULE qs_scf_post_tb
                                               cp_print_key_should_output,&
                                               cp_print_key_unit_nr
    USE cp_para_types,                   ONLY: cp_para_env_type
-   USE dbcsr_api,                       ONLY: dbcsr_p_type
+   USE dbcsr_api,                       ONLY: dbcsr_p_type,&
+                                              dbcsr_type
+   USE input_constants,                 ONLY: ot_precond_full_all
    USE input_section_types,             ONLY: section_get_ival,&
                                               section_vals_get,&
                                               section_vals_get_subs_vals,&
@@ -44,24 +50,40 @@ MODULE qs_scf_post_tb
                                               section_vals_val_get
    USE kinds,                           ONLY: default_string_length,&
                                               dp
+   USE kpoint_types,                    ONLY: kpoint_type
    USE machine,                         ONLY: m_flush
    USE mathconstants,                   ONLY: twopi
+   USE molden_utils,                    ONLY: write_mos_molden
    USE moments_utils,                   ONLY: get_reference_point
    USE mulliken,                        ONLY: mulliken_charges
+   USE particle_list_types,             ONLY: particle_list_type
    USE particle_types,                  ONLY: particle_type
    USE physcon,                         ONLY: debye
+   USE population_analyses,             ONLY: lowdin_population_analysis
+   USE preconditioner_types,            ONLY: preconditioner_type
    USE qs_dftb_types,                   ONLY: qs_dftb_atom_type
    USE qs_dftb_utils,                   ONLY: get_dftb_atom_param
    USE qs_environment_types,            ONLY: get_qs_env,&
                                               qs_environment_type
    USE qs_kind_types,                   ONLY: get_qs_kind,&
                                               qs_kind_type
+   USE qs_mo_io,                        ONLY: write_mo_set
+   USE qs_mo_methods,                   ONLY: calculate_subspace_eigenvalues,&
+                                              make_mo_eig
+   USE qs_mo_occupation,                ONLY: set_mo_occupation
    USE qs_mo_types,                     ONLY: get_mo_set,&
                                               mo_set_p_type
+   USE qs_ot_eigensolver,               ONLY: ot_eigensolver
+   USE qs_pdos,                         ONLY: calculate_projected_dos
    USE qs_rho_types,                    ONLY: qs_rho_get,&
                                               qs_rho_type
-   USE qs_scf_types,                    ONLY: qs_scf_env_type
+   USE qs_scf_types,                    ONLY: ot_method_nr,&
+                                              qs_scf_env_type
    USE qs_scf_wfn_mix,                  ONLY: wfn_mix
+   USE qs_subsys_types,                 ONLY: qs_subsys_get,&
+                                              qs_subsys_type
+   USE scf_control_types,               ONLY: scf_control_type
+   USE stm_images,                      ONLY: th_stm_image
    USE xtb_types,                       ONLY: get_xtb_atom_param,&
                                               xtb_atom_type
 #include "./base/base_uses.f90"
@@ -98,20 +120,33 @@ CONTAINS
 
       CHARACTER(LEN=2)                                   :: ana
       CHARACTER(LEN=default_string_length)               :: aname
-      INTEGER                                            :: handle, iat, iatom, ikind, nat, natom, &
-                                                            nkind, nspins, unit_nr
-      LOGICAL                                            :: explicit
+      INTEGER                                            :: handle, homo, iat, iatom, ikind, ispin, &
+                                                            nat, natom, nkind, nlumo_stm, nlumos, &
+                                                            nspins, print_level, unit_nr
+      LOGICAL                                            :: do_kpoints, explicit, has_homo, print_it, do_cube, rebuild
       REAL(KIND=dp)                                      :: zeff
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: mcharge
+      REAL(KIND=dp), DIMENSION(2, 2)                     :: homo_lumo
+      REAL(KIND=dp), DIMENSION(:), POINTER               :: mo_eigenvalues
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: charges
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
+      TYPE(cp_1d_r_p_type), DIMENSION(:), POINTER        :: unoccupied_evals_stm
+      TYPE(cp_fm_p_type), DIMENSION(:), POINTER          :: unoccupied_orbs_stm
+      TYPE(cp_fm_type), POINTER                          :: mo_coeff
       TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(cp_para_env_type), POINTER                    :: para_env
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: ks_rmpv, mo_derivs
       TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: matrix_p, matrix_s
+      TYPE(dbcsr_type), POINTER                          :: mo_coeff_deriv
       TYPE(dft_control_type), POINTER                    :: dft_control
+      TYPE(mo_set_p_type), DIMENSION(:), POINTER         :: mos
+      TYPE(particle_list_type), POINTER                  :: particles
+      TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
       TYPE(qs_dftb_atom_type), POINTER                   :: dftb_kind
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
       TYPE(qs_rho_type), POINTER                         :: rho
+      TYPE(qs_subsys_type), POINTER                      :: subsys
+      TYPE(scf_control_type), POINTER                    :: scf_control
       TYPE(section_vals_type), POINTER                   :: moments_section, print_key, &
                                                             print_section, wfn_mix_section
       TYPE(xtb_atom_type), POINTER                       :: xtb_kind
@@ -124,7 +159,7 @@ CONTAINS
       NULLIFY (dft_control, rho, para_env, matrix_s, matrix_p)
       CALL get_qs_env(qs_env, atomic_kind_set=atomic_kind_set, qs_kind_set=qs_kind_set, &
                       dft_control=dft_control, rho=rho, natom=natom, para_env=para_env, &
-                      matrix_s_kp=matrix_s)
+                      particle_set=particle_set, do_kpoints=do_kpoints, matrix_s_kp=matrix_s)
       nspins = dft_control%nspins
       CALL qs_rho_get(rho, rho_ao_kp=matrix_p)
       ! Mulliken charges
@@ -217,10 +252,29 @@ CONTAINS
          CALL cp_print_key_finished_output(unit_nr, logger, print_key)
       END IF
 
-      ! Lowdin
+      ! Compute the Lowdin charges
       print_key => section_vals_get_subs_vals(print_section, "LOWDIN")
       IF (BTEST(cp_print_key_should_output(logger%iter_info, print_key), cp_p_file)) THEN
-         CPWARN("Lowdin population analysis not implemented for TB methods.")
+         SELECT CASE (tb_type)
+         CASE ("DFTB")
+            CPWARN("Lowdin population analysis not implemented for DFTB method.")
+         CASE ("xTB")
+            unit_nr = cp_print_key_unit_nr(logger, print_section, "LOWDIN", extension=".lowdin", &
+                                           log_filename=.FALSE.)
+            print_level = 1
+            CALL section_vals_val_get(print_key, "PRINT_GOP", l_val=print_it)
+            IF (print_it) print_level = 2
+            CALL section_vals_val_get(print_key, "PRINT_ALL", l_val=print_it)
+            IF (print_it) print_level = 3
+            IF (do_kpoints) THEN
+               CPWARN("Lowdin charges not implemented for k-point calculations!")
+            ELSE
+               CALL lowdin_population_analysis(qs_env, unit_nr, print_level)
+            END IF
+            CALL cp_print_key_finished_output(unit_nr, logger, print_section, "LOWDIN")
+         CASE DEFAULT
+            CPABORT("unknown TB type")
+         END SELECT
       END IF
 
       ! Hirshfeld
@@ -247,10 +301,67 @@ CONTAINS
 
       DEALLOCATE (charges, mcharge)
 
-      ! EPR Hyperfine Coupling
-      print_key => section_vals_get_subs_vals(print_section, "HYPERFINE_COUPLING_TENSOR")
+      ! MO
+      print_key => section_vals_get_subs_vals(print_section, "MO")
       IF (BTEST(cp_print_key_should_output(logger%iter_info, print_key), cp_p_file)) THEN
-         CPWARN("Hyperfine Coupling not implemented for TB methods.")
+         CALL print_mos(qs_env, scf_env, dft_section, tb_type)
+      END IF
+
+      ! Wavefunction mixing
+      wfn_mix_section => section_vals_get_subs_vals(dft_section, "PRINT%WFN_MIX")
+      CALL section_vals_get(wfn_mix_section, explicit=explicit)
+      IF (explicit .AND. .NOT. qs_env%run_rtp) CALL wfn_mix_tb(qs_env, dft_section, scf_env)
+
+      ! PDOS
+      print_key => section_vals_get_subs_vals(print_section, "PDOS")
+      IF (BTEST(cp_print_key_should_output(logger%iter_info, print_key), cp_p_file)) THEN
+         IF (do_kpoints) THEN
+            CPWARN("Projected density of states not implemented for k-points.")
+         ELSE
+            CALL get_qs_env(qs_env, mos=mos, matrix_ks=ks_rmpv)
+            DO ispin = 1, dft_control%nspins
+               IF (PRESENT(scf_env)) THEN
+                  IF (scf_env%method == ot_method_nr) THEN
+                     CALL get_mo_set(mo_set=mos(ispin)%mo_set, mo_coeff=mo_coeff, &
+                                     eigenvalues=mo_eigenvalues)
+                     IF (ASSOCIATED(qs_env%mo_derivs)) THEN
+                        mo_coeff_deriv => qs_env%mo_derivs(ispin)%matrix
+                     ELSE
+                        mo_coeff_deriv => NULL()
+                     ENDIF
+                     CALL calculate_subspace_eigenvalues(mo_coeff, ks_rmpv(ispin)%matrix, mo_eigenvalues, &
+                                                         do_rotation=.TRUE., &
+                                                         co_rotate_dbcsr=mo_coeff_deriv)
+                     CALL set_mo_occupation(mo_set=mos(ispin)%mo_set)
+                  END IF
+               END IF
+               IF (dft_control%nspins == 2) THEN
+                  CALL calculate_projected_dos(mos(ispin)%mo_set, atomic_kind_set, &
+                                               qs_kind_set, particle_set, qs_env, dft_section, ispin=ispin)
+               ELSE
+                  CALL calculate_projected_dos(mos(ispin)%mo_set, atomic_kind_set, &
+                                               qs_kind_set, particle_set, qs_env, dft_section)
+               END IF
+            ENDDO
+         ENDIF
+      END IF
+
+      ! can we do CUBE files?
+      SELECT CASE (tb_type)
+      CASE ("DFTB")
+         do_cube = .FALSE.
+         rebuild = .FALSE.
+      CASE ("xTB")
+         do_cube = .TRUE.
+         rebuild = .TRUE.
+      CASE DEFAULT
+         CPABORT("unknown TB type")
+      END SELECT
+
+      ! V_XC CUBE FILE
+      print_key => section_vals_get_subs_vals(print_section, "V_XC_CUBE")
+      IF (BTEST(cp_print_key_should_output(logger%iter_info, print_key), cp_p_file)) THEN
+         CPWARN("XC potential cube file not available for TB methods.")
       END IF
 
       ! EFIELD CUBE FILE
@@ -277,16 +388,63 @@ CONTAINS
          CPWARN("Hartree potential cube file not implemented for TB methods.")
       END IF
 
-      ! V_XC CUBE FILE
-      print_key => section_vals_get_subs_vals(print_section, "V_XC_CUBE")
-      IF (BTEST(cp_print_key_should_output(logger%iter_info, print_key), cp_p_file)) THEN
-         CPWARN("XC potential cube file not available for TB methods.")
-      END IF
-
       ! ELF
       print_key => section_vals_get_subs_vals(print_section, "ELF_CUBE")
       IF (BTEST(cp_print_key_should_output(logger%iter_info, print_key), cp_p_file)) THEN
          CPWARN("ELF not implemented for TB methods.")
+      END IF
+
+      ! MO CUBES
+      print_key => section_vals_get_subs_vals(print_section, "MO_CUBES")
+      IF (BTEST(cp_print_key_should_output(logger%iter_info, print_key), cp_p_file)) THEN
+         CPWARN("Printing of MO cube files not implemented for TB methods.")
+      END IF
+
+      ! STM
+      print_key => section_vals_get_subs_vals(print_section, "STM")
+      IF (BTEST(cp_print_key_should_output(logger%iter_info, print_key), cp_p_file)) THEN
+         IF (do_kpoints) THEN
+            CPWARN("STM not implemented for k-point calculations!")
+         ELSE
+            nlumo_stm = section_get_ival(print_key, "NLUMO")
+            CPASSERT(.NOT. dft_control%restricted)
+            CALL get_qs_env(qs_env, mos=mos, mo_derivs=mo_derivs, &
+                            scf_control=scf_control, matrix_ks=ks_rmpv)
+            CALL make_mo_eig(mos, dft_control%nspins, ks_rmpv, scf_control, mo_derivs)
+            DO ispin = 1, dft_control%nspins
+               CALL get_mo_set(mo_set=mos(ispin)%mo_set, eigenvalues=mo_eigenvalues, homo=homo)
+               homo_lumo(ispin, 1) = mo_eigenvalues(homo)
+            END DO
+            has_homo = .TRUE.
+            IF (nlumo_stm > 0) THEN
+               ALLOCATE (unoccupied_orbs_stm(dft_control%nspins))
+               ALLOCATE (unoccupied_evals_stm(dft_control%nspins))
+               CALL make_lumo(qs_env, scf_env, unoccupied_orbs_stm, unoccupied_evals_stm, &
+                              nlumo_stm, nlumos)
+            END IF
+
+            CALL get_qs_env(qs_env, subsys=subsys)
+            CALL qs_subsys_get(subsys, particles=particles)
+            CALL th_stm_image(qs_env, print_key, particles, unoccupied_orbs_stm, &
+                              unoccupied_evals_stm)
+
+            IF (nlumo_stm > 0) THEN
+               DO ispin = 1, dft_control%nspins
+                  DEALLOCATE (unoccupied_evals_stm(ispin)%array)
+                  CALL cp_fm_release(unoccupied_orbs_stm(ispin)%matrix)
+               ENDDO
+               DEALLOCATE (unoccupied_evals_stm)
+               DEALLOCATE (unoccupied_orbs_stm)
+            END IF
+         END IF
+      END IF
+
+      ! these print keys are not supported in TB
+
+      ! Electric field gradients
+      print_key => section_vals_get_subs_vals(print_section, "ELECTRIC_FIELD_GRADIENT")
+      IF (BTEST(cp_print_key_should_output(logger%iter_info, print_key), cp_p_file)) THEN
+         CPWARN("Electric field gradient not implemented for TB methods.")
       END IF
 
       ! KINETIC ENERGY
@@ -301,45 +459,16 @@ CONTAINS
          CPWARN("Xray diffraction spectrum not implemented for TB methods.")
       END IF
 
-      ! Electric field gradients
-      print_key => section_vals_get_subs_vals(print_section, "ELECTRIC_FIELD_GRADIENT")
+      ! EPR Hyperfine Coupling
+      print_key => section_vals_get_subs_vals(print_section, "HYPERFINE_COUPLING_TENSOR")
       IF (BTEST(cp_print_key_should_output(logger%iter_info, print_key), cp_p_file)) THEN
-         CPWARN("Electric field gradient not implemented for TB methods.")
+         CPWARN("Hyperfine Coupling not implemented for TB methods.")
       END IF
-
-      ! STM
-      print_key => section_vals_get_subs_vals(print_section, "STM")
-      IF (BTEST(cp_print_key_should_output(logger%iter_info, print_key), cp_p_file)) THEN
-         CPWARN("STM not implemented for TB methods.")
-      END IF
-
-      ! MO
-      print_key => section_vals_get_subs_vals(print_section, "MO")
-      IF (BTEST(cp_print_key_should_output(logger%iter_info, print_key), cp_p_file)) THEN
-         CPWARN("Printing of MO properties not implemented for TB methods.")
-      END IF
-
-      ! MO CUBES
-      print_key => section_vals_get_subs_vals(print_section, "MO_CUBES")
-      IF (BTEST(cp_print_key_should_output(logger%iter_info, print_key), cp_p_file)) THEN
-         CPWARN("Printing of MO cube files not implemented for TB methods.")
-      END IF
-
-      ! Wavefunction mixing
-      wfn_mix_section => section_vals_get_subs_vals(dft_section, "PRINT%WFN_MIX")
-      CALL section_vals_get(wfn_mix_section, explicit=explicit)
-      IF (explicit .AND. .NOT. qs_env%run_rtp) CALL wfn_mix_tb(qs_env, dft_section, scf_env)
 
       ! PLUS_U
       print_key => section_vals_get_subs_vals(print_section, "PLUS_U")
       IF (BTEST(cp_print_key_should_output(logger%iter_info, print_key), cp_p_file)) THEN
          CPWARN("DFT+U method not implemented for TB methods.")
-      END IF
-
-      ! PDOS
-      print_key => section_vals_get_subs_vals(print_section, "PDOS")
-      IF (BTEST(cp_print_key_should_output(logger%iter_info, print_key), cp_p_file)) THEN
-         CPWARN("Projected DOS not implemented for TB methods.")
       END IF
 
       CALL timestop(handle)
@@ -468,7 +597,7 @@ CONTAINS
 
       CHARACTER(len=*), PARAMETER :: routineN = 'wfn_mix_tb', routineP = moduleN//':'//routineN
 
-      INTEGER                                            :: ispin, nao, nmo, output_unit
+      INTEGER                                            :: iounit, ispin, nao, nmo
       REAL(dp), DIMENSION(:), POINTER                    :: mo_eigenvalues
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       TYPE(cp_fm_p_type), DIMENSION(:), POINTER          :: lumos
@@ -517,9 +646,9 @@ CONTAINS
          CALL cp_fm_struct_release(ao_lumo_struct)
       END DO
 
-      output_unit = cp_logger_get_default_io_unit(logger)
+      iounit = cp_logger_get_default_io_unit(logger)
       CALL wfn_mix(mos, particle_set, dft_section, qs_kind_set, &
-                   lumos, scf_env, matrix_s, output_unit)
+                   lumos, scf_env, matrix_s, iounit)
 
       DO ispin = 1, SIZE(mos)
          CALL cp_fm_release(lumos(ispin)%matrix)
@@ -533,6 +662,180 @@ CONTAINS
 
    END SUBROUTINE wfn_mix_tb
 
+! **************************************************************************************************
+!> \brief MO printing
+!> \param qs_env ...
+!> \param scf_env ...
+!> \param dft_section ...
+!> \param tb_type ...
+!> \par History
+!> \author JHU
+!> \note
+! **************************************************************************************************
+   SUBROUTINE print_mos(qs_env, scf_env, dft_section, tb_type)
+
+      TYPE(qs_environment_type), POINTER                 :: qs_env
+      TYPE(qs_scf_env_type), OPTIONAL, POINTER           :: scf_env
+      TYPE(section_vals_type), POINTER                   :: dft_section
+      CHARACTER(LEN=*)                                   :: tb_type
+
+      CHARACTER(len=*), PARAMETER :: routineN = 'print_mos', routineP = moduleN//':'//routineN
+
+      INTEGER                                            :: ik, iounit
+      LOGICAL                                            :: do_kpoints
+      TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
+      TYPE(cp_logger_type), POINTER                      :: logger
+      TYPE(dft_control_type), POINTER                    :: dft_control
+      TYPE(kpoint_type), POINTER                         :: kpoints
+      TYPE(mo_set_p_type), DIMENSION(:), POINTER         :: mos
+      TYPE(mo_set_p_type), DIMENSION(:, :), POINTER      :: mos_k
+      TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
+      TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
+      TYPE(section_vals_type), POINTER                   :: sprint_section
+
+      CPASSERT(ASSOCIATED(qs_env))
+      IF (qs_env%run_rtp) RETURN
+
+      logger => cp_get_default_logger()
+      iounit = cp_logger_get_default_io_unit(logger)
+
+      CALL get_qs_env(qs_env, &
+                      dft_control=dft_control, &
+                      do_kpoints=do_kpoints, &
+                      atomic_kind_set=atomic_kind_set, &
+                      particle_set=particle_set, &
+                      qs_kind_set=qs_kind_set)
+
+      IF (.NOT. do_kpoints) THEN
+         CALL get_qs_env(qs_env, mos=mos)
+         IF (dft_control%nspins == 2) THEN
+            CALL write_mo_set(mos(1)%mo_set, atomic_kind_set, qs_kind_set, particle_set, 4, &
+                              dft_section, spin="ALPHA", last=.TRUE.)
+            CALL write_mo_set(mos(2)%mo_set, atomic_kind_set, qs_kind_set, particle_set, 4, &
+                              dft_section, spin="BETA", last=.TRUE.)
+         ELSE
+            CALL write_mo_set(mos(1)%mo_set, atomic_kind_set, qs_kind_set, particle_set, 4, &
+                              dft_section, last=.TRUE.)
+         END IF
+         !
+         SELECT CASE (tb_type)
+         CASE ("DFTB")
+            !
+         CASE ("xTB")
+            sprint_section => section_vals_get_subs_vals(dft_section, "SCF%PRINT")
+            CALL write_mos_molden(mos, qs_kind_set, particle_set, sprint_section)
+         CASE DEFAULT
+            CPABORT("unknown TB type")
+         END SELECT
+      ELSE
+         CALL get_qs_env(qs_env=qs_env, kpoints=kpoints)
+         IF (kpoints%nkp /= 0) THEN
+            DO ik = 1, SIZE(kpoints%kp_env)
+               mos_k => kpoints%kp_env(ik)%kpoint_env%mos
+               CPASSERT(ASSOCIATED(mos_k))
+               IF (dft_control%nspins == 2) THEN
+                  CALL write_mo_set(mos_k(1, 1)%mo_set, atomic_kind_set, qs_kind_set, particle_set, 4, &
+                                    dft_section, spin="ALPHA", last=.TRUE., kpt=ik)
+                  CALL write_mo_set(mos_k(1, 2)%mo_set, atomic_kind_set, qs_kind_set, particle_set, 4, &
+                                    dft_section, spin="BETA", last=.TRUE., kpt=ik)
+               ELSE
+                  CALL write_mo_set(mos_k(1, 1)%mo_set, atomic_kind_set, qs_kind_set, particle_set, 4, &
+                                    dft_section, last=.TRUE., kpt=ik)
+               END IF
+            END DO
+         END IF
+      END IF
+
+   END SUBROUTINE print_mos
+
+! **************************************************************************************************
+!> \brief Gets the lumos, and eigenvalues for the lumos
+!> \param qs_env ...
+!> \param scf_env ...
+!> \param unoccupied_orbs ...
+!> \param unoccupied_evals ...
+!> \param nlumo ...
+!> \param nlumos ...
+! **************************************************************************************************
+   SUBROUTINE make_lumo(qs_env, scf_env, unoccupied_orbs, unoccupied_evals, nlumo, nlumos)
+
+      TYPE(qs_environment_type), POINTER                 :: qs_env
+      TYPE(qs_scf_env_type), POINTER                     :: scf_env
+      TYPE(cp_fm_p_type), DIMENSION(:), POINTER          :: unoccupied_orbs
+      TYPE(cp_1d_r_p_type), DIMENSION(:), POINTER        :: unoccupied_evals
+      INTEGER                                            :: nlumo
+      INTEGER, INTENT(OUT)                               :: nlumos
+
+      CHARACTER(len=*), PARAMETER :: routineN = 'make_lumo', routineP = moduleN//':'//routineN
+
+      INTEGER                                            :: homo, iounit, ispin, n, nao, nmo
+      TYPE(cp_blacs_env_type), POINTER                   :: blacs_env
+      TYPE(cp_fm_struct_type), POINTER                   :: fm_struct_tmp
+      TYPE(cp_fm_type), POINTER                          :: mo_coeff
+      TYPE(cp_logger_type), POINTER                      :: logger
+      TYPE(cp_para_env_type), POINTER                    :: para_env
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: ks_rmpv, matrix_s
+      TYPE(dft_control_type), POINTER                    :: dft_control
+      TYPE(mo_set_p_type), DIMENSION(:), POINTER         :: mos
+      TYPE(preconditioner_type), POINTER                 :: local_preconditioner
+      TYPE(scf_control_type), POINTER                    :: scf_control
+
+      NULLIFY (mos, ks_rmpv, scf_control, dft_control, para_env, blacs_env)
+      CALL get_qs_env(qs_env, &
+                      mos=mos, &
+                      matrix_ks=ks_rmpv, &
+                      scf_control=scf_control, &
+                      dft_control=dft_control, &
+                      matrix_s=matrix_s, &
+                      para_env=para_env, &
+                      blacs_env=blacs_env)
+
+      logger => cp_get_default_logger()
+      iounit = cp_logger_get_default_io_unit(logger)
+
+      DO ispin = 1, dft_control%nspins
+         NULLIFY (unoccupied_orbs(ispin)%matrix)
+         NULLIFY (unoccupied_evals(ispin)%array)
+         ! Always write eigenvalues
+         IF (iounit > 0) WRITE (iounit, *) " "
+         IF (iounit > 0) WRITE (iounit, *) " Lowest Eigenvalues of the unoccupied subspace spin ", ispin
+         IF (iounit > 0) WRITE (iounit, FMT='(1X,A)') "-----------------------------------------------------"
+         CALL get_mo_set(mo_set=mos(ispin)%mo_set, mo_coeff=mo_coeff, homo=homo, nao=nao, nmo=nmo)
+         CALL cp_fm_get_info(mo_coeff, nrow_global=n)
+         nlumos = MAX(1, MIN(nlumo, nao-nmo))
+         IF (nlumo == -1) nlumos = nao-nmo
+         ALLOCATE (unoccupied_evals(ispin)%array(nlumos))
+         CALL cp_fm_struct_create(fm_struct_tmp, para_env=para_env, context=blacs_env, &
+                                  nrow_global=n, ncol_global=nlumos)
+         CALL cp_fm_create(unoccupied_orbs(ispin)%matrix, fm_struct_tmp, name="lumos")
+         CALL cp_fm_struct_release(fm_struct_tmp)
+         CALL cp_fm_init_random(unoccupied_orbs(ispin)%matrix, nlumos)
+
+         ! the full_all preconditioner makes not much sense for lumos search
+         NULLIFY (local_preconditioner)
+         IF (ASSOCIATED(scf_env%ot_preconditioner)) THEN
+            local_preconditioner => scf_env%ot_preconditioner(1)%preconditioner
+            ! this one can for sure not be right (as it has to match a given C0)
+            IF (local_preconditioner%in_use == ot_precond_full_all) THEN
+               NULLIFY (local_preconditioner)
+            ENDIF
+         ENDIF
+
+         CALL ot_eigensolver(matrix_h=ks_rmpv(ispin)%matrix, matrix_s=matrix_s(1)%matrix, &
+                             matrix_c_fm=unoccupied_orbs(ispin)%matrix, &
+                             matrix_orthogonal_space_fm=mo_coeff, &
+                             eps_gradient=scf_control%eps_lumos, &
+                             preconditioner=local_preconditioner, &
+                             iter_max=scf_control%max_iter_lumos, &
+                             size_ortho_space=nmo)
+
+         CALL calculate_subspace_eigenvalues(unoccupied_orbs(ispin)%matrix, ks_rmpv(ispin)%matrix, &
+                                             unoccupied_evals(ispin)%array, scr=iounit, &
+                                             ionode=iounit > 0)
+
+      END DO
+
+   END SUBROUTINE make_lumo
 ! **************************************************************************************************
 
 END MODULE qs_scf_post_tb

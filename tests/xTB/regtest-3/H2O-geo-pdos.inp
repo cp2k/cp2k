@@ -1,0 +1,46 @@
+&FORCE_EVAL
+  METHOD Quickstep
+  &DFT
+    &PRINT
+      &PDOS
+         &EACH
+            GEO_OPT 2
+         &END
+      &END
+    &END
+    &QS
+      METHOD xTB
+    &END QS
+    &SCF
+      EPS_SCF 1.0E-6
+      SCF_GUESS ATOMIC
+      MAX_SCF 100
+      &OT OFF
+      &END
+    &END SCF
+  &END DFT
+  &SUBSYS
+    &CELL
+      ABC 6.0 6.0 6.0
+    &END CELL
+    &COORD
+    O   0.000000    0.000000   -0.065587
+    H   0.000000   -0.757136    0.520545
+    H   0.000000    0.757136    0.520545
+    &END COORD
+    &TOPOLOGY
+      CONNECTIVITY GENERATE
+    &END TOPOLOGY
+  &END SUBSYS
+&END FORCE_EVAL
+&MOTION
+ &GEO_OPT
+  OPTIMIZER BFGS
+  MAX_ITER 4
+ &END
+&END
+&GLOBAL
+  PROJECT H2O-geo-pdos
+  PRINT_LEVEL MEDIUM
+  RUN_TYPE GEO_OPT
+&END GLOBAL

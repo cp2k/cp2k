@@ -22,6 +22,7 @@ MODULE xtb_matrices
    USE basis_set_types,                 ONLY: gto_basis_set_p_type,&
                                               gto_basis_set_type
    USE block_p_types,                   ONLY: block_p_type
+   USE cp_blacs_env,                    ONLY: cp_blacs_env_type
    USE cp_control_types,                ONLY: dft_control_type,&
                                               xtb_control_type
    USE cp_dbcsr_cp2k_link,              ONLY: cp_dbcsr_alloc_block_from_nbl
@@ -50,6 +51,7 @@ MODULE xtb_matrices
    USE orbital_pointers,                ONLY: ncoset
    USE particle_types,                  ONLY: particle_type
    USE qs_charge_mixing,                ONLY: charge_mixing
+   USE qs_condnum,                      ONLY: overlap_condnum
    USE qs_dispersion_pairpot,           ONLY: d3_cnumber,&
                                               d3_cnumber_bcast,&
                                               dcnum_type
@@ -129,8 +131,8 @@ CONTAINS
       INTEGER, DIMENSION(:, :), POINTER                  :: first_sgfa, first_sgfb
       INTEGER, DIMENSION(:, :, :), POINTER               :: cell_to_index
       LOGICAL                                            :: defined, diagblock, floating_a, found, &
-                                                            ghost_a, omit_headers, use_virial, &
-                                                            xb_inter
+                                                            ghost_a, norml1, norml2, omit_headers, &
+                                                            use_arnoldi, use_virial, xb_inter
       LOGICAL, ALLOCATABLE, DIMENSION(:)                 :: floating, ghost
       REAL(KIND=dp) :: alphaa, alphab, derepij, dfp, dhij, dr, drk, drx, ena, enb, erep, erepij, &
          etaa, etab, exb, f0, f1, fen, fhua, fhub, fhud, foab, hij, k2sh, kab, kcnd, kcnp, kcns, &
@@ -151,6 +153,7 @@ CONTAINS
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       TYPE(atprop_type), POINTER                         :: atprop
       TYPE(block_p_type), DIMENSION(2:4)                 :: dsblocks
+      TYPE(cp_blacs_env_type), POINTER                   :: blacs_env
       TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: matrix_h, matrix_p, matrix_s, matrix_w
       TYPE(dcnum_type), ALLOCATABLE, DIMENSION(:)        :: dcnum
@@ -883,6 +886,20 @@ CONTAINS
             END IF
          END DO
          CALL cp_print_key_finished_output(iw, logger, qs_env%input, "DFT%PRINT%AO_MATRICES/OVERLAP")
+      END IF
+
+      ! *** Overlap condition number
+      IF (.NOT. calculate_forces) THEN
+         IF (cp_print_key_should_output(logger%iter_info, qs_env%input, &
+                                        "DFT%PRINT%OVERLAP_CONDITION") .NE. 0) THEN
+            iw = cp_print_key_unit_nr(logger, qs_env%input, "DFT%PRINT%OVERLAP_CONDITION", &
+                                      extension=".Log")
+            CALL section_vals_val_get(qs_env%input, "DFT%PRINT%OVERLAP_CONDITION%1-NORM", l_val=norml1)
+            CALL section_vals_val_get(qs_env%input, "DFT%PRINT%OVERLAP_CONDITION%DIAGONALIZATION", l_val=norml2)
+            CALL section_vals_val_get(qs_env%input, "DFT%PRINT%OVERLAP_CONDITION%ARNOLDI", l_val=use_arnoldi)
+            CALL get_qs_env(qs_env=qs_env, blacs_env=blacs_env)
+            CALL overlap_condnum(matrix_s, iw, norml1, norml2, use_arnoldi, blacs_env)
+         END IF
       END IF
 
       DEALLOCATE (basis_set_list)
