@@ -1920,9 +1920,8 @@ CONTAINS
       END IF
 
       SELECT CASE (method_id)
-      CASE (do_method_dftb, do_method_xtb, do_method_rm1, do_method_am1, do_method_mndo, &
-            do_method_pdg, do_method_pm3, do_method_pm6, do_method_pm6fm, do_method_mndod, &
-            do_method_pnnl)
+      CASE (do_method_rm1, do_method_am1, do_method_mndo, do_method_pdg, do_method_pm3, do_method_pm6, &
+            do_method_pm6fm, do_method_mndod, do_method_pnnl)
          ! Allocate all_potential
          CALL allocate_potential(qs_kind%all_potential)
          CALL set_default_all_potential(qs_kind%all_potential, z, zeff_correction)
@@ -1931,7 +1930,8 @@ CONTAINS
             CALL get_potential(potential=qs_kind%all_potential, elec_conf=elec_conf)
             CALL set_qs_kind(qs_kind, elec_conf=elec_conf)
          END IF
-         IF (qs_kind%ghost .OR. qs_kind%floating) THEN
+         CPASSERT(.NOT. qs_kind%floating)
+         IF (qs_kind%ghost) THEN
             CALL get_qs_kind(qs_kind=qs_kind, elec_conf=elec_conf)
             elec_conf(:) = 0
             CALL get_potential(potential=qs_kind%all_potential, &
@@ -1943,39 +1943,95 @@ CONTAINS
          END IF
 
          ! Basis set (Parameters)
-         SELECT CASE (method_id)
-         CASE (do_method_rm1, do_method_am1, do_method_mndo, do_method_pdg, &
-               do_method_pm3, do_method_pm6, do_method_pm6fm, do_method_mndod, do_method_pnnl)
-            ! Setup proper semiempirical parameters
-            check = .NOT. ASSOCIATED(qs_kind%se_parameter)
-            CPASSERT(check)
-            CALL semi_empirical_create(qs_kind%se_parameter)
-            ! Check if we allow p-orbitals on H
-            SELECT CASE (z)
-            CASE (1)
-               IF (k_rep > 0) THEN
-                  CALL section_vals_val_get(kind_section, i_rep_section=k_rep, &
-                                            keyword_name="SE_P_ORBITALS_ON_H", l_val=qs_kind%se_parameter%p_orbitals_on_h)
-               END IF
-            CASE DEFAULT
-               ! No special cases for other elements..
-            END SELECT
-            ! Set default parameters
-            CALL section_vals_val_get(dft_section, "QS%SE%STO_NG", i_val=ngauss)
-            CALL se_param_set_default(qs_kind%se_parameter, z, method_id)
-            NULLIFY (tmp_basis_set)
-            CALL init_se_param(qs_kind%se_parameter, tmp_basis_set, ngauss)
-            CALL add_basis_set_to_container(qs_kind%basis_sets, tmp_basis_set, "ORB")
-            CALL init_potential(qs_kind%all_potential, itype="BARE", &
-                                zeff=qs_kind%se_parameter%zeff, zeff_correction=zeff_correction)
-            qs_kind%se_parameter%zeff = qs_kind%se_parameter%zeff-zeff_correction
-         CASE (do_method_dftb)
-            ! Do nothing at this stage.. The initialization of the parameters will be done later
-         CASE (do_method_xtb)
-            ! Do nothing at this stage.. The initialization of the parameters will be done later
+         ! Setup proper semiempirical parameters
+         check = .NOT. ASSOCIATED(qs_kind%se_parameter)
+         CPASSERT(check)
+         CALL semi_empirical_create(qs_kind%se_parameter)
+         ! Check if we allow p-orbitals on H
+         SELECT CASE (z)
+         CASE (1)
+            IF (k_rep > 0) THEN
+               CALL section_vals_val_get(kind_section, i_rep_section=k_rep, &
+                                         keyword_name="SE_P_ORBITALS_ON_H", l_val=qs_kind%se_parameter%p_orbitals_on_h)
+            END IF
          CASE DEFAULT
-            CPABORT("")
+            ! No special cases for other elements..
          END SELECT
+         ! Set default parameters
+         CALL section_vals_val_get(dft_section, "QS%SE%STO_NG", i_val=ngauss)
+         CALL se_param_set_default(qs_kind%se_parameter, z, method_id)
+         NULLIFY (tmp_basis_set)
+         CALL init_se_param(qs_kind%se_parameter, tmp_basis_set, ngauss)
+         CALL add_basis_set_to_container(qs_kind%basis_sets, tmp_basis_set, "ORB")
+         CALL init_potential(qs_kind%all_potential, itype="BARE", &
+                             zeff=qs_kind%se_parameter%zeff, zeff_correction=zeff_correction)
+         qs_kind%se_parameter%zeff = qs_kind%se_parameter%zeff-zeff_correction
+
+         check = ((potential_name /= '') .OR. explicit_potential)
+         IF (check) &
+            CALL cp_warn(__LOCATION__, &
+                         "Information provided in the input file regarding POTENTIAL for KIND <"// &
+                         TRIM(qs_kind%name)//"> will be ignored!")
+
+         check = ((orb_basis_set_name /= '') .OR. explicit_basis)
+         IF (check) &
+            CALL cp_warn(__LOCATION__, &
+                         "Information provided in the input file regarding BASIS for KIND <"// &
+                         TRIM(qs_kind%name)//"> will be ignored!")
+
+      CASE (do_method_dftb)
+         ! Allocate all_potential
+         CALL allocate_potential(qs_kind%all_potential)
+         CALL set_default_all_potential(qs_kind%all_potential, z, zeff_correction)
+         CALL get_qs_kind(qs_kind, elec_conf=elec_conf)
+         IF (.NOT. ASSOCIATED(elec_conf)) THEN
+            CALL get_potential(potential=qs_kind%all_potential, elec_conf=elec_conf)
+            CALL set_qs_kind(qs_kind, elec_conf=elec_conf)
+         END IF
+         CPASSERT(.NOT. qs_kind%floating)
+         IF (qs_kind%ghost) THEN
+            CALL get_qs_kind(qs_kind=qs_kind, elec_conf=elec_conf)
+            elec_conf(:) = 0
+            CALL get_potential(potential=qs_kind%all_potential, &
+                               elec_conf=elec_conf)
+            elec_conf(:) = 0
+            CALL set_potential(potential=qs_kind%all_potential, &
+                               zeff=0.0_dp, &
+                               zeff_correction=0.0_dp)
+         END IF
+
+         check = ((potential_name /= '') .OR. explicit_potential)
+         IF (check) &
+            CALL cp_warn(__LOCATION__, &
+                         "Information provided in the input file regarding POTENTIAL for KIND <"// &
+                         TRIM(qs_kind%name)//"> will be ignored!")
+
+         check = ((orb_basis_set_name /= '') .OR. explicit_basis)
+         IF (check) &
+            CALL cp_warn(__LOCATION__, &
+                         "Information provided in the input file regarding BASIS for KIND <"// &
+                         TRIM(qs_kind%name)//"> will be ignored!")
+
+      CASE (do_method_xtb)
+         ! Allocate all_potential
+         CALL allocate_potential(qs_kind%all_potential)
+         CALL set_default_all_potential(qs_kind%all_potential, z, zeff_correction)
+         CALL get_qs_kind(qs_kind, elec_conf=elec_conf)
+         IF (.NOT. ASSOCIATED(elec_conf)) THEN
+            CALL get_potential(potential=qs_kind%all_potential, elec_conf=elec_conf)
+            CALL set_qs_kind(qs_kind, elec_conf=elec_conf)
+         END IF
+         CPASSERT(.NOT. qs_kind%floating)
+         IF (qs_kind%ghost) THEN
+            CALL get_qs_kind(qs_kind=qs_kind, elec_conf=elec_conf)
+            elec_conf(:) = 0
+            CALL get_potential(potential=qs_kind%all_potential, &
+                               elec_conf=elec_conf)
+            elec_conf(:) = 0
+            CALL set_potential(potential=qs_kind%all_potential, &
+                               zeff=0.0_dp, &
+                               zeff_correction=0.0_dp)
+         END IF
 
          check = ((potential_name /= '') .OR. explicit_potential)
          IF (check) &

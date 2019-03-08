@@ -67,8 +67,7 @@ MODULE almo_scf
         molecular_guess, optimizer_diis, optimizer_lin_eq_pcg, optimizer_pcg, restart_guess, &
         smear_fermi_dirac, virt_full, virt_number, virt_occ_size, xalmo_case_block_diag, &
         xalmo_case_fully_deloc, xalmo_case_normal, xalmo_trial_r0_out
-   USE input_section_types,             ONLY: section_vals_get_subs_vals,&
-                                              section_vals_type
+   USE input_section_types,             ONLY: section_vals_type
    USE iterate_matrix,                  ONLY: invert_Hotelling,&
                                               matrix_sqrt_Newton_Schulz
    USE kinds,                           ONLY: default_path_length,&
@@ -2367,12 +2366,7 @@ CONTAINS
       CHARACTER(len=*), PARAMETER :: routineN = 'almo_post_scf_compute_properties', &
          routineP = moduleN//':'//routineN
 
-      TYPE(qs_scf_env_type), POINTER                     :: scf_env
-      TYPE(section_vals_type), POINTER                   :: dft_section, input
-
-      CALL get_qs_env(qs_env, scf_env=scf_env, input=input)
-      dft_section => section_vals_get_subs_vals(input, "DFT")
-      CALL qs_scf_compute_properties(qs_env, dft_section)
+      CALL qs_scf_compute_properties(qs_env)
 
    END SUBROUTINE almo_post_scf_compute_properties
 

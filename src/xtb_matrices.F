@@ -972,6 +972,9 @@ CONTAINS
       TYPE(section_vals_type), POINTER                   :: scf_section
       TYPE(xtb_atom_type), POINTER                       :: xtb_kind
 
+!deb
+!deb
+
       CALL timeset(routineN, handle)
       NULLIFY (dft_control, logger, scf_section, matrix_p, particle_set, ks_env, &
                ks_matrix, rho, energy)
@@ -1040,9 +1043,13 @@ CONTAINS
          DEALLOCATE (aocg)
 
          ! charge mixing
-         CALL get_qs_env(qs_env=qs_env, scf_env=scf_env)
-         CALL charge_mixing(qs_env, scf_env%mixing_method, scf_env%mixing_store, &
-                            charges, para_env, scf_env%iter_count)
+         IF (dft_control%qs_control%do_ls_scf) THEN
+            !
+         ELSE
+            CALL get_qs_env(qs_env=qs_env, scf_env=scf_env)
+            CALL charge_mixing(qs_env, scf_env%mixing_method, scf_env%mixing_store, &
+                               charges, para_env, scf_env%iter_count)
+         END IF
 
          DO iatom = 1, natom
             mcharge(iatom) = SUM(charges(iatom, :))

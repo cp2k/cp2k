@@ -154,7 +154,7 @@ CONTAINS
       TYPE(qs_ks_env_type), POINTER                      :: ks_env
       TYPE(qs_rho_type), POINTER                         :: rho
       TYPE(qs_subsys_type), POINTER                      :: subsys
-      TYPE(section_vals_type), POINTER                   :: dft_section, input, print_section
+      TYPE(section_vals_type), POINTER                   :: print_section
       TYPE(virial_type), POINTER                         :: virial
 
       CALL timeset(routineN, handle)
@@ -333,15 +333,13 @@ CONTAINS
          energy%total = energy%total+energy%mp2
 
          ! Compute MP2 properties
-         CALL get_qs_env(qs_env=qs_env, input=input)
-         dft_section => section_vals_get_subs_vals(input, "DFT")
          ! Get the HF+MP2 density
          DO ispin = 1, dft_control%nspins
             CALL dbcsr_add(rho_ao(ispin)%matrix, matrix_p_mp2(ispin)%matrix, 1.0_dp, 1.0_dp)
          END DO
          CALL qs_rho_update_rho(rho, qs_env=qs_env)
          CALL qs_ks_did_change(ks_env, rho_changed=.TRUE.)
-         CALL qs_scf_compute_properties(qs_env, dft_section, wf_type='MP2   ')
+         CALL qs_scf_compute_properties(qs_env, wf_type='MP2   ')
          ! Get everything back
          DO ispin = 1, dft_control%nspins
             CALL dbcsr_add(rho_ao(ispin)%matrix, matrix_p_mp2(ispin)%matrix, 1.0_dp, -1.0_dp)

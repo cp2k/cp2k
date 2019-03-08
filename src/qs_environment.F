@@ -75,7 +75,9 @@ MODULE qs_environment
    USE ewald_pw_types,                  ONLY: ewald_pw_create,&
                                               ewald_pw_release,&
                                               ewald_pw_type
-   USE external_potential_types,        ONLY: init_potential
+   USE external_potential_types,        ONLY: get_potential,&
+                                              init_potential,&
+                                              set_potential
    USE fist_nonbond_env_types,          ONLY: fist_nonbond_env_create,&
                                               fist_nonbond_env_type
    USE gamma,                           ONLY: init_md_ftable
@@ -112,6 +114,7 @@ MODULE qs_environment
                                               lri_env_init
    USE lri_environment_types,           ONLY: lri_environment_type
    USE machine,                         ONLY: m_flush
+   USE mathconstants,                   ONLY: pi
    USE molecule_kind_types,             ONLY: molecule_kind_type,&
                                               write_molecule_kind_set
    USE molecule_types,                  ONLY: molecule_type
@@ -191,7 +194,6 @@ MODULE qs_environment
                                               xtb_parameters_init,&
                                               xtb_parameters_read,&
                                               xtb_parameters_set
-!  USE xas_control,                     ONLY: write_xas_control
    USE xtb_types,                       ONLY: allocate_xtb_atom_param
 #include "./base/base_uses.f90"
 
@@ -484,8 +486,8 @@ CONTAINS
       LOGICAL                                            :: all_potential_present, be_silent, &
                                                             do_kpoints, e1terms, has_unit_metric, &
                                                             lribas, orb_gradient, was_present
-      REAL(dp)                                           :: ewald_rcut, maxocc, verlet_skin, &
-                                                            zeff_correction
+      REAL(dp)                                           :: alpha, ccore, ewald_rcut, maxocc, &
+                                                            verlet_skin, zeff_correction
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(dft_control_type), POINTER                    :: dft_control
@@ -670,6 +672,9 @@ CONTAINS
             zeff_correction = 0.0_dp
             CALL init_potential(qs_kind%all_potential, itype="BARE", &
                                 zeff=qs_kind%xtb_parameter%zeff, zeff_correction=zeff_correction)
+            CALL get_potential(qs_kind%all_potential, alpha_core_charge=alpha)
+            ccore = qs_kind%xtb_parameter%zeff*SQRT((alpha/pi)**3)
+            CALL set_potential(qs_kind%all_potential, ccore_charge=ccore)
             qs_kind%xtb_parameter%zeff = qs_kind%xtb_parameter%zeff-zeff_correction
          END DO
          !

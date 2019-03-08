@@ -703,7 +703,7 @@ CONTAINS
                                                            cp_to_string(CEILING(pw%pw_grid%cutoff/10)*10))), handle)
 
       IF (rs%desc%grid_id /= pw%pw_grid%id_nr) &
-         CPABORT("Different rs and pw indentitfiers")
+         CPABORT("Different rs and pw indentifiers")
       IF ((pw%in_use .NE. REALDATA3D) .AND. (pw%in_use .NE. COMPLEXDATA3D)) &
          CPABORT("Need REALDATA3D or COMPLEXDATA3D")
       IF ((dir .NE. rs2pw) .AND. (dir .NE. pw2rs)) &

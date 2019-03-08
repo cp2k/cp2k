@@ -7,6 +7,10 @@
         DO_EWALD T
       &END
     &END QS
+    &MGRID
+       CUTOFF  100
+       NGRIDS    4
+    &END
     &SCF
       SCF_GUESS ATOMIC
       EPS_SCF 1.E-6

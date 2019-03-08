@@ -26,11 +26,9 @@ MODULE qs_scf_post_gpw
    USE cp_blacs_env,                    ONLY: cp_blacs_env_type
    USE cp_control_types,                ONLY: dft_control_type
    USE cp_dbcsr_operations,             ONLY: copy_dbcsr_to_fm,&
-                                              copy_fm_to_dbcsr,&
                                               dbcsr_deallocate_matrix_set
    USE cp_dbcsr_output,                 ONLY: cp_dbcsr_write_sparse_matrix
    USE cp_ddapc_util,                   ONLY: get_ddapc
-   USE cp_fm_basic_linalg,              ONLY: cp_fm_trace
    USE cp_fm_diag,                      ONLY: choose_eigv_solver
    USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
                                               cp_fm_struct_release,&
@@ -43,7 +41,6 @@ MODULE qs_scf_post_gpw
                                               cp_fm_to_fm,&
                                               cp_fm_type
    USE cp_fm_vect,                      ONLY: cp_fm_vect_dealloc
-   USE cp_gemm_interface,               ONLY: cp_gemm
    USE cp_log_handling,                 ONLY: cp_get_default_logger,&
                                               cp_logger_get_default_io_unit,&
                                               cp_logger_type,&
@@ -61,9 +58,8 @@ MODULE qs_scf_post_gpw
    USE cp_result_types,                 ONLY: cp_result_type
    USE dbcsr_api,                       ONLY: &
         convert_dbcsr_to_csr, csr_create_from_dbcsr, csr_dbcsr_blkrow_dist, csr_destroy, csr_type, &
-        csr_write, dbcsr_add, dbcsr_copy, dbcsr_copy_into_existing, dbcsr_create, &
-        dbcsr_desymmetrize, dbcsr_frobenius_norm, dbcsr_get_info, dbcsr_has_symmetry, &
-        dbcsr_multiply, dbcsr_p_type, dbcsr_release, dbcsr_type
+        csr_write, dbcsr_copy, dbcsr_desymmetrize, dbcsr_has_symmetry, dbcsr_p_type, &
+        dbcsr_release, dbcsr_type
    USE dct,                             ONLY: pw_shrink
    USE et_coupling_types,               ONLY: set_et_coupling_type
    USE hirshfeld_methods,               ONLY: comp_hirshfeld_charges,&
@@ -90,7 +86,6 @@ MODULE qs_scf_post_gpw
                                               section_vals_get_subs_vals,&
                                               section_vals_type,&
                                               section_vals_val_get
-   USE iterate_matrix,                  ONLY: matrix_sqrt_Newton_Schulz
    USE kinds,                           ONLY: default_path_length,&
                                               default_string_length,&
                                               dp
@@ -144,12 +139,13 @@ MODULE qs_scf_post_gpw
                                               pw_p_type,&
                                               pw_type
    USE qs_active_space_methods,         ONLY: active_space_main
-   USE qs_collocate_density,            ONLY: calculate_rho_elec,&
-                                              calculate_wavefunction
+   USE qs_collocate_density,            ONLY: calculate_wavefunction
    USE qs_commutators,                  ONLY: build_com_hr_matrix
    USE qs_core_energies,                ONLY: calculate_ptrace
    USE qs_electric_field_gradient,      ONLY: qs_efg_calc
+   USE qs_elf_methods,                  ONLY: qs_elf_calc
    USE qs_energy_types,                 ONLY: qs_energy_type
+   USE qs_energy_window,                ONLY: energy_windows
    USE qs_environment_types,            ONLY: get_qs_env,&
                                               qs_environment_type,&
                                               set_qs_env
@@ -160,8 +156,7 @@ MODULE qs_scf_post_gpw
                                               qs_kind_type
    USE qs_ks_methods,                   ONLY: calc_rho_tot_gspace,&
                                               qs_ks_update_qs_env
-   USE qs_ks_types,                     ONLY: qs_ks_did_change,&
-                                              qs_ks_env_type
+   USE qs_ks_types,                     ONLY: qs_ks_did_change
    USE qs_loc_methods,                  ONLY: qs_loc_driver
    USE qs_loc_molecules,                ONLY: wfc_to_molecule
    USE qs_loc_types,                    ONLY: qs_loc_env_create,&
@@ -230,8 +225,6 @@ CONTAINS
 
 ! **************************************************************************************************
 !> \brief collects possible post - scf calculations and prints info / computes properties.
-!> \param dft_section ...
-!> \param scf_env the scf_env whose info should be written out
 !> \param qs_env the qs_env in which the qs_env lives
 !> \param wf_type ...
 !> \par History
@@ -247,10 +240,8 @@ CONTAINS
 !>      change afterwards slightly the forces (hence small numerical differences between MD
 !>      with and without the debug print level). Ideally this should not happen...
 ! **************************************************************************************************
-   SUBROUTINE scf_post_calculation_gpw(dft_section, scf_env, qs_env, wf_type)
+   SUBROUTINE scf_post_calculation_gpw(qs_env, wf_type)
 
-      TYPE(section_vals_type), POINTER                   :: dft_section
-      TYPE(qs_scf_env_type), POINTER                     :: scf_env
       TYPE(qs_environment_type), POINTER                 :: qs_env
       CHARACTER(6), OPTIONAL                             :: wf_type
 
@@ -289,9 +280,10 @@ CONTAINS
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
       TYPE(qs_loc_env_new_type), POINTER                 :: qs_loc_env_homo, qs_loc_env_lumo
       TYPE(qs_rho_type), POINTER                         :: rho
+      TYPE(qs_scf_env_type), POINTER                     :: scf_env
       TYPE(qs_subsys_type), POINTER                      :: subsys
       TYPE(scf_control_type), POINTER                    :: scf_control
-      TYPE(section_vals_type), POINTER                   :: input, loc_print_section, &
+      TYPE(section_vals_type), POINTER                   :: dft_section, input, loc_print_section, &
                                                             localize_section, print_key, &
                                                             stm_section
 
@@ -310,6 +302,7 @@ CONTAINS
       ENDIF
 
       ! Writes the data that is already available in qs_env
+      CALL get_qs_env(qs_env, scf_env=scf_env)
       CALL write_available_results(qs_env, scf_env)
 
       my_localized_wfn = .FALSE.
@@ -372,6 +365,7 @@ CONTAINS
       CALL qs_scf_post_moments(input, logger, qs_env, output_unit)
 
       ! Determine if we need to computer properties using the localized centers
+      dft_section => section_vals_get_subs_vals(input, "DFT")
       localize_section => section_vals_get_subs_vals(dft_section, "LOCALIZE")
       loc_print_section => section_vals_get_subs_vals(localize_section, "PRINT")
       CALL section_vals_get(localize_section, explicit=loc_explicit)
@@ -1699,177 +1693,6 @@ CONTAINS
       CALL timestop(handle)
 
    END SUBROUTINE qs_scf_post_elf
-
-! **************************************************************************************************
-!> \brief ...
-!> \param qs_env ...
-!> \param elf_r ...
-!> \param rho_cutoff ...
-! **************************************************************************************************
-   SUBROUTINE qs_elf_calc(qs_env, elf_r, rho_cutoff)
-
-      TYPE(qs_environment_type), POINTER                 :: qs_env
-      TYPE(pw_p_type), DIMENSION(:), POINTER             :: elf_r
-      REAL(kind=dp), INTENT(IN)                          :: rho_cutoff
-
-      CHARACTER(len=*), PARAMETER :: routineN = 'qs_elf_calc', routineP = moduleN//':'//routineN
-      REAL(KIND=dp), PARAMETER                           :: ELFCUT = 0.0001_dp, &
-                                                            f18 = (1.0_dp/8.0_dp), &
-                                                            f23 = (2.0_dp/3.0_dp), &
-                                                            f53 = (5.0_dp/3.0_dp)
-
-      INTEGER                                            :: handle, i, idir, ispin, j, k, nspin
-      INTEGER, DIMENSION(2, 3)                           :: bo
-      INTEGER, DIMENSION(3, 3)                           :: nd
-      LOGICAL                                            :: deriv_pw, drho_r_valid, tau_r_valid
-      REAL(kind=dp)                                      :: cfermi, dum, elf_kernel, norm_drho, &
-                                                            rho_53, udvol
-      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: rho_ao
-      TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: rho_struct_ao
-      TYPE(pw_env_type), POINTER                         :: pw_env
-      TYPE(pw_p_type), DIMENSION(:), POINTER             :: drho_g, drho_r, drho_struct_r, rho_r, &
-                                                            rho_struct_r, tau_g, tau_r, &
-                                                            tau_struct_r
-      TYPE(pw_pool_p_type), DIMENSION(:), POINTER        :: pw_pools
-      TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
-      TYPE(pw_type), POINTER                             :: tmp_g
-      TYPE(qs_ks_env_type), POINTER                      :: ks_env
-      TYPE(qs_rho_type), POINTER                         :: rho_struct
-
-! for spin restricted systems
-
-      CALL timeset(routineN, handle)
-
-      NULLIFY (rho_struct, rho_r, drho_g, drho_r, tau_r, tau_g, pw_env, auxbas_pw_pool, pw_pools, tmp_g, ks_env)
-      NULLIFY (rho_struct_ao, rho_struct_r, tau_struct_r, drho_struct_r)
-
-      CALL get_qs_env(qs_env, ks_env=ks_env, pw_env=pw_env, rho=rho_struct)
-
-      CALL qs_rho_get(rho_struct, &
-                      rho_ao_kp=rho_struct_ao, &
-                      rho_r=rho_struct_r, &
-                      tau_r=tau_struct_r, &
-                      drho_r=drho_struct_r, &
-                      tau_r_valid=tau_r_valid, &
-                      drho_r_valid=drho_r_valid)
-
-      CALL pw_env_get(pw_env, auxbas_pw_pool=auxbas_pw_pool, &
-                      pw_pools=pw_pools)
-      nspin = SIZE(rho_struct_r)
-      bo = rho_struct_r(1)%pw%pw_grid%bounds_local
-      cfermi = (3.0_dp/10.0_dp)*(pi*pi*3.0_dp)**f23
-
-      ALLOCATE (rho_r(nspin))
-      ALLOCATE (tau_r(nspin))
-      ALLOCATE (tau_g(nspin))
-      ALLOCATE (drho_r(3*nspin))
-      ALLOCATE (drho_g(3*nspin))
-
-      DO ispin = 1, nspin
-         rho_r(ispin)%pw => rho_struct_r(ispin)%pw
-         IF (tau_r_valid) THEN
-            tau_r(ispin)%pw => tau_struct_r(ispin)%pw
-         ELSE
-            CALL pw_pool_create_pw(auxbas_pw_pool, tau_r(ispin)%pw, &
-                                   use_data=REALDATA3D, in_space=REALSPACE)
-            CALL pw_pool_create_pw(auxbas_pw_pool, tau_g(ispin)%pw, &
-                                   use_data=COMPLEXDATA1D, in_space=RECIPROCALSPACE)
-            rho_ao => rho_struct_ao(ispin, :)
-            CALL calculate_rho_elec(matrix_p_kp=rho_ao, &
-                                    rho=tau_r(ispin), &
-                                    rho_gspace=tau_g(ispin), &
-                                    total_rho=dum, &
-                                    ks_env=ks_env, soft_valid=.FALSE., &
-                                    compute_tau=.TRUE.)
-         END IF
-
-         IF (drho_r_valid) THEN
-            DO idir = 1, 3
-               drho_r(3*(ispin-1)+idir)%pw => drho_struct_r(3*(ispin-1)+idir)%pw
-            END DO
-         ELSE
-            deriv_pw = .FALSE.
-            !        deriv_pw = .TRUE.
-            IF (deriv_pw) THEN
-               nd = RESHAPE((/1, 0, 0, 0, 1, 0, 0, 0, 1/), (/3, 3/))
-               CALL pw_pool_create_pw(auxbas_pw_pool, tmp_g, &
-                                      use_data=COMPLEXDATA1D, in_space=RECIPROCALSPACE)
-               udvol = 1.0_dp/rho_struct_r(ispin)%pw%pw_grid%dvol
-               DO idir = 1, 3
-                  CALL pw_pool_create_pw(auxbas_pw_pool, drho_r(3*(ispin-1)+idir)%pw, &
-                                         use_data=REALDATA3D, in_space=REALSPACE)
-                  CALL pw_transfer(rho_struct_r(ispin)%pw, tmp_g)
-                  CALL pw_derive(tmp_g, nd(:, idir))
-                  CALL pw_transfer(tmp_g, drho_r(3*(ispin-1)+idir)%pw)
-!              CALL pw_scale(drho_r(3*(ispin-1)+idir)%pw,udvol)
-
-               END DO
-
-            ELSE
-               DO idir = 1, 3
-                  CALL pw_pool_create_pw(auxbas_pw_pool, drho_r(3*(ispin-1)+idir)%pw, &
-                                         use_data=REALDATA3D, in_space=REALSPACE)
-                  CALL pw_pool_create_pw(auxbas_pw_pool, drho_g(3*(ispin-1)+idir)%pw, &
-                                         use_data=COMPLEXDATA1D, in_space=RECIPROCALSPACE)
-                  rho_ao => rho_struct_ao(ispin, :)
-                  CALL calculate_rho_elec(matrix_p_kp=rho_ao, &
-                                          rho=drho_r(3*(ispin-1)+idir), &
-                                          rho_gspace=drho_g(3*(ispin-1)+idir), &
-                                          total_rho=dum, &
-                                          ks_env=ks_env, soft_valid=.FALSE., &
-                                          compute_tau=.FALSE., compute_grad=.TRUE., idir=idir)
-
-               END DO
-            END IF
-         END IF
-
-         ! Calculate elf_r
-!$OMP        PARALLEL DO DEFAULT(NONE) SHARED(bo,elf_r, ispin, drho_r,rho_r, tau_r, cfermi, rho_cutoff)&
-!$OMP                    PRIVATE(k,j,i, norm_drho, rho_53, elf_kernel)
-         DO k = bo(1, 3), bo(2, 3)
-            DO j = bo(1, 2), bo(2, 2)
-               DO i = bo(1, 1), bo(2, 1)
-                  norm_drho = drho_r(3*(ispin-1)+1)%pw%cr3d(i, j, k)**2+ &
-                              drho_r(3*(ispin-1)+2)%pw%cr3d(i, j, k)**2+ &
-                              drho_r(3*(ispin-1)+3)%pw%cr3d(i, j, k)**2
-                  norm_drho = norm_drho/MAX(rho_r(ispin)%pw%cr3d(i, j, k), rho_cutoff)
-                  rho_53 = cfermi*MAX(rho_r(ispin)%pw%cr3d(i, j, k), rho_cutoff)**f53
-                  elf_kernel = (tau_r(ispin)%pw%cr3d(i, j, k)-f18*norm_drho)+2.87E-5_dp
-                  elf_kernel = (elf_kernel/rho_53)**2
-                  elf_r(ispin)%pw%cr3d(i, j, k) = 1.0_dp/(1.0_dp+elf_kernel)
-                  IF (elf_r(ispin)%pw%cr3d(i, j, k) < ELFCUT) elf_r(ispin)%pw%cr3d(i, j, k) = 0.0_dp
-               END DO
-            END DO
-         END DO
-
-         IF (.NOT. tau_r_valid) THEN
-            CALL pw_pool_give_back_pw(auxbas_pw_pool, tau_r(ispin)%pw)
-            CALL pw_pool_give_back_pw(auxbas_pw_pool, tau_g(ispin)%pw)
-         END IF
-         IF (.NOT. drho_r_valid) THEN
-            IF (deriv_pw) THEN
-               CALL pw_pool_give_back_pw(auxbas_pw_pool, tmp_g)
-               DO idir = 1, 3
-                  CALL pw_pool_give_back_pw(auxbas_pw_pool, drho_r(3*(ispin-1)+idir)%pw)
-               END DO
-            ELSE
-               DO idir = 1, 3
-                  CALL pw_pool_give_back_pw(auxbas_pw_pool, drho_r(3*(ispin-1)+idir)%pw)
-                  CALL pw_pool_give_back_pw(auxbas_pw_pool, drho_g(3*(ispin-1)+idir)%pw)
-               END DO
-            END IF
-         END IF
-      END DO !ispin
-
-      DEALLOCATE (rho_r)
-      DEALLOCATE (tau_r)
-      DEALLOCATE (tau_g)
-      DEALLOCATE (drho_r)
-      DEALLOCATE (drho_g)
-
-      CALL timestop(handle)
-
-   END SUBROUTINE qs_elf_calc
 
 ! **************************************************************************************************
 !> \brief computes the condition number of the overlap matrix and
@@ -3329,257 +3152,6 @@ CONTAINS
       CALL timestop(handle)
 
    END SUBROUTINE qs_scf_post_ps_implicit
-
-! **************************************************************************************************
-!> \brief ...
-!> \param qs_env ...
-! **************************************************************************************************
-   SUBROUTINE energy_windows(qs_env)
-
-      TYPE(qs_environment_type), POINTER                 :: qs_env
-
-      CHARACTER(len=*), PARAMETER :: routineN = 'energy_windows', routineP = moduleN//':'//routineN
-      LOGICAL, PARAMETER                                 :: debug = .FALSE.
-      REAL(KIND=dp), PARAMETER                           :: one = 1.0_dp, zero = 0.0_dp
-
-      CHARACTER(len=40)                                  :: ext, title
-      INTEGER                                            :: handle, i, lanzcos_max_iter, last, nao, &
-                                                            nelectron_total, newton_schulz_order, &
-                                                            next, nwindows, print_unit, unit_nr
-      INTEGER, DIMENSION(:), POINTER                     :: stride(:)
-      LOGICAL                                            :: mpi_io, print_cube, restrict_range
-      REAL(KIND=dp) :: bin_width, density_ewindow_total, density_total, energy_range, fermi_level, &
-         filter_eps, frob_norm, lanzcos_threshold, lower_bound, occupation, total_rho, upper_bound
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: eigenvalues, P_eigenvalues, &
-                                                            window_eigenvalues
-      TYPE(cp_blacs_env_type), POINTER                   :: blacs_env
-      TYPE(cp_fm_struct_type), POINTER                   :: ao_ao_fmstruct, window_fm_struct
-      TYPE(cp_fm_type), POINTER :: eigenvectors, eigenvectors_nonorth, matrix_ks_fm, &
-         P_eigenvectors, P_window_fm, rho_ao_ortho_fm, S_minus_half_fm, tmp_fm, &
-         window_eigenvectors, window_fm
-      TYPE(cp_logger_type), POINTER                      :: logger
-      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_ks, matrix_s, rho_ao
-      TYPE(dbcsr_type)                                   :: matrix_ks_nosym, S_half, S_minus_half, &
-                                                            tmp
-      TYPE(dbcsr_type), POINTER                          :: rho_ao_ortho, window
-      TYPE(particle_list_type), POINTER                  :: particles
-      TYPE(pw_env_type), POINTER                         :: pw_env
-      TYPE(pw_p_type), POINTER                           :: rho_g, rho_r
-      TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
-      TYPE(qs_ks_env_type), POINTER                      :: ks_env
-      TYPE(qs_rho_type), POINTER                         :: rho
-      TYPE(qs_subsys_type), POINTER                      :: subsys
-      TYPE(section_vals_type), POINTER                   :: dft_section, input, ls_scf_section
-
-      CALL timeset(routineN, handle)
-
-      logger => cp_get_default_logger()
-      unit_nr = cp_logger_get_default_io_unit(logger)
-      CALL get_qs_env(qs_env=qs_env, blacs_env=blacs_env, matrix_ks=matrix_ks, pw_env=pw_env, rho=rho, &
-                      input=input, nelectron_total=nelectron_total, subsys=subsys, ks_env=ks_env, matrix_s=matrix_s)
-      CALL qs_subsys_get(subsys, particles=particles)
-      CALL qs_rho_get(rho_struct=rho, rho_ao=rho_ao)
-      IF (SIZE(rho_ao) > 1) CALL cp_warn(__LOCATION__, &
-                                         "The printing of energy windows is currently only implemented for clsoe shell systems")
-      CALL pw_env_get(pw_env, auxbas_pw_pool=auxbas_pw_pool)
-
-      !reading the input
-      dft_section => section_vals_get_subs_vals(input, "DFT")
-      ls_scf_section => section_vals_get_subs_vals(input, "DFT%LS_SCF")
-      CALL section_vals_val_get(dft_section, "PRINT%ENERGY_WINDOWS%N_WINDOWS", i_val=nwindows)
-      CALL section_vals_val_get(dft_section, "PRINT%ENERGY_WINDOWS%PRINT_CUBES", l_val=print_cube)
-      CALL section_vals_val_get(dft_section, "PRINT%ENERGY_WINDOWS%RESTRICT_RANGE", l_val=restrict_range)
-      CALL section_vals_val_get(dft_section, "PRINT%ENERGY_WINDOWS%RANGE", r_val=energy_range)
-      NULLIFY (stride)
-      ALLOCATE (stride(3))
-      stride = section_get_ivals(dft_section, "PRINT%ENERGY_WINDOWS%STRIDE")
-      CALL section_vals_val_get(dft_section, "PRINT%ENERGY_WINDOWS%EPS_FILTER", r_val=filter_eps)
-      CALL section_vals_val_get(ls_scf_section, "EPS_LANCZOS", r_val=lanzcos_threshold)
-      CALL section_vals_val_get(ls_scf_section, "MAX_ITER_LANCZOS", i_val=lanzcos_max_iter)
-      CALL section_vals_val_get(ls_scf_section, "SIGN_SQRT_ORDER", i_val=newton_schulz_order)
-
-      !Initialize data
-      ALLOCATE (window, rho_ao_ortho)
-      CALL dbcsr_get_info(matrix=matrix_ks(1)%matrix, nfullrows_total=nao)
-      ALLOCATE (eigenvalues(nao))
-      CALL dbcsr_create(tmp, template=matrix_s(1)%matrix, matrix_type="N")
-      CALL dbcsr_create(S_minus_half, template=matrix_s(1)%matrix, matrix_type="N")
-      CALL dbcsr_create(S_half, template=matrix_s(1)%matrix, matrix_type="N")
-      CALL dbcsr_create(window, template=matrix_s(1)%matrix, matrix_type="N")
-      CALL dbcsr_create(rho_ao_ortho, template=matrix_s(1)%matrix, matrix_type="N")
-      CALL cp_fm_struct_create(fmstruct=ao_ao_fmstruct, context=blacs_env, nrow_global=nao, ncol_global=nao)
-      CALL cp_fm_create(P_window_fm, ao_ao_fmstruct)
-      CALL cp_fm_create(matrix_ks_fm, ao_ao_fmstruct)
-      CALL cp_fm_create(rho_ao_ortho_fm, ao_ao_fmstruct)
-      CALL cp_fm_create(S_minus_half_fm, ao_ao_fmstruct)
-      CALL cp_fm_create(eigenvectors, ao_ao_fmstruct)
-      CALL cp_fm_create(eigenvectors_nonorth, ao_ao_fmstruct)
-      NULLIFY (rho_r, rho_g)
-      ALLOCATE (rho_r, rho_g)
-      NULLIFY (rho_r%pw, rho_g%pw)
-      CALL pw_pool_create_pw(auxbas_pw_pool, rho_r%pw, use_data=REALDATA3D, in_space=REALSPACE)
-      CALL pw_pool_create_pw(auxbas_pw_pool, rho_g%pw, use_data=COMPLEXDATA1D, in_space=RECIPROCALSPACE)
-
-      !calculate S_minus_half
-      CALL matrix_sqrt_Newton_Schulz(S_half, S_minus_half, matrix_s(1)%matrix, filter_eps, &
-                                     newton_schulz_order, lanzcos_threshold, lanzcos_max_iter)
-
-      !get the full ks matrix
-      CALL dbcsr_desymmetrize(matrix_ks(1)%matrix, matrix_ks_nosym)
-
-      !switching to orthonormal basis
-      CALL dbcsr_multiply("N", "N", one, S_minus_half, matrix_ks_nosym, zero, tmp, filter_eps=filter_eps)
-      CALL dbcsr_multiply("N", "N", one, tmp, S_minus_half, zero, matrix_ks_nosym, filter_eps=filter_eps)
-      CALL copy_dbcsr_to_fm(matrix_ks_nosym, matrix_ks_fm)
-      CALL dbcsr_multiply("N", "N", one, S_half, rho_ao(1)%matrix, zero, tmp, filter_eps=filter_eps)
-      CALL dbcsr_multiply("N", "N", one, tmp, S_half, zero, rho_ao_ortho, filter_eps=filter_eps)
-      CALL copy_dbcsr_to_fm(rho_ao_ortho, rho_ao_ortho_fm)
-
-      !diagonalize the full ks matrix
-      CALL choose_eigv_solver(matrix_ks_fm, eigenvectors, eigenvalues)
-      fermi_level = eigenvalues((nelectron_total+MOD(nelectron_total, 2))/2)
-      IF (restrict_range) THEN
-         lower_bound = MAX(fermi_level-energy_range, eigenvalues(1))
-         upper_bound = MIN(fermi_level+energy_range, eigenvalues(SIZE(eigenvalues)))
-      ELSE
-         lower_bound = eigenvalues(1)
-         upper_bound = eigenvalues(SIZE(eigenvalues))
-      END IF
-      IF (unit_nr > 0) THEN
-         WRITE (unit_nr, *) " Creating energy windows. Fermi level: ", fermi_level
-         WRITE (unit_nr, *) " Printing Energy Levels from ", lower_bound, " to ", upper_bound
-      END IF
-      !Rotate the eigenvectors back out of the orthonormal basis
-      CALL copy_dbcsr_to_fm(S_minus_half, S_minus_half_fm)
-      CALL cp_gemm("N", "N", nao, nao, nao, one, S_minus_half_fm, eigenvectors, zero, eigenvectors_nonorth) !calculate the density caused by the mos in the energy window
-
-      IF (debug) THEN
-         !check difference to actual density
-         CALL cp_fm_struct_create(fmstruct=window_fm_struct, context=blacs_env, nrow_global=nao, ncol_global=nelectron_total/2)
-         CALL cp_fm_create(window_fm, window_fm_struct)
-         CALL cp_fm_to_fm(eigenvectors_nonorth, window_fm, nelectron_total/2, 1, 1)
-         CALL cp_gemm("N", "T", nao, nao, nelectron_total/2, 2*one, window_fm, window_fm, zero, P_window_fm)
-         !ensure the correct sparsity
-         CALL copy_fm_to_dbcsr(P_window_fm, tmp)
-         CALL dbcsr_copy(window, matrix_ks(1)%matrix)
-         CALL dbcsr_copy_into_existing(window, tmp)
-         CALL calculate_rho_elec(matrix_p=window, &
-                                 rho=rho_r, &
-                                 rho_gspace=rho_g, &
-                                 total_rho=total_rho, &
-                                 ks_env=ks_env)
-         density_total = pw_integrate_function(rho_r%pw)
-         IF (unit_nr > 0) WRITE (unit_nr, *) " Ground-state density: ", density_total
-         frob_norm = dbcsr_frobenius_norm(window)
-         IF (unit_nr > 0) WRITE (unit_nr, *) " Frob norm of calculated ground-state density matrix: ", frob_norm
-         CALL dbcsr_add(window, rho_ao(1)%matrix, one, -one)
-         frob_norm = dbcsr_frobenius_norm(rho_ao(1)%matrix)
-         IF (unit_nr > 0) WRITE (unit_nr, *) " Frob norm of current density matrix: ", frob_norm
-         frob_norm = dbcsr_frobenius_norm(window)
-         IF (unit_nr > 0) WRITE (unit_nr, *) " Difference between calculated ground-state density and current density: ", frob_norm
-         CALL cp_fm_struct_release(window_fm_struct)
-         CALL cp_fm_create(tmp_fm, ao_ao_fmstruct)
-         CALL cp_fm_to_fm(rho_ao_ortho_fm, tmp_fm)
-         CALL cp_fm_create(P_eigenvectors, ao_ao_fmstruct)
-         ALLOCATE (P_eigenvalues(nao))
-         CALL choose_eigv_solver(tmp_fm, P_eigenvectors, P_eigenvalues)
-         CALL cp_fm_create(window_eigenvectors, ao_ao_fmstruct)
-         ALLOCATE (window_eigenvalues(nao))
-         CALL cp_fm_to_fm(eigenvectors, window_fm, nelectron_total/2, 1, 1)
-         CALL cp_gemm("N", "T", nao, nao, nelectron_total/2, 2*one, window_fm, window_fm, zero, P_window_fm)
-         CALL choose_eigv_solver(P_window_fm, window_eigenvectors, window_eigenvalues)
-         DO i = 1, nao
-            IF (unit_nr > 0) THEN
-               WRITE (unit_nr, *) i, "H:", eigenvalues(i), "P:", P_eigenvalues(nao-i+1), "Pnew:", window_eigenvalues(nao-i+1)
-            ENDIF
-         END DO
-         DEALLOCATE (P_eigenvalues)
-         CALL cp_fm_release(tmp_fm)
-         CALL cp_fm_release(P_eigenvectors)
-         DEALLOCATE (window_eigenvalues)
-         CALL cp_fm_release(window_eigenvectors)
-         CALL cp_fm_release(window_fm)
-      END IF
-
-      !create energy windows
-      bin_width = (upper_bound-lower_bound)/nwindows
-      next = 0
-
-      DO i = 1, nwindows
-         DO WHILE (eigenvalues(next+1) < lower_bound)
-            next = next+1
-         END DO
-         last = next
-         DO WHILE (eigenvalues(next+1) < lower_bound+i*bin_width)
-            next = next+1
-            IF (next == SIZE(eigenvalues)) EXIT
-         END DO
-         !calculate the occupation
-         CALL cp_fm_struct_create(fmstruct=window_fm_struct, context=blacs_env, nrow_global=nao, ncol_global=next-last) !not sure how bad this is now load balanced due to using the same blacs_env
-         CALL cp_fm_create(window_fm, window_fm_struct)
-         CALL cp_fm_to_fm(eigenvectors, window_fm, next-last, last+1, 1) !copy the mos in the energy window into a separate matrix
-         CALL cp_gemm("N", "T", nao, nao, next-last, one, window_fm, window_fm, zero, P_window_fm)
-         CALL cp_fm_trace(P_window_fm, rho_ao_ortho_fm, occupation)
-         IF (print_cube) THEN
-            CALL cp_fm_to_fm(eigenvectors_nonorth, window_fm, next-last, last+1, 1)
-            !print the energy window to a cube file
-            CALL cp_gemm("N", "T", nao, nao, next-last, one, window_fm, window_fm, zero, P_window_fm) !calculate the density caused by the mos in the energy window
-            CALL copy_fm_to_dbcsr(P_window_fm, tmp)
-            !ensure the correct sparsity
-            CALL dbcsr_copy(window, matrix_ks(1)%matrix)
-            CALL dbcsr_copy_into_existing(window, tmp)
-            CALL calculate_rho_elec(matrix_p=window, &
-                                    rho=rho_r, &
-                                    rho_gspace=rho_g, &
-                                    total_rho=total_rho, &
-                                    ks_env=ks_env)
-            WRITE (ext, "(A14,I5.5,A)") "-ENERGY-WINDOW", i, TRIM(cp_iter_string(logger%iter_info))//".cube"
-            mpi_io = .TRUE.
-            print_unit = cp_print_key_unit_nr(logger, dft_section, "PRINT%ENERGY_WINDOWS", &
-                                              extension=ext, file_status="REPLACE", file_action="WRITE", &
-                                              log_filename=.FALSE., mpi_io=mpi_io)
-            WRITE (title, "(A14,I5)") "ENERGY WINDOW ", i
-            CALL cp_pw_to_cube(rho_r%pw, print_unit, title, particles=particles, stride=stride, mpi_io=mpi_io)
-            CALL cp_print_key_finished_output(print_unit, logger, dft_section, &
-                                              "PRINT%ENERGY_WINDOWS", mpi_io=mpi_io)
-            density_ewindow_total = pw_integrate_function(rho_r%pw)
-            IF (unit_nr > 0) WRITE (unit_nr, "(A,F16.10,A,I5,A,F20.14,A,F20.14)") " Energy Level: ", &
-               lower_bound+(i-0.5_dp)*bin_width, " Number of states: ", next-last, " Occupation: ", &
-               occupation, " Grid Density ", density_ewindow_total
-         ELSE
-            IF (unit_nr > 0) THEN
-               WRITE (unit_nr, "(A,F16.10,A,I5,A,F20.14)") " Energy Level: ", lower_bound+(i-0.5_dp)*bin_width, &
-                  " Number of states: ", next-last, " Occupation: ", occupation
-            END IF
-         END IF
-         CALL cp_fm_release(window_fm)
-         CALL cp_fm_struct_release(window_fm_struct)
-      END DO
-
-      !clean up
-      CALL dbcsr_release(matrix_ks_nosym)
-      CALL dbcsr_release(tmp)
-      CALL dbcsr_release(window)
-      CALL dbcsr_release(S_minus_half)
-      CALL dbcsr_release(S_half)
-      CALL dbcsr_release(rho_ao_ortho)
-      DEALLOCATE (window, rho_ao_ortho)
-      CALL cp_fm_struct_release(ao_ao_fmstruct)
-      CALL cp_fm_release(matrix_ks_fm)
-      CALL cp_fm_release(rho_ao_ortho_fm)
-      CALL cp_fm_release(eigenvectors)
-      CALL cp_fm_release(P_window_fm)
-      CALL cp_fm_release(eigenvectors_nonorth)
-      CALL cp_fm_release(S_minus_half_fm)
-      CALL pw_pool_give_back_pw(auxbas_pw_pool, rho_r%pw)
-      CALL pw_pool_give_back_pw(auxbas_pw_pool, rho_g%pw)
-      DEALLOCATE (rho_r, rho_g)
-      DEALLOCATE (eigenvalues)
-      DEALLOCATE (STRIDE)
-
-      CALL timestop(handle)
-
-   END SUBROUTINE energy_windows
 
 !**************************************************************************************************
 !> \brief writing the KS matrix in csr format into a file
