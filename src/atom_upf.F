@@ -4,20 +4,25 @@
 !--------------------------------------------------------------------------------------------------!
 
 ! **************************************************************************************************
+!> \brief Routines that process Quantum Espresso UPF files.
+!> \par History
+!>    * 07.2018 CP2K-SIRIUS interface [Juerg Hutter]
+!>    * 02.2016 created [Juerg Hutter]
+! **************************************************************************************************
 MODULE atom_upf
 #if defined(__JSON)
-   USE json_module, ONLY: json_file
+   USE json_module,                     ONLY: json_file
 #endif
-   USE cp_parser_methods, ONLY: parser_get_next_line, &
-      parser_get_object, &
-      parser_test_next_token
-   USE cp_parser_types, ONLY: cp_parser_type, &
-      parser_create, &
-      parser_release
-   USE kinds, ONLY: default_string_length, &
-      dp
-   USE periodic_table, ONLY: get_ptable_info, &
-      ptable
+   USE cp_parser_methods,               ONLY: parser_get_next_line,&
+                                              parser_get_object,&
+                                              parser_test_next_token
+   USE cp_parser_types,                 ONLY: cp_parser_type,&
+                                              parser_create,&
+                                              parser_release
+   USE kinds,                           ONLY: default_string_length,&
+                                              dp
+   USE periodic_table,                  ONLY: get_ptable_info,&
+                                              ptable
 #include "./base/base_uses.f90"
 
    IMPLICIT NONE

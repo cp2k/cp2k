@@ -3,7 +3,6 @@
 !   Copyright (C) 2000 - 2019  CP2K developers group                                               !
 !--------------------------------------------------------------------------------------------------!
 
-! **************************************************************************************************
 MODULE atom_basis
    USE atom_fit,                        ONLY: atom_fit_basis
    USE atom_output,                     ONLY: atom_print_basis,&
@@ -40,15 +39,13 @@ MODULE atom_basis
 
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'atom_basis'
 
-! **************************************************************************************************
-
 CONTAINS
 
 ! **************************************************************************************************
-
-! **************************************************************************************************
-!> \brief ...
-!> \param atom_section ...
+!> \brief Optimize the atomic basis set.
+!> \param atom_section  ATOM input section
+!> \par History
+!>    * 04.2009 created starting from the subroutine atom_energy() [Juerg Hutter]
 ! **************************************************************************************************
    SUBROUTINE atom_basis_opt(atom_section)
       TYPE(section_vals_type), POINTER                   :: atom_section

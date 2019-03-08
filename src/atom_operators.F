@@ -44,18 +44,17 @@ MODULE atom_operators
    PUBLIC :: atom_int_setup, atom_ppint_setup, atom_int_release, atom_ppint_release
    PUBLIC :: atom_relint_setup, atom_relint_release, atom_basis_projection_overlap
 
-! **************************************************************************************************
-
 CONTAINS
 
 ! **************************************************************************************************
-!> \brief ...
-!> \param integrals ...
-!> \param basis ...
-!> \param potential ...
-!> \param eri_coulomb ...
-!> \param eri_exchange ...
-!> \param all_nu ...
+!> \brief Set up atomic integrals.
+!> \param integrals     atomic integrals
+!> \param basis         atomic basis set
+!> \param potential     pseudo-potential
+!> \param eri_coulomb   setup one-centre Coulomb Electron Repulsion Integrals
+!> \param eri_exchange  setup one-centre exchange Electron Repulsion Integrals
+!> \param all_nu        compute integrals for all even integer parameters [0 .. 2*l]
+!>                      REDUNDANT, AS THIS SUBROUTINE IS NEVER INVOKED WITH all_nu = .TRUE.
 ! **************************************************************************************************
    SUBROUTINE atom_int_setup(integrals, basis, potential, &
                              eri_coulomb, eri_exchange, all_nu)
@@ -325,6 +324,7 @@ CONTAINS
       CALL timestop(handle)
 
    END SUBROUTINE atom_int_setup
+
 ! **************************************************************************************************
 !> \brief ...
 !> \param integrals ...
@@ -635,6 +635,7 @@ CONTAINS
       CALL timestop(handle)
 
    END SUBROUTINE atom_ppint_setup
+
 ! **************************************************************************************************
 !> \brief ...
 !> \param integrals ...
@@ -715,6 +716,7 @@ CONTAINS
       CALL release_atom_basis(gbasis)
 
    END SUBROUTINE upfint_setup
+
 ! **************************************************************************************************
 !> \brief ...
 !> \param integrals ...
@@ -790,6 +792,7 @@ CONTAINS
       END IF
 
    END SUBROUTINE sgpint_setup
+
 ! **************************************************************************************************
 !> \brief ...
 !> \param integrals ...
@@ -979,6 +982,7 @@ CONTAINS
       CALL timestop(handle)
 
    END SUBROUTINE atom_relint_setup
+
 ! **************************************************************************************************
 !> \brief ...
 !> \param integrals ...
@@ -1031,10 +1035,10 @@ CONTAINS
    END SUBROUTINE dkh_integrals
 
 ! **************************************************************************************************
-!> \brief ...
-!> \param ovlap ...
-!> \param basis_a ...
-!> \param basis_b ...
+!> \brief Calculate overlap matrix between two atomic basis sets.
+!> \param ovlap    overlap matrix <chi_{a,l} | chi_{b,l}>
+!> \param basis_a  first basis set
+!> \param basis_b  second basis set
 ! **************************************************************************************************
    SUBROUTINE atom_basis_projection_overlap(ovlap, basis_a, basis_b)
       REAL(KIND=dp), DIMENSION(:, :, 0:), INTENT(OUT)    :: ovlap
@@ -1105,8 +1109,8 @@ CONTAINS
    END SUBROUTINE atom_basis_projection_overlap
 
 ! **************************************************************************************************
-!> \brief ...
-!> \param integrals ...
+!> \brief Release memory allocated for atomic integrals (valence electrons).
+!> \param integrals  atomic integrals
 ! **************************************************************************************************
    SUBROUTINE atom_int_release(integrals)
       TYPE(atom_integrals), INTENT(INOUT)                :: integrals
@@ -1143,9 +1147,10 @@ CONTAINS
       integrals%status = 0
 
    END SUBROUTINE atom_int_release
+
 ! **************************************************************************************************
-!> \brief ...
-!> \param integrals ...
+!> \brief Release memory allocated for atomic integrals (core electrons).
+!> \param integrals  atomic integrals
 ! **************************************************************************************************
    SUBROUTINE atom_ppint_release(integrals)
       TYPE(atom_integrals), INTENT(INOUT)                :: integrals
@@ -1166,9 +1171,10 @@ CONTAINS
       integrals%ppstat = 0
 
    END SUBROUTINE atom_ppint_release
+
 ! **************************************************************************************************
-!> \brief ...
-!> \param integrals ...
+!> \brief  Release memory allocated for atomic integrals (relativistic effects).
+!> \param integrals atomic integrals
 ! **************************************************************************************************
    SUBROUTINE atom_relint_release(integrals)
       TYPE(atom_integrals), INTENT(INOUT)                :: integrals
@@ -1187,11 +1193,12 @@ CONTAINS
       integrals%dkhstat = 0
 
    END SUBROUTINE atom_relint_release
+
 ! **************************************************************************************************
-!> \brief ...
-!> \param modpot ...
-!> \param grid ...
-!> \param zcore ...
+!> \brief Calculate model potential. It is useful to guess atomic orbitals.
+!> \param modpot  model potential
+!> \param grid    atomic radial grid
+!> \param zcore   nuclear charge
 ! **************************************************************************************************
    SUBROUTINE calculate_model_potential(modpot, grid, zcore)
       REAL(dp), DIMENSION(:), INTENT(INOUT)              :: modpot
@@ -1243,6 +1250,5 @@ CONTAINS
       DEALLOCATE (rho, pot)
 
    END SUBROUTINE calculate_model_potential
-! **************************************************************************************************
 
 END MODULE atom_operators
