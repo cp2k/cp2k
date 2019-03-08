@@ -76,6 +76,7 @@ MODULE dm_ls_scf
    USE qs_ks_types,                     ONLY: qs_ks_env_type
    USE qs_scf_post_gpw,                 ONLY: qs_scf_post_moments,&
                                               write_mo_free_results
+   USE qs_scf_post_tb,                  ONLY: scf_post_calculation_tb
    USE transport,                       ONLY: external_scf_method,&
                                               transport_initialize
    USE transport_env_types,             ONLY: transport_env_type
@@ -760,8 +761,11 @@ CONTAINS
       REAL(KIND=dp)                                      :: occ
       TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_w
+      TYPE(dft_control_type), POINTER                    :: dft_control
 
       CALL timeset(routineN, handle)
+
+      CALL get_qs_env(qs_env, dft_control=dft_control)
 
       ! get a useful output_unit
       logger => cp_get_default_logger()
@@ -804,13 +808,23 @@ CONTAINS
 
       IF (ls_scf_env%report_all_sparsities) CALL post_scf_sparsities(ls_scf_env)
 
-      CALL write_mo_free_results(qs_env)
+      IF (dft_control%qs_control%dftb) THEN
+         CALL scf_post_calculation_tb(qs_env, "DFTB", .TRUE.)
+      ELSE IF (dft_control%qs_control%xtb) THEN
+         CALL scf_post_calculation_tb(qs_env, "xTB", .TRUE.)
+      ELSE
+         CALL write_mo_free_results(qs_env)
+      END IF
 
       IF (ls_scf_env%chebyshev%compute_chebyshev) CALL compute_chebyshev(qs_env, ls_scf_env)
 
       IF (.TRUE.) CALL post_scf_experiment()
 
-      CALL qs_scf_post_moments(qs_env%input, logger, qs_env, unit_nr)
+      IF (dft_control%qs_control%dftb .OR. dft_control%qs_control%xtb) THEN
+         !
+      ELSE
+         CALL qs_scf_post_moments(qs_env%input, logger, qs_env, unit_nr)
+      END IF
 
       ! clean up used data
 

@@ -526,20 +526,20 @@ CONTAINS
       INTEGER                                            :: handle, output_unit
       TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(dft_control_type), POINTER                    :: dft_control
-      TYPE(section_vals_type), POINTER                   :: dft_section, input
 
       CALL timeset(routineN, handle)
 
-      NULLIFY (input, dft_control)
+      NULLIFY (dft_control)
 
       logger => cp_get_default_logger()
       output_unit = cp_logger_get_default_io_unit(logger)
-      CALL get_qs_env(qs_env, input=input, dft_control=dft_control)
-      dft_section => section_vals_get_subs_vals(qs_env%input, "DFT")
+      CALL get_qs_env(qs_env, dft_control=dft_control)
       IF (dft_control%qs_control%dftb) THEN
-         CALL scf_post_calculation_tb(qs_env, dft_section=dft_section, tb_type="DFTB")
+         CALL scf_post_calculation_tb(qs_env, "DFTB", .FALSE.)
+      ELSE IF (dft_control%qs_control%xtb) THEN
+         CALL scf_post_calculation_tb(qs_env, "xTB", .FALSE.)
       ELSE
-         CALL qs_scf_post_moments(input, logger, qs_env, output_unit)
+         CALL qs_scf_post_moments(qs_env%input, logger, qs_env, output_unit)
       END IF
       CALL timestop(handle)
 

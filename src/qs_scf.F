@@ -283,7 +283,7 @@ CONTAINS
          END IF
 
          ! *** compute properties that depend on the converged wavefunction
-         IF (.NOT. (should_stop)) CALL qs_scf_compute_properties(qs_env, dft_section)
+         IF (.NOT. (should_stop)) CALL qs_scf_compute_properties(qs_env)
 
          ! *** cleanup
          CALL scf_env_cleanup(scf_env)
