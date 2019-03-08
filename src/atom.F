@@ -31,13 +31,13 @@ MODULE atom
 
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'atom'
 
-! **************************************************************************************************
-
 CONTAINS
 
 ! **************************************************************************************************
-!> \brief ...
-!> \param root_section ...
+!> \brief Driver routine to perform atomic calculations.
+!> \param root_section  root input section
+!> \par History
+!>    * 08.2008 created [Juerg Hutter]
 ! **************************************************************************************************
    SUBROUTINE atom_code(root_section)
       TYPE(section_vals_type), POINTER                   :: root_section
@@ -83,8 +83,10 @@ CONTAINS
    END SUBROUTINE atom_code
 
 ! **************************************************************************************************
-!> \brief ...
-!> \param atom_section ...
+!> \brief Check consistency between the element symbol and its atomic number.
+!> \param atom_section  ATOM input section
+!> \par History
+!>    * 08.2008 created [Juerg Hutter]
 ! **************************************************************************************************
    SUBROUTINE atom_test(atom_section)
       TYPE(section_vals_type), POINTER                   :: atom_section
@@ -97,6 +99,16 @@ CONTAINS
       CALL section_vals_val_get(atom_section, "ATOMIC_NUMBER", i_val=z)
       CALL section_vals_val_get(atom_section, "ELEMENT", c_val=elem)
 
+      ! SKC: this subroutine checks that the element symbol read from the input file --
+      !      if it is found in the periodic table -- matches for the explicitly given
+      !      atomic number. It has the following shortcomings:
+      !
+      !      a) it does not validate data correctness if only one keyword is explicitly
+      !         given in the input file. For example, it is possible to supply a negative
+      !         atomic number or an element symbol which is not part of the periodic table.
+      !
+      !      b) dummy atom (ELEMENT=X, ATOMIC_NUMBER=0) passes this test if specified explicitly,
+      !         despite of the fact that we probably do not wish so (notice the 'DO' loop starting from 1).
       ie = 0
       DO i = 1, nelem
          IF (ptable(i)%symbol == elem) THEN
@@ -111,7 +123,5 @@ CONTAINS
       END IF
 
    END SUBROUTINE atom_test
-
-! **************************************************************************************************
 
 END MODULE atom

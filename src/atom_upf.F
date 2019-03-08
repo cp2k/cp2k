@@ -4,6 +4,11 @@
 !--------------------------------------------------------------------------------------------------!
 
 ! **************************************************************************************************
+!> \brief Routines that process Quantum Espresso UPF files.
+!> \par History
+!>    * 07.2018 CP2K-SIRIUS interface [Juerg Hutter]
+!>    * 02.2016 created [Juerg Hutter]
+! **************************************************************************************************
 MODULE atom_upf
 #if defined(__JSON)
    USE json_module, ONLY: json_file

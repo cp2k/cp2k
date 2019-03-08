@@ -1068,7 +1068,7 @@ CONTAINS
                           description="The primary Gaussian basis set (NONE implies no basis used, meaningful with GHOST)"// &
                    "Defaults are set for TYPE {ORB} and FORM {GTO}. Possible values for TYPE are {ORB, AUX, RI_AUX, LRI, ...}. "// &
                          "Possible values for FORM are {GTO, STO}. Where STO results in a GTO expansion of a Slater type basis."// &
-                          "If a value for FORM is given, also TYPE has to be set explicitely.", &
+                          "If a value for FORM is given, also TYPE has to be set explicitly.", &
                           usage="BASIS_SET [type] [form] DZVP", type_of_var=char_t, default_c_vals=(/" ", " ", " "/), &
                           citations=(/VandeVondele2005a, VandeVondele2007/), &
                           repeats=.TRUE., n_var=-1)
@@ -1076,10 +1076,10 @@ CONTAINS
       CALL keyword_release(keyword)
 
       ! old type basis set input keywords
-      ! kept for back compatability
+      ! kept for backward compatibility
       CALL keyword_create(keyword, name="AUX_BASIS_SET", &
                           variants=s2a("AUXILIARY_BASIS_SET", "AUX_BASIS"), &
-                          description="DEPRECATED (use BASIS_SET): The auxliliary basis set (GTO type)", &
+                          description="DEPRECATED (use BASIS_SET): The auxiliary basis set (GTO type)", &
                           usage="AUX_BASIS_SET DZVP", default_c_val=" ", &
                           n_var=1)
       CALL section_add_keyword(section, keyword)
@@ -1087,7 +1087,7 @@ CONTAINS
 
       CALL keyword_create(keyword, name="RI_AUX_BASIS_SET", &
                           variants=s2a("RI_MP2_BASIS_SET", "RI_RPA_BASIS_SET", "RI_AUX_BASIS"), &
-                          description="DEPRECATED (use BASIS_SET): The RI auxliliary basis set used in WF_CORRELATION (GTO type)", &
+                          description="DEPRECATED (use BASIS_SET): The RI auxiliary basis set used in WF_CORRELATION (GTO type)", &
                           usage="RI_AUX_BASIS_SET DZVP", default_c_val=" ", &
                           n_var=1)
       CALL section_add_keyword(section, keyword)
@@ -1104,7 +1104,7 @@ CONTAINS
       CALL keyword_create( &
          keyword, name="AUX_FIT_BASIS_SET", &
          variants=s2a("AUXILIARY_FIT_BASIS_SET", "AUX_FIT_BASIS"), &
-         description="DEPRECATED (use BASIS_SET): The auxliliary basis set (GTO type) for auxiliary density matrix method", &
+         description="DEPRECATED (use BASIS_SET): The auxiliary basis set (GTO type) for auxiliary density matrix method", &
          usage="AUX_FIT_BASIS_SET DZVP", default_c_val=" ", &
          citations=(/Guidon2010/), &
          n_var=1)
@@ -1113,7 +1113,7 @@ CONTAINS
       ! end of old basis set keywords
 
       CALL keyword_create(keyword, name="ELEC_CONF", &
-                          description="Specifies the electronic configration used in construction the "// &
+                          description="Specifies the electronic configuration used in construction the "// &
                           "atomic initial guess (see the pseudo potential file for the default values.", &
                           usage="ELEC_COND n_elec(s)  n_elec(p)  n_elec(d)  ... ", &
                           n_var=-1, type_of_var=integer_t)
