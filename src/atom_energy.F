@@ -3,7 +3,6 @@
 !   Copyright (C) 2000 - 2019  CP2K developers group                                               !
 !--------------------------------------------------------------------------------------------------!
 
-! **************************************************************************************************
 MODULE atom_energy
    USE atom_admm_methods,               ONLY: atom_admm
    USE atom_electronic_structure,       ONLY: calculate_atom
@@ -60,15 +59,20 @@ MODULE atom_energy
 
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'atom_energy'
 
-! **************************************************************************************************
-
 CONTAINS
 
 ! **************************************************************************************************
-
-! **************************************************************************************************
-!> \brief ...
-!> \param atom_section ...
+!> \brief Compute the atomic energy.
+!> \param atom_section  ATOM input section
+!> \par History
+!>    * 11.2016 geometrical response basis set [Juerg Hutter]
+!>    * 07.2016 ADMM analysis [Juerg Hutter]
+!>    * 02.2014 non-additive kinetic energy term [Juerg Hutter]
+!>    * 11.2013 Zhao, Morrison, and Parr (ZMP) potential [Daniele Varsano]
+!>    * 02.2010 unrestricted KS and HF methods [Juerg Hutter]
+!>    * 05.2009 electronic density fit [Juerg Hutter]
+!>    * 04.2009 refactored and renamed to atom_energy_opt() [Juerg Hutter]
+!>    * 08.2008 created as atom_energy() [Juerg Hutter]
 ! **************************************************************************************************
    SUBROUTINE atom_energy_opt(atom_section)
       TYPE(section_vals_type), POINTER                   :: atom_section
@@ -465,11 +469,14 @@ CONTAINS
    END SUBROUTINE atom_energy_opt
 
 ! **************************************************************************************************
-!> \brief ...
-!> \param atom ...
-!> \param delta ...
-!> \param nder ...
-!> \param iw ...
+!> \brief Calculate response basis contraction coefficients.
+!> \param atom   information about the atomic kind
+!> \param delta  variation of charge used in finite difference derivative calculation
+!> \param nder   number of wavefunction derivatives to calculate
+!> \param iw     output file unit
+!> \par History
+!>    * 10.2011 Gram-Schmidt orthogonalization [Joost VandeVondele]
+!>    * 05.2009 created [Juerg Hutter]
 ! **************************************************************************************************
    SUBROUTINE atom_response_basis(atom, delta, nder, iw)
 
@@ -591,9 +598,11 @@ CONTAINS
    END SUBROUTINE atom_response_basis
 
 ! **************************************************************************************************
-!> \brief ...
-!> \param atom ...
-!> \param iw ...
+!> \brief Write pseudo-potential in Quantum Espresso UPF format.
+!> \param atom  information about the atomic kind
+!> \param iw    output file unit
+!> \par History
+!>    * 09.2012 created [Juerg Hutter]
 ! **************************************************************************************************
    SUBROUTINE atom_write_upf(atom, iw)
 
@@ -840,23 +849,27 @@ CONTAINS
       WRITE (iw, '(A)') '</UPF>'
 
    END SUBROUTINE atom_write_upf
+
 ! **************************************************************************************************
-!> \brief ...
-!> \param string ...
-!> \param tag ...
-!> \param counter ...
-!> \param rval ...
-!> \param ival ...
-!> \param cval ...
-!> \param isfinal ...
+!> \brief Produce an XML attribute string 'tag="counter/rval/ival/cval"'
+!> \param string   composed string
+!> \param tag      attribute tag
+!> \param counter  counter
+!> \param rval     real variable
+!> \param ival     integer variable
+!> \param cval     string variable
+!> \param isfinal  close the current XML element if this is the last attribute
+!> \par History
+!>    * 09.2012 created [Juerg Hutter]
 ! **************************************************************************************************
    SUBROUTINE compose(string, tag, counter, rval, ival, cval, isfinal)
-      CHARACTER(len=*)                                   :: string, tag
-      INTEGER, OPTIONAL                                  :: counter
-      REAL(KIND=dp), OPTIONAL                            :: rval
-      INTEGER, OPTIONAL                                  :: ival
-      CHARACTER(len=*), OPTIONAL                         :: cval
-      LOGICAL, OPTIONAL                                  :: isfinal
+      CHARACTER(len=*), INTENT(OUT)                      :: string
+      CHARACTER(len=*), INTENT(IN)                       :: tag
+      INTEGER, INTENT(IN), OPTIONAL                      :: counter
+      REAL(KIND=dp), INTENT(IN), OPTIONAL                :: rval
+      INTEGER, INTENT(IN), OPTIONAL                      :: ival
+      CHARACTER(len=*), INTENT(IN), OPTIONAL             :: cval
+      LOGICAL, INTENT(IN), OPTIONAL                      :: isfinal
 
       CHARACTER(LEN=default_string_length)               :: str
       LOGICAL                                            :: fin

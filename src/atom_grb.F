@@ -3,7 +3,6 @@
 !   Copyright (C) 2000 - 2019  CP2K developers group                                               !
 !--------------------------------------------------------------------------------------------------!
 
-! **************************************************************************************************
 MODULE atom_grb
    USE ai_onecenter,                    ONLY: sg_conf,&
                                               sg_kinetic,&
@@ -61,16 +60,16 @@ MODULE atom_grb
 
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'atom_grb'
 
-! **************************************************************************************************
-
 CONTAINS
 
 ! **************************************************************************************************
-
-!> \brief ...
-!> \param atom_info ...
-!> \param atom_section ...
-!> \param iw ...
+!> \brief Construct geometrical response basis set.
+!> \param atom_info    information about the atomic kind. Two-dimensional array of size
+!>                     (electronic-configuration, electronic-structure-method)
+!> \param atom_section ATOM input section
+!> \param iw           output file unit
+!> \par History
+!>    * 11.2016 created [Juerg Hutter]
 ! **************************************************************************************************
    SUBROUTINE atom_grb_construction(atom_info, atom_section, iw)
 
@@ -703,13 +702,16 @@ CONTAINS
    END SUBROUTINE atom_grb_construction
 
 ! **************************************************************************************************
-!> \brief ...
-!> \param header ...
-!> \param nprim ...
-!> \param nbas ...
-!> \param al ...
-!> \param gcc ...
-!> \param iunit ...
+!> \brief Print geometrical response basis set.
+!> \param header  banner to print on top of the basis set
+!> \param nprim   number of primitive exponents
+!> \param nbas    number of basis functions for the given angular momentum
+!> \param al      list of the primitive exponents
+!> \param gcc     array of contraction coefficients of size
+!>                (index-of-the-primitive-exponent, index-of-the-contraction-set, angular-momentum)
+!> \param iunit   output file unit
+!> \par History
+!>    * 11.2016 created [Juerg Hutter]
 ! **************************************************************************************************
    SUBROUTINE grb_print_basis(header, nprim, nbas, al, gcc, iunit)
       CHARACTER(len=*), DIMENSION(:), INTENT(IN), &
@@ -766,14 +768,17 @@ CONTAINS
    END SUBROUTINE grb_print_basis
 
 ! **************************************************************************************************
-!> \brief ...
-!> \param label ...
-!> \param np ...
-!> \param nb ...
+!> \brief Compose the basis set label:
+!>        (np(0)'s'np(1)'p'...) -> [nb(0)'s'nb(1)'p'...] .
+!> \param label  basis set label
+!> \param np     number of primitive basis functions per angular momentum
+!> \param nb     number of contracted basis functions per angular momentum
+!> \par History
+!>    * 11.2016 created [Juerg Hutter]
 ! **************************************************************************************************
    SUBROUTINE basis_label(label, np, nb)
-      CHARACTER(len=*)                                   :: label
-      INTEGER, DIMENSION(0:)                             :: np, nb
+      CHARACTER(len=*), INTENT(out)                      :: label
+      INTEGER, DIMENSION(0:), INTENT(in)                 :: np, nb
 
       CHARACTER(len=*), PARAMETER :: routineN = 'basis_label', routineP = moduleN//':'//routineN
       INTEGER                                            :: i, l, lmax
@@ -819,11 +824,13 @@ CONTAINS
    END SUBROUTINE basis_label
 
 ! **************************************************************************************************
-!> \brief ...
-!> \param atom ...
-!> \param basis ...
-!> \param afun ...
-!> \param iw ...
+!> \brief Compute the total energy for the given atomic kind and basis set.
+!> \param atom    information about the atomic kind
+!> \param basis   basis set to fit
+!> \param afun    (output) atomic total energy
+!> \param iw      output file unit
+!> \par History
+!>    * 11.2016 created [Juerg Hutter]
 ! **************************************************************************************************
    SUBROUTINE grb_fit(atom, basis, afun, iw)
       TYPE(atom_type), POINTER                           :: atom
@@ -871,13 +878,15 @@ CONTAINS
    END SUBROUTINE grb_fit
 
 ! **************************************************************************************************
-!> \brief ...
-!> \param atom_ref ...
-!> \param atom ...
-!> \param state ...
-!> \param potential ...
-!> \param optimization ...
-!> \param xc ...
+!> \brief Copy basic information about the atomic kind.
+!> \param atom_ref      atom to copy
+!> \param atom          new atom to create
+!> \param state         also copy electronic state and occupation numbers
+!> \param potential     also copy pseudo-potential
+!> \param optimization  also copy optimization procedure
+!> \param xc            also copy the XC input section
+!> \par History
+!>    * 11.2016 created [Juerg Hutter]
 ! **************************************************************************************************
    SUBROUTINE copy_atom_basics(atom_ref, atom, state, potential, optimization, xc)
       TYPE(atom_type), POINTER                           :: atom_ref, atom
@@ -923,11 +932,13 @@ CONTAINS
    END SUBROUTINE copy_atom_basics
 
 ! **************************************************************************************************
-!> \brief ...
-!> \param atom ...
-!> \param basis ...
-!> \param iunit ...
-!> \param powell_section ...
+!> \brief Optimise a geometrical response basis set.
+!> \param atom            information about the atomic kind
+!> \param basis           basis set to fit
+!> \param iunit           output file unit
+!> \param powell_section  POWELL input section
+!> \par History
+!>    * 11.2016 created [Juerg Hutter]
 ! **************************************************************************************************
    SUBROUTINE atom_fit_grb(atom, basis, iunit, powell_section)
       TYPE(atom_type), POINTER                           :: atom
@@ -1077,16 +1088,19 @@ CONTAINS
       CALL deallocate_spherical_harmonics
 
    END SUBROUTINE atom_fit_grb
+
 ! **************************************************************************************************
-!> \brief ...
-!> \param zval ...
-!> \param rconf ...
-!> \param lval ...
-!> \param aval ...
-!> \param cval ...
-!> \param nbas ...
-!> \param iunit ...
-!> \param powell_section ...
+!> \brief Optimize 'aval' and 'cval' parameters which define the geometrical response basis set.
+!> \param zval            nuclear charge
+!> \param rconf           confinement radius
+!> \param lval            angular momentum
+!> \param aval            (input/output) exponent of the first Gaussian basis function in the series
+!> \param cval            (input/output) factor of geometrical series
+!> \param nbas            number of basis functions
+!> \param iunit           output file unit
+!> \param powell_section  POWELL input section
+!> \par History
+!>    * 11.2016 created [Juerg Hutter]
 ! **************************************************************************************************
    SUBROUTINE atom_fit_pol(zval, rconf, lval, aval, cval, nbas, iunit, powell_section)
       REAL(KIND=dp), INTENT(IN)                          :: zval, rconf
@@ -1175,15 +1189,18 @@ CONTAINS
       DEALLOCATE (am, ener, orb)
 
    END SUBROUTINE atom_fit_pol
+
 ! **************************************************************************************************
-!> \brief ...
-!> \param zval ...
-!> \param rconf ...
-!> \param lval ...
-!> \param am ...
-!> \param nbas ...
-!> \param ener ...
-!> \param orb ...
+!> \brief Calculate orbitals of a hydrogen-like atom.
+!> \param zval   nuclear charge
+!> \param rconf  confinement radius
+!> \param lval   angular momentum
+!> \param am     list of basis functions' exponents
+!> \param nbas   number of basis functions
+!> \param ener   orbital energies
+!> \param orb    expansion coefficients of atomic wavefunctions
+!> \par History
+!>    * 11.2016 created [Juerg Hutter]
 ! **************************************************************************************************
    SUBROUTINE hydrogenic(zval, rconf, lval, am, nbas, ener, orb)
       REAL(KIND=dp), INTENT(IN)                          :: zval, rconf
