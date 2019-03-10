@@ -9,6 +9,6 @@
 # testing global tree creation using single exact potential, the deterministic random number generator
 #   with the standard move types, check i
 # fully test non colinear magnetism with spin orbit coupling
-Au.inp                                      85    1.0E-5           -147.171051899887289
-Fe.inp                                      85    1.0E-5            -253.18124883
+Au.inp                                      85    1.0E-5           -147.17103162
+Fe.inp                                      85    1.0E-5           -253.17958057
 #EOF

@@ -19,10 +19,11 @@ FFTW_LIBS_OMP=''
 cd "${BUILDDIR}"
 case "$with_fftw" in
     __INSTALL__)
+        require_env MPI_LIBS
         echo "==================== Installing FFTW ===================="
         pkg_install_dir="${INSTALLDIR}/fftw-${fftw_ver}"
         install_lock_file="$pkg_install_dir/install_successful"
-        if verify_checksums "${install_lock_file}" ; then
+        if [[ $install_lock_file -nt $SCRIPT_NAME ]]; then
             echo "fftw-${fftw_ver} is already installed, skipping it."
         else
             if [ -f fftw-${fftw_ver}.tar.gz ] ; then
@@ -35,11 +36,17 @@ case "$with_fftw" in
             [ -d fftw-${fftw_ver} ] && rm -rf fftw-${fftw_ver}
             tar -xzf fftw-${fftw_ver}.tar.gz
             cd fftw-${fftw_ver}
-            ./configure  --prefix=${pkg_install_dir} --libdir="${pkg_install_dir}/lib" --enable-openmp > configure.log 2>&1
+            if [ -n ${ENABLE_MPI} ] ; then
+                # fftw has mpi support but not compiled by default. so compile it if we build with mpi.
+                # it will create a second library to link with if needed
+                ./configure  --prefix=${pkg_install_dir} --libdir="${pkg_install_dir}/lib" --enable-openmp --enable-mpi > configure.log 2>&1
+            else
+                ./configure  --prefix=${pkg_install_dir} --libdir="${pkg_install_dir}/lib" --enable-openmp > configure.log 2>&1
+            fi
             make -j $NPROCS > make.log 2>&1
             make install > install.log 2>&1
             cd ..
-            write_checksums "${install_lock_file}" "${SCRIPT_DIR}/$(basename ${SCRIPT_NAME})"
+            touch "${install_lock_file}"
         fi
         FFTW_CFLAGS="-I'${pkg_install_dir}/include'"
         FFTW_LDFLAGS="-L'${pkg_install_dir}/lib' -Wl,-rpath='${pkg_install_dir}/lib'"
@@ -83,7 +90,7 @@ export FFTW_LIBS_OMP="${FFTW_LIBS_OMP}"
 export CP_DFLAGS="\${CP_DFLAGS} -D__FFTW3 IF_COVERAGE(IF_MPI(|-U__FFTW3)|)"
 export CP_CFLAGS="\${CP_CFLAGS} ${FFTW_CFLAGS}"
 export CP_LDFLAGS="\${CP_LDFLAGS} ${FFTW_LDFLAGS}"
-export CP_LIBS="${FFTW_LIBS} IF_OMP(${FFTW_LIBS_OMP}|) \${CP_LIBS}"
+export CP_LIBS="${FFTW_LIBS} IF_MPI()IF_OMP(${FFTW_LIBS_OMP}|) \${CP_LIBS}"
 EOF
 fi
 cd "${ROOTDIR}"
