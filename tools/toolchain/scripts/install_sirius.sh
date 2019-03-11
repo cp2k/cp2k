@@ -2,7 +2,7 @@
 [ "${BASH_SOURCE[0]}" ] && SCRIPT_NAME="${BASH_SOURCE[0]}" || SCRIPT_NAME=$0
 SCRIPT_DIR="$(cd "$(dirname "$SCRIPT_NAME")" && pwd -P)"
 
-sirius_ver=${sirius_ver:-6.1.1}
+sirius_ver=${sirius_ver:-6.1.2}
 source "${SCRIPT_DIR}"/common_vars.sh
 source "${SCRIPT_DIR}"/tool_kit.sh
 source "${SCRIPT_DIR}"/signal_trap.sh
@@ -24,6 +24,8 @@ SIRIUS_LIBS=''
 ! [ -d "${BUILDDIR}" ] && mkdir -p "${BUILDDIR}"
 cd "${BUILDDIR}"
 case "$with_sirius" in
+    __DONTUSE__)
+    ;;
     __INSTALL__)
         echo "==================== Installing SIRIUS ===================="
         require_env FFTW_LDFLAGS
@@ -77,7 +79,7 @@ case "$with_sirius" in
                 echo "sirius_v${sirius_ver}.tar.gz is found"
             else
                 download_pkg ${DOWNLOADER_FLAGS} \
-                             https://github.com/electronic-structure/SIRIUS/archive/v${sirius_ver}.tar.gz \
+                             https://github.com/electronic-structure/SIRIUS/archive/${sirius_ver}.tar.gz \
                              -o SIRIUS-${sirius_ver}.tar.gz
             fi
             echo "Installing from scratch into ${pkg_install_dir}"
@@ -125,16 +127,14 @@ case "$with_sirius" in
                   -DCMAKE_CXX_FLAGS_RELWITHDEBINFO="${SIRIUS_DBG}" \
                   -DCMAKE_CXX_COMPILER=mpic++ \
                   -DCMAKE_C_COMPILER=mpicc ${COMPILATION_OPTIONS} ..
-             cd src
-             make
+             make -C src
 
             install -d ${pkg_install_dir}/include >> install.log 2>&1
             install -d ${pkg_install_dir}/lib >> install.log 2>&1
             cp -R ../src/* ${pkg_install_dir}/include
-            rm -f ${pkg_install_dir}/include/*.f90
-            install -m 644 *.a ${pkg_install_dir}/lib >> install.log 2>&1
-            install -m 644 mod_files/*.mod ${pkg_install_dir}/lib >> install.log 2>&1
-            cd ../..
+            install -m 644 src/*.a ${pkg_install_dir}/lib >> install.log 2>&1
+            install -m 644 src/mod_files/*.mod ${pkg_install_dir}/include >> install.log 2>&1
+            cd ..
 
             # now do we have cuda as well
 
@@ -148,14 +148,13 @@ case "$with_sirius" in
                       -DGPU_MODEL=P100 \
                       -DCMAKE_CXX_COMPILER=mpic++ \
                       -DCMAKE_C_COMPILER=mpicc ${COMPILATION_OPTIONS} ..
-                cd src
-                make
-                install -m 644 *.a ${pkg_install_dir}/lib/cuda >> install.log 2>&1
-                install -m 644 mod_files/*.mod ${pkg_install_dir}/lib/cuda >> install.log 2>&1
+                make -C src
+                install -m 644 src/*.a ${pkg_install_dir}/lib/cuda >> install.log 2>&1
+                install -m 644 src/mod_files/*.mod ${pkg_install_dir}/include/cuda >> install.log 2>&1
                 SIRIUS_CUDA_LDFLAGS="-L'${pkg_install_dir}/lib/cuda' -Wl,-rpath='${pkg_install_dir}/lib/cuda'"
-                cd ../..
+                cd ..
             fi
-            SIRIUS_CFLAGS="-I'${pkg_install_dir}/include'"
+            SIRIUS_CFLAGS="-I'${pkg_install_dir}/include/cuda'"
             SIRIUS_LDFLAGS="-L'${pkg_install_dir}/lib' -Wl,-rpath='${pkg_install_dir}/lib'"
             touch "${install_lock_file}"
         fi
@@ -188,19 +187,18 @@ case "$with_sirius" in
         require_env HDF5_CFLAGS
         require_env HDF5_LDFLAGS
         require_env LIBVDWXC_CFLAGS
-        require_env LIBVDWXC_LIBS
         require_env LIBVDWXC_LDFLAGS
+        require_env LIBVDWXC_LIBS
 
         check_lib -lsirius_f "sirius_f"
         add_include_from_paths SIRIUS_CFLAGS "sirius*" $INCLUDE_PATHS
         add_lib_from_paths SIRIUS_LDFLAGS "libsirius_f.*" $LIB_PATHS
         ;;
-    __DONTUSE__)
-        ;;
     *)
         echo "==================== Linking SIRIUS_Dist to user paths ===================="
         pkg_install_dir="$with_sirius"
         check_dir "${pkg_install_dir}/lib"
+        check_dir "${pkg_install_dir}/lib64"
         check_dir "${pkg_install_dir}/include"
         ;;
 esac

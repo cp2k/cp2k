@@ -265,7 +265,7 @@ tool_list="binutils lcov valgrind make cmake gcc"
 mpi_list="mpich openmpi"
 math_list="mkl acml openblas reflapack"
 lib_list="fftw libint libxc libsmm libxsmm scalapack elpa \
-          ptscotch parmetis metis superlu pexsi quip gsl spglib hdf5 sirius json_fortran"
+          ptscotch parmetis metis superlu pexsi quip gsl spglib hdf5 libvdwxc sirius json_fortran"
 package_list="$tool_list $mpi_list $math_list $lib_list"
 # ------------------------------------------------------------------------
 

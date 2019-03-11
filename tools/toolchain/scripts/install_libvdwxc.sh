@@ -28,7 +28,7 @@ case "$with_libvdwxc" in
         if verify_checksums "${install_lock_file}" ; then
             echo "libvdwxc-${libvdwxc_ver} is already installed, skipping it."
         else
-            if [ -f spglib-${spglib_ver}.tar.gz ] ; then
+            if [ -f libvdwxc-${libvdwxc_ver}.tar.gz ] ; then
                 echo "libvdwxc-${libvdwxc_ver}.tar.gz is found"
             else
                 # do not remove this. They do not publish official version often
@@ -55,7 +55,7 @@ case "$with_libvdwxc" in
             done
 
             ./autogen.sh
-            ./configure --prefix="${pkg_install_dir}" --with-fftw3 --with-mpi
+            ./configure --prefix="${pkg_install_dir}" --with-fftw3
             make -j
             make install
             write_checksums "${install_lock_file}" "${SCRIPT_DIR}/$(basename ${SCRIPT_NAME})"
@@ -83,7 +83,7 @@ case "$with_libvdwxc" in
         ;;
 esac
 if [ "$with_libvdwxc" != "__DONTUSE__" ] ; then
-    LIBVDWXC_LIBS="-lvdwxc_mpi -lvdwxc"
+    LIBVDWXC_LIBS="-lvdwxc"
     if [ "$with_libvdwxc" != "__SYSTEM__" ] ; then
         cat <<EOF > "${BUILDDIR}/setup_libvdwxc"
 prepend_path LD_LIBRARY_PATH "$pkg_install_dir/lib"
@@ -95,6 +95,7 @@ EOF
        cat <<EOF > "${BUILDDIR}/setup_libvdwxc"
 export LIBVDWXC_CFLAGS="-I$pkg_install_dir/include ${LIBVDWXC_CFLAGS}"
 export LIBVDWXC_LDFLAGS="${LIBVDWXC_LDFLAGS}"
+export LIBVDWXC_LIBS="${LIBVDWXC_LIBS}"
 export CP_DFLAGS="\${CP_DFLAGS} -D__LIBVDWXC"
 export CP_CFLAGS="\${CP_CFLAGS} ${LIBVDWXC_CFLAGS}"
 export CP_LDFLAGS="\${CP_LDFLAGS} ${LIBVDWXC_LDFLAGS}"
