@@ -22,8 +22,7 @@ MODULE pwdft_environment
    USE distribution_methods,            ONLY: distribute_molecules_1d
    USE header,                          ONLY: sirius_header
    USE input_section_types,             ONLY: section_vals_get_subs_vals,&
-                                              section_vals_type,&
-                                              section_vals_val_get
+                                              section_vals_type
    USE kinds,                           ONLY: dp
    USE machine,                         ONLY: m_flush
    USE molecule_kind_types,             ONLY: molecule_kind_type
@@ -98,6 +97,7 @@ CONTAINS
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
       TYPE(qs_subsys_type), POINTER                      :: qs_subsys
       TYPE(section_vals_type), POINTER                   :: pwdft_section, xc_section
+
       CALL timeset(routineN, handle)
 
       CPASSERT(ASSOCIATED(pwdft_env))
