@@ -1165,7 +1165,8 @@ CONTAINS
 
       CHARACTER(len=*), PARAMETER :: routineN = 'density_fit', routineP = moduleN//':'//routineN
 
-      INTEGER                                            :: i, info, ip, ipiv(1000), iq, k, nr
+      INTEGER                                            :: i, info, ip, iq, k, nr
+      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: ipiv
       REAL(dp)                                           :: a, rk, zval
       REAL(dp), ALLOCATABLE, DIMENSION(:)                :: den, pe, uval
       REAL(dp), ALLOCATABLE, DIMENSION(:, :)             :: bf, smat, tval
@@ -1204,7 +1205,9 @@ CONTAINS
       smat(n+1, 1:n) = uval(1:n)
       smat(n+1, n+1) = 0._dp
 
+      ALLOCATE (ipiv(n+1))
       CALL lapack_sgesv(n+1, 1, smat, n+1, ipiv, tval, n+1, info)
+      DEALLOCATE (ipiv)
       CPASSERT(info == 0)
       co(1:n) = tval(1:n, 1)
 
@@ -1304,7 +1307,7 @@ CONTAINS
 
       ! penalty
       IF (penalty) THEN
-         DO l = 0, 3
+         DO l = 0, lmat
             DO i = 1, basis%nbas(l)-1
                amin = MINVAL(ABS(basis%am(i, l)-basis%am(i+1:basis%nbas(l), l)))
                amin = amin/basis%am(i, l)

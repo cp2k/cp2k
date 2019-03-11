@@ -29,6 +29,7 @@ MODULE atom_utils
                                               do_rohf_atom,&
                                               do_uhf_atom,&
                                               do_uks_atom
+   USE kahan_sum,                       ONLY: accurate_dot_product
    USE kinds,                           ONLY: default_string_length,&
                                               dp
    USE lapack,                          ONLY: lapack_ssyev
@@ -39,7 +40,8 @@ MODULE atom_utils
                                               rootpi
    USE mathlib,                         ONLY: invmat_symm
    USE orbital_pointers,                ONLY: deallocate_orbital_pointers,&
-                                              init_orbital_pointers
+                                              init_orbital_pointers,&
+                                              nco
    USE orbital_transformation_matrices, ONLY: deallocate_spherical_harmonics,&
                                               init_spherical_harmonics
    USE periodic_table,                  ONLY: nelem,&
@@ -1650,13 +1652,13 @@ CONTAINS
 !> \par History
 !>    * 08.2008 created [Juerg Hutter]
 ! **************************************************************************************************
-   FUNCTION atom_trace(opmat, pmat) RESULT(trace)
+   PURE FUNCTION atom_trace(opmat, pmat) RESULT(trace)
       REAL(KIND=dp), DIMENSION(:, :, 0:), INTENT(IN)     :: opmat, pmat
       REAL(KIND=dp)                                      :: trace
 
       CHARACTER(len=*), PARAMETER :: routineN = 'atom_trace', routineP = moduleN//':'//routineN
 
-      trace = SUM(opmat(:, :, :)*pmat(:, :, :))
+      trace = accurate_dot_product(opmat, pmat)
 
    END FUNCTION atom_trace
 
@@ -2338,8 +2340,8 @@ CONTAINS
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: weig, work
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: smat
       REAL(KIND=dp), DIMENSION(3)                        :: rab
-      REAL(KIND=dp), DIMENSION(7, 7)                     :: sab
       REAL(KIND=dp), DIMENSION(:), POINTER               :: zeta, zetb
+      REAL(KIND=dp), DIMENSION(nco(lmat), nco(lmat))     :: sab
 
       ! total number of basis functions
       nbas = 0
