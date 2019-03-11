@@ -52,7 +52,9 @@ case "$with_sirius" in
         require_env HDF5_LIBS
         require_env HDF5_CFLAGS
         require_env HDF5_LDFLAGS
-
+        require_env LIBVDWXC_CFLAGS
+        require_env LIBVDWXC_LIBS
+        require_env LIBVDWXC_LDFLAGS
 
         ARCH=`arch`
         SIRIUS_OPT="-O3 -DNDEBUG -mtune=native -ftree-loop-vectorize ${MATH_CFLAGS}"
@@ -185,10 +187,13 @@ case "$with_sirius" in
         require_env HDF5_LIBS
         require_env HDF5_CFLAGS
         require_env HDF5_LDFLAGS
+        require_env LIBVDWXC_CFLAGS
+        require_env LIBVDWXC_LIBS
+        require_env LIBVDWXC_LDFLAGS
 
-        check_lib -lsirius "sirius"
+        check_lib -lsirius_f "sirius_f"
         add_include_from_paths SIRIUS_CFLAGS "sirius*" $INCLUDE_PATHS
-        add_lib_from_paths SIRIUS_LDFLAGS "libsirius.*" $LIB_PATHS
+        add_lib_from_paths SIRIUS_LDFLAGS "libsirius_f.*" $LIB_PATHS
         ;;
     __DONTUSE__)
         ;;
@@ -200,7 +205,7 @@ case "$with_sirius" in
         ;;
 esac
 if [ "$with_sirius" != "__DONTUSE__" ] ; then
-    SIRIUS_LIBS="-lsirius_f -lsirius"
+    SIRIUS_LIBS="-lsirius_f"
     SIRIUS_CUDA_LDFLAGS="-L'${pkg_install_dir}/lib/cuda' -Wl,-rpath='${pkg_install_dir}/lib/cuda'"
     SIRIUS_LDFLAGS="-L'${pkg_install_dir}/lib' -Wl,-rpath='${pkg_install_dir}/lib'"
     SIRIUS_CFLAGS="-I'${pkg_install_dir}/include'"
