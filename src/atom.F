@@ -21,6 +21,7 @@ MODULE atom
    USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                               section_vals_type,&
                                               section_vals_val_get
+   USE kinds,                           ONLY: default_string_length
    USE periodic_table,                  ONLY: nelem,&
                                               ptable
 #include "./base/base_uses.f90"
@@ -93,35 +94,52 @@ CONTAINS
 
       CHARACTER(len=*), PARAMETER :: routineN = 'atom_test', routineP = moduleN//':'//routineN
 
-      CHARACTER(LEN=2)                                   :: elem
-      INTEGER                                            :: i, ie, z
+      CHARACTER(len=2)                                   :: elem
+      CHARACTER(len=default_string_length)               :: z_string
+      INTEGER                                            :: handle, i, z
+      LOGICAL                                            :: explicit_elem, explicit_z
 
-      CALL section_vals_val_get(atom_section, "ATOMIC_NUMBER", i_val=z)
-      CALL section_vals_val_get(atom_section, "ELEMENT", c_val=elem)
+      CALL timeset(routineN, handle)
 
-      ! SKC: this subroutine checks that the element symbol read from the input file --
-      !      if it is found in the periodic table -- matches for the explicitly given
-      !      atomic number. It has the following shortcomings:
-      !
-      !      a) it does not validate data correctness if only one keyword is explicitly
-      !         given in the input file. For example, it is possible to supply a negative
-      !         atomic number or an element symbol which is not part of the periodic table.
-      !
-      !      b) dummy atom (ELEMENT=X, ATOMIC_NUMBER=0) passes this test if specified explicitly,
-      !         despite of the fact that we probably do not wish so (notice the 'DO' loop starting from 1).
-      ie = 0
-      DO i = 1, nelem
-         IF (ptable(i)%symbol == elem) THEN
-            ie = i
-            EXIT
-         END IF
-      END DO
-      IF (ie /= z) THEN
-         IF (ie /= 1 .AND. z /= 1) THEN
-            CPABORT("")
+      CALL section_vals_val_get(atom_section, "ATOMIC_NUMBER", i_val=z, explicit=explicit_z)
+      CALL section_vals_val_get(atom_section, "ELEMENT", c_val=elem, explicit=explicit_elem)
+
+      IF (explicit_z .AND. (z <= 0 .AND. z > nelem)) THEN
+         ! an explicit atomic number is not found in the periodic table
+         WRITE (z_string, '(I0)') z
+         CALL cp_abort(__LOCATION__, &
+                       "The element with the atomic number "//TRIM(z_string)//" is not found in the periodic table.")
+      END IF
+
+      IF (explicit_elem) THEN
+         ! check that the element symbol is part of the periodic table
+         DO i = 1, nelem
+            IF (ptable(i)%symbol == elem) EXIT
+         END DO
+
+         IF (i > nelem) THEN
+            CALL cp_abort(__LOCATION__, &
+                          "The element symbol ("//TRIM(elem)//") is not found in the periodic table.")
          END IF
       END IF
 
+      IF (explicit_z .AND. explicit_elem) THEN
+         ! check that the element symbol read from the input file
+         ! matches for the explicitly given atomic number
+         IF (ptable(z)%symbol /= elem) THEN
+            WRITE (z_string, '(I0)') z
+            CALL cp_abort(__LOCATION__, &
+                          "The element symbol ("//TRIM(elem)// &
+                          ") contradicts with the explicitly given atomic number ("// &
+                          TRIM(z_string)//").")
+         END IF
+      ELSE IF (.NOT. (explicit_z .OR. explicit_elem)) THEN
+         ! default (implicit) element symbol and atomic number are usually consistent,
+         ! but check them just in case
+         CPASSERT(ptable(z)%symbol == elem)
+      END IF
+
+      CALL timestop(handle)
    END SUBROUTINE atom_test
 
 END MODULE atom
