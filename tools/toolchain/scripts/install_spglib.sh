@@ -1,10 +1,7 @@
 #!/bin/bash -e
 [ "${BASH_SOURCE[0]}" ] && SCRIPT_NAME="${BASH_SOURCE[0]}" || SCRIPT_NAME=$0
 SCRIPT_DIR="$(cd "$(dirname "$SCRIPT_NAME")" && pwd -P)"
-spglib_ver=${spglib_ver:-1.12.1}
-patches=(
-    "https://github.com/dev-zero/spglib/commit/2263d68f611a0df565968c5019d0605bc199669f.patch" # memory leak fix
-    )
+spglib_ver=${spglib_ver:-1.12.2}
 
 source "${SCRIPT_DIR}"/common_vars.sh
 source "${SCRIPT_DIR}"/tool_kit.sh
@@ -32,24 +29,10 @@ case "$with_spglib" in
                              -o spglib-${spglib_ver}.tar.gz
             fi
 
-            for patch in "${patches[@]}" ; do
-                fname="${patch##*/}"
-                if [ -f "${fname}" ] ; then
-                    echo "${fname} is found"
-                else
-                    # parallel build patch
-                    download_pkg ${DOWNLOADER_FLAGS} "${patch}"
-                fi
-            done
-
             echo "Installing from scratch into ${pkg_install_dir}"
             [ -d spglib-${spglib_ver} ] && rm -rf spglib-${spglib_ver}
             tar -xzf spglib-${spglib_ver}.tar.gz
             cd spglib-${spglib_ver}
-
-            for patch in "${patches[@]}" ; do
-                patch -p1 < ../"${patch##*/}"
-            done
 
             mkdir build
             cd build
