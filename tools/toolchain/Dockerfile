@@ -16,7 +16,12 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     less \
     unzip \
     libc6-dbg \
-  && rm -rf /var/lib/apt/lists/*
+    autotools-dev \
+    autogen \
+    libtool \
+    autoconf \
+    automake \
+   && rm -rf /var/lib/apt/lists/*
 
 # build toolchain
 WORKDIR /opt/cp2k-toolchain
