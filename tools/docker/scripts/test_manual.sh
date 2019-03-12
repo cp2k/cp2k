@@ -8,15 +8,15 @@ source /opt/cp2k-toolchain/install/setup
 echo -e "\n========== Compiling CP2K =========="
 cd /workspace/cp2k
 touch src/cp2k_info.F  # ensure latest REVISION is picked up.
-make -j VERSION="sopt" cp2k
+make -j VERSION="psmp" cp2k
 
 echo -e "\n========== Generating Manual =========="
 
 mkdir -p /workspace/artifacts/manual
 cd /workspace/artifacts/manual
 
-/workspace/cp2k/exe/local/cp2k.sopt --version
-/workspace/cp2k/exe/local/cp2k.sopt --xml
+/workspace/cp2k/exe/local/cp2k.psmp --version
+/workspace/cp2k/exe/local/cp2k.psmp --xml
 
 TOOLS=/workspace/cp2k/tools
 cp ${TOOLS}/manual/favicon.png .
