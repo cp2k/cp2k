@@ -18,7 +18,7 @@ ln -vs /opt/cp2k-toolchain/install/arch/local* .
 
 # pre-build cp2k
 cd /workspace/cp2k
-make -j VERSION=sopt
+make -j VERSION=psmp
 rm -rf lib exe
 
 #EOF
