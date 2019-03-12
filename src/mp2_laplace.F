@@ -13,8 +13,6 @@ MODULE mp2_laplace
    USE cp_fm_types,                     ONLY: cp_fm_get_info,&
                                               cp_fm_set_all,&
                                               cp_fm_type
-   USE cp_fm_basic_linalg,              ONLY: cp_fm_frobenius_norm,&
-                                              cp_fm_trace
    USE cp_gemm_interface,               ONLY: cp_gemm
    USE cp_para_types,                   ONLY: cp_para_env_type
    USE kinds,                           ONLY: dp
@@ -84,9 +82,8 @@ CONTAINS
       CHARACTER(LEN=*), PARAMETER :: routineN = 'laplace_minimax_approx', &
          routineP = moduleN//':'//routineN
 
-      INTEGER :: avirt, handle, i_global, iiB, iocc, jjB, jquad, my_num_dgemm_call, &
-         ncol_local, nrow_local, number_of_rec, number_of_rec_beta, number_of_send, &
-         number_of_send_beta
+      INTEGER :: avirt, handle, i_global, iiB, iocc, jjB, jquad, my_num_dgemm_call, ncol_local, &
+         nrow_local, number_of_rec, number_of_rec_beta, number_of_send, number_of_send_beta
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: map_rec_size, map_rec_size_beta, &
                                                             map_send_size, map_send_size_beta, &
                                                             RPA_proc_map
@@ -320,7 +317,7 @@ CONTAINS
          IF (my_open_shell) THEN
             DO jjB = 1, ncol_local
                DO iiB = 1, nrow_local
-                  trace_XX = trace_XX + fm_mat_Q%local_data(iiB, jjB)*fm_mat_Q_beta%local_data(iiB, jjB)
+                  trace_XX = trace_XX+fm_mat_Q%local_data(iiB, jjB)*fm_mat_Q_beta%local_data(iiB, jjB)
                END DO
             END DO
          ELSE

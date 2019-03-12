@@ -231,7 +231,7 @@ CONTAINS
          keyword=keyword, &
          name="IM_TIME", &
          variants=(/"IMAG_TIME"/), &
-         description="Turns on cubic scaling RI-RPA and Laplace-SOS-MP2 method using the imaginary time formalism. "//&
+         description="Turns on cubic scaling RI-RPA and Laplace-SOS-MP2 method using the imaginary time formalism. "// &
          "If no IM_TIME section is present, the default parameters are used.", &
          usage="IM_TIME", &
          default_l_val=.FALSE., &

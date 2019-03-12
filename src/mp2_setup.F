@@ -54,10 +54,12 @@ CONTAINS
 
       INTEGER                                            :: handle, ival, unit_nr
       INTEGER, DIMENSION(:), POINTER                     :: tmplist
-      TYPE(cp_logger_type), POINTER                      :: logger
-      TYPE(section_vals_type), POINTER                   :: eri_mme_section, im_time_section, mp2_section
       LOGICAL                                            :: explicit_k_laplace, explicit_k_rpa, &
-         explicit_k_wfc, explicit_laplace, explicit_rpa, explicit_wfc
+                                                            explicit_k_wfc, explicit_laplace, &
+                                                            explicit_rpa, explicit_wfc
+      TYPE(cp_logger_type), POINTER                      :: logger
+      TYPE(section_vals_type), POINTER                   :: eri_mme_section, im_time_section, &
+                                                            mp2_section
 
       CALL timeset(routineN, handle)
       logger => cp_get_default_logger()
@@ -266,25 +268,25 @@ CONTAINS
          im_time_section => section_vals_get_subs_vals(mp2_section, "RI_LAPLACE%IM_TIME")
          IF (explicit_k_laplace) THEN
             CALL section_vals_val_get(mp2_section, "RI_LAPLACE%IM_TIME", &
-                                l_val=mp2_env%do_im_time)
+                                      l_val=mp2_env%do_im_time)
          END IF
       ELSE IF (explicit_rpa) THEN
          im_time_section => section_vals_get_subs_vals(mp2_section, "RI_RPA%IM_TIME")
          IF (explicit_k_rpa) THEN
             CALL section_vals_val_get(mp2_section, "RI_RPA%IM_TIME", &
-                                l_val=mp2_env%do_im_time)
+                                      l_val=mp2_env%do_im_time)
          END IF
       ELSE
          im_time_section => section_vals_get_subs_vals(mp2_section, "IM_TIME")
          IF (explicit_k_wfc) THEN
             CALL section_vals_val_get(mp2_section, "IM_TIME", &
-                                l_val=mp2_env%do_im_time, explicit=explicit_wfc)
+                                      l_val=mp2_env%do_im_time, explicit=explicit_wfc)
          END IF
       END IF
       ! If no keyword was used, take the info from the IM_TIME section.
       IF (.NOT. (explicit_k_laplace .OR. explicit_k_rpa .OR. explicit_k_wfc)) THEN
          CALL section_vals_val_get(im_time_section, "_SECTION_PARAMETERS_", &
-                                l_val=mp2_env%do_im_time)
+                                   l_val=mp2_env%do_im_time)
       END IF
 
       CALL section_vals_val_get(im_time_section, "MEMORY_CUT", &
