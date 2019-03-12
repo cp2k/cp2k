@@ -33,7 +33,8 @@ MODULE atom_grb
    USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                               section_vals_type,&
                                               section_vals_val_get
-   USE kinds,                           ONLY: dp
+   USE kinds,                           ONLY: default_string_length,&
+                                              dp
    USE lapack,                          ONLY: lapack_ssygv
    USE mathconstants,                   ONLY: dfac,&
                                               pi
@@ -80,9 +81,9 @@ CONTAINS
       CHARACTER(len=*), PARAMETER :: routineN = 'atom_grb_construction', &
          routineP = moduleN//':'//routineN
 
-      CHARACTER(len=100)                                 :: abas, basname
-      CHARACTER(len=100), DIMENSION(1)                   :: basline
-      CHARACTER(len=100), DIMENSION(20)                  :: headline
+      CHARACTER(len=default_string_length)               :: abas, basname
+      CHARACTER(len=default_string_length), DIMENSION(1) :: basline
+      CHARACTER(len=default_string_length), DIMENSION(3) :: headline
       INTEGER                                            :: i, ider, is, iunit, j, k, l, lhomo, ll, &
                                                             lval, m, maxl, mb, method, mo, n, &
                                                             nder, ngp, nhomo, nr, num_gto, &
@@ -332,8 +333,8 @@ CONTAINS
 
       ! check for condition numbers
       IF (iw > 0) WRITE (iw, '(/,A)') " Condition Number of Valence Response Basis Sets"
-      CALL init_orbital_pointers(3)
-      CALL init_spherical_harmonics(3, 0)
+      CALL init_orbital_pointers(lmat)
+      CALL init_spherical_harmonics(lmat, 0)
       DO ider = 0, nder
          NULLIFY (basis_vrb)
          ALLOCATE (basis_vrb)
@@ -741,14 +742,20 @@ CONTAINS
             CPASSERT(PRESENT(nbas))
             CPASSERT(PRESENT(al))
             CPASSERT(PRESENT(gcc))
-            lmin = 100
-            lmax = 0
-            DO i = 0, SIZE(nbas, 1)-1
+
+            DO i = LBOUND(nbas, 1), UBOUND(nbas, 1)
                IF (nbas(i) > 0) THEN
-                  lmin = MIN(lmin, i)
-                  lmax = MAX(lmax, i)
+                  lmin = i
+                  EXIT
                END IF
             END DO
+            DO i = UBOUND(nbas, 1), LBOUND(nbas, 1), -1
+               IF (nbas(i) > 0) THEN
+                  lmax = i
+                  EXIT
+               END IF
+            END DO
+
             nval = lmax
             WRITE (iunit, *) "  1"
             WRITE (iunit, "(40I3)") nval, lmin, lmax, nprim, (nbas(l), l=lmin, lmax)

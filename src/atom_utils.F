@@ -29,6 +29,7 @@ MODULE atom_utils
                                               do_rohf_atom,&
                                               do_uhf_atom,&
                                               do_uks_atom
+   USE kahan_sum,                       ONLY: accurate_dot_product
    USE kinds,                           ONLY: default_string_length,&
                                               dp
    USE lapack,                          ONLY: lapack_ssyev
@@ -1650,13 +1651,13 @@ CONTAINS
 !> \par History
 !>    * 08.2008 created [Juerg Hutter]
 ! **************************************************************************************************
-   FUNCTION atom_trace(opmat, pmat) RESULT(trace)
+   PURE FUNCTION atom_trace(opmat, pmat) RESULT(trace)
       REAL(KIND=dp), DIMENSION(:, :, 0:), INTENT(IN)     :: opmat, pmat
       REAL(KIND=dp)                                      :: trace
 
       CHARACTER(len=*), PARAMETER :: routineN = 'atom_trace', routineP = moduleN//':'//routineN
 
-      trace = SUM(opmat(:, :, :)*pmat(:, :, :))
+      trace = accurate_dot_product(opmat, pmat)
 
    END FUNCTION atom_trace
 
@@ -2337,9 +2338,11 @@ CONTAINS
       REAL(KIND=dp)                                      :: r1, r2, reps, rmax
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: weig, work
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: smat
+      REAL(KIND=dp), DIMENSION(2*lmat+1, 2*lmat+1)       :: sab
       REAL(KIND=dp), DIMENSION(3)                        :: rab
-      REAL(KIND=dp), DIMENSION(7, 7)                     :: sab
       REAL(KIND=dp), DIMENSION(:), POINTER               :: zeta, zetb
+
+      ! Number of spherical Gaussian orbitals with angular momentum lmat: nso(lmat) = 2*lmat+1
 
       ! total number of basis functions
       nbas = 0
