@@ -12,8 +12,8 @@ HF-field.inp                                           1      1e-12             
 HF-field-gopt.inp                                      1      1e-12              -5.66101691610414
 HF-field-debug.inp                                     0      1e-12
 HF-dfilter-debug.inp                                   0      1e-12
-HF-dfield-gopt.inp                                     1      1e-12              -5.65726523262359
-HF-dfield.inp                                          1      1e-12              -5.65669037633279
+HF-dfield-gopt.inp                                     1      1e-12              -5.66151709288324
+HF-dfield.inp                                          1      1e-12              -5.66132795820476
 HF-dfield-debug.inp                                    0      1e-12
 HF-loc-field.inp                                       1      1e-12              -5.65286303322644
 HF-loc-field-gopt.inp                                  1      1e-12              -5.66995866072124
