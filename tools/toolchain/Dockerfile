@@ -21,6 +21,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     libtool \
     autoconf \
     automake \
+    pkg-config \
    && rm -rf /var/lib/apt/lists/*
 
 # build toolchain
