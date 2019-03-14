@@ -574,7 +574,7 @@ CONTAINS
       fieldpol = fieldpol*dft_control%period_efield%strength
 
       omega = cell%deth
-      hmat = cell%hmat(:, :)/(twopi*omega)
+      hmat = cell%hmat(:, :)/twopi
 
       natom = SIZE(particle_set)
       nspin = SIZE(ks_matrix, 1)
@@ -583,7 +583,6 @@ CONTAINS
       DO ia = 1, natom
          charge = mcharge(ia)
          ria = particle_set(ia)%r
-         ria = pbc(ria, cell)
          DO idir = 1, 3
             kvec(:) = twopi*cell%h_inv(idir, :)
             dd = SUM(kvec(:)*ria(:))
@@ -595,19 +594,20 @@ CONTAINS
 
       ! make sure the total normalized polarization is within [-1:1]
       DO idir = 1, 3
-         cqi(idir) = qi(idir)
-!        IF (cqi(idir) > pi) cqi(idir) = cqi(idir)-twopi
-!        IF (cqi(idir) < -pi) cqi(idir) = cqi(idir)+twopi
-!        ! now check for log branch
-!        IF (calculate_forces) THEN
-!           IF (ABS(efield%polarisation(idir)-cqi(idir)) > pi) THEN
-!              di(idir) = (efield%polarisation(idir)-cqi(idir))/pi
-!              DO i = 1, 10
-!                 cqi(idir) = cqi(idir)+SIGN(1.0_dp, di(idir))*twopi
-!                 IF (ABS(efield%polarisation(idir)-cqi(idir)) < pi) EXIT
-!              END DO
-!           END IF
-!        END IF
+         cqi(idir) = qi(idir)/omega
+         IF (cqi(idir) > pi) cqi(idir) = cqi(idir)-twopi
+         IF (cqi(idir) < -pi) cqi(idir) = cqi(idir)+twopi
+         ! now check for log branch
+         IF (calculate_forces) THEN
+            IF (ABS(efield%polarisation(idir)-cqi(idir)) > pi) THEN
+               di(idir) = (efield%polarisation(idir)-cqi(idir))/pi
+               DO i = 1, 10
+                  cqi(idir) = cqi(idir)+SIGN(1.0_dp, di(idir))*twopi
+                  IF (ABS(efield%polarisation(idir)-cqi(idir)) < pi) EXIT
+               END DO
+            END IF
+         END IF
+         cqi(idir) = cqi(idir)*omega
       END DO
       DO idir = 1, 3
          ci(idir) = 0.0_dp
@@ -623,17 +623,19 @@ CONTAINS
             CPWARN("Large change of e-field energy detected. Correct for non-smooth energy surface")
          END IF
          efield%field_energy = ener_field
-         efield%polarisation(:) = cqi(:)
+         efield%polarisation(:) = cqi(:)/omega
       END IF
 
       ! Energy
       ener_field = 0.0_dp
       DO idir = 1, 3
-         ener_field = ener_field+dfilter(idir)*(fieldpol(idir)-2._dp*twopi*ci(idir))**2
+         ener_field = ener_field+dfilter(idir)*(fieldpol(idir)-2._dp*twopi/omega*ci(idir))**2
       END DO
-      energy%efield = 0.25_dp*omega/twopi*ener_field
+      energy%efield = 0.25_dp/twopi*ener_field
 
       IF (.NOT. just_energy) THEN
+         di(:) = -(fieldpol(:)-2._dp*twopi/omega*ci(:))*dfilter(:)/omega
+
          CALL get_qs_env(qs_env=qs_env, matrix_s_kp=matrix_s)
          CALL qs_rho_get(rho, rho_ao_kp=matrix_p)
 
@@ -650,15 +652,11 @@ CONTAINS
             ALLOCATE (atom_of_kind(natom), kind_of(natom))
             CALL get_atomic_kind_set(atomic_kind_set, atom_of_kind=atom_of_kind, kind_of=kind_of)
             IF (para_env%mepos == 0) THEN
-               DO idir = 1, 3
-                  di(idir) = -omega*(fieldpol(idir)-2._dp*twopi*ci(idir))*dfilter(idir)
-               END DO
-               forcea(1:3) = di(1:3)/omega
                DO ia = 1, natom
                   charge = mcharge(ia)
                   iatom = atom_of_kind(ia)
                   ikind = kind_of(ia)
-                  force(ikind)%efield(:, iatom) = force(ikind)%efield(:, iatom)+forcea(:)*charge
+                  force(ikind)%efield(:, iatom) = force(ikind)%efield(:, iatom)+di(:)*charge
                   IF (use_virial) THEN
                      ria = particle_set(ia)%r
                      ria = pbc(ria, cell)
@@ -675,10 +673,7 @@ CONTAINS
                CALL dbcsr_iterator_next_block(iter, irow, icol, s_block, blk)
 
                DO idir = 1, 3
-                  di(idir) = -omega*(fieldpol(idir)-2._dp*twopi*ci(idir))*dfilter(idir)
-               END DO
-               DO idir = 1, 3
-                  hdi(idir) = SUM(di(1:3)*hmat(1:3, idir))
+                  hdi(idir) = -SUM(di(1:3)*hmat(1:3, idir))
                END DO
                fdir = 0.0_dp
                ria = particle_set(irow)%r
@@ -736,10 +731,7 @@ CONTAINS
                CPASSERT(ic > 0)
 
                DO idir = 1, 3
-                  di(idir) = -omega*(fieldpol(idir)-2._dp*twopi*ci(idir))*dfilter(idir)
-               END DO
-               DO idir = 1, 3
-                  hdi(idir) = SUM(di(1:3)*hmat(1:3, idir))
+                  hdi(idir) = -SUM(di(1:3)*hmat(1:3, idir))
                END DO
                fdir = 0.0_dp
                ria = particle_set(irow)%r

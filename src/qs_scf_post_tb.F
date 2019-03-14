@@ -416,16 +416,6 @@ CONTAINS
          END IF
       ENDIF
 
-      ! EFIELD CUBE FILE
-      print_key => section_vals_get_subs_vals(print_section, "EFIELD_CUBE")
-      IF (BTEST(cp_print_key_should_output(logger%iter_info, print_key), cp_p_file)) THEN
-         IF (do_cube) THEN
-            CPWARN("Efield cube file not implemented for TB methods.")
-         ELSE
-            CPWARN("Efield cube file not implemented for TB methods.")
-         END IF
-      END IF
-
       ! DENSITY CUBE FILE
       print_key => section_vals_get_subs_vals(print_section, "E_DENSITY_CUBE")
       IF (BTEST(cp_print_key_should_output(logger%iter_info, print_key), cp_p_file)) THEN
@@ -461,6 +451,16 @@ CONTAINS
             CPWARN("Hartree potential cube file not implemented for TB methods.")
          ELSE
             CPWARN("Hartree potential cube file not implemented for TB methods.")
+         END IF
+      END IF
+
+      ! EFIELD CUBE FILE
+      print_key => section_vals_get_subs_vals(print_section, "EFIELD_CUBE")
+      IF (BTEST(cp_print_key_should_output(logger%iter_info, print_key), cp_p_file)) THEN
+         IF (do_cube) THEN
+            CPWARN("Efield cube file not implemented for TB methods.")
+         ELSE
+            CPWARN("Efield cube file not implemented for TB methods.")
          END IF
       END IF
 
