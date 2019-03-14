@@ -55,8 +55,9 @@ case "$with_libvdwxc" in
                 patch -p1 < ../"${patch##*/}"
             done
             export
+            unset MPICC MPICXX MPIF90 MPIFC MPIF77
             ./autogen.sh
-            ./configure --prefix="${pkg_install_dir}" --with-fftw3
+            ./configure --prefix="${pkg_install_dir}" --with-fftw3 --disable-shared
             make -j
             make install
             write_checksums "${install_lock_file}" "${SCRIPT_DIR}/$(basename ${SCRIPT_NAME})"
