@@ -47,7 +47,7 @@ case "$with_libvdwxc" in
             done
 
             echo "Installing from scratch into ${pkg_install_dir}"
-            [ -d libvdwxc-${libvdwxc_ver} ] && rm -rf libvdwxc-${libvdwxc_ver}-429a80027a2ec2c97e2f6d9a3dc84843f2739865
+            [ -d libvdwxc-${libvdwxc_ver}-429a80027a2ec2c97e2f6d9a3dc84843f2739865 ] && rm -rf libvdwxc-${libvdwxc_ver}-429a80027a2ec2c97e2f6d9a3dc84843f2739865
             tar -xzf libvdwxc-${libvdwxc_ver}-429a80027a2ec2c97e2f6d9a3dc84843f2739865.tar.gz
             cd libvdwxc-${libvdwxc_ver}-429a80027a2ec2c97e2f6d9a3dc84843f2739865
 
@@ -56,7 +56,7 @@ case "$with_libvdwxc" in
             done
 
             ./autogen.sh
-            ./configure --prefix="${pkg_install_dir}" --with-fftw3 --without-mpi
+            ./configure --prefix="${pkg_install_dir}" --with-fftw3
             make -j
             make install
             write_checksums "${install_lock_file}" "${SCRIPT_DIR}/$(basename ${SCRIPT_NAME})"
