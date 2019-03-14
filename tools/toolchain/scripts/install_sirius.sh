@@ -76,11 +76,11 @@ case "$with_sirius" in
             echo "sirius_dist-${sirius_ver} is already installed, skipping it."
         else
             if [ -f SIRIUS-${sirius_ver}.tar.gz ] ; then
-                echo "sirius_v${sirius_ver}.tar.gz is found"
+                echo "sirius_${sirius_ver}.tar.gz is found"
             else
+
                 download_pkg ${DOWNLOADER_FLAGS} \
-                             https://github.com/electronic-structure/SIRIUS/archive/${sirius_ver}.tar.gz \
-                             -o SIRIUS-${sirius_ver}.tar.gz
+                             https://www.cp2k.org/static/downloads/SIRIUS-${sirius_ver}.tar.gz
             fi
             echo "Installing from scratch into ${pkg_install_dir}"
             [ -d sirius-${sirius_ver} ] && rm -rf sirius-${sirius_ver}
@@ -92,7 +92,7 @@ case "$with_sirius" in
             COMPILATION_OPTIONS=""
             if [ -n "$ELPA_LIBS" ] ; then
                 if [ -s "$ELPAROOT" ] ; then
-                    export PKG_CONFIG_PATH=$PKG_CONFIG_PATH:$ELPAROOT/lib/pkgconfig
+                    export PKG_CONFIG_PATH=$PKG_CONFIG_PATH:$ELPAROOT/lib/pkgconfig:$ELPAROOT/lib64/pkgconfig
                 fi
                 COMPILATION_OPTIONS="-DUSE_ELPA=ON $COMPILATION_OPTIONS"
 

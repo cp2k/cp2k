@@ -161,7 +161,7 @@
                CALL sirius_option_get_description_usage(section_name, name, description, usage)
                SELECT CASE (ctype)
                CASE (1)
-                  CALL sirius_option_get_int(section_name, name, dummy_i, vec_length);
+                  CALL sirius_option_get_int(section_name, name, dummy_i, vec_length)
                   CALL keyword_create(keyword, &
                                       name=TRIM(name1), &
                                       description=TRIM(ADJUSTL(description)), &
@@ -169,7 +169,7 @@
                                       repeats=.FALSE., &
                                       default_i_val=dummy_i)
                CASE (11)
-                  CALL sirius_option_get_int(section_name, name, ivec(1), vec_length);
+                  CALL sirius_option_get_int(section_name, name, ivec(1), vec_length)
                   CALL keyword_create(keyword, &
                                       name=name1, &
                                       description=TRIM(ADJUSTL(description)), &
@@ -178,7 +178,7 @@
                                       n_var=vec_length, &
                                       default_i_vals=ivec(1:vec_length))
                CASE (2)
-                  CALL sirius_option_get_double(section_name, name, dummy_r, vec_length);
+                  CALL sirius_option_get_double(section_name, name, dummy_r, vec_length)
                   CALL keyword_create(keyword, &
                                       name=name1, &
                                       description=TRIM(ADJUSTL(description)), &
@@ -186,7 +186,7 @@
                                       repeats=.FALSE., &
                                       default_r_val=dummy_r)
                CASE (12)
-                  CALL sirius_option_get_double(section_name, name, rvec(1), vec_length);
+                  CALL sirius_option_get_double(section_name, name, rvec(1), vec_length); 
                   CALL keyword_create(keyword, &
                                       name=name1, &
                                       description=TRIM(ADJUSTL(description)), &
@@ -195,7 +195,7 @@
                                       n_var=vec_length, &
                                       default_r_vals=rvec(1:vec_length))
                CASE (3)
-                  CALL sirius_option_get_logical(section_name, name, dummy_l, vec_length);
+                  CALL sirius_option_get_logical(section_name, name, dummy_l, vec_length); 
                   IF (dummy_l) THEN
                      CALL keyword_create(keyword, &
                                          name=name1, &
@@ -214,7 +214,7 @@
                                          lone_keyword_l_val=.TRUE.)
                   ENDIF
                CASE (13)
-                  CALL sirius_option_get_logical(section_name, name, lvec(1), vec_length);
+                  CALL sirius_option_get_logical(section_name, name, lvec(1), vec_length)
                   DO j = 1, vec_length
                      lvecl(j) = lvec(j)
                   ENDDO
