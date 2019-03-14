@@ -57,7 +57,9 @@ case "$with_sirius" in
         require_env LIBVDWXC_CFLAGS
         require_env LIBVDWXC_LIBS
         require_env LIBVDWXC_LDFLAGS
-
+        require_env GSL_INCLUDE_DIR
+        require_env GSL_LIBRARY
+        require_env GSL_CBLAS_LIBRARY
         ARCH=`arch`
         SIRIUS_OPT="-O3 -DNDEBUG -mtune=native -ftree-loop-vectorize ${MATH_CFLAGS}"
         if [ "$ARCH" = "ppc64le" ]; then
