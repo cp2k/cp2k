@@ -73,15 +73,19 @@ MODULE qs_scf_post_tb
                                               pw_env_type
    USE pw_methods,                      ONLY: pw_axpy,&
                                               pw_copy,&
+                                              pw_transfer,&
                                               pw_zero
    USE pw_pool_types,                   ONLY: pw_pool_create_pw,&
                                               pw_pool_give_back_pw,&
                                               pw_pool_p_type,&
                                               pw_pool_type
-   USE pw_types,                        ONLY: REALDATA3D,&
+   USE pw_types,                        ONLY: COMPLEXDATA1D,&
+                                              REALDATA3D,&
                                               REALSPACE,&
+                                              RECIPROCALSPACE,&
                                               pw_p_type
-   USE qs_collocate_density,            ONLY: calculate_rho_elec
+   USE qs_collocate_density,            ONLY: calculate_rho_core,&
+                                              calculate_rho_elec
    USE qs_dftb_types,                   ONLY: qs_dftb_atom_type
    USE qs_dftb_utils,                   ONLY: get_dftb_atom_param
    USE qs_elf_methods,                  ONLY: qs_elf_calc
@@ -440,7 +444,11 @@ CONTAINS
       print_key => section_vals_get_subs_vals(print_section, "TOT_DENSITY_CUBE")
       IF (BTEST(cp_print_key_should_output(logger%iter_info, print_key), cp_p_file)) THEN
          IF (do_cube) THEN
-            CPWARN("Total density cube file not implemented for TB methods.")
+            IF (rebuild) THEN
+               CALL rebuild_pw_env(qs_env)
+               rebuild = .FALSE.
+            END IF
+            CALL print_tot_density(qs_env, print_key)
          ELSE
             CPWARN("Total density cube file not implemented for TB methods.")
          END IF
@@ -1012,7 +1020,7 @@ CONTAINS
 
       CHARACTER(LEN=default_path_length)                 :: filename, mpi_filename, my_pos_cube
       INTEGER                                            :: iounit, ispin, unit_nr
-      LOGICAL                                            :: append_cube, mpi_io, print_total_density
+      LOGICAL                                            :: append_cube, mpi_io
       REAL(KIND=dp), DIMENSION(:), POINTER               :: tot_rho_r
       TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: rho_ao
@@ -1030,9 +1038,6 @@ CONTAINS
 
       CALL get_qs_env(qs_env, dft_control=dft_control)
 
-      CALL section_vals_val_get(cube_section, &
-                                keyword_name="TOTAL_DENSITY", &
-                                l_val=print_total_density)
       append_cube = section_get_lval(cube_section, "APPEND")
       my_pos_cube = "REWIND"
       IF (append_cube) my_pos_cube = "APPEND"
@@ -1139,6 +1144,111 @@ CONTAINS
       END IF ! nspins
 
    END SUBROUTINE print_e_density
+! **************************************************************************************************
+!> \brief ...
+!> \param qs_env ...
+!> \param cube_section ...
+! **************************************************************************************************
+   SUBROUTINE print_tot_density(qs_env, cube_section)
+
+      TYPE(qs_environment_type), POINTER                 :: qs_env
+      TYPE(section_vals_type), POINTER                   :: cube_section
+
+      CHARACTER(len=*), PARAMETER :: routineN = 'print_tot_density', &
+         routineP = moduleN//':'//routineN
+
+      CHARACTER(LEN=default_path_length)                 :: filename, mpi_filename, my_pos_cube
+      INTEGER                                            :: iounit, ispin, unit_nr
+      LOGICAL                                            :: append_cube, mpi_io
+      REAL(KIND=dp)                                      :: total_rho_core_rspace
+      REAL(KIND=dp), DIMENSION(:), POINTER               :: tot_rho_r
+      TYPE(cp_logger_type), POINTER                      :: logger
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: rho_ao
+      TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: rho_ao_kp
+      TYPE(dft_control_type), POINTER                    :: dft_control
+      TYPE(particle_list_type), POINTER                  :: particles
+      TYPE(pw_env_type), POINTER                         :: pw_env
+      TYPE(pw_p_type)                                    :: rho_core, rho_tot_rspace
+      TYPE(pw_p_type), DIMENSION(:), POINTER             :: rho_g, rho_r
+      TYPE(pw_pool_p_type), DIMENSION(:), POINTER        :: pw_pools
+      TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
+      TYPE(qs_ks_env_type), POINTER                      :: ks_env
+      TYPE(qs_rho_type), POINTER                         :: rho
+      TYPE(qs_subsys_type), POINTER                      :: subsys
+
+      CALL get_qs_env(qs_env, dft_control=dft_control)
+
+      append_cube = section_get_lval(cube_section, "APPEND")
+      my_pos_cube = "REWIND"
+      IF (append_cube) my_pos_cube = "APPEND"
+
+      logger => cp_get_default_logger()
+      iounit = cp_logger_get_default_io_unit(logger)
+
+      ! we need to construct the density on a realspace grid
+      CALL get_qs_env(qs_env, ks_env=ks_env, rho=rho)
+      NULLIFY (rho_r, rho_g, tot_rho_r)
+      CALL qs_rho_get(rho, rho_ao_kp=rho_ao_kp, &
+                      rho_r=rho_r, rho_g=rho_g, tot_rho_r=tot_rho_r)
+      DO ispin = 1, dft_control%nspins
+         rho_ao => rho_ao_kp(ispin, :)
+         CALL calculate_rho_elec(matrix_p_kp=rho_ao, &
+                                 rho=rho_r(ispin), &
+                                 rho_gspace=rho_g(ispin), &
+                                 total_rho=tot_rho_r(ispin), &
+                                 ks_env=ks_env)
+      END DO
+      CALL qs_rho_set(rho, rho_r_valid=.TRUE., rho_g_valid=.TRUE.)
+
+      CALL get_qs_env(qs_env, subsys=subsys)
+      CALL qs_subsys_get(subsys, particles=particles)
+
+      CALL get_qs_env(qs_env=qs_env, pw_env=pw_env)
+      CALL pw_env_get(pw_env=pw_env, auxbas_pw_pool=auxbas_pw_pool, pw_pools=pw_pools)
+      CALL pw_pool_create_pw(pool=auxbas_pw_pool, &
+                             pw=rho_core%pw, &
+                             use_data=COMPLEXDATA1D, &
+                             in_space=RECIPROCALSPACE)
+      CALL calculate_rho_core(rho_core, total_rho_core_rspace, qs_env)
+
+      IF (iounit > 0) THEN
+         WRITE (UNIT=iounit, FMT="(/,T2,A,T66,F15.6)") &
+            "Integrated electronic density:", SUM(tot_rho_r(1:2))
+         WRITE (UNIT=iounit, FMT="(T2,A,T66,F15.6)") &
+            "Integrated core density:", total_rho_core_rspace
+      END IF
+
+      CALL pw_pool_create_pw(pool=auxbas_pw_pool, &
+                             pw=rho_tot_rspace%pw, &
+                             use_data=REALDATA3D, &
+                             in_space=REALSPACE)
+      CALL pw_transfer(rho_core%pw, rho_tot_rspace%pw)
+      DO ispin = 1, dft_control%nspins
+         CALL pw_axpy(rho_r(ispin)%pw, rho_tot_rspace%pw)
+      END DO
+      filename = "TOTAL_DENSITY"
+      mpi_io = .TRUE.
+      unit_nr = cp_print_key_unit_nr(logger, cube_section, '', &
+                                     extension=".cube", middle_name=TRIM(filename), file_position=my_pos_cube, &
+                                     log_filename=.FALSE., mpi_io=mpi_io, fout=mpi_filename)
+      IF (iounit > 0) THEN
+         IF (.NOT. mpi_io) THEN
+            INQUIRE (UNIT=unit_nr, NAME=filename)
+         ELSE
+            filename = mpi_filename
+         END IF
+         WRITE (UNIT=iounit, FMT="(T2,A,/,T2,A79)") &
+            "The total density is written in cube file format to the file:", ADJUSTR(TRIM(filename))
+      END IF
+
+      CALL cp_pw_to_cube(rho_tot_rspace%pw, unit_nr, "TOTAL DENSITY", &
+                         particles=particles, &
+                         stride=section_get_ivals(cube_section, "STRIDE"), mpi_io=mpi_io)
+      CALL cp_print_key_finished_output(unit_nr, logger, cube_section, '', mpi_io=mpi_io)
+      CALL pw_pool_give_back_pw(auxbas_pw_pool, rho_tot_rspace%pw)
+      CALL pw_pool_give_back_pw(auxbas_pw_pool, rho_core%pw)
+
+   END SUBROUTINE print_tot_density
 
 ! **************************************************************************************************
 !> \brief ...
@@ -1204,7 +1314,7 @@ CONTAINS
 
       IF (iounit > 0) THEN
          WRITE (UNIT=iounit, FMT="(/,T2,A)") &
-            " ELF is computed on the real space grid -----"
+            "ELF is computed on the real space grid -----"
       END IF
       rho_cutoff = section_get_rval(elf_section, "density_cutoff")
       CALL qs_elf_calc(qs_env, elf_r, rho_cutoff)
