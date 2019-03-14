@@ -15,6 +15,8 @@
     &PRINT
        &E_DENSITY_CUBE
        &END
+       &TOT_DENSITY_CUBE
+       &END
        &ELF_CUBE 
        &END
     &END PRINT
