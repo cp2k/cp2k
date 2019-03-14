@@ -15,7 +15,7 @@ with_libvdwxc=${1:-__INSTALL__}
 cd "${BUILDDIR}"
 case "$with_libvdwxc" in
     __INSTALL__)
-
+        require_env MPI_CFLAGS
         require_env MPI_LDFLAGS
         require_env MPI_LIBS
         require_env FFTW_LDFLAGS
@@ -54,7 +54,7 @@ case "$with_libvdwxc" in
             for patch in "${patches[@]}" ; do
                 patch -p1 < ../"${patch##*/}"
             done
-
+            export
             ./autogen.sh
             ./configure --prefix="${pkg_install_dir}" --with-fftw3
             make -j
