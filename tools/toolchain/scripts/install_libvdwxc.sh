@@ -56,7 +56,7 @@ case "$with_libvdwxc" in
             done
 
             ./autogen.sh
-            ./configure --prefix="${pkg_install_dir}" --with-fftw3
+            ./configure --prefix="${pkg_install_dir}" --with-fftw3 --without-mpi
             make -j
             make install
             write_checksums "${install_lock_file}" "${SCRIPT_DIR}/$(basename ${SCRIPT_NAME})"
