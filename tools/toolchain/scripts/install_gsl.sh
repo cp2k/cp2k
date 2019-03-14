@@ -70,6 +70,9 @@ prepend_path LD_LIBRARY_PATH "$pkg_install_dir/lib"
 prepend_path LD_RUN_PATH "$pkg_install_dir/lib"
 prepend_path LIBRARY_PATH "$pkg_install_dir/lib"
 prepend_path CPATH "$pkg_install_dir/include"
+export GSL_INCLUDE_DIR="$pkg_install_dir/include"
+export GSL_LIBRARY="-gsl"
+export GSL_CBLAS_LIBRARY="-lgsl_cblas"
 EOF
     fi
     cat << EOF > "${BUILDDIR}/setup_gsl"
@@ -78,6 +81,8 @@ export GSL_LDFLAGS="${GSL_LDFLAGS}"
 export CP_DFLAGS="\${CP_DFLAGS} IF_MPI(IF_OMP(-D__GSL|)|)"
 export CP_CFLAGS="\${CP_CFLAGS} ${GSL_CFLAGS}"
 export CP_LDFLAGS="\${CP_LDFLAGS} ${GSL_LDFLAGS}"
+export GSL_LIBRARY="-gsl"
+export GSL_CBLAS_LIBRARY="-lgslcblas"
 
 ##########################################################
 #
