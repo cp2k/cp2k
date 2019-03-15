@@ -64,10 +64,13 @@ MODULE pwdft_environment_types
       TYPE(qs_subsys_type), POINTER                    :: qs_subsys => NULL()
       TYPE(section_vals_type), POINTER                 :: pwdft_input => NULL()
       TYPE(section_vals_type), POINTER                 :: force_env_input => NULL()
+      TYPE(section_vals_type), POINTER                 :: xc_input => NULL()
       TYPE(pwdft_energy_type), POINTER                 :: energy => NULL()
       REAL(KIND=dp), DIMENSION(:, :), POINTER          :: forces => NULL()
       REAL(KIND=dp), DIMENSION(3, 3)                   :: stress
       INTEGER, DIMENSION(3)                            :: kgrid, kshift
+!     16 different functionals should be enough
+      CHARACTER(len=80)                                :: xc_func(16)
       TYPE(C_PTR)                                      :: sctx = C_NULL_PTR
       TYPE(C_PTR)                                      :: gs_handler = C_NULL_PTR
       TYPE(C_PTR)                                      :: ks_handler = C_NULL_PTR
@@ -150,6 +153,7 @@ CONTAINS
 !> \param id_nr unique identifier
 !> \param pwdft_input ...
 !> \param force_env_input ...
+!> \param xc_input ...
 !> \param kgrid ...
 !> \param kshift ...
 !> \param cp_subsys ...
@@ -165,14 +169,14 @@ CONTAINS
 !>      07.2018 initial create
 !> \author JHU
 ! **************************************************************************************************
-   SUBROUTINE pwdft_env_get(pwdft_env, id_nr, pwdft_input, force_env_input, &
+   SUBROUTINE pwdft_env_get(pwdft_env, id_nr, pwdft_input, force_env_input, xc_input, &
                             kgrid, kshift, &
                             cp_subsys, qs_subsys, para_env, energy, forces, stress, &
                             sctx, gs_handler, ks_handler)
 
       TYPE(pwdft_environment_type), POINTER              :: pwdft_env
       INTEGER, INTENT(OUT), OPTIONAL                     :: id_nr
-      TYPE(section_vals_type), OPTIONAL, POINTER         :: pwdft_input, force_env_input
+      TYPE(section_vals_type), OPTIONAL, POINTER         :: pwdft_input, force_env_input, xc_input
       INTEGER, DIMENSION(3), OPTIONAL                    :: kgrid, kshift
       TYPE(cp_subsys_type), OPTIONAL, POINTER            :: cp_subsys
       TYPE(qs_subsys_type), OPTIONAL, POINTER            :: qs_subsys
@@ -192,6 +196,7 @@ CONTAINS
       IF (PRESENT(id_nr)) id_nr = pwdft_env%id_nr
       IF (PRESENT(pwdft_input)) pwdft_input => pwdft_env%pwdft_input
       IF (PRESENT(force_env_input)) force_env_input => pwdft_env%force_env_input
+      IF (PRESENT(xc_input)) xc_input => pwdft_env%xc_input
       IF (PRESENT(kgrid)) kgrid(1:3) = pwdft_env%kgrid(1:3)
       IF (PRESENT(kshift)) kshift(1:3) = pwdft_env%kshift(1:3)
       IF (PRESENT(qs_subsys)) qs_subsys => pwdft_env%qs_subsys
@@ -214,6 +219,7 @@ CONTAINS
 !> \param id_nr unique identifier
 !> \param pwdft_input ...
 !> \param force_env_input ...
+!> \param xc_input ...
 !> \param kgrid ...
 !> \param kshift ...
 !> \param qs_subsys ...
@@ -231,14 +237,14 @@ CONTAINS
 !> \note
 !>   For possible missing arguments see the attributes of pwdft_environment_type
 ! **************************************************************************************************
-   SUBROUTINE pwdft_env_set(pwdft_env, id_nr, pwdft_input, force_env_input, &
+   SUBROUTINE pwdft_env_set(pwdft_env, id_nr, pwdft_input, force_env_input, xc_input, &
                             kgrid, kshift, &
                             qs_subsys, cp_subsys, para_env, energy, forces, stress, &
                             sctx, gs_handler, ks_handler)
 
       TYPE(pwdft_environment_type), POINTER              :: pwdft_env
       INTEGER, INTENT(IN), OPTIONAL                      :: id_nr
-      TYPE(section_vals_type), OPTIONAL, POINTER         :: pwdft_input, force_env_input
+      TYPE(section_vals_type), OPTIONAL, POINTER         :: pwdft_input, force_env_input, xc_input
       INTEGER, DIMENSION(3), OPTIONAL                    :: kgrid, kshift
       TYPE(qs_subsys_type), OPTIONAL, POINTER            :: qs_subsys
       TYPE(cp_subsys_type), OPTIONAL, POINTER            :: cp_subsys
@@ -259,6 +265,8 @@ CONTAINS
       IF (PRESENT(para_env)) pwdft_env%para_env => para_env
       IF (PRESENT(pwdft_input)) pwdft_env%pwdft_input => pwdft_input
       IF (PRESENT(force_env_input)) pwdft_env%force_env_input => force_env_input
+      IF (PRESENT(xc_input)) pwdft_env%xc_input => xc_input
+
       IF (PRESENT(kgrid)) pwdft_env%kgrid(1:3) = kgrid(1:3)
       IF (PRESENT(kshift)) pwdft_env%kshift(1:3) = kshift(1:3)
       IF (PRESENT(qs_subsys)) THEN
