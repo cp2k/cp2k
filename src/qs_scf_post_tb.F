@@ -58,6 +58,7 @@ MODULE qs_scf_post_tb
    USE kpoint_types,                    ONLY: kpoint_type
    USE machine,                         ONLY: m_flush
    USE mathconstants,                   ONLY: twopi
+   USE memory_utilities,                ONLY: reallocate
    USE molden_utils,                    ONLY: write_mos_molden
    USE moments_utils,                   ONLY: get_reference_point
    USE mulliken,                        ONLY: mulliken_charges
@@ -85,7 +86,8 @@ MODULE qs_scf_post_tb
                                               RECIPROCALSPACE,&
                                               pw_p_type
    USE qs_collocate_density,            ONLY: calculate_rho_core,&
-                                              calculate_rho_elec
+                                              calculate_rho_elec,&
+                                              calculate_wavefunction
    USE qs_dftb_types,                   ONLY: qs_dftb_atom_type
    USE qs_dftb_utils,                   ONLY: get_dftb_atom_param
    USE qs_elf_methods,                  ONLY: qs_elf_calc
@@ -483,7 +485,11 @@ CONTAINS
          print_key => section_vals_get_subs_vals(print_section, "MO_CUBES")
          IF (BTEST(cp_print_key_should_output(logger%iter_info, print_key), cp_p_file)) THEN
             IF (do_cube) THEN
-               CPWARN("Printing of MO cube files not implemented for TB methods.")
+               IF (rebuild) THEN
+                  CALL rebuild_pw_env(qs_env)
+                  rebuild = .FALSE.
+               END IF
+               CALL print_mo_cubes(qs_env, print_key)
             ELSE
                CPWARN("Printing of MO cube files not implemented for TB methods.")
             END IF
@@ -970,26 +976,6 @@ CONTAINS
       new_pw_env%cell_hmat = cell%hmat
       CALL pw_env_rebuild(new_pw_env, qs_env=qs_env)
 
-!     IF (ASSOCIATED(rho_core)) THEN
-!        CALL pw_release(rho_core%pw)
-!        DEALLOCATE (rho_core)
-!     ENDIF
-!     ALLOCATE (rho_core)
-!     CALL pw_env_get(new_pw_env, auxbas_pw_pool=auxbas_pw_pool)
-!     CALL pw_pool_create_pw(auxbas_pw_pool, rho_core%pw, &
-!                            use_data=COMPLEXDATA1D)
-!     rho_core%pw%in_space = RECIPROCALSPACE
-!     CALL set_ks_env(ks_env, rho_core=rho_core)
-
-!     CALL get_ks_env(ks_env, v_hartree_rspace=v_hartree_rspace)
-!     IF (ASSOCIATED(v_hartree_rspace)) &
-!        CALL pw_release(v_hartree_rspace)
-!     CALL get_qs_env(qs_env, pw_env=new_pw_env)
-!     CALL pw_env_get(new_pw_env, auxbas_pw_pool=auxbas_pw_pool)
-!     CALL pw_pool_create_pw(auxbas_pw_pool, v_hartree_rspace, &
-!                            use_data=REALDATA3D, in_space=REALSPACE)
-!     CALL set_ks_env(ks_env, v_hartree_rspace=v_hartree_rspace)
-
       NULLIFY (task_list)
       CALL get_ks_env(ks_env, task_list=task_list)
       IF (.NOT. ASSOCIATED(task_list)) THEN
@@ -1350,6 +1336,164 @@ CONTAINS
       DEALLOCATE (elf_r)
 
    END SUBROUTINE print_elf
+! **************************************************************************************************
+!> \brief ...
+!> \param qs_env ...
+!> \param cube_section ...
+! **************************************************************************************************
+   SUBROUTINE print_mo_cubes(qs_env, cube_section)
+
+      TYPE(qs_environment_type), POINTER                 :: qs_env
+      TYPE(section_vals_type), POINTER                   :: cube_section
+
+      CHARACTER(len=*), PARAMETER :: routineN = 'print_mo_cubes', routineP = moduleN//':'//routineN
+
+      CHARACTER(LEN=default_path_length)                 :: filename, my_pos_cube, title
+      INTEGER                                            :: homo, i, ifirst, ilast, iounit, ir, &
+                                                            ispin, ivector, n_rep, nhomo, nlist, &
+                                                            nlumo, nmo, shomo, unit_nr
+      INTEGER, DIMENSION(:), POINTER                     :: list, list_index
+      LOGICAL                                            :: append_cube, mpi_io, write_cube
+      REAL(KIND=dp)                                      :: homo_lumo(2, 2)
+      REAL(KIND=dp), DIMENSION(:), POINTER               :: mo_eigenvalues
+      TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
+      TYPE(cell_type), POINTER                           :: cell
+      TYPE(cp_fm_type), POINTER                          :: mo_coeff
+      TYPE(cp_logger_type), POINTER                      :: logger
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: ks_rmpv, mo_derivs
+      TYPE(dft_control_type), POINTER                    :: dft_control
+      TYPE(mo_set_p_type), DIMENSION(:), POINTER         :: mos
+      TYPE(particle_list_type), POINTER                  :: particles
+      TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
+      TYPE(pw_env_type), POINTER                         :: pw_env
+      TYPE(pw_p_type)                                    :: wf_g, wf_r
+      TYPE(pw_pool_p_type), DIMENSION(:), POINTER        :: pw_pools
+      TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
+      TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
+      TYPE(qs_subsys_type), POINTER                      :: subsys
+      TYPE(scf_control_type), POINTER                    :: scf_control
+
+      logger => cp_get_default_logger()
+      iounit = cp_logger_get_default_io_unit(logger)
+
+      CALL get_qs_env(qs_env, mos=mos, matrix_ks=ks_rmpv, scf_control=scf_control)
+      CALL get_qs_env(qs_env, dft_control=dft_control, mo_derivs=mo_derivs)
+      CALL make_mo_eig(mos, dft_control%nspins, ks_rmpv, scf_control, mo_derivs)
+      NULLIFY (mo_eigenvalues)
+      homo = 0
+      DO ispin = 1, dft_control%nspins
+         CALL get_mo_set(mo_set=mos(ispin)%mo_set, eigenvalues=mo_eigenvalues, homo=shomo)
+         homo_lumo(ispin, 1) = mo_eigenvalues(shomo)
+         homo = MAX(homo, shomo)
+      END DO
+      write_cube = section_get_lval(cube_section, "WRITE_CUBE")
+      nlumo = section_get_ival(cube_section, "NLUMO")
+      nhomo = section_get_ival(cube_section, "NHOMO")
+      CALL section_vals_val_get(cube_section, "HOMO_LIST", n_rep_val=n_rep)
+      IF (n_rep > 0) THEN
+         nlist = 0
+         DO ir = 1, n_rep
+            NULLIFY (list)
+            CALL section_vals_val_get(cube_section, "HOMO_LIST", i_rep_val=ir, i_vals=list)
+            IF (ASSOCIATED(list)) THEN
+               CALL reallocate(list_index, 1, nlist+SIZE(list))
+               DO i = 1, SIZE(list)
+                  list_index(i+nlist) = list(i)
+               END DO
+               nlist = nlist+SIZE(list)
+            END IF
+         END DO
+         nhomo = MAXVAL(list_index)
+      ELSE
+         IF (nhomo == -1) nhomo = homo
+         nlist = homo-MAX(1, homo-nhomo+1)+1
+         ALLOCATE (list_index(nlist))
+         DO i = 1, nlist
+            list_index(i) = MAX(1, homo-nhomo+1)+i-1
+         END DO
+      END IF
+
+      CALL get_qs_env(qs_env=qs_env, pw_env=pw_env)
+      CALL pw_env_get(pw_env, auxbas_pw_pool=auxbas_pw_pool, pw_pools=pw_pools)
+      CALL pw_pool_create_pw(auxbas_pw_pool, wf_r%pw, &
+                             use_data=REALDATA3D, &
+                             in_space=REALSPACE)
+      CALL pw_pool_create_pw(auxbas_pw_pool, wf_g%pw, &
+                             use_data=COMPLEXDATA1D, &
+                             in_space=RECIPROCALSPACE)
+
+      CALL get_qs_env(qs_env, subsys=subsys)
+      CALL qs_subsys_get(subsys, particles=particles)
+
+      append_cube = section_get_lval(cube_section, "APPEND")
+      my_pos_cube = "REWIND"
+      IF (append_cube) THEN
+         my_pos_cube = "APPEND"
+      END IF
+
+      CALL get_qs_env(qs_env=qs_env, &
+                      atomic_kind_set=atomic_kind_set, &
+                      qs_kind_set=qs_kind_set, &
+                      cell=cell, &
+                      particle_set=particle_set)
+
+      IF (nhomo >= 0) THEN
+         DO ispin = 1, dft_control%nspins
+            ! Prints the cube files of OCCUPIED ORBITALS
+            CALL get_mo_set(mo_set=mos(ispin)%mo_set, mo_coeff=mo_coeff, &
+                            eigenvalues=mo_eigenvalues, homo=homo, nmo=nmo)
+            IF (write_cube) THEN
+               DO i = 1, nlist
+                  ivector = list_index(i)
+                  IF (ivector > homo) CYCLE
+                  CALL calculate_wavefunction(mo_coeff, ivector, wf_r, wf_g, atomic_kind_set, qs_kind_set, &
+                                              cell, dft_control, particle_set, pw_env)
+                  WRITE (filename, '(a4,I5.5,a1,I1.1)') "WFN_", ivector, "_", ispin
+                  mpi_io = .TRUE.
+                  unit_nr = cp_print_key_unit_nr(logger, cube_section, '', extension=".cube", &
+                                                 middle_name=TRIM(filename), file_position=my_pos_cube, &
+                                                 log_filename=.FALSE., mpi_io=mpi_io)
+                  WRITE (title, *) "WAVEFUNCTION ", ivector, " spin ", ispin, " i.e. HOMO - ", ivector-homo
+                  CALL cp_pw_to_cube(wf_r%pw, unit_nr, title, particles=particles, &
+                                     stride=section_get_ivals(cube_section, "STRIDE"), mpi_io=mpi_io)
+                  CALL cp_print_key_finished_output(unit_nr, logger, cube_section, '', mpi_io=mpi_io)
+               ENDDO
+            ENDIF
+         END DO
+      ENDIF
+
+      IF (nlumo /= 0) THEN
+         DO ispin = 1, dft_control%nspins
+            ! Prints the cube files of UNOCCUPIED ORBITALS
+            CALL get_mo_set(mo_set=mos(ispin)%mo_set, mo_coeff=mo_coeff, &
+                            eigenvalues=mo_eigenvalues, homo=homo, nmo=nmo)
+            IF (write_cube) THEN
+               ifirst = homo+1
+               IF (nlumo == -1) THEN
+                  ilast = nmo
+               ELSE
+                  ilast = ifirst+nlumo-1
+                  ilast = MIN(nmo, ilast)
+               END IF
+               DO ivector = ifirst, ilast
+                  CALL calculate_wavefunction(mo_coeff, ivector, wf_r, wf_g, atomic_kind_set, &
+                                              qs_kind_set, cell, dft_control, particle_set, pw_env)
+                  WRITE (filename, '(a4,I5.5,a1,I1.1)') "WFN_", ivector, "_", ispin
+                  mpi_io = .TRUE.
+                  unit_nr = cp_print_key_unit_nr(logger, cube_section, '', extension=".cube", &
+                                                 middle_name=TRIM(filename), file_position=my_pos_cube, &
+                                                 log_filename=.FALSE., mpi_io=mpi_io)
+                  WRITE (title, *) "WAVEFUNCTION ", ivector, " spin ", ispin, " i.e. LUMO + ", ivector-ifirst
+                  CALL cp_pw_to_cube(wf_r%pw, unit_nr, title, particles=particles, &
+                                     stride=section_get_ivals(cube_section, "STRIDE"), mpi_io=mpi_io)
+                  CALL cp_print_key_finished_output(unit_nr, logger, cube_section, '', mpi_io=mpi_io)
+               ENDDO
+            END IF
+         END DO
+      END IF
+
+   END SUBROUTINE print_mo_cubes
+
 ! **************************************************************************************************
 
 END MODULE qs_scf_post_tb
