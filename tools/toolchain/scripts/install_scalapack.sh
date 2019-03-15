@@ -88,12 +88,14 @@ if [ "$with_scalapack" != "__DONTUSE__" ] ; then
 prepend_path LD_LIBRARY_PATH "${pkg_install_dir}/lib"
 prepend_path LD_RUN_PATH "${pkg_install_dir}/lib"
 prepend_path LIBRARY_PATH "${pkg_install_dir}/lib"
+export SCALAPACKROOT="${pkg_install_dir}" 
 EOF
         cat "${BUILDDIR}/setup_scalapack" >> $SETUPFILE
     fi
     cat <<EOF >> "${BUILDDIR}/setup_scalapack"
 export SCALAPACK_LDFLAGS="${SCALAPACK_LDFLAGS}"
 export SCALAPACK_LIBS="${SCALAPACK_LIBS}"
+export SCALAPACKROOT="${pkg_install_dir}" 
 export CP_DFLAGS="\${CP_DFLAGS} IF_MPI(-D__SCALAPACK|)"
 export CP_LDFLAGS="\${CP_LDFLAGS} IF_MPI(${SCALAPACK_LDFLAGS}|)"
 export CP_LIBS="IF_MPI(-lscalapack|) \${CP_LIBS}"

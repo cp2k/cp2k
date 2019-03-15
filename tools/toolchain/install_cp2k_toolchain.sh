@@ -218,6 +218,8 @@ The --with-PKG options follow the rules:
                           Default = install
   --with-gsl              Enable the gnu scientific library
                           Default = install
+  --with-libvdwxc         Enable support of Van der Waals interactions in SIRIUS. Support provided by libvdwxc
+                          Default = install
   --with-spglib           Enable the spg library (search of symmetry groups)
                           This package depends on cmake.
                           Default = install
@@ -263,7 +265,7 @@ tool_list="binutils lcov valgrind make cmake gcc"
 mpi_list="mpich openmpi"
 math_list="mkl acml openblas reflapack"
 lib_list="fftw libint libxc libsmm libxsmm scalapack elpa \
-          ptscotch parmetis metis superlu pexsi quip gsl spglib hdf5 sirius json_fortran"
+          ptscotch parmetis metis superlu pexsi quip gsl spglib hdf5 libvdwxc sirius json_fortran"
 package_list="$tool_list $mpi_list $math_list $lib_list"
 # ------------------------------------------------------------------------
 
@@ -287,7 +289,6 @@ with_libint=__INSTALL__
 with_libxsmm=__INSTALL__
 with_libxc=__INSTALL__
 with_scalapack=__INSTALL__
-
 # default math library settings, FAST_MATH_MODE picks the math library
 # to use, and with_* defines the default method of installation if it
 # is picked. For non-CRAY systems defaults to mkl if $MKLROOT is
@@ -309,6 +310,7 @@ with_spglib="__INSTALL__"
 with_hdf5="__INSTALL__"
 with_json_fortran="__INSTALL__"
 with_elpa="__INSTALL__"
+with_libvdwxc="__INSTALL__"
 
 # for MPI, we try to detect system MPI variant
 with_openmpi=__SYSTEM__
@@ -450,7 +452,7 @@ while [ $# -ge 1 ] ; do
                     export GPUVER=no
                     report_error ${LINENO} \
                     "--gpu-ver currently only supports K20X, K40, K80, P100 and no as options"
-		    exit 1
+        exit 1
             esac
             ;;
         --enable-tsan*)
@@ -600,6 +602,9 @@ while [ $# -ge 1 ] ; do
         --with-json*)
             with_json_fortran=$(read_with $1)
             ;;
+        --with-libvdwxc*)
+            with_libvdwxc=$(read_with $1)
+            ;;
         --help*)
             show_help
             exit 0
@@ -747,16 +752,8 @@ if [ "$with_sirius" = "__INSTALL__" ] ; then
         report_error "For SIRIUS to work you need a working gsl library use --with-gsl option to specify if you wish to install the library or specify its location."
         exit 1
     fi
-    if [ "$with_elpa" = "__DONTUSE__" ] ; then
-        report_error "For SIRIUS to work you need a working ELPA library use --with-elpa option to specify if you wish to install the library or specify its location."
-        exit 1
-    fi
     if [ "$with_libxc" = "__DONTUSE__" ] ; then
         report_error "For SIRIUS to work you need a working libxc library use --with-libxc option to specify if you wish to install the library or specify its location."
-        exit 1
-    fi
-    if [ "$with_scalpack" = "__DONTUSE__" ] ; then
-        report_error "For SIRIUS to work you need a working scalapack library use --with-scalapack option to specify if you wish to install the library or specify its location."
         exit 1
     fi
     if [ "$with_fftw" = "__DONTUSE__" ] ; then
@@ -776,6 +773,7 @@ if [ "$with_sirius" = "__INSTALL__" ] ; then
     exit 1
     fi
 fi
+
 
 # ------------------------------------------------------------------------
 # Preliminaries
@@ -1115,8 +1113,8 @@ if [ "${ENABLE_CUDA}" = __TRUE__ ] && [ "${GPUVER}" != no ] ; then
     check_lib -lcuda "cuda"
     check_lib -lcufft "cuda"
     check_lib -lcublas "cuda"
-    
-    # Set include flags 
+
+    # Set include flags
     CUDA_CFLAGS=''
     add_include_from_paths CUDA_CFLAGS "cuda.h" $INCLUDE_PATHS
     export CUDA_CFLAGS="${CUDA_CFLAGS}"
