@@ -22,8 +22,7 @@ MODULE pwdft_environment
    USE distribution_methods,            ONLY: distribute_molecules_1d
    USE header,                          ONLY: sirius_header
    USE input_section_types,             ONLY: section_vals_get_subs_vals,&
-                                              section_vals_type,&
-                                              section_vals_val_get
+                                              section_vals_type
    USE kinds,                           ONLY: dp
    USE machine,                         ONLY: m_flush
    USE molecule_kind_types,             ONLY: molecule_kind_type
@@ -97,7 +96,7 @@ CONTAINS
       TYPE(qs_energy_type), POINTER                      :: energy
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
       TYPE(qs_subsys_type), POINTER                      :: qs_subsys
-      TYPE(section_vals_type), POINTER                   :: pwdft_section
+      TYPE(section_vals_type), POINTER                   :: pwdft_section, xc_section
 
       CALL timeset(routineN, handle)
 
@@ -108,8 +107,12 @@ CONTAINS
          subsys_section => section_vals_get_subs_vals(force_env_section, "SUBSYS")
       END IF
       pwdft_section => section_vals_get_subs_vals(force_env_section, "PW_DFT")
+
+      ! retrieve the functionals parameters
+      xc_section => section_vals_get_subs_vals(force_env_section, "DFT%XC%XC_FUNCTIONAL")
+
       CALL pwdft_env_set(pwdft_env=pwdft_env, pwdft_input=pwdft_section, &
-                         force_env_input=force_env_section)
+                         force_env_input=force_env_section, xc_input=xc_section)
 
       ! parallel environment
       CALL pwdft_env_set(pwdft_env=pwdft_env, para_env=para_env)
@@ -157,9 +160,6 @@ CONTAINS
       CALL allocate_qs_energy(energy)
       CALL qs_subsys_set(qs_subsys, energy=energy)
 
-      ! read the PW_DFT section
-      CALL write_pwdft_control(pwdft_env, iw)
-
       CALL qs_subsys_get(qs_subsys, particle_set=particle_set, &
                          qs_kind_set=qs_kind_set, &
                          atomic_kind_set=atomic_kind_set, &
@@ -192,7 +192,7 @@ CONTAINS
       CALL cp_sirius_create_env(pwdft_env)
 
       IF (iw > 0) THEN
-         WRITE (iw, '(A,A,A)') " ==================================", " SIRIUS INIT", &
+         WRITE (iw, '(A,A,A)') " ==================================", " SIRIUS INIT FINISHED ", &
             "================================="
       END IF
       IF (iw > 0) CALL m_flush(iw)
@@ -239,7 +239,7 @@ CONTAINS
       CALL cp_sirius_update_context(pwdft_env)
 
       IF (iw > 0) THEN
-         WRITE (iw, '(A,A,A)') " =============================", " SIRIUS UPDATE CONTEXT", &
+         WRITE (iw, '(A,A,A)') " =============================", " SIRIUS UPDATE CONTEXT FINISHED", &
             "============================"
       END IF
       IF (iw > 0) CALL m_flush(iw)
@@ -259,64 +259,4 @@ CONTAINS
       CALL timestop(handle)
 
    END SUBROUTINE pwdft_calc_energy_force
-
-! **************************************************************************************************
-!> \brief Output of the SIRIUS input structure
-!> \param pwdft_env ...
-!> \param iw ...
-!> \par History
-!>      07.2018 initial create
-!> \author JHU
-! **************************************************************************************************
-   SUBROUTINE write_pwdft_control(pwdft_env, iw)
-      TYPE(pwdft_environment_type), POINTER              :: pwdft_env
-      INTEGER, INTENT(IN)                                :: iw
-
-      CHARACTER(len=*), PARAMETER :: routineN = 'write_pwdft_control', &
-         routineP = moduleN//':'//routineN
-
-      TYPE(section_vals_type), POINTER                   :: json_section, pwdft_section
-
-      IF (iw > 0) THEN
-         WRITE (iw, '(/," PWDFT/SIRIUS Input: ")')
-      END IF
-      CALL pwdft_env_get(pwdft_env=pwdft_env, pwdft_input=pwdft_section)
-      json_section => section_vals_get_subs_vals(pwdft_section, "CONTROL")
-      CALL write_section(json_section, "CONTROL", iw)
-      json_section => section_vals_get_subs_vals(pwdft_section, "PARAMETER")
-      CALL write_section(json_section, "PARAMETER", iw)
-      json_section => section_vals_get_subs_vals(pwdft_section, "SOLVER")
-      CALL write_section(json_section, "SOLVER", iw)
-      json_section => section_vals_get_subs_vals(pwdft_section, "MIXER")
-      CALL write_section(json_section, "MIXER", iw)
-
-   END SUBROUTINE write_pwdft_control
-
-! **************************************************************************************************
-!> \brief ...
-!> \param section ...
-!> \param header ...
-!> \param iw ...
-! **************************************************************************************************
-   SUBROUTINE write_section(section, header, iw)
-      TYPE(section_vals_type), POINTER                   :: section
-      CHARACTER(len=*), INTENT(IN)                       :: header
-      INTEGER, INTENT(IN)                                :: iw
-
-      CHARACTER(len=*), PARAMETER :: routineN = 'write_section', routineP = moduleN//':'//routineN
-
-      CHARACTER(len=80), DIMENSION(:), POINTER           :: tmp
-      INTEGER                                            :: i, n_rep
-
-      IF (iw > 0) WRITE (iw, '(/,T4,A)') TRIM(header)//":"
-      CALL section_vals_val_get(section, "_DEFAULT_KEYWORD_", n_rep_val=n_rep)
-      DO i = 1, n_rep
-         CALL section_vals_val_get(section, "_DEFAULT_KEYWORD_", i_rep_val=i, c_vals=tmp)
-         IF (iw > 0) THEN
-            WRITE (iw, '(T8,A)') TRIM(tmp(1))
-         END IF
-      END DO
-
-   END SUBROUTINE write_section
-
 END MODULE pwdft_environment
