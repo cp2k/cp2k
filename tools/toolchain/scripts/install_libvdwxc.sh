@@ -54,10 +54,9 @@ case "$with_libvdwxc" in
             for patch in "${patches[@]}" ; do
                 patch -p1 < ../"${patch##*/}"
             done
-            export
             unset MPICC MPICXX MPIF90 MPIFC MPIF77
             ./autogen.sh
-            ./configure --prefix="${pkg_install_dir}" --with-fftw3 --disable-shared
+      CC=mpicc FC=mpifort ./configure --prefix="${pkg_install_dir}" --with-fftw3 --disable-shared --with-mpi
             make -j
             make install
             write_checksums "${install_lock_file}" "${SCRIPT_DIR}/$(basename ${SCRIPT_NAME})"
@@ -102,6 +101,8 @@ export CP_DFLAGS="\${CP_DFLAGS} -D__LIBVDWXC"
 export CP_CFLAGS="\${CP_CFLAGS} ${LIBVDWXC_CFLAGS}"
 export CP_LDFLAGS="\${CP_LDFLAGS} ${LIBVDWXC_LDFLAGS}"
 export CP_LIBS="${LIBVDWXC_LIBS} \${CP_LIBS}"
+export PKG_CONFIG_PATH="$pkg_install_dir/lib/pkgconfig:$PKG_CONFIG_PATH"
+export LIBVDWXCROOT=$pkg_install_dir
 EOF
         cat "${BUILDDIR}/setup_libvdwxc" >> $SETUPFILE
 fi

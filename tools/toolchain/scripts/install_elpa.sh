@@ -196,6 +196,7 @@ prepend_path PATH "$pkg_install_dir/bin"
 prepend_path LD_LIBRARY_PATH "$pkg_install_dir/lib"
 prepend_path LD_RUN_PATH "$pkg_install_dir/lib"
 prepend_path LIBRARY_PATH "$pkg_install_dir/lib"
+export ELPAROOT="$pkg_install_dir"
 EOF
     fi
     cat "${BUILDDIR}/setup_elpa" >> $SETUPFILE
@@ -210,6 +211,9 @@ export CP_DFLAGS="\${CP_DFLAGS} IF_MPI(-D__ELPA=${elpa_ver:0:4}${elpa_ver:5:2}|)
 export CP_CFLAGS="\${CP_CFLAGS} IF_MPI(IF_OMP(${ELPA_CFLAGS_OMP}|${ELPA_CFLAGS})|)"
 export CP_LDFLAGS="\${CP_LDFLAGS} IF_MPI(${ELPA_LDFLAGS}|)"
 export CP_LIBS="IF_MPI(IF_OMP(${ELPA_LIBS_OMP}|${ELPA_LIBS})|) \${CP_LIBS}"
+prepend_path PKG_CONFIG_PATH "$pkg_install_dir/lib/pkgconfig"
+export ELPAROOT="$pkg_install_dir"
+export ELPAVERSION="${elpa_ver}"
 EOF
 fi
 cd "${ROOTDIR}"

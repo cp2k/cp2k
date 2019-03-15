@@ -91,6 +91,8 @@ export CP_DFLAGS="\${CP_DFLAGS} -D__FFTW3 IF_COVERAGE(IF_MPI(|-U__FFTW3|)|)"
 export CP_CFLAGS="\${CP_CFLAGS} ${FFTW_CFLAGS}"
 export CP_LDFLAGS="\${CP_LDFLAGS} ${FFTW_LDFLAGS}"
 export CP_LIBS="${FFTW_LIBS} IF_MPI("-lfftw3_mpi"|) IF_OMP(${FFTW_LIBS_OMP}|) \${CP_LIBS}"
+prepend_path PKG_CONFIG_PATH="$PKG_CONFIG_PATH:$pkg_install_dir/lib/pkgconfig"
+export FFTWROOT="$pkg_install_dir"
 EOF
 fi
 cd "${ROOTDIR}"

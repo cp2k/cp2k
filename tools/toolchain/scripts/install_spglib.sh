@@ -39,6 +39,8 @@ case "$with_spglib" in
             cmake -DCMAKE_INSTALL_PREFIX="${pkg_install_dir}" -DCMAKE_BUILD_TYPE=Release .. > configure.log 2>&1
             make > make.log 2>&1
             make install >> make.log 2>&1
+            mkdir ${pkg_install_dir}/include/spglib
+            cp ${pkg_install_dir}/include/{,spglib/}spglib.h
             cd ..
             write_checksums "${install_lock_file}" "${SCRIPT_DIR}/$(basename ${SCRIPT_NAME})"
         fi
@@ -81,6 +83,8 @@ export CP_DFLAGS="\${CP_DFLAGS} -D__SPGLIB"
 export CP_CFLAGS="\${CP_CFLAGS} ${SPGLIB_CFLAGS}"
 export CP_LDFLAGS="\${CP_LDFLAGS} ${SPGLIB_LDFLAGS}"
 export CP_LIBS="${SPGLIB_LIBS} \${CP_LIBS}"
+export LIBSPGROOT="$pkg_install_dir"
+export LIBSPG_INCLUDE_DIR="$pkg_install_dir/include"
 EOF
         cat "${BUILDDIR}/setup_spglib" >> $SETUPFILE
 fi

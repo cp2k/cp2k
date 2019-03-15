@@ -21,6 +21,7 @@ SIRIUS_CFLAGS=''
 SIRIUS_LDFLAGS=''
 SIRIUS_LIBS=''
 
+export
 ! [ -d "${BUILDDIR}" ] && mkdir -p "${BUILDDIR}"
 cd "${BUILDDIR}"
 case "$with_sirius" in
@@ -60,6 +61,7 @@ case "$with_sirius" in
         require_env GSL_INCLUDE_DIR
         require_env GSL_LIBRARY
         require_env GSL_CBLAS_LIBRARY
+
         ARCH=`arch`
         SIRIUS_OPT="-O3 -DNDEBUG -mtune=native -ftree-loop-vectorize ${MATH_CFLAGS}"
         if [ "$ARCH" = "ppc64le" ]; then
@@ -91,18 +93,18 @@ case "$with_sirius" in
             rm -Rf build
             mkdir build
             cd build
-            COMPILATION_OPTIONS=""
+            COMPILATION_OPTIONS="-DHDF5_DIR=${HDF5_DIR}"
             if [ -n "$ELPA_LIBS" ] ; then
                 if [ -s "$ELPAROOT" ] ; then
                     export PKG_CONFIG_PATH=$PKG_CONFIG_PATH:$ELPAROOT/lib/pkgconfig:$ELPAROOT/lib64/pkgconfig
                 fi
-                COMPILATION_OPTIONS="-DUSE_ELPA=ON $COMPILATION_OPTIONS"
-
+                COMPILATION_OPTIONS="-DUSE_ELPA=ON -DELPA_INCLUDE_DIR=${ELPAROOT}/include/elpa-${ELPAVERSION}/elpa $COMPILATION_OPTIONS"
             fi
 
             echo "scalapack : $SCALAPACK_CFLAGS"
             if [ -n "$SCALAPACK_LIBS" ] ; then
-                if [ -s "$SCALAPACKROOT" ] ; then
+    export SCALAPACK_LIB="$SCALAPACK_LIBS"
+        if [ -s "$SCALAPACKROOT" ] ; then
                     COMPILATION_OPTIONS="-DUSE_SCALAPACK=ON -DSCALAPACK_INCLUDE_DIR=${SCALAPACKROOT}/include ${COMPILATION_OPTIONS}"
                 else
                     COMPILATION_OPTIONS="-DUSE_SCALAPACK=ON ${COMPILATION_OPTIONS}"
@@ -128,14 +130,15 @@ case "$with_sirius" in
                   -DCMAKE_CXXFLAGS_RELEASE="${SIRIUS_OPT}" \
                   -DCMAKE_CXX_FLAGS_RELWITHDEBINFO="${SIRIUS_DBG}" \
                   -DCMAKE_CXX_COMPILER=mpic++ \
-                  -DCMAKE_C_COMPILER=mpicc ${COMPILATION_OPTIONS} ..
-             make -C src
+                  -DCMAKE_C_COMPILER=mpicc \
+                   ${COMPILATION_OPTIONS} ..
+             make -C src > compile.log
 
-            install -d ${pkg_install_dir}/include >> install.log 2>&1
-            install -d ${pkg_install_dir}/lib >> install.log 2>&1
+            install -d ${pkg_install_dir}/include #>> install.log 2>&1
+            install -d ${pkg_install_dir}/lib #>> install.log 2>&1
             cp -R ../src/* ${pkg_install_dir}/include
-            install -m 644 src/*.a ${pkg_install_dir}/lib >> install.log 2>&1
-            install -m 644 src/mod_files/*.mod ${pkg_install_dir}/include >> install.log 2>&1
+            install -m 644 src/*.a ${pkg_install_dir}/lib #>> install.log 2>&1
+            install -m 644 src/mod_files/*.mod ${pkg_install_dir}/include #>> install.log 2>&1
             cd ..
 
             # now do we have cuda as well
@@ -151,8 +154,8 @@ case "$with_sirius" in
                       -DCMAKE_CXX_COMPILER=mpic++ \
                       -DCMAKE_C_COMPILER=mpicc ${COMPILATION_OPTIONS} ..
                 make -C src
-                install -m 644 src/*.a ${pkg_install_dir}/lib/cuda >> install.log 2>&1
-                install -m 644 src/mod_files/*.mod ${pkg_install_dir}/include/cuda >> install.log 2>&1
+                install -m 644 src/*.a ${pkg_install_dir}/lib/cuda #>> install.log 2>&1
+                install -m 644 src/mod_files/*.mod ${pkg_install_dir}/include/cuda #>> install.log 2>&1
                 SIRIUS_CUDA_LDFLAGS="-L'${pkg_install_dir}/lib/cuda' -Wl,-rpath='${pkg_install_dir}/lib/cuda'"
                 cd ..
             fi
@@ -222,8 +225,8 @@ EOF
         cat "${BUILDDIR}/setup_sirius" >> $SETUPFILE
     fi
     cat <<EOF >> "${BUILDDIR}/setup_sirius"
-export SIRIUS_CFLAGS="-I${pkg_install_dir}/include"
-export SIRIUS_FFLAGS="-I${pkg_install_dir}/include"
+export SIRIUS_CFLAGS="IF_CUDA(-I${pkg_install_dir}/include/cuda|-I${pkg_install_dir}/include)"
+export SIRIUS_FFLAGS="IF_CUDA(-I${pkg_install_dir}/include/cuda|-I${pkg_install_dir}/include)"
 export SIRIUS_LDFLAGS="-L'${pkg_install_dir}/lib' -Wl,-rpath='${pkg_install_dir}/lib'"
 export SIRIUS_CUDA_LDFLAGS="-L'${pkg_install_dir}/lib/cuda' -Wl,-rpath='${pkg_install_dir}/lib/cuda'"
 export SIRIUS_LIBS="${SIRIUS_LIBS}"
