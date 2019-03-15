@@ -1,0 +1,18 @@
+# runs are executed in the same order as in this file
+# the second field tells which test should be run in order to compare with the last available output
+# e.g. 0 means do not compare anything, running is enough
+#      1 compares the last total energy in the file
+#      for details see cp2k/tools/do_regtest
+H2O-32-xtb-ls-1.inp                       11    1.0E-12             -46.140818527459885
+H2O-32-xtb-ls-2.inp                       11    1.0E-12             -46.150321562306729
+H2O-32-xtb-ls-3.inp                       11    1.0E-12             -92.317528255252185
+H2O-32-xtb-ls-4.inp                       11    1.0E-12             -92.317527069413359
+H2O-32-xtb-ls-5.inp                       11    1.0E-12             -92.317527915250466
+H2O-32-xtb-ls-6.inp                       11    1.0E-12             -92.317527069413359
+H2O-32-xtb-ls-7.inp                       11    1.0E-12             -92.317527894685313
+H2O-32-xtb-ls-8.inp                       11    1.0E-12             -92.317527917990489
+H2O-xtb-tc2-1.inp                         11    1.0E-12             -92.317527188131052
+H2O-xtb-tc2-2.inp                         11    1.0E-12             -92.317527188132019
+H2O-32-xtb-trs4.inp                       11    1.0E-12             -46.150321593827670
+H2O-32-xtb-trs4-dyn.inp                   11    1.0E-12             -46.150321593827670
+#EOF
