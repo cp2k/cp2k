@@ -73,6 +73,7 @@ prepend_path CPATH "$pkg_install_dir/include"
 export GSL_INCLUDE_DIR="$pkg_install_dir/include"
 export GSL_LIBRARY="-lgsl"
 export GSL_CBLAS_LIBRARY="-lgslcblas"
+export PKG_CONFIG_PATH="$PKG_CONFIG_PATH:$pkg_install_dir/lib64/pkgconfig:$pkg_install_dir/lib/pkgconfig"
 EOF
     fi
     cat << EOF > "${BUILDDIR}/setup_gsl"
@@ -84,6 +85,7 @@ export CP_LDFLAGS="\${CP_LDFLAGS} ${GSL_LDFLAGS}"
 export GSL_LIBRARY="-lgsl"
 export GSL_CBLAS_LIBRARY="-lgslcblas"
 export GSL_INCLUDE_DIR="$pkg_install_dir/include"
+export PKG_CONFIG_PATH="$PKG_CONFIG_PATH:$pkg_install_dir/lib64/pkgconfig:$pkg_install_dir/lib/pkgconfig"
 
 ##########################################################
 #
