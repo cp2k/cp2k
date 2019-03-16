@@ -2798,7 +2798,7 @@ CONTAINS
 !> \param n_level_gw ...
 !> \param h  ...
 ! **************************************************************************************************
-   SUBROUTINE calc_mat_N(N_ij, Lambda, Sigma_c, vec_omega_fit_gw, i, j, &
+   PURE SUBROUTINE calc_mat_N(N_ij, Lambda, Sigma_c, vec_omega_fit_gw, i, j, &
                          num_poles, num_fit_points, n_level_gw, h)
       REAL(KIND=dp), INTENT(OUT)                         :: N_ij
       COMPLEX(KIND=dp), ALLOCATABLE, DIMENSION(:), INTENT(IN) :: Lambda
@@ -2814,8 +2814,6 @@ CONTAINS
       COMPLEX(KIND=dp), ALLOCATABLE, DIMENSION(:)        :: Lambda_tmp
       INTEGER                                            :: handle, num_var
       REAL(KIND=dp)                                      :: chi2, chi2_sum
-
-      CALL timeset(routineN, handle)
 
       num_var = 2*num_poles+1
       ALLOCATE (Lambda_tmp(num_var))
@@ -2877,8 +2875,6 @@ CONTAINS
 
       DEALLOCATE (Lambda_tmp)
 
-      CALL timestop(handle)
-
    END SUBROUTINE calc_mat_N
 
 ! **************************************************************************************************
@@ -2891,7 +2887,7 @@ CONTAINS
 !> \param num_fit_points ...
 !> \param n_level_gw ...
 ! **************************************************************************************************
-   SUBROUTINE calc_chi2(chi2, Lambda, Sigma_c, vec_omega_fit_gw, num_poles, &
+   PURE SUBROUTINE calc_chi2(chi2, Lambda, Sigma_c, vec_omega_fit_gw, num_poles, &
                         num_fit_points, n_level_gw)
       REAL(KIND=dp), INTENT(INOUT)                         :: chi2
       COMPLEX(KIND=dp), ALLOCATABLE, DIMENSION(:), INTENT(IN) :: Lambda
@@ -2904,8 +2900,6 @@ CONTAINS
       COMPLEX(KIND=dp)                                   :: func_val, im_unit
       INTEGER                                            :: handle, iii, jjj, kkk
 
-      CALL timeset(routineN, handle)
-
       im_unit = (0.0_dp, 1.0_dp)
       chi2 = 0.0_dp
       DO kkk = 1, num_fit_points
@@ -2917,8 +2911,6 @@ CONTAINS
          END DO
          chi2 = chi2+(ABS(Sigma_c(n_level_gw, kkk)-func_val))**2
       END DO
-
-      CALL timestop(handle)
 
    END SUBROUTINE calc_chi2
 
@@ -3081,7 +3073,7 @@ CONTAINS
                                                             Lambda_without_offset, vec_b_gw, &
                                                             vec_b_gw_copy
       COMPLEX(KIND=dp), ALLOCATABLE, DIMENSION(:, :)     :: mat_A_gw, mat_B_gw
-      INTEGER                                            :: handle4, ierr, iii, iiter, info, &
+      INTEGER                                            :: handle, handle2, ierr, iii, iiter, info, &
                                                             integ_range, jjj, jquad, kkk, &
                                                             n_level_gw_ref, num_var, output_unit, &
                                                             xpos
@@ -3092,6 +3084,8 @@ CONTAINS
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: Lambda_Im, Lambda_Re, stat_errors, &
                                                             vec_N_gw, vec_omega_fit_gw_sign
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: mat_N_gw
+      
+      CALL timeset(routineN, handle)
 
       output_unit = cp_logger_get_default_io_unit()
 
@@ -3193,7 +3187,7 @@ CONTAINS
       ! iteration loop for fitting
       DO iiter = 1, max_iter_fit
 
-         CALL timeset(routineN//"_fit_loop_1", handle4)
+         CALL timeset(routineN//"_fit_loop_1", handle2)
 
          ! calc delta lambda
          DO iii = 1, num_var
@@ -3228,21 +3222,21 @@ CONTAINS
             END DO
          END DO
 
-         CALL timestop(handle4)
+         CALL timestop(handle2)
 
-         CALL timeset(routineN//"_fit_matmul_1", handle4)
+         CALL timeset(routineN//"_fit_matmul_1", handle2)
 
          one = (1.0_dp, 0.0_dp)
          zero = (0.0_dp, 0.0_dp)
          CALL zgemm('C', 'N', num_var*2, num_var*2, num_fit_points, one, mat_B_gw, num_fit_points, mat_B_gw, num_fit_points, &
                     zero, mat_A_gw, num_var*2)
-         CALL timestop(handle4)
+         CALL timestop(handle2)
 
-         CALL timeset(routineN//"_fit_zgemv_1", handle4)
+         CALL timeset(routineN//"_fit_zgemv_1", handle2)
          CALL zgemv('C', num_fit_points, num_var*2, one, mat_B_gw, num_fit_points, dLambda, 1, &
                     zero, vec_b_gw, 1)
 
-         CALL timestop(handle4)
+         CALL timestop(handle2)
 
          ! scale diagonal elements of a_mat
          DO iii = 1, num_var*2
@@ -3253,13 +3247,13 @@ CONTAINS
          ierr = 0
          ipiv = 0
 
-         CALL timeset(routineN//"_fit_lin_eq_2", handle4)
+         CALL timeset(routineN//"_fit_lin_eq_2", handle2)
 
          CALL ZGETRF(2*num_var, 2*num_var, mat_A_gw, 2*num_var, ipiv, info)
 
          CALL ZGETRS('N', 2*num_var, 1, mat_A_gw, 2*num_var, ipiv, vec_b_gw, 2*num_var, info)
 
-         CALL timestop(handle4)
+         CALL timestop(handle2)
 
          DO iii = 1, num_var
             Lambda(iii) = Lambda_Re(iii)+im_unit*Lambda_Im(iii)+vec_b_gw(iii)+vec_b_gw(iii+num_var)
@@ -3470,7 +3464,7 @@ CONTAINS
 
       ALLOCATE (mat_N_gw(num_var*2, num_var*2))
       mat_N_gw = 0.0_dp
-
+      
       DO iii = 1, num_var*2
          CALL calc_mat_N(vec_N_gw(iii), Lambda_without_offset, vec_Sigma_c_gw, vec_omega_fit_gw_sign, &
                          iii, iii, num_poles, num_fit_points, n_level_gw, 0.001_dp)
@@ -3524,6 +3518,8 @@ CONTAINS
       DEALLOCATE (Lambda_without_offset)
       DEALLOCATE (Lambda_Re)
       DEALLOCATE (Lambda_Im)
+      
+      CALL timestop(handle)
 
    END SUBROUTINE fit_and_continuation_2pole
 
@@ -3619,10 +3615,8 @@ CONTAINS
       ALLOCATE (vec_omega_fit_gw_sign_reorder(num_fit_points))
       ! for cubic scaling GW fit points are ordered differently than in N^4 GW
       IF (do_gw_im_time) THEN
-         DO jquad = 1, num_fit_points
-            Sigma_c_gw_reorder(jquad) = vec_Sigma_c_gw(n_level_gw, jquad)
-            vec_omega_fit_gw_sign_reorder(jquad) = vec_omega_fit_gw_sign(jquad)
-         ENDDO
+         Sigma_c_gw_reorder(:) = vec_Sigma_c_gw(n_level_gw, :)
+         vec_omega_fit_gw_sign_reorder(:) = vec_omega_fit_gw_sign(:)
       ELSE
          DO jquad = 1, num_fit_points
             Sigma_c_gw_reorder(jquad) = vec_Sigma_c_gw(n_level_gw, num_fit_points-jquad+1)
@@ -3777,7 +3771,7 @@ CONTAINS
 !> \param coeff pade coefficients
 !> \param func_val function value
 ! **************************************************************************************************
-   SUBROUTINE evaluate_pade_function(x_val, nparam, xpoints, coeff, func_val)
+   PURE SUBROUTINE evaluate_pade_function(x_val, nparam, xpoints, coeff, func_val)
 
       REAL(KIND=dp), INTENT(IN)                          :: x_val
       INTEGER, INTENT(IN)                                :: nparam
@@ -3790,8 +3784,6 @@ CONTAINS
       COMPLEX(KIND=dp)                                   :: im_unit, re_unit
       INTEGER                                            :: handle, iparam
 
-      CALL timeset(routineN, handle)
-
       im_unit = (0.0_dp, 1.0_dp)
       re_unit = (1.0_dp, 0.0_dp)
 
@@ -3801,8 +3793,6 @@ CONTAINS
       ENDDO
 
       func_val = coeff(1)/func_val
-
-      CALL timestop(handle)
 
    END SUBROUTINE evaluate_pade_function
 
@@ -3815,7 +3805,7 @@ CONTAINS
 !> \param z_value 1/(1-dev)
 !> \param m_value derivative
 ! **************************************************************************************************
-   SUBROUTINE get_z_and_m_value_pade(x_val, nparam, xpoints, coeff, z_value, m_value)
+   PURE SUBROUTINE get_z_and_m_value_pade(x_val, nparam, xpoints, coeff, z_value, m_value)
 
       REAL(KIND=dp), INTENT(IN)                          :: x_val
       INTEGER, INTENT(IN)                                :: nparam
@@ -4478,7 +4468,7 @@ CONTAINS
 !> \param alpha ...
 !> \param beta ...
 ! **************************************************************************************************
-   SUBROUTINE contour_def_integrate_and_residues(vec_Sigma_c_gw_real_freq, wj, vec_W_gw, Eigenval, &
+   PURE SUBROUTINE contour_def_integrate_and_residues(vec_Sigma_c_gw_real_freq, wj, vec_W_gw, Eigenval, &
                                                  omega, contour_def_offset, e_fermi, &
                                                  mo_from_jquad, residue_from_jquad, alpha_beta_from_jquad, &
                                                  contour_def_start, contour_def_end, n_global, jquad, &
@@ -4505,8 +4495,6 @@ CONTAINS
                                                             spin_of_residue
       LOGICAL                                            :: my_alpha, my_alpha_beta_case, my_beta
       REAL(KIND=dp)                                      :: real_energy
-
-      CALL timeset(routineN, handle)
 
       my_alpha_beta_case = .FALSE.
       IF (PRESENT(alpha_beta_case)) my_alpha_beta_case = alpha_beta_case
@@ -4596,8 +4584,6 @@ CONTAINS
 
       END IF ! check contour deformation for n_global
 
-      CALL timestop(handle)
-
    END SUBROUTINE contour_def_integrate_and_residues
 
 ! **************************************************************************************************
@@ -4609,7 +4595,7 @@ CONTAINS
 !> \param real_energy ...
 !> \param eigenval ...
 ! **************************************************************************************************
-   SUBROUTINE numerical_integrate_contour_def(Sigma_c_to_update, W_gw_element, &
+   PURE SUBROUTINE numerical_integrate_contour_def(Sigma_c_to_update, W_gw_element, &
                                               weight, omega, real_energy, eigenval)
 
       REAL(KIND=dp), INTENT(INOUT)                       :: Sigma_c_to_update
@@ -4622,8 +4608,6 @@ CONTAINS
       COMPLEX(KIND=dp)                                   :: im_unit
       INTEGER                                            :: handle
 
-      CALL timeset(routineN, handle)
-
       im_unit = (0.0_dp, 1.0_dp)
 
       Sigma_c_to_update = Sigma_c_to_update- &
@@ -4631,8 +4615,6 @@ CONTAINS
                           0.5_dp/pi*weight/2.0_dp*W_gw_element/(im_unit*omega+real_energy-eigenval)+ &
                           0.5_dp/pi*weight/2.0_dp*W_gw_element/(-im_unit*omega+real_energy-eigenval) &
                           )
-
-      CALL timestop(handle)
 
    END SUBROUTINE numerical_integrate_contour_def
 
@@ -5751,7 +5733,10 @@ CONTAINS
       TYPE(cp_para_env_type), OPTIONAL, POINTER          :: para_env_RPA
       LOGICAL, INTENT(IN)                                :: do_extra_kpoints
 
-      INTEGER                                            :: col, col_offset, col_size, i_col, i_row, &
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'kpoint_sum_for_eps_inv_head_Berry', &
+         routineP = moduleN//':'//routineN
+
+      INTEGER                                            :: col, col_offset, col_size, handle, i_col, i_row, &
                                                             ikp, m_level, n_level_gw, nkp, row, &
                                                             row_offset, row_size
       REAL(KIND=dp)                                      :: abs_k_square, cell_volume, &
@@ -5762,6 +5747,8 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: data_block
       TYPE(cell_type), POINTER                           :: cell
       TYPE(dbcsr_iterator_type)                          :: iter, iter_new
+      
+      CALL timeset(routineN, handle)
 
       CALL get_qs_env(qs_env=qs_env, cell=cell)
 
@@ -5915,6 +5902,8 @@ CONTAINS
          DEALLOCATE (delta_corr_extra)
 
       END IF
+      
+      CALL timestop(handle)
 
    END SUBROUTINE kpoint_sum_for_eps_inv_head_Berry
 
@@ -5926,7 +5915,7 @@ CONTAINS
 !> \param eps_head ...
 !> \param kpoints ...
 ! **************************************************************************************************
-   SUBROUTINE compute_eps_inv_head(eps_inv_head, eps_head, kpoints)
+   PURE SUBROUTINE compute_eps_inv_head(eps_inv_head, eps_head, kpoints)
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:), INTENT(OUT) :: eps_inv_head
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:), INTENT(IN) :: eps_head
       TYPE(kpoint_type), POINTER                         :: kpoints
@@ -5935,8 +5924,6 @@ CONTAINS
          routineP = moduleN//':'//routineN
 
       INTEGER                                            :: handle, ikp, nkp
-
-      CALL timeset(routineN, handle)
 
       nkp = kpoints%nkp
 
@@ -5947,8 +5934,6 @@ CONTAINS
          eps_inv_head(ikp) = 1.0_dp/eps_head(ikp)
 
       END DO
-
-      CALL timestop(handle)
 
    END SUBROUTINE compute_eps_inv_head
 
@@ -5977,7 +5962,10 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: nmo
       LOGICAL, INTENT(IN)                                :: do_mo_coeff_Gamma_only, do_extra_kpoints
 
-      INTEGER                                            :: end_kp, i, i_grid_level, ix, iy, iz, &
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'get_kpoints', &
+         routineP = moduleN//':'//routineN
+
+      INTEGER                                            :: end_kp, handle, i, i_grid_level, ix, iy, iz, &
                                                             nkp_inner_grid, nkp_outer_grid, &
                                                             npoints, start_kp
       INTEGER, DIMENSION(3)                              :: outer_kp_grid
@@ -5986,6 +5974,8 @@ CONTAINS
       TYPE(cell_type), POINTER                           :: cell
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
       TYPE(qs_environment_type), POINTER                 :: qs_env_kp_Gamma_only
+      
+      CALL timeset(routineN, handle)
 
       NULLIFY (kpoints, cell, particle_set, qs_env_kp_Gamma_only)
 
@@ -6159,6 +6149,8 @@ CONTAINS
          CALL qs_env_release(qs_env_kp_Gamma_only)
 
       END IF
+      
+      CALL timestop(handle)
 
    END SUBROUTINE get_kpoints
 
@@ -6388,7 +6380,7 @@ CONTAINS
 !> \param num_integ_points ...
 !> \param num_x_nodes ...
 ! **************************************************************************************************
-   SUBROUTINE calc_max_error_fit_omega_grid_with_cosine(max_error, tau, omega_tj, omega_wj_work, x_values, &
+   PURE SUBROUTINE calc_max_error_fit_omega_grid_with_cosine(max_error, tau, omega_tj, omega_wj_work, x_values, &
                                                         y_values, num_integ_points, num_x_nodes)
 
       REAL(KIND=dp), INTENT(OUT)                         :: max_error
@@ -6402,8 +6394,6 @@ CONTAINS
 
       INTEGER                                            :: handle, kkk
       REAL(KIND=dp)                                      :: func_val, func_val_temp, max_error_tmp
-
-      CALL timeset(routineN, handle)
 
       max_error_tmp = 0.0_dp
 
@@ -6425,8 +6415,6 @@ CONTAINS
          max_error = max_error_tmp
 
       END IF
-
-      CALL timestop(handle)
 
    END SUBROUTINE calc_max_error_fit_omega_grid_with_cosine
 

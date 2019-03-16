@@ -5663,7 +5663,7 @@ CONTAINS
 !> \param num_integ_points ...
 !> \param num_x_nodes ...
 ! **************************************************************************************************
-   SUBROUTINE calc_max_error_fit_tau_grid_with_cosine(max_error, omega, tau_tj, tau_wj_work, x_values, &
+   PURE SUBROUTINE calc_max_error_fit_tau_grid_with_cosine(max_error, omega, tau_tj, tau_wj_work, x_values, &
                                                       y_values, num_integ_points, num_x_nodes)
 
       REAL(KIND=dp), INTENT(INOUT)                       :: max_error
@@ -5676,8 +5676,6 @@ CONTAINS
 
       INTEGER                                            :: handle, kkk
       REAL(KIND=dp)                                      :: func_val, func_val_temp, max_error_tmp
-
-      CALL timeset(routineN, handle)
 
       max_error_tmp = 0.0_dp
 
@@ -5700,8 +5698,6 @@ CONTAINS
 
       END IF
 
-      CALL timestop(handle)
-
    END SUBROUTINE calc_max_error_fit_tau_grid_with_cosine
 
 ! **************************************************************************************************
@@ -5715,7 +5711,7 @@ CONTAINS
 !> \param num_integ_points ...
 !> \param num_x_nodes ...
 ! **************************************************************************************************
-   SUBROUTINE calc_max_error_fit_tau_grid_with_sine(max_error, omega, tau_tj, tau_wj_work, x_values, &
+   PURE SUBROUTINE calc_max_error_fit_tau_grid_with_sine(max_error, omega, tau_tj, tau_wj_work, x_values, &
                                                     y_values, num_integ_points, num_x_nodes)
 
       REAL(KIND=dp), INTENT(INOUT)                       :: max_error
@@ -5728,8 +5724,6 @@ CONTAINS
 
       INTEGER                                            :: handle, kkk
       REAL(KIND=dp)                                      :: func_val, func_val_temp, max_error_tmp
-
-      CALL timeset(routineN, handle)
 
       max_error_tmp = 0.0_dp
 
@@ -5751,8 +5745,6 @@ CONTAINS
          max_error = max_error_tmp
 
       END IF
-
-      CALL timestop(handle)
 
    END SUBROUTINE calc_max_error_fit_tau_grid_with_sine
 
@@ -6452,8 +6444,13 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: dimen_RI, ngroup, num_proc, mepos
       INTEGER, INTENT(OUT)                               :: my_group_L_size, my_group_L_start, my_group_L_end
 
-      INTEGER                                            :: color_sub, igroup, iitmp(2)
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'get_aux_sizes', &
+         routineP = moduleN//':'//routineN
+
+      INTEGER                                            :: color_sub, handle, igroup, iitmp(2)
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: ends_array, sizes_array, starts_array
+      
+      CALL timeset(routineN, handle)
 
       color_sub = mepos/num_proc
 
@@ -6478,6 +6475,8 @@ CONTAINS
       DEALLOCATE (sizes_array)
       DEALLOCATE (starts_array)
       DEALLOCATE (ends_array)
+      
+      CALL timestop(handle)
 
    END SUBROUTINE get_aux_sizes
 
