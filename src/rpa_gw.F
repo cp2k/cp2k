@@ -719,15 +719,9 @@ CONTAINS
 
          IF (m_global <= homo) THEN
 
-            ! loop over auxiliary basis functions
-            DO jjB = 1, ncol_local
-
-               ! Sigma_x_n = -sum_m^occ sum_P (B_(nm)^P)^2
-               vec_Sigma_x_gw(n_global) = &
-                  vec_Sigma_x_gw(n_global)- &
-                  fm_mat_S_gw%local_data(iiB, jjB)**2
-
-            END DO
+            ! Sigma_x_n = -sum_m^occ sum_P (B_(nm)^P)^2
+            vec_Sigma_x_gw(n_global) = &
+               vec_Sigma_x_gw(n_global)- NORM2(fm_mat_S_gw%local_data(iiB, :))**2
 
          END IF
       END DO
@@ -943,14 +937,11 @@ CONTAINS
 
          DO iiB = 1, nrow_local
             nm_global = row_indices(iiB)
-            DO jjB = 1, ncol_local
-               vec_W_gw(nm_global) = vec_W_gw(nm_global)+ &
-                                     fm_mat_S_gw_work%local_data(iiB, jjB)*fm_mat_S_gw%local_data(iiB, jjB)
-               IF (my_open_shell) THEN
+            vec_W_gw(nm_global) = vec_W_gw(nm_global)+DOT_PRODUCT(fm_mat_S_gw_work%local_data(iiB, :),fm_mat_S_gw%local_data(iiB, :))
+            IF (my_open_shell) THEN
                vec_W_gw_beta(nm_global) = vec_W_gw_beta(nm_global)+ &
-                                          fm_mat_S_gw_work_beta%local_data(iiB, jjB)*fm_mat_S_gw_beta%local_data(iiB, jjB)
-               END IF
-            END DO
+                                          DOT_PRODUCT(fm_mat_S_gw_work_beta%local_data(iiB, :),fm_mat_S_gw_beta%local_data(iiB, :))
+            END IF
 
             ! transform the index nm of vec_W_gw back to n and m, formulae copied from Mauro's code
             n_global = MAX(1, nm_global-1)/nmo+1

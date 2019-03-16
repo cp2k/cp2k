@@ -3271,9 +3271,7 @@ CONTAINS
                trace_XX = 0.0_dp
                IF (my_open_shell) THEN
                   DO jjB = 1, ncol_local
-                     DO iiB = 1, nrow_local
-                        trace_XX = trace_XX+fm_mat_Q%local_data(iiB, jjB)*fm_mat_Q_beta%local_data(iiB, jjB)
-                     END DO
+                     trace_XX = trace_XX+DOT_PRODUCT(fm_mat_Q%local_data(:, jjB),fm_mat_Q_beta%local_data(:, jjB))
                   END DO
                ELSE
                   trace_XX = NORM2(fm_mat_Q%local_data)
@@ -4566,11 +4564,9 @@ CONTAINS
 
       CALL mp_sum(coeff_homo_update, para_env%group)
 
-      coeff_homo = coeff_homo_update
+      norm_coeff_homo = NORM2(coeff_homo_update)
 
-      norm_coeff_homo = NORM2(coeff_homo)
-
-      coeff_homo = coeff_homo/norm_coeff_homo
+      coeff_homo(:) = coeff_homo_update(:)/norm_coeff_homo
 
       CALL timestop(handle)
 

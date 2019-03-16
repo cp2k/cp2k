@@ -307,18 +307,14 @@ CONTAINS
          END IF
 
          CALL cp_fm_get_info(matrix=fm_mat_Q, &
-                             nrow_local=nrow_local, &
                              ncol_local=ncol_local, &
-                             row_indices=row_indices, &
                              col_indices=col_indices)
 
          ! calculate the trace of the product Q*Q
          trace_XX = 0.0_dp
          IF (my_open_shell) THEN
             DO jjB = 1, ncol_local
-               DO iiB = 1, nrow_local
-                  trace_XX = trace_XX+fm_mat_Q%local_data(iiB, jjB)*fm_mat_Q_beta%local_data(iiB, jjB)
-               END DO
+               trace_XX = trace_XX+DOT_PRODUCT(fm_mat_Q%local_data(:, jjB), fm_mat_Q_beta%local_data(:, jjB))
             END DO
          ELSE
             trace_XX = NORM2(fm_mat_Q%local_data)
