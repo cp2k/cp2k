@@ -12,6 +12,7 @@ MODULE qs_scf_post_scf
    USE input_section_types,             ONLY: section_vals_get,&
                                               section_vals_get_subs_vals,&
                                               section_vals_type
+   USE localization_tb,                 ONLY: wfn_localization_tb
    USE lri_optimize_ri_basis,           ONLY: optimize_lri_basis
    USE qs_band_structure,               ONLY: calculate_band_structure
    USE qs_environment_types,            ONLY: get_qs_env,&
@@ -54,8 +55,10 @@ CONTAINS
       IF (dft_control%qs_control%semi_empirical) THEN
          CALL scf_post_calculation_se(qs_env)
       ELSEIF (dft_control%qs_control%dftb) THEN
+         CALL wfn_localization_tb(qs_env, "DFTB")
          CALL scf_post_calculation_tb(qs_env, "DFTB", .FALSE.)
       ELSEIF (dft_control%qs_control%xtb) THEN
+         CALL wfn_localization_tb(qs_env, "xTB")
          CALL scf_post_calculation_tb(qs_env, "xTB", .FALSE.)
       ELSEIF (dft_control%qs_control%do_kg) THEN
          CPWARN("No properties from PRINT section available for KG methods")
