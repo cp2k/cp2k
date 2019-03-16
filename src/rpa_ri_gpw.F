@@ -5155,12 +5155,11 @@ CONTAINS
       INTEGER, DIMENSION(:), POINTER                     :: col_indices, col_indices_beta, &
                                                             row_indices, row_indices_beta
       LOGICAL                                            :: my_open_shell
-      REAL(KIND=dp) :: a_high, a_low, a_scaling, conv_param, eigen_diff, eps, first_deriv, four, &
-         left_term, one, pig, right_term, right_term_ref, right_term_ref_beta, step, two, zero
+      REAL(KIND=dp) :: a_high, a_low, a_scaling, conv_param, eigen_diff, eps, first_deriv, &
+         left_term, right_term, right_term_ref, right_term_ref_beta, step
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: cottj, D_ia, D_ia_beta, iaia_RI, &
                                                             iaia_RI_beta, iaia_RI_dp, &
-                                                            iaia_RI_dp_beta, M_ia, M_ia_beta, tj, &
-                                                            wj
+                                                            iaia_RI_dp_beta, M_ia, M_ia_beta
       TYPE(cp_para_env_type), POINTER                    :: para_env_col, para_env_col_beta, &
                                                             para_env_row, para_env_row_beta
 
@@ -5173,25 +5172,126 @@ CONTAINS
           PRESENT(Eigenval_beta) .AND. &
           PRESENT(fm_mat_S_beta)) my_open_shell = .TRUE.
 
-      ZERO = 0.0_dp
-      ONE = 1.0_dp
-      TWO = 2.0_dp
-      FOUR = 4.0_dp
-      PIG = pi
       eps = 1.0E-10_dp
 
       ALLOCATE (cottj(num_integ_points))
 
-      ALLOCATE (tj(num_integ_points))
-
-      ALLOCATE (wj(num_integ_points))
-
       ! calculate the cotangent of the abscissa tj
       DO jquad = 1, num_integ_points
-         tj(jquad) = tj_ext(jquad)
-         wj(jquad) = wj_ext(jquad)
-         cottj(jquad) = ONE/TAN(tj(jquad))
+         cottj(jquad) = 1.0_dp/TAN(tj_ext(jquad))
       END DO
+
+      CALL calc_ia_ia_integrals(para_env_RPA, homo, virtual, nrow_local, right_term_ref, Eigenval, D_ia, iaia_RI, M_ia, fm_mat_S, &
+                                para_env_row)
+
+      ! In the open shell case do point 1-2-3 for the beta spin
+      IF (my_open_shell) THEN
+         CALL calc_ia_ia_integrals(para_env_RPA, homo_beta, virtual_beta, nrow_local_beta, right_term_ref_beta, Eigenval_beta, D_ia_beta, &
+                                   iaia_RI_beta, M_ia_beta, fm_mat_S_beta, para_env_row_beta)
+
+         right_term_ref = right_term_ref+right_term_ref_beta
+      END IF
+
+      ! bcast the result
+      IF (para_env%mepos == 0) THEN
+         CALL mp_bcast(right_term_ref, 0, para_env%group)
+      ELSE
+         right_term_ref = 0.0_dp
+         CALL mp_bcast(right_term_ref, 0, para_env%group)
+      END IF
+
+      ! 5) start iteration for solving the non-linear equation by bisection
+      ! find limit, here step=0.5 seems a good compromise
+      conv_param = 100.0_dp*EPSILON(right_term_ref)
+      step = 0.5_dp
+      a_low = 0.0_dp
+      a_high = step
+      right_term = -right_term_ref
+      DO icycle = 1, num_integ_points*2
+         a_scaling = a_high
+
+         CALL calculate_objfunc(a_scaling, left_term, first_deriv, num_integ_points, my_open_shell, &
+                                M_ia, cottj, wj_ext, D_ia, D_ia_beta, M_ia_beta, &
+                                nrow_local, nrow_local_beta, num_integ_group, color_rpa_group, &
+                                para_env, para_env_row, para_env_row_beta)
+         left_term = left_term/4.0_dp/pi*a_scaling
+
+         IF (ABS(left_term) > ABS(right_term) .OR. ABS(left_term+right_term) <= conv_param) EXIT
+         a_low = a_high
+         a_high = a_high+step
+
+      END DO
+
+      IF (ABS(left_term+right_term) >= conv_param) THEN
+         IF (a_scaling >= 2*num_integ_points*step) THEN
+            a_scaling = 1.0_dp
+         ELSE
+
+            DO icycle = 1, num_integ_points*2
+               a_scaling = (a_low+a_high)/2.0_dp
+
+               CALL calculate_objfunc(a_scaling, left_term, first_deriv, num_integ_points, my_open_shell, &
+                                      M_ia, cottj, wj_ext, D_ia, D_ia_beta, M_ia_beta, &
+                                      nrow_local, nrow_local_beta, num_integ_group, color_rpa_group, &
+                                      para_env, para_env_row, para_env_row_beta)
+               left_term = left_term/4.0_dp/pi*a_scaling
+
+               IF (ABS(left_term) > ABS(right_term)) THEN
+                  a_high = a_scaling
+               ELSE
+                  a_low = a_scaling
+               END IF
+
+               IF (ABS(a_high-a_low) < 1.0e-5_dp) EXIT
+
+            END DO
+
+         END IF
+      END IF
+
+      a_scaling_ext = a_scaling
+      CALL mp_bcast(a_scaling_ext, 0, para_env%group)
+
+      DEALLOCATE (cottj)
+      DEALLOCATE (iaia_RI)
+      DEALLOCATE (D_ia)
+      DEALLOCATE (M_ia)
+      CALL cp_para_env_release(para_env_row)
+
+      IF (my_open_shell) THEN
+         DEALLOCATE (iaia_RI_beta)
+         DEALLOCATE (D_ia_beta)
+         DEALLOCATE (M_ia_beta)
+         CALL cp_para_env_release(para_env_row_beta)
+      END IF
+
+      CALL timestop(handle)
+
+   END SUBROUTINE calc_scaling_factor
+   
+   SUBROUTINE calc_ia_ia_integrals(para_env_RPA, homo, virtual, nrow_local, right_term_ref, Eigenval, D_ia, iaia_RI, M_ia, fm_mat_S, para_env_row)
+   
+      TYPE(cp_para_env_type), POINTER                    :: para_env_RPA
+      INTEGER, INTENT(IN)                                :: homo, virtual
+      INTEGER, INTENT(OUT) :: nrow_local
+      REAL(KIND=dp), INTENT(OUT) :: right_term_ref
+      REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: Eigenval
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:), INTENT(OUT) :: D_ia, iaia_RI, M_ia
+      TYPE(cp_fm_type), POINTER                          :: fm_mat_S
+      TYPE(cp_para_env_type), POINTER                    :: para_env_row
+
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'calc_scaling_factor', &
+         routineP = moduleN//':'//routineN
+
+      INTEGER :: avirt, color_col, color_row, comm_col, &
+         comm_row, handle, i_global, iiB, iocc, jjB, &
+         ncol_local
+      INTEGER, DIMENSION(:), POINTER                     :: col_indices, row_indices
+      REAL(KIND=dp) :: eigen_diff
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: iaia_RI_dp
+      TYPE(cp_para_env_type), POINTER                    :: para_env_col
+
+      CALL timeset(routineN, handle)
 
       ! calculate the (ia|ia) RI integrals
       ! ----------------------------------
@@ -5262,15 +5362,14 @@ CONTAINS
       END DO
 
       DO iiB = 1, nrow_local
-         M_ia(iiB) = D_ia(iiB)*D_ia(iiB)+TWO*D_ia(iiB)*iaia_RI(iiB)
+         M_ia(iiB) = D_ia(iiB)*D_ia(iiB)+2.0_dp*D_ia(iiB)*iaia_RI(iiB)
       END DO
 
-      right_term_ref = ZERO
+      right_term_ref = 0.0_dp
       DO iiB = 1, nrow_local
          right_term_ref = right_term_ref+(SQRT(M_ia(iiB))-D_ia(iiB)-iaia_RI(iiB))
       END DO
-      right_term_ref = right_term_ref/TWO
-      ! right_term_ref=accurate_sum((SQRT(M_ia)-D_ia-iaia_RI))/2.0_dp
+      right_term_ref = right_term_ref/2.0_dp
 
       ! sum the result with the processes of the RPA_group having the same col
       color_col = fm_mat_S%matrix_struct%context%mepos(2)
@@ -5280,153 +5379,12 @@ CONTAINS
 
       ! allocate communication array for columns
       CALL mp_sum(right_term_ref, para_env_col%group)
-
-      ! In the open shell case do point 1-2-3 for the beta spin
-      IF (my_open_shell) THEN
-         !XXX CALL cp_fm_to_fm(source=fm_mat_S_beta,destination=fm_mat_G_beta)
-         CALL cp_fm_get_info(matrix=fm_mat_S_beta, &
-                             nrow_local=nrow_local_beta, &
-                             ncol_local=ncol_local_beta, &
-                             row_indices=row_indices_beta, &
-                             col_indices=col_indices_beta)
-
-         ALLOCATE (iaia_RI_dp_beta(nrow_local_beta))
-         iaia_RI_dp_beta = 0.0_dp
-
-         DO jjB = 1, ncol_local_beta
-            DO iiB = 1, nrow_local_beta
-               iaia_RI_dp_beta(iiB) = iaia_RI_dp_beta(iiB)+fm_mat_S_beta%local_data(iiB, jjB)*fm_mat_S_beta%local_data(iiB, jjB)
-            END DO
-         END DO
-
-         color_row_beta = fm_mat_S_beta%matrix_struct%context%mepos(1)
-         CALL mp_comm_split_direct(para_env_RPA%group, comm_row_beta, color_row_beta)
-         NULLIFY (para_env_row_beta)
-         CALL cp_para_env_create(para_env_row_beta, comm_row_beta)
-
-         CALL mp_sum(iaia_RI_dp_beta, para_env_row_beta%group)
-
-         ALLOCATE (iaia_RI_beta(nrow_local_beta))
-         DO iiB = 1, nrow_local_beta
-            iaia_RI_beta(iiB) = iaia_RI_dp_beta(iiB)
-         END DO
-         DEALLOCATE (iaia_RI_dp_beta)
-
-         ALLOCATE (D_ia_beta(nrow_local_beta))
-
-         ALLOCATE (M_ia_beta(nrow_local_beta))
-
-         DO iiB = 1, nrow_local_beta
-            i_global = row_indices_beta(iiB)
-
-            iocc = MAX(1, i_global-1)/virtual_beta+1
-            avirt = i_global-(iocc-1)*virtual_beta
-            eigen_diff = Eigenval_beta(avirt+homo_beta)-Eigenval_beta(iocc)
-
-            D_ia_beta(iiB) = eigen_diff
-         END DO
-
-         DO iiB = 1, nrow_local_beta
-            M_ia_beta(iiB) = D_ia_beta(iiB)*D_ia_beta(iiB)+TWO*D_ia_beta(iiB)*iaia_RI_beta(iiB)
-         END DO
-
-         right_term_ref_beta = ZERO
-         DO iiB = 1, nrow_local_beta
-            right_term_ref_beta = right_term_ref_beta+(SQRT(M_ia_beta(iiB))-D_ia_beta(iiB)-iaia_RI_beta(iiB))
-         END DO
-         right_term_ref_beta = right_term_ref_beta/TWO
-
-         ! sum the result with the processes of the RPA_group having the same col
-         color_col_beta = fm_mat_S_beta%matrix_struct%context%mepos(2)
-         CALL mp_comm_split_direct(para_env_RPA%group, comm_col_beta, color_col_beta)
-         NULLIFY (para_env_col_beta)
-         CALL cp_para_env_create(para_env_col_beta, comm_col_beta)
-
-         CALL mp_sum(right_term_ref_beta, para_env_col_beta%group)
-
-         right_term_ref = right_term_ref+right_term_ref_beta
-      END IF
-
-      ! bcast the result
-      IF (para_env%mepos == 0) THEN
-         CALL mp_bcast(right_term_ref, 0, para_env%group)
-      ELSE
-         right_term_ref = 0.0_dp
-         CALL mp_bcast(right_term_ref, 0, para_env%group)
-      END IF
-
-      ! 5) start iteration for solving the non-linear equation by bisection
-      ! find limit, here step=0.5 seems a good compromise
-      conv_param = 100.0_dp*EPSILON(right_term_ref)
-      step = 0.5_dp
-      a_low = 0.0_dp
-      a_high = step
-      right_term = -right_term_ref
-      DO icycle = 1, num_integ_points*2
-         a_scaling = a_high
-
-         CALL calculate_objfunc(a_scaling, left_term, first_deriv, num_integ_points, my_open_shell, &
-                                ZERO, ONE, M_ia, cottj, wj, D_ia, D_ia_beta, M_ia_beta, &
-                                nrow_local, nrow_local_beta, num_integ_group, color_rpa_group, &
-                                para_env, para_env_row, para_env_row_beta)
-         left_term = left_term/FOUR/PIG*a_scaling
-
-         IF (ABS(left_term) > ABS(right_term) .OR. ABS(left_term+right_term) <= conv_param) EXIT
-         a_low = a_high
-         a_high = a_high+step
-
-      END DO
-
-      IF (ABS(left_term+right_term) >= conv_param) THEN
-         IF (a_scaling >= 2*num_integ_points*step) THEN
-            a_scaling = 1.0_dp
-         ELSE
-
-            DO icycle = 1, num_integ_points*2
-               a_scaling = (a_low+a_high)/2.0_dp
-
-               CALL calculate_objfunc(a_scaling, left_term, first_deriv, num_integ_points, my_open_shell, &
-                                      ZERO, ONE, M_ia, cottj, wj, D_ia, D_ia_beta, M_ia_beta, &
-                                      nrow_local, nrow_local_beta, num_integ_group, color_rpa_group, &
-                                      para_env, para_env_row, para_env_row_beta)
-               left_term = left_term/FOUR/PIG*a_scaling
-
-               IF (ABS(left_term) > ABS(right_term)) THEN
-                  a_high = a_scaling
-               ELSE
-                  a_low = a_scaling
-               END IF
-
-               IF (ABS(a_high-a_low) < 1.0D-5) EXIT
-
-            END DO
-
-         END IF
-      END IF
-
-      a_scaling_ext = a_scaling
-      CALL mp_bcast(a_scaling_ext, 0, para_env%group)
-
-      DEALLOCATE (cottj)
-      DEALLOCATE (tj)
-      DEALLOCATE (wj)
-      DEALLOCATE (iaia_RI)
-      DEALLOCATE (D_ia)
-      DEALLOCATE (M_ia)
-      CALL cp_para_env_release(para_env_row)
+      
       CALL cp_para_env_release(para_env_col)
-
-      IF (my_open_shell) THEN
-         DEALLOCATE (iaia_RI_beta)
-         DEALLOCATE (D_ia_beta)
-         DEALLOCATE (M_ia_beta)
-         CALL cp_para_env_release(para_env_row_beta)
-         CALL cp_para_env_release(para_env_col_beta)
-      END IF
-
+      
       CALL timestop(handle)
-
-   END SUBROUTINE calc_scaling_factor
+      
+   END SUBROUTINE calc_ia_ia_integrals
 
 ! **************************************************************************************************
 !> \brief ...
@@ -5435,8 +5393,6 @@ CONTAINS
 !> \param first_deriv ...
 !> \param num_integ_points ...
 !> \param my_open_shell ...
-!> \param ZERO ...
-!> \param ONE ...
 !> \param M_ia ...
 !> \param cottj ...
 !> \param wj ...
@@ -5452,10 +5408,10 @@ CONTAINS
 !> \param para_env_row_beta ...
 ! **************************************************************************************************
    SUBROUTINE calculate_objfunc(a_scaling, left_term, first_deriv, num_integ_points, my_open_shell, &
-                                ZERO, ONE, M_ia, cottj, wj, D_ia, D_ia_beta, M_ia_beta, &
+                                M_ia, cottj, wj, D_ia, D_ia_beta, M_ia_beta, &
                                 nrow_local, nrow_local_beta, num_integ_group, color_rpa_group, &
                                 para_env, para_env_row, para_env_row_beta)
-      REAL(KIND=dp), INTENT(IN)                          :: a_scaling, ZERO, ONE
+      REAL(KIND=dp), INTENT(IN)                          :: a_scaling
       REAL(KIND=dp), INTENT(INOUT)                       :: left_term, first_deriv
       INTEGER, INTENT(IN)                                :: num_integ_points
       LOGICAL, INTENT(IN)                                :: my_open_shell
@@ -5468,10 +5424,10 @@ CONTAINS
       INTEGER                                            :: iiB, jquad
       REAL(KIND=dp)                                      :: first_deriv_beta, left_term_beta, omega
 
-      left_term = ZERO
-      first_deriv = ZERO
-      left_term_beta = ZERO
-      first_deriv_beta = ZERO
+      left_term = 0.0_dp
+      first_deriv = 0.0_dp
+      left_term_beta = 0.0_dp
+      first_deriv_beta = 0.0_dp
       DO jquad = 1, num_integ_points
          ! parallelize over integration points
          IF (MODULO(jquad, num_integ_group) /= color_rpa_group) CYCLE
@@ -5482,7 +5438,7 @@ CONTAINS
             IF (MODULO(iiB, para_env_row%num_pe) /= para_env_row%mepos) CYCLE
             ! calculate left_term
             left_term = left_term+wj(jquad)* &
-                        (LOG(ONE+(M_ia(iiB)-D_ia(iiB)**2)/(omega**2+D_ia(iiB)**2))- &
+                        (LOG(1.0_dp+(M_ia(iiB)-D_ia(iiB)**2)/(omega**2+D_ia(iiB)**2))- &
                          (M_ia(iiB)-D_ia(iiB)**2)/(omega**2+D_ia(iiB)**2))
             first_deriv = first_deriv+wj(jquad)*cottj(jquad)**2* &
                           ((-M_ia(iiB)+D_ia(iiB)**2)**2/((omega**2+D_ia(iiB)**2)**2*(omega**2+M_ia(iiB))))
@@ -5494,7 +5450,7 @@ CONTAINS
                IF (MODULO(iiB, para_env_row_beta%num_pe) /= para_env_row_beta%mepos) CYCLE
                ! calculate left_term
                left_term_beta = left_term_beta+wj(jquad)* &
-                                (LOG(ONE+(M_ia_beta(iiB)-D_ia_beta(iiB)**2)/(omega**2+D_ia_beta(iiB)**2))- &
+                                (LOG(1.0_dp+(M_ia_beta(iiB)-D_ia_beta(iiB)**2)/(omega**2+D_ia_beta(iiB)**2))- &
                                  (M_ia_beta(iiB)-D_ia_beta(iiB)**2)/(omega**2+D_ia_beta(iiB)**2))
                first_deriv_beta = &
                   first_deriv_beta+wj(jquad)*cottj(jquad)**2* &
@@ -5675,7 +5631,7 @@ CONTAINS
          routineP = moduleN//':'//routineN
 
       INTEGER                                            :: handle, kkk
-      REAL(KIND=dp)                                      :: func_val, func_val_temp, max_error_tmp
+      REAL(KIND=dp)                                      :: func_val, max_error_tmp
 
       max_error_tmp = 0.0_dp
 
@@ -5687,7 +5643,6 @@ CONTAINS
 
          IF (ABS(y_values(kkk)-func_val) > max_error_tmp) THEN
             max_error_tmp = ABS(y_values(kkk)-func_val)
-            func_val_temp = func_val
          END IF
 
       END DO
@@ -5723,7 +5678,7 @@ CONTAINS
          routineP = moduleN//':'//routineN
 
       INTEGER                                            :: handle, kkk
-      REAL(KIND=dp)                                      :: func_val, func_val_temp, max_error_tmp
+      REAL(KIND=dp)                                      :: func_val, max_error_tmp
 
       max_error_tmp = 0.0_dp
 
@@ -5735,7 +5690,6 @@ CONTAINS
 
          IF (ABS(y_values(kkk)-func_val) > max_error_tmp) THEN
             max_error_tmp = ABS(y_values(kkk)-func_val)
-            func_val_temp = func_val
          END IF
 
       END DO

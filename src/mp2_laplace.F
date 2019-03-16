@@ -128,14 +128,10 @@ CONTAINS
       CALL get_exp_minimax_coeff(num_integ_points, E_Range, awj)
 
       ALLOCATE (aj(num_integ_points))
-      aj = 0.0_dp
       ALLOCATE (wj(num_integ_points))
-      wj = 0.0_dp
 
-      DO jquad = 1, num_integ_points
-         aj(jquad) = awj(jquad)
-         wj(jquad) = awj(jquad+num_integ_points)
-      END DO
+      aj(:) = awj(1:num_integ_points)
+      wj(:) = awj(num_integ_points+1:2*num_integ_points)
 
       DEALLOCATE (awj)
 
