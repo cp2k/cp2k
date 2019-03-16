@@ -20,8 +20,7 @@ MODULE qs_scf_post_gpw
                                               get_atomic_kind
    USE basis_set_types,                 ONLY: gto_basis_set_p_type,&
                                               gto_basis_set_type
-   USE cell_types,                      ONLY: cell_type,&
-                                              pbc
+   USE cell_types,                      ONLY: cell_type
    USE cp_array_utils,                  ONLY: cp_1d_r_p_type
    USE cp_blacs_env,                    ONLY: cp_blacs_env_type
    USE cp_control_types,                ONLY: dft_control_type
@@ -45,17 +44,12 @@ MODULE qs_scf_post_gpw
                                               cp_logger_get_default_io_unit,&
                                               cp_logger_type,&
                                               cp_to_string
-   USE cp_output_handling,              ONLY: cp_iter_string,&
-                                              cp_p_file,&
+   USE cp_output_handling,              ONLY: cp_p_file,&
                                               cp_print_key_finished_output,&
                                               cp_print_key_should_output,&
                                               cp_print_key_unit_nr
    USE cp_para_types,                   ONLY: cp_para_env_type
    USE cp_realspace_grid_cube,          ONLY: cp_pw_to_cube
-   USE cp_result_methods,               ONLY: cp_results_erase,&
-                                              get_results,&
-                                              put_results
-   USE cp_result_types,                 ONLY: cp_result_type
    USE dbcsr_api,                       ONLY: &
         convert_dbcsr_to_csr, csr_create_from_dbcsr, csr_dbcsr_blkrow_dist, csr_destroy, csr_type, &
         csr_write, dbcsr_copy, dbcsr_desymmetrize, dbcsr_has_symmetry, dbcsr_p_type, &
@@ -92,21 +86,17 @@ MODULE qs_scf_post_gpw
    USE kpoint_types,                    ONLY: kpoint_type
    USE lapack,                          ONLY: lapack_sgesv
    USE mao_wfn_analysis,                ONLY: mao_analysis
-   USE mathconstants,                   ONLY: pi,&
-                                              twopi
+   USE mathconstants,                   ONLY: pi
    USE memory_utilities,                ONLY: reallocate
    USE message_passing,                 ONLY: mp_sum
    USE minbas_wfn_analysis,             ONLY: minbas_analysis
    USE molden_utils,                    ONLY: write_mos_molden
-   USE molecular_states,                ONLY: construct_molecular_states
    USE molecule_types,                  ONLY: molecule_type
-   USE moments_utils,                   ONLY: get_reference_point
    USE mulliken,                        ONLY: mulliken_charges
    USE orbital_pointers,                ONLY: indso
    USE particle_list_types,             ONLY: particle_list_type
    USE particle_types,                  ONLY: particle_type
    USE physcon,                         ONLY: angstrom,&
-                                              debye,&
                                               evolt
    USE population_analyses,             ONLY: lowdin_population_analysis,&
                                               mulliken_population_analysis
@@ -157,8 +147,8 @@ MODULE qs_scf_post_gpw
    USE qs_ks_methods,                   ONLY: calc_rho_tot_gspace,&
                                               qs_ks_update_qs_env
    USE qs_ks_types,                     ONLY: qs_ks_did_change
-   USE qs_loc_methods,                  ONLY: qs_loc_driver
-   USE qs_loc_molecules,                ONLY: wfc_to_molecule
+   USE qs_loc_dipole,                   ONLY: loc_dipole
+   USE qs_loc_states,                   ONLY: get_localization_info
    USE qs_loc_types,                    ONLY: qs_loc_env_create,&
                                               qs_loc_env_destroy,&
                                               qs_loc_env_new_type
@@ -203,8 +193,6 @@ MODULE qs_scf_post_gpw
    USE stm_images,                      ONLY: th_stm_image
    USE transport,                       ONLY: qs_scf_post_transport
    USE virial_types,                    ONLY: virial_type
-   USE wannier_states,                  ONLY: construct_wannier_states
-   USE wannier_states_types,            ONLY: wannier_centres_type
    USE xray_diffraction,                ONLY: calculate_rhotot_elec_gspace,&
                                               xray_diffraction_spectrum
 #include "./base/base_uses.f90"
@@ -528,7 +516,7 @@ CONTAINS
             DEALLOCATE (occupied_evals)
             ! Print Total Dipole if the localization has been performed
             IF (qs_loc_env_homo%do_localize) THEN
-               CALL qs_scf_post_loc_dip(input, dft_control, qs_loc_env_homo, logger, qs_env)
+               CALL loc_dipole(input, dft_control, qs_loc_env_homo, logger, qs_env)
             END IF
          END IF
       ENDIF
@@ -740,138 +728,6 @@ CONTAINS
    END SUBROUTINE scf_post_calculation_gpw
 
 ! **************************************************************************************************
-!> \brief Performs localization of the orbitals
-!> \param qs_env ...
-!> \param qs_loc_env ...
-!> \param loc_section ...
-!> \param mo_local ...
-!> \param wf_r ...
-!> \param wf_g ...
-!> \param particles ...
-!> \param coeff ...
-!> \param evals ...
-!> \param marked_states ...
-! **************************************************************************************************
-   SUBROUTINE get_localization_info(qs_env, qs_loc_env, loc_section, mo_local, &
-                                    wf_r, wf_g, particles, coeff, evals, marked_states)
-
-      TYPE(qs_environment_type), POINTER                 :: qs_env
-      TYPE(qs_loc_env_new_type), POINTER                 :: qs_loc_env
-      TYPE(section_vals_type), POINTER                   :: loc_section
-      TYPE(cp_fm_p_type), DIMENSION(:), POINTER          :: mo_local
-      TYPE(pw_p_type)                                    :: wf_r, wf_g
-      TYPE(particle_list_type), POINTER                  :: particles
-      TYPE(cp_fm_p_type), DIMENSION(:), POINTER          :: coeff
-      TYPE(cp_1d_r_p_type), DIMENSION(:), POINTER        :: evals
-      INTEGER, DIMENSION(:, :, :), POINTER               :: marked_states
-
-      CHARACTER(len=*), PARAMETER :: routineN = 'get_localization_info', &
-         routineP = moduleN//':'//routineN
-
-      INTEGER                                            :: handle, ispin, mystate, ns, output_unit
-      INTEGER, DIMENSION(:), POINTER                     :: lstates, marked_states_spin
-      LOGICAL                                            :: do_homo
-      REAL(KIND=dp), DIMENSION(:, :), POINTER            :: scenter
-      TYPE(cp_logger_type), POINTER                      :: logger
-      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: ks_rmpv, matrix_s
-      TYPE(dft_control_type), POINTER                    :: dft_control
-      TYPE(mo_set_p_type), DIMENSION(:), POINTER         :: mos
-      TYPE(molecule_type), POINTER                       :: molecule_set(:)
-      TYPE(section_vals_type), POINTER                   :: loc_print_section
-      TYPE(wannier_centres_type), DIMENSION(:), POINTER  :: wc
-
-      CALL timeset(routineN, handle)
-      NULLIFY (mos, ks_rmpv, dft_control, loc_print_section, marked_states_spin, &
-               matrix_s, molecule_set, scenter, wc)
-      CALL get_qs_env(qs_env, mos=mos, matrix_ks=ks_rmpv, molecule_set=molecule_set, &
-                      dft_control=dft_control, matrix_s=matrix_s)
-      logger => cp_get_default_logger()
-      output_unit = cp_logger_get_default_io_unit(logger)
-      loc_print_section => section_vals_get_subs_vals(loc_section, "PRINT")
-      do_homo = qs_loc_env%localized_wfn_control%do_homo
-      IF (BTEST(cp_print_key_should_output(logger%iter_info, loc_print_section, &
-                                           "WANNIER_STATES"), cp_p_file)) THEN
-         CALL get_qs_env(qs_env=qs_env, WannierCentres=wc)
-         IF (.NOT. ASSOCIATED(wc)) THEN
-            ALLOCATE (wc(dft_control%nspins))
-         ENDIF
-      ENDIF
-      DO ispin = 1, dft_control%nspins
-         !
-         IF (do_homo) THEN
-            qs_loc_env%tag_mo = "HOMO"
-         ELSE
-            qs_loc_env%tag_mo = "LUMO"
-         END IF
-
-         IF (qs_loc_env%do_localize) THEN
-            ! Do the Real localization..
-            IF (output_unit > 0 .AND. do_homo) WRITE (output_unit, "(/,T2,A,I3)") &
-               "LOCALIZATION| Computing localization properties "// &
-               "for OCCUPIED ORBITALS. Spin:", ispin
-            IF (output_unit > 0 .AND. (.NOT. do_homo)) WRITE (output_unit, "(/,T2,A,I3)") &
-               "LOCALIZATION| Computing localization properties "// &
-               "for UNOCCUPIED ORBITALS. Spin:", ispin
-
-            scenter => qs_loc_env%localized_wfn_control%centers_set(ispin)%array
-
-            CALL qs_loc_driver(qs_env, qs_loc_env, loc_print_section, &
-                               myspin=ispin, ext_mo_coeff=mo_local(ispin)%matrix)
-
-            ! maps wfc to molecules, and compute the molecular dipoles if required
-            IF ((BTEST(cp_print_key_should_output(logger%iter_info, loc_print_section, &
-                                                  "MOLECULAR_DIPOLES"), cp_p_file) .OR. &
-                 BTEST(cp_print_key_should_output(logger%iter_info, loc_print_section, &
-                                                  "MOLECULAR_STATES"), cp_p_file))) THEN
-               CALL wfc_to_molecule(qs_env, qs_loc_env, loc_print_section, scenter, &
-                                    molecule_set, dft_control%nspins)
-            END IF
-
-            ! Compute the wannier states
-            IF (BTEST(cp_print_key_should_output(logger%iter_info, loc_print_section, &
-                                                 "WANNIER_STATES"), cp_p_file)) THEN
-               ns = SIZE(qs_loc_env%localized_wfn_control%loc_states, 1)
-               IF (.NOT. ASSOCIATED(wc(ispin)%centres)) THEN
-                  ALLOCATE (wc(ispin)%WannierHamDiag(ns))
-                  ALLOCATE (wc(ispin)%centres(3, ns))
-               ENDIF
-
-               wc(ispin)%centres(:, :) = scenter(1+(ispin-1)*3:ispin*3, :)
-               lstates => qs_loc_env%localized_wfn_control%loc_states(:, ispin)
-               CALL construct_wannier_states(mo_local(ispin)%matrix, &
-                                             ks_rmpv(ispin)%matrix, qs_env, loc_print_section=loc_print_section, &
-                                             WannierCentres=wc(ispin), ns=ns, states=lstates)
-            ENDIF
-            ! Compute the molecular states
-            IF (BTEST(cp_print_key_should_output(logger%iter_info, loc_print_section, &
-                                                 "MOLECULAR_STATES"), cp_p_file)) THEN
-               CALL construct_molecular_states( &
-                  molecule_set, mo_local(ispin)%matrix, coeff(ispin)%matrix, &
-                  evals(ispin)%array, ks_rmpv(ispin)%matrix, matrix_s(1)%matrix, qs_env, wf_r, wf_g, &
-                  loc_print_section=loc_print_section, particles=particles, tag=TRIM(qs_loc_env%tag_mo), &
-                  marked_states=marked_states_spin)
-               IF (ASSOCIATED(marked_states_spin)) THEN
-                  IF (.NOT. ASSOCIATED(marked_states)) THEN
-                     ALLOCATE (marked_states(SIZE(marked_states_spin), dft_control%nspins, 2))
-                  END IF
-                  mystate = 1
-                  IF (qs_loc_env%tag_mo == "LUMO") mystate = 2
-                  marked_states(:, ispin, mystate) = marked_states_spin(:)
-                  DEALLOCATE (marked_states_spin)
-               END IF
-            ENDIF
-         END IF
-      ENDDO
-      IF (BTEST(cp_print_key_should_output(logger%iter_info, loc_print_section, &
-                                           "WANNIER_STATES"), cp_p_file)) THEN
-         CALL set_qs_env(qs_env=qs_env, WannierCentres=wc)
-      ENDIF
-
-      CALL timestop(handle)
-
-   END SUBROUTINE get_localization_info
-
-! **************************************************************************************************
 !> \brief Gets the lumos, and eigenvalues for the lumos
 !> \param qs_env ...
 !> \param scf_env ...
@@ -1034,160 +890,6 @@ CONTAINS
       CALL timestop(handle)
 
    END SUBROUTINE qs_scf_post_charges
-
-! **************************************************************************************************
-!> \brief Computes and prints the Dipole (using localized charges)
-!> \param input ...
-!> \param dft_control ...
-!> \param qs_loc_env ...
-!> \param logger ...
-!> \param qs_env the qs_env in which the qs_env lives
-! **************************************************************************************************
-   SUBROUTINE qs_scf_post_loc_dip(input, dft_control, qs_loc_env, logger, qs_env)
-      TYPE(section_vals_type), POINTER                   :: input
-      TYPE(dft_control_type), POINTER                    :: dft_control
-      TYPE(qs_loc_env_new_type), POINTER                 :: qs_loc_env
-      TYPE(cp_logger_type), POINTER                      :: logger
-      TYPE(qs_environment_type), POINTER                 :: qs_env
-
-      CHARACTER(len=*), PARAMETER :: routineN = 'qs_scf_post_loc_dip', &
-         routineP = moduleN//':'//routineN
-
-      CHARACTER(LEN=default_string_length)               :: description, descriptionThisDip, iter
-      COMPLEX(KIND=dp)                                   :: zeta
-      COMPLEX(KIND=dp), DIMENSION(3)                     :: ggamma, zphase
-      INTEGER                                            :: handle, i, ikind, ispins, j, n_rep, &
-                                                            reference, unit_nr
-      LOGICAL                                            :: do_berry, first_time, floating, ghost
-      REAL(KIND=dp)                                      :: charge_tot, theta, zeff, zwfc
-      REAL(KIND=dp), DIMENSION(3)                        :: ci, dipole, dipole_old, gvec, rcc, ria
-      REAL(KIND=dp), DIMENSION(:), POINTER               :: ref_point
-      TYPE(cell_type), POINTER                           :: cell
-      TYPE(cp_result_type), POINTER                      :: results
-      TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
-      TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
-      TYPE(section_vals_type), POINTER                   :: print_key
-
-      CALL timeset(routineN, handle)
-
-      print_key => section_vals_get_subs_vals(input, "DFT%LOCALIZE%PRINT%TOTAL_DIPOLE")
-      IF (BTEST(cp_print_key_should_output(logger%iter_info, print_key, first_time=first_time) &
-                , cp_p_file)) THEN
-         NULLIFY (cell, particle_set, qs_kind_set, ref_point, results)
-         CALL get_qs_env(qs_env=qs_env, &
-                         cell=cell, &
-                         particle_set=particle_set, &
-                         qs_kind_set=qs_kind_set, &
-                         results=results)
-
-         reference = section_get_ival(print_key, keyword_name="REFERENCE")
-         CALL section_vals_val_get(print_key, "REF_POINT", r_vals=ref_point)
-         CALL section_vals_val_get(print_key, "PERIODIC", l_val=do_berry)
-         description = '[DIPOLE]'
-         descriptionThisDip = '[TOTAL_DIPOLE]'
-         CALL get_reference_point(rcc, qs_env=qs_env, reference=reference, ref_point=ref_point)
-
-         dipole = 0.0_dp
-         IF (do_berry) THEN
-            rcc = pbc(rcc, cell)
-            charge_tot = REAL(dft_control%charge, KIND=dp)
-            ria = twopi*MATMUL(cell%h_inv, rcc)
-            zphase = CMPLX(COS(ria), SIN(ria), KIND=dp)**charge_tot
-            ggamma = CMPLX(1.0_dp, 0.0_dp, KIND=dp)
-
-            ! Nuclear charges
-            DO i = 1, SIZE(particle_set)
-               CALL get_atomic_kind(particle_set(i)%atomic_kind, kind_number=ikind)
-               CALL get_qs_kind(qs_kind_set(ikind), ghost=ghost, floating=floating)
-               IF (.NOT. ghost .AND. .NOT. floating) THEN
-                  CALL get_qs_kind(qs_kind_set(ikind), core_charge=zeff)
-                  ria = pbc(particle_set(i)%r, cell)
-                  DO j = 1, 3
-                     gvec = twopi*cell%h_inv(j, :)
-                     theta = SUM(ria(:)*gvec(:))
-                     zeta = CMPLX(COS(theta), SIN(theta), KIND=dp)**(zeff)
-                     ggamma(j) = ggamma(j)*zeta
-                  END DO
-               END IF
-            END DO
-
-            ! Charges of the wfc involved
-            ! Warning, this assumes the same occupation for all states
-            zwfc = 3.0_dp-REAL(dft_control%nspins, dp)
-
-            DO ispins = 1, dft_control%nspins
-               DO i = 1, SIZE(qs_loc_env%localized_wfn_control%centers_set(ispins)%array, 2)
-                  ria = pbc(qs_loc_env%localized_wfn_control%centers_set(ispins)%array(1:3, i), cell)
-                  DO j = 1, 3
-                     gvec = twopi*cell%h_inv(j, :)
-                     theta = SUM(ria(:)*gvec(:))
-                     zeta = CMPLX(COS(theta), SIN(theta), KIND=dp)**(-zwfc)
-                     ggamma(j) = ggamma(j)*zeta
-                  END DO
-               ENDDO
-            ENDDO
-            ggamma = ggamma*zphase
-            ci = AIMAG(LOG(ggamma))/twopi
-            dipole = MATMUL(cell%hmat, ci)
-         ELSE
-            ! Charges of the atoms involved
-            DO i = 1, SIZE(particle_set)
-               CALL get_atomic_kind(particle_set(i)%atomic_kind, kind_number=ikind)
-               CALL get_qs_kind(qs_kind_set(ikind), ghost=ghost, floating=floating)
-               IF (.NOT. ghost .AND. .NOT. floating) THEN
-                  CALL get_qs_kind(qs_kind_set(ikind), core_charge=zeff)
-                  ria = pbc(particle_set(i)%r, cell)
-                  dipole = dipole+zeff*(ria-rcc)
-               END IF
-            END DO
-
-            ! Charges of the wfc involved
-            ! Warning, this assumes the same occupation for all states
-            zwfc = 3.0_dp-REAL(dft_control%nspins, dp)
-
-            DO ispins = 1, dft_control%nspins
-               DO i = 1, SIZE(qs_loc_env%localized_wfn_control%centers_set(ispins)%array, 2)
-                  ria = pbc(qs_loc_env%localized_wfn_control%centers_set(ispins)%array(1:3, i), cell)
-                  dipole = dipole-zwfc*(ria-rcc)
-               ENDDO
-            ENDDO
-         END IF
-
-         ! Print and possibly store results
-         unit_nr = cp_print_key_unit_nr(logger, print_key, extension=".Dipole", &
-                                        middle_name="TOTAL_DIPOLE")
-         IF (unit_nr > 0) THEN
-            IF (first_time) THEN
-               WRITE (unit=unit_nr, fmt="(A,T31,A,T88,A,T136,A)") &
-                  "# iter_level", "dipole(x,y,z)[atomic units]", &
-                  "dipole(x,y,z)[debye]", &
-                  "delta_dipole(x,y,z)[atomic units]"
-            END IF
-            iter = cp_iter_string(logger%iter_info)
-            CALL get_results(results, descriptionThisDip, n_rep=n_rep)
-            IF (n_rep == 0) THEN
-               dipole_old = 0._dp
-            ELSE
-               CALL get_results(results, descriptionThisDip, dipole_old, nval=n_rep)
-            END IF
-            IF (do_berry) THEN
-               WRITE (unit=unit_nr, fmt="(a,9(es18.8))") &
-                  iter(1:15), dipole, dipole*debye, pbc(dipole-dipole_old, cell)
-            ELSE
-               WRITE (unit=unit_nr, fmt="(a,9(es18.8))") &
-                  iter(1:15), dipole, dipole*debye, (dipole-dipole_old)
-            END IF
-         END IF
-         CALL cp_print_key_finished_output(unit_nr, logger, print_key)
-         CALL cp_results_erase(results, description)
-         CALL put_results(results, description, dipole)
-         CALL cp_results_erase(results, descriptionThisDip)
-         CALL put_results(results, descriptionThisDip, dipole)
-      END IF
-
-      CALL timestop(handle)
-
-   END SUBROUTINE qs_scf_post_loc_dip
 
 ! **************************************************************************************************
 !> \brief Computes and prints the Cube Files for MO

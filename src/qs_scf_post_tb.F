@@ -1492,6 +1492,10 @@ CONTAINS
          END DO
       END IF
 
+      CALL pw_pool_give_back_pw(auxbas_pw_pool, wf_g%pw)
+      CALL pw_pool_give_back_pw(auxbas_pw_pool, wf_r%pw)
+      IF (ASSOCIATED(list_index)) DEALLOCATE (list_index)
+
    END SUBROUTINE print_mo_cubes
 
 ! **************************************************************************************************

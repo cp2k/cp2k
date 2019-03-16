@@ -1,6 +1,5 @@
 &FORCE_EVAL
   &DFT
-    LSD
     &QS
       METHOD xTB
     &END QS
@@ -10,11 +9,28 @@
     &SCF
       SCF_GUESS MOPAC
       MAX_SCF  100
-      EPS_SCF 1.e-8
+      EPS_SCF 1.e-7
+      &OT
+         PRECONDITIONER FULL_ALL
+         MINIMIZER DIIS
+      &END OT
     &END SCF
     &LOCALIZE
       &PRINT
          &TOTAL_DIPOLE
+         &END
+         &MOLECULAR_DIPOLES
+         &END
+         &MOLECULAR_STATES
+         &END
+         &WANNIER_CENTERS
+            IONS+CENTERS T
+         &END
+         &WANNIER_SPREADS
+         &END
+         &WANNIER_CUBES
+         &END
+         &WANNIER_STATES
          &END
       &END
     &END
@@ -25,10 +41,13 @@
       PERIODIC NONE
     &END CELL
     &COORD
-     O     0.051368    0.000000    0.000000     
-     C     1.278612    0.000000    0.000000    
-     H     1.870460    0.939607    0.000000   
-     H     1.870460   -0.939607    0.000000  
+     O     0.051368    0.000000    0.000000     M1
+     C     1.278612    0.000000    0.000000     M1
+     H     1.870460    0.939607    0.000000     M1
+     H     1.870460   -0.939607    0.000000     M1
+     O     0.000000    0.000000    2.000000     M2
+     H     0.600000    0.900000    2.000000     M2
+     H     0.600000   -0.900000    2.000000     M2
     &END COORD
   &END SUBSYS
 &END FORCE_EVAL
