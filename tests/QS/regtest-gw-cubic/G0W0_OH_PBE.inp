@@ -61,7 +61,6 @@
           MINIMAX
           RPA_NUM_QUAD_POINTS 20
           &RI_G0W0
-            RI OVERLAP
             CORR_MOS_OCC          10
             CORR_MOS_VIRT         10
             SCALING               0.2000

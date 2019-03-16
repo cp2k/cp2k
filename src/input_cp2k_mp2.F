@@ -870,20 +870,6 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create( &
-         keyword=keyword, &
-         name="RI_METRIC", &
-         variants=(/"RI"/), &
-         description="Define which RI metric should be used for calculating B^P_nm needed for GW.", &
-         usage="RI_METRIC COULOMB", &
-         enum_c_vals=s2a("COULOMB", "OVERLAP"), &
-         enum_i_vals=(/ri_coulomb, ri_overlap/), &
-         enum_desc=s2a("Use Coulomb metric.", &
-                       "Use overlap metric."), &
-         default_i_val=ri_coulomb)
-      CALL section_add_keyword(section, keyword)
-      CALL keyword_release(keyword)
-
       CALL keyword_create(keyword, name="MIX_EXCHANGE", &
                           description="If true, mix CP2K-HFX (EXX) based on the truncated Coulomb operator and. "// &
                           "RI-HFX. Parameter can be used to speed up the convergence of the GW HOMO-LUMO gap of  "// &
@@ -1711,4 +1697,3 @@ CONTAINS
    END SUBROUTINE create_mp2_potential
 
 END MODULE input_cp2k_mp2
-

@@ -166,8 +166,6 @@ CONTAINS
                                 l_val=mp2_env%ri_g0w0%normalize_sigma)
       CALL section_vals_val_get(mp2_section, "RI_RPA%RI_G0W0%NEGLECT_NORMALIZATION_SIGMA_X", &
                                 l_val=mp2_env%ri_g0w0%neglect_norm)
-      CALL section_vals_val_get(mp2_section, "RI_RPA%RI_G0W0%RI_METRIC", &
-                                i_val=mp2_env%ri_g0w0%ri_metric)
       CALL section_vals_val_get(mp2_section, "RI_RPA%RI_G0W0%MIX_EXCHANGE", &
                                 l_val=mp2_env%ri_g0w0%mix_exchange)
       CALL section_vals_val_get(mp2_section, "RI_RPA%RI_G0W0%FRACTION_EXX", &
@@ -408,4 +406,3 @@ CONTAINS
    END SUBROUTINE read_mp2_section
 
 END MODULE mp2_setup
-

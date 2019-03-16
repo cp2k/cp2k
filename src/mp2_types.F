@@ -169,7 +169,6 @@ MODULE mp2_types
                                   print_gw_details, &
                                   do_ri_Sigma_x, &
                                   remove_neg_virt_energies
-      INTEGER                  :: ri_metric
       LOGICAL                  :: mix_exchange, do_periodic
       REAL(KIND=dp)            :: frac_exx
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :) :: vec_Sigma_x_minus_vxc_gw
@@ -354,4 +353,3 @@ CONTAINS
    END SUBROUTINE mp2_env_create
 
 END MODULE mp2_types
-

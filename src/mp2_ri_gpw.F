@@ -220,7 +220,6 @@ CONTAINS
 !> \param mao_coeff_occ ...
 !> \param mao_coeff_virt ...
 !> \param ri_metric ...
-!> \param ri_metric_gw ...
 !> \param ends_B_occ_bse ...
 !> \param sizes_B_occ_bse ...
 !> \param starts_B_occ_bse ...
@@ -253,7 +252,7 @@ CONTAINS
                                     do_im_time, do_mao, do_kpoints_cubic_RPA, &
                                     mat_3c_overl_int, mat_3c_overl_int_mao_for_occ, &
                                     mat_3c_overl_int_mao_for_virt, mao_coeff_occ, mao_coeff_virt, &
-                                    ri_metric, ri_metric_gw, ends_B_occ_bse, sizes_B_occ_bse, &
+                                    ri_metric, ends_B_occ_bse, sizes_B_occ_bse, &
                                     starts_B_occ_bse, ends_B_virt_bse, sizes_B_virt_bse, &
                                     starts_B_virt_bse, BIb_C_beta, BIb_C_gw_beta, &
                                     ends_B_virtual_beta, sizes_B_virtual_beta, &
@@ -301,7 +300,7 @@ CONTAINS
                                                             mat_3c_overl_int_mao_for_occ, &
                                                             mat_3c_overl_int_mao_for_virt
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: mao_coeff_occ, mao_coeff_virt
-      INTEGER                                            :: ri_metric, ri_metric_gw
+      INTEGER                                            :: ri_metric
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: ends_B_occ_bse, sizes_B_occ_bse, &
                                                             starts_B_occ_bse, ends_B_virt_bse, &
                                                             sizes_B_virt_bse, starts_B_virt_bse
@@ -368,15 +367,9 @@ CONTAINS
       ! imag. time only without Coulomb metric implemented
       CPASSERT(.NOT. (ri_metric == ri_coulomb .AND. do_im_time))
 
-      ! currently, only identical metrics for RI are implemented for open shell
-      IF (do_alpha_beta .AND. my_do_gw) THEN
-         CPASSERT(ri_metric_gw == ri_metric)
-      END IF
-
       ! for cubic scaling GW, overlap metric is necessary
       IF (qs_env%mp2_env%ri_rpa_im_time%do_gw_im_time) THEN
          CPASSERT(ri_metric == ri_overlap)
-         CPASSERT(ri_metric_gw == ri_overlap)
       END IF
 
       virtual = nmo-homo
@@ -673,7 +666,7 @@ CONTAINS
 
             ENDIF
 
-            IF (my_do_gw .AND. (ri_metric_gw == ri_metric)) THEN
+            IF (my_do_gw) THEN
 
                DO LLL = 1, my_group_L_size
                   CALL ao_to_mo_and_store_B(para_env_sub, mat_munu_local_L(LLL), matrix_in_jnu, matrix_in_jm, &
@@ -775,7 +768,7 @@ CONTAINS
 
                ENDIF
 
-               IF (my_do_gw .AND. (ri_metric_gw == ri_metric)) THEN
+               IF (my_do_gw) THEN
                   ! transform (K|mu nu) to (K|nm), n corresponds to corrected GW levels, m is in nmo
                   CALL ao_to_mo_and_store_B(para_env_sub, mat_munu, matrix_in_jnu, matrix_in_jm, &
                                             fm_BIb_gw, BIb_C_gw(i_counter, 1:my_B_all_size, 1:gw_corr_lev_total), &
@@ -795,76 +788,6 @@ CONTAINS
             END DO
          END IF
       ENDIF
-
-      ! use possibly different RI metric for GW matrix elements B^nn_P
-      IF (my_do_gw .AND. ri_metric_gw /= ri_metric) THEN
-
-         DEALLOCATE (my_Lrows, sizes_array, starts_array, ends_array)
-
-         ! difference to call of calculate_Lmin1 above: other RI metric for GW
-         CALL calculate_Lmin1(qs_env, eri_method, eri_param, para_env, para_env_sub, para_env_L, mp2_memory, &
-                              fm_matrix_L, ngroup, color_sub, dimen_RI, &
-                              mo_coeff, dft_control, psi_L, rho_r, rho_g, pot_g, pw_env_sub, poisson_env, &
-                              my_group_L_size, my_group_L_start, my_group_L_end, sab_orb_sub, &
-                              sizes_array, starts_array, ends_array, calc_PQ_cond_num, cond_num, &
-                              num_small_eigen, auxbas_pw_pool, do_mult_2c, ri_metric_gw, &
-                              fm_matrix_L_RI_metric, do_im_time, do_kpoints_cubic_RPA, qs_env%mp2_env%mp2_gpw%eps_pgf_orb_S, &
-                              atomic_kind_set, qs_kind_set, qs_env%mp2_env%mp2_gpw%do_chol_subgrp, &
-                              qs_env%mp2_env%mp2_gpw%size_chol_from_input, unit_nr)
-
-         ! replicate the necessary row of the L^{-1} matrix on each proc
-         CALL grep_Lcols(para_env_L, dimen_RI, fm_matrix_L, &
-                         my_group_L_start, my_group_L_end, my_group_L_size, my_Lrows)
-
-         ! clean the L^{-1} matrix
-         CALL cp_fm_release(fm_matrix_L)
-         CALL cp_para_env_release(para_env_L)
-
-         i_counter = 0
-         DO LLL = my_group_L_start, my_group_L_end
-            i_counter = i_counter+1
-
-            ! pseudo psi_L
-            CALL calculate_wavefunction(mo_coeff, 1, psi_L, rho_g, atomic_kind_set, &
-                                        qs_kind_set, cell, dft_control, particle_set, pw_env_sub, &
-                                        basis_type="RI_AUX", &
-                                        external_vector=my_Lrows(:, LLL-my_group_L_start+1))
-
-            CALL timeset(routineN//"_pot_trunc", handle3)
-            rho_r%pw%cr3d = psi_L%pw%cr3d
-
-            ! in case we do Coulomb metric for RI, we need the Coulomb operator, but for RI with the
-            ! overlap metric, we do not need the Coulomb operator
-            IF (ri_metric_gw == ri_coulomb) THEN
-               CALL pw_transfer(rho_r%pw, rho_g%pw)
-               CALL pw_poisson_solve(poisson_env, rho_g%pw, pair_energy, pot_g%pw)
-               CALL pw_transfer(pot_g%pw, rho_r%pw)
-            END IF
-
-            CALL pw_scale(rho_r%pw, rho_r%pw%pw_grid%dvol)
-
-            CALL timestop(handle3)
-
-            ! and finally (K|mu nu)
-            CALL timeset(routineN//"_int_trunc", handle3)
-            CALL dbcsr_set(mat_munu%matrix, 0.0_dp)
-            CALL integrate_v_rspace(rho_r, hmat=mat_munu, qs_env=qs_env, &
-                                    calculate_forces=.FALSE., compute_tau=.FALSE., gapw=.FALSE., &
-                                    pw_env_external=pw_env_sub, task_list_external=task_list_sub)
-            CALL timestop(handle3)
-
-            CALL ao_to_mo_and_store_B(para_env_sub, mat_munu, matrix_in_jnu, matrix_in_jm, &
-                                      fm_BIb_gw, BIb_C_gw(i_counter, 1:my_B_all_size, 1:gw_corr_lev_total), &
-                                      mo_coeff_gw, mo_coeff_all, eps_filter, max_row_col_local_gw, sub_proc_map, &
-                                      local_col_row_info_gw, my_B_all_end, my_B_all_start, "gw_trunc")
-
-         END DO
-
-         ! set this flag so that the truncation of above will be overwritten the next time the poisson_env is used
-         IF (my_group_L_start <= my_group_L_end) &
-            poisson_env%rebuild = .TRUE.
-
-      END IF ! use truncated operator for GW
       CALL timestop(handle2)
 
       IF (do_im_time) THEN
