@@ -1,7 +1,7 @@
 #!/bin/bash -e
 [ "${BASH_SOURCE[0]}" ] && SCRIPT_NAME="${BASH_SOURCE[0]}" || SCRIPT_NAME=$0
 SCRIPT_DIR="$(cd "$(dirname "$SCRIPT_NAME")" && pwd -P)"
-libvdwxc_ver=${libvdwxc_ver:-master}
+libvdwxc_ver=${libvdwxc_ver:-master-429a80027a2ec2c97e2f6d9a3dc84843f2739865}
 
 source "${SCRIPT_DIR}"/common_vars.sh
 source "${SCRIPT_DIR}"/tool_kit.sh
@@ -28,12 +28,12 @@ case "$with_libvdwxc" in
         if verify_checksums "${install_lock_file}" ; then
             echo "libvdwxc-${libvdwxc_ver} is already installed, skipping it."
         else
-            if [ -f libvdwxc-${libvdwxc_ver}-429a80027a2ec2c97e2f6d9a3dc84843f2739865.tar.gz ] ; then
+            if [ -f libvdwxc-${libvdwxc_ver}.tar.gz ] ; then
                 echo "libvdwxc-${libvdwxc_ver}-429a80027a2ec2c97e2f6d9a3dc84843f2739865.tar.gz is found"
             else
                 # do not remove this. They do not publish official version often
                 download_pkg ${DOWNLOADER_FLAGS} \
-                             https://www.cp2k.org/static/downloads/libvdwxc-master-429a80027a2ec2c97e2f6d9a3dc84843f2739865.tar.gz
+                             https://www.cp2k.org/static/downloads/libvdwxc-${libvdwxc_ver}.tar.gz
             fi
 
             for patch in "${patches[@]}" ; do
@@ -47,9 +47,9 @@ case "$with_libvdwxc" in
             done
 
             echo "Installing from scratch into ${pkg_install_dir}"
-            [ -d libvdwxc-${libvdwxc_ver}-429a80027a2ec2c97e2f6d9a3dc84843f2739865 ] && rm -rf libvdwxc-${libvdwxc_ver}-429a80027a2ec2c97e2f6d9a3dc84843f2739865
-            tar -xzf libvdwxc-${libvdwxc_ver}-429a80027a2ec2c97e2f6d9a3dc84843f2739865.tar.gz
-            cd libvdwxc-${libvdwxc_ver}-429a80027a2ec2c97e2f6d9a3dc84843f2739865
+            [ -d libvdwxc-${libvdwxc_ver} ] && rm -rf libvdwxc-${libvdwxc_ver}
+            tar -xzf libvdwxc-${libvdwxc_ver}.tar.gz
+            cd libvdwxc-${libvdwxc_ver}
 
             for patch in "${patches[@]}" ; do
                 patch -p1 < ../"${patch##*/}"
