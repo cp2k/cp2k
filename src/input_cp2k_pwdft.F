@@ -266,7 +266,9 @@
 
       CHARACTER(len=*), PARAMETER :: routineN = 'create_pwdft_section', &
       routineP = moduleN//':'//routineN
-    END SUBROUTINE create_pwdft_section
+
+      CPASSERT(.NOT. ASSOCIATED(section))
+      END SUBROUTINE create_pwdft_section
 
 #endif
 
