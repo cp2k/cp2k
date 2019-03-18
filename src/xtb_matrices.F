@@ -1047,7 +1047,7 @@ CONTAINS
             !
          ELSE
             CALL get_qs_env(qs_env=qs_env, scf_env=scf_env)
-            CALL charge_mixing(qs_env, scf_env%mixing_method, scf_env%mixing_store, &
+            CALL charge_mixing(scf_env%mixing_method, scf_env%mixing_store, &
                                charges, para_env, scf_env%iter_count)
          END IF
 

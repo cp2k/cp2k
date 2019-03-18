@@ -16,7 +16,6 @@ MODULE qs_charge_mixing
                                               mixing_storage_type,&
                                               multisecant_mixing_nr,&
                                               pulay_mixing_nr
-   USE qs_environment_types,            ONLY: qs_environment_type
 #include "./base/base_uses.f90"
 
    IMPLICIT NONE
@@ -31,7 +30,6 @@ CONTAINS
 
 ! **************************************************************************************************
 !> \brief  Driver for the charge mixing, calls the proper routine given the requested method
-!> \param qs_env ...
 !> \param mixing_method ...
 !> \param mixing_store ...
 !> \param charges ...
@@ -40,8 +38,7 @@ CONTAINS
 !> \par History
 !> \author JGH
 ! **************************************************************************************************
-   SUBROUTINE charge_mixing(qs_env, mixing_method, mixing_store, charges, para_env, iter_count)
-      TYPE(qs_environment_type), POINTER                 :: qs_env
+   SUBROUTINE charge_mixing(mixing_method, mixing_store, charges, para_env, iter_count)
       INTEGER, INTENT(IN)                                :: mixing_method
       TYPE(mixing_storage_type), POINTER                 :: mixing_store
       REAL(KIND=dp), DIMENSION(:, :), INTENT(INOUT)      :: charges

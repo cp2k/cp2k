@@ -343,7 +343,7 @@ CONTAINS
       IF (.NOT. no_mos) THEN
          print_key => section_vals_get_subs_vals(print_section, "MO")
          IF (BTEST(cp_print_key_should_output(logger%iter_info, print_key), cp_p_file)) THEN
-            CALL print_mos(qs_env, scf_env, dft_section, tb_type)
+            CALL print_mos(qs_env, dft_section, tb_type)
          END IF
       END IF
 
@@ -775,17 +775,15 @@ CONTAINS
 ! **************************************************************************************************
 !> \brief MO printing
 !> \param qs_env ...
-!> \param scf_env ...
 !> \param dft_section ...
 !> \param tb_type ...
 !> \par History
 !> \author JHU
 !> \note
 ! **************************************************************************************************
-   SUBROUTINE print_mos(qs_env, scf_env, dft_section, tb_type)
+   SUBROUTINE print_mos(qs_env, dft_section, tb_type)
 
       TYPE(qs_environment_type), POINTER                 :: qs_env
-      TYPE(qs_scf_env_type), OPTIONAL, POINTER           :: scf_env
       TYPE(section_vals_type), POINTER                   :: dft_section
       CHARACTER(LEN=*)                                   :: tb_type
 

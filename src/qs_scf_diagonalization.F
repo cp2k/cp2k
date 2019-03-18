@@ -686,7 +686,7 @@ CONTAINS
             CALL mixing_init(subspace_env%mixing_method, rho, subspace_env%mixing_store, &
                              para_env, rho_atom=rho_atom)
          ELSEIF (dft_control%qs_control%dftb .OR. dft_control%qs_control%xtb) THEN
-            CALL charge_mixing_init(subspace_env%mixing_method, subspace_env%mixing_store, para_env)
+            CALL charge_mixing_init(subspace_env%mixing_store)
          ELSEIF (dft_control%qs_control%semi_empirical) THEN
             CPABORT('SE Code not possible')
          ELSE
