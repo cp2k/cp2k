@@ -1387,6 +1387,7 @@ CONTAINS
       write_cube = section_get_lval(cube_section, "WRITE_CUBE")
       nlumo = section_get_ival(cube_section, "NLUMO")
       nhomo = section_get_ival(cube_section, "NHOMO")
+      NULLIFY (list_index)
       CALL section_vals_val_get(cube_section, "HOMO_LIST", n_rep_val=n_rep)
       IF (n_rep > 0) THEN
          nlist = 0
