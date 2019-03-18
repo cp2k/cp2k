@@ -183,12 +183,20 @@ CONTAINS
             CALL get_qs_env(qs_env=qs_env, atomic_kind_set=atomic_kind_set, force=force)
             ALLOCATE (atom_of_kind(natom), kind_of(natom))
             CALL get_atomic_kind_set(atomic_kind_set, atom_of_kind=atom_of_kind, kind_of=kind_of)
-            DO ia = 1, natom
-               charge = mcharge(ia)
-               ikind = kind_of(ia)
-               atom_a = atom_of_kind(ia)
-               force(ikind)%efield(1:3, atom_a) = -charge*fieldpol(:)
-            END DO
+            IF (para_env%mepos == 0) THEN
+               DO ia = 1, natom
+                  charge = mcharge(ia)
+                  ikind = kind_of(ia)
+                  atom_a = atom_of_kind(ia)
+                  force(ikind)%efield(1:3, atom_a) = -charge*fieldpol(:)
+               END DO
+            ELSE
+               DO ia = 1, natom
+                  ikind = kind_of(ia)
+                  atom_a = atom_of_kind(ia)
+                  force(ikind)%efield(1:3, atom_a) = 0.0_dp
+               END DO
+            END IF
             CALL qs_rho_get(rho, rho_ao=matrix_p)
          END IF
 
@@ -365,13 +373,18 @@ CONTAINS
                   charge = -mcharge(ia)
                   iatom = atom_of_kind(ia)
                   ikind = kind_of(ia)
-                  forcea(:) = fieldpol(:)*charge
-                  force(ikind)%efield(:, iatom) = force(ikind)%efield(:, iatom)+forcea(:)
+                  force(ikind)%efield(:, iatom) = fieldpol(:)*charge
                   IF (use_virial) THEN
                      ria = particle_set(ia)%r
                      ria = pbc(ria, cell)
                      CALL virial_pair_force(virial%pv_virial, 1.0_dp, forcea, ria)
                   END IF
+               END DO
+            ELSE
+               DO ia = 1, natom
+                  iatom = atom_of_kind(ia)
+                  ikind = kind_of(ia)
+                  force(ikind)%efield(:, iatom) = 0.0_dp
                END DO
             END IF
          END IF
@@ -486,6 +499,9 @@ CONTAINS
          END IF
 
          IF (calculate_forces) THEN
+            DO ikind = 1, SIZE(atomic_kind_set)
+               CALL mp_sum(force(ikind)%efield, para_env%group)
+            END DO
             DEALLOCATE (atom_of_kind, kind_of)
          END IF
 
