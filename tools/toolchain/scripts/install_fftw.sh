@@ -23,7 +23,8 @@ case "$with_fftw" in
         echo "==================== Installing FFTW ===================="
         pkg_install_dir="${INSTALLDIR}/fftw-${fftw_ver}"
         install_lock_file="$pkg_install_dir/install_successful"
-        if [[ $install_lock_file -nt $SCRIPT_NAME ]]; then
+
+        if verify_checksums "${install_lock_file}" ; then
             echo "fftw-${fftw_ver} is already installed, skipping it."
         else
             if [ -f fftw-${fftw_ver}.tar.gz ] ; then
@@ -46,7 +47,7 @@ case "$with_fftw" in
             make -j $NPROCS > make.log 2>&1
             make install > install.log 2>&1
             cd ..
-            touch "${install_lock_file}"
+            write_checksums "${install_lock_file}" "${SCRIPT_DIR}/$(basename ${SCRIPT_NAME})"
         fi
         FFTW_CFLAGS="-I'${pkg_install_dir}/include'"
         FFTW_LDFLAGS="-L'${pkg_install_dir}/lib' -Wl,-rpath='${pkg_install_dir}/lib'"
@@ -55,6 +56,7 @@ case "$with_fftw" in
         echo "==================== Finding FFTW from system paths ===================="
         check_lib -lfftw3 "FFTW"
         [ $ENABLE_OMP = "__TRUE__" ] && check_lib -lfftw3_omp "FFTW"
+        [ $ENABLE_MPI = "__TRUE__" ] && check_lib -lfftw3_mpi "FFTW"
         add_include_from_paths FFTW_CFLAGS "fftw3.h" $INCLUDE_PATHS
         add_lib_from_paths FFTW_LDFLAGS "libfftw3.*" $LIB_PATHS
         ;;
@@ -90,7 +92,7 @@ export FFTW_LIBS_OMP="${FFTW_LIBS_OMP}"
 export CP_DFLAGS="\${CP_DFLAGS} -D__FFTW3 IF_COVERAGE(IF_MPI(|-U__FFTW3|)|)"
 export CP_CFLAGS="\${CP_CFLAGS} ${FFTW_CFLAGS}"
 export CP_LDFLAGS="\${CP_LDFLAGS} ${FFTW_LDFLAGS}"
-export CP_LIBS="${FFTW_LIBS} IF_MPI("-lfftw3_mpi"|) IF_OMP(${FFTW_LIBS_OMP}|) \${CP_LIBS}"
+export CP_LIBS="IF_MPI(-lfftw3_mpi|) ${FFTW_LIBS} IF_OMP(${FFTW_LIBS_OMP}|) \${CP_LIBS}"
 prepend_path PKG_CONFIG_PATH="$PKG_CONFIG_PATH:$pkg_install_dir/lib/pkgconfig"
 export FFTWROOT="$pkg_install_dir"
 EOF
