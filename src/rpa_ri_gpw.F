@@ -2105,7 +2105,7 @@ CONTAINS
       INTEGER, ALLOCATABLE, DIMENSION(:, :, :)           :: cell_to_index_3c, non_zero_blocks_3c
       INTEGER, ALLOCATABLE, DIMENSION(:, :, :, :)        :: non_zero_blocks_3c_cut_col
       INTEGER, DIMENSION(3)                              :: cell_grid_dm
-      INTEGER, DIMENSION(:), POINTER :: atom_list, col_blk_size, col_indices, ends_array_cm, &
+      INTEGER, DIMENSION(:), POINTER :: col_blk_size, col_indices, ends_array_cm, &
          ends_array_cm_mao_occ, ends_array_cm_mao_virt, prim_blk_sizes, RI_blk_sizes, &
          row_blk_offset, row_blk_size, row_indices, starts_array_cm, starts_array_cm_mao_occ, &
          starts_array_cm_mao_virt
@@ -2120,11 +2120,11 @@ CONTAINS
       LOGICAL, ALLOCATABLE, DIMENSION(:, :, :, :) :: needed_cutRI_mem_R1vec_R2vec_for_kp
       LOGICAL, ALLOCATABLE, DIMENSION(:, :, :, :, :)     :: has_mat_P_blocks
       REAL(KIND=dp) :: a_scaling, alpha, contour_def_offset, e_axk, e_axk_corr, e_fermi, &
-         e_fermi_beta, E_Range, Emax, Emax_beta, Emin, Emin_beta, eps_charge, eps_filter_im_time, &
+         e_fermi_beta, E_Range, Emax, Emax_beta, Emin, Emin_beta, eps_filter_im_time, &
          eps_min_trans, FComega, max_error_min, my_flop_rate, omega, omega_old, scaling, &
          stabilize_exp, tau, tau_old, trace_XX
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: delta_corr, Eigenval_last, Eigenval_last_beta, &
-         Eigenval_scf, Eigenval_scf_beta, m_value, m_value_beta, Mulliken_charges, Q_log, &
+         Eigenval_scf, Eigenval_scf_beta, m_value, m_value_beta, Q_log, &
          real_freq, tau_tj, tau_wj, tj, trace_Qomega, vec_gw_energ, vec_gw_energ_beta, &
          vec_gw_energ_error_fit, vec_gw_energ_error_fit_beta, vec_omega_fit_gw, &
          vec_Sigma_c_gw_real_freq, vec_Sigma_c_gw_real_freq_beta, vec_Sigma_x_gw, &
@@ -2918,20 +2918,18 @@ CONTAINS
          alpha = 4.0_dp
       END IF
 
-      atom_list => mp2_env%ri_g0w0%atoms_for_projection
-
       IF (my_do_gw .OR. do_gw_im_time) THEN
 
          CALL allocate_matrices_gw(vec_Sigma_c_gw, vec_Sigma_c_gw_beta, color_rpa_group, dimen_nm_gw, &
                                    gw_corr_lev_occ, gw_corr_lev_occ_beta, gw_corr_lev_virt, homo, homo_beta, &
                                    nmo, num_integ_points, num_integ_group, unit_nr, contour_def_end, &
-                                   contour_def_level_tot, contour_def_start, gw_corr_lev_tot, num_fit_points, atom_list, &
+                                   contour_def_level_tot, contour_def_start, gw_corr_lev_tot, num_fit_points, &
                                    do_minimax_quad, do_periodic, do_ri_Sigma_x, my_do_gw, my_open_shell, &
                                    do_contour_def, first_cycle_periodic_correction, do_GW_corr, &
-                                   a_scaling, contour_def_offset, eps_charge, omega_max_fit, Eigenval, Eigenval_beta, &
+                                   a_scaling, contour_def_offset, omega_max_fit, Eigenval, Eigenval_beta, &
                                    tj, vec_omega_fit_gw, vec_Sigma_c_gw_real_freq, vec_Sigma_c_gw_real_freq_beta, vec_Sigma_x_gw, &
                                    vec_Sigma_x_gw_beta, delta_corr, Eigenval_last, Eigenval_last_beta, &
-                                   Eigenval_scf, Eigenval_scf_beta, m_value, m_value_beta, Mulliken_charges, &
+                                   Eigenval_scf, Eigenval_scf_beta, m_value, m_value_beta, &
                                    vec_gw_energ, vec_gw_energ_beta, vec_gw_energ_error_fit, vec_gw_energ_error_fit_beta, &
                                    vec_W_gw, vec_W_gw_beta, z_value, z_value_beta, fm_mat_S, fm_mat_S_contour_def, & !
                                    fm_mat_S_contour_def_beta, fm_mat_S_gw, fm_mat_S_gw_work, fm_mat_S_gw_work_beta, &
@@ -3377,15 +3375,15 @@ CONTAINS
                                    gw_corr_lev_tot, gw_corr_lev_virt, gw_corr_lev_virt_beta, &
                                    homo, homo_beta, max_iter_fit, nmo, num_fit_points, num_integ_points, &
                                    num_points_corr, num_poles, unit_nr, alpha_beta_from_jquad, &
-                                   mo_from_jquad, residue_from_jquad, atom_list, check_fit, &
+                                   mo_from_jquad, residue_from_jquad, check_fit, &
                                    do_apply_ic_corr_to_gw, do_contour_def, do_gw_im_time, &
                                    do_periodic, do_ri_Sigma_x, &
                                    first_cycle_periodic_correction, my_do_gw, my_open_shell, &
                                    do_GW_corr, contour_def_offset, e_fermi, &
-                                   e_fermi_beta, eps_charge, eps_filter, &
+                                   e_fermi_beta, eps_filter, &
                                    fermi_level_offset, stabilize_exp, delta_corr, Eigenval, &
                                    Eigenval_beta, Eigenval_last, Eigenval_last_beta, Eigenval_scf, &
-                                   Eigenval_scf_beta, m_value, m_value_beta, Mulliken_charges, real_freq, &
+                                   Eigenval_scf_beta, m_value, m_value_beta, real_freq, &
                                    tau_tj, tj, vec_gw_energ, vec_gw_energ_beta, vec_gw_energ_error_fit, &
                                    vec_gw_energ_error_fit_beta, vec_omega_fit_gw, vec_Sigma_c_gw_real_freq, &
                                    vec_Sigma_c_gw_real_freq_beta, vec_Sigma_x_gw, vec_Sigma_x_gw_beta, wj, &
@@ -3467,12 +3465,12 @@ CONTAINS
       END IF
 
       IF (my_do_gw .OR. do_gw_im_time) THEN
-         CALL gw_cleanup(vec_Sigma_c_gw, vec_Sigma_c_gw_beta, num_integ_points, atom_list, &
+         CALL gw_cleanup(vec_Sigma_c_gw, vec_Sigma_c_gw_beta, num_integ_points, &
                          do_contour_def, do_gw_im_time, do_ic_model, do_im_time, do_periodic, do_ri_Sigma_x, &
                          my_do_gw, my_open_shell, do_GW_corr, vec_omega_fit_gw, &
                          vec_Sigma_c_gw_real_freq, vec_Sigma_c_gw_real_freq_beta, vec_Sigma_x_gw, &
                          vec_Sigma_x_gw_beta, Eigenval_last, Eigenval_last_beta, Eigenval_scf, &
-                         Eigenval_scf_beta, m_value, m_value_beta, Mulliken_charges, vec_gw_energ, &
+                         Eigenval_scf_beta, m_value, m_value_beta, vec_gw_energ, &
                          vec_gw_energ_beta, vec_gw_energ_error_fit, vec_gw_energ_error_fit_beta, &
                          vec_W_gw, vec_W_gw_beta, z_value, z_value_beta, weights_cos_tf_w_to_t, &
                          weights_sin_tf_t_to_w, fm_mat_W_tau, fm_mat_S_contour_def, &

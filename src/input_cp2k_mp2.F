@@ -859,34 +859,6 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="ATOMS", &
-                          description="This keyword can be used for projecting the MOs on the Gaussian basis of "// &
-                          "the list of atoms which follow after ATOM, e.g. this gives a kind of Mulliken charge of "// &
-                          "MOs at certain atoms. Can for example be used to determine MOs which are located on a "// &
-                          "molecule adsorbed on a surface. The atom number refers to the order of the atom in "// &
-                          "the geometry. If the first entry is negative, no projection of MOs on the Gaussian. "// &
-                          "The MO Mulliken charges are printed if the keyword PRINT_GW_DETAILS is activated. "// &
-                          "For a range of atoms, please use ATOM_RANGE", &
-                          usage="ATOMS 5 7 8 11", type_of_var=integer_t, n_var=-1, default_i_vals=(/-1/))
-      CALL section_add_keyword(section, keyword)
-      CALL keyword_release(keyword)
-
-      CALL keyword_create(keyword, name="ATOM_RANGE", &
-                          description="As ATOMS, but here you can specify a start and an end atom. Please, either "// &
-                          "use ATOMS or ATOM_RANGE.", &
-                          usage="ATOM_RANGE 12 18", type_of_var=integer_t, n_var=2, default_i_vals=(/-1, -1/))
-      CALL section_add_keyword(section, keyword)
-      CALL keyword_release(keyword)
-
-      CALL keyword_create(keyword, name="EPS_CHARGE", &
-                          description="Keyword only works if a list of ATOMS have been specified. If the Mulliken "// &
-                          "charge of a MO is below EPS_CHARGE, then the GW correction of that level is not computed. "// &
-                          "If EPS_CHARGE is larger than 1.0, no GW levels will be computed.", &
-                          usage="EPS_CHARGE 0.3", &
-                          default_r_val=-1.0_dp)
-      CALL section_add_keyword(section, keyword)
-      CALL keyword_release(keyword)
-
       CALL keyword_create(keyword, name="IC_CORR_LIST", &
                           description="List of image charge correction from a previous calculation to be applied in G0W0 "// &
                           "or evGW. Keyword is active, if the first entry is positive (since IC corrections are positive "// &

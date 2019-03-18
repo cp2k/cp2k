@@ -439,7 +439,6 @@ CONTAINS
 !> \param contour_def_start ...
 !> \param gw_corr_lev_tot ...
 !> \param num_fit_points ...
-!> \param atom_list ...
 !> \param do_minimax_quad ...
 !> \param do_periodic ...
 !> \param do_ri_Sigma_x ...
@@ -450,7 +449,6 @@ CONTAINS
 !> \param do_GW_corr ...
 !> \param a_scaling ...
 !> \param contour_def_offset ...
-!> \param eps_charge ...
 !> \param omega_max_fit ...
 !> \param Eigenval ...
 !> \param Eigenval_beta ...
@@ -467,7 +465,6 @@ CONTAINS
 !> \param Eigenval_scf_beta ...
 !> \param m_value ...
 !> \param m_value_beta ...
-!> \param Mulliken_charges ...
 !> \param vec_gw_energ ...
 !> \param vec_gw_energ_beta ...
 !> \param vec_gw_energ_error_fit ...
@@ -491,13 +488,13 @@ CONTAINS
    SUBROUTINE allocate_matrices_gw(vec_Sigma_c_gw, vec_Sigma_c_gw_beta, color_rpa_group, dimen_nm_gw, &
                                    gw_corr_lev_occ, gw_corr_lev_occ_beta, gw_corr_lev_virt, homo, homo_beta, &
                                    nmo, num_integ_points, num_integ_group, unit_nr, contour_def_end, &
-                                   contour_def_level_tot, contour_def_start, gw_corr_lev_tot, num_fit_points, atom_list, &
+                                   contour_def_level_tot, contour_def_start, gw_corr_lev_tot, num_fit_points, &
                                    do_minimax_quad, do_periodic, do_ri_Sigma_x, my_do_gw, my_open_shell, &
                                    do_contour_def, first_cycle_periodic_correction, do_GW_corr, &
-                                   a_scaling, contour_def_offset, eps_charge, omega_max_fit, Eigenval, Eigenval_beta, &
+                                   a_scaling, contour_def_offset, omega_max_fit, Eigenval, Eigenval_beta, &
                                    tj, vec_omega_fit_gw, vec_Sigma_c_gw_real_freq, vec_Sigma_c_gw_real_freq_beta, vec_Sigma_x_gw, &
                                    vec_Sigma_x_gw_beta, delta_corr, Eigenval_last, Eigenval_last_beta, &
-                                   Eigenval_scf, Eigenval_scf_beta, m_value, m_value_beta, Mulliken_charges, &
+                                   Eigenval_scf, Eigenval_scf_beta, m_value, m_value_beta, &
                                    vec_gw_energ, vec_gw_energ_beta, vec_gw_energ_error_fit, vec_gw_energ_error_fit_beta, &
                                    vec_W_gw, vec_W_gw_beta, z_value, z_value_beta, fm_mat_S, fm_mat_S_contour_def, & !
                                    fm_mat_S_contour_def_beta, fm_mat_S_gw, fm_mat_S_gw_work, fm_mat_S_gw_work_beta, &
@@ -510,14 +507,13 @@ CONTAINS
       INTEGER, INTENT(INOUT)                             :: contour_def_end, contour_def_level_tot, &
                                                             contour_def_start, gw_corr_lev_tot, &
                                                             num_fit_points
-      INTEGER, DIMENSION(:), POINTER                     :: atom_list
       LOGICAL, INTENT(IN)                                :: do_minimax_quad, do_periodic, &
                                                             do_ri_Sigma_x, my_do_gw, my_open_shell
       LOGICAL, INTENT(INOUT)                             :: do_contour_def
       LOGICAL, INTENT(OUT) :: first_cycle_periodic_correction
       LOGICAL, ALLOCATABLE, DIMENSION(:), INTENT(OUT)    :: do_GW_corr
       REAL(KIND=dp), INTENT(IN)                          :: a_scaling
-      REAL(KIND=dp), INTENT(OUT)                         :: contour_def_offset, eps_charge
+      REAL(KIND=dp), INTENT(OUT)                         :: contour_def_offset
       REAL(KIND=dp), INTENT(IN)                          :: omega_max_fit
       REAL(KIND=dp), DIMENSION(:), INTENT(INOUT)         :: Eigenval, Eigenval_beta
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:), &
@@ -527,7 +523,7 @@ CONTAINS
          vec_Sigma_x_gw_beta
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:), INTENT(INOUT) :: delta_corr, Eigenval_last, &
          Eigenval_last_beta, Eigenval_scf, Eigenval_scf_beta, m_value, m_value_beta, &
-         Mulliken_charges, vec_gw_energ, vec_gw_energ_beta, vec_gw_energ_error_fit, &
+         vec_gw_energ, vec_gw_energ_beta, vec_gw_energ_error_fit, &
          vec_gw_energ_error_fit_beta, vec_W_gw, vec_W_gw_beta, z_value, z_value_beta
       TYPE(cp_fm_type), POINTER :: fm_mat_S, fm_mat_S_contour_def, fm_mat_S_contour_def_beta, &
          fm_mat_S_gw, fm_mat_S_gw_work, fm_mat_S_gw_work_beta, fm_mat_S_beta, fm_mat_S_gw_beta
@@ -650,17 +646,6 @@ CONTAINS
 
       ALLOCATE (do_GW_corr(1:gw_corr_lev_tot))
       do_GW_corr(:) = .TRUE.
-
-      IF (atom_list(1) > 0) THEN
-         ALLOCATE (Mulliken_charges(1:gw_corr_lev_tot))
-         Mulliken_charges(:) = 1.0_dp
-
-         ! only implemented for closed shell
-         CPASSERT(.NOT. my_open_shell)
-
-      END IF
-
-      eps_charge = mp2_env%ri_g0w0%eps_charge
 
       IF (my_do_gw) THEN
 
@@ -1476,7 +1461,6 @@ CONTAINS
 !> \param alpha_beta_from_jquad ...
 !> \param mo_from_jquad ...
 !> \param residue_from_jquad ...
-!> \param atom_list ...
 !> \param check_fit ...
 !> \param do_apply_ic_corr_to_gw ...
 !> \param do_contour_def ...
@@ -1490,7 +1474,6 @@ CONTAINS
 !> \param contour_def_offset ...
 !> \param e_fermi ...
 !> \param e_fermi_beta ...
-!> \param eps_charge ...
 !> \param eps_filter ...
 !> \param fermi_level_offset ...
 !> \param stabilize_exp ...
@@ -1503,7 +1486,6 @@ CONTAINS
 !> \param Eigenval_scf_beta ...
 !> \param m_value ...
 !> \param m_value_beta ...
-!> \param Mulliken_charges ...
 !> \param real_freq ...
 !> \param tau_tj ...
 !> \param tj ...
@@ -1563,15 +1545,15 @@ CONTAINS
                                 homo, homo_beta, &
                                 max_iter_fit, nmo, num_fit_points, num_integ_points, &
                                 num_points_corr, num_poles, unit_nr, alpha_beta_from_jquad, &
-                                mo_from_jquad, residue_from_jquad, atom_list, check_fit, &
+                                mo_from_jquad, residue_from_jquad, check_fit, &
                                 do_apply_ic_corr_to_gw, do_contour_def, do_gw_im_time, &
                                 do_periodic, do_ri_Sigma_x, &
                                 first_cycle_periodic_correction, my_do_gw, my_open_shell, &
                                 do_GW_corr, contour_def_offset, e_fermi, &
-                                e_fermi_beta, eps_charge, eps_filter, &
+                                e_fermi_beta, eps_filter, &
                                 fermi_level_offset, stabilize_exp, delta_corr, Eigenval, &
                                 Eigenval_beta, Eigenval_last, Eigenval_last_beta, Eigenval_scf, &
-                                Eigenval_scf_beta, m_value, m_value_beta, Mulliken_charges, real_freq, &
+                                Eigenval_scf_beta, m_value, m_value_beta, real_freq, &
                                 tau_tj, tj, vec_gw_energ, vec_gw_energ_beta, vec_gw_energ_error_fit, &
                                 vec_gw_energ_error_fit_beta, vec_omega_fit_gw, vec_Sigma_c_gw_real_freq, &
                                 vec_Sigma_c_gw_real_freq_beta, vec_Sigma_x_gw, vec_Sigma_x_gw_beta, wj, &
@@ -1596,20 +1578,19 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: num_poles, unit_nr
       INTEGER, ALLOCATABLE, DIMENSION(:), INTENT(INOUT)  :: alpha_beta_from_jquad, mo_from_jquad, &
                                                             residue_from_jquad
-      INTEGER, DIMENSION(:), POINTER                     :: atom_list
       LOGICAL, INTENT(IN) :: check_fit, do_apply_ic_corr_to_gw, do_contour_def, do_gw_im_time, &
          do_periodic, do_ri_Sigma_x
       LOGICAL, INTENT(INOUT) :: first_cycle_periodic_correction
       LOGICAL, INTENT(IN)                                :: my_do_gw, my_open_shell
       LOGICAL, ALLOCATABLE, DIMENSION(:), INTENT(INOUT)  :: do_GW_corr
-      REAL(KIND=dp), INTENT(IN) :: contour_def_offset, e_fermi, e_fermi_beta, eps_charge, &
+      REAL(KIND=dp), INTENT(IN) :: contour_def_offset, e_fermi, e_fermi_beta, &
          eps_filter, fermi_level_offset, stabilize_exp
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:), &
          INTENT(INOUT)                                   :: delta_corr
       REAL(KIND=dp), DIMENSION(:), INTENT(INOUT)         :: Eigenval, Eigenval_beta
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:), INTENT(INOUT) :: Eigenval_last, &
          Eigenval_last_beta, Eigenval_scf, Eigenval_scf_beta, m_value, m_value_beta, &
-         Mulliken_charges, real_freq, tau_tj, tj, vec_gw_energ, vec_gw_energ_beta, &
+         real_freq, tau_tj, tj, vec_gw_energ, vec_gw_energ_beta, &
          vec_gw_energ_error_fit, vec_gw_energ_error_fit_beta, vec_omega_fit_gw, &
          vec_Sigma_c_gw_real_freq, vec_Sigma_c_gw_real_freq_beta, vec_Sigma_x_gw, &
          vec_Sigma_x_gw_beta, wj, z_value, z_value_beta
@@ -1641,14 +1622,6 @@ CONTAINS
       LOGICAL                                            :: remove_neg_virt_energies
 
       CALL timeset(routineN, handle)
-
-      ! compute the Mulliken charge analysis for every MO which is corrected by GW
-      IF (atom_list(1) > 0) THEN
-
-         CALL compute_Mulliken_MO_analysis(Mulliken_charges, matrix_s, mo_coeff, atom_list, gw_corr_lev_occ, &
-                                           gw_corr_lev_virt, homo, para_env, do_GW_corr, eps_charge)
-
-      END IF
 
       ! postprocessing for cubic scaling GW calculation
       IF (do_gw_im_time) THEN
@@ -1858,14 +1831,14 @@ CONTAINS
             z_value, m_value, mp2_env%ri_g0w0%vec_Sigma_x_minus_vxc_gw(:, 1), Eigenval, &
             Eigenval_last, Eigenval_scf, gw_corr_lev_occ, gw_corr_lev_virt, gw_corr_lev_tot, &
             count_ev_sc_GW, crossing_search, homo, nmo, unit_nr, mp2_env%ri_g0w0%print_gw_details, &
-            Mulliken_charges, atom_list, remove_neg_virt_energies, do_alpha=.TRUE.)
+            remove_neg_virt_energies, do_alpha=.TRUE.)
 
          CALL print_and_update_for_ev_sc( &
             vec_gw_energ_beta, vec_gw_energ_error_fit_beta, &
             z_value_beta, m_value_beta, mp2_env%ri_g0w0%vec_Sigma_x_minus_vxc_gw(:, 2), Eigenval_beta, &
             Eigenval_last_beta, Eigenval_scf_beta, gw_corr_lev_occ_beta, gw_corr_lev_virt_beta, gw_corr_lev_tot, &
             count_ev_sc_GW, crossing_search, homo_beta, nmo, unit_nr, mp2_env%ri_g0w0%print_gw_details, &
-            Mulliken_charges, atom_list, remove_neg_virt_energies, do_beta=.TRUE.)
+            remove_neg_virt_energies, do_beta=.TRUE.)
 
          IF (do_apply_ic_corr_to_gw .AND. count_ev_sc_GW == 1) THEN
 
@@ -1886,7 +1859,7 @@ CONTAINS
             z_value, m_value, mp2_env%ri_g0w0%vec_Sigma_x_minus_vxc_gw(:, 1), Eigenval, &
             Eigenval_last, Eigenval_scf, gw_corr_lev_occ, gw_corr_lev_virt, gw_corr_lev_tot, &
             count_ev_sc_GW, crossing_search, homo, nmo, unit_nr, mp2_env%ri_g0w0%print_gw_details, &
-            Mulliken_charges, atom_list, remove_neg_virt_energies)
+            remove_neg_virt_energies)
 
          IF (do_apply_ic_corr_to_gw .AND. count_ev_sc_GW == 1) THEN
 
@@ -1907,7 +1880,6 @@ CONTAINS
 !> \param vec_Sigma_c_gw ...
 !> \param vec_Sigma_c_gw_beta ...
 !> \param num_integ_points ...
-!> \param atom_list ...
 !> \param do_contour_def ...
 !> \param do_gw_im_time ...
 !> \param do_ic_model ...
@@ -1928,7 +1900,6 @@ CONTAINS
 !> \param Eigenval_scf_beta ...
 !> \param m_value ...
 !> \param m_value_beta ...
-!> \param Mulliken_charges ...
 !> \param vec_gw_energ ...
 !> \param vec_gw_energ_beta ...
 !> \param vec_gw_energ_error_fit ...
@@ -1963,12 +1934,12 @@ CONTAINS
 !> \param kpoints ...
 !> \param mp2_env ...
 ! **************************************************************************************************
-   SUBROUTINE gw_cleanup(vec_Sigma_c_gw, vec_Sigma_c_gw_beta, num_integ_points, atom_list, &
+   SUBROUTINE gw_cleanup(vec_Sigma_c_gw, vec_Sigma_c_gw_beta, num_integ_points, &
                          do_contour_def, do_gw_im_time, do_ic_model, do_im_time, do_periodic, do_ri_Sigma_x, &
                          my_do_gw, my_open_shell, do_GW_corr, vec_omega_fit_gw, &
                          vec_Sigma_c_gw_real_freq, vec_Sigma_c_gw_real_freq_beta, vec_Sigma_x_gw, &
                          vec_Sigma_x_gw_beta, Eigenval_last, Eigenval_last_beta, Eigenval_scf, &
-                         Eigenval_scf_beta, m_value, m_value_beta, Mulliken_charges, vec_gw_energ, &
+                         Eigenval_scf_beta, m_value, m_value_beta, vec_gw_energ, &
                          vec_gw_energ_beta, vec_gw_energ_error_fit, vec_gw_energ_error_fit_beta, &
                          vec_W_gw, vec_W_gw_beta, z_value, z_value_beta, weights_cos_tf_w_to_t, &
                          weights_sin_tf_t_to_w, fm_mat_W_tau, fm_mat_S_contour_def, &
@@ -1983,7 +1954,6 @@ CONTAINS
       COMPLEX(KIND=dp), ALLOCATABLE, DIMENSION(:, :), &
          INTENT(INOUT)                                   :: vec_Sigma_c_gw, vec_Sigma_c_gw_beta
       INTEGER, INTENT(IN)                                :: num_integ_points
-      INTEGER, DIMENSION(:), POINTER                     :: atom_list
       LOGICAL, INTENT(IN)                                :: do_contour_def, do_gw_im_time, &
                                                             do_ic_model, do_im_time, do_periodic, &
                                                             do_ri_Sigma_x, my_do_gw, my_open_shell
@@ -1991,7 +1961,7 @@ CONTAINS
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:), INTENT(INOUT) :: vec_omega_fit_gw, &
          vec_Sigma_c_gw_real_freq, vec_Sigma_c_gw_real_freq_beta, vec_Sigma_x_gw, &
          vec_Sigma_x_gw_beta, Eigenval_last, Eigenval_last_beta, Eigenval_scf, Eigenval_scf_beta, &
-         m_value, m_value_beta, Mulliken_charges, vec_gw_energ, vec_gw_energ_beta, &
+         m_value, m_value_beta, vec_gw_energ, vec_gw_energ_beta, &
          vec_gw_energ_error_fit, vec_gw_energ_error_fit_beta, vec_W_gw, vec_W_gw_beta, z_value, &
          z_value_beta
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :), &
@@ -2024,9 +1994,6 @@ CONTAINS
       END IF
       DEALLOCATE (vec_omega_fit_gw)
       DEALLOCATE (do_GW_corr)
-      IF (atom_list(1) > 0) THEN
-         DEALLOCATE (Mulliken_charges)
-      END IF
 
       IF (my_do_gw) THEN
          DEALLOCATE (mp2_env%ri_g0w0%vec_Sigma_x_minus_vxc_gw)
@@ -2691,119 +2658,6 @@ CONTAINS
       CALL timestop(handle)
 
    END SUBROUTINE compute_self_energy_im_time_gw
-
-! **************************************************************************************************
-!> \brief ...
-!> \param Mulliken_charges ...
-!> \param matrix_s ...
-!> \param fm_mo_coeff ...
-!> \param atom_list ...
-!> \param gw_corr_lev_occ ...
-!> \param gw_corr_lev_virt ...
-!> \param homo ...
-!> \param para_env ...
-!> \param do_GW_corr ...
-!> \param eps_charge ...
-! **************************************************************************************************
-   SUBROUTINE compute_Mulliken_MO_analysis(Mulliken_charges, matrix_s, fm_mo_coeff, atom_list, gw_corr_lev_occ, &
-                                           gw_corr_lev_virt, homo, para_env, do_GW_corr, eps_charge)
-
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:), &
-         INTENT(INOUT)                                   :: Mulliken_charges
-      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_s
-      TYPE(cp_fm_type), POINTER                          :: fm_mo_coeff
-      INTEGER, DIMENSION(:), POINTER                     :: atom_list
-      INTEGER, INTENT(IN)                                :: gw_corr_lev_occ, gw_corr_lev_virt, homo
-      TYPE(cp_para_env_type), POINTER                    :: para_env
-      LOGICAL, ALLOCATABLE, DIMENSION(:), INTENT(OUT)    :: do_GW_corr
-      REAL(KIND=dp), INTENT(IN)                          :: eps_charge
-
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'compute_Mulliken_MO_analysis', &
-         routineP = moduleN//':'//routineN
-
-      INTEGER                                            :: col, handle, nfullrows_total, row
-      REAL(KIND=dp)                                      :: eps_filter
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: diag
-      REAL(KIND=dp), DIMENSION(:, :), POINTER            :: data_block
-      TYPE(dbcsr_iterator_type)                          :: iter
-      TYPE(dbcsr_type), POINTER                          :: matrix_mo_coeff, matrix_Mull_charges, &
-                                                            matrix_s_constrained, matrix_tmp
-
-      CALL timeset(routineN, handle)
-
-      NULLIFY (matrix_s_constrained)
-      CALL dbcsr_init_p(matrix_s_constrained)
-      CALL dbcsr_create(matrix=matrix_s_constrained, &
-                        template=matrix_s(1)%matrix, &
-                        matrix_type=dbcsr_type_no_symmetry)
-      CALL dbcsr_desymmetrize(matrix_s(1)%matrix, matrix_s_constrained)
-
-      NULLIFY (matrix_mo_coeff)
-      CALL dbcsr_init_p(matrix_mo_coeff)
-      CALL dbcsr_create(matrix=matrix_mo_coeff, &
-                        template=matrix_s(1)%matrix, &
-                        matrix_type=dbcsr_type_no_symmetry)
-      CALL copy_fm_to_dbcsr(fm_mo_coeff, matrix_mo_coeff, keep_sparsity=.FALSE.)
-
-      NULLIFY (matrix_tmp)
-      CALL dbcsr_init_p(matrix_tmp)
-      CALL dbcsr_create(matrix=matrix_tmp, &
-                        template=matrix_s(1)%matrix, &
-                        matrix_type=dbcsr_type_no_symmetry)
-
-      NULLIFY (matrix_Mull_charges)
-      CALL dbcsr_init_p(matrix_Mull_charges)
-      CALL dbcsr_create(matrix=matrix_Mull_charges, &
-                        template=matrix_s(1)%matrix, &
-                        matrix_type=dbcsr_type_no_symmetry)
-
-      CALL dbcsr_iterator_start(iter, matrix_s_constrained)
-      DO WHILE (dbcsr_iterator_blocks_left(iter))
-
-         CALL dbcsr_iterator_next_block(iter, row, col, data_block)
-
-         IF (ANY(atom_list == col)) THEN
-            ! do nothing, leave block as is
-         ELSE
-            ! block belongs to an atom where we do not want to project
-            data_block = 0.0_dp
-         END IF
-
-      END DO
-
-      CALL dbcsr_iterator_stop(iter)
-
-      eps_filter = 1.0E-13_dp
-
-      CALL dbcsr_multiply("N", "N", 1.0_dp, matrix_s_constrained, matrix_mo_coeff, &
-                          0.0_dp, matrix_tmp, filter_eps=eps_filter)
-
-      CALL dbcsr_multiply("T", "N", 1.0_dp, matrix_mo_coeff, matrix_tmp, &
-                          0.0_dp, matrix_Mull_charges, filter_eps=eps_filter)
-
-      CALL dbcsr_get_info(matrix_s(1)%matrix, nfullrows_total=nfullrows_total)
-
-      ALLOCATE (diag(nfullrows_total))
-      diag = 0.0_dp
-
-      CALL dbcsr_get_diag(matrix_Mull_charges, diag)
-
-      CALL mp_sum(diag, para_env%group)
-
-      Mulliken_charges(1:gw_corr_lev_occ+gw_corr_lev_virt) = diag(homo-gw_corr_lev_occ+1:homo+gw_corr_lev_virt)
-
-      do_GW_corr(:) = Mulliken_charges(:) > eps_charge
-
-      CALL dbcsr_release(matrix_tmp)
-      CALL dbcsr_release(matrix_mo_coeff)
-      CALL dbcsr_release(matrix_s_constrained)
-      CALL dbcsr_release(matrix_Mull_charges)
-
-      DEALLOCATE (diag)
-
-      CALL timestop(handle)
-
-   END SUBROUTINE compute_Mulliken_MO_analysis
 
 ! **************************************************************************************************
 !> \brief Calculate integration weights for the tau grid (in dependency of the omega node)
@@ -4472,8 +4326,6 @@ CONTAINS
 !> \param nmo ...
 !> \param unit_nr ...
 !> \param print_gw_details ...
-!> \param Mulliken_charges ...
-!> \param atom_list ...
 !> \param remove_neg_virt_energies ...
 !> \param do_alpha ...
 !> \param do_beta ...
@@ -4482,7 +4334,7 @@ CONTAINS
                                          z_value, m_value, vec_Sigma_x_minus_vxc_gw, Eigenval, &
                                          Eigenval_last, Eigenval_scf, gw_corr_lev_occ, gw_corr_lev_virt, gw_corr_lev_tot, &
                                          count_ev_sc_GW, crossing_search, homo, nmo, unit_nr, print_gw_details, &
-                                         Mulliken_charges, atom_list, remove_neg_virt_energies, do_alpha, do_beta)
+                                         remove_neg_virt_energies, do_alpha, do_beta)
 
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:), &
          INTENT(IN)                                      :: vec_gw_energ, vec_gw_energ_error_fit, &
@@ -4497,8 +4349,6 @@ CONTAINS
                                                             gw_corr_lev_tot, count_ev_sc_GW, &
                                                             crossing_search, homo, nmo, unit_nr
       LOGICAL, INTENT(IN)                                :: print_gw_details
-      REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: Mulliken_charges
-      INTEGER, DIMENSION(:), POINTER                     :: atom_list
       LOGICAL, INTENT(IN)                                :: remove_neg_virt_energies
       LOGICAL, INTENT(IN), OPTIONAL                      :: do_alpha, do_beta
 
@@ -4637,7 +4487,7 @@ CONTAINS
 
          END DO
 
-         IF (unit_nr > 0 .AND. print_gw_details .AND. atom_list(1) .LE. 0) THEN
+         IF (unit_nr > 0 .AND. print_gw_details) THEN
             WRITE (unit_nr, '(T3,A)') 'E_GW = E_SCF + Z * ( Sigc(E_SCF) + Sigx - vxc )'
             WRITE (unit_nr, '(T3,A)') ' '
             WRITE (unit_nr, '(T3,A)') 'The energy unit of the following table is eV.  Sigc_fit is a very conservative'
@@ -4645,16 +4495,6 @@ CONTAINS
             WRITE (unit_nr, '(T3,A)') ' '
             WRITE (unit_nr, '(T13,2A)') 'MO      E_SCF       Sigc', &
                '   Sigc_fit   Sigx-vxc          Z       E_GW'
-
-         ELSE IF (unit_nr > 0 .AND. print_gw_details .AND. atom_list(1) > 0) THEN
-            WRITE (unit_nr, '(T3,A)') 'E_GW = E_SCF + Z * ( Sc(E_SCF) + Sx - vxc )'
-            WRITE (unit_nr, '(T3,A)') ' '
-            WRITE (unit_nr, '(T3,A)') 'The energy unit of the following table is eV.  Sigc_fit is a very conservative'
-            WRITE (unit_nr, '(T3,A)') 'estimate of the statistical error of the fitting. The Mulliken charge (MC) has'
-            WRITE (unit_nr, '(T3,A)') 'no unit and has 1 as upper and 0 as lower bound.'
-            WRITE (unit_nr, '(T3,A)') ' '
-            WRITE (unit_nr, '(T13,2A)') 'MO       E_SCF       Sc', &
-               '   Sc_fit   Sx-vxc        Z     E_GW       MC'
          END IF
 
          DO n_level_gw = 1, gw_corr_lev_tot
@@ -4682,15 +4522,14 @@ CONTAINS
                   z_value(n_level_gw), &
                   Eigenval(n_level_gw_ref)*evolt
             ELSE IF (unit_nr > 0 .AND. print_gw_details .AND. MAXVAL(vec_gw_energ_error_fit) .GE. 0.3_dp) THEN
-               WRITE (unit_nr, '(T3,I4,3A,2F11.3, ES11.1, 3F11.3)') &
+               WRITE (unit_nr, '(T3,I4,3A,2F11.3, ES11.1, 2F11.3)') &
                   n_level_gw_ref, ' ( ', occ_virt, ')', &
                   Eigenval_last(n_level_gw_ref)*evolt, &
                   vec_gw_energ(n_level_gw)*evolt, &
                   vec_gw_energ_error_fit(n_level_gw)*evolt, &
                   vec_Sigma_x_minus_vxc_gw(n_level_gw_ref)*evolt, &
                   z_value(n_level_gw), &
-                  Eigenval(n_level_gw_ref)*evolt, &
-                  Mulliken_charges(n_level_gw)
+                  Eigenval(n_level_gw_ref)*evolt
             END IF
          END DO
 

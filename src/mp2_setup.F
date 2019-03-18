@@ -164,12 +164,6 @@ CONTAINS
                                 i_val=mp2_env%ri_g0w0%contour_def_end)
       CALL section_vals_val_get(mp2_section, "RI_RPA%RI_G0W0%CONTOUR_DEF_OFFSET", &
                                 r_val=mp2_env%ri_g0w0%contour_def_offset)
-      CALL section_vals_val_get(mp2_section, "RI_RPA%RI_G0W0%ATOMS", &
-                                i_vals=mp2_env%ri_g0w0%atoms_for_projection)
-      CALL section_vals_val_get(mp2_section, "RI_RPA%RI_G0W0%ATOM_RANGE", &
-                                i_vals=mp2_env%ri_g0w0%atom_range_for_projection)
-      CALL section_vals_val_get(mp2_section, "RI_RPA%RI_G0W0%EPS_CHARGE", &
-                                r_val=mp2_env%ri_g0w0%eps_charge)
       CALL section_vals_val_get(mp2_section, "RI_RPA%RI_G0W0%IC_CORR_LIST", &
                                 r_vals=mp2_env%ri_g0w0%ic_corr_list)
       CALL section_vals_val_get(mp2_section, "RI_RPA%RI_G0W0%IC_CORR_LIST_BETA", &
