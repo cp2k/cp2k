@@ -87,7 +87,7 @@ MODULE rpa_gw
 
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'rpa_gw'
 
-   PUBLIC :: allocate_matrices_gw_im_time, get_weights_gw, allocate_matrices_gw, get_energies_for_eval_residues, GW_matrix_operations, gw_postprocessing, gw_cleanup
+   PUBLIC :: allocate_matrices_gw_im_time, get_weights_gw, allocate_matrices_gw, GW_matrix_operations, gw_postprocessing, gw_cleanup
 
 CONTAINS
 
@@ -179,10 +179,6 @@ CONTAINS
       CALL timeset(routineN, handle)
 
       num_points_corr = mp2_env%ri_g0w0%num_omega_points
-
-      ! contour deformation does not work with cubic-scaling GW
-      CPASSERT(mp2_env%ri_g0w0%contour_def_start == -1)
-      CPASSERT(mp2_env%ri_g0w0%contour_def_end == -1)
 
       CALL dbcsr_get_info(mat_P_global%matrix, &
                           row_blk_size=RI_blk_sizes)
@@ -434,9 +430,6 @@ CONTAINS
 !> \param num_integ_points ...
 !> \param num_integ_group ...
 !> \param unit_nr ...
-!> \param contour_def_end ...
-!> \param contour_def_level_tot ...
-!> \param contour_def_start ...
 !> \param gw_corr_lev_tot ...
 !> \param num_fit_points ...
 !> \param do_minimax_quad ...
@@ -444,18 +437,14 @@ CONTAINS
 !> \param do_ri_Sigma_x ...
 !> \param my_do_gw ...
 !> \param my_open_shell ...
-!> \param do_contour_def ...
 !> \param first_cycle_periodic_correction ...
 !> \param do_GW_corr ...
 !> \param a_scaling ...
-!> \param contour_def_offset ...
 !> \param omega_max_fit ...
 !> \param Eigenval ...
 !> \param Eigenval_beta ...
 !> \param tj ...
 !> \param vec_omega_fit_gw ...
-!> \param vec_Sigma_c_gw_real_freq ...
-!> \param vec_Sigma_c_gw_real_freq_beta ...
 !> \param vec_Sigma_x_gw ...
 !> \param vec_Sigma_x_gw_beta ...
 !> \param delta_corr ...
@@ -474,9 +463,7 @@ CONTAINS
 !> \param z_value ...
 !> \param z_value_beta ...
 !> \param fm_mat_S ...
-!> \param fm_mat_S_contour_def ...
 !> \param ! ...
-!> \param fm_mat_S_contour_def_beta ...
 !> \param fm_mat_S_gw ...
 !> \param fm_mat_S_gw_work ...
 !> \param fm_mat_S_gw_work_beta ...
@@ -487,45 +474,40 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE allocate_matrices_gw(vec_Sigma_c_gw, vec_Sigma_c_gw_beta, color_rpa_group, dimen_nm_gw, &
                                    gw_corr_lev_occ, gw_corr_lev_occ_beta, gw_corr_lev_virt, homo, homo_beta, &
-                                   nmo, num_integ_points, num_integ_group, unit_nr, contour_def_end, &
-                                   contour_def_level_tot, contour_def_start, gw_corr_lev_tot, num_fit_points, &
+                                   nmo, num_integ_points, num_integ_group, unit_nr, &
+                                   gw_corr_lev_tot, num_fit_points, &
                                    do_minimax_quad, do_periodic, do_ri_Sigma_x, my_do_gw, my_open_shell, &
-                                   do_contour_def, first_cycle_periodic_correction, do_GW_corr, &
-                                   a_scaling, contour_def_offset, omega_max_fit, Eigenval, Eigenval_beta, &
-                                   tj, vec_omega_fit_gw, vec_Sigma_c_gw_real_freq, vec_Sigma_c_gw_real_freq_beta, vec_Sigma_x_gw, &
+                                   first_cycle_periodic_correction, do_GW_corr, &
+                                   a_scaling, omega_max_fit, Eigenval, Eigenval_beta, &
+                                   tj, vec_omega_fit_gw, vec_Sigma_x_gw, &
                                    vec_Sigma_x_gw_beta, delta_corr, Eigenval_last, Eigenval_last_beta, &
                                    Eigenval_scf, Eigenval_scf_beta, m_value, m_value_beta, &
                                    vec_gw_energ, vec_gw_energ_beta, vec_gw_energ_error_fit, vec_gw_energ_error_fit_beta, &
-                                   vec_W_gw, vec_W_gw_beta, z_value, z_value_beta, fm_mat_S, fm_mat_S_contour_def, & !
-                                   fm_mat_S_contour_def_beta, fm_mat_S_gw, fm_mat_S_gw_work, fm_mat_S_gw_work_beta, &
+                                   vec_W_gw, vec_W_gw_beta, z_value, z_value_beta, fm_mat_S, &
+                                   fm_mat_S_gw, fm_mat_S_gw_work, fm_mat_S_gw_work_beta, &
                                    fm_mat_S_beta, fm_mat_S_gw_beta, para_env, mp2_env)
 
       COMPLEX(KIND=dp), ALLOCATABLE, DIMENSION(:, :), &
          INTENT(OUT)                                     :: vec_Sigma_c_gw, vec_Sigma_c_gw_beta
       INTEGER, INTENT(IN) :: color_rpa_group, dimen_nm_gw, gw_corr_lev_occ, gw_corr_lev_occ_beta, &
          gw_corr_lev_virt, homo, homo_beta, nmo, num_integ_points, num_integ_group, unit_nr
-      INTEGER, INTENT(INOUT)                             :: contour_def_end, contour_def_level_tot, &
-                                                            contour_def_start, gw_corr_lev_tot, &
-                                                            num_fit_points
+      INTEGER, INTENT(INOUT)                             :: gw_corr_lev_tot, num_fit_points
       LOGICAL, INTENT(IN)                                :: do_minimax_quad, do_periodic, &
                                                             do_ri_Sigma_x, my_do_gw, my_open_shell
-      LOGICAL, INTENT(INOUT)                             :: do_contour_def
       LOGICAL, INTENT(OUT) :: first_cycle_periodic_correction
       LOGICAL, ALLOCATABLE, DIMENSION(:), INTENT(OUT)    :: do_GW_corr
       REAL(KIND=dp), INTENT(IN)                          :: a_scaling
-      REAL(KIND=dp), INTENT(OUT)                         :: contour_def_offset
       REAL(KIND=dp), INTENT(IN)                          :: omega_max_fit
       REAL(KIND=dp), DIMENSION(:), INTENT(INOUT)         :: Eigenval, Eigenval_beta
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:), &
          INTENT(IN)                                      :: tj
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:), INTENT(OUT) :: vec_omega_fit_gw, &
-         vec_Sigma_c_gw_real_freq, vec_Sigma_c_gw_real_freq_beta, vec_Sigma_x_gw, &
-         vec_Sigma_x_gw_beta
+         vec_Sigma_x_gw, vec_Sigma_x_gw_beta
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:), INTENT(INOUT) :: delta_corr, Eigenval_last, &
          Eigenval_last_beta, Eigenval_scf, Eigenval_scf_beta, m_value, m_value_beta, &
          vec_gw_energ, vec_gw_energ_beta, vec_gw_energ_error_fit, &
          vec_gw_energ_error_fit_beta, vec_W_gw, vec_W_gw_beta, z_value, z_value_beta
-      TYPE(cp_fm_type), POINTER :: fm_mat_S, fm_mat_S_contour_def, fm_mat_S_contour_def_beta, &
+      TYPE(cp_fm_type), POINTER :: fm_mat_S, &
          fm_mat_S_gw, fm_mat_S_gw_work, fm_mat_S_gw_work_beta, fm_mat_S_beta, fm_mat_S_gw_beta
       TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(mp2_type), POINTER                            :: mp2_env
@@ -534,7 +516,7 @@ CONTAINS
          routineP = moduleN//':'//routineN
 
       INTEGER                                            :: handle, iquad, jquad, ncol_local, &
-                                                            nrow_local, num_real_freq_cont_def
+                                                            nrow_local
       INTEGER, DIMENSION(:), POINTER                     :: row_indices
       REAL(KIND=dp)                                      :: omega
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: vec_omega_gw
@@ -594,45 +576,20 @@ CONTAINS
          ! minimax grids not implemented for O(N^4) GW
          CPASSERT(.NOT. do_minimax_quad)
 
-         ! check if we want to do the contour deformation technique instead of analytical continuation
-         contour_def_start = mp2_env%ri_g0w0%contour_def_start
-         contour_def_end = mp2_env%ri_g0w0%contour_def_end
-
-         IF (contour_def_start > 0 .AND. contour_def_end >= contour_def_start) THEN
-            do_contour_def = .TRUE.
-         END IF
-         contour_def_offset = mp2_env%ri_g0w0%contour_def_offset
-
-         IF (do_contour_def) THEN
-
-            ! check range
-            IF (contour_def_start < homo-gw_corr_lev_occ+1) THEN
-               contour_def_start = homo-gw_corr_lev_occ+1
-            END IF
-
-            IF (contour_def_end > homo+gw_corr_lev_virt) THEN
-               contour_def_end = homo+gw_corr_lev_virt
-            END IF
-
-            contour_def_level_tot = contour_def_end-contour_def_start+1
-
-            num_real_freq_cont_def = 2*contour_def_level_tot
-
-         END IF
       END IF
 
       CALL alloc_mat_gw(vec_Sigma_c_gw, dimen_nm_gw, gw_corr_lev_occ, gw_corr_lev_tot, &
-                        homo, nmo, num_fit_points, num_real_freq_cont_def, do_contour_def, do_ri_Sigma_x, &
+                        homo, nmo, num_fit_points, do_ri_Sigma_x, &
                         my_do_gw, Eigenval, Eigenval_last, Eigenval_scf, m_value, vec_gw_energ, &
-                        vec_gw_energ_error_fit, vec_Sigma_c_gw_real_freq, vec_Sigma_x_gw, vec_W_gw, z_value, &
-                        fm_mat_S, fm_mat_S_contour_def, fm_mat_S_gw, fm_mat_S_gw_work, mp2_env)
+                        vec_gw_energ_error_fit, vec_Sigma_x_gw, vec_W_gw, z_value, &
+                        fm_mat_S, fm_mat_S_gw, fm_mat_S_gw_work, mp2_env)
 
       IF (my_open_shell) THEN
          CALL alloc_mat_gw(vec_Sigma_c_gw_beta, dimen_nm_gw, gw_corr_lev_occ, gw_corr_lev_tot, &
-                           homo, nmo, num_fit_points, num_real_freq_cont_def, do_contour_def, do_ri_Sigma_x, &
+                           homo, nmo, num_fit_points, do_ri_Sigma_x, &
                            my_do_gw, Eigenval_beta, Eigenval_last_beta, Eigenval_scf_beta, m_value_beta, vec_gw_energ_beta, &
-                           vec_gw_energ_error_fit_beta, vec_Sigma_c_gw_real_freq_beta, vec_Sigma_x_gw_beta, vec_W_gw_beta, &
-                           z_value_beta, fm_mat_S_beta, fm_mat_S_contour_def_beta, fm_mat_S_gw, fm_mat_S_gw_work_beta, mp2_env)
+                           vec_gw_energ_error_fit_beta, vec_Sigma_x_gw_beta, vec_W_gw_beta, &
+                           z_value_beta, fm_mat_S_beta, fm_mat_S_gw, fm_mat_S_gw_work_beta, mp2_env)
       END IF
 
       IF (do_periodic) THEN
@@ -684,8 +641,6 @@ CONTAINS
 !> \param homo ...
 !> \param nmo ...
 !> \param num_fit_points ...
-!> \param num_real_freq_cont_def ...
-!> \param do_contour_def ...
 !> \param do_ri_Sigma_x ...
 !> \param my_do_gw ...
 !> \param Eigenval ...
@@ -694,33 +649,30 @@ CONTAINS
 !> \param m_value ...
 !> \param vec_gw_energ ...
 !> \param vec_gw_energ_error_fit ...
-!> \param vec_Sigma_c_gw_real_freq ...
 !> \param vec_Sigma_x_gw ...
 !> \param vec_W_gw ...
 !> \param z_value ...
 !> \param fm_mat_S ...
-!> \param fm_mat_S_contour_def ...
 !> \param fm_mat_S_gw ...
 !> \param fm_mat_S_gw_work ...
 !> \param mp2_env ...
 ! **************************************************************************************************
    SUBROUTINE alloc_mat_gw(vec_Sigma_c_gw, dimen_nm_gw, gw_corr_lev_occ, gw_corr_lev_tot, &
-                           homo, nmo, num_fit_points, num_real_freq_cont_def, do_contour_def, do_ri_Sigma_x, &
+                           homo, nmo, num_fit_points, do_ri_Sigma_x, &
                            my_do_gw, Eigenval, Eigenval_last, Eigenval_scf, m_value, vec_gw_energ, &
-                           vec_gw_energ_error_fit, vec_Sigma_c_gw_real_freq, vec_Sigma_x_gw, vec_W_gw, &
-                           z_value, fm_mat_S, fm_mat_S_contour_def, fm_mat_S_gw, fm_mat_S_gw_work, mp2_env)
+                           vec_gw_energ_error_fit, vec_Sigma_x_gw, vec_W_gw, &
+                           z_value, fm_mat_S, fm_mat_S_gw, fm_mat_S_gw_work, mp2_env)
 
       COMPLEX(KIND=dp), ALLOCATABLE, DIMENSION(:, :), &
          INTENT(OUT)                                     :: vec_Sigma_c_gw
       INTEGER, INTENT(IN)                                :: dimen_nm_gw, gw_corr_lev_occ, &
                                                             gw_corr_lev_tot, homo, nmo, &
-                                                            num_fit_points, num_real_freq_cont_def
-      LOGICAL, INTENT(IN)                                :: do_contour_def, do_ri_Sigma_x, my_do_gw
+                                                            num_fit_points
+      LOGICAL, INTENT(IN)                                :: do_ri_Sigma_x, my_do_gw
       REAL(KIND=dp), DIMENSION(:), INTENT(INOUT)         :: Eigenval
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:), INTENT(OUT) :: Eigenval_last, Eigenval_scf, &
-         m_value, vec_gw_energ, vec_gw_energ_error_fit, vec_Sigma_c_gw_real_freq, vec_Sigma_x_gw, &
-         vec_W_gw, z_value
-      TYPE(cp_fm_type), POINTER                          :: fm_mat_S, fm_mat_S_contour_def, &
+         m_value, vec_gw_energ, vec_gw_energ_error_fit, vec_Sigma_x_gw, vec_W_gw, z_value
+      TYPE(cp_fm_type), POINTER                          :: fm_mat_S, &
                                                             fm_mat_S_gw, fm_mat_S_gw_work
       TYPE(mp2_type), POINTER                            :: mp2_env
 
@@ -773,19 +725,6 @@ CONTAINS
 
          ALLOCATE (vec_W_gw(dimen_nm_gw))
          vec_W_gw = 0.0_dp
-
-         IF (do_contour_def) THEN
-
-            ! set up array for the self-energy as function of real energy. one energy is slightly
-            ! above and one below the DFT MO energy => the space is 2* number of levels which are
-            ! treated by contour deformation technique
-            ALLOCATE (vec_Sigma_c_gw_real_freq(num_real_freq_cont_def))
-
-            NULLIFY (fm_mat_S_contour_def)
-            CALL cp_fm_create(fm_mat_S_contour_def, fm_mat_S%matrix_struct)
-            CALL cp_fm_to_fm(source=fm_mat_S, destination=fm_mat_S_contour_def)
-
-         END IF
       END IF
 
       CALL timestop(handle)
@@ -860,92 +799,8 @@ CONTAINS
 
 ! **************************************************************************************************
 !> \brief ...
-!> \param contour_def_end ...
-!> \param contour_def_start ...
-!> \param homo ...
-!> \param homo_beta ...
-!> \param jquad ...
-!> \param nmo ...
-!> \param num_fit_points ...
-!> \param num_integ_points ...
-!> \param num_residues ...
-!> \param alpha_beta_from_jquad ...
-!> \param mo_from_jquad ...
-!> \param residue_from_jquad ...
-!> \param my_open_shell ...
-!> \param contour_def_offset ...
-!> \param Eigenval ...
-!> \param Eigenval_beta ...
-!> \param vec_Sigma_c_gw_real_freq ...
-!> \param vec_Sigma_c_gw_real_freq_beta ...
-!> \param real_freq ...
-! **************************************************************************************************
-   PURE SUBROUTINE get_energies_for_eval_residues(contour_def_end, contour_def_start, homo, &
-                                                  homo_beta, jquad, nmo, num_fit_points, &
-                                                  num_integ_points, num_residues, &
-                                                  alpha_beta_from_jquad, mo_from_jquad, &
-                                                  residue_from_jquad, my_open_shell, &
-                                                  contour_def_offset, Eigenval, Eigenval_beta, &
-                                                  vec_Sigma_c_gw_real_freq, vec_Sigma_c_gw_real_freq_beta, &
-                                                  real_freq)
-
-      INTEGER, INTENT(IN)                                :: contour_def_end, contour_def_start, &
-                                                            homo, homo_beta, jquad, nmo, &
-                                                            num_fit_points, num_integ_points
-      INTEGER, INTENT(OUT)                               :: num_residues
-      INTEGER, ALLOCATABLE, DIMENSION(:), INTENT(OUT)    :: alpha_beta_from_jquad, mo_from_jquad, &
-                                                            residue_from_jquad
-      LOGICAL, INTENT(IN)                                :: my_open_shell
-      REAL(KIND=dp), INTENT(IN)                          :: contour_def_offset
-      REAL(KIND=dp), DIMENSION(:), INTENT(INOUT)         :: Eigenval, Eigenval_beta
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:), &
-         INTENT(INOUT)                                   :: vec_Sigma_c_gw_real_freq, &
-                                                            vec_Sigma_c_gw_real_freq_beta
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:), &
-         INTENT(OUT)                                     :: real_freq
-
-      INTEGER                                            :: i_ener
-
-      vec_Sigma_c_gw_real_freq = 0.0_dp
-      IF (my_open_shell) THEN
-         vec_Sigma_c_gw_real_freq_beta = 0.0_dp
-      END IF
-
-      CALL count_residues(contour_def_start, contour_def_end, homo, nmo, Eigenval, contour_def_offset, num_residues)
-
-      ! add residues for beta
-      IF (my_open_shell) THEN
-         CALL count_residues(contour_def_start, contour_def_end, homo_beta, nmo, Eigenval_beta, contour_def_offset, num_residues)
-      END IF
-
-      ! allocate real frequencies of the residues
-      ALLOCATE (real_freq(num_residues))
-
-      ! for getting the MO to which the residue is beloning
-      ALLOCATE (mo_from_jquad(num_residues))
-
-      ! for getting the residue (connected with the MO m)
-      ALLOCATE (residue_from_jquad(num_residues))
-
-      ! for spin information
-      ALLOCATE (alpha_beta_from_jquad(num_residues))
-
-      i_ener = 0
-      CALL determine_map_residues(contour_def_start, contour_def_end, homo, nmo, Eigenval, i_ener, contour_def_offset, mo_from_jquad, residue_from_jquad, real_freq, alpha_beta_from_jquad, 1)
-
-      ! residues for beta
-      IF (my_open_shell) THEN
-         CALL determine_map_residues(contour_def_start, contour_def_end, homo_beta, nmo, Eigenval_beta, i_ener, contour_def_offset, mo_from_jquad, residue_from_jquad, real_freq, alpha_beta_from_jquad, 2)
-      END IF
-
-   END SUBROUTINE get_energies_for_eval_residues
-
-! **************************************************************************************************
-!> \brief ...
 !> \param vec_Sigma_c_gw ...
 !> \param vec_Sigma_c_gw_beta ...
-!> \param contour_def_end ...
-!> \param contour_def_start ...
 !> \param dimen_nm_gw ...
 !> \param dimen_RI ...
 !> \param gw_corr_lev_occ ...
@@ -959,19 +814,14 @@ CONTAINS
 !> \param num_integ_points ...
 !> \param ncol_local ...
 !> \param nrow_local ...
-!> \param alpha_beta_from_jquad ...
-!> \param mo_from_jquad ...
-!> \param residue_from_jquad ...
 !> \param col_indices ...
 !> \param row_indices ...
 !> \param do_bse ...
-!> \param do_contour_def ...
 !> \param do_gw_im_time ...
 !> \param do_periodic ...
 !> \param my_do_gw ...
 !> \param my_open_shell ...
 !> \param first_cycle_periodic_correction ...
-!> \param contour_def_offset ...
 !> \param fermi_level_offset ...
 !> \param omega ...
 !> \param Eigenval ...
@@ -980,8 +830,6 @@ CONTAINS
 !> \param tau_tj ...
 !> \param tj ...
 !> \param vec_omega_fit_gw ...
-!> \param vec_Sigma_c_gw_real_freq ...
-!> \param vec_Sigma_c_gw_real_freq_beta ...
 !> \param vec_W_gw ...
 !> \param vec_W_gw_beta ...
 !> \param wj ...
@@ -1005,16 +853,15 @@ CONTAINS
 !> \param qs_env ...
 !> \param mp2_env ...
 ! **************************************************************************************************
-   SUBROUTINE GW_matrix_operations(vec_Sigma_c_gw, vec_Sigma_c_gw_beta, contour_def_end, &
-                                   contour_def_start, dimen_nm_gw, dimen_RI, gw_corr_lev_occ, &
+   SUBROUTINE GW_matrix_operations(vec_Sigma_c_gw, vec_Sigma_c_gw_beta, &
+                                   dimen_nm_gw, dimen_RI, gw_corr_lev_occ, &
                                    gw_corr_lev_occ_beta, gw_corr_lev_virt, homo, homo_beta, jquad, &
-                                   nmo, num_fit_points, num_integ_points, ncol_local, nrow_local, alpha_beta_from_jquad, &
-                                   mo_from_jquad, residue_from_jquad, col_indices, row_indices, do_bse, &
-                                   do_contour_def, do_gw_im_time, do_periodic, my_do_gw, my_open_shell, &
-                                   first_cycle_periodic_correction, contour_def_offset, fermi_level_offset, &
+                                   nmo, num_fit_points, num_integ_points, ncol_local, nrow_local, &
+                                   col_indices, row_indices, do_bse, &
+                                   do_gw_im_time, do_periodic, my_do_gw, my_open_shell, &
+                                   first_cycle_periodic_correction, fermi_level_offset, &
                                    omega, Eigenval, Eigenval_beta, delta_corr, tau_tj, tj, vec_omega_fit_gw, &
-                                   vec_Sigma_c_gw_real_freq, vec_Sigma_c_gw_real_freq_beta, vec_W_gw, &
-                                   vec_W_gw_beta, wj, weights_cos_tf_w_to_t, fm_mat_W_tau, fm_mat_L, &
+                                   vec_W_gw, vec_W_gw_beta, wj, weights_cos_tf_w_to_t, fm_mat_W_tau, fm_mat_L, &
                                    fm_mat_Q, fm_mat_Q_static_bse, fm_mat_R_gw, fm_mat_S_gw, fm_mat_S_gw_beta, &
                                    fm_mat_S_gw_work, fm_mat_S_gw_work_beta, fm_mat_work, mo_coeff, para_env, &
                                    para_env_RPA, matrix_berry_im_mo_mo, matrix_berry_re_mo_mo, &
@@ -1022,17 +869,15 @@ CONTAINS
 
       COMPLEX(KIND=dp), ALLOCATABLE, DIMENSION(:, :), &
          INTENT(INOUT)                                   :: vec_Sigma_c_gw, vec_Sigma_c_gw_beta
-      INTEGER, INTENT(IN) :: contour_def_end, contour_def_start, dimen_nm_gw, dimen_RI, &
+      INTEGER, INTENT(IN) :: dimen_nm_gw, dimen_RI, &
          gw_corr_lev_occ, gw_corr_lev_occ_beta, gw_corr_lev_virt, homo, homo_beta, jquad, nmo, &
          num_fit_points, num_integ_points
       INTEGER, INTENT(INOUT)                             :: ncol_local, nrow_local
-      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: alpha_beta_from_jquad, mo_from_jquad, &
-                                                            residue_from_jquad
       INTEGER, DIMENSION(:), POINTER                     :: col_indices, row_indices
-      LOGICAL, INTENT(IN)                                :: do_bse, do_contour_def, do_gw_im_time, &
+      LOGICAL, INTENT(IN)                                :: do_bse, do_gw_im_time, &
                                                             do_periodic, my_do_gw, my_open_shell
       LOGICAL, INTENT(INOUT) :: first_cycle_periodic_correction
-      REAL(KIND=dp), INTENT(IN)                          :: contour_def_offset, fermi_level_offset
+      REAL(KIND=dp), INTENT(IN)                          :: fermi_level_offset
       REAL(KIND=dp), INTENT(INOUT)                       :: omega
       REAL(KIND=dp), DIMENSION(:), INTENT(INOUT)         :: Eigenval, Eigenval_beta
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:), &
@@ -1040,9 +885,7 @@ CONTAINS
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:), &
          INTENT(IN)                                      :: tau_tj, tj, vec_omega_fit_gw
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:), &
-         INTENT(INOUT)                                   :: vec_Sigma_c_gw_real_freq, &
-                                                            vec_Sigma_c_gw_real_freq_beta, &
-                                                            vec_W_gw, vec_W_gw_beta
+         INTENT(INOUT)                                   :: vec_W_gw, vec_W_gw_beta
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:), &
          INTENT(IN)                                      :: wj
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :), &
@@ -1074,24 +917,13 @@ CONTAINS
       ! the actual G0W0 calculation
       IF (my_do_gw) THEN
 
-         IF (jquad <= num_integ_points) THEN
+         ! calculate [1+Q(iw')]^-1
+         CALL cp_fm_cholesky_invert(fm_mat_Q)
+         ! symmetrize the result, fm_mat_R_gw is only temporary work matrix
+         CALL cp_fm_upper_to_full(fm_mat_Q, fm_mat_R_gw)
 
-            ! calculate [1+Q(iw')]^-1
-            CALL cp_fm_cholesky_invert(fm_mat_Q)
-            ! symmetrize the result, fm_mat_R_gw is only temporary work matrix
-            CALL cp_fm_upper_to_full(fm_mat_Q, fm_mat_R_gw)
-
-            IF (do_bse .AND. jquad == 1) THEN
-               CALL cp_fm_to_fm(fm_mat_Q, fm_mat_Q_static_bse)
-            END IF
-
-         ELSE
-
-            ! inverted matrix is written to fm_mat_R_gw
-            CALL cp_fm_invert(fm_mat_Q, fm_mat_R_gw)
-
-            CALL cp_fm_to_fm(source=fm_mat_R_gw, destination=fm_mat_Q)
-
+         IF (do_bse .AND. jquad == 1) THEN
+            CALL cp_fm_to_fm(fm_mat_Q, fm_mat_Q_static_bse)
          END IF
 
          ! periodic correction for GW
@@ -1182,99 +1014,67 @@ CONTAINS
             END IF
 
             ! compute self-energy for imaginary frequencies
-            IF (jquad <= num_integ_points) THEN
+            DO iquad = 1, num_fit_points
 
-               DO iquad = 1, num_fit_points
+               ! for occ orbitals, we compute the self-energy for negative frequencies
+               ! set the Fermi energy for occ orbitals slightly above the HOMO and
+               ! for virt orbitals slightly below the LUMO
+               IF (n_global <= homo) THEN
+                  omega_i = -vec_omega_fit_gw(iquad)
+                  e_fermi = Eigenval(homo)+fermi_level_offset
+               ELSE
+                  omega_i = vec_omega_fit_gw(iquad)
+                  e_fermi = Eigenval(homo+1)-fermi_level_offset
+               END IF
+
+               ! add here the periodic correction
+               IF (do_periodic .AND. col_indices(1) == 1 .AND. n_global == m_global) THEN
+                  delta_corr_nn = delta_corr(n_global)
+               ELSE
+                  delta_corr_nn = 0.0_dp
+               END IF
+
+               ! update the self-energy (use that vec_W_gw(iw) is symmetric), divide the integration
+               ! weight by 2, because the integration is from -infty to +infty and not just 0 to +infty
+               ! as for RPA, also we need for virtual orbitals a complex conjugate
+               vec_Sigma_c_gw(n_global-homo+gw_corr_lev_occ, iquad) = &
+                  vec_Sigma_c_gw(n_global-homo+gw_corr_lev_occ, iquad)- &
+                  0.5_dp/pi*wj(jquad)/2.0_dp*(vec_W_gw(nm_global)+delta_corr_nn)* &
+                  (1.0_dp/(im_unit*(omega+omega_i)+e_fermi-Eigenval(m_global))+ &
+                   1.0_dp/(im_unit*(-omega+omega_i)+e_fermi-Eigenval(m_global)))
+
+               ! the same for beta
+               IF (my_open_shell) THEN
 
                   ! for occ orbitals, we compute the self-energy for negative frequencies
                   ! set the Fermi energy for occ orbitals slightly above the HOMO and
                   ! for virt orbitals slightly below the LUMO
-                  IF (n_global <= homo) THEN
+                  IF (n_global_beta <= homo_beta) THEN
                      omega_i = -vec_omega_fit_gw(iquad)
-                     e_fermi = Eigenval(homo)+fermi_level_offset
+                     e_fermi = Eigenval_beta(homo_beta)+fermi_level_offset
                   ELSE
                      omega_i = vec_omega_fit_gw(iquad)
-                     e_fermi = Eigenval(homo+1)-fermi_level_offset
+                     e_fermi = Eigenval_beta(homo_beta+1)-fermi_level_offset
                   END IF
 
                   ! add here the periodic correction
-                  IF (do_periodic .AND. col_indices(1) == 1 .AND. n_global == m_global) THEN
-                     delta_corr_nn = delta_corr(n_global)
+                  IF (do_periodic .AND. col_indices(1) == 1 .AND. n_global_beta == m_global) THEN
+                     delta_corr_nn_beta = delta_corr(n_global_beta)
                   ELSE
-                     delta_corr_nn = 0.0_dp
+                     delta_corr_nn_beta = 0.0_dp
                   END IF
 
                   ! update the self-energy (use that vec_W_gw(iw) is symmetric), divide the integration
                   ! weight by 2, because the integration is from -infty to +infty and not just 0 to +infty
                   ! as for RPA, also we need for virtual orbitals a complex conjugate
-                  vec_Sigma_c_gw(n_global-homo+gw_corr_lev_occ, iquad) = &
-                     vec_Sigma_c_gw(n_global-homo+gw_corr_lev_occ, iquad)- &
-                     0.5_dp/pi*wj(jquad)/2.0_dp*(vec_W_gw(nm_global)+delta_corr_nn)* &
-                     (1.0_dp/(im_unit*(omega+omega_i)+e_fermi-Eigenval(m_global))+ &
-                      1.0_dp/(im_unit*(-omega+omega_i)+e_fermi-Eigenval(m_global)))
+                  vec_Sigma_c_gw_beta(n_global_beta-homo_beta+gw_corr_lev_occ_beta, iquad) = &
+                     vec_Sigma_c_gw_beta(n_global_beta-homo_beta+gw_corr_lev_occ_beta, iquad)- &
+                     0.5_dp/pi*wj(jquad)/2.0_dp*(vec_W_gw_beta(nm_global)+delta_corr_nn_beta)* &
+                     (1.0_dp/(im_unit*(omega+omega_i)+e_fermi-Eigenval_beta(m_global))+ &
+                     1.0_dp/(im_unit*(-omega+omega_i)+e_fermi-Eigenval_beta(m_global)))
 
-                  ! the same for beta
-                  IF (my_open_shell) THEN
-
-                     ! for occ orbitals, we compute the self-energy for negative frequencies
-                     ! set the Fermi energy for occ orbitals slightly above the HOMO and
-                     ! for virt orbitals slightly below the LUMO
-                     IF (n_global_beta <= homo_beta) THEN
-                        omega_i = -vec_omega_fit_gw(iquad)
-                        e_fermi = Eigenval_beta(homo_beta)+fermi_level_offset
-                     ELSE
-                        omega_i = vec_omega_fit_gw(iquad)
-                        e_fermi = Eigenval_beta(homo_beta+1)-fermi_level_offset
-                     END IF
-
-                     ! add here the periodic correction
-                     IF (do_periodic .AND. col_indices(1) == 1 .AND. n_global_beta == m_global) THEN
-                        delta_corr_nn_beta = delta_corr(n_global_beta)
-                     ELSE
-                        delta_corr_nn_beta = 0.0_dp
-                     END IF
-
-                     ! update the self-energy (use that vec_W_gw(iw) is symmetric), divide the integration
-                     ! weight by 2, because the integration is from -infty to +infty and not just 0 to +infty
-                     ! as for RPA, also we need for virtual orbitals a complex conjugate
-                     vec_Sigma_c_gw_beta(n_global_beta-homo_beta+gw_corr_lev_occ_beta, iquad) = &
-                        vec_Sigma_c_gw_beta(n_global_beta-homo_beta+gw_corr_lev_occ_beta, iquad)- &
-                        0.5_dp/pi*wj(jquad)/2.0_dp*(vec_W_gw_beta(nm_global)+delta_corr_nn_beta)* &
-                        (1.0_dp/(im_unit*(omega+omega_i)+e_fermi-Eigenval_beta(m_global))+ &
-                         1.0_dp/(im_unit*(-omega+omega_i)+e_fermi-Eigenval_beta(m_global)))
-
-                  END IF
-               END DO ! iquad
-            END IF ! check imaginary frequency
-
-            IF (do_contour_def) THEN
-
-               IF (my_open_shell) THEN
-
-                  CALL contour_def_integrate_and_residues(vec_Sigma_c_gw_real_freq, wj, vec_W_gw, Eigenval, &
-                                                          omega, contour_def_offset, e_fermi, &
-                                                          mo_from_jquad, residue_from_jquad, alpha_beta_from_jquad, &
-                                                          contour_def_start, contour_def_end, n_global, jquad, &
-                                                          num_integ_points, m_global, nm_global, &
-                                                          alpha_beta_case=.TRUE., alpha=.TRUE.)
-
-                  CALL contour_def_integrate_and_residues(vec_Sigma_c_gw_real_freq_beta, wj, vec_W_gw_beta, Eigenval_beta, &
-                                                          omega, contour_def_offset, e_fermi, &
-                                                          mo_from_jquad, residue_from_jquad, alpha_beta_from_jquad, &
-                                                          contour_def_start, contour_def_end, n_global_beta, jquad, &
-                                                          num_integ_points, m_global_beta, nm_global, &
-                                                          alpha_beta_case=.TRUE., beta=.TRUE.)
-
-               ELSE
-
-                  CALL contour_def_integrate_and_residues(vec_Sigma_c_gw_real_freq, wj, vec_W_gw, Eigenval, &
-                                                          omega, contour_def_offset, e_fermi, &
-                                                          mo_from_jquad, residue_from_jquad, alpha_beta_from_jquad, &
-                                                          contour_def_start, contour_def_end, n_global, jquad, &
-                                                          num_integ_points, m_global, nm_global)
                END IF
-
-            END IF ! contour deformation
+            END DO ! iquad
 
          END DO ! iiB
 
@@ -1339,109 +1139,8 @@ CONTAINS
 
 ! **************************************************************************************************
 !> \brief ...
-!> \param contour_def_start ...
-!> \param contour_def_end ...
-!> \param homo ...
-!> \param nmo ...
-!> \param Eigenval ...
-!> \param contour_def_offset ...
-!> \param num_residues ...
-! **************************************************************************************************
-   PURE SUBROUTINE count_residues(contour_def_start, contour_def_end, homo, nmo, Eigenval, contour_def_offset, num_residues)
-      INTEGER, INTENT(IN)                                :: contour_def_start, contour_def_end, &
-                                                            homo, nmo
-      REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: Eigenval
-      REAL(KIND=dp), INTENT(IN)                          :: contour_def_offset
-      INTEGER, INTENT(OUT)                               :: num_residues
-
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'count_residues', routineP = moduleN//':'//routineN
-
-      INTEGER                                            :: i_mo, j_mo
-
-      ! determine how many residues we need for the contour deformation technique
-      DO i_mo = contour_def_start, MIN(homo, contour_def_end)
-         DO j_mo = 1, homo
-            IF (Eigenval(i_mo)-contour_def_offset < Eigenval(j_mo)) THEN
-               num_residues = num_residues+1
-            END IF
-         END DO
-      END DO
-      DO i_mo = MAX(homo+1, contour_def_start), contour_def_end
-         DO j_mo = homo+1, nmo
-            IF (Eigenval(i_mo)+contour_def_offset > Eigenval(j_mo)) THEN
-               num_residues = num_residues+1
-            END IF
-         END DO
-      END DO
-
-   END SUBROUTINE count_residues
-
-! **************************************************************************************************
-!> \brief ...
-!> \param contour_def_start ...
-!> \param contour_def_end ...
-!> \param homo ...
-!> \param nmo ...
-!> \param Eigenval ...
-!> \param i_ener ...
-!> \param contour_def_offset ...
-!> \param mo_from_jquad ...
-!> \param residue_from_jquad ...
-!> \param real_freq ...
-!> \param alpha_beta_from_jquad ...
-!> \param new_value_alpha_beta ...
-! **************************************************************************************************
-   PURE SUBROUTINE determine_map_residues(contour_def_start, contour_def_end, homo, nmo, &
-                                          Eigenval, i_ener, contour_def_offset, &
-                                          mo_from_jquad, residue_from_jquad, &
-                                          real_freq, alpha_beta_from_jquad, new_value_alpha_beta)
-      INTEGER, INTENT(IN)                                :: contour_def_start, contour_def_end, &
-                                                            homo, nmo
-      REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: Eigenval
-      INTEGER, INTENT(OUT)                               :: i_ener
-      REAL(KIND=dp), INTENT(IN)                          :: contour_def_offset
-      INTEGER, DIMENSION(:), INTENT(INOUT)               :: mo_from_jquad, residue_from_jquad
-      REAL(KIND=dp), DIMENSION(:), INTENT(INOUT)         :: real_freq
-      INTEGER, DIMENSION(:), INTENT(INOUT)               :: alpha_beta_from_jquad
-      INTEGER, INTENT(IN)                                :: new_value_alpha_beta
-
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'determine_map_residues', &
-         routineP = moduleN//':'//routineN
-
-      INTEGER                                            :: i_mo, j_mo
-
-      DO i_mo = contour_def_start, MIN(homo, contour_def_end)
-         DO j_mo = 1, homo
-            IF (Eigenval(i_mo)-contour_def_offset < Eigenval(j_mo)) THEN
-               i_ener = i_ener+1
-               mo_from_jquad(i_ener) = i_mo
-               residue_from_jquad(i_ener) = j_mo
-               real_freq(i_ener) = Eigenval(j_mo)-Eigenval(i_mo)
-               alpha_beta_from_jquad(i_ener) = new_value_alpha_beta
-            END IF
-         END DO
-      END DO
-      DO i_mo = MAX(homo+1, contour_def_start), contour_def_end
-         DO j_mo = homo+1, nmo
-            IF (Eigenval(i_mo)+contour_def_offset > Eigenval(j_mo)) THEN
-               i_ener = i_ener+1
-               mo_from_jquad(i_ener) = i_mo
-               residue_from_jquad(i_ener) = j_mo
-               real_freq(i_ener) = Eigenval(j_mo)-Eigenval(i_mo)
-               alpha_beta_from_jquad(i_ener) = new_value_alpha_beta
-            END IF
-         END DO
-      END DO
-
-   END SUBROUTINE determine_map_residues
-
-! **************************************************************************************************
-!> \brief ...
 !> \param vec_Sigma_c_gw ...
 !> \param vec_Sigma_c_gw_beta ...
-!> \param contour_def_end ...
-!> \param contour_def_level_tot ...
-!> \param contour_def_start ...
 !> \param count_ev_sc_GW ...
 !> \param crossing_search ...
 !> \param gw_corr_lev_occ ...
@@ -1458,12 +1157,8 @@ CONTAINS
 !> \param num_points_corr ...
 !> \param num_poles ...
 !> \param unit_nr ...
-!> \param alpha_beta_from_jquad ...
-!> \param mo_from_jquad ...
-!> \param residue_from_jquad ...
 !> \param check_fit ...
 !> \param do_apply_ic_corr_to_gw ...
-!> \param do_contour_def ...
 !> \param do_gw_im_time ...
 !> \param do_periodic ...
 !> \param do_ri_Sigma_x ...
@@ -1471,7 +1166,6 @@ CONTAINS
 !> \param my_do_gw ...
 !> \param my_open_shell ...
 !> \param do_GW_corr ...
-!> \param contour_def_offset ...
 !> \param e_fermi ...
 !> \param e_fermi_beta ...
 !> \param eps_filter ...
@@ -1486,7 +1180,6 @@ CONTAINS
 !> \param Eigenval_scf_beta ...
 !> \param m_value ...
 !> \param m_value_beta ...
-!> \param real_freq ...
 !> \param tau_tj ...
 !> \param tj ...
 !> \param vec_gw_energ ...
@@ -1494,8 +1187,6 @@ CONTAINS
 !> \param vec_gw_energ_error_fit ...
 !> \param vec_gw_energ_error_fit_beta ...
 !> \param vec_omega_fit_gw ...
-!> \param vec_Sigma_c_gw_real_freq ...
-!> \param vec_Sigma_c_gw_real_freq_beta ...
 !> \param vec_Sigma_x_gw ...
 !> \param vec_Sigma_x_gw_beta ...
 !> \param wj ...
@@ -1538,25 +1229,23 @@ CONTAINS
 !> \param mp2_env ...
 !> \param qs_env ...
 ! **************************************************************************************************
-   SUBROUTINE gw_postprocessing(vec_Sigma_c_gw, vec_Sigma_c_gw_beta, contour_def_end, &
-                                contour_def_level_tot, contour_def_start, count_ev_sc_GW, &
+   SUBROUTINE gw_postprocessing(vec_Sigma_c_gw, vec_Sigma_c_gw_beta, count_ev_sc_GW, &
                                 crossing_search, gw_corr_lev_occ, gw_corr_lev_occ_beta, &
                                 gw_corr_lev_tot, gw_corr_lev_virt, gw_corr_lev_virt_beta, &
                                 homo, homo_beta, &
                                 max_iter_fit, nmo, num_fit_points, num_integ_points, &
-                                num_points_corr, num_poles, unit_nr, alpha_beta_from_jquad, &
-                                mo_from_jquad, residue_from_jquad, check_fit, &
-                                do_apply_ic_corr_to_gw, do_contour_def, do_gw_im_time, &
+                                num_points_corr, num_poles, unit_nr, check_fit, &
+                                do_apply_ic_corr_to_gw, do_gw_im_time, &
                                 do_periodic, do_ri_Sigma_x, &
                                 first_cycle_periodic_correction, my_do_gw, my_open_shell, &
-                                do_GW_corr, contour_def_offset, e_fermi, &
+                                do_GW_corr, e_fermi, &
                                 e_fermi_beta, eps_filter, &
                                 fermi_level_offset, stabilize_exp, delta_corr, Eigenval, &
                                 Eigenval_beta, Eigenval_last, Eigenval_last_beta, Eigenval_scf, &
-                                Eigenval_scf_beta, m_value, m_value_beta, real_freq, &
+                                Eigenval_scf_beta, m_value, m_value_beta, &
                                 tau_tj, tj, vec_gw_energ, vec_gw_energ_beta, vec_gw_energ_error_fit, &
-                                vec_gw_energ_error_fit_beta, vec_omega_fit_gw, vec_Sigma_c_gw_real_freq, &
-                                vec_Sigma_c_gw_real_freq_beta, vec_Sigma_x_gw, vec_Sigma_x_gw_beta, wj, &
+                                vec_gw_energ_error_fit_beta, vec_omega_fit_gw, &
+                                vec_Sigma_x_gw, vec_Sigma_x_gw_beta, wj, &
                                 z_value, z_value_beta, ic_corr_list, ic_corr_list_beta, &
                                 weights_cos_tf_t_to_w, weights_cos_tf_w_to_t, weights_sin_tf_t_to_w, &
                                 fm_mo_coeff_occ_scaled, fm_mo_coeff_virt_scaled, fm_mo_coeff_occ, &
@@ -1570,30 +1259,26 @@ CONTAINS
 
       COMPLEX(KIND=dp), ALLOCATABLE, DIMENSION(:, :), &
          INTENT(INOUT)                                   :: vec_Sigma_c_gw, vec_Sigma_c_gw_beta
-      INTEGER, INTENT(IN) :: contour_def_end, contour_def_level_tot, contour_def_start, &
-         count_ev_sc_GW, crossing_search, gw_corr_lev_occ, gw_corr_lev_occ_beta, gw_corr_lev_tot, &
+      INTEGER, INTENT(IN) :: count_ev_sc_GW, crossing_search, gw_corr_lev_occ, gw_corr_lev_occ_beta, gw_corr_lev_tot, &
          gw_corr_lev_virt, gw_corr_lev_virt_beta, homo, homo_beta, max_iter_fit, nmo, &
          num_fit_points, num_integ_points
       INTEGER                                            :: num_points_corr
       INTEGER, INTENT(IN)                                :: num_poles, unit_nr
-      INTEGER, ALLOCATABLE, DIMENSION(:), INTENT(INOUT)  :: alpha_beta_from_jquad, mo_from_jquad, &
-                                                            residue_from_jquad
-      LOGICAL, INTENT(IN) :: check_fit, do_apply_ic_corr_to_gw, do_contour_def, do_gw_im_time, &
+      LOGICAL, INTENT(IN) :: check_fit, do_apply_ic_corr_to_gw, do_gw_im_time, &
          do_periodic, do_ri_Sigma_x
       LOGICAL, INTENT(INOUT) :: first_cycle_periodic_correction
       LOGICAL, INTENT(IN)                                :: my_do_gw, my_open_shell
       LOGICAL, ALLOCATABLE, DIMENSION(:), INTENT(INOUT)  :: do_GW_corr
-      REAL(KIND=dp), INTENT(IN) :: contour_def_offset, e_fermi, e_fermi_beta, &
+      REAL(KIND=dp), INTENT(IN) :: e_fermi, e_fermi_beta, &
          eps_filter, fermi_level_offset, stabilize_exp
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:), &
          INTENT(INOUT)                                   :: delta_corr
       REAL(KIND=dp), DIMENSION(:), INTENT(INOUT)         :: Eigenval, Eigenval_beta
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:), INTENT(INOUT) :: Eigenval_last, &
          Eigenval_last_beta, Eigenval_scf, Eigenval_scf_beta, m_value, m_value_beta, &
-         real_freq, tau_tj, tj, vec_gw_energ, vec_gw_energ_beta, &
+         tau_tj, tj, vec_gw_energ, vec_gw_energ_beta, &
          vec_gw_energ_error_fit, vec_gw_energ_error_fit_beta, vec_omega_fit_gw, &
-         vec_Sigma_c_gw_real_freq, vec_Sigma_c_gw_real_freq_beta, vec_Sigma_x_gw, &
-         vec_Sigma_x_gw_beta, wj, z_value, z_value_beta
+         vec_Sigma_x_gw, vec_Sigma_x_gw_beta, wj, z_value, z_value_beta
       REAL(KIND=dp), DIMENSION(:), POINTER               :: ic_corr_list, ic_corr_list_beta
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :), &
          INTENT(IN)                                      :: weights_cos_tf_t_to_w, &
@@ -1618,7 +1303,7 @@ CONTAINS
       CHARACTER(LEN=*), PARAMETER :: routineN = 'gw_postprocessing', &
          routineP = moduleN//':'//routineN
 
-      INTEGER                                            :: handle, index_contour_def, n_level_gw
+      INTEGER                                            :: handle, n_level_gw
       LOGICAL                                            :: remove_neg_virt_energies
 
       CALL timeset(routineN, handle)
@@ -1680,16 +1365,6 @@ CONTAINS
 
       IF (my_open_shell .AND. my_do_gw) THEN
          CALL mp_sum(vec_Sigma_c_gw_beta, para_env%group)
-      END IF
-
-      IF (do_contour_def) THEN
-
-         CALL mp_sum(vec_Sigma_c_gw_real_freq, para_env%group)
-
-         IF (my_open_shell) THEN
-            CALL mp_sum(vec_Sigma_c_gw_real_freq_beta, para_env%group)
-         END IF
-
       END IF
 
       CALL mp_sync(para_env%group)
@@ -1759,70 +1434,6 @@ CONTAINS
 
       remove_neg_virt_energies = mp2_env%ri_g0w0%remove_neg_virt_energies
 
-      ! in case we do the contour deformation technique, we transfer vec_Sigma_c_gw_real_freq to
-      ! vec_gw_energ and we compute the z-value, m-value
-      ! the results from the analytic continuation are therefore overwritten
-      IF (do_contour_def) THEN
-
-         ! Should be shifted elsewhere (that you know where they are deallocated)
-         DEALLOCATE (real_freq)
-         DEALLOCATE (mo_from_jquad)
-         DEALLOCATE (residue_from_jquad)
-         DEALLOCATE (alpha_beta_from_jquad)
-
-         IF (unit_nr > 0) THEN
-            WRITE (unit_nr, *) ''
-            WRITE (unit_nr, '(T3,A,I4,A,I3)') 'The following MOs have been corrected by contour deformation: MO', &
-               contour_def_start, '  -  MO', contour_def_end
-            WRITE (unit_nr, *) ''
-         END IF
-
-         index_contour_def = 1
-
-         ! only correct levels for which contour deformation is enabled
-         DO n_level_gw = contour_def_start-(homo-gw_corr_lev_occ), contour_def_end-(homo-gw_corr_lev_occ)
-
-            ! reset the values from analytic continuation
-            vec_gw_energ(n_level_gw) = 0.0_dp
-            vec_gw_energ_error_fit(n_level_gw) = 0.0_dp
-            z_value(n_level_gw) = 0.0_dp
-            m_value(n_level_gw) = 0.0_dp
-
-            CALL compute_z_and_m_contour_def(vec_gw_energ, z_value, m_value, &
-                                             vec_Sigma_c_gw_real_freq, contour_def_offset, &
-                                             n_level_gw, index_contour_def)
-
-            index_contour_def = index_contour_def+1
-
-         END DO
-
-         ! the same for beta
-         IF (my_open_shell) THEN
-
-            index_contour_def = 1
-
-            ! only correct levels for which contour deformation is enabled
-            DO n_level_gw = contour_def_start-(homo_beta-gw_corr_lev_occ_beta), &
-               contour_def_end-(homo_beta-gw_corr_lev_occ_beta)
-
-               ! reset the values from analytic continuation
-               vec_gw_energ_beta(n_level_gw) = 0.0_dp
-               vec_gw_energ_error_fit_beta(n_level_gw) = 0.0_dp
-               z_value_beta(n_level_gw) = 0.0_dp
-               m_value_beta(n_level_gw) = 0.0_dp
-
-               CALL compute_z_and_m_contour_def(vec_gw_energ_beta, z_value_beta, m_value_beta, &
-                                                vec_Sigma_c_gw_real_freq_beta, contour_def_offset, &
-                                                n_level_gw, index_contour_def)
-
-               index_contour_def = index_contour_def+1
-
-            END DO
-
-         END IF
-
-      END IF
-
       ! print the quasiparticle energies and update Eigenval in case you do eigenvalue self-consistent GW
       IF (my_open_shell) THEN
 
@@ -1880,7 +1491,6 @@ CONTAINS
 !> \param vec_Sigma_c_gw ...
 !> \param vec_Sigma_c_gw_beta ...
 !> \param num_integ_points ...
-!> \param do_contour_def ...
 !> \param do_gw_im_time ...
 !> \param do_ic_model ...
 !> \param do_im_time ...
@@ -1890,8 +1500,6 @@ CONTAINS
 !> \param my_open_shell ...
 !> \param do_GW_corr ...
 !> \param vec_omega_fit_gw ...
-!> \param vec_Sigma_c_gw_real_freq ...
-!> \param vec_Sigma_c_gw_real_freq_beta ...
 !> \param vec_Sigma_x_gw ...
 !> \param vec_Sigma_x_gw_beta ...
 !> \param Eigenval_last ...
@@ -1911,8 +1519,6 @@ CONTAINS
 !> \param weights_cos_tf_w_to_t ...
 !> \param weights_sin_tf_t_to_w ...
 !> \param fm_mat_W_tau ...
-!> \param fm_mat_S_contour_def ...
-!> \param fm_mat_S_contour_def_beta ...
 !> \param fm_mat_S_gw_work ...
 !> \param fm_mat_S_gw_work_beta ...
 !> \param mat_3c_overl_int_gw ...
@@ -1935,15 +1541,14 @@ CONTAINS
 !> \param mp2_env ...
 ! **************************************************************************************************
    SUBROUTINE gw_cleanup(vec_Sigma_c_gw, vec_Sigma_c_gw_beta, num_integ_points, &
-                         do_contour_def, do_gw_im_time, do_ic_model, do_im_time, do_periodic, do_ri_Sigma_x, &
-                         my_do_gw, my_open_shell, do_GW_corr, vec_omega_fit_gw, &
-                         vec_Sigma_c_gw_real_freq, vec_Sigma_c_gw_real_freq_beta, vec_Sigma_x_gw, &
+                         do_gw_im_time, do_ic_model, do_im_time, do_periodic, do_ri_Sigma_x, &
+                         my_do_gw, my_open_shell, do_GW_corr, vec_omega_fit_gw, vec_Sigma_x_gw, &
                          vec_Sigma_x_gw_beta, Eigenval_last, Eigenval_last_beta, Eigenval_scf, &
                          Eigenval_scf_beta, m_value, m_value_beta, vec_gw_energ, &
                          vec_gw_energ_beta, vec_gw_energ_error_fit, vec_gw_energ_error_fit_beta, &
                          vec_W_gw, vec_W_gw_beta, z_value, z_value_beta, weights_cos_tf_w_to_t, &
-                         weights_sin_tf_t_to_w, fm_mat_W_tau, fm_mat_S_contour_def, &
-                         fm_mat_S_contour_def_beta, fm_mat_S_gw_work, fm_mat_S_gw_work_beta, &
+                         weights_sin_tf_t_to_w, fm_mat_W_tau, &
+                         fm_mat_S_gw_work, fm_mat_S_gw_work_beta, &
                          mat_3c_overl_int_gw, mat_3c_overl_int_gw_beta, mat_3c_overl_nnP_ic, &
                          mat_3c_overl_nnP_ic_beta, mat_3c_overl_nnP_ic_reflected, &
                          mat_3c_overl_nnP_ic_reflected_beta, mat_greens_fct_occ, mat_greens_fct_occ_beta, &
@@ -1954,12 +1559,11 @@ CONTAINS
       COMPLEX(KIND=dp), ALLOCATABLE, DIMENSION(:, :), &
          INTENT(INOUT)                                   :: vec_Sigma_c_gw, vec_Sigma_c_gw_beta
       INTEGER, INTENT(IN)                                :: num_integ_points
-      LOGICAL, INTENT(IN)                                :: do_contour_def, do_gw_im_time, &
+      LOGICAL, INTENT(IN)                                :: do_gw_im_time, &
                                                             do_ic_model, do_im_time, do_periodic, &
                                                             do_ri_Sigma_x, my_do_gw, my_open_shell
       LOGICAL, ALLOCATABLE, DIMENSION(:), INTENT(INOUT)  :: do_GW_corr
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:), INTENT(INOUT) :: vec_omega_fit_gw, &
-         vec_Sigma_c_gw_real_freq, vec_Sigma_c_gw_real_freq_beta, vec_Sigma_x_gw, &
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:), INTENT(INOUT) :: vec_omega_fit_gw, vec_Sigma_x_gw, &
          vec_Sigma_x_gw_beta, Eigenval_last, Eigenval_last_beta, Eigenval_scf, Eigenval_scf_beta, &
          m_value, m_value_beta, vec_gw_energ, vec_gw_energ_beta, &
          vec_gw_energ_error_fit, vec_gw_energ_error_fit_beta, vec_W_gw, vec_W_gw_beta, z_value, &
@@ -1968,9 +1572,7 @@ CONTAINS
          INTENT(INOUT)                                   :: weights_cos_tf_w_to_t, &
                                                             weights_sin_tf_t_to_w
       TYPE(cp_fm_p_type), DIMENSION(:), POINTER          :: fm_mat_W_tau
-      TYPE(cp_fm_type), POINTER                          :: fm_mat_S_contour_def, &
-                                                            fm_mat_S_contour_def_beta, &
-                                                            fm_mat_S_gw_work, fm_mat_S_gw_work_beta
+      TYPE(cp_fm_type), POINTER                          :: fm_mat_S_gw_work, fm_mat_S_gw_work_beta
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER :: mat_3c_overl_int_gw, mat_3c_overl_int_gw_beta, &
          mat_3c_overl_nnP_ic, mat_3c_overl_nnP_ic_beta, mat_3c_overl_nnP_ic_reflected, &
          mat_3c_overl_nnP_ic_reflected_beta, mat_greens_fct_occ, mat_greens_fct_occ_beta, &
@@ -2017,18 +1619,18 @@ CONTAINS
          END IF
       END IF
 
-      CALL gw_cleanup_helper(vec_Sigma_c_gw, do_contour_def, do_gw_im_time, do_ic_model, do_im_time, &
-                             do_ri_Sigma_x, my_do_gw, vec_Sigma_c_gw_real_freq, &
+      CALL gw_cleanup_helper(vec_Sigma_c_gw, do_gw_im_time, do_ic_model, do_im_time, &
+                             do_ri_Sigma_x, my_do_gw, &
                              vec_Sigma_x_gw, Eigenval_last, Eigenval_scf, m_value, &
                              vec_gw_energ, vec_gw_energ_error_fit, vec_W_gw, z_value, &
-                             fm_mat_S_contour_def, fm_mat_S_gw_work, mat_3c_overl_int_gw, &
+                             fm_mat_S_gw_work, mat_3c_overl_int_gw, &
                              mat_3c_overl_nnP_ic, mat_3c_overl_nnP_ic_reflected, mat_greens_fct_occ, mat_greens_fct_virt)
       IF (my_open_shell) THEN
-         CALL gw_cleanup_helper(vec_Sigma_c_gw_beta, do_contour_def, do_gw_im_time, do_ic_model, do_im_time, &
-                                do_ri_Sigma_x, my_do_gw, vec_Sigma_c_gw_real_freq_beta, &
+         CALL gw_cleanup_helper(vec_Sigma_c_gw_beta, do_gw_im_time, do_ic_model, do_im_time, &
+                                do_ri_Sigma_x, my_do_gw, &
                                 vec_Sigma_x_gw_beta, Eigenval_last_beta, Eigenval_scf_beta, m_value_beta, &
                                 vec_gw_energ_beta, vec_gw_energ_error_fit_beta, vec_W_gw_beta, z_value_beta, &
-                                fm_mat_S_contour_def_beta, fm_mat_S_gw_work_beta, mat_3c_overl_int_gw_beta, &
+                                fm_mat_S_gw_work_beta, mat_3c_overl_int_gw_beta, &
                     mat_3c_overl_nnP_ic_beta, mat_3c_overl_nnP_ic_reflected_beta, mat_greens_fct_occ_beta, mat_greens_fct_virt_beta)
       END IF
       CALL timestop(handle)
@@ -2037,13 +1639,11 @@ CONTAINS
 ! **************************************************************************************************
 !> \brief ...
 !> \param vec_Sigma_c_gw ...
-!> \param do_contour_def ...
 !> \param do_gw_im_time ...
 !> \param do_ic_model ...
 !> \param do_im_time ...
 !> \param do_ri_Sigma_x ...
 !> \param my_do_gw ...
-!> \param vec_Sigma_c_gw_real_freq ...
 !> \param vec_Sigma_x_gw ...
 !> \param Eigenval_last ...
 !> \param Eigenval_scf ...
@@ -2052,7 +1652,6 @@ CONTAINS
 !> \param vec_gw_energ_error_fit ...
 !> \param vec_W_gw ...
 !> \param z_value ...
-!> \param fm_mat_S_contour_def ...
 !> \param fm_mat_S_gw_work ...
 !> \param mat_3c_overl_int_gw ...
 !> \param mat_3c_overl_nnP_ic ...
@@ -2060,23 +1659,23 @@ CONTAINS
 !> \param mat_greens_fct_occ ...
 !> \param mat_greens_fct_virt ...
 ! **************************************************************************************************
-   SUBROUTINE gw_cleanup_helper(vec_Sigma_c_gw, do_contour_def, do_gw_im_time, do_ic_model, do_im_time, &
-                                do_ri_Sigma_x, my_do_gw, vec_Sigma_c_gw_real_freq, &
+   SUBROUTINE gw_cleanup_helper(vec_Sigma_c_gw, do_gw_im_time, do_ic_model, do_im_time, &
+                                do_ri_Sigma_x, my_do_gw, &
                                 vec_Sigma_x_gw, Eigenval_last, Eigenval_scf, m_value, &
                                 vec_gw_energ, vec_gw_energ_error_fit, vec_W_gw, z_value, &
-                                fm_mat_S_contour_def, fm_mat_S_gw_work, mat_3c_overl_int_gw, &
+                                fm_mat_S_gw_work, mat_3c_overl_int_gw, &
                                 mat_3c_overl_nnP_ic, mat_3c_overl_nnP_ic_reflected, mat_greens_fct_occ, &
                                 mat_greens_fct_virt)
 
       COMPLEX(KIND=dp), ALLOCATABLE, DIMENSION(:, :), &
          INTENT(INOUT)                                   :: vec_Sigma_c_gw
-      LOGICAL, INTENT(IN)                                :: do_contour_def, do_gw_im_time, &
+      LOGICAL, INTENT(IN)                                :: do_gw_im_time, &
                                                             do_ic_model, do_im_time, &
                                                             do_ri_Sigma_x, my_do_gw
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:), INTENT(INOUT) :: vec_Sigma_c_gw_real_freq, &
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:), INTENT(INOUT) :: &
          vec_Sigma_x_gw, Eigenval_last, Eigenval_scf, m_value, vec_gw_energ, &
          vec_gw_energ_error_fit, vec_W_gw, z_value
-      TYPE(cp_fm_type), POINTER                          :: fm_mat_S_contour_def, fm_mat_S_gw_work
+      TYPE(cp_fm_type), POINTER                          :: fm_mat_S_gw_work
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER :: mat_3c_overl_int_gw, mat_3c_overl_nnP_ic, &
          mat_3c_overl_nnP_ic_reflected, mat_greens_fct_occ, mat_greens_fct_virt
 
@@ -2102,10 +1701,6 @@ CONTAINS
          DEALLOCATE (vec_W_gw)
          DEALLOCATE (Eigenval_last)
          DEALLOCATE (Eigenval_scf)
-         IF (do_contour_def) THEN
-            DEALLOCATE (vec_Sigma_c_gw_real_freq)
-            CALL cp_fm_release(fm_mat_S_contour_def)
-         END IF
       END IF
 
       IF (do_im_time) THEN
@@ -4199,46 +3794,6 @@ CONTAINS
    END SUBROUTINE check_fit_pade
 
 ! **************************************************************************************************
-!> \brief ...
-!> \param vec_gw_energ ...
-!> \param z_value ...
-!> \param m_value ...
-!> \param vec_Sigma_c_gw_real_freq ...
-!> \param contour_def_offset ...
-!> \param n_level_gw ...
-!> \param index_contour_def ...
-! **************************************************************************************************
-   PURE SUBROUTINE compute_z_and_m_contour_def(vec_gw_energ, z_value, m_value, &
-                                               vec_Sigma_c_gw_real_freq, contour_def_offset, &
-                                               n_level_gw, index_contour_def)
-
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:), &
-         INTENT(INOUT)                                   :: vec_gw_energ, z_value, m_value
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:), &
-         INTENT(IN)                                      :: vec_Sigma_c_gw_real_freq
-      REAL(KIND=dp), INTENT(IN)                          :: contour_def_offset
-      INTEGER, INTENT(IN)                                :: n_level_gw, index_contour_def
-
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'compute_z_and_m_contour_def', &
-         routineP = moduleN//':'//routineN
-
-      REAL(KIND=dp)                                      :: derivative
-
-      ! average of Sigma_c(e_n+delta) and Sigma_c(e_n-delta)
-      vec_gw_energ(n_level_gw) = 0.5_dp*(vec_Sigma_c_gw_real_freq(2*index_contour_def-1) &
-                                         +vec_Sigma_c_gw_real_freq(2*index_contour_def))
-
-      derivative = 0.5_dp*(vec_Sigma_c_gw_real_freq(2*index_contour_def) &
-                           -vec_Sigma_c_gw_real_freq(2*index_contour_def-1)) &
-                   /contour_def_offset
-
-      z_value(n_level_gw) = 1.0_dp/(1.0_dp-derivative)
-
-      m_value(n_level_gw) = derivative
-
-   END SUBROUTINE compute_z_and_m_contour_def
-
-! **************************************************************************************************
 !> \brief Evaluate fit function when calculating tau grid for cosine transform
 !> \param func_val ...
 !> \param x_value ...
@@ -4599,181 +4154,6 @@ CONTAINS
       CALL timestop(handle)
 
    END SUBROUTINE print_and_update_for_ev_sc
-
-! **************************************************************************************************
-!> \brief Do the numerical integration for the contour deformation technique:
-!>        First, numerical integration on the imag. freq. axis, then residues
-!> \param vec_Sigma_c_gw_real_freq ...
-!> \param wj ...
-!> \param vec_W_gw ...
-!> \param Eigenval ...
-!> \param omega ...
-!> \param contour_def_offset ...
-!> \param e_fermi ...
-!> \param mo_from_jquad ...
-!> \param residue_from_jquad ...
-!> \param alpha_beta_from_jquad ...
-!> \param contour_def_start ...
-!> \param contour_def_end ...
-!> \param n_global ...
-!> \param jquad ...
-!> \param num_integ_points ...
-!> \param m_global ...
-!> \param nm_global ...
-!> \param alpha_beta_case ...
-!> \param alpha ...
-!> \param beta ...
-! **************************************************************************************************
-   PURE SUBROUTINE contour_def_integrate_and_residues(vec_Sigma_c_gw_real_freq, wj, vec_W_gw, Eigenval, &
-                                                      omega, contour_def_offset, e_fermi, &
-                                                      mo_from_jquad, residue_from_jquad, alpha_beta_from_jquad, &
-                                                      contour_def_start, contour_def_end, n_global, jquad, &
-                                                      num_integ_points, m_global, nm_global, &
-                                                      alpha_beta_case, alpha, beta)
-
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:), &
-         INTENT(INOUT)                                   :: vec_Sigma_c_gw_real_freq
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:), &
-         INTENT(IN)                                      :: wj, vec_W_gw
-      REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: Eigenval
-      REAL(KIND=dp), INTENT(IN)                          :: omega, contour_def_offset, e_fermi
-      INTEGER, ALLOCATABLE, DIMENSION(:), INTENT(IN)     :: mo_from_jquad, residue_from_jquad, &
-                                                            alpha_beta_from_jquad
-      INTEGER, INTENT(IN)                                :: contour_def_start, contour_def_end, &
-                                                            n_global, jquad, num_integ_points, &
-                                                            m_global, nm_global
-      LOGICAL, INTENT(IN), OPTIONAL                      :: alpha_beta_case, alpha, beta
-
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'contour_def_integrate_and_residues', &
-         routineP = moduleN//':'//routineN
-
-      INTEGER                                            :: index_contour_def, &
-                                                            m_level_of_real_energy, &
-                                                            n_level_of_real_energy, spin, &
-                                                            spin_of_residue
-      LOGICAL                                            :: my_alpha, my_alpha_beta_case, my_beta
-      REAL(KIND=dp)                                      :: real_energy
-
-      my_alpha_beta_case = .FALSE.
-      IF (PRESENT(alpha_beta_case)) my_alpha_beta_case = alpha_beta_case
-
-      my_alpha = .FALSE.
-      IF (PRESENT(alpha)) my_alpha = alpha
-
-      my_beta = .FALSE.
-      IF (PRESENT(beta)) my_beta = beta
-
-      spin = 1
-      IF (my_alpha_beta_case) THEN
-         IF (my_alpha) spin = 1
-         IF (my_beta) spin = 2
-      END IF
-
-      ! check whether we apply contour deformation to the level n_global
-      IF (contour_def_start <= n_global .AND. n_global <= contour_def_end) THEN
-
-         ! check whether we do integration over imag. frequencies or we compute the residues
-         IF (jquad <= num_integ_points) THEN
-
-            ! do the integration on the imaginary frequency axis, first for energy slightly below e_n
-            real_energy = Eigenval(n_global)-contour_def_offset
-
-            index_contour_def = 2*(n_global-contour_def_start+1)-1
-
-            CALL numerical_integrate_contour_def(vec_Sigma_c_gw_real_freq(index_contour_def), vec_W_gw(nm_global), &
-                                                 wj(jquad), omega, real_energy, Eigenval(m_global))
-
-            ! now, for energy slightly above e_n
-            real_energy = Eigenval(n_global)+contour_def_offset
-
-            index_contour_def = 2*(n_global-contour_def_start+1)
-
-            CALL numerical_integrate_contour_def(vec_Sigma_c_gw_real_freq(index_contour_def), vec_W_gw(nm_global), &
-                                                 wj(jquad), omega, real_energy, Eigenval(m_global))
-
-            ! residues
-         ELSE
-
-            ! for jquad > num_integ_points, we add the residue, but only for a single MO n and for a single residue m
-            n_level_of_real_energy = mo_from_jquad(jquad-num_integ_points)
-            m_level_of_real_energy = residue_from_jquad(jquad-num_integ_points)
-
-            spin_of_residue = 1
-            IF (my_alpha_beta_case) THEN
-               spin_of_residue = alpha_beta_from_jquad(jquad-num_integ_points)
-            END IF
-
-            ! only add residue to a specific level
-            IF (n_level_of_real_energy == n_global .AND. &
-                m_level_of_real_energy == m_global .AND. &
-                spin == spin_of_residue) THEN
-
-               ! add residue, first for energy slightly below e_n
-               index_contour_def = 2*(n_global-contour_def_start+1)-1
-
-               IF (e_fermi-Eigenval(n_global) < omega .AND. omega < -contour_def_offset) THEN
-                  ! update for residue
-                  vec_Sigma_c_gw_real_freq(index_contour_def) = &
-                     vec_Sigma_c_gw_real_freq(index_contour_def) &
-                     +vec_W_gw(nm_global)
-               ELSE IF (-contour_def_offset < omega .AND. omega < e_fermi-Eigenval(n_global)) THEN
-                  vec_Sigma_c_gw_real_freq(index_contour_def) = &
-                     vec_Sigma_c_gw_real_freq(index_contour_def) &
-                     -vec_W_gw(nm_global)
-               END IF
-
-               ! add residue, first for energy slightly above e_n
-               index_contour_def = 2*(n_global-contour_def_start+1)
-
-               IF (e_fermi-Eigenval(n_global) < omega .AND. omega < contour_def_offset) THEN
-                  ! update for residue
-                  vec_Sigma_c_gw_real_freq(index_contour_def) = &
-                     vec_Sigma_c_gw_real_freq(index_contour_def) &
-                     +vec_W_gw(nm_global)
-               ELSE IF (contour_def_offset < omega .AND. omega < e_fermi-Eigenval(n_global)) THEN
-                  vec_Sigma_c_gw_real_freq(index_contour_def) = &
-                     vec_Sigma_c_gw_real_freq(index_contour_def) &
-                     -vec_W_gw(nm_global)
-               END IF
-
-            END IF ! check whether we have the right residue
-
-         END IF ! imag. frequency / real frequency
-
-      END IF ! check contour deformation for n_global
-
-   END SUBROUTINE contour_def_integrate_and_residues
-
-! **************************************************************************************************
-!> \brief ...
-!> \param Sigma_c_to_update ...
-!> \param W_gw_element ...
-!> \param weight ...
-!> \param omega ...
-!> \param real_energy ...
-!> \param eigenval ...
-! **************************************************************************************************
-   PURE SUBROUTINE numerical_integrate_contour_def(Sigma_c_to_update, W_gw_element, &
-                                                   weight, omega, real_energy, eigenval)
-
-      REAL(KIND=dp), INTENT(INOUT)                       :: Sigma_c_to_update
-      REAL(KIND=dp), INTENT(IN)                          :: W_gw_element, weight, omega, &
-                                                            real_energy, eigenval
-
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'numerical_integrate_contour_def', &
-         routineP = moduleN//':'//routineN
-
-      COMPLEX(KIND=dp)                                   :: im_unit
-
-      im_unit = (0.0_dp, 1.0_dp)
-
-      Sigma_c_to_update = Sigma_c_to_update- &
-                          REAL( &
-                          0.5_dp/pi*weight/2.0_dp*W_gw_element/(im_unit*omega+real_energy-eigenval)+ &
-                          0.5_dp/pi*weight/2.0_dp*W_gw_element/(-im_unit*omega+real_energy-eigenval) &
-                          )
-
-   END SUBROUTINE numerical_integrate_contour_def
 
 ! **************************************************************************************************
 !> \brief ...

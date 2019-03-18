@@ -169,8 +169,6 @@ MODULE mp2_types
                                   remove_neg_virt_energies
       LOGICAL                  :: do_periodic
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :) :: vec_Sigma_x_minus_vxc_gw
-      INTEGER                  :: contour_def_start, contour_def_end
-      REAL(KIND=dp)            :: contour_def_offset
       INTEGER, DIMENSION(:), POINTER    :: kp_grid
       INTEGER                  :: num_kp_grids
       REAL(KIND=dp)            :: eps_kpoint

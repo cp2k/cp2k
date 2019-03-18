@@ -830,35 +830,6 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="CONTOUR_DEF_START", &
-                          variants=(/"CD_START"/), &
-                          description="Number of the lowest MO for which contour deformation (CD) is enabled and "// &
-                          "analytic continuation is disabled. If negative, CD is disabled. CD not implemented for cubic-"// &
-                          "scaling GW.", &
-                          usage="CD_START 1", &
-                          default_i_val=-1)
-      CALL section_add_keyword(section, keyword)
-      CALL keyword_release(keyword)
-
-      CALL keyword_create(keyword, name="CONTOUR_DEF_END", &
-                          variants=(/"CD_END"/), &
-                          description="Number of the highest MO for which contour deformation (CD) is enabled and "// &
-                          "analytic continuation is disabled. If negative, CD is disabled. CD not implemented for cubic-"// &
-                          "scaling GW.", &
-                          usage="CD_END 100", &
-                          default_i_val=-1)
-      CALL section_add_keyword(section, keyword)
-      CALL keyword_release(keyword)
-
-      CALL keyword_create(keyword, name="CONTOUR_DEF_OFFSET", &
-                          variants=(/"CD_OFFSET"/), &
-                          description="Offset for computing the Z-factor in the contour deformation technique."// &
-                          "CD not implemented for cubic-scaling GW.", &
-                          usage="CONTOUR_DEF_OFFSET 1.0E-2", &
-                          default_r_val=2.0E-2_dp)
-      CALL section_add_keyword(section, keyword)
-      CALL keyword_release(keyword)
-
       CALL keyword_create(keyword, name="IC_CORR_LIST", &
                           description="List of image charge correction from a previous calculation to be applied in G0W0 "// &
                           "or evGW. Keyword is active, if the first entry is positive (since IC corrections are positive "// &
