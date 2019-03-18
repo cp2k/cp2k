@@ -30,7 +30,8 @@ MODULE efield_tb_methods
    USE particle_types,                  ONLY: particle_type
    USE qs_energy_types,                 ONLY: qs_energy_type
    USE qs_environment_types,            ONLY: get_qs_env,&
-                                              qs_environment_type
+                                              qs_environment_type,&
+                                              set_qs_env
    USE qs_force_types,                  ONLY: qs_force_type
    USE qs_kind_types,                   ONLY: qs_kind_type
    USE qs_neighbor_list_types,          ONLY: get_iterator_info,&
@@ -558,6 +559,7 @@ CONTAINS
 
       ! efield history
       CALL init_efield_matrices(efield)
+      CALL set_qs_env(qs_env, efield=efield)
 
       ! calculate stress only if forces requested also
       use_virial = virial%pv_availability .AND. (.NOT. virial%pv_numer)

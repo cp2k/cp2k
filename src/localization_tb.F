@@ -187,7 +187,7 @@ CONTAINS
                                    use_data=COMPLEXDATA1D, &
                                    in_space=RECIPROCALSPACE)
 
-            NULLIFY(marked_states)
+            NULLIFY (marked_states)
             CALL qs_loc_env_create(qs_loc_env_homo)
             CALL qs_loc_control_init(qs_loc_env_homo, localize_section, do_homo=do_homo)
             CALL qs_loc_init(qs_env, qs_loc_env_homo, localize_section, homo_localized, do_homo, &
