@@ -1508,7 +1508,6 @@ CONTAINS
 !> \param ext_scaling ...
 !> \param fermi_level_offset ...
 !> \param stabilize_exp ...
-!> \param stop_crit ...
 !> \param delta_corr ...
 !> \param Eigenval ...
 !> \param Eigenval_beta ...
@@ -1584,7 +1583,7 @@ CONTAINS
                                 first_cycle_periodic_correction, my_do_gw, my_open_shell, &
                                 do_GW_corr, contour_def_offset, e_fermi, &
                                 e_fermi_beta, eps_charge, eps_filter, ext_scaling, &
-                                fermi_level_offset, stabilize_exp, stop_crit, delta_corr, Eigenval, &
+                                fermi_level_offset, stabilize_exp, delta_corr, Eigenval, &
                                 Eigenval_beta, Eigenval_last, Eigenval_last_beta, Eigenval_scf, &
                                 Eigenval_scf_beta, m_value, m_value_beta, Mulliken_charges, real_freq, &
                                 tau_tj, tj, vec_gw_energ, vec_gw_energ_beta, vec_gw_energ_error_fit, &
@@ -1618,7 +1617,7 @@ CONTAINS
       LOGICAL, INTENT(IN)                                :: my_do_gw, my_open_shell
       LOGICAL, ALLOCATABLE, DIMENSION(:), INTENT(INOUT)  :: do_GW_corr
       REAL(KIND=dp), INTENT(IN) :: contour_def_offset, e_fermi, e_fermi_beta, eps_charge, &
-         eps_filter, ext_scaling, fermi_level_offset, stabilize_exp, stop_crit
+         eps_filter, ext_scaling, fermi_level_offset, stabilize_exp
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:), &
          INTENT(INOUT)                                   :: delta_corr
       REAL(KIND=dp), DIMENSION(:), INTENT(INOUT)         :: Eigenval, Eigenval_beta
@@ -1748,7 +1747,7 @@ CONTAINS
                                             z_value, m_value, vec_Sigma_c_gw, &
                                             mp2_env%ri_g0w0%vec_Sigma_x_minus_vxc_gw(:, 1), &
                                             Eigenval, Eigenval_scf, n_level_gw, gw_corr_lev_occ, num_poles, &
-                                            num_fit_points, max_iter_fit, crossing_search, homo, check_fit, stop_crit, &
+                                            num_fit_points, max_iter_fit, crossing_search, homo, check_fit, &
                                             fermi_level_offset, do_gw_im_time)
          CASE (gw_pade_approx)
             CALL continuation_pade(vec_gw_energ, vec_omega_fit_gw, &
@@ -1770,7 +1769,7 @@ CONTAINS
                   mp2_env%ri_g0w0%vec_Sigma_x_minus_vxc_gw(:, 2), &
                   Eigenval_beta, Eigenval_scf_beta, n_level_gw, &
                   gw_corr_lev_occ_beta, num_poles, &
-                  num_fit_points, max_iter_fit, crossing_search, homo_beta, check_fit, stop_crit, &
+                  num_fit_points, max_iter_fit, crossing_search, homo_beta, check_fit, &
                   fermi_level_offset, do_gw_im_time)
             CASE (gw_pade_approx)
                CALL continuation_pade(vec_gw_energ_beta, vec_omega_fit_gw, &
@@ -3414,14 +3413,13 @@ CONTAINS
 !> \param crossing_search ...
 !> \param homo ...
 !> \param check_fit ...
-!> \param stop_crit ...
 !> \param fermi_level_offset ...
 !> \param do_gw_im_time ...
 ! **************************************************************************************************
    SUBROUTINE fit_and_continuation_2pole(vec_gw_energ, vec_gw_energ_error_fit, vec_omega_fit_gw, &
                                          z_value, m_value, vec_Sigma_c_gw, vec_Sigma_x_minus_vxc_gw, &
                                          Eigenval, Eigenval_scf, n_level_gw, gw_corr_lev_occ, num_poles, &
-                                         num_fit_points, max_iter_fit, crossing_search, homo, check_fit, stop_crit, &
+                                         num_fit_points, max_iter_fit, crossing_search, homo, check_fit, &
                                          fermi_level_offset, do_gw_im_time)
 
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:), &
@@ -3438,7 +3436,7 @@ CONTAINS
                                                             num_fit_points, max_iter_fit, &
                                                             crossing_search, homo
       LOGICAL, INTENT(IN)                                :: check_fit
-      REAL(KIND=dp), INTENT(IN)                          :: stop_crit, fermi_level_offset
+      REAL(KIND=dp), INTENT(IN)                          :: fermi_level_offset
       LOGICAL, INTENT(IN)                                :: do_gw_im_time
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'fit_and_continuation_2pole', &
@@ -3458,7 +3456,7 @@ CONTAINS
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: ipiv
       LOGICAL                                            :: could_exit
       REAL(KIND=dp) :: chi2, chi2_old, delta, deriv_val_real, e_fermi, gw_energ, Ldown, &
-         level_energ_GW, Lup, range_step, ScalParam, sign_occ_virt, stat_error
+         level_energ_GW, Lup, range_step, ScalParam, sign_occ_virt, stat_error, stop_crit
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: Lambda_Im, Lambda_Re, stat_errors, &
                                                             vec_N_gw, vec_omega_fit_gw_sign
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: mat_N_gw
@@ -3560,6 +3558,7 @@ CONTAINS
       ScalParam = 0.01_dp
       Ldown = 1.5_dp
       Lup = 10.0_dp
+      stop_crit = 1.0e-7
       could_exit = .FALSE.
 
       ! iteration loop for fitting

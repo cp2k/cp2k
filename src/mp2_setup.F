@@ -140,8 +140,6 @@ CONTAINS
                                 i_val=mp2_env%ri_g0w0%analytic_continuation)
       CALL section_vals_val_get(mp2_section, "RI_RPA%RI_G0W0%OMEGA_MAX_FIT", &
                                 r_val=mp2_env%ri_g0w0%omega_max_fit)
-      CALL section_vals_val_get(mp2_section, "RI_RPA%RI_G0W0%STOP_CRIT", &
-                                r_val=mp2_env%ri_g0w0%stop_crit)
       CALL section_vals_val_get(mp2_section, "RI_RPA%RI_G0W0%MAX_ITER_FIT", &
                                 i_val=mp2_env%ri_g0w0%max_iter_fit)
       CALL section_vals_val_get(mp2_section, "RI_RPA%RI_G0W0%CHECK_FIT", &

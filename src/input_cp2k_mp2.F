@@ -733,15 +733,6 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="STOP_CRIT", &
-                          variants=(/"STOP_CRIT_1"/), &
-                          description="Convergence criterion for the fit. The fitting iteration terminates, if "// &
-                          "chi^2(n+1)/chi^2(n)-1 < STOP_CRIT.", &
-                          usage="STOP_CRIT 1.0E-7", &
-                          default_r_val=1E-5_dp)
-      CALL section_add_keyword(section, keyword)
-      CALL keyword_release(keyword)
-
       CALL keyword_create(keyword, name="PRINT_FIT_ERROR", &
                           variants=(/"FIT_ERROR"/), &
                           description="Print the statistical error due to the fitting. This error in most cases "// &

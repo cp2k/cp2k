@@ -158,7 +158,6 @@ MODULE mp2_types
       INTEGER                  :: nparam_pade
       INTEGER                  :: analytic_continuation
       REAL(KIND=dp)            :: omega_max_fit
-      REAL(KIND=dp)            :: stop_crit
       INTEGER                  :: max_iter_fit
       LOGICAL                  :: check_fit
       INTEGER                  :: crossing_search
