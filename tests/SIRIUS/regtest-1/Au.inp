@@ -2,41 +2,50 @@
   METHOD SIRIUS
   &PW_DFT
     &CONTROL
-      'processing_unit' : 'cpu',
-      'std_evp_solver_type' : 'lapack',
-      'gen_evp_solver_type' : 'lapack',
-      'verbosity' : 1,
-      'cyclic_block_size' : 2,
-      'print_forces' : true,
-      'print_stress' : true,
-      'cyclic block size' : 32
+       PROCESSING_UNIT cpu
+       STD_EVP_SOLVER_TYPE lapack
+       GEN_EVP_SOLVER_TYPE lapack
+       VERBOSITY 1
+       CYCLIC_BLOCK_SIZE 32
     &END CONTROL
-    &PARAMETER
-      'electronic_structure_method' : 'pseudopotential',
-      'xc_functionals' : ['XC_LDA_X', 'XC_LDA_C_PZ'],
-      'smearing_width' : 0.01,
-      'use_symmetry' : true,
-      'num_mag_dims' : 3,
-      'spin_orbit' : true,
-      'gk_cutoff' : 6.0,
-      'pw_cutoff' : 20.00,
-      'energy_tol' : 1e-10,
-      'potential_tol' : 1e-8,
-      'num_dft_iter' : 100,
-      'ngridk' : [2,2,2]
-    &END PARAMETER
-    &SOLVER
-      'tolerance' : 1e-5,
-      'num_steps' : 20,
-      'subspace_size' : 4,
-      'type' : 'davidson',
-      'converge_by_energy' : 1
-    &END SOLVER
+    &PARAMETERS
+       ELECTRONIC_STRUCTURE_METHOD  pseudopotential
+       SMEARING_WIDTH 0.01
+       USE_SYMMETRY true
+       NUM_MAG_DIMS 3
+       SPIN_ORBIT true
+       GK_CUTOFF 6.0
+       PW_CUTOFF 20.00
+       ENERGY_TOL 1e-10
+       POTENTIAL_TOL 1e-8
+       NUM_DFT_ITER 100
+       K_GRID 2 2 2
+    &END PARAMETERS
+    &ITERATIVE_SOLVER
+       ENERGY_TOLERANCE 1e-5
+       NUM_STEPS 20
+       SUBSPACE_SIZE 4
+       TYPE davidson
+       CONVERGE_BY_ENERGY 1
+    &END ITERATIVE_SOLVER
     &MIXER
-      'type' : 'broyden1',
-      'max_history' : 8
+       TYPE broyden1
+       MAX_HISTORY 8
     &END MIXER
   &END PW_DFT
+    &DFT
+      &XC
+         &XC_FUNCTIONAL
+            &LIBXC
+               FUNCTIONAL XC_LDA_X
+            &END LIBXC
+            &LIBXC
+               FUNCTIONAL XC_LDA_C_PZ
+            &END LIBXC
+         &END XC_FUNCTIONAL
+      &END XC
+    &END DFT
+
   &SUBSYS
     &CELL
       A -3.85500000000000000000 0.0 3.85500000000000000000
