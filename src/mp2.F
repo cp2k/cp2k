@@ -1263,8 +1263,8 @@ CONTAINS
                                                             myfun, myfun_aux, myfun_prim, &
                                                             n_rep_hf, nmo, ns
       LOGICAL                                            :: charge_constrain_tmp, do_admm_rpa, &
-                                                            do_hfx, do_mix_exchange, do_ri_Sigma_x
-      REAL(KIND=dp)                                      :: eh1, ehfx, frac_exx, hfx_fraction, t1, t2
+                                                            do_hfx, do_ri_Sigma_x
+      REAL(KIND=dp)                                      :: eh1, ehfx, hfx_fraction, t1, t2
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: vec_Sigma_x_minus_vxc_gw
       TYPE(admm_type), POINTER                           :: admm_env
       TYPE(cp_fm_type), POINTER                          :: mo_coeff
@@ -1444,12 +1444,10 @@ CONTAINS
 
       CALL section_vals_get(hfx_sections, n_repetition=n_rep_hf)
 
-      do_mix_exchange = mp2_env%ri_g0w0%mix_exchange
-
       ! in most cases, we calculate the exchange self-energy here. But if we do only RI for
       ! the exchange self-energy, we do not calculate exchange here
       ehfx = 0.0_dp
-      IF (.NOT. do_ri_Sigma_x .OR. do_mix_exchange) THEN
+      IF (.NOT. do_ri_Sigma_x) THEN
 
          ! add here HFX (=Sigma_exchange) to matrix_sigma_x_minus_vxc
          DO irep = 1, n_rep_hf
@@ -1476,14 +1474,8 @@ CONTAINS
          CALL admm_mo_merge_ks_matrix(qs_env)
       END IF
 
-      IF (do_mix_exchange) THEN
-         frac_exx = mp2_env%ri_g0w0%frac_exx
-      ELSE
-         frac_exx = 1.0_dp
-      END IF
-
       DO ispin = 1, dft_control%nspins
-         CALL dbcsr_add(matrix_sigma_x_minus_vxc(ispin)%matrix, matrix_ks(ispin)%matrix, 1.0_dp, frac_exx)
+         CALL dbcsr_add(matrix_sigma_x_minus_vxc(ispin)%matrix, matrix_ks(ispin)%matrix, 1.0_dp, 1.0_dp)
       END DO
 
       CALL dbcsr_desymmetrize(matrix_ks(1)%matrix, mo_coeff_b)

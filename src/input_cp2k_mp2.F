@@ -830,49 +830,6 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="NORMALIZE_SIGMA", &
-                          description="If true, parts of the exchange self-energy is added to the correlation "// &
-                          "self-energy. Especially recommended for surfaces with large slab distances."// &
-                          "Only works if RI_SIGMA_X is activated.", &
-                          usage="NORMALIZE_SIGMA", &
-                          default_l_val=.FALSE., &
-                          lone_keyword_l_val=.TRUE.)
-      CALL section_add_keyword(section, keyword)
-      CALL keyword_release(keyword)
-
-      CALL keyword_create(keyword, name="NEGLECT_NORMALIZATION_SIGMA_X", &
-                          description="Only works if NORMALIZE_SIGMA is true. If true,  don't add an exact "// &
-                          "exchange part to Sigma_x-v_xc. Only makes sense for periodic systems where a constant "// &
-                          "shift of single electron levels is allowed.", &
-                          usage="NEGLECT_NORMALIZATION_SIGMA_X", &
-                          default_l_val=.FALSE., &
-                          lone_keyword_l_val=.TRUE.)
-      CALL section_add_keyword(section, keyword)
-      CALL keyword_release(keyword)
-
-      CALL keyword_create(keyword, name="MIX_EXCHANGE", &
-                          description="If true, mix CP2K-HFX (EXX) based on the truncated Coulomb operator and. "// &
-                          "RI-HFX. Parameter can be used to speed up the convergence of the GW HOMO-LUMO gap of  "// &
-                          "periodic systems with the cell size.", &
-                          usage="MIX_EXCHANGE", &
-                          default_l_val=.FALSE., &
-                          lone_keyword_l_val=.TRUE.)
-      CALL section_add_keyword(section, keyword)
-      CALL keyword_release(keyword)
-
-      CALL keyword_create( &
-         keyword, name="FRACTION_EXX", &
-         variants=(/"ALPHA"/), &
-         description="Mixing parameter between official CP2K-HFX (EXX) based on the truncated Coulomb operator "// &
-         "(fraction = alpha) and the RI-HFX (fraction = 1-alpha). To be valid, set MIX_HFX TRUE. "// &
-         "Parameter can be used to speed up the convergence of the GW HOMO-LUMO gap of periodic systems "// &
-         "with the cell size.", &
-         usage="FRACTION_EXX 0.21", &
-         default_r_val=0.21_dp, &
-         unit_str="")
-      CALL section_add_keyword(section, keyword)
-      CALL keyword_release(keyword)
-
       CALL keyword_create(keyword, name="CONTOUR_DEF_START", &
                           variants=(/"CD_START"/), &
                           description="Number of the lowest MO for which contour deformation (CD) is enabled and "// &

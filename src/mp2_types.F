@@ -167,8 +167,7 @@ MODULE mp2_types
                                   print_gw_details, &
                                   do_ri_Sigma_x, &
                                   remove_neg_virt_energies
-      LOGICAL                  :: mix_exchange, do_periodic
-      REAL(KIND=dp)            :: frac_exx
+      LOGICAL                  :: do_periodic
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :) :: vec_Sigma_x_minus_vxc_gw
       INTEGER                  :: contour_def_start, contour_def_end
       REAL(KIND=dp)            :: contour_def_offset
@@ -180,7 +179,7 @@ MODULE mp2_types
       LOGICAL                  :: do_extra_kpoints, do_aux_bas_gw
       REAL(KIND=dp)            :: frac_aux_mos
       INTEGER                  :: num_omega_points
-      LOGICAL                  :: do_bse, normalize_sigma, neglect_norm
+      LOGICAL                  :: do_bse
       INTEGER, DIMENSION(:), POINTER    :: atoms_for_projection, atom_range_for_projection
       REAL(KIND=dp)            :: eps_charge
       INTEGER                  :: num_z_vectors, max_iter_bse

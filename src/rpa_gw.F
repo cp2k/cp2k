@@ -446,7 +446,6 @@ CONTAINS
 !> \param my_do_gw ...
 !> \param my_open_shell ...
 !> \param do_contour_def ...
-!> \param do_mix_exchange ...
 !> \param first_cycle_periodic_correction ...
 !> \param do_GW_corr ...
 !> \param a_scaling ...
@@ -494,7 +493,7 @@ CONTAINS
                                    nmo, num_integ_points, num_integ_group, unit_nr, contour_def_end, &
                                    contour_def_level_tot, contour_def_start, gw_corr_lev_tot, num_fit_points, atom_list, &
                                    do_minimax_quad, do_periodic, do_ri_Sigma_x, my_do_gw, my_open_shell, &
-                                   do_contour_def, do_mix_exchange, first_cycle_periodic_correction, do_GW_corr, &
+                                   do_contour_def, first_cycle_periodic_correction, do_GW_corr, &
                                    a_scaling, contour_def_offset, eps_charge, omega_max_fit, Eigenval, Eigenval_beta, &
                                    tj, vec_omega_fit_gw, vec_Sigma_c_gw_real_freq, vec_Sigma_c_gw_real_freq_beta, vec_Sigma_x_gw, &
                                    vec_Sigma_x_gw_beta, delta_corr, Eigenval_last, Eigenval_last_beta, &
@@ -514,7 +513,7 @@ CONTAINS
       INTEGER, DIMENSION(:), POINTER                     :: atom_list
       LOGICAL, INTENT(IN)                                :: do_minimax_quad, do_periodic, &
                                                             do_ri_Sigma_x, my_do_gw, my_open_shell
-      LOGICAL, INTENT(INOUT)                             :: do_contour_def, do_mix_exchange
+      LOGICAL, INTENT(INOUT)                             :: do_contour_def
       LOGICAL, INTENT(OUT) :: first_cycle_periodic_correction
       LOGICAL, ALLOCATABLE, DIMENSION(:), INTENT(OUT)    :: do_GW_corr
       REAL(KIND=dp), INTENT(IN)                          :: a_scaling
@@ -541,7 +540,7 @@ CONTAINS
       INTEGER                                            :: handle, iquad, jquad, ncol_local, &
                                                             nrow_local, num_real_freq_cont_def
       INTEGER, DIMENSION(:), POINTER                     :: row_indices
-      REAL(KIND=dp)                                      :: frac_rix, omega
+      REAL(KIND=dp)                                      :: omega
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: vec_omega_gw
 
       CALL timeset(routineN, handle)
@@ -665,16 +664,8 @@ CONTAINS
 
       IF (my_do_gw) THEN
 
-         do_mix_exchange = mp2_env%ri_g0w0%mix_exchange
-
          ! in case we do RI for Sigma_x, we calculate Sigma_x right here
-         IF (do_ri_Sigma_x .OR. do_mix_exchange) THEN
-
-            IF (do_mix_exchange) THEN
-               frac_rix = 1.0_dp-mp2_env%ri_g0w0%frac_exx
-            ELSE
-               frac_rix = 1.0_dp
-            END IF
+         IF (do_ri_Sigma_x) THEN
 
             CALL cp_fm_get_info(matrix=fm_mat_S_gw, &
                                 nrow_local=nrow_local, &
@@ -684,16 +675,16 @@ CONTAINS
             CALL mp_sync(para_env%group)
 
             CALL calc_vec_Sigma_x_gw(color_rpa_group, gw_corr_lev_occ, homo, 1, ncol_local, nmo, nrow_local, num_integ_group, &
-                                     row_indices, frac_rix, vec_Sigma_x_gw, &
+                                     row_indices, vec_Sigma_x_gw, &
                                      fm_mat_S_gw, para_env, mp2_env)
 
             IF (my_open_shell) THEN
        CALL calc_vec_Sigma_x_gw(color_rpa_group, gw_corr_lev_occ_beta, homo_beta, 2, ncol_local, nmo, nrow_local, num_integ_group, &
-                                        row_indices, frac_rix, vec_Sigma_x_gw_beta, &
+                                        row_indices, vec_Sigma_x_gw_beta, &
                                         fm_mat_S_gw_beta, para_env, mp2_env)
             END IF
 
-         END IF ! do_ri_Sigma_x .OR. do_mix_exchange
+         END IF ! do_ri_Sigma_x
       END IF ! my_do_gw
 
       CALL timestop(handle)
@@ -826,21 +817,19 @@ CONTAINS
 !> \param nrow_local ...
 !> \param num_integ_group ...
 !> \param row_indices ...
-!> \param frac_rix ...
 !> \param vec_Sigma_x_gw ...
 !> \param fm_mat_S_gw ...
 !> \param para_env ...
 !> \param mp2_env ...
 ! **************************************************************************************************
    SUBROUTINE calc_vec_Sigma_x_gw(color_rpa_group, gw_corr_lev_occ, homo, idx, ncol_local, nmo, nrow_local, num_integ_group, &
-                                  row_indices, frac_rix, vec_Sigma_x_gw, &
+                                  row_indices, vec_Sigma_x_gw, &
                                   fm_mat_S_gw, para_env, mp2_env)
 
       INTEGER, INTENT(IN)                                :: color_rpa_group, gw_corr_lev_occ, homo, &
                                                             idx, ncol_local, nmo, nrow_local, &
                                                             num_integ_group
       INTEGER, DIMENSION(:), POINTER                     :: row_indices
-      REAL(KIND=dp), INTENT(IN)                          :: frac_rix
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:), &
          INTENT(INOUT)                                   :: vec_Sigma_x_gw
       TYPE(cp_fm_type), POINTER                          :: fm_mat_S_gw
@@ -879,7 +868,7 @@ CONTAINS
 
       mp2_env%ri_g0w0%vec_Sigma_x_minus_vxc_gw(:, idx) = &
          mp2_env%ri_g0w0%vec_Sigma_x_minus_vxc_gw(:, idx)+ &
-         frac_rix*vec_Sigma_x_gw(:)
+         vec_Sigma_x_gw(:)
 
       CALL timestop(handle)
    END SUBROUTINE calc_vec_Sigma_x_gw
@@ -1492,8 +1481,6 @@ CONTAINS
 !> \param do_apply_ic_corr_to_gw ...
 !> \param do_contour_def ...
 !> \param do_gw_im_time ...
-!> \param do_neglect_norm ...
-!> \param do_normalize_Sigma ...
 !> \param do_periodic ...
 !> \param do_ri_Sigma_x ...
 !> \param first_cycle_periodic_correction ...
@@ -1578,7 +1565,7 @@ CONTAINS
                                 num_points_corr, num_poles, unit_nr, alpha_beta_from_jquad, &
                                 mo_from_jquad, residue_from_jquad, atom_list, check_fit, &
                                 do_apply_ic_corr_to_gw, do_contour_def, do_gw_im_time, &
-                                do_neglect_norm, do_normalize_Sigma, do_periodic, do_ri_Sigma_x, &
+                                do_periodic, do_ri_Sigma_x, &
                                 first_cycle_periodic_correction, my_do_gw, my_open_shell, &
                                 do_GW_corr, contour_def_offset, e_fermi, &
                                 e_fermi_beta, eps_charge, eps_filter, &
@@ -1611,7 +1598,7 @@ CONTAINS
                                                             residue_from_jquad
       INTEGER, DIMENSION(:), POINTER                     :: atom_list
       LOGICAL, INTENT(IN) :: check_fit, do_apply_ic_corr_to_gw, do_contour_def, do_gw_im_time, &
-         do_neglect_norm, do_normalize_Sigma, do_periodic, do_ri_Sigma_x
+         do_periodic, do_ri_Sigma_x
       LOGICAL, INTENT(INOUT) :: first_cycle_periodic_correction
       LOGICAL, INTENT(IN)                                :: my_do_gw, my_open_shell
       LOGICAL, ALLOCATABLE, DIMENSION(:), INTENT(INOUT)  :: do_GW_corr
@@ -1678,7 +1665,7 @@ CONTAINS
                                              num_points_corr, delta_corr, qs_env, para_env, para_env_RPA, &
                                              mp2_env, matrix_berry_re_mo_mo, matrix_berry_im_mo_mo, &
                                              first_cycle_periodic_correction, kpoints, num_fit_points, mo_coeff, &
-                                             do_GW_corr, do_ri_Sigma_x, do_normalize_Sigma, do_neglect_norm, vec_Sigma_x_gw)
+                                             do_GW_corr, do_ri_Sigma_x, vec_Sigma_x_gw)
 
          IF (my_open_shell) THEN
 
@@ -1694,8 +1681,7 @@ CONTAINS
                                                 num_points_corr, delta_corr, qs_env, para_env, para_env_RPA, &
                                                 mp2_env, matrix_berry_re_mo_mo, matrix_berry_im_mo_mo, &
                                                 first_cycle_periodic_correction, kpoints, num_fit_points, mo_coeff, &
-                                                do_GW_corr, do_ri_Sigma_x, do_normalize_Sigma, do_neglect_norm, &
-                                                vec_Sigma_x_gw_beta, do_beta=.TRUE.)
+                                                do_GW_corr, do_ri_Sigma_x, vec_Sigma_x_gw_beta, do_beta=.TRUE.)
 
          END IF
 
@@ -2378,8 +2364,6 @@ CONTAINS
 !> \param mo_coeff ...
 !> \param do_GW_corr ...
 !> \param do_ri_Sigma_x ...
-!> \param do_normalize_Sigma ...
-!> \param do_neglect_norm ...
 !> \param vec_Sigma_x_gw ...
 !> \param do_beta ...
 ! **************************************************************************************************
@@ -2394,8 +2378,7 @@ CONTAINS
                                              num_points_corr, delta_corr, qs_env, para_env, para_env_RPA, &
                                              mp2_env, matrix_berry_re_mo_mo, matrix_berry_im_mo_mo, &
                                              first_cycle_periodic_correction, kpoints, num_fit_points, mo_coeff, &
-                                             do_GW_corr, do_ri_Sigma_x, do_normalize_Sigma, do_neglect_norm, &
-                                             vec_Sigma_x_gw, do_beta)
+                                             do_GW_corr, do_ri_Sigma_x, vec_Sigma_x_gw, do_beta)
 
       INTEGER, INTENT(IN)                                :: num_integ_points, nmo
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:), &
@@ -2434,8 +2417,7 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: num_fit_points
       TYPE(cp_fm_type), POINTER                          :: mo_coeff
       LOGICAL, ALLOCATABLE, DIMENSION(:), INTENT(IN)     :: do_GW_corr
-      LOGICAL, INTENT(IN)                                :: do_ri_Sigma_x, do_normalize_Sigma, &
-                                                            do_neglect_norm
+      LOGICAL, INTENT(IN)                                :: do_ri_Sigma_x
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:), &
          INTENT(INOUT)                                   :: vec_Sigma_x_gw
       LOGICAL, INTENT(IN), OPTIONAL                      :: do_beta
@@ -2637,54 +2619,6 @@ CONTAINS
             CALL timestop(handle3)
 
          END DO
-
-         IF (do_normalize_Sigma) THEN
-
-            normalization = -0.5_dp*(vec_Sigma_x_gw(homo)+vec_Sigma_x_gw(homo+1))
-
-            DO n_level_gw = 1, gw_corr_lev_tot
-
-               n_level_gw_ref = n_level_gw+homo-gw_corr_lev_occ
-
-               vec_Sigma_c_gw(n_level_gw, :) = vec_Sigma_c_gw(n_level_gw, :)+ &
-                                               normalization+vec_Sigma_x_gw(n_level_gw_ref)
-
-            END DO
-
-            IF (do_neglect_norm) THEN
-               IF (my_do_beta) THEN
-                  mp2_env%ri_g0w0%vec_Sigma_x_minus_vxc_gw(:, 2) = &
-                     mp2_env%ri_g0w0%vec_Sigma_x_minus_vxc_gw(:, 2) &
-                     -0.5_dp*mp2_env%ri_g0w0%vec_Sigma_x_minus_vxc_gw(homo, 2) &
-                     -0.5_dp*mp2_env%ri_g0w0%vec_Sigma_x_minus_vxc_gw(homo+1, 2)
-               ELSE
-                  mp2_env%ri_g0w0%vec_Sigma_x_minus_vxc_gw(:, 1) = &
-                     mp2_env%ri_g0w0%vec_Sigma_x_minus_vxc_gw(:, 1) &
-                     -0.5_dp*mp2_env%ri_g0w0%vec_Sigma_x_minus_vxc_gw(homo, 1) &
-                     -0.5_dp*mp2_env%ri_g0w0%vec_Sigma_x_minus_vxc_gw(homo+1, 1)
-               END IF
-            ELSE
-               IF (my_do_beta) THEN
-                  mp2_env%ri_g0w0%vec_Sigma_x_minus_vxc_gw(:, 2) = &
-                     mp2_env%ri_g0w0%vec_Sigma_x_minus_vxc_gw(:, 2) &
-                     -normalization
-               ELSE
-                  mp2_env%ri_g0w0%vec_Sigma_x_minus_vxc_gw(:, 1) = &
-                     mp2_env%ri_g0w0%vec_Sigma_x_minus_vxc_gw(:, 1) &
-                     -normalization
-               END IF
-            END IF
-         ELSE
-            IF (my_do_beta) THEN
-               mp2_env%ri_g0w0%vec_Sigma_x_minus_vxc_gw(:, 2) = &
-                  mp2_env%ri_g0w0%vec_Sigma_x_minus_vxc_gw(:, 2)+ &
-                  vec_Sigma_x_gw(:)
-            ELSE
-               mp2_env%ri_g0w0%vec_Sigma_x_minus_vxc_gw(:, 1) = &
-                  mp2_env%ri_g0w0%vec_Sigma_x_minus_vxc_gw(:, 1)+ &
-                  vec_Sigma_x_gw(:)
-            END IF
-         END IF
       END IF
 
       ! compute and add the periodic correction

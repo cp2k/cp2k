@@ -2110,8 +2110,8 @@ CONTAINS
          row_blk_offset, row_blk_size, row_indices, starts_array_cm, starts_array_cm_mao_occ, &
          starts_array_cm_mao_virt
       LOGICAL :: do_apply_ic_corr_to_gw, do_contour_def, do_gw_im_time, do_ic_model, &
-         do_ic_opt_homo_lumo, do_kpoints_cubic_RPA, do_mix_exchange, do_neglect_norm, &
-         do_normalize_Sigma, do_periodic, do_ri_Sigma_x, first_cycle, &
+         do_ic_opt_homo_lumo, do_kpoints_cubic_RPA, &
+         do_periodic, do_ri_Sigma_x, first_cycle, &
          first_cycle_periodic_correction, my_open_shell, print_ic_values
       LOGICAL, ALLOCATABLE, DIMENSION(:)                 :: do_GW_corr
       LOGICAL, ALLOCATABLE, DIMENSION(:, :, :)           :: cycle_due_to_sparse_dm, &
@@ -2183,8 +2183,6 @@ CONTAINS
 
       do_gw_im_time = mp2_env%ri_rpa_im_time%do_gw_im_time
       do_ri_Sigma_x = mp2_env%ri_g0w0%do_ri_Sigma_x
-      do_normalize_Sigma = mp2_env%ri_g0w0%normalize_sigma
-      do_neglect_norm = mp2_env%ri_g0w0%neglect_norm
       do_ic_model = mp2_env%ri_g0w0%do_ic_model
       do_ic_opt_homo_lumo = mp2_env%ri_g0w0%do_opt_homo_lumo
       print_ic_values = mp2_env%ri_g0w0%print_ic_values
@@ -2924,22 +2922,12 @@ CONTAINS
 
       IF (my_do_gw .OR. do_gw_im_time) THEN
 
-         IF (do_normalize_Sigma) THEN
-            ! normalize Sigma only works if we do RI HFX for Sigma_x and cubic scaling GW
-            CPASSERT(do_ri_Sigma_x)
-            CPASSERT(do_im_time)
-         END IF
-
-         IF (do_neglect_norm) THEN
-            CPASSERT(do_normalize_Sigma)
-         END IF
-
          CALL allocate_matrices_gw(vec_Sigma_c_gw, vec_Sigma_c_gw_beta, color_rpa_group, dimen_nm_gw, &
                                    gw_corr_lev_occ, gw_corr_lev_occ_beta, gw_corr_lev_virt, homo, homo_beta, &
                                    nmo, num_integ_points, num_integ_group, unit_nr, contour_def_end, &
                                    contour_def_level_tot, contour_def_start, gw_corr_lev_tot, num_fit_points, atom_list, &
                                    do_minimax_quad, do_periodic, do_ri_Sigma_x, my_do_gw, my_open_shell, &
-                                   do_contour_def, do_mix_exchange, first_cycle_periodic_correction, do_GW_corr, &
+                                   do_contour_def, first_cycle_periodic_correction, do_GW_corr, &
                                    a_scaling, contour_def_offset, eps_charge, omega_max_fit, Eigenval, Eigenval_beta, &
                                    tj, vec_omega_fit_gw, vec_Sigma_c_gw_real_freq, vec_Sigma_c_gw_real_freq_beta, vec_Sigma_x_gw, &
                                    vec_Sigma_x_gw_beta, delta_corr, Eigenval_last, Eigenval_last_beta, &
@@ -3391,7 +3379,7 @@ CONTAINS
                                    num_points_corr, num_poles, unit_nr, alpha_beta_from_jquad, &
                                    mo_from_jquad, residue_from_jquad, atom_list, check_fit, &
                                    do_apply_ic_corr_to_gw, do_contour_def, do_gw_im_time, &
-                                   do_neglect_norm, do_normalize_Sigma, do_periodic, do_ri_Sigma_x, &
+                                   do_periodic, do_ri_Sigma_x, &
                                    first_cycle_periodic_correction, my_do_gw, my_open_shell, &
                                    do_GW_corr, contour_def_offset, e_fermi, &
                                    e_fermi_beta, eps_charge, eps_filter, &
