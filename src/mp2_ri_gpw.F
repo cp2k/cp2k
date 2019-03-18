@@ -516,8 +516,7 @@ CONTAINS
                            sizes_array, starts_array, ends_array, calc_PQ_cond_num, cond_num, &
                            num_small_eigen, auxbas_pw_pool, do_mult_2c, ri_metric, &
                            fm_matrix_L_RI_metric, do_im_time, do_kpoints_cubic_RPA, qs_env%mp2_env%mp2_gpw%eps_pgf_orb_S, &
-                           atomic_kind_set, qs_kind_set, qs_env%mp2_env%mp2_gpw%do_chol_subgrp, &
-                           qs_env%mp2_env%mp2_gpw%size_chol_from_input, unit_nr)
+                           atomic_kind_set, qs_kind_set, unit_nr)
 
       IF (unit_nr > 0) WRITE (UNIT=unit_nr, FMT="(T3,A,T75,i6)") &
          "RI_INFO| Cholesky decomposition group size:", para_env_L%num_pe
@@ -1319,8 +1318,6 @@ CONTAINS
 !> \param mp2_eps_pgf_orb_S ...
 !> \param atomic_kind_set ...
 !> \param qs_kind_set ...
-!> \param do_chol_subgrp ...
-!> \param size_chol_from_input ...
 !> \param unit_nr ...
 ! **************************************************************************************************
    SUBROUTINE calculate_Lmin1(qs_env, eri_method, eri_param, para_env, para_env_sub, para_env_L, mp2_memory, &
@@ -1330,7 +1327,7 @@ CONTAINS
                               sizes_array, starts_array, ends_array, calc_PQ_cond_num, cond_num, &
                               num_small_eigen, auxbas_pw_pool, do_mult_2c, &
                               ri_metric, fm_matrix_L_RI_metric, do_im_time, do_kpoints_cubic_RPA, mp2_eps_pgf_orb_S, &
-                              atomic_kind_set, qs_kind_set, do_chol_subgrp, size_chol_from_input, unit_nr)
+                              atomic_kind_set, qs_kind_set, unit_nr)
 
       TYPE(qs_environment_type), POINTER                 :: qs_env
       INTEGER                                            :: eri_method
@@ -1360,8 +1357,7 @@ CONTAINS
       REAL(KIND=dp)                                      :: mp2_eps_pgf_orb_S
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
-      LOGICAL                                            :: do_chol_subgrp
-      INTEGER                                            :: size_chol_from_input, unit_nr
+      INTEGER                                            :: unit_nr
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'calculate_Lmin1', &
          routineP = moduleN//':'//routineN
@@ -1434,20 +1430,11 @@ CONTAINS
 
          ELSE
 
-            IF (do_chol_subgrp .AND. para_env%num_pe > 1 .AND. .NOT. do_kpoints_cubic_RPA) THEN
+            ! calculate Cholesky decomposition L of the Coulomb matrix (V=LL^T)
+            CALL cholesky_decomp(fm_matrix_L, dimen_RI, do_inversion=.FALSE.)
 
-               CALL parallel_cholesky_decomp(fm_matrix_L, fm_matrix_L_RI_metric(1, 1)%matrix, &
-                                             dimen_RI, para_env, size_chol_from_input, unit_nr)
-
-            ELSE
-
-               ! calculate Cholesky decomposition L of the Coulomb matrix (V=LL^T)
-               CALL cholesky_decomp(fm_matrix_L, dimen_RI, do_inversion=.FALSE.)
-
-               ! calculate Cholesky decomposition L of the overlap matrix (S=LL^T)
-               CALL cholesky_decomp(fm_matrix_L_RI_metric(1, 1)%matrix, dimen_RI, do_inversion=.TRUE.)
-
-            END IF
+            ! calculate Cholesky decomposition L of the overlap matrix (S=LL^T)
+            CALL cholesky_decomp(fm_matrix_L_RI_metric(1, 1)%matrix, dimen_RI, do_inversion=.TRUE.)
 
             ! invert to get L^-1 (L: Choleshky decomp of S)
             CALL invert_L(fm_matrix_L_RI_metric(1, 1)%matrix)
@@ -3415,57 +3402,6 @@ CONTAINS
 ! **************************************************************************************************
 !> \brief ...
 !> \param fm_matrix_L ...
-!> \param dimen_RI ...
-!> \param color_cholesky ...
-! **************************************************************************************************
-   SUBROUTINE cholesky_decomp_in_subgroups(fm_matrix_L, dimen_RI, color_cholesky)
-
-      TYPE(cp_fm_type), POINTER                          :: fm_matrix_L
-      INTEGER                                            :: dimen_RI, color_cholesky
-
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'cholesky_decomp_in_subgroups', &
-         routineP = moduleN//':'//routineN
-
-      INTEGER                                            :: handle, i_global, iiB, info_chol, &
-                                                            j_global, jjB, ncol_local, nrow_local
-      INTEGER, DIMENSION(:), POINTER                     :: col_indices, row_indices
-
-      CALL timeset(routineN, handle)
-
-      IF (color_cholesky == 0 .OR. color_cholesky == 1) THEN
-
-         ! do cholesky decomposition
-         CALL cp_fm_cholesky_decompose(matrix=fm_matrix_L, n=dimen_RI, info_out=info_chol)
-         CPASSERT(info_chol == 0)
-
-      END IF
-
-      ! for Cholesky decomposition of the Coulomb matrix we do not need the inverse therefore
-      ! we nullify the lower left triangular matrix
-      IF (color_cholesky == 0) THEN
-         ! clean the lower part of the L^{-1} matrix (just to not have surprises afterwards)
-         CALL cp_fm_get_info(matrix=fm_matrix_L, &
-                             nrow_local=nrow_local, &
-                             ncol_local=ncol_local, &
-                             row_indices=row_indices, &
-                             col_indices=col_indices)
-         DO iiB = 1, nrow_local
-            i_global = row_indices(iiB)
-            DO jjB = 1, ncol_local
-               j_global = col_indices(jjB)
-               IF (j_global < i_global) fm_matrix_L%local_data(iiB, jjB) = 0.0_dp
-            END DO
-         END DO
-
-      END IF
-
-      CALL timestop(handle)
-
-   END SUBROUTINE cholesky_decomp_in_subgroups
-
-! **************************************************************************************************
-!> \brief ...
-!> \param fm_matrix_L ...
 ! **************************************************************************************************
    SUBROUTINE invert_L(fm_matrix_L)
 
@@ -3498,250 +3434,6 @@ CONTAINS
       CALL timestop(handle)
 
    END SUBROUTINE invert_L
-
-! **************************************************************************************************
-!> \brief ...
-!> \param fm_matrix_L ...
-!> \param fm_matrix_L_RI_metric ...
-!> \param dimen_RI ...
-!> \param para_env ...
-!> \param size_chol_from_input ...
-!> \param unit_nr ...
-! **************************************************************************************************
-   SUBROUTINE parallel_cholesky_decomp(fm_matrix_L, fm_matrix_L_RI_metric, dimen_RI, para_env, &
-                                       size_chol_from_input, unit_nr)
-
-      TYPE(cp_fm_type), POINTER                          :: fm_matrix_L, fm_matrix_L_RI_metric
-      INTEGER                                            :: dimen_RI
-      TYPE(cp_para_env_type), POINTER                    :: para_env
-      INTEGER                                            :: size_chol_from_input, unit_nr
-
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'parallel_cholesky_decomp', &
-         routineP = moduleN//':'//routineN
-
-      INTEGER                                            :: color_chol, comm_chol, group_size_chol, &
-                                                            handle
-      TYPE(cp_fm_type), POINTER                          :: fm_mat_chol
-      TYPE(cp_para_env_type), POINTER                    :: para_env_chol
-
-      CALL timeset(routineN, handle)
-
-      CALL get_group_size(para_env, size_chol_from_input, group_size_chol, unit_nr)
-
-      CALL get_para_env_chol(para_env, para_env_chol, group_size_chol, color_chol, comm_chol)
-
-      CALL create_matrix_in_chol_subgroup(para_env_chol, fm_mat_chol, dimen_RI)
-
-      CALL copy_S_or_V_into_fm_mat_chol(fm_matrix_L, fm_matrix_L_RI_metric, fm_mat_chol, color_chol, para_env)
-
-      ! do cholesky decomposition simultaneously in both subgroups for S and V
-      CALL cholesky_decomp_in_subgroups(fm_mat_chol, dimen_RI, color_chol)
-
-      CALL copy_fm_mat_chol_into_S_or_V(fm_matrix_L, fm_matrix_L_RI_metric, fm_mat_chol, color_chol, para_env)
-
-      CALL cleanup(para_env_chol, fm_mat_chol)
-
-      CALL timestop(handle)
-
-   END SUBROUTINE parallel_cholesky_decomp
-
-! **************************************************************************************************
-!> \brief ...
-!> \param fm_matrix_L ...
-!> \param fm_matrix_L_RI_metric ...
-!> \param fm_mat_chol ...
-!> \param color_chol ...
-!> \param para_env ...
-! **************************************************************************************************
-   SUBROUTINE copy_fm_mat_chol_into_S_or_V(fm_matrix_L, fm_matrix_L_RI_metric, fm_mat_chol, color_chol, para_env)
-
-      TYPE(cp_fm_type), POINTER                          :: fm_matrix_L, fm_matrix_L_RI_metric, &
-                                                            fm_mat_chol
-      INTEGER                                            :: color_chol
-      TYPE(cp_para_env_type), POINTER                    :: para_env
-
-      TYPE(cp_fm_type), POINTER                          :: fm_null
-
-      NULLIFY (fm_null)
-
-      ! copy Coulomb matrix V into the first group with color_chol = 0
-      IF (color_chol == 0) THEN
-         CALL cp_fm_copy_general(fm_mat_chol, fm_matrix_L, para_env)
-      ELSE IF (color_chol == 1 .OR. color_chol == 2) THEN
-         CALL cp_fm_copy_general(fm_null, fm_matrix_L, para_env)
-      ELSE
-         CPABORT("this case is not foreseen")
-      END IF
-
-      NULLIFY (fm_null)
-
-      ! copy overlap matrix V into the first group with color_chol = 0
-      IF (color_chol == 1) THEN
-         CALL cp_fm_copy_general(fm_mat_chol, fm_matrix_L_RI_metric, para_env)
-      ELSE IF (color_chol == 0 .OR. color_chol == 2) THEN
-         CALL cp_fm_copy_general(fm_null, fm_matrix_L_RI_metric, para_env)
-      ELSE
-         CPABORT("this case is not foreseen")
-      END IF
-
-   END SUBROUTINE
-
-! **************************************************************************************************
-!> \brief ...
-!> \param fm_matrix_L ...
-!> \param fm_matrix_L_RI_metric ...
-!> \param fm_mat_chol ...
-!> \param color_chol ...
-!> \param para_env ...
-! **************************************************************************************************
-   SUBROUTINE copy_S_or_V_into_fm_mat_chol(fm_matrix_L, fm_matrix_L_RI_metric, fm_mat_chol, color_chol, para_env)
-
-      TYPE(cp_fm_type), POINTER                          :: fm_matrix_L, fm_matrix_L_RI_metric, &
-                                                            fm_mat_chol
-      INTEGER                                            :: color_chol
-      TYPE(cp_para_env_type), POINTER                    :: para_env
-
-      TYPE(cp_fm_type), POINTER                          :: fm_null
-
-      NULLIFY (fm_null)
-
-      ! copy Coulomb matrix V into the first group with color_chol = 0
-      IF (color_chol == 0) THEN
-         CALL cp_fm_copy_general(fm_matrix_L, fm_mat_chol, para_env)
-      ELSE IF (color_chol == 1 .OR. color_chol == 2) THEN
-         CALL cp_fm_copy_general(fm_matrix_L, fm_null, para_env)
-      ELSE
-         CPABORT("this case is not foreseen")
-      END IF
-
-      NULLIFY (fm_null)
-
-      ! copy overlap matrix V into the first group with color_chol = 0
-      IF (color_chol == 1) THEN
-         CALL cp_fm_copy_general(fm_matrix_L_RI_metric, fm_mat_chol, para_env)
-      ELSE IF (color_chol == 0 .OR. color_chol == 2) THEN
-         CALL cp_fm_copy_general(fm_matrix_L_RI_metric, fm_null, para_env)
-      ELSE
-         CPABORT("this case is not foreseen")
-      END IF
-
-   END SUBROUTINE
-
-! **************************************************************************************************
-!> \brief ...
-!> \param para_env_chol ...
-!> \param fm_mat_chol ...
-!> \param dimen_RI ...
-! **************************************************************************************************
-   SUBROUTINE create_matrix_in_chol_subgroup(para_env_chol, fm_mat_chol, dimen_RI)
-
-      TYPE(cp_para_env_type), POINTER                    :: para_env_chol
-      TYPE(cp_fm_type), POINTER                          :: fm_mat_chol
-      INTEGER                                            :: dimen_RI
-
-      TYPE(cp_blacs_env_type), POINTER                   :: blacs_env_chol
-      TYPE(cp_fm_struct_type), POINTER                   :: fm_struct_chol
-
-      NULLIFY (blacs_env_chol)
-      CALL cp_blacs_env_create(blacs_env=blacs_env_chol, para_env=para_env_chol)
-
-      NULLIFY (fm_struct_chol)
-      CALL cp_fm_struct_create(fm_struct_chol, context=blacs_env_chol, nrow_global=dimen_RI, &
-                               ncol_global=dimen_RI, para_env=para_env_chol)
-
-      NULLIFY (fm_mat_chol)
-      CALL cp_fm_create(fm_mat_chol, fm_struct_chol, name="fm_mat_chol")
-
-      CALL cp_fm_struct_release(fm_struct_chol)
-
-      CALL cp_blacs_env_release(blacs_env_chol)
-
-   END SUBROUTINE
-
-! **************************************************************************************************
-!> \brief ...
-!> \param para_env ...
-!> \param para_env_chol ...
-!> \param group_size_chol ...
-!> \param color_chol ...
-!> \param comm_chol ...
-! **************************************************************************************************
-   SUBROUTINE get_para_env_chol(para_env, para_env_chol, group_size_chol, color_chol, comm_chol)
-
-      TYPE(cp_para_env_type), POINTER                    :: para_env, para_env_chol
-      INTEGER                                            :: group_size_chol, color_chol, comm_chol
-
-      IF (para_env%mepos >= 0 .AND. para_env%mepos < group_size_chol) THEN
-         color_chol = 0
-      ELSE IF (para_env%mepos >= group_size_chol .AND. para_env%mepos < 2*group_size_chol) THEN
-         color_chol = 1
-      ELSE
-         color_chol = 2
-      END IF
-
-      CALL mp_comm_split_direct(para_env%group, comm_chol, color_chol)
-      NULLIFY (para_env_chol)
-      CALL cp_para_env_create(para_env_chol, comm_chol)
-
-   END SUBROUTINE
-
-! **************************************************************************************************
-!> \brief ...
-!> \param para_env_chol ...
-!> \param fm_mat_chol ...
-! **************************************************************************************************
-   SUBROUTINE cleanup(para_env_chol, fm_mat_chol)
-      TYPE(cp_para_env_type), POINTER                    :: para_env_chol
-      TYPE(cp_fm_type), POINTER                          :: fm_mat_chol
-
-      CALL cp_para_env_release(para_env_chol)
-      CALL cp_fm_release(fm_mat_chol)
-
-   END SUBROUTINE
-
-! **************************************************************************************************
-!> \brief ...
-!> \param para_env ...
-!> \param size_chol_from_input ...
-!> \param group_size_chol ...
-!> \param unit_nr ...
-! **************************************************************************************************
-   SUBROUTINE get_group_size(para_env, size_chol_from_input, group_size_chol, unit_nr)
-
-      TYPE(cp_para_env_type), POINTER                    :: para_env
-      INTEGER                                            :: size_chol_from_input, group_size_chol, &
-                                                            unit_nr
-
-      INTEGER                                            :: iii
-
-      CPASSERT(2*size_chol_from_input <= para_env%num_pe)
-
-      IF (size_chol_from_input == -1) THEN
-
-         group_size_chol = para_env%num_pe/2
-
-      ELSE IF (size_chol_from_input == -2) THEN
-
-         group_size_chol = 1
-
-         DO iii = 1, 1000
-
-            IF (2*iii**2 > para_env%num_pe) EXIT
-
-            group_size_chol = iii**2
-
-         END DO
-
-      ELSE
-
-         group_size_chol = size_chol_from_input
-
-      END IF
-
-      IF (unit_nr > 0) WRITE (UNIT=unit_nr, FMT="(T3,A,T75,i6)") &
-         "CHOLESKY_INFO| Group size for Cholesky decomp. of V and S:", group_size_chol
-
-   END SUBROUTINE
 
 ! **************************************************************************************************
 !> \brief ...

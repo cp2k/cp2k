@@ -103,10 +103,6 @@ CONTAINS
                                 i_val=mp2_env%mp2_gpw%print_level)
       CALL section_vals_val_get(mp2_section, "WFC_GPW%EPS_PGF_ORB_S", &
                                 r_val=mp2_env%mp2_gpw%eps_pgf_orb_S)
-      CALL section_vals_val_get(mp2_section, "WFC_GPW%DO_CHOLESKY_SUBGROUPS", &
-                                l_val=mp2_env%mp2_gpw%do_chol_subgrp)
-      CALL section_vals_val_get(mp2_section, "WFC_GPW%SIZE_CHOLESKY_SUBGROUP", &
-                                i_val=mp2_env%mp2_gpw%size_chol_from_input)
       CALL section_vals_val_get(mp2_section, "WFC_GPW%SIZE_LATTICE_SUM", &
                                 i_val=mp2_env%mp2_gpw%size_lattice_sum)
 

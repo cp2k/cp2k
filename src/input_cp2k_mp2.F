@@ -1446,29 +1446,6 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="DO_CHOLESKY_SUBGROUPS", &
-                          variants=(/"DCS"/), &
-                          description="Compute the Cholesky decomposition of V and S (Coulomb and overlap "// &
-                          "matrix in the RI basis in two different subgroups. May be benefitial "// &
-                          "for very large systems where cp_fm_cholesky_decompose is expensive. "// &
-                          "Is only needed for RI with the overlap metric. Neglected when doing k-points.", &
-                          usage="DSC", &
-                          default_l_val=.FALSE., &
-                          lone_keyword_l_val=.TRUE.)
-      CALL section_add_keyword(section, keyword)
-      CALL keyword_release(keyword)
-
-      CALL keyword_create(keyword, name="SIZE_CHOLESKY_SUBGROUP", &
-                          variants=(/"SIZE_CS"/), &
-                          description="Number of MPI ranks for a single Cholesky subgroup. -1: half of the "// &
-                          "total number of MPI ranks, -2: biggest square number smaller than the "// &
-                          "total number of MPI ranks, number between 1 and (#MPI ranks)/2: this size "// &
-                          "is used.", &
-                          usage="SIZE_CS  144", &
-                          default_i_val=-1)
-      CALL section_add_keyword(section, keyword)
-      CALL keyword_release(keyword)
-
       CALL keyword_create(keyword, name="SIZE_LATTICE_SUM", &
                           description="Size of sum range L. ", &
                           usage="SIZE_LATTICE_SUM  10", &
