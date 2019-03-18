@@ -375,7 +375,7 @@ CONTAINS
 !> \param my_group_L_start ...
 !> \param my_group_L_end ...
 ! **************************************************************************************************
-   SUBROUTINE get_aux_sizes(dimen_RI, ngroup, num_proc, mepos, my_group_L_size, my_group_L_start, my_group_L_end)
+   SUBROUTINE get_aux_sizes(dimen_RI, ngroup, my_group_L_size, my_group_L_start, my_group_L_end, num_proc, mepos)
       INTEGER, INTENT(IN)                                :: dimen_RI, ngroup, num_proc, mepos
       INTEGER, INTENT(OUT)                               :: my_group_L_size, my_group_L_start, &
                                                             my_group_L_end
