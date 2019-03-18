@@ -71,14 +71,6 @@ MODULE qmmm_tb_methods
 
    IMPLICIT NONE
 
-   ! Maximum number of points used for interpolation
-   INTEGER, PARAMETER                     :: max_inter = 5
-   ! Maximum number of points used for extrapolation
-   INTEGER, PARAMETER                     :: max_extra = 9
-   ! see also qs_dftb_parameters
-   REAL(dp), PARAMETER                    :: slako_d0 = 1._dp
-   ! pointer to skab
-   INTEGER, DIMENSION(0:3, 0:3, 0:3, 0:3, 0:3):: iptr
    ! small real number
    REAL(dp), PARAMETER                    :: rtiny = 1.e-10_dp
    ! eta(0) for mm atoms and non-scc qm atoms
