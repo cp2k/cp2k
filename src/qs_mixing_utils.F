@@ -775,17 +775,13 @@ CONTAINS
 
 ! **************************************************************************************************
 !> \brief initialiation needed when charge mixing is used
-!> \param mixing_method ...
 !> \param mixing_store ...
-!> \param para_env ...
 !> \par History
 !>      02.2019 created [JGH]
 !> \author JGH
 ! **************************************************************************************************
-   SUBROUTINE charge_mixing_init(mixing_method, mixing_store, para_env)
-      INTEGER, INTENT(IN)                                :: mixing_method
+   SUBROUTINE charge_mixing_init(mixing_store)
       TYPE(mixing_storage_type), POINTER                 :: mixing_store
-      TYPE(cp_para_env_type), POINTER                    :: para_env
 
       CHARACTER(len=*), PARAMETER :: routineN = 'charge_mixing_init', &
          routineP = moduleN//':'//routineN

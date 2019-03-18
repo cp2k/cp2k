@@ -772,8 +772,7 @@ CONTAINS
             CALL mixing_init(ls_scf_env%density_mixing_method, rho, ls_scf_env%mixing_store, &
                              ls_scf_env%para_env, rho_atom=rho_atom)
          ELSEIF (dft_control%qs_control%dftb .OR. dft_control%qs_control%xtb) THEN
-            CALL charge_mixing_init(ls_scf_env%density_mixing_method, ls_scf_env%mixing_store, &
-                                    ls_scf_env%para_env)
+            CALL charge_mixing_init(ls_scf_env%mixing_store)
          ELSEIF (dft_control%qs_control%semi_empirical) THEN
             CPABORT('SE Code not possible')
          ELSE
