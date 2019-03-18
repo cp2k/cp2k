@@ -59,7 +59,6 @@
           &RI_G0W0
             CORR_MOS_OCC          10
             CORR_MOS_VIRT         10
-            SCALING               0.2000
             ANALYTIC_CONTINUATION PADE
             NPARAM_PADE            16
             CROSSING_SEARCH       NEWTON 

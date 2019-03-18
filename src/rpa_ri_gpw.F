@@ -270,7 +270,7 @@ CONTAINS
       LOGICAL                                            :: check_fit, do_minimax_quad, &
                                                             my_open_shell, skip_integ_group_opt
       REAL(KIND=dp) :: allowed_memory, avail_mem, E_Range, Emax, Emax_beta, Emin, Emin_beta, &
-         ext_scaling, fermi_level_offset, mem_for_iaK, mem_for_QK, mem_min, mem_per_group, &
+         fermi_level_offset, mem_for_iaK, mem_for_QK, mem_min, mem_per_group, &
          mem_real, needed_mem, omega_max_fit
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: BIb_C_2D, BIb_C_2D_beta, &
                                                             BIb_C_2D_bse_ab, BIb_C_2D_bse_ij, &
@@ -513,7 +513,6 @@ CONTAINS
       END IF
 
       IF (my_do_gw .OR. mp2_env%ri_rpa_im_time%do_gw_im_time) THEN
-         ext_scaling = mp2_env%ri_g0w0%scaling
          num_poles = mp2_env%ri_g0w0%num_poles
          omega_max_fit = mp2_env%ri_g0w0%omega_max_fit
          max_iter_fit = mp2_env%ri_g0w0%max_iter_fit
@@ -779,7 +778,7 @@ CONTAINS
                              Eigenval, num_integ_points, num_integ_group, color_rpa_group, &
                              fm_mat_S, fm_mat_Q_gemm, fm_mat_Q, fm_mat_S_gw, fm_mat_R_gw, &
                              fm_mat_S_ij_bse, fm_mat_S_ij_bse, &
-                             my_do_gw, do_bse, gw_corr_lev_occ, gw_corr_lev_virt, num_poles, ext_scaling, omega_max_fit, &
+                             my_do_gw, do_bse, gw_corr_lev_occ, gw_corr_lev_virt, num_poles, omega_max_fit, &
                              check_fit, fermi_level_offset, crossing_search, &
                              max_iter_fit, mp2_env%ri_rpa%mm_style, do_minimax_quad, &
                              do_im_time, do_mao, fm_mo_coeff_occ, fm_mo_coeff_virt, mo_coeff, fm_matrix_L_RI_metric, &
@@ -810,7 +809,7 @@ CONTAINS
                              Eigenval, num_integ_points, num_integ_group, color_rpa_group, &
                              fm_mat_S, fm_mat_Q_gemm, fm_mat_Q, fm_mat_S_gw, fm_mat_R_gw, &
                              fm_mat_S_ij_bse, fm_mat_S_ab_bse, &
-                             my_do_gw, do_bse, gw_corr_lev_occ, gw_corr_lev_virt, num_poles, ext_scaling, omega_max_fit, &
+                             my_do_gw, do_bse, gw_corr_lev_occ, gw_corr_lev_virt, num_poles, omega_max_fit, &
                              check_fit, fermi_level_offset, crossing_search, &
                              max_iter_fit, mp2_env%ri_rpa%mm_style, do_minimax_quad, &
                              do_im_time, do_mao, fm_mo_coeff_occ, fm_mo_coeff_virt, mo_coeff, fm_matrix_L_RI_metric, &
@@ -1968,7 +1967,6 @@ CONTAINS
 !> \param gw_corr_lev_occ ...
 !> \param gw_corr_lev_virt ...
 !> \param num_poles ...
-!> \param ext_scaling ...
 !> \param omega_max_fit ...
 !> \param check_fit ...
 !> \param fermi_level_offset ...
@@ -2021,7 +2019,7 @@ CONTAINS
                           Eigenval, num_integ_points, num_integ_group, color_rpa_group, &
                           fm_mat_S, fm_mat_Q_gemm, fm_mat_Q, fm_mat_S_gw, fm_mat_R_gw, &
                           fm_mat_S_ij_bse, fm_mat_S_ab_bse, &
-                          my_do_gw, do_bse, gw_corr_lev_occ, gw_corr_lev_virt, num_poles, ext_scaling, &
+                          my_do_gw, do_bse, gw_corr_lev_occ, gw_corr_lev_virt, num_poles, &
                           omega_max_fit, check_fit, fermi_level_offset, crossing_search, &
                           max_iter_fit, mm_style, do_minimax_quad, do_im_time, do_mao, fm_mo_coeff_occ, &
                           fm_mo_coeff_virt, mo_coeff, fm_matrix_L_RI_metric, &
@@ -2050,7 +2048,7 @@ CONTAINS
       LOGICAL, INTENT(IN)                                :: my_do_gw, do_bse
       INTEGER, INTENT(IN)                                :: gw_corr_lev_occ, gw_corr_lev_virt, &
                                                             num_poles
-      REAL(KIND=dp), INTENT(IN)                          :: ext_scaling, omega_max_fit
+      REAL(KIND=dp), INTENT(IN)                          :: omega_max_fit
       LOGICAL, INTENT(IN)                                :: check_fit
       REAL(KIND=dp), INTENT(IN)                          :: fermi_level_offset
       INTEGER, INTENT(IN)                                :: crossing_search, max_iter_fit, mm_style
@@ -2886,8 +2884,8 @@ CONTAINS
          END IF
 
          ! for G0W0, we may set the scaling factor by hand
-         IF (my_do_gw .AND. ext_scaling > 0.0_dp) THEN
-            a_scaling = ext_scaling
+         IF (my_do_gw) THEN
+            a_scaling = 0.2_dp
          END IF
 
          IF (unit_nr > 0) WRITE (unit_nr, '(T3,A,T56,F25.5)') 'INTEG_INFO| Scaling parameter:', a_scaling
@@ -3396,7 +3394,7 @@ CONTAINS
                                    do_neglect_norm, do_normalize_Sigma, do_periodic, do_ri_Sigma_x, &
                                    first_cycle_periodic_correction, my_do_gw, my_open_shell, &
                                    do_GW_corr, contour_def_offset, e_fermi, &
-                                   e_fermi_beta, eps_charge, eps_filter, ext_scaling, &
+                                   e_fermi_beta, eps_charge, eps_filter, &
                                    fermi_level_offset, stabilize_exp, delta_corr, Eigenval, &
                                    Eigenval_beta, Eigenval_last, Eigenval_last_beta, Eigenval_scf, &
                                    Eigenval_scf_beta, m_value, m_value_beta, Mulliken_charges, real_freq, &

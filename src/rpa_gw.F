@@ -1505,7 +1505,6 @@ CONTAINS
 !> \param e_fermi_beta ...
 !> \param eps_charge ...
 !> \param eps_filter ...
-!> \param ext_scaling ...
 !> \param fermi_level_offset ...
 !> \param stabilize_exp ...
 !> \param delta_corr ...
@@ -1582,7 +1581,7 @@ CONTAINS
                                 do_neglect_norm, do_normalize_Sigma, do_periodic, do_ri_Sigma_x, &
                                 first_cycle_periodic_correction, my_do_gw, my_open_shell, &
                                 do_GW_corr, contour_def_offset, e_fermi, &
-                                e_fermi_beta, eps_charge, eps_filter, ext_scaling, &
+                                e_fermi_beta, eps_charge, eps_filter, &
                                 fermi_level_offset, stabilize_exp, delta_corr, Eigenval, &
                                 Eigenval_beta, Eigenval_last, Eigenval_last_beta, Eigenval_scf, &
                                 Eigenval_scf_beta, m_value, m_value_beta, Mulliken_charges, real_freq, &
@@ -1617,7 +1616,7 @@ CONTAINS
       LOGICAL, INTENT(IN)                                :: my_do_gw, my_open_shell
       LOGICAL, ALLOCATABLE, DIMENSION(:), INTENT(INOUT)  :: do_GW_corr
       REAL(KIND=dp), INTENT(IN) :: contour_def_offset, e_fermi, e_fermi_beta, eps_charge, &
-         eps_filter, ext_scaling, fermi_level_offset, stabilize_exp
+         eps_filter, fermi_level_offset, stabilize_exp
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:), &
          INTENT(INOUT)                                   :: delta_corr
       REAL(KIND=dp), DIMENSION(:), INTENT(INOUT)         :: Eigenval, Eigenval_beta
@@ -1676,7 +1675,7 @@ CONTAINS
                                              mat_3c_overl_int_gw, mat_contr_gf_occ, mat_contr_gf_virt, &
                                              mat_contr_W, mat_W, mat_SinvVSinv, mat_dm, stabilize_exp, &
                                              weights_cos_tf_t_to_w, weights_sin_tf_t_to_w, vec_Sigma_c_gw, do_periodic, &
-                                             num_points_corr, ext_scaling, delta_corr, qs_env, para_env, para_env_RPA, &
+                                             num_points_corr, delta_corr, qs_env, para_env, para_env_RPA, &
                                              mp2_env, matrix_berry_re_mo_mo, matrix_berry_im_mo_mo, &
                                              first_cycle_periodic_correction, kpoints, num_fit_points, mo_coeff, &
                                              do_GW_corr, do_ri_Sigma_x, do_normalize_Sigma, do_neglect_norm, vec_Sigma_x_gw)
@@ -1692,7 +1691,7 @@ CONTAINS
                                                 count_ev_sc_GW, mat_3c_overl_int_gw_beta, mat_contr_gf_occ, mat_contr_gf_virt, &
                                                 mat_contr_W, mat_W, mat_SinvVSinv, mat_dm, stabilize_exp, &
                                                 weights_cos_tf_t_to_w, weights_sin_tf_t_to_w, vec_Sigma_c_gw_beta, do_periodic, &
-                                                num_points_corr, ext_scaling, delta_corr, qs_env, para_env, para_env_RPA, &
+                                                num_points_corr, delta_corr, qs_env, para_env, para_env_RPA, &
                                                 mp2_env, matrix_berry_re_mo_mo, matrix_berry_im_mo_mo, &
                                                 first_cycle_periodic_correction, kpoints, num_fit_points, mo_coeff, &
                                                 do_GW_corr, do_ri_Sigma_x, do_normalize_Sigma, do_neglect_norm, &
@@ -2366,7 +2365,6 @@ CONTAINS
 !> \param vec_Sigma_c_gw ...
 !> \param do_periodic ...
 !> \param num_points_corr ...
-!> \param ext_scaling ...
 !> \param delta_corr ...
 !> \param qs_env ...
 !> \param para_env ...
@@ -2393,7 +2391,7 @@ CONTAINS
                                              mat_3c_overl_int_gw, mat_contr_gf_occ, mat_contr_gf_virt, &
                                              mat_contr_W, mat_W, mat_SinvVSinv, mat_dm, stabilize_exp, &
                                              weights_cos_tf_t_to_w, weights_sin_tf_t_to_w, vec_Sigma_c_gw, do_periodic, &
-                                             num_points_corr, ext_scaling, delta_corr, qs_env, para_env, para_env_RPA, &
+                                             num_points_corr, delta_corr, qs_env, para_env, para_env_RPA, &
                                              mp2_env, matrix_berry_re_mo_mo, matrix_berry_im_mo_mo, &
                                              first_cycle_periodic_correction, kpoints, num_fit_points, mo_coeff, &
                                              do_GW_corr, do_ri_Sigma_x, do_normalize_Sigma, do_neglect_norm, &
@@ -2424,7 +2422,6 @@ CONTAINS
          INTENT(INOUT)                                   :: vec_Sigma_c_gw
       LOGICAL, INTENT(IN)                                :: do_periodic
       INTEGER, INTENT(IN)                                :: num_points_corr
-      REAL(KIND=dp), INTENT(IN)                          :: ext_scaling
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:), &
          INTENT(INOUT)                                   :: delta_corr
       TYPE(qs_environment_type), POINTER                 :: qs_env
@@ -2452,7 +2449,7 @@ CONTAINS
                                                             handle3, iquad, jquad, n_level_gw, &
                                                             n_level_gw_ref
       LOGICAL                                            :: my_do_beta
-      REAL(KIND=dp)                                      :: normalization, omega, omega_i, &
+      REAL(KIND=dp)                                      :: ext_scaling, normalization, omega, omega_i, &
                                                             omega_sign, sign_occ_virt, &
                                                             t_i_Clenshaw, tau, weight_cos, &
                                                             weight_i, weight_sin
@@ -2692,6 +2689,7 @@ CONTAINS
 
       ! compute and add the periodic correction
       IF (do_periodic) THEN
+         ext_scaling = 0.2_dp
 
          ! loop over omega' (integration)
          DO iquad = 1, num_points_corr

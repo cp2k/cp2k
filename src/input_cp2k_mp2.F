@@ -706,17 +706,6 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="SCALING", &
-                          variants=(/"A_SCALING"/), &
-                          description="Set the scaling factor a for the Clenshaw-Curtis grid by hand. "// &
-                          "If SCALING < 0, a is calculated as for RI-RPA. Until now, the best "// &
-                          "choice seems to be 0.2. The grid points of the frequency grid are "// &
-                          "just multiplied by SCALING: omega_j = omega_j*Scaling. Not relevant for cubic-scaling GW.", &
-                          usage="SCALING 0.2", &
-                          default_r_val=0.2_dp)
-      CALL section_add_keyword(section, keyword)
-      CALL keyword_release(keyword)
-
       CALL keyword_create(keyword, name="NUMB_POLES", &
                           description="Number of poles for the fitting. Usually, two poles are sufficient. ", &
                           usage="NUMB_POLES 2", &

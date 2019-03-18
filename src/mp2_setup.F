@@ -130,8 +130,6 @@ CONTAINS
                                 i_val=mp2_env%ri_g0w0%corr_mos_occ)
       CALL section_vals_val_get(mp2_section, "RI_RPA%RI_G0W0%CORR_MOS_VIRT", &
                                 i_val=mp2_env%ri_g0w0%corr_mos_virt)
-      CALL section_vals_val_get(mp2_section, "RI_RPA%RI_G0W0%SCALING", &
-                                r_val=mp2_env%ri_g0w0%scaling)
       CALL section_vals_val_get(mp2_section, "RI_RPA%RI_G0W0%NUMB_POLES", &
                                 i_val=mp2_env%ri_g0w0%num_poles)
       CALL section_vals_val_get(mp2_section, "RI_RPA%RI_G0W0%NPARAM_PADE", &

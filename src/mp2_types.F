@@ -153,7 +153,6 @@ MODULE mp2_types
       INTEGER                  :: corr_mos_virt
       INTEGER                  :: corr_mos_occ_beta
       INTEGER                  :: corr_mos_virt_beta
-      REAL(KIND=dp)            :: scaling
       INTEGER                  :: num_poles
       INTEGER                  :: nparam_pade
       INTEGER                  :: analytic_continuation
