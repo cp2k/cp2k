@@ -12,21 +12,21 @@
       MODULE input_cp2k_pwdft
 !USE mpi,                             ONLY: MPI_COMM_WORLD
 #if defined(__SIRIUS)
-   USE SIRIUS,                          ONLY: &
-        sirius_option_get_description_usage, sirius_option_get_double, sirius_option_get_int, &
-        sirius_option_get_length, sirius_option_get_logical, sirius_option_get_name_and_type, &
-        sirius_option_get_number_of_possible_values, sirius_option_get_string, &
-        sirius_option_string_get_value
+         USE SIRIUS, ONLY: &
+            sirius_option_get_description_usage, sirius_option_get_double, sirius_option_get_int, &
+            sirius_option_get_length, sirius_option_get_logical, sirius_option_get_name_and_type, &
+            sirius_option_get_number_of_possible_values, sirius_option_get_string, &
+            sirius_option_string_get_value
 #endif
-   USE input_keyword_types,             ONLY: keyword_create,&
-                                              keyword_release,&
-                                              keyword_type
-   USE input_section_types,             ONLY: section_add_keyword,&
-                                              section_add_subsection,&
-                                              section_create,&
-                                              section_release,&
-                                              section_type
-   USE kinds,                           ONLY: dp
+         USE input_keyword_types, ONLY: keyword_create, &
+            keyword_release, &
+            keyword_type
+         USE input_section_types, ONLY: section_add_keyword, &
+            section_add_subsection, &
+            section_create, &
+            section_release, &
+            section_type
+         USE kinds, ONLY: dp
 #include "./base/base_uses.f90"
 
          IMPLICIT NONE
@@ -261,14 +261,18 @@
             END DO
          END SUBROUTINE fill_in_section
 #else
-      SUBROUTINE create_pwdft_section(section)
+! **************************************************************************************************
+!> \brief ...
+!> \param section ...
+! **************************************************************************************************
+         SUBROUTINE create_pwdft_section(section)
       TYPE(section_type), POINTER                        :: section
 
       CHARACTER(len=*), PARAMETER :: routineN = 'create_pwdft_section', &
-      routineP = moduleN//':'//routineN
+         routineP = moduleN//':'//routineN
 
-      CPASSERT(.NOT. ASSOCIATED(section))
-      END SUBROUTINE create_pwdft_section
+            CPASSERT(.NOT. ASSOCIATED(section))
+         END SUBROUTINE create_pwdft_section
 
 #endif
 
