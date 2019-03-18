@@ -655,7 +655,7 @@ CONTAINS
                                      para_env)
             ! Read specific parameters from input
             xtb_section => section_vals_get_subs_vals(qs_section, "xTB")
-            CALL xtb_parameters_read(qs_kind%xtb_parameter, element_symbol, xtb_section, para_env)
+            CALL xtb_parameters_read(qs_kind%xtb_parameter, element_symbol, xtb_section)
             ! set dependent parameters
             CALL xtb_parameters_set(qs_kind%xtb_parameter)
             ! Generate basis set

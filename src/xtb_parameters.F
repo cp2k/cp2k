@@ -244,14 +244,12 @@ CONTAINS
 !> \param param ...
 !> \param element_symbol ...
 !> \param xtb_section ...
-!> \param para_env ...
 ! **************************************************************************************************
-   SUBROUTINE xtb_parameters_read(param, element_symbol, xtb_section, para_env)
+   SUBROUTINE xtb_parameters_read(param, element_symbol, xtb_section)
 
       TYPE(xtb_atom_type), POINTER                       :: param
       CHARACTER(LEN=2), INTENT(IN)                       :: element_symbol
       TYPE(section_vals_type), POINTER                   :: xtb_section
-      TYPE(cp_para_env_type), POINTER                    :: para_env
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'xtb_parameters_read', &
          routineP = moduleN//':'//routineN
