@@ -7,6 +7,7 @@ set -eo pipefail
 REPORT=/workspace/report.txt
 echo -n "StartDate: " | tee -a $REPORT
 date --utc --rfc-3339=seconds | tee -a $REPORT
+ulimit -c 0  # Disable core dumps as they can take a very long time to write.
 
 # Rsync with common args.
 function rsync_changes {
