@@ -129,11 +129,11 @@ CONTAINS
          keyword=keyword, &
          name="GROUP_SIZE", &
          variants=(/"NUMBER_PROC"/), &
-         description="Group size used in the computation of the integrals. Default is to use all processors (GROUP_SIZE=-1)."// &
+         description="Group size used in the computation of the integrals. To use all processors set GROUP_SIZE -1 (might lead to VERY high computation times)."// &
          "A smaller group size (for example the node size), might a better choice if the actual MP2 time is large "// &
          "compared to integral computation time. This is usually the case if the total number of processors is not too large.", &
          usage="GROUP_SIZE 32", &
-         default_i_val=-1)
+         default_i_val=1)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
