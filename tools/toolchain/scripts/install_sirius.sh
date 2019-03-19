@@ -21,7 +21,6 @@ SIRIUS_CFLAGS=''
 SIRIUS_LDFLAGS=''
 SIRIUS_LIBS=''
 
-export
 ! [ -d "${BUILDDIR}" ] && mkdir -p "${BUILDDIR}"
 cd "${BUILDDIR}"
 case "$with_sirius" in
@@ -90,6 +89,7 @@ case "$with_sirius" in
             [ -d sirius-${sirius_ver} ] && rm -rf sirius-${sirius_ver}
             tar -xzf SIRIUS-${sirius_ver}.tar.gz
             cd SIRIUS-${sirius_ver}
+            cd src && sed -i -e "s/desciption/description/g" options.json && cd ..
             rm -Rf build
             mkdir build
             cd build
@@ -101,7 +101,6 @@ case "$with_sirius" in
                 COMPILATION_OPTIONS="-DUSE_ELPA=ON -DELPA_INCLUDE_DIR=${ELPAROOT}/include/elpa-${ELPAVERSION}/elpa $COMPILATION_OPTIONS"
             fi
 
-            echo "scalapack : $SCALAPACK_CFLAGS"
             if [ -n "$SCALAPACK_LIBS" ] ; then
                 export SCALAPACK_LIB="$SCALAPACK_LIBS"
                 if [ -s "$SCALAPACKROOT" ] ; then
@@ -131,19 +130,20 @@ case "$with_sirius" in
                   -DCMAKE_CXX_FLAGS_RELWITHDEBINFO="${SIRIUS_DBG}" \
                   -DCMAKE_CXX_COMPILER=mpic++ \
                   -DCMAKE_C_COMPILER=mpicc \
-                   ${COMPILATION_OPTIONS} ..
-             make -C src > compile.log
+                  ${COMPILATION_OPTIONS} .. > compile.log 2>&1
+             make -C src >> compile.log 2>&1
 
-            install -d ${pkg_install_dir}/include #>> install.log 2>&1
-            install -d ${pkg_install_dir}/lib #>> install.log 2>&1
-            cp -R ../src/* ${pkg_install_dir}/include
-            install -m 644 src/*.a ${pkg_install_dir}/lib #>> install.log 2>&1
-            install -m 644 src/mod_files/*.mod ${pkg_install_dir}/include #>> install.log 2>&1
+            install -d ${pkg_install_dir}/include >> install.log 2>&1
+            install -d ${pkg_install_dir}/lib >> install.log 2>&1
+            cp -R ../src/* ${pkg_install_dir}/include >> install.log 2>&1
+            install -m 644 src/*.a ${pkg_install_dir}/lib >> install.log 2>&1
+            install -m 644 src/mod_files/*.mod ${pkg_install_dir}/include >> install.log 2>&1
             cd ..
 
             # now do we have cuda as well
 
             if [ "$ENABLE_CUDA" = "__TRUE__" ] ; then
+                [ -d build-cuda ] && rm -rf "build-cuda"
                 mkdir build-cuda
                 cd build-cuda
                 cmake -DCMAKE_INSTALL_PREFIX=${pkg_install_dir} \
@@ -152,10 +152,10 @@ case "$with_sirius" in
                       -DUSE_CUDA=ON \
                       -DGPU_MODEL=P100 \
                       -DCMAKE_CXX_COMPILER=mpic++ \
-                      -DCMAKE_C_COMPILER=mpicc ${COMPILATION_OPTIONS} ..
-                make -C src
-                install -m 644 src/*.a ${pkg_install_dir}/lib/cuda #>> install.log 2>&1
-                install -m 644 src/mod_files/*.mod ${pkg_install_dir}/include/cuda #>> install.log 2>&1
+                      -DCMAKE_C_COMPILER=mpicc ${COMPILATION_OPTIONS} .. >> compile.log 2>&1
+                make -C src >> compile.log 2>&1
+                install -m 644 src/*.a ${pkg_install_dir}/lib/cuda >> install.log 2>&1
+                install -m 644 src/mod_files/*.mod ${pkg_install_dir}/include/cuda >> install.log 2>&1
                 SIRIUS_CUDA_LDFLAGS="-L'${pkg_install_dir}/lib/cuda' -Wl,-rpath='${pkg_install_dir}/lib/cuda'"
                 cd ..
             fi

@@ -11,6 +11,11 @@ with_libvdwxc=${1:-__INSTALL__}
 
 [ -f "${BUILDDIR}/setup_libvdwxc" ] && rm "${BUILDDIR}/setup_libvdwxc"
 
+if [ "$MPI_MODE" = "no" ] && [ "$ENABLE_OMP" = "__FALSE__" ] && [ $with_sirius ="__FALSE__" ] ; then
+    report_warning $LINENO "MPI and OpenMP and SIRIUS are disabled, skipping libvdwxc installation"
+    exit 0
+fi
+
 ! [ -d "${BUILDDIR}" ] && mkdir -p "${BUILDDIR}"
 cd "${BUILDDIR}"
 case "$with_libvdwxc" in
@@ -55,10 +60,15 @@ case "$with_libvdwxc" in
                 patch -p1 < ../"${patch##*/}"
             done
             unset MPICC MPICXX MPIF90 MPIFC MPIF77
-            ./autogen.sh
-      CC=mpicc FC=mpifort ./configure --prefix="${pkg_install_dir}" --with-fftw3 --disable-shared --with-mpi
-            make -j
-            make install
+            ./autogen.sh > configure.log 2>&1
+            if [ "$MPI_MODE" = "no" ]; then
+                # compile libvdwxc without mpi support since fftw (or mkl) do not have mpi support activated
+                ./configure --prefix="${pkg_install_dir}" --with-fftw3 --disable-shared --without-mpi >> configure.log 2>&1
+            else
+                CC=mpicc FC=mpifort ./configure --prefix="${pkg_install_dir}" --with-fftw3 --disable-shared --with-mpi  >> configure.log 2>&1
+            fi
+            make -j > compile.log 2>&1
+            make install > compile.log 2>&1
             write_checksums "${install_lock_file}" "${SCRIPT_DIR}/$(basename ${SCRIPT_NAME})"
         fi
 
