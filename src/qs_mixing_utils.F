@@ -216,15 +216,20 @@ CONTAINS
          IF (mixing_method == pulay_mixing_nr) THEN
             IF (ASSOCIATED(mixing_store%pulay_matrix)) DEALLOCATE (mixing_store%pulay_matrix)
             ALLOCATE (mixing_store%pulay_matrix(nbuffer, nbuffer))
+            mixing_store%pulay_matrix = 0.0_dp
          ELSEIF (mixing_method == broyden_mixing_nr) THEN
             IF (ASSOCIATED(mixing_store%abroy)) DEALLOCATE (mixing_store%abroy)
             ALLOCATE (mixing_store%abroy(nbuffer, nbuffer))
+            mixing_store%abroy = 0.0_dp
             IF (ASSOCIATED(mixing_store%wbroy)) DEALLOCATE (mixing_store%wbroy)
             ALLOCATE (mixing_store%wbroy(nbuffer))
+            mixing_store%wbroy = 0.0_dp
             IF (ASSOCIATED(mixing_store%dfbroy)) DEALLOCATE (mixing_store%dfbroy)
             ALLOCATE (mixing_store%dfbroy(na, max_shell, nbuffer))
+            mixing_store%dfbroy = 0.0_dp
             IF (ASSOCIATED(mixing_store%ubroy)) DEALLOCATE (mixing_store%ubroy)
             ALLOCATE (mixing_store%ubroy(na, max_shell, nbuffer))
+            mixing_store%ubroy = 0.0_dp
          ELSEIF (mixing_method == broyden_mixing_new_nr) THEN
             CPABORT("broyden_mixing_new not available")
          ELSEIF (mixing_method == multisecant_mixing_nr) THEN
