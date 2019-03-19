@@ -330,7 +330,7 @@ CONTAINS
          local_col_row_info_gw, local_col_row_info_occ_bse, local_col_row_info_virt_bse
       INTEGER, DIMENSION(2)                              :: myploc, pdims
       INTEGER, DIMENSION(3)                              :: periodic
-      LOGICAL                                            :: do_alpha_beta, do_mult_2c, memory_info
+      LOGICAL                                            :: do_alpha_beta, memory_info
       REAL(KIND=dp)                                      :: cond_num, mem_for_iaK, pair_energy, &
                                                             wfn_size
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: my_Lrows
@@ -375,7 +375,6 @@ CONTAINS
       virtual = nmo-homo
       gw_corr_lev_total = gw_corr_lev_virt+gw_corr_lev_occ
 
-      do_mult_2c = qs_env%mp2_env%mp2_gpw%do_mult_2c
       eri_method = qs_env%mp2_env%eri_method
       eri_param => qs_env%mp2_env%eri_mme_param
 
@@ -514,7 +513,7 @@ CONTAINS
                            mo_coeff, dft_control, psi_L, rho_r, rho_g, pot_g, pw_env_sub, poisson_env, &
                            my_group_L_size, my_group_L_start, my_group_L_end, sab_orb_sub, &
                            sizes_array, starts_array, ends_array, calc_PQ_cond_num, cond_num, &
-                           num_small_eigen, auxbas_pw_pool, do_mult_2c, ri_metric, &
+                           num_small_eigen, auxbas_pw_pool, ri_metric, &
                            fm_matrix_L_RI_metric, do_im_time, do_kpoints_cubic_RPA, qs_env%mp2_env%mp2_gpw%eps_pgf_orb_S, &
                            atomic_kind_set, qs_kind_set, unit_nr)
 
@@ -1310,7 +1309,6 @@ CONTAINS
 !> \param cond_num ...
 !> \param num_small_eigen ...
 !> \param auxbas_pw_pool ...
-!> \param do_mult_2c ...
 !> \param ri_metric ...
 !> \param fm_matrix_L_RI_metric ...
 !> \param do_im_time ...
@@ -1325,7 +1323,7 @@ CONTAINS
                               mo_coeff, dft_control, psi_L, rho_r, rho_g, pot_g, pw_env_sub, poisson_env, &
                               my_group_L_size, my_group_L_start, my_group_L_end, sab_orb_sub, &
                               sizes_array, starts_array, ends_array, calc_PQ_cond_num, cond_num, &
-                              num_small_eigen, auxbas_pw_pool, do_mult_2c, &
+                              num_small_eigen, auxbas_pw_pool, &
                               ri_metric, fm_matrix_L_RI_metric, do_im_time, do_kpoints_cubic_RPA, mp2_eps_pgf_orb_S, &
                               atomic_kind_set, qs_kind_set, unit_nr)
 
@@ -1350,7 +1348,6 @@ CONTAINS
       REAL(KIND=dp)                                      :: cond_num
       INTEGER                                            :: num_small_eigen
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
-      LOGICAL                                            :: do_mult_2c
       INTEGER                                            :: ri_metric
       TYPE(cp_fm_p_type), DIMENSION(:, :), POINTER       :: fm_matrix_L_RI_metric
       LOGICAL                                            :: do_im_time, do_kpoints_cubic_RPA
@@ -1375,7 +1372,7 @@ CONTAINS
                                 mo_coeff, dft_control, psi_L, rho_r, rho_g, pot_g, pw_env_sub, poisson_env, &
                                 my_group_L_size, my_group_L_start, my_group_L_end, sab_orb_sub, &
                                 sizes_array, starts_array, ends_array, calc_PQ_cond_num, cond_num, &
-                                num_small_eigen, auxbas_pw_pool, do_mult_2c, do_im_time=do_im_time)
+                                num_small_eigen, auxbas_pw_pool, do_im_time=do_im_time)
 
       IF (ri_metric == ri_coulomb) THEN
 
@@ -1416,7 +1413,7 @@ CONTAINS
                                       mo_coeff, dft_control, psi_L, rho_r, rho_g, pot_g, pw_env_sub, poisson_env, &
                                       my_group_L_size, my_group_L_start, my_group_L_end, sab_orb_sub, &
                                       sizes_array, starts_array, ends_array, calc_PQ_cond_num, cond_num, &
-                                      num_small_eigen, auxbas_pw_pool, do_mult_2c=.FALSE., &
+                                      num_small_eigen, auxbas_pw_pool, &
                                       external_matrix_struc=.TRUE., fm_matrix_L_extern=fm_matrix_L, &
                                       ri_metric=ri_metric)
 
@@ -1756,7 +1753,6 @@ CONTAINS
 !> \param cond_num ...
 !> \param num_small_eigen ...
 !> \param auxbas_pw_pool ...
-!> \param do_mult_2c ...
 !> \param external_matrix_struc ...
 !> \param do_im_time ...
 !> \param fm_matrix_L_extern ...
@@ -1767,7 +1763,7 @@ CONTAINS
                                    mo_coeff, dft_control, psi_L, rho_r, rho_g, pot_g, pw_env_sub, poisson_env, &
                                    my_group_L_size, my_group_L_start, my_group_L_end, sab_orb_sub, &
                                    sizes_array, starts_array, ends_array, calc_PQ_cond_num, cond_num, &
-                                   num_small_eigen, auxbas_pw_pool, do_mult_2c, &
+                                   num_small_eigen, auxbas_pw_pool, &
                                    external_matrix_struc, do_im_time, fm_matrix_L_extern, ri_metric)
 
       TYPE(qs_environment_type), POINTER                 :: qs_env
@@ -1791,7 +1787,6 @@ CONTAINS
       REAL(KIND=dp)                                      :: cond_num
       INTEGER                                            :: num_small_eigen
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
-      LOGICAL                                            :: do_mult_2c
       LOGICAL, OPTIONAL                                  :: external_matrix_struc, do_im_time
       TYPE(cp_fm_type), OPTIONAL, POINTER                :: fm_matrix_L_extern
       INTEGER, OPTIONAL                                  :: ri_metric
@@ -1913,375 +1908,66 @@ CONTAINS
       my_group_L_size = sizes_array(color_sub)
       my_group_L_start = starts_array(color_sub)
       my_group_L_end = ends_array(color_sub)
-
+      
       CALL timeset(routineN//"_loop_lm", handle2)
 
-      IF (do_mult_2c) THEN
+      CALL timeset(routineN//"_alloc_L_local_col", handle3)
 
-         ! write arrays with number(=label) of every basis function, its quantum number (l,m)
-         ! and the reference to the first basis function with (l,m)
-         ALLOCATE (ref_matrix(dimen_RI, 10))
+      ALLOCATE (L_local_col(dimen_RI, my_group_L_size))
+      L_local_col = 0.0_dp
 
-         ! naolimits(iatom,iset,1/2)=begin/end reference entries in L_local_q
-         ALLOCATE (naolimits(natom, 100, 2))
+      CALL timestop(handle3)
 
-         ! array with reference (atom,set) for arbitrary (atom,set);
-         ALLOCATE (ref_at_se_sgf_ofs(natom, 100, 4))
+      IF ((eri_method .EQ. do_eri_mme .OR. eri_method .EQ. do_eri_os) &
+         .AND. my_ri_metric .EQ. ri_coulomb) THEN
 
-         i_counter = 0
-         i_counter_diff_bf = 0
-         i_counter_diff_sets = 0
-         i_counter_diff_bf_at_any_atom = 0
+         CALL mp2_eri_2c_integrate(eri_param, para_env_sub, qs_env, &
+                                   basis_type_a="RI_AUX", basis_type_b="RI_AUX", &
+                                   hab=L_local_col, first_b=my_group_L_start, last_b=my_group_L_end, &
+                                   eri_method=eri_method)
 
-         ! 1) build up reference matrices to get the reference q_alpha for every basis function alpha
-
-         offset = 0
-
-         DO iatom = 1, natom
-            ikind = kind_of(iatom)
-            CALL get_qs_kind(qs_kind=qs_kind_set(ikind), basis_set=basis_set_a, basis_type="RI_AUX")
-
-            la_max => basis_set_a%lmax
-            la_min => basis_set_a%lmin
-            npgfa => basis_set_a%npgf
-            nseta = basis_set_a%nset
-            nsgfa => basis_set_a%nsgf_set
-            zeta => basis_set_a%zet
-            first_sgfa => basis_set_a%first_sgf
-
-            DO iset = 1, nseta
-
-               DO ipgf = 1, npgfa(iset)
-
-                  !pseudo-m quantum number runs from 1 to 2l+1
-                  DO m = 1, nsgfa(iset)
-                     i_counter = i_counter+1
-                     !first entry: l; only in case of la_max(iset)==la_min(iset) the shortcut will work, see IF below
-                     ref_matrix(i_counter, 1) = la_max(iset)
-                     !second entry: pseudo-m quantum number runs from 1 to 2l+1
-                     ref_matrix(i_counter, 2) = m
-                     ref_matrix(i_counter, 3) = iatom
-                     ref_matrix(i_counter, 4) = iset
-                     ref_matrix(i_counter, 5) = ipgf
-                     ref_matrix(i_counter, 8) = first_sgfa(1, iset)
-
-                     !Check, whether (l,m) combination already exists
-                     IF (i_counter >= 2) THEN
-                        DO i_bf = 1, i_counter-1
-                           ! 6th row of ref_matrix contains number of first basis function with identical (l,m)
-                           ! for set with la_min=/la_max at the same atom
-                           IF (ref_matrix(i_bf, 1) == la_max(iset) .AND. ref_matrix(i_bf, 2) == m .AND. &
-                               la_max(iset) == la_min(iset) .AND. ref_matrix(i_bf, 3) == iatom) THEN
-                              ref_matrix(i_counter, 6) = i_bf
-
-                              ! we are done with checking the basis functions in DO when a (l,m) match was found.
-                              EXIT
-
-                           END IF
-                           ! 0 if no basis function has this (l,m) combination
-                           ref_matrix(i_counter, 6) = 0
-
-                        END DO !loop already existing basis functions
-
-                        DO i_bf = 1, i_counter-1
-                           ! 6th row of ref_matrix contains number of first basis function with identical (l,m)
-                           ! for set with la_min=/la_max AT ANY ATOM (!!DIFFERENCE!!)
-                           IF (ref_matrix(i_bf, 1) == la_max(iset) .AND. ref_matrix(i_bf, 2) == m .AND. &
-                               la_max(iset) == la_min(iset)) THEN
-                              ref_matrix(i_counter, 9) = i_bf
-
-                              ! we are done with checking the basis functions in DO when a (l,m) match was found.
-                              EXIT
-
-                           END IF
-                           ! 0 if no basis function has this (l,m) combination
-                           ref_matrix(i_counter, 9) = 0
-
-                        END DO !loop already existing basis functions
-
-                     ELSE
-                        ref_matrix(1, 6) = 0
-                        ref_matrix(1, 9) = 0
-
-                     END IF
-                     ! for new (l,m) combination increase i_counter_diff_bf by 1 and set reference to itself
-                     IF (ref_matrix(i_counter, 6) == 0) THEN
-                        i_counter_diff_bf = i_counter_diff_bf+1
-                        ref_matrix(i_counter, 7) = i_counter_diff_bf
-                        ! for already existing (l,m) combination, 7th entry refers to number/label of first (l,m) combination
-                     ELSE
-                        ref_matrix(i_counter, 7) = &
-                           ref_matrix(ref_matrix(i_counter, 6), 7)
-                     END IF
-
-                     ! for new (l,m) at any atom combination increase i_counter_diff_bf_at_any_atom by 1
-                     !  and set reference to itself
-                     IF (ref_matrix(i_counter, 9) == 0) THEN
-                        i_counter_diff_bf_at_any_atom = i_counter_diff_bf_at_any_atom+1
-                        ref_matrix(i_counter, 10) = i_counter_diff_bf_at_any_atom
-                        ! for already existing (l,m) combination, 7th entry refers to number/label of first (l,m) combination
-                     ELSE
-                        ref_matrix(i_counter, 10) = &
-                           ref_matrix(ref_matrix(i_counter, 9), 10)
-                     END IF
-
-                  END DO !m
-
-               END DO !prim. gf.
-
-               IF (ref_matrix(i_counter, 6) == 0) THEN
-                  i_counter_diff_sets = i_counter_diff_sets+1
-                  ref_at_se_sgf_ofs(iatom, iset, 1) = iatom
-                  ref_at_se_sgf_ofs(iatom, iset, 2) = iset
-                  ref_at_se_sgf_ofs(iatom, iset, 3) = first_sgfa(1, iset)
-
-               ELSE
-                  ref_at_se_sgf_ofs(iatom, iset, 1) = ref_matrix(ref_matrix(i_counter, 6), 3)
-                  ref_at_se_sgf_ofs(iatom, iset, 2) = ref_matrix(ref_matrix(i_counter, 6), 4)
-                  ref_at_se_sgf_ofs(iatom, iset, 3) = ref_matrix(ref_matrix(i_counter, 6), 8)
-               END IF
-
-               naolimits(iatom, iset, 1) = ref_matrix(i_counter, 7)-nsgfa(iset)+1
-               naolimits(iatom, iset, 2) = ref_matrix(i_counter, 7)
-
-               ref_at_se_sgf_ofs(iatom, iset, 4) = offset
-               offset = offset+nsgfa(iset)
-
-            END DO !sets
-
-         END DO !atoms
-
-         ! array with number of q_a basis function at an atom
-         ALLOCATE (diffbf_noinbas(i_counter_diff_bf))
-
-         ! array with number of a basis function with first unique (l,m) combination
-         ALLOCATE (diffbfatanyatom_noinbas(i_counter_diff_bf_at_any_atom))
-
-         ! array with number of q_a (at arbitrary atom) with q_a at specific atom
-         ALLOCATE (diffbf_atom_arbitr_atom(i_counter_diff_bf))
-
-         ! array with atom and set number for every q_a bf
-         ALLOCATE (atom_set_afo_diffbf(i_counter_diff_bf, 2))
-
-         ! array with atom and set number for every q_a bf
-         ALLOCATE (atom_set_afo_diffbf_atanyatom(i_counter_diff_bf, 2))
-
-         j = 1
-         DO i = 1, dimen_RI
-            IF (ref_matrix(i, 9) == 0) THEN
-               diffbfatanyatom_noinbas(j) = i
-               atom_set_afo_diffbf_atanyatom(j, 1) = ref_matrix(i, 3)
-               atom_set_afo_diffbf_atanyatom(j, 2) = ref_matrix(i, 4)
-               j = j+1
-            END IF
-         END DO
-
-         j = 1
-         DO i = 1, dimen_RI
-            IF (ref_matrix(i, 6) == 0) THEN
-               diffbf_noinbas(j) = i
-               atom_set_afo_diffbf(j, 1) = ref_matrix(i, 3)
-               atom_set_afo_diffbf(j, 2) = ref_matrix(i, 4)
-               diffbf_atom_arbitr_atom(j) = ref_matrix(i, 10)
-               j = j+1
-            END IF
-         END DO
-
-         ! array with number of first set with quantum number l
-         ALLOCATE (diffsets_atom_set_bf(i_counter_diff_sets, 3))
-
-         ! first set with new quantum number l is on atom 1, set 1
-         diffsets_atom_set_bf(1, 1) = 1
-         diffsets_atom_set_bf(1, 2) = 1
-         diffsets_atom_set_bf(1, 3) = 1
-
-         j = 2
-         DO i = 2, dimen_RI
-            IF (ref_matrix(i, 6) == 0 .AND. (diffsets_atom_set_bf(j-1, 1) /= ref_matrix(i, 3) .OR. &
-                                             diffsets_atom_set_bf(j-1, 2) /= ref_matrix(i, 4))) THEN
-               diffsets_atom_set_bf(j, 1) = ref_matrix(i, 3)
-               diffsets_atom_set_bf(j, 2) = ref_matrix(i, 4)
-               diffsets_atom_set_bf(j, 3) = ref_matrix(i, 7)
-               j = j+1
-            END IF
-         END DO
-
-         ! For parallelization: Check, which elements of L_local_col_q
-         ! are needed for setting up L_local_q
-
-         my_group_L_q_start = naolimits(ref_matrix(my_group_L_start, 3), 1, 1)
-         IF (ref_matrix(my_group_L_end, 3) /= natom) THEN
-            my_group_L_q_end = naolimits(ref_matrix(my_group_L_end, 3)+1, 1, 1)-1
-         ELSE
-            nkind = kind_of(natom)
-            CALL get_qs_kind(qs_kind=qs_kind_set(nkind), basis_set=basis_set_a, basis_type="RI_AUX")
-            nseta = basis_set_a%nset
-            my_group_L_q_end = naolimits(ref_matrix(my_group_L_end, 3), nseta, 2)
-         END IF
-         my_group_L_q_size = my_group_L_q_end-my_group_L_q_start+1
-
-         ! calculate which potentials to calculate
-         ALLOCATE (sizes_array_pot(0:ngroup-1))
-         sizes_array_pot = 0
-         ALLOCATE (starts_array_pot(0:ngroup-1))
-         starts_array_pot = 0
-         ALLOCATE (ends_array_pot(0:ngroup-1))
-         ends_array_pot = 0
-
-         DO igroup = 0, ngroup-1
-            itmp = get_limit(i_counter_diff_bf_at_any_atom, ngroup, igroup)
-            starts_array_pot(igroup) = itmp(1)
-            ends_array_pot(igroup) = itmp(2)
-            sizes_array_pot(igroup) = itmp(2)-itmp(1)+1
-         ENDDO
-
-         my_group_pot_size = sizes_array_pot(color_sub)
-         my_group_pot_start = starts_array_pot(color_sub)
-         my_group_pot_end = ends_array_pot(color_sub)
-
-         DEALLOCATE (ref_matrix)
-
-         ! 2.0) calculate potential (q_alpha|_p for first (l,m) combination at an atom
-         i_counter = 0
-         exp_q = 0.5_dp
-
-         ALLOCATE (rho_r_array(i_counter_diff_bf_at_any_atom))
+      ELSEIF (eri_method .EQ. do_eri_gpw .OR. my_ri_metric .NE. ri_coulomb) THEN
 
          ALLOCATE (wf_vector(dimen_RI))
 
-         DO j = my_group_pot_start, my_group_pot_end
-            wf_vector = 0.0_dp
-            ! only take one basis function unique l,m-combination at any atom
-            wf_vector(diffbfatanyatom_noinbas(j)) = 1.0_dp
-
-            ! set exponent of aux basis set temporarily to exp_q since reference wavefunction
-            ! q_a/b should have exponent exp_q. Then integration (q_a|q_b) is numerically
-            ! feasible in reciprocal space
-            jatom = atom_set_afo_diffbf_atanyatom(j, 1)
-            jset = atom_set_afo_diffbf_atanyatom(j, 2)
-            jkind = kind_of(jatom)
-            CALL get_qs_kind(qs_kind=qs_kind_set(jkind), basis_set=basis_set_b, basis_type="RI_AUX")
-            zetb => basis_set_b%zet
-            lb_max => basis_set_b%lmax
-
-            zet_tmp = zetb(1, jset)
-            zetb(1, jset) = exp_q(1)
-
-            ! pseudo psi_L
-            CALL calculate_wavefunction(mo_coeff, 1, psi_L, rho_g, atomic_kind_set, &
-                                        qs_kind_set, cell, dft_control, particle_set, pw_env_sub, &
-                                        basis_type="RI_AUX", &
-                                        external_vector=wf_vector)
-
-            ! set back the exponent
-            zetb(1, jset) = zet_tmp
-
-            rho_r%pw%cr3d = psi_L%pw%cr3d
-            CALL pw_transfer(rho_r%pw, rho_g%pw)
-            CALL pw_poisson_solve(poisson_env, rho_g%pw, pair_energy, pot_g%pw)
-            CALL pw_transfer(pot_g%pw, rho_r%pw)
-            CALL pw_scale(rho_r%pw, rho_r%pw%pw_grid%dvol)
-
-            ! Writing array of potential copied from xc/xc_rho_set_types.F
-
-            NULLIFY (rho_r_array(j)%pw)
-
-            rho_r_array(j)%pw => rho_r%pw
-
-            CALL pw_pool_create_pw(auxbas_pw_pool, rho_r_array(j)%pw, &
-                                   use_data=REALDATA3D, in_space=REALSPACE)
-            CALL pw_copy(rho_r%pw, rho_r_array(j)%pw)
-
-         END DO
-
-         ! Fill pw_grid and zero-components cr3d, aso. into rho_r_array for parallization
-         ! If no potential was calculated because of my_group_pot_start>my_group_pot_end,
-         ! calculate potential of my_group_pot_start-component to get a pw_grid
-         IF (my_group_pot_start > my_group_pot_end) THEN
-            wf_vector = 0.0_dp
-            ! pseudo psi_L
-            CALL calculate_wavefunction(mo_coeff, 1, psi_L, rho_g, atomic_kind_set, &
-                                        qs_kind_set, cell, dft_control, particle_set, pw_env_sub, &
-                                        basis_type="RI_AUX", &
-                                        external_vector=wf_vector)
-
-            rho_r%pw%cr3d = psi_L%pw%cr3d
-            CALL pw_transfer(rho_r%pw, rho_g%pw)
-            CALL pw_poisson_solve(poisson_env, rho_g%pw, pair_energy, pot_g%pw)
-            CALL pw_transfer(pot_g%pw, rho_r%pw)
-            CALL pw_scale(rho_r%pw, rho_r%pw%pw_grid%dvol)
-
-         END IF
-
-         DEALLOCATE (wf_vector)
-
-         ! Fill pw_grid and 0.0_dp potential in every component of rho_r_array
-         DO j = 1, i_counter_diff_bf_at_any_atom
-            IF (j < my_group_pot_start .OR. j > my_group_pot_end) THEN
-
-               NULLIFY (rho_r_array(j)%pw)
-               rho_r%pw%cr3d = 0.0_dp
-               rho_r_array(j)%pw => rho_r%pw
-
-               CALL pw_pool_create_pw(auxbas_pw_pool, rho_r_array(j)%pw, &
-                                      use_data=REALDATA3D, in_space=REALSPACE)
-               CALL pw_copy(rho_r%pw, rho_r_array(j)%pw)
-
-            END IF
-         END DO
-
-         color_exc = para_env_sub%mepos
-         CALL mp_comm_split_direct(para_env%group, comm_exc, color_exc)
-         NULLIFY (para_env_exc)
-         CALL cp_para_env_create(para_env_exc, comm_exc)
-
-         ! collect all calculated potentials
-         DO j = 1, i_counter_diff_bf_at_any_atom
-            CALL mp_sum(rho_r_array(j)%pw%cr3d, para_env_exc%group)
-         END DO
-
-         CALL cp_para_env_release(para_env_exc)
-
-         ALLOCATE (L_local_col_q(i_counter_diff_bf, my_group_L_q_size))
-
-         L_local_col_q = 0.0_dp
-
          i_counter = 0
-
-         ! 2.1) calculate (q_alpha|q_beta)_p for every (l_alpha,m_alpha), (l_beta,m_beta)
-         !      at every atom. Use the potential (q_alpha|_p calculated in 2.0)
-
-         DO j = my_group_L_q_start, my_group_L_q_end
+         DO LLL = my_group_L_start, my_group_L_end
             i_counter = i_counter+1
 
-            jatom = atom_set_afo_diffbf(j, 1)
-            jset = atom_set_afo_diffbf(j, 2)
+            wf_vector = 0.0_dp
+            wf_vector(LLL) = 1.0_dp
 
-            j_ref_bf = diffbf_atom_arbitr_atom(j)
-            j_ref_atom = atom_set_afo_diffbf_atanyatom(j_ref_bf, 1)
-            j_ref_set = atom_set_afo_diffbf_atanyatom(j_ref_bf, 2)
+            ! pseudo psi_L
+            CALL calculate_wavefunction(mo_coeff, 1, psi_L, rho_g, atomic_kind_set, &
+                                        qs_kind_set, cell, dft_control, particle_set, pw_env_sub, &
+                                        basis_type="RI_AUX", &
+                                        external_vector=wf_vector)
 
-            j_ref_kind = kind_of(j_ref_atom)
-            CALL get_qs_kind(qs_kind=qs_kind_set(j_ref_kind), basis_set=basis_set_b, basis_type="RI_AUX")
-            zetb => basis_set_b%zet
-            lb_max => basis_set_b%lmax
+            CALL timeset(routineN//"_pot_lm", handle3)
+            rho_r%pw%cr3d = psi_L%pw%cr3d
+
+            ! in case we do the overlap metric, we have no potential and hence no FT has to be carried out
+            IF (my_ri_metric == ri_coulomb) THEN
+               CALL pw_transfer(rho_r%pw, rho_g%pw)
+               CALL pw_poisson_solve(poisson_env, rho_g%pw, pair_energy, pot_g%pw)
+               CALL pw_transfer(pot_g%pw, rho_r%pw)
+            END IF
+
+            CALL pw_scale(rho_r%pw, rho_r%pw%pw_grid%dvol)
 
             NULLIFY (rs_v)
             NULLIFY (rs_descs)
             CALL pw_env_get(pw_env_sub, rs_descs=rs_descs, rs_grids=rs_v)
             DO i = 1, SIZE(rs_v)
-               ! allocation
                CALL rs_grid_retain(rs_v(i)%rs_grid)
             END DO
-            CALL potential_pw2rs(rs_v, rho_r_array(j_ref_bf), pw_env_sub)
+            CALL potential_pw2rs(rs_v, rho_r, pw_env_sub)
+
+            CALL timestop(handle3)
 
             ! integrate the little bastards
             offset = 0
-            ! only take one single set once for every (l,m) combination
-            DO i = 1, i_counter_diff_sets
-               iatom = diffsets_atom_set_bf(i, 1)
-               iset = diffsets_atom_set_bf(i, 2)
-
+            DO iatom = 1, natom
                ikind = kind_of(iatom)
                CALL get_qs_kind(qs_kind=qs_kind_set(ikind), basis_set=basis_set_a, basis_type="RI_AUX")
 
@@ -2296,512 +1982,98 @@ CONTAINS
                sphi_a => basis_set_a%sphi
                zeta => basis_set_a%zet
 
-               ra(:) = pbc(particle_set(iatom)%r, cell)- &
-                       pbc(particle_set(jatom)%r, cell)+ &
-                       pbc(particle_set(j_ref_atom)%r, cell)
+               ra(:) = pbc(particle_set(iatom)%r, cell)
                rab = 0.0_dp
                rab2 = 0.0_dp
 
-               ncoa = npgfa(iset)*ncoset(la_max(iset))
-               sgfa = first_sgfa(1, iset)
+               DO iset = 1, nseta
+                  ncoa = npgfa(iset)*ncoset(la_max(iset))
+                  sgfa = first_sgfa(1, iset)
 
-               ALLOCATE (I_tmp2(ncoa, 1))
-               I_tmp2 = 0.0_dp
-               ALLOCATE (I_ab(nsgfa(iset), 1))
-               I_ab = 0.0_dp
+                  ALLOCATE (I_tmp2(ncoa, 1))
+                  I_tmp2 = 0.0_dp
+                  ALLOCATE (I_ab(nsgfa(iset), 1))
+                  I_ab = 0.0_dp
 
-               igrid_level = gaussian_gridlevel(pw_env_sub%gridlevel_info, MINVAL(exp_q(:)))
-               map_it_here = .FALSE.
-               IF (.NOT. ALL(rs_v(igrid_level)%rs_grid%desc%perd == 1)) THEN
-                  DO dir = 1, 3
-                     ! bounds of local grid (i.e. removing the 'wings'), if periodic
-                     tp(dir) = FLOOR(DOT_PRODUCT(cell%h_inv(dir, :), ra)*rs_v(igrid_level)%rs_grid%desc%npts(dir))
-                     tp(dir) = MODULO(tp(dir), rs_v(igrid_level)%rs_grid%desc%npts(dir))
-                     IF (rs_v(igrid_level)%rs_grid%desc%perd(dir) .NE. 1) THEN
-                        lb(dir) = rs_v(igrid_level)%rs_grid%lb_local(dir)+rs_v(igrid_level)%rs_grid%desc%border
-                        ub(dir) = rs_v(igrid_level)%rs_grid%ub_local(dir)-rs_v(igrid_level)%rs_grid%desc%border
-                     ELSE
-                        lb(dir) = rs_v(igrid_level)%rs_grid%lb_local(dir)
-                        ub(dir) = rs_v(igrid_level)%rs_grid%ub_local(dir)
+                  igrid_level = gaussian_gridlevel(pw_env_sub%gridlevel_info, MINVAL(zeta(:, iset)))
+                  map_it_here = .FALSE.
+                  IF (.NOT. ALL(rs_v(igrid_level)%rs_grid%desc%perd == 1)) THEN
+                     DO dir = 1, 3
+                        ! bounds of local grid (i.e. removing the 'wings'), if periodic
+                        tp(dir) = FLOOR(DOT_PRODUCT(cell%h_inv(dir, :), ra)*rs_v(igrid_level)%rs_grid%desc%npts(dir))
+                        tp(dir) = MODULO(tp(dir), rs_v(igrid_level)%rs_grid%desc%npts(dir))
+                        IF (rs_v(igrid_level)%rs_grid%desc%perd(dir) .NE. 1) THEN
+                           lb(dir) = rs_v(igrid_level)%rs_grid%lb_local(dir)+rs_v(igrid_level)%rs_grid%desc%border
+                           ub(dir) = rs_v(igrid_level)%rs_grid%ub_local(dir)-rs_v(igrid_level)%rs_grid%desc%border
+                        ELSE
+                           lb(dir) = rs_v(igrid_level)%rs_grid%lb_local(dir)
+                           ub(dir) = rs_v(igrid_level)%rs_grid%ub_local(dir)
+                        ENDIF
+                        ! distributed grid, only map if it is local to the grid
+                        location(dir) = tp(dir)+rs_v(igrid_level)%rs_grid%desc%lb(dir)
+                     ENDDO
+                     IF (lb(1) <= location(1) .AND. location(1) <= ub(1) .AND. &
+                         lb(2) <= location(2) .AND. location(2) <= ub(2) .AND. &
+                         lb(3) <= location(3) .AND. location(3) <= ub(3)) THEN
+                        map_it_here = .TRUE.
                      ENDIF
-                     ! distributed grid, only map if it is local to the grid
-                     location(dir) = tp(dir)+rs_v(igrid_level)%rs_grid%desc%lb(dir)
-                  ENDDO
-                  IF (lb(1) <= location(1) .AND. location(1) <= ub(1) .AND. &
-                      lb(2) <= location(2) .AND. location(2) <= ub(2) .AND. &
-                      lb(3) <= location(3) .AND. location(3) <= ub(3)) THEN
-                     map_it_here = .TRUE.
+                  ELSE
+                     ! not distributed, just a round-robin distribution over the full set of CPUs
+                     IF (MODULO(offset, para_env_sub%num_pe) == para_env_sub%mepos) map_it_here = .TRUE.
                   ENDIF
-               ELSE
-                  ! not distributed, just a round-robin distribution over the full set of CPUs
-                  IF (MODULO(offset, para_env_sub%num_pe) == para_env_sub%mepos) map_it_here = .TRUE.
-               ENDIF
 
-               offset = offset+nsgfa(iset)
+                  offset = offset+nsgfa(iset)
 
-               IF (map_it_here) THEN
-                  DO ipgf = 1, npgfa(iset)
-                     na1 = (ipgf-1)*ncoset(la_max(iset))+1
-                     na2 = ipgf*ncoset(la_max(iset))
-                     igrid_level = gaussian_gridlevel(pw_env_sub%gridlevel_info, exp_q(1))
+                  IF (map_it_here) THEN
+                     DO ipgf = 1, npgfa(iset)
+                        sgfa = first_sgfa(1, iset)
 
-                     CALL integrate_pgf_product_rspace(la_max=la_max(iset), zeta=exp_q(1)/2.0_dp, la_min=la_min(iset), &
-                                                       lb_max=0, zetb=exp_q(1)/2.0_dp, lb_min=0, &
-                                                       ra=ra, rab=rab, rab2=rab2, &
-                                                       rsgrid=rs_v(igrid_level)%rs_grid, &
-                                                       cell=cell, &
-                                                       cube_info=pw_env_sub%cube_info(igrid_level), &
-                                                       hab=I_tmp2, &
-                                                       o1=na1-1, &
-                                                       o2=0, &
-                                                       map_consistent=.TRUE., &
-                                                       eps_gvg_rspace=dft_control%qs_control%eps_gvg_rspace, &
-                                                       calculate_forces=.FALSE.)
-                  END DO
+                        na1 = (ipgf-1)*ncoset(la_max(iset))+1
+                        na2 = ipgf*ncoset(la_max(iset))
+                        igrid_level = gaussian_gridlevel(pw_env_sub%gridlevel_info, zeta(ipgf, iset))
 
-                  CALL dgemm("T", "N", nsgfa(iset), 1, ncoa, &
-                             1.0_dp, sphi_a(1, sgfa), SIZE(sphi_a, 1), &
-                             I_tmp2(1, 1), SIZE(I_tmp2, 1), &
-                             1.0_dp, I_ab(1, 1), SIZE(I_ab, 1))
+                        CALL integrate_pgf_product_rspace( &
+                           la_max=la_max(iset), zeta=zeta(ipgf, iset)/2.0_dp, la_min=la_min(iset), &
+                           lb_max=0, zetb=zeta(ipgf, iset)/2.0_dp, lb_min=0, &
+                           ra=ra, rab=rab, rab2=rab2, &
+                           rsgrid=rs_v(igrid_level)%rs_grid, &
+                           cell=cell, &
+                           cube_info=pw_env_sub%cube_info(igrid_level), &
+                           hab=I_tmp2, &
+                           o1=na1-1, &
+                           o2=0, &
+                           map_consistent=.TRUE., &
+                           eps_gvg_rspace=dft_control%qs_control%eps_gvg_rspace, &
+                           calculate_forces=.FALSE.)
+                     END DO
 
-                  ! integration result has to be scaled since from basis set differing exponent exp_q
-                  ! causes different normalization
-                  L_local_col_q(offset-nsgfa(iset)+1:offset, i_counter) = &
-                     I_ab(1:nsgfa(iset), 1)* &
-                     (exp_q(1)/zeta(1, iset))**(la_max(iset)*0.5_dp+3.0_dp/4.0_dp)* &
-                     (exp_q(1)/zetb(1, j_ref_set))**(lb_max(j_ref_set)*0.5_dp+3.0_dp/4.0_dp)
-               END IF
+                     CALL dgemm("T", "N", nsgfa(iset), 1, ncoa, &
+                                1.0_dp, sphi_a(1, sgfa), SIZE(sphi_a, 1), &
+                                I_tmp2(1, 1), SIZE(I_tmp2, 1), &
+                                1.0_dp, I_ab(1, 1), SIZE(I_ab, 1))
 
-               DEALLOCATE (I_tmp2)
-               DEALLOCATE (I_ab)
+                     L_local_col(offset-nsgfa(iset)+1:offset, i_counter) = I_ab(1:nsgfa(iset), 1)
+                  END IF
 
-            END DO ! q_beta)-set loop
+                  DEALLOCATE (I_tmp2)
+                  DEALLOCATE (I_ab)
 
-            ! deallocation
+               END DO
+            END DO
+
             DO i = 1, SIZE(rs_v)
                CALL rs_grid_release(rs_v(i)%rs_grid)
             END DO
 
-         END DO !(q_alpha| loop
-
-         ! post cleanup
-         DO j = 1, i_counter_diff_bf_at_any_atom
-            CALL pw_pool_give_back_pw(auxbas_pw_pool, rho_r_array(j)%pw, &
-                                      accept_non_compatible=.TRUE.)
          END DO
 
-         DEALLOCATE (rho_r_array)
-
-         DEALLOCATE (diffbf_noinbas)
-         DEALLOCATE (diffbfatanyatom_noinbas)
-
-         !  3) Distribute (q_alpha|q_beta)_p to L_local_col
-
-         ALLOCATE (L_local_col(dimen_RI, my_group_L_size))
-         L_local_col = 0.0_dp
-
-         DO iatom = 1, natom
-            ikind = kind_of(iatom)
-            CALL get_qs_kind(qs_kind=qs_kind_set(ikind), basis_set=basis_set_a, basis_type="RI_AUX")
-            first_sgfa => basis_set_a%first_sgf
-            la_max => basis_set_a%lmax
-            la_min => basis_set_a%lmin
-            npgfa => basis_set_a%npgf
-            nseta = basis_set_a%nset
-            nsgfa => basis_set_a%nsgf_set
-            rpgfa => basis_set_a%pgf_radius
-            set_radius_a => basis_set_a%set_radius
-            sphi_a => basis_set_a%sphi
-            zeta => basis_set_a%zet
-
-            DO iset = 1, nseta
-
-               offsetb = 0
-
-               DO jatom = 1, natom
-                  jkind = kind_of(jatom)
-                  CALL get_qs_kind(qs_kind=qs_kind_set(jkind), basis_set=basis_set_b, basis_type="RI_AUX")
-                  first_sgfb => basis_set_b%first_sgf
-                  lb_max => basis_set_b%lmax
-                  lb_min => basis_set_b%lmin
-                  npgfb => basis_set_b%npgf
-                  nsetb = basis_set_b%nset
-                  nsgfb => basis_set_b%nsgf_set
-                  rpgfb => basis_set_b%pgf_radius
-                  set_radius_b => basis_set_b%set_radius
-                  sphi_b => basis_set_b%sphi
-                  zetb => basis_set_b%zet
-
-                  DO jset = 1, nsetb
-
-                     ! for parallelization: check, if jset is in paralleliz. range
-                     IF (ref_at_se_sgf_ofs(jatom, jset, 4)+nsgfb(jset) >= my_group_L_start .AND. &
-                         ref_at_se_sgf_ofs(jatom, jset, 4)+1 <= my_group_L_end) THEN
-
-                        ! add contribution from (q_a|q_b)_p
-                        scaling = 1.0_dp/(zeta(1, iset))**(la_max(iset)*0.5_dp+3.0_dp/4.0_dp)/ &
-                                  (zetb(1, jset))**(lb_max(jset)*0.5_dp+3.0_dp/4.0_dp)* &
-                                  exp_q(1)**(la_max(iset)*0.5_dp+3.0_dp/4.0_dp)* &
-                                  exp_q(1)**(lb_max(jset)*0.5_dp+3.0_dp/4.0_dp)
-
-                        DO i = 1, nsgfa(iset)
-                           DO j = 1, nsgfb(jset)
-                              ! for parallelization: check, if sgf_j is in paralleliz. range
-                              IF (ref_at_se_sgf_ofs(jatom, jset, 4)+j >= my_group_L_start .AND. &
-                                  ref_at_se_sgf_ofs(jatom, jset, 4)+j <= my_group_L_end) THEN
-
-                                 ! Scale (q_a|q_b) by c_a*c_b, only implemented for uncontracted Gaussians and lmin=lmax
-                                 L_local_col(ref_at_se_sgf_ofs(iatom, iset, 4)+i, &
-                                             ref_at_se_sgf_ofs(jatom, jset, 4)+j-my_group_L_start+1) = &
-                                    L_local_col_q(naolimits(iatom, iset, 1)+i-1, &
-                                                  naolimits(jatom, jset, 1)+j-1-my_group_L_q_start+1)* &
-                                    scaling
-
-                              END IF
-                           END DO
-                        END DO
-
-                        ! for s-functions alpha and beta, we need additional correction V_a(G=0)-V_q(G=0))*beta(G=0)
-                        ! and V_b(G=0)-V_q(G=0))*alpha(G=0), only add once for every subgroup (for mepos==0)
-                        IF (la_max(iset) == 0 .AND. lb_max(jset) == 0 .AND. para_env_sub%mepos == 0) THEN
-                           L_local_col(ref_at_se_sgf_ofs(iatom, iset, 4)+1, &
-                                       ref_at_se_sgf_ofs(jatom, jset, 4)-my_group_L_start+2) = &
-                              L_local_col(ref_at_se_sgf_ofs(iatom, iset, 4)+1, &
-                                          ref_at_se_sgf_ofs(jatom, jset, 4)-my_group_L_start+2)- &
-                              Pi/(rho_r%pw%pw_grid%vol)*(4.0_dp*Pi**2.0_dp/(zeta(1, iset)*zetb(1, jset)))**0.75_dp* &
-                              (2.0_dp/exp_q(1)-1.0_dp/zeta(1, iset)-1.0_dp/zetb(1, jset))
-                        END IF
-
-                     END IF
-
-                  END DO !jset
-               END DO !jatom
-            END DO !iset
-         END DO !iatom
-
-         DEALLOCATE (naolimits)
-         DEALLOCATE (L_local_col_q)
-
-         ! End of calculation (q_alpha|q_beta) for every (l_alpha,m_alpha), (l_beta,m_beta) combination
-
-         ! 4) Calculate (a|b)_s - (q_alpha|q_beta)_s and add them to (q_a|q_b)_p
-
-         ! Loop over neighbor list
-         CALL neighbor_list_iterator_create(nl_iterator, sab_orb_sub)
-         DO WHILE (neighbor_list_iterate(nl_iterator) == 0)
-            CALL get_iterator_info(nl_iterator, ikind=ikind, jkind=jkind, inode=inode, &
-                                   iatom=iatom, jatom=jatom, r=rac)
-
-            ikind = kind_of(iatom)
-            CALL get_qs_kind(qs_kind=qs_kind_set(ikind), basis_set=basis_set_a, basis_type="RI_AUX")
-            first_sgfa => basis_set_a%first_sgf
-            la_max => basis_set_a%lmax
-            la_min => basis_set_a%lmin
-            npgfa => basis_set_a%npgf
-            nseta = basis_set_a%nset
-            nsgfa => basis_set_a%nsgf_set
-            rpgfa => basis_set_a%pgf_radius
-            set_radius_a => basis_set_a%set_radius
-            sphi_a => basis_set_a%sphi
-            zeta => basis_set_a%zet
-
-            DO iset = 1, nseta
-
-               jkind = kind_of(jatom)
-               CALL get_qs_kind(qs_kind=qs_kind_set(jkind), basis_set=basis_set_b, basis_type="RI_AUX")
-               first_sgfb => basis_set_b%first_sgf
-               lb_max => basis_set_b%lmax
-               lb_min => basis_set_b%lmin
-               npgfb => basis_set_b%npgf
-               nsetb = basis_set_b%nset
-               nsgfb => basis_set_b%nsgf_set
-               rpgfb => basis_set_b%pgf_radius
-               set_radius_b => basis_set_b%set_radius
-               sphi_b => basis_set_b%sphi
-               zetb => basis_set_b%zet
-
-               DO jset = 1, nsetb
-
-                  ! for parallelization: check, if (jatom,jset) is in paralleliz. range
-                  check_j = ref_at_se_sgf_ofs(jatom, jset, 4)+nsgfb(jset) >= my_group_L_start .AND. &
-                            ref_at_se_sgf_ofs(jatom, jset, 4)+1 <= my_group_L_end
-
-                  check_i = ref_at_se_sgf_ofs(iatom, iset, 4)+nsgfa(iset) >= my_group_L_start .AND. &
-                            ref_at_se_sgf_ofs(iatom, iset, 4)+1 <= my_group_L_end .AND. &
-                            iatom /= jatom
-
-                  IF (check_j .OR. check_i) THEN
-
-                     ncoa_a = npgfa(iset)*ncoset(la_max(iset))
-                     ncoa_b = npgfb(jset)*ncoset(lb_max(jset))
-                     sgfa = first_sgfa(1, iset)
-                     sgfb = first_sgfb(1, jset)
-
-                     ALLOCATE (I_tmp(ncoa_a, nsgfb(jset)))
-                     ALLOCATE (I_tmp2(nsgfa(iset), nsgfb(jset)))
-
-                     ALLOCATE (f(0:la_max(iset)+lb_max(jset)+2), &
-                               v(ncoa_a, ncoa_b, la_max(iset)+lb_max(jset)+1), &
-                               vac(ncoa_a, ncoa_b))
-                     f = 0.0_dp
-                     v = 0.0_dp
-                     vac = 0.0_dp
-                     I_tmp = 0.0_dp
-                     I_tmp2 = 0.0_dp
-
-                     rac2 = rac(1)*rac(1)+rac(2)*rac(2)+rac(3)*rac(3)
-
-                     ! calculate spherical matrix elements (a|b)_s
-                     CALL coulomb2_new(la_max=la_max(iset), npgfa=npgfa(iset), zeta=zeta(:, iset), &
-                                       la_min=la_min(iset), &
-                                       lc_max=lb_max(jset), npgfc=npgfb(jset), zetc=zetb(:, jset), &
-                                       lc_min=lb_min(jset), rac=rac, &
-                                       rac2=rac2, vac=vac, v=v, f=f)
-
-                     ! trafo to spherical and add (a|b)_s to L_local_col
-                     I_tmp(1:ncoa_a, 1:nsgfb(jset)) = MATMUL(vac(1:ncoa_a, 1:ncoa_b), sphi_b(1:ncoa_b, sgfb:(sgfb+nsgfb(jset)-1)))
-                     I_tmp2(1:nsgfa(iset), 1:nsgfb(jset)) = MATMUL(TRANSPOSE(sphi_a(1:ncoa_a, sgfa:(sgfa+nsgfa(iset)-1))), &
-                                                                   I_tmp(1:ncoa_a, 1:nsgfb(jset)))
-
-                     f = 0.0_dp
-                     v = 0.0_dp
-                     vac = 0.0_dp
-
-                     ! calculate -(q_a|q_b)_s
-                     CALL coulomb2_new(la_max=la_max(iset), npgfa=npgfa(iset), zeta=exp_q(:), &
-                                       la_min=la_min(iset), &
-                                       lc_max=lb_max(jset), npgfc=npgfb(jset), zetc=exp_q(:), &
-                                       lc_min=lb_min(jset), rac=rac, &
-                                       rac2=rac2, vac=vac, v=v, f=f)
-
-                     ! trafo to spherical and scale by c_a*c_b, only implemented for uncontracted Gaussians and lmin=lmax
-                     I_tmp(1:ncoa_a, 1:nsgfb(jset)) = MATMUL(vac(1:ncoa_a, 1:ncoa_b), &
-                                                             sphi_b(1:ncoa_b, ref_at_se_sgf_ofs(jatom, jset, 3): &
-                                                                    (ref_at_se_sgf_ofs(jatom, jset, 3)+nsgfb(jset)-1)))
-                     I_tmp2(1:nsgfa(iset), 1:nsgfb(jset)) = &
-                        I_tmp2(1:nsgfa(iset), 1:nsgfb(jset))- &
-                        MATMUL(TRANSPOSE(sphi_a(1:ncoa_a, ref_at_se_sgf_ofs(iatom, iset, 3): &
-                                                (ref_at_se_sgf_ofs(iatom, iset, 3)+nsgfa(iset)-1))), &
-                               I_tmp(1:ncoa_a, 1:nsgfb(jset)))/ &
-                        (zeta(1, iset))**(la_max(iset)*0.5_dp+3.0_dp/4.0_dp)/ &
-                        (zetb(1, jset))**(lb_max(jset)*0.5_dp+3.0_dp/4.0_dp)* &
-                        exp_q(1)**(la_max(iset)*1.0_dp+3.0_dp/2.0_dp)* &
-                        exp_q(1)**(lb_max(jset)*1.0_dp+3.0_dp/2.0_dp)/ &
-                        (zeta(1, ref_at_se_sgf_ofs(iatom, iset, 2)))**(la_max(iset)*0.5_dp+3.0_dp/4.0_dp)/ &
-                        (zetb(1, ref_at_se_sgf_ofs(jatom, jset, 2)))**(lb_max(jset)*0.5_dp+3.0_dp/4.0_dp)
-
-                     ! add contribution from (a|b)_s-(q_a|q_b)_s
-                     DO i = 1, nsgfa(iset)
-                        DO j = 1, nsgfb(jset)
-                           ! for parallelization: check, if sgf_j is in paralleliz. range
-                           IF (ref_at_se_sgf_ofs(jatom, jset, 4)+j >= my_group_L_start .AND. &
-                               ref_at_se_sgf_ofs(jatom, jset, 4)+j <= my_group_L_end .AND. &
-                               check_j) THEN
-
-                              L_local_col(ref_at_se_sgf_ofs(iatom, iset, 4)+i, &
-                                          ref_at_se_sgf_ofs(jatom, jset, 4)+j-my_group_L_start+1) = &
-                                 L_local_col(ref_at_se_sgf_ofs(iatom, iset, 4)+i, &
-                                             ref_at_se_sgf_ofs(jatom, jset, 4)+j-my_group_L_start+1)+ &
-                                 I_tmp2(i, j)
-                           END IF
-
-                           IF (ref_at_se_sgf_ofs(iatom, iset, 4)+i >= my_group_L_start .AND. &
-                               ref_at_se_sgf_ofs(iatom, iset, 4)+i <= my_group_L_end .AND. &
-                               check_i) THEN
-                              L_local_col(ref_at_se_sgf_ofs(jatom, jset, 4)+j, &
-                                          ref_at_se_sgf_ofs(iatom, iset, 4)+i-my_group_L_start+1) = &
-                                 L_local_col(ref_at_se_sgf_ofs(jatom, jset, 4)+j, &
-                                             ref_at_se_sgf_ofs(iatom, iset, 4)+i-my_group_L_start+1)+ &
-                                 I_tmp2(i, j)
-                           END IF
-                        END DO
-                     END DO
-
-                     DEALLOCATE (f, v, vac, I_tmp, I_tmp2)
-
-                  END IF !parallelization
-
-               END DO !jset
-            END DO !iset
-
-         END DO
-
-         CALL neighbor_list_iterator_release(nl_iterator)
-
-         DEALLOCATE (diffsets_atom_set_bf, ref_at_se_sgf_ofs)
-         DEALLOCATE (atom_set_afo_diffbf)
-         DEALLOCATE (sizes_array_pot, starts_array_pot, ends_array_pot)
+         DEALLOCATE (wf_vector)
 
          CALL mp_sum(L_local_col, para_env_sub%group)
 
-         ! end if of new algorithm
       ELSE
-         ! old algorithm
-
-         CALL timeset(routineN//"_alloc_L_local_col", handle3)
-
-         ALLOCATE (L_local_col(dimen_RI, my_group_L_size))
-         L_local_col = 0.0_dp
-
-         CALL timestop(handle3)
-
-         IF ((eri_method .EQ. do_eri_mme .OR. eri_method .EQ. do_eri_os) &
-             .AND. my_ri_metric .EQ. ri_coulomb) THEN
-
-            CALL mp2_eri_2c_integrate(eri_param, para_env_sub, qs_env, &
-                                      basis_type_a="RI_AUX", basis_type_b="RI_AUX", &
-                                      hab=L_local_col, first_b=my_group_L_start, last_b=my_group_L_end, &
-                                      eri_method=eri_method)
-
-         ELSEIF (eri_method .EQ. do_eri_gpw .OR. my_ri_metric .NE. ri_coulomb) THEN
-
-            ALLOCATE (wf_vector(dimen_RI))
-
-            i_counter = 0
-            DO LLL = my_group_L_start, my_group_L_end
-               i_counter = i_counter+1
-
-               wf_vector = 0.0_dp
-               wf_vector(LLL) = 1.0_dp
-
-               ! pseudo psi_L
-               CALL calculate_wavefunction(mo_coeff, 1, psi_L, rho_g, atomic_kind_set, &
-                                           qs_kind_set, cell, dft_control, particle_set, pw_env_sub, &
-                                           basis_type="RI_AUX", &
-                                           external_vector=wf_vector)
-
-               CALL timeset(routineN//"_pot_lm", handle3)
-               rho_r%pw%cr3d = psi_L%pw%cr3d
-
-               ! in case we do the overlap metric, we have no potential and hence no FT has to be carried out
-               IF (my_ri_metric == ri_coulomb) THEN
-                  CALL pw_transfer(rho_r%pw, rho_g%pw)
-                  CALL pw_poisson_solve(poisson_env, rho_g%pw, pair_energy, pot_g%pw)
-                  CALL pw_transfer(pot_g%pw, rho_r%pw)
-               END IF
-
-               CALL pw_scale(rho_r%pw, rho_r%pw%pw_grid%dvol)
-
-               NULLIFY (rs_v)
-               NULLIFY (rs_descs)
-               CALL pw_env_get(pw_env_sub, rs_descs=rs_descs, rs_grids=rs_v)
-               DO i = 1, SIZE(rs_v)
-                  CALL rs_grid_retain(rs_v(i)%rs_grid)
-               END DO
-               CALL potential_pw2rs(rs_v, rho_r, pw_env_sub)
-
-               CALL timestop(handle3)
-
-               ! integrate the little bastards
-               offset = 0
-               DO iatom = 1, natom
-                  ikind = kind_of(iatom)
-                  CALL get_qs_kind(qs_kind=qs_kind_set(ikind), basis_set=basis_set_a, basis_type="RI_AUX")
-
-                  first_sgfa => basis_set_a%first_sgf
-                  la_max => basis_set_a%lmax
-                  la_min => basis_set_a%lmin
-                  npgfa => basis_set_a%npgf
-                  nseta = basis_set_a%nset
-                  nsgfa => basis_set_a%nsgf_set
-                  rpgfa => basis_set_a%pgf_radius
-                  set_radius_a => basis_set_a%set_radius
-                  sphi_a => basis_set_a%sphi
-                  zeta => basis_set_a%zet
-
-                  ra(:) = pbc(particle_set(iatom)%r, cell)
-                  rab = 0.0_dp
-                  rab2 = 0.0_dp
-
-                  DO iset = 1, nseta
-                     ncoa = npgfa(iset)*ncoset(la_max(iset))
-                     sgfa = first_sgfa(1, iset)
-
-                     ALLOCATE (I_tmp2(ncoa, 1))
-                     I_tmp2 = 0.0_dp
-                     ALLOCATE (I_ab(nsgfa(iset), 1))
-                     I_ab = 0.0_dp
-
-                     igrid_level = gaussian_gridlevel(pw_env_sub%gridlevel_info, MINVAL(zeta(:, iset)))
-                     map_it_here = .FALSE.
-                     IF (.NOT. ALL(rs_v(igrid_level)%rs_grid%desc%perd == 1)) THEN
-                        DO dir = 1, 3
-                           ! bounds of local grid (i.e. removing the 'wings'), if periodic
-                           tp(dir) = FLOOR(DOT_PRODUCT(cell%h_inv(dir, :), ra)*rs_v(igrid_level)%rs_grid%desc%npts(dir))
-                           tp(dir) = MODULO(tp(dir), rs_v(igrid_level)%rs_grid%desc%npts(dir))
-                           IF (rs_v(igrid_level)%rs_grid%desc%perd(dir) .NE. 1) THEN
-                              lb(dir) = rs_v(igrid_level)%rs_grid%lb_local(dir)+rs_v(igrid_level)%rs_grid%desc%border
-                              ub(dir) = rs_v(igrid_level)%rs_grid%ub_local(dir)-rs_v(igrid_level)%rs_grid%desc%border
-                           ELSE
-                              lb(dir) = rs_v(igrid_level)%rs_grid%lb_local(dir)
-                              ub(dir) = rs_v(igrid_level)%rs_grid%ub_local(dir)
-                           ENDIF
-                           ! distributed grid, only map if it is local to the grid
-                           location(dir) = tp(dir)+rs_v(igrid_level)%rs_grid%desc%lb(dir)
-                        ENDDO
-                        IF (lb(1) <= location(1) .AND. location(1) <= ub(1) .AND. &
-                            lb(2) <= location(2) .AND. location(2) <= ub(2) .AND. &
-                            lb(3) <= location(3) .AND. location(3) <= ub(3)) THEN
-                           map_it_here = .TRUE.
-                        ENDIF
-                     ELSE
-                        ! not distributed, just a round-robin distribution over the full set of CPUs
-                        IF (MODULO(offset, para_env_sub%num_pe) == para_env_sub%mepos) map_it_here = .TRUE.
-                     ENDIF
-
-                     offset = offset+nsgfa(iset)
-
-                     IF (map_it_here) THEN
-                        DO ipgf = 1, npgfa(iset)
-                           sgfa = first_sgfa(1, iset)
-
-                           na1 = (ipgf-1)*ncoset(la_max(iset))+1
-                           na2 = ipgf*ncoset(la_max(iset))
-                           igrid_level = gaussian_gridlevel(pw_env_sub%gridlevel_info, zeta(ipgf, iset))
-
-                           CALL integrate_pgf_product_rspace( &
-                              la_max=la_max(iset), zeta=zeta(ipgf, iset)/2.0_dp, la_min=la_min(iset), &
-                              lb_max=0, zetb=zeta(ipgf, iset)/2.0_dp, lb_min=0, &
-                              ra=ra, rab=rab, rab2=rab2, &
-                              rsgrid=rs_v(igrid_level)%rs_grid, &
-                              cell=cell, &
-                              cube_info=pw_env_sub%cube_info(igrid_level), &
-                              hab=I_tmp2, &
-                              o1=na1-1, &
-                              o2=0, &
-                              map_consistent=.TRUE., &
-                              eps_gvg_rspace=dft_control%qs_control%eps_gvg_rspace, &
-                              calculate_forces=.FALSE.)
-                        END DO
-
-                        CALL dgemm("T", "N", nsgfa(iset), 1, ncoa, &
-                                   1.0_dp, sphi_a(1, sgfa), SIZE(sphi_a, 1), &
-                                   I_tmp2(1, 1), SIZE(I_tmp2, 1), &
-                                   1.0_dp, I_ab(1, 1), SIZE(I_ab, 1))
-
-                        L_local_col(offset-nsgfa(iset)+1:offset, i_counter) = I_ab(1:nsgfa(iset), 1)
-                     END IF
-
-                     DEALLOCATE (I_tmp2)
-                     DEALLOCATE (I_ab)
-
-                  END DO
-               END DO
-
-               DO i = 1, SIZE(rs_v)
-                  CALL rs_grid_release(rs_v(i)%rs_grid)
-               END DO
-
-            END DO
-
-            DEALLOCATE (wf_vector)
-
-            CALL mp_sum(L_local_col, para_env_sub%group)
-
-         ELSE
-            CPABORT("unknown ERI method")
-         ENDIF
-      END IF !end old code
+         CPABORT("unknown ERI method")
+      ENDIF
 
       CALL timestop(handle2)
 

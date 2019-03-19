@@ -80,7 +80,6 @@ MODULE mp2_types
       INTEGER                  :: print_level
       REAL(KIND=dp)            :: cutoff
       REAL(KIND=dp)            :: relative_cutoff
-      LOGICAL                  :: do_mult_2c
       INTEGER                  :: size_lattice_sum
    END TYPE mp2_gpw_type
 
