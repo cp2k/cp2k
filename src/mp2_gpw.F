@@ -409,13 +409,6 @@ CONTAINS
          Eigenval_beta(:) = mo_eigenvalues_beta(:)
       ENDIF
 
-      IF (mp2_env%minimal_gap > 0.0_dp) THEN
-         CALL shift_eigenvalues(Eigenval, mp2_env%minimal_gap, homo, dimen)
-         IF (nspins == 2) THEN
-            CALL shift_eigenvalues(Eigenval_beta, mp2_env%minimal_gap, homo_beta, dimen)
-         END IF
-      END IF
-
       ! for imag. time, we do not need this
       IF (.NOT. do_im_time) THEN
 
@@ -3830,35 +3823,6 @@ CONTAINS
       eps_pgf_orb_old = dft_control%qs_control%eps_pgf_orb
       eps_rho_rspace_old = dft_control%qs_control%eps_rho_rspace
       eps_gvg_rspace_old = dft_control%qs_control%eps_gvg_rspace
-
-   END SUBROUTINE
-
-! **************************************************************************************************
-!> \brief ...
-!> \param Eigenval ...
-!> \param minimal_gap ...
-!> \param homo ...
-!> \param dimen ...
-! **************************************************************************************************
-   SUBROUTINE shift_eigenvalues(Eigenval, minimal_gap, homo, dimen)
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: Eigenval
-      REAL(KIND=dp)                                      :: minimal_gap
-      INTEGER                                            :: homo, dimen
-
-      INTEGER                                            :: n_level
-      REAL(KIND=dp)                                      :: gap, minimal_occ, minimal_virt
-
-      gap = Eigenval(homo+1)-Eigenval(homo)
-      IF (gap < minimal_gap) THEN
-         minimal_occ = 0.5_dp*(Eigenval(homo)+Eigenval(homo+1)-minimal_gap)
-         minimal_virt = 0.5_dp*(Eigenval(homo)+Eigenval(homo+1)+minimal_gap)
-         DO n_level = 1, homo
-            IF (Eigenval(n_level) > minimal_occ) Eigenval(n_level) = minimal_occ
-         END DO
-         DO n_level = homo+1, dimen
-            IF (Eigenval(n_level) < minimal_virt) Eigenval(n_level) = minimal_virt
-         END DO
-      END IF
 
    END SUBROUTINE
 

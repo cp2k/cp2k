@@ -233,7 +233,6 @@ MODULE mp2_types
       REAL(dp) :: mp2_memory
       REAL(dp) :: scale_S
       REAL(dp) :: scale_T
-      REAL(dp) :: minimal_gap
       INTEGER  :: mp2_num_proc
       INTEGER  :: block_size_row
       INTEGER  :: block_size_col

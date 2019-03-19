@@ -219,16 +219,6 @@ CONTAINS
 
       CALL keyword_create( &
          keyword=keyword, &
-         name="MINIMAL_GAP", &
-         description="If this keyword has a positive value, the HOMO-LUMO gap from DFT is enlarged to this value. "// &
-         "Should only be used for metals for RPA and GW if numerical issues are present.", &
-         usage="MINIMAL_GAP 0.01", &
-         default_r_val=-1.0_dp, unit_str="eV")
-      CALL section_add_keyword(section, keyword)
-      CALL keyword_release(keyword)
-
-      CALL keyword_create( &
-         keyword=keyword, &
          name="IM_TIME", &
          variants=(/"IMAG_TIME"/), &
          description="Turns on cubic scaling RI-RPA and Laplace-SOS-MP2 method using the imaginary time formalism. "// &
