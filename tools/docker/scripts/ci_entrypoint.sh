@@ -29,6 +29,16 @@ function upload_file {
     wget --quiet --output-document=- --method=PUT --header="content-type: ${CONTENT_TYPE}" --header="cache-control: no-cache" --body-file="${FILE}" "${URL}" > /dev/null
 }
 
+# Handle preemption gracefully.
+function sigterm_handler {
+    echo -e "\nThis job just got preempted. No worries, it should restart soon.\n" | tee -a $REPORT
+    echo -n "EndDate: " | tee -a $REPORT
+    date --utc --rfc-3339=seconds | tee -a $REPORT
+    upload_file "${REPORT_UPLOAD_URL}" "${REPORT}" "text/plain;charset=utf-8"
+    exit 1
+}
+trap sigterm_handler SIGTERM
+
 # Upload preliminary report every 30s in the background.
 (
 while true ; do
