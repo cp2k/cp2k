@@ -869,13 +869,12 @@ CONTAINS
       LOGICAL :: atenergy, atstress, debug, debugall, debugx, domol, floating_a, floating_b, &
          floating_c, ghost_a, ghost_b, ghost_c, is000, use_virial
       LOGICAL, ALLOCATABLE, DIMENSION(:)                 :: dodisp, floating, ghost
-      REAL(KIND=dp) :: a1, a2, alp6, alp8, ang, c6, c8, c9, cc6ab, cc6bc, cc6ca, cnab, cnum, dc6a, &
-         dc6b, dc8a, dc8b, dcc6aba, dcc6abb, dcc6bcb, dcc6bcc, dcc6caa, dcc6cac, dcnab, dd, de6, &
-         de8, de91, de921, de922, dea, devdw, dfdab6, dfdab8, dfdabc, dfdmp, dr, drk, e6, e6tot, &
-         e8, e8tot, e9, e9tot, elrc6, elrc8, elrc9, eps_cn, er, esrb, evdw, f0ab, fac, fac0, &
-         fdab6, fdab8, fdabc, fdmp, gnorm, gsrb, kgc8, nab, nabc, r0, r0ab, r2ab, r2abc, r2bc, &
-         r2ca, r6, r8, rabc, rc2, rcc, rcova, rcovb, rcut, rs6, rs8, s1, s2, s3, s6, s8, s8i, s9, &
-         srbe, ssrb, t1srb, t2srb, xp
+      REAL(KIND=dp) :: a1, a2, alp6, alp8, ang, c6, c8, c9, cc6ab, cc6bc, cc6ca, cnum, dc6a, dc6b, &
+         dc8a, dc8b, dcc6aba, dcc6abb, dcc6bcb, dcc6bcc, dcc6caa, dcc6cac, dd, de6, de8, de91, &
+         de921, de922, dea, devdw, dfdab6, dfdab8, dfdabc, dfdmp, dr, drk, e6, e6tot, e8, e8tot, &
+         e9, e9tot, elrc6, elrc8, elrc9, eps_cn, er, esrb, evdw, f0ab, fac, fac0, fdab6, fdab8, &
+         fdabc, fdmp, gnorm, gsrb, kgc8, nab, nabc, r0, r0ab, r2ab, r2abc, r2bc, r2ca, r6, r8, &
+         rabc, rc2, rcc, rcut, rs6, rs8, s1, s2, s3, s6, s8, s8i, s9, srbe, ssrb, t1srb, t2srb, xp
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: atom2mol, c6d2, cnkind, cnumbers, &
                                                             cnumfix, radd2
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: rcpbc

@@ -324,14 +324,9 @@ CONTAINS
       TYPE(local_atoms_type), ALLOCATABLE, DIMENSION(:)  :: atom2d
       TYPE(molecule_type), DIMENSION(:), POINTER         :: molecule_set
       TYPE(neighbor_list_set_p_type), DIMENSION(:), POINTER :: saa_list, sab_all, sab_almo, &
-<<<<<<< HEAD
-         sab_aux_fit, sab_aux_fit_asymm, sab_aux_fit_vs_orb, sab_cn, sab_core, sab_kp, sab_lrc, &
-         sab_orb, sab_scp, sab_se, sab_tbe, sab_vdw, sab_xb, sac_ae, sac_lri, sac_ppl, sap_oce, &
-=======
          sab_aux_fit, sab_aux_fit_asymm, sab_aux_fit_vs_orb, sab_cn, sab_core, sab_gcp, sab_kp, &
-         sab_lrc, sab_orb, sab_scp, sab_se, sab_tbe, sab_vdw, sac_ae, sac_lri, sac_ppl, sap_oce, &
->>>>>>> gCP potentials input
-         sap_ppnl, soa_list, soo_list
+         sab_lrc, sab_orb, sab_scp, sab_se, sab_tbe, sab_vdw, sab_xb, sac_ae, sac_lri, sac_ppl, &
+         sap_oce, sap_ppnl, soa_list, soo_list
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
       TYPE(paw_proj_set_type), POINTER                   :: paw_proj
       TYPE(qs_dftb_atom_type), POINTER                   :: dftb_atom
