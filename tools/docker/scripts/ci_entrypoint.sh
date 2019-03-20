@@ -136,7 +136,8 @@ fi
 if [ -n "${ARTIFACTS_UPLOAD_URL}" ] &&  [ -d /workspace/artifacts ]; then
     echo "Uploading artifacts..."
     ARTIFACTS_TGZ="/tmp/test_${TESTNAME}_artifacts.tgz"
-    tar -czf "${ARTIFACTS_TGZ}" -C /workspace/artifacts .
+    cd /workspace/artifacts
+    tar -czf "${ARTIFACTS_TGZ}" *
     upload_file "${ARTIFACTS_UPLOAD_URL}" "${ARTIFACTS_TGZ}" "application/gzip"
 fi
 
