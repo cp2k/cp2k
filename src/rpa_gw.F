@@ -17,8 +17,7 @@ MODULE rpa_gw
                                               copy_fm_to_dbcsr,&
                                               dbcsr_allocate_matrix_set,&
                                               dbcsr_deallocate_matrix_set
-   USE cp_fm_basic_linalg,              ONLY: cp_fm_invert,&
-                                              cp_fm_scale_and_add,&
+   USE cp_fm_basic_linalg,              ONLY: cp_fm_scale_and_add,&
                                               cp_fm_upper_to_full
    USE cp_fm_cholesky,                  ONLY: cp_fm_cholesky_decompose,&
                                               cp_fm_cholesky_invert
@@ -38,10 +37,10 @@ MODULE rpa_gw
    USE cp_para_types,                   ONLY: cp_para_env_type
    USE dbcsr_api,                       ONLY: &
         dbcsr_add_on_diag, dbcsr_copy, dbcsr_create, dbcsr_desymmetrize, dbcsr_filter, &
-        dbcsr_get_diag, dbcsr_get_info, dbcsr_init_p, dbcsr_iterator_blocks_left, &
-        dbcsr_iterator_next_block, dbcsr_iterator_start, dbcsr_iterator_stop, dbcsr_iterator_type, &
-        dbcsr_multiply, dbcsr_p_type, dbcsr_release, dbcsr_release_p, dbcsr_scale, dbcsr_set, &
-        dbcsr_trace, dbcsr_type, dbcsr_type_no_symmetry
+        dbcsr_get_info, dbcsr_init_p, dbcsr_iterator_blocks_left, dbcsr_iterator_next_block, &
+        dbcsr_iterator_start, dbcsr_iterator_stop, dbcsr_iterator_type, dbcsr_multiply, &
+        dbcsr_p_type, dbcsr_release_p, dbcsr_scale, dbcsr_set, dbcsr_trace, dbcsr_type, &
+        dbcsr_type_no_symmetry
    USE input_constants,                 ONLY: gw_pade_approx,&
                                               gw_two_pole_model,&
                                               ri_rpa_g0w0_crossing_bisection,&
@@ -463,7 +462,6 @@ CONTAINS
 !> \param z_value ...
 !> \param z_value_beta ...
 !> \param fm_mat_S ...
-!> \param ! ...
 !> \param fm_mat_S_gw ...
 !> \param fm_mat_S_gw_work ...
 !> \param fm_mat_S_gw_work_beta ...
@@ -496,19 +494,20 @@ CONTAINS
                                                             do_ri_Sigma_x, my_do_gw, my_open_shell
       LOGICAL, INTENT(OUT) :: first_cycle_periodic_correction
       LOGICAL, ALLOCATABLE, DIMENSION(:), INTENT(OUT)    :: do_GW_corr
-      REAL(KIND=dp), INTENT(IN)                          :: a_scaling
-      REAL(KIND=dp), INTENT(IN)                          :: omega_max_fit
+      REAL(KIND=dp), INTENT(IN)                          :: a_scaling, omega_max_fit
       REAL(KIND=dp), DIMENSION(:), INTENT(INOUT)         :: Eigenval, Eigenval_beta
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:), &
          INTENT(IN)                                      :: tj
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:), INTENT(OUT) :: vec_omega_fit_gw, &
-         vec_Sigma_x_gw, vec_Sigma_x_gw_beta
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:), &
+         INTENT(OUT)                                     :: vec_omega_fit_gw, vec_Sigma_x_gw, &
+                                                            vec_Sigma_x_gw_beta
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:), INTENT(INOUT) :: delta_corr, Eigenval_last, &
-         Eigenval_last_beta, Eigenval_scf, Eigenval_scf_beta, m_value, m_value_beta, &
-         vec_gw_energ, vec_gw_energ_beta, vec_gw_energ_error_fit, &
-         vec_gw_energ_error_fit_beta, vec_W_gw, vec_W_gw_beta, z_value, z_value_beta
-      TYPE(cp_fm_type), POINTER :: fm_mat_S, &
-         fm_mat_S_gw, fm_mat_S_gw_work, fm_mat_S_gw_work_beta, fm_mat_S_beta, fm_mat_S_gw_beta
+         Eigenval_last_beta, Eigenval_scf, Eigenval_scf_beta, m_value, m_value_beta, vec_gw_energ, &
+         vec_gw_energ_beta, vec_gw_energ_error_fit, vec_gw_energ_error_fit_beta, vec_W_gw, &
+         vec_W_gw_beta, z_value, z_value_beta
+      TYPE(cp_fm_type), POINTER                          :: fm_mat_S, fm_mat_S_gw, fm_mat_S_gw_work, &
+                                                            fm_mat_S_gw_work_beta, fm_mat_S_beta, &
+                                                            fm_mat_S_gw_beta
       TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(mp2_type), POINTER                            :: mp2_env
 
@@ -670,10 +669,11 @@ CONTAINS
                                                             num_fit_points
       LOGICAL, INTENT(IN)                                :: do_ri_Sigma_x, my_do_gw
       REAL(KIND=dp), DIMENSION(:), INTENT(INOUT)         :: Eigenval
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:), INTENT(OUT) :: Eigenval_last, Eigenval_scf, &
-         m_value, vec_gw_energ, vec_gw_energ_error_fit, vec_Sigma_x_gw, vec_W_gw, z_value
-      TYPE(cp_fm_type), POINTER                          :: fm_mat_S, &
-                                                            fm_mat_S_gw, fm_mat_S_gw_work
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:), &
+         INTENT(OUT)                                     :: Eigenval_last, Eigenval_scf, m_value, &
+                                                            vec_gw_energ, vec_gw_energ_error_fit, &
+                                                            vec_Sigma_x_gw, vec_W_gw, z_value
+      TYPE(cp_fm_type), POINTER                          :: fm_mat_S, fm_mat_S_gw, fm_mat_S_gw_work
       TYPE(mp2_type), POINTER                            :: mp2_env
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'alloc_mat_gw', routineP = moduleN//':'//routineN
@@ -869,13 +869,12 @@ CONTAINS
 
       COMPLEX(KIND=dp), ALLOCATABLE, DIMENSION(:, :), &
          INTENT(INOUT)                                   :: vec_Sigma_c_gw, vec_Sigma_c_gw_beta
-      INTEGER, INTENT(IN) :: dimen_nm_gw, dimen_RI, &
-         gw_corr_lev_occ, gw_corr_lev_occ_beta, gw_corr_lev_virt, homo, homo_beta, jquad, nmo, &
-         num_fit_points, num_integ_points
+      INTEGER, INTENT(IN) :: dimen_nm_gw, dimen_RI, gw_corr_lev_occ, gw_corr_lev_occ_beta, &
+         gw_corr_lev_virt, homo, homo_beta, jquad, nmo, num_fit_points, num_integ_points
       INTEGER, INTENT(INOUT)                             :: ncol_local, nrow_local
       INTEGER, DIMENSION(:), POINTER                     :: col_indices, row_indices
-      LOGICAL, INTENT(IN)                                :: do_bse, do_gw_im_time, &
-                                                            do_periodic, my_do_gw, my_open_shell
+      LOGICAL, INTENT(IN)                                :: do_bse, do_gw_im_time, do_periodic, &
+                                                            my_do_gw, my_open_shell
       LOGICAL, INTENT(INOUT) :: first_cycle_periodic_correction
       REAL(KIND=dp), INTENT(IN)                          :: fermi_level_offset
       REAL(KIND=dp), INTENT(INOUT)                       :: omega
@@ -1071,7 +1070,7 @@ CONTAINS
                      vec_Sigma_c_gw_beta(n_global_beta-homo_beta+gw_corr_lev_occ_beta, iquad)- &
                      0.5_dp/pi*wj(jquad)/2.0_dp*(vec_W_gw_beta(nm_global)+delta_corr_nn_beta)* &
                      (1.0_dp/(im_unit*(omega+omega_i)+e_fermi-Eigenval_beta(m_global))+ &
-                     1.0_dp/(im_unit*(-omega+omega_i)+e_fermi-Eigenval_beta(m_global)))
+                      1.0_dp/(im_unit*(-omega+omega_i)+e_fermi-Eigenval_beta(m_global)))
 
                END IF
             END DO ! iquad
@@ -1259,26 +1258,26 @@ CONTAINS
 
       COMPLEX(KIND=dp), ALLOCATABLE, DIMENSION(:, :), &
          INTENT(INOUT)                                   :: vec_Sigma_c_gw, vec_Sigma_c_gw_beta
-      INTEGER, INTENT(IN) :: count_ev_sc_GW, crossing_search, gw_corr_lev_occ, gw_corr_lev_occ_beta, gw_corr_lev_tot, &
-         gw_corr_lev_virt, gw_corr_lev_virt_beta, homo, homo_beta, max_iter_fit, nmo, &
-         num_fit_points, num_integ_points
+      INTEGER, INTENT(IN) :: count_ev_sc_GW, crossing_search, gw_corr_lev_occ, &
+         gw_corr_lev_occ_beta, gw_corr_lev_tot, gw_corr_lev_virt, gw_corr_lev_virt_beta, homo, &
+         homo_beta, max_iter_fit, nmo, num_fit_points, num_integ_points
       INTEGER                                            :: num_points_corr
       INTEGER, INTENT(IN)                                :: num_poles, unit_nr
-      LOGICAL, INTENT(IN) :: check_fit, do_apply_ic_corr_to_gw, do_gw_im_time, &
-         do_periodic, do_ri_Sigma_x
+      LOGICAL, INTENT(IN)                                :: check_fit, do_apply_ic_corr_to_gw, &
+                                                            do_gw_im_time, do_periodic, &
+                                                            do_ri_Sigma_x
       LOGICAL, INTENT(INOUT) :: first_cycle_periodic_correction
       LOGICAL, INTENT(IN)                                :: my_do_gw, my_open_shell
       LOGICAL, ALLOCATABLE, DIMENSION(:), INTENT(INOUT)  :: do_GW_corr
-      REAL(KIND=dp), INTENT(IN) :: e_fermi, e_fermi_beta, &
-         eps_filter, fermi_level_offset, stabilize_exp
+      REAL(KIND=dp), INTENT(IN)                          :: e_fermi, e_fermi_beta, eps_filter, &
+                                                            fermi_level_offset, stabilize_exp
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:), &
          INTENT(INOUT)                                   :: delta_corr
       REAL(KIND=dp), DIMENSION(:), INTENT(INOUT)         :: Eigenval, Eigenval_beta
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:), INTENT(INOUT) :: Eigenval_last, &
-         Eigenval_last_beta, Eigenval_scf, Eigenval_scf_beta, m_value, m_value_beta, &
-         tau_tj, tj, vec_gw_energ, vec_gw_energ_beta, &
-         vec_gw_energ_error_fit, vec_gw_energ_error_fit_beta, vec_omega_fit_gw, &
-         vec_Sigma_x_gw, vec_Sigma_x_gw_beta, wj, z_value, z_value_beta
+         Eigenval_last_beta, Eigenval_scf, Eigenval_scf_beta, m_value, m_value_beta, tau_tj, tj, &
+         vec_gw_energ, vec_gw_energ_beta, vec_gw_energ_error_fit, vec_gw_energ_error_fit_beta, &
+         vec_omega_fit_gw, vec_Sigma_x_gw, vec_Sigma_x_gw_beta, wj, z_value, z_value_beta
       REAL(KIND=dp), DIMENSION(:), POINTER               :: ic_corr_list, ic_corr_list_beta
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :), &
          INTENT(IN)                                      :: weights_cos_tf_t_to_w, &
@@ -1559,15 +1558,14 @@ CONTAINS
       COMPLEX(KIND=dp), ALLOCATABLE, DIMENSION(:, :), &
          INTENT(INOUT)                                   :: vec_Sigma_c_gw, vec_Sigma_c_gw_beta
       INTEGER, INTENT(IN)                                :: num_integ_points
-      LOGICAL, INTENT(IN)                                :: do_gw_im_time, &
-                                                            do_ic_model, do_im_time, do_periodic, &
-                                                            do_ri_Sigma_x, my_do_gw, my_open_shell
+      LOGICAL, INTENT(IN)                                :: do_gw_im_time, do_ic_model, do_im_time, &
+                                                            do_periodic, do_ri_Sigma_x, my_do_gw, &
+                                                            my_open_shell
       LOGICAL, ALLOCATABLE, DIMENSION(:), INTENT(INOUT)  :: do_GW_corr
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:), INTENT(INOUT) :: vec_omega_fit_gw, vec_Sigma_x_gw, &
          vec_Sigma_x_gw_beta, Eigenval_last, Eigenval_last_beta, Eigenval_scf, Eigenval_scf_beta, &
-         m_value, m_value_beta, vec_gw_energ, vec_gw_energ_beta, &
-         vec_gw_energ_error_fit, vec_gw_energ_error_fit_beta, vec_W_gw, vec_W_gw_beta, z_value, &
-         z_value_beta
+         m_value, m_value_beta, vec_gw_energ, vec_gw_energ_beta, vec_gw_energ_error_fit, &
+         vec_gw_energ_error_fit_beta, vec_W_gw, vec_W_gw_beta, z_value, z_value_beta
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :), &
          INTENT(INOUT)                                   :: weights_cos_tf_w_to_t, &
                                                             weights_sin_tf_t_to_w
@@ -1669,12 +1667,13 @@ CONTAINS
 
       COMPLEX(KIND=dp), ALLOCATABLE, DIMENSION(:, :), &
          INTENT(INOUT)                                   :: vec_Sigma_c_gw
-      LOGICAL, INTENT(IN)                                :: do_gw_im_time, &
-                                                            do_ic_model, do_im_time, &
+      LOGICAL, INTENT(IN)                                :: do_gw_im_time, do_ic_model, do_im_time, &
                                                             do_ri_Sigma_x, my_do_gw
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:), INTENT(INOUT) :: &
-         vec_Sigma_x_gw, Eigenval_last, Eigenval_scf, m_value, vec_gw_energ, &
-         vec_gw_energ_error_fit, vec_W_gw, z_value
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:), &
+         INTENT(INOUT)                                   :: vec_Sigma_x_gw, Eigenval_last, &
+                                                            Eigenval_scf, m_value, vec_gw_energ, &
+                                                            vec_gw_energ_error_fit, vec_W_gw, &
+                                                            z_value
       TYPE(cp_fm_type), POINTER                          :: fm_mat_S_gw_work
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER :: mat_3c_overl_int_gw, mat_3c_overl_nnP_ic, &
          mat_3c_overl_nnP_ic_reflected, mat_greens_fct_occ, mat_greens_fct_virt
@@ -1993,10 +1992,9 @@ CONTAINS
                                                             handle3, iquad, jquad, n_level_gw, &
                                                             n_level_gw_ref
       LOGICAL                                            :: my_do_beta
-      REAL(KIND=dp)                                      :: ext_scaling, normalization, omega, omega_i, &
-                                                            omega_sign, sign_occ_virt, &
-                                                            t_i_Clenshaw, tau, weight_cos, &
-                                                            weight_i, weight_sin
+      REAL(KIND=dp)                                      :: ext_scaling, omega, omega_i, omega_sign, &
+                                                            sign_occ_virt, t_i_Clenshaw, tau, &
+                                                            weight_cos, weight_i, weight_sin
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :) :: vec_Sigma_c_gw_cos_omega, &
          vec_Sigma_c_gw_cos_tau, vec_Sigma_c_gw_neg_tau, vec_Sigma_c_gw_pos_tau, &
          vec_Sigma_c_gw_sin_omega, vec_Sigma_c_gw_sin_tau
@@ -3903,8 +3901,8 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: gw_corr_lev_occ, gw_corr_lev_virt, &
                                                             gw_corr_lev_tot, count_ev_sc_GW, &
                                                             crossing_search, homo, nmo, unit_nr
-      LOGICAL, INTENT(IN)                                :: print_gw_details
-      LOGICAL, INTENT(IN)                                :: remove_neg_virt_energies
+      LOGICAL, INTENT(IN)                                :: print_gw_details, &
+                                                            remove_neg_virt_energies
       LOGICAL, INTENT(IN), OPTIONAL                      :: do_alpha, do_beta
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'print_and_update_for_ev_sc', &

@@ -11,7 +11,6 @@
 MODULE mp2_ri_gpw
    USE ai_contraction_sphi,             ONLY: ab_contract,&
                                               abc_contract
-   USE ai_coulomb,                      ONLY: coulomb2_new
    USE ai_overlap3,                     ONLY: overlap3
    USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                               get_atomic_kind_set
@@ -87,7 +86,6 @@ MODULE mp2_ri_gpw
    USE machine,                         ONLY: m_flush,&
                                               m_memory,&
                                               m_walltime
-   USE mathconstants,                   ONLY: pi
    USE message_passing,                 ONLY: &
         mp_allgather, mp_alltoall, mp_cart_create, mp_comm_free, mp_comm_split_direct, mp_environ, &
         mp_max, mp_min, mp_sendrecv, mp_sum, mp_sync
@@ -105,8 +103,7 @@ MODULE mp2_ri_gpw
    USE particle_types,                  ONLY: particle_type
    USE pw_env_types,                    ONLY: pw_env_get,&
                                               pw_env_type
-   USE pw_methods,                      ONLY: pw_copy,&
-                                              pw_scale,&
+   USE pw_methods,                      ONLY: pw_scale,&
                                               pw_transfer
    USE pw_poisson_methods,              ONLY: pw_poisson_solve
    USE pw_poisson_types,                ONLY: pw_poisson_type
@@ -1794,54 +1791,35 @@ CONTAINS
       CHARACTER(LEN=*), PARAMETER :: routineN = 'compute_2c_integrals', &
          routineP = moduleN//':'//routineN
 
-      INTEGER :: best_group_size, color_exc, color_L, comm_exc, comm_exchange, comm_L, dir, &
-         group_size, handle, handle2, handle3, i, i_bf, i_counter, i_counter_diff_bf, &
-         i_counter_diff_bf_at_any_atom, i_counter_diff_sets, i_global, iatom, igrid_level, igroup, &
-         iiB, ikind, inode, ipgf, iproc, iset, itmp(2), j, j_global, j_ref_atom, j_ref_bf, &
-         j_ref_kind, j_ref_set, jatom, jjB, jkind, jset, lb(3), LLL, location(3), m, &
-         my_group_L_q_end, my_group_L_q_size, my_group_L_q_start, my_group_pot_end, &
-         my_group_pot_size, my_group_pot_start, my_ri_metric, na1, na2, natom, ncoa, ncoa_a, &
-         ncoa_b, ncol_local, nkind
-      INTEGER :: nrow_local, nseta, nsetb, nsgf, offset, offsetb, proc_receive, &
+      INTEGER :: best_group_size, color_L, comm_exchange, comm_L, dir, group_size, handle, &
+         handle2, handle3, i, i_counter, i_global, iatom, igrid_level, igroup, iiB, ikind, ipgf, &
+         iproc, iset, itmp(2), j_global, jjB, lb(3), LLL, location(3), my_ri_metric, na1, na2, &
+         natom, ncoa, ncol_local, nkind, nrow_local, nseta, nsgf, offset, proc_receive, &
          proc_receive_static, proc_send, proc_send_static, proc_shift, rec_L_end, rec_L_size, &
-         rec_L_start, sgfa, sgfb, strat_group_size, sub_sub_color, tp(3), ub(3)
-      INTEGER, ALLOCATABLE, DIMENSION(:) :: diffbf_atom_arbitr_atom, diffbf_noinbas, &
-         diffbfatanyatom_noinbas, ends_array_pot, kind_of, proc_map, sizes_array_pot, &
-         starts_array_pot, sub_ends_array, sub_sizes_array, sub_starts_array
-      INTEGER, ALLOCATABLE, DIMENSION(:, :)              :: atom_set_afo_diffbf, &
-                                                            atom_set_afo_diffbf_atanyatom, &
-                                                            diffsets_atom_set_bf, ref_matrix
-      INTEGER, ALLOCATABLE, DIMENSION(:, :, :)           :: naolimits, ref_at_se_sgf_ofs
-      INTEGER, DIMENSION(:), POINTER                     :: col_indices, la_max, la_min, lb_max, &
-                                                            lb_min, npgfa, npgfb, nsgfa, nsgfb, &
-                                                            row_indices
-      INTEGER, DIMENSION(:, :), POINTER                  :: first_sgfa, first_sgfb
-      LOGICAL                                            :: check_i, check_j, map_it_here, &
-                                                            my_do_im_time, my_external_matrix_struc
-      REAL(KIND=dp)                                      :: min_mem_for_QK, pair_energy, rab2, rac2, &
-                                                            scaling, zet_tmp
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: egen_L, f, wf_vector
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: I_ab, I_tmp, L_external_col, &
-                                                            L_local_col, L_local_col_q, vac
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: v
-      REAL(KIND=dp), DIMENSION(1)                        :: exp_q
-      REAL(KIND=dp), DIMENSION(3)                        :: ra, rab, rac
-      REAL(KIND=dp), DIMENSION(:), POINTER               :: set_radius_a, set_radius_b
-      REAL(KIND=dp), DIMENSION(:, :), POINTER            :: I_tmp2, rpgfa, rpgfb, sphi_a, sphi_b, &
-                                                            zeta, zetb
+         rec_L_start, sgfa, strat_group_size, sub_sub_color, tp(3), ub(3)
+      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: kind_of, proc_map, sub_ends_array, &
+                                                            sub_sizes_array, sub_starts_array
+      INTEGER, DIMENSION(:), POINTER                     :: col_indices, la_max, la_min, &
+                                                            npgfa, nsgfa, row_indices
+      INTEGER, DIMENSION(:, :), POINTER                  :: first_sgfa
+      LOGICAL                                            :: map_it_here, my_do_im_time, &
+                                                            my_external_matrix_struc
+      REAL(KIND=dp)                                      :: min_mem_for_QK, pair_energy, rab2
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: egen_L, wf_vector
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: I_ab, L_external_col, L_local_col
+      REAL(KIND=dp), DIMENSION(3)                        :: ra, rab
+      REAL(KIND=dp), DIMENSION(:), POINTER               :: set_radius_a
+      REAL(KIND=dp), DIMENSION(:, :), POINTER            :: I_tmp2, rpgfa, sphi_a, zeta
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       TYPE(cell_type), POINTER                           :: cell
       TYPE(cp_blacs_env_type), POINTER                   :: blacs_env_L
       TYPE(cp_fm_struct_type), POINTER                   :: fm_struct
       TYPE(cp_fm_type), POINTER                          :: fm_matrix_L_diag
-      TYPE(cp_para_env_type), POINTER                    :: para_env_exc, para_env_exchange
-      TYPE(gto_basis_set_type), POINTER                  :: basis_set_a, basis_set_b
+      TYPE(cp_para_env_type), POINTER                    :: para_env_exchange
+      TYPE(gto_basis_set_type), POINTER                  :: basis_set_a
       TYPE(molecule_kind_type), DIMENSION(:), POINTER    :: molecule_kind_set
       TYPE(molecule_type), DIMENSION(:), POINTER         :: molecule_set
-      TYPE(neighbor_list_iterator_p_type), &
-         DIMENSION(:), POINTER                           :: nl_iterator
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
-      TYPE(pw_p_type), ALLOCATABLE, DIMENSION(:)         :: rho_r_array
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
       TYPE(realspace_grid_desc_p_type), DIMENSION(:), &
          POINTER                                         :: rs_descs
@@ -1908,7 +1886,7 @@ CONTAINS
       my_group_L_size = sizes_array(color_sub)
       my_group_L_start = starts_array(color_sub)
       my_group_L_end = ends_array(color_sub)
-      
+
       CALL timeset(routineN//"_loop_lm", handle2)
 
       CALL timeset(routineN//"_alloc_L_local_col", handle3)
@@ -1919,7 +1897,7 @@ CONTAINS
       CALL timestop(handle3)
 
       IF ((eri_method .EQ. do_eri_mme .OR. eri_method .EQ. do_eri_os) &
-         .AND. my_ri_metric .EQ. ri_coulomb) THEN
+          .AND. my_ri_metric .EQ. ri_coulomb) THEN
 
          CALL mp2_eri_2c_integrate(eri_param, para_env_sub, qs_env, &
                                    basis_type_a="RI_AUX", basis_type_b="RI_AUX", &

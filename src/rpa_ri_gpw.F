@@ -36,8 +36,7 @@ MODULE rpa_ri_gpw
                                               cp_dbcsr_m_by_n_from_template,&
                                               dbcsr_allocate_matrix_set,&
                                               dbcsr_deallocate_matrix_set
-   USE cp_fm_basic_linalg,              ONLY: cp_fm_column_scale,&
-                                              cp_fm_scale,&
+   USE cp_fm_basic_linalg,              ONLY: cp_fm_scale,&
                                               cp_fm_scale_and_add,&
                                               cp_fm_syrk,&
                                               cp_fm_transpose
@@ -60,12 +59,8 @@ MODULE rpa_ri_gpw
         dbcsr_iterator_stop, dbcsr_iterator_type, dbcsr_multiply, dbcsr_p_type, dbcsr_release, &
         dbcsr_release_p, dbcsr_reserve_all_blocks, dbcsr_set, dbcsr_trace, dbcsr_transposed, &
         dbcsr_type, dbcsr_type_no_symmetry, dbcsr_type_real_default
-   USE hfx_energy_potential,            ONLY: integrate_four_center
-   USE hfx_types,                       ONLY: hfx_release,&
-                                              hfx_type
    USE input_constants,                 ONLY: wfc_mm_style_gemm,&
                                               wfc_mm_style_syrk
-   USE input_section_types,             ONLY: section_vals_type
    USE kinds,                           ONLY: dp,&
                                               int_8
    USE kpoint_types,                    ONLY: get_kpoint_info,&
@@ -88,12 +83,10 @@ MODULE rpa_ri_gpw
                                               mp2_type,&
                                               two_dim_int_array
    USE physcon,                         ONLY: evolt
-   USE qs_energy_types,                 ONLY: qs_energy_type
    USE qs_environment_types,            ONLY: get_qs_env,&
                                               qs_environment_type
    USE rpa_axk,                         ONLY: compute_axk_ener
    USE rpa_communication,               ONLY: fm_redistribute,&
-                                              gamma_fm_to_dbcsr,&
                                               initialize_buffer,&
                                               release_buffer
    USE rpa_gw,                          ONLY: GW_matrix_operations,&
@@ -269,8 +262,8 @@ CONTAINS
       LOGICAL                                            :: check_fit, do_minimax_quad, &
                                                             my_open_shell, skip_integ_group_opt
       REAL(KIND=dp) :: allowed_memory, avail_mem, E_Range, Emax, Emax_beta, Emin, Emin_beta, &
-         fermi_level_offset, mem_for_iaK, mem_for_QK, mem_min, mem_per_group, &
-         mem_real, needed_mem, omega_max_fit
+         fermi_level_offset, mem_for_iaK, mem_for_QK, mem_min, mem_per_group, mem_real, &
+         needed_mem, omega_max_fit
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: BIb_C_2D, BIb_C_2D_beta, &
                                                             BIb_C_2D_bse_ab, BIb_C_2D_bse_ij, &
                                                             BIb_C_2D_gw, BIb_C_2D_gw_beta
@@ -2081,21 +2074,18 @@ CONTAINS
       CHARACTER(LEN=*), PARAMETER :: routineN = 'rpa_num_int', routineP = moduleN//':'//routineN
 
       COMPLEX(KIND=dp), ALLOCATABLE, DIMENSION(:, :)     :: vec_Sigma_c_gw, vec_Sigma_c_gw_beta
-      INTEGER :: col_start_local, color_sub_col, color_sub_row, &
-         count_ev_sc_GW, cut_memory, cut_RI, &
-         group_size_P, gw_corr_lev_tot, handle, handle3, handle4, i_cell, i_cut_RI, i_dim, &
+      INTEGER :: col_start_local, color_sub_col, color_sub_row, count_ev_sc_GW, cut_memory, &
+         cut_RI, group_size_P, gw_corr_lev_tot, handle, handle3, handle4, i_cell, i_cut_RI, i_dim, &
          i_global, i_kp, i_mem, i_size, ierr, iiB, ikp, info_chol, iter_ev_sc, j_cell, j_global, &
          j_mem, j_size, jjB, jquad, LLL, max_iter_bse, my_group_L_size_im_time, my_num_dgemm_call, &
          n_group_col, n_group_row, n_local_col, n_local_row, nblkrows_total, ncol_local, &
          ngroup_RI_orig, nkp, nmo, nrow_local, num_3c_repl, num_cells_dm, num_fit_points, &
-         num_points_corr
-      INTEGER :: num_points_per_magnitude, num_Z_vectors, number_of_rec, &
-         number_of_rec_axk, number_of_rec_beta, number_of_send, number_of_send_axk, &
+         num_points_corr, num_points_per_magnitude, num_Z_vectors, number_of_rec
+      INTEGER :: number_of_rec_axk, number_of_rec_beta, number_of_send, number_of_send_axk, &
          number_of_send_beta, row, row_start_local, size_P
-      INTEGER, ALLOCATABLE, DIMENSION(:) :: map_rec_size, map_rec_size_axk, &
-         map_rec_size_beta, map_send_size, map_send_size_axk, map_send_size_beta, &
-         mepos_P_from_RI_row, my_group_L_sizes_im_time, my_group_L_starts_im_time, &
-         row_from_LLL, RPA_proc_map
+      INTEGER, ALLOCATABLE, DIMENSION(:) :: map_rec_size, map_rec_size_axk, map_rec_size_beta, &
+         map_send_size, map_send_size_axk, map_send_size_beta, mepos_P_from_RI_row, &
+         my_group_L_sizes_im_time, my_group_L_starts_im_time, row_from_LLL, RPA_proc_map
       INTEGER, ALLOCATABLE, DIMENSION(:, :) :: ends_array_prim_col, ends_array_prim_fullcol, &
          ends_array_prim_fullrow, ends_array_prim_row, index_to_cell_3c, local_size_source, &
          local_size_source_axk, local_size_source_beta, sizes_array_prim_col, &
@@ -2108,9 +2098,8 @@ CONTAINS
          ends_array_cm_mao_occ, ends_array_cm_mao_virt, prim_blk_sizes, RI_blk_sizes, &
          row_blk_offset, row_blk_size, row_indices, starts_array_cm, starts_array_cm_mao_occ, &
          starts_array_cm_mao_virt
-      LOGICAL :: do_apply_ic_corr_to_gw, do_gw_im_time, do_ic_model, &
-         do_ic_opt_homo_lumo, do_kpoints_cubic_RPA, &
-         do_periodic, do_ri_Sigma_x, first_cycle, &
+      LOGICAL :: do_apply_ic_corr_to_gw, do_gw_im_time, do_ic_model, do_ic_opt_homo_lumo, &
+         do_kpoints_cubic_RPA, do_periodic, do_ri_Sigma_x, first_cycle, &
          first_cycle_periodic_correction, my_open_shell, print_ic_values
       LOGICAL, ALLOCATABLE, DIMENSION(:)                 :: do_GW_corr
       LOGICAL, ALLOCATABLE, DIMENSION(:, :, :)           :: cycle_due_to_sparse_dm, &
@@ -2118,15 +2107,14 @@ CONTAINS
                                                             multiply_needed_virt
       LOGICAL, ALLOCATABLE, DIMENSION(:, :, :, :) :: needed_cutRI_mem_R1vec_R2vec_for_kp
       LOGICAL, ALLOCATABLE, DIMENSION(:, :, :, :, :)     :: has_mat_P_blocks
-      REAL(KIND=dp) :: a_scaling, alpha, e_axk, e_axk_corr, e_fermi, &
-         e_fermi_beta, E_Range, Emax, Emax_beta, Emin, Emin_beta, eps_filter_im_time, &
-         eps_min_trans, FComega, max_error_min, my_flop_rate, omega, omega_old, scaling, &
-         stabilize_exp, tau, tau_old, trace_XX
+      REAL(KIND=dp) :: a_scaling, alpha, e_axk, e_axk_corr, e_fermi, e_fermi_beta, E_Range, Emax, &
+         Emax_beta, Emin, Emin_beta, eps_filter_im_time, eps_min_trans, FComega, max_error_min, &
+         my_flop_rate, omega, omega_old, scaling, stabilize_exp, tau, tau_old, trace_XX
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: delta_corr, Eigenval_last, Eigenval_last_beta, &
-         Eigenval_scf, Eigenval_scf_beta, m_value, m_value_beta, Q_log, &
-         tau_tj, tau_wj, tj, trace_Qomega, vec_gw_energ, vec_gw_energ_beta, &
-         vec_gw_energ_error_fit, vec_gw_energ_error_fit_beta, vec_omega_fit_gw, vec_Sigma_x_gw, &
-         vec_Sigma_x_gw_beta, vec_W_gw, vec_W_gw_beta, wj, x_tw, z_value, z_value_beta
+         Eigenval_scf, Eigenval_scf_beta, m_value, m_value_beta, Q_log, tau_tj, tau_wj, tj, &
+         trace_Qomega, vec_gw_energ, vec_gw_energ_beta, vec_gw_energ_error_fit, &
+         vec_gw_energ_error_fit_beta, vec_omega_fit_gw, vec_Sigma_x_gw, vec_Sigma_x_gw_beta, &
+         vec_W_gw, vec_W_gw_beta, wj, x_tw, z_value, z_value_beta
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: buffer_mat_M, weights_cos_tf_t_to_w, &
                                                             weights_cos_tf_w_to_t, &
                                                             weights_sin_tf_t_to_w
@@ -2137,9 +2125,9 @@ CONTAINS
       TYPE(cp_cfm_type), POINTER                         :: cfm_mat_Q
       TYPE(cp_fm_p_type), DIMENSION(:), POINTER          :: fm_mat_W_tau
       TYPE(cp_fm_p_type), DIMENSION(:, :), POINTER       :: fm_mat_L
-      TYPE(cp_fm_type), POINTER :: fm_mat_L_transposed, fm_mat_Q_static_bse, fm_mat_Q_static_bse_gemm, &
-         fm_mat_S_gw_work, fm_mat_S_gw_work_beta, fm_mat_work, fm_mo_coeff_occ_scaled, &
-         fm_mo_coeff_virt_scaled
+      TYPE(cp_fm_type), POINTER :: fm_mat_L_transposed, fm_mat_Q_static_bse, &
+         fm_mat_Q_static_bse_gemm, fm_mat_S_gw_work, fm_mat_S_gw_work_beta, fm_mat_work, &
+         fm_mo_coeff_occ_scaled, fm_mo_coeff_virt_scaled
       TYPE(dbcsr_p_type)                                 :: mat_dm, mat_L, mat_M_P_munu_occ, &
                                                             mat_M_P_munu_virt, mat_P_global_copy, &
                                                             mat_SinvVSinv
@@ -3157,7 +3145,7 @@ CONTAINS
 
             ELSE
 
-   CALL matrix_operations_canonical(fm_mat_S, first_cycle, count_ev_sc_GW, virtual, Eigenval, Eigenval_last, homo, &
+               CALL matrix_operations_canonical(fm_mat_S, first_cycle, count_ev_sc_GW, virtual, Eigenval, Eigenval_last, homo, &
                                                 omega, omega_old, jquad, num_integ_points, &
                                                 mm_style, dimen_RI, dimen_ia, alpha, fm_mat_Q, fm_mat_Q_gemm, para_env_RPA, &
                                                 do_bse, fm_mat_Q_static_bse_gemm, RPA_proc_map, buffer_rec, buffer_send, &
@@ -3623,7 +3611,6 @@ CONTAINS
                avirt = i_global-(iocc-1)*virtual
                eigen_diff = Eigenval_last(avirt+homo)-Eigenval_last(iocc)
 
-               
                fm_mat_S%local_data(iiB, jjB) = fm_mat_S%local_data(iiB, jjB)/ &
                                                SQRT(eigen_diff/(eigen_diff**2+omega_old**2))
 
@@ -3669,7 +3656,7 @@ CONTAINS
 
                fm_mat_S%local_data(iiB, jjB) = fm_mat_S%local_data(iiB, jjB)* &
                                                SQRT((eigen_diff**2+omega_old**2)/(eigen_diff**2+omega**2))
-                                                  
+
             END DO
          END DO
       END IF
