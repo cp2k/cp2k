@@ -153,7 +153,7 @@ CONTAINS
       CHARACTER(len=*), PARAMETER :: routineN = 'scf_post_calculation_tb', &
          routineP = moduleN//':'//routineN
 
-      CHARACTER(LEN=2)                                   :: ana
+      CHARACTER(LEN=6)                                   :: ana
       CHARACTER(LEN=default_string_length)               :: aname
       INTEGER                                            :: handle, homo, iat, iatom, ikind, ispin, &
                                                             nat, natom, nkind, nlumo_stm, nlumos, &
@@ -229,7 +229,8 @@ CONTAINS
       ! Mulliken
       print_key => section_vals_get_subs_vals(print_section, "MULLIKEN")
       IF (BTEST(cp_print_key_should_output(logger%iter_info, print_key), cp_p_file)) THEN
-         unit_nr = cp_print_key_unit_nr(logger, print_section, "MULLIKEN", extension=".mulliken", log_filename=.FALSE.)
+         unit_nr = cp_print_key_unit_nr(logger, print_section, "MULLIKEN", &
+                                        extension=".mulliken", log_filename=.FALSE.)
          IF (unit_nr > 0) THEN
             WRITE (UNIT=unit_nr, FMT="(/,/,T2,A)") "MULLIKEN POPULATION ANALYSIS"
             IF (nspins == 1) THEN
@@ -251,8 +252,8 @@ CONTAINS
                   DO iatom = 1, nat
                      iat = atomic_kind_set(ikind)%atom_list(iatom)
                      WRITE (UNIT=unit_nr, &
-                            FMT="(T2,I7,6X,A2,3X,I6,T39,F12.6,T69,F12.6)") &
-                        iat, ana, ikind, charges(iat, 1), mcharge(iat)
+                            FMT="(T2,I7,5X,A6,I6,T39,F12.6,T69,F12.6)") &
+                        iat, ADJUSTL(ana), ikind, charges(iat, 1), mcharge(iat)
                   END DO
                END DO
                WRITE (UNIT=unit_nr, &
@@ -277,8 +278,9 @@ CONTAINS
                   DO iatom = 1, nat
                      iat = atomic_kind_set(ikind)%atom_list(iatom)
                      WRITE (UNIT=unit_nr, &
-                            FMT="(T2,I6,5X,A2,2X,I6,T29,4(1X,F12.6))") &
-                        iat, ana, ikind, charges(iat, 1:2), mcharge(iat), charges(iat, 1)-charges(iat, 2)
+                            FMT="(T2,I6,3X,A6,I6,T29,4(1X,F12.6))") &
+                        iat, ADJUSTL(ana), ikind, charges(iat, 1:2), mcharge(iat), &
+                        charges(iat, 1)-charges(iat, 2)
                   END DO
                END DO
                WRITE (UNIT=unit_nr, &
