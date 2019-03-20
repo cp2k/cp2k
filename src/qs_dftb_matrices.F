@@ -599,11 +599,12 @@ CONTAINS
          CALL build_dftb_coulomb(qs_env, ks_matrix, rho, mcharge, energy, &
                                  calculate_forces, just_energy)
 
+         CALL efield_tb_matrix(qs_env, ks_matrix, rho, mcharge, energy, &
+                               calculate_forces, just_energy)
+
          DEALLOCATE (mcharge)
 
       END IF
-
-      CALL efield_tb_matrix(qs_env, ks_matrix, rho, mcharge, energy, calculate_forces, just_energy)
 
       IF (qs_env%qmmm) THEN
          CPASSERT(SIZE(ks_matrix, 2) == 1)
