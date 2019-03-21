@@ -37,7 +37,7 @@ case "$with_fftw" in
             [ -d fftw-${fftw_ver} ] && rm -rf fftw-${fftw_ver}
             tar -xzf fftw-${fftw_ver}.tar.gz
             cd fftw-${fftw_ver}
-            if [ "$ENABLE_MPI" != "no" ] ; then
+            if [ "$MPI_MODE" != "no" ] ; then
                 # fftw has mpi support but not compiled by default. so compile it if we build with mpi.
                 # it will create a second library to link with if needed
                 ./configure  --prefix=${pkg_install_dir} --libdir="${pkg_install_dir}/lib" --enable-openmp --enable-mpi > configure.log 2>&1
@@ -56,7 +56,7 @@ case "$with_fftw" in
         echo "==================== Finding FFTW from system paths ===================="
         check_lib -lfftw3 "FFTW"
         [ $ENABLE_OMP = "__TRUE__" ] && check_lib -lfftw3_omp "FFTW"
-        check_lib -lfftw3_mpi "FFTW"
+        [ "$MPI_MODE" != "no" ] && check_lib -lfftw3_mpi "FFTW"
         add_include_from_paths FFTW_CFLAGS "fftw3.h" $INCLUDE_PATHS
         add_lib_from_paths FFTW_LDFLAGS "libfftw3.*" $LIB_PATHS
         ;;
