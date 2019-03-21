@@ -1,37 +1,24 @@
 &GLOBAL
-  PROJECT_NAME               water-in-helium-worm
+  PROJECT_NAME               he32_only_worm
   RUN_TYPE                   PINT
   PRINT_LEVEL                MEDIUM
 &END GLOBAL
 
 &MOTION
   &PINT
-    P                        4
-    PROC_PER_REPLICA         1
     NUM_STEPS                3
-    DT                       0.5
-    NRESPA                   1
-    PROPAGATOR               RPMD
-    HARM_INT                 EXACT
-    TEMP                     7.5
-    T_TOL                    0.0
-    TRANSFORMATION           NORMAL
-    &PILE
-    &END PILE
     &HELIUM
-      SOLUTE_INTERACTION     MWATER
+      HELIUM_ONLY
       POTENTIAL_FILE_NAME    lj-test-pot.dat
-      COORD_INIT_TEMP        -1
-      GET_FORCES             LAST
       NATOMS                32
-      NBEADS                16
+      NBEADS                25
       NUM_ENV                2
-      INOROT                80
-      IROT                  40
-      PERIODIC               F
+      INOROT                40
+      IROT                  20
+      PERIODIC               T
       CELL_SHAPE             OCTAHEDRON
+      PRESAMPLE              T
       SAMPLING_METHOD        WORM
-      DROPLET_RADIUS        20
       &WORM
          CENTROID_MOVE_FREQ   300
          CENTROID_MOVE_DRMAX  0.15
@@ -39,7 +26,7 @@
          STAGING_MOVE_L       1
          G-SECTOR_MOVE        T
          G-SECTOR_MOVE_REP    10
-         OPEN_CLOSE_MOVE_C    0.00005
+         OPEN_CLOSE_MOVE_C    0.0005
          OPEN_CLOSE_MOVE_LMAX 5
          HEAD_TAIL_MOVE_LMAX  5
          SWAP_MOVE_LMAX       5
@@ -58,7 +45,7 @@
       &END EWALD
     &END POISSON
     &FORCEFIELD
-      PARM_FILE_NAME         ../Fist/sample_pot/water.pot
+      PARM_FILE_NAME         ../../Fist/sample_pot/water.pot
       PARMTYPE               CHM
       &CHARGE
         ATOM    OT
@@ -76,7 +63,7 @@
       PERIODIC  NONE
     &END CELL
     &TOPOLOGY
-      COORD_FILE_NAME        ../Fist/sample_pdb/water_1.pdb
+      COORD_FILE_NAME        ../../Fist/sample_pdb/water_1.pdb
       COORD_FILE_FORMAT      PDB
     &END TOPOLOGY
   &END SUBSYS

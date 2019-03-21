@@ -25,7 +25,7 @@
    METHOD FIST
    &MM
      &FORCEFIELD
-       parm_file_name ../Fist/sample_pot/water.pot
+       parm_file_name ../../Fist/sample_pot/water.pot
        parmtype       CHM
        &CHARGE
          ATOM OT
@@ -50,7 +50,7 @@
        ABC 24.955 24.955 24.955
      &END CELL
      &TOPOLOGY
-       COORD_FILE_NAME ../Fist/sample_pdb/water_2.pdb
+       COORD_FILE_NAME ../../Fist/sample_pdb/water_2.pdb
        COORD_FILE_FORMAT PDB
      &END TOPOLOGY
      &VELOCITY

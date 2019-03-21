@@ -41,7 +41,7 @@
   METHOD FIST
   &MM
     &FORCEFIELD
-      PARM_FILE_NAME      ../Fist/sample_pot/water.pot
+      PARM_FILE_NAME      ../../Fist/sample_pot/water.pot
       PARMTYPE               CHM
       &CHARGE
         ATOM    OT

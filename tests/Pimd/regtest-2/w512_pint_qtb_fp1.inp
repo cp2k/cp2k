@@ -1,14 +1,15 @@
 &GLOBAL
-  PROJECT w512_pint_piglet
+  PROJECT w512_pint_qtb_fp1
   RUN_TYPE                   PINT
   PRINT_LEVEL                MEDIUM
 &END GLOBAL
 &MOTION
   &PINT
-    P                        12
+    P                        4
+    PROC_PER_REPLICA         1
     NUM_STEPS                5
     DT                       0.25
-    NRESPA                   2		#produces an intended warning.
+    NRESPA                   10      #produces an intended warning.
     TEMP                     300.0
     TRANSFORMATION           NORMAL
     PROPAGATOR               RPMD
@@ -18,10 +19,14 @@
       Q_BEAD                -1.0
       Q_CENTROID            -1.0
     &END NORMALMODE
-    &PIGLET
-      SMATRIX_INIT          DIAGONAL
-      MATRICES_FILE_NAME    ./PIGLET_P12_300K
-    &END PIGLET
+    &QTB
+      TAU                   100.0
+      LAMBDA                0.5
+      TAUCUT                1.0
+      LAMBCUT               2.0
+      FP                    1
+      NF                    128
+    &END QTB
     &INIT
       RANDOMIZE_POS          F
       CENTROID_SPEED         F
@@ -37,7 +42,7 @@
   METHOD FIST
   &MM
     &FORCEFIELD
-      PARM_FILE_NAME      ../Fist/sample_pot/water.pot
+      PARM_FILE_NAME      ../../Fist/sample_pot/water.pot
       PARMTYPE               CHM
       &CHARGE
         ATOM    OT

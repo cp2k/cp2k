@@ -21,8 +21,8 @@
       PRESAMPLE              T
       SOLUTE_INTERACTION     MWATER
       POTENTIAL_FILE_NAME    lj-test-pot.dat
-      COORD_INIT_TEMP        7.5
-      SOLUTE_RADIUS          3
+      COORD_INIT_TEMP        -1
+      SOLUTE_RADIUS          2 
       NATOMS                 5
       NBEADS                16
       NUM_ENV                5
@@ -60,7 +60,7 @@
       &END EWALD
     &END POISSON
     &FORCEFIELD
-      PARM_FILE_NAME         ../Fist/sample_pot/water.pot
+      PARM_FILE_NAME         ../../Fist/sample_pot/water.pot
       PARMTYPE               CHM
       &CHARGE
         ATOM    OT
@@ -78,7 +78,7 @@
       PERIODIC  NONE
     &END CELL
     &TOPOLOGY
-      COORD_FILE_NAME        ../Fist/sample_pdb/water_1.pdb
+      COORD_FILE_NAME        ../../Fist/sample_pdb/water_1.pdb
       COORD_FILE_FORMAT      PDB
     &END TOPOLOGY
   &END SUBSYS

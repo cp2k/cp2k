@@ -1,5 +1,5 @@
 &GLOBAL
-  PROJECT_NAME               water-micro-helium
+  PROJECT_NAME               water-in-helium-worm
   RUN_TYPE                   PINT
   PRINT_LEVEL                MEDIUM
 &END GLOBAL
@@ -8,45 +8,43 @@
   &PINT
     P                        4
     PROC_PER_REPLICA         1
-    NUM_STEPS                5
+    NUM_STEPS                3
     DT                       0.5
-    NRESPA                   2
+    NRESPA                   1
+    PROPAGATOR               RPMD
+    HARM_INT                 EXACT
     TEMP                     7.5
     T_TOL                    0.0
     TRANSFORMATION           NORMAL
-    &NOSE
-      NNOS                   3
-    &END NOSE
+    &PILE
+    &END PILE
     &HELIUM
-      PRESAMPLE              T
       SOLUTE_INTERACTION     MWATER
       POTENTIAL_FILE_NAME    lj-test-pot.dat
       COORD_INIT_TEMP        -1
-      SOLUTE_RADIUS          2 
-      NATOMS                 5
+      GET_FORCES             LAST
+      NATOMS                32
       NBEADS                16
-      NUM_ENV                5
-      N_INNER               50
-      N_OUTER                7
-      SAMPLING_METHOD        CEPERLEY
-      &CEPERLEY
-        BISECTION              8
-        MAX_PERM_CYCLE         1
-      &END CEPERLEY
+      NUM_ENV                2
+      INOROT                80
+      IROT                  40
       PERIODIC               F
-      DROPLET_RADIUS        10
-      &PRINT
-        &COORDINATES ON
-          &EACH
-            MD               1
-          &END EACH
-        &END COORDINATES
-        &ACTION ON
-          &EACH
-            MD               1
-          &END EACH
-        &END ACTION
-      &END PRINT
+      CELL_SHAPE             OCTAHEDRON
+      SAMPLING_METHOD        WORM
+      DROPLET_RADIUS        20
+      &WORM
+         CENTROID_MOVE_FREQ   300
+         CENTROID_MOVE_DRMAX  0.15
+         STAGING_MOVE_REP     1
+         STAGING_MOVE_L       1
+         G-SECTOR_MOVE        T
+         G-SECTOR_MOVE_REP    10
+         OPEN_CLOSE_MOVE_C    0.00005
+         OPEN_CLOSE_MOVE_LMAX 5
+         HEAD_TAIL_MOVE_LMAX  5
+         SWAP_MOVE_LMAX       5
+         WRITE                T
+       &END WORM
     &END HELIUM
   &END PINT
 &END MOTION
@@ -60,7 +58,7 @@
       &END EWALD
     &END POISSON
     &FORCEFIELD
-      PARM_FILE_NAME         ../Fist/sample_pot/water.pot
+      PARM_FILE_NAME         ../../Fist/sample_pot/water.pot
       PARMTYPE               CHM
       &CHARGE
         ATOM    OT
@@ -78,7 +76,7 @@
       PERIODIC  NONE
     &END CELL
     &TOPOLOGY
-      COORD_FILE_NAME        ../Fist/sample_pdb/water_1.pdb
+      COORD_FILE_NAME        ../../Fist/sample_pdb/water_1.pdb
       COORD_FILE_FORMAT      PDB
     &END TOPOLOGY
   &END SUBSYS
