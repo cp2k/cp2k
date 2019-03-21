@@ -2,36 +2,39 @@ FROM ubuntu:18.04
 USER root
 
 # install Ubuntu packages
+# Include also packages for the CI to make check_runs similar to full toolchain builds.
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    build-essential \
-    ca-certificates \
-    gfortran \
-    python \
-    wget \
+    autoconf \
+    autogen \
+    automake \
+    autotools-dev \
     bison \
     bisonc++ \
+    build-essential \
+    ca-certificates \
+    cmake \
     flex \
     flexc++ \
-    zlib1g-dev \
+    gfortran \
+    git \
     less \
-    unzip \
     libc6-dbg \
-    autotools-dev \
-    autogen \
     libtool \
-    autoconf \
-    automake \
+    make \
+    nano \
     pkg-config \
+    python \
+    rsync \
+    unzip \
+    wget \
+    zlib1g-dev \
    && rm -rf /var/lib/apt/lists/*
 
 # build toolchain
 WORKDIR /opt/cp2k-toolchain
 COPY . /opt/cp2k-toolchain
-
-# Do not compile make until glibc issue is resolved:
-#  http://gnu-make.2324884.n4.nabble.com/undefined-reference-to-alloca-td18308.html
-#  http://git.savannah.gnu.org/cgit/make.git/commit/?id=48c8a116a914a325a0497721f5d8b58d5bba34d4
-RUN ./install_cp2k_toolchain.sh --install-all --with-make=no && rm -rf ./build
+RUN ./install_cp2k_toolchain.sh --install-all --with-binutils=system --with-cmake=system --with-make=system \
+    && rm -rf ./build
 
 # configure shell
 RUN ln -sf bash /bin/sh && \
