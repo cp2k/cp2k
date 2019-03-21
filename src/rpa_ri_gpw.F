@@ -247,18 +247,16 @@ CONTAINS
          dimen_homo_square, dimen_ia, dimen_ia_beta, dimen_nm_gw, dimen_virt_square, handle, &
          handle2, handle3, i, ierr, iiB, input_integ_group_size, integ_group_size, jjB, &
          max_iter_fit, min_integ_group_size, my_ab_comb_bse_end, my_ab_comb_bse_size, &
-         my_ab_comb_bse_start, my_B_all_end, my_B_all_size, my_B_all_start, my_B_occ_bse_end, &
+         my_ab_comb_bse_start, my_B_all_size, my_B_all_start, &
          my_B_occ_bse_size, my_B_occ_bse_start, my_B_size, my_B_size_beta, my_B_virt_bse_size, &
-         my_B_virt_bse_start, my_B_virtual_end, my_B_virtual_end_beta, my_B_virtual_start
+         my_B_virt_bse_start, my_B_virtual_start
       INTEGER :: my_B_virtual_start_beta, my_group_L_end, my_group_L_size, my_group_L_start, &
          my_homo_beta, my_ia_end, my_ia_end_beta, my_ia_size, my_ia_size_beta, my_ia_start, &
          my_ia_start_beta, my_ij_comb_bse_end, my_ij_comb_bse_size, my_ij_comb_bse_start, &
          my_nm_gw_end, my_nm_gw_size, my_nm_gw_start, ncol_block_mat, ngroup, nrow_block_mat, &
          num_integ_group, num_integ_points, num_poles, pos_integ_group, virtual, virtual_beta
       INTEGER(KIND=int_8)                                :: mem
-      INTEGER, ALLOCATABLE, DIMENSION(:) :: ends_ab_bse, ends_ia, ends_ia_beta, ends_ij_bse, &
-         ends_nm_gw, sizes_ab_bse, sizes_ia, sizes_ia_beta, sizes_ij_bse, sizes_nm_gw, &
-         starts_ab_bse, starts_ia, starts_ia_beta, starts_ij_bse, starts_nm_gw, sub_proc_map
+      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: sub_proc_map
       LOGICAL                                            :: check_fit, do_minimax_quad, &
                                                             my_open_shell, skip_integ_group_opt
       REAL(KIND=dp) :: allowed_memory, avail_mem, E_Range, Emax, Emax_beta, Emin, Emin_beta, &
@@ -481,17 +479,14 @@ CONTAINS
       IF (.NOT. do_im_time) THEN
 
          my_B_virtual_start = starts_B_virtual(para_env_sub%mepos)
-         my_B_virtual_end = ends_B_virtual(para_env_sub%mepos)
          my_B_size = sizes_B_virtual(para_env_sub%mepos)
 
          IF (my_open_shell) THEN
             my_B_virtual_start_beta = starts_B_virtual_beta(para_env_sub%mepos)
-            my_B_virtual_end_beta = ends_B_virtual_beta(para_env_sub%mepos)
             my_B_size_beta = sizes_B_virtual_beta(para_env_sub%mepos)
             my_homo_beta = homo_beta
          ELSE
             my_B_virtual_start_beta = my_B_virtual_start
-            my_B_virtual_end_beta = my_B_virtual_end
             my_B_size_beta = my_B_size
             my_homo_beta = homo
          END IF
@@ -500,7 +495,6 @@ CONTAINS
 
       IF (my_do_gw) THEN
          my_B_all_start = starts_B_all(para_env_sub%mepos)
-         my_B_all_end = ends_B_all(para_env_sub%mepos)
          my_B_all_size = sizes_B_all(para_env_sub%mepos)
       END IF
 
@@ -515,7 +509,6 @@ CONTAINS
 
       IF (do_bse) THEN
          my_B_occ_bse_start = starts_B_occ_bse(para_env_sub%mepos)
-         my_B_occ_bse_end = ends_B_occ_bse(para_env_sub%mepos)
          my_B_occ_bse_size = sizes_B_occ_bse(para_env_sub%mepos)
       END IF
 
@@ -540,7 +533,6 @@ CONTAINS
          ! reorder the local data in such a way to help the next stage of matrix creation
          ! now the data inside the group are divided into a ia x K matrix
          CALL calculate_BIb_C_2D(BIb_C_2D, BIb_C, para_env_sub, dimen_ia, homo, virtual, &
-                                 sizes_ia, starts_ia, ends_ia, &
                                  sizes_B_virtual, starts_B_virtual, ends_B_virtual, &
                                  sub_proc_map, my_ia_size, my_ia_start, my_ia_end, my_group_L_size, &
                                  my_B_size, my_B_virtual_start)
@@ -553,7 +545,6 @@ CONTAINS
          IF (my_open_shell) THEN
             CALL calculate_BIb_C_2D(BIb_C_2D_beta, BIb_C_beta, para_env_sub, &
                                     dimen_ia_beta, homo_beta, virtual_beta, &
-                                    sizes_ia_beta, starts_ia_beta, ends_ia_beta, &
                                     sizes_B_virtual_beta, starts_B_virtual_beta, ends_B_virtual_beta, &
                                     sub_proc_map, my_ia_size_beta, my_ia_start_beta, my_ia_end_beta, my_group_L_size, &
                                     my_B_size_beta, my_B_virtual_start_beta)
@@ -574,17 +565,14 @@ CONTAINS
 
          CALL calculate_BIb_C_2D(BIb_C_2D_gw, BIb_C_gw, para_env_sub, dimen_nm_gw, &
                                  gw_corr_lev_occ+gw_corr_lev_virt, nmo, &
-                                 sizes_nm_gw, starts_nm_gw, ends_nm_gw, &
                                  sizes_B_all, starts_B_all, ends_B_all, &
                                  sub_proc_map, my_nm_gw_size, my_nm_gw_start, my_nm_gw_end, my_group_L_size, &
                                  my_B_all_size, my_B_all_start)
 
          ! The same for open shell
          IF (my_open_shell) THEN
-            DEALLOCATE (sizes_nm_gw, starts_nm_gw, ends_nm_gw)
             CALL calculate_BIb_C_2D(BIb_C_2D_gw_beta, BIb_C_gw_beta, para_env_sub, dimen_nm_gw, &
                                     gw_corr_lev_occ+gw_corr_lev_virt, nmo, &
-                                    sizes_nm_gw, starts_nm_gw, ends_nm_gw, &
                                     sizes_B_all, starts_B_all, ends_B_all, &
                                     sub_proc_map, my_nm_gw_size, my_nm_gw_start, my_nm_gw_end, my_group_L_size, &
                                     my_B_all_size, my_B_all_start)
@@ -606,7 +594,6 @@ CONTAINS
 
          CALL calculate_BIb_C_2D(BIb_C_2D_bse_ij, BIb_C_bse_ij, para_env_sub, dimen_homo_square, &
                                  homo, homo, &
-                                 sizes_ij_bse, starts_ij_bse, ends_ij_bse, &
                                  sizes_B_occ_bse, starts_B_occ_bse, ends_B_occ_bse, &
                                  sub_proc_map, my_ij_comb_bse_size, my_ij_comb_bse_start, my_ij_comb_bse_end, my_group_L_size, &
                                  my_B_occ_bse_size, my_B_occ_bse_start)
@@ -622,7 +609,6 @@ CONTAINS
 
          CALL calculate_BIb_C_2D(BIb_C_2D_bse_ab, BIb_C_bse_ab, para_env_sub, dimen_virt_square, &
                                  virtual, virtual, &
-                                 sizes_ab_bse, starts_ab_bse, ends_ab_bse, &
                                  sizes_B_virt_bse, starts_B_virt_bse, ends_B_virt_bse, &
                                  sub_proc_map, my_ab_comb_bse_size, my_ab_comb_bse_start, my_ab_comb_bse_end, my_group_L_size, &
                                  my_B_virt_bse_size, my_B_virt_bse_start)
@@ -814,14 +800,6 @@ CONTAINS
          END IF
       END IF
 
-      IF (.NOT. do_im_time) THEN
-
-         DEALLOCATE (sizes_ia)
-         DEALLOCATE (starts_ia)
-         DEALLOCATE (ends_ia)
-
-      END IF
-
       DEALLOCATE (sub_proc_map)
 
       DEALLOCATE (sizes_array)
@@ -836,9 +814,6 @@ CONTAINS
       END IF
       CALL cp_fm_release(fm_mat_Q)
       IF (my_open_shell .AND. .NOT. do_im_time) THEN
-         DEALLOCATE (sizes_ia_beta)
-         DEALLOCATE (starts_ia_beta)
-         DEALLOCATE (ends_ia_beta)
          CALL cp_fm_release(fm_mat_S_beta)
          CALL cp_fm_release(fm_mat_Q_gemm_beta)
          CALL cp_fm_release(fm_mat_Q_beta)
@@ -848,9 +823,6 @@ CONTAINS
       END IF
 
       IF (my_do_gw) THEN
-         DEALLOCATE (sizes_nm_gw)
-         DEALLOCATE (starts_nm_gw)
-         DEALLOCATE (ends_nm_gw)
          CALL cp_fm_release(fm_mat_S_gw)
          CALL cp_fm_release(fm_mat_R_gw)
          IF (my_open_shell) THEN
@@ -884,9 +856,6 @@ CONTAINS
 !> \param dimen_ia ...
 !> \param homo ...
 !> \param virtual ...
-!> \param sizes_ia ...
-!> \param starts_ia ...
-!> \param ends_ia ...
 !> \param sizes_B_virtual ...
 !> \param starts_B_virtual ...
 !> \param ends_B_virtual ...
@@ -900,7 +869,6 @@ CONTAINS
 !> \author Jan Wilhelm, 03/2015
 ! **************************************************************************************************
    SUBROUTINE calculate_BIb_C_2D(BIb_C_2D, BIb_C, para_env_sub, dimen_ia, homo, virtual, &
-                                 sizes_ia, starts_ia, ends_ia, &
                                  sizes_B_virtual, starts_B_virtual, ends_B_virtual, &
                                  sub_proc_map, my_ia_size, my_ia_start, my_ia_end, my_group_L_size, &
                                  my_B_size, my_B_virtual_start)
@@ -912,7 +880,6 @@ CONTAINS
       TYPE(cp_para_env_type), POINTER                    :: para_env_sub
       INTEGER, INTENT(OUT)                               :: dimen_ia
       INTEGER, INTENT(IN)                                :: homo, virtual
-      INTEGER, ALLOCATABLE, DIMENSION(:), INTENT(OUT)    :: sizes_ia, starts_ia, ends_ia
       INTEGER, ALLOCATABLE, DIMENSION(:), INTENT(INOUT)  :: sizes_B_virtual, starts_B_virtual, &
                                                             ends_B_virtual
       INTEGER, ALLOCATABLE, DIMENSION(:), INTENT(IN)     :: sub_proc_map
@@ -926,6 +893,7 @@ CONTAINS
 
       INTEGER :: ia_global, iiB, iproc, itmp(2), jjB, occ_high, occ_low, proc_receive, proc_send, &
          proc_shift, rec_B_size, rec_B_virtual_end, rec_B_virtual_start
+      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: sizes_ia, starts_ia, ends_ia
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: BIb_C_rec
 
       dimen_ia = homo*virtual
@@ -997,6 +965,7 @@ CONTAINS
          DEALLOCATE (BIb_C_rec)
       END DO
 
+      DEALLOCATE(starts_ia, ends_ia, sizes_ia)
    END SUBROUTINE calculate_BIb_C_2D
 
 ! **************************************************************************************************
