@@ -13,7 +13,8 @@ xTB/regtest-4
 QS/regtest-almo-strong
 QS/regtest-elpa-2                                           elpa
 QS/regtest-cdft-5
-Pimd
+Pimd/regtest-1
+Pimd/regtest-2
 QS/regtest-mp2-grad                                         libint
 QS/regtest-kp-2
 QS/regtest-pao-2

@@ -1,5 +1,7 @@
+#CPQA DEPENDS water-in-helium.inp
+
 &GLOBAL
-  PROJECT_NAME               water-in-helium-lastforce
+  PROJECT_NAME               water-in-helium-restart
   RUN_TYPE                   PINT
   PRINT_LEVEL                MEDIUM
 &END GLOBAL
@@ -20,8 +22,6 @@
     &HELIUM
       SOLUTE_INTERACTION     MWATER
       POTENTIAL_FILE_NAME    lj-test-pot.dat
-      GET_FORCES             LAST
-      SOLUTE_RADIUS          2.0
       NATOMS                32
       NBEADS                16
       NUM_ENV                2
@@ -47,7 +47,7 @@
       &END EWALD
     &END POISSON
     &FORCEFIELD
-      PARM_FILE_NAME         ../Fist/sample_pot/water.pot
+      PARM_FILE_NAME         ../../Fist/sample_pot/water.pot
       PARMTYPE               CHM
       &CHARGE
         ATOM    OT
@@ -65,8 +65,21 @@
       PERIODIC  NONE
     &END CELL
     &TOPOLOGY
-      COORD_FILE_NAME        ../Fist/sample_pdb/water_1.pdb
+      COORD_FILE_NAME        ../../Fist/sample_pdb/water_1.pdb
       COORD_FILE_FORMAT      PDB
     &END TOPOLOGY
   &END SUBSYS
 &END FORCE_EVAL
+
+&EXT_RESTART
+  RESTART_FILE_NAME          water-in-helium-1.restart
+  RESTART_DEFAULT            F
+  RESTART_COUNTERS
+  RESTART_PINT_POS
+  RESTART_PINT_VEL
+  RESTART_PINT_NOSE
+  RESTART_HELIUM_POS
+  RESTART_HELIUM_PERMUTATION
+  RESTART_HELIUM_RNG
+  RESTART_HELIUM_FORCE
+&END EXT_RESTART

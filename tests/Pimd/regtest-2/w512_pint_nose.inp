@@ -1,36 +1,29 @@
 &GLOBAL
-  PROJECT w512_pint_qtb_fp0
+  PROJECT w512_pint_nose
   RUN_TYPE                   PINT
   PRINT_LEVEL                MEDIUM
 &END GLOBAL
 &MOTION
   &PINT
-    P                        4
+    P                        2
     PROC_PER_REPLICA         1
-    NUM_STEPS                5
-    DT                       0.25
-    NRESPA                   10      #produces an intended warning.
-    TEMP                     300.0
+    NUM_STEPS                2
+    DT                       0.5
+    NRESPA                   1
+    TEMP                    300.0
+    T_TOL                    0.0
     TRANSFORMATION           NORMAL
-    PROPAGATOR               RPMD
-    HARM_INT                 EXACT
     &NORMALMODE
       MODEFACTOR             1.0
       Q_BEAD                -1.0
       Q_CENTROID            -1.0
     &END NORMALMODE
-    &QTB
-      TAU                   100.0
-      LAMBDA                0.5
-      TAUCUT                1.0
-      LAMBCUT               2.0
-      FP                    0
-      NF                    128
-    &END QTB
+    &NOSE
+      NNOS 3
+    &END NOSE
     &INIT
       RANDOMIZE_POS          F
       CENTROID_SPEED         F
-      THERMOSTAT_SEED        12
     &END INIT
     &PRINT
       &CENTROID_GYR          OFF
@@ -42,7 +35,7 @@
   METHOD FIST
   &MM
     &FORCEFIELD
-      PARM_FILE_NAME      ../Fist/sample_pot/water.pot
+      PARM_FILE_NAME      ../../Fist/sample_pot/water.pot
       PARMTYPE               CHM
       &CHARGE
         ATOM    OT

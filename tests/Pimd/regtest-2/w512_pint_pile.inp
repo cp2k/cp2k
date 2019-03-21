@@ -1,5 +1,5 @@
 &GLOBAL
-  PROJECT w512_pint_qtb_fp1
+  PROJECT w512_pint_pile
   RUN_TYPE                   PINT
   PRINT_LEVEL                MEDIUM
 &END GLOBAL
@@ -19,14 +19,10 @@
       Q_BEAD                -1.0
       Q_CENTROID            -1.0
     &END NORMALMODE
-    &QTB
-      TAU                   100.0
+    &PILE
+      TAU                   1000
       LAMBDA                0.5
-      TAUCUT                1.0
-      LAMBCUT               2.0
-      FP                    1
-      NF                    128
-    &END QTB
+    &END PILE
     &INIT
       RANDOMIZE_POS          F
       CENTROID_SPEED         F
@@ -42,7 +38,7 @@
   METHOD FIST
   &MM
     &FORCEFIELD
-      PARM_FILE_NAME      ../Fist/sample_pot/water.pot
+      PARM_FILE_NAME      ../../Fist/sample_pot/water.pot
       PARMTYPE               CHM
       &CHARGE
         ATOM    OT
