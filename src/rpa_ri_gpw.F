@@ -285,9 +285,8 @@ CONTAINS
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: BIb_C_2D, BIb_C_2D_beta, &
                                                             BIb_C_2D_bse_ab, BIb_C_2D_bse_ij, &
                                                             BIb_C_2D_gw, BIb_C_2D_gw_beta
-      TYPE(cp_fm_type), POINTER :: fm_mat_dummy_1, fm_mat_dummy_2, fm_mat_dummy_3, fm_mat_dummy_4, &
-         fm_mat_Q, fm_mat_Q_beta, fm_mat_Q_gemm, fm_mat_Q_gemm_beta, fm_mat_R_gw, &
-         fm_mat_R_gw_beta, fm_mat_R_gw_gemm, fm_mat_R_gw_gemm_beta, fm_mat_S, fm_mat_S_ab_bse, &
+      TYPE(cp_fm_type), POINTER :: fm_mat_Q, fm_mat_Q_beta, fm_mat_Q_gemm, fm_mat_Q_gemm_beta, fm_mat_R_gw, &
+         fm_mat_R_gw_gemm, fm_mat_S, fm_mat_S_ab_bse, &
          fm_mat_S_beta, fm_mat_S_gw, fm_mat_S_gw_beta, fm_mat_S_ij_bse, fm_mo_coeff_occ, &
          fm_mo_coeff_occ_beta, fm_mo_coeff_virt, fm_mo_coeff_virt_beta, fm_scaled_dm_occ_tau, &
          fm_scaled_dm_virt_tau
@@ -620,9 +619,9 @@ CONTAINS
                                mp2_env%block_size_row, mp2_env%block_size_col, unit_nr, &
                                my_ia_size, my_ia_start, my_ia_end, &
                                my_group_L_size, my_group_L_start, my_group_L_end, &
-                               para_env_RPA, fm_mat_S, fm_mat_Q_gemm, fm_mat_Q, &
-                               nrow_block_mat, ncol_block_mat, &
-                               do_im_time=do_im_time, fm_scaled_dm_occ_tau=fm_scaled_dm_occ_tau, &
+                               para_env_RPA, fm_mat_S, nrow_block_mat, ncol_block_mat, &
+                               do_im_time=do_im_time, fm_mat_Q_gemm=fm_mat_Q_gemm, fm_mat_Q=fm_mat_Q, &
+                               fm_scaled_dm_occ_tau=fm_scaled_dm_occ_tau, &
                                fm_scaled_dm_virt_tau=fm_scaled_dm_virt_tau, mo_coeff=mo_coeff, &
                                fm_mo_coeff_occ=fm_mo_coeff_occ, fm_mo_coeff_virt=fm_mo_coeff_virt, &
                                nmo=nmo, homo=homo, do_mao=do_mao, mao_coeff_occ_A=mao_coeff_occ_A, &
@@ -633,9 +632,9 @@ CONTAINS
                                mp2_env%block_size_row, mp2_env%block_size_col, unit_nr, &
                                my_ia_size, my_ia_start, my_ia_end, &
                                my_group_L_size, my_group_L_start, my_group_L_end, &
-                               para_env_RPA, fm_mat_S, fm_mat_Q_gemm, fm_mat_Q, &
-                               nrow_block_mat, ncol_block_mat, &
-                               do_im_time=do_im_time, fm_scaled_dm_occ_tau=fm_scaled_dm_occ_tau, &
+                               para_env_RPA, fm_mat_S, nrow_block_mat, ncol_block_mat, &
+                               do_im_time=do_im_time, fm_mat_Q_gemm=fm_mat_Q_gemm, fm_mat_Q=fm_mat_Q, &
+                               fm_scaled_dm_occ_tau=fm_scaled_dm_occ_tau, &
                                fm_scaled_dm_virt_tau=fm_scaled_dm_virt_tau, mo_coeff=mo_coeff, &
                                fm_mo_coeff_occ=fm_mo_coeff_occ, fm_mo_coeff_virt=fm_mo_coeff_virt, &
                                nmo=nmo, homo=homo, do_mao=do_mao, mao_coeff_occ_A=mao_coeff_occ_A, &
@@ -659,9 +658,9 @@ CONTAINS
                                   mp2_env%block_size_row, mp2_env%block_size_col, unit_nr, &
                                   my_ia_size_beta, my_ia_start_beta, my_ia_end_beta, &
                                   my_group_L_size, my_group_L_start, my_group_L_end, &
-                                  para_env_RPA, fm_mat_S_beta, fm_mat_Q_gemm_beta, fm_mat_Q_beta, &
-                                  nrow_block_mat, ncol_block_mat, &
-                                  .TRUE., fm_mat_Q%matrix_struct%context)
+                                  para_env_RPA, fm_mat_S_beta, nrow_block_mat, ncol_block_mat, &
+                                  .TRUE., fm_mat_Q%matrix_struct%context, &
+                                  fm_mat_Q_gemm=fm_mat_Q_gemm_beta, fm_mat_Q=fm_mat_Q_beta)
 
          END IF
 
@@ -675,12 +674,9 @@ CONTAINS
                                mp2_env%block_size_row, mp2_env%block_size_col, unit_nr, &
                                my_nm_gw_size, my_nm_gw_start, my_nm_gw_end, &
                                my_group_L_size, my_group_L_start, my_group_L_end, &
-                               para_env_RPA, fm_mat_S_gw, fm_mat_R_gw_gemm, fm_mat_R_gw, &
-                               nrow_block_mat, ncol_block_mat, &
-                               .TRUE., fm_mat_Q%matrix_struct%context, fm_mat_Q%matrix_struct%context)
-
-         ! for GW, we don't need fm_mat_R_gw_gemm (in contrast to RPA)
-         CALL cp_fm_release(fm_mat_R_gw_gemm)
+                               para_env_RPA, fm_mat_S_gw, nrow_block_mat, ncol_block_mat, &
+                               .TRUE., fm_mat_Q%matrix_struct%context, fm_mat_Q%matrix_struct%context, &
+                               fm_mat_Q=fm_mat_R_gw)
 
          IF (my_open_shell) THEN
             CALL create_integ_mat(BIb_C_2D_gw_beta, para_env, para_env_sub, color_sub, ngroup, integ_group_size, &
@@ -688,8 +684,7 @@ CONTAINS
                                   mp2_env%block_size_row, mp2_env%block_size_col, unit_nr, &
                                   my_nm_gw_size, my_nm_gw_start, my_nm_gw_end, &
                                   my_group_L_size, my_group_L_start, my_group_L_end, &
-                                  para_env_RPA, fm_mat_S_gw_beta, fm_mat_R_gw_gemm_beta, fm_mat_R_gw_beta, &
-                                  nrow_block_mat, ncol_block_mat, &
+                                  para_env_RPA, fm_mat_S_gw_beta, nrow_block_mat, ncol_block_mat, &
                                   .TRUE., fm_mat_Q%matrix_struct%context, fm_mat_Q%matrix_struct%context, &
                                   do_gw_open_shell=.TRUE.)
 
@@ -705,24 +700,17 @@ CONTAINS
                                mp2_env%block_size_row, mp2_env%block_size_col, unit_nr, &
                                my_ij_comb_bse_size, my_ij_comb_bse_start, my_ij_comb_bse_end, &
                                my_group_L_size, my_group_L_start, my_group_L_end, &
-                               para_env_RPA, fm_mat_S_ij_bse, fm_mat_dummy_1, fm_mat_dummy_2, &
-                               nrow_block_mat, ncol_block_mat, &
+                               para_env_RPA, fm_mat_S_ij_bse, nrow_block_mat, ncol_block_mat, &
                                .TRUE., fm_mat_Q%matrix_struct%context, fm_mat_Q%matrix_struct%context)
-
-         CALL cp_fm_release(fm_mat_dummy_1)
-         CALL cp_fm_release(fm_mat_dummy_2)
 
          CALL create_integ_mat(BIb_C_2D_bse_ab, para_env, para_env_sub, color_sub, ngroup, integ_group_size, &
                                dimen_RI, dimen_virt_square, dimen_ia, color_rpa_group, &
                                mp2_env%block_size_row, mp2_env%block_size_col, unit_nr, &
                                my_ab_comb_bse_size, my_ab_comb_bse_start, my_ab_comb_bse_end, &
                                my_group_L_size, my_group_L_start, my_group_L_end, &
-                               para_env_RPA, fm_mat_S_ab_bse, fm_mat_dummy_3, fm_mat_dummy_4, &
+                               para_env_RPA, fm_mat_S_ab_bse, &
                                nrow_block_mat, ncol_block_mat, &
                                .TRUE., fm_mat_Q%matrix_struct%context, fm_mat_Q%matrix_struct%context)
-
-         CALL cp_fm_release(fm_mat_dummy_3)
-         CALL cp_fm_release(fm_mat_dummy_4)
 
       END IF
 
@@ -878,31 +866,17 @@ CONTAINS
          routineP = moduleN//':'//routineN
       INTEGER, PARAMETER                                 :: occ_chunk = 128
 
-      INTEGER :: ia_global, iiB, iproc, itmp(2), jjB, my_B_size, my_B_virtual_start, occ_high, &
+      INTEGER :: ia_global, iiB, itmp(2), jjB, my_B_size, my_B_virtual_start, occ_high, &
          occ_low, proc_receive, proc_send, proc_shift, rec_B_size, rec_B_virtual_end, &
          rec_B_virtual_start
-      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: ends_ia, sizes_ia, starts_ia
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: BIb_C_rec
 
       dimen_ia = homo*virtual
 
-      ALLOCATE (sizes_ia(0:para_env_sub%num_pe-1))
-      sizes_ia = 0
-      ALLOCATE (starts_ia(0:para_env_sub%num_pe-1))
-      starts_ia = 0
-      ALLOCATE (ends_ia(0:para_env_sub%num_pe-1))
-      ends_ia = 0
-
-      DO iproc = 0, para_env_sub%num_pe-1
-         itmp = get_limit(dimen_ia, para_env_sub%num_pe, iproc)
-         starts_ia(iproc) = itmp(1)
-         ends_ia(iproc) = itmp(2)
-         sizes_ia(iproc) = itmp(2)-itmp(1)+1
-      END DO
-
-      my_ia_start = starts_ia(para_env_sub%mepos)
-      my_ia_end = ends_ia(para_env_sub%mepos)
-      my_ia_size = sizes_ia(para_env_sub%mepos)
+      itmp = get_limit(dimen_ia, para_env_sub%num_pe, para_env_sub%mepos)
+      my_ia_start = itmp(1)
+      my_ia_end = itmp(2)
+      my_ia_size = my_ia_end-my_ia_start+1
 
       my_B_size = sizes_B_virtual(para_env_sub%mepos)
       my_B_virtual_start = starts_B_virtual(para_env_sub%mepos)
@@ -955,8 +929,7 @@ CONTAINS
 
          DEALLOCATE (BIb_C_rec)
       END DO
-
-      DEALLOCATE (starts_ia, ends_ia, sizes_ia)
+      
    END SUBROUTINE calculate_BIb_C_2D
 
 ! **************************************************************************************************
@@ -1009,13 +982,12 @@ CONTAINS
                                ext_row_block_size, ext_col_block_size, unit_nr, &
                                my_ia_size, my_ia_start, my_ia_end, &
                                my_group_L_size, my_group_L_start, my_group_L_end, &
-                               para_env_RPA, fm_mat_S, fm_mat_Q_gemm, fm_mat_Q, &
-                               nrow_block_mat, ncol_block_mat, beta_case, &
-                               blacs_env_ext, blacs_env_ext_S, do_gw_open_shell, &
-                               do_im_time, fm_scaled_dm_occ_tau, fm_scaled_dm_virt_tau, mo_coeff, &
-                               fm_mo_coeff_occ, fm_mo_coeff_virt, nmo, homo, &
-                               do_mao, mao_coeff_occ_A, mao_coeff_virt_A, &
-                               matrix_s, fm_mat_Q_beta)
+                               para_env_RPA, fm_mat_S, nrow_block_mat, ncol_block_mat, &
+                               beta_case, blacs_env_ext, blacs_env_ext_S, do_gw_open_shell, &
+                               do_im_time, fm_mat_Q_gemm, fm_mat_Q, fm_scaled_dm_occ_tau, &
+                               fm_scaled_dm_virt_tau, mo_coeff, fm_mo_coeff_occ, &
+                               fm_mo_coeff_virt, nmo, homo, do_mao, mao_coeff_occ_A, &
+                               mao_coeff_virt_A, matrix_s, fm_mat_Q_beta)
 
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :), &
          INTENT(INOUT)                                   :: BIb_C_2D
@@ -1025,12 +997,12 @@ CONTAINS
          unit_nr, my_ia_size, my_ia_start, my_ia_end, my_group_L_size, my_group_L_start, &
          my_group_L_end
       TYPE(cp_para_env_type), POINTER                    :: para_env_RPA
-      TYPE(cp_fm_type), POINTER                          :: fm_mat_S, fm_mat_Q_gemm, fm_mat_Q
+      TYPE(cp_fm_type), POINTER                          :: fm_mat_S
       INTEGER, INTENT(INOUT)                             :: nrow_block_mat, ncol_block_mat
       LOGICAL, INTENT(IN), OPTIONAL                      :: beta_case
       TYPE(cp_blacs_env_type), OPTIONAL, POINTER         :: blacs_env_ext, blacs_env_ext_S
       LOGICAL, INTENT(IN), OPTIONAL                      :: do_gw_open_shell, do_im_time
-      TYPE(cp_fm_type), OPTIONAL, POINTER                :: fm_scaled_dm_occ_tau, &
+      TYPE(cp_fm_type), OPTIONAL, POINTER                :: fm_mat_Q_gemm, fm_mat_Q, fm_scaled_dm_occ_tau, &
                                                             fm_scaled_dm_virt_tau, mo_coeff, &
                                                             fm_mo_coeff_occ, fm_mo_coeff_virt
       INTEGER, INTENT(IN), OPTIONAL                      :: nmo, homo
@@ -1677,36 +1649,40 @@ CONTAINS
 
       IF (.NOT. my_gw_open_shell) THEN
 
-         IF (.NOT. my_do_im_time) THEN
-            ! create the Q matrix dimen_RIxdimen_RI where the result of the mat-mat-mult will be stored
-            NULLIFY (fm_mat_Q_gemm)
+         IF (PRESENT(fm_mat_Q_gemm)) THEN
+            IF (.NOT. my_do_im_time) THEN
+               ! create the Q matrix dimen_RIxdimen_RI where the result of the mat-mat-mult will be stored
+               NULLIFY (fm_mat_Q_gemm)
+               NULLIFY (fm_struct)
+               CALL cp_fm_struct_create(fm_struct, context=blacs_env, nrow_global=dimen_RI, &
+                                        ncol_global=dimen_RI, para_env=para_env_RPA, &
+                                        nrow_block=nrow_block_mat, ncol_block=ncol_block_mat, force_block=.TRUE.)
+               CALL cp_fm_create(fm_mat_Q_gemm, fm_struct, name="fm_mat_Q_gemm")
+               CALL cp_fm_struct_release(fm_struct)
+
+               CALL cp_fm_set_all(matrix=fm_mat_Q_gemm, alpha=0.0_dp)
+            END IF
+         END IF
+
+         IF (PRESENT(fm_mat_Q)) THEN
+            ! create the Q matrix with a different blacs env
+            NULLIFY (blacs_env_Q)
+            IF (my_blacs_ext) THEN
+               blacs_env_Q => blacs_env_ext
+            ELSE
+               CALL cp_blacs_env_create(blacs_env=blacs_env_Q, para_env=para_env_RPA)
+            END IF
+
+            NULLIFY (fm_mat_Q)
             NULLIFY (fm_struct)
-            CALL cp_fm_struct_create(fm_struct, context=blacs_env, nrow_global=dimen_RI, &
-                                     ncol_global=dimen_RI, para_env=para_env_RPA, &
-                                     nrow_block=nrow_block_mat, ncol_block=ncol_block_mat, force_block=.TRUE.)
-            CALL cp_fm_create(fm_mat_Q_gemm, fm_struct, name="fm_mat_Q_gemm")
+            CALL cp_fm_struct_create(fm_struct, context=blacs_env_Q, nrow_global=dimen_RI, &
+                                     ncol_global=dimen_RI, para_env=para_env_RPA)
+            CALL cp_fm_create(fm_mat_Q, fm_struct, name="fm_mat_Q")
+
             CALL cp_fm_struct_release(fm_struct)
 
-            CALL cp_fm_set_all(matrix=fm_mat_Q_gemm, alpha=0.0_dp)
+            CALL cp_fm_set_all(matrix=fm_mat_Q, alpha=0.0_dp)
          END IF
-
-         ! create the Q matrix with a different blacs env
-         NULLIFY (blacs_env_Q)
-         IF (my_blacs_ext) THEN
-            blacs_env_Q => blacs_env_ext
-         ELSE
-            CALL cp_blacs_env_create(blacs_env=blacs_env_Q, para_env=para_env_RPA)
-         END IF
-
-         NULLIFY (fm_mat_Q)
-         NULLIFY (fm_struct)
-         CALL cp_fm_struct_create(fm_struct, context=blacs_env_Q, nrow_global=dimen_RI, &
-                                  ncol_global=dimen_RI, para_env=para_env_RPA)
-         CALL cp_fm_create(fm_mat_Q, fm_struct, name="fm_mat_Q")
-
-         CALL cp_fm_struct_release(fm_struct)
-
-         CALL cp_fm_set_all(matrix=fm_mat_Q, alpha=0.0_dp)
 
          IF (PRESENT(fm_mat_Q_beta)) THEN
             NULLIFY (fm_mat_Q_beta)
