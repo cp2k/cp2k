@@ -67,7 +67,7 @@ case "$with_libvdwxc" in
             else
                 CC=mpicc FC=mpifort ./configure --prefix="${pkg_install_dir}" --with-fftw3 --disable-shared --with-mpi  >> configure.log 2>&1
             fi
-            make -j > compile.log 2>&1
+            make -j $NPROCS > compile.log 2>&1
             make install > compile.log 2>&1
             write_checksums "${install_lock_file}" "${SCRIPT_DIR}/$(basename ${SCRIPT_NAME})"
         fi
