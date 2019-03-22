@@ -5081,7 +5081,8 @@ CONTAINS
 !> \param fm_mat_S ...
 !> \param para_env_row ...
 ! **************************************************************************************************
-   SUBROUTINE calc_ia_ia_integrals(para_env_RPA, homo, virtual, nrow_local, right_term_ref, Eigenval, D_ia, iaia_RI, M_ia, fm_mat_S, para_env_row)
+   SUBROUTINE calc_ia_ia_integrals(para_env_RPA, homo, virtual, nrow_local, right_term_ref, Eigenval, &
+                                   D_ia, iaia_RI, M_ia, fm_mat_S, para_env_row)
 
       TYPE(cp_para_env_type), POINTER                    :: para_env_RPA
       INTEGER, INTENT(IN)                                :: homo, virtual

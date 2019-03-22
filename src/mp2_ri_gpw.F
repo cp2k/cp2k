@@ -508,9 +508,9 @@ CONTAINS
       CALL calculate_Lmin1(qs_env, eri_method, eri_param, para_env, para_env_sub, para_env_L, mp2_memory, &
                            fm_matrix_L, ngroup, color_sub, dimen_RI, &
                            mo_coeff, dft_control, psi_L, rho_r, rho_g, pot_g, pw_env_sub, poisson_env, &
-                           my_group_L_size, my_group_L_start, my_group_L_end, sab_orb_sub, &
+                           my_group_L_size, my_group_L_start, my_group_L_end, &
                            sizes_array, starts_array, ends_array, calc_PQ_cond_num, cond_num, &
-                           num_small_eigen, auxbas_pw_pool, ri_metric, &
+                           num_small_eigen, ri_metric, &
                            fm_matrix_L_RI_metric, do_im_time, do_kpoints_cubic_RPA, qs_env%mp2_env%mp2_gpw%eps_pgf_orb_S, &
                            atomic_kind_set, qs_kind_set, unit_nr)
 
@@ -1298,14 +1298,12 @@ CONTAINS
 !> \param my_group_L_size ...
 !> \param my_group_L_start ...
 !> \param my_group_L_end ...
-!> \param sab_orb_sub ...
 !> \param sizes_array ...
 !> \param starts_array ...
 !> \param ends_array ...
 !> \param calc_PQ_cond_num ...
 !> \param cond_num ...
 !> \param num_small_eigen ...
-!> \param auxbas_pw_pool ...
 !> \param ri_metric ...
 !> \param fm_matrix_L_RI_metric ...
 !> \param do_im_time ...
@@ -1318,9 +1316,9 @@ CONTAINS
    SUBROUTINE calculate_Lmin1(qs_env, eri_method, eri_param, para_env, para_env_sub, para_env_L, mp2_memory, &
                               fm_matrix_L, ngroup, color_sub, dimen_RI, &
                               mo_coeff, dft_control, psi_L, rho_r, rho_g, pot_g, pw_env_sub, poisson_env, &
-                              my_group_L_size, my_group_L_start, my_group_L_end, sab_orb_sub, &
+                              my_group_L_size, my_group_L_start, my_group_L_end, &
                               sizes_array, starts_array, ends_array, calc_PQ_cond_num, cond_num, &
-                              num_small_eigen, auxbas_pw_pool, &
+                              num_small_eigen, &
                               ri_metric, fm_matrix_L_RI_metric, do_im_time, do_kpoints_cubic_RPA, mp2_eps_pgf_orb_S, &
                               atomic_kind_set, qs_kind_set, unit_nr)
 
@@ -1338,13 +1336,10 @@ CONTAINS
       TYPE(pw_poisson_type), POINTER                     :: poisson_env
       INTEGER                                            :: my_group_L_size, my_group_L_start, &
                                                             my_group_L_end
-      TYPE(neighbor_list_set_p_type), DIMENSION(:), &
-         POINTER                                         :: sab_orb_sub
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: sizes_array, starts_array, ends_array
       LOGICAL                                            :: calc_PQ_cond_num
       REAL(KIND=dp)                                      :: cond_num
       INTEGER                                            :: num_small_eigen
-      TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
       INTEGER                                            :: ri_metric
       TYPE(cp_fm_p_type), DIMENSION(:, :), POINTER       :: fm_matrix_L_RI_metric
       LOGICAL                                            :: do_im_time, do_kpoints_cubic_RPA
@@ -1367,9 +1362,9 @@ CONTAINS
       CALL compute_2c_integrals(qs_env, eri_method, eri_param, para_env, para_env_sub, para_env_L, mp2_memory, &
                                 fm_matrix_L, ngroup, color_sub, dimen_RI, &
                                 mo_coeff, dft_control, psi_L, rho_r, rho_g, pot_g, pw_env_sub, poisson_env, &
-                                my_group_L_size, my_group_L_start, my_group_L_end, sab_orb_sub, &
+                                my_group_L_size, my_group_L_start, my_group_L_end, &
                                 sizes_array, starts_array, ends_array, calc_PQ_cond_num, cond_num, &
-                                num_small_eigen, auxbas_pw_pool, do_im_time=do_im_time)
+                                num_small_eigen, do_im_time=do_im_time)
 
       IF (ri_metric == ri_coulomb) THEN
 
@@ -1408,9 +1403,9 @@ CONTAINS
             CALL compute_2c_integrals(qs_env, eri_method, eri_param, para_env, para_env_sub, para_env_L, mp2_memory, &
                                       fm_matrix_L_RI_metric(1, 1)%matrix, ngroup, color_sub, dimen_RI, &
                                       mo_coeff, dft_control, psi_L, rho_r, rho_g, pot_g, pw_env_sub, poisson_env, &
-                                      my_group_L_size, my_group_L_start, my_group_L_end, sab_orb_sub, &
+                                      my_group_L_size, my_group_L_start, my_group_L_end, &
                                       sizes_array, starts_array, ends_array, calc_PQ_cond_num, cond_num, &
-                                      num_small_eigen, auxbas_pw_pool, &
+                                      num_small_eigen, &
                                       external_matrix_struc=.TRUE., fm_matrix_L_extern=fm_matrix_L, &
                                       ri_metric=ri_metric)
 
@@ -1742,7 +1737,6 @@ CONTAINS
 !> \param my_group_L_size ...
 !> \param my_group_L_start ...
 !> \param my_group_L_end ...
-!> \param sab_orb_sub ...
 !> \param sizes_array ...
 !> \param starts_array ...
 !> \param ends_array ...
@@ -1758,9 +1752,9 @@ CONTAINS
    SUBROUTINE compute_2c_integrals(qs_env, eri_method, eri_param, para_env, para_env_sub, para_env_L, mp2_memory, &
                                    fm_matrix_L, ngroup, color_sub, dimen_RI, &
                                    mo_coeff, dft_control, psi_L, rho_r, rho_g, pot_g, pw_env_sub, poisson_env, &
-                                   my_group_L_size, my_group_L_start, my_group_L_end, sab_orb_sub, &
+                                   my_group_L_size, my_group_L_start, my_group_L_end, &
                                    sizes_array, starts_array, ends_array, calc_PQ_cond_num, cond_num, &
-                                   num_small_eigen, auxbas_pw_pool, &
+                                   num_small_eigen, &
                                    external_matrix_struc, do_im_time, fm_matrix_L_extern, ri_metric)
 
       TYPE(qs_environment_type), POINTER                 :: qs_env
@@ -1777,13 +1771,10 @@ CONTAINS
       TYPE(pw_poisson_type), POINTER                     :: poisson_env
       INTEGER                                            :: my_group_L_size, my_group_L_start, &
                                                             my_group_L_end
-      TYPE(neighbor_list_set_p_type), DIMENSION(:), &
-         POINTER                                         :: sab_orb_sub
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: sizes_array, starts_array, ends_array
       LOGICAL                                            :: calc_PQ_cond_num
       REAL(KIND=dp)                                      :: cond_num
       INTEGER                                            :: num_small_eigen
-      TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
       LOGICAL, OPTIONAL                                  :: external_matrix_struc, do_im_time
       TYPE(cp_fm_type), OPTIONAL, POINTER                :: fm_matrix_L_extern
       INTEGER, OPTIONAL                                  :: ri_metric

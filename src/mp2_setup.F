@@ -225,9 +225,12 @@ CONTAINS
       IF (explicit_k_laplace) explicit_laplace = .TRUE.
 
       ! Ensure that at most one IM_TIME section is called
-      IF (explicit_wfc .AND. explicit_laplace) CPABORT("Use only one IM_TIME section or the IM_TIME section to the keyword!")
-      IF (explicit_wfc .AND. explicit_rpa) CPABORT("Use only one IM_TIME section or the IM_TIME section to the keyword!")
-      IF (explicit_rpa .AND. explicit_laplace) CPABORT("Use only one IM_TIME section or the IM_TIME section to the keyword!")
+      IF (explicit_wfc .AND. explicit_laplace) &
+         CPABORT("Use only one IM_TIME section or the IM_TIME section to the keyword!")
+      IF (explicit_wfc .AND. explicit_rpa) &
+         CPABORT("Use only one IM_TIME section or the IM_TIME section to the keyword!")
+      IF (explicit_rpa .AND. explicit_laplace) &
+         CPABORT("Use only one IM_TIME section or the IM_TIME section to the keyword!")
 
       ! Find what keyword/ section pair is used, set up the section pointer and do_im_time. If none is used, copy from wfc.
       NULLIFY (im_time_section)
