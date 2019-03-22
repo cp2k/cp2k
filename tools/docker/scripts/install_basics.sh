@@ -5,12 +5,18 @@
 # install Ubuntu packages
 apt-get update
 apt-get install -y --no-install-recommends \
+    autoconf                               \
+    autogen                                \
+    automake                               \
+    autotools-dev                          \
     ca-certificates                        \
     cmake                                  \
     git                                    \
     less                                   \
+    libtool                                \
     make                                   \
     nano                                   \
+    pkg-config                             \
     python                                 \
     rsync                                  \
     unzip                                  \

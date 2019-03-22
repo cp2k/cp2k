@@ -15,7 +15,6 @@ apt-get install -y --no-install-recommends  \
     gcc-${GCC_VERSION}                      \
     g++-${GCC_VERSION}                      \
     gfortran-${GCC_VERSION}                 \
-    pkg-config                              \
     fftw3-dev                               \
     libopenblas-dev                         \
     liblapack-dev                           \
