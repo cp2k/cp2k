@@ -439,7 +439,6 @@ CONTAINS
 !> \param first_cycle_periodic_correction ...
 !> \param do_GW_corr ...
 !> \param a_scaling ...
-!> \param omega_max_fit ...
 !> \param Eigenval ...
 !> \param Eigenval_beta ...
 !> \param tj ...
@@ -476,7 +475,7 @@ CONTAINS
                                    gw_corr_lev_tot, num_fit_points, &
                                    do_minimax_quad, do_periodic, do_ri_Sigma_x, my_do_gw, my_open_shell, &
                                    first_cycle_periodic_correction, do_GW_corr, &
-                                   a_scaling, omega_max_fit, Eigenval, Eigenval_beta, &
+                                   a_scaling, Eigenval, Eigenval_beta, &
                                    tj, vec_omega_fit_gw, vec_Sigma_x_gw, &
                                    vec_Sigma_x_gw_beta, delta_corr, Eigenval_last, Eigenval_last_beta, &
                                    Eigenval_scf, Eigenval_scf_beta, m_value, m_value_beta, &
@@ -494,7 +493,7 @@ CONTAINS
                                                             do_ri_Sigma_x, my_do_gw, my_open_shell
       LOGICAL, INTENT(OUT) :: first_cycle_periodic_correction
       LOGICAL, ALLOCATABLE, DIMENSION(:), INTENT(OUT)    :: do_GW_corr
-      REAL(KIND=dp), INTENT(IN)                          :: a_scaling, omega_max_fit
+      REAL(KIND=dp), INTENT(IN)                          :: a_scaling
       REAL(KIND=dp), DIMENSION(:), INTENT(INOUT)         :: Eigenval, Eigenval_beta
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:), &
          INTENT(IN)                                      :: tj
@@ -517,12 +516,13 @@ CONTAINS
       INTEGER                                            :: handle, iquad, jquad, ncol_local, &
                                                             nrow_local
       INTEGER, DIMENSION(:), POINTER                     :: row_indices
-      REAL(KIND=dp)                                      :: omega
+      REAL(KIND=dp)                                      :: omega, omega_max_fit
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: vec_omega_gw
 
       CALL timeset(routineN, handle)
 
       gw_corr_lev_tot = gw_corr_lev_occ+gw_corr_lev_virt
+      omega_max_fit = mp2_env%ri_g0w0%omega_max_fit
 
       ! fill the omega_frequency vector
       ALLOCATE (vec_omega_gw(num_integ_points))
@@ -1141,7 +1141,6 @@ CONTAINS
 !> \param vec_Sigma_c_gw ...
 !> \param vec_Sigma_c_gw_beta ...
 !> \param count_ev_sc_GW ...
-!> \param crossing_search ...
 !> \param gw_corr_lev_occ ...
 !> \param gw_corr_lev_occ_beta ...
 !> \param gw_corr_lev_tot ...
@@ -1149,14 +1148,11 @@ CONTAINS
 !> \param gw_corr_lev_virt_beta ...
 !> \param homo ...
 !> \param homo_beta ...
-!> \param max_iter_fit ...
 !> \param nmo ...
 !> \param num_fit_points ...
 !> \param num_integ_points ...
 !> \param num_points_corr ...
-!> \param num_poles ...
 !> \param unit_nr ...
-!> \param check_fit ...
 !> \param do_apply_ic_corr_to_gw ...
 !> \param do_gw_im_time ...
 !> \param do_periodic ...
@@ -1229,11 +1225,11 @@ CONTAINS
 !> \param qs_env ...
 ! **************************************************************************************************
    SUBROUTINE gw_postprocessing(vec_Sigma_c_gw, vec_Sigma_c_gw_beta, count_ev_sc_GW, &
-                                crossing_search, gw_corr_lev_occ, gw_corr_lev_occ_beta, &
+                                gw_corr_lev_occ, gw_corr_lev_occ_beta, &
                                 gw_corr_lev_tot, gw_corr_lev_virt, gw_corr_lev_virt_beta, &
                                 homo, homo_beta, &
-                                max_iter_fit, nmo, num_fit_points, num_integ_points, &
-                                num_points_corr, num_poles, unit_nr, check_fit, &
+                                nmo, num_fit_points, num_integ_points, &
+                                num_points_corr, unit_nr, &
                                 do_apply_ic_corr_to_gw, do_gw_im_time, &
                                 do_periodic, do_ri_Sigma_x, &
                                 first_cycle_periodic_correction, my_do_gw, my_open_shell, &
@@ -1258,14 +1254,13 @@ CONTAINS
 
       COMPLEX(KIND=dp), ALLOCATABLE, DIMENSION(:, :), &
          INTENT(INOUT)                                   :: vec_Sigma_c_gw, vec_Sigma_c_gw_beta
-      INTEGER, INTENT(IN) :: count_ev_sc_GW, crossing_search, gw_corr_lev_occ, &
-         gw_corr_lev_occ_beta, gw_corr_lev_tot, gw_corr_lev_virt, gw_corr_lev_virt_beta, homo, &
-         homo_beta, max_iter_fit, nmo, num_fit_points, num_integ_points
+      INTEGER, INTENT(IN) :: count_ev_sc_GW, gw_corr_lev_occ, gw_corr_lev_occ_beta, &
+         gw_corr_lev_tot, gw_corr_lev_virt, gw_corr_lev_virt_beta, homo, homo_beta, nmo, &
+         num_fit_points, num_integ_points
       INTEGER                                            :: num_points_corr
-      INTEGER, INTENT(IN)                                :: num_poles, unit_nr
-      LOGICAL, INTENT(IN)                                :: check_fit, do_apply_ic_corr_to_gw, &
-                                                            do_gw_im_time, do_periodic, &
-                                                            do_ri_Sigma_x
+      INTEGER, INTENT(IN)                                :: unit_nr
+      LOGICAL, INTENT(IN)                                :: do_apply_ic_corr_to_gw, do_gw_im_time, &
+                                                            do_periodic, do_ri_Sigma_x
       LOGICAL, INTENT(INOUT) :: first_cycle_periodic_correction
       LOGICAL, INTENT(IN)                                :: my_do_gw, my_open_shell
       LOGICAL, ALLOCATABLE, DIMENSION(:), INTENT(INOUT)  :: do_GW_corr
@@ -1302,8 +1297,9 @@ CONTAINS
       CHARACTER(LEN=*), PARAMETER :: routineN = 'gw_postprocessing', &
          routineP = moduleN//':'//routineN
 
-      INTEGER                                            :: handle, n_level_gw
-      LOGICAL                                            :: remove_neg_virt_energies
+      INTEGER                                            :: crossing_search, handle, max_iter_fit, &
+                                                            n_level_gw, num_poles
+      LOGICAL                                            :: check_fit, remove_neg_virt_energies
 
       CALL timeset(routineN, handle)
 
@@ -1367,6 +1363,11 @@ CONTAINS
       END IF
 
       CALL mp_sync(para_env%group)
+
+      num_poles = mp2_env%ri_g0w0%num_poles
+      max_iter_fit = mp2_env%ri_g0w0%max_iter_fit
+      check_fit = mp2_env%ri_g0w0%check_fit
+      crossing_search = mp2_env%ri_g0w0%crossing_search
 
       ! fit the self-energy on imaginary frequency axis and evaluate the fit on the MO energy of the SCF
       DO n_level_gw = 1, gw_corr_lev_tot

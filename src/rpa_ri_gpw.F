@@ -243,25 +243,21 @@ CONTAINS
       CHARACTER(LEN=*), PARAMETER :: routineN = 'rpa_ri_compute_en', &
          routineP = moduleN//':'//routineN
 
-      INTEGER :: best_integ_group_size, best_num_integ_point, color_rpa_group, crossing_search, &
-         dimen_homo_square, dimen_ia, dimen_ia_beta, dimen_nm_gw, dimen_virt_square, handle, &
-         handle2, handle3, i, ierr, iiB, input_integ_group_size, integ_group_size, jjB, &
-         max_iter_fit, min_integ_group_size, my_ab_comb_bse_end, my_ab_comb_bse_size, &
-         my_ab_comb_bse_start, my_B_all_size, my_B_all_start, &
-         my_B_occ_bse_size, my_B_occ_bse_start, my_B_size, my_B_size_beta, my_B_virt_bse_size, &
-         my_B_virt_bse_start, my_B_virtual_start
-      INTEGER :: my_B_virtual_start_beta, my_group_L_end, my_group_L_size, my_group_L_start, &
-         my_homo_beta, my_ia_end, my_ia_end_beta, my_ia_size, my_ia_size_beta, my_ia_start, &
-         my_ia_start_beta, my_ij_comb_bse_end, my_ij_comb_bse_size, my_ij_comb_bse_start, &
-         my_nm_gw_end, my_nm_gw_size, my_nm_gw_start, ncol_block_mat, ngroup, nrow_block_mat, &
-         num_integ_group, num_integ_points, num_poles, pos_integ_group, virtual, virtual_beta
+      INTEGER :: best_integ_group_size, best_num_integ_point, color_rpa_group, dimen_homo_square, &
+         dimen_ia, dimen_ia_beta, dimen_nm_gw, dimen_virt_square, handle, handle2, handle3, i, &
+         ierr, iiB, input_integ_group_size, integ_group_size, jjB, min_integ_group_size, &
+         my_ab_comb_bse_end, my_ab_comb_bse_size, my_ab_comb_bse_start, my_group_L_end, &
+         my_group_L_size, my_group_L_start, my_homo_beta, my_ia_end, my_ia_end_beta, my_ia_size, &
+         my_ia_size_beta, my_ia_start, my_ia_start_beta, my_ij_comb_bse_end, my_ij_comb_bse_size, &
+         my_ij_comb_bse_start, my_nm_gw_end, my_nm_gw_size, my_nm_gw_start, ncol_block_mat
+      INTEGER :: ngroup, nrow_block_mat, num_integ_group, num_integ_points, pos_integ_group, &
+         virtual, virtual_beta
       INTEGER(KIND=int_8)                                :: mem
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: sub_proc_map
-      LOGICAL                                            :: check_fit, do_minimax_quad, &
-                                                            my_open_shell, skip_integ_group_opt
+      LOGICAL                                            :: do_minimax_quad, my_open_shell, &
+                                                            skip_integ_group_opt
       REAL(KIND=dp) :: allowed_memory, avail_mem, E_Range, Emax, Emax_beta, Emin, Emin_beta, &
-         fermi_level_offset, mem_for_iaK, mem_for_QK, mem_min, mem_per_group, mem_real, &
-         needed_mem, omega_max_fit
+         mem_for_iaK, mem_for_QK, mem_min, mem_per_group, mem_real, needed_mem
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: BIb_C_2D, BIb_C_2D_beta, &
                                                             BIb_C_2D_bse_ab, BIb_C_2D_bse_ij, &
                                                             BIb_C_2D_gw, BIb_C_2D_gw_beta
@@ -475,42 +471,14 @@ CONTAINS
       pos_integ_group = MOD(color_sub, integ_group_size)
       color_rpa_group = color_sub/integ_group_size
 
-      ! reordering is not necessary for imaginary time
       IF (.NOT. do_im_time) THEN
-
-         my_B_virtual_start = starts_B_virtual(para_env_sub%mepos)
-         my_B_size = sizes_B_virtual(para_env_sub%mepos)
-
          IF (my_open_shell) THEN
-            my_B_virtual_start_beta = starts_B_virtual_beta(para_env_sub%mepos)
-            my_B_size_beta = sizes_B_virtual_beta(para_env_sub%mepos)
             my_homo_beta = homo_beta
          ELSE
-            my_B_virtual_start_beta = my_B_virtual_start
-            my_B_size_beta = my_B_size
             my_homo_beta = homo
          END IF
 
       END IF ! not imaginary time
-
-      IF (my_do_gw) THEN
-         my_B_all_start = starts_B_all(para_env_sub%mepos)
-         my_B_all_size = sizes_B_all(para_env_sub%mepos)
-      END IF
-
-      IF (my_do_gw .OR. mp2_env%ri_rpa_im_time%do_gw_im_time) THEN
-         num_poles = mp2_env%ri_g0w0%num_poles
-         omega_max_fit = mp2_env%ri_g0w0%omega_max_fit
-         max_iter_fit = mp2_env%ri_g0w0%max_iter_fit
-         check_fit = mp2_env%ri_g0w0%check_fit
-         crossing_search = mp2_env%ri_g0w0%crossing_search
-         fermi_level_offset = mp2_env%ri_g0w0%fermi_level_offset
-      END IF
-
-      IF (do_bse) THEN
-         my_B_occ_bse_start = starts_B_occ_bse(para_env_sub%mepos)
-         my_B_occ_bse_size = sizes_B_occ_bse(para_env_sub%mepos)
-      END IF
 
       CALL timeset(routineN//"_reorder", handle2)
 
@@ -534,8 +502,7 @@ CONTAINS
          ! now the data inside the group are divided into a ia x K matrix
          CALL calculate_BIb_C_2D(BIb_C_2D, BIb_C, para_env_sub, dimen_ia, homo, virtual, &
                                  sizes_B_virtual, starts_B_virtual, ends_B_virtual, &
-                                 sub_proc_map, my_ia_size, my_ia_start, my_ia_end, my_group_L_size, &
-                                 my_B_size, my_B_virtual_start)
+                                 sub_proc_map, my_ia_size, my_ia_start, my_ia_end, my_group_L_size)
          DEALLOCATE (BIb_C)
          DEALLOCATE (starts_B_virtual)
          DEALLOCATE (ends_B_virtual)
@@ -546,8 +513,7 @@ CONTAINS
             CALL calculate_BIb_C_2D(BIb_C_2D_beta, BIb_C_beta, para_env_sub, &
                                     dimen_ia_beta, homo_beta, virtual_beta, &
                                     sizes_B_virtual_beta, starts_B_virtual_beta, ends_B_virtual_beta, &
-                                    sub_proc_map, my_ia_size_beta, my_ia_start_beta, my_ia_end_beta, my_group_L_size, &
-                                    my_B_size_beta, my_B_virtual_start_beta)
+                                    sub_proc_map, my_ia_size_beta, my_ia_start_beta, my_ia_end_beta, my_group_L_size)
 
             DEALLOCATE (BIb_C_beta)
             DEALLOCATE (starts_B_virtual_beta)
@@ -566,16 +532,14 @@ CONTAINS
          CALL calculate_BIb_C_2D(BIb_C_2D_gw, BIb_C_gw, para_env_sub, dimen_nm_gw, &
                                  gw_corr_lev_occ+gw_corr_lev_virt, nmo, &
                                  sizes_B_all, starts_B_all, ends_B_all, &
-                                 sub_proc_map, my_nm_gw_size, my_nm_gw_start, my_nm_gw_end, my_group_L_size, &
-                                 my_B_all_size, my_B_all_start)
+                                 sub_proc_map, my_nm_gw_size, my_nm_gw_start, my_nm_gw_end, my_group_L_size)
 
          ! The same for open shell
          IF (my_open_shell) THEN
             CALL calculate_BIb_C_2D(BIb_C_2D_gw_beta, BIb_C_gw_beta, para_env_sub, dimen_nm_gw, &
                                     gw_corr_lev_occ+gw_corr_lev_virt, nmo, &
                                     sizes_B_all, starts_B_all, ends_B_all, &
-                                    sub_proc_map, my_nm_gw_size, my_nm_gw_start, my_nm_gw_end, my_group_L_size, &
-                                    my_B_all_size, my_B_all_start)
+                                    sub_proc_map, my_nm_gw_size, my_nm_gw_start, my_nm_gw_end, my_group_L_size)
             DEALLOCATE (BIb_C_gw_beta)
          END IF
 
@@ -595,8 +559,7 @@ CONTAINS
          CALL calculate_BIb_C_2D(BIb_C_2D_bse_ij, BIb_C_bse_ij, para_env_sub, dimen_homo_square, &
                                  homo, homo, &
                                  sizes_B_occ_bse, starts_B_occ_bse, ends_B_occ_bse, &
-                                 sub_proc_map, my_ij_comb_bse_size, my_ij_comb_bse_start, my_ij_comb_bse_end, my_group_L_size, &
-                                 my_B_occ_bse_size, my_B_occ_bse_start)
+                                 sub_proc_map, my_ij_comb_bse_size, my_ij_comb_bse_start, my_ij_comb_bse_end, my_group_L_size)
 
          DEALLOCATE (BIb_C_bse_ij)
          DEALLOCATE (starts_B_occ_bse)
@@ -610,8 +573,7 @@ CONTAINS
          CALL calculate_BIb_C_2D(BIb_C_2D_bse_ab, BIb_C_bse_ab, para_env_sub, dimen_virt_square, &
                                  virtual, virtual, &
                                  sizes_B_virt_bse, starts_B_virt_bse, ends_B_virt_bse, &
-                                 sub_proc_map, my_ab_comb_bse_size, my_ab_comb_bse_start, my_ab_comb_bse_end, my_group_L_size, &
-                                 my_B_virt_bse_size, my_B_virt_bse_start)
+                                 sub_proc_map, my_ab_comb_bse_size, my_ab_comb_bse_start, my_ab_comb_bse_end, my_group_L_size)
 
          DEALLOCATE (BIb_C_bse_ab)
          DEALLOCATE (starts_B_virt_bse)
@@ -756,9 +718,8 @@ CONTAINS
                              Eigenval, num_integ_points, num_integ_group, color_rpa_group, &
                              fm_mat_S, fm_mat_Q_gemm, fm_mat_Q, fm_mat_S_gw, fm_mat_R_gw, &
                              fm_mat_S_ij_bse, fm_mat_S_ij_bse, &
-                             my_do_gw, do_bse, gw_corr_lev_occ, gw_corr_lev_virt, num_poles, omega_max_fit, &
-                             check_fit, fermi_level_offset, crossing_search, &
-                             max_iter_fit, mp2_env%ri_rpa%mm_style, do_minimax_quad, &
+                             my_do_gw, do_bse, gw_corr_lev_occ, gw_corr_lev_virt, &
+                             do_minimax_quad, &
                              do_im_time, do_mao, fm_mo_coeff_occ, fm_mo_coeff_virt, mo_coeff, fm_matrix_L_RI_metric, &
                              fm_scaled_dm_occ_tau, fm_scaled_dm_virt_tau, &
                              mat_munu, mat_dm_occ_local, mat_dm_virt_local, mat_P_local, mat_P_global, mat_M, &
@@ -787,9 +748,8 @@ CONTAINS
                              Eigenval, num_integ_points, num_integ_group, color_rpa_group, &
                              fm_mat_S, fm_mat_Q_gemm, fm_mat_Q, fm_mat_S_gw, fm_mat_R_gw, &
                              fm_mat_S_ij_bse, fm_mat_S_ab_bse, &
-                             my_do_gw, do_bse, gw_corr_lev_occ, gw_corr_lev_virt, num_poles, omega_max_fit, &
-                             check_fit, fermi_level_offset, crossing_search, &
-                             max_iter_fit, mp2_env%ri_rpa%mm_style, do_minimax_quad, &
+                             my_do_gw, do_bse, gw_corr_lev_occ, gw_corr_lev_virt, &
+                             do_minimax_quad, &
                              do_im_time, do_mao, fm_mo_coeff_occ, fm_mo_coeff_virt, mo_coeff, fm_matrix_L_RI_metric, &
                              fm_scaled_dm_occ_tau, fm_scaled_dm_virt_tau, &
                              mat_munu, mat_dm_occ_local, mat_dm_virt_local, mat_P_local, mat_P_global, mat_M, &
@@ -864,14 +824,11 @@ CONTAINS
 !> \param my_ia_start ...
 !> \param my_ia_end ...
 !> \param my_group_L_size ...
-!> \param my_B_size ...
-!> \param my_B_virtual_start ...
 !> \author Jan Wilhelm, 03/2015
 ! **************************************************************************************************
    SUBROUTINE calculate_BIb_C_2D(BIb_C_2D, BIb_C, para_env_sub, dimen_ia, homo, virtual, &
                                  sizes_B_virtual, starts_B_virtual, ends_B_virtual, &
-                                 sub_proc_map, my_ia_size, my_ia_start, my_ia_end, my_group_L_size, &
-                                 my_B_size, my_B_virtual_start)
+                                 sub_proc_map, my_ia_size, my_ia_start, my_ia_end, my_group_L_size)
 
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :), &
          INTENT(OUT)                                     :: BIb_C_2D
@@ -884,16 +841,16 @@ CONTAINS
                                                             ends_B_virtual
       INTEGER, ALLOCATABLE, DIMENSION(:), INTENT(IN)     :: sub_proc_map
       INTEGER                                            :: my_ia_size, my_ia_start, my_ia_end, &
-                                                            my_group_L_size, my_B_size, &
-                                                            my_B_virtual_start
+                                                            my_group_L_size
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'calculate_BIb_C_2D', &
          routineP = moduleN//':'//routineN
       INTEGER, PARAMETER                                 :: occ_chunk = 128
 
-      INTEGER :: ia_global, iiB, iproc, itmp(2), jjB, occ_high, occ_low, proc_receive, proc_send, &
-         proc_shift, rec_B_size, rec_B_virtual_end, rec_B_virtual_start
-      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: sizes_ia, starts_ia, ends_ia
+      INTEGER :: ia_global, iiB, iproc, itmp(2), jjB, my_B_size, my_B_virtual_start, occ_high, &
+         occ_low, proc_receive, proc_send, proc_shift, rec_B_size, rec_B_virtual_end, &
+         rec_B_virtual_start
+      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: ends_ia, sizes_ia, starts_ia
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: BIb_C_rec
 
       dimen_ia = homo*virtual
@@ -915,6 +872,9 @@ CONTAINS
       my_ia_start = starts_ia(para_env_sub%mepos)
       my_ia_end = ends_ia(para_env_sub%mepos)
       my_ia_size = sizes_ia(para_env_sub%mepos)
+
+      my_B_size = sizes_B_virtual(para_env_sub%mepos)
+      my_B_virtual_start = starts_B_virtual(para_env_sub%mepos)
 
       ! reorder data
       ALLOCATE (BIb_C_2D(my_ia_size, my_group_L_size))
@@ -965,7 +925,7 @@ CONTAINS
          DEALLOCATE (BIb_C_rec)
       END DO
 
-      DEALLOCATE(starts_ia, ends_ia, sizes_ia)
+      DEALLOCATE (starts_ia, ends_ia, sizes_ia)
    END SUBROUTINE calculate_BIb_C_2D
 
 ! **************************************************************************************************
@@ -1927,13 +1887,6 @@ CONTAINS
 !> \param do_bse ...
 !> \param gw_corr_lev_occ ...
 !> \param gw_corr_lev_virt ...
-!> \param num_poles ...
-!> \param omega_max_fit ...
-!> \param check_fit ...
-!> \param fermi_level_offset ...
-!> \param crossing_search ...
-!> \param max_iter_fit ...
-!> \param mm_style ...
 !> \param do_minimax_quad ...
 !> \param do_im_time ...
 !> \param do_mao ...
@@ -1980,9 +1933,8 @@ CONTAINS
                           Eigenval, num_integ_points, num_integ_group, color_rpa_group, &
                           fm_mat_S, fm_mat_Q_gemm, fm_mat_Q, fm_mat_S_gw, fm_mat_R_gw, &
                           fm_mat_S_ij_bse, fm_mat_S_ab_bse, &
-                          my_do_gw, do_bse, gw_corr_lev_occ, gw_corr_lev_virt, num_poles, &
-                          omega_max_fit, check_fit, fermi_level_offset, crossing_search, &
-                          max_iter_fit, mm_style, do_minimax_quad, do_im_time, do_mao, fm_mo_coeff_occ, &
+                          my_do_gw, do_bse, gw_corr_lev_occ, gw_corr_lev_virt, &
+                          do_minimax_quad, do_im_time, do_mao, fm_mo_coeff_occ, &
                           fm_mo_coeff_virt, mo_coeff, fm_matrix_L_RI_metric, &
                           fm_scaled_dm_occ_tau, fm_scaled_dm_virt_tau, mat_munu, mat_dm_occ_local, &
                           mat_dm_virt_local, mat_P_local, &
@@ -2007,12 +1959,7 @@ CONTAINS
                                                             fm_mat_S_gw, fm_mat_R_gw, &
                                                             fm_mat_S_ij_bse, fm_mat_S_ab_bse
       LOGICAL, INTENT(IN)                                :: my_do_gw, do_bse
-      INTEGER, INTENT(IN)                                :: gw_corr_lev_occ, gw_corr_lev_virt, &
-                                                            num_poles
-      REAL(KIND=dp), INTENT(IN)                          :: omega_max_fit
-      LOGICAL, INTENT(IN)                                :: check_fit
-      REAL(KIND=dp), INTENT(IN)                          :: fermi_level_offset
-      INTEGER, INTENT(IN)                                :: crossing_search, max_iter_fit, mm_style
+      INTEGER, INTENT(IN)                                :: gw_corr_lev_occ, gw_corr_lev_virt
       LOGICAL, INTENT(IN)                                :: do_minimax_quad, do_im_time, do_mao
       TYPE(cp_fm_type), POINTER                          :: fm_mo_coeff_occ, fm_mo_coeff_virt, &
                                                             mo_coeff
@@ -2046,10 +1993,10 @@ CONTAINS
       INTEGER :: col_start_local, color_sub_col, color_sub_row, count_ev_sc_GW, cut_memory, &
          cut_RI, group_size_P, gw_corr_lev_tot, handle, handle3, handle4, i_cell, i_cut_RI, i_dim, &
          i_global, i_kp, i_mem, i_size, ierr, iiB, ikp, info_chol, iter_ev_sc, j_cell, j_global, &
-         j_mem, j_size, jjB, jquad, LLL, max_iter_bse, my_group_L_size_im_time, my_num_dgemm_call, &
-         n_group_col, n_group_row, n_local_col, n_local_row, nblkrows_total, ncol_local, &
-         ngroup_RI_orig, nkp, nmo, nrow_local, num_3c_repl, num_cells_dm, num_fit_points, &
-         num_points_corr, num_points_per_magnitude, num_Z_vectors, number_of_rec
+         j_mem, j_size, jjB, jquad, LLL, max_iter_bse, mm_style, my_group_L_size_im_time, &
+         my_num_dgemm_call, n_group_col, n_group_row, n_local_col, n_local_row, nblkrows_total, &
+         ncol_local, ngroup_RI_orig, nkp, nmo, nrow_local, num_3c_repl, num_cells_dm, &
+         num_fit_points, num_points_corr, num_points_per_magnitude, num_Z_vectors, number_of_rec
       INTEGER :: number_of_rec_axk, number_of_rec_beta, number_of_send, number_of_send_axk, &
          number_of_send_beta, row, row_start_local, size_P
       INTEGER, ALLOCATABLE, DIMENSION(:) :: map_rec_size, map_rec_size_axk, map_rec_size_beta, &
@@ -2069,7 +2016,7 @@ CONTAINS
          starts_array_cm_mao_virt
       LOGICAL :: do_apply_ic_corr_to_gw, do_gw_im_time, do_ic_model, do_ic_opt_homo_lumo, &
          do_kpoints_cubic_RPA, do_periodic, do_ri_Sigma_x, first_cycle, &
-         first_cycle_periodic_correction, my_open_shell, print_ic_values
+         first_cycle_periodic_correction, my_open_shell
       LOGICAL, ALLOCATABLE, DIMENSION(:)                 :: do_GW_corr
       LOGICAL, ALLOCATABLE, DIMENSION(:, :, :)           :: cycle_due_to_sparse_dm, &
                                                             multiply_needed_occ, &
@@ -2077,8 +2024,9 @@ CONTAINS
       LOGICAL, ALLOCATABLE, DIMENSION(:, :, :, :) :: needed_cutRI_mem_R1vec_R2vec_for_kp
       LOGICAL, ALLOCATABLE, DIMENSION(:, :, :, :, :)     :: has_mat_P_blocks
       REAL(KIND=dp) :: a_scaling, alpha, e_axk, e_axk_corr, e_fermi, e_fermi_beta, E_Range, Emax, &
-         Emax_beta, Emin, Emin_beta, eps_filter_im_time, eps_min_trans, FComega, max_error_min, &
-         my_flop_rate, omega, omega_old, scaling, stabilize_exp, tau, tau_old, trace_XX
+         Emax_beta, Emin, Emin_beta, eps_filter_im_time, eps_min_trans, FComega, &
+         fermi_level_offset, max_error_min, my_flop_rate, omega, omega_old, scaling, &
+         stabilize_exp, tau, tau_old, trace_XX
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: delta_corr, Eigenval_last, Eigenval_last_beta, &
          Eigenval_scf, Eigenval_scf_beta, m_value, m_value_beta, Q_log, tau_tj, tau_wj, tj, &
          trace_Qomega, vec_gw_energ, vec_gw_energ_beta, vec_gw_energ_error_fit, &
@@ -2138,11 +2086,12 @@ CONTAINS
       do_ri_Sigma_x = mp2_env%ri_g0w0%do_ri_Sigma_x
       do_ic_model = mp2_env%ri_g0w0%do_ic_model
       do_ic_opt_homo_lumo = mp2_env%ri_g0w0%do_opt_homo_lumo
-      print_ic_values = mp2_env%ri_g0w0%print_ic_values
       do_periodic = mp2_env%ri_g0w0%do_periodic
       ic_corr_list => mp2_env%ri_g0w0%ic_corr_list
       ic_corr_list_beta => mp2_env%ri_g0w0%ic_corr_list_beta
       do_kpoints_cubic_RPA = mp2_env%ri_rpa_im_time%do_im_time_kpoints
+      mm_style = mp2_env%ri_rpa%mm_style
+      fermi_level_offset = mp2_env%ri_g0w0%fermi_level_offset
 
       IF (do_kpoints_cubic_RPA .AND. do_ri_sos_laplace_mp2) THEN
          CPABORT("RI-SOS-Laplace-MP2 with k-point-sampling is not implemented.")
@@ -2879,7 +2828,7 @@ CONTAINS
                                    gw_corr_lev_tot, num_fit_points, &
                                    do_minimax_quad, do_periodic, do_ri_Sigma_x, my_do_gw, my_open_shell, &
                                    first_cycle_periodic_correction, do_GW_corr, &
-                                   a_scaling, omega_max_fit, Eigenval, Eigenval_beta, &
+                                   a_scaling, Eigenval, Eigenval_beta, &
                                    tj, vec_omega_fit_gw, vec_Sigma_x_gw, &
                                    vec_Sigma_x_gw_beta, delta_corr, Eigenval_last, Eigenval_last_beta, &
                                    Eigenval_scf, Eigenval_scf_beta, m_value, m_value_beta, &
@@ -3118,14 +3067,16 @@ CONTAINS
                                                 omega, omega_old, jquad, num_integ_points, &
                                                 mm_style, dimen_RI, dimen_ia, alpha, fm_mat_Q, fm_mat_Q_gemm, para_env_RPA, &
                                                 do_bse, fm_mat_Q_static_bse_gemm, RPA_proc_map, buffer_rec, buffer_send, &
-                                    number_of_send, map_send_size, map_rec_size, local_size_source, my_num_dgemm_call, my_flop_rate)
+                                                number_of_send, map_send_size, map_rec_size, local_size_source, &
+                                                my_num_dgemm_call, my_flop_rate)
 
                IF (my_open_shell) THEN
-                  CALL matrix_operations_canonical(fm_mat_S_beta, first_cycle, count_ev_sc_GW, virtual_beta, Eigenval_beta, Eigenval_last_beta, homo_beta, &
-                                                   omega, omega_old, jquad, num_integ_points, &
-                                        mm_style, dimen_RI, dimen_ia_beta, alpha, fm_mat_Q_beta, fm_mat_Q_gemm_beta, para_env_RPA, &
-                                                do_bse, fm_mat_Q_static_bse_gemm, RPA_proc_map, buffer_rec_beta, buffer_send_beta, &
-                number_of_send_beta, map_send_size_beta, map_rec_size_beta, local_size_source_beta, my_num_dgemm_call, my_flop_rate)
+                  CALL matrix_operations_canonical(fm_mat_S_beta, first_cycle, count_ev_sc_GW, virtual_beta, Eigenval_beta, &
+                                                   Eigenval_last_beta, homo_beta, omega, omega_old, jquad, num_integ_points, &
+                                                   mm_style, dimen_RI, dimen_ia_beta, alpha, fm_mat_Q_beta, fm_mat_Q_gemm_beta, &
+                                                   para_env_RPA, do_bse, fm_mat_Q_static_bse_gemm, RPA_proc_map, buffer_rec_beta, &
+                                                   buffer_send_beta, number_of_send_beta, map_send_size_beta, map_rec_size_beta, &
+                                                   local_size_source_beta, my_num_dgemm_call, my_flop_rate)
 
                   CALL cp_fm_scale_and_add(alpha=1.0_dp, matrix_a=fm_mat_Q, beta=1.0_dp, matrix_b=fm_mat_Q_beta)
 
@@ -3299,15 +3250,14 @@ CONTAINS
          ! G0W0 postprocessing: Fitting + correction of MO energies
          IF (my_do_gw .OR. do_gw_im_time) THEN
             CALL gw_postprocessing(vec_Sigma_c_gw, vec_Sigma_c_gw_beta, count_ev_sc_GW, &
-                                   crossing_search, gw_corr_lev_occ, gw_corr_lev_occ_beta, &
+                                   gw_corr_lev_occ, gw_corr_lev_occ_beta, &
                                    gw_corr_lev_tot, gw_corr_lev_virt, gw_corr_lev_virt_beta, &
-                                   homo, homo_beta, max_iter_fit, nmo, num_fit_points, num_integ_points, &
-                                   num_points_corr, num_poles, unit_nr, check_fit, &
+                                   homo, homo_beta, nmo, num_fit_points, num_integ_points, &
+                                   num_points_corr, unit_nr, &
                                    do_apply_ic_corr_to_gw, do_gw_im_time, &
                                    do_periodic, do_ri_Sigma_x, &
                                    first_cycle_periodic_correction, my_do_gw, my_open_shell, &
-                                   do_GW_corr, e_fermi, &
-                                   e_fermi_beta, eps_filter, &
+                                   do_GW_corr, e_fermi, e_fermi_beta, eps_filter, &
                                    fermi_level_offset, stabilize_exp, delta_corr, Eigenval, &
                                    Eigenval_beta, Eigenval_last, Eigenval_last_beta, Eigenval_scf, &
                                    Eigenval_scf_beta, m_value, m_value_beta, &
@@ -3341,19 +3291,19 @@ CONTAINS
 
             CALL calculate_ic_correction(Eigenval, mat_SinvVSinv, mat_3c_overl_nnP_ic, &
                                          mat_3c_overl_nnP_ic_reflected, mat_contr_gf_occ, matrix_s, gw_corr_lev_tot, &
-                                         gw_corr_lev_occ, gw_corr_lev_virt, homo, nmo, dimen_RI, unit_nr, print_ic_values, &
+                                         gw_corr_lev_occ, gw_corr_lev_virt, homo, nmo, dimen_RI, unit_nr, &
                                          do_ic_opt_homo_lumo, fm_mat_Q, para_env, mp2_env, do_alpha=.TRUE.)
 
             CALL calculate_ic_correction(Eigenval_beta, mat_SinvVSinv, mat_3c_overl_nnP_ic_beta, &
                                          mat_3c_overl_nnP_ic_reflected_beta, mat_contr_gf_occ, matrix_s, gw_corr_lev_tot, &
                                          gw_corr_lev_occ_beta, gw_corr_lev_virt_beta, homo_beta, nmo, dimen_RI, unit_nr, &
-                                         print_ic_values, do_ic_opt_homo_lumo, fm_mat_Q, para_env, mp2_env, do_beta=.TRUE.)
+                                         do_ic_opt_homo_lumo, fm_mat_Q, para_env, mp2_env, do_beta=.TRUE.)
 
          ELSE
 
             CALL calculate_ic_correction(Eigenval, mat_SinvVSinv, mat_3c_overl_nnP_ic, &
                                          mat_3c_overl_nnP_ic_reflected, mat_contr_gf_occ, matrix_s, gw_corr_lev_tot, &
-                                         gw_corr_lev_occ, gw_corr_lev_virt, homo, nmo, dimen_RI, unit_nr, print_ic_values, &
+                                         gw_corr_lev_occ, gw_corr_lev_virt, homo, nmo, dimen_RI, unit_nr, &
                                          do_ic_opt_homo_lumo, fm_mat_Q, para_env, mp2_env)
 
          END IF
@@ -3869,7 +3819,6 @@ CONTAINS
 !> \param nmo ...
 !> \param dimen_RI ...
 !> \param unit_nr ...
-!> \param print_ic_values ...
 !> \param do_ic_opt_homo_lumo ...
 !> \param fm_mat_Q ...
 !> \param para_env ...
@@ -3880,7 +3829,7 @@ CONTAINS
    SUBROUTINE calculate_ic_correction(Eigenval, mat_SinvVSinv, mat_3c_overl_nnP_ic, &
                                       mat_3c_overl_nnP_ic_reflected, mat_work, matrix_s, gw_corr_lev_tot, &
                                       gw_corr_lev_occ, gw_corr_lev_virt, homo, nmo, dimen_RI, unit_nr, &
-                                      print_ic_values, do_ic_opt_homo_lumo, fm_mat_Q, para_env, mp2_env, &
+                                      do_ic_opt_homo_lumo, fm_mat_Q, para_env, mp2_env, &
                                       do_alpha, do_beta)
 
       REAL(KIND=dp), DIMENSION(:), INTENT(INOUT)         :: Eigenval
@@ -3892,7 +3841,7 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: gw_corr_lev_tot, gw_corr_lev_occ, &
                                                             gw_corr_lev_virt, homo, nmo, dimen_RI, &
                                                             unit_nr
-      LOGICAL, INTENT(IN)                                :: print_ic_values, do_ic_opt_homo_lumo
+      LOGICAL, INTENT(IN)                                :: do_ic_opt_homo_lumo
       TYPE(cp_fm_type), POINTER                          :: fm_mat_Q
       TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(mp2_type), POINTER                            :: mp2_env
@@ -4018,7 +3967,7 @@ CONTAINS
                                                                               Delta_Sigma_Neaton(gw_corr_lev_occ))*evolt
             END IF
 
-            IF (print_ic_values) THEN
+            IF (mp2_env%ri_g0w0%print_ic_values) THEN
 
                WRITE (unit_nr, '(T3,A)') ' '
                WRITE (unit_nr, '(T3,A)') 'Horizontal list for copying the image charge corrections for use as input:'

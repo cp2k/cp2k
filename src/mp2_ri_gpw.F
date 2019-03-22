@@ -1799,8 +1799,8 @@ CONTAINS
          rec_L_start, sgfa, strat_group_size, sub_sub_color, tp(3), ub(3)
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: kind_of, proc_map, sub_ends_array, &
                                                             sub_sizes_array, sub_starts_array
-      INTEGER, DIMENSION(:), POINTER                     :: col_indices, la_max, la_min, &
-                                                            npgfa, nsgfa, row_indices
+      INTEGER, DIMENSION(:), POINTER                     :: col_indices, la_max, la_min, npgfa, &
+                                                            nsgfa, row_indices
       INTEGER, DIMENSION(:, :), POINTER                  :: first_sgfa
       LOGICAL                                            :: map_it_here, my_do_im_time, &
                                                             my_external_matrix_struc
