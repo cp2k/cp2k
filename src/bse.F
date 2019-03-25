@@ -20,6 +20,8 @@ MODULE bse
                                               cp_fm_type
    USE cp_gemm_interface,               ONLY: cp_gemm
    USE cp_para_types,                   ONLY: cp_para_env_type
+   USE group_dist_types,                ONLY: group_dist_d1_type, &
+                                              get_group_dist
    USE kinds,                           ONLY: dp
    USE message_passing,                 ONLY: mp_alltoall,&
                                               mp_sum
@@ -365,9 +367,7 @@ CONTAINS
 !> \param homo ...
 !> \param virtual ...
 !> \param dimen_ia ...
-!> \param starts_array ...
-!> \param ends_array ...
-!> \param sizes_array ...
+!> \param gd_array ...
 !> \param color_sub ...
 !> \param para_env ...
 ! **************************************************************************************************
@@ -375,7 +375,7 @@ CONTAINS
                                                      fm_mat_Q_static_bse_gemm, &
                                                      B_bar_ijQ_bse_local, B_abQ_bse_local, B_bar_iaQ_bse_local, &
                                                      B_iaQ_bse_local, dimen_RI, homo, virtual, dimen_ia, &
-                                                     starts_array, ends_array, sizes_array, color_sub, para_env)
+                                                     gd_array, color_sub, para_env)
 
       TYPE(cp_fm_type), POINTER                          :: fm_mat_S_ij_bse, fm_mat_S_ab_bse, &
                                                             fm_mat_S, fm_mat_Q_static_bse, &
@@ -383,7 +383,7 @@ CONTAINS
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: B_bar_ijQ_bse_local, B_abQ_bse_local, &
                                                             B_bar_iaQ_bse_local, B_iaQ_bse_local
       INTEGER                                            :: dimen_RI, homo, virtual, dimen_ia
-      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: starts_array, ends_array, sizes_array
+      TYPE(group_dist_d1_type)                           :: gd_array
       INTEGER                                            :: color_sub
       TYPE(cp_para_env_type), POINTER                    :: para_env
 
@@ -446,17 +446,13 @@ CONTAINS
                    matrix_a=fm_mat_S, matrix_b=fm_mat_Q_static_bse_gemm, beta=0.0_dp, &
                    matrix_c=fm_mat_S_bar_ia_bse)
 
-      CALL allocate_and_fill_local_array(B_iaQ_bse_local, fm_mat_S, starts_array, ends_array, &
-                                         sizes_array, color_sub, homo, virtual, dimen_RI, para_env)
+      CALL allocate_and_fill_local_array(B_iaQ_bse_local, fm_mat_S, gd_array, color_sub, homo, virtual, dimen_RI, para_env)
 
-      CALL allocate_and_fill_local_array(B_bar_iaQ_bse_local, fm_mat_S_bar_ia_bse, starts_array, ends_array, &
-                                         sizes_array, color_sub, homo, virtual, dimen_RI, para_env)
+      CALL allocate_and_fill_local_array(B_bar_iaQ_bse_local, fm_mat_S_bar_ia_bse, gd_array, color_sub, homo, virtual, dimen_RI, para_env)
 
-      CALL allocate_and_fill_local_array(B_bar_ijQ_bse_local, fm_mat_S_bar_ij_bse, starts_array, ends_array, &
-                                         sizes_array, color_sub, homo, homo, dimen_RI, para_env)
+      CALL allocate_and_fill_local_array(B_bar_ijQ_bse_local, fm_mat_S_bar_ij_bse, gd_array, color_sub, homo, homo, dimen_RI, para_env)
 
-      CALL allocate_and_fill_local_array(B_abQ_bse_local, fm_mat_S_ab_bse, starts_array, ends_array, &
-                                         sizes_array, color_sub, virtual, virtual, dimen_RI, para_env)
+      CALL allocate_and_fill_local_array(B_abQ_bse_local, fm_mat_S_ab_bse, gd_array, color_sub, virtual, virtual, dimen_RI, para_env)
 
       CALL cp_fm_release(fm_mat_S_bar_ia_bse)
       CALL cp_fm_release(fm_mat_S_bar_ij_bse)
@@ -470,21 +466,19 @@ CONTAINS
 !> \brief ...
 !> \param B_local ...
 !> \param fm_mat_S ...
-!> \param starts_array ...
-!> \param ends_array ...
-!> \param sizes_array ...
+!> \param gd_array ...
 !> \param color_sub ...
 !> \param small_size ...
 !> \param big_size ...
 !> \param dimen_RI ...
 !> \param para_env ...
 ! **************************************************************************************************
-   SUBROUTINE allocate_and_fill_local_array(B_local, fm_mat_S, starts_array, ends_array, sizes_array, &
+   SUBROUTINE allocate_and_fill_local_array(B_local, fm_mat_S, gd_array, &
                                             color_sub, small_size, big_size, dimen_RI, para_env)
 
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: B_local
       TYPE(cp_fm_type), POINTER                          :: fm_mat_S
-      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: starts_array, ends_array, sizes_array
+      TYPE(group_dist_d1_type)                           :: gd_array
       INTEGER                                            :: color_sub, small_size, big_size, dimen_RI
       TYPE(cp_para_env_type), POINTER                    :: para_env
 
@@ -509,17 +503,14 @@ CONTAINS
 
       DO imepos = 0, para_env%num_pe-1
 
-         start_RI = starts_array(imepos)
-         end_RI = ends_array(imepos)
+         CALL get_group_dist(gd_array, pos=imepos, starts=start_RI, ends=end_RI)
 
          mepos_from_RI_index(start_RI:end_RI) = imepos
 
       END DO
 
       ! color_sub is automatically the number of the process since every subgroup has only one MPI rank
-      start_RI = starts_array(color_sub)
-      end_RI = ends_array(color_sub)
-      size_RI = sizes_array(color_sub)
+      CALL get_group_dist(gd_array, color_sub, start_RI, end_RI, size_RI)
 
       ALLOCATE (B_local(small_size, big_size, 1:size_RI))
 
