@@ -512,7 +512,7 @@ CONTAINS
                            sizes_array, starts_array, ends_array, calc_PQ_cond_num, cond_num, &
                            num_small_eigen, ri_metric, &
                            fm_matrix_L_RI_metric, do_im_time, do_kpoints_cubic_RPA, qs_env%mp2_env%mp2_gpw%eps_pgf_orb_S, &
-                           atomic_kind_set, qs_kind_set, unit_nr)
+                           atomic_kind_set, qs_kind_set)
 
       IF (unit_nr > 0) WRITE (UNIT=unit_nr, FMT="(T3,A,T75,i6)") &
          "RI_INFO| Cholesky decomposition group size:", para_env_L%num_pe
@@ -1311,7 +1311,6 @@ CONTAINS
 !> \param mp2_eps_pgf_orb_S ...
 !> \param atomic_kind_set ...
 !> \param qs_kind_set ...
-!> \param unit_nr ...
 ! **************************************************************************************************
    SUBROUTINE calculate_Lmin1(qs_env, eri_method, eri_param, para_env, para_env_sub, para_env_L, mp2_memory, &
                               fm_matrix_L, ngroup, color_sub, dimen_RI, &
@@ -1320,7 +1319,7 @@ CONTAINS
                               sizes_array, starts_array, ends_array, calc_PQ_cond_num, cond_num, &
                               num_small_eigen, &
                               ri_metric, fm_matrix_L_RI_metric, do_im_time, do_kpoints_cubic_RPA, mp2_eps_pgf_orb_S, &
-                              atomic_kind_set, qs_kind_set, unit_nr)
+                              atomic_kind_set, qs_kind_set)
 
       TYPE(qs_environment_type), POINTER                 :: qs_env
       INTEGER                                            :: eri_method
@@ -1345,7 +1344,6 @@ CONTAINS
       REAL(KIND=dp)                                      :: mp2_eps_pgf_orb_S
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
-      INTEGER                                            :: unit_nr
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'calculate_Lmin1', &
          routineP = moduleN//':'//routineN

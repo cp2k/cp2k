@@ -460,11 +460,9 @@ CONTAINS
 !> \param vec_W_gw_beta ...
 !> \param z_value ...
 !> \param z_value_beta ...
-!> \param fm_mat_S ...
 !> \param fm_mat_S_gw ...
 !> \param fm_mat_S_gw_work ...
 !> \param fm_mat_S_gw_work_beta ...
-!> \param fm_mat_S_beta ...
 !> \param fm_mat_S_gw_beta ...
 !> \param para_env ...
 !> \param mp2_env ...
@@ -480,9 +478,9 @@ CONTAINS
                                    vec_Sigma_x_gw_beta, delta_corr, Eigenval_last, Eigenval_last_beta, &
                                    Eigenval_scf, Eigenval_scf_beta, m_value, m_value_beta, &
                                    vec_gw_energ, vec_gw_energ_beta, vec_gw_energ_error_fit, vec_gw_energ_error_fit_beta, &
-                                   vec_W_gw, vec_W_gw_beta, z_value, z_value_beta, fm_mat_S, &
+                                   vec_W_gw, vec_W_gw_beta, z_value, z_value_beta, &
                                    fm_mat_S_gw, fm_mat_S_gw_work, fm_mat_S_gw_work_beta, &
-                                   fm_mat_S_beta, fm_mat_S_gw_beta, para_env, mp2_env)
+                                   fm_mat_S_gw_beta, para_env, mp2_env)
 
       COMPLEX(KIND=dp), ALLOCATABLE, DIMENSION(:, :), &
          INTENT(OUT)                                     :: vec_Sigma_c_gw, vec_Sigma_c_gw_beta
@@ -504,17 +502,15 @@ CONTAINS
          Eigenval_last_beta, Eigenval_scf, Eigenval_scf_beta, m_value, m_value_beta, vec_gw_energ, &
          vec_gw_energ_beta, vec_gw_energ_error_fit, vec_gw_energ_error_fit_beta, vec_W_gw, &
          vec_W_gw_beta, z_value, z_value_beta
-      TYPE(cp_fm_type), POINTER                          :: fm_mat_S, fm_mat_S_gw, fm_mat_S_gw_work, &
-                                                            fm_mat_S_gw_work_beta, fm_mat_S_beta, &
-                                                            fm_mat_S_gw_beta
+      TYPE(cp_fm_type), POINTER                          :: fm_mat_S_gw, fm_mat_S_gw_work, &
+                                                            fm_mat_S_gw_work_beta, fm_mat_S_gw_beta
       TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(mp2_type), POINTER                            :: mp2_env
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'allocate_matrices_gw', &
          routineP = moduleN//':'//routineN
 
-      INTEGER                                            :: handle, iquad, jquad, ncol_local, &
-                                                            nrow_local
+      INTEGER                                            :: handle, iquad, jquad, nrow_local
       INTEGER, DIMENSION(:), POINTER                     :: row_indices
       REAL(KIND=dp)                                      :: omega, omega_max_fit
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: vec_omega_gw
@@ -581,14 +577,14 @@ CONTAINS
                         homo, nmo, num_fit_points, do_ri_Sigma_x, &
                         my_do_gw, Eigenval, Eigenval_last, Eigenval_scf, m_value, vec_gw_energ, &
                         vec_gw_energ_error_fit, vec_Sigma_x_gw, vec_W_gw, z_value, &
-                        fm_mat_S, fm_mat_S_gw, fm_mat_S_gw_work, mp2_env)
+                        fm_mat_S_gw, fm_mat_S_gw_work, mp2_env)
 
       IF (my_open_shell) THEN
          CALL alloc_mat_gw(vec_Sigma_c_gw_beta, dimen_nm_gw, gw_corr_lev_occ, gw_corr_lev_tot, &
                            homo, nmo, num_fit_points, do_ri_Sigma_x, &
                            my_do_gw, Eigenval_beta, Eigenval_last_beta, Eigenval_scf_beta, m_value_beta, vec_gw_energ_beta, &
                            vec_gw_energ_error_fit_beta, vec_Sigma_x_gw_beta, vec_W_gw_beta, &
-                           z_value_beta, fm_mat_S_beta, fm_mat_S_gw, fm_mat_S_gw_work_beta, mp2_env)
+                           z_value_beta, fm_mat_S_gw, fm_mat_S_gw_work_beta, mp2_env)
       END IF
 
       IF (do_periodic) THEN
@@ -610,12 +606,11 @@ CONTAINS
 
             CALL cp_fm_get_info(matrix=fm_mat_S_gw, &
                                 nrow_local=nrow_local, &
-                                ncol_local=ncol_local, &
                                 row_indices=row_indices)
 
             CALL mp_sync(para_env%group)
 
-            CALL calc_vec_Sigma_x_gw(color_rpa_group, gw_corr_lev_occ, homo, 1, ncol_local, nmo, nrow_local, num_integ_group, &
+            CALL calc_vec_Sigma_x_gw(color_rpa_group, gw_corr_lev_occ, homo, 1, nmo, nrow_local, num_integ_group, &
                                      row_indices, vec_Sigma_x_gw, &
                                      fm_mat_S_gw, para_env, mp2_env)
 
@@ -651,7 +646,6 @@ CONTAINS
 !> \param vec_Sigma_x_gw ...
 !> \param vec_W_gw ...
 !> \param z_value ...
-!> \param fm_mat_S ...
 !> \param fm_mat_S_gw ...
 !> \param fm_mat_S_gw_work ...
 !> \param mp2_env ...
@@ -660,7 +654,7 @@ CONTAINS
                            homo, nmo, num_fit_points, do_ri_Sigma_x, &
                            my_do_gw, Eigenval, Eigenval_last, Eigenval_scf, m_value, vec_gw_energ, &
                            vec_gw_energ_error_fit, vec_Sigma_x_gw, vec_W_gw, &
-                           z_value, fm_mat_S, fm_mat_S_gw, fm_mat_S_gw_work, mp2_env)
+                           z_value, fm_mat_S_gw, fm_mat_S_gw_work, mp2_env)
 
       COMPLEX(KIND=dp), ALLOCATABLE, DIMENSION(:, :), &
          INTENT(OUT)                                     :: vec_Sigma_c_gw
@@ -673,7 +667,7 @@ CONTAINS
          INTENT(OUT)                                     :: Eigenval_last, Eigenval_scf, m_value, &
                                                             vec_gw_energ, vec_gw_energ_error_fit, &
                                                             vec_Sigma_x_gw, vec_W_gw, z_value
-      TYPE(cp_fm_type), POINTER                          :: fm_mat_S, fm_mat_S_gw, fm_mat_S_gw_work
+      TYPE(cp_fm_type), POINTER                          :: fm_mat_S_gw, fm_mat_S_gw_work
       TYPE(mp2_type), POINTER                            :: mp2_env
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'alloc_mat_gw', routineP = moduleN//':'//routineN
@@ -736,7 +730,6 @@ CONTAINS
 !> \param gw_corr_lev_occ ...
 !> \param homo ...
 !> \param idx ...
-!> \param ncol_local ...
 !> \param nmo ...
 !> \param nrow_local ...
 !> \param num_integ_group ...
@@ -746,7 +739,7 @@ CONTAINS
 !> \param para_env ...
 !> \param mp2_env ...
 ! **************************************************************************************************
-   SUBROUTINE calc_vec_Sigma_x_gw(color_rpa_group, gw_corr_lev_occ, homo, idx, ncol_local, nmo, nrow_local, num_integ_group, &
+   SUBROUTINE calc_vec_Sigma_x_gw(color_rpa_group, gw_corr_lev_occ, homo, idx, nmo, nrow_local, num_integ_group, &
                                   row_indices, vec_Sigma_x_gw, &
                                   fm_mat_S_gw, para_env, mp2_env)
 
@@ -1183,13 +1176,11 @@ CONTAINS
 !> \param vec_omega_fit_gw ...
 !> \param vec_Sigma_x_gw ...
 !> \param vec_Sigma_x_gw_beta ...
-!> \param wj ...
 !> \param z_value ...
 !> \param z_value_beta ...
 !> \param ic_corr_list ...
 !> \param ic_corr_list_beta ...
 !> \param weights_cos_tf_t_to_w ...
-!> \param weights_cos_tf_w_to_t ...
 !> \param weights_sin_tf_t_to_w ...
 !> \param fm_mo_coeff_occ_scaled ...
 !> \param fm_mo_coeff_virt_scaled ...
@@ -1238,13 +1229,13 @@ CONTAINS
                                 Eigenval_scf_beta, m_value, m_value_beta, &
                                 tau_tj, tj, vec_gw_energ, vec_gw_energ_beta, vec_gw_energ_error_fit, &
                                 vec_gw_energ_error_fit_beta, vec_omega_fit_gw, &
-                                vec_Sigma_x_gw, vec_Sigma_x_gw_beta, wj, &
+                                vec_Sigma_x_gw, vec_Sigma_x_gw_beta, &
                                 z_value, z_value_beta, ic_corr_list, ic_corr_list_beta, &
-                                weights_cos_tf_t_to_w, weights_cos_tf_w_to_t, weights_sin_tf_t_to_w, &
+                                weights_cos_tf_t_to_w, weights_sin_tf_t_to_w, &
                                 fm_mo_coeff_occ_scaled, fm_mo_coeff_virt_scaled, fm_mo_coeff_occ, &
                                 fm_mo_coeff_virt, fm_scaled_dm_occ_tau, fm_scaled_dm_virt_tau, &
                                 fm_mo_coeff_occ_beta, fm_mo_coeff_virt_beta, mo_coeff, fm_mat_W_tau, &
-                                fm_mat_L, para_env, para_env_RPA, mat_dm, mat_SinvVSinv, &
+                                para_env, para_env_RPA, mat_dm, mat_SinvVSinv, &
                                 mat_3c_overl_int_gw, mat_3c_overl_int_gw_beta, matrix_berry_im_mo_mo, &
                                 matrix_berry_re_mo_mo, mat_greens_fct_occ, mat_greens_fct_occ_beta, &
                                 mat_greens_fct_virt, mat_greens_fct_virt_beta, mat_W, matrix_s, &
@@ -1270,17 +1261,15 @@ CONTAINS
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:), INTENT(INOUT) :: Eigenval_last, &
          Eigenval_last_beta, Eigenval_scf, Eigenval_scf_beta, m_value, m_value_beta, tau_tj, tj, &
          vec_gw_energ, vec_gw_energ_beta, vec_gw_energ_error_fit, vec_gw_energ_error_fit_beta, &
-         vec_omega_fit_gw, vec_Sigma_x_gw, vec_Sigma_x_gw_beta, wj, z_value, z_value_beta
+         vec_omega_fit_gw, vec_Sigma_x_gw, vec_Sigma_x_gw_beta, z_value, z_value_beta
       REAL(KIND=dp), DIMENSION(:), POINTER               :: ic_corr_list, ic_corr_list_beta
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :), &
          INTENT(IN)                                      :: weights_cos_tf_t_to_w, &
-                                                            weights_cos_tf_w_to_t, &
                                                             weights_sin_tf_t_to_w
       TYPE(cp_fm_type), POINTER :: fm_mo_coeff_occ_scaled, fm_mo_coeff_virt_scaled, &
          fm_mo_coeff_occ, fm_mo_coeff_virt, fm_scaled_dm_occ_tau, fm_scaled_dm_virt_tau, &
          fm_mo_coeff_occ_beta, fm_mo_coeff_virt_beta, mo_coeff
       TYPE(cp_fm_p_type), DIMENSION(:), POINTER          :: fm_mat_W_tau
-      TYPE(cp_fm_p_type), DIMENSION(:, :), POINTER       :: fm_mat_L
       TYPE(cp_para_env_type), POINTER                    :: para_env, para_env_RPA
       TYPE(dbcsr_p_type), INTENT(IN)                     :: mat_dm, mat_SinvVSinv
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER :: mat_3c_overl_int_gw, mat_3c_overl_int_gw_beta, &

@@ -2833,9 +2833,9 @@ CONTAINS
                                    vec_Sigma_x_gw_beta, delta_corr, Eigenval_last, Eigenval_last_beta, &
                                    Eigenval_scf, Eigenval_scf_beta, m_value, m_value_beta, &
                                    vec_gw_energ, vec_gw_energ_beta, vec_gw_energ_error_fit, vec_gw_energ_error_fit_beta, &
-                                   vec_W_gw, vec_W_gw_beta, z_value, z_value_beta, fm_mat_S, &
+                                   vec_W_gw, vec_W_gw_beta, z_value, z_value_beta, &
                                    fm_mat_S_gw, fm_mat_S_gw_work, fm_mat_S_gw_work_beta, &
-                                   fm_mat_S_beta, fm_mat_S_gw_beta, para_env, mp2_env)
+                                   fm_mat_S_gw_beta, para_env, mp2_env)
          IF (do_bse) THEN
 
             num_Z_vectors = mp2_env%ri_g0w0%num_z_vectors
