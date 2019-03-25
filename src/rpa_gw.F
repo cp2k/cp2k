@@ -620,8 +620,8 @@ CONTAINS
                                      fm_mat_S_gw, para_env, mp2_env)
 
             IF (my_open_shell) THEN
-       CALL calc_vec_Sigma_x_gw(color_rpa_group, gw_corr_lev_occ_beta, homo_beta, 2, ncol_local, nmo, nrow_local, num_integ_group, &
-                                        row_indices, vec_Sigma_x_gw_beta, &
+               CALL calc_vec_Sigma_x_gw(color_rpa_group, gw_corr_lev_occ_beta, homo_beta, 2, nmo, nrow_local, &
+                                        num_integ_group, row_indices, vec_Sigma_x_gw_beta, &
                                         fm_mat_S_gw_beta, para_env, mp2_env)
             END IF
 
@@ -751,8 +751,7 @@ CONTAINS
                                   fm_mat_S_gw, para_env, mp2_env)
 
       INTEGER, INTENT(IN)                                :: color_rpa_group, gw_corr_lev_occ, homo, &
-                                                            idx, ncol_local, nmo, nrow_local, &
-                                                            num_integ_group
+                                                            idx, nmo, nrow_local, num_integ_group
       INTEGER, DIMENSION(:), POINTER                     :: row_indices
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:), &
          INTENT(INOUT)                                   :: vec_Sigma_x_gw
@@ -1202,7 +1201,6 @@ CONTAINS
 !> \param fm_mo_coeff_virt_beta ...
 !> \param mo_coeff ...
 !> \param fm_mat_W_tau ...
-!> \param fm_mat_L ...
 !> \param para_env ...
 !> \param para_env_RPA ...
 !> \param mat_dm ...

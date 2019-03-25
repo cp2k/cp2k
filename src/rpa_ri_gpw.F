@@ -3252,24 +3252,26 @@ CONTAINS
             CALL gw_postprocessing(vec_Sigma_c_gw, vec_Sigma_c_gw_beta, count_ev_sc_GW, &
                                    gw_corr_lev_occ, gw_corr_lev_occ_beta, &
                                    gw_corr_lev_tot, gw_corr_lev_virt, gw_corr_lev_virt_beta, &
-                                   homo, homo_beta, nmo, num_fit_points, num_integ_points, &
+                                   homo, homo_beta, &
+                                   nmo, num_fit_points, num_integ_points, &
                                    num_points_corr, unit_nr, &
                                    do_apply_ic_corr_to_gw, do_gw_im_time, &
                                    do_periodic, do_ri_Sigma_x, &
                                    first_cycle_periodic_correction, my_do_gw, my_open_shell, &
-                                   do_GW_corr, e_fermi, e_fermi_beta, eps_filter, &
+                                   do_GW_corr, e_fermi, &
+                                   e_fermi_beta, eps_filter, &
                                    fermi_level_offset, stabilize_exp, delta_corr, Eigenval, &
                                    Eigenval_beta, Eigenval_last, Eigenval_last_beta, Eigenval_scf, &
                                    Eigenval_scf_beta, m_value, m_value_beta, &
                                    tau_tj, tj, vec_gw_energ, vec_gw_energ_beta, vec_gw_energ_error_fit, &
                                    vec_gw_energ_error_fit_beta, vec_omega_fit_gw, &
-                                   vec_Sigma_x_gw, vec_Sigma_x_gw_beta, wj, &
+                                   vec_Sigma_x_gw, vec_Sigma_x_gw_beta, &
                                    z_value, z_value_beta, ic_corr_list, ic_corr_list_beta, &
-                                   weights_cos_tf_t_to_w, weights_cos_tf_w_to_t, weights_sin_tf_t_to_w, &
+                                   weights_cos_tf_t_to_w, weights_sin_tf_t_to_w, &
                                    fm_mo_coeff_occ_scaled, fm_mo_coeff_virt_scaled, fm_mo_coeff_occ, &
                                    fm_mo_coeff_virt, fm_scaled_dm_occ_tau, fm_scaled_dm_virt_tau, &
                                    fm_mo_coeff_occ_beta, fm_mo_coeff_virt_beta, mo_coeff, fm_mat_W_tau, &
-                                   fm_mat_L, para_env, para_env_RPA, mat_dm, mat_SinvVSinv, &
+                                   para_env, para_env_RPA, mat_dm, mat_SinvVSinv, &
                                    mat_3c_overl_int_gw, mat_3c_overl_int_gw_beta, matrix_berry_im_mo_mo, &
                                    matrix_berry_re_mo_mo, mat_greens_fct_occ, mat_greens_fct_occ_beta, &
                                    mat_greens_fct_virt, mat_greens_fct_virt_beta, mat_W, matrix_s, &
