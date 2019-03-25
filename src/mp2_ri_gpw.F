@@ -71,6 +71,11 @@ MODULE mp2_ri_gpw
         dbcsr_t_pgrid_destroy, dbcsr_t_pgrid_type, dbcsr_t_put_block, dbcsr_t_reserve_blocks, &
         dbcsr_t_split_blocks, dbcsr_t_type, mp_environ_pgrid
    USE gaussian_gridlevels,             ONLY: gaussian_gridlevel
+   USE group_dist_types,                ONLY: group_dist_d0_type, &
+                                              group_dist_d1_type, &
+                                              create_group_dist, &
+                                              get_group_dist, &
+                                              release_group_dist
    USE input_constants,                 ONLY: do_eri_gpw,&
                                               do_eri_mme,&
                                               do_eri_os,&
@@ -160,12 +165,8 @@ CONTAINS
 !> \param BIb_C_gw ...
 !> \param BIb_C_bse_ij ...
 !> \param BIb_C_bse_ab ...
-!> \param ends_array ...
-!> \param ends_B_virtual ...
-!> \param sizes_array ...
-!> \param sizes_B_virtual ...
-!> \param starts_array ...
-!> \param starts_B_virtual ...
+!> \param gd_array ...
+!> \param gd_B_virtual ...
 !> \param dimen_RI ...
 !> \param qs_env ...
 !> \param para_env ...
@@ -204,9 +205,7 @@ CONTAINS
 !> \param blacs_env_sub ...
 !> \param my_do_gw ...
 !> \param do_bse ...
-!> \param starts_B_all ...
-!> \param sizes_B_all ...
-!> \param ends_B_all ...
+!> \param gd_B_all ...
 !> \param starts_array_mc_t ...
 !> \param ends_array_mc_t ...
 !> \param gw_corr_lev_occ ...
@@ -224,17 +223,11 @@ CONTAINS
 !> \param mao_coeff_occ ...
 !> \param mao_coeff_virt ...
 !> \param ri_metric ...
-!> \param ends_B_occ_bse ...
-!> \param sizes_B_occ_bse ...
-!> \param starts_B_occ_bse ...
-!> \param ends_B_virt_bse ...
-!> \param sizes_B_virt_bse ...
-!> \param starts_B_virt_bse ...
+!> \param gd_B_occ_bse ...
+!> \param gd_B_virt_bse ...
 !> \param BIb_C_beta ...
 !> \param BIb_C_gw_beta ...
-!> \param ends_B_virtual_beta ...
-!> \param sizes_B_virtual_beta ...
-!> \param starts_B_virtual_beta ...
+!> \param gd_B_virtual_beta ...
 !> \param homo_beta ...
 !> \param mo_coeff_o_beta ...
 !> \param mo_coeff_v_beta ...
@@ -242,9 +235,8 @@ CONTAINS
 !> \param mo_coeff_gw_beta ...
 !> \author Mauro Del Ben
 ! **************************************************************************************************
-   SUBROUTINE mp2_ri_gpw_compute_in(BIb_C, BIb_C_gw, BIb_C_bse_ij, BIb_C_bse_ab, ends_array, ends_B_virtual, &
-                                    sizes_array, sizes_B_virtual, starts_array, starts_B_virtual, dimen_RI, &
-                                    qs_env, para_env, para_env_sub, color_sub, dft_control, &
+   SUBROUTINE mp2_ri_gpw_compute_in(BIb_C, BIb_C_gw, BIb_C_bse_ij, BIb_C_bse_ab, gd_array, gd_B_virtual, &
+                                    dimen_RI, qs_env, para_env, para_env_sub, color_sub, dft_control, &
                                     cell, particle_set, atomic_kind_set, qs_kind_set, mo_coeff, &
                                     fm_matrix_L_RI_metric, nmo, homo, &
                                     rho_r, rho_g, pot_g, mat_munu, mat_munu_mao_occ_virt, mat_munu_mao_virt_occ, &
@@ -252,23 +244,19 @@ CONTAINS
                                     poisson_env, auxbas_pw_pool, task_list_sub, mo_coeff_o, mo_coeff_v, mo_coeff_all, &
                                     mo_coeff_gw, eps_filter, unit_nr, &
                                     mp2_memory, calc_PQ_cond_num, calc_forces, blacs_env_sub, my_do_gw, do_bse, &
-                                    starts_B_all, sizes_B_all, ends_B_all, starts_array_mc_t, ends_array_mc_t, &
+                                    gd_B_all, starts_array_mc_t, ends_array_mc_t, &
                                     gw_corr_lev_occ, gw_corr_lev_virt, &
                                     do_im_time, do_mao, do_kpoints_cubic_RPA, kpoints, &
                                     mat_3c_overl_int, do_dbcsr_t, t_3c_M, t_3c_O, mat_3c_overl_int_mao_for_occ, &
                                     mat_3c_overl_int_mao_for_virt, mao_coeff_occ, mao_coeff_virt, &
-                                    ri_metric, ends_B_occ_bse, sizes_B_occ_bse, &
-                                    starts_B_occ_bse, ends_B_virt_bse, sizes_B_virt_bse, &
-                                    starts_B_virt_bse, BIb_C_beta, BIb_C_gw_beta, &
-                                    ends_B_virtual_beta, sizes_B_virtual_beta, &
-                                    starts_B_virtual_beta, homo_beta, mo_coeff_o_beta, mo_coeff_v_beta, &
+                                    ri_metric, gd_B_occ_bse, gd_B_virt_bse, BIb_C_beta, BIb_C_gw_beta, &
+                                    gd_B_virtual_beta, homo_beta, mo_coeff_o_beta, mo_coeff_v_beta, &
                                     mo_coeff_all_beta, mo_coeff_gw_beta)
 
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: BIb_C, BIb_C_gw, BIb_C_bse_ij, &
                                                             BIb_C_bse_ab
-      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: ends_array, ends_B_virtual, sizes_array, &
-                                                            sizes_B_virtual, starts_array, &
-                                                            starts_B_virtual
+      TYPE(group_dist_d1_type)                           :: gd_array, gd_B_virtual, gd_B_occ_bse, &
+                                                            gd_B_virt_bse
       INTEGER                                            :: dimen_RI
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(cp_para_env_type), POINTER                    :: para_env, para_env_sub
@@ -298,8 +286,8 @@ CONTAINS
       LOGICAL                                            :: calc_PQ_cond_num, calc_forces
       TYPE(cp_blacs_env_type), POINTER                   :: blacs_env_sub
       LOGICAL                                            :: my_do_gw, do_bse
-      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: starts_B_all, sizes_B_all, ends_B_all, &
-                                                            starts_array_mc_t, ends_array_mc_t
+      TYPE(group_dist_d1_type)                           :: gd_B_all
+      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: starts_array_mc_t, ends_array_mc_t
       INTEGER                                            :: gw_corr_lev_occ, gw_corr_lev_virt
       LOGICAL                                            :: do_im_time, do_mao, do_kpoints_cubic_RPA
       TYPE(kpoint_type), POINTER                         :: kpoints
@@ -311,14 +299,9 @@ CONTAINS
                                                             mat_3c_overl_int_mao_for_virt
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: mao_coeff_occ, mao_coeff_virt
       INTEGER                                            :: ri_metric
-      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: ends_B_occ_bse, sizes_B_occ_bse, &
-                                                            starts_B_occ_bse, ends_B_virt_bse, &
-                                                            sizes_B_virt_bse, starts_B_virt_bse
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :), &
          OPTIONAL                                        :: BIb_C_beta, BIb_C_gw_beta
-      INTEGER, ALLOCATABLE, DIMENSION(:), OPTIONAL       :: ends_B_virtual_beta, &
-                                                            sizes_B_virtual_beta, &
-                                                            starts_B_virtual_beta
+      TYPE(group_dist_d1_type), OPTIONAL                 :: gd_B_virtual_beta
       INTEGER, OPTIONAL                                  :: homo_beta
       TYPE(dbcsr_type), OPTIONAL, POINTER                :: mo_coeff_o_beta, mo_coeff_v_beta, &
                                                             mo_coeff_all_beta, mo_coeff_gw_beta
@@ -373,9 +356,7 @@ CONTAINS
 
       do_alpha_beta = .FALSE.
       IF (PRESENT(BIb_C_beta) .AND. &
-          PRESENT(ends_B_virtual_beta) .AND. &
-          PRESENT(sizes_B_virtual_beta) .AND. &
-          PRESENT(starts_B_virtual_beta) .AND. &
+          PRESENT(gd_B_virtual_beta) .AND. &
           PRESENT(homo_beta) .AND. &
           PRESENT(mo_coeff_o_beta) .AND. &
           PRESENT(mo_coeff_v_beta)) do_alpha_beta = .TRUE.
@@ -411,10 +392,8 @@ CONTAINS
                                            fm_BIb_jb, "fm_BIb_jb", max_row_col_local, &
                                            blacs_env_sub, para_env_sub, local_col_row_info)
 
-         CALL create_parallelization_arrays(para_env_sub, ends_B_virtual, sizes_B_virtual, &
-                                            starts_B_virtual, my_B_virtual_start, &
-                                            my_B_virtual_end, my_B_size, &
-                                            virtual)
+         CALL create_group_dist(gd_B_virtual, para_env_sub%num_pe, virtual)
+         CALL get_group_dist(gd_B_virtual, para_env_sub%mepos, my_B_virtual_start, my_B_virtual_end, my_B_size)
 
          IF (do_alpha_beta) THEN
 
@@ -426,10 +405,9 @@ CONTAINS
                                               max_row_col_local_beta, &
                                               blacs_env_sub, para_env_sub, local_col_row_info_beta)
 
-            CALL create_parallelization_arrays(para_env_sub, ends_B_virtual_beta, sizes_B_virtual_beta, &
-                                               starts_B_virtual_beta, my_B_virtual_start_beta, &
-                                               my_B_virtual_end_beta, my_B_size_beta, &
-                                               virtual_beta)
+            CALL create_group_dist(gd_B_virtual_beta, para_env_sub%num_pe, virtual_beta)
+            CALL get_group_dist(gd_B_virtual_beta, para_env_sub%mepos, my_B_virtual_start_beta, my_B_virtual_end_beta, &
+                                my_B_size_beta)
 
          END IF
 
@@ -444,10 +422,8 @@ CONTAINS
                                            max_row_col_local_gw, &
                                            blacs_env_sub, para_env_sub, local_col_row_info_gw)
 
-         CALL create_parallelization_arrays(para_env_sub, ends_B_all, sizes_B_all, &
-                                            starts_B_all, my_B_all_start, &
-                                            my_B_all_end, my_B_all_size, &
-                                            nmo)
+         CALL create_group_dist(gd_B_all, para_env_sub%num_pe, nmo)
+         CALL get_group_dist(gd_B_all, para_env_sub%mepos, my_B_all_start, my_B_all_end, my_B_all_size)
 
          IF (do_alpha_beta) THEN
             ! deallocate local_col_row_info_gw, otherwise it gets twice allocated in create_intermediate_m
@@ -476,18 +452,16 @@ CONTAINS
                                            fm_BIb_bse_ab, "fm_BIb_bse_ab", max_row_col_local_virt_bse, &
                                            blacs_env_sub, para_env_sub, local_col_row_info_virt_bse)
 
-         CALL create_parallelization_arrays(para_env_sub, ends_B_virt_bse, sizes_B_virt_bse, &
-                                            starts_B_virt_bse, my_B_virt_bse_start, &
-                                            my_B_virt_bse_end, my_B_virt_bse_size, virtual)
+         CALL create_group_dist(gd_B_virt_bse, para_env_sub%num_pe, virtual)
+         CALL get_group_dist(gd_B_virt_bse, para_env_sub%mepos, my_B_virt_bse_start, my_B_virt_bse_end, my_B_virt_bse_size)
 
          ! occ x occ matrices
          CALL create_intermediate_matrices(matrix_bse_inu, matrix_bse_ij, mo_coeff_o, homo, homo, &
                                            fm_BIb_bse_ij, "fm_BIb_bse_ij", max_row_col_local_occ_bse, &
                                            blacs_env_sub, para_env_sub, local_col_row_info_occ_bse)
 
-         CALL create_parallelization_arrays(para_env_sub, ends_B_occ_bse, sizes_B_occ_bse, &
-                                            starts_B_occ_bse, my_B_occ_bse_start, &
-                                            my_B_occ_bse_end, my_B_occ_bse_size, homo)
+         CALL create_group_dist(gd_B_occ_bse, para_env_sub%num_pe, homo)
+         CALL get_group_dist(gd_B_occ_bse, para_env_sub%mepos, my_B_occ_bse_start, my_B_occ_bse_end, my_B_occ_bse_size)
 
       END IF
 
@@ -530,7 +504,7 @@ CONTAINS
                            fm_matrix_L, ngroup, color_sub, dimen_RI, kpoints, &
                            mo_coeff, dft_control, psi_L, rho_r, rho_g, pot_g, pw_env_sub, poisson_env, &
                            my_group_L_size, my_group_L_start, my_group_L_end, &
-                           sizes_array, starts_array, ends_array, calc_PQ_cond_num, cond_num, &
+                           gd_array, calc_PQ_cond_num, cond_num, &
                            num_small_eigen, ri_metric, fm_matrix_L_RI_metric, do_im_time, &
                            do_kpoints_from_Gamma .OR. do_kpoints_cubic_RPA, qs_env%mp2_env%mp2_gpw%eps_pgf_orb_S, &
                            atomic_kind_set, qs_kind_set)
@@ -662,7 +636,7 @@ CONTAINS
                                          mo_coeff_o, mo_coeff_v, eps_filter, max_row_col_local, sub_proc_map, &
                                          local_col_row_info, my_B_virtual_end, my_B_virtual_start, "alpha")
             ENDDO
-            CALL contract_B_L(BIb_C, my_Lrows, sizes_B_virtual, sizes_array, qs_env%mp2_env%eri_blksize, &
+            CALL contract_B_L(BIb_C, my_Lrows, gd_B_virtual%sizes, gd_array%sizes, qs_env%mp2_env%eri_blksize, &
                               ngroup, color_sub, para_env%group, para_env_sub)
 
             IF (do_alpha_beta) THEN
@@ -673,7 +647,7 @@ CONTAINS
                                             mo_coeff_o_beta, mo_coeff_v_beta, eps_filter, max_row_col_local_beta, sub_proc_map, &
                                             local_col_row_info_beta, my_B_virtual_end_beta, my_B_virtual_start_beta, "beta")
                ENDDO
-               CALL contract_B_L(BIb_C_beta, my_Lrows, sizes_B_virtual_beta, sizes_array, qs_env%mp2_env%eri_blksize, &
+               CALL contract_B_L(BIb_C_beta, my_Lrows, gd_B_virtual_beta%sizes, gd_array%sizes, qs_env%mp2_env%eri_blksize, &
                                  ngroup, color_sub, para_env%group, para_env_sub)
 
             ENDIF
@@ -686,7 +660,7 @@ CONTAINS
                                             mo_coeff_gw, mo_coeff_all, eps_filter, max_row_col_local_gw, sub_proc_map, &
                                             local_col_row_info_gw, my_B_all_end, my_B_all_start, "gw_alpha")
                ENDDO
-               CALL contract_B_L(BIb_C_gw, my_Lrows, sizes_B_all, sizes_array, qs_env%mp2_env%eri_blksize, &
+               CALL contract_B_L(BIb_C_gw, my_Lrows, gd_B_all%sizes, gd_array%sizes, qs_env%mp2_env%eri_blksize, &
                                  ngroup, color_sub, para_env%group, para_env_sub)
 
                IF (do_alpha_beta) THEN
@@ -697,7 +671,7 @@ CONTAINS
                                                mo_coeff_gw_beta, mo_coeff_all_beta, eps_filter, max_row_col_local_gw, &
                                                sub_proc_map, local_col_row_info_gw, my_B_all_end, my_B_all_start, "gw_beta")
                   ENDDO
-                  CALL contract_B_L(BIb_C_gw_beta, my_Lrows, sizes_B_all, sizes_array, qs_env%mp2_env%eri_blksize, &
+                  CALL contract_B_L(BIb_C_gw_beta, my_Lrows, gd_B_all%sizes, gd_array%sizes, qs_env%mp2_env%eri_blksize, &
                                     ngroup, color_sub, para_env%group, para_env_sub)
 
                ENDIF
@@ -712,7 +686,7 @@ CONTAINS
                                             mo_coeff_v, mo_coeff_v, eps_filter, max_row_col_local_virt_bse, &
                                             sub_proc_map, local_col_row_info_virt_bse, my_B_all_end, my_B_all_start, "bse_ab")
                ENDDO
-               CALL contract_B_L(BIb_C_bse_ab, my_Lrows, sizes_B_virt_bse, sizes_array, qs_env%mp2_env%eri_blksize, &
+               CALL contract_B_L(BIb_C_bse_ab, my_Lrows, gd_B_virt_bse%sizes, gd_array%sizes, qs_env%mp2_env%eri_blksize, &
                                  ngroup, color_sub, para_env%group, para_env_sub)
 
                ! B^ij_P matrix elements for BSE
@@ -723,7 +697,7 @@ CONTAINS
                                             sub_proc_map, local_col_row_info_occ_bse, &
                                             my_B_occ_bse_end, my_B_occ_bse_start, "bse_ij")
                ENDDO
-               CALL contract_B_L(BIb_C_bse_ij, my_Lrows, sizes_B_occ_bse, sizes_array, qs_env%mp2_env%eri_blksize, &
+               CALL contract_B_L(BIb_C_bse_ij, my_Lrows, gd_B_occ_bse%sizes, gd_array%sizes, qs_env%mp2_env%eri_blksize, &
                                  ngroup, color_sub, para_env%group, para_env_sub)
 
             END IF
@@ -1494,59 +1468,6 @@ CONTAINS
    END SUBROUTINE create_intermediate_matrices
 
 ! **************************************************************************************************
-!> \brief Encapsulate building of parallelization arrays
-!> \param para_env_sub ...
-!> \param ends_B ...
-!> \param sizes_B ...
-!> \param starts_B ...
-!> \param my_B_start ...
-!> \param my_B_end ...
-!> \param my_B_size ...
-!> \param size_1 ...
-!> \author Jan Wilhelm
-! **************************************************************************************************
-   SUBROUTINE create_parallelization_arrays(para_env_sub, ends_B, sizes_B, starts_B, &
-                                            my_B_start, my_B_end, my_B_size, size_1)
-
-      TYPE(cp_para_env_type), POINTER                    :: para_env_sub
-      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: ends_B, sizes_B, starts_B
-      INTEGER                                            :: my_B_start, my_B_end, my_B_size, size_1
-
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'create_parallelization_arrays', &
-         routineP = moduleN//':'//routineN
-
-      INTEGER                                            :: handle, iproc, itmp(2)
-
-      CALL timeset(routineN, handle)
-
-      ! divide the b states in the sub_group in such a way to create
-      ! b_start and b_end for each proc inside the sub_group
-      ALLOCATE (sizes_B(0:para_env_sub%num_pe-1))
-      sizes_B = 0
-      ALLOCATE (starts_B(0:para_env_sub%num_pe-1))
-      starts_B = 0
-      ALLOCATE (ends_B(0:para_env_sub%num_pe-1))
-      ends_B = 0
-
-      DO iproc = 0, para_env_sub%num_pe-1
-         itmp = get_limit(size_1, para_env_sub%num_pe, iproc)
-         !IF (itmp(2) < itmp(1)) THEN
-         !   itmp(2) = itmp(1)
-         !ENDIF
-         starts_B(iproc) = itmp(1)
-         ends_B(iproc) = itmp(2)
-         sizes_B(iproc) = itmp(2)-itmp(1)+1
-      END DO
-
-      my_B_start = starts_B(para_env_sub%mepos)
-      my_B_end = ends_B(para_env_sub%mepos)
-      my_B_size = sizes_B(para_env_sub%mepos)
-
-      CALL timestop(handle)
-
-   END SUBROUTINE create_parallelization_arrays
-
-! **************************************************************************************************
 !> \brief Encapsulate ERI postprocessing: AO to MO transformation and store in B matrix.
 !> \param para_env ...
 !> \param mat_munu ...
@@ -1632,9 +1553,7 @@ CONTAINS
 !> \param my_group_L_size ...
 !> \param my_group_L_start ...
 !> \param my_group_L_end ...
-!> \param sizes_array ...
-!> \param starts_array ...
-!> \param ends_array ...
+!> \param gd_array ...
 !> \param calc_PQ_cond_num ...
 !> \param cond_num ...
 !> \param num_small_eigen ...
@@ -1650,7 +1569,7 @@ CONTAINS
                               fm_matrix_L, ngroup, color_sub, dimen_RI, kpoints, &
                               mo_coeff, dft_control, psi_L, rho_r, rho_g, pot_g, pw_env_sub, poisson_env, &
                               my_group_L_size, my_group_L_start, my_group_L_end, &
-                              sizes_array, starts_array, ends_array, calc_PQ_cond_num, cond_num, &
+                              gd_array, calc_PQ_cond_num, cond_num, &
                               num_small_eigen, ri_metric, fm_matrix_L_RI_metric, do_im_time, &
                               do_kpoints, mp2_eps_pgf_orb_S, atomic_kind_set, qs_kind_set)
 
@@ -1669,7 +1588,7 @@ CONTAINS
       TYPE(pw_poisson_type), POINTER                     :: poisson_env
       INTEGER                                            :: my_group_L_size, my_group_L_start, &
                                                             my_group_L_end
-      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: sizes_array, starts_array, ends_array
+      TYPE(group_dist_d1_type)                           :: gd_array
       LOGICAL                                            :: calc_PQ_cond_num
       REAL(KIND=dp)                                      :: cond_num
       INTEGER                                            :: num_small_eigen, ri_metric
@@ -1694,7 +1613,7 @@ CONTAINS
                                 fm_matrix_L, ngroup, color_sub, dimen_RI, &
                                 mo_coeff, dft_control, psi_L, rho_r, rho_g, pot_g, pw_env_sub, poisson_env, &
                                 my_group_L_size, my_group_L_start, my_group_L_end, &
-                                sizes_array, starts_array, ends_array, calc_PQ_cond_num, cond_num, &
+                                gd_array, calc_PQ_cond_num, cond_num, &
                                 num_small_eigen, do_im_time=do_im_time)
 
       IF (ri_metric == ri_coulomb) THEN
@@ -1726,7 +1645,7 @@ CONTAINS
          ELSE
 
             CALL cp_para_env_release(para_env_L)
-            DEALLOCATE (sizes_array, starts_array, ends_array)
+            CALL release_group_dist(gd_array)
 
             ALLOCATE (fm_matrix_L_RI_metric(1, 1))
 
@@ -1735,7 +1654,7 @@ CONTAINS
                                       fm_matrix_L_RI_metric(1, 1)%matrix, ngroup, color_sub, dimen_RI, &
                                       mo_coeff, dft_control, psi_L, rho_r, rho_g, pot_g, pw_env_sub, poisson_env, &
                                       my_group_L_size, my_group_L_start, my_group_L_end, &
-                                      sizes_array, starts_array, ends_array, calc_PQ_cond_num, cond_num, &
+                                      gd_array, calc_PQ_cond_num, cond_num, &
                                       num_small_eigen, &
                                       external_matrix_struc=.TRUE., fm_matrix_L_extern=fm_matrix_L, &
                                       ri_metric=ri_metric)
@@ -2173,9 +2092,7 @@ CONTAINS
 !> \param my_group_L_size ...
 !> \param my_group_L_start ...
 !> \param my_group_L_end ...
-!> \param sizes_array ...
-!> \param starts_array ...
-!> \param ends_array ...
+!> \param gd_array ...
 !> \param calc_PQ_cond_num ...
 !> \param cond_num ...
 !> \param num_small_eigen ...
@@ -2188,8 +2105,7 @@ CONTAINS
                                    fm_matrix_L, ngroup, color_sub, dimen_RI, &
                                    mo_coeff, dft_control, psi_L, rho_r, rho_g, pot_g, pw_env_sub, poisson_env, &
                                    my_group_L_size, my_group_L_start, my_group_L_end, &
-                                   sizes_array, starts_array, ends_array, calc_PQ_cond_num, cond_num, &
-                                   num_small_eigen, &
+                                   gd_array, calc_PQ_cond_num, cond_num, num_small_eigen, &
                                    external_matrix_struc, do_im_time, fm_matrix_L_extern, ri_metric)
 
       TYPE(qs_environment_type), POINTER                 :: qs_env
@@ -2206,7 +2122,7 @@ CONTAINS
       TYPE(pw_poisson_type), POINTER                     :: poisson_env
       INTEGER                                            :: my_group_L_size, my_group_L_start, &
                                                             my_group_L_end
-      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: sizes_array, starts_array, ends_array
+      TYPE(group_dist_d1_type)                           :: gd_array
       LOGICAL                                            :: calc_PQ_cond_num
       REAL(KIND=dp)                                      :: cond_num
       INTEGER                                            :: num_small_eigen
@@ -2217,14 +2133,14 @@ CONTAINS
       CHARACTER(LEN=*), PARAMETER :: routineN = 'compute_2c_integrals', &
          routineP = moduleN//':'//routineN
 
+      TYPE(group_dist_d1_type)                           :: gd_sub_array
       INTEGER :: best_group_size, color_L, comm_exchange, comm_L, dir, group_size, handle, &
-         handle2, handle3, i, i_counter, i_global, iatom, igrid_level, igroup, iiB, ikind, ipgf, &
-         iproc, iset, itmp(2), j_global, jjB, lb(3), LLL, location(3), my_ri_metric, na1, na2, &
+         handle2, handle3, i, i_counter, i_global, iatom, igrid_level, iiB, ikind, ipgf, &
+         iproc, iset, j_global, jjB, lb(3), LLL, location(3), my_ri_metric, na1, na2, &
          natom, ncoa, ncol_local, nkind, nrow_local, nseta, nsgf, offset, proc_receive, &
          proc_receive_static, proc_send, proc_send_static, proc_shift, rec_L_end, rec_L_size, &
          rec_L_start, sgfa, strat_group_size, sub_sub_color, tp(3), ub(3)
-      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: kind_of, proc_map, sub_ends_array, &
-                                                            sub_sizes_array, sub_starts_array
+      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: kind_of, proc_map
       INTEGER, DIMENSION(:), POINTER                     :: col_indices, la_max, la_min, npgfa, &
                                                             nsgfa, row_indices
       INTEGER, DIMENSION(:, :), POINTER                  :: first_sgfa
@@ -2293,25 +2209,10 @@ CONTAINS
 
       ! check that very small systems are not running on too many processes
       CPASSERT(dimen_RI >= para_env%num_pe)
+      
+      CALL create_group_dist(gd_array, ngroup, dimen_RI)
 
-      ! calculate which rows of L^{-1} to have
-      ALLOCATE (sizes_array(0:ngroup-1))
-      sizes_array = 0
-      ALLOCATE (starts_array(0:ngroup-1))
-      starts_array = 0
-      ALLOCATE (ends_array(0:ngroup-1))
-      ends_array = 0
-
-      DO igroup = 0, ngroup-1
-         itmp = get_limit(dimen_RI, ngroup, igroup)
-         starts_array(igroup) = itmp(1)
-         ends_array(igroup) = itmp(2)
-         sizes_array(igroup) = itmp(2)-itmp(1)+1
-      ENDDO
-
-      my_group_L_size = sizes_array(color_sub)
-      my_group_L_start = starts_array(color_sub)
-      my_group_L_end = ends_array(color_sub)
+      CALL get_group_dist(gd_array, color_sub, my_group_L_start, my_group_L_end, my_group_L_size)
 
       CALL timeset(routineN//"_loop_lm", handle2)
 
@@ -2532,22 +2433,9 @@ CONTAINS
          proc_map(-i-1) = para_env_exchange%num_pe-i-1
          proc_map(para_env_exchange%num_pe+i) = i
       END DO
-
-      ! create the information array
-      ALLOCATE (sub_sizes_array(0:para_env_exchange%num_pe-1))
-      sub_sizes_array = 0
-      ALLOCATE (sub_starts_array(0:para_env_exchange%num_pe-1))
-      sub_starts_array = 0
-      ALLOCATE (sub_ends_array(0:para_env_exchange%num_pe-1))
-      sub_ends_array = 0
-
-      sub_sizes_array(para_env_exchange%mepos) = my_group_L_size
-      sub_starts_array(para_env_exchange%mepos) = my_group_L_start
-      sub_ends_array(para_env_exchange%mepos) = my_group_L_end
-
-      CALL mp_sum(sub_sizes_array, para_env_exchange%group)
-      CALL mp_sum(sub_starts_array, para_env_exchange%group)
-      CALL mp_sum(sub_ends_array, para_env_exchange%group)
+      
+      CALL create_group_dist(gd_sub_array, para_env_exchange%num_pe, my_group_L_size, &
+                             my_group_L_end, my_group_L_start, para_env)
 
       ! create the full matrix L defined in the L group
       NULLIFY (fm_matrix_L)
@@ -2595,9 +2483,7 @@ CONTAINS
             proc_send = proc_map(para_env_exchange%mepos+proc_shift)
             proc_receive = proc_map(para_env_exchange%mepos-proc_shift)
 
-            rec_L_size = sub_sizes_array(proc_receive)
-            rec_L_start = sub_starts_array(proc_receive)
-            rec_L_end = sub_ends_array(proc_receive)
+            CALL get_group_dist(gd_sub_array, proc_receive , rec_L_start, rec_L_end, rec_L_size)
 
             ALLOCATE (L_external_col(dimen_RI, rec_L_size))
             L_external_col = 0.0_dp
@@ -2630,9 +2516,7 @@ CONTAINS
       DEALLOCATE (proc_map)
       CALL cp_para_env_release(para_env_exchange)
 
-      DEALLOCATE (sub_sizes_array)
-      DEALLOCATE (sub_starts_array)
-      DEALLOCATE (sub_ends_array)
+      CALL release_group_dist(gd_sub_array)
 
       ! create the new group for the mp_sum of the local data
       sub_sub_color = para_env_L%mepos
@@ -3398,12 +3282,8 @@ CONTAINS
 !> \param para_env ...
 !> \param para_env_sub ...
 !> \param color_sub ...
-!> \param ends_array ...
-!> \param ends_B_virtual ...
-!> \param sizes_array ...
-!> \param sizes_B_virtual ...
-!> \param starts_array ...
-!> \param starts_B_virtual ...
+!> \param gd_array ...
+!> \param gd_B_virtual ...
 !> \param Eigenval ...
 !> \param nmo ...
 !> \param homo ...
@@ -3415,23 +3295,19 @@ CONTAINS
 !> \param BIb_C_beta ...
 !> \param homo_beta ...
 !> \param Eigenval_beta ...
-!> \param ends_B_virtual_beta ...
-!> \param sizes_B_virtual_beta ...
-!> \param starts_B_virtual_beta ...
+!> \param gd_B_virtual_beta ...
 ! **************************************************************************************************
    SUBROUTINE mp2_ri_gpw_compute_en(Emp2, Emp2_Cou, Emp2_EX, BIb_C, mp2_env, para_env, para_env_sub, color_sub, &
-                                    ends_array, ends_B_virtual, sizes_array, sizes_B_virtual, starts_array, starts_B_virtual, &
+                                    gd_array, gd_B_virtual, &
                                     Eigenval, nmo, homo, dimen_RI, unit_nr, calc_forces, calc_ex, &
                                     open_shell_SS, BIb_C_beta, homo_beta, Eigenval_beta, &
-                                    ends_B_virtual_beta, sizes_B_virtual_beta, starts_B_virtual_beta)
+                                    gd_B_virtual_beta)
       REAL(KIND=dp)                                      :: Emp2, Emp2_Cou, Emp2_EX
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: BIb_C
       TYPE(mp2_type), POINTER                            :: mp2_env
       TYPE(cp_para_env_type), POINTER                    :: para_env, para_env_sub
       INTEGER                                            :: color_sub
-      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: ends_array, ends_B_virtual, sizes_array, &
-                                                            sizes_B_virtual, starts_array, &
-                                                            starts_B_virtual
+      TYPE(group_dist_d1_type)                           :: gd_array, gd_B_virtual
       REAL(KIND=dp), DIMENSION(:)                        :: Eigenval
       INTEGER                                            :: nmo, homo, dimen_RI, unit_nr
       LOGICAL, INTENT(IN)                                :: calc_forces
@@ -3441,9 +3317,7 @@ CONTAINS
          OPTIONAL                                        :: BIb_C_beta
       INTEGER, OPTIONAL                                  :: homo_beta
       REAL(KIND=dp), DIMENSION(:), OPTIONAL              :: Eigenval_beta
-      INTEGER, ALLOCATABLE, DIMENSION(:), OPTIONAL       :: ends_B_virtual_beta, &
-                                                            sizes_B_virtual_beta, &
-                                                            starts_B_virtual_beta
+      TYPE(group_dist_d1_type), OPTIONAL                 :: gd_B_virtual_beta
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'mp2_ri_gpw_compute_en', &
          routineP = moduleN//':'//routineN
@@ -3507,9 +3381,7 @@ CONTAINS
 
       my_alpha_beta_case = .FALSE.
       IF (PRESENT(BIb_C_beta) .AND. &
-          PRESENT(ends_B_virtual_beta) .AND. &
-          PRESENT(sizes_B_virtual_beta) .AND. &
-          PRESENT(starts_B_virtual_beta) .AND. &
+          PRESENT(gd_B_virtual_beta) .AND. &
           PRESENT(homo_beta) .AND. &
           PRESENT(Eigenval_beta)) THEN
          my_alpha_beta_case = .TRUE.
@@ -3522,16 +3394,14 @@ CONTAINS
       IF (my_alpha_beta_case) virtual_beta = nmo-homo_beta
 
       CALL mp2_ri_get_sizes( &
-         mp2_env, para_env, para_env_sub, ends_array, ends_B_virtual, sizes_array, sizes_B_virtual, &
-         starts_array, starts_B_virtual, homo, dimen_RI, unit_nr, color_sub, best_block_size, best_integ_group_size, block_size, &
+         mp2_env, para_env, para_env_sub, gd_array, gd_B_virtual, &
+         homo, dimen_RI, unit_nr, color_sub, best_block_size, best_integ_group_size, block_size, &
          integ_group_size, min_integ_group_size, my_B_size, my_B_virtual_end, my_B_virtual_start, my_group_L_size, &
          my_group_L_start, my_group_L_end, ngroup, num_IJ_blocks, num_integ_group, pos_integ_group, virtual, my_alpha_beta_case, &
          my_open_shell_SS, mem_for_aK, mem_for_comm, mem_for_iaK, mem_for_rep, mem_min, mem_per_group, mem_real)
 
       IF (my_alpha_beta_case) THEN
-         my_B_virtual_start_beta = starts_B_virtual_beta(para_env_sub%mepos)
-         my_B_virtual_end_beta = ends_B_virtual_beta(para_env_sub%mepos)
-         my_B_size_beta = sizes_B_virtual_beta(para_env_sub%mepos)
+         CALL get_group_dist(gd_B_virtual_beta, para_env_sub%mepos, my_B_virtual_start_beta, my_B_virtual_end_beta, my_B_size_beta)
          my_homo_beta = homo_beta
       ELSE
          my_B_virtual_start_beta = my_B_virtual_start
@@ -3545,7 +3415,7 @@ CONTAINS
       ! sub_sub_color=para_env_sub%mepos
       CALL mp2_ri_create_group( &
          BIb_C, para_env, para_env_sub, homo, color_sub, &
-         sizes_array, calc_forces, &
+         gd_array%sizes, calc_forces, &
          comm_exchange, integ_group_size, my_B_size, iiB, my_group_L_end, &
          my_group_L_size, my_group_L_size_orig, my_group_L_start, my_new_group_L_size, &
          sub_sub_color, integ_group_pos2color_sub, new_sizes_array, proc_map, proc_map_rep, sizes_array_orig, &
@@ -3638,7 +3508,7 @@ CONTAINS
 
                send_ij_index = num_ij_pairs(proc_send)
 
-               rec_L_size = sizes_array(proc_receive)
+               CALL get_group_dist(gd_array, proc_receive, sizes=rec_L_size)
                ALLOCATE (BI_C_rec(rec_L_size, MAX(my_B_size, my_B_size_beta), my_block_size))
 
                IF (ij_index <= send_ij_index) THEN
@@ -3780,9 +3650,7 @@ CONTAINS
                      proc_send = sub_proc_map(para_env_sub%mepos+proc_shift)
                      proc_receive = sub_proc_map(para_env_sub%mepos-proc_shift)
 
-                     rec_B_size = sizes_B_virtual(proc_receive)
-                     rec_B_virtual_end = ends_B_virtual(proc_receive)
-                     rec_B_virtual_start = starts_B_virtual(proc_receive)
+                     CALL get_group_dist(gd_B_virtual, proc_receive, rec_B_virtual_start, rec_B_virtual_end, rec_B_size)
 
                      ALLOCATE (external_i_aL(dimen_RI, rec_B_size))
                      external_i_aL = 0.0_dp
@@ -3806,9 +3674,7 @@ CONTAINS
                      ! Additional integrals only for alpha_beta case and forces
                      IF ((my_alpha_beta_case) .AND. (calc_forces)) THEN
 
-                        rec_B_size = sizes_B_virtual_beta(proc_receive)
-                        rec_B_virtual_end = ends_B_virtual_beta(proc_receive)
-                        rec_B_virtual_start = starts_B_virtual_beta(proc_receive)
+                        CALL get_group_dist(gd_B_virtual_beta, proc_receive, rec_B_virtual_start, rec_B_virtual_end, rec_B_size)
 
                         ALLOCATE (external_i_aL(dimen_RI, rec_B_size))
                         external_i_aL = 0.0_dp
@@ -3881,13 +3747,9 @@ CONTAINS
                         proc_send = sub_proc_map(para_env_sub%mepos+proc_shift)
                         proc_receive = sub_proc_map(para_env_sub%mepos-proc_shift)
 
-                        rec_B_size = sizes_B_virtual(proc_receive)
-                        rec_B_virtual_end = ends_B_virtual(proc_receive)
-                        rec_B_virtual_start = starts_B_virtual(proc_receive)
+                        CALL get_group_dist(gd_B_virtual, proc_receive, rec_B_virtual_start, rec_B_virtual_end, rec_B_size)
 
-                        send_B_size = sizes_B_virtual(proc_send)
-                        send_B_virtual_end = ends_B_virtual(proc_send)
-                        send_B_virtual_start = starts_B_virtual(proc_send)
+                        CALL get_group_dist(gd_B_virtual, proc_send, send_B_virtual_start, send_B_virtual_end, send_B_size)
 
                         ALLOCATE (external_ab(my_B_size, rec_B_size))
                         external_ab = 0.0_dp
@@ -3919,20 +3781,20 @@ CONTAINS
                      IF (.NOT. my_alpha_beta_case) THEN
                         Y_i_aP = 0.0_dp
                         Y_j_aP = 0.0_dp
-                        CALL mp2_update_P_gamma(mp2_env, para_env_sub, ends_B_virtual, sizes_B_virtual, &
-                                                starts_B_virtual, Eigenval, homo, dimen_RI, iiB, jjB, my_B_size, &
+                        CALL mp2_update_P_gamma(mp2_env, para_env_sub, gd_B_virtual, &
+                                                Eigenval, homo, dimen_RI, iiB, jjB, my_B_size, &
                                                 my_B_virtual_end, my_B_virtual_start, my_i, my_j, virtual, &
                                                 sub_proc_map, local_ab, t_ab, local_i_aL, local_j_aL, &
                                                 my_open_shell_ss, my_alpha_alpha_case, my_beta_beta_case, Y_i_aP, Y_j_aP)
                      ELSE
                         Y_i_aP = 0.0_dp
                         Y_j_aP_beta = 0.0_dp
-                        CALL mp2_update_P_gamma(mp2_env, para_env_sub, ends_B_virtual, sizes_B_virtual, &
-                                                starts_B_virtual, Eigenval, homo, dimen_RI, iiB, jjB, my_B_size, &
+                        CALL mp2_update_P_gamma(mp2_env, para_env_sub, gd_B_virtual, &
+                                                Eigenval, homo, dimen_RI, iiB, jjB, my_B_size, &
                                                 my_B_virtual_end, my_B_virtual_start, my_i, my_j, virtual, sub_proc_map, &
                                                 local_ab, t_ab, local_i_aL, local_j_aL, my_open_shell_ss, my_alpha_alpha_case, &
                                                 my_beta_beta_case, Y_i_aP, Y_j_aP_beta, Eigenval_beta, homo_beta, my_B_size_beta, &
-                                                ends_B_virtual_beta, sizes_B_virtual_beta, starts_B_virtual_beta, &
+                                                gd_B_virtual_beta, &
                                                 my_B_virtual_start_beta, my_B_virtual_end_beta, virtual_beta, local_ba)
                      ENDIF
 
@@ -3997,7 +3859,7 @@ CONTAINS
                                            my_block_size, my_group_L_size, my_i, my_ij_pairs, my_j, ngroup, &
                                            num_integ_group, integ_group_pos2color_sub, num_ij_pairs, proc_map, &
                                            ij_map, ranges_info_array, Y_i_aP, Y_j_aP, para_env_exchange, &
-                                           null_mat_rec, null_mat_send, sizes_array, my_alpha_alpha_case, &
+                                           null_mat_rec, null_mat_send, gd_array%sizes, my_alpha_alpha_case, &
                                            my_beta_beta_case, my_alpha_beta_case, my_open_shell_ss)
             ELSE
                ! Alpha-beta case
@@ -4005,7 +3867,7 @@ CONTAINS
                                            my_block_size, my_group_L_size, my_i, my_ij_pairs, my_j, ngroup, &
                                            num_integ_group, integ_group_pos2color_sub, num_ij_pairs, proc_map, &
                                            ij_map, ranges_info_array, Y_i_aP, Y_j_aP_beta, para_env_exchange, &
-                                           null_mat_rec, null_mat_send, sizes_array, my_alpha_alpha_case, my_beta_beta_case, &
+                                           null_mat_rec, null_mat_send, gd_array%sizes, my_alpha_alpha_case, my_beta_beta_case, &
                                            my_alpha_beta_case, my_open_shell_ss, my_B_size_beta)
             ENDIF
          END IF
@@ -4046,17 +3908,17 @@ CONTAINS
                my_beta_beta_case, my_alpha_beta_case, Bib_C, unit_nr, dimen_RI, &
                my_B_size, ngroup, num_integ_group, my_group_L_size, &
                color_sub, ranges_info_array, para_env_exchange, para_env_sub, proc_map, &
-               my_B_virtual_start, my_B_virtual_end, sizes_array, ends_B_virtual, sizes_B_virtual, &
-               starts_B_virtual, sub_proc_map, integ_group_pos2color_sub, local_ab)
+               my_B_virtual_start, my_B_virtual_end, gd_array%sizes, gd_B_virtual, &
+               sub_proc_map, integ_group_pos2color_sub, local_ab)
          ELSE
             CALL quasi_degenerate_P_ij( &
                mp2_env, Eigenval, homo, virtual, my_open_shell_ss, &
                my_beta_beta_case, my_alpha_beta_case, Bib_C, unit_nr, dimen_RI, &
                my_B_size, ngroup, num_integ_group, my_group_L_size, &
                color_sub, ranges_info_array, para_env_exchange, para_env_sub, proc_map, &
-               my_B_virtual_start, my_B_virtual_end, sizes_array, ends_B_virtual, sizes_B_virtual, &
-               starts_B_virtual, sub_proc_map, integ_group_pos2color_sub, local_ab, BIb_C_beta, my_B_size_beta, &
-               ends_B_virtual_beta, sizes_B_virtual_beta, starts_B_virtual_beta, my_B_virtual_start_beta, &
+               my_B_virtual_start, my_B_virtual_end, gd_array%sizes, gd_B_virtual, &
+               sub_proc_map, integ_group_pos2color_sub, local_ab, BIb_C_beta, my_B_size_beta, &
+               gd_B_virtual_beta, my_B_virtual_start_beta, &
                virtual_beta, homo_beta, Eigenval_beta, my_B_virtual_end_beta)
          ENDIF
 
@@ -4102,10 +3964,10 @@ CONTAINS
          ! XXXXXXXXXXXXXX
 
          ! recover original information (before replication)
-         DEALLOCATE (sizes_array)
+         DEALLOCATE (gd_array%sizes)
          iiB = SIZE(sizes_array_orig)
-         ALLOCATE (sizes_array(0:iiB-1))
-         sizes_array(:) = sizes_array_orig
+         ALLOCATE (gd_array%sizes(0:iiB-1))
+         gd_array%sizes(:) = sizes_array_orig
          DEALLOCATE (sizes_array_orig)
 
          ! make a copy of the original integrals (ia|Q)
@@ -4188,14 +4050,13 @@ CONTAINS
             CALL complete_gamma(mp2_env, B_ia_Q, dimen_RI, homo, virtual, para_env, para_env_sub, ngroup, &
                                 my_group_L_size, my_group_L_start, my_group_L_end, &
                                 my_B_size, my_B_virtual_start, &
-                                ends_array, ends_B_virtual, sizes_array, sizes_B_virtual, starts_array, starts_B_virtual, &
+                                gd_array, gd_B_virtual, &
                                 sub_proc_map, .TRUE.)
             IF (my_alpha_beta_case) THEN
                CALL complete_gamma(mp2_env, B_ia_Q_beta, dimen_RI, homo_beta, virtual_beta, para_env, para_env_sub, &
                                    ngroup, my_group_L_size, my_group_L_start, my_group_L_end, &
                                    my_B_size_beta, my_B_virtual_start_beta, &
-                                   ends_array, ends_B_virtual_beta, sizes_array, sizes_B_virtual_beta, starts_array, &
-                                   starts_B_virtual_beta, sub_proc_map, .FALSE.)
+                                   gd_array, gd_B_virtual_beta, sub_proc_map, .FALSE.)
             ENDIF
          ENDIF
          ! Here we restore BIb_C
@@ -4236,16 +4097,10 @@ CONTAINS
       IF (.NOT. my_open_shell_SS) THEN
          ! keep the array for the next calculations
          IF (ALLOCATED(BIb_C)) DEALLOCATE (BIb_C)
-         DEALLOCATE (sizes_array)
-         DEALLOCATE (starts_array)
-         DEALLOCATE (ends_array)
-         DEALLOCATE (starts_B_virtual)
-         DEALLOCATE (ends_B_virtual)
-         DEALLOCATE (sizes_B_virtual)
+         CALL release_group_dist(gd_array)
+         CALL release_group_dist(gd_B_virtual)
          IF (my_alpha_beta_case) THEN
-            DEALLOCATE (starts_B_virtual_beta)
-            DEALLOCATE (ends_B_virtual_beta)
-            DEALLOCATE (sizes_B_virtual_beta)
+            CALL release_group_dist(gd_B_virtual_beta)
          END IF
       END IF
 
@@ -4801,12 +4656,8 @@ CONTAINS
 !> \param mp2_env ...
 !> \param para_env ...
 !> \param para_env_sub ...
-!> \param ends_array ...
-!> \param ends_B_virtual ...
-!> \param sizes_array ...
-!> \param sizes_B_virtual ...
-!> \param starts_array ...
-!> \param starts_B_virtual ...
+!> \param gd_array ...
+!> \param gd_B_virtual ...
 !> \param homo ...
 !> \param dimen_RI ...
 !> \param unit_nr ...
@@ -4837,8 +4688,8 @@ CONTAINS
 !> \param mem_per_group ...
 !> \param mem_real ...
 ! **************************************************************************************************
-   SUBROUTINE mp2_ri_get_sizes(mp2_env, para_env, para_env_sub, ends_array, ends_B_virtual, sizes_array, sizes_B_virtual, &
-                               starts_array, starts_B_virtual, homo, dimen_RI, unit_nr, color_sub, &
+   SUBROUTINE mp2_ri_get_sizes(mp2_env, para_env, para_env_sub, gd_array, gd_B_virtual, &
+                               homo, dimen_RI, unit_nr, color_sub, &
                                best_block_size, best_integ_group_size, block_size, &
                                integ_group_size, min_integ_group_size, my_B_size, &
                                my_B_virtual_end, my_B_virtual_start, my_group_L_size, &
@@ -4848,9 +4699,7 @@ CONTAINS
                                mem_for_iaK, mem_for_rep, mem_min, mem_per_group, mem_real)
       TYPE(mp2_type), POINTER                            :: mp2_env
       TYPE(cp_para_env_type), POINTER                    :: para_env, para_env_sub
-      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: ends_array, ends_B_virtual, sizes_array, &
-                                                            sizes_B_virtual, starts_array, &
-                                                            starts_B_virtual
+      TYPE(group_dist_d1_type)                           :: gd_array, gd_B_virtual
       INTEGER :: homo, dimen_RI, unit_nr, color_sub, best_block_size, best_integ_group_size, &
          block_size, integ_group_size, min_integ_group_size, my_B_size, my_B_virtual_end, &
          my_B_virtual_start, my_group_L_size, my_group_L_start, my_group_L_end, ngroup, &
@@ -4881,8 +4730,8 @@ CONTAINS
       ! has not been given back to the OS yet.
       CALL mp_min(mem_real, para_env%group)
 
-      mem_min = 2.0_dp*REAL(homo, KIND=dp)*MAXVAL(sizes_B_virtual)*MAXVAL(sizes_array)*8.0_dp/(1024**2)
-      mem_min = mem_min+3.0_dp*MAXVAL(sizes_B_virtual)*REAL(dimen_RI, KIND=dp)*8.0_dp/(1024**2)
+      mem_min = 2.0_dp*REAL(homo, KIND=dp)*MAXVAL(gd_B_virtual%sizes)*MAXVAL(gd_array%sizes)*8.0_dp/(1024**2)
+      mem_min = mem_min+3.0_dp*MAXVAL(gd_B_virtual%sizes)*REAL(dimen_RI, KIND=dp)*8.0_dp/(1024**2)
 
       IF ((.NOT. my_open_shell_SS) .AND. (.NOT. my_alpha_beta_case)) THEN
          IF (unit_nr > 0) WRITE (unit_nr, '(T3,A,T68,F9.2,A4)') 'RI_INFO| Minimum required memory per MPI process:', &
@@ -4956,13 +4805,9 @@ CONTAINS
 
       pos_integ_group = MOD(color_sub, integ_group_size)
 
-      my_group_L_size = sizes_array(color_sub)
-      my_group_L_start = starts_array(color_sub)
-      my_group_L_end = ends_array(color_sub)
+      CALL get_group_dist(gd_array, color_sub, my_group_L_start, my_group_L_end, my_group_L_size)
 
-      my_B_virtual_start = starts_B_virtual(para_env_sub%mepos)
-      my_B_virtual_end = ends_B_virtual(para_env_sub%mepos)
-      my_B_size = sizes_B_virtual(para_env_sub%mepos)
+      CALL get_group_dist(gd_B_virtual, para_env_sub%mepos, my_B_virtual_start, my_B_virtual_end, my_B_size)
 
       CALL timestop(handle)
 
@@ -4972,9 +4817,7 @@ CONTAINS
 !> \brief ...
 !> \param mp2_env ...
 !> \param para_env_sub ...
-!> \param ends_B_virtual ...
-!> \param sizes_B_virtual ...
-!> \param starts_B_virtual ...
+!> \param gd_B_virtual ...
 !> \param Eigenval ...
 !> \param homo ...
 !> \param dimen_RI ...
@@ -4999,24 +4842,21 @@ CONTAINS
 !> \param eigenval_beta ...
 !> \param homo_beta ...
 !> \param my_B_size_beta ...
-!> \param ends_B_virtual_beta ...
-!> \param sizes_B_virtual_beta ...
-!> \param starts_B_virtual_beta ...
+!> \param gd_B_virtual_beta ...
 !> \param my_B_virtual_start_beta ...
 !> \param my_B_virtual_end_beta ...
 !> \param virtual_beta ...
 !> \param local_ba ...
 ! **************************************************************************************************
-   SUBROUTINE mp2_update_P_gamma(mp2_env, para_env_sub, ends_B_virtual, sizes_B_virtual, starts_B_virtual, &
+   SUBROUTINE mp2_update_P_gamma(mp2_env, para_env_sub, gd_B_virtual, &
                                  Eigenval, homo, dimen_RI, iiB, jjB, my_B_size, &
                                  my_B_virtual_end, my_B_virtual_start, my_i, my_j, virtual, sub_proc_map, local_ab, &
                                  t_ab, local_i_aL, local_j_aL, open_ss, alpha_alpha, beta_beta, Y_i_aP, Y_j_aP, &
-                                 eigenval_beta, homo_beta, my_B_size_beta, ends_B_virtual_beta, sizes_B_virtual_beta, &
-                                 starts_B_virtual_beta, my_B_virtual_start_beta, my_B_virtual_end_beta, virtual_beta, local_ba)
+                                 eigenval_beta, homo_beta, my_B_size_beta, gd_B_virtual_beta, &
+                                 my_B_virtual_start_beta, my_B_virtual_end_beta, virtual_beta, local_ba)
       TYPE(mp2_type), POINTER                            :: mp2_env
       TYPE(cp_para_env_type), POINTER                    :: para_env_sub
-      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: ends_B_virtual, sizes_B_virtual, &
-                                                            starts_B_virtual
+      TYPE(group_dist_d1_type)                           :: gd_B_virtual
       REAL(KIND=dp), DIMENSION(:)                        :: Eigenval
       INTEGER                                            :: homo, dimen_RI, iiB, jjB, my_B_size, &
                                                             my_B_virtual_end, my_B_virtual_start, &
@@ -5028,9 +4868,7 @@ CONTAINS
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: Y_i_aP, Y_j_aP
       REAL(KIND=dp), DIMENSION(:), OPTIONAL              :: Eigenval_beta
       INTEGER, OPTIONAL                                  :: homo_beta, my_B_size_beta
-      INTEGER, ALLOCATABLE, DIMENSION(:), OPTIONAL       :: ends_B_virtual_beta, &
-                                                            sizes_B_virtual_beta, &
-                                                            starts_B_virtual_beta
+      TYPE(group_dist_d1_type), OPTIONAL                 :: gd_B_virtual_beta
       INTEGER, OPTIONAL                                  :: my_B_virtual_start_beta, &
                                                             my_B_virtual_end_beta, virtual_beta
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :), &
@@ -5160,19 +4998,11 @@ CONTAINS
          proc_receive = sub_proc_map(para_env_sub%mepos-proc_shift)
          ! Alpha-alpha, beta-beta, closed shell
          IF (.NOT. alpha_beta) THEN
-            rec_B_size = sizes_B_virtual(proc_receive)
-            rec_B_virtual_end = ends_B_virtual(proc_receive)
-            rec_B_virtual_start = starts_B_virtual(proc_receive)
-            send_B_size = sizes_B_virtual(proc_send)
-            send_B_virtual_end = ends_B_virtual(proc_send)
-            send_B_virtual_start = starts_B_virtual(proc_send)
+            CALL get_group_dist(gd_B_virtual, proc_receive, rec_B_virtual_start, rec_B_virtual_end, rec_B_size)
+            CALL get_group_dist(gd_B_virtual, proc_send, send_B_virtual_start, send_B_virtual_end, send_B_size)
          ELSE ! Alpha-beta case
-            rec_B_size = sizes_B_virtual_beta(proc_receive)
-            rec_B_virtual_end = ends_B_virtual_beta(proc_receive)
-            rec_B_virtual_start = starts_B_virtual_beta(proc_receive)
-            send_B_size = sizes_B_virtual_beta(proc_send)
-            send_B_virtual_end = ends_B_virtual_beta(proc_send)
-            send_B_virtual_start = starts_B_virtual_beta(proc_send)
+            CALL get_group_dist(gd_B_virtual_beta, proc_receive, rec_B_virtual_start, rec_B_virtual_end, rec_B_size)
+            CALL get_group_dist(gd_B_virtual_beta, proc_send, send_B_virtual_start, send_B_virtual_end, send_B_size)
          ENDIF
 
          ALLOCATE (external_ab(virtual, rec_B_size))
@@ -5213,12 +5043,8 @@ CONTAINS
             ! For alpha-beta part of alpha-density we need a new parallel code
             DEALLOCATE (external_ab)
             ! And new external_ab (of a different size)
-            rec_B_size = sizes_B_virtual(proc_receive)
-            rec_B_virtual_end = ends_B_virtual(proc_receive)
-            rec_B_virtual_start = starts_B_virtual(proc_receive)
-            send_B_size = sizes_B_virtual(proc_send)
-            send_B_virtual_end = ends_B_virtual(proc_send)
-            send_B_virtual_start = starts_B_virtual(proc_send)
+            CALL get_group_dist(gd_B_virtual, proc_receive, rec_B_virtual_start, rec_B_virtual_end, rec_B_size)
+            CALL get_group_dist(gd_B_virtual, proc_send, send_B_virtual_start, send_B_virtual_end, send_B_size)
             ALLOCATE (external_ab(virtual_beta, rec_B_size))
             external_ab = 0.0_dp
             CALL mp_sendrecv(local_ba(1:virtual_beta, 1:my_B_size), proc_send, &
@@ -5292,13 +5118,9 @@ CONTAINS
          proc_send = sub_proc_map(para_env_sub%mepos+proc_shift)
          proc_receive = sub_proc_map(para_env_sub%mepos-proc_shift)
 
-         rec_B_size = sizes_B_virtual(proc_receive)
-         rec_B_virtual_end = ends_B_virtual(proc_receive)
-         rec_B_virtual_start = starts_B_virtual(proc_receive)
-
-         send_B_size = sizes_B_virtual(proc_send)
-         send_B_virtual_end = ends_B_virtual(proc_send)
-         send_B_virtual_start = starts_B_virtual(proc_send)
+         CALL get_group_dist(gd_B_virtual, proc_receive, rec_B_virtual_start, rec_B_virtual_end, rec_B_size)
+            
+         CALL get_group_dist(gd_B_virtual, proc_send, send_B_virtual_start, send_B_virtual_end, send_B_size)
 
          IF (.NOT. alpha_beta) THEN
             ALLOCATE (send_ab(send_B_size, dimen_RI))
@@ -5338,9 +5160,7 @@ CONTAINS
             proc_send = sub_proc_map(para_env_sub%mepos+proc_shift)
             proc_receive = sub_proc_map(para_env_sub%mepos-proc_shift)
 
-            send_B_size = sizes_B_virtual_beta(proc_send)
-            send_B_virtual_end = ends_B_virtual_beta(proc_send)
-            send_B_virtual_start = starts_B_virtual_beta(proc_send)
+            CALL get_group_dist(gd_B_virtual_beta, proc_send, send_B_virtual_start, send_B_virtual_end, send_B_size)
             ALLOCATE (send_ab(send_B_size, dimen_RI))
             send_ab = 0.0_dp
 
@@ -5368,9 +5188,7 @@ CONTAINS
             proc_send = sub_proc_map(para_env_sub%mepos+proc_shift)
             proc_receive = sub_proc_map(para_env_sub%mepos-proc_shift)
 
-            rec_B_size = sizes_B_virtual(proc_receive)
-            rec_B_virtual_end = ends_B_virtual(proc_receive)
-            rec_B_virtual_start = starts_B_virtual(proc_receive)
+            CALL get_group_dist(gd_B_virtual, proc_receive, rec_B_virtual_start, rec_B_virtual_end, rec_B_size)
 
             ALLOCATE (external_ab(dimen_RI, rec_B_size))
             external_ab = 0.0_dp
@@ -5868,17 +5686,13 @@ CONTAINS
 !> \param my_B_virtual_start ...
 !> \param my_B_virtual_end ...
 !> \param sizes_array ...
-!> \param ends_B_virtual ...
-!> \param sizes_B_virtual ...
-!> \param starts_B_virtual ...
+!> \param gd_B_virtual ...
 !> \param sub_proc_map ...
 !> \param integ_group_pos2color_sub ...
 !> \param local_ab ...
 !> \param BIb_C_beta ...
 !> \param my_B_size_beta ...
-!> \param ends_B_virtual_beta ...
-!> \param sizes_B_virtual_beta ...
-!> \param starts_B_virtual_beta ...
+!> \param gd_B_virtual_beta ...
 !> \param my_B_virtual_start_beta ...
 !> \param virtual_beta ...
 !> \param homo_beta ...
@@ -5889,10 +5703,10 @@ CONTAINS
                                     beta_beta, alpha_beta, Bib_C, unit_nr, dimen_RI, &
                                     my_B_size, ngroup, num_integ_group, my_group_L_size, &
                                     color_sub, ranges_info_array, para_env_exchange, para_env_sub, proc_map, &
-                                    my_B_virtual_start, my_B_virtual_end, sizes_array, ends_B_virtual, sizes_B_virtual, &
-                                    starts_B_virtual, sub_proc_map, integ_group_pos2color_sub, &
+                                    my_B_virtual_start, my_B_virtual_end, sizes_array, gd_B_virtual, &
+                                    sub_proc_map, integ_group_pos2color_sub, &
                                     local_ab, BIb_C_beta, my_B_size_beta, &
-                                    ends_B_virtual_beta, sizes_B_virtual_beta, starts_B_virtual_beta, my_B_virtual_start_beta, &
+                                    gd_B_virtual_beta, my_B_virtual_start_beta, &
                                     virtual_beta, homo_beta, Eigenval_beta, my_B_virtual_end_beta)
       TYPE(mp2_type), POINTER                            :: mp2_env
       REAL(KIND=dp), DIMENSION(:)                        :: Eigenval
@@ -5906,16 +5720,14 @@ CONTAINS
       TYPE(cp_para_env_type), POINTER                    :: para_env_exchange, para_env_sub
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: proc_map
       INTEGER                                            :: my_B_virtual_start, my_B_virtual_end
-      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: sizes_array, ends_B_virtual, &
-                                                            sizes_B_virtual, starts_B_virtual, &
-                                                            sub_proc_map, integ_group_pos2color_sub
+      TYPE(group_dist_d1_type)                           :: gd_B_virtual
+      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: sizes_array, sub_proc_map, &
+                                                            integ_group_pos2color_sub
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: local_ab
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :), &
          OPTIONAL                                        :: BIb_C_beta
       INTEGER, OPTIONAL                                  :: my_B_size_beta
-      INTEGER, ALLOCATABLE, DIMENSION(:), OPTIONAL       :: ends_B_virtual_beta, &
-                                                            sizes_B_virtual_beta, &
-                                                            starts_B_virtual_beta
+      TYPE(group_dist_d1_type), OPTIONAL                 :: gd_B_virtual_beta
       INTEGER, OPTIONAL                                  :: my_B_virtual_start_beta, virtual_beta, &
                                                             homo_beta
       REAL(KIND=dp), DIMENSION(:), OPTIONAL              :: Eigenval_beta
@@ -6170,13 +5982,9 @@ CONTAINS
                   proc_receive = sub_proc_map(para_env_sub%mepos-proc_shift)
 
                   IF (iloops .EQ. 1) THEN
-                     rec_B_size = sizes_B_virtual(proc_receive)
-                     rec_B_virtual_end = ends_B_virtual(proc_receive)
-                     rec_B_virtual_start = starts_B_virtual(proc_receive)
+                     CALL get_group_dist(gd_B_virtual, proc_receive, rec_B_virtual_start, rec_B_virtual_end, rec_B_size)
                   ELSE
-                     rec_B_size = sizes_B_virtual_beta(proc_receive)
-                     rec_B_virtual_end = ends_B_virtual_beta(proc_receive)
-                     rec_B_virtual_start = starts_B_virtual_beta(proc_receive)
+                     CALL get_group_dist(gd_B_virtual_beta, proc_receive, rec_B_virtual_start, rec_B_virtual_end, rec_B_size)
                   ENDIF
 
                   ALLOCATE (external_i_aL(dimen_RI, rec_B_size))
@@ -6235,12 +6043,8 @@ CONTAINS
                   DO proc_shift = 1, para_env_sub%num_pe-1
                      proc_send = sub_proc_map(para_env_sub%mepos+proc_shift)
                      proc_receive = sub_proc_map(para_env_sub%mepos-proc_shift)
-                     rec_B_size = sizes_B_virtual(proc_receive)
-                     rec_B_virtual_end = ends_B_virtual(proc_receive)
-                     rec_B_virtual_start = starts_B_virtual(proc_receive)
-                     send_B_size = sizes_B_virtual(proc_send)
-                     send_B_virtual_end = ends_B_virtual(proc_send)
-                     send_B_virtual_start = starts_B_virtual(proc_send)
+                     CALL get_group_dist(gd_B_virtual, proc_receive, rec_B_virtual_start, rec_B_virtual_end, rec_B_size)
+                     CALL get_group_dist(gd_B_virtual, proc_send, send_B_virtual_start, send_B_virtual_end, send_B_size)
 
                      ALLOCATE (external_ab(size_B_i, rec_B_size))
                      external_ab = 0.0_dp
@@ -6280,13 +6084,9 @@ CONTAINS
                   proc_receive = sub_proc_map(para_env_sub%mepos-proc_shift)
 
                   IF (iloops .EQ. 1) THEN
-                     rec_B_size = sizes_B_virtual(proc_receive)
-                     rec_B_virtual_end = ends_B_virtual(proc_receive)
-                     rec_B_virtual_start = starts_B_virtual(proc_receive)
+                     CALL get_group_dist(gd_B_virtual, proc_receive, rec_B_virtual_start, rec_B_virtual_end, rec_B_size)
                   ELSE
-                     rec_B_size = sizes_B_virtual_beta(proc_receive)
-                     rec_B_virtual_end = ends_B_virtual_beta(proc_receive)
-                     rec_B_virtual_start = starts_B_virtual_beta(proc_receive)
+                     CALL get_group_dist(gd_B_virtual_beta, proc_receive, rec_B_virtual_start, rec_B_virtual_end, rec_B_size)
                   ENDIF
 
                   ALLOCATE (external_i_aL(dimen_RI, rec_B_size))
@@ -8912,33 +8712,20 @@ CONTAINS
       INTEGER                                            :: cut_RI_old, handle, iatom, iblk_RI, &
                                                             icount, icut, itmp(2), natom, &
                                                             nblks_RI, nkind, size_RI, start_RI
-      INTEGER, ALLOCATABLE, DIMENSION(:) :: ends_array_mem_cut, local_atom_RI_tmp, &
+      INTEGER, ALLOCATABLE, DIMENSION(:) :: local_atom_RI_tmp, &
          my_group_L_ends_im_time_tmp, my_group_L_starts_im_time_tmp, row_blk_end_RI, &
-         row_blk_offset_RI, sizes_array_mem_cut, starts_array_mem_cut
+         row_blk_offset_RI
       INTEGER, DIMENSION(:), POINTER                     :: row_blk_sizes_RI
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
+      TYPE(group_dist_d1_type)                           :: gd_array_mem_cut
       TYPE(gto_basis_set_p_type), DIMENSION(:), POINTER  :: basis_set_ri_aux
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
 
       CALL timeset(routineN, handle)
 
-      ALLOCATE (sizes_array_mem_cut(0:cut_memory-1))
-      sizes_array_mem_cut = 0
-      ALLOCATE (starts_array_mem_cut(0:cut_memory-1))
-      starts_array_mem_cut = 0
-      ALLOCATE (ends_array_mem_cut(0:cut_memory-1))
-      ends_array_mem_cut = 0
-
-      DO icut = 0, cut_memory-1
-
-         itmp = get_limit(dimen_RI, cut_memory, icut)
-         starts_array_mem_cut(icut) = itmp(1)
-         ends_array_mem_cut(icut) = itmp(2)
-         sizes_array_mem_cut(icut) = itmp(2)-itmp(1)+1
-
-      END DO
-
+      CALL create_group_dist(gd_array_mem_cut, cut_memory, dimen_RI)
+      
       ALLOCATE (my_group_L_starts_im_time(1:cut_memory))
       my_group_L_starts_im_time = 0
       ALLOCATE (my_group_L_ends_im_time(1:cut_memory))
@@ -8946,8 +8733,7 @@ CONTAINS
 
       DO icut = 0, cut_memory-1
 
-         size_RI = sizes_array_mem_cut(icut)
-         start_RI = starts_array_mem_cut(icut)
+         CALL get_group_dist(gd_array_mem_cut, icut, sizes=size_RI, starts=start_RI)
 
          itmp = get_limit(size_RI, ngroup, color_sub)
 
@@ -9070,7 +8856,7 @@ CONTAINS
       ALLOCATE (qs_env%mp2_env%ri_rpa_im_time_util(1)%my_group_L_sizes_im_time(1:cut_RI))
       qs_env%mp2_env%ri_rpa_im_time_util(1)%my_group_L_sizes_im_time(:) = my_group_L_sizes_im_time(:)
 
-      DEALLOCATE (sizes_array_mem_cut, starts_array_mem_cut, ends_array_mem_cut)
+      CALL release_group_dist(gd_array_mem_cut)
       DEALLOCATE (row_blk_sizes_RI)
 
       CALL timestop(handle)
