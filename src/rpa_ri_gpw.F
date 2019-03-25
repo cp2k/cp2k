@@ -3064,7 +3064,7 @@ CONTAINS
             ELSE
 
                CALL matrix_operations_canonical(fm_mat_S, first_cycle, count_ev_sc_GW, virtual, Eigenval, Eigenval_last, homo, &
-                                                omega, omega_old, jquad, num_integ_points, &
+                                                omega, omega_old, jquad, &
                                                 mm_style, dimen_RI, dimen_ia, alpha, fm_mat_Q, fm_mat_Q_gemm, para_env_RPA, &
                                                 do_bse, fm_mat_Q_static_bse_gemm, RPA_proc_map, buffer_rec, buffer_send, &
                                                 number_of_send, map_send_size, map_rec_size, local_size_source, &
@@ -3072,7 +3072,7 @@ CONTAINS
 
                IF (my_open_shell) THEN
                   CALL matrix_operations_canonical(fm_mat_S_beta, first_cycle, count_ev_sc_GW, virtual_beta, Eigenval_beta, &
-                                                   Eigenval_last_beta, homo_beta, omega, omega_old, jquad, num_integ_points, &
+                                                   Eigenval_last_beta, homo_beta, omega, omega_old, jquad, &
                                                    mm_style, dimen_RI, dimen_ia_beta, alpha, fm_mat_Q_beta, fm_mat_Q_gemm_beta, &
                                                    para_env_RPA, do_bse, fm_mat_Q_static_bse_gemm, RPA_proc_map, buffer_rec_beta, &
                                                    buffer_send_beta, number_of_send_beta, map_send_size_beta, map_rec_size_beta, &
@@ -3454,7 +3454,6 @@ CONTAINS
 !> \param omega ...
 !> \param omega_old ...
 !> \param jquad ...
-!> \param num_integ_points ...
 !> \param mm_style ...
 !> \param dimen_RI ...
 !> \param dimen_ia ...
@@ -3475,18 +3474,18 @@ CONTAINS
 !> \param my_flop_rate ...
 ! **************************************************************************************************
    SUBROUTINE matrix_operations_canonical(fm_mat_S, first_cycle, count_ev_sc_GW, virtual, Eigenval, Eigenval_last, homo, &
-                                          omega, omega_old, jquad, num_integ_points, &
+                                          omega, omega_old, jquad, &
                                           mm_style, dimen_RI, dimen_ia, alpha, fm_mat_Q, fm_mat_Q_gemm, para_env_RPA, &
                                           do_bse, fm_mat_Q_static_bse_gemm, RPA_proc_map, buffer_rec, buffer_send, &
-                                    number_of_send, map_send_size, map_rec_size, local_size_source, my_num_dgemm_call, my_flop_rate)
+                                          number_of_send, map_send_size, map_rec_size, local_size_source, my_num_dgemm_call, &
+                                          my_flop_rate)
       TYPE(cp_fm_type), POINTER                          :: fm_mat_S
       LOGICAL, INTENT(IN)                                :: first_cycle
       INTEGER, INTENT(IN)                                :: count_ev_sc_GW, virtual
       REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: Eigenval, Eigenval_last
       INTEGER, INTENT(IN)                                :: homo
       REAL(KIND=dp), INTENT(IN)                          :: omega, omega_old
-      INTEGER, INTENT(IN)                                :: jquad, num_integ_points, mm_style, &
-                                                            dimen_RI, dimen_ia
+      INTEGER, INTENT(IN)                                :: jquad, mm_style, dimen_RI, dimen_ia
       REAL(KIND=dp), INTENT(IN)                          :: alpha
       TYPE(cp_fm_type), POINTER                          :: fm_mat_Q, fm_mat_Q_gemm
       TYPE(cp_para_env_type), POINTER                    :: para_env_RPA
@@ -3565,7 +3564,7 @@ CONTAINS
          ! SQRT(((epsi_a-epsi_i)**2+omega_old**2)/((epsi_a-epsi_i)**2+omega**2))
 !$OMP PARALLEL DO DEFAULT(NONE) PRIVATE(jjB,iiB,iocc,avirt,eigen_diff,i_global,j_global) &
 !$OMP             SHARED(ncol_local,nrow_local,col_indices,row_indices,Eigenval,&
-!$OMP                    fm_mat_S,virtual,homo,omega,omega_old,jquad,num_integ_points)
+!$OMP                    fm_mat_S,virtual,homo,omega,omega_old,jquad)
          DO jjB = 1, ncol_local
             j_global = col_indices(jjB)
             DO iiB = 1, nrow_local
