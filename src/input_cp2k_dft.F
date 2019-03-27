@@ -96,7 +96,8 @@ MODULE input_cp2k_dft
         xas_2s_type, xas_3d_type, xas_3p_type, xas_3s_type, xas_4d_type, xas_4f_type, xas_4p_type, &
         xas_4s_type, xas_dip_len, xas_dip_vel, xas_dscf, xas_none, xas_tp_fh, xas_tp_flex, &
         xas_tp_hh, xas_tp_xfh, xas_tp_xhh, xes_tp_val, xas_not_excited, xas_tdp_by_kind, &
-        xas_tdp_by_index, tddfpt_spin_cons, tddfpt_spin_flip
+        xas_tdp_by_index, tddfpt_spin_cons, tddfpt_spin_flip, do_hfx_potential_coulomb, &
+        do_hfx_potential_truncated
    USE input_cp2k_almo,                 ONLY: create_almo_scf_section
    USE input_cp2k_distribution,         ONLY: create_distribution_section
    USE input_cp2k_field,                ONLY: create_efield_section,&
@@ -7999,7 +8000,8 @@ CONTAINS
                           variants=(/"SOC"/), &
                           description="Whether spin-orbit coupling should be added. " // &
                                       "Note: only applies for spin-restricted calculations with "//&
-                                      "BOTH singlet and triplet excitations.", &
+                                      "or singlet and triplet excitations OR spin-unrestricted "//&
+                                      "calculations with both spin-conserving and spin-flip.", &
                           usage="SOC {logical}", &
                           default_l_val=.FALSE.)
       CALL section_add_keyword(section, keyword)
@@ -8109,7 +8111,7 @@ CONTAINS
       CALL section_create(subsubsection, name="XC_FUNCTIONAL", &
                           description="The exchange correlation functional(s) to use for the xc " //&
                                      "part of the kernel. Built from any combination of LDA "// &
-                                     "functional from LIBXC. ", &
+                                     "functional from LIBXC.", &
                           n_keywords=0, &
                           n_subsections=1, &
                           repeats=.FALSE.)
@@ -8131,11 +8133,11 @@ CONTAINS
       CALL section_add_subsection(subsection, subsubsection)
       CALL section_release(subsubsection)
 
-!  The EXACT_EXCHANGE subsubsection (TBI)
+!  The EXACT_EXCHANGE subsubsection
       CALL section_create(subsubsection, name="EXACT_EXCHANGE", &
                           description="Whther exact-exchange should be added to the kernel and " //&
                                       "if so, with which scaling.", &
-                          n_keywords=1, &
+                          n_keywords=3, &
                           n_subsections=0, &
                           repeats=.FALSE.)
 
@@ -8147,7 +8149,28 @@ CONTAINS
       CALL section_add_keyword(subsubsection, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="SCALE", &
+      CALL keyword_create(keyword, name="OPERATOR", variants=(/"OP"/), &
+                          description="The type of operator used for exact exchange. The stendard"// &
+                                      "Coulomb operator cannot be used in periodic systems.", &
+                          usage="OPERATOR string", &
+                          repeats=.FALSE., &
+                          default_i_val=do_hfx_potential_coulomb, &
+                          enum_c_vals=s2a("COULOMB", "TC"), &
+                          enum_desc=s2a("Stendard Coulomb operator", "Truncated Coulomb operator"),&
+                          enum_i_vals=(/do_hfx_potential_coulomb, do_hfx_potential_truncated/))
+      CALL section_add_keyword(subsubsection, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, name="RANGE", &
+                          description="The cutoff radius (in Angstrom) for the truncated Coulomb "// &
+                                       "operator. Ignored if OPERATOR is set to COULOMB.", &
+                          usage="RANGE {double}", &
+                          default_r_val=0.0_dp, &
+                          repeats=.FALSE.)
+      CALL section_add_keyword(subsubsection, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, name="SCALE_X", &
                           description="Scaling of the exact exchange contribution.", &
                           default_r_val=1.0_dp)
       CALL section_add_keyword(subsubsection, keyword)
