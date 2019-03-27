@@ -9,34 +9,28 @@
 !> \author AB (11.2017)
 !> *************************************************************************************************
 MODULE xas_tdp_types
-   USE cp_array_utils,                  ONLY: cp_1d_i_p_type,&
-                                              cp_1d_r_p_type,&
-                                              cp_2d_r_p_type
-   USE cp_fm_types,                     ONLY: cp_fm_p_type,&
-                                              cp_fm_release,&
-                                              cp_fm_type
-   USE dbcsr_api,                       ONLY: dbcsr_p_type,&
-                                              dbcsr_release,&
-                                              dbcsr_release_p,&
-                                              dbcsr_type
-   USE input_constants,                 ONLY: ot_mini_cg,&
-                                              ot_mini_diis,&
-                                              tddfpt_singlet,&
-                                              tddfpt_spin_cons,&
-                                              tddfpt_spin_flip,&
-                                              tddfpt_triplet,&
-                                              xas_tdp_by_index,&
-                                              xas_tdp_by_kind
-   USE input_section_types,             ONLY: section_vals_get_subs_vals,&
-                                              section_vals_type,&
-                                              section_vals_val_get
-   USE kinds,                           ONLY: default_string_length,&
-                                              dp
+   USE cp_array_utils,                  ONLY: cp_2d_r_p_type, cp_1d_r_p_type , cp_1d_i_p_type, &
+                                              cp_3d_r_p_type
+   USE cp_fm_types,                     ONLY: cp_fm_type, cp_fm_release, cp_fm_p_type
+   USE dbcsr_api,                       ONLY: dbcsr_type, dbcsr_release, dbcsr_p_type, &
+                                              dbcsr_release_p
+   USE input_constants,                 ONLY: xas_tdp_by_index,&
+                                              xas_tdp_by_kind, &
+                                              tddfpt_singlet, &
+                                              tddfpt_triplet, &
+                                              ot_mini_cg, &
+                                              ot_mini_diis, &
+                                              tddfpt_spin_cons, &
+                                              tddfpt_spin_flip, &
+                                              do_hfx_potential_coulomb
+   USE input_section_types,             ONLY: section_vals_type,&
+                                              section_vals_val_get,&
+                                              section_vals_get_subs_vals
+   USE kinds,                           ONLY: dp ,default_string_length
    USE memory_utilities,                ONLY: reallocate
-   USE qs_grid_atom,                    ONLY: deallocate_grid_atom,&
-                                              grid_atom_type
-   USE qs_harmonics_atom,               ONLY: deallocate_harmonics_atom,&
-                                              harmonics_atom_type
+   USE physcon,                         ONLY: bohr
+   USE qs_grid_atom,                    ONLY: grid_atom_type, deallocate_grid_atom
+   USE qs_harmonics_atom,               ONLY: harmonics_atom_type, deallocate_harmonics_atom
    USE qs_loc_types,                    ONLY: qs_loc_env_new_type,&
                                               qs_loc_env_release
    USE qs_o3c_types,                    ONLY: o3c_container_type,&
@@ -57,6 +51,8 @@ MODULE xas_tdp_types
 !> \param do_hfx whether exact exchange is included
 !> \param do_xc wheter xc functional(s) is(are) included
 !> \param sx the scaling applied to exact exchange
+!> \param x_op the operator used for exact exchange (Coulomb, TC, Sk)
+!> \param x_range the range for exact exchane operator (truncated coulomb or SR)
 !> \param tamm_dancoff whether the calculations should be done in the Tamm-Dancoff approximation
 !> \param list_ex_atoms list of excited atom indices, kept empty if define_excited=by_kind
 !> \param list_ex_kinds list of excited atom kinds, kept empty if define_excited=by_index
@@ -83,6 +79,8 @@ MODULE xas_tdp_types
       INTEGER                                 :: n_excited
       INTEGER                                 :: max_iter
       REAL(dp)                                :: sx
+      REAL(dp)                                :: x_range
+      INTEGER                                 :: x_op
       REAL(dp)                                :: eps_iter
       LOGICAL                                 :: do_hfx
       LOGICAL                                 :: do_xc
@@ -129,7 +127,6 @@ MODULE xas_tdp_types
 !>        contracted spherical gaussians. It can either be in the length or the velocity
 !>        representation. For length representation, it has to be computed once with the origin on
 !>        each excited atom
-!> \param roks_ks_mat the KS combined ROKS matrix, if needed
 !> \param ri_o3c_coul the container for the RI 3-center Coulomb integrals (updated for each ex atom)
 !> \param ri_o3c_ex the container for the RI 3-center exchange integrals (updated for each ex atom)
 !> \param lb_o3c_coul the lower bond of a,b present in the 3-center RI Coulomb integrals (ab|P)
@@ -158,8 +155,7 @@ MODULE xas_tdp_types
          POINTER   :: donor_states
       INTEGER, DIMENSION(:, :, :), POINTER      :: mos_of_ex_atoms
       TYPE(qs_loc_env_new_type), POINTER      :: qs_loc_env
-      REAL(dp), DIMENSION(:, :), POINTER       :: ri_inv_coul
-      TYPE(dbcsr_type), POINTER               :: roks_ks_mat
+      REAL(dp), DIMENSION(:,:), POINTER       :: ri_inv_coul
       TYPE(dbcsr_p_type), DIMENSION(:), &
          POINTER   :: q_projector
       TYPE(dbcsr_p_type), DIMENSION(:), &
@@ -298,6 +294,8 @@ CONTAINS
       xas_tdp_control%do_hfx = .TRUE.
       xas_tdp_control%do_xc = .FALSE.
       xas_tdp_control%sx = 1.0_dp
+      xas_tdp_control%x_range = 0.0_dp
+      xas_tdp_control%x_op = do_hfx_potential_coulomb
       xas_tdp_control%check_only = .FALSE.
       xas_tdp_control%tamm_dancoff = .FALSE.
       xas_tdp_control%do_loc = .FALSE.
@@ -477,8 +475,14 @@ CONTAINS
                                 l_val=xas_tdp_control%do_hfx)
 
       IF (xas_tdp_control%do_hfx) THEN
-         CALL section_vals_val_get(xas_tdp_section, "KERNEL%EXACT_EXCHANGE%SCALE", &
+         CALL section_vals_val_get(xas_tdp_section, "KERNEL%EXACT_EXCHANGE%SCALE_X", &
                                    r_val=xas_tdp_control%sx)
+         CALL section_vals_val_get(xas_tdp_section, "KERNEL%EXACT_EXCHANGE%RANGE", &
+                                   r_val=xas_tdp_control%x_range)
+         !store the range in bohrs
+         xas_tdp_control%x_range = bohr*xas_tdp_control%x_range
+         CALL section_vals_val_get(xas_tdp_section, "KERNEL%EXACT_EXCHANGE%OPERATOR", &
+                                   i_val=xas_tdp_control%x_op)
       END IF
 
       IF ((.NOT. xas_tdp_control%do_xc) .AND. (.NOT. xas_tdp_control%do_hfx)) THEN
@@ -533,7 +537,6 @@ CONTAINS
       NULLIFY (xas_tdp_env%ri_inv_coul)
       NULLIFY (xas_tdp_env%lumo_guess)
       NULLIFY (xas_tdp_env%lumo_evals)
-      NULLIFY (xas_tdp_env%roks_ks_mat)
       NULLIFY (xas_tdp_env%q_projector)
       NULLIFY (xas_tdp_env%dipmat)
       NULLIFY (xas_tdp_env%ri_o3c_coul)
@@ -595,9 +598,6 @@ CONTAINS
                DEALLOCATE (xas_tdp_env%lumo_evals(i)%array)
             END DO
             DEALLOCATE (xas_tdp_env%lumo_evals)
-         END IF
-         IF (ASSOCIATED(xas_tdp_env%roks_ks_mat)) THEN
-            CALL dbcsr_release_p(xas_tdp_env%roks_ks_mat)
          END IF
          IF (ASSOCIATED(xas_tdp_env%q_projector)) THEN
             DO i = 1, SIZE(xas_tdp_env%q_projector)
