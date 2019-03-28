@@ -63,9 +63,21 @@ case "$with_libvdwxc" in
             ./autogen.sh > configure.log 2>&1
             if [ "$MPI_MODE" = "no" ]; then
                 # compile libvdwxc without mpi support since fftw (or mkl) do not have mpi support activated
-                ./configure --prefix="${pkg_install_dir}" --with-fftw3 --disable-shared --without-mpi >> configure.log 2>&1
+                ./configure \
+                    --prefix="${pkg_install_dir}" \
+                    --libdir="${pkg_install_dir}/lib" \
+                    --with-fftw3 \
+                    --disable-shared \
+                    --without-mpi \
+                    >> configure.log 2>&1
             else
-                CC=mpicc FC=mpifort ./configure --prefix="${pkg_install_dir}" --with-fftw3 --disable-shared --with-mpi  >> configure.log 2>&1
+                CC=mpicc FC=mpifort ./configure \
+                    --prefix="${pkg_install_dir}" \
+                    --libdir="${pkg_install_dir}/lib" \
+                    --with-fftw3 \
+                    --disable-shared \
+                    --with-mpi \
+                    >> configure.log 2>&1
             fi
             make -j $NPROCS > compile.log 2>&1
             make install > compile.log 2>&1
