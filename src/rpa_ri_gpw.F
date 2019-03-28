@@ -65,8 +65,10 @@ MODULE rpa_ri_gpw
    USE dbcsr_tensor_api,                ONLY: dbcsr_t_destroy,&
                                               dbcsr_t_type
    USE group_dist_types,                ONLY: group_dist_d1_type, &
+                                              group_dist_d2_type, &
                                               get_group_dist, &
-                                              release_group_dist
+                                              release_group_dist, &
+                                              create_group_dist
    USE input_constants,                 ONLY: wfc_mm_style_gemm,&
                                               wfc_mm_style_syrk
    USE kinds,                           ONLY: dp,&
@@ -984,8 +986,7 @@ CONTAINS
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: iii_vet, index_col_rec, map_rec_size, &
                                                             map_send_size, req_send, RPA_proc_map
       INTEGER, ALLOCATABLE, DIMENSION(:, :) :: blocks_ranges_col, blocks_ranges_row, grid_2_mepos, &
-         grid_ref_2_send_pos, group_grid_2_mepos, mepos_2_grid, RPA_info_end, RPA_info_size, &
-         RPA_info_start
+         grid_ref_2_send_pos, group_grid_2_mepos, mepos_2_grid
       INTEGER, DIMENSION(:), POINTER                     :: col_indices, row_indices
       LOGICAL                                            :: my_beta_case, my_blacs_ext, &
                                                             my_blacs_S_ext, my_do_im_time, &
@@ -995,6 +996,7 @@ CONTAINS
       TYPE(cp_blacs_env_type), POINTER                   :: blacs_env, blacs_env_Q
       TYPE(cp_fm_struct_type), POINTER                   :: fm_struct
       TYPE(cp_para_env_type), POINTER                    :: para_env_exchange
+      TYPE(group_dist_d2_type)                           :: gd_RPA_info
       TYPE(integ_mat_buffer_type), ALLOCATABLE, &
          DIMENSION(:)                                    :: buffer_rec, buffer_send
 
@@ -1132,25 +1134,8 @@ CONTAINS
          END DO
 
          ! create the info array, first index: 1-> L info, 2-> ia info
-         ALLOCATE (RPA_info_start(2, 0:para_env_RPA%num_pe-1))
-         RPA_info_start = 0
-         ALLOCATE (RPA_info_end(2, 0:para_env_RPA%num_pe-1))
-         RPA_info_end = 0
-         ALLOCATE (RPA_info_size(2, 0:para_env_RPA%num_pe-1))
-         RPA_info_size = 0
-
-         RPA_info_start(1, para_env_RPA%mepos) = my_group_L_start
-         RPA_info_start(2, para_env_RPA%mepos) = my_ia_start
-
-         RPA_info_end(1, para_env_RPA%mepos) = my_group_L_end
-         RPA_info_end(2, para_env_RPA%mepos) = my_ia_end
-
-         RPA_info_size(1, para_env_RPA%mepos) = my_group_L_size
-         RPA_info_size(2, para_env_RPA%mepos) = my_ia_size
-
-         CALL mp_sum(RPA_info_start, para_env_RPA%group)
-         CALL mp_sum(RPA_info_end, para_env_RPA%group)
-         CALL mp_sum(RPA_info_size, para_env_RPA%group)
+         CALL create_group_dist(gd_RPA_info, my_group_L_start, my_group_L_end, my_group_L_size, &
+                                my_ia_start, my_ia_end, my_ia_size, para_env_RPA)
 
          IF (.TRUE.) THEN
             CALL timeset(routineN//"_comm", handle2)
@@ -1417,9 +1402,8 @@ CONTAINS
                IF (map_rec_size(proc_receive) > 0) THEN
                   rec_counter = rec_counter+1
 
-                  rec_L_size = RPA_info_size(1, proc_receive)
-                  rec_L_start = RPA_info_start(1, proc_receive)
-                  rec_L_end = RPA_info_end(1, proc_receive)
+                  CALL get_group_dist(gd_RPA_info, proc_receive, rec_L_start, rec_L_end, rec_L_size, &
+                                      rec_ia_start, rec_ia_end, rec_ia_size)
                   ! precompute the number of received columns and relative index
                   num_rec_cols = 0
                   DO jjB = 1, my_num_col_blocks
@@ -1443,9 +1427,6 @@ CONTAINS
                      END DO
                   END DO
 
-                  rec_ia_size = RPA_info_size(2, proc_receive)
-                  rec_ia_start = RPA_info_start(2, proc_receive)
-                  rec_ia_end = RPA_info_end(2, proc_receive)
 
                   ! wait for the message
                   CALL mp_wait(buffer_rec(rec_counter)%msg_req)
@@ -1544,13 +1525,8 @@ CONTAINS
                proc_send = RPA_proc_map(para_env_RPA%mepos+proc_shift)
                proc_receive = RPA_proc_map(para_env_RPA%mepos-proc_shift)
 
-               rec_L_size = RPA_info_size(1, proc_receive)
-               rec_L_start = RPA_info_start(1, proc_receive)
-               rec_L_end = RPA_info_end(1, proc_receive)
-
-               rec_ia_size = RPA_info_size(2, proc_receive)
-               rec_ia_start = RPA_info_start(2, proc_receive)
-               rec_ia_end = RPA_info_end(2, proc_receive)
+               CALL get_group_dist(gd_RPA_info, proc_receive, rec_L_start, rec_L_end, rec_L_size, &
+                                   rec_ia_start, rec_ia_end, rec_ia_size)
 
                ALLOCATE (BIb_C_rec(rec_ia_size, rec_L_size))
                BIb_C_rec = 0.0_dp
@@ -1582,9 +1558,7 @@ CONTAINS
          END IF
 
          ! deallocaete the info array
-         DEALLOCATE (RPA_info_start)
-         DEALLOCATE (RPA_info_end)
-         DEALLOCATE (RPA_info_size)
+         CALL release_group_dist(gd_RPA_info)
 
          ! mp_sum the local data across processes belonging to different RPA group.
          ! first create the para_env then mp_sum

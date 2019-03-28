@@ -2434,7 +2434,7 @@ CONTAINS
          proc_map(para_env_exchange%num_pe+i) = i
       END DO
       
-      CALL create_group_dist(gd_sub_array, para_env_exchange%num_pe, my_group_L_size, &
+      CALL create_group_dist(gd_sub_array, my_group_L_size, &
                              my_group_L_end, my_group_L_start, para_env)
 
       ! create the full matrix L defined in the L group
@@ -2483,7 +2483,7 @@ CONTAINS
             proc_send = proc_map(para_env_exchange%mepos+proc_shift)
             proc_receive = proc_map(para_env_exchange%mepos-proc_shift)
 
-            CALL get_group_dist(gd_sub_array, proc_receive , rec_L_start, rec_L_end, rec_L_size)
+            CALL get_group_dist(gd_sub_array, proc_receive, rec_L_start, rec_L_end, rec_L_size)
 
             ALLOCATE (L_external_col(dimen_RI, rec_L_size))
             L_external_col = 0.0_dp
