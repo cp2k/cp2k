@@ -663,21 +663,25 @@ CONTAINS
 
             DO j_mem = 1, cut_memory
 
+               CALL timeset(routineN//"_calc_M", handle5)
                CALL replicate_dm_to_subgroup(para_env, para_env_sub, mat_dm_virt_global, nmo, jquad, &
                                              mat_dm_loc_virt_cut, starts_array_cm_mao_virt, ends_array_cm_mao_virt, &
                                              j_mem, cut_memory, cut_RI, non_zero_blocks_3c, &
                                              non_zero_blocks_3c_cut_col, multiply_needed_virt, do_kpoints_cubic_RPA, &
                                              cell_to_index_3c, index_to_cell_dm)
+               CALL timestop(handle5)
 
                DO i_mem = 1, cut_memory
 
                   IF (cycle_due_to_sparse_dm(i_mem, j_mem, jquad) .AND. do_Gamma_RPA) CYCLE
 
+                  CALL timeset(routineN//"_calc_M", handle5)
                   CALL replicate_dm_to_subgroup(para_env, para_env_sub, mat_dm_occ_global, nmo, jquad, &
                                                 mat_dm_loc_occ_cut, starts_array_cm_mao_occ, ends_array_cm_mao_occ, &
                                                 i_mem, cut_memory, cut_RI, non_zero_blocks_3c, &
                                                 non_zero_blocks_3c_cut_col, multiply_needed_occ, do_kpoints_cubic_RPA, &
                                                 cell_to_index_3c, index_to_cell_dm)
+                  CALL timestop(handle5)
 
                   DO i_cell_R_1 = 1, num_3c_repl
 
@@ -716,7 +720,7 @@ CONTAINS
                                                      ! last_row=ends_array_cm(i_mem), &
                                                      ! first_column=(starts_array_cm(j_mem)-1)*my_group_L_size+1, &
                                                      ! last_column=ends_array_cm(j_mem)*my_group_L_size, &
-                                                     filter_eps=eps_filter*SQRT(REAL(my_group_L_size, KIND=dp)), &
+                                                     filter_eps=eps_filter, &
                                                      flop=flop_occ)
 
                               END IF
@@ -746,7 +750,7 @@ CONTAINS
                                                      ! last_row=ends_array_cm(j_mem), &
                                                      ! first_column=(starts_array_cm(i_mem)-1)*my_group_L_size+1, &
                                                      ! last_column=ends_array_cm(i_mem)*my_group_L_size, &
-                                                     filter_eps=eps_filter*SQRT(REAL(my_group_L_size, KIND=dp)), &
+                                                     filter_eps=eps_filter, &
                                                      flop=flop_virt)
 
                               END IF
@@ -818,7 +822,8 @@ CONTAINS
                         ! P_RT = sum_mu sigma M^occ_P_mu_sigma M^virt_R_mu_sigma
                         CALL dbcsr_multiply("N", "T", 1.0_dp, mat_M_P_munu_occ%matrix, mat_M_P_munu_virt%matrix, &
                                             0.0_dp, mat_P_local%matrix, &
-                                            filter_eps=eps_filter_im_time/REAL(cut_memory, KIND=dp), &
+                                            filter_eps= &
+                                            eps_filter_im_time/REAL(cut_memory**2*(para_env%num_pe/group_size_P), KIND=dp), &
                                             flop=num_flops_mat_P)
 
                         IF (first_cycle_im_time .AND. memory_info) THEN
@@ -838,10 +843,10 @@ CONTAINS
 
                         CALL mp_sync(para_env%group)
 
-                        CALL timestop(handle5)
-
                         CALL fill_mat_P_global_from_mat_P_local(mat_P_global, mat_P_global_copy, mat_P_local, para_env, &
                                                                 eps_filter_im_time)
+
+                        CALL timestop(handle5)
 
                         IF (do_ri_sos_laplace_mp2) THEN
                            ! For RI-SOS-Laplace-MP2 we do not perform a cosine transform,
