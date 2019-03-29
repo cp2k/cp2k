@@ -1,4 +1,4 @@
-&GLOBAL                                                                                           
+&GLOBAL
   PROJECT  RI_RPA_H2O
   PRINT_LEVEL MEDIUM
   RUN_TYPE ENERGY
@@ -58,6 +58,7 @@
         ERI_METHOD OS
         IM_TIME
         &IM_TIME
+          DO_DBCSR_T .FALSE.
           GW
           GROUP_SIZE_3c 1
           GROUP_SIZE_P 1
@@ -71,11 +72,11 @@
             &END SCREENING
           &END HF
           RPA_NUM_QUAD_POINTS 10
-          MINIMAX 
+          MINIMAX
           &RI_G0W0
             CORR_MOS_OCC          10
             CORR_MOS_VIRT         10
-          &END RI_G0W0 
+          &END RI_G0W0
         &END RI_RPA
         MEMORY  200.
         NUMBER_PROC  1

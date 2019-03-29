@@ -1,4 +1,4 @@
-&GLOBAL                                                                                           
+&GLOBAL
   PROJECT  RPA_H2O_kpoints
   PRINT_LEVEL MEDIUM
   RUN_TYPE ENERGY
@@ -56,6 +56,7 @@
         NUMBER_PROC  1
         IM_TIME
         &IM_TIME
+          DO_DBCSR_T .FALSE.
           MEMORY_CUT 2
           GROUP_SIZE_3C 2
           MEMORY_INFO
