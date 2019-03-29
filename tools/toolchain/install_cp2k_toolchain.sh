@@ -140,10 +140,6 @@ The --with-PKG options follow the rules:
 
   --with-gcc              The GCC compiler to use to compile CP2K
                           Default = system
-  --with-binutils         GNU binutils
-                          Default = system
-  --with-make             GNU make
-                          Default = system
   --with-cmake            Cmake utilities, required for building ParMETIS
                           Default = no
   --with-valgrind         Valgrind memory debugging tool, only used for
@@ -261,7 +257,7 @@ EOF
 # PACKAGE LIST: register all new dependent tools and libs here. Order
 # is important, the first in the list gets installed first
 # ------------------------------------------------------------------------
-tool_list="binutils lcov valgrind make cmake gcc"
+tool_list="lcov valgrind cmake gcc"
 mpi_list="mpich openmpi"
 math_list="mkl acml openblas reflapack"
 lib_list="fftw libint libxc libsmm libxsmm scalapack elpa \
@@ -279,9 +275,7 @@ done
 # ------------------------------------------------------------------------
 
 # tools to turn on by default:
-with_binutils=__SYSTEM__
 with_gcc=__SYSTEM__
-with_make=__SYSTEM__
 
 # libs to turn on by default, the math and mpi libraries are chosen by there respective modes:
 with_fftw=__INSTALL__
@@ -499,12 +493,6 @@ while [ $# -ge 1 ] ; do
             ;;
         --with-gcc*)
             with_gcc=$(read_with $1)
-            ;;
-        --with-binutils*)
-            with_binutils=$(read_with $1)
-            ;;
-        --with-make*)
-            with_make=$(read_with $1)
             ;;
         --with-cmake*)
             with_cmake=$(read_with $1)
