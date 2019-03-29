@@ -39,8 +39,6 @@ cd /opt/cp2k-toolchain/
 ./install_cp2k_toolchain.sh  \
     --mpi-mode=no            \
     --with-gcc=system        \
-    --with-binutils=system   \
-    --with-make=system       \
     --with-cmake=system      \
     --with-fftw=system       \
     --with-openblas=system   \
