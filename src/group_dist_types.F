@@ -64,7 +64,7 @@ MODULE group_dist_types
 
 CONTAINS
 
-   SUBROUTINE create_group_dist_d0(this, ngroups, dimen, pos)
+   PURE SUBROUTINE create_group_dist_d0(this, ngroups, dimen, pos)
       TYPE(group_dist_d1_type), INTENT(INOUT) :: this
       INTEGER, INTENT(IN)                   :: ngroups, dimen, pos
 
@@ -79,7 +79,7 @@ CONTAINS
       
    END SUBROUTINE create_group_dist_d0
 
-   SUBROUTINE create_group_dist_d1_i1(this, ngroups, dimen)
+   PURE SUBROUTINE create_group_dist_d1_i1(this, ngroups, dimen)
       TYPE(group_dist_d1_type), INTENT(INOUT) :: this
       INTEGER, INTENT(IN)                   :: ngroups, dimen
 
