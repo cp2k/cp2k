@@ -33,7 +33,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 # build toolchain
 WORKDIR /opt/cp2k-toolchain
 COPY . /opt/cp2k-toolchain
-RUN ./install_cp2k_toolchain.sh --install-all --with-binutils=system --with-cmake=system --with-make=system \
+RUN ./install_cp2k_toolchain.sh --install-all --with-cmake=system \
     && rm -rf ./build
 
 # configure shell
