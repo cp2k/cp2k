@@ -13,6 +13,7 @@ apt-get install -y --no-install-recommends \
     python-pip            \
     python-dev            \
     postgresql            \
+    rabbitmq-server       \
     sudo                  \
     ssh
 rm -rf /var/lib/apt/lists/*
