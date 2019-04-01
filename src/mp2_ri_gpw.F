@@ -363,10 +363,6 @@ CONTAINS
       TYPE(two_dim_real_array), ALLOCATABLE, &
          DIMENSION(:)                                    :: mao_coeff_repl_occ, mao_coeff_repl_virt
 
-!INTEGER, ALLOCATABLE, DIMENSION(:,:)               :: eri_offsets
-
-      !INTEGER, ALLOCATABLE, DIMENSION(:)                 :: nblk_RI_offset
-
       CALL timeset(routineN, handle)
 
       CALL cite_reference(DelBen2013)
@@ -900,20 +896,17 @@ CONTAINS
             ALLOCATE (local_atoms_for_mao_basis(natom))
             local_atoms_for_mao_basis = 0
 
-            MARK_USED(mat_munu_mao_virt_occ)
-            MARK_USED(mat_munu_mao_occ_virt)
+            CALL reserve_blocks_3c(mat_3c_overl_int_mao_for_occ, mat_munu_mao_occ_virt, qs_env, &
+                                   dimen_RI, cut_RI, unit_nr, &
+                                   my_group_L_starts_im_time, my_group_L_ends_im_time, &
+                                   my_group_L_sizes_im_time, sab_orb_sub, sab_orb_all, para_env, num_diff_blk, &
+                                   local_atoms_for_mao_basis=local_atoms_for_mao_basis)
 
-            !CALL reserve_blocks_3c(mat_3c_overl_int_mao_for_occ, mat_munu_mao_occ_virt, qs_env, &
-            !                       dimen_RI, cut_RI, unit_nr, &
-            !                       my_group_L_starts_im_time, my_group_L_ends_im_time, &
-            !                       my_group_L_sizes_im_time, sab_orb_sub, sab_orb_all, para_env, num_diff_blk, &
-            !                       local_atoms_for_mao_basis=local_atoms_for_mao_basis)
-
-            !CALL reserve_blocks_3c(mat_3c_overl_int_mao_for_virt, mat_munu_mao_virt_occ, qs_env, &
-            !                       dimen_RI, cut_RI, unit_nr, &
-            !                       my_group_L_starts_im_time, my_group_L_ends_im_time, &
-            !                       my_group_L_sizes_im_time, sab_orb_sub, sab_orb_all, para_env, num_diff_blk, &
-            !                       local_atoms_for_mao_basis=local_atoms_for_mao_basis)
+            CALL reserve_blocks_3c(mat_3c_overl_int_mao_for_virt, mat_munu_mao_virt_occ, qs_env, &
+                                   dimen_RI, cut_RI, unit_nr, &
+                                   my_group_L_starts_im_time, my_group_L_ends_im_time, &
+                                   my_group_L_sizes_im_time, sab_orb_sub, sab_orb_all, para_env, num_diff_blk, &
+                                   local_atoms_for_mao_basis=local_atoms_for_mao_basis)
 
             CALL replicate_mao_coeff(mao_coeff_repl_occ, mao_coeff_occ, local_atoms_for_mao_basis, natom, para_env)
 
@@ -948,7 +941,6 @@ CONTAINS
 
                   CALL dbcsr_t_copy(t_3c_overl_int(i, j), t_3c_O(i, j), move_data=.TRUE.)
                   CALL dbcsr_t_filter(t_3c_O(i, j), qs_env%mp2_env%mp2_gpw%eps_filter)
-                  !PRINT *, "COMPARING CHECKSUMS", dbcsr_t_checksum(t_3c_overl_int(i,j)), dbcsr_t_checksum(t_3c_O(i,j))
                   CALL dbcsr_t_destroy(t_3c_overl_int(i, j))
                ENDDO
             ENDDO
@@ -1266,16 +1258,15 @@ CONTAINS
       CHARACTER(LEN=*), PARAMETER :: routineN = 'contract_B_L', routineP = moduleN//':'//routineN
       LOGICAL, PARAMETER                                 :: debug = .FALSE.
 
-      INTEGER                                            :: check_proc, handle, i, iend, ierr, ii, &
-                                                            ioff, iproc, iproc_glob, istart, &
-                                                            loc_a, loc_P, nproc, nproc_glob
+      INTEGER                                            :: check_proc, handle, i, iend, ii, ioff, &
+                                                            iproc, iproc_glob, istart, loc_a, &
+                                                            loc_P, nproc, nproc_glob
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: block_ind_L_P, block_ind_L_R
       INTEGER, DIMENSION(1)                              :: dist_B_i, map_B_1, map_L_1, map_L_2, &
                                                             sizes_i
       INTEGER, DIMENSION(2)                              :: map_B_2, pdims_L
       INTEGER, DIMENSION(3)                              :: pdims_B
-      LOGICAL, DIMENSION(3)                              :: period_2d, period_3d
-      LOGICAL                                            :: found, reorder
+      LOGICAL                                            :: found
       INTEGER, DIMENSION(ngroup)                         :: dist_L_P, dist_L_R
       INTEGER, DIMENSION(para_env_sub%num_pe)            :: dist_B_a
       TYPE(dbcsr_t_distribution_type)                    :: dist_B, dist_L
@@ -1322,11 +1313,6 @@ CONTAINS
       ! (R|P) on process grid NG x Nw
       pdims_B = [ngroup, nproc, 1]
       pdims_L = [nproc, ngroup]
-
-      reorder = .FALSE.
-      period_3d = .FALSE.
-      period_2d = .FALSE.
-      ierr = 0
 
       CALL dbcsr_t_pgrid_create(mp_comm, pdims_B, mp_comm_B)
       CALL dbcsr_t_pgrid_create(mp_comm, pdims_L, mp_comm_L)
@@ -1398,7 +1384,6 @@ CONTAINS
                             map_1=[2, 3], map_2=[1], optimize_dist=.TRUE.)
 
       ! retrieve local block of contraction result (P|ai)
-      !CALL dbcsr_t_split_copyback(tB_out_split, tB_out)
       CALL dbcsr_t_copy(tB_out_split, tB_out)
 
       CALL dbcsr_t_get_block(tB_out, [loc_P, loc_a, 1], SHAPE(BIb_C), BIb_C, found)
@@ -7746,8 +7731,6 @@ CONTAINS
                CALL get_iterator_info(nl_iterator, &
                                       iatom=iatom, jatom=jatom, r=rab, cell=cell_vec)
 
-               !PRINT *, "nl", atom_RI, iatom, jatom
-
                DO i_img_outer = 1, nimg
                   DO j_img_outer = 1, nimg
 
@@ -8863,14 +8846,6 @@ CONTAINS
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
 
-!bcount, fa, la, &
-!   fa_offset, la_offset, a
-!INTEGER, DIMENSION(2)                              :: group_limits
-!INTEGER, DIMENSION(0:ngroup - 1)            :: first_atom, last_atom, nblk_RI
-!INTEGER, DIMENSION(:), ALLOCATABLE          :: nblk_RI_offset
-
-      !INTEGER, ALLOCATABLE, DIMENSION(:,:), INTENT(OUT)  :: eri_offsets
-
       CALL timeset(routineN, handle)
 
       ALLOCATE (sizes_array_mem_cut(0:cut_memory-1))
@@ -8936,39 +8911,6 @@ CONTAINS
 
       ALLOCATE (row_blk_sizes_RI_t(natom))
       row_blk_sizes_RI_t(:) = row_blk_sizes_RI(:)
-
-      !CALL get_eri_offsets(qs_env, "RI_AUX", eri_offsets)
-
-      !ALLOCATE(nblk_RI_offset(0:ngroup-1))
-      !DO igroup = 0, ngroup - 1
-      !   group_limits = get_limit(dimen_RI, ngroup, igroup)
-      !   first_atom(igroup) = eri_offsets(group_limits(1), 1)
-      !   last_atom(igroup) = eri_offsets(group_limits(2), 1)
-      !   nblk_RI(igroup) = last_atom(igroup) - first_atom(igroup) + 1
-      !   IF (igroup == 0) THEN
-      !      nblk_RI_offset(igroup) = 0
-      !   ELSE
-      !      nblk_RI_offset(igroup) = nblk_RI_offset(igroup - 1) + nblk_RI(igroup - 1)
-      !   ENDIF
-      !ENDDO
-
-      !ALLOCATE(row_blk_sizes_RI_t(SUM(nblk_RI))
-      !ALLOCATE(row_dist_RI_t(SUM(nblk_RI)))
-
-      !bcount = 0
-      !DO igroup = 0, ngroup = 1
-      !   group_limits = get_limit(dimen_RI, ngroup, igroup)
-      !   fa = first_atom(igroup); la = last_atom(igroup)
-      !   fa_offset = eri_offsets(group_limits(1), 4)
-      !   la_offset = eri_offsets(group_limits(2), 4)
-      !   row_blk_sizes_RI_t(bcount + 1) = row_blk_sizes_RI(bcount + 1) - fa_offset + 1
-      !   DO a = fa + 1, la - 1
-      !      row_blk_sizes_RI_t(bcount + 1 + a - fa) = row_blk_sizes_RI(a)
-      !   ENDDO
-      !   row_blk_sizes_RI_t(bcount + 1 + la - fa) = la_offset
-      !   row_dist_RI_t(bcount + 1:bcount + 1 + la - fa) = igroup
-      !   bcount = bcount + 1 + la - fa
-      !ENDDO
 
       ! check whether my_group_L_im_time covers different atoms. In this case, cut my_group_L_im_time
       ! especially improves memory a bit
