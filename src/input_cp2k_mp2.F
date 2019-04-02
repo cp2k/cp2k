@@ -1008,16 +1008,6 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="CONTOUR_DEF_END", &
-                          variants=(/"CD_END"/), &
-                          description="Number of the highest MO for which contour deformation (CD) is enabled and "// &
-                          "analytic continuation is disabled. If negative, CD is disabled. CD not implemented for cubic-"// &
-                          "scaling GW.", &
-                          usage="CD_END 100", &
-                          default_i_val=-1)
-      CALL section_add_keyword(section, keyword)
-      CALL keyword_release(keyword)
-
       CALL keyword_create(keyword, name="NUM_OMEGA_POINTS", &
                           description="Number of Clenshaw-Curtis integration points for the periodic correction in cubic- "// &
                           "scaling GW. This variable is a dummy variable for canonical N^4 GW calculations.", &
