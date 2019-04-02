@@ -68,7 +68,7 @@ MODULE mp2_ri_gpw
         dbcsr_t_distribution_destroy, dbcsr_t_distribution_new, dbcsr_t_distribution_type, &
         dbcsr_t_filter, dbcsr_t_get_block, dbcsr_t_get_stored_coordinates, dbcsr_t_pgrid_create, &
         dbcsr_t_pgrid_destroy, dbcsr_t_pgrid_type, dbcsr_t_put_block, dbcsr_t_reserve_blocks, &
-        dbcsr_t_set, dbcsr_t_split_blocks, dbcsr_t_type, mp_environ_pgrid
+        dbcsr_t_split_blocks, dbcsr_t_type, mp_environ_pgrid
    USE gaussian_gridlevels,             ONLY: gaussian_gridlevel
    USE input_constants,                 ONLY: do_eri_gpw,&
                                               do_eri_mme,&
@@ -853,7 +853,7 @@ CONTAINS
             CALL reserve_blocks_3c_t(t_3c_overl_int, mp_comm_t3c_overl, &
                                      ngroup_im_time, mat_munu, qs_env, &
                                      unit_nr, local_atoms_RI, row_blk_sizes_RI_t, row_dist_RI_t, &
-                                     sab_orb_sub, sab_orb_all, para_env, num_diff_blk)
+                                     sab_orb_sub, sab_orb_all, para_env)
          ELSE
             CALL reserve_blocks_3c(mat_3c_overl_int, &
                                    mat_munu, qs_env, &
@@ -920,8 +920,7 @@ CONTAINS
                                           mat_munu, &
                                           qs_env, &
                                           local_atoms_RI, &
-                                          sab_orb_sub, sab_orb_all, &
-                                          num_diff_blk)
+                                          sab_orb_sub, sab_orb_all)
          ELSE
             CALL compute_3c_overlap_int(mat_3c_overl_int, &
                                         mat_3c_overl_int_mao_for_occ, &
@@ -939,7 +938,7 @@ CONTAINS
             DO i = 1, SIZE(t_3c_overl_int, 1)
                DO j = 1, SIZE(t_3c_overl_int, 2)
 
-                  CALL dbcsr_t_copy(t_3c_overl_int(i, j), t_3c_O(i, j), move_data=.TRUE.)
+                  CALL dbcsr_t_copy(t_3c_overl_int(i, j), t_3c_O(i, j), order=[1, 3, 2], move_data=.TRUE.)
                   CALL dbcsr_t_filter(t_3c_O(i, j), qs_env%mp2_env%mp2_gpw%eps_filter)
                   CALL dbcsr_t_destroy(t_3c_overl_int(i, j))
                ENDDO
@@ -6478,10 +6477,9 @@ CONTAINS
 !> \param local_atoms_RI ...
 !> \param sab_orb_sub ...
 !> \param sab_orb_all ...
-!> \param num_diff_blk ...
 ! **************************************************************************************************
    SUBROUTINE compute_3c_overlap_int_t(t_3c_overl_int, filter_eps, mat_munu, qs_env, local_atoms_RI, &
-                                       sab_orb_sub, sab_orb_all, num_diff_blk)
+                                       sab_orb_sub, sab_orb_all)
 
       TYPE(dbcsr_t_type), ALLOCATABLE, DIMENSION(:, :), &
          INTENT(INOUT)                                   :: t_3c_overl_int
@@ -6491,19 +6489,16 @@ CONTAINS
       INTEGER, DIMENSION(:), INTENT(IN)                  :: local_atoms_RI
       TYPE(neighbor_list_set_p_type), DIMENSION(:), &
          POINTER                                         :: sab_orb_sub, sab_orb_all
-      INTEGER                                            :: num_diff_blk
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'compute_3c_overlap_int_t', &
          routineP = moduleN//':'//routineN
 
       INTEGER :: acell, atom_RI, bcell, block_end_col, block_end_RI, block_end_row, &
          block_start_col, block_start_RI, block_start_row, col, handle, handle2, i_img, iatom, &
-         iatom_outer, iatom_RI, iblk_send, ikind, img_col, img_row, iset, j_img, jatom, &
-         jatom_outer, jkind, jset, kind_RI, maxval_1, maxval_2, maxval_3, mepos, minval_1, &
-         minval_2, minval_3, natom, nco_RI, ncoa, ncob, nimg, nset_RI, nseta, nsetb, nthread, row, &
-         set_RI, sgf_RI, sgfa, sgfb
+         iatom_outer, iatom_RI, ikind, img_col, img_row, iset, j_img, jatom, jatom_outer, jkind, &
+         jset, kind_RI, maxval_1, maxval_2, maxval_3, minval_1, minval_2, minval_3, natom, nco_RI, &
+         ncoa, ncob, nimg, nset_RI, nseta, nsetb, row, set_RI, sgf_RI, sgfa, sgfb
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: kind_of
-      INTEGER, ALLOCATABLE, DIMENSION(:, :)              :: indices_for_uncommon_blocks
       INTEGER, DIMENSION(3)                              :: bcellvec, blk_size, cell_vec, &
                                                             outer_cell_vec, size_cell_to_index
       INTEGER, DIMENSION(:), POINTER :: col_blk_sizes, l_max_RI, l_min_RI, la_max, la_min, lb_max, &
@@ -6511,7 +6506,8 @@ CONTAINS
       INTEGER, DIMENSION(:, :), POINTER                  :: first_sgf_RI, first_sgfa, first_sgfb
       INTEGER, DIMENSION(:, :, :), POINTER               :: cell_to_index
       LOGICAL                                            :: debug, do_kpoints_cubic_RPA, found
-      REAL(KIND=dp)                                      :: dab, daRI, dbRI, prefac
+      REAL(KIND=dp)                                      :: dab, daRI, dbRI, kind_radius_a, &
+                                                            kind_radius_b, kind_radius_RI, prefac
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: block_t, dummy_block_t, s_abRI, &
                                                             s_abRI_contr
       REAL(KIND=dp), DIMENSION(3)                        :: rab, rab_outer, raRI, rbRI
@@ -6526,8 +6522,6 @@ CONTAINS
       TYPE(neighbor_list_iterator_p_type), &
          DIMENSION(:), POINTER                           :: nl_iterator, nl_iterator_outer
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
-      TYPE(two_dim_real_array), ALLOCATABLE, &
-         DIMENSION(:)                                    :: blocks_to_send_around
 
       CALL timeset(routineN, handle)
 
@@ -6541,9 +6535,6 @@ CONTAINS
                       natom=natom, kpoints=kpoints, dft_control=dft_control)
 
       do_kpoints_cubic_RPA = qs_env%mp2_env%ri_rpa_im_time%do_im_time_kpoints
-      IF (do_kpoints_cubic_RPA) THEN
-         CPABORT("k points not yet implemented with DBCSR tensors")
-      ENDIF
 
       IF (do_kpoints_cubic_RPA) THEN
          ! No MAOs kpoints
@@ -6553,10 +6544,6 @@ CONTAINS
          size_cell_to_index(2) = SIZE(cell_to_index, 2)
          size_cell_to_index(3) = SIZE(cell_to_index, 3)
          ! 1: row, 2: col, 3: i_img, 4: j_img, 5: cut_RI, 6: proc_to_send
-         ALLOCATE (indices_for_uncommon_blocks(num_diff_blk, 6))
-         indices_for_uncommon_blocks(:, :) = 0
-         ALLOCATE (blocks_to_send_around(num_diff_blk))
-         iblk_send = 0
          minval_1 = MINVAL(kpoints%index_to_cell(1, :))
          maxval_1 = MAXVAL(kpoints%index_to_cell(1, :))
          minval_2 = MINVAL(kpoints%index_to_cell(2, :))
@@ -6591,9 +6578,9 @@ CONTAINS
          set_radius_RI => basis_set_RI%set_radius
          sphi_RI => basis_set_RI%sphi
          zet_RI => basis_set_RI%zet
+         kind_radius_RI = basis_set_RI%kind_radius
 
          CALL neighbor_list_iterator_create(nl_iterator_outer, sab_orb_all)
-
          DO WHILE (neighbor_list_iterate(nl_iterator_outer) == 0)
 
             CALL get_iterator_info(nl_iterator_outer, &
@@ -6602,20 +6589,13 @@ CONTAINS
 
             IF (iatom_outer .NE. atom_RI .AND. jatom_outer .NE. atom_RI) CYCLE
 
-            nthread = 1
-
-            CALL neighbor_list_iterator_create(nl_iterator, sab_orb_sub, nthread=nthread)
-
-            mepos = 0
-
-            DO WHILE (neighbor_list_iterate(nl_iterator, mepos=mepos) == 0)
-
-               CALL get_iterator_info(nl_iterator, mepos=mepos, &
+            CALL neighbor_list_iterator_create(nl_iterator, sab_orb_sub)
+            DO WHILE (neighbor_list_iterate(nl_iterator) == 0)
+               CALL get_iterator_info(nl_iterator, &
                                       iatom=iatom, jatom=jatom, r=rab, &
                                       cell=cell_vec)
 
                DO i_img = 1, nimg
-
                   DO j_img = 1, nimg
 
                      IF (atom_RI .EQ. iatom_outer .AND. &
@@ -6637,8 +6617,8 @@ CONTAINS
                            IF (outer_cell_vec(1) > maxval_1) CYCLE
                            IF (outer_cell_vec(2) < minval_2) CYCLE
                            IF (outer_cell_vec(2) > maxval_2) CYCLE
-                           IF (outer_cell_vec(3) < minval_1) CYCLE
-                           IF (outer_cell_vec(3) > maxval_2) CYCLE
+                           IF (outer_cell_vec(3) < minval_3) CYCLE
+                           IF (outer_cell_vec(3) > maxval_3) CYCLE
 
                            acell = cell_to_index(-outer_cell_vec(1), -outer_cell_vec(2), -outer_cell_vec(3))
 
@@ -6702,41 +6682,47 @@ CONTAINS
                      img_row = i_img
                      img_col = j_img
 
+                     ikind = kind_of(iatom)
+                     CALL get_qs_kind(qs_kind=qs_kind_set(ikind), basis_set=basis_set_a)
+                     kind_radius_a = basis_set_a%kind_radius
+                     first_sgfa => basis_set_a%first_sgf
+                     la_max => basis_set_a%lmax
+                     la_min => basis_set_a%lmin
+                     npgfa => basis_set_a%npgf
+                     nseta = basis_set_a%nset
+                     nsgfa => basis_set_a%nsgf_set
+                     rpgfa => basis_set_a%pgf_radius
+                     set_radius_a => basis_set_a%set_radius
+                     sphi_a => basis_set_a%sphi
+                     zeta => basis_set_a%zet
+
+                     jkind = kind_of(jatom)
+                     CALL get_qs_kind(qs_kind=qs_kind_set(jkind), basis_set=basis_set_b)
+                     kind_radius_b = basis_set_b%kind_radius
+                     first_sgfb => basis_set_b%first_sgf
+                     lb_max => basis_set_b%lmax
+                     lb_min => basis_set_b%lmin
+                     npgfb => basis_set_b%npgf
+                     nsetb = basis_set_b%nset
+                     nsgfb => basis_set_b%nsgf_set
+                     rpgfb => basis_set_b%pgf_radius
+                     set_radius_b => basis_set_b%set_radius
+                     sphi_b => basis_set_b%sphi
+                     zetb => basis_set_b%zet
+
+                     dab = SQRT(SUM(rab**2))
+                     daRI = SQRT(SUM(raRI**2))
+                     dbRI = SQRT(SUM(rbRI**2))
+
+                     IF (kind_radius_a+kind_radius_RI < daRI) CYCLE
+                     IF (kind_radius_a+kind_radius_b < dab) CYCLE
+                     IF (kind_radius_b+kind_radius_RI < dbRI) CYCLE
+
                      CALL dbcsr_t_blk_sizes(t_3c_overl_int(img_row, img_col), [atom_RI, row, col], blk_size)
                      ALLOCATE (block_t(blk_size(1), blk_size(2), blk_size(3)))
                      block_t = 0.0_dp
 
                      DO set_RI = 1, nset_RI
-
-                        dab = SQRT(SUM(rab**2))
-                        daRI = SQRT(SUM(raRI**2))
-                        dbRI = SQRT(SUM(rbRI**2))
-
-                        ikind = kind_of(iatom)
-                        CALL get_qs_kind(qs_kind=qs_kind_set(ikind), basis_set=basis_set_a)
-                        first_sgfa => basis_set_a%first_sgf
-                        la_max => basis_set_a%lmax
-                        la_min => basis_set_a%lmin
-                        npgfa => basis_set_a%npgf
-                        nseta = basis_set_a%nset
-                        nsgfa => basis_set_a%nsgf_set
-                        rpgfa => basis_set_a%pgf_radius
-                        set_radius_a => basis_set_a%set_radius
-                        sphi_a => basis_set_a%sphi
-                        zeta => basis_set_a%zet
-
-                        jkind = kind_of(jatom)
-                        CALL get_qs_kind(qs_kind=qs_kind_set(jkind), basis_set=basis_set_b)
-                        first_sgfb => basis_set_b%first_sgf
-                        lb_max => basis_set_b%lmax
-                        lb_min => basis_set_b%lmin
-                        npgfb => basis_set_b%npgf
-                        nsetb = basis_set_b%nset
-                        nsgfb => basis_set_b%nsgf_set
-                        rpgfb => basis_set_b%pgf_radius
-                        set_radius_b => basis_set_b%set_radius
-                        sphi_b => basis_set_b%sphi
-                        zetb => basis_set_b%zet
 
                         DO iset = 1, nseta
 
@@ -6779,13 +6765,7 @@ CONTAINS
                                  block_start_RI = sgf_RI
                                  block_end_RI = sgf_RI+nsgf_RI(set_RI)-1
 
-                                 IF (iatom == jatom) THEN
-                                    ! factor 0.5 is necessary because matrix is added to its transpose
-                                    prefac = 0.5_dp
-                                 ELSE
-                                    ! factor 0.5 is necessary due to double filling due to double iterate loop
-                                    prefac = 0.5_dp
-                                 ENDIF
+                                 prefac = 0.5_dp
 
                                  block_t(block_start_RI:block_end_RI, &
                                          block_start_row:block_end_row, &
@@ -6834,23 +6814,29 @@ CONTAINS
 
       END DO ! atom_RI
 
-      ! add transposed of overlap integrals:
       DO img_row = 1, nimg
          DO img_col = 1, nimg
-            ! we need to take half of filter_eps, since we are adding tensor to its transpose afterwards
+            ! need half of filter eps because afterwards we add transposed tensor
             CALL dbcsr_t_filter(t_3c_overl_int(img_row, img_col), filter_eps/2)
          ENDDO
       ENDDO
+
+      ! add transposed of overlap integrals
       CALL dbcsr_t_create(t_3c_overl_int(1, 1), t_3c_tmp)
       DO img_row = 1, nimg
-         DO img_col = 1, nimg
+         DO img_col = 1, img_row
             CALL dbcsr_t_copy(t_3c_overl_int(img_row, img_col), t_3c_tmp)
-            CALL dbcsr_t_copy(t_3c_tmp, t_3c_overl_int(img_row, img_col), order=[1, 3, 2], summation=.TRUE., move_data=.TRUE.)
-            CALL dbcsr_t_filter(t_3c_overl_int(img_row, img_col), filter_eps)
+            CALL dbcsr_t_copy(t_3c_tmp, t_3c_overl_int(img_col, img_row), order=[1, 3, 2], summation=.TRUE., move_data=.TRUE.)
+            CALL dbcsr_t_filter(t_3c_overl_int(img_col, img_row), filter_eps)
          ENDDO
       ENDDO
-      CALL dbcsr_t_set(t_3c_tmp, 0.0_dp)
-      CALL dbcsr_t_filter(t_3c_tmp, 1.0_dp)
+      DO img_row = 1, nimg
+         DO img_col = img_row+1, nimg
+            CALL dbcsr_t_copy(t_3c_overl_int(img_row, img_col), t_3c_tmp)
+            CALL dbcsr_t_copy(t_3c_tmp, t_3c_overl_int(img_col, img_row), order=[1, 3, 2], summation=.FALSE., move_data=.TRUE.)
+            CALL dbcsr_t_filter(t_3c_overl_int(img_col, img_row), filter_eps)
+         ENDDO
+      ENDDO
       CALL dbcsr_t_destroy(t_3c_tmp)
 
       CALL timestop(handle)
@@ -7585,10 +7571,9 @@ CONTAINS
 !> \param sab_orb_sub ...
 !> \param sab_orb_all ...
 !> \param para_env ...
-!> \param num_diff_blk ...
 ! **************************************************************************************************
    SUBROUTINE reserve_blocks_3c_t(t_3c_overl_int, mp_comm_t3c_overl, ngroup, mat_munu, qs_env, &
-                       unit_nr, local_atoms_RI, row_blk_sizes_RI_t, row_dist_RI_t, sab_orb_sub, sab_orb_all, para_env, num_diff_blk)
+                                  unit_nr, local_atoms_RI, row_blk_sizes_RI_t, row_dist_RI_t, sab_orb_sub, sab_orb_all, para_env)
       TYPE(dbcsr_t_type), ALLOCATABLE, DIMENSION(:, :), &
          INTENT(OUT)                                     :: t_3c_overl_int
       TYPE(dbcsr_t_pgrid_type), INTENT(IN)               :: mp_comm_t3c_overl
@@ -7601,15 +7586,14 @@ CONTAINS
       TYPE(neighbor_list_set_p_type), DIMENSION(:), &
          POINTER                                         :: sab_orb_sub, sab_orb_all
       TYPE(cp_para_env_type), POINTER                    :: para_env
-      INTEGER                                            :: num_diff_blk
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'reserve_blocks_3c_t', &
          routineP = moduleN//':'//routineN
 
-      INTEGER :: acell, atom_RI, bcell, blk_cnt, col, handle, i, i_img, i_img_outer, i_loop, &
-         iatom, iatom_outer, iatom_RI, iblk, ikind, iproc, j_img, j_img_outer, jatom, jatom_outer, &
-         jkind, kind_RI, maxval_1, maxval_2, maxval_3, minval_1, minval_2, minval_3, natom, nimg, &
-         nset_RI, nseta, nsetb, num_loops, row
+      INTEGER :: acell, atom_RI, bcell, blk_cnt, col, handle, i, i_img, i_img_outer, iatom, &
+         iatom_outer, iatom_RI, iblk, ikind, iproc, j_img, j_img_outer, jatom, jatom_outer, jkind, &
+         kind_RI, maxval_1, maxval_2, maxval_3, minval_1, minval_2, minval_3, natom, nimg, &
+         nset_RI, nseta, nsetb, row
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: kind_of, tmp
       INTEGER, ALLOCATABLE, DIMENSION(:, :)              :: old_col, old_row
       INTEGER, DIMENSION(3)                              :: cell_vec, outer_cell_vec
@@ -7640,9 +7624,6 @@ CONTAINS
       NULLIFY (qs_kind_set, atomic_kind_set, basis_set_RI, basis_set_a, basis_set_b, nl_iterator)
 
       do_kpoints_cubic_RPA = qs_env%mp2_env%ri_rpa_im_time%do_im_time_kpoints
-      IF (do_kpoints_cubic_RPA) THEN
-         CPABORT("k points not yet implemented with DBCSR tensors")
-      ENDIF
 
       CALL get_qs_env(qs_env, atomic_kind_set=atomic_kind_set, qs_kind_set=qs_kind_set, natom=natom, &
                       dft_control=dft_control, kpoints=kpoints)
@@ -7650,8 +7631,6 @@ CONTAINS
       IF (do_kpoints_cubic_RPA) THEN
          ! set up new kpoint type with periodic images according to eps_grid from MP2 section
          ! instead of eps_pgf_orb from QS section
-         CALL get_kpoint_info(kpoints, cell_to_index=cell_to_index)
-
          CALL kpoint_init_cell_index(kpoints, sab_orb_sub, para_env, dft_control)
 
          nimg = dft_control%nimages
@@ -7659,8 +7638,6 @@ CONTAINS
 
          IF (unit_nr > 0) WRITE (UNIT=unit_nr, FMT="(T3,A,T75,i6)") &
             "3C_OVERLAP_INTEGRALS_INFO| Number of periodic images considered:", nimg
-
-         num_diff_blk = 0
       ELSE
          nimg = 1
       END IF
@@ -7678,7 +7655,6 @@ CONTAINS
 
       DO i_img = 1, nimg
          DO j_img = 1, nimg
-            IF (i_img > j_img) CYCLE
             CALL dbcsr_t_create(t_3c_overl_int(i_img, j_img), "O (RI AO | AO)", dist_o3c, [1, 2], [3], &
                                 dbcsr_type_real_8, row_blk_sizes_RI_t, ao_blk_sizes, ao_blk_sizes)
          ENDDO
@@ -7686,20 +7662,31 @@ CONTAINS
 
       CALL dbcsr_t_distribution_destroy(dist_o3c)
 
+      IF (do_kpoints_cubic_RPA) THEN
+
+         minval_1 = MINVAL(kpoints%index_to_cell(1, :))
+         maxval_1 = MAXVAL(kpoints%index_to_cell(1, :))
+         minval_2 = MINVAL(kpoints%index_to_cell(2, :))
+         maxval_2 = MAXVAL(kpoints%index_to_cell(2, :))
+         minval_3 = MINVAL(kpoints%index_to_cell(3, :))
+         maxval_3 = MAXVAL(kpoints%index_to_cell(3, :))
+
+      END IF
+
       ALLOCATE (alloc_RI(nimg, nimg))
       ALLOCATE (alloc_ao1(nimg, nimg))
       ALLOCATE (alloc_ao2(nimg, nimg))
       !ALLOCATE (old_ri(nimg, nimg))
       !old_ri = -1
-      ALLOCATE (old_row(nimg, nimg))
-      old_row = -1
       ALLOCATE (old_col(nimg, nimg))
       old_col = -1
 
       ALLOCATE (kind_of(natom))
       CALL get_atomic_kind_set(atomic_kind_set, kind_of=kind_of)
 
+      ALLOCATE (old_row(nimg, nimg))
       DO iatom_RI = 1, SIZE(local_atoms_RI)
+         old_row = -1
          atom_RI = local_atoms_RI(iatom_RI)
          kind_RI = kind_of(atom_RI)
          CALL get_qs_kind(qs_kind=qs_kind_set(kind_RI), basis_set=basis_set_RI, basis_type="RI_AUX")
@@ -7734,205 +7721,190 @@ CONTAINS
                DO i_img_outer = 1, nimg
                   DO j_img_outer = 1, nimg
 
-                     IF (i_img_outer > j_img_outer) CYCLE
-                     IF (i_img_outer < j_img_outer) THEN
-                        num_loops = 2
-                     ELSE IF (i_img_outer == j_img_outer) THEN
-                        num_loops = 1
+                     i_img = i_img_outer
+                     j_img = j_img_outer
+
+                     IF (atom_RI .EQ. iatom_outer .AND. &
+                         iatom .NE. jatom_outer .AND. &
+                         jatom .NE. jatom_outer) &
+                        CYCLE
+
+                     IF (atom_RI .EQ. jatom_outer .AND. &
+                         iatom .NE. iatom_outer .AND. &
+                         jatom .NE. iatom_outer) &
+                        CYCLE
+
+                     IF (iatom .EQ. iatom_outer .AND. &
+                         atom_RI .EQ. jatom_outer) THEN
+
+                        IF (do_kpoints_cubic_RPA) THEN
+
+                           IF (outer_cell_vec(1) < minval_1) CYCLE
+                           IF (outer_cell_vec(1) > maxval_1) CYCLE
+                           IF (outer_cell_vec(2) < minval_2) CYCLE
+                           IF (outer_cell_vec(2) > maxval_2) CYCLE
+                           IF (outer_cell_vec(3) < minval_3) CYCLE
+                           IF (outer_cell_vec(3) > maxval_3) CYCLE
+
+                           IF (-outer_cell_vec(1)+cell_vec(1) < minval_1) CYCLE
+                           IF (-outer_cell_vec(1)+cell_vec(1) > maxval_1) CYCLE
+                           IF (-outer_cell_vec(2)+cell_vec(2) < minval_2) CYCLE
+                           IF (-outer_cell_vec(2)+cell_vec(2) > maxval_2) CYCLE
+                           IF (-outer_cell_vec(3)+cell_vec(3) < minval_3) CYCLE
+                           IF (-outer_cell_vec(3)+cell_vec(3) > maxval_3) CYCLE
+
+                           acell = cell_to_index(-outer_cell_vec(1), -outer_cell_vec(2), -outer_cell_vec(3))
+                           IF (.NOT. (acell == i_img)) CYCLE
+                           bcell = cell_to_index(-outer_cell_vec(1)+cell_vec(1), &
+                                                 -outer_cell_vec(2)+cell_vec(2), &
+                                                 -outer_cell_vec(3)+cell_vec(3))
+                           IF (.NOT. (bcell == j_img)) CYCLE
+
+                        END IF
+
+                        raRI = rab_outer
+                        rbRI = raRI-rab
+
+                     ELSE IF (atom_RI .EQ. iatom_outer .AND. &
+                              iatom .EQ. jatom_outer) THEN
+
+                        IF (do_kpoints_cubic_RPA) THEN
+                           ! for kpoints we have the non-symmetric neighbor list
+                           CYCLE
+                        END IF
+
+                        raRI = -rab_outer
+                        rbRI = raRI-rab
+
+                     ELSE IF (jatom .EQ. iatom_outer .AND. &
+                              atom_RI .EQ. jatom_outer) THEN
+
+                        IF (do_kpoints_cubic_RPA) THEN
+                           ! for kpoints we have the non-symmetric neighbor list
+                           CYCLE
+                        END IF
+
+                        rbRI = rab_outer
+                        raRI = rbRI+rab
+
+                     ELSE IF (atom_RI .EQ. iatom_outer .AND. &
+                              jatom .EQ. jatom_outer) THEN
+
+                        IF (do_kpoints_cubic_RPA) THEN
+                           ! for kpoints we have the non-symmetric neighbor list
+                           CYCLE
+                        END IF
+
+                        rbRI = -rab_outer
+                        raRI = rbRI+rab
+
                      END IF
 
-                     DO i_loop = 1, num_loops
+                     dab = SQRT(SUM(rab**2))
+                     daRI = SQRT(SUM(raRI**2))
+                     dbRI = SQRT(SUM(rbRI**2))
 
-                        IF (i_loop == 1) THEN
-                           i_img = i_img_outer
-                           j_img = j_img_outer
-                        ELSE IF (i_loop == 2) THEN
-                           i_img = j_img_outer
-                           j_img = i_img_outer
-                        END IF
+                     ikind = kind_of(iatom)
+                     CALL get_qs_kind(qs_kind=qs_kind_set(ikind), basis_set=basis_set_a)
+                     first_sgfa => basis_set_a%first_sgf
+                     la_max => basis_set_a%lmax
+                     la_min => basis_set_a%lmin
+                     npgfa => basis_set_a%npgf
+                     nseta = basis_set_a%nset
+                     nsgfa => basis_set_a%nsgf_set
+                     rpgfa => basis_set_a%pgf_radius
+                     set_radius_a => basis_set_a%set_radius
+                     sphi_a => basis_set_a%sphi
+                     zeta => basis_set_a%zet
+                     kind_radius_a = basis_set_a%kind_radius
 
-                        IF (atom_RI .EQ. iatom_outer .AND. &
-                            iatom .NE. jatom_outer .AND. &
-                            jatom .NE. jatom_outer) &
-                           CYCLE
+                     jkind = kind_of(jatom)
+                     CALL get_qs_kind(qs_kind=qs_kind_set(jkind), basis_set=basis_set_b)
+                     first_sgfb => basis_set_b%first_sgf
+                     lb_max => basis_set_b%lmax
+                     lb_min => basis_set_b%lmin
+                     npgfb => basis_set_b%npgf
+                     nsetb = basis_set_b%nset
+                     nsgfb => basis_set_b%nsgf_set
+                     rpgfb => basis_set_b%pgf_radius
+                     set_radius_b => basis_set_b%set_radius
+                     kind_radius_b = basis_set_b%kind_radius
+                     sphi_b => basis_set_b%sphi
+                     zetb => basis_set_b%zet
 
-                        IF (atom_RI .EQ. jatom_outer .AND. &
-                            iatom .NE. iatom_outer .AND. &
-                            jatom .NE. iatom_outer) &
-                           CYCLE
+                     IF (kind_radius_a+kind_radius_RI < daRI) CYCLE
+                     IF (kind_radius_a+kind_radius_b < dab) CYCLE
+                     IF (kind_radius_b+kind_radius_RI < dbRI) CYCLE
 
-                        IF (iatom .EQ. iatom_outer .AND. &
-                            atom_RI .EQ. jatom_outer) THEN
+                     ! tensor is not symmetric therefore need to allocate rows and columns in
+                     ! correspondence with neighborlist. Note that this only allocates half
+                     ! of the blocks (since neighborlist is symmetric). After filling the blocks,
+                     ! tensor will be added to its transposed
 
-                           IF (do_kpoints_cubic_RPA) THEN
+                     row = iatom; col = jatom
 
-                              IF (outer_cell_vec(1) < minval_1) CYCLE
-                              IF (outer_cell_vec(1) > maxval_1) CYCLE
-                              IF (outer_cell_vec(2) < minval_2) CYCLE
-                              IF (outer_cell_vec(2) > maxval_2) CYCLE
-                              IF (outer_cell_vec(3) < minval_3) CYCLE
-                              IF (outer_cell_vec(3) > maxval_3) CYCLE
+                     IF (old_row(i_img_outer, j_img_outer) == row .AND. &
+                         old_col(i_img_outer, j_img_outer) == col) CYCLE
 
-                              IF (-outer_cell_vec(1)+cell_vec(1) < minval_1) CYCLE
-                              IF (-outer_cell_vec(1)+cell_vec(1) > maxval_1) CYCLE
-                              IF (-outer_cell_vec(2)+cell_vec(2) < minval_2) CYCLE
-                              IF (-outer_cell_vec(2)+cell_vec(2) > maxval_2) CYCLE
-                              IF (-outer_cell_vec(3)+cell_vec(3) < minval_3) CYCLE
-                              IF (-outer_cell_vec(3)+cell_vec(3) > maxval_3) CYCLE
+                     ASSOCIATE (aRI=>alloc_RI(i_img_outer, j_img_outer))
+                        ASSOCIATE (a_ao1=>alloc_ao1(i_img_outer, j_img_outer))
+                           ASSOCIATE (a_ao2=>alloc_ao2(i_img_outer, j_img_outer))
 
-                              acell = cell_to_index(-outer_cell_vec(1), -outer_cell_vec(2), -outer_cell_vec(3))
-                              IF (.NOT. (acell == i_img)) CYCLE
-                              bcell = cell_to_index(-outer_cell_vec(1)+cell_vec(1), &
-                                                    -outer_cell_vec(2)+cell_vec(2), &
-                                                    -outer_cell_vec(3)+cell_vec(3))
-                              IF (.NOT. (bcell == j_img)) CYCLE
+                              new_block = .TRUE.
+                              IF (ALLOCATED(a_ao1%array)) THEN
+                                 DO iblk = 1, SIZE(a_ao1%array)
+                                    IF (aRI%array(iblk) == atom_RI .AND. &
+                                        a_ao1%array(iblk) == row .AND. &
+                                        a_ao2%array(iblk) == col) THEN
+                                       new_block = .FALSE.
+                                       EXIT
+                                    ENDIF
+                                 ENDDO
+                              ENDIF
+                              IF (.NOT. new_block) CYCLE
 
-                           END IF
+                              IF (ALLOCATED(aRI%array)) THEN
+                                 blk_cnt = SIZE(aRI%array)
+                                 ALLOCATE (tmp(blk_cnt))
+                                 tmp(:) = aRI%array(:)
+                                 DEALLOCATE (aRI%array)
+                                 ALLOCATE (aRI%array(blk_cnt+1))
+                                 aRI%array(1:blk_cnt) = tmp(:)
+                                 aRI%array(blk_cnt+1) = atom_RI
+                              ELSE
+                                 ALLOCATE (aRI%array(1))
+                                 aRI%array(1) = atom_RI
+                              ENDIF
 
-                           raRI = rab_outer
-                           rbRI = raRI-rab
+                              IF (ALLOCATED(a_ao1%array)) THEN
+                                 tmp(:) = a_ao1%array(:)
+                                 DEALLOCATE (a_ao1%array)
+                                 ALLOCATE (a_ao1%array(blk_cnt+1))
+                                 a_ao1%array(1:blk_cnt) = tmp(:)
+                                 a_ao1%array(blk_cnt+1) = row
+                              ELSE
+                                 ALLOCATE (a_ao1%array(1))
+                                 a_ao1%array(1) = row
+                              ENDIF
 
-                        ELSE IF (atom_RI .EQ. iatom_outer .AND. &
-                                 iatom .EQ. jatom_outer) THEN
+                              IF (ALLOCATED(a_ao2%array)) THEN
+                                 tmp(:) = a_ao2%array(:)
+                                 DEALLOCATE (a_ao2%array)
+                                 ALLOCATE (a_ao2%array(blk_cnt+1))
+                                 a_ao2%array(1:blk_cnt) = tmp(:)
+                                 a_ao2%array(blk_cnt+1) = col
+                              ELSE
+                                 ALLOCATE (a_ao2%array(1))
+                                 a_ao2%array(1) = col
+                              ENDIF
 
-                           IF (do_kpoints_cubic_RPA) THEN
-                              ! for kpoints we have the non-symmetric neighbor list
-                              CYCLE
-                           END IF
+                              old_row(i_img_outer, j_img_outer) = row
+                              old_col(i_img_outer, j_img_outer) = col
 
-                           raRI = -rab_outer
-                           rbRI = raRI-rab
-
-                        ELSE IF (jatom .EQ. iatom_outer .AND. &
-                                 atom_RI .EQ. jatom_outer) THEN
-
-                           IF (do_kpoints_cubic_RPA) THEN
-                              ! for kpoints we have the non-symmetric neighbor list
-                              CYCLE
-                           END IF
-
-                           rbRI = rab_outer
-                           raRI = rbRI+rab
-
-                        ELSE IF (atom_RI .EQ. iatom_outer .AND. &
-                                 jatom .EQ. jatom_outer) THEN
-
-                           IF (do_kpoints_cubic_RPA) THEN
-                              ! for kpoints we have the non-symmetric neighbor list
-                              CYCLE
-                           END IF
-
-                           rbRI = -rab_outer
-                           raRI = rbRI+rab
-
-                        END IF
-
-                        dab = SQRT(SUM(rab**2))
-                        daRI = SQRT(SUM(raRI**2))
-                        dbRI = SQRT(SUM(rbRI**2))
-
-                        ikind = kind_of(iatom)
-                        CALL get_qs_kind(qs_kind=qs_kind_set(ikind), basis_set=basis_set_a)
-                        first_sgfa => basis_set_a%first_sgf
-                        la_max => basis_set_a%lmax
-                        la_min => basis_set_a%lmin
-                        npgfa => basis_set_a%npgf
-                        nseta = basis_set_a%nset
-                        nsgfa => basis_set_a%nsgf_set
-                        rpgfa => basis_set_a%pgf_radius
-                        set_radius_a => basis_set_a%set_radius
-                        sphi_a => basis_set_a%sphi
-                        zeta => basis_set_a%zet
-                        kind_radius_a = basis_set_a%kind_radius
-
-                        jkind = kind_of(jatom)
-                        CALL get_qs_kind(qs_kind=qs_kind_set(jkind), basis_set=basis_set_b)
-                        first_sgfb => basis_set_b%first_sgf
-                        lb_max => basis_set_b%lmax
-                        lb_min => basis_set_b%lmin
-                        npgfb => basis_set_b%npgf
-                        nsetb = basis_set_b%nset
-                        nsgfb => basis_set_b%nsgf_set
-                        rpgfb => basis_set_b%pgf_radius
-                        set_radius_b => basis_set_b%set_radius
-                        kind_radius_b = basis_set_b%kind_radius
-                        sphi_b => basis_set_b%sphi
-                        zetb => basis_set_b%zet
-
-                        IF (kind_radius_a+kind_radius_RI < daRI) CYCLE
-                        IF (kind_radius_a+kind_radius_b < dab) CYCLE
-                        IF (kind_radius_b+kind_radius_RI < dbRI) CYCLE
-
-                        ! tensor is not symmetric therefore need to allocate rows and columns in
-                        ! correspondence with neighborlist. Note that this only allocates half
-                        ! of the blocks (since neighborlist is symmetric). After filling the blocks,
-                        ! tensor will be added to its transposed
-
-                        row = iatom; col = jatom
-
-                        IF (old_row(i_img_outer, j_img_outer) == row .AND. &
-                            old_col(i_img_outer, j_img_outer) == col) CYCLE
-
-                        ASSOCIATE (aRI=>alloc_RI(i_img_outer, j_img_outer))
-                           ASSOCIATE (a_ao1=>alloc_ao1(i_img_outer, j_img_outer))
-                              ASSOCIATE (a_ao2=>alloc_ao2(i_img_outer, j_img_outer))
-
-                                 new_block = .TRUE.
-                                 IF (ALLOCATED(a_ao1%array)) THEN
-                                    DO iblk = 1, SIZE(a_ao1%array)
-                                       IF (aRI%array(iblk) == atom_RI .AND. &
-                                           a_ao1%array(iblk) == row .AND. &
-                                           a_ao2%array(iblk) == col) THEN
-                                          new_block = .FALSE.
-                                          EXIT
-                                       ENDIF
-                                    ENDDO
-                                 ENDIF
-                                 IF (.NOT. new_block) CYCLE
-
-                                 IF (ALLOCATED(aRI%array)) THEN
-                                    blk_cnt = SIZE(aRI%array)
-                                    ALLOCATE (tmp(blk_cnt))
-                                    tmp(:) = aRI%array(:)
-                                    DEALLOCATE (aRI%array)
-                                    ALLOCATE (aRI%array(blk_cnt+1))
-                                    aRI%array(1:blk_cnt) = tmp(:)
-                                    aRI%array(blk_cnt+1) = atom_RI
-                                 ELSE
-                                    ALLOCATE (aRI%array(1))
-                                    aRI%array(1) = atom_RI
-                                 ENDIF
-
-                                 IF (ALLOCATED(a_ao1%array)) THEN
-                                    tmp(:) = a_ao1%array(:)
-                                    DEALLOCATE (a_ao1%array)
-                                    ALLOCATE (a_ao1%array(blk_cnt+1))
-                                    a_ao1%array(1:blk_cnt) = tmp(:)
-                                    a_ao1%array(blk_cnt+1) = row
-                                 ELSE
-                                    ALLOCATE (a_ao1%array(1))
-                                    a_ao1%array(1) = row
-                                 ENDIF
-
-                                 IF (ALLOCATED(a_ao2%array)) THEN
-                                    tmp(:) = a_ao2%array(:)
-                                    DEALLOCATE (a_ao2%array)
-                                    ALLOCATE (a_ao2%array(blk_cnt+1))
-                                    a_ao2%array(1:blk_cnt) = tmp(:)
-                                    a_ao2%array(blk_cnt+1) = col
-                                 ELSE
-                                    ALLOCATE (a_ao2%array(1))
-                                    a_ao2%array(1) = col
-                                 ENDIF
-
-                                 old_row(i_img_outer, j_img_outer) = row
-                                 old_col(i_img_outer, j_img_outer) = col
-
-                                 IF (ALLOCATED(tmp)) DEALLOCATE (tmp)
-                              END ASSOCIATE
+                              IF (ALLOCATED(tmp)) DEALLOCATE (tmp)
                            END ASSOCIATE
                         END ASSOCIATE
-                     ENDDO
+                     END ASSOCIATE
                   ENDDO
                ENDDO
             ENDDO
@@ -7943,7 +7915,6 @@ CONTAINS
 
       DO i_img = 1, nimg
          DO j_img = 1, nimg
-            IF (i_img > j_img) CYCLE
             IF (ALLOCATED(alloc_RI(i_img, j_img)%array)) THEN
                DO i = 1, SIZE(alloc_RI(i_img, j_img)%array)
                   CALL dbcsr_t_get_stored_coordinates(t_3c_overl_int(i_img, j_img), &

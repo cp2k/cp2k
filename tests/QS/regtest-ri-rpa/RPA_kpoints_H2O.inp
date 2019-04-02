@@ -56,7 +56,6 @@
         NUMBER_PROC  1
         IM_TIME
         &IM_TIME
-          DO_DBCSR_T .FALSE.
           MEMORY_CUT 1
           MEMORY_INFO
           GROUP_SIZE_P  1

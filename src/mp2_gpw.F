@@ -337,6 +337,15 @@ CONTAINS
 
          END IF
 
+         IF (mp2_env%ri_rpa_im_time%group_size_P > para_env%num_pe) THEN
+            mp2_env%ri_rpa_im_time%group_size_P = para_env%num_pe
+         END IF
+
+         group_size_P = mp2_env%ri_rpa_im_time%group_size_P
+
+         ! only allow group_size_P which is a factor of the total number of MPI tasks
+         CPASSERT(MODULO(para_env%num_pe, group_size_P) == 0)
+
          ! only allow group_size_3c which is a factor of the total number of MPI tasks
          CPASSERT(MODULO(para_env%num_pe, group_size_3c) == 0)
 
@@ -689,16 +698,6 @@ CONTAINS
             DEALLOCATE (sab_orb_all)
 
             group_size_P = mp2_env%ri_rpa_im_time%group_size_P
-
-            IF (group_size_P > para_env%num_pe) THEN
-
-               group_size_P = para_env%num_pe
-               mp2_env%ri_rpa_im_time%group_size_P = para_env%num_pe
-
-            END IF
-
-            ! only allow group_size_P which is a factor of the total number of MPI tasks
-            CPASSERT(MODULO(para_env%num_pe, group_size_P) == 0)
 
             mp2_env%ri_rpa_im_time_util(1)%n_group_P = para_env%num_pe/group_size_P
 
