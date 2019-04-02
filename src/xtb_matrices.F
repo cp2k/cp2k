@@ -972,10 +972,8 @@ CONTAINS
       TYPE(section_vals_type), POINTER                   :: scf_section
       TYPE(xtb_atom_type), POINTER                       :: xtb_kind
 
-!deb
-!deb
-
       CALL timeset(routineN, handle)
+
       NULLIFY (dft_control, logger, scf_section, matrix_p, particle_set, ks_env, &
                ks_matrix, rho, energy)
       logger => cp_get_default_logger()

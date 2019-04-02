@@ -642,7 +642,7 @@ CONTAINS
          ELSE
             r = rab-(rcut-rsmooth)
             x = r/rsmooth
-            fcut = -10._dp*x**5+15._dp*x**4-10._dp*x**3+1._dp
+            fcut = -6._dp*x**5+15._dp*x**4-10._dp*x**3+1._dp
          END IF
          gmat(:, :) = fcut*(1._dp/(rk+eta(:, :)))**(1._dp/kg)-fcut/rab
       END IF
@@ -712,8 +712,8 @@ CONTAINS
          ELSE
             r = rab-(rcut-rsmooth)
             x = r/rsmooth
-            fcut = -10._dp*x**5+15._dp*x**4-10._dp*x**3+1._dp
-            dfcut = -50._dp*x**4+60._dp*x**3-30._dp*x**2
+            fcut = -6._dp*x**5+15._dp*x**4-10._dp*x**3+1._dp
+            dfcut = -30._dp*x**4+60._dp*x**3-30._dp*x**2
             dfcut = dfcut/rsmooth
          END IF
          dgmat(:, :) = dfcut*(1._dp/(rk+eta(:, :)))**(1._dp/kg)

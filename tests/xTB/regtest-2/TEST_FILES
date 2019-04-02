@@ -4,18 +4,18 @@
 #      1 compares the last total energy in the file
 #      for details see cp2k/tools/do_regtest
 # test mulliken constraints
-H2O-field-gopt.inp                                     1      3e-11              -5.76948139126441
-H2O-field-gopt-lsd.inp                                 1      4e-12              -5.77067025224893
+H2O-field-gopt.inp                                     1      3e-11              -5.76900010512329
+H2O-field-gopt-lsd.inp                                 1      4e-12              -5.76962022533468
 H2O-field.inp                                          0      4e-13
-H2O-field-lsd.inp                                      1      4e-14              -5.77001973441721
-HF-field.inp                                           1      1e-12              -5.62824970194336
-HF-field-gopt.inp                                      1      1e-10              -5.66101691610414
+H2O-field-lsd.inp                                      1      4e-14              -5.76948986139975
+HF-field.inp                                           1      1e-12              -5.62817044142931
+HF-field-gopt.inp                                      1      1e-10              -5.66007154649222
 HF-field-debug.inp                                     0      1e-12
 HF-dfilter-debug.inp                                   0      1e-12
-HF-dfield-gopt.inp                                     1      1e-10              -5.66151709288324
-HF-dfield.inp                                          1      1e-12              -5.66132795820476
+HF-dfield-gopt.inp                                     1      1e-10              -5.66113975858277
+HF-dfield.inp                                          1      1e-12              -5.66099020967573
 HF-dfield-debug.inp                                    0      1e-12
 HF-loc-field.inp                                       1      1e-12              -5.65286303322644
-HF-loc-field-gopt.inp                                  1      1e-12              -5.66995866072124
+HF-loc-field-gopt.inp                                  1      1e-12              -5.66976248351310
 HF-loc-field-debug.inp                                 0      1e-12
 #EOF
