@@ -262,11 +262,12 @@ CONTAINS
 
       CHARACTER(len=*), PARAMETER :: routineN = 'pint_write_trajectory', &
          routineP = moduleN//':'//routineN
-      INTEGER, PARAMETER                                 :: n_ids = 2, pos_id = 1, vel_id = 2
+      INTEGER, PARAMETER                                 :: force_id = 3, n_ids = 3, pos_id = 1, &
+                                                            vel_id = 2
 
       CHARACTER(len=default_string_length)               :: ext, form, ib_str, my_middle_name, &
                                                             title, unit_str
-      CHARACTER(len=default_string_length), DIMENSION(2) :: content_id, middle_name, sect_path
+      CHARACTER(len=default_string_length), DIMENSION(3) :: content_id, middle_name, sect_path
       INTEGER                                            :: handle, handle1, iat, ib, id, idim, &
                                                             idir, ierr, imag_stride, outformat, &
                                                             should_output, unit_nr
@@ -286,10 +287,13 @@ CONTAINS
 
       sect_path(pos_id) = "MOTION%PRINT%TRAJECTORY"
       sect_path(vel_id) = "MOTION%PRINT%VELOCITIES"
+      sect_path(force_id) = "MOTION%PRINT%FORCES"
       middle_name(pos_id) = "pos-"
       middle_name(vel_id) = "vel-"
+      middle_name(force_id) = "force-"
       content_id(pos_id) = "POS"
       content_id(vel_id) = "VEL"
+      content_id(force_id) = "FORCE"
 
       NULLIFY (logger)
       logger => cp_get_default_logger()
@@ -353,6 +357,7 @@ CONTAINS
                   idim = idim+1
                   particles%els(iat)%r(idir) = pint_env%x(ib, idim)
                   particles%els(iat)%v(idir) = pint_env%v(ib, idim)
+                  particles%els(iat)%f(idir) = pint_env%f(ib, idim)
                END DO
             END DO
 
