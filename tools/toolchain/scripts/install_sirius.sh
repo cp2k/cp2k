@@ -131,7 +131,7 @@ case "$with_sirius" in
                   -DCMAKE_CXX_COMPILER=mpic++ \
                   -DCMAKE_C_COMPILER=mpicc \
                   ${COMPILATION_OPTIONS} .. > compile.log 2>&1
-             make -C src >> compile.log 2>&1
+             make -j $NPROCS -C src >> compile.log 2>&1
 
             install -d ${pkg_install_dir}/include >> install.log 2>&1
             install -d ${pkg_install_dir}/lib >> install.log 2>&1
@@ -153,7 +153,7 @@ case "$with_sirius" in
                       -DGPU_MODEL=P100 \
                       -DCMAKE_CXX_COMPILER=mpic++ \
                       -DCMAKE_C_COMPILER=mpicc ${COMPILATION_OPTIONS} .. >> compile.log 2>&1
-                make -C src >> compile.log 2>&1
+                make -j $NPROCS -C src >> compile.log 2>&1
                 install -m 644 src/*.a ${pkg_install_dir}/lib/cuda >> install.log 2>&1
                 install -m 644 src/mod_files/*.mod ${pkg_install_dir}/include/cuda >> install.log 2>&1
                 SIRIUS_CUDA_LDFLAGS="-L'${pkg_install_dir}/lib/cuda' -Wl,-rpath='${pkg_install_dir}/lib/cuda'"
