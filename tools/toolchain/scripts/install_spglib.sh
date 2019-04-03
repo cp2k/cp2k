@@ -30,7 +30,7 @@ case "$with_spglib" in
             fi
 
             echo "Installing from scratch into ${pkg_install_dir}"
-            [ -d spglib-${spglib_ver} ] && rm -rf spglib-${spglib_ver}
+            rm -rf spglib-${spglib_ver} "${pkg_install_dir}"
             tar -xzf spglib-${spglib_ver}.tar.gz
             cd spglib-${spglib_ver}
 
