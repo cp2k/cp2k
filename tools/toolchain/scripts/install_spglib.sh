@@ -37,7 +37,7 @@ case "$with_spglib" in
             mkdir build
             cd build
             cmake -DCMAKE_INSTALL_PREFIX="${pkg_install_dir}" -DCMAKE_BUILD_TYPE=Release .. > configure.log 2>&1
-            make > make.log 2>&1
+            make -j $NPROCS > make.log 2>&1
             make install >> make.log 2>&1
             mkdir ${pkg_install_dir}/include/spglib
             cp ${pkg_install_dir}/include/{,spglib/}spglib.h
