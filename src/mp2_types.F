@@ -80,8 +80,7 @@ MODULE mp2_types
       INTEGER                  :: print_level
       REAL(KIND=dp)            :: cutoff
       REAL(KIND=dp)            :: relative_cutoff
-      LOGICAL                  :: do_mult_2c, do_chol_subgrp
-      INTEGER                  :: size_chol_from_input, size_lattice_sum
+      INTEGER                  :: size_lattice_sum
    END TYPE mp2_gpw_type
 
    TYPE ri_mp2_type
@@ -153,12 +152,10 @@ MODULE mp2_types
       INTEGER                  :: corr_mos_virt
       INTEGER                  :: corr_mos_occ_beta
       INTEGER                  :: corr_mos_virt_beta
-      REAL(KIND=dp)            :: scaling
       INTEGER                  :: num_poles
       INTEGER                  :: nparam_pade
       INTEGER                  :: analytic_continuation
       REAL(KIND=dp)            :: omega_max_fit
-      REAL(KIND=dp)            :: stop_crit
       INTEGER                  :: max_iter_fit
       LOGICAL                  :: check_fit
       INTEGER                  :: crossing_search
@@ -169,12 +166,8 @@ MODULE mp2_types
                                   print_gw_details, &
                                   do_ri_Sigma_x, &
                                   remove_neg_virt_energies
-      INTEGER                  :: ri_metric
-      LOGICAL                  :: mix_exchange, do_periodic
-      REAL(KIND=dp)            :: frac_exx
+      LOGICAL                  :: do_periodic
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :) :: vec_Sigma_x_minus_vxc_gw
-      INTEGER                  :: contour_def_start, contour_def_end
-      REAL(KIND=dp)            :: contour_def_offset
       INTEGER, DIMENSION(:), POINTER    :: kp_grid
       INTEGER                  :: num_kp_grids
       REAL(KIND=dp)            :: eps_kpoint
@@ -183,7 +176,7 @@ MODULE mp2_types
       LOGICAL                  :: do_extra_kpoints, do_aux_bas_gw
       REAL(KIND=dp)            :: frac_aux_mos
       INTEGER                  :: num_omega_points
-      LOGICAL                  :: do_bse, normalize_sigma, neglect_norm
+      LOGICAL                  :: do_bse
       INTEGER, DIMENSION(:), POINTER    :: atoms_for_projection, atom_range_for_projection
       REAL(KIND=dp)            :: eps_charge
       INTEGER                  :: num_z_vectors, max_iter_bse
@@ -240,7 +233,6 @@ MODULE mp2_types
       REAL(dp) :: mp2_memory
       REAL(dp) :: scale_S
       REAL(dp) :: scale_T
-      REAL(dp) :: minimal_gap
       INTEGER  :: mp2_num_proc
       INTEGER  :: block_size_row
       INTEGER  :: block_size_col
@@ -354,4 +346,3 @@ CONTAINS
    END SUBROUTINE mp2_env_create
 
 END MODULE mp2_types
-

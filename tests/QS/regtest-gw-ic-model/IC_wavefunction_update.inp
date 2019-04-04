@@ -64,7 +64,6 @@
             CORR_MOS_OCC 4
             CORR_MOS_VIRT 1
             PRINT_GW_DETAILS
-            RI OVERLAP
             IC
             &IC
               OPTIMIZE_HOMO_LUMO

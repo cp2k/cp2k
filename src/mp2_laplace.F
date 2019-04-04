@@ -82,9 +82,8 @@ CONTAINS
       CHARACTER(LEN=*), PARAMETER :: routineN = 'laplace_minimax_approx', &
          routineP = moduleN//':'//routineN
 
-      INTEGER :: avirt, handle, i_global, iiB, iocc, j_global, jjB, jquad, my_num_dgemm_call, &
-         ncol_local, nrow_local, number_of_rec, number_of_rec_beta, number_of_send, &
-         number_of_send_beta
+      INTEGER :: avirt, handle, i_global, iiB, iocc, jjB, jquad, my_num_dgemm_call, ncol_local, &
+         nrow_local, number_of_rec, number_of_rec_beta, number_of_send, number_of_send_beta
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: map_rec_size, map_rec_size_beta, &
                                                             map_send_size, map_send_size_beta, &
                                                             RPA_proc_map
@@ -129,14 +128,10 @@ CONTAINS
       CALL get_exp_minimax_coeff(num_integ_points, E_Range, awj)
 
       ALLOCATE (aj(num_integ_points))
-      aj = 0.0_dp
       ALLOCATE (wj(num_integ_points))
-      wj = 0.0_dp
 
-      DO jquad = 1, num_integ_points
-         aj(jquad) = awj(jquad)
-         wj(jquad) = awj(jquad+num_integ_points)
-      END DO
+      aj(:) = awj(1:num_integ_points)
+      wj(:) = awj(num_integ_points+1:2*num_integ_points)
 
       DEALLOCATE (awj)
 
@@ -180,21 +175,18 @@ CONTAINS
          !XXX CALL cp_fm_get_info(matrix=fm_mat_G,&
          !XXX                     nrow_local=nrow_local,&
          !XXX                     ncol_local=ncol_local,&
-         !XXX                     row_indices=row_indices,&
-         !XXX                     col_indices=col_indices)
+         !XXX                     row_indices=row_indices)
          !XXX
 
          ! get info of fm_mat_S
          CALL cp_fm_get_info(matrix=fm_mat_S, &
                              nrow_local=nrow_local, &
                              ncol_local=ncol_local, &
-                             row_indices=row_indices, &
-                             col_indices=col_indices)
+                             row_indices=row_indices)
 
          ! update G matrix with the new value of w and a
          IF (first_cycle) THEN
             DO jjB = 1, ncol_local
-               j_global = col_indices(jjB)
                DO iiB = 1, nrow_local
                   i_global = row_indices(iiB)
 
@@ -210,7 +202,6 @@ CONTAINS
             END DO
          ELSE
             DO jjB = 1, ncol_local
-               j_global = col_indices(jjB)
                DO iiB = 1, nrow_local
                   i_global = row_indices(iiB)
 
@@ -250,20 +241,17 @@ CONTAINS
             !XXX CALL cp_fm_get_info(matrix=fm_mat_G_beta,&
             !XXX                     nrow_local=nrow_local,&
             !XXX                     ncol_local=ncol_local,&
-            !XXX                     row_indices=row_indices,&
-            !XXX                     col_indices=col_indices)
+            !XXX                     row_indices=row_indices)
             !XXX
 
             ! the same for the beta spin
             CALL cp_fm_get_info(matrix=fm_mat_S_beta, &
                                 nrow_local=nrow_local, &
                                 ncol_local=ncol_local, &
-                                row_indices=row_indices, &
-                                col_indices=col_indices)
+                                row_indices=row_indices)
             ! update G matrix with the new value of w and a
             IF (first_cycle) THEN
                DO jjB = 1, ncol_local
-                  j_global = col_indices(jjB)
                   DO iiB = 1, nrow_local
                      i_global = row_indices(iiB)
 
@@ -280,7 +268,6 @@ CONTAINS
                END DO
             ELSE
                DO jjB = 1, ncol_local
-                  j_global = col_indices(jjB)
                   DO iiB = 1, nrow_local
                      i_global = row_indices(iiB)
 
@@ -315,26 +302,20 @@ CONTAINS
 
          END IF
 
-         ! get info of fm_mat_Q
          CALL cp_fm_get_info(matrix=fm_mat_Q, &
-                             nrow_local=nrow_local, &
                              ncol_local=ncol_local, &
-                             row_indices=row_indices, &
                              col_indices=col_indices)
 
-         ! calcualte the trace of the product Q*Q
+         ! calculate the trace of the product Q*Q
          trace_XX = 0.0_dp
-         DO jjB = 1, ncol_local
-            j_global = col_indices(jjB)
-            DO iiB = 1, nrow_local
-               i_global = row_indices(iiB)
-               IF (my_open_shell) THEN
-                  trace_XX = trace_XX+fm_mat_Q%local_data(iiB, jjB)*fm_mat_Q_beta%local_data(iiB, jjB)
-               ELSE
-                  trace_XX = trace_XX+fm_mat_Q%local_data(iiB, jjB)*fm_mat_Q%local_data(iiB, jjB)
-               END IF
+         IF (my_open_shell) THEN
+            DO jjB = 1, ncol_local
+               trace_XX = trace_XX+DOT_PRODUCT(fm_mat_Q%local_data(:, jjB), fm_mat_Q_beta%local_data(:, jjB))
             END DO
-         END DO
+         ELSE
+            trace_XX = NORM2(fm_mat_Q%local_data)
+            trace_XX = trace_XX*trace_XX
+         END IF
 
          Emp2 = Emp2-trace_XX
 

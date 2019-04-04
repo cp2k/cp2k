@@ -61,9 +61,7 @@
           &RI_G0W0
             CORR_MOS_OCC          10
             CORR_MOS_VIRT         10
-            SCALING               0.2000
             NUMB_POLES            2
-            STOP_CRIT             1.0E-7
             MAX_ITER_FIT          10000
             CROSSING_SEARCH       Z_SHOT 
             FERMI_LEVEL_OFFSET    2.0E-2

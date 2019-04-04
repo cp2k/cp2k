@@ -129,11 +129,12 @@ CONTAINS
          keyword=keyword, &
          name="GROUP_SIZE", &
          variants=(/"NUMBER_PROC"/), &
-         description="Group size used in the computation of the integrals. Default is to use all processors (GROUP_SIZE=-1)."// &
+         description="Group size used in the computation of the integrals. To use all processors set GROUP_SIZE -1 "// &
+         "(might lead to VERY high computation times)."// &
          "A smaller group size (for example the node size), might a better choice if the actual MP2 time is large "// &
          "compared to integral computation time. This is usually the case if the total number of processors is not too large.", &
          usage="GROUP_SIZE 32", &
-         default_i_val=-1)
+         default_i_val=1)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
@@ -219,19 +220,10 @@ CONTAINS
 
       CALL keyword_create( &
          keyword=keyword, &
-         name="MINIMAL_GAP", &
-         description="If this keyword has a positive value, the HOMO-LUMO gap from DFT is enlarged to this value. "// &
-         "Should only be used for metals for RPA and GW if numerical issues are present.", &
-         usage="MINIMAL_GAP 0.01", &
-         default_r_val=-1.0_dp, unit_str="eV")
-      CALL section_add_keyword(section, keyword)
-      CALL keyword_release(keyword)
-
-      CALL keyword_create( &
-         keyword=keyword, &
          name="IM_TIME", &
          variants=(/"IMAG_TIME"/), &
-         description="Turns on cubic scaling RI-RPA and Laplace-SOS-MP2 method using the imaginary time formalism.", &
+         description="Turns on cubic scaling RI-RPA and Laplace-SOS-MP2 method using the imaginary time formalism. "// &
+         "If no IM_TIME section is present, the default parameters are used.", &
          usage="IM_TIME", &
          default_l_val=.FALSE., &
          lone_keyword_l_val=.TRUE.)
@@ -456,14 +448,15 @@ CONTAINS
          routineP = moduleN//':'//routineN
 
       TYPE(keyword_type), POINTER                        :: keyword
+      TYPE(section_type), POINTER                        :: subsection
 
       CPASSERT(.NOT. ASSOCIATED(section))
       CALL section_create(section, "RI_LAPLACE", &
                           description="Parameters influencing the RI-SOS-MP2-Laplace method", &
-                          n_keywords=2, n_subsections=0, repeats=.FALSE., &
+                          n_keywords=3, n_subsections=1, repeats=.FALSE., &
                           citations=(/DelBen2013/))
 
-      NULLIFY (keyword)
+      NULLIFY (keyword, subsection)
 
       CALL keyword_create( &
          keyword, name="QUADRATURE_POINTS", &
@@ -486,6 +479,22 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
+      CALL keyword_create( &
+         keyword=keyword, &
+         name="IM_TIME", &
+         variants=(/"IMAG_TIME"/), &
+         description="Turns on cubic scaling RI-RPA and Laplace-SOS-MP2 method using the imaginary time formalism. "// &
+         "If no IM_TIME section is present, default parameters are used.", &
+         usage="IM_TIME", &
+         default_l_val=.FALSE., &
+         lone_keyword_l_val=.TRUE.)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL create_ri_im_time(subsection)
+      CALL section_add_subsection(section, subsection)
+      CALL section_release(subsection)
+
    END SUBROUTINE create_ri_laplace
 
 ! **************************************************************************************************
@@ -503,7 +512,7 @@ CONTAINS
       CPASSERT(.NOT. ASSOCIATED(section))
       CALL section_create(section, "RI_RPA", &
                           description="Parameters influencing the RI RPA method", &
-                          n_keywords=2, n_subsections=1, repeats=.FALSE., &
+                          n_keywords=8, n_subsections=4, repeats=.FALSE., &
                           citations=(/DelBen2013, DelBen2015/))
 
       NULLIFY (keyword, subsection)
@@ -588,6 +597,18 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
+      CALL keyword_create( &
+         keyword=keyword, &
+         name="IM_TIME", &
+         variants=(/"IMAG_TIME"/), &
+         description="Turns on cubic scaling RI-RPA and Laplace-SOS-MP2 method using the imaginary time formalism. "// &
+         "If no IM_TIME section is present, the default parameters are used.", &
+         usage="IM_TIME", &
+         default_l_val=.FALSE., &
+         lone_keyword_l_val=.TRUE.)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
       ! here we generate a hfx subsection to use in the case EXX has to be computed after RPA
       CALL create_hfx_section(subsection)
       CALL section_add_subsection(section, subsection)
@@ -600,6 +621,11 @@ CONTAINS
 
       ! here we generate a RI_AXK subsection
       CALL create_ri_axk(subsection)
+      CALL section_add_subsection(section, subsection)
+      CALL section_release(subsection)
+
+      ! here we generate an IM_TIME subsection
+      CALL create_ri_im_time(subsection)
       CALL section_add_subsection(section, subsection)
       CALL section_release(subsection)
 
@@ -671,17 +697,6 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="SCALING", &
-                          variants=(/"A_SCALING"/), &
-                          description="Set the scaling factor a for the Clenshaw-Curtis grid by hand. "// &
-                          "If SCALING < 0, a is calculated as for RI-RPA. Until now, the best "// &
-                          "choice seems to be 0.2. The grid points of the frequency grid are "// &
-                          "just multiplied by SCALING: omega_j = omega_j*Scaling. Not relevant for cubic-scaling GW.", &
-                          usage="SCALING 0.2", &
-                          default_r_val=0.2_dp)
-      CALL section_add_keyword(section, keyword)
-      CALL keyword_release(keyword)
-
       CALL keyword_create(keyword, name="NUMB_POLES", &
                           description="Number of poles for the fitting. Usually, two poles are sufficient. ", &
                           usage="NUMB_POLES 2", &
@@ -695,15 +710,6 @@ CONTAINS
                           "Unit: Hartree. Default: 0.734996 H = 20 eV. ", &
                           usage="OMEGA_MAX_FIT 0.5", &
                           default_r_val=0.734996_dp)
-      CALL section_add_keyword(section, keyword)
-      CALL keyword_release(keyword)
-
-      CALL keyword_create(keyword, name="STOP_CRIT", &
-                          variants=(/"STOP_CRIT_1"/), &
-                          description="Convergence criterion for the fit. The fitting iteration terminates, if "// &
-                          "chi^2(n+1)/chi^2(n)-1 < STOP_CRIT.", &
-                          usage="STOP_CRIT 1.0E-7", &
-                          default_r_val=1E-5_dp)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
@@ -812,120 +818,6 @@ CONTAINS
                           usage="RI_SIGMA_X", &
                           default_l_val=.FALSE., &
                           lone_keyword_l_val=.TRUE.)
-      CALL section_add_keyword(section, keyword)
-      CALL keyword_release(keyword)
-
-      CALL keyword_create(keyword, name="NORMALIZE_SIGMA", &
-                          description="If true, parts of the exchange self-energy is added to the correlation "// &
-                          "self-energy. Especially recommended for surfaces with large slab distances."// &
-                          "Only works if RI_SIGMA_X is activated.", &
-                          usage="NORMALIZE_SIGMA", &
-                          default_l_val=.FALSE., &
-                          lone_keyword_l_val=.TRUE.)
-      CALL section_add_keyword(section, keyword)
-      CALL keyword_release(keyword)
-
-      CALL keyword_create(keyword, name="NEGLECT_NORMALIZATION_SIGMA_X", &
-                          description="Only works if NORMALIZE_SIGMA is true. If true,  don't add an exact "// &
-                          "exchange part to Sigma_x-v_xc. Only makes sense for periodic systems where a constant "// &
-                          "shift of single electron levels is allowed.", &
-                          usage="NEGLECT_NORMALIZATION_SIGMA_X", &
-                          default_l_val=.FALSE., &
-                          lone_keyword_l_val=.TRUE.)
-      CALL section_add_keyword(section, keyword)
-      CALL keyword_release(keyword)
-
-      CALL keyword_create( &
-         keyword=keyword, &
-         name="RI_METRIC", &
-         variants=(/"RI"/), &
-         description="Define which RI metric should be used for calculating B^P_nm needed for GW.", &
-         usage="RI_METRIC COULOMB", &
-         enum_c_vals=s2a("COULOMB", "OVERLAP"), &
-         enum_i_vals=(/ri_coulomb, ri_overlap/), &
-         enum_desc=s2a("Use Coulomb metric.", &
-                       "Use overlap metric."), &
-         default_i_val=ri_coulomb)
-      CALL section_add_keyword(section, keyword)
-      CALL keyword_release(keyword)
-
-      CALL keyword_create(keyword, name="MIX_EXCHANGE", &
-                          description="If true, mix CP2K-HFX (EXX) based on the truncated Coulomb operator and. "// &
-                          "RI-HFX. Parameter can be used to speed up the convergence of the GW HOMO-LUMO gap of  "// &
-                          "periodic systems with the cell size.", &
-                          usage="MIX_EXCHANGE", &
-                          default_l_val=.FALSE., &
-                          lone_keyword_l_val=.TRUE.)
-      CALL section_add_keyword(section, keyword)
-      CALL keyword_release(keyword)
-
-      CALL keyword_create( &
-         keyword, name="FRACTION_EXX", &
-         variants=(/"ALPHA"/), &
-         description="Mixing parameter between official CP2K-HFX (EXX) based on the truncated Coulomb operator "// &
-         "(fraction = alpha) and the RI-HFX (fraction = 1-alpha). To be valid, set MIX_HFX TRUE. "// &
-         "Parameter can be used to speed up the convergence of the GW HOMO-LUMO gap of periodic systems "// &
-         "with the cell size.", &
-         usage="FRACTION_EXX 0.21", &
-         default_r_val=0.21_dp, &
-         unit_str="")
-      CALL section_add_keyword(section, keyword)
-      CALL keyword_release(keyword)
-
-      CALL keyword_create(keyword, name="CONTOUR_DEF_START", &
-                          variants=(/"CD_START"/), &
-                          description="Number of the lowest MO for which contour deformation (CD) is enabled and "// &
-                          "analytic continuation is disabled. If negative, CD is disabled. CD not implemented for cubic-"// &
-                          "scaling GW.", &
-                          usage="CD_START 1", &
-                          default_i_val=-1)
-      CALL section_add_keyword(section, keyword)
-      CALL keyword_release(keyword)
-
-      CALL keyword_create(keyword, name="CONTOUR_DEF_END", &
-                          variants=(/"CD_END"/), &
-                          description="Number of the highest MO for which contour deformation (CD) is enabled and "// &
-                          "analytic continuation is disabled. If negative, CD is disabled. CD not implemented for cubic-"// &
-                          "scaling GW.", &
-                          usage="CD_END 100", &
-                          default_i_val=-1)
-      CALL section_add_keyword(section, keyword)
-      CALL keyword_release(keyword)
-
-      CALL keyword_create(keyword, name="CONTOUR_DEF_OFFSET", &
-                          variants=(/"CD_OFFSET"/), &
-                          description="Offset for computing the Z-factor in the contour deformation technique."// &
-                          "CD not implemented for cubic-scaling GW.", &
-                          usage="CONTOUR_DEF_OFFSET 1.0E-2", &
-                          default_r_val=2.0E-2_dp)
-      CALL section_add_keyword(section, keyword)
-      CALL keyword_release(keyword)
-
-      CALL keyword_create(keyword, name="ATOMS", &
-                          description="This keyword can be used for projecting the MOs on the Gaussian basis of "// &
-                          "the list of atoms which follow after ATOM, e.g. this gives a kind of Mulliken charge of "// &
-                          "MOs at certain atoms. Can for example be used to determine MOs which are located on a "// &
-                          "molecule adsorbed on a surface. The atom number refers to the order of the atom in "// &
-                          "the geometry. If the first entry is negative, no projection of MOs on the Gaussian. "// &
-                          "The MO Mulliken charges are printed if the keyword PRINT_GW_DETAILS is activated. "// &
-                          "For a range of atoms, please use ATOM_RANGE", &
-                          usage="ATOMS 5 7 8 11", type_of_var=integer_t, n_var=-1, default_i_vals=(/-1/))
-      CALL section_add_keyword(section, keyword)
-      CALL keyword_release(keyword)
-
-      CALL keyword_create(keyword, name="ATOM_RANGE", &
-                          description="As ATOMS, but here you can specify a start and an end atom. Please, either "// &
-                          "use ATOMS or ATOM_RANGE.", &
-                          usage="ATOM_RANGE 12 18", type_of_var=integer_t, n_var=2, default_i_vals=(/-1, -1/))
-      CALL section_add_keyword(section, keyword)
-      CALL keyword_release(keyword)
-
-      CALL keyword_create(keyword, name="EPS_CHARGE", &
-                          description="Keyword only works if a list of ATOMS have been specified. If the Mulliken "// &
-                          "charge of a MO is below EPS_CHARGE, then the GW correction of that level is not computed. "// &
-                          "If EPS_CHARGE is larger than 1.0, no GW levels will be computed.", &
-                          usage="EPS_CHARGE 0.3", &
-                          default_r_val=-1.0_dp)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
@@ -1116,16 +1008,6 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="CONTOUR_DEF_END", &
-                          variants=(/"CD_END"/), &
-                          description="Number of the highest MO for which contour deformation (CD) is enabled and "// &
-                          "analytic continuation is disabled. If negative, CD is disabled. CD not implemented for cubic-"// &
-                          "scaling GW.", &
-                          usage="CD_END 100", &
-                          default_i_val=-1)
-      CALL section_add_keyword(section, keyword)
-      CALL keyword_release(keyword)
-
       CALL keyword_create(keyword, name="NUM_OMEGA_POINTS", &
                           description="Number of Clenshaw-Curtis integration points for the periodic correction in cubic- "// &
                           "scaling GW. This variable is a dummy variable for canonical N^4 GW calculations.", &
@@ -1269,10 +1151,18 @@ CONTAINS
 
       CPASSERT(.NOT. ASSOCIATED(section))
       CALL section_create(section, "IM_TIME", &
-                          description="Parameters influencing the cubic-scaling RPA or Laplace-SOS-MP2 method.", &
+                          description="Parameters influencing the cubic-scaling RPA or Laplace-SOS-MP2 method."// &
+                          "Use either IM_TIME, RI_RPA%IM_TIME or RI_LAPLACE%IM_TIME.", &
                           n_keywords=12, n_subsections=2, repeats=.FALSE.)
 
       NULLIFY (keyword, subsection)
+
+      CALL keyword_create(keyword, name="_SECTION_PARAMETERS_", &
+                          description="Activates cubic-scaling RPA and Laplace-SOS-MP2 calculations.", &
+                          usage="&im_time .TRUE.", &
+                          default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
 
       CALL keyword_create(keyword, name="MEMORY_CUT", &
                           description="Cuts the memory of the M_munu_P^occ/virt matrix by the factor given. "// &
@@ -1506,14 +1396,6 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="MULTIPOLE_TWO_CENT_INT", &
-                          description="Use fast algorithm to calculate two-center RI integrals based on multipole expansion", &
-                          usage="MULTIPOLE_TWO_CENT_INT", &
-                          default_l_val=.FALSE., &
-                          lone_keyword_l_val=.TRUE.)
-      CALL section_add_keyword(section, keyword)
-      CALL keyword_release(keyword)
-
       CALL keyword_create(keyword, name="PRINT_LEVEL", &
                           variants=(/"IOLEVEL"/), &
                           description="How much output is written by the individual groups.", &
@@ -1534,29 +1416,6 @@ CONTAINS
          "to be very small since the inversion of overlap matrix might be ill-conditioned.", &
          usage="EPS_PGF_ORB_S 1.0E-10 ", type_of_var=real_t, &
          default_r_val=1.0E-10_dp)
-      CALL section_add_keyword(section, keyword)
-      CALL keyword_release(keyword)
-
-      CALL keyword_create(keyword, name="DO_CHOLESKY_SUBGROUPS", &
-                          variants=(/"DCS"/), &
-                          description="Compute the Cholesky decomposition of V and S (Coulomb and overlap "// &
-                          "matrix in the RI basis in two different subgroups. May be benefitial "// &
-                          "for very large systems where cp_fm_cholesky_decompose is expensive. "// &
-                          "Is only needed for RI with the overlap metric. Neglected when doing k-points.", &
-                          usage="DSC", &
-                          default_l_val=.FALSE., &
-                          lone_keyword_l_val=.TRUE.)
-      CALL section_add_keyword(section, keyword)
-      CALL keyword_release(keyword)
-
-      CALL keyword_create(keyword, name="SIZE_CHOLESKY_SUBGROUP", &
-                          variants=(/"SIZE_CS"/), &
-                          description="Number of MPI ranks for a single Cholesky subgroup. -1: half of the "// &
-                          "total number of MPI ranks, -2: biggest square number smaller than the "// &
-                          "total number of MPI ranks, number between 1 and (#MPI ranks)/2: this size "// &
-                          "is used.", &
-                          usage="SIZE_CS  144", &
-                          default_i_val=-1)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
@@ -1668,4 +1527,3 @@ CONTAINS
    END SUBROUTINE create_mp2_potential
 
 END MODULE input_cp2k_mp2
-

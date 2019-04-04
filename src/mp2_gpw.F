@@ -184,7 +184,7 @@ CONTAINS
          dimen_RI, group_size_3c, gw_corr_lev_occ, gw_corr_lev_occ_beta, gw_corr_lev_virt, &
          gw_corr_lev_virt_beta, handle, homo, homo_beta, i, i_multigrid, local_unit_nr, &
          my_group_L_end, my_group_L_size, my_group_L_start, n_multigrid, nelectron, &
-         nelectron_beta, nmo, nspins, ri_metric, ri_metric_gw
+         nelectron_beta, nmo, nspins, ri_metric
       INTEGER, ALLOCATABLE, DIMENSION(:) :: ends_array, ends_B_all, ends_B_occ_bse, &
          ends_B_virt_bse, ends_B_virtual, ends_B_virtual_beta, sizes_array, sizes_B_all, &
          sizes_B_occ_bse, sizes_B_virt_bse, sizes_B_virtual, sizes_B_virtual_beta, starts_array, &
@@ -355,7 +355,6 @@ CONTAINS
 
          ! in imaginary time, we do overlap metric
          mp2_env%ri_metric = ri_overlap
-         mp2_env%ri_g0w0%ri_metric = ri_overlap
 
       END IF
 
@@ -402,9 +401,6 @@ CONTAINS
          gw_corr_lev_virt_beta = mp2_env%ri_g0w0%corr_mos_virt_beta
       END IF
 
-      ! metric for GW matrix elements B^nm_P
-      ri_metric_gw = mp2_env%ri_g0w0%ri_metric
-
       ! and the array of mos
       ALLOCATE (Eigenval(dimen))
       Eigenval(:) = mo_eigenvalues(:)
@@ -412,13 +408,6 @@ CONTAINS
          ALLOCATE (Eigenval_beta(dimen))
          Eigenval_beta(:) = mo_eigenvalues_beta(:)
       ENDIF
-
-      IF (mp2_env%minimal_gap > 0.0_dp) THEN
-         CALL shift_eigenvalues(Eigenval, mp2_env%minimal_gap, homo, dimen)
-         IF (nspins == 2) THEN
-            CALL shift_eigenvalues(Eigenval_beta, mp2_env%minimal_gap, homo_beta, dimen)
-         END IF
-      END IF
 
       ! for imag. time, we do not need this
       IF (.NOT. do_im_time) THEN
@@ -515,7 +504,7 @@ CONTAINS
                do_bse, starts_B_all, sizes_B_all, ends_B_all, gw_corr_lev_occ, gw_corr_lev_virt, &
                do_im_time, do_mao, do_kpoints_cubic_RPA, &
                mat_3c_overl_int, mat_3c_overl_int_mao_for_occ, mat_3c_overl_int_mao_for_virt, &
-               mao_coeff_occ, mao_coeff_virt, ri_metric, ri_metric_gw, &
+               mao_coeff_occ, mao_coeff_virt, ri_metric, &
                starts_B_occ_bse, sizes_B_occ_bse, ends_B_occ_bse, &
                starts_B_virt_bse, sizes_B_virt_bse, ends_B_virt_bse, &
                BIb_C_beta, BIb_C_gw_beta, ends_B_virtual_beta, sizes_B_virtual_beta, starts_B_virtual_beta, &
@@ -538,7 +527,7 @@ CONTAINS
                                        do_im_time, do_mao, do_kpoints_cubic_RPA, &
                                        mat_3c_overl_int, mat_3c_overl_int_mao_for_occ, &
                                        mat_3c_overl_int_mao_for_virt, mao_coeff_occ, mao_coeff_virt, &
-                                       ri_metric, ri_metric_gw, &
+                                       ri_metric, &
                                        starts_B_occ_bse, sizes_B_occ_bse, ends_B_occ_bse, &
                                        starts_B_virt_bse, sizes_B_virt_bse, ends_B_virt_bse)
 
@@ -3834,35 +3823,6 @@ CONTAINS
       eps_pgf_orb_old = dft_control%qs_control%eps_pgf_orb
       eps_rho_rspace_old = dft_control%qs_control%eps_rho_rspace
       eps_gvg_rspace_old = dft_control%qs_control%eps_gvg_rspace
-
-   END SUBROUTINE
-
-! **************************************************************************************************
-!> \brief ...
-!> \param Eigenval ...
-!> \param minimal_gap ...
-!> \param homo ...
-!> \param dimen ...
-! **************************************************************************************************
-   SUBROUTINE shift_eigenvalues(Eigenval, minimal_gap, homo, dimen)
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: Eigenval
-      REAL(KIND=dp)                                      :: minimal_gap
-      INTEGER                                            :: homo, dimen
-
-      INTEGER                                            :: n_level
-      REAL(KIND=dp)                                      :: gap, minimal_occ, minimal_virt
-
-      gap = Eigenval(homo+1)-Eigenval(homo)
-      IF (gap < minimal_gap) THEN
-         minimal_occ = 0.5_dp*(Eigenval(homo)+Eigenval(homo+1)-minimal_gap)
-         minimal_virt = 0.5_dp*(Eigenval(homo)+Eigenval(homo+1)+minimal_gap)
-         DO n_level = 1, homo
-            IF (Eigenval(n_level) > minimal_occ) Eigenval(n_level) = minimal_occ
-         END DO
-         DO n_level = homo+1, dimen
-            IF (Eigenval(n_level) < minimal_virt) Eigenval(n_level) = minimal_virt
-         END DO
-      END IF
 
    END SUBROUTINE
 

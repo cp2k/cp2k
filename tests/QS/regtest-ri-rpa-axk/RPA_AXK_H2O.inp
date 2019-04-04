@@ -1,5 +1,5 @@
 &GLOBAL                                                                                           
-  PROJECT  RI_RPA_H2O
+  PROJECT  RPA_AXK_H2O
   PRINT_LEVEL MEDIUM
   RUN_TYPE ENERGY
   &TIMINGS
@@ -35,10 +35,6 @@
     &END SCF
     &XC
       &XC_FUNCTIONAL PBE
-        &PBE
-          SCALE_X 1.0000000
-          SCALE_C 1.0000000
-        &END
       &END XC_FUNCTIONAL
       &WF_CORRELATION
         METHOD  RI_RPA_GPW
@@ -47,6 +43,8 @@
           REL_CUTOFF 20
         &END
         &RI_RPA
+          RPA_NUM_QUAD_POINTS 40
+          RI_AXK .TRUE.
           &HF
             FRACTION 1.0000000
             &SCREENING
@@ -54,22 +52,6 @@
               SCREEN_ON_INITIAL_P FALSE
             &END SCREENING
           &END HF
-          RPA_NUM_QUAD_POINTS 40
-          GW
-          &RI_G0W0
-            CORR_MOS_OCC          10
-            CORR_MOS_VIRT         10
-            SCALING               0.2000
-            NUMB_POLES            2
-            STOP_CRIT             1.0E-7
-            MAX_ITER_FIT          10000
-            CROSSING_SEARCH       Z_SHOT 
-            FERMI_LEVEL_OFFSET    2.0E-2
-            EV_SC_ITER            3
-            HF_LIKE_EV_START      FALSE
-            CONTOUR_DEF_START     2
-            CONTOUR_DEF_END       4
-          &END RI_G0W0 
         &END RI_RPA
         MEMORY  200.
         NUMBER_PROC  1
