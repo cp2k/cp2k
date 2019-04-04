@@ -1845,7 +1845,7 @@ CONTAINS
          IF ((i_iter .GT. 1) .AND. (.NOT. opt_embed%steep_desc)) CALL step_control(opt_embed)
 
          ! Print density difference
-         CALL print_rho_diff(diff_rho_r, i_iter, force_env%sub_force_env(ref_subsys_number)%force_env%qs_env, .FALSE.)
+         !CALL print_rho_diff(diff_rho_r, i_iter, force_env%sub_force_env(ref_subsys_number)%force_env%qs_env, .FALSE.)
          IF (opt_embed%open_shell_embed) THEN ! Spin part
             CALL print_rho_spin_diff(diff_rho_spin, i_iter, force_env%sub_force_env(ref_subsys_number)%force_env%qs_env, .FALSE.)
          ENDIF
@@ -1870,7 +1870,7 @@ CONTAINS
                                  force_env%sub_force_env(cluster_subsys_num)%force_env%qs_env)
 
       ! Print final density difference
-      CALL print_rho_diff(diff_rho_r, i_iter, force_env%sub_force_env(ref_subsys_number)%force_env%qs_env, .TRUE.)
+      !CALL print_rho_diff(diff_rho_r, i_iter, force_env%sub_force_env(ref_subsys_number)%force_env%qs_env, .TRUE.)
       IF (opt_embed%open_shell_embed) THEN ! Spin part
          CALL print_rho_spin_diff(diff_rho_spin, i_iter, force_env%sub_force_env(ref_subsys_number)%force_env%qs_env, .TRUE.)
       ENDIF
@@ -2086,4 +2086,3 @@ CONTAINS
    END SUBROUTINE dmfet_embedding
 
 END MODULE force_env_methods
-
