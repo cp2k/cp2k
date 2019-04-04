@@ -282,6 +282,7 @@ error_description_file=${dir_out}/error_summary
 memory_description_file=${dir_out}/memory_summary
 >${memory_description_file}
 summary=${dir_out}/summary.txt
+timings=${dir_out}/timings.txt
 printf "Summary of the regression tester run from ${date_stamp} using ${dir_triplet} ${cp2k_version} \n" >${summary}
 
 
@@ -528,6 +529,7 @@ function run_regtest_dir() {
      fi
 
      printf "    %-50s %25s %20s %s\n" "${input_file}" "${test_value}" "${this_test}" "${leak_marker}" >> ${dir_out}/status/REGTEST_TASK_TESTS-$task
+     printf "%7.2f  %s\n" "${timing}" "${dir}/${input_file}" >> "${timings}"
   done
 
   t2=`date +%s`
@@ -626,6 +628,7 @@ function run_unittest() {
   echo "${n_runtime_error} 0 ${n_correct} 0  1" > ${dir_out}/status/REGTEST_TASK_RESULT-$task
   cat ${dir_out}/status/REGTEST_TASK_TESTS-$task
   rm -f ${dir_out}/status/REGTEST_TASK_TESTS-$task ${dir_out}/status/REGTEST_RUNNING-$task
+  printf "%7.2f  %s\n" "${timing}" "UNIT/${dir##*/}" >> "${timings}"
 }
 
 ###################################################################################
@@ -1158,6 +1161,8 @@ EOF
    cat "${error_description_file}"
    echo "--------------------------------------------------------------------------"
    file_info
+   echo "--------------------------------- Timings --------------------------------"
+   ${dir_base}/${cp2k_dir}/tools/regtesting/timings.py "${timings}"
    echo "--------------------------------- Summary --------------------------------"
    if [[ ${quick} != "quick" ]]; then
       printf "Number of COMPILE warns %d\n" ${compile_warnings} | tee -a ${summary}
