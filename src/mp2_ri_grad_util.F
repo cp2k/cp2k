@@ -57,7 +57,7 @@ MODULE mp2_ri_grad_util
 
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'mp2_ri_grad_util'
 
-   PUBLIC :: complete_gamma, array2fm, fm2array
+   PUBLIC :: complete_gamma, array2fm, fm2array, prepare_redistribution
 
    TYPE index_map
       INTEGER, DIMENSION(:, :), ALLOCATABLE :: map
@@ -228,29 +228,17 @@ CONTAINS
       ENDIF
 
       ! create the processor map and size arrays
-      ALLOCATE (proc_map(-para_env%num_pe:2*para_env%num_pe-1))
-      proc_map = 0
       CALL create_group_dist(gd_ia_new, para_env%num_pe)
       CALL create_group_dist(gd_array_new, para_env%num_pe)
       CALL create_group_dist(gd_P, para_env_sub%num_pe, dimen_RI)
       CALL create_group_dist(gd_P_new, para_env%num_pe)
       
       CALL get_group_dist(gd_P, para_env_sub%mepos, my_P_start, my_P_end, my_P_size)
-
-      ALLOCATE (pos_info(0:para_env%num_pe-1))
-      pos_info = 0
-      pos_info(para_env%mepos) = para_env_sub%mepos
-      CALL mp_sum(pos_info, para_env%group)
-
-      ALLOCATE (group_grid_2_mepos(0:para_env_sub%num_pe-1, 0:ngroup-1))
-      group_grid_2_mepos = 0
-      ALLOCATE (mepos_2_grid_group(0:para_env%num_pe-1, 2))
-      mepos_2_grid_group = 0
+      
+      CALL prepare_redistribution(para_env, para_env_sub, ngroup, proc_map, &
+                                  group_grid_2_mepos, mepos_2_grid_group, pos_info=pos_info)
 
       DO i = 0, para_env%num_pe-1
-         proc_map(i) = i
-         proc_map(-i-1) = para_env%num_pe-i-1
-         proc_map(para_env%num_pe+i) = i
          ! calculate postition of the group
          pos_group = i/para_env_sub%num_pe
          ! calculate postition in the subgroup
@@ -259,11 +247,6 @@ CONTAINS
          CALL get_group_dist(gd_ia, pos_sub, gd_ia_new, i)
          CALL get_group_dist(gd_array, pos_group, gd_array_new, i)
          CALL get_group_dist(gd_P, pos_sub, gd_P_new, i)
-         ! fill the map from the grid of groups to process
-         group_grid_2_mepos(pos_sub, pos_group) = i
-         ! and the opposite, from the global pos to the grid pos
-         mepos_2_grid_group(i, 1) = pos_sub
-         mepos_2_grid_group(i, 2) = pos_group
       END DO
 
       ! WRITE(*,*) mepos_2_grid_group(:,1)
@@ -1699,5 +1682,75 @@ CONTAINS
       END DO
       WRITE (*, *)
    END SUBROUTINE
+
+! **************************************************************************************************
+!> \brief ...
+!> \param para_env ...
+!> \param para_env_sub ...
+!> \param ngroup ...
+!> \param proc_map ...
+!> \param sizes ...
+!> \param group_grid_2_mepos ...
+!> \param mepos_2_grid_group ...
+!> \param fm_mat_Gamma ...
+! **************************************************************************************************
+   SUBROUTINE prepare_redistribution(para_env, para_env_sub, ngroup, &
+                                     proc_map, group_grid_2_mepos, mepos_2_grid_group, sizes, &
+                                     fm_mat_Gamma, pos_info)
+      TYPE(cp_para_env_type), POINTER                    :: para_env, para_env_sub
+      INTEGER, INTENT(IN)                                :: ngroup
+      INTEGER, ALLOCATABLE, DIMENSION(:), INTENT(OUT)    :: proc_map
+      INTEGER, ALLOCATABLE, DIMENSION(:, :), INTENT(OUT) :: group_grid_2_mepos, &
+                                                            mepos_2_grid_group
+      INTEGER, ALLOCATABLE, DIMENSION(:, :), OPTIONAL, INTENT(OUT) :: sizes
+      TYPE(cp_fm_type), POINTER, OPTIONAL                :: fm_mat_Gamma
+      INTEGER, ALLOCATABLE, DIMENSION(:), OPTIONAL, INTENT(OUT) :: pos_info
+
+      INTEGER                                            :: i, ncol_local, nrow_local, pos_group, &
+                                                            pos_sub
+      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: my_pos_info
+
+      ALLOCATE (proc_map(-para_env%num_pe:2*para_env%num_pe-1))
+      proc_map = 0
+      ALLOCATE (my_pos_info(0:para_env%num_pe-1))
+      my_pos_info = 0
+      my_pos_info(para_env%mepos) = para_env_sub%mepos
+      CALL mp_sum(my_pos_info, para_env%group)
+
+      ALLOCATE (group_grid_2_mepos(0:para_env_sub%num_pe-1, 0:ngroup-1))
+      group_grid_2_mepos = 0
+      ALLOCATE (mepos_2_grid_group(0:para_env%num_pe-1, 2))
+      mepos_2_grid_group = 0
+
+      DO i = 0, para_env%num_pe-1
+         proc_map(i) = i
+         proc_map(-i-1) = para_env%num_pe-i-1
+         proc_map(para_env%num_pe+i) = i
+         ! calculate postition of the group
+         pos_group = i/para_env_sub%num_pe
+         ! calculate postition in the subgroup
+         pos_sub = my_pos_info(i)
+         ! fill the map from the grid of groups to process
+         group_grid_2_mepos(pos_sub, pos_group) = i
+         ! and the opposite, from the global pos to the grid pos
+         mepos_2_grid_group(i, 1) = pos_sub
+         mepos_2_grid_group(i, 2) = pos_group
+      ENDDO
+
+      IF (PRESENT(fm_mat_Gamma) .AND. PRESENT(sizes)) THEN
+         CALL cp_fm_get_info(matrix=fm_mat_Gamma, &
+                             nrow_local=nrow_local, &
+                             ncol_local=ncol_local)
+
+         ALLOCATE (sizes(2, 0:para_env%num_pe-1))
+         sizes = 0
+         sizes(1, para_env%mepos) = nrow_local
+         sizes(2, para_env%mepos) = ncol_local
+         CALL mp_sum(sizes, para_env%group)
+      END IF
+      
+      IF (PRESENT(pos_info)) CALL move_alloc(my_pos_info, pos_info)
+
+   END SUBROUTINE prepare_redistribution
 
 END MODULE mp2_ri_grad_util

@@ -41,7 +41,8 @@ MODULE rpa_communication
                                               mp_sum,&
                                               mp_wait,&
                                               mp_waitall
-   USE mp2_ri_grad_util,                ONLY: fm2array
+   USE mp2_ri_grad_util,                ONLY: fm2array,&
+                                              prepare_redistribution
    USE mp2_types,                       ONLY: integ_mat_buffer_type
    USE util,                            ONLY: get_limit
 #include "./base/base_uses.f90"
@@ -634,7 +635,7 @@ CONTAINS
       ! Make a 2D array intermediate
 
       CALL prepare_redistribution(para_env_RPA, para_env_sub, ngroup, &
-                                  proc_map, sizes, group_grid_2_mepos, mepos_2_grid_group, &
+                                  proc_map, group_grid_2_mepos, mepos_2_grid_group, sizes, &
                                   fm_mat_Gamma_3)
 
       CALL fm2array(Gamma_2D, dimen_ia, dimen_RI, para_env_RPA, proc_map, &
@@ -966,69 +967,5 @@ CONTAINS
       CALL timestop(handle)
 
    END SUBROUTINE gamma_fm_to_dbcsr
-
-! **************************************************************************************************
-!> \brief ...
-!> \param para_env ...
-!> \param para_env_sub ...
-!> \param ngroup ...
-!> \param proc_map ...
-!> \param sizes ...
-!> \param group_grid_2_mepos ...
-!> \param mepos_2_grid_group ...
-!> \param fm_mat_Gamma_3 ...
-! **************************************************************************************************
-   SUBROUTINE prepare_redistribution(para_env, para_env_sub, ngroup, &
-                                     proc_map, sizes, group_grid_2_mepos, mepos_2_grid_group, &
-                                     fm_mat_Gamma_3)
-      TYPE(cp_para_env_type), POINTER                    :: para_env, para_env_sub
-      INTEGER                                            :: ngroup
-      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: proc_map
-      INTEGER, ALLOCATABLE, DIMENSION(:, :)              :: sizes, group_grid_2_mepos, &
-                                                            mepos_2_grid_group
-      TYPE(cp_fm_type), POINTER                          :: fm_mat_Gamma_3
-
-      INTEGER                                            :: i, ncol_local, nrow_local, pos_group, &
-                                                            pos_sub
-      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: pos_info
-
-      ALLOCATE (proc_map(-para_env%num_pe:2*para_env%num_pe-1))
-      proc_map = 0
-      ALLOCATE (pos_info(0:para_env%num_pe-1))
-      pos_info = 0
-      pos_info(para_env%mepos) = para_env_sub%mepos
-      CALL mp_sum(pos_info, para_env%group)
-
-      ALLOCATE (group_grid_2_mepos(0:para_env_sub%num_pe-1, 0:ngroup-1))
-      group_grid_2_mepos = 0
-      ALLOCATE (mepos_2_grid_group(0:para_env%num_pe-1, 2))
-      mepos_2_grid_group = 0
-
-      DO i = 0, para_env%num_pe-1
-         proc_map(i) = i
-         proc_map(-i-1) = para_env%num_pe-i-1
-         proc_map(para_env%num_pe+i) = i
-         ! calculate postition of the group
-         pos_group = i/para_env_sub%num_pe
-         ! calculate postition in the subgroup
-         pos_sub = pos_info(i)
-         ! fill the map from the grid of groups to process
-         group_grid_2_mepos(pos_sub, pos_group) = i
-         ! and the opposite, from the global pos to the grid pos
-         mepos_2_grid_group(i, 1) = pos_sub
-         mepos_2_grid_group(i, 2) = pos_group
-      ENDDO
-
-      CALL cp_fm_get_info(matrix=fm_mat_Gamma_3, &
-                          nrow_local=nrow_local, &
-                          ncol_local=ncol_local)
-
-      ALLOCATE (sizes(2, 0:para_env%num_pe-1))
-      sizes = 0
-      sizes(1, para_env%mepos) = nrow_local
-      sizes(2, para_env%mepos) = ncol_local
-      CALL mp_sum(sizes, para_env%group)
-
-   END SUBROUTINE prepare_redistribution
 
 END MODULE rpa_communication
