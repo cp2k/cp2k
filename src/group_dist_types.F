@@ -21,7 +21,7 @@ MODULE group_dist_types
 
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'group_dist_types'
 
-   PUBLIC :: group_dist_d0_type, group_dist_d1_type, group_dist_d2_type, &
+   PUBLIC :: group_dist_d0_type, group_dist_d1_type, &
              create_group_dist, get_group_dist, release_group_dist
 
    ! Type to represent start, end and size of one group (usually the own group)
@@ -35,31 +35,23 @@ MODULE group_dist_types
    TYPE group_dist_d1_type
       INTEGER, ALLOCATABLE, DIMENSION(:) :: starts, ends, sizes
    END TYPE group_dist_d1_type
-
-   ! Class to represent 2d-sets of starts, ends and sizes of all groups
-   ! Better for exchanging information than using arrays of group_dist_d0_type
-   TYPE group_dist_d2_type
-      INTEGER, ALLOCATABLE, DIMENSION(:,:) :: starts, ends, sizes
-   END TYPE group_dist_d2_type
    
    INTERFACE create_group_dist
       MODULE PROCEDURE create_group_dist_d0, &
                        create_group_dist_d1_i1, &
                        create_group_dist_d1_i3, &
                        create_group_dist_d1_gd, &
-                       create_group_dist_d2_i3, &
-                       create_group_dist_d2_gd
+                       create_group_dist_d1_0
    END INTERFACE create_group_dist
    
    INTERFACE get_group_dist
       MODULE PROCEDURE get_group_dist_d0, &
                        get_group_dist_d1, &
-                       get_group_dist_d2
+                       get_group_dist_gd1
    END INTERFACE
    
    INTERFACE release_group_dist
-      MODULE PROCEDURE release_group_dist_d1, &
-                       release_group_dist_d2
+      MODULE PROCEDURE release_group_dist_d1
    END INTERFACE release_group_dist
 
 CONTAINS
@@ -104,6 +96,21 @@ CONTAINS
       
    END SUBROUTINE create_group_dist_d1_i1
 
+   PURE SUBROUTINE create_group_dist_d1_0(this, ngroups)
+      TYPE(group_dist_d1_type), INTENT(INOUT) :: this
+      INTEGER, INTENT(IN)                   :: ngroups
+
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'create_group_dist_d1_0', routineP = moduleN//':'//routineN
+      
+      ALLOCATE(this%starts(0:ngroups-1))
+      this%starts = 0
+      ALLOCATE(this%ends(0:ngroups-1))
+      this%ends = 0
+      ALLOCATE(this%sizes(0:ngroups-1))
+      this%sizes = 0
+      
+   END SUBROUTINE create_group_dist_d1_0
+
    SUBROUTINE create_group_dist_d1_i3(this, starts, ends, sizes, para_env)
       TYPE(group_dist_d1_type), INTENT(INOUT) :: this
       INTEGER, INTENT(IN)                   :: starts, ends, sizes
@@ -122,9 +129,9 @@ CONTAINS
       ALLOCATE(this%sizes(0:para_env%num_pe-1))
       this%sizes = 0
 
-      this%starts(para_env%num_pe) = starts
-      this%ends(para_env%num_pe) = ends
-      this%sizes(para_env%num_pe) = sizes
+      this%starts(para_env%mepos) = starts
+      this%ends(para_env%mepos) = ends
+      this%sizes(para_env%mepos) = sizes
       
       CALL mp_sum(this%starts, para_env%group)
       CALL mp_sum(this%ends, para_env%group)
@@ -152,9 +159,9 @@ CONTAINS
       ALLOCATE(this%sizes(0:para_env%num_pe-1))
       this%sizes = 0
 
-      this%starts(para_env%num_pe) = group_dist_ext%starts
-      this%ends(para_env%num_pe) = group_dist_ext%ends
-      this%sizes(para_env%num_pe) = group_dist_ext%sizes
+      this%starts(para_env%mepos) = group_dist_ext%starts
+      this%ends(para_env%mepos) = group_dist_ext%ends
+      this%sizes(para_env%mepos) = group_dist_ext%sizes
       
       CALL mp_sum(this%starts, para_env%group)
       CALL mp_sum(this%ends, para_env%group)
@@ -163,74 +170,6 @@ CONTAINS
       CALL timestop(handle)
       
    END SUBROUTINE create_group_dist_d1_gd
-
-   SUBROUTINE create_group_dist_d2_i3(this, starts1, ends1, sizes1, starts2, ends2, sizes2, para_env)
-      TYPE(group_dist_d2_type), INTENT(INOUT) :: this
-      INTEGER, INTENT(IN)                   :: starts1, ends1, sizes1, starts2, ends2, sizes2
-      TYPE(cp_para_env_type), POINTER       :: para_env
-
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'create_group_dist_d2_i3', routineP = moduleN//':'//routineN
-      
-      INTEGER :: handle
-      
-      CALL timeset(routineN, handle)
-      
-      ALLOCATE(this%starts(2,0:para_env%num_pe-1))
-      this%starts = 0
-      ALLOCATE(this%ends(2,0:para_env%num_pe-1))
-      this%ends = 0
-      ALLOCATE(this%sizes(2,0:para_env%num_pe-1))
-      this%sizes = 0
-
-      this%starts(1,para_env%mepos) = starts1
-      this%ends(1,para_env%mepos) = ends1
-      this%sizes(1,para_env%mepos) = sizes1
-
-      this%starts(2,para_env%mepos) = starts2
-      this%ends(2,para_env%mepos) = ends2
-      this%sizes(2,para_env%mepos) = sizes2
-      
-      CALL mp_sum(this%starts, para_env%group)
-      CALL mp_sum(this%ends, para_env%group)
-      CALL mp_sum(this%sizes, para_env%group)
-      
-      CALL timestop(handle)
-      
-   END SUBROUTINE create_group_dist_d2_i3
-
-   SUBROUTINE create_group_dist_d2_gd(this, group_dist_ext1, group_dist_ext2, para_env)
-      TYPE(group_dist_d2_type), INTENT(INOUT) :: this
-      TYPE(group_dist_d0_type), INTENT(IN)  :: group_dist_ext1, group_dist_ext2
-      TYPE(cp_para_env_type), POINTER       :: para_env
-
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'create_group_dist_d2_gd', routineP = moduleN//':'//routineN
-      
-      INTEGER :: handle
-      
-      CALL timeset(routineN, handle)
-      
-      ALLOCATE(this%starts(2,0:para_env%num_pe-1))
-      this%starts = 0
-      ALLOCATE(this%ends(2,0:para_env%num_pe-1))
-      this%ends = 0
-      ALLOCATE(this%sizes(2,0:para_env%num_pe-1))
-      this%sizes = 0
-
-      this%starts(1,para_env%mepos) = group_dist_ext1%starts
-      this%ends(1,para_env%mepos) = group_dist_ext1%ends
-      this%sizes(1,para_env%mepos) = group_dist_ext1%sizes
-
-      this%starts(2,para_env%mepos) = group_dist_ext2%starts
-      this%ends(2,para_env%mepos) = group_dist_ext2%ends
-      this%sizes(2,para_env%mepos) = group_dist_ext2%sizes
-      
-      CALL mp_sum(this%starts, para_env%group)
-      CALL mp_sum(this%ends, para_env%group)
-      CALL mp_sum(this%sizes, para_env%group)
-      
-      CALL timestop(handle)
-      
-   END SUBROUTINE create_group_dist_d2_gd
 
    PURE SUBROUTINE get_group_dist_d0(this, starts, ends, sizes)
       TYPE(group_dist_d0_type), INTENT(IN) :: this
@@ -264,36 +203,18 @@ CONTAINS
       
    END SUBROUTINE get_group_dist_d1
 
-   PURE SUBROUTINE get_group_dist_d2(this, pos, starts1, ends1, sizes1, starts2, ends2, sizes2, &
-                                        group_dist_ext1, group_dist_ext2)
-      TYPE(group_dist_d2_type), INTENT(IN) :: this
-      INTEGER, INTENT(IN)                  :: pos
-      INTEGER, INTENT(OUT), OPTIONAL       :: starts1, ends1, sizes1, starts2, ends2, sizes2
-      TYPE(group_dist_d0_type), INTENT(OUT), OPTIONAL :: group_dist_ext1, group_dist_ext2
+   PURE SUBROUTINE get_group_dist_gd1(this, pos, group_dist_ext, pos_ext)
+      TYPE(group_dist_d1_type), INTENT(IN) :: this
+      INTEGER, INTENT(IN)                  :: pos, pos_ext
+      TYPE(group_dist_d1_type), INTENT(INOUT) :: group_dist_ext
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'get_group_dist_d2_i2', routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'get_group_dist_gd1', routineP = moduleN//':'//routineN
 
-      IF (PRESENT(starts1)) starts1 = this%starts(1, pos)
-      IF (PRESENT(ends1)) ends1 = this%ends(1, pos)
-      IF (PRESENT(sizes1)) sizes1 = this%sizes(1, pos)
+      group_dist_ext%starts(pos_ext) = this%starts(pos)
+      group_dist_ext%ends(pos_ext) = this%ends(pos)
+      group_dist_ext%sizes(pos_ext) = this%sizes(pos)
       
-      IF (PRESENT(starts2)) starts2 = this%starts(2, pos)
-      IF (PRESENT(ends2)) ends2 = this%ends(2, pos)
-      IF (PRESENT(sizes2)) sizes2 = this%sizes(2, pos)
-      
-      IF(PRESENT(group_dist_ext1)) THEN
-         group_dist_ext1%starts = this%starts(1, pos)
-         group_dist_ext1%ends = this%ends(1, pos)
-         group_dist_ext1%sizes = this%sizes(1, pos)
-      END IF
-      
-      IF(PRESENT(group_dist_ext2)) THEN
-         group_dist_ext2%starts = this%starts(2, pos)
-         group_dist_ext2%ends = this%ends(2, pos)
-         group_dist_ext2%sizes = this%sizes(2, pos)
-      END IF
-      
-   END SUBROUTINE get_group_dist_d2
+   END SUBROUTINE get_group_dist_gd1
 
    PURE SUBROUTINE release_group_dist_d1(this)
       TYPE(group_dist_d1_type), INTENT(INOUT) :: this
@@ -305,15 +226,4 @@ CONTAINS
       DEALLOCATE(this%sizes)
       
    END SUBROUTINE release_group_dist_d1
-
-   PURE SUBROUTINE release_group_dist_d2(this)
-      TYPE(group_dist_d2_type), INTENT(INOUT) :: this
-
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'release_group_dist_d2', routineP = moduleN//':'//routineN
-
-      DEALLOCATE(this%starts)
-      DEALLOCATE(this%ends)
-      DEALLOCATE(this%sizes)
-      
-   END SUBROUTINE release_group_dist_d2
 END MODULE group_dist_types
