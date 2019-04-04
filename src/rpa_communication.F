@@ -31,6 +31,10 @@ MODULE rpa_communication
    USE dbcsr_api,                       ONLY: dbcsr_p_type,&
                                               dbcsr_type,&
                                               dbcsr_type_no_symmetry
+   USE group_dist_types,                ONLY: group_dist_d1_type, &
+                                              create_group_dist, &
+                                              get_group_dist, &
+                                              release_group_dist
    USE kinds,                           ONLY: dp
    USE message_passing,                 ONLY: mp_irecv,&
                                               mp_isend,&
@@ -603,9 +607,9 @@ CONTAINS
          number_of_send, proc_receive, proc_send, proc_shift, rec_counter, rec_iaia_end, &
          rec_iaia_size, rec_iaia_start, rec_pcol, rec_prow, ref_send_pcol, ref_send_prow, &
          send_counter, send_pcol, send_prow, size_rec_buffer, size_send_buffer
-      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: ends_ia, iii_vet, map_rec_size, &
+      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: iii_vet, map_rec_size, &
                                                             map_send_size, proc_map, req_send, &
-                                                            sizes_ia, starts_ia, sub_proc_map
+                                                            sub_proc_map
       INTEGER, ALLOCATABLE, DIMENSION(:, :) :: grid_2_mepos, grid_ref_2_send_pos, &
          group_grid_2_mepos, indices_map_my, mepos_2_grid, mepos_2_grid_group, sizes
       INTEGER, DIMENSION(:), POINTER                     :: col_indices, row_indices
@@ -614,6 +618,7 @@ CONTAINS
       TYPE(cp_blacs_env_type), POINTER                   :: blacs_env
       TYPE(cp_fm_struct_type), POINTER                   :: fm_struct
       TYPE(cp_fm_type), POINTER                          :: fm_ia
+      TYPE(group_dist_d1_type)                           :: gd_ia
       TYPE(index_map), ALLOCATABLE, DIMENSION(:)         :: indices_rec
       TYPE(integ_mat_buffer_type), ALLOCATABLE, &
          DIMENSION(:)                                    :: buffer_rec, buffer_send
@@ -623,23 +628,8 @@ CONTAINS
       dimen_ia = virtual*homo
 
       ! Prepare sizes for a 2D array
-      ALLOCATE (sizes_ia(0:para_env_sub%num_pe-1))
-      sizes_ia = 0
-      ALLOCATE (starts_ia(0:para_env_sub%num_pe-1))
-      starts_ia = 0
-      ALLOCATE (ends_ia(0:para_env_sub%num_pe-1))
-      ends_ia = 0
-
-      DO iproc = 0, para_env_sub%num_pe-1
-         itmp = get_limit(dimen_ia, para_env_sub%num_pe, iproc)
-         starts_ia(iproc) = itmp(1)
-         ends_ia(iproc) = itmp(2)
-         sizes_ia(iproc) = itmp(2)-itmp(1)+1
-      END DO
-
-      my_ia_start = starts_ia(para_env_sub%mepos)
-      my_ia_end = ends_ia(para_env_sub%mepos)
-      my_ia_size = sizes_ia(para_env_sub%mepos)
+      CALL create_group_dist(gd_ia, para_env_sub%num_pe, dimen_ia)
+      CALL get_group_dist(gd_ia, para_env_sub%mepos, my_ia_start, my_ia_end, my_ia_size)
 
       ! Make a 2D array intermediate
 
@@ -799,9 +789,7 @@ CONTAINS
             ! create the indices array
             ALLOCATE (indices_rec(rec_counter)%map(2, size_rec_buffer))
             indices_rec(rec_counter)%map = 0
-            rec_iaia_start = starts_ia(proc_receive)
-            rec_iaia_end = ends_ia(proc_receive)
-            rec_iaia_size = sizes_ia(proc_receive)
+            CALL get_group_dist(gd_ia, proc_receive, rec_iaia_start, rec_iaia_end, rec_iaia_size)
             iii = 0
             DO iaia = rec_iaia_start, rec_iaia_end
                i_global = (iaia-1)/virtual+1
@@ -968,6 +956,7 @@ CONTAINS
       DEALLOCATE (sub_proc_map)
       DEALLOCATE (grid_2_mepos)
       DEALLOCATE (mepos_2_grid)
+      CALL release_group_dist(gd_ia)
 
       ! release buffer matrix
       CALL cp_fm_release(fm_ia)
