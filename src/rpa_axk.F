@@ -121,7 +121,7 @@ CONTAINS
       REAL(KIND=dp), PARAMETER                           :: thresh = 0.0000001_dp
 
       INTEGER :: avirt, handle, i_global, iib, iocc, j_global, jjb, kkb, L_counter, &
-         my_group_L_end, my_group_L_size, my_group_L_start, ncol_local, ngroup, nrow_local
+         my_group_L_end, my_group_L_size, my_group_L_start, ncol_local, ngroup, nrow_local, color_sub, iitmp(2)
       INTEGER, DIMENSION(:), POINTER                     :: col_indices, row_indices
       REAL(KIND=dp)                                      :: eigen_diff, eps_filter, trace_corr
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: eigenval
@@ -276,8 +276,13 @@ CONTAINS
 
       ! Get aux sizes
       ngroup = para_env_RPA%num_pe/para_env_sub%num_pe
-      CALL get_aux_sizes(dimen_RI, ngroup, my_group_L_size, my_group_L_start, my_group_L_end, &
-                         para_env_sub%num_pe, para_env_RPA%mepos)
+                         
+      color_sub = para_env_RPA%mepos/para_env_sub%num_pe
+
+      iitmp = get_limit(dimen_RI, ngroup, color_sub)
+      my_group_L_start = iitmp(1)
+      my_group_L_end = iitmp(2)
+      my_group_L_size = iitmp(2)-iitmp(1)+1
 
       ! Copy Gamma_ia_P^3 to dbcsr matrix set
       CALL gamma_fm_to_dbcsr(fm_mat_Gamma_3, dbcsr_Gamma_3, para_env_RPA, para_env_sub, &
@@ -364,51 +369,6 @@ CONTAINS
       CALL timestop(handle)
 
    END SUBROUTINE compute_axk_ener
-
-! **************************************************************************************************
-!> \brief ...
-!> \param dimen_RI ...
-!> \param ngroup ...
-!> \param my_group_L_size ...
-!> \param my_group_L_start ...
-!> \param my_group_L_end ...
-!> \param num_proc ...
-!> \param mepos ...
-! **************************************************************************************************
-   SUBROUTINE get_aux_sizes(dimen_RI, ngroup, my_group_L_size, my_group_L_start, my_group_L_end, num_proc, mepos)
-      INTEGER, INTENT(IN)                                :: dimen_RI, ngroup
-      INTEGER, INTENT(OUT)                               :: my_group_L_size, my_group_L_start, &
-                                                            my_group_L_end
-      INTEGER, INTENT(IN)                                :: num_proc, mepos
-
-      INTEGER                                            :: color_sub, igroup, iitmp(2)
-      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: ends_array, sizes_array, starts_array
-
-      color_sub = mepos/num_proc
-
-      ALLOCATE (sizes_array(0:ngroup-1))
-      sizes_array = 0
-      ALLOCATE (starts_array(0:ngroup-1))
-      starts_array = 0
-      ALLOCATE (ends_array(0:ngroup-1))
-      ends_array = 0
-
-      DO igroup = 0, ngroup-1
-         iitmp = get_limit(dimen_RI, ngroup, igroup)
-         starts_array(igroup) = iitmp(1)
-         ends_array(igroup) = iitmp(2)
-         sizes_array(igroup) = iitmp(2)-iitmp(1)+1
-      ENDDO
-
-      my_group_L_size = sizes_array(color_sub)
-      my_group_L_start = starts_array(color_sub)
-      my_group_L_end = ends_array(color_sub)
-
-      DEALLOCATE (sizes_array)
-      DEALLOCATE (starts_array)
-      DEALLOCATE (ends_array)
-
-   END SUBROUTINE get_aux_sizes
 
 ! **************************************************************************************************
 !> \brief Contract RPA-AXK density matrix with HF exchange integrals and evaluate the correction
