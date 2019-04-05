@@ -5909,9 +5909,23 @@ CONTAINS
       CALL keyword_release(keyword)
 
       CALL keyword_create(keyword, name="FAB", &
-                          description="Finzel-Ayers-Bultinck iterative update. Alternative to Wu-Yang. ", &
+                          description="Finzel-Ayers-Bultinck iterative update. Generally, not reliable. ", &
                           usage="FAB .TRUE.", &
                           default_l_val=.FALSE.)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, name="VW_CUTOFF", &
+                          description="Cutoff for von Weizsacker potential in "// &
+                          "the FAB optimization procedure.", &
+                          usage="VW_CUTOFF 0.01", default_r_val=0.01_dp)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, name="VW_SMOOTH_CUT_RANGE", &
+                          description="Smooth cutoff range for von Weizsacker potential in "// &
+                          "the FAB optimization procedure.", &
+                          usage="VW_CUTOFF 1.0", default_r_val=1.0_dp)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
@@ -5998,7 +6012,7 @@ CONTAINS
       CALL keyword_release(keyword)
 
       CALL keyword_create(keyword, name="TRUST_RAD", &
-                          description="Maximum number of iterations "// &
+                          description="Step length "// &
                           "in the optimization procedure.", &
                           usage="TRUST_RAD 0.5", default_r_val=0.5_dp)
       CALL section_add_keyword(section, keyword)
