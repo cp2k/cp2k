@@ -93,13 +93,13 @@ MODULE optimize_embedding_potential
                                               qs_rho_type
    USE qs_subsys_types,                 ONLY: qs_subsys_get,&
                                               qs_subsys_type
+   USE xc,                              ONLY: smooth_cutoff
    USE xc_rho_cflags_types,             ONLY: xc_rho_cflags_setall,&
                                               xc_rho_cflags_type
    USE xc_rho_set_types,                ONLY: xc_rho_set_create,&
                                               xc_rho_set_release,&
                                               xc_rho_set_type,&
                                               xc_rho_set_update
-   USE xc,                              ONLY: smooth_cutoff
 #include "./base/base_uses.f90"
 
    IMPLICIT NONE
@@ -516,6 +516,12 @@ CONTAINS
       CALL section_vals_val_get(opt_embed_section, "FAB", &
                                 l_val=opt_embed%fab)
 
+      CALL section_vals_val_get(opt_embed_section, "VW_CUTOFF", &
+                                r_val=opt_embed%vw_cutoff)
+
+      CALL section_vals_val_get(opt_embed_section, "VW_SMOOTH_CUT_RANGE", &
+                                r_val=opt_embed%vw_smooth_cutoff_range)
+
       CALL section_vals_val_get(opt_embed_section, "OPTIMIZER", i_val=embed_optimizer)
       SELECT CASE (embed_optimizer)
       CASE (embed_steep_desc)
@@ -910,13 +916,10 @@ CONTAINS
       IF (opt_embed%fab) THEN
          CALL pw_release(opt_embed%prev_embed_pot%pw)
          DEALLOCATE (opt_embed%prev_embed_pot)
-      ENDIF
-
-      IF (opt_embed%open_shell_embed) THEN
-         CALL pw_release(opt_embed%prev_spin_embed_pot%pw)
-         DEALLOCATE (opt_embed%prev_spin_embed_pot)
-      ENDIF
-      IF (opt_embed%fab .AND. (opt_embed%i_iter .GT. 1)) THEN
+         IF (opt_embed%open_shell_embed) THEN
+            CALL pw_release(opt_embed%prev_spin_embed_pot%pw)
+            DEALLOCATE (opt_embed%prev_spin_embed_pot)
+         ENDIF
          DO i_spin = 1, SIZE(opt_embed%v_w)
             CALL pw_release(opt_embed%v_w(i_spin)%pw)
          ENDDO
@@ -1438,8 +1441,8 @@ CONTAINS
             IF (opt_embed%fab) THEN
                CALL FAB_update(qs_env, rho_r_ref, opt_embed%prev_embed_pot, opt_embed%prev_spin_embed_pot, &
                                embed_pot, spin_embed_pot, &
-                               diff_rho_r, diff_rho_spin, opt_embed%v_w, opt_embed%i_iter, opt_embed%trust_rad,&
-                               opt_embed%open_shell_embed)
+                               diff_rho_r, diff_rho_spin, opt_embed%v_w, opt_embed%i_iter, opt_embed%trust_rad, &
+                               opt_embed%open_shell_embed, opt_embed%vw_cutoff, opt_embed%vw_smooth_cutoff_range)
             ELSE
                CALL grid_based_step(diff_rho_r, diff_rho_spin, pw_env, opt_embed, embed_pot, spin_embed_pot)
             ENDIF
@@ -2422,12 +2425,14 @@ CONTAINS
       LOGICAL                                            :: open_shell_embed
       REAL(KIND=dp)                                      :: step_len
 
-      INTEGER                                            :: i, i_spin, j, k, nspins, handle
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'Leeuwen_Baerends_potential_update', &
+         routineP = moduleN//':'//routineN
+
+      INTEGER                                            :: handle, i, i_spin, j, k, nspins
       INTEGER, DIMENSION(3)                              :: lb, ub
       REAL(KIND=dp)                                      :: my_rho, rho_cutoff
       TYPE(pw_p_type), DIMENSION(:), POINTER             :: new_embed_pot, rho_n_1, temp_embed_pot
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'Leeuwen_Baerends_potential_update', routineP = moduleN//':'//routineN
 
       CALL timeset(routineN, handle)
 
@@ -2593,10 +2598,14 @@ CONTAINS
 !> \param diff_rho_spin ...
 !> \param v_w_ref ...
 !> \param i_iter ...
+!> \param step_len ...
 !> \param open_shell_embed ...
+!> \param vw_cutoff ...
+!> \param vw_smooth_cutoff_range ...
 ! **************************************************************************************************
    SUBROUTINE FAB_update(qs_env, rho_r_ref, prev_embed_pot, prev_spin_embed_pot, embed_pot, spin_embed_pot, &
-                         diff_rho_r, diff_rho_spin, v_w_ref, i_iter, step_len, open_shell_embed)
+                         diff_rho_r, diff_rho_spin, v_w_ref, i_iter, step_len, open_shell_embed, &
+                         vw_cutoff, vw_smooth_cutoff_range)
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(pw_p_type), DIMENSION(:), POINTER             :: rho_r_ref
       TYPE(pw_p_type), POINTER                           :: prev_embed_pot, prev_spin_embed_pot, &
@@ -2604,15 +2613,17 @@ CONTAINS
                                                             diff_rho_spin
       TYPE(pw_p_type), DIMENSION(:), POINTER             :: v_w_ref
       INTEGER, INTENT(IN)                                :: i_iter
+      REAL(KIND=dp)                                      :: step_len
       LOGICAL                                            :: open_shell_embed
+      REAL(KIND=dp)                                      :: vw_cutoff, vw_smooth_cutoff_range
 
-      INTEGER                                            :: i_spin, nspins, handle
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'FAB_update', routineP = moduleN//':'//routineN
+
+      INTEGER                                            :: handle, i_spin, nspins
       TYPE(pw_env_type), POINTER                         :: pw_env
       TYPE(pw_p_type), DIMENSION(:), POINTER             :: curr_rho, new_embed_pot, temp_embed_pot, &
                                                             v_w
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'FAB_update', routineP = moduleN//':'//routineN
-      REAL(KIND=dp)                                      :: step_len
 
       CALL timeset(routineN, handle)
 
@@ -2635,171 +2646,145 @@ CONTAINS
                                    use_data=REALDATA3D, &
                                    in_space=REALSPACE)
          ENDDO
-         CALL Von_Weizsacker(rho_r_ref, v_w_ref, qs_env)
+         CALL Von_Weizsacker(rho_r_ref, v_w_ref, qs_env, vw_cutoff, vw_smooth_cutoff_range)
          ! For the first step previous are set to current
          CALL pw_copy(embed_pot%pw, prev_embed_pot%pw)
          CALL pw_axpy(diff_rho_r%pw, embed_pot%pw, 0.5_dp)
-         IF (open_shell_embed) then
+         IF (open_shell_embed) THEN
             CALL pw_copy(spin_embed_pot%pw, prev_spin_embed_pot%pw)
             CALL pw_axpy(diff_rho_r%pw, embed_pot%pw, 0.5_dp)
          ENDIF
 
-         write(*,*) 'max_vw_ref', max_dens_diff(v_w_ref(1))
-         WRITE (*, *) 'von W potential (ref) integrated', pw_integrate_function(v_w_ref(1)%pw)
-         WRITE (*, *) 'ref density integrated', pw_integrate_function(rho_r_ref(1)%pw)
-         CALL print_v_w(v_w_ref, 0, qs_env, .FALSE.)
-         write(*,*) 'rho*v_w=', pw_integral_ab(rho_r_ref(1)%pw, v_w_ref(1)%pw)
-
       ELSE
 
-      ! Reference can be closed shell, but total embedding - open shell:
-      ! redefine nspins
-      nspins = 1
-      IF (open_shell_embed) nspins = 2
-      NULLIFY (new_embed_pot)
-      ALLOCATE (new_embed_pot(nspins))
-      NULLIFY (v_w)
-      ALLOCATE (v_w(nspins))
-      NULLIFY (curr_rho)
-      ALLOCATE (curr_rho(nspins))
-      DO i_spin = 1, nspins
-         NULLIFY (new_embed_pot(i_spin)%pw)
-         CALL pw_pool_create_pw(auxbas_pw_pool, new_embed_pot(i_spin)%pw, &
-                                use_data=REALDATA3D, &
-                                in_space=REALSPACE)
-         CALL pw_zero(new_embed_pot(i_spin)%pw)
-
-         NULLIFY (v_w(i_spin)%pw)
-         CALL pw_pool_create_pw(auxbas_pw_pool, v_w(i_spin)%pw, &
-                                use_data=REALDATA3D, &
-                                in_space=REALSPACE)
-         CALL pw_zero(v_w(i_spin)%pw)
-
-         NULLIFY (curr_rho(i_spin)%pw)
-         CALL pw_pool_create_pw(auxbas_pw_pool, curr_rho(i_spin)%pw, &
-                                use_data=REALDATA3D, &
-                                in_space=REALSPACE)
-         CALL pw_zero(curr_rho(i_spin)%pw)
-      ENDDO
-
-      ! Now, deal with the current density
-
-      IF (.NOT. open_shell_embed) THEN
-         ! Reconstruct current density
-         CALL pw_copy(diff_rho_r%pw, curr_rho(1)%pw)
-         CALL pw_axpy(rho_r_ref(1)%pw, curr_rho(1)%pw, 1.0_dp)
-         ! Compute von Weizsaecker potential
-         CALL Von_Weizsacker(curr_rho, v_w, qs_env)
-         ! Compute new embedding potential
-         CALL pw_copy(prev_embed_pot%pw, new_embed_pot(1)%pw)
-         CALL pw_axpy(v_w(1)%pw, new_embed_pot(1)%pw, step_len)
-         CALL pw_axpy(v_w_ref(1)%pw, new_embed_pot(1)%pw, -step_len)
-         ! Copy the potentials
-
-         WRITE (*, *) i_iter
-
-         WRITE (*, *) 'previous potential integrated', pw_integrate_function(prev_embed_pot%pw)
-         CALL pw_copy(embed_pot%pw, prev_embed_pot%pw)
-         CALL pw_copy(new_embed_pot(1)%pw, embed_pot%pw)
-
-         write(*,*) 'max_vw', max_dens_diff(v_w(1))
-         WRITE (*, *) 'von W potential integrated', pw_integrate_function(v_w(1)%pw)
-         WRITE (*, *) 'density integrated', pw_integrate_function(curr_rho(1)%pw)
-         WRITE (*, *) 'new embed_pot', pw_integrate_function(new_embed_pot(1)%pw)
-         write(*,*) 'rho*v_w=', pw_integral_ab(curr_rho(1)%pw, v_w(1)%pw)
-         CALL print_v_w(v_w, i_iter, qs_env, .FALSE.)
-      ELSE
-         ! Reconstruct current density
-         CALL pw_copy(diff_rho_r%pw, curr_rho(1)%pw)
-         CALL pw_copy(diff_rho_r%pw, curr_rho(2)%pw)
-         CALL pw_axpy(diff_rho_spin%pw, curr_rho(1)%pw, 1.0_dp)
-         CALL pw_axpy(diff_rho_spin%pw, curr_rho(2)%pw, -1.0_dp)
-         CALL pw_scale(curr_rho(1)%pw, a=0.5_dp)
-         CALL pw_scale(curr_rho(2)%pw, a=0.5_dp)
-         
-         If (size(rho_r_ref) .EQ. 1) then ! If reference system is closed-shell
-            CALL pw_axpy(rho_r_ref(1)%pw, curr_rho(1)%pw, 0.5_dp)
-            CALL pw_axpy(rho_r_ref(1)%pw, curr_rho(2)%pw, 0.5_dp)
-         Else ! If reference system is open-shell
-            CALL pw_axpy(rho_r_ref(1)%pw, curr_rho(1)%pw, 1.0_dp)
-            CALL pw_axpy(rho_r_ref(2)%pw, curr_rho(2)%pw, 1.0_dp)
-         Endif
-
-         ! Compute von Weizsaecker potential
-         CALL Von_Weizsacker(curr_rho, v_w, qs_env)
-
-         ! Reconstruct corrent spin components of the potential
-         NULLIFY (temp_embed_pot)
-         ALLOCATE (temp_embed_pot(nspins))
+         ! Reference can be closed shell, but total embedding - open shell:
+         ! redefine nspins
+         nspins = 1
+         IF (open_shell_embed) nspins = 2
+         NULLIFY (new_embed_pot)
+         ALLOCATE (new_embed_pot(nspins))
+         NULLIFY (v_w)
+         ALLOCATE (v_w(nspins))
+         NULLIFY (curr_rho)
+         ALLOCATE (curr_rho(nspins))
          DO i_spin = 1, nspins
-            NULLIFY (temp_embed_pot(i_spin)%pw)
-            CALL pw_pool_create_pw(auxbas_pw_pool, temp_embed_pot(i_spin)%pw, &
+            NULLIFY (new_embed_pot(i_spin)%pw)
+            CALL pw_pool_create_pw(auxbas_pw_pool, new_embed_pot(i_spin)%pw, &
                                    use_data=REALDATA3D, &
                                    in_space=REALSPACE)
-            CALL pw_zero(temp_embed_pot(i_spin)%pw)
+            CALL pw_zero(new_embed_pot(i_spin)%pw)
+
+            NULLIFY (v_w(i_spin)%pw)
+            CALL pw_pool_create_pw(auxbas_pw_pool, v_w(i_spin)%pw, &
+                                   use_data=REALDATA3D, &
+                                   in_space=REALSPACE)
+            CALL pw_zero(v_w(i_spin)%pw)
+
+            NULLIFY (curr_rho(i_spin)%pw)
+            CALL pw_pool_create_pw(auxbas_pw_pool, curr_rho(i_spin)%pw, &
+                                   use_data=REALDATA3D, &
+                                   in_space=REALSPACE)
+            CALL pw_zero(curr_rho(i_spin)%pw)
          ENDDO
-         CALL pw_copy(embed_pot%pw, temp_embed_pot(1)%pw)
-         CALL pw_copy(embed_pot%pw, temp_embed_pot(2)%pw)
-         CALL pw_axpy(spin_embed_pot%pw, temp_embed_pot(1)%pw, 1.0_dp)
-         CALL pw_axpy(spin_embed_pot%pw, temp_embed_pot(2)%pw, -1.0_dp)
 
-         ! Compute new embedding potential
-         IF (SIZE(v_w_ref) .EQ. 1) THEN ! Reference system is closed-shell
-            CALL pw_copy(temp_embed_pot(1)%pw, new_embed_pot(1)%pw)
-            CALL pw_axpy(v_w(1)%pw, new_embed_pot(1)%pw, 0.5_dp*step_len)
-            CALL pw_axpy(v_w_ref(1)%pw, new_embed_pot(1)%pw, -0.5_dp*step_len)
+         ! Now, deal with the current density
 
-            CALL pw_copy(temp_embed_pot(2)%pw, new_embed_pot(2)%pw)
-            CALL pw_axpy(v_w(2)%pw, new_embed_pot(2)%pw, 0.5_dp)
-            CALL pw_axpy(v_w_ref(1)%pw, new_embed_pot(2)%pw, -0.5_dp)
+         IF (.NOT. open_shell_embed) THEN
+            ! Reconstruct current density
+            CALL pw_copy(diff_rho_r%pw, curr_rho(1)%pw)
+            CALL pw_axpy(rho_r_ref(1)%pw, curr_rho(1)%pw, 1.0_dp)
+            ! Compute von Weizsaecker potential
+            CALL Von_Weizsacker(curr_rho, v_w, qs_env, vw_cutoff, vw_smooth_cutoff_range)
+            ! Compute new embedding potential
+            CALL pw_copy(prev_embed_pot%pw, new_embed_pot(1)%pw)
+            CALL pw_axpy(v_w(1)%pw, new_embed_pot(1)%pw, step_len)
+            CALL pw_axpy(v_w_ref(1)%pw, new_embed_pot(1)%pw, -step_len)
+            ! Copy the potentials
 
-         ELSE ! Reference system is open-shell
+            CALL pw_copy(embed_pot%pw, prev_embed_pot%pw)
+            CALL pw_copy(new_embed_pot(1)%pw, embed_pot%pw)
+
+         ELSE
+            ! Reconstruct current density
+            CALL pw_copy(diff_rho_r%pw, curr_rho(1)%pw)
+            CALL pw_copy(diff_rho_r%pw, curr_rho(2)%pw)
+            CALL pw_axpy(diff_rho_spin%pw, curr_rho(1)%pw, 1.0_dp)
+            CALL pw_axpy(diff_rho_spin%pw, curr_rho(2)%pw, -1.0_dp)
+            CALL pw_scale(curr_rho(1)%pw, a=0.5_dp)
+            CALL pw_scale(curr_rho(2)%pw, a=0.5_dp)
+
+            IF (SIZE(rho_r_ref) .EQ. 1) THEN ! If reference system is closed-shell
+               CALL pw_axpy(rho_r_ref(1)%pw, curr_rho(1)%pw, 0.5_dp)
+               CALL pw_axpy(rho_r_ref(1)%pw, curr_rho(2)%pw, 0.5_dp)
+            ELSE ! If reference system is open-shell
+               CALL pw_axpy(rho_r_ref(1)%pw, curr_rho(1)%pw, 1.0_dp)
+               CALL pw_axpy(rho_r_ref(2)%pw, curr_rho(2)%pw, 1.0_dp)
+            ENDIF
+
+            ! Compute von Weizsaecker potential
+            CALL Von_Weizsacker(curr_rho, v_w, qs_env, vw_cutoff, vw_smooth_cutoff_range)
+
+            ! Reconstruct corrent spin components of the potential
+            NULLIFY (temp_embed_pot)
+            ALLOCATE (temp_embed_pot(nspins))
+            DO i_spin = 1, nspins
+               NULLIFY (temp_embed_pot(i_spin)%pw)
+               CALL pw_pool_create_pw(auxbas_pw_pool, temp_embed_pot(i_spin)%pw, &
+                                      use_data=REALDATA3D, &
+                                      in_space=REALSPACE)
+               CALL pw_zero(temp_embed_pot(i_spin)%pw)
+            ENDDO
+            CALL pw_copy(embed_pot%pw, temp_embed_pot(1)%pw)
+            CALL pw_copy(embed_pot%pw, temp_embed_pot(2)%pw)
+            CALL pw_axpy(spin_embed_pot%pw, temp_embed_pot(1)%pw, 1.0_dp)
+            CALL pw_axpy(spin_embed_pot%pw, temp_embed_pot(2)%pw, -1.0_dp)
+
+            ! Compute new embedding potential
+            IF (SIZE(v_w_ref) .EQ. 1) THEN ! Reference system is closed-shell
+               CALL pw_copy(temp_embed_pot(1)%pw, new_embed_pot(1)%pw)
+               CALL pw_axpy(v_w(1)%pw, new_embed_pot(1)%pw, 0.5_dp*step_len)
+               CALL pw_axpy(v_w_ref(1)%pw, new_embed_pot(1)%pw, -0.5_dp*step_len)
+
+               CALL pw_copy(temp_embed_pot(2)%pw, new_embed_pot(2)%pw)
+               CALL pw_axpy(v_w(2)%pw, new_embed_pot(2)%pw, 0.5_dp)
+               CALL pw_axpy(v_w_ref(1)%pw, new_embed_pot(2)%pw, -0.5_dp)
+
+            ELSE ! Reference system is open-shell
+
+               DO i_spin = 1, nspins
+                  CALL pw_copy(temp_embed_pot(i_spin)%pw, new_embed_pot(i_spin)%pw)
+                  CALL pw_axpy(v_w(1)%pw, new_embed_pot(i_spin)%pw, step_len)
+                  CALL pw_axpy(v_w_ref(i_spin)%pw, new_embed_pot(i_spin)%pw, -step_len)
+               ENDDO
+            ENDIF
+
+            ! Update embedding potentials
+            CALL pw_copy(embed_pot%pw, prev_embed_pot%pw)
+            CALL pw_copy(spin_embed_pot%pw, prev_spin_embed_pot%pw)
+
+            CALL pw_copy(new_embed_pot(1)%pw, embed_pot%pw)
+            CALL pw_axpy(new_embed_pot(2)%pw, embed_pot%pw, 1.0_dp)
+            CALL pw_scale(embed_pot%pw, a=0.5_dp)
+            CALL pw_copy(new_embed_pot(1)%pw, spin_embed_pot%pw)
+            CALL pw_axpy(new_embed_pot(2)%pw, spin_embed_pot%pw, -1.0_dp)
+            CALL pw_scale(spin_embed_pot%pw, a=0.5_dp)
 
             DO i_spin = 1, nspins
-               CALL pw_copy(temp_embed_pot(i_spin)%pw, new_embed_pot(i_spin)%pw)
-               CALL pw_axpy(v_w(1)%pw, new_embed_pot(i_spin)%pw, step_len)
-               CALL pw_axpy(v_w_ref(i_spin)%pw, new_embed_pot(i_spin)%pw, -step_len)
+               CALL pw_release(temp_embed_pot(i_spin)%pw)
             ENDDO
+            DEALLOCATE (temp_embed_pot)
+
          ENDIF
 
-         ! Update embedding potentials
-         CALL pw_copy(embed_pot%pw, prev_embed_pot%pw)
-         CALL pw_copy(spin_embed_pot%pw, prev_spin_embed_pot%pw)
-
-         CALL pw_copy(new_embed_pot(1)%pw, embed_pot%pw)
-         CALL pw_axpy(new_embed_pot(2)%pw, embed_pot%pw, 1.0_dp)
-         CALL pw_scale(embed_pot%pw, a=0.5_dp)
-         CALL pw_copy(new_embed_pot(1)%pw, spin_embed_pot%pw)
-         CALL pw_axpy(new_embed_pot(2)%pw, spin_embed_pot%pw, -1.0_dp)
-         CALL pw_scale(spin_embed_pot%pw, a=0.5_dp)
-
          DO i_spin = 1, nspins
-            CALL pw_release(temp_embed_pot(i_spin)%pw)
+            CALL pw_release(curr_rho(i_spin)%pw)
+            CALL pw_release(new_embed_pot(i_spin)%pw)
+            CALL pw_release(v_w(i_spin)%pw)
          ENDDO
-         DEALLOCATE (temp_embed_pot)
 
-         WRITE (*, *) i_iter
-         write(*,*) 'max_vw', max_dens_diff(v_w(1)), max_dens_diff(v_w(2))
-         WRITE (*, *) 'von W potential integrated', pw_integrate_function(v_w(1)%pw),&
-                      pw_integrate_function(v_w(2)%pw)
-         WRITE (*, *) 'density integrated', pw_integrate_function(curr_rho(1)%pw),&
-                                            pw_integrate_function(curr_rho(2)%pw)
-         WRITE (*, *) 'new embed_pot', pw_integrate_function(new_embed_pot(1)%pw),&
-                                       pw_integrate_function(new_embed_pot(2)%pw)
-         write(*,*) 'rho*v_w=', pw_integral_ab(curr_rho(1)%pw, v_w(1)%pw), &
-                                pw_integral_ab(curr_rho(2)%pw, v_w(2)%pw)
-
-      ENDIF
-
-      DO i_spin = 1, nspins
-         CALL pw_release(curr_rho(i_spin)%pw)
-         CALL pw_release(new_embed_pot(i_spin)%pw)
-         CALL pw_release(v_w(i_spin)%pw)
-      ENDDO
-
-      DEALLOCATE (new_embed_pot)
-      DEALLOCATE (v_w)
-      DEALLOCATE (curr_rho)
+         DEALLOCATE (new_embed_pot)
+         DEALLOCATE (v_w)
+         DEALLOCATE (curr_rho)
 
       ENDIF
 
@@ -2812,24 +2797,29 @@ CONTAINS
 !> \param rho_r ...
 !> \param v_w ...
 !> \param qs_env ...
+!> \param vw_cutoff ...
+!> \param vw_smooth_cutoff_range ...
 ! **************************************************************************************************
-   SUBROUTINE Von_Weizsacker(rho_r, v_w, qs_env)
+   SUBROUTINE Von_Weizsacker(rho_r, v_w, qs_env, vw_cutoff, vw_smooth_cutoff_range)
       TYPE(pw_p_type), DIMENSION(:), POINTER             :: rho_r, v_w
       TYPE(qs_environment_type), POINTER                 :: qs_env
+      REAL(KIND=dp)                                      :: vw_cutoff, vw_smooth_cutoff_range
 
       REAL(KIND=dp), PARAMETER                           :: one_4 = 0.25_dp, one_8 = 0.125_dp
 
       INTEGER                                            :: i, i_spin, j, k, nspins
       INTEGER, DIMENSION(3)                              :: lb, ub
-      REAL(KIND=dp)                                      :: my_rho, rho_cutoff, &
-                                                            density_smooth_cut_range
+      REAL(KIND=dp)                                      :: density_smooth_cut_range, my_rho, &
+                                                            rho_cutoff
+      REAL(kind=dp), DIMENSION(:, :, :), POINTER         :: rhoa, rhob
       TYPE(pw_env_type), POINTER                         :: pw_env
       TYPE(pw_p_type), DIMENSION(:), POINTER             :: rho_g, tau
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
       TYPE(section_vals_type), POINTER                   :: input, xc_section
       TYPE(xc_rho_cflags_type)                           :: needs
       TYPE(xc_rho_set_type), POINTER                     :: rho_set
-      REAL(kind=dp), DIMENSION(:, :, :), POINTER         :: rhoa, rhob ! Dummies
+
+! Dummies
 
       rho_cutoff = EPSILON(0.0_dp)
 
@@ -2923,8 +2913,8 @@ CONTAINS
                DO i = lb(1), ub(1)
                   IF (rho_r(1)%pw%cr3d(i, j, k) .GT. rho_cutoff) THEN
                      my_rho = rho_r(1)%pw%cr3d(i, j, k)
-                     v_w(1)%pw%cr3d(i, j, k) = one_8*rho_set%norm_drho(i, j, k)**2/my_rho**2 - & 
-                                            one_4*rho_set%laplace_rho(i, j, k)/my_rho
+                     v_w(1)%pw%cr3d(i, j, k) = one_8*rho_set%norm_drho(i, j, k)**2/my_rho**2- &
+                                               one_4*rho_set%laplace_rho(i, j, k)/my_rho
                   ELSE
                      v_w(1)%pw%cr3d(i, j, k) = 0.0_dp
                   ENDIF
@@ -2932,24 +2922,26 @@ CONTAINS
             END DO
          END DO
 !$OMP    END PARALLEL DO
-        
+
       ENDIF
 
       ! Smoothen the von Weizsaecker potential
-      density_smooth_cut_range = 2.0_dp
-      rho_cutoff = 0.05_dp
-      write(*,*) 'smoothen', rho_cutoff, density_smooth_cut_range
-      If (nspins ==2) then
+      IF (nspins == 2) THEN
          density_smooth_cut_range = 0.5_dp*density_smooth_cut_range
          rho_cutoff = 0.5_dp*rho_cutoff
-      Endif
+      ENDIF
       DO i_spin = 1, nspins
          CALL smooth_cutoff(pot=v_w(i_spin)%pw%cr3d, rho=rho_r(i_spin)%pw%cr3d, rhoa=rhoa, rhob=rhob, &
-                            rho_cutoff=rho_cutoff, &
-                            rho_smooth_cutoff_range=density_smooth_cut_range)
+                            rho_cutoff=vw_cutoff, &
+                            rho_smooth_cutoff_range=vw_smooth_cutoff_range)
       ENDDO
 
       CALL xc_rho_set_release(rho_set, pw_pool=auxbas_pw_pool)
+
+      DO i_spin = 1, nspins
+         CALL pw_release(rho_g(i_spin)%pw)
+      ENDDO
+      DEALLOCATE (rho_g)
 
    END SUBROUTINE Von_Weizsacker
 
@@ -3039,58 +3031,6 @@ CONTAINS
       ENDIF
 
    END SUBROUTINE print_rho_diff
-
-
-
-   SUBROUTINE print_v_w(v_w, i_iter, qs_env, final_one)
-      TYPE(pw_p_type), DIMENSION(:), POINTER             :: v_w
-      INTEGER                                            :: i_iter
-      TYPE(qs_environment_type), POINTER                 :: qs_env
-      LOGICAL                                            :: final_one
-
-      CHARACTER(LEN=default_path_length)                 :: filename, my_pos_cube, title
-      INTEGER                                            :: unit_nr
-      TYPE(cp_logger_type), POINTER                      :: logger
-      TYPE(particle_list_type), POINTER                  :: particles
-      TYPE(qs_subsys_type), POINTER                      :: subsys
-      TYPE(section_vals_type), POINTER                   :: dft_section, input
-
-      NULLIFY (subsys, input)
-
-      CALL get_qs_env(qs_env=qs_env, &
-                      subsys=subsys, &
-                      input=input)
-      dft_section => section_vals_get_subs_vals(input, "DFT")
-      CALL qs_subsys_get(subsys, particles=particles)
-
-      logger => cp_get_default_logger()
-      IF (BTEST(cp_print_key_should_output(logger%iter_info, input, &
-                                           "DFT%QS%OPT_EMBED%EMBED_DENS_DIFF"), cp_p_file)) THEN
-         my_pos_cube = "REWIND"
-         IF (.NOT. final_one) THEN
-            WRITE (filename, '(a5,I3.3,a1,I1.1)') "VW_", i_iter
-         ELSE
-            WRITE (filename, '(a5,I3.3,a1,I1.1)') "VW"
-         ENDIF
-         unit_nr = cp_print_key_unit_nr(logger, input, "DFT%QS%OPT_EMBED%EMBED_DENS_DIFF", &
-                                        extension=".cube", middle_name=TRIM(filename), file_position=my_pos_cube, &
-                                        log_filename=.FALSE.)
-
-         WRITE (title, *) "VW potential ", " optimization step ", i_iter
-         CALL cp_pw_to_cube(v_w(1)%pw, unit_nr, title, particles=particles, &
-                            stride=section_get_ivals(dft_section, "QS%OPT_EMBED%EMBED_DENS_DIFF%STRIDE"))
-         CALL cp_print_key_finished_output(unit_nr, logger, input, &
-                                           "DFT%QS%OPT_EMBED%EMBED_DENS_DIFF")
-      ENDIF
-
-   END SUBROUTINE print_v_w
-
-
-
-
-
-
-
 
 ! **************************************************************************************************
 !> \brief Prints a cube for the (spin_rho_A + spin_rho_B - spin_rho_ref) to be minimized in embedding
