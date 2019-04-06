@@ -29,13 +29,26 @@ function upload_file {
     wget --quiet --output-document=- --method=PUT --header="content-type: ${CONTENT_TYPE}" --header="cache-control: no-cache" --body-file="${FILE}" "${URL}" > /dev/null
 }
 
-# Handle preemption gracefully.
-function sigterm_handler {
-    echo -e "\nThis job just got preempted. No worries, it should restart soon.\n" | tee -a $REPORT
-    echo -n "EndDate: " | tee -a $REPORT
+# Append end date and upload report.
+function upload_final_report {
+    echo -en "\nEndDate: " | tee -a $REPORT
     date --utc --rfc-3339=seconds | tee -a $REPORT
     upload_file "${REPORT_UPLOAD_URL}" "${REPORT}" "text/plain;charset=utf-8"
+}
+
+# Handle errors gracefully.
+function error_handler {
+    echo -e "\nSummary: Something went wrong.\nStatus: FAILED" | tee -a $REPORT
+    upload_final_report
     exit 1
+}
+trap error_handler ERR
+
+# Handle preemption gracefully.
+function sigterm_handler {
+    echo -e "\nThis job just got preempted. No worries, it should restart soon." | tee -a $REPORT
+    upload_final_report
+    exit 2
 }
 trap sigterm_handler SIGTERM
 
@@ -100,8 +113,7 @@ if [ -d /opt/cp2k-toolchain ]; then
     source /opt/cp2k-toolchain/install/setup
     # shellcheck disable=SC2086
     if ! ./install_cp2k_toolchain.sh ${CP2K_TOOLCHAIN_OPTIONS} |& tee -a $REPORT ; then
-        echo -e "\nSummary: Toolchain update failed." | tee -a $REPORT
-        echo -e "Status: FAILED\n" | tee -a $REPORT
+        echo -e "\nSummary: Toolchain update failed.\nStatus: FAILED" | tee -a $REPORT
         TOOLCHAIN_OK=false
     fi
 fi
@@ -117,19 +129,8 @@ if $TOOLCHAIN_OK ; then
     echo -e "\n========== Running Test ==========" | tee -a $REPORT
     cd /workspace
     if ! "$@" |& tee -a $REPORT ; then
-       echo -e "\nSummary: Test had non-zero exit status." | tee -a $REPORT
-       echo -e "Status: FAILED\n" | tee -a $REPORT
+       echo -e "\nSummary: Test had non-zero exit status.\nStatus: FAILED" | tee -a $REPORT
     fi
-fi
-
-# Wrap up.
-echo -n "EndDate: " | tee -a $REPORT
-date --utc --rfc-3339=seconds | tee -a $REPORT
-
-# Upload final report.
-if [ -n "${REPORT_UPLOAD_URL}" ]; then
-    echo "Uploading report..."
-    upload_file "${REPORT_UPLOAD_URL}" "${REPORT}" "text/plain;charset=utf-8"
 fi
 
 # Upload artifacts.
@@ -137,9 +138,11 @@ if [ -n "${ARTIFACTS_UPLOAD_URL}" ] &&  [ -d /workspace/artifacts ]; then
     echo "Uploading artifacts..."
     ARTIFACTS_TGZ="/tmp/test_${TESTNAME}_artifacts.tgz"
     cd /workspace/artifacts
-    tar -czf "${ARTIFACTS_TGZ}" *
+    tar -czf "${ARTIFACTS_TGZ}" -- *
     upload_file "${ARTIFACTS_UPLOAD_URL}" "${ARTIFACTS_TGZ}" "application/gzip"
 fi
+
+upload_final_report
 
 echo "Done :-)"
 
