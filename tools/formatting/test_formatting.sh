@@ -9,8 +9,8 @@ rm -rf preprettify
 find ./src/ -type f -not -path "*/preprettify/*" -not -path "*/.git/*" -print0 | xargs -0 md5sum > checksums.md5
 md5sum ./data/POTENTIAL >> checksums.md5
 
-make --jobs=20 pretty
-make --jobs=20 pretty  # run twice to ensure consistency with doxify
+make -j 16 pretty
+make -j 16 pretty  # run twice to ensure consistency with doxify
 
 cd data
 cat GTH_POTENTIALS HF_POTENTIALS NLCC_POTENTIALS ALL_POTENTIALS > POTENTIAL
