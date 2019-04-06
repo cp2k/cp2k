@@ -40,7 +40,7 @@ function upload_final_report {
 function error_handler {
     echo -e "\nSummary: Something went wrong.\nStatus: FAILED" | tee -a $REPORT
     upload_final_report
-    exit 1
+    exit 0  # prevent crash looping
 }
 trap error_handler ERR
 
@@ -48,7 +48,7 @@ trap error_handler ERR
 function sigterm_handler {
     echo -e "\nThis job just got preempted. No worries, it should restart soon." | tee -a $REPORT
     upload_final_report
-    exit 2
+    exit 1  # trigger retry
 }
 trap sigterm_handler SIGTERM
 
