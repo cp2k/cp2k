@@ -9,6 +9,6 @@ rm -rf /var/lib/apt/lists/*
 
 # pre-run prettify
 cd /workspace/cp2k
-make -j pretty
+make -j 16 pretty
 
 #EOF
