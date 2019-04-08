@@ -2805,10 +2805,12 @@ CONTAINS
       TYPE(qs_environment_type), POINTER                 :: qs_env
       REAL(KIND=dp)                                      :: vw_cutoff, vw_smooth_cutoff_range
 
+      REAL(KIND=dp), PARAMETER                           :: one_4 = 0.25_dp, one_8 = 0.125_dp
+
       INTEGER                                            :: i, i_spin, j, k, nspins
       INTEGER, DIMENSION(3)                              :: lb, ub
-      REAL(KIND=dp)                                      :: density_smooth_cut_range, my_rho, one_4, &
-                                                            one_8, rho_cutoff
+      REAL(KIND=dp)                                      :: density_smooth_cut_range, my_rho, &
+                                                            rho_cutoff
       REAL(kind=dp), DIMENSION(:, :, :), POINTER         :: rhoa, rhob
       TYPE(pw_env_type), POINTER                         :: pw_env
       TYPE(pw_p_type), DIMENSION(:), POINTER             :: rho_g, tau
@@ -2816,9 +2818,6 @@ CONTAINS
       TYPE(section_vals_type), POINTER                   :: input, xc_section
       TYPE(xc_rho_cflags_type)                           :: needs
       TYPE(xc_rho_set_type), POINTER                     :: rho_set
-
-      one_4 = 0.25_dp
-      one_8 = 0.125_dp
 
       rho_cutoff = EPSILON(0.0_dp)
 
@@ -2880,7 +2879,7 @@ CONTAINS
       IF (nspins .EQ. 2) THEN
 !$OMP    PARALLEL DO DEFAULT(NONE) &
 !$OMP                PRIVATE(i,j,k, my_rho) &
-!$OMP                SHARED(v_w, rho_r, rho_set, lb, ub, rho_cutoff, one_4, one_8)
+!$OMP                SHARED(v_w, rho_r, rho_set, lb, ub, rho_cutoff)
          DO k = lb(3), ub(3)
             DO j = lb(2), ub(2)
                DO i = lb(1), ub(1)
@@ -2906,7 +2905,7 @@ CONTAINS
       ELSE
 !$OMP    PARALLEL DO DEFAULT(NONE) &
 !$OMP                PRIVATE(i,j,k, my_rho) &
-!$OMP                SHARED(v_w, rho_r, rho_set, lb, ub, rho_cutoff, one_4, one_8)
+!$OMP                SHARED(v_w, rho_r, rho_set, lb, ub, rho_cutoff)
          DO k = lb(3), ub(3)
             DO j = lb(2), ub(2)
                DO i = lb(1), ub(1)
