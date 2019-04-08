@@ -16,7 +16,8 @@ MODULE qs_dftb_coulomb
    USE cell_types,                      ONLY: cell_type,&
                                               get_cell,&
                                               pbc
-   USE cp_control_types,                ONLY: dft_control_type
+   USE cp_control_types,                ONLY: dft_control_type,&
+                                              dftb_control_type
    USE cp_para_types,                   ONLY: cp_para_env_type
    USE dbcsr_api,                       ONLY: dbcsr_add,&
                                               dbcsr_get_block_p,&
@@ -47,7 +48,8 @@ MODULE qs_dftb_coulomb
    USE qs_dftb3_methods,                ONLY: build_dftb3_diagonal
    USE qs_dftb_types,                   ONLY: qs_dftb_atom_type,&
                                               qs_dftb_pairpot_type
-   USE qs_dftb_utils,                   ONLY: get_dftb_atom_param
+   USE qs_dftb_utils,                   ONLY: compute_block_sk,&
+                                              get_dftb_atom_param
    USE qs_energy_types,                 ONLY: qs_energy_type
    USE qs_environment_types,            ONLY: get_qs_env,&
                                               qs_environment_type
@@ -62,6 +64,9 @@ MODULE qs_dftb_coulomb
                                               neighbor_list_set_p_type
    USE qs_rho_types,                    ONLY: qs_rho_get,&
                                               qs_rho_type
+   USE sap_kind_types,                  ONLY: clist_type,&
+                                              release_sap_int,&
+                                              sap_int_type
    USE virial_methods,                  ONLY: virial_pair_force
    USE virial_types,                    ONLY: virial_type
 #include "./base/base_uses.f90"
@@ -104,13 +109,13 @@ CONTAINS
       CHARACTER(len=*), PARAMETER :: routineN = 'build_dftb_coulomb', &
          routineP = moduleN//':'//routineN
 
-      INTEGER :: atom_i, atom_j, blk, ewald_type, handle, i, ia, iatom, ic, icol, ikind, img, &
+      INTEGER :: atom_i, atom_j, blk, ewald_type, handle, i, ia, iac, iatom, ic, icol, ikind, img, &
          irow, is, jatom, jkind, natom, natorb_a, natorb_b, nimg, nkind, nmat
       INTEGER, DIMENSION(3)                              :: cellind, periodic
       INTEGER, DIMENSION(:), POINTER                     :: atom_of_kind, kind_of
       INTEGER, DIMENSION(:, :, :), POINTER               :: cell_to_index
-      LOGICAL                                            :: defined, do_ewald, found, hb_sr_damp, &
-                                                            use_virial
+      LOGICAL                                            :: defined, do_ewald, do_gamma_stress, &
+                                                            found, hb_sr_damp, use_virial
       REAL(KIND=dp)                                      :: alpha, ddr, deth, dgam, dr, drm, drp, &
                                                             fi, ga, gb, gmat, gmij, hb_para, zeff
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: xgamma, zeffk
@@ -118,6 +123,7 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(3)                        :: fij, rij
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: dsblock, gmcharge, ksblock, pblock, &
                                                             sblock
+      REAL(KIND=dp), DIMENSION(:, :, :), POINTER         :: dsint
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       TYPE(atprop_type), POINTER                         :: atprop
       TYPE(cell_type), POINTER                           :: cell
@@ -139,6 +145,7 @@ CONTAINS
          POINTER                                         :: dftb_potential
       TYPE(qs_force_type), DIMENSION(:), POINTER         :: force
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
+      TYPE(sap_int_type), DIMENSION(:), POINTER          :: sap_int
       TYPE(virial_type), POINTER                         :: virial
 
       CALL timeset(routineN, handle)
@@ -153,7 +160,7 @@ CONTAINS
          nmat = 1
       END IF
 
-      natom = SIZE(mcharge)
+      CALL get_qs_env(qs_env, nkind=nkind, natom=natom)
       ALLOCATE (gmcharge(natom, nmat))
       gmcharge = 0._dp
 
@@ -332,6 +339,11 @@ CONTAINS
          END DO
       END IF
 
+      do_gamma_stress = .FALSE.
+      IF (.NOT. just_energy .AND. use_virial) THEN
+         IF (dft_control%nimages == 1) do_gamma_stress = .TRUE.
+      END IF
+
       IF (.NOT. just_energy) THEN
          CALL get_qs_env(qs_env=qs_env, matrix_s_kp=matrix_s)
          CALL qs_rho_get(rho, rho_ao_kp=matrix_p)
@@ -349,6 +361,12 @@ CONTAINS
                CALL dbcsr_add(matrix_p(1, img)%matrix, matrix_p(2, img)%matrix, &
                               alpha_scalar=1.0_dp, beta_scalar=1.0_dp)
             END DO
+         END IF
+
+         NULLIFY (sap_int)
+         IF (do_gamma_stress) THEN
+            ! derivative overlap integral (non collapsed)
+            CALL dftb_dsint_list(qs_env, sap_int)
          END IF
 
          IF (nimg == 1) THEN
@@ -383,19 +401,49 @@ CONTAINS
                      force(jkind)%rho_elec(i, atom_j) = force(jkind)%rho_elec(i, atom_j)-fi
                      fij(i) = fi
                   END DO
-                  ! I think this is only accurate (correct) if we have a MIC case
-                  IF (use_virial) THEN
-                     rij = particle_set(irow)%r-particle_set(icol)%r
-                     rij = pbc(rij, cell)
-                     CALL virial_pair_force(virial%pv_virial, -1._dp, fij, rij)
-                     IF (atprop%stress) THEN
-                        CALL virial_pair_force(atprop%atstress(:, :, irow), -0.5_dp, fij, rij)
-                        CALL virial_pair_force(atprop%atstress(:, :, icol), -0.5_dp, fij, rij)
-                     END IF
-                  END IF
                END IF
             ENDDO
             CALL dbcsr_iterator_stop(iter)
+            !
+            IF (do_gamma_stress) THEN
+               DO ikind = 1, nkind
+                  DO jkind = 1, nkind
+                     iac = ikind+nkind*(jkind-1)
+                     IF (.NOT. ASSOCIATED(sap_int(iac)%alist)) CYCLE
+                     DO ia = 1, sap_int(iac)%nalist
+                        IF (.NOT. ASSOCIATED(sap_int(iac)%alist(ia)%clist)) CYCLE
+                        iatom = sap_int(iac)%alist(ia)%aatom
+                        DO ic = 1, sap_int(iac)%alist(ia)%nclist
+                           jatom = sap_int(iac)%alist(ia)%clist(ic)%catom
+                           rij = sap_int(iac)%alist(ia)%clist(ic)%rac
+                           dr = SQRT(SUM(rij(:)**2))
+                           IF (dr > 1.e-6_dp) THEN
+                              dsint => sap_int(iac)%alist(ia)%clist(ic)%acint
+                              gmij = 0.5_dp*(gmcharge(iatom, 1)+gmcharge(jatom, 1))
+                              icol = MAX(iatom, jatom)
+                              irow = MIN(iatom, jatom)
+                              NULLIFY (pblock)
+                              CALL dbcsr_get_block_p(matrix=matrix_p(1, 1)%matrix, &
+                                                     row=irow, col=icol, block=pblock, found=found)
+                              CPASSERT(found)
+                              DO i = 1, 3
+                                 IF (irow == iatom) THEN
+                                    fij(i) = -2.0_dp*gmij*SUM(pblock*dsint(:, :, i))
+                                 ELSE
+                                    fij(i) = -2.0_dp*gmij*SUM(TRANSPOSE(pblock)*dsint(:, :, i))
+                                 END IF
+                              END DO
+                              CALL virial_pair_force(virial%pv_virial, -1._dp, fij, rij)
+                              IF (atprop%stress) THEN
+                                 CALL virial_pair_force(atprop%atstress(:, :, iatom), -0.5_dp, fij, rij)
+                                 CALL virial_pair_force(atprop%atstress(:, :, jatom), -0.5_dp, fij, rij)
+                              END IF
+                           END IF
+                        END DO
+                     END DO
+                  END DO
+               END DO
+            END IF
          ELSE
             NULLIFY (n_list)
             CALL get_qs_env(qs_env=qs_env, sab_orb=n_list)
@@ -472,7 +520,7 @@ CONTAINS
          END DO
          ! Diagonal 3rd order correction (DFTB3)
          CALL build_dftb3_diagonal(qs_env, ks_matrix, rho, mcharge, energy, xgamma, zeffk, &
-                                   calculate_forces, just_energy)
+                                   sap_int, calculate_forces, just_energy)
          DEALLOCATE (zeffk, xgamma)
       END IF
 
@@ -480,6 +528,10 @@ CONTAINS
       IF (qs_env%qmmm .AND. qs_env%qmmm_periodic) THEN
          CALL build_tb_coulomb_qmqm(qs_env, ks_matrix, rho, mcharge, energy, &
                                     calculate_forces, just_energy)
+      END IF
+
+      IF (do_gamma_stress) THEN
+         CALL release_sap_int(sap_int)
       END IF
 
       IF (calculate_forces) THEN
@@ -544,6 +596,159 @@ CONTAINS
          gamma = gamma*EXP(-(0.5_dp*(ga+gb))**hb_para*r*r)
       END IF
    END FUNCTION gamma_rab_sr
+
+! **************************************************************************************************
+!> \brief ...
+!> \param qs_env ...
+!> \param sap_int ...
+! **************************************************************************************************
+   SUBROUTINE dftb_dsint_list(qs_env, sap_int)
+
+      TYPE(qs_environment_type), POINTER                 :: qs_env
+      TYPE(sap_int_type), DIMENSION(:), POINTER          :: sap_int
+
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'dftb_dsint_list', &
+         routineP = moduleN//':'//routineN
+
+      INTEGER :: handle, i, iac, iatom, ikind, ilist, jatom, jkind, jneighbor, llm, lmaxi, lmaxj, &
+         n1, n2, natorb_a, natorb_b, ngrd, ngrdcut, nkind, nlist, nneighbor
+      INTEGER, DIMENSION(3)                              :: cell
+      LOGICAL                                            :: defined
+      REAL(KIND=dp)                                      :: ddr, dgrd, dr
+      REAL(KIND=dp), DIMENSION(3)                        :: drij, rij
+      REAL(KIND=dp), DIMENSION(:, :), POINTER            :: dsblock, dsblockm, smatij, smatji
+      TYPE(clist_type), POINTER                          :: clist
+      TYPE(dft_control_type), POINTER                    :: dft_control
+      TYPE(dftb_control_type), POINTER                   :: dftb_control
+      TYPE(neighbor_list_iterator_p_type), &
+         DIMENSION(:), POINTER                           :: nl_iterator
+      TYPE(neighbor_list_set_p_type), DIMENSION(:), &
+         POINTER                                         :: sab_orb
+      TYPE(qs_dftb_atom_type), POINTER                   :: dftb_kind_a, dftb_kind_b
+      TYPE(qs_dftb_pairpot_type), DIMENSION(:, :), &
+         POINTER                                         :: dftb_potential
+      TYPE(qs_dftb_pairpot_type), POINTER                :: dftb_param_ij, dftb_param_ji
+      TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
+
+      CALL timeset(routineN, handle)
+
+      CALL get_qs_env(qs_env=qs_env, nkind=nkind)
+      CPASSERT(.NOT. ASSOCIATED(sap_int))
+      ALLOCATE (sap_int(nkind*nkind))
+      DO i = 1, nkind*nkind
+         NULLIFY (sap_int(i)%alist, sap_int(i)%asort, sap_int(i)%aindex)
+         sap_int(i)%nalist = 0
+      END DO
+
+      CALL get_qs_env(qs_env=qs_env, &
+                      qs_kind_set=qs_kind_set, &
+                      dft_control=dft_control, &
+                      sab_orb=sab_orb)
+
+      dftb_control => dft_control%qs_control%dftb_control
+
+      NULLIFY (dftb_potential)
+      CALL get_qs_env(qs_env=qs_env, &
+                      dftb_potential=dftb_potential)
+
+      ! loop over all atom pairs with a non-zero overlap (sab_orb)
+      CALL neighbor_list_iterator_create(nl_iterator, sab_orb)
+      DO WHILE (neighbor_list_iterate(nl_iterator) == 0)
+         CALL get_iterator_info(nl_iterator, ikind=ikind, jkind=jkind, iatom=iatom, &
+                                jatom=jatom, nlist=nlist, ilist=ilist, nnode=nneighbor, &
+                                inode=jneighbor, cell=cell, r=rij)
+         iac = ikind+nkind*(jkind-1)
+         !
+         CALL get_qs_kind(qs_kind_set(ikind), dftb_parameter=dftb_kind_a)
+         CALL get_dftb_atom_param(dftb_kind_a, &
+                                  defined=defined, lmax=lmaxi, natorb=natorb_a)
+         IF (.NOT. defined .OR. natorb_a < 1) CYCLE
+         CALL get_qs_kind(qs_kind_set(jkind), dftb_parameter=dftb_kind_b)
+         CALL get_dftb_atom_param(dftb_kind_b, &
+                                  defined=defined, lmax=lmaxj, natorb=natorb_b)
+         IF (.NOT. defined .OR. natorb_b < 1) CYCLE
+
+         dr = SQRT(SUM(rij(:)**2))
+
+         ! integral list
+         IF (.NOT. ASSOCIATED(sap_int(iac)%alist)) THEN
+            sap_int(iac)%a_kind = ikind
+            sap_int(iac)%p_kind = jkind
+            sap_int(iac)%nalist = nlist
+            ALLOCATE (sap_int(iac)%alist(nlist))
+            DO i = 1, nlist
+               NULLIFY (sap_int(iac)%alist(i)%clist)
+               sap_int(iac)%alist(i)%aatom = 0
+               sap_int(iac)%alist(i)%nclist = 0
+            END DO
+         END IF
+         IF (.NOT. ASSOCIATED(sap_int(iac)%alist(ilist)%clist)) THEN
+            sap_int(iac)%alist(ilist)%aatom = iatom
+            sap_int(iac)%alist(ilist)%nclist = nneighbor
+            ALLOCATE (sap_int(iac)%alist(ilist)%clist(nneighbor))
+            DO i = 1, nneighbor
+               sap_int(iac)%alist(ilist)%clist(i)%catom = 0
+            END DO
+         END IF
+         clist => sap_int(iac)%alist(ilist)%clist(jneighbor)
+         clist%catom = jatom
+         clist%cell = cell
+         clist%rac = rij
+         ALLOCATE (clist%acint(natorb_a, natorb_b, 3))
+         NULLIFY (clist%achint)
+         clist%acint = 0._dp
+         clist%nsgf_cnt = 0
+         NULLIFY (clist%sgf_list)
+
+         ! retrieve information on S matrix
+         dftb_param_ij => dftb_potential(ikind, jkind)
+         dftb_param_ji => dftb_potential(jkind, ikind)
+         ! assume table size and type is symmetric
+         ngrd = dftb_param_ij%ngrd
+         ngrdcut = dftb_param_ij%ngrdcut
+         dgrd = dftb_param_ij%dgrd
+         ddr = dgrd*0.1_dp
+         CPASSERT(dftb_param_ij%llm == dftb_param_ji%llm)
+         llm = dftb_param_ij%llm
+         smatij => dftb_param_ij%smat
+         smatji => dftb_param_ji%smat
+
+         IF (NINT(dr/dgrd) <= ngrdcut) THEN
+            IF (iatom == jatom .AND. dr < 0.001_dp) THEN
+               ! diagonal block
+            ELSE
+               ! off-diagonal block
+               n1 = natorb_a
+               n2 = natorb_b
+               ALLOCATE (dsblock(n1, n2), dsblockm(n1, n2))
+               DO i = 1, 3
+                  dsblock = 0._dp
+                  dsblockm = 0.0_dp
+                  drij = rij
+
+                  drij(i) = rij(i)-ddr
+                  CALL compute_block_sk(dsblockm, smatij, smatji, drij, ngrd, ngrdcut, dgrd, &
+                                        llm, lmaxi, lmaxj, iatom, iatom)
+
+                  drij(i) = rij(i)+ddr
+                  CALL compute_block_sk(dsblock, smatij, smatji, drij, ngrd, ngrdcut, dgrd, &
+                                        llm, lmaxi, lmaxj, iatom, iatom)
+
+                  dsblock = dsblock-dsblockm
+                  dsblock = dsblock/(2.0_dp*ddr)
+
+                  clist%acint(1:n1, 1:n2, i) = dsblock(1:n1, 1:n2)
+               ENDDO
+               DEALLOCATE (dsblock, dsblockm)
+            END IF
+         END IF
+
+      END DO
+      CALL neighbor_list_iterator_release(nl_iterator)
+
+      CALL timestop(handle)
+
+   END SUBROUTINE dftb_dsint_list
 
 END MODULE qs_dftb_coulomb
 
