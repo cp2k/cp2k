@@ -238,6 +238,7 @@ CONTAINS
                   " # Atom   Element   Kind        Atomic population", " Net charge"
                DO ikind = 1, nkind
                   CALL get_atomic_kind(atomic_kind_set(ikind), natom=nat)
+                  aname = ""
                   SELECT CASE (tb_type)
                   CASE ("DFTB")
                      CALL get_qs_kind(qs_kind_set(ikind), dftb_parameter=dftb_kind)
@@ -264,6 +265,7 @@ CONTAINS
                   "# Atom  Element  Kind  Atomic population (alpha,beta)   Net charge  Spin moment"
                DO ikind = 1, nkind
                   CALL get_atomic_kind(atomic_kind_set(ikind), natom=nat)
+                  aname = ""
                   SELECT CASE (tb_type)
                   CASE ("DFTB")
                      CALL get_qs_kind(qs_kind_set(ikind), dftb_parameter=dftb_kind)
