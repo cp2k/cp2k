@@ -8,10 +8,15 @@
 !> \author JGH
 ! **************************************************************************************************
 MODULE xtb_coulomb
+   USE ai_contraction,                  ONLY: block_add,&
+                                              contraction
+   USE ai_overlap,                      ONLY: overlap_ab
    USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                               get_atomic_kind_set
    USE atprop_types,                    ONLY: atprop_array_init,&
                                               atprop_type
+   USE basis_set_types,                 ONLY: gto_basis_set_p_type,&
+                                              gto_basis_set_type
    USE cell_types,                      ONLY: cell_type,&
                                               get_cell,&
                                               pbc
@@ -37,6 +42,7 @@ MODULE xtb_coulomb
    USE mathconstants,                   ONLY: oorootpi,&
                                               pi
    USE message_passing,                 ONLY: mp_sum
+   USE orbital_pointers,                ONLY: ncoset
    USE particle_types,                  ONLY: particle_type
    USE pw_poisson_types,                ONLY: do_ewald_ewald,&
                                               do_ewald_none,&
@@ -48,6 +54,8 @@ MODULE xtb_coulomb
    USE qs_environment_types,            ONLY: get_qs_env,&
                                               qs_environment_type
    USE qs_force_types,                  ONLY: qs_force_type
+   USE qs_integral_utils,               ONLY: basis_set_list_setup,&
+                                              get_memory_usage
    USE qs_kind_types,                   ONLY: get_qs_kind,&
                                               qs_kind_type
    USE qs_neighbor_list_types,          ONLY: get_iterator_info,&
@@ -58,6 +66,9 @@ MODULE xtb_coulomb
                                               neighbor_list_set_p_type
    USE qs_rho_types,                    ONLY: qs_rho_get,&
                                               qs_rho_type
+   USE sap_kind_types,                  ONLY: clist_type,&
+                                              release_sap_int,&
+                                              sap_int_type
    USE virial_methods,                  ONLY: virial_pair_force
    USE virial_types,                    ONLY: virial_type
    USE xtb_types,                       ONLY: get_xtb_atom_param,&
@@ -99,7 +110,7 @@ CONTAINS
       CHARACTER(len=*), PARAMETER :: routineN = 'build_xtb_coulomb', &
          routineP = moduleN//':'//routineN
 
-      INTEGER :: atom_i, atom_j, blk, ewald_type, handle, i, ia, iatom, ic, icol, ikind, img, &
+      INTEGER :: atom_i, atom_j, blk, ewald_type, handle, i, ia, iac, iatom, ic, icol, ikind, img, &
          irow, is, j, jatom, jkind, la, lb, lmaxa, lmaxb, natom, natorb_a, natorb_b, ni, nimg, nj, &
          nkind, nmat, za, zb
       INTEGER, DIMENSION(25)                             :: laoa, laob
@@ -107,9 +118,11 @@ CONTAINS
       INTEGER, DIMENSION(5)                              :: occ
       INTEGER, DIMENSION(:), POINTER                     :: atom_of_kind, kind_of
       INTEGER, DIMENSION(:, :, :), POINTER               :: cell_to_index
-      LOGICAL                                            :: defined, do_ewald, found, use_virial
-      REAL(KIND=dp)                                      :: alpha, deth, dr, ecsr, etaa, etab, fi, &
-                                                            gmij, kg, rcut, rcuta, rcutb, zeff
+      LOGICAL                                            :: defined, do_ewald, do_gamma_stress, &
+                                                            found, use_virial
+      REAL(KIND=dp)                                      :: alpha, deth, dr, ecsr, etaa, etab, f1, &
+                                                            f2, fi, gmij, kg, rcut, rcuta, rcutb, &
+                                                            zeff
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: xgamma, zeffk
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: gammab, gcij, gmcharge
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: gchrg
@@ -117,6 +130,7 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(3)                        :: fij, rij
       REAL(KIND=dp), DIMENSION(5)                        :: kappaa, kappab
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: dsblock, ksblock, pblock, sblock
+      REAL(KIND=dp), DIMENSION(:, :, :), POINTER         :: dsint
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       TYPE(atprop_type), POINTER                         :: atprop
       TYPE(cell_type), POINTER                           :: cell
@@ -135,6 +149,7 @@ CONTAINS
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
       TYPE(qs_force_type), DIMENSION(:), POINTER         :: force
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
+      TYPE(sap_int_type), DIMENSION(:), POINTER          :: sap_int
       TYPE(virial_type), POINTER                         :: virial
       TYPE(xtb_atom_type), POINTER                       :: xtb_atom_a, xtb_atom_b, xtb_kind
 
@@ -155,6 +170,11 @@ CONTAINS
          use_virial = virial%pv_availability .AND. (.NOT. virial%pv_numer)
       END IF
 
+      do_gamma_stress = .FALSE.
+      IF (.NOT. just_energy .AND. use_virial) THEN
+         IF (dft_control%nimages == 1) do_gamma_stress = .TRUE.
+      END IF
+
       IF (atprop%energy) THEN
          CALL get_qs_env(qs_env=qs_env, particle_set=particle_set)
          natom = SIZE(particle_set)
@@ -167,7 +187,7 @@ CONTAINS
          nmat = 1
       END IF
 
-      natom = SIZE(mcharge)
+      CALL get_qs_env(qs_env, nkind=nkind, natom=natom)
       ALLOCATE (gchrg(natom, 5, nmat))
       gchrg = 0._dp
       ALLOCATE (gmcharge(natom, nmat))
@@ -374,6 +394,12 @@ CONTAINS
             END DO
          END IF
 
+         NULLIFY (sap_int)
+         IF (do_gamma_stress) THEN
+            ! derivative overlap integral (non collapsed)
+            CALL xtb_dsint_list(qs_env, sap_int)
+         END IF
+
          IF (nimg == 1) THEN
             ! no k-points; all matrices have been transformed to periodic bsf
             CALL dbcsr_iterator_start(iter, matrix_s(1, 1)%matrix)
@@ -431,24 +457,71 @@ CONTAINS
                      force(jkind)%rho_elec(i, atom_j) = force(jkind)%rho_elec(i, atom_j)-fi
                      fij(i) = fij(i)+fi
                   END DO
-                  ! this assumes a MIC case
-                  IF (use_virial) THEN
-                     rij = particle_set(irow)%r-particle_set(icol)%r
-                     rij = pbc(rij, cell)
-                     dr = SQRT(SUM(rij(:)**2))
-                     IF (dr > 1.e-6_dp) THEN
-                        fi = -1.0_dp
-                        CALL virial_pair_force(virial%pv_virial, fi, fij, rij)
-                        IF (atprop%stress) THEN
-                           CALL virial_pair_force(atprop%atstress(:, :, irow), fi*0.5_dp, fij, rij)
-                           CALL virial_pair_force(atprop%atstress(:, :, icol), fi*0.5_dp, fij, rij)
-                        END IF
-                     END IF
-                  END IF
                END IF
                DEALLOCATE (gcij)
             ENDDO
             CALL dbcsr_iterator_stop(iter)
+            ! stress tensor (needs recalculation of overlap integrals)
+            IF (do_gamma_stress) THEN
+               DO ikind = 1, nkind
+                  DO jkind = 1, nkind
+                     iac = ikind+nkind*(jkind-1)
+                     IF (.NOT. ASSOCIATED(sap_int(iac)%alist)) CYCLE
+                     ! atomic parameters
+                     CALL get_qs_kind(qs_kind_set(ikind), xtb_parameter=xtb_atom_a)
+                     CALL get_qs_kind(qs_kind_set(jkind), xtb_parameter=xtb_atom_b)
+                     CALL get_xtb_atom_param(xtb_atom_a, lao=laoa, natorb=ni)
+                     CALL get_xtb_atom_param(xtb_atom_b, lao=laob, natorb=nj)
+                     DO ia = 1, sap_int(iac)%nalist
+                        IF (.NOT. ASSOCIATED(sap_int(iac)%alist(ia)%clist)) CYCLE
+                        iatom = sap_int(iac)%alist(ia)%aatom
+                        DO ic = 1, sap_int(iac)%alist(ia)%nclist
+                           jatom = sap_int(iac)%alist(ia)%clist(ic)%catom
+                           rij = sap_int(iac)%alist(ia)%clist(ic)%rac
+                           dr = SQRT(SUM(rij(:)**2))
+                           IF (dr > 1.e-6_dp) THEN
+                              dsint => sap_int(iac)%alist(ia)%clist(ic)%acint
+                              ALLOCATE (gcij(ni, nj))
+                              DO i = 1, ni
+                                 DO j = 1, nj
+                                    la = laoa(i)+1
+                                    lb = laob(j)+1
+                                    gcij(i, j) = 0.5_dp*(gchrg(irow, la, 1)+gchrg(icol, lb, 1))
+                                 END DO
+                              END DO
+                              gmij = 0.5_dp*(gmcharge(irow, 1)+gmcharge(icol, 1))
+                              icol = MAX(iatom, jatom)
+                              irow = MIN(iatom, jatom)
+                              NULLIFY (pblock)
+                              CALL dbcsr_get_block_p(matrix=matrix_p(1, 1)%matrix, &
+                                                     row=irow, col=icol, block=pblock, found=found)
+                              CPASSERT(found)
+                              fij = 0.0_dp
+                              DO i = 1, 3
+                                 ! short/long range
+                                 IF (irow == iatom) THEN
+                                    f1 = -2.0_dp*SUM(pblock*dsint(:, :, i)*gcij)
+                                    f2 = -2.0_dp*gmij*SUM(pblock*dsint(:, :, i))
+                                 ELSE
+                                    f1 = -2.0_dp*SUM(TRANSPOSE(pblock)*dsint(:, :, i)*gcij)
+                                    f2 = -2.0_dp*gmij*SUM(TRANSPOSE(pblock)*dsint(:, :, i))
+                                 END IF
+                                 fij(i) = fij(i)+f1+f2
+                              END DO
+                              DEALLOCATE (gcij)
+                              fi = 1.0_dp
+                              IF (iatom == jatom) fi = 0.5_dp
+                              CALL virial_pair_force(virial%pv_virial, fi, fij, rij)
+                              IF (atprop%stress) THEN
+                                 CALL virial_pair_force(atprop%atstress(:, :, iatom), fi*0.5_dp, fij, rij)
+                                 CALL virial_pair_force(atprop%atstress(:, :, jatom), fi*0.5_dp, fij, rij)
+                              END IF
+                           END IF
+                        END DO
+                     END DO
+                  END DO
+               END DO
+            END IF
          ELSE
             NULLIFY (n_list)
             CALL get_qs_env(qs_env=qs_env, sab_orb=n_list)
@@ -564,7 +637,7 @@ CONTAINS
          END DO
          ! Diagonal 3rd order correction (DFTB3)
          CALL build_dftb3_diagonal(qs_env, ks_matrix, rho, mcharge, energy, xgamma, zeffk, &
-                                   calculate_forces, just_energy)
+                                   sap_int, calculate_forces, just_energy)
          DEALLOCATE (zeffk, xgamma)
       END IF
 
@@ -572,6 +645,10 @@ CONTAINS
       IF (qs_env%qmmm .AND. qs_env%qmmm_periodic) THEN
          CALL build_tb_coulomb_qmqm(qs_env, ks_matrix, rho, mcharge, energy, &
                                     calculate_forces, just_energy)
+      END IF
+
+      IF (do_gamma_stress) THEN
+         CALL release_sap_int(sap_int)
       END IF
 
       DEALLOCATE (gmcharge, gchrg, atom_of_kind, kind_of)
@@ -724,6 +801,176 @@ CONTAINS
       DEALLOCATE (eta)
 
    END SUBROUTINE dgamma_rab_sr
+
+! **************************************************************************************************
+!> \brief ...
+!> \param qs_env ...
+!> \param sap_int ...
+! **************************************************************************************************
+   SUBROUTINE xtb_dsint_list(qs_env, sap_int)
+
+      TYPE(qs_environment_type), POINTER                 :: qs_env
+      TYPE(sap_int_type), DIMENSION(:), POINTER          :: sap_int
+
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'xtb_dsint_list', routineP = moduleN//':'//routineN
+
+      INTEGER :: handle, i, iac, iatom, ikind, ilist, iset, jatom, jkind, jneighbor, jset, ldsab, &
+         n1, n2, natorb_a, natorb_b, ncoa, ncob, nkind, nlist, nneighbor, nseta, nsetb, sgfa, sgfb
+      INTEGER, DIMENSION(3)                              :: cell
+      INTEGER, DIMENSION(:), POINTER                     :: la_max, la_min, lb_max, lb_min, npgfa, &
+                                                            npgfb, nsgfa, nsgfb
+      INTEGER, DIMENSION(:, :), POINTER                  :: first_sgfa, first_sgfb
+      LOGICAL                                            :: defined
+      REAL(KIND=dp)                                      :: dr
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: owork
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: oint, sint
+      REAL(KIND=dp), DIMENSION(3)                        :: rij
+      REAL(KIND=dp), DIMENSION(:), POINTER               :: set_radius_a, set_radius_b
+      REAL(KIND=dp), DIMENSION(:, :), POINTER            :: rpgfa, rpgfb, scon_a, scon_b, zeta, zetb
+      TYPE(clist_type), POINTER                          :: clist
+      TYPE(dft_control_type), POINTER                    :: dft_control
+      TYPE(gto_basis_set_p_type), DIMENSION(:), POINTER  :: basis_set_list
+      TYPE(gto_basis_set_type), POINTER                  :: basis_set_a, basis_set_b
+      TYPE(neighbor_list_iterator_p_type), &
+         DIMENSION(:), POINTER                           :: nl_iterator
+      TYPE(neighbor_list_set_p_type), DIMENSION(:), &
+         POINTER                                         :: sab_orb
+      TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
+      TYPE(xtb_atom_type), POINTER                       :: xtb_atom_a, xtb_atom_b
+
+      CALL timeset(routineN, handle)
+
+      CALL get_qs_env(qs_env=qs_env, nkind=nkind)
+      CPASSERT(.NOT. ASSOCIATED(sap_int))
+      ALLOCATE (sap_int(nkind*nkind))
+      DO i = 1, nkind*nkind
+         NULLIFY (sap_int(i)%alist, sap_int(i)%asort, sap_int(i)%aindex)
+         sap_int(i)%nalist = 0
+      END DO
+
+      CALL get_qs_env(qs_env=qs_env, &
+                      qs_kind_set=qs_kind_set, &
+                      dft_control=dft_control, &
+                      sab_orb=sab_orb)
+
+      ! set up basis set lists
+      ALLOCATE (basis_set_list(nkind))
+      CALL basis_set_list_setup(basis_set_list, "ORB", qs_kind_set)
+
+      ! loop over all atom pairs with a non-zero overlap (sab_orb)
+      CALL neighbor_list_iterator_create(nl_iterator, sab_orb)
+      DO WHILE (neighbor_list_iterate(nl_iterator) == 0)
+         CALL get_iterator_info(nl_iterator, ikind=ikind, jkind=jkind, iatom=iatom, &
+                                jatom=jatom, nlist=nlist, ilist=ilist, nnode=nneighbor, &
+                                inode=jneighbor, cell=cell, r=rij)
+         iac = ikind+nkind*(jkind-1)
+         !
+         CALL get_qs_kind(qs_kind_set(ikind), xtb_parameter=xtb_atom_a)
+         CALL get_xtb_atom_param(xtb_atom_a, defined=defined, natorb=natorb_a)
+         IF (.NOT. defined .OR. natorb_a < 1) CYCLE
+         CALL get_qs_kind(qs_kind_set(jkind), xtb_parameter=xtb_atom_b)
+         CALL get_xtb_atom_param(xtb_atom_b, defined=defined, natorb=natorb_b)
+         IF (.NOT. defined .OR. natorb_b < 1) CYCLE
+
+         dr = SQRT(SUM(rij(:)**2))
+
+         ! integral list
+         IF (.NOT. ASSOCIATED(sap_int(iac)%alist)) THEN
+            sap_int(iac)%a_kind = ikind
+            sap_int(iac)%p_kind = jkind
+            sap_int(iac)%nalist = nlist
+            ALLOCATE (sap_int(iac)%alist(nlist))
+            DO i = 1, nlist
+               NULLIFY (sap_int(iac)%alist(i)%clist)
+               sap_int(iac)%alist(i)%aatom = 0
+               sap_int(iac)%alist(i)%nclist = 0
+            END DO
+         END IF
+         IF (.NOT. ASSOCIATED(sap_int(iac)%alist(ilist)%clist)) THEN
+            sap_int(iac)%alist(ilist)%aatom = iatom
+            sap_int(iac)%alist(ilist)%nclist = nneighbor
+            ALLOCATE (sap_int(iac)%alist(ilist)%clist(nneighbor))
+            DO i = 1, nneighbor
+               sap_int(iac)%alist(ilist)%clist(i)%catom = 0
+            END DO
+         END IF
+         clist => sap_int(iac)%alist(ilist)%clist(jneighbor)
+         clist%catom = jatom
+         clist%cell = cell
+         clist%rac = rij
+         ALLOCATE (clist%acint(natorb_a, natorb_b, 3))
+         NULLIFY (clist%achint)
+         clist%acint = 0._dp
+         clist%nsgf_cnt = 0
+         NULLIFY (clist%sgf_list)
+
+         ! overlap
+         basis_set_a => basis_set_list(ikind)%gto_basis_set
+         IF (.NOT. ASSOCIATED(basis_set_a)) CYCLE
+         basis_set_b => basis_set_list(jkind)%gto_basis_set
+         IF (.NOT. ASSOCIATED(basis_set_b)) CYCLE
+         ! basis ikind
+         first_sgfa => basis_set_a%first_sgf
+         la_max => basis_set_a%lmax
+         la_min => basis_set_a%lmin
+         npgfa => basis_set_a%npgf
+         nseta = basis_set_a%nset
+         nsgfa => basis_set_a%nsgf_set
+         rpgfa => basis_set_a%pgf_radius
+         set_radius_a => basis_set_a%set_radius
+         scon_a => basis_set_a%scon
+         zeta => basis_set_a%zet
+         ! basis jkind
+         first_sgfb => basis_set_b%first_sgf
+         lb_max => basis_set_b%lmax
+         lb_min => basis_set_b%lmin
+         npgfb => basis_set_b%npgf
+         nsetb = basis_set_b%nset
+         nsgfb => basis_set_b%nsgf_set
+         rpgfb => basis_set_b%pgf_radius
+         set_radius_b => basis_set_b%set_radius
+         scon_b => basis_set_b%scon
+         zetb => basis_set_b%zet
+
+         ldsab = get_memory_usage(qs_kind_set, "ORB", "ORB")
+         ALLOCATE (oint(ldsab, ldsab, 4), owork(ldsab, ldsab))
+         ALLOCATE (sint(natorb_a, natorb_b, 4))
+         sint = 0.0_dp
+
+         DO iset = 1, nseta
+            ncoa = npgfa(iset)*ncoset(la_max(iset))
+            n1 = npgfa(iset)*(ncoset(la_max(iset))-ncoset(la_min(iset)-1))
+            sgfa = first_sgfa(1, iset)
+            DO jset = 1, nsetb
+               IF (set_radius_a(iset)+set_radius_b(jset) < dr) CYCLE
+               ncob = npgfb(jset)*ncoset(lb_max(jset))
+               n2 = npgfb(jset)*(ncoset(lb_max(jset))-ncoset(lb_min(jset)-1))
+               sgfb = first_sgfb(1, jset)
+               CALL overlap_ab(la_max(iset), la_min(iset), npgfa(iset), rpgfa(:, iset), zeta(:, iset), &
+                               lb_max(jset), lb_min(jset), npgfb(jset), rpgfb(:, jset), zetb(:, jset), &
+                               rij, sab=oint(:, :, 1), dab=oint(:, :, 2:4))
+               ! Contraction
+               DO i = 1, 4
+                  CALL contraction(oint(:, :, i), owork, ca=scon_a(:, sgfa:), na=n1, ma=nsgfa(iset), &
+                                   cb=scon_b(:, sgfb:), nb=n2, mb=nsgfb(jset), fscale=1.0_dp, trans=.FALSE.)
+                  CALL block_add("IN", owork, nsgfa(iset), nsgfb(jset), sint(:, :, i), &
+                                 sgfa, sgfb, trans=.FALSE.)
+               END DO
+            END DO
+         END DO
+         ! update dS/dR matrix
+         clist%acint(1:natorb_a, 1:natorb_b, 1:3) = sint(1:natorb_a, 1:natorb_b, 2:4)
+
+         DEALLOCATE (oint, owork, sint)
+
+      END DO
+      CALL neighbor_list_iterator_release(nl_iterator)
+
+      DEALLOCATE (basis_set_list)
+
+      CALL timestop(handle)
+
+   END SUBROUTINE xtb_dsint_list
 
 END MODULE xtb_coulomb
 
