@@ -3968,6 +3968,7 @@ CONTAINS
          ! DEALLOCATE(external_ab)
          ! ! Write P_ij
          ! IF(para_env%mepos==0) CALL write_array(mp2_env%ri_grad%P_ij)
+         ! write_array is now in mp2_ri_grad_util
          ! XXXXXXXXXXXXXX
 
          ! recover original information (before replication)
@@ -4086,6 +4087,7 @@ CONTAINS
          ! IF(para_env%mepos==0) THEN
          !   DO iiB=1, dimen_RI
          !     WRITE(*,*) iiB
+         !     write_array is now in mp2_ri_grad_util
          !     CALL write_array(Y_i_aP(1:homo,1:virtual,iiB))
          !     WRITE(*,*)
          !   END DO
@@ -4314,25 +4316,6 @@ CONTAINS
       CALL timestop(handle)
 
    END SUBROUTINE replicate_iaK_2intgroup
-
-! **************************************************************************************************
-!> \brief ...
-!> \param mat ...
-! **************************************************************************************************
-   SUBROUTINE write_array(mat)
-      REAL(KIND=dp), DIMENSION(:, :), INTENT(IN)         :: mat
-
-      INTEGER                                            :: iii, jjj
-
-      WRITE (*, *)
-      DO iii = 1, SIZE(mat, 1)
-         DO jjj = 1, SIZE(mat, 2), 20
-            WRITE (*, '(1000F10.5)') mat(iii, jjj:MIN(SIZE(mat, 2), jjj+19))
-         END DO
-         WRITE (*, *)
-      END DO
-      WRITE (*, *)
-   END SUBROUTINE
 
 ! **************************************************************************************************
 !> \brief ...

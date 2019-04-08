@@ -50,6 +50,7 @@ MODULE mp2_ri_grad
                                               mp2_eri_3c_integrate,&
                                               mp2_eri_deallocate_forces,&
                                               mp2_eri_force
+   USE mp2_ri_grad_util,                ONLY: write_array
    USE mp2_types,                       ONLY: integ_mat_buffer_type,&
                                               integ_mat_buffer_type_2D,&
                                               mp2_type
@@ -2261,31 +2262,5 @@ CONTAINS
       CALL timestop(handle)
 
    END SUBROUTINE create_W_P
-
-! **************************************************************************************************
-!> \brief ...
-!> \param mat ...
-!> \param unitout ...
-! **************************************************************************************************
-   SUBROUTINE write_array(mat, unitout)
-      REAL(KIND=dp), DIMENSION(:, :), INTENT(IN)         :: mat
-      INTEGER, INTENT(IN), OPTIONAL                      :: unitout
-
-      INTEGER                                            :: iii, jjj
-
-      WRITE (*, *)
-      DO iii = 1, SIZE(mat, 1)
-         WRITE (*, *) iii
-         DO jjj = 1, SIZE(mat, 2), 20
-            IF (PRESENT(unitout)) THEN
-               WRITE (1000+unitout, '(1000F10.5)') mat(iii, jjj:MIN(SIZE(mat, 2), jjj+19))
-            ELSE
-               WRITE (*, '(1000F10.5)') mat(iii, jjj:MIN(SIZE(mat, 2), jjj+19))
-            END IF
-         END DO
-         WRITE (*, *)
-      END DO
-      WRITE (*, *)
-   END SUBROUTINE
 
 END MODULE mp2_ri_grad
