@@ -491,7 +491,7 @@ CONTAINS
       TYPE(cp_para_env_type), POINTER                    :: para_env_sub
       TYPE(section_vals_type), POINTER                   :: hfx_section
       TYPE(hfx_type), DIMENSION(:, :), POINTER           :: x_data
-      INTEGER                                            :: n_rep_hf
+      INTEGER, INTENT(OUT)                               :: n_rep_hf
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'hfx_create_subgroup', &
          routineP = moduleN//':'//routineN

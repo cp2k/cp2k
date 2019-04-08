@@ -82,12 +82,12 @@ CONTAINS
                                 number_of_rec, number_of_send, &
                                 map_send_size, map_rec_size, local_size_source, para_env_RPA)
       TYPE(cp_fm_type), POINTER                          :: fm_mat_source, fm_mat_dest
-      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: RPA_proc_map
+      INTEGER, ALLOCATABLE, DIMENSION(:), INTENT(INOUT)  :: RPA_proc_map
       TYPE(integ_mat_buffer_type), ALLOCATABLE, &
-         DIMENSION(:)                                    :: buffer_rec, buffer_send
-      INTEGER                                            :: number_of_rec, number_of_send
-      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: map_send_size, map_rec_size
-      INTEGER, ALLOCATABLE, DIMENSION(:, :)              :: local_size_source
+         DIMENSION(:), INTENT(OUT)                       :: buffer_rec, buffer_send
+      INTEGER, INTENT(OUT)                               :: number_of_rec, number_of_send
+      INTEGER, ALLOCATABLE, DIMENSION(:), INTENT(OUT)    :: map_send_size, map_rec_size
+      INTEGER, ALLOCATABLE, DIMENSION(:, :), INTENT(OUT) :: local_size_source
       TYPE(cp_para_env_type), POINTER                    :: para_env_RPA
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'initialize_buffer', &
@@ -340,12 +340,12 @@ CONTAINS
                               number_of_send, &
                               map_send_size, map_rec_size, local_size_source, para_env_RPA)
       TYPE(cp_fm_type), POINTER                          :: fm_mat_source, fm_mat_dest
-      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: RPA_proc_map
+      INTEGER, ALLOCATABLE, DIMENSION(:), INTENT(IN)     :: RPA_proc_map
       TYPE(integ_mat_buffer_type), ALLOCATABLE, &
-         DIMENSION(:)                                    :: buffer_rec, buffer_send
-      INTEGER                                            :: number_of_send
-      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: map_send_size, map_rec_size
-      INTEGER, ALLOCATABLE, DIMENSION(:, :)              :: local_size_source
+         DIMENSION(:), INTENT(INOUT)                     :: buffer_rec, buffer_send
+      INTEGER, INTENT(IN)                                :: number_of_send
+      INTEGER, ALLOCATABLE, DIMENSION(:), INTENT(IN)     :: map_send_size, map_rec_size
+      INTEGER, ALLOCATABLE, DIMENSION(:, :), INTENT(IN)  :: local_size_source
       TYPE(cp_para_env_type), POINTER                    :: para_env_RPA
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'fm_redistribute', &
@@ -533,12 +533,13 @@ CONTAINS
    SUBROUTINE release_buffer(RPA_proc_map, buffer_rec, buffer_send, &
                              number_of_rec, number_of_send, &
                              map_send_size, map_rec_size, local_size_source)
-      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: RPA_proc_map
+      INTEGER, ALLOCATABLE, DIMENSION(:), INTENT(INOUT)  :: RPA_proc_map
       TYPE(integ_mat_buffer_type), ALLOCATABLE, &
-         DIMENSION(:)                                    :: buffer_rec, buffer_send
-      INTEGER                                            :: number_of_rec, number_of_send
-      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: map_send_size, map_rec_size
-      INTEGER, ALLOCATABLE, DIMENSION(:, :)              :: local_size_source
+         DIMENSION(:), INTENT(INOUT)                     :: buffer_rec, buffer_send
+      INTEGER, INTENT(IN)                                :: number_of_rec, number_of_send
+      INTEGER, ALLOCATABLE, DIMENSION(:), INTENT(INOUT)  :: map_send_size, map_rec_size
+      INTEGER, ALLOCATABLE, DIMENSION(:, :), &
+         INTENT(INOUT)                                   :: local_size_source
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'release_buffer', routineP = moduleN//':'//routineN
 
@@ -593,9 +594,9 @@ CONTAINS
       TYPE(cp_fm_type), POINTER                          :: fm_mat_Gamma_3
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: dbcsr_Gamma_3
       TYPE(cp_para_env_type), POINTER                    :: para_env_RPA, para_env_sub
-      INTEGER                                            :: homo, virtual
+      INTEGER, INTENT(IN)                                :: homo, virtual
       TYPE(dbcsr_type), POINTER                          :: mo_coeff_o
-      INTEGER                                            :: ngroup, my_group_L_start, &
+      INTEGER, INTENT(IN)                                :: ngroup, my_group_L_start, &
                                                             my_group_L_end, my_group_L_size, &
                                                             dimen_RI
 

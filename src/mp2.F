@@ -820,11 +820,11 @@ CONTAINS
 !> \param basis_parameter ...
 !> \param kind_of ...
 ! **************************************************************************************************
-   SUBROUTINE build_index_table(natom, max_nset, index_table, basis_parameter, kind_of)
-      INTEGER                                            :: natom, max_nset
-      INTEGER, DIMENSION(natom, max_nset)                :: index_table
+   PURE SUBROUTINE build_index_table(natom, max_nset, index_table, basis_parameter, kind_of)
+      INTEGER, INTENT(IN)                                :: natom, max_nset
+      INTEGER, DIMENSION(natom, max_nset), INTENT(OUT)   :: index_table
       TYPE(hfx_basis_type), DIMENSION(:), POINTER        :: basis_parameter
-      INTEGER, DIMENSION(natom)                          :: kind_of
+      INTEGER, DIMENSION(natom), INTENT(IN)              :: kind_of
 
       INTEGER                                            :: counter, iatom, ikind, iset, nset
 
@@ -863,18 +863,20 @@ CONTAINS
    SUBROUTINE mp2_direct_energy(dimen, occ_i, occ_j, mp2_biel, mp2_env, C_i, Auto_i, Emp2, Emp2_Cou, Emp2_ex, &
                                 qs_env, rho, para_env, &
                                 unit_nr, C_j, Auto_j)
-      INTEGER                                            :: dimen, occ_i, occ_j
-      TYPE(mp2_biel_type)                                :: mp2_biel
+      INTEGER, INTENT(IN)                                :: dimen, occ_i, occ_j
+      TYPE(mp2_biel_type), INTENT(IN)                    :: mp2_biel
       TYPE(mp2_type), POINTER                            :: mp2_env
-      REAL(KIND=dp), DIMENSION(dimen, dimen)             :: C_i
-      REAL(KIND=dp), DIMENSION(dimen)                    :: Auto_i
-      REAL(KIND=dp)                                      :: Emp2, Emp2_Cou, Emp2_ex
+      REAL(KIND=dp), DIMENSION(dimen, dimen), INTENT(IN) :: C_i
+      REAL(KIND=dp), DIMENSION(dimen), INTENT(IN)        :: Auto_i
+      REAL(KIND=dp), INTENT(OUT)                         :: Emp2, Emp2_Cou, Emp2_ex
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(qs_rho_type), POINTER                         :: rho
       TYPE(cp_para_env_type), POINTER                    :: para_env
-      INTEGER                                            :: unit_nr
-      REAL(KIND=dp), DIMENSION(dimen, dimen), OPTIONAL   :: C_j
-      REAL(KIND=dp), DIMENSION(dimen), OPTIONAL          :: Auto_j
+      INTEGER, INTENT(IN)                                :: unit_nr
+      REAL(KIND=dp), DIMENSION(dimen, dimen), &
+         INTENT(IN), OPTIONAL                            :: C_j
+      REAL(KIND=dp), DIMENSION(dimen), INTENT(IN), &
+         OPTIONAL                                        :: Auto_j
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'mp2_direct_energy', &
          routineP = moduleN//':'//routineN
@@ -1151,9 +1153,9 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE calculate_exx(qs_env, unit_nr, do_gw, do_admm, E_ex_from_GW, t3)
       TYPE(qs_environment_type), POINTER                 :: qs_env
-      INTEGER                                            :: unit_nr
-      LOGICAL                                            :: do_gw, do_admm
-      REAL(KIND=dp)                                      :: E_ex_from_GW, t3
+      INTEGER, INTENT(IN)                                :: unit_nr
+      LOGICAL, INTENT(IN)                                :: do_gw, do_admm
+      REAL(KIND=dp), INTENT(IN)                          :: E_ex_from_GW, t3
 
       CHARACTER(len=*), PARAMETER :: routineN = 'calculate_exx', routineP = moduleN//':'//routineN
 
@@ -1268,8 +1270,8 @@ CONTAINS
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(mp2_type), POINTER                            :: mp2_env
       TYPE(mo_set_p_type), DIMENSION(:), POINTER         :: mos_mp2
-      REAL(KIND=dp)                                      :: energy_ex, t3
-      INTEGER                                            :: unit_nr
+      REAL(KIND=dp), INTENT(OUT)                         :: energy_ex, t3
+      INTEGER, INTENT(IN)                                :: unit_nr
 
       CHARACTER(len=*), PARAMETER :: routineN = 'compute_vec_Sigma_x_minus_vxc_gw', &
          routineP = moduleN//':'//routineN
