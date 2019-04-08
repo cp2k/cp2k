@@ -13,7 +13,7 @@ extclean: dbcsrclean
 	@echo "Clean EXT"
 
 dbcsr:
-	$(MAKE) -C $(EXTSHOME)/$@ \
+	+$(MAKE) -C $(EXTSHOME)/$@ \
 	   INCLUDEMAKE=$(ARCHDIR)/$(ARCH).$(ONEVERSION) \
 	   LIBDIR=$(LIBEXTSDIR)/$@ \
 	   OBJDIR=$(OBJEXTSDIR)/$@ \
