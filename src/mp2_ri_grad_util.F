@@ -57,7 +57,7 @@ MODULE mp2_ri_grad_util
 
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'mp2_ri_grad_util'
 
-   PUBLIC :: complete_gamma, array2fm, fm2array, prepare_redistribution
+   PUBLIC :: complete_gamma, array2fm, fm2array, prepare_redistribution, write_array
 
    TYPE index_map
       INTEGER, DIMENSION(:, :), ALLOCATABLE :: map
@@ -92,7 +92,8 @@ CONTAINS
                              sub_proc_map, alpha_case)
 
       TYPE(mp2_type), POINTER                            :: mp2_env
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :), INTENT(INOUT) :: B_ia_Q
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :), &
+         INTENT(INOUT)                                   :: B_ia_Q
       INTEGER, INTENT(IN)                                :: dimen_RI, homo, virtual
       TYPE(cp_para_env_type), POINTER                    :: para_env, para_env_sub
       INTEGER, INTENT(IN)                                :: ngroup, my_group_L_size, &
@@ -554,7 +555,8 @@ CONTAINS
                        group_grid_2_mepos, ngroup_row, ngroup_col, &
                        fm_mat)
 
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :), INTENT(INOUT) :: mat2D
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :), &
+         INTENT(INOUT)                                   :: mat2D
       TYPE(cp_fm_struct_type), POINTER                   :: fm_struct
       INTEGER, INTENT(IN)                                :: num_rows, num_cols
       TYPE(cp_para_env_type), POINTER                    :: para_env
@@ -956,7 +958,8 @@ CONTAINS
                        ngroup_row, ngroup_col, &
                        fm_mat)
 
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :), INTENT(OUT) :: mat2D
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :), &
+         INTENT(OUT)                                     :: mat2D
       INTEGER, INTENT(IN)                                :: num_rows, num_cols
       TYPE(cp_para_env_type), POINTER                    :: para_env
       INTEGER, ALLOCATABLE, DIMENSION(:), INTENT(IN)     :: proc_map
@@ -1665,9 +1668,11 @@ CONTAINS
 ! **************************************************************************************************
 !> \brief ...
 !> \param mat ...
+!> \param unitout ...
 ! **************************************************************************************************
-   SUBROUTINE write_array(mat)
+   SUBROUTINE write_array(mat, unitout)
       REAL(KIND=dp), DIMENSION(:, :), INTENT(IN)         :: mat
+      INTEGER, INTENT(IN), OPTIONAL                      :: unitout
 
       INTEGER                                            :: iii, jjj
 
@@ -1675,7 +1680,11 @@ CONTAINS
       DO iii = 1, SIZE(mat, 1)
          WRITE (*, *) iii
          DO jjj = 1, SIZE(mat, 2), 20
-            WRITE (*, '(1000F10.5)') mat(iii, jjj:MIN(SIZE(mat, 2), jjj+19))
+            IF (PRESENT(unitout)) THEN
+               WRITE (1000+unitout, '(1000F10.5)') mat(iii, jjj:MIN(SIZE(mat, 2), jjj+19))
+            ELSE
+               WRITE (*, '(1000F10.5)') mat(iii, jjj:MIN(SIZE(mat, 2), jjj+19))
+            END IF
          END DO
          WRITE (*, *)
       END DO
