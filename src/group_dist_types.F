@@ -22,7 +22,7 @@ MODULE group_dist_types
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'group_dist_types'
 
    PUBLIC :: group_dist_d0_type, group_dist_d1_type, &
-             create_group_dist, get_group_dist, release_group_dist
+             create_group_dist, get_group_dist, release_group_dist, maxsize
 
    ! Type to represent start, end and size of one group (usually the own group)
    ! The underscore is added to prevent confusions with fortran intrinsics
@@ -226,4 +226,19 @@ CONTAINS
       DEALLOCATE(this%sizes)
       
    END SUBROUTINE release_group_dist_d1
+
+! **************************************************************************************************
+!> \brief ...
+!> \param this ...
+!> \return ...
+! **************************************************************************************************
+   ELEMENTAL FUNCTION maxsize(this) RESULT(res)
+      TYPE(group_dist_d1_type), INTENT(IN)               :: this
+      INTEGER                                            :: res
+
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'maxsize', routineP = moduleN//':'//routineN
+
+      res = MAXVAL(this%sizes)
+
+   END FUNCTION maxsize
 END MODULE group_dist_types

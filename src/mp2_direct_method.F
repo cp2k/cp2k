@@ -100,24 +100,27 @@ CONTAINS
                                                 occupied, elements_ij_proc, ij_list_proc, Nj_occupied, j_batch_start, &
                                                 occupied_beta, C_beta, Auto_beta, Integ_MP2)
 
-      REAL(KIND=dp)                                      :: Emp2, Emp2_Cou, Emp2_ex
+      REAL(KIND=dp), INTENT(INOUT)                       :: Emp2, Emp2_Cou, Emp2_ex
       TYPE(mp2_type), POINTER                            :: mp2_env
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(qs_rho_type), POINTER                         :: rho
       TYPE(cp_para_env_type), POINTER                    :: para_env
-      TYPE(mp2_biel_type)                                :: mp2_biel
-      INTEGER                                            :: dimen
-      REAL(KIND=dp), DIMENSION(dimen, dimen)             :: C
-      REAL(KIND=dp), DIMENSION(dimen)                    :: Auto
-      INTEGER                                            :: i_batch_start, Ni_occupied, occupied, &
+      TYPE(mp2_biel_type), INTENT(IN)                    :: mp2_biel
+      INTEGER, INTENT(IN)                                :: dimen
+      REAL(KIND=dp), DIMENSION(dimen, dimen), INTENT(IN) :: C
+      REAL(KIND=dp), DIMENSION(dimen), INTENT(IN)        :: Auto
+      INTEGER, INTENT(IN)                                :: i_batch_start, Ni_occupied, occupied, &
                                                             elements_ij_proc
-      INTEGER, DIMENSION(elements_ij_proc, 2)            :: ij_list_proc
-      INTEGER                                            :: Nj_occupied, j_batch_start
-      INTEGER, OPTIONAL                                  :: occupied_beta
-      REAL(KIND=dp), DIMENSION(dimen, dimen), OPTIONAL   :: C_beta
-      REAL(KIND=dp), DIMENSION(dimen), OPTIONAL          :: Auto_beta
+      INTEGER, DIMENSION(elements_ij_proc, 2), &
+         INTENT(IN)                                      :: ij_list_proc
+      INTEGER, INTENT(IN)                                :: Nj_occupied, j_batch_start
+      INTEGER, INTENT(IN), OPTIONAL                      :: occupied_beta
+      REAL(KIND=dp), DIMENSION(dimen, dimen), &
+         INTENT(IN), OPTIONAL                            :: C_beta
+      REAL(KIND=dp), DIMENSION(dimen), INTENT(IN), &
+         OPTIONAL                                        :: Auto_beta
       REAL(KIND=dp), ALLOCATABLE, &
-         DIMENSION(:, :, :, :), OPTIONAL                 :: Integ_MP2
+         DIMENSION(:, :, :, :), INTENT(OUT), OPTIONAL    :: Integ_MP2
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'mp2_canonical_direct_single_batch', &
          routineP = moduleN//':'//routineN
@@ -1171,15 +1174,17 @@ CONTAINS
                                                 i_batch_start, Ni_occupied, &
                                                 MNRS, C_T, mp2_biel, BI1)
 
-      INTEGER                                            :: dimen, latom, katom, jatom, iatom, lset, &
+      INTEGER, INTENT(IN)                                :: dimen, latom, katom, jatom, iatom, lset, &
                                                             kset, jset, iset, Ssize, Rsize, Nsize, &
                                                             Msize, i_batch_start, Ni_occupied
       REAL(KIND=dp), &
-         DIMENSION(Msize, Nsize, Rsize, Ssize)           :: MNRS
-      REAL(KIND=dp), DIMENSION(dimen, dimen)             :: C_T
-      TYPE(mp2_biel_type)                                :: mp2_biel
+         DIMENSION(Msize, Nsize, Rsize, Ssize), &
+         INTENT(IN)                                      :: MNRS
+      REAL(KIND=dp), DIMENSION(dimen, dimen), INTENT(IN) :: C_T
+      TYPE(mp2_biel_type), INTENT(IN)                    :: mp2_biel
       REAL(KIND=dp), &
-         DIMENSION(dimen, Ni_occupied, Rsize, Ssize)     :: BI1
+         DIMENSION(dimen, Ni_occupied, Rsize, Ssize), &
+         INTENT(INOUT)                                   :: BI1
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'transform_occupied_orbitals_first', &
          routineP = moduleN//':'//routineN
@@ -1257,19 +1262,21 @@ CONTAINS
                                                  elements_ij_proc, &
                                                  multiple, proc_map, BIb)
 
-      INTEGER                                            :: dimen, latom, katom, lset, kset, Ssize, &
+      INTEGER, INTENT(IN)                                :: dimen, latom, katom, lset, kset, Ssize, &
                                                             Rsize, Ni_occupied, Nj_occupied, &
                                                             j_batch_start
       REAL(KIND=dp), &
-         DIMENSION(dimen, Ni_occupied, Rsize, Ssize)     :: BI1
-      REAL(KIND=dp), DIMENSION(dimen, dimen)             :: C_T
-      TYPE(mp2_biel_type)                                :: mp2_biel
+         DIMENSION(dimen, Ni_occupied, Rsize, Ssize), &
+         INTENT(IN)                                      :: BI1
+      REAL(KIND=dp), DIMENSION(dimen, dimen), INTENT(IN) :: C_T
+      TYPE(mp2_biel_type), INTENT(IN)                    :: mp2_biel
       TYPE(cp_para_env_type), POINTER                    :: para_env
-      INTEGER                                            :: elements_ij_proc, multiple
+      INTEGER, INTENT(IN)                                :: elements_ij_proc, multiple
       INTEGER, DIMENSION((-para_env%num_pe):(2*para_env%&
-         num_pe-1))                                      :: proc_map
+         num_pe-1)), INTENT(IN)                          :: proc_map
       REAL(KIND=dp), &
-         DIMENSION(dimen, dimen, elements_ij_proc)       :: BIb
+         DIMENSION(dimen, dimen, elements_ij_proc), &
+         INTENT(INOUT)                                   :: BIb
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'transform_occupied_orbitals_second', &
          routineP = moduleN//':'//routineN
@@ -1277,9 +1284,9 @@ CONTAINS
       INTEGER :: case_send_receive, elements_ij_proc_rec, handle, i, index_ij_rec, index_ij_send, &
          index_proc_ij, index_proc_shift, j, n, proc_receive, proc_send, r, R_global, R_offset, &
          R_offset_rec, R_start, Rsize_rec, s, S_global, S_offset, S_offset_rec, Ssize_rec
-      REAL(KIND=dp), DIMENSION(dimen, Rsize+Ssize)       :: BIb_RS_mat
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: BIb_RS_mat_rec
       REAL(KIND=dp)                                      :: C_T_R, C_T_S
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: BIb_RS_mat_rec
+      REAL(KIND=dp), DIMENSION(dimen, Rsize+Ssize)       :: BIb_RS_mat
       INTEGER, DIMENSION(5)                              :: size_parameter_rec, size_parameter_send
 
       CALL timeset(routineN, handle)
@@ -1432,19 +1439,21 @@ CONTAINS
                                                      elements_ij_proc, &
                                                      proc_map, BIb)
 
-      INTEGER                                            :: dimen, latom, katom, lset, kset, Ssize, &
+      INTEGER, INTENT(IN)                                :: dimen, latom, katom, lset, kset, Ssize, &
                                                             Rsize, Ni_occupied, Nj_occupied, &
                                                             j_batch_start, ij_elem_max
       REAL(KIND=dp), &
-         DIMENSION(dimen, Ni_occupied, Rsize, Ssize)     :: BI1
-      REAL(KIND=dp), DIMENSION(dimen, dimen)             :: C_T
-      TYPE(mp2_biel_type)                                :: mp2_biel
+         DIMENSION(dimen, Ni_occupied, Rsize, Ssize), &
+         INTENT(IN)                                      :: BI1
+      REAL(KIND=dp), DIMENSION(dimen, dimen), INTENT(IN) :: C_T
+      TYPE(mp2_biel_type), INTENT(IN)                    :: mp2_biel
       TYPE(cp_para_env_type), POINTER                    :: para_env
-      INTEGER                                            :: elements_ij_proc
+      INTEGER, INTENT(IN)                                :: elements_ij_proc
       INTEGER, DIMENSION((-para_env%num_pe):(2*para_env%&
-         num_pe-1))                                      :: proc_map
+         num_pe-1)), INTENT(IN)                          :: proc_map
       REAL(KIND=dp), &
-         DIMENSION(dimen, dimen, elements_ij_proc)       :: BIb
+         DIMENSION(dimen, dimen, elements_ij_proc), &
+         INTENT(INOUT)                                   :: BIb
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'transform_occupied_orbitals_second_big', &
          routineP = moduleN//':'//routineN
@@ -1452,10 +1461,10 @@ CONTAINS
       INTEGER :: case_send_receive, elements_ij_proc_rec, handle, i, index_ij_rec, index_ij_send, &
          index_proc_ij, index_proc_shift, j, n, proc_receive, proc_send, r, R_global, R_offset, &
          R_offset_rec, R_start, Rsize_rec, s, S_global, S_offset, S_offset_rec, Ssize_rec
+      REAL(KIND=dp)                                      :: C_T_R, C_T_S
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: BIb_RS_mat_rec
       REAL(KIND=dp), &
          DIMENSION(dimen, Rsize+Ssize, ij_elem_max)      :: BIb_RS_mat
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: BIb_RS_mat_rec
-      REAL(KIND=dp)                                      :: C_T_R, C_T_S
       INTEGER, DIMENSION(5)                              :: size_parameter_rec, size_parameter_send
 
       CALL timeset(routineN, handle)
@@ -1593,15 +1602,17 @@ CONTAINS
                                                         j_batch_start, BIb, C, Auto, elements_ij_proc, &
                                                         ij_list_proc, nspins, Emp2, Emp2_Cou, Emp2_ex)
 
-      INTEGER                                            :: dimen, occupied, virtual, i_batch_start, &
+      INTEGER, INTENT(IN)                                :: dimen, occupied, virtual, i_batch_start, &
                                                             j_batch_start
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: BIb
-      REAL(KIND=dp), DIMENSION(dimen, dimen)             :: C
-      REAL(KIND=dp), DIMENSION(dimen)                    :: Auto
-      INTEGER                                            :: elements_ij_proc
-      INTEGER, DIMENSION(elements_ij_proc, 2)            :: ij_list_proc
-      INTEGER                                            :: nspins
-      REAL(KIND=dp)                                      :: Emp2, Emp2_Cou, Emp2_ex
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :), &
+         INTENT(INOUT)                                   :: BIb
+      REAL(KIND=dp), DIMENSION(dimen, dimen), INTENT(IN) :: C
+      REAL(KIND=dp), DIMENSION(dimen), INTENT(IN)        :: Auto
+      INTEGER, INTENT(IN)                                :: elements_ij_proc
+      INTEGER, DIMENSION(elements_ij_proc, 2), &
+         INTENT(IN)                                      :: ij_list_proc
+      INTEGER, INTENT(IN)                                :: nspins
+      REAL(KIND=dp), INTENT(OUT)                         :: Emp2, Emp2_Cou, Emp2_ex
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'transform_virtual_orbitals_and_accumulate', &
          routineP = moduleN//':'//routineN
@@ -1690,14 +1701,16 @@ CONTAINS
                                                                j_batch_start, BIb, C_i, C_j, Auto_i, Auto_j, elements_ij_proc, &
                                                                ij_list_proc, Emp2, Emp2_Cou)
 
-      INTEGER                                            :: dimen, occ_i, occ_j, virt_i, virt_j, &
+      INTEGER, INTENT(IN)                                :: dimen, occ_i, occ_j, virt_i, virt_j, &
                                                             i_batch_start, j_batch_start
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: BIb
-      REAL(KIND=dp), DIMENSION(dimen, dimen)             :: C_i, C_j
-      REAL(KIND=dp), DIMENSION(dimen)                    :: Auto_i, Auto_j
-      INTEGER                                            :: elements_ij_proc
-      INTEGER, DIMENSION(elements_ij_proc, 2)            :: ij_list_proc
-      REAL(KIND=dp)                                      :: Emp2, Emp2_Cou
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :), &
+         INTENT(INOUT)                                   :: BIb
+      REAL(KIND=dp), DIMENSION(dimen, dimen), INTENT(IN) :: C_i, C_j
+      REAL(KIND=dp), DIMENSION(dimen), INTENT(IN)        :: Auto_i, Auto_j
+      INTEGER, INTENT(IN)                                :: elements_ij_proc
+      INTEGER, DIMENSION(elements_ij_proc, 2), &
+         INTENT(IN)                                      :: ij_list_proc
+      REAL(KIND=dp), INTENT(INOUT)                       :: Emp2, Emp2_Cou
 
       CHARACTER(LEN=*), PARAMETER :: &
          routineN = 'transform_virtual_orbitals_and_accumulate_ABcase', &

@@ -152,21 +152,21 @@ CONTAINS
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
       TYPE(cp_fm_type), POINTER                          :: mo_coeff
-      INTEGER                                            :: nmo, homo, dimen_RI
-      REAL(KIND=dp), DIMENSION(:)                        :: Eigenval
-      INTEGER                                            :: my_group_L_start, my_group_L_end, &
+      INTEGER, INTENT(IN)                                :: nmo, homo, dimen_RI
+      REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: Eigenval
+      INTEGER, INTENT(IN)                                :: my_group_L_start, my_group_L_end, &
                                                             my_group_L_size
       TYPE(neighbor_list_set_p_type), DIMENSION(:), &
          POINTER                                         :: sab_orb_sub
-      TYPE(pw_p_type)                                    :: rho_r, rho_g, pot_g
-      TYPE(dbcsr_p_type)                                 :: mat_munu
+      TYPE(pw_p_type), INTENT(INOUT)                     :: rho_r, rho_g, pot_g
+      TYPE(dbcsr_p_type), INTENT(INOUT)                  :: mat_munu
       TYPE(pw_env_type), POINTER                         :: pw_env_sub
       TYPE(pw_poisson_type), POINTER                     :: poisson_env
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
       TYPE(task_list_type), POINTER                      :: task_list_sub
       TYPE(cp_blacs_env_type), POINTER                   :: blacs_env_sub
-      REAL(KIND=dp), DIMENSION(:), OPTIONAL              :: Eigenval_beta
-      INTEGER, OPTIONAL                                  :: homo_beta
+      REAL(KIND=dp), DIMENSION(:), INTENT(IN), OPTIONAL  :: Eigenval_beta
+      INTEGER, INTENT(IN), OPTIONAL                      :: homo_beta
       TYPE(cp_fm_type), OPTIONAL, POINTER                :: mo_coeff_beta
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'calc_ri_mp2_nonsep', &
@@ -1203,12 +1203,12 @@ CONTAINS
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(mp2_type), POINTER                            :: mp2_env
       TYPE(cp_fm_type), POINTER                          :: mo_coeff
-      INTEGER                                            :: homo, virtual, dimen
+      INTEGER, INTENT(IN)                                :: homo, virtual, dimen
       TYPE(cp_para_env_type), POINTER                    :: para_env, para_env_sub
-      REAL(KIND=dp), DIMENSION(:)                        :: Eigenval
+      REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: Eigenval
       TYPE(cp_fm_type), POINTER                          :: L1_mu_i, L2_nu_a
-      REAL(KIND=dp)                                      :: factor
-      LOGICAL                                            :: alpha_beta
+      REAL(KIND=dp), INTENT(IN)                          :: factor
+      LOGICAL, INTENT(IN)                                :: alpha_beta
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'create_W_P', routineP = moduleN//':'//routineN
 
@@ -2268,8 +2268,8 @@ CONTAINS
 !> \param unitout ...
 ! **************************************************************************************************
    SUBROUTINE write_array(mat, unitout)
-      REAL(KIND=dp), DIMENSION(:, :)                     :: mat
-      INTEGER, OPTIONAL                                  :: unitout
+      REAL(KIND=dp), DIMENSION(:, :), INTENT(IN)         :: mat
+      INTEGER, INTENT(IN), OPTIONAL                      :: unitout
 
       INTEGER                                            :: iii, jjj
 

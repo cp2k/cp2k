@@ -92,15 +92,15 @@ CONTAINS
                              sub_proc_map, alpha_case)
 
       TYPE(mp2_type), POINTER                            :: mp2_env
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: B_ia_Q
-      INTEGER                                            :: dimen_RI, homo, virtual
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :), INTENT(INOUT) :: B_ia_Q
+      INTEGER, INTENT(IN)                                :: dimen_RI, homo, virtual
       TYPE(cp_para_env_type), POINTER                    :: para_env, para_env_sub
-      INTEGER                                            :: ngroup, my_group_L_size, &
+      INTEGER, INTENT(IN)                                :: ngroup, my_group_L_size, &
                                                             my_group_L_start, my_group_L_end, &
                                                             my_B_size, my_B_virtual_start
-      TYPE(group_dist_d1_type)                           :: gd_array, gd_B_virtual
-      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: sub_proc_map
-      LOGICAL                                            :: alpha_case
+      TYPE(group_dist_d1_type), INTENT(IN)               :: gd_array, gd_B_virtual
+      INTEGER, ALLOCATABLE, DIMENSION(:), INTENT(IN)     :: sub_proc_map
+      LOGICAL, INTENT(IN)                                :: alpha_case
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'complete_gamma', routineP = moduleN//':'//routineN
 
@@ -554,17 +554,16 @@ CONTAINS
                        group_grid_2_mepos, ngroup_row, ngroup_col, &
                        fm_mat)
 
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: mat2D
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :), INTENT(INOUT) :: mat2D
       TYPE(cp_fm_struct_type), POINTER                   :: fm_struct
-      INTEGER                                            :: num_rows, num_cols
+      INTEGER, INTENT(IN)                                :: num_rows, num_cols
       TYPE(cp_para_env_type), POINTER                    :: para_env
-      TYPE(cp_blacs_env_type), POINTER                   :: blacs_env
-      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: proc_map
-      INTEGER                                            :: my_start_row, my_end_row, my_start_col, &
+      INTEGER, ALLOCATABLE, DIMENSION(:), INTENT(IN)     :: proc_map
+      INTEGER, INTENT(IN)                                :: my_start_row, my_end_row, my_start_col, &
                                                             my_end_col
-      TYPE(group_dist_d1_type)                           :: gd_row, gd_col
-      INTEGER, ALLOCATABLE, DIMENSION(:, :)              :: group_grid_2_mepos
-      INTEGER                                            :: ngroup_row, ngroup_col
+      TYPE(group_dist_d1_type), INTENT(IN)               :: gd_row, gd_col
+      INTEGER, ALLOCATABLE, DIMENSION(:, :), INTENT(IN)  :: group_grid_2_mepos
+      INTEGER, INTENT(IN)                                :: ngroup_row, ngroup_col
       TYPE(cp_fm_type), POINTER                          :: fm_mat
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'array2fm', routineP = moduleN//':'//routineN
@@ -957,15 +956,15 @@ CONTAINS
                        ngroup_row, ngroup_col, &
                        fm_mat)
 
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: mat2D
-      INTEGER                                            :: num_rows, num_cols
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :), INTENT(OUT) :: mat2D
+      INTEGER, INTENT(IN)                                :: num_rows, num_cols
       TYPE(cp_para_env_type), POINTER                    :: para_env
-      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: proc_map
-      INTEGER                                            :: my_rows, my_start_row, my_end_row, &
+      INTEGER, ALLOCATABLE, DIMENSION(:), INTENT(IN)     :: proc_map
+      INTEGER, INTENT(IN)                                :: my_rows, my_start_row, my_end_row, &
                                                             my_cols, my_start_col, my_end_col
-      INTEGER, ALLOCATABLE, DIMENSION(:, :)              :: sizes, group_grid_2_mepos, &
+      INTEGER, ALLOCATABLE, DIMENSION(:, :), INTENT(IN)  :: sizes, group_grid_2_mepos, &
                                                             mepos_2_grid_group
-      INTEGER                                            :: ngroup_row, ngroup_col
+      INTEGER, INTENT(IN)                                :: ngroup_row, ngroup_col
       TYPE(cp_fm_type), POINTER                          :: fm_mat
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'fm2array', routineP = moduleN//':'//routineN
@@ -1313,13 +1312,13 @@ CONTAINS
                                  my_ia_start, my_ia_end, my_group_L_size, &
                                  gd_ia, mp2_env, alpha_case)
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: Gamma_2D
-      INTEGER                                            :: homo, virtual, dimen_ia
+      INTEGER, INTENT(IN)                                :: homo, virtual, dimen_ia
       TYPE(cp_para_env_type), POINTER                    :: para_env_sub
-      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: sub_proc_map
-      INTEGER                                            :: my_ia_start, my_ia_end, my_group_L_size
-      TYPE(group_dist_d1_type)                           :: gd_ia
+      INTEGER, ALLOCATABLE, DIMENSION(:), INTENT(IN)     :: sub_proc_map
+      INTEGER, INTENT(IN)                                :: my_ia_start, my_ia_end, my_group_L_size
+      TYPE(group_dist_d1_type), INTENT(IN)               :: gd_ia
       TYPE(mp2_type), POINTER                            :: mp2_env
-      LOGICAL                                            :: alpha_case
+      LOGICAL, INTENT(IN)                                :: alpha_case
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'create_dbcsr_gamma', &
          routineP = moduleN//':'//routineN
@@ -1668,7 +1667,7 @@ CONTAINS
 !> \param mat ...
 ! **************************************************************************************************
    SUBROUTINE write_array(mat)
-      REAL(KIND=dp), DIMENSION(:, :)                     :: mat
+      REAL(KIND=dp), DIMENSION(:, :), INTENT(IN)         :: mat
 
       INTEGER                                            :: iii, jjj
 
