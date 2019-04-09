@@ -6401,8 +6401,8 @@ CONTAINS
                               IF (outer_cell_vec(1) > maxval_1) CYCLE
                               IF (outer_cell_vec(2) < minval_2) CYCLE
                               IF (outer_cell_vec(2) > maxval_2) CYCLE
-                              IF (outer_cell_vec(3) < minval_1) CYCLE
-                              IF (outer_cell_vec(3) > maxval_2) CYCLE
+                              IF (outer_cell_vec(3) < minval_3) CYCLE
+                              IF (outer_cell_vec(3) > maxval_3) CYCLE
 
                               acell = cell_to_index(-outer_cell_vec(1), -outer_cell_vec(2), -outer_cell_vec(3))
 
