@@ -1,4 +1,4 @@
 [submodule "exts/dbcsr"]
 	path = exts/dbcsr
-	url = https://github.com/cp2k/dbcsr
-	branch = master
+	url = https://github.com/pseewald/dbcsr
+	branch = tensors-pr
