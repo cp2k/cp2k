@@ -145,8 +145,6 @@ The --with-PKG options follow the rules:
   --with-valgrind         Valgrind memory debugging tool, only used for
                           debugging purposes.
                           Default = no
-  --with-lcov             LCOV code coverage utility, mainly used by CP2K developers
-                          Default = no
   --with-openmpi          OpenMPI, important if you want parallel version
                           of CP2K.
                           Default = system
@@ -257,7 +255,7 @@ EOF
 # PACKAGE LIST: register all new dependent tools and libs here. Order
 # is important, the first in the list gets installed first
 # ------------------------------------------------------------------------
-tool_list="lcov valgrind cmake gcc"
+tool_list="valgrind cmake gcc"
 mpi_list="mpich openmpi"
 math_list="mkl acml openblas reflapack"
 lib_list="fftw libint libxc libsmm libxsmm scalapack elpa \
@@ -497,9 +495,6 @@ while [ $# -ge 1 ] ; do
         --with-cmake*)
             with_cmake=$(read_with $1)
             ;;
-        --with-lcov*)
-            with_lcov=$(read_with $1)
-            ;;
         --with-valgrind*)
             with_valgrind=$(read_with $1)
             ;;
@@ -617,7 +612,6 @@ export ENABLE_CRAY=$enable_cray
 [ "$enable_gcc_master" = "__TRUE__" ] && export gcc_ver=master
 [ "$enable_libxsmm_master" = "__TRUE__" ] && export libxsmm_ver=master
 [ "$with_valgrind" != "__DONTUSE__"  ] && export ENABLE_VALGRIND="__TRUE__"
-[ "$with_lcov" != "__DONTUSE__" ] && export ENABLE_COVERAGE="__TRUE__"
 
 # ------------------------------------------------------------------------
 # Check and solve known conflicts before installations proceed
@@ -1214,13 +1208,11 @@ if [ "$ENABLE_VALGRIND" = __TRUE__ ] ; then
       gen_arch_file "local_valgrind.popt"      VALGRIND MPI
 fi
 # coverage enabled arch files
-if [ "$ENABLE_COVERAGE" = __TRUE__ ]; then
-      gen_arch_file "local_coverage.sdbg"      COVERAGE
-    [ "$MPI_MODE" != no ] && \
-      gen_arch_file "local_coverage.pdbg"      COVERAGE MPI
-    [ "$ENABLE_CUDA" = __TRUE__ ] && \
-      gen_arch_file "local_coverage_cuda.pdbg" COVERAGE MPI CUDA
-fi
+gen_arch_file "local_coverage.sdbg"            COVERAGE
+[ "$MPI_MODE" != no ] && \
+    gen_arch_file "local_coverage.pdbg"        COVERAGE MPI
+[ "$ENABLE_CUDA" = __TRUE__ ] && \
+    gen_arch_file "local_coverage_cuda.pdbg"   COVERAGE MPI CUDA
 
 cd "${ROOTDIR}"
 
