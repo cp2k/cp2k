@@ -1243,6 +1243,9 @@ To build CP2K you should change directory:
 arch files for GPU enabled CUDA versions are named "local_cuda.*"
 arch files for valgrind versions are named "local_valgrind.*"
 arch files for coverage versions are named "local_coverage.*"
+
+Note that these pre-built arch files are for the GNU compiler, users have to adapt them for other compilers.
+It is possible to use the provided CP2K arch files as guidance.
 EOF
 
 #EOF
