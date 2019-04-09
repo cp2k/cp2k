@@ -31,6 +31,8 @@ The basic steps are:
 ```
 
 - Once the script has completed successfully, follow the instructions given at the end of its output.
+Note that the pre-built arch files provided by the toolchain are for GNU compilers, users have to adapt them for other compilers.
+It is possible to use the provided [arch files](https://github.com/cp2k/cp2k/tree/master/arch) as guidance.
 
 Sub-points here discuss prerequisites needed to build CP2K. Copies of the recommended versions of 3rd party software can be downloaded from https://www.cp2k.org/static/downloads/.
 
