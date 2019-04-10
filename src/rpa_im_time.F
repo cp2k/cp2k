@@ -404,6 +404,8 @@ CONTAINS
                                                                 para_env, has_mat_P_blocks, num_flops_mat_P)
 
                         END IF ! do_ri_sos_laplace_mp2
+
+                        CALL dbcsr_clear(mat_P_global%matrix)
                      ENDDO
                   ENDDO
                ENDDO
