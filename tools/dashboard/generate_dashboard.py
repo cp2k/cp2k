@@ -24,6 +24,7 @@ import pickle
 from pathlib import Path
 import requests
 import hashlib
+from collections import OrderedDict
 
 import matplotlib as mpl
 mpl.use('Agg')  # change backend, to run without X11
@@ -264,11 +265,11 @@ def gen_plots(archive_reports, log, outdir, full_archive):
     ordered_reports = [archive_reports[sha] for sha in ordered_shas if sha in archive_reports]
 
     # collect plot data
-    plots = {}
+    plots = OrderedDict()
     for report in ordered_reports:
         for p in report['plots']:
             if(p['name'] not in plots.keys()):
-                plots[p['name']] = {'curves':{}}
+                plots[p['name']] = {'curves': OrderedDict()}
             plots[p['name']]['title'] = p['title'] # update title
             plots[p['name']]['ylabel'] = p['ylabel'] # update label
         for pp in report['plotpoints']:
@@ -319,7 +320,7 @@ def gen_plots(archive_reports, log, outdir, full_archive):
         ax.set_xlabel('Commit Age')
         ax.set_ylabel(p['ylabel'])
         markers = itertools.cycle('os>^*')
-        for cname in sorted(p['curves'].keys()):
+        for cname in p['curves'].keys():
             c = p['curves'][cname]
             if(full_archive):
                 ax.plot(c['x'], c['y'], label=c['label'], linewidth=2) # less crowded
