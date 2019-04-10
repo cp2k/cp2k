@@ -1015,7 +1015,7 @@ CONTAINS
          ALLOCATE (mcharge(natom), charges(natom, 5))
          charges = 0.0_dp
          nkind = SIZE(atomic_kind_set)
-         CALL get_qs_kind_set(qs_kind_set, nsgf=nsgf)
+         CALL get_qs_kind_set(qs_kind_set, maxsgf=nsgf)
          ALLOCATE (aocg(nsgf, natom))
          aocg = 0.0_dp
          IF (nimg > 1) THEN
