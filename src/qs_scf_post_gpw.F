@@ -206,6 +206,7 @@ MODULE qs_scf_post_gpw
              qs_scf_post_moments, &
              write_available_results, &
              write_mo_free_results
+   PUBLIC :: make_lumo
 
 ! **************************************************************************************************
 
@@ -742,7 +743,7 @@ CONTAINS
       TYPE(qs_scf_env_type), POINTER                     :: scf_env
       TYPE(cp_fm_p_type), DIMENSION(:), POINTER          :: unoccupied_orbs
       TYPE(cp_1d_r_p_type), DIMENSION(:), POINTER        :: unoccupied_evals
-      INTEGER                                            :: nlumo
+      INTEGER, INTENT(IN)                                :: nlumo
       INTEGER, INTENT(OUT)                               :: nlumos
 
       CHARACTER(len=*), PARAMETER :: routineN = 'make_lumo', routineP = moduleN//':'//routineN

@@ -395,6 +395,8 @@ MODULE cp_control_types
       INTEGER                              :: niters
       !> maximal number of Krylov space vectors
       INTEGER                              :: nkvs
+      !> number of unoccupied (virtual) molecular orbitals to consider
+      INTEGER                              :: nlumo
       !> minimal number of MPI processes to be used per excited state
       INTEGER                              :: nprocs
       !> target accuracy

@@ -1116,7 +1116,7 @@ CONTAINS
                           description="Parameters needed to set up the Time-Dependent Density Functional Perturbation Theory. "// &
                           "Current implementation works for hybrid functionals. "// &
                           "Can be used with Gaussian and Plane Waves (GPW) method only.", &
-                          n_keywords=15, n_subsections=3, repeats=.FALSE., &
+                          n_keywords=12, n_subsections=4, repeats=.FALSE., &
                           citations=(/Iannuzzi2005/))
 
       NULLIFY (keyword, print_key, subsection)
@@ -1149,6 +1149,14 @@ CONTAINS
                           "Davidson iterations will be restarted upon reaching this limit.", &
                           n_var=1, type_of_var=integer_t, &
                           default_i_val=5000)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, name="NLUMO", &
+                          description="Number of unoccupied orbitals to consider. "// &
+                          " Default is to use all unoccupied orbitals (-1).", &
+                          n_var=1, type_of_var=integer_t, &
+                          default_i_val=-1)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
@@ -1249,6 +1257,11 @@ CONTAINS
       CALL section_add_keyword(subsection, keyword)
       CALL keyword_release(keyword)
 
+      CALL section_add_subsection(section, subsection)
+      CALL section_release(subsection)
+
+      ! kernel XC functional
+      CALL create_xc_section(subsection)
       CALL section_add_subsection(section, subsection)
       CALL section_release(subsection)
 
