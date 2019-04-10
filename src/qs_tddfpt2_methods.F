@@ -8,6 +8,7 @@ MODULE qs_tddfpt2_methods
    USE bibliography,                    ONLY: Iannuzzi2005,&
                                               cite_reference
    USE cell_types,                      ONLY: cell_type
+   USE cp_array_utils,                  ONLY: cp_1d_r_p_type
    USE cp_blacs_env,                    ONLY: cp_blacs_env_type,&
                                               get_blacs_info
    USE cp_cfm_basic_linalg,             ONLY: cp_cfm_solve
@@ -135,6 +136,9 @@ MODULE qs_tddfpt2_methods
                                               qs_rho_set,&
                                               qs_rho_type
    USE qs_scf_methods,                  ONLY: eigensolver
+   USE qs_scf_post_gpw,                 ONLY: make_lumo
+   USE qs_scf_types,                    ONLY: ot_method_nr,&
+                                              qs_scf_env_type
    USE qs_tddfpt2_subgroups,            ONLY: tddfpt_dbcsr_create_by_dist,&
                                               tddfpt_sub_env_init,&
                                               tddfpt_sub_env_release,&
@@ -284,16 +288,6 @@ MODULE qs_tddfpt2_methods
       REAL(kind=dp)                                      :: alpha, beta
    END TYPE tddfpt_kernel_env_type
 
-! **************************************************************************************************
-!> \brief Allocatable 2-D matrix.
-!> \par History
-!>   * 06.2016 created [Sergey Chulkov]
-! **************************************************************************************************
-   TYPE tddfpt_allocatable_matrix
-      !> allocatable 2-D matrix
-      REAL(kind=dp), ALLOCATABLE, DIMENSION(:, :) :: matrix
-   END TYPE tddfpt_allocatable_matrix
-
 CONTAINS
 
 ! **************************************************************************************************
@@ -311,20 +305,25 @@ CONTAINS
       CHARACTER(LEN=*), PARAMETER :: routineN = 'tddfpt', routineP = moduleN//':'//routineN
 
       CHARACTER(len=20)                                  :: nstates_str
-      INTEGER                                            :: energy_unit, handle, ispin, istate, &
-                                                            iter, log_unit, mult, niters, nspins, &
-                                                            nstates, nstates_read
-      LOGICAL                                            :: do_admm, do_hfx, is_restarted
+      INTEGER :: energy_unit, handle, ispin, istate, iter, log_unit, mult, niters, nmo_avail, &
+         nmo_occ, nmo_virt, nspins, nstates, nstates_read
+      LOGICAL                                            :: do_admm, do_hfx, explicit_xc, &
+                                                            is_restarted
       REAL(kind=dp)                                      :: C_hf, conv
       REAL(kind=dp), ALLOCATABLE, DIMENSION(:)           :: evals
+      REAL(kind=dp), DIMENSION(:), POINTER               :: evals_virt_spin
       TYPE(admm_type), POINTER                           :: admm_env
       TYPE(cell_type), POINTER                           :: cell
+      TYPE(cp_1d_r_p_type), DIMENSION(:), POINTER        :: evals_virt
       TYPE(cp_blacs_env_type), POINTER                   :: blacs_env
       TYPE(cp_fm_p_type), ALLOCATABLE, DIMENSION(:, :)   :: dipole_op_mos_occ, evects, S_evects
+      TYPE(cp_fm_p_type), DIMENSION(:), POINTER          :: mos_virt
+      TYPE(cp_fm_type), POINTER                          :: mos_virt_spin
       TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_ks, matrix_s
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(mo_set_p_type), DIMENSION(:), POINTER         :: mos
+      TYPE(qs_scf_env_type), POINTER                     :: scf_env
       TYPE(section_vals_type), POINTER                   :: hfx_section, input, &
                                                             tddfpt_print_section, tddfpt_section, &
                                                             xc_section
@@ -342,7 +341,7 @@ CONTAINS
 
       NULLIFY (blacs_env, cell, dft_control, input, matrix_ks, matrix_s, mos)
       CALL get_qs_env(qs_env, blacs_env=blacs_env, cell=cell, dft_control=dft_control, &
-                      input=input, matrix_ks=matrix_ks, matrix_s=matrix_s, mos=mos)
+                      input=input, matrix_ks=matrix_ks, matrix_s=matrix_s, mos=mos, scf_env=scf_env)
       tddfpt_control => dft_control%tddfpt2_control
 
       nspins = dft_control%nspins
@@ -358,7 +357,14 @@ CONTAINS
 
       tddfpt_section => section_vals_get_subs_vals(input, "PROPERTIES%TDDFPT")
       tddfpt_print_section => section_vals_get_subs_vals(tddfpt_section, "PRINT")
-      xc_section => section_vals_get_subs_vals(input, "DFT%XC")
+
+      xc_section => section_vals_get_subs_vals(tddfpt_section, "XC%XC_FUNCTIONAL")
+      CALL section_vals_get(xc_section, explicit=explicit_xc)
+      IF (explicit_xc) THEN
+         xc_section => section_vals_get_subs_vals(tddfpt_section, "XC")
+      ELSE
+         xc_section => section_vals_get_subs_vals(input, "DFT%XC")
+      END IF
       hfx_section => section_vals_get_subs_vals(xc_section, "HF")
 
       CALL section_vals_get(hfx_section, explicit=do_hfx)
@@ -368,8 +374,16 @@ CONTAINS
       END IF
 
       do_admm = do_hfx .AND. dft_control%do_admm
-      IF (do_admm) &
+      IF (do_admm) THEN
+         IF (explicit_xc) THEN
+            ! 'admm_env%xc_section_primary' and 'admm_env%xc_section_aux' need to be redefined
+            CALL cp_abort(__LOCATION__, &
+                          "ADMM is not implemented for a TDDFT kernel XC-functional which is different from "// &
+                          "the one used for the ground-state calculation. A ground-state 'admm_env' cannot be reused.")
+         END IF
+
          CALL get_qs_env(qs_env, admm_env=admm_env)
+      END IF
 
       ! reset rks_triplets if UKS is in use
       IF (tddfpt_control%rks_triplets .AND. nspins > 1) THEN
@@ -377,13 +391,59 @@ CONTAINS
          CALL cp_warn(__LOCATION__, "Keyword RKS_TRIPLETS has been ignored for spin-polarised calculations")
       END IF
 
-      ! recompute ground-state Kohn-Sham orbitals
+      ! obtain occupied and virtual (unoccupied) ground-state Kohn-Sham orbitals
       ALLOCATE (gs_mos(nspins))
+
+      ! when the number of unoccupied orbitals is limited and OT has been used for the ground-state DFT calculation,
+      ! compute the missing unoccupied orbitals using OT as well.
+      NULLIFY (evals_virt, evals_virt_spin, mos_virt, mos_virt_spin)
+      IF (ASSOCIATED(scf_env)) THEN
+         IF (scf_env%method == ot_method_nr .AND. tddfpt_control%nlumo > 0) THEN
+            ! As OT with ADDED_MOS/=0 is currently not implemented, the following block is equivalent to:
+            ! nmo_virt = tddfpt_control%nlumo
+
+            ! number of already computed unoccupied orbitals (added_mos) .
+            nmo_virt = HUGE(nmo_virt)
+            DO ispin = 1, nspins
+               CALL get_mo_set(mos(ispin)%mo_set, nmo=nmo_avail, homo=nmo_occ)
+               nmo_virt = MIN(nmo_virt, nmo_avail-nmo_occ)
+            END DO
+            ! number of unoccupied orbitals to compute
+            nmo_virt = tddfpt_control%nlumo-nmo_virt
+
+            IF (nmo_virt > 0) THEN
+               ALLOCATE (evals_virt(nspins), mos_virt(nspins))
+               ! the number of actually computed unoccupied orbitals will be stored as 'nmo_avail'
+               CALL make_lumo(qs_env, scf_env, mos_virt, evals_virt, nmo_virt, nmo_avail)
+            END IF
+         END IF
+      END IF
+
       DO ispin = 1, nspins
-         CALL tddfpt_init_ground_state_mos(gs_mos=gs_mos(ispin), mo_set=mos(ispin)%mo_set, &
+         IF (ASSOCIATED(evals_virt)) &
+            evals_virt_spin => evals_virt(ispin)%array
+         IF (ASSOCIATED(mos_virt)) &
+            mos_virt_spin => mos_virt(ispin)%matrix
+
+         CALL tddfpt_init_ground_state_mos(gs_mos=gs_mos(ispin), mo_set=mos(ispin)%mo_set, nlumo=tddfpt_control%nlumo, &
                                            blacs_env=blacs_env, cholesky_method=cholesky_restore, &
-                                           matrix_ks=matrix_ks(ispin)%matrix, matrix_s=matrix_s(1)%matrix)
+                                           matrix_ks=matrix_ks(ispin)%matrix, matrix_s=matrix_s(1)%matrix, &
+                                           mos_virt=mos_virt_spin, evals_virt=evals_virt_spin)
       END DO
+
+      IF (ASSOCIATED(evals_virt)) THEN
+         DO ispin = 1, SIZE(evals_virt)
+            IF (ASSOCIATED(evals_virt(ispin)%array)) DEALLOCATE (evals_virt(ispin)%array)
+         END DO
+         DEALLOCATE (evals_virt)
+      END IF
+
+      IF (ASSOCIATED(mos_virt)) THEN
+         DO ispin = 1, SIZE(mos_virt)
+            IF (ASSOCIATED(mos_virt(ispin)%matrix)) CALL cp_fm_release(mos_virt(ispin)%matrix)
+         END DO
+         DEALLOCATE (mos_virt)
+      END IF
 
       ! components of the dipole operator
       CALL tddfpt_dipole_operator(dipole_op_mos_occ, tddfpt_control, gs_mos, qs_env)
@@ -1026,20 +1086,28 @@ CONTAINS
 !> \param gs_mos           structure to store occupied and virtual molecular orbitals
 !>                         (allocated and initialised on exit)
 !> \param mo_set           ground state molecular orbitals for a given spin
+!> \param nlumo            number of unoccupied states to consider (-1 means all states)
 !> \param blacs_env        BLACS parallel environment
 !> \param cholesky_method  Cholesky method to compute the inverse overlap matrix
 !> \param matrix_ks        Kohn-Sham matrix for a given spin
 !> \param matrix_s         overlap matrix
+!> \param mos_virt         precomputed (OT) expansion coefficients of virtual molecular orbitals
+!>                         (in addition to the ADDED_MOS, if present)
+!> \param evals_virt       orbital energies of precomputed (OT) virtual molecular orbitals
 !> \par History
 !>    * 05.2016 created as tddfpt_lumos() [Sergey Chulkov]
 !>    * 06.2016 renamed, altered prototype [Sergey Chulkov]
 ! **************************************************************************************************
-   SUBROUTINE tddfpt_init_ground_state_mos(gs_mos, mo_set, blacs_env, cholesky_method, matrix_ks, matrix_s)
+   SUBROUTINE tddfpt_init_ground_state_mos(gs_mos, mo_set, nlumo, blacs_env, cholesky_method, matrix_ks, matrix_s, &
+                                           mos_virt, evals_virt)
       TYPE(tddfpt_ground_state_mos), INTENT(out)         :: gs_mos
       TYPE(mo_set_type), POINTER                         :: mo_set
+      INTEGER, INTENT(in)                                :: nlumo
       TYPE(cp_blacs_env_type), POINTER                   :: blacs_env
       INTEGER, INTENT(in)                                :: cholesky_method
       TYPE(dbcsr_type), POINTER                          :: matrix_ks, matrix_s
+      TYPE(cp_fm_type), POINTER                          :: mos_virt
+      REAL(kind=dp), DIMENSION(:), POINTER               :: evals_virt
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'tddfpt_init_ground_state_mos', &
          routineP = moduleN//':'//routineN
@@ -1050,13 +1118,14 @@ CONTAINS
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: minrow_neg_array, minrow_pos_array, &
                                                             sum_sign_array
       INTEGER, DIMENSION(:), POINTER                     :: col_indices, row_indices
+      LOGICAL                                            :: do_eigen
       REAL(kind=dp)                                      :: element, maxocc
       REAL(kind=dp), DIMENSION(:), POINTER               :: mo_evals_extended, mo_occ_extended, &
                                                             mo_occ_scf
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: my_block
-      TYPE(cp_fm_pool_type), POINTER                     :: ao_ao_fm_pool
+      TYPE(cp_fm_pool_type), POINTER                     :: wfn_fm_pool
       TYPE(cp_fm_struct_type), POINTER                   :: ao_ao_fm_struct, ao_mo_occ_fm_struct, &
-                                                            ao_mo_virt_fm_struct
+                                                            ao_mo_virt_fm_struct, wfn_fm_struct
       TYPE(cp_fm_type), POINTER                          :: matrix_ks_fm, mo_coeff_extended, &
                                                             ortho_fm, work_fm
       TYPE(cp_para_env_type), POINTER                    :: para_env
@@ -1070,10 +1139,21 @@ CONTAINS
                       nelectron=nelectrons, occupation_numbers=mo_occ_scf)
 
       nmo_virt = nao-nmo_occ
+      IF (nlumo >= 0) &
+         nmo_virt = MIN(nmo_virt, nlumo)
 
       IF (nmo_virt <= 0) &
          CALL cp_abort(__LOCATION__, &
-                       'Unable to generate virtual molecular orbitals. Please use a larger atomic basis set.')
+                       'At least one unoccupied molecular orbital is required to calculate excited states.')
+
+      do_eigen = .FALSE.
+      ! diagonalise the Kohn-Sham matrix one more time if the number of available unoccupied states are too small
+      IF (ASSOCIATED(evals_virt)) THEN
+         CPASSERT(ASSOCIATED(mos_virt))
+         IF (nmo_virt > nmo_scf-nmo_occ+SIZE(evals_virt)) do_eigen = .TRUE.
+      ELSE
+         IF (nmo_virt > nmo_scf-nmo_occ) do_eigen = .TRUE.
+      END IF
 
       ! ++ allocate storage space for gs_mos
       NULLIFY (ao_mo_occ_fm_struct, ao_mo_virt_fm_struct)
@@ -1091,62 +1171,71 @@ CONTAINS
       CALL cp_fm_struct_release(ao_mo_virt_fm_struct)
       CALL cp_fm_struct_release(ao_mo_occ_fm_struct)
 
-      ! ++ set of molecular orbitals
-      NULLIFY (ao_ao_fm_struct, ao_ao_fm_pool)
-      CALL cp_fm_struct_create(ao_ao_fm_struct, nrow_global=nao, ncol_global=nao, context=blacs_env)
-      CALL fm_pool_create(ao_ao_fm_pool, ao_ao_fm_struct)
-
+      ! ++ nullify pointers
+      NULLIFY (ao_ao_fm_struct, wfn_fm_struct, wfn_fm_pool)
       NULLIFY (mos_extended, mo_coeff_extended, mo_evals_extended, mo_occ_extended)
-      CALL allocate_mo_set(mos_extended, nao, nao, nelectrons, &
-                           REAL(nelectrons, dp), maxocc, flexible_electron_count=0.0_dp)
-      CALL init_mo_set(mos_extended, fm_pool=ao_ao_fm_pool, name="mos-extended")
-      CALL fm_pool_release(ao_ao_fm_pool)
-      CALL get_mo_set(mos_extended, mo_coeff=mo_coeff_extended, &
-                      eigenvalues=mo_evals_extended, occupation_numbers=mo_occ_extended)
+      CALL cp_fm_struct_create(ao_ao_fm_struct, nrow_global=nao, ncol_global=nao, context=blacs_env)
 
-      ! use the explicit loop in order to avoid temporary arrays.
-      !
-      ! The assignment statement : mo_occ_extended(1:nmo_scf) = mo_occ_scf(1:nmo_scf)
-      ! implies temporary arrays as a compiler does not know in advance that the pointers
-      ! on both sides of the statement point to non-overlapped memory regions
-      DO imo = 1, nmo_scf
-         mo_occ_extended(imo) = mo_occ_scf(imo)
-      END DO
-      mo_occ_extended(nmo_scf+1:) = 0.0_dp
+      IF (do_eigen) THEN
+         ! ++ set of molecular orbitals
+         CALL cp_fm_struct_create(wfn_fm_struct, nrow_global=nao, ncol_global=nmo_occ+nmo_virt, context=blacs_env)
+         CALL fm_pool_create(wfn_fm_pool, wfn_fm_struct)
 
-      ! ++ allocate temporary matrices
-      NULLIFY (matrix_ks_fm, ortho_fm, work_fm)
-      CALL cp_fm_create(matrix_ks_fm, ao_ao_fm_struct)
-      CALL cp_fm_create(ortho_fm, ao_ao_fm_struct)
-      CALL cp_fm_create(work_fm, ao_ao_fm_struct)
+         CALL allocate_mo_set(mos_extended, nao, nmo_occ+nmo_virt, nelectrons, &
+                              REAL(nelectrons, dp), maxocc, flexible_electron_count=0.0_dp)
+         CALL init_mo_set(mos_extended, fm_pool=wfn_fm_pool, name="mos-extended")
+         CALL fm_pool_release(wfn_fm_pool)
+         CALL cp_fm_struct_release(wfn_fm_struct)
+         CALL get_mo_set(mos_extended, mo_coeff=mo_coeff_extended, &
+                         eigenvalues=mo_evals_extended, occupation_numbers=mo_occ_extended)
 
-      CALL cp_fm_struct_release(ao_ao_fm_struct)
+         ! use the explicit loop in order to avoid temporary arrays.
+         !
+         ! The assignment statement : mo_occ_extended(1:nmo_scf) = mo_occ_scf(1:nmo_scf)
+         ! implies temporary arrays as a compiler does not know in advance that the pointers
+         ! on both sides of the statement point to non-overlapped memory regions
+         DO imo = 1, nmo_scf
+            mo_occ_extended(imo) = mo_occ_scf(imo)
+         END DO
+         mo_occ_extended(nmo_scf+1:) = 0.0_dp
 
-      ! some stuff from the subroutine general_eigenproblem()
-      CALL copy_dbcsr_to_fm(matrix_s, ortho_fm)
-      CALL copy_dbcsr_to_fm(matrix_ks, matrix_ks_fm)
+         ! ++ allocate temporary matrices
+         NULLIFY (matrix_ks_fm, ortho_fm, work_fm)
+         CALL cp_fm_create(matrix_ks_fm, ao_ao_fm_struct)
+         CALL cp_fm_create(ortho_fm, ao_ao_fm_struct)
+         CALL cp_fm_create(work_fm, ao_ao_fm_struct)
 
-      IF (cholesky_method == cholesky_dbcsr) THEN
-         CPABORT('CHOLESKY DBCSR_INVERSE is not implemented in TDDFT.')
-      ELSE IF (cholesky_method == cholesky_off) THEN
-         CPABORT('CHOLESKY OFF is not implemented in TDDFT.')
-      ELSE
-         CALL cp_fm_cholesky_decompose(ortho_fm)
-         IF (cholesky_method == cholesky_inverse) THEN
-            CALL cp_fm_triangular_invert(ortho_fm)
+         CALL cp_fm_struct_release(ao_ao_fm_struct)
+
+         ! some stuff from the subroutine general_eigenproblem()
+         CALL copy_dbcsr_to_fm(matrix_s, ortho_fm)
+         CALL copy_dbcsr_to_fm(matrix_ks, matrix_ks_fm)
+
+         IF (cholesky_method == cholesky_dbcsr) THEN
+            CPABORT('CHOLESKY DBCSR_INVERSE is not implemented in TDDFT.')
+         ELSE IF (cholesky_method == cholesky_off) THEN
+            CPABORT('CHOLESKY OFF is not implemented in TDDFT.')
+         ELSE
+            CALL cp_fm_cholesky_decompose(ortho_fm)
+            IF (cholesky_method == cholesky_inverse) THEN
+               CALL cp_fm_triangular_invert(ortho_fm)
+            END IF
+
+            ! need to store 'cholesky_method' in a temporary variable, as the subroutine eigensolver() will update this variable
+            cholesky_method_inout = cholesky_method
+            CALL eigensolver(matrix_ks_fm=matrix_ks_fm, mo_set=mos_extended, ortho=ortho_fm, &
+                             work=work_fm, cholesky_method=cholesky_method_inout, &
+                             do_level_shift=.FALSE., level_shift=0.0_dp, matrix_u_fm=null(), use_jacobi=.FALSE.)
          END IF
 
-         ! need to store 'cholesky_method' in a temporary variable, as the subroutine eigensolver() will update this variable
-         cholesky_method_inout = cholesky_method
-         CALL eigensolver(matrix_ks_fm=matrix_ks_fm, mo_set=mos_extended, ortho=ortho_fm, &
-                          work=work_fm, cholesky_method=cholesky_method_inout, &
-                          do_level_shift=.FALSE., level_shift=0.0_dp, matrix_u_fm=null(), use_jacobi=.FALSE.)
+         ! -- clean up needless matrices
+         CALL cp_fm_release(work_fm)
+         CALL cp_fm_release(ortho_fm)
+         CALL cp_fm_release(matrix_ks_fm)
+      ELSE
+         CALL get_mo_set(mo_set, mo_coeff=mo_coeff_extended, &
+                         eigenvalues=mo_evals_extended, occupation_numbers=mo_occ_extended)
       END IF
-
-      ! -- clean up needless matrices
-      CALL cp_fm_release(work_fm)
-      CALL cp_fm_release(ortho_fm)
-      CALL cp_fm_release(matrix_ks_fm)
 
       ! compute the phase of molecular orbitals;
       ! matrix work_fm holds occupied molecular orbital coefficients distributed among all the processors
@@ -1219,10 +1308,20 @@ CONTAINS
       CALL cp_fm_to_fm(mo_coeff_extended, gs_mos%mos_occ, ncol=nmo_occ, source_start=1, target_start=1)
       gs_mos%evals_occ(1:nmo_occ) = mo_evals_extended(1:nmo_occ)
 
-      CALL cp_fm_to_fm(mo_coeff_extended, gs_mos%mos_virt, ncol=nmo_virt, source_start=nmo_occ+1, target_start=1)
-      gs_mos%evals_virt(1:nmo_virt) = mo_evals_extended(nmo_occ+1:nmo_occ+nmo_virt)
+      IF (ASSOCIATED(evals_virt) .AND. (.NOT. do_eigen) .AND. nmo_virt > nmo_scf-nmo_occ) THEN
+         CALL cp_fm_to_fm(mo_coeff_extended, gs_mos%mos_virt, ncol=nmo_scf-nmo_occ, &
+                          source_start=nmo_occ+1, target_start=1)
+         CALL cp_fm_to_fm(mos_virt, gs_mos%mos_virt, ncol=nmo_virt-(nmo_scf-nmo_occ), &
+                          source_start=1, target_start=nmo_scf-nmo_occ+1)
+         gs_mos%evals_virt(1:nmo_scf-nmo_occ) = evals_virt(nmo_occ+1:nmo_occ+nmo_scf)
+         gs_mos%evals_virt(nmo_scf-nmo_occ+1:nmo_virt) = evals_virt(1:nmo_virt-(nmo_scf-nmo_occ))
+      ELSE
+         CALL cp_fm_to_fm(mo_coeff_extended, gs_mos%mos_virt, ncol=nmo_virt, source_start=nmo_occ+1, target_start=1)
+         gs_mos%evals_virt(1:nmo_virt) = mo_evals_extended(nmo_occ+1:nmo_occ+nmo_virt)
+      END IF
 
-      CALL deallocate_mo_set(mos_extended)
+      IF (do_eigen) &
+         CALL deallocate_mo_set(mos_extended)
       CALL timestop(handle)
    END SUBROUTINE tddfpt_init_ground_state_mos
 

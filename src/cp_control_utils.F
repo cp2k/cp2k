@@ -40,6 +40,7 @@ MODULE cp_control_utils
         sccs_derivative_cd7, sccs_derivative_fft, sccs_fattebert_gygi, sic_ad, sic_eo, &
         sic_list_all, sic_list_unpaired, sic_mauri_spz, sic_mauri_us, sic_none, slater, &
         tddfpt_excitations, use_mom_ref_user, xas_dip_len
+   USE input_cp2k_check,                ONLY: xc_functionals_expand
    USE input_cp2k_dft,                  ONLY: create_dft_section,&
                                               create_qs_section
    USE input_enumeration_types,         ONLY: enum_i2c,&
@@ -1170,7 +1171,8 @@ CONTAINS
       INTEGER                                            :: handle
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: inds
       LOGICAL                                            :: explicit, multigrid_set
-      TYPE(section_vals_type), POINTER                   :: dipole_section, mgrid_section
+      TYPE(section_vals_type), POINTER                   :: dipole_section, mgrid_section, xc_func, &
+                                                            xc_section
 
       CALL timeset(routineN, handle)
 
@@ -1179,6 +1181,7 @@ CONTAINS
       CALL section_vals_val_get(t_section, "NSTATES", i_val=t_control%nstates)
       CALL section_vals_val_get(t_section, "MAX_ITER", i_val=t_control%niters)
       CALL section_vals_val_get(t_section, "MAX_KV", i_val=t_control%nkvs)
+      CALL section_vals_val_get(t_section, "NLUMO", i_val=t_control%nlumo)
       CALL section_vals_val_get(t_section, "NPROC_STATE", i_val=t_control%nprocs)
 
       CALL section_vals_val_get(t_section, "CONVERGENCE", r_val=t_control%conv)
@@ -1266,6 +1269,13 @@ CONTAINS
             t_control%mgrid_e_cutoff = -t_control%mgrid_e_cutoff
          END IF
       END IF
+
+      ! expand XC subsection (if given explicitly)
+      xc_section => section_vals_get_subs_vals(t_section, "XC")
+      xc_func => section_vals_get_subs_vals(xc_section, "XC_FUNCTIONAL")
+      CALL section_vals_get(xc_func, explicit=explicit)
+      IF (explicit) &
+         CALL xc_functionals_expand(xc_func, xc_section)
 
       CALL timestop(handle)
    END SUBROUTINE read_tddfpt2_control
