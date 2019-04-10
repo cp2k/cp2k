@@ -17,7 +17,7 @@ def main():
     with open(filename) as fhandle:
         timings = sorted(float(line.split()[0]) for line in fhandle.readlines())
 
-    print('Plot: name="timings", title="Timings Distribution", ylabel="time [s]"')
+    print('Plot: name="timings", title="Timing Distribution", ylabel="time [s]"')
     tmpl = 'PlotPoint: name="{}th_percentile", plot="timings", label="{}th %ile", y={}, yerr=0.0'
     for p in (100, 99, 98, 95, 90, 80):
         v = percentile(timings, p / 100.0)
