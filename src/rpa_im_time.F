@@ -28,18 +28,19 @@ MODULE rpa_im_time
    USE cp_gemm_interface,               ONLY: cp_gemm
    USE cp_para_types,                   ONLY: cp_para_env_type
    USE dbcsr_api,                       ONLY: &
-        dbcsr_add, dbcsr_copy, dbcsr_create, dbcsr_filter, dbcsr_finalize, dbcsr_get_diag, &
-        dbcsr_get_info, dbcsr_get_num_blocks, dbcsr_get_occupation, dbcsr_get_stored_coordinates, &
-        dbcsr_init_p, dbcsr_iterator_blocks_left, dbcsr_iterator_next_block, dbcsr_iterator_start, &
-        dbcsr_iterator_stop, dbcsr_iterator_type, dbcsr_multiply, dbcsr_p_type, dbcsr_release_p, &
-        dbcsr_reserve_all_blocks, dbcsr_reserve_blocks, dbcsr_scalar, dbcsr_scale, dbcsr_set, &
-        dbcsr_transposed, dbcsr_type, dbcsr_type_no_symmetry
+        dbcsr_add, dbcsr_clear, dbcsr_copy, dbcsr_create, dbcsr_filter, dbcsr_finalize, &
+        dbcsr_get_diag, dbcsr_get_info, dbcsr_get_num_blocks, dbcsr_get_occupation, &
+        dbcsr_get_stored_coordinates, dbcsr_init_p, dbcsr_iterator_blocks_left, &
+        dbcsr_iterator_next_block, dbcsr_iterator_start, dbcsr_iterator_stop, dbcsr_iterator_type, &
+        dbcsr_multiply, dbcsr_p_type, dbcsr_release_p, dbcsr_reserve_all_blocks, &
+        dbcsr_reserve_blocks, dbcsr_scalar, dbcsr_scale, dbcsr_set, dbcsr_transposed, dbcsr_type, &
+        dbcsr_type_no_symmetry
    USE dbcsr_tensor_api,                ONLY: &
-        dbcsr_t_contract, dbcsr_t_copy, dbcsr_t_copy_matrix_to_tensor, &
+        dbcsr_t_clear, dbcsr_t_contract, dbcsr_t_copy, dbcsr_t_copy_matrix_to_tensor, &
         dbcsr_t_copy_tensor_to_matrix, dbcsr_t_create, dbcsr_t_destroy, dbcsr_t_filter, &
         dbcsr_t_get_block, dbcsr_t_iterator_blocks_left, dbcsr_t_iterator_next_block, &
         dbcsr_t_iterator_start, dbcsr_t_iterator_stop, dbcsr_t_iterator_type, &
-        dbcsr_t_need_contract, dbcsr_t_put_block, dbcsr_t_reserve_blocks, dbcsr_t_set, dbcsr_t_type
+        dbcsr_t_need_contract, dbcsr_t_put_block, dbcsr_t_reserve_blocks, dbcsr_t_type
    USE kinds,                           ONLY: dp,&
                                               int_8
    USE kpoint_types,                    ONLY: get_kpoint_info,&
@@ -222,12 +223,10 @@ CONTAINS
          DO i_cell = 1, num_cells_dm
             CALL dbcsr_t_create(mat_dm_virt_global(jquad, i_cell)%matrix, t_dm_virt(i_cell), name="D virt (AO | AO)")
             CALL dbcsr_t_copy_matrix_to_tensor(mat_dm_virt_global(jquad, i_cell)%matrix, t_dm_virt(i_cell))
-            CALL dbcsr_set(mat_dm_virt_global(jquad, i_cell)%matrix, 0.0_dp)
-            CALL dbcsr_filter(mat_dm_virt_global(jquad, i_cell)%matrix, 1.0_dp)
+            CALL dbcsr_clear(mat_dm_virt_global(jquad, i_cell)%matrix)
             CALL dbcsr_t_create(mat_dm_occ_global(jquad, i_cell)%matrix, t_dm_occ(i_cell), name="D occ (AO | AO)")
             CALL dbcsr_t_copy_matrix_to_tensor(mat_dm_occ_global(jquad, i_cell)%matrix, t_dm_occ(i_cell))
-            CALL dbcsr_set(mat_dm_occ_global(jquad, i_cell)%matrix, 0.0_dp)
-            CALL dbcsr_filter(mat_dm_occ_global(jquad, i_cell)%matrix, 1.0_dp)
+            CALL dbcsr_clear(mat_dm_occ_global(jquad, i_cell)%matrix)
          ENDDO
          CALL dbcsr_t_create(t_3c_O_cut(1, 1, 1), t_3c_M_tmp, name="M (RI AO | AO)")
          CALL dbcsr_t_create(t_3c_M, t_3c_M_occ, name="M occ (RI | AO AO)")
@@ -297,8 +296,7 @@ CONTAINS
                         ! representation)
                         CALL dbcsr_t_copy(t_3c_M_tmp, t_3c_M_occ, order=[1, 3, 2], move_data=.TRUE.)
                         CALL dbcsr_t_filter(t_3c_M_occ, eps_filter)
-                        CALL dbcsr_t_set(t_3c_M_tmp, 0.0_dp)
-                        CALL dbcsr_t_filter(t_3c_M_tmp, 1.0_dp)
+                        CALL dbcsr_t_clear(t_3c_M_tmp)
                         CALL timestop(handle5)
 
                         DO i_cell_S = 1, num_cells_dm
@@ -332,12 +330,10 @@ CONTAINS
                         CALL timeset(routineN//"_copy_M_t", handle5)
                         CALL dbcsr_t_copy(t_3c_M_tmp, t_3c_M_virt, order=[1, 2, 3], move_data=.TRUE.)
                         CALL dbcsr_t_filter(t_3c_M_virt, eps_filter)
-                        CALL dbcsr_t_set(t_3c_M_tmp, 0.0_dp)
-                        CALL dbcsr_t_filter(t_3c_M_tmp, 1.0_dp)
+                        CALL dbcsr_t_clear(t_3c_M_tmp)
                         CALL timestop(handle5)
 
                         num_flops_mat_P = 0
-                        CALL dbcsr_set(mat_P_global%matrix, 0.0_dp)
                         IF (dbcsr_t_need_contract(t_3c_M_occ, t_3c_M_virt, &
                                                   [2, 3], [2, 3])) THEN
 
@@ -360,12 +356,9 @@ CONTAINS
                            CALL timestop(handle5)
                         ENDIF
 
-                        CALL dbcsr_t_set(t_3c_M_occ, 0.0_dp)
-                        CALL dbcsr_t_filter(t_3c_M_occ, 1.0_dp)
-                        CALL dbcsr_t_set(t_3c_M_virt, 0.0_dp)
-                        CALL dbcsr_t_filter(t_3c_M_virt, 1.0_dp)
-                        CALL dbcsr_t_set(t_P, 0.0_dp)
-                        CALL dbcsr_t_filter(t_P, 1.0_dp)
+                        CALL dbcsr_t_clear(t_3c_M_occ)
+                        CALL dbcsr_t_clear(t_3c_M_virt)
+                        CALL dbcsr_t_clear(t_P)
 
                         IF (do_ri_sos_laplace_mp2) THEN
                            ! For RI-SOS-Laplace-MP2 we do not perform a cosine transform,
