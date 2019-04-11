@@ -2,17 +2,19 @@
 [ "${BASH_SOURCE[0]}" ] && SCRIPT_NAME="${BASH_SOURCE[0]}" || SCRIPT_NAME=$0
 SCRIPT_DIR="$(cd "$(dirname "$SCRIPT_NAME")" && pwd -P)"
 
-cmake_ver=${cmake_ver:-3.13.4}
+cmake_ver="3.13.4"
+cmake_sha256="fdd928fee35f472920071d1c7f1a6a2b72c9b25e04f7a37b409349aef3f20e9b"
 source "${SCRIPT_DIR}"/common_vars.sh
 source "${SCRIPT_DIR}"/tool_kit.sh
 source "${SCRIPT_DIR}"/signal_trap.sh
-
-with_cmake=${1:-__INSTALL__}
+source "${INSTALLDIR}"/toolchain.conf
+source "${INSTALLDIR}"/toolchain.env
 
 [ -f "${BUILDDIR}/setup_cmake" ] && rm "${BUILDDIR}/setup_cmake"
 
 ! [ -d "${BUILDDIR}" ] && mkdir -p "${BUILDDIR}"
 cd "${BUILDDIR}"
+
 case "$with_cmake" in
     __INSTALL__)
         echo "==================== Installing CMake ===================="
@@ -24,7 +26,7 @@ case "$with_cmake" in
             if [ -f cmake-${cmake_ver}.tar.gz ] ; then
                 echo "cmake-${cmake_ver}.tar.gz is found"
             else
-                download_pkg ${DOWNLOADER_FLAGS} \
+                download_pkg ${DOWNLOADER_FLAGS} ${cmake_sha256} \
                              https://github.com/Kitware/CMake/releases/download/v${cmake_ver}/cmake-${cmake_ver}.tar.gz
             fi
             echo "Installing from scratch into ${pkg_install_dir}"
@@ -66,4 +68,10 @@ EOF
         cat "${BUILDDIR}/setup_cmake" >> $SETUPFILE
     fi
 fi
+
+# update toolchain environment
+load "${BUILDDIR}/setup_cmake"
+export -p > "${INSTALLDIR}/toolchain.env"
+
 cd "${ROOTDIR}"
+report_timing "cmake"

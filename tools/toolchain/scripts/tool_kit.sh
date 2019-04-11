@@ -5,6 +5,13 @@ SYS_INCLUDE_PATH=${SYS_INCLUDE_PATH:-"/usr/local/include:/usr/include"}
 SYS_LIB_PATH=${SYS_LIB_PATH:-"/user/local/lib64:/usr/local/lib:/usr/lib64:/usr/lib:/lib64:/lib"}
 INCLUDE_PATHS=${INCLUDE_PATHS:-"CPATH SYS_INCLUDE_PATH"}
 LIB_PATHS=${LIB_PATHS:-"LIBRARY_PATH LD_LIBRARY_PATH LD_RUN_PATH SYS_LIB_PATH"}
+time_start=`date +%s`
+
+# report timing
+report_timing() {
+    time_stop=`date +%s`
+    printf "Step %s took %0.2f seconds.\n" $1 $((time_stop-time_start))
+}
 
 # report a warning message with script name and line number
 report_warning() {
@@ -563,13 +570,13 @@ read_with() {
 # helper routine to check integrity of downloaded files
 checksum() {
    local __filename=$1
-   local __checksums=$2
+   local __sha256=$2
    local __shasum_command='sha256sum'
    # check if we have sha256sum command, Mac OS X does not have
    # sha256sum, but has an equivalent with shasum -a 256
    command -v "$__shasum_command" >&- 2>&- || \
        __shasum_command="shasum -a 256"
-   if eval "grep $__filename $__checksums | ${__shasum_command} --check" ; then
+   if echo "$__sha256  $__filename" | ${__shasum_command} --check ; then
        echo "Checksum of $__filename Ok"
    else
       rm -v ${__filename}
@@ -607,11 +614,11 @@ download_pkg_no_checksum() {
 
 # downloader for the package tars, includes checksum
 download_pkg() {
-    # usage: download_pkg [-n] [-o output_filename] url
+    # usage: download_pkg [-n] [-o output_filename] sha256 url
     local __wget_flags='--quiet'
     local __filename=''
     local __url=''
-    while [ $# -ge 1 ] ; do
+    while [ $# -ge 2 ] ; do
         case "$1" in
             -n)
                 __wget_flags="$__wget_flags --no-check-certificate"
@@ -622,7 +629,9 @@ download_pkg() {
                 __filename="$1"
                ;;
             *)
-                __url="$1"
+                __sha256="$1"
+                __url="$2"
+                shift
                 ;;
         esac
         shift
@@ -630,15 +639,13 @@ download_pkg() {
     if [ "$__filename" = "" ] ; then
         __filename="$(basename $__url)"
     fi
-    # env variable for checksum file must be provided
-    require_env SHA256_CHECKSUMS
     # download
     if ! wget $__wget_flags $__url ; then
         report_error "failed to download $__url"
         return 1
     fi
     # checksum
-    checksum "$__filename" "$SHA256_CHECKSUMS"
+    checksum "$__filename" "$__sha256" 
 }
 
 # verify the checksums inside the given checksum file

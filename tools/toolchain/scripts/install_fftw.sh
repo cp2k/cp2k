@@ -2,12 +2,13 @@
 [ "${BASH_SOURCE[0]}" ] && SCRIPT_NAME="${BASH_SOURCE[0]}" || SCRIPT_NAME=$0
 SCRIPT_DIR="$(cd "$(dirname "$SCRIPT_NAME")" && pwd -P)"
 
-fftw_ver=${fftw_ver:-3.3.8}
+fftw_ver="3.3.8"
+fftw_sha256="6113262f6e92c5bd474f2875fa1b01054c4ad5040f6b0da7c03c98821d9ae303"
 source "${SCRIPT_DIR}"/common_vars.sh
 source "${SCRIPT_DIR}"/tool_kit.sh
 source "${SCRIPT_DIR}"/signal_trap.sh
-
-with_fftw=${1:-__INSTALL__}
+source "${INSTALLDIR}"/toolchain.conf
+source "${INSTALLDIR}"/toolchain.env
 
 [ -f "${BUILDDIR}/setup_fftw" ] && rm "${BUILDDIR}/setup_fftw"
 
@@ -17,6 +18,7 @@ FFTW_LIBS=''
 FFTW_LIBS_OMP=''
 ! [ -d "${BUILDDIR}" ] && mkdir -p "${BUILDDIR}"
 cd "${BUILDDIR}"
+
 case "$with_fftw" in
     __INSTALL__)
         require_env MPI_LIBS
@@ -30,7 +32,7 @@ case "$with_fftw" in
             if [ -f fftw-${fftw_ver}.tar.gz ] ; then
                 echo "fftw-${fftw_ver}.tar.gz is found"
             else
-                download_pkg ${DOWNLOADER_FLAGS} \
+                download_pkg ${DOWNLOADER_FLAGS} ${fftw_sha256} \
                              http://www.fftw.org/fftw-${fftw_ver}.tar.gz
             fi
             echo "Installing from scratch into ${pkg_install_dir}"
@@ -113,3 +115,9 @@ cat <<EOF >> ${INSTALLDIR}/valgrind.supp
    fun:search0
 }
 EOF
+
+# update toolchain environment
+load "${BUILDDIR}/setup_fftw"
+export -p > "${INSTALLDIR}/toolchain.env"
+
+report_timing "fftw"

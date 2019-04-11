@@ -2,12 +2,13 @@
 [ "${BASH_SOURCE[0]}" ] && SCRIPT_NAME="${BASH_SOURCE[0]}" || SCRIPT_NAME=$0
 SCRIPT_DIR="$(cd "$(dirname "$SCRIPT_NAME")" && pwd -P)"
 
-openblas_ver=${openblas_ver:-0.3.5}  # Keep in sync with get_openblas_arch.sh.
+openblas_ver="0.3.5"  # Keep in sync with get_openblas_arch.sh.
+openblas_sha256="0950c14bd77c90a6427e26210d6dab422271bc86f9fc69126725833ecdaa0e85"
 source "${SCRIPT_DIR}"/common_vars.sh
 source "${SCRIPT_DIR}"/tool_kit.sh
 source "${SCRIPT_DIR}"/signal_trap.sh
-
-with_openblas=${1:-__INSTALL__}
+source "${INSTALLDIR}"/toolchain.conf
+source "${INSTALLDIR}"/toolchain.env
 
 [ -f "${BUILDDIR}/setup_openblas" ] && rm "${BUILDDIR}/setup_openblas"
 
@@ -15,9 +16,9 @@ OPENBLAS_CFLAGS=''
 OPENBLAS_LDFLAGS=''
 OPENBLAS_LIBS=''
 PATCHES=()
-
 ! [ -d "${BUILDDIR}" ] && mkdir -p "${BUILDDIR}"
 cd "${BUILDDIR}"
+
 case "$with_openblas" in
     __INSTALL__)
         echo "==================== Installing OpenBLAS ===================="
@@ -29,7 +30,7 @@ case "$with_openblas" in
             if [ -f OpenBLAS-${openblas_ver}.tar.gz ] ; then
                 echo "OpenBLAS-${openblas_ver}.tar.gz is found"
             else
-                download_pkg ${DOWNLOADER_FLAGS} \
+                download_pkg ${DOWNLOADER_FLAGS} ${openblas_sha256} \
                              https://github.com/xianyi/OpenBLAS/archive/v${openblas_ver}.tar.gz \
                              -o OpenBLAS-${openblas_ver}.tar.gz
             fi
@@ -167,4 +168,10 @@ export FAST_MATH_LDFLAGS="\${FAST_MATH_LDFLAGS} ${OPENBLAS_LDFLAGS}"
 export FAST_MATH_LIBS="\${FAST_MATH_LIBS} IF_OMP(${OPENBLAS_LIBS_OMP}|${OPENBLAS_LIBS})"
 EOF
 fi
+
+# update toolchain environment
+load "${BUILDDIR}/setup_openblas"
+export -p > "${INSTALLDIR}/toolchain.env"
+
 cd "${ROOTDIR}"
+report_timing "openblas"

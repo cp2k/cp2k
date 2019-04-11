@@ -2,12 +2,13 @@
 [ "${BASH_SOURCE[0]}" ] && SCRIPT_NAME="${BASH_SOURCE[0]}" || SCRIPT_NAME=$0
 SCRIPT_DIR="$(cd "$(dirname "$SCRIPT_NAME")" && pwd -P)"
 
-scalapack_ver=${scalapack_ver:-2.0.2}
+scalapack_ver="2.0.2"
+scalapack_sha256="0c74aeae690fe5ee4db7926f49c5d0bb69ce09eea75beb915e00bba07530395c"
 source "${SCRIPT_DIR}"/common_vars.sh
 source "${SCRIPT_DIR}"/tool_kit.sh
 source "${SCRIPT_DIR}"/signal_trap.sh
-
-with_scalapack=${1:-__INSTALL__}
+source "${INSTALLDIR}"/toolchain.conf
+source "${INSTALLDIR}"/toolchain.env
 
 [ -f "${BUILDDIR}/setup_scalapack" ] && rm "${BUILDDIR}/setup_scalapack"
 
@@ -16,6 +17,7 @@ SCALAPACK_LDFLAGS=''
 SCALAPACK_LIBS=''
 ! [ -d "${BUILDDIR}" ] && mkdir -p "${BUILDDIR}"
 cd "${BUILDDIR}"
+
 case "$with_scalapack" in
     __INSTALL__)
         echo "==================== Installing ScaLAPACK ===================="
@@ -28,7 +30,7 @@ case "$with_scalapack" in
             if [ -f scalapack-${scalapack_ver}.tgz ] ; then
                 echo "scalapack-${scalapack_ver}.tgz is found"
             else
-                download_pkg ${DOWNLOADER_FLAGS} \
+                download_pkg ${DOWNLOADER_FLAGS} ${scalapack_sha256} \
                              https://www.cp2k.org/static/downloads/scalapack-${scalapack_ver}.tgz
             fi
             echo "Installing from scratch into ${pkg_install_dir}"
@@ -90,3 +92,9 @@ cat <<EOF >> ${INSTALLDIR}/lsan.supp
 # leaks related to SCALAPACK
 leak:pdpotrf_
 EOF
+
+# update toolchain environment
+load "${BUILDDIR}/setup_scalapack"
+export -p > "${INSTALLDIR}/toolchain.env"
+
+report_timing "scalapack"

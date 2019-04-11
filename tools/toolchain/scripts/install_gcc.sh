@@ -2,12 +2,13 @@
 [ "${BASH_SOURCE[0]}" ] && SCRIPT_NAME="${BASH_SOURCE[0]}" || SCRIPT_NAME=$0
 SCRIPT_DIR="$(cd "$(dirname "$SCRIPT_NAME")" && pwd -P)"
 
-gcc_ver=${gcc_ver:-8.3.0}
+gcc_ver="8.3.0"
+gcc_sha256="ea71adc1c3d86330874b8df19611424b143308f0d6612d542472600532c96d2d"
 source "${SCRIPT_DIR}"/common_vars.sh
 source "${SCRIPT_DIR}"/tool_kit.sh
 source "${SCRIPT_DIR}"/signal_trap.sh
-
-with_gcc=${1:-__INSTALL__}
+source "${INSTALLDIR}"/toolchain.conf
+source "${INSTALLDIR}"/toolchain.env
 
 [ -f "${BUILDDIR}/setup_gcc" ] && rm "${BUILDDIR}/setup_gcc"
 
@@ -16,6 +17,7 @@ GCC_CFLAGS=""
 TSANFLAGS=""
 ! [ -d "${BUILDDIR}" ] && mkdir -p "${BUILDDIR}"
 cd "${BUILDDIR}"
+
 case "$with_gcc" in
     __INSTALL__)
         echo "==================== Installing GCC ===================="
@@ -31,7 +33,7 @@ case "$with_gcc" in
                 if [ -f gcc-${gcc_ver}.tar.gz ] ; then
                     echo "gcc-${gcc_ver}.tar.gz is found"
                 else
-                    download_pkg ${DOWNLOADER_FLAGS} \
+                    download_pkg ${DOWNLOADER_FLAGS} ${gcc_sha256} \
                                  https://ftp.gnu.org/gnu/gcc/gcc-${gcc_ver}/gcc-${gcc_ver}.tar.gz
                 fi
                 [ -d gcc-${gcc_ver} ] && rm -rf gcc-${gcc_ver}
@@ -177,3 +179,9 @@ cat <<EOF >> ${SETUPFILE}
 export LSAN_OPTIONS=suppressions=${INSTALLDIR}/lsan.supp
 export TSAN_OPTIONS=suppressions=${INSTALLDIR}/tsan.supp
 EOF
+
+# update toolchain environment
+load "${BUILDDIR}/setup_gcc"
+export -p > "${INSTALLDIR}/toolchain.env"
+
+report_timing "gcc"

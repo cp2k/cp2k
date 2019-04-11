@@ -1,18 +1,20 @@
 #!/bin/bash -e
 [ "${BASH_SOURCE[0]}" ] && SCRIPT_NAME="${BASH_SOURCE[0]}" || SCRIPT_NAME=$0
 SCRIPT_DIR="$(cd "$(dirname "$SCRIPT_NAME")" && pwd -P)"
-spglib_ver=${spglib_ver:-1.12.2}
+spglib_ver="1.12.2"
+spglib_sha256="d92f5e4fa0f54cc0abd0209b81c4d5c647dae9d25b774c2296f44b8558b17976"
 
 source "${SCRIPT_DIR}"/common_vars.sh
 source "${SCRIPT_DIR}"/tool_kit.sh
 source "${SCRIPT_DIR}"/signal_trap.sh
-
-with_spglib=${1:-__INSTALL__}
+source "${INSTALLDIR}"/toolchain.conf
+source "${INSTALLDIR}"/toolchain.env
 
 [ -f "${BUILDDIR}/setup_spglib" ] && rm "${BUILDDIR}/setup_spglib"
 
 ! [ -d "${BUILDDIR}" ] && mkdir -p "${BUILDDIR}"
 cd "${BUILDDIR}"
+
 case "$with_spglib" in
     __INSTALL__)
         echo "==================== Installing spglib ===================="
@@ -24,7 +26,7 @@ case "$with_spglib" in
             if [ -f spglib-${spglib_ver}.tar.gz ] ; then
                 echo "spglib-${spglib_ver}.tar.gz is found"
             else
-                download_pkg ${DOWNLOADER_FLAGS} \
+                download_pkg ${DOWNLOADER_FLAGS} ${spglib_sha256} \
                              https://github.com/atztogo/spglib/archive/v${spglib_ver}.tar.gz \
                              -o spglib-${spglib_ver}.tar.gz
             fi
@@ -88,4 +90,10 @@ export LIBSPG_INCLUDE_DIR="$pkg_install_dir/include"
 EOF
         cat "${BUILDDIR}/setup_spglib" >> $SETUPFILE
 fi
+
+# update toolchain environment
+load "${BUILDDIR}/setup_spglib"
+export -p > "${INSTALLDIR}"/toolchain.env
+
 cd "${ROOTDIR}"
+report_timing "spglib"

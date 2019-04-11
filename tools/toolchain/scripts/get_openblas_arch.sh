@@ -3,10 +3,13 @@
 SCRIPT_DIR="$(cd "$(dirname "$SCRIPT_NAME")" && pwd -P)"
 
 
-openblas_ver=${openblas_ver:-0.3.5}  #  Keep in sync with install_openblas.sh.
+openblas_ver="0.3.5"  #  Keep in sync with install_openblas.sh.
+openblas_sha256="0950c14bd77c90a6427e26210d6dab422271bc86f9fc69126725833ecdaa0e85"
 source "${SCRIPT_DIR}"/common_vars.sh
 source "${SCRIPT_DIR}"/tool_kit.sh
 source "${SCRIPT_DIR}"/signal_trap.sh
+source "${INSTALLDIR}"/toolchain.conf
+source "${INSTALLDIR}"/toolchain.env
 
 find_openblas_dir() {
     local __dir=''
@@ -21,6 +24,7 @@ find_openblas_dir() {
 
 ! [ -d "${BUILDDIR}" ] && mkdir -p "${BUILDDIR}"
 cd "${BUILDDIR}"
+
 echo "==================== Getting proc arch info using OpenBLAS tools ===================="
 # find existing openblas source dir
 openblas_dir="$(find_openblas_dir)"
@@ -29,7 +33,7 @@ if ! [ "$openblas_dir" ] ; then
     if [ -f openblas-${openblas_ver}.tar.gz ] ; then
         echo "openblas-${openblas_ver}.tar.gz is found"
     else
-        download_pkg ${DOWNLOADER_FLAGS} \
+        download_pkg ${DOWNLOADER_FLAGS} ${openblas_sha256} \
                      https://github.com/xianyi/OpenBLAS/archive/v${openblas_ver}.tar.gz \
                      -o OpenBLAS-${openblas_ver}.tar.gz
     fi

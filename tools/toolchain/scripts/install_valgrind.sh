@@ -2,17 +2,19 @@
 [ "${BASH_SOURCE[0]}" ] && SCRIPT_NAME="${BASH_SOURCE[0]}" || SCRIPT_NAME=$0
 SCRIPT_DIR="$(cd "$(dirname "$SCRIPT_NAME")" && pwd -P)"
 
-valgrind_ver=${valgrind_ver:-3.14.0}
+valgrind_ver="3.14.0"
+valgrind_sha256="037c11bfefd477cc6e9ebe8f193bb237fe397f7ce791b4a4ce3fa1c6a520baa5"
 source "${SCRIPT_DIR}"/common_vars.sh
 source "${SCRIPT_DIR}"/tool_kit.sh
 source "${SCRIPT_DIR}"/signal_trap.sh
-
-with_valgrind=${1:-__INSTALL__}
+source "${INSTALLDIR}"/toolchain.conf
+source "${INSTALLDIR}"/toolchain.env
 
 [ -f "${BUILDDIR}/setup_valgrind" ] && rm "${BUILDDIR}/setup_valgrind"
 
 ! [ -d "${BUILDDIR}" ] && mkdir -p "${BUILDDIR}"
 cd "${BUILDDIR}"
+
 case "$with_valgrind" in
     __INSTALL__)
         echo "==================== Installing Valgrind ===================="
@@ -24,7 +26,7 @@ case "$with_valgrind" in
             if [ -f valgrind-${valgrind_ver}.tar.bz2 ] ; then
                 echo "valgrind-${valgrind_ver}.tar.bz2 is found"
             else
-                download_pkg ${DOWNLOADER_FLAGS} \
+                download_pkg ${DOWNLOADER_FLAGS} ${valgrind_sha256} \
                              https://www.cp2k.org/static/downloads/valgrind-${valgrind_ver}.tar.bz2
             fi
             echo "Installing from scratch into ${pkg_install_dir}"
@@ -91,3 +93,9 @@ EOF
 cat <<EOF >> ${SETUPFILE}
 export VALGRIND_OPTIONS="--suppressions=${INSTALLDIR}/valgrind.supp --max-stackframe=2168152 --error-exitcode=42"
 EOF
+
+# update toolchain environment
+load "${BUILDDIR}/setup_valgrind"
+export -p > "${INSTALLDIR}/toolchain.env"
+
+report_timing "valgrind"

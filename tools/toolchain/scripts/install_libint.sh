@@ -2,12 +2,13 @@
 [ "${BASH_SOURCE[0]}" ] && SCRIPT_NAME="${BASH_SOURCE[0]}" || SCRIPT_NAME=$0
 SCRIPT_DIR="$(cd "$(dirname "$SCRIPT_NAME")" && pwd -P)"
 
-libint_ver=${libint_ver:-1.1.6}
+libint_ver="1.1.6"
+libint_sha256="aa553de6469729ed3674c955a9f56046c41846030b6d4b4c6ba91d4f1307abc7"
 source "${SCRIPT_DIR}"/common_vars.sh
 source "${SCRIPT_DIR}"/tool_kit.sh
 source "${SCRIPT_DIR}"/signal_trap.sh
-
-with_libint=${1:-__INSTALL__}
+source "${INSTALLDIR}"/toolchain.conf
+source "${INSTALLDIR}"/toolchain.env
 
 [ -f "${BUILDDIR}/setup_libint" ] && rm "${BUILDDIR}/setup_libint"
 
@@ -16,6 +17,7 @@ LIBINT_LDFLAGS=''
 LIBINT_LIBS=''
 ! [ -d "${BUILDDIR}" ] && mkdir -p "${BUILDDIR}"
 cd "${BUILDDIR}"
+
 case "$with_libint" in
     __INSTALL__)
         echo "==================== Installing LIBINT ===================="
@@ -27,7 +29,7 @@ case "$with_libint" in
             if [ -f libint-${libint_ver}.tar.gz ] ; then
                 echo "libint-${libint_ver}.tar.gz is found"
             else
-                download_pkg ${DOWNLOADER_FLAGS} \
+                download_pkg ${DOWNLOADER_FLAGS} ${libint_sha256} \
                              https://www.cp2k.org/static/downloads/libint-${libint_ver}.tar.gz
             fi
             echo "Installing from scratch into ${pkg_install_dir}"
@@ -93,4 +95,10 @@ export CP_LDFLAGS="\${CP_LDFLAGS} ${LIBINT_LDFLAGS}"
 export CP_LIBS="-Wl,-Bstatic ${LIBINT_LIBS} -Wl,-Bdynamic \${CP_LIBS}"
 EOF
 fi
+
+# update toolchain environment
+load "${BUILDDIR}/setup_libint"
+export -p > "${INSTALLDIR}/toolchain.env"
+
 cd "${ROOTDIR}"
+report_timing "libint"

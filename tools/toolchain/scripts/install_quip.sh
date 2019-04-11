@@ -2,12 +2,13 @@
 [ "${BASH_SOURCE[0]}" ] && SCRIPT_NAME="${BASH_SOURCE[0]}" || SCRIPT_NAME=$0
 SCRIPT_DIR="$(cd "$(dirname "$SCRIPT_NAME")" && pwd -P)"
 
-quip_ver=${quip_ver:-cc83ceea5776c40fcb5ab224a25ab04d62175449}
+quip_ver="cc83ceea5776c40fcb5ab224a25ab04d62175449"
+quip_sha256="cd8708368c407f9b5775adf5c982ff92b829fe467e870cf82d595e7334c292d5"
 source "${SCRIPT_DIR}"/common_vars.sh
 source "${SCRIPT_DIR}"/tool_kit.sh
 source "${SCRIPT_DIR}"/signal_trap.sh
-
-with_quip=${1:-__INSTALL__}
+source "${INSTALLDIR}"/toolchain.conf
+source "${INSTALLDIR}"/toolchain.env
 
 [ -f "${BUILDDIR}/setup_quip" ] && rm "${BUILDDIR}/setup_quip"
 
@@ -24,6 +25,7 @@ QUIP_LDFLAGS=''
 QUIP_LIBS=''
 ! [ -d "${BUILDDIR}" ] && mkdir -p "${BUILDDIR}"
 cd "${BUILDDIR}"
+
 case "$with_quip" in
     __INSTALL__)
         echo "==================== Installing QUIP ===================="
@@ -36,7 +38,7 @@ case "$with_quip" in
             if [ -f QUIP-${quip_ver}.zip ] ; then
                 echo "QUIP-${quip_ver}.zip is found"
             else
-                download_pkg ${DOWNLOADER_FLAGS} \
+                download_pkg ${DOWNLOADER_FLAGS} ${quip_sha256} \
                              https://www.cp2k.org/static/downloads/QUIP-${quip_ver}.zip
             fi
             [ -d QUIP-${quip_ver} ] && rm -rf QUIP-${quip_ver}
@@ -144,4 +146,10 @@ export CP_LDFLAGS="\${CP_LDFLAGS} ${QUIP_LDFLAGS}"
 export CP_LIBS="${QUIP_LIBS} \${CP_LIBS}"
 EOF
 fi
+
+# update toolchain environment
+load "${BUILDDIR}/setup_quip"
+export -p > "${INSTALLDIR}/toolchain.env"
+
 cd "${ROOTDIR}"
+report_timing "quip"

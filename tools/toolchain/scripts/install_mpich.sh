@@ -2,13 +2,15 @@
 [ "${BASH_SOURCE[0]}" ] && SCRIPT_NAME="${BASH_SOURCE[0]}" || SCRIPT_NAME=$0
 SCRIPT_DIR="$(cd "$(dirname "$SCRIPT_NAME")" && pwd -P)"
 
-mpich_ver=${mpich_ver:-3.3}
+mpich_ver="3.3"
+mpich_sha256="329ee02fe6c3d101b6b30a7b6fb97ddf6e82b28844306771fa9dd8845108fa0b"
 source "${SCRIPT_DIR}"/common_vars.sh
 source "${SCRIPT_DIR}"/tool_kit.sh
 source "${SCRIPT_DIR}"/signal_trap.sh
+source "${INSTALLDIR}"/toolchain.conf
+source "${INSTALLDIR}"/toolchain.env
 
-with_mpich=${1:-__INSTALL__}
-
+[ ${MPI_MODE} != "mpich" ] && exit 0
 [ -f "${BUILDDIR}/setup_mpich" ] && rm "${BUILDDIR}/setup_mpich"
 
 MPICH_CFLAGS=''
@@ -16,6 +18,7 @@ MPICH_LDFLAGS=''
 MPICH_LIBS=''
 ! [ -d "${BUILDDIR}" ] && mkdir -p "${BUILDDIR}"
 cd "${BUILDDIR}"
+
 case "$with_mpich" in
     __INSTALL__)
         echo "==================== Installing MPICH ===================="
@@ -27,7 +30,7 @@ case "$with_mpich" in
             if [ -f mpich-${mpich_ver}.tar.gz ] ; then
                 echo "mpich-${mpich_ver}.tar.gz is found"
             else
-                download_pkg ${DOWNLOADER_FLAGS} \
+                download_pkg ${DOWNLOADER_FLAGS} ${mpich_sha256}\
                              https://www.cp2k.org/static/downloads/mpich-${mpich_ver}.tar.gz
             fi
             echo "Installing from scratch into ${pkg_install_dir}"
@@ -107,4 +110,10 @@ export CP_LDFLAGS="\${CP_LDFLAGS} IF_MPI(${MPICH_LDFLAGS}|)"
 export CP_LIBS="\${CP_LIBS} IF_MPI(${MPICH_LIBS}|)"
 EOF
 fi
+
+# update toolchain environment
+load "${BUILDDIR}/setup_mpich"
+export -p > "${INSTALLDIR}/toolchain.env"
+
 cd "${ROOTDIR}"
+report_timing "mpich"
