@@ -2,17 +2,19 @@
 [ "${BASH_SOURCE[0]}" ] && SCRIPT_NAME="${BASH_SOURCE[0]}" || SCRIPT_NAME=$0
 SCRIPT_DIR="$(cd "$(dirname "$SCRIPT_NAME")" && pwd -P)"
 
-gsl_ver=${gsl_ver:-2.5}
+gsl_ver="2.5"
+gls_sha256="0460ad7c2542caaddc6729762952d345374784100223995eb14d614861f2258d"
 source "${SCRIPT_DIR}"/common_vars.sh
 source "${SCRIPT_DIR}"/tool_kit.sh
 source "${SCRIPT_DIR}"/signal_trap.sh
-
-with_gsl=${1:-__INSTALL__}
+source "${INSTALLDIR}"/toolchain.conf
+source "${INSTALLDIR}"/toolchain.env
 
 [ -f "${BUILDDIR}/setup_gsl" ] && rm "${BUILDDIR}/setup_gsl"
 
 ! [ -d "${BUILDDIR}" ] && mkdir -p "${BUILDDIR}"
 cd "${BUILDDIR}"
+
 case "$with_gsl" in
     __INSTALL__)
         echo "==================== Installing gsl ===================="
@@ -24,7 +26,7 @@ case "$with_gsl" in
             if [ -f gsl-${gsl_ver}.tar.gz ] ; then
                 echo "gsl-${gsl_ver}.tar.gz is found"
             else
-                download_pkg ${DOWNLOADER_FLAGS} \
+                download_pkg ${DOWNLOADER_FLAGS} ${gls_sha256} \
                              https://ftp.gnu.org/gnu/gsl/gsl-${gsl_ver}.tar.gz
             fi
             echo "Installing from scratch into ${pkg_install_dir}"
@@ -100,4 +102,10 @@ export CP_LIBS="IF_MPI(IF_OMP(${GSL_LIBS}|)|) \${CP_LIBS}"
 EOF
     cat "${BUILDDIR}/setup_gsl" >> $SETUPFILE
 fi
+
+# update toolchain environment
+load "${BUILDDIR}/setup_gsl"
+export -p > "${INSTALLDIR}/toolchain.env"
+
 cd "${ROOTDIR}"
+report_timing "gsl"

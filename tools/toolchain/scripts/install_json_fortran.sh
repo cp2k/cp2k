@@ -2,17 +2,20 @@
 [ "${BASH_SOURCE[0]}" ] && SCRIPT_NAME="${BASH_SOURCE[0]}" || SCRIPT_NAME=$0
 SCRIPT_DIR="$(cd "$(dirname "$SCRIPT_NAME")" && pwd -P)"
 
-json_fortran_ver=${json_fortran_ver:-7.0.0}
+json_fortran_ver="7.0.0"
+json_fortran_sha256="9b5b6235489b27d572bbc7620ed8e039fa9d4d14d41b1581b279be9db499f32c"
+
 source "${SCRIPT_DIR}"/common_vars.sh
 source "${SCRIPT_DIR}"/tool_kit.sh
 source "${SCRIPT_DIR}"/signal_trap.sh
-
-with_json_fortran=${1:-__INSTALL__}
+source "${INSTALLDIR}"/toolchain.conf
+source "${INSTALLDIR}"/toolchain.env
 
 [ -f "${BUILDDIR}/setup_json_fortran" ] && rm -f "${BUILDDIR}/setup_json_fortran"
 
 ! [ -d "${BUILDDIR}" ] && mkdir -p "${BUILDDIR}"
 cd "${BUILDDIR}"
+
 case "$with_json_fortran" in
     __INSTALL__)
         echo "==================== Installing json_fortran ===================="
@@ -24,7 +27,7 @@ case "$with_json_fortran" in
             if [ -f json-fortran-${json_fortran_ver}.tar.gz ] ; then
                 echo "json-fortran-${json_fortran_ver}.tar.gz is found"
             else
-                download_pkg ${DOWNLOADER_FLAGS} \
+                download_pkg ${DOWNLOADER_FLAGS} ${json_fortran_sha256} \
                              https://github.com/jacobwilliams/json-fortran/archive/${json_fortran_ver}.tar.gz \
                              -o json-fortran-${json_fortran_ver}.tar.gz
             fi
@@ -79,4 +82,10 @@ EOF
         cat "${BUILDDIR}/setup_json_fortran" >> $SETUPFILE
     fi
 fi
+
+# update toolchain environment
+load "${BUILDDIR}/setup_json_fortran"
+export -p > "${INSTALLDIR}/toolchain.env"
+
 cd "${ROOTDIR}"
+report_timing "json-fortran"

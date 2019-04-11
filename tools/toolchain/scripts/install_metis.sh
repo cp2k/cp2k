@@ -5,8 +5,8 @@ SCRIPT_DIR="$(cd "$(dirname "$SCRIPT_NAME")" && pwd -P)"
 source "${SCRIPT_DIR}"/common_vars.sh
 source "${SCRIPT_DIR}"/tool_kit.sh
 source "${SCRIPT_DIR}"/signal_trap.sh
-
-with_metis=${1:-__INSTALL__}
+source "${INSTALLDIR}"/toolchain.conf
+source "${INSTALLDIR}"/toolchain.env
 
 [ -f "${BUILDDIR}/setup_metis" ] && rm "${BUILDDIR}/setup_metis"
 
@@ -15,6 +15,7 @@ METIS_LDFLAGS=''
 METIS_LIBS=''
 ! [ -d "${BUILDDIR}" ] && mkdir -p "${BUILDDIR}"
 cd "${BUILDDIR}"
+
 case "$with_metis" in
     __INSTALL__)
         echo "==================== Installing METIS ===================="
@@ -67,4 +68,10 @@ export METIS_LDFLAGS="${METIS_LDFLAGS}"
 export METIS_LIBS="${METIS_LIBS}"
 EOF
 fi
+
+# update toolchain environment
+load "${BUILDDIR}/setup_metis"
+export -p > "${INSTALLDIR}/toolchain.env"
+
 cd "${ROOTDIR}"
+report_timing "metis"

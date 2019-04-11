@@ -2,12 +2,13 @@
 [ "${BASH_SOURCE[0]}" ] && SCRIPT_NAME="${BASH_SOURCE[0]}" || SCRIPT_NAME=$0
 SCRIPT_DIR="$(cd "$(dirname "$SCRIPT_NAME")" && pwd -P)"
 
-parmetis_ver=${parmetis_ver:-4.0.3}
+parmetis_ver="4.0.3"
+parmetis_sha256="f2d9a231b7cf97f1fee6e8c9663113ebf6c240d407d3c118c55b3633d6be6e5f"
 source "${SCRIPT_DIR}"/common_vars.sh
 source "${SCRIPT_DIR}"/tool_kit.sh
 source "${SCRIPT_DIR}"/signal_trap.sh
-
-with_parmetis=${1:-__INSTALL__}
+source "${INSTALLDIR}"/toolchain.conf
+source "${INSTALLDIR}"/toolchain.env
 
 [ -f "${BUILDDIR}/setup_parmetis" ] && rm "${BUILDDIR}/setup_parmetis"
 
@@ -16,6 +17,7 @@ PARMETIS_LDFLAGS=''
 PARMETIS_LIBS=''
 ! [ -d "${BUILDDIR}" ] && mkdir -p "${BUILDDIR}"
 cd "${BUILDDIR}"
+
 case "$with_parmetis" in
     __INSTALL__)
         echo "==================== Installing ParMETIS ===================="
@@ -27,7 +29,7 @@ case "$with_parmetis" in
             if [ -f parmetis-${parmetis_ver}.tar.gz ] ; then
                 echo "parmetis-${parmetis_ver}.tar.gz is found"
             else
-                download_pkg ${DOWNLOADER_FLAGS} \
+                download_pkg ${DOWNLOADER_FLAGS} ${parmetis_sha256} \
                              https://www.cp2k.org/static/downloads/parmetis-${parmetis_ver}.tar.gz
             fi
             echo "Installing from scratch into ${pkg_install_dir}"
@@ -94,4 +96,10 @@ export CP_LDFLAGS="\${CP_LDFLAGS} IF_MPI(${PARMETIS_LDFLAGS}|)"
 export CP_LIBS="IF_MPI(-lptscotchparmetis|) \${CP_LIBS}"
 EOF
 fi
+
+# update toolchain environment
+load "${BUILDDIR}/setup_parmetis"
+export -p > "${INSTALLDIR}/toolchain.env"
+
 cd "${ROOTDIR}"
+report_timing "parmetis"

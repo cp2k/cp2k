@@ -2,12 +2,13 @@
 [ "${BASH_SOURCE[0]}" ] && SCRIPT_NAME="${BASH_SOURCE[0]}" || SCRIPT_NAME=$0
 SCRIPT_DIR="$(cd "$(dirname "$SCRIPT_NAME")" && pwd -P)"
 
-pexsi_ver=${pexsi_ver:-0.10.2}
+pexsi_ver="0.10.2"
+pexsi_sha256="8714c71b76542e096211b537a9cb1ffb2c28f53eea4f5a92f94cc1ca1e7b499f"
 source "${SCRIPT_DIR}"/common_vars.sh
 source "${SCRIPT_DIR}"/tool_kit.sh
 source "${SCRIPT_DIR}"/signal_trap.sh
-
-with_pexsi=${1:-__INSTALL__}
+source "${INSTALLDIR}"/toolchain.conf
+source "${INSTALLDIR}"/toolchain.env
 
 [ -f "${BUILDDIR}/setup_pexsi" ] && rm "${BUILDDIR}/setup_pexsi"
 
@@ -16,6 +17,7 @@ PEXSI_LDFLAGS=''
 PEXSI_LIBS=''
 ! [ -d "${BUILDDIR}" ] && mkdir -p "${BUILDDIR}"
 cd "${BUILDDIR}"
+
 case "$with_pexsi" in
     __INSTALL__)
         echo "==================== Installing PEXSI ===================="
@@ -36,7 +38,7 @@ case "$with_pexsi" in
             if [ -f pexsi_v${pexsi_ver}.tar.gz ] ; then
                 echo "pexsi_v${pexsi_ver}.tar.gz is found"
             else
-                download_pkg ${DOWNLOADER_FLAGS} \
+                download_pkg ${DOWNLOADER_FLAGS} ${pexsi_sha256} \
                              https://www.cp2k.org/static/downloads/pexsi_v${pexsi_ver}.tar.gz
             fi
             echo "Installing from scratch into ${pkg_install_dir}"
@@ -121,4 +123,10 @@ export CP_LDFLAGS="\${CP_LDFLAGS} IF_MPI(${PEXSI_LDFLAGS}|)"
 export CP_LIBS="IF_MPI(${PEXSI_LIBS}|) \${CP_LIBS}"
 EOF
 fi
+
+# update toolchain environment
+load "${BUILDDIR}/setup_pexsi"
+export -p > "${INSTALLDIR}/toolchain.env"
+
 cd "${ROOTDIR}"
+report_timing "pexsi"

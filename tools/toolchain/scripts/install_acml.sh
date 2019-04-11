@@ -5,8 +5,8 @@ SCRIPT_DIR="$(cd "$(dirname "$SCRIPT_NAME")" && pwd -P)"
 source "${SCRIPT_DIR}"/common_vars.sh
 source "${SCRIPT_DIR}"/tool_kit.sh
 source "${SCRIPT_DIR}"/signal_trap.sh
-
-with_acml=${1:-__INSTALL__}
+source "${INSTALLDIR}"/toolchain.conf
+source "${INSTALLDIR}"/toolchain.env
 
 [ -f "${BUILDDIR}/setup_acml" ] && rm "${BUILDDIR}/setup_acml"
 
@@ -15,6 +15,7 @@ ACML_LDFLAGS=''
 ACML_LIBS=''
 ! [ -d "${BUILDDIR}" ] && mkdir -p "${BUILDDIR}"
 cd "${BUILDDIR}"
+
 case "$with_acml" in
     __INSTALL__)
         echo "==================== Installing ACML ===================="
@@ -57,4 +58,10 @@ export FAST_MATH_LDFLAGS="\${FAST_MATH_LDFLAGS} ${ACML_LDFLAGS}"
 export FAST_MATH_LIBS="\${FAST_MATH_LIBS} ${ACML_LIBS}"
 EOF
 fi
+
+# update toolchain environment
+load "${BUILDDIR}/setup_acml"
+export -p > "${INSTALLDIR}/toolchain.env"
+
 cd "${ROOTDIR}"
+report_timing "acml"

@@ -2,12 +2,13 @@
 [ "${BASH_SOURCE[0]}" ] && SCRIPT_NAME="${BASH_SOURCE[0]}" || SCRIPT_NAME=$0
 SCRIPT_DIR="$(cd "$(dirname "$SCRIPT_NAME")" && pwd -P)"
 
-superlu_ver=${superlu_ver:-5.1.2}
+superlu_ver="5.1.2"
+superlu_sha256="91032b9a4d23bd14272607b8fc9b6cbb936c385902ca4d3d0ba2d1014fbcd99d"
 source "${SCRIPT_DIR}"/common_vars.sh
 source "${SCRIPT_DIR}"/tool_kit.sh
 source "${SCRIPT_DIR}"/signal_trap.sh
-
-with_superlu=${1:-__INSTALL__}
+source "${INSTALLDIR}"/toolchain.conf
+source "${INSTALLDIR}"/toolchain.env
 
 [ -f "${BUILDDIR}/setup_superlu" ] && rm "${BUILDDIR}/setup_superlu"
 
@@ -16,6 +17,7 @@ SUPERLU_LDFLAGS=''
 SUPERLU_LIBS=''
 ! [ -d "${BUILDDIR}" ] && mkdir -p "${BUILDDIR}"
 cd "${BUILDDIR}"
+
 case "$with_superlu" in
     __INSTALL__)
         echo "==================== Installing SuperLU_DIST ===================="
@@ -32,7 +34,7 @@ case "$with_superlu" in
             if [ -f superlu_dist_${superlu_ver}.tar.gz ] ; then
                 echo "superlu_dist_${superlu_ver}.tar.gz is found"
             else
-                download_pkg ${DOWNLOADER_FLAGS} \
+                download_pkg ${DOWNLOADER_FLAGS} ${superlu_sha256} \
                              https://www.cp2k.org/static/downloads/superlu_dist_${superlu_ver}.tar.gz
             fi
             echo "Installing from scratch into ${pkg_install_dir}"
@@ -107,4 +109,10 @@ export CP_LDFLAGS="\${CP_LDFLAGS} IF_MPI(${SUPERLU_LDFLAGS}|)"
 export CP_LIBS="IF_MPI(${SUPERLU_LIBS}|) \${CP_LIBS}"
 EOF
 fi
+
+# update toolchain environment
+load "${BUILDDIR}/setup_superlu"
+export -p > "${INSTALLDIR}"/toolchain.env
+
 cd "${ROOTDIR}"
+report_timing "superlu"

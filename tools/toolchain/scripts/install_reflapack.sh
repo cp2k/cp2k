@@ -2,12 +2,13 @@
 [ "${BASH_SOURCE[0]}" ] && SCRIPT_NAME="${BASH_SOURCE[0]}" || SCRIPT_NAME=$0
 SCRIPT_DIR="$(cd "$(dirname "$SCRIPT_NAME")" && pwd -P)"
 
-reflapack_ver=${reflapack_ver:-3.8.0}
+reflapack_ver="3.8.0"
+reflapack_sha256="deb22cc4a6120bff72621155a9917f485f96ef8319ac074a7afbc68aab88bcf6"
 source "${SCRIPT_DIR}"/common_vars.sh
 source "${SCRIPT_DIR}"/tool_kit.sh
 source "${SCRIPT_DIR}"/signal_trap.sh
-
-with_reflapack=${1:-__INSTALL__}
+source "${INSTALLDIR}"/toolchain.conf
+source "${INSTALLDIR}"/toolchain.env
 
 [ -f "${BUILDDIR}/setup_reflapack" ] && rm "${BUILDDIR}/setup_reflapack"
 
@@ -16,6 +17,7 @@ REFLAPACK_LDFLAGS=''
 REFLAPACK_LIBS=''
 ! [ -d "${BUILDDIR}" ] && mkdir -p "${BUILDDIR}"
 cd "${BUILDDIR}"
+
 case "$with_reflapack" in
     __INSTALL__)
         echo "==================== Installing LAPACK ===================="
@@ -27,7 +29,7 @@ case "$with_reflapack" in
             if [ -f lapack-${reflapack_ver}.tgz ] ; then
                 echo "reflapack-${reflapack_ver}.tgz is found"
             else
-                download_pkg ${DOWNLOADER_FLAGS} \
+                download_pkg ${DOWNLOADER_FLAGS} ${reflapack_sha256} \
                              https://www.cp2k.org/static/downloads/lapack-${reflapack_ver}.tgz
             fi
             echo "Installing from scratch into ${pkg_install_dir}"
@@ -105,4 +107,10 @@ export FAST_MATH_LIBS="\${FAST_MATH_LIBS} ${REFLAPACK_LIBS}"
 EOF
     fi
 fi
+
+# update toolchain environment
+load "${BUILDDIR}/setup_reflapack"
+export -p > "${INSTALLDIR}/toolchain.env"
+
 cd "${ROOTDIR}"
+report_timing "relapack"

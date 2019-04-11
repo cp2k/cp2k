@@ -2,12 +2,13 @@
 [ "${BASH_SOURCE[0]}" ] && SCRIPT_NAME="${BASH_SOURCE[0]}" || SCRIPT_NAME=$0
 SCRIPT_DIR="$(cd "$(dirname "$SCRIPT_NAME")" && pwd -P)"
 
-elpa_ver=${elpa_ver:-2017.05.003}
+elpa_ver="2017.05.003"
+elpa_sha256="bccd49ce35a323bd734b17642aed8f2588fea4cc78ee8133d88554753bc3bf1b"
 source "${SCRIPT_DIR}"/common_vars.sh
 source "${SCRIPT_DIR}"/tool_kit.sh
 source "${SCRIPT_DIR}"/signal_trap.sh
-
-with_elpa=${1:-__INSTALL__}
+source "${INSTALLDIR}"/toolchain.conf
+source "${INSTALLDIR}"/toolchain.env
 
 [ -f "${BUILDDIR}/setup_elpa" ] && rm "${BUILDDIR}/setup_elpa"
 
@@ -40,7 +41,7 @@ case "$with_elpa" in
             if [ -f elpa-${elpa_ver}.tar.gz ] ; then
                 echo "elpa-${elpa_ver}.tar.gz is found"
             else
-                download_pkg ${DOWNLOADER_FLAGS} \
+                download_pkg ${DOWNLOADER_FLAGS} ${elpa_sha256} \
                              https://elpa.mpcdf.mpg.de/html/Releases/${elpa_ver}/elpa-${elpa_ver}.tar.gz
             fi
             [ -d elpa-${elpa_ver} ] && rm -rf elpa-${elpa_ver}
@@ -216,4 +217,10 @@ export ELPAROOT="$pkg_install_dir"
 export ELPAVERSION="${elpa_ver}"
 EOF
 fi
+
+# update toolchain environment
+load "${BUILDDIR}/setup_elpa"
+export -p > "${INSTALLDIR}/toolchain.env"
+
 cd "${ROOTDIR}"
+report_timing "elpa"

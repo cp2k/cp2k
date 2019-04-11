@@ -2,18 +2,20 @@
 [ "${BASH_SOURCE[0]}" ] && SCRIPT_NAME="${BASH_SOURCE[0]}" || SCRIPT_NAME=$0
 SCRIPT_DIR="$(cd "$(dirname "$SCRIPT_NAME")" && pwd -P)"
 
-hdf5_ver=${hdf5_ver:-1.10.4}
+hdf5_ver="1.10.4"
+hdf5_sha256="1267ff06aaedc04ca25f7c6026687ea2884b837043431195f153401d942b28df"
 
 source "${SCRIPT_DIR}"/common_vars.sh
 source "${SCRIPT_DIR}"/tool_kit.sh
 source "${SCRIPT_DIR}"/signal_trap.sh
-
-with_hdf5=${1:-__INSTALL__}
+source "${INSTALLDIR}"/toolchain.conf
+source "${INSTALLDIR}"/toolchain.env
 
 [ -f "${BUILDDIR}/setup_hdf5" ] && rm "${BUILDDIR}/setup_hdf5"
 
 ! [ -d "${BUILDDIR}" ] && mkdir -p "${BUILDDIR}"
 cd "${BUILDDIR}"
+
 case "$with_hdf5" in
     __INSTALL__)
         echo "==================== Installing hdf5 ===================="
@@ -25,7 +27,7 @@ case "$with_hdf5" in
             if [ -f hdf5-${hdf5_ver}.tar.bz2 ] ; then
                 echo "hdf5-${hdf5_ver}.tar.bz2 is found"
             else
-                download_pkg ${DOWNLOADER_FLAGS} \
+                download_pkg ${DOWNLOADER_FLAGS} ${hdf5_sha256} \
                              https://www.cp2k.org/static/downloads/hdf5-${hdf5_ver}.tar.bz2
             fi
             echo "Installing from scratch into ${pkg_install_dir}"
@@ -89,4 +91,10 @@ export HDF5_INCLUDE_DIRS="$pkg_install_dir/include"
 EOF
     cat "${BUILDDIR}/setup_hdf5" >> $SETUPFILE
 fi
+
+# update toolchain environment
+load "${BUILDDIR}/setup_hdf5"
+export -p > "${INSTALLDIR}/toolchain.env"
+
 cd "${ROOTDIR}"
+report_timing "hdf5"

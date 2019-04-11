@@ -4,12 +4,13 @@ SCRIPT_DIR="$(cd "$(dirname "$SCRIPT_NAME")" && pwd -P)"
 
 #TODO: Remove valgrind suppressions below after upgrading to next release.
 # For details see: https://github.com/hfp/libxsmm/issues/298 .
-libxsmm_ver=${libxsmm_ver:-1.10.0}
+libxsmm_ver="1.10.0"
+libxsmm_sha256="fdfd4097a89e7d1de5869a26fd375e0e38b0de634a1128d58f79f90879c12b20"
 source "${SCRIPT_DIR}"/common_vars.sh
 source "${SCRIPT_DIR}"/tool_kit.sh
 source "${SCRIPT_DIR}"/signal_trap.sh
-
-with_libxsmm=${1:-__INSTALL__}
+source "${INSTALLDIR}"/toolchain.conf
+source "${INSTALLDIR}"/toolchain.env
 
 [ -f "${BUILDDIR}/setup_libxsmm" ] && rm "${BUILDDIR}/setup_libxsmm"
 
@@ -18,6 +19,7 @@ LIBXSMM_LDFLAGS=''
 LIBXSMM_LIBS=''
 ! [ -d "${BUILDDIR}" ] && mkdir -p "${BUILDDIR}"
 cd "${BUILDDIR}"
+
 case "$with_libxsmm" in
     __INSTALL__)
         echo "==================== Installing Libxsmm ===================="
@@ -43,7 +45,7 @@ EOF
                 if [ -f libxsmm-${libxsmm_ver}.tar.gz ] ; then
                     echo "libxsmm-${libxsmm_ver}.tar.gz is found"
                 else
-                    download_pkg ${DOWNLOADER_FLAGS} \
+                    download_pkg ${DOWNLOADER_FLAGS} ${libxsmm_sha256} \
                                  https://www.cp2k.org/static/downloads/libxsmm-${libxsmm_ver}.tar.gz
                 fi
                 [ -d libxsmm-${libxsmm_ver} ] && rm -rf libxsmm-${libxsmm_ver}
@@ -135,3 +137,9 @@ cat <<EOF >> ${INSTALLDIR}/valgrind.supp
    fun:libxsmm_otrans
 }
 EOF
+
+# update toolchain environment
+load "${BUILDDIR}/setup_libxsmm"
+export -p > "${INSTALLDIR}/toolchain.env"
+
+report_timing "libxsmm"

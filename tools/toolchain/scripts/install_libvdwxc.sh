@@ -1,13 +1,14 @@
 #!/bin/bash -e
 [ "${BASH_SOURCE[0]}" ] && SCRIPT_NAME="${BASH_SOURCE[0]}" || SCRIPT_NAME=$0
 SCRIPT_DIR="$(cd "$(dirname "$SCRIPT_NAME")" && pwd -P)"
-libvdwxc_ver=${libvdwxc_ver:-master-429a80027a2ec2c97e2f6d9a3dc84843f2739865}
+libvdwxc_ver="master-429a80027a2ec2c97e2f6d9a3dc84843f2739865"
+libvdwxc_sha256="6185bd9d8d679b979794f4ab3eb9f5652157b4971d94097d7f2791c186eda9c8"
 
 source "${SCRIPT_DIR}"/common_vars.sh
 source "${SCRIPT_DIR}"/tool_kit.sh
 source "${SCRIPT_DIR}"/signal_trap.sh
-
-with_libvdwxc=${1:-__INSTALL__}
+source "${INSTALLDIR}"/toolchain.conf
+source "${INSTALLDIR}"/toolchain.env
 
 [ -f "${BUILDDIR}/setup_libvdwxc" ] && rm "${BUILDDIR}/setup_libvdwxc"
 
@@ -18,6 +19,7 @@ fi
 
 ! [ -d "${BUILDDIR}" ] && mkdir -p "${BUILDDIR}"
 cd "${BUILDDIR}"
+
 case "$with_libvdwxc" in
     __INSTALL__)
         require_env MPI_CFLAGS
@@ -37,7 +39,7 @@ case "$with_libvdwxc" in
                 echo "libvdwxc-${libvdwxc_ver}.tar.gz is found"
             else
                 # do not remove this. They do not publish official version often
-                download_pkg ${DOWNLOADER_FLAGS} \
+                download_pkg ${DOWNLOADER_FLAGS} ${libvdwxc_sha256} \
                              https://www.cp2k.org/static/downloads/libvdwxc-${libvdwxc_ver}.tar.gz
             fi
 
@@ -128,4 +130,10 @@ export LIBVDWXCROOT="$pkg_install_dir"
 EOF
         cat "${BUILDDIR}/setup_libvdwxc" >> $SETUPFILE
 fi
+
+# update toolchain environment
+load "${BUILDDIR}/setup_libvdwxc"
+export -p > "${INSTALLDIR}/toolchain.env"
+
 cd "${ROOTDIR}"
+report_timing "libvdwxc"

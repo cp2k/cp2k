@@ -2,13 +2,15 @@
 [ "${BASH_SOURCE[0]}" ] && SCRIPT_NAME="${BASH_SOURCE[0]}" || SCRIPT_NAME=$0
 SCRIPT_DIR="$(cd "$(dirname "$SCRIPT_NAME")" && pwd -P)"
 
-openmpi_ver=${openmpi_ver:-3.1.3}
+openmpi_ver="3.1.3"
+openmpi_sha256="0254627d8a9b12a8f50213ed01e7a94dd7e91b340abf5c53bcf0b89afe6fb77d"
 source "${SCRIPT_DIR}"/common_vars.sh
 source "${SCRIPT_DIR}"/tool_kit.sh
 source "${SCRIPT_DIR}"/signal_trap.sh
+source "${INSTALLDIR}"/toolchain.conf
+source "${INSTALLDIR}"/toolchain.env
 
-with_openmpi=${1:-__INSTALL__}
-
+[ ${MPI_MODE} != "openmpi" ] && exit 0
 [ -f "${BUILDDIR}/setup_openmpi" ] && rm "${BUILDDIR}/setup_openmpi"
 
 OPENMPI_CFLAGS=''
@@ -16,6 +18,7 @@ OPENMPI_LDFLAGS=''
 OPENMPI_LIBS=''
 ! [ -d "${BUILDDIR}" ] && mkdir -p "${BUILDDIR}"
 cd "${BUILDDIR}"
+
 case "$with_openmpi" in
     __INSTALL__)
         echo "==================== Installing OpenMPI ===================="
@@ -27,7 +30,7 @@ case "$with_openmpi" in
             if [ -f openmpi-${openmpi_ver}.tar.gz ] ; then
                 echo "openmpi-${openmpi_ver}.tar.gz is found"
             else
-                download_pkg ${DOWNLOADER_FLAGS} \
+                download_pkg ${DOWNLOADER_FLAGS} ${openmpi_sha256} \
                              https://download.open-mpi.org/release/open-mpi/v${openmpi_ver%.*}/openmpi-${openmpi_ver}.tar.gz
             fi
             echo "Installing from scratch into ${pkg_install_dir}"
@@ -187,3 +190,9 @@ leak:ompi_file_open_f
 leak:progress_engine
 leak:__GI___strdup
 EOF
+
+# update toolchain environment
+load "${BUILDDIR}/setup_openmpi"
+export -p > "${INSTALLDIR}/toolchain.env"
+
+report_timing "openmpi"
