@@ -72,6 +72,7 @@ QMMM/SE/regtest-force-mixing
 QS/regtest-xc
 QS/regtest-hfx-wfn-fitting                                  libint
 QS/regtest-tddfpt
+QS/regtest-tddfpt-stda
 QS/regtest-libxc                                            libxc libint
 QS/regtest-ps-implicit-2-2
 QMMM/QS/regtest-1
