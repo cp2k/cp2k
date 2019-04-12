@@ -1186,8 +1186,8 @@ CONTAINS
       INTEGER                                            :: handle
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: inds
       LOGICAL                                            :: explicit, multigrid_set
-      TYPE(section_vals_type), POINTER                   :: dipole_section, mgrid_section, xc_func, &
-                                                            xc_section
+      TYPE(section_vals_type), POINTER                   :: dipole_section, mgrid_section, &
+                                                            stda_section, xc_func, xc_section
 
       CALL timeset(routineN, handle)
 
@@ -1198,6 +1198,10 @@ CONTAINS
       CALL section_vals_val_get(t_section, "MAX_KV", i_val=t_control%nkvs)
       CALL section_vals_val_get(t_section, "NLUMO", i_val=t_control%nlumo)
       CALL section_vals_val_get(t_section, "NPROC_STATE", i_val=t_control%nprocs)
+      CALL section_vals_val_get(t_section, "KERNEL", i_val=t_control%kernel)
+      CALL section_vals_val_get(t_section, "OE_CORR", i_val=t_control%oe_corr)
+      CALL section_vals_val_get(t_section, "EV_SHIFT", r_val=t_control%ev_shift)
+      CALL section_vals_val_get(t_section, "EOS_SHIFT", r_val=t_control%eos_shift)
 
       CALL section_vals_val_get(t_section, "CONVERGENCE", r_val=t_control%conv)
       CALL section_vals_val_get(t_section, "MIN_AMPLITUDE", r_val=t_control%min_excitation_amplitude)
@@ -1291,6 +1295,15 @@ CONTAINS
       CALL section_vals_get(xc_func, explicit=explicit)
       IF (explicit) &
          CALL xc_functionals_expand(xc_func, xc_section)
+
+      ! sTDA subsection
+      stda_section => section_vals_get_subs_vals(t_section, "STDA")
+      CALL section_vals_get(stda_section, explicit=explicit)
+      IF (explicit) THEN
+         CALL section_vals_val_get(stda_section, "DO_EWALD", l_val=t_control%stda_control%do_ewald)
+         CALL section_vals_val_get(stda_section, "HFX_FRACTION", r_val=t_control%stda_control%hfx_fraction)
+         CALL section_vals_val_get(stda_section, "EPS_TD_FILTER", r_val=t_control%stda_control%eps_td_filter)
+      END IF
 
       CALL timestop(handle)
    END SUBROUTINE read_tddfpt2_control

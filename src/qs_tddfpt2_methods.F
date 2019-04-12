@@ -66,19 +66,13 @@ MODULE qs_tddfpt2_methods
         dbcsr_copy, dbcsr_deallocate_matrix, dbcsr_distribution_type, dbcsr_get_info, &
         dbcsr_init_p, dbcsr_p_type, dbcsr_scale, dbcsr_set, dbcsr_type
    USE hfx_admm_utils,                  ONLY: tddft_hfx_matrix
-   USE input_constants,                 ONLY: cholesky_dbcsr,&
-                                              cholesky_inverse,&
-                                              cholesky_off,&
-                                              cholesky_restore,&
-                                              tddfpt_dipole_berry,&
-                                              tddfpt_dipole_length,&
-                                              tddfpt_dipole_velocity
-   USE input_section_types,             ONLY: section_get_ival,&
-                                              section_get_rval,&
-                                              section_vals_get,&
-                                              section_vals_get_subs_vals,&
-                                              section_vals_type,&
-                                              section_vals_val_get
+   USE input_constants,                 ONLY: &
+        cholesky_dbcsr, cholesky_inverse, cholesky_off, cholesky_restore, oe_gllb, oe_lb, oe_none, &
+        oe_saop, oe_shift, tddfpt_dipole_berry, tddfpt_dipole_length, tddfpt_dipole_velocity
+   USE input_section_types,             ONLY: &
+        section_get_ival, section_get_rval, section_vals_create, section_vals_get, &
+        section_vals_get_subs_vals, section_vals_release, section_vals_retain, &
+        section_vals_set_subs_vals, section_vals_type, section_vals_val_get
    USE kahan_sum,                       ONLY: accurate_dot_product,&
                                               accurate_sum
    USE kinds,                           ONLY: default_path_length,&
@@ -118,6 +112,7 @@ MODULE qs_tddfpt2_methods
    USE qs_environment_types,            ONLY: get_qs_env,&
                                               qs_environment_type
    USE qs_integrate_potential,          ONLY: integrate_v_rspace
+   USE qs_ks_methods,                   ONLY: qs_ks_build_kohn_sham_matrix
    USE qs_ks_types,                     ONLY: qs_ks_env_type
    USE qs_mo_types,                     ONLY: allocate_mo_set,&
                                               deallocate_mo_set,&
@@ -150,6 +145,7 @@ MODULE qs_tddfpt2_methods
    USE xc_derivative_set_types,         ONLY: xc_derivative_set_type,&
                                               xc_dset_release
    USE xc_derivatives,                  ONLY: xc_functionals_get_needs
+   USE xc_pot_saop,                     ONLY: add_saop_pot
    USE xc_rho_cflags_types,             ONLY: xc_rho_cflags_type
    USE xc_rho_set_types,                ONLY: xc_rho_set_create,&
                                               xc_rho_set_release,&
@@ -179,9 +175,13 @@ MODULE qs_tddfpt2_methods
       TYPE(cp_fm_type), POINTER :: mos_occ
       !> virtual MOs stored in a matrix form [nao x nmo_virt]
       TYPE(cp_fm_type), POINTER :: mos_virt
-      !> occupied orbital energies
+      !> negated occupied orbital energy matrix [nmo_occ x nmo_occ]: - mos_occ^T * KS * mos_occ .
+      !> Allocated when orbital energy correction is in use, otherwise it is just a diagonal
+      !> matrix with 'evals_occ' on its diagonal
+      TYPE(cp_fm_type), POINTER                          :: evals_occ_matrix
+      !> (non-corrected) occupied orbital energies
       REAL(kind=dp), ALLOCATABLE, DIMENSION(:) :: evals_occ
-      !> virtual orbital energies
+      !> (non-corrected) virtual orbital energies
       REAL(kind=dp), ALLOCATABLE, DIMENSION(:) :: evals_virt
       !> phase of occupied MOs; +1.0 -- positive, -1.0 -- negative;
       !> it is mainly needed to make the restart file transferable
@@ -320,12 +320,14 @@ CONTAINS
       TYPE(cp_fm_p_type), DIMENSION(:), POINTER          :: mos_virt
       TYPE(cp_fm_type), POINTER                          :: mos_virt_spin
       TYPE(cp_logger_type), POINTER                      :: logger
-      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_ks, matrix_s
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_ks, matrix_ks_oep, matrix_s
+      TYPE(dbcsr_type), POINTER                          :: matrix_ks_oep_spin
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(mo_set_p_type), DIMENSION(:), POINTER         :: mos
       TYPE(qs_scf_env_type), POINTER                     :: scf_env
       TYPE(section_vals_type), POINTER                   :: hfx_section, input, &
                                                             tddfpt_print_section, tddfpt_section, &
+                                                            xc_fun_empty, xc_fun_original, &
                                                             xc_section
       TYPE(tddfpt2_control_type), POINTER                :: tddfpt_control
       TYPE(tddfpt_ground_state_mos), ALLOCATABLE, &
@@ -419,16 +421,72 @@ CONTAINS
          END IF
       END IF
 
+      ! obtain corrected KS-matrix
+      NULLIFY (matrix_ks_oep)
+      IF (tddfpt_control%oe_corr /= oe_none) THEN
+         CALL cp_warn(__LOCATION__, &
+                      "Orbital energy correction potential is an experimental feature. "// &
+                      "Use it with an extreme care")
+
+         IF (do_hfx) THEN
+            CALL cp_abort(__LOCATION__, &
+                          "Implementation of orbital energy correction XC-potentials is "// &
+                          "currently incompartible with exact-exchange functionals")
+         END IF
+
+         CALL dbcsr_allocate_matrix_set(matrix_ks_oep, nspins)
+         DO ispin = 1, nspins
+            CALL dbcsr_init_p(matrix_ks_oep(ispin)%matrix)
+            CALL dbcsr_copy(matrix_ks_oep(ispin)%matrix, matrix_ks(ispin)%matrix)
+         END DO
+
+         ! KS-matrix without XC-terms
+         xc_fun_original => section_vals_get_subs_vals(input, "DFT%XC%XC_FUNCTIONAL")
+         CALL section_vals_retain(xc_fun_original)
+         NULLIFY (xc_fun_empty)
+         CALL section_vals_create(xc_fun_empty, xc_fun_original%section)
+         CALL section_vals_set_subs_vals(input, "DFT%XC%XC_FUNCTIONAL", xc_fun_empty)
+         CALL section_vals_release(xc_fun_empty)
+
+         CALL qs_ks_build_kohn_sham_matrix(qs_env, calculate_forces=.FALSE., just_energy=.FALSE., &
+                                           ext_ks_matrix=matrix_ks_oep)
+         IF (tddfpt_control%oe_corr == oe_saop .OR. &
+             tddfpt_control%oe_corr == oe_lb .OR. &
+             tddfpt_control%oe_corr == oe_gllb) THEN
+            CALL add_saop_pot(matrix_ks_oep, qs_env, tddfpt_control%oe_corr)
+         ELSE IF (tddfpt_control%oe_corr == oe_shift) THEN
+            CALL cp_abort(__LOCATION__, &
+                          "Unimplemented orbital energy correction potential")
+         ELSE
+            CALL cp_abort(__LOCATION__, &
+                          "Unimplemented orbital energy correction potential")
+         END IF
+
+         CALL section_vals_set_subs_vals(input, "DFT%XC%XC_FUNCTIONAL", xc_fun_original)
+         CALL section_vals_release(xc_fun_original)
+      END IF
+
       DO ispin = 1, nspins
-         IF (ASSOCIATED(evals_virt)) &
+         IF (ASSOCIATED(evals_virt)) THEN
             evals_virt_spin => evals_virt(ispin)%array
-         IF (ASSOCIATED(mos_virt)) &
+         ELSE
+            NULLIFY (evals_virt_spin)
+         END IF
+         IF (ASSOCIATED(mos_virt)) THEN
             mos_virt_spin => mos_virt(ispin)%matrix
+         ELSE
+            NULLIFY (mos_virt_spin)
+         END IF
+         IF (ASSOCIATED(matrix_ks_oep)) THEN
+            matrix_ks_oep_spin => matrix_ks_oep(ispin)%matrix
+         ELSE
+            NULLIFY (matrix_ks_oep_spin)
+         END IF
 
          CALL tddfpt_init_ground_state_mos(gs_mos=gs_mos(ispin), mo_set=mos(ispin)%mo_set, nlumo=tddfpt_control%nlumo, &
                                            blacs_env=blacs_env, cholesky_method=cholesky_restore, &
                                            matrix_ks=matrix_ks(ispin)%matrix, matrix_s=matrix_s(1)%matrix, &
-                                           mos_virt=mos_virt_spin, evals_virt=evals_virt_spin)
+                                           mos_virt=mos_virt_spin, evals_virt=evals_virt_spin, matrix_ks_oep=matrix_ks_oep_spin)
       END DO
 
       IF (ASSOCIATED(evals_virt)) THEN
@@ -444,6 +502,9 @@ CONTAINS
          END DO
          DEALLOCATE (mos_virt)
       END IF
+
+      IF (ASSOCIATED(matrix_ks_oep)) &
+         matrix_ks => matrix_ks_oep
 
       ! components of the dipole operator
       CALL tddfpt_dipole_operator(dipole_op_mos_occ, tddfpt_control, gs_mos, qs_env)
@@ -549,7 +610,7 @@ CONTAINS
          DO
             ! *** perform Davidson iterations ***
             conv = tddfpt_davidson_solver(evects=evects, evals=evals, S_evects=S_evects, gs_mos=gs_mos, &
-                                          do_hfx=do_hfx, tddfpt_control=tddfpt_control, qs_env=qs_env, &
+                                          do_hfx=do_hfx, tddfpt_control=tddfpt_control, matrix_ks=matrix_ks, qs_env=qs_env, &
                                           kernel_env=kernel_env, kernel_env_admm_aux=kernel_env_admm_aux, &
                                           sub_env=sub_env, logger=logger, &
                                           iter_unit=log_unit, energy_unit=energy_unit, &
@@ -598,6 +659,13 @@ CONTAINS
       ! *** print summary information ***
       log_unit = cp_logger_get_default_io_unit()
 
+      IF (ASSOCIATED(matrix_ks_oep) .AND. tddfpt_control%dipole_form == tddfpt_dipole_velocity) THEN
+         CALL cp_warn(__LOCATION__, &
+                      "Transition dipole moments and oscillator strengths are likely to be incorrect "// &
+                      "when computed using an orbital energy correction XC-potential together with the velocity form "// &
+                      "of dipole transition integrals")
+      END IF
+
       CALL tddfpt_print_summary(log_unit, evects, evals, mult, dipole_op_mos_occ)
       CALL tddfpt_print_excitation_analysis(log_unit, evects, gs_mos, matrix_s(1)%matrix, &
                                             min_amplitude=tddfpt_control%min_excitation_amplitude)
@@ -631,6 +699,9 @@ CONTAINS
          CALL tddfpt_release_ground_state_mos(gs_mos(ispin))
       END DO
       DEALLOCATE (gs_mos)
+
+      IF (ASSOCIATED(matrix_ks_oep)) &
+         CALL dbcsr_deallocate_matrix_set(matrix_ks_oep)
 
       CALL timestop(handle)
    END SUBROUTINE tddfpt
@@ -1092,14 +1163,18 @@ CONTAINS
 !> \param matrix_ks        Kohn-Sham matrix for a given spin
 !> \param matrix_s         overlap matrix
 !> \param mos_virt         precomputed (OT) expansion coefficients of virtual molecular orbitals
-!>                         (in addition to the ADDED_MOS, if present)
-!> \param evals_virt       orbital energies of precomputed (OT) virtual molecular orbitals
+!>                         (in addition to the ADDED_MOS, if present). NULL when no OT is in use.
+!> \param evals_virt       orbital energies of precomputed (OT) virtual molecular orbitals.
+!>                         NULL when no OT is in use.
+!> \param matrix_ks_oep    Kohn-Sham matrix computed using the corrected XC-potential.
+!>                         NULL if there is no orbital energy correction to apply.
 !> \par History
 !>    * 05.2016 created as tddfpt_lumos() [Sergey Chulkov]
 !>    * 06.2016 renamed, altered prototype [Sergey Chulkov]
+!>    * 04.2019 limit the number of unoccupied states, orbital energy correction [Sergey Chulkov]
 ! **************************************************************************************************
    SUBROUTINE tddfpt_init_ground_state_mos(gs_mos, mo_set, nlumo, blacs_env, cholesky_method, matrix_ks, matrix_s, &
-                                           mos_virt, evals_virt)
+                                           mos_virt, evals_virt, matrix_ks_oep)
       TYPE(tddfpt_ground_state_mos), INTENT(out)         :: gs_mos
       TYPE(mo_set_type), POINTER                         :: mo_set
       INTEGER, INTENT(in)                                :: nlumo
@@ -1108,6 +1183,7 @@ CONTAINS
       TYPE(dbcsr_type), POINTER                          :: matrix_ks, matrix_s
       TYPE(cp_fm_type), POINTER                          :: mos_virt
       REAL(kind=dp), DIMENSION(:), POINTER               :: evals_virt
+      TYPE(dbcsr_type), POINTER                          :: matrix_ks_oep
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'tddfpt_init_ground_state_mos', &
          routineP = moduleN//':'//routineN
@@ -1125,7 +1201,8 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: my_block
       TYPE(cp_fm_pool_type), POINTER                     :: wfn_fm_pool
       TYPE(cp_fm_struct_type), POINTER                   :: ao_ao_fm_struct, ao_mo_occ_fm_struct, &
-                                                            ao_mo_virt_fm_struct, wfn_fm_struct
+                                                            ao_mo_virt_fm_struct, &
+                                                            mo_occ_mo_occ_fm_struct, wfn_fm_struct
       TYPE(cp_fm_type), POINTER                          :: matrix_ks_fm, mo_coeff_extended, &
                                                             ortho_fm, work_fm
       TYPE(cp_para_env_type), POINTER                    :: para_env
@@ -1160,7 +1237,7 @@ CONTAINS
       CALL cp_fm_struct_create(ao_mo_occ_fm_struct, nrow_global=nao, ncol_global=nmo_occ, context=blacs_env)
       CALL cp_fm_struct_create(ao_mo_virt_fm_struct, nrow_global=nao, ncol_global=nmo_virt, context=blacs_env)
 
-      NULLIFY (gs_mos%mos_occ, gs_mos%mos_virt)
+      NULLIFY (gs_mos%mos_occ, gs_mos%mos_virt, gs_mos%evals_occ_matrix)
       CALL cp_fm_create(gs_mos%mos_occ, ao_mo_occ_fm_struct)
       CALL cp_fm_create(gs_mos%mos_virt, ao_mo_virt_fm_struct)
 
@@ -1169,7 +1246,7 @@ CONTAINS
       ALLOCATE (gs_mos%phases_occ(nmo_occ))
 
       CALL cp_fm_struct_release(ao_mo_virt_fm_struct)
-      CALL cp_fm_struct_release(ao_mo_occ_fm_struct)
+      !CALL cp_fm_struct_release(ao_mo_occ_fm_struct)
 
       ! ++ nullify pointers
       NULLIFY (ao_ao_fm_struct, wfn_fm_struct, wfn_fm_pool)
@@ -1239,7 +1316,7 @@ CONTAINS
 
       ! compute the phase of molecular orbitals;
       ! matrix work_fm holds occupied molecular orbital coefficients distributed among all the processors
-      CALL cp_fm_struct_create(ao_mo_occ_fm_struct, nrow_global=nao, ncol_global=nmo_occ, context=blacs_env)
+      !CALL cp_fm_struct_create(ao_mo_occ_fm_struct, nrow_global=nao, ncol_global=nmo_occ, context=blacs_env)
       CALL cp_fm_create(work_fm, ao_mo_occ_fm_struct)
       CALL cp_fm_struct_release(ao_mo_occ_fm_struct)
 
@@ -1302,7 +1379,6 @@ CONTAINS
       END DO
 
       DEALLOCATE (minrow_neg_array, minrow_pos_array, sum_sign_array)
-      CALL cp_fm_release(work_fm)
 
       ! return the requested occupied and virtual molecular orbitals and corresponding orbital energies
       CALL cp_fm_to_fm(mo_coeff_extended, gs_mos%mos_occ, ncol=nmo_occ, source_start=1, target_start=1)
@@ -1319,6 +1395,21 @@ CONTAINS
          CALL cp_fm_to_fm(mo_coeff_extended, gs_mos%mos_virt, ncol=nmo_virt, source_start=nmo_occ + 1, target_start=1)
          gs_mos%evals_virt(1:nmo_virt) = mo_evals_extended(nmo_occ + 1:nmo_occ + nmo_virt)
       END IF
+
+      ! compute 'evals_occ_matrix', if orbital correction is in use
+      IF (ASSOCIATED(matrix_ks_oep)) THEN
+         NULLIFY (mo_occ_mo_occ_fm_struct)
+         CALL cp_fm_struct_create(mo_occ_mo_occ_fm_struct, nrow_global=nmo_occ, ncol_global=nmo_occ, context=blacs_env)
+         CALL cp_fm_create(gs_mos%evals_occ_matrix, mo_occ_mo_occ_fm_struct)
+         CALL cp_fm_struct_release(mo_occ_mo_occ_fm_struct)
+
+         ! work_fm is a temporary [nao x nmo_occ] matrix
+         CALL cp_dbcsr_sm_fm_multiply(matrix_ks_oep, gs_mos%mos_occ, work_fm, ncol=nmo_occ, alpha=1.0_dp, beta=0.0_dp)
+         CALL cp_gemm('T', 'N', nmo_occ, nmo_occ, nao, 1.0_dp, gs_mos%mos_occ, work_fm, 0.0_dp, gs_mos%evals_occ_matrix)
+      ELSE
+         NULLIFY (gs_mos%evals_occ_matrix)
+      END IF
+      CALL cp_fm_release(work_fm)
 
       IF (do_eigen) &
          CALL deallocate_mo_set(mos_extended)
@@ -1349,6 +1440,9 @@ CONTAINS
 
       IF (ALLOCATED(gs_mos%evals_occ)) &
          DEALLOCATE (gs_mos%evals_occ)
+
+      IF (ASSOCIATED(gs_mos%evals_occ_matrix)) &
+         CALL cp_fm_release(gs_mos%evals_occ_matrix)
 
       IF (ASSOCIATED(gs_mos%mos_virt)) &
          CALL cp_fm_release(gs_mos%mos_virt)
@@ -1777,7 +1871,7 @@ CONTAINS
       CHARACTER(LEN=*), PARAMETER :: routineN = 'tddfpt_apply_energy_diff', &
          routineP = moduleN//':'//routineN
 
-      INTEGER                                            :: handle, ispin, ivect, nspins, nvects
+      INTEGER                                            :: handle, ispin, ivect, nao, nspins, nvects
       INTEGER, DIMENSION(maxspins)                       :: nmo_occ
 
       CALL timeset(routineN, handle)
@@ -1785,6 +1879,7 @@ CONTAINS
       nspins = SIZE(evects, 1)
       nvects = SIZE(evects, 2)
 
+      CALL cp_fm_get_info(gs_mos(1)%mos_occ, nrow_global=nao)
       DO ispin = 1, nspins
          nmo_occ(ispin) = SIZE(gs_mos(ispin)%evals_occ)
       END DO
@@ -1795,8 +1890,15 @@ CONTAINS
                                          Aop_evects(ispin, ivect)%matrix, ncol=nmo_occ(ispin), &
                                          alpha=1.0_dp, beta=1.0_dp)
 
+            IF (ASSOCIATED(gs_mos(ispin)%evals_occ_matrix)) THEN
+               ! orbital energy correction: evals_occ_matrix is not a diagonal matrix
+               CALL cp_gemm('N', 'N', nao, nmo_occ(ispin), nmo_occ(ispin), 1.0_dp, &
+                            S_evects(ispin, ivect)%matrix, gs_mos(ispin)%evals_occ_matrix, &
+                            0.0_dp, work_fm_ao_mo_occ(ispin)%matrix)
+            ELSE
             CALL cp_fm_to_fm(S_evects(ispin, ivect)%matrix, work_fm_ao_mo_occ(ispin)%matrix)
             CALL cp_fm_column_scale(work_fm_ao_mo_occ(ispin)%matrix, gs_mos(ispin)%evals_occ)
+            END IF
 
             ! KS * C1 - S * C1 * occupied_orbital_energies
             CALL cp_fm_scale_and_add(1.0_dp, Aop_evects(ispin, ivect)%matrix, -1.0_dp, work_fm_ao_mo_occ(ispin)%matrix)
@@ -2585,6 +2687,7 @@ CONTAINS
 !> \param gs_mos                molecular orbitals optimised for the ground state
 !> \param do_hfx                flag that activates computation of exact-exchange terms
 !> \param tddfpt_control        TDDFPT control parameters
+!> \param matrix_ks             Kohn-Sham matrix
 !> \param qs_env                Quickstep environment
 !> \param kernel_env            kernel environment
 !> \param kernel_env_admm_aux   kernel environment for ADMM correction
@@ -2602,7 +2705,7 @@ CONTAINS
 !>       Thomas Chassaing in 2002.
 ! **************************************************************************************************
    FUNCTION tddfpt_davidson_solver(evects, evals, S_evects, gs_mos, do_hfx, tddfpt_control, &
-                                   qs_env, kernel_env, kernel_env_admm_aux, &
+                                   matrix_ks, qs_env, kernel_env, kernel_env_admm_aux, &
                                    sub_env, logger, iter_unit, energy_unit, &
                                    tddfpt_print_section, work_matrices) RESULT(conv)
       TYPE(cp_fm_p_type), DIMENSION(:, :), INTENT(inout) :: evects
@@ -2612,6 +2715,7 @@ CONTAINS
          INTENT(in)                                      :: gs_mos
       LOGICAL, INTENT(in)                                :: do_hfx
       TYPE(tddfpt2_control_type), POINTER                :: tddfpt_control
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_ks
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(tddfpt_kernel_env_type), INTENT(in)           :: kernel_env, kernel_env_admm_aux
       TYPE(tddfpt_subgroup_env_type), INTENT(in)         :: sub_env
@@ -2633,7 +2737,7 @@ CONTAINS
       REAL(kind=dp), ALLOCATABLE, DIMENSION(:)           :: evals_last
       TYPE(cp_fm_p_type), ALLOCATABLE, DIMENSION(:, :)   :: Aop_krylov, Aop_ritz, krylov_vects, &
                                                             S_krylov
-      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_ks, matrix_s
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_s
 
       CALL timeset(routineN, handle)
 
@@ -2647,7 +2751,7 @@ CONTAINS
          CPASSERT(SIZE(evals) == nstates)
       END IF
 
-      CALL get_qs_env(qs_env, matrix_ks=matrix_ks, matrix_s=matrix_s)
+      CALL get_qs_env(qs_env, matrix_s=matrix_s)
 
       ! adjust the number of Krylov vectors
       max_krylov_vects = tddfpt_control%nkvs
@@ -3241,8 +3345,10 @@ CONTAINS
          CALL integer_to_string(mult, mult_str)
          WRITE (log_unit, '(/,1X,A1,A,1X,A,/)') lsd_str, "-TDDFPT states of multiplicity", TRIM(mult_str)
 
-         WRITE (log_unit, '(T10,A,T19,A,T37,A,T69,A)') "State", "Excitation", "Transition dipole (a.u.)", "Oscillator"
-         WRITE (log_unit, '(T10,A,T19,A,T37,A,T49,A,T61,A,T67,A)') "number", "energy (eV)", "x", "y", "z", "strength (a.u.)"
+         WRITE (log_unit, '(T10,A,T19,A,T37,A,T69,A)') "State", "Excitation", &
+                                                       "Transition dipole (a.u.)", "Oscillator"
+         WRITE (log_unit, '(T10,A,T19,A,T37,A,T49,A,T61,A,T67,A)') "number", "energy (eV)", &
+                                                                   "x", "y", "z", "strength (a.u.)"
          WRITE (log_unit, '(T10,72("-"))')
       END IF
 
@@ -3254,7 +3360,8 @@ CONTAINS
       IF (nspins > 1 .OR. mult == 1) THEN
          DO ispin = 1, nspins
             DO ideriv = 1, nderivs
-               CALL cp_fm_trace(evects(ispin, :), dipole_op_mos_occ(ideriv, ispin)%matrix, trans_dipoles(:, ideriv, ispin))
+               CALL cp_fm_trace(evects(ispin, :), dipole_op_mos_occ(ideriv, ispin)%matrix, &
+                                trans_dipoles(:, ideriv, ispin))
             END DO
          END DO
 
@@ -3275,6 +3382,11 @@ CONTAINS
                "TDDFPT|", istate, evals(istate)*evolt, trans_dipoles(istate, 1:nderivs, 1), osc_strength
          END IF
       END DO
+
+      ! punch a checksum for the regs
+      IF (log_unit > 0) THEN
+         WRITE (log_unit, '(/,T2,A,E14.6)') 'TDDFPT : CheckSum  =', SQRT(SUM(evals**2))
+      END IF
 
       DEALLOCATE (trans_dipoles)
 

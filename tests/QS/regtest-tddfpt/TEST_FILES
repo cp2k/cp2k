@@ -3,15 +3,15 @@
 # e.g. 0 means do not compare anything, running is enough
 #      1 compares the last total energy in the file
 #      for details see cp2k/tools/do_regtest
-H2O_tddfpt-s-1.inp                                    37    1.0E-06                   0.604250E+00
-H2O_tddfpt-t-1.inp                                    37      4e-05                       0.304926
-NO_tddfpt-s-1.inp                                     37      1e-14                   0.403576E+00
-NO_tddfpt-t-1.inp                                     37      4e-04                       0.370446
-H2O_tddfpt-s-2.inp                                    37    1.0E-14                   0.547986E+00
-H2O_tddfpt-t-2.inp                                    37    1.0E-14                   0.548674E+00
-NO_tddfpt-t-2.inp                                     37    1.0E-14                   0.409701E+00
-H2O_tddfpt-s-3.inp                                    37    1.0E-14                   0.549866E+00
-H2O_tddfpt-t-3.inp                                    37    1.0E-14                   0.588369E+00
-NO_tddfpt-s-3.inp                                     37      4e-06                   0.504784E+00
-NO_tddfpt-t-3.inp                                     37      8e-06                       0.443382
+H2O_tddfpt-s-1.inp                                    37    1.0E-06                   0.602948E+00
+H2O_tddfpt-t-1.inp                                    37    1.0E-06                   0.300222E+00
+NO_tddfpt-s-1.inp                                     37    1.0E-06                   0.325318E+00
+NO_tddfpt-t-1.inp                                     37    2.0E-04                   0.337054E+00
+H2O_tddfpt-s-2.inp                                    37    1.0E-06                   0.543390E+00
+H2O_tddfpt-t-2.inp                                    37    1.0E-06                   0.548605E+00
+NO_tddfpt-t-2.inp                                     37    1.0E-06                   0.358683E+00
+H2O_tddfpt-s-3.inp                                    37    1.0E-06                   0.543390E+00
+H2O_tddfpt-t-3.inp                                    37    1.0E-06                   0.579030E+00
+NO_tddfpt-s-3.inp                                     37    1.0E-06                   0.350929E+00
+NO_tddfpt-t-3.inp                                     37    1.0E-06                   0.358683E+00
 #EOF

@@ -29,10 +29,11 @@ MODULE input_cp2k_properties_dft
         current_gauge_atom, current_gauge_r, current_gauge_r_and_step_func, &
         current_orb_center_atom, current_orb_center_box, current_orb_center_common, &
         current_orb_center_wannier, do_et_ddapc, do_full_density, do_no_et, do_spin_density, &
-        ot_precond_full_all, ot_precond_full_kinetic, ot_precond_full_single, &
-        ot_precond_full_single_inverse, ot_precond_none, ot_precond_s_inverse, &
-        tddfpt_dipole_berry, tddfpt_dipole_length, tddfpt_dipole_velocity, use_mom_ref_coac, &
-        use_mom_ref_com, use_mom_ref_user, use_mom_ref_zero
+        oe_gllb, oe_lb, oe_none, oe_saop, oe_shift, ot_precond_full_all, ot_precond_full_kinetic, &
+        ot_precond_full_single, ot_precond_full_single_inverse, ot_precond_none, &
+        ot_precond_s_inverse, tddfpt_dipole_berry, tddfpt_dipole_length, tddfpt_dipole_velocity, &
+        tddfpt_kernel_full, tddfpt_kernel_stda, use_mom_ref_coac, use_mom_ref_com, &
+        use_mom_ref_user, use_mom_ref_zero
    USE input_cp2k_atprop,               ONLY: create_atprop_section
    USE input_cp2k_dft,                  ONLY: create_ddapc_restraint_section,&
                                               create_interp_section,&
@@ -1150,8 +1151,9 @@ CONTAINS
       TYPE(section_type), POINTER                        :: print_key, subsection
 
       CPASSERT(.NOT. ASSOCIATED(section))
-      CALL section_create(section, __LOCATION__, name="TDDFPT", &
-                          description="Parameters needed to set up the Time-Dependent Density Functional Perturbation Theory. "// &
+      CALL section_create(section, "TDDFPT", &
+                          description="Parameters needed to set up the Time-Dependent "// &
+                          "Density Functional Perturbation Theory. "// &
                           "Current implementation works for hybrid functionals. "// &
                           "Can be used with Gaussian and Plane Waves (GPW) method only.", &
                           n_keywords=12, n_subsections=4, repeats=.FALSE., &
@@ -1206,6 +1208,50 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
+      ! kernel type
+      CALL keyword_create(keyword, name="KERNEL", &
+                          description="Options to compute the kernel", &
+                          usage="KERNEL FULL", &
+                          enum_c_vals=s2a("FULL", "sTDA"), &
+                          enum_i_vals=(/tddfpt_kernel_full, tddfpt_kernel_stda/), &
+                          default_i_val=tddfpt_kernel_full)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, name="OE_CORR", &
+                          description="Orbital energy correction potential.", &
+                          enum_c_vals=s2a("NONE", "LB94", "GLLB", "SAOP", "SHIFT"), &
+                          enum_i_vals=(/oe_none, oe_lb, oe_gllb, oe_saop, oe_shift/), &
+                          enum_desc=s2a("No orbital correction scheme is used", &
+                                        "van Leeuwen and Baerends. PRA, 49:2421, 1994", &
+                                        "Gritsenko, van Leeuwen, van Lenthe, Baerends. PRA, 51:1944, 1995", &
+                                        "Gritsenko, Schipper, Baerends. Chem. Phys. Lett., 302:199, 1999", &
+                                        "Constant shift of virtual and/or open-shell orbitals"), &
+                          default_i_val=oe_none)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      ! SHIFTS
+      CALL keyword_create(keyword, name="EV_SHIFT", &
+                          variants=s2a("VIRTUAL_SHIFT"), &
+                          description="Constant shift of virtual state eigenvalues.", &
+                          usage="EV_SHIFT 0.500", &
+                          n_var=1, type_of_var=real_t, &
+                          unit_str="eV", &
+                          default_r_val=0.0_dp)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+      !
+      CALL keyword_create(keyword, name="EOS_SHIFT", &
+                          variants=s2a("OPEN_SHELL_SHIFT"), &
+                          description="Constant shift of open shell eigenvalues.", &
+                          usage="EOS_SHIFT 0.200", &
+                          n_var=1, type_of_var=real_t, &
+                          unit_str="eV", &
+                          default_r_val=0.0_dp)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
       ! Real
       CALL keyword_create(keyword, __LOCATION__, name="CONVERGENCE", &
                           description="Target accuracy for excited state energies.", &
@@ -1223,8 +1269,9 @@ CONTAINS
 
       CALL keyword_create(keyword, __LOCATION__, name="ORTHOGONAL_EPS", &
                           description="The largest possible overlap between the ground state and "// &
-                          "orthogonalised excited state wave-functions. Davidson iterations will be restarted "// &
-                          "when the overlap goes beyond this threshold in order to prevent numerical instability.", &
+                          "orthogonalised excited state wave-functions. Davidson iterations "// &
+                          "will be restarted when the overlap goes beyond this threshold in "// &
+                          "order to prevent numerical instability.", &
                           n_var=1, type_of_var=real_t, &
                           default_r_val=1.0e-4_dp)
       CALL section_add_keyword(section, keyword)
@@ -1308,6 +1355,11 @@ CONTAINS
       CALL section_add_subsection(section, subsection)
       CALL section_release(subsection)
 
+      ! sTDA subsection
+      CALL create_stda_section(subsection)
+      CALL section_add_subsection(section, subsection)
+      CALL section_release(subsection)
+
       ! PRINT subsection
       CALL section_create(subsection, __LOCATION__, name="PRINT", &
                           description="Printing of information during the TDDFT run.", repeats=.FALSE.)
@@ -1350,5 +1402,47 @@ CONTAINS
       CALL section_add_subsection(section, subsection)
       CALL section_release(subsection)
    END SUBROUTINE create_tddfpt2_section
+
+! **************************************************************************************************
+!> \brief creates the stda input section (simplified Tamm Dancoff Approximation)
+!> \param section the section to create
+! **************************************************************************************************
+   SUBROUTINE create_stda_section(section)
+      TYPE(section_type), POINTER                        :: section
+
+      CHARACTER(len=*), PARAMETER :: routineN = 'create_stda_section', &
+         routineP = moduleN//':'//routineN
+
+      TYPE(keyword_type), POINTER                        :: keyword
+
+      CPASSERT(.NOT. ASSOCIATED(section))
+      CALL section_create(section, "sTDA", &
+                          description="parameters needed and setup for sTDA calculations", &
+                          n_keywords=3, n_subsections=0, repeats=.FALSE.)
+      NULLIFY (keyword)
+
+      CALL keyword_create(keyword, name="FRACTION", &
+                          variants=(/"HFX_FRACTION"/), &
+                          description="The fraction of Hartree-Fock to add to the total energy. "// &
+                          "1.0 implies standard Hartree-Fock if used with XC_FUNCTIONAL NONE. "// &
+                          "NOTE: In a mixed potential calculation this should be set to 1.0, otherwise "// &
+                          "all parts are multiplied with this factor. ", &
+                          usage="FRACTION 0.0", default_r_val=0.0_dp)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, name="DO_EWALD", &
+                          description="Use Ewald type method for Coulomb interaction", &
+                          usage="DO_EWALD", default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, name="EPS_TD_FILTER", &
+                          description="Threshold for filtering the transition density matrix", &
+                          usage="EPS_TD_FILTER", default_r_val=1.e-10_dp)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+   END SUBROUTINE create_stda_section
 
 END MODULE input_cp2k_properties_dft
