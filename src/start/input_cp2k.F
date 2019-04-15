@@ -661,7 +661,7 @@ CONTAINS
          keyword, name="MASTER_SLAVE", &
          description="If a master-slave setup should be employed, in which one process is used to distribute the tasks. "// &
          "This is most useful to load-balance if not all jobs have the same length, "// &
-         "and a lot of CPUs/groups are availabe.", &
+         "and a lot of CPUs/groups are available.", &
          usage="MASTER_SLAVE", default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)

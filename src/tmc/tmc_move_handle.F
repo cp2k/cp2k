@@ -851,7 +851,7 @@ CONTAINS
 
 ! **************************************************************************************************
 !> \brief clear the statistics of accepting/rejection moves
-!>        because worker statistics will be add seperatelly on masters counters
+!>        because worker statistics will be add separately on masters counters
 !> \param move_types counters for acceptance/rejection
 !> \author Mandes 02.2013
 ! **************************************************************************************************

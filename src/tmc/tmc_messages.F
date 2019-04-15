@@ -413,7 +413,7 @@ CONTAINS
 !! **************************************************************************************************
 !!> \brief the message for sending the atom mass
 !!>        (number of atoms is also tranfered)
-!!>        atom names have to be done seperately,
+!!>        atom names have to be done separately,
 !!>        because character send only with bcast possible
 !!> \param tmc_parms th send the cell properties
 !!> \param m_send the message structure
@@ -455,7 +455,7 @@ CONTAINS
 !! **************************************************************************************************
 !!> \brief the message for reading the atom mass
 !!>        (number of atoms is also tranfered)
-!!>        atom names have to be done seperately,
+!!>        atom names have to be done separately,
 !!>        because character send only with bcast possible
 !!> \param tmc_parms th send the cell properties
 !!> \param m_send the message structure

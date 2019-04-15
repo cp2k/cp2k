@@ -5,7 +5,7 @@
 
 ! **************************************************************************************************
 !> \brief tree nodes acceptance
-!>        code is seperated in 3 parts, first the acceptance criteria,
+!>        code is separated in 3 parts, first the acceptance criteria,
 !>        second the tree node acceptance handling, searching etc. and
 !>        than the acceptance probability handling
 !> \par History

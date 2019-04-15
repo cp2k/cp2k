@@ -416,7 +416,7 @@ CONTAINS
       CALL keyword_release(keyword)
 
       CALL keyword_create(keyword, name="FILTER_FACTOR", &
-                          description="Allows to set a seperate EPS_FILTER in the newton iterations."// &
+                          description="Allows to set a separate EPS_FILTER in the newton iterations."// &
                           " The new EPS is EPS_FILTER*FILTER_FACTOR.", &
                           usage="FILTER_FACTOR 10.0", default_r_val=1.0_dp)
       CALL section_add_keyword(section, keyword)

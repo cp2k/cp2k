@@ -684,7 +684,7 @@ CONTAINS
 !>        tasks(3,i) := compressed type (iatom, jatom, ....)
 !>        tasks(4,i) := type (0: replicated, 1: distributed local, 2: distributed generalised)
 !>        tasks(5,i) := cost
-!>        tasks(6,i) := alternate destination code (0 if none availabe)
+!>        tasks(6,i) := alternate destination code (0 if none available)
 !>
 !> \param tasks ...
 !> \param dist_ab ...

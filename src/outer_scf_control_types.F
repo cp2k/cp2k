@@ -6,7 +6,7 @@
 ! **************************************************************************************************
 !> \brief parameters that control the outer loop of an SCF iteration
 !> \par History
-!>      09.2018 created by moving outer SCF types to seperate module [Nico Holmberg]
+!>      09.2018 created by moving outer SCF types to separate module [Nico Holmberg]
 !> \author Nico Holmberg
 ! **************************************************************************************************
 MODULE outer_scf_control_types

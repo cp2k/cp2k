@@ -355,7 +355,7 @@ CONTAINS
 !> \brief Writes the header for the restart file
 !> \param iunit ...
 !> \par History
-!>      01.2008 [created] - Splitted from write_restart
+!>      01.2008 [created] - Split from write_restart
 !> \author Teodoro Laino - University of Zurich - 01.2008
 ! **************************************************************************************************
    SUBROUTINE write_restart_header(iunit)

@@ -637,7 +637,7 @@ CONTAINS
 !> \param cell ...
 !> \param use_virial ...
 !> \par History
-!>      Splitted routines to clean and to fix a bug with the tensor whose
+!>      Split routines to clean and to fix a bug with the tensor whose
 !>      original definition was not correct for PBC.. [Teodoro Laino -06/2007]
 ! **************************************************************************************************
    SUBROUTINE bonded_correct_gaussian(fist_nonbond_env, atomic_kind_set, &
@@ -898,7 +898,7 @@ CONTAINS
 !> \param atprop_env ...
 !> \param use_virial ...
 !> \par History
-!>      Splitted routines to clean and to fix a bug with the tensor whose
+!>      Split routines to clean and to fix a bug with the tensor whose
 !>      original definition was not correct for PBC..
 !> \author Teodoro Laino
 ! **************************************************************************************************
@@ -1002,7 +1002,7 @@ CONTAINS
 !> \param atprop_env ...
 !> \param use_virial ...
 !> \par History
-!>      Splitted routines to clean and to fix a bug with the tensor whose
+!>      Split routines to clean and to fix a bug with the tensor whose
 !>      original definition was not correct for PBC..
 !> \author Teodoro Laino
 ! **************************************************************************************************

@@ -259,7 +259,7 @@ CONTAINS
          "**                                                                           **", &
          "**                                                ... make the atoms dance   **", &
          "**                                                                           **", &
-         "**            Copyright (C) by CP2K developers group (2000 - 2018)           **", &
+         "**            Copyright (C) by CP2K developers group (2000 - 2019)           **", &
          "**                                                                           **", &
          "*******************************************************************************"
    END SUBROUTINE qs_header
