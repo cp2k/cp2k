@@ -737,41 +737,41 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE cp_fm_syevr(matrix, eigenvectors, eigenvalues, ilow, iup)
 
-      TYPE(cp_fm_type), POINTER                    :: matrix
-      TYPE(cp_fm_type), POINTER, OPTIONAL          :: eigenvectors
+      TYPE(cp_fm_type), POINTER                  :: matrix
+      TYPE(cp_fm_type), POINTER, OPTIONAL        :: eigenvectors
       REAL(KIND=dp), DIMENSION(:), INTENT(OUT)   :: eigenvalues
-      INTEGER, INTENT(IN), OPTIONAL                :: ilow, iup
+      INTEGER, INTENT(IN), OPTIONAL              :: ilow, iup
 
       CHARACTER(LEN=*), PARAMETER :: routineN = "cp_fm_syevr", &
                                      routineP = moduleN//":"//routineN
-#if (defined(__SCALAPACK) || defined(__SCALAPACK2))
-      REAL(KIND=dp), PARAMETER  :: vl = 0.0_dp, &
-                                   vu = 0.0_dp
-#endif
 
       CHARACTER(LEN=1)                           :: job_type
       INTEGER                                    :: handle, ilow_local, &
-                                                    info, iup_local, &
-                                                    lwork, liwork, mypcol, &
-                                                    myprow, n, neig
-      INTEGER, DIMENSION(:), ALLOCATABLE         :: iwork
+                                                    iup_local, n, neig, &
+                                                    mypcol, myprow
       LOGICAL                                    :: ionode, needs_evecs
-      REAL(KIND=dp), DIMENSION(:), ALLOCATABLE   :: w, work
-      REAL(KIND=dp), DIMENSION(:, :), POINTER     :: a, z
 
       TYPE(cp_blacs_env_type), POINTER           :: context
       TYPE(cp_logger_type), POINTER              :: logger
 
       REAL(KIND=dp), EXTERNAL :: dlamch
 
+#if (defined(__SCALAPACK) || defined(__SCALAPACK2))
+      REAL(KIND=dp), PARAMETER  :: vl = 0.0_dp, &
+                                   vu = 0.0_dp
+      REAL(KIND=dp), DIMENSION(:, :), POINTER    :: a, z
+      REAL(KIND=dp), DIMENSION(:), ALLOCATABLE   :: w, work
+      INTEGER, DIMENSION(:), ALLOCATABLE         :: iwork
+      INTEGER                                    :: info, liwork, lwork
 #if defined(__SCALAPACK2)
-      INTEGER, DIMENSION(9)               :: desca, descz
-      INTEGER                             :: m, nz
-#else
-      INTEGER                             :: m, nb
-      REAL(dp)                            :: abstol
-      INTEGER, DIMENSION(:), ALLOCATABLE  :: ifail
-      INTEGER, EXTERNAL                   :: ilaenv
+      INTEGER, DIMENSION(9)                      :: desca, descz
+      INTEGER                                    :: m, nz
+#elif defined(__SCALAPACK)
+      INTEGER                                    :: m, nb
+      REAL(dp)                                   :: abstol
+      INTEGER, DIMENSION(:), ALLOCATABLE         :: ifail
+      INTEGER, EXTERNAL                          :: ilaenv
+#endif
 #endif
 
       ! by default all
