@@ -296,6 +296,11 @@ CONTAINS
       CALL section_vals_val_get(im_time_section, "RI_G0W0", &
                                 l_val=mp2_env%ri_rpa_im_time%do_gw_im_time)
 
+      CALL section_vals_val_get(mp2_section, "IM_TIME%DO_DBCSR_T", &
+                                l_val=mp2_env%ri_rpa_im_time%do_dbcsr_t)
+      CALL section_vals_val_get(mp2_section, "IM_TIME%MAX_BLOCK_SIZE_SQRT", &
+                                i_val=mp2_env%ri_rpa_im_time%max_bsize_sqrt)
+
       CALL section_vals_val_get(mp2_section, "RI_LAPLACE%QUADRATURE_POINTS", &
                                 i_val=mp2_env%ri_laplace%n_quadrature)
       CALL section_vals_val_get(mp2_section, "RI_LAPLACE%SIZE_INTEG_GROUP", &

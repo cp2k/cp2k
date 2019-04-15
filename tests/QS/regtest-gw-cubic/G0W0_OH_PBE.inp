@@ -1,4 +1,4 @@
-&GLOBAL                                                                                           
+&GLOBAL
   PROJECT  RI_RPA_H2O
   PRINT_LEVEL MEDIUM
   RUN_TYPE ENERGY
@@ -48,6 +48,7 @@
         RI OVERLAP
         IM_TIME
         &IM_TIME
+          DO_DBCSR_T .FALSE.
           GW
         &END IM_TIME
         &RI_RPA
@@ -65,12 +66,12 @@
             CORR_MOS_VIRT         10
             NUMB_POLES            2
             MAX_ITER_FIT          10000
-            CROSSING_SEARCH       Z_SHOT 
+            CROSSING_SEARCH       Z_SHOT
             FERMI_LEVEL_OFFSET    2.0E-2
             EV_SC_ITER            1
             HF_LIKE_EV_START      FALSE
             PRINT_GW_DETAILS
-          &END RI_G0W0 
+          &END RI_G0W0
         &END RI_RPA
         MEMORY  200.
         NUMBER_PROC  1
@@ -93,7 +94,7 @@
       POTENTIAL  GTH-PBE-q6
     &END KIND
     &TOPOLOGY
-      COORD_FILE_NAME  OH_radical_gas.xyz 
+      COORD_FILE_NAME  OH_radical_gas.xyz
       COORD_FILE_FORMAT xyz
       &CENTER_COORDINATES
       &END
