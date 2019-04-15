@@ -75,7 +75,7 @@ CONTAINS
 !>        specific for Semi-empirical calculations
 !> \param qs_env the qs_env in which the qs_env lives
 !> \par History
-!>      07.2008 created [tlaino] - Splitted from qs_scf_post (general)
+!>      07.2008 created [tlaino] - Split from qs_scf_post (general)
 !> \author tlaino
 !> \note
 !>      this function changes mo_eigenvectors and mo_eigenvalues, depending on the print keys.

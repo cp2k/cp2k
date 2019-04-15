@@ -135,7 +135,7 @@ PROGRAM cp2k_shell
      CALL m_getarg(1, out_filename)
      IF(m_iargc()>1 .OR. out_filename(:16) /= "--redirect-comm=") &
        CPABORT("Usage: cp2k_shell [--redirect-comm=filename]")
-     ! Redirect shell-output away from stdout into a seperate file/pipe.
+     ! Redirect shell-output away from stdout into a separate file/pipe.
      ! This is used e.g. by the ASE calculator.
      CALL open_file(file_name=TRIM(out_filename(17:)), unit_number=sout,&
                      file_position="ASIS",&

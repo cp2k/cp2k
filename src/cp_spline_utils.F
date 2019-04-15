@@ -6,7 +6,7 @@
 ! **************************************************************************************************
 !> \brief utils to manipulate splines on the regular grid of a pw
 !> \par History
-!>      01.2014 move routines related to input_section_types to seperate file.
+!>      01.2014 move routines related to input_section_types to separate file.
 !> \author Ole Schuett
 ! **************************************************************************************************
 MODULE cp_spline_utils

@@ -1249,7 +1249,7 @@ CONTAINS
             CALL dbcsr_set(matrix_k_tilde, 0.0_dp)
             CALL copy_fm_to_dbcsr(admm_env%work_orb_orb, matrix_k_tilde, keep_sparsity=.TRUE.)
 
-            ! Scale matrix_K_tilde here. Then, the scaling has to be done for forces seperately
+            ! Scale matrix_K_tilde here. Then, the scaling has to be done for forces separately
             ! Scale matrix_K_tilde by gsi for ADMMQ and ADMMS (Eqs. (27), (37) in Merlot, 2014)
             IF (admm_env%charge_constrain) THEN
                CALL dbcsr_scale(matrix_k_tilde, admm_env%gsi(ispin))

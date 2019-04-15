@@ -1313,7 +1313,7 @@ CONTAINS
          ! find the processors that should hold our data
          ! should be part of the rs grid type
          ! this is a loop over real ranks (i.e. the in-order cartesian ranks)
-         ! do the recv and send tasks in two seperate loops which will
+         ! do the recv and send tasks in two separate loops which will
          ! load balance better for OpenMP with large numbers of MPI tasks
 
 !$OMP PARALLEL DO DEFAULT(NONE), &
@@ -1539,7 +1539,7 @@ CONTAINS
          ! find the processors that should hold our data
          ! should be part of the rs grid type
          ! this is a loop over real ranks (i.e. the in-order cartesian ranks)
-         ! do the recv and send tasks in two seperate loops which will
+         ! do the recv and send tasks in two separate loops which will
          ! load balance better for OpenMP with large numbers of MPI tasks
 
          ! this is the reverse of rs2pw: what were the sends are now the recvs

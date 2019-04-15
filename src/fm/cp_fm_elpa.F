@@ -91,7 +91,7 @@ CONTAINS
    END FUNCTION get_elpa_number_kernels
 
 ! **************************************************************************************************
-!> \brief Returns the names of the availabel ELPA kernels
+!> \brief Returns the names of the available ELPA kernels
 !> \return ...
 ! **************************************************************************************************
    FUNCTION get_elpa_kernel_names() RESULT(names)
@@ -120,7 +120,7 @@ CONTAINS
    END FUNCTION get_elpa_kernel_names
 
 ! **************************************************************************************************
-!> \brief Returns the description texts of the availabel ELPA kernels
+!> \brief Returns the description texts of the available ELPA kernels
 !> \return ...
 ! **************************************************************************************************
    FUNCTION get_elpa_kernel_descriptions() RESULT(descriptions)

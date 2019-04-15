@@ -348,13 +348,13 @@ CONTAINS
                         "            CDFT state and subsequently copied to the other states"
                   ELSE
                      WRITE (iounit, FMT="(T2,A,T71)") &
-                        "MIXED_CDFT| The constraints are seperately built for all CDFT states"
+                        "MIXED_CDFT| The constraints are separately built for all CDFT states"
                   END IF
                CASE (mixed_cdft_parallel_nobuild)
                   WRITE (iounit, FMT="(T2,A,T71)") &
                      "MIXED_CDFT| CDFT states calculation mode: parallel without build"
                   WRITE (iounit, FMT="(T2,A,T71)") &
-                     "MIXED_CDFT| The constraints are seperately built for all CDFT states"
+                     "MIXED_CDFT| The constraints are separately built for all CDFT states"
                CASE DEFAULT
                   CPABORT("Unknown mixed CDFT run type.")
                END SELECT

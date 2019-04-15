@@ -294,7 +294,7 @@ CONTAINS
       nkp = kpoint%nkp
       npe = para_env%num_pe
       IF (npe == 1) THEN
-         ! only one process availabe -> owns all kpoints
+         ! only one process available -> owns all kpoints
          ALLOCATE (kp_env(nkp))
          DO ik = 1, nkp
             NULLIFY (kp_env(ik)%kpoint_env)
