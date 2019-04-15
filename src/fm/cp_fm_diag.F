@@ -744,7 +744,7 @@ CONTAINS
 
       CHARACTER(LEN=*), PARAMETER :: routineN = "cp_fm_syevr", &
                                      routineP = moduleN//":"//routineN
-#if (!defined(__SCALAPACK) || defined(__SCALAPACK2))
+#if (defined(__SCALAPACK) || defined(__SCALAPACK2))
       REAL(KIND=dp), PARAMETER  :: vl = 0.0_dp, &
                                    vu = 0.0_dp
 #endif
@@ -764,11 +764,9 @@ CONTAINS
 
       REAL(KIND=dp), EXTERNAL :: dlamch
 
-#if defined(__SCALAPACK)
-      INTEGER, DIMENSION(9)               :: desca, descz
 #if defined(__SCALAPACK2)
+      INTEGER, DIMENSION(9)               :: desca, descz
       INTEGER                             :: m, nz
-#endif
 #else
       INTEGER                             :: m, nb
       REAL(dp)                            :: abstol
@@ -807,11 +805,9 @@ CONTAINS
       myprow = context%mepos(1)
       mypcol = context%mepos(2)
 
-      ALLOCATE (w(n))
-
       eigenvalues(:) = 0.0_dp
 
-#if defined(__SCALAPACK)
+#if defined(__SCALAPACK2)
 
       IF (matrix%matrix_struct%nrow_block /= matrix%matrix_struct%ncol_block) THEN
          CPABORT("")
@@ -831,12 +827,11 @@ CONTAINS
 
       ! First Call: Determine the needed work_space
       lwork = -1
+      ALLOCATE (w(n))
       ALLOCATE (work(5*n))
       ALLOCATE (iwork(6*n))
-#if defined (__SCALAPACK2)
       CALL pdsyevr(job_type, 'I', 'U', n, a, 1, 1, desca, vl, vu, ilow_local, iup_local, m, nz, w(1), &
                    z, 1, 1, descz, work, lwork, iwork, liwork, info)
-#endif
       lwork = INT(work(1))
       lwork = NINT(work(1)+300000)
       liwork = iwork(1)
@@ -851,10 +846,8 @@ CONTAINS
 
       !Second call: solve the eigenvalue problem
       info = 0
-#if defined (__SCALAPACK2)
       CALL pdsyevr(job_type, 'I', 'U', n, a, 1, 1, desca, vl, vu, ilow_local, iup_local, m, nz, w(1), &
                    z, 1, 1, descz, work, lwork, iwork, liwork, info)
-#endif
 
       IF (info > 0) THEN
          WRITE (*, *) 'Processor ', myprow, mypcol, ': Error! INFO code = ', INFO
@@ -865,7 +858,10 @@ CONTAINS
       DEALLOCATE (iwork)
       DEALLOCATE (work)
 
-#else
+      eigenvalues(ilow_local:iup_local) = w(ilow_local:iup_local)
+      DEALLOCATE (w)
+
+#elif defined(__SCALAPACK)
 
       a => matrix%local_data
       IF (needs_evecs) THEN
@@ -886,6 +882,7 @@ CONTAINS
       ALLOCATE (ifail(n))
       ifail = 0
 
+      ALLOCATE (w(n))
       ALLOCATE (iwork(liwork))
       ALLOCATE (work(lwork))
 
@@ -903,10 +900,11 @@ CONTAINS
       DEALLOCATE (iwork)
       DEALLOCATE (work)
 
-#endif
-
       eigenvalues(ilow_local:iup_local) = w(ilow_local:iup_local)
       DEALLOCATE (w)
+#else
+      CPABORT("Scalapack is required but missing!")
+#endif
 
       CALL timestop(handle)
 
