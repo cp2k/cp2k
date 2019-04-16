@@ -22,7 +22,7 @@ MODULE mp2_direct_method
    USE dbcsr_api,                       ONLY: dbcsr_p_type
    USE gamma,                           ONLY: init_md_ftable
    USE hfx_energy_potential,            ONLY: coulomb4
-   USE hfx_libint_wrapper_types,        ONLY: libint_t
+   USE hfx_libint_wrapper,              ONLY: cp_libint_t
    USE hfx_load_balance_methods,        ONLY: cost_model,&
                                               p1_energy,&
                                               p2_energy,&
@@ -183,6 +183,7 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(dimen, dimen)             :: C_T
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       TYPE(cell_type), POINTER                           :: cell
+      TYPE(cp_libint_t)                                  :: private_lib
       TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: rho_ao
       TYPE(dft_control_type), POINTER                    :: dft_control
@@ -205,7 +206,6 @@ CONTAINS
          DIMENSION(:, :, :, :, :, :), POINTER            :: radii_pgf, screen_coeffs_pgf
       TYPE(hfx_screening_type)                           :: screening_parameter
       TYPE(hfx_type), POINTER                            :: actual_x_data, shm_master_x_data
-      TYPE(libint_t), DIMENSION(1)                       :: private_lib
       TYPE(pair_list_type_mp2)                           :: list_ij, list_kl
       TYPE(pair_set_list_type), ALLOCATABLE, &
          DIMENSION(:)                                    :: set_list_ij, set_list_kl

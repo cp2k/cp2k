@@ -15,9 +15,13 @@ MODULE hfx_libint_interface
                                               real_to_scaled
    USE gamma,                           ONLY: fgamma => fgamma_0
    USE hfx_contraction_methods,         ONLY: contract
-   USE hfx_libint_wrapper,              ONLY: get_derivs,&
-                                              get_eris
-   USE hfx_libint_wrapper_types,        ONLY: libint_t,&
+   USE hfx_libint_wrapper,              ONLY: cp_libint_get_derivs,&
+                                              cp_libint_get_eris,&
+                                              cp_libint_set_params_eri,&
+                                              cp_libint_set_params_eri_deriv,&
+                                              cp_libint_set_params_eri_screen,&
+                                              cp_libint_t,&
+                                              get_ssss_f_val,&
                                               prim_data_f_size
    USE hfx_types,                       ONLY: hfx_pgf_product_list,&
                                               hfx_potential_type
@@ -77,7 +81,7 @@ CONTAINS
       REAL(KIND=dp), INTENT(IN)                          :: Zeta_A, Zeta_B, Zeta_C, Zeta_D
       INTEGER, INTENT(IN)                                :: m_max
       TYPE(hfx_potential_type)                           :: potential_parameter
-      TYPE(libint_t), DIMENSION(1)                       :: libint
+      TYPE(cp_libint_t)                                  :: libint
       REAL(dp)                                           :: R11, R22
 
       INTEGER                                            :: i
@@ -85,8 +89,7 @@ CONTAINS
       REAL(KIND=dp) :: AB(3), AB2, CD(3), CD2, Eta, EtaInv, factor, omega2, omega_corr, &
          omega_corr2, P(3), PQ(3), PQ2, Q(3), R, R1, R2, Rho, RhoInv, S1234, T, tmp, W(3), Zeta, &
          ZetaInv, ZetapEtaInv
-      REAL(KIND=dp), DIMENSION(prim_data_f_size)         :: Fm
-      REAL(KIND=dp), DIMENSION(prim_data_f_size)         :: F
+      REAL(KIND=dp), DIMENSION(prim_data_f_size)         :: F, Fm
 
       Zeta = Zeta_A+Zeta_B
       ZetaInv = 1.0_dp/Zeta
@@ -188,7 +191,7 @@ CONTAINS
 
          DO i = 1, m_max+1
             F(i) = F(i)*(potential_parameter%scale_coulomb+potential_parameter%scale_longrange)- &
-                        Fm(i)*potential_parameter%scale_longrange
+                   Fm(i)*potential_parameter%scale_longrange
          ENDDO
 
          ! longrange
@@ -247,31 +250,8 @@ CONTAINS
          F(i) = F(i)*factor
       ENDDO
 
-      libint(1)%PA_x(1) = P(1)-A(1)
-      libint(1)%PA_y(1) = P(2)-A(2)
-      libint(1)%PA_z(1) = P(3)-A(3)
+      CALL cp_libint_set_params_eri_screen(libint, A, B, C, D, P, Q, W, ZetaInv, EtaInv, ZetapEtaInv, Rho, m_max, F)
 
-      libint(1)%QC_x(1) = Q(1)-C(1)
-      libint(1)%QC_y(1) = Q(2)-C(2)
-      libint(1)%QC_z(1) = Q(3)-C(3)
-
-      libint(1)%WP_x(1) = W(1)-P(1)
-      libint(1)%WP_y(1) = W(2)-P(2)
-      libint(1)%WP_z(1) = W(3)-P(3)
-
-      libint(1)%WQ_x(1) = W(1)-Q(1)
-      libint(1)%WQ_y(1) = W(2)-Q(2)
-      libint(1)%WQ_z(1) = W(3)-Q(3)
-
-      libint(1)%oo2z(1) = 0.5_dp*ZetaInv
-      libint(1)%oo2e(1) = 0.5_dp*EtaInv
-      libint(1)%oo2ze(1) = 0.5_dp*ZetapEtaInv
-      libint(1)%roz(1) = Rho*ZetaInv
-      libint(1)%roe(1) = Rho*EtaInv
-
-#:for m_max in range(0, 25)
-      IF(${m_max}$ .LE. m_max) libint(1)%f_aB_s___0__s___1___TwoPRep_s___0__s___1___Ab__up_${m_max}$(1) = F(${m_max}$+1)
-#:endfor
    END SUBROUTINE build_quartet_data_screen
 
 ! **************************************************************************************************
@@ -293,6 +273,8 @@ CONTAINS
 !> \param P ...
 !> \param Q ...
 !> \param W ...
+!> \param m_max ...
+!> \param F ...
 !> \par History
 !>      03.2007 created [Manuel Guidon]
 !> \author Manuel Guidon
@@ -300,64 +282,22 @@ CONTAINS
    SUBROUTINE build_deriv_data(libint, A, B, C, D, &
                                Zeta_A, Zeta_B, Zeta_C, Zeta_D, &
                                ZetaInv, EtaInv, ZetapEtaInv, Rho, RhoInv, &
-                               P, Q, W)
+                               P, Q, W, m_max, F)
 
-      TYPE(libint_t), DIMENSION(1)                                    :: libint
+      TYPE(cp_libint_t)                                  :: libint
       REAL(KIND=dp), INTENT(IN)                          :: A(3), B(3), C(3), D(3)
       REAL(dp), INTENT(IN)                               :: Zeta_A, Zeta_B, Zeta_C, Zeta_D, ZetaInv, &
                                                             EtaInv, ZetapEtaInv, Rho, RhoInv, &
                                                             P(3), Q(3), W(3)
-      REAL(KIND=dp)                                      :: gammap, gammaq, gammapq, rhop, rhoq
+      INTEGER, INTENT(IN)                                :: m_max
+      REAL(KIND=dp), DIMENSION(:)                        :: F
 
-      MARK_USED(D)
+      MARK_USED(D) ! todo: fix
       MARK_USED(Zeta_C)
       MARK_USED(RhoInv)
-      libint(1)%PA_x(1) = P(1)-A(1)
-      libint(1)%PA_y(1) = P(2)-A(2)
-      libint(1)%PA_z(1) = P(3)-A(3)
 
-      libint(1)%PB_x(1) = P(1)-B(1)
-      libint(1)%PB_y(1) = P(2)-B(2)
-      libint(1)%PB_z(1) = P(3)-B(3)
-
-      libint(1)%QC_x(1) = Q(1)-C(1)
-      libint(1)%QC_y(1) = Q(2)-C(2)
-      libint(1)%QC_z(1) = Q(3)-C(3)
-
-      libint(1)%WP_x(1) = W(1)-P(1)
-      libint(1)%WP_y(1) = W(2)-P(2)
-      libint(1)%WP_z(1) = W(3)-P(3)
-
-      libint(1)%WQ_x(1) = W(1)-Q(1)
-      libint(1)%WQ_y(1) = W(2)-Q(2)
-      libint(1)%WQ_z(1) = W(3)-Q(3)
-
-      libint(1)%two_alpha0_bra(1) = 2.0_dp*Zeta_A
-      libint(1)%two_alpha0_ket(1) = 2.0_dp*Zeta_B
-      libint(1)%two_alpha1_ket(1) = 2.0_dp*Zeta_D
-
-      gammap = Zeta_A + Zeta_B
-      gammaq = Zeta_C + Zeta_D
-      gammapq = gammap*gammaq/(gammap + gammaq)
-      libint(1)%alpha1_rho_over_zeta2(1) = Zeta_A*gammapq/(gammap*gammap)
-      libint(1)%alpha2_rho_over_zeta2(1) = Zeta_B*gammapq/(gammap*gammap)
-      libint(1)%alpha4_rho_over_eta2(1) = Zeta_D*gammapq/(gammaq*gammaq)
-      libint(1)%alpha1_over_zetapluseta(1) = Zeta_A/(gammap+gammaq)
-      libint(1)%alpha2_over_zetapluseta(1) = Zeta_B/(gammap+gammaq)
-      libint(1)%alpha4_over_zetapluseta(1) = Zeta_D/(gammap+gammaq)
-
-      rhop = Zeta_A*Zeta_B/gammap
-      rhoq = Zeta_C*Zeta_D/gammaq
-      libint(1)%rho12_over_alpha1(1) = rhop/Zeta_A
-
-      libint(1)%rho34_over_alpha3(1) = rhoq/Zeta_C
-
-
-      libint(1)%oo2z(1) = 0.5_dp*ZetaInv
-      libint(1)%oo2e(1) = 0.5_dp*EtaInv
-      libint(1)%oo2ze(1) = 0.5_dp*ZetapEtaInv
-      libint(1)%roz(1) = Rho*ZetaInv
-      libint(1)%roe(1) = Rho*EtaInv
+      CALL cp_libint_set_params_eri_deriv(libint, A, B, C, D, P, Q, W, zeta_A, zeta_B, zeta_C, zeta_D, &
+                                          ZetaInv, EtaInv, ZetapEtaInv, Rho, m_max, F)
 
    END SUBROUTINE build_deriv_data
 
@@ -437,7 +377,7 @@ CONTAINS
                                  use_virial, work_virial, work2_virial, primitives_tmp_virial, &
                                  primitives_virial, cell, tmp_max_all_virial)
 
-      TYPE(libint_t), DIMENSION(1)                       :: deriv
+      TYPE(cp_libint_t)                                  :: deriv
       INTEGER, INTENT(IN)                                :: nproducts
       TYPE(hfx_pgf_product_list), DIMENSION(nproducts)   :: pgf_product_list
       INTEGER, INTENT(IN)                                :: n_a, n_b, n_c, n_d, ncoa, ncob, ncoc, &
@@ -516,22 +456,12 @@ CONTAINS
             AB = pgf_product_list(i)%AB
             CD = pgf_product_list(i)%CD
             ZetapEtaInv = pgf_product_list(i)%ZetapEtaInv
-#:for m_max in range(0, 25)
-            IF(${m_max}$ .LE. m_max) deriv(1)%f_aB_s___0__s___1___TwoPRep_s___0__s___1___Ab__up_${m_max}$(1) &
-               = pgf_product_list(i)%Fm(${m_max}$+1)
-#:endfor
 
             CALL build_deriv_data(deriv, A, B, C, D, &
                                   Zeta_A, Zeta_B, Zeta_C, Zeta_D, &
                                   ZetaInv, EtaInv, ZetapEtaInv, Rho, RhoInv, &
-                                  P, Q, W)
-            deriv(1)%AB_x(1) = AB(1)
-            deriv(1)%AB_y(1) = AB(2)
-            deriv(1)%AB_z(1) = AB(3)
-            deriv(1)%CD_x(1) = CD(1)
-            deriv(1)%CD_y(1) = CD(2)
-            deriv(1)%CD_z(1) = CD(3)
-            CALL get_derivs(n_d, n_c, n_b, n_a, deriv, work_forces, a_mysize)
+                                  P, Q, W, m_max, pgf_product_list(i)%Fm)
+            CALL cp_libint_get_derivs(n_d, n_c, n_b, n_a, deriv, work_forces, a_mysize)
             DO k = 4, 6
                DO j = 1, mysize
                   work_forces(j, k) = -1.0_dp*(work_forces(j, k-3)+ &
@@ -621,22 +551,12 @@ CONTAINS
             AB = pgf_product_list(i)%AB
             CD = pgf_product_list(i)%CD
             ZetapEtaInv = pgf_product_list(i)%ZetapEtaInv
-#:for m_max in range(0, 25)
-            IF(${m_max}$ .LE. m_max) deriv(1)%f_aB_s___0__s___1___TwoPRep_s___0__s___1___Ab__up_${m_max}$(1) &
-               = pgf_product_list(i)%Fm(${m_max}$+1)
-#:endfor
 
             CALL build_deriv_data(deriv, B, A, C, D, &
                                   Zeta_B, Zeta_A, Zeta_C, Zeta_D, &
                                   ZetaInv, EtaInv, ZetapEtaInv, Rho, RhoInv, &
-                                  P, Q, W)
-            deriv(1)%AB_x(1) = -AB(1) !B-A
-            deriv(1)%AB_y(1) = -AB(2) !B-A
-            deriv(1)%AB_z(1) = -AB(3) !B-A
-            deriv(1)%CD_x(1) = CD(1) !C-D
-            deriv(1)%CD_y(1) = CD(2) !C-D
-            deriv(1)%CD_z(1) = CD(3) !C-D
-            CALL get_derivs(n_d, n_c, n_a, n_b, deriv, work_forces, a_mysize)
+                                  P, Q, W, m_max, pgf_product_list(i)%Fm)
+            CALL cp_libint_get_derivs(n_d, n_c, n_a, n_b, deriv, work_forces, a_mysize)
             DO k = 4, 6
                DO j = 1, mysize
                   work_forces(j, k) = -1.0_dp*(work_forces(j, k-3)+ &
@@ -726,22 +646,12 @@ CONTAINS
             AB = pgf_product_list(i)%AB
             CD = pgf_product_list(i)%CD
             ZetapEtaInv = pgf_product_list(i)%ZetapEtaInv
-#:for m_max in range(0, 25)
-            IF(${m_max}$ .LE. m_max) deriv(1)%f_aB_s___0__s___1___TwoPRep_s___0__s___1___Ab__up_${m_max}$(1) &
-               = pgf_product_list(i)%Fm(${m_max}$+1)
-#:endfor
 
             CALL build_deriv_data(deriv, A, B, D, C, &
                                   Zeta_A, Zeta_B, Zeta_D, Zeta_C, &
                                   ZetaInv, EtaInv, ZetapEtaInv, Rho, RhoInv, &
-                                  P, Q, W)
-            deriv(1)%AB_x(1) = AB(1) !A-B
-            deriv(1)%AB_y(1) = AB(2) !A-B
-            deriv(1)%AB_z(1) = AB(3) !A-B
-            deriv(1)%CD_x(1) = -CD(1) !D-C
-            deriv(1)%CD_y(1) = -CD(2) !D-C
-            deriv(1)%CD_z(1) = -CD(3) !D-C
-            CALL get_derivs(n_c, n_d, n_b, n_a, deriv, work_forces, a_mysize)
+                                  P, Q, W, m_max, pgf_product_list(i)%Fm)
+            CALL cp_libint_get_derivs(n_c, n_d, n_b, n_a, deriv, work_forces, a_mysize)
             DO k = 4, 6
                DO j = 1, mysize
                   work_forces(j, k) = -1.0_dp*(work_forces(j, k-3)+ &
@@ -831,21 +741,11 @@ CONTAINS
             AB = pgf_product_list(i)%AB
             CD = pgf_product_list(i)%CD
             ZetapEtaInv = pgf_product_list(i)%ZetapEtaInv
-#:for m_max in range(0, 25)
-            IF(${m_max}$ .LE. m_max) deriv(1)%f_aB_s___0__s___1___TwoPRep_s___0__s___1___Ab__up_${m_max}$(1) &
-               = pgf_product_list(i)%Fm(${m_max}$+1)
-#:endfor
             CALL build_deriv_data(deriv, B, A, D, C, &
                                   Zeta_B, Zeta_A, Zeta_D, Zeta_C, &
                                   ZetaInv, EtaInv, ZetapEtaInv, Rho, RhoInv, &
-                                  P, Q, W)
-            deriv(1)%AB_x(1) = -AB(1) !B-A
-            deriv(1)%AB_y(1) = -AB(2) !B-A
-            deriv(1)%AB_z(1) = -AB(3) !B-A
-            deriv(1)%CD_x(1) = -CD(1) !D-C
-            deriv(1)%CD_y(1) = -CD(2) !D-C
-            deriv(1)%CD_z(1) = -CD(3) !D-C
-            CALL get_derivs(n_c, n_d, n_a, n_b, deriv, work_forces, a_mysize)
+                                  P, Q, W, m_max, pgf_product_list(i)%Fm)
+            CALL cp_libint_get_derivs(n_c, n_d, n_a, n_b, deriv, work_forces, a_mysize)
             DO k = 4, 6
                DO j = 1, mysize
                   work_forces(j, k) = -1.0_dp*(work_forces(j, k-3)+ &
@@ -935,21 +835,11 @@ CONTAINS
             AB = pgf_product_list(i)%AB
             CD = pgf_product_list(i)%CD
             ZetapEtaInv = pgf_product_list(i)%ZetapEtaInv
-#:for m_max in range(0, 25)
-            IF(${m_max}$ .LE. m_max) deriv(1)%f_aB_s___0__s___1___TwoPRep_s___0__s___1___Ab__up_${m_max}$(1) &
-               = pgf_product_list(i)%Fm(${m_max}$+1)
-#:endfor
             CALL build_deriv_data(deriv, C, D, A, B, &
                                   Zeta_C, Zeta_D, Zeta_A, Zeta_B, &
                                   EtaInv, ZetaInv, ZetapEtaInv, Rho, RhoInv, &
-                                  Q, P, W)
-            deriv(1)%AB_x(1) = CD(1) !C-D
-            deriv(1)%AB_y(1) = CD(2) !C-D
-            deriv(1)%AB_z(1) = CD(3) !C-D
-            deriv(1)%CD_x(1) = AB(1) !A-B
-            deriv(1)%CD_y(1) = AB(2) !A-B
-            deriv(1)%CD_z(1) = AB(3) !A-B
-            CALL get_derivs(n_b, n_a, n_d, n_c, deriv, work_forces, a_mysize)
+                                  Q, P, W, m_max, pgf_product_list(i)%Fm)
+            CALL cp_libint_get_derivs(n_b, n_a, n_d, n_c, deriv, work_forces, a_mysize)
             DO k = 4, 6
                DO j = 1, mysize
                   work_forces(j, k) = -1.0_dp*(work_forces(j, k-3)+ &
@@ -1039,22 +929,12 @@ CONTAINS
             AB = pgf_product_list(i)%AB
             CD = pgf_product_list(i)%CD
             ZetapEtaInv = pgf_product_list(i)%ZetapEtaInv
-#:for m_max in range(0, 25)
-            IF(${m_max}$ .LE. m_max) deriv(1)%f_aB_s___0__s___1___TwoPRep_s___0__s___1___Ab__up_${m_max}$(1) &
-               = pgf_product_list(i)%Fm(${m_max}$+1)
-#:endfor
 
             CALL build_deriv_data(deriv, C, D, B, A, &
                                   Zeta_C, Zeta_D, Zeta_B, Zeta_A, &
                                   EtaInv, ZetaInv, ZetapEtaInv, Rho, RhoInv, &
-                                  Q, P, W)
-            deriv(1)%AB_x(1) = CD(1) !C-D
-            deriv(1)%AB_y(1) = CD(2) !C-D
-            deriv(1)%AB_z(1) = CD(3) !C-D
-            deriv(1)%CD_x(1) = -AB(1) !B-A
-            deriv(1)%CD_y(1) = -AB(2) !B-A
-            deriv(1)%CD_z(1) = -AB(3) !B-A
-            CALL get_derivs(n_a, n_b, n_d, n_c, deriv, work_forces, a_mysize)
+                                  Q, P, W, m_max, pgf_product_list(i)%Fm)
+            CALL cp_libint_get_derivs(n_a, n_b, n_d, n_c, deriv, work_forces, a_mysize)
             DO k = 4, 6
                DO j = 1, mysize
                   work_forces(j, k) = -1.0_dp*(work_forces(j, k-3)+ &
@@ -1144,22 +1024,12 @@ CONTAINS
             AB = pgf_product_list(i)%AB
             CD = pgf_product_list(i)%CD
             ZetapEtaInv = pgf_product_list(i)%ZetapEtaInv
-#:for m_max in range(0, 25)
-            IF(${m_max}$ .LE. m_max) deriv(1)%f_aB_s___0__s___1___TwoPRep_s___0__s___1___Ab__up_${m_max}$(1) &
-               = pgf_product_list(i)%Fm(${m_max}$+1)
-#:endfor
 
             CALL build_deriv_data(deriv, D, C, A, B, &
                                   Zeta_D, Zeta_C, Zeta_A, Zeta_B, &
                                   EtaInv, ZetaInv, ZetapEtaInv, Rho, RhoInv, &
-                                  Q, P, W)
-            deriv(1)%AB_x(1) = -CD(1) !D-C
-            deriv(1)%AB_y(1) = -CD(2) !D-C
-            deriv(1)%AB_z(1) = -CD(3) !D-C
-            deriv(1)%CD_x(1) = AB(1) !A-B
-            deriv(1)%CD_y(1) = AB(2) !A-B
-            deriv(1)%CD_z(1) = AB(3) !A-B
-            CALL get_derivs(n_b, n_a, n_c, n_d, deriv, work_forces, a_mysize)
+                                  Q, P, W, m_max, pgf_product_list(i)%Fm)
+            CALL cp_libint_get_derivs(n_b, n_a, n_c, n_d, deriv, work_forces, a_mysize)
             DO k = 4, 6
                DO j = 1, mysize
                   work_forces(j, k) = -1.0_dp*(work_forces(j, k-3)+ &
@@ -1249,22 +1119,12 @@ CONTAINS
             AB = pgf_product_list(i)%AB
             CD = pgf_product_list(i)%CD
             ZetapEtaInv = pgf_product_list(i)%ZetapEtaInv
-#:for m_max in range(0, 25)
-            IF(${m_max}$ .LE. m_max) deriv(1)%f_aB_s___0__s___1___TwoPRep_s___0__s___1___Ab__up_${m_max}$(1) &
-               = pgf_product_list(i)%Fm(${m_max}$+1)
-#:endfor
 
             CALL build_deriv_data(deriv, D, C, B, A, &
                                   Zeta_D, Zeta_C, Zeta_B, Zeta_A, &
                                   EtaInv, ZetaInv, ZetapEtaInv, Rho, RhoInv, &
-                                  Q, P, W)
-            deriv(1)%AB_x(1) = -CD(1) !D-C
-            deriv(1)%AB_y(1) = -CD(2) !D-C
-            deriv(1)%AB_z(1) = -CD(3) !D-C
-            deriv(1)%CD_x(1) = -AB(1) !B-A
-            deriv(1)%CD_y(1) = -AB(2) !B-A
-            deriv(1)%CD_z(1) = -AB(3) !B-A
-            CALL get_derivs(n_a, n_b, n_c, n_d, deriv, work_forces, a_mysize)
+                                  Q, P, W, m_max, pgf_product_list(i)%Fm)
+            CALL cp_libint_get_derivs(n_a, n_b, n_c, n_d, deriv, work_forces, a_mysize)
             DO k = 4, 6
                DO j = 1, mysize
                   work_forces(j, k) = -1.0_dp*(work_forces(j, k-3)+ &
@@ -1426,7 +1286,7 @@ CONTAINS
                                   max_val, potential_parameter, R1, R2, &
                                   p_work)
 
-      TYPE(libint_t), DIMENSION(1)                       :: libint
+      TYPE(cp_libint_t)                                  :: libint
       REAL(dp), INTENT(IN)                               :: A(3), B(3), C(3), D(3), Zeta_A, Zeta_B, &
                                                             Zeta_C, Zeta_D
       INTEGER, INTENT(IN)                                :: n_a, n_b, n_c, n_d
@@ -1457,15 +1317,8 @@ CONTAINS
          CASE (1)
             CALL build_quartet_data_screen(A, B, C, D, Zeta_A, Zeta_B, Zeta_C, Zeta_D, m_max, &
                                            potential_parameter, libint, R1, R2)
-            libint(1)%AB_x(1) = A(1)-B(1)
-            libint(1)%AB_y(1) = A(2)-B(2)
-            libint(1)%AB_z(1) = A(3)-B(3)
 
-            libint(1)%CD_x(1) = C(1)-D(1)
-            libint(1)%CD_y(1) = C(2)-D(2)
-            libint(1)%CD_z(1) = C(3)-D(3)
-
-            CALL get_eris(n_d, n_c, n_b, n_a, libint, p_work, a_mysize)
+            CALL cp_libint_get_eris(n_d, n_c, n_b, n_a, libint, p_work, a_mysize)
             DO i = 1, mysize
                max_val = MAX(max_val, ABS(p_work(i)))
             END DO
@@ -1473,15 +1326,7 @@ CONTAINS
             CALL build_quartet_data_screen(B, A, C, D, Zeta_B, Zeta_A, Zeta_C, Zeta_D, m_max, &
                                            potential_parameter, libint, R1, R2)
 
-            libint(1)%AB_x(1) = B(1)-A(1)
-            libint(1)%AB_y(1) = B(2)-A(2)
-            libint(1)%AB_z(1) = B(3)-A(3)
-
-            libint(1)%CD_x(1) = C(1)-D(1)
-            libint(1)%CD_y(1) = C(2)-D(2)
-            libint(1)%CD_z(1) = C(3)-D(3)
-
-            CALL get_eris(n_d, n_c, n_a, n_b, libint, p_work, a_mysize)
+            CALL cp_libint_get_eris(n_d, n_c, n_a, n_b, libint, p_work, a_mysize)
             DO i = 1, mysize
                max_val = MAX(max_val, ABS(p_work(i)))
             END DO
@@ -1489,30 +1334,15 @@ CONTAINS
             CALL build_quartet_data_screen(A, B, D, C, Zeta_A, Zeta_B, Zeta_D, Zeta_C, m_max, &
                                            potential_parameter, libint, R1, R2)
 
-            libint(1)%AB_x(1) = A(1)-B(1)
-            libint(1)%AB_y(1) = A(2)-B(2)
-            libint(1)%AB_z(1) = A(3)-B(3)
-
-            libint(1)%CD_x(1) = D(1)-C(1)
-            libint(1)%CD_y(1) = D(2)-C(2)
-            libint(1)%CD_z(1) = D(3)-C(3)
-
-            CALL get_eris(n_c, n_d, n_b, n_a, libint, p_work, a_mysize)
+            CALL cp_libint_get_eris(n_c, n_d, n_b, n_a, libint, p_work, a_mysize)
             DO i = 1, mysize
                max_val = MAX(max_val, ABS(p_work(i)))
             END DO
          CASE (4)
             CALL build_quartet_data_screen(B, A, D, C, Zeta_B, Zeta_A, Zeta_D, Zeta_C, m_max, &
                                            potential_parameter, libint, R1, R2)
-            libint(1)%AB_x(1) = B(1)-A(1)
-            libint(1)%AB_y(1) = B(2)-A(2)
-            libint(1)%AB_z(1) = B(3)-A(3)
 
-            libint(1)%CD_x(1) = D(1)-C(1)
-            libint(1)%CD_y(1) = D(2)-C(2)
-            libint(1)%CD_z(1) = D(3)-C(3)
-
-            CALL get_eris(n_c, n_d, n_a, n_b, libint, p_work, a_mysize)
+            CALL cp_libint_get_eris(n_c, n_d, n_a, n_b, libint, p_work, a_mysize)
             DO i = 1, mysize
                max_val = MAX(max_val, ABS(p_work(i)))
             END DO
@@ -1520,15 +1350,7 @@ CONTAINS
             CALL build_quartet_data_screen(C, D, A, B, Zeta_C, Zeta_D, Zeta_A, Zeta_B, m_max, &
                                            potential_parameter, libint, R1, R2)
 
-            libint(1)%AB_x(1) = C(1)-D(1)
-            libint(1)%AB_y(1) = C(2)-D(2)
-            libint(1)%AB_z(1) = C(3)-D(3)
-
-            libint(1)%CD_x(1) = A(1)-B(1)
-            libint(1)%CD_y(1) = A(2)-B(2)
-            libint(1)%CD_z(1) = A(3)-B(3)
-
-            CALL get_eris(n_b, n_a, n_d, n_c, libint, p_work, a_mysize)
+            CALL cp_libint_get_eris(n_b, n_a, n_d, n_c, libint, p_work, a_mysize)
             DO i = 1, mysize
                max_val = MAX(max_val, ABS(p_work(i)))
             END DO
@@ -1536,15 +1358,7 @@ CONTAINS
             CALL build_quartet_data_screen(C, D, B, A, Zeta_C, Zeta_D, Zeta_B, Zeta_A, m_max, &
                                            potential_parameter, libint, R1, R2)
 
-            libint(1)%AB_x(1) = C(1)-D(1)
-            libint(1)%AB_y(1) = C(2)-D(2)
-            libint(1)%AB_z(1) = C(3)-D(3)
-
-            libint(1)%CD_x(1) = B(1)-A(1)
-            libint(1)%CD_y(1) = B(2)-A(2)
-            libint(1)%CD_z(1) = B(3)-A(3)
-
-            CALL get_eris(n_a, n_b, n_d, n_c, libint, p_work, a_mysize)
+            CALL cp_libint_get_eris(n_a, n_b, n_d, n_c, libint, p_work, a_mysize)
             DO i = 1, mysize
                max_val = MAX(max_val, ABS(p_work(i)))
             END DO
@@ -1552,15 +1366,7 @@ CONTAINS
             CALL build_quartet_data_screen(D, C, A, B, Zeta_D, Zeta_C, Zeta_A, Zeta_B, m_max, &
                                            potential_parameter, libint, R1, R2)
 
-            libint(1)%AB_x(1) = D(1)-C(1)
-            libint(1)%AB_y(1) = D(2)-C(2)
-            libint(1)%AB_z(1) = D(3)-C(3)
-
-            libint(1)%CD_x(1) = A(1)-B(1)
-            libint(1)%CD_y(1) = A(2)-B(2)
-            libint(1)%CD_z(1) = A(3)-B(3)
-
-            CALL get_eris(n_b, n_a, n_c, n_d, libint, p_work, a_mysize)
+            CALL cp_libint_get_eris(n_b, n_a, n_c, n_d, libint, p_work, a_mysize)
             DO i = 1, mysize
                max_val = MAX(max_val, ABS(p_work(i)))
             END DO
@@ -1568,15 +1374,7 @@ CONTAINS
             CALL build_quartet_data_screen(D, C, B, A, Zeta_D, Zeta_C, Zeta_B, Zeta_A, m_max, &
                                            potential_parameter, libint, R1, R2)
 
-            libint(1)%AB_x(1) = D(1)-C(1)
-            libint(1)%AB_y(1) = D(2)-C(2)
-            libint(1)%AB_z(1) = D(3)-C(3)
-
-            libint(1)%CD_x(1) = B(1)-A(1)
-            libint(1)%CD_y(1) = B(2)-A(2)
-            libint(1)%CD_z(1) = B(3)-A(3)
-
-            CALL get_eris(n_a, n_b, n_c, n_d, libint, p_work, a_mysize)
+            CALL cp_libint_get_eris(n_a, n_b, n_c, n_d, libint, p_work, a_mysize)
             DO i = 1, mysize
                max_val = MAX(max_val, ABS(p_work(i)))
             END DO
@@ -1584,7 +1382,7 @@ CONTAINS
       ELSE
          CALL build_quartet_data_screen(A, B, C, D, Zeta_A, Zeta_B, Zeta_C, Zeta_D, m_max, &
                                         potential_parameter, libint, R1, R2)
-         max_val = ABS(libint(1)%f_aB_s___0__s___1___TwoPRep_s___0__s___1___Ab__up_0(1))
+         max_val = ABS(get_ssss_f_val(libint))
       END IF
 
    END SUBROUTINE evaluate_eri_screen
@@ -1652,7 +1450,7 @@ CONTAINS
                            sphi_a, sphi_b, sphi_c, sphi_d, work, work2, buffer1, buffer2, &
                            primitives_tmp, p_work)
 
-      TYPE(libint_t), DIMENSION(1)                                      :: libint
+      TYPE(cp_libint_t)                                  :: libint
       INTEGER, INTENT(IN)                                :: nproducts
       TYPE(hfx_pgf_product_list), DIMENSION(nproducts)   :: pgf_product_list
       INTEGER, INTENT(IN)                                :: n_a, n_b, n_c, n_d, ncoa, ncob, ncoc, &
@@ -1715,22 +1513,9 @@ CONTAINS
                ZetapEtaInv = pgf_product_list(i)%ZetapEtaInv
                F(1:m_max+1) = pgf_product_list(i)%Fm(1:m_max+1)
 
-#:for m_max in range(0, 25)
-               IF(${m_max}$ .LE. m_max) libint(1)%f_aB_s___0__s___1___TwoPRep_s___0__s___1___Ab__up_${m_max}$(1) = F(${m_max}$+1)
-#:endfor
-
-               CALL build_quartet_data(libint(1), A, C, &
-                                       ZetaInv, EtaInv, ZetapEtaInv, Rho, &
-                                       P, Q, W)
-               libint(1)%AB_x(1) = AB(1)
-               libint(1)%AB_y(1) = AB(2)
-               libint(1)%AB_z(1) = AB(3)
-
-               libint(1)%CD_x(1) = CD(1)
-               libint(1)%CD_y(1) = CD(2)
-               libint(1)%CD_z(1) = CD(3)
-
-               CALL get_eris(n_d, n_c, n_b, n_a, libint, p_work, a_mysize)
+               CALL build_quartet_data(libint, A, B, C, D, ZetaInv, EtaInv, ZetapEtaInv, Rho, &
+                                       P, Q, W, m_max, F)
+               CALL cp_libint_get_eris(n_d, n_c, n_b, n_a, libint, p_work, a_mysize)
                work(1:mysize) = work(1:mysize)+p_work(1:mysize)
                neris = neris+mysize
             END DO
@@ -1771,20 +1556,11 @@ CONTAINS
                ZetapEtaInv = pgf_product_list(i)%ZetapEtaInv
                F(1:m_max+1) = pgf_product_list(i)%Fm(1:m_max+1)
 
-#:for m_max in range(0, 25)
-               IF(${m_max}$ .LE. m_max) libint(1)%f_aB_s___0__s___1___TwoPRep_s___0__s___1___Ab__up_${m_max}$(1) = F(${m_max}$+1)
-#:endfor
-
-               CALL build_quartet_data(libint, B, C, &
+               CALL build_quartet_data(libint, B, A, C, D, &
                                        ZetaInv, EtaInv, ZetapEtaInv, Rho, &
-                                       P, Q, W)
-               libint(1)%AB_x(1) = -AB(1) !B-A
-               libint(1)%AB_y(1) = -AB(2) !B-A
-               libint(1)%AB_z(1) = -AB(3) !B-A
-               libint(1)%CD_x(1) = CD(1) !C-D
-               libint(1)%CD_y(1) = CD(2) !C-D
-               libint(1)%CD_z(1) = CD(3) !C-D
-               CALL get_eris(n_d, n_c, n_a, n_b, libint, p_work, a_mysize)
+                                       P, Q, W, m_max, F)
+
+               CALL cp_libint_get_eris(n_d, n_c, n_a, n_b, libint, p_work, a_mysize)
                work(1:mysize) = work(1:mysize)+p_work(1:mysize)
                neris = neris+mysize
             END DO
@@ -1824,22 +1600,12 @@ CONTAINS
                CD = pgf_product_list(i)%CD
                ZetapEtaInv = pgf_product_list(i)%ZetapEtaInv
                F(1:m_max+1) = pgf_product_list(i)%Fm(1:m_max+1)
-#:for m_max in range(0, 25)
-               IF(${m_max}$ .LE. m_max) libint(1)%f_aB_s___0__s___1___TwoPRep_s___0__s___1___Ab__up_${m_max}$(1) = F(${m_max}$+1)
-#:endfor
 
-               CALL build_quartet_data(libint, A, D, &
+               CALL build_quartet_data(libint, A, B, D, C, &
                                        ZetaInv, EtaInv, ZetapEtaInv, Rho, &
-                                       P, Q, W)
-               libint(1)%AB_x(1) = AB(1)
-               libint(1)%AB_y(1) = AB(2)
-               libint(1)%AB_z(1) = AB(3)
+                                       P, Q, W, m_max, F)
 
-               libint(1)%CD_x(1) = -CD(1)
-               libint(1)%CD_y(1) = -CD(2)
-               libint(1)%CD_z(1) = -CD(3)
-
-               CALL get_eris(n_c, n_d, n_b, n_a, libint, p_work, a_mysize)
+               CALL cp_libint_get_eris(n_c, n_d, n_b, n_a, libint, p_work, a_mysize)
                work(1:mysize) = work(1:mysize)+p_work(1:mysize)
                neris = neris+mysize
             END DO
@@ -1879,22 +1645,12 @@ CONTAINS
                CD = pgf_product_list(i)%CD
                ZetapEtaInv = pgf_product_list(i)%ZetapEtaInv
                F(1:m_max+1) = pgf_product_list(i)%Fm(1:m_max+1)
-#:for m_max in range(0, 25)
-               IF(${m_max}$ .LE. m_max) libint(1)%f_aB_s___0__s___1___TwoPRep_s___0__s___1___Ab__up_${m_max}$(1) = F(${m_max}$+1)
-#:endfor
 
-               CALL build_quartet_data(libint, B, D, &
+               CALL build_quartet_data(libint, B, A, D, C, &
                                        ZetaInv, EtaInv, ZetapEtaInv, Rho, &
-                                       P, Q, W)
-               libint(1)%AB_x(1) = -AB(1)
-               libint(1)%AB_y(1) = -AB(2)
-               libint(1)%AB_z(1) = -AB(3)
+                                       P, Q, W, m_max, F)
 
-               libint(1)%CD_x(1) = -CD(1)
-               libint(1)%CD_y(1) = -CD(2)
-               libint(1)%CD_z(1) = -CD(3)
-
-               CALL get_eris(n_c, n_d, n_a, n_b, libint, p_work, a_mysize)
+               CALL cp_libint_get_eris(n_c, n_d, n_a, n_b, libint, p_work, a_mysize)
                work(1:mysize) = work(1:mysize)+p_work(1:mysize)
                neris = neris+mysize
             END DO
@@ -1934,23 +1690,12 @@ CONTAINS
                CD = pgf_product_list(i)%CD
                ZetapEtaInv = pgf_product_list(i)%ZetapEtaInv
                F(1:m_max+1) = pgf_product_list(i)%Fm(1:m_max+1)
-#:for m_max in range(0, 25)
-               IF(${m_max}$ .LE. m_max) libint(1)%f_aB_s___0__s___1___TwoPRep_s___0__s___1___Ab__up_${m_max}$(1) = F(${m_max}$+1)
-#:endfor
 
-               CALL build_quartet_data(libint, C, A, &
+               CALL build_quartet_data(libint, C, D, A, B, &
                                        EtaInv, ZetaInv, ZetapEtaInv, Rho, &
-                                       Q, P, W)
+                                       Q, P, W, m_max, F)
 
-               libint(1)%AB_x(1) = CD(1)
-               libint(1)%AB_y(1) = CD(2)
-               libint(1)%AB_z(1) = CD(3)
-
-               libint(1)%CD_x(1) = AB(1)
-               libint(1)%CD_y(1) = AB(2)
-               libint(1)%CD_z(1) = AB(3)
-
-               CALL get_eris(n_b, n_a, n_d, n_c,  libint, p_work, a_mysize)
+               CALL cp_libint_get_eris(n_b, n_a, n_d, n_c, libint, p_work, a_mysize)
                work(1:mysize) = work(1:mysize)+p_work(1:mysize)
                neris = neris+mysize
             END DO
@@ -1990,22 +1735,12 @@ CONTAINS
                CD = pgf_product_list(i)%CD
                ZetapEtaInv = pgf_product_list(i)%ZetapEtaInv
                F(1:m_max+1) = pgf_product_list(i)%Fm(1:m_max+1)
-#:for m_max in range(0, 25)
-               IF(${m_max}$ .LE. m_max) libint(1)%f_aB_s___0__s___1___TwoPRep_s___0__s___1___Ab__up_${m_max}$(1) = F(${m_max}$+1)
-#:endfor
 
-               CALL build_quartet_data(libint, C, B, &
+               CALL build_quartet_data(libint, C, D, B, A, &
                                        EtaInv, ZetaInv, ZetapEtaInv, Rho, &
-                                       Q, P, W)
-               libint(1)%AB_x(1) = CD(1)
-               libint(1)%AB_y(1) = CD(2)
-               libint(1)%AB_z(1) = CD(3)
+                                       Q, P, W, m_max, F)
 
-               libint(1)%CD_x(1) = -AB(1)
-               libint(1)%CD_y(1) = -AB(2)
-               libint(1)%CD_z(1) = -AB(3)
-
-               CALL get_eris(n_a, n_b, n_d, n_c, libint, p_work, a_mysize)
+               CALL cp_libint_get_eris(n_a, n_b, n_d, n_c, libint, p_work, a_mysize)
                work(1:mysize) = work(1:mysize)+p_work(1:mysize)
                neris = neris+mysize
             END DO
@@ -2045,22 +1780,12 @@ CONTAINS
                CD = pgf_product_list(i)%CD
                ZetapEtaInv = pgf_product_list(i)%ZetapEtaInv
                F(1:m_max+1) = pgf_product_list(i)%Fm(1:m_max+1)
-#:for m_max in range(0, 25)
-               IF(${m_max}$ .LE. m_max) libint(1)%f_aB_s___0__s___1___TwoPRep_s___0__s___1___Ab__up_${m_max}$(1) = F(${m_max}$+1)
-#:endfor
 
-               CALL build_quartet_data(libint, D, A, &
+               CALL build_quartet_data(libint, D, C, A, B, &
                                        EtaInv, ZetaInv, ZetapEtaInv, Rho, &
-                                       Q, P, W)
-               libint(1)%AB_x(1) = -CD(1)
-               libint(1)%AB_y(1) = -CD(2)
-               libint(1)%AB_z(1) = -CD(3)
+                                       Q, P, W, m_max, F)
 
-               libint(1)%CD_x(1) = AB(1)
-               libint(1)%CD_y(1) = AB(2)
-               libint(1)%CD_z(1) = AB(3)
-
-               CALL get_eris(n_b, n_a, n_c, n_d, libint, p_work, a_mysize)
+               CALL cp_libint_get_eris(n_b, n_a, n_c, n_d, libint, p_work, a_mysize)
                work(1:mysize) = work(1:mysize)+p_work(1:mysize)
                neris = neris+mysize
             END DO
@@ -2100,22 +1825,12 @@ CONTAINS
                CD = pgf_product_list(i)%CD
                ZetapEtaInv = pgf_product_list(i)%ZetapEtaInv
                F(1:m_max+1) = pgf_product_list(i)%Fm(1:m_max+1)
-#:for m_max in range(0, 25)
-               IF(${m_max}$ .LE. m_max) libint(1)%f_aB_s___0__s___1___TwoPRep_s___0__s___1___Ab__up_${m_max}$(1) = F(${m_max}$+1)
-#:endfor
 
-               CALL build_quartet_data(libint, D, B, &
+               CALL build_quartet_data(libint, D, C, B, A, &
                                        EtaInv, ZetaInv, ZetapEtaInv, Rho, &
-                                       Q, P, W)
-               libint(1)%AB_x(1) = -CD(1)
-               libint(1)%AB_y(1) = -CD(2)
-               libint(1)%AB_z(1) = -CD(3)
+                                       Q, P, W, m_max, F)
 
-               libint(1)%CD_x(1) = -AB(1)
-               libint(1)%CD_y(1) = -AB(2)
-               libint(1)%CD_z(1) = -AB(3)
-
-               CALL get_eris(n_a, n_b, n_c, n_d, libint, p_work, a_mysize)
+               CALL cp_libint_get_eris(n_a, n_b, n_c, n_d, libint, p_work, a_mysize)
                work(1:mysize) = work(1:mysize)+p_work(1:mysize)
                neris = neris+mysize
             END DO
@@ -2154,13 +1869,10 @@ CONTAINS
             W = pgf_product_list(i)%W
             ZetapEtaInv = pgf_product_list(i)%ZetapEtaInv
             F(1:m_max+1) = pgf_product_list(i)%Fm(1:m_max+1)
-#:for m_max in range(0, 25)
-               IF(${m_max}$ .LE. m_max) libint(1)%f_aB_s___0__s___1___TwoPRep_s___0__s___1___Ab__up_${m_max}$(1) = F(${m_max}$+1)
-#:endfor
 
-            CALL build_quartet_data(libint, A, C, &
+            CALL build_quartet_data(libint, A, B, C, D, & !todo: check
                                     ZetaInv, EtaInv, ZetapEtaInv, Rho, &
-                                    P, Q, W)
+                                    P, Q, W, m_max, F)
             work(1) = work(1)+F(1)
             neris = neris+mysize
          END DO
@@ -2196,49 +1908,34 @@ CONTAINS
 !> \brief Fill data structure used in libint
 !> \param libint ...
 !> \param A ...
+!> \param B ...
 !> \param C ...
+!> \param D ...
 !> \param ZetaInv ...
 !> \param EtaInv ...
 !> \param ZetapEtaInv ...
 !> \param Rho ...
-!> \param RhoInv ...
 !> \param P ...
 !> \param Q ...
 !> \param W ...
+!> \param m_max ...
+!> \param F ...
 !> \par History
 !>      03.2007 created [Manuel Guidon]
 !> \author Manuel Guidon
 ! **************************************************************************************************
-   SUBROUTINE build_quartet_data(libint, A, C, &
+   SUBROUTINE build_quartet_data(libint, A, B, C, D, &
                                  ZetaInv, EtaInv, ZetapEtaInv, Rho, &
-                                 P, Q, W)
+                                 P, Q, W, m_max, F)
 
-      TYPE(libint_t), DIMENSION(1)                                    :: libint
-      REAL(KIND=dp), INTENT(IN)                          :: A(3), C(3)
-      REAL(dp), INTENT(IN)                               :: ZetaInv, EtaInv, ZetapEtaInv, Rho, &
-                                                            P(3), Q(3), W(3)
+      TYPE(cp_libint_t)                                  :: libint
+      REAL(KIND=dp), INTENT(IN)                          :: A(3), B(3), C(3), D(3)
+      REAL(dp), INTENT(IN)                               :: ZetaInv, EtaInv, ZetapEtaInv, Rho, P(3), &
+                                                            Q(3), W(3)
+      INTEGER, INTENT(IN)                                :: m_max
+      REAL(KIND=dp), DIMENSION(:)                        :: F
 
-      libint(1)%PA_x(1) = P(1)-A(1)
-      libint(1)%PA_y(1) = P(2)-A(2)
-      libint(1)%PA_z(1) = P(3)-A(3)
-
-      libint(1)%QC_x(1) = Q(1)-C(1)
-      libint(1)%QC_y(1) = Q(2)-C(2)
-      libint(1)%QC_z(1) = Q(3)-C(3)
-
-      libint(1)%WP_x(1) = W(1) - P(1)
-      libint(1)%WP_y(1) = W(2) - P(2)
-      libint(1)%WP_z(1) = W(3) - P(3)
-
-      libint(1)%WQ_x(1) = W(1) - Q(1)
-      libint(1)%WQ_y(1) = W(2) - Q(2)
-      libint(1)%WQ_z(1) = W(3) - Q(3)
-
-      libint(1)%oo2z(1) = 0.5_dp*ZetaInv
-      libint(1)%oo2e(1) = 0.5_dp*EtaInv
-      libint(1)%oo2ze(1) = 0.5_dp*ZetapEtaInv
-      libint(1)%roz(1) = Rho*ZetaInv
-      libint(1)%roe(1) = Rho*EtaInv
+      CALL cp_libint_set_params_eri(libint, A, B, C, D, ZetaInv, EtaInv, ZetapEtaInv, Rho, P, Q, W, m_max, F)
    END SUBROUTINE build_quartet_data
 
 END MODULE hfx_libint_interface

@@ -38,7 +38,7 @@ MODULE mp2_ri_libint
    USE cp_para_types,                   ONLY: cp_para_env_type
    USE gamma,                           ONLY: init_md_ftable
    USE hfx_energy_potential,            ONLY: coulomb4
-   USE hfx_libint_wrapper_types,        ONLY: libint_t
+   USE hfx_libint_wrapper,              ONLY: cp_libint_t
    USE hfx_pair_list_methods,           ONLY: build_pair_list_mp2
    USE hfx_screening_methods,           ONLY: calc_pair_dist_radii,&
                                               calc_screening_functions
@@ -477,6 +477,7 @@ CONTAINS
       TYPE(cp_blacs_env_type), POINTER                   :: blacs_env
       TYPE(cp_fm_struct_type), POINTER                   :: fm_struct_L
       TYPE(cp_fm_type), POINTER                          :: fm_matrix_L
+      TYPE(cp_libint_t)                                  :: private_lib
       TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(hfx_basis_info_type), POINTER                 :: basis_info
@@ -500,7 +501,6 @@ CONTAINS
          DIMENSION(:, :, :, :, :, :), POINTER            :: radii_pgf, screen_coeffs_pgf
       TYPE(hfx_screening_type)                           :: screening_parameter
       TYPE(hfx_type), POINTER                            :: actual_x_data, shm_master_x_data
-      TYPE(libint_t), DIMENSION(1)                       :: private_lib
       TYPE(pair_list_type_mp2)                           :: list_kl
       TYPE(pair_set_list_type), ALLOCATABLE, &
          DIMENSION(:)                                    :: set_list_kl

@@ -13,7 +13,7 @@ MODULE hfx_screening_methods
    USE ao_util,                         ONLY: exp_radius_very_extended
    USE basis_set_types,                 ONLY: gto_basis_set_type
    USE hfx_libint_interface,            ONLY: evaluate_eri_screen
-   USE hfx_libint_wrapper_types,        ONLY: libint_t
+   USE hfx_libint_wrapper,              ONLY: cp_libint_t
    USE hfx_types,                       ONLY: hfx_basis_type,&
                                               hfx_p_kind,&
                                               hfx_potential_type,&
@@ -75,7 +75,7 @@ CONTAINS
                       max_val, potential_parameter, tmp_R_1, &
                       rab2, p_work)
 
-      TYPE(libint_t), DIMENSION(1)                       :: lib
+      TYPE(cp_libint_t)                                  :: lib
       REAL(dp), INTENT(IN)                               :: ra(3), rb(3)
       REAL(dp), DIMENSION(:), INTENT(IN)                 :: zeta, zetb
       INTEGER, INTENT(IN)                                :: la_min, la_max, lb_min, lb_max, npgfa, &
@@ -302,7 +302,7 @@ CONTAINS
                                        p_work)
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(hfx_basis_type), DIMENSION(:), POINTER        :: basis_parameter
-      TYPE(libint_t), DIMENSION(1)                       :: lib
+      TYPE(cp_libint_t)                                  :: lib
       TYPE(hfx_potential_type)                           :: potential_parameter
       TYPE(hfx_screen_coeff_type), &
          DIMENSION(:, :, :, :), POINTER                  :: coeffs_set
