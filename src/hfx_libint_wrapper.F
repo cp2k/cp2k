@@ -36,6 +36,10 @@ MODULE hfx_libint_wrapper
 
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'hfx_libint_wrapper'
 
+#if !defined (__LIBINT_MAX_AM)
+#define __LIBINT_MAX_AM 4
+#endif
+
 #if(__LIBINT)
    INTEGER, PARAMETER :: libint_max_am = libint2_max_am_eri
 #else
@@ -98,8 +102,13 @@ CONTAINS
       libint%prv(1)%roz(1) = Rho*ZetaInv
       libint%prv(1)%roe(1) = Rho*EtaInv
 
-#:for m_max in range(0, 25)
-      IF(${m_max}$ .LE. m_max) libint%prv(1)%f_aB_s___0__s___1___TwoPRep_s___0__s___1___Ab__up_${m_max}$(1) = F(${m_max}$+1)
+#:for m_max in range(0, 30)
+#if 4*__LIBINT_MAX_AM > ${m_max}$ - 1
+      IF(${m_max}$ .LE. m_max) &
+         libint%prv(1)%f_aB_s___0__s___1___TwoPRep_s___0__s___1___Ab__up_${m_max}$(1) & ! ERROR: __LIBINT_MAX_AM is too large
+         = F(${m_max}$+1)
+
+#endif
 #:endfor
 
    END SUBROUTINE
@@ -169,8 +178,12 @@ CONTAINS
       libint%prv(1)%roz(1) = Rho*ZetaInv
       libint%prv(1)%roe(1) = Rho*EtaInv
 
-#:for m_max in range(0, 25)
-      IF(${m_max}$ .LE. m_max) libint%prv(1)%f_aB_s___0__s___1___TwoPRep_s___0__s___1___Ab__up_${m_max}$(1) = F(${m_max}$+1)
+#:for m_max in range(0, 30)
+#if 4*__LIBINT_MAX_AM > ${m_max}$ - 1
+      IF(${m_max}$ .LE. m_max) &
+         libint%prv(1)%f_aB_s___0__s___1___TwoPRep_s___0__s___1___Ab__up_${m_max}$(1) & ! ERROR: __LIBINT_MAX_AM is too large
+         = F(${m_max}$+1)
+#endif
 #:endfor
 
 
@@ -214,8 +227,12 @@ CONTAINS
       libint%prv(1)%roz(1) = Rho*ZetaInv
       libint%prv(1)%roe(1) = Rho*EtaInv
 
-#:for m_max in range(0, 25)
-      IF(${m_max}$ .LE. m_max) libint%prv(1)%f_aB_s___0__s___1___TwoPRep_s___0__s___1___Ab__up_${m_max}$(1) = F(${m_max}$+1)
+#:for m_max in range(0, 30)
+#if 4*__LIBINT_MAX_AM > ${m_max}$ - 1
+      IF(${m_max}$ .LE. m_max) &
+         libint%prv(1)%f_aB_s___0__s___1___TwoPRep_s___0__s___1___Ab__up_${m_max}$(1) & ! ERROR: __LIBINT_MAX_AM is too large
+         = F(${m_max}$+1)
+#endif
 #:endfor
 
    END SUBROUTINE
@@ -322,6 +339,9 @@ CONTAINS
       TYPE(cp_libint_t)               :: lib
       INTEGER                         :: max_am
 #if(__LIBINT)
+      IF(max_am > __LIBINT_MAX_AM) THEN
+         CPABORT("__LIBINT_MAX_AM is too small")
+      ENDIF
       CALL libint2_init_eri(lib%prv, max_am, C_NULL_PTR)
 #else
       MARK_USED(lib)
@@ -340,6 +360,9 @@ CONTAINS
       TYPE(cp_libint_t)               :: lib
       INTEGER                         :: max_am
 #if(__LIBINT)
+      IF(max_am > __LIBINT_MAX_AM) THEN
+         CPABORT("__LIBINT_MAX_AM is too small")
+      ENDIF
       CALL libint2_init_eri1(lib%prv, max_am, C_NULL_PTR)
 #else
       MARK_USED(lib)
