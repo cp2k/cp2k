@@ -8,8 +8,6 @@ source "${SCRIPT_DIR}"/signal_trap.sh
 source "${INSTALLDIR}"/toolchain.conf
 source "${INSTALLDIR}"/toolchain.env
 
-with_libsmm=${1:-__INSTALL__}
-
 [ -f "${BUILDDIR}/setup_libsmm" ] && rm "${BUILDDIR}/setup_libsmm"
 
 LIBSMM_CFLAGS=''
