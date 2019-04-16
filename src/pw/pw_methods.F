@@ -36,6 +36,11 @@ MODULE pw_methods
                                               pw_cuda_c1dr3d_3d_ps,&
                                               pw_cuda_r3dc1d_3d,&
                                               pw_cuda_r3dc1d_3d_ps
+   USE pw_fpga,                         ONLY: pw_fpga_c1dr3d_3d_dp,&
+                                              pw_fpga_c1dr3d_3d_sp,&
+                                              pw_fpga_check_bitstream,&
+                                              pw_fpga_r3dc1d_3d_dp,&
+                                              pw_fpga_r3dc1d_3d_sp
    USE pw_grid_types,                   ONLY: HALFSPACE,&
                                               PW_MODE_DISTRIBUTED,&
                                               PW_MODE_LOCAL,&
@@ -1376,6 +1381,30 @@ CONTAINS
          CASE ("FW_R3DC1D")
 #if defined (__PW_CUDA)
             CALL pw_cuda_r3dc1d_3d(pw1, pw2, scale=norm)
+#elif defined (__PW_FPGA)
+            ! check if bitstream for the fft size is present
+            ! if not, perform fft3d in CPU
+            IF (pw_fpga_check_bitstream(n) .EQV. .TRUE.) THEN
+               ALLOCATE (c_out(n(1), n(2), n(3)))
+
+               CALL copy_rc(pw1%cr3d, c_out)
+#if defined (__PW_FPGA_SP)
+               CALL pw_fpga_r3dc1d_3d_sp(n, c_out)
+#else
+               CALL pw_fpga_r3dc1d_3d_dp(n, c_out)
+#endif
+               CALL zdscal(n(1)*n(2)*n(3), norm, c_out, 1)
+
+               CALL pw_gather(pw2, c_out)
+
+               DEALLOCATE (c_out)
+            ELSE
+               ALLOCATE (c_out(n(1), n(2), n(3)))
+               CALL copy_rc(pw1%cr3d, c_out)
+               CALL fft3d(dir, n, c_out, scale=norm, debug=test)
+               CALL pw_gather(pw2, c_out)
+               DEALLOCATE (c_out)
+            ENDIF
 #else
             ALLOCATE (c_out(n(1), n(2), n(3)))
             CALL copy_rc(pw1%cr3d, c_out)
@@ -1403,6 +1432,35 @@ CONTAINS
          CASE ("BW_C1DR3D")
 #if defined (__PW_CUDA)
             CALL pw_cuda_c1dr3d_3d(pw1, pw2, scale=norm)
+#elif defined (__PW_FPGA)
+            ! check if bitstream for the fft size is present
+            ! if not, perform fft3d in CPU
+            IF (pw_fpga_check_bitstream(n) .EQV. .TRUE.) THEN
+               ALLOCATE (c_out(n(1), n(2), n(3)))
+
+               CALL pw_scatter(pw1, c_out)
+               ! transform using FPGA
+#if defined (__PW_FPGA_SP)
+               CALL pw_fpga_c1dr3d_3d_sp(n, c_out)
+#else
+               CALL pw_fpga_c1dr3d_3d_dp(n, c_out)
+#endif
+               CALL zdscal(n(1)*n(2)*n(3), norm, c_out, 1)
+               ! use real part only
+               CALL copy_cr(c_out, pw2%cr3d)
+
+               DEALLOCATE (c_out)
+            ELSE
+               ALLOCATE (c_out(n(1), n(2), n(3)))
+               IF (test .AND. out_unit > 0) WRITE (out_unit, '(A)') "  PW_SCATTER : 3d -> 1d "
+               CALL pw_scatter(pw1, c_out)
+               ! transform
+               CALL fft3d(dir, n, c_out, scale=norm, debug=test)
+               ! use real part only
+               IF (test .AND. out_unit > 0) WRITE (out_unit, '(A)') "  REAL part "
+               CALL copy_cr(c_out, pw2%cr3d)
+               DEALLOCATE (c_out)
+            END IF
 #else
             ALLOCATE (c_out(n(1), n(2), n(3)))
             IF (test .AND. out_unit > 0) WRITE (out_unit, '(A)') "  PW_SCATTER : 3d -> 1d "
@@ -1557,7 +1615,7 @@ CONTAINS
       !..update the space tag for pw2
       pw2%in_space = out_space
 
-      IF (test .AND. pw1%pw_grid%para%group_head .AND. out_unit > 0) THEN
+      IF (test .AND. pw2%pw_grid%para%group_head .AND. out_unit > 0) THEN
          WRITE (out_unit, '(A)') " End of FFT Protocol "
       END IF
       CALL timestop(handle)

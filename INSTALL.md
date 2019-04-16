@@ -183,6 +183,16 @@ SIRIUS is a domain specific library for electronic structure calculations.
   * Furthermore, SIRIUS depends on JSON-Fortran.
   * See https://electronic-structure.github.io/SIRIUS/ for more information.
 
+### 2s. FPGA (optional, plane wave FFT calculations)
+  * Use `-D__PW_FPGA` to enable FPGA support for PW (fft) calculations. Currently tested only for Intel Stratix 10 and Arria 10 GX1150 FPGAs.
+  * Supports single precision and double precision fft calculations. 
+  * Double precision is the default calculation, set using the `-D__PW_FPGA` flag.
+  * Single precision is set using an additional `-D__PW_FPGA_SP` flag along with the `-D__PW_FPGA` flag.
+  * Kernel code has to be synthesized separately and copied to a specific location. For more information, read the *src/pw/fpga/fft3d_kernel/README.md*
+  * Currently supported FFT3d sizes - 16^3, 32^3, 64^3.
+  * Specify the C++ compiler (e.g. `CXX = g++`) to compile the host code.
+  * Include aocl compile flags and `-D__PW_FPGA -D__PW_FPGA_SP` to `CXXFLAGS`, aocl linker flags to `LDFLAGS` and aocl libs to `LIBS`.
+
 ## 3. Compile
 
 ### 3a. ARCH files

@@ -136,6 +136,12 @@ CONTAINS
 #if defined(__PW_CUDA)
       flags = TRIM(flags)//" pw_cuda"
 #endif
+#if defined(__PW_FPGA)
+      flags = TRIM(flags)//" pw_fpga"
+#endif
+#if defined(__PW_FPGA_SP)
+      flags = TRIM(flags)//" pw_fpga_sp"
+#endif
 #if defined(__HAS_PATCHED_CUFFT_70)
       flags = TRIM(flags)//" patched_cufft_70"
 #endif
