@@ -25,6 +25,8 @@ make ARCH="${ARCH}" VERSION="${VERSION}" TESTOPTS="${TESTOPTS}" test
 # As a workaround we'll simply remove the offending files for now.
 rm -fv "/workspace/cp2k/obj/${ARCH}/${VERSION}"/almo_scf_types.gcda
 rm -fv "/workspace/cp2k/obj/${ARCH}/${VERSION}"/mp2_types.gcda
+rm -fv "/workspace/cp2k/obj/${ARCH}/${VERSION}"/exts/*/*.gcda
+
 #cd /tmp
 #for i in /workspace/cp2k/obj/${ARCH}/${VERSION}/*.gcda; do
 #    timeout 30 gcov $i >/dev/null 2>&1 || rm -v $i
